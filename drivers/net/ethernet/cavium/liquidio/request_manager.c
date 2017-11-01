@@ -489,8 +489,6 @@ octeon_flush_iq(struct octeon_device *oct, struct octeon_instr_queue *iq,
 		}
 
 		tot_inst_processed += inst_processed;
-		inst_processed = 0;
-
 	} while (tot_inst_processed < napi_budget);
 
 	if (napi_budget && (tot_inst_processed >= napi_budget))
