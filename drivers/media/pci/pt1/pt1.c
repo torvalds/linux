@@ -116,8 +116,8 @@ static u32 pt1_read_reg(struct pt1 *pt1, int reg)
 	return readl(pt1->regs + reg * 4);
 }
 
-static int pt1_nr_tables = 8;
-module_param_named(nr_tables, pt1_nr_tables, int, 0);
+static unsigned int pt1_nr_tables = 8;
+module_param_named(nr_tables, pt1_nr_tables, uint, 0);
 
 static void pt1_increment_table_count(struct pt1 *pt1)
 {
@@ -443,6 +443,9 @@ static int pt1_init_tables(struct pt1 *pt1)
 	int i, ret;
 	u32 first_pfn, pfn;
 
+	if (!pt1_nr_tables)
+		return 0;
+
 	tables = vmalloc(sizeof(struct pt1_table) * pt1_nr_tables);
 	if (tables == NULL)
 		return -ENOMEM;
@@ -450,12 +453,10 @@ static int pt1_init_tables(struct pt1 *pt1)
 	pt1_init_table_count(pt1);
 
 	i = 0;
-	if (pt1_nr_tables) {
-		ret = pt1_init_table(pt1, &tables[0], &first_pfn);
-		if (ret)
-			goto err;
-		i++;
-	}
+	ret = pt1_init_table(pt1, &tables[0], &first_pfn);
+	if (ret)
+		goto err;
+	i++;
 
 	while (i < pt1_nr_tables) {
 		ret = pt1_init_table(pt1, &tables[i], &pfn);
