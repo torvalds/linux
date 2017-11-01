@@ -1614,6 +1614,10 @@ void intel_engines_park(struct drm_i915_private *i915)
 	enum intel_engine_id id;
 
 	for_each_engine(engine, i915, id) {
+		/* Flush the residual irq tasklets first. */
+		intel_engine_disarm_breadcrumbs(engine);
+		tasklet_kill(&engine->execlists.irq_tasklet);
+
 		/*
 		 * We are committed now to parking the engines, make sure there
 		 * will be no more interrupts arriving later and the engines
@@ -1629,9 +1633,6 @@ void intel_engines_park(struct drm_i915_private *i915)
 
 		if (engine->park)
 			engine->park(engine);
-
-		intel_engine_disarm_breadcrumbs(engine);
-		tasklet_kill(&engine->execlists.irq_tasklet);
 
 		i915_gem_batch_pool_fini(&engine->batch_pool);
 		engine->execlists.no_priolist = false;
