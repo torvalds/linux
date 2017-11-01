@@ -2407,13 +2407,14 @@ i40e_status i40e_aq_get_switch_config(struct i40e_hw *hw,
  * @hw: pointer to the hardware structure
  * @flags: bit flag values to set
  * @valid_flags: which bit flags to set
+ * @mode: cloud filter mode
  * @cmd_details: pointer to command details structure or NULL
  *
  * Set switch configuration bits
  **/
 enum i40e_status_code i40e_aq_set_switch_config(struct i40e_hw *hw,
 						u16 flags,
-						u16 valid_flags,
+						u16 valid_flags, u8 mode,
 				struct i40e_asq_cmd_details *cmd_details)
 {
 	struct i40e_aq_desc desc;
@@ -2425,6 +2426,7 @@ enum i40e_status_code i40e_aq_set_switch_config(struct i40e_hw *hw,
 					  i40e_aqc_opc_set_switch_config);
 	scfg->flags = cpu_to_le16(flags);
 	scfg->valid_flags = cpu_to_le16(valid_flags);
+	scfg->mode = mode;
 	if (hw->flags & I40E_HW_FLAG_802_1AD_CAPABLE) {
 		scfg->switch_tag = cpu_to_le16(hw->switch_tag);
 		scfg->first_tag = cpu_to_le16(hw->first_tag);
@@ -5434,5 +5436,194 @@ i40e_add_pinfo_to_list(struct i40e_hw *hw,
 
 	status = i40e_aq_write_ppp(hw, (void *)sec, sec->data_end,
 				   track_id, &offset, &info, NULL);
+
+	return status;
+}
+
+/**
+ * i40e_aq_add_cloud_filters
+ * @hw: pointer to the hardware structure
+ * @seid: VSI seid to add cloud filters from
+ * @filters: Buffer which contains the filters to be added
+ * @filter_count: number of filters contained in the buffer
+ *
+ * Set the cloud filters for a given VSI.  The contents of the
+ * i40e_aqc_cloud_filters_element_data are filled in by the caller
+ * of the function.
+ *
+ **/
+enum i40e_status_code
+i40e_aq_add_cloud_filters(struct i40e_hw *hw, u16 seid,
+			  struct i40e_aqc_cloud_filters_element_data *filters,
+			  u8 filter_count)
+{
+	struct i40e_aq_desc desc;
+	struct i40e_aqc_add_remove_cloud_filters *cmd =
+	(struct i40e_aqc_add_remove_cloud_filters *)&desc.params.raw;
+	enum i40e_status_code status;
+	u16 buff_len;
+
+	i40e_fill_default_direct_cmd_desc(&desc,
+					  i40e_aqc_opc_add_cloud_filters);
+
+	buff_len = filter_count * sizeof(*filters);
+	desc.datalen = cpu_to_le16(buff_len);
+	desc.flags |= cpu_to_le16((u16)(I40E_AQ_FLAG_BUF | I40E_AQ_FLAG_RD));
+	cmd->num_filters = filter_count;
+	cmd->seid = cpu_to_le16(seid);
+
+	status = i40e_asq_send_command(hw, &desc, filters, buff_len, NULL);
+
+	return status;
+}
+
+/**
+ * i40e_aq_add_cloud_filters_bb
+ * @hw: pointer to the hardware structure
+ * @seid: VSI seid to add cloud filters from
+ * @filters: Buffer which contains the filters in big buffer to be added
+ * @filter_count: number of filters contained in the buffer
+ *
+ * Set the big buffer cloud filters for a given VSI.  The contents of the
+ * i40e_aqc_cloud_filters_element_bb are filled in by the caller of the
+ * function.
+ *
+ **/
+i40e_status
+i40e_aq_add_cloud_filters_bb(struct i40e_hw *hw, u16 seid,
+			     struct i40e_aqc_cloud_filters_element_bb *filters,
+			     u8 filter_count)
+{
+	struct i40e_aq_desc desc;
+	struct i40e_aqc_add_remove_cloud_filters *cmd =
+	(struct i40e_aqc_add_remove_cloud_filters *)&desc.params.raw;
+	i40e_status status;
+	u16 buff_len;
+	int i;
+
+	i40e_fill_default_direct_cmd_desc(&desc,
+					  i40e_aqc_opc_add_cloud_filters);
+
+	buff_len = filter_count * sizeof(*filters);
+	desc.datalen = cpu_to_le16(buff_len);
+	desc.flags |= cpu_to_le16((u16)(I40E_AQ_FLAG_BUF | I40E_AQ_FLAG_RD));
+	cmd->num_filters = filter_count;
+	cmd->seid = cpu_to_le16(seid);
+	cmd->big_buffer_flag = I40E_AQC_ADD_CLOUD_CMD_BB;
+
+	for (i = 0; i < filter_count; i++) {
+		u16 tnl_type;
+		u32 ti;
+
+		tnl_type = (le16_to_cpu(filters[i].element.flags) &
+			   I40E_AQC_ADD_CLOUD_TNL_TYPE_MASK) >>
+			   I40E_AQC_ADD_CLOUD_TNL_TYPE_SHIFT;
+
+		/* Due to hardware eccentricities, the VNI for Geneve is shifted
+		 * one more byte further than normally used for Tenant ID in
+		 * other tunnel types.
+		 */
+		if (tnl_type == I40E_AQC_ADD_CLOUD_TNL_TYPE_GENEVE) {
+			ti = le32_to_cpu(filters[i].element.tenant_id);
+			filters[i].element.tenant_id = cpu_to_le32(ti << 8);
+		}
+	}
+
+	status = i40e_asq_send_command(hw, &desc, filters, buff_len, NULL);
+
+	return status;
+}
+
+/**
+ * i40e_aq_rem_cloud_filters
+ * @hw: pointer to the hardware structure
+ * @seid: VSI seid to remove cloud filters from
+ * @filters: Buffer which contains the filters to be removed
+ * @filter_count: number of filters contained in the buffer
+ *
+ * Remove the cloud filters for a given VSI.  The contents of the
+ * i40e_aqc_cloud_filters_element_data are filled in by the caller
+ * of the function.
+ *
+ **/
+enum i40e_status_code
+i40e_aq_rem_cloud_filters(struct i40e_hw *hw, u16 seid,
+			  struct i40e_aqc_cloud_filters_element_data *filters,
+			  u8 filter_count)
+{
+	struct i40e_aq_desc desc;
+	struct i40e_aqc_add_remove_cloud_filters *cmd =
+	(struct i40e_aqc_add_remove_cloud_filters *)&desc.params.raw;
+	enum i40e_status_code status;
+	u16 buff_len;
+
+	i40e_fill_default_direct_cmd_desc(&desc,
+					  i40e_aqc_opc_remove_cloud_filters);
+
+	buff_len = filter_count * sizeof(*filters);
+	desc.datalen = cpu_to_le16(buff_len);
+	desc.flags |= cpu_to_le16((u16)(I40E_AQ_FLAG_BUF | I40E_AQ_FLAG_RD));
+	cmd->num_filters = filter_count;
+	cmd->seid = cpu_to_le16(seid);
+
+	status = i40e_asq_send_command(hw, &desc, filters, buff_len, NULL);
+
+	return status;
+}
+
+/**
+ * i40e_aq_rem_cloud_filters_bb
+ * @hw: pointer to the hardware structure
+ * @seid: VSI seid to remove cloud filters from
+ * @filters: Buffer which contains the filters in big buffer to be removed
+ * @filter_count: number of filters contained in the buffer
+ *
+ * Remove the big buffer cloud filters for a given VSI.  The contents of the
+ * i40e_aqc_cloud_filters_element_bb are filled in by the caller of the
+ * function.
+ *
+ **/
+i40e_status
+i40e_aq_rem_cloud_filters_bb(struct i40e_hw *hw, u16 seid,
+			     struct i40e_aqc_cloud_filters_element_bb *filters,
+			     u8 filter_count)
+{
+	struct i40e_aq_desc desc;
+	struct i40e_aqc_add_remove_cloud_filters *cmd =
+	(struct i40e_aqc_add_remove_cloud_filters *)&desc.params.raw;
+	i40e_status status;
+	u16 buff_len;
+	int i;
+
+	i40e_fill_default_direct_cmd_desc(&desc,
+					  i40e_aqc_opc_remove_cloud_filters);
+
+	buff_len = filter_count * sizeof(*filters);
+	desc.datalen = cpu_to_le16(buff_len);
+	desc.flags |= cpu_to_le16((u16)(I40E_AQ_FLAG_BUF | I40E_AQ_FLAG_RD));
+	cmd->num_filters = filter_count;
+	cmd->seid = cpu_to_le16(seid);
+	cmd->big_buffer_flag = I40E_AQC_ADD_CLOUD_CMD_BB;
+
+	for (i = 0; i < filter_count; i++) {
+		u16 tnl_type;
+		u32 ti;
+
+		tnl_type = (le16_to_cpu(filters[i].element.flags) &
+			   I40E_AQC_ADD_CLOUD_TNL_TYPE_MASK) >>
+			   I40E_AQC_ADD_CLOUD_TNL_TYPE_SHIFT;
+
+		/* Due to hardware eccentricities, the VNI for Geneve is shifted
+		 * one more byte further than normally used for Tenant ID in
+		 * other tunnel types.
+		 */
+		if (tnl_type == I40E_AQC_ADD_CLOUD_TNL_TYPE_GENEVE) {
+			ti = le32_to_cpu(filters[i].element.tenant_id);
+			filters[i].element.tenant_id = cpu_to_le32(ti << 8);
+		}
+	}
+
+	status = i40e_asq_send_command(hw, &desc, filters, buff_len, NULL);
+
 	return status;
 }

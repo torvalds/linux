@@ -666,6 +666,7 @@ struct tc_cls_flower_offload {
 	struct fl_flow_key *mask;
 	struct fl_flow_key *key;
 	struct tcf_exts *exts;
+	u32 classid;
 };
 
 enum tc_matchall_command {
