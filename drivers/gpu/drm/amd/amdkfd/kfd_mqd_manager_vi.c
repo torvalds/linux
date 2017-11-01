@@ -38,6 +38,11 @@ static inline struct vi_mqd *get_mqd(void *mqd)
 	return (struct vi_mqd *)mqd;
 }
 
+static inline struct vi_sdma_mqd *get_sdma_mqd(void *mqd)
+{
+	return (struct vi_sdma_mqd *)mqd;
+}
+
 static int init_mqd(struct mqd_manager *mm, void **mqd,
 			struct kfd_mem_obj **mqd_mem_obj, uint64_t *gart_addr,
 			struct queue_properties *q)

@@ -36,6 +36,11 @@ static inline struct cik_mqd *get_mqd(void *mqd)
 	return (struct cik_mqd *)mqd;
 }
 
+static inline struct cik_sdma_rlc_registers *get_sdma_mqd(void *mqd)
+{
+	return (struct cik_sdma_rlc_registers *)mqd;
+}
+
 static int init_mqd(struct mqd_manager *mm, void **mqd,
 		struct kfd_mem_obj **mqd_mem_obj, uint64_t *gart_addr,
 		struct queue_properties *q)
@@ -362,14 +367,6 @@ static int update_mqd_hiq(struct mqd_manager *mm, void *mqd,
 	return 0;
 }
 
-struct cik_sdma_rlc_registers *get_sdma_mqd(void *mqd)
-{
-	struct cik_sdma_rlc_registers *m;
-
-	m = (struct cik_sdma_rlc_registers *)mqd;
-
-	return m;
-}
 
 struct mqd_manager *mqd_manager_init_cik(enum KFD_MQD_TYPE type,
 		struct kfd_dev *dev)
