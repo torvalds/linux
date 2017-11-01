@@ -319,20 +319,13 @@ enter_winkle:
 /*
  * r3 - PSSCR value corresponding to the requested stop state.
  */
+power_enter_stop:
 #ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
-power_enter_stop_kvm_rm:
-	/*
-	 * This is currently unused because POWER9 KVM does not have to
-	 * gather secondary threads into sibling mode, but the code is
-	 * here in case that function is required.
-	 *
-	 * Tell KVM we're entering idle.
-	 */
+	/* Tell KVM we're entering idle */
 	li	r4,KVM_HWTHREAD_IN_IDLE
 	/* DO THIS IN REAL MODE!  See comment above. */
 	stb	r4,HSTATE_HWTHREAD_STATE(r13)
 #endif
-power_enter_stop:
 /*
  * Check if we are executing the lite variant with ESL=EC=0
  */
@@ -496,18 +489,6 @@ pnv_powersave_wakeup_mce:
 
 	b	pnv_powersave_wakeup
 
-#ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
-kvm_start_guest_check:
-	li	r0,KVM_HWTHREAD_IN_KERNEL
-	stb	r0,HSTATE_HWTHREAD_STATE(r13)
-	/* Order setting hwthread_state vs. testing hwthread_req */
-	sync
-	lbz	r0,HSTATE_HWTHREAD_REQ(r13)
-	cmpwi	r0,0
-	beqlr
-	b	kvm_start_guest
-#endif
-
 /*
  * Called from reset vector for powersave wakeups.
  * cr3 - set to gt if waking up with partial/complete hypervisor state loss
@@ -532,9 +513,15 @@ ALT_FTR_SECTION_END_IFSET(CPU_FTR_ARCH_300)
 	mr	r3,r12
 
 #ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
-BEGIN_FTR_SECTION
-	bl	kvm_start_guest_check
-END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_300)
+	li	r0,KVM_HWTHREAD_IN_KERNEL
+	stb	r0,HSTATE_HWTHREAD_STATE(r13)
+	/* Order setting hwthread_state vs. testing hwthread_req */
+	sync
+	lbz	r0,HSTATE_HWTHREAD_REQ(r13)
+	cmpwi	r0,0
+	beq	1f
+	b	kvm_start_guest
+1:
 #endif
 
 	/* Return SRR1 from power7_nap() */
