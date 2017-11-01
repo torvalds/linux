@@ -278,8 +278,8 @@ u8 iwl_mvm_next_antenna(struct iwl_mvm *mvm, u8 valid, u8 last_idx)
 	u8 ind = last_idx;
 	int i;
 
-	for (i = 0; i < RATE_MCS_ANT_NUM; i++) {
-		ind = (ind + 1) % RATE_MCS_ANT_NUM;
+	for (i = 0; i < MAX_RS_ANT_NUM; i++) {
+		ind = (ind + 1) % MAX_RS_ANT_NUM;
 		if (valid & BIT(ind))
 			return ind;
 	}

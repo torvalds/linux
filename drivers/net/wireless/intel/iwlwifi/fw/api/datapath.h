@@ -83,6 +83,11 @@ enum iwl_data_path_subcmd_ids {
 	TRIGGER_RX_QUEUES_NOTIF_CMD = 0x2,
 
 	/**
+	 * @TLC_MNG_CONFIG_CMD: &struct iwl_tlc_config_cmd
+	 */
+	TLC_MNG_CONFIG_CMD = 0xF,
+
+	/**
 	 * @STA_PM_NOTIF: &struct iwl_mvm_pm_state_notification
 	 */
 	STA_PM_NOTIF = 0xFD,

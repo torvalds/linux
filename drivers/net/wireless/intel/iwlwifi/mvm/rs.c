@@ -4061,15 +4061,8 @@ void iwl_mvm_rate_control_unregister(void)
 	ieee80211_rate_control_unregister(&rs_mvm_ops_drv);
 }
 
-/**
- * iwl_mvm_tx_protection - Gets LQ command, change it to enable/disable
- * Tx protection, according to this request and previous requests,
- * and send the LQ command.
- * @mvmsta: The station
- * @enable: Enable Tx protection?
- */
-int iwl_mvm_tx_protection(struct iwl_mvm *mvm, struct iwl_mvm_sta *mvmsta,
-			  bool enable)
+static int rs_drv_tx_protection(struct iwl_mvm *mvm, struct iwl_mvm_sta *mvmsta,
+				bool enable)
 {
 	struct iwl_lq_cmd *lq = &mvmsta->lq_sta.rs_drv.lq;
 
@@ -4086,4 +4079,18 @@ int iwl_mvm_tx_protection(struct iwl_mvm *mvm, struct iwl_mvm_sta *mvmsta,
 	}
 
 	return iwl_mvm_send_lq_cmd(mvm, lq, false);
+}
+
+/**
+ * iwl_mvm_tx_protection - ask FW to enable RTS/CTS protection
+ * @mvmsta: The station
+ * @enable: Enable Tx protection?
+ */
+int iwl_mvm_tx_protection(struct iwl_mvm *mvm, struct iwl_mvm_sta *mvmsta,
+			  bool enable)
+{
+	if (fw_has_capa(&mvm->fw->ucode_capa, IWL_UCODE_TLV_CAPA_TLC_OFFLOAD))
+		return rs_fw_tx_protection(mvm, mvmsta, enable);
+	else
+		return rs_drv_tx_protection(mvm, mvmsta, enable);
 }
