@@ -404,6 +404,8 @@ struct vop_data {
 #define ROCKCHIP_OUT_MODE_P888		0
 #define ROCKCHIP_OUT_MODE_P666		1
 #define ROCKCHIP_OUT_MODE_P565		2
+#define ROCKCHIP_OUT_MODE_S888		8
+#define ROCKCHIP_OUT_MODE_S888_DUMMY	12
 #define ROCKCHIP_OUT_MODE_YUV420	14
 /* for use special outface */
 #define ROCKCHIP_OUT_MODE_AAAA		15
