@@ -638,13 +638,16 @@ static int dell_wmi_events_set_enabled(bool enable)
 	struct calling_interface_buffer *buffer;
 	int ret;
 
-	buffer = dell_smbios_get_buffer();
+	buffer = kzalloc(sizeof(struct calling_interface_buffer), GFP_KERNEL);
+	buffer->cmd_class = CLASS_INFO;
+	buffer->cmd_select = SELECT_APP_REGISTRATION;
 	buffer->input[0] = 0x10000;
 	buffer->input[1] = 0x51534554;
 	buffer->input[3] = enable;
-	dell_smbios_send_request(17, 3);
-	ret = buffer->output[0];
-	dell_smbios_release_buffer();
+	ret = dell_smbios_call(buffer);
+	if (ret == 0)
+		ret = buffer->output[0];
+	kfree(buffer);
 
 	return dell_smbios_error(ret);
 }
