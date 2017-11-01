@@ -825,6 +825,39 @@ static sector_t dax_iomap_sector(struct iomap *iomap, loff_t pos)
 	return iomap->blkno + (((pos & PAGE_MASK) - iomap->offset) >> 9);
 }
 
+static int dax_iomap_pfn(struct iomap *iomap, loff_t pos, size_t size,
+			 pfn_t *pfnp)
+{
+	const sector_t sector = dax_iomap_sector(iomap, pos);
+	pgoff_t pgoff;
+	void *kaddr;
+	int id, rc;
+	long length;
+
+	rc = bdev_dax_pgoff(iomap->bdev, sector, size, &pgoff);
+	if (rc)
+		return rc;
+	id = dax_read_lock();
+	length = dax_direct_access(iomap->dax_dev, pgoff, PHYS_PFN(size),
+				   &kaddr, pfnp);
+	if (length < 0) {
+		rc = length;
+		goto out;
+	}
+	rc = -EINVAL;
+	if (PFN_PHYS(length) < size)
+		goto out;
+	if (pfn_t_to_pfn(*pfnp) & (PHYS_PFN(size)-1))
+		goto out;
+	/* For larger pages we need devmap */
+	if (length > 1 && !pfn_t_devmap(*pfnp))
+		goto out;
+	rc = 0;
+out:
+	dax_read_unlock(id);
+	return rc;
+}
+
 static int dax_insert_mapping(struct vm_fault *vmf, struct iomap *iomap,
 			      loff_t pos, void *entry)
 {
@@ -832,23 +865,13 @@ static int dax_insert_mapping(struct vm_fault *vmf, struct iomap *iomap,
 	struct vm_area_struct *vma = vmf->vma;
 	struct address_space *mapping = vma->vm_file->f_mapping;
 	unsigned long vaddr = vmf->address;
-	void *ret, *kaddr;
-	pgoff_t pgoff;
-	int id, rc;
+	void *ret;
+	int rc;
 	pfn_t pfn;
 
-	rc = bdev_dax_pgoff(iomap->bdev, sector, PAGE_SIZE, &pgoff);
-	if (rc)
+	rc = dax_iomap_pfn(iomap, pos, PAGE_SIZE, &pfn);
+	if (rc < 0)
 		return rc;
-
-	id = dax_read_lock();
-	rc = dax_direct_access(iomap->dax_dev, pgoff, PHYS_PFN(PAGE_SIZE),
-			       &kaddr, &pfn);
-	if (rc < 0) {
-		dax_read_unlock(id);
-		return rc;
-	}
-	dax_read_unlock(id);
 
 	ret = dax_insert_mapping_entry(mapping, vmf, entry, sector, 0);
 	if (IS_ERR(ret))
@@ -1223,46 +1246,26 @@ static int dax_pmd_insert_mapping(struct vm_fault *vmf, struct iomap *iomap,
 {
 	struct address_space *mapping = vmf->vma->vm_file->f_mapping;
 	const sector_t sector = dax_iomap_sector(iomap, pos);
-	struct dax_device *dax_dev = iomap->dax_dev;
-	struct block_device *bdev = iomap->bdev;
 	struct inode *inode = mapping->host;
-	const size_t size = PMD_SIZE;
-	void *ret = NULL, *kaddr;
-	long length = 0;
-	pgoff_t pgoff;
+	void *ret = NULL;
 	pfn_t pfn = {};
-	int id;
+	int rc;
 
-	if (bdev_dax_pgoff(bdev, sector, size, &pgoff) != 0)
+	rc = dax_iomap_pfn(iomap, pos, PMD_SIZE, &pfn);
+	if (rc < 0)
 		goto fallback;
-
-	id = dax_read_lock();
-	length = dax_direct_access(dax_dev, pgoff, PHYS_PFN(size), &kaddr, &pfn);
-	if (length < 0)
-		goto unlock_fallback;
-	length = PFN_PHYS(length);
-
-	if (length < size)
-		goto unlock_fallback;
-	if (pfn_t_to_pfn(pfn) & PG_PMD_COLOUR)
-		goto unlock_fallback;
-	if (!pfn_t_devmap(pfn))
-		goto unlock_fallback;
-	dax_read_unlock(id);
 
 	ret = dax_insert_mapping_entry(mapping, vmf, entry, sector,
 			RADIX_DAX_PMD);
 	if (IS_ERR(ret))
 		goto fallback;
 
-	trace_dax_pmd_insert_mapping(inode, vmf, length, pfn, ret);
+	trace_dax_pmd_insert_mapping(inode, vmf, PMD_SIZE, pfn, ret);
 	return vmf_insert_pfn_pmd(vmf->vma, vmf->address, vmf->pmd,
 			pfn, vmf->flags & FAULT_FLAG_WRITE);
 
-unlock_fallback:
-	dax_read_unlock(id);
 fallback:
-	trace_dax_pmd_insert_mapping_fallback(inode, vmf, length, pfn, ret);
+	trace_dax_pmd_insert_mapping_fallback(inode, vmf, PMD_SIZE, pfn, ret);
 	return VM_FAULT_FALLBACK;
 }
 
