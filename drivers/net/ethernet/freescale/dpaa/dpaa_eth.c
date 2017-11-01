@@ -2468,7 +2468,8 @@ static int dpaa_open(struct net_device *net_dev)
 	mac_dev = priv->mac_dev;
 	dpaa_eth_napi_enable(priv);
 
-	if (dpaa_phy_init(net_dev))
+	err = dpaa_phy_init(net_dev);
+	if (err)
 		goto phy_init_failed;
 
 	for (i = 0; i < ARRAY_SIZE(mac_dev->port); i++) {
