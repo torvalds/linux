@@ -111,6 +111,15 @@
 	status = "okay";
 };
 
+&cpu0 {
+	cpu-supply = <&vdd_cpu>;
+};
+
+&cpu0_opp_table {
+	/delete-node/ opp-408000000;
+	/delete-node/ opp-600000000;
+};
+
 &emac {
 	pinctrl-names = "default";
 	pinctrl-0 = <&emac_xfer>, <&emac_mdio>;
@@ -176,8 +185,8 @@
 			vdd_cpu: DCDC_REG1 {
 				regulator-always-on;
 				regulator-boot-on;
-				regulator-min-microvolt = <1250000>;
-				regulator-max-microvolt = <1250000>;
+				regulator-min-microvolt = <1000000>;
+				regulator-max-microvolt = <1350000>;
 				regulator-name = "vdd_arm";
 				regulator-state-mem {
 					regulator-off-in-suspend;
