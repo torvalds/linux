@@ -3963,7 +3963,8 @@ static int adap_init0(struct adapter *adap)
 	if (ret < 0)
 		goto bye;
 
-	if (caps_cmd.ofldcaps) {
+	if (caps_cmd.ofldcaps ||
+	    (caps_cmd.niccaps & htons(FW_CAPS_CONFIG_NIC_HASHFILTER))) {
 		/* query offload-related parameters */
 		params[0] = FW_PARAM_DEV(NTID);
 		params[1] = FW_PARAM_PFVF(SERVER_START);
@@ -4000,8 +4001,13 @@ static int adap_init0(struct adapter *adap)
 		adap->vres.ddp.size = val[4] - val[3] + 1;
 		adap->params.ofldq_wr_cred = val[5];
 
-		adap->params.offload = 1;
-		adap->num_ofld_uld += 1;
+		if (caps_cmd.niccaps & htons(FW_CAPS_CONFIG_NIC_HASHFILTER)) {
+			if (init_hash_filter(adap) < 0)
+				goto bye;
+		} else {
+			adap->params.offload = 1;
+			adap->num_ofld_uld += 1;
+		}
 	}
 	if (caps_cmd.rdmacaps) {
 		params[0] = FW_PARAM_PFVF(STAG_START);
@@ -5171,7 +5177,7 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		cxgb4_init_tc_flower(adapter);
 	}
 
-	if (is_offload(adapter)) {
+	if (is_offload(adapter) || is_hashfilter(adapter)) {
 		if (t4_read_reg(adapter, LE_DB_CONFIG_A) & HASHEN_F) {
 			u32 hash_base, hash_reg;
 

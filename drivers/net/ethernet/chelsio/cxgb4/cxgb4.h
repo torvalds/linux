@@ -366,6 +366,7 @@ struct adapter_params {
 	unsigned char crypto;		/* HW capability for crypto */
 
 	unsigned char bypass;
+	unsigned char hash_filter;
 
 	unsigned int ofldq_wr_cred;
 	bool ulptx_memwrite_dsgl;          /* use of T5 DSGL allowed */
@@ -1138,6 +1139,11 @@ struct filter_entry {
 static inline int is_offload(const struct adapter *adap)
 {
 	return adap->params.offload;
+}
+
+static inline int is_hashfilter(const struct adapter *adap)
+{
+	return adap->params.hash_filter;
 }
 
 static inline int is_pci_uld(const struct adapter *adap)

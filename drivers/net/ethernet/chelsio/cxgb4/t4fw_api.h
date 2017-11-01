@@ -1092,6 +1092,7 @@ enum fw_caps_config_switch {
 enum fw_caps_config_nic {
 	FW_CAPS_CONFIG_NIC		= 0x00000001,
 	FW_CAPS_CONFIG_NIC_VM		= 0x00000002,
+	FW_CAPS_CONFIG_NIC_HASHFILTER	= 0x00000020,
 };
 
 enum fw_caps_config_ofld {

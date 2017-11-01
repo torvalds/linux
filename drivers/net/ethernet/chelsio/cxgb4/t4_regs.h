@@ -2933,6 +2933,20 @@
 #define SSRAMINTPERR_V(x) ((x) << SSRAMINTPERR_S)
 #define SSRAMINTPERR_F    SSRAMINTPERR_V(1U)
 
+#define LE_DB_RSP_CODE_0_A	0x19c74
+
+#define TCAM_ACTV_HIT_S		0
+#define TCAM_ACTV_HIT_M		0x1fU
+#define TCAM_ACTV_HIT_V(x)	((x) << TCAM_ACTV_HIT_S)
+#define TCAM_ACTV_HIT_G(x)	(((x) >> TCAM_ACTV_HIT_S) & TCAM_ACTV_HIT_M)
+
+#define LE_DB_RSP_CODE_1_A     0x19c78
+
+#define HASH_ACTV_HIT_S		25
+#define HASH_ACTV_HIT_M		0x1fU
+#define HASH_ACTV_HIT_V(x)	((x) << HASH_ACTV_HIT_S)
+#define HASH_ACTV_HIT_G(x)	(((x) >> HASH_ACTV_HIT_S) & HASH_ACTV_HIT_M)
+
 #define LE_3_DB_HASH_MASK_GEN_IPV4_T6_A	0x19eac
 #define LE_4_DB_HASH_MASK_GEN_IPV4_T6_A	0x19eb0
 

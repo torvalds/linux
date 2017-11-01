@@ -915,3 +915,25 @@ void filter_rpl(struct adapter *adap, const struct cpl_set_tcb_rpl *rpl)
 			complete(&ctx->completion);
 	}
 }
+
+int init_hash_filter(struct adapter *adap)
+{
+	/* On T6, verify the necessary register configs and warn the user in
+	 * case of improper config
+	 */
+	if (is_t6(adap->params.chip)) {
+		if (TCAM_ACTV_HIT_G(t4_read_reg(adap, LE_DB_RSP_CODE_0_A)) != 4)
+			goto err;
+
+		if (HASH_ACTV_HIT_G(t4_read_reg(adap, LE_DB_RSP_CODE_1_A)) != 4)
+			goto err;
+	} else {
+		dev_err(adap->pdev_dev, "Hash filter supported only on T6\n");
+		return -EINVAL;
+	}
+	adap->params.hash_filter = 1;
+	return 0;
+err:
+	dev_warn(adap->pdev_dev, "Invalid hash filter config!\n");
+	return -EINVAL;
+}
