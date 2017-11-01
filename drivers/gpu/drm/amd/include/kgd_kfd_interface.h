@@ -184,7 +184,8 @@ struct kfd2kgd_calls {
 			uint32_t wptr_shift, uint32_t wptr_mask,
 			struct mm_struct *mm);
 
-	int (*hqd_sdma_load)(struct kgd_dev *kgd, void *mqd);
+	int (*hqd_sdma_load)(struct kgd_dev *kgd, void *mqd,
+			     uint32_t __user *wptr, struct mm_struct *mm);
 
 	bool (*hqd_is_occupied)(struct kgd_dev *kgd, uint64_t queue_address,
 				uint32_t pipe_id, uint32_t queue_id);

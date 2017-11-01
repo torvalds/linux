@@ -160,7 +160,9 @@ static int load_mqd_sdma(struct mqd_manager *mm, void *mqd,
 			 uint32_t pipe_id, uint32_t queue_id,
 			 struct queue_properties *p, struct mm_struct *mms)
 {
-	return mm->dev->kfd2kgd->hqd_sdma_load(mm->dev->kgd, mqd);
+	return mm->dev->kfd2kgd->hqd_sdma_load(mm->dev->kgd, mqd,
+					       (uint32_t __user *)p->write_ptr,
+					       mms);
 }
 
 static int update_mqd(struct mqd_manager *mm, void *mqd,
