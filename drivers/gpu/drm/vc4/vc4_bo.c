@@ -88,11 +88,11 @@ int vc4_bo_stats_debugfs(struct seq_file *m, void *unused)
 
 	mutex_lock(&vc4->purgeable.lock);
 	if (vc4->purgeable.num)
-		seq_printf(m, "%30s: %6dkb BOs (%d)\n", "userspace BO cache",
+		seq_printf(m, "%30s: %6zdkb BOs (%d)\n", "userspace BO cache",
 			   vc4->purgeable.size / 1024, vc4->purgeable.num);
 
 	if (vc4->purgeable.purged_num)
-		seq_printf(m, "%30s: %6dkb BOs (%d)\n", "total purged BO",
+		seq_printf(m, "%30s: %6zdkb BOs (%d)\n", "total purged BO",
 			   vc4->purgeable.purged_size / 1024,
 			   vc4->purgeable.purged_num);
 	mutex_unlock(&vc4->purgeable.lock);
