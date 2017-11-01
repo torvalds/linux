@@ -871,6 +871,32 @@ fail:
 	return status;
 }
 
+static int rsi_sdio_reinit_device(struct rsi_hw *adapter)
+{
+	struct rsi_91x_sdiodev *sdev = adapter->rsi_dev;
+	struct sdio_func *pfunction = sdev->pfunction;
+	int ii;
+
+	for (ii = 0; ii < NUM_SOFT_QUEUES; ii++)
+		skb_queue_purge(&adapter->priv->tx_queue[ii]);
+
+	/* Initialize device again */
+	sdio_claim_host(pfunction);
+
+	sdio_release_irq(pfunction);
+	rsi_reset_card(pfunction);
+
+	sdio_enable_func(pfunction);
+	rsi_setupcard(adapter);
+	rsi_init_sdio_slave_regs(adapter);
+	sdio_claim_irq(pfunction, rsi_handle_interrupt);
+	rsi_hal_device_init(adapter);
+
+	sdio_release_host(pfunction);
+
+	return 0;
+}
+
 static struct rsi_host_intf_ops sdio_host_intf_ops = {
 	.write_pkt		= rsi_sdio_host_intf_write_pkt,
 	.read_pkt		= rsi_sdio_host_intf_read_pkt,
@@ -1279,32 +1305,6 @@ static void rsi_shutdown(struct device *dev)
 		rsi_dbg(INFO_ZONE, "Setting power management caps failed\n");
 
 	rsi_dbg(INFO_ZONE, "***** RSI module shut down *****\n");
-}
-
-int rsi_sdio_reinit_device(struct rsi_hw *adapter)
-{
-	struct rsi_91x_sdiodev *sdev = adapter->rsi_dev;
-	struct sdio_func *pfunction = sdev->pfunction;
-	int ii;
-
-	for (ii = 0; ii < NUM_SOFT_QUEUES; ii++)
-		skb_queue_purge(&adapter->priv->tx_queue[ii]);
-
-	/* Initialize device again */
-	sdio_claim_host(pfunction);
-
-	sdio_release_irq(pfunction);
-	rsi_reset_card(pfunction);
-
-	sdio_enable_func(pfunction);
-	rsi_setupcard(adapter);
-	rsi_init_sdio_slave_regs(adapter);
-	sdio_claim_irq(pfunction, rsi_handle_interrupt);
-	rsi_hal_device_init(adapter);
-
-	sdio_release_host(pfunction);
-
-	return 0;
 }
 
 static int rsi_restore(struct device *dev)
