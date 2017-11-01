@@ -590,6 +590,7 @@ static void inject_preempt_context(struct work_struct *work)
 	struct intel_guc *guc = container_of(preempt_work, typeof(*guc),
 					     preempt_work[engine->id]);
 	struct i915_guc_client *client = guc->preempt_client;
+	struct guc_stage_desc *stage_desc = __get_stage_desc(client);
 	struct intel_ring *ring = client->owner->engine[engine->id].ring;
 	u32 ctx_desc = lower_32_bits(intel_lr_context_descriptor(client->owner,
 								 engine));
@@ -622,6 +623,20 @@ static void inject_preempt_context(struct work_struct *work)
 	guc_wq_item_append(client, engine->guc_id, ctx_desc,
 			   ring->tail / sizeof(u64), 0);
 	spin_unlock_irq(&client->wq_lock);
+
+	/*
+	 * If GuC firmware performs an engine reset while that engine had
+	 * a preemption pending, it will set the terminated attribute bit
+	 * on our preemption stage descriptor. GuC firmware retains all
+	 * pending work items for a high-priority GuC client, unlike the
+	 * normal-priority GuC client where work items are dropped. It
+	 * wants to make sure the preempt-to-idle work doesn't run when
+	 * scheduling resumes, and uses this bit to inform its scheduler
+	 * and presumably us as well. Our job is to clear it for the next
+	 * preemption after reset, otherwise that and future preemptions
+	 * will never complete. We'll just clear it every time.
+	 */
+	stage_desc->attribute &= ~GUC_STAGE_DESC_ATTR_TERMINATED;
 
 	data[0] = INTEL_GUC_ACTION_REQUEST_PREEMPTION;
 	data[1] = client->stage_id;
