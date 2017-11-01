@@ -2350,11 +2350,39 @@ static int imx_serial_port_resume(struct device *dev)
 	return 0;
 }
 
+static int imx_serial_port_freeze(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct imx_port *sport = platform_get_drvdata(pdev);
+
+	uart_suspend_port(&imx_reg, &sport->port);
+
+	/* Needed to enable clock in suspend_noirq */
+	return clk_prepare(sport->clk_ipg);
+}
+
+static int imx_serial_port_thaw(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct imx_port *sport = platform_get_drvdata(pdev);
+
+	uart_resume_port(&imx_reg, &sport->port);
+
+	clk_unprepare(sport->clk_ipg);
+
+	return 0;
+}
+
 static const struct dev_pm_ops imx_serial_port_pm_ops = {
 	.suspend_noirq = imx_serial_port_suspend_noirq,
 	.resume_noirq = imx_serial_port_resume_noirq,
+	.freeze_noirq = imx_serial_port_suspend_noirq,
+	.restore_noirq = imx_serial_port_resume_noirq,
 	.suspend = imx_serial_port_suspend,
 	.resume = imx_serial_port_resume,
+	.freeze = imx_serial_port_freeze,
+	.thaw = imx_serial_port_thaw,
+	.restore = imx_serial_port_thaw,
 };
 
 static struct platform_driver serial_imx_driver = {
