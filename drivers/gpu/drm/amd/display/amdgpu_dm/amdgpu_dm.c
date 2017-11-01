@@ -643,6 +643,11 @@ int amdgpu_dm_display_resume(struct amdgpu_device *adev)
 	struct drm_connector *connector;
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *new_crtc_state;
+	struct dm_crtc_state *dm_new_crtc_state;
+	struct drm_plane *plane;
+	struct drm_plane_state *new_plane_state;
+	struct dm_plane_state *dm_new_plane_state;
+
 	int ret = 0;
 	int i;
 
@@ -680,6 +685,29 @@ int amdgpu_dm_display_resume(struct amdgpu_device *adev)
 	/* Force mode set in atomic comit */
 	for_each_new_crtc_in_state(adev->dm.cached_state, crtc, new_crtc_state, i)
 		new_crtc_state->active_changed = true;
+
+	/*
+	 * atomic_check is expected to create the dc states. We need to release
+	 * them here, since they were duplicated as part of the suspend
+	 * procedure.
+	 */
+	for_each_new_crtc_in_state(adev->dm.cached_state, crtc, new_crtc_state, i) {
+		dm_new_crtc_state = to_dm_crtc_state(new_crtc_state);
+		if (dm_new_crtc_state->stream) {
+			WARN_ON(kref_read(&dm_new_crtc_state->stream->refcount) > 1);
+			dc_stream_release(dm_new_crtc_state->stream);
+			dm_new_crtc_state->stream = NULL;
+		}
+	}
+
+	for_each_new_plane_in_state(adev->dm.cached_state, plane, new_plane_state, i) {
+		dm_new_plane_state = to_dm_plane_state(new_plane_state);
+		if (dm_new_plane_state->dc_state) {
+			WARN_ON(kref_read(&dm_new_plane_state->dc_state->refcount) > 1);
+			dc_plane_state_release(dm_new_plane_state->dc_state);
+			dm_new_plane_state->dc_state = NULL;
+		}
+	}
 
 	ret = drm_atomic_helper_resume(ddev, adev->dm.cached_state);
 
