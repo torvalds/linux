@@ -4402,4 +4402,7 @@ const struct ieee80211_ops iwl_mvm_hw_ops = {
 #endif
 	.get_survey = iwl_mvm_mac_get_survey,
 	.sta_statistics = iwl_mvm_mac_sta_statistics,
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+	.sta_add_debugfs = iwl_mvm_sta_add_debugfs,
+#endif
 };
