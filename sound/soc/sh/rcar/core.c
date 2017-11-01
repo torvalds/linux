@@ -121,14 +121,6 @@ void rsnd_mod_make_sure(struct rsnd_mod *mod, enum rsnd_mod_type type)
 	}
 }
 
-char *rsnd_mod_name(struct rsnd_mod *mod)
-{
-	if (!mod || !mod->ops)
-		return "unknown";
-
-	return mod->ops->name;
-}
-
 struct dma_chan *rsnd_mod_dma_req(struct rsnd_dai_stream *io,
 				  struct rsnd_mod *mod)
 {
