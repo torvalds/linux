@@ -5,7 +5,6 @@ How to get printk format specifiers right
 :Author: Randy Dunlap <rdunlap@infradead.org>
 :Author: Andrew Murray <amurray@mpc-data.co.uk>
 
-
 Integer types
 =============
 
@@ -44,6 +43,17 @@ return from vsnprintf.
 
 Raw pointer value SHOULD be printed with %p. The kernel supports
 the following extended format specifiers for pointer types:
+
+Pointer Types
+=============
+
+Pointers printed without a specifier extension (i.e unadorned %p) are
+hashed to give a unique identifier without leaking kernel addresses to user
+space. On 64 bit machines the first 32 bits are zeroed.
+
+::
+
+	%p	abcdef12 or 00000000abcdef12
 
 Symbols/Function Pointers
 =========================
