@@ -476,12 +476,6 @@ int vmw_du_primary_plane_atomic_check(struct drm_plane *plane,
 
 		vcs = vmw_connector_state_to_vcs(du->connector.state);
 
-		if ((dest.x2 > new_fb->width ||
-		     dest.y2 > new_fb->height)) {
-			DRM_ERROR("CRTC area outside of framebuffer\n");
-			return -EINVAL;
-		}
-
 		/* Only one active implicit framebuffer at a time. */
 		mutex_lock(&dev_priv->global_kms_state_mutex);
 		if (vcs->is_implicit && dev_priv->implicit_fb &&
