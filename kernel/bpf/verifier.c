@@ -341,10 +341,12 @@ static int realloc_verifier_state(struct bpf_verifier_state *state, int size,
 	return 0;
 }
 
-static void free_verifier_state(struct bpf_verifier_state *state)
+static void free_verifier_state(struct bpf_verifier_state *state,
+				bool free_self)
 {
 	kfree(state->stack);
-	kfree(state);
+	if (free_self)
+		kfree(state);
 }
 
 /* copy verifier state from src to dst growing dst stack space
@@ -382,6 +384,7 @@ static int pop_stack(struct bpf_verifier_env *env, int *prev_insn_idx,
 	if (prev_insn_idx)
 		*prev_insn_idx = head->prev_insn_idx;
 	elem = head->next;
+	free_verifier_state(&head->st, false);
 	kfree(head);
 	env->head = elem;
 	env->stack_size--;
@@ -399,14 +402,14 @@ static struct bpf_verifier_state *push_stack(struct bpf_verifier_env *env,
 	if (!elem)
 		goto err;
 
-	err = copy_verifier_state(&elem->st, cur);
-	if (err)
-		return NULL;
 	elem->insn_idx = insn_idx;
 	elem->prev_insn_idx = prev_insn_idx;
 	elem->next = env->head;
 	env->head = elem;
 	env->stack_size++;
+	err = copy_verifier_state(&elem->st, cur);
+	if (err)
+		goto err;
 	if (env->stack_size > BPF_COMPLEXITY_LIMIT_STACK) {
 		verbose(env, "BPF program is too complex\n");
 		goto err;
@@ -3641,7 +3644,7 @@ static int is_state_visited(struct bpf_verifier_env *env, int insn_idx)
 	struct bpf_verifier_state_list *new_sl;
 	struct bpf_verifier_state_list *sl;
 	struct bpf_verifier_state *cur = env->cur_state;
-	int i;
+	int i, err;
 
 	sl = env->explored_states[insn_idx];
 	if (!sl)
@@ -3679,7 +3682,12 @@ static int is_state_visited(struct bpf_verifier_env *env, int insn_idx)
 		return -ENOMEM;
 
 	/* add new state to the head of linked list */
-	copy_verifier_state(&new_sl->state, cur);
+	err = copy_verifier_state(&new_sl->state, cur);
+	if (err) {
+		free_verifier_state(&new_sl->state, false);
+		kfree(new_sl);
+		return err;
+	}
 	new_sl->next = env->explored_states[insn_idx];
 	env->explored_states[insn_idx] = new_sl;
 	/* connect new state to parentage chain */
@@ -4424,6 +4432,7 @@ static void free_states(struct bpf_verifier_env *env)
 		if (sl)
 			while (sl != STATE_LIST_MARK) {
 				sln = sl->next;
+				free_verifier_state(&sl->state, false);
 				kfree(sl);
 				sl = sln;
 			}
@@ -4494,7 +4503,7 @@ int bpf_check(struct bpf_prog **prog, union bpf_attr *attr)
 	env->allow_ptr_leaks = capable(CAP_SYS_ADMIN);
 
 	ret = do_check(env);
-	free_verifier_state(env->cur_state);
+	free_verifier_state(env->cur_state, true);
 	env->cur_state = NULL;
 
 skip_full_check:
@@ -4601,7 +4610,7 @@ int bpf_analyzer(struct bpf_prog *prog, const struct bpf_ext_analyzer_ops *ops,
 	env->allow_ptr_leaks = capable(CAP_SYS_ADMIN);
 
 	ret = do_check(env);
-	free_verifier_state(env->cur_state);
+	free_verifier_state(env->cur_state, true);
 	env->cur_state = NULL;
 
 skip_full_check:
