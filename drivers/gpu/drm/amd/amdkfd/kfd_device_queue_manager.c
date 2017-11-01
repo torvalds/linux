@@ -467,7 +467,7 @@ static int register_process(struct device_queue_manager *dqm,
 	mutex_lock(&dqm->lock);
 	list_add(&n->list, &dqm->queues);
 
-	retval = dqm->ops_asic_specific.register_process(dqm, qpd);
+	retval = dqm->asic_ops.update_qpd(dqm, qpd);
 
 	dqm->processes_count++;
 
@@ -629,7 +629,7 @@ static int create_sdma_queue_nocpsch(struct device_queue_manager *dqm,
 	pr_debug("SDMA queue id: %d\n", q->properties.sdma_queue_id);
 	pr_debug("SDMA engine id: %d\n", q->properties.sdma_engine_id);
 
-	dqm->ops_asic_specific.init_sdma_vm(dqm, q, qpd);
+	dqm->asic_ops.init_sdma_vm(dqm, q, qpd);
 	retval = mqd->init_mqd(mqd, &q->mqd, &q->mqd_mem_obj,
 				&q->gart_mqd_addr, &q->properties);
 	if (retval)
@@ -696,8 +696,6 @@ static int set_sched_resources(struct device_queue_manager *dqm)
 
 static int initialize_cpsch(struct device_queue_manager *dqm)
 {
-	int retval;
-
 	pr_debug("num of pipes: %d\n", get_pipes_per_mec(dqm));
 
 	mutex_init(&dqm->lock);
@@ -706,11 +704,8 @@ static int initialize_cpsch(struct device_queue_manager *dqm)
 	dqm->sdma_queue_count = 0;
 	dqm->active_runlist = false;
 	dqm->sdma_bitmap = (1 << CIK_SDMA_QUEUES) - 1;
-	retval = dqm->ops_asic_specific.initialize(dqm);
-	if (retval)
-		mutex_destroy(&dqm->lock);
 
-	return retval;
+	return 0;
 }
 
 static int start_cpsch(struct device_queue_manager *dqm)
@@ -850,7 +845,7 @@ static int create_queue_cpsch(struct device_queue_manager *dqm, struct queue *q,
 		goto out;
 	}
 
-	dqm->ops_asic_specific.init_sdma_vm(dqm, q, qpd);
+	dqm->asic_ops.init_sdma_vm(dqm, q, qpd);
 	retval = mqd->init_mqd(mqd, &q->mqd, &q->mqd_mem_obj,
 				&q->gart_mqd_addr, &q->properties);
 	if (retval)
@@ -1095,7 +1090,7 @@ static bool set_cache_memory_policy(struct device_queue_manager *dqm,
 		qpd->sh_mem_ape1_limit = limit >> 16;
 	}
 
-	retval = dqm->ops_asic_specific.set_cache_memory_policy(
+	retval = dqm->asic_ops.set_cache_memory_policy(
 			dqm,
 			qpd,
 			default_policy,
@@ -1270,11 +1265,11 @@ struct device_queue_manager *device_queue_manager_init(struct kfd_dev *dev)
 
 	switch (dev->device_info->asic_family) {
 	case CHIP_CARRIZO:
-		device_queue_manager_init_vi(&dqm->ops_asic_specific);
+		device_queue_manager_init_vi(&dqm->asic_ops);
 		break;
 
 	case CHIP_KAVERI:
-		device_queue_manager_init_cik(&dqm->ops_asic_specific);
+		device_queue_manager_init_cik(&dqm->asic_ops);
 		break;
 	default:
 		WARN(1, "Unexpected ASIC family %u",
