@@ -31,6 +31,7 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
+#include <net/ipv6.h>
 
 #include "cxgb4.h"
 #include "t4_regs.h"
@@ -763,6 +764,153 @@ static void fill_default_mask(struct ch_filter_specification *fs)
 		fs->mask.lport = ~0;
 	if (fs->val.fport && !fs->mask.fport)
 		fs->mask.fport = ~0;
+}
+
+static bool is_addr_all_mask(u8 *ipmask, int family)
+{
+	if (family == AF_INET) {
+		struct in_addr *addr;
+
+		addr = (struct in_addr *)ipmask;
+		if (addr->s_addr == 0xffffffff)
+			return true;
+	} else if (family == AF_INET6) {
+		struct in6_addr *addr6;
+
+		addr6 = (struct in6_addr *)ipmask;
+		if (addr6->s6_addr32[0] == 0xffffffff &&
+		    addr6->s6_addr32[1] == 0xffffffff &&
+		    addr6->s6_addr32[2] == 0xffffffff &&
+		    addr6->s6_addr32[3] == 0xffffffff)
+			return true;
+	}
+	return false;
+}
+
+static bool is_inaddr_any(u8 *ip, int family)
+{
+	int addr_type;
+
+	if (family == AF_INET) {
+		struct in_addr *addr;
+
+		addr = (struct in_addr *)ip;
+		if (addr->s_addr == htonl(INADDR_ANY))
+			return true;
+	} else if (family == AF_INET6) {
+		struct in6_addr *addr6;
+
+		addr6 = (struct in6_addr *)ip;
+		addr_type = ipv6_addr_type((const struct in6_addr *)
+					   &addr6);
+		if (addr_type == IPV6_ADDR_ANY)
+			return true;
+	}
+	return false;
+}
+
+bool is_filter_exact_match(struct adapter *adap,
+			   struct ch_filter_specification *fs)
+{
+	struct tp_params *tp = &adap->params.tp;
+	u64 hash_filter_mask = tp->hash_filter_mask;
+	u32 mask;
+
+	if (!is_hashfilter(adap))
+		return false;
+
+	if (fs->type) {
+		if (is_inaddr_any(fs->val.fip, AF_INET6) ||
+		    !is_addr_all_mask(fs->mask.fip, AF_INET6))
+			return false;
+
+		if (is_inaddr_any(fs->val.lip, AF_INET6) ||
+		    !is_addr_all_mask(fs->mask.lip, AF_INET6))
+			return false;
+	} else {
+		if (is_inaddr_any(fs->val.fip, AF_INET) ||
+		    !is_addr_all_mask(fs->mask.fip, AF_INET))
+			return false;
+
+		if (is_inaddr_any(fs->val.lip, AF_INET) ||
+		    !is_addr_all_mask(fs->mask.lip, AF_INET))
+			return false;
+	}
+
+	if (!fs->val.lport || fs->mask.lport != 0xffff)
+		return false;
+
+	if (!fs->val.fport || fs->mask.fport != 0xffff)
+		return false;
+
+	if (tp->fcoe_shift >= 0) {
+		mask = (hash_filter_mask >> tp->fcoe_shift) & FT_FCOE_W;
+		if (mask && !fs->mask.fcoe)
+			return false;
+	}
+
+	if (tp->port_shift >= 0) {
+		mask = (hash_filter_mask >> tp->port_shift) & FT_PORT_W;
+		if (mask && !fs->mask.iport)
+			return false;
+	}
+
+	if (tp->vnic_shift >= 0) {
+		mask = (hash_filter_mask >> tp->vnic_shift) & FT_VNIC_ID_W;
+
+		if ((adap->params.tp.ingress_config & VNIC_F)) {
+			if (mask && !fs->mask.pfvf_vld)
+				return false;
+		} else {
+			if (mask && !fs->mask.ovlan_vld)
+				return false;
+		}
+	}
+
+	if (tp->vlan_shift >= 0) {
+		mask = (hash_filter_mask >> tp->vlan_shift) & FT_VLAN_W;
+		if (mask && !fs->mask.ivlan)
+			return false;
+	}
+
+	if (tp->tos_shift >= 0) {
+		mask = (hash_filter_mask >> tp->tos_shift) & FT_TOS_W;
+		if (mask && !fs->mask.tos)
+			return false;
+	}
+
+	if (tp->protocol_shift >= 0) {
+		mask = (hash_filter_mask >> tp->protocol_shift) & FT_PROTOCOL_W;
+		if (mask && !fs->mask.proto)
+			return false;
+	}
+
+	if (tp->ethertype_shift >= 0) {
+		mask = (hash_filter_mask >> tp->ethertype_shift) &
+			FT_ETHERTYPE_W;
+		if (mask && !fs->mask.ethtype)
+			return false;
+	}
+
+	if (tp->macmatch_shift >= 0) {
+		mask = (hash_filter_mask >> tp->macmatch_shift) & FT_MACMATCH_W;
+		if (mask && !fs->mask.macidx)
+			return false;
+	}
+
+	if (tp->matchtype_shift >= 0) {
+		mask = (hash_filter_mask >> tp->matchtype_shift) &
+			FT_MPSHITTYPE_W;
+		if (mask && !fs->mask.matchtype)
+			return false;
+	}
+	if (tp->frag_shift >= 0) {
+		mask = (hash_filter_mask >> tp->frag_shift) &
+			FT_FRAGMENTATION_W;
+		if (mask && !fs->mask.frag)
+			return false;
+	}
+	return true;
 }
 
 static u64 hash_filter_ntuple(struct ch_filter_specification *fs,

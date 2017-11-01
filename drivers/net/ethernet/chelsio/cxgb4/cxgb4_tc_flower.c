@@ -38,6 +38,7 @@
 #include <net/tc_act/tc_vlan.h>
 
 #include "cxgb4.h"
+#include "cxgb4_filter.h"
 #include "cxgb4_tc_flower.h"
 
 #define STATS_CHECK_PERIOD (HZ / 2)
@@ -672,11 +673,16 @@ int cxgb4_tc_flower_replace(struct net_device *dev,
 	cxgb4_process_flow_match(dev, cls, fs);
 	cxgb4_process_flow_actions(dev, cls, fs);
 
-	fidx = cxgb4_get_free_ftid(dev, fs->type ? PF_INET6 : PF_INET);
-	if (fidx < 0) {
-		netdev_err(dev, "%s: No fidx for offload.\n", __func__);
-		ret = -ENOMEM;
-		goto free_entry;
+	fs->hash = is_filter_exact_match(adap, fs);
+	if (fs->hash) {
+		fidx = 0;
+	} else {
+		fidx = cxgb4_get_free_ftid(dev, fs->type ? PF_INET6 : PF_INET);
+		if (fidx < 0) {
+			netdev_err(dev, "%s: No fidx for offload.\n", __func__);
+			ret = -ENOMEM;
+			goto free_entry;
+		}
 	}
 
 	init_completion(&ctx.completion);
