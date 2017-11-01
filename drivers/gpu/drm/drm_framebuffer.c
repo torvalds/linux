@@ -765,14 +765,18 @@ static int atomic_remove_fb(struct drm_framebuffer *fb)
 	struct drm_plane *plane;
 	struct drm_connector *conn;
 	struct drm_connector_state *conn_state;
-	int i, ret = 0;
+	int i, ret;
 	unsigned plane_mask;
+	bool disable_crtcs = false;
+
+retry_disable:
+	drm_modeset_acquire_init(&ctx, 0);
 
 	state = drm_atomic_state_alloc(dev);
-	if (!state)
-		return -ENOMEM;
-
-	drm_modeset_acquire_init(&ctx, 0);
+	if (!state) {
+		ret = -ENOMEM;
+		goto out;
+	}
 	state->acquire_ctx = &ctx;
 
 retry:
@@ -793,7 +797,7 @@ retry:
 			goto unlock;
 		}
 
-		if (plane_state->crtc->primary == plane) {
+		if (disable_crtcs && plane_state->crtc->primary == plane) {
 			struct drm_crtc_state *crtc_state;
 
 			crtc_state = drm_atomic_get_existing_crtc_state(state, plane_state->crtc);
@@ -818,6 +822,7 @@ retry:
 		plane->old_fb = plane->fb;
 	}
 
+	/* This list is only filled when disable_crtcs is set. */
 	for_each_new_connector_in_state(state, conn, conn_state, i) {
 		ret = drm_atomic_set_crtc_for_connector(conn_state, NULL);
 
@@ -840,8 +845,14 @@ unlock:
 
 	drm_atomic_state_put(state);
 
+out:
 	drm_modeset_drop_locks(&ctx);
 	drm_modeset_acquire_fini(&ctx);
+
+	if (ret == -EINVAL && !disable_crtcs) {
+		disable_crtcs = true;
+		goto retry_disable;
+	}
 
 	return ret;
 }
