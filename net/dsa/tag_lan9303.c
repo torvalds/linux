@@ -42,11 +42,10 @@
 #define LAN9303_TAG_LEN 4
 # define LAN9303_TAG_TX_USE_ALR BIT(3)
 # define LAN9303_TAG_TX_STP_OVERRIDE BIT(4)
-#define eth_stp_addr eth_reserved_addr_base
 
 /* Decide whether to transmit using ALR lookup, or transmit directly to
  * port using tag. ALR learning is performed only when using ALR lookup.
- * If the two external ports are bridged and the packet is not STP BPDU,
+ * If the two external ports are bridged and the frame is unicast,
  * then use ALR lookup to allow ALR learning on CPU port.
  * Otherwise transmit directly to port with STP state override.
  * See also: lan9303_separate_ports() and lan9303.pdf 6.4.10.1
@@ -55,7 +54,7 @@ static int lan9303_xmit_use_arl(struct dsa_port *dp, u8 *dest_addr)
 {
 	struct lan9303 *chip = dp->ds->priv;
 
-	return chip->is_bridged && !ether_addr_equal(dest_addr, eth_stp_addr);
+	return chip->is_bridged && !is_multicast_ether_addr(dest_addr);
 }
 
 static struct sk_buff *lan9303_xmit(struct sk_buff *skb, struct net_device *dev)
@@ -127,6 +126,8 @@ static struct sk_buff *lan9303_rcv(struct sk_buff *skb, struct net_device *dev,
 	skb_pull_rcsum(skb, 2 + 2);
 	memmove(skb->data - ETH_HLEN, skb->data - (ETH_HLEN + LAN9303_TAG_LEN),
 		2 * ETH_ALEN);
+	skb->offload_fwd_mark = !ether_addr_equal(skb->data - ETH_HLEN,
+						  eth_stp_addr);
 
 	return skb;
 }
