@@ -3756,8 +3756,8 @@ drm_parse_hdmi_vsdb_audio(struct drm_connector *connector, const u8 *db)
 {
 	u8 len = cea_db_payload_len(db);
 
-	if (len >= 6)
-		connector->eld[5] |= (db[6] >> 7) << 1;  /* Supports_AI */
+	if (len >= 6 && (db[6] & (1 << 7)))
+		connector->eld[DRM_ELD_SAD_COUNT_CONN_TYPE] |= DRM_ELD_SUPPORTS_AI;
 	if (len >= 8) {
 		connector->latency_present[0] = db[8] >> 7;
 		connector->latency_present[1] = (db[8] >> 6) & 1;
@@ -3865,17 +3865,18 @@ void drm_edid_to_eld(struct drm_connector *connector, struct edid *edid)
 		return;
 	}
 
-	mnl = get_monitor_name(edid, eld + 20);
+	mnl = get_monitor_name(edid, &eld[DRM_ELD_MONITOR_NAME_STRING]);
+	DRM_DEBUG_KMS("ELD monitor %s\n", &eld[DRM_ELD_MONITOR_NAME_STRING]);
 
-	eld[4] = (cea[1] << 5) | mnl;
-	DRM_DEBUG_KMS("ELD monitor %s\n", eld + 20);
+	eld[DRM_ELD_CEA_EDID_VER_MNL] = cea[1] << DRM_ELD_CEA_EDID_VER_SHIFT;
+	eld[DRM_ELD_CEA_EDID_VER_MNL] |= mnl;
 
-	eld[0] = 2 << 3;		/* ELD version: 2 */
+	eld[DRM_ELD_VER] = DRM_ELD_VER_CEA861D;
 
-	eld[16] = edid->mfg_id[0];
-	eld[17] = edid->mfg_id[1];
-	eld[18] = edid->prod_code[0];
-	eld[19] = edid->prod_code[1];
+	eld[DRM_ELD_MANUFACTURER_NAME0] = edid->mfg_id[0];
+	eld[DRM_ELD_MANUFACTURER_NAME1] = edid->mfg_id[1];
+	eld[DRM_ELD_PRODUCT_CODE0] = edid->prod_code[0];
+	eld[DRM_ELD_PRODUCT_CODE1] = edid->prod_code[1];
 
 	if (cea_revision(cea) >= 3) {
 		int i, start, end;
@@ -3896,14 +3897,14 @@ void drm_edid_to_eld(struct drm_connector *connector, struct edid *edid)
 				/* Audio Data Block, contains SADs */
 				sad_count = min(dbl / 3, 15 - total_sad_count);
 				if (sad_count >= 1)
-					memcpy(eld + 20 + mnl + total_sad_count * 3,
+					memcpy(&eld[DRM_ELD_CEA_SAD(mnl, total_sad_count)],
 					       &db[1], sad_count * 3);
 				total_sad_count += sad_count;
 				break;
 			case SPEAKER_BLOCK:
 				/* Speaker Allocation Data Block */
 				if (dbl >= 1)
-					eld[7] = db[1];
+					eld[DRM_ELD_SPEAKER] = db[1];
 				break;
 			case VENDOR_BLOCK:
 				/* HDMI Vendor-Specific Data Block */
@@ -3915,7 +3916,7 @@ void drm_edid_to_eld(struct drm_connector *connector, struct edid *edid)
 			}
 		}
 	}
-	eld[5] |= total_sad_count << 4;
+	eld[DRM_ELD_SAD_COUNT_CONN_TYPE] |= total_sad_count << DRM_ELD_SAD_COUNT_SHIFT;
 
 	eld[DRM_ELD_BASELINE_ELD_LEN] =
 		DIV_ROUND_UP(drm_eld_calc_baseline_block_size(eld), 4);
