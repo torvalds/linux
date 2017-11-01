@@ -3829,6 +3829,18 @@ void drm_edid_get_monitor_name(struct edid *edid, char *name, int bufsize)
 }
 EXPORT_SYMBOL(drm_edid_get_monitor_name);
 
+static void clear_eld(struct drm_connector *connector)
+{
+	memset(connector->eld, 0, sizeof(connector->eld));
+
+	connector->latency_present[0] = false;
+	connector->latency_present[1] = false;
+	connector->video_latency[0] = 0;
+	connector->audio_latency[0] = 0;
+	connector->video_latency[1] = 0;
+	connector->audio_latency[1] = 0;
+}
+
 /**
  * drm_edid_to_eld - build ELD from EDID
  * @connector: connector corresponding to the HDMI/DP sink
@@ -3846,14 +3858,7 @@ void drm_edid_to_eld(struct drm_connector *connector, struct edid *edid)
 	int mnl;
 	int dbl;
 
-	memset(eld, 0, sizeof(connector->eld));
-
-	connector->latency_present[0] = false;
-	connector->latency_present[1] = false;
-	connector->video_latency[0] = 0;
-	connector->audio_latency[0] = 0;
-	connector->video_latency[1] = 0;
-	connector->audio_latency[1] = 0;
+	clear_eld(connector);
 
 	if (!edid)
 		return;
