@@ -1752,6 +1752,7 @@ static int rsi_mac80211_cancel_roc(struct ieee80211_hw *hw)
 	return 0;
 }
 
+#ifdef CONFIG_PM
 static const struct wiphy_wowlan_support rsi_wowlan_support = {
 	.flags = WIPHY_WOWLAN_ANY |
 		 WIPHY_WOWLAN_MAGIC_PKT |
@@ -1824,7 +1825,6 @@ int rsi_config_wowlan(struct rsi_hw *adapter, struct cfg80211_wowlan *wowlan)
 }
 EXPORT_SYMBOL(rsi_config_wowlan);
 
-#ifdef CONFIG_PM
 static int rsi_mac80211_suspend(struct ieee80211_hw *hw,
 				struct cfg80211_wowlan *wowlan)
 {
@@ -1977,7 +1977,10 @@ int rsi_mac80211_attach(struct rsi_common *common)
 	wiphy->features |= NL80211_FEATURE_INACTIVITY_TIMER;
 	wiphy->reg_notifier = rsi_reg_notify;
 
+#ifdef CONFIG_PM
 	wiphy->wowlan = &rsi_wowlan_support;
+#endif
+
 	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_CQM_RSSI_LIST);
 
 	/* Wi-Fi direct parameters */

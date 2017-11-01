@@ -1597,6 +1597,7 @@ static int rsi_send_beacon(struct rsi_common *common)
 	return 0;
 }
 
+#ifdef CONFIG_PM
 int rsi_send_wowlan_request(struct rsi_common *common, u16 flags,
 			    u16 sleep_status)
 {
@@ -1630,6 +1631,7 @@ int rsi_send_wowlan_request(struct rsi_common *common, u16 flags,
 
 	return rsi_send_internal_mgmt_frame(common, skb);
 }
+#endif
 
 /**
  * rsi_handle_ta_confirm_type() - This function handles the confirm frames.
