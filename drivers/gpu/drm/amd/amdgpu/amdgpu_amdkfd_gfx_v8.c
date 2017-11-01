@@ -45,7 +45,7 @@ enum hqd_dequeue_request_type {
 	RESET_WAVES
 };
 
-struct cik_sdma_rlc_registers;
+struct vi_sdma_mqd;
 
 /*
  * Register access functions
@@ -269,9 +269,15 @@ static int kgd_init_interrupts(struct kgd_dev *kgd, uint32_t pipe_id)
 	return 0;
 }
 
-static inline uint32_t get_sdma_base_addr(struct cik_sdma_rlc_registers *m)
+static inline uint32_t get_sdma_base_addr(struct vi_sdma_mqd *m)
 {
-	return 0;
+	uint32_t retval;
+
+	retval = m->sdma_engine_id * SDMA1_REGISTER_OFFSET +
+		m->sdma_queue_id * KFD_VI_SDMA_QUEUE_OFFSET;
+	pr_debug("kfd: sdma base address: 0x%x\n", retval);
+
+	return retval;
 }
 
 static inline struct vi_mqd *get_mqd(void *mqd)
@@ -279,9 +285,9 @@ static inline struct vi_mqd *get_mqd(void *mqd)
 	return (struct vi_mqd *)mqd;
 }
 
-static inline struct cik_sdma_rlc_registers *get_sdma_mqd(void *mqd)
+static inline struct vi_sdma_mqd *get_sdma_mqd(void *mqd)
 {
-	return (struct cik_sdma_rlc_registers *)mqd;
+	return (struct vi_sdma_mqd *)mqd;
 }
 
 static int kgd_hqd_load(struct kgd_dev *kgd, void *mqd, uint32_t pipe_id,
@@ -362,6 +368,63 @@ static int kgd_hqd_load(struct kgd_dev *kgd, void *mqd, uint32_t pipe_id,
 static int kgd_hqd_sdma_load(struct kgd_dev *kgd, void *mqd,
 			     uint32_t __user *wptr, struct mm_struct *mm)
 {
+	struct amdgpu_device *adev = get_amdgpu_device(kgd);
+	struct vi_sdma_mqd *m;
+	unsigned long end_jiffies;
+	uint32_t sdma_base_addr;
+	uint32_t data;
+
+	m = get_sdma_mqd(mqd);
+	sdma_base_addr = get_sdma_base_addr(m);
+	WREG32(sdma_base_addr + mmSDMA0_RLC0_RB_CNTL,
+		m->sdmax_rlcx_rb_cntl & (~SDMA0_RLC0_RB_CNTL__RB_ENABLE_MASK));
+
+	end_jiffies = msecs_to_jiffies(2000) + jiffies;
+	while (true) {
+		data = RREG32(sdma_base_addr + mmSDMA0_RLC0_CONTEXT_STATUS);
+		if (data & SDMA0_RLC0_CONTEXT_STATUS__IDLE_MASK)
+			break;
+		if (time_after(jiffies, end_jiffies))
+			return -ETIME;
+		usleep_range(500, 1000);
+	}
+	if (m->sdma_engine_id) {
+		data = RREG32(mmSDMA1_GFX_CONTEXT_CNTL);
+		data = REG_SET_FIELD(data, SDMA1_GFX_CONTEXT_CNTL,
+				RESUME_CTX, 0);
+		WREG32(mmSDMA1_GFX_CONTEXT_CNTL, data);
+	} else {
+		data = RREG32(mmSDMA0_GFX_CONTEXT_CNTL);
+		data = REG_SET_FIELD(data, SDMA0_GFX_CONTEXT_CNTL,
+				RESUME_CTX, 0);
+		WREG32(mmSDMA0_GFX_CONTEXT_CNTL, data);
+	}
+
+	data = REG_SET_FIELD(m->sdmax_rlcx_doorbell, SDMA0_RLC0_DOORBELL,
+			     ENABLE, 1);
+	WREG32(sdma_base_addr + mmSDMA0_RLC0_DOORBELL, data);
+	WREG32(sdma_base_addr + mmSDMA0_RLC0_RB_RPTR, m->sdmax_rlcx_rb_rptr);
+
+	if (read_user_wptr(mm, wptr, data))
+		WREG32(sdma_base_addr + mmSDMA0_RLC0_RB_WPTR, data);
+	else
+		WREG32(sdma_base_addr + mmSDMA0_RLC0_RB_WPTR,
+		       m->sdmax_rlcx_rb_rptr);
+
+	WREG32(sdma_base_addr + mmSDMA0_RLC0_VIRTUAL_ADDR,
+				m->sdmax_rlcx_virtual_addr);
+	WREG32(sdma_base_addr + mmSDMA0_RLC0_RB_BASE, m->sdmax_rlcx_rb_base);
+	WREG32(sdma_base_addr + mmSDMA0_RLC0_RB_BASE_HI,
+			m->sdmax_rlcx_rb_base_hi);
+	WREG32(sdma_base_addr + mmSDMA0_RLC0_RB_RPTR_ADDR_LO,
+			m->sdmax_rlcx_rb_rptr_addr_lo);
+	WREG32(sdma_base_addr + mmSDMA0_RLC0_RB_RPTR_ADDR_HI,
+			m->sdmax_rlcx_rb_rptr_addr_hi);
+
+	data = REG_SET_FIELD(m->sdmax_rlcx_rb_cntl, SDMA0_RLC0_RB_CNTL,
+			     RB_ENABLE, 1);
+	WREG32(sdma_base_addr + mmSDMA0_RLC0_RB_CNTL, data);
+
 	return 0;
 }
 
@@ -390,7 +453,7 @@ static bool kgd_hqd_is_occupied(struct kgd_dev *kgd, uint64_t queue_address,
 static bool kgd_hqd_sdma_is_occupied(struct kgd_dev *kgd, void *mqd)
 {
 	struct amdgpu_device *adev = get_amdgpu_device(kgd);
-	struct cik_sdma_rlc_registers *m;
+	struct vi_sdma_mqd *m;
 	uint32_t sdma_base_addr;
 	uint32_t sdma_rlc_rb_cntl;
 
@@ -511,7 +574,7 @@ static int kgd_hqd_sdma_destroy(struct kgd_dev *kgd, void *mqd,
 				unsigned int utimeout)
 {
 	struct amdgpu_device *adev = get_amdgpu_device(kgd);
-	struct cik_sdma_rlc_registers *m;
+	struct vi_sdma_mqd *m;
 	uint32_t sdma_base_addr;
 	uint32_t temp;
 	unsigned long end_jiffies = (utimeout * HZ / 1000) + jiffies;
@@ -525,7 +588,7 @@ static int kgd_hqd_sdma_destroy(struct kgd_dev *kgd, void *mqd,
 
 	while (true) {
 		temp = RREG32(sdma_base_addr + mmSDMA0_RLC0_CONTEXT_STATUS);
-		if (temp & SDMA0_STATUS_REG__RB_CMD_IDLE__SHIFT)
+		if (temp & SDMA0_RLC0_CONTEXT_STATUS__IDLE_MASK)
 			break;
 		if (time_after(jiffies, end_jiffies))
 			return -ETIME;
@@ -533,9 +596,11 @@ static int kgd_hqd_sdma_destroy(struct kgd_dev *kgd, void *mqd,
 	}
 
 	WREG32(sdma_base_addr + mmSDMA0_RLC0_DOORBELL, 0);
-	WREG32(sdma_base_addr + mmSDMA0_RLC0_RB_RPTR, 0);
-	WREG32(sdma_base_addr + mmSDMA0_RLC0_RB_WPTR, 0);
-	WREG32(sdma_base_addr + mmSDMA0_RLC0_RB_BASE, 0);
+	WREG32(sdma_base_addr + mmSDMA0_RLC0_RB_CNTL,
+		RREG32(sdma_base_addr + mmSDMA0_RLC0_RB_CNTL) |
+		SDMA0_RLC0_RB_CNTL__RB_ENABLE_MASK);
+
+	m->sdmax_rlcx_rb_rptr = RREG32(sdma_base_addr + mmSDMA0_RLC0_RB_RPTR);
 
 	return 0;
 }
