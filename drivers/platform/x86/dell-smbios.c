@@ -86,8 +86,8 @@ void dell_smbios_send_request(int class, int select)
 	command.ebx = virt_to_phys(buffer);
 	command.ecx = 0x42534931;
 
-	buffer->class = class;
-	buffer->select = select;
+	buffer->cmd_class = class;
+	buffer->cmd_select = select;
 
 	dcdbas_smi_request(&command);
 }
