@@ -38,7 +38,8 @@
  */
 #define DRM_PLANE_HELPER_NO_SCALING (1<<16)
 
-int drm_plane_helper_check_state(struct drm_plane_state *state,
+int drm_plane_helper_check_state(struct drm_plane_state *plane_state,
+				 const struct drm_crtc_state *crtc_state,
 				 const struct drm_rect *clip,
 				 int min_scale, int max_scale,
 				 bool can_position,

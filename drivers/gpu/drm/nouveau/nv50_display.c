@@ -1143,7 +1143,8 @@ nv50_curs_acquire(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw,
 {
 	int ret;
 
-	ret = drm_plane_helper_check_state(&asyw->state, &asyw->clip,
+	ret = drm_plane_helper_check_state(&asyw->state, &asyh->state,
+					   &asyw->clip,
 					   DRM_PLANE_HELPER_NO_SCALING,
 					   DRM_PLANE_HELPER_NO_SCALING,
 					   true, true);
@@ -1432,7 +1433,8 @@ nv50_base_acquire(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw,
 	if (!fb->format->depth)
 		return -EINVAL;
 
-	ret = drm_plane_helper_check_state(&asyw->state, &asyw->clip,
+	ret = drm_plane_helper_check_state(&asyw->state, &asyh->state,
+					   &asyw->clip,
 					   DRM_PLANE_HELPER_NO_SCALING,
 					   DRM_PLANE_HELPER_NO_SCALING,
 					   false, true);

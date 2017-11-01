@@ -101,7 +101,8 @@ static int get_connectors_for_crtc(struct drm_crtc *crtc,
 
 /**
  * drm_plane_helper_check_state() - Check plane state for validity
- * @state: plane state to check
+ * @plane_state: plane state to check
+ * @crtc_state: crtc state to check
  * @clip: integer clipping coordinates
  * @min_scale: minimum @src:@dest scaling factor in 16.16 fixed point
  * @max_scale: maximum @src:@dest scaling factor in 16.16 fixed point
@@ -120,35 +121,37 @@ static int get_connectors_for_crtc(struct drm_crtc *crtc,
  * RETURNS:
  * Zero if update appears valid, error code on failure
  */
-int drm_plane_helper_check_state(struct drm_plane_state *state,
+int drm_plane_helper_check_state(struct drm_plane_state *plane_state,
+				 const struct drm_crtc_state *crtc_state,
 				 const struct drm_rect *clip,
 				 int min_scale,
 				 int max_scale,
 				 bool can_position,
 				 bool can_update_disabled)
 {
-	struct drm_crtc *crtc = state->crtc;
-	struct drm_framebuffer *fb = state->fb;
-	struct drm_rect *src = &state->src;
-	struct drm_rect *dst = &state->dst;
-	unsigned int rotation = state->rotation;
+	struct drm_framebuffer *fb = plane_state->fb;
+	struct drm_rect *src = &plane_state->src;
+	struct drm_rect *dst = &plane_state->dst;
+	unsigned int rotation = plane_state->rotation;
 	int hscale, vscale;
 
-	*src = drm_plane_state_src(state);
-	*dst = drm_plane_state_dest(state);
+	WARN_ON(plane_state->crtc && plane_state->crtc != crtc_state->crtc);
+
+	*src = drm_plane_state_src(plane_state);
+	*dst = drm_plane_state_dest(plane_state);
 
 	if (!fb) {
-		state->visible = false;
+		plane_state->visible = false;
 		return 0;
 	}
 
 	/* crtc should only be NULL when disabling (i.e., !fb) */
-	if (WARN_ON(!crtc)) {
-		state->visible = false;
+	if (WARN_ON(!plane_state->crtc)) {
+		plane_state->visible = false;
 		return 0;
 	}
 
-	if (!crtc->enabled && !can_update_disabled) {
+	if (!crtc_state->enable && !can_update_disabled) {
 		DRM_DEBUG_KMS("Cannot update plane of a disabled CRTC.\n");
 		return -EINVAL;
 	}
@@ -160,16 +163,16 @@ int drm_plane_helper_check_state(struct drm_plane_state *state,
 	vscale = drm_rect_calc_vscale(src, dst, min_scale, max_scale);
 	if (hscale < 0 || vscale < 0) {
 		DRM_DEBUG_KMS("Invalid scaling of plane\n");
-		drm_rect_debug_print("src: ", &state->src, true);
-		drm_rect_debug_print("dst: ", &state->dst, false);
+		drm_rect_debug_print("src: ", &plane_state->src, true);
+		drm_rect_debug_print("dst: ", &plane_state->dst, false);
 		return -ERANGE;
 	}
 
-	state->visible = drm_rect_clip_scaled(src, dst, clip, hscale, vscale);
+	plane_state->visible = drm_rect_clip_scaled(src, dst, clip, hscale, vscale);
 
 	drm_rect_rotate_inv(src, fb->width << 16, fb->height << 16, rotation);
 
-	if (!state->visible)
+	if (!plane_state->visible)
 		/*
 		 * Plane isn't visible; some drivers can handle this
 		 * so we just return success here.  Drivers that can't
@@ -230,7 +233,7 @@ int drm_plane_helper_check_update(struct drm_plane *plane,
 				  bool can_update_disabled,
 				  bool *visible)
 {
-	struct drm_plane_state state = {
+	struct drm_plane_state plane_state = {
 		.plane = plane,
 		.crtc = crtc,
 		.fb = fb,
@@ -245,18 +248,22 @@ int drm_plane_helper_check_update(struct drm_plane *plane,
 		.rotation = rotation,
 		.visible = *visible,
 	};
+	struct drm_crtc_state crtc_state = {
+		.crtc = crtc,
+		.enable = crtc->enabled,
+	};
 	int ret;
 
-	ret = drm_plane_helper_check_state(&state, clip,
+	ret = drm_plane_helper_check_state(&plane_state, &crtc_state, clip,
 					   min_scale, max_scale,
 					   can_position,
 					   can_update_disabled);
 	if (ret)
 		return ret;
 
-	*src = state.src;
-	*dst = state.dst;
-	*visible = state.visible;
+	*src = plane_state.src;
+	*dst = plane_state.dst;
+	*visible = plane_state.visible;
 
 	return 0;
 }

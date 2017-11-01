@@ -9419,6 +9419,7 @@ static int intel_check_cursor(struct intel_crtc_state *crtc_state,
 	int ret;
 
 	ret = drm_plane_helper_check_state(&plane_state->base,
+					   &crtc_state->base,
 					   &plane_state->clip,
 					   DRM_PLANE_HELPER_NO_SCALING,
 					   DRM_PLANE_HELPER_NO_SCALING,
@@ -12842,6 +12843,7 @@ intel_check_primary_plane(struct intel_plane *plane,
 	}
 
 	ret = drm_plane_helper_check_state(&state->base,
+					   &crtc_state->base,
 					   &state->clip,
 					   min_scale, max_scale,
 					   can_position, true);

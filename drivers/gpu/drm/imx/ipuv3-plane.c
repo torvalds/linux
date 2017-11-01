@@ -342,7 +342,7 @@ static int ipu_plane_atomic_check(struct drm_plane *plane,
 	clip.y1 = 0;
 	clip.x2 = crtc_state->adjusted_mode.hdisplay;
 	clip.y2 = crtc_state->adjusted_mode.vdisplay;
-	ret = drm_plane_helper_check_state(state, &clip,
+	ret = drm_plane_helper_check_state(state, crtc_state, &clip,
 					   DRM_PLANE_HELPER_NO_SCALING,
 					   DRM_PLANE_HELPER_NO_SCALING,
 					   can_position, true);

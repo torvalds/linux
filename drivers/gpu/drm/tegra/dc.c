@@ -500,8 +500,8 @@ static int tegra_plane_state_add(struct tegra_plane *plane,
 	clip.y2 = crtc_state->mode.vdisplay;
 
 	/* Check plane state for visibility and calculate clipping bounds */
-	err = drm_plane_helper_check_state(state, &clip, 0, INT_MAX,
-					   true, true);
+	err = drm_plane_helper_check_state(state, crtc_state, &clip,
+					   0, INT_MAX, true, true);
 	if (err < 0)
 		return err;
 
