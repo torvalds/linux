@@ -27,10 +27,9 @@
 #define __RTL_PCI_H__
 
 #include <linux/pci.h>
-/*
-1: MSDU packet queue,
-2: Rx Command Queue
-*/
+/* 1: MSDU packet queue,
+ * 2: Rx Command Queue
+ */
 #define RTL_PCI_RX_MPDU_QUEUE			0
 #define RTL_PCI_RX_CMD_QUEUE			1
 #define RTL_PCI_MAX_RX_QUEUE			2
@@ -223,8 +222,9 @@ struct rtl_pci {
 	u8 const_hostpci_aspm_setting;
 	/*pci-e device */
 	u8 const_devicepci_aspm_setting;
-	/*If it supports ASPM, Offset[560h] = 0x40,
-	   otherwise Offset[560h] = 0x00. */
+	/* If it supports ASPM, Offset[560h] = 0x40,
+	 * otherwise Offset[560h] = 0x00.
+	 */
 	bool support_aspm;
 	bool support_backdoor;
 
@@ -279,7 +279,7 @@ int rtl_pci_reset_trx_ring(struct ieee80211_hw *hw);
 extern const struct rtl_intf_ops rtl_pci_ops;
 
 int rtl_pci_probe(struct pci_dev *pdev,
-			    const struct pci_device_id *id);
+		  const struct pci_device_id *id);
 void rtl_pci_disconnect(struct pci_dev *pdev);
 #ifdef CONFIG_PM_SLEEP
 int rtl_pci_suspend(struct device *dev);
@@ -287,34 +287,34 @@ int rtl_pci_resume(struct device *dev);
 #endif /* CONFIG_PM_SLEEP */
 static inline u8 pci_read8_sync(struct rtl_priv *rtlpriv, u32 addr)
 {
-	return readb((u8 __iomem *) rtlpriv->io.pci_mem_start + addr);
+	return readb((u8 __iomem *)rtlpriv->io.pci_mem_start + addr);
 }
 
 static inline u16 pci_read16_sync(struct rtl_priv *rtlpriv, u32 addr)
 {
-	return readw((u8 __iomem *) rtlpriv->io.pci_mem_start + addr);
+	return readw((u8 __iomem *)rtlpriv->io.pci_mem_start + addr);
 }
 
 static inline u32 pci_read32_sync(struct rtl_priv *rtlpriv, u32 addr)
 {
-	return readl((u8 __iomem *) rtlpriv->io.pci_mem_start + addr);
+	return readl((u8 __iomem *)rtlpriv->io.pci_mem_start + addr);
 }
 
 static inline void pci_write8_async(struct rtl_priv *rtlpriv, u32 addr, u8 val)
 {
-	writeb(val, (u8 __iomem *) rtlpriv->io.pci_mem_start + addr);
+	writeb(val, (u8 __iomem *)rtlpriv->io.pci_mem_start + addr);
 }
 
 static inline void pci_write16_async(struct rtl_priv *rtlpriv,
 				     u32 addr, u16 val)
 {
-	writew(val, (u8 __iomem *) rtlpriv->io.pci_mem_start + addr);
+	writew(val, (u8 __iomem *)rtlpriv->io.pci_mem_start + addr);
 }
 
 static inline void pci_write32_async(struct rtl_priv *rtlpriv,
 				     u32 addr, u32 val)
 {
-	writel(val, (u8 __iomem *) rtlpriv->io.pci_mem_start + addr);
+	writel(val, (u8 __iomem *)rtlpriv->io.pci_mem_start + addr);
 }
 
 static inline u16 calc_fifo_space(u16 rp, u16 wp)
