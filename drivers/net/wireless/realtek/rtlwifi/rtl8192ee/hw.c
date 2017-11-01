@@ -1694,7 +1694,8 @@ void rtl92ee_card_disable(struct ieee80211_hw *hw)
 }
 
 void rtl92ee_interrupt_recognized(struct ieee80211_hw *hw,
-				  u32 *p_inta, u32 *p_intb)
+				  u32 *p_inta, u32 *p_intb,
+				  u32 *p_intc, u32 *p_intd)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));

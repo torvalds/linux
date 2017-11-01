@@ -2101,7 +2101,8 @@ struct rtl_hal_ops {
 	void (*read_chip_version)(struct ieee80211_hw *hw);
 	void (*read_eeprom_info) (struct ieee80211_hw *hw);
 	void (*interrupt_recognized) (struct ieee80211_hw *hw,
-				      u32 *p_inta, u32 *p_intb);
+				      u32 *p_inta, u32 *p_intb,
+				      u32 *p_intc, u32 *p_intd);
 	int (*hw_init) (struct ieee80211_hw *hw);
 	void (*hw_disable) (struct ieee80211_hw *hw);
 	void (*hw_suspend) (struct ieee80211_hw *hw);
