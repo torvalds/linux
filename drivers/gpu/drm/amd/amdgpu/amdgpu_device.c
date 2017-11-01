@@ -680,8 +680,12 @@ void amdgpu_fw_reserve_vram_fini(struct amdgpu_device *adev)
 int amdgpu_fw_reserve_vram_init(struct amdgpu_device *adev)
 {
 	int r = 0;
+	int i;
 	u64 gpu_addr;
 	u64 vram_size = adev->mc.visible_vram_size;
+	u64 offset = adev->fw_vram_usage.start_offset;
+	u64 size = adev->fw_vram_usage.size;
+	struct amdgpu_bo *bo;
 
 	adev->fw_vram_usage.va = NULL;
 	adev->fw_vram_usage.reserved_bo = NULL;
@@ -690,7 +694,7 @@ int amdgpu_fw_reserve_vram_init(struct amdgpu_device *adev)
 		adev->fw_vram_usage.size <= vram_size) {
 
 		r = amdgpu_bo_create(adev, adev->fw_vram_usage.size,
-			PAGE_SIZE, true, 0,
+			PAGE_SIZE, true, AMDGPU_GEM_DOMAIN_VRAM,
 			AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED |
 			AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS, NULL, NULL, 0,
 			&adev->fw_vram_usage.reserved_bo);
@@ -700,6 +704,23 @@ int amdgpu_fw_reserve_vram_init(struct amdgpu_device *adev)
 		r = amdgpu_bo_reserve(adev->fw_vram_usage.reserved_bo, false);
 		if (r)
 			goto error_reserve;
+
+		/* remove the original mem node and create a new one at the
+		 * request position
+		 */
+		bo = adev->fw_vram_usage.reserved_bo;
+		offset = ALIGN(offset, PAGE_SIZE);
+		for (i = 0; i < bo->placement.num_placement; ++i) {
+			bo->placements[i].fpfn = offset >> PAGE_SHIFT;
+			bo->placements[i].lpfn = (offset + size) >> PAGE_SHIFT;
+		}
+
+		ttm_bo_mem_put(&bo->tbo, &bo->tbo.mem);
+		r = ttm_bo_mem_space(&bo->tbo, &bo->placement, &bo->tbo.mem,
+				     false, false);
+		if (r)
+			goto error_pin;
+
 		r = amdgpu_bo_pin_restricted(adev->fw_vram_usage.reserved_bo,
 			AMDGPU_GEM_DOMAIN_VRAM,
 			adev->fw_vram_usage.start_offset,
