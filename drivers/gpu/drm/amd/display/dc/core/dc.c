@@ -239,93 +239,6 @@ void dc_stream_set_static_screen_events(struct dc *dc,
 	dc->hwss.set_static_screen_control(pipes_affected, num_pipes_affected, events);
 }
 
-static void set_drive_settings(struct dc *dc,
-		struct link_training_settings *lt_settings,
-		const struct dc_link *link)
-{
-
-	int i;
-
-	for (i = 0; i < dc->link_count; i++) {
-		if (dc->links[i] == link)
-			break;
-	}
-
-	if (i >= dc->link_count)
-		ASSERT_CRITICAL(false);
-
-	dc_link_dp_set_drive_settings(dc->links[i], lt_settings);
-}
-
-static void perform_link_training(struct dc *dc,
-		struct dc_link_settings *link_setting,
-		bool skip_video_pattern)
-{
-	int i;
-
-	for (i = 0; i < dc->link_count; i++)
-		dc_link_dp_perform_link_training(
-			dc->links[i],
-			link_setting,
-			skip_video_pattern);
-}
-
-static void set_preferred_link_settings(struct dc *dc,
-		struct dc_link_settings *link_setting,
-		struct dc_link *link)
-{
-	link->preferred_link_setting = *link_setting;
-	dp_retrain_link_dp_test(link, link_setting, false);
-}
-
-static void enable_hpd(const struct dc_link *link)
-{
-	dc_link_dp_enable_hpd(link);
-}
-
-static void disable_hpd(const struct dc_link *link)
-{
-	dc_link_dp_disable_hpd(link);
-}
-
-
-static void set_test_pattern(
-		struct dc_link *link,
-		enum dp_test_pattern test_pattern,
-		const struct link_training_settings *p_link_settings,
-		const unsigned char *p_custom_pattern,
-		unsigned int cust_pattern_size)
-{
-	if (link != NULL)
-		dc_link_dp_set_test_pattern(
-			link,
-			test_pattern,
-			p_link_settings,
-			p_custom_pattern,
-			cust_pattern_size);
-}
-
-static void allocate_dc_stream_funcs(struct dc  *dc)
-{
-	dc->link_funcs.set_drive_settings =
-			set_drive_settings;
-
-	dc->link_funcs.perform_link_training =
-			perform_link_training;
-
-	dc->link_funcs.set_preferred_link_settings =
-			set_preferred_link_settings;
-
-	dc->link_funcs.enable_hpd =
-			enable_hpd;
-
-	dc->link_funcs.disable_hpd =
-			disable_hpd;
-
-	dc->link_funcs.set_test_pattern =
-			set_test_pattern;
-}
-
 static void destruct(struct dc *dc)
 {
 	dc_release_state(dc->current_state);
@@ -501,8 +414,6 @@ static bool construct(struct dc *dc,
 
 	if (!create_links(dc, init_params->num_virtual_links))
 		goto fail;
-
-	allocate_dc_stream_funcs(dc);
 
 	return true;
 

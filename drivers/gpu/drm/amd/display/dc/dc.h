@@ -146,25 +146,6 @@ struct dc_cap_funcs {
 
 struct link_training_settings;
 
-struct dc_link_funcs {
-	void (*set_drive_settings)(struct dc *dc,
-			struct link_training_settings *lt_settings,
-			const struct dc_link *link);
-	void (*perform_link_training)(struct dc *dc,
-			struct dc_link_settings *link_setting,
-			bool skip_video_pattern);
-	void (*set_preferred_link_settings)(struct dc *dc,
-			struct dc_link_settings *link_setting,
-			struct dc_link *link);
-	void (*enable_hpd)(const struct dc_link *link);
-	void (*disable_hpd)(const struct dc_link *link);
-	void (*set_test_pattern)(
-			struct dc_link *link,
-			enum dp_test_pattern test_pattern,
-			const struct link_training_settings *p_link_settings,
-			const unsigned char *p_custom_pattern,
-			unsigned int cust_pattern_size);
-};
 
 /* Structure to hold configuration flags set by dm at dc creation. */
 struct dc_config {
@@ -237,7 +218,6 @@ struct dce_hwseq;
 struct dc {
 	struct dc_caps caps;
 	struct dc_cap_funcs cap_funcs;
-	struct dc_link_funcs link_funcs;
 	struct dc_config config;
 	struct dc_debug debug;
 
