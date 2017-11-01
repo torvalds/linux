@@ -48,7 +48,7 @@ struct ch_tc_flower_entry {
 	struct ch_filter_specification fs;
 	struct ch_tc_flower_stats stats;
 	unsigned long tc_flower_cookie;
-	struct hlist_node link;
+	struct rhash_head node;
 	struct rcu_head rcu;
 	spinlock_t lock; /* lock for stats */
 	u32 filter_id;
@@ -115,6 +115,6 @@ int cxgb4_tc_flower_destroy(struct net_device *dev,
 int cxgb4_tc_flower_stats(struct net_device *dev,
 			  struct tc_cls_flower_offload *cls);
 
-void cxgb4_init_tc_flower(struct adapter *adap);
+int cxgb4_init_tc_flower(struct adapter *adap);
 void cxgb4_cleanup_tc_flower(struct adapter *adap);
 #endif /* __CXGB4_TC_FLOWER_H */

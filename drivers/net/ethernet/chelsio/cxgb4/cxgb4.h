@@ -287,10 +287,18 @@ struct tp_params {
 	 * places we store their offsets here, or a -1 if the field isn't
 	 * present.
 	 */
-	int vlan_shift;
-	int vnic_shift;
+	int fcoe_shift;
 	int port_shift;
+	int vnic_shift;
+	int vlan_shift;
+	int tos_shift;
 	int protocol_shift;
+	int ethertype_shift;
+	int macmatch_shift;
+	int matchtype_shift;
+	int frag_shift;
+
+	u64 hash_filter_mask;
 };
 
 struct vpd_params {
@@ -358,6 +366,7 @@ struct adapter_params {
 	unsigned char crypto;		/* HW capability for crypto */
 
 	unsigned char bypass;
+	unsigned char hash_filter;
 
 	unsigned int ofldq_wr_cred;
 	bool ulptx_memwrite_dsgl;          /* use of T5 DSGL allowed */
@@ -909,8 +918,10 @@ struct adapter {
 	struct chcr_stats_debug chcr_stats;
 
 	/* TC flower offload */
-	DECLARE_HASHTABLE(flower_anymatch_tbl, 9);
+	struct rhashtable flower_tbl;
+	struct rhashtable_params flower_ht_params;
 	struct timer_list flower_stats_timer;
+	struct work_struct flower_stats_work;
 
 	/* Ethtool Dump */
 	struct ethtool_dump eth_dump;
@@ -1041,6 +1052,7 @@ struct ch_filter_specification {
 	 * matching that doesn't exist as a (value, mask) tuple.
 	 */
 	uint32_t type:1;        /* 0 => IPv4, 1 => IPv6 */
+	u32 hash:1;		/* 0 => wild-card, 1 => exact-match */
 
 	/* Packet dispatch information.  Ingress packets which match the
 	 * filter rules will be dropped, passed to the host or switched back
@@ -1098,7 +1110,14 @@ enum {
 };
 
 enum {
-	NAT_MODE_ALL = 7,	/* NAT on entire 4-tuple */
+	NAT_MODE_NONE = 0,	/* No NAT performed */
+	NAT_MODE_DIP,		/* NAT on Dst IP */
+	NAT_MODE_DIP_DP,	/* NAT on Dst IP, Dst Port */
+	NAT_MODE_DIP_DP_SIP,	/* NAT on Dst IP, Dst Port and Src IP */
+	NAT_MODE_DIP_DP_SP,	/* NAT on Dst IP, Dst Port and Src Port */
+	NAT_MODE_SIP_SP,	/* NAT on Src IP and Src Port */
+	NAT_MODE_DIP_SIP_SP,	/* NAT on Dst IP, Src IP and Src Port */
+	NAT_MODE_ALL		/* NAT on entire 4-tuple */
 };
 
 /* Host shadow copy of ingress filter entry.  This is in host native format
@@ -1130,6 +1149,11 @@ struct filter_entry {
 static inline int is_offload(const struct adapter *adap)
 {
 	return adap->params.offload;
+}
+
+static inline int is_hashfilter(const struct adapter *adap)
+{
+	return adap->params.hash_filter;
 }
 
 static inline int is_pci_uld(const struct adapter *adap)

@@ -38,6 +38,7 @@
 #include <net/tc_act/tc_vlan.h>
 
 #include "cxgb4.h"
+#include "cxgb4_filter.h"
 #include "cxgb4_tc_flower.h"
 
 #define STATS_CHECK_PERIOD (HZ / 2)
@@ -74,13 +75,8 @@ static struct ch_tc_flower_entry *allocate_flower_entry(void)
 static struct ch_tc_flower_entry *ch_flower_lookup(struct adapter *adap,
 						   unsigned long flower_cookie)
 {
-	struct ch_tc_flower_entry *flower_entry;
-
-	hash_for_each_possible_rcu(adap->flower_anymatch_tbl, flower_entry,
-				   link, flower_cookie)
-		if (flower_entry->tc_flower_cookie == flower_cookie)
-			return flower_entry;
-	return NULL;
+	return rhashtable_lookup_fast(&adap->flower_tbl, &flower_cookie,
+				      adap->flower_ht_params);
 }
 
 static void cxgb4_process_flow_match(struct net_device *dev,
@@ -677,11 +673,16 @@ int cxgb4_tc_flower_replace(struct net_device *dev,
 	cxgb4_process_flow_match(dev, cls, fs);
 	cxgb4_process_flow_actions(dev, cls, fs);
 
-	fidx = cxgb4_get_free_ftid(dev, fs->type ? PF_INET6 : PF_INET);
-	if (fidx < 0) {
-		netdev_err(dev, "%s: No fidx for offload.\n", __func__);
-		ret = -ENOMEM;
-		goto free_entry;
+	fs->hash = is_filter_exact_match(adap, fs);
+	if (fs->hash) {
+		fidx = 0;
+	} else {
+		fidx = cxgb4_get_free_ftid(dev, fs->type ? PF_INET6 : PF_INET);
+		if (fidx < 0) {
+			netdev_err(dev, "%s: No fidx for offload.\n", __func__);
+			ret = -ENOMEM;
+			goto free_entry;
+		}
 	}
 
 	init_completion(&ctx.completion);
@@ -707,12 +708,17 @@ int cxgb4_tc_flower_replace(struct net_device *dev,
 		goto free_entry;
 	}
 
-	INIT_HLIST_NODE(&ch_flower->link);
 	ch_flower->tc_flower_cookie = cls->cookie;
 	ch_flower->filter_id = ctx.tid;
-	hash_add_rcu(adap->flower_anymatch_tbl, &ch_flower->link, cls->cookie);
+	ret = rhashtable_insert_fast(&adap->flower_tbl, &ch_flower->node,
+				     adap->flower_ht_params);
+	if (ret)
+		goto del_filter;
 
-	return ret;
+	return 0;
+
+del_filter:
+	cxgb4_del_filter(dev, ch_flower->filter_id, &ch_flower->fs);
 
 free_entry:
 	kfree(ch_flower);
@@ -730,45 +736,68 @@ int cxgb4_tc_flower_destroy(struct net_device *dev,
 	if (!ch_flower)
 		return -ENOENT;
 
-	ret = cxgb4_del_filter(dev, ch_flower->filter_id);
+	ret = cxgb4_del_filter(dev, ch_flower->filter_id, &ch_flower->fs);
 	if (ret)
 		goto err;
 
-	hash_del_rcu(&ch_flower->link);
+	ret = rhashtable_remove_fast(&adap->flower_tbl, &ch_flower->node,
+				     adap->flower_ht_params);
+	if (ret) {
+		netdev_err(dev, "Flow remove from rhashtable failed");
+		goto err;
+	}
 	kfree_rcu(ch_flower, rcu);
 
 err:
 	return ret;
 }
 
-static void ch_flower_stats_cb(struct timer_list *t)
+static void ch_flower_stats_handler(struct work_struct *work)
 {
-	struct adapter *adap = from_timer(adap, t, flower_stats_timer);
+	struct adapter *adap = container_of(work, struct adapter,
+					    flower_stats_work);
 	struct ch_tc_flower_entry *flower_entry;
 	struct ch_tc_flower_stats *ofld_stats;
-	unsigned int i;
+	struct rhashtable_iter iter;
 	u64 packets;
 	u64 bytes;
 	int ret;
 
-	rcu_read_lock();
-	hash_for_each_rcu(adap->flower_anymatch_tbl, i, flower_entry, link) {
-		ret = cxgb4_get_filter_counters(adap->port[0],
-						flower_entry->filter_id,
-						&packets, &bytes);
-		if (!ret) {
-			spin_lock(&flower_entry->lock);
-			ofld_stats = &flower_entry->stats;
+	rhashtable_walk_enter(&adap->flower_tbl, &iter);
+	do {
+		flower_entry = ERR_PTR(rhashtable_walk_start(&iter));
+		if (IS_ERR(flower_entry))
+			goto walk_stop;
 
-			if (ofld_stats->prev_packet_count != packets) {
-				ofld_stats->prev_packet_count = packets;
-				ofld_stats->last_used = jiffies;
+		while ((flower_entry = rhashtable_walk_next(&iter)) &&
+		       !IS_ERR(flower_entry)) {
+			ret = cxgb4_get_filter_counters(adap->port[0],
+							flower_entry->filter_id,
+							&packets, &bytes,
+							flower_entry->fs.hash);
+			if (!ret) {
+				spin_lock(&flower_entry->lock);
+				ofld_stats = &flower_entry->stats;
+
+				if (ofld_stats->prev_packet_count != packets) {
+					ofld_stats->prev_packet_count = packets;
+					ofld_stats->last_used = jiffies;
+				}
+				spin_unlock(&flower_entry->lock);
 			}
-			spin_unlock(&flower_entry->lock);
 		}
-	}
-	rcu_read_unlock();
+walk_stop:
+		rhashtable_walk_stop(&iter);
+	} while (flower_entry == ERR_PTR(-EAGAIN));
+	rhashtable_walk_exit(&iter);
 	mod_timer(&adap->flower_stats_timer, jiffies + STATS_CHECK_PERIOD);
+}
+
+static void ch_flower_stats_cb(struct timer_list *t)
+{
+	struct adapter *adap = from_timer(adap, t, flower_stats_timer);
+
+	schedule_work(&adap->flower_stats_work);
 }
 
 int cxgb4_tc_flower_stats(struct net_device *dev,
@@ -788,7 +817,8 @@ int cxgb4_tc_flower_stats(struct net_device *dev,
 	}
 
 	ret = cxgb4_get_filter_counters(dev, ch_flower->filter_id,
-					&packets, &bytes);
+					&packets, &bytes,
+					ch_flower->fs.hash);
 	if (ret < 0)
 		goto err;
 
@@ -812,15 +842,35 @@ err:
 	return ret;
 }
 
-void cxgb4_init_tc_flower(struct adapter *adap)
+static const struct rhashtable_params cxgb4_tc_flower_ht_params = {
+	.nelem_hint = 384,
+	.head_offset = offsetof(struct ch_tc_flower_entry, node),
+	.key_offset = offsetof(struct ch_tc_flower_entry, tc_flower_cookie),
+	.key_len = sizeof(((struct ch_tc_flower_entry *)0)->tc_flower_cookie),
+	.max_size = 524288,
+	.min_size = 512,
+	.automatic_shrinking = true
+};
+
+int cxgb4_init_tc_flower(struct adapter *adap)
 {
-	hash_init(adap->flower_anymatch_tbl);
+	int ret;
+
+	adap->flower_ht_params = cxgb4_tc_flower_ht_params;
+	ret = rhashtable_init(&adap->flower_tbl, &adap->flower_ht_params);
+	if (ret)
+		return ret;
+
+	INIT_WORK(&adap->flower_stats_work, ch_flower_stats_handler);
 	timer_setup(&adap->flower_stats_timer, ch_flower_stats_cb, 0);
 	mod_timer(&adap->flower_stats_timer, jiffies + STATS_CHECK_PERIOD);
+	return 0;
 }
 
 void cxgb4_cleanup_tc_flower(struct adapter *adap)
 {
 	if (adap->flower_stats_timer.function)
 		del_timer_sync(&adap->flower_stats_timer);
+	cancel_work_sync(&adap->flower_stats_work);
+	rhashtable_destroy(&adap->flower_tbl);
 }
