@@ -26,6 +26,7 @@
 #include <linux/regmap.h>
 #include <linux/mfd/syscon.h>
 #include <linux/phy/phy.h>
+#include <linux/pinctrl/consumer.h>
 #include <uapi/linux/videodev2.h>
 
 #include "rockchip_drm_drv.h"
@@ -85,7 +86,7 @@ rockchip_rgb_connector_detect(struct drm_connector *connector, bool force)
 }
 
 static const struct drm_connector_funcs rockchip_rgb_connector_funcs = {
-	.dpms = drm_atomic_helper_connector_dpms,
+	.dpms = drm_helper_connector_dpms,
 	.detect = rockchip_rgb_connector_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.destroy = drm_connector_cleanup,
@@ -263,7 +264,7 @@ static int rockchip_rgb_bind(struct device *dev, struct device *master,
 		drm_connector_helper_add(connector,
 					 &rockchip_rgb_connector_helper_funcs);
 
-		ret = drm_mode_connector_attach_encoder(connector, encoder);
+		ret = drm_connector_attach_encoder(connector, encoder);
 		if (ret < 0) {
 			DRM_DEV_ERROR(dev,
 				      "failed to attach encoder: %d\n", ret);
@@ -278,7 +279,7 @@ static int rockchip_rgb_bind(struct device *dev, struct device *master,
 		connector->port = dev->of_node;
 	} else {
 		rgb->bridge->encoder = encoder;
-		ret = drm_bridge_attach(drm_dev, rgb->bridge);
+		ret = drm_bridge_attach(encoder, rgb->bridge, NULL);
 		if (ret) {
 			DRM_DEV_ERROR(dev,
 				      "failed to attach bridge: %d\n", ret);

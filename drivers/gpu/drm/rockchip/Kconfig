@@ -74,4 +74,13 @@ config ROCKCHIP_DRM_TVE
 	  Choose this option to enable support for Rockchip TVE controllers.
 	  say Y to enable its driver.
 
+config ROCKCHIP_RGB
+	bool "Rockchip RGB support"
+	depends on DRM_ROCKCHIP
+	depends on PINCTRL
+	help
+	  Choose this option to enable support for Rockchip RGB output.
+	  Some Rockchip CRTCs, like rv1108, can directly output parallel
+	  and serial RGB format to panel or connect to a conversion chip.
+	  say Y to enable its driver.
 endif
