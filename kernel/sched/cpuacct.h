@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifdef CONFIG_CGROUP_CPUACCT
 
 extern void cpuacct_charge(struct task_struct *tsk, u64 cputime);

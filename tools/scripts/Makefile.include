@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 ifneq ($(O),)
 ifeq ($(origin O), command line)
 	ABSOLUTE_O := $(realpath $(O))

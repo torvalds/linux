@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 obj-$(CONFIG_WIL6210) += wil6210.o
 
 wil6210-y := main.o

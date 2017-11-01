@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Board initialization code should put one of these into dev->platform_data
  * and place the isp116x onto platform_bus.

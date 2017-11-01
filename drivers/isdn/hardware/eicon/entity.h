@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* $Id: entity.h,v 1.4 2004/03/21 17:26:01 armin Exp $ */
 
 #ifndef __DIVAS_USER_MODE_IDI_ENTITY__

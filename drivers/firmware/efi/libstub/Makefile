@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # The stub may be linked into the kernel proper or into a separate boot binary,
 # but in either case, it executes before the kernel does (with MMU disabled) so

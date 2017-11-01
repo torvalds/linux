@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * PKUNITY Interrupt Controller (INTC) Registers
  */

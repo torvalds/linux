@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 subdir-ccflags-y +=  -I$(srctree)/drivers/net/ethernet/freescale/fman
 
 obj-$(CONFIG_FSL_FMAN) += fsl_fman.o

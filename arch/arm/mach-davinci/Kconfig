@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 if ARCH_DAVINCI
 
 config AINTC

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __ALPHA_WILDFIRE__H__
 #define __ALPHA_WILDFIRE__H__
 

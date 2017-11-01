@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * SME code for cfg80211
  * both driver SME event handling and the SME implementation

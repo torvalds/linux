@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __LIBSRP_H__
 #define __LIBSRP_H__
 
