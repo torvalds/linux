@@ -1075,9 +1075,10 @@ static int ovl_rename(struct inode *olddir, struct dentry *old,
 			drop_nlink(d_inode(new));
 	}
 
-	ovl_dentry_version_inc(old->d_parent,
-			       !overwrite && ovl_type_origin(new));
-	ovl_dentry_version_inc(new->d_parent, ovl_type_origin(old));
+	ovl_dentry_version_inc(old->d_parent, ovl_type_origin(old) ||
+			       (!overwrite && ovl_type_origin(new)));
+	ovl_dentry_version_inc(new->d_parent, ovl_type_origin(old) ||
+			       (d_inode(new) && ovl_type_origin(new)));
 
 out_dput:
 	dput(newdentry);
