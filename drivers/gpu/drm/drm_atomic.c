@@ -907,11 +907,12 @@ static int drm_atomic_plane_check(struct drm_plane *plane,
 	    state->src_h > fb_height ||
 	    state->src_y > fb_height - state->src_h) {
 		DRM_DEBUG_ATOMIC("Invalid source coordinates "
-				 "%u.%06ux%u.%06u+%u.%06u+%u.%06u\n",
+				 "%u.%06ux%u.%06u+%u.%06u+%u.%06u (fb %ux%u)\n",
 				 state->src_w >> 16, ((state->src_w & 0xffff) * 15625) >> 10,
 				 state->src_h >> 16, ((state->src_h & 0xffff) * 15625) >> 10,
 				 state->src_x >> 16, ((state->src_x & 0xffff) * 15625) >> 10,
-				 state->src_y >> 16, ((state->src_y & 0xffff) * 15625) >> 10);
+				 state->src_y >> 16, ((state->src_y & 0xffff) * 15625) >> 10,
+				 state->fb->width, state->fb->height);
 		return -ENOSPC;
 	}
 

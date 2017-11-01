@@ -78,11 +78,12 @@ int drm_framebuffer_check_src_coords(uint32_t src_x, uint32_t src_y,
 	    src_h > fb_height ||
 	    src_y > fb_height - src_h) {
 		DRM_DEBUG_KMS("Invalid source coordinates "
-			      "%u.%06ux%u.%06u+%u.%06u+%u.%06u\n",
+			      "%u.%06ux%u.%06u+%u.%06u+%u.%06u (fb %ux%u)\n",
 			      src_w >> 16, ((src_w & 0xffff) * 15625) >> 10,
 			      src_h >> 16, ((src_h & 0xffff) * 15625) >> 10,
 			      src_x >> 16, ((src_x & 0xffff) * 15625) >> 10,
-			      src_y >> 16, ((src_y & 0xffff) * 15625) >> 10);
+			      src_y >> 16, ((src_y & 0xffff) * 15625) >> 10,
+			      fb->width, fb->height);
 		return -ENOSPC;
 	}
 
