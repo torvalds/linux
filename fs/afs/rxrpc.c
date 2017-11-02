@@ -639,7 +639,7 @@ static void afs_process_async_call(struct work_struct *work)
 	}
 
 	if (call->state == AFS_CALL_COMPLETE) {
-		call->reply = NULL;
+		call->reply[0] = NULL;
 
 		/* We have two refs to release - one from the alloc and one
 		 * queued with the work item - and we can't just deallocate the

@@ -32,7 +32,7 @@ static int afs_deliver_vl_get_entry_by_xxx(struct afs_call *call)
 		return ret;
 
 	/* unmarshall the reply once we've received all of it */
-	entry = call->reply;
+	entry = call->reply[0];
 	bp = call->buffer;
 
 	for (loop = 0; loop < 64; loop++)
@@ -135,7 +135,7 @@ int afs_vl_get_entry_by_name(struct afs_net *net,
 		return -ENOMEM;
 
 	call->key = key;
-	call->reply = entry;
+	call->reply[0] = entry;
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -170,7 +170,7 @@ int afs_vl_get_entry_by_id(struct afs_net *net,
 		return -ENOMEM;
 
 	call->key = key;
-	call->reply = entry;
+	call->reply[0] = entry;
 
 	/* marshall the parameters */
 	bp = call->request;

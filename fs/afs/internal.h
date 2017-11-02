@@ -81,10 +81,7 @@ struct afs_call {
 	struct address_space	*mapping;	/* page set */
 	struct afs_writeback	*wb;		/* writeback being performed */
 	void			*buffer;	/* reply receive buffer */
-	void			*reply;		/* reply buffer (first part) */
-	void			*reply2;	/* reply buffer (second part) */
-	void			*reply3;	/* reply buffer (third part) */
-	void			*reply4;	/* reply buffer (fourth part) */
+	void			*reply[4];	/* Where to put the reply */
 	pgoff_t			first;		/* first page in mapping to deal with */
 	pgoff_t			last;		/* last page in mapping to deal with */
 	size_t			offset;		/* offset into received data store */
