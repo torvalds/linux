@@ -95,6 +95,11 @@ struct nvme_request {
 	u16			status;
 };
 
+/*
+ * Mark a bio as coming in through the mpath node.
+ */
+#define REQ_NVME_MPATH		REQ_DRV
+
 enum {
 	NVME_REQ_CANCELLED		= (1 << 0),
 };
@@ -235,6 +240,13 @@ struct nvme_ns_ids {
  * only ever has a single entry for private namespaces.
  */
 struct nvme_ns_head {
+#ifdef CONFIG_NVME_MULTIPATH
+	struct gendisk		*disk;
+	struct nvme_ns __rcu	*current_path;
+	struct bio_list		requeue_list;
+	spinlock_t		requeue_lock;
+	struct work_struct	requeue_work;
+#endif
 	struct list_head	list;
 	struct srcu_struct      srcu;
 	struct nvme_subsystem	*subsys;
@@ -383,6 +395,51 @@ void nvme_stop_keep_alive(struct nvme_ctrl *ctrl);
 int nvme_reset_ctrl(struct nvme_ctrl *ctrl);
 int nvme_delete_ctrl(struct nvme_ctrl *ctrl);
 int nvme_delete_ctrl_sync(struct nvme_ctrl *ctrl);
+
+extern const struct block_device_operations nvme_ns_head_ops;
+
+#ifdef CONFIG_NVME_MULTIPATH
+void nvme_failover_req(struct request *req);
+bool nvme_req_needs_failover(struct request *req);
+void nvme_kick_requeue_lists(struct nvme_ctrl *ctrl);
+int nvme_mpath_alloc_disk(struct nvme_ctrl *ctrl,struct nvme_ns_head *head);
+void nvme_mpath_add_disk(struct nvme_ns_head *head);
+void nvme_mpath_remove_disk(struct nvme_ns_head *head);
+
+static inline void nvme_mpath_clear_current_path(struct nvme_ns *ns)
+{
+	struct nvme_ns_head *head = ns->head;
+
+	if (head && ns == srcu_dereference(head->current_path, &head->srcu))
+		rcu_assign_pointer(head->current_path, NULL);
+}
+struct nvme_ns *nvme_find_path(struct nvme_ns_head *head);
+#else
+static inline void nvme_failover_req(struct request *req)
+{
+}
+static inline bool nvme_req_needs_failover(struct request *req)
+{
+	return false;
+}
+static inline void nvme_kick_requeue_lists(struct nvme_ctrl *ctrl)
+{
+}
+static inline int nvme_mpath_alloc_disk(struct nvme_ctrl *ctrl,
+		struct nvme_ns_head *head)
+{
+	return 0;
+}
+static inline void nvme_mpath_add_disk(struct nvme_ns_head *head)
+{
+}
+static inline void nvme_mpath_remove_disk(struct nvme_ns_head *head)
+{
+}
+static inline void nvme_mpath_clear_current_path(struct nvme_ns *ns)
+{
+}
+#endif /* CONFIG_NVME_MULTIPATH */
 
 #ifdef CONFIG_NVM
 int nvme_nvm_register(struct nvme_ns *ns, char *disk_name, int node);

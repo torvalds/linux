@@ -185,17 +185,22 @@ static inline bool nvme_req_needs_retry(struct request *req)
 		return false;
 	if (nvme_req(req)->retries >= nvme_max_retries)
 		return false;
-	if (blk_queue_dying(req->q))
-		return false;
 	return true;
 }
 
 void nvme_complete_rq(struct request *req)
 {
 	if (unlikely(nvme_req(req)->status && nvme_req_needs_retry(req))) {
-		nvme_req(req)->retries++;
-		blk_mq_requeue_request(req, true);
-		return;
+		if (nvme_req_needs_failover(req)) {
+			nvme_failover_req(req);
+			return;
+		}
+
+		if (!blk_queue_dying(req->q)) {
+			nvme_req(req)->retries++;
+			blk_mq_requeue_request(req, true);
+			return;
+		}
 	}
 
 	blk_mq_end_request(req, nvme_error_status(req));
@@ -286,7 +291,8 @@ bool nvme_change_ctrl_state(struct nvme_ctrl *ctrl,
 		ctrl->state = new_state;
 
 	spin_unlock_irqrestore(&ctrl->lock, flags);
-
+	if (changed && ctrl->state == NVME_CTRL_LIVE)
+		nvme_kick_requeue_lists(ctrl);
 	return changed;
 }
 EXPORT_SYMBOL_GPL(nvme_change_ctrl_state);
@@ -296,6 +302,7 @@ static void nvme_free_ns_head(struct kref *ref)
 	struct nvme_ns_head *head =
 		container_of(ref, struct nvme_ns_head, ref);
 
+	nvme_mpath_remove_disk(head);
 	ida_simple_remove(&head->subsys->ns_ida, head->instance);
 	list_del_init(&head->entry);
 	cleanup_srcu_struct(&head->srcu);
@@ -1138,11 +1145,33 @@ static int nvme_user_cmd(struct nvme_ctrl *ctrl, struct nvme_ns *ns,
 	return status;
 }
 
-static int nvme_ioctl(struct block_device *bdev, fmode_t mode,
-		unsigned int cmd, unsigned long arg)
+/*
+ * Issue ioctl requests on the first available path.  Note that unlike normal
+ * block layer requests we will not retry failed request on another controller.
+ */
+static struct nvme_ns *nvme_get_ns_from_disk(struct gendisk *disk,
+		struct nvme_ns_head **head, int *srcu_idx)
 {
-	struct nvme_ns *ns = bdev->bd_disk->private_data;
+#ifdef CONFIG_NVME_MULTIPATH
+	if (disk->fops == &nvme_ns_head_ops) {
+		*head = disk->private_data;
+		*srcu_idx = srcu_read_lock(&(*head)->srcu);
+		return nvme_find_path(*head);
+	}
+#endif
+	*head = NULL;
+	*srcu_idx = -1;
+	return disk->private_data;
+}
 
+static void nvme_put_ns_from_disk(struct nvme_ns_head *head, int idx)
+{
+	if (head)
+		srcu_read_unlock(&head->srcu, idx);
+}
+
+static int nvme_ns_ioctl(struct nvme_ns *ns, unsigned cmd, unsigned long arg)
+{
 	switch (cmd) {
 	case NVME_IOCTL_ID:
 		force_successful_syscall_return();
@@ -1165,10 +1194,31 @@ static int nvme_ioctl(struct block_device *bdev, fmode_t mode,
 	}
 }
 
+static int nvme_ioctl(struct block_device *bdev, fmode_t mode,
+		unsigned int cmd, unsigned long arg)
+{
+	struct nvme_ns_head *head = NULL;
+	struct nvme_ns *ns;
+	int srcu_idx, ret;
+
+	ns = nvme_get_ns_from_disk(bdev->bd_disk, &head, &srcu_idx);
+	if (unlikely(!ns))
+		ret = -EWOULDBLOCK;
+	else
+		ret = nvme_ns_ioctl(ns, cmd, arg);
+	nvme_put_ns_from_disk(head, srcu_idx);
+	return ret;
+}
+
 static int nvme_open(struct block_device *bdev, fmode_t mode)
 {
 	struct nvme_ns *ns = bdev->bd_disk->private_data;
 
+#ifdef CONFIG_NVME_MULTIPATH
+	/* should never be called due to GENHD_FL_HIDDEN */
+	if (WARN_ON_ONCE(ns->head->disk))
+		return -ENXIO;
+#endif
 	if (!kref_get_unless_zero(&ns->kref))
 		return -ENXIO;
 	return 0;
@@ -1329,6 +1379,10 @@ static void __nvme_revalidate_disk(struct gendisk *disk, struct nvme_id_ns *id)
 	if (ns->noiob)
 		nvme_set_chunk_size(ns);
 	nvme_update_disk_info(disk, ns, id);
+#ifdef CONFIG_NVME_MULTIPATH
+	if (ns->head->disk)
+		nvme_update_disk_info(ns->head->disk, ns, id);
+#endif
 }
 
 static int nvme_revalidate_disk(struct gendisk *disk)
@@ -1388,8 +1442,10 @@ static char nvme_pr_type(enum pr_type type)
 static int nvme_pr_command(struct block_device *bdev, u32 cdw10,
 				u64 key, u64 sa_key, u8 op)
 {
-	struct nvme_ns *ns = bdev->bd_disk->private_data;
+	struct nvme_ns_head *head = NULL;
+	struct nvme_ns *ns;
 	struct nvme_command c;
+	int srcu_idx, ret;
 	u8 data[16] = { 0, };
 
 	put_unaligned_le64(key, &data[0]);
@@ -1397,10 +1453,16 @@ static int nvme_pr_command(struct block_device *bdev, u32 cdw10,
 
 	memset(&c, 0, sizeof(c));
 	c.common.opcode = op;
-	c.common.nsid = cpu_to_le32(ns->head->ns_id);
+	c.common.nsid = cpu_to_le32(head->ns_id);
 	c.common.cdw10[0] = cpu_to_le32(cdw10);
 
-	return nvme_submit_sync_cmd(ns->queue, &c, data, 16);
+	ns = nvme_get_ns_from_disk(bdev->bd_disk, &head, &srcu_idx);
+	if (unlikely(!ns))
+		ret = -EWOULDBLOCK;
+	else
+		ret = nvme_submit_sync_cmd(ns->queue, &c, data, 16);
+	nvme_put_ns_from_disk(head, srcu_idx);
+	return ret;
 }
 
 static int nvme_pr_register(struct block_device *bdev, u64 old,
@@ -1489,6 +1551,32 @@ static const struct block_device_operations nvme_fops = {
 	.revalidate_disk= nvme_revalidate_disk,
 	.pr_ops		= &nvme_pr_ops,
 };
+
+#ifdef CONFIG_NVME_MULTIPATH
+static int nvme_ns_head_open(struct block_device *bdev, fmode_t mode)
+{
+	struct nvme_ns_head *head = bdev->bd_disk->private_data;
+
+	if (!kref_get_unless_zero(&head->ref))
+		return -ENXIO;
+	return 0;
+}
+
+static void nvme_ns_head_release(struct gendisk *disk, fmode_t mode)
+{
+	nvme_put_ns_head(disk->private_data);
+}
+
+const struct block_device_operations nvme_ns_head_ops = {
+	.owner		= THIS_MODULE,
+	.open		= nvme_ns_head_open,
+	.release	= nvme_ns_head_release,
+	.ioctl		= nvme_ioctl,
+	.compat_ioctl	= nvme_ioctl,
+	.getgeo		= nvme_getgeo,
+	.pr_ops		= &nvme_pr_ops,
+};
+#endif /* CONFIG_NVME_MULTIPATH */
 
 static int nvme_wait_ready(struct nvme_ctrl *ctrl, u64 cap, bool enabled)
 {
@@ -2592,6 +2680,10 @@ static struct nvme_ns_head *nvme_alloc_ns_head(struct nvme_ctrl *ctrl,
 		goto out_cleanup_srcu;
 	}
 
+	ret = nvme_mpath_alloc_disk(ctrl, head);
+	if (ret)
+		goto out_cleanup_srcu;
+
 	list_add_tail(&head->entry, &ctrl->subsys->nsheads);
 	return head;
 out_cleanup_srcu:
@@ -2704,7 +2796,7 @@ static void nvme_alloc_ns(struct nvme_ctrl *ctrl, unsigned nsid)
 	struct gendisk *disk;
 	struct nvme_id_ns *id;
 	char disk_name[DISK_NAME_LEN];
-	int node = dev_to_node(ctrl->dev);
+	int node = dev_to_node(ctrl->dev), flags = GENHD_FL_EXT_DEVT;
 	bool new = true;
 
 	ns = kzalloc_node(sizeof(*ns), GFP_KERNEL, node);
@@ -2735,7 +2827,30 @@ static void nvme_alloc_ns(struct nvme_ctrl *ctrl, unsigned nsid)
 	if (nvme_init_ns_head(ns, nsid, id, &new))
 		goto out_free_id;
 	
+#ifdef CONFIG_NVME_MULTIPATH
+	/*
+	 * If multipathing is enabled we need to always use the subsystem
+	 * instance number for numbering our devices to avoid conflicts
+	 * between subsystems that have multiple controllers and thus use
+	 * the multipath-aware subsystem node and those that have a single
+	 * controller and use the controller node directly.
+	 */
+	if (ns->head->disk) {
+		sprintf(disk_name, "nvme%dc%dn%d", ctrl->subsys->instance,
+				ctrl->cntlid, ns->head->instance);
+		flags = GENHD_FL_HIDDEN;
+	} else {
+		sprintf(disk_name, "nvme%dn%d", ctrl->subsys->instance,
+				ns->head->instance);
+	}
+#else
+	/*
+	 * But without the multipath code enabled, multiple controller per
+	 * subsystems are visible as devices and thus we cannot use the
+	 * subsystem instance.
+	 */
 	sprintf(disk_name, "nvme%dn%d", ctrl->instance, ns->head->instance);
+#endif
 
 	if ((ctrl->quirks & NVME_QUIRK_LIGHTNVM) && id->vs[0] == 0x1) {
 		if (nvme_nvm_register(ns, disk_name, node)) {
@@ -2751,7 +2866,7 @@ static void nvme_alloc_ns(struct nvme_ctrl *ctrl, unsigned nsid)
 	disk->fops = &nvme_fops;
 	disk->private_data = ns;
 	disk->queue = ns->queue;
-	disk->flags = GENHD_FL_EXT_DEVT;
+	disk->flags = flags;
 	memcpy(disk->disk_name, disk_name, DISK_NAME_LEN);
 	ns->disk = disk;
 
@@ -2773,6 +2888,9 @@ static void nvme_alloc_ns(struct nvme_ctrl *ctrl, unsigned nsid)
 	if (ns->ndev && nvme_nvm_register_sysfs(ns))
 		pr_warn("%s: failed to register lightnvm sysfs group for identification\n",
 			ns->disk->disk_name);
+
+	if (new)
+		nvme_mpath_add_disk(ns->head);
 	return;
  out_unlink_ns:
 	mutex_lock(&ctrl->subsys->lock);
@@ -2805,6 +2923,7 @@ static void nvme_ns_remove(struct nvme_ns *ns)
 	}
 
 	mutex_lock(&ns->ctrl->subsys->lock);
+	nvme_mpath_clear_current_path(ns);
 	if (head)
 		list_del_rcu(&ns->siblings);
 	mutex_unlock(&ns->ctrl->subsys->lock);
