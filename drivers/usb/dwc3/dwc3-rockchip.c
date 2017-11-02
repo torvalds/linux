@@ -142,6 +142,8 @@ static ssize_t dwc3_rockchip_force_mode_write(struct file *file,
 	flush_work(&rockchip->otg_work);
 	if (dwc->dr_mode == USB_DR_MODE_PERIPHERAL)
 		phy_set_mode(dwc->usb2_generic_phy, PHY_MODE_USB_DEVICE);
+	else if (dwc->dr_mode == USB_DR_MODE_HOST)
+		phy_set_mode(dwc->usb2_generic_phy, PHY_MODE_USB_HOST);
 
 	return count;
 }
