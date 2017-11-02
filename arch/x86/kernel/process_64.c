@@ -465,7 +465,7 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 	this_cpu_write(current_task, next_p);
 
 	/* Reload sp0. */
-	load_sp0(next->sp0);
+	update_sp0(next_p);
 
 	/*
 	 * Now maybe reload the debug registers and handle I/O bitmaps

@@ -84,4 +84,10 @@ static inline void refresh_sysenter_cs(struct thread_struct *thread)
 }
 #endif
 
+/* This is used when switching tasks or entering/exiting vm86 mode. */
+static inline void update_sp0(struct task_struct *task)
+{
+	load_sp0(task->thread.sp0);
+}
+
 #endif /* _ASM_X86_SWITCH_TO_H */
