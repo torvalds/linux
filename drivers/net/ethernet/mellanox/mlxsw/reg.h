@@ -5844,6 +5844,137 @@ static inline void mlxsw_reg_rigr2_erif_entry_pack(char *payload, int index,
 	mlxsw_reg_rigr2_erif_entry_erif_set(payload, index, erif);
 }
 
+/* RECR-V2 - Router ECMP Configuration Version 2 Register
+ * ------------------------------------------------------
+ */
+#define MLXSW_REG_RECR2_ID 0x8025
+#define MLXSW_REG_RECR2_LEN 0x38
+
+MLXSW_REG_DEFINE(recr2, MLXSW_REG_RECR2_ID, MLXSW_REG_RECR2_LEN);
+
+/* reg_recr2_pp
+ * Per-port configuration
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, recr2, pp, 0x00, 24, 1);
+
+/* reg_recr2_sh
+ * Symmetric hash
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, recr2, sh, 0x00, 8, 1);
+
+/* reg_recr2_seed
+ * Seed
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, recr2, seed, 0x08, 0, 32);
+
+enum {
+	/* Enable IPv4 fields if packet is not TCP and not UDP */
+	MLXSW_REG_RECR2_IPV4_EN_NOT_TCP_NOT_UDP	= 3,
+	/* Enable IPv4 fields if packet is TCP or UDP */
+	MLXSW_REG_RECR2_IPV4_EN_TCP_UDP		= 4,
+	/* Enable IPv6 fields if packet is not TCP and not UDP */
+	MLXSW_REG_RECR2_IPV6_EN_NOT_TCP_NOT_UDP	= 5,
+	/* Enable IPv6 fields if packet is TCP or UDP */
+	MLXSW_REG_RECR2_IPV6_EN_TCP_UDP		= 6,
+	/* Enable TCP/UDP header fields if packet is IPv4 */
+	MLXSW_REG_RECR2_TCP_UDP_EN_IPV4		= 7,
+	/* Enable TCP/UDP header fields if packet is IPv6 */
+	MLXSW_REG_RECR2_TCP_UDP_EN_IPV6		= 8,
+};
+
+/* reg_recr2_outer_header_enables
+ * Bit mask where each bit enables a specific layer to be included in
+ * the hash calculation.
+ * Access: RW
+ */
+MLXSW_ITEM_BIT_ARRAY(reg, recr2, outer_header_enables, 0x10, 0x04, 1);
+
+enum {
+	/* IPv4 Source IP */
+	MLXSW_REG_RECR2_IPV4_SIP0			= 9,
+	MLXSW_REG_RECR2_IPV4_SIP3			= 12,
+	/* IPv4 Destination IP */
+	MLXSW_REG_RECR2_IPV4_DIP0			= 13,
+	MLXSW_REG_RECR2_IPV4_DIP3			= 16,
+	/* IP Protocol */
+	MLXSW_REG_RECR2_IPV4_PROTOCOL			= 17,
+	/* IPv6 Source IP */
+	MLXSW_REG_RECR2_IPV6_SIP0_7			= 21,
+	MLXSW_REG_RECR2_IPV6_SIP8			= 29,
+	MLXSW_REG_RECR2_IPV6_SIP15			= 36,
+	/* IPv6 Destination IP */
+	MLXSW_REG_RECR2_IPV6_DIP0_7			= 37,
+	MLXSW_REG_RECR2_IPV6_DIP8			= 45,
+	MLXSW_REG_RECR2_IPV6_DIP15			= 52,
+	/* IPv6 Next Header */
+	MLXSW_REG_RECR2_IPV6_NEXT_HEADER		= 53,
+	/* IPv6 Flow Label */
+	MLXSW_REG_RECR2_IPV6_FLOW_LABEL			= 57,
+	/* TCP/UDP Source Port */
+	MLXSW_REG_RECR2_TCP_UDP_SPORT			= 74,
+	/* TCP/UDP Destination Port */
+	MLXSW_REG_RECR2_TCP_UDP_DPORT			= 75,
+};
+
+/* reg_recr2_outer_header_fields_enable
+ * Packet fields to enable for ECMP hash subject to outer_header_enable.
+ * Access: RW
+ */
+MLXSW_ITEM_BIT_ARRAY(reg, recr2, outer_header_fields_enable, 0x14, 0x14, 1);
+
+static inline void mlxsw_reg_recr2_ipv4_sip_enable(char *payload)
+{
+	int i;
+
+	for (i = MLXSW_REG_RECR2_IPV4_SIP0; i <= MLXSW_REG_RECR2_IPV4_SIP3; i++)
+		mlxsw_reg_recr2_outer_header_fields_enable_set(payload, i,
+							       true);
+}
+
+static inline void mlxsw_reg_recr2_ipv4_dip_enable(char *payload)
+{
+	int i;
+
+	for (i = MLXSW_REG_RECR2_IPV4_DIP0; i <= MLXSW_REG_RECR2_IPV4_DIP3; i++)
+		mlxsw_reg_recr2_outer_header_fields_enable_set(payload, i,
+							       true);
+}
+
+static inline void mlxsw_reg_recr2_ipv6_sip_enable(char *payload)
+{
+	int i = MLXSW_REG_RECR2_IPV6_SIP0_7;
+
+	mlxsw_reg_recr2_outer_header_fields_enable_set(payload, i, true);
+
+	i = MLXSW_REG_RECR2_IPV6_SIP8;
+	for (; i <= MLXSW_REG_RECR2_IPV6_SIP15; i++)
+		mlxsw_reg_recr2_outer_header_fields_enable_set(payload, i,
+							       true);
+}
+
+static inline void mlxsw_reg_recr2_ipv6_dip_enable(char *payload)
+{
+	int i = MLXSW_REG_RECR2_IPV6_DIP0_7;
+
+	mlxsw_reg_recr2_outer_header_fields_enable_set(payload, i, true);
+
+	i = MLXSW_REG_RECR2_IPV6_DIP8;
+	for (; i <= MLXSW_REG_RECR2_IPV6_DIP15; i++)
+		mlxsw_reg_recr2_outer_header_fields_enable_set(payload, i,
+							       true);
+}
+
+static inline void mlxsw_reg_recr2_pack(char *payload, u32 seed)
+{
+	MLXSW_REG_ZERO(recr2, payload);
+	mlxsw_reg_recr2_pp_set(payload, false);
+	mlxsw_reg_recr2_sh_set(payload, true);
+	mlxsw_reg_recr2_seed_set(payload, seed);
+}
+
 /* RMFT-V2 - Router Multicast Forwarding Table Version 2 Register
  * --------------------------------------------------------------
  * The RMFT_V2 register is used to configure and query the multicast table.
@@ -7313,6 +7444,7 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(raleu),
 	MLXSW_REG(rauhtd),
 	MLXSW_REG(rigr2),
+	MLXSW_REG(recr2),
 	MLXSW_REG(rmft2),
 	MLXSW_REG(mfcr),
 	MLXSW_REG(mfsc),
