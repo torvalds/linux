@@ -19,6 +19,7 @@
 #include <linux/task_io_accounting_ops.h>
 #include "internal.h"
 
+static int afs_file_mmap(struct file *file, struct vm_area_struct *vma);
 static int afs_readpage(struct file *file, struct page *page);
 static void afs_invalidatepage(struct page *page, unsigned int offset,
 			       unsigned int length);
@@ -34,7 +35,7 @@ const struct file_operations afs_file_operations = {
 	.llseek		= generic_file_llseek,
 	.read_iter	= generic_file_read_iter,
 	.write_iter	= afs_file_write,
-	.mmap		= generic_file_readonly_mmap,
+	.mmap		= afs_file_mmap,
 	.splice_read	= generic_file_splice_read,
 	.fsync		= afs_fsync,
 	.lock		= afs_lock,
@@ -59,6 +60,12 @@ const struct address_space_operations afs_fs_aops = {
 	.write_end	= afs_write_end,
 	.writepage	= afs_writepage,
 	.writepages	= afs_writepages,
+};
+
+static const struct vm_operations_struct afs_vm_ops = {
+	.fault		= filemap_fault,
+	.map_pages	= filemap_map_pages,
+	.page_mkwrite	= afs_page_mkwrite,
 };
 
 /*
@@ -628,4 +635,17 @@ static int afs_releasepage(struct page *page, gfp_t gfp_flags)
 	/* indicate that the page can be released */
 	_leave(" = T");
 	return 1;
+}
+
+/*
+ * Handle setting up a memory mapping on an AFS file.
+ */
+static int afs_file_mmap(struct file *file, struct vm_area_struct *vma)
+{
+	int ret;
+
+	ret = generic_file_mmap(file, vma);
+	if (ret == 0)
+		vma->vm_ops = &afs_vm_ops;
+	return ret;
 }

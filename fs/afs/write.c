@@ -749,21 +749,45 @@ int afs_flush(struct file *file, fl_owner_t id)
  * notification that a previously read-only page is about to become writable
  * - if it returns an error, the caller will deliver a bus error signal
  */
-int afs_page_mkwrite(struct vm_area_struct *vma, struct page *page)
+int afs_page_mkwrite(struct vm_fault *vmf)
 {
-	struct afs_vnode *vnode = AFS_FS_I(vma->vm_file->f_mapping->host);
+	struct file *file = vmf->vma->vm_file;
+	struct inode *inode = file_inode(file);
+	struct afs_vnode *vnode = AFS_FS_I(inode);
+	unsigned long priv;
 
 	_enter("{{%x:%u}},{%lx}",
-	       vnode->fid.vid, vnode->fid.vnode, page->index);
+	       vnode->fid.vid, vnode->fid.vnode, vmf->page->index);
 
-	/* wait for the page to be written to the cache before we allow it to
-	 * be modified */
+	sb_start_pagefault(inode->i_sb);
+
+	/* Wait for the page to be written to the cache before we allow it to
+	 * be modified.  We then assume the entire page will need writing back.
+	 */
 #ifdef CONFIG_AFS_FSCACHE
-	fscache_wait_on_page_write(vnode->cache, page);
+	fscache_wait_on_page_write(vnode->cache, vmf->page);
 #endif
 
-	_leave(" = 0");
-	return 0;
+	if (PageWriteback(vmf->page) &&
+	    wait_on_page_bit_killable(vmf->page, PG_writeback) < 0)
+		return VM_FAULT_RETRY;
+
+	if (lock_page_killable(vmf->page) < 0)
+		return VM_FAULT_RETRY;
+
+	/* We mustn't change page->private until writeback is complete as that
+	 * details the portion of the page we need to write back and we might
+	 * need to redirty the page if there's a problem.
+	 */
+	wait_on_page_writeback(vmf->page);
+
+	priv = (unsigned long)PAGE_SIZE << AFS_PRIV_SHIFT; /* To */
+	priv |= 0; /* From */
+	SetPagePrivate(vmf->page);
+	set_page_private(vmf->page, priv);
+
+	sb_end_pagefault(inode->i_sb);
+	return VM_FAULT_LOCKED;
 }
 
 /*
