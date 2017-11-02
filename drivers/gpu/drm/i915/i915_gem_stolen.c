@@ -300,6 +300,12 @@ static void g4x_get_stolen_reserved(struct drm_i915_private *dev_priv,
 		return;
 	}
 
+	/*
+	 * Whether ILK really reuses the ELK register for this is unclear.
+	 * Let's see if we catch anyone with this supposedly enabled on ILK.
+	 */
+	WARN(IS_GEN5(dev_priv), "ILK stolen reserved found? 0x%08x\n", reg_val);
+
 	*base = (reg_val & G4X_STOLEN_RESERVED_ADDR2_MASK) << 16;
 
 	WARN_ON((reg_val & G4X_STOLEN_RESERVED_ADDR1_MASK) < *base);
@@ -466,14 +472,12 @@ int i915_gem_init_stolen(struct drm_i915_private *dev_priv)
 	case 3:
 		break;
 	case 4:
-		if (IS_G4X(dev_priv))
-			g4x_get_stolen_reserved(dev_priv,
-						&reserved_base, &reserved_size);
-		break;
+		if (!IS_G4X(dev_priv))
+			break;
+		/* fall through */
 	case 5:
-		/* Assume the gen6 maximum for the older platforms. */
-		reserved_size = 1024 * 1024;
-		reserved_base = stolen_top - reserved_size;
+		g4x_get_stolen_reserved(dev_priv,
+					&reserved_base, &reserved_size);
 		break;
 	case 6:
 		gen6_get_stolen_reserved(dev_priv,
