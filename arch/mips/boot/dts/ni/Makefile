@@ -4,4 +4,3 @@ dtb-$(CONFIG_FIT_IMAGE_FDT_NI169445)	+= 169445.dtb
 obj-					+= dummy.o
 
 always					:= $(dtb-y)
-clean-files				:= *.dtb *.dtb.S

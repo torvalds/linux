@@ -11,4 +11,3 @@ obj-y				+= $(patsubst %.dtb, %.dtb.o, $(dtb-y))
 obj-				+= dummy.o
 
 always				:= $(dtb-y)
-clean-files			:= *.dtb *.dtb.S

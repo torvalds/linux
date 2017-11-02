@@ -12,4 +12,3 @@ dtb-$(CONFIG_ARCH_MVEBU) += armada-8080-db.dtb
 
 always		:= $(dtb-y)
 subdir-y	:= $(dts-dirs)
-clean-files	:= *.dtb

@@ -7,4 +7,3 @@ dtb-$(CONFIG_ARCH_HISI) += hip07-d05.dtb
 
 always		:= $(dtb-y)
 subdir-y	:= $(dts-dirs)
-clean-files	:= *.dtb

@@ -18,4 +18,3 @@ dtb-$(CONFIG_OF_ALL_DTBS) := $(patsubst $(dtstree)/%.dts,%.dtb, $(wildcard $(dts
 .SECONDARY: $(obj)/$(builtindtb-y).dtb.S
 
 always += $(dtb-y)
-clean-files += *.dtb *.dtb.S

@@ -9,4 +9,3 @@ dtb-$(CONFIG_ATH79)			+= ar9331_tl_mr3020.dtb
 obj-				+= dummy.o
 
 always				:= $(dtb-y)
-clean-files			:= *.dtb *.dtb.S
