@@ -2468,7 +2468,8 @@ static int dpaa_open(struct net_device *net_dev)
 	mac_dev = priv->mac_dev;
 	dpaa_eth_napi_enable(priv);
 
-	if (dpaa_phy_init(net_dev))
+	err = dpaa_phy_init(net_dev);
+	if (err)
 		goto phy_init_failed;
 
 	for (i = 0; i < ARRAY_SIZE(mac_dev->port); i++) {
@@ -2668,7 +2669,6 @@ static inline u16 dpaa_get_headroom(struct dpaa_buffer_layout *bl)
 static int dpaa_eth_probe(struct platform_device *pdev)
 {
 	struct dpaa_bp *dpaa_bps[DPAA_BPS_NUM] = {NULL};
-	struct dpaa_percpu_priv *percpu_priv;
 	struct net_device *net_dev = NULL;
 	struct dpaa_fq *dpaa_fq, *tmp;
 	struct dpaa_priv *priv = NULL;
@@ -2813,10 +2813,6 @@ static int dpaa_eth_probe(struct platform_device *pdev)
 		dev_err(dev, "devm_alloc_percpu() failed\n");
 		err = -ENOMEM;
 		goto free_dpaa_fqs;
-	}
-	for_each_possible_cpu(i) {
-		percpu_priv = per_cpu_ptr(priv->percpu_priv, i);
-		memset(percpu_priv, 0, sizeof(*percpu_priv));
 	}
 
 	priv->num_tc = 1;
