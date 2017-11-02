@@ -350,8 +350,17 @@ long afs_make_call(struct afs_addr_cursor *ac, struct afs_call *call,
 	 */
 	tx_total_len = call->request_size;
 	if (call->send_pages) {
-		tx_total_len += call->last_to - call->first_offset;
-		tx_total_len += (call->last - call->first) * PAGE_SIZE;
+		if (call->last == call->first) {
+			tx_total_len += call->last_to - call->first_offset;
+		} else {
+			/* It looks mathematically like you should be able to
+			 * combine the following lines with the ones above, but
+			 * unsigned arithmetic is fun when it wraps...
+			 */
+			tx_total_len += PAGE_SIZE - call->first_offset;
+			tx_total_len += call->last_to;
+			tx_total_len += (call->last - call->first - 1) * PAGE_SIZE;
+		}
 	}
 
 	/* create a call */
