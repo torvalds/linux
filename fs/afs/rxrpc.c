@@ -381,13 +381,6 @@ long afs_make_call(struct afs_addr_cursor *ac, struct afs_call *call,
 	msg.msg_controllen	= 0;
 	msg.msg_flags		= MSG_WAITALL | (call->send_pages ? MSG_MORE : 0);
 
-	/* We have to change the state *before* sending the last packet as
-	 * rxrpc might give us the reply before it returns from sending the
-	 * request.  Further, if the send fails, we may already have been given
-	 * a notification and may have collected it.
-	 */
-	if (!call->send_pages)
-		call->state = AFS_CALL_AWAIT_REPLY;
 	ret = rxrpc_kernel_send_data(call->net->socket, rxcall,
 				     &msg, call->request_size,
 				     afs_notify_end_request_tx);
@@ -799,7 +792,6 @@ void afs_send_empty_reply(struct afs_call *call)
 	msg.msg_controllen	= 0;
 	msg.msg_flags		= 0;
 
-	call->state = AFS_CALL_AWAIT_ACK;
 	switch (rxrpc_kernel_send_data(net->socket, call->rxcall, &msg, 0,
 				       afs_notify_end_reply_tx)) {
 	case 0:
@@ -839,7 +831,6 @@ void afs_send_simple_reply(struct afs_call *call, const void *buf, size_t len)
 	msg.msg_controllen	= 0;
 	msg.msg_flags		= 0;
 
-	call->state = AFS_CALL_AWAIT_ACK;
 	n = rxrpc_kernel_send_data(net->socket, call->rxcall, &msg, len,
 				   afs_notify_end_reply_tx);
 	if (n >= 0) {
