@@ -552,7 +552,7 @@ static long restore_tm_sigcontexts(struct task_struct *tsk,
 	/* Make sure the transaction is marked as failed */
 	tsk->thread.tm_texasr |= TEXASR_FS;
 	/* This loads the checkpointed FP/VEC state, if used */
-	tm_recheckpoint(&tsk->thread, msr);
+	tm_recheckpoint(&tsk->thread);
 
 	msr_check_and_set(msr & (MSR_FP | MSR_VEC));
 	if (msr & MSR_FP) {

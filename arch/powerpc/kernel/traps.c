@@ -1693,7 +1693,7 @@ void fp_unavailable_tm(struct pt_regs *regs)
 	 * If VMX is in use, the VRs now hold checkpointed values,
 	 * so we don't want to load the VRs from the thread_struct.
 	 */
-	tm_recheckpoint(&current->thread, orig_msr | MSR_FP);
+	tm_recheckpoint(&current->thread);
 
 	/* If VMX is in use, get the transactional values back */
 	if (orig_msr & MSR_VEC) {
@@ -1721,7 +1721,7 @@ void altivec_unavailable_tm(struct pt_regs *regs)
 		 regs->nip, regs->msr);
 	tm_reclaim_current(TM_CAUSE_FAC_UNAV);
 	current->thread.load_vec = 1;
-	tm_recheckpoint(&current->thread, orig_msr | MSR_VEC);
+	tm_recheckpoint(&current->thread);
 	current->thread.used_vr = 1;
 
 	if (orig_msr & MSR_FP) {
@@ -1733,8 +1733,6 @@ void altivec_unavailable_tm(struct pt_regs *regs)
 
 void vsx_unavailable_tm(struct pt_regs *regs)
 {
-	unsigned long orig_msr = regs->msr;
-
 	/* See the comments in fp_unavailable_tm().  This works similarly,
 	 * though we're loading both FP and VEC registers in here.
 	 *
@@ -1748,29 +1746,17 @@ void vsx_unavailable_tm(struct pt_regs *regs)
 
 	current->thread.used_vsr = 1;
 
-	/* If FP and VMX are already loaded, we have all the state we need */
-	if ((orig_msr & (MSR_FP | MSR_VEC)) == (MSR_FP | MSR_VEC)) {
-		regs->msr |= MSR_VSX;
-		return;
-	}
-
 	/* This reclaims FP and/or VR regs if they're already enabled */
 	tm_reclaim_current(TM_CAUSE_FAC_UNAV);
 
 	current->thread.load_vec = 1;
 	current->thread.load_fp = 1;
 
-	/* This loads & recheckpoints FP and VRs; but we have
-	 * to be sure not to overwrite previously-valid state.
-	 */
-	tm_recheckpoint(&current->thread, orig_msr | MSR_FP | MSR_VEC);
+	tm_recheckpoint(&current->thread);
 
-	msr_check_and_set(orig_msr & (MSR_FP | MSR_VEC));
-
-	if (orig_msr & MSR_FP)
-		load_fp_state(&current->thread.fp_state);
-	if (orig_msr & MSR_VEC)
-		load_vr_state(&current->thread.vr_state);
+	msr_check_and_set(MSR_FP | MSR_VEC);
+	load_fp_state(&current->thread.fp_state);
+	load_vr_state(&current->thread.vr_state);
 }
 #endif /* CONFIG_PPC_TRANSACTIONAL_MEM */
 

@@ -880,7 +880,7 @@ static long restore_tm_user_regs(struct pt_regs *regs,
 	/* Make sure the transaction is marked as failed */
 	current->thread.tm_texasr |= TEXASR_FS;
 	/* This loads the checkpointed FP/VEC state, if used */
-	tm_recheckpoint(&current->thread, msr);
+	tm_recheckpoint(&current->thread);
 
 	/* This loads the speculative FP/VEC state, if used */
 	msr_check_and_set(msr & (MSR_FP | MSR_VEC));

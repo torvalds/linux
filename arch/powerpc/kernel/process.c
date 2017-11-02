@@ -876,6 +876,8 @@ static void tm_reclaim_thread(struct thread_struct *thr,
 
 	giveup_all(container_of(thr, struct task_struct, thread));
 
+	tm_reclaim(thr, cause);
+
 	/*
 	 * If we are in a transaction and FP is off then we can't have
 	 * used FP inside that transaction. Hence the checkpointed
@@ -894,8 +896,6 @@ static void tm_reclaim_thread(struct thread_struct *thr,
 	if ((thr->ckpt_regs.msr & MSR_VEC) == 0)
 		memcpy(&thr->ckvr_state, &thr->vr_state,
 		       sizeof(struct thread_vr_state));
-
-	tm_reclaim(thr, thr->ckpt_regs.msr, cause);
 }
 
 void tm_reclaim_current(uint8_t cause)
@@ -946,11 +946,9 @@ out_and_saveregs:
 	tm_save_sprs(thr);
 }
 
-extern void __tm_recheckpoint(struct thread_struct *thread,
-			      unsigned long orig_msr);
+extern void __tm_recheckpoint(struct thread_struct *thread);
 
-void tm_recheckpoint(struct thread_struct *thread,
-		     unsigned long orig_msr)
+void tm_recheckpoint(struct thread_struct *thread)
 {
 	unsigned long flags;
 
@@ -969,15 +967,13 @@ void tm_recheckpoint(struct thread_struct *thread,
 	 */
 	tm_restore_sprs(thread);
 
-	__tm_recheckpoint(thread, orig_msr);
+	__tm_recheckpoint(thread);
 
 	local_irq_restore(flags);
 }
 
 static inline void tm_recheckpoint_new_task(struct task_struct *new)
 {
-	unsigned long msr;
-
 	if (!cpu_has_feature(CPU_FTR_TM))
 		return;
 
@@ -996,13 +992,11 @@ static inline void tm_recheckpoint_new_task(struct task_struct *new)
 		tm_restore_sprs(&new->thread);
 		return;
 	}
-	msr = new->thread.ckpt_regs.msr;
 	/* Recheckpoint to restore original checkpointed register state. */
-	TM_DEBUG("*** tm_recheckpoint of pid %d "
-		 "(new->msr 0x%lx, new->origmsr 0x%lx)\n",
-		 new->pid, new->thread.regs->msr, msr);
+	TM_DEBUG("*** tm_recheckpoint of pid %d (new->msr 0x%lx)\n",
+		 new->pid, new->thread.regs->msr);
 
-	tm_recheckpoint(&new->thread, msr);
+	tm_recheckpoint(&new->thread);
 
 	/*
 	 * The checkpointed state has been restored but the live state has
