@@ -61,6 +61,10 @@ int afs_open_socket(struct afs_net *net)
 	srx.transport.sin6.sin6_port	= htons(AFS_CM_PORT);
 
 	ret = kernel_bind(socket, (struct sockaddr *) &srx, sizeof(srx));
+	if (ret == -EADDRINUSE) {
+		srx.transport.sin6.sin6_port = 0;
+		ret = kernel_bind(socket, (struct sockaddr *) &srx, sizeof(srx));
+	}
 	if (ret < 0)
 		goto error_2;
 
