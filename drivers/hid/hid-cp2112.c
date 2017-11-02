@@ -21,7 +21,7 @@
  * Data Sheet:
  *   http://www.silabs.com/Support%20Documents/TechnicalDocs/CP2112.pdf
  * Programming Interface Specification:
- *   http://www.silabs.com/Support%20Documents/TechnicalDocs/AN495.pdf
+ *   https://www.silabs.com/documents/public/application-notes/an495-cp2112-interface-specification.pdf
  */
 
 #include <linux/gpio.h>
