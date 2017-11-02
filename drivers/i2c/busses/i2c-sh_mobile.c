@@ -303,16 +303,6 @@ static void activate_ch(struct sh_mobile_i2c_data *pd)
 	/* Wake up device and enable clock */
 	pm_runtime_get_sync(pd->dev);
 	clk_prepare_enable(pd->clk);
-
-	/* Enable channel and configure rx ack */
-	iic_set_clr(pd, ICCR, ICCR_ICE, 0);
-
-	/* Mask all interrupts */
-	iic_wr(pd, ICIC, 0);
-
-	/* Set the clock */
-	iic_wr(pd, ICCL, pd->iccl & 0xff);
-	iic_wr(pd, ICCH, pd->icch & 0xff);
 }
 
 static void deactivate_ch(struct sh_mobile_i2c_data *pd)
