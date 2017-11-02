@@ -1017,7 +1017,7 @@ int f2fs_sync_inode_meta(struct f2fs_sb_info *sbi)
 				update_inode_page(inode);
 			iput(inode);
 		}
-	};
+	}
 	return 0;
 }
 
