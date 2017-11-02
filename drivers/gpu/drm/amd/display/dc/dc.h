@@ -475,6 +475,8 @@ struct dc_surface_update {
 	 */
 	/* gamma TO BE REMOVED */
 	struct dc_gamma *gamma;
+	enum color_transfer_func color_input_tf;
+	enum color_transfer_func color_output_tf;
 	struct dc_transfer_func *in_transfer_func;
 
 	struct csc_transform *input_csc_color_matrix;
