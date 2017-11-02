@@ -2026,7 +2026,7 @@ mlxsw_sp_neigh_entry_counter_update(struct mlxsw_sp *mlxsw_sp,
 	mlxsw_sp_neigh_entry_update(mlxsw_sp, neigh_entry, true);
 }
 
-struct mlxsw_sp_neigh_event_work {
+struct mlxsw_sp_netevent_work {
 	struct work_struct work;
 	struct mlxsw_sp *mlxsw_sp;
 	struct neighbour *n;
@@ -2034,11 +2034,11 @@ struct mlxsw_sp_neigh_event_work {
 
 static void mlxsw_sp_router_neigh_event_work(struct work_struct *work)
 {
-	struct mlxsw_sp_neigh_event_work *neigh_work =
-		container_of(work, struct mlxsw_sp_neigh_event_work, work);
-	struct mlxsw_sp *mlxsw_sp = neigh_work->mlxsw_sp;
+	struct mlxsw_sp_netevent_work *net_work =
+		container_of(work, struct mlxsw_sp_netevent_work, work);
+	struct mlxsw_sp *mlxsw_sp = net_work->mlxsw_sp;
 	struct mlxsw_sp_neigh_entry *neigh_entry;
-	struct neighbour *n = neigh_work->n;
+	struct neighbour *n = net_work->n;
 	unsigned char ha[ETH_ALEN];
 	bool entry_connected;
 	u8 nud_state, dead;
@@ -2074,13 +2074,13 @@ static void mlxsw_sp_router_neigh_event_work(struct work_struct *work)
 out:
 	rtnl_unlock();
 	neigh_release(n);
-	kfree(neigh_work);
+	kfree(net_work);
 }
 
 static int mlxsw_sp_router_netevent_event(struct notifier_block *unused,
 					  unsigned long event, void *ptr)
 {
-	struct mlxsw_sp_neigh_event_work *neigh_work;
+	struct mlxsw_sp_netevent_work *net_work;
 	struct mlxsw_sp_port *mlxsw_sp_port;
 	struct mlxsw_sp *mlxsw_sp;
 	unsigned long interval;
@@ -2119,22 +2119,22 @@ static int mlxsw_sp_router_netevent_event(struct notifier_block *unused,
 		if (!mlxsw_sp_port)
 			return NOTIFY_DONE;
 
-		neigh_work = kzalloc(sizeof(*neigh_work), GFP_ATOMIC);
-		if (!neigh_work) {
+		net_work = kzalloc(sizeof(*net_work), GFP_ATOMIC);
+		if (!net_work) {
 			mlxsw_sp_port_dev_put(mlxsw_sp_port);
 			return NOTIFY_BAD;
 		}
 
-		INIT_WORK(&neigh_work->work, mlxsw_sp_router_neigh_event_work);
-		neigh_work->mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
-		neigh_work->n = n;
+		INIT_WORK(&net_work->work, mlxsw_sp_router_neigh_event_work);
+		net_work->mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+		net_work->n = n;
 
 		/* Take a reference to ensure the neighbour won't be
 		 * destructed until we drop the reference in delayed
 		 * work.
 		 */
 		neigh_clone(n);
-		mlxsw_core_schedule_work(&neigh_work->work);
+		mlxsw_core_schedule_work(&net_work->work);
 		mlxsw_sp_port_dev_put(mlxsw_sp_port);
 		break;
 	}
