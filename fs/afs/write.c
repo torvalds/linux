@@ -103,7 +103,7 @@ static int afs_fill_page(struct afs_vnode *vnode, struct key *key,
 	req->pages[0] = page;
 	get_page(page);
 
-	ret = afs_vnode_fetch_data(vnode, key, req);
+	ret = afs_fetch_data(vnode, key, req);
 	afs_put_read(req);
 	if (ret < 0) {
 		if (ret == -ENOENT) {
@@ -338,6 +338,40 @@ static void afs_kill_pages(struct afs_vnode *vnode, bool error,
 }
 
 /*
+ * write to a file
+ */
+static int afs_store_data(struct afs_writeback *wb, pgoff_t first, pgoff_t last,
+			  unsigned offset, unsigned to)
+{
+	struct afs_fs_cursor fc;
+	struct afs_vnode *vnode = wb->vnode;
+	int ret;
+
+	_enter("%s{%x:%u.%u},%x,%lx,%lx,%x,%x",
+	       vnode->volume->name,
+	       vnode->fid.vid,
+	       vnode->fid.vnode,
+	       vnode->fid.unique,
+	       key_serial(wb->key),
+	       first, last, offset, to);
+
+	ret = -ERESTARTSYS;
+	if (afs_begin_vnode_operation(&fc, vnode, wb->key)) {
+		while (afs_select_fileserver(&fc)) {
+			fc.cb_break = vnode->cb_break + vnode->cb_s_break;
+			afs_fs_store_data(&fc, wb, first, last, offset, to);
+		}
+
+		afs_check_for_remote_deletion(&fc, fc.vnode);
+		afs_vnode_commit_status(&fc, vnode, fc.cb_break);
+		ret = afs_end_vnode_operation(&fc);
+	}
+
+	_leave(" = %d", ret);
+	return ret;
+}
+
+/*
  * synchronously write back the locked page and any subsequent non-locked dirty
  * pages also covered by the same writeback record
  */
@@ -420,7 +454,7 @@ no_more:
 
 	_debug("write back %lx[%u..] to %lx[..%u]", first, offset, last, to);
 
-	ret = afs_vnode_store_data(wb, first, last, offset, to);
+	ret = afs_store_data(wb, first, last, offset, to);
 	if (ret < 0) {
 		switch (ret) {
 		case -EDQUOT:

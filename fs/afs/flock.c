@@ -68,6 +68,100 @@ static void afs_grant_locks(struct afs_vnode *vnode, struct file_lock *fl)
 }
 
 /*
+ * Get a lock on a file
+ */
+static int afs_set_lock(struct afs_vnode *vnode, struct key *key,
+			afs_lock_type_t type)
+{
+	struct afs_fs_cursor fc;
+	int ret;
+
+	_enter("%s{%x:%u.%u},%x,%u",
+	       vnode->volume->name,
+	       vnode->fid.vid,
+	       vnode->fid.vnode,
+	       vnode->fid.unique,
+	       key_serial(key), type);
+
+	ret = -ERESTARTSYS;
+	if (afs_begin_vnode_operation(&fc, vnode, key)) {
+		while (afs_select_fileserver(&fc)) {
+			fc.cb_break = vnode->cb_break + vnode->cb_s_break;
+			afs_fs_set_lock(&fc, type);
+		}
+
+		afs_check_for_remote_deletion(&fc, fc.vnode);
+		afs_vnode_commit_status(&fc, vnode, fc.cb_break);
+		ret = afs_end_vnode_operation(&fc);
+	}
+
+	_leave(" = %d", ret);
+	return ret;
+}
+
+/*
+ * Extend a lock on a file
+ */
+static int afs_extend_lock(struct afs_vnode *vnode, struct key *key)
+{
+	struct afs_fs_cursor fc;
+	int ret;
+
+	_enter("%s{%x:%u.%u},%x",
+	       vnode->volume->name,
+	       vnode->fid.vid,
+	       vnode->fid.vnode,
+	       vnode->fid.unique,
+	       key_serial(key));
+
+	ret = -ERESTARTSYS;
+	if (afs_begin_vnode_operation(&fc, vnode, key)) {
+		while (afs_select_current_fileserver(&fc)) {
+			fc.cb_break = vnode->cb_break + vnode->cb_s_break;
+			afs_fs_extend_lock(&fc);
+		}
+
+		afs_check_for_remote_deletion(&fc, fc.vnode);
+		afs_vnode_commit_status(&fc, vnode, fc.cb_break);
+		ret = afs_end_vnode_operation(&fc);
+	}
+
+	_leave(" = %d", ret);
+	return ret;
+}
+
+/*
+ * Release a lock on a file
+ */
+static int afs_release_lock(struct afs_vnode *vnode, struct key *key)
+{
+	struct afs_fs_cursor fc;
+	int ret;
+
+	_enter("%s{%x:%u.%u},%x",
+	       vnode->volume->name,
+	       vnode->fid.vid,
+	       vnode->fid.vnode,
+	       vnode->fid.unique,
+	       key_serial(key));
+
+	ret = -ERESTARTSYS;
+	if (afs_begin_vnode_operation(&fc, vnode, key)) {
+		while (afs_select_current_fileserver(&fc)) {
+			fc.cb_break = vnode->cb_break + vnode->cb_s_break;
+			afs_fs_release_lock(&fc);
+		}
+
+		afs_check_for_remote_deletion(&fc, fc.vnode);
+		afs_vnode_commit_status(&fc, vnode, fc.cb_break);
+		ret = afs_end_vnode_operation(&fc);
+	}
+
+	_leave(" = %d", ret);
+	return ret;
+}
+
+/*
  * do work for a lock, including:
  * - probing for a lock we're waiting on but didn't get immediately
  * - extending a lock that's close to timing out
@@ -91,7 +185,7 @@ void afs_lock_work(struct work_struct *work)
 
 		/* attempt to release the server lock; if it fails, we just
 		 * wait 5 minutes and it'll time out anyway */
-		ret = afs_vnode_release_lock(vnode, vnode->unlock_key);
+		ret = afs_release_lock(vnode, vnode->unlock_key);
 		if (ret < 0)
 			printk(KERN_WARNING "AFS:"
 			       " Failed to release lock on {%x:%x} error %d\n",
@@ -115,7 +209,7 @@ void afs_lock_work(struct work_struct *work)
 		key = key_get(fl->fl_file->private_data);
 		spin_unlock(&vnode->lock);
 
-		ret = afs_vnode_extend_lock(vnode, key);
+		ret = afs_extend_lock(vnode, key);
 		clear_bit(AFS_VNODE_LOCKING, &vnode->flags);
 		key_put(key);
 		switch (ret) {
@@ -151,7 +245,7 @@ void afs_lock_work(struct work_struct *work)
 			AFS_LOCK_READ : AFS_LOCK_WRITE;
 		spin_unlock(&vnode->lock);
 
-		ret = afs_vnode_set_lock(vnode, key, type);
+		ret = afs_set_lock(vnode, key, type);
 		clear_bit(AFS_VNODE_LOCKING, &vnode->flags);
 		switch (ret) {
 		case -EWOULDBLOCK:
@@ -182,7 +276,7 @@ void afs_lock_work(struct work_struct *work)
 				clear_bit(AFS_VNODE_READLOCKED, &vnode->flags);
 				clear_bit(AFS_VNODE_WRITELOCKED, &vnode->flags);
 				spin_unlock(&vnode->lock);
-				afs_vnode_release_lock(vnode, key);
+				afs_release_lock(vnode, key);
 				if (!list_empty(&vnode->pending_locks))
 					afs_lock_may_be_available(vnode);
 			}
@@ -280,7 +374,7 @@ static int afs_do_setlk(struct file *file, struct file_lock *fl)
 		set_bit(AFS_VNODE_LOCKING, &vnode->flags);
 		spin_unlock(&vnode->lock);
 
-		ret = afs_vnode_set_lock(vnode, key, type);
+		ret = afs_set_lock(vnode, key, type);
 		clear_bit(AFS_VNODE_LOCKING, &vnode->flags);
 		switch (ret) {
 		case 0:
@@ -383,7 +477,7 @@ given_lock:
 	/* again, make sure we've got a callback on this file and, again, make
 	 * sure that our view of the data version is up to date (we ignore
 	 * errors incurred here and deal with the consequences elsewhere) */
-	afs_vnode_fetch_status(vnode, key, false);
+	afs_validate(vnode, key);
 
 error:
 	spin_unlock(&inode->i_lock);
@@ -455,7 +549,7 @@ static int afs_do_getlk(struct file *file, struct file_lock *fl)
 	posix_test_lock(file, fl);
 	if (fl->fl_type == F_UNLCK) {
 		/* no local locks; consult the server */
-		ret = afs_vnode_fetch_status(vnode, key, true);
+		ret = afs_fetch_status(vnode, key);
 		if (ret < 0)
 			goto error;
 		lock_count = vnode->status.lock_count;

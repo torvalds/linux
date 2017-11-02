@@ -38,6 +38,7 @@ enum AFS_FS_Operations {
 	FSFETCHDATA64		= 65537, /* AFS Fetch file data */
 	FSSTOREDATA64		= 65538, /* AFS Store file data */
 	FSGIVEUPALLCALLBACKS	= 65539, /* AFS Give up all outstanding callbacks on a server */
+	FSGETCAPABILITIES	= 65540, /* Probe and get the capabilities of a fileserver */
 };
 
 enum AFS_FS_Errors {

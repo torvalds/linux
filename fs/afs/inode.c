@@ -102,6 +102,35 @@ static int afs_inode_map_status(struct afs_vnode *vnode, struct key *key)
 }
 
 /*
+ * Fetch file status from the volume.
+ */
+int afs_fetch_status(struct afs_vnode *vnode, struct key *key)
+{
+	struct afs_fs_cursor fc;
+	int ret;
+
+	_enter("%s,{%x:%u.%u,S=%lx}",
+	       vnode->volume->name,
+	       vnode->fid.vid, vnode->fid.vnode, vnode->fid.unique,
+	       vnode->flags);
+
+	ret = -ERESTARTSYS;
+	if (afs_begin_vnode_operation(&fc, vnode, key)) {
+		while (afs_select_fileserver(&fc)) {
+			fc.cb_break = vnode->cb_break + vnode->cb_s_break;
+			afs_fs_fetch_file_status(&fc, NULL);
+		}
+
+		afs_check_for_remote_deletion(&fc, fc.vnode);
+		afs_vnode_commit_status(&fc, vnode, fc.cb_break);
+		ret = afs_end_vnode_operation(&fc);
+	}
+
+	_leave(" = %d", ret);
+	return ret;
+}
+
+/*
  * iget5() comparator
  */
 int afs_iget5_test(struct inode *inode, void *opaque)
@@ -205,7 +234,7 @@ struct inode *afs_iget_autocell(struct inode *dir, const char *dev_name,
  */
 struct inode *afs_iget(struct super_block *sb, struct key *key,
 		       struct afs_fid *fid, struct afs_file_status *status,
-		       struct afs_callback *cb)
+		       struct afs_callback *cb, struct afs_cb_interest *cbi)
 {
 	struct afs_iget_data data = { .fid = *fid };
 	struct afs_super_info *as;
@@ -238,7 +267,7 @@ struct inode *afs_iget(struct super_block *sb, struct key *key,
 
 	if (!status) {
 		/* it's a remotely extant inode */
-		ret = afs_vnode_fetch_status(vnode, key, true);
+		ret = afs_fetch_status(vnode, key);
 		if (ret < 0)
 			goto bad_inode;
 	} else {
@@ -255,6 +284,7 @@ struct inode *afs_iget(struct super_block *sb, struct key *key,
 			vnode->cb_version = cb->version;
 			vnode->cb_type = cb->type;
 			vnode->cb_expires_at = cb->expiry;
+			vnode->cb_interest = afs_get_cb_interest(cbi);
 			set_bit(AFS_VNODE_CB_PROMISED, &vnode->flags);
 		}
 
@@ -358,7 +388,7 @@ int afs_validate(struct afs_vnode *vnode, struct key *key)
 	 * access */
 	if (!test_bit(AFS_VNODE_CB_PROMISED, &vnode->flags)) {
 		_debug("not promised");
-		ret = afs_vnode_fetch_status(vnode, key, false);
+		ret = afs_fetch_status(vnode, key);
 		if (ret < 0) {
 			if (ret == -ENOENT) {
 				set_bit(AFS_VNODE_DELETED, &vnode->flags);
@@ -468,6 +498,7 @@ void afs_evict_inode(struct inode *inode)
  */
 int afs_setattr(struct dentry *dentry, struct iattr *attr)
 {
+	struct afs_fs_cursor fc;
 	struct afs_vnode *vnode = AFS_FS_I(d_inode(dentry));
 	struct key *key;
 	int ret;
@@ -498,7 +529,18 @@ int afs_setattr(struct dentry *dentry, struct iattr *attr)
 		}
 	}
 
-	ret = afs_vnode_setattr(vnode, key, attr);
+	ret = -ERESTARTSYS;
+	if (afs_begin_vnode_operation(&fc, vnode, key)) {
+		while (afs_select_fileserver(&fc)) {
+			fc.cb_break = vnode->cb_break + vnode->cb_s_break;
+			afs_fs_setattr(&fc, attr);
+		}
+
+		afs_check_for_remote_deletion(&fc, fc.vnode);
+		afs_vnode_commit_status(&fc, vnode, fc.cb_break);
+		ret = afs_end_vnode_operation(&fc);
+	}
+
 	if (!(attr->ia_valid & ATTR_FILE))
 		key_put(key);
 

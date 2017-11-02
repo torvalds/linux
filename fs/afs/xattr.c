@@ -96,7 +96,7 @@ static int afs_xattr_get_volume(const struct xattr_handler *handler,
 			      void *buffer, size_t size)
 {
 	struct afs_vnode *vnode = AFS_FS_I(inode);
-	const char *volname = vnode->volume->vlocation->vldb.name;
+	const char *volname = vnode->volume->name;
 	size_t namelen;
 
 	namelen = strlen(volname);

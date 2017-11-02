@@ -24,11 +24,10 @@ kafs-objs := \
 	rxrpc.o \
 	security.o \
 	server.o \
+	server_list.o \
 	super.o \
 	netdevices.o \
 	vlclient.o \
-	vlocation.o \
-	vnode.o \
 	volume.o \
 	write.o \
 	xattr.o

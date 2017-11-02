@@ -88,4 +88,46 @@ struct afs_vldbentry {
 
 #define AFS_VLDB_MAXNAMELEN 65
 
+
+struct afs_ListAddrByAttributes__xdr {
+	__be32			Mask;
+#define AFS_VLADDR_IPADDR	0x1	/* Match by ->ipaddr */
+#define AFS_VLADDR_INDEX	0x2	/* Match by ->index */
+#define AFS_VLADDR_UUID		0x4	/* Match by ->uuid */
+	__be32			ipaddr;
+	__be32			index;
+	__be32			spare;
+	struct afs_uuid__xdr	uuid;
+};
+
+struct afs_uvldbentry__xdr {
+	__be32			name[AFS_VLDB_MAXNAMELEN];
+	__be32			nServers;
+	struct afs_uuid__xdr	serverNumber[AFS_NMAXNSERVERS];
+	__be32			serverUnique[AFS_NMAXNSERVERS];
+	__be32			serverPartition[AFS_NMAXNSERVERS];
+	__be32			serverFlags[AFS_NMAXNSERVERS];
+	__be32			volumeId[AFS_MAXTYPES];
+	__be32			cloneId;
+	__be32			flags;
+	__be32			spares1;
+	__be32			spares2;
+	__be32			spares3;
+	__be32			spares4;
+	__be32			spares5;
+	__be32			spares6;
+	__be32			spares7;
+	__be32			spares8;
+	__be32			spares9;
+};
+
+struct afs_address_list {
+	refcount_t		usage;
+	unsigned int		version;
+	unsigned int		nr_addrs;
+	struct sockaddr_rxrpc	addrs[];
+};
+
+extern void afs_put_address_list(struct afs_address_list *alist);
+
 #endif /* AFS_VL_H */

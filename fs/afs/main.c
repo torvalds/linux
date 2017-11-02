@@ -55,18 +55,17 @@ static int __net_init afs_net_init(struct afs_net *net)
 	spin_lock_init(&net->proc_cells_lock);
 	INIT_LIST_HEAD(&net->proc_cells);
 
-	INIT_LIST_HEAD(&net->vl_updates);
-	INIT_LIST_HEAD(&net->vl_graveyard);
-	INIT_DELAYED_WORK(&net->vl_reaper, afs_vlocation_reaper);
-	INIT_DELAYED_WORK(&net->vl_updater, afs_vlocation_updater);
-	spin_lock_init(&net->vl_updates_lock);
-	spin_lock_init(&net->vl_graveyard_lock);
-	net->servers = RB_ROOT;
-	rwlock_init(&net->servers_lock);
-	INIT_LIST_HEAD(&net->server_graveyard);
-	spin_lock_init(&net->server_graveyard_lock);
-	INIT_WORK(&net->server_reaper, afs_reap_server);
-	timer_setup(&net->server_timer, afs_server_timer, 0);
+	seqlock_init(&net->fs_lock);
+	net->fs_servers = RB_ROOT;
+	INIT_LIST_HEAD(&net->fs_updates);
+	INIT_HLIST_HEAD(&net->fs_proc);
+
+	INIT_HLIST_HEAD(&net->fs_addresses4);
+	INIT_HLIST_HEAD(&net->fs_addresses6);
+	seqlock_init(&net->fs_addr_lock);
+
+	INIT_WORK(&net->fs_manager, afs_manage_servers);
+	timer_setup(&net->fs_timer, afs_servers_timer, 0);
 
 	/* Register the /proc stuff */
 	ret = afs_proc_init(net);
@@ -87,8 +86,8 @@ static int __net_init afs_net_init(struct afs_net *net)
 
 error_open_socket:
 	net->live = false;
-	afs_vlocation_purge(net);
 	afs_cell_purge(net);
+	afs_purge_servers(net);
 error_cell_init:
 	net->live = false;
 	afs_proc_cleanup(net);
@@ -103,9 +102,8 @@ error_proc:
 static void __net_exit afs_net_exit(struct afs_net *net)
 {
 	net->live = false;
-	afs_purge_servers(net);
-	afs_vlocation_purge(net);
 	afs_cell_purge(net);
+	afs_purge_servers(net);
 	afs_close_socket(net);
 	afs_proc_cleanup(net);
 }
@@ -125,10 +123,6 @@ static int __init afs_init(void)
 	afs_async_calls = alloc_workqueue("kafsd", WQ_MEM_RECLAIM, 0);
 	if (!afs_async_calls)
 		goto error_async;
-	afs_vlocation_update_worker =
-		alloc_workqueue("kafs_vlupdated", WQ_MEM_RECLAIM, 0);
-	if (!afs_vlocation_update_worker)
-		goto error_vl_up;
 	afs_lock_manager = alloc_workqueue("kafs_lockd", WQ_MEM_RECLAIM, 0);
 	if (!afs_lock_manager)
 		goto error_lockmgr;
@@ -160,8 +154,6 @@ error_cache:
 #endif
 	destroy_workqueue(afs_lock_manager);
 error_lockmgr:
-	destroy_workqueue(afs_vlocation_update_worker);
-error_vl_up:
 	destroy_workqueue(afs_async_calls);
 error_async:
 	destroy_workqueue(afs_wq);
@@ -189,7 +181,6 @@ static void __exit afs_exit(void)
 	fscache_unregister_netfs(&afs_cache_netfs);
 #endif
 	destroy_workqueue(afs_lock_manager);
-	destroy_workqueue(afs_vlocation_update_worker);
 	destroy_workqueue(afs_async_calls);
 	destroy_workqueue(afs_wq);
 	afs_clean_up_permit_cache();

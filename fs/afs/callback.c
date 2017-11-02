@@ -26,10 +26,10 @@
  * - Called with volume->server_sem held.
  */
 int afs_register_server_cb_interest(struct afs_vnode *vnode,
-				    struct afs_cb_interest **ppcbi,
-				    struct afs_server *server)
+				    struct afs_server_entry *entry)
 {
-	struct afs_cb_interest *cbi = *ppcbi, *vcbi, *new, *x;
+	struct afs_cb_interest *cbi = entry->cb_interest, *vcbi, *new, *x;
+	struct afs_server *server = entry->server;
 
 again:
 	vcbi = vnode->cb_interest;
@@ -47,7 +47,7 @@ again:
 
 		if (!cbi && vcbi->server == server) {
 			afs_get_cb_interest(vcbi);
-			x = cmpxchg(ppcbi, cbi, vcbi);
+			x = cmpxchg(&entry->cb_interest, cbi, vcbi);
 			if (x != cbi) {
 				cbi = x;
 				afs_put_cb_interest(afs_v2net(vnode), vcbi);
@@ -72,7 +72,7 @@ again:
 		list_add_tail(&new->cb_link, &server->cb_interests);
 		write_unlock(&server->cb_break_lock);
 
-		x = cmpxchg(ppcbi, cbi, new);
+		x = cmpxchg(&entry->cb_interest, cbi, new);
 		if (x == cbi) {
 			cbi = new;
 		} else {
@@ -137,7 +137,7 @@ void afs_put_cb_interest(struct afs_net *net, struct afs_cb_interest *cbi)
  */
 void afs_init_callback_state(struct afs_server *server)
 {
-	if (!test_and_clear_bit(AFS_SERVER_NEW, &server->flags))
+	if (!test_and_clear_bit(AFS_SERVER_FL_NEW, &server->flags))
 		server->cb_s_break++;
 }
 
@@ -233,12 +233,12 @@ void afs_break_callbacks(struct afs_server *server, size_t count,
 /*
  * Clear the callback interests in a server list.
  */
-void afs_clear_callback_interests(struct afs_net *net, struct afs_volume *volume)
+void afs_clear_callback_interests(struct afs_net *net, struct afs_server_list *slist)
 {
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(volume->cb_interests); i++) {
-		afs_put_cb_interest(net, volume->cb_interests[i]);
-		volume->cb_interests[i] = NULL;
+	for (i = 0; i < slist->nr_servers; i++) {
+		afs_put_cb_interest(net, slist->servers[i].cb_interest);
+		slist->servers[i].cb_interest = NULL;
 	}
 }

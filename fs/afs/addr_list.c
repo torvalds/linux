@@ -228,6 +228,37 @@ struct afs_addr_list *afs_dns_query(struct afs_cell *cell, time64_t *_expiry)
 }
 
 /*
+ * Merge an IPv4 entry into a fileserver address list.
+ */
+void afs_merge_fs_addr4(struct afs_addr_list *alist, __be32 xdr)
+{
+	struct sockaddr_in6 *a;
+	int i;
+
+	for (i = 0; i < alist->nr_ipv4; i++) {
+		a = &alist->addrs[i].transport.sin6;
+		if (xdr == a->sin6_addr.s6_addr32[3])
+			return;
+		if (xdr < a->sin6_addr.s6_addr32[3])
+			break;
+	}
+
+	if (i < alist->nr_addrs)
+		memmove(alist->addrs + i + 1,
+			alist->addrs + i,
+			sizeof(alist->addrs[0]) * (alist->nr_addrs - i));
+
+	a = &alist->addrs[i].transport.sin6;
+	a->sin6_port		  = htons(AFS_FS_PORT);
+	a->sin6_addr.s6_addr32[0] = 0;
+	a->sin6_addr.s6_addr32[1] = 0;
+	a->sin6_addr.s6_addr32[2] = htonl(0xffff);
+	a->sin6_addr.s6_addr32[3] = xdr;
+	alist->nr_ipv4++;
+	alist->nr_addrs++;
+}
+
+/*
  * Get an address to try.
  */
 bool afs_iterate_addresses(struct afs_addr_cursor *ac)

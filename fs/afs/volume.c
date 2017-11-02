@@ -13,11 +13,148 @@
 #include <linux/slab.h>
 #include "internal.h"
 
-static const char *afs_voltypes[] = { "R/W", "R/O", "BAK" };
+unsigned __read_mostly afs_volume_gc_delay = 10;
+unsigned __read_mostly afs_volume_record_life = 60 * 60;
+
+static const char *const afs_voltypes[] = { "R/W", "R/O", "BAK" };
 
 /*
- * lookup a volume by name
- * - this can be one of the following:
+ * Allocate a volume record and load it up from a vldb record.
+ */
+static struct afs_volume *afs_alloc_volume(struct afs_mount_params *params,
+					   struct afs_vldb_entry *vldb,
+					   unsigned long type_mask)
+{
+	struct afs_server_list *slist;
+	struct afs_server *server;
+	struct afs_volume *volume;
+	int ret = -ENOMEM, nr_servers = 0, i, j;
+
+	for (i = 0; i < vldb->nr_servers; i++)
+		if (vldb->fs_mask[i] & type_mask)
+			nr_servers++;
+
+	volume = kzalloc(sizeof(struct afs_volume), GFP_KERNEL);
+	if (!volume)
+		goto error_0;
+
+	volume->vid		= vldb->vid[params->type];
+	volume->update_at	= ktime_get_real_seconds() + afs_volume_record_life;
+	volume->cell		= afs_get_cell(params->cell);
+	volume->type		= params->type;
+	volume->type_force	= params->force;
+	volume->name_len	= vldb->name_len;
+
+	atomic_set(&volume->usage, 1);
+	INIT_LIST_HEAD(&volume->proc_link);
+	rwlock_init(&volume->servers_lock);
+	memcpy(volume->name, vldb->name, vldb->name_len + 1);
+
+	slist = afs_alloc_server_list(params->cell, params->key, vldb, type_mask);
+	if (IS_ERR(slist)) {
+		ret = PTR_ERR(slist);
+		goto error_1;
+	}
+
+	refcount_set(&slist->usage, 1);
+	volume->servers = slist;
+
+	/* Make sure a records exists for each server this volume occupies. */
+	for (i = 0; i < nr_servers; i++) {
+		if (!(vldb->fs_mask[i] & type_mask))
+			continue;
+
+		server = afs_lookup_server(params->cell, params->key,
+					   &vldb->fs_server[i]);
+		if (IS_ERR(server)) {
+			ret = PTR_ERR(server);
+			if (ret == -ENOENT)
+				continue;
+			goto error_2;
+		}
+
+		/* Insertion-sort by server pointer */
+		for (j = 0; j < slist->nr_servers; j++)
+			if (slist->servers[j].server >= server)
+				break;
+		if (j < slist->nr_servers) {
+			if (slist->servers[j].server == server) {
+				afs_put_server(params->net, server);
+				continue;
+			}
+
+			memmove(slist->servers + j + 1,
+				slist->servers + j,
+				(slist->nr_servers - j) * sizeof(struct afs_server_entry));
+		}
+
+		slist->servers[j].server = server;
+		slist->nr_servers++;
+	}
+
+	if (slist->nr_servers == 0) {
+		ret = -EDESTADDRREQ;
+		goto error_2;
+	}
+
+	return volume;
+
+error_2:
+	afs_put_serverlist(params->net, slist);
+error_1:
+	kfree(volume);
+error_0:
+	return ERR_PTR(ret);
+}
+
+/*
+ * Look up a VLDB record for a volume.
+ */
+static struct afs_vldb_entry *afs_vl_lookup_vldb(struct afs_cell *cell,
+						 struct key *key,
+						 const char *volname,
+						 size_t volnamesz)
+{
+	struct afs_addr_cursor ac;
+	struct afs_vldb_entry *vldb;
+	int ret;
+
+	ret = afs_set_vl_cursor(&ac, cell);
+	if (ret < 0)
+		return ERR_PTR(ret);
+
+	while (afs_iterate_addresses(&ac)) {
+		vldb = afs_vl_get_entry_by_name_u(cell->net, &ac, key,
+						  volname, volnamesz);
+		switch (ac.error) {
+		case 0:
+			afs_end_cursor(&ac);
+			return vldb;
+		case -ECONNABORTED:
+			ac.error = afs_abort_to_error(ac.abort_code);
+			goto error;
+		case -ENOMEM:
+		case -ENONET:
+			goto error;
+		case -ENETUNREACH:
+		case -EHOSTUNREACH:
+		case -ECONNREFUSED:
+			break;
+		default:
+			ac.error = -EIO;
+			goto error;
+		}
+	}
+
+error:
+	return ERR_PTR(afs_end_cursor(&ac));
+}
+
+/*
+ * Look up a volume in the VL server and create a candidate volume record for
+ * it.
+ *
+ * The volume name can be one of the following:
  *	"%[cell:]volume[.]"		R/W volume
  *	"#[cell:]volume[.]"		R/O or R/W volume (rwparent=0),
  *					 or R/W (rwparent=1) volume
@@ -37,169 +174,218 @@ static const char *afs_voltypes[] = { "R/W", "R/O", "BAK" };
  * - Rule 3: If parent volume is R/W, then only mount R/W volume unless
  *           explicitly told otherwise
  */
-struct afs_volume *afs_volume_lookup(struct afs_mount_params *params)
+struct afs_volume *afs_create_volume(struct afs_mount_params *params)
 {
-	struct afs_vlocation *vlocation = NULL;
-	struct afs_volume *volume = NULL;
-	struct afs_server *server = NULL;
-	char srvtmask;
-	int ret, loop;
+	struct afs_vldb_entry *vldb;
+	struct afs_volume *volume;
+	unsigned long type_mask = 1UL << params->type;
 
-	_enter("{%*.*s,%d}",
-	       params->volnamesz, params->volnamesz, params->volname, params->rwpath);
+	vldb = afs_vl_lookup_vldb(params->cell, params->key,
+				  params->volname, params->volnamesz);
+	if (IS_ERR(vldb))
+		return ERR_CAST(vldb);
 
-	/* lookup the volume location record */
-	vlocation = afs_vlocation_lookup(params->net, params->cell, params->key,
-					 params->volname, params->volnamesz);
-	if (IS_ERR(vlocation)) {
-		ret = PTR_ERR(vlocation);
-		vlocation = NULL;
+	if (test_bit(AFS_VLDB_QUERY_ERROR, &vldb->flags)) {
+		volume = ERR_PTR(vldb->error);
 		goto error;
 	}
 
-	/* make the final decision on the type we want */
-	ret = -ENOMEDIUM;
-	if (params->force && !(vlocation->vldb.vidmask & (1 << params->type)))
-		goto error;
-
-	srvtmask = 0;
-	for (loop = 0; loop < vlocation->vldb.nservers; loop++)
-		srvtmask |= vlocation->vldb.srvtmask[loop];
-
+	/* Make the final decision on the type we want */
+	volume = ERR_PTR(-ENOMEDIUM);
 	if (params->force) {
-		if (!(srvtmask & (1 << params->type)))
+		if (!(vldb->flags & type_mask))
 			goto error;
-	} else if (srvtmask & AFS_VOL_VTM_RO) {
+	} else if (test_bit(AFS_VLDB_HAS_RO, &vldb->flags)) {
 		params->type = AFSVL_ROVOL;
-	} else if (srvtmask & AFS_VOL_VTM_RW) {
+	} else if (test_bit(AFS_VLDB_HAS_RW, &vldb->flags)) {
 		params->type = AFSVL_RWVOL;
 	} else {
 		goto error;
 	}
 
-	down_write(&params->cell->vl_sem);
+	type_mask = 1UL << params->type;
+	volume = afs_alloc_volume(params, vldb, type_mask);
 
-	/* is the volume already active? */
-	if (vlocation->vols[params->type]) {
-		/* yes - re-use it */
-		volume = vlocation->vols[params->type];
-		afs_get_volume(volume);
-		goto success;
+error:
+	kfree(vldb);
+	return volume;
+}
+
+/*
+ * Destroy a volume record
+ */
+static void afs_destroy_volume(struct afs_net *net, struct afs_volume *volume)
+{
+	_enter("%p", volume);
+
+#ifdef CONFIG_AFS_FSCACHE
+	ASSERTCMP(volume->cache, ==, NULL);
+#endif
+
+	afs_put_serverlist(net, volume->servers);
+	afs_put_cell(net, volume->cell);
+	kfree(volume);
+
+	_leave(" [destroyed]");
+}
+
+/*
+ * Drop a reference on a volume record.
+ */
+void afs_put_volume(struct afs_cell *cell, struct afs_volume *volume)
+{
+	if (volume) {
+		_enter("%s", volume->name);
+
+		if (atomic_dec_and_test(&volume->usage))
+			afs_destroy_volume(cell->net, volume);
 	}
+}
 
-	/* create a new volume record */
-	_debug("creating new volume record");
-
-	ret = -ENOMEM;
-	volume = kzalloc(sizeof(struct afs_volume), GFP_KERNEL);
-	if (!volume)
-		goto error_up;
-
-	atomic_set(&volume->usage, 1);
-	volume->type		= params->type;
-	volume->type_force	= params->force;
-	volume->cell		= params->cell;
-	volume->vid		= vlocation->vldb.vid[params->type];
-
-	init_rwsem(&volume->server_sem);
-
-	/* look up all the applicable server records */
-	for (loop = 0; loop < 8; loop++) {
-		if (vlocation->vldb.srvtmask[loop] & (1 << volume->type)) {
-			server = afs_lookup_server(
-			       volume->cell, &vlocation->vldb.servers[loop]);
-			if (IS_ERR(server)) {
-				ret = PTR_ERR(server);
-				goto error_discard;
-			}
-
-			volume->servers[volume->nservers] = server;
-			volume->nservers++;
-		}
-	}
-
-	/* attach the cache and volume location */
+/*
+ * Activate a volume.
+ */
+void afs_activate_volume(struct afs_volume *volume)
+{
 #ifdef CONFIG_AFS_FSCACHE
 	volume->cache = fscache_acquire_cookie(volume->cell->cache,
 					       &afs_volume_cache_index_def,
 					       volume, true);
 #endif
-	afs_get_vlocation(vlocation);
-	volume->vlocation = vlocation;
 
-	vlocation->vols[volume->type] = volume;
-
-success:
-	_debug("kAFS selected %s volume %08x",
-	       afs_voltypes[volume->type], volume->vid);
-	up_write(&params->cell->vl_sem);
-	afs_put_vlocation(params->net, vlocation);
-	_leave(" = %p", volume);
-	return volume;
-
-	/* clean up */
-error_up:
-	up_write(&params->cell->vl_sem);
-error:
-	afs_put_vlocation(params->net, vlocation);
-	_leave(" = %d", ret);
-	return ERR_PTR(ret);
-
-error_discard:
-	up_write(&params->cell->vl_sem);
-
-	for (loop = volume->nservers - 1; loop >= 0; loop--) {
-		afs_put_cb_interest(params->net, volume->cb_interests[loop]);
-		afs_put_server(params->net, volume->servers[loop]);
-	}
-
-	kfree(volume);
-	goto error;
+	write_lock(&volume->cell->proc_lock);
+	list_add_tail(&volume->proc_link, &volume->cell->proc_volumes);
+	write_unlock(&volume->cell->proc_lock);
 }
 
 /*
- * destroy a volume record
+ * Deactivate a volume.
  */
-void afs_put_volume(struct afs_cell *cell, struct afs_volume *volume)
+void afs_deactivate_volume(struct afs_volume *volume)
 {
-	struct afs_vlocation *vlocation;
-	int loop;
+	_enter("%s", volume->name);
 
-	if (!volume)
-		return;
+	write_lock(&volume->cell->proc_lock);
+	list_del_init(&volume->proc_link);
+	write_unlock(&volume->cell->proc_lock);
 
-	_enter("%p", volume);
-
-	ASSERTCMP(atomic_read(&volume->usage), >, 0);
-
-	vlocation = volume->vlocation;
-
-	/* to prevent a race, the decrement and the dequeue must be effectively
-	 * atomic */
-	down_write(&cell->vl_sem);
-
-	if (likely(!atomic_dec_and_test(&volume->usage))) {
-		up_write(&vlocation->cell->vl_sem);
-		_leave("");
-		return;
-	}
-
-	vlocation->vols[volume->type] = NULL;
-
-	up_write(&cell->vl_sem);
-
-	/* finish cleaning up the volume */
 #ifdef CONFIG_AFS_FSCACHE
-	fscache_relinquish_cookie(volume->cache, 0);
+	fscache_relinquish_cookie(volume->cache,
+				  test_bit(AFS_VOLUME_DELETED, &volume->flags));
+	volume->cache = NULL;
 #endif
-	afs_put_vlocation(cell->net, vlocation);
 
-	for (loop = volume->nservers - 1; loop >= 0; loop--) {
-		afs_put_cb_interest(cell->net, volume->cb_interests[loop]);
-		afs_put_server(cell->net, volume->servers[loop]);
+	_leave("");
+}
+
+/*
+ * Query the VL service to update the volume status.
+ */
+static int afs_update_volume_status(struct afs_volume *volume, struct key *key)
+{
+	struct afs_server_list *new, *old, *discard;
+	struct afs_vldb_entry *vldb;
+	char idbuf[16];
+	int ret, idsz;
+
+	_enter("");
+
+	/* We look up an ID by passing it as a decimal string in the
+	 * operation's name parameter.
+	 */
+	idsz = sprintf(idbuf, "%u", volume->vid);
+
+	vldb = afs_vl_lookup_vldb(volume->cell, key, idbuf, idsz);
+	if (IS_ERR(vldb)) {
+		ret = PTR_ERR(vldb);
+		goto error;
 	}
 
-	kfree(volume);
+	/* See if the volume got renamed. */
+	if (vldb->name_len != volume->name_len ||
+	    memcmp(vldb->name, volume->name, vldb->name_len) != 0) {
+		/* TODO: Use RCU'd string. */
+		memcpy(volume->name, vldb->name, AFS_MAXVOLNAME);
+		volume->name_len = vldb->name_len;
+	}
 
-	_leave(" [destroyed]");
+	/* See if the volume's server list got updated. */
+	new = afs_alloc_server_list(volume->cell, key,
+				      vldb, (1 << volume->type));
+	if (IS_ERR(new)) {
+		ret = PTR_ERR(new);
+		goto error_vldb;
+	}
+
+	write_lock(&volume->servers_lock);
+
+	discard = new;
+	old = volume->servers;
+	if (afs_annotate_server_list(new, old)) {
+		new->seq = volume->servers_seq + 1;
+		volume->servers = new;
+		smp_wmb();
+		volume->servers_seq++;
+		discard = old;
+	}
+
+	volume->update_at = ktime_get_real_seconds() + afs_volume_record_life;
+	clear_bit(AFS_VOLUME_NEEDS_UPDATE, &volume->flags);
+	write_unlock(&volume->servers_lock);
+	ret = 0;
+
+	afs_put_serverlist(volume->cell->net, discard);
+error_vldb:
+	kfree(vldb);
+error:
+	_leave(" = %d", ret);
+	return ret;
+}
+
+/*
+ * Make sure the volume record is up to date.
+ */
+int afs_check_volume_status(struct afs_volume *volume, struct key *key)
+{
+	time64_t now = ktime_get_real_seconds();
+	int ret, retries = 0;
+
+	_enter("");
+
+	if (volume->update_at <= now)
+		set_bit(AFS_VOLUME_NEEDS_UPDATE, &volume->flags);
+
+retry:
+	if (!test_bit(AFS_VOLUME_NEEDS_UPDATE, &volume->flags) &&
+	    !test_bit(AFS_VOLUME_WAIT, &volume->flags)) {
+		_leave(" = 0");
+		return 0;
+	}
+
+	if (!test_and_set_bit_lock(AFS_VOLUME_UPDATING, &volume->flags)) {
+		ret = afs_update_volume_status(volume, key);
+		clear_bit_unlock(AFS_VOLUME_WAIT, &volume->flags);
+		clear_bit_unlock(AFS_VOLUME_UPDATING, &volume->flags);
+		wake_up_bit(&volume->flags, AFS_VOLUME_WAIT);
+		_leave(" = %d", ret);
+		return ret;
+	}
+
+	if (!test_bit(AFS_VOLUME_WAIT, &volume->flags)) {
+		_leave(" = 0 [no wait]");
+		return 0;
+	}
+
+	ret = wait_on_bit(&volume->flags, AFS_VOLUME_WAIT, TASK_INTERRUPTIBLE);
+	if (ret == -ERESTARTSYS) {
+		_leave(" = %d", ret);
+		return ret;
+	}
+
+	retries++;
+	if (retries == 4) {
+		_leave(" = -ESTALE");
+		return -ESTALE;
+	}
+	goto retry;
 }

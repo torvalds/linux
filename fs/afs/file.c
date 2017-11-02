@@ -138,6 +138,37 @@ static void afs_file_readpage_read_complete(struct page *page,
 #endif
 
 /*
+ * Fetch file data from the volume.
+ */
+int afs_fetch_data(struct afs_vnode *vnode, struct key *key, struct afs_read *desc)
+{
+	struct afs_fs_cursor fc;
+	int ret;
+
+	_enter("%s{%x:%u.%u},%x,,,",
+	       vnode->volume->name,
+	       vnode->fid.vid,
+	       vnode->fid.vnode,
+	       vnode->fid.unique,
+	       key_serial(key));
+
+	ret = -ERESTARTSYS;
+	if (afs_begin_vnode_operation(&fc, vnode, key)) {
+		while (afs_select_fileserver(&fc)) {
+			fc.cb_break = vnode->cb_break + vnode->cb_s_break;
+			afs_fs_fetch_data(&fc, desc);
+		}
+
+		afs_check_for_remote_deletion(&fc, fc.vnode);
+		afs_vnode_commit_status(&fc, vnode, fc.cb_break);
+		ret = afs_end_vnode_operation(&fc);
+	}
+
+	_leave(" = %d", ret);
+	return ret;
+}
+
+/*
  * read page from file, directory or symlink, given a key to use
  */
 int afs_page_filler(void *data, struct page *page)
@@ -199,7 +230,7 @@ int afs_page_filler(void *data, struct page *page)
 
 		/* read the contents of the file from the server into the
 		 * page */
-		ret = afs_vnode_fetch_data(vnode, key, req);
+		ret = afs_fetch_data(vnode, key, req);
 		afs_put_read(req);
 		if (ret < 0) {
 			if (ret == -ENOENT) {
@@ -264,7 +295,7 @@ static int afs_readpage(struct file *file, struct page *page)
 		ret = afs_page_filler(key, page);
 	} else {
 		struct inode *inode = page->mapping->host;
-		key = afs_request_key(AFS_FS_S(inode->i_sb)->volume->cell);
+		key = afs_request_key(AFS_FS_S(inode->i_sb)->cell);
 		if (IS_ERR(key)) {
 			ret = PTR_ERR(key);
 		} else {
@@ -369,7 +400,7 @@ static int afs_readpages_one(struct file *file, struct address_space *mapping,
 		return 0;
 	}
 
-	ret = afs_vnode_fetch_data(vnode, key, req);
+	ret = afs_fetch_data(vnode, key, req);
 	if (ret < 0)
 		goto error;
 

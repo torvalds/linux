@@ -553,7 +553,7 @@ static struct dentry *afs_lookup(struct inode *dir, struct dentry *dentry,
 	dentry->d_fsdata = (void *)(unsigned long) vnode->status.data_version;
 
 	/* instantiate the dentry */
-	inode = afs_iget(dir->i_sb, key, &fid, NULL, NULL);
+	inode = afs_iget(dir->i_sb, key, &fid, NULL, NULL, NULL);
 	key_put(key);
 	if (IS_ERR(inode)) {
 		_leave(" = %ld", PTR_ERR(inode));
@@ -741,20 +741,48 @@ static void afs_d_release(struct dentry *dentry)
 }
 
 /*
+ * Create a new inode for create/mkdir/symlink
+ */
+static void afs_vnode_new_inode(struct afs_fs_cursor *fc,
+				struct dentry *new_dentry,
+				struct afs_fid *newfid,
+				struct afs_file_status *newstatus,
+				struct afs_callback *newcb)
+{
+	struct inode *inode;
+
+	if (fc->ac.error < 0)
+		return;
+
+	inode = afs_iget(fc->vnode->vfs_inode.i_sb, fc->key,
+			 newfid, newstatus, newcb, fc->cbi);
+	if (IS_ERR(inode)) {
+		/* ENOMEM or EINTR at a really inconvenient time - just abandon
+		 * the new directory on the server.
+		 */
+		fc->ac.error = PTR_ERR(inode);
+		return;
+	}
+
+	d_instantiate(new_dentry, inode);
+	if (d_unhashed(new_dentry))
+		d_rehash(new_dentry);
+}
+
+/*
  * create a directory on an AFS filesystem
  */
 static int afs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 {
-	struct afs_file_status status;
-	struct afs_callback cb;
-	struct afs_server *server;
-	struct afs_vnode *dvnode, *vnode;
-	struct afs_fid fid;
-	struct inode *inode;
+	struct afs_file_status newstatus;
+	struct afs_fs_cursor fc;
+	struct afs_callback newcb;
+	struct afs_vnode *dvnode = AFS_FS_I(dir);
+	struct afs_fid newfid;
 	struct key *key;
 	int ret;
 
-	dvnode = AFS_FS_I(dir);
+	mode |= S_IFDIR;
 
 	_enter("{%x:%u},{%pd},%ho",
 	       dvnode->fid.vid, dvnode->fid.vnode, dentry, mode);
@@ -765,40 +793,27 @@ static int afs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 		goto error;
 	}
 
-	mode |= S_IFDIR;
-	ret = afs_vnode_create(dvnode, key, dentry->d_name.name,
-			       mode, &fid, &status, &cb, &server);
-	if (ret < 0)
-		goto mkdir_error;
+	ret = -ERESTARTSYS;
+	if (afs_begin_vnode_operation(&fc, dvnode, key)) {
+		while (afs_select_fileserver(&fc)) {
+			fc.cb_break = dvnode->cb_break + dvnode->cb_s_break;
+			afs_fs_create(&fc, dentry->d_name.name, mode,
+				      &newfid, &newstatus, &newcb);
+		}
 
-	inode = afs_iget(dir->i_sb, key, &fid, &status, &cb);
-	if (IS_ERR(inode)) {
-		/* ENOMEM at a really inconvenient time - just abandon the new
-		 * directory on the server */
-		ret = PTR_ERR(inode);
-		goto iget_error;
+		afs_check_for_remote_deletion(&fc, fc.vnode);
+		afs_vnode_commit_status(&fc, dvnode, fc.cb_break);
+		afs_vnode_new_inode(&fc, dentry, &newfid, &newstatus, &newcb);
+		ret = afs_end_vnode_operation(&fc);
+		if (ret < 0)
+			goto error_key;
 	}
 
-	/* apply the status report we've got for the new vnode */
-	vnode = AFS_FS_I(inode);
-	spin_lock(&vnode->lock);
-	vnode->update_cnt++;
-	spin_unlock(&vnode->lock);
-	afs_vnode_finalise_status_update(vnode, server);
-	afs_put_server(afs_i2net(dir), server);
-
-	d_instantiate(dentry, inode);
-	if (d_unhashed(dentry)) {
-		_debug("not hashed");
-		d_rehash(dentry);
-	}
 	key_put(key);
 	_leave(" = 0");
 	return 0;
 
-iget_error:
-	afs_put_server(afs_i2net(dir), server);
-mkdir_error:
+error_key:
 	key_put(key);
 error:
 	d_drop(dentry);
@@ -807,64 +822,31 @@ error:
 }
 
 /*
- * remove a directory from an AFS filesystem
+ * Remove a subdir from a directory.
  */
-static int afs_rmdir(struct inode *dir, struct dentry *dentry)
+static void afs_dir_remove_subdir(struct dentry *dentry)
 {
-	struct afs_vnode *dvnode, *vnode;
-	struct key *key;
-	int ret;
-
-	dvnode = AFS_FS_I(dir);
-
-	_enter("{%x:%u},{%pd}",
-	       dvnode->fid.vid, dvnode->fid.vnode, dentry);
-
-	key = afs_request_key(dvnode->volume->cell);
-	if (IS_ERR(key)) {
-		ret = PTR_ERR(key);
-		goto error;
-	}
-
-	ret = afs_vnode_remove(dvnode, key, dentry->d_name.name, true);
-	if (ret < 0)
-		goto rmdir_error;
-
 	if (d_really_is_positive(dentry)) {
-		vnode = AFS_FS_I(d_inode(dentry));
+		struct afs_vnode *vnode = AFS_FS_I(d_inode(dentry));
+
 		clear_nlink(&vnode->vfs_inode);
 		set_bit(AFS_VNODE_DELETED, &vnode->flags);
 		clear_bit(AFS_VNODE_CB_PROMISED, &vnode->flags);
 	}
-
-	key_put(key);
-	_leave(" = 0");
-	return 0;
-
-rmdir_error:
-	key_put(key);
-error:
-	_leave(" = %d", ret);
-	return ret;
 }
 
 /*
- * remove a file from an AFS filesystem
+ * remove a directory from an AFS filesystem
  */
-static int afs_unlink(struct inode *dir, struct dentry *dentry)
+static int afs_rmdir(struct inode *dir, struct dentry *dentry)
 {
-	struct afs_vnode *dvnode, *vnode;
+	struct afs_fs_cursor fc;
+	struct afs_vnode *dvnode = AFS_FS_I(dir);
 	struct key *key;
 	int ret;
 
-	dvnode = AFS_FS_I(dir);
-
 	_enter("{%x:%u},{%pd}",
 	       dvnode->fid.vid, dvnode->fid.vnode, dentry);
-
-	ret = -ENAMETOOLONG;
-	if (dentry->d_name.len >= AFSNAMEMAX)
-		goto error;
 
 	key = afs_request_key(dvnode->volume->cell);
 	if (IS_ERR(key)) {
@@ -872,42 +854,98 @@ static int afs_unlink(struct inode *dir, struct dentry *dentry)
 		goto error;
 	}
 
-	if (d_really_is_positive(dentry)) {
-		vnode = AFS_FS_I(d_inode(dentry));
+	ret = -ERESTARTSYS;
+	if (afs_begin_vnode_operation(&fc, dvnode, key)) {
+		while (afs_select_fileserver(&fc)) {
+			fc.cb_break = dvnode->cb_break + dvnode->cb_s_break;
+			afs_fs_remove(&fc, dentry->d_name.name, true);
+		}
 
-		/* make sure we have a callback promise on the victim */
-		ret = afs_validate(vnode, key);
-		if (ret < 0)
-			goto error;
-	}
-
-	ret = afs_vnode_remove(dvnode, key, dentry->d_name.name, false);
-	if (ret < 0)
-		goto remove_error;
-
-	if (d_really_is_positive(dentry)) {
-		/* if the file wasn't deleted due to excess hard links, the
-		 * fileserver will break the callback promise on the file - if
-		 * it had one - before it returns to us, and if it was deleted,
-		 * it won't
-		 *
-		 * however, if we didn't have a callback promise outstanding,
-		 * or it was outstanding on a different server, then it won't
-		 * break it either...
-		 */
-		vnode = AFS_FS_I(d_inode(dentry));
-		if (test_bit(AFS_VNODE_DELETED, &vnode->flags))
-			_debug("AFS_VNODE_DELETED");
-		clear_bit(AFS_VNODE_CB_PROMISED, &vnode->flags);
-		ret = afs_validate(vnode, key);
-		_debug("nlink %d [val %d]", vnode->vfs_inode.i_nlink, ret);
+		afs_vnode_commit_status(&fc, dvnode, fc.cb_break);
+		ret = afs_end_vnode_operation(&fc);
+		if (ret == 0)
+			afs_dir_remove_subdir(dentry);
 	}
 
 	key_put(key);
-	_leave(" = 0");
-	return 0;
+error:
+	return ret;
+}
 
-remove_error:
+/*
+ * Remove a link to a file or symlink from a directory.
+ *
+ * If the file was not deleted due to excess hard links, the fileserver will
+ * break the callback promise on the file - if it had one - before it returns
+ * to us, and if it was deleted, it won't
+ *
+ * However, if we didn't have a callback promise outstanding, or it was
+ * outstanding on a different server, then it won't break it either...
+ */
+static int afs_dir_remove_link(struct dentry *dentry, struct key *key)
+{
+	int ret = 0;
+
+	if (d_really_is_positive(dentry)) {
+		struct afs_vnode *vnode = AFS_FS_I(d_inode(dentry));
+
+		if (test_bit(AFS_VNODE_DELETED, &vnode->flags))
+			kdebug("AFS_VNODE_DELETED");
+		clear_bit(AFS_VNODE_CB_PROMISED, &vnode->flags);
+
+		ret = afs_validate(vnode, key);
+		if (ret == -ESTALE)
+			ret = 0;
+		_debug("nlink %d [val %d]", vnode->vfs_inode.i_nlink, ret);
+	}
+
+	return ret;
+}
+
+/*
+ * Remove a file or symlink from an AFS filesystem.
+ */
+static int afs_unlink(struct inode *dir, struct dentry *dentry)
+{
+	struct afs_fs_cursor fc;
+	struct afs_vnode *dvnode = AFS_FS_I(dir), *vnode;
+	struct key *key;
+	int ret;
+
+	_enter("{%x:%u},{%pd}",
+	       dvnode->fid.vid, dvnode->fid.vnode, dentry);
+
+	if (dentry->d_name.len >= AFSNAMEMAX)
+		return -ENAMETOOLONG;
+
+	key = afs_request_key(dvnode->volume->cell);
+	if (IS_ERR(key)) {
+		ret = PTR_ERR(key);
+		goto error;
+	}
+
+	/* Try to make sure we have a callback promise on the victim. */
+	if (d_really_is_positive(dentry)) {
+		vnode = AFS_FS_I(d_inode(dentry));
+		ret = afs_validate(vnode, key);
+		if (ret < 0)
+			goto error_key;
+	}
+
+	ret = -ERESTARTSYS;
+	if (afs_begin_vnode_operation(&fc, dvnode, key)) {
+		while (afs_select_fileserver(&fc)) {
+			fc.cb_break = dvnode->cb_break + dvnode->cb_s_break;
+			afs_fs_remove(&fc, dentry->d_name.name, false);
+		}
+
+		afs_vnode_commit_status(&fc, dvnode, fc.cb_break);
+		ret = afs_end_vnode_operation(&fc);
+		if (ret == 0)
+			ret = afs_dir_remove_link(dentry, key);
+	}
+
+error_key:
 	key_put(key);
 error:
 	_leave(" = %d", ret);
@@ -920,19 +958,22 @@ error:
 static int afs_create(struct inode *dir, struct dentry *dentry, umode_t mode,
 		      bool excl)
 {
-	struct afs_file_status status;
-	struct afs_callback cb;
-	struct afs_server *server;
-	struct afs_vnode *dvnode, *vnode;
-	struct afs_fid fid;
-	struct inode *inode;
+	struct afs_fs_cursor fc;
+	struct afs_file_status newstatus;
+	struct afs_callback newcb;
+	struct afs_vnode *dvnode = dvnode = AFS_FS_I(dir);
+	struct afs_fid newfid;
 	struct key *key;
 	int ret;
 
-	dvnode = AFS_FS_I(dir);
+	mode |= S_IFREG;
 
 	_enter("{%x:%u},{%pd},%ho,",
 	       dvnode->fid.vid, dvnode->fid.vnode, dentry, mode);
+
+	ret = -ENAMETOOLONG;
+	if (dentry->d_name.len >= AFSNAMEMAX)
+		goto error;
 
 	key = afs_request_key(dvnode->volume->cell);
 	if (IS_ERR(key)) {
@@ -940,40 +981,27 @@ static int afs_create(struct inode *dir, struct dentry *dentry, umode_t mode,
 		goto error;
 	}
 
-	mode |= S_IFREG;
-	ret = afs_vnode_create(dvnode, key, dentry->d_name.name,
-			       mode, &fid, &status, &cb, &server);
-	if (ret < 0)
-		goto create_error;
+	ret = -ERESTARTSYS;
+	if (afs_begin_vnode_operation(&fc, dvnode, key)) {
+		while (afs_select_fileserver(&fc)) {
+			fc.cb_break = dvnode->cb_break + dvnode->cb_s_break;
+			afs_fs_create(&fc, dentry->d_name.name, mode,
+				      &newfid, &newstatus, &newcb);
+		}
 
-	inode = afs_iget(dir->i_sb, key, &fid, &status, &cb);
-	if (IS_ERR(inode)) {
-		/* ENOMEM at a really inconvenient time - just abandon the new
-		 * directory on the server */
-		ret = PTR_ERR(inode);
-		goto iget_error;
+		afs_check_for_remote_deletion(&fc, fc.vnode);
+		afs_vnode_commit_status(&fc, dvnode, fc.cb_break);
+		afs_vnode_new_inode(&fc, dentry, &newfid, &newstatus, &newcb);
+		ret = afs_end_vnode_operation(&fc);
+		if (ret < 0)
+			goto error_key;
 	}
 
-	/* apply the status report we've got for the new vnode */
-	vnode = AFS_FS_I(inode);
-	spin_lock(&vnode->lock);
-	vnode->update_cnt++;
-	spin_unlock(&vnode->lock);
-	afs_vnode_finalise_status_update(vnode, server);
-	afs_put_server(afs_i2net(dir), server);
-
-	d_instantiate(dentry, inode);
-	if (d_unhashed(dentry)) {
-		_debug("not hashed");
-		d_rehash(dentry);
-	}
 	key_put(key);
 	_leave(" = 0");
 	return 0;
 
-iget_error:
-	afs_put_server(afs_i2net(dir), server);
-create_error:
+error_key:
 	key_put(key);
 error:
 	d_drop(dentry);
@@ -987,6 +1015,7 @@ error:
 static int afs_link(struct dentry *from, struct inode *dir,
 		    struct dentry *dentry)
 {
+	struct afs_fs_cursor fc;
 	struct afs_vnode *dvnode, *vnode;
 	struct key *key;
 	int ret;
@@ -999,23 +1028,45 @@ static int afs_link(struct dentry *from, struct inode *dir,
 	       dvnode->fid.vid, dvnode->fid.vnode,
 	       dentry);
 
+	ret = -ENAMETOOLONG;
+	if (dentry->d_name.len >= AFSNAMEMAX)
+		goto error;
+
 	key = afs_request_key(dvnode->volume->cell);
 	if (IS_ERR(key)) {
 		ret = PTR_ERR(key);
 		goto error;
 	}
 
-	ret = afs_vnode_link(dvnode, vnode, key, dentry->d_name.name);
-	if (ret < 0)
-		goto link_error;
+	ret = -ERESTARTSYS;
+	if (afs_begin_vnode_operation(&fc, dvnode, key)) {
+		if (mutex_lock_interruptible_nested(&vnode->io_lock, 1) < 0) {
+			afs_end_vnode_operation(&fc);
+			return -ERESTARTSYS;
+		}
 
-	ihold(&vnode->vfs_inode);
-	d_instantiate(dentry, &vnode->vfs_inode);
+		while (afs_select_fileserver(&fc)) {
+			fc.cb_break = dvnode->cb_break + dvnode->cb_s_break;
+			fc.cb_break_2 = vnode->cb_break + vnode->cb_s_break;
+			afs_fs_link(&fc, vnode, dentry->d_name.name);
+		}
+
+		afs_vnode_commit_status(&fc, dvnode, fc.cb_break);
+		afs_vnode_commit_status(&fc, vnode, fc.cb_break_2);
+		ihold(&vnode->vfs_inode);
+		d_instantiate(dentry, &vnode->vfs_inode);
+
+		mutex_unlock(&vnode->io_lock);
+		ret = afs_end_vnode_operation(&fc);
+		if (ret < 0)
+			goto error_key;
+	}
+
 	key_put(key);
 	_leave(" = 0");
 	return 0;
 
-link_error:
+error_key:
 	key_put(key);
 error:
 	d_drop(dentry);
@@ -1029,19 +1080,20 @@ error:
 static int afs_symlink(struct inode *dir, struct dentry *dentry,
 		       const char *content)
 {
-	struct afs_file_status status;
-	struct afs_server *server;
-	struct afs_vnode *dvnode, *vnode;
-	struct afs_fid fid;
-	struct inode *inode;
+	struct afs_fs_cursor fc;
+	struct afs_file_status newstatus;
+	struct afs_vnode *dvnode = AFS_FS_I(dir);
+	struct afs_fid newfid;
 	struct key *key;
 	int ret;
-
-	dvnode = AFS_FS_I(dir);
 
 	_enter("{%x:%u},{%pd},%s",
 	       dvnode->fid.vid, dvnode->fid.vnode, dentry,
 	       content);
+
+	ret = -ENAMETOOLONG;
+	if (dentry->d_name.len >= AFSNAMEMAX)
+		goto error;
 
 	ret = -EINVAL;
 	if (strlen(content) >= AFSPATHMAX)
@@ -1053,39 +1105,27 @@ static int afs_symlink(struct inode *dir, struct dentry *dentry,
 		goto error;
 	}
 
-	ret = afs_vnode_symlink(dvnode, key, dentry->d_name.name, content,
-				&fid, &status, &server);
-	if (ret < 0)
-		goto create_error;
+	ret = -ERESTARTSYS;
+	if (afs_begin_vnode_operation(&fc, dvnode, key)) {
+		while (afs_select_fileserver(&fc)) {
+			fc.cb_break = dvnode->cb_break + dvnode->cb_s_break;
+			afs_fs_symlink(&fc, dentry->d_name.name, content,
+				       &newfid, &newstatus);
+		}
 
-	inode = afs_iget(dir->i_sb, key, &fid, &status, NULL);
-	if (IS_ERR(inode)) {
-		/* ENOMEM at a really inconvenient time - just abandon the new
-		 * directory on the server */
-		ret = PTR_ERR(inode);
-		goto iget_error;
+		afs_check_for_remote_deletion(&fc, fc.vnode);
+		afs_vnode_commit_status(&fc, dvnode, fc.cb_break);
+		afs_vnode_new_inode(&fc, dentry, &newfid, &newstatus, NULL);
+		ret = afs_end_vnode_operation(&fc);
+		if (ret < 0)
+			goto error_key;
 	}
 
-	/* apply the status report we've got for the new vnode */
-	vnode = AFS_FS_I(inode);
-	spin_lock(&vnode->lock);
-	vnode->update_cnt++;
-	spin_unlock(&vnode->lock);
-	afs_vnode_finalise_status_update(vnode, server);
-	afs_put_server(afs_i2net(dir), server);
-
-	d_instantiate(dentry, inode);
-	if (d_unhashed(dentry)) {
-		_debug("not hashed");
-		d_rehash(dentry);
-	}
 	key_put(key);
 	_leave(" = 0");
 	return 0;
 
-iget_error:
-	afs_put_server(afs_i2net(dir), server);
-create_error:
+error_key:
 	key_put(key);
 error:
 	d_drop(dentry);
@@ -1100,6 +1140,7 @@ static int afs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		      struct inode *new_dir, struct dentry *new_dentry,
 		      unsigned int flags)
 {
+	struct afs_fs_cursor fc;
 	struct afs_vnode *orig_dvnode, *new_dvnode, *vnode;
 	struct key *key;
 	int ret;
@@ -1123,16 +1164,35 @@ static int afs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		goto error;
 	}
 
-	ret = afs_vnode_rename(orig_dvnode, new_dvnode, key,
-			       old_dentry->d_name.name,
-			       new_dentry->d_name.name);
-	if (ret < 0)
-		goto rename_error;
+	ret = -ERESTARTSYS;
+	if (afs_begin_vnode_operation(&fc, orig_dvnode, key)) {
+		if (orig_dvnode != new_dvnode) {
+			if (mutex_lock_interruptible_nested(&new_dvnode->io_lock, 1) < 0) {
+				afs_end_vnode_operation(&fc);
+				return -ERESTARTSYS;
+			}
+		}
+		while (afs_select_fileserver(&fc)) {
+			fc.cb_break = orig_dvnode->cb_break + orig_dvnode->cb_s_break;
+			fc.cb_break_2 = new_dvnode->cb_break + new_dvnode->cb_s_break;
+			afs_fs_rename(&fc, old_dentry->d_name.name,
+				      new_dvnode, new_dentry->d_name.name);
+		}
+
+		afs_vnode_commit_status(&fc, orig_dvnode, fc.cb_break);
+		afs_vnode_commit_status(&fc, new_dvnode, fc.cb_break_2);
+		if (orig_dvnode != new_dvnode)
+			mutex_unlock(&new_dvnode->io_lock);
+		ret = afs_end_vnode_operation(&fc);
+		if (ret < 0)
+			goto error_key;
+	}
+
 	key_put(key);
 	_leave(" = 0");
 	return 0;
 
-rename_error:
+error_key:
 	key_put(key);
 error:
 	d_drop(new_dentry);

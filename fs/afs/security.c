@@ -325,7 +325,7 @@ static int afs_check_permit(struct afs_vnode *vnode, struct key *key,
 		 */
 		_debug("no valid permit");
 
-		ret = afs_vnode_fetch_status(vnode, key, true);
+		ret = afs_fetch_status(vnode, key);
 		if (ret < 0) {
 			*_access = 0;
 			_leave(" = %d", ret);

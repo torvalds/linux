@@ -146,13 +146,10 @@ static struct afs_cell *afs_alloc_cell(struct afs_net *net,
 
 	atomic_set(&cell->usage, 2);
 	INIT_WORK(&cell->manager, afs_manage_cell);
-	rwlock_init(&cell->servers_lock);
-	INIT_LIST_HEAD(&cell->servers);
-	init_rwsem(&cell->vl_sem);
-	INIT_LIST_HEAD(&cell->vl_list);
-	spin_lock_init(&cell->vl_lock);
 	cell->flags = ((1 << AFS_CELL_FL_NOT_READY) |
 		       (1 << AFS_CELL_FL_NO_LOOKUP_YET));
+	INIT_LIST_HEAD(&cell->proc_volumes);
+	rwlock_init(&cell->proc_lock);
 	rwlock_init(&cell->vl_addrs_lock);
 
 	/* Fill in the VL server list if we were given a list of addresses to
