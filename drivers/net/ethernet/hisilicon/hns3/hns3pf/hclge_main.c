@@ -2392,11 +2392,71 @@ static void hclge_service_complete(struct hclge_dev *hdev)
 	clear_bit(HCLGE_STATE_SERVICE_SCHED, &hdev->state);
 }
 
+static void hclge_enable_vector(struct hclge_misc_vector *vector, bool enable)
+{
+	writel(enable ? 1 : 0, vector->addr);
+}
+
+static irqreturn_t hclge_misc_irq_handle(int irq, void *data)
+{
+	struct hclge_dev *hdev = data;
+
+	hclge_enable_vector(&hdev->misc_vector, false);
+	if (!test_and_set_bit(HCLGE_STATE_SERVICE_SCHED, &hdev->state))
+		schedule_work(&hdev->service_task);
+
+	return IRQ_HANDLED;
+}
+
+static void hclge_free_vector(struct hclge_dev *hdev, int vector_id)
+{
+	hdev->vector_status[vector_id] = HCLGE_INVALID_VPORT;
+	hdev->num_msi_left += 1;
+	hdev->num_msi_used -= 1;
+}
+
+static void hclge_get_misc_vector(struct hclge_dev *hdev)
+{
+	struct hclge_misc_vector *vector = &hdev->misc_vector;
+
+	vector->vector_irq = pci_irq_vector(hdev->pdev, 0);
+
+	vector->addr = hdev->hw.io_base + HCLGE_MISC_VECTOR_REG_BASE;
+	hdev->vector_status[0] = 0;
+
+	hdev->num_msi_left -= 1;
+	hdev->num_msi_used += 1;
+}
+
+static int hclge_misc_irq_init(struct hclge_dev *hdev)
+{
+	int ret;
+
+	hclge_get_misc_vector(hdev);
+
+	ret = devm_request_irq(&hdev->pdev->dev,
+			       hdev->misc_vector.vector_irq,
+			       hclge_misc_irq_handle, 0, "hclge_misc", hdev);
+	if (ret) {
+		hclge_free_vector(hdev, 0);
+		dev_err(&hdev->pdev->dev, "request misc irq(%d) fail\n",
+			hdev->misc_vector.vector_irq);
+	}
+
+	return ret;
+}
+
+static void hclge_misc_irq_service_task(struct hclge_dev *hdev)
+{
+	hclge_enable_vector(&hdev->misc_vector, true);
+}
+
 static void hclge_service_task(struct work_struct *work)
 {
 	struct hclge_dev *hdev =
 		container_of(work, struct hclge_dev, service_task);
 
+	hclge_misc_irq_service_task(hdev);
 	hclge_update_speed_duplex(hdev);
 	hclge_update_link_status(hdev);
 	hclge_update_stats_for_all(hdev);
@@ -4480,6 +4540,14 @@ static int hclge_init_ae_dev(struct hnae3_ae_dev *ae_dev)
 		return ret;
 	}
 
+	ret = hclge_misc_irq_init(hdev);
+	if (ret) {
+		dev_err(&pdev->dev,
+			"Misc IRQ(vector0) init error, ret = %d.\n",
+			ret);
+		return ret;
+	}
+
 	ret = hclge_alloc_tqps(hdev);
 	if (ret) {
 		dev_err(&pdev->dev, "Allocate TQPs error, ret = %d.\n", ret);
@@ -4545,6 +4613,9 @@ static int hclge_init_ae_dev(struct hnae3_ae_dev *ae_dev)
 	timer_setup(&hdev->service_timer, hclge_service_timer, 0);
 	INIT_WORK(&hdev->service_task, hclge_service_task);
 
+	/* Enable MISC vector(vector0) */
+	hclge_enable_vector(&hdev->misc_vector, true);
+
 	set_bit(HCLGE_STATE_SERVICE_INITED, &hdev->state);
 	set_bit(HCLGE_STATE_DOWN, &hdev->state);
 
@@ -4577,6 +4648,9 @@ static void hclge_uninit_ae_dev(struct hnae3_ae_dev *ae_dev)
 	if (mac->phydev)
 		mdiobus_unregister(mac->mdio_bus);
 
+	/* Disable MISC vector(vector0) */
+	hclge_enable_vector(&hdev->misc_vector, false);
+	hclge_free_vector(hdev, 0);
 	hclge_destroy_cmd_queue(&hdev->hw);
 	hclge_pci_uninit(hdev);
 	ae_dev->priv = NULL;

@@ -63,6 +63,11 @@ enum hclge_cmd_status {
 	HCLGE_ERR_CSQ_ERROR	= -3,
 };
 
+struct hclge_misc_vector {
+	u8 __iomem *addr;
+	int vector_irq;
+};
+
 struct hclge_cmq {
 	struct hclge_cmq_ring csq;
 	struct hclge_cmq_ring crq;

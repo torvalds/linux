@@ -27,6 +27,7 @@
 	(HCLGE_PF_CFG_BLOCK_SIZE / HCLGE_CFG_RD_LEN_BYTES)
 
 #define HCLGE_VECTOR_REG_BASE		0x20000
+#define HCLGE_MISC_VECTOR_REG_BASE	0x20400
 
 #define HCLGE_VECTOR_REG_OFFSET		0x4
 #define HCLGE_VECTOR_VF_OFFSET		0x100000
@@ -400,6 +401,7 @@ struct hclge_dev {
 	struct pci_dev *pdev;
 	struct hnae3_ae_dev *ae_dev;
 	struct hclge_hw hw;
+	struct hclge_misc_vector misc_vector;
 	struct hclge_hw_stats hw_stats;
 	unsigned long state;
 
