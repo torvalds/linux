@@ -1081,12 +1081,12 @@ static int nvme_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 }
 
 #ifdef CONFIG_BLK_DEV_INTEGRITY
-static void nvme_init_integrity(struct nvme_ns *ns)
+static void nvme_init_integrity(struct gendisk *disk, u16 ms, u8 pi_type)
 {
 	struct blk_integrity integrity;
 
 	memset(&integrity, 0, sizeof(integrity));
-	switch (ns->pi_type) {
+	switch (pi_type) {
 	case NVME_NS_DPS_PI_TYPE3:
 		integrity.profile = &t10_pi_type3_crc;
 		integrity.tag_size = sizeof(u16) + sizeof(u32);
@@ -1102,12 +1102,12 @@ static void nvme_init_integrity(struct nvme_ns *ns)
 		integrity.profile = NULL;
 		break;
 	}
-	integrity.tuple_size = ns->ms;
-	blk_integrity_register(ns->disk, &integrity);
-	blk_queue_max_integrity_segments(ns->queue, 1);
+	integrity.tuple_size = ms;
+	blk_integrity_register(disk, &integrity);
+	blk_queue_max_integrity_segments(disk->queue, 1);
 }
 #else
-static void nvme_init_integrity(struct nvme_ns *ns)
+static void nvme_init_integrity(struct gendisk *disk, u16 ms, u8 pi_type)
 {
 }
 #endif /* CONFIG_BLK_DEV_INTEGRITY */
@@ -1191,7 +1191,7 @@ static void __nvme_revalidate_disk(struct gendisk *disk, struct nvme_id_ns *id)
 		nvme_set_chunk_size(ns);
 	if (ns->ms && !ns->ext &&
 	    (ctrl->ops->flags & NVME_F_METADATA_SUPPORTED))
-		nvme_init_integrity(ns);
+		nvme_init_integrity(disk, ns->ms, ns->pi_type);
 	if (ns->ms && !(ns->ms == 8 && ns->pi_type) && !blk_get_integrity(disk))
 		set_capacity(disk, 0);
 	else
