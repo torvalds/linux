@@ -2078,15 +2078,29 @@ out:
 	kfree(net_work);
 }
 
-static int mlxsw_sp_router_netevent_event(struct notifier_block *unused,
+static int mlxsw_sp_mp_hash_init(struct mlxsw_sp *mlxsw_sp);
+
+static void mlxsw_sp_router_mp_hash_event_work(struct work_struct *work)
+{
+	struct mlxsw_sp_netevent_work *net_work =
+		container_of(work, struct mlxsw_sp_netevent_work, work);
+	struct mlxsw_sp *mlxsw_sp = net_work->mlxsw_sp;
+
+	mlxsw_sp_mp_hash_init(mlxsw_sp);
+	kfree(net_work);
+}
+
+static int mlxsw_sp_router_netevent_event(struct notifier_block *nb,
 					  unsigned long event, void *ptr)
 {
 	struct mlxsw_sp_netevent_work *net_work;
 	struct mlxsw_sp_port *mlxsw_sp_port;
+	struct mlxsw_sp_router *router;
 	struct mlxsw_sp *mlxsw_sp;
 	unsigned long interval;
 	struct neigh_parms *p;
 	struct neighbour *n;
+	struct net *net;
 
 	switch (event) {
 	case NETEVENT_DELAY_PROBE_TIME_UPDATE:
@@ -2137,6 +2151,21 @@ static int mlxsw_sp_router_netevent_event(struct notifier_block *unused,
 		neigh_clone(n);
 		mlxsw_core_schedule_work(&net_work->work);
 		mlxsw_sp_port_dev_put(mlxsw_sp_port);
+		break;
+	case NETEVENT_MULTIPATH_HASH_UPDATE:
+		net = ptr;
+
+		if (!net_eq(net, &init_net))
+			return NOTIFY_DONE;
+
+		net_work = kzalloc(sizeof(*net_work), GFP_ATOMIC);
+		if (!net_work)
+			return NOTIFY_BAD;
+
+		router = container_of(nb, struct mlxsw_sp_router, netevent_nb);
+		INIT_WORK(&net_work->work, mlxsw_sp_router_mp_hash_event_work);
+		net_work->mlxsw_sp = router->mlxsw_sp;
+		mlxsw_core_schedule_work(&net_work->work);
 		break;
 	}
 
