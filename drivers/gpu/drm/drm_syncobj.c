@@ -106,7 +106,8 @@ static int drm_syncobj_fence_get_or_add_callback(struct drm_syncobj *syncobj,
 	 * callback when a fence has already been set.
 	 */
 	if (syncobj->fence) {
-		*fence = dma_fence_get(syncobj->fence);
+		*fence = dma_fence_get(rcu_dereference_protected(syncobj->fence,
+								 lockdep_is_held(&syncobj->lock)));
 		ret = 1;
 	} else {
 		*fence = NULL;
@@ -168,8 +169,9 @@ void drm_syncobj_replace_fence(struct drm_syncobj *syncobj,
 
 	spin_lock(&syncobj->lock);
 
-	old_fence = syncobj->fence;
-	syncobj->fence = fence;
+	old_fence = rcu_dereference_protected(syncobj->fence,
+					      lockdep_is_held(&syncobj->lock));
+	rcu_assign_pointer(syncobj->fence, fence);
 
 	if (fence != old_fence) {
 		list_for_each_entry_safe(cur, tmp, &syncobj->cb_list, node) {
@@ -613,7 +615,8 @@ static void syncobj_wait_syncobj_func(struct drm_syncobj *syncobj,
 		container_of(cb, struct syncobj_wait_entry, syncobj_cb);
 
 	/* This happens inside the syncobj lock */
-	wait->fence = dma_fence_get(syncobj->fence);
+	wait->fence = dma_fence_get(rcu_dereference_protected(syncobj->fence,
+							      lockdep_is_held(&syncobj->lock)));
 	wake_up_process(wait->task);
 }
 
