@@ -188,12 +188,9 @@ extern void intel_vgpu_destroy_mm(struct kref *mm_ref);
 
 struct intel_vgpu_guest_page;
 
-struct intel_vgpu_shadow_page {
-	void *vaddr;
+struct intel_vgpu_scratch_pt {
 	struct page *page;
-	int type;
-	struct hlist_node node;
-	unsigned long mfn;
+	unsigned long page_mfn;
 };
 
 struct intel_vgpu_gtt {
@@ -205,7 +202,7 @@ struct intel_vgpu_gtt {
 	atomic_t n_tracked_guest_page;
 	struct list_head oos_page_list_head;
 	struct list_head post_shadow_list_head;
-	struct intel_vgpu_shadow_page ppgtt_scratch_page[GTT_TYPE_MAX];
+	struct intel_vgpu_scratch_pt scratch_pt[GTT_TYPE_MAX];
 };
 
 extern int intel_vgpu_init_gtt(struct intel_vgpu *vgpu);
@@ -220,6 +217,14 @@ extern struct intel_vgpu_mm *intel_gvt_find_ppgtt_mm(struct intel_vgpu *vgpu,
 		int page_table_level, void *root_entry);
 
 struct intel_vgpu_oos_page;
+
+struct intel_vgpu_shadow_page {
+	void *vaddr;
+	struct page *page;
+	int type;
+	struct hlist_node node;
+	unsigned long mfn;
+};
 
 struct intel_vgpu_page_track {
 	struct hlist_node node;
