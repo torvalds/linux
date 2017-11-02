@@ -119,30 +119,25 @@ static inline void task_name(struct seq_file *m, struct task_struct *p)
  * simple bit tests.
  */
 static const char * const task_state_array[] = {
-	"R (running)",		/*   0 */
-	"S (sleeping)",		/*   1 */
-	"D (disk sleep)",	/*   2 */
-	"T (stopped)",		/*   4 */
-	"t (tracing stop)",	/*   8 */
-	"X (dead)",		/*  16 */
-	"Z (zombie)",		/*  32 */
+
+	/* states in TASK_REPORT: */
+	"R (running)",		/* 0x00 */
+	"S (sleeping)",		/* 0x01 */
+	"D (disk sleep)",	/* 0x02 */
+	"T (stopped)",		/* 0x04 */
+	"t (tracing stop)",	/* 0x08 */
+	"X (dead)",		/* 0x10 */
+	"Z (zombie)",		/* 0x20 */
+	"P (parked)",		/* 0x40 */
+
+	/* states beyond TASK_REPORT: */
+	"I (idle)",		/* 0x80 */
 };
 
 static inline const char *get_task_state(struct task_struct *tsk)
 {
-	unsigned int state = (tsk->state | tsk->exit_state) & TASK_REPORT;
-
-	/*
-	 * Parked tasks do not run; they sit in __kthread_parkme().
-	 * Without this check, we would report them as running, which is
-	 * clearly wrong, so we report them as sleeping instead.
-	 */
-	if (tsk->state == TASK_PARKED)
-		state = TASK_INTERRUPTIBLE;
-
-	BUILD_BUG_ON(1 + ilog2(TASK_REPORT) != ARRAY_SIZE(task_state_array)-1);
-
-	return task_state_array[fls(state)];
+	BUILD_BUG_ON(1 + ilog2(TASK_REPORT_MAX) != ARRAY_SIZE(task_state_array));
+	return task_state_array[__get_task_state(tsk)];
 }
 
 static inline int get_task_umask(struct task_struct *tsk)

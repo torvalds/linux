@@ -884,7 +884,7 @@ out_err:
 					 wcqe->total_data_placed);
 			nCmd->transferred_length = 0;
 			nCmd->rcv_rsplen = 0;
-			nCmd->status = NVME_SC_FC_TRANSPORT_ERROR;
+			nCmd->status = NVME_SC_INTERNAL;
 		}
 	}
 

@@ -71,12 +71,14 @@ struct its_vpe {
  * @vm:		Pointer to the GICv4 notion of a VM
  * @vpe:	Pointer to the GICv4 notion of a virtual CPU (VPE)
  * @vintid:	Virtual LPI number
+ * @properties:	Priority and enable bits (as written in the prop table)
  * @db_enabled:	Is the VPE doorbell to be generated?
  */
 struct its_vlpi_map {
 	struct its_vm		*vm;
 	struct its_vpe		*vpe;
 	u32			vintid;
+	u8			properties;
 	bool			db_enabled;
 };
 

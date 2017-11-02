@@ -204,7 +204,10 @@ done_asic:
 	return ret;
 }
 
-/* magic character sequence that trails an image */
+/* magic character sequence that begins an image */
+#define IMAGE_START_MAGIC "APO="
+
+/* magic character sequence that might trail an image */
 #define IMAGE_TRAIL_MAGIC "egamiAPO"
 
 /* EPROM file types */
@@ -250,6 +253,7 @@ static int read_partition_platform_config(struct hfi1_devdata *dd, void **data,
 {
 	void *buffer;
 	void *p;
+	u32 length;
 	int ret;
 
 	buffer = kmalloc(P1_SIZE, GFP_KERNEL);
@@ -262,15 +266,21 @@ static int read_partition_platform_config(struct hfi1_devdata *dd, void **data,
 		return ret;
 	}
 
-	/* scan for image magic that may trail the actual data */
-	p = strnstr(buffer, IMAGE_TRAIL_MAGIC, P1_SIZE);
-	if (!p) {
+	/* config partition is valid only if it starts with IMAGE_START_MAGIC */
+	if (memcmp(buffer, IMAGE_START_MAGIC, strlen(IMAGE_START_MAGIC))) {
 		kfree(buffer);
 		return -ENOENT;
 	}
 
+	/* scan for image magic that may trail the actual data */
+	p = strnstr(buffer, IMAGE_TRAIL_MAGIC, P1_SIZE);
+	if (p)
+		length = p - buffer;
+	else
+		length = P1_SIZE;
+
 	*data = buffer;
-	*size = p - buffer;
+	*size = length;
 	return 0;
 }
 

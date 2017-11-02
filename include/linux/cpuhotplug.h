@@ -3,8 +3,27 @@
 
 #include <linux/types.h>
 
+/*
+ * CPU-up			CPU-down
+ *
+ * BP		AP		BP		AP
+ *
+ * OFFLINE			OFFLINE
+ *   |				  ^
+ *   v				  |
+ * BRINGUP_CPU->AP_OFFLINE	BRINGUP_CPU  <- AP_IDLE_DEAD (idle thread/play_dead)
+ *		  |				AP_OFFLINE
+ *		  v (IRQ-off)	  ,---------------^
+ *		AP_ONLNE	  | (stop_machine)
+ *		  |		TEARDOWN_CPU <-	AP_ONLINE_IDLE
+ *		  |				  ^
+ *		  v				  |
+ *              AP_ACTIVE			AP_ACTIVE
+ */
+
 enum cpuhp_state {
-	CPUHP_OFFLINE,
+	CPUHP_INVALID = -1,
+	CPUHP_OFFLINE = 0,
 	CPUHP_CREATE_THREADS,
 	CPUHP_PERF_PREPARE,
 	CPUHP_PERF_X86_PREPARE,
@@ -79,6 +98,7 @@ enum cpuhp_state {
 	CPUHP_AP_IRQ_HIP04_STARTING,
 	CPUHP_AP_IRQ_ARMADA_XP_STARTING,
 	CPUHP_AP_IRQ_BCM2836_STARTING,
+	CPUHP_AP_IRQ_MIPS_GIC_STARTING,
 	CPUHP_AP_ARM_MVEBU_COHERENCY,
 	CPUHP_AP_PERF_X86_AMD_UNCORE_STARTING,
 	CPUHP_AP_PERF_X86_STARTING,
