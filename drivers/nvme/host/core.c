@@ -1184,12 +1184,13 @@ static void __nvme_revalidate_disk(struct gendisk *disk, struct nvme_id_ns *id)
 	if (ctrl->nr_streams && ns->sws && ns->sgs)
 		stream_alignment = ns->sws * ns->sgs;
 
+	if (ns->noiob)
+		nvme_set_chunk_size(ns);
+
 	blk_mq_freeze_queue(disk->queue);
 	blk_integrity_unregister(disk);
 
 	blk_queue_logical_block_size(ns->queue, bs);
-	if (ns->noiob)
-		nvme_set_chunk_size(ns);
 	if (ns->ms && !ns->ext &&
 	    (ctrl->ops->flags & NVME_F_METADATA_SUPPORTED))
 		nvme_init_integrity(disk, ns->ms, ns->pi_type);
