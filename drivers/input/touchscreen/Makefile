@@ -42,6 +42,7 @@ obj-$(CONFIG_TOUCHSCREEN_GOODIX)	+= goodix.o
 obj-$(CONFIG_TOUCHSCREEN_GSLX680_D708)	+= gslx680_d708/ gsl_point_id.o
 obj-$(CONFIG_TOUCHSCREEN_GSLX680_PAD)	+= gslx680_pad.o gsl_point_id.o
 obj-$(CONFIG_TOUCHSCREEN_GSLX680_VR)	+= gslx680.o gsl_point_id.o
+obj-$(CONFIG_TOUCHSCREEN_GSLX680_FIREFLY)	+= gslx680_firefly.o gsl_point_id.o
 obj-$(CONFIG_TOUCHSCREEN_GSL3673)	+= gsl3673.o gsl_point_id.o
 obj-$(CONFIG_TOUCHSCREEN_GT9XX)		+= gt9xx/
 obj-$(CONFIG_TOUCHSCREEN_ILI210X)	+= ili210x.o

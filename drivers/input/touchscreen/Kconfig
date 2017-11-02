@@ -359,6 +359,11 @@ config TOUCHSCREEN_GSLX680_VR
 	help
 	  gslX680 touchpad driver for VR
 
+config TOUCHSCREEN_GSLX680_FIREFLY
+	tristate "gslX680 touchpad driver for firefly-rk3288"
+	help
+	  gslX680 touchpad driver for firefly-rk3288
+
 config TOUCHSCREEN_GSL3673
 	tristate "gsl3673 touchpad driver for evb"
 	help
