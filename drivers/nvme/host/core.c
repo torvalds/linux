@@ -2637,7 +2637,7 @@ static void nvme_fw_act_work(struct work_struct *work)
 		return;
 
 	nvme_start_queues(ctrl);
-	/* read FW slot informationi to clear the AER*/
+	/* read FW slot information to clear the AER */
 	nvme_get_fw_slot_info(ctrl);
 }
 
