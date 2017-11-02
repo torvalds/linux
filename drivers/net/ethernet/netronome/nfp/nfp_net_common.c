@@ -1209,15 +1209,15 @@ static void *nfp_net_napi_alloc_one(struct nfp_net_dp *dp, dma_addr_t *dma_addr)
 
 	if (!dp->xdp_prog) {
 		frag = napi_alloc_frag(dp->fl_bufsz);
+		if (unlikely(!frag))
+			return NULL;
 	} else {
 		struct page *page;
 
 		page = dev_alloc_page();
-		frag = page ? page_address(page) : NULL;
-	}
-	if (!frag) {
-		nn_dp_warn(dp, "Failed to alloc receive page frag\n");
-		return NULL;
+		if (unlikely(!page))
+			return NULL;
+		frag = page_address(page);
 	}
 
 	*dma_addr = nfp_net_dma_map_rx(dp, frag);
@@ -1514,6 +1514,11 @@ nfp_net_rx_drop(const struct nfp_net_dp *dp, struct nfp_net_r_vector *r_vec,
 {
 	u64_stats_update_begin(&r_vec->rx_sync);
 	r_vec->rx_drops++;
+	/* If we have both skb and rxbuf the replacement buffer allocation
+	 * must have failed, count this as an alloc failure.
+	 */
+	if (skb && rxbuf)
+		r_vec->rx_replace_buf_alloc_fail++;
 	u64_stats_update_end(&r_vec->rx_sync);
 
 	/* skb is build based on the frag, free_skb() would free the frag

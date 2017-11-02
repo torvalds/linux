@@ -181,7 +181,7 @@ static const struct nfp_et_stat nfp_mac_et_stats[] = {
 
 #define NN_ET_GLOBAL_STATS_LEN ARRAY_SIZE(nfp_net_et_stats)
 #define NN_ET_SWITCH_STATS_LEN 9
-#define NN_ET_RVEC_GATHER_STATS 7
+#define NN_ET_RVEC_GATHER_STATS 8
 
 static void nfp_net_get_nspinfo(struct nfp_app *app, char *version)
 {
@@ -444,6 +444,7 @@ static u8 *nfp_vnic_get_sw_stats_strings(struct net_device *netdev, u8 *data)
 	data = nfp_pr_et(data, "hw_rx_csum_ok");
 	data = nfp_pr_et(data, "hw_rx_csum_inner_ok");
 	data = nfp_pr_et(data, "hw_rx_csum_err");
+	data = nfp_pr_et(data, "rx_replace_buf_alloc_fail");
 	data = nfp_pr_et(data, "hw_tx_csum");
 	data = nfp_pr_et(data, "hw_tx_inner_csum");
 	data = nfp_pr_et(data, "tx_gather");
@@ -468,16 +469,17 @@ static u64 *nfp_vnic_get_sw_stats(struct net_device *netdev, u64 *data)
 			tmp[0] = nn->r_vecs[i].hw_csum_rx_ok;
 			tmp[1] = nn->r_vecs[i].hw_csum_rx_inner_ok;
 			tmp[2] = nn->r_vecs[i].hw_csum_rx_error;
+			tmp[3] = nn->r_vecs[i].rx_replace_buf_alloc_fail;
 		} while (u64_stats_fetch_retry(&nn->r_vecs[i].rx_sync, start));
 
 		do {
 			start = u64_stats_fetch_begin(&nn->r_vecs[i].tx_sync);
 			data[1] = nn->r_vecs[i].tx_pkts;
 			data[2] = nn->r_vecs[i].tx_busy;
-			tmp[3] = nn->r_vecs[i].hw_csum_tx;
-			tmp[4] = nn->r_vecs[i].hw_csum_tx_inner;
-			tmp[5] = nn->r_vecs[i].tx_gather;
-			tmp[6] = nn->r_vecs[i].tx_lso;
+			tmp[4] = nn->r_vecs[i].hw_csum_tx;
+			tmp[5] = nn->r_vecs[i].hw_csum_tx_inner;
+			tmp[6] = nn->r_vecs[i].tx_gather;
+			tmp[7] = nn->r_vecs[i].tx_lso;
 		} while (u64_stats_fetch_retry(&nn->r_vecs[i].tx_sync, start));
 
 		data += 3;

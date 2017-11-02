@@ -394,6 +394,7 @@ struct nfp_net_rx_ring {
  * @tx_lso:	    Counter of LSO packets sent
  * @tx_errors:	    How many TX errors were encountered
  * @tx_busy:        How often was TX busy (no space)?
+ * @rx_replace_buf_alloc_fail:	Counter of RX buffer allocation failures
  * @irq_vector:     Interrupt vector number (use for talking to the OS)
  * @handler:        Interrupt handler for this ring vector
  * @name:           Name of the interrupt vector
@@ -437,6 +438,8 @@ struct nfp_net_r_vector {
 	u64 hw_csum_tx_inner;
 	u64 tx_gather;
 	u64 tx_lso;
+
+	u64 rx_replace_buf_alloc_fail;
 	u64 tx_errors;
 	u64 tx_busy;
 
