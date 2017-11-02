@@ -21,6 +21,7 @@
  * ----------------------------------------------------------------------------
  *
  */
+#include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/export.h>
 #include <linux/errno.h>
@@ -183,6 +184,18 @@ unsigned long i2c_dw_clk_rate(struct dw_i2c_dev *dev)
 	if (WARN_ON_ONCE(!dev->get_clk_rate_khz))
 		return 0;
 	return dev->get_clk_rate_khz(dev);
+}
+
+int i2c_dw_plat_prepare_clk(struct dw_i2c_dev *i_dev, bool prepare)
+{
+	if (IS_ERR(i_dev->clk))
+		return PTR_ERR(i_dev->clk);
+
+	if (prepare)
+		return clk_prepare_enable(i_dev->clk);
+
+	clk_disable_unprepare(i_dev->clk);
+	return 0;
 }
 
 int i2c_dw_acquire_lock(struct dw_i2c_dev *dev)
