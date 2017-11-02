@@ -19,6 +19,7 @@ IP Pairing
 Required properties in pwrap device node.
 - compatible:
 	"mediatek,mt2701-pwrap" for MT2701/7623 SoCs
+	"mediatek,mt7622-pwrap" for MT7622 SoCs
 	"mediatek,mt8135-pwrap" for MT8135 SoCs
 	"mediatek,mt8173-pwrap" for MT8173 SoCs
 - interrupts: IRQ for pwrap in SOC
@@ -36,9 +37,12 @@ Required properties in pwrap device node.
 - clocks: Must contain an entry for each entry in clock-names.
 
 Optional properities:
-- pmic: Mediatek PMIC MFD is the child device of pwrap
+- pmic: Using either MediaTek PMIC MFD as the child device of pwrap
   See the following for child node definitions:
   Documentation/devicetree/bindings/mfd/mt6397.txt
+  or the regulator-only device as the child device of pwrap, such as MT6380.
+  See the following definitions for such kinds of devices.
+  Documentation/devicetree/bindings/regulator/mt6380-regulator.txt
 
 Example:
 	pwrap: pwrap@1000f000 {
