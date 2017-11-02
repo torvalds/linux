@@ -1,13 +1,16 @@
 * Serial NOR flash controller for MTK MT81xx (and similar)
 
 Required properties:
-- compatible: 	  The possible values are:
-		  "mediatek,mt2701-nor"
-		  "mediatek,mt7623-nor"
+- compatible: 	  For mt8173, compatible should be "mediatek,mt8173-nor",
+		  and it's the fallback compatible for other Soc.
+		  For every other SoC, should contain both the SoC-specific compatible
+		  string and "mediatek,mt8173-nor".
+		  The possible values are:
+		  "mediatek,mt2701-nor", "mediatek,mt8173-nor"
+		  "mediatek,mt2712-nor", "mediatek,mt8173-nor"
+		  "mediatek,mt7622-nor", "mediatek,mt8173-nor"
+		  "mediatek,mt7623-nor", "mediatek,mt8173-nor"
 		  "mediatek,mt8173-nor"
-		  For mt8173, compatible should be "mediatek,mt8173-nor".
-		  For every other SoC, should contain both the SoC-specific compatible string
-		  and "mediatek,mt8173-nor".
 - reg: 		  physical base address and length of the controller's register
 - clocks: 	  the phandle of the clocks needed by the nor controller
 - clock-names: 	  the names of the clocks
