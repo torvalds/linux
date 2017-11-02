@@ -31,6 +31,8 @@
 #include <linux/workqueue.h>
 #include <linux/spinlock.h>
 #include <linux/kfd_ioctl.h>
+#include <linux/idr.h>
+#include <linux/kfifo.h>
 #include <kgd_kfd_interface.h>
 
 #include "amd_shared.h"
@@ -181,10 +183,8 @@ struct kfd_dev {
 	unsigned int gtt_sa_num_of_chunks;
 
 	/* Interrupts */
-	void *interrupt_ring;
-	size_t interrupt_ring_size;
-	atomic_t interrupt_ring_rptr;
-	atomic_t interrupt_ring_wptr;
+	struct kfifo ih_fifo;
+	struct workqueue_struct *ih_wq;
 	struct work_struct interrupt_work;
 	spinlock_t interrupt_lock;
 
@@ -494,7 +494,12 @@ struct kfd_process {
 	 */
 	struct hlist_node kfd_processes;
 
-	struct mm_struct *mm;
+	/*
+	 * Opaque pointer to mm_struct. We don't hold a reference to
+	 * it so it should never be dereferenced from here. This is
+	 * only used for looking up processes by their mm.
+	 */
+	void *mm;
 
 	struct mutex mutex;
 
@@ -502,6 +507,8 @@ struct kfd_process {
 	 * In any process, the thread that started main() is the lead
 	 * thread and outlives the rest.
 	 * It is here because amd_iommu_bind_pasid wants a task_struct.
+	 * It can also be used for safely getting a reference to the
+	 * mm_struct of the process.
 	 */
 	struct task_struct *lead_thread;
 
@@ -522,22 +529,16 @@ struct kfd_process {
 
 	struct process_queue_manager pqm;
 
-	/* The process's queues. */
-	size_t queue_array_size;
-
-	/* Size is queue_array_size, up to MAX_PROCESS_QUEUES. */
-	struct kfd_queue **queues;
-
 	/*Is the user space process 32 bit?*/
 	bool is_32bit_user_mode;
 
 	/* Event-related data */
 	struct mutex event_mutex;
-	/* All events in process hashed by ID, linked on kfd_event.events. */
-	DECLARE_HASHTABLE(events, 4);
-	/* struct slot_page_header.event_pages */
-	struct list_head signal_event_pages;
-	u32 next_nonsignal_event_id;
+	/* Event ID allocator and lookup */
+	struct idr event_idr;
+	/* Event page */
+	struct kfd_signal_page *signal_page;
+	size_t signal_mapped_size;
 	size_t signal_event_count;
 	bool signal_event_limit_reached;
 };
@@ -721,19 +722,13 @@ uint64_t kfd_get_number_elems(struct kfd_dev *kfd);
 extern const struct kfd_event_interrupt_class event_interrupt_class_cik;
 extern const struct kfd_device_global_init_class device_global_init_class_cik;
 
-enum kfd_event_wait_result {
-	KFD_WAIT_COMPLETE,
-	KFD_WAIT_TIMEOUT,
-	KFD_WAIT_ERROR
-};
-
 void kfd_event_init_process(struct kfd_process *p);
 void kfd_event_free_process(struct kfd_process *p);
 int kfd_event_mmap(struct kfd_process *process, struct vm_area_struct *vma);
 int kfd_wait_on_events(struct kfd_process *p,
 		       uint32_t num_events, void __user *data,
 		       bool all, uint32_t user_timeout_ms,
-		       enum kfd_event_wait_result *wait_result);
+		       uint32_t *wait_result);
 void kfd_signal_event_interrupt(unsigned int pasid, uint32_t partial_id,
 				uint32_t valid_id_bits);
 void kfd_signal_iommu_event(struct kfd_dev *dev,

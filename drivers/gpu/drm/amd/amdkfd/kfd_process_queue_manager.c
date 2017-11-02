@@ -177,7 +177,8 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 	if (retval != 0)
 		return retval;
 
-	if (list_empty(&pqm->queues)) {
+	if (list_empty(&pdd->qpd.queues_list) &&
+	    list_empty(&pdd->qpd.priv_queue_list)) {
 		pdd->qpd.pqm = pqm;
 		dev->dqm->ops.register_process(dev->dqm, &pdd->qpd);
 	}
@@ -248,7 +249,8 @@ err_create_queue:
 err_allocate_pqn:
 	/* check if queues list is empty unregister process from device */
 	clear_bit(*qid, pqm->queue_slot_bitmap);
-	if (list_empty(&pqm->queues))
+	if (list_empty(&pdd->qpd.queues_list) &&
+	    list_empty(&pdd->qpd.priv_queue_list))
 		dev->dqm->ops.unregister_process(dev->dqm, &pdd->qpd);
 	return retval;
 }
@@ -302,7 +304,8 @@ int pqm_destroy_queue(struct process_queue_manager *pqm, unsigned int qid)
 	kfree(pqn);
 	clear_bit(qid, pqm->queue_slot_bitmap);
 
-	if (list_empty(&pqm->queues))
+	if (list_empty(&pdd->qpd.queues_list) &&
+	    list_empty(&pdd->qpd.priv_queue_list))
 		dqm->ops.unregister_process(dqm, &pdd->qpd);
 
 	return retval;

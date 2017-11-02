@@ -42,26 +42,26 @@
 
 #include <linux/slab.h>
 #include <linux/device.h>
+#include <linux/kfifo.h>
 #include "kfd_priv.h"
 
-#define KFD_INTERRUPT_RING_SIZE 1024
+#define KFD_IH_NUM_ENTRIES 8192
 
 static void interrupt_wq(struct work_struct *);
 
 int kfd_interrupt_init(struct kfd_dev *kfd)
 {
-	void *interrupt_ring = kmalloc_array(KFD_INTERRUPT_RING_SIZE,
-					kfd->device_info->ih_ring_entry_size,
-					GFP_KERNEL);
-	if (!interrupt_ring)
-		return -ENOMEM;
+	int r;
 
-	kfd->interrupt_ring = interrupt_ring;
-	kfd->interrupt_ring_size =
-		KFD_INTERRUPT_RING_SIZE * kfd->device_info->ih_ring_entry_size;
-	atomic_set(&kfd->interrupt_ring_wptr, 0);
-	atomic_set(&kfd->interrupt_ring_rptr, 0);
+	r = kfifo_alloc(&kfd->ih_fifo,
+		KFD_IH_NUM_ENTRIES * kfd->device_info->ih_ring_entry_size,
+		GFP_KERNEL);
+	if (r) {
+		dev_err(kfd_chardev(), "Failed to allocate IH fifo\n");
+		return r;
+	}
 
+	kfd->ih_wq = alloc_workqueue("KFD IH", WQ_HIGHPRI, 1);
 	spin_lock_init(&kfd->interrupt_lock);
 
 	INIT_WORK(&kfd->interrupt_work, interrupt_wq);
@@ -92,74 +92,47 @@ void kfd_interrupt_exit(struct kfd_dev *kfd)
 	spin_unlock_irqrestore(&kfd->interrupt_lock, flags);
 
 	/*
-	 * Flush_scheduled_work ensures that there are no outstanding
+	 * flush_work ensures that there are no outstanding
 	 * work-queue items that will access interrupt_ring. New work items
 	 * can't be created because we stopped interrupt handling above.
 	 */
-	flush_scheduled_work();
+	flush_workqueue(kfd->ih_wq);
 
-	kfree(kfd->interrupt_ring);
+	kfifo_free(&kfd->ih_fifo);
 }
 
 /*
- * This assumes that it can't be called concurrently with itself
- * but only with dequeue_ih_ring_entry.
+ * Assumption: single reader/writer. This function is not re-entrant
  */
 bool enqueue_ih_ring_entry(struct kfd_dev *kfd,	const void *ih_ring_entry)
 {
-	unsigned int rptr = atomic_read(&kfd->interrupt_ring_rptr);
-	unsigned int wptr = atomic_read(&kfd->interrupt_ring_wptr);
+	int count;
 
-	if ((rptr - wptr) % kfd->interrupt_ring_size ==
-					kfd->device_info->ih_ring_entry_size) {
-		/* This is very bad, the system is likely to hang. */
+	count = kfifo_in(&kfd->ih_fifo, ih_ring_entry,
+				kfd->device_info->ih_ring_entry_size);
+	if (count != kfd->device_info->ih_ring_entry_size) {
 		dev_err_ratelimited(kfd_chardev(),
-			"Interrupt ring overflow, dropping interrupt.\n");
+			"Interrupt ring overflow, dropping interrupt %d\n",
+			count);
 		return false;
 	}
-
-	memcpy(kfd->interrupt_ring + wptr, ih_ring_entry,
-			kfd->device_info->ih_ring_entry_size);
-
-	wptr = (wptr + kfd->device_info->ih_ring_entry_size) %
-			kfd->interrupt_ring_size;
-	smp_wmb(); /* Ensure memcpy'd data is visible before wptr update. */
-	atomic_set(&kfd->interrupt_ring_wptr, wptr);
 
 	return true;
 }
 
 /*
- * This assumes that it can't be called concurrently with itself
- * but only with enqueue_ih_ring_entry.
+ * Assumption: single reader/writer. This function is not re-entrant
  */
 static bool dequeue_ih_ring_entry(struct kfd_dev *kfd, void *ih_ring_entry)
 {
-	/*
-	 * Assume that wait queues have an implicit barrier, i.e. anything that
-	 * happened in the ISR before it queued work is visible.
-	 */
+	int count;
 
-	unsigned int wptr = atomic_read(&kfd->interrupt_ring_wptr);
-	unsigned int rptr = atomic_read(&kfd->interrupt_ring_rptr);
+	count = kfifo_out(&kfd->ih_fifo, ih_ring_entry,
+				kfd->device_info->ih_ring_entry_size);
 
-	if (rptr == wptr)
-		return false;
+	WARN_ON(count && count != kfd->device_info->ih_ring_entry_size);
 
-	memcpy(ih_ring_entry, kfd->interrupt_ring + rptr,
-			kfd->device_info->ih_ring_entry_size);
-
-	rptr = (rptr + kfd->device_info->ih_ring_entry_size) %
-			kfd->interrupt_ring_size;
-
-	/*
-	 * Ensure the rptr write update is not visible until
-	 * memcpy has finished reading.
-	 */
-	smp_mb();
-	atomic_set(&kfd->interrupt_ring_rptr, rptr);
-
-	return true;
+	return count == kfd->device_info->ih_ring_entry_size;
 }
 
 static void interrupt_wq(struct work_struct *work)

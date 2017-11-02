@@ -389,12 +389,11 @@ static int update_queue(struct device_queue_manager *dqm, struct queue *q)
 	if (sched_policy != KFD_SCHED_POLICY_NO_HWS) {
 		retval = unmap_queues_cpsch(dqm,
 				KFD_UNMAP_QUEUES_FILTER_DYNAMIC_QUEUES, 0);
-		if (retval != 0) {
+		if (retval) {
 			pr_err("unmap queue failed\n");
 			goto out_unlock;
 		}
-	} else if (sched_policy == KFD_SCHED_POLICY_NO_HWS &&
-		   prev_active &&
+	} else if (prev_active &&
 		   (q->properties.type == KFD_QUEUE_TYPE_COMPUTE ||
 		    q->properties.type == KFD_QUEUE_TYPE_SDMA)) {
 		retval = mqd->destroy_mqd(mqd, q->mqd,
@@ -408,23 +407,24 @@ static int update_queue(struct device_queue_manager *dqm, struct queue *q)
 
 	retval = mqd->update_mqd(mqd, q->mqd, &q->properties);
 
-	if (sched_policy != KFD_SCHED_POLICY_NO_HWS)
-		retval = map_queues_cpsch(dqm);
-	else if (sched_policy == KFD_SCHED_POLICY_NO_HWS &&
-		 q->properties.is_active &&
-		 (q->properties.type == KFD_QUEUE_TYPE_COMPUTE ||
-		  q->properties.type == KFD_QUEUE_TYPE_SDMA))
-		retval = mqd->load_mqd(mqd, q->mqd, q->pipe, q->queue,
-				       &q->properties, q->process->mm);
-
 	/*
-	 * check active state vs. the previous state
-	 * and modify counter accordingly
+	 * check active state vs. the previous state and modify
+	 * counter accordingly. map_queues_cpsch uses the
+	 * dqm->queue_count to determine whether a new runlist must be
+	 * uploaded.
 	 */
 	if (q->properties.is_active && !prev_active)
 		dqm->queue_count++;
 	else if (!q->properties.is_active && prev_active)
 		dqm->queue_count--;
+
+	if (sched_policy != KFD_SCHED_POLICY_NO_HWS)
+		retval = map_queues_cpsch(dqm);
+	else if (q->properties.is_active &&
+		 (q->properties.type == KFD_QUEUE_TYPE_COMPUTE ||
+		  q->properties.type == KFD_QUEUE_TYPE_SDMA))
+		retval = mqd->load_mqd(mqd, q->mqd, q->pipe, q->queue,
+				       &q->properties, q->process->mm);
 
 out_unlock:
 	mutex_unlock(&dqm->lock);
@@ -467,7 +467,7 @@ static int register_process(struct device_queue_manager *dqm,
 	mutex_lock(&dqm->lock);
 	list_add(&n->list, &dqm->queues);
 
-	retval = dqm->ops_asic_specific.register_process(dqm, qpd);
+	retval = dqm->asic_ops.update_qpd(dqm, qpd);
 
 	dqm->processes_count++;
 
@@ -629,7 +629,7 @@ static int create_sdma_queue_nocpsch(struct device_queue_manager *dqm,
 	pr_debug("SDMA queue id: %d\n", q->properties.sdma_queue_id);
 	pr_debug("SDMA engine id: %d\n", q->properties.sdma_engine_id);
 
-	dqm->ops_asic_specific.init_sdma_vm(dqm, q, qpd);
+	dqm->asic_ops.init_sdma_vm(dqm, q, qpd);
 	retval = mqd->init_mqd(mqd, &q->mqd, &q->mqd_mem_obj,
 				&q->gart_mqd_addr, &q->properties);
 	if (retval)
@@ -696,8 +696,6 @@ static int set_sched_resources(struct device_queue_manager *dqm)
 
 static int initialize_cpsch(struct device_queue_manager *dqm)
 {
-	int retval;
-
 	pr_debug("num of pipes: %d\n", get_pipes_per_mec(dqm));
 
 	mutex_init(&dqm->lock);
@@ -706,11 +704,8 @@ static int initialize_cpsch(struct device_queue_manager *dqm)
 	dqm->sdma_queue_count = 0;
 	dqm->active_runlist = false;
 	dqm->sdma_bitmap = (1 << CIK_SDMA_QUEUES) - 1;
-	retval = dqm->ops_asic_specific.initialize(dqm);
-	if (retval)
-		mutex_destroy(&dqm->lock);
 
-	return retval;
+	return 0;
 }
 
 static int start_cpsch(struct device_queue_manager *dqm)
@@ -835,7 +830,7 @@ static int create_queue_cpsch(struct device_queue_manager *dqm, struct queue *q,
 
 	if (q->properties.type == KFD_QUEUE_TYPE_SDMA) {
 		retval = allocate_sdma_queue(dqm, &q->sdma_id);
-		if (retval != 0)
+		if (retval)
 			goto out;
 		q->properties.sdma_queue_id =
 			q->sdma_id / CIK_SDMA_QUEUES_PER_ENGINE;
@@ -850,7 +845,7 @@ static int create_queue_cpsch(struct device_queue_manager *dqm, struct queue *q,
 		goto out;
 	}
 
-	dqm->ops_asic_specific.init_sdma_vm(dqm, q, qpd);
+	dqm->asic_ops.init_sdma_vm(dqm, q, qpd);
 	retval = mqd->init_mqd(mqd, &q->mqd, &q->mqd_mem_obj,
 				&q->gart_mqd_addr, &q->properties);
 	if (retval)
@@ -1095,7 +1090,7 @@ static bool set_cache_memory_policy(struct device_queue_manager *dqm,
 		qpd->sh_mem_ape1_limit = limit >> 16;
 	}
 
-	retval = dqm->ops_asic_specific.set_cache_memory_policy(
+	retval = dqm->asic_ops.set_cache_memory_policy(
 			dqm,
 			qpd,
 			default_policy,
@@ -1270,11 +1265,11 @@ struct device_queue_manager *device_queue_manager_init(struct kfd_dev *dev)
 
 	switch (dev->device_info->asic_family) {
 	case CHIP_CARRIZO:
-		device_queue_manager_init_vi(&dqm->ops_asic_specific);
+		device_queue_manager_init_vi(&dqm->asic_ops);
 		break;
 
 	case CHIP_KAVERI:
-		device_queue_manager_init_cik(&dqm->ops_asic_specific);
+		device_queue_manager_init_cik(&dqm->asic_ops);
 		break;
 	default:
 		WARN(1, "Unexpected ASIC family %u",
