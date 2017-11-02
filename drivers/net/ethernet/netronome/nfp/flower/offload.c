@@ -95,7 +95,7 @@ nfp_flower_xmit_flow(struct net_device *netdev,
 	nfp_flow->meta.mask_len >>= NFP_FL_LW_SIZ;
 	nfp_flow->meta.act_len >>= NFP_FL_LW_SIZ;
 
-	skb = nfp_flower_cmsg_alloc(priv->app, tot_len, mtype);
+	skb = nfp_flower_cmsg_alloc(priv->app, tot_len, mtype, GFP_KERNEL);
 	if (!skb)
 		return -ENOMEM;
 

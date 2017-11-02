@@ -458,6 +458,6 @@ void nfp_flower_cmsg_process_rx(struct work_struct *work);
 void nfp_flower_cmsg_rx(struct nfp_app *app, struct sk_buff *skb);
 struct sk_buff *
 nfp_flower_cmsg_alloc(struct nfp_app *app, unsigned int size,
-		      enum nfp_flower_cmsg_type_port type);
+		      enum nfp_flower_cmsg_type_port type, gfp_t flag);
 
 #endif

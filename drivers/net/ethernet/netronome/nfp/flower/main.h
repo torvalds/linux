@@ -115,7 +115,7 @@ struct nfp_flower_priv {
 	struct mutex nfp_mac_off_lock;
 	struct mutex nfp_mac_index_lock;
 	struct mutex nfp_ipv4_off_lock;
-	struct mutex nfp_neigh_off_lock;
+	spinlock_t nfp_neigh_off_lock;
 	struct ida nfp_mac_off_ids;
 	int nfp_mac_off_count;
 	struct notifier_block nfp_tun_mac_nb;
