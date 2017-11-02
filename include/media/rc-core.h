@@ -69,6 +69,33 @@ enum rc_filter_type {
 };
 
 /**
+ * struct lirc_fh - represents an open lirc file
+ * @list: list of open file handles
+ * @rc: rcdev for this lirc chardev
+ * @carrier_low: when setting the carrier range, first the low end must be
+ *	set with an ioctl and then the high end with another ioctl
+ * @send_timeout_reports: report timeouts in lirc raw IR.
+ * @rawir: queue for incoming raw IR
+ * @scancodes: queue for incoming decoded scancodes
+ * @wait_poll: poll struct for lirc device
+ * @send_mode: lirc mode for sending, either LIRC_MODE_SCANCODE or
+ *	LIRC_MODE_PULSE
+ * @rec_mode: lirc mode for receiving, either LIRC_MODE_SCANCODE or
+ *	LIRC_MODE_MODE2
+ */
+struct lirc_fh {
+	struct list_head list;
+	struct rc_dev *rc;
+	int				carrier_low;
+	bool				send_timeout_reports;
+	DECLARE_KFIFO_PTR(rawir, unsigned int);
+	DECLARE_KFIFO_PTR(scancodes, struct lirc_scancode);
+	wait_queue_head_t		wait_poll;
+	u8				send_mode;
+	u8				rec_mode;
+};
+
+/**
  * struct rc_dev - represents a remote control device
  * @dev: driver model's view of this device
  * @managed_alloc: devm_rc_allocate_device was used to create rc_dev
@@ -118,20 +145,11 @@ enum rc_filter_type {
  * @tx_resolution: resolution (in ns) of output sampler
  * @lirc_dev: lirc device
  * @lirc_cdev: lirc char cdev
- * @lirc_open: count of the number of times the device has been opened
- * @carrier_low: when setting the carrier range, first the low end must be
- *	set with an ioctl and then the high end with another ioctl
  * @gap_start: time when gap starts
  * @gap_duration: duration of initial gap
  * @gap: true if we're in a gap
- * @send_timeout_reports: report timeouts in lirc raw IR.
- * @rawir: queue for incoming raw IR
- * @scancodes: queue for incoming decoded scancodes
- * @wait_poll: poll struct for lirc device
- * @send_mode: lirc mode for sending, either LIRC_MODE_SCANCODE or
- *	LIRC_MODE_PULSE
- * @rec_mode: lirc mode for receiving, either LIRC_MODE_SCANCODE or
- *	LIRC_MODE_MODE2
+ * @lirc_fh_lock: protects lirc_fh list
+ * @lirc_fh: list of open files
  * @registered: set to true by rc_register_device(), false by
  *	rc_unregister_device
  * @change_protocol: allow changing the protocol used on hardware decoders
@@ -196,17 +214,11 @@ struct rc_dev {
 #ifdef CONFIG_LIRC
 	struct device			lirc_dev;
 	struct cdev			lirc_cdev;
-	int				lirc_open;
-	int				carrier_low;
 	ktime_t				gap_start;
 	u64				gap_duration;
 	bool				gap;
-	bool				send_timeout_reports;
-	DECLARE_KFIFO_PTR(rawir, unsigned int);
-	DECLARE_KFIFO_PTR(scancodes, struct lirc_scancode);
-	wait_queue_head_t		wait_poll;
-	u8				send_mode;
-	u8				rec_mode;
+	spinlock_t			lirc_fh_lock;
+	struct list_head		lirc_fh;
 #endif
 	bool				registered;
 	int				(*change_protocol)(struct rc_dev *dev, u64 *rc_proto);
