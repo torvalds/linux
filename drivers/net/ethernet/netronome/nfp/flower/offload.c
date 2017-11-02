@@ -468,14 +468,14 @@ nfp_flower_repr_offload(struct nfp_app *app, struct net_device *netdev,
 static int nfp_flower_setup_tc_block_cb(enum tc_setup_type type,
 					void *type_data, void *cb_priv)
 {
-	struct nfp_net *nn = cb_priv;
+	struct nfp_repr *repr = cb_priv;
 
-	if (!tc_can_offload(nn->dp.netdev))
+	if (!tc_can_offload(repr->netdev))
 		return -EOPNOTSUPP;
 
 	switch (type) {
 	case TC_SETUP_CLSFLOWER:
-		return nfp_flower_repr_offload(nn->app, nn->port->netdev,
+		return nfp_flower_repr_offload(repr->app, repr->netdev,
 					       type_data);
 	default:
 		return -EOPNOTSUPP;
@@ -485,7 +485,7 @@ static int nfp_flower_setup_tc_block_cb(enum tc_setup_type type,
 static int nfp_flower_setup_tc_block(struct net_device *netdev,
 				     struct tc_block_offload *f)
 {
-	struct nfp_net *nn = netdev_priv(netdev);
+	struct nfp_repr *repr = netdev_priv(netdev);
 
 	if (f->binder_type != TCF_BLOCK_BINDER_TYPE_CLSACT_INGRESS)
 		return -EOPNOTSUPP;
@@ -494,11 +494,11 @@ static int nfp_flower_setup_tc_block(struct net_device *netdev,
 	case TC_BLOCK_BIND:
 		return tcf_block_cb_register(f->block,
 					     nfp_flower_setup_tc_block_cb,
-					     nn, nn);
+					     repr, repr);
 	case TC_BLOCK_UNBIND:
 		tcf_block_cb_unregister(f->block,
 					nfp_flower_setup_tc_block_cb,
-					nn);
+					repr);
 		return 0;
 	default:
 		return -EOPNOTSUPP;
