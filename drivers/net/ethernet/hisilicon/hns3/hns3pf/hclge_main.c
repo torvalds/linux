@@ -1184,11 +1184,7 @@ static int  hclge_assign_tqp(struct hclge_vport *vport,
 			     struct hnae3_queue **tqp, u16 num_tqps)
 {
 	struct hclge_dev *hdev = vport->back;
-	int i, alloced, func_id, ret;
-	bool is_pf;
-
-	func_id = vport->vport_id;
-	is_pf = (vport->vport_id == 0) ? true : false;
+	int i, alloced;
 
 	for (i = 0, alloced = 0; i < hdev->num_tqps &&
 	     alloced < num_tqps; i++) {
@@ -1197,12 +1193,6 @@ static int  hclge_assign_tqp(struct hclge_vport *vport,
 			hdev->htqp[i].q.tqp_index = alloced;
 			tqp[alloced] = &hdev->htqp[i].q;
 			hdev->htqp[i].alloced = true;
-			ret = hclge_map_tqps_to_func(hdev, func_id,
-						     hdev->htqp[i].index,
-						     alloced, is_pf);
-			if (ret)
-				return ret;
-
 			alloced++;
 		}
 	}
@@ -1249,6 +1239,49 @@ static int hclge_knic_setup(struct hclge_vport *vport, u16 num_tqps)
 	if (ret) {
 		dev_err(&hdev->pdev->dev, "fail to assign TQPs %d.\n", ret);
 		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int hclge_map_tqp_to_vport(struct hclge_dev *hdev,
+				  struct hclge_vport *vport)
+{
+	struct hnae3_handle *nic = &vport->nic;
+	struct hnae3_knic_private_info *kinfo;
+	u16 i;
+
+	kinfo = &nic->kinfo;
+	for (i = 0; i < kinfo->num_tqps; i++) {
+		struct hclge_tqp *q =
+			container_of(kinfo->tqp[i], struct hclge_tqp, q);
+		bool is_pf;
+		int ret;
+
+		is_pf = !(vport->vport_id);
+		ret = hclge_map_tqps_to_func(hdev, vport->vport_id, q->index,
+					     i, is_pf);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+static int hclge_map_tqp(struct hclge_dev *hdev)
+{
+	struct hclge_vport *vport = hdev->vport;
+	u16 i, num_vport;
+
+	num_vport = hdev->num_vmdq_vport + hdev->num_req_vfs + 1;
+	for (i = 0; i < num_vport; i++)	{
+		int ret;
+
+		ret = hclge_map_tqp_to_vport(hdev, vport);
+		if (ret)
+			return ret;
+
+		vport++;
 	}
 
 	return 0;
@@ -4456,6 +4489,12 @@ static int hclge_init_ae_dev(struct hnae3_ae_dev *ae_dev)
 	ret = hclge_alloc_vport(hdev);
 	if (ret) {
 		dev_err(&pdev->dev, "Allocate vport error, ret = %d.\n", ret);
+		return ret;
+	}
+
+	ret = hclge_map_tqp(hdev);
+	if (ret) {
+		dev_err(&pdev->dev, "Map tqp error, ret = %d.\n", ret);
 		return ret;
 	}
 
