@@ -452,7 +452,7 @@ int isBranchInstr(struct pt_regs *regs, struct mm_decoded_insn dec_insn,
 					regs->cp0_epc + dec_insn.pc_inc +
 					dec_insn.next_pc_inc;
 			}
-			/* Fall through */
+			/* fall through */
 		case jr_op:
 			/* For R6, JR already emulated in jalr_op */
 			if (NO_R6EMU && insn.r_format.func == jr_op)
@@ -472,10 +472,11 @@ int isBranchInstr(struct pt_regs *regs, struct mm_decoded_insn dec_insn,
 			regs->regs[31] = regs->cp0_epc +
 				dec_insn.pc_inc +
 				dec_insn.next_pc_inc;
-			/* Fall through */
+			/* fall through */
 		case bltzl_op:
 			if (NO_R6EMU)
 				break;
+			/* fall through */
 		case bltz_op:
 			if ((long)regs->regs[insn.i_format.rs] < 0)
 				*contpc = regs->cp0_epc +
@@ -495,10 +496,11 @@ int isBranchInstr(struct pt_regs *regs, struct mm_decoded_insn dec_insn,
 			regs->regs[31] = regs->cp0_epc +
 				dec_insn.pc_inc +
 				dec_insn.next_pc_inc;
-			/* Fall through */
+			/* fall through */
 		case bgezl_op:
 			if (NO_R6EMU)
 				break;
+			/* fall through */
 		case bgez_op:
 			if ((long)regs->regs[insn.i_format.rs] >= 0)
 				*contpc = regs->cp0_epc +
@@ -513,11 +515,12 @@ int isBranchInstr(struct pt_regs *regs, struct mm_decoded_insn dec_insn,
 		break;
 	case jalx_op:
 		set_isa16_mode(bit);
+		/* fall through */
 	case jal_op:
 		regs->regs[31] = regs->cp0_epc +
 			dec_insn.pc_inc +
 			dec_insn.next_pc_inc;
-		/* Fall through */
+		/* fall through */
 	case j_op:
 		*contpc = regs->cp0_epc + dec_insn.pc_inc;
 		*contpc >>= 28;
@@ -529,6 +532,7 @@ int isBranchInstr(struct pt_regs *regs, struct mm_decoded_insn dec_insn,
 	case beql_op:
 		if (NO_R6EMU)
 			break;
+		/* fall through */
 	case beq_op:
 		if (regs->regs[insn.i_format.rs] ==
 		    regs->regs[insn.i_format.rt])
@@ -543,6 +547,7 @@ int isBranchInstr(struct pt_regs *regs, struct mm_decoded_insn dec_insn,
 	case bnel_op:
 		if (NO_R6EMU)
 			break;
+		/* fall through */
 	case bne_op:
 		if (regs->regs[insn.i_format.rs] !=
 		    regs->regs[insn.i_format.rt])
@@ -557,6 +562,7 @@ int isBranchInstr(struct pt_regs *regs, struct mm_decoded_insn dec_insn,
 	case blezl_op:
 		if (!insn.i_format.rt && NO_R6EMU)
 			break;
+		/* fall through */
 	case blez_op:
 
 		/*
@@ -594,6 +600,7 @@ int isBranchInstr(struct pt_regs *regs, struct mm_decoded_insn dec_insn,
 	case bgtzl_op:
 		if (!insn.i_format.rt && NO_R6EMU)
 			break;
+		/* fall through */
 	case bgtz_op:
 		/*
 		 * Compact branches for R6 for the
@@ -730,7 +737,8 @@ int isBranchInstr(struct pt_regs *regs, struct mm_decoded_insn dec_insn,
 
 			return 1;
 		}
-		/* R2/R6 compatible cop1 instruction. Fall through */
+		/* R2/R6 compatible cop1 instruction */
+		/* fall through */
 	case cop2_op:
 	case cop1x_op:
 		if (insn.i_format.rs == bc_op) {
@@ -1222,14 +1230,14 @@ emul:
 			case bcfl_op:
 				if (cpu_has_mips_2_3_4_5_r)
 					likely = 1;
-				/* Fall through */
+				/* fall through */
 			case bcf_op:
 				cond = !cond;
 				break;
 			case bctl_op:
 				if (cpu_has_mips_2_3_4_5_r)
 					likely = 1;
-				/* Fall through */
+				/* fall through */
 			case bct_op:
 				break;
 			}

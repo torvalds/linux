@@ -142,7 +142,7 @@ union ieee754dp ieee754dp_sqrt(union ieee754dp x)
 		switch (oldcsr.rm) {
 		case FPU_CSR_RU:
 			y.bits += 1;
-			/* drop through */
+			/* fall through */
 		case FPU_CSR_RN:
 			t.bits += 1;
 			break;
