@@ -944,7 +944,7 @@ wrp_alu_imm(struct nfp_prog *nfp_prog, u8 dst, enum alu_op alu_op, u32 imm)
 	if (alu_op == ALU_OP_XOR) {
 		if (!~imm)
 			emit_alu(nfp_prog, reg_both(dst), reg_none(),
-				 ALU_OP_NEG, reg_b(dst));
+				 ALU_OP_NOT, reg_b(dst));
 		if (!imm || !~imm)
 			return;
 	}
@@ -1218,6 +1218,18 @@ static int sub_imm64(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 	return 0;
 }
 
+static int neg_reg64(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
+{
+	const struct bpf_insn *insn = &meta->insn;
+
+	emit_alu(nfp_prog, reg_both(insn->dst_reg * 2), reg_imm(0),
+		 ALU_OP_SUB, reg_b(insn->dst_reg * 2));
+	emit_alu(nfp_prog, reg_both(insn->dst_reg * 2 + 1), reg_imm(0),
+		 ALU_OP_SUB_C, reg_b(insn->dst_reg * 2 + 1));
+
+	return 0;
+}
+
 static int shl_imm64(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
 	const struct bpf_insn *insn = &meta->insn;
@@ -1336,6 +1348,16 @@ static int sub_reg(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 static int sub_imm(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
 	return wrp_alu32_imm(nfp_prog, meta, ALU_OP_SUB, !meta->insn.imm);
+}
+
+static int neg_reg(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
+{
+	u8 dst = meta->insn.dst_reg * 2;
+
+	emit_alu(nfp_prog, reg_both(dst), reg_imm(0), ALU_OP_SUB, reg_b(dst));
+	wrp_immed(nfp_prog, reg_both(meta->insn.dst_reg * 2 + 1), 0);
+
+	return 0;
 }
 
 static int shl_imm(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
@@ -1847,6 +1869,7 @@ static const instr_cb_t instr_cb[256] = {
 	[BPF_ALU64 | BPF_ADD | BPF_K] =	add_imm64,
 	[BPF_ALU64 | BPF_SUB | BPF_X] =	sub_reg64,
 	[BPF_ALU64 | BPF_SUB | BPF_K] =	sub_imm64,
+	[BPF_ALU64 | BPF_NEG] =		neg_reg64,
 	[BPF_ALU64 | BPF_LSH | BPF_K] =	shl_imm64,
 	[BPF_ALU64 | BPF_RSH | BPF_K] =	shr_imm64,
 	[BPF_ALU | BPF_MOV | BPF_X] =	mov_reg,
@@ -1861,6 +1884,7 @@ static const instr_cb_t instr_cb[256] = {
 	[BPF_ALU | BPF_ADD | BPF_K] =	add_imm,
 	[BPF_ALU | BPF_SUB | BPF_X] =	sub_reg,
 	[BPF_ALU | BPF_SUB | BPF_K] =	sub_imm,
+	[BPF_ALU | BPF_NEG] =		neg_reg,
 	[BPF_ALU | BPF_LSH | BPF_K] =	shl_imm,
 	[BPF_ALU | BPF_END | BPF_X] =	end_reg32,
 	[BPF_LD | BPF_IMM | BPF_DW] =	imm_ld8,
