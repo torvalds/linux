@@ -343,6 +343,31 @@
 		};
 	};
 
+	iep: iep@10108000 {
+		compatible = "rockchip,iep";
+		iommu_enabled = <1>;
+		iommus = <&iep_mmu>;
+		reg = <0x10108000 0x800>;
+		interrupts = <GIC_SPI 48 IRQ_TYPE_LEVEL_HIGH 0>;
+		clocks = <&cru ACLK_IEP>, <&cru HCLK_IEP>;
+		clock-names = "aclk_iep", "hclk_iep";
+		power-domains = <&power RK3128_PD_VIO>;
+		allocator = <1>;
+		version = <1>;
+		status = "disabled";
+	};
+
+	iep_mmu: iommu@10108800 {
+		compatible = "rockchip,iommu";
+		reg = <0x10108800 0x40>;
+		interrupts = <GIC_SPI 48 IRQ_TYPE_LEVEL_HIGH 0>;
+		interrupt-names = "iep_mmu";
+		clocks = <&cru ACLK_IEP>, <&cru HCLK_IEP>;
+		clock-names = "aclk", "hclk";
+		#iommu-cells = <0>;
+		status = "disabled";
+	};
+
 	rga: rga@1010c000 {
 		compatible = "rockchip,rk312x-rga";
 		reg = <0x1010c000 0x1000>;
