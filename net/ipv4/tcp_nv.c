@@ -242,7 +242,7 @@ static void tcpnv_acked(struct sock *sk, const struct ack_sample *sample)
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct tcpnv *ca = inet_csk_ca(sk);
 	unsigned long now = jiffies;
-	s64 rate64 = 0;
+	u64 rate64;
 	u32 rate, max_win, cwnd_by_slope;
 	u32 avg_rtt;
 	u32 bytes_acked = 0;
@@ -284,8 +284,9 @@ static void tcpnv_acked(struct sock *sk, const struct ack_sample *sample)
 	}
 
 	/* rate in 100's bits per second */
-	rate64 = ((u64)sample->in_flight) * 8000000;
-	rate = (u32)div64_u64(rate64, (u64)(avg_rtt ?: 1) * 100);
+	rate64 = ((u64)sample->in_flight) * 80000;
+	do_div(rate64, avg_rtt ?: 1);
+	rate = (u32)rate64;
 
 	/* Remember the maximum rate seen during this RTT
 	 * Note: It may be more than one RTT. This function should be
