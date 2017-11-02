@@ -298,23 +298,6 @@ static int sh_mobile_i2c_init(struct sh_mobile_i2c_data *pd)
 	return 0;
 }
 
-static void activate_ch(struct sh_mobile_i2c_data *pd)
-{
-	/* Wake up device and enable clock */
-	pm_runtime_get_sync(pd->dev);
-	clk_prepare_enable(pd->clk);
-}
-
-static void deactivate_ch(struct sh_mobile_i2c_data *pd)
-{
-	/* Disable channel */
-	iic_set_clr(pd, ICCR, 0, ICCR_ICE);
-
-	/* Disable clock and mark device as idle */
-	clk_disable_unprepare(pd->clk);
-	pm_runtime_put_sync(pd->dev);
-}
-
 static unsigned char i2c_op(struct sh_mobile_i2c_data *pd,
 			    enum sh_mobile_i2c_op op, unsigned char data)
 {
@@ -717,7 +700,9 @@ static int sh_mobile_i2c_xfer(struct i2c_adapter *adapter,
 	int i;
 	long timeout;
 
-	activate_ch(pd);
+	/* Wake up device and enable clock */
+	pm_runtime_get_sync(pd->dev);
+	clk_prepare_enable(pd->clk);
 
 	/* Process all messages */
 	for (i = 0; i < num; i++) {
@@ -754,7 +739,12 @@ static int sh_mobile_i2c_xfer(struct i2c_adapter *adapter,
 			break;
 	}
 
-	deactivate_ch(pd);
+	/* Disable channel */
+	iic_set_clr(pd, ICCR, 0, ICCR_ICE);
+
+	/* Disable clock and mark device as idle */
+	clk_disable_unprepare(pd->clk);
+	pm_runtime_put_sync(pd->dev);
 
 	if (!err)
 		err = num;
