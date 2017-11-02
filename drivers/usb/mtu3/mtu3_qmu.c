@@ -259,7 +259,7 @@ static int mtu3_prepare_tx_gpd(struct mtu3_ep *mep, struct mtu3_request *mreq)
 	enq = advance_enq_gpd(ring);
 	enq_dma = gpd_virt_to_dma(ring, enq);
 	dev_dbg(mep->mtu->dev, "TX-EP%d queue gpd=%p, enq=%p, qdma=%pad\n",
-		mep->epnum, gpd, enq, enq_dma);
+		mep->epnum, gpd, enq, &enq_dma);
 
 	enq->flag &= ~GPD_FLAGS_HWO;
 	gpd->next_gpd = cpu_to_le32(lower_32_bits(enq_dma));
@@ -298,7 +298,7 @@ static int mtu3_prepare_rx_gpd(struct mtu3_ep *mep, struct mtu3_request *mreq)
 	enq = advance_enq_gpd(ring);
 	enq_dma = gpd_virt_to_dma(ring, enq);
 	dev_dbg(mep->mtu->dev, "RX-EP%d queue gpd=%p, enq=%p, qdma=%pad\n",
-		mep->epnum, gpd, enq, enq_dma);
+		mep->epnum, gpd, enq, &enq_dma);
 
 	enq->flag &= ~GPD_FLAGS_HWO;
 	gpd->next_gpd = cpu_to_le32(lower_32_bits(enq_dma));
