@@ -172,6 +172,8 @@ static inline bool nvme_req_needs_retry(struct request *req)
 		return false;
 	if (nvme_req(req)->retries >= nvme_max_retries)
 		return false;
+	if (blk_queue_dying(req->q))
+		return false;
 	return true;
 }
 
@@ -189,18 +191,13 @@ EXPORT_SYMBOL_GPL(nvme_complete_rq);
 
 void nvme_cancel_request(struct request *req, void *data, bool reserved)
 {
-	int status;
-
 	if (!blk_mq_request_started(req))
 		return;
 
 	dev_dbg_ratelimited(((struct nvme_ctrl *) data)->device,
 				"Cancelling I/O %d", req->tag);
 
-	status = NVME_SC_ABORT_REQ;
-	if (blk_queue_dying(req->q))
-		status |= NVME_SC_DNR;
-	nvme_req(req)->status = status;
+	nvme_req(req)->status = NVME_SC_ABORT_REQ;
 	blk_mq_complete_request(req);
 
 }
