@@ -231,8 +231,13 @@ static void flush_end_io(struct request *flush_rq, blk_status_t error)
 		/* release the tag's ownership to the req cloned from */
 		spin_lock_irqsave(&fq->mq_flush_lock, flags);
 		hctx = blk_mq_map_queue(q, flush_rq->mq_ctx->cpu);
-		blk_mq_tag_set_rq(hctx, flush_rq->tag, fq->orig_rq);
-		flush_rq->tag = -1;
+		if (!q->elevator) {
+			blk_mq_tag_set_rq(hctx, flush_rq->tag, fq->orig_rq);
+			flush_rq->tag = -1;
+		} else {
+			blk_mq_put_driver_tag_hctx(hctx, flush_rq);
+			flush_rq->internal_tag = -1;
+		}
 	}
 
 	running = &fq->flush_queue[fq->flush_running_idx];
@@ -318,19 +323,26 @@ static bool blk_kick_flush(struct request_queue *q, struct blk_flush_queue *fq)
 	blk_rq_init(q, flush_rq);
 
 	/*
-	 * Borrow tag from the first request since they can't
-	 * be in flight at the same time. And acquire the tag's
-	 * ownership for flush req.
+	 * In case of none scheduler, borrow tag from the first request
+	 * since they can't be in flight at the same time. And acquire
+	 * the tag's ownership for flush req.
+	 *
+	 * In case of IO scheduler, flush rq need to borrow scheduler tag
+	 * just for cheating put/get driver tag.
 	 */
 	if (q->mq_ops) {
 		struct blk_mq_hw_ctx *hctx;
 
 		flush_rq->mq_ctx = first_rq->mq_ctx;
-		flush_rq->tag = first_rq->tag;
-		fq->orig_rq = first_rq;
 
-		hctx = blk_mq_map_queue(q, first_rq->mq_ctx->cpu);
-		blk_mq_tag_set_rq(hctx, first_rq->tag, flush_rq);
+		if (!q->elevator) {
+			fq->orig_rq = first_rq;
+			flush_rq->tag = first_rq->tag;
+			hctx = blk_mq_map_queue(q, first_rq->mq_ctx->cpu);
+			blk_mq_tag_set_rq(hctx, first_rq->tag, flush_rq);
+		} else {
+			flush_rq->internal_tag = first_rq->internal_tag;
+		}
 	}
 
 	flush_rq->cmd_flags = REQ_OP_FLUSH | REQ_PREFLUSH;
@@ -393,6 +405,11 @@ static void mq_flush_data_end_io(struct request *rq, blk_status_t error)
 	struct blk_flush_queue *fq = blk_get_flush_queue(q, ctx);
 
 	hctx = blk_mq_map_queue(q, ctx->cpu);
+
+	if (q->elevator) {
+		WARN_ON(rq->tag < 0);
+		blk_mq_put_driver_tag_hctx(hctx, rq);
+	}
 
 	/*
 	 * After populating an empty queue, kick it to avoid stall.  Read

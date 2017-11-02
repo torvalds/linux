@@ -356,27 +356,10 @@ static bool blk_mq_sched_bypass_insert(struct blk_mq_hw_ctx *hctx,
 		return true;
 	}
 
-	if (has_sched) {
+	if (has_sched)
 		rq->rq_flags |= RQF_SORTED;
-		WARN_ON(rq->tag != -1);
-	}
 
 	return false;
-}
-
-/*
- * Add flush/fua to the queue. If we fail getting a driver tag, then
- * punt to the requeue list. Requeue will re-invoke us from a context
- * that's safe to block from.
- */
-static void blk_mq_sched_insert_flush(struct blk_mq_hw_ctx *hctx,
-				      struct request *rq, bool can_block)
-{
-	if (blk_mq_get_driver_tag(rq, &hctx, can_block)) {
-		blk_insert_flush(rq);
-		blk_mq_run_hw_queue(hctx, true);
-	} else
-		blk_mq_add_to_requeue_list(rq, false, true);
 }
 
 void blk_mq_sched_insert_request(struct request *rq, bool at_head,
@@ -389,9 +372,11 @@ void blk_mq_sched_insert_request(struct request *rq, bool at_head,
 
 	/* flush rq in flush machinery need to be dispatched directly */
 	if (!(rq->rq_flags & RQF_FLUSH_SEQ) && op_is_flush(rq->cmd_flags)) {
-		blk_mq_sched_insert_flush(hctx, rq, can_block);
-		return;
+		blk_insert_flush(rq);
+		goto run;
 	}
+
+	WARN_ON(e && (rq->tag != -1));
 
 	if (blk_mq_sched_bypass_insert(hctx, !!e, rq))
 		goto run;
@@ -418,23 +403,6 @@ void blk_mq_sched_insert_requests(struct request_queue *q,
 {
 	struct blk_mq_hw_ctx *hctx = blk_mq_map_queue(q, ctx->cpu);
 	struct elevator_queue *e = hctx->queue->elevator;
-
-	if (e) {
-		struct request *rq, *next;
-
-		/*
-		 * We bypass requests that already have a driver tag assigned,
-		 * which should only be flushes. Flushes are only ever inserted
-		 * as single requests, so we shouldn't ever hit the
-		 * WARN_ON_ONCE() below (but let's handle it just in case).
-		 */
-		list_for_each_entry_safe(rq, next, list, queuelist) {
-			if (WARN_ON_ONCE(rq->tag != -1)) {
-				list_del_init(&rq->queuelist);
-				blk_mq_sched_bypass_insert(hctx, true, rq);
-			}
-		}
-	}
 
 	if (e && e->type->ops.mq.insert_requests)
 		e->type->ops.mq.insert_requests(hctx, list, false);
