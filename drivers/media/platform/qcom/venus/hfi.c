@@ -88,12 +88,6 @@ unlock:
 	return ret;
 }
 
-static int core_deinit_wait_atomic_t(atomic_t *p)
-{
-	schedule();
-	return 0;
-}
-
 int hfi_core_deinit(struct venus_core *core, bool blocking)
 {
 	int ret = 0, empty;
@@ -112,7 +106,7 @@ int hfi_core_deinit(struct venus_core *core, bool blocking)
 
 	if (!empty) {
 		mutex_unlock(&core->lock);
-		wait_on_atomic_t(&core->insts_count, core_deinit_wait_atomic_t,
+		wait_on_atomic_t(&core->insts_count, atomic_t_wait,
 				 TASK_UNINTERRUPTIBLE);
 		mutex_lock(&core->lock);
 	}

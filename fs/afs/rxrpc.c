@@ -41,12 +41,6 @@ static void afs_charge_preallocation(struct work_struct *);
 
 static DECLARE_WORK(afs_charge_preallocation_work, afs_charge_preallocation);
 
-static int afs_wait_atomic_t(atomic_t *p)
-{
-	schedule();
-	return 0;
-}
-
 /*
  * open an RxRPC socket and bind it to be a server for callback notifications
  * - the socket is left in blocking mode and non-blocking ops use MSG_DONTWAIT
@@ -121,7 +115,7 @@ void afs_close_socket(void)
 	}
 
 	_debug("outstanding %u", atomic_read(&afs_outstanding_calls));
-	wait_on_atomic_t(&afs_outstanding_calls, afs_wait_atomic_t,
+	wait_on_atomic_t(&afs_outstanding_calls, atomic_t_wait,
 			 TASK_UNINTERRUPTIBLE);
 	_debug("no outstanding calls");
 
