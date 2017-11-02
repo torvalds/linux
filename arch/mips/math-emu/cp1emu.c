@@ -1190,7 +1190,8 @@ emul:
 			if (!cpu_has_mips_r6 || delay_slot(xcp))
 				return SIGILL;
 
-			cond = likely = 0;
+			likely = 0;
+			cond = 0;
 			fpr = &current->thread.fpu.fpr[MIPSInst_RT(ir)];
 			bit0 = get_fpr32(fpr, 0) & 0x1;
 			switch (MIPSInst_RS(ir)) {
