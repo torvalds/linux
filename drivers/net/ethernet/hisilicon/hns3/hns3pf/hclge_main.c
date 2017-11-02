@@ -4446,7 +4446,14 @@ static int hclge_init_ae_dev(struct hnae3_ae_dev *ae_dev)
 		goto err_pci_init;
 	}
 
-	/* Command queue initialize */
+	/* Firmware command queue initialize */
+	ret = hclge_cmd_queue_init(hdev);
+	if (ret) {
+		dev_err(&pdev->dev, "Cmd queue init failed, ret = %d.\n", ret);
+		return ret;
+	}
+
+	/* Firmware command initialize */
 	ret = hclge_cmd_init(hdev);
 	if (ret)
 		goto err_cmd_init;
