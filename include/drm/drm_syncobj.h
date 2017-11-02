@@ -49,7 +49,7 @@ struct drm_syncobj {
 	 * This field should not be used directly.  Use drm_syncobj_fence_get
 	 * and drm_syncobj_replace_fence instead.
 	 */
-	struct dma_fence *fence;
+	struct dma_fence __rcu *fence;
 	/**
 	 * @cb_list:
 	 * List of callbacks to call when the fence gets replaced
