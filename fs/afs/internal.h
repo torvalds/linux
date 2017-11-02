@@ -71,6 +71,17 @@ enum afs_call_state {
 };
 
 /*
+ * List of server addresses.
+ */
+struct afs_addr_list {
+	struct rcu_head		rcu;		/* Must be first */
+	refcount_t		usage;
+	unsigned short		nr_addrs;
+	unsigned short		index;		/* Address currently in use */
+	struct sockaddr_rxrpc	addrs[];
+};
+
+/*
  * a record of an in-progress RxRPC call
  */
 struct afs_call {
@@ -283,16 +294,15 @@ struct afs_cell {
 #define AFS_CELL_FL_NO_GC	1		/* The cell was added manually, don't auto-gc */
 #define AFS_CELL_FL_NOT_FOUND	2		/* Permanent DNS error */
 #define AFS_CELL_FL_DNS_FAIL	3		/* Failed to access DNS */
+#define AFS_CELL_FL_NO_LOOKUP_YET 4		/* Not completed first DNS lookup yet */
 	enum afs_cell_state	state;
 	short			error;
 
 	spinlock_t		vl_lock;	/* vl_list lock */
 
 	/* VLDB server list. */
-	seqlock_t		vl_addrs_lock;
-	unsigned short		vl_naddrs;	/* number of VL servers in addr list */
-	unsigned short		vl_curr_svix;	/* current server index */
-	struct sockaddr_rxrpc	vl_addrs[AFS_CELL_MAX_ADDRS];	/* cell VL server addresses */
+	rwlock_t		vl_addrs_lock;	/* Lock on vl_addrs */
+	struct afs_addr_list	__rcu *vl_addrs; /* List of VL servers */
 	u8			name_len;	/* Length of name */
 	char			name[64 + 1];	/* Cell name, case-flattened and NUL-padded */
 };
@@ -343,7 +353,7 @@ struct afs_vlocation {
 struct afs_server {
 	atomic_t		usage;
 	time64_t		time_of_death;	/* time at which put reduced usage to 0 */
-	struct sockaddr_rxrpc	addr;		/* server address */
+	struct afs_addr_list	__rcu *addrs;	/* List of addresses for this server */
 	struct afs_net		*net;		/* Network namespace in which the server resides */
 	struct afs_cell		*cell;		/* cell in which server resides */
 	struct list_head	link;		/* link in cell's server list */
@@ -485,7 +495,48 @@ struct afs_interface {
 	unsigned	mtu;		/* MTU of interface */
 };
 
+/*
+ * Cursor for iterating over a server's address list.
+ */
+struct afs_addr_cursor {
+	struct afs_addr_list	*alist;		/* Current address list (pins ref) */
+	struct sockaddr_rxrpc	*addr;
+	unsigned short		start;		/* Starting point in alist->addrs[] */
+	unsigned short		index;		/* Wrapping offset from start to current addr */
+	short			error;
+	bool			begun;		/* T if we've begun iteration */
+	bool			responded;	/* T if the current address responded */
+};
+
+/*
+ * Cursor for iterating over a set of fileservers.
+ */
+struct afs_fs_cursor {
+	struct afs_addr_cursor	ac;
+	struct afs_server	*server;	/* Current server (pins ref) */
+};
+
 /*****************************************************************************/
+/*
+ * addr_list.c
+ */
+static inline struct afs_addr_list *afs_get_addrlist(struct afs_addr_list *alist)
+{
+	if (alist)
+		refcount_inc(&alist->usage);
+	return alist;
+}
+extern struct afs_addr_list *afs_alloc_addrlist(unsigned int,
+						unsigned short,
+						unsigned short);
+extern void afs_put_addrlist(struct afs_addr_list *);
+extern struct afs_addr_list *afs_parse_text_addrs(const char *, size_t, char,
+						  unsigned short, unsigned short);
+extern struct afs_addr_list *afs_dns_query(struct afs_cell *, time64_t *);
+extern bool afs_iterate_addresses(struct afs_addr_cursor *);
+extern int afs_end_cursor(struct afs_addr_cursor *);
+extern int afs_set_vl_cursor(struct afs_addr_cursor *, struct afs_cell *);
+
 /*
  * cache.c
  */
@@ -521,17 +572,11 @@ static inline struct afs_cb_interest *afs_get_cb_interest(struct afs_cb_interest
 /*
  * cell.c
  */
- static inline struct afs_cell *afs_get_cell(struct afs_cell *cell)
-{
-	if (cell)
-		atomic_inc(&cell->usage);
-	return cell;
-}
-
 extern int afs_cell_init(struct afs_net *, const char *);
 extern struct afs_cell *afs_lookup_cell_rcu(struct afs_net *, const char *, unsigned);
 extern struct afs_cell *afs_lookup_cell(struct afs_net *, const char *, unsigned,
 					const char *, bool);
+extern struct afs_cell *afs_get_cell(struct afs_cell *);
 extern void afs_put_cell(struct afs_net *, struct afs_cell *);
 extern void afs_manage_cells(struct work_struct *);
 extern void afs_cells_timer(struct timer_list *);
@@ -574,40 +619,41 @@ extern int afs_flock(struct file *, int, struct file_lock *);
 /*
  * fsclient.c
  */
-extern int afs_fs_fetch_file_status(struct afs_server *, struct key *,
+extern int afs_fs_fetch_file_status(struct afs_fs_cursor *, struct key *,
 				    struct afs_vnode *, struct afs_volsync *,
 				    bool);
 extern int afs_fs_give_up_callbacks(struct afs_net *, struct afs_server *, bool);
-extern int afs_fs_fetch_data(struct afs_server *, struct key *,
+extern int afs_fs_fetch_data(struct afs_fs_cursor *, struct key *,
 			     struct afs_vnode *, struct afs_read *, bool);
-extern int afs_fs_create(struct afs_server *, struct key *,
+extern int afs_fs_create(struct afs_fs_cursor *, struct key *,
 			 struct afs_vnode *, const char *, umode_t,
 			 struct afs_fid *, struct afs_file_status *,
 			 struct afs_callback *, bool);
-extern int afs_fs_remove(struct afs_server *, struct key *,
+extern int afs_fs_remove(struct afs_fs_cursor *, struct key *,
 			 struct afs_vnode *, const char *, bool, bool);
-extern int afs_fs_link(struct afs_server *, struct key *, struct afs_vnode *,
+extern int afs_fs_link(struct afs_fs_cursor *, struct key *, struct afs_vnode *,
 		       struct afs_vnode *, const char *, bool);
-extern int afs_fs_symlink(struct afs_server *, struct key *,
+extern int afs_fs_symlink(struct afs_fs_cursor *, struct key *,
 			  struct afs_vnode *, const char *, const char *,
 			  struct afs_fid *, struct afs_file_status *, bool);
-extern int afs_fs_rename(struct afs_server *, struct key *,
+extern int afs_fs_rename(struct afs_fs_cursor *, struct key *,
 			 struct afs_vnode *, const char *,
 			 struct afs_vnode *, const char *, bool);
-extern int afs_fs_store_data(struct afs_server *, struct afs_writeback *,
+extern int afs_fs_store_data(struct afs_fs_cursor *, struct afs_writeback *,
 			     pgoff_t, pgoff_t, unsigned, unsigned, bool);
-extern int afs_fs_setattr(struct afs_server *, struct key *,
+extern int afs_fs_setattr(struct afs_fs_cursor *, struct key *,
 			  struct afs_vnode *, struct iattr *, bool);
-extern int afs_fs_get_volume_status(struct afs_server *, struct key *,
+extern int afs_fs_get_volume_status(struct afs_fs_cursor *, struct key *,
 				    struct afs_vnode *,
 				    struct afs_volume_status *, bool);
-extern int afs_fs_set_lock(struct afs_server *, struct key *,
+extern int afs_fs_set_lock(struct afs_fs_cursor *, struct key *,
 			   struct afs_vnode *, afs_lock_type_t, bool);
-extern int afs_fs_extend_lock(struct afs_server *, struct key *,
+extern int afs_fs_extend_lock(struct afs_fs_cursor *, struct key *,
 			      struct afs_vnode *, bool);
-extern int afs_fs_release_lock(struct afs_server *, struct key *,
+extern int afs_fs_release_lock(struct afs_fs_cursor *, struct key *,
 			       struct afs_vnode *, bool);
-extern int afs_fs_give_up_all_callbacks(struct afs_server *, struct key *, bool);
+extern int afs_fs_give_up_all_callbacks(struct afs_server *, struct afs_addr_cursor *,
+					struct key *, bool);
 
 /*
  * inode.c
@@ -697,7 +743,7 @@ extern void __net_exit afs_close_socket(struct afs_net *);
 extern void afs_charge_preallocation(struct work_struct *);
 extern void afs_put_call(struct afs_call *);
 extern int afs_queue_call_work(struct afs_call *);
-extern long afs_make_call(struct sockaddr_rxrpc *, struct afs_call *, gfp_t, bool);
+extern long afs_make_call(struct afs_addr_cursor *, struct afs_call *, gfp_t, bool);
 extern struct afs_call *afs_alloc_flat_call(struct afs_net *,
 					    const struct afs_call_type *,
 					    size_t, size_t);
@@ -751,13 +797,11 @@ extern void __exit afs_fs_exit(void);
 /*
  * vlclient.c
  */
-extern int afs_vl_get_entry_by_name(struct afs_net *,
-				    struct sockaddr_rxrpc *, struct key *,
-				    const char *, struct afs_cache_vlocation *,
-				    bool);
-extern int afs_vl_get_entry_by_id(struct afs_net *,
-				  struct sockaddr_rxrpc *, struct key *,
-				  afs_volid_t, afs_voltype_t,
+extern int afs_vl_get_entry_by_name(struct afs_net *, struct afs_addr_cursor *,
+				    struct key *, const char *,
+				    struct afs_cache_vlocation *, bool);
+extern int afs_vl_get_entry_by_id(struct afs_net *, struct afs_addr_cursor *,
+				  struct key *, afs_volid_t, afs_voltype_t,
 				  struct afs_cache_vlocation *, bool);
 
 /*
@@ -828,9 +872,11 @@ static inline struct afs_volume *afs_get_volume(struct afs_volume *volume)
 
 extern void afs_put_volume(struct afs_cell *, struct afs_volume *);
 extern struct afs_volume *afs_volume_lookup(struct afs_mount_params *);
-extern struct afs_server *afs_volume_pick_fileserver(struct afs_vnode *);
-extern int afs_volume_release_fileserver(struct afs_vnode *,
-					 struct afs_server *, int);
+extern void afs_init_fs_cursor(struct afs_fs_cursor *, struct afs_vnode *);
+extern int afs_set_fs_cursor(struct afs_fs_cursor *, struct afs_vnode *);
+extern bool afs_volume_pick_fileserver(struct afs_fs_cursor *, struct afs_vnode *);
+extern bool afs_iterate_fs_cursor(struct afs_fs_cursor *, struct afs_vnode *);
+extern int afs_end_fs_cursor(struct afs_fs_cursor *, struct afs_net *);
 
 /*
  * write.c

@@ -210,10 +210,44 @@ void afs_put_volume(struct afs_cell *cell, struct afs_volume *volume)
 }
 
 /*
+ * Initialise a filesystem server cursor for iterating over FS servers.
+ */
+void afs_init_fs_cursor(struct afs_fs_cursor *fc, struct afs_vnode *vnode)
+{
+	fc->ac.alist = NULL;
+	fc->ac.addr = NULL;
+	fc->ac.start = 0;
+	fc->ac.index = 0;
+	fc->ac.error = 0;
+	fc->server = NULL;
+}
+
+/*
+ * Set a filesystem server cursor for using a specific FS server.
+ */
+int afs_set_fs_cursor(struct afs_fs_cursor *fc, struct afs_vnode *vnode)
+{
+	afs_init_fs_cursor(fc, vnode);
+
+	read_seqlock_excl(&vnode->cb_lock);
+	if (vnode->cb_interest) {
+		if (vnode->cb_interest->server->fs_state == 0)
+			fc->server = afs_get_server(vnode->cb_interest->server);
+		else
+			fc->ac.error = vnode->cb_interest->server->fs_state;
+	} else {
+		fc->ac.error = -ESTALE;
+	}
+	read_sequnlock_excl(&vnode->cb_lock);
+
+	return fc->ac.error;
+}
+
+/*
  * pick a server to use to try accessing this volume
  * - returns with an elevated usage count on the server chosen
  */
-struct afs_server *afs_volume_pick_fileserver(struct afs_vnode *vnode)
+bool afs_volume_pick_fileserver(struct afs_fs_cursor *fc, struct afs_vnode *vnode)
 {
 	struct afs_volume *volume = vnode->volume;
 	struct afs_server *server;
@@ -223,19 +257,18 @@ struct afs_server *afs_volume_pick_fileserver(struct afs_vnode *vnode)
 
 	/* stick with the server we're already using if we can */
 	if (vnode->cb_interest && vnode->cb_interest->server->fs_state == 0) {
-		afs_get_server(vnode->cb_interest->server);
-		_leave(" = %p [current]", vnode->cb_interest->server);
-		return vnode->cb_interest->server;
+		fc->server = afs_get_server(vnode->cb_interest->server);
+		goto set_server;
 	}
 
 	down_read(&volume->server_sem);
 
 	/* handle the no-server case */
 	if (volume->nservers == 0) {
-		ret = volume->rjservers ? -ENOMEDIUM : -ESTALE;
+		fc->ac.error = volume->rjservers ? -ENOMEDIUM : -ESTALE;
 		up_read(&volume->server_sem);
-		_leave(" = %d [no servers]", ret);
-		return ERR_PTR(ret);
+		_leave(" = f [no servers %d]", fc->ac.error);
+		return false;
 	}
 
 	/* basically, just search the list for the first live server and use
@@ -280,13 +313,15 @@ struct afs_server *afs_volume_pick_fileserver(struct afs_vnode *vnode)
 		}
 	}
 
+error:
+	fc->ac.error = ret;
+
 	/* no available servers
 	 * - TODO: handle the no active servers case better
 	 */
-error:
 	up_read(&volume->server_sem);
-	_leave(" = %d", ret);
-	return ERR_PTR(ret);
+	_leave(" = f [%d]", fc->ac.error);
+	return false;
 
 picked_server:
 	/* Found an apparently healthy server.  We need to register an interest
@@ -296,37 +331,41 @@ picked_server:
 					      &volume->cb_interests[loop], server);
 	if (ret < 0)
 		goto error;
-	
-	afs_get_server(server);
+
+	fc->server = afs_get_server(server);
 	up_read(&volume->server_sem);
-	_leave(" = %p (picked %pIS)",
-	       server, &server->addr.transport);
-	return server;
+set_server:
+	fc->ac.alist = afs_get_addrlist(fc->server->addrs);
+	fc->ac.addr = &fc->ac.alist->addrs[0];
+	_debug("USING SERVER: %pIS\n", &fc->ac.addr->transport);
+	_leave(" = t (picked %pIS)", &fc->ac.addr->transport);
+	return true;
 }
 
 /*
  * release a server after use
  * - releases the ref on the server struct that was acquired by picking
  * - records result of using a particular server to access a volume
- * - return 0 to try again, 1 if okay or to issue error
- * - the caller must release the server struct if result was 0
+ * - return true to try again, false if okay or to issue error
+ * - the caller must release the server struct if result was false
  */
-int afs_volume_release_fileserver(struct afs_vnode *vnode,
-				  struct afs_server *server,
-				  int result)
+bool afs_iterate_fs_cursor(struct afs_fs_cursor *fc,
+			   struct afs_vnode *vnode)
 {
 	struct afs_volume *volume = vnode->volume;
+	struct afs_server *server = fc->server;
 	unsigned loop;
 
 	_enter("%s,%pIS,%d",
-	       volume->vlocation->vldb.name, &server->addr.transport, result);
+	       volume->vlocation->vldb.name, &fc->ac.addr->transport,
+	       fc->ac.error);
 
-	switch (result) {
+	switch (fc->ac.error) {
 		/* success */
 	case 0:
 		server->fs_state = 0;
-		_leave("");
-		return 1;
+		_leave(" = f");
+		return false;
 
 		/* the fileserver denied all knowledge of the volume */
 	case -ENOMEDIUM:
@@ -363,8 +402,9 @@ int afs_volume_release_fileserver(struct afs_vnode *vnode,
 		 */
 		up_write(&volume->server_sem);
 		afs_put_server(afs_v2net(vnode), server);
-		_leave(" [completely rejected]");
-		return 1;
+		fc->server = NULL;
+		_leave(" = f [completely rejected]");
+		return false;
 
 		/* problem reaching the server */
 	case -ENETUNREACH:
@@ -378,8 +418,8 @@ int afs_volume_release_fileserver(struct afs_vnode *vnode,
 		 */
 		spin_lock(&server->fs_lock);
 		if (!server->fs_state) {
-			server->fs_state = result;
-			printk("kAFS: SERVER DEAD state=%d\n", result);
+			server->fs_state = fc->ac.error;
+			printk("kAFS: SERVER DEAD state=%d\n", fc->ac.error);
 		}
 		spin_unlock(&server->fs_lock);
 		goto try_next_server;
@@ -390,8 +430,9 @@ int afs_volume_release_fileserver(struct afs_vnode *vnode,
 	case -ENONET:
 		/* tell the caller to accept the result */
 		afs_put_server(afs_v2net(vnode), server);
-		_leave(" [local failure]");
-		return 1;
+		fc->server = NULL;
+		_leave(" = f [local failure]");
+		return false;
 	}
 
 	/* tell the caller to loop around and try the next server */
@@ -399,6 +440,16 @@ try_next_server_upw:
 	up_write(&volume->server_sem);
 try_next_server:
 	afs_put_server(afs_v2net(vnode), server);
-	_leave(" [try next server]");
-	return 0;
+	_leave(" = t [try next server]");
+	return true;
+}
+
+/*
+ * Clean up a fileserver cursor.
+ */
+int afs_end_fs_cursor(struct afs_fs_cursor *fc, struct afs_net *net)
+{
+	afs_end_cursor(&fc->ac);
+	afs_put_server(net, fc->server);
+	return fc->ac.error;
 }

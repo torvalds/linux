@@ -114,7 +114,7 @@ static const struct afs_call_type afs_RXVLGetEntryById = {
  * dispatch a get volume entry by name operation
  */
 int afs_vl_get_entry_by_name(struct afs_net *net,
-			     struct sockaddr_rxrpc *addr,
+			     struct afs_addr_cursor *ac,
 			     struct key *key,
 			     const char *volname,
 			     struct afs_cache_vlocation *entry,
@@ -146,14 +146,14 @@ int afs_vl_get_entry_by_name(struct afs_net *net,
 		memset((void *) bp + volnamesz, 0, padsz);
 
 	/* initiate the call */
-	return afs_make_call(addr, call, GFP_KERNEL, async);
+	return afs_make_call(ac, call, GFP_KERNEL, async);
 }
 
 /*
  * dispatch a get volume entry by ID operation
  */
 int afs_vl_get_entry_by_id(struct afs_net *net,
-			   struct sockaddr_rxrpc *addr,
+			   struct afs_addr_cursor *ac,
 			   struct key *key,
 			   afs_volid_t volid,
 			   afs_voltype_t voltype,
@@ -179,5 +179,5 @@ int afs_vl_get_entry_by_id(struct afs_net *net,
 	*bp   = htonl(voltype);
 
 	/* initiate the call */
-	return afs_make_call(addr, call, GFP_KERNEL, async);
+	return afs_make_call(ac, call, GFP_KERNEL, async);
 }

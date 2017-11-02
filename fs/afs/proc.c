@@ -514,23 +514,23 @@ static int afs_proc_cell_vlservers_open(struct inode *inode, struct file *file)
  */
 static void *afs_proc_cell_vlservers_start(struct seq_file *m, loff_t *_pos)
 {
+	struct afs_addr_list *alist;
 	struct afs_cell *cell = m->private;
 	loff_t pos = *_pos;
 
-	_enter("cell=%p pos=%Ld", cell, *_pos);
+	rcu_read_lock();
 
-	/* lock the list against modification */
-	down_read(&cell->vl_sem);
+	alist = rcu_dereference(cell->vl_addrs);
 
 	/* allow for the header line */
 	if (!pos)
 		return (void *) 1;
 	pos--;
 
-	if (pos >= cell->vl_naddrs)
+	if (!alist || pos >= alist->nr_addrs)
 		return NULL;
 
-	return &cell->vl_addrs[pos];
+	return alist->addrs + pos;
 }
 
 /*
@@ -539,17 +539,18 @@ static void *afs_proc_cell_vlservers_start(struct seq_file *m, loff_t *_pos)
 static void *afs_proc_cell_vlservers_next(struct seq_file *p, void *v,
 					  loff_t *_pos)
 {
+	struct afs_addr_list *alist;
 	struct afs_cell *cell = p->private;
 	loff_t pos;
 
-	_enter("cell=%p{nad=%u} pos=%Ld", cell, cell->vl_naddrs, *_pos);
+	alist = rcu_dereference(cell->vl_addrs);
 
 	pos = *_pos;
 	(*_pos)++;
-	if (pos >= cell->vl_naddrs)
+	if (!alist || pos >= alist->nr_addrs)
 		return NULL;
 
-	return &cell->vl_addrs[pos];
+	return alist->addrs + pos;
 }
 
 /*
@@ -557,9 +558,7 @@ static void *afs_proc_cell_vlservers_next(struct seq_file *p, void *v,
  */
 static void afs_proc_cell_vlservers_stop(struct seq_file *p, void *v)
 {
-	struct afs_cell *cell = p->private;
-
-	up_read(&cell->vl_sem);
+	rcu_read_unlock();
 }
 
 /*
@@ -658,7 +657,7 @@ static int afs_proc_cell_servers_show(struct seq_file *m, void *v)
 	}
 
 	/* display one cell per line on subsequent lines */
-	sprintf(ipaddr, "%pISp", &server->addr.transport);
+	sprintf(ipaddr, "%pISp", &server->addrs->addrs[0].transport);
 	seq_printf(m, "%3d %-15s %5d\n",
 		   atomic_read(&server->usage), ipaddr, server->fs_state);
 

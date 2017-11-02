@@ -321,9 +321,10 @@ static int afs_send_pages(struct afs_call *call, struct msghdr *msg)
 /*
  * initiate a call
  */
-long afs_make_call(struct sockaddr_rxrpc *srx, struct afs_call *call,
+long afs_make_call(struct afs_addr_cursor *ac, struct afs_call *call,
 		   gfp_t gfp, bool async)
 {
+	struct sockaddr_rxrpc *srx = ac->addr;
 	struct rxrpc_call *rxcall;
 	struct msghdr msg;
 	struct kvec iov[1];

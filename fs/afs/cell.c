@@ -9,7 +9,6 @@
  * 2 of the License, or (at your option) any later version.
  */
 
-#include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/key.h>
 #include <linux/ctype.h>
@@ -152,68 +151,33 @@ static struct afs_cell *afs_alloc_cell(struct afs_net *net,
 	init_rwsem(&cell->vl_sem);
 	INIT_LIST_HEAD(&cell->vl_list);
 	spin_lock_init(&cell->vl_lock);
-	seqlock_init(&cell->vl_addrs_lock);
-	cell->flags = (1 << AFS_CELL_FL_NOT_READY);
-
-	for (i = 0; i < AFS_CELL_MAX_ADDRS; i++) {
-		struct sockaddr_rxrpc *srx = &cell->vl_addrs[i];
-		srx->srx_family			= AF_RXRPC;
-		srx->srx_service		= VL_SERVICE;
-		srx->transport_type		= SOCK_DGRAM;
-		srx->transport.sin6.sin6_family	= AF_INET6;
-		srx->transport.sin6.sin6_port	= htons(AFS_VL_PORT);
-	}
+	cell->flags = ((1 << AFS_CELL_FL_NOT_READY) |
+		       (1 << AFS_CELL_FL_NO_LOOKUP_YET));
+	rwlock_init(&cell->vl_addrs_lock);
 
 	/* Fill in the VL server list if we were given a list of addresses to
 	 * use.
 	 */
 	if (vllist) {
-		char delim = ':';
+		struct afs_addr_list *alist;
 
-		if (strchr(vllist, ',') || !strchr(vllist, '.'))
-			delim = ',';
+		alist = afs_parse_text_addrs(vllist, strlen(vllist), ':',
+					     VL_SERVICE, AFS_VL_PORT);
+		if (IS_ERR(alist)) {
+			ret = PTR_ERR(alist);
+			goto parse_failed;
+		}
 
-		do {
-			struct sockaddr_rxrpc *srx = &cell->vl_addrs[cell->vl_naddrs];
-
-			if (in4_pton(vllist, -1,
-				     (u8 *)&srx->transport.sin6.sin6_addr.s6_addr32[3],
-				     delim, &vllist)) {
-				srx->transport_len = sizeof(struct sockaddr_in6);
-				srx->transport.sin6.sin6_addr.s6_addr32[0] = 0;
-				srx->transport.sin6.sin6_addr.s6_addr32[1] = 0;
-				srx->transport.sin6.sin6_addr.s6_addr32[2] = htonl(0xffff);
-			} else if (in6_pton(vllist, -1,
-					    srx->transport.sin6.sin6_addr.s6_addr,
-					    delim, &vllist)) {
-				srx->transport_len = sizeof(struct sockaddr_in6);
-				srx->transport.sin6.sin6_family	= AF_INET6;
-			} else {
-				goto bad_address;
-			}
-
-			cell->vl_naddrs++;
-			if (!*vllist)
-				break;
-			vllist++;
-
-		} while (cell->vl_naddrs < AFS_CELL_MAX_ADDRS && vllist);
-
-		/* Disable DNS refresh for manually-specified cells */
+		rcu_assign_pointer(cell->vl_addrs, alist);
 		cell->dns_expiry = TIME64_MAX;
-	} else {
-		/* We're going to need to 'refresh' this cell's VL server list
-		 * from the DNS before we can use it.
-		 */
-		cell->dns_expiry = S64_MIN;
 	}
 
 	_leave(" = %p", cell);
 	return cell;
 
-bad_address:
-	printk(KERN_ERR "kAFS: bad VL server IP address\n");
-	ret = -EINVAL;
+parse_failed:
+	if (ret == -EINVAL)
+		printk(KERN_ERR "kAFS: bad VL server IP address\n");
 	kfree(cell);
 	_leave(" = %d", ret);
 	return ERR_PTR(ret);
@@ -325,7 +289,6 @@ cell_already_exists:
 	if (excl) {
 		ret = -EEXIST;
 	} else {
-		ASSERTCMP(atomic_read(&cursor->usage), >=, 1);
 		afs_get_cell(cursor);
 		ret = 0;
 	}
@@ -333,8 +296,10 @@ cell_already_exists:
 	kfree(candidate);
 	if (ret == 0)
 		goto wait_for_cell;
+	goto error_noput;
 error:
 	afs_put_cell(net, cell);
+error_noput:
 	_leave(" = %d [error]", ret);
 	return ERR_PTR(ret);
 }
@@ -396,78 +361,50 @@ int afs_cell_init(struct afs_net *net, const char *rootcell)
  */
 static void afs_update_cell(struct afs_cell *cell)
 {
+	struct afs_addr_list *alist, *old;
 	time64_t now, expiry;
-	char *vllist = NULL;
-	int ret;
 
 	_enter("%s", cell->name);
 
-	ret = dns_query("afsdb", cell->name, cell->name_len,
-			"ipv4", &vllist, &expiry);
-	_debug("query %d", ret);
-	switch (ret) {
-	case 0 ... INT_MAX:
-		clear_bit(AFS_CELL_FL_DNS_FAIL, &cell->flags);
-		clear_bit(AFS_CELL_FL_NOT_FOUND, &cell->flags);
-		goto parse_dns_data;
+	alist = afs_dns_query(cell, &expiry);
+	if (IS_ERR(alist)) {
+		switch (PTR_ERR(alist)) {
+		case -ENODATA:
+			/* The DNS said that the cell does not exist */
+			set_bit(AFS_CELL_FL_NOT_FOUND, &cell->flags);
+			clear_bit(AFS_CELL_FL_DNS_FAIL, &cell->flags);
+			cell->dns_expiry = ktime_get_real_seconds() + 61;
+			break;
 
-	case -ENODATA:
-		clear_bit(AFS_CELL_FL_DNS_FAIL, &cell->flags);
-		set_bit(AFS_CELL_FL_NOT_FOUND, &cell->flags);
-		cell->dns_expiry = ktime_get_real_seconds() + 61;
-		cell->error = -EDESTADDRREQ;
-		goto out;
-
-	case -EAGAIN:
-	case -ECONNREFUSED:
-	default:
-		/* Unable to query DNS. */
-		set_bit(AFS_CELL_FL_DNS_FAIL, &cell->flags);
-		cell->dns_expiry = ktime_get_real_seconds() + 10;
-		cell->error = -EDESTADDRREQ;
-		goto out;
-	}
-
-parse_dns_data:
-	write_seqlock(&cell->vl_addrs_lock);
-
-	ret = -EINVAL;
-	do {
-		struct sockaddr_rxrpc *srx = &cell->vl_addrs[cell->vl_naddrs];
-
-		if (in4_pton(vllist, -1,
-			     (u8 *)&srx->transport.sin6.sin6_addr.s6_addr32[3],
-			     ',', (const char **)&vllist)) {
-			srx->transport_len = sizeof(struct sockaddr_in6);
-			srx->transport.sin6.sin6_addr.s6_addr32[0] = 0;
-			srx->transport.sin6.sin6_addr.s6_addr32[1] = 0;
-			srx->transport.sin6.sin6_addr.s6_addr32[2] = htonl(0xffff);
-		} else if (in6_pton(vllist, -1,
-				    srx->transport.sin6.sin6_addr.s6_addr,
-				    ',', (const char **)&vllist)) {
-			srx->transport_len = sizeof(struct sockaddr_in6);
-			srx->transport.sin6.sin6_family	= AF_INET6;
-		} else {
-			goto bad_address;
+		case -EAGAIN:
+		case -ECONNREFUSED:
+		default:
+			set_bit(AFS_CELL_FL_DNS_FAIL, &cell->flags);
+			cell->dns_expiry = ktime_get_real_seconds() + 10;
+			break;
 		}
 
-		cell->vl_naddrs++;
-		if (!*vllist)
-			break;
-		vllist++;
+		cell->error = -EDESTADDRREQ;
+	} else {
+		clear_bit(AFS_CELL_FL_DNS_FAIL, &cell->flags);
+		clear_bit(AFS_CELL_FL_NOT_FOUND, &cell->flags);
 
-	} while (cell->vl_naddrs < AFS_CELL_MAX_ADDRS);
+		/* Exclusion on changing vl_addrs is achieved by a
+		 * non-reentrant work item.
+		 */
+		old = rcu_dereference_protected(cell->vl_addrs, true);
+		rcu_assign_pointer(cell->vl_addrs, alist);
+		cell->dns_expiry = expiry;
 
-	if (cell->vl_naddrs < AFS_CELL_MAX_ADDRS)
-		memset(cell->vl_addrs + cell->vl_naddrs, 0,
-		       (AFS_CELL_MAX_ADDRS - cell->vl_naddrs) * sizeof(cell->vl_addrs[0]));
+		if (old)
+			afs_put_addrlist(old);
+	}
+
+	if (test_and_clear_bit(AFS_CELL_FL_NO_LOOKUP_YET, &cell->flags))
+		wake_up_bit(&cell->flags, AFS_CELL_FL_NO_LOOKUP_YET);
 
 	now = ktime_get_real_seconds();
-	cell->dns_expiry = expiry;
-	afs_set_cell_timer(cell->net, expiry - now);
-bad_address:
-	write_sequnlock(&cell->vl_addrs_lock);
-out:
+	afs_set_cell_timer(cell->net, cell->dns_expiry - now);
 	_leave("");
 }
 
@@ -482,6 +419,7 @@ static void afs_cell_destroy(struct rcu_head *rcu)
 
 	ASSERTCMP(atomic_read(&cell->usage), ==, 0);
 
+	afs_put_addrlist(cell->vl_addrs);
 	key_put(cell->anonymous_key);
 	kfree(cell);
 
@@ -512,6 +450,15 @@ void afs_cells_timer(struct timer_list *timer)
 	_enter("");
 	if (!queue_work(afs_wq, &net->cells_manager))
 		afs_dec_cells_outstanding(net);
+}
+
+/*
+ * Get a reference on a cell record.
+ */
+struct afs_cell *afs_get_cell(struct afs_cell *cell)
+{
+	atomic_inc(&cell->usage);
+	return cell;
 }
 
 /*

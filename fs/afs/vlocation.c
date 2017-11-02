@@ -29,22 +29,25 @@ static int afs_vlocation_access_vl_by_name(struct afs_vlocation *vl,
 					   struct key *key,
 					   struct afs_cache_vlocation *vldb)
 {
-	struct afs_cell *cell = vl->cell;
-	int count, ret;
+	struct afs_addr_cursor ac;
+	int ret;
 
-	_enter("%s,%s", cell->name, vl->vldb.name);
+	_enter("%s,%s", vl->cell->name, vl->vldb.name);
+
+	ret = afs_set_vl_cursor(&ac, vl->cell);
+	if (ret < 0)
+		return ret;
 
 	down_write(&vl->cell->vl_sem);
+	
 	ret = -ENOMEDIUM;
-	for (count = cell->vl_naddrs; count > 0; count--) {
-		struct sockaddr_rxrpc *addr = &cell->vl_addrs[cell->vl_curr_svix];
-
-		_debug("CellServ[%hu]: %pIS", cell->vl_curr_svix, &addr->transport);
+	while (afs_iterate_addresses(&ac)) {
+		_debug("CellServ[%hu]: %pIS", ac.index, &ac.addr->transport);
 
 		/* attempt to access the VL server */
-		ret = afs_vl_get_entry_by_name(cell->net, addr, key,
-					       vl->vldb.name, vldb, false);
-		switch (ret) {
+		ac.error = afs_vl_get_entry_by_name(vl->cell->net, &ac, key,
+						    vl->vldb.name, vldb, false);
+		switch (ac.error) {
 		case 0:
 			goto out;
 		case -ENOMEM:
@@ -52,26 +55,24 @@ static int afs_vlocation_access_vl_by_name(struct afs_vlocation *vl,
 		case -ENETUNREACH:
 		case -EHOSTUNREACH:
 		case -ECONNREFUSED:
-			if (ret == -ENOMEM || ret == -ENONET)
+			if (ac.error == -ENOMEM || ac.error == -ENONET)
 				goto out;
-			goto rotate;
+			break;
 		case -ENOMEDIUM:
 		case -EKEYREJECTED:
 		case -EKEYEXPIRED:
+			ac.responded = true;
 			goto out;
 		default:
-			ret = -EIO;
-			goto rotate;
+			ac.responded = true;
+			ac.error = -EIO;
+			break;
 		}
-
-		/* rotate the server records upon lookup failure */
-	rotate:
-		cell->vl_curr_svix++;
-		cell->vl_curr_svix %= cell->vl_naddrs;
 	}
 
 out:
 	up_write(&vl->cell->vl_sem);
+	ret = afs_end_cursor(&ac);
 	_leave(" = %d", ret);
 	return ret;
 }
@@ -86,22 +87,24 @@ static int afs_vlocation_access_vl_by_id(struct afs_vlocation *vl,
 					 afs_voltype_t voltype,
 					 struct afs_cache_vlocation *vldb)
 {
-	struct afs_cell *cell = vl->cell;
-	int count, ret;
+	struct afs_addr_cursor ac;
+	int ret;
 
-	_enter("%s,%x,%d,", cell->name, volid, voltype);
+	_enter("%s,%x,%d,", vl->cell->name, volid, voltype);
+
+	ret = afs_set_vl_cursor(&ac, vl->cell);
+	if (ret < 0)
+		return ret;
 
 	down_write(&vl->cell->vl_sem);
 	ret = -ENOMEDIUM;
-	for (count = cell->vl_naddrs; count > 0; count--) {
-		struct sockaddr_rxrpc *addr = &cell->vl_addrs[cell->vl_curr_svix];
-
-		_debug("CellServ[%hu]: %pIS", cell->vl_curr_svix, &addr->transport);
+	while (afs_iterate_addresses(&ac)) {
+		_debug("CellServ[%hu]: %pIS", ac.index, &ac.addr->transport);
 
 		/* attempt to access the VL server */
-		ret = afs_vl_get_entry_by_id(cell->net, addr, key, volid,
-					     voltype, vldb, false);
-		switch (ret) {
+		ac.error = afs_vl_get_entry_by_id(vl->cell->net, &ac, key, volid,
+						  voltype, vldb, false);
+		switch (ac.error) {
 		case 0:
 			goto out;
 		case -ENOMEM:
@@ -109,10 +112,11 @@ static int afs_vlocation_access_vl_by_id(struct afs_vlocation *vl,
 		case -ENETUNREACH:
 		case -EHOSTUNREACH:
 		case -ECONNREFUSED:
-			if (ret == -ENOMEM || ret == -ENONET)
+			if (ac.error == -ENOMEM || ac.error == -ENONET)
 				goto out;
 			goto rotate;
 		case -EBUSY:
+			ac.responded = true;
 			vl->upd_busy_cnt++;
 			if (vl->upd_busy_cnt <= 3) {
 				if (vl->upd_busy_cnt > 1) {
@@ -124,30 +128,31 @@ static int afs_vlocation_access_vl_by_id(struct afs_vlocation *vl,
 			}
 			break;
 		case -ENOMEDIUM:
+			ac.responded = true;
 			vl->upd_rej_cnt++;
 			goto rotate;
 		default:
-			ret = -EIO;
+			ac.responded = true;
+			ac.error = -EIO;
 			goto rotate;
 		}
 
 		/* rotate the server records upon lookup failure */
 	rotate:
-		cell->vl_curr_svix++;
-		cell->vl_curr_svix %= cell->vl_naddrs;
 		vl->upd_busy_cnt = 0;
 	}
 
 out:
-	if (ret < 0 && vl->upd_rej_cnt > 0) {
+	if (ac.error < 0 && vl->upd_rej_cnt > 0) {
 		printk(KERN_NOTICE "kAFS:"
 		       " Active volume no longer valid '%s'\n",
 		       vl->vldb.name);
 		vl->valid = 0;
-		ret = -ENOMEDIUM;
+		ac.error = -ENOMEDIUM;
 	}
 
 	up_write(&vl->cell->vl_sem);
+	ret = afs_end_cursor(&ac);
 	_leave(" = %d", ret);
 	return ret;
 }
