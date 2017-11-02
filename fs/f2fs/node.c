@@ -2629,7 +2629,7 @@ static inline void load_free_nid_bitmap(struct f2fs_sb_info *sbi)
 		__set_bit_le(i, nm_i->nat_block_bitmap);
 
 		nid = i * NAT_ENTRY_PER_BLOCK;
-		last_nid = (i + 1) * NAT_ENTRY_PER_BLOCK;
+		last_nid = nid + NAT_ENTRY_PER_BLOCK;
 
 		spin_lock(&NM_I(sbi)->nid_list_lock);
 		for (; nid < last_nid; nid++)
