@@ -98,15 +98,6 @@
 	.endm
 
 /*
- * Enable both debug exceptions and interrupts. This is likely to be
- * faster than two daifclr operations, since writes to this register
- * are self-synchronising.
- */
-	.macro	enable_dbg_and_irq
-	msr	daifclr, #(8 | 2)
-	.endm
-
-/*
  * SMP data memory barrier
  */
 	.macro	smp_dmb, opt
