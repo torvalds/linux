@@ -55,6 +55,7 @@
 #include <asm/irq.h>
 #include <asm/traps.h>
 #include <asm/vm86.h>
+#include <asm/switch_to.h>
 
 /*
  * Known problems:
@@ -150,6 +151,7 @@ void save_v86_state(struct kernel_vm86_regs *regs, int retval)
 	tsk->thread.sp0 = vm86->saved_sp0;
 	tsk->thread.sysenter_cs = __KERNEL_CS;
 	load_sp0(tss, &tsk->thread);
+	refresh_sysenter_cs(&tsk->thread);
 	vm86->saved_sp0 = 0;
 	put_cpu();
 
@@ -369,8 +371,10 @@ static long do_sys_vm86(struct vm86plus_struct __user *user_vm86, bool plus)
 	/* make room for real-mode segments */
 	tsk->thread.sp0 += 16;
 
-	if (static_cpu_has(X86_FEATURE_SEP))
+	if (static_cpu_has(X86_FEATURE_SEP)) {
 		tsk->thread.sysenter_cs = 0;
+		refresh_sysenter_cs(&tsk->thread);
+	}
 
 	load_sp0(tss, &tsk->thread);
 	put_cpu();

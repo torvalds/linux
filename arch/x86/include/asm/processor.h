@@ -521,13 +521,6 @@ static inline void
 native_load_sp0(struct tss_struct *tss, struct thread_struct *thread)
 {
 	tss->x86_tss.sp0 = thread->sp0;
-#ifdef CONFIG_X86_32
-	/* Only happens when SEP is enabled, no need to test "SEP"arately: */
-	if (unlikely(tss->x86_tss.ss1 != thread->sysenter_cs)) {
-		tss->x86_tss.ss1 = thread->sysenter_cs;
-		wrmsr(MSR_IA32_SYSENTER_CS, thread->sysenter_cs, 0);
-	}
-#endif
 }
 
 static inline void native_swapgs(void)

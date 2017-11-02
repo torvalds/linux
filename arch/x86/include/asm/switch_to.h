@@ -73,4 +73,16 @@ do {									\
 	((last) = __switch_to_asm((prev), (next)));			\
 } while (0)
 
+#ifdef CONFIG_X86_32
+static inline void refresh_sysenter_cs(struct thread_struct *thread)
+{
+	/* Only happens when SEP is enabled, no need to test "SEP"arately: */
+	if (unlikely(this_cpu_read(cpu_tss.x86_tss.ss1) == thread->sysenter_cs))
+		return;
+
+	this_cpu_write(cpu_tss.x86_tss.ss1, thread->sysenter_cs);
+	wrmsr(MSR_IA32_SYSENTER_CS, thread->sysenter_cs, 0);
+}
+#endif
+
 #endif /* _ASM_X86_SWITCH_TO_H */
