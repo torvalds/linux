@@ -491,6 +491,7 @@ static void kobil_set_termios(struct tty_struct *tty,
 		break;
 	default:
 		speed = 9600;
+		/* fall through */
 	case 9600:
 		urb_val = SUSBCR_SBR_9600;
 		break;
