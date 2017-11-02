@@ -988,6 +988,7 @@ int ovl_indexdir_cleanup(struct dentry *dentry, struct vfsmount *mnt,
 			 struct path *lowerstack, unsigned int numlower)
 {
 	int err;
+	struct dentry *index = NULL;
 	struct inode *dir = dentry->d_inode;
 	struct path path = { .mnt = mnt, .dentry = dentry };
 	LIST_HEAD(list);
@@ -1007,8 +1008,6 @@ int ovl_indexdir_cleanup(struct dentry *dentry, struct vfsmount *mnt,
 
 	inode_lock_nested(dir, I_MUTEX_PARENT);
 	list_for_each_entry(p, &list, l_node) {
-		struct dentry *index;
-
 		if (p->name[0] == '.') {
 			if (p->len == 1)
 				continue;
@@ -1018,18 +1017,20 @@ int ovl_indexdir_cleanup(struct dentry *dentry, struct vfsmount *mnt,
 		index = lookup_one_len(p->name, dentry, p->len);
 		if (IS_ERR(index)) {
 			err = PTR_ERR(index);
+			index = NULL;
 			break;
 		}
 		err = ovl_verify_index(index, lowerstack, numlower);
-		if (err) {
-			if (err == -EROFS)
-				break;
+		/* Cleanup stale and orphan index entries */
+		if (err && (err == -ESTALE || err == -ENOENT))
 			err = ovl_cleanup(dir, index);
-			if (err)
-				break;
-		}
+		if (err)
+			break;
+
 		dput(index);
+		index = NULL;
 	}
+	dput(index);
 	inode_unlock(dir);
 out:
 	ovl_cache_free(&list);

@@ -83,6 +83,8 @@ const struct mdp5_cfg_hw msm8x74v1_config = {
 				  .caps = MDP_LM_CAP_WB },
 			     },
 		.nb_stages = 5,
+		.max_width = 2048,
+		.max_height = 0xFFFF,
 	},
 	.dspp = {
 		.count = 3,

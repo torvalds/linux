@@ -77,6 +77,8 @@ out:
 }
 EXPORT_SYMBOL(register_tcf_proto_ops);
 
+static struct workqueue_struct *tc_filter_wq;
+
 int unregister_tcf_proto_ops(struct tcf_proto_ops *ops)
 {
 	struct tcf_proto_ops *t;
@@ -86,6 +88,7 @@ int unregister_tcf_proto_ops(struct tcf_proto_ops *ops)
 	 * tcf_proto_ops's destroy() handler.
 	 */
 	rcu_barrier();
+	flush_workqueue(tc_filter_wq);
 
 	write_lock(&cls_mod_lock);
 	list_for_each_entry(t, &tcf_proto_base, head) {
@@ -99,6 +102,12 @@ int unregister_tcf_proto_ops(struct tcf_proto_ops *ops)
 	return rc;
 }
 EXPORT_SYMBOL(unregister_tcf_proto_ops);
+
+bool tcf_queue_work(struct work_struct *work)
+{
+	return queue_work(tc_filter_wq, work);
+}
+EXPORT_SYMBOL(tcf_queue_work);
 
 /* Select new prio value from the range, managed by kernel. */
 
@@ -266,23 +275,30 @@ err_chain_create:
 }
 EXPORT_SYMBOL(tcf_block_get);
 
-void tcf_block_put(struct tcf_block *block)
+static void tcf_block_put_final(struct work_struct *work)
 {
+	struct tcf_block *block = container_of(work, struct tcf_block, work);
 	struct tcf_chain *chain, *tmp;
 
-	if (!block)
-		return;
+	/* At this point, all the chains should have refcnt == 1. */
+	rtnl_lock();
+	list_for_each_entry_safe(chain, tmp, &block->chain_list, list)
+		tcf_chain_put(chain);
+	rtnl_unlock();
+	kfree(block);
+}
 
-	/* XXX: Standalone actions are not allowed to jump to any chain, and
-	 * bound actions should be all removed after flushing. However,
-	 * filters are destroyed in RCU callbacks, we have to hold the chains
-	 * first, otherwise we would always race with RCU callbacks on this list
-	 * without proper locking.
-	 */
+/* XXX: Standalone actions are not allowed to jump to any chain, and bound
+ * actions should be all removed after flushing. However, filters are destroyed
+ * in RCU callbacks, we have to hold the chains first, otherwise we would
+ * always race with RCU callbacks on this list without proper locking.
+ */
+static void tcf_block_put_deferred(struct work_struct *work)
+{
+	struct tcf_block *block = container_of(work, struct tcf_block, work);
+	struct tcf_chain *chain;
 
-	/* Wait for existing RCU callbacks to cool down. */
-	rcu_barrier();
-
+	rtnl_lock();
 	/* Hold a refcnt for all chains, except 0, in case they are gone. */
 	list_for_each_entry(chain, &block->chain_list, list)
 		if (chain->index)
@@ -292,13 +308,27 @@ void tcf_block_put(struct tcf_block *block)
 	list_for_each_entry(chain, &block->chain_list, list)
 		tcf_chain_flush(chain);
 
-	/* Wait for RCU callbacks to release the reference count. */
+	INIT_WORK(&block->work, tcf_block_put_final);
+	/* Wait for RCU callbacks to release the reference count and make
+	 * sure their works have been queued before this.
+	 */
 	rcu_barrier();
+	tcf_queue_work(&block->work);
+	rtnl_unlock();
+}
 
-	/* At this point, all the chains should have refcnt == 1. */
-	list_for_each_entry_safe(chain, tmp, &block->chain_list, list)
-		tcf_chain_put(chain);
-	kfree(block);
+void tcf_block_put(struct tcf_block *block)
+{
+	if (!block)
+		return;
+
+	INIT_WORK(&block->work, tcf_block_put_deferred);
+	/* Wait for existing RCU callbacks to cool down, make sure their works
+	 * have been queued before this. We can not flush pending works here
+	 * because we are holding the RTNL lock.
+	 */
+	rcu_barrier();
+	tcf_queue_work(&block->work);
 }
 EXPORT_SYMBOL(tcf_block_put);
 
@@ -879,6 +909,7 @@ void tcf_exts_destroy(struct tcf_exts *exts)
 #ifdef CONFIG_NET_CLS_ACT
 	LIST_HEAD(actions);
 
+	ASSERT_RTNL();
 	tcf_exts_to_list(exts, &actions);
 	tcf_action_destroy(&actions, TCA_ACT_UNBIND);
 	kfree(exts->actions);
@@ -1030,6 +1061,10 @@ EXPORT_SYMBOL(tcf_exts_get_dev);
 
 static int __init tc_filter_init(void)
 {
+	tc_filter_wq = alloc_ordered_workqueue("tc_filter_workqueue", 0);
+	if (!tc_filter_wq)
+		return -ENOMEM;
+
 	rtnl_register(PF_UNSPEC, RTM_NEWTFILTER, tc_ctl_tfilter, NULL, 0);
 	rtnl_register(PF_UNSPEC, RTM_DELTFILTER, tc_ctl_tfilter, NULL, 0);
 	rtnl_register(PF_UNSPEC, RTM_GETTFILTER, tc_ctl_tfilter,

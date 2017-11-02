@@ -2387,7 +2387,7 @@ broadcast: Like active-backup, there is not much advantage to this
 	and packet type ID), so in a "gatewayed" configuration, all
 	outgoing traffic will generally use the same device.  Incoming
 	traffic may also end up on a single device, but that is
-	dependent upon the balancing policy of the peer's 8023.ad
+	dependent upon the balancing policy of the peer's 802.3ad
 	implementation.  In a "local" configuration, traffic will be
 	distributed across the devices in the bond.
 

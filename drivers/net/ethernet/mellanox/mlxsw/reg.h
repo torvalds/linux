@@ -6401,6 +6401,36 @@ static inline void mlxsw_reg_mgpc_pack(char *payload, u32 counter_index,
 	mlxsw_reg_mgpc_opcode_set(payload, opcode);
 }
 
+/* TIGCR - Tunneling IPinIP General Configuration Register
+ * -------------------------------------------------------
+ * The TIGCR register is used for setting up the IPinIP Tunnel configuration.
+ */
+#define MLXSW_REG_TIGCR_ID 0xA801
+#define MLXSW_REG_TIGCR_LEN 0x10
+
+MLXSW_REG_DEFINE(tigcr, MLXSW_REG_TIGCR_ID, MLXSW_REG_TIGCR_LEN);
+
+/* reg_tigcr_ipip_ttlc
+ * For IPinIP Tunnel encapsulation: whether to copy the ttl from the packet
+ * header.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, tigcr, ttlc, 0x04, 8, 1);
+
+/* reg_tigcr_ipip_ttl_uc
+ * The TTL for IPinIP Tunnel encapsulation of unicast packets if
+ * reg_tigcr_ipip_ttlc is unset.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, tigcr, ttl_uc, 0x04, 0, 8);
+
+static inline void mlxsw_reg_tigcr_pack(char *payload, bool ttlc, u8 ttl_uc)
+{
+	MLXSW_REG_ZERO(tigcr, payload);
+	mlxsw_reg_tigcr_ttlc_set(payload, ttlc);
+	mlxsw_reg_tigcr_ttl_uc_set(payload, ttl_uc);
+}
+
 /* SBPR - Shared Buffer Pools Register
  * -----------------------------------
  * The SBPR configures and retrieves the shared buffer pools and configuration.
@@ -6881,6 +6911,7 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(mcc),
 	MLXSW_REG(mcda),
 	MLXSW_REG(mgpc),
+	MLXSW_REG(tigcr),
 	MLXSW_REG(sbpr),
 	MLXSW_REG(sbcm),
 	MLXSW_REG(sbpm),

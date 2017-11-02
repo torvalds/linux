@@ -57,6 +57,8 @@ struct key *find_asymmetric_key(struct key *keyring,
 	char *req, *p;
 	int len;
 
+	BUG_ON(!id_0 && !id_1);
+
 	if (id_0) {
 		lookup = id_0->data;
 		len = id_0->len;
@@ -105,7 +107,7 @@ struct key *find_asymmetric_key(struct key *keyring,
 	if (id_0 && id_1) {
 		const struct asymmetric_key_ids *kids = asymmetric_key_ids(key);
 
-		if (!kids->id[0]) {
+		if (!kids->id[1]) {
 			pr_debug("First ID matches, but second is missing\n");
 			goto reject;
 		}

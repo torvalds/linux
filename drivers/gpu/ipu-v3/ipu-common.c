@@ -405,6 +405,14 @@ int ipu_idmac_lock_enable(struct ipuv3_channel *channel, int num_bursts)
 		return -EINVAL;
 	}
 
+	/*
+	 * IPUv3EX / i.MX51 has a different register layout, and on IPUv3M /
+	 * i.MX53 channel arbitration locking doesn't seem to work properly.
+	 * Allow enabling the lock feature on IPUv3H / i.MX6 only.
+	 */
+	if (bursts && ipu->ipu_type != IPUV3H)
+		return -EINVAL;
+
 	for (i = 0; i < ARRAY_SIZE(idmac_lock_en_info); i++) {
 		if (channel->num == idmac_lock_en_info[i].chnum)
 			break;
