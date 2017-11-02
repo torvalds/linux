@@ -811,7 +811,7 @@ do {									\
 #define SITOREG(si, x)							\
 do {									\
 	if (cop1_64bit(xcp) && !hybrid_fprs()) {			\
-		unsigned i;						\
+		unsigned int i;						\
 		set_fpr32(&ctx->fpr[x], 0, si);				\
 		for (i = 1; i < ARRAY_SIZE(ctx->fpr[x].val32); i++)	\
 			set_fpr32(&ctx->fpr[x], i, 0);			\
@@ -824,7 +824,7 @@ do {									\
 
 #define SITOHREG(si, x)							\
 do {									\
-	unsigned i;							\
+	unsigned int i;							\
 	set_fpr32(&ctx->fpr[x], 1, si);					\
 	for (i = 2; i < ARRAY_SIZE(ctx->fpr[x].val32); i++)		\
 		set_fpr32(&ctx->fpr[x], i, 0);				\
@@ -835,7 +835,7 @@ do {									\
 
 #define DITOREG(di, x)							\
 do {									\
-	unsigned fpr, i;						\
+	unsigned int fpr, i;						\
 	fpr = (x) & ~(cop1_64bit(xcp) ^ 1);				\
 	set_fpr64(&ctx->fpr[fpr], 0, di);				\
 	for (i = 1; i < ARRAY_SIZE(ctx->fpr[x].val64); i++)		\
@@ -1467,7 +1467,7 @@ DEF3OP(nmsub, dp, ieee754dp_mul, ieee754dp_sub, ieee754dp_neg);
 static int fpux_emu(struct pt_regs *xcp, struct mips_fpu_struct *ctx,
 	mips_instruction ir, void *__user *fault_addr)
 {
-	unsigned rcsr = 0;	/* resulting csr */
+	unsigned int rcsr = 0;	/* resulting csr */
 
 	MIPS_FPU_EMU_INC_STATS(cp1xops);
 
@@ -1663,10 +1663,10 @@ static int fpu_emu(struct pt_regs *xcp, struct mips_fpu_struct *ctx,
 	mips_instruction ir)
 {
 	int rfmt;		/* resulting format */
-	unsigned rcsr = 0;	/* resulting csr */
+	unsigned int rcsr = 0;	/* resulting csr */
 	unsigned int oldrm;
 	unsigned int cbit;
-	unsigned cond;
+	unsigned int cond;
 	union {
 		union ieee754dp d;
 		union ieee754sp s;
@@ -2031,9 +2031,10 @@ copcsr:
 
 		default:
 			if (!NO_R6EMU && MIPSInst_FUNC(ir) >= fcmp_op) {
-				unsigned cmpop = MIPSInst_FUNC(ir) - fcmp_op;
+				unsigned int cmpop;
 				union ieee754sp fs, ft;
 
+				cmpop = MIPSInst_FUNC(ir) - fcmp_op;
 				SPFROMREG(fs, MIPSInst_FS(ir));
 				SPFROMREG(ft, MIPSInst_FT(ir));
 				rv.w = ieee754sp_cmp(fs, ft,
@@ -2381,9 +2382,10 @@ dcopuop:
 
 		default:
 			if (!NO_R6EMU && MIPSInst_FUNC(ir) >= fcmp_op) {
-				unsigned cmpop = MIPSInst_FUNC(ir) - fcmp_op;
+				unsigned int cmpop;
 				union ieee754dp fs, ft;
 
+				cmpop = MIPSInst_FUNC(ir) - fcmp_op;
 				DPFROMREG(fs, MIPSInst_FS(ir));
 				DPFROMREG(ft, MIPSInst_FT(ir));
 				rv.w = ieee754dp_cmp(fs, ft,
