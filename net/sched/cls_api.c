@@ -343,10 +343,10 @@ void tcf_block_put_ext(struct tcf_block *block,
 	if (!block)
 		return;
 
-	tcf_block_offload_unbind(block, q, ei);
-
 	list_for_each_entry_safe(chain, tmp, &block->chain_list, list)
 		tcf_chain_flush(chain);
+
+	tcf_block_offload_unbind(block, q, ei);
 
 	INIT_WORK(&block->work, tcf_block_put_final);
 	/* Wait for existing RCU callbacks to cool down, make sure their works
