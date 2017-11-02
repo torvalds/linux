@@ -307,10 +307,6 @@ static void activate_ch(struct sh_mobile_i2c_data *pd)
 
 static void deactivate_ch(struct sh_mobile_i2c_data *pd)
 {
-	/* Clear/disable interrupts */
-	iic_wr(pd, ICSR, 0);
-	iic_wr(pd, ICIC, 0);
-
 	/* Disable channel */
 	iic_set_clr(pd, ICCR, 0, ICCR_ICE);
 
