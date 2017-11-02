@@ -222,6 +222,16 @@ int rxrpc_send_abort_packet(struct rxrpc_call *call)
 	rxrpc_serial_t serial;
 	int ret;
 
+	/* Don't bother sending aborts for a client call once the server has
+	 * hard-ACK'd all of its request data.  After that point, we're not
+	 * going to stop the operation proceeding, and whilst we might limit
+	 * the reply, it's not worth it if we can send a new call on the same
+	 * channel instead, thereby closing off this call.
+	 */
+	if (rxrpc_is_client_call(call) &&
+	    test_bit(RXRPC_CALL_TX_LAST, &call->flags))
+		return 0;
+
 	spin_lock_bh(&call->lock);
 	if (call->conn)
 		conn = rxrpc_get_connection_maybe(call->conn);
