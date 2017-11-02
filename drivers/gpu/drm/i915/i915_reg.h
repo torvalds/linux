@@ -379,6 +379,7 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 #define GEN8_STOLEN_RESERVED_2M		(1 << 7)
 #define GEN8_STOLEN_RESERVED_4M		(2 << 7)
 #define GEN8_STOLEN_RESERVED_8M		(3 << 7)
+#define GEN6_STOLEN_RESERVED_ENABLE	(1 << 0)
 
 /* VGA stuff */
 
@@ -3431,6 +3432,7 @@ enum i915_power_well_id {
 #define ELK_STOLEN_RESERVED		_MMIO(MCHBAR_MIRROR_BASE + 0x48)
 #define G4X_STOLEN_RESERVED_ADDR1_MASK	(0xFFFF << 16)
 #define G4X_STOLEN_RESERVED_ADDR2_MASK	(0xFFF << 4)
+#define G4X_STOLEN_RESERVED_ENABLE	(1 << 0)
 
 /* Memory controller frequency in MCHBAR for Haswell (possible SNB+) */
 #define DCLK _MMIO(MCHBAR_MIRROR_BASE_SNB + 0x5e04)

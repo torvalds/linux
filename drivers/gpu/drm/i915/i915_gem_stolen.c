@@ -294,6 +294,12 @@ static void g4x_get_stolen_reserved(struct drm_i915_private *dev_priv,
 				     ELK_STOLEN_RESERVED);
 	dma_addr_t stolen_top = dev_priv->mm.stolen_base + ggtt->stolen_size;
 
+	if ((reg_val & G4X_STOLEN_RESERVED_ENABLE) == 0) {
+		*base = 0;
+		*size = 0;
+		return;
+	}
+
 	*base = (reg_val & G4X_STOLEN_RESERVED_ADDR2_MASK) << 16;
 
 	WARN_ON((reg_val & G4X_STOLEN_RESERVED_ADDR1_MASK) < *base);
@@ -312,6 +318,12 @@ static void gen6_get_stolen_reserved(struct drm_i915_private *dev_priv,
 				     dma_addr_t *base, u32 *size)
 {
 	uint32_t reg_val = I915_READ(GEN6_STOLEN_RESERVED);
+
+	if ((reg_val & GEN6_STOLEN_RESERVED_ENABLE) == 0) {
+		*base = 0;
+		*size = 0;
+		return;
+	}
 
 	*base = reg_val & GEN6_STOLEN_RESERVED_ADDR_MASK;
 
@@ -339,6 +351,12 @@ static void gen7_get_stolen_reserved(struct drm_i915_private *dev_priv,
 {
 	uint32_t reg_val = I915_READ(GEN6_STOLEN_RESERVED);
 
+	if ((reg_val & GEN6_STOLEN_RESERVED_ENABLE) == 0) {
+		*base = 0;
+		*size = 0;
+		return;
+	}
+
 	*base = reg_val & GEN7_STOLEN_RESERVED_ADDR_MASK;
 
 	switch (reg_val & GEN7_STOLEN_RESERVED_SIZE_MASK) {
@@ -358,6 +376,12 @@ static void chv_get_stolen_reserved(struct drm_i915_private *dev_priv,
 				    dma_addr_t *base, u32 *size)
 {
 	uint32_t reg_val = I915_READ(GEN6_STOLEN_RESERVED);
+
+	if ((reg_val & GEN6_STOLEN_RESERVED_ENABLE) == 0) {
+		*base = 0;
+		*size = 0;
+		return;
+	}
 
 	*base = reg_val & GEN6_STOLEN_RESERVED_ADDR_MASK;
 
@@ -386,6 +410,12 @@ static void bdw_get_stolen_reserved(struct drm_i915_private *dev_priv,
 	struct i915_ggtt *ggtt = &dev_priv->ggtt;
 	uint32_t reg_val = I915_READ(GEN6_STOLEN_RESERVED);
 	dma_addr_t stolen_top;
+
+	if ((reg_val & GEN6_STOLEN_RESERVED_ENABLE) == 0) {
+		*base = 0;
+		*size = 0;
+		return;
+	}
 
 	stolen_top = dev_priv->mm.stolen_base + ggtt->stolen_size;
 
