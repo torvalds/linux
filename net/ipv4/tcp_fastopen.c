@@ -92,20 +92,18 @@ error:		kfree(ctx);
 	memcpy(ctx->key, key, len);
 
 
+	spin_lock(&net->ipv4.tcp_fastopen_ctx_lock);
 	if (sk) {
 		q = &inet_csk(sk)->icsk_accept_queue.fastopenq;
-		spin_lock_bh(&q->lock);
 		octx = rcu_dereference_protected(q->ctx,
-						 lockdep_is_held(&q->lock));
+			lockdep_is_held(&net->ipv4.tcp_fastopen_ctx_lock));
 		rcu_assign_pointer(q->ctx, ctx);
-		spin_unlock_bh(&q->lock);
 	} else {
-		spin_lock(&net->ipv4.tcp_fastopen_ctx_lock);
 		octx = rcu_dereference_protected(net->ipv4.tcp_fastopen_ctx,
 			lockdep_is_held(&net->ipv4.tcp_fastopen_ctx_lock));
 		rcu_assign_pointer(net->ipv4.tcp_fastopen_ctx, ctx);
-		spin_unlock(&net->ipv4.tcp_fastopen_ctx_lock);
 	}
+	spin_unlock(&net->ipv4.tcp_fastopen_ctx_lock);
 
 	if (octx)
 		call_rcu(&octx->rcu, tcp_fastopen_ctx_free);
