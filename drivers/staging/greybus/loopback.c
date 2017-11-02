@@ -58,7 +58,7 @@ static struct gb_loopback_device gb_dev;
 struct gb_loopback_async_operation {
 	struct gb_loopback *gb;
 	struct gb_operation *operation;
-	struct timeval ts;
+	ktime_t ts;
 	struct timer_list timer;
 	struct list_head entry;
 	struct work_struct work;
@@ -81,7 +81,7 @@ struct gb_loopback {
 	atomic_t outstanding_operations;
 
 	/* Per connection stats */
-	struct timeval ts;
+	ktime_t ts;
 	struct gb_loopback_stats latency;
 	struct gb_loopback_stats throughput;
 	struct gb_loopback_stats requests_per_second;
@@ -375,14 +375,9 @@ static u64 __gb_loopback_calc_latency(u64 t1, u64 t2)
 		return NSEC_PER_DAY - t2 + t1;
 }
 
-static u64 gb_loopback_calc_latency(struct timeval *ts, struct timeval *te)
+static u64 gb_loopback_calc_latency(ktime_t ts, ktime_t te)
 {
-	u64 t1, t2;
-
-	t1 = timeval_to_ns(ts);
-	t2 = timeval_to_ns(te);
-
-	return __gb_loopback_calc_latency(t1, t2);
+	return __gb_loopback_calc_latency(ktime_to_ns(ts), ktime_to_ns(te));
 }
 
 static int gb_loopback_operation_sync(struct gb_loopback *gb, int type,
@@ -390,10 +385,10 @@ static int gb_loopback_operation_sync(struct gb_loopback *gb, int type,
 				      void *response, int response_size)
 {
 	struct gb_operation *operation;
-	struct timeval ts, te;
+	ktime_t ts, te;
 	int ret;
 
-	do_gettimeofday(&ts);
+	ts = ktime_get();
 	operation = gb_operation_create(gb->connection, type, request_size,
 					response_size, GFP_KERNEL);
 	if (!operation)
@@ -421,10 +416,10 @@ static int gb_loopback_operation_sync(struct gb_loopback *gb, int type,
 		}
 	}
 
-	do_gettimeofday(&te);
+	te = ktime_get();
 
 	/* Calculate the total time the message took */
-	gb->elapsed_nsecs = gb_loopback_calc_latency(&ts, &te);
+	gb->elapsed_nsecs = gb_loopback_calc_latency(ts, te);
 
 out_put_operation:
 	gb_operation_put(operation);
@@ -492,10 +487,10 @@ static void gb_loopback_async_operation_callback(struct gb_operation *operation)
 {
 	struct gb_loopback_async_operation *op_async;
 	struct gb_loopback *gb;
-	struct timeval te;
+	ktime_t te;
 	bool err = false;
 
-	do_gettimeofday(&te);
+	te = ktime_get();
 	op_async = gb_loopback_operation_find(operation->id);
 	if (!op_async)
 		return;
@@ -512,8 +507,7 @@ static void gb_loopback_async_operation_callback(struct gb_operation *operation)
 	}
 
 	if (!err)
-		gb->elapsed_nsecs = gb_loopback_calc_latency(&op_async->ts,
-							     &te);
+		gb->elapsed_nsecs = gb_loopback_calc_latency(op_async->ts, te);
 
 	if (op_async->pending) {
 		if (err)
@@ -608,7 +602,7 @@ static int gb_loopback_async_operation(struct gb_loopback *gb, int type,
 	list_add_tail(&op_async->entry, &gb_dev.list_op_async);
 	spin_unlock_irqrestore(&gb_dev.lock, flags);
 
-	do_gettimeofday(&op_async->ts);
+	op_async->ts = ktime_get();
 	op_async->pending = true;
 	atomic_inc(&gb->outstanding_operations);
 	mutex_lock(&gb->mutex);
@@ -842,7 +836,7 @@ static void gb_loopback_reset_stats(struct gb_loopback *gb)
 	/* Should be initialized at least once per transaction set */
 	gb->apbridge_latency_ts = 0;
 	gb->gbphy_latency_ts = 0;
-	memset(&gb->ts, 0, sizeof(struct timeval));
+	gb->ts = ktime_set(0, 0);
 }
 
 static void gb_loopback_update_stats(struct gb_loopback_stats *stats, u32 val)
@@ -925,15 +919,15 @@ static void gb_loopback_calculate_stats(struct gb_loopback *gb, bool error)
 {
 	u64 nlat;
 	u32 lat;
-	struct timeval te;
+	ktime_t te;
 
 	if (!error) {
 		gb->requests_completed++;
 		gb_loopback_calculate_latency_stats(gb);
 	}
 
-	do_gettimeofday(&te);
-	nlat = gb_loopback_calc_latency(&gb->ts, &te);
+	te = ktime_get();
+	nlat = gb_loopback_calc_latency(gb->ts, te);
 	if (nlat >= NSEC_PER_SEC || gb->iteration_count == gb->iteration_max) {
 		lat = gb_loopback_nsec_to_usec_latency(nlat);
 
@@ -1017,8 +1011,8 @@ static int gb_loopback_fn(void *data)
 		size = gb->size;
 		us_wait = gb->us_wait;
 		type = gb->type;
-		if (gb->ts.tv_usec == 0 && gb->ts.tv_sec == 0)
-			do_gettimeofday(&gb->ts);
+		if (ktime_to_ns(gb->ts) == 0)
+			gb->ts = ktime_get();
 		mutex_unlock(&gb->mutex);
 
 		/* Else operations to perform */
