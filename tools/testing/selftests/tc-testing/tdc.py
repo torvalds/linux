@@ -152,11 +152,11 @@ def ns_create():
         exec_cmd(cmd, False)
         cmd = 'ip link set $DEV0 up'
         exec_cmd(cmd, False)
-        cmd = 'ip -s $NS link set $DEV1 up'
+        cmd = 'ip -n $NS link set $DEV1 up'
         exec_cmd(cmd, False)
         cmd = 'ip link set $DEV2 netns $NS'
         exec_cmd(cmd, False)
-        cmd = 'ip -s $NS link set $DEV2 up'
+        cmd = 'ip -n $NS link set $DEV2 up'
         exec_cmd(cmd, False)
 
 

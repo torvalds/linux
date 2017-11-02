@@ -189,7 +189,7 @@ static int dev_pm_qos_constraints_allocate(struct device *dev)
 	plist_head_init(&c->list);
 	c->target_value = PM_QOS_RESUME_LATENCY_DEFAULT_VALUE;
 	c->default_value = PM_QOS_RESUME_LATENCY_DEFAULT_VALUE;
-	c->no_constraint_value = PM_QOS_RESUME_LATENCY_NO_CONSTRAINT;
+	c->no_constraint_value = PM_QOS_RESUME_LATENCY_DEFAULT_VALUE;
 	c->type = PM_QOS_MIN;
 	c->notifiers = n;
 

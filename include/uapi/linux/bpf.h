@@ -889,7 +889,6 @@ struct xdp_md {
 enum sk_action {
 	SK_DROP = 0,
 	SK_PASS,
-	SK_REDIRECT,
 };
 
 #define BPF_TAG_SIZE	8

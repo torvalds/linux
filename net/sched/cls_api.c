@@ -322,8 +322,8 @@ static void tcf_block_put_final(struct work_struct *work)
 	struct tcf_block *block = container_of(work, struct tcf_block, work);
 	struct tcf_chain *chain, *tmp;
 
-	/* At this point, all the chains should have refcnt == 1. */
 	rtnl_lock();
+	/* Only chain 0 should be still here. */
 	list_for_each_entry_safe(chain, tmp, &block->chain_list, list)
 		tcf_chain_put(chain);
 	rtnl_unlock();
@@ -331,44 +331,24 @@ static void tcf_block_put_final(struct work_struct *work)
 }
 
 /* XXX: Standalone actions are not allowed to jump to any chain, and bound
- * actions should be all removed after flushing. However, filters are destroyed
- * in RCU callbacks, we have to hold the chains first, otherwise we would
- * always race with RCU callbacks on this list without proper locking.
+ * actions should be all removed after flushing. However, filters are now
+ * destroyed in tc filter workqueue with RTNL lock, they can not race here.
  */
-static void tcf_block_put_deferred(struct work_struct *work)
-{
-	struct tcf_block *block = container_of(work, struct tcf_block, work);
-	struct tcf_chain *chain;
-
-	rtnl_lock();
-	/* Hold a refcnt for all chains, except 0, in case they are gone. */
-	list_for_each_entry(chain, &block->chain_list, list)
-		if (chain->index)
-			tcf_chain_hold(chain);
-
-	/* No race on the list, because no chain could be destroyed. */
-	list_for_each_entry(chain, &block->chain_list, list)
-		tcf_chain_flush(chain);
-
-	INIT_WORK(&block->work, tcf_block_put_final);
-	/* Wait for RCU callbacks to release the reference count and make
-	 * sure their works have been queued before this.
-	 */
-	rcu_barrier();
-	tcf_queue_work(&block->work);
-	rtnl_unlock();
-}
-
 void tcf_block_put_ext(struct tcf_block *block,
 		       struct tcf_proto __rcu **p_filter_chain, struct Qdisc *q,
 		       struct tcf_block_ext_info *ei)
 {
+	struct tcf_chain *chain, *tmp;
+
 	if (!block)
 		return;
 
 	tcf_block_offload_unbind(block, q, ei);
 
-	INIT_WORK(&block->work, tcf_block_put_deferred);
+	list_for_each_entry_safe(chain, tmp, &block->chain_list, list)
+		tcf_chain_flush(chain);
+
+	INIT_WORK(&block->work, tcf_block_put_final);
 	/* Wait for existing RCU callbacks to cool down, make sure their works
 	 * have been queued before this. We can not flush pending works here
 	 * because we are holding the RTNL lock.
