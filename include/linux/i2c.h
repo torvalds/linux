@@ -499,6 +499,8 @@ struct i2c_timings {
  *	may configure padmux here for SDA/SCL line or something else they want.
  * @scl_gpio: gpio number of the SCL line. Only required for GPIO recovery.
  * @sda_gpio: gpio number of the SDA line. Only required for GPIO recovery.
+ * @scl_gpiod: gpiod of the SCL line. Only required for GPIO recovery.
+ * @sda_gpiod: gpiod of the SDA line. Only required for GPIO recovery.
  */
 struct i2c_bus_recovery_info {
 	int (*recover_bus)(struct i2c_adapter *);
@@ -513,6 +515,8 @@ struct i2c_bus_recovery_info {
 	/* gpio recovery */
 	int scl_gpio;
 	int sda_gpio;
+	struct gpio_desc *scl_gpiod;
+	struct gpio_desc *sda_gpiod;
 };
 
 int i2c_recover_bus(struct i2c_adapter *adap);
