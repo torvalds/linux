@@ -114,6 +114,7 @@ static void afs_destroy_vl_get_entry_by_name_u(struct afs_call *call)
  */
 static const struct afs_call_type afs_RXVLGetEntryByNameU = {
 	.name		= "VL.GetEntryByNameU",
+	.op		= afs_VL_GetEntryByNameU,
 	.deliver	= afs_deliver_vl_get_entry_by_name_u,
 	.destructor	= afs_destroy_vl_get_entry_by_name_u,
 };
@@ -161,6 +162,7 @@ struct afs_vldb_entry *afs_vl_get_entry_by_name_u(struct afs_net *net,
 	if (padsz > 0)
 		memset((void *)bp + volnamesz, 0, padsz);
 
+	trace_afs_make_vl_call(call);
 	return (struct afs_vldb_entry *)afs_make_call(ac, call, GFP_KERNEL, false);
 }
 
@@ -251,6 +253,7 @@ static void afs_vl_get_addrs_u_destructor(struct afs_call *call)
  */
 static const struct afs_call_type afs_RXVLGetAddrsU = {
 	.name		= "VL.GetAddrsU",
+	.op		= afs_VL_GetAddrsU,
 	.deliver	= afs_deliver_vl_get_addrs_u,
 	.destructor	= afs_vl_get_addrs_u_destructor,
 };
@@ -298,6 +301,7 @@ struct afs_addr_list *afs_vl_get_addrs_u(struct afs_net *net,
 	for (i = 0; i < 6; i++)
 		r->uuid.node[i] = ntohl(u->node[i]);
 
+	trace_afs_make_vl_call(call);
 	return (struct afs_addr_list *)afs_make_call(ac, call, GFP_KERNEL, false);
 }
 
@@ -362,6 +366,7 @@ again:
  */
 static const struct afs_call_type afs_RXVLGetCapabilities = {
 	.name		= "VL.GetCapabilities",
+	.op		= afs_VL_GetCapabilities,
 	.deliver	= afs_deliver_vl_get_capabilities,
 	.destructor	= afs_flat_call_destructor,
 };
@@ -396,6 +401,7 @@ int afs_vl_get_capabilities(struct afs_net *net,
 	*bp++ = htonl(VLGETCAPABILITIES);
 
 	/* Can't take a ref on server */
+	trace_afs_make_vl_call(call);
 	return afs_make_call(ac, call, GFP_KERNEL, false);
 }
 
@@ -598,7 +604,8 @@ again:
  * YFSVL.GetEndpoints operation type.
  */
 static const struct afs_call_type afs_YFSVLGetEndpoints = {
-	.name		= "VL.GetEndpoints",
+	.name		= "YFSVL.GetEndpoints",
+	.op		= afs_YFSVL_GetEndpoints,
 	.deliver	= afs_deliver_yfsvl_get_endpoints,
 	.destructor	= afs_vl_get_addrs_u_destructor,
 };
@@ -633,5 +640,6 @@ struct afs_addr_list *afs_yfsvl_get_endpoints(struct afs_net *net,
 	*bp++ = htonl(YFS_SERVER_UUID);
 	memcpy(bp, uuid, sizeof(*uuid)); /* Type opr_uuid */
 
+	trace_afs_make_vl_call(call);
 	return (struct afs_addr_list *)afs_make_call(ac, call, GFP_KERNEL, false);
 }

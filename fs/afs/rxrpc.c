@@ -219,6 +219,7 @@ struct afs_call *afs_alloc_flat_call(struct afs_net *net,
 			goto nomem_free;
 	}
 
+	call->operation_ID = type->op;
 	init_waitqueue_head(&call->waitq);
 	return call;
 
@@ -422,6 +423,8 @@ error_do_abort:
 		ac->abort_code = call->abort_code;
 		ac->responded = true;
 	}
+	call->error = ret;
+	trace_afs_call_done(call);
 error_kill_call:
 	afs_put_call(call);
 	ac->error = ret;
@@ -455,10 +458,10 @@ static void afs_deliver_to_call(struct afs_call *call)
 
 			if (ret == -EINPROGRESS || ret == -EAGAIN)
 				return;
-			if (ret == 1 || ret < 0) {
-				call->state = AFS_CALL_COMPLETE;
-				goto done;
-			}
+			if (ret < 0)
+				call->error = ret;
+			if (ret < 0 || ret == 1)
+				goto call_complete;
 			return;
 		}
 
@@ -466,7 +469,7 @@ static void afs_deliver_to_call(struct afs_call *call)
 		switch (ret) {
 		case 0:
 			if (call->state == AFS_CALL_AWAIT_REPLY)
-				call->state = AFS_CALL_COMPLETE;
+				goto call_complete;
 			goto done;
 		case -EINPROGRESS:
 		case -EAGAIN:
@@ -505,7 +508,11 @@ out:
 
 save_error:
 	call->error = ret;
-	call->state = AFS_CALL_COMPLETE;
+call_complete:
+	if (call->state != AFS_CALL_COMPLETE) {
+		call->state = AFS_CALL_COMPLETE;
+		trace_afs_call_done(call);
+	}
 	goto done;
 }
 
@@ -567,8 +574,10 @@ static long afs_wait_for_call_to_complete(struct afs_call *call,
 	if (call->state < AFS_CALL_COMPLETE) {
 		_debug("call interrupted");
 		if (rxrpc_kernel_abort_call(call->net->socket, call->rxcall,
-					    RX_USER_ABORT, -EINTR, "KWI"))
+					    RX_USER_ABORT, -EINTR, "KWI")) {
 			call->error = -ERESTARTSYS;
+			trace_afs_call_done(call);
+		}
 	}
 
 	ac->abort_code = call->abort_code;
@@ -882,6 +891,7 @@ int afs_extract_data(struct afs_call *call, void *buf, size_t count,
 		switch (call->state) {
 		case AFS_CALL_AWAIT_REPLY:
 			call->state = AFS_CALL_COMPLETE;
+			trace_afs_call_done(call);
 			break;
 		case AFS_CALL_AWAIT_REQUEST:
 			call->state = AFS_CALL_REPLYING;
@@ -894,5 +904,6 @@ int afs_extract_data(struct afs_call *call, void *buf, size_t count,
 
 	call->error = ret;
 	call->state = AFS_CALL_COMPLETE;
+	trace_afs_call_done(call);
 	return ret;
 }

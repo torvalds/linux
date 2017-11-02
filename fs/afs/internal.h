@@ -124,6 +124,7 @@ struct afs_call {
 
 struct afs_call_type {
 	const char *name;
+	unsigned int op; /* Really enum afs_fs_operation */
 
 	/* deliver request or reply data to an call
 	 * - returning an error will cause the call to be aborted
