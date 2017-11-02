@@ -3143,7 +3143,7 @@ void btrfs_auto_defrag_exit(void)
 	kmem_cache_destroy(btrfs_inode_defrag_cachep);
 }
 
-int btrfs_auto_defrag_init(void)
+int __init btrfs_auto_defrag_init(void)
 {
 	btrfs_inode_defrag_cachep = kmem_cache_create("btrfs_inode_defrag",
 					sizeof(struct inode_defrag), 0,

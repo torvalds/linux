@@ -2324,7 +2324,7 @@ static struct miscdevice btrfs_misc = {
 MODULE_ALIAS_MISCDEV(BTRFS_MINOR);
 MODULE_ALIAS("devname:btrfs-control");
 
-static int btrfs_interface_init(void)
+static int __init btrfs_interface_init(void)
 {
 	return misc_register(&btrfs_misc);
 }
@@ -2334,7 +2334,7 @@ static void btrfs_interface_exit(void)
 	misc_deregister(&btrfs_misc);
 }
 
-static void btrfs_print_mod_info(void)
+static void __init btrfs_print_mod_info(void)
 {
 	pr_info("Btrfs loaded, crc32c=%s"
 #ifdef CONFIG_BTRFS_DEBUG

@@ -9569,7 +9569,7 @@ void btrfs_destroy_cachep(void)
 	kmem_cache_destroy(btrfs_free_space_cachep);
 }
 
-int btrfs_init_cachep(void)
+int __init btrfs_init_cachep(void)
 {
 	btrfs_inode_cachep = kmem_cache_create("btrfs_inode",
 			sizeof(struct btrfs_inode), 0,
