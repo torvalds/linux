@@ -1570,9 +1570,13 @@ void cpu_init(void)
 	initialize_tlbstate_and_flush();
 	enter_lazy_tlb(&init_mm, me);
 
-	load_sp0(current->thread.sp0);
+	/*
+	 * Initialize the TSS.  Don't bother initializing sp0, as the initial
+	 * task never enters user mode.
+	 */
 	set_tss_desc(cpu, t);
 	load_TR_desc();
+
 	load_mm_ldt(&init_mm);
 
 	clear_all_debug_regs();
@@ -1594,7 +1598,6 @@ void cpu_init(void)
 	int cpu = smp_processor_id();
 	struct task_struct *curr = current;
 	struct tss_struct *t = &per_cpu(cpu_tss, cpu);
-	struct thread_struct *thread = &curr->thread;
 
 	wait_for_master_cpu(cpu);
 
@@ -1625,9 +1628,13 @@ void cpu_init(void)
 	initialize_tlbstate_and_flush();
 	enter_lazy_tlb(&init_mm, curr);
 
-	load_sp0(thread->sp0);
+	/*
+	 * Initialize the TSS.  Don't bother initializing sp0, as the initial
+	 * task never enters user mode.
+	 */
 	set_tss_desc(cpu, t);
 	load_TR_desc();
+
 	load_mm_ldt(&init_mm);
 
 	t->x86_tss.io_bitmap_base = offsetof(struct tss_struct, io_bitmap);
