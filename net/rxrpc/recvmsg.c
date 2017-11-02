@@ -40,7 +40,9 @@ void rxrpc_notify_socket(struct rxrpc_call *call)
 	sk = &rx->sk;
 	if (rx && sk->sk_state < RXRPC_CLOSE) {
 		if (call->notify_rx) {
+			spin_lock_bh(&call->notify_lock);
 			call->notify_rx(sk, call, call->user_call_ID);
+			spin_unlock_bh(&call->notify_lock);
 		} else {
 			write_lock_bh(&rx->recvmsg_lock);
 			if (list_empty(&call->recvmsg_link)) {
