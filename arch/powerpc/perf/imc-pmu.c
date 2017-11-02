@@ -607,6 +607,20 @@ static int ppc_core_imc_cpu_offline(unsigned int cpu)
 	if (!cpumask_test_and_clear_cpu(cpu, &core_imc_cpumask))
 		return 0;
 
+	/*
+	 * Check whether core_imc is registered. We could end up here
+	 * if the cpuhotplug callback registration fails. i.e, callback
+	 * invokes the offline path for all sucessfully registered cpus.
+	 * At this stage, core_imc pmu will not be registered and we
+	 * should return here.
+	 *
+	 * We return with a zero since this is not an offline failure.
+	 * And cpuhp_setup_state() returns the actual failure reason
+	 * to the caller, which inturn will call the cleanup routine.
+	 */
+	if (!core_imc_pmu->pmu.event_init)
+		return 0;
+
 	/* Find any online cpu in that core except the current "cpu" */
 	ncpu = cpumask_any_but(cpu_sibling_mask(cpu), cpu);
 
