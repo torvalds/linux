@@ -72,7 +72,6 @@ struct gb_loopback {
 
 	struct dentry *file;
 	struct kfifo kfifo_lat;
-	struct kfifo kfifo_ts;
 	struct mutex mutex;
 	struct task_struct *task;
 	struct list_head entry;
@@ -262,7 +261,6 @@ static void gb_loopback_check_attr(struct gb_loopback *gb)
 			 gb->iteration_max, kfifo_depth);
 	}
 	kfifo_reset_out(&gb->kfifo_lat);
-	kfifo_reset_out(&gb->kfifo_ts);
 
 	switch (gb->type) {
 	case GB_LOOPBACK_TYPE_PING:
@@ -387,13 +385,6 @@ static u64 gb_loopback_calc_latency(struct timeval *ts, struct timeval *te)
 	return __gb_loopback_calc_latency(t1, t2);
 }
 
-static void gb_loopback_push_latency_ts(struct gb_loopback *gb,
-					struct timeval *ts, struct timeval *te)
-{
-	kfifo_in(&gb->kfifo_ts, (unsigned char *)ts, sizeof(*ts));
-	kfifo_in(&gb->kfifo_ts, (unsigned char *)te, sizeof(*te));
-}
-
 static int gb_loopback_operation_sync(struct gb_loopback *gb, int type,
 				      void *request, int request_size,
 				      void *response, int response_size)
@@ -433,7 +424,6 @@ static int gb_loopback_operation_sync(struct gb_loopback *gb, int type,
 	do_gettimeofday(&te);
 
 	/* Calculate the total time the message took */
-	gb_loopback_push_latency_ts(gb, &ts, &te);
 	gb->elapsed_nsecs = gb_loopback_calc_latency(&ts, &te);
 
 out_put_operation:
@@ -521,11 +511,9 @@ static void gb_loopback_async_operation_callback(struct gb_operation *operation)
 				err = true;
 	}
 
-	if (!err) {
-		gb_loopback_push_latency_ts(gb, &op_async->ts, &te);
+	if (!err)
 		gb->elapsed_nsecs = gb_loopback_calc_latency(&op_async->ts,
 							     &te);
-	}
 
 	if (op_async->pending) {
 		if (err)
@@ -1241,18 +1229,12 @@ static int gb_loopback_probe(struct gb_bundle *bundle,
 		retval = -ENOMEM;
 		goto out_conn;
 	}
-	if (kfifo_alloc(&gb->kfifo_ts, kfifo_depth * sizeof(struct timeval) * 2,
-			  GFP_KERNEL)) {
-		retval = -ENOMEM;
-		goto out_kfifo0;
-	}
-
 	/* Fork worker thread */
 	mutex_init(&gb->mutex);
 	gb->task = kthread_run(gb_loopback_fn, gb, "gb_loopback");
 	if (IS_ERR(gb->task)) {
 		retval = PTR_ERR(gb->task);
-		goto out_kfifo1;
+		goto out_kfifo;
 	}
 
 	spin_lock_irqsave(&gb_dev.lock, flags);
@@ -1266,9 +1248,7 @@ static int gb_loopback_probe(struct gb_bundle *bundle,
 
 	return 0;
 
-out_kfifo1:
-	kfifo_free(&gb->kfifo_ts);
-out_kfifo0:
+out_kfifo:
 	kfifo_free(&gb->kfifo_lat);
 out_conn:
 	device_unregister(dev);
@@ -1302,7 +1282,6 @@ static void gb_loopback_disconnect(struct gb_bundle *bundle)
 		kthread_stop(gb->task);
 
 	kfifo_free(&gb->kfifo_lat);
-	kfifo_free(&gb->kfifo_ts);
 	gb_connection_latency_tag_disable(gb->connection);
 	debugfs_remove(gb->file);
 
