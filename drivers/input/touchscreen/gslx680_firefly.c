@@ -51,7 +51,7 @@
 
 /*#define TPD_PROC_DEBUG*/
 #ifdef TPD_PROC_DEBUG
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 static struct proc_dir_entry *gsl_config_proc;
 #define GSL_CONFIG_PROC_FILE "gsl_config"
 #define CONFIG_LEN 31
