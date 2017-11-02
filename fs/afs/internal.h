@@ -238,7 +238,9 @@ struct afs_net {
 	rwlock_t		servers_lock;
 	struct list_head	server_graveyard;	/* Inactive server LRU list */
 	spinlock_t		server_graveyard_lock;
-	struct delayed_work	server_reaper;
+	struct timer_list	server_timer;
+	struct work_struct	server_reaper;
+	atomic_t		servers_outstanding;
 
 	/* Misc */
 	struct proc_dir_entry	*proc_afs;		/* /proc/net/afs directory */
@@ -700,6 +702,7 @@ do {								\
 	atomic_inc(&(S)->usage);				\
 } while(0)
 
+extern void afs_server_timer(struct timer_list *);
 extern struct afs_server *afs_lookup_server(struct afs_cell *,
 					    const struct in_addr *);
 extern struct afs_server *afs_find_server(struct afs_net *,

@@ -62,7 +62,8 @@ static int __net_init afs_net_init(struct afs_net *net)
 	rwlock_init(&net->servers_lock);
 	INIT_LIST_HEAD(&net->server_graveyard);
 	spin_lock_init(&net->server_graveyard_lock);
-	INIT_DELAYED_WORK(&net->server_reaper, afs_reap_server);
+	INIT_WORK(&net->server_reaper, afs_reap_server);
+	timer_setup(&net->server_timer, afs_server_timer, 0);
 
 	/* Register the /proc stuff */
 	ret = afs_proc_init(net);
