@@ -47,6 +47,7 @@
 #include <linux/socket.h>
 #include <linux/route.h>
 #include <linux/gcd.h>
+#include <linux/random.h>
 #include <net/netevent.h>
 #include <net/neighbour.h>
 #include <net/arp.h>
@@ -6644,6 +6645,64 @@ static void mlxsw_sp_router_fib_dump_flush(struct notifier_block *nb)
 	mlxsw_sp_router_fib_flush(router->mlxsw_sp);
 }
 
+#ifdef CONFIG_IP_ROUTE_MULTIPATH
+static void mlxsw_sp_mp_hash_header_set(char *recr2_pl, int header)
+{
+	mlxsw_reg_recr2_outer_header_enables_set(recr2_pl, header, true);
+}
+
+static void mlxsw_sp_mp_hash_field_set(char *recr2_pl, int field)
+{
+	mlxsw_reg_recr2_outer_header_fields_enable_set(recr2_pl, field, true);
+}
+
+static void mlxsw_sp_mp4_hash_init(char *recr2_pl)
+{
+	bool only_l3 = !init_net.ipv4.sysctl_fib_multipath_hash_policy;
+
+	mlxsw_sp_mp_hash_header_set(recr2_pl,
+				    MLXSW_REG_RECR2_IPV4_EN_NOT_TCP_NOT_UDP);
+	mlxsw_sp_mp_hash_header_set(recr2_pl, MLXSW_REG_RECR2_IPV4_EN_TCP_UDP);
+	mlxsw_reg_recr2_ipv4_sip_enable(recr2_pl);
+	mlxsw_reg_recr2_ipv4_dip_enable(recr2_pl);
+	if (only_l3)
+		return;
+	mlxsw_sp_mp_hash_header_set(recr2_pl, MLXSW_REG_RECR2_TCP_UDP_EN_IPV4);
+	mlxsw_sp_mp_hash_field_set(recr2_pl, MLXSW_REG_RECR2_IPV4_PROTOCOL);
+	mlxsw_sp_mp_hash_field_set(recr2_pl, MLXSW_REG_RECR2_TCP_UDP_SPORT);
+	mlxsw_sp_mp_hash_field_set(recr2_pl, MLXSW_REG_RECR2_TCP_UDP_DPORT);
+}
+
+static void mlxsw_sp_mp6_hash_init(char *recr2_pl)
+{
+	mlxsw_sp_mp_hash_header_set(recr2_pl,
+				    MLXSW_REG_RECR2_IPV6_EN_NOT_TCP_NOT_UDP);
+	mlxsw_sp_mp_hash_header_set(recr2_pl, MLXSW_REG_RECR2_IPV6_EN_TCP_UDP);
+	mlxsw_reg_recr2_ipv6_sip_enable(recr2_pl);
+	mlxsw_reg_recr2_ipv6_dip_enable(recr2_pl);
+	mlxsw_sp_mp_hash_field_set(recr2_pl, MLXSW_REG_RECR2_IPV6_FLOW_LABEL);
+	mlxsw_sp_mp_hash_field_set(recr2_pl, MLXSW_REG_RECR2_IPV6_NEXT_HEADER);
+}
+
+static int mlxsw_sp_mp_hash_init(struct mlxsw_sp *mlxsw_sp)
+{
+	char recr2_pl[MLXSW_REG_RECR2_LEN];
+	u32 seed;
+
+	get_random_bytes(&seed, sizeof(seed));
+	mlxsw_reg_recr2_pack(recr2_pl, seed);
+	mlxsw_sp_mp4_hash_init(recr2_pl);
+	mlxsw_sp_mp6_hash_init(recr2_pl);
+
+	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(recr2), recr2_pl);
+}
+#else
+static int mlxsw_sp_mp_hash_init(struct mlxsw_sp *mlxsw_sp)
+{
+	return 0;
+}
+#endif
+
 static int __mlxsw_sp_router_init(struct mlxsw_sp *mlxsw_sp)
 {
 	char rgcr_pl[MLXSW_REG_RGCR_LEN];
@@ -6727,6 +6786,10 @@ int mlxsw_sp_router_init(struct mlxsw_sp *mlxsw_sp)
 	if (err)
 		goto err_register_netevent_notifier;
 
+	err = mlxsw_sp_mp_hash_init(mlxsw_sp);
+	if (err)
+		goto err_mp_hash_init;
+
 	mlxsw_sp->router->fib_nb.notifier_call = mlxsw_sp_router_fib_event;
 	err = register_fib_notifier(&mlxsw_sp->router->fib_nb,
 				    mlxsw_sp_router_fib_dump_flush);
@@ -6736,6 +6799,7 @@ int mlxsw_sp_router_init(struct mlxsw_sp *mlxsw_sp)
 	return 0;
 
 err_register_fib_notifier:
+err_mp_hash_init:
 	unregister_netevent_notifier(&mlxsw_sp->router->netevent_nb);
 err_register_netevent_notifier:
 	mlxsw_sp_neigh_fini(mlxsw_sp);
