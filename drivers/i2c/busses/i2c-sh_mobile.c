@@ -620,10 +620,10 @@ static int start_ch(struct sh_mobile_i2c_data *pd, struct i2c_msg *usr_msg,
 
 	if (do_init) {
 		/* Initialize channel registers */
-		iic_set_clr(pd, ICCR, 0, ICCR_ICE);
+		iic_wr(pd, ICCR, 0);
 
 		/* Enable channel and configure rx ack */
-		iic_set_clr(pd, ICCR, ICCR_ICE, 0);
+		iic_wr(pd, ICCR, ICCR_ICE);
 
 		/* Set the clock */
 		iic_wr(pd, ICCL, pd->iccl & 0xff);
@@ -740,7 +740,7 @@ static int sh_mobile_i2c_xfer(struct i2c_adapter *adapter,
 	}
 
 	/* Disable channel */
-	iic_set_clr(pd, ICCR, 0, ICCR_ICE);
+	iic_wr(pd, ICCR, 0);
 
 	/* Disable clock and mark device as idle */
 	clk_disable_unprepare(pd->clk);
