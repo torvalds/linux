@@ -62,23 +62,19 @@ const static struct cpuid_dep cpuid_deps[] = {
 	{}
 };
 
-static inline void __clear_cpu_cap(struct cpuinfo_x86 *c, unsigned int bit)
-{
-	clear_bit32(bit, c->x86_capability);
-}
-
-static inline void __setup_clear_cpu_cap(unsigned int bit)
-{
-	clear_cpu_cap(&boot_cpu_data, bit);
-	set_bit32(bit, cpu_caps_cleared);
-}
-
 static inline void clear_feature(struct cpuinfo_x86 *c, unsigned int feature)
 {
-	if (!c)
-		__setup_clear_cpu_cap(feature);
-	else
-		__clear_cpu_cap(c, feature);
+	/*
+	 * Note: This could use the non atomic __*_bit() variants, but the
+	 * rest of the cpufeature code uses atomics as well, so keep it for
+	 * consistency. Cleanup all of it separately.
+	 */
+	if (!c) {
+		clear_cpu_cap(&boot_cpu_data, feature);
+		set_bit(feature, (unsigned long *)cpu_caps_cleared);
+	} else {
+		clear_bit(feature, (unsigned long *)c->x86_capability);
+	}
 }
 
 /* Take the capabilities and the BUG bits into account */
