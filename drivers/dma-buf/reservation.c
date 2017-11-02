@@ -318,7 +318,7 @@ retry:
 				continue;
 			}
 
-			dst_list->shared[dst_list->shared_count++] = fence;
+			rcu_assign_pointer(dst_list->shared[dst_list->shared_count++], fence);
 		}
 	} else {
 		dst_list = NULL;
