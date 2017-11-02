@@ -18,9 +18,12 @@
 #define VL_SERVICE		52	/* RxRPC service ID for the Volume Location service */
 
 enum AFSVL_Operations {
-	VLGETENTRYBYID		= 503,	/* AFS Get Cache Entry By ID operation ID */
-	VLGETENTRYBYNAME	= 504,	/* AFS Get Cache Entry By Name operation ID */
-	VLPROBE			= 514,	/* AFS Probe Volume Location Service operation ID */
+	VLGETENTRYBYID		= 503,	/* AFS Get VLDB entry by ID */
+	VLGETENTRYBYNAME	= 504,	/* AFS Get VLDB entry by name */
+	VLPROBE			= 514,	/* AFS probe VL service */
+	VLGETENTRYBYIDU		= 526,	/* AFS Get VLDB entry by ID (UUID-variant) */
+	VLGETENTRYBYNAMEU	= 527,	/* AFS Get VLDB entry by name (UUID-variant) */
+	VLGETADDRSU		= 533,	/* AFS Get addrs for fileserver */
 };
 
 enum AFSVL_Errors {
@@ -74,11 +77,15 @@ struct afs_vldbentry {
 		struct in_addr	addr;		/* server address */
 		unsigned	partition;	/* partition ID on this server */
 		unsigned	flags;		/* server specific flags */
-#define AFS_VLSF_NEWREPSITE	0x0001	/* unused */
+#define AFS_VLSF_NEWREPSITE	0x0001	/* Ignore all 'non-new' servers */
 #define AFS_VLSF_ROVOL		0x0002	/* this server holds a R/O instance of the volume */
 #define AFS_VLSF_RWVOL		0x0004	/* this server holds a R/W instance of the volume */
 #define AFS_VLSF_BACKVOL	0x0008	/* this server holds a backup instance of the volume */
+#define AFS_VLSF_UUID		0x0010	/* This server is referred to by its UUID */
+#define AFS_VLSF_DONTUSE	0x0020	/* This server ref should be ignored */
 	} servers[8];
 };
+
+#define AFS_VLDB_MAXNAMELEN 65
 
 #endif /* AFS_VL_H */

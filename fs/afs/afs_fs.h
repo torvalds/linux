@@ -40,6 +40,7 @@ enum AFS_FS_Operations {
 };
 
 enum AFS_FS_Errors {
+	VRESTARTING	= -100,	/* Server is restarting */
 	VSALVAGE	= 101,	/* volume needs salvaging */
 	VNOVNODE	= 102,	/* no such file/dir (vnode) */
 	VNOVOL		= 103,	/* no such volume or volume unavailable */
@@ -51,6 +52,9 @@ enum AFS_FS_Errors {
 	VOVERQUOTA	= 109,	/* volume's maximum quota exceeded */
 	VBUSY		= 110,	/* volume is temporarily unavailable */
 	VMOVED		= 111,	/* volume moved to new server - ask this FS where */
+	VIO		= 112,	/* I/O error in volume */
+	VSALVAGING	= 113,	/* Volume is being salvaged */
+	VRESTRICTED	= 120,	/* Volume is restricted from using  */
 };
 
 #endif /* AFS_FS_H */
