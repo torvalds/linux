@@ -174,7 +174,7 @@ static int cls_bpf_offload_cmd(struct tcf_proto *tp, struct cls_bpf_prog *prog,
 		}
 	}
 
-	if (addorrep && skip_sw && !(prog->gen_flags && TCA_CLS_FLAGS_IN_HW))
+	if (addorrep && skip_sw && !(prog->gen_flags & TCA_CLS_FLAGS_IN_HW))
 		return -EINVAL;
 
 	return 0;
