@@ -649,10 +649,6 @@ void device_add_disk(struct device *parent, struct gendisk *disk)
 		return;
 	}
 	disk_to_dev(disk)->devt = devt;
-
-	/* ->major and ->first_minor aren't supposed to be
-	 * dereferenced from here on, but set them just in case.
-	 */
 	disk->major = MAJOR(devt);
 	disk->first_minor = MINOR(devt);
 
