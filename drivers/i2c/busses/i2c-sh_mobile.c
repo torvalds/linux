@@ -746,9 +746,7 @@ static int sh_mobile_i2c_xfer(struct i2c_adapter *adapter,
 	clk_disable_unprepare(pd->clk);
 	pm_runtime_put_sync(pd->dev);
 
-	if (!err)
-		err = num;
-	return err;
+	return err ?: num;
 }
 
 static u32 sh_mobile_i2c_func(struct i2c_adapter *adapter)
