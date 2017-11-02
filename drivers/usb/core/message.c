@@ -918,7 +918,7 @@ int usb_get_device_descriptor(struct usb_device *dev, unsigned int size)
 /**
  * usb_get_status - issues a GET_STATUS call
  * @dev: the device whose status is being checked
- * @type: USB_RECIP_*; for device, interface, or endpoint
+ * @recip: USB_RECIP_*; for device, interface, or endpoint
  * @target: zero (for device), else interface or endpoint number
  * @data: pointer to two bytes of bitmap data
  * Context: !in_interrupt ()
@@ -937,7 +937,7 @@ int usb_get_device_descriptor(struct usb_device *dev, unsigned int size)
  * Returns 0 and the status value in *@data (in host byte order) on success,
  * or else the status code from the underlying usb_control_msg() call.
  */
-int usb_get_status(struct usb_device *dev, int type, int target, void *data)
+int usb_get_status(struct usb_device *dev, int recip, int target, void *data)
 {
 	int ret;
 	__le16 *status = kmalloc(sizeof(*status), GFP_KERNEL);
@@ -946,7 +946,7 @@ int usb_get_status(struct usb_device *dev, int type, int target, void *data)
 		return -ENOMEM;
 
 	ret = usb_control_msg(dev, usb_rcvctrlpipe(dev, 0),
-		USB_REQ_GET_STATUS, USB_DIR_IN | type, USB_STATUS_TYPE_STANDARD,
+		USB_REQ_GET_STATUS, USB_DIR_IN | recip, USB_STATUS_TYPE_STANDARD,
 		target, status, sizeof(*status), USB_CTRL_GET_TIMEOUT);
 
 	if (ret == 2) {

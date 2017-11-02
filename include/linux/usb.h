@@ -1766,7 +1766,7 @@ extern int usb_bulk_msg(struct usb_device *usb_dev, unsigned int pipe,
 extern int usb_get_descriptor(struct usb_device *dev, unsigned char desctype,
 	unsigned char descindex, void *buf, int size);
 extern int usb_get_status(struct usb_device *dev,
-	int type, int target, void *data);
+	int recip, int target, void *data);
 extern int usb_string(struct usb_device *dev, int index,
 	char *buf, size_t size);
 
