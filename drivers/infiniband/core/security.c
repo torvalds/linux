@@ -692,20 +692,13 @@ void ib_mad_agent_security_cleanup(struct ib_mad_agent *agent)
 
 int ib_mad_enforce_security(struct ib_mad_agent_private *map, u16 pkey_index)
 {
-	int ret;
-
 	if (map->agent.qp->qp_type == IB_QPT_SMI && !map->agent.smp_allowed)
 		return -EACCES;
 
-	ret = ib_security_pkey_access(map->agent.device,
-				      map->agent.port_num,
-				      pkey_index,
-				      map->agent.security);
-
-	if (ret)
-		return ret;
-
-	return 0;
+	return ib_security_pkey_access(map->agent.device,
+				       map->agent.port_num,
+				       pkey_index,
+				       map->agent.security);
 }
 
 #endif /* CONFIG_SECURITY_INFINIBAND */
