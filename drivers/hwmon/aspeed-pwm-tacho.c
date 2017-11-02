@@ -7,19 +7,19 @@
  */
 
 #include <linux/clk.h>
+#include <linux/delay.h>
 #include <linux/errno.h>
 #include <linux/gpio/consumer.h>
-#include <linux/delay.h>
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/of_platform.h>
 #include <linux/of_device.h>
+#include <linux/of_platform.h>
 #include <linux/platform_device.h>
-#include <linux/sysfs.h>
 #include <linux/regmap.h>
+#include <linux/sysfs.h>
 #include <linux/thermal.h>
 
 /* ASPEED PWM & FAN Tach Register Definition */
