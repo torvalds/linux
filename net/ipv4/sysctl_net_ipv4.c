@@ -25,6 +25,7 @@
 #include <net/inet_frag.h>
 #include <net/ping.h>
 #include <net/protocol.h>
+#include <net/netevent.h>
 
 static int zero;
 static int one = 1;
@@ -384,6 +385,23 @@ static int proc_tcp_available_ulp(struct ctl_table *ctl,
 
 	return ret;
 }
+
+#ifdef CONFIG_IP_ROUTE_MULTIPATH
+static int proc_fib_multipath_hash_policy(struct ctl_table *table, int write,
+					  void __user *buffer, size_t *lenp,
+					  loff_t *ppos)
+{
+	struct net *net = container_of(table->data, struct net,
+	    ipv4.sysctl_fib_multipath_hash_policy);
+	int ret;
+
+	ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
+	if (write && ret == 0)
+		call_netevent_notifiers(NETEVENT_MULTIPATH_HASH_UPDATE, net);
+
+	return ret;
+}
+#endif
 
 static struct ctl_table ipv4_table[] = {
 	{
@@ -907,7 +925,7 @@ static struct ctl_table ipv4_net_table[] = {
 		.data		= &init_net.ipv4.sysctl_fib_multipath_hash_policy,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.proc_handler	= proc_fib_multipath_hash_policy,
 		.extra1		= &zero,
 		.extra2		= &one,
 	},
