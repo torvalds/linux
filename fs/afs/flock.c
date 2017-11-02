@@ -206,7 +206,7 @@ void afs_lock_work(struct work_struct *work)
 			BUG();
 		fl = list_entry(vnode->granted_locks.next,
 				struct file_lock, fl_u.afs.link);
-		key = key_get(fl->fl_file->private_data);
+		key = key_get(afs_file_key(fl->fl_file));
 		spin_unlock(&vnode->lock);
 
 		ret = afs_extend_lock(vnode, key);
@@ -240,7 +240,7 @@ void afs_lock_work(struct work_struct *work)
 			BUG();
 		fl = list_entry(vnode->pending_locks.next,
 				struct file_lock, fl_u.afs.link);
-		key = key_get(fl->fl_file->private_data);
+		key = key_get(afs_file_key(fl->fl_file));
 		type = (fl->fl_type == F_RDLCK) ?
 			AFS_LOCK_READ : AFS_LOCK_WRITE;
 		spin_unlock(&vnode->lock);
@@ -318,7 +318,7 @@ static int afs_do_setlk(struct file *file, struct file_lock *fl)
 	struct inode *inode = file_inode(file);
 	struct afs_vnode *vnode = AFS_FS_I(inode);
 	afs_lock_type_t type;
-	struct key *key = file->private_data;
+	struct key *key = afs_file_key(file);
 	int ret;
 
 	_enter("{%x:%u},%u", vnode->fid.vid, vnode->fid.vnode, fl->fl_type);
@@ -500,7 +500,7 @@ vfs_rejected_lock:
 static int afs_do_unlk(struct file *file, struct file_lock *fl)
 {
 	struct afs_vnode *vnode = AFS_FS_I(file->f_mapping->host);
-	struct key *key = file->private_data;
+	struct key *key = afs_file_key(file);
 	int ret;
 
 	_enter("{%x:%u},%u", vnode->fid.vid, vnode->fid.vnode, fl->fl_type);
@@ -535,7 +535,7 @@ static int afs_do_unlk(struct file *file, struct file_lock *fl)
 static int afs_do_getlk(struct file *file, struct file_lock *fl)
 {
 	struct afs_vnode *vnode = AFS_FS_I(file->f_mapping->host);
-	struct key *key = file->private_data;
+	struct key *key = afs_file_key(file);
 	int ret, lock_count;
 
 	_enter("");

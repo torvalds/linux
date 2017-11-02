@@ -396,7 +396,7 @@ out:
  */
 static int afs_readdir(struct file *file, struct dir_context *ctx)
 {
-	return afs_dir_iterate(file_inode(file), ctx, file->private_data);
+	return afs_dir_iterate(file_inode(file), ctx, afs_file_key(file));
 }
 
 /*

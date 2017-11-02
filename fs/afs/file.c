@@ -68,6 +68,7 @@ const struct address_space_operations afs_fs_aops = {
 int afs_open(struct inode *inode, struct file *file)
 {
 	struct afs_vnode *vnode = AFS_FS_I(inode);
+	struct afs_file *af;
 	struct key *key;
 	int ret;
 
@@ -75,19 +76,32 @@ int afs_open(struct inode *inode, struct file *file)
 
 	key = afs_request_key(vnode->volume->cell);
 	if (IS_ERR(key)) {
-		_leave(" = %ld [key]", PTR_ERR(key));
-		return PTR_ERR(key);
+		ret = PTR_ERR(key);
+		goto error;
+	}
+
+	af = kzalloc(sizeof(*af), GFP_KERNEL);
+	if (!af) {
+		ret = -ENOMEM;
+		goto error_key;
 	}
 
 	ret = afs_validate(vnode, key);
-	if (ret < 0) {
-		_leave(" = %d [val]", ret);
-		return ret;
-	}
+	if (ret < 0)
+		goto error_af;
 
-	file->private_data = key;
+	af->key = key;
+	file->private_data = af;
 	_leave(" = 0");
 	return 0;
+
+error_af:
+	kfree(af);
+error_key:
+	key_put(key);
+error:
+	_leave(" = %d", ret);
+	return ret;
 }
 
 /*
@@ -96,10 +110,13 @@ int afs_open(struct inode *inode, struct file *file)
 int afs_release(struct inode *inode, struct file *file)
 {
 	struct afs_vnode *vnode = AFS_FS_I(inode);
+	struct afs_file *af = file->private_data;
 
 	_enter("{%x:%u},", vnode->fid.vid, vnode->fid.vnode);
 
-	key_put(file->private_data);
+	file->private_data = NULL;
+	key_put(af->key);
+	kfree(af);
 	_leave(" = 0");
 	return 0;
 }
@@ -295,7 +312,7 @@ static int afs_readpage(struct file *file, struct page *page)
 	int ret;
 
 	if (file) {
-		key = file->private_data;
+		key = afs_file_key(file);
 		ASSERT(key != NULL);
 		ret = afs_page_filler(key, page);
 	} else {
@@ -346,7 +363,7 @@ static int afs_readpages_one(struct file *file, struct address_space *mapping,
 	struct afs_read *req;
 	struct list_head *p;
 	struct page *first, *page;
-	struct key *key = file->private_data;
+	struct key *key = afs_file_key(file);
 	pgoff_t index;
 	int ret, n, i;
 
@@ -442,7 +459,7 @@ error:
 static int afs_readpages(struct file *file, struct address_space *mapping,
 			 struct list_head *pages, unsigned nr_pages)
 {
-	struct key *key = file->private_data;
+	struct key *key = afs_file_key(file);
 	struct afs_vnode *vnode;
 	int ret = 0;
 

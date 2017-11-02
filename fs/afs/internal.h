@@ -139,6 +139,20 @@ struct afs_call_type {
 };
 
 /*
+ * AFS open file information record.  Pointed to by file->private_data.
+ */
+struct afs_file {
+	struct key		*key;		/* The key this file was opened with */
+};
+
+static inline struct key *afs_file_key(struct file *file)
+{
+	struct afs_file *af = file->private_data;
+
+	return af->key;
+}
+
+/*
  * Record of an outstanding read operation on a vnode.
  */
 struct afs_read {

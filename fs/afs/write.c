@@ -128,7 +128,7 @@ int afs_write_begin(struct file *file, struct address_space *mapping,
 	struct afs_writeback *candidate, *wb;
 	struct afs_vnode *vnode = AFS_FS_I(file_inode(file));
 	struct page *page;
-	struct key *key = file->private_data;
+	struct key *key = afs_file_key(file);
 	unsigned from = pos & (PAGE_SIZE - 1);
 	unsigned to = from + len;
 	pgoff_t index = pos >> PAGE_SHIFT;
@@ -255,7 +255,7 @@ int afs_write_end(struct file *file, struct address_space *mapping,
 		  struct page *page, void *fsdata)
 {
 	struct afs_vnode *vnode = AFS_FS_I(file_inode(file));
-	struct key *key = file->private_data;
+	struct key *key = afs_file_key(file);
 	loff_t i_size, maybe_i_size;
 	int ret;
 

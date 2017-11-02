@@ -520,7 +520,7 @@ int afs_setattr(struct dentry *dentry, struct iattr *attr)
 	}
 
 	if (attr->ia_valid & ATTR_FILE) {
-		key = attr->ia_file->private_data;
+		key = afs_file_key(attr->ia_file);
 	} else {
 		key = afs_request_key(vnode->volume->cell);
 		if (IS_ERR(key)) {
