@@ -188,7 +188,6 @@ int c4iw_flush_rq(struct t4_wq *wq, struct t4_cq *cq, int count)
 	int flushed = 0;
 	int in_use = wq->rq.in_use - count;
 
-	BUG_ON(in_use < 0);
 	pr_debug("wq %p cq %p rq.in_use %u skip count %u\n",
 		 wq, cq, wq->rq.in_use, count);
 	while (in_use--) {
@@ -231,14 +230,11 @@ int c4iw_flush_sq(struct c4iw_qp *qhp)
 	if (wq->sq.flush_cidx == -1)
 		wq->sq.flush_cidx = wq->sq.cidx;
 	idx = wq->sq.flush_cidx;
-	BUG_ON(idx >= wq->sq.size);
 	while (idx != wq->sq.pidx) {
 		swsqe = &wq->sq.sw_sq[idx];
-		BUG_ON(swsqe->flushed);
 		swsqe->flushed = 1;
 		insert_sq_cqe(wq, cq, swsqe);
 		if (wq->sq.oldest_read == swsqe) {
-			BUG_ON(swsqe->opcode != FW_RI_READ_REQ);
 			advance_oldest_read(wq);
 		}
 		flushed++;
@@ -259,7 +255,6 @@ static void flush_completed_wrs(struct t4_wq *wq, struct t4_cq *cq)
 	if (wq->sq.flush_cidx == -1)
 		wq->sq.flush_cidx = wq->sq.cidx;
 	cidx = wq->sq.flush_cidx;
-	BUG_ON(cidx > wq->sq.size);
 
 	while (cidx != wq->sq.pidx) {
 		swsqe = &wq->sq.sw_sq[cidx];
@@ -267,8 +262,6 @@ static void flush_completed_wrs(struct t4_wq *wq, struct t4_cq *cq)
 			if (++cidx == wq->sq.size)
 				cidx = 0;
 		} else if (swsqe->complete) {
-
-			BUG_ON(swsqe->flushed);
 
 			/*
 			 * Insert this completed cqe into the swcq.
@@ -613,7 +606,6 @@ proc_cqe:
 	 */
 	if (SQ_TYPE(hw_cqe)) {
 		int idx = CQE_WRID_SQ_IDX(hw_cqe);
-		BUG_ON(idx >= wq->sq.size);
 
 		/*
 		* Account for any unsignaled completions completed by
@@ -627,7 +619,6 @@ proc_cqe:
 			wq->sq.in_use -= wq->sq.size + idx - wq->sq.cidx;
 		else
 			wq->sq.in_use -= idx - wq->sq.cidx;
-		BUG_ON(wq->sq.in_use <= 0 && wq->sq.in_use >= wq->sq.size);
 
 		wq->sq.cidx = (uint16_t)idx;
 		pr_debug("completing sq idx %u\n", wq->sq.cidx);
@@ -638,7 +629,6 @@ proc_cqe:
 	} else {
 		pr_debug("completing rq idx %u\n", wq->rq.cidx);
 		*cookie = wq->rq.sw_rq[wq->rq.cidx].wr_id;
-		BUG_ON(t4_rq_empty(wq));
 		if (c4iw_wr_log)
 			c4iw_log_wr_stats(wq, hw_cqe);
 		t4_rq_consume(wq);

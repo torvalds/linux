@@ -310,8 +310,9 @@ static int c4iw_query_gid(struct ib_device *ibdev, u8 port, int index,
 
 	pr_debug("ibdev %p, port %d, index %d, gid %p\n",
 		 ibdev, port, index, gid);
+	if (!port)
+		return -EINVAL;
 	dev = to_c4iw_dev(ibdev);
-	BUG_ON(port == 0);
 	memset(&(gid->raw[0]), 0, sizeof(gid->raw));
 	memcpy(&(gid->raw[0]), dev->rdev.lldi.ports[port-1]->dev_addr, 6);
 	return 0;
@@ -536,7 +537,6 @@ int c4iw_register_device(struct c4iw_dev *dev)
 	int i;
 
 	pr_debug("c4iw_dev %p\n", dev);
-	BUG_ON(!dev->rdev.lldi.ports[0]);
 	strlcpy(dev->ibdev.name, "cxgb4_%d", IB_DEVICE_NAME_MAX);
 	memset(&dev->ibdev.node_guid, 0, sizeof(dev->ibdev.node_guid));
 	memcpy(&dev->ibdev.node_guid, dev->rdev.lldi.ports[0]->dev_addr, 6);

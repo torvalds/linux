@@ -425,7 +425,6 @@ static inline void t4_sq_produce(struct t4_wq *wq, u8 len16)
 
 static inline void t4_sq_consume(struct t4_wq *wq)
 {
-	BUG_ON(wq->sq.in_use < 1);
 	if (wq->sq.cidx == wq->sq.flush_cidx)
 		wq->sq.flush_cidx = -1;
 	wq->sq.in_use--;
@@ -600,7 +599,8 @@ static inline void t4_swcq_produce(struct t4_cq *cq)
 		pr_warn("%s cxgb4 sw cq overflow cqid %u\n",
 			__func__, cq->cqid);
 		cq->error = 1;
-		BUG_ON(1);
+		cq->sw_in_use--;
+		return;
 	}
 	if (++cq->sw_pidx == cq->size)
 		cq->sw_pidx = 0;
@@ -608,7 +608,6 @@ static inline void t4_swcq_produce(struct t4_cq *cq)
 
 static inline void t4_swcq_consume(struct t4_cq *cq)
 {
-	BUG_ON(cq->sw_in_use < 1);
 	cq->sw_in_use--;
 	if (++cq->sw_cidx == cq->size)
 		cq->sw_cidx = 0;
@@ -654,7 +653,6 @@ static inline int t4_next_hw_cqe(struct t4_cq *cq, struct t4_cqe **cqe)
 		ret = -EOVERFLOW;
 		cq->error = 1;
 		pr_err("cq overflow cqid %u\n", cq->cqid);
-		BUG_ON(1);
 	} else if (t4_valid_cqe(cq, &cq->queue[cq->cidx])) {
 
 		/* Ensure CQE is flushed to memory */
@@ -672,7 +670,6 @@ static inline struct t4_cqe *t4_next_sw_cqe(struct t4_cq *cq)
 		pr_warn("%s cxgb4 sw cq overflow cqid %u\n",
 			__func__, cq->cqid);
 		cq->error = 1;
-		BUG_ON(1);
 		return NULL;
 	}
 	if (cq->sw_in_use)

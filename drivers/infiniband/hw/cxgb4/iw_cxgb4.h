@@ -364,7 +364,6 @@ static inline int _insert_handle(struct c4iw_dev *rhp, struct idr *idr,
 		idr_preload_end();
 	}
 
-	BUG_ON(ret == -ENOSPC);
 	return ret < 0 ? ret : 0;
 }
 
