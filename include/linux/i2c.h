@@ -485,7 +485,7 @@ struct i2c_timings {
 /**
  * struct i2c_bus_recovery_info - I2C bus recovery information
  * @recover_bus: Recover routine. Either pass driver's recover_bus() routine, or
- *	i2c_generic_scl_recovery() or i2c_generic_gpio_recovery().
+ *	i2c_generic_scl_recovery().
  * @get_scl: This gets current value of SCL line. Mandatory for generic SCL
  *      recovery. Used internally for generic GPIO recovery.
  * @set_scl: This sets/clears SCL line. Mandatory for generic SCL recovery. Used
@@ -497,8 +497,6 @@ struct i2c_timings {
  *	configure padmux here for SDA/SCL line or something else they want.
  * @unprepare_recovery: This will be called after completing recovery. Platform
  *	may configure padmux here for SDA/SCL line or something else they want.
- * @scl_gpio: gpio number of the SCL line. Only required for GPIO recovery.
- * @sda_gpio: gpio number of the SDA line. Only required for GPIO recovery.
  * @scl_gpiod: gpiod of the SCL line. Only required for GPIO recovery.
  * @sda_gpiod: gpiod of the SDA line. Only required for GPIO recovery.
  */
@@ -513,8 +511,6 @@ struct i2c_bus_recovery_info {
 	void (*unprepare_recovery)(struct i2c_adapter *);
 
 	/* gpio recovery */
-	int scl_gpio;
-	int sda_gpio;
 	struct gpio_desc *scl_gpiod;
 	struct gpio_desc *sda_gpiod;
 };
@@ -522,7 +518,6 @@ struct i2c_bus_recovery_info {
 int i2c_recover_bus(struct i2c_adapter *adap);
 
 /* Generic recovery routines */
-int i2c_generic_gpio_recovery(struct i2c_adapter *adap);
 int i2c_generic_scl_recovery(struct i2c_adapter *adap);
 
 /**

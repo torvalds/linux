@@ -147,46 +147,6 @@ static int get_sda_gpio_value(struct i2c_adapter *adap)
 	return gpiod_get_value_cansleep(adap->bus_recovery_info->sda_gpiod);
 }
 
-static int i2c_get_gpios_for_recovery(struct i2c_adapter *adap)
-{
-	struct i2c_bus_recovery_info *bri = adap->bus_recovery_info;
-	struct device *dev = &adap->dev;
-	int ret = 0;
-
-	ret = gpio_request_one(bri->scl_gpio, GPIOF_OPEN_DRAIN |
-			GPIOF_OUT_INIT_HIGH, "i2c-scl");
-	if (ret) {
-		dev_warn(dev, "Can't get SCL gpio: %d\n", bri->scl_gpio);
-		return ret;
-	}
-	bri->scl_gpiod = gpio_to_desc(bri->scl_gpio);
-
-	if (bri->get_sda) {
-		if (gpio_request_one(bri->sda_gpio, GPIOF_IN, "i2c-sda")) {
-			/* work without SDA polling */
-			dev_warn(dev, "Can't get SDA gpio: %d. Not using SDA polling\n",
-					bri->sda_gpio);
-			bri->get_sda = NULL;
-		}
-		bri->sda_gpiod = gpio_to_desc(bri->sda_gpio);
-	}
-
-	return ret;
-}
-
-static void i2c_put_gpios_for_recovery(struct i2c_adapter *adap)
-{
-	struct i2c_bus_recovery_info *bri = adap->bus_recovery_info;
-
-	if (bri->get_sda) {
-		gpio_free(bri->sda_gpio);
-		bri->sda_gpiod = NULL;
-	}
-
-	gpio_free(bri->scl_gpio);
-	bri->scl_gpiod = NULL;
-}
-
 /*
  * We are generating clock pulses. ndelay() determines durating of clk pulses.
  * We will generate clock with rate 100 KHz and so duration of both clock levels
@@ -195,7 +155,7 @@ static void i2c_put_gpios_for_recovery(struct i2c_adapter *adap)
 #define RECOVERY_NDELAY		5000
 #define RECOVERY_CLK_CNT	9
 
-static int i2c_generic_recovery(struct i2c_adapter *adap)
+int i2c_generic_scl_recovery(struct i2c_adapter *adap)
 {
 	struct i2c_bus_recovery_info *bri = adap->bus_recovery_info;
 	int i = 0, val = 1, ret = 0;
@@ -237,27 +197,7 @@ static int i2c_generic_recovery(struct i2c_adapter *adap)
 
 	return ret;
 }
-
-int i2c_generic_scl_recovery(struct i2c_adapter *adap)
-{
-	return i2c_generic_recovery(adap);
-}
 EXPORT_SYMBOL_GPL(i2c_generic_scl_recovery);
-
-int i2c_generic_gpio_recovery(struct i2c_adapter *adap)
-{
-	int ret;
-
-	ret = i2c_get_gpios_for_recovery(adap);
-	if (ret)
-		return ret;
-
-	ret = i2c_generic_recovery(adap);
-	i2c_put_gpios_for_recovery(adap);
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(i2c_generic_gpio_recovery);
 
 int i2c_recover_bus(struct i2c_adapter *adap)
 {
@@ -290,21 +230,7 @@ static void i2c_init_recovery(struct i2c_adapter *adap)
 		return;
 	}
 
-	/* Generic GPIO recovery */
-	if (bri->recover_bus == i2c_generic_gpio_recovery) {
-		if (!gpio_is_valid(bri->scl_gpio)) {
-			err_str = "invalid SCL gpio";
-			goto err;
-		}
-
-		if (gpio_is_valid(bri->sda_gpio))
-			bri->get_sda = get_sda_gpio_value;
-		else
-			bri->get_sda = NULL;
-
-		bri->get_scl = get_scl_gpio_value;
-		bri->set_scl = set_scl_gpio_value;
-	} else if (bri->recover_bus == i2c_generic_scl_recovery) {
+	if (bri->recover_bus == i2c_generic_scl_recovery) {
 		/* Generic SCL recovery */
 		if (!bri->set_scl || !bri->get_scl) {
 			err_str = "no {get|set}_scl() found";
