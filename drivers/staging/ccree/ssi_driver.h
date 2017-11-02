@@ -134,7 +134,6 @@ struct ssi_drvdata {
 	void *fips_handle;
 	void *ivgen_handle;
 	void *sram_mgr_handle;
-	u32 inflight_counter;
 	struct clk *clk;
 	bool coherent;
 };

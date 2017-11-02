@@ -697,10 +697,6 @@ static int ssi_blkcipher_complete(struct device *dev,
 	ssi_buffer_mgr_unmap_blkcipher_request(dev, req_ctx, ivsize, src, dst);
 	kfree(req_ctx->iv);
 
-	/*Decrease the inflight counter*/
-	if (ctx_p->flow_mode == BYPASS && ctx_p->drvdata->inflight_counter > 0)
-		ctx_p->drvdata->inflight_counter--;
-
 	if (areq) {
 		/*
 		 * The crypto API expects us to set the req->info to the last
