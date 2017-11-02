@@ -91,8 +91,8 @@ Filesystems can be mounted anywhere by commands similar to the following:
 	mount -t afs "#root.cell." /afs/cambridge
 
 Where the initial character is either a hash or a percent symbol depending on
-whether you definitely want a R/W volume (hash) or whether you'd prefer a R/O
-volume, but are willing to use a R/W volume instead (percent).
+whether you definitely want a R/W volume (percent) or whether you'd prefer a
+R/O volume, but are willing to use a R/W volume instead (hash).
 
 The name of the volume can be suffixes with ".backup" or ".readonly" to
 specify connection to only volumes of those types.
