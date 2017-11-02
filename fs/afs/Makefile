@@ -20,6 +20,7 @@ kafs-objs := \
 	misc.o \
 	mntpt.o \
 	proc.o \
+	rotate.o \
 	rxrpc.o \
 	security.o \
 	server.o \
