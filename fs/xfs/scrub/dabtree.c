@@ -336,7 +336,7 @@ xfs_scrub_da_btree_block(
 	xfs_ino_t			owner;
 	int				*pmaxrecs;
 	struct xfs_da3_icnode_hdr	nodehdr;
-	int				error;
+	int				error = 0;
 
 	blk = &ds->state->path.blk[level];
 	ds->state->path.active = level + 1;
