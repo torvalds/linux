@@ -2228,13 +2228,6 @@ static int hclge_mac_init(struct hclge_dev *hdev)
 
 	mac->link = 0;
 
-	ret = hclge_mac_mdio_config(hdev);
-	if (ret) {
-		dev_warn(&hdev->pdev->dev,
-			 "mdio config fail ret=%d\n", ret);
-		return ret;
-	}
-
 	/* Initialize the MTA table work mode */
 	hdev->accept_mta_mc	= true;
 	hdev->enable_mta	= true;
@@ -4495,6 +4488,13 @@ static int hclge_init_ae_dev(struct hnae3_ae_dev *ae_dev)
 	ret = hclge_map_tqp(hdev);
 	if (ret) {
 		dev_err(&pdev->dev, "Map tqp error, ret = %d.\n", ret);
+		return ret;
+	}
+
+	ret = hclge_mac_mdio_config(hdev);
+	if (ret) {
+		dev_warn(&hdev->pdev->dev,
+			 "mdio config fail ret=%d\n", ret);
 		return ret;
 	}
 
