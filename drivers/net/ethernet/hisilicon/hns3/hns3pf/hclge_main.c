@@ -4836,6 +4836,11 @@ err_hclge_dev:
 	return ret;
 }
 
+static void hclge_stats_clear(struct hclge_dev *hdev)
+{
+	memset(&hdev->hw_stats, 0, sizeof(hdev->hw_stats));
+}
+
 static int hclge_reset_ae_dev(struct hnae3_ae_dev *ae_dev)
 {
 	struct hclge_dev *hdev = ae_dev->priv;
@@ -4843,6 +4848,8 @@ static int hclge_reset_ae_dev(struct hnae3_ae_dev *ae_dev)
 	int ret;
 
 	set_bit(HCLGE_STATE_DOWN, &hdev->state);
+
+	hclge_stats_clear(hdev);
 
 	ret = hclge_cmd_init(hdev);
 	if (ret) {
