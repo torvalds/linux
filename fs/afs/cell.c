@@ -15,6 +15,7 @@
 #include <linux/ctype.h>
 #include <linux/dns_resolver.h>
 #include <linux/sched.h>
+#include <linux/inet.h>
 #include <keys/rxrpc-type.h>
 #include "internal.h"
 
@@ -86,28 +87,38 @@ static struct afs_cell *afs_cell_alloc(struct afs_net *net,
 		delimiter = ',';
 
 	} else {
+		if (strchr(vllist, ',') || !strchr(vllist, '.'))
+			delimiter = ',';
 		_vllist = vllist;
 	}
 
 	/* fill in the VL server list from the rest of the string */
 	do {
 		struct sockaddr_rxrpc *srx = &cell->vl_addrs[cell->vl_naddrs];
-		unsigned a, b, c, d;
+		const char *end;
 
 		next = strchr(_vllist, delimiter);
 		if (next)
 			*next++ = 0;
 
-		if (sscanf(_vllist, "%u.%u.%u.%u", &a, &b, &c, &d) != 4)
+		if (in4_pton(_vllist, -1, (u8 *)&srx->transport.sin6.sin6_addr.s6_addr32[3],
+			     -1, &end)) {
+			srx->transport_len		= sizeof(struct sockaddr_in6);
+			srx->transport.sin6.sin6_family	= AF_INET6;
+			srx->transport.sin6.sin6_flowinfo = 0;
+			srx->transport.sin6.sin6_scope_id = 0;
+			srx->transport.sin6.sin6_addr.s6_addr32[0] = 0;
+			srx->transport.sin6.sin6_addr.s6_addr32[1] = 0;
+			srx->transport.sin6.sin6_addr.s6_addr32[2] = htonl(0xffff);
+		} else if (in6_pton(_vllist, -1, srx->transport.sin6.sin6_addr.s6_addr,
+				    -1, &end)) {
+			srx->transport_len		= sizeof(struct sockaddr_in6);
+			srx->transport.sin6.sin6_family	= AF_INET6;
+			srx->transport.sin6.sin6_flowinfo = 0;
+			srx->transport.sin6.sin6_scope_id = 0;
+		} else {
 			goto bad_address;
-
-		if (a > 255 || b > 255 || c > 255 || d > 255)
-			goto bad_address;
-
-		srx->transport_len		= sizeof(struct sockaddr_in);
-		srx->transport.sin.sin_family	= AF_INET;
-		srx->transport.sin.sin_addr.s_addr =
-			htonl((a << 24) | (b << 16) | (c << 8) | d);
+		}
 
 	} while (cell->vl_naddrs++,
 		 cell->vl_naddrs < AFS_CELL_MAX_ADDRS && (_vllist = next));

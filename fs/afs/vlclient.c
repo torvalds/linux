@@ -88,10 +88,15 @@ static int afs_deliver_vl_get_entry_by_xxx(struct afs_call *call)
 		entry->servers[loop].srx_family = AF_RXRPC;
 		entry->servers[loop].srx_service = FS_SERVICE;
 		entry->servers[loop].transport_type = SOCK_DGRAM;
-		entry->servers[loop].transport_len = sizeof(entry->servers[loop].transport.sin);
-		entry->servers[loop].transport.sin.sin_family = AF_INET;
-		entry->servers[loop].transport.sin.sin_port = htons(AFS_FS_PORT);
-		entry->servers[loop].transport.sin.sin_addr.s_addr = *bp++;
+		entry->servers[loop].transport_len = sizeof(entry->servers[loop].transport.sin6);
+		entry->servers[loop].transport.sin6.sin6_family = AF_INET6;
+		entry->servers[loop].transport.sin6.sin6_port = htons(AFS_FS_PORT);
+		entry->servers[loop].transport.sin6.sin6_flowinfo = 0;
+		entry->servers[loop].transport.sin6.sin6_scope_id = 0;
+		entry->servers[loop].transport.sin6.sin6_addr.s6_addr32[0] = 0;
+		entry->servers[loop].transport.sin6.sin6_addr.s6_addr32[1] = 0;
+		entry->servers[loop].transport.sin6.sin6_addr.s6_addr32[2] = htonl(0xffff);
+		entry->servers[loop].transport.sin6.sin6_addr.s6_addr32[3] = *bp++;
 	}
 
 	bp += 8; /* partition IDs */

@@ -200,11 +200,6 @@ struct afs_server *afs_find_server(struct afs_net *net,
 
 	_enter("{%d,%pIS}", srx->transport.family, &srx->transport);
 
-	if (srx->transport.family != AF_INET) {
-		WARN(true, "AFS does not yes support non-IPv4 addresses\n");
-		return NULL;
-	}
-
 	read_lock(&net->servers_lock);
 
 	p = net->servers.rb_node;

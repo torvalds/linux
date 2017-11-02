@@ -46,21 +46,20 @@ int afs_open_socket(struct afs_net *net)
 
 	_enter("");
 
-	ret = sock_create_kern(&init_net, AF_RXRPC, SOCK_DGRAM, PF_INET, &socket);
+	ret = sock_create_kern(&init_net, AF_RXRPC, SOCK_DGRAM, PF_INET6, &socket);
 	if (ret < 0)
 		goto error_1;
 
 	socket->sk->sk_allocation = GFP_NOFS;
 
 	/* bind the callback manager's address to make this a server socket */
+	memset(&srx, 0, sizeof(srx));
 	srx.srx_family			= AF_RXRPC;
 	srx.srx_service			= CM_SERVICE;
 	srx.transport_type		= SOCK_DGRAM;
-	srx.transport_len		= sizeof(srx.transport.sin);
-	srx.transport.sin.sin_family	= AF_INET;
-	srx.transport.sin.sin_port	= htons(AFS_CM_PORT);
-	memset(&srx.transport.sin.sin_addr, 0,
-	       sizeof(srx.transport.sin.sin_addr));
+	srx.transport_len		= sizeof(srx.transport.sin6);
+	srx.transport.sin6.sin6_family	= AF_INET6;
+	srx.transport.sin6.sin6_port	= htons(AFS_CM_PORT);
 
 	ret = kernel_bind(socket, (struct sockaddr *) &srx, sizeof(srx));
 	if (ret < 0)
