@@ -1081,29 +1081,6 @@ static int nvme_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 }
 
 #ifdef CONFIG_BLK_DEV_INTEGRITY
-static void nvme_prep_integrity(struct gendisk *disk, struct nvme_id_ns *id,
-		u16 bs)
-{
-	struct nvme_ns *ns = disk->private_data;
-	u16 old_ms = ns->ms;
-	u8 pi_type = 0;
-
-	ns->ms = le16_to_cpu(id->lbaf[id->flbas & NVME_NS_FLBAS_LBA_MASK].ms);
-	ns->ext = ns->ms && (id->flbas & NVME_NS_FLBAS_META_EXT);
-
-	/* PI implementation requires metadata equal t10 pi tuple size */
-	if (ns->ms == sizeof(struct t10_pi_tuple))
-		pi_type = id->dps & NVME_NS_DPS_PI_MASK;
-
-	if (blk_get_integrity(disk) &&
-	    (ns->pi_type != pi_type || ns->ms != old_ms ||
-	     bs != queue_logical_block_size(disk->queue) ||
-	     (ns->ms && ns->ext)))
-		blk_integrity_unregister(disk);
-
-	ns->pi_type = pi_type;
-}
-
 static void nvme_init_integrity(struct nvme_ns *ns)
 {
 	struct blk_integrity integrity;
@@ -1130,10 +1107,6 @@ static void nvme_init_integrity(struct nvme_ns *ns)
 	blk_queue_max_integrity_segments(ns->queue, 1);
 }
 #else
-static void nvme_prep_integrity(struct gendisk *disk, struct nvme_id_ns *id,
-		u16 bs)
-{
-}
 static void nvme_init_integrity(struct nvme_ns *ns)
 {
 }
@@ -1202,15 +1175,22 @@ static void __nvme_revalidate_disk(struct gendisk *disk, struct nvme_id_ns *id)
 		ns->lba_shift = 9;
 	bs = 1 << ns->lba_shift;
 	ns->noiob = le16_to_cpu(id->noiob);
+	ns->ext = ns->ms && (id->flbas & NVME_NS_FLBAS_META_EXT);
+	ns->ms = le16_to_cpu(id->lbaf[id->flbas & NVME_NS_FLBAS_LBA_MASK].ms);
+	/* the PI implementation requires metadata equal t10 pi tuple size */
+	if (ns->ms == sizeof(struct t10_pi_tuple))
+		ns->pi_type = id->dps & NVME_NS_DPS_PI_MASK;
+	else
+		ns->pi_type = 0;
 
 	blk_mq_freeze_queue(disk->queue);
+	blk_integrity_unregister(disk);
 
-	if (ctrl->ops->flags & NVME_F_METADATA_SUPPORTED)
-		nvme_prep_integrity(disk, id, bs);
 	blk_queue_logical_block_size(ns->queue, bs);
 	if (ns->noiob)
 		nvme_set_chunk_size(ns);
-	if (ns->ms && !blk_get_integrity(disk) && !ns->ext)
+	if (ns->ms && !ns->ext &&
+	    (ctrl->ops->flags & NVME_F_METADATA_SUPPORTED))
 		nvme_init_integrity(ns);
 	if (ns->ms && !(ns->ms == 8 && ns->pi_type) && !blk_get_integrity(disk))
 		set_capacity(disk, 0);
