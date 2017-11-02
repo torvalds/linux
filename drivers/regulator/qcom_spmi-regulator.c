@@ -593,13 +593,20 @@ static int spmi_sw_selector_to_hw(struct spmi_regulator *vreg,
 				  u8 *voltage_sel)
 {
 	const struct spmi_voltage_range *range, *end;
+	unsigned offset;
 
 	range = vreg->set_points->range;
 	end = range + vreg->set_points->count;
 
 	for (; range < end; range++) {
 		if (selector < range->n_voltages) {
-			*voltage_sel = selector;
+			/*
+			 * hardware selectors between set point min and real
+			 * min are invalid so we ignore them
+			 */
+			offset = range->set_point_min_uV - range->min_uV;
+			offset /= range->step_uV;
+			*voltage_sel = selector + offset;
 			*range_sel = range->range_sel;
 			return 0;
 		}
@@ -613,15 +620,35 @@ static int spmi_sw_selector_to_hw(struct spmi_regulator *vreg,
 static int spmi_hw_selector_to_sw(struct spmi_regulator *vreg, u8 hw_sel,
 				  const struct spmi_voltage_range *range)
 {
-	int sw_sel = hw_sel;
+	unsigned sw_sel = 0;
+	unsigned offset, max_hw_sel;
 	const struct spmi_voltage_range *r = vreg->set_points->range;
+	const struct spmi_voltage_range *end = r + vreg->set_points->count;
 
-	while (r != range) {
+	for (; r < end; r++) {
+		if (r == range && range->n_voltages) {
+			/*
+			 * hardware selectors between set point min and real
+			 * min and between set point max and real max are
+			 * invalid so we return an error if they're
+			 * programmed into the hardware
+			 */
+			offset = range->set_point_min_uV - range->min_uV;
+			offset /= range->step_uV;
+			if (hw_sel < offset)
+				return -EINVAL;
+
+			max_hw_sel = range->set_point_max_uV - range->min_uV;
+			max_hw_sel /= range->step_uV;
+			if (hw_sel > max_hw_sel)
+				return -EINVAL;
+
+			return sw_sel + hw_sel - offset;
+		}
 		sw_sel += r->n_voltages;
-		r++;
 	}
 
-	return sw_sel;
+	return -EINVAL;
 }
 
 static const struct spmi_voltage_range *
