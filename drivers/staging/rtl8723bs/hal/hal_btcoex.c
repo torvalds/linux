@@ -1411,10 +1411,6 @@ void hal_btcoex_SetSingleAntPath(struct adapter *padapter, u8 singleAntPath)
 
 u8 hal_btcoex_Initialize(struct adapter *padapter)
 {
-	u8 ret1;
-	u8 ret2;
-
-
 	memset(&GLBtCoexist, 0, sizeof(GLBtCoexist));
 	return EXhalbtcoutsrc_InitlizeVariables((void *)padapter);
 }
