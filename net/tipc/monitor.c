@@ -530,8 +530,11 @@ void tipc_mon_prep(struct net *net, void *data, int *dlen,
 	u16 gen = mon->dom_gen;
 	u16 len;
 
-	if (!tipc_mon_is_active(net, mon))
+	/* Send invalid record if not active */
+	if (!tipc_mon_is_active(net, mon)) {
+		dom->len = 0;
 		return;
+	}
 
 	/* Send only a dummy record with ack if peer has acked our last sent */
 	if (likely(state->acked_gen == gen)) {
@@ -558,6 +561,12 @@ void tipc_mon_get_state(struct net *net, u32 addr,
 {
 	struct tipc_monitor *mon = tipc_monitor(net, bearer_id);
 	struct tipc_peer *peer;
+
+	if (!tipc_mon_is_active(net, mon)) {
+		state->probing = false;
+		state->monitoring = true;
+		return;
+	}
 
 	/* Used cached state if table has not changed */
 	if (!state->probing &&
