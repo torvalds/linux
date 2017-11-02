@@ -62,9 +62,7 @@ struct rk_context *s_rk_context;
 
 static int rk_context_create_sysfs_files(struct device *dev)
 {
-	int ret = 0;
-
-	return ret;
+	return 0;
 }
 
 static void rk_context_remove_sysfs_files(struct device *dev)
@@ -358,7 +356,8 @@ static int mali_runtime_suspend(struct device *device)
 		ret = device->driver->pm->runtime_suspend(device);
 	}
 
-	rk_platform_power_off_gpu(device);
+	if (!ret)
+		rk_platform_power_off_gpu(device);
 
 	return ret;
 }
@@ -396,8 +395,6 @@ static int mali_runtime_idle(struct device *device)
 			return ret;
 	}
 
-	pm_runtime_suspend(device);
-
 	return 0;
 }
 #endif
@@ -415,7 +412,8 @@ static int mali_os_suspend(struct device *device)
 		ret = device->driver->pm->suspend(device);
 	}
 
-	rk_platform_power_off_gpu(device);
+	if (!ret)
+		rk_platform_power_off_gpu(device);
 
 	return ret;
 }
