@@ -70,6 +70,8 @@ struct afs_addr_list {
 	unsigned short		nr_addrs;
 	unsigned short		index;		/* Address currently in use */
 	unsigned short		nr_ipv4;	/* Number of IPv4 addresses */
+	unsigned long		probed;		/* Mask of servers that have been probed */
+	unsigned long		yfs;		/* Mask of servers that are YFS */
 	struct sockaddr_rxrpc	addrs[];
 };
 
@@ -113,7 +115,7 @@ struct afs_call {
 	bool			async;		/* T if asynchronous */
 	bool			ret_reply0;	/* T if should return reply[0] on success */
 	bool			upgrade;	/* T to request service upgrade */
-	u16			service_id;	/* RxRPC service ID to call */
+	u16			service_id;	/* Actual service ID (after upgrade) */
 	u32			operation_ID;	/* operation ID for an incoming call */
 	u32			count;		/* count for use in unmarshalling */
 	__be32			tmp;		/* place to extract temporary data */
@@ -564,7 +566,8 @@ extern bool afs_iterate_addresses(struct afs_addr_cursor *);
 extern int afs_end_cursor(struct afs_addr_cursor *);
 extern int afs_set_vl_cursor(struct afs_addr_cursor *, struct afs_cell *);
 
-extern void afs_merge_fs_addr4(struct afs_addr_list *, __be32);
+extern void afs_merge_fs_addr4(struct afs_addr_list *, __be32, u16);
+extern void afs_merge_fs_addr6(struct afs_addr_list *, __be32 *, u16);
 
 /*
  * cache.c
@@ -846,6 +849,9 @@ extern struct afs_vldb_entry *afs_vl_get_entry_by_name_u(struct afs_net *,
 							 struct key *, const char *, int);
 extern struct afs_addr_list *afs_vl_get_addrs_u(struct afs_net *, struct afs_addr_cursor *,
 						struct key *, const uuid_t *);
+extern int afs_vl_get_capabilities(struct afs_net *, struct afs_addr_cursor *, struct key *);
+extern struct afs_addr_list *afs_yfsvl_get_endpoints(struct afs_net *, struct afs_addr_cursor *,
+						     struct key *, const uuid_t *);
 
 /*
  * volume.c

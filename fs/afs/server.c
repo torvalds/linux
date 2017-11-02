@@ -266,7 +266,10 @@ static struct afs_addr_list *afs_vl_lookup_addrs(struct afs_cell *cell,
 		return ERR_PTR(ret);
 
 	while (afs_iterate_addresses(&ac)) {
-		alist = afs_vl_get_addrs_u(cell->net, &ac, key, uuid);
+		if (test_bit(ac.index, &ac.alist->yfs))
+			alist = afs_yfsvl_get_endpoints(cell->net, &ac, key, uuid);
+		else
+			alist = afs_vl_get_addrs_u(cell->net, &ac, key, uuid);
 		switch (ac.error) {
 		case 0:
 			afs_end_cursor(&ac);

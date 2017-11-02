@@ -16,6 +16,7 @@
 
 #define AFS_VL_PORT		7003	/* volume location service port */
 #define VL_SERVICE		52	/* RxRPC service ID for the Volume Location service */
+#define YFS_VL_SERVICE		2503	/* Service ID for AuriStor upgraded VL service */
 
 enum AFSVL_Operations {
 	VLGETENTRYBYID		= 503,	/* AFS Get VLDB entry by ID */
@@ -24,6 +25,8 @@ enum AFSVL_Operations {
 	VLGETENTRYBYIDU		= 526,	/* AFS Get VLDB entry by ID (UUID-variant) */
 	VLGETENTRYBYNAMEU	= 527,	/* AFS Get VLDB entry by name (UUID-variant) */
 	VLGETADDRSU		= 533,	/* AFS Get addrs for fileserver */
+	YVLGETENDPOINTS		= 64002, /* YFS Get endpoints for file/volume server */
+	VLGETCAPABILITIES	= 65537, /* AFS Get server capabilities */
 };
 
 enum AFSVL_Errors {
@@ -56,6 +59,19 @@ enum AFSVL_Errors {
 	AFSVL_PERM 		= 363546,	/* No permission access */
 	AFSVL_NOMEM 		= 363547,	/* malloc/realloc failed to alloc enough memory */
 };
+
+enum {
+	YFS_SERVER_INDEX	= 0,
+	YFS_SERVER_UUID		= 1,
+	YFS_SERVER_ENDPOINT	= 2,
+};
+
+enum {
+	YFS_ENDPOINT_IPV4	= 0,
+	YFS_ENDPOINT_IPV6	= 1,
+};
+
+#define YFS_MAXENDPOINTS	16
 
 /*
  * maps to "struct vldbentry" in vvl-spec.pdf

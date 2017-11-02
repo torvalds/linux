@@ -225,7 +225,7 @@ again:
 		bp = call->buffer;
 		for (i = 0; i < count; i++)
 			if (alist->nr_addrs < call->count2)
-				afs_merge_fs_addr4(alist, *bp++);
+				afs_merge_fs_addr4(alist, *bp++, AFS_FS_PORT);
 
 		call->count -= count;
 		if (call->count > 0)
@@ -297,6 +297,341 @@ struct afs_addr_list *afs_vl_get_addrs_u(struct afs_net *net,
 	r->uuid.clock_seq_low			= htonl(u->clock_seq_low);
 	for (i = 0; i < 6; i++)
 		r->uuid.node[i] = ntohl(u->node[i]);
+
+	return (struct afs_addr_list *)afs_make_call(ac, call, GFP_KERNEL, false);
+}
+
+/*
+ * Deliver reply data to an VL.GetCapabilities operation.
+ */
+static int afs_deliver_vl_get_capabilities(struct afs_call *call)
+{
+	u32 count;
+	int ret;
+
+	_enter("{%u,%zu/%u}", call->unmarshall, call->offset, call->count);
+
+again:
+	switch (call->unmarshall) {
+	case 0:
+		call->offset = 0;
+		call->unmarshall++;
+
+		/* Extract the capabilities word count */
+	case 1:
+		ret = afs_extract_data(call, &call->tmp,
+				       1 * sizeof(__be32),
+				       true);
+		if (ret < 0)
+			return ret;
+
+		count = ntohl(call->tmp);
+
+		call->count = count;
+		call->count2 = count;
+		call->offset = 0;
+		call->unmarshall++;
+
+		/* Extract capabilities words */
+	case 2:
+		count = min(call->count, 16U);
+		ret = afs_extract_data(call, call->buffer,
+				       count * sizeof(__be32),
+				       call->count > 16);
+		if (ret < 0)
+			return ret;
+
+		/* TODO: Examine capabilities */
+
+		call->count -= count;
+		if (call->count > 0)
+			goto again;
+		call->offset = 0;
+		call->unmarshall++;
+		break;
+	}
+
+	call->reply[0] = (void *)(unsigned long)call->service_id;
+
+	_leave(" = 0 [done]");
+	return 0;
+}
+
+/*
+ * VL.GetCapabilities operation type
+ */
+static const struct afs_call_type afs_RXVLGetCapabilities = {
+	.name		= "VL.GetCapabilities",
+	.deliver	= afs_deliver_vl_get_capabilities,
+	.destructor	= afs_flat_call_destructor,
+};
+
+/*
+ * Probe a fileserver for the capabilities that it supports.  This can
+ * return up to 196 words.
+ *
+ * We use this to probe for service upgrade to determine what the server at the
+ * other end supports.
+ */
+int afs_vl_get_capabilities(struct afs_net *net,
+			    struct afs_addr_cursor *ac,
+			    struct key *key)
+{
+	struct afs_call *call;
+	__be32 *bp;
+
+	_enter("");
+
+	call = afs_alloc_flat_call(net, &afs_RXVLGetCapabilities, 1 * 4, 16 * 4);
+	if (!call)
+		return -ENOMEM;
+
+	call->key = key;
+	call->upgrade = true; /* Let's see if this is a YFS server */
+	call->reply[0] = (void *)VLGETCAPABILITIES;
+	call->ret_reply0 = true;
+
+	/* marshall the parameters */
+	bp = call->request;
+	*bp++ = htonl(VLGETCAPABILITIES);
+
+	/* Can't take a ref on server */
+	return afs_make_call(ac, call, GFP_KERNEL, false);
+}
+
+/*
+ * Deliver reply data to a YFSVL.GetEndpoints call.
+ *
+ *	GetEndpoints(IN yfsServerAttributes *attr,
+ *		     OUT opr_uuid *uuid,
+ *		     OUT afs_int32 *uniquifier,
+ *		     OUT endpoints *fsEndpoints,
+ *		     OUT endpoints *volEndpoints)
+ */
+static int afs_deliver_yfsvl_get_endpoints(struct afs_call *call)
+{
+	struct afs_addr_list *alist;
+	__be32 *bp;
+	u32 uniquifier, size;
+	int ret;
+
+	_enter("{%u,%zu/%u,%u}", call->unmarshall, call->offset, call->count, call->count2);
+
+again:
+	switch (call->unmarshall) {
+	case 0:
+		call->offset = 0;
+		call->unmarshall = 1;
+
+		/* Extract the returned uuid, uniquifier, fsEndpoints count and
+		 * either the first fsEndpoint type or the volEndpoints
+		 * count if there are no fsEndpoints. */
+	case 1:
+		ret = afs_extract_data(call, call->buffer,
+				       sizeof(uuid_t) +
+				       3 * sizeof(__be32),
+				       true);
+		if (ret < 0)
+			return ret;
+
+		bp = call->buffer + sizeof(uuid_t);
+		uniquifier	= ntohl(*bp++);
+		call->count	= ntohl(*bp++);
+		call->count2	= ntohl(*bp); /* Type or next count */
+
+		if (call->count > YFS_MAXENDPOINTS)
+			return -EBADMSG;
+
+		alist = afs_alloc_addrlist(call->count, FS_SERVICE, AFS_FS_PORT);
+		if (!alist)
+			return -ENOMEM;
+		alist->version = uniquifier;
+		call->reply[0] = alist;
+		call->offset = 0;
+
+		if (call->count == 0)
+			goto extract_volendpoints;
+
+		call->unmarshall = 2;
+
+		/* Extract fsEndpoints[] entries */
+	case 2:
+		switch (call->count2) {
+		case YFS_ENDPOINT_IPV4:
+			size = sizeof(__be32) * (1 + 1 + 1);
+			break;
+		case YFS_ENDPOINT_IPV6:
+			size = sizeof(__be32) * (1 + 4 + 1);
+			break;
+		default:
+			return -EBADMSG;
+		}
+
+		size += sizeof(__be32);
+		ret = afs_extract_data(call, call->buffer, size, true);
+		if (ret < 0)
+			return ret;
+
+		alist = call->reply[0];
+		bp = call->buffer;
+		switch (call->count2) {
+		case YFS_ENDPOINT_IPV4:
+			if (ntohl(bp[0]) != sizeof(__be32) * 2)
+				return -EBADMSG;
+			afs_merge_fs_addr4(alist, bp[1], ntohl(bp[2]));
+			bp += 3;
+			break;
+		case YFS_ENDPOINT_IPV6:
+			if (ntohl(bp[0]) != sizeof(__be32) * 5)
+				return -EBADMSG;
+			afs_merge_fs_addr6(alist, bp + 1, ntohl(bp[5]));
+			bp += 6;
+			break;
+		default:
+			return -EBADMSG;
+		}
+
+		/* Got either the type of the next entry or the count of
+		 * volEndpoints if no more fsEndpoints.
+		 */
+		call->count2 = htonl(*bp++);
+
+		call->offset = 0;
+		call->count--;
+		if (call->count > 0)
+			goto again;
+
+	extract_volendpoints:
+		/* Extract the list of volEndpoints. */
+		call->count = call->count2;
+		if (!call->count)
+			goto end;
+		if (call->count > YFS_MAXENDPOINTS)
+			return -EBADMSG;
+
+		call->unmarshall = 3;
+
+		/* Extract the type of volEndpoints[0].  Normally we would
+		 * extract the type of the next endpoint when we extract the
+		 * data of the current one, but this is the first...
+		 */
+	case 3:
+		ret = afs_extract_data(call, call->buffer, sizeof(__be32), true);
+		if (ret < 0)
+			return ret;
+
+		bp = call->buffer;
+		call->count2 = htonl(*bp++);
+		call->offset = 0;
+		call->unmarshall = 4;
+
+		/* Extract volEndpoints[] entries */
+	case 4:
+		switch (call->count2) {
+		case YFS_ENDPOINT_IPV4:
+			size = sizeof(__be32) * (1 + 1 + 1);
+			break;
+		case YFS_ENDPOINT_IPV6:
+			size = sizeof(__be32) * (1 + 4 + 1);
+			break;
+		default:
+			return -EBADMSG;
+		}
+
+		if (call->count > 1)
+			size += sizeof(__be32);
+		ret = afs_extract_data(call, call->buffer, size, true);
+		if (ret < 0)
+			return ret;
+
+		bp = call->buffer;
+		switch (call->count2) {
+		case YFS_ENDPOINT_IPV4:
+			if (ntohl(bp[0]) != sizeof(__be32) * 2)
+				return -EBADMSG;
+			bp += 3;
+			break;
+		case YFS_ENDPOINT_IPV6:
+			if (ntohl(bp[0]) != sizeof(__be32) * 5)
+				return -EBADMSG;
+			bp += 6;
+			break;
+		default:
+			return -EBADMSG;
+		}
+
+		/* Got either the type of the next entry or the count of
+		 * volEndpoints if no more fsEndpoints.
+		 */
+		call->offset = 0;
+		call->count--;
+		if (call->count > 0) {
+			call->count2 = htonl(*bp++);
+			goto again;
+		}
+
+	end:
+		call->unmarshall = 5;
+
+		/* Done */
+	case 5:
+		ret = afs_extract_data(call, call->buffer, 0, false);
+		if (ret < 0)
+			return ret;
+		call->unmarshall = 6;
+
+	case 6:
+		break;
+	}
+
+	alist = call->reply[0];
+
+	/* Start with IPv6 if available. */
+	if (alist->nr_ipv4 < alist->nr_addrs)
+		alist->index = alist->nr_ipv4;
+
+	_leave(" = 0 [done]");
+	return 0;
+}
+
+/*
+ * YFSVL.GetEndpoints operation type.
+ */
+static const struct afs_call_type afs_YFSVLGetEndpoints = {
+	.name		= "VL.GetEndpoints",
+	.deliver	= afs_deliver_yfsvl_get_endpoints,
+	.destructor	= afs_vl_get_addrs_u_destructor,
+};
+
+/*
+ * Dispatch an operation to get the addresses for a server, where the server is
+ * nominated by UUID.
+ */
+struct afs_addr_list *afs_yfsvl_get_endpoints(struct afs_net *net,
+					      struct afs_addr_cursor *ac,
+					      struct key *key,
+					      const uuid_t *uuid)
+{
+	struct afs_call *call;
+	__be32 *bp;
+
+	_enter("");
+
+	call = afs_alloc_flat_call(net, &afs_YFSVLGetEndpoints,
+				   sizeof(__be32) * 2 + sizeof(*uuid),
+				   sizeof(struct in6_addr) + sizeof(__be32) * 3);
+	if (!call)
+		return ERR_PTR(-ENOMEM);
+
+	call->key = key;
+	call->reply[0] = NULL;
+	call->ret_reply0 = true;
+
+	/* Marshall the parameters */
+	bp = call->request;
+	*bp++ = htonl(YVLGETENDPOINTS);
+	*bp++ = htonl(YFS_SERVER_UUID);
+	memcpy(bp, uuid, sizeof(*uuid)); /* Type opr_uuid */
 
 	return (struct afs_addr_list *)afs_make_call(ac, call, GFP_KERNEL, false);
 }

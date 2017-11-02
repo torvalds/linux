@@ -124,6 +124,22 @@ static struct afs_vldb_entry *afs_vl_lookup_vldb(struct afs_cell *cell,
 		return ERR_PTR(ret);
 
 	while (afs_iterate_addresses(&ac)) {
+		if (!test_bit(ac.index, &ac.alist->probed)) {
+			ret = afs_vl_get_capabilities(cell->net, &ac, key);
+			switch (ret) {
+			case VL_SERVICE:
+				clear_bit(ac.index, &ac.alist->yfs);
+				set_bit(ac.index, &ac.alist->probed);
+				ac.addr->srx_service = ret;
+				break;
+			case YFS_VL_SERVICE:
+				set_bit(ac.index, &ac.alist->yfs);
+				set_bit(ac.index, &ac.alist->probed);
+				ac.addr->srx_service = ret;
+				break;
+			}
+		}
+		
 		vldb = afs_vl_get_entry_by_name_u(cell->net, &ac, key,
 						  volname, volnamesz);
 		switch (ac.error) {
