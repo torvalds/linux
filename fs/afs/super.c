@@ -394,17 +394,38 @@ error:
 	return ret;
 }
 
+static struct afs_super_info *afs_alloc_sbi(struct afs_mount_params *params)
+{
+	struct afs_super_info *as;
+
+	as = kzalloc(sizeof(struct afs_super_info), GFP_KERNEL);
+	if (as) {
+		as->net = afs_get_net(params->net);
+		as->cell = afs_get_cell(params->cell);
+	}
+	return as;
+}
+
+static void afs_destroy_sbi(struct afs_super_info *as)
+{
+	if (as) {
+		afs_put_volume(as->net, as->volume);
+		afs_put_cell(as->cell);
+		afs_put_net(as->net);
+		kfree(as);
+	}
+}
+
 /*
  * get an AFS superblock
  */
 static struct dentry *afs_mount(struct file_system_type *fs_type,
-		      int flags, const char *dev_name, void *options)
+				int flags, const char *dev_name, void *options)
 {
 	struct afs_mount_params params;
 	struct super_block *sb;
 	struct afs_volume *vol;
 	struct key *key;
-	char *new_opts = kstrdup(options, GFP_KERNEL);
 	struct afs_super_info *as;
 	int ret;
 
@@ -437,20 +458,18 @@ static struct dentry *afs_mount(struct file_system_type *fs_type,
 	}
 	params.key = key;
 
+	/* allocate a superblock info record */
+	ret = -ENOMEM;
+	as = afs_alloc_sbi(&params);
+	if (!as)
+		goto error;
+
 	/* parse the device name */
 	vol = afs_volume_lookup(&params);
 	if (IS_ERR(vol)) {
 		ret = PTR_ERR(vol);
 		goto error;
 	}
-
-	/* allocate a superblock info record */
-	ret = -ENOMEM;
-	as = kzalloc(sizeof(struct afs_super_info), GFP_KERNEL);
-	if (!as)
-		goto error_vol;
-
-	as->net = afs_get_net(params.net);
 	as->volume = vol;
 
 	/* allocate a deviceless superblock */
@@ -466,31 +485,27 @@ static struct dentry *afs_mount(struct file_system_type *fs_type,
 		ret = afs_fill_super(sb, &params);
 		if (ret < 0)
 			goto error_sb;
+		as = NULL;
 		sb->s_flags |= MS_ACTIVE;
 	} else {
 		_debug("reuse");
 		ASSERTCMP(sb->s_flags, &, MS_ACTIVE);
-		afs_put_volume(params.net, vol);
-		kfree(as);
+		afs_destroy_sbi(as);
+		as = NULL;
 	}
 
 	afs_put_cell(params.cell);
-	kfree(new_opts);
+	key_put(params.key);
 	_leave(" = 0 [%p]", sb);
 	return dget(sb->s_root);
 
 error_sb:
 	deactivate_locked_super(sb);
-	goto error;
 error_as:
-	afs_put_net(as->net);
-	kfree(as);
-error_vol:
-	afs_put_volume(params.net, vol);
+	afs_destroy_sbi(as);
 error:
 	afs_put_cell(params.cell);
 	key_put(params.key);
-	kfree(new_opts);
 	_leave(" = %d", ret);
 	return ERR_PTR(ret);
 }
@@ -498,11 +513,9 @@ error:
 static void afs_kill_super(struct super_block *sb)
 {
 	struct afs_super_info *as = sb->s_fs_info;
-	struct afs_net *net = as->net;
 
 	kill_anon_super(sb);
-	afs_put_volume(net, as->volume);
-	kfree(as);
+	afs_destroy_sbi(as);
 }
 
 /*

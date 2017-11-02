@@ -178,6 +178,7 @@ struct afs_writeback {
  */
 struct afs_super_info {
 	struct afs_net		*net;		/* Network namespace */
+	struct afs_cell		*cell;		/* The cell in which the volume resides */
 	struct afs_volume	*volume;	/* volume record */
 	char			rwparent;	/* T if parent is R/W AFS volume */
 };
@@ -502,7 +503,12 @@ extern void afs_flush_callback_breaks(struct afs_server *);
 /*
  * cell.c
  */
-#define afs_get_cell(C) do { atomic_inc(&(C)->usage); } while(0)
+static inline struct afs_cell *afs_get_cell(struct afs_cell *cell)
+{
+	if (cell)
+		atomic_inc(&cell->usage);
+	return cell;
+}
 extern int afs_cell_init(struct afs_net *, char *);
 extern struct afs_cell *afs_cell_create(struct afs_net *, const char *, unsigned, char *, bool);
 extern struct afs_cell *afs_cell_lookup(struct afs_net *, const char *, unsigned, bool);
@@ -789,7 +795,12 @@ extern int afs_vnode_release_lock(struct afs_vnode *, struct key *);
 /*
  * volume.c
  */
-#define afs_get_volume(V) do { atomic_inc(&(V)->usage); } while(0)
+static inline struct afs_volume *afs_get_volume(struct afs_volume *volume)
+{
+	if (volume)
+		atomic_inc(&volume->usage);
+	return volume;
+}
 
 extern void afs_put_volume(struct afs_net *, struct afs_volume *);
 extern struct afs_volume *afs_volume_lookup(struct afs_mount_params *);
