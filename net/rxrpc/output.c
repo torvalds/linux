@@ -35,7 +35,8 @@ struct rxrpc_abort_buffer {
 /*
  * Fill out an ACK packet.
  */
-static size_t rxrpc_fill_out_ack(struct rxrpc_call *call,
+static size_t rxrpc_fill_out_ack(struct rxrpc_connection *conn,
+				 struct rxrpc_call *call,
 				 struct rxrpc_ack_buffer *pkt,
 				 rxrpc_seq_t *_hard_ack,
 				 rxrpc_seq_t *_top,
@@ -77,8 +78,8 @@ static size_t rxrpc_fill_out_ack(struct rxrpc_call *call,
 		} while (before_eq(seq, top));
 	}
 
-	mtu = call->conn->params.peer->if_mtu;
-	mtu -= call->conn->params.peer->hdrsize;
+	mtu = conn->params.peer->if_mtu;
+	mtu -= conn->params.peer->hdrsize;
 	jmax = (call->nr_jumbo_bad > 3) ? 1 : rxrpc_rx_jumbo_max;
 	pkt->ackinfo.rxMTU	= htonl(rxrpc_rx_mtu);
 	pkt->ackinfo.maxMTU	= htonl(mtu);
@@ -148,7 +149,7 @@ int rxrpc_send_ack_packet(struct rxrpc_call *call, bool ping)
 		}
 		call->ackr_reason = 0;
 	}
-	n = rxrpc_fill_out_ack(call, pkt, &hard_ack, &top, reason);
+	n = rxrpc_fill_out_ack(conn, call, pkt, &hard_ack, &top, reason);
 
 	spin_unlock_bh(&call->lock);
 
