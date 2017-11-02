@@ -37,6 +37,7 @@
 #include "blk-wbt.h"
 #include "blk-mq-sched.h"
 
+static bool blk_mq_poll(struct request_queue *q, blk_qc_t cookie);
 static void blk_mq_poll_stats_start(struct request_queue *q);
 static void blk_mq_poll_stats_fn(struct blk_stat_callback *cb);
 
@@ -2499,6 +2500,8 @@ struct request_queue *blk_mq_init_allocated_queue(struct blk_mq_tag_set *set,
 	spin_lock_init(&q->requeue_lock);
 
 	blk_queue_make_request(q, blk_mq_make_request);
+	if (q->mq_ops->poll)
+		q->poll_fn = blk_mq_poll;
 
 	/*
 	 * Do this after blk_queue_make_request() overrides it...
@@ -2961,19 +2964,13 @@ static bool __blk_mq_poll(struct blk_mq_hw_ctx *hctx, struct request *rq)
 	return false;
 }
 
-bool blk_mq_poll(struct request_queue *q, blk_qc_t cookie)
+static bool blk_mq_poll(struct request_queue *q, blk_qc_t cookie)
 {
 	struct blk_mq_hw_ctx *hctx;
-	struct blk_plug *plug;
 	struct request *rq;
 
-	if (!q->mq_ops || !q->mq_ops->poll || !blk_qc_t_valid(cookie) ||
-	    !test_bit(QUEUE_FLAG_POLL, &q->queue_flags))
+	if (!test_bit(QUEUE_FLAG_POLL, &q->queue_flags))
 		return false;
-
-	plug = current->plug;
-	if (plug)
-		blk_flush_plug_list(plug, false);
 
 	hctx = q->queue_hw_ctx[blk_qc_t_to_queue_num(cookie)];
 	if (!blk_qc_t_is_internal(cookie))
@@ -2992,7 +2989,6 @@ bool blk_mq_poll(struct request_queue *q, blk_qc_t cookie)
 
 	return __blk_mq_poll(hctx, rq);
 }
-EXPORT_SYMBOL_GPL(blk_mq_poll);
 
 static int __init blk_mq_init(void)
 {
