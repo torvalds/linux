@@ -188,7 +188,6 @@ static int afs_deliver_cb_callback(struct afs_call *call)
 
 	switch (call->unmarshall) {
 	case 0:
-		rxrpc_kernel_get_peer(call->net->socket, call->rxcall, &srx);
 		call->offset = 0;
 		call->unmarshall++;
 
@@ -281,10 +280,12 @@ static int afs_deliver_cb_callback(struct afs_call *call)
 		break;
 	}
 
-	call->state = AFS_CALL_REPLYING;
+	if (!afs_check_call_state(call, AFS_CALL_SV_REPLYING))
+		return -EIO;
 
 	/* we'll need the file server record as that tells us which set of
 	 * vnodes to operate upon */
+	rxrpc_kernel_get_peer(call->net->socket, call->rxcall, &srx);
 	server = afs_find_server(call->net, &srx);
 	if (!server)
 		return -ENOTCONN;
@@ -325,9 +326,6 @@ static int afs_deliver_cb_init_call_back_state(struct afs_call *call)
 	if (ret < 0)
 		return ret;
 
-	/* no unmarshalling required */
-	call->state = AFS_CALL_REPLYING;
-
 	/* we'll need the file server record as that tells us which set of
 	 * vnodes to operate upon */
 	server = afs_find_server(call->net, &srx);
@@ -351,8 +349,6 @@ static int afs_deliver_cb_init_call_back_state3(struct afs_call *call)
 	int ret;
 
 	_enter("");
-
-	rxrpc_kernel_get_peer(call->net->socket, call->rxcall, &srx);
 
 	_enter("{%u}", call->unmarshall);
 
@@ -397,11 +393,12 @@ static int afs_deliver_cb_init_call_back_state3(struct afs_call *call)
 		break;
 	}
 
-	/* no unmarshalling required */
-	call->state = AFS_CALL_REPLYING;
+	if (!afs_check_call_state(call, AFS_CALL_SV_REPLYING))
+		return -EIO;
 
 	/* we'll need the file server record as that tells us which set of
 	 * vnodes to operate upon */
+	rxrpc_kernel_get_peer(call->net->socket, call->rxcall, &srx);
 	server = afs_find_server(call->net, &srx);
 	if (!server)
 		return -ENOTCONN;
@@ -436,8 +433,8 @@ static int afs_deliver_cb_probe(struct afs_call *call)
 	if (ret < 0)
 		return ret;
 
-	/* no unmarshalling required */
-	call->state = AFS_CALL_REPLYING;
+	if (!afs_check_call_state(call, AFS_CALL_SV_REPLYING))
+		return -EIO;
 
 	return afs_queue_call_work(call);
 }
@@ -519,7 +516,8 @@ static int afs_deliver_cb_probe_uuid(struct afs_call *call)
 		break;
 	}
 
-	call->state = AFS_CALL_REPLYING;
+	if (!afs_check_call_state(call, AFS_CALL_SV_REPLYING))
+		return -EIO;
 
 	return afs_queue_call_work(call);
 }
@@ -600,8 +598,8 @@ static int afs_deliver_cb_tell_me_about_yourself(struct afs_call *call)
 	if (ret < 0)
 		return ret;
 
-	/* no unmarshalling required */
-	call->state = AFS_CALL_REPLYING;
+	if (!afs_check_call_state(call, AFS_CALL_SV_REPLYING))
+		return -EIO;
 
 	return afs_queue_call_work(call);
 }

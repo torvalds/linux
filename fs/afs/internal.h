@@ -51,13 +51,14 @@ struct afs_iget_data {
 };
 
 enum afs_call_state {
-	AFS_CALL_REQUESTING,	/* request is being sent for outgoing call */
-	AFS_CALL_AWAIT_REPLY,	/* awaiting reply to outgoing call */
-	AFS_CALL_AWAIT_OP_ID,	/* awaiting op ID on incoming call */
-	AFS_CALL_AWAIT_REQUEST,	/* awaiting request data on incoming call */
-	AFS_CALL_REPLYING,	/* replying to incoming call */
-	AFS_CALL_AWAIT_ACK,	/* awaiting final ACK of incoming call */
-	AFS_CALL_COMPLETE,	/* Completed or failed */
+	AFS_CALL_CL_REQUESTING,		/* Client: Request is being sent */
+	AFS_CALL_CL_AWAIT_REPLY,	/* Client: Awaiting reply */
+	AFS_CALL_CL_PROC_REPLY,		/* Client: rxrpc call complete; processing reply */
+	AFS_CALL_SV_AWAIT_OP_ID,	/* Server: Awaiting op ID */
+	AFS_CALL_SV_AWAIT_REQUEST,	/* Server: Awaiting request data */
+	AFS_CALL_SV_REPLYING,		/* Server: Replying */
+	AFS_CALL_SV_AWAIT_ACK,		/* Server: Awaiting final ACK */
+	AFS_CALL_COMPLETE,		/* Completed or failed */
 };
 
 /*
@@ -97,6 +98,7 @@ struct afs_call {
 	size_t			offset;		/* offset into received data store */
 	atomic_t		usage;
 	enum afs_call_state	state;
+	spinlock_t		state_lock;
 	int			error;		/* error code */
 	u32			abort_code;	/* Remote abort ID or 0 */
 	unsigned		request_size;	/* size of request data */
@@ -543,6 +545,8 @@ struct afs_fs_cursor {
 #define AFS_FS_CURSOR_NO_VSLEEP	0x0020		/* Set to prevent sleep on VBUSY, VOFFLINE, ... */
 };
 
+#include <trace/events/afs.h>
+
 /*****************************************************************************/
 /*
  * addr_list.c
@@ -788,6 +792,49 @@ static inline int afs_transfer_reply(struct afs_call *call)
 	return afs_extract_data(call, call->buffer, call->reply_max, false);
 }
 
+static inline bool afs_check_call_state(struct afs_call *call,
+					enum afs_call_state state)
+{
+	return READ_ONCE(call->state) == state;
+}
+
+static inline bool afs_set_call_state(struct afs_call *call,
+				      enum afs_call_state from,
+				      enum afs_call_state to)
+{
+	bool ok = false;
+
+	spin_lock_bh(&call->state_lock);
+	if (call->state == from) {
+		call->state = to;
+		trace_afs_call_state(call, from, to, 0, 0);
+		ok = true;
+	}
+	spin_unlock_bh(&call->state_lock);
+	return ok;
+}
+
+static inline void afs_set_call_complete(struct afs_call *call,
+					 int error, u32 remote_abort)
+{
+	enum afs_call_state state;
+	bool ok = false;
+
+	spin_lock_bh(&call->state_lock);
+	state = call->state;
+	if (state != AFS_CALL_COMPLETE) {
+		call->abort_code = remote_abort;
+		call->error = error;
+		call->state = AFS_CALL_COMPLETE;
+		trace_afs_call_state(call, state, AFS_CALL_COMPLETE,
+				     error, remote_abort);
+		ok = true;
+	}
+	spin_unlock_bh(&call->state_lock);
+	if (ok)
+		trace_afs_call_done(call);
+}
+
 /*
  * security.c
  */
@@ -932,8 +979,6 @@ static inline void afs_check_for_remote_deletion(struct afs_fs_cursor *fc,
 /*
  * debug tracing
  */
-#include <trace/events/afs.h>
-
 extern unsigned afs_debug;
 
 #define dbgprintk(FMT,...) \

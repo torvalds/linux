@@ -441,6 +441,36 @@ TRACE_EVENT(afs_page_dirty,
 		      __entry->priv >> AFS_PRIV_SHIFT)
 	    );
 
+TRACE_EVENT(afs_call_state,
+	    TP_PROTO(struct afs_call *call,
+		     enum afs_call_state from,
+		     enum afs_call_state to,
+		     int ret, u32 remote_abort),
+
+	    TP_ARGS(call, from, to, ret, remote_abort),
+
+	    TP_STRUCT__entry(
+		    __field(struct afs_call *,		call		)
+		    __field(enum afs_call_state,	from		)
+		    __field(enum afs_call_state,	to		)
+		    __field(int,			ret		)
+		    __field(u32,			abort		)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->call = call;
+		    __entry->from = from;
+		    __entry->to = to;
+		    __entry->ret = ret;
+		    __entry->abort = remote_abort;
+			   ),
+
+	    TP_printk("c=%p %u->%u r=%d ab=%d",
+		      __entry->call,
+		      __entry->from, __entry->to,
+		      __entry->ret, __entry->abort)
+	    );
+
 #endif /* _TRACE_AFS_H */
 
 /* This part must be outside protection */
