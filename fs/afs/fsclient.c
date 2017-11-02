@@ -78,8 +78,8 @@ static void xdr_decode_AFSFetchStatus(const __be32 **_bp,
 	EXTRACT(status->caller_access); /* call ticket dependent */
 	EXTRACT(status->anon_access);
 	EXTRACT(status->mode);
-	EXTRACT(status->parent.vnode);
-	EXTRACT(status->parent.unique);
+	bp++; /* parent.vnode */
+	bp++; /* parent.unique */
 	bp++; /* seg size */
 	status->mtime_client = ntohl(*bp++);
 	status->mtime_server = ntohl(*bp++);
@@ -103,7 +103,6 @@ static void xdr_decode_AFSFetchStatus(const __be32 **_bp,
 	       status->mtime_client, status->mtime_server);
 
 	if (vnode) {
-		status->parent.vid = vnode->fid.vid;
 		if (changed && !test_bit(AFS_VNODE_UNSET, &vnode->flags)) {
 			_debug("vnode changed");
 			i_size_write(&vnode->vfs_inode, size);

@@ -88,11 +88,10 @@ static void afs_vnode_status_update_failed(struct afs_vnode *vnode, int ret)
  *   - there are any outstanding ops that will fetch the status
  * - TODO implement local caching
  */
-int afs_vnode_fetch_status(struct afs_vnode *vnode, struct afs_vnode *auth_vnode,
-			   struct key *key, bool force)
+int afs_vnode_fetch_status(struct afs_vnode *vnode, struct key *key, bool force)
 {
 	struct afs_server *server;
-	unsigned long acl_order;
+	unsigned int cb_break = 0;
 	int ret;
 
 	DECLARE_WAITQUEUE(myself, current);
@@ -113,9 +112,7 @@ int afs_vnode_fetch_status(struct afs_vnode *vnode, struct afs_vnode *auth_vnode
 		return -ENOENT;
 	}
 
-	acl_order = 0;
-	if (auth_vnode)
-		acl_order = auth_vnode->acl_order;
+	cb_break = vnode->cb_break + vnode->cb_s_break;
 
 	spin_lock(&vnode->lock);
 
@@ -192,8 +189,7 @@ get_anyway:
 	/* adjust the flags */
 	if (ret == 0) {
 		_debug("adjust");
-		if (auth_vnode)
-			afs_cache_permit(vnode, key, acl_order);
+		afs_cache_permit(vnode, key, cb_break);
 		afs_vnode_finalise_status_update(vnode, server);
 		afs_put_server(afs_v2net(vnode), server);
 	} else {

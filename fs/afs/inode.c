@@ -238,7 +238,7 @@ struct inode *afs_iget(struct super_block *sb, struct key *key,
 
 	if (!status) {
 		/* it's a remotely extant inode */
-		ret = afs_vnode_fetch_status(vnode, NULL, key, true);
+		ret = afs_vnode_fetch_status(vnode, key, true);
 		if (ret < 0)
 			goto bad_inode;
 	} else {
@@ -358,7 +358,7 @@ int afs_validate(struct afs_vnode *vnode, struct key *key)
 	 * access */
 	if (!test_bit(AFS_VNODE_CB_PROMISED, &vnode->flags)) {
 		_debug("not promised");
-		ret = afs_vnode_fetch_status(vnode, NULL, key, false);
+		ret = afs_vnode_fetch_status(vnode, key, false);
 		if (ret < 0) {
 			if (ret == -ENOENT) {
 				set_bit(AFS_VNODE_DELETED, &vnode->flags);
@@ -431,7 +431,6 @@ int afs_drop_inode(struct inode *inode)
  */
 void afs_evict_inode(struct inode *inode)
 {
-	struct afs_permits *permits;
 	struct afs_vnode *vnode;
 
 	vnode = AFS_FS_I(inode);
@@ -460,13 +459,7 @@ void afs_evict_inode(struct inode *inode)
 	vnode->cache = NULL;
 #endif
 
-	mutex_lock(&vnode->permits_lock);
-	permits = vnode->permits;
-	RCU_INIT_POINTER(vnode->permits, NULL);
-	mutex_unlock(&vnode->permits_lock);
-	if (permits)
-		call_rcu(&permits->rcu, afs_zap_permits);
-
+	afs_put_permits(vnode->permit_cache);
 	_leave("");
 }
 

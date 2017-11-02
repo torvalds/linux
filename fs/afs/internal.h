@@ -389,8 +389,7 @@ struct afs_vnode {
 #ifdef CONFIG_AFS_FSCACHE
 	struct fscache_cookie	*cache;		/* caching cookie */
 #endif
-	struct afs_permits	*permits;	/* cache of permits so far obtained */
-	struct mutex		permits_lock;	/* lock for altering permits list */
+	struct afs_permits	*permit_cache;	/* cache of permits so far obtained */
 	struct mutex		validate_lock;	/* lock for validating this vnode */
 	wait_queue_head_t	update_waitq;	/* status fetch waitqueue */
 	int			update_cnt;	/* number of outstanding ops that will update the
@@ -410,8 +409,6 @@ struct afs_vnode {
 #define AFS_VNODE_UNLOCKING	9		/* set if vnode is being unlocked on the server */
 #define AFS_VNODE_AUTOCELL	10		/* set if Vnode is an auto mount point */
 #define AFS_VNODE_PSEUDODIR	11		/* set if Vnode is a pseudo directory */
-
-	long			acl_order;	/* ACL check count (callback break count) */
 
 	struct list_head	writebacks;	/* alterations in pagecache that need writing */
 	struct list_head	pending_locks;	/* locks waiting to be granted */
@@ -435,16 +432,21 @@ struct afs_vnode {
  */
 struct afs_permit {
 	struct key		*key;		/* RxRPC ticket holding a security context */
-	afs_access_t		access_mask;	/* access mask for this key */
+	afs_access_t		access;		/* CallerAccess value for this key */
 };
 
 /*
- * cache of security records from attempts to access a vnode
+ * Immutable cache of CallerAccess records from attempts to access vnodes.
+ * These may be shared between multiple vnodes.
  */
 struct afs_permits {
-	struct rcu_head		rcu;		/* disposal procedure */
-	int			count;		/* number of records */
-	struct afs_permit	permits[0];	/* the permits so far examined */
+	struct rcu_head		rcu;
+	struct hlist_node	hash_node;	/* Link in hash */
+	unsigned long		h;		/* Hash value for this permit list */
+	refcount_t		usage;
+	unsigned short		nr_permits;	/* Number of records */
+	bool			invalidated;	/* Invalidated due to key change */
+	struct afs_permit	permits[];	/* List of permits sorted by key pointer */
 };
 
 /*
@@ -682,11 +684,13 @@ static inline int afs_transfer_reply(struct afs_call *call)
 /*
  * security.c
  */
+extern void afs_put_permits(struct afs_permits *);
 extern void afs_clear_permits(struct afs_vnode *);
-extern void afs_cache_permit(struct afs_vnode *, struct key *, long);
+extern void afs_cache_permit(struct afs_vnode *, struct key *, unsigned int);
 extern void afs_zap_permits(struct rcu_head *);
 extern struct key *afs_request_key(struct afs_cell *);
 extern int afs_permission(struct inode *, int);
+extern void __exit afs_clean_up_permit_cache(void);
 
 /*
  * server.c
@@ -757,8 +761,7 @@ static inline struct inode *AFS_VNODE_TO_I(struct afs_vnode *vnode)
 
 extern void afs_vnode_finalise_status_update(struct afs_vnode *,
 					     struct afs_server *);
-extern int afs_vnode_fetch_status(struct afs_vnode *, struct afs_vnode *,
-				  struct key *, bool);
+extern int afs_vnode_fetch_status(struct afs_vnode *, struct key *, bool);
 extern int afs_vnode_fetch_data(struct afs_vnode *, struct key *,
 				struct afs_read *);
 extern int afs_vnode_create(struct afs_vnode *, struct key *, const char *,

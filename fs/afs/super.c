@@ -532,7 +532,6 @@ static void afs_i_init_once(void *_vnode)
 	memset(vnode, 0, sizeof(*vnode));
 	inode_init_once(&vnode->vfs_inode);
 	init_waitqueue_head(&vnode->update_waitq);
-	mutex_init(&vnode->permits_lock);
 	mutex_init(&vnode->validate_lock);
 	spin_lock_init(&vnode->writeback_lock);
 	spin_lock_init(&vnode->lock);

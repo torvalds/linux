@@ -186,6 +186,7 @@ static void __exit afs_exit(void)
 	destroy_workqueue(afs_vlocation_update_worker);
 	destroy_workqueue(afs_async_calls);
 	destroy_workqueue(afs_wq);
+	afs_clean_up_permit_cache();
 	rcu_barrier();
 }
 
