@@ -258,9 +258,14 @@ static int icmp_nlattr_to_tuple(struct nlattr *tb[],
 	return 0;
 }
 
-static int icmp_nlattr_tuple_size(void)
+static unsigned int icmp_nlattr_tuple_size(void)
 {
-	return nla_policy_len(icmp_nla_policy, CTA_PROTO_MAX + 1);
+	static unsigned int size __read_mostly;
+
+	if (!size)
+		size = nla_policy_len(icmp_nla_policy, CTA_PROTO_MAX + 1);
+
+	return size;
 }
 #endif
 
