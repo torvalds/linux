@@ -618,9 +618,9 @@ GLOBAL(swapgs_restore_regs_and_return_to_usermode)
 1:
 #endif
 	SWAPGS
-	RESTORE_EXTRA_REGS
-	RESTORE_C_REGS
-	REMOVE_PT_GPREGS_FROM_STACK 8
+	POP_EXTRA_REGS
+	POP_C_REGS
+	addq	$8, %rsp	/* skip regs->orig_ax */
 	INTERRUPT_RETURN
 
 
@@ -650,9 +650,9 @@ GLOBAL(restore_regs_and_return_to_kernel)
 	ud2
 1:
 #endif
-	RESTORE_EXTRA_REGS
-	RESTORE_C_REGS
-	REMOVE_PT_GPREGS_FROM_STACK 8
+	POP_EXTRA_REGS
+	POP_C_REGS
+	addq	$8, %rsp	/* skip regs->orig_ax */
 	INTERRUPT_RETURN
 
 ENTRY(native_iret)
