@@ -531,7 +531,7 @@ static void calculate_bandwidth(
 			}
 			switch (data->lb_bpc[i]) {
 			case 8:
-				data->lb_line_pitch = bw_ceil2(bw_mul(bw_div(bw_frc_to_fixed(2401171875, 100000000), bw_int_to_fixed(3)), bw_ceil2(data->source_width_in_lb, bw_int_to_fixed(8))), bw_int_to_fixed(48));
+				data->lb_line_pitch = bw_ceil2(bw_mul(bw_div(bw_frc_to_fixed(2401171875ul, 100000000), bw_int_to_fixed(3)), bw_ceil2(data->source_width_in_lb, bw_int_to_fixed(8))), bw_int_to_fixed(48));
 				break;
 			case 10:
 				data->lb_line_pitch = bw_ceil2(bw_mul(bw_div(bw_frc_to_fixed(300234375, 10000000), bw_int_to_fixed(3)), bw_ceil2(data->source_width_in_lb, bw_int_to_fixed(8))), bw_int_to_fixed(48));
