@@ -1193,9 +1193,6 @@ static bool amdgpu_ttm_bo_eviction_valuable(struct ttm_buffer_object *bo,
 	unsigned long num_pages = bo->mem.num_pages;
 	struct drm_mm_node *node = bo->mem.mm_node;
 
-	if (bo->mem.start != AMDGPU_BO_INVALID_OFFSET)
-		return ttm_bo_eviction_valuable(bo, place);
-
 	switch (bo->mem.mem_type) {
 	case TTM_PL_TT:
 		return true;
@@ -1210,7 +1207,7 @@ static bool amdgpu_ttm_bo_eviction_valuable(struct ttm_buffer_object *bo,
 			num_pages -= node->size;
 			++node;
 		}
-		break;
+		return false;
 
 	default:
 		break;
