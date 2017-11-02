@@ -518,9 +518,9 @@ static inline void native_set_iopl_mask(unsigned mask)
 }
 
 static inline void
-native_load_sp0(struct tss_struct *tss, struct thread_struct *thread)
+native_load_sp0(unsigned long sp0)
 {
-	tss->x86_tss.sp0 = thread->sp0;
+	this_cpu_write(cpu_tss.x86_tss.sp0, sp0);
 }
 
 static inline void native_swapgs(void)
@@ -545,10 +545,9 @@ static inline unsigned long current_top_of_stack(void)
 #else
 #define __cpuid			native_cpuid
 
-static inline void load_sp0(struct tss_struct *tss,
-			    struct thread_struct *thread)
+static inline void load_sp0(unsigned long sp0)
 {
-	native_load_sp0(tss, thread);
+	native_load_sp0(sp0);
 }
 
 #define set_iopl_mask native_set_iopl_mask
