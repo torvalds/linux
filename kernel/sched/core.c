@@ -2982,91 +2982,6 @@ unsigned long long task_sched_runtime(struct task_struct *p)
 	return ns;
 }
 
-#ifdef CONFIG_CPU_FREQ_GOV_SCHED
-
-static inline
-unsigned long add_capacity_margin(unsigned long cpu_capacity)
-{
-	cpu_capacity  = cpu_capacity * capacity_margin;
-	cpu_capacity /= SCHED_CAPACITY_SCALE;
-	return cpu_capacity;
-}
-
-static inline
-unsigned long sum_capacity_reqs(unsigned long cfs_cap,
-				struct sched_capacity_reqs *scr)
-{
-	unsigned long total = add_capacity_margin(cfs_cap + scr->rt);
-	return total += scr->dl;
-}
-
-unsigned long boosted_cpu_util(int cpu);
-static void sched_freq_tick_pelt(int cpu)
-{
-	unsigned long cpu_utilization = boosted_cpu_util(cpu);
-	unsigned long capacity_curr = capacity_curr_of(cpu);
-	struct sched_capacity_reqs *scr;
-
-	scr = &per_cpu(cpu_sched_capacity_reqs, cpu);
-	if (sum_capacity_reqs(cpu_utilization, scr) < capacity_curr)
-		return;
-
-	/*
-	 * To make free room for a task that is building up its "real"
-	 * utilization and to harm its performance the least, request
-	 * a jump to a higher OPP as soon as the margin of free capacity
-	 * is impacted (specified by capacity_margin).
-	 * Remember CPU utilization in sched_capacity_reqs should be normalised.
-	 */
-	cpu_utilization = cpu_utilization * SCHED_CAPACITY_SCALE / capacity_orig_of(cpu);
-	set_cfs_cpu_capacity(cpu, true, cpu_utilization);
-}
-
-#ifdef CONFIG_SCHED_WALT
-static void sched_freq_tick_walt(int cpu)
-{
-	unsigned long cpu_utilization = cpu_util_freq(cpu);
-	unsigned long capacity_curr = capacity_curr_of(cpu);
-
-	if (walt_disabled || !sysctl_sched_use_walt_cpu_util)
-		return sched_freq_tick_pelt(cpu);
-
-	/*
-	 * Add a margin to the WALT utilization to check if we will need to
-	 * increase frequency.
-	 * NOTE: WALT tracks a single CPU signal for all the scheduling
-	 * classes, thus this margin is going to be added to the DL class as
-	 * well, which is something we do not do in sched_freq_tick_pelt case.
-	 */
-	if (add_capacity_margin(cpu_utilization) <= capacity_curr)
-		return;
-
-	/*
-	 * It is likely that the load is growing so we
-	 * keep the added margin in our request as an
-	 * extra boost.
-	 * Remember CPU utilization in sched_capacity_reqs should be normalised.
-	 */
-	cpu_utilization = cpu_utilization * SCHED_CAPACITY_SCALE / capacity_orig_of(cpu);
-	set_cfs_cpu_capacity(cpu, true, cpu_utilization);
-
-}
-#define _sched_freq_tick(cpu) sched_freq_tick_walt(cpu)
-#else
-#define _sched_freq_tick(cpu) sched_freq_tick_pelt(cpu)
-#endif /* CONFIG_SCHED_WALT */
-
-static void sched_freq_tick(int cpu)
-{
-	if (!sched_freq())
-		return;
-
-	_sched_freq_tick(cpu);
-}
-#else
-static inline void sched_freq_tick(int cpu) { }
-#endif /* CONFIG_CPU_FREQ_GOV_SCHED */
-
 /*
  * This function gets called by the timer code, with HZ frequency.
  * We call it with interrupts disabled.
@@ -3087,7 +3002,6 @@ void scheduler_tick(void)
 	curr->sched_class->task_tick(rq, curr, 0);
 	update_cpu_load_active(rq);
 	calc_global_load_tick(rq);
-	sched_freq_tick(cpu);
 	raw_spin_unlock(&rq->lock);
 
 	perf_event_task_tick();

@@ -54,7 +54,6 @@ unsigned int sysctl_sched_latency = 6000000ULL;
 unsigned int normalized_sysctl_sched_latency = 6000000ULL;
 
 unsigned int sysctl_sched_sync_hint_enable = 1;
-unsigned int sysctl_sched_initial_task_util = 0;
 unsigned int sysctl_sched_cstate_aware = 1;
 
 #ifdef CONFIG_SCHED_WALT
@@ -750,9 +749,7 @@ void init_entity_runnable_average(struct sched_entity *se)
 	sa->load_sum = sa->load_avg * LOAD_AVG_MAX;
 	/*
 	 * In previous Android versions, we used to have:
-	 * 	sa->util_avg =  sched_freq() ?
-	 * 		sysctl_sched_initial_task_util :
-	 *		scale_load_down(SCHED_LOAD_SCALE);
+	 * 	sa->util_avg = scale_load_down(SCHED_LOAD_SCALE);
 	 * 	sa->util_sum = sa->util_avg * LOAD_AVG_MAX;
 	 * However, that functionality has been moved to enqueue.
 	 * It is unclear if we should restore this in enqueue.
@@ -4668,21 +4665,6 @@ unsigned long boosted_cpu_util(int cpu);
 #define boosted_cpu_util(cpu) cpu_util_freq(cpu)
 #endif
 
-#ifdef CONFIG_SMP
-static void update_capacity_of(int cpu)
-{
-	unsigned long req_cap;
-
-	if (!sched_freq())
-		return;
-
-	/* Normalize scale-invariant capacity to cpu. */
-	req_cap = boosted_cpu_util(cpu);
-	req_cap = req_cap * SCHED_CAPACITY_SCALE / capacity_orig_of(cpu);
-	set_cfs_cpu_capacity(cpu, true, req_cap);
-}
-#endif
-
 /*
  * The enqueue_task method is called before nr_running is
  * increased. Here we update the fair scheduling stats and
@@ -4695,7 +4677,6 @@ enqueue_task_fair(struct rq *rq, struct task_struct *p, int flags)
 	struct sched_entity *se = &p->se;
 #ifdef CONFIG_SMP
 	int task_new = flags & ENQUEUE_WAKEUP_NEW;
-	int task_wakeup = flags & ENQUEUE_WAKEUP;
 #endif
 
 	/*
@@ -4769,16 +4750,6 @@ enqueue_task_fair(struct rq *rq, struct task_struct *p, int flags)
 			rq->rd->overutilized = true;
 			trace_sched_overutilized(true);
 		}
-
-		/*
-		 * We want to potentially trigger a freq switch
-		 * request only for tasks that are waking up; this is
-		 * because we get here also during load balancing, but
-		 * in these cases it seems wise to trigger as single
-		 * request after load balancing is done.
-		 */
-		if (task_new || task_wakeup)
-			update_capacity_of(cpu_of(rq));
 	}
 
 #endif /* CONFIG_SMP */
@@ -4854,25 +4825,8 @@ static void dequeue_task_fair(struct rq *rq, struct task_struct *p, int flags)
 	 */
 	schedtune_dequeue_task(p, cpu_of(rq));
 
-	if (!se) {
+	if (!se)
 		walt_dec_cumulative_runnable_avg(rq, p);
-
-		/*
-		 * We want to potentially trigger a freq switch
-		 * request only for tasks that are going to sleep;
-		 * this is because we get here also during load
-		 * balancing, but in these cases it seems wise to
-		 * trigger as single request after load balancing is
-		 * done.
-		 */
-		if (task_sleep) {
-			if (rq->cfs.nr_running)
-				update_capacity_of(cpu_of(rq));
-			else if (sched_freq())
-				set_cfs_cpu_capacity(cpu_of(rq), false, 0); /* no normalization required for 0 */
-		}
-	}
-
 #endif /* CONFIG_SMP */
 
 	hrtick_update(rq);
@@ -7709,10 +7663,6 @@ static void attach_one_task(struct rq *rq, struct task_struct *p)
 {
 	raw_spin_lock(&rq->lock);
 	attach_task(rq, p);
-	/*
-	 * We want to potentially raise target_cpu's OPP.
-	 */
-	update_capacity_of(cpu_of(rq));
 	raw_spin_unlock(&rq->lock);
 }
 
@@ -7733,11 +7683,6 @@ static void attach_tasks(struct lb_env *env)
 
 		attach_task(env->dst_rq, p);
 	}
-
-	/*
-	 * We want to potentially raise env.dst_cpu's OPP.
-	 */
-	update_capacity_of(env->dst_cpu);
 
 	raw_spin_unlock(&env->dst_rq->lock);
 }
@@ -9081,11 +9026,6 @@ more_balance:
 		 * ld_moved     - cumulative load moved across iterations
 		 */
 		cur_ld_moved = detach_tasks(&env);
-		/*
-		 * We want to potentially lower env.src_cpu's OPP.
-		 */
-		if (cur_ld_moved)
-			update_capacity_of(env.src_cpu);
 
 		/*
 		 * We've detached some tasks from busiest_rq. Every
@@ -9310,7 +9250,6 @@ static int idle_balance(struct rq *this_rq)
 	struct sched_domain *sd;
 	int pulled_task = 0;
 	u64 curr_cost = 0;
-	long removed_util=0;
 
 	idle_enter_fair(this_rq);
 
@@ -9334,17 +9273,6 @@ static int idle_balance(struct rq *this_rq)
 
 	raw_spin_unlock(&this_rq->lock);
 
-	/*
-	 * If removed_util_avg is !0 we most probably migrated some task away
-	 * from this_cpu. In this case we might be willing to trigger an OPP
-	 * update, but we want to do so if we don't find anybody else to pull
-	 * here (we will trigger an OPP update with the pulled task's enqueue
-	 * anyway).
-	 *
-	 * Record removed_util before calling update_blocked_averages, and use
-	 * it below (before returning) to see if an OPP update is required.
-	 */
-	removed_util = atomic_long_read(&(this_rq->cfs).removed_util_avg);
 	update_blocked_averages(this_cpu);
 	rcu_read_lock();
 	for_each_domain(this_cpu, sd) {
@@ -9409,12 +9337,6 @@ out:
 	if (pulled_task) {
 		idle_exit_fair(this_rq);
 		this_rq->idle_stamp = 0;
-	} else if (removed_util) {
-		/*
-		 * No task pulled and someone has been migrated away.
-		 * Good case to trigger an OPP update.
-		 */
-		update_capacity_of(this_cpu);
 	}
 
 	return pulled_task;
@@ -9488,13 +9410,8 @@ static int active_load_balance_cpu_stop(void *data)
 		update_rq_clock(busiest_rq);
 
 		p = detach_one_task(&env);
-		if (p) {
+		if (p)
 			schedstat_inc(sd, alb_pushed);
-			/*
-			 * We want to potentially lower env.src_cpu's OPP.
-			 */
-			update_capacity_of(env.src_cpu);
-		}
 		else
 			schedstat_inc(sd, alb_failed);
 	}
