@@ -186,6 +186,7 @@ struct timing_generator_funcs {
 	void (*set_blank_data_double_buffer)(struct timing_generator *tg, bool enable);
 
 	void (*tg_init)(struct timing_generator *tg);
+	bool (*is_tg_enabled)(struct timing_generator *tg);
 };
 
 #endif

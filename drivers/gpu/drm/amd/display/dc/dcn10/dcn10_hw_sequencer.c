@@ -616,10 +616,6 @@ static void plane_atomic_disable(struct dc *dc, struct pipe_ctx *pipe_ctx)
 	struct hubp *hubp = dc->res_pool->hubps[fe_idx];
 	struct mpc *mpc = dc->res_pool->mpc;
 	int opp_id = hubp->opp_id;
-	struct timing_generator *tg = pipe_ctx->stream_res.tg;
-
-	if (tg == NULL)
-		return;
 
 	if (opp_id == 0xf)
 		return;
@@ -700,6 +696,8 @@ static void dcn10_init_hw(struct dc *dc)
 	struct abm *abm = dc->res_pool->abm;
 	struct dmcu *dmcu = dc->res_pool->dmcu;
 	struct dce_hwseq *hws = dc->hwseq;
+	struct dc_bios *dcb = dc->ctx->dc_bios;
+	struct dc_state  *context = dc->current_state;
 
 	if (IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment)) {
 		REG_WRITE(REFCLK_CNTL, 0);
@@ -720,9 +718,10 @@ static void dcn10_init_hw(struct dc *dc)
 	}
 	/* end of FPGA. Below if real ASIC */
 
-	bios_golden_init(dc);
-
-	disable_vga(dc->hwseq);
+	if (!dcb->funcs->is_accelerated_mode(dcb)) {
+		bios_golden_init(dc);
+		disable_vga(dc->hwseq);
+	}
 
 	for (i = 0; i < dc->link_count; i++) {
 		/* Power up AND update implementation according to the
@@ -738,21 +737,54 @@ static void dcn10_init_hw(struct dc *dc)
 	}
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
-		struct dpp *dpp = dc->res_pool->dpps[i];
 		struct timing_generator *tg = dc->res_pool->timing_generators[i];
 
-		dpp->funcs->dpp_reset(dpp);
-		dc->res_pool->mpc->funcs->remove(
-				dc->res_pool->mpc, &(dc->res_pool->opps[i]->mpc_tree),
-				dc->res_pool->opps[i]->inst, i);
+		if (tg->funcs->is_tg_enabled(tg))
+			tg->funcs->lock(tg);
+	}
 
-		/* Blank controller using driver code instead of
-		 * command table.
-		 */
-		tg->funcs->set_blank(tg, true);
-		hwss_wait_for_blank_complete(tg);
+	/* Blank controller using driver code instead of
+	 * command table.
+	 */
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		struct timing_generator *tg = dc->res_pool->timing_generators[i];
 
+		if (tg->funcs->is_tg_enabled(tg)) {
+			tg->funcs->set_blank(tg, true);
+			hwss_wait_for_blank_complete(tg);
+		}
+	}
+
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		struct timing_generator *tg = dc->res_pool->timing_generators[i];
+		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
+
+		pipe_ctx->stream_res.tg = tg;
+		pipe_ctx->pipe_idx = i;
+		pipe_ctx->plane_res.hubp = dc->res_pool->hubps[i];
+		pipe_ctx->plane_res.hubp->mpcc_id = i;
+		pipe_ctx->plane_res.hubp->opp_id =
+				dc->res_pool->mpc->funcs->get_opp_id(dc->res_pool->mpc, i);
+
+		plane_atomic_disconnect(dc, pipe_ctx);
+	}
+
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		struct timing_generator *tg = dc->res_pool->timing_generators[i];
+
+		if (tg->funcs->is_tg_enabled(tg))
+			tg->funcs->unlock(tg);
+	}
+
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		struct timing_generator *tg = dc->res_pool->timing_generators[i];
+		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
+
+		plane_atomic_disable(dc, pipe_ctx);
 		plane_atomic_power_down(dc, i);
+
+		pipe_ctx->stream_res.tg = NULL;
+		pipe_ctx->plane_res.hubp = NULL;
 
 		tg->funcs->tg_init(tg);
 	}

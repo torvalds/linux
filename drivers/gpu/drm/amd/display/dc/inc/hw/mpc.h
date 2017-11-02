@@ -56,6 +56,8 @@ struct mpc_funcs {
 
 	void (*update_blend_mode)(struct mpc *mpc, struct mpcc_cfg *cfg);
 
+	int (*get_opp_id)(struct mpc *mpc, int mpcc_id);
+
 };
 
 #endif

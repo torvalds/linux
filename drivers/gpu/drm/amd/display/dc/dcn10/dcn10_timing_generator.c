@@ -1212,6 +1212,16 @@ static void tgn10_tg_init(struct timing_generator *tg)
 	REG_UPDATE(OPTC_INPUT_GLOBAL_CONTROL, OPTC_UNDERFLOW_CLEAR, 1);
 }
 
+static bool tgn10_is_tg_enabled(struct timing_generator *tg)
+{
+	struct dcn10_timing_generator *tgn10 = DCN10TG_FROM_TG(tg);
+	uint32_t otg_enabled = 0;
+
+	REG_GET(OTG_CONTROL, OTG_MASTER_EN, &otg_enabled);
+
+	return (otg_enabled != 0);
+
+}
 static const struct timing_generator_funcs dcn10_tg_funcs = {
 		.validate_timing = tgn10_validate_timing,
 		.program_timing = tgn10_program_timing,
@@ -1243,6 +1253,7 @@ static const struct timing_generator_funcs dcn10_tg_funcs = {
 		.is_stereo_left_eye = tgn10_is_stereo_left_eye,
 		.set_blank_data_double_buffer = tgn10_set_blank_data_double_buffer,
 		.tg_init = tgn10_tg_init,
+		.is_tg_enabled = tgn10_is_tg_enabled,
 };
 
 void dcn10_timing_generator_init(struct dcn10_timing_generator *tgn10)
