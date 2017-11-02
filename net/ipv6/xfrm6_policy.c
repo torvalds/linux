@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * xfrm6_policy.c: based on xfrm4_policy.c
  *

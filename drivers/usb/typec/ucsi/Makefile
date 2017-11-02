@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 CFLAGS_trace.o			:= -I$(src)
 
 obj-$(CONFIG_TYPEC_UCSI)	+= typec_ucsi.o

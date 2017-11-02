@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * omap-pm-noop.c - OMAP power management interface - dummy version
  *

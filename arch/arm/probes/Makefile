@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 obj-$(CONFIG_UPROBES)		+= decode.o decode-arm.o uprobes/
 obj-$(CONFIG_KPROBES)		+= decode.o kprobes/
 ifdef CONFIG_THUMB2_KERNEL

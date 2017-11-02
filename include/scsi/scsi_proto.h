@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * This header file contains public constants and structures used by
  * both the SCSI initiator and the SCSI target code.

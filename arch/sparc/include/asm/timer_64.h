@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* timer.h: System timer definitions for sun5.
  *
  * Copyright (C) 1997, 2008 David S. Miller (davem@davemloft.net)

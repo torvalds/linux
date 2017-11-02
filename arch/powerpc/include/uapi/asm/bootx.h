@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  * This file describes the structure passed from the BootX application
  * (for MacOS) when it is used to boot Linux.

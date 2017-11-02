@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __PVRUSB2_DVB_H__
 #define __PVRUSB2_DVB_H__
 

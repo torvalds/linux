@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 zxdrm-y := \
 	zx_drm_drv.o \
 	zx_hdmi.o \

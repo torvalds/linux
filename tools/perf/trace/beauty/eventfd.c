@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #ifndef EFD_SEMAPHORE
 #define EFD_SEMAPHORE		1
 #endif

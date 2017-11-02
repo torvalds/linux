@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NVKM_CLK_SEQ_H__
 #define __NVKM_CLK_SEQ_H__
 #include <subdev/bus/hwsq.h>

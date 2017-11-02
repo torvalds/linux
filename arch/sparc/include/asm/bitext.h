@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * bitext.h: Bit string operations on the sparc, specific to architecture.
  *
