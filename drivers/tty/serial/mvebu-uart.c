@@ -817,7 +817,6 @@ static int mvebu_uart_probe(struct platform_device *pdev)
 	}
 
 	/* Manage interrupts */
-	memset(mvuart->irq, 0, UART_IRQ_COUNT);
 	if (platform_irq_count(pdev) == 1) {
 		/* Old bindings: no name on the single unamed UART0 IRQ */
 		irq = platform_get_irq(pdev, 0);
