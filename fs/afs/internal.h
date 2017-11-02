@@ -106,7 +106,6 @@ struct afs_call {
 	bool			async;		/* T if asynchronous */
 	bool			upgrade;	/* T to request service upgrade */
 	u16			service_id;	/* RxRPC service ID to call */
-	__be16			port;		/* target UDP port */
 	u32			operation_ID;	/* operation ID for an incoming call */
 	u32			count;		/* count for use in unmarshalling */
 	__be32			tmp;		/* place to extract temporary data */
@@ -264,7 +263,7 @@ struct afs_cell {
 	spinlock_t		vl_lock;	/* vl_list lock */
 	unsigned short		vl_naddrs;	/* number of VL servers in addr list */
 	unsigned short		vl_curr_svix;	/* current server index */
-	struct in_addr		vl_addrs[AFS_CELL_MAX_ADDRS];	/* cell VL server addresses */
+	struct sockaddr_rxrpc	vl_addrs[AFS_CELL_MAX_ADDRS];	/* cell VL server addresses */
 
 	char			name[0];	/* cell name - must go last */
 };
@@ -284,7 +283,7 @@ struct afs_cache_vlocation {
 #define AFS_VOL_VTM_BAK	0x04 /* backup version of the volume is available (on this server) */
 
 	afs_volid_t		vid[3];		/* volume IDs for R/W, R/O and Bak volumes */
-	struct in_addr		servers[8];	/* fileserver addresses */
+	struct sockaddr_rxrpc	servers[8];	/* fileserver addresses */
 	time_t			rtime;		/* last retrieval time */
 };
 
@@ -315,7 +314,7 @@ struct afs_vlocation {
 struct afs_server {
 	atomic_t		usage;
 	time64_t		time_of_death;	/* time at which put reduced usage to 0 */
-	struct in_addr		addr;		/* server address */
+	struct sockaddr_rxrpc	addr;		/* server address */
 	struct afs_net		*net;		/* Network namespace in which the server resides */
 	struct afs_cell		*cell;		/* cell in which server resides */
 	struct list_head	link;		/* link in cell's server list */
@@ -654,7 +653,7 @@ extern void __net_exit afs_close_socket(struct afs_net *);
 extern void afs_charge_preallocation(struct work_struct *);
 extern void afs_put_call(struct afs_call *);
 extern int afs_queue_call_work(struct afs_call *);
-extern int afs_make_call(struct in_addr *, struct afs_call *, gfp_t, bool);
+extern int afs_make_call(struct sockaddr_rxrpc *, struct afs_call *, gfp_t, bool);
 extern struct afs_call *afs_alloc_flat_call(struct afs_net *,
 					    const struct afs_call_type *,
 					    size_t, size_t);
@@ -690,7 +689,7 @@ do {								\
 
 extern void afs_server_timer(struct timer_list *);
 extern struct afs_server *afs_lookup_server(struct afs_cell *,
-					    const struct in_addr *);
+					    struct sockaddr_rxrpc *);
 extern struct afs_server *afs_find_server(struct afs_net *,
 					  const struct sockaddr_rxrpc *);
 extern void afs_put_server(struct afs_net *, struct afs_server *);
@@ -707,11 +706,11 @@ extern void __exit afs_fs_exit(void);
  * vlclient.c
  */
 extern int afs_vl_get_entry_by_name(struct afs_net *,
-				    struct in_addr *, struct key *,
+				    struct sockaddr_rxrpc *, struct key *,
 				    const char *, struct afs_cache_vlocation *,
 				    bool);
 extern int afs_vl_get_entry_by_id(struct afs_net *,
-				  struct in_addr *, struct key *,
+				  struct sockaddr_rxrpc *, struct key *,
 				  afs_volid_t, afs_voltype_t,
 				  struct afs_cache_vlocation *, bool);
 

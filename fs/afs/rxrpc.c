@@ -322,10 +322,9 @@ static int afs_send_pages(struct afs_call *call, struct msghdr *msg)
 /*
  * initiate a call
  */
-int afs_make_call(struct in_addr *addr, struct afs_call *call, gfp_t gfp,
-		  bool async)
+int afs_make_call(struct sockaddr_rxrpc *srx, struct afs_call *call,
+		  gfp_t gfp, bool async)
 {
-	struct sockaddr_rxrpc srx;
 	struct rxrpc_call *rxcall;
 	struct msghdr msg;
 	struct kvec iov[1];
@@ -334,7 +333,7 @@ int afs_make_call(struct in_addr *addr, struct afs_call *call, gfp_t gfp,
 	u32 abort_code;
 	int ret;
 
-	_enter("%x,{%d},", addr->s_addr, ntohs(call->port));
+	_enter(",{%pISp},", &srx->transport);
 
 	ASSERT(call->type != NULL);
 	ASSERT(call->type->name != NULL);
@@ -344,15 +343,6 @@ int afs_make_call(struct in_addr *addr, struct afs_call *call, gfp_t gfp,
 	       atomic_read(&call->net->nr_outstanding_calls));
 
 	call->async = async;
-
-	memset(&srx, 0, sizeof(srx));
-	srx.srx_family = AF_RXRPC;
-	srx.srx_service = call->service_id;
-	srx.transport_type = SOCK_DGRAM;
-	srx.transport_len = sizeof(srx.transport.sin);
-	srx.transport.sin.sin_family = AF_INET;
-	srx.transport.sin.sin_port = call->port;
-	memcpy(&srx.transport.sin.sin_addr, addr, 4);
 
 	/* Work out the length we're going to transmit.  This is awkward for
 	 * calls such as FS.StoreData where there's an extra injection of data
@@ -365,7 +355,7 @@ int afs_make_call(struct in_addr *addr, struct afs_call *call, gfp_t gfp,
 	}
 
 	/* create a call */
-	rxcall = rxrpc_kernel_begin_call(call->net->socket, &srx, call->key,
+	rxcall = rxrpc_kernel_begin_call(call->net->socket, srx, call->key,
 					 (unsigned long)call,
 					 tx_total_len, gfp,
 					 (async ?

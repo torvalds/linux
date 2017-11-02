@@ -30,7 +30,6 @@ static int afs_vlocation_access_vl_by_name(struct afs_vlocation *vl,
 					   struct afs_cache_vlocation *vldb)
 {
 	struct afs_cell *cell = vl->cell;
-	struct in_addr addr;
 	int count, ret;
 
 	_enter("%s,%s", cell->name, vl->vldb.name);
@@ -38,12 +37,12 @@ static int afs_vlocation_access_vl_by_name(struct afs_vlocation *vl,
 	down_write(&vl->cell->vl_sem);
 	ret = -ENOMEDIUM;
 	for (count = cell->vl_naddrs; count > 0; count--) {
-		addr = cell->vl_addrs[cell->vl_curr_svix];
+		struct sockaddr_rxrpc *addr = &cell->vl_addrs[cell->vl_curr_svix];
 
-		_debug("CellServ[%hu]: %08x", cell->vl_curr_svix, addr.s_addr);
+		_debug("CellServ[%hu]: %pIS", cell->vl_curr_svix, &addr->transport);
 
 		/* attempt to access the VL server */
-		ret = afs_vl_get_entry_by_name(cell->net, &addr, key,
+		ret = afs_vl_get_entry_by_name(cell->net, addr, key,
 					       vl->vldb.name, vldb, false);
 		switch (ret) {
 		case 0:
@@ -88,7 +87,6 @@ static int afs_vlocation_access_vl_by_id(struct afs_vlocation *vl,
 					 struct afs_cache_vlocation *vldb)
 {
 	struct afs_cell *cell = vl->cell;
-	struct in_addr addr;
 	int count, ret;
 
 	_enter("%s,%x,%d,", cell->name, volid, voltype);
@@ -96,12 +94,12 @@ static int afs_vlocation_access_vl_by_id(struct afs_vlocation *vl,
 	down_write(&vl->cell->vl_sem);
 	ret = -ENOMEDIUM;
 	for (count = cell->vl_naddrs; count > 0; count--) {
-		addr = cell->vl_addrs[cell->vl_curr_svix];
+		struct sockaddr_rxrpc *addr = &cell->vl_addrs[cell->vl_curr_svix];
 
-		_debug("CellServ[%hu]: %08x", cell->vl_curr_svix, addr.s_addr);
+		_debug("CellServ[%hu]: %pIS", cell->vl_curr_svix, &addr->transport);
 
 		/* attempt to access the VL server */
-		ret = afs_vl_get_entry_by_id(cell->net, &addr, key, volid,
+		ret = afs_vl_get_entry_by_id(cell->net, addr, key, volid,
 					     voltype, vldb, false);
 		switch (ret) {
 		case 0:
@@ -192,15 +190,7 @@ static int afs_vlocation_update_record(struct afs_vlocation *vl,
 	int ret;
 
 	/* try to look up a cached volume in the cell VL databases by ID */
-	_debug("Locally Cached: %s %02x { %08x(%x) %08x(%x) %08x(%x) }",
-	       vl->vldb.name,
-	       vl->vldb.vidmask,
-	       ntohl(vl->vldb.servers[0].s_addr),
-	       vl->vldb.srvtmask[0],
-	       ntohl(vl->vldb.servers[1].s_addr),
-	       vl->vldb.srvtmask[1],
-	       ntohl(vl->vldb.servers[2].s_addr),
-	       vl->vldb.srvtmask[2]);
+	_debug("Locally Cached: %s %02x", vl->vldb.name, vl->vldb.vidmask);
 
 	_debug("Vids: %08x %08x %08x",
 	       vl->vldb.vid[0],
@@ -258,11 +248,7 @@ static int afs_vlocation_update_record(struct afs_vlocation *vl,
 static void afs_vlocation_apply_update(struct afs_vlocation *vl,
 				       struct afs_cache_vlocation *vldb)
 {
-	_debug("Done VL Lookup: %s %02x { %08x(%x) %08x(%x) %08x(%x) }",
-	       vldb->name, vldb->vidmask,
-	       ntohl(vldb->servers[0].s_addr), vldb->srvtmask[0],
-	       ntohl(vldb->servers[1].s_addr), vldb->srvtmask[1],
-	       ntohl(vldb->servers[2].s_addr), vldb->srvtmask[2]);
+	_debug("Done VL Lookup: %s %02x", vldb->name, vldb->vidmask);
 
 	_debug("Vids: %08x %08x %08x",
 	       vldb->vid[0], vldb->vid[1], vldb->vid[2]);

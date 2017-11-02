@@ -12,6 +12,7 @@
 #include <linux/gfp.h>
 #include <linux/init.h>
 #include <linux/sched.h>
+#include "afs_fs.h"
 #include "internal.h"
 
 /*
@@ -83,8 +84,15 @@ static int afs_deliver_vl_get_entry_by_xxx(struct afs_call *call)
 	bp++; /* type */
 	entry->nservers = ntohl(*bp++);
 
-	for (loop = 0; loop < 8; loop++)
-		entry->servers[loop].s_addr = *bp++;
+	for (loop = 0; loop < 8; loop++) {
+		entry->servers[loop].srx_family = AF_RXRPC;
+		entry->servers[loop].srx_service = FS_SERVICE;
+		entry->servers[loop].transport_type = SOCK_DGRAM;
+		entry->servers[loop].transport_len = sizeof(entry->servers[loop].transport.sin);
+		entry->servers[loop].transport.sin.sin_family = AF_INET;
+		entry->servers[loop].transport.sin.sin_port = htons(AFS_FS_PORT);
+		entry->servers[loop].transport.sin.sin_addr.s_addr = *bp++;
+	}
 
 	bp += 8; /* partition IDs */
 
@@ -144,7 +152,7 @@ static const struct afs_call_type afs_RXVLGetEntryById = {
  * dispatch a get volume entry by name operation
  */
 int afs_vl_get_entry_by_name(struct afs_net *net,
-			     struct in_addr *addr,
+			     struct sockaddr_rxrpc *addr,
 			     struct key *key,
 			     const char *volname,
 			     struct afs_cache_vlocation *entry,
@@ -166,8 +174,6 @@ int afs_vl_get_entry_by_name(struct afs_net *net,
 
 	call->key = key;
 	call->reply = entry;
-	call->service_id = VL_SERVICE;
-	call->port = htons(AFS_VL_PORT);
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -185,7 +191,7 @@ int afs_vl_get_entry_by_name(struct afs_net *net,
  * dispatch a get volume entry by ID operation
  */
 int afs_vl_get_entry_by_id(struct afs_net *net,
-			   struct in_addr *addr,
+			   struct sockaddr_rxrpc *addr,
 			   struct key *key,
 			   afs_volid_t volid,
 			   afs_voltype_t voltype,
@@ -203,8 +209,6 @@ int afs_vl_get_entry_by_id(struct afs_net *net,
 
 	call->key = key;
 	call->reply = entry;
-	call->service_id = VL_SERVICE;
-	call->port = htons(AFS_VL_PORT);
 
 	/* marshall the parameters */
 	bp = call->request;

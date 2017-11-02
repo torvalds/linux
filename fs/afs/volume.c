@@ -248,8 +248,8 @@ struct afs_server *afs_volume_pick_fileserver(struct afs_vnode *vnode)
 		case 0:
 			afs_get_server(server);
 			up_read(&volume->server_sem);
-			_leave(" = %p (picked %08x)",
-			       server, ntohl(server->addr.s_addr));
+			_leave(" = %p (picked %pIS)",
+			       server, &server->addr.transport);
 			return server;
 
 		case -ENETUNREACH:
@@ -303,9 +303,8 @@ int afs_volume_release_fileserver(struct afs_vnode *vnode,
 	struct afs_volume *volume = vnode->volume;
 	unsigned loop;
 
-	_enter("%s,%08x,%d",
-	       volume->vlocation->vldb.name, ntohl(server->addr.s_addr),
-	       result);
+	_enter("%s,%pIS,%d",
+	       volume->vlocation->vldb.name, &server->addr.transport, result);
 
 	switch (result) {
 		/* success */

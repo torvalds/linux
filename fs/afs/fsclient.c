@@ -297,8 +297,6 @@ int afs_fs_fetch_file_status(struct afs_server *server,
 	call->key = key;
 	call->reply = vnode;
 	call->reply2 = volsync;
-	call->service_id = FS_SERVICE;
-	call->port = htons(AFS_FS_PORT);
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -504,8 +502,6 @@ static int afs_fs_fetch_data64(struct afs_server *server,
 	call->reply = vnode;
 	call->reply2 = NULL; /* volsync */
 	call->reply3 = req;
-	call->service_id = FS_SERVICE;
-	call->port = htons(AFS_FS_PORT);
 	call->operation_ID = FSFETCHDATA64;
 
 	/* marshall the parameters */
@@ -551,8 +547,6 @@ int afs_fs_fetch_data(struct afs_server *server,
 	call->reply = vnode;
 	call->reply2 = NULL; /* volsync */
 	call->reply3 = req;
-	call->service_id = FS_SERVICE;
-	call->port = htons(AFS_FS_PORT);
 	call->operation_ID = FSFETCHDATA;
 
 	/* marshall the parameters */
@@ -619,8 +613,6 @@ int afs_fs_give_up_callbacks(struct afs_net *net,
 	if (!call)
 		return -ENOMEM;
 
-	call->service_id = FS_SERVICE;
-	call->port = htons(AFS_FS_PORT);
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -723,8 +715,6 @@ int afs_fs_create(struct afs_server *server,
 	call->reply2 = newfid;
 	call->reply3 = newstatus;
 	call->reply4 = newcb;
-	call->service_id = FS_SERVICE;
-	call->port = htons(AFS_FS_PORT);
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -810,8 +800,6 @@ int afs_fs_remove(struct afs_server *server,
 
 	call->key = key;
 	call->reply = vnode;
-	call->service_id = FS_SERVICE;
-	call->port = htons(AFS_FS_PORT);
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -893,8 +881,6 @@ int afs_fs_link(struct afs_server *server,
 	call->key = key;
 	call->reply = dvnode;
 	call->reply2 = vnode;
-	call->service_id = FS_SERVICE;
-	call->port = htons(AFS_FS_PORT);
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -988,8 +974,6 @@ int afs_fs_symlink(struct afs_server *server,
 	call->reply = vnode;
 	call->reply2 = newfid;
 	call->reply3 = newstatus;
-	call->service_id = FS_SERVICE;
-	call->port = htons(AFS_FS_PORT);
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -1094,8 +1078,6 @@ int afs_fs_rename(struct afs_server *server,
 	call->key = key;
 	call->reply = orig_dvnode;
 	call->reply2 = new_dvnode;
-	call->service_id = FS_SERVICE;
-	call->port = htons(AFS_FS_PORT);
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -1196,8 +1178,6 @@ static int afs_fs_store_data64(struct afs_server *server,
 	call->wb = wb;
 	call->key = wb->key;
 	call->reply = vnode;
-	call->service_id = FS_SERVICE;
-	call->port = htons(AFS_FS_PORT);
 	call->mapping = vnode->vfs_inode.i_mapping;
 	call->first = first;
 	call->last = last;
@@ -1274,8 +1254,6 @@ int afs_fs_store_data(struct afs_server *server, struct afs_writeback *wb,
 	call->wb = wb;
 	call->key = wb->key;
 	call->reply = vnode;
-	call->service_id = FS_SERVICE;
-	call->port = htons(AFS_FS_PORT);
 	call->mapping = vnode->vfs_inode.i_mapping;
 	call->first = first;
 	call->last = last;
@@ -1383,8 +1361,6 @@ static int afs_fs_setattr_size64(struct afs_server *server, struct key *key,
 
 	call->key = key;
 	call->reply = vnode;
-	call->service_id = FS_SERVICE;
-	call->port = htons(AFS_FS_PORT);
 	call->store_version = vnode->status.data_version + 1;
 	call->operation_ID = FSSTOREDATA;
 
@@ -1435,8 +1411,6 @@ static int afs_fs_setattr_size(struct afs_server *server, struct key *key,
 
 	call->key = key;
 	call->reply = vnode;
-	call->service_id = FS_SERVICE;
-	call->port = htons(AFS_FS_PORT);
 	call->store_version = vnode->status.data_version + 1;
 	call->operation_ID = FSSTOREDATA;
 
@@ -1483,8 +1457,6 @@ int afs_fs_setattr(struct afs_server *server, struct key *key,
 
 	call->key = key;
 	call->reply = vnode;
-	call->service_id = FS_SERVICE;
-	call->port = htons(AFS_FS_PORT);
 	call->operation_ID = FSSTORESTATUS;
 
 	/* marshall the parameters */
@@ -1721,8 +1693,6 @@ int afs_fs_get_volume_status(struct afs_server *server,
 	call->reply = vnode;
 	call->reply2 = vs;
 	call->reply3 = tmpbuf;
-	call->service_id = FS_SERVICE;
-	call->port = htons(AFS_FS_PORT);
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -1805,8 +1775,6 @@ int afs_fs_set_lock(struct afs_server *server,
 
 	call->key = key;
 	call->reply = vnode;
-	call->service_id = FS_SERVICE;
-	call->port = htons(AFS_FS_PORT);
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -1839,8 +1807,6 @@ int afs_fs_extend_lock(struct afs_server *server,
 
 	call->key = key;
 	call->reply = vnode;
-	call->service_id = FS_SERVICE;
-	call->port = htons(AFS_FS_PORT);
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -1872,8 +1838,6 @@ int afs_fs_release_lock(struct afs_server *server,
 
 	call->key = key;
 	call->reply = vnode;
-	call->service_id = FS_SERVICE;
-	call->port = htons(AFS_FS_PORT);
 
 	/* marshall the parameters */
 	bp = call->request;

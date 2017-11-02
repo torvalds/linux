@@ -31,7 +31,7 @@ static struct afs_cell *afs_cell_alloc(struct afs_net *net,
 	char keyname[4 + AFS_MAXCELLNAME + 1], *cp, *dp, *next;
 	char  *dvllist = NULL, *_vllist = NULL;
 	char  delimiter = ':';
-	int ret;
+	int ret, i;
 
 	_enter("%*.*s,%s", namelen, namelen, name ?: "", vllist);
 
@@ -61,6 +61,14 @@ static struct afs_cell *afs_cell_alloc(struct afs_net *net,
 	INIT_LIST_HEAD(&cell->vl_list);
 	spin_lock_init(&cell->vl_lock);
 
+	for (i = 0; i < AFS_CELL_MAX_ADDRS; i++) {
+		struct sockaddr_rxrpc *srx = &cell->vl_addrs[i];
+		srx->srx_family			= AF_RXRPC;
+		srx->srx_service		= VL_SERVICE;
+		srx->transport_type		= SOCK_DGRAM;
+		srx->transport.sin.sin_port	= htons(AFS_VL_PORT);
+	}
+
 	/* if the ip address is invalid, try dns query */
 	if (!vllist || strlen(vllist) < 7) {
 		ret = dns_query("afsdb", name, namelen, "ipv4", &dvllist, NULL);
@@ -83,6 +91,7 @@ static struct afs_cell *afs_cell_alloc(struct afs_net *net,
 
 	/* fill in the VL server list from the rest of the string */
 	do {
+		struct sockaddr_rxrpc *srx = &cell->vl_addrs[cell->vl_naddrs];
 		unsigned a, b, c, d;
 
 		next = strchr(_vllist, delimiter);
@@ -95,10 +104,13 @@ static struct afs_cell *afs_cell_alloc(struct afs_net *net,
 		if (a > 255 || b > 255 || c > 255 || d > 255)
 			goto bad_address;
 
-		cell->vl_addrs[cell->vl_naddrs++].s_addr =
+		srx->transport_len		= sizeof(struct sockaddr_in);
+		srx->transport.sin.sin_family	= AF_INET;
+		srx->transport.sin.sin_addr.s_addr =
 			htonl((a << 24) | (b << 16) | (c << 8) | d);
 
-	} while (cell->vl_naddrs < AFS_CELL_MAX_ADDRS && (_vllist = next));
+	} while (cell->vl_naddrs++,
+		 cell->vl_naddrs < AFS_CELL_MAX_ADDRS && (_vllist = next));
 
 	/* create a key to represent an anonymous user */
 	memcpy(keyname, "afs@", 4);

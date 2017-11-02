@@ -570,16 +570,16 @@ static void afs_proc_cell_vlservers_stop(struct seq_file *p, void *v)
  */
 static int afs_proc_cell_vlservers_show(struct seq_file *m, void *v)
 {
-	struct in_addr *addr = v;
+	struct sockaddr_rxrpc *addr = v;
 
 	/* display header on line 1 */
-	if (v == (struct in_addr *) 1) {
+	if (v == (void *)1) {
 		seq_puts(m, "ADDRESS\n");
 		return 0;
 	}
 
 	/* display one cell per line on subsequent lines */
-	seq_printf(m, "%pI4\n", &addr->s_addr);
+	seq_printf(m, "%pISp\n", &addr->transport);
 	return 0;
 }
 
@@ -652,7 +652,7 @@ static int afs_proc_cell_servers_show(struct seq_file *m, void *v)
 {
 	struct afs_cell *cell = m->private;
 	struct afs_server *server = list_entry(v, struct afs_server, link);
-	char ipaddr[20];
+	char ipaddr[64];
 
 	/* display header on line 1 */
 	if (v == &cell->servers) {
@@ -661,7 +661,7 @@ static int afs_proc_cell_servers_show(struct seq_file *m, void *v)
 	}
 
 	/* display one cell per line on subsequent lines */
-	sprintf(ipaddr, "%pI4", &server->addr);
+	sprintf(ipaddr, "%pISp", &server->addr.transport);
 	seq_printf(m, "%3d %-15.15s %5d\n",
 		   atomic_read(&server->usage), ipaddr, server->fs_state);
 
