@@ -503,9 +503,9 @@ int i915_gem_init_stolen(struct drm_i915_private *dev_priv)
 	if (reserved_base < dev_priv->mm.stolen_base ||
 	    reserved_base + reserved_size > stolen_top) {
 		dma_addr_t reserved_top = reserved_base + reserved_size;
-		DRM_DEBUG_KMS("Stolen reserved area [%pad - %pad] outside stolen memory [%pad - %pad]\n",
-			      &reserved_base, &reserved_top,
-			      &dev_priv->mm.stolen_base, &stolen_top);
+		DRM_ERROR("Stolen reserved area [%pad - %pad] outside stolen memory [%pad - %pad]\n",
+			  &reserved_base, &reserved_top,
+			  &dev_priv->mm.stolen_base, &stolen_top);
 		return 0;
 	}
 
