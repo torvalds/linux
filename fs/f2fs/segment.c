@@ -2592,6 +2592,8 @@ void allocate_data_block(struct f2fs_sb_info *sbi, struct page *page,
 	struct sit_info *sit_i = SIT_I(sbi);
 	struct curseg_info *curseg = CURSEG_I(sbi, type);
 
+	down_read(&SM_I(sbi)->curseg_lock);
+
 	mutex_lock(&curseg->curseg_mutex);
 	down_write(&sit_i->sentry_lock);
 
@@ -2649,6 +2651,8 @@ void allocate_data_block(struct f2fs_sb_info *sbi, struct page *page,
 	}
 
 	mutex_unlock(&curseg->curseg_mutex);
+
+	up_read(&SM_I(sbi)->curseg_lock);
 }
 
 static void update_device_state(struct f2fs_io_info *fio)
@@ -2756,6 +2760,18 @@ int rewrite_data_page(struct f2fs_io_info *fio)
 	return err;
 }
 
+static inline int __f2fs_get_curseg(struct f2fs_sb_info *sbi,
+						unsigned int segno)
+{
+	int i;
+
+	for (i = CURSEG_HOT_DATA; i < NO_CHECK_TYPE; i++) {
+		if (CURSEG_I(sbi, i)->segno == segno)
+			break;
+	}
+	return i;
+}
+
 void __f2fs_replace_block(struct f2fs_sb_info *sbi, struct f2fs_summary *sum,
 				block_t old_blkaddr, block_t new_blkaddr,
 				bool recover_curseg, bool recover_newaddr)
@@ -2771,6 +2787,8 @@ void __f2fs_replace_block(struct f2fs_sb_info *sbi, struct f2fs_summary *sum,
 	se = get_seg_entry(sbi, segno);
 	type = se->type;
 
+	down_write(&SM_I(sbi)->curseg_lock);
+
 	if (!recover_curseg) {
 		/* for recovery flow */
 		if (se->valid_blocks == 0 && !IS_CURSEG(sbi, segno)) {
@@ -2780,8 +2798,13 @@ void __f2fs_replace_block(struct f2fs_sb_info *sbi, struct f2fs_summary *sum,
 				type = CURSEG_WARM_DATA;
 		}
 	} else {
-		if (!IS_CURSEG(sbi, segno))
+		if (IS_CURSEG(sbi, segno)) {
+			/* se->type is volatile as SSR allocation */
+			type = __f2fs_get_curseg(sbi, segno);
+			f2fs_bug_on(sbi, type == NO_CHECK_TYPE);
+		} else {
 			type = CURSEG_WARM_DATA;
+		}
 	}
 
 	curseg = CURSEG_I(sbi, type);
@@ -2821,6 +2844,7 @@ void __f2fs_replace_block(struct f2fs_sb_info *sbi, struct f2fs_summary *sum,
 
 	up_write(&sit_i->sentry_lock);
 	mutex_unlock(&curseg->curseg_mutex);
+	up_write(&SM_I(sbi)->curseg_lock);
 }
 
 void f2fs_replace_block(struct f2fs_sb_info *sbi, struct dnode_of_data *dn,
@@ -3757,6 +3781,8 @@ int build_segment_manager(struct f2fs_sb_info *sbi)
 	sm_info->trim_sections = DEF_BATCHED_TRIM_SECTIONS;
 
 	INIT_LIST_HEAD(&sm_info->sit_entry_set);
+
+	init_rwsem(&sm_info->curseg_lock);
 
 	if (!f2fs_readonly(sbi->sb)) {
 		err = create_flush_cmd_control(sbi);
