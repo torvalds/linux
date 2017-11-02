@@ -1157,12 +1157,34 @@ static void nvme_report_ns_ids(struct nvme_ctrl *ctrl, unsigned int nsid,
 	}
 }
 
+static void nvme_update_disk_info(struct gendisk *disk,
+		struct nvme_ns *ns, struct nvme_id_ns *id)
+{
+	sector_t capacity = le64_to_cpup(&id->nsze) << (ns->lba_shift - 9);
+	unsigned stream_alignment = 0;
+
+	if (ns->ctrl->nr_streams && ns->sws && ns->sgs)
+		stream_alignment = ns->sws * ns->sgs;
+
+	blk_mq_freeze_queue(disk->queue);
+	blk_integrity_unregister(disk);
+
+	blk_queue_logical_block_size(disk->queue, 1 << ns->lba_shift);
+	if (ns->ms && !ns->ext &&
+	    (ns->ctrl->ops->flags & NVME_F_METADATA_SUPPORTED))
+		nvme_init_integrity(disk, ns->ms, ns->pi_type);
+	if (ns->ms && !(ns->ms == 8 && ns->pi_type) && !blk_get_integrity(disk))
+		capacity = 0;
+	set_capacity(disk, capacity);
+
+	if (ns->ctrl->oncs & NVME_CTRL_ONCS_DSM)
+		nvme_config_discard(ns->ctrl, stream_alignment, disk->queue);
+	blk_mq_unfreeze_queue(disk->queue);
+}
+
 static void __nvme_revalidate_disk(struct gendisk *disk, struct nvme_id_ns *id)
 {
 	struct nvme_ns *ns = disk->private_data;
-	struct nvme_ctrl *ctrl = ns->ctrl;
-	unsigned stream_alignment = 0;
-	u16 bs;
 
 	/*
 	 * If identify namespace failed, use default 512 byte block size so
@@ -1171,7 +1193,6 @@ static void __nvme_revalidate_disk(struct gendisk *disk, struct nvme_id_ns *id)
 	ns->lba_shift = id->lbaf[id->flbas & NVME_NS_FLBAS_LBA_MASK].ds;
 	if (ns->lba_shift == 0)
 		ns->lba_shift = 9;
-	bs = 1 << ns->lba_shift;
 	ns->noiob = le16_to_cpu(id->noiob);
 	ns->ext = ns->ms && (id->flbas & NVME_NS_FLBAS_META_EXT);
 	ns->ms = le16_to_cpu(id->lbaf[id->flbas & NVME_NS_FLBAS_LBA_MASK].ms);
@@ -1181,27 +1202,9 @@ static void __nvme_revalidate_disk(struct gendisk *disk, struct nvme_id_ns *id)
 	else
 		ns->pi_type = 0;
 
-	if (ctrl->nr_streams && ns->sws && ns->sgs)
-		stream_alignment = ns->sws * ns->sgs;
-
 	if (ns->noiob)
 		nvme_set_chunk_size(ns);
-
-	blk_mq_freeze_queue(disk->queue);
-	blk_integrity_unregister(disk);
-
-	blk_queue_logical_block_size(ns->queue, bs);
-	if (ns->ms && !ns->ext &&
-	    (ctrl->ops->flags & NVME_F_METADATA_SUPPORTED))
-		nvme_init_integrity(disk, ns->ms, ns->pi_type);
-	if (ns->ms && !(ns->ms == 8 && ns->pi_type) && !blk_get_integrity(disk))
-		set_capacity(disk, 0);
-	else
-		set_capacity(disk, le64_to_cpup(&id->nsze) << (ns->lba_shift - 9));
-
-	if (ctrl->oncs & NVME_CTRL_ONCS_DSM)
-		nvme_config_discard(ctrl, stream_alignment, disk->queue);
-	blk_mq_unfreeze_queue(disk->queue);
+	nvme_update_disk_info(disk, ns, id);
 }
 
 static int nvme_revalidate_disk(struct gendisk *disk)
