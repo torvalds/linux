@@ -31,7 +31,6 @@ static int afs_deliver_cm_op_id(struct afs_call *);
 static const struct afs_call_type afs_RXCMxxxx = {
 	.name		= "CB.xxxx",
 	.deliver	= afs_deliver_cm_op_id,
-	.abort_to_error	= afs_abort_to_error,
 };
 
 /*
@@ -418,7 +417,7 @@ error_do_abort:
 		rxrpc_kernel_recv_data(call->net->socket, rxcall, NULL,
 				       0, &offset, false, &abort_code,
 				       &call->service_id);
-		ret = call->type->abort_to_error(abort_code);
+		ret = afs_abort_to_error(abort_code);
 	}
 error_kill_call:
 	afs_put_call(call);
@@ -876,7 +875,7 @@ int afs_extract_data(struct afs_call *call, void *buf, size_t count,
 	}
 
 	if (ret == -ECONNABORTED)
-		call->error = call->type->abort_to_error(call->abort_code);
+		call->error = afs_abort_to_error(call->abort_code);
 	else
 		call->error = ret;
 	call->state = AFS_CALL_COMPLETE;

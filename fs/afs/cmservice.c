@@ -41,7 +41,6 @@ static CM_NAME(CallBack);
 static const struct afs_call_type afs_SRXCBCallBack = {
 	.name		= afs_SRXCBCallBack_name,
 	.deliver	= afs_deliver_cb_callback,
-	.abort_to_error	= afs_abort_to_error,
 	.destructor	= afs_cm_destructor,
 	.work		= SRXAFSCB_CallBack,
 };
@@ -53,7 +52,6 @@ static CM_NAME(InitCallBackState);
 static const struct afs_call_type afs_SRXCBInitCallBackState = {
 	.name		= afs_SRXCBInitCallBackState_name,
 	.deliver	= afs_deliver_cb_init_call_back_state,
-	.abort_to_error	= afs_abort_to_error,
 	.destructor	= afs_cm_destructor,
 	.work		= SRXAFSCB_InitCallBackState,
 };
@@ -65,7 +63,6 @@ static CM_NAME(InitCallBackState3);
 static const struct afs_call_type afs_SRXCBInitCallBackState3 = {
 	.name		= afs_SRXCBInitCallBackState3_name,
 	.deliver	= afs_deliver_cb_init_call_back_state3,
-	.abort_to_error	= afs_abort_to_error,
 	.destructor	= afs_cm_destructor,
 	.work		= SRXAFSCB_InitCallBackState,
 };
@@ -77,7 +74,6 @@ static CM_NAME(Probe);
 static const struct afs_call_type afs_SRXCBProbe = {
 	.name		= afs_SRXCBProbe_name,
 	.deliver	= afs_deliver_cb_probe,
-	.abort_to_error	= afs_abort_to_error,
 	.destructor	= afs_cm_destructor,
 	.work		= SRXAFSCB_Probe,
 };
@@ -89,7 +85,6 @@ static CM_NAME(ProbeUuid);
 static const struct afs_call_type afs_SRXCBProbeUuid = {
 	.name		= afs_SRXCBProbeUuid_name,
 	.deliver	= afs_deliver_cb_probe_uuid,
-	.abort_to_error	= afs_abort_to_error,
 	.destructor	= afs_cm_destructor,
 	.work		= SRXAFSCB_ProbeUuid,
 };
@@ -101,7 +96,6 @@ static CM_NAME(TellMeAboutYourself);
 static const struct afs_call_type afs_SRXCBTellMeAboutYourself = {
 	.name		= afs_SRXCBTellMeAboutYourself_name,
 	.deliver	= afs_deliver_cb_tell_me_about_yourself,
-	.abort_to_error	= afs_abort_to_error,
 	.destructor	= afs_cm_destructor,
 	.work		= SRXAFSCB_TellMeAboutYourself,
 };

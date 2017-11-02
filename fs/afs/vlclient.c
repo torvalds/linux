@@ -16,47 +16,6 @@
 #include "internal.h"
 
 /*
- * map volume locator abort codes to error codes
- */
-static int afs_vl_abort_to_error(u32 abort_code)
-{
-	_enter("%u", abort_code);
-
-	switch (abort_code) {
-	case AFSVL_IDEXIST:		return -EEXIST;
-	case AFSVL_IO:			return -EREMOTEIO;
-	case AFSVL_NAMEEXIST:		return -EEXIST;
-	case AFSVL_CREATEFAIL:		return -EREMOTEIO;
-	case AFSVL_NOENT:		return -ENOMEDIUM;
-	case AFSVL_EMPTY:		return -ENOMEDIUM;
-	case AFSVL_ENTDELETED:		return -ENOMEDIUM;
-	case AFSVL_BADNAME:		return -EINVAL;
-	case AFSVL_BADINDEX:		return -EINVAL;
-	case AFSVL_BADVOLTYPE:		return -EINVAL;
-	case AFSVL_BADSERVER:		return -EINVAL;
-	case AFSVL_BADPARTITION:	return -EINVAL;
-	case AFSVL_REPSFULL:		return -EFBIG;
-	case AFSVL_NOREPSERVER:		return -ENOENT;
-	case AFSVL_DUPREPSERVER:	return -EEXIST;
-	case AFSVL_RWNOTFOUND:		return -ENOENT;
-	case AFSVL_BADREFCOUNT:		return -EINVAL;
-	case AFSVL_SIZEEXCEEDED:	return -EINVAL;
-	case AFSVL_BADENTRY:		return -EINVAL;
-	case AFSVL_BADVOLIDBUMP:	return -EINVAL;
-	case AFSVL_IDALREADYHASHED:	return -EINVAL;
-	case AFSVL_ENTRYLOCKED:		return -EBUSY;
-	case AFSVL_BADVOLOPER:		return -EBADRQC;
-	case AFSVL_BADRELLOCKTYPE:	return -EINVAL;
-	case AFSVL_RERELEASE:		return -EREMOTEIO;
-	case AFSVL_BADSERVERFLAG:	return -EINVAL;
-	case AFSVL_PERM:		return -EACCES;
-	case AFSVL_NOMEM:		return -EREMOTEIO;
-	default:
-		return afs_abort_to_error(abort_code);
-	}
-}
-
-/*
  * deliver reply data to a VL.GetEntryByXXX call
  */
 static int afs_deliver_vl_get_entry_by_xxx(struct afs_call *call)
@@ -139,7 +98,6 @@ static int afs_deliver_vl_get_entry_by_xxx(struct afs_call *call)
 static const struct afs_call_type afs_RXVLGetEntryByName = {
 	.name		= "VL.GetEntryByName",
 	.deliver	= afs_deliver_vl_get_entry_by_xxx,
-	.abort_to_error	= afs_vl_abort_to_error,
 	.destructor	= afs_flat_call_destructor,
 };
 
@@ -149,7 +107,6 @@ static const struct afs_call_type afs_RXVLGetEntryByName = {
 static const struct afs_call_type afs_RXVLGetEntryById = {
 	.name		= "VL.GetEntryById",
 	.deliver	= afs_deliver_vl_get_entry_by_xxx,
-	.abort_to_error	= afs_vl_abort_to_error,
 	.destructor	= afs_flat_call_destructor,
 };
 

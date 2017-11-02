@@ -120,9 +120,6 @@ struct afs_call_type {
 	 */
 	int (*deliver)(struct afs_call *call);
 
-	/* map an abort code to an error number */
-	int (*abort_to_error)(u32 abort_code);
-
 	/* clean up a call */
 	void (*destructor)(struct afs_call *call);
 

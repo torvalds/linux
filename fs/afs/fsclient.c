@@ -270,7 +270,6 @@ static int afs_deliver_fs_fetch_status(struct afs_call *call)
 static const struct afs_call_type afs_RXFSFetchStatus = {
 	.name		= "FS.FetchStatus",
 	.deliver	= afs_deliver_fs_fetch_status,
-	.abort_to_error	= afs_abort_to_error,
 	.destructor	= afs_flat_call_destructor,
 };
 
@@ -468,14 +467,12 @@ static void afs_fetch_data_destructor(struct afs_call *call)
 static const struct afs_call_type afs_RXFSFetchData = {
 	.name		= "FS.FetchData",
 	.deliver	= afs_deliver_fs_fetch_data,
-	.abort_to_error	= afs_abort_to_error,
 	.destructor	= afs_fetch_data_destructor,
 };
 
 static const struct afs_call_type afs_RXFSFetchData64 = {
 	.name		= "FS.FetchData64",
 	.deliver	= afs_deliver_fs_fetch_data,
-	.abort_to_error	= afs_abort_to_error,
 	.destructor	= afs_fetch_data_destructor,
 };
 
@@ -579,7 +576,6 @@ static int afs_deliver_fs_give_up_callbacks(struct afs_call *call)
 static const struct afs_call_type afs_RXFSGiveUpCallBacks = {
 	.name		= "FS.GiveUpCallBacks",
 	.deliver	= afs_deliver_fs_give_up_callbacks,
-	.abort_to_error	= afs_abort_to_error,
 	.destructor	= afs_flat_call_destructor,
 };
 
@@ -677,7 +673,6 @@ static int afs_deliver_fs_create_vnode(struct afs_call *call)
 static const struct afs_call_type afs_RXFSCreateXXXX = {
 	.name		= "FS.CreateXXXX",
 	.deliver	= afs_deliver_fs_create_vnode,
-	.abort_to_error	= afs_abort_to_error,
 	.destructor	= afs_flat_call_destructor,
 };
 
@@ -769,7 +764,6 @@ static int afs_deliver_fs_remove(struct afs_call *call)
 static const struct afs_call_type afs_RXFSRemoveXXXX = {
 	.name		= "FS.RemoveXXXX",
 	.deliver	= afs_deliver_fs_remove,
-	.abort_to_error	= afs_abort_to_error,
 	.destructor	= afs_flat_call_destructor,
 };
 
@@ -849,7 +843,6 @@ static int afs_deliver_fs_link(struct afs_call *call)
 static const struct afs_call_type afs_RXFSLink = {
 	.name		= "FS.Link",
 	.deliver	= afs_deliver_fs_link,
-	.abort_to_error	= afs_abort_to_error,
 	.destructor	= afs_flat_call_destructor,
 };
 
@@ -934,7 +927,6 @@ static int afs_deliver_fs_symlink(struct afs_call *call)
 static const struct afs_call_type afs_RXFSSymlink = {
 	.name		= "FS.Symlink",
 	.deliver	= afs_deliver_fs_symlink,
-	.abort_to_error	= afs_abort_to_error,
 	.destructor	= afs_flat_call_destructor,
 };
 
@@ -1038,7 +1030,6 @@ static int afs_deliver_fs_rename(struct afs_call *call)
 static const struct afs_call_type afs_RXFSRename = {
 	.name		= "FS.Rename",
 	.deliver	= afs_deliver_fs_rename,
-	.abort_to_error	= afs_abort_to_error,
 	.destructor	= afs_flat_call_destructor,
 };
 
@@ -1140,14 +1131,12 @@ static int afs_deliver_fs_store_data(struct afs_call *call)
 static const struct afs_call_type afs_RXFSStoreData = {
 	.name		= "FS.StoreData",
 	.deliver	= afs_deliver_fs_store_data,
-	.abort_to_error	= afs_abort_to_error,
 	.destructor	= afs_flat_call_destructor,
 };
 
 static const struct afs_call_type afs_RXFSStoreData64 = {
 	.name		= "FS.StoreData64",
 	.deliver	= afs_deliver_fs_store_data,
-	.abort_to_error	= afs_abort_to_error,
 	.destructor	= afs_flat_call_destructor,
 };
 
@@ -1318,21 +1307,18 @@ static int afs_deliver_fs_store_status(struct afs_call *call)
 static const struct afs_call_type afs_RXFSStoreStatus = {
 	.name		= "FS.StoreStatus",
 	.deliver	= afs_deliver_fs_store_status,
-	.abort_to_error	= afs_abort_to_error,
 	.destructor	= afs_flat_call_destructor,
 };
 
 static const struct afs_call_type afs_RXFSStoreData_as_Status = {
 	.name		= "FS.StoreData",
 	.deliver	= afs_deliver_fs_store_status,
-	.abort_to_error	= afs_abort_to_error,
 	.destructor	= afs_flat_call_destructor,
 };
 
 static const struct afs_call_type afs_RXFSStoreData64_as_Status = {
 	.name		= "FS.StoreData64",
 	.deliver	= afs_deliver_fs_store_status,
-	.abort_to_error	= afs_abort_to_error,
 	.destructor	= afs_flat_call_destructor,
 };
 
@@ -1659,7 +1645,6 @@ static void afs_get_volume_status_call_destructor(struct afs_call *call)
 static const struct afs_call_type afs_RXFSGetVolumeStatus = {
 	.name		= "FS.GetVolumeStatus",
 	.deliver	= afs_deliver_fs_get_volume_status,
-	.abort_to_error	= afs_abort_to_error,
 	.destructor	= afs_get_volume_status_call_destructor,
 };
 
@@ -1730,7 +1715,6 @@ static int afs_deliver_fs_xxxx_lock(struct afs_call *call)
 static const struct afs_call_type afs_RXFSSetLock = {
 	.name		= "FS.SetLock",
 	.deliver	= afs_deliver_fs_xxxx_lock,
-	.abort_to_error	= afs_abort_to_error,
 	.destructor	= afs_flat_call_destructor,
 };
 
@@ -1740,7 +1724,6 @@ static const struct afs_call_type afs_RXFSSetLock = {
 static const struct afs_call_type afs_RXFSExtendLock = {
 	.name		= "FS.ExtendLock",
 	.deliver	= afs_deliver_fs_xxxx_lock,
-	.abort_to_error	= afs_abort_to_error,
 	.destructor	= afs_flat_call_destructor,
 };
 
@@ -1750,7 +1733,6 @@ static const struct afs_call_type afs_RXFSExtendLock = {
 static const struct afs_call_type afs_RXFSReleaseLock = {
 	.name		= "FS.ReleaseLock",
 	.deliver	= afs_deliver_fs_xxxx_lock,
-	.abort_to_error	= afs_abort_to_error,
 	.destructor	= afs_flat_call_destructor,
 };
 
