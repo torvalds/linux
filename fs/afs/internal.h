@@ -207,13 +207,14 @@ struct afs_net {
 	atomic_t		nr_superblocks;
 
 	/* Cell database */
-	struct list_head	cells;
+	struct rb_root		cells;
 	struct afs_cell		*ws_cell;
-	rwlock_t		cells_lock;
-	struct rw_semaphore	cells_sem;
-	wait_queue_head_t	cells_freeable_wq;
+	struct work_struct	cells_manager;
+	struct timer_list	cells_timer;
+	atomic_t		cells_outstanding;
+	seqlock_t		cells_lock;
 
-	struct rw_semaphore	proc_cells_sem;
+	spinlock_t		proc_cells_lock;
 	struct list_head	proc_cells;
 
 	/* Volume location database */
@@ -242,14 +243,26 @@ struct afs_net {
 
 extern struct afs_net __afs_net;// Dummy AFS network namespace; TODO: replace with real netns
 
+enum afs_cell_state {
+	AFS_CELL_UNSET,
+	AFS_CELL_ACTIVATING,
+	AFS_CELL_ACTIVE,
+	AFS_CELL_DEACTIVATING,
+	AFS_CELL_INACTIVE,
+	AFS_CELL_FAILED,
+};
+
 /*
  * AFS cell record
  */
 struct afs_cell {
-	atomic_t		usage;
-	struct list_head	link;		/* main cell list link */
-	struct afs_net		*net;		/* The network namespace */
+	union {
+		struct rcu_head	rcu;
+		struct rb_node	net_node;	/* Node in net->cells */
+	};
+	struct afs_net		*net;
 	struct key		*anonymous_key;	/* anonymous user key for this cell */
+	struct work_struct	manager;	/* Manager for init/deinit/dns */
 	struct list_head	proc_link;	/* /proc cell list link */
 #ifdef CONFIG_AFS_FSCACHE
 	struct fscache_cookie	*cache;		/* caching cookie */
@@ -262,12 +275,26 @@ struct afs_cell {
 	/* volume location record management */
 	struct rw_semaphore	vl_sem;		/* volume management serialisation semaphore */
 	struct list_head	vl_list;	/* cell's active VL record list */
+	time64_t		dns_expiry;	/* Time AFSDB/SRV record expires */
+	time64_t		last_inactive;	/* Time of last drop of usage count */
+	atomic_t		usage;
+	unsigned long		flags;
+#define AFS_CELL_FL_NOT_READY	0		/* The cell record is not ready for use */
+#define AFS_CELL_FL_NO_GC	1		/* The cell was added manually, don't auto-gc */
+#define AFS_CELL_FL_NOT_FOUND	2		/* Permanent DNS error */
+#define AFS_CELL_FL_DNS_FAIL	3		/* Failed to access DNS */
+	enum afs_cell_state	state;
+	short			error;
+
 	spinlock_t		vl_lock;	/* vl_list lock */
+
+	/* VLDB server list. */
+	seqlock_t		vl_addrs_lock;
 	unsigned short		vl_naddrs;	/* number of VL servers in addr list */
 	unsigned short		vl_curr_svix;	/* current server index */
 	struct sockaddr_rxrpc	vl_addrs[AFS_CELL_MAX_ADDRS];	/* cell VL server addresses */
-
-	char			name[0];	/* cell name - must go last */
+	u8			name_len;	/* Length of name */
+	char			name[64 + 1];	/* Cell name, case-flattened and NUL-padded */
 };
 
 /*
@@ -494,17 +521,20 @@ static inline struct afs_cb_interest *afs_get_cb_interest(struct afs_cb_interest
 /*
  * cell.c
  */
-static inline struct afs_cell *afs_get_cell(struct afs_cell *cell)
+ static inline struct afs_cell *afs_get_cell(struct afs_cell *cell)
 {
 	if (cell)
 		atomic_inc(&cell->usage);
 	return cell;
 }
-extern int afs_cell_init(struct afs_net *, char *);
-extern struct afs_cell *afs_cell_create(struct afs_net *, const char *, unsigned, char *, bool);
-extern struct afs_cell *afs_cell_lookup(struct afs_net *, const char *, unsigned, bool);
-extern struct afs_cell *afs_grab_cell(struct afs_cell *);
+
+extern int afs_cell_init(struct afs_net *, const char *);
+extern struct afs_cell *afs_lookup_cell_rcu(struct afs_net *, const char *, unsigned);
+extern struct afs_cell *afs_lookup_cell(struct afs_net *, const char *, unsigned,
+					const char *, bool);
 extern void afs_put_cell(struct afs_net *, struct afs_cell *);
+extern void afs_manage_cells(struct work_struct *);
+extern void afs_cells_timer(struct timer_list *);
 extern void __net_exit afs_cell_purge(struct afs_net *);
 
 /*

@@ -46,12 +46,15 @@ static int __net_init afs_net_init(struct afs_net *net)
 
 	INIT_WORK(&net->charge_preallocation_work, afs_charge_preallocation);
 	mutex_init(&net->socket_mutex);
-	INIT_LIST_HEAD(&net->cells);
-	rwlock_init(&net->cells_lock);
-	init_rwsem(&net->cells_sem);
-	init_waitqueue_head(&net->cells_freeable_wq);
-	init_rwsem(&net->proc_cells_sem);
+
+	net->cells = RB_ROOT;
+	seqlock_init(&net->cells_lock);
+	INIT_WORK(&net->cells_manager, afs_manage_cells);
+	timer_setup(&net->cells_timer, afs_cells_timer, 0);
+
+	spin_lock_init(&net->proc_cells_lock);
 	INIT_LIST_HEAD(&net->proc_cells);
+
 	INIT_LIST_HEAD(&net->vl_updates);
 	INIT_LIST_HEAD(&net->vl_graveyard);
 	INIT_DELAYED_WORK(&net->vl_reaper, afs_vlocation_reaper);
@@ -83,11 +86,14 @@ static int __net_init afs_net_init(struct afs_net *net)
 	return 0;
 
 error_open_socket:
+	net->live = false;
 	afs_vlocation_purge(net);
 	afs_cell_purge(net);
 error_cell_init:
+	net->live = false;
 	afs_proc_cleanup(net);
 error_proc:
+	net->live = false;
 	return ret;
 }
 

@@ -186,7 +186,7 @@ static void *afs_proc_cells_start(struct seq_file *m, loff_t *_pos)
 {
 	struct afs_net *net = afs_seq2net(m);
 
-	down_read(&net->proc_cells_sem);
+	rcu_read_lock();
 	return seq_list_start_head(&net->proc_cells, *_pos);
 }
 
@@ -205,9 +205,7 @@ static void *afs_proc_cells_next(struct seq_file *m, void *v, loff_t *pos)
  */
 static void afs_proc_cells_stop(struct seq_file *m, void *v)
 {
-	struct afs_net *net = afs_seq2net(m);
-
-	up_read(&net->proc_cells_sem);
+	rcu_read_unlock();
 }
 
 /*
@@ -225,8 +223,7 @@ static int afs_proc_cells_show(struct seq_file *m, void *v)
 	}
 
 	/* display one cell per line on subsequent lines */
-	seq_printf(m, "%3d %s\n",
-		   atomic_read(&cell->usage), cell->name);
+	seq_printf(m, "%3u %s\n", atomic_read(&cell->usage), cell->name);
 	return 0;
 }
 
@@ -279,13 +276,13 @@ static ssize_t afs_proc_cells_write(struct file *file, const char __user *buf,
 	if (strcmp(kbuf, "add") == 0) {
 		struct afs_cell *cell;
 
-		cell = afs_cell_create(net, name, strlen(name), args, false);
+		cell = afs_lookup_cell(net, name, strlen(name), args, true);
 		if (IS_ERR(cell)) {
 			ret = PTR_ERR(cell);
 			goto done;
 		}
 
-		afs_put_cell(net, cell);
+		set_bit(AFS_CELL_FL_NO_GC, &cell->flags);
 		printk("kAFS: Added new cell '%s'\n", name);
 	} else {
 		goto inval;
@@ -354,7 +351,7 @@ int afs_proc_cell_setup(struct afs_net *net, struct afs_cell *cell)
 {
 	struct proc_dir_entry *dir;
 
-	_enter("%p{%s}", cell, cell->name);
+	_enter("%p{%s},%p", cell, cell->name, net->proc_afs);
 
 	dir = proc_mkdir(cell->name, net->proc_afs);
 	if (!dir)

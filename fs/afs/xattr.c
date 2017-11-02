@@ -45,7 +45,7 @@ static int afs_xattr_get_cell(const struct xattr_handler *handler,
 	struct afs_cell *cell = vnode->volume->cell;
 	size_t namelen;
 
-	namelen = strlen(cell->name);
+	namelen = cell->name_len;
 	if (size == 0)
 		return namelen;
 	if (namelen > size)
