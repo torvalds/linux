@@ -4534,8 +4534,10 @@ int bpf_check(struct bpf_prog **prog, union bpf_attr *attr)
 	env->allow_ptr_leaks = capable(CAP_SYS_ADMIN);
 
 	ret = do_check(env);
-	free_verifier_state(env->cur_state, true);
-	env->cur_state = NULL;
+	if (env->cur_state) {
+		free_verifier_state(env->cur_state, true);
+		env->cur_state = NULL;
+	}
 
 skip_full_check:
 	while (!pop_stack(env, NULL, NULL));
@@ -4643,8 +4645,10 @@ int bpf_analyzer(struct bpf_prog *prog, const struct bpf_ext_analyzer_ops *ops,
 	env->allow_ptr_leaks = capable(CAP_SYS_ADMIN);
 
 	ret = do_check(env);
-	free_verifier_state(env->cur_state, true);
-	env->cur_state = NULL;
+	if (env->cur_state) {
+		free_verifier_state(env->cur_state, true);
+		env->cur_state = NULL;
+	}
 
 skip_full_check:
 	while (!pop_stack(env, NULL, NULL));
