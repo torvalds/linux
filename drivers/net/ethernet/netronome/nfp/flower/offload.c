@@ -470,6 +470,9 @@ static int nfp_flower_setup_tc_block_cb(enum tc_setup_type type,
 {
 	struct nfp_net *nn = cb_priv;
 
+	if (!tc_can_offload(nn->dp.netdev))
+		return -EOPNOTSUPP;
+
 	switch (type) {
 	case TC_SETUP_CLSFLOWER:
 		return nfp_flower_repr_offload(nn->app, nn->port->netdev,

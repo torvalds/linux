@@ -9386,6 +9386,9 @@ static int ixgbe_setup_tc_block_cb(enum tc_setup_type type, void *type_data,
 {
 	struct ixgbe_adapter *adapter = cb_priv;
 
+	if (!tc_can_offload(adapter->netdev))
+		return -EOPNOTSUPP;
+
 	switch (type) {
 	case TC_SETUP_CLSU32:
 		return ixgbe_setup_tc_cls_u32(adapter, type_data);

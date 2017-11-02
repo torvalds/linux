@@ -124,7 +124,7 @@ static int bnxt_vf_rep_setup_tc_block_cb(enum tc_setup_type type,
 	struct bnxt *bp = vf_rep->bp;
 	int vf_fid = bp->pf.vf[vf_rep->vf_idx].fw_fid;
 
-	if (!bnxt_tc_flower_enabled(vf_rep->bp))
+	if (!bnxt_tc_flower_enabled(vf_rep->bp) || !tc_can_offload(bp->dev))
 		return -EOPNOTSUPP;
 
 	switch (type) {

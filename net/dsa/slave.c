@@ -799,6 +799,9 @@ static int dsa_slave_setup_tc_block_cb(enum tc_setup_type type, void *type_data,
 {
 	struct net_device *dev = cb_priv;
 
+	if (!tc_can_offload(dev))
+		return -EOPNOTSUPP;
+
 	switch (type) {
 	case TC_SETUP_CLSMATCHALL:
 		return dsa_slave_setup_tc_cls_matchall(dev, type_data, ingress);

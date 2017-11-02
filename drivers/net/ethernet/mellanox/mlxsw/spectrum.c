@@ -1738,6 +1738,9 @@ static int mlxsw_sp_setup_tc_block_cb(enum tc_setup_type type, void *type_data,
 {
 	struct mlxsw_sp_port *mlxsw_sp_port = cb_priv;
 
+	if (!tc_can_offload(mlxsw_sp_port->dev))
+		return -EOPNOTSUPP;
+
 	switch (type) {
 	case TC_SETUP_CLSMATCHALL:
 		return mlxsw_sp_setup_tc_cls_matchall(mlxsw_sp_port, type_data,
