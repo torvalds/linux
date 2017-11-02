@@ -254,9 +254,8 @@ out:
  * middle already handled as part of mtt shift calculation for both their start
  * & end addresses.
  */
-static int mlx4_ib_umem_calc_optimal_mtt_size(struct ib_umem *umem,
-					      u64 start_va,
-					      int *num_of_mtts)
+int mlx4_ib_umem_calc_optimal_mtt_size(struct ib_umem *umem, u64 start_va,
+				       int *num_of_mtts)
 {
 	u64 block_shift = MLX4_MAX_MTT_SHIFT;
 	u64 min_shift = umem->page_shift;
