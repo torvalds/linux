@@ -62,7 +62,7 @@ static void hclge_free_cmd_desc(struct hclge_cmq_ring *ring)
 	ring->desc = NULL;
 }
 
-static int hclge_init_cmd_queue(struct hclge_dev *hdev, int ring_type)
+static int hclge_alloc_cmd_queue(struct hclge_dev *hdev, int ring_type)
 {
 	struct hclge_hw *hw = &hdev->hw;
 	struct hclge_cmq_ring *ring =
@@ -78,9 +78,6 @@ static int hclge_init_cmd_queue(struct hclge_dev *hdev, int ring_type)
 			(ring_type == HCLGE_TYPE_CSQ) ? "CSQ" : "CRQ", ret);
 		return ret;
 	}
-
-	ring->next_to_clean = 0;
-	ring->next_to_use = 0;
 
 	return 0;
 }
@@ -302,36 +299,51 @@ static enum hclge_cmd_status hclge_cmd_query_firmware_version(
 	return ret;
 }
 
-int hclge_cmd_init(struct hclge_dev *hdev)
+int hclge_cmd_queue_init(struct hclge_dev *hdev)
 {
-	u32 version;
 	int ret;
 
 	/* Setup the queue entries for use cmd queue */
 	hdev->hw.cmq.csq.desc_num = HCLGE_NIC_CMQ_DESC_NUM;
 	hdev->hw.cmq.crq.desc_num = HCLGE_NIC_CMQ_DESC_NUM;
 
-	/* Setup the lock for command queue */
-	spin_lock_init(&hdev->hw.cmq.csq.lock);
-	spin_lock_init(&hdev->hw.cmq.crq.lock);
-
 	/* Setup Tx write back timeout */
 	hdev->hw.cmq.tx_timeout = HCLGE_CMDQ_TX_TIMEOUT;
 
 	/* Setup queue rings */
-	ret = hclge_init_cmd_queue(hdev, HCLGE_TYPE_CSQ);
+	ret = hclge_alloc_cmd_queue(hdev, HCLGE_TYPE_CSQ);
 	if (ret) {
 		dev_err(&hdev->pdev->dev,
 			"CSQ ring setup error %d\n", ret);
 		return ret;
 	}
 
-	ret = hclge_init_cmd_queue(hdev, HCLGE_TYPE_CRQ);
+	ret = hclge_alloc_cmd_queue(hdev, HCLGE_TYPE_CRQ);
 	if (ret) {
 		dev_err(&hdev->pdev->dev,
 			"CRQ ring setup error %d\n", ret);
 		goto err_csq;
 	}
+
+	return 0;
+err_csq:
+	hclge_free_cmd_desc(&hdev->hw.cmq.csq);
+	return ret;
+}
+
+int hclge_cmd_init(struct hclge_dev *hdev)
+{
+	u32 version;
+	int ret;
+
+	hdev->hw.cmq.csq.next_to_clean = 0;
+	hdev->hw.cmq.csq.next_to_use = 0;
+	hdev->hw.cmq.crq.next_to_clean = 0;
+	hdev->hw.cmq.crq.next_to_use = 0;
+
+	/* Setup the lock for command queue */
+	spin_lock_init(&hdev->hw.cmq.csq.lock);
+	spin_lock_init(&hdev->hw.cmq.crq.lock);
 
 	hclge_cmd_init_regs(&hdev->hw);
 
@@ -346,9 +358,6 @@ int hclge_cmd_init(struct hclge_dev *hdev)
 	dev_info(&hdev->pdev->dev, "The firmware version is %08x\n", version);
 
 	return 0;
-err_csq:
-	hclge_free_cmd_desc(&hdev->hw.cmq.csq);
-	return ret;
 }
 
 static void hclge_destroy_queue(struct hclge_cmq_ring *ring)

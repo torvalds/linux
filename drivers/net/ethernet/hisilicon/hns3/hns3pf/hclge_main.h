@@ -27,6 +27,7 @@
 	(HCLGE_PF_CFG_BLOCK_SIZE / HCLGE_CFG_RD_LEN_BYTES)
 
 #define HCLGE_VECTOR_REG_BASE		0x20000
+#define HCLGE_MISC_VECTOR_REG_BASE	0x20400
 
 #define HCLGE_VECTOR_REG_OFFSET		0x4
 #define HCLGE_VECTOR_VF_OFFSET		0x100000
@@ -78,6 +79,19 @@
 #define HCLGE_PHY_MDIX_STATUS_B	(6)
 #define HCLGE_PHY_SPEED_DUP_RESOLVE_B	(11)
 
+/* Reset related Registers */
+#define HCLGE_MISC_RESET_STS_REG	0x20700
+#define HCLGE_GLOBAL_RESET_REG		0x20A00
+#define HCLGE_GLOBAL_RESET_BIT		0x0
+#define HCLGE_CORE_RESET_BIT		0x1
+#define HCLGE_FUN_RST_ING		0x20C00
+#define HCLGE_FUN_RST_ING_B		0
+
+/* Vector0 register bits define */
+#define HCLGE_VECTOR0_GLOBALRESET_INT_B	5
+#define HCLGE_VECTOR0_CORERESET_INT_B	6
+#define HCLGE_VECTOR0_IMPRESET_INT_B	7
+
 enum HCLGE_DEV_STATE {
 	HCLGE_STATE_REINITING,
 	HCLGE_STATE_DOWN,
@@ -87,6 +101,7 @@ enum HCLGE_DEV_STATE {
 	HCLGE_STATE_SERVICE_SCHED,
 	HCLGE_STATE_MBX_HANDLING,
 	HCLGE_STATE_MBX_IRQ,
+	HCLGE_STATE_RESET_INT,
 	HCLGE_STATE_MAX
 };
 
@@ -400,9 +415,11 @@ struct hclge_dev {
 	struct pci_dev *pdev;
 	struct hnae3_ae_dev *ae_dev;
 	struct hclge_hw hw;
+	struct hclge_misc_vector misc_vector;
 	struct hclge_hw_stats hw_stats;
 	unsigned long state;
 
+	enum hnae3_reset_type reset_type;
 	u32 fw_version;
 	u16 num_vmdq_vport;		/* Num vmdq vport this PF has set up */
 	u16 num_tqps;			/* Num task queue pairs of this PF */

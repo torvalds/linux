@@ -63,6 +63,11 @@ enum hclge_cmd_status {
 	HCLGE_ERR_CSQ_ERROR	= -3,
 };
 
+struct hclge_misc_vector {
+	u8 __iomem *addr;
+	int vector_irq;
+};
+
 struct hclge_cmq {
 	struct hclge_cmq_ring csq;
 	struct hclge_cmq_ring crq;
@@ -692,6 +697,13 @@ struct hclge_reset_tqp_queue_cmd {
 	u8 rsv[20];
 };
 
+#define HCLGE_CFG_RESET_MAC_B		3
+#define HCLGE_CFG_RESET_FUNC_B		7
+struct hclge_reset_cmd {
+	u8 mac_func_reset;
+	u8 fun_reset_vfid;
+	u8 rsv[22];
+};
 #define HCLGE_DEFAULT_TX_BUF		0x4000	 /* 16k  bytes */
 #define HCLGE_TOTAL_PKT_BUF		0x108000 /* 1.03125M bytes */
 #define HCLGE_DEFAULT_DV		0xA000	 /* 40k byte */
@@ -750,4 +762,5 @@ enum hclge_cmd_status hclge_cmd_mdio_read(struct hclge_hw *hw,
 					  struct hclge_desc *desc);
 
 void hclge_destroy_cmd_queue(struct hclge_hw *hw);
+int hclge_cmd_queue_init(struct hclge_dev *hdev);
 #endif
