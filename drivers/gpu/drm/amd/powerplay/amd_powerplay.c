@@ -78,6 +78,9 @@ static int amd_powerplay_destroy(void *handle)
 {
 	struct pp_instance *instance = (struct pp_instance *)handle;
 
+	kfree(instance->hwmgr->hardcode_pp_table);
+	instance->hwmgr->hardcode_pp_table = NULL;
+
 	kfree(instance->hwmgr);
 	instance->hwmgr = NULL;
 

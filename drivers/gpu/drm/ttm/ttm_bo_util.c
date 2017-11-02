@@ -474,6 +474,7 @@ static int ttm_buffer_object_transfer(struct ttm_buffer_object *bo,
 	INIT_LIST_HEAD(&fbo->lru);
 	INIT_LIST_HEAD(&fbo->swap);
 	INIT_LIST_HEAD(&fbo->io_reserve_lru);
+	mutex_init(&fbo->wu_mutex);
 	fbo->moving = NULL;
 	drm_vma_node_reset(&fbo->vma_node);
 	atomic_set(&fbo->cpu_writers, 0);

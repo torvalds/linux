@@ -365,8 +365,8 @@ int vega10_thermal_get_temperature(struct pp_hwmgr *hwmgr)
 
 	temp = cgs_read_register(hwmgr->device, reg);
 
-	temp = (temp & CG_MULT_THERMAL_STATUS__ASIC_MAX_TEMP_MASK) >>
-			CG_MULT_THERMAL_STATUS__ASIC_MAX_TEMP__SHIFT;
+	temp = (temp & CG_MULT_THERMAL_STATUS__CTF_TEMP_MASK) >>
+			CG_MULT_THERMAL_STATUS__CTF_TEMP__SHIFT;
 
 	temp = temp & 0x1ff;
 

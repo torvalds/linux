@@ -4234,7 +4234,7 @@ static void vega10_set_fan_control_mode(struct pp_hwmgr *hwmgr, uint32_t mode)
 			vega10_fan_ctrl_stop_smc_fan_control(hwmgr);
 		break;
 	case AMD_FAN_CTRL_AUTO:
-		if (!vega10_fan_ctrl_set_static_mode(hwmgr, mode))
+		if (PP_CAP(PHM_PlatformCaps_MicrocodeFanControl))
 			vega10_fan_ctrl_start_smc_fan_control(hwmgr);
 		break;
 	default:
