@@ -103,11 +103,12 @@ __faddr2line() {
 
 	# Go through each of the object's symbols which match the func name.
 	# In rare cases there might be duplicates.
+	file_end=$(size -Ax $objfile | awk '$1 == ".text" {print $2}')
 	while read symbol; do
 		local fields=($symbol)
 		local sym_base=0x${fields[0]}
 		local sym_type=${fields[1]}
-		local sym_end=0x${fields[3]}
+		local sym_end=${fields[3]}
 
 		# calculate the size
 		local sym_size=$(($sym_end - $sym_base))
@@ -157,7 +158,7 @@ __faddr2line() {
 		addr2line -fpie $objfile $addr | sed "s; $dir_prefix\(\./\)*; ;"
 		DONE=1
 
-	done < <(nm -n $objfile | awk -v fn=$func '$3 == fn { found=1; line=$0; start=$1; next } found == 1 { found=0; print line, $1 }')
+	done < <(nm -n $objfile | awk -v fn=$func -v end=$file_end '$3 == fn { found=1; line=$0; start=$1; next } found == 1 { found=0; print line, "0x"$1 } END {if (found == 1) print line, end; }')
 }
 
 [[ $# -lt 2 ]] && usage

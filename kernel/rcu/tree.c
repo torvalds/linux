@@ -884,7 +884,7 @@ void rcu_irq_exit(void)
 	rdtp = this_cpu_ptr(&rcu_dynticks);
 
 	/* Page faults can happen in NMI handlers, so check... */
-	if (READ_ONCE(rdtp->dynticks_nmi_nesting))
+	if (rdtp->dynticks_nmi_nesting)
 		return;
 
 	WARN_ON_ONCE(IS_ENABLED(CONFIG_RCU_EQS_DEBUG) &&
@@ -1022,7 +1022,7 @@ void rcu_irq_enter(void)
 	rdtp = this_cpu_ptr(&rcu_dynticks);
 
 	/* Page faults can happen in NMI handlers, so check... */
-	if (READ_ONCE(rdtp->dynticks_nmi_nesting))
+	if (rdtp->dynticks_nmi_nesting)
 		return;
 
 	oldval = rdtp->dynticks_nesting;

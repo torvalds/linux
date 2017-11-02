@@ -653,6 +653,10 @@ static void mark_reg_read(const struct bpf_verifier_state *state, u32 regno)
 {
 	struct bpf_verifier_state *parent = state->parent;
 
+	if (regno == BPF_REG_FP)
+		/* We don't need to worry about FP liveness because it's read-only */
+		return;
+
 	while (parent) {
 		/* if read wasn't screened by an earlier write ... */
 		if (state->regs[regno].live & REG_LIVE_WRITTEN)
@@ -2345,6 +2349,7 @@ static int check_alu_op(struct bpf_verifier_env *env, struct bpf_insn *insn)
 				 * copy register state to dest reg
 				 */
 				regs[insn->dst_reg] = regs[insn->src_reg];
+				regs[insn->dst_reg].live |= REG_LIVE_WRITTEN;
 			} else {
 				/* R1 = (u32) R2 */
 				if (is_pointer_value(env, insn->src_reg)) {

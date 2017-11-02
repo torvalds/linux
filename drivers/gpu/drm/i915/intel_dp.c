@@ -2307,8 +2307,8 @@ static void edp_panel_off(struct intel_dp *intel_dp)
 	I915_WRITE(pp_ctrl_reg, pp);
 	POSTING_READ(pp_ctrl_reg);
 
-	intel_dp->panel_power_off_time = ktime_get_boottime();
 	wait_panel_off(intel_dp);
+	intel_dp->panel_power_off_time = ktime_get_boottime();
 
 	/* We got a reference when we enabled the VDD. */
 	intel_display_power_put(dev_priv, intel_dp->aux_power_domain);
@@ -5273,7 +5273,7 @@ intel_dp_init_panel_power_sequencer(struct drm_device *dev,
 	 * seems sufficient to avoid this problem.
 	 */
 	if (dev_priv->quirks & QUIRK_INCREASE_T12_DELAY) {
-		vbt.t11_t12 = max_t(u16, vbt.t11_t12, 900 * 10);
+		vbt.t11_t12 = max_t(u16, vbt.t11_t12, 1300 * 10);
 		DRM_DEBUG_KMS("Increasing T12 panel delay as per the quirk to %d\n",
 			      vbt.t11_t12);
 	}

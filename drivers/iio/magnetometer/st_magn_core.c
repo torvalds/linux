@@ -315,6 +315,10 @@ static const struct st_sensor_settings st_magn_sensors_settings[] = {
 				},
 			},
 		},
+		.drdy_irq = {
+			/* drdy line is routed drdy pin */
+			.addr_stat_drdy = ST_SENSORS_DEFAULT_STAT_ADDR,
+		},
 		.multi_read_bit = true,
 		.bootime = 2,
 	},

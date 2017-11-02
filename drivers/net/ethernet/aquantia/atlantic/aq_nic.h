@@ -83,8 +83,6 @@ struct net_device *aq_nic_get_ndev(struct aq_nic_s *self);
 int aq_nic_init(struct aq_nic_s *self);
 int aq_nic_cfg_start(struct aq_nic_s *self);
 int aq_nic_ndev_register(struct aq_nic_s *self);
-void aq_nic_ndev_queue_start(struct aq_nic_s *self, unsigned int idx);
-void aq_nic_ndev_queue_stop(struct aq_nic_s *self, unsigned int idx);
 void aq_nic_ndev_free(struct aq_nic_s *self);
 int aq_nic_start(struct aq_nic_s *self);
 int aq_nic_xmit(struct aq_nic_s *self, struct sk_buff *skb);

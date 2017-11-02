@@ -10,7 +10,7 @@
 
 #define PFX "ipmi_hotmod: "
 
-static int hotmod_handler(const char *val, struct kernel_param *kp);
+static int hotmod_handler(const char *val, const struct kernel_param *kp);
 
 module_param_call(hotmod, hotmod_handler, NULL, NULL, 0200);
 MODULE_PARM_DESC(hotmod, "Add and remove interfaces.  See"
@@ -97,7 +97,7 @@ static int check_hotmod_int_op(const char *curr, const char *option,
 	return 0;
 }
 
-static int hotmod_handler(const char *val, struct kernel_param *kp)
+static int hotmod_handler(const char *val, const struct kernel_param *kp)
 {
 	char *str = kstrdup(val, GFP_KERNEL);
 	int  rv;

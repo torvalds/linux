@@ -930,15 +930,8 @@ static int assign_ctxt(struct hfi1_filedata *fd, struct hfi1_user_info *uinfo)
 	switch (ret) {
 	case 0:
 		ret = setup_base_ctxt(fd, uctxt);
-		if (uctxt->subctxt_cnt) {
-			/*
-			 * Base context is done (successfully or not), notify
-			 * anybody using a sub-context that is waiting for
-			 * this completion.
-			 */
-			clear_bit(HFI1_CTXT_BASE_UNINIT, &uctxt->event_flags);
-			wake_up(&uctxt->wait);
-		}
+		if (ret)
+			deallocate_ctxt(uctxt);
 		break;
 	case 1:
 		ret = complete_subctxt(fd);
@@ -1305,25 +1298,25 @@ static int setup_base_ctxt(struct hfi1_filedata *fd,
 	/* Now allocate the RcvHdr queue and eager buffers. */
 	ret = hfi1_create_rcvhdrq(dd, uctxt);
 	if (ret)
-		return ret;
+		goto done;
 
 	ret = hfi1_setup_eagerbufs(uctxt);
 	if (ret)
-		goto setup_failed;
+		goto done;
 
 	/* If sub-contexts are enabled, do the appropriate setup */
 	if (uctxt->subctxt_cnt)
 		ret = setup_subctxt(uctxt);
 	if (ret)
-		goto setup_failed;
+		goto done;
 
 	ret = hfi1_alloc_ctxt_rcv_groups(uctxt);
 	if (ret)
-		goto setup_failed;
+		goto done;
 
 	ret = init_user_ctxt(fd, uctxt);
 	if (ret)
-		goto setup_failed;
+		goto done;
 
 	user_init(uctxt);
 
@@ -1331,12 +1324,22 @@ static int setup_base_ctxt(struct hfi1_filedata *fd,
 	fd->uctxt = uctxt;
 	hfi1_rcd_get(uctxt);
 
-	return 0;
+done:
+	if (uctxt->subctxt_cnt) {
+		/*
+		 * On error, set the failed bit so sub-contexts will clean up
+		 * correctly.
+		 */
+		if (ret)
+			set_bit(HFI1_CTXT_BASE_FAILED, &uctxt->event_flags);
 
-setup_failed:
-	/* Set the failed bit so sub-context init can do the right thing */
-	set_bit(HFI1_CTXT_BASE_FAILED, &uctxt->event_flags);
-	deallocate_ctxt(uctxt);
+		/*
+		 * Base context is done (successfully or not), notify anybody
+		 * using a sub-context that is waiting for this completion.
+		 */
+		clear_bit(HFI1_CTXT_BASE_UNINIT, &uctxt->event_flags);
+		wake_up(&uctxt->wait);
+	}
 
 	return ret;
 }

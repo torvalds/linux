@@ -1438,7 +1438,6 @@ out:
 
 int arch_update_cpu_topology(void)
 {
-	lockdep_assert_cpus_held();
 	return numa_update_cpu_topology(true);
 }
 

@@ -401,7 +401,7 @@ frwr_op_map(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg,
 	if (unlikely(n != mw->mw_nents))
 		goto out_mapmr_err;
 
-	dprintk("RPC:       %s: Using frmr %p to map %u segments (%u bytes)\n",
+	dprintk("RPC:       %s: Using frmr %p to map %u segments (%llu bytes)\n",
 		__func__, frmr, mw->mw_nents, mr->length);
 
 	key = (u8)(mr->rkey & 0x000000FF);

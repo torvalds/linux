@@ -83,6 +83,13 @@ static inline u64 inc_mm_tlb_gen(struct mm_struct *mm)
 #endif
 
 /*
+ * If tlb_use_lazy_mode is true, then we try to avoid switching CR3 to point
+ * to init_mm when we switch to a kernel thread (e.g. the idle thread).  If
+ * it's false, then we immediately switch CR3 when entering a kernel thread.
+ */
+DECLARE_STATIC_KEY_TRUE(tlb_use_lazy_mode);
+
+/*
  * 6 because 6 should be plenty and struct tlb_state will fit in
  * two cache lines.
  */
@@ -103,6 +110,23 @@ struct tlb_state {
 	struct mm_struct *loaded_mm;
 	u16 loaded_mm_asid;
 	u16 next_asid;
+
+	/*
+	 * We can be in one of several states:
+	 *
+	 *  - Actively using an mm.  Our CPU's bit will be set in
+	 *    mm_cpumask(loaded_mm) and is_lazy == false;
+	 *
+	 *  - Not using a real mm.  loaded_mm == &init_mm.  Our CPU's bit
+	 *    will not be set in mm_cpumask(&init_mm) and is_lazy == false.
+	 *
+	 *  - Lazily using a real mm.  loaded_mm != &init_mm, our bit
+	 *    is set in mm_cpumask(loaded_mm), but is_lazy == true.
+	 *    We're heuristically guessing that the CR3 load we
+	 *    skipped more than makes up for the overhead added by
+	 *    lazy mode.
+	 */
+	bool is_lazy;
 
 	/*
 	 * Access to this CR4 shadow and to H/W CR4 is protected by
