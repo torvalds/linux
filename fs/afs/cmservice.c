@@ -151,7 +151,7 @@ static void afs_cm_destructor(struct afs_call *call)
 		afs_break_callbacks(call->server, call->count, call->request);
 	}
 
-	afs_put_server(call->server);
+	afs_put_server(call->net, call->server);
 	call->server = NULL;
 	kfree(call->buffer);
 	call->buffer = NULL;

@@ -285,7 +285,7 @@ static ssize_t afs_proc_cells_write(struct file *file, const char __user *buf,
 			goto done;
 		}
 
-		afs_put_cell(cell);
+		afs_put_cell(net, cell);
 		printk("kAFS: Added new cell '%s'\n", name);
 	} else {
 		goto inval;

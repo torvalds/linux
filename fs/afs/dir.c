@@ -771,7 +771,7 @@ static int afs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 	vnode->update_cnt++;
 	spin_unlock(&vnode->lock);
 	afs_vnode_finalise_status_update(vnode, server);
-	afs_put_server(server);
+	afs_put_server(afs_i2net(dir), server);
 
 	d_instantiate(dentry, inode);
 	if (d_unhashed(dentry)) {
@@ -783,7 +783,7 @@ static int afs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 	return 0;
 
 iget_error:
-	afs_put_server(server);
+	afs_put_server(afs_i2net(dir), server);
 mkdir_error:
 	key_put(key);
 error:
@@ -948,7 +948,7 @@ static int afs_create(struct inode *dir, struct dentry *dentry, umode_t mode,
 	vnode->update_cnt++;
 	spin_unlock(&vnode->lock);
 	afs_vnode_finalise_status_update(vnode, server);
-	afs_put_server(server);
+	afs_put_server(afs_i2net(dir), server);
 
 	d_instantiate(dentry, inode);
 	if (d_unhashed(dentry)) {
@@ -960,7 +960,7 @@ static int afs_create(struct inode *dir, struct dentry *dentry, umode_t mode,
 	return 0;
 
 iget_error:
-	afs_put_server(server);
+	afs_put_server(afs_i2net(dir), server);
 create_error:
 	key_put(key);
 error:
@@ -1060,7 +1060,7 @@ static int afs_symlink(struct inode *dir, struct dentry *dentry,
 	vnode->update_cnt++;
 	spin_unlock(&vnode->lock);
 	afs_vnode_finalise_status_update(vnode, server);
-	afs_put_server(server);
+	afs_put_server(afs_i2net(dir), server);
 
 	d_instantiate(dentry, inode);
 	if (d_unhashed(dentry)) {
@@ -1072,7 +1072,7 @@ static int afs_symlink(struct inode *dir, struct dentry *dentry,
 	return 0;
 
 iget_error:
-	afs_put_server(server);
+	afs_put_server(afs_i2net(dir), server);
 create_error:
 	key_put(key);
 error:

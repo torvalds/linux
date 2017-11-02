@@ -154,7 +154,7 @@ error_discard:
 	up_write(&params->cell->vl_sem);
 
 	for (loop = volume->nservers - 1; loop >= 0; loop--)
-		afs_put_server(volume->servers[loop]);
+		afs_put_server(params->net, volume->servers[loop]);
 
 	kfree(volume);
 	goto error;
@@ -163,7 +163,7 @@ error_discard:
 /*
  * destroy a volume record
  */
-void afs_put_volume(struct afs_net *net, struct afs_volume *volume)
+void afs_put_volume(struct afs_cell *cell, struct afs_volume *volume)
 {
 	struct afs_vlocation *vlocation;
 	int loop;
@@ -179,7 +179,7 @@ void afs_put_volume(struct afs_net *net, struct afs_volume *volume)
 
 	/* to prevent a race, the decrement and the dequeue must be effectively
 	 * atomic */
-	down_write(&vlocation->cell->vl_sem);
+	down_write(&cell->vl_sem);
 
 	if (likely(!atomic_dec_and_test(&volume->usage))) {
 		up_write(&vlocation->cell->vl_sem);
@@ -189,16 +189,16 @@ void afs_put_volume(struct afs_net *net, struct afs_volume *volume)
 
 	vlocation->vols[volume->type] = NULL;
 
-	up_write(&vlocation->cell->vl_sem);
+	up_write(&cell->vl_sem);
 
 	/* finish cleaning up the volume */
 #ifdef CONFIG_AFS_FSCACHE
 	fscache_relinquish_cookie(volume->cache, 0);
 #endif
-	afs_put_vlocation(net, vlocation);
+	afs_put_vlocation(cell->net, vlocation);
 
 	for (loop = volume->nservers - 1; loop >= 0; loop--)
-		afs_put_server(volume->servers[loop]);
+		afs_put_server(cell->net, volume->servers[loop]);
 
 	kfree(volume);
 
@@ -336,7 +336,7 @@ int afs_volume_release_fileserver(struct afs_vnode *vnode,
 			sizeof(volume->servers[loop]) *
 			(volume->nservers - loop));
 		volume->servers[volume->nservers] = NULL;
-		afs_put_server(server);
+		afs_put_server(afs_v2net(vnode), server);
 		volume->rjservers++;
 
 		if (volume->nservers > 0)
@@ -350,7 +350,7 @@ int afs_volume_release_fileserver(struct afs_vnode *vnode,
 		 *         no longer registered
 		 */
 		up_write(&volume->server_sem);
-		afs_put_server(server);
+		afs_put_server(afs_v2net(vnode), server);
 		_leave(" [completely rejected]");
 		return 1;
 
@@ -379,7 +379,7 @@ int afs_volume_release_fileserver(struct afs_vnode *vnode,
 	case -ENOMEM:
 	case -ENONET:
 		/* tell the caller to accept the result */
-		afs_put_server(server);
+		afs_put_server(afs_v2net(vnode), server);
 		_leave(" [local failure]");
 		return 1;
 	}
@@ -388,7 +388,7 @@ int afs_volume_release_fileserver(struct afs_vnode *vnode,
 try_next_server_upw:
 	up_write(&volume->server_sem);
 try_next_server:
-	afs_put_server(server);
+	afs_put_server(afs_v2net(vnode), server);
 	_leave(" [try next server]");
 	return 0;
 }

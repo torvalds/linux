@@ -73,7 +73,7 @@ static void afs_install_vnode(struct afs_vnode *vnode,
 
 	afs_get_server(server);
 	vnode->server = server;
-	afs_put_server(old_server);
+	afs_put_server(afs_v2net(vnode), old_server);
 
 	/* insert into the server's vnode tree in FID order */
 	spin_lock(&server->fs_lock);
@@ -196,7 +196,7 @@ static void afs_vnode_deleted_remotely(struct afs_vnode *vnode)
 		spin_unlock(&server->fs_lock);
 
 		vnode->server = NULL;
-		afs_put_server(server);
+		afs_put_server(afs_v2net(vnode), server);
 	} else {
 		ASSERT(!vnode->cb_promised);
 	}
@@ -225,7 +225,7 @@ void afs_vnode_finalise_status_update(struct afs_vnode *vnode,
 	spin_unlock(&vnode->lock);
 
 	wake_up_all(&vnode->update_waitq);
-	afs_put_server(oldserver);
+	afs_put_server(afs_v2net(vnode), oldserver);
 	_leave("");
 }
 
@@ -368,7 +368,7 @@ get_anyway:
 		if (auth_vnode)
 			afs_cache_permit(vnode, key, acl_order);
 		afs_vnode_finalise_status_update(vnode, server);
-		afs_put_server(server);
+		afs_put_server(afs_v2net(vnode), server);
 	} else {
 		_debug("failed [%d]", ret);
 		afs_vnode_status_update_failed(vnode, ret);
@@ -428,7 +428,7 @@ int afs_vnode_fetch_data(struct afs_vnode *vnode, struct key *key,
 	/* adjust the flags */
 	if (ret == 0) {
 		afs_vnode_finalise_status_update(vnode, server);
-		afs_put_server(server);
+		afs_put_server(afs_v2net(vnode), server);
 	} else {
 		afs_vnode_status_update_failed(vnode, ret);
 	}
@@ -540,7 +540,7 @@ int afs_vnode_remove(struct afs_vnode *vnode, struct key *key, const char *name,
 	/* adjust the flags */
 	if (ret == 0) {
 		afs_vnode_finalise_status_update(vnode, server);
-		afs_put_server(server);
+		afs_put_server(afs_v2net(vnode), server);
 	} else {
 		afs_vnode_status_update_failed(vnode, ret);
 	}
@@ -603,7 +603,7 @@ int afs_vnode_link(struct afs_vnode *dvnode, struct afs_vnode *vnode,
 	if (ret == 0) {
 		afs_vnode_finalise_status_update(vnode, server);
 		afs_vnode_finalise_status_update(dvnode, server);
-		afs_put_server(server);
+		afs_put_server(afs_v2net(dvnode), server);
 	} else {
 		afs_vnode_status_update_failed(vnode, ret);
 		afs_vnode_status_update_failed(dvnode, ret);
@@ -738,7 +738,7 @@ int afs_vnode_rename(struct afs_vnode *orig_dvnode,
 		afs_vnode_finalise_status_update(orig_dvnode, server);
 		if (new_dvnode != orig_dvnode)
 			afs_vnode_finalise_status_update(new_dvnode, server);
-		afs_put_server(server);
+		afs_put_server(afs_v2net(orig_dvnode), server);
 	} else {
 		afs_vnode_status_update_failed(orig_dvnode, ret);
 		if (new_dvnode != orig_dvnode)
@@ -802,7 +802,7 @@ int afs_vnode_store_data(struct afs_writeback *wb, pgoff_t first, pgoff_t last,
 	/* adjust the flags */
 	if (ret == 0) {
 		afs_vnode_finalise_status_update(vnode, server);
-		afs_put_server(server);
+		afs_put_server(afs_v2net(vnode), server);
 	} else {
 		afs_vnode_status_update_failed(vnode, ret);
 	}
@@ -854,7 +854,7 @@ int afs_vnode_setattr(struct afs_vnode *vnode, struct key *key,
 	/* adjust the flags */
 	if (ret == 0) {
 		afs_vnode_finalise_status_update(vnode, server);
-		afs_put_server(server);
+		afs_put_server(afs_v2net(vnode), server);
 	} else {
 		afs_vnode_status_update_failed(vnode, ret);
 	}
@@ -900,7 +900,7 @@ int afs_vnode_get_volume_status(struct afs_vnode *vnode, struct key *key,
 
 	/* adjust the flags */
 	if (ret == 0)
-		afs_put_server(server);
+		afs_put_server(afs_v2net(vnode), server);
 
 	_leave(" = %d", ret);
 	return ret;
@@ -939,7 +939,7 @@ int afs_vnode_set_lock(struct afs_vnode *vnode, struct key *key,
 
 	/* adjust the flags */
 	if (ret == 0)
-		afs_put_server(server);
+		afs_put_server(afs_v2net(vnode), server);
 
 	_leave(" = %d", ret);
 	return ret;
@@ -977,7 +977,7 @@ int afs_vnode_extend_lock(struct afs_vnode *vnode, struct key *key)
 
 	/* adjust the flags */
 	if (ret == 0)
-		afs_put_server(server);
+		afs_put_server(afs_v2net(vnode), server);
 
 	_leave(" = %d", ret);
 	return ret;
@@ -1015,7 +1015,7 @@ int afs_vnode_release_lock(struct afs_vnode *vnode, struct key *key)
 
 	/* adjust the flags */
 	if (ret == 0)
-		afs_put_server(server);
+		afs_put_server(afs_v2net(vnode), server);
 
 	_leave(" = %d", ret);
 	return ret;

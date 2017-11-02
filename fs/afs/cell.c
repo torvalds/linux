@@ -251,7 +251,7 @@ int afs_cell_init(struct afs_net *net, char *rootcell)
 	old_root = net->ws_cell;
 	net->ws_cell = new_root;
 	write_unlock(&net->cells_lock);
-	afs_put_cell(old_root);
+	afs_put_cell(net, old_root);
 
 	_leave(" = 0");
 	return 0;
@@ -336,7 +336,7 @@ struct afs_cell *afs_get_cell_maybe(struct afs_cell *cell)
 /*
  * destroy a cell record
  */
-void afs_put_cell(struct afs_cell *cell)
+void afs_put_cell(struct afs_net *net, struct afs_cell *cell)
 {
 	if (!cell)
 		return;
@@ -347,10 +347,10 @@ void afs_put_cell(struct afs_cell *cell)
 
 	/* to prevent a race, the decrement and the dequeue must be effectively
 	 * atomic */
-	write_lock(&cell->net->cells_lock);
+	write_lock(&net->cells_lock);
 
 	if (likely(!atomic_dec_and_test(&cell->usage))) {
-		write_unlock(&cell->net->cells_lock);
+		write_unlock(&net->cells_lock);
 		_leave("");
 		return;
 	}
@@ -358,9 +358,9 @@ void afs_put_cell(struct afs_cell *cell)
 	ASSERT(list_empty(&cell->servers));
 	ASSERT(list_empty(&cell->vl_list));
 
-	wake_up(&cell->net->cells_freeable_wq);
+	wake_up(&net->cells_freeable_wq);
 
-	write_unlock(&cell->net->cells_lock);
+	write_unlock(&net->cells_lock);
 
 	_leave(" [unused]");
 }
@@ -424,7 +424,7 @@ void afs_cell_purge(struct afs_net *net)
 
 	_enter("");
 
-	afs_put_cell(net->ws_cell);
+	afs_put_cell(net, net->ws_cell);
 
 	down_write(&net->cells_sem);
 

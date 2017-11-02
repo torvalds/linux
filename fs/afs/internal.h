@@ -335,6 +335,7 @@ struct afs_server {
 	atomic_t		usage;
 	time64_t		time_of_death;	/* time at which put reduced usage to 0 */
 	struct in_addr		addr;		/* server address */
+	struct afs_net		*net;		/* Network namespace in which the server resides */
 	struct afs_cell		*cell;		/* cell in which server resides */
 	struct list_head	link;		/* link in cell's server list */
 	struct list_head	grave;		/* link in master graveyard list */
@@ -513,7 +514,7 @@ extern int afs_cell_init(struct afs_net *, char *);
 extern struct afs_cell *afs_cell_create(struct afs_net *, const char *, unsigned, char *, bool);
 extern struct afs_cell *afs_cell_lookup(struct afs_net *, const char *, unsigned, bool);
 extern struct afs_cell *afs_grab_cell(struct afs_cell *);
-extern void afs_put_cell(struct afs_cell *);
+extern void afs_put_cell(struct afs_net *, struct afs_cell *);
 extern void __net_exit afs_cell_purge(struct afs_net *);
 
 /*
@@ -713,7 +714,7 @@ extern struct afs_server *afs_lookup_server(struct afs_cell *,
 					    const struct in_addr *);
 extern struct afs_server *afs_find_server(struct afs_net *,
 					  const struct sockaddr_rxrpc *);
-extern void afs_put_server(struct afs_server *);
+extern void afs_put_server(struct afs_net *, struct afs_server *);
 extern void afs_reap_server(struct work_struct *);
 extern void __net_exit afs_purge_servers(struct afs_net *);
 
@@ -802,7 +803,7 @@ static inline struct afs_volume *afs_get_volume(struct afs_volume *volume)
 	return volume;
 }
 
-extern void afs_put_volume(struct afs_net *, struct afs_volume *);
+extern void afs_put_volume(struct afs_cell *, struct afs_volume *);
 extern struct afs_volume *afs_volume_lookup(struct afs_mount_params *);
 extern struct afs_server *afs_volume_pick_fileserver(struct afs_vnode *);
 extern int afs_volume_release_fileserver(struct afs_vnode *,

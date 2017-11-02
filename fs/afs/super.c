@@ -206,7 +206,7 @@ static int afs_parse_options(struct afs_mount_params *params,
 					       false);
 			if (IS_ERR(cell))
 				return PTR_ERR(cell);
-			afs_put_cell(params->cell);
+			afs_put_cell(params->net, params->cell);
 			params->cell = cell;
 			break;
 
@@ -314,7 +314,7 @@ static int afs_parse_device_name(struct afs_mount_params *params,
 			       cellnamesz, cellnamesz, cellname ?: "");
 			return PTR_ERR(cell);
 		}
-		afs_put_cell(params->cell);
+		afs_put_cell(params->net, params->cell);
 		params->cell = cell;
 	}
 
@@ -409,8 +409,8 @@ static struct afs_super_info *afs_alloc_sbi(struct afs_mount_params *params)
 static void afs_destroy_sbi(struct afs_super_info *as)
 {
 	if (as) {
-		afs_put_volume(as->net, as->volume);
-		afs_put_cell(as->cell);
+		afs_put_volume(as->cell, as->volume);
+		afs_put_cell(as->net, as->cell);
 		afs_put_net(as->net);
 		kfree(as);
 	}
@@ -494,7 +494,7 @@ static struct dentry *afs_mount(struct file_system_type *fs_type,
 		as = NULL;
 	}
 
-	afs_put_cell(params.cell);
+	afs_put_cell(params.net, params.cell);
 	key_put(params.key);
 	_leave(" = 0 [%p]", sb);
 	return dget(sb->s_root);
@@ -504,7 +504,7 @@ error_sb:
 error_as:
 	afs_destroy_sbi(as);
 error:
-	afs_put_cell(params.cell);
+	afs_put_cell(params.net, params.cell);
 	key_put(params.key);
 	_leave(" = %d", ret);
 	return ERR_PTR(ret);

@@ -518,14 +518,14 @@ void afs_put_vlocation(struct afs_net *net, struct afs_vlocation *vl)
 /*
  * destroy a dead volume location record
  */
-static void afs_vlocation_destroy(struct afs_vlocation *vl)
+static void afs_vlocation_destroy(struct afs_net *net, struct afs_vlocation *vl)
 {
 	_enter("%p", vl);
 
 #ifdef CONFIG_AFS_FSCACHE
 	fscache_relinquish_cookie(vl->cache, 0);
 #endif
-	afs_put_cell(vl->cell);
+	afs_put_cell(net, vl->cell);
 	kfree(vl);
 }
 
@@ -580,7 +580,7 @@ void afs_vlocation_reaper(struct work_struct *work)
 	while (!list_empty(&corpses)) {
 		vl = list_entry(corpses.next, struct afs_vlocation, grave);
 		list_del(&vl->grave);
-		afs_vlocation_destroy(vl);
+		afs_vlocation_destroy(net, vl);
 	}
 
 	_leave("");

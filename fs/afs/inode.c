@@ -437,7 +437,7 @@ void afs_evict_inode(struct inode *inode)
 		spin_lock(&vnode->server->fs_lock);
 		rb_erase(&vnode->server_rb, &vnode->server->fs_vnodes);
 		spin_unlock(&vnode->server->fs_lock);
-		afs_put_server(vnode->server);
+		afs_put_server(afs_i2net(inode), vnode->server);
 		vnode->server = NULL;
 	}
 
