@@ -4588,8 +4588,10 @@ err_free_env:
 }
 
 static const struct bpf_verifier_ops * const bpf_analyzer_ops[] = {
+#ifdef CONFIG_NET
 	[BPF_PROG_TYPE_XDP]		= &xdp_analyzer_ops,
 	[BPF_PROG_TYPE_SCHED_CLS]	= &tc_cls_act_analyzer_ops,
+#endif
 };
 
 int bpf_analyzer(struct bpf_prog *prog, const struct bpf_ext_analyzer_ops *ops,
