@@ -1079,6 +1079,7 @@ idtentry int3			do_int3			has_error_code=0	paranoid=1 shift_ist=DEBUG_STACK
 idtentry stack_segment		do_stack_segment	has_error_code=1
 
 #ifdef CONFIG_XEN
+idtentry xennmi			do_nmi			has_error_code=0
 idtentry xendebug		do_debug		has_error_code=0
 idtentry xenint3		do_int3			has_error_code=0
 #endif
@@ -1241,7 +1242,6 @@ ENTRY(error_exit)
 END(error_exit)
 
 /* Runs on exception stack */
-/* XXX: broken on Xen PV */
 ENTRY(nmi)
 	UNWIND_HINT_IRET_REGS
 	/*
