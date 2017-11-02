@@ -675,13 +675,13 @@ static int __init powerclamp_probe(void)
 {
 
 	if (!x86_match_cpu(intel_powerclamp_ids)) {
-		pr_err("CPU does not support MWAIT");
+		pr_err("CPU does not support MWAIT\n");
 		return -ENODEV;
 	}
 
 	/* The goal for idle time alignment is to achieve package cstate. */
 	if (!has_pkg_state_counter()) {
-		pr_info("No package C-state available");
+		pr_info("No package C-state available\n");
 		return -ENODEV;
 	}
 

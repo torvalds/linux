@@ -30,6 +30,10 @@
 /* Skylake thermal reporting device */
 #define PCI_DEVICE_ID_PROC_SKL_THERMAL	0x1903
 
+/* CannonLake thermal reporting device */
+#define PCI_DEVICE_ID_PROC_CNL_THERMAL	0x5a03
+#define PCI_DEVICE_ID_PROC_CFL_THERMAL	0x3E83
+
 /* Braswell thermal reporting device */
 #define PCI_DEVICE_ID_PROC_BSW_THERMAL	0x22DC
 
@@ -461,6 +465,8 @@ static const struct pci_device_id proc_thermal_pci_ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_PROC_BXT1_THERMAL)},
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_PROC_BXTX_THERMAL)},
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_PROC_BXTP_THERMAL)},
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_PROC_CNL_THERMAL)},
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_PROC_CFL_THERMAL)},
 	{ 0, },
 };
 
