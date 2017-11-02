@@ -12,8 +12,6 @@ struct nouveau_fence {
 
 	struct list_head head;
 
-	bool sysmem;
-
 	struct nouveau_channel __rcu *channel;
 	unsigned long timeout;
 };
@@ -24,7 +22,6 @@ void nouveau_fence_unref(struct nouveau_fence **);
 
 int  nouveau_fence_emit(struct nouveau_fence *, struct nouveau_channel *);
 bool nouveau_fence_done(struct nouveau_fence *);
-void nouveau_fence_work(struct dma_fence *, void (*)(void *), void *);
 int  nouveau_fence_wait(struct nouveau_fence *, bool lazy, bool intr);
 int  nouveau_fence_sync(struct nouveau_bo *, struct nouveau_channel *, bool exclusive, bool intr);
 
@@ -90,14 +87,12 @@ int nouveau_flip_complete(struct nvif_notify *);
 
 struct nv84_fence_chan {
 	struct nouveau_fence_chan base;
-	struct nvkm_vma vma;
-	struct nvkm_vma vma_gart;
+	struct nouveau_vma *vma;
 };
 
 struct nv84_fence_priv {
 	struct nouveau_fence_priv base;
 	struct nouveau_bo *bo;
-	struct nouveau_bo *bo_gart;
 	u32 *suspend;
 	struct mutex mutex;
 };

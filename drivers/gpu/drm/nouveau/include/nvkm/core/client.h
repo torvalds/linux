@@ -16,7 +16,8 @@ struct nvkm_client {
 	void *data;
 	int (*ntfy)(const void *, u32, const void *, u32);
 
-	struct nvkm_vm *vm;
+	struct list_head umem;
+	spinlock_t lock;
 };
 
 int  nvkm_client_new(const char *name, u64 device, const char *cfg,

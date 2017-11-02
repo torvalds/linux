@@ -11,7 +11,7 @@ struct gf100_grctx {
 	u64 addr;
 };
 
-int  gf100_grctx_mmio_data(struct gf100_grctx *, u32 size, u32 align, u32 access);
+int  gf100_grctx_mmio_data(struct gf100_grctx *, u32 size, u32 align, bool priv);
 void gf100_grctx_mmio_item(struct gf100_grctx *, u32 addr, u32 data, int s, int);
 
 #define mmio_vram(a,b,c,d) gf100_grctx_mmio_data((a), (b), (c), (d))

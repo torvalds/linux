@@ -183,7 +183,7 @@ acr_ls_sec2_post_run(const struct nvkm_acr *acr, const struct nvkm_secboot *sb)
 			  break;
 	);
 	if (reg & BIT(4)) {
-		nvkm_debug(subdev, "applying workaround for start bug...");
+		nvkm_debug(subdev, "applying workaround for start bug...\n");
 		nvkm_falcon_start(sb->boot_falcon);
 		nvkm_msec(subdev->device, 1,
 			if ((reg = nvkm_rd32(subdev->device,

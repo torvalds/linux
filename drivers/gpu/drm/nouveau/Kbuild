@@ -30,9 +30,11 @@ nouveau-y += nouveau_vga.o
 # DRM - memory management
 nouveau-y += nouveau_bo.o
 nouveau-y += nouveau_gem.o
+nouveau-y += nouveau_mem.o
 nouveau-y += nouveau_prime.o
 nouveau-y += nouveau_sgdma.o
 nouveau-y += nouveau_ttm.o
+nouveau-y += nouveau_vmm.o
 
 # DRM - modesetting
 nouveau-$(CONFIG_DRM_NOUVEAU_BACKLIGHT) += nouveau_backlight.o

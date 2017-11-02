@@ -37,7 +37,7 @@ struct gk104_fifo {
 
 	struct {
 		struct nvkm_memory *mem;
-		struct nvkm_vma bar;
+		struct nvkm_vma *bar;
 	} user;
 };
 
