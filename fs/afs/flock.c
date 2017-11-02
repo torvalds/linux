@@ -14,46 +14,15 @@
 #define AFS_LOCK_GRANTED	0
 #define AFS_LOCK_PENDING	1
 
+struct workqueue_struct *afs_lock_manager;
+
 static void afs_fl_copy_lock(struct file_lock *new, struct file_lock *fl);
 static void afs_fl_release_private(struct file_lock *fl);
-
-static struct workqueue_struct *afs_lock_manager;
-static DEFINE_MUTEX(afs_lock_manager_mutex);
 
 static const struct file_lock_operations afs_lock_ops = {
 	.fl_copy_lock		= afs_fl_copy_lock,
 	.fl_release_private	= afs_fl_release_private,
 };
-
-/*
- * initialise the lock manager thread if it isn't already running
- */
-static int afs_init_lock_manager(void)
-{
-	int ret;
-
-	ret = 0;
-	if (!afs_lock_manager) {
-		mutex_lock(&afs_lock_manager_mutex);
-		if (!afs_lock_manager) {
-			afs_lock_manager = alloc_workqueue("kafs_lockd",
-							   WQ_MEM_RECLAIM, 0);
-			if (!afs_lock_manager)
-				ret = -ENOMEM;
-		}
-		mutex_unlock(&afs_lock_manager_mutex);
-	}
-	return ret;
-}
-
-/*
- * destroy the lock manager thread if it's running
- */
-void __exit afs_kill_lock_manager(void)
-{
-	if (afs_lock_manager)
-		destroy_workqueue(afs_lock_manager);
-}
 
 /*
  * if the callback is broken on this vnode, then the lock may now be available
@@ -263,10 +232,6 @@ static int afs_do_setlk(struct file *file, struct file_lock *fl)
 	/* only whole-file locks are supported */
 	if (fl->fl_start != 0 || fl->fl_end != OFFSET_MAX)
 		return -EINVAL;
-
-	ret = afs_init_lock_manager();
-	if (ret < 0)
-		return ret;
 
 	fl->fl_ops = &afs_lock_ops;
 	INIT_LIST_HEAD(&fl->fl_u.afs.link);

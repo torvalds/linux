@@ -17,8 +17,15 @@
 #include <linux/uaccess.h>
 #include "internal.h"
 
-static struct proc_dir_entry *proc_afs;
+static inline struct afs_net *afs_proc2net(struct file *f)
+{
+	return &__afs_net;
+}
 
+static inline struct afs_net *afs_seq2net(struct seq_file *m)
+{
+	return &__afs_net; // TODO: use seq_file_net(m)
+}
 
 static int afs_proc_cells_open(struct inode *inode, struct file *file);
 static void *afs_proc_cells_start(struct seq_file *p, loff_t *pos);
@@ -122,23 +129,23 @@ static const struct file_operations afs_proc_cell_servers_fops = {
 /*
  * initialise the /proc/fs/afs/ directory
  */
-int afs_proc_init(void)
+int afs_proc_init(struct afs_net *net)
 {
 	_enter("");
 
-	proc_afs = proc_mkdir("fs/afs", NULL);
-	if (!proc_afs)
+	net->proc_afs = proc_mkdir("fs/afs", NULL);
+	if (!net->proc_afs)
 		goto error_dir;
 
-	if (!proc_create("cells", 0644, proc_afs, &afs_proc_cells_fops) ||
-	    !proc_create("rootcell", 0644, proc_afs, &afs_proc_rootcell_fops))
+	if (!proc_create("cells", 0644, net->proc_afs, &afs_proc_cells_fops) ||
+	    !proc_create("rootcell", 0644, net->proc_afs, &afs_proc_rootcell_fops))
 		goto error_tree;
 
 	_leave(" = 0");
 	return 0;
 
 error_tree:
-	remove_proc_subtree("fs/afs", NULL);
+	proc_remove(net->proc_afs);
 error_dir:
 	_leave(" = -ENOMEM");
 	return -ENOMEM;
@@ -147,9 +154,10 @@ error_dir:
 /*
  * clean up the /proc/fs/afs/ directory
  */
-void afs_proc_cleanup(void)
+void afs_proc_cleanup(struct afs_net *net)
 {
-	remove_proc_subtree("fs/afs", NULL);
+	proc_remove(net->proc_afs);
+	net->proc_afs = NULL;
 }
 
 /*
@@ -176,25 +184,30 @@ static int afs_proc_cells_open(struct inode *inode, struct file *file)
  */
 static void *afs_proc_cells_start(struct seq_file *m, loff_t *_pos)
 {
-	/* lock the list against modification */
-	down_read(&afs_proc_cells_sem);
-	return seq_list_start_head(&afs_proc_cells, *_pos);
+	struct afs_net *net = afs_seq2net(m);
+
+	down_read(&net->proc_cells_sem);
+	return seq_list_start_head(&net->proc_cells, *_pos);
 }
 
 /*
  * move to next cell in cells list
  */
-static void *afs_proc_cells_next(struct seq_file *p, void *v, loff_t *pos)
+static void *afs_proc_cells_next(struct seq_file *m, void *v, loff_t *pos)
 {
-	return seq_list_next(v, &afs_proc_cells, pos);
+	struct afs_net *net = afs_seq2net(m);
+
+	return seq_list_next(v, &net->proc_cells, pos);
 }
 
 /*
  * clean up after reading from the cells list
  */
-static void afs_proc_cells_stop(struct seq_file *p, void *v)
+static void afs_proc_cells_stop(struct seq_file *m, void *v)
 {
-	up_read(&afs_proc_cells_sem);
+	struct afs_net *net = afs_seq2net(m);
+
+	up_read(&net->proc_cells_sem);
 }
 
 /*
@@ -203,8 +216,9 @@ static void afs_proc_cells_stop(struct seq_file *p, void *v)
 static int afs_proc_cells_show(struct seq_file *m, void *v)
 {
 	struct afs_cell *cell = list_entry(v, struct afs_cell, proc_link);
+	struct afs_net *net = afs_seq2net(m);
 
-	if (v == &afs_proc_cells) {
+	if (v == &net->proc_cells) {
 		/* display header on line 1 */
 		seq_puts(m, "USE NAME\n");
 		return 0;
@@ -223,6 +237,7 @@ static int afs_proc_cells_show(struct seq_file *m, void *v)
 static ssize_t afs_proc_cells_write(struct file *file, const char __user *buf,
 				    size_t size, loff_t *_pos)
 {
+	struct afs_net *net = afs_proc2net(file);
 	char *kbuf, *name, *args;
 	int ret;
 
@@ -264,7 +279,7 @@ static ssize_t afs_proc_cells_write(struct file *file, const char __user *buf,
 	if (strcmp(kbuf, "add") == 0) {
 		struct afs_cell *cell;
 
-		cell = afs_cell_create(name, strlen(name), args, false);
+		cell = afs_cell_create(net, name, strlen(name), args, false);
 		if (IS_ERR(cell)) {
 			ret = PTR_ERR(cell);
 			goto done;
@@ -303,6 +318,7 @@ static ssize_t afs_proc_rootcell_write(struct file *file,
 				       const char __user *buf,
 				       size_t size, loff_t *_pos)
 {
+	struct afs_net *net = afs_proc2net(file);
 	char *kbuf, *s;
 	int ret;
 
@@ -322,7 +338,7 @@ static ssize_t afs_proc_rootcell_write(struct file *file,
 	/* determine command to perform */
 	_debug("rootcell=%s", kbuf);
 
-	ret = afs_cell_init(kbuf);
+	ret = afs_cell_init(net, kbuf);
 	if (ret >= 0)
 		ret = size;	/* consume everything, always */
 
@@ -334,13 +350,13 @@ static ssize_t afs_proc_rootcell_write(struct file *file,
 /*
  * initialise /proc/fs/afs/<cell>/
  */
-int afs_proc_cell_setup(struct afs_cell *cell)
+int afs_proc_cell_setup(struct afs_net *net, struct afs_cell *cell)
 {
 	struct proc_dir_entry *dir;
 
 	_enter("%p{%s}", cell, cell->name);
 
-	dir = proc_mkdir(cell->name, proc_afs);
+	dir = proc_mkdir(cell->name, net->proc_afs);
 	if (!dir)
 		goto error_dir;
 
@@ -356,7 +372,7 @@ int afs_proc_cell_setup(struct afs_cell *cell)
 	return 0;
 
 error_tree:
-	remove_proc_subtree(cell->name, proc_afs);
+	remove_proc_subtree(cell->name, net->proc_afs);
 error_dir:
 	_leave(" = -ENOMEM");
 	return -ENOMEM;
@@ -365,11 +381,11 @@ error_dir:
 /*
  * remove /proc/fs/afs/<cell>/
  */
-void afs_proc_cell_remove(struct afs_cell *cell)
+void afs_proc_cell_remove(struct afs_net *net, struct afs_cell *cell)
 {
 	_enter("");
 
-	remove_proc_subtree(cell->name, proc_afs);
+	remove_proc_subtree(cell->name, net->proc_afs);
 
 	_leave("");
 }

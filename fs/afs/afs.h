@@ -72,6 +72,15 @@ struct afs_callback {
 
 #define AFSCBMAX 50	/* maximum callbacks transferred per bulk op */
 
+struct afs_uuid {
+	__be32		time_low;			/* low part of timestamp */
+	__be16		time_mid;			/* mid part of timestamp */
+	__be16		time_hi_and_version;		/* high part of timestamp and version  */
+	__u8		clock_seq_hi_and_reserved;	/* clock seq hi and variant */
+	__u8		clock_seq_low;			/* clock seq low */
+	__u8		node[6];			/* spatially unique node ID (MAC addr) */
+};
+
 /*
  * AFS volume information
  */

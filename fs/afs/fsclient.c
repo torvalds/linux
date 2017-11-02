@@ -284,12 +284,13 @@ int afs_fs_fetch_file_status(struct afs_server *server,
 			     bool async)
 {
 	struct afs_call *call;
+	struct afs_net *net = afs_v2net(vnode);
 	__be32 *bp;
 
 	_enter(",%x,{%x:%u},,",
 	       key_serial(key), vnode->fid.vid, vnode->fid.vnode);
 
-	call = afs_alloc_flat_call(&afs_RXFSFetchStatus, 16, (21 + 3 + 6) * 4);
+	call = afs_alloc_flat_call(net, &afs_RXFSFetchStatus, 16, (21 + 3 + 6) * 4);
 	if (!call)
 		return -ENOMEM;
 
@@ -490,11 +491,12 @@ static int afs_fs_fetch_data64(struct afs_server *server,
 			       bool async)
 {
 	struct afs_call *call;
+	struct afs_net *net = afs_v2net(vnode);
 	__be32 *bp;
 
 	_enter("");
 
-	call = afs_alloc_flat_call(&afs_RXFSFetchData64, 32, (21 + 3 + 6) * 4);
+	call = afs_alloc_flat_call(net, &afs_RXFSFetchData64, 32, (21 + 3 + 6) * 4);
 	if (!call)
 		return -ENOMEM;
 
@@ -531,6 +533,7 @@ int afs_fs_fetch_data(struct afs_server *server,
 		      bool async)
 {
 	struct afs_call *call;
+	struct afs_net *net = afs_v2net(vnode);
 	__be32 *bp;
 
 	if (upper_32_bits(req->pos) ||
@@ -540,7 +543,7 @@ int afs_fs_fetch_data(struct afs_server *server,
 
 	_enter("");
 
-	call = afs_alloc_flat_call(&afs_RXFSFetchData, 24, (21 + 3 + 6) * 4);
+	call = afs_alloc_flat_call(net, &afs_RXFSFetchData, 24, (21 + 3 + 6) * 4);
 	if (!call)
 		return -ENOMEM;
 
@@ -590,7 +593,8 @@ static const struct afs_call_type afs_RXFSGiveUpCallBacks = {
  * give up a set of callbacks
  * - the callbacks are held in the server->cb_break ring
  */
-int afs_fs_give_up_callbacks(struct afs_server *server,
+int afs_fs_give_up_callbacks(struct afs_net *net,
+			     struct afs_server *server,
 			     bool async)
 {
 	struct afs_call *call;
@@ -610,7 +614,7 @@ int afs_fs_give_up_callbacks(struct afs_server *server,
 
 	_debug("break %zu callbacks", ncallbacks);
 
-	call = afs_alloc_flat_call(&afs_RXFSGiveUpCallBacks,
+	call = afs_alloc_flat_call(net, &afs_RXFSGiveUpCallBacks,
 				   12 + ncallbacks * 6 * 4, 0);
 	if (!call)
 		return -ENOMEM;
@@ -699,6 +703,7 @@ int afs_fs_create(struct afs_server *server,
 		  bool async)
 {
 	struct afs_call *call;
+	struct afs_net *net = afs_v2net(vnode);
 	size_t namesz, reqsz, padsz;
 	__be32 *bp;
 
@@ -708,7 +713,7 @@ int afs_fs_create(struct afs_server *server,
 	padsz = (4 - (namesz & 3)) & 3;
 	reqsz = (5 * 4) + namesz + padsz + (6 * 4);
 
-	call = afs_alloc_flat_call(&afs_RXFSCreateXXXX, reqsz,
+	call = afs_alloc_flat_call(net, &afs_RXFSCreateXXXX, reqsz,
 				   (3 + 21 + 21 + 3 + 6) * 4);
 	if (!call)
 		return -ENOMEM;
@@ -789,6 +794,7 @@ int afs_fs_remove(struct afs_server *server,
 		  bool async)
 {
 	struct afs_call *call;
+	struct afs_net *net = afs_v2net(vnode);
 	size_t namesz, reqsz, padsz;
 	__be32 *bp;
 
@@ -798,7 +804,7 @@ int afs_fs_remove(struct afs_server *server,
 	padsz = (4 - (namesz & 3)) & 3;
 	reqsz = (5 * 4) + namesz + padsz;
 
-	call = afs_alloc_flat_call(&afs_RXFSRemoveXXXX, reqsz, (21 + 6) * 4);
+	call = afs_alloc_flat_call(net, &afs_RXFSRemoveXXXX, reqsz, (21 + 6) * 4);
 	if (!call)
 		return -ENOMEM;
 
@@ -870,6 +876,7 @@ int afs_fs_link(struct afs_server *server,
 		bool async)
 {
 	struct afs_call *call;
+	struct afs_net *net = afs_v2net(vnode);
 	size_t namesz, reqsz, padsz;
 	__be32 *bp;
 
@@ -879,7 +886,7 @@ int afs_fs_link(struct afs_server *server,
 	padsz = (4 - (namesz & 3)) & 3;
 	reqsz = (5 * 4) + namesz + padsz + (3 * 4);
 
-	call = afs_alloc_flat_call(&afs_RXFSLink, reqsz, (21 + 21 + 6) * 4);
+	call = afs_alloc_flat_call(net, &afs_RXFSLink, reqsz, (21 + 21 + 6) * 4);
 	if (!call)
 		return -ENOMEM;
 
@@ -958,6 +965,7 @@ int afs_fs_symlink(struct afs_server *server,
 		   bool async)
 {
 	struct afs_call *call;
+	struct afs_net *net = afs_v2net(vnode);
 	size_t namesz, reqsz, padsz, c_namesz, c_padsz;
 	__be32 *bp;
 
@@ -971,7 +979,7 @@ int afs_fs_symlink(struct afs_server *server,
 
 	reqsz = (6 * 4) + namesz + padsz + c_namesz + c_padsz + (6 * 4);
 
-	call = afs_alloc_flat_call(&afs_RXFSSymlink, reqsz,
+	call = afs_alloc_flat_call(net, &afs_RXFSSymlink, reqsz,
 				   (3 + 21 + 21 + 6) * 4);
 	if (!call)
 		return -ENOMEM;
@@ -1062,6 +1070,7 @@ int afs_fs_rename(struct afs_server *server,
 		  bool async)
 {
 	struct afs_call *call;
+	struct afs_net *net = afs_v2net(orig_dvnode);
 	size_t reqsz, o_namesz, o_padsz, n_namesz, n_padsz;
 	__be32 *bp;
 
@@ -1078,7 +1087,7 @@ int afs_fs_rename(struct afs_server *server,
 		(3 * 4) +
 		4 + n_namesz + n_padsz;
 
-	call = afs_alloc_flat_call(&afs_RXFSRename, reqsz, (21 + 21 + 6) * 4);
+	call = afs_alloc_flat_call(net, &afs_RXFSRename, reqsz, (21 + 21 + 6) * 4);
 	if (!call)
 		return -ENOMEM;
 
@@ -1172,12 +1181,13 @@ static int afs_fs_store_data64(struct afs_server *server,
 {
 	struct afs_vnode *vnode = wb->vnode;
 	struct afs_call *call;
+	struct afs_net *net = afs_v2net(vnode);
 	__be32 *bp;
 
 	_enter(",%x,{%x:%u},,",
 	       key_serial(wb->key), vnode->fid.vid, vnode->fid.vnode);
 
-	call = afs_alloc_flat_call(&afs_RXFSStoreData64,
+	call = afs_alloc_flat_call(net, &afs_RXFSStoreData64,
 				   (4 + 6 + 3 * 2) * 4,
 				   (21 + 6) * 4);
 	if (!call)
@@ -1230,6 +1240,7 @@ int afs_fs_store_data(struct afs_server *server, struct afs_writeback *wb,
 {
 	struct afs_vnode *vnode = wb->vnode;
 	struct afs_call *call;
+	struct afs_net *net = afs_v2net(vnode);
 	loff_t size, pos, i_size;
 	__be32 *bp;
 
@@ -1254,7 +1265,7 @@ int afs_fs_store_data(struct afs_server *server, struct afs_writeback *wb,
 		return afs_fs_store_data64(server, wb, first, last, offset, to,
 					   size, pos, i_size, async);
 
-	call = afs_alloc_flat_call(&afs_RXFSStoreData,
+	call = afs_alloc_flat_call(net, &afs_RXFSStoreData,
 				   (4 + 6 + 3) * 4,
 				   (21 + 6) * 4);
 	if (!call)
@@ -1356,6 +1367,7 @@ static int afs_fs_setattr_size64(struct afs_server *server, struct key *key,
 				 bool async)
 {
 	struct afs_call *call;
+	struct afs_net *net = afs_v2net(vnode);
 	__be32 *bp;
 
 	_enter(",%x,{%x:%u},,",
@@ -1363,7 +1375,7 @@ static int afs_fs_setattr_size64(struct afs_server *server, struct key *key,
 
 	ASSERT(attr->ia_valid & ATTR_SIZE);
 
-	call = afs_alloc_flat_call(&afs_RXFSStoreData64_as_Status,
+	call = afs_alloc_flat_call(net, &afs_RXFSStoreData64_as_Status,
 				   (4 + 6 + 3 * 2) * 4,
 				   (21 + 6) * 4);
 	if (!call)
@@ -1404,6 +1416,7 @@ static int afs_fs_setattr_size(struct afs_server *server, struct key *key,
 			       bool async)
 {
 	struct afs_call *call;
+	struct afs_net *net = afs_v2net(vnode);
 	__be32 *bp;
 
 	_enter(",%x,{%x:%u},,",
@@ -1414,7 +1427,7 @@ static int afs_fs_setattr_size(struct afs_server *server, struct key *key,
 		return afs_fs_setattr_size64(server, key, vnode, attr,
 					     async);
 
-	call = afs_alloc_flat_call(&afs_RXFSStoreData_as_Status,
+	call = afs_alloc_flat_call(net, &afs_RXFSStoreData_as_Status,
 				   (4 + 6 + 3) * 4,
 				   (21 + 6) * 4);
 	if (!call)
@@ -1452,6 +1465,7 @@ int afs_fs_setattr(struct afs_server *server, struct key *key,
 		   bool async)
 {
 	struct afs_call *call;
+	struct afs_net *net = afs_v2net(vnode);
 	__be32 *bp;
 
 	if (attr->ia_valid & ATTR_SIZE)
@@ -1461,7 +1475,7 @@ int afs_fs_setattr(struct afs_server *server, struct key *key,
 	_enter(",%x,{%x:%u},,",
 	       key_serial(key), vnode->fid.vid, vnode->fid.vnode);
 
-	call = afs_alloc_flat_call(&afs_RXFSStoreStatus,
+	call = afs_alloc_flat_call(net, &afs_RXFSStoreStatus,
 				   (4 + 6) * 4,
 				   (21 + 6) * 4);
 	if (!call)
@@ -1687,6 +1701,7 @@ int afs_fs_get_volume_status(struct afs_server *server,
 			     bool async)
 {
 	struct afs_call *call;
+	struct afs_net *net = afs_v2net(vnode);
 	__be32 *bp;
 	void *tmpbuf;
 
@@ -1696,7 +1711,7 @@ int afs_fs_get_volume_status(struct afs_server *server,
 	if (!tmpbuf)
 		return -ENOMEM;
 
-	call = afs_alloc_flat_call(&afs_RXFSGetVolumeStatus, 2 * 4, 12 * 4);
+	call = afs_alloc_flat_call(net, &afs_RXFSGetVolumeStatus, 2 * 4, 12 * 4);
 	if (!call) {
 		kfree(tmpbuf);
 		return -ENOMEM;
@@ -1779,11 +1794,12 @@ int afs_fs_set_lock(struct afs_server *server,
 		    bool async)
 {
 	struct afs_call *call;
+	struct afs_net *net = afs_v2net(vnode);
 	__be32 *bp;
 
 	_enter("");
 
-	call = afs_alloc_flat_call(&afs_RXFSSetLock, 5 * 4, 6 * 4);
+	call = afs_alloc_flat_call(net, &afs_RXFSSetLock, 5 * 4, 6 * 4);
 	if (!call)
 		return -ENOMEM;
 
@@ -1812,11 +1828,12 @@ int afs_fs_extend_lock(struct afs_server *server,
 		       bool async)
 {
 	struct afs_call *call;
+	struct afs_net *net = afs_v2net(vnode);
 	__be32 *bp;
 
 	_enter("");
 
-	call = afs_alloc_flat_call(&afs_RXFSExtendLock, 4 * 4, 6 * 4);
+	call = afs_alloc_flat_call(net, &afs_RXFSExtendLock, 4 * 4, 6 * 4);
 	if (!call)
 		return -ENOMEM;
 
@@ -1844,11 +1861,12 @@ int afs_fs_release_lock(struct afs_server *server,
 			bool async)
 {
 	struct afs_call *call;
+	struct afs_net *net = afs_v2net(vnode);
 	__be32 *bp;
 
 	_enter("");
 
-	call = afs_alloc_flat_call(&afs_RXFSReleaseLock, 4 * 4, 6 * 4);
+	call = afs_alloc_flat_call(net, &afs_RXFSReleaseLock, 4 * 4, 6 * 4);
 	if (!call)
 		return -ENOMEM;
 

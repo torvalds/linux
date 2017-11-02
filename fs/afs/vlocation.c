@@ -16,19 +16,10 @@
 #include <linux/sched.h>
 #include "internal.h"
 
+struct workqueue_struct *afs_vlocation_update_worker;
+
 static unsigned afs_vlocation_timeout = 10;	/* volume location timeout in seconds */
 static unsigned afs_vlocation_update_timeout = 10 * 60;
-
-static void afs_vlocation_reaper(struct work_struct *);
-static void afs_vlocation_updater(struct work_struct *);
-
-static LIST_HEAD(afs_vlocation_updates);
-static LIST_HEAD(afs_vlocation_graveyard);
-static DEFINE_SPINLOCK(afs_vlocation_updates_lock);
-static DEFINE_SPINLOCK(afs_vlocation_graveyard_lock);
-static DECLARE_DELAYED_WORK(afs_vlocation_reap, afs_vlocation_reaper);
-static DECLARE_DELAYED_WORK(afs_vlocation_update, afs_vlocation_updater);
-static struct workqueue_struct *afs_vlocation_update_worker;
 
 /*
  * iterate through the VL servers in a cell until one of them admits knowing
@@ -52,8 +43,8 @@ static int afs_vlocation_access_vl_by_name(struct afs_vlocation *vl,
 		_debug("CellServ[%hu]: %08x", cell->vl_curr_svix, addr.s_addr);
 
 		/* attempt to access the VL server */
-		ret = afs_vl_get_entry_by_name(&addr, key, vl->vldb.name, vldb,
-					       false);
+		ret = afs_vl_get_entry_by_name(cell->net, &addr, key,
+					       vl->vldb.name, vldb, false);
 		switch (ret) {
 		case 0:
 			goto out;
@@ -110,8 +101,8 @@ static int afs_vlocation_access_vl_by_id(struct afs_vlocation *vl,
 		_debug("CellServ[%hu]: %08x", cell->vl_curr_svix, addr.s_addr);
 
 		/* attempt to access the VL server */
-		ret = afs_vl_get_entry_by_id(&addr, key, volid, voltype, vldb,
-					     false);
+		ret = afs_vl_get_entry_by_id(cell->net, &addr, key, volid,
+					     voltype, vldb, false);
 		switch (ret) {
 		case 0:
 			goto out;
@@ -335,7 +326,8 @@ static int afs_vlocation_fill_in_record(struct afs_vlocation *vl,
 /*
  * queue a vlocation record for updates
  */
-static void afs_vlocation_queue_for_updates(struct afs_vlocation *vl)
+static void afs_vlocation_queue_for_updates(struct afs_net *net,
+					    struct afs_vlocation *vl)
 {
 	struct afs_vlocation *xvl;
 
@@ -343,25 +335,25 @@ static void afs_vlocation_queue_for_updates(struct afs_vlocation *vl)
 	vl->update_at = ktime_get_real_seconds() +
 			afs_vlocation_update_timeout;
 
-	spin_lock(&afs_vlocation_updates_lock);
+	spin_lock(&net->vl_updates_lock);
 
-	if (!list_empty(&afs_vlocation_updates)) {
+	if (!list_empty(&net->vl_updates)) {
 		/* ... but wait at least 1 second more than the newest record
 		 * already queued so that we don't spam the VL server suddenly
 		 * with lots of requests
 		 */
-		xvl = list_entry(afs_vlocation_updates.prev,
+		xvl = list_entry(net->vl_updates.prev,
 				 struct afs_vlocation, update);
 		if (vl->update_at <= xvl->update_at)
 			vl->update_at = xvl->update_at + 1;
-	} else {
+	} else if (net->live) {
 		queue_delayed_work(afs_vlocation_update_worker,
-				   &afs_vlocation_update,
+				   &net->vl_updater,
 				   afs_vlocation_update_timeout * HZ);
 	}
 
-	list_add_tail(&vl->update, &afs_vlocation_updates);
-	spin_unlock(&afs_vlocation_updates_lock);
+	list_add_tail(&vl->update, &net->vl_updates);
+	spin_unlock(&net->vl_updates_lock);
 }
 
 /*
@@ -371,7 +363,8 @@ static void afs_vlocation_queue_for_updates(struct afs_vlocation *vl)
  * - lookup in the local cache if not able to find on the VL server
  * - insert/update in the local cache if did get a VL response
  */
-struct afs_vlocation *afs_vlocation_lookup(struct afs_cell *cell,
+struct afs_vlocation *afs_vlocation_lookup(struct afs_net *net,
+					   struct afs_cell *cell,
 					   struct key *key,
 					   const char *name,
 					   size_t namesz)
@@ -427,7 +420,7 @@ fill_in_record:
 #endif
 
 	/* schedule for regular updates */
-	afs_vlocation_queue_for_updates(vl);
+	afs_vlocation_queue_for_updates(net, vl);
 	goto success;
 
 found_in_memory:
@@ -436,9 +429,9 @@ found_in_memory:
 	atomic_inc(&vl->usage);
 	spin_unlock(&cell->vl_lock);
 	if (!list_empty(&vl->grave)) {
-		spin_lock(&afs_vlocation_graveyard_lock);
+		spin_lock(&net->vl_graveyard_lock);
 		list_del_init(&vl->grave);
-		spin_unlock(&afs_vlocation_graveyard_lock);
+		spin_unlock(&net->vl_graveyard_lock);
 	}
 	up_write(&cell->vl_sem);
 
@@ -481,7 +474,7 @@ error_abandon:
 	wake_up(&vl->waitq);
 error:
 	ASSERT(vl != NULL);
-	afs_put_vlocation(vl);
+	afs_put_vlocation(net, vl);
 	_leave(" = %d", ret);
 	return ERR_PTR(ret);
 }
@@ -489,7 +482,7 @@ error:
 /*
  * finish using a volume location record
  */
-void afs_put_vlocation(struct afs_vlocation *vl)
+void afs_put_vlocation(struct afs_net *net, struct afs_vlocation *vl)
 {
 	if (!vl)
 		return;
@@ -503,22 +496,22 @@ void afs_put_vlocation(struct afs_vlocation *vl)
 		return;
 	}
 
-	spin_lock(&afs_vlocation_graveyard_lock);
+	spin_lock(&net->vl_graveyard_lock);
 	if (atomic_read(&vl->usage) == 0) {
 		_debug("buried");
-		list_move_tail(&vl->grave, &afs_vlocation_graveyard);
+		list_move_tail(&vl->grave, &net->vl_graveyard);
 		vl->time_of_death = ktime_get_real_seconds();
-		queue_delayed_work(afs_wq, &afs_vlocation_reap,
+		queue_delayed_work(afs_wq, &net->vl_reaper,
 				   afs_vlocation_timeout * HZ);
 
 		/* suspend updates on this record */
 		if (!list_empty(&vl->update)) {
-			spin_lock(&afs_vlocation_updates_lock);
+			spin_lock(&net->vl_updates_lock);
 			list_del_init(&vl->update);
-			spin_unlock(&afs_vlocation_updates_lock);
+			spin_unlock(&net->vl_updates_lock);
 		}
 	}
-	spin_unlock(&afs_vlocation_graveyard_lock);
+	spin_unlock(&net->vl_graveyard_lock);
 	_leave(" [killed?]");
 }
 
@@ -539,31 +532,34 @@ static void afs_vlocation_destroy(struct afs_vlocation *vl)
 /*
  * reap dead volume location records
  */
-static void afs_vlocation_reaper(struct work_struct *work)
+void afs_vlocation_reaper(struct work_struct *work)
 {
 	LIST_HEAD(corpses);
 	struct afs_vlocation *vl;
+	struct afs_net *net = container_of(work, struct afs_net, vl_reaper.work);
 	unsigned long delay, expiry;
 	time64_t now;
 
 	_enter("");
 
 	now = ktime_get_real_seconds();
-	spin_lock(&afs_vlocation_graveyard_lock);
+	spin_lock(&net->vl_graveyard_lock);
 
-	while (!list_empty(&afs_vlocation_graveyard)) {
-		vl = list_entry(afs_vlocation_graveyard.next,
+	while (!list_empty(&net->vl_graveyard)) {
+		vl = list_entry(net->vl_graveyard.next,
 				struct afs_vlocation, grave);
 
 		_debug("check %p", vl);
 
 		/* the queue is ordered most dead first */
-		expiry = vl->time_of_death + afs_vlocation_timeout;
-		if (expiry > now) {
-			delay = (expiry - now) * HZ;
-			_debug("delay %lu", delay);
-			mod_delayed_work(afs_wq, &afs_vlocation_reap, delay);
-			break;
+		if (net->live) {
+			expiry = vl->time_of_death + afs_vlocation_timeout;
+			if (expiry > now) {
+				delay = (expiry - now) * HZ;
+				_debug("delay %lu", delay);
+				mod_delayed_work(afs_wq, &net->vl_reaper, delay);
+				break;
+			}
 		}
 
 		spin_lock(&vl->cell->vl_lock);
@@ -578,7 +574,7 @@ static void afs_vlocation_reaper(struct work_struct *work)
 		spin_unlock(&vl->cell->vl_lock);
 	}
 
-	spin_unlock(&afs_vlocation_graveyard_lock);
+	spin_unlock(&net->vl_graveyard_lock);
 
 	/* now reap the corpses we've extracted */
 	while (!list_empty(&corpses)) {
@@ -591,56 +587,46 @@ static void afs_vlocation_reaper(struct work_struct *work)
 }
 
 /*
- * initialise the VL update process
- */
-int __init afs_vlocation_update_init(void)
-{
-	afs_vlocation_update_worker = alloc_workqueue("kafs_vlupdated",
-						      WQ_MEM_RECLAIM, 0);
-	return afs_vlocation_update_worker ? 0 : -ENOMEM;
-}
-
-/*
  * discard all the volume location records for rmmod
  */
-void afs_vlocation_purge(void)
+void __net_exit afs_vlocation_purge(struct afs_net *net)
 {
-	afs_vlocation_timeout = 0;
-
-	spin_lock(&afs_vlocation_updates_lock);
-	list_del_init(&afs_vlocation_updates);
-	spin_unlock(&afs_vlocation_updates_lock);
-	mod_delayed_work(afs_vlocation_update_worker, &afs_vlocation_update, 0);
-	destroy_workqueue(afs_vlocation_update_worker);
-
-	mod_delayed_work(afs_wq, &afs_vlocation_reap, 0);
+	spin_lock(&net->vl_updates_lock);
+	list_del_init(&net->vl_updates);
+	spin_unlock(&net->vl_updates_lock);
+	mod_delayed_work(afs_vlocation_update_worker, &net->vl_updater, 0);
+	mod_delayed_work(afs_wq, &net->vl_reaper, 0);
 }
 
 /*
  * update a volume location
  */
-static void afs_vlocation_updater(struct work_struct *work)
+void afs_vlocation_updater(struct work_struct *work)
 {
 	struct afs_cache_vlocation vldb;
 	struct afs_vlocation *vl, *xvl;
+	struct afs_net *net = container_of(work, struct afs_net, vl_updater.work);
 	time64_t now;
 	long timeout;
 	int ret;
+
+	if (!net->live)
+		return;
 
 	_enter("");
 
 	now = ktime_get_real_seconds();
 
 	/* find a record to update */
-	spin_lock(&afs_vlocation_updates_lock);
+	spin_lock(&net->vl_updates_lock);
 	for (;;) {
-		if (list_empty(&afs_vlocation_updates)) {
-			spin_unlock(&afs_vlocation_updates_lock);
+		if (list_empty(&net->vl_updates) || !net->live) {
+			spin_unlock(&net->vl_updates_lock);
 			_leave(" [nothing]");
 			return;
 		}
 
-		vl = list_entry(afs_vlocation_updates.next,
+		vl = list_entry(net->vl_updates.next,
 				struct afs_vlocation, update);
 		if (atomic_read(&vl->usage) > 0)
 			break;
@@ -650,15 +636,15 @@ static void afs_vlocation_updater(struct work_struct *work)
 	timeout = vl->update_at - now;
 	if (timeout > 0) {
 		queue_delayed_work(afs_vlocation_update_worker,
-				   &afs_vlocation_update, timeout * HZ);
-		spin_unlock(&afs_vlocation_updates_lock);
+				   &net->vl_updater, timeout * HZ);
+		spin_unlock(&net->vl_updates_lock);
 		_leave(" [nothing]");
 		return;
 	}
 
 	list_del_init(&vl->update);
 	atomic_inc(&vl->usage);
-	spin_unlock(&afs_vlocation_updates_lock);
+	spin_unlock(&net->vl_updates_lock);
 
 	/* we can now perform the update */
 	_debug("update %s", vl->vldb.name);
@@ -688,18 +674,18 @@ static void afs_vlocation_updater(struct work_struct *work)
 	vl->update_at = ktime_get_real_seconds() +
 			afs_vlocation_update_timeout;
 
-	spin_lock(&afs_vlocation_updates_lock);
+	spin_lock(&net->vl_updates_lock);
 
-	if (!list_empty(&afs_vlocation_updates)) {
+	if (!list_empty(&net->vl_updates)) {
 		/* next update in 10 minutes, but wait at least 1 second more
 		 * than the newest record already queued so that we don't spam
 		 * the VL server suddenly with lots of requests
 		 */
-		xvl = list_entry(afs_vlocation_updates.prev,
+		xvl = list_entry(net->vl_updates.prev,
 				 struct afs_vlocation, update);
 		if (vl->update_at <= xvl->update_at)
 			vl->update_at = xvl->update_at + 1;
-		xvl = list_entry(afs_vlocation_updates.next,
+		xvl = list_entry(net->vl_updates.next,
 				 struct afs_vlocation, update);
 		timeout = xvl->update_at - now;
 		if (timeout < 0)
@@ -710,11 +696,10 @@ static void afs_vlocation_updater(struct work_struct *work)
 
 	ASSERT(list_empty(&vl->update));
 
-	list_add_tail(&vl->update, &afs_vlocation_updates);
+	list_add_tail(&vl->update, &net->vl_updates);
 
 	_debug("timeout %ld", timeout);
-	queue_delayed_work(afs_vlocation_update_worker,
-			   &afs_vlocation_update, timeout * HZ);
-	spin_unlock(&afs_vlocation_updates_lock);
-	afs_put_vlocation(vl);
+	queue_delayed_work(afs_vlocation_update_worker, &net->vl_updater, timeout * HZ);
+	spin_unlock(&net->vl_updates_lock);
+	afs_put_vlocation(net, vl);
 }

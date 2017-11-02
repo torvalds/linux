@@ -25,10 +25,9 @@
 #include <linux/statfs.h>
 #include <linux/sched.h>
 #include <linux/nsproxy.h>
+#include <linux/magic.h>
 #include <net/net_namespace.h>
 #include "internal.h"
-
-#define AFS_FS_MAGIC 0x6B414653 /* 'kAFS' */
 
 static void afs_i_init_once(void *foo);
 static struct dentry *afs_mount(struct file_system_type *fs_type,
@@ -201,7 +200,8 @@ static int afs_parse_options(struct afs_mount_params *params,
 		token = match_token(p, afs_options_list, args);
 		switch (token) {
 		case afs_opt_cell:
-			cell = afs_cell_lookup(args[0].from,
+			cell = afs_cell_lookup(params->net,
+					       args[0].from,
 					       args[0].to - args[0].from,
 					       false);
 			if (IS_ERR(cell))
@@ -308,7 +308,7 @@ static int afs_parse_device_name(struct afs_mount_params *params,
 
 	/* lookup the cell record */
 	if (cellname || !params->cell) {
-		cell = afs_cell_lookup(cellname, cellnamesz, true);
+		cell = afs_cell_lookup(params->net, cellname, cellnamesz, true);
 		if (IS_ERR(cell)) {
 			printk(KERN_ERR "kAFS: unable to lookup cell '%*.*s'\n",
 			       cellnamesz, cellnamesz, cellname ?: "");
@@ -334,7 +334,7 @@ static int afs_test_super(struct super_block *sb, void *data)
 	struct afs_super_info *as1 = data;
 	struct afs_super_info *as = sb->s_fs_info;
 
-	return as->volume == as1->volume;
+	return as->net == as1->net && as->volume == as1->volume;
 }
 
 static int afs_set_super(struct super_block *sb, void *data)
@@ -411,6 +411,7 @@ static struct dentry *afs_mount(struct file_system_type *fs_type,
 	_enter(",,%s,%p", dev_name, options);
 
 	memset(&params, 0, sizeof(params));
+	params.net = &__afs_net;
 
 	ret = -EINVAL;
 	if (current->nsproxy->net_ns != &init_net)
@@ -444,36 +445,32 @@ static struct dentry *afs_mount(struct file_system_type *fs_type,
 	}
 
 	/* allocate a superblock info record */
+	ret = -ENOMEM;
 	as = kzalloc(sizeof(struct afs_super_info), GFP_KERNEL);
-	if (!as) {
-		ret = -ENOMEM;
-		afs_put_volume(vol);
-		goto error;
-	}
+	if (!as)
+		goto error_vol;
+
+	as->net = afs_get_net(params.net);
 	as->volume = vol;
 
 	/* allocate a deviceless superblock */
 	sb = sget(fs_type, afs_test_super, afs_set_super, flags, as);
 	if (IS_ERR(sb)) {
 		ret = PTR_ERR(sb);
-		afs_put_volume(vol);
-		kfree(as);
-		goto error;
+		goto error_as;
 	}
 
 	if (!sb->s_root) {
 		/* initial superblock/root creation */
 		_debug("create");
 		ret = afs_fill_super(sb, &params);
-		if (ret < 0) {
-			deactivate_locked_super(sb);
-			goto error;
-		}
+		if (ret < 0)
+			goto error_sb;
 		sb->s_flags |= MS_ACTIVE;
 	} else {
 		_debug("reuse");
 		ASSERTCMP(sb->s_flags, &, MS_ACTIVE);
-		afs_put_volume(vol);
+		afs_put_volume(params.net, vol);
 		kfree(as);
 	}
 
@@ -482,6 +479,14 @@ static struct dentry *afs_mount(struct file_system_type *fs_type,
 	_leave(" = 0 [%p]", sb);
 	return dget(sb->s_root);
 
+error_sb:
+	deactivate_locked_super(sb);
+	goto error;
+error_as:
+	afs_put_net(as->net);
+	kfree(as);
+error_vol:
+	afs_put_volume(params.net, vol);
 error:
 	afs_put_cell(params.cell);
 	key_put(params.key);
@@ -493,8 +498,10 @@ error:
 static void afs_kill_super(struct super_block *sb)
 {
 	struct afs_super_info *as = sb->s_fs_info;
+	struct afs_net *net = as->net;
+
 	kill_anon_super(sb);
-	afs_put_volume(as->volume);
+	afs_put_volume(net, as->volume);
 	kfree(as);
 }
 

@@ -18,20 +18,12 @@
 #include <keys/rxrpc-type.h>
 #include "internal.h"
 
-DECLARE_RWSEM(afs_proc_cells_sem);
-LIST_HEAD(afs_proc_cells);
-
-static LIST_HEAD(afs_cells);
-static DEFINE_RWLOCK(afs_cells_lock);
-static DECLARE_RWSEM(afs_cells_sem); /* add/remove serialisation */
-static DECLARE_WAIT_QUEUE_HEAD(afs_cells_freeable_wq);
-static struct afs_cell *afs_cell_root;
-
 /*
  * allocate a cell record and fill in its name, VL server address list and
  * allocate an anonymous key
  */
-static struct afs_cell *afs_cell_alloc(const char *name, unsigned namelen,
+static struct afs_cell *afs_cell_alloc(struct afs_net *net,
+				       const char *name, unsigned namelen,
 				       char *vllist)
 {
 	struct afs_cell *cell;
@@ -62,6 +54,7 @@ static struct afs_cell *afs_cell_alloc(const char *name, unsigned namelen,
 
 	atomic_set(&cell->usage, 1);
 	INIT_LIST_HEAD(&cell->link);
+	cell->net = net;
 	rwlock_init(&cell->servers_lock);
 	INIT_LIST_HEAD(&cell->servers);
 	init_rwsem(&cell->vl_sem);
@@ -142,12 +135,14 @@ error:
 
 /*
  * afs_cell_crate() - create a cell record
+ * @net:	The network namespace
  * @name:	is the name of the cell.
  * @namsesz:	is the strlen of the cell name.
  * @vllist:	is a colon separated list of IP addresses in "a.b.c.d" format.
  * @retref:	is T to return the cell reference when the cell exists.
  */
-struct afs_cell *afs_cell_create(const char *name, unsigned namesz,
+struct afs_cell *afs_cell_create(struct afs_net *net,
+				 const char *name, unsigned namesz,
 				 char *vllist, bool retref)
 {
 	struct afs_cell *cell;
@@ -155,23 +150,23 @@ struct afs_cell *afs_cell_create(const char *name, unsigned namesz,
 
 	_enter("%*.*s,%s", namesz, namesz, name ?: "", vllist);
 
-	down_write(&afs_cells_sem);
-	read_lock(&afs_cells_lock);
-	list_for_each_entry(cell, &afs_cells, link) {
+	down_write(&net->cells_sem);
+	read_lock(&net->cells_lock);
+	list_for_each_entry(cell, &net->cells, link) {
 		if (strncasecmp(cell->name, name, namesz) == 0)
 			goto duplicate_name;
 	}
-	read_unlock(&afs_cells_lock);
+	read_unlock(&net->cells_lock);
 
-	cell = afs_cell_alloc(name, namesz, vllist);
+	cell = afs_cell_alloc(net, name, namesz, vllist);
 	if (IS_ERR(cell)) {
 		_leave(" = %ld", PTR_ERR(cell));
-		up_write(&afs_cells_sem);
+		up_write(&net->cells_sem);
 		return cell;
 	}
 
 	/* add a proc directory for this cell */
-	ret = afs_proc_cell_setup(cell);
+	ret = afs_proc_cell_setup(net, cell);
 	if (ret < 0)
 		goto error;
 
@@ -183,20 +178,20 @@ struct afs_cell *afs_cell_create(const char *name, unsigned namesz,
 #endif
 
 	/* add to the cell lists */
-	write_lock(&afs_cells_lock);
-	list_add_tail(&cell->link, &afs_cells);
-	write_unlock(&afs_cells_lock);
+	write_lock(&net->cells_lock);
+	list_add_tail(&cell->link, &net->cells);
+	write_unlock(&net->cells_lock);
 
-	down_write(&afs_proc_cells_sem);
-	list_add_tail(&cell->proc_link, &afs_proc_cells);
-	up_write(&afs_proc_cells_sem);
-	up_write(&afs_cells_sem);
+	down_write(&net->proc_cells_sem);
+	list_add_tail(&cell->proc_link, &net->proc_cells);
+	up_write(&net->proc_cells_sem);
+	up_write(&net->cells_sem);
 
 	_leave(" = %p", cell);
 	return cell;
 
 error:
-	up_write(&afs_cells_sem);
+	up_write(&net->cells_sem);
 	key_put(cell->anonymous_key);
 	kfree(cell);
 	_leave(" = %d", ret);
@@ -206,8 +201,8 @@ duplicate_name:
 	if (retref && !IS_ERR(cell))
 		afs_get_cell(cell);
 
-	read_unlock(&afs_cells_lock);
-	up_write(&afs_cells_sem);
+	read_unlock(&net->cells_lock);
+	up_write(&net->cells_sem);
 
 	if (retref) {
 		_leave(" = %p", cell);
@@ -223,7 +218,7 @@ duplicate_name:
  * - can be called with a module parameter string
  * - can be called from a write to /proc/fs/afs/rootcell
  */
-int afs_cell_init(char *rootcell)
+int afs_cell_init(struct afs_net *net, char *rootcell)
 {
 	struct afs_cell *old_root, *new_root;
 	char *cp;
@@ -245,17 +240,17 @@ int afs_cell_init(char *rootcell)
 		*cp++ = 0;
 
 	/* allocate a cell record for the root cell */
-	new_root = afs_cell_create(rootcell, strlen(rootcell), cp, false);
+	new_root = afs_cell_create(net, rootcell, strlen(rootcell), cp, false);
 	if (IS_ERR(new_root)) {
 		_leave(" = %ld", PTR_ERR(new_root));
 		return PTR_ERR(new_root);
 	}
 
 	/* install the new cell */
-	write_lock(&afs_cells_lock);
-	old_root = afs_cell_root;
-	afs_cell_root = new_root;
-	write_unlock(&afs_cells_lock);
+	write_lock(&net->cells_lock);
+	old_root = net->ws_cell;
+	net->ws_cell = new_root;
+	write_unlock(&net->cells_lock);
 	afs_put_cell(old_root);
 
 	_leave(" = 0");
@@ -265,19 +260,20 @@ int afs_cell_init(char *rootcell)
 /*
  * lookup a cell record
  */
-struct afs_cell *afs_cell_lookup(const char *name, unsigned namesz,
+struct afs_cell *afs_cell_lookup(struct afs_net *net,
+				 const char *name, unsigned namesz,
 				 bool dns_cell)
 {
 	struct afs_cell *cell;
 
 	_enter("\"%*.*s\",", namesz, namesz, name ?: "");
 
-	down_read(&afs_cells_sem);
-	read_lock(&afs_cells_lock);
+	down_read(&net->cells_sem);
+	read_lock(&net->cells_lock);
 
 	if (name) {
 		/* if the cell was named, look for it in the cell record list */
-		list_for_each_entry(cell, &afs_cells, link) {
+		list_for_each_entry(cell, &net->cells, link) {
 			if (strncmp(cell->name, name, namesz) == 0) {
 				afs_get_cell(cell);
 				goto found;
@@ -289,7 +285,7 @@ struct afs_cell *afs_cell_lookup(const char *name, unsigned namesz,
 	found:
 		;
 	} else {
-		cell = afs_cell_root;
+		cell = net->ws_cell;
 		if (!cell) {
 			/* this should not happen unless user tries to mount
 			 * when root cell is not set. Return an impossibly
@@ -304,16 +300,16 @@ struct afs_cell *afs_cell_lookup(const char *name, unsigned namesz,
 
 	}
 
-	read_unlock(&afs_cells_lock);
-	up_read(&afs_cells_sem);
+	read_unlock(&net->cells_lock);
+	up_read(&net->cells_sem);
 	_leave(" = %p", cell);
 	return cell;
 
 create_cell:
-	read_unlock(&afs_cells_lock);
-	up_read(&afs_cells_sem);
+	read_unlock(&net->cells_lock);
+	up_read(&net->cells_sem);
 
-	cell = afs_cell_create(name, namesz, NULL, true);
+	cell = afs_cell_create(net, name, namesz, NULL, true);
 
 	_leave(" = %p", cell);
 	return cell;
@@ -325,14 +321,14 @@ create_cell:
  */
 struct afs_cell *afs_get_cell_maybe(struct afs_cell *cell)
 {
-	write_lock(&afs_cells_lock);
+	write_lock(&net->cells_lock);
 
 	if (cell && !list_empty(&cell->link))
 		afs_get_cell(cell);
 	else
 		cell = NULL;
 
-	write_unlock(&afs_cells_lock);
+	write_unlock(&net->cells_lock);
 	return cell;
 }
 #endif  /*  0  */
@@ -351,10 +347,10 @@ void afs_put_cell(struct afs_cell *cell)
 
 	/* to prevent a race, the decrement and the dequeue must be effectively
 	 * atomic */
-	write_lock(&afs_cells_lock);
+	write_lock(&cell->net->cells_lock);
 
 	if (likely(!atomic_dec_and_test(&cell->usage))) {
-		write_unlock(&afs_cells_lock);
+		write_unlock(&cell->net->cells_lock);
 		_leave("");
 		return;
 	}
@@ -362,19 +358,19 @@ void afs_put_cell(struct afs_cell *cell)
 	ASSERT(list_empty(&cell->servers));
 	ASSERT(list_empty(&cell->vl_list));
 
-	write_unlock(&afs_cells_lock);
+	wake_up(&cell->net->cells_freeable_wq);
 
-	wake_up(&afs_cells_freeable_wq);
+	write_unlock(&cell->net->cells_lock);
 
 	_leave(" [unused]");
 }
 
 /*
  * destroy a cell record
- * - must be called with the afs_cells_sem write-locked
+ * - must be called with the net->cells_sem write-locked
  * - cell->link should have been broken by the caller
  */
-static void afs_cell_destroy(struct afs_cell *cell)
+static void afs_cell_destroy(struct afs_net *net, struct afs_cell *cell)
 {
 	_enter("%p{%d,%s}", cell, atomic_read(&cell->usage), cell->name);
 
@@ -387,14 +383,14 @@ static void afs_cell_destroy(struct afs_cell *cell)
 
 		_debug("wait for cell %s", cell->name);
 		set_current_state(TASK_UNINTERRUPTIBLE);
-		add_wait_queue(&afs_cells_freeable_wq, &myself);
+		add_wait_queue(&net->cells_freeable_wq, &myself);
 
 		while (atomic_read(&cell->usage) > 0) {
 			schedule();
 			set_current_state(TASK_UNINTERRUPTIBLE);
 		}
 
-		remove_wait_queue(&afs_cells_freeable_wq, &myself);
+		remove_wait_queue(&net->cells_freeable_wq, &myself);
 		set_current_state(TASK_RUNNING);
 	}
 
@@ -403,11 +399,11 @@ static void afs_cell_destroy(struct afs_cell *cell)
 	ASSERT(list_empty(&cell->servers));
 	ASSERT(list_empty(&cell->vl_list));
 
-	afs_proc_cell_remove(cell);
+	afs_proc_cell_remove(net, cell);
 
-	down_write(&afs_proc_cells_sem);
+	down_write(&net->proc_cells_sem);
 	list_del_init(&cell->proc_link);
-	up_write(&afs_proc_cells_sem);
+	up_write(&net->proc_cells_sem);
 
 #ifdef CONFIG_AFS_FSCACHE
 	fscache_relinquish_cookie(cell->cache, 0);
@@ -422,39 +418,39 @@ static void afs_cell_destroy(struct afs_cell *cell)
  * purge in-memory cell database on module unload or afs_init() failure
  * - the timeout daemon is stopped before calling this
  */
-void afs_cell_purge(void)
+void afs_cell_purge(struct afs_net *net)
 {
 	struct afs_cell *cell;
 
 	_enter("");
 
-	afs_put_cell(afs_cell_root);
+	afs_put_cell(net->ws_cell);
 
-	down_write(&afs_cells_sem);
+	down_write(&net->cells_sem);
 
-	while (!list_empty(&afs_cells)) {
+	while (!list_empty(&net->cells)) {
 		cell = NULL;
 
 		/* remove the next cell from the front of the list */
-		write_lock(&afs_cells_lock);
+		write_lock(&net->cells_lock);
 
-		if (!list_empty(&afs_cells)) {
-			cell = list_entry(afs_cells.next,
+		if (!list_empty(&net->cells)) {
+			cell = list_entry(net->cells.next,
 					  struct afs_cell, link);
 			list_del_init(&cell->link);
 		}
 
-		write_unlock(&afs_cells_lock);
+		write_unlock(&net->cells_lock);
 
 		if (cell) {
 			_debug("PURGING CELL %s (%d)",
 			       cell->name, atomic_read(&cell->usage));
 
 			/* now the cell should be left with no references */
-			afs_cell_destroy(cell);
+			afs_cell_destroy(net, cell);
 		}
 	}
 
-	up_write(&afs_cells_sem);
+	up_write(&net->cells_sem);
 	_leave("");
 }

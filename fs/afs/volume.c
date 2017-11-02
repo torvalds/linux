@@ -54,7 +54,7 @@ struct afs_volume *afs_volume_lookup(struct afs_mount_params *params)
 	       params->volnamesz, params->volnamesz, params->volname, params->rwpath);
 
 	/* lookup the volume location record */
-	vlocation = afs_vlocation_lookup(params->cell, params->key,
+	vlocation = afs_vlocation_lookup(params->net, params->cell, params->key,
 					 params->volname, params->volnamesz);
 	if (IS_ERR(vlocation)) {
 		ret = PTR_ERR(vlocation);
@@ -138,7 +138,7 @@ success:
 	_debug("kAFS selected %s volume %08x",
 	       afs_voltypes[volume->type], volume->vid);
 	up_write(&params->cell->vl_sem);
-	afs_put_vlocation(vlocation);
+	afs_put_vlocation(params->net, vlocation);
 	_leave(" = %p", volume);
 	return volume;
 
@@ -146,7 +146,7 @@ success:
 error_up:
 	up_write(&params->cell->vl_sem);
 error:
-	afs_put_vlocation(vlocation);
+	afs_put_vlocation(params->net, vlocation);
 	_leave(" = %d", ret);
 	return ERR_PTR(ret);
 
@@ -163,7 +163,7 @@ error_discard:
 /*
  * destroy a volume record
  */
-void afs_put_volume(struct afs_volume *volume)
+void afs_put_volume(struct afs_net *net, struct afs_volume *volume)
 {
 	struct afs_vlocation *vlocation;
 	int loop;
@@ -195,7 +195,7 @@ void afs_put_volume(struct afs_volume *volume)
 #ifdef CONFIG_AFS_FSCACHE
 	fscache_relinquish_cookie(volume->cache, 0);
 #endif
-	afs_put_vlocation(vlocation);
+	afs_put_vlocation(net, vlocation);
 
 	for (loop = volume->nservers - 1; loop >= 0; loop--)
 		afs_put_server(volume->servers[loop]);

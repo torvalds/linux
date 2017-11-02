@@ -15,32 +15,22 @@
 
 static unsigned afs_server_timeout = 10;	/* server timeout in seconds */
 
-static void afs_reap_server(struct work_struct *);
-
-/* tree of all the servers, indexed by IP address */
-static struct rb_root afs_servers = RB_ROOT;
-static DEFINE_RWLOCK(afs_servers_lock);
-
-/* LRU list of all the servers not currently in use */
-static LIST_HEAD(afs_server_graveyard);
-static DEFINE_SPINLOCK(afs_server_graveyard_lock);
-static DECLARE_DELAYED_WORK(afs_server_reaper, afs_reap_server);
-
 /*
  * install a server record in the master tree
  */
 static int afs_install_server(struct afs_server *server)
 {
 	struct afs_server *xserver;
+	struct afs_net *net = server->cell->net;
 	struct rb_node **pp, *p;
 	int ret;
 
 	_enter("%p", server);
 
-	write_lock(&afs_servers_lock);
+	write_lock(&net->servers_lock);
 
 	ret = -EEXIST;
-	pp = &afs_servers.rb_node;
+	pp = &net->servers.rb_node;
 	p = NULL;
 	while (*pp) {
 		p = *pp;
@@ -55,11 +45,11 @@ static int afs_install_server(struct afs_server *server)
 	}
 
 	rb_link_node(&server->master_rb, p, pp);
-	rb_insert_color(&server->master_rb, &afs_servers);
+	rb_insert_color(&server->master_rb, &net->servers);
 	ret = 0;
 
 error:
-	write_unlock(&afs_servers_lock);
+	write_unlock(&net->servers_lock);
 	return ret;
 }
 
@@ -150,9 +140,9 @@ found_server_quickly:
 	read_unlock(&cell->servers_lock);
 no_longer_unused:
 	if (!list_empty(&server->grave)) {
-		spin_lock(&afs_server_graveyard_lock);
+		spin_lock(&cell->net->server_graveyard_lock);
 		list_del_init(&server->grave);
-		spin_unlock(&afs_server_graveyard_lock);
+		spin_unlock(&cell->net->server_graveyard_lock);
 	}
 	_leave(" = %p{%d}", server, atomic_read(&server->usage));
 	return server;
@@ -178,7 +168,8 @@ server_in_two_cells:
 /*
  * look up a server by its IP address
  */
-struct afs_server *afs_find_server(const struct sockaddr_rxrpc *srx)
+struct afs_server *afs_find_server(struct afs_net *net,
+				   const struct sockaddr_rxrpc *srx)
 {
 	struct afs_server *server = NULL;
 	struct rb_node *p;
@@ -191,9 +182,9 @@ struct afs_server *afs_find_server(const struct sockaddr_rxrpc *srx)
 		return NULL;
 	}
 
-	read_lock(&afs_servers_lock);
+	read_lock(&net->servers_lock);
 
-	p = afs_servers.rb_node;
+	p = net->servers.rb_node;
 	while (p) {
 		server = rb_entry(p, struct afs_server, master_rb);
 
@@ -211,7 +202,7 @@ struct afs_server *afs_find_server(const struct sockaddr_rxrpc *srx)
 
 	server = NULL;
 found:
-	read_unlock(&afs_servers_lock);
+	read_unlock(&net->servers_lock);
 	ASSERTIFCMP(server, server->addr.s_addr, ==, addr.s_addr);
 	_leave(" = %p", server);
 	return server;
@@ -223,6 +214,8 @@ found:
  */
 void afs_put_server(struct afs_server *server)
 {
+	struct afs_net *net = server->cell->net;
+
 	if (!server)
 		return;
 
@@ -239,14 +232,14 @@ void afs_put_server(struct afs_server *server)
 
 	afs_flush_callback_breaks(server);
 
-	spin_lock(&afs_server_graveyard_lock);
+	spin_lock(&net->server_graveyard_lock);
 	if (atomic_read(&server->usage) == 0) {
-		list_move_tail(&server->grave, &afs_server_graveyard);
+		list_move_tail(&server->grave, &net->server_graveyard);
 		server->time_of_death = ktime_get_real_seconds();
-		queue_delayed_work(afs_wq, &afs_server_reaper,
-				   afs_server_timeout * HZ);
+		queue_delayed_work(afs_wq, &net->server_reaper,
+				   net->live ? afs_server_timeout * HZ : 0);
 	}
-	spin_unlock(&afs_server_graveyard_lock);
+	spin_unlock(&net->server_graveyard_lock);
 	_leave(" [dead]");
 }
 
@@ -272,42 +265,45 @@ static void afs_destroy_server(struct afs_server *server)
 /*
  * reap dead server records
  */
-static void afs_reap_server(struct work_struct *work)
+void afs_reap_server(struct work_struct *work)
 {
 	LIST_HEAD(corpses);
 	struct afs_server *server;
+	struct afs_net *net = container_of(work, struct afs_net, server_reaper.work);
 	unsigned long delay, expiry;
 	time64_t now;
 
 	now = ktime_get_real_seconds();
-	spin_lock(&afs_server_graveyard_lock);
+	spin_lock(&net->server_graveyard_lock);
 
-	while (!list_empty(&afs_server_graveyard)) {
-		server = list_entry(afs_server_graveyard.next,
+	while (!list_empty(&net->server_graveyard)) {
+		server = list_entry(net->server_graveyard.next,
 				    struct afs_server, grave);
 
 		/* the queue is ordered most dead first */
-		expiry = server->time_of_death + afs_server_timeout;
-		if (expiry > now) {
-			delay = (expiry - now) * HZ;
-			mod_delayed_work(afs_wq, &afs_server_reaper, delay);
-			break;
+		if (net->live) {
+			expiry = server->time_of_death + afs_server_timeout;
+			if (expiry > now) {
+				delay = (expiry - now) * HZ;
+				mod_delayed_work(afs_wq, &net->server_reaper, delay);
+				break;
+			}
 		}
 
 		write_lock(&server->cell->servers_lock);
-		write_lock(&afs_servers_lock);
+		write_lock(&net->servers_lock);
 		if (atomic_read(&server->usage) > 0) {
 			list_del_init(&server->grave);
 		} else {
 			list_move_tail(&server->grave, &corpses);
 			list_del_init(&server->link);
-			rb_erase(&server->master_rb, &afs_servers);
+			rb_erase(&server->master_rb, &net->servers);
 		}
-		write_unlock(&afs_servers_lock);
+		write_unlock(&net->servers_lock);
 		write_unlock(&server->cell->servers_lock);
 	}
 
-	spin_unlock(&afs_server_graveyard_lock);
+	spin_unlock(&net->server_graveyard_lock);
 
 	/* now reap the corpses we've extracted */
 	while (!list_empty(&corpses)) {
@@ -318,10 +314,10 @@ static void afs_reap_server(struct work_struct *work)
 }
 
 /*
- * discard all the server records for rmmod
+ * Discard all the server records from a net namespace when it is destroyed or
+ * the afs module is removed.
  */
-void __exit afs_purge_servers(void)
+void __net_exit afs_purge_servers(struct afs_net *net)
 {
-	afs_server_timeout = 0;
-	mod_delayed_work(afs_wq, &afs_server_reaper, 0);
+	mod_delayed_work(afs_wq, &net->server_reaper, 0);
 }

@@ -21,6 +21,7 @@
 #include <linux/fscache.h>
 #include <linux/backing-dev.h>
 #include <linux/uuid.h>
+#include <net/net_namespace.h>
 #include <net/af_rxrpc.h>
 
 #include "afs.h"
@@ -48,6 +49,7 @@ struct afs_mount_params {
 	afs_voltype_t		type;		/* type of volume requested */
 	int			volnamesz;	/* size of volume name */
 	const char		*volname;	/* name of volume to mount */
+	struct afs_net		*net;		/* Network namespace in effect */
 	struct afs_cell		*cell;		/* cell in which to find volume */
 	struct afs_volume	*volume;	/* volume record */
 	struct key		*key;		/* key to use for secure mounting */
@@ -62,6 +64,7 @@ enum afs_call_state {
 	AFS_CALL_AWAIT_ACK,	/* awaiting final ACK of incoming call */
 	AFS_CALL_COMPLETE,	/* Completed or failed */
 };
+
 /*
  * a record of an in-progress RxRPC call
  */
@@ -72,6 +75,7 @@ struct afs_call {
 	struct work_struct	work;		/* actual work processor */
 	struct rxrpc_call	*rxcall;	/* RxRPC call handle */
 	struct key		*key;		/* security for this call */
+	struct afs_net		*net;		/* The network namespace */
 	struct afs_server	*server;	/* server affected by incoming CM call */
 	void			*request;	/* request data (first part) */
 	struct address_space	*mapping;	/* page set */
@@ -173,6 +177,7 @@ struct afs_writeback {
  * - there's one superblock per volume
  */
 struct afs_super_info {
+	struct afs_net		*net;		/* Network namespace */
 	struct afs_volume	*volume;	/* volume record */
 	char			rwparent;	/* T if parent is R/W AFS volume */
 };
@@ -193,11 +198,61 @@ struct afs_cache_cell {
 };
 
 /*
+ * AFS network namespace record.
+ */
+struct afs_net {
+	struct afs_uuid		uuid;
+	bool			live;		/* F if this namespace is being removed */
+
+	/* AF_RXRPC I/O stuff */
+	struct socket		*socket;
+	struct afs_call		*spare_incoming_call;
+	struct work_struct	charge_preallocation_work;
+	struct mutex		socket_mutex;
+	atomic_t		nr_outstanding_calls;
+	atomic_t		nr_superblocks;
+
+	/* Cell database */
+	struct list_head	cells;
+	struct afs_cell		*ws_cell;
+	rwlock_t		cells_lock;
+	struct rw_semaphore	cells_sem;
+	wait_queue_head_t	cells_freeable_wq;
+
+	struct rw_semaphore	proc_cells_sem;
+	struct list_head	proc_cells;
+
+	/* Volume location database */
+	struct list_head	vl_updates;		/* VL records in need-update order */
+	struct list_head	vl_graveyard;		/* Inactive VL records */
+	struct delayed_work	vl_reaper;
+	struct delayed_work	vl_updater;
+	spinlock_t		vl_updates_lock;
+	spinlock_t		vl_graveyard_lock;
+
+	/* File locking renewal management */
+	struct mutex		lock_manager_mutex;
+
+	/* Server database */
+	struct rb_root		servers;		/* Active servers */
+	rwlock_t		servers_lock;
+	struct list_head	server_graveyard;	/* Inactive server LRU list */
+	spinlock_t		server_graveyard_lock;
+	struct delayed_work	server_reaper;
+
+	/* Misc */
+	struct proc_dir_entry	*proc_afs;		/* /proc/net/afs directory */
+};
+
+extern struct afs_net __afs_net;// Dummy AFS network namespace; TODO: replace with real netns
+
+/*
  * AFS cell record
  */
 struct afs_cell {
 	atomic_t		usage;
 	struct list_head	link;		/* main cell list link */
+	struct afs_net		*net;		/* The network namespace */
 	struct key		*anonymous_key;	/* anonymous user key for this cell */
 	struct list_head	proc_link;	/* /proc cell list link */
 #ifdef CONFIG_AFS_FSCACHE
@@ -411,15 +466,6 @@ struct afs_interface {
 	unsigned	mtu;		/* MTU of interface */
 };
 
-struct afs_uuid {
-	__be32		time_low;			/* low part of timestamp */
-	__be16		time_mid;			/* mid part of timestamp */
-	__be16		time_hi_and_version;		/* high part of timestamp and version  */
-	__u8		clock_seq_hi_and_reserved;	/* clock seq hi and variant */
-	__u8		clock_seq_low;			/* clock seq low */
-	__u8		node[6];			/* spatially unique node ID (MAC addr) */
-};
-
 /*****************************************************************************/
 /*
  * cache.c
@@ -440,6 +486,8 @@ extern struct fscache_cookie_def afs_vnode_cache_index_def;
 /*
  * callback.c
  */
+extern struct workqueue_struct *afs_callback_update_worker;
+
 extern void afs_init_callback_state(struct afs_server *);
 extern void afs_broken_callback_work(struct work_struct *);
 extern void afs_break_callbacks(struct afs_server *, size_t,
@@ -448,22 +496,17 @@ extern void afs_discard_callback_on_delete(struct afs_vnode *);
 extern void afs_give_up_callback(struct afs_vnode *);
 extern void afs_dispatch_give_up_callbacks(struct work_struct *);
 extern void afs_flush_callback_breaks(struct afs_server *);
-extern int __init afs_callback_update_init(void);
-extern void afs_callback_update_kill(void);
 
 /*
  * cell.c
  */
-extern struct rw_semaphore afs_proc_cells_sem;
-extern struct list_head afs_proc_cells;
-
 #define afs_get_cell(C) do { atomic_inc(&(C)->usage); } while(0)
-extern int afs_cell_init(char *);
-extern struct afs_cell *afs_cell_create(const char *, unsigned, char *, bool);
-extern struct afs_cell *afs_cell_lookup(const char *, unsigned, bool);
+extern int afs_cell_init(struct afs_net *, char *);
+extern struct afs_cell *afs_cell_create(struct afs_net *, const char *, unsigned, char *, bool);
+extern struct afs_cell *afs_cell_lookup(struct afs_net *, const char *, unsigned, bool);
 extern struct afs_cell *afs_grab_cell(struct afs_cell *);
 extern void afs_put_cell(struct afs_cell *);
-extern void afs_cell_purge(void);
+extern void __net_exit afs_cell_purge(struct afs_net *);
 
 /*
  * cmservice.c
@@ -492,7 +535,8 @@ extern void afs_put_read(struct afs_read *);
 /*
  * flock.c
  */
-extern void __exit afs_kill_lock_manager(void);
+extern struct workqueue_struct *afs_lock_manager;
+
 extern void afs_lock_work(struct work_struct *);
 extern void afs_lock_may_be_available(struct afs_vnode *);
 extern int afs_lock(struct file *, int, struct file_lock *);
@@ -504,7 +548,7 @@ extern int afs_flock(struct file *, int, struct file_lock *);
 extern int afs_fs_fetch_file_status(struct afs_server *, struct key *,
 				    struct afs_vnode *, struct afs_volsync *,
 				    bool);
-extern int afs_fs_give_up_callbacks(struct afs_server *, bool);
+extern int afs_fs_give_up_callbacks(struct afs_net *, struct afs_server *, bool);
 extern int afs_fs_fetch_data(struct afs_server *, struct key *,
 			     struct afs_vnode *, struct afs_read *, bool);
 extern int afs_fs_create(struct afs_server *, struct key *,
@@ -554,7 +598,35 @@ extern int afs_drop_inode(struct inode *);
  * main.c
  */
 extern struct workqueue_struct *afs_wq;
-extern struct afs_uuid afs_uuid;
+
+static inline struct afs_net *afs_d2net(struct dentry *dentry)
+{
+	return &__afs_net;
+}
+
+static inline struct afs_net *afs_i2net(struct inode *inode)
+{
+	return &__afs_net;
+}
+
+static inline struct afs_net *afs_v2net(struct afs_vnode *vnode)
+{
+	return &__afs_net;
+}
+
+static inline struct afs_net *afs_sock2net(struct sock *sk)
+{
+	return &__afs_net;
+}
+
+static inline struct afs_net *afs_get_net(struct afs_net *net)
+{
+	return net;
+}
+
+static inline void afs_put_net(struct afs_net *net)
+{
+}
 
 /*
  * misc.c
@@ -579,23 +651,24 @@ extern int afs_get_ipv4_interfaces(struct afs_interface *, size_t, bool);
 /*
  * proc.c
  */
-extern int afs_proc_init(void);
-extern void afs_proc_cleanup(void);
-extern int afs_proc_cell_setup(struct afs_cell *);
-extern void afs_proc_cell_remove(struct afs_cell *);
+extern int __net_init afs_proc_init(struct afs_net *);
+extern void __net_exit afs_proc_cleanup(struct afs_net *);
+extern int afs_proc_cell_setup(struct afs_net *, struct afs_cell *);
+extern void afs_proc_cell_remove(struct afs_net *, struct afs_cell *);
 
 /*
  * rxrpc.c
  */
-extern struct socket *afs_socket;
-extern atomic_t afs_outstanding_calls;
+extern struct workqueue_struct *afs_async_calls;
 
-extern int afs_open_socket(void);
-extern void afs_close_socket(void);
+extern int __net_init afs_open_socket(struct afs_net *);
+extern void __net_exit afs_close_socket(struct afs_net *);
+extern void afs_charge_preallocation(struct work_struct *);
 extern void afs_put_call(struct afs_call *);
 extern int afs_queue_call_work(struct afs_call *);
 extern int afs_make_call(struct in_addr *, struct afs_call *, gfp_t, bool);
-extern struct afs_call *afs_alloc_flat_call(const struct afs_call_type *,
+extern struct afs_call *afs_alloc_flat_call(struct afs_net *,
+					    const struct afs_call_type *,
 					    size_t, size_t);
 extern void afs_flat_call_destructor(struct afs_call *);
 extern void afs_send_empty_reply(struct afs_call *);
@@ -629,37 +702,45 @@ do {								\
 
 extern struct afs_server *afs_lookup_server(struct afs_cell *,
 					    const struct in_addr *);
-extern struct afs_server *afs_find_server(const struct sockaddr_rxrpc *);
+extern struct afs_server *afs_find_server(struct afs_net *,
+					  const struct sockaddr_rxrpc *);
 extern void afs_put_server(struct afs_server *);
-extern void __exit afs_purge_servers(void);
+extern void afs_reap_server(struct work_struct *);
+extern void __net_exit afs_purge_servers(struct afs_net *);
 
 /*
  * super.c
  */
-extern int afs_fs_init(void);
-extern void afs_fs_exit(void);
+extern int __init afs_fs_init(void);
+extern void __exit afs_fs_exit(void);
 
 /*
  * vlclient.c
  */
-extern int afs_vl_get_entry_by_name(struct in_addr *, struct key *,
+extern int afs_vl_get_entry_by_name(struct afs_net *,
+				    struct in_addr *, struct key *,
 				    const char *, struct afs_cache_vlocation *,
 				    bool);
-extern int afs_vl_get_entry_by_id(struct in_addr *, struct key *,
+extern int afs_vl_get_entry_by_id(struct afs_net *,
+				  struct in_addr *, struct key *,
 				  afs_volid_t, afs_voltype_t,
 				  struct afs_cache_vlocation *, bool);
 
 /*
  * vlocation.c
  */
+extern struct workqueue_struct *afs_vlocation_update_worker;
+
 #define afs_get_vlocation(V) do { atomic_inc(&(V)->usage); } while(0)
 
-extern int __init afs_vlocation_update_init(void);
-extern struct afs_vlocation *afs_vlocation_lookup(struct afs_cell *,
+extern struct afs_vlocation *afs_vlocation_lookup(struct afs_net *,
+						  struct afs_cell *,
 						  struct key *,
 						  const char *, size_t);
-extern void afs_put_vlocation(struct afs_vlocation *);
-extern void afs_vlocation_purge(void);
+extern void afs_put_vlocation(struct afs_net *, struct afs_vlocation *);
+extern void afs_vlocation_updater(struct work_struct *);
+extern void afs_vlocation_reaper(struct work_struct *);
+extern void __net_exit afs_vlocation_purge(struct afs_net *);
 
 /*
  * vnode.c
@@ -707,7 +788,7 @@ extern int afs_vnode_release_lock(struct afs_vnode *, struct key *);
  */
 #define afs_get_volume(V) do { atomic_inc(&(V)->usage); } while(0)
 
-extern void afs_put_volume(struct afs_volume *);
+extern void afs_put_volume(struct afs_net *, struct afs_volume *);
 extern struct afs_volume *afs_volume_lookup(struct afs_mount_params *);
 extern struct afs_server *afs_volume_pick_fileserver(struct afs_vnode *);
 extern int afs_volume_release_fileserver(struct afs_vnode *,

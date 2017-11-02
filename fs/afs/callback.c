@@ -28,9 +28,7 @@ unsigned afs_vnode_update_timeout = 10;
 	CIRC_SPACE((server)->cb_break_head, (server)->cb_break_tail,	\
 		   ARRAY_SIZE((server)->cb_break))
 
-//static void afs_callback_updater(struct work_struct *);
-
-static struct workqueue_struct *afs_callback_update_worker;
+struct workqueue_struct *afs_callback_update_worker;
 
 /*
  * allow the fileserver to request callback state (re-)initialisation
@@ -343,7 +341,7 @@ void afs_dispatch_give_up_callbacks(struct work_struct *work)
 	 *   had callbacks entirely, and the server will call us later to break
 	 *   them
 	 */
-	afs_fs_give_up_callbacks(server, true);
+	afs_fs_give_up_callbacks(server->cell->net, server, true);
 }
 
 /*
@@ -456,21 +454,3 @@ static void afs_callback_updater(struct work_struct *work)
 	afs_put_vnode(vl);
 }
 #endif
-
-/*
- * initialise the callback update process
- */
-int __init afs_callback_update_init(void)
-{
-	afs_callback_update_worker = alloc_ordered_workqueue("kafs_callbackd",
-							     WQ_MEM_RECLAIM);
-	return afs_callback_update_worker ? 0 : -ENOMEM;
-}
-
-/*
- * shut down the callback update process
- */
-void afs_callback_update_kill(void)
-{
-	destroy_workqueue(afs_callback_update_worker);
-}

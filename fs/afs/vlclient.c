@@ -143,7 +143,8 @@ static const struct afs_call_type afs_RXVLGetEntryById = {
 /*
  * dispatch a get volume entry by name operation
  */
-int afs_vl_get_entry_by_name(struct in_addr *addr,
+int afs_vl_get_entry_by_name(struct afs_net *net,
+			     struct in_addr *addr,
 			     struct key *key,
 			     const char *volname,
 			     struct afs_cache_vlocation *entry,
@@ -159,7 +160,7 @@ int afs_vl_get_entry_by_name(struct in_addr *addr,
 	padsz = (4 - (volnamesz & 3)) & 3;
 	reqsz = 8 + volnamesz + padsz;
 
-	call = afs_alloc_flat_call(&afs_RXVLGetEntryByName, reqsz, 384);
+	call = afs_alloc_flat_call(net, &afs_RXVLGetEntryByName, reqsz, 384);
 	if (!call)
 		return -ENOMEM;
 
@@ -183,7 +184,8 @@ int afs_vl_get_entry_by_name(struct in_addr *addr,
 /*
  * dispatch a get volume entry by ID operation
  */
-int afs_vl_get_entry_by_id(struct in_addr *addr,
+int afs_vl_get_entry_by_id(struct afs_net *net,
+			   struct in_addr *addr,
 			   struct key *key,
 			   afs_volid_t volid,
 			   afs_voltype_t voltype,
@@ -195,7 +197,7 @@ int afs_vl_get_entry_by_id(struct in_addr *addr,
 
 	_enter("");
 
-	call = afs_alloc_flat_call(&afs_RXVLGetEntryById, 12, 384);
+	call = afs_alloc_flat_call(net, &afs_RXVLGetEntryById, 12, 384);
 	if (!call)
 		return -ENOMEM;
 

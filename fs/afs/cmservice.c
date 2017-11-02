@@ -193,7 +193,7 @@ static int afs_deliver_cb_callback(struct afs_call *call)
 
 	switch (call->unmarshall) {
 	case 0:
-		rxrpc_kernel_get_peer(afs_socket, call->rxcall, &srx);
+		rxrpc_kernel_get_peer(call->net->socket, call->rxcall, &srx);
 		call->offset = 0;
 		call->unmarshall++;
 
@@ -290,7 +290,7 @@ static int afs_deliver_cb_callback(struct afs_call *call)
 
 	/* we'll need the file server record as that tells us which set of
 	 * vnodes to operate upon */
-	server = afs_find_server(&srx);
+	server = afs_find_server(call->net, &srx);
 	if (!server)
 		return -ENOTCONN;
 	call->server = server;
@@ -324,7 +324,7 @@ static int afs_deliver_cb_init_call_back_state(struct afs_call *call)
 
 	_enter("");
 
-	rxrpc_kernel_get_peer(afs_socket, call->rxcall, &srx);
+	rxrpc_kernel_get_peer(call->net->socket, call->rxcall, &srx);
 
 	ret = afs_extract_data(call, NULL, 0, false);
 	if (ret < 0)
@@ -335,7 +335,7 @@ static int afs_deliver_cb_init_call_back_state(struct afs_call *call)
 
 	/* we'll need the file server record as that tells us which set of
 	 * vnodes to operate upon */
-	server = afs_find_server(&srx);
+	server = afs_find_server(call->net, &srx);
 	if (!server)
 		return -ENOTCONN;
 	call->server = server;
@@ -357,7 +357,7 @@ static int afs_deliver_cb_init_call_back_state3(struct afs_call *call)
 
 	_enter("");
 
-	rxrpc_kernel_get_peer(afs_socket, call->rxcall, &srx);
+	rxrpc_kernel_get_peer(call->net->socket, call->rxcall, &srx);
 
 	_enter("{%u}", call->unmarshall);
 
@@ -407,7 +407,7 @@ static int afs_deliver_cb_init_call_back_state3(struct afs_call *call)
 
 	/* we'll need the file server record as that tells us which set of
 	 * vnodes to operate upon */
-	server = afs_find_server(&srx);
+	server = afs_find_server(call->net, &srx);
 	if (!server)
 		return -ENOTCONN;
 	call->server = server;
@@ -461,7 +461,7 @@ static void SRXAFSCB_ProbeUuid(struct work_struct *work)
 
 	_enter("");
 
-	if (memcmp(r, &afs_uuid, sizeof(afs_uuid)) == 0)
+	if (memcmp(r, &call->net->uuid, sizeof(call->net->uuid)) == 0)
 		reply.match = htonl(0);
 	else
 		reply.match = htonl(1);
@@ -568,13 +568,13 @@ static void SRXAFSCB_TellMeAboutYourself(struct work_struct *work)
 	memset(&reply, 0, sizeof(reply));
 	reply.ia.nifs = htonl(nifs);
 
-	reply.ia.uuid[0] = afs_uuid.time_low;
-	reply.ia.uuid[1] = htonl(ntohs(afs_uuid.time_mid));
-	reply.ia.uuid[2] = htonl(ntohs(afs_uuid.time_hi_and_version));
-	reply.ia.uuid[3] = htonl((s8) afs_uuid.clock_seq_hi_and_reserved);
-	reply.ia.uuid[4] = htonl((s8) afs_uuid.clock_seq_low);
+	reply.ia.uuid[0] = call->net->uuid.time_low;
+	reply.ia.uuid[1] = htonl(ntohs(call->net->uuid.time_mid));
+	reply.ia.uuid[2] = htonl(ntohs(call->net->uuid.time_hi_and_version));
+	reply.ia.uuid[3] = htonl((s8) call->net->uuid.clock_seq_hi_and_reserved);
+	reply.ia.uuid[4] = htonl((s8) call->net->uuid.clock_seq_low);
 	for (loop = 0; loop < 6; loop++)
-		reply.ia.uuid[loop + 5] = htonl((s8) afs_uuid.node[loop]);
+		reply.ia.uuid[loop + 5] = htonl((s8) call->net->uuid.node[loop]);
 
 	if (ifs) {
 		for (loop = 0; loop < nifs; loop++) {
