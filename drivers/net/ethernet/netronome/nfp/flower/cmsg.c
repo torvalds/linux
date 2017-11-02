@@ -50,14 +50,14 @@ nfp_flower_cmsg_get_hdr(struct sk_buff *skb)
 
 struct sk_buff *
 nfp_flower_cmsg_alloc(struct nfp_app *app, unsigned int size,
-		      enum nfp_flower_cmsg_type_port type)
+		      enum nfp_flower_cmsg_type_port type, gfp_t flag)
 {
 	struct nfp_flower_cmsg_hdr *ch;
 	struct sk_buff *skb;
 
 	size += NFP_FLOWER_CMSG_HLEN;
 
-	skb = nfp_app_ctrl_msg_alloc(app, size, GFP_KERNEL);
+	skb = nfp_app_ctrl_msg_alloc(app, size, flag);
 	if (!skb)
 		return NULL;
 
@@ -78,7 +78,8 @@ nfp_flower_cmsg_mac_repr_start(struct nfp_app *app, unsigned int num_ports)
 	unsigned int size;
 
 	size = sizeof(*msg) + num_ports * sizeof(msg->ports[0]);
-	skb = nfp_flower_cmsg_alloc(app, size, NFP_FLOWER_CMSG_TYPE_MAC_REPR);
+	skb = nfp_flower_cmsg_alloc(app, size, NFP_FLOWER_CMSG_TYPE_MAC_REPR,
+				    GFP_KERNEL);
 	if (!skb)
 		return NULL;
 
@@ -109,7 +110,7 @@ int nfp_flower_cmsg_portmod(struct nfp_repr *repr, bool carrier_ok)
 	struct sk_buff *skb;
 
 	skb = nfp_flower_cmsg_alloc(repr->app, sizeof(*msg),
-				    NFP_FLOWER_CMSG_TYPE_PORT_MOD);
+				    NFP_FLOWER_CMSG_TYPE_PORT_MOD, GFP_KERNEL);
 	if (!skb)
 		return -ENOMEM;
 

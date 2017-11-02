@@ -130,6 +130,9 @@ static int nfp_bpf_setup_tc_block_cb(enum tc_setup_type type,
 		    cls_bpf->common.protocol != htons(ETH_P_ALL) ||
 		    cls_bpf->common.chain_index)
 			return -EOPNOTSUPP;
+		if (nn->dp.bpf_offload_xdp)
+			return -EBUSY;
+
 		return nfp_net_bpf_offload(nn, cls_bpf);
 	default:
 		return -EOPNOTSUPP;
