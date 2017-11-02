@@ -219,10 +219,6 @@ int machine_kexec_prepare(struct kimage *image)
 {
 	void *reboot_code_buffer;
 
-	/* Can't replace kernel image since it is read-only. */
-	if (ipl_flags & IPL_NSS_VALID)
-		return -EOPNOTSUPP;
-
 	if (image->type == KEXEC_TYPE_CRASH)
 		return machine_kexec_prepare_kdump();
 

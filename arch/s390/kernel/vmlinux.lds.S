@@ -59,12 +59,7 @@ SECTIONS
 
 	RO_DATA_SECTION(PAGE_SIZE)
 
-#ifdef CONFIG_SHARED_KERNEL
-	. = ALIGN(0x100000);	/* VM shared segments are 1MB aligned */
-#endif
-
 	. = ALIGN(PAGE_SIZE);
-	_eshared = .;		/* End of shareable data */
 	_sdata = .;		/* Start of data section */
 
 	. = ALIGN(PAGE_SIZE);
