@@ -1124,17 +1124,14 @@ ENTRY(paranoid_exit)
 	DISABLE_INTERRUPTS(CLBR_ANY)
 	TRACE_IRQS_OFF_DEBUG
 	testl	%ebx, %ebx			/* swapgs needed? */
-	jnz	paranoid_exit_no_swapgs
+	jnz	.Lparanoid_exit_no_swapgs
 	TRACE_IRQS_IRETQ
 	SWAPGS_UNSAFE_STACK
-	jmp	paranoid_exit_restore
-paranoid_exit_no_swapgs:
+	jmp	.Lparanoid_exit_restore
+.Lparanoid_exit_no_swapgs:
 	TRACE_IRQS_IRETQ_DEBUG
-paranoid_exit_restore:
-	RESTORE_EXTRA_REGS
-	RESTORE_C_REGS
-	REMOVE_PT_GPREGS_FROM_STACK 8
-	INTERRUPT_RETURN
+.Lparanoid_exit_restore:
+	jmp restore_regs_and_return_to_kernel
 END(paranoid_exit)
 
 /*
