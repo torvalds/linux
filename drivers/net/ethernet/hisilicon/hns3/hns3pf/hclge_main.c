@@ -35,6 +35,7 @@ static int hclge_set_mta_filter_mode(struct hclge_dev *hdev,
 				     enum hclge_mta_dmac_sel_type mta_mac_sel,
 				     bool enable);
 static int hclge_init_vlan_config(struct hclge_dev *hdev);
+static int hclge_reset_ae_dev(struct hnae3_ae_dev *ae_dev);
 
 static struct hnae3_ae_algo ae_algo;
 
@@ -2446,8 +2447,212 @@ static int hclge_misc_irq_init(struct hclge_dev *hdev)
 	return ret;
 }
 
+static int hclge_notify_client(struct hclge_dev *hdev,
+			       enum hnae3_reset_notify_type type)
+{
+	struct hnae3_client *client = hdev->nic_client;
+	u16 i;
+
+	if (!client->ops->reset_notify)
+		return -EOPNOTSUPP;
+
+	for (i = 0; i < hdev->num_vmdq_vport + 1; i++) {
+		struct hnae3_handle *handle = &hdev->vport[i].nic;
+		int ret;
+
+		ret = client->ops->reset_notify(handle, type);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+static int hclge_reset_wait(struct hclge_dev *hdev)
+{
+#define HCLGE_RESET_WATI_MS	100
+#define HCLGE_RESET_WAIT_CNT	5
+	u32 val, reg, reg_bit;
+	u32 cnt = 0;
+
+	switch (hdev->reset_type) {
+	case HNAE3_GLOBAL_RESET:
+		reg = HCLGE_GLOBAL_RESET_REG;
+		reg_bit = HCLGE_GLOBAL_RESET_BIT;
+		break;
+	case HNAE3_CORE_RESET:
+		reg = HCLGE_GLOBAL_RESET_REG;
+		reg_bit = HCLGE_CORE_RESET_BIT;
+		break;
+	case HNAE3_FUNC_RESET:
+		reg = HCLGE_FUN_RST_ING;
+		reg_bit = HCLGE_FUN_RST_ING_B;
+		break;
+	default:
+		dev_err(&hdev->pdev->dev,
+			"Wait for unsupported reset type: %d\n",
+			hdev->reset_type);
+		return -EINVAL;
+	}
+
+	val = hclge_read_dev(&hdev->hw, reg);
+	while (hnae_get_bit(val, reg_bit) && cnt < HCLGE_RESET_WAIT_CNT) {
+		msleep(HCLGE_RESET_WATI_MS);
+		val = hclge_read_dev(&hdev->hw, reg);
+		cnt++;
+	}
+
+	/* must clear reset status register to
+	 * prevent driver detect reset interrupt again
+	 */
+	reg = hclge_read_dev(&hdev->hw, HCLGE_MISC_RESET_STS_REG);
+	hclge_write_dev(&hdev->hw, HCLGE_MISC_RESET_STS_REG, reg);
+
+	if (cnt >= HCLGE_RESET_WAIT_CNT) {
+		dev_warn(&hdev->pdev->dev,
+			 "Wait for reset timeout: %d\n", hdev->reset_type);
+		return -EBUSY;
+	}
+
+	return 0;
+}
+
+static int hclge_func_reset_cmd(struct hclge_dev *hdev, int func_id)
+{
+	struct hclge_desc desc;
+	struct hclge_reset_cmd *req = (struct hclge_reset_cmd *)desc.data;
+	int ret;
+
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_CFG_RST_TRIGGER, false);
+	hnae_set_bit(req->mac_func_reset, HCLGE_CFG_RESET_MAC_B, 0);
+	hnae_set_bit(req->mac_func_reset, HCLGE_CFG_RESET_FUNC_B, 1);
+	req->fun_reset_vfid = func_id;
+
+	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+	if (ret)
+		dev_err(&hdev->pdev->dev,
+			"send function reset cmd fail, status =%d\n", ret);
+
+	return ret;
+}
+
+static void hclge_do_reset(struct hclge_dev *hdev, enum hnae3_reset_type type)
+{
+	struct pci_dev *pdev = hdev->pdev;
+	u32 val;
+
+	switch (type) {
+	case HNAE3_GLOBAL_RESET:
+		val = hclge_read_dev(&hdev->hw, HCLGE_GLOBAL_RESET_REG);
+		hnae_set_bit(val, HCLGE_GLOBAL_RESET_BIT, 1);
+		hclge_write_dev(&hdev->hw, HCLGE_GLOBAL_RESET_REG, val);
+		dev_info(&pdev->dev, "Global Reset requested\n");
+		break;
+	case HNAE3_CORE_RESET:
+		val = hclge_read_dev(&hdev->hw, HCLGE_GLOBAL_RESET_REG);
+		hnae_set_bit(val, HCLGE_CORE_RESET_BIT, 1);
+		hclge_write_dev(&hdev->hw, HCLGE_GLOBAL_RESET_REG, val);
+		dev_info(&pdev->dev, "Core Reset requested\n");
+		break;
+	case HNAE3_FUNC_RESET:
+		dev_info(&pdev->dev, "PF Reset requested\n");
+		hclge_func_reset_cmd(hdev, 0);
+		break;
+	default:
+		dev_warn(&pdev->dev,
+			 "Unsupported reset type: %d\n", type);
+		break;
+	}
+}
+
+static enum hnae3_reset_type hclge_detected_reset_event(struct hclge_dev *hdev)
+{
+	enum hnae3_reset_type rst_level = HNAE3_NONE_RESET;
+	u32 rst_reg_val;
+
+	rst_reg_val = hclge_read_dev(&hdev->hw, HCLGE_MISC_RESET_STS_REG);
+	if (BIT(HCLGE_VECTOR0_GLOBALRESET_INT_B) & rst_reg_val)
+		rst_level = HNAE3_GLOBAL_RESET;
+	else if (BIT(HCLGE_VECTOR0_CORERESET_INT_B) & rst_reg_val)
+		rst_level = HNAE3_CORE_RESET;
+	else if (BIT(HCLGE_VECTOR0_IMPRESET_INT_B) & rst_reg_val)
+		rst_level = HNAE3_IMP_RESET;
+
+	return rst_level;
+}
+
+static void hclge_reset_event(struct hnae3_handle *handle,
+			      enum hnae3_reset_type reset)
+{
+	struct hclge_vport *vport = hclge_get_vport(handle);
+	struct hclge_dev *hdev = vport->back;
+
+	dev_info(&hdev->pdev->dev,
+		 "Receive reset event , reset_type is %d", reset);
+
+	switch (reset) {
+	case HNAE3_FUNC_RESET:
+	case HNAE3_CORE_RESET:
+	case HNAE3_GLOBAL_RESET:
+		if (test_bit(HCLGE_STATE_RESET_INT, &hdev->state)) {
+			dev_err(&hdev->pdev->dev, "Already in reset state");
+			return;
+		}
+		hdev->reset_type = reset;
+		set_bit(HCLGE_STATE_RESET_INT, &hdev->state);
+		set_bit(HCLGE_STATE_SERVICE_SCHED, &hdev->state);
+		schedule_work(&hdev->service_task);
+		break;
+	default:
+		dev_warn(&hdev->pdev->dev, "Unsupported reset event:%d", reset);
+		break;
+	}
+}
+
+static void hclge_reset_subtask(struct hclge_dev *hdev)
+{
+	bool do_reset;
+
+	do_reset = hdev->reset_type != HNAE3_NONE_RESET;
+
+	/* Reset is detected by interrupt */
+	if (hdev->reset_type == HNAE3_NONE_RESET)
+		hdev->reset_type = hclge_detected_reset_event(hdev);
+
+	if (hdev->reset_type == HNAE3_NONE_RESET)
+		return;
+
+	switch (hdev->reset_type) {
+	case HNAE3_FUNC_RESET:
+	case HNAE3_CORE_RESET:
+	case HNAE3_GLOBAL_RESET:
+	case HNAE3_IMP_RESET:
+		hclge_notify_client(hdev, HNAE3_DOWN_CLIENT);
+
+		if (do_reset)
+			hclge_do_reset(hdev, hdev->reset_type);
+		else
+			set_bit(HCLGE_STATE_RESET_INT, &hdev->state);
+
+		if (!hclge_reset_wait(hdev)) {
+			hclge_notify_client(hdev, HNAE3_UNINIT_CLIENT);
+			hclge_reset_ae_dev(hdev->ae_dev);
+			hclge_notify_client(hdev, HNAE3_INIT_CLIENT);
+			clear_bit(HCLGE_STATE_RESET_INT, &hdev->state);
+		}
+		hclge_notify_client(hdev, HNAE3_UP_CLIENT);
+		break;
+	default:
+		dev_err(&hdev->pdev->dev, "Unsupported reset type:%d\n",
+			hdev->reset_type);
+		break;
+	}
+	hdev->reset_type = HNAE3_NONE_RESET;
+}
+
 static void hclge_misc_irq_service_task(struct hclge_dev *hdev)
 {
+	hclge_reset_subtask(hdev);
 	hclge_enable_vector(&hdev->misc_vector, true);
 }
 
@@ -4498,6 +4703,7 @@ static int hclge_init_ae_dev(struct hnae3_ae_dev *ae_dev)
 	hdev->flag |= HCLGE_FLAG_USE_MSIX;
 	hdev->pdev = pdev;
 	hdev->ae_dev = ae_dev;
+	hdev->reset_type = HNAE3_NONE_RESET;
 	ae_dev->priv = hdev;
 
 	ret = hclge_pci_init(hdev);
@@ -4630,6 +4836,84 @@ err_hclge_dev:
 	return ret;
 }
 
+static int hclge_reset_ae_dev(struct hnae3_ae_dev *ae_dev)
+{
+	struct hclge_dev *hdev = ae_dev->priv;
+	struct pci_dev *pdev = ae_dev->pdev;
+	int ret;
+
+	set_bit(HCLGE_STATE_DOWN, &hdev->state);
+
+	ret = hclge_cmd_init(hdev);
+	if (ret) {
+		dev_err(&pdev->dev, "Cmd queue init failed\n");
+		return ret;
+	}
+
+	ret = hclge_get_cap(hdev);
+	if (ret) {
+		dev_err(&pdev->dev, "get hw capability error, ret = %d.\n",
+			ret);
+		return ret;
+	}
+
+	ret = hclge_configure(hdev);
+	if (ret) {
+		dev_err(&pdev->dev, "Configure dev error, ret = %d.\n", ret);
+		return ret;
+	}
+
+	ret = hclge_map_tqp(hdev);
+	if (ret) {
+		dev_err(&pdev->dev, "Map tqp error, ret = %d.\n", ret);
+		return ret;
+	}
+
+	ret = hclge_mac_init(hdev);
+	if (ret) {
+		dev_err(&pdev->dev, "Mac init error, ret = %d\n", ret);
+		return ret;
+	}
+
+	ret = hclge_buffer_alloc(hdev);
+	if (ret) {
+		dev_err(&pdev->dev, "Buffer allocate fail, ret =%d\n", ret);
+		return ret;
+	}
+
+	ret = hclge_config_tso(hdev, HCLGE_TSO_MSS_MIN, HCLGE_TSO_MSS_MAX);
+	if (ret) {
+		dev_err(&pdev->dev, "Enable tso fail, ret =%d\n", ret);
+		return ret;
+	}
+
+	ret = hclge_init_vlan_config(hdev);
+	if (ret) {
+		dev_err(&pdev->dev, "VLAN init fail, ret =%d\n", ret);
+		return ret;
+	}
+
+	ret = hclge_tm_schd_init(hdev);
+	if (ret) {
+		dev_err(&pdev->dev, "tm schd init fail, ret =%d\n", ret);
+		return ret;
+	}
+
+	ret = hclge_rss_init_hw(hdev);
+	if (ret) {
+		dev_err(&pdev->dev, "Rss init fail, ret =%d\n", ret);
+		return ret;
+	}
+
+	/* Enable MISC vector(vector0) */
+	hclge_enable_vector(&hdev->misc_vector, true);
+
+	dev_info(&pdev->dev, "Reset done, %s driver initialization finished.\n",
+		 HCLGE_DRIVER_NAME);
+
+	return 0;
+}
+
 static void hclge_uninit_ae_dev(struct hnae3_ae_dev *ae_dev)
 {
 	struct hclge_dev *hdev = ae_dev->priv;
@@ -4699,6 +4983,7 @@ static const struct hnae3_ae_ops hclge_ops = {
 	.get_mdix_mode = hclge_get_mdix_mode,
 	.set_vlan_filter = hclge_set_port_vlan_filter,
 	.set_vf_vlan_filter = hclge_set_vf_vlan_filter,
+	.reset_event = hclge_reset_event,
 };
 
 static struct hnae3_ae_algo ae_algo = {
