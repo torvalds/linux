@@ -283,7 +283,7 @@ megasas_fusion_update_can_queue(struct megasas_instance *instance, int fw_boot_c
 			(instance->instancet->read_fw_status_reg(reg_set) & 0x00FFFF) - MEGASAS_FUSION_IOCTL_CMDS;
 
 	dev_info(&instance->pdev->dev,
-		 "Current firmware supports maximum commands: %d\t LDIO thershold: %d\n",
+		 "Current firmware supports maximum commands: %d\t LDIO threshold: %d\n",
 		 cur_max_fw_cmds, ldio_threshold);
 
 	if (fw_boot_context == OCR_CONTEXT) {
