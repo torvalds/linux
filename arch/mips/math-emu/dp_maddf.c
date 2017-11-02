@@ -16,7 +16,7 @@
 
 
 /* 128 bits shift right logical with rounding. */
-void srl128(u64 *hptr, u64 *lptr, int count)
+static void srl128(u64 *hptr, u64 *lptr, int count)
 {
 	u64 low;
 
