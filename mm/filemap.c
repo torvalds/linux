@@ -2926,9 +2926,15 @@ generic_file_direct_write(struct kiocb *iocb, struct iov_iter *from)
 	 * we're writing.  Either one is a pretty crazy thing to do,
 	 * so we don't support it 100%.  If this invalidation
 	 * fails, tough, the write still worked...
+	 *
+	 * Most of the time we do not need this since dio_complete() will do
+	 * the invalidation for us. However there are some file systems that
+	 * do not end up with dio_complete() being called, so let's not break
+	 * them by removing it completely
 	 */
-	invalidate_inode_pages2_range(mapping,
-				pos >> PAGE_SHIFT, end);
+	if (mapping->nrpages)
+		invalidate_inode_pages2_range(mapping,
+					pos >> PAGE_SHIFT, end);
 
 	if (written > 0) {
 		pos += written;

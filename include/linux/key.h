@@ -187,6 +187,7 @@ struct key {
 #define KEY_FLAG_BUILTIN	8	/* set if key is built in to the kernel */
 #define KEY_FLAG_ROOT_CAN_INVAL	9	/* set if key can be invalidated by root without permission */
 #define KEY_FLAG_KEEP		10	/* set if key should not be removed */
+#define KEY_FLAG_UID_KEYRING	11	/* set if key is a user or user session keyring */
 
 	/* the key type and key description string
 	 * - the desc is used to match a key against search criteria
@@ -243,6 +244,7 @@ extern struct key *key_alloc(struct key_type *type,
 #define KEY_ALLOC_NOT_IN_QUOTA		0x0002	/* not in quota */
 #define KEY_ALLOC_BUILT_IN		0x0004	/* Key is built into kernel */
 #define KEY_ALLOC_BYPASS_RESTRICTION	0x0008	/* Override the check on restricted keyrings */
+#define KEY_ALLOC_UID_KEYRING		0x0010	/* allocating a user or user session keyring */
 
 extern void key_revoke(struct key *key);
 extern void key_invalidate(struct key *key);

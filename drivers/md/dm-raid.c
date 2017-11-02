@@ -3238,7 +3238,7 @@ static int raid_map(struct dm_target *ti, struct bio *bio)
 	if (unlikely(bio_end_sector(bio) > mddev->array_sectors))
 		return DM_MAPIO_REQUEUE;
 
-	mddev->pers->make_request(mddev, bio);
+	md_handle_request(mddev, bio);
 
 	return DM_MAPIO_SUBMITTED;
 }

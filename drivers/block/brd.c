@@ -342,7 +342,7 @@ static long __brd_direct_access(struct brd_device *brd, pgoff_t pgoff,
 
 	if (!brd)
 		return -ENODEV;
-	page = brd_insert_page(brd, PFN_PHYS(pgoff) / 512);
+	page = brd_insert_page(brd, (sector_t)pgoff << PAGE_SECTORS_SHIFT);
 	if (!page)
 		return -ENOSPC;
 	*kaddr = page_address(page);

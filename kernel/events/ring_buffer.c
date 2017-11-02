@@ -412,6 +412,19 @@ err:
 	return NULL;
 }
 
+static bool __always_inline rb_need_aux_wakeup(struct ring_buffer *rb)
+{
+	if (rb->aux_overwrite)
+		return false;
+
+	if (rb->aux_head - rb->aux_wakeup >= rb->aux_watermark) {
+		rb->aux_wakeup = rounddown(rb->aux_head, rb->aux_watermark);
+		return true;
+	}
+
+	return false;
+}
+
 /*
  * Commit the data written by hardware into the ring buffer by adjusting
  * aux_head and posting a PERF_RECORD_AUX into the perf buffer. It is the
@@ -451,10 +464,8 @@ void perf_aux_output_end(struct perf_output_handle *handle, unsigned long size)
 	}
 
 	rb->user_page->aux_head = rb->aux_head;
-	if (rb->aux_head - rb->aux_wakeup >= rb->aux_watermark) {
+	if (rb_need_aux_wakeup(rb))
 		wakeup = true;
-		rb->aux_wakeup = rounddown(rb->aux_head, rb->aux_watermark);
-	}
 
 	if (wakeup) {
 		if (handle->aux_flags & PERF_AUX_FLAG_TRUNCATED)
@@ -484,9 +495,8 @@ int perf_aux_output_skip(struct perf_output_handle *handle, unsigned long size)
 	rb->aux_head += size;
 
 	rb->user_page->aux_head = rb->aux_head;
-	if (rb->aux_head - rb->aux_wakeup >= rb->aux_watermark) {
+	if (rb_need_aux_wakeup(rb)) {
 		perf_output_wakeup(handle);
-		rb->aux_wakeup = rounddown(rb->aux_head, rb->aux_watermark);
 		handle->wakeup = rb->aux_wakeup + rb->aux_watermark;
 	}
 
