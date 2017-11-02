@@ -64,6 +64,7 @@ nvkm_memory_tags_get(struct nvkm_memory *memory, struct nvkm_device *device,
 		}
 
 		refcount_inc(&tags->refcount);
+		mutex_unlock(&fb->subdev.mutex);
 		*ptags = tags;
 		return 0;
 	}
