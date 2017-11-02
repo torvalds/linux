@@ -1540,7 +1540,6 @@ static int mtk_nfc_resume(struct device *dev)
 	struct mtk_nfc *nfc = dev_get_drvdata(dev);
 	struct mtk_nfc_nand_chip *chip;
 	struct nand_chip *nand;
-	struct mtd_info *mtd;
 	int ret;
 	u32 i;
 
@@ -1553,11 +1552,8 @@ static int mtk_nfc_resume(struct device *dev)
 	/* reset NAND chip if VCC was powered off */
 	list_for_each_entry(chip, &nfc->chips, node) {
 		nand = &chip->nand;
-		mtd = nand_to_mtd(nand);
-		for (i = 0; i < chip->nsels; i++) {
-			nand->select_chip(mtd, i);
-			nand->cmdfunc(mtd, NAND_CMD_RESET, -1, -1);
-		}
+		for (i = 0; i < chip->nsels; i++)
+			nand_reset(nand, i);
 	}
 
 	return 0;
