@@ -431,7 +431,9 @@ typedef struct {
 struct thread_struct {
 	/* Cached TLS descriptors: */
 	struct desc_struct	tls_array[GDT_ENTRY_TLS_ENTRIES];
+#ifdef CONFIG_X86_32
 	unsigned long		sp0;
+#endif
 	unsigned long		sp;
 #ifdef CONFIG_X86_32
 	unsigned long		sysenter_cs;
@@ -798,6 +800,13 @@ static inline void spin_lock_prefetch(const void *x)
 
 #define task_top_of_stack(task) ((unsigned long)(task_pt_regs(task) + 1))
 
+#define task_pt_regs(task) \
+({									\
+	unsigned long __ptr = (unsigned long)task_stack_page(task);	\
+	__ptr += THREAD_SIZE - TOP_OF_KERNEL_STACK_PADDING;		\
+	((struct pt_regs *)__ptr) - 1;					\
+})
+
 #ifdef CONFIG_X86_32
 /*
  * User space process size: 3GB (default).
@@ -816,23 +825,6 @@ static inline void spin_lock_prefetch(const void *x)
 	.io_bitmap_ptr		= NULL,					  \
 	.addr_limit		= KERNEL_DS,				  \
 }
-
-/*
- * TOP_OF_KERNEL_STACK_PADDING reserves 8 bytes on top of the ring0 stack.
- * This is necessary to guarantee that the entire "struct pt_regs"
- * is accessible even if the CPU haven't stored the SS/ESP registers
- * on the stack (interrupt gate does not save these registers
- * when switching to the same priv ring).
- * Therefore beware: accessing the ss/esp fields of the
- * "struct pt_regs" is possible, but they may contain the
- * completely wrong values.
- */
-#define task_pt_regs(task) \
-({									\
-	unsigned long __ptr = (unsigned long)task_stack_page(task);	\
-	__ptr += THREAD_SIZE - TOP_OF_KERNEL_STACK_PADDING;		\
-	((struct pt_regs *)__ptr) - 1;					\
-})
 
 #define KSTK_ESP(task)		(task_pt_regs(task)->sp)
 
@@ -867,11 +859,9 @@ static inline void spin_lock_prefetch(const void *x)
 #define STACK_TOP_MAX		TASK_SIZE_MAX
 
 #define INIT_THREAD  {						\
-	.sp0			= TOP_OF_INIT_STACK,		\
 	.addr_limit		= KERNEL_DS,			\
 }
 
-#define task_pt_regs(tsk)	((struct pt_regs *)(tsk)->thread.sp0 - 1)
 extern unsigned long KSTK_ESP(struct task_struct *task);
 
 #endif /* CONFIG_X86_64 */
