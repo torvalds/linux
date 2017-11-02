@@ -188,7 +188,7 @@ static void dpp1_cm_set_regamma_pwl(
 	struct dpp *dpp_base, const struct pwl_params *params, enum opp_regamma mode)
 {
 	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
-	uint32_t re_mode;
+	uint32_t re_mode = 0;
 
 	switch (mode) {
 	case OPP_REGAMMA_BYPASS:
