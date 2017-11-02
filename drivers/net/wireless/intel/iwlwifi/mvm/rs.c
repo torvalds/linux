@@ -1715,12 +1715,18 @@ static void rs_set_amsdu_len(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 {
 	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
 
+	/*
+	 * In case TLC offload is not active amsdu_enabled is either 0xFFFF
+	 * or 0, since there is no per-TID alg.
+	 */
 	if ((!is_vht(&tbl->rate) && !is_ht(&tbl->rate)) ||
 	    tbl->rate.index < IWL_RATE_MCS_5_INDEX ||
 	    scale_action == RS_ACTION_DOWNSCALE)
-		mvmsta->tlc_amsdu = false;
+		mvmsta->amsdu_enabled = 0;
 	else
-		mvmsta->tlc_amsdu = true;
+		mvmsta->amsdu_enabled = 0xFFFF;
+
+	mvmsta->max_amsdu_len = sta->max_amsdu_len;
 }
 
 /*
@@ -3134,7 +3140,8 @@ static void rs_drv_rate_init(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 	sband = hw->wiphy->bands[band];
 
 	lq_sta->lq.sta_id = mvmsta->sta_id;
-	mvmsta->tlc_amsdu = false;
+	mvmsta->amsdu_enabled = 0;
+	mvmsta->max_amsdu_len = sta->max_amsdu_len;
 
 	for (j = 0; j < LQ_SIZE; j++)
 		rs_rate_scale_clear_tbl_windows(mvm, &lq_sta->lq_info[j]);
@@ -3744,7 +3751,7 @@ static ssize_t rs_sta_dbgfs_scale_table_read(struct file *file,
 				(rate->sgi) ? "SGI" : "NGI",
 				(rate->ldpc) ? "LDPC" : "BCC",
 				(lq_sta->is_agg) ? "AGG on" : "",
-				(mvmsta->tlc_amsdu) ? "AMSDU on" : "");
+				(mvmsta->amsdu_enabled) ? "AMSDU on" : "");
 	}
 	desc += scnprintf(buff + desc, bufsz - desc, "last tx rate=0x%X\n",
 			lq_sta->last_rate_n_flags);

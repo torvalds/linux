@@ -228,8 +228,47 @@ static void rs_fw_tlc_mng_notif_req_config(struct iwl_mvm *mvm, u8 sta_id)
 		IWL_ERR(mvm, "Failed to send TLC notif request (%d)\n", ret);
 }
 
-void iwl_mvm_tlc_update_notif(struct iwl_mvm *mvm, struct iwl_rx_packet *pkt)
+void iwl_mvm_tlc_amsdu_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 {
+	struct iwl_rx_packet *pkt = rxb_addr(rxb);
+	struct iwl_tlc_amsdu_notif *notif;
+	struct ieee80211_sta *sta;
+	struct iwl_mvm_sta *mvmsta;
+	u16 size;
+
+	notif = (void *)pkt->data;
+
+	if (WARN_ON(notif->sta_id >= ARRAY_SIZE(mvm->fw_id_to_mac_id)))
+		return;
+
+	rcu_read_lock();
+
+	sta = rcu_dereference(mvm->fw_id_to_mac_id[notif->sta_id]);
+	if (IS_ERR_OR_NULL(sta)) {
+		rcu_read_unlock();
+		IWL_ERR(mvm, "Invalid sta id (%d) in FW TLC notification\n",
+			notif->sta_id);
+		return;
+	}
+
+	mvmsta = iwl_mvm_sta_from_mac80211(sta);
+
+	size = min(le16_to_cpu(notif->amsdu_size), sta->max_amsdu_len);
+	mvmsta->amsdu_enabled = le16_to_cpu(notif->amsdu_enabled);
+	mvmsta->max_amsdu_len = size;
+
+	IWL_DEBUG_RATE(mvm,
+		       "AMSDU notification. AMSDU size: %d, AMSDU selected size: %d, AMSDU TID bitmap 0x%X\n",
+		       le16_to_cpu(notif->amsdu_size), size,
+		       mvmsta->amsdu_enabled);
+
+	rcu_read_unlock();
+};
+
+void iwl_mvm_tlc_update_notif(struct iwl_mvm *mvm,
+			      struct iwl_rx_cmd_buffer *rxb)
+{
+	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_tlc_update_notif *notif;
 	struct iwl_mvm_sta *mvmsta;
 	struct iwl_lq_sta_rs_fw *lq_sta;
@@ -273,6 +312,7 @@ void rs_fw_rate_init(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 		.max_supp_ss = sta->rx_nss,
 		.max_ampdu_cnt = cpu_to_le32(mvmsta->max_agg_bufsize),
 		.sgi_ch_width_supp = rs_fw_sgi_cw_support(sta),
+		.amsdu = iwl_mvm_is_csum_supported(mvm),
 	};
 	int ret;
 

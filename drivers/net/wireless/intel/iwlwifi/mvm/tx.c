@@ -774,9 +774,9 @@ static int iwl_mvm_tx_tso(struct iwl_mvm *mvm, struct sk_buff *skb,
 
 	dbg_max_amsdu_len = READ_ONCE(mvm->max_amsdu_len);
 
-	if (!sta->max_amsdu_len ||
+	if (!mvmsta->max_amsdu_len ||
 	    !ieee80211_is_data_qos(hdr->frame_control) ||
-	    (!mvmsta->tlc_amsdu && !dbg_max_amsdu_len))
+	    (!mvmsta->amsdu_enabled && !dbg_max_amsdu_len))
 		return iwl_mvm_tx_tso_segment(skb, 1, netdev_flags, mpdus_skb);
 
 	/*
@@ -803,7 +803,12 @@ static int iwl_mvm_tx_tso(struct iwl_mvm *mvm, struct sk_buff *skb,
 	    !mvmsta->tid_data[tid].amsdu_in_ampdu_allowed)
 		return iwl_mvm_tx_tso_segment(skb, 1, netdev_flags, mpdus_skb);
 
-	max_amsdu_len = sta->max_amsdu_len;
+	if (iwl_mvm_vif_low_latency(iwl_mvm_vif_from_mac80211(mvmsta->vif)) ||
+	    tid_to_mac80211_ac[tid] < IEEE80211_AC_BE ||
+	    !(mvmsta->amsdu_enabled & BIT(tid)))
+		return iwl_mvm_tx_tso_segment(skb, 1, netdev_flags, mpdus_skb);
+
+	max_amsdu_len = mvmsta->max_amsdu_len;
 
 	/* the Tx FIFO to which this A-MSDU will be routed */
 	txf = iwl_mvm_mac_ac_to_tx_fifo(mvm, tid_to_mac80211_ac[tid]);

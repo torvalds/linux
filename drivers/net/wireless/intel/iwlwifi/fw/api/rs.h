@@ -205,7 +205,7 @@ enum iwl_tlc_mng_ht_rates {
  * @non_ht_supp_rates: bitmap of supported legacy rates
  * @ht_supp_rates: bitmap of supported HT/VHT rates, valid bits are 0-9
  * @mode: &enum iwl_tlc_mng_cfg_mode
- * @reserved2: reserved
+ * @amsdu: TX amsdu is supported
  * @he_supp_rates: bitmap of supported HE rates
  * @sgi_ch_width_supp: bitmap of SGI support per channel width
  * @he_gi_support: 11ax HE guard interval
@@ -222,12 +222,26 @@ struct iwl_tlc_config_cmd {
 	__le16 non_ht_supp_rates;
 	__le16 ht_supp_rates[MAX_RS_ANT_NUM];
 	u8 mode;
-	u8 reserved2;
+	u8 amsdu;
 	__le16 he_supp_rates;
 	u8 sgi_ch_width_supp;
 	u8 he_gi_support;
 	__le32 max_ampdu_cnt;
 } __packed; /* TLC_MNG_CONFIG_CMD_API_S_VER_1 */
+
+/**
+ * struct iwl_tlc_amsdu_notif - TLC AMSDU configuration
+ * @sta_id: station id
+ * @reserved: reserved
+ * @amsdu_size: Max AMSDU size, in bytes
+ * @amsdu_enabled: bitmap for per-TID AMSDU enablement
+ */
+struct iwl_tlc_amsdu_notif {
+	u8 sta_id;
+	u8 reserved[3];
+	__le16 amsdu_size;
+	__le16 amsdu_enabled;
+} __packed; /* TLC_MNG_AMSDU_ENABLE_NTFY_API_S_VER_1 */
 
 #define IWL_TLC_NOTIF_INIT_RATE_POS 0
 #define IWL_TLC_NOTIF_INIT_RATE_MSK BIT(IWL_TLC_NOTIF_INIT_RATE_POS)
