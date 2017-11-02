@@ -874,6 +874,8 @@ static void tm_reclaim_thread(struct thread_struct *thr,
 	if (!MSR_TM_SUSPENDED(mfmsr()))
 		return;
 
+	giveup_all(container_of(thr, struct task_struct, thread));
+
 	/*
 	 * If we are in a transaction and FP is off then we can't have
 	 * used FP inside that transaction. Hence the checkpointed
@@ -892,8 +894,6 @@ static void tm_reclaim_thread(struct thread_struct *thr,
 	if ((thr->ckpt_regs.msr & MSR_VEC) == 0)
 		memcpy(&thr->ckvr_state, &thr->vr_state,
 		       sizeof(struct thread_vr_state));
-
-	giveup_all(container_of(thr, struct task_struct, thread));
 
 	tm_reclaim(thr, thr->ckpt_regs.msr, cause);
 }

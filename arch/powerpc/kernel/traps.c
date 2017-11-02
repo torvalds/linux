@@ -1663,6 +1663,12 @@ out:
 
 void fp_unavailable_tm(struct pt_regs *regs)
 {
+	/*
+	 * Save the MSR now because tm_reclaim_current() is likely to
+	 * change it
+	 */
+	unsigned long orig_msr = regs->msr;
+
 	/* Note:  This does not handle any kind of FP laziness. */
 
 	TM_DEBUG("FP Unavailable trap whilst transactional at 0x%lx, MSR=%lx\n",
@@ -1687,10 +1693,10 @@ void fp_unavailable_tm(struct pt_regs *regs)
 	 * If VMX is in use, the VRs now hold checkpointed values,
 	 * so we don't want to load the VRs from the thread_struct.
 	 */
-	tm_recheckpoint(&current->thread, MSR_FP);
+	tm_recheckpoint(&current->thread, orig_msr | MSR_FP);
 
 	/* If VMX is in use, get the transactional values back */
-	if (regs->msr & MSR_VEC) {
+	if (orig_msr & MSR_VEC) {
 		msr_check_and_set(MSR_VEC);
 		load_vr_state(&current->thread.vr_state);
 		/* At this point all the VSX state is loaded, so enable it */
@@ -1700,6 +1706,12 @@ void fp_unavailable_tm(struct pt_regs *regs)
 
 void altivec_unavailable_tm(struct pt_regs *regs)
 {
+	/*
+	 * Save the MSR now because tm_reclaim_current() is likely to
+	 * change it
+	 */
+	unsigned long orig_msr = regs->msr;
+
 	/* See the comments in fp_unavailable_tm().  This function operates
 	 * the same way.
 	 */
@@ -1709,10 +1721,10 @@ void altivec_unavailable_tm(struct pt_regs *regs)
 		 regs->nip, regs->msr);
 	tm_reclaim_current(TM_CAUSE_FAC_UNAV);
 	current->thread.load_vec = 1;
-	tm_recheckpoint(&current->thread, MSR_VEC);
+	tm_recheckpoint(&current->thread, orig_msr | MSR_VEC);
 	current->thread.used_vr = 1;
 
-	if (regs->msr & MSR_FP) {
+	if (orig_msr & MSR_FP) {
 		msr_check_and_set(MSR_FP);
 		load_fp_state(&current->thread.fp_state);
 		regs->msr |= MSR_VSX;
@@ -1751,7 +1763,7 @@ void vsx_unavailable_tm(struct pt_regs *regs)
 	/* This loads & recheckpoints FP and VRs; but we have
 	 * to be sure not to overwrite previously-valid state.
 	 */
-	tm_recheckpoint(&current->thread, regs->msr & ~orig_msr);
+	tm_recheckpoint(&current->thread, orig_msr | MSR_FP | MSR_VEC);
 
 	msr_check_and_set(orig_msr & (MSR_FP | MSR_VEC));
 
