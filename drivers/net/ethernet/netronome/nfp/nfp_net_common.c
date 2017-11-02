@@ -1212,7 +1212,7 @@ static void *nfp_net_napi_alloc_one(struct nfp_net_dp *dp, dma_addr_t *dma_addr)
 	} else {
 		struct page *page;
 
-		page = alloc_page(GFP_ATOMIC | __GFP_COLD);
+		page = dev_alloc_page();
 		frag = page ? page_address(page) : NULL;
 	}
 	if (!frag) {
