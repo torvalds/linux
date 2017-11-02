@@ -1349,12 +1349,12 @@ nvkm_vmm_get_locked(struct nvkm_vmm *vmm, bool getref, bool mapref, bool sparse,
 
 		addr = this->addr;
 		if (vmm->func->page_block && prev && prev->page != p)
-			addr = roundup(addr, vmm->func->page_block);
+			addr = ALIGN(addr, vmm->func->page_block);
 		addr = ALIGN(addr, 1ULL << align);
 
 		tail = this->addr + this->size;
 		if (vmm->func->page_block && next && next->page != p)
-			tail = rounddown(tail, vmm->func->page_block);
+			tail = ALIGN_DOWN(addr, vmm->func->page_block);
 
 		if (addr <= tail && tail - addr >= size) {
 			rb_erase(&this->tree, &vmm->free);
