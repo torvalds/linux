@@ -46,11 +46,11 @@ static void vega10_ih_set_interrupt_funcs(struct amdgpu_device *adev);
  */
 static void vega10_ih_enable_interrupts(struct amdgpu_device *adev)
 {
-	u32 ih_rb_cntl = RREG32(SOC15_REG_OFFSET(OSSSYS, 0, mmIH_RB_CNTL));
+	u32 ih_rb_cntl = RREG32_SOC15(OSSSYS, 0, mmIH_RB_CNTL);
 
 	ih_rb_cntl = REG_SET_FIELD(ih_rb_cntl, IH_RB_CNTL, RB_ENABLE, 1);
 	ih_rb_cntl = REG_SET_FIELD(ih_rb_cntl, IH_RB_CNTL, ENABLE_INTR, 1);
-	WREG32(SOC15_REG_OFFSET(OSSSYS, 0, mmIH_RB_CNTL), ih_rb_cntl);
+	WREG32_SOC15(OSSSYS, 0, mmIH_RB_CNTL, ih_rb_cntl);
 	adev->irq.ih.enabled = true;
 }
 
@@ -63,14 +63,14 @@ static void vega10_ih_enable_interrupts(struct amdgpu_device *adev)
  */
 static void vega10_ih_disable_interrupts(struct amdgpu_device *adev)
 {
-	u32 ih_rb_cntl = RREG32(SOC15_REG_OFFSET(OSSSYS, 0, mmIH_RB_CNTL));
+	u32 ih_rb_cntl = RREG32_SOC15(OSSSYS, 0, mmIH_RB_CNTL);
 
 	ih_rb_cntl = REG_SET_FIELD(ih_rb_cntl, IH_RB_CNTL, RB_ENABLE, 0);
 	ih_rb_cntl = REG_SET_FIELD(ih_rb_cntl, IH_RB_CNTL, ENABLE_INTR, 0);
-	WREG32(SOC15_REG_OFFSET(OSSSYS, 0, mmIH_RB_CNTL), ih_rb_cntl);
+	WREG32_SOC15(OSSSYS, 0, mmIH_RB_CNTL, ih_rb_cntl);
 	/* set rptr, wptr to 0 */
-	WREG32(SOC15_REG_OFFSET(OSSSYS, 0, mmIH_RB_RPTR), 0);
-	WREG32(SOC15_REG_OFFSET(OSSSYS, 0, mmIH_RB_WPTR), 0);
+	WREG32_SOC15(OSSSYS, 0, mmIH_RB_RPTR, 0);
+	WREG32_SOC15(OSSSYS, 0, mmIH_RB_WPTR, 0);
 	adev->irq.ih.enabled = false;
 	adev->irq.ih.rptr = 0;
 }
@@ -102,15 +102,15 @@ static int vega10_ih_irq_init(struct amdgpu_device *adev)
 	else
 		nbio_v6_1_ih_control(adev);
 
-	ih_rb_cntl = RREG32(SOC15_REG_OFFSET(OSSSYS, 0, mmIH_RB_CNTL));
+	ih_rb_cntl = RREG32_SOC15(OSSSYS, 0, mmIH_RB_CNTL);
 	/* Ring Buffer base. [39:8] of 40-bit address of the beginning of the ring buffer*/
 	if (adev->irq.ih.use_bus_addr) {
-		WREG32(SOC15_REG_OFFSET(OSSSYS, 0, mmIH_RB_BASE), adev->irq.ih.rb_dma_addr >> 8);
-		WREG32(SOC15_REG_OFFSET(OSSSYS, 0, mmIH_RB_BASE_HI), ((u64)adev->irq.ih.rb_dma_addr >> 40) & 0xff);
+		WREG32_SOC15(OSSSYS, 0, mmIH_RB_BASE, adev->irq.ih.rb_dma_addr >> 8);
+		WREG32_SOC15(OSSSYS, 0, mmIH_RB_BASE_HI, ((u64)adev->irq.ih.rb_dma_addr >> 40) & 0xff);
 		ih_rb_cntl = REG_SET_FIELD(ih_rb_cntl, IH_RB_CNTL, MC_SPACE, 1);
 	} else {
-		WREG32(SOC15_REG_OFFSET(OSSSYS, 0, mmIH_RB_BASE), adev->irq.ih.gpu_addr >> 8);
-		WREG32(SOC15_REG_OFFSET(OSSSYS, 0, mmIH_RB_BASE_HI), (adev->irq.ih.gpu_addr >> 40) & 0xff);
+		WREG32_SOC15(OSSSYS, 0, mmIH_RB_BASE, adev->irq.ih.gpu_addr >> 8);
+		WREG32_SOC15(OSSSYS, 0, mmIH_RB_BASE_HI, (adev->irq.ih.gpu_addr >> 40) & 0xff);
 		ih_rb_cntl = REG_SET_FIELD(ih_rb_cntl, IH_RB_CNTL, MC_SPACE, 4);
 	}
 	rb_bufsz = order_base_2(adev->irq.ih.ring_size / 4);
@@ -126,21 +126,21 @@ static int vega10_ih_irq_init(struct amdgpu_device *adev)
 	if (adev->irq.msi_enabled)
 		ih_rb_cntl = REG_SET_FIELD(ih_rb_cntl, IH_RB_CNTL, RPTR_REARM, 1);
 
-	WREG32(SOC15_REG_OFFSET(OSSSYS, 0, mmIH_RB_CNTL), ih_rb_cntl);
+	WREG32_SOC15(OSSSYS, 0, mmIH_RB_CNTL, ih_rb_cntl);
 
 	/* set the writeback address whether it's enabled or not */
 	if (adev->irq.ih.use_bus_addr)
 		wptr_off = adev->irq.ih.rb_dma_addr + (adev->irq.ih.wptr_offs * 4);
 	else
 		wptr_off = adev->wb.gpu_addr + (adev->irq.ih.wptr_offs * 4);
-	WREG32(SOC15_REG_OFFSET(OSSSYS, 0, mmIH_RB_WPTR_ADDR_LO), lower_32_bits(wptr_off));
-	WREG32(SOC15_REG_OFFSET(OSSSYS, 0, mmIH_RB_WPTR_ADDR_HI), upper_32_bits(wptr_off) & 0xFF);
+	WREG32_SOC15(OSSSYS, 0, mmIH_RB_WPTR_ADDR_LO, lower_32_bits(wptr_off));
+	WREG32_SOC15(OSSSYS, 0, mmIH_RB_WPTR_ADDR_HI, upper_32_bits(wptr_off) & 0xFF);
 
 	/* set rptr, wptr to 0 */
-	WREG32(SOC15_REG_OFFSET(OSSSYS, 0, mmIH_RB_RPTR), 0);
-	WREG32(SOC15_REG_OFFSET(OSSSYS, 0, mmIH_RB_WPTR), 0);
+	WREG32_SOC15(OSSSYS, 0, mmIH_RB_RPTR, 0);
+	WREG32_SOC15(OSSSYS, 0, mmIH_RB_WPTR, 0);
 
-	ih_doorbell_rtpr = RREG32(SOC15_REG_OFFSET(OSSSYS, 0, mmIH_DOORBELL_RPTR));
+	ih_doorbell_rtpr = RREG32_SOC15(OSSSYS, 0, mmIH_DOORBELL_RPTR);
 	if (adev->irq.ih.use_doorbell) {
 		ih_doorbell_rtpr = REG_SET_FIELD(ih_doorbell_rtpr, IH_DOORBELL_RPTR,
 						 OFFSET, adev->irq.ih.doorbell_index);
@@ -150,20 +150,20 @@ static int vega10_ih_irq_init(struct amdgpu_device *adev)
 		ih_doorbell_rtpr = REG_SET_FIELD(ih_doorbell_rtpr, IH_DOORBELL_RPTR,
 						 ENABLE, 0);
 	}
-	WREG32(SOC15_REG_OFFSET(OSSSYS, 0, mmIH_DOORBELL_RPTR), ih_doorbell_rtpr);
+	WREG32_SOC15(OSSSYS, 0, mmIH_DOORBELL_RPTR, ih_doorbell_rtpr);
 	if (adev->flags & AMD_IS_APU)
 		nbio_v7_0_ih_doorbell_range(adev, adev->irq.ih.use_doorbell, adev->irq.ih.doorbell_index);
 	else
 		nbio_v6_1_ih_doorbell_range(adev, adev->irq.ih.use_doorbell, adev->irq.ih.doorbell_index);
 
-	tmp = RREG32(SOC15_REG_OFFSET(OSSSYS, 0, mmIH_STORM_CLIENT_LIST_CNTL));
+	tmp = RREG32_SOC15(OSSSYS, 0, mmIH_STORM_CLIENT_LIST_CNTL);
 	tmp = REG_SET_FIELD(tmp, IH_STORM_CLIENT_LIST_CNTL,
 			    CLIENT18_IS_STORM_CLIENT, 1);
-	WREG32(SOC15_REG_OFFSET(OSSSYS, 0, mmIH_STORM_CLIENT_LIST_CNTL), tmp);
+	WREG32_SOC15(OSSSYS, 0, mmIH_STORM_CLIENT_LIST_CNTL, tmp);
 
-	tmp = RREG32(SOC15_REG_OFFSET(OSSSYS, 0, mmIH_INT_FLOOD_CNTL));
+	tmp = RREG32_SOC15(OSSSYS, 0, mmIH_INT_FLOOD_CNTL);
 	tmp = REG_SET_FIELD(tmp, IH_INT_FLOOD_CNTL, FLOOD_CNTL_ENABLE, 1);
-	WREG32(SOC15_REG_OFFSET(OSSSYS, 0, mmIH_INT_FLOOD_CNTL), tmp);
+	WREG32_SOC15(OSSSYS, 0, mmIH_INT_FLOOD_CNTL, tmp);
 
 	pci_set_master(adev->pdev);
 
@@ -367,7 +367,7 @@ static void vega10_ih_set_rptr(struct amdgpu_device *adev)
 			adev->wb.wb[adev->irq.ih.rptr_offs] = adev->irq.ih.rptr;
 		WDOORBELL32(adev->irq.ih.doorbell_index, adev->irq.ih.rptr);
 	} else {
-		WREG32(SOC15_REG_OFFSET(OSSSYS, 0, mmIH_RB_RPTR), adev->irq.ih.rptr);
+		WREG32_SOC15(OSSSYS, 0, mmIH_RB_RPTR, adev->irq.ih.rptr);
 	}
 }
 
