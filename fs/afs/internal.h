@@ -101,6 +101,7 @@ struct afs_call {
 	bool			send_pages;	/* T if data from mapping should be sent */
 	bool			need_attention;	/* T if RxRPC poked us */
 	bool			async;		/* T if asynchronous */
+	bool			ret_reply0;	/* T if should return reply[0] on success */
 	bool			upgrade;	/* T to request service upgrade */
 	u16			service_id;	/* RxRPC service ID to call */
 	u32			operation_ID;	/* operation ID for an incoming call */
@@ -647,7 +648,7 @@ extern void __net_exit afs_close_socket(struct afs_net *);
 extern void afs_charge_preallocation(struct work_struct *);
 extern void afs_put_call(struct afs_call *);
 extern int afs_queue_call_work(struct afs_call *);
-extern int afs_make_call(struct sockaddr_rxrpc *, struct afs_call *, gfp_t, bool);
+extern long afs_make_call(struct sockaddr_rxrpc *, struct afs_call *, gfp_t, bool);
 extern struct afs_call *afs_alloc_flat_call(struct afs_net *,
 					    const struct afs_call_type *,
 					    size_t, size_t);

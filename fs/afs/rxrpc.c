@@ -20,7 +20,7 @@
 struct workqueue_struct *afs_async_calls;
 
 static void afs_wake_up_call_waiter(struct sock *, struct rxrpc_call *, unsigned long);
-static int afs_wait_for_call_to_complete(struct afs_call *);
+static long afs_wait_for_call_to_complete(struct afs_call *);
 static void afs_wake_up_async_call(struct sock *, struct rxrpc_call *, unsigned long);
 static void afs_process_async_call(struct work_struct *);
 static void afs_rx_new_call(struct sock *, struct rxrpc_call *, unsigned long);
@@ -320,8 +320,8 @@ static int afs_send_pages(struct afs_call *call, struct msghdr *msg)
 /*
  * initiate a call
  */
-int afs_make_call(struct sockaddr_rxrpc *srx, struct afs_call *call,
-		  gfp_t gfp, bool async)
+long afs_make_call(struct sockaddr_rxrpc *srx, struct afs_call *call,
+		   gfp_t gfp, bool async)
 {
 	struct rxrpc_call *rxcall;
 	struct msghdr msg;
@@ -415,9 +415,9 @@ error_do_abort:
 		abort_code = 0;
 		offset = 0;
 		rxrpc_kernel_recv_data(call->net->socket, rxcall, NULL,
-				       0, &offset, false, &abort_code,
+				       0, &offset, false, &call->abort_code,
 				       &call->service_id);
-		ret = afs_abort_to_error(abort_code);
+		ret = afs_abort_to_error(call->abort_code);
 	}
 error_kill_call:
 	afs_put_call(call);
@@ -468,7 +468,7 @@ static void afs_deliver_to_call(struct afs_call *call)
 		case -EAGAIN:
 			goto out;
 		case -ECONNABORTED:
-			goto call_complete;
+			goto save_error;
 		case -ENOTCONN:
 			abort_code = RX_CALL_DEAD;
 			rxrpc_kernel_abort_call(call->net->socket, call->rxcall,
@@ -501,7 +501,6 @@ out:
 
 save_error:
 	call->error = ret;
-call_complete:
 	call->state = AFS_CALL_COMPLETE;
 	goto done;
 }
@@ -509,10 +508,10 @@ call_complete:
 /*
  * wait synchronously for a call to complete
  */
-static int afs_wait_for_call_to_complete(struct afs_call *call)
+static long afs_wait_for_call_to_complete(struct afs_call *call)
 {
 	signed long rtt2, timeout;
-	int ret;
+	long ret;
 	u64 rtt;
 	u32 life, last_life;
 
@@ -567,9 +566,16 @@ static int afs_wait_for_call_to_complete(struct afs_call *call)
 	}
 
 	ret = call->error;
+	if (ret < 0) {
+		ret = afs_abort_to_error(call->abort_code);
+	} else if (ret == 0 && call->ret_reply0) {
+		ret = (long)call->reply[0];
+		call->reply[0] = NULL;
+	}
+
 	_debug("call complete");
 	afs_put_call(call);
-	_leave(" = %d", ret);
+	_leave(" = %p", (void *)ret);
 	return ret;
 }
 
