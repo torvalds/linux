@@ -33,6 +33,7 @@
 
 #define pr_fmt(fmt) "xen:" KBUILD_MODNAME ": " fmt
 
+#include <linux/bootmem.h>
 #include <linux/sched.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
@@ -43,6 +44,7 @@
 #include <linux/hardirq.h>
 #include <linux/workqueue.h>
 #include <linux/ratelimit.h>
+#include <linux/moduleparam.h>
 
 #include <xen/xen.h>
 #include <xen/interface/xen.h>
@@ -52,6 +54,9 @@
 #include <xen/hvc-console.h>
 #include <xen/swiotlb-xen.h>
 #include <xen/balloon.h>
+#ifdef CONFIG_X86
+#include <asm/xen/cpuid.h>
+#endif
 #include <asm/xen/hypercall.h>
 #include <asm/xen/interface.h>
 
@@ -68,6 +73,8 @@ static int gnttab_free_count;
 static grant_ref_t gnttab_free_head;
 static DEFINE_SPINLOCK(gnttab_list_lock);
 struct grant_frames xen_auto_xlat_grant_frames;
+static unsigned int xen_gnttab_version;
+module_param_named(version, xen_gnttab_version, uint, 0);
 
 static union {
 	struct grant_entry_v1 *v1;
@@ -1177,12 +1184,36 @@ static const struct gnttab_ops gnttab_v2_ops = {
 	.query_foreign_access		= gnttab_query_foreign_access_v2,
 };
 
+static bool gnttab_need_v2(void)
+{
+#ifdef CONFIG_X86
+	uint32_t base, width;
+
+	if (xen_pv_domain()) {
+		base = xen_cpuid_base();
+		if (cpuid_eax(base) < 5)
+			return false;	/* Information not available, use V1. */
+		width = cpuid_ebx(base + 5) &
+			XEN_CPUID_MACHINE_ADDRESS_WIDTH_MASK;
+		return width > 32 + PAGE_SHIFT;
+	}
+#endif
+	return !!(max_possible_pfn >> 32);
+}
+
 static void gnttab_request_version(void)
 {
-	int rc;
+	long rc;
 	struct gnttab_set_version gsv;
 
-	gsv.version = 1;
+	if (gnttab_need_v2())
+		gsv.version = 2;
+	else
+		gsv.version = 1;
+
+	/* Boot parameter overrides automatic selection. */
+	if (xen_gnttab_version >= 1 && xen_gnttab_version <= 2)
+		gsv.version = xen_gnttab_version;
 
 	rc = HYPERVISOR_grant_table_op(GNTTABOP_set_version, &gsv, 1);
 	if (rc == 0 && gsv.version == 2)
