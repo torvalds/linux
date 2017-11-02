@@ -30,9 +30,9 @@
 #define gvt_vgpu_err(fmt, args...)					\
 do {									\
 	if (IS_ERR_OR_NULL(vgpu))					\
-		pr_debug("gvt: "fmt, ##args);			\
+		pr_err("gvt: "fmt, ##args);			\
 	else								\
-		pr_debug("gvt: vgpu %d: "fmt, vgpu->id, ##args);\
+		pr_err("gvt: vgpu %d: "fmt, vgpu->id, ##args);\
 } while (0)
 
 #define gvt_dbg_core(fmt, args...) \
