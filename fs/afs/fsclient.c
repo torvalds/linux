@@ -1119,18 +1119,18 @@ static const struct afs_call_type afs_RXFSStoreData64 = {
  * store a set of pages to a very large file
  */
 static int afs_fs_store_data64(struct afs_fs_cursor *fc,
-			       struct afs_writeback *wb,
+			       struct address_space *mapping,
 			       pgoff_t first, pgoff_t last,
 			       unsigned offset, unsigned to,
 			       loff_t size, loff_t pos, loff_t i_size)
 {
-	struct afs_vnode *vnode = wb->vnode;
+	struct afs_vnode *vnode = fc->vnode;
 	struct afs_call *call;
 	struct afs_net *net = afs_v2net(vnode);
 	__be32 *bp;
 
 	_enter(",%x,{%x:%u},,",
-	       key_serial(wb->key), vnode->fid.vid, vnode->fid.vnode);
+	       key_serial(fc->key), vnode->fid.vid, vnode->fid.vnode);
 
 	call = afs_alloc_flat_call(net, &afs_RXFSStoreData64,
 				   (4 + 6 + 3 * 2) * 4,
@@ -1138,10 +1138,9 @@ static int afs_fs_store_data64(struct afs_fs_cursor *fc,
 	if (!call)
 		return -ENOMEM;
 
-	call->wb = wb;
-	call->key = wb->key;
+	call->key = fc->key;
+	call->mapping = mapping;
 	call->reply[0] = vnode;
-	call->mapping = vnode->vfs_inode.i_mapping;
 	call->first = first;
 	call->last = last;
 	call->first_offset = offset;
@@ -1177,18 +1176,18 @@ static int afs_fs_store_data64(struct afs_fs_cursor *fc,
 /*
  * store a set of pages
  */
-int afs_fs_store_data(struct afs_fs_cursor *fc, struct afs_writeback *wb,
+int afs_fs_store_data(struct afs_fs_cursor *fc, struct address_space *mapping,
 		      pgoff_t first, pgoff_t last,
 		      unsigned offset, unsigned to)
 {
-	struct afs_vnode *vnode = wb->vnode;
+	struct afs_vnode *vnode = fc->vnode;
 	struct afs_call *call;
 	struct afs_net *net = afs_v2net(vnode);
 	loff_t size, pos, i_size;
 	__be32 *bp;
 
 	_enter(",%x,{%x:%u},,",
-	       key_serial(wb->key), vnode->fid.vid, vnode->fid.vnode);
+	       key_serial(fc->key), vnode->fid.vid, vnode->fid.vnode);
 
 	size = (loff_t)to - (loff_t)offset;
 	if (first != last)
@@ -1205,7 +1204,7 @@ int afs_fs_store_data(struct afs_fs_cursor *fc, struct afs_writeback *wb,
 	       (unsigned long long) i_size);
 
 	if (pos >> 32 || i_size >> 32 || size >> 32 || (pos + size) >> 32)
-		return afs_fs_store_data64(fc, wb, first, last, offset, to,
+		return afs_fs_store_data64(fc, mapping, first, last, offset, to,
 					   size, pos, i_size);
 
 	call = afs_alloc_flat_call(net, &afs_RXFSStoreData,
@@ -1214,10 +1213,9 @@ int afs_fs_store_data(struct afs_fs_cursor *fc, struct afs_writeback *wb,
 	if (!call)
 		return -ENOMEM;
 
-	call->wb = wb;
-	call->key = wb->key;
+	call->key = fc->key;
+	call->mapping = mapping;
 	call->reply[0] = vnode;
-	call->mapping = vnode->vfs_inode.i_mapping;
 	call->first = first;
 	call->last = last;
 	call->first_offset = offset;

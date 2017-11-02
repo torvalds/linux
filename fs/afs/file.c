@@ -23,7 +23,6 @@ static int afs_readpage(struct file *file, struct page *page);
 static void afs_invalidatepage(struct page *page, unsigned int offset,
 			       unsigned int length);
 static int afs_releasepage(struct page *page, gfp_t gfp_flags);
-static int afs_launder_page(struct page *page);
 
 static int afs_readpages(struct file *filp, struct address_space *mapping,
 			 struct list_head *pages, unsigned nr_pages);
@@ -63,6 +62,50 @@ const struct address_space_operations afs_fs_aops = {
 };
 
 /*
+ * Discard a pin on a writeback key.
+ */
+void afs_put_wb_key(struct afs_wb_key *wbk)
+{
+	if (refcount_dec_and_test(&wbk->usage)) {
+		key_put(wbk->key);
+		kfree(wbk);
+	}
+}
+
+/*
+ * Cache key for writeback.
+ */
+int afs_cache_wb_key(struct afs_vnode *vnode, struct afs_file *af)
+{
+	struct afs_wb_key *wbk, *p;
+
+	wbk = kzalloc(sizeof(struct afs_wb_key), GFP_KERNEL);
+	if (!wbk)
+		return -ENOMEM;
+	refcount_set(&wbk->usage, 2);
+	wbk->key = af->key;
+
+	spin_lock(&vnode->wb_lock);
+	list_for_each_entry(p, &vnode->wb_keys, vnode_link) {
+		if (p->key == wbk->key)
+			goto found;
+	}
+
+	key_get(wbk->key);
+	list_add_tail(&wbk->vnode_link, &vnode->wb_keys);
+	spin_unlock(&vnode->wb_lock);
+	af->wb = wbk;
+	return 0;
+
+found:
+	refcount_inc(&p->usage);
+	spin_unlock(&vnode->wb_lock);
+	af->wb = p;
+	kfree(wbk);
+	return 0;
+}
+
+/*
  * open an AFS file or directory and attach a key to it
  */
 int afs_open(struct inode *inode, struct file *file)
@@ -85,12 +128,18 @@ int afs_open(struct inode *inode, struct file *file)
 		ret = -ENOMEM;
 		goto error_key;
 	}
+	af->key = key;
 
 	ret = afs_validate(vnode, key);
 	if (ret < 0)
 		goto error_af;
 
-	af->key = key;
+	if (file->f_mode & FMODE_WRITE) {
+		ret = afs_cache_wb_key(vnode, af);
+		if (ret < 0)
+			goto error_af;
+	}
+	
 	file->private_data = af;
 	_leave(" = 0");
 	return 0;
@@ -115,8 +164,11 @@ int afs_release(struct inode *inode, struct file *file)
 	_enter("{%x:%u},", vnode->fid.vid, vnode->fid.vnode);
 
 	file->private_data = NULL;
+	if (af->wb)
+		afs_put_wb_key(af->wb);
 	key_put(af->key);
 	kfree(af);
+	afs_prune_wb_keys(vnode);
 	_leave(" = 0");
 	return 0;
 }
@@ -517,16 +569,6 @@ static int afs_readpages(struct file *file, struct address_space *mapping,
 }
 
 /*
- * write back a dirty page
- */
-static int afs_launder_page(struct page *page)
-{
-	_enter("{%lu}", page->index);
-
-	return 0;
-}
-
-/*
  * invalidate part or all of a page
  * - release a page and clean up its private data if offset is 0 (indicating
  *   the entire page)
@@ -534,8 +576,6 @@ static int afs_launder_page(struct page *page)
 static void afs_invalidatepage(struct page *page, unsigned int offset,
 			       unsigned int length)
 {
-	struct afs_writeback *wb = (struct afs_writeback *) page_private(page);
-
 	_enter("{%lu},%u,%u", page->index, offset, length);
 
 	BUG_ON(!PageLocked(page));
@@ -551,13 +591,8 @@ static void afs_invalidatepage(struct page *page, unsigned int offset,
 #endif
 
 		if (PagePrivate(page)) {
-			if (wb && !PageWriteback(page)) {
-				set_page_private(page, 0);
-				afs_put_writeback(wb);
-			}
-
-			if (!page_private(page))
-				ClearPagePrivate(page);
+			set_page_private(page, 0);
+			ClearPagePrivate(page);
 		}
 	}
 
@@ -570,7 +605,6 @@ static void afs_invalidatepage(struct page *page, unsigned int offset,
  */
 static int afs_releasepage(struct page *page, gfp_t gfp_flags)
 {
-	struct afs_writeback *wb = (struct afs_writeback *) page_private(page);
 	struct afs_vnode *vnode = AFS_FS_I(page->mapping->host);
 
 	_enter("{{%x:%u}[%lu],%lx},%x",
@@ -587,10 +621,7 @@ static int afs_releasepage(struct page *page, gfp_t gfp_flags)
 #endif
 
 	if (PagePrivate(page)) {
-		if (wb) {
-			set_page_private(page, 0);
-			afs_put_writeback(wb);
-		}
+		set_page_private(page, 0);
 		ClearPagePrivate(page);
 	}
 

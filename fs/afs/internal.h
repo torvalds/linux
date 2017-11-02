@@ -89,8 +89,7 @@ struct afs_call {
 	struct afs_server	*cm_server;	/* Server affected by incoming CM call */
 	struct afs_cb_interest	*cbi;		/* Callback interest for server used */
 	void			*request;	/* request data (first part) */
-	struct address_space	*mapping;	/* page set */
-	struct afs_writeback	*wb;		/* writeback being performed */
+	struct address_space	*mapping;	/* Pages being written from */
 	void			*buffer;	/* reply receive buffer */
 	void			*reply[4];	/* Where to put the reply */
 	pgoff_t			first;		/* first page in mapping to deal with */
@@ -139,10 +138,20 @@ struct afs_call_type {
 };
 
 /*
+ * Key available for writeback on a file.
+ */
+struct afs_wb_key {
+	refcount_t		usage;
+	struct key		*key;
+	struct list_head	vnode_link;	/* Link in vnode->wb_keys */
+};
+
+/*
  * AFS open file information record.  Pointed to by file->private_data.
  */
 struct afs_file {
 	struct key		*key;		/* The key this file was opened with */
+	struct afs_wb_key	*wb;		/* Writeback key record for this file */
 };
 
 static inline struct key *afs_file_key(struct file *file)
@@ -165,32 +174,6 @@ struct afs_read {
 	unsigned int		nr_pages;
 	void (*page_done)(struct afs_call *, struct afs_read *);
 	struct page		*pages[];
-};
-
-/*
- * record of an outstanding writeback on a vnode
- */
-struct afs_writeback {
-	struct list_head	link;		/* link in vnode->writebacks */
-	struct work_struct	writer;		/* work item to perform the writeback */
-	struct afs_vnode	*vnode;		/* vnode to which this write applies */
-	struct key		*key;		/* owner of this write */
-	wait_queue_head_t	waitq;		/* completion and ready wait queue */
-	pgoff_t			first;		/* first page in batch */
-	pgoff_t			point;		/* last page in current store op */
-	pgoff_t			last;		/* last page in batch (inclusive) */
-	unsigned		offset_first;	/* offset into first page of start of write */
-	unsigned		to_last;	/* offset into last page of end of write */
-	int			num_conflicts;	/* count of conflicting writes in list */
-	int			usage;
-	bool			conflicts;	/* T if has dependent conflicts */
-	enum {
-		AFS_WBACK_SYNCING,		/* synchronisation being performed */
-		AFS_WBACK_PENDING,		/* write pending */
-		AFS_WBACK_CONFLICTING,		/* conflicting writes posted */
-		AFS_WBACK_WRITING,		/* writing back */
-		AFS_WBACK_COMPLETE		/* the writeback record has been unlinked */
-	} state __attribute__((packed));
 };
 
 /*
@@ -460,7 +443,7 @@ struct afs_vnode {
 	struct afs_permits	*permit_cache;	/* cache of permits so far obtained */
 	struct mutex		io_lock;	/* Lock for serialising I/O on this mutex */
 	struct mutex		validate_lock;	/* lock for validating this vnode */
-	spinlock_t		writeback_lock;	/* lock for writebacks */
+	spinlock_t		wb_lock;	/* lock for wb_keys */
 	spinlock_t		lock;		/* waitqueue/flags lock */
 	unsigned long		flags;
 #define AFS_VNODE_CB_PROMISED	0		/* Set if vnode has a callback promise */
@@ -476,7 +459,7 @@ struct afs_vnode {
 #define AFS_VNODE_AUTOCELL	10		/* set if Vnode is an auto mount point */
 #define AFS_VNODE_PSEUDODIR	11		/* set if Vnode is a pseudo directory */
 
-	struct list_head	writebacks;	/* alterations in pagecache that need writing */
+	struct list_head	wb_keys;	/* List of keys available for writeback */
 	struct list_head	pending_locks;	/* locks waiting to be granted */
 	struct list_head	granted_locks;	/* locks granted on this file */
 	struct delayed_work	lock_work;	/* work to be done in locking */
@@ -648,6 +631,8 @@ extern const struct address_space_operations afs_fs_aops;
 extern const struct inode_operations afs_file_inode_operations;
 extern const struct file_operations afs_file_operations;
 
+extern int afs_cache_wb_key(struct afs_vnode *, struct afs_file *);
+extern void afs_put_wb_key(struct afs_wb_key *);
 extern int afs_open(struct inode *, struct file *);
 extern int afs_release(struct inode *, struct file *);
 extern int afs_fetch_data(struct afs_vnode *, struct key *, struct afs_read *);
@@ -678,7 +663,7 @@ extern int afs_fs_symlink(struct afs_fs_cursor *, const char *, const char *,
 			  struct afs_fid *, struct afs_file_status *);
 extern int afs_fs_rename(struct afs_fs_cursor *, const char *,
 			 struct afs_vnode *, const char *);
-extern int afs_fs_store_data(struct afs_fs_cursor *, struct afs_writeback *,
+extern int afs_fs_store_data(struct afs_fs_cursor *, struct address_space *,
 			     pgoff_t, pgoff_t, unsigned, unsigned);
 extern int afs_fs_setattr(struct afs_fs_cursor *, struct iattr *);
 extern int afs_fs_get_volume_status(struct afs_fs_cursor *, struct afs_volume_status *);
@@ -889,7 +874,6 @@ extern int afs_check_volume_status(struct afs_volume *, struct key *);
  * write.c
  */
 extern int afs_set_page_dirty(struct page *);
-extern void afs_put_writeback(struct afs_writeback *);
 extern int afs_write_begin(struct file *file, struct address_space *mapping,
 			loff_t pos, unsigned len, unsigned flags,
 			struct page **pagep, void **fsdata);
@@ -900,9 +884,10 @@ extern int afs_writepage(struct page *, struct writeback_control *);
 extern int afs_writepages(struct address_space *, struct writeback_control *);
 extern void afs_pages_written_back(struct afs_vnode *, struct afs_call *);
 extern ssize_t afs_file_write(struct kiocb *, struct iov_iter *);
-extern int afs_writeback_all(struct afs_vnode *);
 extern int afs_flush(struct file *, fl_owner_t);
 extern int afs_fsync(struct file *, loff_t, loff_t, int);
+extern void afs_prune_wb_keys(struct afs_vnode *);
+extern int afs_launder_page(struct page *);
 
 /*
  * xattr.c

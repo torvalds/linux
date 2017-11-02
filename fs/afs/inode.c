@@ -482,7 +482,12 @@ void afs_evict_inode(struct inode *inode)
 		vnode->cb_interest = NULL;
 	}
 
-	ASSERT(list_empty(&vnode->writebacks));
+	while (!list_empty(&vnode->wb_keys)) {
+		struct afs_wb_key *wbk = list_entry(vnode->wb_keys.next,
+						    struct afs_wb_key, vnode_link);
+		list_del(&wbk->vnode_link);
+		afs_put_wb_key(wbk);
+	}
 
 #ifdef CONFIG_AFS_FSCACHE
 	fscache_relinquish_cookie(vnode->cache, 0);
@@ -514,10 +519,8 @@ int afs_setattr(struct dentry *dentry, struct iattr *attr)
 	}
 
 	/* flush any dirty data outstanding on a regular file */
-	if (S_ISREG(vnode->vfs_inode.i_mode)) {
+	if (S_ISREG(vnode->vfs_inode.i_mode))
 		filemap_write_and_wait(vnode->vfs_inode.i_mapping);
-		afs_writeback_all(vnode);
-	}
 
 	if (attr->ia_valid & ATTR_FILE) {
 		key = afs_file_key(attr->ia_file);
