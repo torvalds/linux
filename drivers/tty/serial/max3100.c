@@ -263,7 +263,7 @@ static void max3100_work(struct work_struct *w)
 	struct max3100_port *s = container_of(w, struct max3100_port, work);
 	int rxchars;
 	u16 tx, rx;
-	int conf, cconf, rts, crts;
+	int conf, cconf, crts;
 	struct circ_buf *xmit = &s->port.state->xmit;
 
 	dev_dbg(&s->spi->dev, "%s\n", __func__);
@@ -274,7 +274,6 @@ static void max3100_work(struct work_struct *w)
 		conf = s->conf;
 		cconf = s->conf_commit;
 		s->conf_commit = 0;
-		rts = s->rts;
 		crts = s->rts_commit;
 		s->rts_commit = 0;
 		spin_unlock(&s->conf_lock);
@@ -436,7 +435,6 @@ max3100_set_termios(struct uart_port *port, struct ktermios *termios,
 	dev_dbg(&s->spi->dev, "%s\n", __func__);
 
 	cflag = termios->c_cflag;
-	param_new = 0;
 	param_mask = 0;
 
 	baud = tty_termios_baud_rate(termios);
