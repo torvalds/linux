@@ -626,8 +626,6 @@ static void armada_37xx_irq_handler(struct irq_desc *desc)
 
 static unsigned int armada_37xx_irq_startup(struct irq_data *d)
 {
-	struct gpio_chip *chip = irq_data_get_irq_chip_data(d);
-
 	/*
 	 * The mask field is a "precomputed bitmask for accessing the
 	 * chip registers" which was introduced for the generic
