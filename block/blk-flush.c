@@ -463,7 +463,7 @@ void blk_insert_flush(struct request *rq)
 	if ((policy & REQ_FSEQ_DATA) &&
 	    !(policy & (REQ_FSEQ_PREFLUSH | REQ_FSEQ_POSTFLUSH))) {
 		if (q->mq_ops)
-			blk_mq_sched_insert_request(rq, false, false, false, false);
+			blk_mq_request_bypass_insert(rq, false);
 		else
 			list_add_tail(&rq->queuelist, &q->queue_head);
 		return;
