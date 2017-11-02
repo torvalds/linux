@@ -117,6 +117,7 @@ config BLK_DEV_DELKIN
 
 config BLK_DEV_IDECD
 	tristate "Include IDE/ATAPI CDROM support"
+	depends on BLK_DEV
 	select IDE_ATAPI
 	select CDROM
 	---help---
