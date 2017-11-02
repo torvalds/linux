@@ -61,6 +61,7 @@ we might work for today, have in the past, or will in the future.
   - Felipe Balbi
   - Arnd Bergmann
   - Ard Biesheuvel
+  - Tim Bird
   - Paolo Bonzini
   - Christian Borntraeger
   - Mark Brown (Linaro)
