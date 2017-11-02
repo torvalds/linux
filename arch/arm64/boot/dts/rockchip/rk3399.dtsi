@@ -1960,6 +1960,76 @@
 		};
 	};
 
+	nocp_cci_msch0: nocp-cci-msch0@ffa86000 {
+		compatible = "rockchip,rk3399-nocp";
+		reg = <0x0 0xffa86000 0x0 0x400>;
+	};
+
+	nocp_gpu_msch0: nocp-gpu-msch0@ffa86400 {
+		compatible = "rockchip,rk3399-nocp";
+		reg = <0x0 0xffa86400 0x0 0x400>;
+	};
+
+	nocp_hp_msch0: nocp-hp-msch0@ffa86800 {
+		compatible = "rockchip,rk3399-nocp";
+		reg = <0x0 0xffa86800 0x0 0x400>;
+	};
+
+	nocp_lp_msch0: nocp-lp-msch0@ffa86c00 {
+		compatible = "rockchip,rk3399-nocp";
+		reg = <0x0 0xffa86c00 0x0 0x400>;
+	};
+
+	nocp_video_msch0: nocp-video-msch0@ffa87000 {
+		compatible = "rockchip,rk3399-nocp";
+		reg = <0x0 0xffa87000 0x0 0x400>;
+	};
+
+	nocp_vio0_msch0: nocp-vio0-msch0@ffa87400 {
+		compatible = "rockchip,rk3399-nocp";
+		reg = <0x0 0xffa87400 0x0 0x400>;
+	};
+
+	nocp_vio1_msch0: nocp-vio1-msch0@ffa87800 {
+		compatible = "rockchip,rk3399-nocp";
+		reg = <0x0 0xffa87800 0x0 0x400>;
+	};
+
+	nocp_cci_msch1: nocp-cci-msch1@ffa8e000 {
+		compatible = "rockchip,rk3399-nocp";
+		reg = <0x0 0xffa8e000 0x0 0x400>;
+	};
+
+	nocp_gpu_msch1: nocp-gpu-msch1@ffa8e400 {
+		compatible = "rockchip,rk3399-nocp";
+		reg = <0x0 0xffa8e400 0x0 0x400>;
+	};
+
+	nocp_hp_msch1: nocp-hp-msch1@ffa8e800 {
+		compatible = "rockchip,rk3399-nocp";
+		reg = <0x0 0xffa8e800 0x0 0x400>;
+	};
+
+	nocp_lp_msch1: nocp-lp-msch1@ffa8ec00 {
+		compatible = "rockchip,rk3399-nocp";
+		reg = <0x0 0xffa8ec00 0x0 0x400>;
+	};
+
+	nocp_video_msch1: nocp-video-msch1@ffa8f000 {
+		compatible = "rockchip,rk3399-nocp";
+		reg = <0x0 0xffa8f000 0x0 0x400>;
+	};
+
+	nocp_vio0_msch1: nocp-vio0-msch1@ffa8f400 {
+		compatible = "rockchip,rk3399-nocp";
+		reg = <0x0 0xffa8f400 0x0 0x400>;
+	};
+
+	nocp_vio1_msch1: nocp-vio1-msch1@ffa8f800 {
+		compatible = "rockchip,rk3399-nocp";
+		reg = <0x0 0xffa8f800 0x0 0x400>;
+	};
+
 	pinctrl: pinctrl {
 		compatible = "rockchip,rk3399-pinctrl";
 		rockchip,grf = <&grf>;
