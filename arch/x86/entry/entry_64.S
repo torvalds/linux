@@ -322,7 +322,7 @@ syscall_return_via_sysret:
 
 opportunistic_sysret_failed:
 	SWAPGS
-	jmp	restore_regs_and_iret
+	jmp	restore_regs_and_return_to_usermode
 END(entry_SYSCALL_64)
 
 ENTRY(stub_ptregs_64)
@@ -424,7 +424,7 @@ ENTRY(ret_from_fork)
 	call	syscall_return_slowpath	/* returns with IRQs disabled */
 	TRACE_IRQS_ON			/* user mode is traced as IRQS on */
 	SWAPGS
-	jmp	restore_regs_and_iret
+	jmp	restore_regs_and_return_to_usermode
 
 1:
 	/* kernel thread */
@@ -613,7 +613,20 @@ GLOBAL(retint_user)
 	call	prepare_exit_to_usermode
 	TRACE_IRQS_IRETQ
 	SWAPGS
-	jmp	restore_regs_and_iret
+
+GLOBAL(restore_regs_and_return_to_usermode)
+#ifdef CONFIG_DEBUG_ENTRY
+	/* Assert that pt_regs indicates user mode. */
+	testl	$3, CS(%rsp)
+	jnz	1f
+	ud2
+1:
+#endif
+	RESTORE_EXTRA_REGS
+	RESTORE_C_REGS
+	REMOVE_PT_GPREGS_FROM_STACK 8
+	INTERRUPT_RETURN
+
 
 /* Returning to kernel space */
 retint_kernel:
@@ -633,11 +646,14 @@ retint_kernel:
 	 */
 	TRACE_IRQS_IRETQ
 
-/*
- * At this label, code paths which return to kernel and to user,
- * which come from interrupts/exception and from syscalls, merge.
- */
-GLOBAL(restore_regs_and_iret)
+GLOBAL(restore_regs_and_return_to_kernel)
+#ifdef CONFIG_DEBUG_ENTRY
+	/* Assert that pt_regs indicates kernel mode. */
+	testl	$3, CS(%rsp)
+	jz	1f
+	ud2
+1:
+#endif
 	RESTORE_EXTRA_REGS
 	RESTORE_C_REGS
 	REMOVE_PT_GPREGS_FROM_STACK 8
@@ -1328,7 +1344,7 @@ ENTRY(nmi)
 	 * work, because we don't want to enable interrupts.
 	 */
 	SWAPGS
-	jmp	restore_regs_and_iret
+	jmp	restore_regs_and_return_to_usermode
 
 .Lnmi_from_kernel:
 	/*

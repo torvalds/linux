@@ -328,7 +328,7 @@ early_idt_handler_common:
 
 20:
 	decl early_recursion_flag(%rip)
-	jmp restore_regs_and_iret
+	jmp restore_regs_and_return_to_kernel
 END(early_idt_handler_common)
 
 	__INITDATA
