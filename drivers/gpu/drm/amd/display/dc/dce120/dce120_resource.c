@@ -501,12 +501,19 @@ static void read_dce_straps(
 	struct dc_context *ctx,
 	struct resource_straps *straps)
 {
-	/* TODO: Registers are missing */
-	/*REG_GET_2(CC_DC_HDMI_STRAPS,
-			HDMI_DISABLE, &straps->hdmi_disable,
-			AUDIO_STREAM_NUMBER, &straps->audio_stream_number);
+	uint32_t reg_val = dm_read_reg_soc15(ctx, mmCC_DC_MISC_STRAPS, 0);
 
-	REG_GET(DC_PINSTRAPS, DC_PINSTRAPS_AUDIO, &straps->dc_pinstraps_audio);*/
+	straps->audio_stream_number = get_reg_field_value(reg_val,
+							  CC_DC_MISC_STRAPS,
+							  AUDIO_STREAM_NUMBER);
+	straps->hdmi_disable = get_reg_field_value(reg_val,
+						   CC_DC_MISC_STRAPS,
+						   HDMI_DISABLE);
+
+	reg_val = dm_read_reg_soc15(ctx, mmDC_PINSTRAPS, 0);
+	straps->dc_pinstraps_audio = get_reg_field_value(reg_val,
+							 DC_PINSTRAPS,
+							 DC_PINSTRAPS_AUDIO);
 }
 
 static struct audio *create_audio(

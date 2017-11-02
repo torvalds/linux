@@ -160,9 +160,6 @@ unsigned int generic_reg_wait(const struct dc_context *ctx,
 /* These macros need to be used with soc15 registers in order to retrieve
  * the actual offset.
  */
-#define REG_OFFSET(reg) (reg + DCE_BASE.instance[0].segment[reg##_BASE_IDX])
-#define REG_BIF_OFFSET(reg) (reg + NBIF_BASE.instance[0].segment[reg##_BASE_IDX])
-
 #define dm_write_reg_soc15(ctx, reg, inst_offset, value)	\
 		dm_write_reg_func(ctx, reg + DCE_BASE.instance[0].segment[reg##_BASE_IDX] + inst_offset, value, __func__)
 

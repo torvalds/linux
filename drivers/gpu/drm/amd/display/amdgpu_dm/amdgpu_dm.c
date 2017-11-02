@@ -641,11 +641,6 @@ int amdgpu_dm_display_resume(struct amdgpu_device *adev)
 	struct drm_connector *connector;
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *new_crtc_state;
-	struct dm_crtc_state *dm_crtc_state;
-	struct drm_plane *plane;
-	struct drm_plane_state *plane_state;
-	struct dm_plane_state *dm_plane_state;
-	struct dm_atomic_state *cached_state;
 	int ret = 0;
 	int i;
 
@@ -683,34 +678,6 @@ int amdgpu_dm_display_resume(struct amdgpu_device *adev)
 	/* Force mode set in atomic comit */
 	for_each_new_crtc_in_state(adev->dm.cached_state, crtc, new_crtc_state, i)
 		new_crtc_state->active_changed = true;
-
-	cached_state = to_dm_atomic_state(adev->dm.cached_state);
-
-	/*
-	 * During suspend, the cached state is saved before all streams are
-	 * disabled. Refresh cached state to match actual current state before
-	 * restoring it.
-	 */
-	WARN_ON(kref_read(&cached_state->context->refcount) > 1);
-	dc_release_state(cached_state->context);
-
-	for_each_new_crtc_in_state(adev->dm.cached_state, crtc, new_crtc_state, i) {
-		dm_crtc_state = to_dm_crtc_state(new_crtc_state);
-		if (dm_crtc_state->stream) {
-			WARN_ON(kref_read(&dm_crtc_state->stream->refcount) > 1);
-			dc_stream_release(dm_crtc_state->stream);
-			dm_crtc_state->stream = NULL;
-		}
-	}
-
-	for_each_new_plane_in_state(adev->dm.cached_state, plane, plane_state, i) {
-		dm_plane_state = to_dm_plane_state(plane_state);
-		if (dm_plane_state->dc_state) {
-			WARN_ON(kref_read(&dm_plane_state->dc_state->refcount) > 1);
-			dc_plane_state_release(dm_plane_state->dc_state);
-			dm_plane_state->dc_state = NULL;
-		}
-	}
 
 	ret = drm_atomic_helper_resume(ddev, adev->dm.cached_state);
 
@@ -1361,13 +1328,16 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 	}
 
 	for (i = 0; i < dm->dc->caps.max_planes; i++) {
-		mode_info->planes[i] = kzalloc(sizeof(struct amdgpu_plane),
-								 GFP_KERNEL);
-		if (!mode_info->planes[i]) {
+		struct amdgpu_plane *plane;
+
+		plane = kzalloc(sizeof(struct amdgpu_plane), GFP_KERNEL);
+		mode_info->planes[i] = plane;
+
+		if (!plane) {
 			DRM_ERROR("KMS: Failed to allocate plane\n");
-			goto fail_free_planes;
+			goto fail;
 		}
-		mode_info->planes[i]->base.type = mode_info->plane_type[i];
+		plane->base.type = mode_info->plane_type[i];
 
 		/*
 		 * HACK: IGT tests expect that each plane can only have one
@@ -1381,14 +1351,14 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 
 		if (amdgpu_dm_plane_init(dm, mode_info->planes[i], possible_crtcs)) {
 			DRM_ERROR("KMS: Failed to initialize plane\n");
-			goto fail_free_planes;
+			goto fail;
 		}
 	}
 
 	for (i = 0; i < dm->dc->caps.max_streams; i++)
 		if (amdgpu_dm_crtc_init(dm, &mode_info->planes[i]->base, i)) {
 			DRM_ERROR("KMS: Failed to initialize crtc\n");
-			goto fail_free_planes;
+			goto fail;
 		}
 
 	dm->display_indexes_num = dm->dc->caps.max_streams;
@@ -1405,20 +1375,20 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 
 		aconnector = kzalloc(sizeof(*aconnector), GFP_KERNEL);
 		if (!aconnector)
-			goto fail_free_planes;
+			goto fail;
 
 		aencoder = kzalloc(sizeof(*aencoder), GFP_KERNEL);
 		if (!aencoder)
-			goto fail_free_connector;
+			goto fail;
 
 		if (amdgpu_dm_encoder_init(dm->ddev, aencoder, i)) {
 			DRM_ERROR("KMS: Failed to initialize encoder\n");
-			goto fail_free_encoder;
+			goto fail;
 		}
 
 		if (amdgpu_dm_connector_init(dm, aconnector, i, aencoder)) {
 			DRM_ERROR("KMS: Failed to initialize connector\n");
-			goto fail_free_encoder;
+			goto fail;
 		}
 
 		if (dc_link_detect(dc_get_link_at_index(dm->dc, i),
@@ -1443,14 +1413,14 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 	case CHIP_VEGA10:
 		if (dce110_register_irq_handlers(dm->adev)) {
 			DRM_ERROR("DM: Failed to initialize IRQ\n");
-			goto fail_free_encoder;
+			goto fail;
 		}
 		break;
 #if defined(CONFIG_DRM_AMD_DC_DCN1_0)
 	case CHIP_RAVEN:
 		if (dcn10_register_irq_handlers(dm->adev)) {
 			DRM_ERROR("DM: Failed to initialize IRQ\n");
-			goto fail_free_encoder;
+			goto fail;
 		}
 		/*
 		 * Temporary disable until pplib/smu interaction is implemented
@@ -1460,17 +1430,13 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 #endif
 	default:
 		DRM_ERROR("Usupported ASIC type: 0x%X\n", adev->asic_type);
-		goto fail_free_encoder;
+		goto fail;
 	}
 
-	drm_mode_config_reset(dm->ddev);
-
 	return 0;
-fail_free_encoder:
+fail:
 	kfree(aencoder);
-fail_free_connector:
 	kfree(aconnector);
-fail_free_planes:
 	for (i = 0; i < dm->dc->caps.max_planes; i++)
 		kfree(mode_info->planes[i]);
 	return -1;
@@ -1804,6 +1770,7 @@ static int fill_plane_attributes_from_fb(struct amdgpu_device *adev,
 {
 	uint64_t tiling_flags;
 	uint64_t fb_location = 0;
+	uint64_t chroma_addr = 0;
 	unsigned int awidth;
 	const struct drm_framebuffer *fb = &amdgpu_fb->base;
 	int ret = 0;
@@ -1866,9 +1833,13 @@ static int fill_plane_attributes_from_fb(struct amdgpu_device *adev,
 		plane_state->address.type = PLN_ADDR_TYPE_VIDEO_PROGRESSIVE;
 		plane_state->address.video_progressive.luma_addr.low_part
 						= lower_32_bits(fb_location);
+		plane_state->address.video_progressive.luma_addr.high_part
+						= upper_32_bits(fb_location);
+		chroma_addr = fb_location + (u64)(awidth * fb->height);
 		plane_state->address.video_progressive.chroma_addr.low_part
-						= lower_32_bits(fb_location) +
-							(awidth * fb->height);
+						= lower_32_bits(chroma_addr);
+		plane_state->address.video_progressive.chroma_addr.high_part
+						= upper_32_bits(chroma_addr);
 		plane_state->plane_size.video.luma_size.x = 0;
 		plane_state->plane_size.video.luma_size.y = 0;
 		plane_state->plane_size.video.luma_size.width = awidth;
@@ -2924,6 +2895,7 @@ static int dm_plane_helper_prepare_fb(struct drm_plane *plane,
 	struct amdgpu_framebuffer *afb;
 	struct drm_gem_object *obj;
 	struct amdgpu_bo *rbo;
+	uint64_t chroma_addr = 0;
 	int r;
 	struct dm_plane_state *dm_plane_state_new, *dm_plane_state_old;
 	unsigned int awidth;
@@ -2950,7 +2922,8 @@ static int dm_plane_helper_prepare_fb(struct drm_plane *plane,
 	amdgpu_bo_unreserve(rbo);
 
 	if (unlikely(r != 0)) {
-		DRM_ERROR("Failed to pin framebuffer\n");
+		if (r != -ERESTARTSYS)
+			DRM_ERROR("Failed to pin framebuffer with error %d\n", r);
 		return r;
 	}
 
@@ -2965,11 +2938,16 @@ static int dm_plane_helper_prepare_fb(struct drm_plane *plane,
 			plane_state->address.grph.addr.high_part = upper_32_bits(afb->address);
 		} else {
 			awidth = ALIGN(new_state->fb->width, 64);
+			plane_state->address.type = PLN_ADDR_TYPE_VIDEO_PROGRESSIVE;
 			plane_state->address.video_progressive.luma_addr.low_part
 							= lower_32_bits(afb->address);
+			plane_state->address.video_progressive.luma_addr.high_part
+							= upper_32_bits(afb->address);
+			chroma_addr = afb->address + (u64)(awidth * new_state->fb->height);
 			plane_state->address.video_progressive.chroma_addr.low_part
-							= lower_32_bits(afb->address) +
-								(awidth * new_state->fb->height);
+							= lower_32_bits(chroma_addr);
+			plane_state->address.video_progressive.chroma_addr.high_part
+							= upper_32_bits(chroma_addr);
 		}
 	}
 
@@ -3101,6 +3079,11 @@ static int amdgpu_dm_plane_init(struct amdgpu_display_manager *dm,
 
 	drm_plane_helper_add(&aplane->base, &dm_plane_helper_funcs);
 
+	/* Create (reset) the plane state */
+	if (aplane->base.funcs->reset)
+		aplane->base.funcs->reset(&aplane->base);
+
+
 	return res;
 }
 
@@ -3135,6 +3118,10 @@ static int amdgpu_dm_crtc_init(struct amdgpu_display_manager *dm,
 		goto fail;
 
 	drm_crtc_helper_add(&acrtc->base, &amdgpu_dm_crtc_helper_funcs);
+
+	/* Create (reset) the plane state */
+	if (acrtc->base.funcs->reset)
+		acrtc->base.funcs->reset(&acrtc->base);
 
 	acrtc->max_cursor_width = dm->adev->dm.dc->caps.max_cursor_size;
 	acrtc->max_cursor_height = dm->adev->dm.dc->caps.max_cursor_size;
@@ -3487,6 +3474,9 @@ static int amdgpu_dm_connector_init(struct amdgpu_display_manager *dm,
 	drm_connector_helper_add(
 			&aconnector->base,
 			&amdgpu_dm_connector_helper_funcs);
+
+	if (aconnector->base.funcs->reset)
+		aconnector->base.funcs->reset(&aconnector->base);
 
 	amdgpu_dm_connector_init_helper(
 		dm,
@@ -3874,8 +3864,7 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 	/* update planes when needed */
 	for_each_oldnew_plane_in_state(state, plane, old_plane_state, new_plane_state, i) {
 		struct drm_crtc *crtc = new_plane_state->crtc;
-		struct drm_crtc_state *new_crtc_state =
-				drm_atomic_get_new_crtc_state(state, crtc);
+		struct drm_crtc_state *new_crtc_state;
 		struct drm_framebuffer *fb = new_plane_state->fb;
 		bool pflip_needed;
 		struct dm_plane_state *dm_new_plane_state = to_dm_plane_state(new_plane_state);
@@ -3885,7 +3874,11 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 			continue;
 		}
 
-		if (!fb || !crtc || pcrtc != crtc || !new_crtc_state->active)
+		if (!fb || !crtc || pcrtc != crtc)
+			continue;
+
+		new_crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
+		if (!new_crtc_state->active)
 			continue;
 
 		pflip_needed = !state->allow_modeset;
@@ -4675,6 +4668,9 @@ static int amdgpu_dm_atomic_check(struct drm_device *dev,
 		}
 	} else {
 		for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
+			if (!drm_atomic_crtc_needs_modeset(new_crtc_state))
+				continue;
+
 			if (!new_crtc_state->enable)
 				continue;
 

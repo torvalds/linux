@@ -1370,16 +1370,6 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 
 	pipe_ctx->plane_res.scl_data.lb_params.alpha_en = pipe_ctx->bottom_pipe != 0;
 
-	/* mst support - use total stream count */
-	if (pipe_ctx->plane_res.mi != NULL) {
-		pipe_ctx->plane_res.mi->funcs->allocate_mem_input(
-				pipe_ctx->plane_res.mi,
-				stream->timing.h_total,
-				stream->timing.v_total,
-				stream->timing.pix_clk_khz,
-				context->stream_count);
-	}
-
 	pipe_ctx->stream->sink->link->psr_enabled = false;
 
 	return DC_OK;
@@ -2890,6 +2880,15 @@ static void dce110_apply_ctx_for_surface(
 
 		if (pipe_ctx->stream != stream)
 			continue;
+
+		/* Need to allocate mem before program front end for Fiji */
+		if (pipe_ctx->plane_res.mi != NULL)
+			pipe_ctx->plane_res.mi->funcs->allocate_mem_input(
+					pipe_ctx->plane_res.mi,
+					pipe_ctx->stream->timing.h_total,
+					pipe_ctx->stream->timing.v_total,
+					pipe_ctx->stream->timing.pix_clk_khz,
+					context->stream_count);
 
 		dce110_program_front_end_for_pipe(dc, pipe_ctx);
 		program_surface_visibility(dc, pipe_ctx);

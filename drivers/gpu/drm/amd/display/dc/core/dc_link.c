@@ -24,6 +24,7 @@
  */
 
 #include "dm_services.h"
+#include "atom.h"
 #include "dm_helpers.h"
 #include "dc.h"
 #include "grph_object_id.h"
@@ -45,7 +46,6 @@
 #include "dce/dce_11_0_enum.h"
 #include "dce/dce_11_0_sh_mask.h"
 
-#define EXT_DISPLAY_PATH_CAPS__EXT_CHIP_MASK	0x007C /* Copied from atombios.h */
 #define LINK_INFO(...) \
 	dm_logger_write(dc_ctx->logger, LOG_HW_HOTPLUG, \
 		__VA_ARGS__)
@@ -1696,7 +1696,7 @@ static void enable_link_hdmi(struct pipe_ctx *pipe_ctx)
 	if (dc_is_hdmi_signal(pipe_ctx->stream->signal)) {
 		unsigned short masked_chip_caps = pipe_ctx->stream->sink->link->chip_caps &
 				EXT_DISPLAY_PATH_CAPS__EXT_CHIP_MASK;
-		if (masked_chip_caps == (0x2 << 2)) {
+		if (masked_chip_caps == EXT_DISPLAY_PATH_CAPS__HDMI20_TISN65DP159RSBT) {
 			/* DP159, Retimer settings */
 			eng_id = pipe_ctx->stream_res.stream_enc->id;
 
@@ -1707,7 +1707,7 @@ static void enable_link_hdmi(struct pipe_ctx *pipe_ctx)
 				write_i2c_default_retimer_setting(pipe_ctx,
 						is_vga_mode, is_over_340mhz);
 			}
-		} else if (masked_chip_caps == (0x1 << 2)) {
+		} else if (masked_chip_caps == EXT_DISPLAY_PATH_CAPS__HDMI20_PI3EQX1204) {
 			/* PI3EQX1204, Redriver settings */
 			write_i2c_redriver_setting(pipe_ctx, is_over_340mhz);
 		}
