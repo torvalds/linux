@@ -542,6 +542,12 @@ static inline unsigned long current_top_of_stack(void)
 #endif
 }
 
+static inline bool on_thread_stack(void)
+{
+	return (unsigned long)(current_top_of_stack() -
+			       current_stack_pointer) < THREAD_SIZE;
+}
+
 #ifdef CONFIG_PARAVIRT
 #include <asm/paravirt.h>
 #else
