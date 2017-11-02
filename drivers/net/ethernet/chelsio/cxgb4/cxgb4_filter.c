@@ -1110,8 +1110,10 @@ static int cxgb4_set_hash_filter(struct net_device *dev,
 	}
 
 	atid = cxgb4_alloc_atid(t, f);
-	if (atid < 0)
+	if (atid < 0) {
+		ret = atid;
 		goto free_smt;
+	}
 
 	iconf = adapter->params.tp.ingress_config;
 	if (iconf & VNIC_F) {
