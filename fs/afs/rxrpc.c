@@ -303,6 +303,8 @@ static int afs_send_pages(struct afs_call *call, struct msghdr *msg)
 
 	do {
 		afs_load_bvec(call, msg, bv, first, last, offset);
+		trace_afs_send_pages(call, msg, first, last, offset);
+
 		offset = 0;
 		bytes = msg->msg_iter.count;
 		nr = msg->msg_iter.nr_segs;
@@ -317,6 +319,7 @@ static int afs_send_pages(struct afs_call *call, struct msghdr *msg)
 		first += nr;
 	} while (first <= last);
 
+	trace_afs_sent_pages(call, call->first, last, first, ret);
 	return ret;
 }
 

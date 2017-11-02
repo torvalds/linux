@@ -320,6 +320,67 @@ TRACE_EVENT(afs_call_done,
 		      __entry->rx_call)
 	    );
 
+TRACE_EVENT(afs_send_pages,
+	    TP_PROTO(struct afs_call *call, struct msghdr *msg,
+		     pgoff_t first, pgoff_t last, unsigned int offset),
+
+	    TP_ARGS(call, msg, first, last, offset),
+
+	    TP_STRUCT__entry(
+		    __field(struct afs_call *,		call		)
+		    __field(pgoff_t,			first		)
+		    __field(pgoff_t,			last		)
+		    __field(unsigned int,		nr		)
+		    __field(unsigned int,		bytes		)
+		    __field(unsigned int,		offset		)
+		    __field(unsigned int,		flags		)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->call = call;
+		    __entry->first = first;
+		    __entry->last = last;
+		    __entry->nr = msg->msg_iter.nr_segs;
+		    __entry->bytes = msg->msg_iter.count;
+		    __entry->offset = offset;
+		    __entry->flags = msg->msg_flags;
+			   ),
+
+	    TP_printk(" c=%p %lx-%lx-%lx b=%x o=%x f=%x",
+		      __entry->call,
+		      __entry->first, __entry->first + __entry->nr - 1, __entry->last,
+		      __entry->bytes, __entry->offset,
+		      __entry->flags)
+	    );
+
+TRACE_EVENT(afs_sent_pages,
+	    TP_PROTO(struct afs_call *call, pgoff_t first, pgoff_t last,
+		     pgoff_t cursor, int ret),
+
+	    TP_ARGS(call, first, last, cursor, ret),
+
+	    TP_STRUCT__entry(
+		    __field(struct afs_call *,		call		)
+		    __field(pgoff_t,			first		)
+		    __field(pgoff_t,			last		)
+		    __field(pgoff_t,			cursor		)
+		    __field(int,			ret		)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->call = call;
+		    __entry->first = first;
+		    __entry->last = last;
+		    __entry->cursor = cursor;
+		    __entry->ret = ret;
+			   ),
+
+	    TP_printk(" c=%p %lx-%lx c=%lx r=%d",
+		      __entry->call,
+		      __entry->first, __entry->last,
+		      __entry->cursor, __entry->ret)
+	    );
+
 #endif /* _TRACE_AFS_H */
 
 /* This part must be outside protection */
