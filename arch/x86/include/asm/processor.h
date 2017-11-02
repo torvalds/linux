@@ -796,6 +796,8 @@ static inline void spin_lock_prefetch(const void *x)
 #define TOP_OF_INIT_STACK ((unsigned long)&init_stack + sizeof(init_stack) - \
 			   TOP_OF_KERNEL_STACK_PADDING)
 
+#define task_top_of_stack(task) ((unsigned long)(task_pt_regs(task) + 1))
+
 #ifdef CONFIG_X86_32
 /*
  * User space process size: 3GB (default).
