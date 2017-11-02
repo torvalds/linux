@@ -1353,7 +1353,8 @@ branch_common:
 				return SIGILL;
 
 			/* a real fpu computation instruction */
-			if ((sig = fpu_emu(xcp, ctx, ir)))
+			sig = fpu_emu(xcp, ctx, ir);
+			if (sig)
 				return sig;
 		}
 		break;
