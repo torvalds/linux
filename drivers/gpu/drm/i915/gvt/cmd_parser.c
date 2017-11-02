@@ -709,18 +709,13 @@ static void parser_exec_state_dump(struct parser_exec_state *s)
 
 	print_opcode(cmd_val(s, 0), s->ring_id);
 
-	/* print the whole page to trace */
-	pr_err("    ip_va=%p: %08x %08x %08x %08x\n",
-			s->ip_va, cmd_val(s, 0), cmd_val(s, 1),
-			cmd_val(s, 2), cmd_val(s, 3));
-
 	s->ip_va = (u32 *)((((u64)s->ip_va) >> 12) << 12);
 
 	while (cnt < 1024) {
-		pr_err("ip_va=%p: ", s->ip_va);
+		gvt_dbg_cmd("ip_va=%p: ", s->ip_va);
 		for (i = 0; i < 8; i++)
-			pr_err("%08x ", cmd_val(s, i));
-		pr_err("\n");
+			gvt_dbg_cmd("%08x ", cmd_val(s, i));
+		gvt_dbg_cmd("\n");
 
 		s->ip_va += 8 * sizeof(u32);
 		cnt += 8;
