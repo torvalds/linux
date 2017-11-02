@@ -1,5 +1,7 @@
 /*
- * Copyright (C) 2017 Jagan Teki <jteki@openedev.com>
+ * Copyright 2017 Chen-Yu Tsai
+ *
+ * Chen-Yu Tsai <wens@csie.org>
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
@@ -40,96 +42,98 @@
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include "sun8i-h3-nanopi.dtsi"
+/* AXP813/818 Integrated Power Management Chip */
 
-/ {
-	model = "FriendlyArm NanoPi M1 Plus";
-	compatible = "friendlyarm,nanopi-m1-plus", "allwinner,sun8i-h3";
+&axp81x {
+	interrupt-controller;
+	#interrupt-cells = <1>;
 
-	aliases {
-		serial1 = &uart3;
-		ethernet1 = &sdio_wifi;
+	regulators {
+		/* Default work frequency for buck regulators */
+		x-powers,dcdc-freq = <3000>;
+
+		reg_dcdc1: dcdc1 {
+		};
+
+		reg_dcdc2: dcdc2 {
+		};
+
+		reg_dcdc3: dcdc3 {
+		};
+
+		reg_dcdc4: dcdc4 {
+		};
+
+		reg_dcdc5: dcdc5 {
+		};
+
+		reg_dcdc6: dcdc6 {
+		};
+
+		reg_dcdc7: dcdc7 {
+		};
+
+		reg_aldo1: aldo1 {
+		};
+
+		reg_aldo2: aldo2 {
+		};
+
+		reg_aldo3: aldo3 {
+		};
+
+		reg_dldo1: dldo1 {
+		};
+
+		reg_dldo2: dldo2 {
+		};
+
+		reg_dldo3: dldo3 {
+		};
+
+		reg_dldo4: dldo4 {
+		};
+
+		reg_eldo1: eldo1 {
+		};
+
+		reg_eldo2: eldo2 {
+		};
+
+		reg_eldo3: eldo3 {
+		};
+
+		reg_fldo1: fldo1 {
+		};
+
+		reg_fldo2: fldo2 {
+		};
+
+		reg_fldo3: fldo3 {
+		};
+
+		reg_ldo_io0: ldo-io0 {
+			/* Disable by default to avoid conflicts with GPIO */
+			status = "disabled";
+		};
+
+		reg_ldo_io1: ldo-io1 {
+			/* Disable by default to avoid conflicts with GPIO */
+			status = "disabled";
+		};
+
+		reg_rtc_ldo: rtc-ldo {
+			/* RTC_LDO is a fixed, always-on regulator */
+			regulator-always-on;
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1800000>;
+		};
+
+		reg_sw: sw {
+		};
+
+		reg_drivevbus: drivevbus {
+			status = "disabled";
+		};
 	};
-
-	reg_gmac_3v3: gmac-3v3 {
-		compatible = "regulator-fixed";
-		regulator-name = "gmac-3v3";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		startup-delay-us = <100000>;
-		enable-active-high;
-		gpio = <&pio 3 6 GPIO_ACTIVE_HIGH>;
-	};
-
-	wifi_pwrseq: wifi_pwrseq {
-		compatible = "mmc-pwrseq-simple";
-		pinctrl-names = "default";
-		reset-gpios = <&r_pio 0 7 GPIO_ACTIVE_LOW>; /* PL7 */
-	};
-};
-
-&ehci1 {
-	status = "okay";
-};
-
-&ehci2 {
-	status = "okay";
-};
-
-&emac {
-	pinctrl-names = "default";
-	pinctrl-0 = <&emac_rgmii_pins>;
-	phy-supply = <&reg_gmac_3v3>;
-	phy-handle = <&ext_rgmii_phy>;
-	phy-mode = "rgmii";
-
-	allwinner,leds-active-low;
-
-	status = "okay";
-};
-
-&external_mdio {
-	ext_rgmii_phy: ethernet-phy@1 {
-		compatible = "ethernet-phy-ieee802.3-c22";
-		reg = <7>;
-	};
-};
-
-&ir {
-	pinctrl-names = "default";
-	pinctrl-0 = <&ir_pins_a>;
-	status = "okay";
-};
-
-&mmc1 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&mmc1_pins_a>;
-	vmmc-supply = <&reg_vcc3v3>;
-	vqmmc-supply = <&reg_vcc3v3>;
-	mmc-pwrseq = <&wifi_pwrseq>;
-	bus-width = <4>;
-	non-removable;
-	status = "okay";
-
-	sdio_wifi: sdio_wifi@1 {
-		reg = <1>;
-		compatible = "brcm,bcm4329-fmac";
-		interrupt-parent = <&pio>;
-		interrupts = <6 10 IRQ_TYPE_LEVEL_LOW>; /* PG10 / EINT10 */
-		interrupt-names = "host-wake";
-	};
-};
-
-&ohci1 {
-	status = "okay";
-};
-
-&ohci2 {
-	status = "okay";
-};
-
-&uart3 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&uart3_pins>, <&uart3_rts_cts_pins>;
-	status = "okay";
 };
