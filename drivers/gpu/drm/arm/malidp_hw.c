@@ -21,6 +21,7 @@
 
 #include "malidp_drv.h"
 #include "malidp_hw.h"
+#include "malidp_mw.h"
 
 enum {
 	MW_NOT_ENABLED = 0,	/* SE writeback not enabled */
@@ -996,7 +997,11 @@ static irqreturn_t malidp_se_irq(int irq, void *arg)
 
 	if (status & se->vsync_irq) {
 		switch (hwdev->mw_state) {
+		case MW_ONESHOT:
+			drm_writeback_signal_completion(&malidp->mw_connector, 0);
+			break;
 		case MW_STOP:
+			drm_writeback_signal_completion(&malidp->mw_connector, 0);
 			/* disable writeback after stop */
 			hwdev->mw_state = MW_NOT_ENABLED;
 			break;

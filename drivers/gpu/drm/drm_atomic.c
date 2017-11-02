@@ -1436,6 +1436,10 @@ static void drm_atomic_connector_print_state(struct drm_printer *p,
 	drm_printf(p, "connector[%u]: %s\n", connector->base.id, connector->name);
 	drm_printf(p, "\tcrtc=%s\n", state->crtc ? state->crtc->name : "(null)");
 
+	if (connector->connector_type == DRM_MODE_CONNECTOR_WRITEBACK)
+		if (state->writeback_job && state->writeback_job->fb)
+			drm_printf(p, "\tfb=%d\n", state->writeback_job->fb->base.id);
+
 	if (connector->funcs->atomic_print_state)
 		connector->funcs->atomic_print_state(p, state);
 }
