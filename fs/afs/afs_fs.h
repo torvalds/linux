@@ -37,6 +37,7 @@ enum AFS_FS_Operations {
 	FSLOOKUP		= 161,	/* AFS lookup file in directory */
 	FSFETCHDATA64		= 65537, /* AFS Fetch file data */
 	FSSTOREDATA64		= 65538, /* AFS Store file data */
+	FSGIVEUPALLCALLBACKS	= 65539, /* AFS Give up all outstanding callbacks on a server */
 };
 
 enum AFS_FS_Errors {

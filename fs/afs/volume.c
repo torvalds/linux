@@ -153,8 +153,10 @@ error:
 error_discard:
 	up_write(&params->cell->vl_sem);
 
-	for (loop = volume->nservers - 1; loop >= 0; loop--)
+	for (loop = volume->nservers - 1; loop >= 0; loop--) {
+		afs_put_cb_interest(params->net, volume->cb_interests[loop]);
 		afs_put_server(params->net, volume->servers[loop]);
+	}
 
 	kfree(volume);
 	goto error;
@@ -197,8 +199,10 @@ void afs_put_volume(struct afs_cell *cell, struct afs_volume *volume)
 #endif
 	afs_put_vlocation(cell->net, vlocation);
 
-	for (loop = volume->nservers - 1; loop >= 0; loop--)
+	for (loop = volume->nservers - 1; loop >= 0; loop--) {
+		afs_put_cb_interest(cell->net, volume->cb_interests[loop]);
 		afs_put_server(cell->net, volume->servers[loop]);
+	}
 
 	kfree(volume);
 
@@ -218,10 +222,10 @@ struct afs_server *afs_volume_pick_fileserver(struct afs_vnode *vnode)
 	_enter("%s", volume->vlocation->vldb.name);
 
 	/* stick with the server we're already using if we can */
-	if (vnode->server && vnode->server->fs_state == 0) {
-		afs_get_server(vnode->server);
-		_leave(" = %p [current]", vnode->server);
-		return vnode->server;
+	if (vnode->cb_interest && vnode->cb_interest->server->fs_state == 0) {
+		afs_get_server(vnode->cb_interest->server);
+		_leave(" = %p [current]", vnode->cb_interest->server);
+		return vnode->cb_interest->server;
 	}
 
 	down_read(&volume->server_sem);
@@ -244,13 +248,8 @@ struct afs_server *afs_volume_pick_fileserver(struct afs_vnode *vnode)
 		_debug("consider %d [%d]", loop, state);
 
 		switch (state) {
-			/* found an apparently healthy server */
 		case 0:
-			afs_get_server(server);
-			up_read(&volume->server_sem);
-			_leave(" = %p (picked %pIS)",
-			       server, &server->addr.transport);
-			return server;
+			goto picked_server;
 
 		case -ENETUNREACH:
 			if (ret == 0)
@@ -284,9 +283,25 @@ struct afs_server *afs_volume_pick_fileserver(struct afs_vnode *vnode)
 	/* no available servers
 	 * - TODO: handle the no active servers case better
 	 */
+error:
 	up_read(&volume->server_sem);
 	_leave(" = %d", ret);
 	return ERR_PTR(ret);
+
+picked_server:
+	/* Found an apparently healthy server.  We need to register an interest
+	 * in receiving callbacks before we talk to it.
+	 */
+	ret = afs_register_server_cb_interest(vnode,
+					      &volume->cb_interests[loop], server);
+	if (ret < 0)
+		goto error;
+	
+	afs_get_server(server);
+	up_read(&volume->server_sem);
+	_leave(" = %p (picked %pIS)",
+	       server, &server->addr.transport);
+	return server;
 }
 
 /*
@@ -309,14 +324,12 @@ int afs_volume_release_fileserver(struct afs_vnode *vnode,
 	switch (result) {
 		/* success */
 	case 0:
-		server->fs_act_jif = jiffies;
 		server->fs_state = 0;
 		_leave("");
 		return 1;
 
 		/* the fileserver denied all knowledge of the volume */
 	case -ENOMEDIUM:
-		server->fs_act_jif = jiffies;
 		down_write(&volume->server_sem);
 
 		/* firstly, find where the server is in the active list (if it
@@ -365,7 +378,6 @@ int afs_volume_release_fileserver(struct afs_vnode *vnode,
 		 */
 		spin_lock(&server->fs_lock);
 		if (!server->fs_state) {
-			server->fs_dead_jif = jiffies + HZ * 10;
 			server->fs_state = result;
 			printk("kAFS: SERVER DEAD state=%d\n", result);
 		}
@@ -374,7 +386,6 @@ int afs_volume_release_fileserver(struct afs_vnode *vnode,
 
 		/* miscellaneous error */
 	default:
-		server->fs_act_jif = jiffies;
 	case -ENOMEM:
 	case -ENONET:
 		/* tell the caller to accept the result */

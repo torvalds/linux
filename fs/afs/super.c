@@ -512,8 +512,12 @@ error:
 
 static void afs_kill_super(struct super_block *sb)
 {
-	struct afs_super_info *as = sb->s_fs_info;
+	struct afs_super_info *as = AFS_FS_S(sb);
 
+	/* Clear the callback interests (which will do ilookup5) before
+	 * deactivating the superblock.
+	 */
+	afs_clear_callback_interests(as->net, as->volume);
 	kill_anon_super(sb);
 	afs_destroy_sbi(as);
 }
@@ -536,7 +540,7 @@ static void afs_i_init_once(void *_vnode)
 	INIT_LIST_HEAD(&vnode->pending_locks);
 	INIT_LIST_HEAD(&vnode->granted_locks);
 	INIT_DELAYED_WORK(&vnode->lock_work, afs_lock_work);
-	INIT_WORK(&vnode->cb_broken_work, afs_broken_callback_work);
+	seqlock_init(&vnode->cb_lock);
 }
 
 /*
@@ -558,7 +562,6 @@ static struct inode *afs_alloc_inode(struct super_block *sb)
 	vnode->volume		= NULL;
 	vnode->update_cnt	= 0;
 	vnode->flags		= 1 << AFS_VNODE_UNSET;
-	vnode->cb_promised	= false;
 
 	_leave(" = %p", &vnode->vfs_inode);
 	return &vnode->vfs_inode;
@@ -582,7 +585,7 @@ static void afs_destroy_inode(struct inode *inode)
 
 	_debug("DESTROY INODE %p", inode);
 
-	ASSERTCMP(vnode->server, ==, NULL);
+	ASSERTCMP(vnode->cb_interest, ==, NULL);
 
 	call_rcu(&inode->i_rcu, afs_i_callback);
 	atomic_dec(&afs_count_active_inodes);

@@ -123,10 +123,6 @@ static int __init afs_init(void)
 		alloc_workqueue("kafs_vlupdated", WQ_MEM_RECLAIM, 0);
 	if (!afs_vlocation_update_worker)
 		goto error_vl_up;
-	afs_callback_update_worker =
-		alloc_ordered_workqueue("kafs_callbackd", WQ_MEM_RECLAIM);
-	if (!afs_callback_update_worker)
-		goto error_callback;
 	afs_lock_manager = alloc_workqueue("kafs_lockd", WQ_MEM_RECLAIM, 0);
 	if (!afs_lock_manager)
 		goto error_lockmgr;
@@ -158,8 +154,6 @@ error_cache:
 #endif
 	destroy_workqueue(afs_lock_manager);
 error_lockmgr:
-	destroy_workqueue(afs_callback_update_worker);
-error_callback:
 	destroy_workqueue(afs_vlocation_update_worker);
 error_vl_up:
 	destroy_workqueue(afs_async_calls);
@@ -189,7 +183,6 @@ static void __exit afs_exit(void)
 	fscache_unregister_netfs(&afs_cache_netfs);
 #endif
 	destroy_workqueue(afs_lock_manager);
-	destroy_workqueue(afs_callback_update_worker);
 	destroy_workqueue(afs_vlocation_update_worker);
 	destroy_workqueue(afs_async_calls);
 	destroy_workqueue(afs_wq);

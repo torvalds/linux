@@ -153,7 +153,7 @@ static void afs_cm_destructor(struct afs_call *call)
 }
 
 /*
- * allow the fileserver to see if the cache manager is still alive
+ * The server supplied a list of callbacks that it wanted to break.
  */
 static void SRXAFSCB_CallBack(struct work_struct *work)
 {

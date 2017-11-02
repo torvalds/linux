@@ -55,6 +55,11 @@ struct afs_mount_params {
 	struct key		*key;		/* key to use for secure mounting */
 };
 
+struct afs_iget_data {
+	struct afs_fid		fid;
+	struct afs_volume	*volume;	/* volume on which resides */
+};
+
 enum afs_call_state {
 	AFS_CALL_REQUESTING,	/* request is being sent for outgoing call */
 	AFS_CALL_AWAIT_REPLY,	/* awaiting reply to outgoing call */
@@ -77,6 +82,7 @@ struct afs_call {
 	struct key		*key;		/* security for this call */
 	struct afs_net		*net;		/* The network namespace */
 	struct afs_server	*cm_server;	/* Server affected by incoming CM call */
+	struct afs_server	*server;	/* Server used by client call */
 	void			*request;	/* request data (first part) */
 	struct address_space	*mapping;	/* page set */
 	struct afs_writeback	*wb;		/* writeback being performed */
@@ -92,6 +98,7 @@ struct afs_call {
 	unsigned		request_size;	/* size of request data */
 	unsigned		reply_max;	/* maximum size of reply */
 	unsigned		first_offset;	/* offset into mapping[first] */
+	unsigned int		cb_break;	/* cb_break + cb_s_break before the call */
 	union {
 		unsigned	last_to;	/* amount of mapping[last] */
 		unsigned	count2;		/* count used in unmarshalling */
@@ -314,26 +321,31 @@ struct afs_server {
 	struct afs_cell		*cell;		/* cell in which server resides */
 	struct list_head	link;		/* link in cell's server list */
 	struct list_head	grave;		/* link in master graveyard list */
+
 	struct rb_node		master_rb;	/* link in master by-addr tree */
 	struct rw_semaphore	sem;		/* access lock */
+	unsigned long		flags;
+#define AFS_SERVER_NEW		0		/* New server, don't inc cb_s_break */
 
 	/* file service access */
-	struct rb_root		fs_vnodes;	/* vnodes backed by this server (ordered by FID) */
-	unsigned long		fs_act_jif;	/* time at which last activity occurred */
-	unsigned long		fs_dead_jif;	/* time at which no longer to be considered dead */
-	spinlock_t		fs_lock;	/* access lock */
 	int			fs_state;      	/* 0 or reason FS currently marked dead (-errno) */
+	spinlock_t		fs_lock;	/* access lock */
 
 	/* callback promise management */
-	struct rb_root		cb_promises;	/* vnode expiration list (ordered earliest first) */
-	struct delayed_work	cb_updater;	/* callback updater */
-	struct delayed_work	cb_break_work;	/* collected break dispatcher */
-	wait_queue_head_t	cb_break_waitq;	/* space available in cb_break waitqueue */
-	spinlock_t		cb_lock;	/* access lock */
-	struct afs_callback	cb_break[64];	/* ring of callbacks awaiting breaking */
-	atomic_t		cb_break_n;	/* number of pending breaks */
-	u8			cb_break_head;	/* head of callback breaking ring */
-	u8			cb_break_tail;	/* tail of callback breaking ring */
+	struct list_head	cb_interests;	/* List of superblocks using this server */
+	unsigned		cb_s_break;	/* Break-everything counter. */
+	rwlock_t		cb_break_lock;	/* Volume finding lock */
+};
+
+/*
+ * Interest by a superblock on a server.
+ */
+struct afs_cb_interest {
+	struct list_head	cb_link;	/* Link in server->cb_interests */
+	struct afs_server	*server;	/* Server on which this interest resides */
+	struct super_block	*sb;		/* Superblock on which inodes reside */
+	afs_volid_t		vid;		/* Volume ID to match */
+	refcount_t		usage;
 };
 
 /*
@@ -352,6 +364,7 @@ struct afs_volume {
 	unsigned short		nservers;	/* number of server slots filled */
 	unsigned short		rjservers;	/* number of servers discarded due to -ENOMEDIUM */
 	struct afs_server	*servers[8];	/* servers on which volume resides (ordered) */
+	struct afs_cb_interest	*cb_interests[8]; /* Interests on servers for callbacks */
 	struct rw_semaphore	server_sem;	/* lock for accessing current server */
 };
 
@@ -371,7 +384,6 @@ struct afs_vnode {
 	struct inode		vfs_inode;	/* the VFS's inode record */
 
 	struct afs_volume	*volume;	/* volume on which vnode resides */
-	struct afs_server	*server;	/* server currently supplying this file */
 	struct afs_fid		fid;		/* the file identifier for this inode */
 	struct afs_file_status	status;		/* AFS status info for this file */
 #ifdef CONFIG_AFS_FSCACHE
@@ -386,9 +398,9 @@ struct afs_vnode {
 	spinlock_t		writeback_lock;	/* lock for writebacks */
 	spinlock_t		lock;		/* waitqueue/flags lock */
 	unsigned long		flags;
-#define AFS_VNODE_CB_BROKEN	0		/* set if vnode's callback was broken */
+#define AFS_VNODE_CB_PROMISED	0		/* Set if vnode has a callback promise */
 #define AFS_VNODE_UNSET		1		/* set if vnode attributes not yet set */
-#define AFS_VNODE_MODIFIED	2		/* set if vnode's data modified */
+#define AFS_VNODE_DIR_MODIFIED	2		/* set if dir vnode's data modified */
 #define AFS_VNODE_ZAP_DATA	3		/* set if vnode's data should be invalidated */
 #define AFS_VNODE_DELETED	4		/* set if vnode deleted on server */
 #define AFS_VNODE_MOUNTPOINT	5		/* set if vnode is a mountpoint symlink */
@@ -408,15 +420,14 @@ struct afs_vnode {
 	struct key		*unlock_key;	/* key to be used in unlocking */
 
 	/* outstanding callback notification on this file */
-	struct rb_node		server_rb;	/* link in server->fs_vnodes */
-	struct rb_node		cb_promise;	/* link in server->cb_promises */
-	struct work_struct	cb_broken_work;	/* work to be done on callback break */
-	time64_t		cb_expires;	/* time at which callback expires */
-	time64_t		cb_expires_at;	/* time used to order cb_promise */
+	struct afs_cb_interest	*cb_interest;	/* Server on which this resides */
+	unsigned int		cb_s_break;	/* Mass break counter on ->server */
+	unsigned int		cb_break;	/* Break counter on vnode */
+	seqlock_t		cb_lock;	/* Lock for ->cb_interest, ->status, ->cb_*break */
+
+	time64_t		cb_expires_at;	/* time at which callback expires */
 	unsigned		cb_version;	/* callback version */
-	unsigned		cb_expiry;	/* callback expiry time */
 	afs_callback_type_t	cb_type;	/* type of callback */
-	bool			cb_promised;	/* true if promise still holds */
 };
 
 /*
@@ -463,16 +474,20 @@ extern struct fscache_cookie_def afs_vnode_cache_index_def;
 /*
  * callback.c
  */
-extern struct workqueue_struct *afs_callback_update_worker;
-
 extern void afs_init_callback_state(struct afs_server *);
-extern void afs_broken_callback_work(struct work_struct *);
-extern void afs_break_callbacks(struct afs_server *, size_t,
-				struct afs_callback[]);
-extern void afs_discard_callback_on_delete(struct afs_vnode *);
-extern void afs_give_up_callback(struct afs_vnode *);
-extern void afs_dispatch_give_up_callbacks(struct work_struct *);
-extern void afs_flush_callback_breaks(struct afs_server *);
+extern void afs_break_callback(struct afs_vnode *);
+extern void afs_break_callbacks(struct afs_server *, size_t,struct afs_callback[]);
+
+extern int afs_register_server_cb_interest(struct afs_vnode *, struct afs_cb_interest **,
+					   struct afs_server *);
+extern void afs_put_cb_interest(struct afs_net *, struct afs_cb_interest *);
+extern void afs_clear_callback_interests(struct afs_net *, struct afs_volume *);
+
+static inline struct afs_cb_interest *afs_get_cb_interest(struct afs_cb_interest *cbi)
+{
+	refcount_inc(&cbi->usage);
+	return cbi;
+}
 
 /*
  * cell.c
@@ -560,10 +575,12 @@ extern int afs_fs_extend_lock(struct afs_server *, struct key *,
 			      struct afs_vnode *, bool);
 extern int afs_fs_release_lock(struct afs_server *, struct key *,
 			       struct afs_vnode *, bool);
+extern int afs_fs_give_up_all_callbacks(struct afs_server *, struct key *, bool);
 
 /*
  * inode.c
  */
+extern int afs_iget5_test(struct inode *, void *);
 extern struct inode *afs_iget_autocell(struct inode *, const char *, int,
 				       struct key *);
 extern struct inode *afs_iget(struct super_block *, struct key *,
@@ -676,11 +693,11 @@ extern int afs_permission(struct inode *, int);
  */
 extern spinlock_t afs_server_peer_lock;
 
-#define afs_get_server(S)					\
-do {								\
-	_debug("GET SERVER %d", atomic_read(&(S)->usage));	\
-	atomic_inc(&(S)->usage);				\
-} while(0)
+static inline struct afs_server *afs_get_server(struct afs_server *server)
+{
+	atomic_inc(&server->usage);
+	return server;
+}
 
 extern void afs_server_timer(struct timer_list *);
 extern struct afs_server *afs_lookup_server(struct afs_cell *,
@@ -741,7 +758,7 @@ static inline struct inode *AFS_VNODE_TO_I(struct afs_vnode *vnode)
 extern void afs_vnode_finalise_status_update(struct afs_vnode *,
 					     struct afs_server *);
 extern int afs_vnode_fetch_status(struct afs_vnode *, struct afs_vnode *,
-				  struct key *);
+				  struct key *, bool);
 extern int afs_vnode_fetch_data(struct afs_vnode *, struct key *,
 				struct afs_read *);
 extern int afs_vnode_create(struct afs_vnode *, struct key *, const char *,

@@ -384,7 +384,7 @@ out:
  */
 static int afs_readdir(struct file *file, struct dir_context *ctx)
 {
-	return afs_dir_iterate(file_inode(file), 
+	return afs_dir_iterate(file_inode(file),
 			      ctx, file->private_data);
 }
 
@@ -581,6 +581,7 @@ static int afs_d_revalidate(struct dentry *dentry, unsigned int flags)
 	struct afs_vnode *vnode, *dir;
 	struct afs_fid uninitialized_var(fid);
 	struct dentry *parent;
+	struct inode *inode;
 	struct key *key;
 	void *dir_version;
 	int ret;
@@ -588,30 +589,39 @@ static int afs_d_revalidate(struct dentry *dentry, unsigned int flags)
 	if (flags & LOOKUP_RCU)
 		return -ECHILD;
 
-	vnode = AFS_FS_I(d_inode(dentry));
-
-	if (d_really_is_positive(dentry))
+	if (d_really_is_positive(dentry)) {
+		vnode = AFS_FS_I(d_inode(dentry));
 		_enter("{v={%x:%u} n=%pd fl=%lx},",
 		       vnode->fid.vid, vnode->fid.vnode, dentry,
 		       vnode->flags);
-	else
+	} else {
 		_enter("{neg n=%pd}", dentry);
+	}
 
 	key = afs_request_key(AFS_FS_S(dentry->d_sb)->volume->cell);
 	if (IS_ERR(key))
 		key = NULL;
+
+	if (d_really_is_positive(dentry)) {
+		inode = d_inode(dentry);
+		if (inode) {
+			vnode = AFS_FS_I(inode);
+			afs_validate(vnode, key);
+			if (test_bit(AFS_VNODE_DELETED, &vnode->flags))
+				goto out_bad;
+		}
+	}
 
 	/* lock down the parent dentry so we can peer at it */
 	parent = dget_parent(dentry);
 	dir = AFS_FS_I(d_inode(parent));
 
 	/* validate the parent directory */
-	if (test_bit(AFS_VNODE_MODIFIED, &dir->flags))
-		afs_validate(dir, key);
+	afs_validate(dir, key);
 
 	if (test_bit(AFS_VNODE_DELETED, &dir->flags)) {
 		_debug("%pd: parent dir deleted", dentry);
-		goto out_bad;
+		goto out_bad_parent;
 	}
 
 	dir_version = (void *) (unsigned long) dir->status.data_version;
@@ -626,12 +636,15 @@ static int afs_d_revalidate(struct dentry *dentry, unsigned int flags)
 	case 0:
 		/* the filename maps to something */
 		if (d_really_is_negative(dentry))
-			goto out_bad;
-		if (is_bad_inode(d_inode(dentry))) {
+			goto out_bad_parent;
+		inode = d_inode(dentry);
+		if (is_bad_inode(inode)) {
 			printk("kAFS: afs_d_revalidate: %pd2 has bad inode\n",
 			       dentry);
-			goto out_bad;
+			goto out_bad_parent;
 		}
+
+		vnode = AFS_FS_I(inode);
 
 		/* if the vnode ID has changed, then the dirent points to a
 		 * different file */
@@ -649,10 +662,10 @@ static int afs_d_revalidate(struct dentry *dentry, unsigned int flags)
 			_debug("%pd: file deleted (uq %u -> %u I:%u)",
 			       dentry, fid.unique,
 			       vnode->fid.unique,
-			       d_inode(dentry)->i_generation);
-			spin_lock(&vnode->lock);
+			       vnode->vfs_inode.i_generation);
+			write_seqlock(&vnode->cb_lock);
 			set_bit(AFS_VNODE_DELETED, &vnode->flags);
-			spin_unlock(&vnode->lock);
+			write_sequnlock(&vnode->cb_lock);
 			goto not_found;
 		}
 		goto out_valid;
@@ -667,7 +680,7 @@ static int afs_d_revalidate(struct dentry *dentry, unsigned int flags)
 	default:
 		_debug("failed to iterate dir %pd: %d",
 		       parent, ret);
-		goto out_bad;
+		goto out_bad_parent;
 	}
 
 out_valid:
@@ -683,9 +696,10 @@ not_found:
 	dentry->d_flags |= DCACHE_NFSFS_RENAMED;
 	spin_unlock(&dentry->d_lock);
 
-out_bad:
+out_bad_parent:
 	_debug("dropping dentry %pd2", dentry);
 	dput(parent);
+out_bad:
 	key_put(key);
 
 	_leave(" = 0 [bad]");
@@ -820,7 +834,7 @@ static int afs_rmdir(struct inode *dir, struct dentry *dentry)
 		vnode = AFS_FS_I(d_inode(dentry));
 		clear_nlink(&vnode->vfs_inode);
 		set_bit(AFS_VNODE_DELETED, &vnode->flags);
-		afs_discard_callback_on_delete(vnode);
+		clear_bit(AFS_VNODE_CB_PROMISED, &vnode->flags);
 	}
 
 	key_put(key);
@@ -884,9 +898,7 @@ static int afs_unlink(struct inode *dir, struct dentry *dentry)
 		vnode = AFS_FS_I(d_inode(dentry));
 		if (test_bit(AFS_VNODE_DELETED, &vnode->flags))
 			_debug("AFS_VNODE_DELETED");
-		if (test_bit(AFS_VNODE_CB_BROKEN, &vnode->flags))
-			_debug("AFS_VNODE_CB_BROKEN");
-		set_bit(AFS_VNODE_CB_BROKEN, &vnode->flags);
+		clear_bit(AFS_VNODE_CB_PROMISED, &vnode->flags);
 		ret = afs_validate(vnode, key);
 		_debug("nlink %d [val %d]", vnode->vfs_inode.i_nlink, ret);
 	}

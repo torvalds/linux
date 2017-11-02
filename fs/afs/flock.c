@@ -243,7 +243,7 @@ static int afs_do_setlk(struct file *file, struct file_lock *fl)
 
 	/* make sure we've got a callback on this file and that our view of the
 	 * data version is up to date */
-	ret = afs_vnode_fetch_status(vnode, NULL, key);
+	ret = afs_validate(vnode, key);
 	if (ret < 0)
 		goto error;
 
@@ -383,7 +383,7 @@ given_lock:
 	/* again, make sure we've got a callback on this file and, again, make
 	 * sure that our view of the data version is up to date (we ignore
 	 * errors incurred here and deal with the consequences elsewhere) */
-	afs_vnode_fetch_status(vnode, NULL, key);
+	afs_vnode_fetch_status(vnode, NULL, key, false);
 
 error:
 	spin_unlock(&inode->i_lock);
@@ -455,7 +455,7 @@ static int afs_do_getlk(struct file *file, struct file_lock *fl)
 	posix_test_lock(file, fl);
 	if (fl->fl_type == F_UNLCK) {
 		/* no local locks; consult the server */
-		ret = afs_vnode_fetch_status(vnode, NULL, key);
+		ret = afs_vnode_fetch_status(vnode, NULL, key, true);
 		if (ret < 0)
 			goto error;
 		lock_count = vnode->status.lock_count;

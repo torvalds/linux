@@ -115,6 +115,7 @@ void afs_clear_permits(struct afs_vnode *vnode)
 	mutex_lock(&vnode->permits_lock);
 	permits = vnode->permits;
 	RCU_INIT_POINTER(vnode->permits, NULL);
+	vnode->cb_break++;
 	mutex_unlock(&vnode->permits_lock);
 
 	if (permits)
@@ -264,8 +265,7 @@ static int afs_check_permit(struct afs_vnode *vnode, struct key *key,
 		 * (the post-processing will cache the result on auth_vnode) */
 		_debug("no valid permit");
 
-		set_bit(AFS_VNODE_CB_BROKEN, &vnode->flags);
-		ret = afs_vnode_fetch_status(vnode, auth_vnode, key);
+		ret = afs_vnode_fetch_status(vnode, auth_vnode, key, true);
 		if (ret < 0) {
 			iput(&auth_vnode->vfs_inode);
 			*_access = 0;
@@ -304,14 +304,9 @@ int afs_permission(struct inode *inode, int mask)
 		return PTR_ERR(key);
 	}
 
-	/* if the promise has expired, we need to check the server again */
-	if (!vnode->cb_promised) {
-		_debug("not promised");
-		ret = afs_vnode_fetch_status(vnode, NULL, key);
-		if (ret < 0)
-			goto error;
-		_debug("new promise [fl=%lx]", vnode->flags);
-	}
+	ret = afs_validate(vnode, key);
+	if (ret < 0)
+		goto error;
 
 	/* check the permits to see if we've got one yet */
 	ret = afs_check_permit(vnode, key, &access);

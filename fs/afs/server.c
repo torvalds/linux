@@ -94,12 +94,8 @@ static struct afs_server *afs_alloc_server(struct afs_cell *cell,
 		INIT_LIST_HEAD(&server->grave);
 		init_rwsem(&server->sem);
 		spin_lock_init(&server->fs_lock);
-		server->fs_vnodes = RB_ROOT;
-		server->cb_promises = RB_ROOT;
-		spin_lock_init(&server->cb_lock);
-		init_waitqueue_head(&server->cb_break_waitq);
-		INIT_DELAYED_WORK(&server->cb_break_work,
-				  afs_dispatch_give_up_callbacks);
+		INIT_LIST_HEAD(&server->cb_interests);
+		rwlock_init(&server->cb_break_lock);
 
 		server->addr = *addr;
 		afs_inc_servers_outstanding(cell->net);
@@ -258,8 +254,6 @@ void afs_put_server(struct afs_net *net, struct afs_server *server)
 		return;
 	}
 
-	afs_flush_callback_breaks(server);
-
 	spin_lock(&net->server_graveyard_lock);
 	if (atomic_read(&server->usage) == 0) {
 		list_move_tail(&server->grave, &net->server_graveyard);
@@ -277,15 +271,8 @@ static void afs_destroy_server(struct afs_net *net, struct afs_server *server)
 {
 	_enter("%p", server);
 
-	ASSERTIF(server->cb_break_head != server->cb_break_tail,
-		 delayed_work_pending(&server->cb_break_work));
-
-	ASSERTCMP(server->fs_vnodes.rb_node, ==, NULL);
-	ASSERTCMP(server->cb_promises.rb_node, ==, NULL);
-	ASSERTCMP(server->cb_break_head, ==, server->cb_break_tail);
-	ASSERTCMP(atomic_read(&server->cb_break_n), ==, 0);
-
-	afs_put_cell(server->net, server->cell);
+	afs_fs_give_up_all_callbacks(server, NULL, false);
+	afs_put_cell(net, server->cell);
 	kfree(server);
 	afs_dec_servers_outstanding(net);
 }
