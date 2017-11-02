@@ -3636,6 +3636,8 @@ F:	drivers/cpufreq/arm_big_little_dt.c
 
 CPU POWER MONITORING SUBSYSTEM
 M:	Thomas Renninger <trenn@suse.com>
+M:	Shuah Khan <shuahkh@osg.samsung.com>
+M:	Shuah Khan <shuah@kernel.org>
 L:	linux-pm@vger.kernel.org
 S:	Maintained
 F:	tools/power/cpupower/
