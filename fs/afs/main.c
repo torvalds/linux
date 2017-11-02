@@ -96,10 +96,10 @@ error_proc:
 static void __net_exit afs_net_exit(struct afs_net *net)
 {
 	net->live = false;
-	afs_close_socket(net);
 	afs_purge_servers(net);
 	afs_vlocation_purge(net);
 	afs_cell_purge(net);
+	afs_close_socket(net);
 	afs_proc_cleanup(net);
 }
 
