@@ -245,7 +245,6 @@ entry_SYSCALL64_slow_path:
 	call	do_syscall_64		/* returns with IRQs disabled */
 
 return_from_SYSCALL_64:
-	RESTORE_EXTRA_REGS
 	TRACE_IRQS_IRETQ		/* we're about to change IF */
 
 	/*
@@ -314,6 +313,7 @@ return_from_SYSCALL_64:
 	 */
 syscall_return_via_sysret:
 	/* rcx and r11 are already restored (see code above) */
+	RESTORE_EXTRA_REGS
 	RESTORE_C_REGS_EXCEPT_RCX_R11
 	movq	RSP(%rsp), %rsp
 	UNWIND_HINT_EMPTY
@@ -321,7 +321,7 @@ syscall_return_via_sysret:
 
 opportunistic_sysret_failed:
 	SWAPGS
-	jmp	restore_c_regs_and_iret
+	jmp	restore_regs_and_iret
 END(entry_SYSCALL_64)
 
 ENTRY(stub_ptregs_64)
@@ -638,7 +638,6 @@ retint_kernel:
  */
 GLOBAL(restore_regs_and_iret)
 	RESTORE_EXTRA_REGS
-restore_c_regs_and_iret:
 	RESTORE_C_REGS
 	REMOVE_PT_GPREGS_FROM_STACK 8
 	INTERRUPT_RETURN
