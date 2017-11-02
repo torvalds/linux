@@ -1679,7 +1679,7 @@ void fp_unavailable_tm(struct pt_regs *regs)
 	/* Reclaim didn't save out any FPRs to transact_fprs. */
 
 	/* Enable FP for the task: */
-	regs->msr |= (MSR_FP | current->thread.fpexc_mode);
+	current->thread.load_fp = 1;
 
 	/* This loads and recheckpoints the FP registers from
 	 * thread.fpr[].  They will remain in registers after the
@@ -1708,7 +1708,7 @@ void altivec_unavailable_tm(struct pt_regs *regs)
 		 "MSR=%lx\n",
 		 regs->nip, regs->msr);
 	tm_reclaim_current(TM_CAUSE_FAC_UNAV);
-	regs->msr |= MSR_VEC;
+	current->thread.load_vec = 1;
 	tm_recheckpoint(&current->thread, MSR_VEC);
 	current->thread.used_vr = 1;
 
@@ -1745,8 +1745,8 @@ void vsx_unavailable_tm(struct pt_regs *regs)
 	/* This reclaims FP and/or VR regs if they're already enabled */
 	tm_reclaim_current(TM_CAUSE_FAC_UNAV);
 
-	regs->msr |= MSR_VEC | MSR_FP | current->thread.fpexc_mode |
-		MSR_VSX;
+	current->thread.load_vec = 1;
+	current->thread.load_fp = 1;
 
 	/* This loads & recheckpoints FP and VRs; but we have
 	 * to be sure not to overwrite previously-valid state.
