@@ -4936,13 +4936,10 @@ int i915_gem_init_hw(struct drm_i915_private *dev_priv)
 	if (ret)
 		goto out;
 
-	/* Need to do basic initialisation of all rings first: */
-	ret = __i915_gem_restart_engines(dev_priv);
-	if (ret)
-		goto out;
-
 	intel_mocs_init_l3cc_table(dev_priv);
 
+	/* Only when the HW is re-initialised, can we replay the requests */
+	ret = __i915_gem_restart_engines(dev_priv);
 out:
 	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
 	return ret;
