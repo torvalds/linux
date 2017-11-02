@@ -2265,7 +2265,7 @@ static struct pci_driver hfc_driver = {
 };
 
 static int
-_hfcpci_softirq(struct device *dev, void *arg)
+_hfcpci_softirq(struct device *dev, void *unused)
 {
 	struct hfc_pci  *hc = dev_get_drvdata(dev);
 	struct bchannel *bch;
@@ -2290,9 +2290,9 @@ _hfcpci_softirq(struct device *dev, void *arg)
 }
 
 static void
-hfcpci_softirq(void *arg)
+hfcpci_softirq(struct timer_list *unused)
 {
-	WARN_ON_ONCE(driver_for_each_device(&hfc_driver.driver, NULL, arg,
+	WARN_ON_ONCE(driver_for_each_device(&hfc_driver.driver, NULL, NULL,
 				      _hfcpci_softirq) != 0);
 
 	/* if next event would be in the past ... */
@@ -2327,9 +2327,7 @@ HFC_init(void)
 	if (poll != HFCPCI_BTRANS_THRESHOLD) {
 		printk(KERN_INFO "%s: Using alternative poll value of %d\n",
 		       __func__, poll);
-		hfc_tl.function = (void *)hfcpci_softirq;
-		hfc_tl.data = 0;
-		init_timer(&hfc_tl);
+		timer_setup(&hfc_tl, hfcpci_softirq, 0);
 		hfc_tl.expires = jiffies + tics;
 		hfc_jiffies = hfc_tl.expires;
 		add_timer(&hfc_tl);
