@@ -2460,9 +2460,8 @@ static int hns3_nic_uninit_vector_data(struct hns3_nic_priv *priv)
 			(void)irq_set_affinity_hint(
 				priv->tqp_vector[i].vector_irq,
 						    NULL);
-			devm_free_irq(&pdev->dev,
-				      priv->tqp_vector[i].vector_irq,
-				      &priv->tqp_vector[i]);
+			free_irq(priv->tqp_vector[i].vector_irq,
+				 &priv->tqp_vector[i]);
 		}
 
 		priv->ring_data[i].ring->irq_init_flag = HNS3_VECTOR_NOT_INITED;
