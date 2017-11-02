@@ -125,7 +125,7 @@ struct afs_volume *afs_volume_lookup(struct afs_mount_params *params)
 
 	/* attach the cache and volume location */
 #ifdef CONFIG_AFS_FSCACHE
-	volume->cache = fscache_acquire_cookie(vlocation->cache,
+	volume->cache = fscache_acquire_cookie(volume->cell->cache,
 					       &afs_volume_cache_index_def,
 					       volume, true);
 #endif

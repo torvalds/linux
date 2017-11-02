@@ -191,14 +191,6 @@ static inline struct afs_super_info *AFS_FS_S(struct super_block *sb)
 extern struct file_system_type afs_fs_type;
 
 /*
- * entry in the cached cell catalogue
- */
-struct afs_cache_cell {
-	char		name[AFS_MAXCELLNAME];	/* cell name (padded with NULs) */
-	struct in_addr	vl_servers[15];		/* cached cell VL servers */
-};
-
-/*
  * AFS network namespace record.
  */
 struct afs_net {
@@ -297,14 +289,6 @@ struct afs_cache_vlocation {
 };
 
 /*
- * volume -> vnode hash table entry
- */
-struct afs_cache_vhash {
-	afs_voltype_t		vtype;		/* which volume variation */
-	uint8_t			hash_bucket;	/* which hash bucket this represents */
-} __attribute__((packed));
-
-/*
  * AFS volume location record
  */
 struct afs_vlocation {
@@ -314,9 +298,6 @@ struct afs_vlocation {
 	struct list_head	grave;		/* link in master graveyard list */
 	struct list_head	update;		/* link in master update list */
 	struct afs_cell		*cell;		/* cell to which volume belongs */
-#ifdef CONFIG_AFS_FSCACHE
-	struct fscache_cookie	*cache;		/* caching cookie */
-#endif
 	struct afs_cache_vlocation vldb;	/* volume information DB record */
 	struct afs_volume	*vols[3];	/* volume access record pointer (index by type) */
 	wait_queue_head_t	waitq;		/* status change waitqueue */
@@ -477,12 +458,10 @@ struct afs_interface {
 #ifdef CONFIG_AFS_FSCACHE
 extern struct fscache_netfs afs_cache_netfs;
 extern struct fscache_cookie_def afs_cell_cache_index_def;
-extern struct fscache_cookie_def afs_vlocation_cache_index_def;
 extern struct fscache_cookie_def afs_volume_cache_index_def;
 extern struct fscache_cookie_def afs_vnode_cache_index_def;
 #else
 #define afs_cell_cache_index_def	(*(struct fscache_cookie_def *) NULL)
-#define afs_vlocation_cache_index_def	(*(struct fscache_cookie_def *) NULL)
 #define afs_volume_cache_index_def	(*(struct fscache_cookie_def *) NULL)
 #define afs_vnode_cache_index_def	(*(struct fscache_cookie_def *) NULL)
 #endif

@@ -273,10 +273,6 @@ static void afs_vlocation_apply_update(struct afs_vlocation *vl,
 		       vl->vldb.name, vldb->name);
 
 	vl->vldb = *vldb;
-
-#ifdef CONFIG_AFS_FSCACHE
-	fscache_update_cookie(vl->cache);
-#endif
 }
 
 /*
@@ -295,27 +291,12 @@ static int afs_vlocation_fill_in_record(struct afs_vlocation *vl,
 
 	memset(&vldb, 0, sizeof(vldb));
 
-	/* see if we have an in-cache copy (will set vl->valid if there is) */
-#ifdef CONFIG_AFS_FSCACHE
-	vl->cache = fscache_acquire_cookie(vl->cell->cache,
-					   &afs_vlocation_cache_index_def, vl,
-					   true);
-#endif
-
-	if (vl->valid) {
-		/* try to update a known volume in the cell VL databases by
-		 * ID as the name may have changed */
-		_debug("found in cache");
-		ret = afs_vlocation_update_record(vl, key, &vldb);
-	} else {
-		/* try to look up an unknown volume in the cell VL databases by
-		 * name */
-		ret = afs_vlocation_access_vl_by_name(vl, key, &vldb);
-		if (ret < 0) {
-			printk("kAFS: failed to locate '%s' in cell '%s'\n",
-			       vl->vldb.name, vl->cell->name);
-			return ret;
-		}
+	/* Try to look up an unknown volume in the cell VL databases by name */
+	ret = afs_vlocation_access_vl_by_name(vl, key, &vldb);
+	if (ret < 0) {
+		printk("kAFS: failed to locate '%s' in cell '%s'\n",
+		       vl->vldb.name, vl->cell->name);
+		return ret;
 	}
 
 	afs_vlocation_apply_update(vl, &vldb);
@@ -413,11 +394,6 @@ fill_in_record:
 	vl->state = AFS_VL_VALID;
 	spin_unlock(&vl->lock);
 	wake_up(&vl->waitq);
-
-	/* update volume entry in local cache */
-#ifdef CONFIG_AFS_FSCACHE
-	fscache_update_cookie(vl->cache);
-#endif
 
 	/* schedule for regular updates */
 	afs_vlocation_queue_for_updates(net, vl);
@@ -522,9 +498,6 @@ static void afs_vlocation_destroy(struct afs_net *net, struct afs_vlocation *vl)
 {
 	_enter("%p", vl);
 
-#ifdef CONFIG_AFS_FSCACHE
-	fscache_relinquish_cookie(vl->cache, 0);
-#endif
 	afs_put_cell(net, vl->cell);
 	kfree(vl);
 }
