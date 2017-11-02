@@ -583,6 +583,9 @@ static int afs_readpages(struct file *file, struct address_space *mapping,
 static void afs_invalidatepage(struct page *page, unsigned int offset,
 			       unsigned int length)
 {
+	struct afs_vnode *vnode = AFS_FS_I(page->mapping->host);
+	unsigned long priv;
+
 	_enter("{%lu},%u,%u", page->index, offset, length);
 
 	BUG_ON(!PageLocked(page));
@@ -598,6 +601,9 @@ static void afs_invalidatepage(struct page *page, unsigned int offset,
 #endif
 
 		if (PagePrivate(page)) {
+			priv = page_private(page);
+			trace_afs_page_dirty(vnode, tracepoint_string("inval"),
+					     page->index, priv);
 			set_page_private(page, 0);
 			ClearPagePrivate(page);
 		}
@@ -613,6 +619,7 @@ static void afs_invalidatepage(struct page *page, unsigned int offset,
 static int afs_releasepage(struct page *page, gfp_t gfp_flags)
 {
 	struct afs_vnode *vnode = AFS_FS_I(page->mapping->host);
+	unsigned long priv;
 
 	_enter("{{%x:%u}[%lu],%lx},%x",
 	       vnode->fid.vid, vnode->fid.vnode, page->index, page->flags,
@@ -628,6 +635,9 @@ static int afs_releasepage(struct page *page, gfp_t gfp_flags)
 #endif
 
 	if (PagePrivate(page)) {
+		priv = page_private(page);
+		trace_afs_page_dirty(vnode, tracepoint_string("rel"),
+				     page->index, priv);
 		set_page_private(page, 0);
 		ClearPagePrivate(page);
 	}

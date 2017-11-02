@@ -402,6 +402,45 @@ TRACE_EVENT(afs_dir_check_failed,
 		      __entry->vnode, __entry->off, __entry->i_size)
 	    );
 
+/*
+ * We use page->private to hold the amount of the page that we've written to,
+ * splitting the field into two parts.  However, we need to represent a range
+ * 0...PAGE_SIZE inclusive, so we can't support 64K pages on a 32-bit system.
+ */
+#if PAGE_SIZE > 32768
+#define AFS_PRIV_MAX	0xffffffff
+#define AFS_PRIV_SHIFT	32
+#else
+#define AFS_PRIV_MAX	0xffff
+#define AFS_PRIV_SHIFT	16
+#endif
+
+TRACE_EVENT(afs_page_dirty,
+	    TP_PROTO(struct afs_vnode *vnode, const char *where,
+		     pgoff_t page, unsigned long priv),
+
+	    TP_ARGS(vnode, where, page, priv),
+
+	    TP_STRUCT__entry(
+		    __field(struct afs_vnode *,		vnode		)
+		    __field(const char *,		where		)
+		    __field(pgoff_t,			page		)
+		    __field(unsigned long,		priv		)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->vnode = vnode;
+		    __entry->where = where;
+		    __entry->page = page;
+		    __entry->priv = priv;
+			   ),
+
+	    TP_printk("vn=%p %lx %s %lu-%lu",
+		      __entry->vnode, __entry->page, __entry->where,
+		      __entry->priv & AFS_PRIV_MAX,
+		      __entry->priv >> AFS_PRIV_SHIFT)
+	    );
+
 #endif /* _TRACE_AFS_H */
 
 /* This part must be outside protection */

@@ -18,19 +18,6 @@
 #include "internal.h"
 
 /*
- * We use page->private to hold the amount of the page that we've written to,
- * splitting the field into two parts.  However, we need to represent a range
- * 0...PAGE_SIZE inclusive, so we can't support 64K pages on a 32-bit system.
- */
-#if PAGE_SIZE > 32768
-#define AFS_PRIV_MAX	0xffffffff
-#define AFS_PRIV_SHIFT	32
-#else
-#define AFS_PRIV_MAX	0xffff
-#define AFS_PRIV_SHIFT	16
-#endif
-
-/*
  * mark a page as having been made dirty and thus needing writeback
  */
 int afs_set_page_dirty(struct page *page)
@@ -145,6 +132,8 @@ try_again:
 
 	priv = (unsigned long)t << AFS_PRIV_SHIFT;
 	priv |= f;
+	trace_afs_page_dirty(vnode, tracepoint_string("begin"),
+			     page->index, priv);
 	SetPagePrivate(page);
 	set_page_private(page, priv);
 	_leave(" = 0");
@@ -386,6 +375,7 @@ static int afs_write_back_from_locked_page(struct address_space *mapping,
 					   struct page *primary_page,
 					   pgoff_t final_page)
 {
+	struct afs_vnode *vnode = AFS_FS_I(mapping->host);
 	struct page *pages[8], *page;
 	unsigned long count, priv;
 	unsigned n, offset, to, f, t;
@@ -407,8 +397,13 @@ static int afs_write_back_from_locked_page(struct address_space *mapping,
 	priv = page_private(primary_page);
 	offset = priv & AFS_PRIV_MAX;
 	to = priv >> AFS_PRIV_SHIFT;
+	trace_afs_page_dirty(vnode, tracepoint_string("store"),
+			     primary_page->index, priv);
 
 	WARN_ON(offset == to);
+	if (offset == to)
+		trace_afs_page_dirty(vnode, tracepoint_string("WARN"),
+				     primary_page->index, priv);
 
 	if (start >= final_page || to < PAGE_SIZE)
 		goto no_more;
@@ -451,6 +446,9 @@ static int afs_write_back_from_locked_page(struct address_space *mapping,
 				break;
 			}
 			to = t;
+
+			trace_afs_page_dirty(vnode, tracepoint_string("store+"),
+					     page->index, priv);
 
 			if (!clear_page_dirty_for_io(page))
 				BUG();
@@ -657,6 +655,7 @@ int afs_writepages(struct address_space *mapping,
 void afs_pages_written_back(struct afs_vnode *vnode, struct afs_call *call)
 {
 	struct pagevec pv;
+	unsigned long priv;
 	unsigned count, loop;
 	pgoff_t first = call->first, last = call->last;
 
@@ -676,6 +675,9 @@ void afs_pages_written_back(struct afs_vnode *vnode, struct afs_call *call)
 		ASSERTCMP(pv.nr, ==, count);
 
 		for (loop = 0; loop < count; loop++) {
+			priv = page_private(pv.pages[loop]);
+			trace_afs_page_dirty(vnode, tracepoint_string("clear"),
+					     pv.pages[loop]->index, priv);
 			set_page_private(pv.pages[loop], 0);
 			end_page_writeback(pv.pages[loop]);
 		}
@@ -783,6 +785,8 @@ int afs_page_mkwrite(struct vm_fault *vmf)
 
 	priv = (unsigned long)PAGE_SIZE << AFS_PRIV_SHIFT; /* To */
 	priv |= 0; /* From */
+	trace_afs_page_dirty(vnode, tracepoint_string("mkwrite"),
+			     vmf->page->index, priv);
 	SetPagePrivate(vmf->page);
 	set_page_private(vmf->page, priv);
 
@@ -840,9 +844,13 @@ int afs_launder_page(struct page *page)
 			t = priv >> AFS_PRIV_SHIFT;
 		}
 
+		trace_afs_page_dirty(vnode, tracepoint_string("launder"),
+				     page->index, priv);
 		ret = afs_store_data(mapping, page->index, page->index, t, f);
 	}
 
+	trace_afs_page_dirty(vnode, tracepoint_string("laundered"),
+			     page->index, priv);
 	set_page_private(page, 0);
 	ClearPagePrivate(page);
 
