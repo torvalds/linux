@@ -14,23 +14,20 @@
 static int dev_update_qos_constraint(struct device *dev, void *data)
 {
 	s64 *constraint_ns_p = data;
-	s32 constraint_ns = -1;
+	s64 constraint_ns = -1;
 
 	if (dev->power.subsys_data && dev->power.subsys_data->domain_data)
 		constraint_ns = dev_gpd_data(dev)->td.effective_constraint_ns;
 
-	if (constraint_ns < 0) {
+	if (constraint_ns < 0)
 		constraint_ns = dev_pm_qos_read_value(dev);
-		constraint_ns *= NSEC_PER_USEC;
-	}
-	if (constraint_ns == 0)
+
+	if (constraint_ns == PM_QOS_RESUME_LATENCY_NO_CONSTRAINT)
 		return 0;
 
-	/*
-	 * constraint_ns cannot be negative here, because the device has been
-	 * suspended.
-	 */
-	if (constraint_ns < *constraint_ns_p || *constraint_ns_p == 0)
+	constraint_ns *= NSEC_PER_USEC;
+
+	if (constraint_ns < *constraint_ns_p || *constraint_ns_p < 0)
 		*constraint_ns_p = constraint_ns;
 
 	return 0;
@@ -63,10 +60,14 @@ static bool default_suspend_ok(struct device *dev)
 
 	spin_unlock_irqrestore(&dev->power.lock, flags);
 
-	if (constraint_ns < 0)
+	if (constraint_ns == 0)
 		return false;
 
-	constraint_ns *= NSEC_PER_USEC;
+	if (constraint_ns == PM_QOS_RESUME_LATENCY_NO_CONSTRAINT)
+		constraint_ns = -1;
+	else
+		constraint_ns *= NSEC_PER_USEC;
+
 	/*
 	 * We can walk the children without any additional locking, because
 	 * they all have been suspended at this point and their
@@ -76,14 +77,19 @@ static bool default_suspend_ok(struct device *dev)
 		device_for_each_child(dev, &constraint_ns,
 				      dev_update_qos_constraint);
 
-	if (constraint_ns > 0) {
-		constraint_ns -= td->suspend_latency_ns +
-				td->resume_latency_ns;
-		if (constraint_ns == 0)
-			return false;
+	if (constraint_ns < 0) {
+		/* The children have no constraints. */
+		td->effective_constraint_ns = PM_QOS_RESUME_LATENCY_NO_CONSTRAINT;
+		td->cached_suspend_ok = true;
+	} else {
+		constraint_ns -= td->suspend_latency_ns + td->resume_latency_ns;
+		if (constraint_ns > 0) {
+			td->effective_constraint_ns = constraint_ns;
+			td->cached_suspend_ok = true;
+		} else {
+			td->effective_constraint_ns = 0;
+		}
 	}
-	td->effective_constraint_ns = constraint_ns;
-	td->cached_suspend_ok = constraint_ns >= 0;
 
 	/*
 	 * The children have been suspended already, so we don't need to take
@@ -145,12 +151,13 @@ static bool __default_power_down_ok(struct dev_pm_domain *pd,
 		td = &to_gpd_data(pdd)->td;
 		constraint_ns = td->effective_constraint_ns;
 		/* default_suspend_ok() need not be called before us. */
-		if (constraint_ns < 0) {
+		if (constraint_ns < 0)
 			constraint_ns = dev_pm_qos_read_value(pdd->dev);
-			constraint_ns *= NSEC_PER_USEC;
-		}
-		if (constraint_ns == 0)
+
+		if (constraint_ns == PM_QOS_RESUME_LATENCY_NO_CONSTRAINT)
 			continue;
+
+		constraint_ns *= NSEC_PER_USEC;
 
 		/*
 		 * constraint_ns cannot be negative here, because the device has

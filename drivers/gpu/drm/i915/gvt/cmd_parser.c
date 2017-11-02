@@ -2723,6 +2723,9 @@ static int combine_wa_ctx(struct intel_shadow_wa_ctx *wa_ctx)
 	uint32_t per_ctx_start[CACHELINE_DWORDS] = {0};
 	unsigned char *bb_start_sva;
 
+	if (!wa_ctx->per_ctx.valid)
+		return 0;
+
 	per_ctx_start[0] = 0x18800001;
 	per_ctx_start[1] = wa_ctx->per_ctx.guest_gma;
 

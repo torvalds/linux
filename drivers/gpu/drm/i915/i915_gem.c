@@ -2657,6 +2657,9 @@ i915_gem_object_pwrite_gtt(struct drm_i915_gem_object *obj,
 	if (READ_ONCE(obj->mm.pages))
 		return -ENODEV;
 
+	if (obj->mm.madv != I915_MADV_WILLNEED)
+		return -EFAULT;
+
 	/* Before the pages are instantiated the object is treated as being
 	 * in the CPU domain. The pages will be clflushed as required before
 	 * use, and we can freely write into the pages directly. If userspace

@@ -303,7 +303,18 @@ static int dev_ifsioc(struct net *net, struct ifreq *ifr, unsigned int cmd)
 	case SIOCSIFTXQLEN:
 		if (ifr->ifr_qlen < 0)
 			return -EINVAL;
-		dev->tx_queue_len = ifr->ifr_qlen;
+		if (dev->tx_queue_len ^ ifr->ifr_qlen) {
+			unsigned int orig_len = dev->tx_queue_len;
+
+			dev->tx_queue_len = ifr->ifr_qlen;
+			err = call_netdevice_notifiers(
+					NETDEV_CHANGE_TX_QUEUE_LEN, dev);
+			err = notifier_to_errno(err);
+			if (err) {
+				dev->tx_queue_len = orig_len;
+				return err;
+			}
+		}
 		return 0;
 
 	case SIOCSIFNAME:
