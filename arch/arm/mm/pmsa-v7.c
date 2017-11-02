@@ -234,7 +234,7 @@ static int __init allocate_region(phys_addr_t base, phys_addr_t size,
 /* MPU initialisation functions */
 void __init adjust_lowmem_bounds_mpu(void)
 {
-	phys_addr_t  specified_mem_size, total_mem_size = 0;
+	phys_addr_t  specified_mem_size = 0, total_mem_size = 0;
 	struct memblock_region *reg;
 	bool first = true;
 	phys_addr_t mem_start;
