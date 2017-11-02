@@ -332,7 +332,7 @@ static int dw_i2c_plat_probe(struct platform_device *pdev)
 		i2c_dw_configure_master(dev);
 
 	dev->clk = devm_clk_get(&pdev->dev, NULL);
-	if (!i2c_dw_plat_prepare_clk(dev, true)) {
+	if (!i2c_dw_prepare_clk(dev, true)) {
 		dev->get_clk_rate_khz = i2c_dw_get_clk_rate_khz;
 
 		if (!dev->sda_hold_time && ht)
@@ -436,7 +436,7 @@ static int dw_i2c_plat_suspend(struct device *dev)
 	}
 
 	i_dev->disable(i_dev);
-	i2c_dw_plat_prepare_clk(i_dev, false);
+	i2c_dw_prepare_clk(i_dev, false);
 
 	i_dev->suspended = true;
 
@@ -455,7 +455,7 @@ static int dw_i2c_plat_resume(struct device *dev)
 		return 0;
 	}
 
-	i2c_dw_plat_prepare_clk(i_dev, true);
+	i2c_dw_prepare_clk(i_dev, true);
 	i_dev->init(i_dev);
 
 	i_dev->suspended = false;

@@ -186,15 +186,15 @@ unsigned long i2c_dw_clk_rate(struct dw_i2c_dev *dev)
 	return dev->get_clk_rate_khz(dev);
 }
 
-int i2c_dw_plat_prepare_clk(struct dw_i2c_dev *i_dev, bool prepare)
+int i2c_dw_prepare_clk(struct dw_i2c_dev *dev, bool prepare)
 {
-	if (IS_ERR(i_dev->clk))
-		return PTR_ERR(i_dev->clk);
+	if (IS_ERR(dev->clk))
+		return PTR_ERR(dev->clk);
 
 	if (prepare)
-		return clk_prepare_enable(i_dev->clk);
+		return clk_prepare_enable(dev->clk);
 
-	clk_disable_unprepare(i_dev->clk);
+	clk_disable_unprepare(dev->clk);
 	return 0;
 }
 
