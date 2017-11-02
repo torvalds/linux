@@ -74,7 +74,7 @@ static void xen_get_wallclock(struct timespec *now)
 
 static int xen_set_wallclock(const struct timespec *now)
 {
-	return -1;
+	return -ENODEV;
 }
 
 static int xen_pvclock_gtod_notify(struct notifier_block *nb,
