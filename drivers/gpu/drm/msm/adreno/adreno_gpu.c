@@ -461,7 +461,7 @@ void adreno_wait_ring(struct msm_ringbuffer *ring, uint32_t ndwords)
 {
 	if (spin_until(ring_freewords(ring) >= ndwords))
 		DRM_DEV_ERROR(ring->gpu->dev->dev,
-			"timeout waiting for space in ringubffer %d\n",
+			"timeout waiting for space in ringbuffer %d\n",
 			ring->id);
 }
 
