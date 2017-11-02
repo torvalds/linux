@@ -128,9 +128,6 @@ union ieee754dp ieee754dp_mul(union ieee754dp x, union ieee754dp y)
 	 * Multiply 64 bits xm, ym to give high 64 bits rm with stickness.
 	 */
 
-	/* 32 * 32 => 64 */
-#define DPXMULT(x, y)	((u64)(x) * (u64)y)
-
 	lxm = xm;
 	hxm = xm >> 32;
 	lym = ym;
