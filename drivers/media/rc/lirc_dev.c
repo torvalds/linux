@@ -26,7 +26,7 @@
 #include <linux/wait.h>
 
 #include "rc-core-priv.h"
-#include <media/lirc.h>
+#include <uapi/linux/lirc.h>
 
 #define LOGHEAD		"lirc_dev (%s[%d]): "
 #define LIRCBUF_SIZE	256
