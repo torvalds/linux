@@ -44,7 +44,11 @@
 
 static const struct nfp_app_type *apps[] = {
 	[NFP_APP_CORE_NIC]	= &app_nic,
+#ifdef CONFIG_BPF_SYSCALL
 	[NFP_APP_BPF_NIC]	= &app_bpf,
+#else
+	[NFP_APP_BPF_NIC]	= &app_nic,
+#endif
 #ifdef CONFIG_NFP_APP_FLOWER
 	[NFP_APP_FLOWER_NIC]	= &app_flower,
 #endif

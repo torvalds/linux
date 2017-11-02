@@ -150,9 +150,6 @@ nfp_net_bpf_offload_prepare(struct nfp_net *nn,
 	unsigned int max_mtu;
 	int ret;
 
-	if (!IS_ENABLED(CONFIG_BPF_SYSCALL))
-		return -EOPNOTSUPP;
-
 	ret = nfp_net_bpf_get_act(nn, cls_bpf);
 	if (ret < 0)
 		return ret;
