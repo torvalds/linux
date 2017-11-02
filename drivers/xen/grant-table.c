@@ -78,6 +78,14 @@ static union {
 /*This is a structure of function pointers for grant table*/
 struct gnttab_ops {
 	/*
+	 * Version of the grant interface.
+	 */
+	unsigned int version;
+	/*
+	 * Grant refs per grant frame.
+	 */
+	unsigned int grefs_per_grant_frame;
+	/*
 	 * Mapping a list of frames for storing grant entries. Frames parameter
 	 * is used to store grant table address when grant table being setup,
 	 * nr_gframes is the number of frames to map grant table. Returning
@@ -133,9 +141,6 @@ static const struct gnttab_ops *gnttab_interface;
 
 /* This reflects status of grant entries, so act as a global value. */
 static grant_status_t *grstatus;
-
-static int grant_table_version;
-static int grefs_per_grant_frame;
 
 static struct gnttab_free_callback *gnttab_free_callback_list;
 
@@ -636,19 +641,26 @@ void gnttab_cancel_free_callback(struct gnttab_free_callback *callback)
 }
 EXPORT_SYMBOL_GPL(gnttab_cancel_free_callback);
 
+static unsigned int gnttab_frames(unsigned int frames, unsigned int align)
+{
+	return (frames * gnttab_interface->grefs_per_grant_frame + align - 1) /
+	       align;
+}
+
 static int grow_gnttab_list(unsigned int more_frames)
 {
 	unsigned int new_nr_grant_frames, extra_entries, i;
 	unsigned int nr_glist_frames, new_nr_glist_frames;
+	unsigned int grefs_per_frame;
 
-	BUG_ON(grefs_per_grant_frame == 0);
+	BUG_ON(gnttab_interface == NULL);
+	grefs_per_frame = gnttab_interface->grefs_per_grant_frame;
 
 	new_nr_grant_frames = nr_grant_frames + more_frames;
-	extra_entries       = more_frames * grefs_per_grant_frame;
+	extra_entries = more_frames * grefs_per_frame;
 
-	nr_glist_frames = (nr_grant_frames * grefs_per_grant_frame + RPP - 1) / RPP;
-	new_nr_glist_frames =
-		(new_nr_grant_frames * grefs_per_grant_frame + RPP - 1) / RPP;
+	nr_glist_frames = gnttab_frames(nr_grant_frames, RPP);
+	new_nr_glist_frames = gnttab_frames(new_nr_grant_frames, RPP);
 	for (i = nr_glist_frames; i < new_nr_glist_frames; i++) {
 		gnttab_list[i] = (grant_ref_t *)__get_free_page(GFP_ATOMIC);
 		if (!gnttab_list[i])
@@ -656,12 +668,12 @@ static int grow_gnttab_list(unsigned int more_frames)
 	}
 
 
-	for (i = grefs_per_grant_frame * nr_grant_frames;
-	     i < grefs_per_grant_frame * new_nr_grant_frames - 1; i++)
+	for (i = grefs_per_frame * nr_grant_frames;
+	     i < grefs_per_frame * new_nr_grant_frames - 1; i++)
 		gnttab_entry(i) = i + 1;
 
 	gnttab_entry(i) = gnttab_free_head;
-	gnttab_free_head = grefs_per_grant_frame * nr_grant_frames;
+	gnttab_free_head = grefs_per_frame * nr_grant_frames;
 	gnttab_free_count += extra_entries;
 
 	nr_grant_frames = new_nr_grant_frames;
@@ -1013,8 +1025,8 @@ EXPORT_SYMBOL_GPL(gnttab_unmap_refs_sync);
 
 static unsigned int nr_status_frames(unsigned int nr_grant_frames)
 {
-	BUG_ON(grefs_per_grant_frame == 0);
-	return (nr_grant_frames * grefs_per_grant_frame + SPP - 1) / SPP;
+	BUG_ON(gnttab_interface == NULL);
+	return gnttab_frames(nr_grant_frames, SPP);
 }
 
 static int gnttab_map_frames_v1(xen_pfn_t *frames, unsigned int nr_gframes)
@@ -1142,6 +1154,9 @@ static int gnttab_map(unsigned int start_idx, unsigned int end_idx)
 }
 
 static const struct gnttab_ops gnttab_v1_ops = {
+	.version			= 1,
+	.grefs_per_grant_frame		= XEN_PAGE_SIZE /
+					  sizeof(struct grant_entry_v1),
 	.map_frames			= gnttab_map_frames_v1,
 	.unmap_frames			= gnttab_unmap_frames_v1,
 	.update_entry			= gnttab_update_entry_v1,
@@ -1151,6 +1166,9 @@ static const struct gnttab_ops gnttab_v1_ops = {
 };
 
 static const struct gnttab_ops gnttab_v2_ops = {
+	.version			= 2,
+	.grefs_per_grant_frame		= XEN_PAGE_SIZE /
+					  sizeof(union grant_entry_v2),
 	.map_frames			= gnttab_map_frames_v2,
 	.unmap_frames			= gnttab_unmap_frames_v2,
 	.update_entry			= gnttab_update_entry_v2,
@@ -1167,18 +1185,12 @@ static void gnttab_request_version(void)
 	gsv.version = 1;
 
 	rc = HYPERVISOR_grant_table_op(GNTTABOP_set_version, &gsv, 1);
-	if (rc == 0 && gsv.version == 2) {
-		grant_table_version = 2;
-		grefs_per_grant_frame = XEN_PAGE_SIZE /
-					sizeof(union grant_entry_v2);
+	if (rc == 0 && gsv.version == 2)
 		gnttab_interface = &gnttab_v2_ops;
-	} else {
-		grant_table_version = 1;
-		grefs_per_grant_frame = XEN_PAGE_SIZE /
-					sizeof(struct grant_entry_v1);
+	else
 		gnttab_interface = &gnttab_v1_ops;
-	}
-	pr_info("Grant tables using version %d layout\n", grant_table_version);
+	pr_info("Grant tables using version %d layout\n",
+		gnttab_interface->version);
 }
 
 static int gnttab_setup(void)
@@ -1218,10 +1230,10 @@ static int gnttab_expand(unsigned int req_entries)
 	int rc;
 	unsigned int cur, extra;
 
-	BUG_ON(grefs_per_grant_frame == 0);
+	BUG_ON(gnttab_interface == NULL);
 	cur = nr_grant_frames;
-	extra = ((req_entries + (grefs_per_grant_frame-1)) /
-		 grefs_per_grant_frame);
+	extra = ((req_entries + gnttab_interface->grefs_per_grant_frame - 1) /
+		 gnttab_interface->grefs_per_grant_frame);
 	if (cur + extra > gnttab_max_grant_frames()) {
 		pr_warn_ratelimited("xen/grant-table: max_grant_frames reached"
 				    " cur=%u extra=%u limit=%u"
@@ -1253,16 +1265,16 @@ int gnttab_init(void)
 	/* Determine the maximum number of frames required for the
 	 * grant reference free list on the current hypervisor.
 	 */
-	BUG_ON(grefs_per_grant_frame == 0);
+	BUG_ON(gnttab_interface == NULL);
 	max_nr_glist_frames = (max_nr_grant_frames *
-			       grefs_per_grant_frame / RPP);
+			       gnttab_interface->grefs_per_grant_frame / RPP);
 
 	gnttab_list = kmalloc(max_nr_glist_frames * sizeof(grant_ref_t *),
 			      GFP_KERNEL);
 	if (gnttab_list == NULL)
 		return -ENOMEM;
 
-	nr_glist_frames = (nr_grant_frames * grefs_per_grant_frame + RPP - 1) / RPP;
+	nr_glist_frames = gnttab_frames(nr_grant_frames, RPP);
 	for (i = 0; i < nr_glist_frames; i++) {
 		gnttab_list[i] = (grant_ref_t *)__get_free_page(GFP_KERNEL);
 		if (gnttab_list[i] == NULL) {
@@ -1281,7 +1293,8 @@ int gnttab_init(void)
 		goto ini_nomem;
 	}
 
-	nr_init_grefs = nr_grant_frames * grefs_per_grant_frame;
+	nr_init_grefs = nr_grant_frames *
+			gnttab_interface->grefs_per_grant_frame;
 
 	for (i = NR_RESERVED_ENTRIES; i < nr_init_grefs - 1; i++)
 		gnttab_entry(i) = i + 1;
