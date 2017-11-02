@@ -1382,27 +1382,19 @@ static void commit_planes_for_stream(struct dc *dc,
 		}
 	}
 
-	if (update_type > UPDATE_TYPE_FAST) {
+	if (stream && stream_update && update_type > UPDATE_TYPE_FAST)
 		for (j = 0; j < dc->res_pool->pipe_count; j++) {
 			struct pipe_ctx *pipe_ctx =
 					&context->res_ctx.pipe_ctx[j];
 
-			if (!pipe_ctx->stream)
+			if (pipe_ctx->stream != stream)
 				continue;
 
-			if (stream_update != NULL &&
-				stream_update->out_transfer_func != NULL) {
-				dc->hwss.set_output_transfer_func(
-						pipe_ctx, pipe_ctx->stream);
-			}
-
-			if (stream_update != NULL &&
-				stream_update->hdr_static_metadata) {
+			if (stream_update->hdr_static_metadata) {
 				resource_build_info_frame(pipe_ctx);
 				dc->hwss.update_info_frame(pipe_ctx);
 			}
 		}
-	}
 }
 
 void dc_commit_updates_for_stream(struct dc *dc,

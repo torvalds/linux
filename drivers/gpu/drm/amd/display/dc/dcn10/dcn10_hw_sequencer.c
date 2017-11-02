@@ -820,7 +820,6 @@ static void reset_hw_ctx_wrap(
 			struct clock_source *old_clk = pipe_ctx_old->clock_source;
 
 			reset_back_end_for_pipe(dc, pipe_ctx_old, dc->current_state);
-
 			if (old_clk)
 				old_clk->funcs->cs_power_down(old_clk);
 		}

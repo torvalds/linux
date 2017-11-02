@@ -188,9 +188,7 @@ static void dpp1_cm_set_regamma_pwl(
 	struct dpp *dpp_base, const struct pwl_params *params, enum opp_regamma mode)
 {
 	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
-	uint32_t re_mode = 0;
-	uint32_t obuf_bypass = 0; /* need for pipe split */
-	uint32_t obuf_hupscale = 0;
+	uint32_t re_mode;
 
 	switch (mode) {
 	case OPP_REGAMMA_BYPASS:
@@ -203,8 +201,9 @@ static void dpp1_cm_set_regamma_pwl(
 		re_mode = 2;
 		break;
 	case OPP_REGAMMA_USER:
+		re_mode = dpp->is_write_to_ram_a_safe ? 4 : 3;
 		if (memcmp(&dpp->pwl_data, params, sizeof(*params)) == 0)
-			return;
+			break;
 
 		dpp1_cm_power_on_regamma_lut(dpp_base, true);
 		dpp1_cm_configure_regamma_lut(dpp_base, dpp->is_write_to_ram_a_safe);
@@ -225,9 +224,6 @@ static void dpp1_cm_set_regamma_pwl(
 		break;
 	}
 	REG_SET(CM_RGAM_CONTROL, 0, CM_RGAM_LUT_MODE, re_mode);
-	REG_UPDATE_2(OBUF_CONTROL,
-			OBUF_BYPASS, obuf_bypass,
-			OBUF_H_2X_UPSCALE_EN, obuf_hupscale);
 }
 
 static void dpp1_setup_format_flags(enum surface_pixel_format input_format,\
