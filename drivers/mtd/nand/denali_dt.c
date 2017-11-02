@@ -12,15 +12,16 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  */
+
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/io.h>
 #include <linux/ioport.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/platform_device.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/platform_device.h>
 
 #include "denali.h"
 
@@ -155,7 +156,6 @@ static struct platform_driver denali_dt_driver = {
 		.of_match_table	= denali_nand_dt_ids,
 	},
 };
-
 module_platform_driver(denali_dt_driver);
 
 MODULE_LICENSE("GPL");

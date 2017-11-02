@@ -29,7 +29,7 @@ nand: nand@ff900000 {
 	#address-cells = <1>;
 	#size-cells = <1>;
 	compatible = "altr,socfpga-denali-nand";
-	reg = <0xff900000 0x100000>, <0xffb80000 0x10000>;
+	reg = <0xff900000 0x20>, <0xffb80000 0x1000>;
 	reg-names = "nand_data", "denali_reg";
 	interrupts = <0 144 4>;
 };
