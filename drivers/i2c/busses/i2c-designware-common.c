@@ -230,7 +230,11 @@ int i2c_dw_wait_bus_not_busy(struct dw_i2c_dev *dev)
 	while (dw_readl(dev, DW_IC_STATUS) & DW_IC_STATUS_ACTIVITY) {
 		if (timeout <= 0) {
 			dev_warn(dev->dev, "timeout waiting for bus ready\n");
-			return -ETIMEDOUT;
+			i2c_recover_bus(&dev->adapter);
+
+			if (dw_readl(dev, DW_IC_STATUS) & DW_IC_STATUS_ACTIVITY)
+				return -ETIMEDOUT;
+			return 0;
 		}
 		timeout--;
 		usleep_range(1000, 1100);

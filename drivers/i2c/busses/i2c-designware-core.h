@@ -286,6 +286,7 @@ struct dw_i2c_dev {
 	void			(*disable_int)(struct dw_i2c_dev *dev);
 	int			(*init)(struct dw_i2c_dev *dev);
 	int			mode;
+	struct i2c_bus_recovery_info rinfo;
 };
 
 #define ACCESS_SWAP		0x00000001
