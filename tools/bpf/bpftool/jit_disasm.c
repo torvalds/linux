@@ -21,6 +21,7 @@
 #include <dis-asm.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <limits.h>
 
 #include "json_writer.h"
 #include "main.h"
@@ -80,7 +81,7 @@ void disasm_print_insn(unsigned char *image, ssize_t len, int opcodes)
 	disassembler_ftype disassemble;
 	struct disassemble_info info;
 	int count, i, pc = 0;
-	char tpath[256];
+	char tpath[PATH_MAX];
 	bfd *bfdf;
 
 	if (!len)

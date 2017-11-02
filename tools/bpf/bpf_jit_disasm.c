@@ -27,6 +27,7 @@
 #include <sys/klog.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <limits.h>
 
 #define CMD_ACTION_SIZE_BUFFER		10
 #define CMD_ACTION_READ_ALL		3
@@ -51,7 +52,7 @@ static void get_exec_path(char *tpath, size_t size)
 static void get_asm_insns(uint8_t *image, size_t len, int opcodes)
 {
 	int count, i, pc = 0;
-	char tpath[256];
+	char tpath[PATH_MAX];
 	struct disassemble_info info;
 	disassembler_ftype disassemble;
 	bfd *bfdf;
