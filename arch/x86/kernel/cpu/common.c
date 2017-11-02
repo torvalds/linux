@@ -1570,7 +1570,7 @@ void cpu_init(void)
 	initialize_tlbstate_and_flush();
 	enter_lazy_tlb(&init_mm, me);
 
-	load_sp0(t, &current->thread);
+	load_sp0(current->thread.sp0);
 	set_tss_desc(cpu, t);
 	load_TR_desc();
 	load_mm_ldt(&init_mm);
@@ -1625,7 +1625,7 @@ void cpu_init(void)
 	initialize_tlbstate_and_flush();
 	enter_lazy_tlb(&init_mm, curr);
 
-	load_sp0(t, thread);
+	load_sp0(thread->sp0);
 	set_tss_desc(cpu, t);
 	load_TR_desc();
 	load_mm_ldt(&init_mm);
