@@ -161,6 +161,7 @@ void afs_put_call(struct afs_call *call)
 		if (call->type->destructor)
 			call->type->destructor(call);
 
+		afs_put_server(call->net, call->cm_server);
 		kfree(call->request);
 		kfree(call);
 

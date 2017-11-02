@@ -76,7 +76,7 @@ struct afs_call {
 	struct rxrpc_call	*rxcall;	/* RxRPC call handle */
 	struct key		*key;		/* security for this call */
 	struct afs_net		*net;		/* The network namespace */
-	struct afs_server	*server;	/* server affected by incoming CM call */
+	struct afs_server	*cm_server;	/* Server affected by incoming CM call */
 	void			*request;	/* request data (first part) */
 	struct address_space	*mapping;	/* page set */
 	struct afs_writeback	*wb;		/* writeback being performed */

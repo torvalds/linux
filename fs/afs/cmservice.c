@@ -144,12 +144,10 @@ static void afs_cm_destructor(struct afs_call *call)
 	 * afs_deliver_cb_callback().
 	 */
 	if (call->unmarshall == 5) {
-		ASSERT(call->server && call->count && call->request);
-		afs_break_callbacks(call->server, call->count, call->request);
+		ASSERT(call->cm_server && call->count && call->request);
+		afs_break_callbacks(call->cm_server, call->count, call->request);
 	}
 
-	afs_put_server(call->net, call->server);
-	call->server = NULL;
 	kfree(call->buffer);
 	call->buffer = NULL;
 }
@@ -170,7 +168,7 @@ static void SRXAFSCB_CallBack(struct work_struct *work)
 	 * yet */
 	afs_send_empty_reply(call);
 
-	afs_break_callbacks(call->server, call->count, call->request);
+	afs_break_callbacks(call->cm_server, call->count, call->request);
 	afs_put_call(call);
 	_leave("");
 }
@@ -290,7 +288,7 @@ static int afs_deliver_cb_callback(struct afs_call *call)
 	server = afs_find_server(call->net, &srx);
 	if (!server)
 		return -ENOTCONN;
-	call->server = server;
+	call->cm_server = server;
 
 	return afs_queue_call_work(call);
 }
@@ -302,9 +300,9 @@ static void SRXAFSCB_InitCallBackState(struct work_struct *work)
 {
 	struct afs_call *call = container_of(work, struct afs_call, work);
 
-	_enter("{%p}", call->server);
+	_enter("{%p}", call->cm_server);
 
-	afs_init_callback_state(call->server);
+	afs_init_callback_state(call->cm_server);
 	afs_send_empty_reply(call);
 	afs_put_call(call);
 	_leave("");
@@ -335,7 +333,7 @@ static int afs_deliver_cb_init_call_back_state(struct afs_call *call)
 	server = afs_find_server(call->net, &srx);
 	if (!server)
 		return -ENOTCONN;
-	call->server = server;
+	call->cm_server = server;
 
 	return afs_queue_call_work(call);
 }
@@ -407,7 +405,7 @@ static int afs_deliver_cb_init_call_back_state3(struct afs_call *call)
 	server = afs_find_server(call->net, &srx);
 	if (!server)
 		return -ENOTCONN;
-	call->server = server;
+	call->cm_server = server;
 
 	return afs_queue_call_work(call);
 }
