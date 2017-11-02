@@ -2992,20 +2992,20 @@ static void sched_freq_tick_pelt(int cpu)
 #ifdef CONFIG_SCHED_WALT
 static void sched_freq_tick_walt(int cpu)
 {
-	unsigned long cpu_utilization = cpu_util(cpu);
+	unsigned long cpu_utilization = cpu_util_freq(cpu);
 	unsigned long capacity_curr = capacity_curr_of(cpu);
 
 	if (walt_disabled || !sysctl_sched_use_walt_cpu_util)
 		return sched_freq_tick_pelt(cpu);
 
 	/*
-	 * Add a margin to the WALT utilization.
+	 * Add a margin to the WALT utilization to check if we will need to
+	 * increase frequency.
 	 * NOTE: WALT tracks a single CPU signal for all the scheduling
 	 * classes, thus this margin is going to be added to the DL class as
 	 * well, which is something we do not do in sched_freq_tick_pelt case.
 	 */
-	cpu_utilization = add_capacity_margin(cpu_utilization);
-	if (cpu_utilization <= capacity_curr)
+	if (add_capacity_margin(cpu_utilization) <= capacity_curr)
 		return;
 
 	/*
@@ -7641,17 +7641,16 @@ static int cpuset_cpu_active(struct notifier_block *nfb, unsigned long action,
 		 * operation in the resume sequence, just build a single sched
 		 * domain, ignoring cpusets.
 		 */
-		num_cpus_frozen--;
-		if (likely(num_cpus_frozen)) {
-			partition_sched_domains(1, NULL, NULL);
+		partition_sched_domains(1, NULL, NULL);
+		if (--num_cpus_frozen)
 			break;
-		}
 
 		/*
 		 * This is the last CPU online operation. So fall through and
 		 * restore the original sched domains by considering the
 		 * cpuset configurations.
 		 */
+		cpuset_force_rebuild();
 
 	case CPU_ONLINE:
 		cpuset_update_active_cpus(true);

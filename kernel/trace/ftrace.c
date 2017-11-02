@@ -2667,13 +2667,14 @@ static int ftrace_shutdown(struct ftrace_ops *ops, int command)
 
 	if (!command || !ftrace_enabled) {
 		/*
-		 * If these are control ops, they still need their
-		 * per_cpu field freed. Since, function tracing is
+		 * If these are dynamic or control ops, they still
+		 * need their data freed. Since, function tracing is
 		 * not currently active, we can just free them
 		 * without synchronizing all CPUs.
 		 */
-		if (ops->flags & FTRACE_OPS_FL_CONTROL)
-			control_ops_free(ops);
+		if (ops->flags & (FTRACE_OPS_FL_DYNAMIC | FTRACE_OPS_FL_CONTROL))
+			goto free_ops;
+
 		return 0;
 	}
 
@@ -2728,6 +2729,7 @@ static int ftrace_shutdown(struct ftrace_ops *ops, int command)
 	if (ops->flags & (FTRACE_OPS_FL_DYNAMIC | FTRACE_OPS_FL_CONTROL)) {
 		schedule_on_each_cpu(ftrace_sync);
 
+ free_ops:
 		arch_ftrace_trampoline_free(ops);
 
 		if (ops->flags & FTRACE_OPS_FL_CONTROL)
@@ -4312,9 +4314,6 @@ __setup("ftrace_filter=", set_ftrace_filter);
 static char ftrace_graph_buf[FTRACE_FILTER_SIZE] __initdata;
 static char ftrace_graph_notrace_buf[FTRACE_FILTER_SIZE] __initdata;
 static int ftrace_set_func(unsigned long *array, int *idx, int size, char *buffer);
-
-static unsigned long save_global_trampoline;
-static unsigned long save_global_flags;
 
 static int __init set_graph_function(char *str)
 {
@@ -5904,17 +5903,6 @@ void unregister_ftrace_graph(void)
 	ftrace_shutdown(&graph_ops, FTRACE_STOP_FUNC_RET);
 	unregister_pm_notifier(&ftrace_suspend_notifier);
 	unregister_trace_sched_switch(ftrace_graph_probe_sched_switch, NULL);
-
-#ifdef CONFIG_DYNAMIC_FTRACE
-	/*
-	 * Function graph does not allocate the trampoline, but
-	 * other global_ops do. We need to reset the ALLOC_TRAMP flag
-	 * if one was used.
-	 */
-	global_ops.trampoline = save_global_trampoline;
-	if (save_global_flags & FTRACE_OPS_FL_ALLOC_TRAMP)
-		global_ops.flags |= FTRACE_OPS_FL_ALLOC_TRAMP;
-#endif
 
  out:
 	mutex_unlock(&ftrace_lock);

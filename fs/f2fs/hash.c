@@ -71,7 +71,7 @@ static void str2hashbuf(const unsigned char *msg, size_t len,
 }
 
 f2fs_hash_t f2fs_dentry_hash(const struct qstr *name_info,
-				struct f2fs_filename *fname)
+				struct fscrypt_name *fname)
 {
 	__u32 hash;
 	f2fs_hash_t f2fs_hash;

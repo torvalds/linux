@@ -224,6 +224,13 @@ cifs_nt_open(char *full_path, struct inode *inode, struct cifs_sb_info *cifs_sb,
 	if (backup_cred(cifs_sb))
 		create_options |= CREATE_OPEN_BACKUP_INTENT;
 
+	/* O_SYNC also has bit for O_DSYNC so following check picks up either */
+	if (f_flags & O_SYNC)
+		create_options |= CREATE_WRITE_THROUGH;
+
+	if (f_flags & O_DIRECT)
+		create_options |= CREATE_NO_BUFFER;
+
 	oparms.tcon = tcon;
 	oparms.cifs_sb = cifs_sb;
 	oparms.desired_access = desired_access;

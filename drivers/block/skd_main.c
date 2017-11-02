@@ -2214,6 +2214,9 @@ static void skd_send_fitmsg(struct skd_device *skdev,
 		 */
 		qcmd |= FIT_QCMD_MSGSIZE_64;
 
+	/* Make sure skd_msg_buf is written before the doorbell is triggered. */
+	smp_wmb();
+
 	SKD_WRITEQ(skdev, qcmd, FIT_Q_COMMAND);
 
 }
@@ -2259,6 +2262,9 @@ static void skd_send_special_fitmsg(struct skd_device *skdev,
 	 */
 	qcmd = skspcl->mb_dma_address;
 	qcmd |= FIT_QCMD_QID_NORMAL + FIT_QCMD_MSGSIZE_128;
+
+	/* Make sure skd_msg_buf is written before the doorbell is triggered. */
+	smp_wmb();
 
 	SKD_WRITEQ(skdev, qcmd, FIT_Q_COMMAND);
 }
@@ -4679,15 +4685,16 @@ static void skd_free_disk(struct skd_device *skdev)
 {
 	struct gendisk *disk = skdev->disk;
 
-	if (disk != NULL) {
-		struct request_queue *q = disk->queue;
+	if (disk && (disk->flags & GENHD_FL_UP))
+		del_gendisk(disk);
 
-		if (disk->flags & GENHD_FL_UP)
-			del_gendisk(disk);
-		if (q)
-			blk_cleanup_queue(q);
-		put_disk(disk);
+	if (skdev->queue) {
+		blk_cleanup_queue(skdev->queue);
+		skdev->queue = NULL;
+		disk->queue = NULL;
 	}
+
+	put_disk(disk);
 	skdev->disk = NULL;
 }
 

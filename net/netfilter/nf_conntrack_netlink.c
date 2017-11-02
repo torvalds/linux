@@ -3415,6 +3415,7 @@ static void __exit ctnetlink_exit(void)
 #ifdef CONFIG_NETFILTER_NETLINK_GLUE_CT
 	RCU_INIT_POINTER(nfnl_ct_hook, NULL);
 #endif
+	synchronize_rcu();
 }
 
 module_init(ctnetlink_init);

@@ -2029,8 +2029,8 @@ static void vmx_vcpu_pi_load(struct kvm_vcpu *vcpu, int cpu)
 
 		/* Allow posting non-urgent interrupts */
 		new.sn = 0;
-	} while (cmpxchg(&pi_desc->control, old.control,
-			new.control) != old.control);
+	} while (cmpxchg64(&pi_desc->control, old.control,
+			   new.control) != old.control);
 }
 /*
  * Switches to specified vcpu, until a matching vcpu_put(), but assumes
@@ -4541,21 +4541,30 @@ static inline bool kvm_vcpu_trigger_posted_interrupt(struct kvm_vcpu *vcpu)
 {
 #ifdef CONFIG_SMP
 	if (vcpu->mode == IN_GUEST_MODE) {
-		struct vcpu_vmx *vmx = to_vmx(vcpu);
-
 		/*
-		 * Currently, we don't support urgent interrupt,
-		 * all interrupts are recognized as non-urgent
-		 * interrupt, so we cannot post interrupts when
-		 * 'SN' is set.
+		 * The vector of interrupt to be delivered to vcpu had
+		 * been set in PIR before this function.
 		 *
-		 * If the vcpu is in guest mode, it means it is
-		 * running instead of being scheduled out and
-		 * waiting in the run queue, and that's the only
-		 * case when 'SN' is set currently, warning if
-		 * 'SN' is set.
+		 * Following cases will be reached in this block, and
+		 * we always send a notification event in all cases as
+		 * explained below.
+		 *
+		 * Case 1: vcpu keeps in non-root mode. Sending a
+		 * notification event posts the interrupt to vcpu.
+		 *
+		 * Case 2: vcpu exits to root mode and is still
+		 * runnable. PIR will be synced to vIRR before the
+		 * next vcpu entry. Sending a notification event in
+		 * this case has no effect, as vcpu is not in root
+		 * mode.
+		 *
+		 * Case 3: vcpu exits to root mode and is blocked.
+		 * vcpu_block() has already synced PIR to vIRR and
+		 * never blocks vcpu if vIRR is not cleared. Therefore,
+		 * a blocked vcpu here does not wait for any requested
+		 * interrupts in PIR, and sending a notification event
+		 * which has no effect is safe here.
 		 */
-		WARN_ON_ONCE(pi_test_sn(&vmx->pi_desc));
 
 		apic->send_IPI_mask(get_cpu_mask(vcpu->cpu),
 				POSTED_INTR_VECTOR);
@@ -9683,6 +9692,11 @@ static void prepare_vmcs02(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12)
 		vmcs_write64(VIRTUAL_APIC_PAGE_ADDR,
 				page_to_phys(vmx->nested.virtual_apic_page));
 		vmcs_write32(TPR_THRESHOLD, vmcs12->tpr_threshold);
+	} else {
+#ifdef CONFIG_X86_64
+		exec_control |= CPU_BASED_CR8_LOAD_EXITING |
+				CPU_BASED_CR8_STORE_EXITING;
+#endif
 	}
 
 	if (cpu_has_vmx_msr_bitmap() &&
@@ -10355,7 +10369,7 @@ static void load_vmcs12_host_state(struct kvm_vcpu *vcpu,
 	 * (KVM doesn't change it)- no reason to call set_cr4_guest_host_mask();
 	 */
 	vcpu->arch.cr4_guest_owned_bits = ~vmcs_readl(CR4_GUEST_HOST_MASK);
-	kvm_set_cr4(vcpu, vmcs12->host_cr4);
+	vmx_set_cr4(vcpu, vmcs12->host_cr4);
 
 	nested_ept_uninit_mmu_context(vcpu);
 
@@ -10691,8 +10705,8 @@ static int vmx_pre_block(struct kvm_vcpu *vcpu)
 
 		/* set 'NV' to 'wakeup vector' */
 		new.nv = POSTED_INTR_WAKEUP_VECTOR;
-	} while (cmpxchg(&pi_desc->control, old.control,
-			new.control) != old.control);
+	} while (cmpxchg64(&pi_desc->control, old.control,
+			   new.control) != old.control);
 
 	return 0;
 }
@@ -10723,8 +10737,8 @@ static void vmx_post_block(struct kvm_vcpu *vcpu)
 
 		/* set 'NV' to 'notification vector' */
 		new.nv = POSTED_INTR_VECTOR;
-	} while (cmpxchg(&pi_desc->control, old.control,
-			new.control) != old.control);
+	} while (cmpxchg64(&pi_desc->control, old.control,
+			   new.control) != old.control);
 
 	if(vcpu->pre_pcpu != -1) {
 		spin_lock_irqsave(
@@ -10755,7 +10769,7 @@ static int vmx_update_pi_irte(struct kvm *kvm, unsigned int host_irq,
 	struct kvm_lapic_irq irq;
 	struct kvm_vcpu *vcpu;
 	struct vcpu_data vcpu_info;
-	int idx, ret = -EINVAL;
+	int idx, ret = 0;
 
 	if (!kvm_arch_has_assigned_device(kvm) ||
 		!irq_remapping_cap(IRQ_POSTING_CAP))
@@ -10763,7 +10777,12 @@ static int vmx_update_pi_irte(struct kvm *kvm, unsigned int host_irq,
 
 	idx = srcu_read_lock(&kvm->irq_srcu);
 	irq_rt = srcu_dereference(kvm->irq_routing, &kvm->irq_srcu);
-	BUG_ON(guest_irq >= irq_rt->nr_rt_entries);
+	if (guest_irq >= irq_rt->nr_rt_entries ||
+	    hlist_empty(&irq_rt->map[guest_irq])) {
+		pr_warn_once("no route for guest_irq %u/%u (broken user space?)\n",
+			     guest_irq, irq_rt->nr_rt_entries);
+		goto out;
+	}
 
 	hlist_for_each_entry(e, &irq_rt->map[guest_irq], link) {
 		if (e->type != KVM_IRQ_ROUTING_MSI)
@@ -10793,12 +10812,8 @@ static int vmx_update_pi_irte(struct kvm *kvm, unsigned int host_irq,
 
 		if (set)
 			ret = irq_set_vcpu_affinity(host_irq, &vcpu_info);
-		else {
-			/* suppress notification event before unposting */
-			pi_set_sn(vcpu_to_pi_desc(vcpu));
+		else
 			ret = irq_set_vcpu_affinity(host_irq, NULL);
-			pi_clear_sn(vcpu_to_pi_desc(vcpu));
-		}
 
 		if (ret < 0) {
 			printk(KERN_INFO "%s: failed to update PI IRTE\n",

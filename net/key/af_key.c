@@ -228,7 +228,7 @@ static int pfkey_broadcast_one(struct sk_buff *skb, struct sk_buff **skb2,
 #define BROADCAST_ONE		1
 #define BROADCAST_REGISTERED	2
 #define BROADCAST_PROMISC_ONLY	4
-static int pfkey_broadcast(struct sk_buff *skb,
+static int pfkey_broadcast(struct sk_buff *skb, gfp_t allocation,
 			   int broadcast_flags, struct sock *one_sk,
 			   struct net *net)
 {
@@ -278,7 +278,7 @@ static int pfkey_broadcast(struct sk_buff *skb,
 	rcu_read_unlock();
 
 	if (one_sk != NULL)
-		err = pfkey_broadcast_one(skb, &skb2, GFP_KERNEL, one_sk);
+		err = pfkey_broadcast_one(skb, &skb2, allocation, one_sk);
 
 	kfree_skb(skb2);
 	kfree_skb(skb);
@@ -311,7 +311,7 @@ static int pfkey_do_dump(struct pfkey_sock *pfk)
 		hdr = (struct sadb_msg *) pfk->dump.skb->data;
 		hdr->sadb_msg_seq = 0;
 		hdr->sadb_msg_errno = rc;
-		pfkey_broadcast(pfk->dump.skb, BROADCAST_ONE,
+		pfkey_broadcast(pfk->dump.skb, GFP_ATOMIC, BROADCAST_ONE,
 				&pfk->sk, sock_net(&pfk->sk));
 		pfk->dump.skb = NULL;
 	}
@@ -355,7 +355,7 @@ static int pfkey_error(const struct sadb_msg *orig, int err, struct sock *sk)
 	hdr->sadb_msg_len = (sizeof(struct sadb_msg) /
 			     sizeof(uint64_t));
 
-	pfkey_broadcast(skb, BROADCAST_ONE, sk, sock_net(sk));
+	pfkey_broadcast(skb, GFP_KERNEL, BROADCAST_ONE, sk, sock_net(sk));
 
 	return 0;
 }
@@ -1396,7 +1396,7 @@ static int pfkey_getspi(struct sock *sk, struct sk_buff *skb, const struct sadb_
 
 	xfrm_state_put(x);
 
-	pfkey_broadcast(resp_skb, BROADCAST_ONE, sk, net);
+	pfkey_broadcast(resp_skb, GFP_KERNEL, BROADCAST_ONE, sk, net);
 
 	return 0;
 }
@@ -1483,7 +1483,7 @@ static int key_notify_sa(struct xfrm_state *x, const struct km_event *c)
 	hdr->sadb_msg_seq = c->seq;
 	hdr->sadb_msg_pid = c->portid;
 
-	pfkey_broadcast(skb, BROADCAST_ALL, NULL, xs_net(x));
+	pfkey_broadcast(skb, GFP_ATOMIC, BROADCAST_ALL, NULL, xs_net(x));
 
 	return 0;
 }
@@ -1596,7 +1596,7 @@ static int pfkey_get(struct sock *sk, struct sk_buff *skb, const struct sadb_msg
 	out_hdr->sadb_msg_reserved = 0;
 	out_hdr->sadb_msg_seq = hdr->sadb_msg_seq;
 	out_hdr->sadb_msg_pid = hdr->sadb_msg_pid;
-	pfkey_broadcast(out_skb, BROADCAST_ONE, sk, sock_net(sk));
+	pfkey_broadcast(out_skb, GFP_ATOMIC, BROADCAST_ONE, sk, sock_net(sk));
 
 	return 0;
 }
@@ -1701,8 +1701,8 @@ static int pfkey_register(struct sock *sk, struct sk_buff *skb, const struct sad
 		return -ENOBUFS;
 	}
 
-	pfkey_broadcast(supp_skb, BROADCAST_REGISTERED, sk, sock_net(sk));
-
+	pfkey_broadcast(supp_skb, GFP_KERNEL, BROADCAST_REGISTERED, sk,
+			sock_net(sk));
 	return 0;
 }
 
@@ -1720,7 +1720,8 @@ static int unicast_flush_resp(struct sock *sk, const struct sadb_msg *ihdr)
 	hdr->sadb_msg_errno = (uint8_t) 0;
 	hdr->sadb_msg_len = (sizeof(struct sadb_msg) / sizeof(uint64_t));
 
-	return pfkey_broadcast(skb, BROADCAST_ONE, sk, sock_net(sk));
+	return pfkey_broadcast(skb, GFP_ATOMIC, BROADCAST_ONE, sk,
+			       sock_net(sk));
 }
 
 static int key_notify_sa_flush(const struct km_event *c)
@@ -1741,7 +1742,7 @@ static int key_notify_sa_flush(const struct km_event *c)
 	hdr->sadb_msg_len = (sizeof(struct sadb_msg) / sizeof(uint64_t));
 	hdr->sadb_msg_reserved = 0;
 
-	pfkey_broadcast(skb, BROADCAST_ALL, NULL, c->net);
+	pfkey_broadcast(skb, GFP_ATOMIC, BROADCAST_ALL, NULL, c->net);
 
 	return 0;
 }
@@ -1798,7 +1799,7 @@ static int dump_sa(struct xfrm_state *x, int count, void *ptr)
 	out_hdr->sadb_msg_pid = pfk->dump.msg_portid;
 
 	if (pfk->dump.skb)
-		pfkey_broadcast(pfk->dump.skb, BROADCAST_ONE,
+		pfkey_broadcast(pfk->dump.skb, GFP_ATOMIC, BROADCAST_ONE,
 				&pfk->sk, sock_net(&pfk->sk));
 	pfk->dump.skb = out_skb;
 
@@ -1886,7 +1887,7 @@ static int pfkey_promisc(struct sock *sk, struct sk_buff *skb, const struct sadb
 		new_hdr->sadb_msg_errno = 0;
 	}
 
-	pfkey_broadcast(skb, BROADCAST_ALL, NULL, sock_net(sk));
+	pfkey_broadcast(skb, GFP_KERNEL, BROADCAST_ALL, NULL, sock_net(sk));
 	return 0;
 }
 
@@ -2219,7 +2220,7 @@ static int key_notify_policy(struct xfrm_policy *xp, int dir, const struct km_ev
 	out_hdr->sadb_msg_errno = 0;
 	out_hdr->sadb_msg_seq = c->seq;
 	out_hdr->sadb_msg_pid = c->portid;
-	pfkey_broadcast(out_skb, BROADCAST_ALL, NULL, xp_net(xp));
+	pfkey_broadcast(out_skb, GFP_ATOMIC, BROADCAST_ALL, NULL, xp_net(xp));
 	return 0;
 
 }
@@ -2439,7 +2440,7 @@ static int key_pol_get_resp(struct sock *sk, struct xfrm_policy *xp, const struc
 	out_hdr->sadb_msg_errno = 0;
 	out_hdr->sadb_msg_seq = hdr->sadb_msg_seq;
 	out_hdr->sadb_msg_pid = hdr->sadb_msg_pid;
-	pfkey_broadcast(out_skb, BROADCAST_ONE, sk, xp_net(xp));
+	pfkey_broadcast(out_skb, GFP_ATOMIC, BROADCAST_ONE, sk, xp_net(xp));
 	err = 0;
 
 out:
@@ -2695,7 +2696,7 @@ static int dump_sp(struct xfrm_policy *xp, int dir, int count, void *ptr)
 	out_hdr->sadb_msg_pid = pfk->dump.msg_portid;
 
 	if (pfk->dump.skb)
-		pfkey_broadcast(pfk->dump.skb, BROADCAST_ONE,
+		pfkey_broadcast(pfk->dump.skb, GFP_ATOMIC, BROADCAST_ONE,
 				&pfk->sk, sock_net(&pfk->sk));
 	pfk->dump.skb = out_skb;
 
@@ -2752,7 +2753,7 @@ static int key_notify_policy_flush(const struct km_event *c)
 	hdr->sadb_msg_satype = SADB_SATYPE_UNSPEC;
 	hdr->sadb_msg_len = (sizeof(struct sadb_msg) / sizeof(uint64_t));
 	hdr->sadb_msg_reserved = 0;
-	pfkey_broadcast(skb_out, BROADCAST_ALL, NULL, c->net);
+	pfkey_broadcast(skb_out, GFP_ATOMIC, BROADCAST_ALL, NULL, c->net);
 	return 0;
 
 }
@@ -2814,7 +2815,7 @@ static int pfkey_process(struct sock *sk, struct sk_buff *skb, const struct sadb
 	void *ext_hdrs[SADB_EXT_MAX];
 	int err;
 
-	pfkey_broadcast(skb_clone(skb, GFP_KERNEL),
+	pfkey_broadcast(skb_clone(skb, GFP_KERNEL), GFP_KERNEL,
 			BROADCAST_PROMISC_ONLY, NULL, sock_net(sk));
 
 	memset(ext_hdrs, 0, sizeof(ext_hdrs));
@@ -3036,7 +3037,8 @@ static int key_notify_sa_expire(struct xfrm_state *x, const struct km_event *c)
 	out_hdr->sadb_msg_seq = 0;
 	out_hdr->sadb_msg_pid = 0;
 
-	pfkey_broadcast(out_skb, BROADCAST_REGISTERED, NULL, xs_net(x));
+	pfkey_broadcast(out_skb, GFP_ATOMIC, BROADCAST_REGISTERED, NULL,
+			xs_net(x));
 	return 0;
 }
 
@@ -3226,7 +3228,8 @@ static int pfkey_send_acquire(struct xfrm_state *x, struct xfrm_tmpl *t, struct 
 		       xfrm_ctx->ctx_len);
 	}
 
-	return pfkey_broadcast(skb, BROADCAST_REGISTERED, NULL, xs_net(x));
+	return pfkey_broadcast(skb, GFP_ATOMIC, BROADCAST_REGISTERED, NULL,
+			       xs_net(x));
 }
 
 static struct xfrm_policy *pfkey_compile_policy(struct sock *sk, int opt,
@@ -3424,7 +3427,8 @@ static int pfkey_send_new_mapping(struct xfrm_state *x, xfrm_address_t *ipaddr, 
 	n_port->sadb_x_nat_t_port_port = sport;
 	n_port->sadb_x_nat_t_port_reserved = 0;
 
-	return pfkey_broadcast(skb, BROADCAST_REGISTERED, NULL, xs_net(x));
+	return pfkey_broadcast(skb, GFP_ATOMIC, BROADCAST_REGISTERED, NULL,
+			       xs_net(x));
 }
 
 #ifdef CONFIG_NET_KEY_MIGRATE
@@ -3616,7 +3620,7 @@ static int pfkey_send_migrate(const struct xfrm_selector *sel, u8 dir, u8 type,
 	}
 
 	/* broadcast migrate message to sockets */
-	pfkey_broadcast(skb, BROADCAST_ALL, NULL, &init_net);
+	pfkey_broadcast(skb, GFP_ATOMIC, BROADCAST_ALL, NULL, &init_net);
 
 	return 0;
 

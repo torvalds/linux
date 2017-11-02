@@ -86,8 +86,13 @@ static void skcipher_free_async_sgls(struct skcipher_async_req *sreq)
 	}
 	sgl = sreq->tsg;
 	n = sg_nents(sgl);
-	for_each_sg(sgl, sg, n, i)
-		put_page(sg_page(sg));
+	for_each_sg(sgl, sg, n, i) {
+		struct page *page = sg_page(sg);
+
+		/* some SGs may not have a page mapped */
+		if (page && atomic_read(&page->_count))
+			put_page(page);
+	}
 
 	kfree(sreq->tsg);
 }
@@ -138,8 +143,10 @@ static int skcipher_alloc_sgl(struct sock *sk)
 		sg_init_table(sgl->sg, MAX_SGL_ENTS + 1);
 		sgl->cur = 0;
 
-		if (sg)
+		if (sg) {
 			sg_chain(sg, MAX_SGL_ENTS + 1, sgl->sg);
+			sg_unmark_end(sg + (MAX_SGL_ENTS - 1));
+		}
 
 		list_add_tail(&sgl->list, &ctx->tsgl);
 	}

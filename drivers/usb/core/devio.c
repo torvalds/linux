@@ -519,6 +519,8 @@ static void async_completed(struct urb *urb)
 	if (as->status < 0 && as->bulk_addr && as->status != -ECONNRESET &&
 			as->status != -ENOENT)
 		cancel_bulk_urbs(ps, as->bulk_addr);
+
+	wake_up(&ps->wait);
 	spin_unlock(&ps->lock);
 
 	if (signr) {
@@ -526,8 +528,6 @@ static void async_completed(struct urb *urb)
 		put_pid(pid);
 		put_cred(cred);
 	}
-
-	wake_up(&ps->wait);
 }
 
 static void destroy_async(struct usb_dev_state *ps, struct list_head *list)
@@ -1417,7 +1417,11 @@ static int proc_do_submiturb(struct usb_dev_state *ps, struct usbdevfs_urb *uurb
 			totlen += isopkt[u].length;
 		}
 		u *= sizeof(struct usb_iso_packet_descriptor);
-		uurb->buffer_length = totlen;
+		if (totlen <= uurb->buffer_length)
+			uurb->buffer_length = totlen;
+		else
+			WARN_ONCE(1, "uurb->buffer_length is too short %d vs %d",
+				  totlen, uurb->buffer_length);
 		break;
 
 	default:

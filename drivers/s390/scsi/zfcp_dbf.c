@@ -3,7 +3,7 @@
  *
  * Debug traces for zfcp.
  *
- * Copyright IBM Corp. 2002, 2016
+ * Copyright IBM Corp. 2002, 2017
  */
 
 #define KMSG_COMPONENT "zfcp"
@@ -447,6 +447,7 @@ static u16 zfcp_dbf_san_res_cap_len_if_gpn_ft(char *tag,
 	struct fc_ct_hdr *reqh = sg_virt(ct_els->req);
 	struct fc_ns_gid_ft *reqn = (struct fc_ns_gid_ft *)(reqh + 1);
 	struct scatterlist *resp_entry = ct_els->resp;
+	struct fc_ct_hdr *resph;
 	struct fc_gpn_ft_resp *acc;
 	int max_entries, x, last = 0;
 
@@ -473,6 +474,13 @@ static u16 zfcp_dbf_san_res_cap_len_if_gpn_ft(char *tag,
 		return len; /* not GPN_FT response so do not cap */
 
 	acc = sg_virt(resp_entry);
+
+	/* cap all but accept CT responses to at least the CT header */
+	resph = (struct fc_ct_hdr *)acc;
+	if ((ct_els->status) ||
+	    (resph->ct_cmd != cpu_to_be16(FC_FS_ACC)))
+		return max(FC_CT_HDR_LEN, ZFCP_DBF_SAN_MAX_PAYLOAD);
+
 	max_entries = (reqh->ct_mr_size * 4 / sizeof(struct fc_gpn_ft_resp))
 		+ 1 /* zfcp_fc_scan_ports: bytes correct, entries off-by-one
 		     * to account for header as 1st pseudo "entry" */;
@@ -555,8 +563,8 @@ void zfcp_dbf_scsi(char *tag, int level, struct scsi_cmnd *sc,
 	rec->scsi_retries = sc->retries;
 	rec->scsi_allowed = sc->allowed;
 	rec->scsi_id = sc->device->id;
-	/* struct zfcp_dbf_scsi needs to be updated to handle 64bit LUNs */
 	rec->scsi_lun = (u32)sc->device->lun;
+	rec->scsi_lun_64_hi = (u32)(sc->device->lun >> 32);
 	rec->host_scribble = (unsigned long)sc->host_scribble;
 
 	memcpy(rec->scsi_opcode, sc->cmnd,
@@ -564,19 +572,32 @@ void zfcp_dbf_scsi(char *tag, int level, struct scsi_cmnd *sc,
 
 	if (fsf) {
 		rec->fsf_req_id = fsf->req_id;
+		rec->pl_len = FCP_RESP_WITH_EXT;
 		fcp_rsp = (struct fcp_resp_with_ext *)
 				&(fsf->qtcb->bottom.io.fcp_rsp);
+		/* mandatory parts of FCP_RSP IU in this SCSI record */
 		memcpy(&rec->fcp_rsp, fcp_rsp, FCP_RESP_WITH_EXT);
 		if (fcp_rsp->resp.fr_flags & FCP_RSP_LEN_VAL) {
 			fcp_rsp_info = (struct fcp_resp_rsp_info *) &fcp_rsp[1];
 			rec->fcp_rsp_info = fcp_rsp_info->rsp_code;
+			rec->pl_len += be32_to_cpu(fcp_rsp->ext.fr_rsp_len);
 		}
 		if (fcp_rsp->resp.fr_flags & FCP_SNS_LEN_VAL) {
-			rec->pl_len = min((u16)SCSI_SENSE_BUFFERSIZE,
-					  (u16)ZFCP_DBF_PAY_MAX_REC);
-			zfcp_dbf_pl_write(dbf, sc->sense_buffer, rec->pl_len,
-					  "fcp_sns", fsf->req_id);
+			rec->pl_len += be32_to_cpu(fcp_rsp->ext.fr_sns_len);
 		}
+		/* complete FCP_RSP IU in associated PAYload record
+		 * but only if there are optional parts
+		 */
+		if (fcp_rsp->resp.fr_flags != 0)
+			zfcp_dbf_pl_write(
+				dbf, fcp_rsp,
+				/* at least one full PAY record
+				 * but not beyond hardware response field
+				 */
+				min_t(u16, max_t(u16, rec->pl_len,
+						 ZFCP_DBF_PAY_MAX_REC),
+				      FSF_FCP_RSP_SIZE),
+				"fcp_riu", fsf->req_id);
 	}
 
 	debug_event(dbf->scsi, level, rec, sizeof(*rec));

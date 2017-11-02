@@ -4656,10 +4656,11 @@ static inline void hrtick_update(struct rq *rq)
 #endif
 
 #ifdef CONFIG_SMP
+static bool __cpu_overutilized(int cpu, int delta);
 static bool cpu_overutilized(int cpu);
 unsigned long boosted_cpu_util(int cpu);
 #else
-#define boosted_cpu_util(cpu) cpu_util(cpu)
+#define boosted_cpu_util(cpu) cpu_util_freq(cpu)
 #endif
 
 #ifdef CONFIG_SMP
@@ -5472,10 +5473,8 @@ end:
  */
 static int sched_group_energy(struct energy_env *eenv)
 {
-	struct sched_domain *sd;
-	int cpu, total_energy = 0;
 	struct cpumask visit_cpus;
-	struct sched_group *sg;
+	u64 total_energy = 0;
 
 	WARN_ON(!eenv->sg_top->sge);
 
@@ -5483,8 +5482,8 @@ static int sched_group_energy(struct energy_env *eenv)
 
 	while (!cpumask_empty(&visit_cpus)) {
 		struct sched_group *sg_shared_cap = NULL;
-
-		cpu = cpumask_first(&visit_cpus);
+		int cpu = cpumask_first(&visit_cpus);
+		struct sched_domain *sd;
 
 		/*
 		 * Is the group utilization affected by cpus outside this
@@ -5496,7 +5495,7 @@ static int sched_group_energy(struct energy_env *eenv)
 			sg_shared_cap = sd->parent->groups;
 
 		for_each_domain(cpu, sd) {
-			sg = sd->groups;
+			struct sched_group *sg = sd->groups;
 
 			/* Has this sched_domain already been visited? */
 			if (sd->child && group_first_cpu(sg) != cpu)
@@ -5532,11 +5531,9 @@ static int sched_group_energy(struct energy_env *eenv)
 				idle_idx = group_idle_state(eenv, sg);
 				group_util = group_norm_util(eenv, sg);
 
-				sg_busy_energy = (group_util * sg->sge->cap_states[cap_idx].power)
-								>> SCHED_CAPACITY_SHIFT;
+				sg_busy_energy = (group_util * sg->sge->cap_states[cap_idx].power);
 				sg_idle_energy = ((SCHED_LOAD_SCALE-group_util)
-								* sg->sge->idle_states[idle_idx].power)
-								>> SCHED_CAPACITY_SHIFT;
+								* sg->sge->idle_states[idle_idx].power);
 
 				total_energy += sg_busy_energy + sg_idle_energy;
 
@@ -5561,7 +5558,7 @@ next_cpu:
 		continue;
 	}
 
-	eenv->energy = total_energy;
+	eenv->energy = total_energy >> SCHED_CAPACITY_SHIFT;
 	return 0;
 }
 
@@ -5860,9 +5857,14 @@ static inline bool task_fits_max(struct task_struct *p, int cpu)
 	return __task_fits(p, cpu, 0);
 }
 
+static bool __cpu_overutilized(int cpu, int delta)
+{
+	return (capacity_of(cpu) * 1024) < ((cpu_util(cpu) + delta) * capacity_margin);
+}
+
 static bool cpu_overutilized(int cpu)
 {
-	return (capacity_of(cpu) * 1024) < (cpu_util(cpu) * capacity_margin);
+	return __cpu_overutilized(cpu, 0);
 }
 
 #ifdef CONFIG_SCHED_TUNE
@@ -5941,7 +5943,7 @@ schedtune_task_margin(struct task_struct *task)
 unsigned long
 boosted_cpu_util(int cpu)
 {
-	unsigned long util = cpu_util(cpu);
+	unsigned long util = cpu_util_freq(cpu);
 	long margin = schedtune_cpu_margin(util, cpu);
 
 	trace_sched_boost_cpu(cpu, util, margin);
@@ -6581,6 +6583,7 @@ static int select_energy_cpu_brute(struct task_struct *p, int prev_cpu, int sync
 	}
 
 	if (target_cpu != prev_cpu) {
+		int delta = 0;
 		struct energy_env eenv = {
 			.util_delta     = task_util(p),
 			.src_cpu        = prev_cpu,
@@ -6588,8 +6591,13 @@ static int select_energy_cpu_brute(struct task_struct *p, int prev_cpu, int sync
 			.task           = p,
 		};
 
+
+#ifdef CONFIG_SCHED_WALT
+		if (!walt_disabled && sysctl_sched_use_walt_cpu_util)
+			delta = task_util(p);
+#endif
 		/* Not enough spare capacity on previous cpu */
-		if (cpu_overutilized(prev_cpu)) {
+		if (__cpu_overutilized(prev_cpu, delta)) {
 			schedstat_inc(p, se.statistics.nr_wakeups_secb_insuff_cap);
 			schedstat_inc(this_rq(), eas_stats.secb_insuff_cap);
 			goto unlock;
@@ -9766,12 +9774,12 @@ static inline bool nohz_kick_needed(struct rq *rq)
 		return true;
 
 	/* Do idle load balance if there have misfit task */
-	if (energy_aware() && rq->misfit_task)
-		return true;
+	if (energy_aware())
+		return rq->misfit_task;
 
 	rcu_read_lock();
 	sd = rcu_dereference(per_cpu(sd_busy, cpu));
-	if (sd && !energy_aware()) {
+	if (sd) {
 		sgc = sd->groups->sgc;
 		nr_busy = atomic_read(&sgc->nr_busy_cpus);
 

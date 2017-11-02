@@ -1979,6 +1979,10 @@ static int create_filter(struct trace_event_call *call,
 		if (err && set_str)
 			append_filter_err(ps, filter);
 	}
+	if (err && !set_str) {
+		free_event_filter(filter);
+		filter = NULL;
+	}
 	create_filter_finish(ps);
 
 	*filterp = filter;

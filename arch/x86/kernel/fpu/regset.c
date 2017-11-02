@@ -116,6 +116,11 @@ int xstateregs_set(struct task_struct *target, const struct user_regset *regset,
 	xsave = &fpu->state.xsave;
 
 	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf, xsave, 0, -1);
+
+	/* xcomp_bv must be 0 when using uncompacted format */
+	if (!ret && xsave->header.xcomp_bv)
+		ret = -EINVAL;
+
 	/*
 	 * mxcsr reserved bits must be masked to zero for security reasons.
 	 */
@@ -125,6 +130,12 @@ int xstateregs_set(struct task_struct *target, const struct user_regset *regset,
 	 * These bits must be zero.
 	 */
 	memset(&xsave->header.reserved, 0, 48);
+
+	/*
+	 * In case of failure, mark all states as init:
+	 */
+	if (ret)
+		fpstate_init(&fpu->state);
 
 	return ret;
 }

@@ -4,7 +4,7 @@
  * Fibre Channel related definitions and inline functions for the zfcp
  * device driver
  *
- * Copyright IBM Corp. 2009
+ * Copyright IBM Corp. 2009, 2017
  */
 
 #ifndef ZFCP_FC_H
@@ -278,6 +278,10 @@ void zfcp_fc_eval_fcp_rsp(struct fcp_resp_with_ext *fcp_rsp,
 		if (scsi_bufflen(scsi) - resid < scsi->underflow &&
 		     !(rsp_flags & FCP_SNS_LEN_VAL) &&
 		     fcp_rsp->resp.fr_status == SAM_STAT_GOOD)
+			set_host_byte(scsi, DID_ERROR);
+	} else if (unlikely(rsp_flags & FCP_RESID_OVER)) {
+		/* FCP_DL was not sufficient for SCSI data length */
+		if (fcp_rsp->resp.fr_status == SAM_STAT_GOOD)
 			set_host_byte(scsi, DID_ERROR);
 	}
 }

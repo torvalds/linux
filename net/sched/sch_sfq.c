@@ -434,6 +434,7 @@ congestion_drop:
 		qdisc_drop(head, sch);
 
 		slot_queue_add(slot, skb);
+		qdisc_tree_reduce_backlog(sch, 0, delta);
 		return NET_XMIT_CN;
 	}
 
@@ -465,8 +466,10 @@ enqueue:
 	/* Return Congestion Notification only if we dropped a packet
 	 * from this flow.
 	 */
-	if (qlen != slot->qlen)
+	if (qlen != slot->qlen) {
+		qdisc_tree_reduce_backlog(sch, 0, dropped - qdisc_pkt_len(skb));
 		return NET_XMIT_CN;
+	}
 
 	/* As we dropped a packet, better let upper stack know this */
 	qdisc_tree_reduce_backlog(sch, 1, dropped);

@@ -2959,6 +2959,7 @@ static void nvme_dev_shutdown(struct nvme_dev *dev)
 
 	nvme_dev_list_remove(dev);
 
+	mutex_lock(&dev->shutdown_lock);
 	if (pci_is_enabled(to_pci_dev(dev->dev))) {
 		nvme_freeze_queues(dev);
 		csts = readl(&dev->bar->csts);
@@ -2977,6 +2978,7 @@ static void nvme_dev_shutdown(struct nvme_dev *dev)
 
 	for (i = dev->queue_count - 1; i >= 0; i--)
 		nvme_clear_queue(dev->queues[i]);
+	mutex_unlock(&dev->shutdown_lock);
 }
 
 static void nvme_dev_remove(struct nvme_dev *dev)
@@ -3333,6 +3335,7 @@ static int nvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	INIT_LIST_HEAD(&dev->namespaces);
 	INIT_WORK(&dev->reset_work, nvme_reset_work);
+	mutex_init(&dev->shutdown_lock);
 	dev->dev = get_device(&pdev->dev);
 	pci_set_drvdata(pdev, dev);
 

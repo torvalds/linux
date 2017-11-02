@@ -642,13 +642,13 @@ static int rcar_du_encoders_init_one(struct rcar_du_device *rcdu,
 	}
 
 	ret = rcar_du_encoder_init(rcdu, enc_type, output, encoder, connector);
-	of_node_put(encoder);
-	of_node_put(connector);
-
 	if (ret && ret != -EPROBE_DEFER)
 		dev_warn(rcdu->dev,
-			 "failed to initialize encoder %s (%d), skipping\n",
-			 encoder->full_name, ret);
+			 "failed to initialize encoder %s on output %u (%d), skipping\n",
+			 of_node_full_name(encoder), output, ret);
+
+	of_node_put(encoder);
+	of_node_put(connector);
 
 	return ret;
 }

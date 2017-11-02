@@ -36,7 +36,10 @@ struct adv7511 {
 	bool edid_read;
 
 	wait_queue_head_t wq;
+	struct work_struct hpd_work;
+
 	struct drm_encoder *encoder;
+	struct drm_connector connector;
 
 	bool embedded_sync;
 	enum adv7511_sync_polarity vsync_polarity;
@@ -47,6 +50,10 @@ struct adv7511 {
 
 	struct gpio_desc *gpio_pd;
 };
+
+static const int edid_i2c_addr = 0x7e;
+static const int packet_i2c_addr = 0x70;
+static const int cec_i2c_addr = 0x78;
 
 static struct adv7511 *encoder_to_adv7511(struct drm_encoder *encoder)
 {
@@ -362,12 +369,19 @@ static void adv7511_power_on(struct adv7511 *adv7511)
 {
 	adv7511->current_edid_segment = -1;
 
-	regmap_write(adv7511->regmap, ADV7511_REG_INT(0),
-		     ADV7511_INT0_EDID_READY);
-	regmap_write(adv7511->regmap, ADV7511_REG_INT(1),
-		     ADV7511_INT1_DDC_ERROR);
 	regmap_update_bits(adv7511->regmap, ADV7511_REG_POWER,
 			   ADV7511_POWER_POWER_DOWN, 0);
+	if (adv7511->i2c_main->irq) {
+		/*
+		 * Documentation says the INT_ENABLE registers are reset in
+		 * POWER_DOWN mode. My 7511w preserved the bits, however.
+		 * Still, let's be safe and stick to the documentation.
+		 */
+		regmap_write(adv7511->regmap, ADV7511_REG_INT_ENABLE(0),
+			     ADV7511_INT0_EDID_READY);
+		regmap_write(adv7511->regmap, ADV7511_REG_INT_ENABLE(1),
+			     ADV7511_INT1_DDC_ERROR);
+	}
 
 	/*
 	 * Per spec it is allowed to pulse the HDP signal to indicate that the
@@ -422,7 +436,27 @@ static bool adv7511_hpd(struct adv7511 *adv7511)
 	return false;
 }
 
-static int adv7511_irq_process(struct adv7511 *adv7511)
+static void adv7511_hpd_work(struct work_struct *work)
+{
+	struct adv7511 *adv7511 = container_of(work, struct adv7511, hpd_work);
+	enum drm_connector_status status;
+	unsigned int val;
+	int ret;
+	ret = regmap_read(adv7511->regmap, ADV7511_REG_STATUS, &val);
+	if (ret < 0)
+		status = connector_status_disconnected;
+	else if (val & ADV7511_STATUS_HPD)
+		status = connector_status_connected;
+	else
+		status = connector_status_disconnected;
+
+	if (adv7511->connector.status != status) {
+		adv7511->connector.status = status;
+		drm_kms_helper_hotplug_event(adv7511->connector.dev);
+	}
+}
+
+static int adv7511_irq_process(struct adv7511 *adv7511, bool process_hpd)
 {
 	unsigned int irq0, irq1;
 	int ret;
@@ -438,8 +472,8 @@ static int adv7511_irq_process(struct adv7511 *adv7511)
 	regmap_write(adv7511->regmap, ADV7511_REG_INT(0), irq0);
 	regmap_write(adv7511->regmap, ADV7511_REG_INT(1), irq1);
 
-	if (irq0 & ADV7511_INT0_HDP && adv7511->encoder)
-		drm_helper_hpd_irq_event(adv7511->encoder->dev);
+	if (process_hpd && irq0 & ADV7511_INT0_HDP && adv7511->encoder)
+		schedule_work(&adv7511->hpd_work);
 
 	if (irq0 & ADV7511_INT0_EDID_READY || irq1 & ADV7511_INT1_DDC_ERROR) {
 		adv7511->edid_read = true;
@@ -456,7 +490,7 @@ static irqreturn_t adv7511_irq_handler(int irq, void *devid)
 	struct adv7511 *adv7511 = devid;
 	int ret;
 
-	ret = adv7511_irq_process(adv7511);
+	ret = adv7511_irq_process(adv7511, true);
 	return ret < 0 ? IRQ_NONE : IRQ_HANDLED;
 }
 
@@ -473,7 +507,7 @@ static int adv7511_wait_for_edid(struct adv7511 *adv7511, int timeout)
 				adv7511->edid_read, msecs_to_jiffies(timeout));
 	} else {
 		for (; timeout > 0; timeout -= 25) {
-			ret = adv7511_irq_process(adv7511);
+			ret = adv7511_irq_process(adv7511, false);
 			if (ret < 0)
 				break;
 
@@ -567,13 +601,18 @@ static int adv7511_get_modes(struct drm_encoder *encoder,
 
 	/* Reading the EDID only works if the device is powered */
 	if (!adv7511->powered) {
-		regmap_write(adv7511->regmap, ADV7511_REG_INT(0),
-			     ADV7511_INT0_EDID_READY);
-		regmap_write(adv7511->regmap, ADV7511_REG_INT(1),
-			     ADV7511_INT1_DDC_ERROR);
 		regmap_update_bits(adv7511->regmap, ADV7511_REG_POWER,
 				   ADV7511_POWER_POWER_DOWN, 0);
+		if (adv7511->i2c_main->irq) {
+			regmap_write(adv7511->regmap, ADV7511_REG_INT_ENABLE(0),
+				     ADV7511_INT0_EDID_READY);
+			regmap_write(adv7511->regmap, ADV7511_REG_INT_ENABLE(1),
+				     ADV7511_INT1_DDC_ERROR);
+		}
 		adv7511->current_edid_segment = -1;
+		/* Reset the EDID_I2C_ADDR register as it might be cleared */
+		regmap_write(adv7511->regmap, ADV7511_REG_EDID_I2C_ADDR,
+				edid_i2c_addr);
 	}
 
 	edid = drm_do_get_edid(connector, adv7511_get_edid_block, adv7511);
@@ -849,10 +888,6 @@ static int adv7511_parse_dt(struct device_node *np,
 	return 0;
 }
 
-static const int edid_i2c_addr = 0x7e;
-static const int packet_i2c_addr = 0x70;
-static const int cec_i2c_addr = 0x78;
-
 static int adv7511_probe(struct i2c_client *i2c, const struct i2c_device_id *id)
 {
 	struct adv7511_link_config link_config;
@@ -912,6 +947,8 @@ static int adv7511_probe(struct i2c_client *i2c, const struct i2c_device_id *id)
 	adv7511->i2c_edid = i2c_new_dummy(i2c->adapter, edid_i2c_addr >> 1);
 	if (!adv7511->i2c_edid)
 		return -ENOMEM;
+
+	INIT_WORK(&adv7511->hpd_work, adv7511_hpd_work);
 
 	if (i2c->irq) {
 		init_waitqueue_head(&adv7511->wq);
