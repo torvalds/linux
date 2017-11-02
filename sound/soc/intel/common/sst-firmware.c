@@ -19,6 +19,7 @@
 #include <linux/sched.h>
 #include <linux/firmware.h>
 #include <linux/export.h>
+#include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 #include <linux/dmaengine.h>
