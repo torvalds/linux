@@ -232,6 +232,11 @@ int afs_page_filler(void *data, struct page *page)
 		 * page */
 		ret = afs_fetch_data(vnode, key, req);
 		afs_put_read(req);
+
+		if (ret >= 0 && S_ISDIR(inode->i_mode) &&
+		    !afs_dir_check_page(inode, page))
+			ret = -EIO;
+
 		if (ret < 0) {
 			if (ret == -ENOENT) {
 				_debug("got NOENT from server"

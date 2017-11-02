@@ -130,10 +130,11 @@ struct afs_lookup_cookie {
 /*
  * check that a directory page is valid
  */
-static inline bool afs_dir_check_page(struct inode *dir, struct page *page)
+bool afs_dir_check_page(struct inode *dir, struct page *page)
 {
 	struct afs_dir_page *dbuf;
-	loff_t latter;
+	struct afs_vnode *vnode = AFS_FS_I(dir);
+	loff_t latter, i_size, off;
 	int tmp, qty;
 
 #if 0
@@ -150,8 +151,15 @@ static inline bool afs_dir_check_page(struct inode *dir, struct page *page)
 	}
 #endif
 
-	/* determine how many magic numbers there should be in this page */
-	latter = dir->i_size - page_offset(page);
+	/* Determine how many magic numbers there should be in this page, but
+	 * we must take care because the directory may change size under us.
+	 */
+	off = page_offset(page);
+	i_size = i_size_read(dir);
+	if (i_size <= off)
+		goto checked;
+
+	latter = i_size - off;
 	if (latter >= PAGE_SIZE)
 		qty = PAGE_SIZE;
 	else
@@ -162,13 +170,15 @@ static inline bool afs_dir_check_page(struct inode *dir, struct page *page)
 	dbuf = page_address(page);
 	for (tmp = 0; tmp < qty; tmp++) {
 		if (dbuf->blocks[tmp].pagehdr.magic != AFS_DIR_MAGIC) {
-			printk("kAFS: %s(%lu): bad magic %d/%d is %04hx\n",
+			printk("kAFS: %s(%lx): bad magic %d/%d is %04hx\n",
 			       __func__, dir->i_ino, tmp, qty,
 			       ntohs(dbuf->blocks[tmp].pagehdr.magic));
+			trace_afs_dir_check_failed(vnode, off, i_size);
 			goto error;
 		}
 	}
 
+checked:
 	SetPageChecked(page);
 	return true;
 
@@ -183,6 +193,7 @@ error:
 static inline void afs_dir_put_page(struct page *page)
 {
 	kunmap(page);
+	unlock_page(page);
 	put_page(page);
 }
 
@@ -197,9 +208,10 @@ static struct page *afs_dir_get_page(struct inode *dir, unsigned long index,
 
 	page = read_cache_page(dir->i_mapping, index, afs_page_filler, key);
 	if (!IS_ERR(page)) {
+		lock_page(page);
 		kmap(page);
 		if (unlikely(!PageChecked(page))) {
-			if (PageError(page) || !afs_dir_check_page(dir, page))
+			if (PageError(page))
 				goto fail;
 		}
 	}
@@ -384,8 +396,7 @@ out:
  */
 static int afs_readdir(struct file *file, struct dir_context *ctx)
 {
-	return afs_dir_iterate(file_inode(file),
-			      ctx, file->private_data);
+	return afs_dir_iterate(file_inode(file), ctx, file->private_data);
 }
 
 /*

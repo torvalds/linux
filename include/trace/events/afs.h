@@ -381,6 +381,27 @@ TRACE_EVENT(afs_sent_pages,
 		      __entry->cursor, __entry->ret)
 	    );
 
+TRACE_EVENT(afs_dir_check_failed,
+	    TP_PROTO(struct afs_vnode *vnode, loff_t off, loff_t i_size),
+
+	    TP_ARGS(vnode, off, i_size),
+
+	    TP_STRUCT__entry(
+		    __field(struct afs_vnode *,		vnode		)
+		    __field(loff_t,			off		)
+		    __field(loff_t,			i_size		)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->vnode = vnode;
+		    __entry->off = off;
+		    __entry->i_size = i_size;
+			   ),
+
+	    TP_printk("vn=%p %llx/%llx",
+		      __entry->vnode, __entry->off, __entry->i_size)
+	    );
+
 #endif /* _TRACE_AFS_H */
 
 /* This part must be outside protection */
