@@ -754,9 +754,13 @@ static int rockchip_usb2phy_set_mode(struct phy *phy, enum phy_mode mode)
 		 * fallthrough
 		 */
 	case PHY_MODE_USB_DEVICE:
+		gpiod_set_value_cansleep(rport->vbus_drv_gpio, 0);
+		extcon_set_state_sync(rphy->edev, EXTCON_USB_VBUS_EN, false);
 		vbus_det_en = true;
 		break;
 	case PHY_MODE_USB_HOST:
+		gpiod_set_value_cansleep(rport->vbus_drv_gpio, 1);
+		extcon_set_state_sync(rphy->edev, EXTCON_USB_VBUS_EN, true);
 		/* fallthrough */
 	case PHY_MODE_INVALID:
 		vbus_det_en = false;
