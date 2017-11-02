@@ -2058,7 +2058,7 @@ static u32 usb3_calc_rammap_val(struct renesas_usb3_ep *usb3_ep,
 				const struct usb_endpoint_descriptor *desc)
 {
 	int i;
-	const u32 max_packet_array[] = {8, 16, 32, 64, 512};
+	static const u32 max_packet_array[] = {8, 16, 32, 64, 512};
 	u32 mpkt = PN_RAMMAP_MPKT(1024);
 
 	for (i = 0; i < ARRAY_SIZE(max_packet_array); i++) {
