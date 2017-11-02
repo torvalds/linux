@@ -2214,8 +2214,10 @@ static void __i915_gem_object_reset_page_iter(struct drm_i915_gem_object *obj)
 	struct radix_tree_iter iter;
 	void __rcu **slot;
 
+	rcu_read_lock();
 	radix_tree_for_each_slot(slot, &obj->mm.get_page.radix, &iter, 0)
 		radix_tree_delete(&obj->mm.get_page.radix, iter.index);
+	rcu_read_unlock();
 }
 
 void __i915_gem_object_put_pages(struct drm_i915_gem_object *obj,
