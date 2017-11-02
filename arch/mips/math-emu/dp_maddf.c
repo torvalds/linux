@@ -201,9 +201,6 @@ static union ieee754dp _dp_maddf(union ieee754dp z, union ieee754dp x,
 	 * Multiply 64 bits xm and ym to give 128 bits result in hrm:lrm.
 	 */
 
-	/* 32 * 32 => 64 */
-#define DPXMULT(x, y)	((u64)(x) * (u64)y)
-
 	lxm = xm;
 	hxm = xm >> 32;
 	lym = ym;
