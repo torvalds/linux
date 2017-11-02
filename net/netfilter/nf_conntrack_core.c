@@ -1083,7 +1083,7 @@ static void gc_worker(struct work_struct *work)
 	next_run = gc_work->next_gc_run;
 	gc_work->last_bucket = i;
 	gc_work->early_drop = false;
-	queue_delayed_work(system_long_wq, &gc_work->dwork, next_run);
+	queue_delayed_work(system_power_efficient_wq, &gc_work->dwork, next_run);
 }
 
 static void conntrack_gc_work_init(struct conntrack_gc_work *gc_work)
@@ -2089,7 +2089,7 @@ int nf_conntrack_init_start(void)
 		goto err_proto;
 
 	conntrack_gc_work_init(&conntrack_gc_work);
-	queue_delayed_work(system_long_wq, &conntrack_gc_work.dwork, HZ);
+	queue_delayed_work(system_power_efficient_wq, &conntrack_gc_work.dwork, HZ);
 
 	return 0;
 
