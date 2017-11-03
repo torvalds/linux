@@ -23,6 +23,7 @@
  */
 
 #include <linux/firmware.h>
+#include <drm/drm_print.h>
 
 #include "intel_uc_fw.h"
 #include "i915_drv.h"
@@ -45,26 +46,33 @@ void intel_uc_fw_fetch(struct drm_i915_private *dev_priv,
 	size_t size;
 	int err;
 
+	DRM_DEBUG_DRIVER("%s fw fetch %s\n",
+			 intel_uc_fw_type_repr(uc_fw->type), uc_fw->path);
+
 	if (!uc_fw->path)
 		return;
 
 	uc_fw->fetch_status = INTEL_UC_FIRMWARE_PENDING;
-
-	DRM_DEBUG_DRIVER("before requesting firmware: uC fw fetch status %s\n",
+	DRM_DEBUG_DRIVER("%s fw fetch %s\n",
+			 intel_uc_fw_type_repr(uc_fw->type),
 			 intel_uc_fw_status_repr(uc_fw->fetch_status));
 
 	err = request_firmware(&fw, uc_fw->path, &pdev->dev);
-	if (err)
+	if (err) {
+		DRM_DEBUG_DRIVER("%s fw request_firmware err=%d\n",
+				 intel_uc_fw_type_repr(uc_fw->type), err);
 		goto fail;
-	if (!fw)
-		goto fail;
+	}
 
-	DRM_DEBUG_DRIVER("fetch uC fw from %s succeeded, fw %p\n",
-			 uc_fw->path, fw);
+	DRM_DEBUG_DRIVER("%s fw size %zu ptr %p\n",
+			 intel_uc_fw_type_repr(uc_fw->type), fw->size, fw);
 
 	/* Check the size of the blob before examining buffer contents */
 	if (fw->size < sizeof(struct uc_css_header)) {
-		DRM_NOTE("Firmware header is missing\n");
+		DRM_WARN("%s: Unexpected firmware size (%zu, min %zu)\n",
+			 intel_uc_fw_type_repr(uc_fw->type),
+			 fw->size, sizeof(struct uc_css_header));
+		err = -ENODATA;
 		goto fail;
 	}
 
@@ -77,7 +85,9 @@ void intel_uc_fw_fetch(struct drm_i915_private *dev_priv,
 			     sizeof(u32);
 
 	if (uc_fw->header_size != sizeof(struct uc_css_header)) {
-		DRM_NOTE("CSS header definition mismatch\n");
+		DRM_WARN("%s: Mismatched firmware header definition\n",
+			 intel_uc_fw_type_repr(uc_fw->type));
+		err = -ENOEXEC;
 		goto fail;
 	}
 
@@ -85,9 +95,20 @@ void intel_uc_fw_fetch(struct drm_i915_private *dev_priv,
 	uc_fw->ucode_offset = uc_fw->header_offset + uc_fw->header_size;
 	uc_fw->ucode_size = (css->size_dw - css->header_size_dw) * sizeof(u32);
 
+	/* Header and uCode will be loaded to WOPCM */
+	size = uc_fw->header_size + uc_fw->ucode_size;
+	if (size > intel_guc_wopcm_size(dev_priv)) {
+		DRM_WARN("%s: Firmware is too large to fit in WOPCM\n",
+			 intel_uc_fw_type_repr(uc_fw->type));
+		err = -E2BIG;
+		goto fail;
+	}
+
 	/* now RSA */
 	if (css->key_size_dw != UOS_RSA_SCRATCH_MAX_COUNT) {
-		DRM_NOTE("RSA key size is bad\n");
+		DRM_WARN("%s: Mismatched firmware RSA key size (%u)\n",
+			 intel_uc_fw_type_repr(uc_fw->type), css->key_size_dw);
+		err = -ENOEXEC;
 		goto fail;
 	}
 	uc_fw->rsa_offset = uc_fw->ucode_offset + uc_fw->ucode_size;
@@ -96,7 +117,9 @@ void intel_uc_fw_fetch(struct drm_i915_private *dev_priv,
 	/* At least, it should have header, uCode and RSA. Size of all three. */
 	size = uc_fw->header_size + uc_fw->ucode_size + uc_fw->rsa_size;
 	if (fw->size < size) {
-		DRM_NOTE("Missing firmware components\n");
+		DRM_WARN("%s: Truncated firmware (%zu, expected %zu)\n",
+			 intel_uc_fw_type_repr(uc_fw->type), fw->size, size);
+		err = -ENOEXEC;
 		goto fail;
 	}
 
@@ -108,14 +131,6 @@ void intel_uc_fw_fetch(struct drm_i915_private *dev_priv,
 	 */
 	switch (uc_fw->type) {
 	case INTEL_UC_FW_TYPE_GUC:
-		/* Header and uCode will be loaded to WOPCM. Size of the two. */
-		size = uc_fw->header_size + uc_fw->ucode_size;
-
-		/* Top 32k of WOPCM is reserved (8K stack + 24k RC6 context). */
-		if (size > intel_guc_wopcm_size(dev_priv)) {
-			DRM_ERROR("Firmware is too large to fit in WOPCM\n");
-			goto fail;
-		}
 		uc_fw->major_ver_found = css->guc.sw_version >> 16;
 		uc_fw->minor_ver_found = css->guc.sw_version & 0xFFFF;
 		break;
@@ -126,17 +141,21 @@ void intel_uc_fw_fetch(struct drm_i915_private *dev_priv,
 		break;
 
 	default:
-		DRM_ERROR("Unknown firmware type %d\n", uc_fw->type);
-		err = -ENOEXEC;
-		goto fail;
+		MISSING_CASE(uc_fw->type);
+		break;
 	}
 
+	DRM_DEBUG_DRIVER("%s fw version %u.%u (wanted %u.%u)\n",
+			 intel_uc_fw_type_repr(uc_fw->type),
+			 uc_fw->major_ver_found, uc_fw->minor_ver_found,
+			 uc_fw->major_ver_wanted, uc_fw->minor_ver_wanted);
+
 	if (uc_fw->major_ver_wanted == 0 && uc_fw->minor_ver_wanted == 0) {
-		DRM_NOTE("Skipping %s firmware version check\n",
+		DRM_NOTE("%s: Skipping firmware version check\n",
 			 intel_uc_fw_type_repr(uc_fw->type));
 	} else if (uc_fw->major_ver_found != uc_fw->major_ver_wanted ||
 		   uc_fw->minor_ver_found < uc_fw->minor_ver_wanted) {
-		DRM_NOTE("%s firmware version %d.%d, required %d.%d\n",
+		DRM_NOTE("%s: Wrong firmware version (%u.%u, required %u.%u)\n",
 			 intel_uc_fw_type_repr(uc_fw->type),
 			 uc_fw->major_ver_found, uc_fw->minor_ver_found,
 			 uc_fw->major_ver_wanted, uc_fw->minor_ver_wanted);
@@ -144,34 +163,115 @@ void intel_uc_fw_fetch(struct drm_i915_private *dev_priv,
 		goto fail;
 	}
 
-	DRM_DEBUG_DRIVER("firmware version %d.%d OK (minimum %d.%d)\n",
-			 uc_fw->major_ver_found, uc_fw->minor_ver_found,
-			 uc_fw->major_ver_wanted, uc_fw->minor_ver_wanted);
-
 	obj = i915_gem_object_create_from_data(dev_priv, fw->data, fw->size);
 	if (IS_ERR(obj)) {
 		err = PTR_ERR(obj);
+		DRM_DEBUG_DRIVER("%s fw object_create err=%d\n",
+				 intel_uc_fw_type_repr(uc_fw->type), err);
 		goto fail;
 	}
 
 	uc_fw->obj = obj;
 	uc_fw->size = fw->size;
-
-	DRM_DEBUG_DRIVER("uC fw fetch status SUCCESS, obj %p\n",
-			 uc_fw->obj);
+	uc_fw->fetch_status = INTEL_UC_FIRMWARE_SUCCESS;
+	DRM_DEBUG_DRIVER("%s fw fetch %s\n",
+			 intel_uc_fw_type_repr(uc_fw->type),
+			 intel_uc_fw_status_repr(uc_fw->fetch_status));
 
 	release_firmware(fw);
-	uc_fw->fetch_status = INTEL_UC_FIRMWARE_SUCCESS;
 	return;
 
 fail:
-	DRM_WARN("Failed to fetch valid uC firmware from %s (error %d)\n",
-		 uc_fw->path, err);
-	DRM_DEBUG_DRIVER("uC fw fetch status FAIL; err %d, fw %p, obj %p\n",
-			 err, fw, uc_fw->obj);
+	uc_fw->fetch_status = INTEL_UC_FIRMWARE_FAIL;
+	DRM_DEBUG_DRIVER("%s fw fetch %s\n",
+			 intel_uc_fw_type_repr(uc_fw->type),
+			 intel_uc_fw_status_repr(uc_fw->fetch_status));
+
+	DRM_WARN("%s: Failed to fetch firmware %s (error %d)\n",
+		 intel_uc_fw_type_repr(uc_fw->type), uc_fw->path, err);
+	DRM_INFO("%s: Firmware can be downloaded from %s\n",
+		 intel_uc_fw_type_repr(uc_fw->type), INTEL_UC_FIRMWARE_URL);
 
 	release_firmware(fw);		/* OK even if fw is NULL */
-	uc_fw->fetch_status = INTEL_UC_FIRMWARE_FAIL;
+}
+
+/**
+ * intel_uc_fw_upload - load uC firmware using custom loader
+ *
+ * @uc_fw: uC firmware
+ * @loader: custom uC firmware loader function
+ *
+ * Loads uC firmware using custom loader and updates internal flags.
+ */
+int intel_uc_fw_upload(struct intel_uc_fw *uc_fw,
+		       int (*xfer)(struct intel_uc_fw *uc_fw,
+				   struct i915_vma *vma))
+{
+	struct i915_vma *vma;
+	int err;
+
+	DRM_DEBUG_DRIVER("%s fw load %s\n",
+			 intel_uc_fw_type_repr(uc_fw->type), uc_fw->path);
+
+	if (uc_fw->fetch_status != INTEL_UC_FIRMWARE_SUCCESS)
+		return -EIO;
+
+	uc_fw->load_status = INTEL_UC_FIRMWARE_PENDING;
+	DRM_DEBUG_DRIVER("%s fw load %s\n",
+			 intel_uc_fw_type_repr(uc_fw->type),
+			 intel_uc_fw_status_repr(uc_fw->load_status));
+
+	/* Pin object with firmware */
+	err = i915_gem_object_set_to_gtt_domain(uc_fw->obj, false);
+	if (err) {
+		DRM_DEBUG_DRIVER("%s fw set-domain err=%d\n",
+				 intel_uc_fw_type_repr(uc_fw->type), err);
+		goto fail;
+	}
+
+	vma = i915_gem_object_ggtt_pin(uc_fw->obj, NULL, 0, 0,
+				       PIN_OFFSET_BIAS | GUC_WOPCM_TOP);
+	if (IS_ERR(vma)) {
+		err = PTR_ERR(vma);
+		DRM_DEBUG_DRIVER("%s fw ggtt-pin err=%d\n",
+				 intel_uc_fw_type_repr(uc_fw->type), err);
+		goto fail;
+	}
+
+	/* Call custom loader */
+	err = xfer(uc_fw, vma);
+
+	/*
+	 * We keep the object pages for reuse during resume. But we can unpin it
+	 * now that DMA has completed, so it doesn't continue to take up space.
+	 */
+	i915_vma_unpin(vma);
+
+	if (err)
+		goto fail;
+
+	uc_fw->load_status = INTEL_UC_FIRMWARE_SUCCESS;
+	DRM_DEBUG_DRIVER("%s fw load %s\n",
+			 intel_uc_fw_type_repr(uc_fw->type),
+			 intel_uc_fw_status_repr(uc_fw->load_status));
+
+	DRM_INFO("%s: Loaded firmware %s (version %u.%u)\n",
+		 intel_uc_fw_type_repr(uc_fw->type),
+		 uc_fw->path,
+		 uc_fw->major_ver_found, uc_fw->minor_ver_found);
+
+	return 0;
+
+fail:
+	uc_fw->load_status = INTEL_UC_FIRMWARE_FAIL;
+	DRM_DEBUG_DRIVER("%s fw load %s\n",
+			 intel_uc_fw_type_repr(uc_fw->type),
+			 intel_uc_fw_status_repr(uc_fw->load_status));
+
+	DRM_WARN("%s: Failed to load firmware %s (error %d)\n",
+		 intel_uc_fw_type_repr(uc_fw->type), uc_fw->path, err);
+
+	return err;
 }
 
 /**
@@ -190,4 +290,29 @@ void intel_uc_fw_fini(struct intel_uc_fw *uc_fw)
 		i915_gem_object_put(obj);
 
 	uc_fw->fetch_status = INTEL_UC_FIRMWARE_NONE;
+}
+
+/**
+ * intel_uc_fw_dump - dump information about uC firmware
+ * @uc_fw: uC firmware
+ * @p: the &drm_printer
+ *
+ * Pretty printer for uC firmware.
+ */
+void intel_uc_fw_dump(struct intel_uc_fw *uc_fw, struct drm_printer *p)
+{
+	drm_printf(p, "%s firmware: %s\n",
+		   intel_uc_fw_type_repr(uc_fw->type), uc_fw->path);
+	drm_printf(p, "\tstatus: fetch %s, load %s\n",
+		   intel_uc_fw_status_repr(uc_fw->fetch_status),
+		   intel_uc_fw_status_repr(uc_fw->load_status));
+	drm_printf(p, "\tversion: wanted %u.%u, found %u.%u\n",
+		   uc_fw->major_ver_wanted, uc_fw->minor_ver_wanted,
+		   uc_fw->major_ver_found, uc_fw->minor_ver_found);
+	drm_printf(p, "\theader: offset %u, size %u\n",
+		   uc_fw->header_offset, uc_fw->header_size);
+	drm_printf(p, "\tuCode: offset %u, size %u\n",
+		   uc_fw->ucode_offset, uc_fw->ucode_size);
+	drm_printf(p, "\tRSA: offset %u, size %u\n",
+		   uc_fw->rsa_offset, uc_fw->rsa_size);
 }

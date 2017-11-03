@@ -74,9 +74,10 @@ static noinline void missed_breadcrumb(struct intel_engine_cs *engine)
 	set_bit(engine->id, &engine->i915->gpu_error.missed_irq_rings);
 }
 
-static void intel_breadcrumbs_hangcheck(unsigned long data)
+static void intel_breadcrumbs_hangcheck(struct timer_list *t)
 {
-	struct intel_engine_cs *engine = (struct intel_engine_cs *)data;
+	struct intel_engine_cs *engine = from_timer(engine, t,
+						    breadcrumbs.hangcheck);
 	struct intel_breadcrumbs *b = &engine->breadcrumbs;
 
 	if (!b->irq_armed)
@@ -108,9 +109,10 @@ static void intel_breadcrumbs_hangcheck(unsigned long data)
 	}
 }
 
-static void intel_breadcrumbs_fake_irq(unsigned long data)
+static void intel_breadcrumbs_fake_irq(struct timer_list *t)
 {
-	struct intel_engine_cs *engine = (struct intel_engine_cs *)data;
+	struct intel_engine_cs *engine = from_timer(engine, t,
+						    breadcrumbs.fake_irq);
 	struct intel_breadcrumbs *b = &engine->breadcrumbs;
 
 	/* The timer persists in case we cannot enable interrupts,
@@ -787,12 +789,8 @@ int intel_engine_init_breadcrumbs(struct intel_engine_cs *engine)
 	spin_lock_init(&b->rb_lock);
 	spin_lock_init(&b->irq_lock);
 
-	setup_timer(&b->fake_irq,
-		    intel_breadcrumbs_fake_irq,
-		    (unsigned long)engine);
-	setup_timer(&b->hangcheck,
-		    intel_breadcrumbs_hangcheck,
-		    (unsigned long)engine);
+	timer_setup(&b->fake_irq, intel_breadcrumbs_fake_irq, 0);
+	timer_setup(&b->hangcheck, intel_breadcrumbs_hangcheck, 0);
 
 	/* Spawn a thread to provide a common bottom-half for all signals.
 	 * As this is an asynchronous interface we cannot steal the current

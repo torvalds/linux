@@ -1007,7 +1007,7 @@ static uint32_t g4x_get_aux_send_ctl(struct intel_dp *intel_dp,
 	else
 		precharge = 5;
 
-	if (IS_BROADWELL(dev_priv) && intel_dig_port->port == PORT_A)
+	if (IS_BROADWELL(dev_priv))
 		timeout = DP_AUX_CH_CTL_TIME_OUT_600us;
 	else
 		timeout = DP_AUX_CH_CTL_TIME_OUT_400us;
@@ -1032,7 +1032,7 @@ static uint32_t skl_get_aux_send_ctl(struct intel_dp *intel_dp,
 	       DP_AUX_CH_CTL_DONE |
 	       (has_aux_irq ? DP_AUX_CH_CTL_INTERRUPT : 0) |
 	       DP_AUX_CH_CTL_TIME_OUT_ERROR |
-	       DP_AUX_CH_CTL_TIME_OUT_1600us |
+	       DP_AUX_CH_CTL_TIME_OUT_MAX |
 	       DP_AUX_CH_CTL_RECEIVE_ERROR |
 	       (send_bytes << DP_AUX_CH_CTL_MESSAGE_SIZE_SHIFT) |
 	       DP_AUX_CH_CTL_FW_SYNC_PULSE_SKL(32) |
@@ -1831,6 +1831,8 @@ found:
 
 	if (!HAS_DDI(dev_priv))
 		intel_dp_set_clock(encoder, pipe_config);
+
+	intel_psr_compute_config(intel_dp, pipe_config);
 
 	return true;
 }
@@ -3153,9 +3155,7 @@ intel_dp_voltage_max(struct intel_dp *intel_dp)
 	struct drm_i915_private *dev_priv = to_i915(intel_dp_to_dev(intel_dp));
 	enum port port = dp_to_dig_port(intel_dp)->port;
 
-	if (IS_GEN9_LP(dev_priv))
-		return DP_TRAIN_VOLTAGE_SWING_LEVEL_3;
-	else if (INTEL_GEN(dev_priv) >= 9) {
+	if (INTEL_GEN(dev_priv) >= 9) {
 		struct intel_encoder *encoder = &dp_to_dig_port(intel_dp)->base;
 		return intel_ddi_dp_voltage_max(encoder);
 	} else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))

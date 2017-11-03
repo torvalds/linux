@@ -41,6 +41,11 @@ static inline void debug_fence_init(struct i915_sw_fence *fence)
 	debug_object_init(fence, &i915_sw_fence_debug_descr);
 }
 
+static inline void debug_fence_init_onstack(struct i915_sw_fence *fence)
+{
+	debug_object_init_on_stack(fence, &i915_sw_fence_debug_descr);
+}
+
 static inline void debug_fence_activate(struct i915_sw_fence *fence)
 {
 	debug_object_activate(fence, &i915_sw_fence_debug_descr);
@@ -76,6 +81,10 @@ static inline void debug_fence_assert(struct i915_sw_fence *fence)
 #else
 
 static inline void debug_fence_init(struct i915_sw_fence *fence)
+{
+}
+
+static inline void debug_fence_init_onstack(struct i915_sw_fence *fence)
 {
 }
 
@@ -360,9 +369,9 @@ struct i915_sw_dma_fence_cb {
 	struct irq_work work;
 };
 
-static void timer_i915_sw_fence_wake(unsigned long data)
+static void timer_i915_sw_fence_wake(struct timer_list *t)
 {
-	struct i915_sw_dma_fence_cb *cb = (struct i915_sw_dma_fence_cb *)data;
+	struct i915_sw_dma_fence_cb *cb = from_timer(cb, t, timer);
 	struct i915_sw_fence *fence;
 
 	fence = xchg(&cb->fence, NULL);
@@ -425,9 +434,7 @@ int i915_sw_fence_await_dma_fence(struct i915_sw_fence *fence,
 	i915_sw_fence_await(fence);
 
 	cb->dma = NULL;
-	__setup_timer(&cb->timer,
-		      timer_i915_sw_fence_wake, (unsigned long)cb,
-		      TIMER_IRQSAFE);
+	timer_setup(&cb->timer, timer_i915_sw_fence_wake, TIMER_IRQSAFE);
 	init_irq_work(&cb->work, irq_i915_sw_fence_work);
 	if (timeout) {
 		cb->dma = dma_fence_get(dma);
@@ -507,5 +514,6 @@ int i915_sw_fence_await_reservation(struct i915_sw_fence *fence,
 }
 
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
+#include "selftests/lib_sw_fence.c"
 #include "selftests/i915_sw_fence.c"
 #endif

@@ -56,7 +56,7 @@ static bool cpu_write_needs_clflush(struct drm_i915_gem_object *obj)
 	if (!(obj->cache_coherent & I915_BO_CACHE_COHERENT_FOR_WRITE))
 		return true;
 
-	return obj->pin_display;
+	return obj->pin_global; /* currently in use by HW, keep flushed */
 }
 
 static int
@@ -1240,7 +1240,23 @@ i915_gem_gtt_pwrite_fast(struct drm_i915_gem_object *obj,
 	if (ret)
 		return ret;
 
-	intel_runtime_pm_get(i915);
+	if (i915_gem_object_has_struct_page(obj)) {
+		/*
+		 * Avoid waking the device up if we can fallback, as
+		 * waking/resuming is very slow (worst-case 10-100 ms
+		 * depending on PCI sleeps and our own resume time).
+		 * This easily dwarfs any performance advantage from
+		 * using the cache bypass of indirect GGTT access.
+		 */
+		if (!intel_runtime_pm_get_if_in_use(i915)) {
+			ret = -EFAULT;
+			goto out_unlock;
+		}
+	} else {
+		/* No backing pages, no fallback, we must force GGTT access */
+		intel_runtime_pm_get(i915);
+	}
+
 	vma = i915_gem_object_ggtt_pin(obj, NULL, 0, 0,
 				       PIN_MAPPABLE |
 				       PIN_NONFAULT |
@@ -1257,7 +1273,7 @@ i915_gem_gtt_pwrite_fast(struct drm_i915_gem_object *obj,
 	if (IS_ERR(vma)) {
 		ret = insert_mappable_node(ggtt, &node, PAGE_SIZE);
 		if (ret)
-			goto out_unlock;
+			goto out_rpm;
 		GEM_BUG_ON(!node.allocated);
 	}
 
@@ -1320,8 +1336,9 @@ out_unpin:
 	} else {
 		i915_vma_unpin(vma);
 	}
-out_unlock:
+out_rpm:
 	intel_runtime_pm_put(i915);
+out_unlock:
 	mutex_unlock(&i915->drm.struct_mutex);
 	return ret;
 }
@@ -1537,6 +1554,8 @@ static void i915_gem_object_bump_inactive_ggtt(struct drm_i915_gem_object *obj)
 	struct list_head *list;
 	struct i915_vma *vma;
 
+	GEM_BUG_ON(!i915_gem_object_has_pinned_pages(obj));
+
 	list_for_each_entry(vma, &obj->vma_list, obj_link) {
 		if (!i915_vma_is_ggtt(vma))
 			break;
@@ -1551,8 +1570,10 @@ static void i915_gem_object_bump_inactive_ggtt(struct drm_i915_gem_object *obj)
 	}
 
 	i915 = to_i915(obj->base.dev);
+	spin_lock(&i915->mm.obj_lock);
 	list = obj->bind_count ? &i915->mm.bound_list : &i915->mm.unbound_list;
-	list_move_tail(&obj->global_link, list);
+	list_move_tail(&obj->mm.link, list);
+	spin_unlock(&i915->mm.obj_lock);
 }
 
 /**
@@ -2196,7 +2217,7 @@ void __i915_gem_object_invalidate(struct drm_i915_gem_object *obj)
 	struct address_space *mapping;
 
 	lockdep_assert_held(&obj->mm.lock);
-	GEM_BUG_ON(obj->mm.pages);
+	GEM_BUG_ON(i915_gem_object_has_pages(obj));
 
 	switch (obj->mm.madv) {
 	case I915_MADV_DONTNEED:
@@ -2253,13 +2274,14 @@ static void __i915_gem_object_reset_page_iter(struct drm_i915_gem_object *obj)
 void __i915_gem_object_put_pages(struct drm_i915_gem_object *obj,
 				 enum i915_mm_subclass subclass)
 {
+	struct drm_i915_private *i915 = to_i915(obj->base.dev);
 	struct sg_table *pages;
 
 	if (i915_gem_object_has_pinned_pages(obj))
 		return;
 
 	GEM_BUG_ON(obj->bind_count);
-	if (!READ_ONCE(obj->mm.pages))
+	if (!i915_gem_object_has_pages(obj))
 		return;
 
 	/* May be called by shrinker from within get_pages() (on another bo) */
@@ -2272,6 +2294,10 @@ void __i915_gem_object_put_pages(struct drm_i915_gem_object *obj,
 	 * lists early. */
 	pages = fetch_and_zero(&obj->mm.pages);
 	GEM_BUG_ON(!pages);
+
+	spin_lock(&i915->mm.obj_lock);
+	list_del(&obj->mm.link);
+	spin_unlock(&i915->mm.obj_lock);
 
 	if (obj->mm.mapping) {
 		void *ptr;
@@ -2507,7 +2533,7 @@ void __i915_gem_object_set_pages(struct drm_i915_gem_object *obj,
 	obj->mm.pages = pages;
 
 	if (i915_gem_object_is_tiled(obj) &&
-	    to_i915(obj->base.dev)->quirks & QUIRK_PIN_SWIZZLED_PAGES) {
+	    i915->quirks & QUIRK_PIN_SWIZZLED_PAGES) {
 		GEM_BUG_ON(obj->mm.quirked);
 		__i915_gem_object_pin_pages(obj);
 		obj->mm.quirked = true;
@@ -2529,8 +2555,11 @@ void __i915_gem_object_set_pages(struct drm_i915_gem_object *obj,
 		if (obj->mm.page_sizes.phys & ~0u << i)
 			obj->mm.page_sizes.sg |= BIT(i);
 	}
-
 	GEM_BUG_ON(!HAS_PAGE_SIZES(i915, obj->mm.page_sizes.sg));
+
+	spin_lock(&i915->mm.obj_lock);
+	list_add(&obj->mm.link, &i915->mm.unbound_list);
+	spin_unlock(&i915->mm.obj_lock);
 }
 
 static int ____i915_gem_object_get_pages(struct drm_i915_gem_object *obj)
@@ -2563,7 +2592,7 @@ int __i915_gem_object_get_pages(struct drm_i915_gem_object *obj)
 	if (err)
 		return err;
 
-	if (unlikely(IS_ERR_OR_NULL(obj->mm.pages))) {
+	if (unlikely(!i915_gem_object_has_pages(obj))) {
 		GEM_BUG_ON(i915_gem_object_has_pinned_pages(obj));
 
 		err = ____i915_gem_object_get_pages(obj);
@@ -2648,7 +2677,7 @@ void *i915_gem_object_pin_map(struct drm_i915_gem_object *obj,
 	type &= ~I915_MAP_OVERRIDE;
 
 	if (!atomic_inc_not_zero(&obj->mm.pages_pin_count)) {
-		if (unlikely(IS_ERR_OR_NULL(obj->mm.pages))) {
+		if (unlikely(!i915_gem_object_has_pages(obj))) {
 			GEM_BUG_ON(i915_gem_object_has_pinned_pages(obj));
 
 			ret = ____i915_gem_object_get_pages(obj);
@@ -2660,7 +2689,7 @@ void *i915_gem_object_pin_map(struct drm_i915_gem_object *obj,
 		atomic_inc(&obj->mm.pages_pin_count);
 		pinned = false;
 	}
-	GEM_BUG_ON(!obj->mm.pages);
+	GEM_BUG_ON(!i915_gem_object_has_pages(obj));
 
 	ptr = page_unpack_bits(obj->mm.mapping, &has_type);
 	if (ptr && has_type != type) {
@@ -2715,7 +2744,7 @@ i915_gem_object_pwrite_gtt(struct drm_i915_gem_object *obj,
 	 * allows it to avoid the cost of retrieving a page (either swapin
 	 * or clearing-before-use) before it is overwritten.
 	 */
-	if (READ_ONCE(obj->mm.pages))
+	if (i915_gem_object_has_pages(obj))
 		return -ENODEV;
 
 	if (obj->mm.madv != I915_MADV_WILLNEED)
@@ -3090,7 +3119,6 @@ void i915_gem_reset_finish(struct drm_i915_private *dev_priv)
 
 static void nop_submit_request(struct drm_i915_gem_request *request)
 {
-	GEM_BUG_ON(!i915_terminally_wedged(&request->i915->gpu_error));
 	dma_fence_set_error(&request->fence, -EIO);
 
 	i915_gem_request_submit(request);
@@ -3100,7 +3128,6 @@ static void nop_complete_submit_request(struct drm_i915_gem_request *request)
 {
 	unsigned long flags;
 
-	GEM_BUG_ON(!i915_terminally_wedged(&request->i915->gpu_error));
 	dma_fence_set_error(&request->fence, -EIO);
 
 	spin_lock_irqsave(&request->engine->timeline->lock, flags);
@@ -3498,7 +3525,7 @@ static void __i915_gem_object_flush_for_display(struct drm_i915_gem_object *obj)
 
 void i915_gem_object_flush_if_display(struct drm_i915_gem_object *obj)
 {
-	if (!READ_ONCE(obj->pin_display))
+	if (!READ_ONCE(obj->pin_global))
 		return;
 
 	mutex_lock(&obj->base.dev->struct_mutex);
@@ -3865,10 +3892,10 @@ i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 
 	lockdep_assert_held(&obj->base.dev->struct_mutex);
 
-	/* Mark the pin_display early so that we account for the
+	/* Mark the global pin early so that we account for the
 	 * display coherency whilst setting up the cache domains.
 	 */
-	obj->pin_display++;
+	obj->pin_global++;
 
 	/* The display engine is not coherent with the LLC cache on gen6.  As
 	 * a result, we make sure that the pinning that is about to occur is
@@ -3884,7 +3911,7 @@ i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 					      I915_CACHE_WT : I915_CACHE_NONE);
 	if (ret) {
 		vma = ERR_PTR(ret);
-		goto err_unpin_display;
+		goto err_unpin_global;
 	}
 
 	/* As the user may map the buffer once pinned in the display plane
@@ -3915,7 +3942,7 @@ i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 		vma = i915_gem_object_ggtt_pin(obj, view, 0, alignment, flags);
 	}
 	if (IS_ERR(vma))
-		goto err_unpin_display;
+		goto err_unpin_global;
 
 	vma->display_alignment = max_t(u64, vma->display_alignment, alignment);
 
@@ -3930,8 +3957,8 @@ i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 
 	return vma;
 
-err_unpin_display:
-	obj->pin_display--;
+err_unpin_global:
+	obj->pin_global--;
 	return vma;
 }
 
@@ -3940,10 +3967,10 @@ i915_gem_object_unpin_from_display_plane(struct i915_vma *vma)
 {
 	lockdep_assert_held(&vma->vm->i915->drm.struct_mutex);
 
-	if (WARN_ON(vma->obj->pin_display == 0))
+	if (WARN_ON(vma->obj->pin_global == 0))
 		return;
 
-	if (--vma->obj->pin_display == 0)
+	if (--vma->obj->pin_global == 0)
 		vma->display_alignment = I915_GTT_MIN_ALIGNMENT;
 
 	/* Bump the LRU to try and avoid premature eviction whilst flipping  */
@@ -4283,7 +4310,7 @@ i915_gem_madvise_ioctl(struct drm_device *dev, void *data,
 	if (err)
 		goto out;
 
-	if (obj->mm.pages &&
+	if (i915_gem_object_has_pages(obj) &&
 	    i915_gem_object_is_tiled(obj) &&
 	    dev_priv->quirks & QUIRK_PIN_SWIZZLED_PAGES) {
 		if (obj->mm.madv == I915_MADV_WILLNEED) {
@@ -4302,7 +4329,8 @@ i915_gem_madvise_ioctl(struct drm_device *dev, void *data,
 		obj->mm.madv = args->madv;
 
 	/* if the object is no longer attached, discard its backing storage */
-	if (obj->mm.madv == I915_MADV_DONTNEED && !obj->mm.pages)
+	if (obj->mm.madv == I915_MADV_DONTNEED &&
+	    !i915_gem_object_has_pages(obj))
 		i915_gem_object_truncate(obj);
 
 	args->retained = obj->mm.madv != __I915_MADV_PURGED;
@@ -4328,7 +4356,6 @@ void i915_gem_object_init(struct drm_i915_gem_object *obj,
 {
 	mutex_init(&obj->mm.lock);
 
-	INIT_LIST_HEAD(&obj->global_link);
 	INIT_LIST_HEAD(&obj->vma_list);
 	INIT_LIST_HEAD(&obj->lut_list);
 	INIT_LIST_HEAD(&obj->batch_pool_link);
@@ -4483,12 +4510,13 @@ static void __i915_gem_free_objects(struct drm_i915_private *i915,
 {
 	struct drm_i915_gem_object *obj, *on;
 
-	mutex_lock(&i915->drm.struct_mutex);
 	intel_runtime_pm_get(i915);
-	llist_for_each_entry(obj, freed, freed) {
+	llist_for_each_entry_safe(obj, on, freed, freed) {
 		struct i915_vma *vma, *vn;
 
 		trace_i915_gem_object_destroy(obj);
+
+		mutex_lock(&i915->drm.struct_mutex);
 
 		GEM_BUG_ON(i915_gem_object_is_active(obj));
 		list_for_each_entry_safe(vma, vn,
@@ -4500,14 +4528,20 @@ static void __i915_gem_free_objects(struct drm_i915_private *i915,
 		GEM_BUG_ON(!list_empty(&obj->vma_list));
 		GEM_BUG_ON(!RB_EMPTY_ROOT(&obj->vma_tree));
 
-		list_del(&obj->global_link);
-	}
-	intel_runtime_pm_put(i915);
-	mutex_unlock(&i915->drm.struct_mutex);
+		/* This serializes freeing with the shrinker. Since the free
+		 * is delayed, first by RCU then by the workqueue, we want the
+		 * shrinker to be able to free pages of unreferenced objects,
+		 * or else we may oom whilst there are plenty of deferred
+		 * freed objects.
+		 */
+		if (i915_gem_object_has_pages(obj)) {
+			spin_lock(&i915->mm.obj_lock);
+			list_del_init(&obj->mm.link);
+			spin_unlock(&i915->mm.obj_lock);
+		}
 
-	cond_resched();
+		mutex_unlock(&i915->drm.struct_mutex);
 
-	llist_for_each_entry_safe(obj, on, freed, freed) {
 		GEM_BUG_ON(obj->bind_count);
 		GEM_BUG_ON(obj->userfault_count);
 		GEM_BUG_ON(atomic_read(&obj->frontbuffer_bits));
@@ -4519,7 +4553,7 @@ static void __i915_gem_free_objects(struct drm_i915_private *i915,
 		if (WARN_ON(i915_gem_object_has_pinned_pages(obj)))
 			atomic_set(&obj->mm.pages_pin_count, 0);
 		__i915_gem_object_put_pages(obj, I915_MM_NORMAL);
-		GEM_BUG_ON(obj->mm.pages);
+		GEM_BUG_ON(i915_gem_object_has_pages(obj));
 
 		if (obj->base.import_attach)
 			drm_prime_gem_destroy(&obj->base, NULL);
@@ -4530,16 +4564,29 @@ static void __i915_gem_free_objects(struct drm_i915_private *i915,
 
 		kfree(obj->bit_17);
 		i915_gem_object_free(obj);
+
+		if (on)
+			cond_resched();
 	}
+	intel_runtime_pm_put(i915);
 }
 
 static void i915_gem_flush_free_objects(struct drm_i915_private *i915)
 {
 	struct llist_node *freed;
 
-	freed = llist_del_all(&i915->mm.free_list);
-	if (unlikely(freed))
+	/* Free the oldest, most stale object to keep the free_list short */
+	freed = NULL;
+	if (!llist_empty(&i915->mm.free_list)) { /* quick test for hotpath */
+		/* Only one consumer of llist_del_first() allowed */
+		spin_lock(&i915->mm.free_lock);
+		freed = llist_del_first(&i915->mm.free_list);
+		spin_unlock(&i915->mm.free_lock);
+	}
+	if (unlikely(freed)) {
+		freed->next = NULL;
 		__i915_gem_free_objects(i915, freed);
+	}
 }
 
 static void __i915_gem_free_work(struct work_struct *work)
@@ -4840,6 +4887,10 @@ int i915_gem_init_hw(struct drm_i915_private *dev_priv)
 	init_unused_rings(dev_priv);
 
 	BUG_ON(!dev_priv->kernel_context);
+	if (i915_terminally_wedged(&dev_priv->gpu_error)) {
+		ret = -EIO;
+		goto out;
+	}
 
 	ret = i915_ppgtt_init_hw(dev_priv);
 	if (ret) {
@@ -4938,8 +4989,10 @@ int i915_gem_init(struct drm_i915_private *dev_priv)
 		 * wedged. But we only want to do this where the GPU is angry,
 		 * for all other failure, such as an allocation failure, bail.
 		 */
-		DRM_ERROR("Failed to initialize GPU, declaring it wedged\n");
-		i915_gem_set_wedged(dev_priv);
+		if (!i915_terminally_wedged(&dev_priv->gpu_error)) {
+			DRM_ERROR("Failed to initialize GPU, declaring it wedged\n");
+			i915_gem_set_wedged(dev_priv);
+		}
 		ret = 0;
 	}
 
@@ -5039,11 +5092,15 @@ i915_gem_load_init(struct drm_i915_private *dev_priv)
 		goto err_priorities;
 
 	INIT_WORK(&dev_priv->mm.free_work, __i915_gem_free_work);
+
+	spin_lock_init(&dev_priv->mm.obj_lock);
+	spin_lock_init(&dev_priv->mm.free_lock);
 	init_llist_head(&dev_priv->mm.free_list);
 	INIT_LIST_HEAD(&dev_priv->mm.unbound_list);
 	INIT_LIST_HEAD(&dev_priv->mm.bound_list);
 	INIT_LIST_HEAD(&dev_priv->mm.fence_list);
 	INIT_LIST_HEAD(&dev_priv->mm.userfault_list);
+
 	INIT_DELAYED_WORK(&dev_priv->gt.retire_work,
 			  i915_gem_retire_work_handler);
 	INIT_DELAYED_WORK(&dev_priv->gt.idle_work,
@@ -5137,12 +5194,12 @@ int i915_gem_freeze_late(struct drm_i915_private *dev_priv)
 	i915_gem_shrink(dev_priv, -1UL, NULL, I915_SHRINK_UNBOUND);
 	i915_gem_drain_freed_objects(dev_priv);
 
-	mutex_lock(&dev_priv->drm.struct_mutex);
+	spin_lock(&dev_priv->mm.obj_lock);
 	for (p = phases; *p; p++) {
-		list_for_each_entry(obj, *p, global_link)
+		list_for_each_entry(obj, *p, mm.link)
 			__start_cpu_write(obj);
 	}
-	mutex_unlock(&dev_priv->drm.struct_mutex);
+	spin_unlock(&dev_priv->mm.obj_lock);
 
 	return 0;
 }
@@ -5461,7 +5518,17 @@ int i915_gem_object_attach_phys(struct drm_i915_gem_object *obj, int align)
 		goto err_unlock;
 	}
 
-	pages = obj->mm.pages;
+	pages = fetch_and_zero(&obj->mm.pages);
+	if (pages) {
+		struct drm_i915_private *i915 = to_i915(obj->base.dev);
+
+		__i915_gem_object_reset_page_iter(obj);
+
+		spin_lock(&i915->mm.obj_lock);
+		list_del(&obj->mm.link);
+		spin_unlock(&i915->mm.obj_lock);
+	}
+
 	obj->ops = &i915_gem_phys_ops;
 
 	err = ____i915_gem_object_get_pages(obj);

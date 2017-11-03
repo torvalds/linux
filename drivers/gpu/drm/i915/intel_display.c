@@ -2847,7 +2847,7 @@ intel_find_initial_plane_obj(struct intel_crtc *intel_crtc,
 
 		if (intel_plane_ggtt_offset(state) == plane_config->base) {
 			fb = c->primary->fb;
-			drm_framebuffer_reference(fb);
+			drm_framebuffer_get(fb);
 			goto valid_fb;
 		}
 	}
@@ -2878,7 +2878,7 @@ valid_fb:
 			  intel_crtc->pipe, PTR_ERR(intel_state->vma));
 
 		intel_state->vma = NULL;
-		drm_framebuffer_unreference(fb);
+		drm_framebuffer_put(fb);
 		return;
 	}
 
@@ -2899,7 +2899,7 @@ valid_fb:
 	if (i915_gem_object_is_tiled(obj))
 		dev_priv->preserve_bios_swizzle = true;
 
-	drm_framebuffer_reference(fb);
+	drm_framebuffer_get(fb);
 	primary->fb = primary->state->fb = fb;
 	primary->crtc = primary->state->crtc = &intel_crtc->base;
 
@@ -3289,7 +3289,6 @@ static void i9xx_update_primary_plane(struct intel_plane *primary,
 				      const struct intel_plane_state *plane_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(primary->base.dev);
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
 	const struct drm_framebuffer *fb = plane_state->base.fb;
 	enum plane plane = primary->plane;
 	u32 linear_offset;
@@ -3298,16 +3297,14 @@ static void i9xx_update_primary_plane(struct intel_plane *primary,
 	int x = plane_state->main.x;
 	int y = plane_state->main.y;
 	unsigned long irqflags;
+	u32 dspaddr_offset;
 
 	linear_offset = intel_fb_xy_to_linear(x, y, plane_state, 0);
 
 	if (INTEL_GEN(dev_priv) >= 4)
-		crtc->dspaddr_offset = plane_state->main.offset;
+		dspaddr_offset = plane_state->main.offset;
 	else
-		crtc->dspaddr_offset = linear_offset;
-
-	crtc->adjusted_x = x;
-	crtc->adjusted_y = y;
+		dspaddr_offset = linear_offset;
 
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
 
@@ -3333,18 +3330,18 @@ static void i9xx_update_primary_plane(struct intel_plane *primary,
 	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv)) {
 		I915_WRITE_FW(DSPSURF(plane),
 			      intel_plane_ggtt_offset(plane_state) +
-			      crtc->dspaddr_offset);
+			      dspaddr_offset);
 		I915_WRITE_FW(DSPOFFSET(plane), (y << 16) | x);
 	} else if (INTEL_GEN(dev_priv) >= 4) {
 		I915_WRITE_FW(DSPSURF(plane),
 			      intel_plane_ggtt_offset(plane_state) +
-			      crtc->dspaddr_offset);
+			      dspaddr_offset);
 		I915_WRITE_FW(DSPTILEOFF(plane), (y << 16) | x);
 		I915_WRITE_FW(DSPLINOFF(plane), linear_offset);
 	} else {
 		I915_WRITE_FW(DSPADDR(plane),
 			      intel_plane_ggtt_offset(plane_state) +
-			      crtc->dspaddr_offset);
+			      dspaddr_offset);
 	}
 	POSTING_READ_FW(reg);
 
@@ -3542,100 +3539,6 @@ u32 skl_plane_ctl(const struct intel_crtc_state *crtc_state,
 		plane_ctl |= PLANE_CTL_KEY_ENABLE_SOURCE;
 
 	return plane_ctl;
-}
-
-static void skylake_update_primary_plane(struct intel_plane *plane,
-					 const struct intel_crtc_state *crtc_state,
-					 const struct intel_plane_state *plane_state)
-{
-	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
-	const struct drm_framebuffer *fb = plane_state->base.fb;
-	enum plane_id plane_id = plane->id;
-	enum pipe pipe = plane->pipe;
-	u32 plane_ctl = plane_state->ctl;
-	unsigned int rotation = plane_state->base.rotation;
-	u32 stride = skl_plane_stride(fb, 0, rotation);
-	u32 aux_stride = skl_plane_stride(fb, 1, rotation);
-	u32 surf_addr = plane_state->main.offset;
-	int scaler_id = plane_state->scaler_id;
-	int src_x = plane_state->main.x;
-	int src_y = plane_state->main.y;
-	int src_w = drm_rect_width(&plane_state->base.src) >> 16;
-	int src_h = drm_rect_height(&plane_state->base.src) >> 16;
-	int dst_x = plane_state->base.dst.x1;
-	int dst_y = plane_state->base.dst.y1;
-	int dst_w = drm_rect_width(&plane_state->base.dst);
-	int dst_h = drm_rect_height(&plane_state->base.dst);
-	unsigned long irqflags;
-
-	/* Sizes are 0 based */
-	src_w--;
-	src_h--;
-	dst_w--;
-	dst_h--;
-
-	crtc->dspaddr_offset = surf_addr;
-
-	crtc->adjusted_x = src_x;
-	crtc->adjusted_y = src_y;
-
-	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
-
-	if (IS_GEMINILAKE(dev_priv) || IS_CANNONLAKE(dev_priv)) {
-		I915_WRITE_FW(PLANE_COLOR_CTL(pipe, plane_id),
-			      PLANE_COLOR_PIPE_GAMMA_ENABLE |
-			      PLANE_COLOR_PIPE_CSC_ENABLE |
-			      PLANE_COLOR_PLANE_GAMMA_DISABLE);
-	}
-
-	I915_WRITE_FW(PLANE_CTL(pipe, plane_id), plane_ctl);
-	I915_WRITE_FW(PLANE_OFFSET(pipe, plane_id), (src_y << 16) | src_x);
-	I915_WRITE_FW(PLANE_STRIDE(pipe, plane_id), stride);
-	I915_WRITE_FW(PLANE_SIZE(pipe, plane_id), (src_h << 16) | src_w);
-	I915_WRITE_FW(PLANE_AUX_DIST(pipe, plane_id),
-		      (plane_state->aux.offset - surf_addr) | aux_stride);
-	I915_WRITE_FW(PLANE_AUX_OFFSET(pipe, plane_id),
-		      (plane_state->aux.y << 16) | plane_state->aux.x);
-
-	if (scaler_id >= 0) {
-		uint32_t ps_ctrl = 0;
-
-		WARN_ON(!dst_w || !dst_h);
-		ps_ctrl = PS_SCALER_EN | PS_PLANE_SEL(plane_id) |
-			crtc_state->scaler_state.scalers[scaler_id].mode;
-		I915_WRITE_FW(SKL_PS_CTRL(pipe, scaler_id), ps_ctrl);
-		I915_WRITE_FW(SKL_PS_PWR_GATE(pipe, scaler_id), 0);
-		I915_WRITE_FW(SKL_PS_WIN_POS(pipe, scaler_id), (dst_x << 16) | dst_y);
-		I915_WRITE_FW(SKL_PS_WIN_SZ(pipe, scaler_id), (dst_w << 16) | dst_h);
-		I915_WRITE_FW(PLANE_POS(pipe, plane_id), 0);
-	} else {
-		I915_WRITE_FW(PLANE_POS(pipe, plane_id), (dst_y << 16) | dst_x);
-	}
-
-	I915_WRITE_FW(PLANE_SURF(pipe, plane_id),
-		      intel_plane_ggtt_offset(plane_state) + surf_addr);
-
-	POSTING_READ_FW(PLANE_SURF(pipe, plane_id));
-
-	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
-}
-
-static void skylake_disable_primary_plane(struct intel_plane *primary,
-					  struct intel_crtc *crtc)
-{
-	struct drm_i915_private *dev_priv = to_i915(primary->base.dev);
-	enum plane_id plane_id = primary->id;
-	enum pipe pipe = primary->pipe;
-	unsigned long irqflags;
-
-	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
-
-	I915_WRITE_FW(PLANE_CTL(pipe, plane_id), 0);
-	I915_WRITE_FW(PLANE_SURF(pipe, plane_id), 0);
-	POSTING_READ_FW(PLANE_SURF(pipe, plane_id));
-
-	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
 
 static int
@@ -6139,6 +6042,19 @@ struct intel_connector *intel_connector_alloc(void)
 	return connector;
 }
 
+/*
+ * Free the bits allocated by intel_connector_alloc.
+ * This should only be used after intel_connector_alloc has returned
+ * successfully, and before drm_connector_init returns successfully.
+ * Otherwise the destroy callbacks for the connector and the state should
+ * take care of proper cleanup/free
+ */
+void intel_connector_free(struct intel_connector *connector)
+{
+	kfree(to_intel_digital_connector_state(connector->base.state));
+	kfree(connector);
+}
+
 /* Simple connector->get_hw_state implementation for encoders that support only
  * one connector and no cloning and hence the encoder state determines the state
  * of the connector. */
@@ -6522,11 +6438,9 @@ static void i9xx_update_pll_dividers(struct intel_crtc *crtc,
 
 	crtc_state->dpll_hw_state.fp0 = fp;
 
-	crtc->lowfreq_avail = false;
 	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_LVDS) &&
 	    reduced_clock) {
 		crtc_state->dpll_hw_state.fp1 = fp2;
-		crtc->lowfreq_avail = true;
 	} else {
 		crtc_state->dpll_hw_state.fp1 = fp;
 	}
@@ -7218,15 +7132,6 @@ static void i9xx_set_pipeconf(struct intel_crtc *intel_crtc)
 		default:
 			/* Case prevented by intel_choose_pipe_bpp_dither. */
 			BUG();
-		}
-	}
-
-	if (HAS_PIPE_CXSR(dev_priv)) {
-		if (intel_crtc->lowfreq_avail) {
-			DRM_DEBUG_KMS("enabling CxSR downclocking\n");
-			pipeconf |= PIPECONF_CXSR_DOWNCLOCK;
-		} else {
-			DRM_DEBUG_KMS("disabling CxSR downclocking\n");
 		}
 	}
 
@@ -8365,8 +8270,6 @@ static int ironlake_crtc_compute_clock(struct intel_crtc *crtc,
 	memset(&crtc_state->dpll_hw_state, 0,
 	       sizeof(crtc_state->dpll_hw_state));
 
-	crtc->lowfreq_avail = false;
-
 	/* CPU eDP is the only output that doesn't need a PCH PLL of its own. */
 	if (!crtc_state->has_pch_encoder)
 		return 0;
@@ -9024,8 +8927,6 @@ static int haswell_crtc_compute_clock(struct intel_crtc *crtc,
 			return -EINVAL;
 		}
 	}
-
-	crtc->lowfreq_avail = false;
 
 	return 0;
 }
@@ -9846,7 +9747,7 @@ mode_fits_in_fbdev(struct drm_device *dev,
 	if (obj->base.size < mode->vdisplay * fb->pitches[0])
 		return NULL;
 
-	drm_framebuffer_reference(fb);
+	drm_framebuffer_get(fb);
 	return fb;
 #else
 	return NULL;
@@ -10027,7 +9928,7 @@ found:
 	if (ret)
 		goto fail;
 
-	drm_framebuffer_unreference(fb);
+	drm_framebuffer_put(fb);
 
 	ret = drm_atomic_set_mode_for_crtc(&crtc_state->base, mode);
 	if (ret)
@@ -10662,6 +10563,52 @@ intel_dump_m_n_config(struct intel_crtc_state *pipe_config, char *id,
 		      m_n->link_m, m_n->link_n, m_n->tu);
 }
 
+#define OUTPUT_TYPE(x) [INTEL_OUTPUT_ ## x] = #x
+
+static const char * const output_type_str[] = {
+	OUTPUT_TYPE(UNUSED),
+	OUTPUT_TYPE(ANALOG),
+	OUTPUT_TYPE(DVO),
+	OUTPUT_TYPE(SDVO),
+	OUTPUT_TYPE(LVDS),
+	OUTPUT_TYPE(TVOUT),
+	OUTPUT_TYPE(HDMI),
+	OUTPUT_TYPE(DP),
+	OUTPUT_TYPE(EDP),
+	OUTPUT_TYPE(DSI),
+	OUTPUT_TYPE(UNKNOWN),
+	OUTPUT_TYPE(DP_MST),
+};
+
+#undef OUTPUT_TYPE
+
+static void snprintf_output_types(char *buf, size_t len,
+				  unsigned int output_types)
+{
+	char *str = buf;
+	int i;
+
+	str[0] = '\0';
+
+	for (i = 0; i < ARRAY_SIZE(output_type_str); i++) {
+		int r;
+
+		if ((output_types & BIT(i)) == 0)
+			continue;
+
+		r = snprintf(str, len, "%s%s",
+			     str != buf ? "," : "", output_type_str[i]);
+		if (r >= len)
+			break;
+		str += r;
+		len -= r;
+
+		output_types &= ~BIT(i);
+	}
+
+	WARN_ON_ONCE(output_types != 0);
+}
+
 static void intel_dump_pipe_config(struct intel_crtc *crtc,
 				   struct intel_crtc_state *pipe_config,
 				   const char *context)
@@ -10672,9 +10619,14 @@ static void intel_dump_pipe_config(struct intel_crtc *crtc,
 	struct intel_plane *intel_plane;
 	struct intel_plane_state *state;
 	struct drm_framebuffer *fb;
+	char buf[64];
 
 	DRM_DEBUG_KMS("[CRTC:%d:%s]%s\n",
 		      crtc->base.base.id, crtc->base.name, context);
+
+	snprintf_output_types(buf, sizeof(buf), pipe_config->output_types);
+	DRM_DEBUG_KMS("output_types: %s (0x%x)\n",
+		      buf, pipe_config->output_types);
 
 	DRM_DEBUG_KMS("cpu_transcoder: %s, pipe bpp: %i, dithering: %i\n",
 		      transcoder_name(pipe_config->cpu_transcoder),
@@ -13229,8 +13181,8 @@ intel_primary_plane_create(struct drm_i915_private *dev_priv, enum pipe pipe)
 		num_formats = ARRAY_SIZE(skl_primary_formats);
 		modifiers = skl_format_modifiers_ccs;
 
-		primary->update_plane = skylake_update_primary_plane;
-		primary->disable_plane = skylake_disable_primary_plane;
+		primary->update_plane = skl_update_plane;
+		primary->disable_plane = skl_disable_plane;
 	} else if (INTEL_GEN(dev_priv) >= 9) {
 		intel_primary_formats = skl_primary_formats;
 		num_formats = ARRAY_SIZE(skl_primary_formats);
@@ -13239,8 +13191,8 @@ intel_primary_plane_create(struct drm_i915_private *dev_priv, enum pipe pipe)
 		else
 			modifiers = skl_format_modifiers_noccs;
 
-		primary->update_plane = skylake_update_primary_plane;
-		primary->disable_plane = skylake_disable_primary_plane;
+		primary->update_plane = skl_update_plane;
+		primary->disable_plane = skl_disable_plane;
 	} else if (INTEL_GEN(dev_priv) >= 4) {
 		intel_primary_formats = i965_primary_formats;
 		num_formats = ARRAY_SIZE(i965_primary_formats);

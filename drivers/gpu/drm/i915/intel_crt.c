@@ -344,10 +344,25 @@ static bool intel_crt_compute_config(struct intel_encoder *encoder,
 				     struct intel_crtc_state *pipe_config,
 				     struct drm_connector_state *conn_state)
 {
+	return true;
+}
+
+static bool pch_crt_compute_config(struct intel_encoder *encoder,
+				   struct intel_crtc_state *pipe_config,
+				   struct drm_connector_state *conn_state)
+{
+	pipe_config->has_pch_encoder = true;
+
+	return true;
+}
+
+static bool hsw_crt_compute_config(struct intel_encoder *encoder,
+				   struct intel_crtc_state *pipe_config,
+				   struct drm_connector_state *conn_state)
+{
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 
-	if (HAS_PCH_SPLIT(dev_priv))
-		pipe_config->has_pch_encoder = true;
+	pipe_config->has_pch_encoder = true;
 
 	/* LPT FDI RX only supports 8bpc. */
 	if (HAS_PCH_LPT(dev_priv)) {
@@ -360,8 +375,7 @@ static bool intel_crt_compute_config(struct intel_encoder *encoder,
 	}
 
 	/* FDI must always be 2.7 GHz */
-	if (HAS_DDI(dev_priv))
-		pipe_config->port_clock = 135000 * 2;
+	pipe_config->port_clock = 135000 * 2;
 
 	return true;
 }
@@ -959,11 +973,11 @@ void intel_crt_init(struct drm_i915_private *dev_priv)
 	    !dmi_check_system(intel_spurious_crt_detect))
 		crt->base.hpd_pin = HPD_CRT;
 
-	crt->base.compute_config = intel_crt_compute_config;
 	if (HAS_DDI(dev_priv)) {
 		crt->base.port = PORT_E;
 		crt->base.get_config = hsw_crt_get_config;
 		crt->base.get_hw_state = intel_ddi_get_hw_state;
+		crt->base.compute_config = hsw_crt_compute_config;
 		crt->base.pre_pll_enable = hsw_pre_pll_enable_crt;
 		crt->base.pre_enable = hsw_pre_enable_crt;
 		crt->base.enable = hsw_enable_crt;
@@ -971,9 +985,11 @@ void intel_crt_init(struct drm_i915_private *dev_priv)
 		crt->base.post_disable = hsw_post_disable_crt;
 	} else {
 		if (HAS_PCH_SPLIT(dev_priv)) {
+			crt->base.compute_config = pch_crt_compute_config;
 			crt->base.disable = pch_disable_crt;
 			crt->base.post_disable = pch_post_disable_crt;
 		} else {
+			crt->base.compute_config = intel_crt_compute_config;
 			crt->base.disable = intel_disable_crt;
 		}
 		crt->base.port = PORT_NONE;

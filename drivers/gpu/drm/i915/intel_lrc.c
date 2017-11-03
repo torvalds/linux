@@ -793,7 +793,6 @@ static void intel_lrc_irq_handler(unsigned long data)
 			&engine->status_page.page_addr[I915_HWS_CSB_BUF0_INDEX];
 		unsigned int head, tail;
 
-		/* However GVT emulation depends upon intercepting CSB mmio */
 		if (unlikely(execlists->csb_use_mmio)) {
 			buf = (u32 * __force)
 				(dev_priv->regs + i915_mmio_reg_offset(RING_CONTEXT_STATUS_BUF_LO(engine, 0)));
@@ -1094,6 +1093,7 @@ execlists_context_pin(struct intel_engine_cs *engine,
 		i915_ggtt_offset(ce->ring->vma);
 
 	ce->state->obj->mm.dirty = true;
+	ce->state->obj->pin_global++;
 
 	i915_gem_context_get(ctx);
 out:
@@ -1121,6 +1121,7 @@ static void execlists_context_unpin(struct intel_engine_cs *engine,
 
 	intel_ring_unpin(ce->ring);
 
+	ce->state->obj->pin_global--;
 	i915_gem_object_unpin_map(ce->state->obj);
 	i915_vma_unpin(ce->state);
 

@@ -25,7 +25,12 @@
 #ifndef _INTEL_UC_FW_H_
 #define _INTEL_UC_FW_H_
 
+struct drm_printer;
 struct drm_i915_private;
+struct i915_vma;
+
+/* Home of GuC, HuC and DMC firmwares */
+#define INTEL_UC_FIRMWARE_URL "https://01.org/linuxgraphics/downloads/firmware"
 
 enum intel_uc_fw_status {
 	INTEL_UC_FIRMWARE_FAIL = -1,
@@ -50,6 +55,11 @@ struct intel_uc_fw {
 	enum intel_uc_fw_status fetch_status;
 	enum intel_uc_fw_status load_status;
 
+	/*
+	 * The firmware build process will generate a version header file with major and
+	 * minor version defined. The versions are built into CSS header of firmware.
+	 * i915 kernel driver set the minimal firmware version required per platform.
+	 */
 	u16 major_ver_wanted;
 	u16 minor_ver_wanted;
 	u16 major_ver_found;
@@ -102,6 +112,10 @@ void intel_uc_fw_init(struct intel_uc_fw *uc_fw, enum intel_uc_fw_type type)
 
 void intel_uc_fw_fetch(struct drm_i915_private *dev_priv,
 		       struct intel_uc_fw *uc_fw);
+int intel_uc_fw_upload(struct intel_uc_fw *uc_fw,
+		       int (*xfer)(struct intel_uc_fw *uc_fw,
+				   struct i915_vma *vma));
 void intel_uc_fw_fini(struct intel_uc_fw *uc_fw);
+void intel_uc_fw_dump(struct intel_uc_fw *uc_fw, struct drm_printer *p);
 
 #endif

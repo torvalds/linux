@@ -82,11 +82,11 @@ static void cancel_userptr(struct work_struct *work)
 	/* We are inside a kthread context and can't be interrupted */
 	if (i915_gem_object_unbind(obj) == 0)
 		__i915_gem_object_put_pages(obj, I915_MM_NORMAL);
-	WARN_ONCE(obj->mm.pages,
-		  "Failed to release pages: bind_count=%d, pages_pin_count=%d, pin_display=%d\n",
+	WARN_ONCE(i915_gem_object_has_pages(obj),
+		  "Failed to release pages: bind_count=%d, pages_pin_count=%d, pin_global=%d\n",
 		  obj->bind_count,
 		  atomic_read(&obj->mm.pages_pin_count),
-		  obj->pin_display);
+		  obj->pin_global);
 
 	mutex_unlock(&obj->base.dev->struct_mutex);
 
@@ -221,15 +221,17 @@ i915_mmu_notifier_find(struct i915_mm_struct *mm)
 			/* Protected by mm_lock */
 			mm->mn = fetch_and_zero(&mn);
 		}
-	} else {
-		/* someone else raced and successfully installed the mmu
-		 * notifier, we can cancel our own errors */
+	} else if (mm->mn) {
+		/*
+		 * Someone else raced and successfully installed the mmu
+		 * notifier, we can cancel our own errors.
+		 */
 		err = 0;
 	}
 	mutex_unlock(&mm->i915->mm_lock);
 	up_write(&mm->mm->mmap_sem);
 
-	if (mn) {
+	if (mn && !IS_ERR(mn)) {
 		destroy_workqueue(mn->wq);
 		kfree(mn);
 	}

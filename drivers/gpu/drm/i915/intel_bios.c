@@ -691,6 +691,48 @@ parse_psr(struct drm_i915_private *dev_priv, const struct bdb_header *bdb)
 	dev_priv->vbt.psr.tp2_tp3_wakeup_time = psr_table->tp2_tp3_wakeup_time;
 }
 
+static void parse_dsi_backlight_ports(struct drm_i915_private *dev_priv,
+				      u16 version, enum port port)
+{
+	if (!dev_priv->vbt.dsi.config->dual_link || version < 197) {
+		dev_priv->vbt.dsi.bl_ports = BIT(port);
+		if (dev_priv->vbt.dsi.config->cabc_supported)
+			dev_priv->vbt.dsi.cabc_ports = BIT(port);
+
+		return;
+	}
+
+	switch (dev_priv->vbt.dsi.config->dl_dcs_backlight_ports) {
+	case DL_DCS_PORT_A:
+		dev_priv->vbt.dsi.bl_ports = BIT(PORT_A);
+		break;
+	case DL_DCS_PORT_C:
+		dev_priv->vbt.dsi.bl_ports = BIT(PORT_C);
+		break;
+	default:
+	case DL_DCS_PORT_A_AND_C:
+		dev_priv->vbt.dsi.bl_ports = BIT(PORT_A) | BIT(PORT_C);
+		break;
+	}
+
+	if (!dev_priv->vbt.dsi.config->cabc_supported)
+		return;
+
+	switch (dev_priv->vbt.dsi.config->dl_dcs_cabc_ports) {
+	case DL_DCS_PORT_A:
+		dev_priv->vbt.dsi.cabc_ports = BIT(PORT_A);
+		break;
+	case DL_DCS_PORT_C:
+		dev_priv->vbt.dsi.cabc_ports = BIT(PORT_C);
+		break;
+	default:
+	case DL_DCS_PORT_A_AND_C:
+		dev_priv->vbt.dsi.cabc_ports =
+					BIT(PORT_A) | BIT(PORT_C);
+		break;
+	}
+}
+
 static void
 parse_mipi_config(struct drm_i915_private *dev_priv,
 		  const struct bdb_header *bdb)
@@ -699,9 +741,10 @@ parse_mipi_config(struct drm_i915_private *dev_priv,
 	const struct mipi_config *config;
 	const struct mipi_pps_data *pps;
 	int panel_type = dev_priv->vbt.panel_type;
+	enum port port;
 
 	/* parse MIPI blocks only if LFP type is MIPI */
-	if (!intel_bios_is_dsi_present(dev_priv, NULL))
+	if (!intel_bios_is_dsi_present(dev_priv, &port))
 		return;
 
 	/* Initialize this to undefined indicating no generic MIPI support */
@@ -742,15 +785,7 @@ parse_mipi_config(struct drm_i915_private *dev_priv,
 		return;
 	}
 
-	/*
-	 * These fields are introduced from the VBT version 197 onwards,
-	 * so making sure that these bits are set zero in the previous
-	 * versions.
-	 */
-	if (dev_priv->vbt.dsi.config->dual_link && bdb->version < 197) {
-		dev_priv->vbt.dsi.config->dl_dcs_cabc_ports = 0;
-		dev_priv->vbt.dsi.config->dl_dcs_backlight_ports = 0;
-	}
+	parse_dsi_backlight_ports(dev_priv, bdb->version, port);
 
 	/* We have mandatory mipi config blocks. Initialize as generic panel */
 	dev_priv->vbt.dsi.panel_id = MIPI_DSI_GENERIC_PANEL_ID;
@@ -1071,6 +1106,22 @@ static void sanitize_aux_ch(struct drm_i915_private *dev_priv,
 	}
 }
 
+static const u8 cnp_ddc_pin_map[] = {
+	[DDC_BUS_DDI_B] = GMBUS_PIN_1_BXT,
+	[DDC_BUS_DDI_C] = GMBUS_PIN_2_BXT,
+	[DDC_BUS_DDI_D] = GMBUS_PIN_4_CNP, /* sic */
+	[DDC_BUS_DDI_F] = GMBUS_PIN_3_BXT, /* sic */
+};
+
+static u8 map_ddc_pin(struct drm_i915_private *dev_priv, u8 vbt_pin)
+{
+	if (HAS_PCH_CNP(dev_priv) &&
+	    vbt_pin > 0 && vbt_pin < ARRAY_SIZE(cnp_ddc_pin_map))
+		return cnp_ddc_pin_map[vbt_pin];
+
+	return vbt_pin;
+}
+
 static void parse_ddi_port(struct drm_i915_private *dev_priv, enum port port,
 			   u8 bdb_version)
 {
@@ -1163,16 +1214,7 @@ static void parse_ddi_port(struct drm_i915_private *dev_priv, enum port port,
 		DRM_DEBUG_KMS("Port %c is internal DP\n", port_name(port));
 
 	if (is_dvi) {
-		info->alternate_ddc_pin = ddc_pin;
-
-		/*
-		 * All VBTs that we got so far for B Stepping has this
-		 * information wrong for Port D. So, let's just ignore for now.
-		 */
-		if (IS_CNL_REVID(dev_priv, CNL_REVID_B0, CNL_REVID_B0) &&
-		    port == PORT_D) {
-			info->alternate_ddc_pin = 0;
-		}
+		info->alternate_ddc_pin = map_ddc_pin(dev_priv, ddc_pin);
 
 		sanitize_ddc_pin(dev_priv, port);
 	}

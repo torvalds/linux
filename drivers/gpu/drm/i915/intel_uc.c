@@ -68,7 +68,7 @@ void intel_uc_sanitize_options(struct drm_i915_private *dev_priv)
 		if (HAS_HUC_UCODE(dev_priv))
 			intel_huc_select_fw(&dev_priv->huc);
 
-		if (intel_guc_select_fw(&dev_priv->guc))
+		if (intel_guc_fw_select(&dev_priv->guc))
 			i915_modparams.enable_guc_loading = 0;
 	}
 
@@ -195,7 +195,8 @@ int intel_uc_init_hw(struct drm_i915_private *dev_priv)
 			goto err_submission;
 
 		intel_huc_init_hw(&dev_priv->huc);
-		ret = intel_guc_init_hw(&dev_priv->guc);
+		intel_guc_init_params(guc);
+		ret = intel_guc_fw_upload(guc);
 		if (ret == 0 || ret != -EAGAIN)
 			break;
 
@@ -221,6 +222,12 @@ int intel_uc_init_hw(struct drm_i915_private *dev_priv)
 			goto err_interrupts;
 	}
 
+	dev_info(dev_priv->drm.dev, "GuC %s (firmware %s [version %u.%u])\n",
+		 i915_modparams.enable_guc_submission ? "submission enabled" :
+							"loaded",
+		 guc->fw.path,
+		 guc->fw.major_ver_found, guc->fw.minor_ver_found);
+
 	return 0;
 
 	/*
@@ -243,12 +250,14 @@ err_submission:
 err_guc:
 	i915_ggtt_disable_guc(dev_priv);
 
-	DRM_ERROR("GuC init failed\n");
 	if (i915_modparams.enable_guc_loading > 1 ||
-	    i915_modparams.enable_guc_submission > 1)
+	    i915_modparams.enable_guc_submission > 1) {
+		DRM_ERROR("GuC init failed. Firmware loading disabled.\n");
 		ret = -EIO;
-	else
+	} else {
+		DRM_NOTE("GuC init failed. Firmware loading disabled.\n");
 		ret = 0;
+	}
 
 	if (i915_modparams.enable_guc_submission) {
 		i915_modparams.enable_guc_submission = 0;
@@ -256,7 +265,6 @@ err_guc:
 	}
 
 	i915_modparams.enable_guc_loading = 0;
-	DRM_NOTE("GuC firmware loading disabled\n");
 
 	return ret;
 }

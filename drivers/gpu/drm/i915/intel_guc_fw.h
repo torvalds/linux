@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2011-2015 Intel Corporation. All rights reserved.
+ * Copyright © 2017 Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -16,27 +16,18 @@
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ *
  */
 
-#ifndef _I915_VGPU_H_
-#define _I915_VGPU_H_
+#ifndef _INTEL_GUC_FW_H_
+#define _INTEL_GUC_FW_H_
 
-#include "i915_pvinfo.h"
+struct intel_guc;
 
-void i915_check_vgpu(struct drm_i915_private *dev_priv);
+int intel_guc_fw_select(struct intel_guc *guc);
+int intel_guc_fw_upload(struct intel_guc *guc);
 
-bool intel_vgpu_has_full_48bit_ppgtt(struct drm_i915_private *dev_priv);
-
-static inline bool
-intel_vgpu_has_hwsp_emulation(struct drm_i915_private *dev_priv)
-{
-	return dev_priv->vgpu.caps & VGT_CAPS_HWSP_EMULATION;
-}
-
-int intel_vgt_balloon(struct drm_i915_private *dev_priv);
-void intel_vgt_deballoon(struct drm_i915_private *dev_priv);
-
-#endif /* _I915_VGPU_H_ */
+#endif

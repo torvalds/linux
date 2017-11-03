@@ -114,7 +114,6 @@ struct drm_i915_gem_object {
 
 	/** Stolen memory for this object, instead of being backed by shmem. */
 	struct drm_mm_node *stolen;
-	struct list_head global_link;
 	union {
 		struct rcu_head rcu;
 		struct llist_node freed;
@@ -161,7 +160,8 @@ struct drm_i915_gem_object {
 	/** Count of VMA actually bound by this object */
 	unsigned int bind_count;
 	unsigned int active_count;
-	unsigned int pin_display;
+	/** Count of how many global VMA are currently pinned for use by HW */
+	unsigned int pin_global;
 
 	struct {
 		struct mutex lock; /* protects the pages and their use */
@@ -206,6 +206,12 @@ struct drm_i915_gem_object {
 			struct radix_tree_root radix;
 			struct mutex lock; /* protects this cache */
 		} get_page;
+
+		/**
+		 * Element within i915->mm.unbound_list or i915->mm.bound_list,
+		 * locked by i915->mm.obj_lock.
+		 */
+		struct list_head link;
 
 		/**
 		 * Advice: are the backing pages purgeable?

@@ -83,7 +83,7 @@ static char get_active_flag(struct drm_i915_gem_object *obj)
 
 static char get_pin_flag(struct drm_i915_gem_object *obj)
 {
-	return obj->pin_display ? 'p' : ' ';
+	return obj->pin_global ? 'p' : ' ';
 }
 
 static char get_tiling_flag(struct drm_i915_gem_object *obj)
@@ -180,8 +180,8 @@ describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 			pin_count++;
 	}
 	seq_printf(m, " (pinned x %d)", pin_count);
-	if (obj->pin_display)
-		seq_printf(m, " (display)");
+	if (obj->pin_global)
+		seq_printf(m, " (global)");
 	list_for_each_entry(vma, &obj->vma_list, obj_link) {
 		if (!drm_mm_node_allocated(&vma->node))
 			continue;
@@ -271,7 +271,9 @@ static int i915_gem_stolen_list_info(struct seq_file *m, void *data)
 		goto out;
 
 	total_obj_size = total_gtt_size = count = 0;
-	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_link) {
+
+	spin_lock(&dev_priv->mm.obj_lock);
+	list_for_each_entry(obj, &dev_priv->mm.bound_list, mm.link) {
 		if (count == total)
 			break;
 
@@ -283,7 +285,7 @@ static int i915_gem_stolen_list_info(struct seq_file *m, void *data)
 		total_gtt_size += i915_gem_obj_total_ggtt_size(obj);
 
 	}
-	list_for_each_entry(obj, &dev_priv->mm.unbound_list, global_link) {
+	list_for_each_entry(obj, &dev_priv->mm.unbound_list, mm.link) {
 		if (count == total)
 			break;
 
@@ -293,6 +295,7 @@ static int i915_gem_stolen_list_info(struct seq_file *m, void *data)
 		objects[count++] = obj;
 		total_obj_size += obj->base.size;
 	}
+	spin_unlock(&dev_priv->mm.obj_lock);
 
 	sort(objects, count, sizeof(*objects), obj_rank_by_stolen, NULL);
 
@@ -454,7 +457,9 @@ static int i915_gem_object_info(struct seq_file *m, void *data)
 	mapped_size = mapped_count = 0;
 	purgeable_size = purgeable_count = 0;
 	huge_size = huge_count = 0;
-	list_for_each_entry(obj, &dev_priv->mm.unbound_list, global_link) {
+
+	spin_lock(&dev_priv->mm.obj_lock);
+	list_for_each_entry(obj, &dev_priv->mm.unbound_list, mm.link) {
 		size += obj->base.size;
 		++count;
 
@@ -477,11 +482,11 @@ static int i915_gem_object_info(struct seq_file *m, void *data)
 	seq_printf(m, "%u unbound objects, %llu bytes\n", count, size);
 
 	size = count = dpy_size = dpy_count = 0;
-	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_link) {
+	list_for_each_entry(obj, &dev_priv->mm.bound_list, mm.link) {
 		size += obj->base.size;
 		++count;
 
-		if (obj->pin_display) {
+		if (obj->pin_global) {
 			dpy_size += obj->base.size;
 			++dpy_count;
 		}
@@ -502,6 +507,8 @@ static int i915_gem_object_info(struct seq_file *m, void *data)
 			page_sizes |= obj->mm.page_sizes.sg;
 		}
 	}
+	spin_unlock(&dev_priv->mm.obj_lock);
+
 	seq_printf(m, "%u bound objects, %llu bytes\n",
 		   count, size);
 	seq_printf(m, "%u purgeable objects, %llu bytes\n",
@@ -512,7 +519,7 @@ static int i915_gem_object_info(struct seq_file *m, void *data)
 		   huge_count,
 		   stringify_page_sizes(page_sizes, buf, sizeof(buf)),
 		   huge_size);
-	seq_printf(m, "%u display objects (pinned), %llu bytes\n",
+	seq_printf(m, "%u display objects (globally pinned), %llu bytes\n",
 		   dpy_count, dpy_size);
 
 	seq_printf(m, "%llu [%llu] gtt total\n",
@@ -568,32 +575,46 @@ static int i915_gem_gtt_info(struct seq_file *m, void *data)
 	struct drm_info_node *node = m->private;
 	struct drm_i915_private *dev_priv = node_to_i915(node);
 	struct drm_device *dev = &dev_priv->drm;
-	bool show_pin_display_only = !!node->info_ent->data;
+	struct drm_i915_gem_object **objects;
 	struct drm_i915_gem_object *obj;
 	u64 total_obj_size, total_gtt_size;
+	unsigned long nobject, n;
 	int count, ret;
+
+	nobject = READ_ONCE(dev_priv->mm.object_count);
+	objects = kvmalloc_array(nobject, sizeof(*objects), GFP_KERNEL);
+	if (!objects)
+		return -ENOMEM;
 
 	ret = mutex_lock_interruptible(&dev->struct_mutex);
 	if (ret)
 		return ret;
 
-	total_obj_size = total_gtt_size = count = 0;
-	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_link) {
-		if (show_pin_display_only && !obj->pin_display)
-			continue;
+	count = 0;
+	spin_lock(&dev_priv->mm.obj_lock);
+	list_for_each_entry(obj, &dev_priv->mm.bound_list, mm.link) {
+		objects[count++] = obj;
+		if (count == nobject)
+			break;
+	}
+	spin_unlock(&dev_priv->mm.obj_lock);
+
+	total_obj_size = total_gtt_size = 0;
+	for (n = 0;  n < count; n++) {
+		obj = objects[n];
 
 		seq_puts(m, "   ");
 		describe_obj(m, obj);
 		seq_putc(m, '\n');
 		total_obj_size += obj->base.size;
 		total_gtt_size += i915_gem_obj_total_ggtt_size(obj);
-		count++;
 	}
 
 	mutex_unlock(&dev->struct_mutex);
 
 	seq_printf(m, "Total %d objects, %llu bytes, %llu GTT size\n",
 		   count, total_obj_size, total_gtt_size);
+	kvfree(objects);
 
 	return 0;
 }
@@ -639,54 +660,6 @@ static int i915_gem_batch_pool_info(struct seq_file *m, void *data)
 	seq_printf(m, "total: %d\n", total);
 
 	mutex_unlock(&dev->struct_mutex);
-
-	return 0;
-}
-
-static void print_request(struct seq_file *m,
-			  struct drm_i915_gem_request *rq,
-			  const char *prefix)
-{
-	seq_printf(m, "%s%x [%x:%x] prio=%d @ %dms: %s\n", prefix,
-		   rq->global_seqno, rq->ctx->hw_id, rq->fence.seqno,
-		   rq->priotree.priority,
-		   jiffies_to_msecs(jiffies - rq->emitted_jiffies),
-		   rq->timeline->common->name);
-}
-
-static int i915_gem_request_info(struct seq_file *m, void *data)
-{
-	struct drm_i915_private *dev_priv = node_to_i915(m->private);
-	struct drm_device *dev = &dev_priv->drm;
-	struct drm_i915_gem_request *req;
-	struct intel_engine_cs *engine;
-	enum intel_engine_id id;
-	int ret, any;
-
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
-	if (ret)
-		return ret;
-
-	any = 0;
-	for_each_engine(engine, dev_priv, id) {
-		int count;
-
-		count = 0;
-		list_for_each_entry(req, &engine->timeline->requests, link)
-			count++;
-		if (count == 0)
-			continue;
-
-		seq_printf(m, "%s requests: %d\n", engine->name, count);
-		list_for_each_entry(req, &engine->timeline->requests, link)
-			print_request(m, req, "    ");
-
-		any++;
-	}
-	mutex_unlock(&dev->struct_mutex);
-
-	if (any == 0)
-		seq_puts(m, "No requests\n");
 
 	return 0;
 }
@@ -2386,27 +2359,13 @@ static int i915_llc(struct seq_file *m, void *data)
 static int i915_huc_load_status_info(struct seq_file *m, void *data)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
-	struct intel_uc_fw *huc_fw = &dev_priv->huc.fw;
+	struct drm_printer p;
 
 	if (!HAS_HUC_UCODE(dev_priv))
 		return 0;
 
-	seq_puts(m, "HuC firmware status:\n");
-	seq_printf(m, "\tpath: %s\n", huc_fw->path);
-	seq_printf(m, "\tfetch: %s\n",
-		intel_uc_fw_status_repr(huc_fw->fetch_status));
-	seq_printf(m, "\tload: %s\n",
-		intel_uc_fw_status_repr(huc_fw->load_status));
-	seq_printf(m, "\tversion wanted: %d.%d\n",
-		huc_fw->major_ver_wanted, huc_fw->minor_ver_wanted);
-	seq_printf(m, "\tversion found: %d.%d\n",
-		huc_fw->major_ver_found, huc_fw->minor_ver_found);
-	seq_printf(m, "\theader: offset is %d; size = %d\n",
-		huc_fw->header_offset, huc_fw->header_size);
-	seq_printf(m, "\tuCode: offset is %d; size = %d\n",
-		huc_fw->ucode_offset, huc_fw->ucode_size);
-	seq_printf(m, "\tRSA: offset is %d; size = %d\n",
-		huc_fw->rsa_offset, huc_fw->rsa_size);
+	p = drm_seq_file_printer(m);
+	intel_uc_fw_dump(&dev_priv->huc.fw, &p);
 
 	intel_runtime_pm_get(dev_priv);
 	seq_printf(m, "\nHuC status 0x%08x:\n", I915_READ(HUC_STATUS2));
@@ -2418,29 +2377,14 @@ static int i915_huc_load_status_info(struct seq_file *m, void *data)
 static int i915_guc_load_status_info(struct seq_file *m, void *data)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
-	struct intel_uc_fw *guc_fw = &dev_priv->guc.fw;
+	struct drm_printer p;
 	u32 tmp, i;
 
 	if (!HAS_GUC_UCODE(dev_priv))
 		return 0;
 
-	seq_printf(m, "GuC firmware status:\n");
-	seq_printf(m, "\tpath: %s\n",
-		guc_fw->path);
-	seq_printf(m, "\tfetch: %s\n",
-		intel_uc_fw_status_repr(guc_fw->fetch_status));
-	seq_printf(m, "\tload: %s\n",
-		intel_uc_fw_status_repr(guc_fw->load_status));
-	seq_printf(m, "\tversion wanted: %d.%d\n",
-		guc_fw->major_ver_wanted, guc_fw->minor_ver_wanted);
-	seq_printf(m, "\tversion found: %d.%d\n",
-		guc_fw->major_ver_found, guc_fw->minor_ver_found);
-	seq_printf(m, "\theader: offset is %d; size = %d\n",
-		guc_fw->header_offset, guc_fw->header_size);
-	seq_printf(m, "\tuCode: offset is %d; size = %d\n",
-		guc_fw->ucode_offset, guc_fw->ucode_size);
-	seq_printf(m, "\tRSA: offset is %d; size = %d\n",
-		guc_fw->rsa_offset, guc_fw->rsa_size);
+	p = drm_seq_file_printer(m);
+	intel_uc_fw_dump(&dev_priv->guc.fw, &p);
 
 	intel_runtime_pm_get(dev_priv);
 
@@ -3306,6 +3250,16 @@ static int i915_engine_info(struct seq_file *m, void *unused)
 		intel_engine_dump(engine, &p);
 
 	intel_runtime_pm_put(dev_priv);
+
+	return 0;
+}
+
+static int i915_shrinker_info(struct seq_file *m, void *unused)
+{
+	struct drm_i915_private *i915 = node_to_i915(m->private);
+
+	seq_printf(m, "seeks = %d\n", i915->mm.shrinker.seeks);
+	seq_printf(m, "batch = %lu\n", i915->mm.shrinker.batch);
 
 	return 0;
 }
@@ -4225,18 +4179,20 @@ DEFINE_SIMPLE_ATTRIBUTE(i915_ring_test_irq_fops,
 			i915_ring_test_irq_get, i915_ring_test_irq_set,
 			"0x%08llx\n");
 
-#define DROP_UNBOUND 0x1
-#define DROP_BOUND 0x2
-#define DROP_RETIRE 0x4
-#define DROP_ACTIVE 0x8
-#define DROP_FREED 0x10
-#define DROP_SHRINK_ALL 0x20
+#define DROP_UNBOUND	BIT(0)
+#define DROP_BOUND	BIT(1)
+#define DROP_RETIRE	BIT(2)
+#define DROP_ACTIVE	BIT(3)
+#define DROP_FREED	BIT(4)
+#define DROP_SHRINK_ALL	BIT(5)
+#define DROP_IDLE	BIT(6)
 #define DROP_ALL (DROP_UNBOUND	| \
 		  DROP_BOUND	| \
 		  DROP_RETIRE	| \
 		  DROP_ACTIVE	| \
 		  DROP_FREED	| \
-		  DROP_SHRINK_ALL)
+		  DROP_SHRINK_ALL |\
+		  DROP_IDLE)
 static int
 i915_drop_caches_get(void *data, u64 *val)
 {
@@ -4252,7 +4208,8 @@ i915_drop_caches_set(void *data, u64 val)
 	struct drm_device *dev = &dev_priv->drm;
 	int ret = 0;
 
-	DRM_DEBUG("Dropping caches: 0x%08llx\n", val);
+	DRM_DEBUG("Dropping caches: 0x%08llx [0x%08llx]\n",
+		  val, val & DROP_ALL);
 
 	/* No need to check and wait for gpu resets, only libdrm auto-restarts
 	 * on ioctls on -EAGAIN. */
@@ -4282,6 +4239,9 @@ i915_drop_caches_set(void *data, u64 val)
 	if (val & DROP_SHRINK_ALL)
 		i915_gem_shrink_all(dev_priv);
 	fs_reclaim_release(GFP_KERNEL);
+
+	if (val & DROP_IDLE)
+		drain_delayed_work(&dev_priv->gt.idle_work);
 
 	if (val & DROP_FREED) {
 		synchronize_rcu();
@@ -4751,9 +4711,7 @@ static const struct drm_info_list i915_debugfs_list[] = {
 	{"i915_capabilities", i915_capabilities, 0},
 	{"i915_gem_objects", i915_gem_object_info, 0},
 	{"i915_gem_gtt", i915_gem_gtt_info, 0},
-	{"i915_gem_pin_display", i915_gem_gtt_info, 0, (void *)1},
 	{"i915_gem_stolen", i915_gem_stolen_list_info },
-	{"i915_gem_request", i915_gem_request_info, 0},
 	{"i915_gem_seqno", i915_gem_seqno_info, 0},
 	{"i915_gem_fence_regs", i915_gem_fence_regs_info, 0},
 	{"i915_gem_interrupt", i915_interrupt_info, 0},
@@ -4791,6 +4749,7 @@ static const struct drm_info_list i915_debugfs_list[] = {
 	{"i915_dmc_info", i915_dmc_info, 0},
 	{"i915_display_info", i915_display_info, 0},
 	{"i915_engine_info", i915_engine_info, 0},
+	{"i915_shrinker_info", i915_shrinker_info, 0},
 	{"i915_semaphore_status", i915_semaphore_status, 0},
 	{"i915_shared_dplls_info", i915_shared_dplls_info, 0},
 	{"i915_dp_mst_info", i915_dp_mst_info, 0},

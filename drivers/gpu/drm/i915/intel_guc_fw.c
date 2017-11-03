@@ -26,31 +26,9 @@
  *    Dave Gordon <david.s.gordon@intel.com>
  *    Alex Dai <yu.dai@intel.com>
  */
-#include "i915_drv.h"
-#include "intel_uc.h"
 
-/**
- * DOC: GuC-specific firmware loader
- *
- * intel_guc:
- * Top level structure of guc. It handles firmware loading and manages client
- * pool and doorbells. intel_guc owns a i915_guc_client to replace the legacy
- * ExecList submission.
- *
- * Firmware versioning:
- * The firmware build process will generate a version header file with major and
- * minor version defined. The versions are built into CSS header of firmware.
- * i915 kernel driver set the minimal firmware version required per platform.
- * The firmware installation package will install (symbolic link) proper version
- * of firmware.
- *
- * GuC address space:
- * GuC does not allow any gfx GGTT address that falls into range [0, WOPCM_TOP),
- * which is reserved for Boot ROM, SRAM and WOPCM. Currently this top address is
- * 512K. In order to exclude 0-512K address space from GGTT, all gfx objects
- * used by GuC is pinned with PIN_OFFSET_BIAS along with size of WOPCM.
- *
- */
+#include "intel_guc_fw.h"
+#include "i915_drv.h"
 
 #define SKL_FW_MAJOR 6
 #define SKL_FW_MINOR 1
@@ -78,88 +56,45 @@ MODULE_FIRMWARE(I915_KBL_GUC_UCODE);
 
 #define I915_GLK_GUC_UCODE GUC_FW_PATH(glk, GLK_FW_MAJOR, GLK_FW_MINOR)
 
-
-static u32 get_gttype(struct drm_i915_private *dev_priv)
-{
-	/* XXX: GT type based on PCI device ID? field seems unused by fw */
-	return 0;
-}
-
-static u32 get_core_family(struct drm_i915_private *dev_priv)
-{
-	u32 gen = INTEL_GEN(dev_priv);
-
-	switch (gen) {
-	case 9:
-		return GUC_CORE_FAMILY_GEN9;
-
-	default:
-		MISSING_CASE(gen);
-		return GUC_CORE_FAMILY_UNKNOWN;
-	}
-}
-
-/*
- * Initialise the GuC parameter block before starting the firmware
- * transfer. These parameters are read by the firmware on startup
- * and cannot be changed thereafter.
+/**
+ * intel_guc_fw_select() - selects GuC firmware for uploading
+ *
+ * @guc:	intel_guc struct
+ *
+ * Return: zero when we know firmware, non-zero in other case
  */
-static void guc_params_init(struct drm_i915_private *dev_priv)
+int intel_guc_fw_select(struct intel_guc *guc)
 {
-	struct intel_guc *guc = &dev_priv->guc;
-	u32 params[GUC_CTL_MAX_DWORDS];
-	int i;
+	struct drm_i915_private *dev_priv = guc_to_i915(guc);
 
-	memset(&params, 0, sizeof(params));
+	intel_uc_fw_init(&guc->fw, INTEL_UC_FW_TYPE_GUC);
 
-	params[GUC_CTL_DEVICE_INFO] |=
-		(get_gttype(dev_priv) << GUC_CTL_GTTYPE_SHIFT) |
-		(get_core_family(dev_priv) << GUC_CTL_COREFAMILY_SHIFT);
-
-	/*
-	 * GuC ARAT increment is 10 ns. GuC default scheduler quantum is one
-	 * second. This ARAR is calculated by:
-	 * Scheduler-Quantum-in-ns / ARAT-increment-in-ns = 1000000000 / 10
-	 */
-	params[GUC_CTL_ARAT_HIGH] = 0;
-	params[GUC_CTL_ARAT_LOW] = 100000000;
-
-	params[GUC_CTL_WA] |= GUC_CTL_WA_UK_BY_DRIVER;
-
-	params[GUC_CTL_FEATURE] |= GUC_CTL_DISABLE_SCHEDULER |
-			GUC_CTL_VCS2_ENABLED;
-
-	params[GUC_CTL_LOG_PARAMS] = guc->log.flags;
-
-	if (i915_modparams.guc_log_level >= 0) {
-		params[GUC_CTL_DEBUG] =
-			i915_modparams.guc_log_level << GUC_LOG_VERBOSITY_SHIFT;
-	} else
-		params[GUC_CTL_DEBUG] = GUC_LOG_DISABLED;
-
-	/* If GuC submission is enabled, set up additional parameters here */
-	if (i915_modparams.enable_guc_submission) {
-		u32 ads = guc_ggtt_offset(guc->ads_vma) >> PAGE_SHIFT;
-		u32 pgs = guc_ggtt_offset(dev_priv->guc.stage_desc_pool);
-		u32 ctx_in_16 = GUC_MAX_STAGE_DESCRIPTORS / 16;
-
-		params[GUC_CTL_DEBUG] |= ads << GUC_ADS_ADDR_SHIFT;
-		params[GUC_CTL_DEBUG] |= GUC_ADS_ENABLED;
-
-		pgs >>= PAGE_SHIFT;
-		params[GUC_CTL_CTXINFO] = (pgs << GUC_CTL_BASE_ADDR_SHIFT) |
-			(ctx_in_16 << GUC_CTL_CTXNUM_IN16_SHIFT);
-
-		params[GUC_CTL_FEATURE] |= GUC_CTL_KERNEL_SUBMISSIONS;
-
-		/* Unmask this bit to enable the GuC's internal scheduler */
-		params[GUC_CTL_FEATURE] &= ~GUC_CTL_DISABLE_SCHEDULER;
+	if (i915_modparams.guc_firmware_path) {
+		guc->fw.path = i915_modparams.guc_firmware_path;
+		guc->fw.major_ver_wanted = 0;
+		guc->fw.minor_ver_wanted = 0;
+	} else if (IS_SKYLAKE(dev_priv)) {
+		guc->fw.path = I915_SKL_GUC_UCODE;
+		guc->fw.major_ver_wanted = SKL_FW_MAJOR;
+		guc->fw.minor_ver_wanted = SKL_FW_MINOR;
+	} else if (IS_BROXTON(dev_priv)) {
+		guc->fw.path = I915_BXT_GUC_UCODE;
+		guc->fw.major_ver_wanted = BXT_FW_MAJOR;
+		guc->fw.minor_ver_wanted = BXT_FW_MINOR;
+	} else if (IS_KABYLAKE(dev_priv) || IS_COFFEELAKE(dev_priv)) {
+		guc->fw.path = I915_KBL_GUC_UCODE;
+		guc->fw.major_ver_wanted = KBL_FW_MAJOR;
+		guc->fw.minor_ver_wanted = KBL_FW_MINOR;
+	} else if (IS_GEMINILAKE(dev_priv)) {
+		guc->fw.path = I915_GLK_GUC_UCODE;
+		guc->fw.major_ver_wanted = GLK_FW_MAJOR;
+		guc->fw.minor_ver_wanted = GLK_FW_MINOR;
+	} else {
+		DRM_ERROR("No GuC firmware known for platform with GuC!\n");
+		return -ENOENT;
 	}
 
-	I915_WRITE(SOFT_SCRATCH(0), 0);
-
-	for (i = 0; i < GUC_CTL_MAX_DWORDS; i++)
-		I915_WRITE(SOFT_SCRATCH(1 + i), params[i]);
+	return 0;
 }
 
 /*
@@ -250,38 +185,16 @@ static int guc_ucode_xfer_dma(struct drm_i915_private *dev_priv,
 	return ret;
 }
 
-u32 intel_guc_wopcm_size(struct drm_i915_private *dev_priv)
-{
-	u32 wopcm_size = GUC_WOPCM_TOP;
-
-	/* On BXT, the top of WOPCM is reserved for RC6 context */
-	if (IS_GEN9_LP(dev_priv))
-		wopcm_size -= BXT_GUC_WOPCM_RC6_RESERVED;
-
-	return wopcm_size;
-}
-
 /*
  * Load the GuC firmware blob into the MinuteIA.
  */
-static int guc_ucode_xfer(struct drm_i915_private *dev_priv)
+static int guc_ucode_xfer(struct intel_uc_fw *guc_fw, struct i915_vma *vma)
 {
-	struct intel_uc_fw *guc_fw = &dev_priv->guc.fw;
-	struct i915_vma *vma;
+	struct intel_guc *guc = container_of(guc_fw, struct intel_guc, fw);
+	struct drm_i915_private *dev_priv = guc_to_i915(guc);
 	int ret;
 
-	ret = i915_gem_object_set_to_gtt_domain(guc_fw->obj, false);
-	if (ret) {
-		DRM_DEBUG_DRIVER("set-domain failed %d\n", ret);
-		return ret;
-	}
-
-	vma = i915_gem_object_ggtt_pin(guc_fw->obj, NULL, 0, 0,
-				       PIN_OFFSET_BIAS | GUC_WOPCM_TOP);
-	if (IS_ERR(vma)) {
-		DRM_DEBUG_DRIVER("pin failed %d\n", (int)PTR_ERR(vma));
-		return PTR_ERR(vma);
-	}
+	GEM_BUG_ON(guc_fw->type != INTEL_UC_FW_TYPE_GUC);
 
 	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
 
@@ -312,23 +225,15 @@ static int guc_ucode_xfer(struct drm_i915_private *dev_priv)
 		I915_WRITE(GUC_ARAT_C6DIS, 0x1FF);
 	}
 
-	guc_params_init(dev_priv);
-
 	ret = guc_ucode_xfer_dma(dev_priv, vma);
 
 	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
-
-	/*
-	 * We keep the object pages for reuse during resume. But we can unpin it
-	 * now that DMA has completed, so it doesn't continue to take up space.
-	 */
-	i915_vma_unpin(vma);
 
 	return ret;
 }
 
 /**
- * intel_guc_init_hw() - finish preparing the GuC for activity
+ * intel_guc_fw_upload() - finish preparing the GuC for activity
  * @guc: intel_guc structure
  *
  * Called during driver loading and also after a GPU reset.
@@ -340,78 +245,7 @@ static int guc_ucode_xfer(struct drm_i915_private *dev_priv)
  *
  * Return:	non-zero code on error
  */
-int intel_guc_init_hw(struct intel_guc *guc)
+int intel_guc_fw_upload(struct intel_guc *guc)
 {
-	struct drm_i915_private *dev_priv = guc_to_i915(guc);
-	const char *fw_path = guc->fw.path;
-	int ret;
-
-	DRM_DEBUG_DRIVER("GuC fw status: path %s, fetch %s, load %s\n",
-		fw_path,
-		intel_uc_fw_status_repr(guc->fw.fetch_status),
-		intel_uc_fw_status_repr(guc->fw.load_status));
-
-	if (guc->fw.fetch_status != INTEL_UC_FIRMWARE_SUCCESS)
-		return -EIO;
-
-	guc->fw.load_status = INTEL_UC_FIRMWARE_PENDING;
-
-	DRM_DEBUG_DRIVER("GuC fw status: fetch %s, load %s\n",
-		intel_uc_fw_status_repr(guc->fw.fetch_status),
-		intel_uc_fw_status_repr(guc->fw.load_status));
-
-	ret = guc_ucode_xfer(dev_priv);
-
-	if (ret)
-		return -EAGAIN;
-
-	guc->fw.load_status = INTEL_UC_FIRMWARE_SUCCESS;
-
-	DRM_INFO("GuC %s (firmware %s [version %u.%u])\n",
-		 i915_modparams.enable_guc_submission ? "submission enabled" :
-							"loaded",
-		 guc->fw.path,
-		 guc->fw.major_ver_found, guc->fw.minor_ver_found);
-
-	return 0;
-}
-
-/**
- * intel_guc_select_fw() - selects GuC firmware for loading
- * @guc:	intel_guc struct
- *
- * Return: zero when we know firmware, non-zero in other case
- */
-int intel_guc_select_fw(struct intel_guc *guc)
-{
-	struct drm_i915_private *dev_priv = guc_to_i915(guc);
-
-	intel_uc_fw_init(&guc->fw, INTEL_UC_FW_TYPE_GUC);
-
-	if (i915_modparams.guc_firmware_path) {
-		guc->fw.path = i915_modparams.guc_firmware_path;
-		guc->fw.major_ver_wanted = 0;
-		guc->fw.minor_ver_wanted = 0;
-	} else if (IS_SKYLAKE(dev_priv)) {
-		guc->fw.path = I915_SKL_GUC_UCODE;
-		guc->fw.major_ver_wanted = SKL_FW_MAJOR;
-		guc->fw.minor_ver_wanted = SKL_FW_MINOR;
-	} else if (IS_BROXTON(dev_priv)) {
-		guc->fw.path = I915_BXT_GUC_UCODE;
-		guc->fw.major_ver_wanted = BXT_FW_MAJOR;
-		guc->fw.minor_ver_wanted = BXT_FW_MINOR;
-	} else if (IS_KABYLAKE(dev_priv) || IS_COFFEELAKE(dev_priv)) {
-		guc->fw.path = I915_KBL_GUC_UCODE;
-		guc->fw.major_ver_wanted = KBL_FW_MAJOR;
-		guc->fw.minor_ver_wanted = KBL_FW_MINOR;
-	} else if (IS_GEMINILAKE(dev_priv)) {
-		guc->fw.path = I915_GLK_GUC_UCODE;
-		guc->fw.major_ver_wanted = GLK_FW_MAJOR;
-		guc->fw.minor_ver_wanted = GLK_FW_MINOR;
-	} else {
-		DRM_ERROR("No GuC firmware known for platform with GuC!\n");
-		return -ENOENT;
-	}
-
-	return 0;
+	return intel_uc_fw_upload(&guc->fw, guc_ucode_xfer);
 }

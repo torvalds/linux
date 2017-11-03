@@ -67,6 +67,99 @@ void intel_guc_init_early(struct intel_guc *guc)
 	guc->notify = gen8_guc_raise_irq;
 }
 
+static u32 get_gt_type(struct drm_i915_private *dev_priv)
+{
+	/* XXX: GT type based on PCI device ID? field seems unused by fw */
+	return 0;
+}
+
+static u32 get_core_family(struct drm_i915_private *dev_priv)
+{
+	u32 gen = INTEL_GEN(dev_priv);
+
+	switch (gen) {
+	case 9:
+		return GUC_CORE_FAMILY_GEN9;
+
+	default:
+		MISSING_CASE(gen);
+		return GUC_CORE_FAMILY_UNKNOWN;
+	}
+}
+
+/*
+ * Initialise the GuC parameter block before starting the firmware
+ * transfer. These parameters are read by the firmware on startup
+ * and cannot be changed thereafter.
+ */
+void intel_guc_init_params(struct intel_guc *guc)
+{
+	struct drm_i915_private *dev_priv = guc_to_i915(guc);
+	u32 params[GUC_CTL_MAX_DWORDS];
+	int i;
+
+	memset(params, 0, sizeof(params));
+
+	params[GUC_CTL_DEVICE_INFO] |=
+		(get_gt_type(dev_priv) << GUC_CTL_GT_TYPE_SHIFT) |
+		(get_core_family(dev_priv) << GUC_CTL_CORE_FAMILY_SHIFT);
+
+	/*
+	 * GuC ARAT increment is 10 ns. GuC default scheduler quantum is one
+	 * second. This ARAR is calculated by:
+	 * Scheduler-Quantum-in-ns / ARAT-increment-in-ns = 1000000000 / 10
+	 */
+	params[GUC_CTL_ARAT_HIGH] = 0;
+	params[GUC_CTL_ARAT_LOW] = 100000000;
+
+	params[GUC_CTL_WA] |= GUC_CTL_WA_UK_BY_DRIVER;
+
+	params[GUC_CTL_FEATURE] |= GUC_CTL_DISABLE_SCHEDULER |
+			GUC_CTL_VCS2_ENABLED;
+
+	params[GUC_CTL_LOG_PARAMS] = guc->log.flags;
+
+	if (i915_modparams.guc_log_level >= 0) {
+		params[GUC_CTL_DEBUG] =
+			i915_modparams.guc_log_level << GUC_LOG_VERBOSITY_SHIFT;
+	} else {
+		params[GUC_CTL_DEBUG] = GUC_LOG_DISABLED;
+	}
+
+	/* If GuC submission is enabled, set up additional parameters here */
+	if (i915_modparams.enable_guc_submission) {
+		u32 ads = guc_ggtt_offset(guc->ads_vma) >> PAGE_SHIFT;
+		u32 pgs = guc_ggtt_offset(dev_priv->guc.stage_desc_pool);
+		u32 ctx_in_16 = GUC_MAX_STAGE_DESCRIPTORS / 16;
+
+		params[GUC_CTL_DEBUG] |= ads << GUC_ADS_ADDR_SHIFT;
+		params[GUC_CTL_DEBUG] |= GUC_ADS_ENABLED;
+
+		pgs >>= PAGE_SHIFT;
+		params[GUC_CTL_CTXINFO] = (pgs << GUC_CTL_BASE_ADDR_SHIFT) |
+			(ctx_in_16 << GUC_CTL_CTXNUM_IN16_SHIFT);
+
+		params[GUC_CTL_FEATURE] |= GUC_CTL_KERNEL_SUBMISSIONS;
+
+		/* Unmask this bit to enable the GuC's internal scheduler */
+		params[GUC_CTL_FEATURE] &= ~GUC_CTL_DISABLE_SCHEDULER;
+	}
+
+	/*
+	 * All SOFT_SCRATCH registers are in FORCEWAKE_BLITTER domain and
+	 * they are power context saved so it's ok to release forcewake
+	 * when we are done here and take it again at xfer time.
+	 */
+	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_BLITTER);
+
+	I915_WRITE(SOFT_SCRATCH(0), 0);
+
+	for (i = 0; i < GUC_CTL_MAX_DWORDS; i++)
+		I915_WRITE(SOFT_SCRATCH(1 + i), params[i]);
+
+	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_BLITTER);
+}
+
 int intel_guc_send_nop(struct intel_guc *guc, const u32 *action, u32 len)
 {
 	WARN(1, "Unexpected send: action=%#x\n", *action);
@@ -262,4 +355,15 @@ struct i915_vma *intel_guc_allocate_vma(struct intel_guc *guc, u32 size)
 err:
 	i915_gem_object_put(obj);
 	return vma;
+}
+
+u32 intel_guc_wopcm_size(struct drm_i915_private *dev_priv)
+{
+	u32 wopcm_size = GUC_WOPCM_TOP;
+
+	/* On BXT, the top of WOPCM is reserved for RC6 context */
+	if (IS_GEN9_LP(dev_priv))
+		wopcm_size -= BXT_GUC_WOPCM_RC6_RESERVED;
+
+	return wopcm_size;
 }

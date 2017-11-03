@@ -80,8 +80,8 @@
 
 #define DRIVER_NAME		"i915"
 #define DRIVER_DESC		"Intel Graphics"
-#define DRIVER_DATE		"20171012"
-#define DRIVER_TIMESTAMP	1507831511
+#define DRIVER_DATE		"20171023"
+#define DRIVER_TIMESTAMP	1508748913
 
 /* Use I915_STATE_WARN(x) and I915_STATE_WARN_ON() (rather than WARN() and
  * WARN_ON()) for hw state sanity checks to check for unexpected conditions
@@ -785,7 +785,6 @@ struct intel_csr {
 	func(has_logical_ring_contexts); \
 	func(has_logical_ring_preemption); \
 	func(has_overlay); \
-	func(has_pipe_cxsr); \
 	func(has_pooled_eu); \
 	func(has_psr); \
 	func(has_rc6); \
@@ -1108,6 +1107,16 @@ struct intel_fbc {
 			int src_w;
 			int src_h;
 			bool visible;
+			/*
+			 * Display surface base address adjustement for
+			 * pageflips. Note that on gen4+ this only adjusts up
+			 * to a tile, offsets within a tile are handled in
+			 * the hw itself (with the TILEOFF register).
+			 */
+			int adjusted_x;
+			int adjusted_y;
+
+			int y;
 		} plane;
 
 		struct {
@@ -1490,6 +1499,9 @@ struct i915_gem_mm {
 	 * always the inner lock when overlapping with struct_mutex. */
 	struct mutex stolen_lock;
 
+	/* Protects bound_list/unbound_list and #drm_i915_gem_object.mm.link */
+	spinlock_t obj_lock;
+
 	/** List of all objects in gtt_space. Used to restore gtt
 	 * mappings on resume */
 	struct list_head bound_list;
@@ -1510,6 +1522,7 @@ struct i915_gem_mm {
 	 */
 	struct llist_head free_list;
 	struct work_struct free_work;
+	spinlock_t free_lock;
 
 	/**
 	 * Small stash of WC pages
@@ -1765,6 +1778,8 @@ struct intel_vbt_data {
 		u16 panel_id;
 		struct mipi_config *config;
 		struct mipi_pps_data *pps;
+		u16 bl_ports;
+		u16 cabc_ports;
 		u8 seq_version;
 		u32 size;
 		u8 *data;
@@ -1960,13 +1975,7 @@ struct i915_wa_reg {
 	u32 mask;
 };
 
-/*
- * RING_MAX_NONPRIV_SLOTS is per-engine but at this point we are only
- * allowing it for RCS as we don't foresee any requirement of having
- * a whitelist for other engines. When it is really required for
- * other engines then the limit need to be increased.
- */
-#define I915_MAX_WA_REGS (16 + RING_MAX_NONPRIV_SLOTS)
+#define I915_MAX_WA_REGS 16
 
 struct i915_workarounds {
 	struct i915_wa_reg reg[I915_MAX_WA_REGS];
@@ -3077,6 +3086,7 @@ intel_info(const struct drm_i915_private *dev_priv)
 
 #define CNL_REVID_A0		0x0
 #define CNL_REVID_B0		0x1
+#define CNL_REVID_C0		0x2
 
 #define IS_CNL_REVID(p, since, until) \
 	(IS_CANNONLAKE(p) && IS_REVID(p, since, until))
@@ -3168,7 +3178,6 @@ intel_info(const struct drm_i915_private *dev_priv)
 #define I915_HAS_HOTPLUG(dev_priv)	((dev_priv)->info.has_hotplug)
 
 #define HAS_FW_BLC(dev_priv) 	(INTEL_GEN(dev_priv) > 2)
-#define HAS_PIPE_CXSR(dev_priv) ((dev_priv)->info.has_pipe_cxsr)
 #define HAS_FBC(dev_priv)	((dev_priv)->info.has_fbc)
 #define HAS_CUR_FBC(dev_priv)	(!HAS_GMCH_DISPLAY(dev_priv) && INTEL_INFO(dev_priv)->gen >= 7)
 
@@ -3565,10 +3574,16 @@ i915_gem_object_pin_pages(struct drm_i915_gem_object *obj)
 	return __i915_gem_object_get_pages(obj);
 }
 
+static inline bool
+i915_gem_object_has_pages(struct drm_i915_gem_object *obj)
+{
+	return !IS_ERR_OR_NULL(READ_ONCE(obj->mm.pages));
+}
+
 static inline void
 __i915_gem_object_pin_pages(struct drm_i915_gem_object *obj)
 {
-	GEM_BUG_ON(!obj->mm.pages);
+	GEM_BUG_ON(!i915_gem_object_has_pages(obj));
 
 	atomic_inc(&obj->mm.pages_pin_count);
 }
@@ -3582,8 +3597,8 @@ i915_gem_object_has_pinned_pages(struct drm_i915_gem_object *obj)
 static inline void
 __i915_gem_object_unpin_pages(struct drm_i915_gem_object *obj)
 {
+	GEM_BUG_ON(!i915_gem_object_has_pages(obj));
 	GEM_BUG_ON(!i915_gem_object_has_pinned_pages(obj));
-	GEM_BUG_ON(!obj->mm.pages);
 
 	atomic_dec(&obj->mm.pages_pin_count);
 }

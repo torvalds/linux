@@ -82,8 +82,8 @@
 #define GUC_CTL_ARAT_LOW		2
 
 #define GUC_CTL_DEVICE_INFO		3
-#define   GUC_CTL_GTTYPE_SHIFT		0
-#define   GUC_CTL_COREFAMILY_SHIFT	7
+#define   GUC_CTL_GT_TYPE_SHIFT		0
+#define   GUC_CTL_CORE_FAMILY_SHIFT	7
 
 #define GUC_CTL_LOG_PARAMS		4
 #define   GUC_LOG_VALID			(1 << 0)
