@@ -151,8 +151,7 @@ void peak_usb_init_time_ref(struct peak_time_ref *time_ref,
 			    const struct peak_usb_adapter *adapter);
 void peak_usb_update_ts_now(struct peak_time_ref *time_ref, u32 ts_now);
 void peak_usb_set_ts_now(struct peak_time_ref *time_ref, u32 ts_now);
-void peak_usb_get_ts_tv(struct peak_time_ref *time_ref, u32 ts,
-			struct timeval *tv);
+void peak_usb_get_ts_time(struct peak_time_ref *time_ref, u32 ts, ktime_t *tv);
 int peak_usb_netif_rx(struct sk_buff *skb,
 		      struct peak_time_ref *time_ref, u32 ts_low, u32 ts_high);
 void peak_usb_async_complete(struct urb *urb);
