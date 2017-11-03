@@ -284,27 +284,27 @@ static void vi_init_golden_registers(struct amdgpu_device *adev)
 	case CHIP_TOPAZ:
 		amdgpu_program_register_sequence(adev,
 						 iceland_mgcg_cgcg_init,
-						 (const u32)ARRAY_SIZE(iceland_mgcg_cgcg_init));
+						 ARRAY_SIZE(iceland_mgcg_cgcg_init));
 		break;
 	case CHIP_FIJI:
 		amdgpu_program_register_sequence(adev,
 						 fiji_mgcg_cgcg_init,
-						 (const u32)ARRAY_SIZE(fiji_mgcg_cgcg_init));
+						 ARRAY_SIZE(fiji_mgcg_cgcg_init));
 		break;
 	case CHIP_TONGA:
 		amdgpu_program_register_sequence(adev,
 						 tonga_mgcg_cgcg_init,
-						 (const u32)ARRAY_SIZE(tonga_mgcg_cgcg_init));
+						 ARRAY_SIZE(tonga_mgcg_cgcg_init));
 		break;
 	case CHIP_CARRIZO:
 		amdgpu_program_register_sequence(adev,
 						 cz_mgcg_cgcg_init,
-						 (const u32)ARRAY_SIZE(cz_mgcg_cgcg_init));
+						 ARRAY_SIZE(cz_mgcg_cgcg_init));
 		break;
 	case CHIP_STONEY:
 		amdgpu_program_register_sequence(adev,
 						 stoney_mgcg_cgcg_init,
-						 (const u32)ARRAY_SIZE(stoney_mgcg_cgcg_init));
+						 ARRAY_SIZE(stoney_mgcg_cgcg_init));
 		break;
 	case CHIP_POLARIS11:
 	case CHIP_POLARIS10:

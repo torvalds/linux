@@ -281,29 +281,29 @@ void xgpu_vi_init_golden_registers(struct amdgpu_device *adev)
 	case CHIP_FIJI:
 		amdgpu_program_register_sequence(adev,
 						 xgpu_fiji_mgcg_cgcg_init,
-						 (const u32)ARRAY_SIZE(
+						 ARRAY_SIZE(
 						 xgpu_fiji_mgcg_cgcg_init));
 		amdgpu_program_register_sequence(adev,
 						 xgpu_fiji_golden_settings_a10,
-						 (const u32)ARRAY_SIZE(
+						 ARRAY_SIZE(
 						 xgpu_fiji_golden_settings_a10));
 		amdgpu_program_register_sequence(adev,
 						 xgpu_fiji_golden_common_all,
-						 (const u32)ARRAY_SIZE(
+						 ARRAY_SIZE(
 						 xgpu_fiji_golden_common_all));
 		break;
 	case CHIP_TONGA:
 		amdgpu_program_register_sequence(adev,
 						 xgpu_tonga_mgcg_cgcg_init,
-						 (const u32)ARRAY_SIZE(
+						 ARRAY_SIZE(
 						 xgpu_tonga_mgcg_cgcg_init));
 		amdgpu_program_register_sequence(adev,
 						 xgpu_tonga_golden_settings_a11,
-						 (const u32)ARRAY_SIZE(
+						 ARRAY_SIZE(
 						 xgpu_tonga_golden_settings_a11));
 		amdgpu_program_register_sequence(adev,
 						 xgpu_tonga_golden_common_all,
-						 (const u32)ARRAY_SIZE(
+						 ARRAY_SIZE(
 						 xgpu_tonga_golden_common_all));
 		break;
 	default:

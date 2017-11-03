@@ -132,18 +132,18 @@ static void sdma_v4_0_init_golden_registers(struct amdgpu_device *adev)
 	case CHIP_VEGA10:
 		amdgpu_program_register_sequence(adev,
 						 golden_settings_sdma_4,
-						 (const u32)ARRAY_SIZE(golden_settings_sdma_4));
+						 ARRAY_SIZE(golden_settings_sdma_4));
 		amdgpu_program_register_sequence(adev,
 						 golden_settings_sdma_vg10,
-						 (const u32)ARRAY_SIZE(golden_settings_sdma_vg10));
+						 ARRAY_SIZE(golden_settings_sdma_vg10));
 		break;
 	case CHIP_RAVEN:
 		amdgpu_program_register_sequence(adev,
 						 golden_settings_sdma_4_1,
-						 (const u32)ARRAY_SIZE(golden_settings_sdma_4_1));
+						 ARRAY_SIZE(golden_settings_sdma_4_1));
 		amdgpu_program_register_sequence(adev,
 						 golden_settings_sdma_rv1,
-						 (const u32)ARRAY_SIZE(golden_settings_sdma_rv1));
+						 ARRAY_SIZE(golden_settings_sdma_rv1));
 		break;
 	default:
 		break;

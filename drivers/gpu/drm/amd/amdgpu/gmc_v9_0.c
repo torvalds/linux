@@ -696,15 +696,15 @@ static void gmc_v9_0_init_golden_registers(struct amdgpu_device *adev)
 	case CHIP_VEGA10:
 		amdgpu_program_register_sequence(adev,
 						golden_settings_mmhub_1_0_0,
-						(const u32)ARRAY_SIZE(golden_settings_mmhub_1_0_0));
+						ARRAY_SIZE(golden_settings_mmhub_1_0_0));
 		amdgpu_program_register_sequence(adev,
 						golden_settings_athub_1_0_0,
-						(const u32)ARRAY_SIZE(golden_settings_athub_1_0_0));
+						ARRAY_SIZE(golden_settings_athub_1_0_0));
 		break;
 	case CHIP_RAVEN:
 		amdgpu_program_register_sequence(adev,
 						golden_settings_athub_1_0_0,
-						(const u32)ARRAY_SIZE(golden_settings_athub_1_0_0));
+						ARRAY_SIZE(golden_settings_athub_1_0_0));
 		break;
 	default:
 		break;
@@ -724,7 +724,7 @@ static int gmc_v9_0_gart_enable(struct amdgpu_device *adev)
 
 	amdgpu_program_register_sequence(adev,
 		golden_settings_vega10_hdp,
-		(const u32)ARRAY_SIZE(golden_settings_vega10_hdp));
+		ARRAY_SIZE(golden_settings_vega10_hdp));
 
 	if (adev->gart.robj == NULL) {
 		dev_err(adev->dev, "No VRAM object for PCIE GART.\n");

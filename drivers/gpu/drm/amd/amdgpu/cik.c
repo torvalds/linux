@@ -757,72 +757,72 @@ static void cik_init_golden_registers(struct amdgpu_device *adev)
 	case CHIP_BONAIRE:
 		amdgpu_program_register_sequence(adev,
 						 bonaire_mgcg_cgcg_init,
-						 (const u32)ARRAY_SIZE(bonaire_mgcg_cgcg_init));
+						 ARRAY_SIZE(bonaire_mgcg_cgcg_init));
 		amdgpu_program_register_sequence(adev,
 						 bonaire_golden_registers,
-						 (const u32)ARRAY_SIZE(bonaire_golden_registers));
+						 ARRAY_SIZE(bonaire_golden_registers));
 		amdgpu_program_register_sequence(adev,
 						 bonaire_golden_common_registers,
-						 (const u32)ARRAY_SIZE(bonaire_golden_common_registers));
+						 ARRAY_SIZE(bonaire_golden_common_registers));
 		amdgpu_program_register_sequence(adev,
 						 bonaire_golden_spm_registers,
-						 (const u32)ARRAY_SIZE(bonaire_golden_spm_registers));
+						 ARRAY_SIZE(bonaire_golden_spm_registers));
 		break;
 	case CHIP_KABINI:
 		amdgpu_program_register_sequence(adev,
 						 kalindi_mgcg_cgcg_init,
-						 (const u32)ARRAY_SIZE(kalindi_mgcg_cgcg_init));
+						 ARRAY_SIZE(kalindi_mgcg_cgcg_init));
 		amdgpu_program_register_sequence(adev,
 						 kalindi_golden_registers,
-						 (const u32)ARRAY_SIZE(kalindi_golden_registers));
+						 ARRAY_SIZE(kalindi_golden_registers));
 		amdgpu_program_register_sequence(adev,
 						 kalindi_golden_common_registers,
-						 (const u32)ARRAY_SIZE(kalindi_golden_common_registers));
+						 ARRAY_SIZE(kalindi_golden_common_registers));
 		amdgpu_program_register_sequence(adev,
 						 kalindi_golden_spm_registers,
-						 (const u32)ARRAY_SIZE(kalindi_golden_spm_registers));
+						 ARRAY_SIZE(kalindi_golden_spm_registers));
 		break;
 	case CHIP_MULLINS:
 		amdgpu_program_register_sequence(adev,
 						 kalindi_mgcg_cgcg_init,
-						 (const u32)ARRAY_SIZE(kalindi_mgcg_cgcg_init));
+						 ARRAY_SIZE(kalindi_mgcg_cgcg_init));
 		amdgpu_program_register_sequence(adev,
 						 godavari_golden_registers,
-						 (const u32)ARRAY_SIZE(godavari_golden_registers));
+						 ARRAY_SIZE(godavari_golden_registers));
 		amdgpu_program_register_sequence(adev,
 						 kalindi_golden_common_registers,
-						 (const u32)ARRAY_SIZE(kalindi_golden_common_registers));
+						 ARRAY_SIZE(kalindi_golden_common_registers));
 		amdgpu_program_register_sequence(adev,
 						 kalindi_golden_spm_registers,
-						 (const u32)ARRAY_SIZE(kalindi_golden_spm_registers));
+						 ARRAY_SIZE(kalindi_golden_spm_registers));
 		break;
 	case CHIP_KAVERI:
 		amdgpu_program_register_sequence(adev,
 						 spectre_mgcg_cgcg_init,
-						 (const u32)ARRAY_SIZE(spectre_mgcg_cgcg_init));
+						 ARRAY_SIZE(spectre_mgcg_cgcg_init));
 		amdgpu_program_register_sequence(adev,
 						 spectre_golden_registers,
-						 (const u32)ARRAY_SIZE(spectre_golden_registers));
+						 ARRAY_SIZE(spectre_golden_registers));
 		amdgpu_program_register_sequence(adev,
 						 spectre_golden_common_registers,
-						 (const u32)ARRAY_SIZE(spectre_golden_common_registers));
+						 ARRAY_SIZE(spectre_golden_common_registers));
 		amdgpu_program_register_sequence(adev,
 						 spectre_golden_spm_registers,
-						 (const u32)ARRAY_SIZE(spectre_golden_spm_registers));
+						 ARRAY_SIZE(spectre_golden_spm_registers));
 		break;
 	case CHIP_HAWAII:
 		amdgpu_program_register_sequence(adev,
 						 hawaii_mgcg_cgcg_init,
-						 (const u32)ARRAY_SIZE(hawaii_mgcg_cgcg_init));
+						 ARRAY_SIZE(hawaii_mgcg_cgcg_init));
 		amdgpu_program_register_sequence(adev,
 						 hawaii_golden_registers,
-						 (const u32)ARRAY_SIZE(hawaii_golden_registers));
+						 ARRAY_SIZE(hawaii_golden_registers));
 		amdgpu_program_register_sequence(adev,
 						 hawaii_golden_common_registers,
-						 (const u32)ARRAY_SIZE(hawaii_golden_common_registers));
+						 ARRAY_SIZE(hawaii_golden_common_registers));
 		amdgpu_program_register_sequence(adev,
 						 hawaii_golden_spm_registers,
-						 (const u32)ARRAY_SIZE(hawaii_golden_spm_registers));
+						 ARRAY_SIZE(hawaii_golden_spm_registers));
 		break;
 	default:
 		break;
