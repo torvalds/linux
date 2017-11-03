@@ -116,7 +116,7 @@ struct dsa_switch_tree {
 	struct raw_notifier_head	nh;
 
 	/* Tree identifier */
-	u32 tree;
+	unsigned int index;
 
 	/* Number of switches attached to this tree */
 	struct kref refcount;

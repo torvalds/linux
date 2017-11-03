@@ -27,12 +27,12 @@ static DEFINE_MUTEX(dsa2_mutex);
 static const struct devlink_ops dsa_devlink_ops = {
 };
 
-static struct dsa_switch_tree *dsa_get_dst(u32 tree)
+static struct dsa_switch_tree *dsa_get_dst(unsigned int index)
 {
 	struct dsa_switch_tree *dst;
 
 	list_for_each_entry(dst, &dsa_switch_trees, list)
-		if (dst->tree == tree) {
+		if (dst->index == index) {
 			kref_get(&dst->refcount);
 			return dst;
 		}
@@ -53,14 +53,14 @@ static void dsa_put_dst(struct dsa_switch_tree *dst)
 	kref_put(&dst->refcount, dsa_free_dst);
 }
 
-static struct dsa_switch_tree *dsa_add_dst(u32 tree)
+static struct dsa_switch_tree *dsa_add_dst(unsigned int index)
 {
 	struct dsa_switch_tree *dst;
 
 	dst = kzalloc(sizeof(*dst), GFP_KERNEL);
 	if (!dst)
 		return NULL;
-	dst->tree = tree;
+	dst->index = index;
 	INIT_LIST_HEAD(&dst->list);
 	list_add_tail(&dsa_switch_trees, &dst->list);
 	kref_init(&dst->refcount);
@@ -454,7 +454,7 @@ static void dsa_dst_unapply(struct dsa_switch_tree *dst)
 
 	dst->cpu_dp = NULL;
 
-	pr_info("DSA: tree %d unapplied\n", dst->tree);
+	pr_info("DSA: tree %d unapplied\n", dst->index);
 	dst->applied = false;
 }
 
@@ -504,7 +504,7 @@ static int dsa_ds_parse(struct dsa_switch_tree *dst, struct dsa_switch *ds)
 
 	}
 
-	pr_info("DSA: switch %d %d parsed\n", dst->tree, ds->index);
+	pr_info("DSA: switch %d %d parsed\n", dst->index, ds->index);
 
 	return 0;
 }
@@ -549,7 +549,7 @@ static int dsa_dst_parse(struct dsa_switch_tree *dst)
 		}
 	}
 
-	pr_info("DSA: tree %d parsed\n", dst->tree);
+	pr_info("DSA: tree %d parsed\n", dst->index);
 
 	return 0;
 }
