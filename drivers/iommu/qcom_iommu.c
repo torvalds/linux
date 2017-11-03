@@ -66,6 +66,7 @@ struct qcom_iommu_ctx {
 	void __iomem		*base;
 	bool			 secure_init;
 	u8			 asid;      /* asid and ctx bank # are 1:1 */
+	struct iommu_domain	*domain;
 };
 
 struct qcom_iommu_domain {
@@ -194,12 +195,15 @@ static irqreturn_t qcom_iommu_fault(int irq, void *dev)
 	fsynr = iommu_readl(ctx, ARM_SMMU_CB_FSYNR0);
 	iova = iommu_readq(ctx, ARM_SMMU_CB_FAR);
 
-	dev_err_ratelimited(ctx->dev,
-			    "Unhandled context fault: fsr=0x%x, "
-			    "iova=0x%016llx, fsynr=0x%x, cb=%d\n",
-			    fsr, iova, fsynr, ctx->asid);
+	if (!report_iommu_fault(ctx->domain, ctx->dev, iova, 0)) {
+		dev_err_ratelimited(ctx->dev,
+				    "Unhandled context fault: fsr=0x%x, "
+				    "iova=0x%016llx, fsynr=0x%x, cb=%d\n",
+				    fsr, iova, fsynr, ctx->asid);
+	}
 
 	iommu_writel(ctx, ARM_SMMU_CB_FSR, fsr);
+	iommu_writel(ctx, ARM_SMMU_CB_RESUME, RESUME_TERMINATE);
 
 	return IRQ_HANDLED;
 }
@@ -274,12 +278,14 @@ static int qcom_iommu_init_domain(struct iommu_domain *domain,
 
 		/* SCTLR */
 		reg = SCTLR_CFIE | SCTLR_CFRE | SCTLR_AFE | SCTLR_TRE |
-			SCTLR_M | SCTLR_S1_ASIDPNE;
+			SCTLR_M | SCTLR_S1_ASIDPNE | SCTLR_CFCFG;
 
 		if (IS_ENABLED(CONFIG_BIG_ENDIAN))
 			reg |= SCTLR_E;
 
 		iommu_writel(ctx, ARM_SMMU_CB_SCTLR, reg);
+
+		ctx->domain = domain;
 	}
 
 	mutex_unlock(&qcom_domain->init_mutex);
@@ -395,6 +401,8 @@ static void qcom_iommu_detach_dev(struct iommu_domain *domain, struct device *de
 
 		/* Disable the context bank: */
 		iommu_writel(ctx, ARM_SMMU_CB_SCTLR, 0);
+
+		ctx->domain = NULL;
 	}
 	pm_runtime_put_sync(qcom_iommu->dev);
 
