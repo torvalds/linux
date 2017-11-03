@@ -832,6 +832,23 @@ static int hns3_set_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *cmd)
 	}
 }
 
+static int hns3_nway_reset(struct net_device *netdev)
+{
+	struct phy_device *phy = netdev->phydev;
+
+	if (!netif_running(netdev))
+		return 0;
+
+	/* Only support nway_reset for netdev with phy attached for now */
+	if (!phy)
+		return -EOPNOTSUPP;
+
+	if (phy->autoneg != AUTONEG_ENABLE)
+		return -EINVAL;
+
+	return genphy_restart_aneg(phy);
+}
+
 static const struct ethtool_ops hns3_ethtool_ops = {
 	.self_test = hns3_self_test,
 	.get_drvinfo = hns3_get_drvinfo,
@@ -850,6 +867,7 @@ static const struct ethtool_ops hns3_ethtool_ops = {
 	.set_rxfh = hns3_set_rss,
 	.get_link_ksettings = hns3_get_link_ksettings,
 	.set_link_ksettings = hns3_set_link_ksettings,
+	.nway_reset = hns3_nway_reset,
 };
 
 void hns3_ethtool_set_ops(struct net_device *netdev)
