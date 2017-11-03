@@ -47,6 +47,7 @@
 #include <linux/socket.h>
 #include <linux/route.h>
 #include <linux/gcd.h>
+#include <linux/random.h>
 #include <net/netevent.h>
 #include <net/neighbour.h>
 #include <net/arp.h>
@@ -96,6 +97,7 @@ struct mlxsw_sp_router {
 	struct list_head ipip_list;
 	bool aborted;
 	struct notifier_block fib_nb;
+	struct notifier_block netevent_nb;
 	const struct mlxsw_sp_rif_ops **rif_ops_arr;
 	const struct mlxsw_sp_ipip_ops **ipip_ops_arr;
 };
@@ -2025,7 +2027,7 @@ mlxsw_sp_neigh_entry_counter_update(struct mlxsw_sp *mlxsw_sp,
 	mlxsw_sp_neigh_entry_update(mlxsw_sp, neigh_entry, true);
 }
 
-struct mlxsw_sp_neigh_event_work {
+struct mlxsw_sp_netevent_work {
 	struct work_struct work;
 	struct mlxsw_sp *mlxsw_sp;
 	struct neighbour *n;
@@ -2033,11 +2035,11 @@ struct mlxsw_sp_neigh_event_work {
 
 static void mlxsw_sp_router_neigh_event_work(struct work_struct *work)
 {
-	struct mlxsw_sp_neigh_event_work *neigh_work =
-		container_of(work, struct mlxsw_sp_neigh_event_work, work);
-	struct mlxsw_sp *mlxsw_sp = neigh_work->mlxsw_sp;
+	struct mlxsw_sp_netevent_work *net_work =
+		container_of(work, struct mlxsw_sp_netevent_work, work);
+	struct mlxsw_sp *mlxsw_sp = net_work->mlxsw_sp;
 	struct mlxsw_sp_neigh_entry *neigh_entry;
-	struct neighbour *n = neigh_work->n;
+	struct neighbour *n = net_work->n;
 	unsigned char ha[ETH_ALEN];
 	bool entry_connected;
 	u8 nud_state, dead;
@@ -2073,18 +2075,32 @@ static void mlxsw_sp_router_neigh_event_work(struct work_struct *work)
 out:
 	rtnl_unlock();
 	neigh_release(n);
-	kfree(neigh_work);
+	kfree(net_work);
 }
 
-int mlxsw_sp_router_netevent_event(struct notifier_block *unused,
-				   unsigned long event, void *ptr)
+static int mlxsw_sp_mp_hash_init(struct mlxsw_sp *mlxsw_sp);
+
+static void mlxsw_sp_router_mp_hash_event_work(struct work_struct *work)
 {
-	struct mlxsw_sp_neigh_event_work *neigh_work;
+	struct mlxsw_sp_netevent_work *net_work =
+		container_of(work, struct mlxsw_sp_netevent_work, work);
+	struct mlxsw_sp *mlxsw_sp = net_work->mlxsw_sp;
+
+	mlxsw_sp_mp_hash_init(mlxsw_sp);
+	kfree(net_work);
+}
+
+static int mlxsw_sp_router_netevent_event(struct notifier_block *nb,
+					  unsigned long event, void *ptr)
+{
+	struct mlxsw_sp_netevent_work *net_work;
 	struct mlxsw_sp_port *mlxsw_sp_port;
+	struct mlxsw_sp_router *router;
 	struct mlxsw_sp *mlxsw_sp;
 	unsigned long interval;
 	struct neigh_parms *p;
 	struct neighbour *n;
+	struct net *net;
 
 	switch (event) {
 	case NETEVENT_DELAY_PROBE_TIME_UPDATE:
@@ -2118,23 +2134,38 @@ int mlxsw_sp_router_netevent_event(struct notifier_block *unused,
 		if (!mlxsw_sp_port)
 			return NOTIFY_DONE;
 
-		neigh_work = kzalloc(sizeof(*neigh_work), GFP_ATOMIC);
-		if (!neigh_work) {
+		net_work = kzalloc(sizeof(*net_work), GFP_ATOMIC);
+		if (!net_work) {
 			mlxsw_sp_port_dev_put(mlxsw_sp_port);
 			return NOTIFY_BAD;
 		}
 
-		INIT_WORK(&neigh_work->work, mlxsw_sp_router_neigh_event_work);
-		neigh_work->mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
-		neigh_work->n = n;
+		INIT_WORK(&net_work->work, mlxsw_sp_router_neigh_event_work);
+		net_work->mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+		net_work->n = n;
 
 		/* Take a reference to ensure the neighbour won't be
 		 * destructed until we drop the reference in delayed
 		 * work.
 		 */
 		neigh_clone(n);
-		mlxsw_core_schedule_work(&neigh_work->work);
+		mlxsw_core_schedule_work(&net_work->work);
 		mlxsw_sp_port_dev_put(mlxsw_sp_port);
+		break;
+	case NETEVENT_MULTIPATH_HASH_UPDATE:
+		net = ptr;
+
+		if (!net_eq(net, &init_net))
+			return NOTIFY_DONE;
+
+		net_work = kzalloc(sizeof(*net_work), GFP_ATOMIC);
+		if (!net_work)
+			return NOTIFY_BAD;
+
+		router = container_of(nb, struct mlxsw_sp_router, netevent_nb);
+		INIT_WORK(&net_work->work, mlxsw_sp_router_mp_hash_event_work);
+		net_work->mlxsw_sp = router->mlxsw_sp;
+		mlxsw_core_schedule_work(&net_work->work);
 		break;
 	}
 
@@ -6643,6 +6674,64 @@ static void mlxsw_sp_router_fib_dump_flush(struct notifier_block *nb)
 	mlxsw_sp_router_fib_flush(router->mlxsw_sp);
 }
 
+#ifdef CONFIG_IP_ROUTE_MULTIPATH
+static void mlxsw_sp_mp_hash_header_set(char *recr2_pl, int header)
+{
+	mlxsw_reg_recr2_outer_header_enables_set(recr2_pl, header, true);
+}
+
+static void mlxsw_sp_mp_hash_field_set(char *recr2_pl, int field)
+{
+	mlxsw_reg_recr2_outer_header_fields_enable_set(recr2_pl, field, true);
+}
+
+static void mlxsw_sp_mp4_hash_init(char *recr2_pl)
+{
+	bool only_l3 = !init_net.ipv4.sysctl_fib_multipath_hash_policy;
+
+	mlxsw_sp_mp_hash_header_set(recr2_pl,
+				    MLXSW_REG_RECR2_IPV4_EN_NOT_TCP_NOT_UDP);
+	mlxsw_sp_mp_hash_header_set(recr2_pl, MLXSW_REG_RECR2_IPV4_EN_TCP_UDP);
+	mlxsw_reg_recr2_ipv4_sip_enable(recr2_pl);
+	mlxsw_reg_recr2_ipv4_dip_enable(recr2_pl);
+	if (only_l3)
+		return;
+	mlxsw_sp_mp_hash_header_set(recr2_pl, MLXSW_REG_RECR2_TCP_UDP_EN_IPV4);
+	mlxsw_sp_mp_hash_field_set(recr2_pl, MLXSW_REG_RECR2_IPV4_PROTOCOL);
+	mlxsw_sp_mp_hash_field_set(recr2_pl, MLXSW_REG_RECR2_TCP_UDP_SPORT);
+	mlxsw_sp_mp_hash_field_set(recr2_pl, MLXSW_REG_RECR2_TCP_UDP_DPORT);
+}
+
+static void mlxsw_sp_mp6_hash_init(char *recr2_pl)
+{
+	mlxsw_sp_mp_hash_header_set(recr2_pl,
+				    MLXSW_REG_RECR2_IPV6_EN_NOT_TCP_NOT_UDP);
+	mlxsw_sp_mp_hash_header_set(recr2_pl, MLXSW_REG_RECR2_IPV6_EN_TCP_UDP);
+	mlxsw_reg_recr2_ipv6_sip_enable(recr2_pl);
+	mlxsw_reg_recr2_ipv6_dip_enable(recr2_pl);
+	mlxsw_sp_mp_hash_field_set(recr2_pl, MLXSW_REG_RECR2_IPV6_FLOW_LABEL);
+	mlxsw_sp_mp_hash_field_set(recr2_pl, MLXSW_REG_RECR2_IPV6_NEXT_HEADER);
+}
+
+static int mlxsw_sp_mp_hash_init(struct mlxsw_sp *mlxsw_sp)
+{
+	char recr2_pl[MLXSW_REG_RECR2_LEN];
+	u32 seed;
+
+	get_random_bytes(&seed, sizeof(seed));
+	mlxsw_reg_recr2_pack(recr2_pl, seed);
+	mlxsw_sp_mp4_hash_init(recr2_pl);
+	mlxsw_sp_mp6_hash_init(recr2_pl);
+
+	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(recr2), recr2_pl);
+}
+#else
+static int mlxsw_sp_mp_hash_init(struct mlxsw_sp *mlxsw_sp)
+{
+	return 0;
+}
+#endif
+
 static int __mlxsw_sp_router_init(struct mlxsw_sp *mlxsw_sp)
 {
 	char rgcr_pl[MLXSW_REG_RGCR_LEN];
@@ -6720,6 +6809,16 @@ int mlxsw_sp_router_init(struct mlxsw_sp *mlxsw_sp)
 	if (err)
 		goto err_neigh_init;
 
+	mlxsw_sp->router->netevent_nb.notifier_call =
+		mlxsw_sp_router_netevent_event;
+	err = register_netevent_notifier(&mlxsw_sp->router->netevent_nb);
+	if (err)
+		goto err_register_netevent_notifier;
+
+	err = mlxsw_sp_mp_hash_init(mlxsw_sp);
+	if (err)
+		goto err_mp_hash_init;
+
 	mlxsw_sp->router->fib_nb.notifier_call = mlxsw_sp_router_fib_event;
 	err = register_fib_notifier(&mlxsw_sp->router->fib_nb,
 				    mlxsw_sp_router_fib_dump_flush);
@@ -6729,6 +6828,9 @@ int mlxsw_sp_router_init(struct mlxsw_sp *mlxsw_sp)
 	return 0;
 
 err_register_fib_notifier:
+err_mp_hash_init:
+	unregister_netevent_notifier(&mlxsw_sp->router->netevent_nb);
+err_register_netevent_notifier:
 	mlxsw_sp_neigh_fini(mlxsw_sp);
 err_neigh_init:
 	mlxsw_sp_vrs_fini(mlxsw_sp);
@@ -6754,6 +6856,7 @@ err_router_init:
 void mlxsw_sp_router_fini(struct mlxsw_sp *mlxsw_sp)
 {
 	unregister_fib_notifier(&mlxsw_sp->router->fib_nb);
+	unregister_netevent_notifier(&mlxsw_sp->router->netevent_nb);
 	mlxsw_sp_neigh_fini(mlxsw_sp);
 	mlxsw_sp_vrs_fini(mlxsw_sp);
 	mlxsw_sp_mr_fini(mlxsw_sp);
