@@ -38,6 +38,10 @@
 #include "spectrum_router.h"
 #include <net/ip_fib.h>
 
+union mlxsw_sp_l3addr
+mlxsw_sp_ipip_netdev_saddr(enum mlxsw_sp_l3proto proto,
+			   const struct net_device *ol_dev);
+
 enum mlxsw_sp_ipip_type {
 	MLXSW_SP_IPIP_TYPE_GRE4,
 	MLXSW_SP_IPIP_TYPE_MAX,

@@ -68,6 +68,59 @@ static u32 mlxsw_sp_ipip_netdev_okey(const struct net_device *ol_dev)
 		be32_to_cpu(tun->parms.o_key) : 0;
 }
 
+static __be32
+mlxsw_sp_ipip_netdev_saddr4(const struct net_device *ol_dev)
+{
+	struct ip_tunnel *tun = netdev_priv(ol_dev);
+
+	return tun->parms.iph.saddr;
+}
+
+union mlxsw_sp_l3addr
+mlxsw_sp_ipip_netdev_saddr(enum mlxsw_sp_l3proto proto,
+			   const struct net_device *ol_dev)
+{
+	switch (proto) {
+	case MLXSW_SP_L3_PROTO_IPV4:
+		return (union mlxsw_sp_l3addr) {
+			.addr4 = mlxsw_sp_ipip_netdev_saddr4(ol_dev),
+		};
+	case MLXSW_SP_L3_PROTO_IPV6:
+		break;
+	}
+
+	WARN_ON(1);
+	return (union mlxsw_sp_l3addr) {
+		.addr4 = 0,
+	};
+}
+
+static __be32 mlxsw_sp_ipip_netdev_daddr4(const struct net_device *ol_dev)
+{
+	struct ip_tunnel *tun = netdev_priv(ol_dev);
+
+	return tun->parms.iph.daddr;
+}
+
+static union mlxsw_sp_l3addr
+mlxsw_sp_ipip_netdev_daddr(enum mlxsw_sp_l3proto proto,
+			   const struct net_device *ol_dev)
+{
+	switch (proto) {
+	case MLXSW_SP_L3_PROTO_IPV4:
+		return (union mlxsw_sp_l3addr) {
+			.addr4 = mlxsw_sp_ipip_netdev_daddr4(ol_dev),
+		};
+	case MLXSW_SP_L3_PROTO_IPV6:
+		break;
+	}
+
+	WARN_ON(1);
+	return (union mlxsw_sp_l3addr) {
+		.addr4 = 0,
+	};
+}
+
 static int
 mlxsw_sp_ipip_nexthop_update_gre4(struct mlxsw_sp *mlxsw_sp, u32 adj_index,
 				  struct mlxsw_sp_ipip_entry *ipip_entry)

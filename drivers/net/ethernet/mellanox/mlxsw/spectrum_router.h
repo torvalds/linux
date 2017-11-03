@@ -103,13 +103,6 @@ mlxsw_sp_neigh_entry_counter_update(struct mlxsw_sp *mlxsw_sp,
 				    struct mlxsw_sp_neigh_entry *neigh_entry,
 				    bool adding);
 bool mlxsw_sp_neigh_ipv6_ignore(struct mlxsw_sp_neigh_entry *neigh_entry);
-union mlxsw_sp_l3addr
-mlxsw_sp_ipip_netdev_saddr(enum mlxsw_sp_l3proto proto,
-			   const struct net_device *ol_dev);
-union mlxsw_sp_l3addr
-mlxsw_sp_ipip_netdev_daddr(enum mlxsw_sp_l3proto proto,
-			   const struct net_device *ol_dev);
-__be32 mlxsw_sp_ipip_netdev_daddr4(const struct net_device *ol_dev);
 struct mlxsw_sp_nexthop *mlxsw_sp_nexthop_next(struct mlxsw_sp_router *router,
 					       struct mlxsw_sp_nexthop *nh);
 bool mlxsw_sp_nexthop_offload(struct mlxsw_sp_nexthop *nh);
