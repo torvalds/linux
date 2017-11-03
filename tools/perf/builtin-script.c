@@ -210,6 +210,51 @@ static struct {
 	},
 };
 
+struct perf_evsel_script {
+       char *filename;
+       FILE *fp;
+       u64  samples;
+};
+
+static struct perf_evsel_script *perf_evsel_script__new(struct perf_evsel *evsel,
+							struct perf_data *data)
+{
+	struct perf_evsel_script *es = malloc(sizeof(*es));
+
+	if (es != NULL) {
+		if (asprintf(&es->filename, "%s.%s.dump", data->file.path, perf_evsel__name(evsel)) < 0)
+			goto out_free;
+		es->fp = fopen(es->filename, "w");
+		if (es->fp == NULL)
+			goto out_free_filename;
+		es->samples = 0;
+	}
+
+	return es;
+out_free_filename:
+	zfree(&es->filename);
+out_free:
+	free(es);
+	return NULL;
+}
+
+static void perf_evsel_script__delete(struct perf_evsel_script *es)
+{
+	zfree(&es->filename);
+	fclose(es->fp);
+	es->fp = NULL;
+	free(es);
+}
+
+static int perf_evsel_script__fprintf(struct perf_evsel_script *es, FILE *fp)
+{
+	struct stat st;
+
+	fstat(fileno(es->fp), &st);
+	return fprintf(fp, "[ perf script: Wrote %.3f MB %s (%" PRIu64 " samples) ]\n",
+		       st.st_size / 1024.0 / 1024.0, es->filename, es->samples);
+}
+
 static inline int output_type(unsigned int type)
 {
 	switch (type) {
@@ -769,27 +814,26 @@ static int grab_bb(u8 *buffer, u64 start, u64 end,
 	 * but the exit is not. Let the caller patch it up.
 	 */
 	if (kernel != machine__kernel_ip(machine, end)) {
-		printf("\tblock %" PRIx64 "-%" PRIx64 " transfers between kernel and user\n",
-				start, end);
+		pr_debug("\tblock %" PRIx64 "-%" PRIx64 " transfers between kernel and user\n", start, end);
 		return -ENXIO;
 	}
 
 	memset(&al, 0, sizeof(al));
 	if (end - start > MAXBB - MAXINSN) {
 		if (last)
-			printf("\tbrstack does not reach to final jump (%" PRIx64 "-%" PRIx64 ")\n", start, end);
+			pr_debug("\tbrstack does not reach to final jump (%" PRIx64 "-%" PRIx64 ")\n", start, end);
 		else
-			printf("\tblock %" PRIx64 "-%" PRIx64 " (%" PRIu64 ") too long to dump\n", start, end, end - start);
+			pr_debug("\tblock %" PRIx64 "-%" PRIx64 " (%" PRIu64 ") too long to dump\n", start, end, end - start);
 		return 0;
 	}
 
 	thread__find_addr_map(thread, *cpumode, MAP__FUNCTION, start, &al);
 	if (!al.map || !al.map->dso) {
-		printf("\tcannot resolve %" PRIx64 "-%" PRIx64 "\n", start, end);
+		pr_debug("\tcannot resolve %" PRIx64 "-%" PRIx64 "\n", start, end);
 		return 0;
 	}
 	if (al.map->dso->data.status == DSO_DATA_STATUS_ERROR) {
-		printf("\tcannot resolve %" PRIx64 "-%" PRIx64 "\n", start, end);
+		pr_debug("\tcannot resolve %" PRIx64 "-%" PRIx64 "\n", start, end);
 		return 0;
 	}
 
@@ -802,7 +846,7 @@ static int grab_bb(u8 *buffer, u64 start, u64 end,
 
 	*is64bit = al.map->dso->is_64_bit;
 	if (len <= 0)
-		printf("\tcannot fetch code for block at %" PRIx64 "-%" PRIx64 "\n",
+		pr_debug("\tcannot fetch code for block at %" PRIx64 "-%" PRIx64 "\n",
 			start, end);
 	return len;
 }
@@ -1393,6 +1437,7 @@ struct perf_script {
 	bool			show_switch_events;
 	bool			show_namespace_events;
 	bool			allocated;
+	bool			per_event_dump;
 	struct cpu_map		*cpus;
 	struct thread_map	*threads;
 	int			name_width;
@@ -1439,15 +1484,18 @@ static void process_event(struct perf_script *script,
 	struct thread *thread = al->thread;
 	struct perf_event_attr *attr = &evsel->attr;
 	unsigned int type = output_type(attr->type);
-	FILE *fp = stdout;
+	struct perf_evsel_script *es = evsel->priv;
+	FILE *fp = es->fp;
 
 	if (output[type].fields == 0)
 		return;
 
+	++es->samples;
+
 	perf_sample__fprintf_start(sample, thread, evsel, fp);
 
 	if (PRINT_FIELD(PERIOD))
-		printf("%10" PRIu64 " ", sample->period);
+		fprintf(fp, "%10" PRIu64 " ", sample->period);
 
 	if (PRINT_FIELD(EVNAME)) {
 		const char *evname = perf_evsel__name(evsel);
@@ -1455,8 +1503,7 @@ static void process_event(struct perf_script *script,
 		if (!script->name_width)
 			script->name_width = perf_evlist__max_name_len(script->session->evlist);
 
-		printf("%*s: ", script->name_width,
-		       evname ? evname : "[unknown]");
+		fprintf(fp, "%*s: ", script->name_width, evname ?: "[unknown]");
 	}
 
 	if (print_flags)
@@ -1467,9 +1514,10 @@ static void process_event(struct perf_script *script,
 		return;
 	}
 
-	if (PRINT_FIELD(TRACE))
-		event_format__print(evsel->tp_format, sample->cpu,
-				    sample->raw_data, sample->raw_size);
+	if (PRINT_FIELD(TRACE)) {
+		event_format__fprintf(evsel->tp_format, sample->cpu,
+				      sample->raw_data, sample->raw_size, fp);
+	}
 
 	if (attr->type == PERF_TYPE_SYNTH && PRINT_FIELD(SYNTH))
 		perf_sample__fprintf_synth(sample, evsel, fp);
@@ -1513,8 +1561,8 @@ static void process_event(struct perf_script *script,
 	perf_sample__fprintf_insn(sample, attr, thread, machine, fp);
 
 	if (PRINT_FIELD(PHYS_ADDR))
-		printf("%16" PRIx64, sample->phys_addr);
-	printf("\n");
+		fprintf(fp, "%16" PRIx64, sample->phys_addr);
+	fprintf(fp, "\n");
 }
 
 static struct scripting_ops	*scripting_ops;
@@ -1888,6 +1936,65 @@ static void sig_handler(int sig __maybe_unused)
 	session_done = 1;
 }
 
+static void perf_script__fclose_per_event_dump(struct perf_script *script)
+{
+	struct perf_evlist *evlist = script->session->evlist;
+	struct perf_evsel *evsel;
+
+	evlist__for_each_entry(evlist, evsel) {
+		if (!evsel->priv)
+			break;
+		perf_evsel_script__delete(evsel->priv);
+		evsel->priv = NULL;
+	}
+}
+
+static int perf_script__fopen_per_event_dump(struct perf_script *script)
+{
+	struct perf_evsel *evsel;
+
+	evlist__for_each_entry(script->session->evlist, evsel) {
+		evsel->priv = perf_evsel_script__new(evsel, script->session->data);
+		if (evsel->priv == NULL)
+			goto out_err_fclose;
+	}
+
+	return 0;
+
+out_err_fclose:
+	perf_script__fclose_per_event_dump(script);
+	return -1;
+}
+
+static int perf_script__setup_per_event_dump(struct perf_script *script)
+{
+	struct perf_evsel *evsel;
+	static struct perf_evsel_script es_stdout;
+
+	if (script->per_event_dump)
+		return perf_script__fopen_per_event_dump(script);
+
+	es_stdout.fp = stdout;
+
+	evlist__for_each_entry(script->session->evlist, evsel)
+		evsel->priv = &es_stdout;
+
+	return 0;
+}
+
+static void perf_script__exit_per_event_dump_stats(struct perf_script *script)
+{
+	struct perf_evsel *evsel;
+
+	evlist__for_each_entry(script->session->evlist, evsel) {
+		struct perf_evsel_script *es = evsel->priv;
+
+		perf_evsel_script__fprintf(es, stdout);
+		perf_evsel_script__delete(es);
+		evsel->priv = NULL;
+	}
+}
+
 static int __cmd_script(struct perf_script *script)
 {
 	int ret;
@@ -1909,7 +2016,15 @@ static int __cmd_script(struct perf_script *script)
 	if (script->show_namespace_events)
 		script->tool.namespaces = process_namespaces_event;
 
+	if (perf_script__setup_per_event_dump(script)) {
+		pr_err("Couldn't create the per event dump files\n");
+		return -1;
+	}
+
 	ret = perf_session__process_events(script->session);
+
+	if (script->per_event_dump)
+		perf_script__exit_per_event_dump_stats(script);
 
 	if (debug_mode)
 		pr_err("Misordered timestamps: %" PRIu64 "\n", nr_unordered);
@@ -2475,14 +2590,16 @@ int find_scripts(char **scripts_array, char **scripts_path_array)
 	char scripts_path[MAXPATHLEN], lang_path[MAXPATHLEN];
 	DIR *scripts_dir, *lang_dir;
 	struct perf_session *session;
-	struct perf_data_file file = {
-		.path = input_name,
-		.mode = PERF_DATA_MODE_READ,
+	struct perf_data data = {
+		.file      = {
+			.path = input_name,
+		},
+		.mode      = PERF_DATA_MODE_READ,
 	};
 	char *temp;
 	int i = 0;
 
-	session = perf_session__new(&file, false, NULL);
+	session = perf_session__new(&data, false, NULL);
 	if (!session)
 		return -1;
 
@@ -2760,7 +2877,7 @@ int cmd_script(int argc, const char **argv)
 			.ordering_requires_timestamps = true,
 		},
 	};
-	struct perf_data_file file = {
+	struct perf_data data = {
 		.mode = PERF_DATA_MODE_READ,
 	};
 	const struct option options[] = {
@@ -2828,6 +2945,8 @@ int cmd_script(int argc, const char **argv)
 		    "Show context switch events (if recorded)"),
 	OPT_BOOLEAN('\0', "show-namespace-events", &script.show_namespace_events,
 		    "Show namespace events (if recorded)"),
+	OPT_BOOLEAN('\0', "per-event-dump", &script.per_event_dump,
+		    "Dump trace output to files named by the monitored events"),
 	OPT_BOOLEAN('f', "force", &symbol_conf.force, "don't complain, do it"),
 	OPT_INTEGER(0, "max-blocks", &max_blocks,
 		    "Maximum number of code blocks to dump with brstackinsn"),
@@ -2865,8 +2984,8 @@ int cmd_script(int argc, const char **argv)
 	argc = parse_options_subcommand(argc, argv, options, script_subcommands, script_usage,
 			     PARSE_OPT_STOP_AT_NON_OPTION);
 
-	file.path = input_name;
-	file.force = symbol_conf.force;
+	data.file.path = input_name;
+	data.force     = symbol_conf.force;
 
 	if (argc > 1 && !strncmp(argv[0], "rec", strlen("rec"))) {
 		rec_script_path = get_script_path(argv[1], RECORD_SUFFIX);
@@ -3033,7 +3152,7 @@ int cmd_script(int argc, const char **argv)
 	if (!script_name)
 		setup_pager();
 
-	session = perf_session__new(&file, false, &script.tool);
+	session = perf_session__new(&data, false, &script.tool);
 	if (session == NULL)
 		return -1;
 
@@ -3089,7 +3208,7 @@ int cmd_script(int argc, const char **argv)
 			goto out_delete;
 		}
 
-		input = open(file.path, O_RDONLY);	/* input_name */
+		input = open(data.file.path, O_RDONLY);	/* input_name */
 		if (input < 0) {
 			err = -errno;
 			perror("failed to open file");

@@ -325,6 +325,10 @@ include::itrace.txt[]
 	Set the maximum number of program blocks to print with brstackasm for
 	each sample.
 
+--per-event-dump::
+	Create per event files with a "perf.data.EVENT.dump" name instead of
+        printing to stdout, useful, for instance, for generating flamegraphs.
+
 --inline::
 	If a callgraph address belongs to an inlined function, the inline stack
 	will be printed. Each entry has function name and file/line. Enabled by

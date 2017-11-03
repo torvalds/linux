@@ -578,7 +578,6 @@ static struct syscall_fmt {
 } syscall_fmts[] = {
 	{ .name	    = "access",
 	  .arg = { [1] = { .scnprintf = SCA_ACCMODE,  /* mode */ }, }, },
-	{ .name	    = "arch_prctl", .alias = "prctl", },
 	{ .name	    = "bpf",
 	  .arg = { [0] = STRARRAY(cmd, bpf_cmd), }, },
 	{ .name	    = "brk",	    .hexret = true,
@@ -634,6 +633,12 @@ static struct syscall_fmt {
 #else
 		   [2] = { .scnprintf = SCA_HEX, /* arg */ }, }, },
 #endif
+	{ .name	    = "kcmp",	    .nr_args = 5,
+	  .arg = { [0] = { .name = "pid1",	.scnprintf = SCA_PID, },
+		   [1] = { .name = "pid2",	.scnprintf = SCA_PID, },
+		   [2] = { .name = "type",	.scnprintf = SCA_KCMP_TYPE, },
+		   [3] = { .name = "idx1",	.scnprintf = SCA_KCMP_IDX, },
+		   [4] = { .name = "idx2",	.scnprintf = SCA_KCMP_IDX, }, }, },
 	{ .name	    = "keyctl",
 	  .arg = { [0] = STRARRAY(option, keyctl_options), }, },
 	{ .name	    = "kill",
@@ -703,6 +708,10 @@ static struct syscall_fmt {
 		   [3] = { .scnprintf = SCA_INT,	/* pkey */ }, }, },
 	{ .name	    = "poll", .timeout = true, },
 	{ .name	    = "ppoll", .timeout = true, },
+	{ .name	    = "prctl", .alias = "arch_prctl",
+	  .arg = { [0] = { .scnprintf = SCA_PRCTL_OPTION, /* option */ },
+		   [1] = { .scnprintf = SCA_PRCTL_ARG2, /* arg2 */ },
+		   [2] = { .scnprintf = SCA_PRCTL_ARG3, /* arg3 */ }, }, },
 	{ .name	    = "pread", .alias = "pread64", },
 	{ .name	    = "preadv", .alias = "pread", },
 	{ .name	    = "prlimit64",
@@ -983,6 +992,23 @@ size_t syscall_arg__scnprintf_fd(char *bf, size_t size, struct syscall_arg *arg)
 		printed += scnprintf(bf + printed, size - printed, "<%s>", path);
 
 	return printed;
+}
+
+size_t pid__scnprintf_fd(struct trace *trace, pid_t pid, int fd, char *bf, size_t size)
+{
+        size_t printed = scnprintf(bf, size, "%d", fd);
+	struct thread *thread = machine__find_thread(trace->host, pid, pid);
+
+	if (thread) {
+		const char *path = thread__fd_path(thread, fd, trace);
+
+		if (path)
+			printed += scnprintf(bf + printed, size - printed, "<%s>", path);
+
+		thread__put(thread);
+	}
+
+        return printed;
 }
 
 static size_t syscall_arg__scnprintf_close_fd(char *bf, size_t size,
@@ -2529,10 +2555,12 @@ static int trace__replay(struct trace *trace)
 	const struct perf_evsel_str_handler handlers[] = {
 		{ "probe:vfs_getname",	     trace__vfs_getname, },
 	};
-	struct perf_data_file file = {
-		.path  = input_name,
-		.mode  = PERF_DATA_MODE_READ,
-		.force = trace->force,
+	struct perf_data data = {
+		.file      = {
+			.path = input_name,
+		},
+		.mode      = PERF_DATA_MODE_READ,
+		.force     = trace->force,
 	};
 	struct perf_session *session;
 	struct perf_evsel *evsel;
@@ -2555,7 +2583,7 @@ static int trace__replay(struct trace *trace)
 	/* add tid to output */
 	trace->multiple_threads = true;
 
-	session = perf_session__new(&file, false, &trace->tool);
+	session = perf_session__new(&data, false, &trace->tool);
 	if (session == NULL)
 		return -1;
 
