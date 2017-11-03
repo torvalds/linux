@@ -52,8 +52,7 @@
 #include "../nfp_net.h"
 
 static int
-nfp_net_bpf_offload_prepare(struct nfp_net *nn,
-			    struct tc_cls_bpf_offload *cls_bpf,
+nfp_net_bpf_offload_prepare(struct nfp_net *nn, struct bpf_prog *prog,
 			    struct nfp_bpf_result *res,
 			    void **code, dma_addr_t *dma_addr, u16 max_instr)
 {
@@ -73,9 +72,9 @@ nfp_net_bpf_offload_prepare(struct nfp_net *nn,
 	done_off = nn_readw(nn, NFP_NET_CFG_BPF_DONE);
 
 	stack_size = nn_readb(nn, NFP_NET_CFG_BPF_STACK_SZ) * 64;
-	if (cls_bpf->prog->aux->stack_depth > stack_size) {
+	if (prog->aux->stack_depth > stack_size) {
 		nn_info(nn, "stack too large: program %dB > FW stack %dB\n",
-			cls_bpf->prog->aux->stack_depth, stack_size);
+			prog->aux->stack_depth, stack_size);
 		return -EOPNOTSUPP;
 	}
 
@@ -83,8 +82,7 @@ nfp_net_bpf_offload_prepare(struct nfp_net *nn,
 	if (!*code)
 		return -ENOMEM;
 
-	ret = nfp_bpf_jit(cls_bpf->prog, *code, start_off, done_off,
-			  max_instr, res);
+	ret = nfp_bpf_jit(prog, *code, start_off, done_off, max_instr, res);
 	if (ret)
 		goto out;
 
@@ -96,13 +94,13 @@ out:
 }
 
 static void
-nfp_net_bpf_load_and_start(struct nfp_net *nn, u32 tc_flags,
+nfp_net_bpf_load_and_start(struct nfp_net *nn, bool sw_fallback,
 			   void *code, dma_addr_t dma_addr,
 			   unsigned int code_sz, unsigned int n_instr)
 {
 	int err;
 
-	nn->dp.bpf_offload_skip_sw = !!(tc_flags & TCA_CLS_FLAGS_SKIP_SW);
+	nn->dp.bpf_offload_skip_sw = !sw_fallback;
 
 	nn_writew(nn, NFP_NET_CFG_BPF_SIZE, n_instr);
 	nn_writeq(nn, NFP_NET_CFG_BPF_ADDR, dma_addr);
@@ -134,7 +132,8 @@ static int nfp_net_bpf_stop(struct nfp_net *nn)
 	return nfp_net_reconfig(nn, NFP_NET_CFG_UPDATE_GEN);
 }
 
-int nfp_net_bpf_offload(struct nfp_net *nn, struct tc_cls_bpf_offload *cls_bpf)
+int nfp_net_bpf_offload(struct nfp_net *nn, struct bpf_prog *prog,
+			bool old_prog, bool sw_fallback)
 {
 	struct nfp_bpf_result res;
 	dma_addr_t dma_addr;
@@ -142,49 +141,37 @@ int nfp_net_bpf_offload(struct nfp_net *nn, struct tc_cls_bpf_offload *cls_bpf)
 	void *code;
 	int err;
 
+	/* There is nothing stopping us from implementing seamless
+	 * replace but the simple method of loading I adopted in
+	 * the firmware does not handle atomic replace (i.e. we have to
+	 * stop the BPF offload and re-enable it).  Leaking-in a few
+	 * frames which didn't have BPF applied in the hardware should
+	 * be fine if software fallback is available, though.
+	 */
+	if (prog && old_prog && nn->dp.bpf_offload_skip_sw)
+		return -EBUSY;
+
+	/* Something else is loaded, different program type? */
+	if (!old_prog && nn->dp.ctrl & NFP_NET_CFG_CTRL_BPF)
+		return -EBUSY;
+
 	max_instr = nn_readw(nn, NFP_NET_CFG_BPF_MAX_LEN);
+	code = NULL;
 
-	switch (cls_bpf->command) {
-	case TC_CLSBPF_REPLACE:
-		/* There is nothing stopping us from implementing seamless
-		 * replace but the simple method of loading I adopted in
-		 * the firmware does not handle atomic replace (i.e. we have to
-		 * stop the BPF offload and re-enable it).  Leaking-in a few
-		 * frames which didn't have BPF applied in the hardware should
-		 * be fine if software fallback is available, though.
-		 */
-		if (nn->dp.bpf_offload_skip_sw)
-			return -EBUSY;
-
-		err = nfp_net_bpf_offload_prepare(nn, cls_bpf, &res, &code,
+	if (prog) {
+		err = nfp_net_bpf_offload_prepare(nn, prog, &res, &code,
 						  &dma_addr, max_instr);
 		if (err)
 			return err;
-
-		nfp_net_bpf_stop(nn);
-		nfp_net_bpf_load_and_start(nn, cls_bpf->gen_flags, code,
-					   dma_addr, max_instr * sizeof(u64),
-					   res.n_instr);
-		return 0;
-
-	case TC_CLSBPF_ADD:
-		if (nn->dp.ctrl & NFP_NET_CFG_CTRL_BPF)
-			return -EBUSY;
-
-		err = nfp_net_bpf_offload_prepare(nn, cls_bpf, &res, &code,
-						  &dma_addr, max_instr);
-		if (err)
-			return err;
-
-		nfp_net_bpf_load_and_start(nn, cls_bpf->gen_flags, code,
-					   dma_addr, max_instr * sizeof(u64),
-					   res.n_instr);
-		return 0;
-
-	case TC_CLSBPF_DESTROY:
-		return nfp_net_bpf_stop(nn);
-
-	default:
-		return -EOPNOTSUPP;
 	}
+
+	if (old_prog)
+		nfp_net_bpf_stop(nn);
+
+	if (prog)
+		nfp_net_bpf_load_and_start(nn, sw_fallback, code,
+					   dma_addr, max_instr * sizeof(u64),
+					   res.n_instr);
+
+	return 0;
 }

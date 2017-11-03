@@ -181,8 +181,8 @@ nfp_bpf_jit(struct bpf_prog *filter, void *prog,
 int nfp_prog_verify(struct nfp_prog *nfp_prog, struct bpf_prog *prog);
 
 struct nfp_net;
-struct tc_cls_bpf_offload;
 
-int nfp_net_bpf_offload(struct nfp_net *nn, struct tc_cls_bpf_offload *cls_bpf);
+int nfp_net_bpf_offload(struct nfp_net *nn, struct bpf_prog *prog,
+			bool old_prog, bool sw_fallback);
 
 #endif
