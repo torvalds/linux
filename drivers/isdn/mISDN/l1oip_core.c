@@ -440,14 +440,8 @@ l1oip_socket_recv(struct l1oip *hc, u8 remotecodec, u8 channel, u16 timebase,
 
 #ifdef REORDER_DEBUG
 		if (hc->chan[channel].disorder_flag) {
-			struct sk_buff *skb;
-			int cnt;
-			skb = hc->chan[channel].disorder_skb;
-			hc->chan[channel].disorder_skb = nskb;
-			nskb = skb;
-			cnt = hc->chan[channel].disorder_cnt;
-			hc->chan[channel].disorder_cnt = rx_counter;
-			rx_counter = cnt;
+			swap(hc->chan[channel].disorder_skb, nskb);
+			swap(hc->chan[channel].disorder_cnt, rx_counter);
 		}
 		hc->chan[channel].disorder_flag ^= 1;
 		if (nskb)
