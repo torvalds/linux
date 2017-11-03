@@ -94,20 +94,6 @@ static void dsa_tree_put(struct dsa_switch_tree *dst)
 	kref_put(&dst->refcount, dsa_tree_release);
 }
 
-static void dsa_dst_add_ds(struct dsa_switch_tree *dst,
-			   struct dsa_switch *ds, u32 index)
-{
-	dsa_tree_get(dst);
-	dst->ds[index] = ds;
-}
-
-static void dsa_dst_del_ds(struct dsa_switch_tree *dst,
-			   struct dsa_switch *ds, u32 index)
-{
-	dst->ds[index] = NULL;
-	dsa_tree_put(dst);
-}
-
 /* For platform data configurations, we need to have a valid name argument to
  * differentiate a disabled port from an enabled one
  */
@@ -484,6 +470,27 @@ static void dsa_dst_unapply(struct dsa_switch_tree *dst)
 	dst->applied = false;
 }
 
+static void dsa_tree_remove_switch(struct dsa_switch_tree *dst,
+				   unsigned int index)
+{
+	dst->ds[index] = NULL;
+	dsa_tree_put(dst);
+}
+
+static int dsa_tree_add_switch(struct dsa_switch_tree *dst,
+			       struct dsa_switch *ds)
+{
+	unsigned int index = ds->index;
+
+	if (dst->ds[index])
+		return -EBUSY;
+
+	dsa_tree_get(dst);
+	dst->ds[index] = ds;
+
+	return 0;
+}
+
 static int dsa_cpu_parse(struct dsa_port *port, u32 index,
 			 struct dsa_switch_tree *dst,
 			 struct dsa_switch *ds)
@@ -762,9 +769,6 @@ static int _dsa_register_switch(struct dsa_switch *ds)
 	if (!dst)
 		return -ENOMEM;
 
-	if (dst->ds[index])
-		return -EBUSY;
-
 	ds->dst = dst;
 	ds->index = index;
 	ds->cd = pdata;
@@ -773,7 +777,9 @@ static int _dsa_register_switch(struct dsa_switch *ds)
 	for (i = 0; i < DSA_MAX_SWITCHES; ++i)
 		ds->rtable[i] = DSA_RTABLE_NONE;
 
-	dsa_dst_add_ds(dst, ds, index);
+	err = dsa_tree_add_switch(dst, ds);
+	if (err)
+		return err;
 
 	err = dsa_dst_complete(dst);
 	if (err < 0)
@@ -801,7 +807,7 @@ static int _dsa_register_switch(struct dsa_switch *ds)
 	return 0;
 
 out_del_dst:
-	dsa_dst_del_ds(dst, ds, ds->index);
+	dsa_tree_remove_switch(dst, index);
 
 	return err;
 }
@@ -843,10 +849,11 @@ EXPORT_SYMBOL_GPL(dsa_register_switch);
 static void _dsa_unregister_switch(struct dsa_switch *ds)
 {
 	struct dsa_switch_tree *dst = ds->dst;
+	unsigned int index = ds->index;
 
 	dsa_dst_unapply(dst);
 
-	dsa_dst_del_ds(dst, ds, ds->index);
+	dsa_tree_remove_switch(dst, index);
 }
 
 void dsa_unregister_switch(struct dsa_switch *ds)
