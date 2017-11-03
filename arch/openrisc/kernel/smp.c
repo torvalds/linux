@@ -127,10 +127,10 @@ asmlinkage __init void secondary_start_kernel(void)
 	/*
 	 * OK, now it's safe to let the boot CPU continue
 	 */
-	set_cpu_online(cpu, true);
 	complete(&cpu_running);
 
 	synchronise_count_slave(cpu);
+	set_cpu_online(cpu, true);
 
 	local_irq_enable();
 
