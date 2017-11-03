@@ -617,7 +617,8 @@ static int dsa_port_parse_of(struct dsa_port *dp, struct device_node *dn)
 	return 0;
 }
 
-static int dsa_parse_ports_of(struct device_node *dn, struct dsa_switch *ds)
+static int dsa_switch_parse_ports_of(struct dsa_switch *ds,
+				     struct device_node *dn)
 {
 	struct device_node *ports, *port;
 	struct dsa_port *dp;
@@ -648,6 +649,39 @@ static int dsa_parse_ports_of(struct device_node *dn, struct dsa_switch *ds)
 	return 0;
 }
 
+static int dsa_switch_parse_member_of(struct dsa_switch *ds,
+				      struct device_node *dn)
+{
+	u32 m[2] = { 0, 0 };
+	int sz;
+
+	/* Don't error out if this optional property isn't found */
+	sz = of_property_read_variable_u32_array(dn, "dsa,member", m, 2, 2);
+	if (sz < 0 && sz != -EINVAL)
+		return sz;
+
+	ds->index = m[1];
+	if (ds->index >= DSA_MAX_SWITCHES)
+		return -EINVAL;
+
+	ds->dst = dsa_tree_touch(m[0]);
+	if (!ds->dst)
+		return -ENOMEM;
+
+	return 0;
+}
+
+static int dsa_switch_parse_of(struct dsa_switch *ds, struct device_node *dn)
+{
+	int err;
+
+	err = dsa_switch_parse_member_of(ds, dn);
+	if (err)
+		return err;
+
+	return dsa_switch_parse_ports_of(ds, dn);
+}
+
 static int dsa_port_parse(struct dsa_port *dp, const char *name,
 			  struct device *dev)
 {
@@ -673,7 +707,8 @@ static int dsa_port_parse(struct dsa_port *dp, const char *name,
 	return 0;
 }
 
-static int dsa_parse_ports(struct dsa_chip_data *cd, struct dsa_switch *ds)
+static int dsa_switch_parse_ports(struct dsa_switch *ds,
+				  struct dsa_chip_data *cd)
 {
 	bool valid_name_found = false;
 	struct dsa_port *dp;
@@ -703,40 +738,19 @@ static int dsa_parse_ports(struct dsa_chip_data *cd, struct dsa_switch *ds)
 	return 0;
 }
 
-static int dsa_parse_member_dn(struct device_node *np, u32 *tree, u32 *index)
+static int dsa_switch_parse(struct dsa_switch *ds, struct dsa_chip_data *cd)
 {
-	int err;
+	ds->cd = cd;
 
-	*tree = *index = 0;
+	/* We don't support interconnected switches nor multiple trees via
+	 * platform data, so this is the unique switch of the tree.
+	 */
+	ds->index = 0;
+	ds->dst = dsa_tree_touch(0);
+	if (!ds->dst)
+		return -ENOMEM;
 
-	err = of_property_read_u32_index(np, "dsa,member", 0, tree);
-	if (err) {
-		/* Does not exist, but it is optional */
-		if (err == -EINVAL)
-			return 0;
-		return err;
-	}
-
-	err = of_property_read_u32_index(np, "dsa,member", 1, index);
-	if (err)
-		return err;
-
-	if (*index >= DSA_MAX_SWITCHES)
-		return -EINVAL;
-
-	return 0;
-}
-
-static int dsa_parse_member(struct dsa_chip_data *pd, u32 *tree, u32 *index)
-{
-	if (!pd)
-		return -ENODEV;
-
-	/* We do not support complex trees with dsa_chip_data */
-	*tree = 0;
-	*index = 0;
-
-	return 0;
+	return dsa_switch_parse_ports(ds, cd);
 }
 
 static int _dsa_register_switch(struct dsa_switch *ds)
@@ -744,36 +758,21 @@ static int _dsa_register_switch(struct dsa_switch *ds)
 	struct dsa_chip_data *pdata = ds->dev->platform_data;
 	struct device_node *np = ds->dev->of_node;
 	struct dsa_switch_tree *dst;
-	u32 tree, index;
+	unsigned int index;
 	int i, err;
 
-	if (np) {
-		err = dsa_parse_member_dn(np, &tree, &index);
-		if (err)
-			return err;
-	} else {
-		err = dsa_parse_member(pdata, &tree, &index);
-		if (err)
-			return err;
-	}
+	if (np)
+		err = dsa_switch_parse_of(ds, np);
+	else if (pdata)
+		err = dsa_switch_parse(ds, pdata);
+	else
+		err = -ENODEV;
 
-	dst = dsa_tree_touch(tree);
-	if (!dst)
-		return -ENOMEM;
+	if (err)
+		return err;
 
-	ds->dst = dst;
-	ds->index = index;
-	ds->cd = pdata;
-
-	if (np) {
-		err = dsa_parse_ports_of(np, ds);
-		if (err)
-			return err;
-	} else {
-		err = dsa_parse_ports(pdata, ds);
-		if (err)
-			return err;
-	}
+	index = ds->index;
+	dst = ds->dst;
 
 	/* Initialize the routing table */
 	for (i = 0; i < DSA_MAX_SWITCHES; ++i)
