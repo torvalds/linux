@@ -806,6 +806,8 @@ xfs_bmap_local_to_extents_empty(
 	xfs_bmap_forkoff_reset(ip, whichfork);
 	ifp->if_flags &= ~XFS_IFINLINE;
 	ifp->if_flags |= XFS_IFEXTENTS;
+	ifp->if_u1.if_root = NULL;
+	ifp->if_height = 0;
 	XFS_IFORK_FMT_SET(ip, whichfork, XFS_DINODE_FMT_EXTENTS);
 }
 
@@ -847,8 +849,7 @@ xfs_bmap_local_to_extents(
 
 	flags = 0;
 	error = 0;
-	ASSERT((ifp->if_flags & (XFS_IFINLINE|XFS_IFEXTENTS|XFS_IFEXTIREC)) ==
-								XFS_IFINLINE);
+	ASSERT((ifp->if_flags & (XFS_IFINLINE|XFS_IFEXTENTS)) == XFS_IFINLINE);
 	memset(&args, 0, sizeof(args));
 	args.tp = tp;
 	args.mp = ip->i_mount;
@@ -891,6 +892,9 @@ xfs_bmap_local_to_extents(
 	xfs_idata_realloc(ip, -ifp->if_bytes, whichfork);
 	xfs_bmap_local_to_extents_empty(ip, whichfork);
 	flags |= XFS_ILOG_CORE;
+
+	ifp->if_u1.if_root = NULL;
+	ifp->if_height = 0;
 
 	rec.br_startoff = 0;
 	rec.br_startblock = args.fsbno;
@@ -1178,6 +1182,7 @@ xfs_iread_extents(
 	xfs_extnum_t		nextents = XFS_IFORK_NEXTENTS(ip, whichfork);
 	struct xfs_btree_block	*block = ifp->if_broot;
 	struct xfs_iext_cursor	icur;
+	struct xfs_bmbt_irec	new;
 	xfs_fsblock_t		bno;
 	struct xfs_buf		*bp;
 	xfs_extnum_t		i, j;
@@ -1191,10 +1196,6 @@ xfs_iread_extents(
 		XFS_ERROR_REPORT(__func__, XFS_ERRLEVEL_LOW, mp);
 		return -EFSCORRUPTED;
 	}
-
-	ifp->if_bytes = 0;
-	ifp->if_real_bytes = 0;
-	xfs_iext_add(ifp, 0, nextents);
 
 	/*
 	 * Root level must use BMAP_BROOT_PTR_ADDR macro to get ptr out.
@@ -1259,16 +1260,15 @@ xfs_iread_extents(
 		 * Copy records into the extent records.
 		 */
 		frp = XFS_BMBT_REC_ADDR(mp, block, 1);
-		for (j = 0; j < num_recs; j++, i++, frp++) {
-			xfs_bmbt_rec_host_t *trp = xfs_iext_get_ext(ifp, i);
+		for (j = 0; j < num_recs; j++, frp++, i++) {
 			if (!xfs_bmbt_validate_extent(mp, whichfork, frp)) {
 				XFS_ERROR_REPORT("xfs_bmap_read_extents(2)",
 						 XFS_ERRLEVEL_LOW, mp);
 				error = -EFSCORRUPTED;
 				goto out_brelse;
 			}
-			trp->l0 = be64_to_cpu(frp->l0);
-			trp->l1 = be64_to_cpu(frp->l1);
+			xfs_bmbt_disk_get_all(frp, &new);
+			xfs_iext_insert(ip, &icur, 1, &new, state);
 			trace_xfs_read_extent(ip, &icur, state, _THIS_IP_);
 			xfs_iext_next(ifp, &icur);
 		}

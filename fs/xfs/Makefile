@@ -49,6 +49,7 @@ xfs-y				+= $(addprefix libxfs/, \
 				   xfs_dquot_buf.o \
 				   xfs_ialloc.o \
 				   xfs_ialloc_btree.o \
+				   xfs_iext_tree.o \
 				   xfs_inode_fork.o \
 				   xfs_inode_buf.o \
 				   xfs_log_rlimit.o \

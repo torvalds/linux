@@ -143,7 +143,8 @@ typedef uint32_t	xfs_dqid_t;
 #define	XFS_WORDMASK	((1 << XFS_WORDLOG) - 1)
 
 struct xfs_iext_cursor {
-	xfs_extnum_t		idx;
+	struct xfs_iext_leaf	*leaf;
+	int			pos;
 };
 
 #endif	/* __XFS_TYPES_H__ */

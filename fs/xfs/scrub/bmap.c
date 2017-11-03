@@ -168,7 +168,6 @@ xfs_scrub_bmapbt_rec(
 	struct xfs_scrub_btree		*bs,
 	union xfs_btree_rec		*rec)
 {
-	struct xfs_bmbt_rec_host	ihost;
 	struct xfs_bmbt_irec		irec;
 	struct xfs_scrub_bmap_info	*info = bs->private;
 	struct xfs_inode		*ip = bs->cur->bc_private.b.ip;
@@ -193,9 +192,7 @@ xfs_scrub_bmapbt_rec(
 	}
 
 	/* Set up the in-core record and scrub it. */
-	ihost.l0 = be64_to_cpu(rec->bmbt.l0);
-	ihost.l1 = be64_to_cpu(rec->bmbt.l1);
-	xfs_bmbt_get_all(&ihost, &irec);
+	xfs_bmbt_disk_get_all(&rec->bmbt, &irec);
 	return xfs_scrub_bmap_extent(ip, bs->cur, info, &irec);
 }
 
