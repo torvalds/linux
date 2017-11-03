@@ -15,16 +15,17 @@
 #define _NVME_H
 
 #include <linux/nvme.h>
+#include <linux/cdev.h>
 #include <linux/pci.h>
 #include <linux/kref.h>
 #include <linux/blk-mq.h>
 #include <linux/lightnvm.h>
 #include <linux/sed-opal.h>
 
-extern unsigned char nvme_io_timeout;
+extern unsigned int nvme_io_timeout;
 #define NVME_IO_TIMEOUT	(nvme_io_timeout * HZ)
 
-extern unsigned char admin_timeout;
+extern unsigned int admin_timeout;
 #define ADMIN_TIMEOUT	(admin_timeout * HZ)
 
 #define NVME_DEFAULT_KATO	5
@@ -127,16 +128,17 @@ struct nvme_ctrl {
 	struct request_queue *admin_q;
 	struct request_queue *connect_q;
 	struct device *dev;
-	struct kref kref;
 	int instance;
 	struct blk_mq_tag_set *tagset;
 	struct blk_mq_tag_set *admin_tagset;
 	struct list_head namespaces;
 	struct mutex namespaces_mutex;
+	struct device ctrl_device;
 	struct device *device;	/* char device */
-	struct list_head node;
+	struct cdev cdev;
 	struct ida ns_ida;
 	struct work_struct reset_work;
+	struct work_struct delete_work;
 
 	struct opal_dev *opal_dev;
 
@@ -235,8 +237,9 @@ struct nvme_ctrl_ops {
 	int (*reg_read64)(struct nvme_ctrl *ctrl, u32 off, u64 *val);
 	void (*free_ctrl)(struct nvme_ctrl *ctrl);
 	void (*submit_async_event)(struct nvme_ctrl *ctrl, int aer_idx);
-	int (*delete_ctrl)(struct nvme_ctrl *ctrl);
+	void (*delete_ctrl)(struct nvme_ctrl *ctrl);
 	int (*get_address)(struct nvme_ctrl *ctrl, char *buf, int size);
+	int (*reinit_request)(void *data, struct request *rq);
 };
 
 static inline bool nvme_ctrl_ready(struct nvme_ctrl *ctrl)
@@ -278,6 +281,16 @@ static inline void nvme_end_request(struct request *req, __le16 status,
 	blk_mq_complete_request(req);
 }
 
+static inline void nvme_get_ctrl(struct nvme_ctrl *ctrl)
+{
+	get_device(ctrl->device);
+}
+
+static inline void nvme_put_ctrl(struct nvme_ctrl *ctrl)
+{
+	put_device(ctrl->device);
+}
+
 void nvme_complete_rq(struct request *req);
 void nvme_cancel_request(struct request *req, void *data, bool reserved);
 bool nvme_change_ctrl_state(struct nvme_ctrl *ctrl,
@@ -311,6 +324,7 @@ void nvme_unfreeze(struct nvme_ctrl *ctrl);
 void nvme_wait_freeze(struct nvme_ctrl *ctrl);
 void nvme_wait_freeze_timeout(struct nvme_ctrl *ctrl, long timeout);
 void nvme_start_freeze(struct nvme_ctrl *ctrl);
+int nvme_reinit_tagset(struct nvme_ctrl *ctrl, struct blk_mq_tag_set *set);
 
 #define NVME_QID_ANY -1
 struct request *nvme_alloc_request(struct request_queue *q,
@@ -326,6 +340,8 @@ int nvme_set_queue_count(struct nvme_ctrl *ctrl, int *count);
 void nvme_start_keep_alive(struct nvme_ctrl *ctrl);
 void nvme_stop_keep_alive(struct nvme_ctrl *ctrl);
 int nvme_reset_ctrl(struct nvme_ctrl *ctrl);
+int nvme_delete_ctrl(struct nvme_ctrl *ctrl);
+int nvme_delete_ctrl_sync(struct nvme_ctrl *ctrl);
 
 #ifdef CONFIG_NVM
 int nvme_nvm_register(struct nvme_ns *ns, char *disk_name, int node);

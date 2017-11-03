@@ -53,7 +53,6 @@ struct nvme_loop_ctrl {
 	struct nvme_ctrl	ctrl;
 
 	struct nvmet_ctrl	*target_ctrl;
-	struct work_struct	delete_work;
 };
 
 static inline struct nvme_loop_ctrl *to_loop_ctrl(struct nvme_ctrl *ctrl)
@@ -365,6 +364,7 @@ static int nvme_loop_configure_admin_queue(struct nvme_loop_ctrl *ctrl)
 	ctrl->admin_tag_set.driver_data = ctrl;
 	ctrl->admin_tag_set.nr_hw_queues = 1;
 	ctrl->admin_tag_set.timeout = ADMIN_TIMEOUT;
+	ctrl->admin_tag_set.flags = BLK_MQ_F_NO_SCHED;
 
 	ctrl->queues[0].ctrl = ctrl;
 	error = nvmet_sq_init(&ctrl->queues[0].nvme_sq);
@@ -438,41 +438,9 @@ static void nvme_loop_shutdown_ctrl(struct nvme_loop_ctrl *ctrl)
 	nvme_loop_destroy_admin_queue(ctrl);
 }
 
-static void nvme_loop_del_ctrl_work(struct work_struct *work)
+static void nvme_loop_delete_ctrl_host(struct nvme_ctrl *ctrl)
 {
-	struct nvme_loop_ctrl *ctrl = container_of(work,
-				struct nvme_loop_ctrl, delete_work);
-
-	nvme_stop_ctrl(&ctrl->ctrl);
-	nvme_remove_namespaces(&ctrl->ctrl);
-	nvme_loop_shutdown_ctrl(ctrl);
-	nvme_uninit_ctrl(&ctrl->ctrl);
-	nvme_put_ctrl(&ctrl->ctrl);
-}
-
-static int __nvme_loop_del_ctrl(struct nvme_loop_ctrl *ctrl)
-{
-	if (!nvme_change_ctrl_state(&ctrl->ctrl, NVME_CTRL_DELETING))
-		return -EBUSY;
-
-	if (!queue_work(nvme_wq, &ctrl->delete_work))
-		return -EBUSY;
-
-	return 0;
-}
-
-static int nvme_loop_del_ctrl(struct nvme_ctrl *nctrl)
-{
-	struct nvme_loop_ctrl *ctrl = to_loop_ctrl(nctrl);
-	int ret;
-
-	ret = __nvme_loop_del_ctrl(ctrl);
-	if (ret)
-		return ret;
-
-	flush_work(&ctrl->delete_work);
-
-	return 0;
+	nvme_loop_shutdown_ctrl(to_loop_ctrl(ctrl));
 }
 
 static void nvme_loop_delete_ctrl(struct nvmet_ctrl *nctrl)
@@ -482,7 +450,7 @@ static void nvme_loop_delete_ctrl(struct nvmet_ctrl *nctrl)
 	mutex_lock(&nvme_loop_ctrl_mutex);
 	list_for_each_entry(ctrl, &nvme_loop_ctrl_list, list) {
 		if (ctrl->ctrl.cntlid == nctrl->cntlid)
-			__nvme_loop_del_ctrl(ctrl);
+			nvme_delete_ctrl(&ctrl->ctrl);
 	}
 	mutex_unlock(&nvme_loop_ctrl_mutex);
 }
@@ -538,7 +506,7 @@ static const struct nvme_ctrl_ops nvme_loop_ctrl_ops = {
 	.reg_write32		= nvmf_reg_write32,
 	.free_ctrl		= nvme_loop_free_ctrl,
 	.submit_async_event	= nvme_loop_submit_async_event,
-	.delete_ctrl		= nvme_loop_del_ctrl,
+	.delete_ctrl		= nvme_loop_delete_ctrl_host,
 };
 
 static int nvme_loop_create_io_queues(struct nvme_loop_ctrl *ctrl)
@@ -600,7 +568,6 @@ static struct nvme_ctrl *nvme_loop_create_ctrl(struct device *dev,
 	ctrl->ctrl.opts = opts;
 	INIT_LIST_HEAD(&ctrl->list);
 
-	INIT_WORK(&ctrl->delete_work, nvme_loop_del_ctrl_work);
 	INIT_WORK(&ctrl->ctrl.reset_work, nvme_loop_reset_ctrl_work);
 
 	ret = nvme_init_ctrl(&ctrl->ctrl, dev, &nvme_loop_ctrl_ops,
@@ -641,7 +608,7 @@ static struct nvme_ctrl *nvme_loop_create_ctrl(struct device *dev,
 	dev_info(ctrl->ctrl.device,
 		 "new ctrl: \"%s\"\n", ctrl->ctrl.opts->subsysnqn);
 
-	kref_get(&ctrl->ctrl.kref);
+	nvme_get_ctrl(&ctrl->ctrl);
 
 	changed = nvme_change_ctrl_state(&ctrl->ctrl, NVME_CTRL_LIVE);
 	WARN_ON_ONCE(!changed);
@@ -730,7 +697,7 @@ static void __exit nvme_loop_cleanup_module(void)
 
 	mutex_lock(&nvme_loop_ctrl_mutex);
 	list_for_each_entry_safe(ctrl, next, &nvme_loop_ctrl_list, list)
-		__nvme_loop_del_ctrl(ctrl);
+		nvme_delete_ctrl(&ctrl->ctrl);
 	mutex_unlock(&nvme_loop_ctrl_mutex);
 
 	flush_workqueue(nvme_wq);
