@@ -381,7 +381,7 @@ void kvm_mmu_set_mask_ptes(u64 user_mask, u64 accessed_mask,
 }
 EXPORT_SYMBOL_GPL(kvm_mmu_set_mask_ptes);
 
-void kvm_mmu_clear_all_pte_masks(void)
+static void kvm_mmu_clear_all_pte_masks(void)
 {
 	shadow_user_mask = 0;
 	shadow_accessed_mask = 0;
