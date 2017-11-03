@@ -1332,14 +1332,22 @@ static int mlxsw_sp_netdevice_ipip_ol_up_event(struct mlxsw_sp *mlxsw_sp,
 	return 0;
 }
 
+static void
+mlxsw_sp_ipip_entry_ol_down_event(struct mlxsw_sp *mlxsw_sp,
+				  struct mlxsw_sp_ipip_entry *ipip_entry)
+{
+	if (ipip_entry->decap_fib_entry)
+		mlxsw_sp_ipip_entry_demote_decap(mlxsw_sp, ipip_entry);
+}
+
 static void mlxsw_sp_netdevice_ipip_ol_down_event(struct mlxsw_sp *mlxsw_sp,
 						  struct net_device *ol_dev)
 {
 	struct mlxsw_sp_ipip_entry *ipip_entry;
 
 	ipip_entry = mlxsw_sp_ipip_entry_find_by_ol_dev(mlxsw_sp, ol_dev);
-	if (ipip_entry && ipip_entry->decap_fib_entry)
-		mlxsw_sp_ipip_entry_demote_decap(mlxsw_sp, ipip_entry);
+	if (ipip_entry)
+		mlxsw_sp_ipip_entry_ol_down_event(mlxsw_sp, ipip_entry);
 }
 
 static int mlxsw_sp_netdevice_ipip_ol_vrf_event(struct mlxsw_sp *mlxsw_sp,
