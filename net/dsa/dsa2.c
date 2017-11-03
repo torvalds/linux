@@ -21,33 +21,35 @@
 
 #include "dsa_priv.h"
 
-static LIST_HEAD(dsa_switch_trees);
+static LIST_HEAD(dsa_tree_list);
 static DEFINE_MUTEX(dsa2_mutex);
 
 static const struct devlink_ops dsa_devlink_ops = {
 };
 
-static struct dsa_switch_tree *dsa_get_dst(unsigned int index)
+static struct dsa_switch_tree *dsa_tree_find(int index)
 {
 	struct dsa_switch_tree *dst;
 
-	list_for_each_entry(dst, &dsa_switch_trees, list)
+	list_for_each_entry(dst, &dsa_tree_list, list)
 		if (dst->index == index)
 			return dst;
 
 	return NULL;
 }
 
-static struct dsa_switch_tree *dsa_add_dst(unsigned int index)
+static struct dsa_switch_tree *dsa_tree_alloc(int index)
 {
 	struct dsa_switch_tree *dst;
 
 	dst = kzalloc(sizeof(*dst), GFP_KERNEL);
 	if (!dst)
 		return NULL;
+
 	dst->index = index;
+
 	INIT_LIST_HEAD(&dst->list);
-	list_add_tail(&dsa_switch_trees, &dst->list);
+	list_add_tail(&dsa_tree_list, &dst->list);
 
 	/* Initialize the reference counter to the number of switches, not 1 */
 	kref_init(&dst->refcount);
@@ -60,6 +62,17 @@ static void dsa_tree_free(struct dsa_switch_tree *dst)
 {
 	list_del(&dst->list);
 	kfree(dst);
+}
+
+static struct dsa_switch_tree *dsa_tree_touch(int index)
+{
+	struct dsa_switch_tree *dst;
+
+	dst = dsa_tree_find(index);
+	if (!dst)
+		dst = dsa_tree_alloc(index);
+
+	return dst;
 }
 
 static void dsa_tree_get(struct dsa_switch_tree *dst)
@@ -745,12 +758,9 @@ static int _dsa_register_switch(struct dsa_switch *ds)
 			return err;
 	}
 
-	dst = dsa_get_dst(tree);
-	if (!dst) {
-		dst = dsa_add_dst(tree);
-		if (!dst)
-			return -ENOMEM;
-	}
+	dst = dsa_tree_touch(tree);
+	if (!dst)
+		return -ENOMEM;
 
 	if (dst->ds[index])
 		return -EBUSY;
