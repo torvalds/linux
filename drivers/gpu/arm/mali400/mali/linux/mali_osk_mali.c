@@ -85,11 +85,12 @@ static _mali_osk_resource_t mali_osk_resource_bank[MALI_OSK_MAX_RESOURCE_NUMBER]
 	{.description = "Mali_PP1", .base = MALI_OFFSET_PP1, .irq_name = "Mali_PP1_IRQ",},
 	/* {.description = "Mali_PP1_MMU", .base = MALI_OFFSET_PP1_MMU, .irq_name = "IRQPPMMU1",}, */
 	{.description = "Mali_PP1_MMU", .base = MALI_OFFSET_PP1_MMU, .irq_name = "Mali_PP1_MMU_IRQ",},
+
+	{.description = "Mali_PP2", .base = MALI_OFFSET_PP2, .irq_name = "Mali_PP2_IRQ",},
+	{.description = "Mali_PP2_MMU", .base = MALI_OFFSET_PP2_MMU, .irq_name = "Mali_PP2_MMU_IRQ",},
+	{.description = "Mali_PP3", .base = MALI_OFFSET_PP3, .irq_name = "Mali_PP3_IRQ",},
+	{.description = "Mali_PP3_MMU", .base = MALI_OFFSET_PP3_MMU, .irq_name = "Mali_PP3_MMU_IRQ",},
 	/*-------------------------------------------------------*/
-	{.description = "Mali_PP2", .base = MALI_OFFSET_PP2, .irq_name = "IRQPP2",},
-	{.description = "Mali_PP2_MMU", .base = MALI_OFFSET_PP2_MMU, .irq_name = "IRQPPMMU2",},
-	{.description = "Mali_PP3", .base = MALI_OFFSET_PP3, .irq_name = "IRQPP3",},
-	{.description = "Mali_PP3_MMU", .base = MALI_OFFSET_PP3_MMU, .irq_name = "IRQPPMMU3",},
 	{.description = "Mali_PP4", .base = MALI_OFFSET_PP4, .irq_name = "IRQPP4",},
 	{.description = "Mali_PP4_MMU", .base = MALI_OFFSET_PP4_MMU, .irq_name = "IRQPPMMU4",},
 	{.description = "Mali_PP5", .base = MALI_OFFSET_PP5, .irq_name = "IRQPP5",},
