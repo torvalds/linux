@@ -59,6 +59,8 @@ enum i40iw_status_code i40iw_sc_mr_fast_register(struct i40iw_sc_qp *qp,
 						 struct i40iw_fast_reg_stag_info *info,
 						 bool post_sq);
 
+void i40iw_insert_wqe_hdr(u64 *wqe, u64 header);
+
 /* HMC/FPM functions */
 enum i40iw_status_code i40iw_sc_init_iw_hmc(struct i40iw_sc_dev *dev,
 					    u8 hmc_fn_id);

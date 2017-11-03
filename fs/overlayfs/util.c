@@ -430,7 +430,7 @@ void ovl_inuse_unlock(struct dentry *dentry)
 	}
 }
 
-/* Called must hold OVL_I(inode)->oi_lock */
+/* Caller must hold OVL_I(inode)->lock */
 static void ovl_cleanup_index(struct dentry *dentry)
 {
 	struct inode *dir = ovl_indexdir(dentry->d_sb)->d_inode;
@@ -469,6 +469,9 @@ static void ovl_cleanup_index(struct dentry *dentry)
 	err = PTR_ERR(index);
 	if (!IS_ERR(index))
 		err = ovl_cleanup(dir, index);
+	else
+		index = NULL;
+
 	inode_unlock(dir);
 	if (err)
 		goto fail;
@@ -556,4 +559,23 @@ void ovl_nlink_end(struct dentry *dentry, bool locked)
 
 		mutex_unlock(&OVL_I(d_inode(dentry))->lock);
 	}
+}
+
+int ovl_lock_rename_workdir(struct dentry *workdir, struct dentry *upperdir)
+{
+	/* Workdir should not be the same as upperdir */
+	if (workdir == upperdir)
+		goto err;
+
+	/* Workdir should not be subdir of upperdir and vice versa */
+	if (lock_rename(workdir, upperdir) != NULL)
+		goto err_unlock;
+
+	return 0;
+
+err_unlock:
+	unlock_rename(workdir, upperdir);
+err:
+	pr_err("overlayfs: failed to lock workdir+upperdir\n");
+	return -EIO;
 }

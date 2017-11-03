@@ -666,9 +666,15 @@ static void i2c_adapter_unlock_bus(struct i2c_adapter *adapter,
 }
 
 static void i2c_dev_set_name(struct i2c_adapter *adap,
-			     struct i2c_client *client)
+			     struct i2c_client *client,
+			     struct i2c_board_info const *info)
 {
 	struct acpi_device *adev = ACPI_COMPANION(&client->dev);
+
+	if (info && info->dev_name) {
+		dev_set_name(&client->dev, "i2c-%s", info->dev_name);
+		return;
+	}
 
 	if (adev) {
 		dev_set_name(&client->dev, "i2c-%s", acpi_dev_name(adev));
@@ -766,7 +772,7 @@ i2c_new_device(struct i2c_adapter *adap, struct i2c_board_info const *info)
 	client->dev.of_node = info->of_node;
 	client->dev.fwnode = info->fwnode;
 
-	i2c_dev_set_name(adap, client);
+	i2c_dev_set_name(adap, client, info);
 
 	if (info->properties) {
 		status = device_add_properties(&client->dev, info->properties);

@@ -1048,7 +1048,7 @@ static int nf_tables_fill_chain_info(struct sk_buff *skb, struct net *net,
 		if (nla_put_string(skb, NFTA_CHAIN_TYPE, basechain->type->name))
 			goto nla_put_failure;
 
-		if (nft_dump_stats(skb, nft_base_chain(chain)->stats))
+		if (basechain->stats && nft_dump_stats(skb, basechain->stats))
 			goto nla_put_failure;
 	}
 
@@ -1487,8 +1487,8 @@ static int nf_tables_updchain(struct nft_ctx *ctx, u8 genmask, u8 policy,
 
 		chain2 = nf_tables_chain_lookup(table, nla[NFTA_CHAIN_NAME],
 						genmask);
-		if (IS_ERR(chain2))
-			return PTR_ERR(chain2);
+		if (!IS_ERR(chain2))
+			return -EEXIST;
 	}
 
 	if (nla[NFTA_CHAIN_COUNTERS]) {
@@ -2741,8 +2741,10 @@ cont:
 	list_for_each_entry(i, &ctx->table->sets, list) {
 		if (!nft_is_active_next(ctx->net, i))
 			continue;
-		if (!strcmp(set->name, i->name))
+		if (!strcmp(set->name, i->name)) {
+			kfree(set->name);
 			return -ENFILE;
+		}
 	}
 	return 0;
 }

@@ -254,7 +254,7 @@
 
 			ap_syscon: system-controller@6f4000 {
 				compatible = "syscon", "simple-mfd";
-				reg = <0x6f4000 0x1000>;
+				reg = <0x6f4000 0x2000>;
 
 				ap_clk: clock {
 					compatible = "marvell,ap806-clock";
@@ -265,7 +265,7 @@
 					compatible = "marvell,ap806-pinctrl";
 				};
 
-				ap_gpio: gpio {
+				ap_gpio: gpio@1040 {
 					compatible = "marvell,armada-8k-gpio";
 					offset = <0x1040>;
 					ngpios = <20>;

@@ -110,6 +110,10 @@ build_mmio_write(__writeq, "q", unsigned long, "r", )
 
 #endif
 
+#define ARCH_HAS_VALID_PHYS_ADDR_RANGE
+extern int valid_phys_addr_range(phys_addr_t addr, size_t size);
+extern int valid_mmap_phys_addr_range(unsigned long pfn, size_t size);
+
 /**
  *	virt_to_phys	-	map virtual addresses to physical
  *	@address: address to remap

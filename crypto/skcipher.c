@@ -426,13 +426,8 @@ static int skcipher_copy_iv(struct skcipher_walk *walk)
 
 static int skcipher_walk_first(struct skcipher_walk *walk)
 {
-	walk->nbytes = 0;
-
 	if (WARN_ON_ONCE(in_irq()))
 		return -EDEADLK;
-
-	if (unlikely(!walk->total))
-		return 0;
 
 	walk->buffer = NULL;
 	if (unlikely(((unsigned long)walk->iv & walk->alignmask))) {
@@ -452,10 +447,15 @@ static int skcipher_walk_skcipher(struct skcipher_walk *walk,
 {
 	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
 
+	walk->total = req->cryptlen;
+	walk->nbytes = 0;
+
+	if (unlikely(!walk->total))
+		return 0;
+
 	scatterwalk_start(&walk->in, req->src);
 	scatterwalk_start(&walk->out, req->dst);
 
-	walk->total = req->cryptlen;
 	walk->iv = req->iv;
 	walk->oiv = req->iv;
 
@@ -508,6 +508,11 @@ static int skcipher_walk_aead_common(struct skcipher_walk *walk,
 {
 	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
 	int err;
+
+	walk->nbytes = 0;
+
+	if (unlikely(!walk->total))
+		return 0;
 
 	walk->flags &= ~SKCIPHER_WALK_PHYS;
 

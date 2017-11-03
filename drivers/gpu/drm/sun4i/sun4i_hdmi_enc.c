@@ -302,26 +302,29 @@ static int sun4i_hdmi_bind(struct device *dev, struct device *master,
 	hdmi->mod_clk = devm_clk_get(dev, "mod");
 	if (IS_ERR(hdmi->mod_clk)) {
 		dev_err(dev, "Couldn't get the HDMI mod clock\n");
-		return PTR_ERR(hdmi->mod_clk);
+		ret = PTR_ERR(hdmi->mod_clk);
+		goto err_disable_bus_clk;
 	}
 	clk_prepare_enable(hdmi->mod_clk);
 
 	hdmi->pll0_clk = devm_clk_get(dev, "pll-0");
 	if (IS_ERR(hdmi->pll0_clk)) {
 		dev_err(dev, "Couldn't get the HDMI PLL 0 clock\n");
-		return PTR_ERR(hdmi->pll0_clk);
+		ret = PTR_ERR(hdmi->pll0_clk);
+		goto err_disable_mod_clk;
 	}
 
 	hdmi->pll1_clk = devm_clk_get(dev, "pll-1");
 	if (IS_ERR(hdmi->pll1_clk)) {
 		dev_err(dev, "Couldn't get the HDMI PLL 1 clock\n");
-		return PTR_ERR(hdmi->pll1_clk);
+		ret = PTR_ERR(hdmi->pll1_clk);
+		goto err_disable_mod_clk;
 	}
 
 	ret = sun4i_tmds_create(hdmi);
 	if (ret) {
 		dev_err(dev, "Couldn't create the TMDS clock\n");
-		return ret;
+		goto err_disable_mod_clk;
 	}
 
 	writel(SUN4I_HDMI_CTRL_ENABLE, hdmi->base + SUN4I_HDMI_CTRL_REG);
@@ -362,7 +365,7 @@ static int sun4i_hdmi_bind(struct device *dev, struct device *master,
 	ret = sun4i_hdmi_i2c_create(dev, hdmi);
 	if (ret) {
 		dev_err(dev, "Couldn't create the HDMI I2C adapter\n");
-		return ret;
+		goto err_disable_mod_clk;
 	}
 
 	drm_encoder_helper_add(&hdmi->encoder,
@@ -422,6 +425,10 @@ err_cleanup_connector:
 	drm_encoder_cleanup(&hdmi->encoder);
 err_del_i2c_adapter:
 	i2c_del_adapter(hdmi->i2c);
+err_disable_mod_clk:
+	clk_disable_unprepare(hdmi->mod_clk);
+err_disable_bus_clk:
+	clk_disable_unprepare(hdmi->bus_clk);
 	return ret;
 }
 
@@ -434,6 +441,8 @@ static void sun4i_hdmi_unbind(struct device *dev, struct device *master,
 	drm_connector_cleanup(&hdmi->connector);
 	drm_encoder_cleanup(&hdmi->encoder);
 	i2c_del_adapter(hdmi->i2c);
+	clk_disable_unprepare(hdmi->mod_clk);
+	clk_disable_unprepare(hdmi->bus_clk);
 }
 
 static const struct component_ops sun4i_hdmi_ops = {

@@ -783,10 +783,7 @@ static inline struct cpumask *irq_data_get_affinity_mask(struct irq_data *d)
 static inline
 struct cpumask *irq_data_get_effective_affinity_mask(struct irq_data *d)
 {
-	if (!cpumask_empty(d->common->effective_affinity))
-		return d->common->effective_affinity;
-
-	return d->common->affinity;
+	return d->common->effective_affinity;
 }
 static inline void irq_data_update_effective_affinity(struct irq_data *d,
 						      const struct cpumask *m)
@@ -1012,7 +1009,7 @@ void irq_gc_mask_clr_bit(struct irq_data *d);
 void irq_gc_unmask_enable_reg(struct irq_data *d);
 void irq_gc_ack_set_bit(struct irq_data *d);
 void irq_gc_ack_clr_bit(struct irq_data *d);
-void irq_gc_mask_disable_reg_and_ack(struct irq_data *d);
+void irq_gc_mask_disable_and_ack_set(struct irq_data *d);
 void irq_gc_eoi(struct irq_data *d);
 int irq_gc_set_wake(struct irq_data *d, unsigned int on);
 

@@ -664,8 +664,8 @@ intel_ddi_get_buf_trans_fdi(struct drm_i915_private *dev_priv,
 			    int *n_entries)
 {
 	if (IS_BROADWELL(dev_priv)) {
-		*n_entries = ARRAY_SIZE(hsw_ddi_translations_fdi);
-		return hsw_ddi_translations_fdi;
+		*n_entries = ARRAY_SIZE(bdw_ddi_translations_fdi);
+		return bdw_ddi_translations_fdi;
 	} else if (IS_HASWELL(dev_priv)) {
 		*n_entries = ARRAY_SIZE(hsw_ddi_translations_fdi);
 		return hsw_ddi_translations_fdi;
@@ -1655,7 +1655,8 @@ bool intel_ddi_get_hw_state(struct intel_encoder *encoder,
 out:
 	if (ret && IS_GEN9_LP(dev_priv)) {
 		tmp = I915_READ(BXT_PHY_CTL(port));
-		if ((tmp & (BXT_PHY_LANE_POWERDOWN_ACK |
+		if ((tmp & (BXT_PHY_CMNLANE_POWERDOWN_ACK |
+			    BXT_PHY_LANE_POWERDOWN_ACK |
 			    BXT_PHY_LANE_ENABLED)) != BXT_PHY_LANE_ENABLED)
 			DRM_ERROR("Port %c enabled but PHY powered down? "
 				  "(PHY_CTL %08x)\n", port_name(port), tmp);
@@ -2101,8 +2102,7 @@ static void intel_ddi_clk_select(struct intel_encoder *encoder,
 		 * register writes.
 		 */
 		val = I915_READ(DPCLKA_CFGCR0);
-		val &= ~(DPCLKA_CFGCR0_DDI_CLK_OFF(port) |
-			 DPCLKA_CFGCR0_DDI_CLK_SEL_MASK(port));
+		val &= ~DPCLKA_CFGCR0_DDI_CLK_OFF(port);
 		I915_WRITE(DPCLKA_CFGCR0, val);
 	} else if (IS_GEN9_BC(dev_priv)) {
 		/* DDI -> PLL mapping  */

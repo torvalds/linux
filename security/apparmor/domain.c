@@ -374,8 +374,8 @@ static const char *next_name(int xtype, const char *name)
  *
  * Returns: refcounted label, or NULL on failure (MAYBE NULL)
  */
-static struct aa_label *x_table_lookup(struct aa_profile *profile, u32 xindex,
-				       const char **name)
+struct aa_label *x_table_lookup(struct aa_profile *profile, u32 xindex,
+				const char **name)
 {
 	struct aa_label *label = NULL;
 	u32 xtype = xindex & AA_X_TYPE_MASK;

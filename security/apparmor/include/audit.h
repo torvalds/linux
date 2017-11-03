@@ -71,6 +71,10 @@ enum audit_type {
 #define OP_FMPROT "file_mprotect"
 #define OP_INHERIT "file_inherit"
 
+#define OP_PIVOTROOT "pivotroot"
+#define OP_MOUNT "mount"
+#define OP_UMOUNT "umount"
+
 #define OP_CREATE "create"
 #define OP_POST_CREATE "post_create"
 #define OP_BIND "bind"
@@ -86,6 +90,7 @@ enum audit_type {
 #define OP_SHUTDOWN "socket_shutdown"
 
 #define OP_PTRACE "ptrace"
+#define OP_SIGNAL "signal"
 
 #define OP_EXEC "exec"
 
@@ -116,20 +121,36 @@ struct apparmor_audit_data {
 		/* these entries require a custom callback fn */
 		struct {
 			struct aa_label *peer;
-			struct {
-				const char *target;
-				kuid_t ouid;
-			} fs;
+			union {
+				struct {
+					kuid_t ouid;
+					const char *target;
+				} fs;
+				struct {
+					int type, protocol;
+					struct sock *peer_sk;
+					void *addr;
+					int addrlen;
+				} net;
+				int signal;
+				struct {
+					int rlim;
+					unsigned long max;
+				} rlim;
+			};
 		};
 		struct {
-			const char *name;
-			long pos;
+			struct aa_profile *profile;
 			const char *ns;
+			long pos;
 		} iface;
 		struct {
-			int rlim;
-			unsigned long max;
-		} rlim;
+			const char *src_name;
+			const char *type;
+			const char *trans;
+			const char *data;
+			unsigned long flags;
+		} mnt;
 	};
 };
 

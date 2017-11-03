@@ -393,7 +393,13 @@ static void pnv_program_cpu_hotplug_lpcr(unsigned int cpu, u64 lpcr_val)
 	u64 pir = get_hard_smp_processor_id(cpu);
 
 	mtspr(SPRN_LPCR, lpcr_val);
-	opal_slw_set_reg(pir, SPRN_LPCR, lpcr_val);
+
+	/*
+	 * Program the LPCR via stop-api only if the deepest stop state
+	 * can lose hypervisor context.
+	 */
+	if (supported_cpuidle_states & OPAL_PM_LOSE_FULL_CONTEXT)
+		opal_slw_set_reg(pir, SPRN_LPCR, lpcr_val);
 }
 
 /*

@@ -49,7 +49,7 @@ static void free_proxy(struct aa_proxy *proxy)
 		/* p->label will not updated any more as p is dead */
 		aa_put_label(rcu_dereference_protected(proxy->label, true));
 		memset(proxy, 0, sizeof(*proxy));
-		proxy->label = (struct aa_label *) PROXY_POISON;
+		RCU_INIT_POINTER(proxy->label, (struct aa_label *)PROXY_POISON);
 		kfree(proxy);
 	}
 }
@@ -1450,9 +1450,11 @@ bool aa_update_label_name(struct aa_ns *ns, struct aa_label *label, gfp_t gfp)
  * cached label name is present and visible
  * @label->hname only exists if label is namespace hierachical
  */
-static inline bool use_label_hname(struct aa_ns *ns, struct aa_label *label)
+static inline bool use_label_hname(struct aa_ns *ns, struct aa_label *label,
+				   int flags)
 {
-	if (label->hname && labels_ns(label) == ns)
+	if (label->hname && (!ns || labels_ns(label) == ns) &&
+	    !(flags & ~FLAG_SHOW_MODE))
 		return true;
 
 	return false;
@@ -1495,7 +1497,7 @@ static int aa_profile_snxprint(char *str, size_t size, struct aa_ns *view,
 		view = profiles_ns(profile);
 
 	if (view != profile->ns &&
-	    (!prev_ns || (prev_ns && *prev_ns != profile->ns))) {
+	    (!prev_ns || (*prev_ns != profile->ns))) {
 		if (prev_ns)
 			*prev_ns = profile->ns;
 		ns_name = aa_ns_name(view, profile->ns,
@@ -1605,8 +1607,13 @@ int aa_label_snxprint(char *str, size_t size, struct aa_ns *ns,
 	AA_BUG(!str && size != 0);
 	AA_BUG(!label);
 
-	if (!ns)
+	if (flags & FLAG_ABS_ROOT) {
+		ns = root_ns;
+		len = snprintf(str, size, "=");
+		update_for_len(total, len, size, str);
+	} else if (!ns) {
 		ns = labels_ns(label);
+	}
 
 	label_for_each(i, label, profile) {
 		if (aa_ns_visible(ns, profile->ns, flags & FLAG_VIEW_SUBNS)) {
@@ -1710,10 +1717,8 @@ void aa_label_xaudit(struct audit_buffer *ab, struct aa_ns *ns,
 	AA_BUG(!ab);
 	AA_BUG(!label);
 
-	if (!ns)
-		ns = labels_ns(label);
-
-	if (!use_label_hname(ns, label) || display_mode(ns, label, flags)) {
+	if (!use_label_hname(ns, label, flags) ||
+	    display_mode(ns, label, flags)) {
 		len  = aa_label_asxprint(&name, ns, label, flags, gfp);
 		if (len == -1) {
 			AA_DEBUG("label print error");
@@ -1738,10 +1743,7 @@ void aa_label_seq_xprint(struct seq_file *f, struct aa_ns *ns,
 	AA_BUG(!f);
 	AA_BUG(!label);
 
-	if (!ns)
-		ns = labels_ns(label);
-
-	if (!use_label_hname(ns, label)) {
+	if (!use_label_hname(ns, label, flags)) {
 		char *str;
 		int len;
 
@@ -1764,10 +1766,7 @@ void aa_label_xprintk(struct aa_ns *ns, struct aa_label *label, int flags,
 {
 	AA_BUG(!label);
 
-	if (!ns)
-		ns = labels_ns(label);
-
-	if (!use_label_hname(ns, label)) {
+	if (!use_label_hname(ns, label, flags)) {
 		char *str;
 		int len;
 
@@ -1874,6 +1873,9 @@ struct aa_label *aa_label_parse(struct aa_label *base, const char *str,
 		if (*str == '&')
 			str++;
 	}
+	if (*str == '=')
+		base = &root_ns->unconfined->label;
+
 	error = vec_setup(profile, vec, len, gfp);
 	if (error)
 		return ERR_PTR(error);

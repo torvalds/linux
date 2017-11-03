@@ -581,6 +581,14 @@ static struct mtd_part *allocate_partition(struct mtd_info *parent,
 		slave->mtd.erasesize = parent->erasesize;
 	}
 
+	/*
+	 * Slave erasesize might differ from the master one if the master
+	 * exposes several regions with different erasesize. Adjust
+	 * wr_alignment accordingly.
+	 */
+	if (!(slave->mtd.flags & MTD_NO_ERASE))
+		wr_alignment = slave->mtd.erasesize;
+
 	tmp = slave->offset;
 	remainder = do_div(tmp, wr_alignment);
 	if ((slave->mtd.flags & MTD_WRITEABLE) && remainder) {

@@ -243,7 +243,6 @@ static void nbd_size_set(struct nbd_device *nbd, loff_t blocksize,
 	struct nbd_config *config = nbd->config;
 	config->blksize = blocksize;
 	config->bytesize = blocksize * nr_blocks;
-	nbd_size_update(nbd);
 }
 
 static void nbd_complete_rq(struct request *req)
@@ -820,9 +819,13 @@ static blk_status_t nbd_queue_rq(struct blk_mq_hw_ctx *hctx,
 	 * appropriate.
 	 */
 	ret = nbd_handle_cmd(cmd, hctx->queue_num);
+	if (ret < 0)
+		ret = BLK_STS_IOERR;
+	else if (!ret)
+		ret = BLK_STS_OK;
 	complete(&cmd->send_complete);
 
-	return ret < 0 ? BLK_STS_IOERR : BLK_STS_OK;
+	return ret;
 }
 
 static int nbd_add_socket(struct nbd_device *nbd, unsigned long arg,
@@ -1090,6 +1093,7 @@ static int nbd_start_device(struct nbd_device *nbd)
 		args->index = i;
 		queue_work(recv_workqueue, &args->work);
 	}
+	nbd_size_update(nbd);
 	return error;
 }
 
@@ -1193,6 +1197,12 @@ static int nbd_ioctl(struct block_device *bdev, fmode_t mode,
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
+
+	/* The block layer will pass back some non-nbd ioctls in case we have
+	 * special handling for them, but we don't so just return an error.
+	 */
+	if (_IOC_TYPE(cmd) != 0xab)
+		return -EINVAL;
 
 	mutex_lock(&nbd->config_lock);
 

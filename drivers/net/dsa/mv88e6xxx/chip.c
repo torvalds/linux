@@ -1100,6 +1100,10 @@ static int mv88e6xxx_port_check_hw_vlan(struct dsa_switch *ds, int port,
 	};
 	int i, err;
 
+	/* DSA and CPU ports have to be members of multiple vlans */
+	if (dsa_is_dsa_port(ds, port) || dsa_is_cpu_port(ds, port))
+		return 0;
+
 	if (!vid_begin)
 		return -EOPNOTSUPP;
 
@@ -3947,7 +3951,9 @@ static void mv88e6xxx_remove(struct mdio_device *mdiodev)
 	if (chip->irq > 0) {
 		if (chip->info->g2_irqs > 0)
 			mv88e6xxx_g2_irq_free(chip);
+		mutex_lock(&chip->reg_lock);
 		mv88e6xxx_g1_irq_free(chip);
+		mutex_unlock(&chip->reg_lock);
 	}
 }
 

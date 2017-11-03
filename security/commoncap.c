@@ -294,10 +294,10 @@ int cap_capset(struct cred *new,
  *
  * Determine if an inode having a change applied that's marked ATTR_KILL_PRIV
  * affects the security markings on that inode, and if it is, should
- * inode_killpriv() be invoked or the change rejected?
+ * inode_killpriv() be invoked or the change rejected.
  *
- * Returns 0 if granted; +ve if granted, but inode_killpriv() is required; and
- * -ve to deny the change.
+ * Returns 1 if security.capability has a value, meaning inode_killpriv()
+ * is required, 0 otherwise, meaning inode_killpriv() is not required.
  */
 int cap_inode_need_killpriv(struct dentry *dentry)
 {
@@ -585,13 +585,14 @@ int get_vfs_caps_from_disk(const struct dentry *dentry, struct cpu_vfs_cap_data 
 	struct vfs_ns_cap_data data, *nscaps = &data;
 	struct vfs_cap_data *caps = (struct vfs_cap_data *) &data;
 	kuid_t rootkuid;
-	struct user_namespace *fs_ns = inode->i_sb->s_user_ns;
+	struct user_namespace *fs_ns;
 
 	memset(cpu_caps, 0, sizeof(struct cpu_vfs_cap_data));
 
 	if (!inode)
 		return -ENODATA;
 
+	fs_ns = inode->i_sb->s_user_ns;
 	size = __vfs_getxattr((struct dentry *)dentry, inode,
 			      XATTR_NAME_CAPS, &data, XATTR_CAPS_SZ);
 	if (size == -ENODATA || size == -EOPNOTSUPP)

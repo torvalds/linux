@@ -353,6 +353,8 @@ static void pcpu_next_md_free_region(struct pcpu_chunk *chunk, int *bit_off,
 					block->contig_hint_start);
 			return;
 		}
+		/* reset to satisfy the second predicate above */
+		block_off = 0;
 
 		*bits = block->right_free;
 		*bit_off = (i + 1) * PCPU_BITMAP_BLOCK_BITS - block->right_free;
@@ -407,6 +409,8 @@ static void pcpu_next_fit_region(struct pcpu_chunk *chunk, int alloc_bits,
 			*bit_off = pcpu_block_off_to_off(i, block->first_free);
 			return;
 		}
+		/* reset to satisfy the second predicate above */
+		block_off = 0;
 
 		*bit_off = ALIGN(PCPU_BITMAP_BLOCK_BITS - block->right_free,
 				 align);
@@ -1325,7 +1329,9 @@ static struct pcpu_chunk *pcpu_chunk_addr_search(void *addr)
  * @gfp: allocation flags
  *
  * Allocate percpu area of @size bytes aligned at @align.  If @gfp doesn't
- * contain %GFP_KERNEL, the allocation is atomic.
+ * contain %GFP_KERNEL, the allocation is atomic. If @gfp has __GFP_NOWARN
+ * then no warning will be triggered on invalid or failed allocation
+ * requests.
  *
  * RETURNS:
  * Percpu pointer to the allocated area on success, NULL on failure.
@@ -1333,10 +1339,11 @@ static struct pcpu_chunk *pcpu_chunk_addr_search(void *addr)
 static void __percpu *pcpu_alloc(size_t size, size_t align, bool reserved,
 				 gfp_t gfp)
 {
+	bool is_atomic = (gfp & GFP_KERNEL) != GFP_KERNEL;
+	bool do_warn = !(gfp & __GFP_NOWARN);
 	static int warn_limit = 10;
 	struct pcpu_chunk *chunk;
 	const char *err;
-	bool is_atomic = (gfp & GFP_KERNEL) != GFP_KERNEL;
 	int slot, off, cpu, ret;
 	unsigned long flags;
 	void __percpu *ptr;
@@ -1357,7 +1364,7 @@ static void __percpu *pcpu_alloc(size_t size, size_t align, bool reserved,
 
 	if (unlikely(!size || size > PCPU_MIN_UNIT_SIZE || align > PAGE_SIZE ||
 		     !is_power_of_2(align))) {
-		WARN(true, "illegal size (%zu) or align (%zu) for percpu allocation\n",
+		WARN(do_warn, "illegal size (%zu) or align (%zu) for percpu allocation\n",
 		     size, align);
 		return NULL;
 	}
@@ -1478,7 +1485,7 @@ fail_unlock:
 fail:
 	trace_percpu_alloc_percpu_fail(reserved, is_atomic, size, align);
 
-	if (!is_atomic && warn_limit) {
+	if (!is_atomic && do_warn && warn_limit) {
 		pr_warn("allocation failed, size=%zu align=%zu atomic=%d, %s\n",
 			size, align, is_atomic, err);
 		dump_stack();
@@ -1503,7 +1510,9 @@ fail:
  *
  * Allocate zero-filled percpu area of @size bytes aligned at @align.  If
  * @gfp doesn't contain %GFP_KERNEL, the allocation doesn't block and can
- * be called from any context but is a lot more likely to fail.
+ * be called from any context but is a lot more likely to fail. If @gfp
+ * has __GFP_NOWARN then no warning will be triggered on invalid or failed
+ * allocation requests.
  *
  * RETURNS:
  * Percpu pointer to the allocated area on success, NULL on failure.

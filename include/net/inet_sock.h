@@ -96,7 +96,7 @@ struct inet_request_sock {
 	kmemcheck_bitfield_end(flags);
 	u32                     ir_mark;
 	union {
-		struct ip_options_rcu	*opt;
+		struct ip_options_rcu __rcu	*ireq_opt;
 #if IS_ENABLED(CONFIG_IPV6)
 		struct {
 			struct ipv6_txoptions	*ipv6_opt;

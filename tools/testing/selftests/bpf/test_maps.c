@@ -466,7 +466,7 @@ static void test_sockmap(int tasks, void *data)
 	int one = 1, map_fd_rx, map_fd_tx, map_fd_break, s, sc, rc;
 	struct bpf_map *bpf_map_rx, *bpf_map_tx, *bpf_map_break;
 	int ports[] = {50200, 50201, 50202, 50204};
-	int err, i, fd, sfd[6] = {0xdeadbeef};
+	int err, i, fd, udp, sfd[6] = {0xdeadbeef};
 	u8 buf[20] = {0x0, 0x5, 0x3, 0x2, 0x1, 0x0};
 	int parse_prog, verdict_prog;
 	struct sockaddr_in addr;
@@ -545,6 +545,16 @@ static void test_sockmap(int tasks, void *data)
 			    6, 0);
 	if (fd < 0) {
 		printf("Failed to create sockmap %i\n", fd);
+		goto out_sockmap;
+	}
+
+	/* Test update with unsupported UDP socket */
+	udp = socket(AF_INET, SOCK_DGRAM, 0);
+	i = 0;
+	err = bpf_map_update_elem(fd, &i, &udp, BPF_ANY);
+	if (!err) {
+		printf("Failed socket SOCK_DGRAM allowed '%i:%i'\n",
+		       i, udp);
 		goto out_sockmap;
 	}
 

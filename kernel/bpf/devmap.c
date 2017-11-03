@@ -69,14 +69,17 @@ static LIST_HEAD(dev_map_list);
 
 static u64 dev_map_bitmap_size(const union bpf_attr *attr)
 {
-	return BITS_TO_LONGS(attr->max_entries) * sizeof(unsigned long);
+	return BITS_TO_LONGS((u64) attr->max_entries) * sizeof(unsigned long);
 }
 
 static struct bpf_map *dev_map_alloc(union bpf_attr *attr)
 {
 	struct bpf_dtab *dtab;
+	int err = -EINVAL;
 	u64 cost;
-	int err;
+
+	if (!capable(CAP_NET_ADMIN))
+		return ERR_PTR(-EPERM);
 
 	/* check sanity of attributes */
 	if (attr->max_entries == 0 || attr->key_size != 4 ||
@@ -108,9 +111,12 @@ static struct bpf_map *dev_map_alloc(union bpf_attr *attr)
 	if (err)
 		goto free_dtab;
 
+	err = -ENOMEM;
+
 	/* A per cpu bitfield with a bit per possible net device */
-	dtab->flush_needed = __alloc_percpu(dev_map_bitmap_size(attr),
-					    __alignof__(unsigned long));
+	dtab->flush_needed = __alloc_percpu_gfp(dev_map_bitmap_size(attr),
+						__alignof__(unsigned long),
+						GFP_KERNEL | __GFP_NOWARN);
 	if (!dtab->flush_needed)
 		goto free_dtab;
 
@@ -128,7 +134,7 @@ static struct bpf_map *dev_map_alloc(union bpf_attr *attr)
 free_dtab:
 	free_percpu(dtab->flush_needed);
 	kfree(dtab);
-	return ERR_PTR(-ENOMEM);
+	return ERR_PTR(err);
 }
 
 static void dev_map_free(struct bpf_map *map)

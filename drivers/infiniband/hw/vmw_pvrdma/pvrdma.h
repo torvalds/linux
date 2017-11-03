@@ -416,9 +416,34 @@ static inline enum ib_wc_status pvrdma_wc_status_to_ib(
 	return (enum ib_wc_status)status;
 }
 
-static inline int pvrdma_wc_opcode_to_ib(int opcode)
+static inline int pvrdma_wc_opcode_to_ib(unsigned int opcode)
 {
-	return opcode;
+	switch (opcode) {
+	case PVRDMA_WC_SEND:
+		return IB_WC_SEND;
+	case PVRDMA_WC_RDMA_WRITE:
+		return IB_WC_RDMA_WRITE;
+	case PVRDMA_WC_RDMA_READ:
+		return IB_WC_RDMA_READ;
+	case PVRDMA_WC_COMP_SWAP:
+		return IB_WC_COMP_SWAP;
+	case PVRDMA_WC_FETCH_ADD:
+		return IB_WC_FETCH_ADD;
+	case PVRDMA_WC_LOCAL_INV:
+		return IB_WC_LOCAL_INV;
+	case PVRDMA_WC_FAST_REG_MR:
+		return IB_WC_REG_MR;
+	case PVRDMA_WC_MASKED_COMP_SWAP:
+		return IB_WC_MASKED_COMP_SWAP;
+	case PVRDMA_WC_MASKED_FETCH_ADD:
+		return IB_WC_MASKED_FETCH_ADD;
+	case PVRDMA_WC_RECV:
+		return IB_WC_RECV;
+	case PVRDMA_WC_RECV_RDMA_WITH_IMM:
+		return IB_WC_RECV_RDMA_WITH_IMM;
+	default:
+		return IB_WC_SEND;
+	}
 }
 
 static inline int pvrdma_wc_flags_to_ib(int flags)

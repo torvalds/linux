@@ -429,7 +429,7 @@ nf_nat_setup_info(struct nf_conn *ct,
 
 		srchash = hash_by_src(net,
 				      &ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple);
-		lock = &nf_nat_locks[srchash % ARRAY_SIZE(nf_nat_locks)];
+		lock = &nf_nat_locks[srchash % CONNTRACK_LOCKS];
 		spin_lock_bh(lock);
 		hlist_add_head_rcu(&ct->nat_bysource,
 				   &nf_nat_bysource[srchash]);
@@ -532,9 +532,9 @@ static void __nf_nat_cleanup_conntrack(struct nf_conn *ct)
 	unsigned int h;
 
 	h = hash_by_src(nf_ct_net(ct), &ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple);
-	spin_lock_bh(&nf_nat_locks[h % ARRAY_SIZE(nf_nat_locks)]);
+	spin_lock_bh(&nf_nat_locks[h % CONNTRACK_LOCKS]);
 	hlist_del_rcu(&ct->nat_bysource);
-	spin_unlock_bh(&nf_nat_locks[h % ARRAY_SIZE(nf_nat_locks)]);
+	spin_unlock_bh(&nf_nat_locks[h % CONNTRACK_LOCKS]);
 }
 
 static int nf_nat_proto_clean(struct nf_conn *ct, void *data)
@@ -807,8 +807,8 @@ static int __init nf_nat_init(void)
 
 	/* Leave them the same for the moment. */
 	nf_nat_htable_size = nf_conntrack_htable_size;
-	if (nf_nat_htable_size < ARRAY_SIZE(nf_nat_locks))
-		nf_nat_htable_size = ARRAY_SIZE(nf_nat_locks);
+	if (nf_nat_htable_size < CONNTRACK_LOCKS)
+		nf_nat_htable_size = CONNTRACK_LOCKS;
 
 	nf_nat_bysource = nf_ct_alloc_hashtable(&nf_nat_htable_size, 0);
 	if (!nf_nat_bysource)
@@ -821,7 +821,7 @@ static int __init nf_nat_init(void)
 		return ret;
 	}
 
-	for (i = 0; i < ARRAY_SIZE(nf_nat_locks); i++)
+	for (i = 0; i < CONNTRACK_LOCKS; i++)
 		spin_lock_init(&nf_nat_locks[i]);
 
 	nf_ct_helper_expectfn_register(&follow_master_nat);
