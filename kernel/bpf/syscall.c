@@ -1057,7 +1057,22 @@ struct bpf_prog *bpf_prog_inc_not_zero(struct bpf_prog *prog)
 }
 EXPORT_SYMBOL_GPL(bpf_prog_inc_not_zero);
 
-static struct bpf_prog *__bpf_prog_get(u32 ufd, enum bpf_prog_type *attach_type)
+static bool bpf_prog_can_attach(struct bpf_prog *prog,
+				enum bpf_prog_type *attach_type,
+				struct net_device *netdev)
+{
+	struct bpf_dev_offload *offload = prog->aux->offload;
+
+	if (prog->type != *attach_type)
+		return false;
+	if (offload && offload->netdev != netdev)
+		return false;
+
+	return true;
+}
+
+static struct bpf_prog *__bpf_prog_get(u32 ufd, enum bpf_prog_type *attach_type,
+				       struct net_device *netdev)
 {
 	struct fd f = fdget(ufd);
 	struct bpf_prog *prog;
@@ -1065,7 +1080,7 @@ static struct bpf_prog *__bpf_prog_get(u32 ufd, enum bpf_prog_type *attach_type)
 	prog = ____bpf_prog_get(f);
 	if (IS_ERR(prog))
 		return prog;
-	if (attach_type && (prog->type != *attach_type || prog->aux->offload)) {
+	if (attach_type && !bpf_prog_can_attach(prog, attach_type, netdev)) {
 		prog = ERR_PTR(-EINVAL);
 		goto out;
 	}
@@ -1078,18 +1093,28 @@ out:
 
 struct bpf_prog *bpf_prog_get(u32 ufd)
 {
-	return __bpf_prog_get(ufd, NULL);
+	return __bpf_prog_get(ufd, NULL, NULL);
 }
 
 struct bpf_prog *bpf_prog_get_type(u32 ufd, enum bpf_prog_type type)
 {
-	struct bpf_prog *prog = __bpf_prog_get(ufd, &type);
+	struct bpf_prog *prog = __bpf_prog_get(ufd, &type, NULL);
 
 	if (!IS_ERR(prog))
 		trace_bpf_prog_get_type(prog);
 	return prog;
 }
 EXPORT_SYMBOL_GPL(bpf_prog_get_type);
+
+struct bpf_prog *bpf_prog_get_type_dev(u32 ufd, enum bpf_prog_type type,
+				       struct net_device *netdev)
+{
+	struct bpf_prog *prog = __bpf_prog_get(ufd, &type, netdev);
+
+	if (!IS_ERR(prog))
+		trace_bpf_prog_get_type(prog);
+	return prog;
+}
 
 /* last field in 'union bpf_attr' used by this command */
 #define	BPF_PROG_LOAD_LAST_FIELD prog_target_ifindex
