@@ -172,7 +172,7 @@ void nf_ct_l3proto_module_put(unsigned short l3proto)
 }
 EXPORT_SYMBOL_GPL(nf_ct_l3proto_module_put);
 
-int nf_ct_netns_get(struct net *net, u8 nfproto)
+static int nf_ct_netns_do_get(struct net *net, u8 nfproto)
 {
 	const struct nf_conntrack_l3proto *l3proto;
 	int ret;
@@ -197,9 +197,33 @@ int nf_ct_netns_get(struct net *net, u8 nfproto)
 
 	return ret;
 }
+
+int nf_ct_netns_get(struct net *net, u8 nfproto)
+{
+	int err;
+
+	if (nfproto == NFPROTO_INET) {
+		err = nf_ct_netns_do_get(net, NFPROTO_IPV4);
+		if (err < 0)
+			goto err1;
+		err = nf_ct_netns_do_get(net, NFPROTO_IPV6);
+		if (err < 0)
+			goto err2;
+	} else {
+		err = nf_ct_netns_do_get(net, nfproto);
+		if (err < 0)
+			goto err1;
+	}
+	return 0;
+
+err2:
+	nf_ct_netns_put(net, NFPROTO_IPV4);
+err1:
+	return err;
+}
 EXPORT_SYMBOL_GPL(nf_ct_netns_get);
 
-void nf_ct_netns_put(struct net *net, u8 nfproto)
+static void nf_ct_netns_do_put(struct net *net, u8 nfproto)
 {
 	const struct nf_conntrack_l3proto *l3proto;
 
@@ -217,6 +241,15 @@ void nf_ct_netns_put(struct net *net, u8 nfproto)
 		l3proto->net_ns_put(net);
 
 	nf_ct_l3proto_module_put(nfproto);
+}
+
+void nf_ct_netns_put(struct net *net, uint8_t nfproto)
+{
+	if (nfproto == NFPROTO_INET) {
+		nf_ct_netns_do_put(net, NFPROTO_IPV4);
+		nf_ct_netns_do_put(net, NFPROTO_IPV6);
+	} else
+		nf_ct_netns_do_put(net, nfproto);
 }
 EXPORT_SYMBOL_GPL(nf_ct_netns_put);
 
