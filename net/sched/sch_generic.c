@@ -1024,3 +1024,49 @@ void psched_ratecfg_precompute(struct psched_ratecfg *r,
 	}
 }
 EXPORT_SYMBOL(psched_ratecfg_precompute);
+
+static void mini_qdisc_rcu_func(struct rcu_head *head)
+{
+}
+
+void mini_qdisc_pair_swap(struct mini_Qdisc_pair *miniqp,
+			  struct tcf_proto *tp_head)
+{
+	struct mini_Qdisc *miniq_old = rtnl_dereference(*miniqp->p_miniq);
+	struct mini_Qdisc *miniq;
+
+	if (!tp_head) {
+		RCU_INIT_POINTER(*miniqp->p_miniq, NULL);
+		return;
+	}
+
+	miniq = !miniq_old || miniq_old == &miniqp->miniq2 ?
+		&miniqp->miniq1 : &miniqp->miniq2;
+
+	/* We need to make sure that readers won't see the miniq
+	 * we are about to modify. So wait until previous call_rcu_bh callback
+	 * is done.
+	 */
+	rcu_barrier_bh();
+	miniq->filter_list = tp_head;
+	rcu_assign_pointer(*miniqp->p_miniq, miniq);
+
+	if (miniq_old)
+		/* This is counterpart of the rcu barrier above. We need to
+		 * block potential new user of miniq_old until all readers
+		 * are not seeing it.
+		 */
+		call_rcu_bh(&miniq_old->rcu, mini_qdisc_rcu_func);
+}
+EXPORT_SYMBOL(mini_qdisc_pair_swap);
+
+void mini_qdisc_pair_init(struct mini_Qdisc_pair *miniqp, struct Qdisc *qdisc,
+			  struct mini_Qdisc __rcu **p_miniq)
+{
+	miniqp->miniq1.cpu_bstats = qdisc->cpu_bstats;
+	miniqp->miniq1.cpu_qstats = qdisc->cpu_qstats;
+	miniqp->miniq2.cpu_bstats = qdisc->cpu_bstats;
+	miniqp->miniq2.cpu_qstats = qdisc->cpu_qstats;
+	miniqp->p_miniq = p_miniq;
+}
+EXPORT_SYMBOL(mini_qdisc_pair_init);
