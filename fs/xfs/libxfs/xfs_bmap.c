@@ -4331,7 +4331,8 @@ xfs_bmapi_write(
 		 * First, deal with the hole before the allocated space
 		 * that we found, if any.
 		 */
-		if (need_alloc || wasdelay) {
+		if ((need_alloc || wasdelay) &&
+		    !(flags & XFS_BMAPI_CONVERT_ONLY)) {
 			bma.eof = eof;
 			bma.conv = !!(flags & XFS_BMAPI_CONVERT);
 			bma.wasdel = wasdelay;

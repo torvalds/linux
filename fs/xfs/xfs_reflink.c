@@ -353,29 +353,22 @@ xfs_reflink_convert_cow(
 	xfs_off_t		offset,
 	xfs_off_t		count)
 {
-	struct xfs_bmbt_irec	got;
-	struct xfs_defer_ops	dfops;
 	struct xfs_mount	*mp = ip->i_mount;
-	struct xfs_ifork	*ifp = XFS_IFORK_PTR(ip, XFS_COW_FORK);
 	xfs_fileoff_t		offset_fsb = XFS_B_TO_FSBT(mp, offset);
 	xfs_fileoff_t		end_fsb = XFS_B_TO_FSB(mp, offset + count);
-	struct xfs_iext_cursor	icur;
-	bool			found;
-	int			error = 0;
+	xfs_filblks_t		count_fsb = end_fsb - offset_fsb;
+	struct xfs_bmbt_irec	imap;
+	struct xfs_defer_ops	dfops;
+	xfs_fsblock_t		first_block = NULLFSBLOCK;
+	int			nimaps = 1, error = 0;
+
+	ASSERT(count != 0);
 
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
-
-	/* Convert all the extents to real from unwritten. */
-	for (found = xfs_iext_lookup_extent(ip, ifp, offset_fsb, &icur, &got);
-	     found && got.br_startoff < end_fsb;
-	     found = xfs_iext_next_extent(ifp, &icur, &got)) {
-		error = xfs_reflink_convert_cow_extent(ip, &got, offset_fsb,
-				end_fsb - offset_fsb, &dfops);
-		if (error)
-			break;
-	}
-
-	/* Finish up. */
+	error = xfs_bmapi_write(NULL, ip, offset_fsb, count_fsb,
+			XFS_BMAPI_COWFORK | XFS_BMAPI_CONVERT |
+			XFS_BMAPI_CONVERT_ONLY, &first_block, 0, &imap, &nimaps,
+			&dfops);
 	xfs_iunlock(ip, XFS_ILOCK_EXCL);
 	return error;
 }
