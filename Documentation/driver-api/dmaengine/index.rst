@@ -37,6 +37,16 @@ This book introduces how to test DMA drivers using dmatest module.
 
    dmatest
 
+PXA DMA documentation
+----------------------
+
+This book adds some notes about PXA DMA
+
+.. toctree::
+   :maxdepth: 1
+
+   pxa_dma
+
 .. only::  subproject
 
    Indices
