@@ -51,8 +51,6 @@ typedef struct xfs_ext_irec {
  */
 #define	XFS_IEXT_BUFSZ		4096
 #define	XFS_LINEAR_EXTS		(XFS_IEXT_BUFSZ / (uint)sizeof(xfs_bmbt_rec_t))
-#define	XFS_INLINE_EXTS		2
-#define	XFS_INLINE_DATA		32
 typedef struct xfs_ifork {
 	int			if_bytes;	/* bytes in if_u1 */
 	int			if_real_bytes;	/* bytes allocated in if_u1 */
@@ -64,12 +62,6 @@ typedef struct xfs_ifork {
 		xfs_ext_irec_t	*if_ext_irec;	/* irec map file exts */
 		char		*if_data;	/* inline file data */
 	} if_u1;
-	union {
-		xfs_bmbt_rec_host_t if_inline_ext[XFS_INLINE_EXTS];
-						/* very small file extents */
-		char		if_inline_data[XFS_INLINE_DATA];
-						/* very small file data */
-	} if_u2;
 } xfs_ifork_t;
 
 /*
@@ -158,12 +150,9 @@ void		xfs_iext_add_indirect_multi(struct xfs_ifork *, int,
 					    xfs_extnum_t, int);
 void		xfs_iext_remove(struct xfs_inode *, struct xfs_iext_cursor *,
 			int, int);
-void		xfs_iext_remove_inline(struct xfs_ifork *, xfs_extnum_t, int);
 void		xfs_iext_remove_direct(struct xfs_ifork *, xfs_extnum_t, int);
 void		xfs_iext_remove_indirect(struct xfs_ifork *, xfs_extnum_t, int);
 void		xfs_iext_realloc_direct(struct xfs_ifork *, int);
-void		xfs_iext_direct_to_inline(struct xfs_ifork *, xfs_extnum_t);
-void		xfs_iext_inline_to_direct(struct xfs_ifork *, int);
 void		xfs_iext_destroy(struct xfs_ifork *);
 struct xfs_bmbt_rec_host *
 		xfs_iext_bno_to_ext(struct xfs_ifork *, xfs_fileoff_t, int *);
