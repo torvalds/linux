@@ -1280,6 +1280,7 @@ static int arm_ccn_pmu_init(struct arm_ccn *ccn)
 
 	/* Perf driver registration */
 	ccn->dt.pmu = (struct pmu) {
+		.module = THIS_MODULE,
 		.attr_groups = arm_ccn_pmu_attr_groups,
 		.task_ctx_nr = perf_invalid_context,
 		.event_init = arm_ccn_pmu_event_init,
