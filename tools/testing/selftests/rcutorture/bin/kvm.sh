@@ -238,7 +238,6 @@ BEGIN {
 }
 
 END {
-	alldone = 0;
 	batch = 0;
 	nc = -1;
 
