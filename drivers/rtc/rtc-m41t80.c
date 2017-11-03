@@ -154,6 +154,7 @@ struct m41t80_data {
 	struct rtc_device *rtc;
 #ifdef CONFIG_COMMON_CLK
 	struct clk_hw sqw;
+	unsigned long freq;
 #endif
 };
 
@@ -443,26 +444,28 @@ static SIMPLE_DEV_PM_OPS(m41t80_pm, m41t80_suspend, m41t80_resume);
 #ifdef CONFIG_COMMON_CLK
 #define sqw_to_m41t80_data(_hw) container_of(_hw, struct m41t80_data, sqw)
 
-static unsigned long m41t80_sqw_recalc_rate(struct clk_hw *hw,
-					    unsigned long parent_rate)
+static unsigned long m41t80_decode_freq(int setting)
 {
-	struct m41t80_data *m41t80 = sqw_to_m41t80_data(hw);
+	return (setting == 0) ? 0 : (setting == 1) ? M41T80_SQW_MAX_FREQ :
+		M41T80_SQW_MAX_FREQ >> setting;
+}
+
+static unsigned long m41t80_get_freq(struct m41t80_data *m41t80)
+{
 	struct i2c_client *client = m41t80->client;
 	int reg_sqw = (m41t80->features & M41T80_FEATURE_SQ_ALT) ?
 		M41T80_REG_WDAY : M41T80_REG_SQW;
 	int ret = i2c_smbus_read_byte_data(client, reg_sqw);
-	unsigned long val = M41T80_SQW_MAX_FREQ;
 
 	if (ret < 0)
 		return 0;
+	return m41t80_decode_freq(ret >> 4);
+}
 
-	ret >>= 4;
-	if (ret == 0)
-		val = 0;
-	else if (ret > 1)
-		val = val / (1 << ret);
-
-	return val;
+static unsigned long m41t80_sqw_recalc_rate(struct clk_hw *hw,
+					    unsigned long parent_rate)
+{
+	return sqw_to_m41t80_data(hw)->freq;
 }
 
 static long m41t80_sqw_round_rate(struct clk_hw *hw, unsigned long rate,
@@ -505,6 +508,8 @@ static int m41t80_sqw_set_rate(struct clk_hw *hw, unsigned long rate,
 	reg = (reg & 0x0f) | (val << 4);
 
 	ret = i2c_smbus_write_byte_data(client, reg_sqw, reg);
+	if (!ret)
+		m41t80->freq = m41t80_decode_freq(val);
 	return ret;
 }
 
@@ -579,6 +584,7 @@ static struct clk *m41t80_sqw_register_clk(struct m41t80_data *m41t80)
 	init.parent_names = NULL;
 	init.num_parents = 0;
 	m41t80->sqw.init = &init;
+	m41t80->freq = m41t80_get_freq(m41t80);
 
 	/* optional override of the clockname */
 	of_property_read_string(node, "clock-output-names", &init.name);
