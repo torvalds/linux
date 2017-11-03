@@ -1160,6 +1160,7 @@ static int snd_pcm_dev_disconnect(struct snd_device *device)
 	list_del_init(&pcm->list);
 	for (cidx = 0; cidx < 2; cidx++) {
 		for (substream = pcm->streams[cidx].substream; substream; substream = substream->next) {
+#if 0
 			snd_pcm_stream_lock_irq(substream);
 			if (substream->runtime) {
 				if (snd_pcm_running(substream))
@@ -1171,6 +1172,7 @@ static int snd_pcm_dev_disconnect(struct snd_device *device)
 				wake_up(&substream->runtime->tsleep);
 			}
 			snd_pcm_stream_unlock_irq(substream);
+#endif
 		}
 	}
 
