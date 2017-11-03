@@ -209,7 +209,7 @@ struct dsa_switch {
 	 * Parent switch tree, and switch index.
 	 */
 	struct dsa_switch_tree	*dst;
-	int			index;
+	unsigned int		index;
 
 	/* Listener for switch fabric events */
 	struct notifier_block	nb;
