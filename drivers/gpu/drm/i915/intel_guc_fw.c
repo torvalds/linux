@@ -160,6 +160,8 @@ static int guc_xfer_ucode(struct intel_guc *guc, struct i915_vma *vma)
 	struct drm_i915_private *dev_priv = guc_to_i915(guc);
 	struct intel_uc_fw *guc_fw = &guc->fw;
 	unsigned long offset;
+	u32 status;
+	int ret;
 
 	/*
 	 * The header plus uCode will be copied to WOPCM via DMA, excluding any
@@ -182,7 +184,12 @@ static int guc_xfer_ucode(struct intel_guc *guc, struct i915_vma *vma)
 	/* Finally start the DMA */
 	I915_WRITE(DMA_CTRL, _MASKED_BIT_ENABLE(UOS_MOVE | START_DMA));
 
-	return 0;
+	/* Wait for DMA to finish */
+	ret = __intel_wait_for_register_fw(dev_priv, DMA_CTRL, START_DMA, 0,
+					   2, 100, &status);
+	DRM_DEBUG_DRIVER("GuC DMA status %#x\n", status);
+
+	return ret;
 }
 
 /*
