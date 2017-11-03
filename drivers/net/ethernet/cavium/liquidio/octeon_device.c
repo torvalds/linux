@@ -1180,6 +1180,10 @@ octeon_register_dispatch_fn(struct octeon_device *oct,
 		spin_unlock_bh(&oct->dispatch.lock);
 
 	} else {
+		if (pfn == fn &&
+		    octeon_get_dispatch_arg(oct, opcode, subcode) == fn_arg)
+			return 0;
+
 		dev_err(&oct->pci_dev->dev,
 			"Found previously registered dispatch fn for opcode/subcode: %x/%x\n",
 			opcode, subcode);
