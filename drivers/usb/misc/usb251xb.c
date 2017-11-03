@@ -8,16 +8,6 @@
  * This work is based on the USB3503 driver by Dongjin Kim and
  * a not-accepted patch by Fabien Lahoudere, see:
  * https://patchwork.kernel.org/patch/9257715/
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/delay.h>
