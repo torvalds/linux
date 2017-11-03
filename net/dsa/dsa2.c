@@ -491,6 +491,32 @@ static int dsa_tree_add_switch(struct dsa_switch_tree *dst,
 	return 0;
 }
 
+static int dsa_port_parse_user(struct dsa_port *dp, const char *name)
+{
+	if (!name)
+		name = "eth%d";
+
+	dp->type = DSA_PORT_TYPE_USER;
+	dp->name = name;
+
+	return 0;
+}
+
+static int dsa_port_parse_dsa(struct dsa_port *dp)
+{
+	dp->type = DSA_PORT_TYPE_DSA;
+
+	return 0;
+}
+
+static int dsa_port_parse_cpu(struct dsa_port *dp, struct net_device *master)
+{
+	dp->type = DSA_PORT_TYPE_CPU;
+	dp->master = master;
+
+	return 0;
+}
+
 static int dsa_cpu_parse(struct dsa_port *port, u32 index,
 			 struct dsa_switch_tree *dst,
 			 struct dsa_switch *ds)
@@ -593,6 +619,8 @@ static int dsa_port_parse_of(struct dsa_port *dp, struct device_node *dn)
 	const char *name = of_get_property(dn, "label", NULL);
 	bool link = of_property_read_bool(dn, "link");
 
+	dp->dn = dn;
+
 	if (ethernet) {
 		struct net_device *master;
 
@@ -600,21 +628,13 @@ static int dsa_port_parse_of(struct dsa_port *dp, struct device_node *dn)
 		if (!master)
 			return -EPROBE_DEFER;
 
-		dp->type = DSA_PORT_TYPE_CPU;
-		dp->master = master;
-	} else if (link) {
-		dp->type = DSA_PORT_TYPE_DSA;
-	} else {
-		if (!name)
-			name = "eth%d";
-
-		dp->type = DSA_PORT_TYPE_USER;
-		dp->name = name;
+		return dsa_port_parse_cpu(dp, master);
 	}
 
-	dp->dn = dn;
+	if (link)
+		return dsa_port_parse_dsa(dp);
 
-	return 0;
+	return dsa_port_parse_user(dp, name);
 }
 
 static int dsa_switch_parse_ports_of(struct dsa_switch *ds,
@@ -694,17 +714,13 @@ static int dsa_port_parse(struct dsa_port *dp, const char *name,
 
 		dev_put(master);
 
-		dp->type = DSA_PORT_TYPE_CPU;
-		dp->master = master;
-	} else if (!strcmp(name, "dsa")) {
-		dp->type = DSA_PORT_TYPE_DSA;
-	} else {
-		dp->type = DSA_PORT_TYPE_USER;
+		return dsa_port_parse_cpu(dp, master);
 	}
 
-	dp->name = name;
+	if (!strcmp(name, "dsa"))
+		return dsa_port_parse_dsa(dp);
 
-	return 0;
+	return dsa_port_parse_user(dp, name);
 }
 
 static int dsa_switch_parse_ports(struct dsa_switch *ds,
