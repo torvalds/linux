@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *	uvc_video.h  --  USB Video Class Gadget driver
  *

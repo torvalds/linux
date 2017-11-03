@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Enhanced Host Controller Interface (EHCI) driver for USB.
  *

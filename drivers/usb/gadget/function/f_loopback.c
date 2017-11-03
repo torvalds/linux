@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * f_loopback.c - USB peripheral loopback configuration driver
  *

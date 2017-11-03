@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * MAX3421 Host Controller driver for USB.
  *

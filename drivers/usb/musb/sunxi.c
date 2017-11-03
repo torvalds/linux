@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Allwinner sun4i MUSB Glue Layer
  *

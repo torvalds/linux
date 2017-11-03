@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * bits.h - register bits of the ChipIdea USB IP core
  *

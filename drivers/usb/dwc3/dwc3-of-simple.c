@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /**
  * dwc3-of-simple.c - OF glue layer for simple integrations
  *

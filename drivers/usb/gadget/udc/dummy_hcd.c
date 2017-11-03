@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * dummy_hcd.c -- Dummy/Loopback USB host and device emulator driver.
  *

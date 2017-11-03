@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * copyright (C) 1999/2000 by Henning Zabel <henning@uni-paderborn.de>
  *

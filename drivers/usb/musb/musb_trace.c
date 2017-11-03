@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * musb_trace.c - MUSB Controller Trace Support
  *

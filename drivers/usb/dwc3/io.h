@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /**
  * io.h - DesignWare USB3 DRD IO Header
  *

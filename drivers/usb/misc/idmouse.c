@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /* Siemens ID Mouse driver v0.6
 
   This program is free software; you can redistribute it and/or

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * at91_udc -- driver for at91-series USB peripheral controller
  *

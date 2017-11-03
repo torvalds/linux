@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * bdc_cmd.c - BRCM BDC USB3.0 device controller
  *

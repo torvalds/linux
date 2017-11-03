@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * HWA Host Controller Driver
  * Wire Adapter Control/Data Streaming Iface (WUSB1.0[8])

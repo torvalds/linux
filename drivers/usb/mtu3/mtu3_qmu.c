@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * mtu3_qmu.c - Queue Management Unit driver for device controller
  *

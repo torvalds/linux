@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Wireless USB Host Controller
  * sysfs glue, wusbcore module support and life cycle management

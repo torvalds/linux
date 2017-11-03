@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * of.c		The helpers for hcd device tree support
  *

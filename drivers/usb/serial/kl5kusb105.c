@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * KLSI KL5KUSB105 chip RS232 converter driver
  *

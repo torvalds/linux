@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * c67x00-hcd.h: Cypress C67X00 USB HCD
  *

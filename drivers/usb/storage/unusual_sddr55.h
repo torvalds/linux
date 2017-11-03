@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Unusual Devices File for SanDisk SDDR-55 SmartMedia reader
  *

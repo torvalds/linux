@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * f_ecm.c -- USB CDC Ethernet (ECM) link function driver
  *

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * OHCI HCD(Host Controller Driver) for USB.
  *

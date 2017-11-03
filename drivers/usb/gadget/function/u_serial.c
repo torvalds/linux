@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * u_serial.c - utilities for USB gadget "serial port"/TTY support
  *

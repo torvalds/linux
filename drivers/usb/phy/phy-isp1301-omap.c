@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * isp1301_omap - ISP 1301 USB transceiver, talking to OMAP OTG controller
  *

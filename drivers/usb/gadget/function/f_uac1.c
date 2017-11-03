@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * f_uac1.c -- USB Audio Class 1.0 Function (using u_audio API)
  *

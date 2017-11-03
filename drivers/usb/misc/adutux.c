@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * adutux - driver for ADU devices from Ontrak Control Systems
  * This is an experimental driver. Use at your own risk.

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  *	webcam.c -- USB webcam gadget driver
  *

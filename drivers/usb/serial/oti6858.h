@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Ours Technology Inc. OTi-6858 USB to serial adapter driver.
  *

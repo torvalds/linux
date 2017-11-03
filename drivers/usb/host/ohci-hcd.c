@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-1.0+
 /*
  * Open Host Controller Interface (OHCI) driver for USB.
  *

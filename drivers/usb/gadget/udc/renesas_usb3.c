@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Renesas USB3.0 Peripheral driver (USB gadget)
  *

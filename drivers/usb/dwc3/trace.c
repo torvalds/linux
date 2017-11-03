@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /**
  * trace.c - DesignWare USB3 DRD Controller Trace Support
  *

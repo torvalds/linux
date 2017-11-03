@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * linux/driver/usb/host/ehci-w90x900.c
  *

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * mos7720.c
  *   Controls the Moschip 7720 usb to dual port serial converter

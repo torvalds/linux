@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * bdc_pci.c - BRCM BDC USB3.0 device controller PCI interface file.
  *

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * WUSB Wire Adapter: Control/Data Streaming Interface (WUSB[8])
  * Device Connect handling

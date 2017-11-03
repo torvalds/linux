@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: LGPL-2.1+
 /*
  * Copyright (C) 2003 David Brownell
  *

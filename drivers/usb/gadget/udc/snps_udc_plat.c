@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * snps_udc_plat.c - Synopsys UDC Platform Driver
  *

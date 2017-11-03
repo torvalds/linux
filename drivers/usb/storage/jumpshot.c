@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Driver for Lexar "Jumpshot" Compact Flash reader
  *

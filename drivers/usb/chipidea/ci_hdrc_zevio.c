@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *	Copyright (C) 2013 Daniel Tang <tangrs@tangrs.id.au>
  *

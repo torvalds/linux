@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * host.c - ChipIdea USB host controller driver
  *

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * USB ZyXEL omni.net LCD PLUS driver
  *

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * nokia.c -- Nokia Composite Gadget Driver
  *

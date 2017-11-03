@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Support for emulating SAT (ata pass through) on devices based
  *       on the Cypress USB/ATA bridge supporting ATACB.

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * u_f.c -- USB function utilities for Gadget stack
  *

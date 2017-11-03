@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Header file for Special Initializers for certain USB Mass Storage devices
  *

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * mtu3_hw_regs.h - MediaTek USB3 DRD register and field definitions
  *

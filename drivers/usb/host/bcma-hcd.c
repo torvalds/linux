@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Broadcom specific Advanced Microcontroller Bus
  * Broadcom USB-core driver (BCMA bus glue)

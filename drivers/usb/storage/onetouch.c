@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Support for the Maxtor OneTouch USB hard drive's button
  *

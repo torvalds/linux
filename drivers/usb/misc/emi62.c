@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* 
  * Emagic EMI 2|6 usb audio interface firmware loader.
  * Copyright (C) 2002

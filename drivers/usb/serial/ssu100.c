@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * usb-serial driver for Quatech SSU-100
  *

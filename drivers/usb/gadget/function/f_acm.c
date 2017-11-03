@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * f_acm.c -- USB CDC serial (ACM) function driver
  *

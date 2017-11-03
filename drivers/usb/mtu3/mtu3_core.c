@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * mtu3_core.c - hardware access layer and gadget init/exit of
  *                     MediaTek usb3 Dual-Role Controller Driver

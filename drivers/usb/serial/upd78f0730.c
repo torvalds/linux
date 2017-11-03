@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Renesas Electronics uPD78F0730 USB to serial converter driver
  *

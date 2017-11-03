@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * amd5536.h -- header for AMD 5536 UDC high/full speed USB device controller
  *

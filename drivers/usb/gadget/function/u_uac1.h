@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * u_uac1.h - Utility definitions for UAC1 function
  *

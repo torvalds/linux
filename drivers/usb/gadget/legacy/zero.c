@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * zero.c -- Gadget Zero, for USB development
  *
