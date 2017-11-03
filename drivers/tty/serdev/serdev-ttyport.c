@@ -154,8 +154,10 @@ static void ttyport_close(struct serdev_controller *ctrl)
 
 	clear_bit(SERPORT_ACTIVE, &serport->flags);
 
+	tty_lock(tty);
 	if (tty->ops->close)
 		tty->ops->close(tty, NULL);
+	tty_unlock(tty);
 
 	tty_release_struct(tty, serport->tty_idx);
 }
