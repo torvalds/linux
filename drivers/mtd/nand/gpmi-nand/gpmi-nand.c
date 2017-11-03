@@ -1487,12 +1487,8 @@ static int gpmi_ecc_read_page_raw(struct mtd_info *mtd,
 	 * See the layout description for a detailed explanation on why this
 	 * is needed.
 	 */
-	if (this->swap_block_mark) {
-		u8 swap = tmp_buf[0];
-
-		tmp_buf[0] = tmp_buf[mtd->writesize];
-		tmp_buf[mtd->writesize] = swap;
-	}
+	if (this->swap_block_mark)
+		swap(tmp_buf[0], tmp_buf[mtd->writesize]);
 
 	/*
 	 * Copy the metadata section into the oob buffer (this section is
@@ -1615,12 +1611,8 @@ static int gpmi_ecc_write_page_raw(struct mtd_info *mtd,
 	 * See the layout description for a detailed explanation on why this
 	 * is needed.
 	 */
-	if (this->swap_block_mark) {
-		u8 swap = tmp_buf[0];
-
-		tmp_buf[0] = tmp_buf[mtd->writesize];
-		tmp_buf[mtd->writesize] = swap;
-	}
+	if (this->swap_block_mark)
+		swap(tmp_buf[0], tmp_buf[mtd->writesize]);
 
 	chip->write_buf(mtd, tmp_buf, mtd->writesize + mtd->oobsize);
 
