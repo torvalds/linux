@@ -511,21 +511,10 @@ static int dsa_port_parse_dsa(struct dsa_port *dp)
 
 static int dsa_port_parse_cpu(struct dsa_port *dp, struct net_device *master)
 {
-	dp->type = DSA_PORT_TYPE_CPU;
-	dp->master = master;
-
-	return 0;
-}
-
-static int dsa_cpu_parse(struct dsa_port *port, u32 index,
-			 struct dsa_switch_tree *dst,
-			 struct dsa_switch *ds)
-{
+	struct dsa_switch *ds = dp->ds;
+	struct dsa_switch_tree *dst = ds->dst;
 	const struct dsa_device_ops *tag_ops;
 	enum dsa_tag_protocol tag_protocol;
-
-	if (!dst->cpu_dp)
-		dst->cpu_dp = port;
 
 	tag_protocol = ds->ops->get_tag_protocol(ds);
 	tag_ops = dsa_resolve_tag_protocol(tag_protocol);
@@ -534,11 +523,21 @@ static int dsa_cpu_parse(struct dsa_port *port, u32 index,
 		return PTR_ERR(tag_ops);
 	}
 
-	dst->cpu_dp->tag_ops = tag_ops;
+	dp->type = DSA_PORT_TYPE_CPU;
+	dp->rcv = tag_ops->rcv;
+	dp->tag_ops = tag_ops;
+	dp->master = master;
+	dp->dst = dst;
 
-	/* Make a few copies for faster access in master receive hot path */
-	dst->cpu_dp->rcv = dst->cpu_dp->tag_ops->rcv;
-	dst->cpu_dp->dst = dst;
+	return 0;
+}
+
+static int dsa_cpu_parse(struct dsa_port *port, u32 index,
+			 struct dsa_switch_tree *dst,
+			 struct dsa_switch *ds)
+{
+	if (!dst->cpu_dp)
+		dst->cpu_dp = port;
 
 	return 0;
 }
