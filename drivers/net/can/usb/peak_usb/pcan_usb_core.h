@@ -96,7 +96,7 @@ extern const struct peak_usb_adapter pcan_usb_pro_fd;
 extern const struct peak_usb_adapter pcan_usb_x6;
 
 struct peak_time_ref {
-	struct timeval tv_host_0, tv_host;
+	ktime_t tv_host_0, tv_host;
 	u32 ts_dev_1, ts_dev_2;
 	u64 ts_total;
 	u32 tick_count;
