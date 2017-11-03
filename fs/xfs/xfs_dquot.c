@@ -703,7 +703,7 @@ xfs_dq_get_next_id(
 	xfs_dqid_t		next_id = *id + 1; /* simple advance */
 	uint			lock_flags;
 	struct xfs_bmbt_irec	got;
-	xfs_extnum_t		idx;
+	struct xfs_iext_cursor	cur;
 	xfs_fsblock_t		start;
 	int			error = 0;
 
@@ -727,7 +727,7 @@ xfs_dq_get_next_id(
 			return error;
 	}
 
-	if (xfs_iext_lookup_extent(quotip, &quotip->i_df, start, &idx, &got)) {
+	if (xfs_iext_lookup_extent(quotip, &quotip->i_df, start, &cur, &got)) {
 		/* contiguous chunk, bump startoff for the id calculation */
 		if (got.br_startoff < start)
 			got.br_startoff = start;

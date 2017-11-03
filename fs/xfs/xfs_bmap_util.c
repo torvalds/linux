@@ -229,15 +229,17 @@ xfs_bmap_count_leaves(
 	struct xfs_ifork	*ifp,
 	xfs_filblks_t		*count)
 {
+	struct xfs_iext_cursor	icur;
 	struct xfs_bmbt_irec	got;
-	xfs_extnum_t		numrecs = 0, i = 0;
+	xfs_extnum_t		numrecs = 0;
 
-	while (xfs_iext_get_extent(ifp, i++, &got)) {
+	for_each_xfs_iext(ifp, &icur, &got) {
 		if (!isnullstartblock(got.br_startblock)) {
 			*count += got.br_blockcount;
 			numrecs++;
 		}
 	}
+
 	return numrecs;
 }
 
@@ -525,7 +527,7 @@ xfs_getbmap(
 	struct xfs_ifork	*ifp;
 	struct xfs_bmbt_irec	got, rec;
 	xfs_filblks_t		len;
-	xfs_extnum_t		idx;
+	struct xfs_iext_cursor	icur;
 
 	if (bmv->bmv_iflags & ~BMV_IF_VALID)
 		return -EINVAL;
@@ -629,7 +631,7 @@ xfs_getbmap(
 			goto out_unlock_ilock;
 	}
 
-	if (!xfs_iext_lookup_extent(ip, ifp, bno, &idx, &got)) {
+	if (!xfs_iext_lookup_extent(ip, ifp, bno, &icur, &got)) {
 		/*
 		 * Report a whole-file hole if the delalloc flag is set to
 		 * stay compatible with the old implementation.
@@ -668,7 +670,7 @@ xfs_getbmap(
 				goto out_unlock_ilock;
 		} while (xfs_getbmap_next_rec(&rec, bno));
 
-		if (!xfs_iext_get_extent(ifp, ++idx, &got)) {
+		if (!xfs_iext_next_extent(ifp, &icur, &got)) {
 			xfs_fileoff_t	end = XFS_B_TO_FSB(mp, XFS_ISIZE(ip));
 
 			out[bmv->bmv_entries - 1].bmv_oflags |= BMV_OF_LAST;

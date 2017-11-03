@@ -614,7 +614,7 @@ xfs_scrub_directory_blocks(
 	xfs_fileoff_t			leaf_lblk;
 	xfs_fileoff_t			free_lblk;
 	xfs_fileoff_t			lblk;
-	xfs_extnum_t			idx;
+	struct xfs_iext_cursor		icur;
 	xfs_dablk_t			dabno;
 	bool				found;
 	int				is_block = 0;
@@ -639,7 +639,7 @@ xfs_scrub_directory_blocks(
 		goto out;
 
 	/* Iterate all the data extents in the directory... */
-	found = xfs_iext_lookup_extent(sc->ip, ifp, lblk, &idx, &got);
+	found = xfs_iext_lookup_extent(sc->ip, ifp, lblk, &icur, &got);
 	while (found) {
 		/* Block directories only have a single block at offset 0. */
 		if (is_block &&
@@ -676,17 +676,17 @@ xfs_scrub_directory_blocks(
 		}
 		dabno = got.br_startoff + got.br_blockcount;
 		lblk = roundup(dabno, args.geo->fsbcount);
-		found = xfs_iext_lookup_extent(sc->ip, ifp, lblk, &idx, &got);
+		found = xfs_iext_lookup_extent(sc->ip, ifp, lblk, &icur, &got);
 	}
 
 	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
 		goto out;
 
 	/* Look for a leaf1 block, which has free info. */
-	if (xfs_iext_lookup_extent(sc->ip, ifp, leaf_lblk, &idx, &got) &&
+	if (xfs_iext_lookup_extent(sc->ip, ifp, leaf_lblk, &icur, &got) &&
 	    got.br_startoff == leaf_lblk &&
 	    got.br_blockcount == args.geo->fsbcount &&
-	    !xfs_iext_get_extent(ifp, ++idx, &got)) {
+	    !xfs_iext_next_extent(ifp, &icur, &got)) {
 		if (is_block) {
 			xfs_scrub_fblock_set_corrupt(sc, XFS_DATA_FORK, lblk);
 			goto out;
@@ -702,7 +702,7 @@ xfs_scrub_directory_blocks(
 
 	/* Scan for free blocks */
 	lblk = free_lblk;
-	found = xfs_iext_lookup_extent(sc->ip, ifp, lblk, &idx, &got);
+	found = xfs_iext_lookup_extent(sc->ip, ifp, lblk, &icur, &got);
 	while (found) {
 		/*
 		 * Dirs can't have blocks mapped above 2^32.
@@ -740,7 +740,7 @@ xfs_scrub_directory_blocks(
 		}
 		dabno = got.br_startoff + got.br_blockcount;
 		lblk = roundup(dabno, args.geo->fsbcount);
-		found = xfs_iext_lookup_extent(sc->ip, ifp, lblk, &idx, &got);
+		found = xfs_iext_lookup_extent(sc->ip, ifp, lblk, &icur, &got);
 	}
 out:
 	return error;

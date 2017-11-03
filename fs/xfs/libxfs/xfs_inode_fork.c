@@ -343,6 +343,7 @@ xfs_iformat_extents(
 	int			state = xfs_bmap_fork_to_state(whichfork);
 	int			nex = XFS_DFORK_NEXTENTS(dip, whichfork);
 	int			size = nex * sizeof(xfs_bmbt_rec_t);
+	struct xfs_iext_cursor	icur;
 	struct xfs_bmbt_rec	*dp;
 	int			i;
 
@@ -369,16 +370,21 @@ xfs_iformat_extents(
 	ifp->if_bytes = size;
 	if (size) {
 		dp = (xfs_bmbt_rec_t *) XFS_DFORK_PTR(dip, whichfork);
+
+		xfs_iext_first(ifp, &icur);
 		for (i = 0; i < nex; i++, dp++) {
 			xfs_bmbt_rec_host_t *ep = xfs_iext_get_ext(ifp, i);
+
 			if (!xfs_bmbt_validate_extent(mp, whichfork, dp)) {
 				XFS_ERROR_REPORT("xfs_iformat_extents(2)",
 						 XFS_ERRLEVEL_LOW, mp);
 				return -EFSCORRUPTED;
 			}
+
 			ep->l0 = get_unaligned_be64(&dp->l0);
 			ep->l1 = get_unaligned_be64(&dp->l1);
-			trace_xfs_read_extent(ip, i, state, _THIS_IP_);
+			trace_xfs_read_extent(ip, &icur, state, _THIS_IP_);
+			xfs_iext_next(ifp, &icur);
 		}
 	}
 	ifp->if_flags |= XFS_IFEXTENTS;
@@ -739,17 +745,18 @@ xfs_iextents_copy(
 {
 	int			state = xfs_bmap_fork_to_state(whichfork);
 	struct xfs_ifork	*ifp = XFS_IFORK_PTR(ip, whichfork);
+	struct xfs_iext_cursor	icur;
 	struct xfs_bmbt_irec	rec;
-	int			copied = 0, i = 0;
+	int			copied = 0;
 
 	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL | XFS_ILOCK_SHARED));
 	ASSERT(ifp->if_bytes > 0);
 
-	while (xfs_iext_get_extent(ifp, i++, &rec)) {
+	for_each_xfs_iext(ifp, &icur, &rec) {
 		if (isnullstartblock(rec.br_startblock))
 			continue;
 		xfs_bmbt_disk_set_all(dp, &rec);
-		trace_xfs_write_extent(ip, i, state, _RET_IP_);
+		trace_xfs_write_extent(ip, &icur, state, _RET_IP_);
 		ASSERT(xfs_bmbt_validate_extent(ip->i_mount, whichfork, dp));
 		copied += sizeof(struct xfs_bmbt_rec);
 		dp++;
@@ -894,7 +901,7 @@ xfs_iext_state_to_fork(
 void
 xfs_iext_insert(
 	xfs_inode_t	*ip,		/* incore inode pointer */
-	xfs_extnum_t	idx,		/* starting index of new items */
+	struct xfs_iext_cursor *cur,
 	xfs_extnum_t	count,		/* number of inserted items */
 	xfs_bmbt_irec_t	*new,		/* items to insert */
 	int		state)		/* type of extent conversion */
@@ -902,12 +909,12 @@ xfs_iext_insert(
 	xfs_ifork_t	*ifp = xfs_iext_state_to_fork(ip, state);
 	xfs_extnum_t	i;		/* extent record index */
 
-	trace_xfs_iext_insert(ip, idx, new, state, _RET_IP_);
+	trace_xfs_iext_insert(ip, cur->idx, new, state, _RET_IP_);
 
 	ASSERT(ifp->if_flags & XFS_IFEXTENTS);
-	xfs_iext_add(ifp, idx, count);
-	for (i = idx; i < idx + count; i++, new++)
-		xfs_bmbt_set_all(xfs_iext_get_ext(ifp, i), new);
+	xfs_iext_add(ifp, cur->idx, count);
+	for (i = 0; i < count; i++, new++)
+		xfs_bmbt_set_all(xfs_iext_get_ext(ifp, cur->idx + i), new);
 }
 
 /*
@@ -1145,7 +1152,7 @@ xfs_iext_add_indirect_multi(
 void
 xfs_iext_remove(
 	xfs_inode_t	*ip,		/* incore inode pointer */
-	xfs_extnum_t	idx,		/* index to begin removing exts */
+	struct xfs_iext_cursor *cur,
 	int		ext_diff,	/* number of extents to remove */
 	int		state)		/* type of extent conversion */
 {
@@ -1153,7 +1160,7 @@ xfs_iext_remove(
 	xfs_extnum_t	nextents;	/* number of extents in file */
 	int		new_size;	/* size of extents after removal */
 
-	trace_xfs_iext_remove(ip, idx, state, _RET_IP_);
+	trace_xfs_iext_remove(ip, cur, state, _RET_IP_);
 
 	ASSERT(ext_diff > 0);
 	nextents = xfs_iext_count(ifp);
@@ -1162,11 +1169,11 @@ xfs_iext_remove(
 	if (new_size == 0) {
 		xfs_iext_destroy(ifp);
 	} else if (ifp->if_flags & XFS_IFEXTIREC) {
-		xfs_iext_remove_indirect(ifp, idx, ext_diff);
+		xfs_iext_remove_indirect(ifp, cur->idx, ext_diff);
 	} else if (ifp->if_real_bytes) {
-		xfs_iext_remove_direct(ifp, idx, ext_diff);
+		xfs_iext_remove_direct(ifp, cur->idx, ext_diff);
 	} else {
-		xfs_iext_remove_inline(ifp, idx, ext_diff);
+		xfs_iext_remove_inline(ifp, cur->idx, ext_diff);
 	}
 	ifp->if_bytes = new_size;
 }
@@ -1913,26 +1920,26 @@ xfs_ifork_init_cow(
  * Lookup the extent covering bno.
  *
  * If there is an extent covering bno return the extent index, and store the
- * expanded extent structure in *gotp, and the extent index in *idx.
+ * expanded extent structure in *gotp, and the extent cursor in *cur.
  * If there is no extent covering bno, but there is an extent after it (e.g.
- * it lies in a hole) return that extent in *gotp and its index in *idx
+ * it lies in a hole) return that extent in *gotp and its cursor in *cur
  * instead.
- * If bno is beyond the last extent return false, and return the index after
- * the last valid index in *idxp.
+ * If bno is beyond the last extent return false, and return an invalid
+ * cursor value.
  */
 bool
 xfs_iext_lookup_extent(
 	struct xfs_inode	*ip,
 	struct xfs_ifork	*ifp,
 	xfs_fileoff_t		bno,
-	xfs_extnum_t		*idxp,
+	struct xfs_iext_cursor	*cur,
 	struct xfs_bmbt_irec	*gotp)
 {
 	struct xfs_bmbt_rec_host *ep;
 
 	XFS_STATS_INC(ip->i_mount, xs_look_exlist);
 
-	ep = xfs_iext_bno_to_ext(ifp, bno, idxp);
+	ep = xfs_iext_bno_to_ext(ifp, bno, &cur->idx);
 	if (!ep)
 		return false;
 	xfs_bmbt_get_all(ep, gotp);
@@ -1948,31 +1955,31 @@ xfs_iext_lookup_extent_before(
 	struct xfs_inode	*ip,
 	struct xfs_ifork	*ifp,
 	xfs_fileoff_t		*end,
-	xfs_extnum_t		*idxp,
+	struct xfs_iext_cursor	*cur,
 	struct xfs_bmbt_irec	*gotp)
 {
-	if (xfs_iext_lookup_extent(ip, ifp, *end - 1, idxp, gotp) &&
+	if (xfs_iext_lookup_extent(ip, ifp, *end - 1, cur, gotp) &&
 	    gotp->br_startoff <= *end - 1)
 		return true;
-	if (!xfs_iext_get_extent(ifp, --*idxp, gotp))
+	if (!xfs_iext_prev_extent(ifp, cur, gotp))
 		return false;
 	*end = gotp->br_startoff + gotp->br_blockcount;
 	return true;
 }
 
 /*
- * Return true if there is an extent at index idx, and return the expanded
- * extent structure at idx in that case.  Else return false.
+ * Return true if the cursor points at an extent and return the extent structure
+ * in gotp.  Else return false.
  */
 bool
 xfs_iext_get_extent(
 	struct xfs_ifork	*ifp,
-	xfs_extnum_t		idx,
+	struct xfs_iext_cursor	*cur,
 	struct xfs_bmbt_irec	*gotp)
 {
-	if (idx < 0 || idx >= xfs_iext_count(ifp))
+	if (cur->idx < 0 || cur->idx >= xfs_iext_count(ifp))
 		return false;
-	xfs_bmbt_get_all(xfs_iext_get_ext(ifp, idx), gotp);
+	xfs_bmbt_get_all(xfs_iext_get_ext(ifp, cur->idx), gotp);
 	return true;
 }
 
@@ -1980,15 +1987,15 @@ void
 xfs_iext_update_extent(
 	struct xfs_inode	*ip,
 	int			state,
-	xfs_extnum_t		idx,
+	struct xfs_iext_cursor	*cur,
 	struct xfs_bmbt_irec	*gotp)
 {
 	struct xfs_ifork	*ifp = xfs_iext_state_to_fork(ip, state);
 
-	ASSERT(idx >= 0);
-	ASSERT(idx < xfs_iext_count(ifp));
+	ASSERT(cur->idx >= 0);
+	ASSERT(cur->idx < xfs_iext_count(ifp));
 
-	trace_xfs_bmap_pre_update(ip, idx, state, _RET_IP_);
-	xfs_bmbt_set_all(xfs_iext_get_ext(ifp, idx), gotp);
-	trace_xfs_bmap_post_update(ip, idx, state, _RET_IP_);
+	trace_xfs_bmap_pre_update(ip, cur, state, _RET_IP_);
+	xfs_bmbt_set_all(xfs_iext_get_ext(ifp, cur->idx), gotp);
+	trace_xfs_bmap_post_update(ip, cur, state, _RET_IP_);
 }

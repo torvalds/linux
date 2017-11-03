@@ -151,12 +151,13 @@ void		xfs_init_local_fork(struct xfs_inode *, int, const void *, int);
 struct xfs_bmbt_rec_host *
 		xfs_iext_get_ext(struct xfs_ifork *, xfs_extnum_t);
 xfs_extnum_t	xfs_iext_count(struct xfs_ifork *);
-void		xfs_iext_insert(struct xfs_inode *, xfs_extnum_t, xfs_extnum_t,
-				struct xfs_bmbt_irec *, int);
+void		xfs_iext_insert(struct xfs_inode *, struct xfs_iext_cursor *cur,
+			xfs_extnum_t, struct xfs_bmbt_irec *, int);
 void		xfs_iext_add(struct xfs_ifork *, xfs_extnum_t, int);
 void		xfs_iext_add_indirect_multi(struct xfs_ifork *, int,
 					    xfs_extnum_t, int);
-void		xfs_iext_remove(struct xfs_inode *, xfs_extnum_t, int, int);
+void		xfs_iext_remove(struct xfs_inode *, struct xfs_iext_cursor *,
+			int, int);
 void		xfs_iext_remove_inline(struct xfs_ifork *, xfs_extnum_t, int);
 void		xfs_iext_remove_direct(struct xfs_ifork *, xfs_extnum_t, int);
 void		xfs_iext_remove_indirect(struct xfs_ifork *, xfs_extnum_t, int);
@@ -182,15 +183,85 @@ void		xfs_iext_irec_update_extoffs(struct xfs_ifork *, int, int);
 
 bool		xfs_iext_lookup_extent(struct xfs_inode *ip,
 			struct xfs_ifork *ifp, xfs_fileoff_t bno,
-			xfs_extnum_t *idxp, struct xfs_bmbt_irec *gotp);
+			struct xfs_iext_cursor *cur,
+			struct xfs_bmbt_irec *gotp);
 bool		xfs_iext_lookup_extent_before(struct xfs_inode *ip,
 			struct xfs_ifork *ifp, xfs_fileoff_t *end,
-			xfs_extnum_t *idxp, struct xfs_bmbt_irec *gotp);
-
-bool		xfs_iext_get_extent(struct xfs_ifork *ifp, xfs_extnum_t idx,
+			struct xfs_iext_cursor *cur,
+			struct xfs_bmbt_irec *gotp);
+bool		xfs_iext_get_extent(struct xfs_ifork *ifp,
+			struct xfs_iext_cursor *cur,
 			struct xfs_bmbt_irec *gotp);
 void		xfs_iext_update_extent(struct xfs_inode *ip, int state,
-			xfs_extnum_t idx, struct xfs_bmbt_irec *gotp);
+			struct xfs_iext_cursor *cur,
+			struct xfs_bmbt_irec *gotp);
+
+static inline void xfs_iext_first(struct xfs_ifork *ifp,
+		struct xfs_iext_cursor *cur)
+{
+	cur->idx = 0;
+}
+
+static inline void xfs_iext_last(struct xfs_ifork *ifp,
+		struct xfs_iext_cursor *cur)
+{
+	cur->idx = xfs_iext_count(ifp) - 1;
+}
+
+static inline void xfs_iext_next(struct xfs_ifork *ifp,
+		struct xfs_iext_cursor *cur)
+{
+	cur->idx++;
+}
+
+static inline void xfs_iext_prev(struct xfs_ifork *ifp,
+		struct xfs_iext_cursor *cur)
+{
+	cur->idx--;
+}
+
+static inline bool xfs_iext_next_extent(struct xfs_ifork *ifp,
+		struct xfs_iext_cursor *cur, struct xfs_bmbt_irec *gotp)
+{
+	xfs_iext_next(ifp, cur);
+	return xfs_iext_get_extent(ifp, cur, gotp);
+}
+
+static inline bool xfs_iext_prev_extent(struct xfs_ifork *ifp,
+		struct xfs_iext_cursor *cur, struct xfs_bmbt_irec *gotp)
+{
+	xfs_iext_prev(ifp, cur);
+	return xfs_iext_get_extent(ifp, cur, gotp);
+}
+
+/*
+ * Return the extent after cur in gotp without updating the cursor.
+ */
+static inline bool xfs_iext_peek_next_extent(struct xfs_ifork *ifp,
+		struct xfs_iext_cursor *cur, struct xfs_bmbt_irec *gotp)
+{
+	struct xfs_iext_cursor ncur = *cur;
+
+	xfs_iext_next(ifp, &ncur);
+	return xfs_iext_get_extent(ifp, &ncur, gotp);
+}
+
+/*
+ * Return the extent before cur in gotp without updating the cursor.
+ */
+static inline bool xfs_iext_peek_prev_extent(struct xfs_ifork *ifp,
+		struct xfs_iext_cursor *cur, struct xfs_bmbt_irec *gotp)
+{
+	struct xfs_iext_cursor ncur = *cur;
+
+	xfs_iext_prev(ifp, &ncur);
+	return xfs_iext_get_extent(ifp, &ncur, gotp);
+}
+
+#define for_each_xfs_iext(ifp, ext, got)		\
+	for (xfs_iext_first((ifp), (ext));		\
+	     xfs_iext_get_extent((ifp), (ext), (got));	\
+	     xfs_iext_next((ifp), (ext)))
 
 extern struct kmem_zone	*xfs_ifork_zone;
 

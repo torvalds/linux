@@ -258,9 +258,9 @@ TRACE_EVENT(xfs_iext_insert,
 );
 
 DECLARE_EVENT_CLASS(xfs_bmap_class,
-	TP_PROTO(struct xfs_inode *ip, xfs_extnum_t idx, int state,
+	TP_PROTO(struct xfs_inode *ip, struct xfs_iext_cursor *cur, int state,
 		 unsigned long caller_ip),
-	TP_ARGS(ip, idx, state, caller_ip),
+	TP_ARGS(ip, cur, state, caller_ip),
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
 		__field(xfs_ino_t, ino)
@@ -277,10 +277,10 @@ DECLARE_EVENT_CLASS(xfs_bmap_class,
 		struct xfs_bmbt_irec	r;
 
 		ifp = xfs_iext_state_to_fork(ip, state);
-		xfs_iext_get_extent(ifp, idx, &r);
+		xfs_iext_get_extent(ifp, cur, &r);
 		__entry->dev = VFS_I(ip)->i_sb->s_dev;
 		__entry->ino = ip->i_ino;
-		__entry->idx = idx;
+		__entry->idx = cur->idx;
 		__entry->startoff = r.br_startoff;
 		__entry->startblock = r.br_startblock;
 		__entry->blockcount = r.br_blockcount;
@@ -303,9 +303,9 @@ DECLARE_EVENT_CLASS(xfs_bmap_class,
 
 #define DEFINE_BMAP_EVENT(name) \
 DEFINE_EVENT(xfs_bmap_class, name, \
-	TP_PROTO(struct xfs_inode *ip, xfs_extnum_t idx, int state, \
+	TP_PROTO(struct xfs_inode *ip, struct xfs_iext_cursor *cur, int state, \
 		 unsigned long caller_ip), \
-	TP_ARGS(ip, idx, state, caller_ip))
+	TP_ARGS(ip, cur, state, caller_ip))
 DEFINE_BMAP_EVENT(xfs_iext_remove);
 DEFINE_BMAP_EVENT(xfs_bmap_pre_update);
 DEFINE_BMAP_EVENT(xfs_bmap_post_update);
