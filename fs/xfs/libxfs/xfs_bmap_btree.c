@@ -199,14 +199,14 @@ xfs_bmbt_disk_set_all(
 	ASSERT(!(s->br_blockcount & xfs_mask64hi(64-BMBT_BLOCKCOUNT_BITLEN)));
 	ASSERT(!(s->br_startblock & xfs_mask64hi(64-BMBT_STARTBLOCK_BITLEN)));
 
-	r->l0 = cpu_to_be64(
+	put_unaligned_be64(
 		((xfs_bmbt_rec_base_t)extent_flag << 63) |
 		 ((xfs_bmbt_rec_base_t)s->br_startoff << 9) |
-		 ((xfs_bmbt_rec_base_t)s->br_startblock >> 43));
-	r->l1 = cpu_to_be64(
+		 ((xfs_bmbt_rec_base_t)s->br_startblock >> 43), &r->l0);
+	put_unaligned_be64(
 		((xfs_bmbt_rec_base_t)s->br_startblock << 21) |
 		 ((xfs_bmbt_rec_base_t)s->br_blockcount &
-		  (xfs_bmbt_rec_base_t)xfs_mask64lo(21)));
+		  (xfs_bmbt_rec_base_t)xfs_mask64lo(21)), &r->l1);
 }
 
 /*
