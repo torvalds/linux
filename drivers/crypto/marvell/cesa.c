@@ -591,6 +591,7 @@ static int mv_cesa_remove(struct platform_device *pdev)
 
 static const struct platform_device_id mv_cesa_plat_id_table[] = {
 	{ .name = "mv_crypto" },
+	{ /* sentinel */ },
 };
 MODULE_DEVICE_TABLE(platform, mv_cesa_plat_id_table);
 
