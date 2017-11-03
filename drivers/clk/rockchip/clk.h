@@ -34,6 +34,45 @@ struct clk;
 #define HIWORD_UPDATE(val, mask, shift) \
 		((val) << (shift) | (mask) << ((shift) + 16))
 
+#define PX30_PLL_CON(x)			((x) * 0x4)
+#define PX30_CLKSEL_CON(x)		((x) * 0x4 + 0x100)
+#define PX30_CLKGATE_CON(x)		((x) * 0x4 + 0x200)
+#define PX30_GLB_SRST_FST		0xb8
+#define PX30_GLB_SRST_SND		0xbc
+#define PX30_SOFTRST_CON(x)		((x) * 0x4 + 0x300)
+#define PX30_MODE_CON			0xa0
+#define PX30_MISC_CON			0xa4
+#define PX30_SDMMC_CON0			0x380
+#define PX30_SDMMC_CON1			0x384
+#define PX30_SDIO_CON0			0x388
+#define PX30_SDIO_CON1			0x38c
+#define PX30_EMMC_CON0			0x390
+#define PX30_EMMC_CON1			0x394
+
+#define PX30_PMU_PLL_CON(x)		((x) * 0x4)
+#define PX30_PMU_CLKSEL_CON(x)		((x) * 0x4 + 0x40)
+#define PX30_PMU_CLKGATE_CON(x)		((x) * 0x4 + 0x58)
+#define PX30_PMU_MODE			0x0020
+
+#define PX30_BOOST_PLL_H_CON(x)		((x) * 0x4 + 0x8000)
+#define PX30_BOOST_CLK_CON		0x8008
+#define PX30_BOOST_BOOST_CON		0x800c
+#define PX30_BOOST_SWITCH_CNT		0x8010
+#define PX30_BOOST_HIGH_PERF_CNT0	0x8014
+#define PX30_BOOST_HIGH_PERF_CNT1	0x8018
+#define PX30_BOOST_STATIS_THRESHOLD	0x801c
+#define PX30_BOOST_SHORT_SWITCH_CNT	0x8020
+#define PX30_BOOST_SWITCH_THRESHOLD	0x8024
+#define PX30_BOOST_FSM_STATUS		0x8028
+#define PX30_BOOST_PLL_L_CON(x)		((x) * 0x4 + 0x802c)
+#define PX30_BOOST_RECOVERY_MASK	0x2
+#define PX30_BOOST_RECOVERY_SHIFT	1
+#define PX30_BOOST_SW_CTRL_MASK		0x4
+#define PX30_BOOST_SW_CTRL_SHIFT	2
+#define PX30_BOOST_LOW_FREQ_EN_MASK	0x8
+#define PX30_BOOST_LOW_FREQ_EN_SHIFT	3
+#define PX30_BOOST_BUSY_STATE		BIT(8)
+
 /* register positions shared by RK2928, RK3036, RK3066, RK3188 and RK3228 */
 #define RK2928_PLL_CON(x)		((x) * 0x4)
 #define RK2928_MODE_CON		0x40
@@ -134,6 +173,7 @@ struct clk;
 #define RK3399_PMU_GATEDIS_CON(x)	((x) * 0x4 + 0x130)
 
 enum rockchip_pll_type {
+	pll_px30,
 	pll_rk3036,
 	pll_rk3066,
 	pll_rk3328,

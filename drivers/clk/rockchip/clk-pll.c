@@ -421,11 +421,31 @@ static int rockchip_rk3036_pll_set_params(struct rockchip_clk_pll *pll,
 	rockchip_rk3036_pll_get_params(pll, &cur);
 	cur.rate = 0;
 
+	if (pll->type == pll_px30) {
+		writel_relaxed(HIWORD_UPDATE(1, PX30_BOOST_RECOVERY_MASK,
+					     PX30_BOOST_RECOVERY_SHIFT),
+			       pll->reg_base + PX30_BOOST_BOOST_CON);
+		do {
+			ret = readl_relaxed(pll->reg_base +
+					    PX30_BOOST_FSM_STATUS);
+		} while (ret & PX30_BOOST_BUSY_STATE);
+		writel_relaxed(HIWORD_UPDATE(1, PX30_BOOST_SW_CTRL_MASK,
+					     PX30_BOOST_SW_CTRL_SHIFT) |
+			       HIWORD_UPDATE(1, PX30_BOOST_LOW_FREQ_EN_MASK,
+					     PX30_BOOST_LOW_FREQ_EN_SHIFT),
+			       pll->reg_base + PX30_BOOST_BOOST_CON);
+	}
+
 	cur_parent = pll_mux_ops->get_parent(&pll_mux->hw);
 	if (cur_parent == PLL_MODE_NORM) {
 		pll_mux_ops->set_parent(&pll_mux->hw, PLL_MODE_SLOW);
 		rate_change_remuxed = 1;
 	}
+
+	/* set pll power down */
+	writel(HIWORD_UPDATE(1,
+			     RK3036_PLLCON1_PWRDOWN, 13),
+	       pll->reg_base + RK3036_PLLCON(1));
 
 	/* update pll values */
 	writel_relaxed(HIWORD_UPDATE(rate->fbdiv, RK3036_PLLCON0_FBDIV_MASK,
@@ -448,6 +468,16 @@ static int rockchip_rk3036_pll_set_params(struct rockchip_clk_pll *pll,
 	pllcon |= rate->frac << RK3036_PLLCON2_FRAC_SHIFT;
 	writel_relaxed(pllcon, pll->reg_base + RK3036_PLLCON(2));
 
+	if (pll->type == pll_px30) {
+		writel_relaxed(HIWORD_UPDATE(0, PX30_BOOST_LOW_FREQ_EN_MASK,
+					     PX30_BOOST_LOW_FREQ_EN_SHIFT),
+			       pll->reg_base + PX30_BOOST_BOOST_CON);
+	}
+
+	/* set pll power up */
+	writel(HIWORD_UPDATE(0, RK3036_PLLCON1_PWRDOWN, 13),
+	       pll->reg_base + RK3036_PLLCON(1));
+
 	/* wait for the pll to lock */
 	ret = rockchip_pll_wait_lock(pll);
 	if (ret) {
@@ -458,6 +488,15 @@ static int rockchip_rk3036_pll_set_params(struct rockchip_clk_pll *pll,
 
 	if (rate_change_remuxed)
 		pll_mux_ops->set_parent(&pll_mux->hw, PLL_MODE_NORM);
+
+	if (pll->type == pll_px30) {
+		writel_relaxed(HIWORD_UPDATE(0, PX30_BOOST_RECOVERY_MASK,
+					     PX30_BOOST_RECOVERY_SHIFT),
+			       pll->reg_base + PX30_BOOST_BOOST_CON);
+		writel_relaxed(HIWORD_UPDATE(0, PX30_BOOST_SW_CTRL_MASK,
+					     PX30_BOOST_SW_CTRL_SHIFT),
+			       pll->reg_base + PX30_BOOST_BOOST_CON);
+	}
 
 	return ret;
 }
@@ -1303,7 +1342,8 @@ struct clk *rockchip_clk_register_pll(struct rockchip_clk_provider *ctx,
 	pll_mux->lock = &ctx->lock;
 	pll_mux->hw.init = &init;
 
-	if (pll_type == pll_rk3036 ||
+	if (pll_type == pll_px30 ||
+	    pll_type == pll_rk3036 ||
 	    pll_type == pll_rk3066 ||
 	    pll_type == pll_rk3328 ||
 	    pll_type == pll_rk3366 ||
@@ -1355,6 +1395,7 @@ struct clk *rockchip_clk_register_pll(struct rockchip_clk_provider *ctx,
 	}
 
 	switch (pll_type) {
+	case pll_px30:
 	case pll_rk3036:
 	case pll_rk3328:
 		if (!pll->rate_table)
