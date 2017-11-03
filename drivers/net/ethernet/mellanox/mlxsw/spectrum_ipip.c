@@ -287,6 +287,72 @@ mlxsw_sp_ipip_ol_loopback_config_gre4(struct mlxsw_sp *mlxsw_sp,
 	};
 }
 
+static int
+mlxsw_sp_ipip_ol_netdev_change_gre4(struct mlxsw_sp *mlxsw_sp,
+				    struct mlxsw_sp_ipip_entry *ipip_entry,
+				    struct netlink_ext_ack *extack)
+{
+	union mlxsw_sp_l3addr old_saddr, new_saddr;
+	union mlxsw_sp_l3addr old_daddr, new_daddr;
+	struct ip_tunnel_parm new_parms;
+	bool update_tunnel = false;
+	bool update_decap = false;
+	bool update_nhs = false;
+	int err = 0;
+
+	new_parms = mlxsw_sp_ipip_netdev_parms(ipip_entry->ol_dev);
+
+	new_saddr = mlxsw_sp_ipip_parms_saddr(MLXSW_SP_L3_PROTO_IPV4,
+					      new_parms);
+	old_saddr = mlxsw_sp_ipip_parms_saddr(MLXSW_SP_L3_PROTO_IPV4,
+					      ipip_entry->parms);
+	new_daddr = mlxsw_sp_ipip_parms_daddr(MLXSW_SP_L3_PROTO_IPV4,
+					      new_parms);
+	old_daddr = mlxsw_sp_ipip_parms_daddr(MLXSW_SP_L3_PROTO_IPV4,
+					      ipip_entry->parms);
+
+	if (!mlxsw_sp_l3addr_eq(&new_saddr, &old_saddr)) {
+		u16 ul_tb_id = mlxsw_sp_ipip_dev_ul_tb_id(ipip_entry->ol_dev);
+
+		/* Since the local address has changed, if there is another
+		 * tunnel with a matching saddr, both need to be demoted.
+		 */
+		if (mlxsw_sp_ipip_demote_tunnel_by_saddr(mlxsw_sp,
+							 MLXSW_SP_L3_PROTO_IPV4,
+							 new_saddr, ul_tb_id,
+							 ipip_entry)) {
+			mlxsw_sp_ipip_entry_demote_tunnel(mlxsw_sp, ipip_entry);
+			return 0;
+		}
+
+		update_tunnel = true;
+	} else if (mlxsw_sp_ipip_parms_okey(ipip_entry->parms) !=
+		   mlxsw_sp_ipip_parms_okey(new_parms)) {
+		update_tunnel = true;
+	} else if (!mlxsw_sp_l3addr_eq(&new_daddr, &old_daddr)) {
+		update_nhs = true;
+	} else if (mlxsw_sp_ipip_parms_ikey(ipip_entry->parms) !=
+		   mlxsw_sp_ipip_parms_ikey(new_parms)) {
+		update_decap = true;
+	}
+
+	if (update_tunnel)
+		err = __mlxsw_sp_ipip_entry_update_tunnel(mlxsw_sp, ipip_entry,
+							  true, true, true,
+							  extack);
+	else if (update_nhs)
+		err = __mlxsw_sp_ipip_entry_update_tunnel(mlxsw_sp, ipip_entry,
+							  false, false, true,
+							  extack);
+	else if (update_decap)
+		err = __mlxsw_sp_ipip_entry_update_tunnel(mlxsw_sp, ipip_entry,
+							  false, false, false,
+							  extack);
+
+	ipip_entry->parms = new_parms;
+	return err;
+}
+
 static const struct mlxsw_sp_ipip_ops mlxsw_sp_ipip_gre4_ops = {
 	.dev_type = ARPHRD_IPGRE,
 	.ul_proto = MLXSW_SP_L3_PROTO_IPV4,
@@ -294,6 +360,7 @@ static const struct mlxsw_sp_ipip_ops mlxsw_sp_ipip_gre4_ops = {
 	.fib_entry_op = mlxsw_sp_ipip_fib_entry_op_gre4,
 	.can_offload = mlxsw_sp_ipip_can_offload_gre4,
 	.ol_loopback_config = mlxsw_sp_ipip_ol_loopback_config_gre4,
+	.ol_netdev_change = mlxsw_sp_ipip_ol_netdev_change_gre4,
 };
 
 const struct mlxsw_sp_ipip_ops *mlxsw_sp_ipip_ops_arr[] = {

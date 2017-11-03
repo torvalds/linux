@@ -56,6 +56,7 @@ struct mlxsw_sp_ipip_entry {
 	struct mlxsw_sp_rif_ipip_lb *ol_lb;
 	struct mlxsw_sp_fib_entry *decap_fib_entry;
 	struct list_head ipip_list_node;
+	struct ip_tunnel_parm parms;
 };
 
 struct mlxsw_sp_ipip_ops {
@@ -78,6 +79,10 @@ struct mlxsw_sp_ipip_ops {
 			    struct mlxsw_sp_ipip_entry *ipip_entry,
 			    enum mlxsw_reg_ralue_op op,
 			    u32 tunnel_index);
+
+	int (*ol_netdev_change)(struct mlxsw_sp *mlxsw_sp,
+				struct mlxsw_sp_ipip_entry *ipip_entry,
+				struct netlink_ext_ack *extack);
 };
 
 extern const struct mlxsw_sp_ipip_ops *mlxsw_sp_ipip_ops_arr[];

@@ -943,7 +943,7 @@ __mlxsw_sp_ipip_netdev_ul_dev_get(const struct net_device *ol_dev)
 	return __dev_get_by_index(net, tun->parms.link);
 }
 
-static u32 mlxsw_sp_ipip_dev_ul_tb_id(const struct net_device *ol_dev)
+u32 mlxsw_sp_ipip_dev_ul_tb_id(const struct net_device *ol_dev)
 {
 	struct net_device *d = __mlxsw_sp_ipip_netdev_ul_dev_get(ol_dev);
 
@@ -1002,6 +1002,7 @@ mlxsw_sp_ipip_entry_alloc(struct mlxsw_sp *mlxsw_sp,
 
 	ipip_entry->ipipt = ipipt;
 	ipip_entry->ol_dev = ol_dev;
+	ipip_entry->parms = mlxsw_sp_ipip_netdev_parms(ol_dev);
 
 	return ipip_entry;
 
@@ -1015,12 +1016,6 @@ mlxsw_sp_ipip_entry_dealloc(struct mlxsw_sp_ipip_entry *ipip_entry)
 {
 	mlxsw_sp_rif_destroy(&ipip_entry->ol_lb->common);
 	kfree(ipip_entry);
-}
-
-static bool mlxsw_sp_l3addr_eq(const union mlxsw_sp_l3addr *addr1,
-			       const union mlxsw_sp_l3addr *addr2)
-{
-	return !memcmp(addr1, addr2, sizeof(*addr1));
 }
 
 static bool
@@ -1471,6 +1466,35 @@ mlxsw_sp_netdevice_ipip_ul_vrf_event(struct mlxsw_sp *mlxsw_sp,
 						   true, true, false, extack);
 }
 
+static int
+mlxsw_sp_netdevice_ipip_ol_change_event(struct mlxsw_sp *mlxsw_sp,
+					struct net_device *ol_dev,
+					struct netlink_ext_ack *extack)
+{
+	const struct mlxsw_sp_ipip_ops *ipip_ops;
+	struct mlxsw_sp_ipip_entry *ipip_entry;
+	int err;
+
+	ipip_entry = mlxsw_sp_ipip_entry_find_by_ol_dev(mlxsw_sp, ol_dev);
+	if (!ipip_entry)
+		/* A change might make a tunnel eligible for offloading, but
+		 * that is currently not implemented. What falls to slow path
+		 * stays there.
+		 */
+		return 0;
+
+	/* A change might make a tunnel not eligible for offloading. */
+	if (!mlxsw_sp_netdevice_ipip_can_offload(mlxsw_sp, ol_dev,
+						 ipip_entry->ipipt)) {
+		mlxsw_sp_ipip_entry_demote_tunnel(mlxsw_sp, ipip_entry);
+		return 0;
+	}
+
+	ipip_ops = mlxsw_sp->router->ipip_ops_arr[ipip_entry->ipipt];
+	err = ipip_ops->ol_netdev_change(mlxsw_sp, ipip_entry, extack);
+	return err;
+}
+
 void mlxsw_sp_ipip_entry_demote_tunnel(struct mlxsw_sp *mlxsw_sp,
 				       struct mlxsw_sp_ipip_entry *ipip_entry)
 {
@@ -1552,6 +1576,10 @@ int mlxsw_sp_netdevice_ipip_ol_event(struct mlxsw_sp *mlxsw_sp,
 								    ol_dev,
 								    extack);
 		return 0;
+	case NETDEV_CHANGE:
+		extack = info->extack;
+		return mlxsw_sp_netdevice_ipip_ol_change_event(mlxsw_sp,
+							       ol_dev, extack);
 	}
 	return 0;
 }
