@@ -126,6 +126,7 @@ struct nvme_fc_lport {
 	struct device			*dev;	/* physical device for dma */
 	struct nvme_fc_port_template	*ops;
 	struct kref			ref;
+	atomic_t                        act_rport_cnt;
 } __aligned(sizeof(u64));	/* alignment for other things alloc'd with */
 
 struct nvme_fc_rport {
@@ -138,6 +139,7 @@ struct nvme_fc_rport {
 	struct nvme_fc_lport		*lport;
 	spinlock_t			lock;
 	struct kref			ref;
+	atomic_t                        act_ctrl_cnt;
 	unsigned long			dev_loss_end;
 } __aligned(sizeof(u64));	/* alignment for other things alloc'd with */
 
@@ -153,6 +155,7 @@ struct nvme_fc_ctrl {
 	struct nvme_fc_rport	*rport;
 	u32			cnum;
 
+	bool			assoc_active;
 	u64			association_id;
 
 	struct list_head	ctrl_list;	/* rport->ctrl_list */
@@ -242,9 +245,6 @@ nvme_fc_free_lport(struct kref *ref)
 	spin_lock_irqsave(&nvme_fc_lock, flags);
 	list_del(&lport->port_list);
 	spin_unlock_irqrestore(&nvme_fc_lock, flags);
-
-	/* let the LLDD know we've finished tearing it down */
-	lport->ops->localport_delete(&lport->localport);
 
 	ida_simple_remove(&nvme_fc_local_port_cnt, lport->localport.port_num);
 	ida_destroy(&lport->endp_cnt);
@@ -400,6 +400,7 @@ nvme_fc_register_localport(struct nvme_fc_port_info *pinfo,
 	INIT_LIST_HEAD(&newrec->port_list);
 	INIT_LIST_HEAD(&newrec->endp_list);
 	kref_init(&newrec->ref);
+	atomic_set(&newrec->act_rport_cnt, 0);
 	newrec->ops = template;
 	newrec->dev = dev;
 	ida_init(&newrec->endp_cnt);
@@ -462,6 +463,9 @@ nvme_fc_unregister_localport(struct nvme_fc_local_port *portptr)
 
 	spin_unlock_irqrestore(&nvme_fc_lock, flags);
 
+	if (atomic_read(&lport->act_rport_cnt) == 0)
+		lport->ops->localport_delete(&lport->localport);
+
 	nvme_fc_lport_put(lport);
 
 	return 0;
@@ -514,9 +518,6 @@ nvme_fc_free_rport(struct kref *ref)
 	spin_lock_irqsave(&nvme_fc_lock, flags);
 	list_del(&rport->endp_list);
 	spin_unlock_irqrestore(&nvme_fc_lock, flags);
-
-	/* let the LLDD know we've finished tearing it down */
-	lport->ops->remoteport_delete(&rport->remoteport);
 
 	ida_simple_remove(&lport->endp_cnt, rport->remoteport.port_num);
 
@@ -704,6 +705,7 @@ nvme_fc_register_remoteport(struct nvme_fc_local_port *localport,
 	INIT_LIST_HEAD(&newrec->ctrl_list);
 	INIT_LIST_HEAD(&newrec->ls_req_list);
 	kref_init(&newrec->ref);
+	atomic_set(&newrec->act_ctrl_cnt, 0);
 	spin_lock_init(&newrec->lock);
 	newrec->remoteport.localport = &lport->localport;
 	newrec->dev = lport->dev;
@@ -858,6 +860,9 @@ nvme_fc_unregister_remoteport(struct nvme_fc_remote_port *portptr)
 	spin_unlock_irqrestore(&rport->lock, flags);
 
 	nvme_fc_abort_lsops(rport);
+
+	if (atomic_read(&rport->act_ctrl_cnt) == 0)
+		rport->lport->ops->remoteport_delete(portptr);
 
 	/*
 	 * release the reference, which will allow, if all controllers
@@ -2639,6 +2644,61 @@ out_free_io_queues:
 	return ret;
 }
 
+static void
+nvme_fc_rport_active_on_lport(struct nvme_fc_rport *rport)
+{
+	struct nvme_fc_lport *lport = rport->lport;
+
+	atomic_inc(&lport->act_rport_cnt);
+}
+
+static void
+nvme_fc_rport_inactive_on_lport(struct nvme_fc_rport *rport)
+{
+	struct nvme_fc_lport *lport = rport->lport;
+	u32 cnt;
+
+	cnt = atomic_dec_return(&lport->act_rport_cnt);
+	if (cnt == 0 && lport->localport.port_state == FC_OBJSTATE_DELETED)
+		lport->ops->localport_delete(&lport->localport);
+}
+
+static int
+nvme_fc_ctlr_active_on_rport(struct nvme_fc_ctrl *ctrl)
+{
+	struct nvme_fc_rport *rport = ctrl->rport;
+	u32 cnt;
+
+	if (ctrl->assoc_active)
+		return 1;
+
+	ctrl->assoc_active = true;
+	cnt = atomic_inc_return(&rport->act_ctrl_cnt);
+	if (cnt == 1)
+		nvme_fc_rport_active_on_lport(rport);
+
+	return 0;
+}
+
+static int
+nvme_fc_ctlr_inactive_on_rport(struct nvme_fc_ctrl *ctrl)
+{
+	struct nvme_fc_rport *rport = ctrl->rport;
+	struct nvme_fc_lport *lport = rport->lport;
+	u32 cnt;
+
+	/* ctrl->assoc_active=false will be set independently */
+
+	cnt = atomic_dec_return(&rport->act_ctrl_cnt);
+	if (cnt == 0) {
+		if (rport->remoteport.port_state == FC_OBJSTATE_DELETED)
+			lport->ops->remoteport_delete(&rport->remoteport);
+		nvme_fc_rport_inactive_on_lport(rport);
+	}
+
+	return 0;
+}
+
 /*
  * This routine restarts the controller on the host side, and
  * on the link side, recreates the controller association.
@@ -2654,6 +2714,9 @@ nvme_fc_create_association(struct nvme_fc_ctrl *ctrl)
 
 	if (ctrl->rport->remoteport.port_state != FC_OBJSTATE_ONLINE)
 		return -ENODEV;
+
+	if (nvme_fc_ctlr_active_on_rport(ctrl))
+		return -ENOTUNIQ;
 
 	/*
 	 * Create the admin queue
@@ -2762,6 +2825,8 @@ out_delete_hw_queue:
 	__nvme_fc_delete_hw_queue(ctrl, &ctrl->queues[0], 0);
 out_free_queue:
 	nvme_fc_free_queue(&ctrl->queues[0]);
+	ctrl->assoc_active = false;
+	nvme_fc_ctlr_inactive_on_rport(ctrl);
 
 	return ret;
 }
@@ -2776,6 +2841,10 @@ static void
 nvme_fc_delete_association(struct nvme_fc_ctrl *ctrl)
 {
 	unsigned long flags;
+
+	if (!ctrl->assoc_active)
+		return;
+	ctrl->assoc_active = false;
 
 	spin_lock_irqsave(&ctrl->lock, flags);
 	ctrl->flags |= FCCTRL_TERMIO;
@@ -2849,6 +2918,8 @@ nvme_fc_delete_association(struct nvme_fc_ctrl *ctrl)
 
 	__nvme_fc_delete_hw_queue(ctrl, &ctrl->queues[0], 0);
 	nvme_fc_free_queue(&ctrl->queues[0]);
+
+	nvme_fc_ctlr_inactive_on_rport(ctrl);
 }
 
 static void
@@ -3048,6 +3119,7 @@ nvme_fc_init_ctrl(struct device *dev, struct nvmf_ctrl_options *opts,
 	ctrl->rport = rport;
 	ctrl->dev = lport->dev;
 	ctrl->cnum = idx;
+	ctrl->assoc_active = false;
 
 	get_device(ctrl->dev);
 	kref_init(&ctrl->ref);
