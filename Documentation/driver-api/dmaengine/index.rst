@@ -16,6 +16,17 @@ driver writers.
 
    provider
 
+DMAEngine client documentation
+------------------------------
+
+This book is a guide to device driver writers on how to use the Slave-DMA
+API of the DMAEngine. This is applicable only for slave DMA usage only.
+
+.. toctree::
+   :maxdepth: 1
+
+   client
+
 .. only::  subproject
 
    Indices
