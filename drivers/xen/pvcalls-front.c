@@ -351,9 +351,7 @@ static int create_active(struct sock_mapping *map, int *evtchn)
 	return 0;
 
 out_error:
-	if (irq >= 0)
-		unbind_from_irqhandler(irq, map);
-	else if (*evtchn >= 0)
+	if (*evtchn >= 0)
 		xenbus_free_evtchn(pvcalls_front_dev, *evtchn);
 	kfree(map->active.data.in);
 	kfree(map->active.ring);
