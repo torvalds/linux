@@ -467,7 +467,6 @@ liquidio_push_packet(u32 octeon_id __attribute__((unused)),
 	if (netdev) {
 		struct lio *lio = GET_LIO(netdev);
 		struct octeon_device *oct = lio->oct_dev;
-		int packet_was_received;
 
 		/* Do not proceed if the interface is not in RUNNING state. */
 		if (!ifstate_check(lio, LIO_IFSTATE_RUNNING)) {
@@ -570,18 +569,10 @@ liquidio_push_packet(u32 octeon_id __attribute__((unused)),
 			__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), vtag);
 		}
 
-		packet_was_received = (napi_gro_receive(napi, skb) != GRO_DROP);
+		napi_gro_receive(napi, skb);
 
-		if (packet_was_received) {
-			droq->stats.rx_bytes_received += len;
-			droq->stats.rx_pkts_received++;
-		} else {
-			droq->stats.rx_dropped++;
-			netif_info(lio, rx_err, lio->netdev,
-				   "droq:%d  error rx_dropped:%llu\n",
-				   droq->q_no, droq->stats.rx_dropped);
-		}
-
+		droq->stats.rx_bytes_received += len;
+		droq->stats.rx_pkts_received++;
 	} else {
 		recv_buffer_free(skb);
 	}
