@@ -101,8 +101,13 @@ static void guc_prepare_xfer(struct intel_guc *guc)
 {
 	struct drm_i915_private *dev_priv = guc_to_i915(guc);
 
-	/* Enable MIA caching. GuC clock gating is disabled. */
-	I915_WRITE(GUC_SHIM_CONTROL, GUC_SHIM_CONTROL_VALUE);
+	/* Must program this register before loading the ucode with DMA */
+	I915_WRITE(GUC_SHIM_CONTROL, GUC_DISABLE_SRAM_INIT_TO_ZEROES |
+				     GUC_ENABLE_READ_CACHE_LOGIC |
+				     GUC_ENABLE_MIA_CACHING |
+				     GUC_ENABLE_READ_CACHE_FOR_SRAM_DATA |
+				     GUC_ENABLE_READ_CACHE_FOR_WOPCM_DATA |
+				     GUC_ENABLE_MIA_CLOCK_GATING);
 
 	if (IS_GEN9_LP(dev_priv))
 		I915_WRITE(GEN9LP_GT_PM_CONFIG, GT_DOORBELL_ENABLE);
