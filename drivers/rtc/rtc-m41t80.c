@@ -490,17 +490,12 @@ static int m41t80_sqw_set_rate(struct clk_hw *hw, unsigned long rate,
 		M41T80_REG_WDAY : M41T80_REG_SQW;
 	int reg, ret, val = 0;
 
-	if (rate) {
-		if (!is_power_of_2(rate))
-			return -EINVAL;
-		val = ilog2(rate);
-		if (val == ilog2(M41T80_SQW_MAX_FREQ))
-			val = 1;
-		else if (val < (ilog2(M41T80_SQW_MAX_FREQ) - 1))
-			val = ilog2(M41T80_SQW_MAX_FREQ) - val;
-		else
-			return -EINVAL;
-	}
+	if (rate >= M41T80_SQW_MAX_FREQ)
+		val = 1;
+	else if (rate >= M41T80_SQW_MAX_FREQ / 4)
+		val = 2;
+	else if (rate)
+		val = 15 - ilog2(rate);
 
 	reg = i2c_smbus_read_byte_data(client, reg_sqw);
 	if (reg < 0)
