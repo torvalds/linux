@@ -66,4 +66,4 @@ module_usb_serial_driver(serial_drivers, id_table);
 
 MODULE_AUTHOR("Frans Klaver <frans.klaver@xsens.com>");
 MODULE_DESCRIPTION("USB-serial driver for Xsens motion trackers");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
