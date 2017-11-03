@@ -2510,6 +2510,74 @@ static struct se_wwn *srpt_lookup_wwn(const char *name)
 	return wwn;
 }
 
+static void srpt_free_srq(struct srpt_device *sdev)
+{
+	if (!sdev->srq)
+		return;
+
+	ib_destroy_srq(sdev->srq);
+	srpt_free_ioctx_ring((struct srpt_ioctx **)sdev->ioctx_ring, sdev,
+			     sdev->srq_size, srp_max_req_size, DMA_FROM_DEVICE);
+	sdev->srq = NULL;
+}
+
+static int srpt_alloc_srq(struct srpt_device *sdev)
+{
+	struct ib_srq_init_attr srq_attr = {
+		.event_handler = srpt_srq_event,
+		.srq_context = (void *)sdev,
+		.attr.max_wr = sdev->srq_size,
+		.attr.max_sge = 1,
+		.srq_type = IB_SRQT_BASIC,
+	};
+	struct ib_device *device = sdev->device;
+	struct ib_srq *srq;
+	int i;
+
+	WARN_ON_ONCE(sdev->srq);
+	srq = ib_create_srq(sdev->pd, &srq_attr);
+	if (IS_ERR(srq)) {
+		pr_debug("ib_create_srq() failed: %ld\n", PTR_ERR(srq));
+		return PTR_ERR(srq);
+	}
+
+	pr_debug("create SRQ #wr= %d max_allow=%d dev= %s\n", sdev->srq_size,
+		 sdev->device->attrs.max_srq_wr, device->name);
+
+	sdev->ioctx_ring = (struct srpt_recv_ioctx **)
+		srpt_alloc_ioctx_ring(sdev, sdev->srq_size,
+				      sizeof(*sdev->ioctx_ring[0]),
+				      srp_max_req_size, DMA_FROM_DEVICE);
+	if (!sdev->ioctx_ring) {
+		ib_destroy_srq(srq);
+		return -ENOMEM;
+	}
+
+	sdev->use_srq = true;
+	sdev->srq = srq;
+
+	for (i = 0; i < sdev->srq_size; ++i)
+		srpt_post_recv(sdev, NULL, sdev->ioctx_ring[i]);
+
+	return 0;
+}
+
+static int srpt_use_srq(struct srpt_device *sdev, bool use_srq)
+{
+	struct ib_device *device = sdev->device;
+	int ret = 0;
+
+	if (!use_srq) {
+		srpt_free_srq(sdev);
+		sdev->use_srq = false;
+	} else if (use_srq && !sdev->srq) {
+		ret = srpt_alloc_srq(sdev);
+	}
+	pr_debug("%s(%s): use_srq = %d; ret = %d\n", __func__, device->name,
+		 sdev->use_srq, ret);
+	return ret;
+}
+
 /**
  * srpt_add_one() - Infiniband device addition callback function.
  */
@@ -2517,7 +2585,6 @@ static void srpt_add_one(struct ib_device *device)
 {
 	struct srpt_device *sdev;
 	struct srpt_port *sport;
-	struct ib_srq_init_attr srq_attr;
 	int i;
 
 	pr_debug("device = %p\n", device);
@@ -2539,38 +2606,7 @@ static void srpt_add_one(struct ib_device *device)
 
 	sdev->srq_size = min(srpt_srq_size, sdev->device->attrs.max_srq_wr);
 
-	srq_attr.event_handler = srpt_srq_event;
-	srq_attr.srq_context = (void *)sdev;
-	srq_attr.attr.max_wr = sdev->srq_size;
-	srq_attr.attr.max_sge = 1;
-	srq_attr.attr.srq_limit = 0;
-	srq_attr.srq_type = IB_SRQT_BASIC;
-
-	sdev->srq = sdev->port[0].port_attrib.use_srq ?
-		ib_create_srq(sdev->pd, &srq_attr) : ERR_PTR(-ENOTSUPP);
-	if (IS_ERR(sdev->srq)) {
-		pr_debug("ib_create_srq() failed: %ld\n", PTR_ERR(sdev->srq));
-
-		/* SRQ not supported. */
-		sdev->use_srq = false;
-	} else {
-		pr_debug("create SRQ #wr= %d max_allow=%d dev= %s\n",
-			 sdev->srq_size, sdev->device->attrs.max_srq_wr,
-			 device->name);
-
-		sdev->use_srq = true;
-
-		sdev->ioctx_ring = (struct srpt_recv_ioctx **)
-			srpt_alloc_ioctx_ring(sdev, sdev->srq_size,
-					      sizeof(*sdev->ioctx_ring[0]),
-					      srp_max_req_size,
-					      DMA_FROM_DEVICE);
-		if (!sdev->ioctx_ring)
-			goto err_pd;
-
-		for (i = 0; i < sdev->srq_size; ++i)
-			srpt_post_recv(sdev, NULL, sdev->ioctx_ring[i]);
-	}
+	srpt_use_srq(sdev, sdev->port[0].port_attrib.use_srq);
 
 	if (!srpt_service_guid)
 		srpt_service_guid = be64_to_cpu(device->node_guid);
@@ -2630,12 +2666,7 @@ err_event:
 err_cm:
 	ib_destroy_cm_id(sdev->cm_id);
 err_ring:
-	if (sdev->use_srq)
-		ib_destroy_srq(sdev->srq);
-	srpt_free_ioctx_ring((struct srpt_ioctx **)sdev->ioctx_ring, sdev,
-			     sdev->srq_size, srp_max_req_size,
-			     DMA_FROM_DEVICE);
-err_pd:
+	srpt_free_srq(sdev);
 	ib_dealloc_pd(sdev->pd);
 free_dev:
 	kfree(sdev);
@@ -2678,10 +2709,8 @@ static void srpt_remove_one(struct ib_device *device, void *client_data)
 	spin_unlock(&srpt_dev_lock);
 	srpt_release_sdev(sdev);
 
-	if (sdev->use_srq)
-		ib_destroy_srq(sdev->srq);
-	srpt_free_ioctx_ring((struct srpt_ioctx **)sdev->ioctx_ring, sdev,
-			     sdev->srq_size, srp_max_req_size, DMA_FROM_DEVICE);
+	srpt_free_srq(sdev);
+
 	ib_dealloc_pd(sdev->pd);
 
 	kfree(sdev);
