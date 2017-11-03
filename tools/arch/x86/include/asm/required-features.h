@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_REQUIRED_FEATURES_H
 #define _ASM_X86_REQUIRED_FEATURES_H
 
