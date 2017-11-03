@@ -63,6 +63,7 @@ enum mlxsw_sp_rif_counter_dir {
 
 struct mlxsw_sp_neigh_entry;
 struct mlxsw_sp_nexthop;
+struct mlxsw_sp_ipip_entry;
 
 struct mlxsw_sp_rif *mlxsw_sp_rif_by_index(const struct mlxsw_sp *mlxsw_sp,
 					   u16 rif_index);
@@ -103,6 +104,12 @@ mlxsw_sp_neigh_entry_counter_update(struct mlxsw_sp *mlxsw_sp,
 				    struct mlxsw_sp_neigh_entry *neigh_entry,
 				    bool adding);
 bool mlxsw_sp_neigh_ipv6_ignore(struct mlxsw_sp_neigh_entry *neigh_entry);
+int __mlxsw_sp_ipip_entry_update_tunnel(struct mlxsw_sp *mlxsw_sp,
+					struct mlxsw_sp_ipip_entry *ipip_entry,
+					bool recreate_loopback,
+					bool keep_encap,
+					bool update_nexthops,
+					struct netlink_ext_ack *extack);
 struct mlxsw_sp_nexthop *mlxsw_sp_nexthop_next(struct mlxsw_sp_router *router,
 					       struct mlxsw_sp_nexthop *nh);
 bool mlxsw_sp_nexthop_offload(struct mlxsw_sp_nexthop *nh);

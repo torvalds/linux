@@ -1355,9 +1355,12 @@ static void mlxsw_sp_netdevice_ipip_ol_down_event(struct mlxsw_sp *mlxsw_sp,
 		mlxsw_sp_ipip_entry_ol_down_event(mlxsw_sp, ipip_entry);
 }
 
+static void mlxsw_sp_nexthop_rif_update(struct mlxsw_sp *mlxsw_sp,
+					struct mlxsw_sp_rif *rif);
 static int
 mlxsw_sp_ipip_entry_ol_lb_update(struct mlxsw_sp *mlxsw_sp,
 				 struct mlxsw_sp_ipip_entry *ipip_entry,
+				 bool keep_encap,
 				 struct netlink_ext_ack *extack)
 {
 	struct mlxsw_sp_rif_ipip_lb *old_lb_rif = ipip_entry->ol_lb;
@@ -1370,13 +1373,32 @@ mlxsw_sp_ipip_entry_ol_lb_update(struct mlxsw_sp *mlxsw_sp,
 	if (IS_ERR(new_lb_rif))
 		return PTR_ERR(new_lb_rif);
 	ipip_entry->ol_lb = new_lb_rif;
+
+	if (keep_encap) {
+		list_splice_init(&old_lb_rif->common.nexthop_list,
+				 &new_lb_rif->common.nexthop_list);
+		mlxsw_sp_nexthop_rif_update(mlxsw_sp, &new_lb_rif->common);
+	}
+
 	mlxsw_sp_rif_destroy(&old_lb_rif->common);
 
 	return 0;
 }
 
+/**
+ * Update the offload related to an IPIP entry. This always updates decap, and
+ * in addition to that it also:
+ * @recreate_loopback: recreates the associated loopback RIF
+ * @keep_encap: updates next hops that use the tunnel netdevice. This is only
+ *              relevant when recreate_loopback is true.
+ * @update_nexthops: updates next hops, keeping the current loopback RIF. This
+ *                   is only relevant when recreate_loopback is false.
+ */
 int __mlxsw_sp_ipip_entry_update_tunnel(struct mlxsw_sp *mlxsw_sp,
 					struct mlxsw_sp_ipip_entry *ipip_entry,
+					bool recreate_loopback,
+					bool keep_encap,
+					bool update_nexthops,
 					struct netlink_ext_ack *extack)
 {
 	int err;
@@ -1390,9 +1412,15 @@ int __mlxsw_sp_ipip_entry_update_tunnel(struct mlxsw_sp *mlxsw_sp,
 	if (ipip_entry->decap_fib_entry)
 		mlxsw_sp_ipip_entry_demote_decap(mlxsw_sp, ipip_entry);
 
-	err = mlxsw_sp_ipip_entry_ol_lb_update(mlxsw_sp, ipip_entry, extack);
-	if (err)
-		return err;
+	if (recreate_loopback) {
+		err = mlxsw_sp_ipip_entry_ol_lb_update(mlxsw_sp, ipip_entry,
+						       keep_encap, extack);
+		if (err)
+			return err;
+	} else if (update_nexthops) {
+		mlxsw_sp_nexthop_rif_update(mlxsw_sp,
+					    &ipip_entry->ol_lb->common);
+	}
 
 	if (ipip_entry->ol_dev->flags & IFF_UP)
 		mlxsw_sp_ipip_entry_ol_up_event(mlxsw_sp, ipip_entry);
@@ -1410,7 +1438,7 @@ static int mlxsw_sp_netdevice_ipip_ol_vrf_event(struct mlxsw_sp *mlxsw_sp,
 	if (!ipip_entry)
 		return 0;
 	return __mlxsw_sp_ipip_entry_update_tunnel(mlxsw_sp, ipip_entry,
-						   extack);
+						   true, false, false, extack);
 }
 
 int mlxsw_sp_netdevice_ipip_ol_event(struct mlxsw_sp *mlxsw_sp,
@@ -3283,6 +3311,17 @@ static void mlxsw_sp_nexthop4_event(struct mlxsw_sp *mlxsw_sp,
 	}
 
 	mlxsw_sp_nexthop_group_refresh(mlxsw_sp, nh->nh_grp);
+}
+
+static void mlxsw_sp_nexthop_rif_update(struct mlxsw_sp *mlxsw_sp,
+					struct mlxsw_sp_rif *rif)
+{
+	struct mlxsw_sp_nexthop *nh;
+
+	list_for_each_entry(nh, &rif->nexthop_list, rif_list_node) {
+		__mlxsw_sp_nexthop_neigh_update(nh, false);
+		mlxsw_sp_nexthop_group_refresh(mlxsw_sp, nh->nh_grp);
+	}
 }
 
 static void mlxsw_sp_nexthop_rif_gone_sync(struct mlxsw_sp *mlxsw_sp,
