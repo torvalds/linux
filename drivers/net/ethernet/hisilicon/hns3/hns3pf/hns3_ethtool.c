@@ -359,17 +359,12 @@ static void hns3_driv_to_eth_caps(u32 caps, struct ethtool_link_ksettings *cmd,
 		if (!(caps & hns3_lm_map[i].hns3_link_mode))
 			continue;
 
-		if (is_advertised) {
-			ethtool_link_ksettings_zero_link_mode(cmd,
-							      advertising);
+		if (is_advertised)
 			__set_bit(hns3_lm_map[i].ethtool_link_mode,
 				  cmd->link_modes.advertising);
-		} else {
-			ethtool_link_ksettings_zero_link_mode(cmd,
-							      supported);
+		else
 			__set_bit(hns3_lm_map[i].ethtool_link_mode,
 				  cmd->link_modes.supported);
-		}
 	}
 }
 
