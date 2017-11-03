@@ -468,18 +468,13 @@ static unsigned long m41t80_sqw_recalc_rate(struct clk_hw *hw,
 static long m41t80_sqw_round_rate(struct clk_hw *hw, unsigned long rate,
 				  unsigned long *prate)
 {
-	int i, freq = M41T80_SQW_MAX_FREQ;
-
-	if (freq <= rate)
-		return freq;
-
-	for (i = 2; i <= ilog2(M41T80_SQW_MAX_FREQ); i++) {
-		freq /= 1 << i;
-		if (freq <= rate)
-			return freq;
-	}
-
-	return 0;
+	if (rate >= M41T80_SQW_MAX_FREQ)
+		return M41T80_SQW_MAX_FREQ;
+	if (rate >= M41T80_SQW_MAX_FREQ / 4)
+		return M41T80_SQW_MAX_FREQ / 4;
+	if (!rate)
+		return 0;
+	return 1 << ilog2(rate);
 }
 
 static int m41t80_sqw_set_rate(struct clk_hw *hw, unsigned long rate,
