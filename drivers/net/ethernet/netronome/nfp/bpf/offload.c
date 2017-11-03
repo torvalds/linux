@@ -51,6 +51,39 @@
 #include "../nfp_net_ctrl.h"
 #include "../nfp_net.h"
 
+int
+nfp_prog_prepare(struct nfp_prog *nfp_prog, const struct bpf_insn *prog,
+		 unsigned int cnt)
+{
+	unsigned int i;
+
+	for (i = 0; i < cnt; i++) {
+		struct nfp_insn_meta *meta;
+
+		meta = kzalloc(sizeof(*meta), GFP_KERNEL);
+		if (!meta)
+			return -ENOMEM;
+
+		meta->insn = prog[i];
+		meta->n = i;
+
+		list_add_tail(&meta->l, &nfp_prog->insns);
+	}
+
+	return 0;
+}
+
+void nfp_prog_free(struct nfp_prog *nfp_prog)
+{
+	struct nfp_insn_meta *meta, *tmp;
+
+	list_for_each_entry_safe(meta, tmp, &nfp_prog->insns, l) {
+		list_del(&meta->l);
+		kfree(meta);
+	}
+	kfree(nfp_prog);
+}
+
 static int
 nfp_net_bpf_offload_prepare(struct nfp_net *nn, struct bpf_prog *prog,
 			    struct nfp_bpf_result *res,

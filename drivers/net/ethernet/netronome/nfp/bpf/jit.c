@@ -77,17 +77,6 @@ nfp_meta_has_prev(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 	return meta->l.prev != &nfp_prog->insns;
 }
 
-static void nfp_prog_free(struct nfp_prog *nfp_prog)
-{
-	struct nfp_insn_meta *meta, *tmp;
-
-	list_for_each_entry_safe(meta, tmp, &nfp_prog->insns, l) {
-		list_del(&meta->l);
-		kfree(meta);
-	}
-	kfree(nfp_prog);
-}
-
 static void nfp_prog_push(struct nfp_prog *nfp_prog, u64 insn)
 {
 	if (nfp_prog->__prog_alloc_len == nfp_prog->prog_len) {
@@ -2125,28 +2114,6 @@ static int nfp_translate(struct nfp_prog *nfp_prog)
 		return nfp_prog->error;
 
 	return nfp_fixup_branches(nfp_prog);
-}
-
-static int
-nfp_prog_prepare(struct nfp_prog *nfp_prog, const struct bpf_insn *prog,
-		 unsigned int cnt)
-{
-	unsigned int i;
-
-	for (i = 0; i < cnt; i++) {
-		struct nfp_insn_meta *meta;
-
-		meta = kzalloc(sizeof(*meta), GFP_KERNEL);
-		if (!meta)
-			return -ENOMEM;
-
-		meta->insn = prog[i];
-		meta->n = i;
-
-		list_add_tail(&meta->l, &nfp_prog->insns);
-	}
-
-	return 0;
 }
 
 /* --- Optimizations --- */
