@@ -371,13 +371,13 @@ xfs_iformat_extents(
 		dp = (xfs_bmbt_rec_t *) XFS_DFORK_PTR(dip, whichfork);
 		for (i = 0; i < nex; i++, dp++) {
 			xfs_bmbt_rec_host_t *ep = xfs_iext_get_ext(ifp, i);
-			ep->l0 = get_unaligned_be64(&dp->l0);
-			ep->l1 = get_unaligned_be64(&dp->l1);
-			if (!xfs_bmbt_validate_extent(mp, whichfork, ep)) {
+			if (!xfs_bmbt_validate_extent(mp, whichfork, dp)) {
 				XFS_ERROR_REPORT("xfs_iformat_extents(2)",
 						 XFS_ERRLEVEL_LOW, mp);
 				return -EFSCORRUPTED;
 			}
+			ep->l0 = get_unaligned_be64(&dp->l0);
+			ep->l1 = get_unaligned_be64(&dp->l1);
 			trace_xfs_read_extent(ip, i, state, _THIS_IP_);
 		}
 	}
@@ -764,8 +764,6 @@ xfs_iextents_copy(
 	for (i = 0; i < nrecs; i++) {
 		xfs_bmbt_rec_host_t *ep = xfs_iext_get_ext(ifp, i);
 
-		ASSERT(xfs_bmbt_validate_extent(ip->i_mount, whichfork, ep));
-
 		start_block = xfs_bmbt_get_startblock(ep);
 		if (isnullstartblock(start_block)) {
 			/*
@@ -779,6 +777,7 @@ xfs_iextents_copy(
 		/* Translate to on disk format */
 		put_unaligned_be64(ep->l0, &dp->l0);
 		put_unaligned_be64(ep->l1, &dp->l1);
+		ASSERT(xfs_bmbt_validate_extent(ip->i_mount, whichfork, dp));
 
 		dp++;
 		copied++;

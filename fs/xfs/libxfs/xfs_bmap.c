@@ -1260,14 +1260,14 @@ xfs_iread_extents(
 		frp = XFS_BMBT_REC_ADDR(mp, block, 1);
 		for (j = 0; j < num_recs; j++, i++, frp++) {
 			xfs_bmbt_rec_host_t *trp = xfs_iext_get_ext(ifp, i);
-			trp->l0 = be64_to_cpu(frp->l0);
-			trp->l1 = be64_to_cpu(frp->l1);
-			if (!xfs_bmbt_validate_extent(mp, whichfork, trp)) {
+			if (!xfs_bmbt_validate_extent(mp, whichfork, frp)) {
 				XFS_ERROR_REPORT("xfs_bmap_read_extents(2)",
 						 XFS_ERRLEVEL_LOW, mp);
 				error = -EFSCORRUPTED;
 				goto out_brelse;
 			}
+			trp->l0 = be64_to_cpu(frp->l0);
+			trp->l1 = be64_to_cpu(frp->l1);
 			trace_xfs_read_extent(ip, i, state, _THIS_IP_);
 		}
 		xfs_trans_brelse(tp, bp);
