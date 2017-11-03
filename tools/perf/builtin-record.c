@@ -339,6 +339,22 @@ static int record__open(struct record *rec)
 	struct perf_evsel_config_term *err_term;
 	int rc = 0;
 
+	/*
+	 * For initial_delay we need to add a dummy event so that we can track
+	 * PERF_RECORD_MMAP while we wait for the initial delay to enable the
+	 * real events, the ones asked by the user.
+	 */
+	if (opts->initial_delay) {
+		if (perf_evlist__add_dummy(evlist))
+			return -ENOMEM;
+
+		pos = perf_evlist__first(evlist);
+		pos->tracking = 0;
+		pos = perf_evlist__last(evlist);
+		pos->tracking = 1;
+		pos->attr.enable_on_exec = 1;
+	}
+
 	perf_evlist__config(evlist, opts, &callchain_param);
 
 	evlist__for_each_entry(evlist, pos) {
