@@ -569,12 +569,20 @@ xfs_reflink_cancel_cow_blocks(
 
 	if (!xfs_is_reflink_inode(ip))
 		return 0;
-	if (!xfs_iext_lookup_extent(ip, ifp, offset_fsb, &icur, &got))
+	if (!xfs_iext_lookup_extent_before(ip, ifp, &end_fsb, &icur, &got))
 		return 0;
 
-	while (got.br_startoff < end_fsb) {
+	/* Walk backwards until we're out of the I/O range... */
+	while (got.br_startoff + got.br_blockcount > offset_fsb) {
 		del = got;
 		xfs_trim_extent(&del, offset_fsb, end_fsb - offset_fsb);
+
+		/* Extent delete may have bumped ext forward */
+		if (!del.br_blockcount) {
+			xfs_iext_prev(ifp, &icur);
+			goto next_extent;
+		}
+
 		trace_xfs_reflink_cancel_cow(ip, &del);
 
 		if (isnullstartblock(del.br_startblock)) {
@@ -612,8 +620,8 @@ xfs_reflink_cancel_cow_blocks(
 			/* Remove the mapping from the CoW fork. */
 			xfs_bmap_del_extent_cow(ip, &icur, &got, &del);
 		}
-
-		if (!xfs_iext_next_extent(ifp, &icur, &got))
+next_extent:
+		if (!xfs_iext_get_extent(ifp, &icur, &got))
 			break;
 	}
 
