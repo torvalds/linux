@@ -30,7 +30,8 @@
 #if !defined(CONFIG_GENERIC_LOCKBREAK) || defined(CONFIG_DEBUG_LOCK_ALLOC)
 /*
  * The __lock_function inlines are taken from
- * include/linux/spinlock_api_smp.h
+ * spinlock : include/linux/spinlock_api_smp.h
+ * rwlock   : include/linux/rwlock_api_smp.h
  */
 #else
 
