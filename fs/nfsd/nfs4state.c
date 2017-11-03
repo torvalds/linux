@@ -4906,6 +4906,18 @@ static __be32 check_stateid_generation(stateid_t *in, stateid_t *ref, bool has_s
 	return nfserr_old_stateid;
 }
 
+static __be32 nfsd4_stid_check_stateid_generation(stateid_t *in, struct nfs4_stid *s, bool has_session)
+{
+	__be32 ret;
+
+	spin_lock(&s->sc_lock);
+	ret = nfsd4_verify_open_stid(s);
+	if (ret == nfs_ok)
+		ret = check_stateid_generation(in, &s->sc_stateid, has_session);
+	spin_unlock(&s->sc_lock);
+	return ret;
+}
+
 static __be32 nfsd4_check_openowner_confirmed(struct nfs4_ol_stateid *ols)
 {
 	if (ols->st_stateowner->so_is_open_owner &&
@@ -4934,7 +4946,7 @@ static __be32 nfsd4_validate_stateid(struct nfs4_client *cl, stateid_t *stateid)
 	s = find_stateid_locked(cl, stateid);
 	if (!s)
 		goto out_unlock;
-	status = check_stateid_generation(stateid, &s->sc_stateid, 1);
+	status = nfsd4_stid_check_stateid_generation(stateid, s, 1);
 	if (status)
 		goto out_unlock;
 	switch (s->sc_type) {
@@ -5095,7 +5107,7 @@ nfs4_preprocess_stateid_op(struct svc_rqst *rqstp,
 				&s, nn);
 	if (status)
 		return status;
-	status = check_stateid_generation(stateid, &s->sc_stateid,
+	status = nfsd4_stid_check_stateid_generation(stateid, s,
 			nfsd4_has_session(cstate));
 	if (status)
 		goto out;
@@ -5188,6 +5200,7 @@ nfsd4_free_stateid(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	s = find_stateid_locked(cl, stateid);
 	if (!s)
 		goto out_unlock;
+	spin_lock(&s->sc_lock);
 	switch (s->sc_type) {
 	case NFS4_DELEG_STID:
 		ret = nfserr_locks_held;
@@ -5199,11 +5212,13 @@ nfsd4_free_stateid(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		ret = nfserr_locks_held;
 		break;
 	case NFS4_LOCK_STID:
+		spin_unlock(&s->sc_lock);
 		refcount_inc(&s->sc_count);
 		spin_unlock(&cl->cl_lock);
 		ret = nfsd4_free_lock_stateid(stateid, s);
 		goto out;
 	case NFS4_REVOKED_DELEG_STID:
+		spin_unlock(&s->sc_lock);
 		dp = delegstateid(s);
 		list_del_init(&dp->dl_recall_lru);
 		spin_unlock(&cl->cl_lock);
@@ -5212,6 +5227,7 @@ nfsd4_free_stateid(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		goto out;
 	/* Default falls through and returns nfserr_bad_stateid */
 	}
+	spin_unlock(&s->sc_lock);
 out_unlock:
 	spin_unlock(&cl->cl_lock);
 out:
@@ -5491,7 +5507,7 @@ nfsd4_delegreturn(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	if (status)
 		goto out;
 	dp = delegstateid(s);
-	status = check_stateid_generation(stateid, &dp->dl_stid.sc_stateid, nfsd4_has_session(cstate));
+	status = nfsd4_stid_check_stateid_generation(stateid, &dp->dl_stid, nfsd4_has_session(cstate));
 	if (status)
 		goto put_stateid;
 
