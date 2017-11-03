@@ -1395,7 +1395,8 @@ int tcp_fragment(struct sock *sk, enum tcp_queue tcp_queue,
 	/* Link BUFF into the send queue. */
 	__skb_header_release(buff);
 	tcp_insert_write_queue_after(skb, buff, sk, tcp_queue);
-	list_add(&buff->tcp_tsorted_anchor, &skb->tcp_tsorted_anchor);
+	if (tcp_queue == TCP_FRAG_IN_RTX_QUEUE)
+		list_add(&buff->tcp_tsorted_anchor, &skb->tcp_tsorted_anchor);
 
 	return 0;
 }
