@@ -817,39 +817,48 @@ static int acp_dma_hw_free(struct snd_pcm_substream *substream)
 	return snd_pcm_lib_free_pages(substream);
 }
 
+static u64 acp_get_byte_count(void __iomem *acp_mmio, int stream)
+{
+	union acp_dma_count playback_dma_count;
+	union acp_dma_count capture_dma_count;
+	u64 bytescount = 0;
+
+	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		playback_dma_count.bcount.high = acp_reg_read(acp_mmio,
+					mmACP_I2S_TRANSMIT_BYTE_CNT_HIGH);
+		playback_dma_count.bcount.low  = acp_reg_read(acp_mmio,
+					mmACP_I2S_TRANSMIT_BYTE_CNT_LOW);
+		bytescount = playback_dma_count.bytescount;
+	} else {
+		capture_dma_count.bcount.high = acp_reg_read(acp_mmio,
+					mmACP_I2S_RECEIVED_BYTE_CNT_HIGH);
+		capture_dma_count.bcount.low  = acp_reg_read(acp_mmio,
+					mmACP_I2S_RECEIVED_BYTE_CNT_LOW);
+		bytescount = capture_dma_count.bytescount;
+	}
+	return bytescount;
+}
+
 static snd_pcm_uframes_t acp_dma_pointer(struct snd_pcm_substream *substream)
 {
-	u16 dscr;
-	u32 mul, dma_config, period_bytes;
+	u32 buffersize;
 	u32 pos = 0;
+	u64 bytescount = 0;
 
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct audio_substream_data *rtd = runtime->private_data;
 
-	period_bytes = frames_to_bytes(runtime, runtime->period_size);
+	buffersize = frames_to_bytes(runtime, runtime->buffer_size);
+	bytescount = acp_get_byte_count(rtd->acp_mmio, substream->stream);
+
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		dscr = acp_reg_read(rtd->acp_mmio, mmACP_DMA_CUR_DSCR_13);
-
-		if (dscr == PLAYBACK_START_DMA_DESCR_CH13)
-			mul = 0;
-		else
-			mul = 1;
-		pos =  (mul * period_bytes);
+		if (bytescount > rtd->renderbytescount)
+			bytescount = bytescount - rtd->renderbytescount;
+		pos =  bytescount % buffersize;
 	} else {
-		dma_config = acp_reg_read(rtd->acp_mmio, mmACP_DMA_CNTL_14);
-		if (dma_config != 0) {
-			dscr = acp_reg_read(rtd->acp_mmio,
-						mmACP_DMA_CUR_DSCR_14);
-			if (dscr == CAPTURE_START_DMA_DESCR_CH14)
-				mul = 1;
-			else
-				mul = 2;
-			pos = (mul * period_bytes);
-		}
-
-		if (pos >= (2 * period_bytes))
-			pos = 0;
-
+		if (bytescount > rtd->capturebytescount)
+			bytescount = bytescount - rtd->capturebytescount;
+		pos = bytescount % buffersize;
 	}
 	return bytes_to_frames(runtime, pos);
 }
@@ -904,6 +913,7 @@ static int acp_dma_trigger(struct snd_pcm_substream *substream, int cmd)
 {
 	int ret;
 	u32 loops = 1000;
+	u64 bytescount = 0;
 
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_soc_pcm_runtime *prtd = substream->private_data;
@@ -915,7 +925,11 @@ static int acp_dma_trigger(struct snd_pcm_substream *substream, int cmd)
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 	case SNDRV_PCM_TRIGGER_RESUME:
+		bytescount = acp_get_byte_count(rtd->acp_mmio,
+						substream->stream);
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+			if (rtd->renderbytescount == 0)
+				rtd->renderbytescount = bytescount;
 			acp_dma_start(rtd->acp_mmio,
 						SYSRAM_TO_ACP_CH_NUM, false);
 			while (acp_reg_read(rtd->acp_mmio, mmACP_DMA_CH_STS) &
@@ -932,6 +946,8 @@ static int acp_dma_trigger(struct snd_pcm_substream *substream, int cmd)
 					ACP_TO_I2S_DMA_CH_NUM, true);
 
 		} else {
+			if (rtd->capturebytescount == 0)
+				rtd->capturebytescount = bytescount;
 			acp_dma_start(rtd->acp_mmio,
 					    I2S_TO_ACP_DMA_CH_NUM, true);
 		}
@@ -945,12 +961,15 @@ static int acp_dma_trigger(struct snd_pcm_substream *substream, int cmd)
 		 * channels will stopped automatically after its transfer
 		 * completes : SYSRAM_TO_ACP_CH_NUM / ACP_TO_SYSRAM_CH_NUM
 		 */
-		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 			ret = acp_dma_stop(rtd->acp_mmio,
 					ACP_TO_I2S_DMA_CH_NUM);
-		else
+			rtd->renderbytescount = 0;
+		} else {
 			ret = acp_dma_stop(rtd->acp_mmio,
 					I2S_TO_ACP_DMA_CH_NUM);
+			rtd->capturebytescount = 0;
+		}
 		break;
 	default:
 		ret = -EINVAL;
