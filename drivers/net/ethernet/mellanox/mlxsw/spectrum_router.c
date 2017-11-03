@@ -1257,6 +1257,33 @@ mlxsw_sp_ipip_entry_find_by_ol_dev(struct mlxsw_sp *mlxsw_sp,
 	return NULL;
 }
 
+static struct mlxsw_sp_ipip_entry *
+mlxsw_sp_ipip_entry_find_by_ul_dev(const struct mlxsw_sp *mlxsw_sp,
+				   const struct net_device *ul_dev,
+				   struct mlxsw_sp_ipip_entry *start)
+{
+	struct mlxsw_sp_ipip_entry *ipip_entry;
+
+	ipip_entry = list_prepare_entry(start, &mlxsw_sp->router->ipip_list,
+					ipip_list_node);
+	list_for_each_entry_continue(ipip_entry, &mlxsw_sp->router->ipip_list,
+				     ipip_list_node) {
+		struct net_device *ipip_ul_dev =
+			__mlxsw_sp_ipip_netdev_ul_dev_get(ipip_entry->ol_dev);
+
+		if (ipip_ul_dev == ul_dev)
+			return ipip_entry;
+	}
+
+	return NULL;
+}
+
+bool mlxsw_sp_netdev_is_ipip_ul(const struct mlxsw_sp *mlxsw_sp,
+				const struct net_device *dev)
+{
+	return mlxsw_sp_ipip_entry_find_by_ul_dev(mlxsw_sp, dev, NULL);
+}
+
 static bool mlxsw_sp_netdevice_ipip_can_offload(struct mlxsw_sp *mlxsw_sp,
 						const struct net_device *ol_dev,
 						enum mlxsw_sp_ipip_type ipipt)
@@ -1434,6 +1461,16 @@ static int mlxsw_sp_netdevice_ipip_ol_vrf_event(struct mlxsw_sp *mlxsw_sp,
 						   true, false, false, extack);
 }
 
+static int
+mlxsw_sp_netdevice_ipip_ul_vrf_event(struct mlxsw_sp *mlxsw_sp,
+				     struct mlxsw_sp_ipip_entry *ipip_entry,
+				     struct net_device *ul_dev,
+				     struct netlink_ext_ack *extack)
+{
+	return __mlxsw_sp_ipip_entry_update_tunnel(mlxsw_sp, ipip_entry,
+						   true, true, false, extack);
+}
+
 void mlxsw_sp_ipip_entry_demote_tunnel(struct mlxsw_sp *mlxsw_sp,
 				       struct mlxsw_sp_ipip_entry *ipip_entry)
 {
@@ -1472,6 +1509,21 @@ mlxsw_sp_ipip_demote_tunnel_by_saddr(struct mlxsw_sp *mlxsw_sp,
 	return false;
 }
 
+static void mlxsw_sp_ipip_demote_tunnel_by_ul_netdev(struct mlxsw_sp *mlxsw_sp,
+						     struct net_device *ul_dev)
+{
+	struct mlxsw_sp_ipip_entry *ipip_entry, *tmp;
+
+	list_for_each_entry_safe(ipip_entry, tmp, &mlxsw_sp->router->ipip_list,
+				 ipip_list_node) {
+		struct net_device *ipip_ul_dev =
+			__mlxsw_sp_ipip_netdev_ul_dev_get(ipip_entry->ol_dev);
+
+		if (ipip_ul_dev == ul_dev)
+			mlxsw_sp_ipip_entry_demote_tunnel(mlxsw_sp, ipip_entry);
+	}
+}
+
 int mlxsw_sp_netdevice_ipip_ol_event(struct mlxsw_sp *mlxsw_sp,
 				     struct net_device *ol_dev,
 				     unsigned long event,
@@ -1501,6 +1553,54 @@ int mlxsw_sp_netdevice_ipip_ol_event(struct mlxsw_sp *mlxsw_sp,
 								    extack);
 		return 0;
 	}
+	return 0;
+}
+
+static int
+__mlxsw_sp_netdevice_ipip_ul_event(struct mlxsw_sp *mlxsw_sp,
+				   struct mlxsw_sp_ipip_entry *ipip_entry,
+				   struct net_device *ul_dev,
+				   unsigned long event,
+				   struct netdev_notifier_info *info)
+{
+	struct netdev_notifier_changeupper_info *chup;
+	struct netlink_ext_ack *extack;
+
+	switch (event) {
+	case NETDEV_CHANGEUPPER:
+		chup = container_of(info, typeof(*chup), info);
+		extack = info->extack;
+		if (netif_is_l3_master(chup->upper_dev))
+			return mlxsw_sp_netdevice_ipip_ul_vrf_event(mlxsw_sp,
+								    ipip_entry,
+								    ul_dev,
+								    extack);
+		break;
+	}
+	return 0;
+}
+
+int
+mlxsw_sp_netdevice_ipip_ul_event(struct mlxsw_sp *mlxsw_sp,
+				 struct net_device *ul_dev,
+				 unsigned long event,
+				 struct netdev_notifier_info *info)
+{
+	struct mlxsw_sp_ipip_entry *ipip_entry = NULL;
+	int err;
+
+	while ((ipip_entry = mlxsw_sp_ipip_entry_find_by_ul_dev(mlxsw_sp,
+								ul_dev,
+								ipip_entry))) {
+		err = __mlxsw_sp_netdevice_ipip_ul_event(mlxsw_sp, ipip_entry,
+							 ul_dev, event, info);
+		if (err) {
+			mlxsw_sp_ipip_demote_tunnel_by_ul_netdev(mlxsw_sp,
+								 ul_dev);
+			return err;
+		}
+	}
+
 	return 0;
 }
 
