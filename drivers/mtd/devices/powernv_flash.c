@@ -89,33 +89,46 @@ static int powernv_flash_async_op(struct mtd_info *mtd, enum flash_op op,
 		return -EIO;
 	}
 
-	if (rc == OPAL_SUCCESS)
-		goto out_success;
+	if (rc == OPAL_ASYNC_COMPLETION) {
+		rc = opal_async_wait_response_interruptible(token, &msg);
+		if (rc) {
+			/*
+			 * If we return the mtd core will free the
+			 * buffer we've just passed to OPAL but OPAL
+			 * will continue to read or write from that
+			 * memory.
+			 * It may be tempting to ultimately return 0
+			 * if we're doing a read or a write since we
+			 * are going to end up waiting until OPAL is
+			 * done. However, because the MTD core sends
+			 * us the userspace request in chunks, we need
+			 * it to know we've been interrupted.
+			 */
+			rc = -EINTR;
+			if (opal_async_wait_response(token, &msg))
+				dev_err(dev, "opal_async_wait_response() failed\n");
+			goto out;
+		}
+		rc = opal_get_async_rc(msg);
+	}
 
-	if (rc != OPAL_ASYNC_COMPLETION) {
+	/*
+	 * OPAL does mutual exclusion on the flash, it will return
+	 * OPAL_BUSY.
+	 * During firmware updates by the service processor OPAL may
+	 * be (temporarily) prevented from accessing the flash, in
+	 * this case OPAL will also return OPAL_BUSY.
+	 * Both cases aren't errors exactly but the flash could have
+	 * changed, userspace should be informed.
+	 */
+	if (rc != OPAL_SUCCESS && rc != OPAL_BUSY)
 		dev_err(dev, "opal_flash_async_op(op=%d) failed (rc %d)\n",
 				op, rc);
-		rc = -EIO;
-		goto out;
-	}
 
-	rc = opal_async_wait_response(token, &msg);
-	if (rc) {
-		dev_err(dev, "opal async wait failed (rc %d)\n", rc);
-		rc = -EIO;
-		goto out;
-	}
+	if (rc == OPAL_SUCCESS && retlen)
+		*retlen = len;
 
-	rc = opal_get_async_rc(msg);
-out_success:
-	if (rc == OPAL_SUCCESS) {
-		rc = 0;
-		if (retlen)
-			*retlen = len;
-	} else {
-		rc = -EIO;
-	}
-
+	rc = opal_error_code(rc);
 out:
 	opal_async_release_token(token);
 	return rc;
