@@ -9,6 +9,7 @@
 
 #include <linux/etherdevice.h>
 #include <linux/string.h>
+#include <linux/phy.h>
 
 #include "hns3_enet.h"
 
@@ -571,26 +572,25 @@ static int hns3_get_link_ksettings(struct net_device *netdev,
 	u32 advertised_caps;
 	u8 media_type = HNAE3_MEDIA_TYPE_UNKNOWN;
 	u8 link_stat;
-	u8 auto_neg;
-	u8 duplex;
-	u32 speed;
 
 	if (!h->ae_algo || !h->ae_algo->ops)
 		return -EOPNOTSUPP;
 
 	/* 1.auto_neg & speed & duplex from cmd */
-	if (h->ae_algo->ops->get_ksettings_an_result) {
-		h->ae_algo->ops->get_ksettings_an_result(h, &auto_neg,
-							 &speed, &duplex);
-		cmd->base.autoneg = auto_neg;
-		cmd->base.speed = speed;
-		cmd->base.duplex = duplex;
+	if (netdev->phydev)
+		phy_ethtool_ksettings_get(netdev->phydev, cmd);
+	else if (h->ae_algo->ops->get_ksettings_an_result)
+		h->ae_algo->ops->get_ksettings_an_result(h,
+							 &cmd->base.autoneg,
+							 &cmd->base.speed,
+							 &cmd->base.duplex);
+	else
+		return -EOPNOTSUPP;
 
-		link_stat = hns3_get_link(netdev);
-		if (!link_stat) {
-			cmd->base.speed = (u32)SPEED_UNKNOWN;
-			cmd->base.duplex = DUPLEX_UNKNOWN;
-		}
+	link_stat = hns3_get_link(netdev);
+	if (!link_stat) {
+		cmd->base.speed = SPEED_UNKNOWN;
+		cmd->base.duplex = DUPLEX_UNKNOWN;
 	}
 
 	/* 2.media_type get from bios parameter block */
