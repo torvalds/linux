@@ -362,7 +362,7 @@ xfs_iformat_extents(
 			}
 
 			xfs_bmbt_disk_get_all(dp, &new);
-			xfs_iext_insert(ip, &icur, 1, &new, state);
+			xfs_iext_insert(ip, &icur, &new, state);
 			trace_xfs_read_extent(ip, &icur, state, _THIS_IP_);
 			xfs_iext_next(ifp, &icur);
 		}

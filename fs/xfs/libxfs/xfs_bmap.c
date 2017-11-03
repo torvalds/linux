@@ -901,7 +901,7 @@ xfs_bmap_local_to_extents(
 	rec.br_blockcount = 1;
 	rec.br_state = XFS_EXT_NORM;
 	xfs_iext_first(ifp, &icur);
-	xfs_iext_insert(ip, &icur, 1, &rec, 0);
+	xfs_iext_insert(ip, &icur, &rec, 0);
 
 	XFS_IFORK_NEXT_SET(ip, whichfork, 1);
 	ip->i_d.di_nblocks = 1;
@@ -1268,7 +1268,7 @@ xfs_iread_extents(
 				goto out_brelse;
 			}
 			xfs_bmbt_disk_get_all(frp, &new);
-			xfs_iext_insert(ip, &icur, 1, &new, state);
+			xfs_iext_insert(ip, &icur, &new, state);
 			trace_xfs_read_extent(ip, &icur, state, _THIS_IP_);
 			xfs_iext_next(ifp, &icur);
 		}
@@ -1824,7 +1824,7 @@ xfs_bmap_add_extent_delay_real(
 		PREV.br_blockcount = temp;
 		PREV.br_startblock = nullstartblock(da_new);
 		xfs_iext_next(ifp, &bma->icur);
-		xfs_iext_insert(bma->ip, &bma->icur, 1, &PREV, state);
+		xfs_iext_insert(bma->ip, &bma->icur, &PREV, state);
 		xfs_iext_prev(ifp, &bma->icur);
 		break;
 
@@ -1900,7 +1900,7 @@ xfs_bmap_add_extent_delay_real(
 
 		PREV.br_startblock = nullstartblock(da_new);
 		PREV.br_blockcount = temp;
-		xfs_iext_insert(bma->ip, &bma->icur, 1, &PREV, state);
+		xfs_iext_insert(bma->ip, &bma->icur, &PREV, state);
 		xfs_iext_next(ifp, &bma->icur);
 		break;
 
@@ -1946,9 +1946,9 @@ xfs_bmap_add_extent_delay_real(
 					PREV.br_blockcount));
 		xfs_iext_update_extent(bma->ip, state, &bma->icur, &PREV);
 
-		/* insert LEFT (r[0]) and RIGHT (r[1]) at the same time */
 		xfs_iext_next(ifp, &bma->icur);
-		xfs_iext_insert(bma->ip, &bma->icur, 2, &LEFT, state);
+		xfs_iext_insert(bma->ip, &bma->icur, &RIGHT, state);
+		xfs_iext_insert(bma->ip, &bma->icur, &LEFT, state);
 		(*nextents)++;
 
 		if (bma->cur == NULL)
@@ -2312,7 +2312,7 @@ xfs_bmap_add_extent_unwritten_real(
 		PREV.br_blockcount -= new->br_blockcount;
 
 		xfs_iext_update_extent(ip, state, icur, &PREV);
-		xfs_iext_insert(ip, icur, 1, new, state);
+		xfs_iext_insert(ip, icur, new, state);
 		XFS_IFORK_NEXT_SET(ip, whichfork,
 				XFS_IFORK_NEXTENTS(ip, whichfork) + 1);
 		if (cur == NULL)
@@ -2379,7 +2379,7 @@ xfs_bmap_add_extent_unwritten_real(
 
 		xfs_iext_update_extent(ip, state, icur, &PREV);
 		xfs_iext_next(ifp, icur);
-		xfs_iext_insert(ip, icur, 1, new, state);
+		xfs_iext_insert(ip, icur, new, state);
 
 		XFS_IFORK_NEXT_SET(ip, whichfork,
 				XFS_IFORK_NEXTENTS(ip, whichfork) + 1);
@@ -2422,7 +2422,8 @@ xfs_bmap_add_extent_unwritten_real(
 
 		xfs_iext_update_extent(ip, state, icur, &PREV);
 		xfs_iext_next(ifp, icur);
-		xfs_iext_insert(ip, icur, 2, &r[0], state);
+		xfs_iext_insert(ip, icur, &r[1], state);
+		xfs_iext_insert(ip, icur, &r[0], state);
 
 		XFS_IFORK_NEXT_SET(ip, whichfork,
 				XFS_IFORK_NEXTENTS(ip, whichfork) + 2);
@@ -2630,7 +2631,7 @@ xfs_bmap_add_extent_hole_delay(
 		 * Insert a new entry.
 		 */
 		oldlen = newlen = 0;
-		xfs_iext_insert(ip, icur, 1, new, state);
+		xfs_iext_insert(ip, icur, new, state);
 		break;
 	}
 	if (oldlen != newlen) {
@@ -2814,7 +2815,7 @@ xfs_bmap_add_extent_hole_real(
 		 * real allocation.
 		 * Insert a new entry.
 		 */
-		xfs_iext_insert(ip, icur, 1, new, state);
+		xfs_iext_insert(ip, icur, new, state);
 		XFS_IFORK_NEXT_SET(ip, whichfork,
 			XFS_IFORK_NEXTENTS(ip, whichfork) + 1);
 		if (cur == NULL) {
@@ -4737,7 +4738,7 @@ xfs_bmap_del_extent_delay(
 
 		xfs_iext_update_extent(ip, state, icur, got);
 		xfs_iext_next(ifp, icur);
-		xfs_iext_insert(ip, icur, 1, &new, state);
+		xfs_iext_insert(ip, icur, &new, state);
 
 		da_new = got_indlen + new_indlen - stolen;
 		del->br_blockcount -= stolen;
@@ -4818,7 +4819,7 @@ xfs_bmap_del_extent_cow(
 
 		xfs_iext_update_extent(ip, state, icur, got);
 		xfs_iext_next(ifp, icur);
-		xfs_iext_insert(ip, icur, 1, &new, state);
+		xfs_iext_insert(ip, icur, &new, state);
 		break;
 	}
 }
@@ -5031,7 +5032,7 @@ xfs_bmap_del_extent_real(
 		XFS_IFORK_NEXT_SET(ip, whichfork,
 			XFS_IFORK_NEXTENTS(ip, whichfork) + 1);
 		xfs_iext_next(ifp, icur);
-		xfs_iext_insert(ip, icur, 1, &new, state);
+		xfs_iext_insert(ip, icur, &new, state);
 		break;
 	}
 
@@ -5893,7 +5894,7 @@ xfs_bmap_split_extent_at(
 
 	/* Add new extent */
 	xfs_iext_next(ifp, &icur);
-	xfs_iext_insert(ip, &icur, 1, &new, 0);
+	xfs_iext_insert(ip, &icur, &new, 0);
 	XFS_IFORK_NEXT_SET(ip, whichfork,
 			   XFS_IFORK_NEXTENTS(ip, whichfork) + 1);
 

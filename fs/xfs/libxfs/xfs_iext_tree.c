@@ -619,15 +619,19 @@ xfs_iext_realloc_root(
 	cur->leaf = new;
 }
 
-static void
-__xfs_iext_insert(
-	struct xfs_ifork	*ifp,
+void
+xfs_iext_insert(
+	struct xfs_inode	*ip,
 	struct xfs_iext_cursor	*cur,
-	struct xfs_bmbt_irec	*irec)
+	struct xfs_bmbt_irec	*irec,
+	int			state)
 {
+	struct xfs_ifork	*ifp = xfs_iext_state_to_fork(ip, state);
 	xfs_fileoff_t		offset = irec->br_startoff;
 	struct xfs_iext_leaf	*new = NULL;
 	int			nr_entries, i;
+
+	trace_xfs_iext_insert(ip, cur, state, _RET_IP_);
 
 	if (ifp->if_height == 0)
 		xfs_iext_alloc_root(ifp, cur);
@@ -654,25 +658,6 @@ __xfs_iext_insert(
 
 	if (new)
 		xfs_iext_insert_node(ifp, xfs_iext_leaf_key(new, 0), new, 2);
-}
-
-void
-xfs_iext_insert(
-	struct xfs_inode	*ip,
-	struct xfs_iext_cursor	*cur,
-	xfs_extnum_t		nr_extents,
-	struct xfs_bmbt_irec	*new,
-	int			state)
-{
-	struct xfs_ifork	*ifp = xfs_iext_state_to_fork(ip, state);
-	int			i;
-
-	ASSERT(nr_extents > 0);
-
-	for (i = nr_extents - 1; i >= 0; i--) {
-		__xfs_iext_insert(ifp, cur, new + i);
-		trace_xfs_iext_insert(ip, cur, state, _RET_IP_);
-	}
 }
 
 static struct xfs_iext_node *

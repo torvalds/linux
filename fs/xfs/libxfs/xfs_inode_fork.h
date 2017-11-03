@@ -114,7 +114,7 @@ void		xfs_init_local_fork(struct xfs_inode *, int, const void *, int);
 
 xfs_extnum_t	xfs_iext_count(struct xfs_ifork *ifp);
 void		xfs_iext_insert(struct xfs_inode *, struct xfs_iext_cursor *cur,
-			xfs_extnum_t, struct xfs_bmbt_irec *, int);
+			struct xfs_bmbt_irec *, int);
 void		xfs_iext_remove(struct xfs_inode *, struct xfs_iext_cursor *,
 			int, int);
 void		xfs_iext_destroy(struct xfs_ifork *);
