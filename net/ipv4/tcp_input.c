@@ -856,6 +856,7 @@ void tcp_disable_fack(struct tcp_sock *tp)
 static void tcp_dsack_seen(struct tcp_sock *tp)
 {
 	tp->rx_opt.sack_ok |= TCP_DSACK_SEEN;
+	tp->rack.dsack_seen = 1;
 }
 
 static void tcp_update_reordering(struct sock *sk, const int metric,
@@ -2408,6 +2409,8 @@ static bool tcp_try_undo_recovery(struct sock *sk)
 			mib_idx = LINUX_MIB_TCPFULLUNDO;
 
 		NET_INC_STATS(sock_net(sk), mib_idx);
+	} else if (tp->rack.reo_wnd_persist) {
+		tp->rack.reo_wnd_persist--;
 	}
 	if (tp->snd_una == tp->high_seq && tcp_is_reno(tp)) {
 		/* Hold old state until something *above* high_seq
@@ -2427,6 +2430,8 @@ static bool tcp_try_undo_dsack(struct sock *sk)
 	struct tcp_sock *tp = tcp_sk(sk);
 
 	if (tp->undo_marker && !tp->undo_retrans) {
+		tp->rack.reo_wnd_persist = min(TCP_RACK_RECOVERY_THRESH,
+					       tp->rack.reo_wnd_persist + 1);
 		DBGUNDO(sk, "D-SACK");
 		tcp_undo_cwnd_reduction(sk, false);
 		NET_INC_STATS(sock_net(sk), LINUX_MIB_TCPDSACKUNDO);
@@ -3643,6 +3648,8 @@ static int tcp_ack(struct sock *sk, const struct sk_buff *skb, int flag)
 	/* See if we can take anything off of the retransmit queue. */
 	flag |= tcp_clean_rtx_queue(sk, prior_fackets, prior_snd_una, &acked,
 				    &sack_state);
+
+	tcp_rack_update_reo_wnd(sk, &rs);
 
 	if (tp->tlp_high_seq)
 		tcp_process_tlp_ack(sk, ack, flag);

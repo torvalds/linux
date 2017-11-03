@@ -44,6 +44,7 @@ static bool tcp_rack_sent_after(u64 t1, u64 t2, u32 seq1, u32 seq2)
 static void tcp_rack_detect_loss(struct sock *sk, u32 *reo_timeout)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
+	u32 min_rtt = tcp_min_rtt(tp);
 	struct sk_buff *skb, *n;
 	u32 reo_wnd;
 
@@ -54,8 +55,10 @@ static void tcp_rack_detect_loss(struct sock *sk, u32 *reo_timeout)
 	 * to queuing or delayed ACKs.
 	 */
 	reo_wnd = 1000;
-	if ((tp->rack.reord || !tp->lost_out) && tcp_min_rtt(tp) != ~0U)
-		reo_wnd = max(tcp_min_rtt(tp) >> 2, reo_wnd);
+	if ((tp->rack.reord || !tp->lost_out) && min_rtt != ~0U) {
+		reo_wnd = max((min_rtt >> 2) * tp->rack.reo_wnd_steps, reo_wnd);
+		reo_wnd = min(reo_wnd, tp->srtt_us >> 3);
+	}
 
 	list_for_each_entry_safe(skb, n, &tp->tsorted_sent_queue,
 				 tcp_tsorted_anchor) {
@@ -159,4 +162,45 @@ void tcp_rack_reo_timeout(struct sock *sk)
 	}
 	if (inet_csk(sk)->icsk_pending != ICSK_TIME_RETRANS)
 		tcp_rearm_rto(sk);
+}
+
+/* Updates the RACK's reo_wnd based on DSACK and no. of recoveries.
+ *
+ * If DSACK is received, increment reo_wnd by min_rtt/4 (upper bounded
+ * by srtt), since there is possibility that spurious retransmission was
+ * due to reordering delay longer than reo_wnd.
+ *
+ * Persist the current reo_wnd value for TCP_RACK_RECOVERY_THRESH (16)
+ * no. of successful recoveries (accounts for full DSACK-based loss
+ * recovery undo). After that, reset it to default (min_rtt/4).
+ *
+ * At max, reo_wnd is incremented only once per rtt. So that the new
+ * DSACK on which we are reacting, is due to the spurious retx (approx)
+ * after the reo_wnd has been updated last time.
+ *
+ * reo_wnd is tracked in terms of steps (of min_rtt/4), rather than
+ * absolute value to account for change in rtt.
+ */
+void tcp_rack_update_reo_wnd(struct sock *sk, struct rate_sample *rs)
+{
+	struct tcp_sock *tp = tcp_sk(sk);
+
+	if (sock_net(sk)->ipv4.sysctl_tcp_recovery & TCP_RACK_STATIC_REO_WND ||
+	    !rs->prior_delivered)
+		return;
+
+	/* Disregard DSACK if a rtt has not passed since we adjusted reo_wnd */
+	if (before(rs->prior_delivered, tp->rack.last_delivered))
+		tp->rack.dsack_seen = 0;
+
+	/* Adjust the reo_wnd if update is pending */
+	if (tp->rack.dsack_seen) {
+		tp->rack.reo_wnd_steps = min_t(u32, 0xFF,
+					       tp->rack.reo_wnd_steps + 1);
+		tp->rack.dsack_seen = 0;
+		tp->rack.last_delivered = tp->delivered;
+		tp->rack.reo_wnd_persist = TCP_RACK_RECOVERY_THRESH;
+	} else if (!tp->rack.reo_wnd_persist) {
+		tp->rack.reo_wnd_steps = 1;
+	}
 }
