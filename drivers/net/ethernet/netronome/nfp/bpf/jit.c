@@ -2314,9 +2314,6 @@ nfp_bpf_jit(struct bpf_prog *filter, void *prog_mem,
 	if (ret)
 		goto out;
 
-	nfp_prog->num_regs = MAX_BPF_REG;
-	nfp_prog->regs_per_thread = 32;
-
 	nfp_prog->prog = prog_mem;
 	nfp_prog->__prog_alloc_len = prog_sz;
 
@@ -2331,7 +2328,6 @@ nfp_bpf_jit(struct bpf_prog *filter, void *prog_mem,
 	ret = nfp_bpf_ustore_calc(nfp_prog, (__force __le64 *)prog_mem);
 
 	res->n_instr = nfp_prog->prog_len;
-	res->dense_mode = false;
 out:
 	nfp_prog_free(nfp_prog);
 

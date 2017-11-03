@@ -141,8 +141,6 @@ static inline u8 mbpf_mode(const struct nfp_insn_meta *meta)
  * @prog_len: number of valid instructions in @prog array
  * @__prog_alloc_len: alloc size of @prog array
  * @type: BPF program type
- * @num_regs: number of registers used by this program
- * @regs_per_thread: number of basic registers allocated per thread
  * @start_off: address of the first instruction in the memory
  * @tgt_out: jump target for normal exit
  * @tgt_abort: jump target for abort (e.g. access outside of packet buffer)
@@ -159,9 +157,6 @@ struct nfp_prog {
 
 	enum bpf_prog_type type;
 
-	unsigned int num_regs;
-	unsigned int regs_per_thread;
-
 	unsigned int start_off;
 	unsigned int tgt_out;
 	unsigned int tgt_abort;
@@ -177,7 +172,6 @@ struct nfp_prog {
 
 struct nfp_bpf_result {
 	unsigned int n_instr;
-	bool dense_mode;
 };
 
 int

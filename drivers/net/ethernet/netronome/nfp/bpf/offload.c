@@ -98,19 +98,14 @@ out:
 static void
 nfp_net_bpf_load_and_start(struct nfp_net *nn, u32 tc_flags,
 			   void *code, dma_addr_t dma_addr,
-			   unsigned int code_sz, unsigned int n_instr,
-			   bool dense_mode)
+			   unsigned int code_sz, unsigned int n_instr)
 {
-	u64 bpf_addr = dma_addr;
 	int err;
 
 	nn->dp.bpf_offload_skip_sw = !!(tc_flags & TCA_CLS_FLAGS_SKIP_SW);
 
-	if (dense_mode)
-		bpf_addr |= NFP_NET_CFG_BPF_CFG_8CTX;
-
 	nn_writew(nn, NFP_NET_CFG_BPF_SIZE, n_instr);
-	nn_writeq(nn, NFP_NET_CFG_BPF_ADDR, bpf_addr);
+	nn_writeq(nn, NFP_NET_CFG_BPF_ADDR, dma_addr);
 
 	/* Load up the JITed code */
 	err = nfp_net_reconfig(nn, NFP_NET_CFG_UPDATE_BPF);
@@ -169,7 +164,7 @@ int nfp_net_bpf_offload(struct nfp_net *nn, struct tc_cls_bpf_offload *cls_bpf)
 		nfp_net_bpf_stop(nn);
 		nfp_net_bpf_load_and_start(nn, cls_bpf->gen_flags, code,
 					   dma_addr, max_instr * sizeof(u64),
-					   res.n_instr, res.dense_mode);
+					   res.n_instr);
 		return 0;
 
 	case TC_CLSBPF_ADD:
@@ -183,7 +178,7 @@ int nfp_net_bpf_offload(struct nfp_net *nn, struct tc_cls_bpf_offload *cls_bpf)
 
 		nfp_net_bpf_load_and_start(nn, cls_bpf->gen_flags, code,
 					   dma_addr, max_instr * sizeof(u64),
-					   res.n_instr, res.dense_mode);
+					   res.n_instr);
 		return 0;
 
 	case TC_CLSBPF_DESTROY:
