@@ -26,6 +26,8 @@ enum tcf_block_binder_type {
 
 struct tcf_block_ext_info {
 	enum tcf_block_binder_type binder_type;
+	tcf_chain_head_change_t *chain_head_change;
+	void *chain_head_change_priv;
 };
 
 struct tcf_block_cb;
@@ -37,12 +39,10 @@ struct tcf_chain *tcf_chain_get(struct tcf_block *block, u32 chain_index,
 void tcf_chain_put(struct tcf_chain *chain);
 int tcf_block_get(struct tcf_block **p_block,
 		  struct tcf_proto __rcu **p_filter_chain, struct Qdisc *q);
-int tcf_block_get_ext(struct tcf_block **p_block,
-		      struct tcf_proto __rcu **p_filter_chain, struct Qdisc *q,
+int tcf_block_get_ext(struct tcf_block **p_block, struct Qdisc *q,
 		      struct tcf_block_ext_info *ei);
 void tcf_block_put(struct tcf_block *block);
-void tcf_block_put_ext(struct tcf_block *block,
-		       struct tcf_proto __rcu **p_filter_chain, struct Qdisc *q,
+void tcf_block_put_ext(struct tcf_block *block, struct Qdisc *q,
 		       struct tcf_block_ext_info *ei);
 
 static inline struct Qdisc *tcf_block_q(struct tcf_block *block)
@@ -82,8 +82,7 @@ int tcf_block_get(struct tcf_block **p_block,
 }
 
 static inline
-int tcf_block_get_ext(struct tcf_block **p_block,
-		      struct tcf_proto __rcu **p_filter_chain, struct Qdisc *q,
+int tcf_block_get_ext(struct tcf_block **p_block, struct Qdisc *q,
 		      struct tcf_block_ext_info *ei)
 {
 	return 0;
@@ -94,8 +93,7 @@ static inline void tcf_block_put(struct tcf_block *block)
 }
 
 static inline
-void tcf_block_put_ext(struct tcf_block *block,
-		       struct tcf_proto __rcu **p_filter_chain, struct Qdisc *q,
+void tcf_block_put_ext(struct tcf_block *block, struct Qdisc *q,
 		       struct tcf_block_ext_info *ei)
 {
 }

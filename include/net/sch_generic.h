@@ -260,9 +260,12 @@ struct qdisc_skb_cb {
 	unsigned char		data[QDISC_CB_PRIV_LEN];
 };
 
+typedef void tcf_chain_head_change_t(struct tcf_proto *tp_head, void *priv);
+
 struct tcf_chain {
 	struct tcf_proto __rcu *filter_chain;
-	struct tcf_proto __rcu **p_filter_chain;
+	tcf_chain_head_change_t *chain_head_change;
+	void *chain_head_change_priv;
 	struct list_head list;
 	struct tcf_block *block;
 	u32 index; /* chain index */

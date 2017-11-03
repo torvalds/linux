@@ -54,6 +54,13 @@ static struct tcf_block *ingress_tcf_block(struct Qdisc *sch, unsigned long cl)
 	return q->block;
 }
 
+static void clsact_chain_head_change(struct tcf_proto *tp_head, void *priv)
+{
+	struct tcf_proto __rcu **p_filter_chain = priv;
+
+	rcu_assign_pointer(*p_filter_chain, tp_head);
+}
+
 static int ingress_init(struct Qdisc *sch, struct nlattr *opt)
 {
 	struct ingress_sched_data *q = qdisc_priv(sch);
@@ -61,9 +68,10 @@ static int ingress_init(struct Qdisc *sch, struct nlattr *opt)
 	int err;
 
 	q->block_info.binder_type = TCF_BLOCK_BINDER_TYPE_CLSACT_INGRESS;
+	q->block_info.chain_head_change = clsact_chain_head_change;
+	q->block_info.chain_head_change_priv = &dev->ingress_cl_list;
 
-	err = tcf_block_get_ext(&q->block, &dev->ingress_cl_list,
-				sch, &q->block_info);
+	err = tcf_block_get_ext(&q->block, sch, &q->block_info);
 	if (err)
 		return err;
 
@@ -76,10 +84,8 @@ static int ingress_init(struct Qdisc *sch, struct nlattr *opt)
 static void ingress_destroy(struct Qdisc *sch)
 {
 	struct ingress_sched_data *q = qdisc_priv(sch);
-	struct net_device *dev = qdisc_dev(sch);
 
-	tcf_block_put_ext(q->block, &dev->ingress_cl_list,
-			  sch, &q->block_info);
+	tcf_block_put_ext(q->block, sch, &q->block_info);
 	net_dec_ingress_queue();
 }
 
@@ -162,16 +168,18 @@ static int clsact_init(struct Qdisc *sch, struct nlattr *opt)
 	int err;
 
 	q->ingress_block_info.binder_type = TCF_BLOCK_BINDER_TYPE_CLSACT_INGRESS;
+	q->ingress_block_info.chain_head_change = clsact_chain_head_change;
+	q->ingress_block_info.chain_head_change_priv = &dev->ingress_cl_list;
 
-	err = tcf_block_get_ext(&q->ingress_block, &dev->ingress_cl_list,
-				sch, &q->ingress_block_info);
+	err = tcf_block_get_ext(&q->ingress_block, sch, &q->ingress_block_info);
 	if (err)
 		return err;
 
 	q->egress_block_info.binder_type = TCF_BLOCK_BINDER_TYPE_CLSACT_EGRESS;
+	q->egress_block_info.chain_head_change = clsact_chain_head_change;
+	q->egress_block_info.chain_head_change_priv = &dev->egress_cl_list;
 
-	err = tcf_block_get_ext(&q->egress_block, &dev->egress_cl_list,
-				sch, &q->egress_block_info);
+	err = tcf_block_get_ext(&q->egress_block, sch, &q->egress_block_info);
 	if (err)
 		goto err_egress_block_get;
 
@@ -183,20 +191,16 @@ static int clsact_init(struct Qdisc *sch, struct nlattr *opt)
 	return 0;
 
 err_egress_block_get:
-	tcf_block_put_ext(q->ingress_block, &dev->ingress_cl_list,
-			  sch, &q->ingress_block_info);
+	tcf_block_put_ext(q->ingress_block, sch, &q->ingress_block_info);
 	return err;
 }
 
 static void clsact_destroy(struct Qdisc *sch)
 {
 	struct clsact_sched_data *q = qdisc_priv(sch);
-	struct net_device *dev = qdisc_dev(sch);
 
-	tcf_block_put_ext(q->egress_block, &dev->egress_cl_list,
-			  sch, &q->egress_block_info);
-	tcf_block_put_ext(q->ingress_block, &dev->ingress_cl_list,
-			  sch, &q->ingress_block_info);
+	tcf_block_put_ext(q->egress_block, sch, &q->egress_block_info);
+	tcf_block_put_ext(q->ingress_block, sch, &q->ingress_block_info);
 
 	net_dec_ingress_queue();
 	net_dec_egress_queue();
