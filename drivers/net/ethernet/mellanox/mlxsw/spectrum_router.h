@@ -110,6 +110,14 @@ int __mlxsw_sp_ipip_entry_update_tunnel(struct mlxsw_sp *mlxsw_sp,
 					bool keep_encap,
 					bool update_nexthops,
 					struct netlink_ext_ack *extack);
+void mlxsw_sp_ipip_entry_demote_tunnel(struct mlxsw_sp *mlxsw_sp,
+				       struct mlxsw_sp_ipip_entry *ipip_entry);
+bool
+mlxsw_sp_ipip_demote_tunnel_by_saddr(struct mlxsw_sp *mlxsw_sp,
+				     enum mlxsw_sp_l3proto ul_proto,
+				     union mlxsw_sp_l3addr saddr,
+				     u32 ul_tb_id,
+				     const struct mlxsw_sp_ipip_entry *except);
 struct mlxsw_sp_nexthop *mlxsw_sp_nexthop_next(struct mlxsw_sp_router *router,
 					       struct mlxsw_sp_nexthop *nh);
 bool mlxsw_sp_nexthop_offload(struct mlxsw_sp_nexthop *nh);

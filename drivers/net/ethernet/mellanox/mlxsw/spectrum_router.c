@@ -1159,24 +1159,7 @@ mlxsw_sp_ipip_entry_create(struct mlxsw_sp *mlxsw_sp,
 			   enum mlxsw_sp_ipip_type ipipt,
 			   struct net_device *ol_dev)
 {
-	u32 ul_tb_id = mlxsw_sp_ipip_dev_ul_tb_id(ol_dev);
-	struct mlxsw_sp_router *router = mlxsw_sp->router;
 	struct mlxsw_sp_ipip_entry *ipip_entry;
-	enum mlxsw_sp_l3proto ul_proto;
-	union mlxsw_sp_l3addr saddr;
-
-	/* The configuration where several tunnels have the same local address
-	 * in the same underlay table needs special treatment in the HW. That is
-	 * currently not implemented in the driver.
-	 */
-	ul_proto = router->ipip_ops_arr[ipipt]->ul_proto;
-	saddr = mlxsw_sp_ipip_netdev_saddr(ul_proto, ol_dev);
-	list_for_each_entry(ipip_entry, &mlxsw_sp->router->ipip_list,
-			    ipip_list_node) {
-		if (mlxsw_sp_ipip_entry_saddr_matches(mlxsw_sp, ul_proto, saddr,
-						      ul_tb_id, ipip_entry))
-			return ERR_PTR(-EEXIST);
-	}
 
 	ipip_entry = mlxsw_sp_ipip_entry_alloc(mlxsw_sp, ipipt, ol_dev);
 	if (IS_ERR(ipip_entry))
@@ -1292,14 +1275,24 @@ static int mlxsw_sp_netdevice_ipip_ol_reg_event(struct mlxsw_sp *mlxsw_sp,
 						struct net_device *ol_dev)
 {
 	struct mlxsw_sp_ipip_entry *ipip_entry;
+	enum mlxsw_sp_l3proto ul_proto;
 	enum mlxsw_sp_ipip_type ipipt;
+	union mlxsw_sp_l3addr saddr;
+	u32 ul_tb_id;
 
 	mlxsw_sp_netdev_ipip_type(mlxsw_sp, ol_dev, &ipipt);
 	if (mlxsw_sp_netdevice_ipip_can_offload(mlxsw_sp, ol_dev, ipipt)) {
-		ipip_entry = mlxsw_sp_ipip_entry_create(mlxsw_sp, ipipt,
-							ol_dev);
-		if (IS_ERR(ipip_entry))
-			return PTR_ERR(ipip_entry);
+		ul_tb_id = mlxsw_sp_ipip_dev_ul_tb_id(ol_dev);
+		ul_proto = mlxsw_sp->router->ipip_ops_arr[ipipt]->ul_proto;
+		saddr = mlxsw_sp_ipip_netdev_saddr(ul_proto, ol_dev);
+		if (!mlxsw_sp_ipip_demote_tunnel_by_saddr(mlxsw_sp, ul_proto,
+							  saddr, ul_tb_id,
+							  NULL)) {
+			ipip_entry = mlxsw_sp_ipip_entry_create(mlxsw_sp, ipipt,
+								ol_dev);
+			if (IS_ERR(ipip_entry))
+				return PTR_ERR(ipip_entry);
+		}
 	}
 
 	return 0;
@@ -1439,6 +1432,44 @@ static int mlxsw_sp_netdevice_ipip_ol_vrf_event(struct mlxsw_sp *mlxsw_sp,
 		return 0;
 	return __mlxsw_sp_ipip_entry_update_tunnel(mlxsw_sp, ipip_entry,
 						   true, false, false, extack);
+}
+
+void mlxsw_sp_ipip_entry_demote_tunnel(struct mlxsw_sp *mlxsw_sp,
+				       struct mlxsw_sp_ipip_entry *ipip_entry)
+{
+	struct net_device *ol_dev = ipip_entry->ol_dev;
+
+	if (ol_dev->flags & IFF_UP)
+		mlxsw_sp_ipip_entry_ol_down_event(mlxsw_sp, ipip_entry);
+	mlxsw_sp_ipip_entry_destroy(mlxsw_sp, ipip_entry);
+}
+
+/* The configuration where several tunnels have the same local address in the
+ * same underlay table needs special treatment in the HW. That is currently not
+ * implemented in the driver. This function finds and demotes the first tunnel
+ * with a given source address, except the one passed in in the argument
+ * `except'.
+ */
+bool
+mlxsw_sp_ipip_demote_tunnel_by_saddr(struct mlxsw_sp *mlxsw_sp,
+				     enum mlxsw_sp_l3proto ul_proto,
+				     union mlxsw_sp_l3addr saddr,
+				     u32 ul_tb_id,
+				     const struct mlxsw_sp_ipip_entry *except)
+{
+	struct mlxsw_sp_ipip_entry *ipip_entry, *tmp;
+
+	list_for_each_entry_safe(ipip_entry, tmp, &mlxsw_sp->router->ipip_list,
+				 ipip_list_node) {
+		if (ipip_entry != except &&
+		    mlxsw_sp_ipip_entry_saddr_matches(mlxsw_sp, ul_proto, saddr,
+						      ul_tb_id, ipip_entry)) {
+			mlxsw_sp_ipip_entry_demote_tunnel(mlxsw_sp, ipip_entry);
+			return true;
+		}
+	}
+
+	return false;
 }
 
 int mlxsw_sp_netdevice_ipip_ol_event(struct mlxsw_sp *mlxsw_sp,
