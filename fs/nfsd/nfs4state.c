@@ -5703,6 +5703,25 @@ alloc_init_lock_stateowner(unsigned int strhashval, struct nfs4_client *clp,
 	return ret;
 }
 
+static struct nfs4_ol_stateid *
+find_lock_stateid(struct nfs4_lockowner *lo, struct nfs4_file *fp)
+{
+	struct nfs4_ol_stateid *lst;
+	struct nfs4_client *clp = lo->lo_owner.so_client;
+
+	lockdep_assert_held(&clp->cl_lock);
+
+	list_for_each_entry(lst, &lo->lo_owner.so_stateids, st_perstateowner) {
+		if (lst->st_stid.sc_type != NFS4_LOCK_STID)
+			continue;
+		if (lst->st_stid.sc_file == fp) {
+			refcount_inc(&lst->st_stid.sc_count);
+			return lst;
+		}
+	}
+	return NULL;
+}
+
 static void
 init_lock_stateid(struct nfs4_ol_stateid *stp, struct nfs4_lockowner *lo,
 		  struct nfs4_file *fp, struct inode *inode,
@@ -5726,25 +5745,6 @@ init_lock_stateid(struct nfs4_ol_stateid *stp, struct nfs4_lockowner *lo,
 	spin_lock(&fp->fi_lock);
 	list_add(&stp->st_perfile, &fp->fi_stateids);
 	spin_unlock(&fp->fi_lock);
-}
-
-static struct nfs4_ol_stateid *
-find_lock_stateid(struct nfs4_lockowner *lo, struct nfs4_file *fp)
-{
-	struct nfs4_ol_stateid *lst;
-	struct nfs4_client *clp = lo->lo_owner.so_client;
-
-	lockdep_assert_held(&clp->cl_lock);
-
-	list_for_each_entry(lst, &lo->lo_owner.so_stateids, st_perstateowner) {
-		if (lst->st_stid.sc_type != NFS4_LOCK_STID)
-			continue;
-		if (lst->st_stid.sc_file == fp) {
-			refcount_inc(&lst->st_stid.sc_count);
-			return lst;
-		}
-	}
-	return NULL;
 }
 
 static struct nfs4_ol_stateid *
