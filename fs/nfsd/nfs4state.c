@@ -4502,6 +4502,7 @@ nfsd4_process_open2(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nf
 	struct nfs4_ol_stateid *stp = NULL;
 	struct nfs4_delegation *dp = NULL;
 	__be32 status;
+	bool new_stp = false;
 
 	/*
 	 * Lookup file; if found, lookup stateid and check open request,
@@ -4521,11 +4522,19 @@ nfsd4_process_open2(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nf
 			goto out;
 	}
 
+	if (!stp) {
+		stp = init_open_stateid(fp, open);
+		if (!open->op_stp)
+			new_stp = true;
+	}
+
 	/*
 	 * OPEN the file, or upgrade an existing OPEN.
 	 * If truncate fails, the OPEN fails.
+	 *
+	 * stp is already locked.
 	 */
-	if (stp) {
+	if (!new_stp) {
 		/* Stateid was found, this is an OPEN upgrade */
 		status = nfs4_upgrade_open(rqstp, fp, current_fh, stp, open);
 		if (status) {
@@ -4533,22 +4542,11 @@ nfsd4_process_open2(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nf
 			goto out;
 		}
 	} else {
-		/* stp is returned locked. */
-		stp = init_open_stateid(fp, open);
-		/* See if we lost the race to some other thread */
-		if (stp->st_access_bmap != 0) {
-			status = nfs4_upgrade_open(rqstp, fp, current_fh,
-						stp, open);
-			if (status) {
-				mutex_unlock(&stp->st_mutex);
-				goto out;
-			}
-			goto upgrade_out;
-		}
 		status = nfs4_get_vfs_file(rqstp, fp, current_fh, stp, open);
 		if (status) {
-			mutex_unlock(&stp->st_mutex);
+			stp->st_stid.sc_type = NFS4_CLOSED_STID;
 			release_open_stateid(stp);
+			mutex_unlock(&stp->st_mutex);
 			goto out;
 		}
 
@@ -4557,7 +4555,7 @@ nfsd4_process_open2(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nf
 		if (stp->st_clnt_odstate == open->op_odstate)
 			open->op_odstate = NULL;
 	}
-upgrade_out:
+
 	nfs4_inc_and_copy_stateid(&open->op_stateid, &stp->st_stid);
 	mutex_unlock(&stp->st_mutex);
 
