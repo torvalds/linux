@@ -298,7 +298,7 @@ module_param(pretimeout, timeout, 0644);
 MODULE_PARM_DESC(pretimeout, "Pretimeout value in seconds.");
 
 module_param(panic_wdt_timeout, timeout, 0644);
-MODULE_PARM_DESC(timeout, "Timeout value on kernel panic in seconds.");
+MODULE_PARM_DESC(panic_wdt_timeout, "Timeout value on kernel panic in seconds.");
 
 module_param_cb(action, &param_ops_str, action_op, 0644);
 MODULE_PARM_DESC(action, "Timeout action. One of: "
