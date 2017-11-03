@@ -542,7 +542,9 @@ pnv_restore_hyp_resource_arch300:
 	 * then clear bit 60 in MMCRA to ensure the PMU starts running.
 	 */
 	blt	cr3,1f
+BEGIN_FTR_SECTION
 	PPC_INVALIDATE_ERAT
+END_FTR_SECTION_IFSET(CPU_FTR_POWER9_DD1 | CPU_FTR_POWER9_DD20)
 	ld	r1,PACAR1(r13)
 	mfspr	r4,SPRN_MMCRA
 	ori	r4,r4,(1 << (63-60))
