@@ -1217,8 +1217,6 @@ int visorbus_init(void)
 	int err;
 
 	visorbus_debugfs_dir = debugfs_create_dir("visorbus", NULL);
-	if (!visorbus_debugfs_dir)
-		return -ENOMEM;
 	bus_device_info_init(&clientbus_driverinfo, "clientbus", "visorbus");
 	err = bus_register(&visorbus_type);
 	if (err < 0)
