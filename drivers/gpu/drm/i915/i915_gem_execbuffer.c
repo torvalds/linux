@@ -337,6 +337,10 @@ eb_vma_misplaced(const struct drm_i915_gem_exec_object2 *entry,
 	    (vma->node.start + vma->node.size - 1) >> 32)
 		return true;
 
+	if (flags & __EXEC_OBJECT_NEEDS_MAP &&
+	    !i915_vma_is_map_and_fenceable(vma))
+		return true;
+
 	return false;
 }
 
