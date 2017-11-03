@@ -57,12 +57,19 @@ static void ttyport_write_wakeup(struct tty_port *port)
 {
 	struct serdev_controller *ctrl = port->client_data;
 	struct serport *serport = serdev_controller_get_drvdata(ctrl);
+	struct tty_struct *tty;
 
-	if (test_and_clear_bit(TTY_DO_WRITE_WAKEUP, &port->tty->flags) &&
+	tty = tty_port_tty_get(port);
+	if (!tty)
+		return;
+
+	if (test_and_clear_bit(TTY_DO_WRITE_WAKEUP, &tty->flags) &&
 	    test_bit(SERPORT_ACTIVE, &serport->flags))
 		serdev_controller_write_wakeup(ctrl);
 
-	wake_up_interruptible_poll(&port->tty->write_wait, POLLOUT);
+	wake_up_interruptible_poll(&tty->write_wait, POLLOUT);
+
+	tty_kref_put(tty);
 }
 
 static const struct tty_port_client_operations client_ops = {
