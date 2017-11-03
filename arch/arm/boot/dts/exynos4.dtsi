@@ -755,6 +755,7 @@
 		phy = <&hdmi_i2c_phy>;
 		power-domains = <&pd_tv>;
 		samsung,syscon-phandle = <&pmu_system_controller>;
+		#sound-dai-cells = <0>;
 		status = "disabled";
 	};
 

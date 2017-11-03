@@ -618,6 +618,7 @@
 			samsung,syscon-phandle = <&pmu_system_controller>;
 			status = "disabled";
 			power-domains = <&disp_pd>;
+			#sound-dai-cells = <0>;
 		};
 
 		hdmiphy: hdmiphy@145D0000 {
