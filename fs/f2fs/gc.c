@@ -832,10 +832,17 @@ next_step:
 				continue;
 			}
 
+			if (!down_write_trylock(
+				&F2FS_I(inode)->dio_rwsem[WRITE])) {
+				iput(inode);
+				continue;
+			}
+
 			start_bidx = start_bidx_of_node(nofs, inode);
 			data_page = get_read_data_page(inode,
 					start_bidx + ofs_in_node, REQ_RAHEAD,
 					true);
+			up_write(&F2FS_I(inode)->dio_rwsem[WRITE]);
 			if (IS_ERR(data_page)) {
 				iput(inode);
 				continue;
