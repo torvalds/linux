@@ -78,7 +78,9 @@ static int powernv_flash_async_op(struct mtd_info *mtd, enum flash_op op,
 		rc = opal_flash_erase(info->id, offset, len, token);
 		break;
 	default:
-		BUG_ON(1);
+		WARN_ON_ONCE(1);
+		opal_async_release_token(token);
+		return -EIO;
 	}
 
 	if (rc != OPAL_ASYNC_COMPLETION) {
