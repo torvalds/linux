@@ -818,14 +818,18 @@ xfs_iext_free_last_leaf(
 	kmem_free(ifp->if_u1.if_root);
 }
 
-static void
-__xfs_iext_remove(
-	struct xfs_ifork	*ifp,
-	struct xfs_iext_cursor	*cur)
+void
+xfs_iext_remove(
+	struct xfs_inode	*ip,
+	struct xfs_iext_cursor	*cur,
+	int			state)
 {
+	struct xfs_ifork	*ifp = xfs_iext_state_to_fork(ip, state);
 	struct xfs_iext_leaf	*leaf = cur->leaf;
 	xfs_fileoff_t		offset = xfs_iext_leaf_key(leaf, 0);
 	int			i, nr_entries;
+
+	trace_xfs_iext_remove(ip, cur, state, _RET_IP_);
 
 	ASSERT(ifp->if_height > 0);
 	ASSERT(ifp->if_u1.if_root != NULL);
@@ -856,24 +860,6 @@ __xfs_iext_remove(
 		xfs_iext_rebalance_leaf(ifp, cur, leaf, offset, nr_entries);
 	else if (nr_entries == 0)
 		xfs_iext_free_last_leaf(ifp);
-}
-
-void
-xfs_iext_remove(
-	struct xfs_inode	*ip,
-	struct xfs_iext_cursor	*cur,
-	int			nr_extents,
-	int			state)
-{
-	struct xfs_ifork	*ifp = xfs_iext_state_to_fork(ip, state);
-	int			i;
-
-	ASSERT(nr_extents > 0);
-
-	for (i = 0; i < nr_extents; i++) {
-		trace_xfs_iext_remove(ip, cur, state, _RET_IP_);
-		__xfs_iext_remove(ifp, cur);
-	}
 }
 
 /*

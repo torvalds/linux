@@ -116,7 +116,7 @@ xfs_extnum_t	xfs_iext_count(struct xfs_ifork *ifp);
 void		xfs_iext_insert(struct xfs_inode *, struct xfs_iext_cursor *cur,
 			struct xfs_bmbt_irec *, int);
 void		xfs_iext_remove(struct xfs_inode *, struct xfs_iext_cursor *,
-			int, int);
+			int);
 void		xfs_iext_destroy(struct xfs_ifork *);
 
 bool		xfs_iext_lookup_extent(struct xfs_inode *ip,
