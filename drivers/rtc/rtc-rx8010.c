@@ -35,7 +35,7 @@
 #define RX8010_CTRL    0x1F
 /* 0x20 to 0x2F are user registers */
 #define RX8010_RESV30  0x30
-#define RX8010_RESV31  0x32
+#define RX8010_RESV31  0x31
 #define RX8010_IRQ     0x32
 
 #define RX8010_EXT_WADA  BIT(3)
