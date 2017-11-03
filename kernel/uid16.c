@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *	Wrapper functions for 16bit uid back compatibility. All nicely tied
  *	together in the faint hope we can take the out in five years time.

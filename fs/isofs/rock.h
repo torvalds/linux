@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * These structs are used by the system-use-sharing protocol, in which the
  * Rock Ridge extensions are embedded.  It is quite possible that other

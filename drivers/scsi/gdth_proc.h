@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _GDTH_PROC_H
 #define _GDTH_PROC_H
 

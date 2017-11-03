@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef _IPX_H_
 #define _IPX_H_
 #include <linux/libc-compat.h>	/* for compatibility with glibc netipx/ipx.h */

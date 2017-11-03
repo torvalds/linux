@@ -284,6 +284,9 @@ next_op:
 				if (unlikely(len > datalen - dp))
 					goto data_overrun_error;
 			}
+		} else {
+			if (unlikely(len > datalen - dp))
+				goto data_overrun_error;
 		}
 
 		if (flags & FLAG_CONS) {

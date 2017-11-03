@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * A constraint is a condition that must be satisfied in
  * order for one or more permissions to be granted.

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* pci_schizo.c: SCHIZO/TOMATILLO specific PCI controller support.
  *
  * Copyright (C) 2001, 2002, 2003, 2007, 2008 David S. Miller (davem@davemloft.net)

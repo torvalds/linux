@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Convert integer string representation to an integer.
  * If an integer doesn't fit into specified type, -E is returned.

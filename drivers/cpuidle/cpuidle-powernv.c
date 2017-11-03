@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  cpuidle-powernv - idle state cpuidle driver.
  *  Adapted from drivers/cpuidle/cpuidle-pseries

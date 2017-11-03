@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Glibc independent futex library for testing kernel functionality.
  * Shamelessly stolen from Darren Hart <dvhltc@us.ibm.com>

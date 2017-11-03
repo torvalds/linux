@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include "bcache.h"
 #include "btree.h"
 

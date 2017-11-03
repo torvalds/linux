@@ -495,7 +495,7 @@ static int dccp_v4_send_response(const struct sock *sk, struct request_sock *req
 							      ireq->ir_rmt_addr);
 		err = ip_build_and_send_pkt(skb, sk, ireq->ir_loc_addr,
 					    ireq->ir_rmt_addr,
-					    rcu_dereference(ireq->ireq_opt));
+					    ireq_opt_deref(ireq));
 		err = net_xmit_eval(err);
 	}
 

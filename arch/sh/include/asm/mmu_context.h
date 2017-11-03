@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (C) 1999 Niibe Yutaka
  * Copyright (C) 2003 - 2007 Paul Mundt

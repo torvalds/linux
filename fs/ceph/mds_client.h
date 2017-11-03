@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _FS_CEPH_MDS_CLIENT_H
 #define _FS_CEPH_MDS_CLIENT_H
 

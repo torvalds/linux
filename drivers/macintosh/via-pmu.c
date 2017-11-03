@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Device driver for the via-pmu on Apple Powermacs.
  *

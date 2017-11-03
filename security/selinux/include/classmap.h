@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #include <linux/capability.h>
 
 #define COMMON_FILE_SOCK_PERMS "ioctl", "read", "write", "create", \

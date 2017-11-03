@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* Xen-specific pieces of head.S, intended to be included in the right
 	place in head.S */
 

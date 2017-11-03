@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
 /* MN10300 Kernel parameters
  *
  * Copyright (C) 2007 Matsushita Electric Industrial Co., Ltd.
