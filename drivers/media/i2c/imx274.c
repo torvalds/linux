@@ -1059,7 +1059,7 @@ static int imx274_s_stream(struct v4l2_subdev *sd, int on)
 
 	if (on) {
 		/* load mode registers */
-		imx274_mode_regs(imx274, imx274->mode_index);
+		ret = imx274_mode_regs(imx274, imx274->mode_index);
 		if (ret)
 			goto fail;
 
