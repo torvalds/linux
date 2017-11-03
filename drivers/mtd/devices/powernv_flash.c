@@ -47,6 +47,11 @@ enum flash_op {
 	FLASH_OP_ERASE,
 };
 
+/*
+ * Don't return -ERESTARTSYS if we can't get a token, the MTD core
+ * might have split up the call from userspace and called into the
+ * driver more than once, we'll already have done some amount of work.
+ */
 static int powernv_flash_async_op(struct mtd_info *mtd, enum flash_op op,
 		loff_t offset, size_t len, size_t *retlen, u_char *buf)
 {
@@ -63,6 +68,8 @@ static int powernv_flash_async_op(struct mtd_info *mtd, enum flash_op op,
 	if (token < 0) {
 		if (token != -ERESTARTSYS)
 			dev_err(dev, "Failed to get an async token\n");
+		else
+			token = -EINTR;
 		return token;
 	}
 
