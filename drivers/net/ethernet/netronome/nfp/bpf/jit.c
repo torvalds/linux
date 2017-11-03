@@ -2245,58 +2245,27 @@ static int nfp_bpf_ustore_calc(struct nfp_prog *nfp_prog, __le64 *ustore)
 
 /**
  * nfp_bpf_jit() - translate BPF code into NFP assembly
+ * @nfp_prog:	nfp_prog prepared based on @filter
  * @filter:	kernel BPF filter struct
- * @prog_mem:	memory to store assembler instructions
- * @prog_start:	offset of the first instruction when loaded
- * @prog_done:	where to jump on exit
- * @prog_sz:	size of @prog_mem in instructions
- * @res:	achieved parameters of translation results
  */
-int
-nfp_bpf_jit(struct bpf_prog *filter, void *prog_mem,
-	    unsigned int prog_start, unsigned int prog_done,
-	    unsigned int prog_sz, struct nfp_bpf_result *res)
+int nfp_bpf_jit(struct nfp_prog *nfp_prog, struct bpf_prog *filter)
 {
-	struct nfp_prog *nfp_prog;
 	int ret;
-
-	nfp_prog = kzalloc(sizeof(*nfp_prog), GFP_KERNEL);
-	if (!nfp_prog)
-		return -ENOMEM;
-
-	INIT_LIST_HEAD(&nfp_prog->insns);
-	nfp_prog->type = filter->type;
-	nfp_prog->start_off = prog_start;
-	nfp_prog->tgt_done = prog_done;
-
-	ret = nfp_prog_prepare(nfp_prog, filter->insnsi, filter->len);
-	if (ret)
-		goto out;
 
 	ret = nfp_prog_verify(nfp_prog, filter);
 	if (ret)
-		goto out;
+		return ret;
 
 	ret = nfp_bpf_optimize(nfp_prog);
 	if (ret)
-		goto out;
-
-	nfp_prog->prog = prog_mem;
-	nfp_prog->__prog_alloc_len = prog_sz;
+		return ret;
 
 	ret = nfp_translate(nfp_prog);
 	if (ret) {
 		pr_err("Translation failed with error %d (translated: %u)\n",
 		       ret, nfp_prog->n_translated);
-		ret = -EINVAL;
-		goto out;
+		return -EINVAL;
 	}
 
-	ret = nfp_bpf_ustore_calc(nfp_prog, (__force __le64 *)prog_mem);
-
-	res->n_instr = nfp_prog->prog_len;
-out:
-	nfp_prog_free(nfp_prog);
-
-	return ret;
+	return nfp_bpf_ustore_calc(nfp_prog, (__force __le64 *)nfp_prog->prog);
 }

@@ -169,19 +169,7 @@ struct nfp_prog {
 	struct list_head insns;
 };
 
-struct nfp_bpf_result {
-	unsigned int n_instr;
-};
-
-int
-nfp_prog_prepare(struct nfp_prog *nfp_prog, const struct bpf_insn *prog,
-		 unsigned int cnt);
-void nfp_prog_free(struct nfp_prog *nfp_prog);
-
-int
-nfp_bpf_jit(struct bpf_prog *filter, void *prog,
-	    unsigned int prog_start, unsigned int prog_done,
-	    unsigned int prog_sz, struct nfp_bpf_result *res);
+int nfp_bpf_jit(struct nfp_prog *nfp_prog, struct bpf_prog *filter);
 
 int nfp_prog_verify(struct nfp_prog *nfp_prog, struct bpf_prog *prog);
 

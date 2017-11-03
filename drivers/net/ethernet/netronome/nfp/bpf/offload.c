@@ -51,7 +51,7 @@
 #include "../nfp_net_ctrl.h"
 #include "../nfp_net.h"
 
-int
+static int
 nfp_prog_prepare(struct nfp_prog *nfp_prog, const struct bpf_insn *prog,
 		 unsigned int cnt)
 {
@@ -73,7 +73,7 @@ nfp_prog_prepare(struct nfp_prog *nfp_prog, const struct bpf_insn *prog,
 	return 0;
 }
 
-void nfp_prog_free(struct nfp_prog *nfp_prog)
+static void nfp_prog_free(struct nfp_prog *nfp_prog)
 {
 	struct nfp_insn_meta *meta, *tmp;
 
@@ -84,25 +84,36 @@ void nfp_prog_free(struct nfp_prog *nfp_prog)
 	kfree(nfp_prog);
 }
 
-static int
-nfp_net_bpf_offload_prepare(struct nfp_net *nn, struct bpf_prog *prog,
-			    struct nfp_bpf_result *res,
-			    void **code, dma_addr_t *dma_addr, u16 max_instr)
+static struct nfp_prog *nfp_bpf_verifier_prep(struct bpf_prog *prog)
 {
-	unsigned int code_sz = max_instr * sizeof(u64);
-	unsigned int stack_size;
-	u16 start_off, done_off;
-	unsigned int max_mtu;
+	struct nfp_prog *nfp_prog;
 	int ret;
 
-	max_mtu = nn_readb(nn, NFP_NET_CFG_BPF_INL_MTU) * 64 - 32;
-	if (max_mtu < nn->dp.netdev->mtu) {
-		nn_info(nn, "BPF offload not supported with MTU larger than HW packet split boundary\n");
-		return -EOPNOTSUPP;
-	}
+	nfp_prog = kzalloc(sizeof(*nfp_prog), GFP_KERNEL);
+	if (!nfp_prog)
+		return NULL;
 
-	start_off = nn_readw(nn, NFP_NET_CFG_BPF_START);
-	done_off = nn_readw(nn, NFP_NET_CFG_BPF_DONE);
+	INIT_LIST_HEAD(&nfp_prog->insns);
+	nfp_prog->type = prog->type;
+
+	ret = nfp_prog_prepare(nfp_prog, prog->insnsi, prog->len);
+	if (ret)
+		goto err_free;
+
+	return nfp_prog;
+
+err_free:
+	nfp_prog_free(nfp_prog);
+
+	return NULL;
+}
+
+static int
+nfp_bpf_translate(struct nfp_net *nn, struct nfp_prog *nfp_prog,
+		  struct bpf_prog *prog)
+{
+	unsigned int stack_size;
+	unsigned int max_instr;
 
 	stack_size = nn_readb(nn, NFP_NET_CFG_BPF_STACK_SZ) * 64;
 	if (prog->aux->stack_depth > stack_size) {
@@ -111,28 +122,68 @@ nfp_net_bpf_offload_prepare(struct nfp_net *nn, struct bpf_prog *prog,
 		return -EOPNOTSUPP;
 	}
 
-	*code = dma_zalloc_coherent(nn->dp.dev, code_sz, dma_addr, GFP_KERNEL);
-	if (!*code)
+	nfp_prog->stack_depth = prog->aux->stack_depth;
+	nfp_prog->start_off = nn_readw(nn, NFP_NET_CFG_BPF_START);
+	nfp_prog->tgt_done = nn_readw(nn, NFP_NET_CFG_BPF_DONE);
+
+	max_instr = nn_readw(nn, NFP_NET_CFG_BPF_MAX_LEN);
+	nfp_prog->__prog_alloc_len = max_instr * sizeof(u64);
+
+	nfp_prog->prog = kmalloc(nfp_prog->__prog_alloc_len, GFP_KERNEL);
+	if (!nfp_prog->prog)
 		return -ENOMEM;
 
-	ret = nfp_bpf_jit(prog, *code, start_off, done_off, max_instr, res);
-	if (ret)
-		goto out;
+	return nfp_bpf_jit(nfp_prog, prog);
+}
+
+static void nfp_bpf_destroy(struct nfp_prog *nfp_prog)
+{
+	kfree(nfp_prog->prog);
+	nfp_prog_free(nfp_prog);
+}
+
+static struct nfp_prog *
+nfp_net_bpf_offload_prepare(struct nfp_net *nn, struct bpf_prog *prog,
+			    dma_addr_t *dma_addr)
+{
+	struct nfp_prog *nfp_prog;
+	unsigned int max_mtu;
+	int err;
+
+	max_mtu = nn_readb(nn, NFP_NET_CFG_BPF_INL_MTU) * 64 - 32;
+	if (max_mtu < nn->dp.netdev->mtu) {
+		nn_info(nn, "BPF offload not supported with MTU larger than HW packet split boundary\n");
+		return NULL;
+	}
+
+	nfp_prog = nfp_bpf_verifier_prep(prog);
+	if (!nfp_prog)
+		return NULL;
+
+	err = nfp_bpf_translate(nn, nfp_prog, prog);
+	if (err)
+		goto err_destroy_prog;
+
+	*dma_addr = dma_map_single(nn->dp.dev, nfp_prog->prog,
+				   nfp_prog->prog_len * sizeof(u64),
+				   DMA_TO_DEVICE);
+	if (dma_mapping_error(nn->dp.dev, *dma_addr))
+		goto err_destroy_prog;
 
 	return 0;
 
-out:
-	dma_free_coherent(nn->dp.dev, code_sz, *code, *dma_addr);
-	return ret;
+err_destroy_prog:
+	nfp_bpf_destroy(nfp_prog);
+	return NULL;
 }
 
 static void
-nfp_net_bpf_load(struct nfp_net *nn, void *code, dma_addr_t dma_addr,
-		 unsigned int code_sz, unsigned int n_instr)
+nfp_net_bpf_load(struct nfp_net *nn, struct nfp_prog *nfp_prog,
+		 dma_addr_t dma_addr)
 {
 	int err;
 
-	nn_writew(nn, NFP_NET_CFG_BPF_SIZE, n_instr);
+	nn_writew(nn, NFP_NET_CFG_BPF_SIZE, nfp_prog->prog_len);
 	nn_writeq(nn, NFP_NET_CFG_BPF_ADDR, dma_addr);
 
 	/* Load up the JITed code */
@@ -140,7 +191,9 @@ nfp_net_bpf_load(struct nfp_net *nn, void *code, dma_addr_t dma_addr,
 	if (err)
 		nn_err(nn, "FW command error while loading BPF: %d\n", err);
 
-	dma_free_coherent(nn->dp.dev, code_sz, code, dma_addr);
+	dma_unmap_single(nn->dp.dev, dma_addr, nfp_prog->prog_len * sizeof(u64),
+			 DMA_TO_DEVICE);
+	nfp_bpf_destroy(nfp_prog);
 }
 
 static void nfp_net_bpf_start(struct nfp_net *nn)
@@ -169,11 +222,8 @@ static int nfp_net_bpf_stop(struct nfp_net *nn)
 int nfp_net_bpf_offload(struct nfp_net *nn, struct bpf_prog *prog,
 			bool old_prog)
 {
-	struct nfp_bpf_result res;
+	struct nfp_prog *nfp_prog;
 	dma_addr_t dma_addr;
-	u16 max_instr;
-	void *code;
-	int err;
 
 	if (prog && old_prog) {
 		u8 cap;
@@ -192,15 +242,11 @@ int nfp_net_bpf_offload(struct nfp_net *nn, struct bpf_prog *prog,
 	if (old_prog && !prog)
 		return nfp_net_bpf_stop(nn);
 
-	max_instr = nn_readw(nn, NFP_NET_CFG_BPF_MAX_LEN);
+	nfp_prog = nfp_net_bpf_offload_prepare(nn, prog, &dma_addr);
+	if (!nfp_prog)
+		return -EINVAL;
 
-	err = nfp_net_bpf_offload_prepare(nn, prog, &res, &code, &dma_addr,
-					  max_instr);
-	if (err)
-		return err;
-
-	nfp_net_bpf_load(nn, code, dma_addr, max_instr * sizeof(u64),
-			 res.n_instr);
+	nfp_net_bpf_load(nn, nfp_prog, dma_addr);
 	if (!old_prog)
 		nfp_net_bpf_start(nn);
 
