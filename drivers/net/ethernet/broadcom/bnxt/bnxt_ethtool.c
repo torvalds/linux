@@ -84,7 +84,7 @@ static int bnxt_set_coalesce(struct net_device *dev,
 	hw_coal->coal_ticks_irq = coal->rx_coalesce_usecs_irq;
 	hw_coal->coal_bufs_irq = coal->rx_max_coalesced_frames_irq * mult;
 
-	hw_coal = &bp->rx_coal;
+	hw_coal = &bp->tx_coal;
 	mult = hw_coal->bufs_per_record;
 	hw_coal->coal_ticks = coal->tx_coalesce_usecs;
 	hw_coal->coal_bufs = coal->tx_max_coalesced_frames * mult;
