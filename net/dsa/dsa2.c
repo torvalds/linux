@@ -38,15 +38,6 @@ static struct dsa_switch_tree *dsa_get_dst(unsigned int index)
 	return NULL;
 }
 
-static void dsa_free_dst(struct kref *ref)
-{
-	struct dsa_switch_tree *dst = container_of(ref, struct dsa_switch_tree,
-						   refcount);
-
-	list_del(&dst->list);
-	kfree(dst);
-}
-
 static struct dsa_switch_tree *dsa_add_dst(unsigned int index)
 {
 	struct dsa_switch_tree *dst;
@@ -65,10 +56,35 @@ static struct dsa_switch_tree *dsa_add_dst(unsigned int index)
 	return dst;
 }
 
+static void dsa_tree_free(struct dsa_switch_tree *dst)
+{
+	list_del(&dst->list);
+	kfree(dst);
+}
+
+static void dsa_tree_get(struct dsa_switch_tree *dst)
+{
+	kref_get(&dst->refcount);
+}
+
+static void dsa_tree_release(struct kref *ref)
+{
+	struct dsa_switch_tree *dst;
+
+	dst = container_of(ref, struct dsa_switch_tree, refcount);
+
+	dsa_tree_free(dst);
+}
+
+static void dsa_tree_put(struct dsa_switch_tree *dst)
+{
+	kref_put(&dst->refcount, dsa_tree_release);
+}
+
 static void dsa_dst_add_ds(struct dsa_switch_tree *dst,
 			   struct dsa_switch *ds, u32 index)
 {
-	kref_get(&dst->refcount);
+	dsa_tree_get(dst);
 	dst->ds[index] = ds;
 }
 
@@ -76,7 +92,7 @@ static void dsa_dst_del_ds(struct dsa_switch_tree *dst,
 			   struct dsa_switch *ds, u32 index)
 {
 	dst->ds[index] = NULL;
-	kref_put(&dst->refcount, dsa_free_dst);
+	dsa_tree_put(dst);
 }
 
 /* For platform data configurations, we need to have a valid name argument to
