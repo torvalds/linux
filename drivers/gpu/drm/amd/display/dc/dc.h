@@ -579,8 +579,6 @@ struct dc_stream_state {
 	struct colorspace_transform gamut_remap_matrix;
 	struct csc_transform csc_color_matrix;
 
-	enum signal_type output_signal;
-
 	enum dc_color_space output_color_space;
 	enum dc_dither_option dither_option;
 
