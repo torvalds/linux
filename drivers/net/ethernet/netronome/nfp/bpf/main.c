@@ -85,34 +85,10 @@ static const char *nfp_bpf_extra_cap(struct nfp_app *app, struct nfp_net *nn)
 	return nfp_net_ebpf_capable(nn) ? "BPF" : "";
 }
 
-static int
-nfp_bpf_vnic_alloc(struct nfp_app *app, struct nfp_net *nn, unsigned int id)
-{
-	struct nfp_net_bpf_priv *priv;
-	int ret;
-
-	priv = kmalloc(sizeof(*priv), GFP_KERNEL);
-	if (!priv)
-		return -ENOMEM;
-
-	nn->app_priv = priv;
-	spin_lock_init(&priv->rx_filter_lock);
-	priv->nn = nn;
-	timer_setup(&priv->rx_filter_stats_timer,
-		    nfp_net_filter_stats_timer, 0);
-
-	ret = nfp_app_nic_vnic_alloc(app, nn, id);
-	if (ret)
-		kfree(priv);
-
-	return ret;
-}
-
 static void nfp_bpf_vnic_free(struct nfp_app *app, struct nfp_net *nn)
 {
 	if (nn->dp.bpf_offload_xdp)
 		nfp_bpf_xdp_offload(app, nn, NULL);
-	kfree(nn->app_priv);
 }
 
 static int nfp_bpf_setup_tc_block_cb(enum tc_setup_type type,
@@ -132,6 +108,13 @@ static int nfp_bpf_setup_tc_block_cb(enum tc_setup_type type,
 			return -EOPNOTSUPP;
 		if (nn->dp.bpf_offload_xdp)
 			return -EBUSY;
+
+		/* Only support TC direct action */
+		if (!cls_bpf->exts_integrated ||
+		    tcf_exts_has_actions(cls_bpf->exts)) {
+			nn_err(nn, "only direct action with no legacy actions supported\n");
+			return -EOPNOTSUPP;
+		}
 
 		return nfp_net_bpf_offload(nn, cls_bpf);
 	default:
@@ -184,7 +167,7 @@ const struct nfp_app_type app_bpf = {
 
 	.extra_cap	= nfp_bpf_extra_cap,
 
-	.vnic_alloc	= nfp_bpf_vnic_alloc,
+	.vnic_alloc	= nfp_app_nic_vnic_alloc,
 	.vnic_free	= nfp_bpf_vnic_free,
 
 	.setup_tc	= nfp_bpf_setup_tc,

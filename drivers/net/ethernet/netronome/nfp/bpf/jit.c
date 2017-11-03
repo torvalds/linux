@@ -202,47 +202,6 @@ emit_br(struct nfp_prog *nfp_prog, enum br_mask mask, u16 addr, u8 defer)
 }
 
 static void
-__emit_br_byte(struct nfp_prog *nfp_prog, u8 areg, u8 breg, bool imm8,
-	       u8 byte, bool equal, u16 addr, u8 defer, bool src_lmextn)
-{
-	u16 addr_lo, addr_hi;
-	u64 insn;
-
-	addr_lo = addr & (OP_BB_ADDR_LO >> __bf_shf(OP_BB_ADDR_LO));
-	addr_hi = addr != addr_lo;
-
-	insn = OP_BBYTE_BASE |
-		FIELD_PREP(OP_BB_A_SRC, areg) |
-		FIELD_PREP(OP_BB_BYTE, byte) |
-		FIELD_PREP(OP_BB_B_SRC, breg) |
-		FIELD_PREP(OP_BB_I8, imm8) |
-		FIELD_PREP(OP_BB_EQ, equal) |
-		FIELD_PREP(OP_BB_DEFBR, defer) |
-		FIELD_PREP(OP_BB_ADDR_LO, addr_lo) |
-		FIELD_PREP(OP_BB_ADDR_HI, addr_hi) |
-		FIELD_PREP(OP_BB_SRC_LMEXTN, src_lmextn);
-
-	nfp_prog_push(nfp_prog, insn);
-}
-
-static void
-emit_br_byte_neq(struct nfp_prog *nfp_prog,
-		 swreg src, u8 imm, u8 byte, u16 addr, u8 defer)
-{
-	struct nfp_insn_re_regs reg;
-	int err;
-
-	err = swreg_to_restricted(reg_none(), src, reg_imm(imm), &reg, true);
-	if (err) {
-		nfp_prog->error = err;
-		return;
-	}
-
-	__emit_br_byte(nfp_prog, reg.areg, reg.breg, reg.i8, byte, false, addr,
-		       defer, reg.src_lmextn);
-}
-
-static void
 __emit_immed(struct nfp_prog *nfp_prog, u16 areg, u16 breg, u16 imm_hi,
 	     enum immed_width width, bool invert,
 	     enum immed_shift shift, bool wr_both,
@@ -1547,7 +1506,7 @@ mem_ldx(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 	unsigned int size)
 {
 	if (meta->ptr.type == PTR_TO_CTX) {
-		if (nfp_prog->act == NN_ACT_XDP)
+		if (nfp_prog->type == BPF_PROG_TYPE_XDP)
 			return mem_ldx_xdp(nfp_prog, meta, size);
 		else
 			return mem_ldx_skb(nfp_prog, meta, size);
@@ -2022,34 +1981,6 @@ static void nfp_intro(struct nfp_prog *nfp_prog)
 		 plen_reg(nfp_prog), ALU_OP_AND, pv_len(nfp_prog));
 }
 
-static void nfp_outro_tc_legacy(struct nfp_prog *nfp_prog)
-{
-	const u8 act2code[] = {
-		[NN_ACT_TC_DROP]  = 0x22,
-		[NN_ACT_TC_REDIR] = 0x24
-	};
-	/* Target for aborts */
-	nfp_prog->tgt_abort = nfp_prog_current_offset(nfp_prog);
-	wrp_immed(nfp_prog, reg_both(0), 0);
-
-	/* Target for normal exits */
-	nfp_prog->tgt_out = nfp_prog_current_offset(nfp_prog);
-	/* Legacy TC mode:
-	 *   0        0x11 -> pass,  count as stat0
-	 *  -1  drop  0x22 -> drop,  count as stat1
-	 *     redir  0x24 -> redir, count as stat1
-	 *  ife mark  0x21 -> pass,  count as stat1
-	 *  ife + tx  0x24 -> redir, count as stat1
-	 */
-	emit_br_byte_neq(nfp_prog, reg_b(0), 0xff, 0, nfp_prog->tgt_done, 2);
-	wrp_mov(nfp_prog, reg_a(0), NFP_BPF_ABI_FLAGS);
-	emit_ld_field(nfp_prog, reg_a(0), 0xc, reg_imm(0x11), SHF_SC_L_SHF, 16);
-
-	emit_br(nfp_prog, BR_UNC, nfp_prog->tgt_done, 1);
-	emit_ld_field(nfp_prog, reg_a(0), 0xc, reg_imm(act2code[nfp_prog->act]),
-		      SHF_SC_L_SHF, 16);
-}
-
 static void nfp_outro_tc_da(struct nfp_prog *nfp_prog)
 {
 	/* TC direct-action mode:
@@ -2142,17 +2073,15 @@ static void nfp_outro_xdp(struct nfp_prog *nfp_prog)
 
 static void nfp_outro(struct nfp_prog *nfp_prog)
 {
-	switch (nfp_prog->act) {
-	case NN_ACT_DIRECT:
+	switch (nfp_prog->type) {
+	case BPF_PROG_TYPE_SCHED_CLS:
 		nfp_outro_tc_da(nfp_prog);
 		break;
-	case NN_ACT_TC_DROP:
-	case NN_ACT_TC_REDIR:
-		nfp_outro_tc_legacy(nfp_prog);
-		break;
-	case NN_ACT_XDP:
+	case BPF_PROG_TYPE_XDP:
 		nfp_outro_xdp(nfp_prog);
 		break;
+	default:
+		WARN_ON(1);
 	}
 }
 
@@ -2351,7 +2280,6 @@ static int nfp_bpf_ustore_calc(struct nfp_prog *nfp_prog, __le64 *ustore)
  * nfp_bpf_jit() - translate BPF code into NFP assembly
  * @filter:	kernel BPF filter struct
  * @prog_mem:	memory to store assembler instructions
- * @act:	action attached to this eBPF program
  * @prog_start:	offset of the first instruction when loaded
  * @prog_done:	where to jump on exit
  * @prog_sz:	size of @prog_mem in instructions
@@ -2359,7 +2287,6 @@ static int nfp_bpf_ustore_calc(struct nfp_prog *nfp_prog, __le64 *ustore)
  */
 int
 nfp_bpf_jit(struct bpf_prog *filter, void *prog_mem,
-	    enum nfp_bpf_action_type act,
 	    unsigned int prog_start, unsigned int prog_done,
 	    unsigned int prog_sz, struct nfp_bpf_result *res)
 {
@@ -2371,7 +2298,7 @@ nfp_bpf_jit(struct bpf_prog *filter, void *prog_mem,
 		return -ENOMEM;
 
 	INIT_LIST_HEAD(&nfp_prog->insns);
-	nfp_prog->act = act;
+	nfp_prog->type = filter->type;
 	nfp_prog->start_off = prog_start;
 	nfp_prog->tgt_done = prog_done;
 

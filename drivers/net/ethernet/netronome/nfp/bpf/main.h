@@ -65,13 +65,6 @@ enum pkt_vec {
 	PKT_VEC_PKT_PTR		= 2,
 };
 
-enum nfp_bpf_action_type {
-	NN_ACT_TC_DROP,
-	NN_ACT_TC_REDIR,
-	NN_ACT_DIRECT,
-	NN_ACT_XDP,
-};
-
 #define pv_len(np)	reg_lm(1, PKT_VEC_PKT_LEN)
 #define pv_ctm_ptr(np)	reg_lm(1, PKT_VEC_PKT_PTR)
 
@@ -147,7 +140,7 @@ static inline u8 mbpf_mode(const struct nfp_insn_meta *meta)
  * @prog: machine code
  * @prog_len: number of valid instructions in @prog array
  * @__prog_alloc_len: alloc size of @prog array
- * @act: BPF program/action type (TC DA, TC with action, XDP etc.)
+ * @type: BPF program type
  * @num_regs: number of registers used by this program
  * @regs_per_thread: number of basic registers allocated per thread
  * @start_off: address of the first instruction in the memory
@@ -164,7 +157,7 @@ struct nfp_prog {
 	unsigned int prog_len;
 	unsigned int __prog_alloc_len;
 
-	enum nfp_bpf_action_type act;
+	enum bpf_prog_type type;
 
 	unsigned int num_regs;
 	unsigned int regs_per_thread;
@@ -188,7 +181,7 @@ struct nfp_bpf_result {
 };
 
 int
-nfp_bpf_jit(struct bpf_prog *filter, void *prog, enum nfp_bpf_action_type act,
+nfp_bpf_jit(struct bpf_prog *filter, void *prog,
 	    unsigned int prog_start, unsigned int prog_done,
 	    unsigned int prog_sz, struct nfp_bpf_result *res);
 
@@ -197,23 +190,6 @@ int nfp_prog_verify(struct nfp_prog *nfp_prog, struct bpf_prog *prog);
 struct nfp_net;
 struct tc_cls_bpf_offload;
 
-/**
- * struct nfp_net_bpf_priv - per-vNIC BPF private data
- * @rx_filter:		Filter offload statistics - dropped packets/bytes
- * @rx_filter_prev:	Filter offload statistics - values from previous update
- * @rx_filter_change:	Jiffies when statistics last changed
- * @rx_filter_stats_timer:  Timer for polling filter offload statistics
- * @rx_filter_lock:	Lock protecting timer state changes (teardown)
- */
-struct nfp_net_bpf_priv {
-	struct nfp_stat_pair rx_filter, rx_filter_prev;
-	unsigned long rx_filter_change;
-	struct timer_list rx_filter_stats_timer;
-	struct nfp_net *nn;
-	spinlock_t rx_filter_lock;
-};
-
 int nfp_net_bpf_offload(struct nfp_net *nn, struct tc_cls_bpf_offload *cls_bpf);
-void nfp_net_filter_stats_timer(struct timer_list *t);
 
 #endif

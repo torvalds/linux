@@ -81,7 +81,7 @@ nfp_bpf_check_exit(struct nfp_prog *nfp_prog,
 	const struct bpf_reg_state *reg0 = cur_regs(env) + BPF_REG_0;
 	u64 imm;
 
-	if (nfp_prog->act == NN_ACT_XDP)
+	if (nfp_prog->type == BPF_PROG_TYPE_XDP)
 		return 0;
 
 	if (!(reg0->type == SCALAR_VALUE && tnum_is_const(reg0->var_off))) {
@@ -94,13 +94,8 @@ nfp_bpf_check_exit(struct nfp_prog *nfp_prog,
 	}
 
 	imm = reg0->var_off.value;
-	if (nfp_prog->act != NN_ACT_DIRECT && imm != 0 && (imm & ~0U) != ~0U) {
-		pr_info("unsupported exit state: %d, imm: %llx\n",
-			reg0->type, imm);
-		return -EINVAL;
-	}
-
-	if (nfp_prog->act == NN_ACT_DIRECT && imm <= TC_ACT_REDIRECT &&
+	if (nfp_prog->type == BPF_PROG_TYPE_SCHED_CLS &&
+	    imm <= TC_ACT_REDIRECT &&
 	    imm != TC_ACT_SHOT && imm != TC_ACT_STOLEN &&
 	    imm != TC_ACT_QUEUED) {
 		pr_info("unsupported exit state: %d, imm: %llx\n",
