@@ -580,6 +580,18 @@
 	pinctrl-0 = <&pinctrl_pcie>;
 	reset-gpio = <&gpio7 12 GPIO_ACTIVE_LOW>;
 	status = "okay";
+
+	host@0 {
+		reg = <0 0 0 0 0>;
+		device_type = "pci";
+
+		#address-cells = <3>;
+		#size-cells = <2>;
+
+		i210: i210@0 {
+			reg = <0 0 0 0 0>;
+		};
+	};
 };
 
 &usdhc2 {
