@@ -531,6 +531,9 @@ int mali_platform_device_init(struct platform_device *pdev)
 	}
 
 #if defined(CONFIG_MALI_DEVFREQ) && defined(CONFIG_DEVFREQ_THERMAL)
+	if (of_machine_is_compatible("rockchip,rk3036"))
+		return 0;
+
 	err = power_model_simple_init(pdev);
 	if (err) {
 		E("fail to init simple_power_model, err : %d.", err);

@@ -262,6 +262,9 @@ int mali_devfreq_init(struct mali_device *mdev)
 	}
 
 #ifdef CONFIG_DEVFREQ_THERMAL
+	if (of_machine_is_compatible("rockchip,rk3036"))
+		return 0;
+
 	/* Initilization last_status it will be used when first power allocate called */
 	mdev->devfreq->last_status.current_frequency = mdev->current_freq;
 

@@ -534,6 +534,10 @@ int mali_platform_device_init(struct platform_device *device)
 	}
 
 #if defined(CONFIG_MALI_DEVFREQ) && defined(CONFIG_DEVFREQ_THERMAL)
+	/* Some Socs didn't support the devfreq thermal for mali */
+	if (of_machine_is_compatible("rockchip,rk3036"))
+		return 0;
+
 	/* Get thermal zone */
 	gpu_tz = thermal_zone_get_zone_by_name("soc_thermal");
 	if (IS_ERR(gpu_tz)) {
