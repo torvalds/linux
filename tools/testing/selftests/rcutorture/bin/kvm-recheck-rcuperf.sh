@@ -31,7 +31,7 @@ else
 	exit 1
 fi
 PATH=`pwd`/tools/testing/selftests/rcutorture/bin:$PATH; export PATH
-. tools/testing/selftests/rcutorture/bin/functions.sh
+. functions.sh
 
 if kvm-recheck-rcuperf-ftrace.sh $i
 then

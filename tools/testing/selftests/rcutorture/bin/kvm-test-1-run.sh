@@ -42,7 +42,7 @@ T=${TMPDIR-/tmp}/kvm-test-1-run.sh.$$
 trap 'rm -rf $T' 0
 mkdir $T
 
-. $KVM/bin/functions.sh
+. functions.sh
 . $CONFIGFRAG/ver_functions.sh
 
 config_template=${1}
