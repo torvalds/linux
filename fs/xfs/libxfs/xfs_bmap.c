@@ -1791,7 +1791,7 @@ xfs_bmap_add_extent_delay_real(
 		 * Filling in the first part of a previous delayed allocation.
 		 * The left neighbor is not contiguous.
 		 */
-		xfs_iext_insert(bma->ip, bma->idx, 1, new, state);
+		xfs_iext_update_extent(bma->ip, state, bma->idx, new);
 		(*nextents)++;
 		if (bma->cur == NULL)
 			rval = XFS_ILOG_CORE | XFS_ILOG_DEXT;
@@ -1824,7 +1824,7 @@ xfs_bmap_add_extent_delay_real(
 		PREV.br_startoff = new_endoff;
 		PREV.br_blockcount = temp;
 		PREV.br_startblock = nullstartblock(da_new);
-		xfs_iext_update_extent(bma->ip, state, bma->idx + 1, &PREV);
+		xfs_iext_insert(bma->ip, bma->idx + 1, 1, &PREV, state);
 		break;
 
 	case BMAP_RIGHT_FILLING | BMAP_RIGHT_CONTIG:
@@ -1867,7 +1867,7 @@ xfs_bmap_add_extent_delay_real(
 		 * Filling in the last part of a previous delayed allocation.
 		 * The right neighbor is not contiguous.
 		 */
-		xfs_iext_insert(bma->ip, bma->idx + 1, 1, new, state);
+		xfs_iext_update_extent(bma->ip, state, bma->idx, new);
 		(*nextents)++;
 		if (bma->cur == NULL)
 			rval = XFS_ILOG_CORE | XFS_ILOG_DEXT;
@@ -1899,7 +1899,7 @@ xfs_bmap_add_extent_delay_real(
 
 		PREV.br_startblock = nullstartblock(da_new);
 		PREV.br_blockcount = temp;
-		xfs_iext_update_extent(bma->ip, state, bma->idx, &PREV);
+		xfs_iext_insert(bma->ip, bma->idx, 1, &PREV, state);
 
 		bma->idx++;
 		break;
