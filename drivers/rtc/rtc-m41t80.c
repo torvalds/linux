@@ -155,6 +155,7 @@ struct m41t80_data {
 #ifdef CONFIG_COMMON_CLK
 	struct clk_hw sqw;
 	unsigned long freq;
+	unsigned int sqwe;
 #endif
 };
 
@@ -527,7 +528,10 @@ static int m41t80_sqw_control(struct clk_hw *hw, bool enable)
 	else
 		ret &= ~M41T80_ALMON_SQWE;
 
-	return i2c_smbus_write_byte_data(client, M41T80_REG_ALARM_MON, ret);
+	ret = i2c_smbus_write_byte_data(client, M41T80_REG_ALARM_MON, ret);
+	if (!ret)
+		m41t80->sqwe = enable;
+	return ret;
 }
 
 static int m41t80_sqw_prepare(struct clk_hw *hw)
@@ -542,14 +546,7 @@ static void m41t80_sqw_unprepare(struct clk_hw *hw)
 
 static int m41t80_sqw_is_prepared(struct clk_hw *hw)
 {
-	struct m41t80_data *m41t80 = sqw_to_m41t80_data(hw);
-	struct i2c_client *client = m41t80->client;
-	int ret = i2c_smbus_read_byte_data(client, M41T80_REG_ALARM_MON);
-
-	if (ret < 0)
-		return ret;
-
-	return !!(ret & M41T80_ALMON_SQWE);
+	return sqw_to_m41t80_data(hw)->sqwe;
 }
 
 static const struct clk_ops m41t80_sqw_ops = {
