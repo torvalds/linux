@@ -1687,10 +1687,6 @@ retry:
 		goto err_destroy_cq;
 	}
 
-	if (!sdev->use_srq)
-		for (i = 0; i < ch->rq_size; i++)
-			srpt_post_recv(sdev, ch, ch->ioctx_recv_ring[i]);
-
 	atomic_set(&ch->sq_wr_avail, qp_init->cap.max_send_wr);
 
 	pr_debug("%s: max_cqe= %d max_sge= %d sq_size = %d cm_id= %p\n",
@@ -1700,6 +1696,10 @@ retry:
 	ret = srpt_init_ch_qp(ch, ch->qp);
 	if (ret)
 		goto err_destroy_qp;
+
+	if (!sdev->use_srq)
+		for (i = 0; i < ch->rq_size; i++)
+			srpt_post_recv(sdev, ch, ch->ioctx_recv_ring[i]);
 
 out:
 	kfree(qp_init);
