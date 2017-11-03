@@ -1,8 +1,7 @@
 #!/bin/bash
 #
 # Run a series of 14 tests under KVM.  These are not particularly
-# well-selected or well-tuned, but are the current set.  Run from the
-# top level of the source tree.
+# well-selected or well-tuned, but are the current set.
 #
 # Edit the definitions below to set the locations of the various directories,
 # as well as the test duration.
@@ -33,6 +32,8 @@ args="$*"
 T=${TMPDIR-/tmp}/kvm.sh.$$
 trap 'rm -rf $T' 0
 mkdir $T
+
+cd `dirname $scriptname`/../../../../../
 
 dur=$((30*60))
 dryrun=""
