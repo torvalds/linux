@@ -313,45 +313,6 @@
 		};
 	};
 
-	isp: isp@ff910000 {
-		compatible = "rockchip,rk3288-isp", "rockchip,isp";
-		reg = <0x0 0xff910000 0x0 0x4000>;
-		interrupts = <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>;
-		power-domains = <&power RK3288_PD_VIO>;
-		clocks =
-			<&cru ACLK_ISP>, <&cru HCLK_ISP>, <&cru SCLK_ISP>,
-			<&cru SCLK_ISP_JPE>, <&cru PCLK_ISP_IN>,
-			<&cru SCLK_VIP_OUT>, <&cru SCLK_MIPIDSI_24M>,
-			<&cru SCLK_VIP_OUT>, <&cru PCLK_MIPI_CSI>;
-		clock-names =
-			"aclk_isp", "hclk_isp", "clk_isp",
-			"clk_isp_jpe", "pclkin_isp", "clk_cif_out",
-			"clk_mipi_24m", "clk_cif_pll", "hclk_mipiphy1";
-		pinctrl-names =
-			"default", "isp_dvp8bit2", "isp_dvp10bit",
-			"isp_dvp12bit", "isp_dvp8bit0", "isp_mipi_fl",
-			"isp_mipi_fl_prefl", "isp_flash_as_gpio",
-			"isp_flash_as_trigger_out";
-		pinctrl-0 = <&isp_mipi>;
-		pinctrl-1 = <&isp_mipi &isp_dvp_d2d9>;
-		pinctrl-2 = <&isp_mipi &isp_dvp_d2d9 &isp_dvp_d0d1>;
-		pinctrl-3 = <&isp_mipi &isp_dvp_d2d9 &isp_dvp_d0d1
-					&isp_dvp_d10d11>;
-		pinctrl-4 = <&isp_mipi &isp_dvp_d0d7>;
-		pinctrl-5 = <&isp_mipi>;
-		pinctrl-6 = <&isp_mipi &isp_prelight>;
-		pinctrl-7 = <&isp_flash_trigger_as_gpio>;
-		pinctrl-8 = <&isp_flash_trigger>;
-		rockchip,isp,mipiphy = <2>;
-		rockchip,isp,cifphy = <1>;
-		rockchip,isp,mipiphy1,reg = <0xff968000 0x4000>;
-		rockchip,grf = <&grf>;
-		rockchip,cru = <&cru>;
-		rockchip,isp,iommu_enable = <1>;
-		iommus = <&isp_mmu>;
-		status = "disabled";
-	};
-
 	/delete-node/ usb-otg-regulator;
 
 };
@@ -466,7 +427,8 @@
 				regulator-max-microvolt = <1500000>;
 				regulator-name = "vdd_arm";
 				regulator-state-mem {
-					regulator-off-in-suspend;
+					regulator-on-in-suspend;
+					regulator-suspend-microvolt = <1000000>;
 				};
 			};
 
@@ -673,6 +635,7 @@
 };
 
 &isp {
+	/delete-property/ rockchip,gpios;
 	status = "okay";
 };
 
@@ -713,9 +676,18 @@
 	enable-method = "psci";
 };
 
+&dfi {
+	status = "okay";
+};
+
 &dmac_bus_s {
 	/* change to non-secure dmac */
 	reg = <0x0 0xff600000 0x0 0x4000>;
+};
+
+&dmc {
+	center-supply = <&vdd_gpu>;
+	status = "okay";
 };
 
 &efuse {
@@ -728,6 +700,9 @@
 	clock-names = "aclk_rga", "hclk_rga", "clk_rga";
 };
 
+&rockchip_suspend {
+	status = "okay";
+};
 &usb_otg {
 	compatible = "rockchip,rk3288_usb20_otg";
 	clocks = <&usbphy0>, <&cru HCLK_OTG0>;
