@@ -245,6 +245,16 @@ static const struct drm_connector_helper_funcs dm_dp_mst_connector_helper_funcs 
 	.best_encoder = dm_mst_best_encoder,
 };
 
+static void amdgpu_dm_encoder_destroy(struct drm_encoder *encoder)
+{
+	drm_encoder_cleanup(encoder);
+	kfree(encoder);
+}
+
+static const struct drm_encoder_funcs amdgpu_dm_encoder_funcs = {
+	.destroy = amdgpu_dm_encoder_destroy,
+};
+
 static struct amdgpu_encoder *
 dm_dp_create_fake_mst_encoder(struct amdgpu_dm_connector *connector)
 {
@@ -268,7 +278,7 @@ dm_dp_create_fake_mst_encoder(struct amdgpu_dm_connector *connector)
 	drm_encoder_init(
 		dev,
 		&amdgpu_encoder->base,
-		NULL,
+		&amdgpu_dm_encoder_funcs,
 		DRM_MODE_ENCODER_DPMST,
 		NULL);
 
