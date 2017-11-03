@@ -653,6 +653,16 @@ static int hns3_get_link_ksettings(struct net_device *netdev,
 	return 0;
 }
 
+static int hns3_set_link_ksettings(struct net_device *netdev,
+				   const struct ethtool_link_ksettings *cmd)
+{
+	/* Only support ksettings_set for netdev with phy attached for now */
+	if (netdev->phydev)
+		return phy_ethtool_ksettings_set(netdev->phydev, cmd);
+
+	return -EOPNOTSUPP;
+}
+
 static u32 hns3_get_rss_key_size(struct net_device *netdev)
 {
 	struct hnae3_handle *h = hns3_get_handle(netdev);
@@ -839,6 +849,7 @@ static const struct ethtool_ops hns3_ethtool_ops = {
 	.get_rxfh = hns3_get_rss,
 	.set_rxfh = hns3_set_rss,
 	.get_link_ksettings = hns3_get_link_ksettings,
+	.set_link_ksettings = hns3_set_link_ksettings,
 };
 
 void hns3_ethtool_set_ops(struct net_device *netdev)
