@@ -147,4 +147,16 @@ struct xfs_iext_cursor {
 	int			pos;
 };
 
+typedef enum {
+	XFS_EXT_NORM, XFS_EXT_UNWRITTEN,
+} xfs_exntst_t;
+
+typedef struct xfs_bmbt_irec
+{
+	xfs_fileoff_t	br_startoff;	/* starting file offset */
+	xfs_fsblock_t	br_startblock;	/* starting block number */
+	xfs_filblks_t	br_blockcount;	/* number of blocks */
+	xfs_exntst_t	br_state;	/* extent state */
+} xfs_bmbt_irec_t;
+
 #endif	/* __XFS_TYPES_H__ */
