@@ -3054,7 +3054,9 @@ static ssize_t srpt_tpg_attrib_use_srq_store(struct config_item *item,
 {
 	struct se_portal_group *se_tpg = attrib_to_tpg(item);
 	struct srpt_port *sport = srpt_tpg_to_sport(se_tpg);
+	struct srpt_device *sdev = sport->sdev;
 	unsigned long val;
+	bool enabled;
 	int ret;
 
 	ret = kstrtoul(page, 0, &val);
@@ -3062,7 +3064,17 @@ static ssize_t srpt_tpg_attrib_use_srq_store(struct config_item *item,
 		return ret;
 	if (val != !!val)
 		return -EINVAL;
+
+	ret = mutex_lock_interruptible(&sdev->mutex);
+	if (ret < 0)
+		return ret;
+	enabled = sport->enabled;
+	/* Log out all initiator systems before changing 'use_srq'. */
+	srpt_set_enabled(sport, false);
 	sport->port_attrib.use_srq = val;
+	srpt_use_srq(sdev, sport->port_attrib.use_srq);
+	srpt_set_enabled(sport, enabled);
+	mutex_unlock(&sdev->mutex);
 
 	return count;
 }
