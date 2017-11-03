@@ -326,8 +326,9 @@ mlxsw_sp_ipip_ol_netdev_change_gre4(struct mlxsw_sp *mlxsw_sp,
 		}
 
 		update_tunnel = true;
-	} else if (mlxsw_sp_ipip_parms_okey(ipip_entry->parms) !=
-		   mlxsw_sp_ipip_parms_okey(new_parms)) {
+	} else if ((mlxsw_sp_ipip_parms_okey(ipip_entry->parms) !=
+		    mlxsw_sp_ipip_parms_okey(new_parms)) ||
+		   ipip_entry->parms.link != new_parms.link) {
 		update_tunnel = true;
 	} else if (!mlxsw_sp_l3addr_eq(&new_daddr, &old_daddr)) {
 		update_nhs = true;
