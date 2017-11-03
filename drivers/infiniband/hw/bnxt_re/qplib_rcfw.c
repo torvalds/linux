@@ -107,6 +107,9 @@ static int __send_message(struct bnxt_qplib_rcfw *rcfw, struct cmdq_base *req,
 		return -EINVAL;
 	}
 
+	if (test_bit(FIRMWARE_TIMED_OUT, &rcfw->flags))
+		return -ETIMEDOUT;
+
 	/* Cmdq are in 16-byte units, each request can consume 1 or more
 	 * cmdqe
 	 */
@@ -226,6 +229,7 @@ int bnxt_qplib_rcfw_send_message(struct bnxt_qplib_rcfw *rcfw,
 		/* timed out */
 		dev_err(&rcfw->pdev->dev, "QPLIB: cmdq[%#x]=%#x timedout (%d)msec",
 			cookie, opcode, RCFW_CMD_WAIT_TIME_MS);
+		set_bit(FIRMWARE_TIMED_OUT, &rcfw->flags);
 		return rc;
 	}
 

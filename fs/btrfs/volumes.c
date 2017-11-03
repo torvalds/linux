@@ -6166,7 +6166,7 @@ blk_status_t btrfs_map_bio(struct btrfs_fs_info *fs_info, struct bio *bio,
 	map_length = length;
 
 	btrfs_bio_counter_inc_blocked(fs_info);
-	ret = __btrfs_map_block(fs_info, bio_op(bio), logical,
+	ret = __btrfs_map_block(fs_info, btrfs_op(bio), logical,
 				&map_length, &bbio, mirror_num, 1);
 	if (ret) {
 		btrfs_bio_counter_dec(fs_info);

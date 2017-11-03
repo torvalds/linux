@@ -242,6 +242,12 @@ int mmc_init_queue(struct mmc_queue *mq, struct mmc_card *card,
 	if (mmc_dev(host)->dma_mask && *mmc_dev(host)->dma_mask)
 		limit = (u64)dma_max_pfn(mmc_dev(host)) << PAGE_SHIFT;
 
+	/*
+	 * mmc_init_request() depends on card->bouncesz so it must be calculated
+	 * before blk_init_allocated_queue() starts allocating requests.
+	 */
+	card->bouncesz = mmc_queue_calc_bouncesz(host);
+
 	mq->card = card;
 	mq->queue = blk_alloc_queue(GFP_KERNEL);
 	if (!mq->queue)
@@ -265,7 +271,6 @@ int mmc_init_queue(struct mmc_queue *mq, struct mmc_card *card,
 	if (mmc_can_erase(card))
 		mmc_queue_setup_discard(mq->queue, card);
 
-	card->bouncesz = mmc_queue_calc_bouncesz(host);
 	if (card->bouncesz) {
 		blk_queue_max_hw_sectors(mq->queue, card->bouncesz / 512);
 		blk_queue_max_segments(mq->queue, card->bouncesz / 512);

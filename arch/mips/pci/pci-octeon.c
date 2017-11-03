@@ -59,8 +59,7 @@ union octeon_pci_address {
 	} s;
 };
 
-int __initconst (*octeon_pcibios_map_irq)(const struct pci_dev *dev,
-					 u8 slot, u8 pin);
+int (*octeon_pcibios_map_irq)(const struct pci_dev *dev, u8 slot, u8 pin);
 enum octeon_dma_bar_type octeon_dma_bar_type = OCTEON_DMA_BAR_TYPE_INVALID;
 
 /**
@@ -74,7 +73,7 @@ enum octeon_dma_bar_type octeon_dma_bar_type = OCTEON_DMA_BAR_TYPE_INVALID;
  *		 as it goes through each bridge.
  * Returns Interrupt number for the device
  */
-int __init pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
+int pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
 	if (octeon_pcibios_map_irq)
 		return octeon_pcibios_map_irq(dev, slot, pin);

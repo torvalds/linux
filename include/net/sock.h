@@ -856,7 +856,7 @@ void sk_stream_write_space(struct sock *sk);
 static inline void __sk_add_backlog(struct sock *sk, struct sk_buff *skb)
 {
 	/* dont let skb dst not refcounted, we are going to leave rcu lock */
-	skb_dst_force_safe(skb);
+	skb_dst_force(skb);
 
 	if (!sk->sk_backlog.tail)
 		sk->sk_backlog.head = skb;

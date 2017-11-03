@@ -14030,7 +14030,7 @@ static int intel_framebuffer_init(struct intel_framebuffer *intel_fb,
 
 		if (mode_cmd->handles[i] != mode_cmd->handles[0]) {
 			DRM_DEBUG_KMS("bad plane %d handle\n", i);
-			return -EINVAL;
+			goto err;
 		}
 
 		stride_alignment = intel_fb_stride_alignment(fb, i);

@@ -363,7 +363,7 @@ atmel_pmecc_create_user(struct atmel_pmecc *pmecc,
 	size += (req->ecc.strength + 1) * sizeof(u16);
 	/* Reserve space for mu, dmu and delta. */
 	size = ALIGN(size, sizeof(s32));
-	size += (req->ecc.strength + 1) * sizeof(s32);
+	size += (req->ecc.strength + 1) * sizeof(s32) * 3;
 
 	user = kzalloc(size, GFP_KERNEL);
 	if (!user)

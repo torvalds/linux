@@ -665,7 +665,7 @@ static const struct dev_pm_ops crb_pm = {
 	SET_RUNTIME_PM_OPS(crb_pm_runtime_suspend, crb_pm_runtime_resume, NULL)
 };
 
-static struct acpi_device_id crb_device_ids[] = {
+static const struct acpi_device_id crb_device_ids[] = {
 	{"MSFT0101", 0},
 	{"", 0},
 };

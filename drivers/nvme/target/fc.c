@@ -148,7 +148,7 @@ struct nvmet_fc_tgt_assoc {
 	u32				a_id;
 	struct nvmet_fc_tgtport		*tgtport;
 	struct list_head		a_list;
-	struct nvmet_fc_tgt_queue	*queues[NVMET_NR_QUEUES];
+	struct nvmet_fc_tgt_queue	*queues[NVMET_NR_QUEUES + 1];
 	struct kref			ref;
 };
 
@@ -608,7 +608,7 @@ nvmet_fc_alloc_target_queue(struct nvmet_fc_tgt_assoc *assoc,
 	unsigned long flags;
 	int ret;
 
-	if (qid >= NVMET_NR_QUEUES)
+	if (qid > NVMET_NR_QUEUES)
 		return NULL;
 
 	queue = kzalloc((sizeof(*queue) +
@@ -783,6 +783,9 @@ nvmet_fc_find_target_queue(struct nvmet_fc_tgtport *tgtport,
 	u16 qid = nvmet_fc_getqueueid(connection_id);
 	unsigned long flags;
 
+	if (qid > NVMET_NR_QUEUES)
+		return NULL;
+
 	spin_lock_irqsave(&tgtport->lock, flags);
 	list_for_each_entry(assoc, &tgtport->assoc_list, a_list) {
 		if (association_id == assoc->association_id) {
@@ -888,7 +891,7 @@ nvmet_fc_delete_target_assoc(struct nvmet_fc_tgt_assoc *assoc)
 	int i;
 
 	spin_lock_irqsave(&tgtport->lock, flags);
-	for (i = NVMET_NR_QUEUES - 1; i >= 0; i--) {
+	for (i = NVMET_NR_QUEUES; i >= 0; i--) {
 		queue = assoc->queues[i];
 		if (queue) {
 			if (!nvmet_fc_tgt_q_get(queue))
@@ -1910,8 +1913,7 @@ nvmet_fc_transfer_fcp_data(struct nvmet_fc_tgtport *tgtport,
 			spin_lock_irqsave(&fod->flock, flags);
 			fod->writedataactive = false;
 			spin_unlock_irqrestore(&fod->flock, flags);
-			nvmet_req_complete(&fod->req,
-					NVME_SC_FC_TRANSPORT_ERROR);
+			nvmet_req_complete(&fod->req, NVME_SC_INTERNAL);
 		} else /* NVMET_FCOP_READDATA or NVMET_FCOP_READDATA_RSP */ {
 			fcpreq->fcp_error = ret;
 			fcpreq->transferred_length = 0;
@@ -1929,8 +1931,7 @@ __nvmet_fc_fod_op_abort(struct nvmet_fc_fcp_iod *fod, bool abort)
 	/* if in the middle of an io and we need to tear down */
 	if (abort) {
 		if (fcpreq->op == NVMET_FCOP_WRITEDATA) {
-			nvmet_req_complete(&fod->req,
-					NVME_SC_FC_TRANSPORT_ERROR);
+			nvmet_req_complete(&fod->req, NVME_SC_INTERNAL);
 			return true;
 		}
 
@@ -1968,8 +1969,7 @@ nvmet_fc_fod_op_done(struct nvmet_fc_fcp_iod *fod)
 			fod->abort = true;
 			spin_unlock(&fod->flock);
 
-			nvmet_req_complete(&fod->req,
-					NVME_SC_FC_TRANSPORT_ERROR);
+			nvmet_req_complete(&fod->req, NVME_SC_INTERNAL);
 			return;
 		}
 
@@ -2533,13 +2533,17 @@ nvmet_fc_remove_port(struct nvmet_port *port)
 {
 	struct nvmet_fc_tgtport *tgtport = port->priv;
 	unsigned long flags;
+	bool matched = false;
 
 	spin_lock_irqsave(&nvmet_fc_tgtlock, flags);
 	if (tgtport->port == port) {
-		nvmet_fc_tgtport_put(tgtport);
+		matched = true;
 		tgtport->port = NULL;
 	}
 	spin_unlock_irqrestore(&nvmet_fc_tgtlock, flags);
+
+	if (matched)
+		nvmet_fc_tgtport_put(tgtport);
 }
 
 static struct nvmet_fabrics_ops nvmet_fc_tgt_fcp_ops = {

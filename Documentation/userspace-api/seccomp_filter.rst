@@ -87,11 +87,16 @@ Return values
 A seccomp filter may return any of the following values. If multiple
 filters exist, the return value for the evaluation of a given system
 call will always use the highest precedent value. (For example,
-``SECCOMP_RET_KILL`` will always take precedence.)
+``SECCOMP_RET_KILL_PROCESS`` will always take precedence.)
 
 In precedence order, they are:
 
-``SECCOMP_RET_KILL``:
+``SECCOMP_RET_KILL_PROCESS``:
+	Results in the entire process exiting immediately without executing
+	the system call.  The exit status of the task (``status & 0x7f``)
+	will be ``SIGSYS``, not ``SIGKILL``.
+
+``SECCOMP_RET_KILL_THREAD``:
 	Results in the task exiting immediately without executing the
 	system call.  The exit status of the task (``status & 0x7f``) will
 	be ``SIGSYS``, not ``SIGKILL``.
@@ -141,6 +146,15 @@ In precedence order, they are:
 	allow use of ptrace, even of other sandboxed processes, without
 	extreme care; ptracers can use this mechanism to escape.)
 
+``SECCOMP_RET_LOG``:
+	Results in the system call being executed after it is logged. This
+	should be used by application developers to learn which syscalls their
+	application needs without having to iterate through multiple test and
+	development cycles to build the list.
+
+	This action will only be logged if "log" is present in the
+	actions_logged sysctl string.
+
 ``SECCOMP_RET_ALLOW``:
 	Results in the system call being executed.
 
@@ -169,7 +183,41 @@ The ``samples/seccomp/`` directory contains both an x86-specific example
 and a more generic example of a higher level macro interface for BPF
 program generation.
 
+Sysctls
+=======
 
+Seccomp's sysctl files can be found in the ``/proc/sys/kernel/seccomp/``
+directory. Here's a description of each file in that directory:
+
+``actions_avail``:
+	A read-only ordered list of seccomp return values (refer to the
+	``SECCOMP_RET_*`` macros above) in string form. The ordering, from
+	left-to-right, is the least permissive return value to the most
+	permissive return value.
+
+	The list represents the set of seccomp return values supported
+	by the kernel. A userspace program may use this list to
+	determine if the actions found in the ``seccomp.h``, when the
+	program was built, differs from the set of actions actually
+	supported in the current running kernel.
+
+``actions_logged``:
+	A read-write ordered list of seccomp return values (refer to the
+	``SECCOMP_RET_*`` macros above) that are allowed to be logged. Writes
+	to the file do not need to be in ordered form but reads from the file
+	will be ordered in the same way as the actions_avail sysctl.
+
+	It is important to note that the value of ``actions_logged`` does not
+	prevent certain actions from being logged when the audit subsystem is
+	configured to audit a task. If the action is not found in
+	``actions_logged`` list, the final decision on whether to audit the
+	action for that task is ultimately left up to the audit subsystem to
+	decide for all seccomp return values other than ``SECCOMP_RET_ALLOW``.
+
+	The ``allow`` string is not accepted in the ``actions_logged`` sysctl
+	as it is not possible to log ``SECCOMP_RET_ALLOW`` actions. Attempting
+	to write ``allow`` to the sysctl will result in an EINVAL being
+	returned.
 
 Adding architecture support
 ===========================

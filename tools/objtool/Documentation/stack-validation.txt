@@ -194,10 +194,10 @@ they mean, and suggestions for how to fix them.
    If it's a GCC-compiled .c file, the error may be because the function
    uses an inline asm() statement which has a "call" instruction.  An
    asm() statement with a call instruction must declare the use of the
-   stack pointer in its output operand.  For example, on x86_64:
+   stack pointer in its output operand.  On x86_64, this means adding
+   the ASM_CALL_CONSTRAINT as an output constraint:
 
-     register void *__sp asm("rsp");
-     asm volatile("call func" : "+r" (__sp));
+     asm volatile("call func" : ASM_CALL_CONSTRAINT);
 
    Otherwise the stack frame may not get created before the call.
 

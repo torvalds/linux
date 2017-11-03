@@ -745,7 +745,7 @@ xfs_iflush_done(
 		 */
 		iip = INODE_ITEM(blip);
 		if ((iip->ili_logged && blip->li_lsn == iip->ili_flush_lsn) ||
-		    lip->li_flags & XFS_LI_FAILED)
+		    (blip->li_flags & XFS_LI_FAILED))
 			need_ail++;
 
 		blip = next;

@@ -244,7 +244,7 @@ int smc_wr_tx_send(struct smc_link *link, struct smc_wr_tx_pend_priv *priv)
 	int rc;
 
 	ib_req_notify_cq(link->smcibdev->roce_cq_send,
-			 IB_CQ_SOLICITED_MASK | IB_CQ_REPORT_MISSED_EVENTS);
+			 IB_CQ_NEXT_COMP | IB_CQ_REPORT_MISSED_EVENTS);
 	pend = container_of(priv, struct smc_wr_tx_pend, priv);
 	rc = ib_post_send(link->roce_qp, &link->wr_tx_ibs[pend->idx],
 			  &failed_wr);

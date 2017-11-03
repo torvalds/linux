@@ -1948,8 +1948,12 @@ again:
 		goto again;
 	}
 out_unlock:
-	if (pt_prev)
-		pt_prev->func(skb2, skb->dev, pt_prev, skb->dev);
+	if (pt_prev) {
+		if (!skb_orphan_frags_rx(skb2, GFP_ATOMIC))
+			pt_prev->func(skb2, skb->dev, pt_prev, skb->dev);
+		else
+			kfree_skb(skb2);
+	}
 	rcu_read_unlock();
 }
 EXPORT_SYMBOL_GPL(dev_queue_xmit_nit);
@@ -3892,6 +3896,7 @@ static u32 netif_receive_generic_xdp(struct sk_buff *skb,
 		__skb_pull(skb, off);
 	else if (off < 0)
 		__skb_push(skb, -off);
+	skb->mac_header += off;
 
 	switch (act) {
 	case XDP_REDIRECT:

@@ -1203,24 +1203,39 @@ static int update_insn_state(struct instruction *insn, struct insn_state *state)
 		switch (op->src.type) {
 
 		case OP_SRC_REG:
-			if (op->src.reg == CFI_SP && op->dest.reg == CFI_BP) {
+			if (op->src.reg == CFI_SP && op->dest.reg == CFI_BP &&
+			    cfa->base == CFI_SP &&
+			    regs[CFI_BP].base == CFI_CFA &&
+			    regs[CFI_BP].offset == -cfa->offset) {
 
-				if (cfa->base == CFI_SP &&
-				    regs[CFI_BP].base == CFI_CFA &&
-				    regs[CFI_BP].offset == -cfa->offset) {
+				/* mov %rsp, %rbp */
+				cfa->base = op->dest.reg;
+				state->bp_scratch = false;
+			}
 
-					/* mov %rsp, %rbp */
-					cfa->base = op->dest.reg;
-					state->bp_scratch = false;
-				}
+			else if (op->src.reg == CFI_SP &&
+				 op->dest.reg == CFI_BP && state->drap) {
 
-				else if (state->drap) {
+				/* drap: mov %rsp, %rbp */
+				regs[CFI_BP].base = CFI_BP;
+				regs[CFI_BP].offset = -state->stack_size;
+				state->bp_scratch = false;
+			}
 
-					/* drap: mov %rsp, %rbp */
-					regs[CFI_BP].base = CFI_BP;
-					regs[CFI_BP].offset = -state->stack_size;
-					state->bp_scratch = false;
-				}
+			else if (op->src.reg == CFI_SP && cfa->base == CFI_SP) {
+
+				/*
+				 * mov %rsp, %reg
+				 *
+				 * This is needed for the rare case where GCC
+				 * does:
+				 *
+				 *   mov    %rsp, %rax
+				 *   ...
+				 *   mov    %rax, %rsp
+				 */
+				state->vals[op->dest.reg].base = CFI_CFA;
+				state->vals[op->dest.reg].offset = -state->stack_size;
 			}
 
 			else if (op->dest.reg == cfa->base) {

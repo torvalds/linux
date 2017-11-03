@@ -551,6 +551,28 @@ static void emac_mac_start(struct emac_adapter *adpt)
 	mac &= ~(HUGEN | VLAN_STRIP | TPAUSE | SIMR | HUGE | MULTI_ALL |
 		 DEBUG_MODE | SINGLE_PAUSE_MODE);
 
+	/* Enable single-pause-frame mode if requested.
+	 *
+	 * If enabled, the EMAC will send a single pause frame when the RX
+	 * queue is full.  This normally leads to packet loss because
+	 * the pause frame disables the remote MAC only for 33ms (the quanta),
+	 * and then the remote MAC continues sending packets even though
+	 * the RX queue is still full.
+	 *
+	 * If disabled, the EMAC sends a pause frame every 31ms until the RX
+	 * queue is no longer full.  Normally, this is the preferred
+	 * method of operation.  However, when the system is hung (e.g.
+	 * cores are halted), the EMAC interrupt handler is never called
+	 * and so the RX queue fills up quickly and stays full.  The resuling
+	 * non-stop "flood" of pause frames sometimes has the effect of
+	 * disabling nearby switches.  In some cases, other nearby switches
+	 * are also affected, shutting down the entire network.
+	 *
+	 * The user can enable or disable single-pause-frame mode
+	 * via ethtool.
+	 */
+	mac |= adpt->single_pause_mode ? SINGLE_PAUSE_MODE : 0;
+
 	writel_relaxed(csr1, adpt->csr + EMAC_EMAC_WRAPPER_CSR1);
 
 	writel_relaxed(mac, adpt->base + EMAC_MAC_CTRL);
