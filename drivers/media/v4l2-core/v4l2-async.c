@@ -550,7 +550,6 @@ int v4l2_async_register_subdev(struct v4l2_subdev *sd)
 		struct v4l2_device *v4l2_dev =
 			v4l2_async_notifier_find_v4l2_dev(notifier);
 		struct v4l2_async_subdev *asd;
-		int ret;
 
 		if (!v4l2_dev)
 			continue;
