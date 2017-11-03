@@ -38,6 +38,9 @@
 #include "spectrum_router.h"
 #include <net/ip_fib.h>
 
+struct ip_tunnel_parm
+mlxsw_sp_ipip_netdev_parms(const struct net_device *ol_dev);
+
 union mlxsw_sp_l3addr
 mlxsw_sp_ipip_netdev_saddr(enum mlxsw_sp_l3proto proto,
 			   const struct net_device *ol_dev);

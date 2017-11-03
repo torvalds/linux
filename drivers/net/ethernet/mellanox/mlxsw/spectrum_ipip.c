@@ -36,89 +36,123 @@
 
 #include "spectrum_ipip.h"
 
-static bool
-mlxsw_sp_ipip_netdev_has_ikey(const struct net_device *ol_dev)
+struct ip_tunnel_parm
+mlxsw_sp_ipip_netdev_parms(const struct net_device *ol_dev)
 {
 	struct ip_tunnel *tun = netdev_priv(ol_dev);
 
-	return !!(tun->parms.i_flags & TUNNEL_KEY);
+	return tun->parms;
 }
 
-static bool
-mlxsw_sp_ipip_netdev_has_okey(const struct net_device *ol_dev)
+static bool mlxsw_sp_ipip_parms_has_ikey(struct ip_tunnel_parm parms)
 {
-	struct ip_tunnel *tun = netdev_priv(ol_dev);
+	return !!(parms.i_flags & TUNNEL_KEY);
+}
 
-	return !!(tun->parms.o_flags & TUNNEL_KEY);
+static bool mlxsw_sp_ipip_parms_has_okey(struct ip_tunnel_parm parms)
+{
+	return !!(parms.o_flags & TUNNEL_KEY);
+}
+
+static u32 mlxsw_sp_ipip_parms_ikey(struct ip_tunnel_parm parms)
+{
+	return mlxsw_sp_ipip_parms_has_ikey(parms) ?
+		be32_to_cpu(parms.i_key) : 0;
+}
+
+static u32 mlxsw_sp_ipip_parms_okey(struct ip_tunnel_parm parms)
+{
+	return mlxsw_sp_ipip_parms_has_okey(parms) ?
+		be32_to_cpu(parms.o_key) : 0;
+}
+
+static __be32 mlxsw_sp_ipip_parms_saddr4(struct ip_tunnel_parm parms)
+{
+	return parms.iph.saddr;
+}
+
+static union mlxsw_sp_l3addr
+mlxsw_sp_ipip_parms_saddr(enum mlxsw_sp_l3proto proto,
+			  struct ip_tunnel_parm parms)
+{
+	switch (proto) {
+	case MLXSW_SP_L3_PROTO_IPV4:
+		return (union mlxsw_sp_l3addr) {
+			.addr4 = mlxsw_sp_ipip_parms_saddr4(parms),
+		};
+	case MLXSW_SP_L3_PROTO_IPV6:
+		break;
+	}
+
+	WARN_ON(1);
+	return (union mlxsw_sp_l3addr) {
+		.addr4 = 0,
+	};
+}
+
+static __be32 mlxsw_sp_ipip_parms_daddr4(struct ip_tunnel_parm parms)
+{
+	return parms.iph.daddr;
+}
+
+static union mlxsw_sp_l3addr
+mlxsw_sp_ipip_parms_daddr(enum mlxsw_sp_l3proto proto,
+			  struct ip_tunnel_parm parms)
+{
+	switch (proto) {
+	case MLXSW_SP_L3_PROTO_IPV4:
+		return (union mlxsw_sp_l3addr) {
+			.addr4 = mlxsw_sp_ipip_parms_daddr4(parms),
+		};
+	case MLXSW_SP_L3_PROTO_IPV6:
+		break;
+	}
+
+	WARN_ON(1);
+	return (union mlxsw_sp_l3addr) {
+		.addr4 = 0,
+	};
+}
+
+static bool mlxsw_sp_ipip_netdev_has_ikey(const struct net_device *ol_dev)
+{
+	return mlxsw_sp_ipip_parms_has_ikey(mlxsw_sp_ipip_netdev_parms(ol_dev));
+}
+
+static bool mlxsw_sp_ipip_netdev_has_okey(const struct net_device *ol_dev)
+{
+	return mlxsw_sp_ipip_parms_has_okey(mlxsw_sp_ipip_netdev_parms(ol_dev));
 }
 
 static u32 mlxsw_sp_ipip_netdev_ikey(const struct net_device *ol_dev)
 {
-	struct ip_tunnel *tun = netdev_priv(ol_dev);
-
-	return mlxsw_sp_ipip_netdev_has_ikey(ol_dev) ?
-		be32_to_cpu(tun->parms.i_key) : 0;
+	return mlxsw_sp_ipip_parms_ikey(mlxsw_sp_ipip_netdev_parms(ol_dev));
 }
 
 static u32 mlxsw_sp_ipip_netdev_okey(const struct net_device *ol_dev)
 {
-	struct ip_tunnel *tun = netdev_priv(ol_dev);
-
-	return mlxsw_sp_ipip_netdev_has_okey(ol_dev) ?
-		be32_to_cpu(tun->parms.o_key) : 0;
-}
-
-static __be32
-mlxsw_sp_ipip_netdev_saddr4(const struct net_device *ol_dev)
-{
-	struct ip_tunnel *tun = netdev_priv(ol_dev);
-
-	return tun->parms.iph.saddr;
+	return mlxsw_sp_ipip_parms_okey(mlxsw_sp_ipip_netdev_parms(ol_dev));
 }
 
 union mlxsw_sp_l3addr
 mlxsw_sp_ipip_netdev_saddr(enum mlxsw_sp_l3proto proto,
 			   const struct net_device *ol_dev)
 {
-	switch (proto) {
-	case MLXSW_SP_L3_PROTO_IPV4:
-		return (union mlxsw_sp_l3addr) {
-			.addr4 = mlxsw_sp_ipip_netdev_saddr4(ol_dev),
-		};
-	case MLXSW_SP_L3_PROTO_IPV6:
-		break;
-	}
-
-	WARN_ON(1);
-	return (union mlxsw_sp_l3addr) {
-		.addr4 = 0,
-	};
+	return mlxsw_sp_ipip_parms_saddr(proto,
+					 mlxsw_sp_ipip_netdev_parms(ol_dev));
 }
 
 static __be32 mlxsw_sp_ipip_netdev_daddr4(const struct net_device *ol_dev)
 {
-	struct ip_tunnel *tun = netdev_priv(ol_dev);
-
-	return tun->parms.iph.daddr;
+	return mlxsw_sp_ipip_parms_daddr4(mlxsw_sp_ipip_netdev_parms(ol_dev));
 }
 
 static union mlxsw_sp_l3addr
 mlxsw_sp_ipip_netdev_daddr(enum mlxsw_sp_l3proto proto,
 			   const struct net_device *ol_dev)
 {
-	switch (proto) {
-	case MLXSW_SP_L3_PROTO_IPV4:
-		return (union mlxsw_sp_l3addr) {
-			.addr4 = mlxsw_sp_ipip_netdev_daddr4(ol_dev),
-		};
-	case MLXSW_SP_L3_PROTO_IPV6:
-		break;
-	}
-
-	WARN_ON(1);
-	return (union mlxsw_sp_l3addr) {
-		.addr4 = 0,
-	};
+	return mlxsw_sp_ipip_parms_daddr(proto,
+					 mlxsw_sp_ipip_netdev_parms(ol_dev));
 }
 
 static int
