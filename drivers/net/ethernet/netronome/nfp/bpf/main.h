@@ -139,6 +139,7 @@ static inline u8 mbpf_mode(const struct nfp_insn_meta *meta)
  * @prog: machine code
  * @prog_len: number of valid instructions in @prog array
  * @__prog_alloc_len: alloc size of @prog array
+ * @verifier_meta: temporary storage for verifier's insn meta
  * @type: BPF program type
  * @start_off: address of the first instruction in the memory
  * @tgt_out: jump target for normal exit
@@ -153,6 +154,8 @@ struct nfp_prog {
 	u64 *prog;
 	unsigned int prog_len;
 	unsigned int __prog_alloc_len;
+
+	struct nfp_insn_meta *verifier_meta;
 
 	enum bpf_prog_type type;
 
@@ -169,13 +172,21 @@ struct nfp_prog {
 	struct list_head insns;
 };
 
-int nfp_bpf_jit(struct nfp_prog *nfp_prog, struct bpf_prog *filter);
+int nfp_bpf_jit(struct nfp_prog *prog);
 
-int nfp_prog_verify(struct nfp_prog *nfp_prog, struct bpf_prog *prog);
+extern const struct bpf_ext_analyzer_ops nfp_bpf_analyzer_ops;
 
+struct netdev_bpf;
+struct nfp_app;
 struct nfp_net;
 
 int nfp_net_bpf_offload(struct nfp_net *nn, struct bpf_prog *prog,
 			bool old_prog);
 
+int nfp_bpf_verifier_prep(struct nfp_app *app, struct nfp_net *nn,
+			  struct netdev_bpf *bpf);
+int nfp_bpf_translate(struct nfp_app *app, struct nfp_net *nn,
+		      struct bpf_prog *prog);
+int nfp_bpf_destroy(struct nfp_app *app, struct nfp_net *nn,
+		    struct bpf_prog *prog);
 #endif

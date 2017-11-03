@@ -3393,6 +3393,14 @@ static int nfp_net_xdp(struct net_device *netdev, struct netdev_bpf *xdp)
 			xdp->prog_attached = XDP_ATTACHED_HW;
 		xdp->prog_id = nn->xdp_prog ? nn->xdp_prog->aux->id : 0;
 		return 0;
+	case BPF_OFFLOAD_VERIFIER_PREP:
+		return nfp_app_bpf_verifier_prep(nn->app, nn, xdp);
+	case BPF_OFFLOAD_TRANSLATE:
+		return nfp_app_bpf_translate(nn->app, nn,
+					     xdp->offload.prog);
+	case BPF_OFFLOAD_DESTROY:
+		return nfp_app_bpf_destroy(nn->app, nn,
+					   xdp->offload.prog);
 	default:
 		return -EINVAL;
 	}

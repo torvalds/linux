@@ -40,12 +40,6 @@
 
 #include "main.h"
 
-/* Analyzer/verifier definitions */
-struct nfp_bpf_analyzer_priv {
-	struct nfp_prog *prog;
-	struct nfp_insn_meta *meta;
-};
-
 static struct nfp_insn_meta *
 nfp_bpf_goto_meta(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 		  unsigned int insn_idx, unsigned int n_insns)
@@ -171,11 +165,11 @@ nfp_bpf_check_ptr(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 static int
 nfp_verify_insn(struct bpf_verifier_env *env, int insn_idx, int prev_insn_idx)
 {
-	struct nfp_bpf_analyzer_priv *priv = env->analyzer_priv;
-	struct nfp_insn_meta *meta = priv->meta;
+	struct nfp_prog *nfp_prog = env->prog->aux->offload->dev_priv;
+	struct nfp_insn_meta *meta = nfp_prog->verifier_meta;
 
-	meta = nfp_bpf_goto_meta(priv->prog, meta, insn_idx, env->prog->len);
-	priv->meta = meta;
+	meta = nfp_bpf_goto_meta(nfp_prog, meta, insn_idx, env->prog->len);
+	nfp_prog->verifier_meta = meta;
 
 	if (meta->insn.src_reg >= MAX_BPF_REG ||
 	    meta->insn.dst_reg >= MAX_BPF_REG) {
@@ -184,39 +178,18 @@ nfp_verify_insn(struct bpf_verifier_env *env, int insn_idx, int prev_insn_idx)
 	}
 
 	if (meta->insn.code == (BPF_JMP | BPF_EXIT))
-		return nfp_bpf_check_exit(priv->prog, env);
+		return nfp_bpf_check_exit(nfp_prog, env);
 
 	if ((meta->insn.code & ~BPF_SIZE_MASK) == (BPF_LDX | BPF_MEM))
-		return nfp_bpf_check_ptr(priv->prog, meta, env,
+		return nfp_bpf_check_ptr(nfp_prog, meta, env,
 					 meta->insn.src_reg);
 	if ((meta->insn.code & ~BPF_SIZE_MASK) == (BPF_STX | BPF_MEM))
-		return nfp_bpf_check_ptr(priv->prog, meta, env,
+		return nfp_bpf_check_ptr(nfp_prog, meta, env,
 					 meta->insn.dst_reg);
 
 	return 0;
 }
 
-static const struct bpf_ext_analyzer_ops nfp_bpf_analyzer_ops = {
+const struct bpf_ext_analyzer_ops nfp_bpf_analyzer_ops = {
 	.insn_hook = nfp_verify_insn,
 };
-
-int nfp_prog_verify(struct nfp_prog *nfp_prog, struct bpf_prog *prog)
-{
-	struct nfp_bpf_analyzer_priv *priv;
-	int ret;
-
-	nfp_prog->stack_depth = prog->aux->stack_depth;
-
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
-	if (!priv)
-		return -ENOMEM;
-
-	priv->prog = nfp_prog;
-	priv->meta = nfp_prog_first_meta(nfp_prog);
-
-	ret = bpf_analyzer(prog, &nfp_bpf_analyzer_ops, priv);
-
-	kfree(priv);
-
-	return ret;
-}

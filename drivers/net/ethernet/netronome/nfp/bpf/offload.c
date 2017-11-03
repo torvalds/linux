@@ -84,14 +84,17 @@ static void nfp_prog_free(struct nfp_prog *nfp_prog)
 	kfree(nfp_prog);
 }
 
-static struct nfp_prog *nfp_bpf_verifier_prep(struct bpf_prog *prog)
+int nfp_bpf_verifier_prep(struct nfp_app *app, struct nfp_net *nn,
+			  struct netdev_bpf *bpf)
 {
+	struct bpf_prog *prog = bpf->verifier.prog;
 	struct nfp_prog *nfp_prog;
 	int ret;
 
 	nfp_prog = kzalloc(sizeof(*nfp_prog), GFP_KERNEL);
 	if (!nfp_prog)
-		return NULL;
+		return -ENOMEM;
+	prog->aux->offload->dev_priv = nfp_prog;
 
 	INIT_LIST_HEAD(&nfp_prog->insns);
 	nfp_prog->type = prog->type;
@@ -100,18 +103,21 @@ static struct nfp_prog *nfp_bpf_verifier_prep(struct bpf_prog *prog)
 	if (ret)
 		goto err_free;
 
-	return nfp_prog;
+	nfp_prog->verifier_meta = nfp_prog_first_meta(nfp_prog);
+	bpf->verifier.ops = &nfp_bpf_analyzer_ops;
+
+	return 0;
 
 err_free:
 	nfp_prog_free(nfp_prog);
 
-	return NULL;
+	return ret;
 }
 
-static int
-nfp_bpf_translate(struct nfp_net *nn, struct nfp_prog *nfp_prog,
-		  struct bpf_prog *prog)
+int nfp_bpf_translate(struct nfp_app *app, struct nfp_net *nn,
+		      struct bpf_prog *prog)
 {
+	struct nfp_prog *nfp_prog = prog->aux->offload->dev_priv;
 	unsigned int stack_size;
 	unsigned int max_instr;
 
@@ -133,55 +139,38 @@ nfp_bpf_translate(struct nfp_net *nn, struct nfp_prog *nfp_prog,
 	if (!nfp_prog->prog)
 		return -ENOMEM;
 
-	return nfp_bpf_jit(nfp_prog, prog);
+	return nfp_bpf_jit(nfp_prog);
 }
 
-static void nfp_bpf_destroy(struct nfp_prog *nfp_prog)
+int nfp_bpf_destroy(struct nfp_app *app, struct nfp_net *nn,
+		    struct bpf_prog *prog)
 {
+	struct nfp_prog *nfp_prog = prog->aux->offload->dev_priv;
+
 	kfree(nfp_prog->prog);
 	nfp_prog_free(nfp_prog);
+
+	return 0;
 }
 
-static struct nfp_prog *
-nfp_net_bpf_offload_prepare(struct nfp_net *nn, struct bpf_prog *prog,
-			    dma_addr_t *dma_addr)
+static int nfp_net_bpf_load(struct nfp_net *nn, struct bpf_prog *prog)
 {
-	struct nfp_prog *nfp_prog;
+	struct nfp_prog *nfp_prog = prog->aux->offload->dev_priv;
 	unsigned int max_mtu;
+	dma_addr_t dma_addr;
 	int err;
 
 	max_mtu = nn_readb(nn, NFP_NET_CFG_BPF_INL_MTU) * 64 - 32;
 	if (max_mtu < nn->dp.netdev->mtu) {
 		nn_info(nn, "BPF offload not supported with MTU larger than HW packet split boundary\n");
-		return NULL;
+		return -EOPNOTSUPP;
 	}
 
-	nfp_prog = nfp_bpf_verifier_prep(prog);
-	if (!nfp_prog)
-		return NULL;
-
-	err = nfp_bpf_translate(nn, nfp_prog, prog);
-	if (err)
-		goto err_destroy_prog;
-
-	*dma_addr = dma_map_single(nn->dp.dev, nfp_prog->prog,
-				   nfp_prog->prog_len * sizeof(u64),
-				   DMA_TO_DEVICE);
-	if (dma_mapping_error(nn->dp.dev, *dma_addr))
-		goto err_destroy_prog;
-
-	return 0;
-
-err_destroy_prog:
-	nfp_bpf_destroy(nfp_prog);
-	return NULL;
-}
-
-static void
-nfp_net_bpf_load(struct nfp_net *nn, struct nfp_prog *nfp_prog,
-		 dma_addr_t dma_addr)
-{
-	int err;
+	dma_addr = dma_map_single(nn->dp.dev, nfp_prog->prog,
+				  nfp_prog->prog_len * sizeof(u64),
+				  DMA_TO_DEVICE);
+	if (dma_mapping_error(nn->dp.dev, dma_addr))
+		return -ENOMEM;
 
 	nn_writew(nn, NFP_NET_CFG_BPF_SIZE, nfp_prog->prog_len);
 	nn_writeq(nn, NFP_NET_CFG_BPF_ADDR, dma_addr);
@@ -193,7 +182,8 @@ nfp_net_bpf_load(struct nfp_net *nn, struct nfp_prog *nfp_prog,
 
 	dma_unmap_single(nn->dp.dev, dma_addr, nfp_prog->prog_len * sizeof(u64),
 			 DMA_TO_DEVICE);
-	nfp_bpf_destroy(nfp_prog);
+
+	return err;
 }
 
 static void nfp_net_bpf_start(struct nfp_net *nn)
@@ -222,8 +212,10 @@ static int nfp_net_bpf_stop(struct nfp_net *nn)
 int nfp_net_bpf_offload(struct nfp_net *nn, struct bpf_prog *prog,
 			bool old_prog)
 {
-	struct nfp_prog *nfp_prog;
-	dma_addr_t dma_addr;
+	int err;
+
+	if (prog && !prog->aux->offload)
+		return -EINVAL;
 
 	if (prog && old_prog) {
 		u8 cap;
@@ -242,11 +234,10 @@ int nfp_net_bpf_offload(struct nfp_net *nn, struct bpf_prog *prog,
 	if (old_prog && !prog)
 		return nfp_net_bpf_stop(nn);
 
-	nfp_prog = nfp_net_bpf_offload_prepare(nn, prog, &dma_addr);
-	if (!nfp_prog)
-		return -EINVAL;
+	err = nfp_net_bpf_load(nn, prog);
+	if (err)
+		return err;
 
-	nfp_net_bpf_load(nn, nfp_prog, dma_addr);
 	if (!old_prog)
 		nfp_net_bpf_start(nn);
 

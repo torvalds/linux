@@ -1427,19 +1427,18 @@ static int mem_ldx_skb(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 	swreg dst = reg_both(meta->insn.dst_reg * 2);
 
 	switch (meta->insn.off) {
-	case offsetof(struct sk_buff, len):
-		if (size != FIELD_SIZEOF(struct sk_buff, len))
+	case offsetof(struct __sk_buff, len):
+		if (size != FIELD_SIZEOF(struct __sk_buff, len))
 			return -EOPNOTSUPP;
 		wrp_mov(nfp_prog, dst, plen_reg(nfp_prog));
 		break;
-	case offsetof(struct sk_buff, data):
-		if (size != sizeof(void *))
+	case offsetof(struct __sk_buff, data):
+		if (size != FIELD_SIZEOF(struct __sk_buff, data))
 			return -EOPNOTSUPP;
 		wrp_mov(nfp_prog, dst, pptr_reg(nfp_prog));
 		break;
-	case offsetof(struct sk_buff, cb) +
-	     offsetof(struct bpf_skb_data_end, data_end):
-		if (size != sizeof(void *))
+	case offsetof(struct __sk_buff, data_end):
+		if (size != FIELD_SIZEOF(struct __sk_buff, data_end))
 			return -EOPNOTSUPP;
 		emit_alu(nfp_prog, dst,
 			 plen_reg(nfp_prog), ALU_OP_ADD, pptr_reg(nfp_prog));
@@ -1458,14 +1457,15 @@ static int mem_ldx_xdp(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 {
 	swreg dst = reg_both(meta->insn.dst_reg * 2);
 
-	if (size != sizeof(void *))
-		return -EINVAL;
-
 	switch (meta->insn.off) {
-	case offsetof(struct xdp_buff, data):
+	case offsetof(struct xdp_md, data):
+		if (size != FIELD_SIZEOF(struct xdp_md, data))
+			return -EOPNOTSUPP;
 		wrp_mov(nfp_prog, dst, pptr_reg(nfp_prog));
 		break;
-	case offsetof(struct xdp_buff, data_end):
+	case offsetof(struct xdp_md, data_end):
+		if (size != FIELD_SIZEOF(struct xdp_md, data_end))
+			return -EOPNOTSUPP;
 		emit_alu(nfp_prog, dst,
 			 plen_reg(nfp_prog), ALU_OP_ADD, pptr_reg(nfp_prog));
 		break;
@@ -2243,18 +2243,9 @@ static int nfp_bpf_ustore_calc(struct nfp_prog *nfp_prog, __le64 *ustore)
 	return 0;
 }
 
-/**
- * nfp_bpf_jit() - translate BPF code into NFP assembly
- * @nfp_prog:	nfp_prog prepared based on @filter
- * @filter:	kernel BPF filter struct
- */
-int nfp_bpf_jit(struct nfp_prog *nfp_prog, struct bpf_prog *filter)
+int nfp_bpf_jit(struct nfp_prog *nfp_prog)
 {
 	int ret;
-
-	ret = nfp_prog_verify(nfp_prog, filter);
-	if (ret)
-		return ret;
 
 	ret = nfp_bpf_optimize(nfp_prog);
 	if (ret)
