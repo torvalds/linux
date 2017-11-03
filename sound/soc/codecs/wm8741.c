@@ -333,13 +333,13 @@ static int wm8741_set_dai_fmt(struct snd_soc_dai *codec_dai,
 	switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
 	case SND_SOC_DAIFMT_NB_NF:
 		break;
-	case SND_SOC_DAIFMT_IB_IF:
+	case SND_SOC_DAIFMT_NB_IF:
 		iface |= 0x10;
 		break;
 	case SND_SOC_DAIFMT_IB_NF:
 		iface |= 0x20;
 		break;
-	case SND_SOC_DAIFMT_NB_IF:
+	case SND_SOC_DAIFMT_IB_IF:
 		iface |= 0x30;
 		break;
 	default:
