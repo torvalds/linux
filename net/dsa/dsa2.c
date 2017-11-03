@@ -751,16 +751,8 @@ static int _dsa_register_switch(struct dsa_switch *ds)
 		err = dsa_parse_member_dn(np, &tree, &index);
 		if (err)
 			return err;
-
-		err = dsa_parse_ports_of(np, ds);
-		if (err)
-			return err;
 	} else {
 		err = dsa_parse_member(pdata, &tree, &index);
-		if (err)
-			return err;
-
-		err = dsa_parse_ports(pdata, ds);
 		if (err)
 			return err;
 	}
@@ -772,6 +764,16 @@ static int _dsa_register_switch(struct dsa_switch *ds)
 	ds->dst = dst;
 	ds->index = index;
 	ds->cd = pdata;
+
+	if (np) {
+		err = dsa_parse_ports_of(np, ds);
+		if (err)
+			return err;
+	} else {
+		err = dsa_parse_ports(pdata, ds);
+		if (err)
+			return err;
+	}
 
 	/* Initialize the routing table */
 	for (i = 0; i < DSA_MAX_SWITCHES; ++i)
