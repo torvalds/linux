@@ -1326,18 +1326,28 @@ mlxsw_sp_ipip_entry_find_by_ol_dev(struct mlxsw_sp *mlxsw_sp,
 	return NULL;
 }
 
+static bool mlxsw_sp_netdevice_ipip_can_offload(struct mlxsw_sp *mlxsw_sp,
+						const struct net_device *ol_dev,
+						enum mlxsw_sp_ipip_type ipipt)
+{
+	const struct mlxsw_sp_ipip_ops *ops
+		= mlxsw_sp->router->ipip_ops_arr[ipipt];
+
+	/* For deciding whether decap should be offloaded, we don't care about
+	 * overlay protocol, so ask whether either one is supported.
+	 */
+	return ops->can_offload(mlxsw_sp, ol_dev, MLXSW_SP_L3_PROTO_IPV4) ||
+	       ops->can_offload(mlxsw_sp, ol_dev, MLXSW_SP_L3_PROTO_IPV6);
+}
+
 static int mlxsw_sp_netdevice_ipip_ol_reg_event(struct mlxsw_sp *mlxsw_sp,
 						struct net_device *ol_dev)
 {
-	struct mlxsw_sp_router *router = mlxsw_sp->router;
 	struct mlxsw_sp_ipip_entry *ipip_entry;
 	enum mlxsw_sp_ipip_type ipipt;
 
 	mlxsw_sp_netdev_ipip_type(mlxsw_sp, ol_dev, &ipipt);
-	if (router->ipip_ops_arr[ipipt]->can_offload(mlxsw_sp, ol_dev,
-						     MLXSW_SP_L3_PROTO_IPV4) ||
-	    router->ipip_ops_arr[ipipt]->can_offload(mlxsw_sp, ol_dev,
-						     MLXSW_SP_L3_PROTO_IPV6)) {
+	if (mlxsw_sp_netdevice_ipip_can_offload(mlxsw_sp, ol_dev, ipipt)) {
 		ipip_entry = mlxsw_sp_ipip_entry_create(mlxsw_sp, ipipt,
 							ol_dev);
 		if (IS_ERR(ipip_entry))
