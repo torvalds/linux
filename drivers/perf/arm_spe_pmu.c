@@ -889,6 +889,7 @@ static int arm_spe_pmu_perf_init(struct arm_spe_pmu *spe_pmu)
 	struct device *dev = &spe_pmu->pdev->dev;
 
 	spe_pmu->pmu = (struct pmu) {
+		.module = THIS_MODULE,
 		.capabilities	= PERF_PMU_CAP_EXCLUSIVE | PERF_PMU_CAP_ITRACE,
 		.attr_groups	= arm_spe_pmu_attr_groups,
 		/*
