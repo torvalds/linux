@@ -70,6 +70,36 @@ TRACE_EVENT(rpc_connect_status,
 		__entry->status)
 );
 
+TRACE_EVENT(rpc_request,
+	TP_PROTO(const struct rpc_task *task),
+
+	TP_ARGS(task),
+
+	TP_STRUCT__entry(
+		__field(unsigned int, task_id)
+		__field(unsigned int, client_id)
+		__field(int, version)
+		__field(bool, async)
+		__string(progname, task->tk_client->cl_program->name)
+		__string(procname, rpc_proc_name(task))
+	),
+
+	TP_fast_assign(
+		__entry->task_id = task->tk_pid;
+		__entry->client_id = task->tk_client->cl_clid;
+		__entry->version = task->tk_client->cl_vers;
+		__entry->async = RPC_IS_ASYNC(task);
+		__assign_str(progname, task->tk_client->cl_program->name)
+		__assign_str(procname, rpc_proc_name(task))
+	),
+
+	TP_printk("task:%u@%u %sv%d %s (%ssync)",
+		__entry->task_id, __entry->client_id,
+		__get_str(progname), __entry->version,
+		__get_str(procname), __entry->async ? "a": ""
+		)
+);
+
 DECLARE_EVENT_CLASS(rpc_task_running,
 
 	TP_PROTO(const struct rpc_clnt *clnt, const struct rpc_task *task, const void *action),

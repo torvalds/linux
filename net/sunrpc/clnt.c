@@ -1491,7 +1491,6 @@ rpc_restart_call(struct rpc_task *task)
 }
 EXPORT_SYMBOL_GPL(rpc_restart_call);
 
-#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
 const char
 *rpc_proc_name(const struct rpc_task *task)
 {
@@ -1505,7 +1504,6 @@ const char
 	} else
 		return "no proc";
 }
-#endif
 
 /*
  * 0.  Initial state
@@ -1519,6 +1517,7 @@ call_start(struct rpc_task *task)
 	struct rpc_clnt	*clnt = task->tk_client;
 	int idx = task->tk_msg.rpc_proc->p_statidx;
 
+	trace_rpc_request(task);
 	dprintk("RPC: %5u call_start %s%d proc %s (%s)\n", task->tk_pid,
 			clnt->cl_program->name, clnt->cl_vers,
 			rpc_proc_name(task),
