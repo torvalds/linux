@@ -9,6 +9,7 @@
 
 #include <linux/etherdevice.h>
 #include <linux/string.h>
+#include <linux/phy.h>
 
 #include "hns3_enet.h"
 
@@ -358,17 +359,12 @@ static void hns3_driv_to_eth_caps(u32 caps, struct ethtool_link_ksettings *cmd,
 		if (!(caps & hns3_lm_map[i].hns3_link_mode))
 			continue;
 
-		if (is_advertised) {
-			ethtool_link_ksettings_zero_link_mode(cmd,
-							      advertising);
+		if (is_advertised)
 			__set_bit(hns3_lm_map[i].ethtool_link_mode,
 				  cmd->link_modes.advertising);
-		} else {
-			ethtool_link_ksettings_zero_link_mode(cmd,
-							      supported);
+		else
 			__set_bit(hns3_lm_map[i].ethtool_link_mode,
 				  cmd->link_modes.supported);
-		}
 	}
 }
 
@@ -571,26 +567,25 @@ static int hns3_get_link_ksettings(struct net_device *netdev,
 	u32 advertised_caps;
 	u8 media_type = HNAE3_MEDIA_TYPE_UNKNOWN;
 	u8 link_stat;
-	u8 auto_neg;
-	u8 duplex;
-	u32 speed;
 
 	if (!h->ae_algo || !h->ae_algo->ops)
 		return -EOPNOTSUPP;
 
 	/* 1.auto_neg & speed & duplex from cmd */
-	if (h->ae_algo->ops->get_ksettings_an_result) {
-		h->ae_algo->ops->get_ksettings_an_result(h, &auto_neg,
-							 &speed, &duplex);
-		cmd->base.autoneg = auto_neg;
-		cmd->base.speed = speed;
-		cmd->base.duplex = duplex;
+	if (netdev->phydev)
+		phy_ethtool_ksettings_get(netdev->phydev, cmd);
+	else if (h->ae_algo->ops->get_ksettings_an_result)
+		h->ae_algo->ops->get_ksettings_an_result(h,
+							 &cmd->base.autoneg,
+							 &cmd->base.speed,
+							 &cmd->base.duplex);
+	else
+		return -EOPNOTSUPP;
 
-		link_stat = hns3_get_link(netdev);
-		if (!link_stat) {
-			cmd->base.speed = (u32)SPEED_UNKNOWN;
-			cmd->base.duplex = DUPLEX_UNKNOWN;
-		}
+	link_stat = hns3_get_link(netdev);
+	if (!link_stat) {
+		cmd->base.speed = SPEED_UNKNOWN;
+		cmd->base.duplex = DUPLEX_UNKNOWN;
 	}
 
 	/* 2.media_type get from bios parameter block */
@@ -640,6 +635,9 @@ static int hns3_get_link_ksettings(struct net_device *netdev,
 			break;
 		}
 
+		if (!cmd->base.autoneg)
+			advertised_caps &= ~HNS3_LM_AUTONEG_BIT;
+
 		/* now, map driver link modes to ethtool link modes */
 		hns3_driv_to_eth_caps(supported_caps, cmd, false);
 		hns3_driv_to_eth_caps(advertised_caps, cmd, true);
@@ -653,6 +651,16 @@ static int hns3_get_link_ksettings(struct net_device *netdev,
 	cmd->base.mdio_support = ETH_MDIO_SUPPORTS_C22;
 
 	return 0;
+}
+
+static int hns3_set_link_ksettings(struct net_device *netdev,
+				   const struct ethtool_link_ksettings *cmd)
+{
+	/* Only support ksettings_set for netdev with phy attached for now */
+	if (netdev->phydev)
+		return phy_ethtool_ksettings_set(netdev->phydev, cmd);
+
+	return -EOPNOTSUPP;
 }
 
 static u32 hns3_get_rss_key_size(struct net_device *netdev)
@@ -824,6 +832,23 @@ static int hns3_set_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *cmd)
 	}
 }
 
+static int hns3_nway_reset(struct net_device *netdev)
+{
+	struct phy_device *phy = netdev->phydev;
+
+	if (!netif_running(netdev))
+		return 0;
+
+	/* Only support nway_reset for netdev with phy attached for now */
+	if (!phy)
+		return -EOPNOTSUPP;
+
+	if (phy->autoneg != AUTONEG_ENABLE)
+		return -EINVAL;
+
+	return genphy_restart_aneg(phy);
+}
+
 static const struct ethtool_ops hns3_ethtool_ops = {
 	.self_test = hns3_self_test,
 	.get_drvinfo = hns3_get_drvinfo,
@@ -841,6 +866,8 @@ static const struct ethtool_ops hns3_ethtool_ops = {
 	.get_rxfh = hns3_get_rss,
 	.set_rxfh = hns3_set_rss,
 	.get_link_ksettings = hns3_get_link_ksettings,
+	.set_link_ksettings = hns3_set_link_ksettings,
+	.nway_reset = hns3_nway_reset,
 };
 
 void hns3_ethtool_set_ops(struct net_device *netdev)
