@@ -1261,13 +1261,13 @@ xfs_iread_extents(
 		 */
 		frp = XFS_BMBT_REC_ADDR(mp, block, 1);
 		for (j = 0; j < num_recs; j++, frp++, i++) {
-			if (!xfs_bmbt_validate_extent(mp, whichfork, frp)) {
+			xfs_bmbt_disk_get_all(frp, &new);
+			if (!xfs_bmbt_validate_extent(mp, whichfork, &new)) {
 				XFS_ERROR_REPORT("xfs_bmap_read_extents(2)",
 						 XFS_ERRLEVEL_LOW, mp);
 				error = -EFSCORRUPTED;
 				goto out_brelse;
 			}
-			xfs_bmbt_disk_get_all(frp, &new);
 			xfs_iext_insert(ip, &icur, &new, state);
 			trace_xfs_read_extent(ip, &icur, state, _THIS_IP_);
 			xfs_iext_next(ifp, &icur);

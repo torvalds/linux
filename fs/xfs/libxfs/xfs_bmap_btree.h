@@ -122,9 +122,9 @@ extern struct xfs_btree_cur *xfs_bmbt_init_cursor(struct xfs_mount *,
  * Check that the extent does not contain an invalid unwritten extent flag.
  */
 static inline bool xfs_bmbt_validate_extent(struct xfs_mount *mp, int whichfork,
-		struct xfs_bmbt_rec *ep)
+		struct xfs_bmbt_irec *irec)
 {
-	if (get_unaligned_be64(&ep->l0) >> (64 - BMBT_EXNTFLAG_BITLEN) == 0)
+	if (irec->br_state == XFS_EXT_NORM)
 		return true;
 	if (whichfork == XFS_DATA_FORK &&
 	    xfs_sb_version_hasextflgbit(&mp->m_sb))

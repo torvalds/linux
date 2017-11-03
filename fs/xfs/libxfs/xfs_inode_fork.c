@@ -355,13 +355,13 @@ xfs_iformat_extents(
 
 		xfs_iext_first(ifp, &icur);
 		for (i = 0; i < nex; i++, dp++) {
-			if (!xfs_bmbt_validate_extent(mp, whichfork, dp)) {
+			xfs_bmbt_disk_get_all(dp, &new);
+			if (!xfs_bmbt_validate_extent(mp, whichfork, &new)) {
 				XFS_ERROR_REPORT("xfs_iformat_extents(2)",
 						 XFS_ERRLEVEL_LOW, mp);
 				return -EFSCORRUPTED;
 			}
 
-			xfs_bmbt_disk_get_all(dp, &new);
 			xfs_iext_insert(ip, &icur, &new, state);
 			trace_xfs_read_extent(ip, &icur, state, _THIS_IP_);
 			xfs_iext_next(ifp, &icur);
@@ -704,9 +704,9 @@ xfs_iextents_copy(
 	for_each_xfs_iext(ifp, &icur, &rec) {
 		if (isnullstartblock(rec.br_startblock))
 			continue;
+		ASSERT(xfs_bmbt_validate_extent(ip->i_mount, whichfork, &rec));
 		xfs_bmbt_disk_set_all(dp, &rec);
 		trace_xfs_write_extent(ip, &icur, state, _RET_IP_);
-		ASSERT(xfs_bmbt_validate_extent(ip->i_mount, whichfork, dp));
 		copied += sizeof(struct xfs_bmbt_rec);
 		dp++;
 	}
