@@ -460,8 +460,9 @@ static int dce_virtual_hw_init(void *handle)
 		break;
 	case CHIP_CARRIZO:
 	case CHIP_STONEY:
-	case CHIP_POLARIS11:
 	case CHIP_POLARIS10:
+	case CHIP_POLARIS11:
+	case CHIP_VEGAM:
 		dce_v11_0_disable_dce(adev);
 		break;
 	case CHIP_TOPAZ:
