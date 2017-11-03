@@ -1355,44 +1355,62 @@ static void mlxsw_sp_netdevice_ipip_ol_down_event(struct mlxsw_sp *mlxsw_sp,
 		mlxsw_sp_ipip_entry_ol_down_event(mlxsw_sp, ipip_entry);
 }
 
-static int mlxsw_sp_netdevice_ipip_ol_vrf_event(struct mlxsw_sp *mlxsw_sp,
-						struct net_device *ol_dev,
-						struct netlink_ext_ack *extack)
+static int
+mlxsw_sp_ipip_entry_ol_lb_update(struct mlxsw_sp *mlxsw_sp,
+				 struct mlxsw_sp_ipip_entry *ipip_entry,
+				 struct netlink_ext_ack *extack)
 {
-	struct mlxsw_sp_fib_entry *decap_fib_entry;
-	struct mlxsw_sp_ipip_entry *ipip_entry;
-	struct mlxsw_sp_rif_ipip_lb *lb_rif;
+	struct mlxsw_sp_rif_ipip_lb *old_lb_rif = ipip_entry->ol_lb;
+	struct mlxsw_sp_rif_ipip_lb *new_lb_rif;
 
-	ipip_entry = mlxsw_sp_ipip_entry_find_by_ol_dev(mlxsw_sp, ol_dev);
-	if (!ipip_entry)
-		return 0;
+	new_lb_rif = mlxsw_sp_ipip_ol_ipip_lb_create(mlxsw_sp,
+						     ipip_entry->ipipt,
+						     ipip_entry->ol_dev,
+						     extack);
+	if (IS_ERR(new_lb_rif))
+		return PTR_ERR(new_lb_rif);
+	ipip_entry->ol_lb = new_lb_rif;
+	mlxsw_sp_rif_destroy(&old_lb_rif->common);
 
-	/* When a tunneling device is moved to a different VRF, we need to
-	 * update the backing loopback. Since RIFs can't be edited, we need to
-	 * destroy and recreate it. That might create a window of opportunity
-	 * where RALUE and RATR registers end up referencing a RIF that's
-	 * already gone. RATRs are handled by the RIF destroy, and to take care
+	return 0;
+}
+
+int __mlxsw_sp_ipip_entry_update_tunnel(struct mlxsw_sp *mlxsw_sp,
+					struct mlxsw_sp_ipip_entry *ipip_entry,
+					struct netlink_ext_ack *extack)
+{
+	int err;
+
+	/* RIFs can't be edited, so to update loopback, we need to destroy and
+	 * recreate it. That creates a window of opportunity where RALUE and
+	 * RATR registers end up referencing a RIF that's already gone. RATRs
+	 * are handled in mlxsw_sp_ipip_entry_ol_lb_update(), and to take care
 	 * of RALUE, demote the decap route back.
 	 */
 	if (ipip_entry->decap_fib_entry)
 		mlxsw_sp_ipip_entry_demote_decap(mlxsw_sp, ipip_entry);
 
-	lb_rif = mlxsw_sp_ipip_ol_ipip_lb_create(mlxsw_sp, ipip_entry->ipipt,
-						 ol_dev, extack);
-	if (IS_ERR(lb_rif))
-		return PTR_ERR(lb_rif);
-	mlxsw_sp_rif_destroy(&ipip_entry->ol_lb->common);
-	ipip_entry->ol_lb = lb_rif;
+	err = mlxsw_sp_ipip_entry_ol_lb_update(mlxsw_sp, ipip_entry, extack);
+	if (err)
+		return err;
 
-	if (ol_dev->flags & IFF_UP) {
-		decap_fib_entry = mlxsw_sp_ipip_entry_find_decap(mlxsw_sp,
-								 ipip_entry);
-		if (decap_fib_entry)
-			mlxsw_sp_ipip_entry_promote_decap(mlxsw_sp, ipip_entry,
-							  decap_fib_entry);
-	}
+	if (ipip_entry->ol_dev->flags & IFF_UP)
+		mlxsw_sp_ipip_entry_ol_up_event(mlxsw_sp, ipip_entry);
 
 	return 0;
+}
+
+static int mlxsw_sp_netdevice_ipip_ol_vrf_event(struct mlxsw_sp *mlxsw_sp,
+						struct net_device *ol_dev,
+						struct netlink_ext_ack *extack)
+{
+	struct mlxsw_sp_ipip_entry *ipip_entry =
+		mlxsw_sp_ipip_entry_find_by_ol_dev(mlxsw_sp, ol_dev);
+
+	if (!ipip_entry)
+		return 0;
+	return __mlxsw_sp_ipip_entry_update_tunnel(mlxsw_sp, ipip_entry,
+						   extack);
 }
 
 int mlxsw_sp_netdevice_ipip_ol_event(struct mlxsw_sp *mlxsw_sp,
