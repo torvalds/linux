@@ -340,14 +340,12 @@ static void dump_ida_node(void *entry, unsigned long index)
 		for (i = 0; i < RADIX_TREE_MAP_SIZE; i++)
 			dump_ida_node(node->slots[i],
 					index | (i << node->shift));
-	} else if (radix_tree_exceptional_entry(entry)) {
+	} else if (xa_is_value(entry)) {
 		pr_debug("ida excp: %p offset %d indices %lu-%lu data %lx\n",
 				entry, (int)(index & RADIX_TREE_MAP_MASK),
 				index * IDA_BITMAP_BITS,
-				index * IDA_BITMAP_BITS + BITS_PER_LONG -
-					RADIX_TREE_EXCEPTIONAL_SHIFT,
-				(unsigned long)entry >>
-					RADIX_TREE_EXCEPTIONAL_SHIFT);
+				index * IDA_BITMAP_BITS + BITS_PER_XA_VALUE,
+				xa_to_value(entry));
 	} else {
 		struct ida_bitmap *bitmap = entry;
 
@@ -656,7 +654,7 @@ static int radix_tree_extend(struct radix_tree_root *root, gfp_t gfp,
 		BUG_ON(shift > BITS_PER_LONG);
 		if (radix_tree_is_internal_node(entry)) {
 			entry_to_node(entry)->parent = node;
-		} else if (radix_tree_exceptional_entry(entry)) {
+		} else if (xa_is_value(entry)) {
 			/* Moving an exceptional root->rnode to a node */
 			node->exceptional = 1;
 		}
@@ -955,12 +953,12 @@ static inline int insert_entries(struct radix_tree_node *node,
 					!is_sibling_entry(node, old) &&
 					(old != RADIX_TREE_RETRY))
 			radix_tree_free_nodes(old);
-		if (radix_tree_exceptional_entry(old))
+		if (xa_is_value(old))
 			node->exceptional--;
 	}
 	if (node) {
 		node->count += n;
-		if (radix_tree_exceptional_entry(item))
+		if (xa_is_value(item))
 			node->exceptional += n;
 	}
 	return n;
@@ -974,7 +972,7 @@ static inline int insert_entries(struct radix_tree_node *node,
 	rcu_assign_pointer(*slot, item);
 	if (node) {
 		node->count++;
-		if (radix_tree_exceptional_entry(item))
+		if (xa_is_value(item))
 			node->exceptional++;
 	}
 	return 1;
@@ -1190,8 +1188,7 @@ void __radix_tree_replace(struct radix_tree_root *root,
 			  radix_tree_update_node_t update_node)
 {
 	void *old = rcu_dereference_raw(*slot);
-	int exceptional = !!radix_tree_exceptional_entry(item) -
-				!!radix_tree_exceptional_entry(old);
+	int exceptional = !!xa_is_value(item) - !!xa_is_value(old);
 	int count = calculate_count(root, node, slot, item, old);
 
 	/*
@@ -1992,7 +1989,7 @@ static bool __radix_tree_delete(struct radix_tree_root *root,
 				struct radix_tree_node *node, void __rcu **slot)
 {
 	void *old = rcu_dereference_raw(*slot);
-	int exceptional = radix_tree_exceptional_entry(old) ? -1 : 0;
+	int exceptional = xa_is_value(old) ? -1 : 0;
 	unsigned offset = get_slot_offset(node, slot);
 	int tag;
 

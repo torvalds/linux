@@ -19,7 +19,7 @@
 
 #include "test.h"
 
-#define DUMMY_PTR	((void *)0x12)
+#define DUMMY_PTR	((void *)0x10)
 
 int item_idr_free(int id, void *p, void *data)
 {
@@ -411,11 +411,11 @@ void ida_check_conv_user(void)
 		int id = ida_alloc(&ida, GFP_NOWAIT);
 		if (id == -ENOMEM) {
 			IDA_BUG_ON(&ida, (i % IDA_BITMAP_BITS) !=
-					BITS_PER_LONG - 2);
+					BITS_PER_XA_VALUE);
 			id = ida_alloc(&ida, GFP_KERNEL);
 		} else {
 			IDA_BUG_ON(&ida, (i % IDA_BITMAP_BITS) ==
-					BITS_PER_LONG - 2);
+					BITS_PER_XA_VALUE);
 		}
 		IDA_BUG_ON(&ida, id != i);
 	}

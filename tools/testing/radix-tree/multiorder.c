@@ -39,12 +39,11 @@ static void __multiorder_tag_test(int index, int order)
 
 	/*
 	 * Verify we get collisions for covered indices.  We try and fail to
-	 * insert an exceptional entry so we don't leak memory via
+	 * insert a value entry so we don't leak memory via
 	 * item_insert_order().
 	 */
 	for_each_index(i, base, order) {
-		err = __radix_tree_insert(&tree, i, order,
-				(void *)(0xA0 | RADIX_TREE_EXCEPTIONAL_ENTRY));
+		err = __radix_tree_insert(&tree, i, order, xa_mk_value(0xA0));
 		assert(err == -EEXIST);
 	}
 
@@ -380,8 +379,8 @@ static void multiorder_join1(unsigned long index,
 }
 
 /*
- * Check that the accounting of exceptional entries is handled correctly
- * by joining an exceptional entry to a normal pointer.
+ * Check that the accounting of value entries is handled correctly
+ * by joining a value entry to a normal pointer.
  */
 static void multiorder_join2(unsigned order1, unsigned order2)
 {
@@ -391,9 +390,9 @@ static void multiorder_join2(unsigned order1, unsigned order2)
 	void *item2;
 
 	item_insert_order(&tree, 0, order2);
-	radix_tree_insert(&tree, 1 << order2, (void *)0x12UL);
+	radix_tree_insert(&tree, 1 << order2, xa_mk_value(5));
 	item2 = __radix_tree_lookup(&tree, 1 << order2, &node, NULL);
-	assert(item2 == (void *)0x12UL);
+	assert(item2 == xa_mk_value(5));
 	assert(node->exceptional == 1);
 
 	item2 = radix_tree_lookup(&tree, 0);
@@ -407,7 +406,7 @@ static void multiorder_join2(unsigned order1, unsigned order2)
 }
 
 /*
- * This test revealed an accounting bug for exceptional entries at one point.
+ * This test revealed an accounting bug for value entries at one point.
  * Nodes were being freed back into the pool with an elevated exception count
  * by radix_tree_join() and then radix_tree_split() was failing to zero the
  * count of exceptional entries.
@@ -421,16 +420,16 @@ static void multiorder_join3(unsigned int order)
 	unsigned long i;
 
 	for (i = 0; i < (1 << order); i++) {
-		radix_tree_insert(&tree, i, (void *)0x12UL);
+		radix_tree_insert(&tree, i, xa_mk_value(5));
 	}
 
-	radix_tree_join(&tree, 0, order, (void *)0x16UL);
+	radix_tree_join(&tree, 0, order, xa_mk_value(7));
 	rcu_barrier();
 
 	radix_tree_split(&tree, 0, 0);
 
 	radix_tree_for_each_slot(slot, &tree, &iter, 0) {
-		radix_tree_iter_replace(&tree, &iter, slot, (void *)0x12UL);
+		radix_tree_iter_replace(&tree, &iter, slot, xa_mk_value(5));
 	}
 
 	__radix_tree_lookup(&tree, 0, &node, NULL);
@@ -517,10 +516,10 @@ static void __multiorder_split2(int old_order, int new_order)
 	struct radix_tree_node *node;
 	void *item;
 
-	__radix_tree_insert(&tree, 0, old_order, (void *)0x12);
+	__radix_tree_insert(&tree, 0, old_order, xa_mk_value(5));
 
 	item = __radix_tree_lookup(&tree, 0, &node, NULL);
-	assert(item == (void *)0x12);
+	assert(item == xa_mk_value(5));
 	assert(node->exceptional > 0);
 
 	radix_tree_split(&tree, 0, new_order);
@@ -530,7 +529,7 @@ static void __multiorder_split2(int old_order, int new_order)
 	}
 
 	item = __radix_tree_lookup(&tree, 0, &node, NULL);
-	assert(item != (void *)0x12);
+	assert(item != xa_mk_value(5));
 	assert(node->exceptional == 0);
 
 	item_kill_tree(&tree);
@@ -544,40 +543,40 @@ static void __multiorder_split3(int old_order, int new_order)
 	struct radix_tree_node *node;
 	void *item;
 
-	__radix_tree_insert(&tree, 0, old_order, (void *)0x12);
+	__radix_tree_insert(&tree, 0, old_order, xa_mk_value(5));
 
 	item = __radix_tree_lookup(&tree, 0, &node, NULL);
-	assert(item == (void *)0x12);
+	assert(item == xa_mk_value(5));
 	assert(node->exceptional > 0);
 
 	radix_tree_split(&tree, 0, new_order);
 	radix_tree_for_each_slot(slot, &tree, &iter, 0) {
-		radix_tree_iter_replace(&tree, &iter, slot, (void *)0x16);
+		radix_tree_iter_replace(&tree, &iter, slot, xa_mk_value(7));
 	}
 
 	item = __radix_tree_lookup(&tree, 0, &node, NULL);
-	assert(item == (void *)0x16);
+	assert(item == xa_mk_value(7));
 	assert(node->exceptional > 0);
 
 	item_kill_tree(&tree);
 
-	__radix_tree_insert(&tree, 0, old_order, (void *)0x12);
+	__radix_tree_insert(&tree, 0, old_order, xa_mk_value(5));
 
 	item = __radix_tree_lookup(&tree, 0, &node, NULL);
-	assert(item == (void *)0x12);
+	assert(item == xa_mk_value(5));
 	assert(node->exceptional > 0);
 
 	radix_tree_split(&tree, 0, new_order);
 	radix_tree_for_each_slot(slot, &tree, &iter, 0) {
 		if (iter.index == (1 << new_order))
 			radix_tree_iter_replace(&tree, &iter, slot,
-						(void *)0x16);
+						xa_mk_value(7));
 		else
 			radix_tree_iter_replace(&tree, &iter, slot, NULL);
 	}
 
 	item = __radix_tree_lookup(&tree, 1 << new_order, &node, NULL);
-	assert(item == (void *)0x16);
+	assert(item == xa_mk_value(7));
 	assert(node->count == node->exceptional);
 	do {
 		node = node->parent;
@@ -610,13 +609,13 @@ static void multiorder_account(void)
 
 	item_insert_order(&tree, 0, 5);
 
-	__radix_tree_insert(&tree, 1 << 5, 5, (void *)0x12);
+	__radix_tree_insert(&tree, 1 << 5, 5, xa_mk_value(5));
 	__radix_tree_lookup(&tree, 0, &node, NULL);
 	assert(node->count == node->exceptional * 2);
 	radix_tree_delete(&tree, 1 << 5);
 	assert(node->exceptional == 0);
 
-	__radix_tree_insert(&tree, 1 << 5, 5, (void *)0x12);
+	__radix_tree_insert(&tree, 1 << 5, 5, xa_mk_value(5));
 	__radix_tree_lookup(&tree, 1 << 5, &node, &slot);
 	assert(node->count == node->exceptional * 2);
 	__radix_tree_replace(&tree, node, slot, NULL, NULL);
