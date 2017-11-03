@@ -4548,9 +4548,13 @@ static void bnxt_hwrm_set_coal_params(struct bnxt_coal *hw_coal,
 
 	val = clamp_t(u16, hw_coal->coal_bufs, 1, max);
 	req->num_cmpl_aggr_int = cpu_to_le16(val);
+
+	/* This is a 6-bit value and must not be 0, or we'll get non stop IRQ */
+	val = min_t(u16, val, 63);
 	req->num_cmpl_dma_aggr = cpu_to_le16(val);
 
-	val = clamp_t(u16, hw_coal->coal_bufs_irq, 1, max);
+	/* This is a 6-bit value and must not be 0, or we'll get non stop IRQ */
+	val = clamp_t(u16, hw_coal->coal_bufs_irq, 1, 63);
 	req->num_cmpl_dma_aggr_during_int = cpu_to_le16(val);
 
 	tmr = BNXT_USEC_TO_COAL_TIMER(hw_coal->coal_ticks);
