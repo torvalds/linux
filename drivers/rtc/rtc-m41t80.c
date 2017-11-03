@@ -510,10 +510,7 @@ static int m41t80_sqw_set_rate(struct clk_hw *hw, unsigned long rate,
 	reg = (reg & 0x0f) | (val << 4);
 
 	ret = i2c_smbus_write_byte_data(client, reg_sqw, reg);
-	if (ret < 0)
-		return ret;
-
-	return -EINVAL;
+	return ret;
 }
 
 static int m41t80_sqw_control(struct clk_hw *hw, bool enable)
