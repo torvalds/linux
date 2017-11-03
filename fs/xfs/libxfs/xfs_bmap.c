@@ -2584,7 +2584,6 @@ xfs_bmap_add_extent_hole_delay(
 		 * on the left and on the right.
 		 * Merge all three into a single extent record.
 		 */
-		--*idx;
 		temp = left.br_blockcount + new->br_blockcount +
 			right.br_blockcount;
 
@@ -2595,9 +2594,10 @@ xfs_bmap_add_extent_hole_delay(
 					 oldlen);
 		left.br_startblock = nullstartblock(newlen);
 		left.br_blockcount = temp;
-		xfs_iext_update_extent(ip, state, *idx, &left);
 
-		xfs_iext_remove(ip, *idx + 1, 1, state);
+		xfs_iext_remove(ip, *idx, 1, state);
+		--*idx;
+		xfs_iext_update_extent(ip, state, *idx, &left);
 		break;
 
 	case BMAP_LEFT_CONTIG:
@@ -2606,7 +2606,6 @@ xfs_bmap_add_extent_hole_delay(
 		 * on the left.
 		 * Merge the new allocation with the left neighbor.
 		 */
-		--*idx;
 		temp = left.br_blockcount + new->br_blockcount;
 
 		oldlen = startblockval(left.br_startblock) +
@@ -2615,6 +2614,8 @@ xfs_bmap_add_extent_hole_delay(
 					 oldlen);
 		left.br_blockcount = temp;
 		left.br_startblock = nullstartblock(newlen);
+
+		--*idx;
 		xfs_iext_update_extent(ip, state, *idx, &left);
 		break;
 
