@@ -1765,7 +1765,7 @@ xfs_bmap_add_extent_delay_real(
 		LEFT.br_blockcount += new->br_blockcount;
 		xfs_iext_update_extent(bma->ip, state, bma->idx - 1, &LEFT);
 
-		PREV.br_blockcount = temp = PREV.br_blockcount - new->br_blockcount;
+		PREV.br_blockcount = temp;
 		PREV.br_startoff += new->br_blockcount;
 		PREV.br_startblock = nullstartblock(da_new);
 		xfs_iext_update_extent(bma->ip, state, bma->idx, &PREV);
