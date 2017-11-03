@@ -41,7 +41,6 @@
 #include <linux/types.h>
 
 #include "../nfp_asm.h"
-#include "../nfp_net.h"
 
 /* For branch fixup logic use up-most byte of branch instruction as scratch
  * area.  Remember to clear this before sending instructions to HW!
