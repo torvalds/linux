@@ -195,12 +195,19 @@ static struct tcf_chain *tcf_chain_create(struct tcf_block *block,
 	return chain;
 }
 
+static void tcf_chain_head_change(struct tcf_chain *chain,
+				  struct tcf_proto *tp_head)
+{
+	if (chain->chain_head_change)
+		chain->chain_head_change(tp_head,
+					 chain->chain_head_change_priv);
+}
+
 static void tcf_chain_flush(struct tcf_chain *chain)
 {
 	struct tcf_proto *tp;
 
-	if (chain->p_filter_chain)
-		RCU_INIT_POINTER(*chain->p_filter_chain, NULL);
+	tcf_chain_head_change(chain, NULL);
 	while ((tp = rtnl_dereference(chain->filter_chain)) != NULL) {
 		RCU_INIT_POINTER(chain->filter_chain, tp->next);
 		tcf_chain_put(chain);
@@ -242,13 +249,6 @@ void tcf_chain_put(struct tcf_chain *chain)
 }
 EXPORT_SYMBOL(tcf_chain_put);
 
-static void
-tcf_chain_filter_chain_ptr_set(struct tcf_chain *chain,
-			       struct tcf_proto __rcu **p_filter_chain)
-{
-	chain->p_filter_chain = p_filter_chain;
-}
-
 static void tcf_block_offload_cmd(struct tcf_block *block, struct Qdisc *q,
 				  struct tcf_block_ext_info *ei,
 				  enum tc_block_command command)
@@ -276,8 +276,7 @@ static void tcf_block_offload_unbind(struct tcf_block *block, struct Qdisc *q,
 	tcf_block_offload_cmd(block, q, ei, TC_BLOCK_UNBIND);
 }
 
-int tcf_block_get_ext(struct tcf_block **p_block,
-		      struct tcf_proto __rcu **p_filter_chain, struct Qdisc *q,
+int tcf_block_get_ext(struct tcf_block **p_block, struct Qdisc *q,
 		      struct tcf_block_ext_info *ei)
 {
 	struct tcf_block *block = kzalloc(sizeof(*block), GFP_KERNEL);
@@ -295,7 +294,9 @@ int tcf_block_get_ext(struct tcf_block **p_block,
 		err = -ENOMEM;
 		goto err_chain_create;
 	}
-	tcf_chain_filter_chain_ptr_set(chain, p_filter_chain);
+	WARN_ON(!ei->chain_head_change);
+	chain->chain_head_change = ei->chain_head_change;
+	chain->chain_head_change_priv = ei->chain_head_change_priv;
 	block->net = qdisc_net(q);
 	block->q = q;
 	tcf_block_offload_bind(block, q, ei);
@@ -308,12 +309,23 @@ err_chain_create:
 }
 EXPORT_SYMBOL(tcf_block_get_ext);
 
+static void tcf_chain_head_change_dflt(struct tcf_proto *tp_head, void *priv)
+{
+	struct tcf_proto __rcu **p_filter_chain = priv;
+
+	rcu_assign_pointer(*p_filter_chain, tp_head);
+}
+
 int tcf_block_get(struct tcf_block **p_block,
 		  struct tcf_proto __rcu **p_filter_chain, struct Qdisc *q)
 {
-	struct tcf_block_ext_info ei = {0, };
+	struct tcf_block_ext_info ei = {
+		.chain_head_change = tcf_chain_head_change_dflt,
+		.chain_head_change_priv = p_filter_chain,
+	};
 
-	return tcf_block_get_ext(p_block, p_filter_chain, q, &ei);
+	WARN_ON(!p_filter_chain);
+	return tcf_block_get_ext(p_block, q, &ei);
 }
 EXPORT_SYMBOL(tcf_block_get);
 
@@ -334,8 +346,7 @@ static void tcf_block_put_final(struct work_struct *work)
  * actions should be all removed after flushing. However, filters are now
  * destroyed in tc filter workqueue with RTNL lock, they can not race here.
  */
-void tcf_block_put_ext(struct tcf_block *block,
-		       struct tcf_proto __rcu **p_filter_chain, struct Qdisc *q,
+void tcf_block_put_ext(struct tcf_block *block, struct Qdisc *q,
 		       struct tcf_block_ext_info *ei)
 {
 	struct tcf_chain *chain, *tmp;
@@ -361,7 +372,7 @@ void tcf_block_put(struct tcf_block *block)
 
 	if (!block)
 		return;
-	tcf_block_put_ext(block, NULL, block->q, &ei);
+	tcf_block_put_ext(block, block->q, &ei);
 }
 
 EXPORT_SYMBOL(tcf_block_put);
@@ -537,9 +548,8 @@ static void tcf_chain_tp_insert(struct tcf_chain *chain,
 				struct tcf_chain_info *chain_info,
 				struct tcf_proto *tp)
 {
-	if (chain->p_filter_chain &&
-	    *chain_info->pprev == chain->filter_chain)
-		rcu_assign_pointer(*chain->p_filter_chain, tp);
+	if (*chain_info->pprev == chain->filter_chain)
+		tcf_chain_head_change(chain, tp);
 	RCU_INIT_POINTER(tp->next, tcf_chain_tp_prev(chain_info));
 	rcu_assign_pointer(*chain_info->pprev, tp);
 	tcf_chain_hold(chain);
@@ -551,8 +561,8 @@ static void tcf_chain_tp_remove(struct tcf_chain *chain,
 {
 	struct tcf_proto *next = rtnl_dereference(chain_info->next);
 
-	if (chain->p_filter_chain && tp == chain->filter_chain)
-		RCU_INIT_POINTER(*chain->p_filter_chain, next);
+	if (tp == chain->filter_chain)
+		tcf_chain_head_change(chain, next);
 	RCU_INIT_POINTER(*chain_info->pprev, next);
 	tcf_chain_put(chain);
 }
