@@ -104,16 +104,6 @@ static void guc_prepare_xfer(struct intel_guc *guc)
 	/* Enable MIA caching. GuC clock gating is disabled. */
 	I915_WRITE(GUC_SHIM_CONTROL, GUC_SHIM_CONTROL_VALUE);
 
-	/* WaDisableMinuteIaClockGating:bxt */
-	if (IS_BXT_REVID(dev_priv, 0, BXT_REVID_A1)) {
-		I915_WRITE(GUC_SHIM_CONTROL, (I915_READ(GUC_SHIM_CONTROL) &
-					      ~GUC_ENABLE_MIA_CLOCK_GATING));
-	}
-
-	/* WaC6DisallowByGfxPause:bxt */
-	if (IS_BXT_REVID(dev_priv, 0, BXT_REVID_B0))
-		I915_WRITE(GEN6_GFXPAUSE, 0x30FFF);
-
 	if (IS_GEN9_LP(dev_priv))
 		I915_WRITE(GEN9LP_GT_PM_CONFIG, GT_DOORBELL_ENABLE);
 	else
