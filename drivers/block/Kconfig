@@ -68,14 +68,7 @@ config AMIGA_Z2RAM
 	  module will be called z2ram.
 
 config CDROM
-	tristate "CD-ROM driver"
-	help
-	  A CD-ROM is a pre-pressed optical compact disc which contains
-	  data. The name is an acronym which stands for "Compact Disc
-	  Read-Only Memory". This driver implements functionality that is
-	  shared by all CD-ROM drivers, e.g. the IDE CD-ROM driver and the
-	  SCSI CD-ROM driver. For a list of the ioctls implemented by this
-	  driver, see also Documentation/ioctl/cdrom.txt.
+	tristate
 
 config GDROM
 	tristate "SEGA Dreamcast GD-ROM drive"
