@@ -137,6 +137,7 @@ we might work for today, have in the past, or will in the future.
   - K.Y. Srinivasan
   - Heiko Stuebner
   - Jiri Kosina (SUSE)
+  - Willy Tarreau
   - Dmitry Torokhov
   - Linus Torvalds
   - Thierry Reding
