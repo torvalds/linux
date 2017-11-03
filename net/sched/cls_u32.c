@@ -572,7 +572,7 @@ static int u32_replace_hw_knode(struct tcf_proto *tp, struct tc_u_knode *n,
 		n->flags |= TCA_CLS_FLAGS_IN_HW;
 	}
 
-	if (skip_sw && !(n->flags && TCA_CLS_FLAGS_IN_HW))
+	if (skip_sw && !(n->flags & TCA_CLS_FLAGS_IN_HW))
 		return -EINVAL;
 
 	return 0;
