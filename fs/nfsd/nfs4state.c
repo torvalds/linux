@@ -5149,7 +5149,9 @@ nfsd4_free_lock_stateid(stateid_t *stateid, struct nfs4_stid *s)
 	struct nfs4_ol_stateid *stp = openlockstateid(s);
 	__be32 ret;
 
-	mutex_lock(&stp->st_mutex);
+	ret = nfsd4_lock_ol_stateid(stp);
+	if (ret)
+		goto out_put_stid;
 
 	ret = check_stateid_generation(stateid, &s->sc_stateid, 1);
 	if (ret)
@@ -5160,11 +5162,13 @@ nfsd4_free_lock_stateid(stateid_t *stateid, struct nfs4_stid *s)
 			    lockowner(stp->st_stateowner)))
 		goto out;
 
+	stp->st_stid.sc_type = NFS4_CLOSED_STID;
 	release_lock_stateid(stp);
 	ret = nfs_ok;
 
 out:
 	mutex_unlock(&stp->st_mutex);
+out_put_stid:
 	nfs4_put_stid(s);
 	return ret;
 }
@@ -5733,6 +5737,8 @@ find_lock_stateid(struct nfs4_lockowner *lo, struct nfs4_file *fp)
 	lockdep_assert_held(&clp->cl_lock);
 
 	list_for_each_entry(lst, &lo->lo_owner.so_stateids, st_perstateowner) {
+		if (lst->st_stid.sc_type != NFS4_LOCK_STID)
+			continue;
 		if (lst->st_stid.sc_file == fp) {
 			refcount_inc(&lst->st_stid.sc_count);
 			return lst;
@@ -5807,7 +5813,6 @@ lookup_or_create_lock_state(struct nfsd4_compound_state *cstate,
 	struct nfs4_lockowner *lo;
 	struct nfs4_ol_stateid *lst;
 	unsigned int strhashval;
-	bool hashed;
 
 	lo = find_lockowner_str(cl, &lock->lk_new_owner);
 	if (!lo) {
@@ -5830,15 +5835,7 @@ retry:
 		goto out;
 	}
 
-	mutex_lock(&lst->st_mutex);
-
-	/* See if it's still hashed to avoid race with FREE_STATEID */
-	spin_lock(&cl->cl_lock);
-	hashed = !list_empty(&lst->st_perfile);
-	spin_unlock(&cl->cl_lock);
-
-	if (!hashed) {
-		mutex_unlock(&lst->st_mutex);
+	if (nfsd4_lock_ol_stateid(lst) != nfs_ok) {
 		nfs4_put_stid(&lst->st_stid);
 		goto retry;
 	}
