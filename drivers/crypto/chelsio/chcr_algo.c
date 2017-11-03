@@ -1634,11 +1634,8 @@ static int chcr_ahash_update(struct ahash_request *req)
 	}
 
 	if (remainder) {
-		u8 *temp;
 		/* Swap buffers */
-		temp = req_ctx->reqbfr;
-		req_ctx->reqbfr = req_ctx->skbfr;
-		req_ctx->skbfr = temp;
+		swap(req_ctx->reqbfr, req_ctx->skbfr);
 		sg_pcopy_to_buffer(req->src, sg_nents(req->src),
 				   req_ctx->reqbfr, remainder, req->nbytes -
 				   remainder);
