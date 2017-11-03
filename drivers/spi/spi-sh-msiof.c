@@ -1190,12 +1190,10 @@ free_tx_chan:
 static void sh_msiof_release_dma(struct sh_msiof_spi_priv *p)
 {
 	struct spi_master *master = p->master;
-	struct device *dev;
 
 	if (!master->dma_tx)
 		return;
 
-	dev = &p->pdev->dev;
 	dma_unmap_single(master->dma_rx->device->dev, p->rx_dma_addr,
 			 PAGE_SIZE, DMA_FROM_DEVICE);
 	dma_unmap_single(master->dma_tx->device->dev, p->tx_dma_addr,
