@@ -68,7 +68,7 @@ nfp_bpf_xdp_offload(struct nfp_app *app, struct nfp_net *nn,
 	if (prog && running && !xdp_running)
 		return -EBUSY;
 
-	ret = nfp_net_bpf_offload(nn, prog, running, true);
+	ret = nfp_net_bpf_offload(nn, prog, running);
 	/* Stop offload if replace not possible */
 	if (ret && prog)
 		nfp_bpf_xdp_offload(app, nn, NULL);
@@ -93,7 +93,6 @@ static int nfp_bpf_setup_tc_block_cb(enum tc_setup_type type,
 {
 	struct tc_cls_bpf_offload *cls_bpf = type_data;
 	struct nfp_net *nn = cb_priv;
-	bool skip_sw;
 
 	if (type != TC_SETUP_CLSBPF ||
 	    !tc_can_offload(nn->dp.netdev) ||
@@ -111,15 +110,13 @@ static int nfp_bpf_setup_tc_block_cb(enum tc_setup_type type,
 		return -EOPNOTSUPP;
 	}
 
-	skip_sw = !!(cls_bpf->gen_flags & TCA_CLS_FLAGS_SKIP_SW);
-
 	switch (cls_bpf->command) {
 	case TC_CLSBPF_REPLACE:
-		return nfp_net_bpf_offload(nn, cls_bpf->prog, true, !skip_sw);
+		return nfp_net_bpf_offload(nn, cls_bpf->prog, true);
 	case TC_CLSBPF_ADD:
-		return nfp_net_bpf_offload(nn, cls_bpf->prog, false, !skip_sw);
+		return nfp_net_bpf_offload(nn, cls_bpf->prog, false);
 	case TC_CLSBPF_DESTROY:
-		return nfp_net_bpf_offload(nn, NULL, true, !skip_sw);
+		return nfp_net_bpf_offload(nn, NULL, true);
 	default:
 		return -EOPNOTSUPP;
 	}

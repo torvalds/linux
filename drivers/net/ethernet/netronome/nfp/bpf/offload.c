@@ -94,13 +94,10 @@ out:
 }
 
 static void
-nfp_net_bpf_load_and_start(struct nfp_net *nn, bool sw_fallback,
-			   void *code, dma_addr_t dma_addr,
-			   unsigned int code_sz, unsigned int n_instr)
+nfp_net_bpf_load(struct nfp_net *nn, void *code, dma_addr_t dma_addr,
+		 unsigned int code_sz, unsigned int n_instr)
 {
 	int err;
-
-	nn->dp.bpf_offload_skip_sw = !sw_fallback;
 
 	nn_writew(nn, NFP_NET_CFG_BPF_SIZE, n_instr);
 	nn_writeq(nn, NFP_NET_CFG_BPF_ADDR, dma_addr);
@@ -110,14 +107,19 @@ nfp_net_bpf_load_and_start(struct nfp_net *nn, bool sw_fallback,
 	if (err)
 		nn_err(nn, "FW command error while loading BPF: %d\n", err);
 
+	dma_free_coherent(nn->dp.dev, code_sz, code, dma_addr);
+}
+
+static void nfp_net_bpf_start(struct nfp_net *nn)
+{
+	int err;
+
 	/* Enable passing packets through BPF function */
 	nn->dp.ctrl |= NFP_NET_CFG_CTRL_BPF;
 	nn_writel(nn, NFP_NET_CFG_CTRL, nn->dp.ctrl);
 	err = nfp_net_reconfig(nn, NFP_NET_CFG_UPDATE_GEN);
 	if (err)
 		nn_err(nn, "FW command error while enabling BPF: %d\n", err);
-
-	dma_free_coherent(nn->dp.dev, code_sz, code, dma_addr);
 }
 
 static int nfp_net_bpf_stop(struct nfp_net *nn)
@@ -127,13 +129,12 @@ static int nfp_net_bpf_stop(struct nfp_net *nn)
 
 	nn->dp.ctrl &= ~NFP_NET_CFG_CTRL_BPF;
 	nn_writel(nn, NFP_NET_CFG_CTRL, nn->dp.ctrl);
-	nn->dp.bpf_offload_skip_sw = 0;
 
 	return nfp_net_reconfig(nn, NFP_NET_CFG_UPDATE_GEN);
 }
 
 int nfp_net_bpf_offload(struct nfp_net *nn, struct bpf_prog *prog,
-			bool old_prog, bool sw_fallback)
+			bool old_prog)
 {
 	struct nfp_bpf_result res;
 	dma_addr_t dma_addr;
@@ -141,37 +142,34 @@ int nfp_net_bpf_offload(struct nfp_net *nn, struct bpf_prog *prog,
 	void *code;
 	int err;
 
-	/* There is nothing stopping us from implementing seamless
-	 * replace but the simple method of loading I adopted in
-	 * the firmware does not handle atomic replace (i.e. we have to
-	 * stop the BPF offload and re-enable it).  Leaking-in a few
-	 * frames which didn't have BPF applied in the hardware should
-	 * be fine if software fallback is available, though.
-	 */
-	if (prog && old_prog && nn->dp.bpf_offload_skip_sw)
-		return -EBUSY;
+	if (prog && old_prog) {
+		u8 cap;
+
+		cap = nn_readb(nn, NFP_NET_CFG_BPF_CAP);
+		if (!(cap & NFP_NET_BPF_CAP_RELO)) {
+			nn_err(nn, "FW does not support live reload\n");
+			return -EBUSY;
+		}
+	}
 
 	/* Something else is loaded, different program type? */
 	if (!old_prog && nn->dp.ctrl & NFP_NET_CFG_CTRL_BPF)
 		return -EBUSY;
 
+	if (old_prog && !prog)
+		return nfp_net_bpf_stop(nn);
+
 	max_instr = nn_readw(nn, NFP_NET_CFG_BPF_MAX_LEN);
-	code = NULL;
 
-	if (prog) {
-		err = nfp_net_bpf_offload_prepare(nn, prog, &res, &code,
-						  &dma_addr, max_instr);
-		if (err)
-			return err;
-	}
+	err = nfp_net_bpf_offload_prepare(nn, prog, &res, &code, &dma_addr,
+					  max_instr);
+	if (err)
+		return err;
 
-	if (old_prog)
-		nfp_net_bpf_stop(nn);
-
-	if (prog)
-		nfp_net_bpf_load_and_start(nn, sw_fallback, code,
-					   dma_addr, max_instr * sizeof(u64),
-					   res.n_instr);
+	nfp_net_bpf_load(nn, code, dma_addr, max_instr * sizeof(u64),
+			 res.n_instr);
+	if (!old_prog)
+		nfp_net_bpf_start(nn);
 
 	return 0;
 }
