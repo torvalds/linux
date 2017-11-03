@@ -2058,8 +2058,14 @@ static void program_all_pipe_in_tree(
 
 		if (cur_pipe_ctx->plane_state != pipe_ctx->plane_state) {
 			dc->hwss.set_input_transfer_func(pipe_ctx, pipe_ctx->plane_state);
-			dc->hwss.set_output_transfer_func(pipe_ctx, pipe_ctx->stream);
 		}
+
+		/*
+		 * TODO: This can be further optimized/cleaned up
+		 * Always call this for now since it does memcmp inside before
+		 * doing heavy calculation and programming
+		 */
+		dc->hwss.set_output_transfer_func(pipe_ctx, pipe_ctx->stream);
 	}
 
 	if (dc->debug.sanity_checks) {
