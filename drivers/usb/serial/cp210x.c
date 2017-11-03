@@ -4,10 +4,6 @@
  *
  * Copyright (C) 2005 Craig Shelley (craig@microtron.org.uk)
  *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License version
- *	2 as published by the Free Software Foundation.
- *
  * Support to set flow control line levels using TIOCMGET and TIOCMSET
  * thanks to Karl Hiramoto karl@hiramoto.org. RTSCTS hardware flow
  * control thanks to Munir Nassar nassarmu@real-time.com

@@ -5,10 +5,6 @@
  *
  * Copyright 2006 Moschip Semiconductor Tech. Ltd.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, version 2 of the License.
- *
  * Developed by:
  * 	Vijaya Kumar <vijaykumar.gn@gmail.com>
  *	Ajay Kumar <naanuajay@yahoo.com>

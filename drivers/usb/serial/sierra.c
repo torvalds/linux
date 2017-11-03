@@ -10,10 +10,6 @@
   IMPORTANT DISCLAIMER: This driver is not commercially supported by
   Sierra Wireless. Use at your own risk.
 
-  This driver is free software; you can redistribute it and/or modify
-  it under the terms of Version 2 of the GNU General Public License as
-  published by the Free Software Foundation.
-
   Portions based on the option driver by Matthias Urlichs <smurf@smurf.noris.de>
   Whom based his on the Keyspan driver by Hugh Blemings <hugh@blemings.org>
 */

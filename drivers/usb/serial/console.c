@@ -4,10 +4,6 @@
  *
  * Copyright (C) 2001 - 2002 Greg Kroah-Hartman (greg@kroah.com)
  *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License version
- *	2 as published by the Free Software Foundation.
- *
  * Thanks to Randy Dunlap for the original version of this code.
  *
  */

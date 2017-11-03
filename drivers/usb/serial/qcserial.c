@@ -5,11 +5,6 @@
  *	Copyright (c) 2008 QUALCOMM Incorporated.
  *	Copyright (c) 2009 Greg Kroah-Hartman <gregkh@suse.de>
  *	Copyright (c) 2009 Novell Inc.
- *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License version
- *	2 as published by the Free Software Foundation.
- *
  */
 
 #include <linux/tty.h>

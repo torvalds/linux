@@ -7,10 +7,6 @@
  * Copyright (C) 2000 Peter Berger (pberger@brimson.com)
  * Copyright (C) 2000 Al Borchers (borchers@steinerpoint.com)
  *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License version
- *	2 as published by the Free Software Foundation.
- *
  * This driver was originally based on the ACM driver by Armin Fuerst (which was
  * based on a driver by Brad Keryan)
  *

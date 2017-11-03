@@ -6,11 +6,6 @@
  *      Copyright (C) 2001 Lineo
  *      Copyright (C) 2001 Hewlett-Packard
  *
- *	This program is free software; you can redistribute it and/or modify
- *	it under the terms of the GNU General Public License as published by
- *	the Free Software Foundation; either version 2 of the License, or
- *	(at your option) any later version.
- *
  * By:
  *      Stuart Lynne <sl@lineo.com>, Tom Rushworth <tbr@lineo.com>
  */

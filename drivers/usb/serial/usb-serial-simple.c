@@ -9,10 +9,6 @@
  * Copyright (C) 2010 Zilogic Systems <code@zilogic.com>
  * Copyright (C) 2013 Wei Shuai <cpuwolf@gmail.com>
  * Copyright (C) 2013 Linux Foundation
- *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License version
- *	2 as published by the Free Software Foundation.
  */
 
 #include <linux/kernel.h>

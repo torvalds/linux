@@ -10,10 +10,6 @@
  * serial port, an IEEE-1284 parallel printer port or a memory-like
  * interface. In all cases the CH341 supports an I2C interface as well.
  * This driver only supports the asynchronous serial interface.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License version
- * 2 as published by the Free Software Foundation.
  */
 
 #include <linux/kernel.h>

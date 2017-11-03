@@ -5,10 +5,6 @@
  * Copyright (C) 2010 Johan Hovold <jhovold@gmail.com>
  * Copyright (C) 2006 Manuel Francisco Naranjo (naranjo.manuel@gmail.com)
  *
- * This program is free software; you can redistribute it and/or modify it under
- * the terms of the GNU General Public License version 2 as published by the
- * Free Software Foundation.
- *
  * The device works as an standard CDC device, it has 2 interfaces, the first
  * one is for firmware access and the second is the serial one.
  * The protocol is very simply, there are two possibilities reading or writing.

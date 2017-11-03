@@ -22,10 +22,6 @@
  * So, THIS CODE CAN DESTROY OTi-6858 AND ANY OTHER DEVICES, THAT ARE
  * CONNECTED TO IT!
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License.
- *
  * See Documentation/usb/usb-serial.txt for more information on using this
  * driver
  *
