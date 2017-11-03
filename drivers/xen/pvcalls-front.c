@@ -1186,11 +1186,10 @@ static int pvcalls_front_probe(struct xenbus_device *dev,
 	ret = gnttab_alloc_grant_references(1, &gref_head);
 	if (ret < 0)
 		goto error;
-	bedata->ref = gnttab_claim_grant_reference(&gref_head);
-	if (bedata->ref < 0) {
-		ret = bedata->ref;
+	ret = gnttab_claim_grant_reference(&gref_head);
+	if (ret < 0)
 		goto error;
-	}
+	bedata->ref = ret;
 	gnttab_grant_foreign_access_ref(bedata->ref, dev->otherend_id,
 					virt_to_gfn((void *)sring), 0);
 
