@@ -131,6 +131,7 @@ we might work for today, have in the past, or will in the future.
   - Joerg Roedel
   - Leon Romanovsky
   - Steven Rostedt (VMware)
+  - Frank Rowand
   - Ivan Safonov
   - Anna Schumaker
   - Jes Sorensen
