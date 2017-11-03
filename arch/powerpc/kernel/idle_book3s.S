@@ -112,12 +112,14 @@ power9_save_additional_sprs:
 	std	r4, STOP_HFSCR(r13)
 
 	mfspr	r3, SPRN_MMCRA
-	mfspr	r4, SPRN_MMCR1
+	mfspr	r4, SPRN_MMCR0
 	std	r3, STOP_MMCRA(r13)
-	std	r4, STOP_MMCR1(r13)
+	std	r4, _MMCR0(r1)
 
-	mfspr	r3, SPRN_MMCR2
-	std	r3, STOP_MMCR2(r13)
+	mfspr	r3, SPRN_MMCR1
+	mfspr	r4, SPRN_MMCR2
+	std	r3, STOP_MMCR1(r13)
+	std	r4, STOP_MMCR2(r13)
 	blr
 
 power9_restore_additional_sprs:
@@ -135,11 +137,14 @@ power9_restore_additional_sprs:
 	ld	r4, STOP_MMCRA(r13)
 	mtspr	SPRN_HFSCR, r3
 	mtspr	SPRN_MMCRA, r4
-	/* We have already restored PACA_MMCR0 */
-	ld	r3, STOP_MMCR1(r13)
-	ld	r4, STOP_MMCR2(r13)
-	mtspr	SPRN_MMCR1, r3
-	mtspr	SPRN_MMCR2, r4
+
+	ld	r3, _MMCR0(r1)
+	ld	r4, STOP_MMCR1(r13)
+	mtspr	SPRN_MMCR0, r3
+	mtspr	SPRN_MMCR1, r4
+
+	ld	r3, STOP_MMCR2(r13)
+	mtspr	SPRN_MMCR2, r3
 	blr
 
 /*
@@ -350,6 +355,7 @@ power_enter_stop:
 	b 	pnv_wakeup_noloss
 
 .Lhandle_esl_ec_set:
+BEGIN_FTR_SECTION
 	/*
 	 * POWER9 DD2 can incorrectly set PMAO when waking up after a
 	 * state-loss idle. Saving and restoring MMCR0 over idle is a
@@ -357,6 +363,7 @@ power_enter_stop:
 	 */
 	mfspr	r4,SPRN_MMCR0
 	std	r4,_MMCR0(r1)
+END_FTR_SECTION_IFSET(CPU_FTR_POWER9_DD1 | CPU_FTR_POWER9_DD20)
 
 /*
  * Check if the requested state is a deep idle state.
@@ -544,15 +551,15 @@ pnv_restore_hyp_resource_arch300:
 	blt	cr3,1f
 BEGIN_FTR_SECTION
 	PPC_INVALIDATE_ERAT
-END_FTR_SECTION_IFSET(CPU_FTR_POWER9_DD1 | CPU_FTR_POWER9_DD20)
 	ld	r1,PACAR1(r13)
+	ld	r4,_MMCR0(r1)
+	mtspr	SPRN_MMCR0,r4
+END_FTR_SECTION_IFSET(CPU_FTR_POWER9_DD1 | CPU_FTR_POWER9_DD20)
 	mfspr	r4,SPRN_MMCRA
 	ori	r4,r4,(1 << (63-60))
 	mtspr	SPRN_MMCRA,r4
 	xori	r4,r4,(1 << (63-60))
 	mtspr	SPRN_MMCRA,r4
-	ld	r4,_MMCR0(r1)
-	mtspr	SPRN_MMCR0,r4
 1:
 	/*
 	 * POWER ISA 3. Use PSSCR to determine if we
