@@ -309,6 +309,8 @@ extern void opal_notifier_update_evt(uint64_t evt_mask, uint64_t evt_val);
 extern int opal_async_get_token_interruptible(void);
 extern int opal_async_release_token(int token);
 extern int opal_async_wait_response(uint64_t token, struct opal_msg *msg);
+extern int opal_async_wait_response_interruptible(uint64_t token,
+		struct opal_msg *msg);
 extern int opal_get_sensor_data(u32 sensor_hndl, u32 *sensor_data);
 
 struct rtc_time;

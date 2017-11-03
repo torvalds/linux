@@ -26,6 +26,8 @@
 enum opal_async_token_state {
 	ASYNC_TOKEN_UNALLOCATED = 0,
 	ASYNC_TOKEN_ALLOCATED,
+	ASYNC_TOKEN_DISPATCHED,
+	ASYNC_TOKEN_ABANDONED,
 	ASYNC_TOKEN_COMPLETED
 };
 
@@ -61,8 +63,9 @@ static int __opal_async_get_token(void)
 
 /*
  * Note: If the returned token is used in an opal call and opal returns
- * OPAL_ASYNC_COMPLETION you MUST call opal_async_wait_response() before
- * calling another other opal_async_* function
+ * OPAL_ASYNC_COMPLETION you MUST call one of opal_async_wait_response() or
+ * opal_async_wait_response_interruptible() at least once before calling another
+ * opal_async_* function
  */
 int opal_async_get_token_interruptible(void)
 {
@@ -98,6 +101,14 @@ static int __opal_async_release_token(int token)
 		opal_async_tokens[token].state = ASYNC_TOKEN_UNALLOCATED;
 		rc = 0;
 		break;
+	/*
+	 * DISPATCHED and ABANDONED tokens must wait for OPAL to respond.
+	 * Mark a DISPATCHED token as ABANDONED so that the response handling
+	 * code knows no one cares and that it can free it then.
+	 */
+	case ASYNC_TOKEN_DISPATCHED:
+		opal_async_tokens[token].state = ASYNC_TOKEN_ABANDONED;
+		/* Fall through */
 	default:
 		rc = 1;
 	}
@@ -130,7 +141,11 @@ int opal_async_wait_response(uint64_t token, struct opal_msg *msg)
 		return -EINVAL;
 	}
 
-	/* Wakeup the poller before we wait for events to speed things
+	/*
+	 * There is no need to mark the token as dispatched, wait_event()
+	 * will block until the token completes.
+	 *
+	 * Wakeup the poller before we wait for events to speed things
 	 * up on platforms or simulators where the interrupts aren't
 	 * functional.
 	 */
@@ -143,11 +158,66 @@ int opal_async_wait_response(uint64_t token, struct opal_msg *msg)
 }
 EXPORT_SYMBOL_GPL(opal_async_wait_response);
 
+int opal_async_wait_response_interruptible(uint64_t token, struct opal_msg *msg)
+{
+	unsigned long flags;
+	int ret;
+
+	if (token >= opal_max_async_tokens) {
+		pr_err("%s: Invalid token passed\n", __func__);
+		return -EINVAL;
+	}
+
+	if (!msg) {
+		pr_err("%s: Invalid message pointer passed\n", __func__);
+		return -EINVAL;
+	}
+
+	/*
+	 * The first time this gets called we mark the token as DISPATCHED
+	 * so that if wait_event_interruptible() returns not zero and the
+	 * caller frees the token, we know not to actually free the token
+	 * until the response comes.
+	 *
+	 * Only change if the token is ALLOCATED - it may have been
+	 * completed even before the caller gets around to calling this
+	 * the first time.
+	 *
+	 * There is also a dirty great comment at the token allocation
+	 * function that if the opal call returns OPAL_ASYNC_COMPLETION to
+	 * the caller then the caller *must* call this or the not
+	 * interruptible version before doing anything else with the
+	 * token.
+	 */
+	if (opal_async_tokens[token].state == ASYNC_TOKEN_ALLOCATED) {
+		spin_lock_irqsave(&opal_async_comp_lock, flags);
+		if (opal_async_tokens[token].state == ASYNC_TOKEN_ALLOCATED)
+			opal_async_tokens[token].state = ASYNC_TOKEN_DISPATCHED;
+		spin_unlock_irqrestore(&opal_async_comp_lock, flags);
+	}
+
+	/*
+	 * Wakeup the poller before we wait for events to speed things
+	 * up on platforms or simulators where the interrupts aren't
+	 * functional.
+	 */
+	opal_wake_poller();
+	ret = wait_event_interruptible(opal_async_wait,
+			opal_async_tokens[token].state ==
+			ASYNC_TOKEN_COMPLETED);
+	if (!ret)
+		memcpy(msg, &opal_async_tokens[token].response, sizeof(*msg));
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(opal_async_wait_response_interruptible);
+
 /* Called from interrupt context */
 static int opal_async_comp_event(struct notifier_block *nb,
 		unsigned long msg_type, void *msg)
 {
 	struct opal_msg *comp_msg = msg;
+	enum opal_async_token_state state;
 	unsigned long flags;
 	uint64_t token;
 
@@ -155,11 +225,17 @@ static int opal_async_comp_event(struct notifier_block *nb,
 		return 0;
 
 	token = be64_to_cpu(comp_msg->params[0]);
-	memcpy(&opal_async_tokens[token].response, comp_msg, sizeof(*comp_msg));
 	spin_lock_irqsave(&opal_async_comp_lock, flags);
+	state = opal_async_tokens[token].state;
 	opal_async_tokens[token].state = ASYNC_TOKEN_COMPLETED;
 	spin_unlock_irqrestore(&opal_async_comp_lock, flags);
 
+	if (state == ASYNC_TOKEN_ABANDONED) {
+		/* Free the token, no one else will */
+		opal_async_release_token(token);
+		return 0;
+	}
+	memcpy(&opal_async_tokens[token].response, comp_msg, sizeof(*comp_msg));
 	wake_up(&opal_async_wait);
 
 	return 0;
