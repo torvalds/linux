@@ -1467,6 +1467,28 @@ mlxsw_sp_netdevice_ipip_ul_vrf_event(struct mlxsw_sp *mlxsw_sp,
 }
 
 static int
+mlxsw_sp_netdevice_ipip_ul_up_event(struct mlxsw_sp *mlxsw_sp,
+				    struct mlxsw_sp_ipip_entry *ipip_entry,
+				    struct net_device *ul_dev)
+{
+	return __mlxsw_sp_ipip_entry_update_tunnel(mlxsw_sp, ipip_entry,
+						   false, false, true, NULL);
+}
+
+static int
+mlxsw_sp_netdevice_ipip_ul_down_event(struct mlxsw_sp *mlxsw_sp,
+				      struct mlxsw_sp_ipip_entry *ipip_entry,
+				      struct net_device *ul_dev)
+{
+	/* A down underlay device causes encapsulated packets to not be
+	 * forwarded, but decap still works. So refresh next hops without
+	 * touching anything else.
+	 */
+	return __mlxsw_sp_ipip_entry_update_tunnel(mlxsw_sp, ipip_entry,
+						   false, false, true, NULL);
+}
+
+static int
 mlxsw_sp_netdevice_ipip_ol_change_event(struct mlxsw_sp *mlxsw_sp,
 					struct net_device *ol_dev,
 					struct netlink_ext_ack *extack)
@@ -1604,6 +1626,14 @@ __mlxsw_sp_netdevice_ipip_ul_event(struct mlxsw_sp *mlxsw_sp,
 								    ul_dev,
 								    extack);
 		break;
+
+	case NETDEV_UP:
+		return mlxsw_sp_netdevice_ipip_ul_up_event(mlxsw_sp, ipip_entry,
+							   ul_dev);
+	case NETDEV_DOWN:
+		return mlxsw_sp_netdevice_ipip_ul_down_event(mlxsw_sp,
+							     ipip_entry,
+							     ul_dev);
 	}
 	return 0;
 }
@@ -3297,10 +3327,19 @@ static void mlxsw_sp_nexthop_neigh_fini(struct mlxsw_sp *mlxsw_sp,
 	neigh_release(n);
 }
 
+static bool mlxsw_sp_ipip_netdev_ul_up(struct net_device *ol_dev)
+{
+	struct net_device *ul_dev = __mlxsw_sp_ipip_netdev_ul_dev_get(ol_dev);
+
+	return ul_dev ? (ul_dev->flags & IFF_UP) : true;
+}
+
 static int mlxsw_sp_nexthop_ipip_init(struct mlxsw_sp *mlxsw_sp,
 				      struct mlxsw_sp_nexthop *nh,
 				      struct net_device *ol_dev)
 {
+	bool removing;
+
 	if (!nh->nh_grp->gateway || nh->ipip_entry)
 		return 0;
 
@@ -3308,7 +3347,8 @@ static int mlxsw_sp_nexthop_ipip_init(struct mlxsw_sp *mlxsw_sp,
 	if (!nh->ipip_entry)
 		return -ENOENT;
 
-	__mlxsw_sp_nexthop_neigh_update(nh, false);
+	removing = !mlxsw_sp_ipip_netdev_ul_up(ol_dev);
+	__mlxsw_sp_nexthop_neigh_update(nh, removing);
 	return 0;
 }
 
@@ -3476,9 +3516,22 @@ static void mlxsw_sp_nexthop_rif_update(struct mlxsw_sp *mlxsw_sp,
 					struct mlxsw_sp_rif *rif)
 {
 	struct mlxsw_sp_nexthop *nh;
+	bool removing;
 
 	list_for_each_entry(nh, &rif->nexthop_list, rif_list_node) {
-		__mlxsw_sp_nexthop_neigh_update(nh, false);
+		switch (nh->type) {
+		case MLXSW_SP_NEXTHOP_TYPE_ETH:
+			removing = false;
+			break;
+		case MLXSW_SP_NEXTHOP_TYPE_IPIP:
+			removing = !mlxsw_sp_ipip_netdev_ul_up(rif->dev);
+			break;
+		default:
+			WARN_ON(1);
+			continue;
+		}
+
+		__mlxsw_sp_nexthop_neigh_update(nh, removing);
 		mlxsw_sp_nexthop_group_refresh(mlxsw_sp, nh->nh_grp);
 	}
 }
