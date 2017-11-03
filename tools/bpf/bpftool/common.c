@@ -50,6 +50,37 @@
 
 #include "main.h"
 
+void p_err(const char *fmt, ...)
+{
+	va_list ap;
+
+	va_start(ap, fmt);
+	if (json_output) {
+		jsonw_start_object(json_wtr);
+		jsonw_name(json_wtr, "error");
+		jsonw_vprintf_enquote(json_wtr, fmt, ap);
+		jsonw_end_object(json_wtr);
+	} else {
+		fprintf(stderr, "Error: ");
+		vfprintf(stderr, fmt, ap);
+		fprintf(stderr, "\n");
+	}
+	va_end(ap);
+}
+
+void p_info(const char *fmt, ...)
+{
+	va_list ap;
+
+	if (json_output)
+		return;
+
+	va_start(ap, fmt);
+	vfprintf(stderr, fmt, ap);
+	fprintf(stderr, "\n");
+	va_end(ap);
+}
+
 static bool is_bpffs(char *path)
 {
 	struct statfs st_fs;

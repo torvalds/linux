@@ -71,6 +71,9 @@ extern const char *bin_name;
 extern json_writer_t *json_wtr;
 extern bool json_output;
 
+void p_err(const char *fmt, ...);
+void p_info(const char *fmt, ...);
+
 bool is_prefix(const char *pfx, const char *str);
 void fprint_hex(FILE *f, void *arg, unsigned int n, const char *sep);
 void usage(void) __attribute__((noreturn));
@@ -96,36 +99,5 @@ int prog_parse_fd(int *argc, char ***argv);
 
 void disasm_print_insn(unsigned char *image, ssize_t len, int opcodes);
 void print_hex_data_json(uint8_t *data, size_t len);
-
-static inline void p_err(const char *fmt, ...)
-{
-	va_list ap;
-
-	va_start(ap, fmt);
-	if (json_output) {
-		jsonw_start_object(json_wtr);
-		jsonw_name(json_wtr, "error");
-		jsonw_vprintf_enquote(json_wtr, fmt, ap);
-		jsonw_end_object(json_wtr);
-	} else {
-		fprintf(stderr, "Error: ");
-		vfprintf(stderr, fmt, ap);
-		fprintf(stderr, "\n");
-	}
-	va_end(ap);
-}
-
-static inline void p_info(const char *fmt, ...)
-{
-	va_list ap;
-
-	if (json_output)
-		return;
-
-	va_start(ap, fmt);
-	vfprintf(stderr, fmt, ap);
-	fprintf(stderr, "\n");
-	va_end(ap);
-}
 
 #endif
