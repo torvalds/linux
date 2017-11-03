@@ -257,7 +257,7 @@ int perf_evlist__add_dummy(struct perf_evlist *evlist)
 		.config = PERF_COUNT_SW_DUMMY,
 		.size	= sizeof(attr), /* to capture ABI version */
 	};
-	struct perf_evsel *evsel = perf_evsel__new(&attr);
+	struct perf_evsel *evsel = perf_evsel__new_idx(&attr, evlist->nr_entries);
 
 	if (evsel == NULL)
 		return -ENOMEM;
