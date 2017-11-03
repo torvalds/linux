@@ -1169,10 +1169,10 @@ mlxsw_sp_ipip_entry_create(struct mlxsw_sp *mlxsw_sp,
 	 * in the same underlay table needs special treatment in the HW. That is
 	 * currently not implemented in the driver.
 	 */
+	ul_proto = router->ipip_ops_arr[ipipt]->ul_proto;
+	saddr = mlxsw_sp_ipip_netdev_saddr(ul_proto, ol_dev);
 	list_for_each_entry(ipip_entry, &mlxsw_sp->router->ipip_list,
 			    ipip_list_node) {
-		ul_proto = router->ipip_ops_arr[ipip_entry->ipipt]->ul_proto;
-		saddr = mlxsw_sp_ipip_netdev_saddr(ul_proto, ol_dev);
 		if (mlxsw_sp_ipip_entry_saddr_matches(mlxsw_sp, ul_proto, saddr,
 						      ul_tb_id, ipip_entry))
 			return ERR_PTR(-EEXIST);
