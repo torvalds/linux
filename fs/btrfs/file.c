@@ -477,6 +477,47 @@ static void btrfs_drop_pages(struct page **pages, size_t num_pages)
 	}
 }
 
+static int btrfs_find_new_delalloc_bytes(struct btrfs_inode *inode,
+					 const u64 start,
+					 const u64 len,
+					 struct extent_state **cached_state)
+{
+	u64 search_start = start;
+	const u64 end = start + len - 1;
+
+	while (search_start < end) {
+		const u64 search_len = end - search_start + 1;
+		struct extent_map *em;
+		u64 em_len;
+		int ret = 0;
+
+		em = btrfs_get_extent(inode, NULL, 0, search_start,
+				      search_len, 0);
+		if (IS_ERR(em))
+			return PTR_ERR(em);
+
+		if (em->block_start != EXTENT_MAP_HOLE)
+			goto next;
+
+		em_len = em->len;
+		if (em->start < search_start)
+			em_len -= search_start - em->start;
+		if (em_len > search_len)
+			em_len = search_len;
+
+		ret = set_extent_bit(&inode->io_tree, search_start,
+				     search_start + em_len - 1,
+				     EXTENT_DELALLOC_NEW,
+				     NULL, cached_state, GFP_NOFS);
+next:
+		search_start = extent_map_end(em);
+		free_extent_map(em);
+		if (ret)
+			return ret;
+	}
+	return 0;
+}
+
 /*
  * after copy_from_user, pages need to be dirtied and we need to make
  * sure holes are created between the current EOF and the start of
@@ -1402,47 +1443,6 @@ fail:
 	}
 	return err;
 
-}
-
-static int btrfs_find_new_delalloc_bytes(struct btrfs_inode *inode,
-					 const u64 start,
-					 const u64 len,
-					 struct extent_state **cached_state)
-{
-	u64 search_start = start;
-	const u64 end = start + len - 1;
-
-	while (search_start < end) {
-		const u64 search_len = end - search_start + 1;
-		struct extent_map *em;
-		u64 em_len;
-		int ret = 0;
-
-		em = btrfs_get_extent(inode, NULL, 0, search_start,
-				      search_len, 0);
-		if (IS_ERR(em))
-			return PTR_ERR(em);
-
-		if (em->block_start != EXTENT_MAP_HOLE)
-			goto next;
-
-		em_len = em->len;
-		if (em->start < search_start)
-			em_len -= search_start - em->start;
-		if (em_len > search_len)
-			em_len = search_len;
-
-		ret = set_extent_bit(&inode->io_tree, search_start,
-				     search_start + em_len - 1,
-				     EXTENT_DELALLOC_NEW,
-				     NULL, cached_state, GFP_NOFS);
-next:
-		search_start = extent_map_end(em);
-		free_extent_map(em);
-		if (ret)
-			return ret;
-	}
-	return 0;
 }
 
 /*
