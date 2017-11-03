@@ -27,6 +27,16 @@ API of the DMAEngine. This is applicable only for slave DMA usage only.
 
    client
 
+DMA Test documentation
+----------------------
+
+This book introduces how to test DMA drivers using dmatest module.
+
+.. toctree::
+   :maxdepth: 1
+
+   dmatest
+
 .. only::  subproject
 
    Indices
