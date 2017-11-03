@@ -961,7 +961,8 @@ mlxsw_sp_rif_create(struct mlxsw_sp *mlxsw_sp,
 static struct mlxsw_sp_rif_ipip_lb *
 mlxsw_sp_ipip_ol_ipip_lb_create(struct mlxsw_sp *mlxsw_sp,
 				enum mlxsw_sp_ipip_type ipipt,
-				struct net_device *ol_dev)
+				struct net_device *ol_dev,
+				struct netlink_ext_ack *extack)
 {
 	struct mlxsw_sp_rif_params_ipip_lb lb_params;
 	const struct mlxsw_sp_ipip_ops *ipip_ops;
@@ -974,7 +975,7 @@ mlxsw_sp_ipip_ol_ipip_lb_create(struct mlxsw_sp *mlxsw_sp,
 		.lb_config = ipip_ops->ol_loopback_config(mlxsw_sp, ol_dev),
 	};
 
-	rif = mlxsw_sp_rif_create(mlxsw_sp, &lb_params.common, NULL);
+	rif = mlxsw_sp_rif_create(mlxsw_sp, &lb_params.common, extack);
 	if (IS_ERR(rif))
 		return ERR_CAST(rif);
 	return container_of(rif, struct mlxsw_sp_rif_ipip_lb, common);
@@ -993,7 +994,7 @@ mlxsw_sp_ipip_entry_alloc(struct mlxsw_sp *mlxsw_sp,
 		return ERR_PTR(-ENOMEM);
 
 	ipip_entry->ol_lb = mlxsw_sp_ipip_ol_ipip_lb_create(mlxsw_sp, ipipt,
-							    ol_dev);
+							    ol_dev, NULL);
 	if (IS_ERR(ipip_entry->ol_lb)) {
 		ret = ERR_CAST(ipip_entry->ol_lb);
 		goto err_ol_ipip_lb_create;
@@ -1355,7 +1356,8 @@ static void mlxsw_sp_netdevice_ipip_ol_down_event(struct mlxsw_sp *mlxsw_sp,
 }
 
 static int mlxsw_sp_netdevice_ipip_ol_vrf_event(struct mlxsw_sp *mlxsw_sp,
-						struct net_device *ol_dev)
+						struct net_device *ol_dev,
+						struct netlink_ext_ack *extack)
 {
 	struct mlxsw_sp_fib_entry *decap_fib_entry;
 	struct mlxsw_sp_ipip_entry *ipip_entry;
@@ -1376,7 +1378,7 @@ static int mlxsw_sp_netdevice_ipip_ol_vrf_event(struct mlxsw_sp *mlxsw_sp,
 		mlxsw_sp_ipip_entry_demote_decap(mlxsw_sp, ipip_entry);
 
 	lb_rif = mlxsw_sp_ipip_ol_ipip_lb_create(mlxsw_sp, ipip_entry->ipipt,
-						 ol_dev);
+						 ol_dev, extack);
 	if (IS_ERR(lb_rif))
 		return PTR_ERR(lb_rif);
 	mlxsw_sp_rif_destroy(&ipip_entry->ol_lb->common);
@@ -1393,12 +1395,14 @@ static int mlxsw_sp_netdevice_ipip_ol_vrf_event(struct mlxsw_sp *mlxsw_sp,
 	return 0;
 }
 
-int
-mlxsw_sp_netdevice_ipip_ol_event(struct mlxsw_sp *mlxsw_sp,
-				 struct net_device *ol_dev,
-				 unsigned long event,
-				 struct netdev_notifier_changeupper_info *info)
+int mlxsw_sp_netdevice_ipip_ol_event(struct mlxsw_sp *mlxsw_sp,
+				     struct net_device *ol_dev,
+				     unsigned long event,
+				     struct netdev_notifier_info *info)
 {
+	struct netdev_notifier_changeupper_info *chup;
+	struct netlink_ext_ack *extack;
+
 	switch (event) {
 	case NETDEV_REGISTER:
 		return mlxsw_sp_netdevice_ipip_ol_reg_event(mlxsw_sp, ol_dev);
@@ -1412,9 +1416,12 @@ mlxsw_sp_netdevice_ipip_ol_event(struct mlxsw_sp *mlxsw_sp,
 		mlxsw_sp_netdevice_ipip_ol_down_event(mlxsw_sp, ol_dev);
 		return 0;
 	case NETDEV_CHANGEUPPER:
-		if (netif_is_l3_master(info->upper_dev))
+		chup = container_of(info, typeof(*chup), info);
+		extack = info->extack;
+		if (netif_is_l3_master(chup->upper_dev))
 			return mlxsw_sp_netdevice_ipip_ol_vrf_event(mlxsw_sp,
-								    ol_dev);
+								    ol_dev,
+								    extack);
 		return 0;
 	}
 	return 0;
