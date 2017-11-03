@@ -340,9 +340,6 @@ void tcf_block_put_ext(struct tcf_block *block,
 {
 	struct tcf_chain *chain, *tmp;
 
-	if (!block)
-		return;
-
 	list_for_each_entry_safe(chain, tmp, &block->chain_list, list)
 		tcf_chain_flush(chain);
 
@@ -362,6 +359,8 @@ void tcf_block_put(struct tcf_block *block)
 {
 	struct tcf_block_ext_info ei = {0, };
 
+	if (!block)
+		return;
 	tcf_block_put_ext(block, NULL, block->q, &ei);
 }
 
