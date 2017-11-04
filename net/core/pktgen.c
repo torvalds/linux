@@ -2165,7 +2165,7 @@ static void pktgen_setup_inject(struct pktgen_dev *pkt_dev)
 						+ pkt_dev->pkt_overhead;
 		}
 
-		for (i = 0; i < IN6_ADDR_HSIZE; i++)
+		for (i = 0; i < sizeof(struct in6_addr); i++)
 			if (pkt_dev->cur_in6_saddr.s6_addr[i]) {
 				set = 1;
 				break;
