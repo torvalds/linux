@@ -1,4 +1,5 @@
 #!/bin/bash
+# SPDX-License-Identifier: GPL-2.0
 # In Namespace 0 (at_ns0) using native tunnel
 # Overlay IP: 10.1.1.100
 # local 192.16.1.100 remote 192.16.1.200

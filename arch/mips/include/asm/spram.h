@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _MIPS_SPRAM_H
 #define _MIPS_SPRAM_H
 

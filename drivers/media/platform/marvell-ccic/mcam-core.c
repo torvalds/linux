@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * The Marvell camera core.  This device appears in a number of settings,
  * so it needs platform-specific support outside of the core.

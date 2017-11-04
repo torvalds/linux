@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __ASM_CRISv32_ARCH_BUG_H
 #define __ASM_CRISv32_ARCH_BUG_H
 

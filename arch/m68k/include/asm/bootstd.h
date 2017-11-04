@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* bootstd.h:  Bootloader system call interface
  *
  * (c) 1999, Rt-Control, Inc.

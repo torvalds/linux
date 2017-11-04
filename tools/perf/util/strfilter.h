@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __PERF_STRFILTER_H
 #define __PERF_STRFILTER_H
 /* General purpose glob matching filter */

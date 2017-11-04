@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * linux/cgroup-defs.h - basic definitions for cgroup
  *

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Contains the definition of registers common to all PowerPC variants.
  * If a register definition has been changed in a different PowerPC

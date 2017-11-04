@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 config PARISC
 	def_bool y
 	select ARCH_MIGHT_HAVE_PC_PARPORT

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _PROBE_ROMS_H_
 #define _PROBE_ROMS_H_
 struct pci_dev;

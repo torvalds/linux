@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #include <linux/reboot.h>
 
 extern void footbridge_timer_init(void);

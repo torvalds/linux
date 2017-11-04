@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2009-2011, Frederic Weisbecker <fweisbec@gmail.com>
  *

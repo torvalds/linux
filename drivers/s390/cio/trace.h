@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Tracepoint header for the s390 Common I/O layer (CIO)
  *

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* rwsem.h: R/W semaphores implemented using XADD/CMPXCHG for i486+
  *
  * Written by David Howells (dhowells@redhat.com).

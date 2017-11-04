@@ -101,13 +101,19 @@ static inline void bpf_compute_data_end_sk_skb(struct sk_buff *skb)
 	TCP_SKB_CB(skb)->bpf.data_end = skb->data + skb_headlen(skb);
 }
 
+enum __sk_action {
+	__SK_DROP = 0,
+	__SK_PASS,
+	__SK_REDIRECT,
+};
+
 static int smap_verdict_func(struct smap_psock *psock, struct sk_buff *skb)
 {
 	struct bpf_prog *prog = READ_ONCE(psock->bpf_verdict);
 	int rc;
 
 	if (unlikely(!prog))
-		return SK_DROP;
+		return __SK_DROP;
 
 	skb_orphan(skb);
 	/* We need to ensure that BPF metadata for maps is also cleared
@@ -122,8 +128,10 @@ static int smap_verdict_func(struct smap_psock *psock, struct sk_buff *skb)
 	preempt_enable();
 	skb->sk = NULL;
 
+	/* Moving return codes from UAPI namespace into internal namespace */
 	return rc == SK_PASS ?
-		(TCP_SKB_CB(skb)->bpf.map ? SK_REDIRECT : SK_PASS) : SK_DROP;
+		(TCP_SKB_CB(skb)->bpf.map ? __SK_REDIRECT : __SK_PASS) :
+		__SK_DROP;
 }
 
 static void smap_do_verdict(struct smap_psock *psock, struct sk_buff *skb)
@@ -133,7 +141,7 @@ static void smap_do_verdict(struct smap_psock *psock, struct sk_buff *skb)
 
 	rc = smap_verdict_func(psock, skb);
 	switch (rc) {
-	case SK_REDIRECT:
+	case __SK_REDIRECT:
 		sk = do_sk_redirect_map(skb);
 		if (likely(sk)) {
 			struct smap_psock *peer = smap_psock_sk(sk);
@@ -149,7 +157,7 @@ static void smap_do_verdict(struct smap_psock *psock, struct sk_buff *skb)
 			}
 		}
 	/* Fall through and free skb otherwise */
-	case SK_DROP:
+	case __SK_DROP:
 	default:
 		kfree_skb(skb);
 	}

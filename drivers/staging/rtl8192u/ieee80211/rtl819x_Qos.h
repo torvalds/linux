@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __INC_QOS_TYPE_H
 #define __INC_QOS_TYPE_H
 

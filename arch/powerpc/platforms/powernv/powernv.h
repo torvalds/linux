@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _POWERNV_H
 #define _POWERNV_H
 

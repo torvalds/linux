@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef _SPARC64_PSTATE_H
 #define _SPARC64_PSTATE_H
 
