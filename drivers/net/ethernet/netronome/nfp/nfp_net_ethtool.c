@@ -328,7 +328,7 @@ nfp_net_set_link_ksettings(struct net_device *netdev,
 		return -EOPNOTSUPP;
 
 	if (netif_running(netdev)) {
-		netdev_warn(netdev, "Changing settings not allowed on an active interface. It may cause the port to be disabled until reboot.\n");
+		netdev_warn(netdev, "Changing settings not allowed on an active interface. It may cause the port to be disabled until driver reload.\n");
 		return -EBUSY;
 	}
 
