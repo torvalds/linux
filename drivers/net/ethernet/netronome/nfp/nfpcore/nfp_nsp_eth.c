@@ -469,10 +469,10 @@ int nfp_eth_set_configured(struct nfp_cpp *cpp, unsigned int idx, bool configed)
 	return nfp_eth_config_commit_end(nsp);
 }
 
-/* Force inline, FIELD_* macroes require masks to be compilation-time known */
-static __always_inline int
+static int
 nfp_eth_set_bit_config(struct nfp_nsp *nsp, unsigned int raw_idx,
-		       const u64 mask, unsigned int val, const u64 ctrl_bit)
+		       const u64 mask, const unsigned int shift,
+		       unsigned int val, const u64 ctrl_bit)
 {
 	union eth_table_entry *entries = nfp_nsp_config_entries(nsp);
 	unsigned int idx = nfp_nsp_config_idx(nsp);
@@ -489,11 +489,11 @@ nfp_eth_set_bit_config(struct nfp_nsp *nsp, unsigned int raw_idx,
 
 	/* Check if we are already in requested state */
 	reg = le64_to_cpu(entries[idx].raw[raw_idx]);
-	if (val == FIELD_GET(mask, reg))
+	if (val == (reg & mask) >> shift)
 		return 0;
 
 	reg &= ~mask;
-	reg |= FIELD_PREP(mask, val);
+	reg |= (val << shift) & mask;
 	entries[idx].raw[raw_idx] = cpu_to_le64(reg);
 
 	entries[idx].control |= cpu_to_le64(ctrl_bit);
@@ -502,6 +502,13 @@ nfp_eth_set_bit_config(struct nfp_nsp *nsp, unsigned int raw_idx,
 
 	return 0;
 }
+
+#define NFP_ETH_SET_BIT_CONFIG(nsp, raw_idx, mask, val, ctrl_bit)	\
+	({								\
+		__BF_FIELD_CHECK(mask, 0ULL, val, "NFP_ETH_SET_BIT_CONFIG: "); \
+		nfp_eth_set_bit_config(nsp, raw_idx, mask, __bf_shf(mask), \
+				       val, ctrl_bit);			\
+	})
 
 /**
  * __nfp_eth_set_aneg() - set PHY autonegotiation control bit
@@ -515,7 +522,7 @@ nfp_eth_set_bit_config(struct nfp_nsp *nsp, unsigned int raw_idx,
  */
 int __nfp_eth_set_aneg(struct nfp_nsp *nsp, enum nfp_eth_aneg mode)
 {
-	return nfp_eth_set_bit_config(nsp, NSP_ETH_RAW_STATE,
+	return NFP_ETH_SET_BIT_CONFIG(nsp, NSP_ETH_RAW_STATE,
 				      NSP_ETH_STATE_ANEG, mode,
 				      NSP_ETH_CTRL_SET_ANEG);
 }
@@ -544,7 +551,7 @@ int __nfp_eth_set_speed(struct nfp_nsp *nsp, unsigned int speed)
 		return -EINVAL;
 	}
 
-	return nfp_eth_set_bit_config(nsp, NSP_ETH_RAW_STATE,
+	return NFP_ETH_SET_BIT_CONFIG(nsp, NSP_ETH_RAW_STATE,
 				      NSP_ETH_STATE_RATE, rate,
 				      NSP_ETH_CTRL_SET_RATE);
 }
@@ -561,6 +568,6 @@ int __nfp_eth_set_speed(struct nfp_nsp *nsp, unsigned int speed)
  */
 int __nfp_eth_set_split(struct nfp_nsp *nsp, unsigned int lanes)
 {
-	return nfp_eth_set_bit_config(nsp, NSP_ETH_RAW_PORT, NSP_ETH_PORT_LANES,
+	return NFP_ETH_SET_BIT_CONFIG(nsp, NSP_ETH_RAW_PORT, NSP_ETH_PORT_LANES,
 				      lanes, NSP_ETH_CTRL_SET_LANES);
 }
