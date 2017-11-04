@@ -136,6 +136,8 @@
 	pinctrl-0 = <&emac_xfer>, <&emac_mdio>, <&rmii_rst>;
 	phy = <&phy0>;
 	phy-supply = <&vcc_rmii>;
+	phy-reset-gpios = <&gpio1 30 GPIO_ACTIVE_LOW>; /* PHY_RST */
+	phy-reset-duration = <10>; /* millisecond */
 	status = "okay";
 
 	phy0: ethernet-phy@0 {
