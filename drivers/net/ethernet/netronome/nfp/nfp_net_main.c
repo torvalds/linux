@@ -611,6 +611,7 @@ int nfp_net_refresh_port_table_sync(struct nfp_pf *pf)
 	struct nfp_eth_table *eth_table;
 	struct nfp_net *nn, *next;
 	struct nfp_port *port;
+	int err;
 
 	lockdep_assert_held(&pf->lock);
 
@@ -639,6 +640,11 @@ int nfp_net_refresh_port_table_sync(struct nfp_pf *pf)
 	rtnl_unlock();
 
 	kfree(eth_table);
+
+	/* Resync repr state. This may cause reprs to be removed. */
+	err = nfp_reprs_resync_phys_ports(pf->app);
+	if (err)
+		return err;
 
 	/* Shoot off the ports which became invalid */
 	list_for_each_entry_safe(nn, next, &pf->vnics, vnic_list) {
