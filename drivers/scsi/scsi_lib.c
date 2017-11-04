@@ -1955,27 +1955,22 @@ static void scsi_mq_put_budget(struct blk_mq_hw_ctx *hctx)
 	put_device(&sdev->sdev_gendev);
 }
 
-static blk_status_t scsi_mq_get_budget(struct blk_mq_hw_ctx *hctx)
+static bool scsi_mq_get_budget(struct blk_mq_hw_ctx *hctx)
 {
 	struct request_queue *q = hctx->queue;
 	struct scsi_device *sdev = q->queuedata;
-	blk_status_t ret;
-
-	ret = prep_to_mq(scsi_prep_state_check(sdev, NULL));
-	if (ret == BLK_STS_RESOURCE || ret != BLK_STS_OK)
-		return ret;
 
 	if (!get_device(&sdev->sdev_gendev))
 		goto out;
 	if (!scsi_dev_queue_ready(q, sdev))
 		goto out_put_device;
 
-	return BLK_STS_OK;
+	return true;
 
 out_put_device:
 	put_device(&sdev->sdev_gendev);
 out:
-	return BLK_STS_RESOURCE;
+	return false;
 }
 
 static blk_status_t scsi_queue_rq(struct blk_mq_hw_ctx *hctx,
