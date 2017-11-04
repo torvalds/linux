@@ -1911,63 +1911,35 @@ int i2c_transfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 EXPORT_SYMBOL(i2c_transfer);
 
 /**
- * i2c_master_send - issue a single I2C message in master transmit mode
+ * i2c_transfer_buffer_flags - issue a single I2C message transferring data
+ *			       to/from a buffer
  * @client: Handle to slave device
- * @buf: Data that will be written to the slave
- * @count: How many bytes to write, must be less than 64k since msg.len is u16
+ * @buf: Where the data is stored
+ * @count: How many bytes to transfer, must be less than 64k since msg.len is u16
+ * @flags: The flags to be used for the message, e.g. I2C_M_RD for reads
  *
- * Returns negative errno, or else the number of bytes written.
+ * Returns negative errno, or else the number of bytes transferred.
  */
-int i2c_master_send(const struct i2c_client *client, const char *buf, int count)
+int i2c_transfer_buffer_flags(const struct i2c_client *client, char *buf,
+			      int count, u16 flags)
 {
 	int ret;
-	struct i2c_adapter *adap = client->adapter;
-	struct i2c_msg msg;
+	struct i2c_msg msg = {
+		.addr = client->addr,
+		.flags = flags | (client->flags & I2C_M_TEN),
+		.len = count,
+		.buf = buf,
+	};
 
-	msg.addr = client->addr;
-	msg.flags = client->flags & I2C_M_TEN;
-	msg.len = count;
-	msg.buf = (char *)buf;
-
-	ret = i2c_transfer(adap, &msg, 1);
+	ret = i2c_transfer(client->adapter, &msg, 1);
 
 	/*
-	 * If everything went ok (i.e. 1 msg transmitted), return #bytes
-	 * transmitted, else error code.
+	 * If everything went ok (i.e. 1 msg transferred), return #bytes
+	 * transferred, else error code.
 	 */
 	return (ret == 1) ? count : ret;
 }
-EXPORT_SYMBOL(i2c_master_send);
-
-/**
- * i2c_master_recv - issue a single I2C message in master receive mode
- * @client: Handle to slave device
- * @buf: Where to store data read from slave
- * @count: How many bytes to read, must be less than 64k since msg.len is u16
- *
- * Returns negative errno, or else the number of bytes read.
- */
-int i2c_master_recv(const struct i2c_client *client, char *buf, int count)
-{
-	struct i2c_adapter *adap = client->adapter;
-	struct i2c_msg msg;
-	int ret;
-
-	msg.addr = client->addr;
-	msg.flags = client->flags & I2C_M_TEN;
-	msg.flags |= I2C_M_RD;
-	msg.len = count;
-	msg.buf = buf;
-
-	ret = i2c_transfer(adap, &msg, 1);
-
-	/*
-	 * If everything went ok (i.e. 1 msg received), return #bytes received,
-	 * else error code.
-	 */
-	return (ret == 1) ? count : ret;
-}
-EXPORT_SYMBOL(i2c_master_recv);
+EXPORT_SYMBOL(i2c_transfer_buffer_flags);
 
 /* ----------------------------------------------------
  * the i2c address scanning function

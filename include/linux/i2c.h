@@ -63,10 +63,36 @@ struct property_entry;
  * transmit an arbitrary number of messages without interruption.
  * @count must be be less than 64k since msg.len is u16.
  */
-extern int i2c_master_send(const struct i2c_client *client, const char *buf,
-			   int count);
-extern int i2c_master_recv(const struct i2c_client *client, char *buf,
-			   int count);
+extern int i2c_transfer_buffer_flags(const struct i2c_client *client,
+				     char *buf, int count, u16 flags);
+
+/**
+ * i2c_master_recv - issue a single I2C message in master receive mode
+ * @client: Handle to slave device
+ * @buf: Where to store data read from slave
+ * @count: How many bytes to read, must be less than 64k since msg.len is u16
+ *
+ * Returns negative errno, or else the number of bytes read.
+ */
+static inline int i2c_master_recv(const struct i2c_client *client,
+				  char *buf, int count)
+{
+	return i2c_transfer_buffer_flags(client, buf, count, I2C_M_RD);
+};
+
+/**
+ * i2c_master_send - issue a single I2C message in master transmit mode
+ * @client: Handle to slave device
+ * @buf: Data that will be written to the slave
+ * @count: How many bytes to write, must be less than 64k since msg.len is u16
+ *
+ * Returns negative errno, or else the number of bytes written.
+ */
+static inline int i2c_master_send(const struct i2c_client *client,
+				  const char *buf, int count)
+{
+	return i2c_transfer_buffer_flags(client, (char *)buf, count, 0);
+};
 
 /* Transfer num messages.
  */
