@@ -451,7 +451,7 @@ static int test_kretprobe(long (*func)(long, long))
 	}
 	if (!call_test_func(func, false))
 		return -EINVAL;
-	if (jprobe_func_called == test_func_instance) {
+	if (kretprobe_handler_called == test_func_instance) {
 		pr_err("FAIL: kretprobe called after unregistering\n");
 		return -EINVAL;
 	}
