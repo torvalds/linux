@@ -106,14 +106,8 @@ nfp_app_reprs_set(struct nfp_app *app, enum nfp_repr_type type,
 
 	old = rcu_dereference_protected(app->reprs[type],
 					lockdep_is_held(&app->pf->lock));
-	if (reprs && old) {
-		old = ERR_PTR(-EBUSY);
-		goto exit_unlock;
-	}
-
 	rcu_assign_pointer(app->reprs[type], reprs);
 
-exit_unlock:
 	return old;
 }
 
