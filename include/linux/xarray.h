@@ -22,6 +22,12 @@
  * x1: Value entry or tagged pointer
  *
  * Attempting to store internal entries in the XArray is a bug.
+ *
+ * Most internal entries are pointers to the next node in the tree.
+ * The following internal entries have a special meaning:
+ *
+ * 0-62: Sibling entries
+ * 256: Retry entry
  */
 
 #define BITS_PER_XA_VALUE	(BITS_PER_LONG - 1)
@@ -111,6 +117,42 @@ static inline unsigned int xa_pointer_tag(void *entry)
 	return (unsigned long)entry & 3UL;
 }
 
+/*
+ * xa_mk_internal() - Create an internal entry.
+ * @v: Value to turn into an internal entry.
+ *
+ * Context: Any context.
+ * Return: An XArray internal entry corresponding to this value.
+ */
+static inline void *xa_mk_internal(unsigned long v)
+{
+	return (void *)((v << 2) | 2);
+}
+
+/*
+ * xa_to_internal() - Extract the value from an internal entry.
+ * @entry: XArray entry.
+ *
+ * Context: Any context.
+ * Return: The value which was stored in the internal entry.
+ */
+static inline unsigned long xa_to_internal(const void *entry)
+{
+	return (unsigned long)entry >> 2;
+}
+
+/*
+ * xa_is_internal() - Is the entry an internal entry?
+ * @entry: XArray entry.
+ *
+ * Context: Any context.
+ * Return: %true if the entry is an internal entry.
+ */
+static inline bool xa_is_internal(const void *entry)
+{
+	return ((unsigned long)entry & 3) == 2;
+}
+
 #define xa_trylock(xa)		spin_trylock(&(xa)->xa_lock)
 #define xa_lock(xa)		spin_lock(&(xa)->xa_lock)
 #define xa_unlock(xa)		spin_unlock(&(xa)->xa_lock)
@@ -122,5 +164,55 @@ static inline unsigned int xa_pointer_tag(void *entry)
 				spin_lock_irqsave(&(xa)->xa_lock, flags)
 #define xa_unlock_irqrestore(xa, flags) \
 				spin_unlock_irqrestore(&(xa)->xa_lock, flags)
+
+/* Everything below here is the Advanced API.  Proceed with caution. */
+
+/*
+ * The xarray is constructed out of a set of 'chunks' of pointers.  Choosing
+ * the best chunk size requires some tradeoffs.  A power of two recommends
+ * itself so that we can walk the tree based purely on shifts and masks.
+ * Generally, the larger the better; as the number of slots per level of the
+ * tree increases, the less tall the tree needs to be.  But that needs to be
+ * balanced against the memory consumption of each node.  On a 64-bit system,
+ * xa_node is currently 576 bytes, and we get 7 of them per 4kB page.  If we
+ * doubled the number of slots per node, we'd get only 3 nodes per 4kB page.
+ */
+#ifndef XA_CHUNK_SHIFT
+#define XA_CHUNK_SHIFT		(CONFIG_BASE_SMALL ? 4 : 6)
+#endif
+#define XA_CHUNK_SIZE		(1UL << XA_CHUNK_SHIFT)
+#define XA_CHUNK_MASK		(XA_CHUNK_SIZE - 1)
+
+/* Private */
+static inline bool xa_is_node(const void *entry)
+{
+	return xa_is_internal(entry) && (unsigned long)entry > 4096;
+}
+
+/* Private */
+static inline void *xa_mk_sibling(unsigned int offset)
+{
+	return xa_mk_internal(offset);
+}
+
+/* Private */
+static inline unsigned long xa_to_sibling(const void *entry)
+{
+	return xa_to_internal(entry);
+}
+
+/**
+ * xa_is_sibling() - Is the entry a sibling entry?
+ * @entry: Entry retrieved from the XArray
+ *
+ * Return: %true if the entry is a sibling entry.
+ */
+static inline bool xa_is_sibling(const void *entry)
+{
+	return IS_ENABLED(CONFIG_XARRAY_MULTI) && xa_is_internal(entry) &&
+		(entry < xa_mk_sibling(XA_CHUNK_SIZE - 1));
+}
+
+#define XA_RETRY_ENTRY		xa_mk_internal(256)
 
 #endif /* _LINUX_XARRAY_H */
