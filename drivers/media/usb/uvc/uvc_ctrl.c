@@ -38,7 +38,7 @@
  * Controls
  */
 
-static struct uvc_control_info uvc_ctrls[] = {
+static const struct uvc_control_info uvc_ctrls[] = {
 	{
 		.entity		= UVC_GUID_UVC_PROCESSING,
 		.selector	= UVC_PU_BRIGHTNESS_CONTROL,
@@ -421,7 +421,7 @@ static void uvc_ctrl_set_rel_speed(struct uvc_control_mapping *mapping,
 	data[first+1] = min_t(int, abs(value), 0xff);
 }
 
-static struct uvc_control_mapping uvc_ctrl_mappings[] = {
+static const struct uvc_control_mapping uvc_ctrl_mappings[] = {
 	{
 		.id		= V4L2_CID_BRIGHTNESS,
 		.name		= "Brightness",
