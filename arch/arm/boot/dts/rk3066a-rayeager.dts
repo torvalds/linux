@@ -23,6 +23,20 @@
 		pinctrl-0 = <&ir_int>;
 	};
 
+	vdd_logic: vdd-logic {
+		compatible = "pwm-regulator";
+
+		pwms = <&pwm3 0 25000>;
+		pwm-dutycycle-range = <100 0>;
+
+		regulator-name = "vdd_logic";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <925000>;
+		regulator-max-microvolt = <1400000>;
+		status = "okay";
+	};
+
 	keys: gpio-keys {
 		compatible = "gpio-keys";
 
