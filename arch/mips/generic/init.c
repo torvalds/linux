@@ -20,7 +20,7 @@
 #include <asm/fw/fw.h>
 #include <asm/irq_cpu.h>
 #include <asm/machine.h>
-#include <asm/mips-cpc.h>
+#include <asm/mips-cps.h>
 #include <asm/prom.h>
 #include <asm/smp-ops.h>
 #include <asm/time.h>

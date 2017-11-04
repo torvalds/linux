@@ -873,7 +873,7 @@ F:	drivers/android/
 F:	drivers/staging/android/
 
 ANDROID GOLDFISH RTC DRIVER
-M:	Miodrag Dinic <miodrag.dinic@imgtec.com>
+M:	Miodrag Dinic <miodrag.dinic@mips.com>
 S:	Supported
 F:	Documentation/devicetree/bindings/rtc/google,goldfish-rtc.txt
 F:	drivers/rtc/rtc-goldfish.c
@@ -9019,7 +9019,7 @@ F:	drivers/*/*loongson1*
 F:	drivers/*/*/*loongson1*
 
 MIPS RINT INSTRUCTION EMULATION
-M:	Aleksandar Markovic <aleksandar.markovic@imgtec.com>
+M:	Aleksandar Markovic <aleksandar.markovic@mips.com>
 L:	linux-mips@linux-mips.org
 S:	Supported
 F:	arch/mips/math-emu/sp_rint.c
@@ -10683,10 +10683,9 @@ S:	Maintained
 F:	drivers/pinctrl/spear/
 
 PISTACHIO SOC SUPPORT
-M:	James Hartley <james.hartley@imgtec.com>
-M:	Ionela Voinescu <ionela.voinescu@imgtec.com>
+M:	James Hartley <james.hartley@sondrel.com>
 L:	linux-mips@linux-mips.org
-S:	Maintained
+S:	Odd Fixes
 F:	arch/mips/pistachio/
 F:	arch/mips/include/asm/mach-pistachio/
 F:	arch/mips/boot/dts/img/pistachio*
