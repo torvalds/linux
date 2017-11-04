@@ -623,7 +623,7 @@ static int eeh_reset_device(struct eeh_pe *pe, struct pci_bus *bus,
 				struct eeh_rmv_data *rmv_data)
 {
 	struct pci_bus *frozen_bus = eeh_pe_bus_get(pe);
-	struct timeval tstamp;
+	time64_t tstamp;
 	int cnt, rc;
 	struct eeh_dev *edev;
 
