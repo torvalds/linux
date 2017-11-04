@@ -63,12 +63,14 @@ enum mlxsw_sp_rif_counter_dir {
 
 struct mlxsw_sp_neigh_entry;
 struct mlxsw_sp_nexthop;
+struct mlxsw_sp_ipip_entry;
 
 struct mlxsw_sp_rif *mlxsw_sp_rif_by_index(const struct mlxsw_sp *mlxsw_sp,
 					   u16 rif_index);
 u16 mlxsw_sp_rif_index(const struct mlxsw_sp_rif *rif);
 u16 mlxsw_sp_ipip_lb_rif_index(const struct mlxsw_sp_rif_ipip_lb *rif);
 u16 mlxsw_sp_ipip_lb_ul_vr_id(const struct mlxsw_sp_rif_ipip_lb *rif);
+u32 mlxsw_sp_ipip_dev_ul_tb_id(const struct net_device *ol_dev);
 int mlxsw_sp_rif_dev_ifindex(const struct mlxsw_sp_rif *rif);
 u8 mlxsw_sp_router_port(const struct mlxsw_sp *mlxsw_sp);
 const struct net_device *mlxsw_sp_rif_dev(const struct mlxsw_sp_rif *rif);
@@ -103,13 +105,20 @@ mlxsw_sp_neigh_entry_counter_update(struct mlxsw_sp *mlxsw_sp,
 				    struct mlxsw_sp_neigh_entry *neigh_entry,
 				    bool adding);
 bool mlxsw_sp_neigh_ipv6_ignore(struct mlxsw_sp_neigh_entry *neigh_entry);
-union mlxsw_sp_l3addr
-mlxsw_sp_ipip_netdev_saddr(enum mlxsw_sp_l3proto proto,
-			   const struct net_device *ol_dev);
-union mlxsw_sp_l3addr
-mlxsw_sp_ipip_netdev_daddr(enum mlxsw_sp_l3proto proto,
-			   const struct net_device *ol_dev);
-__be32 mlxsw_sp_ipip_netdev_daddr4(const struct net_device *ol_dev);
+int __mlxsw_sp_ipip_entry_update_tunnel(struct mlxsw_sp *mlxsw_sp,
+					struct mlxsw_sp_ipip_entry *ipip_entry,
+					bool recreate_loopback,
+					bool keep_encap,
+					bool update_nexthops,
+					struct netlink_ext_ack *extack);
+void mlxsw_sp_ipip_entry_demote_tunnel(struct mlxsw_sp *mlxsw_sp,
+				       struct mlxsw_sp_ipip_entry *ipip_entry);
+bool
+mlxsw_sp_ipip_demote_tunnel_by_saddr(struct mlxsw_sp *mlxsw_sp,
+				     enum mlxsw_sp_l3proto ul_proto,
+				     union mlxsw_sp_l3addr saddr,
+				     u32 ul_tb_id,
+				     const struct mlxsw_sp_ipip_entry *except);
 struct mlxsw_sp_nexthop *mlxsw_sp_nexthop_next(struct mlxsw_sp_router *router,
 					       struct mlxsw_sp_nexthop *nh);
 bool mlxsw_sp_nexthop_offload(struct mlxsw_sp_nexthop *nh);
@@ -129,5 +138,11 @@ void mlxsw_sp_nexthop_counter_alloc(struct mlxsw_sp *mlxsw_sp,
 				    struct mlxsw_sp_nexthop *nh);
 void mlxsw_sp_nexthop_counter_free(struct mlxsw_sp *mlxsw_sp,
 				   struct mlxsw_sp_nexthop *nh);
+
+static inline bool mlxsw_sp_l3addr_eq(const union mlxsw_sp_l3addr *addr1,
+				      const union mlxsw_sp_l3addr *addr2)
+{
+	return !memcmp(addr1, addr2, sizeof(*addr1));
+}
 
 #endif /* _MLXSW_ROUTER_H_*/
