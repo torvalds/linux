@@ -538,14 +538,34 @@ int btrfs_dirty_pages(struct inode *inode, struct page **pages,
 	u64 end_of_last_block;
 	u64 end_pos = pos + write_bytes;
 	loff_t isize = i_size_read(inode);
+	unsigned int extra_bits = 0;
 
 	start_pos = pos & ~((u64) fs_info->sectorsize - 1);
 	num_bytes = round_up(write_bytes + pos - start_pos,
 			     fs_info->sectorsize);
 
 	end_of_last_block = start_pos + num_bytes - 1;
+
+	if (!btrfs_is_free_space_inode(BTRFS_I(inode))) {
+		if (start_pos >= isize &&
+		    !(BTRFS_I(inode)->flags & BTRFS_INODE_PREALLOC)) {
+			/*
+			 * There can't be any extents following eof in this case
+			 * so just set the delalloc new bit for the range
+			 * directly.
+			 */
+			extra_bits |= EXTENT_DELALLOC_NEW;
+		} else {
+			err = btrfs_find_new_delalloc_bytes(BTRFS_I(inode),
+							    start_pos,
+							    num_bytes, cached);
+			if (err)
+				return err;
+		}
+	}
+
 	err = btrfs_set_extent_delalloc(inode, start_pos, end_of_last_block,
-					cached, 0);
+					extra_bits, cached, 0);
 	if (err)
 		return err;
 
@@ -1473,10 +1493,8 @@ lock_and_cleanup_extent_if_need(struct btrfs_inode *inode, struct page **pages,
 		+ round_up(pos + write_bytes - start_pos,
 			   fs_info->sectorsize) - 1;
 
-	if (start_pos < inode->vfs_inode.i_size ||
-	    (inode->flags & BTRFS_INODE_PREALLOC)) {
+	if (start_pos < inode->vfs_inode.i_size) {
 		struct btrfs_ordered_extent *ordered;
-		unsigned int clear_bits;
 
 		lock_extent_bits(&inode->io_tree, start_pos, last_pos,
 				cached_state);
@@ -1498,19 +1516,10 @@ lock_and_cleanup_extent_if_need(struct btrfs_inode *inode, struct page **pages,
 		}
 		if (ordered)
 			btrfs_put_ordered_extent(ordered);
-		ret = btrfs_find_new_delalloc_bytes(inode, start_pos,
-						    last_pos - start_pos + 1,
-						    cached_state);
-		clear_bits = EXTENT_DIRTY | EXTENT_DELALLOC |
-			EXTENT_DO_ACCOUNTING | EXTENT_DEFRAG;
-		if (ret)
-			clear_bits |= EXTENT_DELALLOC_NEW | EXTENT_LOCKED;
-		clear_extent_bit(&inode->io_tree, start_pos,
-				 last_pos, clear_bits,
-				 (clear_bits & EXTENT_LOCKED) ? 1 : 0,
-				 0, cached_state, GFP_NOFS);
-		if (ret)
-			return ret;
+		clear_extent_bit(&inode->io_tree, start_pos, last_pos,
+				 EXTENT_DIRTY | EXTENT_DELALLOC |
+				 EXTENT_DO_ACCOUNTING | EXTENT_DEFRAG,
+				 0, 0, cached_state, GFP_NOFS);
 		*lockstart = start_pos;
 		*lockend = last_pos;
 		ret = 1;
