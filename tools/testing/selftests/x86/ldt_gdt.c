@@ -189,7 +189,15 @@ static bool install_valid_mode(const struct user_desc *d, uint32_t ar,
 
 static bool install_valid(const struct user_desc *desc, uint32_t ar)
 {
-	return install_valid_mode(desc, ar, false, true);
+	bool ret = install_valid_mode(desc, ar, false, true);
+
+	if (desc->contents <= 1 && desc->seg_32bit &&
+	    !desc->seg_not_present) {
+		/* Should work in the GDT, too. */
+		install_valid_mode(desc, ar, false, false);
+	}
+
+	return ret;
 }
 
 static void install_invalid(const struct user_desc *desc, bool oldmode)
