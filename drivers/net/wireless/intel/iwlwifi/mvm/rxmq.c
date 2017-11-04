@@ -409,9 +409,13 @@ static bool iwl_mvm_is_sn_less(u16 sn1, u16 sn2, u16 buffer_size)
 static void iwl_mvm_release_frames(struct iwl_mvm *mvm,
 				   struct ieee80211_sta *sta,
 				   struct napi_struct *napi,
+				   struct iwl_mvm_baid_data *baid_data,
 				   struct iwl_mvm_reorder_buffer *reorder_buf,
 				   u16 nssn)
 {
+	struct iwl_mvm_reorder_buf_entry *entries =
+		&baid_data->entries[reorder_buf->queue *
+				    baid_data->entries_per_queue];
 	u16 ssn = reorder_buf->head_sn;
 
 	lockdep_assert_held(&reorder_buf->lock);
@@ -422,7 +426,7 @@ static void iwl_mvm_release_frames(struct iwl_mvm *mvm,
 
 	while (iwl_mvm_is_sn_less(ssn, nssn, reorder_buf->buf_size)) {
 		int index = ssn % reorder_buf->buf_size;
-		struct sk_buff_head *skb_list = &reorder_buf->entries[index];
+		struct sk_buff_head *skb_list = &entries[index].e.frames;
 		struct sk_buff *skb;
 
 		ssn = ieee80211_sn_inc(ssn);
@@ -445,11 +449,11 @@ set_timer:
 	if (reorder_buf->num_stored && !reorder_buf->removed) {
 		u16 index = reorder_buf->head_sn % reorder_buf->buf_size;
 
-		while (skb_queue_empty(&reorder_buf->entries[index]))
+		while (skb_queue_empty(&entries[index].e.frames))
 			index = (index + 1) % reorder_buf->buf_size;
 		/* modify timer to match next frame's expiration time */
 		mod_timer(&reorder_buf->reorder_timer,
-			  reorder_buf->reorder_time[index] + 1 +
+			  entries[index].e.reorder_time + 1 +
 			  RX_REORDER_BUF_TIMEOUT_MQ);
 	} else {
 		del_timer(&reorder_buf->reorder_timer);
@@ -459,6 +463,10 @@ set_timer:
 void iwl_mvm_reorder_timer_expired(unsigned long data)
 {
 	struct iwl_mvm_reorder_buffer *buf = (void *)data;
+	struct iwl_mvm_baid_data *baid_data =
+		iwl_mvm_baid_data_from_reorder_buf(buf);
+	struct iwl_mvm_reorder_buf_entry *entries =
+		&baid_data->entries[buf->queue * baid_data->entries_per_queue];
 	int i;
 	u16 sn = 0, index = 0;
 	bool expired = false;
@@ -474,7 +482,7 @@ void iwl_mvm_reorder_timer_expired(unsigned long data)
 	for (i = 0; i < buf->buf_size ; i++) {
 		index = (buf->head_sn + i) % buf->buf_size;
 
-		if (skb_queue_empty(&buf->entries[index])) {
+		if (skb_queue_empty(&entries[index].e.frames)) {
 			/*
 			 * If there is a hole and the next frame didn't expire
 			 * we want to break and not advance SN
@@ -482,7 +490,8 @@ void iwl_mvm_reorder_timer_expired(unsigned long data)
 			cont = false;
 			continue;
 		}
-		if (!cont && !time_after(jiffies, buf->reorder_time[index] +
+		if (!cont &&
+		    !time_after(jiffies, entries[index].e.reorder_time +
 					 RX_REORDER_BUF_TIMEOUT_MQ))
 			break;
 
@@ -495,18 +504,19 @@ void iwl_mvm_reorder_timer_expired(unsigned long data)
 	if (expired) {
 		struct ieee80211_sta *sta;
 		struct iwl_mvm_sta *mvmsta;
+		u8 sta_id = baid_data->sta_id;
 
 		rcu_read_lock();
-		sta = rcu_dereference(buf->mvm->fw_id_to_mac_id[buf->sta_id]);
+		sta = rcu_dereference(buf->mvm->fw_id_to_mac_id[sta_id]);
 		mvmsta = iwl_mvm_sta_from_mac80211(sta);
 
 		/* SN is set to the last expired frame + 1 */
 		IWL_DEBUG_HT(buf->mvm,
 			     "Releasing expired frames for sta %u, sn %d\n",
-			     buf->sta_id, sn);
+			     sta_id, sn);
 		iwl_mvm_event_frame_timeout_callback(buf->mvm, mvmsta->vif,
-						     sta, buf->tid);
-		iwl_mvm_release_frames(buf->mvm, sta, NULL, buf, sn);
+						     sta, baid_data->tid);
+		iwl_mvm_release_frames(buf->mvm, sta, NULL, baid_data, buf, sn);
 		rcu_read_unlock();
 	} else {
 		/*
@@ -515,7 +525,7 @@ void iwl_mvm_reorder_timer_expired(unsigned long data)
 		 * accordingly to this frame.
 		 */
 		mod_timer(&buf->reorder_timer,
-			  buf->reorder_time[index] +
+			  entries[index].e.reorder_time +
 			  1 + RX_REORDER_BUF_TIMEOUT_MQ);
 	}
 	spin_unlock(&buf->lock);
@@ -546,7 +556,7 @@ static void iwl_mvm_del_ba(struct iwl_mvm *mvm, int queue,
 
 	/* release all frames that are in the reorder buffer to the stack */
 	spin_lock_bh(&reorder_buf->lock);
-	iwl_mvm_release_frames(mvm, sta, NULL, reorder_buf,
+	iwl_mvm_release_frames(mvm, sta, NULL, ba_data, reorder_buf,
 			       ieee80211_sn_add(reorder_buf->head_sn,
 						reorder_buf->buf_size));
 	spin_unlock_bh(&reorder_buf->lock);
@@ -610,6 +620,7 @@ static bool iwl_mvm_reorder(struct iwl_mvm *mvm,
 	u8 tid = *ieee80211_get_qos_ctl(hdr) & IEEE80211_QOS_CTL_TID_MASK;
 	u8 sub_frame_idx = desc->amsdu_info &
 			   IWL_RX_MPDU_AMSDU_SUBFRAME_IDX_MASK;
+	struct iwl_mvm_reorder_buf_entry *entries;
 	int index;
 	u16 nssn, sn;
 	u8 baid;
@@ -660,6 +671,7 @@ static bool iwl_mvm_reorder(struct iwl_mvm *mvm,
 		IWL_RX_MPDU_REORDER_SN_SHIFT;
 
 	buffer = &baid_data->reorder_buf[queue];
+	entries = &baid_data->entries[queue * baid_data->entries_per_queue];
 
 	spin_lock_bh(&buffer->lock);
 
@@ -672,7 +684,7 @@ static bool iwl_mvm_reorder(struct iwl_mvm *mvm,
 	}
 
 	if (ieee80211_is_back_req(hdr->frame_control)) {
-		iwl_mvm_release_frames(mvm, sta, napi, buffer, nssn);
+		iwl_mvm_release_frames(mvm, sta, napi, baid_data, buffer, nssn);
 		goto drop;
 	}
 
@@ -688,7 +700,8 @@ static bool iwl_mvm_reorder(struct iwl_mvm *mvm,
 	    !ieee80211_sn_less(sn, buffer->head_sn + buffer->buf_size)) {
 		u16 min_sn = ieee80211_sn_less(sn, nssn) ? sn : nssn;
 
-		iwl_mvm_release_frames(mvm, sta, napi, buffer, min_sn);
+		iwl_mvm_release_frames(mvm, sta, napi, baid_data, buffer,
+				       min_sn);
 	}
 
 	/* drop any oudated packets */
@@ -716,7 +729,7 @@ static bool iwl_mvm_reorder(struct iwl_mvm *mvm,
 	 * If it is the same SN then if the subframe index is incrementing it
 	 * is the same AMSDU - otherwise it is a retransmission.
 	 */
-	tail = skb_peek_tail(&buffer->entries[index]);
+	tail = skb_peek_tail(&entries[index].e.frames);
 	if (tail && !amsdu)
 		goto drop;
 	else if (tail && (sn != buffer->last_amsdu ||
@@ -724,9 +737,9 @@ static bool iwl_mvm_reorder(struct iwl_mvm *mvm,
 		goto drop;
 
 	/* put in reorder buffer */
-	__skb_queue_tail(&buffer->entries[index], skb);
+	__skb_queue_tail(&entries[index].e.frames, skb);
 	buffer->num_stored++;
-	buffer->reorder_time[index] = jiffies;
+	entries[index].e.reorder_time = jiffies;
 
 	if (amsdu) {
 		buffer->last_amsdu = sn;
@@ -745,7 +758,7 @@ static bool iwl_mvm_reorder(struct iwl_mvm *mvm,
 	 * release notification with up to date NSSN.
 	 */
 	if (!amsdu || last_subframe)
-		iwl_mvm_release_frames(mvm, sta, napi, buffer, nssn);
+		iwl_mvm_release_frames(mvm, sta, napi, baid_data, buffer, nssn);
 
 	spin_unlock_bh(&buffer->lock);
 	return true;
@@ -1065,7 +1078,7 @@ void iwl_mvm_rx_frame_release(struct iwl_mvm *mvm, struct napi_struct *napi,
 	reorder_buf = &ba_data->reorder_buf[queue];
 
 	spin_lock_bh(&reorder_buf->lock);
-	iwl_mvm_release_frames(mvm, sta, napi, reorder_buf,
+	iwl_mvm_release_frames(mvm, sta, napi, ba_data, reorder_buf,
 			       le16_to_cpu(release->nssn));
 	spin_unlock_bh(&reorder_buf->lock);
 

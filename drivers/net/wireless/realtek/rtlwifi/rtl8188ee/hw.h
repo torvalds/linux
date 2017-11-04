@@ -58,6 +58,6 @@ void rtl8188ee_bt_reg_init(struct ieee80211_hw *hw);
 void rtl8188ee_bt_hw_init(struct ieee80211_hw *hw);
 void rtl88ee_suspend(struct ieee80211_hw *hw);
 void rtl88ee_resume(struct ieee80211_hw *hw);
-void rtl88ee_fw_clk_off_timer_callback(unsigned long data);
+void rtl88ee_fw_clk_off_timer_callback(struct timer_list *t);
 
 #endif

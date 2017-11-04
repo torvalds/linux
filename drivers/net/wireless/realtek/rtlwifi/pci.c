@@ -1623,7 +1623,6 @@ static int rtl_pci_tx(struct ieee80211_hw *hw,
 		      struct rtl_tcb_desc *ptcb_desc)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	struct rtl_sta_info *sta_entry = NULL;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct rtl8192_tx_ring *ring;
 	struct rtl_tx_desc *pdesc;
@@ -1635,9 +1634,6 @@ static int rtl_pci_tx(struct ieee80211_hw *hw,
 	__le16 fc = rtl_get_fc(skb);
 	u8 *pda_addr = hdr->addr1;
 	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
-	/*ssn */
-	u8 tid = 0;
-	u16 seq_number = 0;
 	u8 own;
 	u8 temp_one = 1;
 
@@ -1697,19 +1693,6 @@ static int rtl_pci_tx(struct ieee80211_hw *hw,
 			spin_unlock_irqrestore(&rtlpriv->locks.irq_th_lock,
 					       flags);
 			return skb->len;
-	}
-
-	if (ieee80211_is_data_qos(fc)) {
-		tid = rtl_get_tid(skb);
-		if (sta) {
-			sta_entry = (struct rtl_sta_info *)sta->drv_priv;
-			seq_number = (le16_to_cpu(hdr->seq_ctrl) &
-				      IEEE80211_SCTL_SEQ) >> 4;
-			seq_number += 1;
-
-			if (!ieee80211_has_morefrags(hdr->frame_control))
-				sta_entry->tids[tid].seq_number = seq_number;
-		}
 	}
 
 	if (ieee80211_is_data(fc))

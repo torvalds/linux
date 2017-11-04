@@ -73,7 +73,10 @@ qtnf_mgmt_stypes[NUM_NL80211_IFTYPES] = {
 	[NL80211_IFTYPE_AP] = {
 		.tx = BIT(IEEE80211_STYPE_ACTION >> 4),
 		.rx = BIT(IEEE80211_STYPE_ACTION >> 4) |
-		      BIT(IEEE80211_STYPE_PROBE_REQ >> 4),
+		      BIT(IEEE80211_STYPE_PROBE_REQ >> 4) |
+		      BIT(IEEE80211_STYPE_ASSOC_REQ >> 4) |
+		      BIT(IEEE80211_STYPE_REASSOC_REQ >> 4) |
+		      BIT(IEEE80211_STYPE_AUTH >> 4),
 	},
 };
 
@@ -353,6 +356,13 @@ qtnf_mgmt_frame_register(struct wiphy *wiphy, struct wireless_dev *wdev,
 		return;
 
 	switch (frame_type & IEEE80211_FCTL_STYPE) {
+	case IEEE80211_STYPE_REASSOC_REQ:
+	case IEEE80211_STYPE_ASSOC_REQ:
+		qlink_frame_type = QLINK_MGMT_FRAME_ASSOC_REQ;
+		break;
+	case IEEE80211_STYPE_AUTH:
+		qlink_frame_type = QLINK_MGMT_FRAME_AUTH;
+		break;
 	case IEEE80211_STYPE_PROBE_REQ:
 		qlink_frame_type = QLINK_MGMT_FRAME_PROBE_REQ;
 		break;
@@ -538,9 +548,9 @@ qtnf_del_station(struct wiphy *wiphy, struct net_device *dev,
 	return ret;
 }
 
-static void qtnf_scan_timeout(unsigned long data)
+static void qtnf_scan_timeout(struct timer_list *t)
 {
-	struct qtnf_wmac *mac = (struct qtnf_wmac *)data;
+	struct qtnf_wmac *mac = from_timer(mac, t, scan_timeout);
 
 	pr_warn("mac%d scan timed out\n", mac->macid);
 	qtnf_scan_done(mac, true);
@@ -559,8 +569,7 @@ qtnf_scan(struct wiphy *wiphy, struct cfg80211_scan_request *request)
 		return -EFAULT;
 	}
 
-	mac->scan_timeout.data = (unsigned long)mac;
-	mac->scan_timeout.function = qtnf_scan_timeout;
+	mac->scan_timeout.function = (TIMER_FUNC_TYPE)qtnf_scan_timeout;
 	mod_timer(&mac->scan_timeout,
 		  jiffies + QTNF_SCAN_TIMEOUT_SEC * HZ);
 
@@ -947,7 +956,10 @@ int qtnf_wiphy_register(struct qtnf_hw_info *hw_info, struct qtnf_wmac *mac)
 
 	ether_addr_copy(wiphy->perm_addr, mac->macaddr);
 
-	if (hw_info->hw_capab & QLINK_HW_SUPPORTS_REG_UPDATE) {
+	if (hw_info->hw_capab & QLINK_HW_CAPAB_STA_INACT_TIMEOUT)
+		wiphy->features |= NL80211_FEATURE_INACTIVITY_TIMER;
+
+	if (hw_info->hw_capab & QLINK_HW_CAPAB_REG_UPDATE) {
 		wiphy->regulatory_flags |= REGULATORY_STRICT_REG |
 			REGULATORY_CUSTOM_REG;
 		wiphy->reg_notifier = qtnf_cfg80211_reg_notifier;

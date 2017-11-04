@@ -61,8 +61,17 @@ struct qlink_msg_header {
 /* Generic definitions of data and information carried in QLINK messages
  */
 
+/**
+ * enum qlink_hw_capab - device capabilities.
+ *
+ * @QLINK_HW_CAPAB_REG_UPDATE: device can update it's regulatory region.
+ * @QLINK_HW_CAPAB_STA_INACT_TIMEOUT: device implements a logic to kick-out
+ *	associated STAs due to inactivity. Inactivity timeout period is taken
+ *	from QLINK_CMD_START_AP parameters.
+ */
 enum qlink_hw_capab {
-	QLINK_HW_SUPPORTS_REG_UPDATE	= BIT(0),
+	QLINK_HW_CAPAB_REG_UPDATE = BIT(0),
+	QLINK_HW_CAPAB_STA_INACT_TIMEOUT = BIT(1),
 };
 
 enum qlink_phy_mode {

@@ -66,6 +66,8 @@ extern __printf(2, 3) void rsi_dbg(u32 zone, const char *fmt, ...);
 #define FRAME_DESC_SZ                   16
 #define MIN_802_11_HDR_LEN              24
 #define RSI_DEF_KEEPALIVE               90
+#define RSI_WOW_KEEPALIVE                5
+#define RSI_BCN_MISS_THRESHOLD           24
 
 #define DATA_QUEUE_WATER_MARK           400
 #define MIN_DATA_QUEUE_WATER_MARK       300
@@ -107,6 +109,10 @@ extern __printf(2, 3) void rsi_dbg(u32 zone, const char *fmt, ...);
 	((_q) == BE_Q) ? IEEE80211_AC_BE : \
 	((_q) == VI_Q) ? IEEE80211_AC_VI : \
 	IEEE80211_AC_VO)
+
+/* WoWLAN flags */
+#define RSI_WOW_ENABLED			BIT(0)
+#define RSI_WOW_NO_CONNECTION		BIT(1)
 
 #define RSI_DEV_9113		1
 
@@ -208,6 +214,7 @@ struct rsi_common {
 
 	struct rsi_thread tx_thread;
 	struct sk_buff_head tx_queue[NUM_EDCA_QUEUES + 2];
+	struct completion wlan_init_completion;
 	/* Mutex declaration */
 	struct mutex mutex;
 	/* Mutex used for tx thread */
@@ -266,7 +273,9 @@ struct rsi_common {
 	u8 obm_ant_sel_val;
 	int tx_power;
 	u8 ant_in_use;
-
+	bool hibernate_resume;
+	bool reinit_hw;
+	u8 wow_flags;
 	u16 beacon_interval;
 	u8 dtim_cnt;
 
@@ -356,5 +365,6 @@ struct rsi_host_intf_ops {
 	int (*load_data_master_write)(struct rsi_hw *adapter, u32 addr,
 				      u32 instructions_size, u16 block_size,
 				      u8 *fw);
+	int (*reinit_device)(struct rsi_hw *adapter);
 };
 #endif

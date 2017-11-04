@@ -17,6 +17,7 @@
 #include <linux/etherdevice.h>
 #include "rsi_debugfs.h"
 #include "rsi_mgmt.h"
+#include "rsi_sdio.h"
 #include "rsi_common.h"
 #include "rsi_ps.h"
 
@@ -325,6 +326,11 @@ static int rsi_mac80211_start(struct ieee80211_hw *hw)
 
 	rsi_dbg(ERR_ZONE, "===> Interface UP <===\n");
 	mutex_lock(&common->mutex);
+	if (common->hibernate_resume) {
+		common->reinit_hw = true;
+		adapter->host_intf_ops->reinit_device(adapter);
+		wait_for_completion(&adapter->priv->wlan_init_completion);
+	}
 	common->iface_down = false;
 	wiphy_rfkill_start_polling(hw->wiphy);
 	rsi_send_rx_filter_frame(common, 0);
@@ -1663,9 +1669,9 @@ static void rsi_resume_conn_channel(struct rsi_common *common)
 	}
 }
 
-void rsi_roc_timeout(unsigned long data)
+void rsi_roc_timeout(struct timer_list *t)
 {
-	struct rsi_common *common = (struct rsi_common *)data;
+	struct rsi_common *common = from_timer(common, t, roc_timer);
 
 	rsi_dbg(INFO_ZONE, "Remain on channel expired\n");
 
@@ -1746,6 +1752,123 @@ static int rsi_mac80211_cancel_roc(struct ieee80211_hw *hw)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static const struct wiphy_wowlan_support rsi_wowlan_support = {
+	.flags = WIPHY_WOWLAN_ANY |
+		 WIPHY_WOWLAN_MAGIC_PKT |
+		 WIPHY_WOWLAN_DISCONNECT |
+		 WIPHY_WOWLAN_GTK_REKEY_FAILURE  |
+		 WIPHY_WOWLAN_SUPPORTS_GTK_REKEY |
+		 WIPHY_WOWLAN_EAP_IDENTITY_REQ   |
+		 WIPHY_WOWLAN_4WAY_HANDSHAKE,
+};
+
+static u16 rsi_wow_map_triggers(struct rsi_common *common,
+				struct cfg80211_wowlan *wowlan)
+{
+	u16 wow_triggers = 0;
+
+	rsi_dbg(INFO_ZONE, "Mapping wowlan triggers\n");
+
+	if (wowlan->any)
+		wow_triggers |= RSI_WOW_ANY;
+	if (wowlan->magic_pkt)
+		wow_triggers |= RSI_WOW_MAGIC_PKT;
+	if (wowlan->disconnect)
+		wow_triggers |= RSI_WOW_DISCONNECT;
+	if (wowlan->gtk_rekey_failure || wowlan->eap_identity_req ||
+	    wowlan->four_way_handshake)
+		wow_triggers |= RSI_WOW_GTK_REKEY;
+
+	return wow_triggers;
+}
+
+int rsi_config_wowlan(struct rsi_hw *adapter, struct cfg80211_wowlan *wowlan)
+{
+	struct rsi_common *common = adapter->priv;
+	u16 triggers = 0;
+	u16 rx_filter_word = 0;
+	struct ieee80211_bss_conf *bss = &adapter->vifs[0]->bss_conf;
+
+	rsi_dbg(INFO_ZONE, "Config WoWLAN to device\n");
+
+	if (WARN_ON(!wowlan)) {
+		rsi_dbg(ERR_ZONE, "WoW triggers not enabled\n");
+		return -EINVAL;
+	}
+
+	triggers = rsi_wow_map_triggers(common, wowlan);
+	if (!triggers) {
+		rsi_dbg(ERR_ZONE, "%s:No valid WoW triggers\n", __func__);
+		return -EINVAL;
+	}
+	if (!bss->assoc) {
+		rsi_dbg(ERR_ZONE,
+			"Cannot configure WoWLAN (Station not connected)\n");
+		common->wow_flags |= RSI_WOW_NO_CONNECTION;
+		return 0;
+	}
+	rsi_dbg(INFO_ZONE, "TRIGGERS %x\n", triggers);
+	rsi_send_wowlan_request(common, triggers, 1);
+
+	/**
+	 * Increase the beacon_miss threshold & keep-alive timers in
+	 * vap_update frame
+	 */
+	rsi_send_vap_dynamic_update(common);
+
+	rx_filter_word = (ALLOW_DATA_ASSOC_PEER | DISALLOW_BEACONS);
+	rsi_send_rx_filter_frame(common, rx_filter_word);
+	common->wow_flags |= RSI_WOW_ENABLED;
+
+	return 0;
+}
+EXPORT_SYMBOL(rsi_config_wowlan);
+
+static int rsi_mac80211_suspend(struct ieee80211_hw *hw,
+				struct cfg80211_wowlan *wowlan)
+{
+	struct rsi_hw *adapter = hw->priv;
+	struct rsi_common *common = adapter->priv;
+
+	rsi_dbg(INFO_ZONE, "%s: mac80211 suspend\n", __func__);
+	mutex_lock(&common->mutex);
+	if (rsi_config_wowlan(adapter, wowlan)) {
+		rsi_dbg(ERR_ZONE, "Failed to configure WoWLAN\n");
+		mutex_unlock(&common->mutex);
+		return 1;
+	}
+	mutex_unlock(&common->mutex);
+
+	return 0;
+}
+
+static int rsi_mac80211_resume(struct ieee80211_hw *hw)
+{
+	u16 rx_filter_word = 0;
+	struct rsi_hw *adapter = hw->priv;
+	struct rsi_common *common = adapter->priv;
+
+	common->wow_flags = 0;
+
+	rsi_dbg(INFO_ZONE, "%s: mac80211 resume\n", __func__);
+
+	if (common->hibernate_resume)
+		return 0;
+
+	mutex_lock(&common->mutex);
+	rsi_send_wowlan_request(common, 0, 0);
+
+	rx_filter_word = (ALLOW_DATA_ASSOC_PEER | ALLOW_CTRL_ASSOC_PEER |
+			  ALLOW_MGMT_ASSOC_PEER);
+	rsi_send_rx_filter_frame(common, rx_filter_word);
+	mutex_unlock(&common->mutex);
+
+	return 0;
+}
+
+#endif
+
 static const struct ieee80211_ops mac80211_ops = {
 	.tx = rsi_mac80211_tx,
 	.start = rsi_mac80211_start,
@@ -1767,6 +1890,10 @@ static const struct ieee80211_ops mac80211_ops = {
 	.rfkill_poll = rsi_mac80211_rfkill_poll,
 	.remain_on_channel = rsi_mac80211_roc,
 	.cancel_remain_on_channel = rsi_mac80211_cancel_roc,
+#ifdef CONFIG_PM
+	.suspend = rsi_mac80211_suspend,
+	.resume  = rsi_mac80211_resume,
+#endif
 };
 
 /**
@@ -1849,6 +1976,10 @@ int rsi_mac80211_attach(struct rsi_common *common)
 	wiphy->flags |= WIPHY_FLAG_AP_UAPSD;
 	wiphy->features |= NL80211_FEATURE_INACTIVITY_TIMER;
 	wiphy->reg_notifier = rsi_reg_notify;
+
+#ifdef CONFIG_PM
+	wiphy->wowlan = &rsi_wowlan_support;
+#endif
 
 	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_CQM_RSSI_LIST);
 

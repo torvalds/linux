@@ -418,9 +418,9 @@ int rsi_prepare_beacon(struct rsi_common *common, struct sk_buff *skb)
 	return 0;
 }
 
-static void bl_cmd_timeout(unsigned long priv)
+static void bl_cmd_timeout(struct timer_list *t)
 {
-	struct rsi_hw *adapter = (struct rsi_hw *)priv;
+	struct rsi_hw *adapter = from_timer(adapter, t, bl_cmd_timer);
 
 	adapter->blcmd_timer_expired = true;
 	del_timer(&adapter->bl_cmd_timer);
@@ -428,8 +428,7 @@ static void bl_cmd_timeout(unsigned long priv)
 
 static int bl_start_cmd_timer(struct rsi_hw *adapter, u32 timeout)
 {
-	setup_timer(&adapter->bl_cmd_timer, (void *)&bl_cmd_timeout,
-		    (unsigned long)adapter);
+	timer_setup(&adapter->bl_cmd_timer, bl_cmd_timeout, 0);
 	adapter->bl_cmd_timer.expires = (msecs_to_jiffies(timeout) + jiffies);
 
 	adapter->blcmd_timer_expired = false;

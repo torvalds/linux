@@ -1131,13 +1131,13 @@ static u8 _rtl8821ae_dbi_read(struct rtl_priv *rtlpriv, u16 addr)
 static void _rtl8821ae_dbi_write(struct rtl_priv *rtlpriv, u16 addr, u8 data)
 {
 	u8 tmp = 0, count = 0;
-	u16 wrtie_addr, remainder = addr % 4;
+	u16 write_addr, remainder = addr % 4;
 
-	wrtie_addr = REG_DBI_WDATA + remainder;
-	rtl_write_byte(rtlpriv, wrtie_addr, data);
+	write_addr = REG_DBI_WDATA + remainder;
+	rtl_write_byte(rtlpriv, write_addr, data);
 
-	wrtie_addr = (addr & 0xfffc) | (BIT(0) << (remainder + 12));
-	rtl_write_word(rtlpriv, REG_DBI_ADDR, wrtie_addr);
+	write_addr = (addr & 0xfffc) | (BIT(0) << (remainder + 12));
+	rtl_write_word(rtlpriv, REG_DBI_ADDR, write_addr);
 
 	rtl_write_byte(rtlpriv, REG_DBI_FLAG, 0x1);
 

@@ -276,6 +276,8 @@ void rsi_core_qos_processor(struct rsi_common *common)
 			rsi_dbg(DATA_TX_ZONE, "%s: No More Pkt\n", __func__);
 			break;
 		}
+		if (common->hibernate_resume)
+			break;
 
 		mutex_lock(&common->tx_lock);
 
@@ -377,6 +379,12 @@ void rsi_core_xmit(struct rsi_common *common, struct sk_buff *skb)
 	}
 	if (common->fsm_state != FSM_MAC_INIT_DONE) {
 		rsi_dbg(ERR_ZONE, "%s: FSM state not open\n", __func__);
+		goto xmit_fail;
+	}
+	if (common->wow_flags & RSI_WOW_ENABLED) {
+		rsi_dbg(ERR_ZONE,
+			"%s: Blocking Tx_packets when WOWLAN is enabled\n",
+			__func__);
 		goto xmit_fail;
 	}
 
