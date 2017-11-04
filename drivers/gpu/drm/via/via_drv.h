@@ -74,9 +74,9 @@ typedef struct drm_via_private {
 	volatile uint32_t *last_pause_ptr;
 	volatile uint32_t *hw_addr_ptr;
 	drm_via_ring_buffer_t ring;
-	struct timeval last_vblank;
+	ktime_t last_vblank;
 	int last_vblank_valid;
-	unsigned usec_per_vblank;
+	ktime_t nsec_per_vblank;
 	atomic_t vbl_received;
 	drm_via_state_t hc_state;
 	char pci_buf[VIA_PCI_BUF_SIZE];
