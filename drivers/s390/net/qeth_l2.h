@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *    Copyright IBM Corp. 2013
  *    Author(s): Eugene Crosser <eugene.crosser@ru.ibm.com>

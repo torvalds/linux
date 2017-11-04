@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Access to message bus through three registers
  * in CUNIT(0:0:0) PCI configuration space.

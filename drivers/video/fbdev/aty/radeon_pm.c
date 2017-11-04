@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *	drivers/video/aty/radeon_pm.c
  *

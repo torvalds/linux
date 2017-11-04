@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 obj-$(CONFIG_MLX5_CORE)		+= mlx5_core.o
 subdir-ccflags-y += -I$(src)
 

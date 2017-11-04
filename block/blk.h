@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef BLK_INTERNAL_H
 #define BLK_INTERNAL_H
 

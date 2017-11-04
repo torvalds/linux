@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  linux/arch/i386/kernel/head32.c -- prepare to run common code
  *

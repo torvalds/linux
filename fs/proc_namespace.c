@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * fs/proc_namespace.c - handling of /proc/<pid>/{mounts,mountinfo,mountstats}
  *

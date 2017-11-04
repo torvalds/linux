@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Tests x86 Memory Protection Keys (see Documentation/x86/protection-keys.txt)
  *

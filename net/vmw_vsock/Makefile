@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 obj-$(CONFIG_VSOCKETS) += vsock.o
 obj-$(CONFIG_VSOCKETS_DIAG) += vsock_diag.o
 obj-$(CONFIG_VMWARE_VMCI_VSOCKETS) += vmw_vsock_vmci_transport.o

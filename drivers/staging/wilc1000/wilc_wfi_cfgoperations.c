@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include "wilc_wfi_cfgoperations.h"
 #include "host_interface.h"
 #include <linux/errno.h>

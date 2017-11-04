@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /* Copyright (c) 2011-2014 PLUMgrid, http://plumgrid.com
  *
  * This program is free software; you can redistribute it and/or

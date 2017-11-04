@@ -1,4 +1,5 @@
 """
+# SPDX-License-Identifier: GPL-2.0
 tdc_helper.py - tdc helper functions
 
 Copyright (C) 2017 Lucas Bates <lucasb@mojatatu.com>

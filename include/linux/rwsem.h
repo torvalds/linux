@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* rwsem.h: R/W semaphores, public interface
  *
  * Written by David Howells (dhowells@redhat.com).

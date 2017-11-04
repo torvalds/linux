@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __IIO_DAC_AD5421_H__
 #define __IIO_DAC_AD5421_H__
 

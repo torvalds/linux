@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /include/ "skeleton.dtsi"
 
 #include <dt-bindings/gpio/gpio.h>
