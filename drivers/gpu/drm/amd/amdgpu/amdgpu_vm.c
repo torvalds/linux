@@ -2576,27 +2576,27 @@ void amdgpu_vm_set_fragment_size(struct amdgpu_device *adev,
  * @adev: amdgpu_device pointer
  * @vm_size: the default vm size if it's set auto
  */
-void amdgpu_vm_adjust_size(struct amdgpu_device *adev, uint64_t vm_size,
+void amdgpu_vm_adjust_size(struct amdgpu_device *adev, uint32_t vm_size,
 			   uint32_t fragment_size_default)
 {
 	/* adjust vm size firstly */
-	if (amdgpu_vm_size == -1)
-		adev->vm_manager.vm_size = vm_size;
-	else
-		adev->vm_manager.vm_size = amdgpu_vm_size;
+	if (amdgpu_vm_size != -1)
+		vm_size = amdgpu_vm_size;
+
+	adev->vm_manager.max_pfn = (uint64_t)vm_size << 18;
 
 	/* block size depends on vm size */
 	if (amdgpu_vm_block_size == -1)
 		adev->vm_manager.block_size =
-			amdgpu_vm_get_block_size(adev->vm_manager.vm_size);
+			amdgpu_vm_get_block_size(vm_size);
 	else
 		adev->vm_manager.block_size = amdgpu_vm_block_size;
 
 	amdgpu_vm_set_fragment_size(adev, fragment_size_default);
 
-	DRM_INFO("vm size is %llu GB, block size is %u-bit, fragment size is %u-bit\n",
-		adev->vm_manager.vm_size, adev->vm_manager.block_size,
-		adev->vm_manager.fragment_size);
+	DRM_INFO("vm size is %u GB, block size is %u-bit, fragment size is %u-bit\n",
+		 vm_size, adev->vm_manager.block_size,
+		 adev->vm_manager.fragment_size);
 }
 
 /**

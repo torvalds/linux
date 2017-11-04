@@ -978,7 +978,6 @@ static int gmc_v7_0_sw_init(void *handle)
 	 * Max GPUVM size for cayman and SI is 40 bits.
 	 */
 	amdgpu_vm_adjust_size(adev, 64, 9);
-	adev->vm_manager.max_pfn = adev->vm_manager.vm_size << 18;
 
 	/* Set the internal MC address mask
 	 * This is the max address of the GPU's

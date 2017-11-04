@@ -838,7 +838,6 @@ static int gmc_v6_0_sw_init(void *handle)
 		return r;
 
 	amdgpu_vm_adjust_size(adev, 64, 9);
-	adev->vm_manager.max_pfn = adev->vm_manager.vm_size << 18;
 
 	adev->mc.mc_mask = 0xffffffffffULL;
 

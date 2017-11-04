@@ -564,7 +564,7 @@ static int gmc_v9_0_sw_init(void *handle)
 	case CHIP_RAVEN:
 		adev->mc.vram_type = AMDGPU_VRAM_TYPE_UNKNOWN;
 		if (adev->rev_id == 0x0 || adev->rev_id == 0x1) {
-			adev->vm_manager.vm_size = 1U << 18;
+			adev->vm_manager.max_pfn = 1ULL << 36;
 			adev->vm_manager.block_size = 9;
 			adev->vm_manager.num_level = 3;
 			amdgpu_vm_set_fragment_size(adev, 9);
@@ -582,7 +582,7 @@ static int gmc_v9_0_sw_init(void *handle)
 		 * vm size is 256TB (48bit), maximum size of Vega10,
 		 * block size 512 (9bit)
 		 */
-		adev->vm_manager.vm_size = 1U << 18;
+		adev->vm_manager.max_pfn = 1ULL << 36;
 		adev->vm_manager.block_size = 9;
 		adev->vm_manager.num_level = 3;
 		amdgpu_vm_set_fragment_size(adev, 9);
@@ -591,10 +591,9 @@ static int gmc_v9_0_sw_init(void *handle)
 		break;
 	}
 
-	DRM_INFO("vm size is %llu GB, block size is %u-bit,fragment size is %u-bit\n",
-			adev->vm_manager.vm_size,
-			adev->vm_manager.block_size,
-			adev->vm_manager.fragment_size);
+	DRM_INFO("vm size is %llu GB, block size is %u-bit, fragment size is %u-bit\n",
+		 adev->vm_manager.max_pfn >> 18, adev->vm_manager.block_size,
+		 adev->vm_manager.fragment_size);
 
 	/* This interrupt is VMC page fault.*/
 	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_VMC, 0,
@@ -604,8 +603,6 @@ static int gmc_v9_0_sw_init(void *handle)
 
 	if (r)
 		return r;
-
-	adev->vm_manager.max_pfn = adev->vm_manager.vm_size << 18;
 
 	/* Set the internal MC address mask
 	 * This is the max address of the GPU's
