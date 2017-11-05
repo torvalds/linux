@@ -36,6 +36,8 @@
 #include "fw-api.h"
 #include "iwl-trans.h"
 
+#define RS_NAME "iwl-mvm-rs"
+
 struct iwl_rs_rate_info {
 	u8 plcp;	  /* uCode API:  IWL_RATE_6M_PLCP, etc. */
 	u8 plcp_ht_siso;  /* uCode API:  IWL_RATE_SISO_6M_PLCP, etc. */
@@ -438,4 +440,16 @@ struct iwl_mvm_sta;
 
 int iwl_mvm_tx_protection(struct iwl_mvm *mvm, struct iwl_mvm_sta *mvmsta,
 			  bool enable);
+
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+void iwl_mvm_reset_frame_stats(struct iwl_mvm *mvm);
+#endif
+
+#ifdef CONFIG_MAC80211_DEBUGFS
+void rs_remove_sta_debugfs(void *mvm, void *mvm_sta);
+#endif
+
+void iwl_mvm_rs_add_sta(struct iwl_mvm *mvm, struct iwl_mvm_sta *mvmsta);
+void rs_fw_rate_init(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
+		     enum nl80211_band band);
 #endif /* __rs__ */
