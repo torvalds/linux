@@ -81,21 +81,26 @@ void tpm_put_ops(struct tpm_chip *chip)
 EXPORT_SYMBOL_GPL(tpm_put_ops);
 
 /**
- * tpm_chip_find_get() - return tpm_chip for a given chip number
- * @chip_num: id to find
+ * tpm_chip_find_get() - find and reserve a TPM chip
+ * @chip:	a &struct tpm_chip instance, %NULL for the default chip
  *
- * The return'd chip has been tpm_try_get_ops'd and must be released via
- * tpm_put_ops
+ * Finds a TPM chip and reserves its class device and operations. The chip must
+ * be released with tpm_chip_put_ops() after use.
+ *
+ * Return:
+ * A reserved &struct tpm_chip instance.
+ * %NULL if a chip is not found.
+ * %NULL if the chip is not available.
  */
-struct tpm_chip *tpm_chip_find_get(int chip_num)
+struct tpm_chip *tpm_chip_find_get(struct tpm_chip *chip)
 {
-	struct tpm_chip *chip, *res = NULL;
+	struct tpm_chip *res = NULL;
+	int chip_num = 0;
 	int chip_prev;
 
 	mutex_lock(&idr_lock);
 
-	if (chip_num == TPM_ANY_NUM) {
-		chip_num = 0;
+	if (!chip) {
 		do {
 			chip_prev = chip_num;
 			chip = idr_get_next(&dev_nums_idr, &chip_num);
@@ -105,8 +110,7 @@ struct tpm_chip *tpm_chip_find_get(int chip_num)
 			}
 		} while (chip_prev != chip_num);
 	} else {
-		chip = idr_find(&dev_nums_idr, chip_num);
-		if (chip && !tpm_try_get_ops(chip))
+		if (!tpm_try_get_ops(chip))
 			res = chip;
 	}
 
