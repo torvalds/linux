@@ -66,7 +66,8 @@ static struct tracer_flags blk_tracer_flags = {
 };
 
 /* Global reference count of probes */
-static atomic_t blk_probes_ref = ATOMIC_INIT(0);
+static DEFINE_MUTEX(blk_probe_mutex);
+static int blk_probes_ref;
 
 static void blk_register_tracepoints(void);
 static void blk_unregister_tracepoints(void);
@@ -329,11 +330,26 @@ static void blk_trace_free(struct blk_trace *bt)
 	kfree(bt);
 }
 
+static void get_probe_ref(void)
+{
+	mutex_lock(&blk_probe_mutex);
+	if (++blk_probes_ref == 1)
+		blk_register_tracepoints();
+	mutex_unlock(&blk_probe_mutex);
+}
+
+static void put_probe_ref(void)
+{
+	mutex_lock(&blk_probe_mutex);
+	if (!--blk_probes_ref)
+		blk_unregister_tracepoints();
+	mutex_unlock(&blk_probe_mutex);
+}
+
 static void blk_trace_cleanup(struct blk_trace *bt)
 {
 	blk_trace_free(bt);
-	if (atomic_dec_and_test(&blk_probes_ref))
-		blk_unregister_tracepoints();
+	put_probe_ref();
 }
 
 static int __blk_trace_remove(struct request_queue *q)
@@ -549,8 +565,7 @@ static int do_blk_trace_setup(struct request_queue *q, char *name, dev_t dev,
 	if (cmpxchg(&q->blk_trace, NULL, bt))
 		goto err;
 
-	if (atomic_inc_return(&blk_probes_ref) == 1)
-		blk_register_tracepoints();
+	get_probe_ref();
 
 	ret = 0;
 err:
@@ -1596,9 +1611,7 @@ static int blk_trace_remove_queue(struct request_queue *q)
 	if (bt == NULL)
 		return -EINVAL;
 
-	if (atomic_dec_and_test(&blk_probes_ref))
-		blk_unregister_tracepoints();
-
+	put_probe_ref();
 	blk_trace_free(bt);
 	return 0;
 }
@@ -1629,8 +1642,7 @@ static int blk_trace_setup_queue(struct request_queue *q,
 	if (cmpxchg(&q->blk_trace, NULL, bt))
 		goto free_bt;
 
-	if (atomic_inc_return(&blk_probes_ref) == 1)
-		blk_register_tracepoints();
+	get_probe_ref();
 	return 0;
 
 free_bt:
