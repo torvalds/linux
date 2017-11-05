@@ -912,7 +912,7 @@ static int connect_fwd_rules(struct mlx5_core_dev *dev,
 			     struct mlx5_flow_table *new_next_ft,
 			     struct mlx5_flow_table *old_next_ft)
 {
-	struct mlx5_flow_destination dest;
+	struct mlx5_flow_destination dest = {};
 	struct mlx5_flow_rule *iter;
 	int err = 0;
 
@@ -1820,7 +1820,7 @@ mlx5_add_flow_rules(struct mlx5_flow_table *ft,
 		    int dest_num)
 {
 	struct mlx5_flow_root_namespace *root = find_root(&ft->node);
-	struct mlx5_flow_destination gen_dest;
+	struct mlx5_flow_destination gen_dest = {};
 	struct mlx5_flow_table *next_ft = NULL;
 	struct mlx5_flow_handle *handle = NULL;
 	u32 sw_action = flow_act->action;

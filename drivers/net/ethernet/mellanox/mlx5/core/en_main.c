@@ -681,7 +681,7 @@ static int mlx5e_alloc_rq(struct mlx5e_channel *c,
 	}
 
 	INIT_WORK(&rq->am.work, mlx5e_rx_am_work);
-	rq->am.mode = params->rx_cq_period_mode;
+	rq->am.mode = params->rx_cq_moderation.cq_period_mode;
 	rq->page_cache.head = 0;
 	rq->page_cache.tail = 0;
 
@@ -1974,7 +1974,7 @@ static void mlx5e_build_rx_cq_param(struct mlx5e_priv *priv,
 	}
 
 	mlx5e_build_common_cq_param(priv, param);
-	param->cq_period_mode = params->rx_cq_period_mode;
+	param->cq_period_mode = params->rx_cq_moderation.cq_period_mode;
 }
 
 static void mlx5e_build_tx_cq_param(struct mlx5e_priv *priv,
@@ -1986,8 +1986,7 @@ static void mlx5e_build_tx_cq_param(struct mlx5e_priv *priv,
 	MLX5_SET(cqc, cqc, log_cq_size, params->log_sq_size);
 
 	mlx5e_build_common_cq_param(priv, param);
-
-	param->cq_period_mode = MLX5_CQ_PERIOD_MODE_START_FROM_EQE;
+	param->cq_period_mode = params->tx_cq_moderation.cq_period_mode;
 }
 
 static void mlx5e_build_ico_cq_param(struct mlx5e_priv *priv,
@@ -3987,14 +3986,32 @@ static bool hw_lro_heuristic(u32 link_speed, u32 pci_bw)
 		 (pci_bw <= 16000) && (pci_bw < link_speed));
 }
 
+void mlx5e_set_tx_cq_mode_params(struct mlx5e_params *params, u8 cq_period_mode)
+{
+	params->tx_cq_moderation.cq_period_mode = cq_period_mode;
+
+	params->tx_cq_moderation.pkts =
+		MLX5E_PARAMS_DEFAULT_TX_CQ_MODERATION_PKTS;
+	params->tx_cq_moderation.usec =
+		MLX5E_PARAMS_DEFAULT_TX_CQ_MODERATION_USEC;
+
+	if (cq_period_mode == MLX5_CQ_PERIOD_MODE_START_FROM_CQE)
+		params->tx_cq_moderation.usec =
+			MLX5E_PARAMS_DEFAULT_TX_CQ_MODERATION_USEC_FROM_CQE;
+
+	MLX5E_SET_PFLAG(params, MLX5E_PFLAG_TX_CQE_BASED_MODER,
+			params->tx_cq_moderation.cq_period_mode ==
+				MLX5_CQ_PERIOD_MODE_START_FROM_CQE);
+}
+
 void mlx5e_set_rx_cq_mode_params(struct mlx5e_params *params, u8 cq_period_mode)
 {
-	params->rx_cq_period_mode = cq_period_mode;
+	params->rx_cq_moderation.cq_period_mode = cq_period_mode;
 
 	params->rx_cq_moderation.pkts =
 		MLX5E_PARAMS_DEFAULT_RX_CQ_MODERATION_PKTS;
 	params->rx_cq_moderation.usec =
-			MLX5E_PARAMS_DEFAULT_RX_CQ_MODERATION_USEC;
+		MLX5E_PARAMS_DEFAULT_RX_CQ_MODERATION_USEC;
 
 	if (cq_period_mode == MLX5_CQ_PERIOD_MODE_START_FROM_CQE)
 		params->rx_cq_moderation.usec =
@@ -4002,10 +4019,11 @@ void mlx5e_set_rx_cq_mode_params(struct mlx5e_params *params, u8 cq_period_mode)
 
 	if (params->rx_am_enabled)
 		params->rx_cq_moderation =
-			mlx5e_am_get_def_profile(params->rx_cq_period_mode);
+			mlx5e_am_get_def_profile(cq_period_mode);
 
 	MLX5E_SET_PFLAG(params, MLX5E_PFLAG_RX_CQE_BASED_MODER,
-			params->rx_cq_period_mode == MLX5_CQ_PERIOD_MODE_START_FROM_CQE);
+			params->rx_cq_moderation.cq_period_mode ==
+				MLX5_CQ_PERIOD_MODE_START_FROM_CQE);
 }
 
 u32 mlx5e_choose_lro_timeout(struct mlx5_core_dev *mdev, u32 wanted_timeout)
@@ -4065,16 +4083,11 @@ void mlx5e_build_nic_params(struct mlx5_core_dev *mdev,
 			MLX5_CQ_PERIOD_MODE_START_FROM_EQE;
 	params->rx_am_enabled = MLX5_CAP_GEN(mdev, cq_moderation);
 	mlx5e_set_rx_cq_mode_params(params, cq_period_mode);
-
-	params->tx_cq_moderation.usec = MLX5E_PARAMS_DEFAULT_TX_CQ_MODERATION_USEC;
-	params->tx_cq_moderation.pkts = MLX5E_PARAMS_DEFAULT_TX_CQ_MODERATION_PKTS;
+	mlx5e_set_tx_cq_mode_params(params, cq_period_mode);
 
 	/* TX inline */
 	params->tx_max_inline = mlx5e_get_max_inline_cap(mdev);
-	mlx5_query_min_inline(mdev, &params->tx_min_inline_mode);
-	if (params->tx_min_inline_mode == MLX5_INLINE_MODE_NONE &&
-	    !MLX5_CAP_ETH(mdev, wqe_vlan_insert))
-		params->tx_min_inline_mode = MLX5_INLINE_MODE_L2;
+	params->tx_min_inline_mode = mlx5e_params_calculate_tx_min_inline(mdev);
 
 	/* RSS */
 	params->rss_hfunc = ETH_RSS_HASH_XOR;
@@ -4094,6 +4107,7 @@ static void mlx5e_build_nic_netdev_priv(struct mlx5_core_dev *mdev,
 	priv->netdev      = netdev;
 	priv->profile     = profile;
 	priv->ppriv       = ppriv;
+	priv->msglevel    = MLX5E_MSG_LEVEL;
 	priv->hard_mtu = MLX5E_ETH_HARD_MTU;
 
 	mlx5e_build_nic_params(mdev, &priv->channels.params, profile->max_nch(mdev));
@@ -4374,7 +4388,9 @@ static void mlx5e_nic_enable(struct mlx5e_priv *priv)
 
 	if (netdev->reg_state != NETREG_REGISTERED)
 		return;
-
+#ifdef CONFIG_MLX5_CORE_EN_DCB
+	mlx5e_dcbnl_init_app(priv);
+#endif
 	/* Device already registered: sync netdev system state */
 	if (mlx5e_vxlan_allowed(mdev)) {
 		rtnl_lock();
@@ -4394,6 +4410,11 @@ static void mlx5e_nic_enable(struct mlx5e_priv *priv)
 static void mlx5e_nic_disable(struct mlx5e_priv *priv)
 {
 	struct mlx5_core_dev *mdev = priv->mdev;
+
+#ifdef CONFIG_MLX5_CORE_EN_DCB
+	if (priv->netdev->reg_state == NETREG_REGISTERED)
+		mlx5e_dcbnl_delete_app(priv);
+#endif
 
 	rtnl_lock();
 	if (netif_running(priv->netdev))
@@ -4615,6 +4636,9 @@ static void *mlx5e_add(struct mlx5_core_dev *mdev)
 		goto err_detach;
 	}
 
+#ifdef CONFIG_MLX5_CORE_EN_DCB
+	mlx5e_dcbnl_init_app(priv);
+#endif
 	return priv;
 
 err_detach:
@@ -4631,6 +4655,9 @@ static void mlx5e_remove(struct mlx5_core_dev *mdev, void *vpriv)
 	struct mlx5e_priv *priv = vpriv;
 	void *ppriv = priv->ppriv;
 
+#ifdef CONFIG_MLX5_CORE_EN_DCB
+	mlx5e_dcbnl_delete_app(priv);
+#endif
 	unregister_netdev(priv->netdev);
 	mlx5e_detach(mdev, vpriv);
 	mlx5e_destroy_netdev(priv);
