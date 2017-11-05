@@ -25,10 +25,9 @@ enum {
 	BACKEND_NONE,
 };
 
-const char *backends[] = { "tap", "macvtap", "raw", "dpdk", "pipe", NULL };
-
+const char *backends[] = { "tap", "macvtap", "raw", "dpdk", "pipe", "loopback",
+			   NULL };
 static struct {
-	int printk;
 	int backend;
 	const char *ifname;
 	int dhcp, nmlen;
@@ -42,7 +41,6 @@ static struct {
 
 
 struct cl_arg args[] = {
-	{"printk", 'p', "show Linux printks", 0, CL_ARG_BOOL, &cla.printk},
 	{"backend", 'b', "network backend type", 1, CL_ARG_STR_SET,
 	 &cla.backend, backends},
 	{"ifname", 'i', "interface name", 1, CL_ARG_STR, &cla.ifname},
@@ -77,7 +75,7 @@ in_cksum(const u_short *addr, register int len, u_short csum)
 	return answer;
 }
 
-static int test_icmp(char *str, int len)
+static int lkl_test_icmp(void)
 {
 	int sock, ret;
 	struct lkl_iphdr *iph;
@@ -90,11 +88,11 @@ static int test_icmp(char *str, int len)
 	saddr.sin_family = AF_INET;
 	saddr.sin_addr.s_addr = cla.dst;
 
-	str += snprintf(str, len, "%s ", inet_ntoa(saddr.sin_addr));
+	lkl_test_logf("pinging %s\n", inet_ntoa(saddr.sin_addr));
 
 	sock = lkl_sys_socket(LKL_AF_INET, LKL_SOCK_RAW, LKL_IPPROTO_ICMP);
 	if (sock < 0) {
-		snprintf(str, len, "socket error (%s)", lkl_strerror(sock));
+		lkl_test_logf("socket error (%s)\n", lkl_strerror(sock));
 		return TEST_FAILURE;
 	}
 
@@ -110,7 +108,7 @@ static int test_icmp(char *str, int len)
 			     (struct lkl_sockaddr*)&saddr,
 			     sizeof(saddr));
 	if (ret < 0) {
-		snprintf(str, len, "sendto error (%s)", lkl_strerror(ret));
+		lkl_test_logf("sendto error (%s)\n", lkl_strerror(ret));
 		return TEST_FAILURE;
 	}
 
@@ -122,13 +120,13 @@ static int test_icmp(char *str, int len)
 
 	ret = lkl_sys_poll(&pfd, 1, 1000);
 	if (ret < 0) {
-		snprintf(str, len, "poll error (%s)", lkl_strerror(ret));
+		lkl_test_logf("poll error (%s)\n", lkl_strerror(ret));
 		return TEST_FAILURE;
 	}
 
 	ret = lkl_sys_recv(sock, buf, sizeof(buf), LKL_MSG_DONTWAIT);
 	if (ret < 0) {
-		snprintf(str, len, "recv error (%s)", lkl_strerror(ret));
+		lkl_test_logf("recv error (%s)\n", lkl_strerror(ret));
 		return TEST_FAILURE;
 	}
 
@@ -137,29 +135,21 @@ static int test_icmp(char *str, int len)
 	/* DHCP server may issue an ICMP echo request to a dhcp client */
 	if ((icmp->type != LKL_ICMP_ECHOREPLY || icmp->code != 0) &&
 	    (icmp->type != LKL_ICMP_ECHO)) {
-		snprintf(str, len, "no ICMP echo reply (type=%d, code=%d)",
-			 icmp->type, icmp->code);
+		lkl_test_logf("no ICMP echo reply (type=%d, code=%d)\n",
+			      icmp->type, icmp->code);
 		return TEST_FAILURE;
 	}
 
 	return TEST_SUCCESS;
 }
 
-static int test_net_init(int argc, const char **argv)
+static struct lkl_netdev *nd;
+
+static int lkl_test_nd_create(void)
 {
-	int ret, nd_id = -1, nd_ifindex = -1;
-	struct lkl_netdev *nd = NULL;
-
-	if (parse_args(argc, argv, args) < 0)
-		return -1;
-
-	if (cla.ip != LKL_INADDR_NONE && (cla.nmlen < 0 || cla.nmlen > 32)) {
-		fprintf(stderr, "invalid netmask length %d\n", cla.nmlen);
-		return -1;
-	}
-
-#ifndef __MINGW32__
 	switch (cla.backend) {
+	case BACKEND_NONE:
+		return TEST_SKIP;
 	case BACKEND_TAP:
 		nd = lkl_netdev_tap_create(cla.ifname, 0);
 		break;
@@ -176,60 +166,114 @@ static int test_net_init(int argc, const char **argv)
 		nd = lkl_netdev_pipe_create(cla.ifname, 0);
 		break;
 	}
-#endif
 
-	if (nd) {
-		nd_id = lkl_netdev_add(nd, NULL);
-		if (nd_id < 0) {
-			fprintf(stderr, "failed to add netdev: %s\n",
-				lkl_strerror(nd_id));
-		}
+	if (!nd) {
+		lkl_test_logf("failed to create netdev\n");
+		return TEST_BAILOUT;
 	}
 
-	if (!cla.printk)
-		lkl_host_ops.print = NULL;
-
-	ret = lkl_start_kernel(&lkl_host_ops, "%s", cla.dhcp ? "ip=dhcp" : "");
-	if (ret) {
-		fprintf(stderr, "can't start kernel: %s\n", lkl_strerror(ret));
-		return -1;
-	}
-
-	/* lo iff_up */
-	lkl_if_up(1);
-
-	if (nd_id >= 0) {
-		nd_ifindex = lkl_netdev_get_ifindex(nd_id);
-		if (nd_ifindex > 0)
-			lkl_if_up(nd_ifindex);
-		else
-			fprintf(stderr, "failed to get ifindex for netdev id %d: %s\n",
-				nd_id, lkl_strerror(nd_ifindex));
-	}
-
-	if (nd_ifindex >= 0 && cla.ip != LKL_INADDR_NONE) {
-		ret = lkl_if_set_ipv4(nd_ifindex, cla.ip, cla.nmlen);
-		if (ret < 0)
-			fprintf(stderr, "failed to set IPv4 address: %s\n",
-				lkl_strerror(ret));
-	}
-
-	if (nd_ifindex >= 0 && cla.gateway != LKL_INADDR_NONE) {
-		ret = lkl_set_ipv4_gateway(cla.gateway);
-		if (ret < 0)
-			fprintf(stderr, "failed to set IPv4 gateway: %s\n",
-				lkl_strerror(ret));
-	}
-
-	return 0;
+	return TEST_SUCCESS;
 }
+
+static int nd_id;
+
+static int lkl_test_nd_add(void)
+{
+	if (cla.backend == BACKEND_NONE)
+		return TEST_SKIP;
+
+	nd_id = lkl_netdev_add(nd, NULL);
+	if (nd_id < 0) {
+		lkl_test_logf("failed to add netdev: %s\n",
+			      lkl_strerror(nd_id));
+		return TEST_BAILOUT;
+	}
+
+	return TEST_SUCCESS;
+}
+
+LKL_TEST_CALL(start_kernel, lkl_start_kernel, 0, &lkl_host_ops,
+	"mem=16M loglevel=8 %s", cla.dhcp ? "ip=dhcp" : "");
+LKL_TEST_CALL(stop_kernel, lkl_sys_halt, 0);
+
+static int nd_ifindex;
+
+static int lkl_test_nd_ifindex(void)
+{
+	if (cla.backend == BACKEND_NONE)
+		return TEST_SKIP;
+
+	nd_ifindex = lkl_netdev_get_ifindex(nd_id);
+	if (nd_ifindex < 0) {
+		lkl_test_logf("failed to get ifindex for netdev id %d: %s\n",
+			      nd_id, lkl_strerror(nd_ifindex));
+		return TEST_BAILOUT;
+	}
+
+	return TEST_SUCCESS;
+}
+
+LKL_TEST_CALL(if_up, lkl_if_up, 0,
+	      cla.backend == BACKEND_NONE ? 1 : nd_ifindex);
+
+static int lkl_test_set_ipv4(void)
+{
+	int ret;
+
+	if (cla.backend == BACKEND_NONE || cla.ip == LKL_INADDR_NONE)
+		return TEST_SKIP;
+
+	ret = lkl_if_set_ipv4(nd_ifindex, cla.ip, cla.nmlen);
+	if (ret < 0) {
+		lkl_test_logf("failed to set IPv4 address: %s\n",
+			      lkl_strerror(ret));
+		return TEST_BAILOUT;
+	}
+
+	return TEST_SUCCESS;
+}
+
+static int lkl_test_set_gateway(void)
+{
+	int ret;
+
+	if (cla.backend == BACKEND_NONE || cla.gateway == LKL_INADDR_NONE)
+		return TEST_SKIP;
+
+	ret = lkl_set_ipv4_gateway(cla.gateway);
+	if (ret < 0) {
+		lkl_test_logf("failed to set IPv4 gateway: %s\n",
+			      lkl_strerror(ret));
+		return TEST_BAILOUT;
+	}
+
+	return TEST_SUCCESS;
+}
+
+struct lkl_test tests[] = {
+	LKL_TEST(nd_create),
+	LKL_TEST(nd_add),
+	LKL_TEST(start_kernel),
+	LKL_TEST(nd_ifindex),
+	LKL_TEST(if_up),
+	LKL_TEST(set_ipv4),
+	LKL_TEST(set_gateway),
+	LKL_TEST(icmp),
+	LKL_TEST(stop_kernel),
+};
 
 int main(int argc, const char **argv)
 {
-	if (test_net_init(argc, argv) < 0)
+	if (parse_args(argc, argv, args) < 0)
 		return -1;
 
-	TEST(icmp);
+	if (cla.ip != LKL_INADDR_NONE && (cla.nmlen < 0 || cla.nmlen > 32)) {
+		fprintf(stderr, "invalid netmask length %d\n", cla.nmlen);
+		return -1;
+	}
 
-	return g_test_pass;
+	lkl_host_ops.print = lkl_test_log;
+
+	return lkl_test_run(tests, sizeof(tests)/sizeof(struct lkl_test),
+			    "net %s", backends[cla.backend]);
 }
