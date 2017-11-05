@@ -31,12 +31,13 @@ static struct {
 	int backend;
 	const char *ifname;
 	int dhcp, nmlen;
-	unsigned int ip, dst, gateway;
+	unsigned int ip, dst, gateway, sleep;
 } cla = {
 	.backend = BACKEND_NONE,
 	.ip = INADDR_NONE,
 	.gateway = INADDR_NONE,
 	.dst = INADDR_NONE,
+	.sleep = 0,
 };
 
 
@@ -50,6 +51,7 @@ struct cl_arg args[] = {
 	 &cla.nmlen},
 	{"gateway", 'g', "IPv4 gateway to use", 1, CL_ARG_IPV4, &cla.gateway},
 	{"dst", 'd', "IPv4 destination address", 1, CL_ARG_IPV4, &cla.dst},
+	{"sleep", 's', "sleep", 1, CL_ARG_INT, &cla.sleep},
 	{0},
 };
 
@@ -75,6 +77,22 @@ in_cksum(const u_short *addr, register int len, u_short csum)
 	return answer;
 }
 
+static int lkl_test_sleep(void)
+{
+	struct lkl_timespec ts = {
+		.tv_sec = cla.sleep,
+	};
+	int ret;
+
+	ret = lkl_sys_nanosleep(&ts, NULL);
+	if (ret < 0) {
+		lkl_test_logf("nanosleep error: %s\n", lkl_strerror(ret));
+		return TEST_FAILURE;
+	}
+
+	return TEST_SUCCESS;
+}
+
 static int lkl_test_icmp(void)
 {
 	int sock, ret;
@@ -83,6 +101,9 @@ static int lkl_test_icmp(void)
 	struct sockaddr_in saddr;
 	struct lkl_pollfd pfd;
 	char buf[32];
+
+	if (cla.dst == INADDR_NONE)
+		return TEST_SKIP;
 
 	memset(&saddr, 0, sizeof(saddr));
 	saddr.sin_family = AF_INET;
@@ -258,6 +279,7 @@ struct lkl_test tests[] = {
 	LKL_TEST(if_up),
 	LKL_TEST(set_ipv4),
 	LKL_TEST(set_gateway),
+	LKL_TEST(sleep),
 	LKL_TEST(icmp),
 	LKL_TEST(stop_kernel),
 };
