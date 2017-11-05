@@ -478,8 +478,7 @@ int jsm_uart_port_init(struct jsm_board *brd)
 		if (rc) {
 			printk(KERN_INFO "jsm: Port %d failed. Aborting...\n", i);
 			return rc;
-		}
-		else
+		} else
 			printk(KERN_INFO "jsm: Port %d added\n", i);
 	}
 
