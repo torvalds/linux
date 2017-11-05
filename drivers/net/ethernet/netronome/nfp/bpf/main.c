@@ -54,28 +54,25 @@ static int
 nfp_bpf_xdp_offload(struct nfp_app *app, struct nfp_net *nn,
 		    struct bpf_prog *prog)
 {
-	struct tc_cls_bpf_offload cmd = {
-		.prog = prog,
-	};
+	bool running, xdp_running;
 	int ret;
 
 	if (!nfp_net_ebpf_capable(nn))
 		return -EINVAL;
 
-	if (nn->dp.ctrl & NFP_NET_CFG_CTRL_BPF) {
-		if (!nn->dp.bpf_offload_xdp)
-			return prog ? -EBUSY : 0;
-		cmd.command = prog ? TC_CLSBPF_REPLACE : TC_CLSBPF_DESTROY;
-	} else {
-		if (!prog)
-			return 0;
-		cmd.command = TC_CLSBPF_ADD;
-	}
+	running = nn->dp.ctrl & NFP_NET_CFG_CTRL_BPF;
+	xdp_running = running && nn->dp.bpf_offload_xdp;
 
-	ret = nfp_net_bpf_offload(nn, &cmd);
+	if (!prog && !xdp_running)
+		return 0;
+	if (prog && running && !xdp_running)
+		return -EBUSY;
+
+	ret = nfp_net_bpf_offload(nn, prog, running);
 	/* Stop offload if replace not possible */
-	if (ret && cmd.command == TC_CLSBPF_REPLACE)
+	if (ret && prog)
 		nfp_bpf_xdp_offload(app, nn, NULL);
+
 	nn->dp.bpf_offload_xdp = prog && !ret;
 	return ret;
 }
@@ -85,34 +82,10 @@ static const char *nfp_bpf_extra_cap(struct nfp_app *app, struct nfp_net *nn)
 	return nfp_net_ebpf_capable(nn) ? "BPF" : "";
 }
 
-static int
-nfp_bpf_vnic_alloc(struct nfp_app *app, struct nfp_net *nn, unsigned int id)
-{
-	struct nfp_net_bpf_priv *priv;
-	int ret;
-
-	priv = kmalloc(sizeof(*priv), GFP_KERNEL);
-	if (!priv)
-		return -ENOMEM;
-
-	nn->app_priv = priv;
-	spin_lock_init(&priv->rx_filter_lock);
-	priv->nn = nn;
-	timer_setup(&priv->rx_filter_stats_timer,
-		    nfp_net_filter_stats_timer, 0);
-
-	ret = nfp_app_nic_vnic_alloc(app, nn, id);
-	if (ret)
-		kfree(priv);
-
-	return ret;
-}
-
 static void nfp_bpf_vnic_free(struct nfp_app *app, struct nfp_net *nn)
 {
 	if (nn->dp.bpf_offload_xdp)
 		nfp_bpf_xdp_offload(app, nn, NULL);
-	kfree(nn->app_priv);
 }
 
 static int nfp_bpf_setup_tc_block_cb(enum tc_setup_type type,
@@ -121,19 +94,29 @@ static int nfp_bpf_setup_tc_block_cb(enum tc_setup_type type,
 	struct tc_cls_bpf_offload *cls_bpf = type_data;
 	struct nfp_net *nn = cb_priv;
 
-	if (!tc_can_offload(nn->dp.netdev))
+	if (type != TC_SETUP_CLSBPF ||
+	    !tc_can_offload(nn->dp.netdev) ||
+	    !nfp_net_ebpf_capable(nn) ||
+	    cls_bpf->common.protocol != htons(ETH_P_ALL) ||
+	    cls_bpf->common.chain_index)
 		return -EOPNOTSUPP;
+	if (nn->dp.bpf_offload_xdp)
+		return -EBUSY;
 
-	switch (type) {
-	case TC_SETUP_CLSBPF:
-		if (!nfp_net_ebpf_capable(nn) ||
-		    cls_bpf->common.protocol != htons(ETH_P_ALL) ||
-		    cls_bpf->common.chain_index)
-			return -EOPNOTSUPP;
-		if (nn->dp.bpf_offload_xdp)
-			return -EBUSY;
+	/* Only support TC direct action */
+	if (!cls_bpf->exts_integrated ||
+	    tcf_exts_has_actions(cls_bpf->exts)) {
+		nn_err(nn, "only direct action with no legacy actions supported\n");
+		return -EOPNOTSUPP;
+	}
 
-		return nfp_net_bpf_offload(nn, cls_bpf);
+	switch (cls_bpf->command) {
+	case TC_CLSBPF_REPLACE:
+		return nfp_net_bpf_offload(nn, cls_bpf->prog, true);
+	case TC_CLSBPF_ADD:
+		return nfp_net_bpf_offload(nn, cls_bpf->prog, false);
+	case TC_CLSBPF_DESTROY:
+		return nfp_net_bpf_offload(nn, NULL, true);
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -184,10 +167,14 @@ const struct nfp_app_type app_bpf = {
 
 	.extra_cap	= nfp_bpf_extra_cap,
 
-	.vnic_alloc	= nfp_bpf_vnic_alloc,
+	.vnic_alloc	= nfp_app_nic_vnic_alloc,
 	.vnic_free	= nfp_bpf_vnic_free,
 
 	.setup_tc	= nfp_bpf_setup_tc,
 	.tc_busy	= nfp_bpf_tc_busy,
 	.xdp_offload	= nfp_bpf_xdp_offload,
+
+	.bpf_verifier_prep	= nfp_bpf_verifier_prep,
+	.bpf_translate		= nfp_bpf_translate,
+	.bpf_destroy		= nfp_bpf_destroy,
 };

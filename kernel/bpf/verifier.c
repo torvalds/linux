@@ -949,9 +949,6 @@ static int check_ctx_access(struct bpf_verifier_env *env, int insn_idx, int off,
 		 */
 		*reg_type = info.reg_type;
 
-		if (env->analyzer_ops)
-			return 0;
-
 		env->insn_aux_data[insn_idx].ctx_field_size = info.ctx_field_size;
 		/* remember the offset of last byte accessed in ctx */
 		if (env->prog->aux->max_ctx_offset < off + size)
@@ -3736,10 +3733,10 @@ static int is_state_visited(struct bpf_verifier_env *env, int insn_idx)
 static int ext_analyzer_insn_hook(struct bpf_verifier_env *env,
 				  int insn_idx, int prev_insn_idx)
 {
-	if (!env->analyzer_ops || !env->analyzer_ops->insn_hook)
-		return 0;
+	if (env->dev_ops && env->dev_ops->insn_hook)
+		return env->dev_ops->insn_hook(env, insn_idx, prev_insn_idx);
 
-	return env->analyzer_ops->insn_hook(env, insn_idx, prev_insn_idx);
+	return 0;
 }
 
 static int do_check(struct bpf_verifier_env *env)
@@ -4516,6 +4513,12 @@ int bpf_check(struct bpf_prog **prog, union bpf_attr *attr)
 	if (!IS_ENABLED(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS))
 		env->strict_alignment = true;
 
+	if (env->prog->aux->offload) {
+		ret = bpf_prog_offload_verifier_prep(env);
+		if (ret)
+			goto err_unlock;
+	}
+
 	ret = replace_map_fd_with_map_ptr(env);
 	if (ret < 0)
 		goto skip_full_check;
@@ -4592,72 +4595,3 @@ err_free_env:
 	kfree(env);
 	return ret;
 }
-
-static const struct bpf_verifier_ops * const bpf_analyzer_ops[] = {
-#ifdef CONFIG_NET
-	[BPF_PROG_TYPE_XDP]		= &xdp_analyzer_ops,
-	[BPF_PROG_TYPE_SCHED_CLS]	= &tc_cls_act_analyzer_ops,
-#endif
-};
-
-int bpf_analyzer(struct bpf_prog *prog, const struct bpf_ext_analyzer_ops *ops,
-		 void *priv)
-{
-	struct bpf_verifier_env *env;
-	int ret;
-
-	if (prog->type >= ARRAY_SIZE(bpf_analyzer_ops) ||
-	    !bpf_analyzer_ops[prog->type])
-		return -EOPNOTSUPP;
-
-	env = kzalloc(sizeof(struct bpf_verifier_env), GFP_KERNEL);
-	if (!env)
-		return -ENOMEM;
-
-	env->insn_aux_data = vzalloc(sizeof(struct bpf_insn_aux_data) *
-				     prog->len);
-	ret = -ENOMEM;
-	if (!env->insn_aux_data)
-		goto err_free_env;
-	env->prog = prog;
-	env->ops = bpf_analyzer_ops[env->prog->type];
-	env->analyzer_ops = ops;
-	env->analyzer_priv = priv;
-
-	/* grab the mutex to protect few globals used by verifier */
-	mutex_lock(&bpf_verifier_lock);
-
-	env->strict_alignment = false;
-	if (!IS_ENABLED(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS))
-		env->strict_alignment = true;
-
-	env->explored_states = kcalloc(env->prog->len,
-				       sizeof(struct bpf_verifier_state_list *),
-				       GFP_KERNEL);
-	ret = -ENOMEM;
-	if (!env->explored_states)
-		goto skip_full_check;
-
-	ret = check_cfg(env);
-	if (ret < 0)
-		goto skip_full_check;
-
-	env->allow_ptr_leaks = capable(CAP_SYS_ADMIN);
-
-	ret = do_check(env);
-	if (env->cur_state) {
-		free_verifier_state(env->cur_state, true);
-		env->cur_state = NULL;
-	}
-
-skip_full_check:
-	while (!pop_stack(env, NULL, NULL));
-	free_states(env);
-
-	mutex_unlock(&bpf_verifier_lock);
-	vfree(env->insn_aux_data);
-err_free_env:
-	kfree(env);
-	return ret;
-}
-EXPORT_SYMBOL_GPL(bpf_analyzer);

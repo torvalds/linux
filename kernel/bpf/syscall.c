@@ -824,7 +824,10 @@ static int find_prog_type(enum bpf_prog_type type, struct bpf_prog *prog)
 	if (type >= ARRAY_SIZE(bpf_prog_types) || !bpf_prog_types[type])
 		return -EINVAL;
 
-	prog->aux->ops = bpf_prog_types[type];
+	if (!bpf_prog_is_dev_bound(prog->aux))
+		prog->aux->ops = bpf_prog_types[type];
+	else
+		prog->aux->ops = &bpf_offload_prog_ops;
 	prog->type = type;
 	return 0;
 }
@@ -1054,7 +1057,22 @@ struct bpf_prog *bpf_prog_inc_not_zero(struct bpf_prog *prog)
 }
 EXPORT_SYMBOL_GPL(bpf_prog_inc_not_zero);
 
-static struct bpf_prog *__bpf_prog_get(u32 ufd, enum bpf_prog_type *type)
+static bool bpf_prog_can_attach(struct bpf_prog *prog,
+				enum bpf_prog_type *attach_type,
+				struct net_device *netdev)
+{
+	struct bpf_dev_offload *offload = prog->aux->offload;
+
+	if (prog->type != *attach_type)
+		return false;
+	if (offload && offload->netdev != netdev)
+		return false;
+
+	return true;
+}
+
+static struct bpf_prog *__bpf_prog_get(u32 ufd, enum bpf_prog_type *attach_type,
+				       struct net_device *netdev)
 {
 	struct fd f = fdget(ufd);
 	struct bpf_prog *prog;
@@ -1062,7 +1080,7 @@ static struct bpf_prog *__bpf_prog_get(u32 ufd, enum bpf_prog_type *type)
 	prog = ____bpf_prog_get(f);
 	if (IS_ERR(prog))
 		return prog;
-	if (type && prog->type != *type) {
+	if (attach_type && !bpf_prog_can_attach(prog, attach_type, netdev)) {
 		prog = ERR_PTR(-EINVAL);
 		goto out;
 	}
@@ -1075,12 +1093,12 @@ out:
 
 struct bpf_prog *bpf_prog_get(u32 ufd)
 {
-	return __bpf_prog_get(ufd, NULL);
+	return __bpf_prog_get(ufd, NULL, NULL);
 }
 
 struct bpf_prog *bpf_prog_get_type(u32 ufd, enum bpf_prog_type type)
 {
-	struct bpf_prog *prog = __bpf_prog_get(ufd, &type);
+	struct bpf_prog *prog = __bpf_prog_get(ufd, &type, NULL);
 
 	if (!IS_ERR(prog))
 		trace_bpf_prog_get_type(prog);
@@ -1088,8 +1106,19 @@ struct bpf_prog *bpf_prog_get_type(u32 ufd, enum bpf_prog_type type)
 }
 EXPORT_SYMBOL_GPL(bpf_prog_get_type);
 
+struct bpf_prog *bpf_prog_get_type_dev(u32 ufd, enum bpf_prog_type type,
+				       struct net_device *netdev)
+{
+	struct bpf_prog *prog = __bpf_prog_get(ufd, &type, netdev);
+
+	if (!IS_ERR(prog))
+		trace_bpf_prog_get_type(prog);
+	return prog;
+}
+EXPORT_SYMBOL_GPL(bpf_prog_get_type_dev);
+
 /* last field in 'union bpf_attr' used by this command */
-#define	BPF_PROG_LOAD_LAST_FIELD prog_name
+#define	BPF_PROG_LOAD_LAST_FIELD prog_target_ifindex
 
 static int bpf_prog_load(union bpf_attr *attr)
 {
@@ -1151,6 +1180,12 @@ static int bpf_prog_load(union bpf_attr *attr)
 
 	atomic_set(&prog->aux->refcnt, 1);
 	prog->gpl_compatible = is_gpl ? 1 : 0;
+
+	if (attr->prog_target_ifindex) {
+		err = bpf_prog_offload_init(prog, attr);
+		if (err)
+			goto free_prog;
+	}
 
 	/* find program type: socket_filter vs tracing_filter */
 	err = find_prog_type(type, prog);
@@ -1581,6 +1616,11 @@ static int bpf_prog_get_info_by_fd(struct bpf_prog *prog,
 		ulen = min_t(u32, info.xlated_prog_len, ulen);
 		if (copy_to_user(uinsns, prog->insnsi, ulen))
 			return -EFAULT;
+	}
+
+	if (bpf_prog_is_dev_bound(prog->aux)) {
+		info.status |= BPF_PROG_STATUS_DEV_BOUND;
+		info.ifindex = bpf_prog_offload_ifindex(prog);
 	}
 
 done:
