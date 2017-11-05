@@ -104,13 +104,12 @@ programs_install: $(ALL_PROGRAMS)
 
 install: headers_install libraries_install programs_install
 
-TEST_TARGETS := test valgrind gdb
 
-$(TEST_TARGETS):
-	$(MAKE) -C tests $@
+run-tests:
+	./tests/run.py $(tests)
 
 FORCE: ;
-.PHONY: all clean FORCE
+.PHONY: all clean FORCE run-tests
 .PHONY: headers_install libraries_install programs_install install
 .NOTPARALLEL : lib/lkl.o
 .SECONDARY:

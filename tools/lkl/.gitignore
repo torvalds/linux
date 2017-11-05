@@ -11,3 +11,4 @@ tests/disk
 Makefile.conf
 include/autoconf.h
 tests/autoconf.sh
+*.pyc
