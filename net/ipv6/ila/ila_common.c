@@ -13,15 +13,28 @@
 #include <uapi/linux/ila.h>
 #include "ila.h"
 
-static __wsum get_csum_diff(struct ipv6hdr *ip6h, struct ila_params *p)
+void ila_init_saved_csum(struct ila_params *p)
 {
-	struct ila_addr *iaddr = ila_a2i(&ip6h->daddr);
+	if (!p->locator_match.v64)
+		return;
 
+	p->csum_diff = compute_csum_diff8(
+				(__be32 *)&p->locator,
+				(__be32 *)&p->locator_match);
+}
+
+static __wsum get_csum_diff_iaddr(struct ila_addr *iaddr, struct ila_params *p)
+{
 	if (p->locator_match.v64)
 		return p->csum_diff;
 	else
-		return compute_csum_diff8((__be32 *)&iaddr->loc,
-					  (__be32 *)&p->locator);
+		return compute_csum_diff8((__be32 *)&p->locator,
+					  (__be32 *)&iaddr->loc);
+}
+
+static __wsum get_csum_diff(struct ipv6hdr *ip6h, struct ila_params *p)
+{
+	return get_csum_diff_iaddr(ila_a2i(&ip6h->daddr), p);
 }
 
 static void ila_csum_do_neutral(struct ila_addr *iaddr,
@@ -30,13 +43,7 @@ static void ila_csum_do_neutral(struct ila_addr *iaddr,
 	__sum16 *adjust = (__force __sum16 *)&iaddr->ident.v16[3];
 	__wsum diff, fval;
 
-	/* Check if checksum adjust value has been cached */
-	if (p->locator_match.v64) {
-		diff = p->csum_diff;
-	} else {
-		diff = compute_csum_diff8((__be32 *)&p->locator,
-					  (__be32 *)iaddr);
-	}
+	diff = get_csum_diff_iaddr(iaddr, p);
 
 	fval = (__force __wsum)(ila_csum_neutral_set(iaddr->ident) ?
 			CSUM_NEUTRAL_FLAG : ~CSUM_NEUTRAL_FLAG);
@@ -132,16 +139,6 @@ void ila_update_ipv6_locator(struct sk_buff *skb, struct ila_params *p,
 
 	/* Now change destination address */
 	iaddr->loc = p->locator;
-}
-
-void ila_init_saved_csum(struct ila_params *p)
-{
-	if (!p->locator_match.v64)
-		return;
-
-	p->csum_diff = compute_csum_diff8(
-				(__be32 *)&p->locator,
-				(__be32 *)&p->locator_match);
 }
 
 static int __init ila_init(void)
