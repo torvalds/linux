@@ -633,15 +633,17 @@ int __i915_vma_do_pin(struct i915_vma *vma,
 		if (ret)
 			goto err_unpin;
 	}
+	GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
 
 	ret = i915_vma_bind(vma, vma->obj->cache_level, flags);
 	if (ret)
 		goto err_remove;
 
+	GEM_BUG_ON((vma->flags & I915_VMA_BIND_MASK) == 0);
+
 	if ((bound ^ vma->flags) & I915_VMA_GLOBAL_BIND)
 		__i915_vma_set_map_and_fenceable(vma);
 
-	GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
 	GEM_BUG_ON(i915_vma_misplaced(vma, size, alignment, flags));
 	return 0;
 
@@ -649,6 +651,7 @@ err_remove:
 	if ((bound & I915_VMA_BIND_MASK) == 0) {
 		i915_vma_remove(vma);
 		GEM_BUG_ON(vma->pages);
+		GEM_BUG_ON(vma->flags & I915_VMA_BIND_MASK);
 	}
 err_unpin:
 	__i915_vma_unpin(vma);
