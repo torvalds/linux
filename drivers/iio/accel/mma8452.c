@@ -284,7 +284,7 @@ static const int mma8452_samp_freq[8][2] = {
 };
 
 /* Datasheet table: step time "Relationship with the ODR" (sample frequency) */
-static const unsigned int mma8452_transient_time_step_us[4][8] = {
+static const unsigned int mma8452_time_step_us[4][8] = {
 	{ 1250, 2500, 5000, 10000, 20000, 20000, 20000, 20000 },  /* normal */
 	{ 1250, 2500, 5000, 10000, 20000, 80000, 80000, 80000 },  /* l p l n */
 	{ 1250, 2500, 2500, 2500, 2500, 2500, 2500, 2500 },	  /* high res*/
@@ -826,7 +826,7 @@ static int mma8452_read_event_value(struct iio_dev *indio_dev,
 		if (power_mode < 0)
 			return power_mode;
 
-		us = ret * mma8452_transient_time_step_us[power_mode][
+		us = ret * mma8452_time_step_us[power_mode][
 				mma8452_get_odr_index(data)];
 		*val = us / USEC_PER_SEC;
 		*val2 = us % USEC_PER_SEC;
@@ -883,7 +883,7 @@ static int mma8452_write_event_value(struct iio_dev *indio_dev,
 			return ret;
 
 		steps = (val * USEC_PER_SEC + val2) /
-				mma8452_transient_time_step_us[ret][
+				mma8452_time_step_us[ret][
 					mma8452_get_odr_index(data)];
 
 		if (steps < 0 || steps > 0xff)
