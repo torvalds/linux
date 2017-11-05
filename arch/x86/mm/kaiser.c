@@ -436,12 +436,12 @@ void kaiser_setup_pcid(void)
 
 /*
  * Make a note that this cpu will need to flush USER tlb on return to user.
- * Caller checks whether this_cpu_has(X86_FEATURE_PCID) before calling:
- * if cpu does not, then the NOFLUSH bit will never have been set.
+ * If cpu does not have PCID, then the NOFLUSH bit will never have been set.
  */
 void kaiser_flush_tlb_on_return_to_user(void)
 {
-	this_cpu_write(x86_cr3_pcid_user,
+	if (this_cpu_has(X86_FEATURE_PCID))
+		this_cpu_write(x86_cr3_pcid_user,
 			X86_CR3_PCID_USER_FLUSH | KAISER_SHADOW_PGD_OFFSET);
 }
 EXPORT_SYMBOL(kaiser_flush_tlb_on_return_to_user);

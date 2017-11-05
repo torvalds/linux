@@ -39,7 +39,7 @@ static void load_new_mm_cr3(pgd_t *pgdir)
 {
 	unsigned long new_mm_cr3 = __pa(pgdir);
 
-	if (kaiser_enabled && this_cpu_has(X86_FEATURE_PCID)) {
+	if (kaiser_enabled) {
 		/*
 		 * We reuse the same PCID for different tasks, so we must
 		 * flush all the entries for the PCID out when we change tasks.
@@ -50,10 +50,10 @@ static void load_new_mm_cr3(pgd_t *pgdir)
 		 * do it here, but can only be used if X86_FEATURE_INVPCID is
 		 * available - and many machines support pcid without invpcid.
 		 *
-		 * The line below is a no-op: X86_CR3_PCID_KERN_FLUSH is now 0;
-		 * but keep that line in there in case something changes.
+		 * If X86_CR3_PCID_KERN_FLUSH actually added something, then it
+		 * would be needed in the write_cr3() below - if PCIDs enabled.
 		 */
-		new_mm_cr3 |= X86_CR3_PCID_KERN_FLUSH;
+		BUILD_BUG_ON(X86_CR3_PCID_KERN_FLUSH);
 		kaiser_flush_tlb_on_return_to_user();
 	}
 
