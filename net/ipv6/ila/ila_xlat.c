@@ -138,6 +138,8 @@ static int parse_nl_config(struct genl_info *info,
 
 	if (info->attrs[ILA_ATTR_CSUM_MODE])
 		xp->ip.csum_mode = nla_get_u8(info->attrs[ILA_ATTR_CSUM_MODE]);
+	else
+		xp->ip.csum_mode = ILA_CSUM_NO_ACTION;
 
 	if (info->attrs[ILA_ATTR_IFINDEX])
 		xp->ifindex = nla_get_s32(info->attrs[ILA_ATTR_IFINDEX]);
@@ -198,7 +200,7 @@ static void ila_free_cb(void *ptr, void *arg)
 	}
 }
 
-static int ila_xlat_addr(struct sk_buff *skb, bool set_csum_neutral);
+static int ila_xlat_addr(struct sk_buff *skb, bool sir2ila);
 
 static unsigned int
 ila_nf_input(void *priv,
@@ -396,7 +398,7 @@ static int ila_fill_info(struct ila_map *ila, struct sk_buff *msg)
 			      (__force u64)ila->xp.ip.locator_match.v64,
 			      ILA_ATTR_PAD) ||
 	    nla_put_s32(msg, ILA_ATTR_IFINDEX, ila->xp.ifindex) ||
-	    nla_put_u32(msg, ILA_ATTR_CSUM_MODE, ila->xp.ip.csum_mode))
+	    nla_put_u8(msg, ILA_ATTR_CSUM_MODE, ila->xp.ip.csum_mode))
 		return -1;
 
 	return 0;
@@ -607,7 +609,7 @@ static struct pernet_operations ila_net_ops = {
 	.size = sizeof(struct ila_net),
 };
 
-static int ila_xlat_addr(struct sk_buff *skb, bool set_csum_neutral)
+static int ila_xlat_addr(struct sk_buff *skb, bool sir2ila)
 {
 	struct ila_map *ila;
 	struct ipv6hdr *ip6h = ipv6_hdr(skb);
@@ -626,7 +628,7 @@ static int ila_xlat_addr(struct sk_buff *skb, bool set_csum_neutral)
 
 	ila = ila_lookup_wildcards(iaddr, skb->dev->ifindex, ilan);
 	if (ila)
-		ila_update_ipv6_locator(skb, &ila->xp.ip, set_csum_neutral);
+		ila_update_ipv6_locator(skb, &ila->xp.ip, sir2ila);
 
 	rcu_read_unlock();
 

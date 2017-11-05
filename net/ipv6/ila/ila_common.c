@@ -37,8 +37,8 @@ static __wsum get_csum_diff(struct ipv6hdr *ip6h, struct ila_params *p)
 	return get_csum_diff_iaddr(ila_a2i(&ip6h->daddr), p);
 }
 
-static void ila_csum_do_neutral(struct ila_addr *iaddr,
-				struct ila_params *p)
+static void ila_csum_do_neutral_fmt(struct ila_addr *iaddr,
+				    struct ila_params *p)
 {
 	__sum16 *adjust = (__force __sum16 *)&iaddr->ident.v16[3];
 	__wsum diff, fval;
@@ -60,13 +60,23 @@ static void ila_csum_do_neutral(struct ila_addr *iaddr,
 	iaddr->ident.csum_neutral ^= 1;
 }
 
+static void ila_csum_do_neutral_nofmt(struct ila_addr *iaddr,
+				      struct ila_params *p)
+{
+	__sum16 *adjust = (__force __sum16 *)&iaddr->ident.v16[3];
+	__wsum diff;
+
+	diff = get_csum_diff_iaddr(iaddr, p);
+
+	*adjust = ~csum_fold(csum_add(diff, csum_unfold(*adjust)));
+}
+
 static void ila_csum_adjust_transport(struct sk_buff *skb,
 				      struct ila_params *p)
 {
-	__wsum diff;
-	struct ipv6hdr *ip6h = ipv6_hdr(skb);
-	struct ila_addr *iaddr = ila_a2i(&ip6h->daddr);
 	size_t nhoff = sizeof(struct ipv6hdr);
+	struct ipv6hdr *ip6h = ipv6_hdr(skb);
+	__wsum diff;
 
 	switch (ip6h->nexthdr) {
 	case NEXTHDR_TCP:
@@ -105,36 +115,39 @@ static void ila_csum_adjust_transport(struct sk_buff *skb,
 		}
 		break;
 	}
-
-	/* Now change destination address */
-	iaddr->loc = p->locator;
 }
 
 void ila_update_ipv6_locator(struct sk_buff *skb, struct ila_params *p,
-			     bool set_csum_neutral)
+			     bool sir2ila)
 {
 	struct ipv6hdr *ip6h = ipv6_hdr(skb);
 	struct ila_addr *iaddr = ila_a2i(&ip6h->daddr);
 
-	/* First deal with the transport checksum */
-	if (ila_csum_neutral_set(iaddr->ident)) {
-		/* C-bit is set in the locator indicating that this
-		 * is a locator being translated to a SIR address.
-		 * Perform (receiver) checksum-neutral translation.
-		 */
-		if (!set_csum_neutral)
-			ila_csum_do_neutral(iaddr, p);
-	} else {
-		switch (p->csum_mode) {
-		case ILA_CSUM_ADJUST_TRANSPORT:
-			ila_csum_adjust_transport(skb, p);
-			break;
-		case ILA_CSUM_NEUTRAL_MAP:
-			ila_csum_do_neutral(iaddr, p);
-			break;
-		case ILA_CSUM_NO_ACTION:
+	switch (p->csum_mode) {
+	case ILA_CSUM_ADJUST_TRANSPORT:
+		ila_csum_adjust_transport(skb, p);
+		break;
+	case ILA_CSUM_NEUTRAL_MAP:
+		if (sir2ila) {
+			if (WARN_ON(ila_csum_neutral_set(iaddr->ident))) {
+				/* Checksum flag should never be
+				 * set in a formatted SIR address.
+				 */
+				break;
+			}
+		} else if (!ila_csum_neutral_set(iaddr->ident)) {
+			/* ILA to SIR translation and C-bit isn't
+			 * set so we're good.
+			 */
 			break;
 		}
+		ila_csum_do_neutral_fmt(iaddr, p);
+		break;
+	case ILA_CSUM_NEUTRAL_MAP_AUTO:
+		ila_csum_do_neutral_nofmt(iaddr, p);
+		break;
+	case ILA_CSUM_NO_ACTION:
+		break;
 	}
 
 	/* Now change destination address */

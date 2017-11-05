@@ -127,6 +127,7 @@ static int ila_build_state(struct nlattr *nla,
 	struct lwtunnel_state *newts;
 	const struct fib6_config *cfg6 = cfg;
 	struct ila_addr *iaddr;
+	u8 csum_mode = ILA_CSUM_NO_ACTION;
 	int ret;
 
 	if (family != AF_INET6)
@@ -139,21 +140,25 @@ static int ila_build_state(struct nlattr *nla,
 		return -EINVAL;
 	}
 
-	iaddr = (struct ila_addr *)&cfg6->fc_dst;
-
-	if (!ila_addr_is_ila(iaddr) || ila_csum_neutral_set(iaddr->ident)) {
-		/* Don't allow translation for a non-ILA address or checksum
-		 * neutral flag to be set.
-		 */
-		return -EINVAL;
-	}
-
 	ret = nla_parse_nested(tb, ILA_ATTR_MAX, nla, ila_nl_policy, extack);
 	if (ret < 0)
 		return ret;
 
 	if (!tb[ILA_ATTR_LOCATOR])
 		return -EINVAL;
+
+	iaddr = (struct ila_addr *)&cfg6->fc_dst;
+
+	if (tb[ILA_ATTR_CSUM_MODE])
+		csum_mode = nla_get_u8(tb[ILA_ATTR_CSUM_MODE]);
+
+	if (csum_mode == ILA_CSUM_NEUTRAL_MAP &&
+	    ila_csum_neutral_set(iaddr->ident)) {
+		/* Don't allow translation if checksum neutral bit is
+		 * configured and it's set in the SIR address.
+		 */
+		return -EINVAL;
+	}
 
 	newts = lwtunnel_state_alloc(sizeof(*ilwt));
 	if (!newts)
@@ -168,17 +173,13 @@ static int ila_build_state(struct nlattr *nla,
 
 	p = ila_params_lwtunnel(newts);
 
+	p->csum_mode = csum_mode;
 	p->locator.v64 = (__force __be64)nla_get_u64(tb[ILA_ATTR_LOCATOR]);
 
 	/* Precompute checksum difference for translation since we
 	 * know both the old locator and the new one.
 	 */
 	p->locator_match = iaddr->loc;
-	p->csum_diff = compute_csum_diff8(
-		(__be32 *)&p->locator_match, (__be32 *)&p->locator);
-
-	if (tb[ILA_ATTR_CSUM_MODE])
-		p->csum_mode = nla_get_u8(tb[ILA_ATTR_CSUM_MODE]);
 
 	ila_init_saved_csum(p);
 
