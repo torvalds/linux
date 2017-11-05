@@ -200,8 +200,8 @@ int ovs_dp_upcall(struct datapath *, struct sk_buff *,
 		  uint32_t cutlen);
 
 const char *ovs_dp_name(const struct datapath *dp);
-struct sk_buff *ovs_vport_cmd_build_info(struct vport *, u32 pid, u32 seq,
-					 u8 cmd);
+struct sk_buff *ovs_vport_cmd_build_info(struct vport *vport, struct net *net,
+					 u32 portid, u32 seq, u8 cmd);
 
 int ovs_execute_actions(struct datapath *dp, struct sk_buff *skb,
 			const struct sw_flow_actions *, struct sw_flow_key *);
