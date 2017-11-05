@@ -26,7 +26,6 @@ static struct {
 } cla;
 
 struct cl_arg args[] = {
-	{"printk", 'p', "show Linux printks", 0, CL_ARG_BOOL, &cla.printk},
 	{"disk", 'd', "disk file to use", 1, CL_ARG_STR, &cla.disk},
 	{"partition", 'P', "partition to mount", 1, CL_ARG_INT, &cla.partition},
 	{"type", 't', "filesystem type", 1, CL_ARG_STR, &cla.fstype},
@@ -37,7 +36,7 @@ struct cl_arg args[] = {
 static struct lkl_disk disk;
 static int disk_id = -1;
 
-int test_disk_add(char *str, int len)
+int lkl_test_disk_add(void)
 {
 #ifdef __MINGW32__
 	disk.handle = CreateFile(cla.disk, GENERIC_READ | GENERIC_WRITE,
@@ -72,7 +71,7 @@ out_unlink:
 #endif
 
 out:
-	snprintf(str, len, "%x %d", disk.fd, disk_id);
+	lkl_test_logf("disk fd/handle %x disk_id %d", disk.fd, disk_id);
 
 	if (disk_id >= 0)
 		return TEST_SUCCESS;
@@ -80,7 +79,7 @@ out:
 	return TEST_FAILURE;
 }
 
-int test_disk_remove(char *str, int len)
+int lkl_test_disk_remove(void)
 {
 	int ret;
 
@@ -101,22 +100,10 @@ int test_disk_remove(char *str, int len)
 
 static char mnt_point[32];
 
-static int test_mount_dev(char *str, int len)
-{
-	long ret;
+LKL_TEST_CALL(mount_dev, lkl_mount_dev, 0, disk_id, cla.partition, cla.fstype,
+	      0, NULL, mnt_point, sizeof(mnt_point))
 
-	ret = lkl_mount_dev(disk_id, cla.partition, cla.fstype, 0, NULL,
-			mnt_point, sizeof(mnt_point));
-
-	snprintf(str, len, "%ld", ret);
-
-	if (ret == 0)
-		return TEST_SUCCESS;
-
-	return TEST_FAILURE;
-}
-
-static int test_umount_dev(char *str, int len)
+static int lkl_test_umount_dev(void)
 {
 	long ret, ret2;
 
@@ -124,7 +111,7 @@ static int test_umount_dev(char *str, int len)
 
 	ret2 = lkl_umount_dev(disk_id, cla.partition, 0, 1000);
 
-	snprintf(str, len, "%ld %ld", ret, ret2);
+	lkl_test_logf("%ld %ld", ret, ret2);
 
 	if (!ret && !ret2)
 		return TEST_SUCCESS;
@@ -134,13 +121,14 @@ static int test_umount_dev(char *str, int len)
 
 struct lkl_dir *dir;
 
-static int test_opendir(char *str, int len)
+static int lkl_test_opendir(void)
 {
 	int err;
 
 	dir = lkl_opendir(mnt_point, &err);
 
-	snprintf(str, len, "%s %d", mnt_point, err);
+	lkl_test_logf("lkl_opedir(%s) = %d %s\n", mnt_point, err,
+		      lkl_strerror(err));
 
 	if (err == 0)
 		return TEST_SUCCESS;
@@ -148,15 +136,18 @@ static int test_opendir(char *str, int len)
 	return TEST_FAILURE;
 }
 
-static int test_readdir(char *str, int len)
+static int lkl_test_readdir(void)
 {
 	struct lkl_linux_dirent64 *de = lkl_readdir(dir);
 	int wr = 0;
 
 	while (de) {
-		wr += snprintf(str + wr, len - wr, "%s ", de->d_name);
-		if (wr >= len)
+		wr += lkl_test_logf("%s ", de->d_name);
+		if (wr >= 70) {
+			lkl_test_logf("\n");
+			wr = 0;
 			break;
+		}
 		de = lkl_readdir(dir);
 	}
 
@@ -166,49 +157,33 @@ static int test_readdir(char *str, int len)
 	return TEST_FAILURE;
 }
 
-static int test_closedir(char *str, int len)
-{
-	long ret;
+LKL_TEST_CALL(closedir, lkl_closedir, 0, dir);
+LKL_TEST_CALL(chdir_mnt_point, lkl_sys_chdir, 0, mnt_point);
+LKL_TEST_CALL(start_kernel, lkl_start_kernel, 0, &lkl_host_ops,
+	     "mem=16M loglevel=8");
+LKL_TEST_CALL(stop_kernel, lkl_sys_halt, 0);
 
-	ret = lkl_closedir(dir);
+struct lkl_test tests[] = {
+	LKL_TEST(disk_add),
+	LKL_TEST(start_kernel),
+	LKL_TEST(mount_dev),
+	LKL_TEST(chdir_mnt_point),
+	LKL_TEST(opendir),
+	LKL_TEST(readdir),
+	LKL_TEST(closedir),
+	LKL_TEST(umount_dev),
+	LKL_TEST(stop_kernel),
+	LKL_TEST(disk_remove),
 
-	if (ret == 0)
-		return TEST_SUCCESS;
-
-	return TEST_FAILURE;
-}
-
-static int test_chdir(char *str, int len, const char *path)
-{
-	long ret;
-
-	ret = lkl_sys_chdir(path);
-
-	snprintf(str, len, "%ld", ret);
-
-	if (ret == 0)
-		return TEST_SUCCESS;
-
-	return TEST_FAILURE;
-}
+};
 
 int main(int argc, const char **argv)
 {
 	if (parse_args(argc, argv, args) < 0)
 		return -1;
 
-	if (!cla.printk)
-		lkl_host_ops.print = NULL;
+	lkl_host_ops.print = lkl_test_log;
 
-	TEST(disk_add);
-
-	lkl_start_kernel(&lkl_host_ops, "mem=16M loglevel=8");
-
-	TEST(mount_dev);
-	TEST(chdir, mnt_point);
-	TEST(opendir);
-	TEST(readdir);
-	TEST(closedir);
-	TEST(umount_dev);
-	TEST(disk_remove);
+	return lkl_test_run(tests, sizeof(tests)/sizeof(struct lkl_test),
+			    "disk %s", cla.fstype);
 }
