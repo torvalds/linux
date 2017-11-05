@@ -18,6 +18,7 @@ enum {
 	ILA_ATTR_PAD,
 	ILA_ATTR_CSUM_MODE,			/* u8 */
 	ILA_ATTR_IDENT_TYPE,			/* u8 */
+	ILA_ATTR_HOOK_TYPE,			/* u8 */
 
 	__ILA_ATTR_MAX,
 };
@@ -57,4 +58,10 @@ enum {
 
 	ILA_ATYPE_USE_FORMAT = 32, /* Get type from type field in identifier */
 };
+
+enum {
+	ILA_HOOK_ROUTE_OUTPUT,
+	ILA_HOOK_ROUTE_INPUT,
+};
+
 #endif /* _UAPI_LINUX_ILA_H */
