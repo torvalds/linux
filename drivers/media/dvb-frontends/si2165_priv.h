@@ -74,6 +74,7 @@ struct si2165_config {
 #define REG_KP_LOCK			0x023a
 #define REG_UNKNOWN_24C			0x024c
 #define REG_CENTRAL_TAP			0x0261
+#define REG_C_N				0x026c
 #define REG_EQ_AUTO_CONTROL		0x0278
 #define REG_UNKNOWN_27C			0x027c
 #define REG_START_SYNCHRO		0x02e0

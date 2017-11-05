@@ -116,6 +116,17 @@ static int si2165_readreg16(struct si2165_state *state,
 	return ret;
 }
 
+static int si2165_readreg24(struct si2165_state *state,
+			    const u16 reg, u32 *val)
+{
+	u8 buf[3];
+
+	int ret = si2165_read(state, reg, buf, 3);
+	*val = buf[0] | buf[1] << 8 | buf[2] << 16;
+	dev_dbg(&state->client->dev, "reg read: R(0x%04x)=0x%06x\n", reg, *val);
+	return ret;
+}
+
 static int si2165_writereg8(struct si2165_state *state, const u16 reg, u8 val)
 {
 	return regmap_write(state->regmap, reg, val);
@@ -518,6 +529,7 @@ static int si2165_init(struct dvb_frontend *fe)
 {
 	int ret = 0;
 	struct si2165_state *state = fe->demodulator_priv;
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	u8 val;
 	u8 patch_version = 0x00;
 
@@ -627,6 +639,10 @@ static int si2165_init(struct dvb_frontend *fe)
 	if (ret < 0)
 		return ret;
 
+	c = &state->fe.dtv_property_cache;
+	c->cnr.len = 1;
+	c->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+
 	return 0;
 error:
 	return ret;
@@ -652,9 +668,10 @@ static int si2165_read_status(struct dvb_frontend *fe, enum fe_status *status)
 {
 	int ret;
 	u8 u8tmp;
+	u32 u32tmp;
 	struct si2165_state *state = fe->demodulator_priv;
-	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
-	u32 delsys = p->delivery_system;
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
+	u32 delsys = c->delivery_system;
 
 	*status = 0;
 
@@ -698,6 +715,28 @@ static int si2165_read_status(struct dvb_frontend *fe, enum fe_status *status)
 		*status |= FE_HAS_SYNC;
 		*status |= FE_HAS_LOCK;
 	}
+
+	/* CNR */
+	if (delsys == SYS_DVBC_ANNEX_A && *status & FE_HAS_VITERBI) {
+		ret = si2165_readreg24(state, REG_C_N, &u32tmp);
+		if (ret < 0)
+			return ret;
+		/*
+		 * svalue =
+		 * 1000 * c_n/dB =
+		 * 1000 * 10 * log10(2^24 / regval) =
+		 * 1000 * 10 * (log10(2^24) - log10(regval)) =
+		 * 1000 * 10 * (intlog10(2^24) - intlog10(regval)) / 2^24
+		 *
+		 * intlog10(x) = log10(x) * 2^24
+		 * intlog10(2^24) = log10(2^24) * 2^24 = 121210686
+		 */
+		u32tmp = (1000 * 10 * (121210686 - (u64)intlog10(u32tmp)))
+				>> 24;
+		c->cnr.stat[0].scale = FE_SCALE_DECIBEL;
+		c->cnr.stat[0].svalue = u32tmp;
+	} else
+		c->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
 
 	return 0;
 }
