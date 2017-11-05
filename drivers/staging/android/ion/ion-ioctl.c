@@ -31,7 +31,7 @@ static int validate_ioctl_arg(unsigned int cmd, union ion_ioctl_arg *arg)
 	case ION_IOC_HEAP_QUERY:
 		if (arg->query.reserved0 ||
 		    arg->query.reserved1 ||
-		    arg->query.reserved2 )
+		    arg->query.reserved2)
 			return -EINVAL;
 		break;
 	default:
