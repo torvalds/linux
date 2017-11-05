@@ -38,6 +38,9 @@ struct si2165_config {
 	bool inversion;
 };
 
+#define STATISTICS_PERIOD_PKT_COUNT	30000u
+#define STATISTICS_PERIOD_BIT_COUNT	(STATISTICS_PERIOD_PKT_COUNT * 204 * 8)
+
 #define REG_CHIP_MODE			0x0000
 #define REG_CHIP_REVCODE		0x0023
 #define REV_CHIP_TYPE			0x0118
@@ -95,8 +98,16 @@ struct si2165_config {
 #define REG_GP_REG0_MSB			0x0387
 #define REG_CRC				0x037a
 #define REG_CHECK_SIGNAL		0x03a8
+#define REG_CBER_RST			0x0424
+#define REG_CBER_BIT			0x0428
+#define REG_CBER_ERR			0x0430
+#define REG_CBER_AVAIL			0x0434
 #define REG_PS_LOCK			0x0440
+#define REG_UNCOR_CNT			0x0468
+#define REG_BER_RST			0x046c
 #define REG_BER_PKT			0x0470
+#define REG_BER_BIT			0x0478
+#define REG_BER_AVAIL			0x047c
 #define REG_FEC_LOCK			0x04e0
 #define REG_TS_DATA_MODE		0x04e4
 #define REG_TS_CLK_MODE			0x04e5

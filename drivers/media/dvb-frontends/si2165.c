@@ -594,8 +594,9 @@ static int si2165_init(struct dvb_frontend *fe)
 	if (ret < 0)
 		goto error;
 
-	/* ber_pkt */
-	ret = si2165_writereg16(state, REG_BER_PKT, 0x7530);
+	/* ber_pkt - default 65535 */
+	ret = si2165_writereg16(state, REG_BER_PKT,
+				STATISTICS_PERIOD_PKT_COUNT);
 	if (ret < 0)
 		goto error;
 
@@ -642,6 +643,10 @@ static int si2165_init(struct dvb_frontend *fe)
 	c = &state->fe.dtv_property_cache;
 	c->cnr.len = 1;
 	c->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->post_bit_error.len = 1;
+	c->post_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->post_bit_count.len = 1;
+	c->post_bit_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
 
 	return 0;
 error:
@@ -737,6 +742,54 @@ static int si2165_read_status(struct dvb_frontend *fe, enum fe_status *status)
 		c->cnr.stat[0].svalue = u32tmp;
 	} else
 		c->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+
+	/* BER */
+	if (*status & FE_HAS_VITERBI) {
+		if (c->post_bit_error.stat[0].scale == FE_SCALE_NOT_AVAILABLE) {
+			/* start new sampling period to get rid of old data*/
+			ret = si2165_writereg8(state, REG_BER_RST, 0x01);
+			if (ret < 0)
+				return ret;
+
+			/* set scale to enter read code on next call */
+			c->post_bit_error.stat[0].scale = FE_SCALE_COUNTER;
+			c->post_bit_count.stat[0].scale = FE_SCALE_COUNTER;
+			c->post_bit_error.stat[0].uvalue = 0;
+			c->post_bit_count.stat[0].uvalue = 0;
+
+		} else {
+			ret = si2165_readreg8(state, REG_BER_AVAIL, &u8tmp);
+			if (ret < 0)
+				return ret;
+
+			if (u8tmp & 1) {
+				u32 biterrcnt;
+
+				ret = si2165_readreg24(state, REG_BER_BIT,
+							&biterrcnt);
+				if (ret < 0)
+					return ret;
+
+				c->post_bit_error.stat[0].uvalue +=
+					biterrcnt;
+				c->post_bit_count.stat[0].uvalue +=
+					STATISTICS_PERIOD_BIT_COUNT;
+
+				/* start new sampling period */
+				ret = si2165_writereg8(state,
+							REG_BER_RST, 0x01);
+				if (ret < 0)
+					return ret;
+
+				dev_dbg(&state->client->dev,
+					"post_bit_error=%u post_bit_count=%u\n",
+					biterrcnt, STATISTICS_PERIOD_BIT_COUNT);
+			}
+		}
+	} else {
+		c->post_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		c->post_bit_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	}
 
 	return 0;
 }
