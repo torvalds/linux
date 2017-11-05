@@ -389,7 +389,7 @@ static i40e_status i40e_read_nvm_buffer_aq(struct i40e_hw *hw, u16 offset,
 					   u16 *words, u16 *data)
 {
 	i40e_status ret_code;
-	u16 read_size = *words;
+	u16 read_size;
 	bool last_cmd = false;
 	u16 words_read = 0;
 	u16 i = 0;
