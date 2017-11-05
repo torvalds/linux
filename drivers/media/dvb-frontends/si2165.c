@@ -794,6 +794,17 @@ static int si2165_read_status(struct dvb_frontend *fe, enum fe_status *status)
 	return 0;
 }
 
+static int si2165_read_snr(struct dvb_frontend *fe, u16 *snr)
+{
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
+
+	if (c->cnr.stat[0].scale == FE_SCALE_DECIBEL)
+		*snr = div_s64(c->cnr.stat[0].svalue, 100);
+	else
+		*snr = 0;
+	return 0;
+}
+
 static int si2165_set_oversamp(struct si2165_state *state, u32 dvb_rate)
 {
 	u64 oversamp;
@@ -1111,6 +1122,7 @@ static const struct dvb_frontend_ops si2165_ops = {
 
 	.set_frontend      = si2165_set_frontend,
 	.read_status       = si2165_read_status,
+	.read_snr          = si2165_read_snr,
 };
 
 static int si2165_probe(struct i2c_client *client,
