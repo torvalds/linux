@@ -17,6 +17,7 @@ enum {
 	ILA_ATTR_DIR,				/* u32 */
 	ILA_ATTR_PAD,
 	ILA_ATTR_CSUM_MODE,			/* u8 */
+	ILA_ATTR_IDENT_TYPE,			/* u8 */
 
 	__ILA_ATTR_MAX,
 };
@@ -44,4 +45,16 @@ enum {
 	ILA_CSUM_NEUTRAL_MAP_AUTO,
 };
 
+enum {
+	ILA_ATYPE_IID = 0,
+	ILA_ATYPE_LUID,
+	ILA_ATYPE_VIRT_V4,
+	ILA_ATYPE_VIRT_UNI_V6,
+	ILA_ATYPE_VIRT_MULTI_V6,
+	ILA_ATYPE_NONLOCAL_ADDR,
+	ILA_ATYPE_RSVD_1,
+	ILA_ATYPE_RSVD_2,
+
+	ILA_ATYPE_USE_FORMAT = 32, /* Get type from type field in identifier */
+};
 #endif /* _UAPI_LINUX_ILA_H */

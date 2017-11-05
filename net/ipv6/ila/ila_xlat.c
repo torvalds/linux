@@ -121,6 +121,7 @@ static const struct nla_policy ila_nl_policy[ILA_ATTR_MAX + 1] = {
 	[ILA_ATTR_LOCATOR_MATCH] = { .type = NLA_U64, },
 	[ILA_ATTR_IFINDEX] = { .type = NLA_U32, },
 	[ILA_ATTR_CSUM_MODE] = { .type = NLA_U8, },
+	[ILA_ATTR_IDENT_TYPE] = { .type = NLA_U8, },
 };
 
 static int parse_nl_config(struct genl_info *info,
@@ -140,6 +141,12 @@ static int parse_nl_config(struct genl_info *info,
 		xp->ip.csum_mode = nla_get_u8(info->attrs[ILA_ATTR_CSUM_MODE]);
 	else
 		xp->ip.csum_mode = ILA_CSUM_NO_ACTION;
+
+	if (info->attrs[ILA_ATTR_IDENT_TYPE])
+		xp->ip.ident_type = nla_get_u8(
+				info->attrs[ILA_ATTR_IDENT_TYPE]);
+	else
+		xp->ip.ident_type = ILA_ATYPE_USE_FORMAT;
 
 	if (info->attrs[ILA_ATTR_IFINDEX])
 		xp->ifindex = nla_get_s32(info->attrs[ILA_ATTR_IFINDEX]);
@@ -398,7 +405,8 @@ static int ila_fill_info(struct ila_map *ila, struct sk_buff *msg)
 			      (__force u64)ila->xp.ip.locator_match.v64,
 			      ILA_ATTR_PAD) ||
 	    nla_put_s32(msg, ILA_ATTR_IFINDEX, ila->xp.ifindex) ||
-	    nla_put_u8(msg, ILA_ATTR_CSUM_MODE, ila->xp.ip.csum_mode))
+	    nla_put_u8(msg, ILA_ATTR_CSUM_MODE, ila->xp.ip.csum_mode) ||
+	    nla_put_u8(msg, ILA_ATTR_IDENT_TYPE, ila->xp.ip.ident_type))
 		return -1;
 
 	return 0;
@@ -619,10 +627,10 @@ static int ila_xlat_addr(struct sk_buff *skb, bool sir2ila)
 
 	/* Assumes skb contains a valid IPv6 header that is pulled */
 
-	if (!ila_addr_is_ila(iaddr)) {
-		/* Type indicates this is not an ILA address */
-		return 0;
-	}
+	/* No check here that ILA type in the mapping matches what is in the
+	 * address. We assume that whatever sender gaves us can be translated.
+	 * The checksum mode however is relevant.
+	 */
 
 	rcu_read_lock();
 
