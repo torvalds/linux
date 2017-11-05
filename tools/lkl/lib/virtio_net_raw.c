@@ -29,8 +29,22 @@
 struct lkl_netdev *lkl_netdev_raw_create(const char *ifname)
 {
 	int ret;
-	struct sockaddr_ll ll;
+	int ifindex =  if_nametoindex(ifname);
+	struct sockaddr_ll ll = {
+		.sll_family = PF_PACKET,
+		.sll_ifindex = ifindex,
+		.sll_protocol = htons(ETH_P_ALL),
+	};
+	struct packet_mreq mreq = {
+		.mr_type = PACKET_MR_PROMISC,
+		.mr_ifindex = ifindex,
+	};
 	int fd, fd_flags, val;
+
+	if (ifindex < 0) {
+		perror("if_nametoindex");
+		return NULL;
+	}
 
 	fd = socket(PF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
 	if (fd < 0) {
@@ -38,13 +52,17 @@ struct lkl_netdev *lkl_netdev_raw_create(const char *ifname)
 		return NULL;
 	}
 
-	memset(&ll, 0, sizeof(ll));
-	ll.sll_family = PF_PACKET;
-	ll.sll_ifindex = if_nametoindex(ifname);
-	ll.sll_protocol = htons(ETH_P_ALL);
 	ret = bind(fd, (struct sockaddr *)&ll, sizeof(ll));
 	if (ret) {
 		perror("bind");
+		close(fd);
+		return NULL;
+	}
+
+	ret = setsockopt(fd, SOL_PACKET, PACKET_ADD_MEMBERSHIP, &mreq,
+			sizeof(mreq));
+	if (ret) {
+		perror("PACKET_ADD_MEMBERSHIP PACKET_MR_PROMISC");
 		close(fd);
 		return NULL;
 	}
