@@ -135,7 +135,7 @@ struct mma8452_event_regs {
 		u8 ev_count;
 };
 
-static const struct mma8452_event_regs ev_regs_accel_falling = {
+static const struct mma8452_event_regs ff_mt_ev_regs = {
 		.ev_cfg = MMA8452_FF_MT_CFG,
 		.ev_cfg_ele = MMA8452_FF_MT_CFG_ELE,
 		.ev_cfg_chan_shift = MMA8452_FF_MT_CHAN_SHIFT,
@@ -145,7 +145,7 @@ static const struct mma8452_event_regs ev_regs_accel_falling = {
 		.ev_count = MMA8452_FF_MT_COUNT
 };
 
-static const struct mma8452_event_regs ev_regs_accel_rising = {
+static const struct mma8452_event_regs trans_ev_regs = {
 		.ev_cfg = MMA8452_TRANSIENT_CFG,
 		.ev_cfg_ele = MMA8452_TRANSIENT_CFG_ELE,
 		.ev_cfg_chan_shift = MMA8452_TRANSIENT_CHAN_SHIFT,
@@ -777,12 +777,12 @@ static int mma8452_get_event_regs(struct mma8452_data *data,
 					& MMA8452_INT_TRANS) &&
 				(data->chip_info->enabled_events
 					& MMA8452_INT_TRANS))
-				*ev_reg = &ev_regs_accel_rising;
+				*ev_reg = &trans_ev_regs;
 			else
-				*ev_reg = &ev_regs_accel_falling;
+				*ev_reg = &ff_mt_ev_regs;
 			return 0;
 		case IIO_EV_DIR_FALLING:
-			*ev_reg = &ev_regs_accel_falling;
+			*ev_reg = &ff_mt_ev_regs;
 			return 0;
 		default:
 			return -EINVAL;
