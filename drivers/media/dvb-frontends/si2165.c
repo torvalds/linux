@@ -651,18 +651,47 @@ static int si2165_sleep(struct dvb_frontend *fe)
 static int si2165_read_status(struct dvb_frontend *fe, enum fe_status *status)
 {
 	int ret;
-	u8 fec_lock = 0;
+	u8 u8tmp;
 	struct si2165_state *state = fe->demodulator_priv;
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
+	u32 delsys = p->delivery_system;
 
-	if (!state->has_dvbt)
-		return -EINVAL;
+	*status = 0;
+
+	switch (delsys) {
+	case SYS_DVBT:
+		/* check fast signal type */
+		ret = si2165_readreg8(state, REG_CHECK_SIGNAL, &u8tmp);
+		if (ret < 0)
+			return ret;
+		switch (u8tmp & 0x3) {
+		case 0: /* searching */
+		case 1: /* nothing */
+			break;
+		case 2: /* digital signal */
+			*status |= FE_HAS_SIGNAL | FE_HAS_CARRIER;
+			break;
+		}
+		break;
+	case SYS_DVBC_ANNEX_A:
+		/* check packet sync lock */
+		ret = si2165_readreg8(state, REG_PS_LOCK, &u8tmp);
+		if (ret < 0)
+			return ret;
+		if (u8tmp & 0x01) {
+			*status |= FE_HAS_SIGNAL;
+			*status |= FE_HAS_CARRIER;
+			*status |= FE_HAS_VITERBI;
+			*status |= FE_HAS_SYNC;
+		}
+		break;
+	}
 
 	/* check fec_lock */
-	ret = si2165_readreg8(state, REG_FEC_LOCK, &fec_lock);
+	ret = si2165_readreg8(state, REG_FEC_LOCK, &u8tmp);
 	if (ret < 0)
 		return ret;
-	*status = 0;
-	if (fec_lock & 0x01) {
+	if (u8tmp & 0x01) {
 		*status |= FE_HAS_SIGNAL;
 		*status |= FE_HAS_CARRIER;
 		*status |= FE_HAS_VITERBI;

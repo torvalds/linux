@@ -93,6 +93,8 @@ struct si2165_config {
 #define REG_GP_REG0_LSB			0x0384
 #define REG_GP_REG0_MSB			0x0387
 #define REG_CRC				0x037a
+#define REG_CHECK_SIGNAL		0x03a8
+#define REG_PS_LOCK			0x0440
 #define REG_BER_PKT			0x0470
 #define REG_FEC_LOCK			0x04e0
 #define REG_TS_DATA_MODE		0x04e4
