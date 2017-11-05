@@ -36,7 +36,7 @@ static void jsm_carrier(struct jsm_channel *ch);
 static inline int jsm_get_mstat(struct jsm_channel *ch)
 {
 	unsigned char mstat;
-	unsigned result;
+	int result;
 
 	jsm_dbg(IOCTL, &ch->ch_bd->pci_dev, "start\n");
 
