@@ -623,6 +623,9 @@ static int si2165_init(struct dvb_frontend *fe)
 	ret = si2165_writereg8(state, REG_TS_CLK_MODE, 0x01);
 	if (ret < 0)
 		return ret;
+	ret = si2165_writereg8(state, REG_TS_PARALLEL_MODE, 0x00);
+	if (ret < 0)
+		return ret;
 
 	return 0;
 error:
@@ -723,7 +726,6 @@ static int si2165_set_if_freq_shift(struct si2165_state *state)
 static const struct si2165_reg_value_pair dvbt_regs[] = {
 	/* standard = DVB-T */
 	{ REG_DVB_STANDARD, 0x01 },
-	{ REG_TS_PARALLEL_MODE, 0x00 },
 	/* impulsive_noise_remover */
 	{ REG_IMPULSIVE_NOISE_REM, 0x01 },
 	{ REG_AUTO_RESET, 0x00 },
@@ -786,7 +788,6 @@ static int si2165_set_frontend_dvbt(struct dvb_frontend *fe)
 static const struct si2165_reg_value_pair dvbc_regs[] = {
 	/* standard = DVB-C */
 	{ REG_DVB_STANDARD, 0x05 },
-	{ REG_TS_PARALLEL_MODE, 0x00 },
 
 	/* agc2 */
 	{ REG_AGC2_MIN, 0x50 },
