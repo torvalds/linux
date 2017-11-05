@@ -821,7 +821,6 @@ static int si2165_set_frontend_dvbc(struct dvb_frontend *fe)
 	int ret;
 	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	const u32 dvb_rate = p->symbol_rate;
-	const u32 bw_hz = p->bandwidth_hz;
 
 	if (!state->has_dvbc)
 		return -EINVAL;
@@ -838,7 +837,7 @@ static int si2165_set_frontend_dvbc(struct dvb_frontend *fe)
 	if (ret < 0)
 		return ret;
 
-	ret = si2165_writereg32(state, REG_LOCK_TIMEOUT, bw_hz);
+	ret = si2165_writereg32(state, REG_LOCK_TIMEOUT, 0x007a1200);
 	if (ret < 0)
 		return ret;
 
