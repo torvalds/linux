@@ -57,6 +57,9 @@ struct si2165_state {
 	u32 sys_clk;
 	u32 adc_clk;
 
+	/* DVBv3 stats */
+	u64 ber_prev;
+
 	bool has_dvbc;
 	bool has_dvbt;
 	bool firmware_loaded;
@@ -757,6 +760,12 @@ static int si2165_read_status(struct dvb_frontend *fe, enum fe_status *status)
 			c->post_bit_error.stat[0].uvalue = 0;
 			c->post_bit_count.stat[0].uvalue = 0;
 
+			/*
+			 * reset DVBv3 value to deliver a good result
+			 * for the first call
+			 */
+			state->ber_prev = 0;
+
 		} else {
 			ret = si2165_readreg8(state, REG_BER_AVAIL, &u8tmp);
 			if (ret < 0)
@@ -802,6 +811,22 @@ static int si2165_read_snr(struct dvb_frontend *fe, u16 *snr)
 		*snr = div_s64(c->cnr.stat[0].svalue, 100);
 	else
 		*snr = 0;
+	return 0;
+}
+
+static int si2165_read_ber(struct dvb_frontend *fe, u32 *ber)
+{
+	struct si2165_state *state = fe->demodulator_priv;
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
+
+	if (c->post_bit_error.stat[0].scale != FE_SCALE_COUNTER) {
+		*ber = 0;
+		return 0;
+	}
+
+	*ber = c->post_bit_error.stat[0].uvalue - state->ber_prev;
+	state->ber_prev = c->post_bit_error.stat[0].uvalue;
+
 	return 0;
 }
 
@@ -1123,6 +1148,7 @@ static const struct dvb_frontend_ops si2165_ops = {
 	.set_frontend      = si2165_set_frontend,
 	.read_status       = si2165_read_status,
 	.read_snr          = si2165_read_snr,
+	.read_ber          = si2165_read_ber,
 };
 
 static int si2165_probe(struct i2c_client *client,
