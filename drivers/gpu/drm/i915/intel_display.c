@@ -219,10 +219,8 @@ intel_fdi_link_freq(struct drm_i915_private *dev_priv,
 {
 	if (HAS_DDI(dev_priv))
 		return pipe_config->port_clock; /* SPLL */
-	else if (IS_GEN5(dev_priv))
-		return ((I915_READ(FDI_PLL_BIOS_0) & FDI_PLL_FB_CLOCK_MASK) + 2) * 10000;
 	else
-		return 270000;
+		return dev_priv->fdi_pll_freq;
 }
 
 static const struct intel_limit intel_limits_i8xx_dac = {
@@ -14454,6 +14452,22 @@ fail:
 	drm_modeset_acquire_fini(&ctx);
 }
 
+static void intel_update_fdi_pll_freq(struct drm_i915_private *dev_priv)
+{
+	if (IS_GEN5(dev_priv)) {
+		u32 fdi_pll_clk =
+			I915_READ(FDI_PLL_BIOS_0) & FDI_PLL_FB_CLOCK_MASK;
+
+		dev_priv->fdi_pll_freq = (fdi_pll_clk + 2) * 10000;
+	} else if (IS_GEN6(dev_priv) || IS_IVYBRIDGE(dev_priv)) {
+		dev_priv->fdi_pll_freq = 270000;
+	} else {
+		return;
+	}
+
+	DRM_DEBUG_DRIVER("FDI PLL freq=%d\n", dev_priv->fdi_pll_freq);
+}
+
 int intel_modeset_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
@@ -14541,6 +14555,7 @@ int intel_modeset_init(struct drm_device *dev)
 	}
 
 	intel_shared_dpll_init(dev);
+	intel_update_fdi_pll_freq(dev_priv);
 
 	intel_update_czclk(dev_priv);
 	intel_modeset_init_hw(dev);
