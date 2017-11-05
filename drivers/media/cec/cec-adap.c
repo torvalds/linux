@@ -2053,6 +2053,29 @@ void cec_monitor_all_cnt_dec(struct cec_adapter *adap)
 		WARN_ON(call_op(adap, adap_monitor_all_enable, 0));
 }
 
+/*
+ * Helper functions to keep track of the 'monitor pin' use count.
+ *
+ * These functions are called with adap->lock held.
+ */
+int cec_monitor_pin_cnt_inc(struct cec_adapter *adap)
+{
+	int ret = 0;
+
+	if (adap->monitor_pin_cnt == 0)
+		ret = call_op(adap, adap_monitor_pin_enable, 1);
+	if (ret == 0)
+		adap->monitor_pin_cnt++;
+	return ret;
+}
+
+void cec_monitor_pin_cnt_dec(struct cec_adapter *adap)
+{
+	adap->monitor_pin_cnt--;
+	if (adap->monitor_pin_cnt == 0)
+		WARN_ON(call_op(adap, adap_monitor_pin_enable, 0));
+}
+
 #ifdef CONFIG_DEBUG_FS
 /*
  * Log the current state of the CEC adapter.
