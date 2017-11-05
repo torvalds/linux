@@ -13,6 +13,7 @@
 #define pr_fmt(fmt) "NMI watchdog: " fmt
 
 #include <linux/nmi.h>
+#include <linux/atomic.h>
 #include <linux/module.h>
 #include <linux/sched/debug.h>
 
@@ -22,10 +23,11 @@
 static DEFINE_PER_CPU(bool, hard_watchdog_warn);
 static DEFINE_PER_CPU(bool, watchdog_nmi_touch);
 static DEFINE_PER_CPU(struct perf_event *, watchdog_ev);
+static DEFINE_PER_CPU(struct perf_event *, dead_event);
 static struct cpumask dead_events_mask;
 
 static unsigned long hardlockup_allcpu_dumped;
-static unsigned int watchdog_cpus;
+static atomic_t watchdog_cpus = ATOMIC_INIT(0);
 
 void arch_touch_nmi_watchdog(void)
 {
@@ -189,7 +191,8 @@ void hardlockup_detector_perf_enable(void)
 	if (hardlockup_detector_event_create())
 		return;
 
-	if (!watchdog_cpus++)
+	/* use original value for check */
+	if (!atomic_fetch_inc(&watchdog_cpus))
 		pr_info("Enabled. Permanently consumes one hw-PMU counter.\n");
 
 	perf_event_enable(this_cpu_read(watchdog_ev));
@@ -204,8 +207,10 @@ void hardlockup_detector_perf_disable(void)
 
 	if (event) {
 		perf_event_disable(event);
+		this_cpu_write(watchdog_ev, NULL);
+		this_cpu_write(dead_event, event);
 		cpumask_set_cpu(smp_processor_id(), &dead_events_mask);
-		watchdog_cpus--;
+		atomic_dec(&watchdog_cpus);
 	}
 }
 
@@ -219,7 +224,7 @@ void hardlockup_detector_perf_cleanup(void)
 	int cpu;
 
 	for_each_cpu(cpu, &dead_events_mask) {
-		struct perf_event *event = per_cpu(watchdog_ev, cpu);
+		struct perf_event *event = per_cpu(dead_event, cpu);
 
 		/*
 		 * Required because for_each_cpu() reports  unconditionally
@@ -227,7 +232,7 @@ void hardlockup_detector_perf_cleanup(void)
 		 */
 		if (event)
 			perf_event_release_kernel(event);
-		per_cpu(watchdog_ev, cpu) = NULL;
+		per_cpu(dead_event, cpu) = NULL;
 	}
 	cpumask_clear(&dead_events_mask);
 }
