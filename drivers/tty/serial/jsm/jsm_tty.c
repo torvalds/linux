@@ -124,6 +124,7 @@ static void jsm_tty_set_mctrl(struct uart_port *port, unsigned int mctrl)
 static void jsm_tty_write(struct uart_port *port)
 {
 	struct jsm_channel *channel;
+
 	channel = container_of(port, struct jsm_channel, uart_port);
 	channel->ch_bd->bd_ops->copy_data_from_queue_to_uart(channel);
 }
