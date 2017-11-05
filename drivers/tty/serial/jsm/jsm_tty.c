@@ -541,7 +541,7 @@ void jsm_input(struct jsm_channel *ch)
 	tp = port->tty;
 
 	bd = ch->ch_bd;
-	if(!bd)
+	if (!bd)
 		return;
 
 	spin_lock_irqsave(&ch->ch_lock, lock_flags);
@@ -781,7 +781,7 @@ void jsm_check_queue_flow_control(struct jsm_channel *ch)
 	if (qleft < 256) {
 		/* HWFLOW */
 		if (ch->ch_c_cflag & CRTSCTS) {
-			if(!(ch->ch_flags & CH_RECEIVER_OFF)) {
+			if (!(ch->ch_flags & CH_RECEIVER_OFF)) {
 				bd_ops->disable_receiver(ch);
 				ch->ch_flags |= (CH_RECEIVER_OFF);
 				jsm_dbg(READ, &ch->ch_bd->pci_dev,
