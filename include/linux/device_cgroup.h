@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #include <linux/fs.h>
+#include <linux/bpf-cgroup.h>
 
 #define DEVCG_ACC_MKNOD 1
 #define DEVCG_ACC_READ  2
@@ -19,10 +20,15 @@ static inline int __devcgroup_check_permission(short type, u32 major, u32 minor,
 { return 0; }
 #endif
 
-#ifdef CONFIG_CGROUP_DEVICE
+#if defined(CONFIG_CGROUP_DEVICE) || defined(CONFIG_CGROUP_BPF)
 static inline int devcgroup_check_permission(short type, u32 major, u32 minor,
 					     short access)
 {
+	int rc = BPF_CGROUP_RUN_PROG_DEVICE_CGROUP(type, major, minor, access);
+
+	if (rc)
+		return -EPERM;
+
 	return __devcgroup_check_permission(type, major, minor, access);
 }
 
