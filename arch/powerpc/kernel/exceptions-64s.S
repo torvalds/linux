@@ -113,6 +113,7 @@ EXC_VIRT_NONE(0x4000, 0x100)
 	cmpwi	cr3,r10,2 ;						\
 	BRANCH_TO_C000(r10, system_reset_idle_common) ;			\
 1:									\
+	KVMTEST_PR(n) ;							\
 	END_FTR_SECTION_IFSET(CPU_FTR_HVMODE | CPU_FTR_ARCH_206)
 #else
 #define IDLETEST NOTEST
@@ -129,6 +130,7 @@ EXC_REAL_BEGIN(system_reset, 0x100, 0x100)
 
 EXC_REAL_END(system_reset, 0x100, 0x100)
 EXC_VIRT_NONE(0x4100, 0x100)
+TRAMP_KVM(PACA_EXNMI, 0x100)
 
 #ifdef CONFIG_PPC_P7_NAP
 EXC_COMMON_BEGIN(system_reset_idle_common)

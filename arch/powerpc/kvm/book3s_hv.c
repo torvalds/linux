@@ -47,6 +47,7 @@
 
 #include <asm/reg.h>
 #include <asm/ppc-opcode.h>
+#include <asm/asm-prototypes.h>
 #include <asm/disassemble.h>
 #include <asm/cputable.h>
 #include <asm/cacheflush.h>
@@ -1089,9 +1090,10 @@ static int kvmppc_handle_exit_hv(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		vcpu->stat.ext_intr_exits++;
 		r = RESUME_GUEST;
 		break;
-	/* HMI is hypervisor interrupt and host has handled it. Resume guest.*/
+	/* SR/HMI/PMI are HV interrupts that host has handled. Resume guest.*/
 	case BOOK3S_INTERRUPT_HMI:
 	case BOOK3S_INTERRUPT_PERFMON:
+	case BOOK3S_INTERRUPT_SYSTEM_RESET:
 		r = RESUME_GUEST;
 		break;
 	case BOOK3S_INTERRUPT_MACHINE_CHECK:
@@ -2603,6 +2605,9 @@ static void set_irq_happened(int trap)
 		break;
 	case BOOK3S_INTERRUPT_HMI:
 		local_paca->irq_happened |= PACA_IRQ_HMI;
+		break;
+	case BOOK3S_INTERRUPT_SYSTEM_RESET:
+		replay_system_reset();
 		break;
 	}
 }
