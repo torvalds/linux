@@ -46,6 +46,7 @@ hostprogs-y += syscall_tp
 
 # Libbpf dependencies
 LIBBPF := ../../tools/lib/bpf/bpf.o
+CGROUP_HELPERS := ../../tools/testing/selftests/bpf/cgroup_helpers.o
 
 test_lru_dist-objs := test_lru_dist.o $(LIBBPF)
 sock_example-objs := sock_example.o $(LIBBPF)
@@ -69,13 +70,13 @@ map_perf_test-objs := bpf_load.o $(LIBBPF) map_perf_test_user.o
 test_overhead-objs := bpf_load.o $(LIBBPF) test_overhead_user.o
 test_cgrp2_array_pin-objs := $(LIBBPF) test_cgrp2_array_pin.o
 test_cgrp2_attach-objs := $(LIBBPF) test_cgrp2_attach.o
-test_cgrp2_attach2-objs := $(LIBBPF) test_cgrp2_attach2.o cgroup_helpers.o
+test_cgrp2_attach2-objs := $(LIBBPF) test_cgrp2_attach2.o $(CGROUP_HELPERS)
 test_cgrp2_sock-objs := $(LIBBPF) test_cgrp2_sock.o
 test_cgrp2_sock2-objs := bpf_load.o $(LIBBPF) test_cgrp2_sock2.o
 xdp1-objs := bpf_load.o $(LIBBPF) xdp1_user.o
 # reuse xdp1 source intentionally
 xdp2-objs := bpf_load.o $(LIBBPF) xdp1_user.o
-test_current_task_under_cgroup-objs := bpf_load.o $(LIBBPF) cgroup_helpers.o \
+test_current_task_under_cgroup-objs := bpf_load.o $(LIBBPF) $(CGROUP_HELPERS) \
 				       test_current_task_under_cgroup_user.o
 trace_event-objs := bpf_load.o $(LIBBPF) trace_event_user.o
 sampleip-objs := bpf_load.o $(LIBBPF) sampleip_user.o

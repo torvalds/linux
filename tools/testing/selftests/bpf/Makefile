@@ -23,7 +23,7 @@ TEST_PROGS := test_kmod.sh test_xdp_redirect.sh test_xdp_meta.sh
 
 include ../lib.mk
 
-BPFOBJ := $(OUTPUT)/libbpf.a
+BPFOBJ := $(OUTPUT)/libbpf.a $(OUTPUT)/cgroup_helpers.c
 
 $(TEST_GEN_PROGS): $(BPFOBJ)
 
