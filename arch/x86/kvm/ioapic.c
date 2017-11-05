@@ -304,8 +304,17 @@ static void ioapic_write_indirect(struct kvm_ioapic *ioapic, u32 val)
 		} else {
 			e->bits &= ~0xffffffffULL;
 			e->bits |= (u32) val;
-			e->fields.remote_irr = 0;
 		}
+
+		/*
+		 * Some OSes (Linux, Xen) assume that Remote IRR bit will
+		 * be cleared by IOAPIC hardware when the entry is configured
+		 * as edge-triggered. This behavior is used to simulate an
+		 * explicit EOI on IOAPICs that don't have the EOI register.
+		 */
+		if (e->fields.trig_mode == IOAPIC_EDGE_TRIG)
+			e->fields.remote_irr = 0;
+
 		mask_after = e->fields.mask;
 		if (mask_before != mask_after)
 			kvm_fire_mask_notifiers(ioapic->kvm, KVM_IRQCHIP_IOAPIC, index, mask_after);
