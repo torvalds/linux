@@ -458,7 +458,7 @@ struct lkl_netdev *lkl_netdev_macvtap_create(const char *path, int offload);
  * on host in advance. delimiter is "|". e.g. "rx_name|tx_name".
  * @offload - offload bits for the device
  */
-struct lkl_netdev *lkl_netdev_pipe_create(char *ifname, int offload);
+struct lkl_netdev *lkl_netdev_pipe_create(const char *ifname, int offload);
 
 /*
  * lkl_register_dbg_handler- register a signal handler that loads a debug lib.
