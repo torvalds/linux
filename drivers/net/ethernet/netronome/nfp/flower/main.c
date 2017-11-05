@@ -142,8 +142,8 @@ nfp_flower_spawn_vnic_reprs(struct nfp_app *app,
 {
 	u8 nfp_pcie = nfp_cppcore_pcie_unit(app->pf->cpp);
 	struct nfp_flower_priv *priv = app->priv;
-	struct nfp_reprs *reprs, *old_reprs;
 	enum nfp_port_type port_type;
+	struct nfp_reprs *reprs;
 	const u8 queue = 0;
 	int i, err;
 
@@ -194,11 +194,7 @@ nfp_flower_spawn_vnic_reprs(struct nfp_app *app,
 			 reprs->reprs[i]->name);
 	}
 
-	old_reprs = nfp_app_reprs_set(app, repr_type, reprs);
-	if (IS_ERR(old_reprs)) {
-		err = PTR_ERR(old_reprs);
-		goto err_reprs_clean;
-	}
+	nfp_app_reprs_set(app, repr_type, reprs);
 
 	return 0;
 err_reprs_clean:
@@ -222,8 +218,8 @@ static int
 nfp_flower_spawn_phy_reprs(struct nfp_app *app, struct nfp_flower_priv *priv)
 {
 	struct nfp_eth_table *eth_tbl = app->pf->eth_tbl;
-	struct nfp_reprs *reprs, *old_reprs;
 	struct sk_buff *ctrl_skb;
+	struct nfp_reprs *reprs;
 	unsigned int i;
 	int err;
 
@@ -280,11 +276,7 @@ nfp_flower_spawn_phy_reprs(struct nfp_app *app, struct nfp_flower_priv *priv)
 			 phys_port, reprs->reprs[phys_port]->name);
 	}
 
-	old_reprs = nfp_app_reprs_set(app, NFP_REPR_TYPE_PHYS_PORT, reprs);
-	if (IS_ERR(old_reprs)) {
-		err = PTR_ERR(old_reprs);
-		goto err_reprs_clean;
-	}
+	nfp_app_reprs_set(app, NFP_REPR_TYPE_PHYS_PORT, reprs);
 
 	/* The MAC_REPR control message should be sent after the MAC
 	 * representors are registered using nfp_app_reprs_set().  This is
