@@ -323,7 +323,9 @@ static int ioapic_service(struct kvm_ioapic *ioapic, int irq, bool line_status)
 	struct kvm_lapic_irq irqe;
 	int ret;
 
-	if (entry->fields.mask)
+	if (entry->fields.mask ||
+	    (entry->fields.trig_mode == IOAPIC_LEVEL_TRIG &&
+	    entry->fields.remote_irr))
 		return -1;
 
 	ioapic_debug("dest=%x dest_mode=%x delivery_mode=%x "
