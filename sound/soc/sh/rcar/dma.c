@@ -219,11 +219,9 @@ static int rsnd_dmaen_nolock_start(struct rsnd_mod *mod,
 						 dma->mod_from,
 						 dma->mod_to);
 	if (IS_ERR_OR_NULL(dmaen->chan)) {
-		int ret = PTR_ERR(dmaen->chan);
-
 		dmaen->chan = NULL;
 		dev_err(dev, "can't get dma channel\n");
-		return ret;
+		return -EIO;
 	}
 
 	return 0;
