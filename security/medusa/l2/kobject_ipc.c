@@ -1,4 +1,5 @@
 #include <linux/medusa/l3/registry.h>
+#include <linux/medusa/l1/ipc.h>
 #include "kobject_ipc.h"
 
 /*
@@ -9,6 +10,18 @@ MED_ATTRS(ipc_kobject) {
 	MED_ATTR		(ipc_kobject, sclass, "sclass", MED_UNSIGNED),
 	MED_ATTR_END
 };
+
+
+int ipc_kern2kobj(struct ipc_kobject * ipck, struct kern_ipc_perm * ipcp)
+{
+	struct medusa_l1_ipc_s* security_s;
+	security_s = (struct medusa_l1_ipc_s*) ipcp->security;
+	if(!security_s)
+		return -1;
+	ipck->sid = security_s->sid;
+	ipck->sclass = security_s->sclass;
+	return 0;
+}
 
 static struct medusa_kobject_s * ipc_fetch(struct medusa_kobject_s * kobj)
 {

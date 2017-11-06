@@ -30,6 +30,7 @@ obj-y += acctype_rename.o acctype_rmdir.o
 obj-y += acctype_sendsig.o acctype_setresuid.o acctype_sexec.o
 obj-y += acctype_symlink.o acctype_readlink.o
 obj-y += acctype_truncate.o acctype_unlink.o
+obj-y += acctype_ipc.o
 # arch-dependent files
 obj-y += acctype_ptrace.o 
 #obj-$(CONFIG_MEDUSA_SYSCALL) += acctype_syscall.o

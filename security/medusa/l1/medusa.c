@@ -654,7 +654,7 @@ static void medusa_l1_task_to_inode(struct task_struct *p, struct inode *inode)
 /*
  * helper function not LSM hook
  */
-int medusa_l1_ipc_alloc_security(struct kern_ipc_perm *ipcp)
+int medusa_l1_ipc_alloc_security(struct kern_ipc_perm *ipcp, unsigned int sclass)
 {
 	struct medusa_l1_ipc_s *med;
 
@@ -662,6 +662,9 @@ int medusa_l1_ipc_alloc_security(struct kern_ipc_perm *ipcp)
 	if (med == NULL)
 		return -ENOMEM;
 
+	struct medusa_l1_ipc_s *tsec = current_security();
+	med->sid = tsec->sid;	
+	med->sclass = sclass;
 	ipcp->security = med;
 	return 0;
 }
@@ -698,6 +701,7 @@ static int medusa_l1_msg_msg_alloc_security(struct msg_msg *msg)
 	med = (struct medusa_l1_ipc_s*) kmalloc(sizeof(struct medusa_l1_ipc_s), GFP_KERNEL);
 	if (med == NULL)
 		return -ENOMEM;
+
 	msg->security = med;
 	return 0;
 }
@@ -707,7 +711,7 @@ static void medusa_l1_msg_msg_free_security(struct msg_msg *msg)
 	struct medusa_l1_ipc_s *med;
 	
 	if(msg->security != NULL) {
-		med = ipcp->security;
+		med = msg->security;
 		msg->security = NULL;
 		kfree(med);
 	}
@@ -715,7 +719,7 @@ static void medusa_l1_msg_msg_free_security(struct msg_msg *msg)
 
 static int medusa_l1_msg_queue_alloc_security(struct msg_queue *msq)
 {
-	return medusa_l1_ipc_alloc_security(&msq->q_perm);
+	return medusa_l1_ipc_alloc_security(&msq->q_perm, 0);
 }
 
 static void medusa_l1_msg_queue_free_security(struct msg_queue *msq)
@@ -748,7 +752,7 @@ static int medusa_l1_msg_queue_msgrcv(struct msg_queue *msq, struct msg_msg *msg
 //Semaphores
 static int medusa_l1_shm_alloc_security(struct shmid_kernel *shp)
 {
-	return medusa_l1_ipc_alloc_security(&shp->shm_perm);
+	return medusa_l1_ipc_alloc_security(&shp->shm_perm, 1);
 }
 
 static void medusa_l1_shm_free_security(struct shmid_kernel *shp)
@@ -774,7 +778,7 @@ static int medusa_l1_shm_shmat(struct shmid_kernel *shp, char __user *shmaddr,
 
 static int medusa_l1_sem_alloc_security(struct sem_array *sma)
 {
-	return medusa_l1_ipc_alloc_security(&sma->sem_perm);
+	return medusa_l1_ipc_alloc_security(&sma->sem_perm, 2);
 }
 
 static void medusa_l1_sem_free_security(struct sem_array *sma)

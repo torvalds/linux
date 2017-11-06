@@ -13,6 +13,8 @@
 #include <linux/medusa/l3/model.h>
 
 struct medusa_l1_ipc_s {
+	unsigned int sid;
+	unsigned int sclass;
 	MEDUSA_OBJECT_VARS;
 };
 
