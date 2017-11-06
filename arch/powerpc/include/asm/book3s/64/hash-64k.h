@@ -63,13 +63,21 @@ static inline real_pte_t __real_pte(pte_t pte, pte_t *ptep)
 	return rpte;
 }
 
+/*
+ * shift the hidx representation by one-modulo-0xf; i.e hidx 0 is respresented
+ * as 1, 1 as 2,... , and 0xf as 0.  This convention lets us represent a
+ * invalid hidx 0xf with a 0x0 bit value. PTEs are anyway zero'd when
+ * allocated. We dont have to zero them gain; thus save on the initialization.
+ */
+#define HIDX_UNSHIFT_BY_ONE(x) ((x + 0xfUL) & 0xfUL) /* shift backward by one */
+#define HIDX_SHIFT_BY_ONE(x) ((x + 0x1UL) & 0xfUL)   /* shift forward by one */
 #define HIDX_BITS(x, index)  (x << (index << 2))
 #define BITS_TO_HIDX(x, index)  ((x >> (index << 2)) & 0xfUL)
-#define INVALID_RPTE_HIDX  ~(0x0UL)
+#define INVALID_RPTE_HIDX  0x0UL
 
 static inline unsigned long __rpte_to_hidx(real_pte_t rpte, unsigned long index)
 {
-	return BITS_TO_HIDX(rpte.hidx, index);
+	return HIDX_UNSHIFT_BY_ONE(BITS_TO_HIDX(rpte.hidx, index));
 }
 
 /*
@@ -82,7 +90,7 @@ static inline unsigned long pte_set_hidx(pte_t *ptep, real_pte_t rpte,
 	unsigned long *hidxp = (unsigned long *)(ptep + PTRS_PER_PTE);
 
 	rpte.hidx &= ~HIDX_BITS(0xfUL, subpg_index);
-	*hidxp = rpte.hidx  | HIDX_BITS(hidx, subpg_index);
+	*hidxp = rpte.hidx  | HIDX_BITS(HIDX_SHIFT_BY_ONE(hidx), subpg_index);
 
 	/*
 	 * Anyone reading PTE must ensure hidx bits are read after reading the
