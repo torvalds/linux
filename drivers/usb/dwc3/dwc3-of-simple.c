@@ -6,15 +6,6 @@
  *
  * Author: Felipe Balbi <balbi@ti.com>
  *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2  of
- * the License as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  * This is a combination of the old dwc3-qcom.c by Ivan T. Ivanov
  * <iivanov@mm-sol.com> and the original patch adding support for Xilinx' SoC
  * by Subbaraya Sundeep Bhatta <subbaraya.sundeep.bhatta@xilinx.com>
