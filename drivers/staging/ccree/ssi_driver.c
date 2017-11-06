@@ -212,10 +212,9 @@ static int init_cc_resources(struct platform_device *plat_dev)
 	int rc = 0;
 
 	new_drvdata = devm_kzalloc(dev, sizeof(*new_drvdata), GFP_KERNEL);
-	if (!new_drvdata) {
-		rc = -ENOMEM;
-		goto post_drvdata_err;
-	}
+	if (!new_drvdata)
+		return -ENOMEM;
+
 	platform_set_drvdata(plat_dev, new_drvdata);
 	new_drvdata->plat_dev = plat_dev;
 
@@ -229,8 +228,7 @@ static int init_cc_resources(struct platform_device *plat_dev)
 	new_drvdata->cc_base = devm_ioremap_resource(dev, req_mem_cc_regs);
 	if (IS_ERR(new_drvdata->cc_base)) {
 		dev_err(dev, "Failed to ioremap registers");
-		rc = PTR_ERR(new_drvdata->cc_base);
-		goto post_drvdata_err;
+		return PTR_ERR(new_drvdata->cc_base);
 	}
 
 	dev_dbg(dev, "Got MEM resource (%s): %pR\n", req_mem_cc_regs->name,
@@ -244,8 +242,7 @@ static int init_cc_resources(struct platform_device *plat_dev)
 	new_drvdata->irq = platform_get_irq(plat_dev, 0);
 	if (new_drvdata->irq < 0) {
 		dev_err(dev, "Failed getting IRQ resource\n");
-		rc = new_drvdata->irq;
-		goto post_drvdata_err;
+		return new_drvdata->irq;
 	}
 
 	rc = devm_request_irq(dev, new_drvdata->irq, cc_isr,
@@ -253,7 +250,7 @@ static int init_cc_resources(struct platform_device *plat_dev)
 	if (rc) {
 		dev_err(dev, "Could not register to interrupt %d\n",
 			new_drvdata->irq);
-		goto post_drvdata_err;
+		return rc;
 	}
 	dev_dbg(dev, "Registered to IRQ: %d\n", new_drvdata->irq);
 
@@ -271,15 +268,16 @@ static int init_cc_resources(struct platform_device *plat_dev)
 	}
 
 	if (rc) {
-		dev_err(dev, "Error: failed in dma_set_mask, mask=%par\n",
+		dev_err(dev, "Failed in dma_set_mask, mask=%par\n",
 			&dma_mask);
-		goto post_drvdata_err;
+		return rc;
 	}
 
 	rc = cc_clk_on(new_drvdata);
-	if (rc)
-		goto post_drvdata_err;
-
+	if (rc) {
+		dev_err(dev, "Failed to enable clock");
+		return rc;
+	}
 
 	/* Verify correct mapping */
 	signature_val = CC_HAL_READ_REGISTER(CC_REG_OFFSET(HOST_RGF, HOST_SIGNATURE));
@@ -406,8 +404,6 @@ post_regs_err:
 	fini_cc_regs(new_drvdata);
 post_clk_err:
 	cc_clk_off(new_drvdata);
-post_drvdata_err:
-	dev_err(dev, "ccree init error occurred!\n");
 	return rc;
 }
 
