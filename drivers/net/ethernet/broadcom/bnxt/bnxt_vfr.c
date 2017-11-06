@@ -148,7 +148,6 @@ static int bnxt_vf_rep_setup_tc_block(struct net_device *dev,
 		return tcf_block_cb_register(f->block,
 					     bnxt_vf_rep_setup_tc_block_cb,
 					     vf_rep, vf_rep);
-		return 0;
 	case TC_BLOCK_UNBIND:
 		tcf_block_cb_unregister(f->block,
 					bnxt_vf_rep_setup_tc_block_cb, vf_rep);
