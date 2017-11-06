@@ -2728,11 +2728,11 @@ static int dpaa_eth_probe(struct platform_device *pdev)
 
 	/* bp init */
 	for (i = 0; i < DPAA_BPS_NUM; i++) {
-		int err;
-
 		dpaa_bps[i] = dpaa_bp_alloc(dev);
-		if (IS_ERR(dpaa_bps[i]))
+		if (IS_ERR(dpaa_bps[i])) {
+			err = PTR_ERR(dpaa_bps[i]);
 			goto free_dpaa_bps;
+		}
 		/* the raw size of the buffers used for reception */
 		dpaa_bps[i]->raw_size = bpool_buffer_raw_size(i, DPAA_BPS_NUM);
 		/* avoid runtime computations by keeping the usable size here */
