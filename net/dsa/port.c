@@ -252,7 +252,10 @@ int dsa_port_vlan_add(struct dsa_port *dp,
 		.vlan = vlan,
 	};
 
-	return dsa_port_notify(dp, DSA_NOTIFIER_VLAN_ADD, &info);
+	if (br_vlan_enabled(dp->bridge_dev))
+		return dsa_port_notify(dp, DSA_NOTIFIER_VLAN_ADD, &info);
+
+	return 0;
 }
 
 int dsa_port_vlan_del(struct dsa_port *dp,
@@ -264,7 +267,10 @@ int dsa_port_vlan_del(struct dsa_port *dp,
 		.vlan = vlan,
 	};
 
-	return dsa_port_notify(dp, DSA_NOTIFIER_VLAN_DEL, &info);
+	if (br_vlan_enabled(dp->bridge_dev))
+		return dsa_port_notify(dp, DSA_NOTIFIER_VLAN_DEL, &info);
+
+	return 0;
 }
 
 int dsa_port_fixed_link_register_of(struct dsa_port *dp)
