@@ -1807,6 +1807,10 @@ static int vega10_populate_all_memory_levels(struct pp_hwmgr *hwmgr)
 	mem_channels = (cgs_read_register(hwmgr->device, reg) &
 			DF_CS_AON0_DramBaseAddress0__IntLvNumChan_MASK) >>
 			DF_CS_AON0_DramBaseAddress0__IntLvNumChan__SHIFT;
+	PP_ASSERT_WITH_CODE(mem_channels < ARRAY_SIZE(channel_number),
+			"Mem Channel Index Exceeded maximum!",
+			return -1);
+
 	pp_table->NumMemoryChannels = cpu_to_le16(mem_channels);
 	pp_table->MemoryChannelWidth =
 			cpu_to_le16(HBM_MEMORY_CHANNEL_WIDTH *
