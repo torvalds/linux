@@ -1498,6 +1498,8 @@ static inline int snd_soc_cache_sync(struct snd_soc_codec *codec)
 /* component IO */
 int snd_soc_component_read(struct snd_soc_component *component,
 	unsigned int reg, unsigned int *val);
+unsigned int snd_soc_component_read32(struct snd_soc_component *component,
+				      unsigned int reg);
 int snd_soc_component_write(struct snd_soc_component *component,
 	unsigned int reg, unsigned int val);
 int snd_soc_component_update_bits(struct snd_soc_component *component,
