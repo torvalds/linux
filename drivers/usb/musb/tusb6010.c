@@ -5,10 +5,6 @@
  * Copyright (C) 2006 Nokia Corporation
  * Tony Lindgren <tony@atomide.com>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  * Notes:
  * - Driver assumes that interface to external host (main CPU) is
  *   configured for NOR FLASH interface instead of VLYNQ serial
