@@ -53,13 +53,6 @@
  * otherwise by the lowest id first, see xfs_dqlock2.
  */
 
-#ifdef DEBUG
-xfs_buftarg_t *xfs_dqerror_target;
-int xfs_do_dqerror;
-int xfs_dqreq_num;
-int xfs_dqerror_mod = 33;
-#endif
-
 struct kmem_zone		*xfs_qm_dqtrxzone;
 static struct kmem_zone		*xfs_qm_dqzone;
 
@@ -770,15 +763,6 @@ xfs_qm_dqget(
 		return -ESRCH;
 	}
 
-#ifdef DEBUG
-	if (xfs_do_dqerror) {
-		if ((xfs_dqerror_target == mp->m_ddev_targp) &&
-		    (xfs_dqreq_num++ % xfs_dqerror_mod) == 0) {
-			xfs_debug(mp, "Returning error in dqget");
-			return -EIO;
-		}
-	}
-
 	ASSERT(type == XFS_DQ_USER ||
 	       type == XFS_DQ_PROJ ||
 	       type == XFS_DQ_GROUP);
@@ -786,7 +770,6 @@ xfs_qm_dqget(
 		ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
 		ASSERT(xfs_inode_dquot(ip, type) == NULL);
 	}
-#endif
 
 restart:
 	mutex_lock(&qi->qi_tree_lock);
