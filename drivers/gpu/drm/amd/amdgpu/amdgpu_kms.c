@@ -177,9 +177,6 @@ retry_init:
 		pm_runtime_put_autosuspend(dev->dev);
 	}
 
-	if (amdgpu_sriov_vf(adev))
-		amdgpu_virt_release_full_gpu(adev, true);
-
 out:
 	if (r) {
 		/* balance pm_runtime_get_sync in amdgpu_driver_unload_kms */

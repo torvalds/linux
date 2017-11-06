@@ -1790,6 +1790,10 @@ static int amdgpu_init(struct amdgpu_device *adev)
 	}
 
 	amdgpu_amdkfd_device_init(adev);
+
+	if (amdgpu_sriov_vf(adev))
+		amdgpu_virt_release_full_gpu(adev, true);
+
 	return 0;
 }
 
