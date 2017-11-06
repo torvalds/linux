@@ -213,6 +213,14 @@ struct mlxsw_sp_qdisc {
 	enum mlxsw_sp_qdisc_type type;
 };
 
+/* No need an internal lock; At worse - miss a single periodic iteration */
+struct mlxsw_sp_port_xstats {
+	u64 ecn;
+	u64 wred_drop[TC_MAX_QUEUE];
+	u64 tail_drop[TC_MAX_QUEUE];
+	u64 backlog[TC_MAX_QUEUE];
+};
+
 struct mlxsw_sp_port {
 	struct net_device *dev;
 	struct mlxsw_sp_port_pcpu_stats __percpu *pcpu_stats;
@@ -242,6 +250,7 @@ struct mlxsw_sp_port {
 	struct {
 		#define MLXSW_HW_STATS_UPDATE_TIME HZ
 		struct rtnl_link_stats64 stats;
+		struct mlxsw_sp_port_xstats xstats;
 		struct delayed_work update_dw;
 	} periodic_hw_stats;
 	struct mlxsw_sp_port_sample *sample;
