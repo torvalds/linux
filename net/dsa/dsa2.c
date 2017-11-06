@@ -112,6 +112,11 @@ static bool dsa_port_is_cpu(struct dsa_port *port)
 	return port->type == DSA_PORT_TYPE_CPU;
 }
 
+static bool dsa_port_is_user(struct dsa_port *dp)
+{
+	return dp->type == DSA_PORT_TYPE_USER;
+}
+
 static bool dsa_ds_find_port_dn(struct dsa_switch *ds,
 				struct device_node *port)
 {
@@ -216,6 +221,64 @@ static int dsa_dst_complete(struct dsa_switch_tree *dst)
 	}
 
 	return 0;
+}
+
+static struct dsa_port *dsa_tree_find_first_cpu(struct dsa_switch_tree *dst)
+{
+	struct dsa_switch *ds;
+	struct dsa_port *dp;
+	int device, port;
+
+	for (device = 0; device < DSA_MAX_SWITCHES; device++) {
+		ds = dst->ds[device];
+		if (!ds)
+			continue;
+
+		for (port = 0; port < ds->num_ports; port++) {
+			dp = &ds->ports[port];
+
+			if (dsa_port_is_cpu(dp))
+				return dp;
+		}
+	}
+
+	return NULL;
+}
+
+static int dsa_tree_setup_default_cpu(struct dsa_switch_tree *dst)
+{
+	struct dsa_switch *ds;
+	struct dsa_port *dp;
+	int device, port;
+
+	/* DSA currently only supports a single CPU port */
+	dst->cpu_dp = dsa_tree_find_first_cpu(dst);
+	if (!dst->cpu_dp) {
+		pr_warn("Tree has no master device\n");
+		return -EINVAL;
+	}
+
+	/* Assign the default CPU port to all ports of the fabric */
+	for (device = 0; device < DSA_MAX_SWITCHES; device++) {
+		ds = dst->ds[device];
+		if (!ds)
+			continue;
+
+		for (port = 0; port < ds->num_ports; port++) {
+			dp = &ds->ports[port];
+
+			if (dsa_port_is_user(dp))
+				dp->cpu_dp = dst->cpu_dp;
+		}
+	}
+
+	return 0;
+}
+
+static void dsa_tree_teardown_default_cpu(struct dsa_switch_tree *dst)
+{
+	/* DSA currently only supports a single CPU port */
+	dst->cpu_dp = NULL;
 }
 
 static int dsa_dsa_port_apply(struct dsa_port *port)
@@ -412,6 +475,10 @@ static int dsa_dst_apply(struct dsa_switch_tree *dst)
 	u32 index;
 	int err;
 
+	err = dsa_tree_setup_default_cpu(dst);
+	if (err)
+		return err;
+
 	for (index = 0; index < DSA_MAX_SWITCHES; index++) {
 		ds = dst->ds[index];
 		if (!ds)
@@ -464,7 +531,7 @@ static void dsa_dst_unapply(struct dsa_switch_tree *dst)
 		dsa_ds_unapply(dst, ds);
 	}
 
-	dst->cpu_dp = NULL;
+	dsa_tree_teardown_default_cpu(dst);
 
 	pr_info("DSA: tree %d unapplied\n", dst->index);
 	dst->applied = false;
@@ -528,86 +595,6 @@ static int dsa_port_parse_cpu(struct dsa_port *dp, struct net_device *master)
 	dp->tag_ops = tag_ops;
 	dp->master = master;
 	dp->dst = dst;
-
-	return 0;
-}
-
-static int dsa_cpu_parse(struct dsa_port *port, u32 index,
-			 struct dsa_switch_tree *dst,
-			 struct dsa_switch *ds)
-{
-	if (!dst->cpu_dp)
-		dst->cpu_dp = port;
-
-	return 0;
-}
-
-static int dsa_ds_parse(struct dsa_switch_tree *dst, struct dsa_switch *ds)
-{
-	struct dsa_port *port;
-	u32 index;
-	int err;
-
-	for (index = 0; index < ds->num_ports; index++) {
-		port = &ds->ports[index];
-		if (!dsa_port_is_valid(port) ||
-		    dsa_port_is_dsa(port))
-			continue;
-
-		if (dsa_port_is_cpu(port)) {
-			err = dsa_cpu_parse(port, index, dst, ds);
-			if (err)
-				return err;
-		}
-
-	}
-
-	pr_info("DSA: switch %d %d parsed\n", dst->index, ds->index);
-
-	return 0;
-}
-
-static int dsa_dst_parse(struct dsa_switch_tree *dst)
-{
-	struct dsa_switch *ds;
-	struct dsa_port *dp;
-	u32 index;
-	int port;
-	int err;
-
-	for (index = 0; index < DSA_MAX_SWITCHES; index++) {
-		ds = dst->ds[index];
-		if (!ds)
-			continue;
-
-		err = dsa_ds_parse(dst, ds);
-		if (err)
-			return err;
-	}
-
-	if (!dst->cpu_dp) {
-		pr_warn("Tree has no master device\n");
-		return -EINVAL;
-	}
-
-	/* Assign the default CPU port to all ports of the fabric */
-	for (index = 0; index < DSA_MAX_SWITCHES; index++) {
-		ds = dst->ds[index];
-		if (!ds)
-			continue;
-
-		for (port = 0; port < ds->num_ports; port++) {
-			dp = &ds->ports[port];
-			if (!dsa_port_is_valid(dp) ||
-			    dsa_port_is_dsa(dp) ||
-			    dsa_port_is_cpu(dp))
-				continue;
-
-			dp->cpu_dp = dst->cpu_dp;
-		}
-	}
-
-	pr_info("DSA: tree %d parsed\n", dst->index);
 
 	return 0;
 }
@@ -809,10 +796,6 @@ static int _dsa_register_switch(struct dsa_switch *ds)
 		pr_info("DSA: Disjoint trees?\n");
 		return -EINVAL;
 	}
-
-	err = dsa_dst_parse(dst);
-	if (err)
-		goto out_del_dst;
 
 	err = dsa_dst_apply(dst);
 	if (err) {
