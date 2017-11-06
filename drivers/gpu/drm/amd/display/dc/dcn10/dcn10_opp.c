@@ -330,12 +330,19 @@ void dcn10_opp_construct(struct dcn10_opp *oppn10,
 	const struct dcn10_opp_shift *opp_shift,
 	const struct dcn10_opp_mask *opp_mask)
 {
+	int i;
+
 	oppn10->base.ctx = ctx;
 	oppn10->base.inst = inst;
 	oppn10->base.funcs = &dcn10_opp_funcs;
+
+	oppn10->base.mpc_tree_params.opp_id = inst;
+	oppn10->base.mpc_tree_params.opp_list = NULL;
+
+	for (i = 0; i < MAX_PIPES; i++)
+		oppn10->base.mpcc_disconnect_pending[i] = false;
 
 	oppn10->regs = regs;
 	oppn10->opp_shift = opp_shift;
 	oppn10->opp_mask = opp_mask;
 }
-

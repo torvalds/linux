@@ -29,6 +29,7 @@
 #include "hw_shared.h"
 #include "dc_hw_types.h"
 #include "transform.h"
+#include "mpc.h"
 
 struct fixed31_32;
 
@@ -204,7 +205,7 @@ struct output_pixel_processor {
 	struct dc_context *ctx;
 	uint32_t inst;
 	struct pwl_params regamma_params;
-	struct mpc_tree_cfg mpc_tree;
+	struct mpc_tree mpc_tree_params;
 	bool mpcc_disconnect_pending[MAX_PIPES];
 	const struct opp_funcs *funcs;
 };

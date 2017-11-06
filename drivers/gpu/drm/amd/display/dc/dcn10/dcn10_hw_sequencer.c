@@ -573,28 +573,25 @@ static void plane_atomic_disconnect(struct dc *dc, struct pipe_ctx *pipe_ctx)
 	int fe_idx = pipe_ctx->pipe_idx;
 	struct hubp *hubp = dc->res_pool->hubps[fe_idx];
 	struct mpc *mpc = dc->res_pool->mpc;
-	int opp_id, z_idx;
-	int mpcc_id = -1;
+	int opp_id;
+	struct mpc_tree *mpc_tree_params;
+	struct mpcc *mpcc_to_remove = NULL;
 
 	/* look at tree rather than mi here to know if we already reset */
 	for (opp_id = 0; opp_id < dc->res_pool->pipe_count; opp_id++) {
 		struct output_pixel_processor *opp = dc->res_pool->opps[opp_id];
 
-		for (z_idx = 0; z_idx < opp->mpc_tree.num_pipes; z_idx++) {
-			if (opp->mpc_tree.dpp[z_idx] == fe_idx) {
-				mpcc_id = opp->mpc_tree.mpcc[z_idx];
-				break;
-			}
-		}
-		if (mpcc_id != -1)
+		mpc_tree_params = &(opp->mpc_tree_params);
+		mpcc_to_remove = mpc->funcs->get_mpcc_for_dpp(mpc_tree_params, fe_idx);
+		if (mpcc_to_remove != NULL)
 			break;
 	}
+
 	/*Already reset*/
 	if (opp_id == dc->res_pool->pipe_count)
 		return;
 
-	mpc->funcs->remove(mpc, &(dc->res_pool->opps[opp_id]->mpc_tree),
-					dc->res_pool->opps[opp_id]->inst, fe_idx);
+	mpc->funcs->remove_mpcc(mpc, mpc_tree_params, mpcc_to_remove);
 
 	if (hubp->funcs->hubp_disconnect)
 		hubp->funcs->hubp_disconnect(hubp);
@@ -652,7 +649,7 @@ static void plane_atomic_disable(struct dc *dc, struct pipe_ctx *pipe_ctx)
 	REG_UPDATE(DPP_CONTROL[fe_idx],
 			DPP_CLOCK_ENABLE, 0);
 
-	if (opp_id != 0xf && dc->res_pool->opps[opp_id]->mpc_tree.num_pipes == 0)
+	if (opp_id != 0xf && dc->res_pool->opps[opp_id]->mpc_tree_params.opp_list == NULL)
 		REG_UPDATE(OPP_PIPE_CONTROL[opp_id],
 				OPP_PIPE_CLOCK_EN, 0);
 
@@ -677,7 +674,7 @@ static void dcn10_disable_plane(struct dc *dc, struct pipe_ctx *pipe_ctx)
 
 static void dcn10_init_hw(struct dc *dc)
 {
-	int i;
+	int i, opp_id;
 	struct abm *abm = dc->res_pool->abm;
 	struct dmcu *dmcu = dc->res_pool->dmcu;
 	struct dce_hwseq *hws = dc->hwseq;
@@ -740,16 +737,18 @@ static void dcn10_init_hw(struct dc *dc)
 		}
 	}
 
+	/* Initialize MPC tree based on HW values */
+	for (opp_id = 0; opp_id < dc->res_pool->pipe_count; opp_id++) {
+		struct output_pixel_processor *opp = dc->res_pool->opps[opp_id];
+		struct mpc_tree *mpc_tree_params = &(opp->mpc_tree_params);
+
+		dc->res_pool->mpc->funcs->init_mpcc_list_from_hw(dc->res_pool->mpc, mpc_tree_params);
+	}
+
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct timing_generator *tg = dc->res_pool->timing_generators[i];
 		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
-		struct output_pixel_processor *opp = dc->res_pool->opps[i];
-		struct mpc_tree_cfg *mpc_tree = &opp->mpc_tree;
 		struct hubp *hubp = dc->res_pool->hubps[i];
-
-		mpc_tree->dpp[0] = i;
-		mpc_tree->mpcc[0] = i;
-		mpc_tree->num_pipes = 1;
 
 		pipe_ctx->stream_res.tg = tg;
 		pipe_ctx->pipe_idx = i;
@@ -1694,38 +1693,6 @@ static void program_csc_matrix(struct pipe_ctx *pipe_ctx,
 	}
 }
 
-static void set_mpc_output_csc(struct dc *dc,
-		struct pipe_ctx *pipe_ctx,
-		enum dc_color_space colorspace,
-		uint16_t *matrix,
-		int opp_id)
-{
-	struct mpc *mpc = dc->res_pool->mpc;
-	int i;
-	struct out_csc_color_matrix tbl_entry;
-	enum mpc_output_csc_mode ocsc_mode = MPC_OUTPUT_CSC_COEF_A;
-
-
-	if (pipe_ctx->stream->csc_color_matrix.enable_adjustment == true) {
-		//uint16_t matrix[12];
-		for (i = 0; i < 12; i++)
-			tbl_entry.regval[i] = matrix[i];
-		tbl_entry.color_space = colorspace;
-
-		if (mpc->funcs->set_output_csc != NULL)
-			mpc->funcs->set_output_csc(mpc,
-					opp_id,
-					&tbl_entry,
-					ocsc_mode);
-	} else {
-		if (mpc->funcs->set_ocsc_default != NULL)
-			mpc->funcs->set_ocsc_default(mpc,
-					opp_id,
-					colorspace,
-					ocsc_mode);
-	}
-}
-
 static void program_output_csc(struct dc *dc,
 		struct pipe_ctx *pipe_ctx,
 		enum dc_color_space colorspace,
@@ -1736,13 +1703,6 @@ static void program_output_csc(struct dc *dc,
 		program_csc_matrix(pipe_ctx,
 				colorspace,
 				matrix);
-	else
-		set_mpc_output_csc(dc,
-			pipe_ctx,
-			colorspace,
-			matrix,
-			opp_id);
-
 }
 
 static bool is_lower_pipe_tree_visible(struct pipe_ctx *pipe_ctx)
@@ -1914,35 +1874,73 @@ static void update_dpp(struct dpp *dpp, struct dc_plane_state *plane_state)
 
 static void update_mpcc(struct dc *dc, struct pipe_ctx *pipe_ctx)
 {
-	struct mpcc_cfg mpcc_cfg = {0};
 	struct hubp *hubp = pipe_ctx->plane_res.hubp;
-	struct pipe_ctx *top_pipe;
-	bool per_pixel_alpha =
-			pipe_ctx->plane_state->per_pixel_alpha && pipe_ctx->bottom_pipe;
+	struct mpcc_blnd_cfg blnd_cfg;
+	bool per_pixel_alpha = pipe_ctx->plane_state->per_pixel_alpha && pipe_ctx->bottom_pipe;
+	int mpcc_id;
+	struct mpcc *new_mpcc;
+	struct mpc *mpc = dc->res_pool->mpc;
+	struct mpc_tree *mpc_tree_params = &(pipe_ctx->stream_res.opp->mpc_tree_params);
 
 	/* TODO: proper fix once fpga works */
 
-	mpcc_cfg.dpp_id = hubp->inst;
-	mpcc_cfg.opp_id = pipe_ctx->stream_res.opp->inst;
-	mpcc_cfg.tree_cfg = &(pipe_ctx->stream_res.opp->mpc_tree);
-	for (top_pipe = pipe_ctx->top_pipe; top_pipe; top_pipe = top_pipe->top_pipe)
-		mpcc_cfg.z_index++;
 	if (dc->debug.surface_visual_confirm)
 		dcn10_get_surface_visual_confirm_color(
-				pipe_ctx, &mpcc_cfg.black_color);
+				pipe_ctx, &blnd_cfg.black_color);
 	else
 		color_space_to_black_color(
 			dc, pipe_ctx->stream->output_color_space,
-			&mpcc_cfg.black_color);
-	mpcc_cfg.per_pixel_alpha = per_pixel_alpha;
+			&blnd_cfg.black_color);
+
+	if (per_pixel_alpha)
+		blnd_cfg.alpha_mode = MPCC_ALPHA_BLEND_MODE_PER_PIXEL_ALPHA;
+	else
+		blnd_cfg.alpha_mode = MPCC_ALPHA_BLEND_MODE_GLOBAL_ALPHA;
+
+	blnd_cfg.overlap_only = false;
+	blnd_cfg.global_alpha = 0xff;
+	blnd_cfg.global_gain = 0xff;
+
 	/* DCN1.0 has output CM before MPC which seems to screw with
 	 * pre-multiplied alpha.
 	 */
-	mpcc_cfg.pre_multiplied_alpha = is_rgb_cspace(
+	blnd_cfg.pre_multiplied_alpha = is_rgb_cspace(
 			pipe_ctx->stream->output_color_space)
 					&& per_pixel_alpha;
-	hubp->mpcc_id = dc->res_pool->mpc->funcs->add(dc->res_pool->mpc, &mpcc_cfg);
-	hubp->opp_id = mpcc_cfg.opp_id;
+
+	/*
+	 * TODO: remove hack
+	 * Note: currently there is a bug in init_hw such that
+	 * on resume from hibernate, BIOS sets up MPCC0, and
+	 * we do mpcc_remove but the mpcc cannot go to idle
+	 * after remove. This cause us to pick mpcc1 here,
+	 * which causes a pstate hang for yet unknown reason.
+	 */
+	mpcc_id = hubp->inst;
+
+	/* check if this MPCC is already being used */
+	new_mpcc = mpc->funcs->get_mpcc_for_dpp(mpc_tree_params, mpcc_id);
+	/* remove MPCC if being used */
+	if (new_mpcc != NULL)
+		mpc->funcs->remove_mpcc(mpc, mpc_tree_params, new_mpcc);
+
+	if (dc->debug.sanity_checks)
+		mpc->funcs->assert_mpcc_idle_before_connect(
+				dc->res_pool->mpc, mpcc_id);
+
+	/* Call MPC to insert new plane */
+	new_mpcc = mpc->funcs->insert_plane(dc->res_pool->mpc,
+			mpc_tree_params,
+			&blnd_cfg,
+			NULL,
+			NULL,
+			hubp->inst,
+			mpcc_id);
+
+	ASSERT(new_mpcc != NULL);
+
+	hubp->opp_id = pipe_ctx->stream_res.opp->inst;
+	hubp->mpcc_id = mpcc_id;
 }
 
 static void update_scaler(struct pipe_ctx *pipe_ctx)
