@@ -285,7 +285,7 @@ static int csum_tree_block(struct btrfs_fs_info *fs_info,
 			   int verify)
 {
 	u16 csum_size = btrfs_super_csum_size(fs_info->super_copy);
-	char *result = NULL;
+	char result[BTRFS_CSUM_SIZE];
 	unsigned long len;
 	unsigned long cur_len;
 	unsigned long offset = BTRFS_CSUM_SIZE;
@@ -294,7 +294,6 @@ static int csum_tree_block(struct btrfs_fs_info *fs_info,
 	unsigned long map_len;
 	int err;
 	u32 crc = ~(u32)0;
-	unsigned long inline_result;
 
 	len = buf->len - offset;
 	while (len > 0) {
@@ -308,13 +307,7 @@ static int csum_tree_block(struct btrfs_fs_info *fs_info,
 		len -= cur_len;
 		offset += cur_len;
 	}
-	if (csum_size > sizeof(inline_result)) {
-		result = kzalloc(csum_size, GFP_NOFS);
-		if (!result)
-			return -ENOMEM;
-	} else {
-		result = (char *)&inline_result;
-	}
+	memset(result, 0, BTRFS_CSUM_SIZE);
 
 	btrfs_csum_final(crc, result);
 
@@ -329,15 +322,12 @@ static int csum_tree_block(struct btrfs_fs_info *fs_info,
 				"%s checksum verify failed on %llu wanted %X found %X level %d",
 				fs_info->sb->s_id, buf->start,
 				val, found, btrfs_header_level(buf));
-			if (result != (char *)&inline_result)
-				kfree(result);
 			return -EUCLEAN;
 		}
 	} else {
 		write_extent_buffer(buf, result, 0, csum_size);
 	}
-	if (result != (char *)&inline_result)
-		kfree(result);
+
 	return 0;
 }
 
