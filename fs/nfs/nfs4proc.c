@@ -5777,11 +5777,8 @@ static void nfs4_delegreturn_done(struct rpc_task *task, void *calldata)
 			break;
 		case -NFS4ERR_OLD_STATEID:
 			if (nfs4_refresh_layout_stateid(&data->args.lr_args->stateid,
-						data->inode)) {
-				data->res.lr_ret = 0;
-				rpc_restart_call_prepare(task);
-				return;
-			}
+						data->inode))
+				goto lr_restart;
 			/* Fallthrough */
 		case -NFS4ERR_ADMIN_REVOKED:
 		case -NFS4ERR_DELEG_REVOKED:
@@ -5791,9 +5788,7 @@ static void nfs4_delegreturn_done(struct rpc_task *task, void *calldata)
 		case -NFS4ERR_WRONG_CRED:
 			data->args.lr_args = NULL;
 			data->res.lr_res = NULL;
-			data->res.lr_ret = 0;
-			rpc_restart_call_prepare(task);
-			return;
+			goto lr_restart;
 		}
 	}
 
@@ -5813,29 +5808,30 @@ static void nfs4_delegreturn_done(struct rpc_task *task, void *calldata)
 		task->tk_status = 0;
 		break;
 	case -NFS4ERR_OLD_STATEID:
-		if (nfs4_refresh_delegation_stateid(&data->stateid, data->inode)) {
-			task->tk_status = 0;
-			rpc_restart_call_prepare(task);
-			return;
-		}
+		if (nfs4_refresh_delegation_stateid(&data->stateid, data->inode))
+			goto out_restart;
 		task->tk_status = 0;
 		break;
 	case -NFS4ERR_ACCESS:
 		if (data->args.bitmask) {
 			data->args.bitmask = NULL;
 			data->res.fattr = NULL;
-			task->tk_status = 0;
-			rpc_restart_call_prepare(task);
-			return;
+			goto out_restart;
 		}
+		/* Fallthrough */
 	default:
 		if (nfs4_async_handle_error(task, data->res.server,
 					    NULL, NULL) == -EAGAIN) {
-			rpc_restart_call_prepare(task);
-			return;
+			goto out_restart;
 		}
 	}
 	data->rpc_status = task->tk_status;
+	return;
+lr_restart:
+	data->res.lr_ret = 0;
+out_restart:
+	task->tk_status = 0;
+	rpc_restart_call_prepare(task);
 }
 
 static void nfs4_delegreturn_release(void *calldata)
