@@ -122,7 +122,7 @@ struct dsa_switch_tree {
 	struct kref refcount;
 
 	/* Has this tree been applied to the hardware? */
-	bool applied;
+	bool setup;
 
 	/*
 	 * Configuration data for the platform device that owns

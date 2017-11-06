@@ -486,11 +486,17 @@ static void dsa_tree_teardown_master(struct dsa_switch_tree *dst)
 	return dsa_master_teardown(master);
 }
 
-static int dsa_dst_apply(struct dsa_switch_tree *dst)
+static int dsa_tree_setup(struct dsa_switch_tree *dst)
 {
 	struct dsa_switch *ds;
 	u32 index;
 	int err;
+
+	if (dst->setup) {
+		pr_err("DSA: tree %d already setup! Disjoint trees?\n",
+		       dst->index);
+		return -EEXIST;
+	}
 
 	err = dsa_tree_setup_default_cpu(dst);
 	if (err)
@@ -510,17 +516,19 @@ static int dsa_dst_apply(struct dsa_switch_tree *dst)
 	if (err)
 		return err;
 
-	dst->applied = true;
+	dst->setup = true;
+
+	pr_info("DSA: tree %d setup\n", dst->index);
 
 	return 0;
 }
 
-static void dsa_dst_unapply(struct dsa_switch_tree *dst)
+static void dsa_tree_teardown(struct dsa_switch_tree *dst)
 {
 	struct dsa_switch *ds;
 	u32 index;
 
-	if (!dst->applied)
+	if (!dst->setup)
 		return;
 
 	dsa_tree_teardown_master(dst);
@@ -535,8 +543,9 @@ static void dsa_dst_unapply(struct dsa_switch_tree *dst)
 
 	dsa_tree_teardown_default_cpu(dst);
 
-	pr_info("DSA: tree %d unapplied\n", dst->index);
-	dst->applied = false;
+	pr_info("DSA: tree %d torn down\n", dst->index);
+
+	dst->setup = false;
 }
 
 static void dsa_tree_remove_switch(struct dsa_switch_tree *dst,
@@ -794,14 +803,9 @@ static int _dsa_register_switch(struct dsa_switch *ds)
 	if (err == 1)
 		return 0;
 
-	if (dst->applied) {
-		pr_info("DSA: Disjoint trees?\n");
-		return -EINVAL;
-	}
-
-	err = dsa_dst_apply(dst);
+	err = dsa_tree_setup(dst);
 	if (err) {
-		dsa_dst_unapply(dst);
+		dsa_tree_teardown(dst);
 		goto out_del_dst;
 	}
 
@@ -852,7 +856,7 @@ static void _dsa_unregister_switch(struct dsa_switch *ds)
 	struct dsa_switch_tree *dst = ds->dst;
 	unsigned int index = ds->index;
 
-	dsa_dst_unapply(dst);
+	dsa_tree_teardown(dst);
 
 	dsa_tree_remove_switch(dst, index);
 }
