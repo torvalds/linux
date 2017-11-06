@@ -197,10 +197,17 @@ static int fintek_8250_rs485_config(struct uart_port *port,
 	if (!pdata)
 		return -EINVAL;
 
-	if (rs485->flags & SER_RS485_ENABLED)
+	/* Hardware do not support same RTS level on send and receive */
+	if (!(rs485->flags & SER_RS485_RTS_ON_SEND) ==
+			!(rs485->flags & SER_RS485_RTS_AFTER_SEND))
+		return -EINVAL;
+
+	if (rs485->flags & SER_RS485_ENABLED) {
 		memset(rs485->padding, 0, sizeof(rs485->padding));
-	else
+		config |= RS485_URA;
+	} else {
 		memset(rs485, 0, sizeof(*rs485));
+	}
 
 	rs485->flags &= SER_RS485_ENABLED | SER_RS485_RTS_ON_SEND |
 			SER_RS485_RTS_AFTER_SEND;
@@ -214,12 +221,6 @@ static int fintek_8250_rs485_config(struct uart_port *port,
 		rs485->delay_rts_after_send = 1;
 		config |= RXW4C_IRA;
 	}
-
-	if ((!!(rs485->flags & SER_RS485_RTS_ON_SEND)) ==
-			(!!(rs485->flags & SER_RS485_RTS_AFTER_SEND)))
-		rs485->flags &= ~SER_RS485_ENABLED;
-	else
-		config |= RS485_URA;
 
 	if (rs485->flags & SER_RS485_RTS_ON_SEND)
 		config |= RTS_INVERT;
