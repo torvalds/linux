@@ -952,6 +952,14 @@ bool dc_commit_planes_to_stream(
 	scaling_info = kcalloc(MAX_SURFACES, sizeof(struct dc_scaling_info),
 			       GFP_KERNEL);
 
+	if (!flip_addr || !plane_info || !scaling_info) {
+		kfree(flip_addr);
+		kfree(plane_info);
+		kfree(scaling_info);
+		kfree(stream_update);
+		return false;
+	}
+
 	memset(updates, 0, sizeof(updates));
 
 	stream_update->src = dc_stream->src;
