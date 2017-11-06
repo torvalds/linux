@@ -76,14 +76,27 @@ genisoimage() {
 	rm -rf $tmp_dir
 	mkdir $tmp_dir
 	for i in lib lib64 share end ; do
-		if [ -f /usr/$i/syslinux/isolinux.bin ] ; then
-			cp /usr/$i/syslinux/isolinux.bin $tmp_dir
-			if [ -f /usr/$i/syslinux/ldlinux.c32 ]; then
-				cp /usr/$i/syslinux/ldlinux.c32 $tmp_dir
+		for j in syslinux ISOLINUX ; do
+			if [ -f /usr/$i/$j/isolinux.bin ] ; then
+				isolinux=/usr/$i/$j/isolinux.bin
+				echo "Using $isolinux"
+				cp $isolinux $tmp_dir
 			fi
+		done
+		for j in syslinux syslinux/modules/bios ; do
+			if [ -f /usr/$i/$j/ldlinux.c32 ]; then
+				ldlinux=/usr/$i/$j/ldlinux.c32
+				echo "Using $ldlinux"
+				cp $ldlinux $tmp_dir
+			fi
+		done
+		if [ -n "$isolinux" -a -n "$ldlinux" ] ; then
 			break
 		fi
-		if [ $i = end ] ; then exit 1 ; fi ;
+		if [ $i = end -a -z "$isolinux" ] ; then
+			echo 'Need an isolinux.bin file, please install syslinux/isolinux.'
+			exit 1
+		fi
 	done
 	cp $FBZIMAGE $tmp_dir/linux
 	echo "$KCMDLINE" > $tmp_dir/isolinux.cfg
