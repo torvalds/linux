@@ -1428,6 +1428,8 @@ static inline void pq_update(struct hfi1_user_sdma_pkt_q *pq)
 
 static void user_sdma_free_request(struct user_sdma_request *req, bool unpin)
 {
+	int i;
+
 	if (!list_empty(&req->txps)) {
 		struct sdma_txreq *t, *p;
 
@@ -1439,22 +1441,20 @@ static void user_sdma_free_request(struct user_sdma_request *req, bool unpin)
 			kmem_cache_free(req->pq->txreq_cache, tx);
 		}
 	}
-	if (req->data_iovs) {
-		struct sdma_mmu_node *node;
-		int i;
 
-		for (i = 0; i < req->data_iovs; i++) {
-			node = req->iovs[i].node;
-			if (!node)
-				continue;
+	for (i = 0; i < req->data_iovs; i++) {
+		struct sdma_mmu_node *node = req->iovs[i].node;
 
-			if (unpin)
-				hfi1_mmu_rb_remove(req->pq->handler,
-						   &node->rb);
-			else
-				atomic_dec(&node->refcount);
-		}
+		if (!node)
+			continue;
+
+		if (unpin)
+			hfi1_mmu_rb_remove(req->pq->handler,
+					   &node->rb);
+		else
+			atomic_dec(&node->refcount);
 	}
+
 	kfree(req->tids);
 	clear_bit(req->info.comp_idx, req->pq->req_in_use);
 }
