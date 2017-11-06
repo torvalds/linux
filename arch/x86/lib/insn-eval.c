@@ -1052,16 +1052,35 @@ out:
 	return (void __user *)linear_addr;
 }
 
-/*
- * return the address being referenced be instruction
- * for rm=3 returning the content of the rm reg
- * for rm!=3 calculates the address using SIB and Disp
+/**
+ * get_addr_ref_64() - Obtain a 64-bit linear address
+ * @insn:	Instruction struct with ModRM and SIB bytes and displacement
+ * @regs:	Structure with register values as seen when entering kernel mode
+ *
+ * This function is to be used with 64-bit address encodings to obtain the
+ * linear memory address referred by the instruction's ModRM, SIB,
+ * displacement bytes and segment base address, as applicable.
+ *
+ * Returns:
+ *
+ * Linear address referenced by instruction and registers on success.
+ *
+ * -1L on error.
  */
-void __user *insn_get_addr_ref(struct insn *insn, struct pt_regs *regs)
+#ifndef CONFIG_X86_64
+static void __user *get_addr_ref_64(struct insn *insn, struct pt_regs *regs)
+{
+	return (void __user *)-1L;
+}
+#else
+static void __user *get_addr_ref_64(struct insn *insn, struct pt_regs *regs)
 {
 	unsigned long linear_addr = -1L, seg_base;
 	int regoff, ret;
 	long eff_addr;
+
+	if (insn->addr_bytes != 8)
+		goto out;
 
 	if (X86_MODRM_MOD(insn->modrm.value) == 3) {
 		ret = get_eff_addr_reg(insn, regs, &regoff, &eff_addr);
@@ -1089,4 +1108,35 @@ void __user *insn_get_addr_ref(struct insn *insn, struct pt_regs *regs)
 
 out:
 	return (void __user *)linear_addr;
+}
+#endif /* CONFIG_X86_64 */
+
+/**
+ * insn_get_addr_ref() - Obtain the linear address referred by instruction
+ * @insn:	Instruction structure containing ModRM byte and displacement
+ * @regs:	Structure with register values as seen when entering kernel mode
+ *
+ * Obtain the linear address referred by the instruction's ModRM, SIB and
+ * displacement bytes, and segment base, as applicable. In protected mode,
+ * segment limits are enforced.
+ *
+ * Returns:
+ *
+ * Linear address referenced by instruction and registers on success.
+ *
+ * -1L on error.
+ */
+void __user *insn_get_addr_ref(struct insn *insn, struct pt_regs *regs)
+{
+	if (!insn || !regs)
+		return (void __user *)-1L;
+
+	switch (insn->addr_bytes) {
+	case 4:
+		return get_addr_ref_32(insn, regs);
+	case 8:
+		return get_addr_ref_64(insn, regs);
+	default:
+		return (void __user *)-1L;
+	}
 }
