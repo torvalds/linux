@@ -109,7 +109,7 @@ __xfs_btree_check_lblock(
 }
 
 /* Check a long btree block header. */
-int
+static int
 xfs_btree_check_lblock(
 	struct xfs_btree_cur	*cur,
 	struct xfs_btree_block	*block,
@@ -239,7 +239,7 @@ xfs_btree_check_sptr(
  * Check that a given (indexed) btree pointer at a certain level of a
  * btree is valid and doesn't point past where it should.
  */
-int
+static int
 xfs_btree_check_ptr(
 	struct xfs_btree_cur	*cur,
 	union xfs_btree_ptr	*ptr,
