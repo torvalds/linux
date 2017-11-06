@@ -3701,7 +3701,11 @@ static void apply_cc_state(struct hfi1_pportdata *ppd)
 
 	*new_cc_state = *old_cc_state;
 
-	new_cc_state->cct.ccti_limit = ppd->total_cct_entry - 1;
+	if (ppd->total_cct_entry)
+		new_cc_state->cct.ccti_limit = ppd->total_cct_entry - 1;
+	else
+		new_cc_state->cct.ccti_limit = 0;
+
 	memcpy(new_cc_state->cct.entries, ppd->ccti_entries,
 	       ppd->total_cct_entry * sizeof(struct ib_cc_table_entry));
 
