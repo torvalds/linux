@@ -541,3 +541,7 @@
 &vop_mmu {
 	status = "okay";
 };
+
+&vpu {
+	status = "okay";
+};
