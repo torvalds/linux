@@ -347,9 +347,9 @@ static int DvbDmxFilterCallback(u8 *buffer1, size_t buffer1_len,
 static inline void print_time(char *s)
 {
 #ifdef DEBUG_TIMING
-	struct timeval tv;
-	do_gettimeofday(&tv);
-	printk("%s: %d.%d\n", s, (int)tv.tv_sec, (int)tv.tv_usec);
+	struct timespec64 ts;
+	ktime_get_real_ts64(&ts);
+	printk("%s: %lld.%09ld\n", s, (s64)ts.tv_sec, ts.tv_nsec);
 #endif
 }
 
