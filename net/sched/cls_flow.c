@@ -57,7 +57,10 @@ struct flow_filter {
 	u32			divisor;
 	u32			baseclass;
 	u32			hashrnd;
-	struct rcu_head		rcu;
+	union {
+		struct work_struct	work;
+		struct rcu_head		rcu;
+	};
 };
 
 static inline u32 addr_fold(void *addr)
@@ -369,14 +372,24 @@ static const struct nla_policy flow_policy[TCA_FLOW_MAX + 1] = {
 	[TCA_FLOW_PERTURB]	= { .type = NLA_U32 },
 };
 
-static void flow_destroy_filter(struct rcu_head *head)
+static void flow_destroy_filter_work(struct work_struct *work)
 {
-	struct flow_filter *f = container_of(head, struct flow_filter, rcu);
+	struct flow_filter *f = container_of(work, struct flow_filter, work);
 
+	rtnl_lock();
 	del_timer_sync(&f->perturb_timer);
 	tcf_exts_destroy(&f->exts);
 	tcf_em_tree_destroy(&f->ematches);
 	kfree(f);
+	rtnl_unlock();
+}
+
+static void flow_destroy_filter(struct rcu_head *head)
+{
+	struct flow_filter *f = container_of(head, struct flow_filter, rcu);
+
+	INIT_WORK(&f->work, flow_destroy_filter_work);
+	tcf_queue_work(&f->work);
 }
 
 static int flow_change(struct net *net, struct sk_buff *in_skb,

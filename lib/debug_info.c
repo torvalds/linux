@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * This file exists solely to ensure debug information for some core
  * data structures is included in the final image even for

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 dts-dirs	+= brcm
 dts-dirs	+= cavium-octeon
 dts-dirs	+= img

@@ -49,7 +49,10 @@ struct cls_bpf_prog {
 	struct sock_filter *bpf_ops;
 	const char *bpf_name;
 	struct tcf_proto *tp;
-	struct rcu_head rcu;
+	union {
+		struct work_struct work;
+		struct rcu_head rcu;
+	};
 };
 
 static const struct nla_policy bpf_policy[TCA_BPF_MAX + 1] = {
@@ -257,9 +260,21 @@ static void __cls_bpf_delete_prog(struct cls_bpf_prog *prog)
 	kfree(prog);
 }
 
+static void cls_bpf_delete_prog_work(struct work_struct *work)
+{
+	struct cls_bpf_prog *prog = container_of(work, struct cls_bpf_prog, work);
+
+	rtnl_lock();
+	__cls_bpf_delete_prog(prog);
+	rtnl_unlock();
+}
+
 static void cls_bpf_delete_prog_rcu(struct rcu_head *rcu)
 {
-	__cls_bpf_delete_prog(container_of(rcu, struct cls_bpf_prog, rcu));
+	struct cls_bpf_prog *prog = container_of(rcu, struct cls_bpf_prog, rcu);
+
+	INIT_WORK(&prog->work, cls_bpf_delete_prog_work);
+	tcf_queue_work(&prog->work);
 }
 
 static void __cls_bpf_delete(struct tcf_proto *tp, struct cls_bpf_prog *prog)

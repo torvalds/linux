@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <signal.h>
 
 static size_t syscall_arg__scnprintf_signum(char *bf, size_t size, struct syscall_arg *arg)

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *	m5441x.c -- support for Coldfire m5441x processors
  *

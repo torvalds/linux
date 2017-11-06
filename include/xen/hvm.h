@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* Simple wrappers around HVM functions */
 #ifndef XEN_HVM_H__
 #define XEN_HVM_H__

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 dtb-$(CONFIG_ARCH_UNIPHIER) += \
 	uniphier-ld11-global.dtb \
 	uniphier-ld11-ref.dtb \

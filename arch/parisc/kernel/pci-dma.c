@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
 ** PARISC 1.1 Dynamic DMA mapping support.
 ** This implementation is for PA-RISC platforms that do not support

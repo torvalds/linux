@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _BFIN_CAPTURE_H_
 #define _BFIN_CAPTURE_H_
 

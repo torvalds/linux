@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * dwarf-regs.c : Mapping of DWARF debug register numbers into register names.
  *

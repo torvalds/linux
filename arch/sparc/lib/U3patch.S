@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* U3patch.S: Patch Ultra-I routines with Ultra-III variant.
  *
  * Copyright (C) 2004 David S. Miller <davem@redhat.com>

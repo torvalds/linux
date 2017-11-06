@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef _UAPI__A_OUT_GNU_H__
 #define _UAPI__A_OUT_GNU_H__
 

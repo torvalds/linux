@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_SWAP_H
 #define _LINUX_SWAP_H
 
@@ -264,6 +265,10 @@ struct swap_info_struct {
 					 * hold this lock and swap_lock. If
 					 * both locks need hold, hold swap_lock
 					 * first.
+					 */
+	spinlock_t cont_lock;		/*
+					 * protect swap count continuation page
+					 * list.
 					 */
 	struct work_struct discard_work; /* discard worker */
 	struct swap_cluster_list discard_clusters; /* discard clusters list */

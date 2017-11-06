@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* Include in trace.c */
 
 #include <uapi/linux/sched/types.h>

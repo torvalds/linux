@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #include <asm/ptrace.h>
 
 #include "bpf_jit_32.h"

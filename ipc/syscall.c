@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * sys_ipc() is the old de-multiplexer for the SysV IPC calls.
  *

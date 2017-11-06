@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __ATH25_DEVICES_H
 #define __ATH25_DEVICES_H
 

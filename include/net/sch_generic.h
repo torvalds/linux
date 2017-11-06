@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NET_SCHED_GENERIC_H
 #define __NET_SCHED_GENERIC_H
 
@@ -10,6 +11,7 @@
 #include <linux/dynamic_queue_limits.h>
 #include <linux/list.h>
 #include <linux/refcount.h>
+#include <linux/workqueue.h>
 #include <net/gen_stats.h>
 #include <net/rtnetlink.h>
 
@@ -271,6 +273,7 @@ struct tcf_chain {
 
 struct tcf_block {
 	struct list_head chain_list;
+	struct work_struct work;
 };
 
 static inline void qdisc_cb_private_validate(const struct sk_buff *skb, int sz)
