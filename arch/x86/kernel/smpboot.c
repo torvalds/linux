@@ -1095,7 +1095,7 @@ int native_cpu_up(unsigned int cpu, struct task_struct *tidle)
 	unsigned long flags;
 	int err, ret = 0;
 
-	WARN_ON(irqs_disabled());
+	lockdep_assert_irqs_enabled();
 
 	pr_debug("++++++++++++++++++++=_---CPU UP  %u\n", cpu);
 

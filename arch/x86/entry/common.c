@@ -186,9 +186,7 @@ __visible inline void prepare_exit_to_usermode(struct pt_regs *regs)
 
 	addr_limit_user_check();
 
-	if (IS_ENABLED(CONFIG_PROVE_LOCKING) && WARN_ON(!irqs_disabled()))
-		local_irq_disable();
-
+	lockdep_assert_irqs_disabled();
 	lockdep_sys_exit();
 
 	cached_flags = READ_ONCE(ti->flags);
