@@ -145,21 +145,18 @@ static int dsa_port_complete(struct dsa_switch_tree *dst,
 			     struct dsa_port *port,
 			     u32 src_port)
 {
-	struct device_node *link;
-	int index;
+	struct device_node *dn = port->dn;
+	struct of_phandle_iterator it;
 	struct dsa_switch *dst_ds;
 	struct dsa_port *link_dp;
+	int err;
 
-	for (index = 0;; index++) {
-		link = of_parse_phandle(port->dn, "link", index);
-		if (!link)
-			break;
-
-		link_dp = dsa_tree_find_port_by_node(dst, link);
-		of_node_put(link);
-
-		if (!link_dp)
+	of_for_each_phandle(&it, err, dn, "link", NULL, 0) {
+		link_dp = dsa_tree_find_port_by_node(dst, it.node);
+		if (!link_dp) {
+			of_node_put(it.node);
 			return 1;
+		}
 
 		dst_ds = link_dp->ds;
 
