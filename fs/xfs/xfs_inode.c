@@ -385,14 +385,6 @@ xfs_isilocked(
 }
 #endif
 
-#ifdef DEBUG
-int xfs_locked_n;
-int xfs_small_retries;
-int xfs_middle_retries;
-int xfs_lots_retries;
-int xfs_lock_delays;
-#endif
-
 /*
  * xfs_lockdep_subclass_ok() is only used in an ASSERT, so is only called when
  * DEBUG or XFS_WARN is set. And MAX_LOCKDEP_SUBCLASSES is then only defined
@@ -545,24 +537,11 @@ again:
 
 		if ((attempts % 5) == 0) {
 			delay(1); /* Don't just spin the CPU */
-#ifdef DEBUG
-			xfs_lock_delays++;
-#endif
 		}
 		i = 0;
 		try_lock = 0;
 		goto again;
 	}
-
-#ifdef DEBUG
-	if (attempts) {
-		if (attempts < 5) xfs_small_retries++;
-		else if (attempts < 100) xfs_middle_retries++;
-		else xfs_lots_retries++;
-	} else {
-		xfs_locked_n++;
-	}
-#endif
 }
 
 /*
