@@ -1036,7 +1036,6 @@ static void read_vc_local_link_width(struct hfi1_devdata *dd, u8 *misc_bits,
 				     u8 *flag_bits, u16 *link_widths);
 static void read_remote_device_id(struct hfi1_devdata *dd, u16 *device_id,
 				  u8 *device_rev);
-static void read_mgmt_allowed(struct hfi1_devdata *dd, u8 *mgmt_allowed);
 static void read_local_lni(struct hfi1_devdata *dd, u8 *enable_lane_rx);
 static int read_tx_settings(struct hfi1_devdata *dd, u8 *enable_lane_tx,
 			    u8 *tx_polarity_inversion,
@@ -7197,27 +7196,6 @@ static int lcb_to_port_ltp(int lcb_crc)
 	return port_ltp;
 }
 
-/*
- * Our neighbor has indicated that we are allowed to act as a fabric
- * manager, so place the full management partition key in the second
- * (0-based) pkey array position (see OPAv1, section 20.2.2.6.8). Note
- * that we should already have the limited management partition key in
- * array element 1, and also that the port is not yet up when
- * add_full_mgmt_pkey() is invoked.
- */
-static void add_full_mgmt_pkey(struct hfi1_pportdata *ppd)
-{
-	struct hfi1_devdata *dd = ppd->dd;
-
-	/* Sanity check - ppd->pkeys[2] should be 0, or already initialized */
-	if (!((ppd->pkeys[2] == 0) || (ppd->pkeys[2] == FULL_MGMT_P_KEY)))
-		dd_dev_warn(dd, "%s pkey[2] already set to 0x%x, resetting it to 0x%x\n",
-			    __func__, ppd->pkeys[2], FULL_MGMT_P_KEY);
-	ppd->pkeys[2] = FULL_MGMT_P_KEY;
-	(void)hfi1_set_ib_cfg(ppd, HFI1_IB_CFG_PKEYS, 0);
-	hfi1_event_pkey_change(ppd->dd, ppd->port);
-}
-
 static void clear_full_mgmt_pkey(struct hfi1_pportdata *ppd)
 {
 	if (ppd->pkeys[2] != 0) {
@@ -7414,11 +7392,7 @@ void handle_verify_cap(struct work_struct *work)
 			      &partner_supported_crc);
 	read_vc_remote_link_width(dd, &remote_tx_rate, &link_widths);
 	read_remote_device_id(dd, &device_id, &device_rev);
-	/*
-	 * And the 'MgmtAllowed' information, which is exchanged during
-	 * LNI, is also be available at this point.
-	 */
-	read_mgmt_allowed(dd, &ppd->mgmt_allowed);
+
 	/* print the active widths */
 	get_link_widths(dd, &active_tx, &active_rx);
 	dd_dev_info(dd,
@@ -7545,9 +7519,6 @@ void handle_verify_cap(struct work_struct *work)
 	/* give 8051 access to the LCB CSRs */
 	write_csr(dd, DC_LCB_ERR_EN, 0); /* mask LCB errors */
 	set_8051_lcb_access(dd);
-
-	if (ppd->mgmt_allowed)
-		add_full_mgmt_pkey(ppd);
 
 	/* tell the 8051 to go to LinkUp */
 	set_link_state(ppd, HLS_GOING_UP);
@@ -8958,14 +8929,6 @@ static void read_local_lni(struct hfi1_devdata *dd, u8 *enable_lane_rx)
 
 	read_8051_config(dd, LOCAL_LNI_INFO, GENERAL_CONFIG, &frame);
 	*enable_lane_rx = (frame >> ENABLE_LANE_RX_SHIFT) & ENABLE_LANE_RX_MASK;
-}
-
-static void read_mgmt_allowed(struct hfi1_devdata *dd, u8 *mgmt_allowed)
-{
-	u32 frame;
-
-	read_8051_config(dd, REMOTE_LNI_INFO, GENERAL_CONFIG, &frame);
-	*mgmt_allowed = (frame >> MGMT_ALLOWED_SHIFT) & MGMT_ALLOWED_MASK;
 }
 
 static void read_last_local_state(struct hfi1_devdata *dd, u32 *lls)

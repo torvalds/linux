@@ -55,6 +55,40 @@
 
 #define LINK_UP_DELAY  500  /* in microseconds */
 
+static void set_mgmt_allowed(struct hfi1_pportdata *ppd)
+{
+	u32 frame;
+	struct hfi1_devdata *dd = ppd->dd;
+
+	if (ppd->neighbor_type == NEIGHBOR_TYPE_HFI) {
+		ppd->mgmt_allowed = 1;
+	} else {
+		read_8051_config(dd, REMOTE_LNI_INFO, GENERAL_CONFIG, &frame);
+		ppd->mgmt_allowed = (frame >> MGMT_ALLOWED_SHIFT)
+		& MGMT_ALLOWED_MASK;
+	}
+}
+
+/*
+ * Our neighbor has indicated that we are allowed to act as a fabric
+ * manager, so place the full management partition key in the second
+ * (0-based) pkey array position. Note that we should already have
+ * the limited management partition key in array element 1, and also
+ * that the port is not yet up when add_full_mgmt_pkey() is invoked.
+ */
+static void add_full_mgmt_pkey(struct hfi1_pportdata *ppd)
+{
+	struct hfi1_devdata *dd = ppd->dd;
+
+	/* Sanity check - ppd->pkeys[2] should be 0, or already initialized */
+	if (!((ppd->pkeys[2] == 0) || (ppd->pkeys[2] == FULL_MGMT_P_KEY)))
+		dd_dev_warn(dd, "%s pkey[2] already set to 0x%x, resetting it to 0x%x\n",
+			    __func__, ppd->pkeys[2], FULL_MGMT_P_KEY);
+	ppd->pkeys[2] = FULL_MGMT_P_KEY;
+	(void)hfi1_set_ib_cfg(ppd, HFI1_IB_CFG_PKEYS, 0);
+	hfi1_event_pkey_change(ppd->dd, ppd->port);
+}
+
 /**
  * format_hwmsg - format a single hwerror message
  * @msg message buffer
@@ -162,6 +196,15 @@ void handle_linkup_change(struct hfi1_devdata *dd, u32 linkup)
 
 		/* HW needs LINK_UP_DELAY to settle, give it that chance */
 		udelay(LINK_UP_DELAY);
+
+		/*
+		 * 'MgmtAllowed' information, which is exchanged during
+		 * LNI, is available at this point.
+		 */
+		set_mgmt_allowed(ppd);
+
+		if (ppd->mgmt_allowed)
+			add_full_mgmt_pkey(ppd);
 
 		/* physical link went up */
 		ppd->linkup = 1;

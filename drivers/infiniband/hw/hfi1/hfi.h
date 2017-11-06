@@ -95,6 +95,9 @@
 #define DROP_PACKET_OFF		0
 #define DROP_PACKET_ON		1
 
+#define NEIGHBOR_TYPE_HFI		0
+#define NEIGHBOR_TYPE_SWITCH	1
+
 extern unsigned long hfi1_cap_mask;
 #define HFI1_CAP_KGET_MASK(mask, cap) ((mask) & HFI1_CAP_##cap)
 #define HFI1_CAP_UGET_MASK(mask, cap) \
