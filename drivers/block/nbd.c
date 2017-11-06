@@ -723,9 +723,9 @@ static int wait_for_reconnect(struct nbd_device *nbd)
 		return 0;
 	if (test_bit(NBD_DISCONNECTED, &config->runtime_flags))
 		return 0;
-	wait_event_interruptible_timeout(config->conn_wait,
-					 atomic_read(&config->live_connections),
-					 config->dead_conn_timeout);
+	wait_event_timeout(config->conn_wait,
+			   atomic_read(&config->live_connections),
+			   config->dead_conn_timeout);
 	return atomic_read(&config->live_connections);
 }
 
