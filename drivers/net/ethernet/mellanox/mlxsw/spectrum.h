@@ -48,6 +48,7 @@
 #include <linux/notifier.h>
 #include <net/psample.h>
 #include <net/pkt_cls.h>
+#include <net/red.h>
 
 #include "port.h"
 #include "core.h"
@@ -211,6 +212,14 @@ enum mlxsw_sp_qdisc_type {
 struct mlxsw_sp_qdisc {
 	u32 handle;
 	enum mlxsw_sp_qdisc_type type;
+	struct red_stats xstats_base;
+	union {
+		struct {
+			u64 tail_drop_base;
+			u64 ecn_base;
+			u64 wred_drop_base;
+		} red;
+	} xstats;
 };
 
 /* No need an internal lock; At worse - miss a single periodic iteration */

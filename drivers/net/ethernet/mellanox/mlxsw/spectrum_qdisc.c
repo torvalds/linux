@@ -36,6 +36,7 @@
 #include <linux/errno.h>
 #include <linux/netdevice.h>
 #include <net/pkt_cls.h>
+#include <net/red.h>
 
 #include "spectrum.h"
 #include "reg.h"
@@ -75,6 +76,27 @@ mlxsw_sp_tclass_congestion_disable(struct mlxsw_sp_port *mlxsw_sp_port,
 	mlxsw_reg_cwtpm_pack(cwtpm_cmd, mlxsw_sp_port->local_port, tclass_num,
 			     MLXSW_REG_CWTPM_RESET_PROFILE, false, false);
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(cwtpm), cwtpm_cmd);
+}
+
+static void
+mlxsw_sp_setup_tc_qdisc_clean_stats(struct mlxsw_sp_port *mlxsw_sp_port,
+				    struct mlxsw_sp_qdisc *mlxsw_sp_qdisc,
+				    int tclass_num)
+{
+	struct red_stats *xstats_base = &mlxsw_sp_qdisc->xstats_base;
+	struct mlxsw_sp_port_xstats *xstats;
+
+	xstats = &mlxsw_sp_port->periodic_hw_stats.xstats;
+
+	switch (mlxsw_sp_qdisc->type) {
+	case MLXSW_SP_QDISC_RED:
+		xstats_base->prob_mark = xstats->ecn;
+		xstats_base->prob_drop = xstats->wred_drop[tclass_num];
+		xstats_base->pdrop = xstats->tail_drop[tclass_num];
+		break;
+	default:
+		break;
+	}
 }
 
 static int
@@ -135,6 +157,11 @@ mlxsw_sp_qdisc_red_replace(struct mlxsw_sp_port *mlxsw_sp_port, u32 handle,
 		goto err_config;
 
 	mlxsw_sp_qdisc->type = MLXSW_SP_QDISC_RED;
+	if (mlxsw_sp_qdisc->handle != handle)
+		mlxsw_sp_setup_tc_qdisc_clean_stats(mlxsw_sp_port,
+						    mlxsw_sp_qdisc,
+						    tclass_num);
+
 	mlxsw_sp_qdisc->handle = handle;
 	return 0;
 
@@ -144,6 +171,26 @@ err_config:
 	mlxsw_sp_qdisc_red_destroy(mlxsw_sp_port, mlxsw_sp_qdisc->handle,
 				   mlxsw_sp_qdisc, tclass_num);
 	return err;
+}
+
+static int
+mlxsw_sp_qdisc_get_red_xstats(struct mlxsw_sp_port *mlxsw_sp_port, u32 handle,
+			      struct mlxsw_sp_qdisc *mlxsw_sp_qdisc,
+			      int tclass_num, struct red_stats *res)
+{
+	struct red_stats *xstats_base = &mlxsw_sp_qdisc->xstats_base;
+	struct mlxsw_sp_port_xstats *xstats;
+
+	if (mlxsw_sp_qdisc->handle != handle ||
+	    mlxsw_sp_qdisc->type != MLXSW_SP_QDISC_RED)
+		return -EOPNOTSUPP;
+
+	xstats = &mlxsw_sp_port->periodic_hw_stats.xstats;
+
+	res->prob_drop = xstats->wred_drop[tclass_num] - xstats_base->prob_drop;
+	res->prob_mark = xstats->ecn - xstats_base->prob_mark;
+	res->pdrop = xstats->tail_drop[tclass_num] - xstats_base->pdrop;
+	return 0;
 }
 
 #define MLXSW_SP_PORT_DEFAULT_TCLASS 0
@@ -168,6 +215,10 @@ int mlxsw_sp_setup_tc_red(struct mlxsw_sp_port *mlxsw_sp_port,
 	case TC_RED_DESTROY:
 		return mlxsw_sp_qdisc_red_destroy(mlxsw_sp_port, p->handle,
 						  mlxsw_sp_qdisc, tclass_num);
+	case TC_RED_XSTATS:
+		return mlxsw_sp_qdisc_get_red_xstats(mlxsw_sp_port, p->handle,
+						     mlxsw_sp_qdisc, tclass_num,
+						     p->xstats);
 	default:
 		return -EOPNOTSUPP;
 	}
