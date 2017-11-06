@@ -6,8 +6,6 @@
  * Copyright (C) 2008 Analog Devices, Inc
  *
  * Enter bugs at http://blackfin.uclinux.org/
- *
- * Licensed under the GPL-2 or later.
  */
 
 #ifndef __U_UAC1_LEGACY_H
