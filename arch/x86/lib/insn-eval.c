@@ -1042,11 +1042,22 @@ static void __user *get_addr_ref_32(struct insn *insn, struct pt_regs *regs)
 		goto out;
 
 	/*
+	 * Even though 32-bit address encodings are allowed in virtual-8086
+	 * mode, the address range is still limited to [0x-0xffff].
+	 */
+	if (v8086_mode(regs) && (eff_addr & ~0xffff))
+		goto out;
+
+	/*
 	 * Data type long could be 64 bits in size. Ensure that our 32-bit
 	 * effective address is not sign-extended when computing the linear
 	 * address.
 	 */
 	linear_addr = (unsigned long)(eff_addr & 0xffffffff) + seg_base;
+
+	/* Limit linear address to 20 bits */
+	if (v8086_mode(regs))
+		linear_addr &= 0xfffff;
 
 out:
 	return (void __user *)linear_addr;
