@@ -343,6 +343,38 @@
 		};
 	};
 
+	vpu: vpu_service@10104000 {
+		compatible = "rockchip,vpu_service";
+		rockchip,grf = <&grf>;
+		iommus = <&vpu_mmu>;
+		iommu_enabled = <1>;
+		reg = <0x10104000 0x800>;
+		interrupts = <GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>,
+			<GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "irq_enc", "irq_dec";
+		clocks = <&cru ACLK_VDPU>, <&cru HCLK_VDPU>;
+		clock-names = "aclk_vcodec", "hclk_vcodec";
+		resets = <&cru SRST_VCODEC_H>, <&cru SRST_VCODEC_A>;
+		reset-names = "video_h", "video_a";
+		power-domains = <&power RK3128_PD_VIDEO>;
+		name = "vpu_service";
+		dev_mode = <0>;
+		/* 0 means ion, 1 means drm */
+		allocator = <1>;
+		status = "disabled";
+	};
+
+	vpu_mmu: iommu@10104800 {
+		compatible = "rockchip,iommu";
+		reg = <0x10104800 0x40>;
+		interrupts = <GIC_SPI 67 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "vpu_mmu";
+		clocks = <&cru ACLK_VDPU>, <&cru HCLK_VDPU>;
+		clock-names = "aclk", "hclk";
+		power-domains = <&power RK3128_PD_VIDEO>;
+		#iommu-cells = <0>;
+	};
+
 	iep: iep@10108000 {
 		compatible = "rockchip,iep";
 		iommu_enabled = <1>;
