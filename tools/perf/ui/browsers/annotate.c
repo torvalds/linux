@@ -69,7 +69,7 @@ struct annotate_browser {
 	char		    search_bf[128];
 };
 
-static inline struct browser_line *disasm_line__browser(struct disasm_line *dl)
+static inline struct browser_line *browser_line(struct disasm_line *dl)
 {
 	return (void *) dl - sizeof(struct browser_line);
 }
@@ -119,7 +119,7 @@ static void annotate_browser__write(struct ui_browser *browser, void *entry, int
 {
 	struct annotate_browser *ab = container_of(browser, struct annotate_browser, b);
 	struct disasm_line *dl = list_entry(entry, struct disasm_line, al.node);
-	struct browser_line *bdl = disasm_line__browser(dl);
+	struct browser_line *bdl = browser_line(dl);
 	bool current_entry = ui_browser__is_current_entry(browser, row);
 	bool change_color = (!annotate_browser__opts.hide_src_code &&
 			     (!current_entry || (browser->use_navkeypressed &&
@@ -319,8 +319,8 @@ static void annotate_browser__draw_current_jump(struct ui_browser *browser)
 	if (!target)
 		return;
 
-	bcursor = disasm_line__browser(cursor);
-	btarget = disasm_line__browser(target);
+	bcursor = browser_line(cursor);
+	btarget = browser_line(target);
 
 	if (annotate_browser__opts.hide_src_code) {
 		from = bcursor->idx_asm;
@@ -418,7 +418,7 @@ static void annotate_browser__set_rb_top(struct annotate_browser *browser,
 	u32 idx;
 
 	pos = rb_entry(nd, struct disasm_line, al.rb_node);
-	bpos = disasm_line__browser(pos);
+	bpos = browser_line(pos);
 
 	idx = bpos->idx;
 	if (annotate_browser__opts.hide_src_code)
@@ -476,7 +476,7 @@ static bool annotate_browser__toggle_source(struct annotate_browser *browser)
 
 	browser->b.seek(&browser->b, offset, SEEK_CUR);
 	dl = list_entry(browser->b.top, struct disasm_line, al.node);
-	bdl = disasm_line__browser(dl);
+	bdl = browser_line(dl);
 
 	if (annotate_browser__opts.hide_src_code) {
 		if (bdl->idx_asm < offset)
@@ -1040,7 +1040,7 @@ static void annotate_browser__mark_jump_targets(struct annotate_browser *browser
 		if (dlt == NULL)
 			continue;
 
-		bdlt = disasm_line__browser(dlt);
+		bdlt = browser_line(dlt);
 		if (++bdlt->jump_sources > browser->max_jump_sources)
 			browser->max_jump_sources = bdlt->jump_sources;
 
@@ -1119,7 +1119,7 @@ int symbol__tui_annotate(struct symbol *sym, struct map *map,
 
 		if (browser.b.width < line_len)
 			browser.b.width = line_len;
-		bpos = disasm_line__browser(pos);
+		bpos = browser_line(pos);
 		bpos->idx = browser.nr_entries++;
 		if (pos->al.offset != -1) {
 			bpos->idx_asm = browser.nr_asm_entries++;
