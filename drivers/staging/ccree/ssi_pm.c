@@ -41,7 +41,7 @@ int ssi_power_mgr_runtime_suspend(struct device *dev)
 	int rc;
 
 	dev_dbg(dev, "set HOST_POWER_DOWN_EN\n");
-	WRITE_REGISTER(drvdata->cc_base + CC_REG_OFFSET(HOST_RGF, HOST_POWER_DOWN_EN), POWER_DOWN_ENABLE);
+	WRITE_REGISTER(drvdata->cc_base + CC_REG(HOST_POWER_DOWN_EN), POWER_DOWN_ENABLE);
 	rc = ssi_request_mgr_runtime_suspend_queue(drvdata);
 	if (rc != 0) {
 		dev_err(dev, "ssi_request_mgr_runtime_suspend_queue (%x)\n",
@@ -60,7 +60,7 @@ int ssi_power_mgr_runtime_resume(struct device *dev)
 		(struct ssi_drvdata *)dev_get_drvdata(dev);
 
 	dev_dbg(dev, "unset HOST_POWER_DOWN_EN\n");
-	WRITE_REGISTER(drvdata->cc_base + CC_REG_OFFSET(HOST_RGF, HOST_POWER_DOWN_EN), POWER_DOWN_DISABLE);
+	WRITE_REGISTER(drvdata->cc_base + CC_REG(HOST_POWER_DOWN_EN), POWER_DOWN_DISABLE);
 
 	rc = cc_clk_on(drvdata);
 	if (rc) {

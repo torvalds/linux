@@ -36,7 +36,7 @@ static bool cc_get_tee_fips_status(struct ssi_drvdata *drvdata)
 	u32 reg;
 	void __iomem *cc_base = drvdata->cc_base;
 
-	reg = CC_HAL_READ_REGISTER(CC_REG_OFFSET(HOST_RGF, GPR_HOST));
+	reg = CC_HAL_READ_REGISTER(CC_REG(GPR_HOST));
 	return (reg == (CC_FIPS_SYNC_TEE_STATUS | CC_FIPS_SYNC_MODULE_OK));
 }
 
@@ -51,7 +51,7 @@ void cc_set_ree_fips_status(struct ssi_drvdata *drvdata, bool status)
 
 	val |= (status ? CC_FIPS_SYNC_MODULE_OK : CC_FIPS_SYNC_MODULE_ERROR);
 
-	CC_HAL_WRITE_REGISTER(CC_REG_OFFSET(HOST_RGF, HOST_GPR0), val);
+	CC_HAL_WRITE_REGISTER(CC_REG(HOST_GPR0), val);
 }
 
 void ssi_fips_fini(struct ssi_drvdata *drvdata)
@@ -95,7 +95,7 @@ static void fips_dsr(unsigned long devarg)
 	irq = (drvdata->irq & (SSI_GPR0_IRQ_MASK));
 
 	if (irq) {
-		state = CC_HAL_READ_REGISTER(CC_REG_OFFSET(HOST_RGF, GPR_HOST));
+		state = CC_HAL_READ_REGISTER(CC_REG(GPR_HOST));
 
 		if (state != (CC_FIPS_SYNC_TEE_STATUS | CC_FIPS_SYNC_MODULE_OK))
 			tee_fips_error(dev);
@@ -104,8 +104,8 @@ static void fips_dsr(unsigned long devarg)
 	/* after verifing that there is nothing to do,
 	 * unmask AXI completion interrupt.
 	 */
-	val = (CC_REG_OFFSET(HOST_RGF, HOST_IMR) & ~irq);
-	CC_HAL_WRITE_REGISTER(CC_REG_OFFSET(HOST_RGF, HOST_IMR), val);
+	val = (CC_REG(HOST_IMR) & ~irq);
+	CC_HAL_WRITE_REGISTER(CC_REG(HOST_IMR), val);
 }
 
 /* The function called once at driver entry point .*/
