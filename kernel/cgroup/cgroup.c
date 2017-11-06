@@ -5877,8 +5877,16 @@ static ssize_t delegate_show(struct kobject *kobj, struct kobj_attribute *attr,
 }
 static struct kobj_attribute cgroup_delegate_attr = __ATTR_RO(delegate);
 
+static ssize_t features_show(struct kobject *kobj, struct kobj_attribute *attr,
+			     char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "nsdelegate\n");
+}
+static struct kobj_attribute cgroup_features_attr = __ATTR_RO(features);
+
 static struct attribute *cgroup_sysfs_attrs[] = {
 	&cgroup_delegate_attr.attr,
+	&cgroup_features_attr.attr,
 	NULL,
 };
 
