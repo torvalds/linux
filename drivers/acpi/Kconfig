@@ -80,6 +80,11 @@ endif
 config ACPI_SPCR_TABLE
 	bool
 
+config ACPI_LPIT
+	bool
+	depends on X86_64
+	default y
+
 config ACPI_SLEEP
 	bool
 	depends on SUSPEND || HIBERNATION
