@@ -2549,14 +2549,9 @@ nft_select_set_ops(const struct nft_ctx *ctx,
 		case NFT_SET_POL_PERFORMANCE:
 			if (est.lookup < best.lookup)
 				break;
-			if (est.lookup == best.lookup) {
-				if (!desc->size) {
-					if (est.space < best.space)
-						break;
-				} else if (est.size < best.size) {
-					break;
-				}
-			}
+			if (est.lookup == best.lookup &&
+			    est.space < best.space)
+				break;
 			continue;
 		case NFT_SET_POL_MEMORY:
 			if (!desc->size) {
