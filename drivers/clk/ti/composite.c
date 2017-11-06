@@ -161,9 +161,10 @@ struct clk *ti_clk_register_composite(struct ti_clk *setup)
 }
 #endif
 
-static void __init _register_composite(struct clk_hw *hw,
+static void __init _register_composite(void *user,
 				       struct device_node *node)
 {
+	struct clk_hw *hw = user;
 	struct clk *clk;
 	struct clk_hw_omap_comp *cclk = to_clk_hw_comp(hw);
 	struct component_clk *comp;

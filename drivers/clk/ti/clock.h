@@ -235,7 +235,7 @@ extern const struct omap_clkctrl_data omap4_clkctrl_data[];
 #define CLKF_HW_SUP	BIT(1)
 #define CLKF_NO_IDLEST	BIT(2)
 
-typedef void (*ti_of_clk_init_cb_t)(struct clk_hw *, struct device_node *);
+typedef void (*ti_of_clk_init_cb_t)(void *, struct device_node *);
 
 struct clk *ti_clk_register_gate(struct ti_clk *setup);
 struct clk *ti_clk_register_interface(struct ti_clk *setup);
@@ -263,7 +263,7 @@ int ti_clk_register_legacy_clks(struct ti_clk_alias *clks);
 int ti_clk_get_reg_addr(struct device_node *node, int index,
 			struct clk_omap_reg *reg);
 void ti_dt_clocks_register(struct ti_dt_clk *oclks);
-int ti_clk_retry_init(struct device_node *node, struct clk_hw *hw,
+int ti_clk_retry_init(struct device_node *node, void *user,
 		      ti_of_clk_init_cb_t func);
 int ti_clk_add_component(struct device_node *node, struct clk_hw *hw, int type);
 
