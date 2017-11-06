@@ -25,10 +25,10 @@ struct disasm_line_samples {
 #define IPC_WIDTH 6
 #define CYCLES_WIDTH 6
 
-struct browser_disasm_line {
-	u32				idx;
-	int				idx_asm;
-	int				jump_sources;
+struct browser_line {
+	u32	idx;
+	int	idx_asm;
+	int	jump_sources;
 };
 
 static struct annotate_browser_opt {
@@ -69,9 +69,9 @@ struct annotate_browser {
 	char		    search_bf[128];
 };
 
-static inline struct browser_disasm_line *disasm_line__browser(struct disasm_line *dl)
+static inline struct browser_line *disasm_line__browser(struct disasm_line *dl)
 {
-	return (void *) dl - sizeof(struct browser_disasm_line);
+	return (void *) dl - sizeof(struct browser_line);
 }
 
 static bool disasm_line__filter(struct ui_browser *browser __maybe_unused,
@@ -119,7 +119,7 @@ static void annotate_browser__write(struct ui_browser *browser, void *entry, int
 {
 	struct annotate_browser *ab = container_of(browser, struct annotate_browser, b);
 	struct disasm_line *dl = list_entry(entry, struct disasm_line, al.node);
-	struct browser_disasm_line *bdl = disasm_line__browser(dl);
+	struct browser_line *bdl = disasm_line__browser(dl);
 	bool current_entry = ui_browser__is_current_entry(browser, row);
 	bool change_color = (!annotate_browser__opts.hide_src_code &&
 			     (!current_entry || (browser->use_navkeypressed &&
@@ -302,7 +302,7 @@ static void annotate_browser__draw_current_jump(struct ui_browser *browser)
 {
 	struct annotate_browser *ab = container_of(browser, struct annotate_browser, b);
 	struct disasm_line *cursor = ab->selection, *target;
-	struct browser_disasm_line *btarget, *bcursor;
+	struct browser_line *btarget, *bcursor;
 	unsigned int from, to;
 	struct map_symbol *ms = ab->b.priv;
 	struct symbol *sym = ms->sym;
@@ -413,7 +413,7 @@ static void annotate_browser__set_top(struct annotate_browser *browser,
 static void annotate_browser__set_rb_top(struct annotate_browser *browser,
 					 struct rb_node *nd)
 {
-	struct browser_disasm_line *bpos;
+	struct browser_line *bpos;
 	struct disasm_line *pos;
 	u32 idx;
 
@@ -471,7 +471,7 @@ static void annotate_browser__calc_percent(struct annotate_browser *browser,
 static bool annotate_browser__toggle_source(struct annotate_browser *browser)
 {
 	struct disasm_line *dl;
-	struct browser_disasm_line *bdl;
+	struct browser_line *bdl;
 	off_t offset = browser->b.index - browser->b.top_idx;
 
 	browser->b.seek(&browser->b, offset, SEEK_CUR);
@@ -1027,7 +1027,7 @@ static void annotate_browser__mark_jump_targets(struct annotate_browser *browser
 
 	for (offset = 0; offset < size; ++offset) {
 		struct disasm_line *dl = browser->offsets[offset], *dlt;
-		struct browser_disasm_line *bdlt;
+		struct browser_line *bdlt;
 
 		if (!disasm_line__is_valid_jump(dl, sym))
 			continue;
@@ -1099,7 +1099,7 @@ int symbol__tui_annotate(struct symbol *sym, struct map *map,
 		nr_pcnt = evsel->nr_members;
 
 	err = symbol__annotate(sym, map, evsel,
-			       sizeof(struct browser_disasm_line), &browser.arch,
+			       sizeof(struct browser_line), &browser.arch,
 			       perf_evsel__env_cpuid(evsel));
 	if (err) {
 		char msg[BUFSIZ];
@@ -1114,7 +1114,7 @@ int symbol__tui_annotate(struct symbol *sym, struct map *map,
 	browser.start = map__rip_2objdump(map, sym->start);
 
 	list_for_each_entry(pos, &notes->src->source, al.node) {
-		struct browser_disasm_line *bpos;
+		struct browser_line *bpos;
 		size_t line_len = strlen(pos->al.line);
 
 		if (browser.b.width < line_len)
