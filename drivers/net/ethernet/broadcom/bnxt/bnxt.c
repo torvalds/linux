@@ -4915,16 +4915,14 @@ hwrm_ver_get_exit:
 
 int bnxt_hwrm_fw_set_time(struct bnxt *bp)
 {
-#if IS_ENABLED(CONFIG_RTC_LIB)
 	struct hwrm_fw_set_time_input req = {0};
-	struct rtc_time tm;
-	struct timeval tv;
+	struct tm tm;
+	time64_t now = ktime_get_real_seconds();
 
 	if (bp->hwrm_spec_code < 0x10400)
 		return -EOPNOTSUPP;
 
-	do_gettimeofday(&tv);
-	rtc_time_to_tm(tv.tv_sec, &tm);
+	time64_to_tm(now, 0, &tm);
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_FW_SET_TIME, -1, -1);
 	req.year = cpu_to_le16(1900 + tm.tm_year);
 	req.month = 1 + tm.tm_mon;
@@ -4933,9 +4931,6 @@ int bnxt_hwrm_fw_set_time(struct bnxt *bp)
 	req.minute = tm.tm_min;
 	req.second = tm.tm_sec;
 	return hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
-#else
-	return -EOPNOTSUPP;
-#endif
 }
 
 static int bnxt_hwrm_port_qstats(struct bnxt *bp)
