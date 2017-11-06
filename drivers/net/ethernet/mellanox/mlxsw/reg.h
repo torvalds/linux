@@ -1758,6 +1758,191 @@ static inline void mlxsw_reg_spvmlr_pack(char *payload, u8 local_port,
 	}
 }
 
+/* CWTP - Congetion WRED ECN TClass Profile
+ * ----------------------------------------
+ * Configures the profiles for queues of egress port and traffic class
+ */
+#define MLXSW_REG_CWTP_ID 0x2802
+#define MLXSW_REG_CWTP_BASE_LEN 0x28
+#define MLXSW_REG_CWTP_PROFILE_DATA_REC_LEN 0x08
+#define MLXSW_REG_CWTP_LEN 0x40
+
+MLXSW_REG_DEFINE(cwtp, MLXSW_REG_CWTP_ID, MLXSW_REG_CWTP_LEN);
+
+/* reg_cwtp_local_port
+ * Local port number
+ * Not supported for CPU port
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, cwtp, local_port, 0, 16, 8);
+
+/* reg_cwtp_traffic_class
+ * Traffic Class to configure
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, cwtp, traffic_class, 32, 0, 8);
+
+/* reg_cwtp_profile_min
+ * Minimum Average Queue Size of the profile in cells.
+ * Access: RW
+ */
+MLXSW_ITEM32_INDEXED(reg, cwtp, profile_min, MLXSW_REG_CWTP_BASE_LEN,
+		     0, 20, MLXSW_REG_CWTP_PROFILE_DATA_REC_LEN, 0, false);
+
+/* reg_cwtp_profile_percent
+ * Percentage of WRED and ECN marking for maximum Average Queue size
+ * Range is 0 to 100, units of integer percentage
+ * Access: RW
+ */
+MLXSW_ITEM32_INDEXED(reg, cwtp, profile_percent, MLXSW_REG_CWTP_BASE_LEN,
+		     24, 7, MLXSW_REG_CWTP_PROFILE_DATA_REC_LEN, 4, false);
+
+/* reg_cwtp_profile_max
+ * Maximum Average Queue size of the profile in cells
+ * Access: RW
+ */
+MLXSW_ITEM32_INDEXED(reg, cwtp, profile_max, MLXSW_REG_CWTP_BASE_LEN,
+		     0, 20, MLXSW_REG_CWTP_PROFILE_DATA_REC_LEN, 4, false);
+
+#define MLXSW_REG_CWTP_MIN_VALUE 64
+#define MLXSW_REG_CWTP_MAX_PROFILE 2
+#define MLXSW_REG_CWTP_DEFAULT_PROFILE 1
+
+static inline void mlxsw_reg_cwtp_pack(char *payload, u8 local_port,
+				       u8 traffic_class)
+{
+	int i;
+
+	MLXSW_REG_ZERO(cwtp, payload);
+	mlxsw_reg_cwtp_local_port_set(payload, local_port);
+	mlxsw_reg_cwtp_traffic_class_set(payload, traffic_class);
+
+	for (i = 0; i <= MLXSW_REG_CWTP_MAX_PROFILE; i++) {
+		mlxsw_reg_cwtp_profile_min_set(payload, i,
+					       MLXSW_REG_CWTP_MIN_VALUE);
+		mlxsw_reg_cwtp_profile_max_set(payload, i,
+					       MLXSW_REG_CWTP_MIN_VALUE);
+	}
+}
+
+#define MLXSW_REG_CWTP_PROFILE_TO_INDEX(profile) (profile - 1)
+
+static inline void
+mlxsw_reg_cwtp_profile_pack(char *payload, u8 profile, u32 min, u32 max,
+			    u32 probability)
+{
+	u8 index = MLXSW_REG_CWTP_PROFILE_TO_INDEX(profile);
+
+	mlxsw_reg_cwtp_profile_min_set(payload, index, min);
+	mlxsw_reg_cwtp_profile_max_set(payload, index, max);
+	mlxsw_reg_cwtp_profile_percent_set(payload, index, probability);
+}
+
+/* CWTPM - Congestion WRED ECN TClass and Pool Mapping
+ * ---------------------------------------------------
+ * The CWTPM register maps each egress port and traffic class to profile num.
+ */
+#define MLXSW_REG_CWTPM_ID 0x2803
+#define MLXSW_REG_CWTPM_LEN 0x44
+
+MLXSW_REG_DEFINE(cwtpm, MLXSW_REG_CWTPM_ID, MLXSW_REG_CWTPM_LEN);
+
+/* reg_cwtpm_local_port
+ * Local port number
+ * Not supported for CPU port
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, cwtpm, local_port, 0, 16, 8);
+
+/* reg_cwtpm_traffic_class
+ * Traffic Class to configure
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, cwtpm, traffic_class, 32, 0, 8);
+
+/* reg_cwtpm_ew
+ * Control enablement of WRED for traffic class:
+ * 0 - Disable
+ * 1 - Enable
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, cwtpm, ew, 36, 1, 1);
+
+/* reg_cwtpm_ee
+ * Control enablement of ECN for traffic class:
+ * 0 - Disable
+ * 1 - Enable
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, cwtpm, ee, 36, 0, 1);
+
+/* reg_cwtpm_tcp_g
+ * TCP Green Profile.
+ * Index of the profile within {port, traffic class} to use.
+ * 0 for disabling both WRED and ECN for this type of traffic.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, cwtpm, tcp_g, 52, 0, 2);
+
+/* reg_cwtpm_tcp_y
+ * TCP Yellow Profile.
+ * Index of the profile within {port, traffic class} to use.
+ * 0 for disabling both WRED and ECN for this type of traffic.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, cwtpm, tcp_y, 56, 16, 2);
+
+/* reg_cwtpm_tcp_r
+ * TCP Red Profile.
+ * Index of the profile within {port, traffic class} to use.
+ * 0 for disabling both WRED and ECN for this type of traffic.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, cwtpm, tcp_r, 56, 0, 2);
+
+/* reg_cwtpm_ntcp_g
+ * Non-TCP Green Profile.
+ * Index of the profile within {port, traffic class} to use.
+ * 0 for disabling both WRED and ECN for this type of traffic.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, cwtpm, ntcp_g, 60, 0, 2);
+
+/* reg_cwtpm_ntcp_y
+ * Non-TCP Yellow Profile.
+ * Index of the profile within {port, traffic class} to use.
+ * 0 for disabling both WRED and ECN for this type of traffic.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, cwtpm, ntcp_y, 64, 16, 2);
+
+/* reg_cwtpm_ntcp_r
+ * Non-TCP Red Profile.
+ * Index of the profile within {port, traffic class} to use.
+ * 0 for disabling both WRED and ECN for this type of traffic.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, cwtpm, ntcp_r, 64, 0, 2);
+
+#define MLXSW_REG_CWTPM_RESET_PROFILE 0
+
+static inline void mlxsw_reg_cwtpm_pack(char *payload, u8 local_port,
+					u8 traffic_class, u8 profile,
+					bool wred, bool ecn)
+{
+	MLXSW_REG_ZERO(cwtpm, payload);
+	mlxsw_reg_cwtpm_local_port_set(payload, local_port);
+	mlxsw_reg_cwtpm_traffic_class_set(payload, traffic_class);
+	mlxsw_reg_cwtpm_ew_set(payload, wred);
+	mlxsw_reg_cwtpm_ee_set(payload, ecn);
+	mlxsw_reg_cwtpm_tcp_g_set(payload, profile);
+	mlxsw_reg_cwtpm_tcp_y_set(payload, profile);
+	mlxsw_reg_cwtpm_tcp_r_set(payload, profile);
+	mlxsw_reg_cwtpm_ntcp_g_set(payload, profile);
+	mlxsw_reg_cwtpm_ntcp_y_set(payload, profile);
+	mlxsw_reg_cwtpm_ntcp_r_set(payload, profile);
+}
+
 /* PPBT - Policy-Engine Port Binding Table
  * ---------------------------------------
  * This register is used for configuration of the Port Binding Table.
@@ -7405,6 +7590,8 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(svpe),
 	MLXSW_REG(sfmr),
 	MLXSW_REG(spvmlr),
+	MLXSW_REG(cwtp),
+	MLXSW_REG(cwtpm),
 	MLXSW_REG(ppbt),
 	MLXSW_REG(pacl),
 	MLXSW_REG(pagt),
