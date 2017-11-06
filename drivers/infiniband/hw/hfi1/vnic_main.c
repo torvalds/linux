@@ -67,8 +67,6 @@ static int setup_vnic_ctxt(struct hfi1_devdata *dd, struct hfi1_ctxtdata *uctxt)
 	unsigned int rcvctrl_ops = 0;
 	int ret;
 
-	hfi1_init_ctxt(uctxt->sc);
-
 	uctxt->do_interrupt = &handle_receive_interrupt;
 
 	/* Now allocate the RcvHdr queue and eager buffers. */
@@ -96,8 +94,6 @@ static int setup_vnic_ctxt(struct hfi1_devdata *dd, struct hfi1_ctxtdata *uctxt)
 		rcvctrl_ops |= HFI1_RCVCTRL_TAILUPD_ENB;
 
 	hfi1_rcvctrl(uctxt->dd, rcvctrl_ops, uctxt);
-
-	uctxt->is_vnic = true;
 done:
 	return ret;
 }
@@ -122,20 +118,7 @@ static int allocate_vnic_ctxt(struct hfi1_devdata *dd,
 			HFI1_CAP_KGET(NODROP_EGR_FULL) |
 			HFI1_CAP_KGET(DMA_RTAIL);
 	uctxt->seq_cnt = 1;
-
-	/* Allocate and enable a PIO send context */
-	uctxt->sc = sc_alloc(dd, SC_VNIC, uctxt->rcvhdrqentsize,
-			     uctxt->numa_id);
-
-	ret = uctxt->sc ? 0 : -ENOMEM;
-	if (ret)
-		goto bail;
-
-	dd_dev_dbg(dd, "allocated vnic send context %u(%u)\n",
-		   uctxt->sc->sw_index, uctxt->sc->hw_context);
-	ret = sc_enable(uctxt->sc);
-	if (ret)
-		goto bail;
+	uctxt->is_vnic = true;
 
 	if (dd->num_msix_entries)
 		hfi1_set_vnic_msix_info(uctxt);
@@ -144,11 +127,7 @@ static int allocate_vnic_ctxt(struct hfi1_devdata *dd,
 	dd_dev_dbg(dd, "created vnic context %d\n", uctxt->ctxt);
 	*vnic_ctxt = uctxt;
 
-	return ret;
-bail:
-	hfi1_free_ctxt(uctxt);
-	dd_dev_dbg(dd, "vnic allocation failed. rc %d\n", ret);
-	return ret;
+	return 0;
 }
 
 static void deallocate_vnic_ctxt(struct hfi1_devdata *dd,
@@ -170,18 +149,6 @@ static void deallocate_vnic_ctxt(struct hfi1_devdata *dd,
 		     HFI1_RCVCTRL_ONE_PKT_EGR_DIS |
 		     HFI1_RCVCTRL_NO_RHQ_DROP_DIS |
 		     HFI1_RCVCTRL_NO_EGR_DROP_DIS, uctxt);
-	/*
-	 * VNIC contexts are allocated from user context pool.
-	 * Release them back to user context pool.
-	 *
-	 * Reset context integrity checks to default.
-	 * (writes to CSRs probably belong in chip.c)
-	 */
-	write_kctxt_csr(dd, uctxt->sc->hw_context, SEND_CTXT_CHECK_ENABLE,
-			hfi1_pkt_default_send_ctxt_mask(dd, SC_USER));
-	sc_disable(uctxt->sc);
-
-	dd->send_contexts[uctxt->sc->sw_index].type = SC_USER;
 
 	uctxt->event_flags = 0;
 

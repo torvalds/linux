@@ -6816,7 +6816,8 @@ static void rxe_kernel_unfreeze(struct hfi1_devdata *dd)
 		rcd = hfi1_rcd_get_by_index(dd, i);
 
 		/* Ensure all non-user contexts(including vnic) are enabled */
-		if (!rcd || !rcd->sc || (rcd->sc->type == SC_USER)) {
+		if (!rcd ||
+		    (i >= dd->first_dyn_alloc_ctxt && !rcd->is_vnic)) {
 			hfi1_rcd_put(rcd);
 			continue;
 		}
@@ -8093,8 +8094,7 @@ static void is_rcv_avail_int(struct hfi1_devdata *dd, unsigned int source)
 		rcd = hfi1_rcd_get_by_index(dd, source);
 		if (rcd) {
 			/* Check for non-user contexts, including vnic */
-			if ((source < dd->first_dyn_alloc_ctxt) ||
-			    (rcd->sc && (rcd->sc->type == SC_KERNEL)))
+			if (source < dd->first_dyn_alloc_ctxt || rcd->is_vnic)
 				rcd->do_interrupt(rcd, 0);
 			else
 				handle_user_interrupt(rcd);
@@ -8124,8 +8124,8 @@ static void is_rcv_urgent_int(struct hfi1_devdata *dd, unsigned int source)
 		rcd = hfi1_rcd_get_by_index(dd, source);
 		if (rcd) {
 			/* only pay attention to user urgent interrupts */
-			if ((source >= dd->first_dyn_alloc_ctxt) &&
-			    (!rcd->sc || (rcd->sc->type == SC_USER)))
+			if (source >= dd->first_dyn_alloc_ctxt &&
+			    !rcd->is_vnic)
 				handle_user_interrupt(rcd);
 
 			hfi1_rcd_put(rcd);

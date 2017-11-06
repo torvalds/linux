@@ -929,10 +929,9 @@ void set_all_slowpath(struct hfi1_devdata *dd)
 		rcd = hfi1_rcd_get_by_index(dd, i);
 		if (!rcd)
 			continue;
-		if ((i < dd->first_dyn_alloc_ctxt) ||
-		    (rcd->sc && (rcd->sc->type == SC_KERNEL))) {
+		if (i < dd->first_dyn_alloc_ctxt || rcd->is_vnic)
 			rcd->do_interrupt = &handle_receive_interrupt;
-		}
+
 		hfi1_rcd_put(rcd);
 	}
 }
