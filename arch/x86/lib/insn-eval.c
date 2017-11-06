@@ -814,7 +814,11 @@ static int get_eff_addr_reg(struct insn *insn, struct pt_regs *regs,
 	if (*regoff < 0)
 		return -EINVAL;
 
-	*eff_addr = regs_get_register(regs, *regoff);
+	/* Ignore bytes that are outside the address size. */
+	if (insn->addr_bytes == 4)
+		*eff_addr = regs_get_register(regs, *regoff) & 0xffffffff;
+	else /* 64-bit address */
+		*eff_addr = regs_get_register(regs, *regoff);
 
 	return 0;
 }
@@ -846,7 +850,7 @@ static int get_eff_addr_modrm(struct insn *insn, struct pt_regs *regs,
 {
 	long tmp;
 
-	if (insn->addr_bytes != 8)
+	if (insn->addr_bytes != 8 && insn->addr_bytes != 4)
 		return -EINVAL;
 
 	insn_get_modrm(insn);
@@ -875,7 +879,13 @@ static int get_eff_addr_modrm(struct insn *insn, struct pt_regs *regs,
 		tmp = regs_get_register(regs, *regoff);
 	}
 
-	*eff_addr = tmp + insn->displacement.value;
+	if (insn->addr_bytes == 4) {
+		int addr32 = (int)(tmp & 0xffffffff) + insn->displacement.value;
+
+		*eff_addr = addr32 & 0xffffffff;
+	} else {
+		*eff_addr = tmp + insn->displacement.value;
+	}
 
 	return 0;
 }
@@ -908,7 +918,7 @@ static int get_eff_addr_sib(struct insn *insn, struct pt_regs *regs,
 	long base, indx;
 	int indx_offset;
 
-	if (insn->addr_bytes != 8)
+	if (insn->addr_bytes != 8 && insn->addr_bytes != 4)
 		return -EINVAL;
 
 	insn_get_modrm(insn);
@@ -946,12 +956,102 @@ static int get_eff_addr_sib(struct insn *insn, struct pt_regs *regs,
 	else
 		indx = regs_get_register(regs, indx_offset);
 
-	*eff_addr = base + indx * (1 << X86_SIB_SCALE(insn->sib.value));
+	if (insn->addr_bytes == 4) {
+		int addr32, base32, idx32;
 
-	*eff_addr += insn->displacement.value;
+		base32 = base & 0xffffffff;
+		idx32 = indx & 0xffffffff;
+
+		addr32 = base32 + idx32 * (1 << X86_SIB_SCALE(insn->sib.value));
+		addr32 += insn->displacement.value;
+
+		*eff_addr = addr32 & 0xffffffff;
+	} else {
+		*eff_addr = base + indx * (1 << X86_SIB_SCALE(insn->sib.value));
+		*eff_addr += insn->displacement.value;
+	}
 
 	return 0;
 }
+
+/**
+ * get_addr_ref_32() - Obtain a 32-bit linear address
+ * @insn:	Instruction with ModRM, SIB bytes and displacement
+ * @regs:	Register values as seen when entering kernel mode
+ *
+ * This function is to be used with 32-bit address encodings to obtain the
+ * linear memory address referred by the instruction's ModRM, SIB,
+ * displacement bytes and segment base address, as applicable. If in protected
+ * mode, segment limits are enforced.
+ *
+ * Returns:
+ *
+ * Linear address referenced by instruction and registers on success.
+ *
+ * -1L on error.
+ */
+static void __user *get_addr_ref_32(struct insn *insn, struct pt_regs *regs)
+{
+	unsigned long linear_addr = -1L, seg_base, seg_limit;
+	int eff_addr, regoff;
+	long tmp;
+	int ret;
+
+	if (insn->addr_bytes != 4)
+		goto out;
+
+	if (X86_MODRM_MOD(insn->modrm.value) == 3) {
+		ret = get_eff_addr_reg(insn, regs, &regoff, &tmp);
+		if (ret)
+			goto out;
+
+		eff_addr = tmp;
+
+	} else {
+		if (insn->sib.nbytes) {
+			ret = get_eff_addr_sib(insn, regs, &regoff, &tmp);
+			if (ret)
+				goto out;
+
+			eff_addr = tmp;
+		} else {
+			ret = get_eff_addr_modrm(insn, regs, &regoff, &tmp);
+			if (ret)
+				goto out;
+
+			eff_addr = tmp;
+		}
+	}
+
+	ret = get_seg_base_limit(insn, regs, regoff, &seg_base, &seg_limit);
+	if (ret)
+		goto out;
+
+	/*
+	 * In protected mode, before computing the linear address, make sure
+	 * the effective address is within the limits of the segment.
+	 * 32-bit addresses can be used in long and virtual-8086 modes if an
+	 * address override prefix is used. In such cases, segment limits are
+	 * not enforced. When in virtual-8086 mode, the segment limit is -1L
+	 * to reflect this situation.
+	 *
+	 * After computed, the effective address is treated as an unsigned
+	 * quantity.
+	 */
+	if (!user_64bit_mode(regs) && ((unsigned int)eff_addr > seg_limit))
+		goto out;
+
+	/*
+	 * Data type long could be 64 bits in size. Ensure that our 32-bit
+	 * effective address is not sign-extended when computing the linear
+	 * address.
+	 */
+	linear_addr = (unsigned long)(eff_addr & 0xffffffff) + seg_base;
+
+out:
+	return (void __user *)linear_addr;
+}
+
 /*
  * return the address being referenced be instruction
  * for rm=3 returning the content of the rm reg
