@@ -821,6 +821,7 @@ static int mac_probe(struct platform_device *_of_dev)
 		phy = of_phy_find_device(mac_dev->phy_node);
 		if (!phy) {
 			err = -EINVAL;
+			of_node_put(mac_dev->phy_node);
 			goto _return_of_get_parent;
 		}
 
