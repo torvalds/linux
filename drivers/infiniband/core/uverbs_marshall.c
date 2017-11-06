@@ -69,8 +69,7 @@ void ib_copy_ah_attr_to_user(struct ib_device *device,
 	memset(&dst->grh.reserved, 0, sizeof(dst->grh.reserved));
 
 	if ((ah_attr->type == RDMA_AH_ATTR_TYPE_OPA) &&
-	    (rdma_ah_get_dlid(ah_attr) >=
-	     be16_to_cpu(IB_MULTICAST_LID_BASE)) &&
+	    (rdma_ah_get_dlid(ah_attr) > be16_to_cpu(IB_LID_PERMISSIVE)) &&
 	    (!rdma_ah_conv_opa_to_ib(device, &conv_ah, ah_attr)))
 		src = &conv_ah;
 
