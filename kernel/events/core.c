@@ -209,7 +209,7 @@ static int event_function(void *info)
 	struct perf_event_context *task_ctx = cpuctx->task_ctx;
 	int ret = 0;
 
-	WARN_ON_ONCE(!irqs_disabled());
+	lockdep_assert_irqs_disabled();
 
 	perf_ctx_lock(cpuctx, task_ctx);
 	/*
@@ -306,7 +306,7 @@ static void event_function_local(struct perf_event *event, event_f func, void *d
 	struct task_struct *task = READ_ONCE(ctx->task);
 	struct perf_event_context *task_ctx = NULL;
 
-	WARN_ON_ONCE(!irqs_disabled());
+	lockdep_assert_irqs_disabled();
 
 	if (task) {
 		if (task == TASK_TOMBSTONE)
@@ -1006,7 +1006,7 @@ static enum hrtimer_restart perf_mux_hrtimer_handler(struct hrtimer *hr)
 	struct perf_cpu_context *cpuctx;
 	int rotations = 0;
 
-	WARN_ON(!irqs_disabled());
+	lockdep_assert_irqs_disabled();
 
 	cpuctx = container_of(hr, struct perf_cpu_context, hrtimer);
 	rotations = perf_rotate_context(cpuctx);
@@ -1093,7 +1093,7 @@ static void perf_event_ctx_activate(struct perf_event_context *ctx)
 {
 	struct list_head *head = this_cpu_ptr(&active_ctx_list);
 
-	WARN_ON(!irqs_disabled());
+	lockdep_assert_irqs_disabled();
 
 	WARN_ON(!list_empty(&ctx->active_ctx_list));
 
@@ -1102,7 +1102,7 @@ static void perf_event_ctx_activate(struct perf_event_context *ctx)
 
 static void perf_event_ctx_deactivate(struct perf_event_context *ctx)
 {
-	WARN_ON(!irqs_disabled());
+	lockdep_assert_irqs_disabled();
 
 	WARN_ON(list_empty(&ctx->active_ctx_list));
 
@@ -3523,7 +3523,7 @@ void perf_event_task_tick(void)
 	struct perf_event_context *ctx, *tmp;
 	int throttled;
 
-	WARN_ON(!irqs_disabled());
+	lockdep_assert_irqs_disabled();
 
 	__this_cpu_inc(perf_throttled_seq);
 	throttled = __this_cpu_xchg(perf_throttled_count, 0);
