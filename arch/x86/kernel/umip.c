@@ -11,6 +11,10 @@
 #include <asm/traps.h>
 #include <asm/insn.h>
 #include <asm/insn-eval.h>
+#include <linux/ratelimit.h>
+
+#undef pr_fmt
+#define pr_fmt(fmt) "umip: " fmt
 
 /** DOC: Emulation for User-Mode Instruction Prevention (UMIP)
  *
@@ -196,6 +200,41 @@ static int emulate_umip_insn(struct insn *insn, int umip_inst,
 }
 
 /**
+ * force_sig_info_umip_fault() - Force a SIGSEGV with SEGV_MAPERR
+ * @addr:	Address that caused the signal
+ * @regs:	Register set containing the instruction pointer
+ *
+ * Force a SIGSEGV signal with SEGV_MAPERR as the error code. This function is
+ * intended to be used to provide a segmentation fault when the result of the
+ * UMIP emulation could not be copied to the user space memory.
+ *
+ * Returns: none
+ */
+static void force_sig_info_umip_fault(void __user *addr, struct pt_regs *regs)
+{
+	siginfo_t info;
+	struct task_struct *tsk = current;
+
+	tsk->thread.cr2		= (unsigned long)addr;
+	tsk->thread.error_code	= X86_PF_USER | X86_PF_WRITE;
+	tsk->thread.trap_nr	= X86_TRAP_PF;
+
+	info.si_signo	= SIGSEGV;
+	info.si_errno	= 0;
+	info.si_code	= SEGV_MAPERR;
+	info.si_addr	= addr;
+	force_sig_info(SIGSEGV, &info, tsk);
+
+	if (!(show_unhandled_signals && unhandled_signal(tsk, SIGSEGV)))
+		return;
+
+	pr_err_ratelimited("%s[%d] umip emulation segfault ip:%lx sp:%lx error:%x in %lx\n",
+			   tsk->comm, task_pid_nr(tsk), regs->ip,
+			   regs->sp, X86_PF_USER | X86_PF_WRITE,
+			   regs->ip);
+}
+
+/**
  * fixup_umip_exception() - Fixup a general protection fault caused by UMIP
  * @regs:	Registers as saved when entering the #GP handler
  *
@@ -311,8 +350,14 @@ bool fixup_umip_exception(struct pt_regs *regs)
 			return false;
 
 		nr_copied = copy_to_user(uaddr, dummy_data, dummy_data_size);
-		if (nr_copied  > 0)
-			return false;
+		if (nr_copied  > 0) {
+			/*
+			 * If copy fails, send a signal and tell caller that
+			 * fault was fixed up.
+			 */
+			force_sig_info_umip_fault(uaddr, regs);
+			return true;
+		}
 	}
 
 	/* increase IP to let the program keep going */
