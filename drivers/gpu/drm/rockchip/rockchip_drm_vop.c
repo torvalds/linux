@@ -194,6 +194,8 @@ struct vop {
 
 	u32 version;
 
+	struct drm_tv_connector_state active_tv_state;
+
 	/* mutex vsync_ work */
 	struct mutex vsync_mutex;
 	bool vsync_work_pending;
@@ -2461,8 +2463,6 @@ static void vop_tv_config_update(struct drm_crtc *crtc,
 {
 	struct rockchip_crtc_state *s =
 			to_rockchip_crtc_state(crtc->state);
-	struct rockchip_crtc_state *old_s =
-			to_rockchip_crtc_state(old_crtc_state);
 	int brightness, contrast, saturation, hue, sin_hue, cos_hue;
 	struct vop *vop = to_vop(crtc);
 	const struct vop_data *vop_data = vop->data;
@@ -2470,9 +2470,10 @@ static void vop_tv_config_update(struct drm_crtc *crtc,
 	if (!s->tv_state)
 		return;
 
-	if (old_s->tv_state &&
-	    !memcmp(s->tv_state, old_s->tv_state, sizeof(*s->tv_state)))
+	if (!memcmp(s->tv_state, &vop->active_tv_state, sizeof(*s->tv_state)))
 		return;
+
+	memcpy(&vop->active_tv_state, s->tv_state, sizeof(*s->tv_state));
 
 	if (s->tv_state->brightness == 50 &&
 	    s->tv_state->contrast == 50 &&
