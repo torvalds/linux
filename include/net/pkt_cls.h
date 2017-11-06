@@ -703,4 +703,34 @@ struct tc_cookie {
 	u8  *data;
 	u32 len;
 };
+
+enum tc_red_command {
+	TC_RED_REPLACE,
+	TC_RED_DESTROY,
+	TC_RED_STATS,
+	TC_RED_XSTATS,
+};
+
+struct tc_red_qopt_offload_params {
+	u32 min;
+	u32 max;
+	u32 probability;
+	bool is_ecn;
+};
+struct tc_red_qopt_offload_stats {
+	struct gnet_stats_basic_packed *bstats;
+	struct gnet_stats_queue *qstats;
+};
+
+struct tc_red_qopt_offload {
+	enum tc_red_command command;
+	u32 handle;
+	u32 parent;
+	union {
+		struct tc_red_qopt_offload_params set;
+		struct tc_red_qopt_offload_stats stats;
+		struct red_stats *xstats;
+	};
+};
+
 #endif
