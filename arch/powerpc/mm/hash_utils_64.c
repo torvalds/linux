@@ -1592,6 +1592,24 @@ static inline void tm_flush_hash_page(int local)
 }
 #endif
 
+/*
+ * Return the global hash slot, corresponding to the given PTE, which contains
+ * the HPTE.
+ */
+unsigned long pte_get_hash_gslot(unsigned long vpn, unsigned long shift,
+		int ssize, real_pte_t rpte, unsigned int subpg_index)
+{
+	unsigned long hash, gslot, hidx;
+
+	hash = hpt_hash(vpn, shift, ssize);
+	hidx = __rpte_to_hidx(rpte, subpg_index);
+	if (hidx & _PTEIDX_SECONDARY)
+		hash = ~hash;
+	gslot = (hash & htab_hash_mask) * HPTES_PER_GROUP;
+	gslot += hidx & _PTEIDX_GROUP_IX;
+	return gslot;
+}
+
 /* WARNING: This is called from hash_low_64.S, if you change this prototype,
  *          do not forget to update the assembly call site !
  */
