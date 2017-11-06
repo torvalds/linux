@@ -2537,3 +2537,10 @@ void bnxt_qplib_req_notify_cq(struct bnxt_qplib_cq *cq, u32 arm_type)
 	atomic_set(&cq->arm_state, 1);
 	spin_unlock_irqrestore(&cq->hwq.lock, flags);
 }
+
+void bnxt_qplib_flush_cqn_wq(struct bnxt_qplib_qp *qp)
+{
+	flush_workqueue(qp->scq->nq->cqn_wq);
+	if (qp->scq != qp->rcq)
+		flush_workqueue(qp->rcq->nq->cqn_wq);
+}

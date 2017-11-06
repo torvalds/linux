@@ -785,6 +785,7 @@ int bnxt_re_destroy_qp(struct ib_qp *ib_qp)
 	struct bnxt_re_dev *rdev = qp->rdev;
 	int rc;
 
+	bnxt_qplib_flush_cqn_wq(&qp->qplib_qp);
 	bnxt_qplib_del_flush_qp(&qp->qplib_qp);
 	rc = bnxt_qplib_destroy_qp(&rdev->qplib_res, &qp->qplib_qp);
 	if (rc) {
