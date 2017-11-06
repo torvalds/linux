@@ -677,6 +677,17 @@ static int lockd_init_net(struct net *net)
 
 static void lockd_exit_net(struct net *net)
 {
+	struct lockd_net *ln = net_generic(net, lockd_net_id);
+
+	WARN_ONCE(!list_empty(&ln->lockd_manager.list),
+		  "net %x %s: lockd_manager.list is not empty\n",
+		  net->ns.inum, __func__);
+	WARN_ONCE(!list_empty(&ln->nsm_handles),
+		  "net %x %s: nsm_handles list is not empty\n",
+		  net->ns.inum, __func__);
+	WARN_ONCE(delayed_work_pending(&ln->grace_period_end),
+		  "net %x %s: grace_period_end was not cancelled\n",
+		  net->ns.inum, __func__);
 }
 
 static struct pernet_operations lockd_net_ops = {
