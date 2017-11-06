@@ -977,6 +977,18 @@ enum need_lock_type {
 	LOCK_RETRY,
 };
 
+enum cp_reason_type {
+	CP_NO_NEEDED,
+	CP_NON_REGULAR,
+	CP_HARDLINK,
+	CP_SB_NEED_CP,
+	CP_WRONG_PINO,
+	CP_NO_SPC_ROLL,
+	CP_NODE_NEED_CP,
+	CP_FASTBOOT_MODE,
+	CP_SPEC_LOG_NUM,
+};
+
 enum iostat_type {
 	APP_DIRECT_IO,			/* app direct IOs */
 	APP_BUFFERED_IO,		/* app buffered IOs */
