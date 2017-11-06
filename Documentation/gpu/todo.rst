@@ -185,6 +185,15 @@ are better.
 
 Contact: Sean Paul, Maintainer of the driver you plan to convert
 
+Convert drivers to use simple modeset suspend/resume
+----------------------------------------------------
+
+Most drivers (except i915 and nouveau) that use
+drm_atomic_helper_suspend/resume() can probably be converted to use
+drm_mode_config_helper_suspend/resume().
+
+Contact: Maintainer of the driver you plan to convert
+
 Core refactorings
 =================
 
