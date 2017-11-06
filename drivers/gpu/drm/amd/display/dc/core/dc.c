@@ -1169,9 +1169,7 @@ static enum surface_update_type get_plane_info_update_type(
 	/* Full update parameters */
 	temp_plane_info.color_space = u->surface->color_space;
 	temp_plane_info.input_tf = u->surface->input_tf;
-	temp_plane_info.dcc = u->surface->dcc;
 	temp_plane_info.horizontal_mirror = u->surface->horizontal_mirror;
-	temp_plane_info.plane_size = u->surface->plane_size;
 	temp_plane_info.rotation = u->surface->rotation;
 	temp_plane_info.stereo_format = u->surface->stereo_format;
 
@@ -1214,13 +1212,22 @@ static enum surface_update_type  get_scaling_info_update_type(
 	if (!u->scaling_info)
 		return UPDATE_TYPE_FAST;
 
-	if (u->scaling_info->src_rect.width != u->surface->src_rect.width
-			|| u->scaling_info->src_rect.height != u->surface->src_rect.height
-			|| u->scaling_info->clip_rect.width != u->surface->clip_rect.width
+	if (u->scaling_info->clip_rect.width != u->surface->clip_rect.width
 			|| u->scaling_info->clip_rect.height != u->surface->clip_rect.height
 			|| u->scaling_info->dst_rect.width != u->surface->dst_rect.width
 			|| u->scaling_info->dst_rect.height != u->surface->dst_rect.height)
 		return UPDATE_TYPE_FULL;
+
+	if (u->scaling_info->src_rect.width != u->surface->src_rect.width
+		|| u->scaling_info->src_rect.height != u->surface->src_rect.height) {
+
+		if (u->scaling_info->src_rect.width > u->surface->src_rect.width
+				&& u->scaling_info->src_rect.height > u->surface->src_rect.height)
+			return UPDATE_TYPE_FULL;
+
+		/* Upscaling does not require a full update */
+		return UPDATE_TYPE_MED;
+	}
 
 	if (u->scaling_info->src_rect.x != u->surface->src_rect.x
 			|| u->scaling_info->src_rect.y != u->surface->src_rect.y
