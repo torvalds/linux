@@ -4289,7 +4289,7 @@ int __bnx2x_setup_tc(struct net_device *dev, enum tc_setup_type type,
 {
 	struct tc_mqprio_qopt *mqprio = type_data;
 
-	if (type != TC_SETUP_MQPRIO)
+	if (type != TC_SETUP_QDISC_MQPRIO)
 		return -EOPNOTSUPP;
 
 	mqprio->hw = TC_MQPRIO_HW_OFFLOAD_TCS;

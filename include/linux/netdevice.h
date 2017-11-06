@@ -770,7 +770,7 @@ typedef u16 (*select_queue_fallback_t)(struct net_device *dev,
 				       struct sk_buff *skb);
 
 enum tc_setup_type {
-	TC_SETUP_MQPRIO,
+	TC_SETUP_QDISC_MQPRIO,
 	TC_SETUP_CLSU32,
 	TC_SETUP_CLSFLOWER,
 	TC_SETUP_CLSMATCHALL,
