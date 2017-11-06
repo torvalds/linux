@@ -868,8 +868,10 @@ static long wmi_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	/* let the driver do any filtering and do the call */
 	wdriver = container_of(wblock->dev.dev.driver,
 			       struct wmi_driver, driver);
-	if (!try_module_get(wdriver->driver.owner))
-		return -EBUSY;
+	if (!try_module_get(wdriver->driver.owner)) {
+		ret = -EBUSY;
+		goto out_ioctl;
+	}
 	ret = wdriver->filter_callback(&wblock->dev, cmd, buf);
 	module_put(wdriver->driver.owner);
 	if (ret)
