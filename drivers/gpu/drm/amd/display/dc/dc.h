@@ -99,6 +99,39 @@ struct dc_static_screen_events {
 	bool overlay_update;
 };
 
+
+/* Surface update type is used by dc_update_surfaces_and_stream
+ * The update type is determined at the very beginning of the function based
+ * on parameters passed in and decides how much programming (or updating) is
+ * going to be done during the call.
+ *
+ * UPDATE_TYPE_FAST is used for really fast updates that do not require much
+ * logical calculations or hardware register programming. This update MUST be
+ * ISR safe on windows. Currently fast update will only be used to flip surface
+ * address.
+ *
+ * UPDATE_TYPE_MED is used for slower updates which require significant hw
+ * re-programming however do not affect bandwidth consumption or clock
+ * requirements. At present, this is the level at which front end updates
+ * that do not require us to run bw_calcs happen. These are in/out transfer func
+ * updates, viewport offset changes, recout size changes and pixel depth changes.
+ * This update can be done at ISR, but we want to minimize how often this happens.
+ *
+ * UPDATE_TYPE_FULL is slow. Really slow. This requires us to recalculate our
+ * bandwidth and clocks, possibly rearrange some pipes and reprogram anything front
+ * end related. Any time viewport dimensions, recout dimensions, scaling ratios or
+ * gamma need to be adjusted or pipe needs to be turned on (or disconnected) we do
+ * a full update. This cannot be done at ISR level and should be a rare event.
+ * Unless someone is stress testing mpo enter/exit, playing with colour or adjusting
+ * underscan we don't expect to see this call at all.
+ */
+
+enum surface_update_type {
+	UPDATE_TYPE_FAST, /* super fast, safe to execute in isr */
+	UPDATE_TYPE_MED,  /* ISR safe, most of programming needed, no bw/clk change*/
+	UPDATE_TYPE_FULL, /* may need to shuffle resources */
+};
+
 /* Forward declaration*/
 struct dc;
 struct dc_plane_state;
@@ -399,6 +432,32 @@ struct dc_plane_status {
 	bool is_right_eye;
 };
 
+union surface_update_flags {
+
+	struct {
+		/* Medium updates */
+		uint32_t color_space_change:1;
+		uint32_t input_tf_change:1;
+		uint32_t horizontal_mirror_change:1;
+		uint32_t per_pixel_alpha_change:1;
+		uint32_t rotation_change:1;
+		uint32_t swizzle_change:1;
+		uint32_t scaling_change:1;
+		uint32_t position_change:1;
+		uint32_t in_transfer_func:1;
+		uint32_t input_csc_change:1;
+
+		/* Full updates */
+		uint32_t new_plane:1;
+		uint32_t bpp_change:1;
+		uint32_t bandwidth_change:1;
+		uint32_t clock_change:1;
+		uint32_t stereo_format_change:1;
+	} bits;
+
+	uint32_t raw;
+};
+
 struct dc_plane_state {
 	struct dc_plane_address address;
 	struct scaling_taps scaling_quality;
@@ -432,6 +491,8 @@ struct dc_plane_state {
 	bool flip_immediate;
 	bool horizontal_mirror;
 
+	union surface_update_flags update_flags;
+	enum surface_update_type update_type;
 	/* private to DC core */
 	struct dc_plane_status status;
 	struct dc_context *ctx;
@@ -515,38 +576,6 @@ struct dc_flip_addrs {
 
 bool dc_post_update_surfaces_to_stream(
 		struct dc *dc);
-
-/* Surface update type is used by dc_update_surfaces_and_stream
- * The update type is determined at the very beginning of the function based
- * on parameters passed in and decides how much programming (or updating) is
- * going to be done during the call.
- *
- * UPDATE_TYPE_FAST is used for really fast updates that do not require much
- * logical calculations or hardware register programming. This update MUST be
- * ISR safe on windows. Currently fast update will only be used to flip surface
- * address.
- *
- * UPDATE_TYPE_MED is used for slower updates which require significant hw
- * re-programming however do not affect bandwidth consumption or clock
- * requirements. At present, this is the level at which front end updates
- * that do not require us to run bw_calcs happen. These are in/out transfer func
- * updates, viewport offset changes, recout size changes and pixel depth changes.
- * This update can be done at ISR, but we want to minimize how often this happens.
- *
- * UPDATE_TYPE_FULL is slow. Really slow. This requires us to recalculate our
- * bandwidth and clocks, possibly rearrange some pipes and reprogram anything front
- * end related. Any time viewport dimensions, recout dimensions, scaling ratios or
- * gamma need to be adjusted or pipe needs to be turned on (or disconnected) we do
- * a full update. This cannot be done at ISR level and should be a rare event.
- * Unless someone is stress testing mpo enter/exit, playing with colour or adjusting
- * underscan we don't expect to see this call at all.
- */
-
-enum surface_update_type {
-	UPDATE_TYPE_FAST, /* super fast, safe to execute in isr */
-	UPDATE_TYPE_MED,  /* ISR safe, most of programming needed, no bw/clk change*/
-	UPDATE_TYPE_FULL, /* may need to shuffle resources */
-};
 
 /*******************************************************************************
  * Stream Interfaces

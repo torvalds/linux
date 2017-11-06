@@ -54,6 +54,13 @@
 /*******************************************************************************
  * Private functions
  ******************************************************************************/
+
+static inline void elevate_update_type(enum surface_update_type *original, enum surface_update_type new)
+{
+	if (new > *original)
+		*original = new;
+}
+
 static void destroy_links(struct dc *dc)
 {
 	uint32_t i;
@@ -1161,77 +1168,88 @@ static unsigned int pixel_format_to_bpp(enum surface_pixel_format format)
 
 static enum surface_update_type get_plane_info_update_type(const struct dc_surface_update *u)
 {
-	struct dc_plane_info temp_plane_info;
-	memset(&temp_plane_info, 0, sizeof(temp_plane_info));
+	union surface_update_flags *update_flags = &u->surface->update_flags;
 
 	if (!u->plane_info)
 		return UPDATE_TYPE_FAST;
 
-	temp_plane_info = *u->plane_info;
+	if (u->plane_info->color_space != u->surface->color_space)
+		update_flags->bits.color_space_change = 1;
 
-	/* Copy all parameters that will cause a full update
-	 * from current surface, the rest of the parameters
-	 * from provided plane configuration.
-	 * Perform memory compare and special validation
-	 * for those that can cause fast/medium updates
-	 */
+	if (u->plane_info->input_tf != u->surface->input_tf)
+		update_flags->bits.input_tf_change = 1;
 
-	/* Full update parameters */
-	temp_plane_info.color_space = u->surface->color_space;
-	temp_plane_info.input_tf = u->surface->input_tf;
-	temp_plane_info.horizontal_mirror = u->surface->horizontal_mirror;
-	temp_plane_info.rotation = u->surface->rotation;
-	temp_plane_info.stereo_format = u->surface->stereo_format;
+	if (u->plane_info->horizontal_mirror != u->surface->horizontal_mirror)
+		update_flags->bits.horizontal_mirror_change = 1;
 
-	if (memcmp(u->plane_info, &temp_plane_info,
-			sizeof(struct dc_plane_info)) != 0)
-		return UPDATE_TYPE_FULL;
+	if (u->plane_info->rotation != u->surface->rotation)
+		update_flags->bits.rotation_change = 1;
+
+	if (u->plane_info->stereo_format != u->surface->stereo_format)
+		update_flags->bits.stereo_format_change = 1;
+
+	if (u->plane_info->per_pixel_alpha != u->surface->per_pixel_alpha)
+		update_flags->bits.per_pixel_alpha_change = 1;
 
 	if (pixel_format_to_bpp(u->plane_info->format) !=
-			pixel_format_to_bpp(u->surface->format)) {
+			pixel_format_to_bpp(u->surface->format))
 		/* different bytes per element will require full bandwidth
 		 * and DML calculation
 		 */
-		return UPDATE_TYPE_FULL;
-	}
+		update_flags->bits.bpp_change = 1;
 
 	if (memcmp(&u->plane_info->tiling_info, &u->surface->tiling_info,
 			sizeof(union dc_tiling_info)) != 0) {
+		update_flags->bits.swizzle_change = 1;
 		/* todo: below are HW dependent, we should add a hook to
 		 * DCE/N resource and validated there.
 		 */
-		if (u->plane_info->tiling_info.gfx9.swizzle != DC_SW_LINEAR) {
+		if (u->plane_info->tiling_info.gfx9.swizzle != DC_SW_LINEAR)
 			/* swizzled mode requires RQ to be setup properly,
 			 * thus need to run DML to calculate RQ settings
 			 */
-			return UPDATE_TYPE_FULL;
-		}
+			update_flags->bits.bandwidth_change = 1;
 	}
+
+	if (update_flags->bits.rotation_change
+			|| update_flags->bits.stereo_format_change
+			|| update_flags->bits.bpp_change
+			|| update_flags->bits.bandwidth_change)
+		return UPDATE_TYPE_FULL;
 
 	return UPDATE_TYPE_MED;
 }
 
-static enum surface_update_type  get_scaling_info_update_type(
+static enum surface_update_type get_scaling_info_update_type(
 		const struct dc_surface_update *u)
 {
+	union surface_update_flags *update_flags = &u->surface->update_flags;
+
 	if (!u->scaling_info)
 		return UPDATE_TYPE_FAST;
 
 	if (u->scaling_info->clip_rect.width != u->surface->clip_rect.width
 			|| u->scaling_info->clip_rect.height != u->surface->clip_rect.height
 			|| u->scaling_info->dst_rect.width != u->surface->dst_rect.width
-			|| u->scaling_info->dst_rect.height != u->surface->dst_rect.height)
-		return UPDATE_TYPE_FULL;
+			|| u->scaling_info->dst_rect.height != u->surface->dst_rect.height) {
+		update_flags->bits.scaling_change = 1;
+
+		if ((u->scaling_info->dst_rect.width < u->surface->dst_rect.width
+			|| u->scaling_info->dst_rect.height < u->surface->dst_rect.height)
+				&& (u->scaling_info->dst_rect.width < u->surface->src_rect.width
+					|| u->scaling_info->dst_rect.height < u->surface->src_rect.height))
+			/* Making dst rect smaller requires a bandwidth change */
+			update_flags->bits.bandwidth_change = 1;
+	}
 
 	if (u->scaling_info->src_rect.width != u->surface->src_rect.width
 		|| u->scaling_info->src_rect.height != u->surface->src_rect.height) {
 
+		update_flags->bits.scaling_change = 1;
 		if (u->scaling_info->src_rect.width > u->surface->src_rect.width
 				&& u->scaling_info->src_rect.height > u->surface->src_rect.height)
-			return UPDATE_TYPE_FULL;
-
-		/* Upscaling does not require a full update */
-		return UPDATE_TYPE_MED;
+			/* Making src rect bigger requires a bandwidth change */
+			update_flags->bits.clock_change = 1;
 	}
 
 	if (u->scaling_info->src_rect.x != u->surface->src_rect.x
@@ -1240,33 +1258,50 @@ static enum surface_update_type  get_scaling_info_update_type(
 			|| u->scaling_info->clip_rect.y != u->surface->clip_rect.y
 			|| u->scaling_info->dst_rect.x != u->surface->dst_rect.x
 			|| u->scaling_info->dst_rect.y != u->surface->dst_rect.y)
+		update_flags->bits.position_change = 1;
+
+	if (update_flags->bits.clock_change
+			|| update_flags->bits.bandwidth_change)
+		return UPDATE_TYPE_FULL;
+
+	if (update_flags->bits.scaling_change
+			|| update_flags->bits.position_change)
 		return UPDATE_TYPE_MED;
 
 	return UPDATE_TYPE_FAST;
 }
 
 static enum surface_update_type det_surface_update(const struct dc *dc,
-												   const struct dc_surface_update *u)
+		const struct dc_surface_update *u)
 {
 	const struct dc_state *context = dc->current_state;
-	enum surface_update_type type = UPDATE_TYPE_FAST;
+	enum surface_update_type type;
 	enum surface_update_type overall_type = UPDATE_TYPE_FAST;
+	union surface_update_flags *update_flags = &u->surface->update_flags;
 
-	if (!is_surface_in_context(context, u->surface))
+	update_flags->raw = 0; // Reset all flags
+
+	if (!is_surface_in_context(context, u->surface)) {
+		update_flags->bits.new_plane = 1;
 		return UPDATE_TYPE_FULL;
+	}
 
 	type = get_plane_info_update_type(u);
-	if (overall_type < type)
-		overall_type = type;
+	elevate_update_type(&overall_type, type);
 
 	type = get_scaling_info_update_type(u);
-	if (overall_type < type)
-		overall_type = type;
+	elevate_update_type(&overall_type, type);
 
-	if (u->in_transfer_func ||
-		u->input_csc_color_matrix) {
-		if (overall_type < UPDATE_TYPE_MED)
-			overall_type = UPDATE_TYPE_MED;
+	if (u->in_transfer_func)
+		update_flags->bits.in_transfer_func = 1;
+
+	if (u->input_csc_color_matrix)
+		update_flags->bits.input_csc_change = 1;
+
+	if (update_flags->bits.in_transfer_func
+			|| update_flags->bits.input_csc_change) {
+		type = UPDATE_TYPE_MED;
+		elevate_update_type(&overall_type, type);
 	}
 
 	return overall_type;
@@ -1292,11 +1327,11 @@ enum surface_update_type dc_check_update_surfaces_for_stream(
 		enum surface_update_type type =
 				det_surface_update(dc, &updates[i]);
 
+		updates[i].surface->update_type = type;
 		if (type == UPDATE_TYPE_FULL)
 			return type;
 
-		if (overall_type < type)
-			overall_type = type;
+		elevate_update_type(&overall_type, type);
 	}
 
 	return overall_type;
