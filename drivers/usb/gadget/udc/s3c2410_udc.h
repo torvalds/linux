@@ -5,11 +5,6 @@
  *
  * Copyright (C) 2004-2007 Herbert Pötzl - Arnaud Patard
  *	Additional cleanups by Ben Dooks <ben-linux@fluff.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #ifndef _S3C2410_UDC_H

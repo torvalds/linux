@@ -12,11 +12,6 @@
  * Freescle QE/CPM USB Pheripheral Controller Driver
  * The controller can be found on MPC8360, MPC8272, and etc.
  * MPC8360 Rev 1.1 may need QE mircocode update
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation;  either version 2 of the License, or (at your
- * option) any later version.
  */
 
 #undef USB_TRACE
