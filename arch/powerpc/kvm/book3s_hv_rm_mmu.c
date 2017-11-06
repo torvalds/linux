@@ -42,7 +42,7 @@ static void *real_vmalloc_addr(void *x)
 }
 
 /* Return 1 if we need to do a global tlbie, 0 if we can use tlbiel */
-static int global_invalidates(struct kvm *kvm, unsigned long flags)
+static int global_invalidates(struct kvm *kvm)
 {
 	int global;
 	int cpu;
@@ -522,7 +522,7 @@ long kvmppc_do_h_remove(struct kvm *kvm, unsigned long flags,
 	if (v & HPTE_V_VALID) {
 		hpte[0] &= ~cpu_to_be64(HPTE_V_VALID);
 		rb = compute_tlbie_rb(v, pte_r, pte_index);
-		do_tlbies(kvm, &rb, 1, global_invalidates(kvm, flags), true);
+		do_tlbies(kvm, &rb, 1, global_invalidates(kvm), true);
 		/*
 		 * The reference (R) and change (C) bits in a HPT
 		 * entry can be set by hardware at any time up until
@@ -572,7 +572,7 @@ long kvmppc_h_bulk_remove(struct kvm_vcpu *vcpu)
 
 	if (kvm_is_radix(kvm))
 		return H_FUNCTION;
-	global = global_invalidates(kvm, 0);
+	global = global_invalidates(kvm);
 	for (i = 0; i < 4 && ret == H_SUCCESS; ) {
 		n = 0;
 		for (; i < 4; ++i) {
@@ -732,8 +732,7 @@ long kvmppc_h_protect(struct kvm_vcpu *vcpu, unsigned long flags,
 			rb = compute_tlbie_rb(v, r, pte_index);
 			hpte[0] = cpu_to_be64((pte_v & ~HPTE_V_VALID) |
 					      HPTE_V_ABSENT);
-			do_tlbies(kvm, &rb, 1, global_invalidates(kvm, flags),
-				  true);
+			do_tlbies(kvm, &rb, 1, global_invalidates(kvm), true);
 			/* Don't lose R/C bit updates done by hardware */
 			r |= be64_to_cpu(hpte[1]) & (HPTE_R_R | HPTE_R_C);
 			hpte[1] = cpu_to_be64(r);
