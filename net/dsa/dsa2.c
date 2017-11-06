@@ -469,6 +469,23 @@ static void dsa_ds_unapply(struct dsa_switch_tree *dst, struct dsa_switch *ds)
 
 }
 
+static int dsa_tree_setup_master(struct dsa_switch_tree *dst)
+{
+	struct dsa_port *cpu_dp = dst->cpu_dp;
+	struct net_device *master = cpu_dp->master;
+
+	/* DSA currently supports a single pair of CPU port and master device */
+	return dsa_master_setup(master, cpu_dp);
+}
+
+static void dsa_tree_teardown_master(struct dsa_switch_tree *dst)
+{
+	struct dsa_port *cpu_dp = dst->cpu_dp;
+	struct net_device *master = cpu_dp->master;
+
+	return dsa_master_teardown(master);
+}
+
 static int dsa_dst_apply(struct dsa_switch_tree *dst)
 {
 	struct dsa_switch *ds;
@@ -489,14 +506,7 @@ static int dsa_dst_apply(struct dsa_switch_tree *dst)
 			return err;
 	}
 
-	/* If we use a tagging format that doesn't have an ethertype
-	 * field, make sure that all packets from this point on get
-	 * sent to the tag format's receive function.
-	 */
-	wmb();
-	dst->cpu_dp->master->dsa_ptr = dst->cpu_dp;
-
-	err = dsa_master_ethtool_setup(dst->cpu_dp->master);
+	err = dsa_tree_setup_master(dst);
 	if (err)
 		return err;
 
@@ -513,15 +523,7 @@ static void dsa_dst_unapply(struct dsa_switch_tree *dst)
 	if (!dst->applied)
 		return;
 
-	dsa_master_ethtool_restore(dst->cpu_dp->master);
-
-	dst->cpu_dp->master->dsa_ptr = NULL;
-
-	/* If we used a tagging format that doesn't have an ethertype
-	 * field, make sure that all packets from this point get sent
-	 * without the tag and go through the regular receive path.
-	 */
-	wmb();
+	dsa_tree_teardown_master(dst);
 
 	for (index = 0; index < DSA_MAX_SWITCHES; index++) {
 		ds = dst->ds[index];
