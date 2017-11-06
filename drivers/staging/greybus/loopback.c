@@ -605,7 +605,6 @@ static int gb_loopback_async_operation(struct gb_loopback *gb, int type,
 	op_async->ts = ktime_get();
 	op_async->pending = true;
 	atomic_inc(&gb->outstanding_operations);
-	mutex_lock(&gb->mutex);
 	ret = gb_operation_request_send(operation,
 					gb_loopback_async_operation_callback,
 					0,
@@ -622,7 +621,6 @@ static int gb_loopback_async_operation(struct gb_loopback *gb, int type,
 error:
 	gb_loopback_async_operation_put(op_async);
 done:
-	mutex_unlock(&gb->mutex);
 	return ret;
 }
 
@@ -1013,7 +1011,6 @@ static int gb_loopback_fn(void *data)
 		type = gb->type;
 		if (ktime_to_ns(gb->ts) == 0)
 			gb->ts = ktime_get();
-		mutex_unlock(&gb->mutex);
 
 		/* Else operations to perform */
 		if (gb->async) {
@@ -1041,6 +1038,7 @@ static int gb_loopback_fn(void *data)
 			gb_loopback_calculate_stats(gb, !!error);
 		}
 		gb->send_count++;
+		mutex_unlock(&gb->mutex);
 
 		if (us_wait) {
 			if (us_wait < 20000)
