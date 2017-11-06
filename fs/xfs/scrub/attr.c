@@ -91,7 +91,7 @@ xfs_scrub_xattr_listent(
 	int				valuelen)
 {
 	struct xfs_scrub_xattr		*sx;
-	struct xfs_da_args		args = {0};
+	struct xfs_da_args		args = { NULL };
 	int				error = 0;
 
 	sx = container_of(context, struct xfs_scrub_xattr, context);
@@ -420,7 +420,7 @@ int
 xfs_scrub_xattr(
 	struct xfs_scrub_context	*sc)
 {
-	struct xfs_scrub_xattr		sx = { 0 };
+	struct xfs_scrub_xattr		sx;
 	struct attrlist_cursor_kern	cursor = { 0 };
 	xfs_dablk_t			last_checked = -1U;
 	int				error = 0;

@@ -123,7 +123,7 @@
  * structure state to decide (in broad terms) if scrub/repair are
  * supported by the running kernel.
  */
-int
+static int
 xfs_scrub_probe(
 	struct xfs_scrub_context	*sc)
 {

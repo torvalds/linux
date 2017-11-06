@@ -414,7 +414,7 @@ xfs_scrub_btree(
 	struct xfs_owner_info		*oinfo,
 	void				*private)
 {
-	struct xfs_scrub_btree		bs = {0};
+	struct xfs_scrub_btree		bs = { NULL };
 	union xfs_btree_ptr		ptr;
 	union xfs_btree_ptr		*pp;
 	union xfs_btree_rec		*recp;

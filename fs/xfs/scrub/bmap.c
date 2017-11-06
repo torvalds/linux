@@ -229,7 +229,7 @@ xfs_scrub_bmap(
 	int				whichfork)
 {
 	struct xfs_bmbt_irec		irec;
-	struct xfs_scrub_bmap_info	info = {0};
+	struct xfs_scrub_bmap_info	info = { NULL };
 	struct xfs_mount		*mp = sc->mp;
 	struct xfs_inode		*ip = sc->ip;
 	struct xfs_ifork		*ifp;

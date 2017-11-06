@@ -560,7 +560,7 @@ xfs_scrub_directory_free_bestfree(
 	struct xfs_buf			*dbp;
 	struct xfs_buf			*bp;
 	__be16				*bestp;
-	__be16				best;
+	__u16				best;
 	unsigned int			stale = 0;
 	int				i;
 	int				error;
