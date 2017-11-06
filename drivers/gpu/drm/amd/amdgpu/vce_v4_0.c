@@ -423,7 +423,7 @@ static int vce_v4_0_sw_init(void *handle)
 	if (r)
 		return r;
 
-	size  = (VCE_V4_0_STACK_SIZE + VCE_V4_0_DATA_SIZE) * 2;
+	size  = VCE_V4_0_STACK_SIZE + VCE_V4_0_DATA_SIZE;
 	if (adev->firmware.load_type != AMDGPU_FW_LOAD_PSP)
 		size += VCE_V4_0_FW_SIZE;
 
