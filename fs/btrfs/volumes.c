@@ -1645,7 +1645,7 @@ error:
  * the device information is stored in the chunk root
  * the btrfs_device struct should be fully filled in
  */
-static int btrfs_add_device(struct btrfs_trans_handle *trans,
+static int btrfs_add_dev_item(struct btrfs_trans_handle *trans,
 			    struct btrfs_fs_info *fs_info,
 			    struct btrfs_device *device)
 {
@@ -2435,7 +2435,7 @@ int btrfs_init_new_device(struct btrfs_fs_info *fs_info, const char *device_path
 		}
 	}
 
-	ret = btrfs_add_device(trans, fs_info, device);
+	ret = btrfs_add_dev_item(trans, fs_info, device);
 	if (ret) {
 		btrfs_abort_transaction(trans, ret);
 		goto error_sysfs;
