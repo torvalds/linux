@@ -2488,7 +2488,7 @@ static int igb_setup_tc(struct net_device *dev, enum tc_setup_type type,
 	struct igb_adapter *adapter = netdev_priv(dev);
 
 	switch (type) {
-	case TC_SETUP_CBS:
+	case TC_SETUP_QDISC_CBS:
 		return igb_offload_cbs(adapter, type_data);
 
 	default:
