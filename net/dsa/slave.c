@@ -1147,7 +1147,7 @@ static void dsa_slave_notify(struct net_device *dev, unsigned long val)
 
 int dsa_slave_create(struct dsa_port *port)
 {
-	struct dsa_port *cpu_dp = port->cpu_dp;
+	const struct dsa_port *cpu_dp = port->cpu_dp;
 	struct net_device *master = cpu_dp->master;
 	struct dsa_switch *ds = port->ds;
 	const char *name = port->name;

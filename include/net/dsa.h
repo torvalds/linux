@@ -190,7 +190,7 @@ struct dsa_port {
 	struct dsa_switch	*ds;
 	unsigned int		index;
 	const char		*name;
-	struct dsa_port		*cpu_dp;
+	const struct dsa_port	*cpu_dp;
 	struct device_node	*dn;
 	unsigned int		ageing_time;
 	u8			stp_state;
