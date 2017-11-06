@@ -133,6 +133,7 @@ archclean:
 
 archprepare:
 	$(Q)$(MAKE) $(build)=$(tools) include/generated/facilities.h
+	$(Q)$(MAKE) $(build)=$(tools) include/generated/dis.h
 
 # Don't use tabs in echo arguments
 define archhelp
