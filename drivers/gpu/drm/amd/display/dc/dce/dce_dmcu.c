@@ -130,14 +130,14 @@ static void dce_dmcu_set_psr_enable(struct dmcu *dmcu, bool enable, bool wait)
 	if (wait == true) {
 		for (retryCount = 0; retryCount <= 100; retryCount++) {
 			dce_get_dmcu_psr_state(dmcu, &psr_state);
-				if (enable) {
-					if (psr_state != 0)
-						break;
-				} else {
-					if (psr_state == 0)
-						break;
-				}
-				udelay(10);
+			if (enable) {
+				if (psr_state != 0)
+					break;
+			} else {
+				if (psr_state == 0)
+					break;
+			}
+			udelay(10);
 		}
 	}
 }

@@ -133,13 +133,13 @@ static void release_engine(
 		safe_to_reset = (i2c_sw_status == 1);
 	}
 
-		if (safe_to_reset)
-			REG_UPDATE_2(
-					DC_I2C_CONTROL,
-					DC_I2C_SOFT_RESET, 1,
-					DC_I2C_SW_STATUS_RESET, 1);
-		else
-			REG_UPDATE(DC_I2C_CONTROL, DC_I2C_SW_STATUS_RESET, 1);
+	if (safe_to_reset)
+		REG_UPDATE_2(
+			DC_I2C_CONTROL,
+			DC_I2C_SOFT_RESET, 1,
+			DC_I2C_SW_STATUS_RESET, 1);
+	else
+		REG_UPDATE(DC_I2C_CONTROL, DC_I2C_SW_STATUS_RESET, 1);
 
 	/* HW I2c engine - clock gating feature */
 	if (!hw_engine->engine_keep_power_up_count)
@@ -301,16 +301,16 @@ static bool process_transaction(
 	 * For an I2C send operation, the LSB must be programmed to 0;
 	 * for I2C receive operation, the LSB must be programmed to 1. */
 	if (hw_engine->transaction_count == 0) {
-			value = REG_SET_4(DC_I2C_DATA, 0,
-						DC_I2C_DATA_RW, false,
-						DC_I2C_DATA, request->address,
-						DC_I2C_INDEX, 0,
-						DC_I2C_INDEX_WRITE, 1);
+		value = REG_SET_4(DC_I2C_DATA, 0,
+				  DC_I2C_DATA_RW, false,
+				  DC_I2C_DATA, request->address,
+				  DC_I2C_INDEX, 0,
+				  DC_I2C_INDEX_WRITE, 1);
 		hw_engine->buffer_used_write = 0;
 	} else
-			value = REG_SET_2(DC_I2C_DATA, 0,
-						DC_I2C_DATA_RW, false,
-						DC_I2C_DATA, request->address);
+		value = REG_SET_2(DC_I2C_DATA, 0,
+				  DC_I2C_DATA_RW, false,
+				  DC_I2C_DATA, request->address);
 
 	hw_engine->buffer_used_write++;
 

@@ -293,10 +293,9 @@ void dce120_timing_generator_tear_down_global_swap_lock(
 			FD(DCP0_DCP_GSL_CONTROL__DCP_GSL_SYNC_SOURCE), 0,
 			FD(DCP0_DCP_GSL_CONTROL__DCP_GSL_DELAY_SURFACE_UPDATE_PENDING), 0);
 
-		CRTC_REG_SET_2(
-			CRTC0_CRTC_GSL_CONTROL,
-			CRTC_GSL_CHECK_LINE_NUM, 0,
-			CRTC_GSL_FORCE_DELAY, 0x2); /*TODO Why this value here ?*/
+	CRTC_REG_SET_2(CRTC0_CRTC_GSL_CONTROL,
+		       CRTC_GSL_CHECK_LINE_NUM, 0,
+		       CRTC_GSL_FORCE_DELAY, 0x2); /*TODO Why this value here ?*/
 }
 
 /* Reset slave controllers on master VSync */

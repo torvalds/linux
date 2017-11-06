@@ -182,11 +182,11 @@ bool dc_stream_set_cursor_attributes(
 
 	if (NULL == stream) {
 		dm_error("DC: dc_stream is NULL!\n");
-			return false;
+		return false;
 	}
 	if (NULL == attributes) {
 		dm_error("DC: attributes is NULL!\n");
-			return false;
+		return false;
 	}
 
 	if (attributes->address.quad_part == 0) {
