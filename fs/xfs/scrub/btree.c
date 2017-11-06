@@ -335,7 +335,7 @@ xfs_scrub_btree_get_block(
 
 	error = xfs_btree_lookup_get_block(bs->cur, level, pp, pblock);
 	if (!xfs_scrub_btree_process_error(bs->sc, bs->cur, level, &error) ||
-	    !pblock)
+	    !*pblock)
 		return error;
 
 	xfs_btree_get_block(bs->cur, level, pbp);
