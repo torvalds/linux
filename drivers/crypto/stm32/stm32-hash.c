@@ -892,7 +892,6 @@ static int stm32_hash_enqueue(struct ahash_request *req, unsigned int op)
 static int stm32_hash_update(struct ahash_request *req)
 {
 	struct stm32_hash_request_ctx *rctx = ahash_request_ctx(req);
-	int ret;
 
 	if (!req->nbytes || !(rctx->flags & HASH_FLAGS_CPU))
 		return 0;
@@ -906,12 +905,7 @@ static int stm32_hash_update(struct ahash_request *req)
 		return 0;
 	}
 
-	ret = stm32_hash_enqueue(req, HASH_OP_UPDATE);
-
-	if (rctx->flags & HASH_FLAGS_FINUP)
-		return ret;
-
-	return 0;
+	return stm32_hash_enqueue(req, HASH_OP_UPDATE);
 }
 
 static int stm32_hash_final(struct ahash_request *req)
