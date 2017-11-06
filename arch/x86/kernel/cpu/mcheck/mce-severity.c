@@ -204,7 +204,7 @@ static int error_context(struct mce *m)
 	return IN_KERNEL;
 }
 
-static int mce_severity_amd_smca(struct mce *m, int err_ctx)
+static int mce_severity_amd_smca(struct mce *m, enum context err_ctx)
 {
 	u32 addr = MSR_AMD64_SMCA_MCx_CONFIG(m->bank);
 	u32 low, high;
