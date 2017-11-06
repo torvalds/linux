@@ -1567,6 +1567,7 @@ static int atomisp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 	dev_dbg(&pdev->dev, "atomisp mmio base: %p\n", isp->base);
 
 	rt_mutex_init(&isp->mutex);
+	rt_mutex_init(&isp->loading);
 	mutex_init(&isp->streamoff_mutex);
 	spin_lock_init(&isp->lock);
 
@@ -1749,6 +1750,8 @@ static int atomisp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 		pci_write_config_dword(pdev, MRFLD_PCI_CSI_AFE_TRIM_CONTROL, csi_afe_trim);
 	}
 
+	rt_mutex_lock(&isp->loading);
+
 	err = atomisp_initialize_modules(isp);
 	if (err < 0) {
 		dev_err(&pdev->dev, "atomisp_initialize_modules (%d)\n", err);
@@ -1806,6 +1809,8 @@ static int atomisp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 	release_firmware(isp->firmware);
 	isp->firmware = NULL;
 	isp->css_env.isp_css_fw.data = NULL;
+	isp->ready = true;
+	rt_mutex_unlock(&isp->loading);
 
 	atomisp_drvfs_init(isp);
 
@@ -1825,6 +1830,7 @@ wdt_work_queue_fail:
 register_entities_fail:
 	atomisp_uninitialize_modules(isp);
 initialize_modules_fail:
+	rt_mutex_unlock(&isp->loading);
 	cpu_latency_qos_remove_request(&isp->pm_qos);
 	atomisp_msi_irq_uninit(isp);
 	pci_free_irq_vectors(pdev);
