@@ -713,7 +713,6 @@ static int mac_probe(struct platform_device *_of_dev)
 		__devm_release_region(dev, fman_get_mem_region(priv->fman),
 				      res.start, res.end + 1 - res.start);
 		devm_kfree(dev, mac_dev);
-		dev_set_drvdata(dev, NULL);
 		return -ENODEV;
 	}
 
