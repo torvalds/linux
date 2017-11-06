@@ -362,7 +362,7 @@ static void dsa_user_port_unapply(struct dsa_port *port)
 	}
 }
 
-static int dsa_ds_apply(struct dsa_switch_tree *dst, struct dsa_switch *ds)
+static int dsa_switch_setup(struct dsa_switch *ds)
 {
 	struct dsa_port *port;
 	u32 index;
@@ -433,7 +433,7 @@ static int dsa_ds_apply(struct dsa_switch_tree *dst, struct dsa_switch *ds)
 	return 0;
 }
 
-static void dsa_ds_unapply(struct dsa_switch_tree *dst, struct dsa_switch *ds)
+static void dsa_switch_teardown(struct dsa_switch *ds)
 {
 	struct dsa_port *port;
 	u32 index;
@@ -469,6 +469,39 @@ static void dsa_ds_unapply(struct dsa_switch_tree *dst, struct dsa_switch *ds)
 
 }
 
+static int dsa_tree_setup_switches(struct dsa_switch_tree *dst)
+{
+	struct dsa_switch *ds;
+	int device;
+	int err;
+
+	for (device = 0; device < DSA_MAX_SWITCHES; device++) {
+		ds = dst->ds[device];
+		if (!ds)
+			continue;
+
+		err = dsa_switch_setup(ds);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
+static void dsa_tree_teardown_switches(struct dsa_switch_tree *dst)
+{
+	struct dsa_switch *ds;
+	int device;
+
+	for (device = 0; device < DSA_MAX_SWITCHES; device++) {
+		ds = dst->ds[device];
+		if (!ds)
+			continue;
+
+		dsa_switch_teardown(ds);
+	}
+}
+
 static int dsa_tree_setup_master(struct dsa_switch_tree *dst)
 {
 	struct dsa_port *cpu_dp = dst->cpu_dp;
@@ -488,8 +521,6 @@ static void dsa_tree_teardown_master(struct dsa_switch_tree *dst)
 
 static int dsa_tree_setup(struct dsa_switch_tree *dst)
 {
-	struct dsa_switch *ds;
-	u32 index;
 	int err;
 
 	if (dst->setup) {
@@ -502,15 +533,9 @@ static int dsa_tree_setup(struct dsa_switch_tree *dst)
 	if (err)
 		return err;
 
-	for (index = 0; index < DSA_MAX_SWITCHES; index++) {
-		ds = dst->ds[index];
-		if (!ds)
-			continue;
-
-		err = dsa_ds_apply(dst, ds);
-		if (err)
-			return err;
-	}
+	err = dsa_tree_setup_switches(dst);
+	if (err)
+		return err;
 
 	err = dsa_tree_setup_master(dst);
 	if (err)
@@ -525,21 +550,12 @@ static int dsa_tree_setup(struct dsa_switch_tree *dst)
 
 static void dsa_tree_teardown(struct dsa_switch_tree *dst)
 {
-	struct dsa_switch *ds;
-	u32 index;
-
 	if (!dst->setup)
 		return;
 
 	dsa_tree_teardown_master(dst);
 
-	for (index = 0; index < DSA_MAX_SWITCHES; index++) {
-		ds = dst->ds[index];
-		if (!ds)
-			continue;
-
-		dsa_ds_unapply(dst, ds);
-	}
+	dsa_tree_teardown_switches(dst);
 
 	dsa_tree_teardown_default_cpu(dst);
 
