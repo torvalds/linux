@@ -20,7 +20,7 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  */
-#include "inat_types.h"
+#include <asm/inat_types.h>
 
 /*
  * Internal bits. Don't use bitmasks directly, because these bits are

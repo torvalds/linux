@@ -23,8 +23,8 @@
 #else
 #include <string.h>
 #endif
-#include "inat.h"
-#include "insn.h"
+#include <asm/inat.h>
+#include <asm/insn.h>
 
 /* Verify next sizeof(t) bytes can be on the same instruction */
 #define validate_next(t, insn, n)	\
