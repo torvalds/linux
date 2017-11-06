@@ -709,11 +709,8 @@ static int mac_probe(struct platform_device *_of_dev)
 	}
 
 	if (!of_device_is_available(mac_node)) {
-		devm_iounmap(dev, priv->vaddr);
-		__devm_release_region(dev, fman_get_mem_region(priv->fman),
-				      res.start, res.end + 1 - res.start);
-		devm_kfree(dev, mac_dev);
-		return -ENODEV;
+		err = -ENODEV;
+		goto _return_of_get_parent;
 	}
 
 	/* Get the cell-index */
