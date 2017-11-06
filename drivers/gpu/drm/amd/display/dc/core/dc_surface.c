@@ -145,7 +145,7 @@ void dc_gamma_release(struct dc_gamma **gamma)
 	*gamma = NULL;
 }
 
-struct dc_gamma *dc_create_gamma()
+struct dc_gamma *dc_create_gamma(void)
 {
 	struct dc_gamma *gamma = kzalloc(sizeof(*gamma), GFP_KERNEL);
 
@@ -175,7 +175,7 @@ void dc_transfer_func_release(struct dc_transfer_func *tf)
 	kref_put(&tf->refcount, dc_transfer_func_free);
 }
 
-struct dc_transfer_func *dc_create_transfer_func()
+struct dc_transfer_func *dc_create_transfer_func(void)
 {
 	struct dc_transfer_func *tf = kzalloc(sizeof(*tf), GFP_KERNEL);
 
