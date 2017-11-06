@@ -3168,11 +3168,8 @@ static void nfs4_close_done(struct rpc_task *task, void *data)
 			break;
 		case -NFS4ERR_OLD_STATEID:
 			if (nfs4_refresh_layout_stateid(&calldata->arg.lr_args->stateid,
-						calldata->inode)) {
-				calldata->res.lr_ret = 0;
-				rpc_restart_call_prepare(task);
-				return;
-			}
+						calldata->inode))
+				goto lr_restart;
 			/* Fallthrough */
 		case -NFS4ERR_ADMIN_REVOKED:
 		case -NFS4ERR_DELEG_REVOKED:
@@ -3182,9 +3179,7 @@ static void nfs4_close_done(struct rpc_task *task, void *data)
 		case -NFS4ERR_WRONG_CRED:
 			calldata->arg.lr_args = NULL;
 			calldata->res.lr_res = NULL;
-			calldata->res.lr_ret = 0;
-			rpc_restart_call_prepare(task);
-			return;
+			goto lr_restart;
 		}
 	}
 
@@ -3200,19 +3195,15 @@ static void nfs4_close_done(struct rpc_task *task, void *data)
 			if (calldata->arg.bitmask != NULL) {
 				calldata->arg.bitmask = NULL;
 				calldata->res.fattr = NULL;
-				task->tk_status = 0;
-				rpc_restart_call_prepare(task);
-				goto out_release;
+				goto out_restart;
 
 			}
 			break;
 		case -NFS4ERR_OLD_STATEID:
 			/* Did we race with OPEN? */
 			if (nfs4_refresh_open_stateid(&calldata->arg.stateid,
-						state)) {
-				task->tk_status = 0;
-				rpc_restart_call_prepare(task);
-			}
+						state))
+				goto out_restart;
 			goto out_release;
 		case -NFS4ERR_ADMIN_REVOKED:
 		case -NFS4ERR_STALE_STATEID:
@@ -3224,17 +3215,23 @@ static void nfs4_close_done(struct rpc_task *task, void *data)
 		case -NFS4ERR_BAD_STATEID:
 			break;
 		default:
-			if (nfs4_async_handle_error(task, server, state, NULL) == -EAGAIN) {
-				rpc_restart_call_prepare(task);
-				goto out_release;
-			}
+			if (nfs4_async_handle_error(task, server, state, NULL) == -EAGAIN)
+				goto out_restart;
 	}
 	nfs_clear_open_stateid(state, &calldata->arg.stateid,
 			res_stateid, calldata->arg.fmode);
 out_release:
+	task->tk_status = 0;
 	nfs_release_seqid(calldata->arg.seqid);
 	nfs_refresh_inode(calldata->inode, &calldata->fattr);
 	dprintk("%s: done, ret = %d!\n", __func__, task->tk_status);
+	return;
+lr_restart:
+	calldata->res.lr_ret = 0;
+out_restart:
+	task->tk_status = 0;
+	rpc_restart_call_prepare(task);
+	goto out_release;
 }
 
 static void nfs4_close_prepare(struct rpc_task *task, void *data)
