@@ -214,6 +214,33 @@ static long pvr_compat_ioctl(struct file *file, unsigned int cmd,
 }
 #endif /* defined(CONFIG_COMPAT) */
 
+int g_gpu_performance = -1;
+static ssize_t  PVRSRV_Perf_Write(struct file *pfile, const char __user *ubuf,
+				size_t count, loff_t *ploff)
+{
+	char kbuf[10];
+	long enable = -1;
+
+	if (count > sizeof(kbuf))
+		count = sizeof(kbuf);
+
+	if (copy_from_user(kbuf, ubuf, count)) {
+		DRM_ERROR("%s: copy_to_user failed!\n", __func__);
+		return -EFAULT;
+	}
+
+	kbuf[count - 1] = '\0';
+	if (kstrtol(kbuf, 10, &enable) != 0) {
+		DRM_ERROR("%s: kstrtol failed!\n", __func__);
+		return -EFAULT;
+	}
+
+	if (g_gpu_performance != enable)
+		g_gpu_performance = enable;
+
+	return count;
+}
+
 static const struct file_operations pvr_drm_fops = {
 	.owner			= THIS_MODULE,
 	.open			= drm_open,
@@ -231,6 +258,7 @@ static const struct file_operations pvr_drm_fops = {
 	.mmap			= PVRSRV_MMap,
 	.poll			= drm_poll,
 	.read			= drm_read,
+	.write			= PVRSRV_Perf_Write,
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(3, 12, 0))
 	.fasync			= drm_fasync,
 #endif

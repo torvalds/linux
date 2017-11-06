@@ -48,6 +48,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "pvrsrv_error.h"
 #include "img_types.h"
 
+extern int g_gpu_performance;
+
 PVRSRV_ERROR InitDVFS(PVRSRV_DEVICE_NODE *psDeviceNode);
 
 void DeinitDVFS(PVRSRV_DEVICE_NODE *psDeviceNode);

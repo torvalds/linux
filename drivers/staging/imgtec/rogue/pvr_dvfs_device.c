@@ -100,6 +100,9 @@ static IMG_INT32 devfreq_target(struct device *dev, long unsigned *requested_fre
 		return 0;
 	}
 
+	if (g_gpu_performance == 1)
+		*requested_freq = psDVFSDevice->psDevFreq->max_freq;
+
 	rcu_read_lock();
 	opp = devfreq_recommended_opp(dev, requested_freq, flags);
 	if (IS_ERR(opp)) {
