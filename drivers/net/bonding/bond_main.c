@@ -3166,7 +3166,7 @@ u32 bond_xmit_hash(struct bonding *bond, struct sk_buff *skb)
 	hash ^= (hash >> 16);
 	hash ^= (hash >> 8);
 
-	return hash;
+	return hash >> 1;
 }
 
 /*-------------------------- Device entry points ----------------------------*/
