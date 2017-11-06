@@ -252,6 +252,35 @@ static const struct file_operations rproc_rsc_table_ops = {
 	.release	= single_release,
 };
 
+/* Expose carveout content via debugfs */
+static int rproc_carveouts_show(struct seq_file *seq, void *p)
+{
+	struct rproc *rproc = seq->private;
+	struct rproc_mem_entry *carveout;
+
+	list_for_each_entry(carveout, &rproc->carveouts, node) {
+		seq_puts(seq, "Carveout memory entry:\n");
+		seq_printf(seq, "\tVirtual address: %p\n", carveout->va);
+		seq_printf(seq, "\tDMA address: %pad\n", &carveout->dma);
+		seq_printf(seq, "\tDevice address: 0x%x\n", carveout->da);
+		seq_printf(seq, "\tLength: 0x%x Bytes\n\n", carveout->len);
+	}
+
+	return 0;
+}
+
+static int rproc_carveouts_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, rproc_carveouts_show, inode->i_private);
+}
+
+static const struct file_operations rproc_carveouts_ops = {
+	.open		= rproc_carveouts_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
 void rproc_remove_trace_file(struct dentry *tfile)
 {
 	debugfs_remove(tfile);
@@ -297,6 +326,8 @@ void rproc_create_debug_dir(struct rproc *rproc)
 			    rproc, &rproc_recovery_ops);
 	debugfs_create_file("resource_table", 0400, rproc->dbg_dir,
 			    rproc, &rproc_rsc_table_ops);
+	debugfs_create_file("carveout_memories", 0400, rproc->dbg_dir,
+			    rproc, &rproc_carveouts_ops);
 }
 
 void __init rproc_init_debugfs(void)
