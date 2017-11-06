@@ -91,8 +91,10 @@ int dell_smbios_wmi_call(struct calling_interface_buffer *buffer)
 
 	mutex_lock(&call_mutex);
 	priv = get_first_smbios_priv();
-	if (!priv)
-		return -ENODEV;
+	if (!priv) {
+		ret = -ENODEV;
+		goto out_wmi_call;
+	}
 
 	size = sizeof(struct calling_interface_buffer);
 	difference = priv->req_buf_size - sizeof(u64) - size;
@@ -101,6 +103,7 @@ int dell_smbios_wmi_call(struct calling_interface_buffer *buffer)
 	memcpy(&priv->buf->std, buffer, size);
 	ret = run_smbios_call(priv->wdev);
 	memcpy(buffer, &priv->buf->std, size);
+out_wmi_call:
 	mutex_unlock(&call_mutex);
 
 	return ret;
