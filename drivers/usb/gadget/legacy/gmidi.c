@@ -6,9 +6,6 @@
  * Developed for Thumtronics by Grey Innovation
  * Ben Williamson <ben.williamson@greyinnovation.com>
  *
- * This software is distributed under the terms of the GNU General Public
- * License ("GPL") version 2, as published by the Free Software Foundation.
- *
  * This code is based in part on:
  *
  * Gadget Zero driver, Copyright (C) 2003-2004 David Brownell.

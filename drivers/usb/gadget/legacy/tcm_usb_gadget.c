@@ -5,7 +5,6 @@
  * BBB (USB Mass Storage Class Bulk-Only (BBB) and Transport protocol handling.
  *
  * Author: Sebastian Andrzej Siewior <bigeasy at linutronix dot de>
- * License: GPLv2 as published by FSF.
  */
 #include <linux/kernel.h>
 #include <linux/module.h>
