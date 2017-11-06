@@ -1529,5 +1529,5 @@ unsigned int btrfs_compress_str2level(const char *str)
 	if (str[4] == ':' && '1' <= str[5] && str[5] <= '9' && str[6] == 0)
 		return str[5] - '0';
 
-	return 0;
+	return BTRFS_ZLIB_DEFAULT_LEVEL;
 }

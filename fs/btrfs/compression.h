@@ -34,6 +34,8 @@
 /* Maximum size of data before compression */
 #define BTRFS_MAX_UNCOMPRESSED		(SZ_128K)
 
+#define	BTRFS_ZLIB_DEFAULT_LEVEL		3
+
 struct compressed_bio {
 	/* number of bios pending for this compressed extent */
 	refcount_t pending_bios;
