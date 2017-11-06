@@ -43,22 +43,8 @@ include $(srctree)/tools/build/Makefile.include
 $(OBJTOOL_IN): fixdep FORCE
 	@$(MAKE) $(build)=objtool
 
-# Busybox's diff doesn't have -I, avoid warning in that case
-#
 $(OBJTOOL): $(LIBSUBCMD) $(OBJTOOL_IN)
-	@(diff -I 2>&1 | grep -q 'option requires an argument' && \
-	test -d ../../kernel -a -d ../../tools -a -d ../objtool && (( \
-	diff arch/x86/lib/insn.c ../../arch/x86/lib/insn.c >/dev/null && \
-	diff arch/x86/lib/inat.c ../../arch/x86/lib/inat.c >/dev/null && \
-	diff arch/x86/lib/x86-opcode-map.txt ../../arch/x86/lib/x86-opcode-map.txt >/dev/null && \
-	diff arch/x86/tools/gen-insn-attr-x86.awk ../../arch/x86/tools/gen-insn-attr-x86.awk >/dev/null && \
-	diff arch/x86/include/asm/insn.h ../../arch/x86/include/asm/insn.h >/dev/null && \
-	diff arch/x86/include/asm/inat.h ../../arch/x86/include/asm/inat.h >/dev/null && \
-	diff arch/x86/include/asm/inat_types.h ../../arch/x86/include/asm/inat_types.h >/dev/null) \
-	|| echo "warning: objtool: x86 instruction decoder differs from kernel" >&2 )) || true
-	@(test -d ../../kernel -a -d ../../tools -a -d ../objtool && (( \
-	diff ../../arch/x86/include/asm/orc_types.h arch/x86/include/asm/orc_types.h >/dev/null) \
-	|| echo "warning: objtool: orc_types.h differs from kernel" >&2 )) || true
+	@./sync-check.sh
 	$(QUIET_LINK)$(CC) $(OBJTOOL_IN) $(LDFLAGS) -o $@
 
 
