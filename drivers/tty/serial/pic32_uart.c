@@ -6,8 +6,6 @@
  *
  * Authors:
  *   Sorin-Andrei Pistirica <andrei.pistirica@microchip.com>
- *
- * Licensed under GPLv2 or later.
  */
 
 #include <linux/kernel.h>

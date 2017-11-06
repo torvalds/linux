@@ -5,11 +5,6 @@
  *  Based on drivers/char/serial.c, by Linus Torvalds, Theodore Ts'o.
  *  Split from 8250_core.c, Copyright (C) 2001 Russell King.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
  * A note about mapbase / membase
  *
  *  mapbase is the physical address of the IO port.

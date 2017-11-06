@@ -5,10 +5,6 @@
  *  Based on drivers/char/serial.c, by Linus Torvalds, Theodore Ts'o.
  *
  *  Copyright (C) 2001 Russell King, All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License.
  */
 #undef DEBUG
 #include <linux/module.h>

@@ -7,10 +7,6 @@
  * Maintainer: Jason Wessel <jason.wessel@windriver.com>
  *
  * 2007-2008 (c) Jason Wessel - Wind River Systems, Inc.
- *
- * This file is licensed under the terms of the GNU General Public
- * License version 2. This program is licensed "as is" without any
- * warranty of any kind, whether express or implied.
  */
 #include <linux/kernel.h>
 #include <linux/ctype.h>

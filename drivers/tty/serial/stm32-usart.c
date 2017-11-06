@@ -4,7 +4,6 @@
  * Copyright (C) STMicroelectronics SA 2017
  * Authors:  Maxime Coquelin <mcoquelin.stm32@gmail.com>
  *	     Gerald Baeza <gerald.baeza@st.com>
- * License terms:  GNU General Public License (GPL), version 2
  *
  * Inspired by st-asc.c from STMicroelectronics (c)
  */

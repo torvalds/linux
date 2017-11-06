@@ -5,10 +5,6 @@
  * (c) Copyright 2004 Hewlett-Packard Development Company, L.P.
  *	Bjorn Helgaas <bjorn.helgaas@hp.com>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  * Based on the 8250.c serial driver, Copyright (C) 2001 Russell King,
  * and on early_printk.c by Andi Kleen.
  *

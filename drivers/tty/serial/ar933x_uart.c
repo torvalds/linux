@@ -5,10 +5,6 @@
  *  Copyright (C) 2011 Gabor Juhos <juhosg@openwrt.org>
  *
  *  Based on drivers/char/serial.c, by Linus Torvalds, Theodore Ts'o.
- *
- *  This program is free software; you can redistribute it and/or modify it
- *  under the terms of the GNU General Public License version 2 as published
- *  by the Free Software Foundation.
  */
 
 #include <linux/module.h>

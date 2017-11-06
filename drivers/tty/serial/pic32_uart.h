@@ -6,8 +6,6 @@
  *
  * Authors:
  *   Sorin-Andrei Pistirica <andrei.pistirica@microchip.com>
- *
- * Licensed under GPLv2 or later.
  */
 #ifndef __DT_PIC32_UART_H__
 #define __DT_PIC32_UART_H__

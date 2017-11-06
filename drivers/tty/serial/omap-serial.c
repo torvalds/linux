@@ -9,11 +9,6 @@
  *	Govindraj R	<govindraj.raja@ti.com>
  *	Thara Gopinath	<thara@ti.com>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
  * Note: This driver is made separate from 8250 driver as we cannot
  * over load 8250 driver with omap platform specific configuration for
  * features like DMA, it makes easier to implement features like DMA and

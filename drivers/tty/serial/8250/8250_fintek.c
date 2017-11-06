@@ -3,11 +3,6 @@
  *  Probe for F81216A LPC to 4 UART
  *
  *  Copyright (C) 2014-2016 Ricardo Ribalda, Qtechnology A/S
- *
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License.
  */
 #include <linux/module.h>
 #include <linux/pci.h>

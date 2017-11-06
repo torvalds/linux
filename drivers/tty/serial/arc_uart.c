@@ -4,10 +4,6 @@
  *
  * Copyright (C) 2010-2012 Synopsys, Inc. (www.synopsys.com)
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  * vineetg: July 10th 2012
  *  -Decoupled the driver from arch/arc
  *    +Using platform_get_resource() for irq/membase (thx to bfin_uart.c)

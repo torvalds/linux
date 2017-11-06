@@ -4,12 +4,6 @@
  *
  * 2011 - 2014 (C) Xilinx Inc.
  *
- * This program is free software; you can redistribute it
- * and/or modify it under the terms of the GNU General Public
- * License as published by the Free Software Foundation;
- * either version 2 of the License, or (at your option) any
- * later version.
- *
  * This driver has originally been pushed by Xilinx using a Zynq-branding. This
  * still shows in the naming of this file, the kconfig symbols and some symbols
  * in the code.

@@ -9,10 +9,6 @@
  *  Copyright (C) 2001 Steven J. Hill (sjhill@realitydiluted.com)
  *  Copyright (C) 2000-2002 Toshiba Corporation
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  *  Serial driver for TX3927/TX4927/TX4925/TX4938 internal SIO controller
  */
 

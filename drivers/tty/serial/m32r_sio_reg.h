@@ -5,9 +5,6 @@
  * Copyright (C) 1992, 1994 by Theodore Ts'o.
  * Copyright (C) 2004  Hirokazu Takata <takata at linux-m32r.org>
  *
- * Redistribution of this file is permitted under the terms of the GNU
- * Public License (GPL)
- *
  * These are the UART port assignments, expressed as offsets from the base
  * register.  These assignments should hold for any serial port based on
  * a 8250, 16450, or 16550(A).

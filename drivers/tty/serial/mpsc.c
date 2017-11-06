@@ -11,10 +11,7 @@
  * taken from PPCBoot (now U-Boot).  Also based on drivers/serial/8250.c
  * by Russell King.
  *
- * 2004 (c) MontaVista, Software, Inc.  This file is licensed under
- * the terms of the GNU General Public License version 2.  This program
- * is licensed "as is" without any warranty of any kind, whether express
- * or implied.
+ * 2004 (c) MontaVista, Software, Inc.
  */
 /*
  * The MPSC interface is much like a typical network controller's interface.

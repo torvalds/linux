@@ -5,8 +5,6 @@
  * Copyright 2006-2011 Analog Devices Inc.
  *
  * Enter bugs at http://blackfin.uclinux.org/
- *
- * Licensed under the GPL-2 or later.
  */
 
 #if defined(CONFIG_SERIAL_BFIN_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)

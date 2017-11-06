@@ -7,11 +7,6 @@
  *  Based on max3100.c, by Christian Pellegrin <chripell@evolware.org>
  *  Based on max3110.c, by Feng Tang <feng.tang@intel.com>
  *  Based on max3107.c, by Aavamobile
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
  */
 
 #include <linux/bitops.h>
