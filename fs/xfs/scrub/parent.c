@@ -143,7 +143,7 @@ xfs_scrub_parent_validate(
 	struct xfs_inode		*dp = NULL;
 	xfs_nlink_t			expected_nlink;
 	xfs_nlink_t			nlink;
-	int				error;
+	int				error = 0;
 
 	*try_again = false;
 
@@ -258,7 +258,7 @@ xfs_scrub_parent(
 	xfs_ino_t			dnum;
 	bool				try_again;
 	int				tries = 0;
-	int				error;
+	int				error = 0;
 
 	/*
 	 * If we're a directory, check that the '..' link points up to

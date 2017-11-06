@@ -748,7 +748,7 @@ xfs_scrub_directory(
 	};
 	size_t				bufsize;
 	loff_t				oldpos;
-	int				error;
+	int				error = 0;
 
 	if (!S_ISDIR(VFS_I(sc->ip)->i_mode))
 		return -ENOENT;
