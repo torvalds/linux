@@ -10,7 +10,6 @@
  */
 #define H_PTE_NONE_MASK		_PAGE_HPTEFLAGS
 #define H_PAGE_F_GIX_SHIFT	56
-#define H_PAGE_BUSY		_RPAGE_RSV1 /* software: PTE & hash are busy */
 #define H_PAGE_F_SECOND		_RPAGE_RSV2	/* HPTE is in 2ndary HPTEG */
 #define H_PAGE_F_GIX		(_RPAGE_RSV3 | _RPAGE_RSV4 | _RPAGE_RPN44)
 #define H_PAGE_HASHPTE		_RPAGE_RPN43	/* PTE has associated HPTE */
