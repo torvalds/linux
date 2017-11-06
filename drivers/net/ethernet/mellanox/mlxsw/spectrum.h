@@ -220,6 +220,11 @@ struct mlxsw_sp_qdisc {
 			u64 wred_drop_base;
 		} red;
 	} xstats;
+
+	u64 tx_bytes;
+	u64 tx_packets;
+	u64 drops;
+	u64 overlimits;
 };
 
 /* No need an internal lock; At worse - miss a single periodic iteration */

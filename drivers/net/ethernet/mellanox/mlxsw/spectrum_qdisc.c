@@ -85,14 +85,24 @@ mlxsw_sp_setup_tc_qdisc_clean_stats(struct mlxsw_sp_port *mlxsw_sp_port,
 {
 	struct red_stats *xstats_base = &mlxsw_sp_qdisc->xstats_base;
 	struct mlxsw_sp_port_xstats *xstats;
+	struct rtnl_link_stats64 *stats;
 
 	xstats = &mlxsw_sp_port->periodic_hw_stats.xstats;
+	stats = &mlxsw_sp_port->periodic_hw_stats.stats;
+
+	mlxsw_sp_qdisc->tx_packets = stats->tx_packets;
+	mlxsw_sp_qdisc->tx_bytes = stats->tx_bytes;
 
 	switch (mlxsw_sp_qdisc->type) {
 	case MLXSW_SP_QDISC_RED:
 		xstats_base->prob_mark = xstats->ecn;
 		xstats_base->prob_drop = xstats->wred_drop[tclass_num];
 		xstats_base->pdrop = xstats->tail_drop[tclass_num];
+
+		mlxsw_sp_qdisc->overlimits = xstats_base->prob_drop +
+					     xstats_base->prob_mark;
+		mlxsw_sp_qdisc->drops = xstats_base->prob_drop +
+					xstats_base->pdrop;
 		break;
 	default:
 		break;
@@ -193,6 +203,43 @@ mlxsw_sp_qdisc_get_red_xstats(struct mlxsw_sp_port *mlxsw_sp_port, u32 handle,
 	return 0;
 }
 
+static int
+mlxsw_sp_qdisc_get_red_stats(struct mlxsw_sp_port *mlxsw_sp_port, u32 handle,
+			     struct mlxsw_sp_qdisc *mlxsw_sp_qdisc,
+			     int tclass_num,
+			     struct tc_red_qopt_offload_stats *res)
+{
+	u64 tx_bytes, tx_packets, overlimits, drops;
+	struct mlxsw_sp_port_xstats *xstats;
+	struct rtnl_link_stats64 *stats;
+
+	if (mlxsw_sp_qdisc->handle != handle ||
+	    mlxsw_sp_qdisc->type != MLXSW_SP_QDISC_RED)
+		return -EOPNOTSUPP;
+
+	xstats = &mlxsw_sp_port->periodic_hw_stats.xstats;
+	stats = &mlxsw_sp_port->periodic_hw_stats.stats;
+
+	tx_bytes = stats->tx_bytes - mlxsw_sp_qdisc->tx_bytes;
+	tx_packets = stats->tx_packets - mlxsw_sp_qdisc->tx_packets;
+	overlimits = xstats->wred_drop[tclass_num] + xstats->ecn -
+		     mlxsw_sp_qdisc->overlimits;
+	drops = xstats->wred_drop[tclass_num] + xstats->tail_drop[tclass_num] -
+		mlxsw_sp_qdisc->drops;
+
+	_bstats_update(res->bstats, tx_bytes, tx_packets);
+	res->qstats->overlimits += overlimits;
+	res->qstats->drops += drops;
+	res->qstats->backlog += mlxsw_sp_cells_bytes(mlxsw_sp_port->mlxsw_sp,
+						xstats->backlog[tclass_num]);
+
+	mlxsw_sp_qdisc->drops +=  drops;
+	mlxsw_sp_qdisc->overlimits += overlimits;
+	mlxsw_sp_qdisc->tx_bytes += tx_bytes;
+	mlxsw_sp_qdisc->tx_packets += tx_packets;
+	return 0;
+}
+
 #define MLXSW_SP_PORT_DEFAULT_TCLASS 0
 
 int mlxsw_sp_setup_tc_red(struct mlxsw_sp_port *mlxsw_sp_port,
@@ -219,6 +266,10 @@ int mlxsw_sp_setup_tc_red(struct mlxsw_sp_port *mlxsw_sp_port,
 		return mlxsw_sp_qdisc_get_red_xstats(mlxsw_sp_port, p->handle,
 						     mlxsw_sp_qdisc, tclass_num,
 						     p->xstats);
+	case TC_RED_STATS:
+		return mlxsw_sp_qdisc_get_red_stats(mlxsw_sp_port, p->handle,
+						    mlxsw_sp_qdisc, tclass_num,
+						    &p->stats);
 	default:
 		return -EOPNOTSUPP;
 	}
