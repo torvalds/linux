@@ -262,7 +262,7 @@ static int qmi_wwan_bind(struct usbnet *dev, struct usb_interface *intf)
 	}
 
 	/* errors aren't fatal - we can live with the dynamic address */
-	if (cdc_ether) {
+	if (cdc_ether && cdc_ether->wMaxSegmentSize) {
 		dev->hard_mtu = le16_to_cpu(cdc_ether->wMaxSegmentSize);
 		usbnet_get_ethernet_addr(dev, cdc_ether->iMACAddress);
 	}
