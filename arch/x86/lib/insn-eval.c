@@ -776,6 +776,182 @@ static int get_seg_base_limit(struct insn *insn, struct pt_regs *regs,
 	return 0;
 }
 
+/**
+ * get_eff_addr_reg() - Obtain effective address from register operand
+ * @insn:	Instruction. Must be valid.
+ * @regs:	Register values as seen when entering kernel mode
+ * @regoff:	Obtained operand offset, in pt_regs, with the effective address
+ * @eff_addr:	Obtained effective address
+ *
+ * Obtain the effective address stored in the register operand as indicated by
+ * the ModRM byte. This function is to be used only with register addressing
+ * (i.e.,  ModRM.mod is 3). The effective address is saved in @eff_addr. The
+ * register operand, as an offset from the base of pt_regs, is saved in @regoff;
+ * such offset can then be used to resolve the segment associated with the
+ * operand. This function can be used with any of the supported address sizes
+ * in x86.
+ *
+ * Returns:
+ *
+ * 0 on success. @eff_addr will have the effective address stored in the
+ * operand indicated by ModRM. @regoff will have such operand as an offset from
+ * the base of pt_regs.
+ *
+ * -EINVAL on error.
+ */
+static int get_eff_addr_reg(struct insn *insn, struct pt_regs *regs,
+			    int *regoff, long *eff_addr)
+{
+	insn_get_modrm(insn);
+
+	if (!insn->modrm.nbytes)
+		return -EINVAL;
+
+	if (X86_MODRM_MOD(insn->modrm.value) != 3)
+		return -EINVAL;
+
+	*regoff = get_reg_offset(insn, regs, REG_TYPE_RM);
+	if (*regoff < 0)
+		return -EINVAL;
+
+	*eff_addr = regs_get_register(regs, *regoff);
+
+	return 0;
+}
+
+/**
+ * get_eff_addr_modrm() - Obtain referenced effective address via ModRM
+ * @insn:	Instruction. Must be valid.
+ * @regs:	Register values as seen when entering kernel mode
+ * @regoff:	Obtained operand offset, in pt_regs, associated with segment
+ * @eff_addr:	Obtained effective address
+ *
+ * Obtain the effective address referenced by the ModRM byte of @insn. After
+ * identifying the registers involved in the register-indirect memory reference,
+ * its value is obtained from the operands in @regs. The computed address is
+ * stored @eff_addr. Also, the register operand that indicates the associated
+ * segment is stored in @regoff, this parameter can later be used to determine
+ * such segment.
+ *
+ * Returns:
+ *
+ * 0 on success. @eff_addr will have the referenced effective address. @regoff
+ * will have a register, as an offset from the base of pt_regs, that can be used
+ * to resolve the associated segment.
+ *
+ * -EINVAL on error.
+ */
+static int get_eff_addr_modrm(struct insn *insn, struct pt_regs *regs,
+			      int *regoff, long *eff_addr)
+{
+	long tmp;
+
+	if (insn->addr_bytes != 8)
+		return -EINVAL;
+
+	insn_get_modrm(insn);
+
+	if (!insn->modrm.nbytes)
+		return -EINVAL;
+
+	if (X86_MODRM_MOD(insn->modrm.value) > 2)
+		return -EINVAL;
+
+	*regoff = get_reg_offset(insn, regs, REG_TYPE_RM);
+
+	/*
+	 * -EDOM means that we must ignore the address_offset. In such a case,
+	 * in 64-bit mode the effective address relative to the rIP of the
+	 * following instruction.
+	 */
+	if (*regoff == -EDOM) {
+		if (user_64bit_mode(regs))
+			tmp = regs->ip + insn->length;
+		else
+			tmp = 0;
+	} else if (*regoff < 0) {
+		return -EINVAL;
+	} else {
+		tmp = regs_get_register(regs, *regoff);
+	}
+
+	*eff_addr = tmp + insn->displacement.value;
+
+	return 0;
+}
+
+/**
+ * get_eff_addr_sib() - Obtain referenced effective address via SIB
+ * @insn:	Instruction. Must be valid.
+ * @regs:	Register values as seen when entering kernel mode
+ * @regoff:	Obtained operand offset, in pt_regs, associated with segment
+ * @eff_addr:	Obtained effective address
+ *
+ * Obtain the effective address referenced by the SIB byte of @insn. After
+ * identifying the registers involved in the indexed, register-indirect memory
+ * reference, its value is obtained from the operands in @regs. The computed
+ * address is stored @eff_addr. Also, the register operand that indicates the
+ * associated segment is stored in @regoff, this parameter can later be used to
+ * determine such segment.
+ *
+ * Returns:
+ *
+ * 0 on success. @eff_addr will have the referenced effective address.
+ * @base_offset will have a register, as an offset from the base of pt_regs,
+ * that can be used to resolve the associated segment.
+ *
+ * -EINVAL on error.
+ */
+static int get_eff_addr_sib(struct insn *insn, struct pt_regs *regs,
+			    int *base_offset, long *eff_addr)
+{
+	long base, indx;
+	int indx_offset;
+
+	if (insn->addr_bytes != 8)
+		return -EINVAL;
+
+	insn_get_modrm(insn);
+
+	if (!insn->modrm.nbytes)
+		return -EINVAL;
+
+	if (X86_MODRM_MOD(insn->modrm.value) > 2)
+		return -EINVAL;
+
+	insn_get_sib(insn);
+
+	if (!insn->sib.nbytes)
+		return -EINVAL;
+
+	*base_offset = get_reg_offset(insn, regs, REG_TYPE_BASE);
+	indx_offset = get_reg_offset(insn, regs, REG_TYPE_INDEX);
+
+	/*
+	 * Negative values in the base and index offset means an error when
+	 * decoding the SIB byte. Except -EDOM, which means that the registers
+	 * should not be used in the address computation.
+	 */
+	if (*base_offset == -EDOM)
+		base = 0;
+	else if (*base_offset < 0)
+		return -EINVAL;
+	else
+		base = regs_get_register(regs, *base_offset);
+
+	if (indx_offset == -EDOM)
+		indx = 0;
+	else if (indx_offset < 0)
+		return -EINVAL;
+	else
+		indx = regs_get_register(regs, indx_offset);
+
+	*eff_addr = base + indx * (1 << X86_SIB_SCALE(insn->sib.value));
+
+	*eff_addr += insn->displacement.value;
+
+	return 0;
+}
 /*
  * return the address being referenced be instruction
  * for rm=3 returning the content of the rm reg
@@ -783,78 +959,29 @@ static int get_seg_base_limit(struct insn *insn, struct pt_regs *regs,
  */
 void __user *insn_get_addr_ref(struct insn *insn, struct pt_regs *regs)
 {
-	int addr_offset, base_offset, indx_offset, ret;
 	unsigned long linear_addr = -1L, seg_base;
-	long eff_addr, base, indx;
-	insn_byte_t sib;
-
-	insn_get_modrm(insn);
-	insn_get_sib(insn);
-	sib = insn->sib.value;
+	int regoff, ret;
+	long eff_addr;
 
 	if (X86_MODRM_MOD(insn->modrm.value) == 3) {
-		addr_offset = get_reg_offset(insn, regs, REG_TYPE_RM);
-		if (addr_offset < 0)
+		ret = get_eff_addr_reg(insn, regs, &regoff, &eff_addr);
+		if (ret)
 			goto out;
-
-		eff_addr = regs_get_register(regs, addr_offset);
 
 	} else {
 		if (insn->sib.nbytes) {
-			/*
-			 * Negative values in the base and index offset means
-			 * an error when decoding the SIB byte. Except -EDOM,
-			 * which means that the registers should not be used
-			 * in the address computation.
-			 */
-			base_offset = get_reg_offset(insn, regs, REG_TYPE_BASE);
-			if (base_offset == -EDOM)
-				base = 0;
-			else if (base_offset < 0)
+			ret = get_eff_addr_sib(insn, regs, &regoff, &eff_addr);
+			if (ret)
 				goto out;
-			else
-				base = regs_get_register(regs, base_offset);
-
-			indx_offset = get_reg_offset(insn, regs, REG_TYPE_INDEX);
-
-			if (indx_offset == -EDOM)
-				indx = 0;
-			else if (indx_offset < 0)
-				goto out;
-			else
-				indx = regs_get_register(regs, indx_offset);
-
-			eff_addr = base + indx * (1 << X86_SIB_SCALE(sib));
-
-			/*
-			 * The base determines the segment used to compute
-			 * the linear address.
-			 */
-			addr_offset = base_offset;
-
 		} else {
-			addr_offset = get_reg_offset(insn, regs, REG_TYPE_RM);
-			/*
-			 * -EDOM means that we must ignore the address_offset.
-			 * In such a case, in 64-bit mode the effective address
-			 * relative to the RIP of the following instruction.
-			 */
-			if (addr_offset == -EDOM) {
-				if (user_64bit_mode(regs))
-					eff_addr = (long)regs->ip + insn->length;
-				else
-					eff_addr = 0;
-			} else if (addr_offset < 0) {
+			ret = get_eff_addr_modrm(insn, regs, &regoff, &eff_addr);
+			if (ret)
 				goto out;
-			} else {
-				eff_addr = regs_get_register(regs, addr_offset);
-			}
 		}
 
-		eff_addr += insn->displacement.value;
 	}
 
-	ret = get_seg_base_limit(insn, regs, addr_offset, &seg_base, NULL);
+	ret = get_seg_base_limit(insn, regs, regoff, &seg_base, NULL);
 	if (ret)
 		goto out;
 
