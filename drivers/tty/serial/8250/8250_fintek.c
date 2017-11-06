@@ -212,6 +212,12 @@ static int fintek_8250_rs485_config(struct uart_port *port,
 	rs485->flags &= SER_RS485_ENABLED | SER_RS485_RTS_ON_SEND |
 			SER_RS485_RTS_AFTER_SEND;
 
+	/* Only the first port supports delays */
+	if (pdata->index) {
+		rs485->delay_rts_before_send = 0;
+		rs485->delay_rts_after_send = 0;
+	}
+
 	if (rs485->delay_rts_before_send) {
 		rs485->delay_rts_before_send = 1;
 		config |= TXW4C_IRA;
