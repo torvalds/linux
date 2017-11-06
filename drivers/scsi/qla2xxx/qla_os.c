@@ -388,7 +388,7 @@ static void qla_init_base_qpair(struct scsi_qla_host *vha, struct req_que *req,
 	INIT_LIST_HEAD(&ha->base_qpair->nvme_done_list);
 	ha->base_qpair->enable_class_2 = ql2xenableclass2;
 	/* init qpair to this cpu. Will adjust at run time. */
-	qla_cpu_update(rsp->qpair, smp_processor_id());
+	qla_cpu_update(rsp->qpair, raw_smp_processor_id());
 	ha->base_qpair->pdev = ha->pdev;
 
 	if (IS_QLA27XX(ha) || IS_QLA83XX(ha))
