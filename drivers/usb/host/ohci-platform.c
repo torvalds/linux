@@ -12,8 +12,6 @@
  * Copyright 2000-2002 David Brownell
  * Copyright 1999 Linus Torvalds
  * Copyright 1999 Gregory P. Smith
- *
- * Licensed under the GNU/GPL. See COPYING for details.
  */
 
 #include <linux/clk.h>
