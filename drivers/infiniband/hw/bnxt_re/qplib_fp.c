@@ -2118,6 +2118,7 @@ static int bnxt_qplib_cq_process_res_rc(struct bnxt_qplib_cq *cq,
 	*pcqe = cqe;
 
 	if (hwcqe->status != CQ_RES_RC_STATUS_OK) {
+		qp->state = CMDQ_MODIFY_QP_NEW_STATE_ERR;
 		 /* Add qp to flush list of the CQ */
 		bnxt_qplib_lock_buddy_cq(qp, cq);
 		__bnxt_qplib_add_flush_qp(qp);
@@ -2181,6 +2182,7 @@ static int bnxt_qplib_cq_process_res_ud(struct bnxt_qplib_cq *cq,
 	*pcqe = cqe;
 
 	if (hwcqe->status != CQ_RES_RC_STATUS_OK) {
+		qp->state = CMDQ_MODIFY_QP_NEW_STATE_ERR;
 		/* Add qp to flush list of the CQ */
 		bnxt_qplib_lock_buddy_cq(qp, cq);
 		__bnxt_qplib_add_flush_qp(qp);
@@ -2268,6 +2270,7 @@ static int bnxt_qplib_cq_process_res_raweth_qp1(struct bnxt_qplib_cq *cq,
 	*pcqe = cqe;
 
 	if (hwcqe->status != CQ_RES_RC_STATUS_OK) {
+		qp->state = CMDQ_MODIFY_QP_NEW_STATE_ERR;
 		/* Add qp to flush list of the CQ */
 		bnxt_qplib_lock_buddy_cq(qp, cq);
 		__bnxt_qplib_add_flush_qp(qp);
