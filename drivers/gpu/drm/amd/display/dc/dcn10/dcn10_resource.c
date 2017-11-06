@@ -725,10 +725,8 @@ static void destruct(struct dcn10_resource_pool *pool)
 		}
 	}
 
-	for (i = 0; i < pool->base.stream_enc_count; i++) {
-		if (pool->base.stream_enc[i] != NULL)
-		kfree(DCE110STRENC_FROM_STRENC(pool->base.stream_enc[i]));
-	}
+	for (i = 0; i < pool->base.stream_enc_count; i++)
+		kfree(pool->base.stream_enc[i]);
 
 	for (i = 0; i < pool->base.audio_count; i++) {
 		if (pool->base.audios[i])
