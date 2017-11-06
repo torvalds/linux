@@ -30,15 +30,23 @@
 #include <linux/swap.h>
 #include <linux/highmem.h>
 #include <linux/vmalloc.h>
+#include <linux/version.h>
 #include <sys/types.h>
 #include <asm/uaccess.h>
 
 #define	membar_producer()		smp_wmb()
 #define	physmem				totalram_pages
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4,14,0)
 #define	freemem			(nr_free_pages() + \
 				global_page_state(NR_INACTIVE_FILE) + \
 				global_page_state(NR_INACTIVE_ANON) + \
 				global_page_state(NR_SLAB_RECLAIMABLE))
+#else
+#define	freemem			(nr_free_pages() + \
+				global_zone_page_state(NR_INACTIVE_FILE) + \
+				global_zone_page_state(NR_INACTIVE_ANON) + \
+				global_zone_page_state(NR_SLAB_RECLAIMABLE))
+#endif
 
 #define	xcopyin(from, to, size)		copy_from_user(to, from, size)
 #define	xcopyout(from, to, size)	copy_to_user(to, from, size)

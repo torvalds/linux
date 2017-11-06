@@ -52,6 +52,7 @@
 #include <sys/spa_impl.h>
 #include <sys/zvol.h>
 #include <linux/blkdev_compat.h>
+#include <linux/version.h>
 
 unsigned int zvol_inhibit_dev = 0;
 unsigned int zvol_major = ZVOL_MAJOR;
@@ -614,7 +615,11 @@ zvol_log_write(zvol_state_t *zv, dmu_tx_t *tx, uint64_t offset,
 static int
 zvol_write(struct bio *bio)
 {
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4,14,0)
 	zvol_state_t *zv = bio->bi_bdev->bd_disk->private_data;
+#else
+	zvol_state_t *zv = bio->bi_disk->private_data;
+#endif
 	uint64_t offset = BIO_BI_SECTOR(bio) << 9;
 	uint64_t size = BIO_BI_SIZE(bio);
 	int error = 0;
@@ -664,7 +669,11 @@ out:
 static int
 zvol_discard(struct bio *bio)
 {
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4,14,0)
 	zvol_state_t *zv = bio->bi_bdev->bd_disk->private_data;
+#else
+	zvol_state_t *zv = bio->bi_disk->private_data;
+#endif
 	uint64_t start = BIO_BI_SECTOR(bio) << 9;
 	uint64_t size = BIO_BI_SIZE(bio);
 	uint64_t end = start + size;
@@ -706,7 +715,11 @@ zvol_discard(struct bio *bio)
 static int
 zvol_read(struct bio *bio)
 {
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4,14,0)
 	zvol_state_t *zv = bio->bi_bdev->bd_disk->private_data;
+#else
+	zvol_state_t *zv = bio->bi_disk->private_data;
+#endif
 	uint64_t offset = BIO_BI_SECTOR(bio) << 9;
 	uint64_t len = BIO_BI_SIZE(bio);
 	int error;

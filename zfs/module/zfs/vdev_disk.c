@@ -574,7 +574,11 @@ retry:
 		/* Matching put called by vdev_disk_physio_completion */
 		vdev_disk_dio_get(dr);
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4,14,0)
 		dr->dr_bio[i]->bi_bdev = bdev;
+#else
+		bio_set_dev(dr->dr_bio[i], bdev);
+#endif
 		BIO_BI_SECTOR(dr->dr_bio[i]) = bio_offset >> 9;
 		dr->dr_bio[i]->bi_end_io = vdev_disk_physio_completion;
 		dr->dr_bio[i]->bi_private = dr;
@@ -650,7 +654,11 @@ vdev_disk_io_flush(struct block_device *bdev, zio_t *zio)
 
 	bio->bi_end_io = vdev_disk_io_flush_completion;
 	bio->bi_private = zio;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4,14,0)
 	bio->bi_bdev = bdev;
+#else
+	bio_set_dev(bio, bdev);
+#endif
 	zio->io_delay = jiffies_64;
 	bio_set_flush(bio);
 	vdev_submit_bio(bio);
