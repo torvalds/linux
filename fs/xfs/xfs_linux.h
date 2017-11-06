@@ -250,10 +250,6 @@ static inline uint64_t howmany_64(uint64_t x, uint32_t y)
 #define ASSERT(expr)	\
 	(likely(expr) ? (void)0 : assfail(#expr, __FILE__, __LINE__))
 
-#ifndef STATIC
-# define STATIC noinline
-#endif
-
 #else	/* !DEBUG */
 
 #ifdef XFS_WARN
@@ -261,20 +257,14 @@ static inline uint64_t howmany_64(uint64_t x, uint32_t y)
 #define ASSERT(expr)	\
 	(likely(expr) ? (void)0 : asswarn(#expr, __FILE__, __LINE__))
 
-#ifndef STATIC
-# define STATIC static noinline
-#endif
-
 #else	/* !DEBUG && !XFS_WARN */
 
 #define ASSERT(expr)	((void)0)
 
-#ifndef STATIC
-# define STATIC static noinline
-#endif
-
 #endif /* XFS_WARN */
 #endif /* DEBUG */
+
+#define STATIC static noinline
 
 #ifdef CONFIG_XFS_RT
 
