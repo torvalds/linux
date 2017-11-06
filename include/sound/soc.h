@@ -1540,6 +1540,18 @@ static inline int snd_soc_cache_sync(struct snd_soc_codec *codec)
 	return regcache_sync(codec->component.regmap);
 }
 
+/**
+ * snd_soc_component_cache_sync() - Sync the register cache with the hardware
+ * @component: COMPONENT to sync
+ *
+ * Note: This function will call regcache_sync()
+ */
+static inline int snd_soc_component_cache_sync(
+	struct snd_soc_component *component)
+{
+	return regcache_sync(component->regmap);
+}
+
 /* component IO */
 int snd_soc_component_read(struct snd_soc_component *component,
 	unsigned int reg, unsigned int *val);
