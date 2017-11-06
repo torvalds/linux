@@ -94,14 +94,6 @@ static void dsa_tree_put(struct dsa_switch_tree *dst)
 	kref_put(&dst->refcount, dsa_tree_release);
 }
 
-/* For platform data configurations, we need to have a valid name argument to
- * differentiate a disabled port from an enabled one
- */
-static bool dsa_port_is_valid(struct dsa_port *port)
-{
-	return port->type != DSA_PORT_TYPE_UNUSED;
-}
-
 static bool dsa_port_is_dsa(struct dsa_port *port)
 {
 	return port->type == DSA_PORT_TYPE_DSA;
@@ -140,14 +132,12 @@ static struct dsa_port *dsa_tree_find_port_by_node(struct dsa_switch_tree *dst,
 	return NULL;
 }
 
-static int dsa_port_complete(struct dsa_switch_tree *dst,
-			     struct dsa_switch *src_ds,
-			     struct dsa_port *port,
-			     u32 src_port)
+static bool dsa_port_setup_routing_table(struct dsa_port *dp)
 {
-	struct device_node *dn = port->dn;
+	struct dsa_switch *ds = dp->ds;
+	struct dsa_switch_tree *dst = ds->dst;
+	struct device_node *dn = dp->dn;
 	struct of_phandle_iterator it;
-	struct dsa_switch *dst_ds;
 	struct dsa_port *link_dp;
 	int err;
 
@@ -155,66 +145,54 @@ static int dsa_port_complete(struct dsa_switch_tree *dst,
 		link_dp = dsa_tree_find_port_by_node(dst, it.node);
 		if (!link_dp) {
 			of_node_put(it.node);
-			return 1;
+			return false;
 		}
 
-		dst_ds = link_dp->ds;
-
-		src_ds->rtable[dst_ds->index] = src_port;
+		ds->rtable[link_dp->ds->index] = dp->index;
 	}
 
-	return 0;
+	return true;
 }
 
-/* A switch is complete if all the DSA ports phandles point to ports
- * known in the tree. A return value of 1 means the tree is not
- * complete. This is not an error condition. A value of 0 is
- * success.
- */
-static int dsa_ds_complete(struct dsa_switch_tree *dst, struct dsa_switch *ds)
+static bool dsa_switch_setup_routing_table(struct dsa_switch *ds)
 {
-	struct dsa_port *port;
-	u32 index;
-	int err;
+	bool complete = true;
+	struct dsa_port *dp;
+	int i;
 
-	for (index = 0; index < ds->num_ports; index++) {
-		port = &ds->ports[index];
-		if (!dsa_port_is_valid(port))
-			continue;
+	for (i = 0; i < DSA_MAX_SWITCHES; i++)
+		ds->rtable[i] = DSA_RTABLE_NONE;
 
-		if (!dsa_port_is_dsa(port))
-			continue;
+	for (i = 0; i < ds->num_ports; i++) {
+		dp = &ds->ports[i];
 
-		err = dsa_port_complete(dst, ds, port, index);
-		if (err != 0)
-			return err;
+		if (dsa_port_is_dsa(dp)) {
+			complete = dsa_port_setup_routing_table(dp);
+			if (!complete)
+				break;
+		}
 	}
 
-	return 0;
+	return complete;
 }
 
-/* A tree is complete if all the DSA ports phandles point to ports
- * known in the tree. A return value of 1 means the tree is not
- * complete. This is not an error condition. A value of 0 is
- * success.
- */
-static int dsa_dst_complete(struct dsa_switch_tree *dst)
+static bool dsa_tree_setup_routing_table(struct dsa_switch_tree *dst)
 {
 	struct dsa_switch *ds;
-	u32 index;
-	int err;
+	bool complete = true;
+	int device;
 
-	for (index = 0; index < DSA_MAX_SWITCHES; index++) {
-		ds = dst->ds[index];
+	for (device = 0; device < DSA_MAX_SWITCHES; device++) {
+		ds = dst->ds[device];
 		if (!ds)
 			continue;
 
-		err = dsa_ds_complete(dst, ds);
-		if (err != 0)
-			return err;
+		complete = dsa_switch_setup_routing_table(ds);
+		if (!complete)
+			break;
 	}
 
-	return 0;
+	return complete;
 }
 
 static struct dsa_port *dsa_tree_find_first_cpu(struct dsa_switch_tree *dst)
@@ -460,6 +438,7 @@ static void dsa_tree_teardown_master(struct dsa_switch_tree *dst)
 
 static int dsa_tree_setup(struct dsa_switch_tree *dst)
 {
+	bool complete;
 	int err;
 
 	if (dst->setup) {
@@ -467,6 +446,10 @@ static int dsa_tree_setup(struct dsa_switch_tree *dst)
 		       dst->index);
 		return -EEXIST;
 	}
+
+	complete = dsa_tree_setup_routing_table(dst);
+	if (!complete)
+		return 0;
 
 	err = dsa_tree_setup_default_cpu(dst);
 	if (err)
@@ -727,7 +710,7 @@ static int _dsa_register_switch(struct dsa_switch *ds)
 	struct device_node *np = ds->dev->of_node;
 	struct dsa_switch_tree *dst;
 	unsigned int index;
-	int i, err;
+	int err;
 
 	if (np)
 		err = dsa_switch_parse_of(ds, np);
@@ -742,32 +725,15 @@ static int _dsa_register_switch(struct dsa_switch *ds)
 	index = ds->index;
 	dst = ds->dst;
 
-	/* Initialize the routing table */
-	for (i = 0; i < DSA_MAX_SWITCHES; ++i)
-		ds->rtable[i] = DSA_RTABLE_NONE;
-
 	err = dsa_tree_add_switch(dst, ds);
 	if (err)
 		return err;
 
-	err = dsa_dst_complete(dst);
-	if (err < 0)
-		goto out_del_dst;
-
-	/* Not all switches registered yet */
-	if (err == 1)
-		return 0;
-
 	err = dsa_tree_setup(dst);
 	if (err) {
 		dsa_tree_teardown(dst);
-		goto out_del_dst;
+		dsa_tree_remove_switch(dst, index);
 	}
-
-	return 0;
-
-out_del_dst:
-	dsa_tree_remove_switch(dst, index);
 
 	return err;
 }
