@@ -3215,14 +3215,7 @@ static void nfs4_close_done(struct rpc_task *task, void *data)
 					task->tk_msg.rpc_cred);
 			/* Fallthrough */
 		case -NFS4ERR_BAD_STATEID:
-			if (!nfs4_stateid_match(&calldata->arg.stateid,
-						&state->open_stateid)) {
-				rpc_restart_call_prepare(task);
-				goto out_release;
-			}
-			if (calldata->arg.fmode == 0)
-				break;
-			/* Fallthrough */
+			break;
 		default:
 			if (nfs4_async_handle_error(task, server, state, NULL) == -EAGAIN) {
 				rpc_restart_call_prepare(task);
@@ -3254,7 +3247,6 @@ static void nfs4_close_prepare(struct rpc_task *task, void *data)
 	is_rdwr = test_bit(NFS_O_RDWR_STATE, &state->flags);
 	is_rdonly = test_bit(NFS_O_RDONLY_STATE, &state->flags);
 	is_wronly = test_bit(NFS_O_WRONLY_STATE, &state->flags);
-	nfs4_stateid_copy(&calldata->arg.stateid, &state->open_stateid);
 	/* Calculate the change in open mode */
 	calldata->arg.fmode = 0;
 	if (state->n_rdwr == 0) {
@@ -3272,7 +3264,7 @@ static void nfs4_close_prepare(struct rpc_task *task, void *data)
 		calldata->arg.fmode |= FMODE_READ|FMODE_WRITE;
 
 	if (!nfs4_valid_open_stateid(state) ||
-	    test_bit(NFS_OPEN_STATE, &state->flags) == 0)
+	    !nfs4_refresh_open_stateid(&calldata->arg.stateid, state))
 		call_close = 0;
 	spin_unlock(&state->owner->so_lock);
 
@@ -3366,6 +3358,8 @@ int nfs4_do_close(struct nfs4_state *state, gfp_t gfp_mask, int wait)
 	calldata->inode = state->inode;
 	calldata->state = state;
 	calldata->arg.fh = NFS_FH(state->inode);
+	if (!nfs4_copy_open_stateid(&calldata->arg.stateid, state))
+		goto out_free_calldata;
 	/* Serialization for the sequence id */
 	alloc_seqid = server->nfs_client->cl_mvops->alloc_seqid;
 	calldata->arg.seqid = alloc_seqid(&state->owner->so_seqid, gfp_mask);
