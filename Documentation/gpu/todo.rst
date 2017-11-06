@@ -404,11 +404,6 @@ those drivers as simple as possible, so lots of room for refactoring:
   a drm_device wrong. Doesn't matter, since everyone else gets it wrong
   too :-)
 
-- With the fbdev pointer in dev->mode_config we could also make
-  suspend/resume helpers entirely generic, at least if we add a
-  dev->mode_config.suspend_state. We could even provide a generic pm_ops
-  structure with those.
-
 - also rework the drm_framebuffer_funcs->dirty hook wire-up, see above.
 
 Contact: Noralf Trønnes, Daniel Vetter
