@@ -355,6 +355,24 @@ pnfs_clear_lseg_state(struct pnfs_layout_segment *lseg,
 }
 
 /*
+ * Update the seqid of a layout stateid
+ */
+bool nfs4_refresh_layout_stateid(nfs4_stateid *dst, struct inode *inode)
+{
+	struct pnfs_layout_hdr *lo;
+	bool ret = false;
+
+	spin_lock(&inode->i_lock);
+	lo = NFS_I(inode)->layout;
+	if (lo && nfs4_stateid_match_other(dst, &lo->plh_stateid)) {
+		dst->seqid = lo->plh_stateid.seqid;
+		ret = true;
+	}
+	spin_unlock(&inode->i_lock);
+	return ret;
+}
+
+/*
  * Mark a pnfs_layout_hdr and all associated layout segments as invalid
  *
  * In order to continue using the pnfs_layout_hdr, a full recovery

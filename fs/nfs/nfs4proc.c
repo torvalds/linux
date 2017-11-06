@@ -3166,11 +3166,18 @@ static void nfs4_close_done(struct rpc_task *task, void *data)
 			calldata->arg.lr_args = NULL;
 			calldata->res.lr_res = NULL;
 			break;
+		case -NFS4ERR_OLD_STATEID:
+			if (nfs4_refresh_layout_stateid(&calldata->arg.lr_args->stateid,
+						calldata->inode)) {
+				calldata->res.lr_ret = 0;
+				rpc_restart_call_prepare(task);
+				return;
+			}
+			/* Fallthrough */
 		case -NFS4ERR_ADMIN_REVOKED:
 		case -NFS4ERR_DELEG_REVOKED:
 		case -NFS4ERR_EXPIRED:
 		case -NFS4ERR_BAD_STATEID:
-		case -NFS4ERR_OLD_STATEID:
 		case -NFS4ERR_UNKNOWN_LAYOUTTYPE:
 		case -NFS4ERR_WRONG_CRED:
 			calldata->arg.lr_args = NULL;
@@ -5771,11 +5778,18 @@ static void nfs4_delegreturn_done(struct rpc_task *task, void *calldata)
 			data->args.lr_args = NULL;
 			data->res.lr_res = NULL;
 			break;
+		case -NFS4ERR_OLD_STATEID:
+			if (nfs4_refresh_layout_stateid(&data->args.lr_args->stateid,
+						data->inode)) {
+				data->res.lr_ret = 0;
+				rpc_restart_call_prepare(task);
+				return;
+			}
+			/* Fallthrough */
 		case -NFS4ERR_ADMIN_REVOKED:
 		case -NFS4ERR_DELEG_REVOKED:
 		case -NFS4ERR_EXPIRED:
 		case -NFS4ERR_BAD_STATEID:
-		case -NFS4ERR_OLD_STATEID:
 		case -NFS4ERR_UNKNOWN_LAYOUTTYPE:
 		case -NFS4ERR_WRONG_CRED:
 			data->args.lr_args = NULL;
