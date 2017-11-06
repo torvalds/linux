@@ -14,7 +14,6 @@
 struct tcf_idrinfo {
 	spinlock_t	lock;
 	struct idr	action_idr;
-	struct net	*net;
 };
 
 struct tc_action_ops;
@@ -106,7 +105,7 @@ struct tc_action_net {
 
 static inline
 int tc_action_net_init(struct tc_action_net *tn,
-		       const struct tc_action_ops *ops, struct net *net)
+		       const struct tc_action_ops *ops)
 {
 	int err = 0;
 
@@ -114,7 +113,6 @@ int tc_action_net_init(struct tc_action_net *tn,
 	if (!tn->idrinfo)
 		return -ENOMEM;
 	tn->ops = ops;
-	tn->idrinfo->net = net;
 	spin_lock_init(&tn->idrinfo->lock);
 	idr_init(&tn->idrinfo->action_idr);
 	return err;
