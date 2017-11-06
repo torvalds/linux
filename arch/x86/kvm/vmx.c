@@ -70,6 +70,9 @@ MODULE_DEVICE_TABLE(x86cpu, vmx_cpu_id);
 static bool __read_mostly enable_vpid = 1;
 module_param_named(vpid, enable_vpid, bool, 0444);
 
+static bool __read_mostly enable_vnmi = 1;
+module_param_named(vnmi, enable_vnmi, bool, S_IRUGO);
+
 static bool __read_mostly flexpriority_enabled = 1;
 module_param_named(flexpriority, flexpriority_enabled, bool, S_IRUGO);
 
@@ -5236,6 +5239,10 @@ static u32 vmx_pin_based_exec_ctrl(struct vcpu_vmx *vmx)
 
 	if (!kvm_vcpu_apicv_active(&vmx->vcpu))
 		pin_based_exec_ctrl &= ~PIN_BASED_POSTED_INTR;
+
+	if (!enable_vnmi)
+		pin_based_exec_ctrl &= ~PIN_BASED_VIRTUAL_NMIS;
+
 	/* Enable the preemption timer dynamically */
 	pin_based_exec_ctrl &= ~PIN_BASED_VMX_PREEMPTION_TIMER;
 	return pin_based_exec_ctrl;
@@ -5670,7 +5677,7 @@ static void enable_irq_window(struct kvm_vcpu *vcpu)
 
 static void enable_nmi_window(struct kvm_vcpu *vcpu)
 {
-	if (!cpu_has_virtual_nmis() ||
+	if (!enable_vnmi ||
 	    vmcs_read32(GUEST_INTERRUPTIBILITY_INFO) & GUEST_INTR_STATE_STI) {
 		enable_irq_window(vcpu);
 		return;
@@ -5711,7 +5718,7 @@ static void vmx_inject_nmi(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 
-	if (!cpu_has_virtual_nmis()) {
+	if (!enable_vnmi) {
 		/*
 		 * Tracking the NMI-blocked state in software is built upon
 		 * finding the next open IRQ window. This, in turn, depends on
@@ -5742,7 +5749,7 @@ static bool vmx_get_nmi_mask(struct kvm_vcpu *vcpu)
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	bool masked;
 
-	if (!cpu_has_virtual_nmis())
+	if (!enable_vnmi)
 		return vmx->loaded_vmcs->soft_vnmi_blocked;
 	if (vmx->loaded_vmcs->nmi_known_unmasked)
 		return false;
@@ -5755,7 +5762,7 @@ static void vmx_set_nmi_mask(struct kvm_vcpu *vcpu, bool masked)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 
-	if (!cpu_has_virtual_nmis()) {
+	if (!enable_vnmi) {
 		if (vmx->loaded_vmcs->soft_vnmi_blocked != masked) {
 			vmx->loaded_vmcs->soft_vnmi_blocked = masked;
 			vmx->loaded_vmcs->vnmi_blocked_time = 0;
@@ -5776,7 +5783,7 @@ static int vmx_nmi_allowed(struct kvm_vcpu *vcpu)
 	if (to_vmx(vcpu)->nested.nested_run_pending)
 		return 0;
 
-	if (!cpu_has_virtual_nmis() &&
+	if (!enable_vnmi &&
 	    to_vmx(vcpu)->loaded_vmcs->soft_vnmi_blocked)
 		return 0;
 
@@ -6507,7 +6514,7 @@ static int handle_ept_violation(struct kvm_vcpu *vcpu)
 	 * AAK134, BY25.
 	 */
 	if (!(to_vmx(vcpu)->idt_vectoring_info & VECTORING_INFO_VALID_MASK) &&
-			cpu_has_virtual_nmis() &&
+			enable_vnmi &&
 			(exit_qualification & INTR_INFO_UNBLOCK_NMI))
 		vmcs_set_bits(GUEST_INTERRUPTIBILITY_INFO, GUEST_INTR_STATE_NMI);
 
@@ -6567,6 +6574,7 @@ static int handle_ept_misconfig(struct kvm_vcpu *vcpu)
 
 static int handle_nmi_window(struct kvm_vcpu *vcpu)
 {
+	WARN_ON_ONCE(!enable_vnmi);
 	vmcs_clear_bits(CPU_BASED_VM_EXEC_CONTROL,
 			CPU_BASED_VIRTUAL_NMI_PENDING);
 	++vcpu->stat.nmi_window_exits;
@@ -6789,6 +6797,9 @@ static __init int hardware_setup(void)
 
 	if (!cpu_has_vmx_flexpriority())
 		flexpriority_enabled = 0;
+
+	if (!cpu_has_virtual_nmis())
+		enable_vnmi = 0;
 
 	/*
 	 * set_apic_access_page_addr() is used to reload apic access
@@ -8011,7 +8022,7 @@ static int handle_pml_full(struct kvm_vcpu *vcpu)
 	 * "blocked by NMI" bit has to be set before next VM entry.
 	 */
 	if (!(to_vmx(vcpu)->idt_vectoring_info & VECTORING_INFO_VALID_MASK) &&
-			cpu_has_virtual_nmis() &&
+			enable_vnmi &&
 			(exit_qualification & INTR_INFO_UNBLOCK_NMI))
 		vmcs_set_bits(GUEST_INTERRUPTIBILITY_INFO,
 				GUEST_INTR_STATE_NMI);
@@ -8856,7 +8867,7 @@ static int vmx_handle_exit(struct kvm_vcpu *vcpu)
 		return 0;
 	}
 
-	if (unlikely(!cpu_has_virtual_nmis() &&
+	if (unlikely(!enable_vnmi &&
 		     vmx->loaded_vmcs->soft_vnmi_blocked)) {
 		if (vmx_interrupt_allowed(vcpu)) {
 			vmx->loaded_vmcs->soft_vnmi_blocked = 0;
@@ -9157,7 +9168,7 @@ static void vmx_recover_nmi_blocking(struct vcpu_vmx *vmx)
 
 	idtv_info_valid = vmx->idt_vectoring_info & VECTORING_INFO_VALID_MASK;
 
-	if (cpu_has_virtual_nmis()) {
+	if (enable_vnmi) {
 		if (vmx->loaded_vmcs->nmi_known_unmasked)
 			return;
 		/*
@@ -9306,7 +9317,7 @@ static void __noclone vmx_vcpu_run(struct kvm_vcpu *vcpu)
 	unsigned long debugctlmsr, cr3, cr4;
 
 	/* Record the guest's net vcpu time for enforced NMI injections. */
-	if (unlikely(!cpu_has_virtual_nmis() &&
+	if (unlikely(!enable_vnmi &&
 		     vmx->loaded_vmcs->soft_vnmi_blocked))
 		vmx->loaded_vmcs->entry_time = ktime_get();
 
