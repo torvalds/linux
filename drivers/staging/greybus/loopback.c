@@ -59,11 +59,6 @@ struct gb_loopback_async_operation {
 	struct gb_loopback *gb;
 	struct gb_operation *operation;
 	ktime_t ts;
-	struct timer_list timer;
-	struct list_head entry;
-	struct work_struct work;
-	struct kref kref;
-	bool pending;
 	int (*completion)(struct gb_loopback_async_operation *op_async);
 };
 
@@ -427,56 +422,6 @@ out_put_operation:
 	return ret;
 }
 
-static void __gb_loopback_async_operation_destroy(struct kref *kref)
-{
-	struct gb_loopback_async_operation *op_async;
-
-	op_async = container_of(kref, struct gb_loopback_async_operation, kref);
-
-	list_del(&op_async->entry);
-	if (op_async->operation)
-		gb_operation_put(op_async->operation);
-	atomic_dec(&op_async->gb->outstanding_operations);
-	wake_up(&op_async->gb->wq_completion);
-	kfree(op_async);
-}
-
-static void gb_loopback_async_operation_get(struct gb_loopback_async_operation
-					    *op_async)
-{
-	kref_get(&op_async->kref);
-}
-
-static void gb_loopback_async_operation_put(struct gb_loopback_async_operation
-					    *op_async)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&gb_dev.lock, flags);
-	kref_put(&op_async->kref, __gb_loopback_async_operation_destroy);
-	spin_unlock_irqrestore(&gb_dev.lock, flags);
-}
-
-static struct gb_loopback_async_operation *
-	gb_loopback_operation_find(u16 id)
-{
-	struct gb_loopback_async_operation *op_async;
-	bool found = false;
-	unsigned long flags;
-
-	spin_lock_irqsave(&gb_dev.lock, flags);
-	list_for_each_entry(op_async, &gb_dev.list_op_async, entry) {
-		if (op_async->operation->id == id) {
-			gb_loopback_async_operation_get(op_async);
-			found = true;
-			break;
-		}
-	}
-	spin_unlock_irqrestore(&gb_dev.lock, flags);
-
-	return found ? op_async : NULL;
-}
-
 static void gb_loopback_async_wait_all(struct gb_loopback *gb)
 {
 	wait_event(gb->wq_completion,
@@ -488,83 +433,41 @@ static void gb_loopback_async_operation_callback(struct gb_operation *operation)
 	struct gb_loopback_async_operation *op_async;
 	struct gb_loopback *gb;
 	ktime_t te;
-	bool err = false;
+	int result;
 
 	te = ktime_get();
-	op_async = gb_loopback_operation_find(operation->id);
-	if (!op_async)
-		return;
-
+	result = gb_operation_result(operation);
+	op_async = gb_operation_get_data(operation);
 	gb = op_async->gb;
+
 	mutex_lock(&gb->mutex);
 
-	if (!op_async->pending || gb_operation_result(operation)) {
-		err = true;
-	} else {
-		if (op_async->completion)
-			if (op_async->completion(op_async))
-				err = true;
-	}
+	if (!result && op_async->completion)
+		result = op_async->completion(op_async);
 
-	if (!err)
+	if (!result) {
 		gb->elapsed_nsecs = gb_loopback_calc_latency(op_async->ts, te);
-
-	if (op_async->pending) {
-		if (err)
-			gb->error++;
-		gb->iteration_count++;
-		op_async->pending = false;
-		del_timer_sync(&op_async->timer);
-		gb_loopback_async_operation_put(op_async);
-		gb_loopback_calculate_stats(gb, err);
+	} else {
+		gb->error++;
+		if (result == -ETIMEDOUT)
+			gb->requests_timedout++;
 	}
+
+	gb->iteration_count++;
+	gb_loopback_calculate_stats(gb, result);
+
 	mutex_unlock(&gb->mutex);
 
 	dev_dbg(&gb->connection->bundle->dev, "complete operation %d\n",
 		operation->id);
 
-	gb_loopback_async_operation_put(op_async);
-}
+	/* Wake up waiters */
+	atomic_dec(&op_async->gb->outstanding_operations);
+	wake_up(&gb->wq_completion);
 
-static void gb_loopback_async_operation_work(struct work_struct *work)
-{
-	struct gb_loopback *gb;
-	struct gb_operation *operation;
-	struct gb_loopback_async_operation *op_async;
-
-	op_async = container_of(work, struct gb_loopback_async_operation, work);
-	gb = op_async->gb;
-	operation = op_async->operation;
-
-	mutex_lock(&gb->mutex);
-	if (op_async->pending) {
-		gb->requests_timedout++;
-		gb->error++;
-		gb->iteration_count++;
-		op_async->pending = false;
-		gb_loopback_async_operation_put(op_async);
-		gb_loopback_calculate_stats(gb, true);
-	}
-	mutex_unlock(&gb->mutex);
-
-	dev_dbg(&gb->connection->bundle->dev, "timeout operation %d\n",
-		operation->id);
-
-	gb_operation_cancel(operation, -ETIMEDOUT);
-	gb_loopback_async_operation_put(op_async);
-}
-
-static void gb_loopback_async_operation_timeout(unsigned long data)
-{
-	struct gb_loopback_async_operation *op_async;
-	u16 id = data;
-
-	op_async = gb_loopback_operation_find(id);
-	if (!op_async) {
-		pr_err("operation %d not found - time out ?\n", id);
-		return;
-	}
-	schedule_work(&op_async->work);
+	/* Release resources */
+	gb_operation_put(operation);
+	kfree(op_async);
 }
 
 static int gb_loopback_async_operation(struct gb_loopback *gb, int type,
@@ -575,14 +478,10 @@ static int gb_loopback_async_operation(struct gb_loopback *gb, int type,
 	struct gb_loopback_async_operation *op_async;
 	struct gb_operation *operation;
 	int ret;
-	unsigned long flags;
 
 	op_async = kzalloc(sizeof(*op_async), GFP_KERNEL);
 	if (!op_async)
 		return -ENOMEM;
-
-	INIT_WORK(&op_async->work, gb_loopback_async_operation_work);
-	kref_init(&op_async->kref);
 
 	operation = gb_operation_create(gb->connection, type, request_size,
 					response_size, GFP_KERNEL);
@@ -594,33 +493,24 @@ static int gb_loopback_async_operation(struct gb_loopback *gb, int type,
 	if (request_size)
 		memcpy(operation->request->payload, request, request_size);
 
+	gb_operation_set_data(operation, op_async);
+
 	op_async->gb = gb;
 	op_async->operation = operation;
 	op_async->completion = completion;
 
-	spin_lock_irqsave(&gb_dev.lock, flags);
-	list_add_tail(&op_async->entry, &gb_dev.list_op_async);
-	spin_unlock_irqrestore(&gb_dev.lock, flags);
-
 	op_async->ts = ktime_get();
-	op_async->pending = true;
+
 	atomic_inc(&gb->outstanding_operations);
 	ret = gb_operation_request_send(operation,
 					gb_loopback_async_operation_callback,
-					0,
+					jiffies_to_msecs(gb->jiffy_timeout),
 					GFP_KERNEL);
-	if (ret)
-		goto error;
-
-	setup_timer(&op_async->timer, gb_loopback_async_operation_timeout,
-			(unsigned long)operation->id);
-	op_async->timer.expires = jiffies + gb->jiffy_timeout;
-	add_timer(&op_async->timer);
-
-	goto done;
-error:
-	gb_loopback_async_operation_put(op_async);
-done:
+	if (ret) {
+		atomic_dec(&gb->outstanding_operations);
+		gb_operation_put(operation);
+		kfree(op_async);
+	}
 	return ret;
 }
 
