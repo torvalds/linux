@@ -512,7 +512,7 @@ struct clkdm_ops am43xx_clkdm_operations = {
 	.clkdm_xlate_address	= omap4_clkdm_xlate_address,
 };
 
-static struct cm_ll_data omap4xxx_cm_ll_data = {
+static const struct cm_ll_data omap4xxx_cm_ll_data = {
 	.wait_module_ready	= &omap4_cminst_wait_module_ready,
 	.wait_module_idle	= &omap4_cminst_wait_module_idle,
 	.module_enable		= &omap4_cminst_module_enable,
