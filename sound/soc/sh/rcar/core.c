@@ -1496,6 +1496,8 @@ static int rsnd_remove(struct platform_device *pdev)
 	};
 	int ret = 0, i;
 
+	snd_soc_disconnect_sync(&pdev->dev);
+
 	pm_runtime_disable(&pdev->dev);
 
 	for_each_rsnd_dai(rdai, priv, i) {
