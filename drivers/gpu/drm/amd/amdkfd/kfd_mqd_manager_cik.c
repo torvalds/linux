@@ -154,7 +154,7 @@ static int load_mqd(struct mqd_manager *mm, void *mqd, uint32_t pipe_id,
 {
 	/* AQL write pointer counts in 64B packets, PM4/CP counts in dwords. */
 	uint32_t wptr_shift = (p->format == KFD_QUEUE_FORMAT_AQL ? 4 : 0);
-	uint32_t wptr_mask = (uint32_t)((p->queue_size / sizeof(uint32_t)) - 1);
+	uint32_t wptr_mask = (uint32_t)((p->queue_size / 4) - 1);
 
 	return mm->dev->kfd2kgd->hqd_load(mm->dev->kgd, mqd, pipe_id, queue_id,
 					  (uint32_t __user *)p->write_ptr,
@@ -183,8 +183,7 @@ static int update_mqd(struct mqd_manager *mm, void *mqd,
 	 * Calculating queue size which is log base 2 of actual queue size -1
 	 * dwords and another -1 for ffs
 	 */
-	m->cp_hqd_pq_control |= ffs(q->queue_size / sizeof(unsigned int))
-								- 1 - 1;
+	m->cp_hqd_pq_control |= ffs(q->queue_size / 4) - 1 - 1;
 	m->cp_hqd_pq_base_lo = lower_32_bits((uint64_t)q->queue_address >> 8);
 	m->cp_hqd_pq_base_hi = upper_32_bits((uint64_t)q->queue_address >> 8);
 	m->cp_hqd_pq_rptr_report_addr_lo = lower_32_bits((uint64_t)q->read_ptr);
@@ -209,7 +208,7 @@ static int update_mqd_sdma(struct mqd_manager *mm, void *mqd,
 	struct cik_sdma_rlc_registers *m;
 
 	m = get_sdma_mqd(mqd);
-	m->sdma_rlc_rb_cntl = (ffs(q->queue_size / sizeof(unsigned int)) - 1)
+	m->sdma_rlc_rb_cntl = (ffs(q->queue_size / 4) - 1)
 			<< SDMA0_RLC0_RB_CNTL__RB_SIZE__SHIFT |
 			q->vmid << SDMA0_RLC0_RB_CNTL__RB_VMID__SHIFT |
 			1 << SDMA0_RLC0_RB_CNTL__RPTR_WRITEBACK_ENABLE__SHIFT |
@@ -350,8 +349,7 @@ static int update_mqd_hiq(struct mqd_manager *mm, void *mqd,
 	 * Calculating queue size which is log base 2 of actual queue
 	 * size -1 dwords
 	 */
-	m->cp_hqd_pq_control |= ffs(q->queue_size / sizeof(unsigned int))
-								- 1 - 1;
+	m->cp_hqd_pq_control |= ffs(q->queue_size / 4) - 1 - 1;
 	m->cp_hqd_pq_base_lo = lower_32_bits((uint64_t)q->queue_address >> 8);
 	m->cp_hqd_pq_base_hi = upper_32_bits((uint64_t)q->queue_address >> 8);
 	m->cp_hqd_pq_rptr_report_addr_lo = lower_32_bits((uint64_t)q->read_ptr);

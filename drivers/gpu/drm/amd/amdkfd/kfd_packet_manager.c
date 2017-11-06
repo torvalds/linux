@@ -45,7 +45,7 @@ static unsigned int build_pm4_header(unsigned int opcode, size_t packet_size)
 
 	header.u32All = 0;
 	header.opcode = opcode;
-	header.count = packet_size/sizeof(uint32_t) - 2;
+	header.count = packet_size / 4 - 2;
 	header.type = PM4_TYPE_3;
 
 	return header.u32All;
