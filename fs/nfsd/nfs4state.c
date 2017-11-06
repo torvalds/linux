@@ -7056,8 +7056,8 @@ nfs4_state_start_net(struct net *net)
 	nn->nfsd4_manager.block_opens = true;
 	locks_start_grace(net, &nn->nfsd4_manager);
 	nfsd4_client_tracking_init(net);
-	printk(KERN_INFO "NFSD: starting %ld-second grace period (net %p)\n",
-	       nn->nfsd4_grace, net);
+	printk(KERN_INFO "NFSD: starting %ld-second grace period (net %x)\n",
+	       nn->nfsd4_grace, net->ns.inum);
 	queue_delayed_work(laundry_wq, &nn->laundromat_work, nn->nfsd4_grace * HZ);
 	return 0;
 }
