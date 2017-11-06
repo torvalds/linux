@@ -443,9 +443,6 @@ static int qat_dh_set_params(struct qat_dh_ctx *ctx, struct dh *params)
 	struct qat_crypto_instance *inst = ctx->inst;
 	struct device *dev = &GET_DEV(inst->accel_dev);
 
-	if (unlikely(!params->p || !params->g))
-		return -EINVAL;
-
 	if (qat_dh_check_params_length(params->p_size << 3))
 		return -EINVAL;
 

@@ -53,9 +53,6 @@ static int dh_check_params_length(unsigned int p_len)
 
 static int dh_set_params(struct dh_ctx *ctx, struct dh *params)
 {
-	if (unlikely(!params->p || !params->g))
-		return -EINVAL;
-
 	if (dh_check_params_length(params->p_size << 3))
 		return -EINVAL;
 
