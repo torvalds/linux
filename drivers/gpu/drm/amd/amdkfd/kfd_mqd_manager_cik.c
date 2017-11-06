@@ -183,7 +183,7 @@ static int update_mqd(struct mqd_manager *mm, void *mqd,
 	 * Calculating queue size which is log base 2 of actual queue size -1
 	 * dwords and another -1 for ffs
 	 */
-	m->cp_hqd_pq_control |= ffs(q->queue_size / 4) - 1 - 1;
+	m->cp_hqd_pq_control |= order_base_2(q->queue_size / 4) - 1;
 	m->cp_hqd_pq_base_lo = lower_32_bits((uint64_t)q->queue_address >> 8);
 	m->cp_hqd_pq_base_hi = upper_32_bits((uint64_t)q->queue_address >> 8);
 	m->cp_hqd_pq_rptr_report_addr_lo = lower_32_bits((uint64_t)q->read_ptr);
@@ -208,7 +208,7 @@ static int update_mqd_sdma(struct mqd_manager *mm, void *mqd,
 	struct cik_sdma_rlc_registers *m;
 
 	m = get_sdma_mqd(mqd);
-	m->sdma_rlc_rb_cntl = (ffs(q->queue_size / 4) - 1)
+	m->sdma_rlc_rb_cntl = order_base_2(q->queue_size / 4)
 			<< SDMA0_RLC0_RB_CNTL__RB_SIZE__SHIFT |
 			q->vmid << SDMA0_RLC0_RB_CNTL__RB_VMID__SHIFT |
 			1 << SDMA0_RLC0_RB_CNTL__RPTR_WRITEBACK_ENABLE__SHIFT |
@@ -349,7 +349,7 @@ static int update_mqd_hiq(struct mqd_manager *mm, void *mqd,
 	 * Calculating queue size which is log base 2 of actual queue
 	 * size -1 dwords
 	 */
-	m->cp_hqd_pq_control |= ffs(q->queue_size / 4) - 1 - 1;
+	m->cp_hqd_pq_control |= order_base_2(q->queue_size / 4) - 1;
 	m->cp_hqd_pq_base_lo = lower_32_bits((uint64_t)q->queue_address >> 8);
 	m->cp_hqd_pq_base_hi = upper_32_bits((uint64_t)q->queue_address >> 8);
 	m->cp_hqd_pq_rptr_report_addr_lo = lower_32_bits((uint64_t)q->read_ptr);

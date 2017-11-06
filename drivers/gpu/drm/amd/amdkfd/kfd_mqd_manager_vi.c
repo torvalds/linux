@@ -121,7 +121,7 @@ static int __update_mqd(struct mqd_manager *mm, void *mqd,
 	m->cp_hqd_pq_control = 5 << CP_HQD_PQ_CONTROL__RPTR_BLOCK_SIZE__SHIFT |
 			atc_bit << CP_HQD_PQ_CONTROL__PQ_ATC__SHIFT |
 			mtype << CP_HQD_PQ_CONTROL__MTYPE__SHIFT;
-	m->cp_hqd_pq_control |=	ffs(q->queue_size / 4) - 1 - 1;
+	m->cp_hqd_pq_control |=	order_base_2(q->queue_size / 4) - 1;
 	pr_debug("cp_hqd_pq_control 0x%x\n", m->cp_hqd_pq_control);
 
 	m->cp_hqd_pq_base_lo = lower_32_bits((uint64_t)q->queue_address >> 8);
@@ -151,7 +151,7 @@ static int __update_mqd(struct mqd_manager *mm, void *mqd,
 	 * is safe, giving a maximum field value of 0xA.
 	 */
 	m->cp_hqd_eop_control |= min(0xA,
-		ffs(q->eop_ring_buffer_size / 4) - 1 - 1);
+		order_base_2(q->eop_ring_buffer_size / 4) - 1);
 	m->cp_hqd_eop_base_addr_lo =
 			lower_32_bits(q->eop_ring_buffer_address >> 8);
 	m->cp_hqd_eop_base_addr_hi =
@@ -287,7 +287,7 @@ static int update_mqd_sdma(struct mqd_manager *mm, void *mqd,
 	struct vi_sdma_mqd *m;
 
 	m = get_sdma_mqd(mqd);
-	m->sdmax_rlcx_rb_cntl = (ffs(q->queue_size / 4) - 1)
+	m->sdmax_rlcx_rb_cntl = order_base_2(q->queue_size / 4)
 		<< SDMA0_RLC0_RB_CNTL__RB_SIZE__SHIFT |
 		q->vmid << SDMA0_RLC0_RB_CNTL__RB_VMID__SHIFT |
 		1 << SDMA0_RLC0_RB_CNTL__RPTR_WRITEBACK_ENABLE__SHIFT |
