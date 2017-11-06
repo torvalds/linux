@@ -1961,34 +1961,6 @@ struct s390_insn *find_insn(unsigned char *code)
 	return NULL;
 }
 
-/**
- * insn_to_mnemonic - decode an s390 instruction
- * @instruction: instruction to decode
- * @buf: buffer to fill with mnemonic
- * @len: length of buffer
- *
- * Decode the instruction at @instruction and store the corresponding
- * mnemonic into @buf of length @len.
- * @buf is left unchanged if the instruction could not be decoded.
- * Returns:
- *  %0 on success, %-ENOENT if the instruction was not found.
- */
-int insn_to_mnemonic(unsigned char *instruction, char *buf, unsigned int len)
-{
-	struct s390_insn *insn;
-
-	insn = find_insn(instruction);
-	if (!insn)
-		return -ENOENT;
-	if (insn->name[0] == '\0')
-		snprintf(buf, len, "%s",
-			 long_insn_name[(int) insn->name[1]]);
-	else
-		snprintf(buf, len, "%.5s", insn->name);
-	return 0;
-}
-EXPORT_SYMBOL_GPL(insn_to_mnemonic);
-
 static int print_insn(char *buffer, unsigned char *code, unsigned long addr)
 {
 	struct s390_insn *insn;
