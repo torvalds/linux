@@ -292,6 +292,12 @@ static void bnxt_qplib_service_nq(unsigned long data)
 		if (!NQE_CMP_VALID(nqe, raw_cons, hwq->max_elements))
 			break;
 
+		/*
+		 * The valid test of the entry must be done first before
+		 * reading any further.
+		 */
+		dma_rmb();
+
 		type = le16_to_cpu(nqe->info10_type) & NQ_BASE_TYPE_MASK;
 		switch (type) {
 		case NQ_BASE_TYPE_CQ_NOTIFICATION:
@@ -1113,6 +1119,11 @@ static void __clean_cq(struct bnxt_qplib_cq *cq, u64 qp)
 		hw_cqe = &hw_cqe_ptr[CQE_PG(i)][CQE_IDX(i)];
 		if (!CQE_CMP_VALID(hw_cqe, i, cq_hwq->max_elements))
 			continue;
+		/*
+		 * The valid test of the entry must be done first before
+		 * reading any further.
+		 */
+		dma_rmb();
 		switch (hw_cqe->cqe_type_toggle & CQ_BASE_CQE_TYPE_MASK) {
 		case CQ_BASE_CQE_TYPE_REQ:
 		case CQ_BASE_CQE_TYPE_TERMINAL:
@@ -1896,6 +1907,11 @@ static int do_wa9060(struct bnxt_qplib_qp *qp, struct bnxt_qplib_cq *cq,
 			/* If the next hwcqe is VALID */
 			if (CQE_CMP_VALID(peek_hwcqe, peek_raw_cq_cons,
 					  cq->hwq.max_elements)) {
+			/*
+			 * The valid test of the entry must be done first before
+			 * reading any further.
+			 */
+				dma_rmb();
 				/* If the next hwcqe is a REQ */
 				if ((peek_hwcqe->cqe_type_toggle &
 				    CQ_BASE_CQE_TYPE_MASK) ==
@@ -2440,6 +2456,11 @@ int bnxt_qplib_poll_cq(struct bnxt_qplib_cq *cq, struct bnxt_qplib_cqe *cqe,
 		if (!CQE_CMP_VALID(hw_cqe, raw_cons, cq->hwq.max_elements))
 			break;
 
+		/*
+		 * The valid test of the entry must be done first before
+		 * reading any further.
+		 */
+		dma_rmb();
 		/* From the device's respective CQE format to qplib_wc*/
 		switch (hw_cqe->cqe_type_toggle & CQ_BASE_CQE_TYPE_MASK) {
 		case CQ_BASE_CQE_TYPE_REQ:

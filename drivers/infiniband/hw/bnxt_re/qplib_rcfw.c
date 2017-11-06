@@ -359,6 +359,10 @@ static void bnxt_qplib_service_creq(unsigned long data)
 		creqe = &creq_ptr[get_creq_pg(sw_cons)][get_creq_idx(sw_cons)];
 		if (!CREQ_CMP_VALID(creqe, raw_cons, creq->max_elements))
 			break;
+		/* The valid test of the entry must be done first before
+		 * reading any further.
+		 */
+		dma_rmb();
 
 		type = creqe->type & CREQ_BASE_TYPE_MASK;
 		switch (type) {
