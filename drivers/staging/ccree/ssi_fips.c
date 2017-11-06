@@ -19,7 +19,6 @@
 
 #include "ssi_config.h"
 #include "ssi_driver.h"
-#include "cc_hal.h"
 #include "ssi_fips.h"
 
 static void fips_dsr(unsigned long devarg);
@@ -34,9 +33,8 @@ struct ssi_fips_handle {
 static bool cc_get_tee_fips_status(struct ssi_drvdata *drvdata)
 {
 	u32 reg;
-	void __iomem *cc_base = drvdata->cc_base;
 
-	reg = CC_HAL_READ_REGISTER(CC_REG(GPR_HOST));
+	reg = cc_ioread(drvdata, CC_REG(GPR_HOST));
 	return (reg == (CC_FIPS_SYNC_TEE_STATUS | CC_FIPS_SYNC_MODULE_OK));
 }
 
@@ -46,12 +44,11 @@ static bool cc_get_tee_fips_status(struct ssi_drvdata *drvdata)
  */
 void cc_set_ree_fips_status(struct ssi_drvdata *drvdata, bool status)
 {
-	void __iomem *cc_base = drvdata->cc_base;
 	int val = CC_FIPS_SYNC_REE_STATUS;
 
 	val |= (status ? CC_FIPS_SYNC_MODULE_OK : CC_FIPS_SYNC_MODULE_ERROR);
 
-	CC_HAL_WRITE_REGISTER(CC_REG(HOST_GPR0), val);
+	cc_iowrite(drvdata, CC_REG(HOST_GPR0), val);
 }
 
 void ssi_fips_fini(struct ssi_drvdata *drvdata)
@@ -89,13 +86,12 @@ static void fips_dsr(unsigned long devarg)
 {
 	struct ssi_drvdata *drvdata = (struct ssi_drvdata *)devarg;
 	struct device *dev = drvdata_to_dev(drvdata);
-	void __iomem *cc_base = drvdata->cc_base;
 	u32 irq, state, val;
 
 	irq = (drvdata->irq & (SSI_GPR0_IRQ_MASK));
 
 	if (irq) {
-		state = CC_HAL_READ_REGISTER(CC_REG(GPR_HOST));
+		state = cc_ioread(drvdata, CC_REG(GPR_HOST));
 
 		if (state != (CC_FIPS_SYNC_TEE_STATUS | CC_FIPS_SYNC_MODULE_OK))
 			tee_fips_error(dev);
@@ -105,7 +101,7 @@ static void fips_dsr(unsigned long devarg)
 	 * unmask AXI completion interrupt.
 	 */
 	val = (CC_REG(HOST_IMR) & ~irq);
-	CC_HAL_WRITE_REGISTER(CC_REG(HOST_IMR), val);
+	cc_iowrite(drvdata, CC_REG(HOST_IMR), val);
 }
 
 /* The function called once at driver entry point .*/

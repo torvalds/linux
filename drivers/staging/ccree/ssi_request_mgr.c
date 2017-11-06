@@ -122,8 +122,8 @@ int request_mgr_init(struct ssi_drvdata *drvdata)
 	dev_dbg(dev, "Initializing completion tasklet\n");
 	tasklet_init(&req_mgr_h->comptask, comp_handler, (unsigned long)drvdata);
 #endif
-	req_mgr_h->hw_queue_size = READ_REGISTER(drvdata->cc_base +
-		CC_REG(DSCRPTR_QUEUE_SRAM_SIZE));
+	req_mgr_h->hw_queue_size = cc_ioread(drvdata,
+					     CC_REG(DSCRPTR_QUEUE_SRAM_SIZE));
 	dev_dbg(dev, "hw_queue_size=0x%08X\n", req_mgr_h->hw_queue_size);
 	if (req_mgr_h->hw_queue_size < MIN_HW_QUEUE_SIZE) {
 		dev_err(dev, "Invalid HW queue size = %u (Min. required is %u)\n",
@@ -197,12 +197,12 @@ static void request_mgr_complete(struct device *dev, void *dx_compl_h, void __io
 }
 
 static inline int request_mgr_queues_status_check(
-		struct device *dev,
+		struct ssi_drvdata *drvdata,
 		struct ssi_request_mgr_handle *req_mgr_h,
-		void __iomem *cc_base,
 		unsigned int total_seq_len)
 {
 	unsigned long poll_queue;
+	struct device *dev = drvdata_to_dev(drvdata);
 
 	/* SW queue is checked only once as it will not
 	 * be chaned during the poll becasue the spinlock_bh
@@ -222,7 +222,7 @@ static inline int request_mgr_queues_status_check(
 	/* Wait for space in HW queue. Poll constant num of iterations. */
 	for (poll_queue = 0; poll_queue < SSI_MAX_POLL_ITER ; poll_queue++) {
 		req_mgr_h->q_free_slots =
-			CC_HAL_READ_REGISTER(CC_REG(DSCRPTR_QUEUE_CONTENT));
+			cc_ioread(drvdata, CC_REG(DSCRPTR_QUEUE_CONTENT));
 		if (unlikely(req_mgr_h->q_free_slots <
 						req_mgr_h->min_free_hw_slots)) {
 			req_mgr_h->min_free_hw_slots = req_mgr_h->q_free_slots;
@@ -288,7 +288,7 @@ int send_request(
 		 * in case iv gen add the max size and in case of no dout add 1
 		 * for the internal completion descriptor
 		 */
-		rc = request_mgr_queues_status_check(dev, req_mgr_h, cc_base,
+		rc = request_mgr_queues_status_check(drvdata, req_mgr_h,
 						     max_required_seq_len);
 		if (likely(rc == 0))
 			/* There is enough place in the queue */
@@ -404,14 +404,13 @@ int send_request(
 int send_request_init(
 	struct ssi_drvdata *drvdata, struct cc_hw_desc *desc, unsigned int len)
 {
-	struct device *dev = drvdata_to_dev(drvdata);
 	void __iomem *cc_base = drvdata->cc_base;
 	struct ssi_request_mgr_handle *req_mgr_h = drvdata->request_mgr_handle;
 	unsigned int total_seq_len = len; /*initial sequence length*/
 	int rc = 0;
 
 	/* Wait for space in HW and SW FIFO. Poll for as much as FIFO_TIMEOUT. */
-	rc = request_mgr_queues_status_check(dev, req_mgr_h, cc_base,
+	rc = request_mgr_queues_status_check(drvdata, req_mgr_h,
 					     total_seq_len);
 	if (unlikely(rc != 0))
 		return rc;
@@ -422,7 +421,7 @@ int send_request_init(
 
 	/* Update the free slots in HW queue */
 	req_mgr_h->q_free_slots =
-		CC_HAL_READ_REGISTER(CC_REG(DSCRPTR_QUEUE_CONTENT));
+		cc_ioread(drvdata, CC_REG(DSCRPTR_QUEUE_CONTENT));
 
 	return 0;
 }
@@ -486,7 +485,8 @@ static void proc_completions(struct ssi_drvdata *drvdata)
 
 			dev_info(dev, "Delay\n");
 			for (i = 0; i < 1000000; i++)
-				axi_err = READ_REGISTER(drvdata->cc_base + CC_REG(AXIM_MON_ERR));
+				axi_err = cc_ioread(drvdata,
+						    CC_REG(AXIM_MON_ERR));
 		}
 #endif /* COMPLETION_DELAY */
 
@@ -507,20 +507,16 @@ static void proc_completions(struct ssi_drvdata *drvdata)
 	}
 }
 
-static inline u32 cc_axi_comp_count(void __iomem *cc_base)
+static inline u32 cc_axi_comp_count(struct ssi_drvdata *drvdata)
 {
-	/* The CC_HAL_READ_REGISTER macro implictly requires and uses
-	 * a base MMIO register address variable named cc_base.
-	 */
 	return FIELD_GET(AXIM_MON_COMP_VALUE,
-			 CC_HAL_READ_REGISTER(CC_REG(AXIM_MON_COMP)));
+			 cc_ioread(drvdata, CC_REG(AXIM_MON_COMP)));
 }
 
 /* Deferred service handler, run as interrupt-fired tasklet */
 static void comp_handler(unsigned long devarg)
 {
 	struct ssi_drvdata *drvdata = (struct ssi_drvdata *)devarg;
-	void __iomem *cc_base = drvdata->cc_base;
 	struct ssi_request_mgr_handle *request_mgr_handle =
 						drvdata->request_mgr_handle;
 
@@ -529,12 +525,16 @@ static void comp_handler(unsigned long devarg)
 	irq = (drvdata->irq & SSI_COMP_IRQ_MASK);
 
 	if (irq & SSI_COMP_IRQ_MASK) {
-		/* To avoid the interrupt from firing as we unmask it, we clear it now */
-		CC_HAL_WRITE_REGISTER(CC_REG(HOST_ICR), SSI_COMP_IRQ_MASK);
+		/* To avoid the interrupt from firing as we unmask it,
+		 * we clear it now
+		 */
+		cc_iowrite(drvdata, CC_REG(HOST_ICR), SSI_COMP_IRQ_MASK);
 
-		/* Avoid race with above clear: Test completion counter once more */
+		/* Avoid race with above clear: Test completion counter
+		 * once more
+		 */
 		request_mgr_handle->axi_completed +=
-				cc_axi_comp_count(cc_base);
+				cc_axi_comp_count(drvdata);
 
 		while (request_mgr_handle->axi_completed) {
 			do {
@@ -543,20 +543,21 @@ static void comp_handler(unsigned long devarg)
 				 * request_mgr_handle->axi_completed is 0.
 				 */
 				request_mgr_handle->axi_completed =
-						cc_axi_comp_count(cc_base);
+						cc_axi_comp_count(drvdata);
 			} while (request_mgr_handle->axi_completed > 0);
 
-			/* To avoid the interrupt from firing as we unmask it, we clear it now */
-			CC_HAL_WRITE_REGISTER(CC_REG(HOST_ICR), SSI_COMP_IRQ_MASK);
+			cc_iowrite(drvdata, CC_REG(HOST_ICR),
+				   SSI_COMP_IRQ_MASK);
 
-			/* Avoid race with above clear: Test completion counter once more */
 			request_mgr_handle->axi_completed +=
-					cc_axi_comp_count(cc_base);
+					cc_axi_comp_count(drvdata);
 		}
 	}
-	/* after verifing that there is nothing to do, Unmask AXI completion interrupt */
-	CC_HAL_WRITE_REGISTER(CC_REG(HOST_IMR),
-			      CC_HAL_READ_REGISTER(CC_REG(HOST_IMR)) & ~irq);
+	/* after verifing that there is nothing to do,
+	 * unmask AXI completion interrupt
+	 */
+	cc_iowrite(drvdata, CC_REG(HOST_IMR),
+		   cc_ioread(drvdata, CC_REG(HOST_IMR)) & ~irq);
 }
 
 /*
