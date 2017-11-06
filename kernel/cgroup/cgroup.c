@@ -5832,3 +5832,64 @@ int cgroup_bpf_update(struct cgroup *cgrp, struct bpf_prog *prog,
 	return ret;
 }
 #endif /* CONFIG_CGROUP_BPF */
+
+#ifdef CONFIG_SYSFS
+static ssize_t show_delegatable_files(struct cftype *files, char *buf,
+				      ssize_t size, const char *prefix)
+{
+	struct cftype *cft;
+	ssize_t ret = 0;
+
+	for (cft = files; cft && cft->name[0] != '\0'; cft++) {
+		if (!(cft->flags & CFTYPE_NS_DELEGATABLE))
+			continue;
+
+		if (prefix)
+			ret += snprintf(buf + ret, size - ret, "%s.", prefix);
+
+		ret += snprintf(buf + ret, size - ret, "%s\n", cft->name);
+
+		if (unlikely(ret >= size)) {
+			WARN_ON(1);
+			break;
+		}
+	}
+
+	return ret;
+}
+
+static ssize_t delegate_show(struct kobject *kobj, struct kobj_attribute *attr,
+			      char *buf)
+{
+	struct cgroup_subsys *ss;
+	int ssid;
+	ssize_t ret = 0;
+
+	ret = show_delegatable_files(cgroup_base_files, buf, PAGE_SIZE - ret,
+				     NULL);
+
+	for_each_subsys(ss, ssid)
+		ret += show_delegatable_files(ss->dfl_cftypes, buf + ret,
+					      PAGE_SIZE - ret,
+					      cgroup_subsys_name[ssid]);
+
+	return ret;
+}
+static struct kobj_attribute cgroup_delegate_attr = __ATTR_RO(delegate);
+
+static struct attribute *cgroup_sysfs_attrs[] = {
+	&cgroup_delegate_attr.attr,
+	NULL,
+};
+
+static const struct attribute_group cgroup_sysfs_attr_group = {
+	.attrs = cgroup_sysfs_attrs,
+	.name = "cgroup",
+};
+
+static int __init cgroup_sysfs_init(void)
+{
+	return sysfs_create_group(kernel_kobj, &cgroup_sysfs_attr_group);
+}
+subsys_initcall(cgroup_sysfs_init);
+#endif /* CONFIG_SYSFS */
