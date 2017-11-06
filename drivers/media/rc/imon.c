@@ -27,6 +27,7 @@
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/ktime.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
@@ -37,7 +38,6 @@
 #include <linux/usb/input.h>
 #include <media/rc-core.h>
 
-#include <linux/time.h>
 #include <linux/timer.h>
 
 #define MOD_AUTHOR	"Jarod Wilson <jarod@wilsonet.com>"
@@ -1201,16 +1201,16 @@ static inline int tv2int(const struct timeval *a, const struct timeval *b)
  */
 static int stabilize(int a, int b, u16 timeout, u16 threshold)
 {
-	struct timeval ct;
-	static struct timeval prev_time = {0, 0};
-	static struct timeval hit_time  = {0, 0};
+	ktime_t ct;
+	static ktime_t prev_time;
+	static ktime_t hit_time;
 	static int x, y, prev_result, hits;
 	int result = 0;
-	int msec, msec_hit;
+	long msec, msec_hit;
 
-	do_gettimeofday(&ct);
-	msec = tv2int(&ct, &prev_time);
-	msec_hit = tv2int(&ct, &hit_time);
+	ct = ktime_get();
+	msec = ktime_ms_delta(ct, prev_time);
+	msec_hit = ktime_ms_delta(ct, hit_time);
 
 	if (msec > 100) {
 		x = 0;
@@ -1688,9 +1688,9 @@ static void imon_incoming_scancode(struct imon_context *ictx,
 	u32 kc;
 	u64 scancode;
 	int press_type = 0;
-	int msec;
-	struct timeval t;
-	static struct timeval prev_time = { 0, 0 };
+	long msec;
+	ktime_t t;
+	static ktime_t prev_time;
 	u8 ktype;
 
 	/* filter out junk data on the older 0xffdc imon devices */
@@ -1783,10 +1783,10 @@ static void imon_incoming_scancode(struct imon_context *ictx,
 	/* Only panel type events left to process now */
 	spin_lock_irqsave(&ictx->kc_lock, flags);
 
-	do_gettimeofday(&t);
+	t = ktime_get();
 	/* KEY_MUTE repeats from knob need to be suppressed */
 	if (ictx->kc == KEY_MUTE && ictx->kc == ictx->last_keycode) {
-		msec = tv2int(&t, &prev_time);
+		msec = ktime_ms_delta(t, prev_time);
 		if (msec < ictx->idev->rep[REP_DELAY]) {
 			spin_unlock_irqrestore(&ictx->kc_lock, flags);
 			return;
