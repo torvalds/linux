@@ -58,7 +58,8 @@ bool xfs_scrub_fblock_process_error(struct xfs_scrub_context *sc, int whichfork,
 
 void xfs_scrub_block_set_preen(struct xfs_scrub_context *sc,
 		struct xfs_buf *bp);
-void xfs_scrub_ino_set_preen(struct xfs_scrub_context *sc, struct xfs_buf *bp);
+void xfs_scrub_ino_set_preen(struct xfs_scrub_context *sc, xfs_ino_t ino,
+		struct xfs_buf *bp);
 
 void xfs_scrub_block_set_corrupt(struct xfs_scrub_context *sc,
 		struct xfs_buf *bp);
@@ -67,7 +68,7 @@ void xfs_scrub_ino_set_corrupt(struct xfs_scrub_context *sc, xfs_ino_t ino,
 void xfs_scrub_fblock_set_corrupt(struct xfs_scrub_context *sc, int whichfork,
 		xfs_fileoff_t offset);
 
-void xfs_scrub_ino_set_warning(struct xfs_scrub_context *sc,
+void xfs_scrub_ino_set_warning(struct xfs_scrub_context *sc, xfs_ino_t ino,
 		struct xfs_buf *bp);
 void xfs_scrub_fblock_set_warning(struct xfs_scrub_context *sc, int whichfork,
 		xfs_fileoff_t offset);

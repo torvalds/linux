@@ -98,7 +98,7 @@ xfs_scrub_xattr_listent(
 
 	if (flags & XFS_ATTR_INCOMPLETE) {
 		/* Incomplete attr key, just mark the inode for preening. */
-		xfs_scrub_ino_set_preen(sx->sc, NULL);
+		xfs_scrub_ino_set_preen(sx->sc, context->dp->i_ino, NULL);
 		return;
 	}
 

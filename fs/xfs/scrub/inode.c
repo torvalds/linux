@@ -328,7 +328,7 @@ xfs_scrub_dinode(
 		 * We autoconvert v1 inodes into v2 inodes on writeout,
 		 * so just mark this inode for preening.
 		 */
-		xfs_scrub_ino_set_preen(sc, bp);
+		xfs_scrub_ino_set_preen(sc, ino, bp);
 		break;
 	case 2:
 	case 3:
@@ -353,7 +353,7 @@ xfs_scrub_dinode(
 	 */
 	if (dip->di_uid == cpu_to_be32(-1U) ||
 	    dip->di_gid == cpu_to_be32(-1U))
-		xfs_scrub_ino_set_warning(sc, bp);
+		xfs_scrub_ino_set_warning(sc, ino, bp);
 
 	/* di_format */
 	switch (dip->di_format) {
@@ -408,7 +408,7 @@ xfs_scrub_dinode(
 	 * overly large offsets, flag the inode for admin review.
 	 */
 	if (isize >= mp->m_super->s_maxbytes)
-		xfs_scrub_ino_set_warning(sc, bp);
+		xfs_scrub_ino_set_warning(sc, ino, bp);
 
 	/* di_nblocks */
 	if (flags2 & XFS_DIFLAG2_REFLINK) {
@@ -601,7 +601,7 @@ xfs_scrub_inode(
 				XFS_INO_TO_AGBNO(mp, ino), &error))
 			goto out;
 		if (!has_shared)
-			xfs_scrub_ino_set_preen(sc, bp);
+			xfs_scrub_ino_set_preen(sc, ino, bp);
 	}
 
 out:

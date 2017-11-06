@@ -165,10 +165,11 @@ xfs_scrub_block_set_preen(
 void
 xfs_scrub_ino_set_preen(
 	struct xfs_scrub_context	*sc,
+	xfs_ino_t			ino,
 	struct xfs_buf			*bp)
 {
 	sc->sm->sm_flags |= XFS_SCRUB_OFLAG_PREEN;
-	trace_xfs_scrub_ino_preen(sc, sc->ip->i_ino, bp ? bp->b_bn : 0,
+	trace_xfs_scrub_ino_preen(sc, ino, bp ? bp->b_bn : 0,
 			__return_address);
 }
 
@@ -215,10 +216,11 @@ xfs_scrub_fblock_set_corrupt(
 void
 xfs_scrub_ino_set_warning(
 	struct xfs_scrub_context	*sc,
+	xfs_ino_t			ino,
 	struct xfs_buf			*bp)
 {
 	sc->sm->sm_flags |= XFS_SCRUB_OFLAG_WARNING;
-	trace_xfs_scrub_ino_warning(sc, sc->ip->i_ino, bp ? bp->b_bn : 0,
+	trace_xfs_scrub_ino_warning(sc, ino, bp ? bp->b_bn : 0,
 			__return_address);
 }
 
