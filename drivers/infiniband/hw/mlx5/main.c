@@ -131,7 +131,7 @@ static int get_port_state(struct ib_device *ibdev,
 	int ret;
 
 	memset(&attr, 0, sizeof(attr));
-	ret = mlx5_ib_query_port(ibdev, port_num, &attr);
+	ret = ibdev->query_port(ibdev, port_num, &attr);
 	if (!ret)
 		*state = attr.state;
 	return ret;
@@ -1275,6 +1275,22 @@ int mlx5_ib_query_port(struct ib_device *ibdev, u8 port,
 			mlx5_ib_put_native_port_mdev(dev, port);
 		props->gid_tbl_len -= count;
 	}
+	return ret;
+}
+
+static int mlx5_ib_rep_query_port(struct ib_device *ibdev, u8 port,
+				  struct ib_port_attr *props)
+{
+	int ret;
+
+	/* Only link layer == ethernet is valid for representors */
+	ret = mlx5_query_port_roce(ibdev, port, props);
+	if (ret || !props)
+		return ret;
+
+	/* We don't support GIDS */
+	props->gid_tbl_len = 0;
+
 	return ret;
 }
 
@@ -3794,6 +3810,25 @@ static int mlx5_port_immutable(struct ib_device *ibdev, u8 port_num,
 	return 0;
 }
 
+static int mlx5_port_rep_immutable(struct ib_device *ibdev, u8 port_num,
+				   struct ib_port_immutable *immutable)
+{
+	struct ib_port_attr attr;
+	int err;
+
+	immutable->core_cap_flags = RDMA_CORE_PORT_RAW_PACKET;
+
+	err = ib_query_port(ibdev, port_num, &attr);
+	if (err)
+		return err;
+
+	immutable->pkey_tbl_len = attr.pkey_tbl_len;
+	immutable->gid_tbl_len = attr.gid_tbl_len;
+	immutable->core_cap_flags = RDMA_CORE_PORT_RAW_PACKET;
+
+	return 0;
+}
+
 static void get_dev_fw_str(struct ib_device *ibdev, char *str)
 {
 	struct mlx5_ib_dev *dev =
@@ -3870,14 +3905,10 @@ static int mlx5_enable_eth(struct mlx5_ib_dev *dev, u8 port_num)
 {
 	int err;
 
-	err = mlx5_add_netdev_notifier(dev, port_num);
-	if (err)
-		return err;
-
 	if (MLX5_CAP_GEN(dev->mdev, roce)) {
 		err = mlx5_nic_vport_enable_roce(dev->mdev);
 		if (err)
-			goto err_unregister_netdevice_notifier;
+			return err;
 	}
 
 	err = mlx5_eth_lag_init(dev);
@@ -3890,8 +3921,6 @@ err_disable_roce:
 	if (MLX5_CAP_GEN(dev->mdev, roce))
 		mlx5_nic_vport_disable_roce(dev->mdev);
 
-err_unregister_netdevice_notifier:
-	mlx5_remove_netdev_notifier(dev, port_num);
 	return err;
 }
 
@@ -4664,7 +4693,6 @@ static int mlx5_ib_stage_caps_init(struct mlx5_ib_dev *dev)
 		(1ull << IB_USER_VERBS_EX_CMD_MODIFY_CQ);
 
 	dev->ib_dev.query_device	= mlx5_ib_query_device;
-	dev->ib_dev.query_port		= mlx5_ib_query_port;
 	dev->ib_dev.get_link_layer	= mlx5_ib_port_link_layer;
 	dev->ib_dev.query_gid		= mlx5_ib_query_gid;
 	dev->ib_dev.add_gid		= mlx5_ib_add_gid;
@@ -4707,7 +4735,6 @@ static int mlx5_ib_stage_caps_init(struct mlx5_ib_dev *dev)
 	dev->ib_dev.alloc_mr		= mlx5_ib_alloc_mr;
 	dev->ib_dev.map_mr_sg		= mlx5_ib_map_mr_sg;
 	dev->ib_dev.check_mr_status	= mlx5_ib_check_mr_status;
-	dev->ib_dev.get_port_immutable  = mlx5_port_immutable;
 	dev->ib_dev.get_dev_fw_str      = get_dev_fw_str;
 	dev->ib_dev.get_vector_affinity	= mlx5_ib_get_vector_affinity;
 	if (MLX5_CAP_GEN(mdev, ipoib_enhanced_offloads))
@@ -4758,6 +4785,80 @@ static int mlx5_ib_stage_caps_init(struct mlx5_ib_dev *dev)
 	return 0;
 }
 
+static int mlx5_ib_stage_non_default_cb(struct mlx5_ib_dev *dev)
+{
+	dev->ib_dev.get_port_immutable  = mlx5_port_immutable;
+	dev->ib_dev.query_port		= mlx5_ib_query_port;
+
+	return 0;
+}
+
+static int mlx5_ib_stage_rep_non_default_cb(struct mlx5_ib_dev *dev)
+{
+	dev->ib_dev.get_port_immutable  = mlx5_port_rep_immutable;
+	dev->ib_dev.query_port		= mlx5_ib_rep_query_port;
+
+	return 0;
+}
+
+static int mlx5_ib_stage_common_roce_init(struct mlx5_ib_dev *dev,
+					  u8 port_num)
+{
+	int i;
+
+	for (i = 0; i < dev->num_ports; i++) {
+		dev->roce[i].dev = dev;
+		dev->roce[i].native_port_num = i + 1;
+		dev->roce[i].last_port_state = IB_PORT_DOWN;
+	}
+
+	dev->ib_dev.get_netdev	= mlx5_ib_get_netdev;
+	dev->ib_dev.create_wq	 = mlx5_ib_create_wq;
+	dev->ib_dev.modify_wq	 = mlx5_ib_modify_wq;
+	dev->ib_dev.destroy_wq	 = mlx5_ib_destroy_wq;
+	dev->ib_dev.create_rwq_ind_table = mlx5_ib_create_rwq_ind_table;
+	dev->ib_dev.destroy_rwq_ind_table = mlx5_ib_destroy_rwq_ind_table;
+
+	dev->ib_dev.uverbs_ex_cmd_mask |=
+			(1ull << IB_USER_VERBS_EX_CMD_CREATE_WQ) |
+			(1ull << IB_USER_VERBS_EX_CMD_MODIFY_WQ) |
+			(1ull << IB_USER_VERBS_EX_CMD_DESTROY_WQ) |
+			(1ull << IB_USER_VERBS_EX_CMD_CREATE_RWQ_IND_TBL) |
+			(1ull << IB_USER_VERBS_EX_CMD_DESTROY_RWQ_IND_TBL);
+
+	return mlx5_add_netdev_notifier(dev, port_num);
+}
+
+static void mlx5_ib_stage_common_roce_cleanup(struct mlx5_ib_dev *dev)
+{
+	u8 port_num = mlx5_core_native_port_num(dev->mdev) - 1;
+
+	mlx5_remove_netdev_notifier(dev, port_num);
+}
+
+int mlx5_ib_stage_rep_roce_init(struct mlx5_ib_dev *dev)
+{
+	struct mlx5_core_dev *mdev = dev->mdev;
+	enum rdma_link_layer ll;
+	int port_type_cap;
+	int err = 0;
+	u8 port_num;
+
+	port_num = mlx5_core_native_port_num(dev->mdev) - 1;
+	port_type_cap = MLX5_CAP_GEN(mdev, port_type);
+	ll = mlx5_port_type_cap_to_rdma_ll(port_type_cap);
+
+	if (ll == IB_LINK_LAYER_ETHERNET)
+		err = mlx5_ib_stage_common_roce_init(dev, port_num);
+
+	return err;
+}
+
+void mlx5_ib_stage_rep_roce_cleanup(struct mlx5_ib_dev *dev)
+{
+	mlx5_ib_stage_common_roce_cleanup(dev);
+}
+
 static int mlx5_ib_stage_roce_init(struct mlx5_ib_dev *dev)
 {
 	struct mlx5_core_dev *mdev = dev->mdev;
@@ -4765,37 +4866,26 @@ static int mlx5_ib_stage_roce_init(struct mlx5_ib_dev *dev)
 	int port_type_cap;
 	u8 port_num;
 	int err;
-	int i;
 
 	port_num = mlx5_core_native_port_num(dev->mdev) - 1;
 	port_type_cap = MLX5_CAP_GEN(mdev, port_type);
 	ll = mlx5_port_type_cap_to_rdma_ll(port_type_cap);
 
 	if (ll == IB_LINK_LAYER_ETHERNET) {
-		for (i = 0; i < dev->num_ports; i++) {
-			dev->roce[i].dev = dev;
-			dev->roce[i].native_port_num = i + 1;
-			dev->roce[i].last_port_state = IB_PORT_DOWN;
-		}
-
-		dev->ib_dev.get_netdev	= mlx5_ib_get_netdev;
-		dev->ib_dev.create_wq	 = mlx5_ib_create_wq;
-		dev->ib_dev.modify_wq	 = mlx5_ib_modify_wq;
-		dev->ib_dev.destroy_wq	 = mlx5_ib_destroy_wq;
-		dev->ib_dev.create_rwq_ind_table = mlx5_ib_create_rwq_ind_table;
-		dev->ib_dev.destroy_rwq_ind_table = mlx5_ib_destroy_rwq_ind_table;
-		dev->ib_dev.uverbs_ex_cmd_mask |=
-			(1ull << IB_USER_VERBS_EX_CMD_CREATE_WQ) |
-			(1ull << IB_USER_VERBS_EX_CMD_MODIFY_WQ) |
-			(1ull << IB_USER_VERBS_EX_CMD_DESTROY_WQ) |
-			(1ull << IB_USER_VERBS_EX_CMD_CREATE_RWQ_IND_TBL) |
-			(1ull << IB_USER_VERBS_EX_CMD_DESTROY_RWQ_IND_TBL);
-		err = mlx5_enable_eth(dev, port_num);
+		err = mlx5_ib_stage_common_roce_init(dev, port_num);
 		if (err)
 			return err;
+
+		err = mlx5_enable_eth(dev, port_num);
+		if (err)
+			goto cleanup;
 	}
 
 	return 0;
+cleanup:
+	mlx5_ib_stage_common_roce_cleanup(dev);
+
+	return err;
 }
 
 static void mlx5_ib_stage_roce_cleanup(struct mlx5_ib_dev *dev)
@@ -4811,7 +4901,7 @@ static void mlx5_ib_stage_roce_cleanup(struct mlx5_ib_dev *dev)
 
 	if (ll == IB_LINK_LAYER_ETHERNET) {
 		mlx5_disable_eth(dev);
-		mlx5_remove_netdev_notifier(dev, port_num);
+		mlx5_ib_stage_common_roce_cleanup(dev);
 	}
 }
 
@@ -5016,6 +5106,9 @@ static const struct mlx5_ib_profile pf_profile = {
 		     mlx5_ib_stage_flow_db_cleanup),
 	STAGE_CREATE(MLX5_IB_STAGE_CAPS,
 		     mlx5_ib_stage_caps_init,
+		     NULL),
+	STAGE_CREATE(MLX5_IB_STAGE_NON_DEFAULT_CB,
+		     mlx5_ib_stage_non_default_cb,
 		     NULL),
 	STAGE_CREATE(MLX5_IB_STAGE_ROCE,
 		     mlx5_ib_stage_roce_init,
