@@ -1238,8 +1238,7 @@ static int port_states_transition_allowed(struct hfi1_pportdata *ppd,
 }
 
 static int set_port_states(struct hfi1_pportdata *ppd, struct opa_smp *smp,
-			   u32 logical_state, u32 phys_state,
-			   int suppress_idle_sma)
+			   u32 logical_state, u32 phys_state)
 {
 	struct hfi1_devdata *dd = ppd->dd;
 	u32 link_state;
@@ -1320,7 +1319,7 @@ static int set_port_states(struct hfi1_pportdata *ppd, struct opa_smp *smp,
 		break;
 	case IB_PORT_ARMED:
 		ret = set_link_state(ppd, HLS_UP_ARMED);
-		if ((ret == 0) && (suppress_idle_sma == 0))
+		if (!ret)
 			send_idle_sma(dd, SMA_IDLE_ARM);
 		break;
 	case IB_PORT_ACTIVE:
@@ -1614,8 +1613,10 @@ static int __subn_set_opa_portinfo(struct opa_smp *smp, u32 am, u8 *data,
 			if (ls_new == ls_old || (ls_new == IB_PORT_ARMED))
 				ppd->is_sm_config_started = 1;
 		} else if (ls_new == IB_PORT_ARMED) {
-			if (ppd->is_sm_config_started == 0)
+			if (ppd->is_sm_config_started == 0) {
 				invalid = 1;
+				smp->status |= IB_SMP_INVALID_FIELD;
+			}
 		}
 	}
 
@@ -1632,9 +1633,11 @@ static int __subn_set_opa_portinfo(struct opa_smp *smp, u32 am, u8 *data,
 	 * is down or is being set to down.
 	 */
 
-	ret = set_port_states(ppd, smp, ls_new, ps_new, invalid);
-	if (ret)
-		return ret;
+	if (!invalid) {
+		ret = set_port_states(ppd, smp, ls_new, ps_new);
+		if (ret)
+			return ret;
+	}
 
 	ret = __subn_get_opa_portinfo(smp, am, data, ibdev, port, resp_len,
 				      max_len);
@@ -2111,17 +2114,18 @@ static int __subn_set_opa_psi(struct opa_smp *smp, u32 am, u8 *data,
 			if (ls_new == ls_old || (ls_new == IB_PORT_ARMED))
 				ppd->is_sm_config_started = 1;
 		} else if (ls_new == IB_PORT_ARMED) {
-			if (ppd->is_sm_config_started == 0)
+			if (ppd->is_sm_config_started == 0) {
 				invalid = 1;
+				smp->status |= IB_SMP_INVALID_FIELD;
+			}
 		}
 	}
 
-	ret = set_port_states(ppd, smp, ls_new, ps_new, invalid);
-	if (ret)
-		return ret;
-
-	if (invalid)
-		smp->status |= IB_SMP_INVALID_FIELD;
+	if (!invalid) {
+		ret = set_port_states(ppd, smp, ls_new, ps_new);
+		if (ret)
+			return ret;
+	}
 
 	return __subn_get_opa_psi(smp, am, data, ibdev, port, resp_len,
 				  max_len);
