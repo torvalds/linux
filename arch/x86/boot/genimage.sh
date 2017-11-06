@@ -103,8 +103,9 @@ genisoimage() {
 	if [ -f "$FDINITRD" ] ; then
 		cp "$FDINITRD" $tmp_dir/initrd.img
 	fi
-	mkisofs -J -r -o $FIMAGE -b isolinux.bin -c boot.cat \
-		-no-emul-boot -boot-load-size 4 -boot-info-table $tmp_dir
+	mkisofs -J -r -input-charset=utf-8 -o $FIMAGE -b isolinux.bin \
+		-c boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table \
+		$tmp_dir
 	isohybrid $FIMAGE 2>/dev/null || true
 	rm -rf $tmp_dir
 }
