@@ -514,8 +514,7 @@ dhd_conf_set_fw_name_by_chip(dhd_pub_t *dhd, char *fw_path, char *nv_path)
 			if (chiprev == BCM43455C0_CHIP_REV) {
 				strcpy(&fw_path[i+1], FW_BCM43455C0);
 				strcpy(&nv_path[j + 1], "nvram_ap6255.txt");
-			}
-			else if (chiprev == BCM43455C5_CHIP_REV) {
+			} else if (chiprev == BCM43456C5_CHIP_REV) {
 				strcpy(&fw_path[i+1], FW_BCM43456C5);
 			}
 			break;
@@ -730,7 +729,7 @@ dhd_conf_set_conf_name_by_chip(dhd_pub_t *dhd, char *conf_path)
 		case BCM4345_CHIP_ID:
 			if (chiprev == BCM43455C0_CHIP_REV)
 				strcpy(&conf_path[i+1], CONFIG_BCM43455C0);
-			else if (chiprev == BCM43455C5_CHIP_REV)
+			else if (chiprev == BCM43456C5_CHIP_REV)
 				strcpy(&conf_path[i+1], CONFIG_BCM43456C5);
 			break;
 		case BCM4339_CHIP_ID:
@@ -1160,7 +1159,7 @@ void
 dhd_conf_add_pkt_filter(dhd_pub_t *dhd)
 {
 	int i, j;
-	char str[12];
+	char str[16];
 #define MACS "%02x%02x%02x%02x%02x%02x"
 
 	/*
@@ -1181,17 +1180,17 @@ dhd_conf_add_pkt_filter(dhd_pub_t *dhd)
 	}
 	dhd->pktfilter_count += i;
 
-	for(i=0; i<dhd->conf->magic_pkt_filter_add.count; i++) {
-		strcat(&dhd->conf->magic_pkt_filter_add.filter[i][0], " 0x");
-		strcat(&dhd->conf->magic_pkt_filter_add.filter[i][0], "FFFFFFFFFFFF");
+	if (dhd->conf->magic_pkt_filter_add) {
+		strcat(dhd->conf->magic_pkt_filter_add, " 0x");
+		strcat(dhd->conf->magic_pkt_filter_add, "FFFFFFFFFFFF");
 		for (j=0; j<16; j++)
-			strcat(&dhd->conf->magic_pkt_filter_add.filter[i][0], "FFFFFFFFFFFF");
-		strcat(&dhd->conf->magic_pkt_filter_add.filter[i][0], " 0x");
-		strcat(&dhd->conf->magic_pkt_filter_add.filter[i][0], "FFFFFFFFFFFF");
+			strcat(dhd->conf->magic_pkt_filter_add, "FFFFFFFFFFFF");
+		strcat(dhd->conf->magic_pkt_filter_add, " 0x");
+		strcat(dhd->conf->magic_pkt_filter_add, "FFFFFFFFFFFF");
 		sprintf(str, MACS, MAC2STRDBG(dhd->mac.octet));
 		for (j=0; j<16; j++)
-			strcat(&dhd->conf->magic_pkt_filter_add.filter[i][0], str);
-		dhd->pktfilter[i+dhd->pktfilter_count] = dhd->conf->magic_pkt_filter_add.filter[i];
+			strncat(dhd->conf->magic_pkt_filter_add, str, 12);
+		dhd->pktfilter[dhd->pktfilter_count] = dhd->conf->magic_pkt_filter_add;
 		dhd->pktfilter_count += 1;
 	}
 }
@@ -1839,16 +1838,12 @@ dhd_conf_read_pkt_filter(dhd_pub_t *dhd, char *full_param, uint len_param)
 		printf("\n");
 	}
 	else if (!strncmp("magic_pkt_filter_add=", full_param, len_param)) {
-		pick_tmp = data;
-		pch = bcmstrtok(&pick_tmp, ",.-", 0);
-		i=0;
-		while (pch != NULL && i<DHD_CONF_FILTER_MAX) {
-			strcpy(&conf->magic_pkt_filter_add.filter[i][0], pch);
-			printf("%s: magic_pkt_filter_add[%d][] = %s\n", __FUNCTION__, i, &conf->magic_pkt_filter_add.filter[i][0]);
-			pch = bcmstrtok(&pick_tmp, ",.-", 0);
-			i++;
+		if (!(conf->magic_pkt_filter_add = kmalloc(MAGIC_PKT_FILTER_LEN, GFP_KERNEL))) {
+			CONFIG_ERROR(("%s: kmalloc failed\n", __FUNCTION__));
+		} else {
+			strcpy(conf->magic_pkt_filter_add, data);
+			printf("%s: magic_pkt_filter_add = %s\n", __FUNCTION__, conf->magic_pkt_filter_add);
 		}
-		conf->magic_pkt_filter_add.count = i;
 	}
 	else
 		return false;
@@ -2043,10 +2038,7 @@ dhd_conf_read_sdio_params(dhd_pub_t *dhd, char *full_param, uint len_param)
 		printf("%s: deferred_tx_len = %d\n", __FUNCTION__, conf->deferred_tx_len);
 	}
 	else if (!strncmp("txctl_tmo_fix=", full_param, len_param)) {
-		if (!strncmp(data, "0", 1))
-			conf->txctl_tmo_fix = FALSE;
-		else
-			conf->txctl_tmo_fix = TRUE;
+		conf->txctl_tmo_fix = (int)simple_strtol(data, NULL, 10);
 		printf("%s: txctl_tmo_fix = %d\n", __FUNCTION__, conf->txctl_tmo_fix);
 	}
 	else if (!strncmp("tx_in_rx=", full_param, len_param)) {
@@ -2470,6 +2462,8 @@ dhd_conf_preinit(dhd_pub_t *dhd)
 	dhd_conf_free_mac_list(&conf->nv_by_mac);
 	dhd_conf_free_chip_nv_path_list(&conf->nv_by_chip);
 #endif
+	if (conf->magic_pkt_filter_add)
+		kfree(conf->magic_pkt_filter_add);
 	memset(&conf->country_list, 0, sizeof(conf_country_list_t));
 	conf->band = -1;
 	conf->mimo_bw_cap = -1;
@@ -2526,7 +2520,6 @@ dhd_conf_preinit(dhd_pub_t *dhd)
 #ifdef PKT_FILTER_SUPPORT
 	memset(&conf->pkt_filter_add, 0, sizeof(conf_pkt_filter_add_t));
 	memset(&conf->pkt_filter_del, 0, sizeof(conf_pkt_filter_del_t));
-	memset(&conf->magic_pkt_filter_add, 0, sizeof(conf_pkt_filter_del_t));
 #endif
 	conf->srl = -1;
 	conf->lrl = -1;
@@ -2641,6 +2634,8 @@ dhd_conf_reset(dhd_pub_t *dhd)
 	dhd_conf_free_mac_list(&dhd->conf->nv_by_mac);
 	dhd_conf_free_chip_nv_path_list(&dhd->conf->nv_by_chip);
 #endif
+	if (dhd->conf->magic_pkt_filter_add)
+		kfree(dhd->conf->magic_pkt_filter_add);
 	memset(dhd->conf, 0, sizeof(dhd_conf_t));
 	return 0;
 }
@@ -2684,6 +2679,8 @@ dhd_conf_detach(dhd_pub_t *dhd)
 		dhd_conf_free_mac_list(&dhd->conf->nv_by_mac);
 		dhd_conf_free_chip_nv_path_list(&dhd->conf->nv_by_chip);
 #endif
+		if (dhd->conf->magic_pkt_filter_add)
+			kfree(dhd->conf->magic_pkt_filter_add);
 		MFREE(dhd->osh, dhd->conf, sizeof(dhd_conf_t));
 	}
 	dhd->conf = NULL;

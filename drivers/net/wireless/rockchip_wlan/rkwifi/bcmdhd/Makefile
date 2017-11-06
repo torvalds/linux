@@ -17,8 +17,7 @@ DHDCFLAGS = -Wall -Wstrict-prototypes -Dlinux -DBCMDRIVER -DSDTEST       \
 	-DWIFI_ACT_FRAME -DARP_OFFLOAD_SUPPORT -DSUPPORT_PM2_ONLY             \
 	-DKEEP_ALIVE -DPKT_FILTER_SUPPORT -DPNO_SUPPORT -DDHDTCPACK_SUPPRESS  \
 	-DDHD_DONOT_FORWARD_BCMEVENT_AS_NETWORK_PKT -DRXFRAME_THREAD          \
-	-DTSQ_MULTIPLIER -DMFP                                                \
-	-DBCMSDIOH_TXGLOM_EXT -DWL_EXT_IAPSTA                                 \
+	-DTSQ_MULTIPLIER -DMFP -DWL_EXT_IAPSTA                                \
 	-DENABLE_INSMOD_NO_FW_LOAD                                            \
 	-Idrivers/net/wireless/rockchip_wlan/rkwifi/bcmdhd \
 	-Idrivers/net/wireless/rockchip_wlan/rkwifi/bcmdhd/include
@@ -32,7 +31,7 @@ DHDOFILES = aiutils.o siutils.o sbutils.o bcmutils.o bcmwifi_channels.o \
 ifneq ($(CONFIG_BCMDHD_SDIO),)
 DHDCFLAGS += \
 	-DBCMSDIO -DMMC_SDIO_ABORT -DBCMLXSDMMC -DUSE_SDIOFIFO_IOVAR          \
-	-DBDC -DDHD_USE_IDLECOUNT -DBCMSDIOH_TXGLOM                           \
+	-DBDC -DDHD_USE_IDLECOUNT -DBCMSDIOH_TXGLOM -DBCMSDIOH_TXGLOM_EXT     \
 	-DCUSTOM_SDIO_F2_BLKSIZE=256
 
 DHDOFILES += bcmsdh.o bcmsdh_linux.o bcmsdh_sdmmc.o bcmsdh_sdmmc_linux.o \

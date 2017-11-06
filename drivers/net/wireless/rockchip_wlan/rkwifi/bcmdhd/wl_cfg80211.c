@@ -3778,7 +3778,7 @@ wl_customer6_legacy_chip_check(struct bcm_cfg80211 *cfg,
 		dtoh32(revinfo.deviceid), dtoh32(revinfo.vendorid), dtoh32(revinfo.chipnum)));
 	chipnum = revinfo.chipnum;
 	if ((chipnum == BCM4350_CHIP_ID) || (chipnum == BCM4355_CHIP_ID) ||
-		(chipnum == BCM4345_CHIP_ID)) {
+		(chipnum == BCM4345_CHIP_ID) || (chipnum == BCM43430_CHIP_ID)) {
 		/* WAR required */
 		return true;
 	}

@@ -31,7 +31,7 @@ extern uint dhd_slpauto;
 #define BCM4335A0_CHIP_REV      2
 #define BCM4339A0_CHIP_REV      1
 #define BCM43455C0_CHIP_REV     6
-#define BCM43455C5_CHIP_REV     9
+#define BCM43456C5_CHIP_REV     9
 #define BCM4354A1_CHIP_REV      1
 #define BCM4359B1_CHIP_REV      5
 #define BCM4359C0_CHIP_REV      9
@@ -82,6 +82,7 @@ typedef struct wmes_param {
 #ifdef PKT_FILTER_SUPPORT
 #define DHD_CONF_FILTER_MAX	8
 #define PKT_FILTER_LEN 300
+#define MAGIC_PKT_FILTER_LEN 450
 typedef struct conf_pkt_filter_add {
 	uint32 count;
 	char filter[DHD_CONF_FILTER_MAX][PKT_FILTER_LEN];
@@ -127,7 +128,7 @@ typedef struct dhd_conf {
 #ifdef PKT_FILTER_SUPPORT
 	conf_pkt_filter_add_t pkt_filter_add;
 	conf_pkt_filter_del_t pkt_filter_del;
-	conf_pkt_filter_add_t magic_pkt_filter_add;
+	char *magic_pkt_filter_add;
 #endif
 	int srl;
 	int lrl;

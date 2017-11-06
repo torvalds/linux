@@ -170,14 +170,18 @@ static int dhd_wlan_get_mac_addr(unsigned char *buf)
 
 static struct cntry_locales_custom brcm_wlan_translate_custom_table[] = {
 	/* Table should be filled out based on custom platform regulatory requirement */
+#ifdef EXAMPLE_TABLE
 	{"",   "XT", 49},  /* Universal if Country code is unknown or empty */
 	{"US", "US", 0},
+#endif /* EXMAPLE_TABLE */
 };
 
 #ifdef CUSTOM_FORCE_NODFS_FLAG
 struct cntry_locales_custom brcm_wlan_translate_nodfs_table[] = {
+#ifdef EXAMPLE_TABLE
 	{"",   "XT", 50},  /* Universal if Country code is unknown or empty */
 	{"US", "US", 0},
+#endif /* EXMAPLE_TABLE */
 };
 #endif
 
