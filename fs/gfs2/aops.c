@@ -39,18 +39,21 @@
 
 
 static void gfs2_page_add_databufs(struct gfs2_inode *ip, struct page *page,
-				   unsigned int from, unsigned int to)
+				   unsigned int from, unsigned int len)
 {
 	struct buffer_head *head = page_buffers(page);
 	unsigned int bsize = head->b_size;
 	struct buffer_head *bh;
+	unsigned int to = from + len;
 	unsigned int start, end;
 
 	for (bh = head, start = 0; bh != head || !start;
 	     bh = bh->b_this_page, start = end) {
 		end = start + bsize;
-		if (end <= from || start >= to)
+		if (end <= from)
 			continue;
+		if (start >= to)
+			break;
 		if (gfs2_is_jdata(ip))
 			set_buffer_uptodate(bh);
 		gfs2_trans_add_data(ip->i_gl, bh);
@@ -189,7 +192,7 @@ static int __gfs2_jdata_writepage(struct page *page, struct writeback_control *w
 			create_empty_buffers(page, inode->i_sb->s_blocksize,
 					     BIT(BH_Dirty)|BIT(BH_Uptodate));
 		}
-		gfs2_page_add_databufs(ip, page, 0, sdp->sd_vfs->s_blocksize-1);
+		gfs2_page_add_databufs(ip, page, 0, sdp->sd_vfs->s_blocksize);
 	}
 	return gfs2_write_full_page(page, gfs2_get_block_noalloc, wbc);
 }
@@ -889,8 +892,6 @@ static int gfs2_write_end(struct file *file, struct address_space *mapping,
 	struct gfs2_sbd *sdp = GFS2_SB(inode);
 	struct gfs2_inode *m_ip = GFS2_I(sdp->sd_statfs_inode);
 	struct buffer_head *dibh;
-	unsigned int from = pos & (PAGE_SIZE - 1);
-	unsigned int to = from + len;
 	int ret;
 	struct gfs2_trans *tr = current->journal_info;
 	BUG_ON(!tr);
@@ -908,7 +909,7 @@ static int gfs2_write_end(struct file *file, struct address_space *mapping,
 		return gfs2_stuffed_write_end(inode, dibh, pos, len, copied, page);
 
 	if (!gfs2_is_writeback(ip))
-		gfs2_page_add_databufs(ip, page, from, to);
+		gfs2_page_add_databufs(ip, page, pos & ~PAGE_MASK, len);
 
 	ret = generic_write_end(file, mapping, pos, len, copied, page, fsdata);
 	if (tr->tr_num_buf_new)
