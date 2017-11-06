@@ -12,8 +12,6 @@
  *
  * Original release 01/11/99
  *
- * This code is released under the GNU General Public License (GPL)
- *
  * This module implements the tty line discipline N_HDLC for use with
  * tty device drivers that support bit-synchronous HDLC communications.
  *

@@ -3,10 +3,6 @@
  * TTY driver for MIPS EJTAG Fast Debug Channels.
  *
  * Copyright (C) 2007-2015 Imagination Technologies Ltd
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License. See the file COPYING in the main directory of this archive for more
- * details.
  */
 
 #include <linux/atomic.h>

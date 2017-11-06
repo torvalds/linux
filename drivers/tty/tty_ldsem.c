@@ -23,9 +23,6 @@
  * Michel Lespinasse <walken@google.com>.
  *
  * Copyright (C) 2013 Peter Hurley <peter@hurleysoftware.com>
- *
- * This file may be redistributed under the terms of the GNU General Public
- * License v2.
  */
 
 #include <linux/list.h>

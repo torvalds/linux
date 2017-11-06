@@ -14,8 +14,6 @@
  *
  * Original release 01/11/99
  *
- * This code is released under the GNU General Public License (GPL)
- *
  * This driver is primarily intended for use in synchronous
  * HDLC mode. Asynchronous mode is also provided.
  *

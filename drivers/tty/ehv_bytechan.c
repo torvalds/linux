@@ -5,10 +5,6 @@
  *
  * Author: Timur Tabi <timur@freescale.com>
  *
- * This file is licensed under the terms of the GNU General Public License
- * version 2.  This program is licensed "as is" without any warranty of any
- * kind, whether express or implied.
- *
  * This driver support three distinct interfaces, all of which are related to
  * ePAPR hypervisor byte channels.
  *
