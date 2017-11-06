@@ -870,8 +870,8 @@ static int amdgpu_cs_ib_vm_chunk(struct amdgpu_device *adev,
 			struct amdgpu_bo_va_mapping *m;
 			struct amdgpu_bo *aobj = NULL;
 			struct amdgpu_cs_chunk *chunk;
+			uint64_t offset, va_start;
 			struct amdgpu_ib *ib;
-			uint64_t offset;
 			uint8_t *kptr;
 
 			chunk = &p->chunks[i];
@@ -881,14 +881,14 @@ static int amdgpu_cs_ib_vm_chunk(struct amdgpu_device *adev,
 			if (chunk->chunk_id != AMDGPU_CHUNK_ID_IB)
 				continue;
 
-			r = amdgpu_cs_find_mapping(p, chunk_ib->va_start,
-						   &aobj, &m);
+			va_start = chunk_ib->va_start & AMDGPU_VA_HOLE_MASK;
+			r = amdgpu_cs_find_mapping(p, va_start, &aobj, &m);
 			if (r) {
 				DRM_ERROR("IB va_start is invalid\n");
 				return r;
 			}
 
-			if ((chunk_ib->va_start + chunk_ib->ib_bytes) >
+			if ((va_start + chunk_ib->ib_bytes) >
 			    (m->last + 1) * AMDGPU_GPU_PAGE_SIZE) {
 				DRM_ERROR("IB va_start+ib_bytes is invalid\n");
 				return -EINVAL;
@@ -901,7 +901,7 @@ static int amdgpu_cs_ib_vm_chunk(struct amdgpu_device *adev,
 			}
 
 			offset = m->start * AMDGPU_GPU_PAGE_SIZE;
-			kptr += chunk_ib->va_start - offset;
+			kptr += va_start - offset;
 
 			memcpy(ib->ptr, kptr, chunk_ib->ib_bytes);
 			amdgpu_bo_kunmap(aobj);

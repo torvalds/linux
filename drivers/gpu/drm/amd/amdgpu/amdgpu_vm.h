@@ -96,6 +96,19 @@ struct amdgpu_bo_list_entry;
 /* hardcode that limit for now */
 #define AMDGPU_VA_RESERVED_SIZE			(8ULL << 20)
 
+/* VA hole for 48bit addresses on Vega10 */
+#define AMDGPU_VA_HOLE_START			0x0000800000000000ULL
+#define AMDGPU_VA_HOLE_END			0xffff800000000000ULL
+
+/*
+ * Hardware is programmed as if the hole doesn't exists with start and end
+ * address values.
+ *
+ * This mask is used to remove the upper 16bits of the VA and so come up with
+ * the linear addr value.
+ */
+#define AMDGPU_VA_HOLE_MASK			0x0000ffffffffffffULL
+
 /* max vmids dedicated for process */
 #define AMDGPU_VM_MAX_RESERVED_VMID	1
 
