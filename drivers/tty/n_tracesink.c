@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  n_tracesink.c - Trace data router and sink path through tty space.
  *

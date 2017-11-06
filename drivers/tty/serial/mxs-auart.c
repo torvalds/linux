@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Application UART driver for:
  *	Freescale STMP37XX/STMP378X

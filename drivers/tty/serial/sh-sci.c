@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * SuperH on-chip serial module support.  (SCI with no FIFO / with FIFO)
  *

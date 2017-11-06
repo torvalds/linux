@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /****************************************************************************
  *
  * Driver for the IFX 6x60 spi modem.

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  Atheros AR933X SoC built-in UART driver
  *

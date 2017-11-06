@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * timbuart.c timberdale FPGA UART driver
  * Copyright (c) 2009 Intel Corporation

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * 8250_moxa.c - MOXA Smartio/Industio MUE multiport serial driver.
  *

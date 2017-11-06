@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Driver for the PSC of the Freescale MPC52xx PSCs configured as UARTs.
  *

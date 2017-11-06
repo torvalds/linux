@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Driver for OMAP-UART controller.
  * Based on drivers/serial/8250.c

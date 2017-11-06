@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  Written by Paul B Schroeder < pschroeder "at" uplogix "dot" com >
  *  Based on 8250_boca.

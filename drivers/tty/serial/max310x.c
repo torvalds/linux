@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  *  Maxim (Dallas) MAX3107/8/9, MAX14830 serial driver
  *

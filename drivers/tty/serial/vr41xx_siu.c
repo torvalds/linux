@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  *  Driver for NEC VR4100 series Serial Interface Unit.
  *

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  *          mxser.c  -- MOXA Smartio/Industio family multiport serial driver.
  *

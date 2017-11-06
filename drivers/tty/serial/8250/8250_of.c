@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  *  Serial Port driver for Open Firmware platform devices
  *

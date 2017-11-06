@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  dashtty.c - tty driver for Dash channels interface.
  *

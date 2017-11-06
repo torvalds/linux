@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Generic driver for the MPSC (UART mode) on Marvell parts (e.g., GT64240,
  * GT64260, MV64340, MV64360, GT96100, ... ).

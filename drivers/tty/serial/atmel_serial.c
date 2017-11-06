@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  *  Driver for Atmel AT91 Serial ports
  *  Copyright (C) 2003 Rick Bronson

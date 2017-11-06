@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  n_tracesink.h - Kernel driver API to route trace data in kernel space.
  *

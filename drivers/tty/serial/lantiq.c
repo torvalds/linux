@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  Based on drivers/char/serial.c, by Linus Torvalds, Theodore Ts'o.
  *

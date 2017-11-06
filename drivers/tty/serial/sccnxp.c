@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  *  NXP (Philips) SCC+++(SCN+++) serial driver
  *

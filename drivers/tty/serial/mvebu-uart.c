@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
 * ***************************************************************************
 * Marvell Armada-3700 Serial Driver

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
 ** mux.c:
 **	serial driver for the Mux console found in some PA-RISC servers.

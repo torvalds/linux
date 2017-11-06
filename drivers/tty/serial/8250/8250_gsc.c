@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  *	Serial Device Initialisation for Lasi/Asp/Wax/Dino
  *

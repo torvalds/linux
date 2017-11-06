@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * TTY driver for MIPS EJTAG Fast Debug Channels.
  *

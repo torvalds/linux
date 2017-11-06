@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  Based on meson_uart.c, by AMLOGIC, INC.
  *

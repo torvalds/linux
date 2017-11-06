@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * st-asc.c: ST Asynchronous serial controller (ASC) driver
  *

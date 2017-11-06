@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  Probe for 8250/16550-type ISAPNP serial ports.
  *

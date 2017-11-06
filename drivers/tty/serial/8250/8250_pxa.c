@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  *  drivers/tty/serial/8250/8250_pxa.c -- driver for PXA on-board UARTS
  *  Copyright:	(C) 2013 Sergei Ianovich <ynvich@gmail.com>

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Driver core for Samsung SoC onboard UARTs.
  *

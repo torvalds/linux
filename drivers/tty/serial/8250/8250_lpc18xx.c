@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Serial port driver for NXP LPC18xx/43xx UART
  *

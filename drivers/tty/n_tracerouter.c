@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  n_tracerouter.c - Trace data router through tty space
  *
