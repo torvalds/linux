@@ -2064,7 +2064,7 @@ out:
 		 * should mark the directories for revalidation.
 		 */
 		d_move(old_dentry, new_dentry);
-		nfs_set_verifier(new_dentry,
+		nfs_set_verifier(old_dentry,
 					nfs_save_change_attribute(new_dir));
 	} else if (error == -ENOENT)
 		nfs_dentry_handle_enoent(old_dentry);
