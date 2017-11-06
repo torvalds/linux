@@ -7,6 +7,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3368-p9.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3368-px5-evb.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3368-px5-evb-android.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3368-r88.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3368-r88-dcdc.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3368-sheep.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3368-sheep-lvds.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3368-xikp.dtb
