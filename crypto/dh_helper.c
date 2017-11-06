@@ -83,6 +83,14 @@ int crypto_dh_decode_key(const char *buf, unsigned int len, struct dh *params)
 	if (secret.len != crypto_dh_key_len(params))
 		return -EINVAL;
 
+	/*
+	 * Don't permit the buffer for 'key' or 'g' to be larger than 'p', since
+	 * some drivers assume otherwise.
+	 */
+	if (params->key_size > params->p_size ||
+	    params->g_size > params->p_size)
+		return -EINVAL;
+
 	/* Don't allocate memory. Set pointers to data within
 	 * the given buffer
 	 */
