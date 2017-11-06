@@ -3341,8 +3341,10 @@ MLXSW_ITEM32(reg, ppcnt, pnat, 0x00, 14, 2);
 
 enum mlxsw_reg_ppcnt_grp {
 	MLXSW_REG_PPCNT_IEEE_8023_CNT = 0x0,
+	MLXSW_REG_PPCNT_EXT_CNT = 0x5,
 	MLXSW_REG_PPCNT_PRIO_CNT = 0x10,
 	MLXSW_REG_PPCNT_TC_CNT = 0x11,
+	MLXSW_REG_PPCNT_TC_CONG_TC = 0x13,
 };
 
 /* reg_ppcnt_grp
@@ -3358,6 +3360,7 @@ enum mlxsw_reg_ppcnt_grp {
  * 0x10: Per Priority Counters
  * 0x11: Per Traffic Class Counters
  * 0x12: Physical Layer Counters
+ * 0x13: Per Traffic Class Congestion Counters
  * Access: Index
  */
 MLXSW_ITEM32(reg, ppcnt, grp, 0x00, 0, 6);
@@ -3496,6 +3499,14 @@ MLXSW_ITEM64(reg, ppcnt, a_pause_mac_ctrl_frames_received,
 MLXSW_ITEM64(reg, ppcnt, a_pause_mac_ctrl_frames_transmitted,
 	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x90, 0, 64);
 
+/* Ethernet Extended Counter Group Counters */
+
+/* reg_ppcnt_ecn_marked
+ * Access: RO
+ */
+MLXSW_ITEM64(reg, ppcnt, ecn_marked,
+	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x08, 0, 64);
+
 /* Ethernet Per Priority Group Counters */
 
 /* reg_ppcnt_rx_octets
@@ -3570,6 +3581,14 @@ MLXSW_ITEM64(reg, ppcnt, tc_transmit_queue,
  */
 MLXSW_ITEM64(reg, ppcnt, tc_no_buffer_discard_uc,
 	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x08, 0, 64);
+
+/* Ethernet Per Traffic Class Congestion Group Counters */
+
+/* reg_ppcnt_wred_discard
+ * Access: RO
+ */
+MLXSW_ITEM64(reg, ppcnt, wred_discard,
+	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x00, 0, 64);
 
 static inline void mlxsw_reg_ppcnt_pack(char *payload, u8 local_port,
 					enum mlxsw_reg_ppcnt_grp grp,
