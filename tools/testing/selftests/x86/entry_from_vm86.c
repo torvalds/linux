@@ -111,6 +111,11 @@ asm (
 	"smsw %ax\n\t"
 	"mov %ax, (2080)\n\t"
 	"int3\n\t"
+	"vmcode_umip_str:\n\t"
+	"str %eax\n\t"
+	"vmcode_umip_sldt:\n\t"
+	"sldt %eax\n\t"
+	"int3\n\t"
 	".size vmcode, . - vmcode\n\t"
 	"end_vmcode:\n\t"
 	".code32\n\t"
@@ -119,7 +124,8 @@ asm (
 
 extern unsigned char vmcode[], end_vmcode[];
 extern unsigned char vmcode_bound[], vmcode_sysenter[], vmcode_syscall[],
-	vmcode_sti[], vmcode_int3[], vmcode_int80[], vmcode_umip[];
+	vmcode_sti[], vmcode_int3[], vmcode_int80[], vmcode_umip[],
+	vmcode_umip_str[], vmcode_umip_sldt[];
 
 /* Returns false if the test was skipped. */
 static bool do_test(struct vm86plus_struct *v86, unsigned long eip,
@@ -226,6 +232,16 @@ void do_umip_tests(struct vm86plus_struct *vm86, unsigned char *test_mem)
 		printf("[FAIL]\tAll the results of SIDT should be the same.\n");
 	else
 		printf("[PASS]\tAll the results from SIDT are identical.\n");
+
+	sethandler(SIGILL, sighandler, 0);
+	do_test(vm86, vmcode_umip_str - vmcode, VM86_SIGNAL, 0,
+		"STR instruction");
+	clearhandler(SIGILL);
+
+	sethandler(SIGILL, sighandler, 0);
+	do_test(vm86, vmcode_umip_sldt - vmcode, VM86_SIGNAL, 0,
+		"SLDT instruction");
+	clearhandler(SIGILL);
 }
 
 int main(void)
