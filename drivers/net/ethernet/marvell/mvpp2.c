@@ -799,6 +799,42 @@ enum mvpp2_bm_type {
 	MVPP2_BM_SWF_SHORT
 };
 
+/* GMAC MIB Counters register definitions */
+#define MVPP21_MIB_COUNTERS_OFFSET		0x1000
+#define MVPP21_MIB_COUNTERS_PORT_SZ		0x400
+#define MVPP22_MIB_COUNTERS_OFFSET		0x0
+#define MVPP22_MIB_COUNTERS_PORT_SZ		0x100
+
+#define MVPP2_MIB_GOOD_OCTETS_RCVD		0x0
+#define MVPP2_MIB_BAD_OCTETS_RCVD		0x8
+#define MVPP2_MIB_CRC_ERRORS_SENT		0xc
+#define MVPP2_MIB_UNICAST_FRAMES_RCVD		0x10
+#define MVPP2_MIB_BROADCAST_FRAMES_RCVD		0x18
+#define MVPP2_MIB_MULTICAST_FRAMES_RCVD		0x1c
+#define MVPP2_MIB_FRAMES_64_OCTETS		0x20
+#define MVPP2_MIB_FRAMES_65_TO_127_OCTETS	0x24
+#define MVPP2_MIB_FRAMES_128_TO_255_OCTETS	0x28
+#define MVPP2_MIB_FRAMES_256_TO_511_OCTETS	0x2c
+#define MVPP2_MIB_FRAMES_512_TO_1023_OCTETS	0x30
+#define MVPP2_MIB_FRAMES_1024_TO_MAX_OCTETS	0x34
+#define MVPP2_MIB_GOOD_OCTETS_SENT		0x38
+#define MVPP2_MIB_UNICAST_FRAMES_SENT		0x40
+#define MVPP2_MIB_MULTICAST_FRAMES_SENT		0x48
+#define MVPP2_MIB_BROADCAST_FRAMES_SENT		0x4c
+#define MVPP2_MIB_FC_SENT			0x54
+#define MVPP2_MIB_FC_RCVD			0x58
+#define MVPP2_MIB_RX_FIFO_OVERRUN		0x5c
+#define MVPP2_MIB_UNDERSIZE_RCVD		0x60
+#define MVPP2_MIB_FRAGMENTS_RCVD		0x64
+#define MVPP2_MIB_OVERSIZE_RCVD			0x68
+#define MVPP2_MIB_JABBER_RCVD			0x6c
+#define MVPP2_MIB_MAC_RCV_ERROR			0x70
+#define MVPP2_MIB_BAD_CRC_EVENT			0x74
+#define MVPP2_MIB_COLLISION			0x78
+#define MVPP2_MIB_LATE_COLLISION		0x7c
+
+#define MVPP2_MIB_COUNTERS_STATS_DELAY		(1 * HZ)
+
 /* Definitions */
 
 /* Shared Packet Processor resources */
@@ -826,6 +862,7 @@ struct mvpp2 {
 	struct clk *axi_clk;
 
 	/* List of pointers to port structures */
+	int port_count;
 	struct mvpp2_port **port_list;
 
 	/* Aggregated TXQs */
@@ -847,6 +884,12 @@ struct mvpp2 {
 
 	/* Maximum number of RXQs per port */
 	unsigned int max_port_rxqs;
+
+	/* Workqueue to gather hardware statistics with its lock */
+	struct mutex gather_stats_lock;
+	struct delayed_work stats_work;
+	char queue_name[30];
+	struct workqueue_struct *stats_queue;
 };
 
 struct mvpp2_pcpu_stats {
@@ -891,6 +934,7 @@ struct mvpp2_port {
 
 	/* Per-port registers' base address */
 	void __iomem *base;
+	void __iomem *stats_base;
 
 	struct mvpp2_rx_queue **rxqs;
 	unsigned int nrxqs;
@@ -909,6 +953,7 @@ struct mvpp2_port {
 	u16 tx_ring_size;
 	u16 rx_ring_size;
 	struct mvpp2_pcpu_stats __percpu *stats;
+	u64 *ethtool_stats;
 
 	phy_interface_t phy_interface;
 	struct device_node *phy_node;
@@ -4778,9 +4823,136 @@ static void mvpp2_port_loopback_set(struct mvpp2_port *port)
 	writel(val, port->base + MVPP2_GMAC_CTRL_1_REG);
 }
 
+struct mvpp2_ethtool_counter {
+	unsigned int offset;
+	const char string[ETH_GSTRING_LEN];
+	bool reg_is_64b;
+};
+
+static u64 mvpp2_read_count(struct mvpp2_port *port,
+			    const struct mvpp2_ethtool_counter *counter)
+{
+	u64 val;
+
+	val = readl(port->stats_base + counter->offset);
+	if (counter->reg_is_64b)
+		val += (u64)readl(port->stats_base + counter->offset + 4) << 32;
+
+	return val;
+}
+
+/* Due to the fact that software statistics and hardware statistics are, by
+ * design, incremented at different moments in the chain of packet processing,
+ * it is very likely that incoming packets could have been dropped after being
+ * counted by hardware but before reaching software statistics (most probably
+ * multicast packets), and in the oppposite way, during transmission, FCS bytes
+ * are added in between as well as TSO skb will be split and header bytes added.
+ * Hence, statistics gathered from userspace with ifconfig (software) and
+ * ethtool (hardware) cannot be compared.
+ */
+static const struct mvpp2_ethtool_counter mvpp2_ethtool_regs[] = {
+	{ MVPP2_MIB_GOOD_OCTETS_RCVD, "good_octets_received", true },
+	{ MVPP2_MIB_BAD_OCTETS_RCVD, "bad_octets_received" },
+	{ MVPP2_MIB_CRC_ERRORS_SENT, "crc_errors_sent" },
+	{ MVPP2_MIB_UNICAST_FRAMES_RCVD, "unicast_frames_received" },
+	{ MVPP2_MIB_BROADCAST_FRAMES_RCVD, "broadcast_frames_received" },
+	{ MVPP2_MIB_MULTICAST_FRAMES_RCVD, "multicast_frames_received" },
+	{ MVPP2_MIB_FRAMES_64_OCTETS, "frames_64_octets" },
+	{ MVPP2_MIB_FRAMES_65_TO_127_OCTETS, "frames_65_to_127_octet" },
+	{ MVPP2_MIB_FRAMES_128_TO_255_OCTETS, "frames_128_to_255_octet" },
+	{ MVPP2_MIB_FRAMES_256_TO_511_OCTETS, "frames_256_to_511_octet" },
+	{ MVPP2_MIB_FRAMES_512_TO_1023_OCTETS, "frames_512_to_1023_octet" },
+	{ MVPP2_MIB_FRAMES_1024_TO_MAX_OCTETS, "frames_1024_to_max_octet" },
+	{ MVPP2_MIB_GOOD_OCTETS_SENT, "good_octets_sent", true },
+	{ MVPP2_MIB_UNICAST_FRAMES_SENT, "unicast_frames_sent" },
+	{ MVPP2_MIB_MULTICAST_FRAMES_SENT, "multicast_frames_sent" },
+	{ MVPP2_MIB_BROADCAST_FRAMES_SENT, "broadcast_frames_sent" },
+	{ MVPP2_MIB_FC_SENT, "fc_sent" },
+	{ MVPP2_MIB_FC_RCVD, "fc_received" },
+	{ MVPP2_MIB_RX_FIFO_OVERRUN, "rx_fifo_overrun" },
+	{ MVPP2_MIB_UNDERSIZE_RCVD, "undersize_received" },
+	{ MVPP2_MIB_FRAGMENTS_RCVD, "fragments_received" },
+	{ MVPP2_MIB_OVERSIZE_RCVD, "oversize_received" },
+	{ MVPP2_MIB_JABBER_RCVD, "jabber_received" },
+	{ MVPP2_MIB_MAC_RCV_ERROR, "mac_receive_error" },
+	{ MVPP2_MIB_BAD_CRC_EVENT, "bad_crc_event" },
+	{ MVPP2_MIB_COLLISION, "collision" },
+	{ MVPP2_MIB_LATE_COLLISION, "late_collision" },
+};
+
+static void mvpp2_ethtool_get_strings(struct net_device *netdev, u32 sset,
+				      u8 *data)
+{
+	if (sset == ETH_SS_STATS) {
+		int i;
+
+		for (i = 0; i < ARRAY_SIZE(mvpp2_ethtool_regs); i++)
+			memcpy(data + i * ETH_GSTRING_LEN,
+			       &mvpp2_ethtool_regs[i].string, ETH_GSTRING_LEN);
+	}
+}
+
+static void mvpp2_gather_hw_statistics(struct work_struct *work)
+{
+	struct delayed_work *del_work = to_delayed_work(work);
+	struct mvpp2 *priv = container_of(del_work, struct mvpp2, stats_work);
+	struct mvpp2_port *port;
+	u64 *pstats;
+	int i, j;
+
+	mutex_lock(&priv->gather_stats_lock);
+
+	for (i = 0; i < priv->port_count; i++) {
+		if (!priv->port_list[i])
+			continue;
+
+		port = priv->port_list[i];
+		pstats = port->ethtool_stats;
+		for (j = 0; j < ARRAY_SIZE(mvpp2_ethtool_regs); j++)
+			*pstats++ += mvpp2_read_count(port,
+						      &mvpp2_ethtool_regs[j]);
+	}
+
+	/* No need to read again the counters right after this function if it
+	 * was called asynchronously by the user (ie. use of ethtool).
+	 */
+	cancel_delayed_work(&priv->stats_work);
+	queue_delayed_work(priv->stats_queue, &priv->stats_work,
+			   MVPP2_MIB_COUNTERS_STATS_DELAY);
+
+	mutex_unlock(&priv->gather_stats_lock);
+}
+
+static void mvpp2_ethtool_get_stats(struct net_device *dev,
+				    struct ethtool_stats *stats, u64 *data)
+{
+	struct mvpp2_port *port = netdev_priv(dev);
+
+	/* Update statistics for all ports, copy only those actually needed */
+	mvpp2_gather_hw_statistics(&port->priv->stats_work.work);
+
+	mutex_lock(&port->priv->gather_stats_lock);
+	memcpy(data, port->ethtool_stats,
+	       sizeof(u64) * ARRAY_SIZE(mvpp2_ethtool_regs));
+	mutex_unlock(&port->priv->gather_stats_lock);
+}
+
+static int mvpp2_ethtool_get_sset_count(struct net_device *dev, int sset)
+{
+	if (sset == ETH_SS_STATS)
+		return ARRAY_SIZE(mvpp2_ethtool_regs);
+
+	return -EOPNOTSUPP;
+}
+
 static void mvpp2_port_reset(struct mvpp2_port *port)
 {
 	u32 val;
+	unsigned int i;
+
+	/* Read the GOP statistics to reset the hardware counters */
+	for (i = 0; i < ARRAY_SIZE(mvpp2_ethtool_regs); i++)
+		mvpp2_read_count(port, &mvpp2_ethtool_regs[i]);
 
 	val = readl(port->base + MVPP2_GMAC_CTRL_2_REG) &
 		    ~MVPP2_GMAC_PORT_RESET_MASK;
@@ -6912,6 +7084,10 @@ static int mvpp2_open(struct net_device *dev)
 	if (priv->hw_version == MVPP22)
 		mvpp22_init_rss(port);
 
+	/* Start hardware statistics gathering */
+	queue_delayed_work(priv->stats_queue, &priv->stats_work,
+			   MVPP2_MIB_COUNTERS_STATS_DELAY);
+
 	return 0;
 
 err_free_link_irq:
@@ -6955,6 +7131,9 @@ static int mvpp2_stop(struct net_device *dev)
 	}
 	mvpp2_cleanup_rxqs(port);
 	mvpp2_cleanup_txqs(port);
+
+	cancel_delayed_work_sync(&priv->stats_work);
+	flush_workqueue(priv->stats_queue);
 
 	return 0;
 }
@@ -7267,6 +7446,9 @@ static const struct ethtool_ops mvpp2_eth_tool_ops = {
 	.get_drvinfo	= mvpp2_ethtool_get_drvinfo,
 	.get_ringparam	= mvpp2_ethtool_get_ringparam,
 	.set_ringparam	= mvpp2_ethtool_set_ringparam,
+	.get_strings	= mvpp2_ethtool_get_strings,
+	.get_ethtool_stats = mvpp2_ethtool_get_stats,
+	.get_sset_count	= mvpp2_ethtool_get_sset_count,
 	.get_link_ksettings = phy_ethtool_get_link_ksettings,
 	.set_link_ksettings = phy_ethtool_set_link_ksettings,
 };
@@ -7670,6 +7852,10 @@ static int mvpp2_port_probe(struct platform_device *pdev,
 			err = PTR_ERR(port->base);
 			goto err_free_irq;
 		}
+
+		port->stats_base = port->priv->lms_base +
+				   MVPP21_MIB_COUNTERS_OFFSET +
+				   port->gop_id * MVPP21_MIB_COUNTERS_PORT_SZ;
 	} else {
 		if (of_property_read_u32(port_node, "gop-port-id",
 					 &port->gop_id)) {
@@ -7679,13 +7865,24 @@ static int mvpp2_port_probe(struct platform_device *pdev,
 		}
 
 		port->base = priv->iface_base + MVPP22_GMAC_BASE(port->gop_id);
+		port->stats_base = port->priv->iface_base +
+				   MVPP22_MIB_COUNTERS_OFFSET +
+				   port->gop_id * MVPP22_MIB_COUNTERS_PORT_SZ;
 	}
 
-	/* Alloc per-cpu stats */
+	/* Alloc per-cpu and ethtool stats */
 	port->stats = netdev_alloc_pcpu_stats(struct mvpp2_pcpu_stats);
 	if (!port->stats) {
 		err = -ENOMEM;
 		goto err_free_irq;
+	}
+
+	port->ethtool_stats = devm_kcalloc(&pdev->dev,
+					   ARRAY_SIZE(mvpp2_ethtool_regs),
+					   sizeof(u64), GFP_KERNEL);
+	if (!port->ethtool_stats) {
+		err = -ENOMEM;
+		goto err_free_stats;
 	}
 
 	mvpp2_port_copy_mac_addr(dev, priv, port_node, &mac_from);
@@ -8010,7 +8207,7 @@ static int mvpp2_probe(struct platform_device *pdev)
 	struct mvpp2 *priv;
 	struct resource *res;
 	void __iomem *base;
-	int port_count, i;
+	int i;
 	int err;
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
@@ -8125,14 +8322,14 @@ static int mvpp2_probe(struct platform_device *pdev)
 		goto err_mg_clk;
 	}
 
-	port_count = of_get_available_child_count(dn);
-	if (port_count == 0) {
+	priv->port_count = of_get_available_child_count(dn);
+	if (priv->port_count == 0) {
 		dev_err(&pdev->dev, "no ports enabled\n");
 		err = -ENODEV;
 		goto err_mg_clk;
 	}
 
-	priv->port_list = devm_kcalloc(&pdev->dev, port_count,
+	priv->port_list = devm_kcalloc(&pdev->dev, priv->port_count,
 				       sizeof(*priv->port_list),
 				       GFP_KERNEL);
 	if (!priv->port_list) {
@@ -8148,6 +8345,24 @@ static int mvpp2_probe(struct platform_device *pdev)
 			goto err_mg_clk;
 		i++;
 	}
+
+	/* Statistics must be gathered regularly because some of them (like
+	 * packets counters) are 32-bit registers and could overflow quite
+	 * quickly. For instance, a 10Gb link used at full bandwidth with the
+	 * smallest packets (64B) will overflow a 32-bit counter in less than
+	 * 30 seconds. Then, use a workqueue to fill 64-bit counters.
+	 */
+	mutex_init(&priv->gather_stats_lock);
+	snprintf(priv->queue_name, sizeof(priv->queue_name),
+		 "stats-wq-%s%s", netdev_name(priv->port_list[0]->dev),
+		 priv->port_count > 1 ? "+" : "");
+	priv->stats_queue = create_singlethread_workqueue(priv->queue_name);
+	if (!priv->stats_queue) {
+		err = -ENOMEM;
+		goto err_mg_clk;
+	}
+
+	INIT_DELAYED_WORK(&priv->stats_work, mvpp2_gather_hw_statistics);
 
 	platform_set_drvdata(pdev, priv);
 	return 0;
@@ -8169,6 +8384,9 @@ static int mvpp2_remove(struct platform_device *pdev)
 	struct device_node *dn = pdev->dev.of_node;
 	struct device_node *port_node;
 	int i = 0;
+
+	destroy_workqueue(priv->stats_queue);
+	mutex_destroy(&priv->gather_stats_lock);
 
 	for_each_available_child_of_node(dn, port_node) {
 		if (priv->port_list[i])
