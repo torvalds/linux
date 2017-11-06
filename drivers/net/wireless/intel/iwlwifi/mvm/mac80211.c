@@ -4002,39 +4002,36 @@ out_unlock:
 
 static void iwl_mvm_flush_no_vif(struct iwl_mvm *mvm, u32 queues, bool drop)
 {
-	if (drop) {
-		if (iwl_mvm_has_new_tx_api(mvm))
-			/* TODO new tx api */
-			WARN_ONCE(1,
-				  "Need to implement flush TX queue\n");
-		else
-			iwl_mvm_flush_tx_path(mvm,
-				iwl_mvm_flushable_queues(mvm) & queues,
-				0);
-	} else {
-		if (iwl_mvm_has_new_tx_api(mvm)) {
-			struct ieee80211_sta *sta;
-			int i;
+	int i;
 
+	if (!iwl_mvm_has_new_tx_api(mvm)) {
+		if (drop) {
 			mutex_lock(&mvm->mutex);
-
-			for (i = 0; i < ARRAY_SIZE(mvm->fw_id_to_mac_id); i++) {
-				sta = rcu_dereference_protected(
-						mvm->fw_id_to_mac_id[i],
-						lockdep_is_held(&mvm->mutex));
-				if (IS_ERR_OR_NULL(sta))
-					continue;
-
-				iwl_mvm_wait_sta_queues_empty(mvm,
-						iwl_mvm_sta_from_mac80211(sta));
-			}
-
+			iwl_mvm_flush_tx_path(mvm,
+				iwl_mvm_flushable_queues(mvm) & queues, 0);
 			mutex_unlock(&mvm->mutex);
 		} else {
-			iwl_trans_wait_tx_queues_empty(mvm->trans,
-						       queues);
+			iwl_trans_wait_tx_queues_empty(mvm->trans, queues);
 		}
+		return;
 	}
+
+	mutex_lock(&mvm->mutex);
+	for (i = 0; i < ARRAY_SIZE(mvm->fw_id_to_mac_id); i++) {
+		struct ieee80211_sta *sta;
+
+		sta = rcu_dereference_protected(mvm->fw_id_to_mac_id[i],
+						lockdep_is_held(&mvm->mutex));
+		if (IS_ERR_OR_NULL(sta))
+			continue;
+
+		if (drop)
+			iwl_mvm_flush_sta_tids(mvm, i, 0xFF, 0);
+		else
+			iwl_mvm_wait_sta_queues_empty(mvm,
+					iwl_mvm_sta_from_mac80211(sta));
+	}
+	mutex_unlock(&mvm->mutex);
 }
 
 static void iwl_mvm_mac_flush(struct ieee80211_hw *hw,
@@ -4294,9 +4291,7 @@ void iwl_mvm_sync_rx_queues_internal(struct iwl_mvm *mvm,
 
 	lockdep_assert_held(&mvm->mutex);
 
-	/* TODO - remove a000 disablement when we have RXQ config API */
-	if (!iwl_mvm_has_new_rx_api(mvm) ||
-	    mvm->trans->cfg->device_family == IWL_DEVICE_FAMILY_A000)
+	if (!iwl_mvm_has_new_rx_api(mvm))
 		return;
 
 	notif->cookie = mvm->queue_sync_cookie;
@@ -4304,6 +4299,13 @@ void iwl_mvm_sync_rx_queues_internal(struct iwl_mvm *mvm,
 	if (notif->sync)
 		atomic_set(&mvm->queue_sync_counter,
 			   mvm->trans->num_rx_queues);
+
+	/* TODO - remove this when we have RXQ config API */
+	if (mvm->trans->cfg->device_family == IWL_DEVICE_FAMILY_A000) {
+		qmask = BIT(0);
+		if (notif->sync)
+			atomic_set(&mvm->queue_sync_counter, 1);
+	}
 
 	ret = iwl_mvm_notify_rx_queue(mvm, qmask, (u8 *)notif, size);
 	if (ret) {

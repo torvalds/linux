@@ -1594,8 +1594,7 @@ static void iwl_mvm_rx_tx_cmd_agg(struct iwl_mvm *mvm,
 		mvmsta->tid_data[tid].tx_time =
 			le16_to_cpu(tx_resp->wireless_media_time);
 		mvmsta->tid_data[tid].lq_color =
-			(tx_resp->tlc_info & TX_RES_RATE_TABLE_COLOR_MSK) >>
-			TX_RES_RATE_TABLE_COLOR_POS;
+			TX_RES_RATE_TABLE_COL_GET(tx_resp->tlc_info);
 	}
 
 	rcu_read_unlock();

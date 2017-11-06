@@ -460,9 +460,9 @@ set_timer:
 	}
 }
 
-void iwl_mvm_reorder_timer_expired(unsigned long data)
+void iwl_mvm_reorder_timer_expired(struct timer_list *t)
 {
-	struct iwl_mvm_reorder_buffer *buf = (void *)data;
+	struct iwl_mvm_reorder_buffer *buf = from_timer(buf, t, reorder_timer);
 	struct iwl_mvm_baid_data *baid_data =
 		iwl_mvm_baid_data_from_reorder_buf(buf);
 	struct iwl_mvm_reorder_buf_entry *entries =
@@ -719,6 +719,22 @@ static bool iwl_mvm_reorder(struct iwl_mvm *mvm,
 		return false;
 	}
 
+	/*
+	 * release immediately if there are no stored frames, and the sn is
+	 * equal to the head.
+	 * This can happen due to reorder timer, where NSSN is behind head_sn.
+	 * When we released everything, and we got the next frame in the
+	 * sequence, according to the NSSN we can't release immediately,
+	 * while technically there is no hole and we can move forward.
+	 */
+	if (!buffer->num_stored && sn == buffer->head_sn) {
+		if (!amsdu || last_subframe)
+			buffer->head_sn = ieee80211_sn_inc(buffer->head_sn);
+		/* No need to update AMSDU last SN - we are moving the head */
+		spin_unlock_bh(&buffer->lock);
+		return false;
+	}
+
 	index = sn % buffer->buf_size;
 
 	/*
@@ -817,6 +833,9 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 	struct ieee80211_sta *sta = NULL;
 	struct sk_buff *skb;
 	u8 crypt_len = 0;
+
+	if (unlikely(test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status)))
+		return;
 
 	/* Dont use dev_alloc_skb(), we'll have enough headroom once
 	 * ieee80211_hdr pulled.

@@ -196,8 +196,6 @@ static bool iwl_alive_fn(struct iwl_notif_wait_data *notif_wait,
 		mvm->error_event_table[1] =
 			le32_to_cpu(lmac2->error_event_table_ptr);
 	mvm->log_event_table = le32_to_cpu(lmac1->log_event_table_ptr);
-	mvm->sf_space.addr = le32_to_cpu(lmac1->st_fwrd_addr);
-	mvm->sf_space.size = le32_to_cpu(lmac1->st_fwrd_size);
 
 	umac_error_event_table = le32_to_cpu(umac->error_info_addr);
 
@@ -266,7 +264,6 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 	int ret, i;
 	enum iwl_ucode_type old_type = mvm->fwrt.cur_fw_img;
 	static const u16 alive_cmd[] = { MVM_ALIVE };
-	struct iwl_sf_region st_fwrd_space;
 
 	if (ucode_type == IWL_UCODE_REGULAR &&
 	    iwl_fw_dbg_conf_usniffer(mvm->fw, FW_DBG_START_FROM_ALIVE) &&
@@ -318,18 +315,6 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 		IWL_ERR(mvm, "Loaded ucode is not valid!\n");
 		iwl_fw_set_current_image(&mvm->fwrt, old_type);
 		return -EIO;
-	}
-
-	/*
-	 * update the sdio allocation according to the pointer we get in the
-	 * alive notification.
-	 */
-	st_fwrd_space.addr = mvm->sf_space.addr;
-	st_fwrd_space.size = mvm->sf_space.size;
-	ret = iwl_trans_update_sf(mvm->trans, &st_fwrd_space);
-	if (ret) {
-		IWL_ERR(mvm, "Failed to update SF size. ret %d\n", ret);
-		return ret;
 	}
 
 	iwl_trans_fw_alive(mvm->trans, alive_data.scd_base_addr);

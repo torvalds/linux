@@ -652,6 +652,7 @@ struct iwl_mvm_baid_data {
 	u16 entries_per_queue;
 	unsigned long last_rx;
 	struct timer_list session_timer;
+	struct iwl_mvm_baid_data __rcu **rcu_ptr;
 	struct iwl_mvm *mvm;
 	struct iwl_mvm_reorder_buffer reorder_buf[IWL_MAX_RX_HW_QUEUES];
 	struct iwl_mvm_reorder_buf_entry entries[];
@@ -754,7 +755,6 @@ struct iwl_mvm {
 	u32 log_event_table;
 	u32 umac_error_event_table;
 	bool support_umac_log;
-	struct iwl_sf_region sf_space;
 
 	u32 ampdu_ref;
 	bool ampdu_toggle;
@@ -1854,7 +1854,7 @@ void iwl_mvm_tdls_ch_switch_work(struct work_struct *work);
 void iwl_mvm_sync_rx_queues_internal(struct iwl_mvm *mvm,
 				     struct iwl_mvm_internal_rxq_notif *notif,
 				     u32 size);
-void iwl_mvm_reorder_timer_expired(unsigned long data);
+void iwl_mvm_reorder_timer_expired(struct timer_list *t);
 struct ieee80211_vif *iwl_mvm_get_bss_vif(struct iwl_mvm *mvm);
 bool iwl_mvm_is_vif_assoc(struct iwl_mvm *mvm);
 
