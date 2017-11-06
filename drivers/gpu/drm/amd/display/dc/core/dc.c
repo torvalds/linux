@@ -974,7 +974,7 @@ bool dc_post_update_surfaces_to_stream(struct dc *dc)
 		if (context->res_ctx.pipe_ctx[i].stream == NULL ||
 		    context->res_ctx.pipe_ctx[i].plane_state == NULL) {
 			context->res_ctx.pipe_ctx[i].pipe_idx = i;
-			dc->hwss.power_down_front_end(dc, &context->res_ctx.pipe_ctx[i]);
+			dc->hwss.disable_plane(dc, &context->res_ctx.pipe_ctx[i]);
 		}
 
 	/* 3rd param should be true, temp w/a for RV*/

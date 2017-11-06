@@ -363,11 +363,8 @@ static void undo_DEGVIDCN10_253_wa(struct dc *dc)
 {
 	struct dce_hwseq *hws = dc->hwseq;
 	struct hubp *hubp = dc->res_pool->hubps[0];
-	int pwr_status = 0;
 
-	REG_GET(DOMAIN0_PG_STATUS, DOMAIN0_PGFSM_PWR_STATUS, &pwr_status);
-	/* Don't need to blank if hubp is power gated*/
-	if (pwr_status == 2)
+	if (!hws->wa_state.DEGVIDCN10_253_applied)
 		return;
 
 	hubp->funcs->set_blank(hubp, true);
@@ -378,15 +375,28 @@ static void undo_DEGVIDCN10_253_wa(struct dc *dc)
 	hubp_pg_control(hws, 0, false);
 	REG_SET(DC_IP_REQUEST_CNTL, 0,
 			IP_REQUEST_EN, 0);
+
+	hws->wa_state.DEGVIDCN10_253_applied = false;
 }
 
 static void apply_DEGVIDCN10_253_wa(struct dc *dc)
 {
 	struct dce_hwseq *hws = dc->hwseq;
 	struct hubp *hubp = dc->res_pool->hubps[0];
+	int i;
 
 	if (dc->debug.disable_stutter)
 		return;
+
+	if (!hws->wa.DEGVIDCN10_253)
+		return;
+
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		if (!dc->res_pool->hubps[i]->power_gated)
+			return;
+	}
+
+	/* all pipe power gated, apply work around to enable stutter. */
 
 	REG_SET(DC_IP_REQUEST_CNTL, 0,
 			IP_REQUEST_EN, 1);
@@ -396,6 +406,7 @@ static void apply_DEGVIDCN10_253_wa(struct dc *dc)
 			IP_REQUEST_EN, 0);
 
 	hubp->funcs->set_hubp_blank_en(hubp, false);
+	hws->wa_state.DEGVIDCN10_253_applied = true;
 }
 
 static void bios_golden_init(struct dc *dc)
@@ -592,61 +603,14 @@ static void plane_atomic_disconnect(struct dc *dc, struct pipe_ctx *pipe_ctx)
 	if (dc->debug.sanity_checks)
 		dcn10_verify_allow_pstate_change_high(dc);
 
-	if (pipe_ctx->top_pipe) {
-		pipe_ctx->top_pipe->bottom_pipe = NULL;
-		pipe_ctx->top_pipe = NULL;
-		pipe_ctx->stream = NULL;
-		memset(&pipe_ctx->stream_res, 0, sizeof(pipe_ctx->stream_res));
-		memset(&pipe_ctx->plane_res, 0, sizeof(pipe_ctx->plane_res));
-	}
-
-	if (pipe_ctx->bottom_pipe) {
-		pipe_ctx->bottom_pipe->top_pipe = NULL;
-		pipe_ctx->bottom_pipe = NULL;
-	}
+	pipe_ctx->stream = NULL;
+	memset(&pipe_ctx->stream_res, 0, sizeof(pipe_ctx->stream_res));
+	memset(&pipe_ctx->plane_res, 0, sizeof(pipe_ctx->plane_res));
+	pipe_ctx->top_pipe = NULL;
+	pipe_ctx->bottom_pipe = NULL;
 	pipe_ctx->plane_state = NULL;
 }
 
-/* disable HW used by plane.
- * note:  cannot disable until disconnect is complete */
-static void plane_atomic_disable(struct dc *dc, struct pipe_ctx *pipe_ctx)
-{
-	int fe_idx = pipe_ctx->pipe_idx;
-	struct dce_hwseq *hws = dc->hwseq;
-	struct hubp *hubp = dc->res_pool->hubps[fe_idx];
-	struct mpc *mpc = dc->res_pool->mpc;
-	int opp_id = hubp->opp_id;
-
-	if (opp_id == 0xf)
-		return;
-
-	mpc->funcs->wait_for_idle(mpc, hubp->mpcc_id);
-	dc->res_pool->opps[hubp->opp_id]->mpcc_disconnect_pending[hubp->mpcc_id] = false;
-	/*dm_logger_write(dc->ctx->logger, LOG_ERROR,
-			"[debug_mpo: atomic disable finished on mpcc %d]\n",
-			fe_idx);*/
-
-	hubp->funcs->set_blank(hubp, true);
-
-	if (dc->debug.sanity_checks)
-		dcn10_verify_allow_pstate_change_high(dc);
-
-	REG_UPDATE(HUBP_CLK_CNTL[fe_idx],
-			HUBP_CLOCK_ENABLE, 0);
-	REG_UPDATE(DPP_CONTROL[fe_idx],
-			DPP_CLOCK_ENABLE, 0);
-
-	if (dc->res_pool->opps[opp_id]->mpc_tree.num_pipes == 0)
-		REG_UPDATE(OPP_PIPE_CONTROL[opp_id],
-				OPP_PIPE_CLOCK_EN, 0);
-
-	if (dc->debug.sanity_checks)
-		dcn10_verify_allow_pstate_change_high(dc);
-}
-
-/* kill power to plane hw
- * note: cannot power down until plane is disable
- */
 static void plane_atomic_power_down(struct dc *dc, int fe_idx)
 {
 	struct dce_hwseq *hws = dc->hwseq;
@@ -665,29 +629,51 @@ static void plane_atomic_power_down(struct dc *dc, int fe_idx)
 	}
 }
 
-static void dcn10_power_down_fe(struct dc *dc, struct pipe_ctx *pipe_ctx)
+/* disable HW used by plane.
+ * note:  cannot disable until disconnect is complete
+ */
+static void plane_atomic_disable(struct dc *dc, struct pipe_ctx *pipe_ctx)
 {
 	int fe_idx = pipe_ctx->pipe_idx;
-	struct timing_generator *tg = pipe_ctx->stream_res.tg;
+	struct dce_hwseq *hws = dc->hwseq;
+	struct hubp *hubp = dc->res_pool->hubps[fe_idx];
+	struct mpc *mpc = dc->res_pool->mpc;
+	int opp_id = hubp->opp_id;
+	struct output_pixel_processor *opp;
 
-	if (tg != NULL) {
-		tg->funcs->lock(tg);
-
-		plane_atomic_disconnect(dc, pipe_ctx);
-
-		tg->funcs->unlock(tg);
-
-		if (dc->debug.sanity_checks)
-			dcn10_verify_allow_pstate_change_high(dc);
-
-		plane_atomic_disable(dc, pipe_ctx);
+	if (opp_id != 0xf) {
+		mpc->funcs->wait_for_idle(mpc, hubp->mpcc_id);
+		opp = dc->res_pool->opps[hubp->opp_id];
+		opp->mpcc_disconnect_pending[hubp->mpcc_id] = false;
+		hubp->funcs->set_blank(hubp, true);
 	}
 
+	REG_UPDATE(HUBP_CLK_CNTL[fe_idx],
+			HUBP_CLOCK_ENABLE, 0);
+	REG_UPDATE(DPP_CONTROL[fe_idx],
+			DPP_CLOCK_ENABLE, 0);
+
+	if (opp_id != 0xf && dc->res_pool->opps[opp_id]->mpc_tree.num_pipes == 0)
+		REG_UPDATE(OPP_PIPE_CONTROL[opp_id],
+				OPP_PIPE_CLOCK_EN, 0);
+
+	hubp->power_gated = true;
+
 	plane_atomic_power_down(dc, fe_idx);
+}
+
+static void dcn10_disable_plane(struct dc *dc, struct pipe_ctx *pipe_ctx)
+{
+	if (dc->res_pool->hubps[pipe_ctx->pipe_idx]->power_gated)
+		return;
+
+	plane_atomic_disable(dc, pipe_ctx);
+
+	apply_DEGVIDCN10_253_wa(dc);
 
 	dm_logger_write(dc->ctx->logger, LOG_DC,
-					"Reset front end %d\n",
-					fe_idx);
+					"Power down front end %d\n",
+					pipe_ctx->pipe_idx);
 }
 
 static void dcn10_init_hw(struct dc *dc)
@@ -780,8 +766,7 @@ static void dcn10_init_hw(struct dc *dc)
 		struct timing_generator *tg = dc->res_pool->timing_generators[i];
 		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
 
-		plane_atomic_disable(dc, pipe_ctx);
-		plane_atomic_power_down(dc, i);
+		dcn10_disable_plane(dc, pipe_ctx);
 
 		pipe_ctx->stream_res.tg = NULL;
 		pipe_ctx->plane_res.hubp = NULL;
@@ -1468,7 +1453,7 @@ static void print_rq_dlg_ttu(
 			);
 }
 
-static void dcn10_power_on_fe(
+static void dcn10_enable_plane(
 	struct dc *dc,
 	struct pipe_ctx *pipe_ctx,
 	struct dc_state *context)
@@ -1479,6 +1464,8 @@ static void dcn10_power_on_fe(
 	if (dc->debug.sanity_checks) {
 		dcn10_verify_allow_pstate_change_high(dc);
 	}
+
+	undo_DEGVIDCN10_253_wa(dc);
 
 	power_on_plane(dc->hwseq,
 		pipe_ctx->pipe_idx);
@@ -1946,6 +1933,8 @@ static void update_dchubp_dpp(
 		&plane_state->dcc,
 		plane_state->horizontal_mirror);
 
+	hubp->power_gated = false;
+
 	dc->hwss.update_plane_addr(dc, pipe_ctx);
 
 	if (is_pipe_tree_visible(pipe_ctx))
@@ -1988,7 +1977,7 @@ static void program_all_pipe_in_tree(
 		struct pipe_ctx *cur_pipe_ctx =
 				&dc->current_state->res_ctx.pipe_ctx[pipe_ctx->pipe_idx];
 
-		dcn10_power_on_fe(dc, pipe_ctx, context);
+		dcn10_enable_plane(dc, pipe_ctx, context);
 
 		/* temporary dcn1 wa:
 		 *   watermark update requires toggle after a/b/c/d sets are programmed
@@ -2063,7 +2052,6 @@ static void dcn10_pplib_apply_display_requirements(
 static void optimize_shared_resources(struct dc *dc)
 {
 	if (dc->current_state->stream_count == 0) {
-		apply_DEGVIDCN10_253_wa(dc);
 		/* S0i2 message */
 		dcn10_pplib_apply_display_requirements(dc, dc->current_state);
 	}
@@ -2074,10 +2062,6 @@ static void optimize_shared_resources(struct dc *dc)
 
 static void ready_shared_resources(struct dc *dc, struct dc_state *context)
 {
-	if (dc->current_state->stream_count == 0 &&
-			!dc->debug.disable_stutter)
-		undo_DEGVIDCN10_253_wa(dc);
-
 	/* S0i2 message */
 	if (dc->current_state->stream_count == 0 &&
 			context->stream_count != 0)
@@ -2152,7 +2136,7 @@ static void dcn10_apply_ctx_for_surface(
 			if (old_pipe_ctx->stream_res.tg == tg &&
 				old_pipe_ctx->plane_res.hubp &&
 				old_pipe_ctx->plane_res.hubp->opp_id != 0xf) {
-				dcn10_power_down_fe(dc, pipe_ctx);
+				dcn10_disable_plane(dc, pipe_ctx);
 				/*
 				 * power down fe will unlock when calling reset, need
 				 * to lock it back here. Messy, need rework.
@@ -2184,13 +2168,9 @@ static void dcn10_apply_ctx_for_surface(
 		struct pipe_ctx *old_pipe_ctx =
 				&dc->current_state->res_ctx.pipe_ctx[i];
 
-		if (removed_pipe[i]) {
-			plane_atomic_disable(dc, old_pipe_ctx);
-			if (num_planes == 0)
-				plane_atomic_power_down(dc, i);
-		}
+		if (removed_pipe[i] && num_planes == 0)
+			dcn10_disable_plane(dc, old_pipe_ctx);
 	}
-
 
 	dm_logger_write(dc->ctx->logger, LOG_BANDWIDTH_CALCS,
 			"\n============== Watermark parameters ==============\n"
@@ -2514,8 +2494,7 @@ static const struct hw_sequencer_funcs dcn10_funcs = {
 	.disable_stream = dce110_disable_stream,
 	.unblank_stream = dce110_unblank_stream,
 	.enable_display_power_gating = dcn10_dummy_display_power_gating,
-	.power_down_front_end = dcn10_power_down_fe,
-	.power_on_front_end = dcn10_power_on_fe,
+	.disable_plane = dcn10_disable_plane,
 	.pipe_control_lock = dcn10_pipe_control_lock,
 	.set_bandwidth = dcn10_set_bandwidth,
 	.reset_hw_ctx_wrap = reset_hw_ctx_wrap,

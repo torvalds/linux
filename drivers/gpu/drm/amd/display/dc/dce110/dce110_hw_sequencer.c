@@ -1411,7 +1411,7 @@ static void disable_vga_and_power_gate_all_controllers(
 				true);
 
 		dc->current_state->res_ctx.pipe_ctx[i].pipe_idx = i;
-		dc->hwss.power_down_front_end(dc,
+		dc->hwss.disable_plane(dc,
 			&dc->current_state->res_ctx.pipe_ctx[i]);
 	}
 }
@@ -1838,7 +1838,7 @@ static void dce110_reset_hw_ctx_wrap(
 			if (old_clk)
 				old_clk->funcs->cs_power_down(old_clk);
 
-			dc->hwss.power_down_front_end(dc, pipe_ctx_old);
+			dc->hwss.disable_plane(dc, pipe_ctx_old);
 
 			pipe_ctx_old->stream = NULL;
 		}
@@ -2063,8 +2063,8 @@ enum dc_status dce110_apply_ctx_to_hw(
 				context,
 				dc);
 
-		if (dc->hwss.power_on_front_end)
-			dc->hwss.power_on_front_end(dc, pipe_ctx, context);
+		if (dc->hwss.enable_plane)
+			dc->hwss.enable_plane(dc, pipe_ctx, context);
 
 		if (DC_OK != status)
 			return status;
@@ -2969,7 +2969,7 @@ static const struct hw_sequencer_funcs dce110_funcs = {
 	.unblank_stream = dce110_unblank_stream,
 	.enable_display_pipe_clock_gating = enable_display_pipe_clock_gating,
 	.enable_display_power_gating = dce110_enable_display_power_gating,
-	.power_down_front_end = dce110_power_down_fe,
+	.disable_plane = dce110_power_down_fe,
 	.pipe_control_lock = dce_pipe_control_lock,
 	.set_bandwidth = dce110_set_bandwidth,
 	.set_drr = set_drr,

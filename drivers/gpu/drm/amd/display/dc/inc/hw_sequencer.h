@@ -39,6 +39,11 @@ enum pipe_gating_control {
 
 struct dce_hwseq_wa {
 	bool blnd_crtc_trigger;
+	bool DEGVIDCN10_253;
+};
+
+struct hwseq_wa_state {
+	bool DEGVIDCN10_253_applied;
 };
 
 struct dce_hwseq {
@@ -47,6 +52,7 @@ struct dce_hwseq {
 	const struct dce_hwseq_shift *shifts;
 	const struct dce_hwseq_mask *masks;
 	struct dce_hwseq_wa wa;
+	struct hwseq_wa_state wa_state;
 };
 
 struct pipe_ctx;
@@ -129,9 +135,9 @@ struct hw_sequencer_funcs {
 					struct dc_bios *dcb,
 					enum pipe_gating_control power_gating);
 
-	void (*power_down_front_end)(struct dc *dc, struct pipe_ctx *pipe_ctx);
+	void (*disable_plane)(struct dc *dc, struct pipe_ctx *pipe_ctx);
 
-	void (*power_on_front_end)(struct dc *dc,
+	void (*enable_plane)(struct dc *dc,
 			struct pipe_ctx *pipe,
 			struct dc_state *context);
 

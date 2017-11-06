@@ -677,6 +677,7 @@ static struct dce_hwseq *dcn10_hwseq_create(
 		hws->regs = &hwseq_reg;
 		hws->shifts = &hwseq_shift;
 		hws->masks = &hwseq_mask;
+		hws->wa.DEGVIDCN10_253 = true;
 	}
 	return hws;
 }
