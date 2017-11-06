@@ -203,7 +203,7 @@ static struct attribute *xfs_errortag_attrs[] = {
 	NULL,
 };
 
-struct kobj_type xfs_errortag_ktype = {
+static struct kobj_type xfs_errortag_ktype = {
 	.release = xfs_sysfs_release,
 	.sysfs_ops = &xfs_errortag_sysfs_ops,
 	.default_attrs = xfs_errortag_attrs,
