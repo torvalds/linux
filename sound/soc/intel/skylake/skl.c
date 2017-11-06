@@ -355,6 +355,7 @@ static int skl_resume(struct device *dev)
 
 		if (ebus->cmd_dma_state)
 			snd_hdac_bus_init_cmd_io(&ebus->bus);
+		ret = 0;
 	} else {
 		ret = _skl_resume(ebus);
 
