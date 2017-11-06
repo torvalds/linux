@@ -1264,10 +1264,16 @@ int i915_guc_submission_init(struct drm_i915_private *dev_priv)
 	ret = guc_stage_desc_pool_create(guc);
 	if (ret)
 		return ret;
+	/*
+	 * Keep static analysers happy, let them know that we allocated the
+	 * vma after testing that it didn't exist earlier.
+	 */
+	GEM_BUG_ON(!guc->stage_desc_pool);
 
 	ret = guc_shared_data_create(guc);
 	if (ret)
 		goto err_stage_desc_pool;
+	GEM_BUG_ON(!guc->shared_data);
 
 	ret = intel_guc_log_create(guc);
 	if (ret < 0)
@@ -1276,10 +1282,12 @@ int i915_guc_submission_init(struct drm_i915_private *dev_priv)
 	ret = guc_preempt_work_create(guc);
 	if (ret)
 		goto err_log;
+	GEM_BUG_ON(!guc->preempt_wq);
 
 	ret = guc_ads_create(guc);
 	if (ret < 0)
 		goto err_wq;
+	GEM_BUG_ON(!guc->ads_vma);
 
 	return 0;
 
