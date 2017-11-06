@@ -63,8 +63,6 @@ void amdgpu_driver_unload_kms(struct drm_device *dev)
 		pm_runtime_forbid(dev->dev);
 	}
 
-	amdgpu_amdkfd_device_fini(adev);
-
 	amdgpu_acpi_fini(adev);
 
 	amdgpu_device_fini(adev);
@@ -169,9 +167,6 @@ retry_init:
 		dev_dbg(&dev->pdev->dev,
 				"Error during ACPI methods call\n");
 	}
-
-	amdgpu_amdkfd_device_probe(adev);
-	amdgpu_amdkfd_device_init(adev);
 
 	if (amdgpu_device_is_px(dev)) {
 		pm_runtime_use_autosuspend(dev->dev);

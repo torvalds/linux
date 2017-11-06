@@ -1693,6 +1693,8 @@ static int amdgpu_early_init(struct amdgpu_device *adev)
 	if (r)
 		return r;
 
+	amdgpu_amdkfd_device_probe(adev);
+
 	if (amdgpu_sriov_vf(adev)) {
 		r = amdgpu_virt_request_full_gpu(adev, true);
 		if (r)
@@ -1787,6 +1789,7 @@ static int amdgpu_init(struct amdgpu_device *adev)
 		adev->ip_blocks[i].status.hw = true;
 	}
 
+	amdgpu_amdkfd_device_init(adev);
 	return 0;
 }
 
@@ -1854,6 +1857,7 @@ static int amdgpu_fini(struct amdgpu_device *adev)
 {
 	int i, r;
 
+	amdgpu_amdkfd_device_fini(adev);
 	/* need to disable SMC first */
 	for (i = 0; i < adev->num_ip_blocks; i++) {
 		if (!adev->ip_blocks[i].status.hw)
