@@ -718,7 +718,7 @@ static int dsa_switch_add(struct dsa_switch *ds)
 	return dsa_tree_add_switch(dst, ds);
 }
 
-static int _dsa_register_switch(struct dsa_switch *ds)
+static int dsa_switch_probe(struct dsa_switch *ds)
 {
 	struct dsa_chip_data *pdata = ds->dev->platform_data;
 	struct device_node *np = ds->dev->of_node;
@@ -764,14 +764,14 @@ int dsa_register_switch(struct dsa_switch *ds)
 	int err;
 
 	mutex_lock(&dsa2_mutex);
-	err = _dsa_register_switch(ds);
+	err = dsa_switch_probe(ds);
 	mutex_unlock(&dsa2_mutex);
 
 	return err;
 }
 EXPORT_SYMBOL_GPL(dsa_register_switch);
 
-static void _dsa_unregister_switch(struct dsa_switch *ds)
+static void dsa_switch_remove(struct dsa_switch *ds)
 {
 	struct dsa_switch_tree *dst = ds->dst;
 	unsigned int index = ds->index;
@@ -782,7 +782,7 @@ static void _dsa_unregister_switch(struct dsa_switch *ds)
 void dsa_unregister_switch(struct dsa_switch *ds)
 {
 	mutex_lock(&dsa2_mutex);
-	_dsa_unregister_switch(ds);
+	dsa_switch_remove(ds);
 	mutex_unlock(&dsa2_mutex);
 }
 EXPORT_SYMBOL_GPL(dsa_unregister_switch);
