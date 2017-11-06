@@ -615,7 +615,6 @@ static int mac_probe(struct platform_device *_of_dev)
 	mac_dev = devm_kzalloc(dev, sizeof(*mac_dev), GFP_KERNEL);
 	if (!mac_dev) {
 		err = -ENOMEM;
-		dev_err(dev, "devm_kzalloc() = %d\n", err);
 		goto _return;
 	}
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
