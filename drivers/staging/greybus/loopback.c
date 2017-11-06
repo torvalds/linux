@@ -1042,8 +1042,10 @@ static int gb_loopback_fn(void *data)
 			else if (type == GB_LOOPBACK_TYPE_SINK)
 				error = gb_loopback_async_sink(gb, size);
 
-			if (error)
+			if (error) {
 				gb->error++;
+				gb->iteration_count++;
+			}
 		} else {
 			/* We are effectively single threaded here */
 			if (type == GB_LOOPBACK_TYPE_PING)
