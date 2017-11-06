@@ -459,7 +459,11 @@ void bitmap_update_sb(struct bitmap *bitmap)
 		/* rocking back to read-only */
 		bitmap->events_cleared = bitmap->mddev->events;
 	sb->events_cleared = cpu_to_le64(bitmap->events_cleared);
-	sb->state = cpu_to_le32(bitmap->flags);
+	/*
+	 * clear BITMAP_WRITE_ERROR bit to protect against the case that
+	 * a bitmap write error occurred but the later writes succeeded.
+	 */
+	sb->state = cpu_to_le32(bitmap->flags & ~BIT(BITMAP_WRITE_ERROR));
 	/* Just in case these have been changed via sysfs: */
 	sb->daemon_sleep = cpu_to_le32(bitmap->mddev->bitmap_info.daemon_sleep/HZ);
 	sb->write_behind = cpu_to_le32(bitmap->mddev->bitmap_info.max_write_behind);
