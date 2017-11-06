@@ -96,6 +96,13 @@ struct gemini_pin_group {
  *   you are stuck with it.
  */
 #define GLOBAL_MISC_CTRL	0x30
+#define GEMINI_GMAC_IOSEL_MASK	GENMASK(28, 27)
+/* Not really used */
+#define GEMINI_GMAC_IOSEL_GMAC0_GMII	BIT(28)
+/* Activated with GMAC1 */
+#define GEMINI_GMAC_IOSEL_GMAC0_GMAC1_RGMII BIT(27)
+/* This will be the default */
+#define GEMINI_GMAC_IOSEL_GMAC0_RGMII_GMAC1_GPIO2 0
 #define TVC_CLK_PAD_ENABLE	BIT(20)
 #define PCI_CLK_PAD_ENABLE	BIT(17)
 #define LPC_CLK_PAD_ENABLE	BIT(16)
@@ -109,8 +116,8 @@ struct gemini_pin_group {
 #define NAND_PADS_DISABLE	BIT(2)
 #define PFLASH_PADS_DISABLE	BIT(1)
 #define SFLASH_PADS_DISABLE	BIT(0)
-#define PADS_MASK		(GENMASK(9, 0) | BIT(16) | BIT(17) | BIT(20))
-#define PADS_MAXBIT		20
+#define PADS_MASK		(GENMASK(9, 0) | BIT(16) | BIT(17) | BIT(20) | BIT(27))
+#define PADS_MAXBIT		27
 
 /* Ordered by bit index */
 static const char * const gemini_padgroups[] = {
@@ -516,9 +523,12 @@ static const unsigned int usb_3512_pins[] = {
 };
 
 /* GMII, ethernet pins */
-static const unsigned int gmii_3512_pins[] = {
-	311, 240, 258, 276, 294, 312, 241, 259, 277, 295, 313, 242, 260, 278, 296,
-	315, 297, 279, 261, 243, 316, 298, 280, 262, 244, 317, 299, 281
+static const unsigned int gmii_gmac0_3512_pins[] = {
+	240, 241, 242, 258, 259, 260, 276, 277, 278, 294, 295, 311, 312, 313
+};
+
+static const unsigned int gmii_gmac1_3512_pins[] = {
+	243, 244, 261, 262, 279, 280, 281, 296, 297, 298, 299, 315, 316, 317
 };
 
 static const unsigned int pci_3512_pins[] = {
@@ -668,10 +678,10 @@ static const unsigned int gpio1c_3512_pins[] = {
 /* The GPIO1D (28-31) pins overlap with LCD and TVC */
 static const unsigned int gpio1d_3512_pins[] = { 246, 319, 301, 283 };
 
-/* The GPIO2A (0-3) pins overlap with GMII and extended parallel flash */
+/* The GPIO2A (0-3) pins overlap with GMII GMAC1 and extended parallel flash */
 static const unsigned int gpio2a_3512_pins[] = { 315, 297, 279, 261 };
 
-/* The GPIO2B (4-7) pins overlap with GMII, extended parallel flash and LCD */
+/* The GPIO2B (4-7) pins overlap with GMII GMAC1, extended parallel flash and LCD */
 static const unsigned int gpio2b_3512_pins[] = { 262, 244, 317, 299 };
 
 /* The GPIO2C (8-31) pins overlap with PCI */
@@ -738,9 +748,16 @@ static const struct gemini_pin_group gemini_3512_pin_groups[] = {
 		.num_pins = ARRAY_SIZE(usb_3512_pins),
 	},
 	{
-		.name = "gmiigrp",
-		.pins = gmii_3512_pins,
-		.num_pins = ARRAY_SIZE(gmii_3512_pins),
+		.name = "gmii_gmac0_grp",
+		.pins = gmii_gmac0_3512_pins,
+		.num_pins = ARRAY_SIZE(gmii_gmac0_3512_pins),
+	},
+	{
+		.name = "gmii_gmac1_grp",
+		.pins = gmii_gmac1_3512_pins,
+		.num_pins = ARRAY_SIZE(gmii_gmac1_3512_pins),
+		/* Bring out RGMII on the GMAC1 pins */
+		.value = GEMINI_GMAC_IOSEL_GMAC0_GMAC1_RGMII,
 	},
 	{
 		.name = "pcigrp",
@@ -954,14 +971,15 @@ static const struct gemini_pin_group gemini_3512_pin_groups[] = {
 		.name = "gpio2agrp",
 		.pins = gpio2a_3512_pins,
 		.num_pins = ARRAY_SIZE(gpio2a_3512_pins),
-		/* Conflict with GMII and extended parallel flash */
+		.mask = GEMINI_GMAC_IOSEL_GMAC0_GMAC1_RGMII,
+		/* Conflict with GMII GMAC1 and extended parallel flash */
 	},
 	{
 		.name = "gpio2bgrp",
 		.pins = gpio2b_3512_pins,
 		.num_pins = ARRAY_SIZE(gpio2b_3512_pins),
-		/* Conflict with GMII, extended parallel flash and LCD */
-		.mask = LCD_PADS_ENABLE,
+		/* Conflict with GMII GMAC1, extended parallel flash and LCD */
+		.mask = LCD_PADS_ENABLE | GEMINI_GMAC_IOSEL_GMAC0_GMAC1_RGMII,
 	},
 	{
 		.name = "gpio2cgrp",
@@ -1441,9 +1459,12 @@ static const unsigned int usb_3516_pins[] = {
 };
 
 /* GMII, ethernet pins */
-static const unsigned int gmii_3516_pins[] = {
-	306, 307, 308, 309, 310, 325, 326, 327, 328, 329, 330, 345, 346, 347,
-	348, 349, 350, 351, 367, 368, 369, 370, 371, 386, 387, 389, 390, 391
+static const unsigned int gmii_gmac0_3516_pins[] = {
+	306, 307, 325, 326, 327, 328, 345, 346, 347, 348, 367, 368, 386, 387
+};
+
+static const unsigned int gmii_gmac1_3516_pins[] = {
+	308, 309, 310, 329, 330, 349, 350, 351, 369, 370, 371, 389, 390, 391
 };
 
 static const unsigned int pci_3516_pins[] = {
@@ -1585,10 +1606,10 @@ static const unsigned int gpio1c_3516_pins[] = {
 /* The GPIO1D (28-31) pins overlap with TVC */
 static const unsigned int gpio1d_3516_pins[] = { 353, 311, 394, 374 };
 
-/* The GPIO2A (0-3) pins overlap with GMII and extended parallel flash */
+/* The GPIO2A (0-3) pins overlap with GMII GMAC1 and extended parallel flash */
 static const unsigned int gpio2a_3516_pins[] = { 308, 369, 389, 329 };
 
-/* The GPIO2B (4-7) pins overlap with GMII, extended parallel flash and LCD */
+/* The GPIO2B (4-7) pins overlap with GMII GMAC1, extended parallel flash and LCD */
 static const unsigned int gpio2b_3516_pins[] = { 391, 351, 310, 371 };
 
 /* The GPIO2C (8-31) pins overlap with PCI */
@@ -1660,9 +1681,16 @@ static const struct gemini_pin_group gemini_3516_pin_groups[] = {
 		.num_pins = ARRAY_SIZE(usb_3516_pins),
 	},
 	{
-		.name = "gmiigrp",
-		.pins = gmii_3516_pins,
-		.num_pins = ARRAY_SIZE(gmii_3516_pins),
+		.name = "gmii_gmac0_grp",
+		.pins = gmii_gmac0_3516_pins,
+		.num_pins = ARRAY_SIZE(gmii_gmac0_3516_pins),
+	},
+	{
+		.name = "gmii_gmac1_grp",
+		.pins = gmii_gmac1_3516_pins,
+		.num_pins = ARRAY_SIZE(gmii_gmac1_3516_pins),
+		/* Bring out RGMII on the GMAC1 pins */
+		.value = GEMINI_GMAC_IOSEL_GMAC0_GMAC1_RGMII,
 	},
 	{
 		.name = "pcigrp",
@@ -1861,14 +1889,15 @@ static const struct gemini_pin_group gemini_3516_pin_groups[] = {
 		.name = "gpio2agrp",
 		.pins = gpio2a_3516_pins,
 		.num_pins = ARRAY_SIZE(gpio2a_3516_pins),
-		/* Conflict with GMII and extended parallel flash */
+		.mask = GEMINI_GMAC_IOSEL_GMAC0_GMAC1_RGMII,
+		/* Conflict with GMII GMAC1 and extended parallel flash */
 	},
 	{
 		.name = "gpio2bgrp",
 		.pins = gpio2b_3516_pins,
 		.num_pins = ARRAY_SIZE(gpio2b_3516_pins),
-		/* Conflict with GMII, extended parallel flash and LCD */
-		.mask = LCD_PADS_ENABLE,
+		/* Conflict with GMII GMAC1, extended parallel flash and LCD */
+		.mask = LCD_PADS_ENABLE | GEMINI_GMAC_IOSEL_GMAC0_GMAC1_RGMII,
 	},
 	{
 		.name = "gpio2cgrp",
@@ -1971,7 +2000,7 @@ static const char * const icegrps[] = { "icegrp" };
 static const char * const idegrps[] = { "idegrp" };
 static const char * const satagrps[] = { "satagrp" };
 static const char * const usbgrps[] = { "usbgrp" };
-static const char * const gmiigrps[] = { "gmiigrp" };
+static const char * const gmiigrps[] = { "gmii_gmac0_grp", "gmii_gmac1_grp" };
 static const char * const pcigrps[] = { "pcigrp" };
 static const char * const lpcgrps[] = { "lpcgrp" };
 static const char * const lcdgrps[] = { "lcdgrp" };
