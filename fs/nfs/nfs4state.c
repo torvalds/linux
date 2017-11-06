@@ -1431,6 +1431,11 @@ void nfs_inode_find_state_and_recover(struct inode *inode,
 			found = true;
 			continue;
 		}
+		if (nfs4_stateid_match_other(&state->open_stateid, stateid) &&
+		    nfs4_state_mark_reclaim_nograce(clp, state)) {
+			found = true;
+			continue;
+		}
 		if (nfs_state_lock_state_matches_stateid(state, stateid) &&
 		    nfs4_state_mark_reclaim_nograce(clp, state))
 			found = true;
