@@ -87,6 +87,11 @@ static inline void gic_write_ctlr(u32 val)
 	isb();
 }
 
+static inline u32 gic_read_ctlr(void)
+{
+	return read_sysreg_s(SYS_ICC_CTLR_EL1);
+}
+
 static inline void gic_write_grpen1(u32 val)
 {
 	write_sysreg_s(val, SYS_ICC_IGRPEN1_EL1);

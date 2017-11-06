@@ -381,7 +381,8 @@ int irq_select_affinity_usr(unsigned int irq)
 /**
  *	irq_set_vcpu_affinity - Set vcpu affinity for the interrupt
  *	@irq: interrupt number to set affinity
- *	@vcpu_info: vCPU specific data
+ *	@vcpu_info: vCPU specific data or pointer to a percpu array of vCPU
+ *	            specific data for percpu_devid interrupts
  *
  *	This function uses the vCPU specific data to set the vCPU
  *	affinity for an irq. The vCPU specific data is passed from
@@ -519,7 +520,7 @@ void __enable_irq(struct irq_desc *desc)
 		 * time. If it was already started up, then irq_startup()
 		 * will invoke irq_enable() under the hood.
 		 */
-		irq_startup(desc, IRQ_RESEND, IRQ_START_COND);
+		irq_startup(desc, IRQ_RESEND, IRQ_START_FORCE);
 		break;
 	}
 	default:
@@ -1325,6 +1326,21 @@ __setup_irq(unsigned int irq, struct irq_desc *desc, struct irqaction *new)
 				goto out_unlock;
 		}
 
+		/*
+		 * Activate the interrupt. That activation must happen
+		 * independently of IRQ_NOAUTOEN. request_irq() can fail
+		 * and the callers are supposed to handle
+		 * that. enable_irq() of an interrupt requested with
+		 * IRQ_NOAUTOEN is not supposed to fail. The activation
+		 * keeps it in shutdown mode, it merily associates
+		 * resources if necessary and if that's not possible it
+		 * fails. Interrupts which are in managed shutdown mode
+		 * will simply ignore that activation request.
+		 */
+		ret = irq_activate(desc);
+		if (ret)
+			goto out_unlock;
+
 		desc->istate &= ~(IRQS_AUTODETECT | IRQS_SPURIOUS_DISABLED | \
 				  IRQS_ONESHOT | IRQS_WAITING);
 		irqd_clear(&desc->irq_data, IRQD_IRQ_INPROGRESS);
@@ -1400,7 +1416,6 @@ __setup_irq(unsigned int irq, struct irq_desc *desc, struct irqaction *new)
 		wake_up_process(new->secondary->thread);
 
 	register_irq_proc(irq, desc);
-	irq_add_debugfs_entry(irq, desc);
 	new->dir = NULL;
 	register_handler_proc(irq, new);
 	return 0;
