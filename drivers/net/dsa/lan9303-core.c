@@ -1057,17 +1057,7 @@ static int lan9303_port_enable(struct dsa_switch *ds, int port,
 {
 	struct lan9303 *chip = ds->priv;
 
-	/* enable internal packet processing */
-	switch (port) {
-	case 1:
-	case 2:
-		return lan9303_enable_processing_port(chip, port);
-	default:
-		dev_dbg(chip->dev,
-			"Error: request to power up invalid port %d\n", port);
-	}
-
-	return -ENODEV;
+	return lan9303_enable_processing_port(chip, port);
 }
 
 static void lan9303_port_disable(struct dsa_switch *ds, int port,
@@ -1075,18 +1065,9 @@ static void lan9303_port_disable(struct dsa_switch *ds, int port,
 {
 	struct lan9303 *chip = ds->priv;
 
-	/* disable internal packet processing */
-	switch (port) {
-	case 1:
-	case 2:
-		lan9303_disable_processing_port(chip, port);
-		lan9303_phy_write(ds, chip->phy_addr_sel_strap + port,
-				  MII_BMCR, BMCR_PDOWN);
-		break;
-	default:
-		dev_dbg(chip->dev,
-			"Error: request to power down invalid port %d\n", port);
-	}
+	lan9303_disable_processing_port(chip, port);
+	lan9303_phy_write(ds, chip->phy_addr_sel_strap + port,
+			  MII_BMCR, BMCR_PDOWN);
 }
 
 static int lan9303_port_bridge_join(struct dsa_switch *ds, int port,
