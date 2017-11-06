@@ -239,7 +239,7 @@ struct opa_hfi1_cong_log_event_internal {
 	u8 sl;
 	u8 svc_type;
 	u32 rlid;
-	s64 timestamp; /* wider than 32 bits to detect 32 bit rollover */
+	u64 timestamp; /* wider than 32 bits to detect 32 bit rollover */
 };
 
 struct opa_hfi1_cong_log_event {
