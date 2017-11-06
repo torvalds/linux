@@ -435,25 +435,15 @@ xfs_scrub_directory_check_freesp(
 	struct xfs_buf			*dbp,
 	unsigned int			len)
 {
-	struct xfs_dir2_data_free	*bf;
 	struct xfs_dir2_data_free	*dfp;
-	int				offset;
 
-	if (len == 0)
-		return;
+	dfp = sc->ip->d_ops->data_bestfree_p(dbp->b_addr);
 
-	bf = sc->ip->d_ops->data_bestfree_p(dbp->b_addr);
-	for (dfp = &bf[0]; dfp < &bf[XFS_DIR2_DATA_FD_COUNT]; dfp++) {
-		offset = be16_to_cpu(dfp->offset);
-		if (offset == 0)
-			break;
-		if (len == be16_to_cpu(dfp->length))
-			return;
-		/* Didn't find the best length in the bestfree data */
-		break;
-	}
+	if (len != be16_to_cpu(dfp->length))
+		xfs_scrub_fblock_set_corrupt(sc, XFS_DATA_FORK, lblk);
 
-	xfs_scrub_fblock_set_corrupt(sc, XFS_DATA_FORK, lblk);
+	if (len > 0 && be16_to_cpu(dfp->offset) == 0)
+		xfs_scrub_fblock_set_corrupt(sc, XFS_DATA_FORK, lblk);
 }
 
 /* Check free space info in a directory leaf1 block. */
