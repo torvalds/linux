@@ -750,17 +750,21 @@ static int stm32_spdifrx_hw_params(struct snd_pcm_substream *substream,
 	switch (data_size) {
 	case 16:
 		fmt = SPDIFRX_DRFMT_PACKED;
-		spdifrx->dma_params.addr_width = DMA_SLAVE_BUSWIDTH_2_BYTES;
 		break;
 	case 32:
 		fmt = SPDIFRX_DRFMT_LEFT;
-		spdifrx->dma_params.addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
 		break;
 	default:
 		dev_err(&spdifrx->pdev->dev, "Unexpected data format\n");
 		return -EINVAL;
 	}
 
+	/*
+	 * Set buswidth to 4 bytes for all data formats.
+	 * Packed format: transfer 2 x 2 bytes samples
+	 * Left format: transfer 1 x 3 bytes samples + 1 dummy byte
+	 */
+	spdifrx->dma_params.addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
 	snd_soc_dai_init_dma_data(cpu_dai, NULL, &spdifrx->dma_params);
 
 	return regmap_update_bits(spdifrx->regmap, STM32_SPDIFRX_CR,
