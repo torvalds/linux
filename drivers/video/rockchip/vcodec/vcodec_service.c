@@ -820,9 +820,8 @@ static void vpu_service_power_on(struct vpu_subdev_data *data,
 
 #define BIT_VCODEC_CLK_SEL	(1<<10)
 	if (of_machine_is_compatible("rockchip,rk3126"))
-		writel_relaxed(readl_relaxed(RK_GRF_VIRT + RK312X_GRF_SOC_CON1)
-			| BIT_VCODEC_CLK_SEL | (BIT_VCODEC_CLK_SEL << 16),
-			RK_GRF_VIRT + RK312X_GRF_SOC_CON1);
+		regmap_write(pservice->grf, RK312X_GRF_SOC_CON1,
+			BIT_VCODEC_CLK_SEL | (BIT_VCODEC_CLK_SEL << 16));
 
 #if VCODEC_CLOCK_ENABLE
 	if (pservice->aclk_vcodec)
