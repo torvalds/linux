@@ -281,91 +281,65 @@ static void dsa_tree_teardown_default_cpu(struct dsa_switch_tree *dst)
 	dst->cpu_dp = NULL;
 }
 
-static int dsa_dsa_port_apply(struct dsa_port *port)
+static int dsa_port_setup(struct dsa_port *dp)
 {
-	struct dsa_switch *ds = port->ds;
+	struct dsa_switch *ds = dp->ds;
 	int err;
 
-	err = dsa_port_fixed_link_register_of(port);
-	if (err) {
-		dev_warn(ds->dev, "Failed to setup dsa port %d: %d\n",
-			 port->index, err);
-		return err;
-	}
+	memset(&dp->devlink_port, 0, sizeof(dp->devlink_port));
 
-	memset(&port->devlink_port, 0, sizeof(port->devlink_port));
-
-	return devlink_port_register(ds->devlink, &port->devlink_port,
-				     port->index);
-}
-
-static void dsa_dsa_port_unapply(struct dsa_port *port)
-{
-	devlink_port_unregister(&port->devlink_port);
-	dsa_port_fixed_link_unregister_of(port);
-}
-
-static int dsa_cpu_port_apply(struct dsa_port *port)
-{
-	struct dsa_switch *ds = port->ds;
-	int err;
-
-	err = dsa_port_fixed_link_register_of(port);
-	if (err) {
-		dev_warn(ds->dev, "Failed to setup cpu port %d: %d\n",
-			 port->index, err);
-		return err;
-	}
-
-	memset(&port->devlink_port, 0, sizeof(port->devlink_port));
-	err = devlink_port_register(ds->devlink, &port->devlink_port,
-				    port->index);
-	return err;
-}
-
-static void dsa_cpu_port_unapply(struct dsa_port *port)
-{
-	devlink_port_unregister(&port->devlink_port);
-	dsa_port_fixed_link_unregister_of(port);
-}
-
-static int dsa_user_port_apply(struct dsa_port *port)
-{
-	struct dsa_switch *ds = port->ds;
-	int err;
-
-	err = dsa_slave_create(port);
-	if (err) {
-		dev_warn(ds->dev, "Failed to create slave %d: %d\n",
-			 port->index, err);
-		port->slave = NULL;
-		return err;
-	}
-
-	memset(&port->devlink_port, 0, sizeof(port->devlink_port));
-	err = devlink_port_register(ds->devlink, &port->devlink_port,
-				    port->index);
+	err = devlink_port_register(ds->devlink, &dp->devlink_port, dp->index);
 	if (err)
 		return err;
 
-	devlink_port_type_eth_set(&port->devlink_port, port->slave);
+	switch (dp->type) {
+	case DSA_PORT_TYPE_UNUSED:
+		break;
+	case DSA_PORT_TYPE_CPU:
+	case DSA_PORT_TYPE_DSA:
+		err = dsa_port_fixed_link_register_of(dp);
+		if (err) {
+			dev_err(ds->dev, "failed to register fixed link for port %d.%d\n",
+				ds->index, dp->index);
+			return err;
+		}
+
+		break;
+	case DSA_PORT_TYPE_USER:
+		err = dsa_slave_create(dp);
+		if (err)
+			dev_err(ds->dev, "failed to create slave for port %d.%d\n",
+				ds->index, dp->index);
+		else
+			devlink_port_type_eth_set(&dp->devlink_port, dp->slave);
+		break;
+	}
 
 	return 0;
 }
 
-static void dsa_user_port_unapply(struct dsa_port *port)
+static void dsa_port_teardown(struct dsa_port *dp)
 {
-	devlink_port_unregister(&port->devlink_port);
-	if (port->slave) {
-		dsa_slave_destroy(port->slave);
-		port->slave = NULL;
+	devlink_port_unregister(&dp->devlink_port);
+
+	switch (dp->type) {
+	case DSA_PORT_TYPE_UNUSED:
+		break;
+	case DSA_PORT_TYPE_CPU:
+	case DSA_PORT_TYPE_DSA:
+		dsa_port_fixed_link_unregister_of(dp);
+		break;
+	case DSA_PORT_TYPE_USER:
+		if (dp->slave) {
+			dsa_slave_destroy(dp->slave);
+			dp->slave = NULL;
+		}
+		break;
 	}
 }
 
 static int dsa_switch_setup(struct dsa_switch *ds)
 {
-	struct dsa_port *port;
-	u32 index;
 	int err;
 
 	/* Initialize ds->phys_mii_mask before registering the slave MDIO bus
@@ -406,56 +380,11 @@ static int dsa_switch_setup(struct dsa_switch *ds)
 			return err;
 	}
 
-	for (index = 0; index < ds->num_ports; index++) {
-		port = &ds->ports[index];
-		if (!dsa_port_is_valid(port))
-			continue;
-
-		if (dsa_port_is_dsa(port)) {
-			err = dsa_dsa_port_apply(port);
-			if (err)
-				return err;
-			continue;
-		}
-
-		if (dsa_port_is_cpu(port)) {
-			err = dsa_cpu_port_apply(port);
-			if (err)
-				return err;
-			continue;
-		}
-
-		err = dsa_user_port_apply(port);
-		if (err)
-			continue;
-	}
-
 	return 0;
 }
 
 static void dsa_switch_teardown(struct dsa_switch *ds)
 {
-	struct dsa_port *port;
-	u32 index;
-
-	for (index = 0; index < ds->num_ports; index++) {
-		port = &ds->ports[index];
-		if (!dsa_port_is_valid(port))
-			continue;
-
-		if (dsa_port_is_dsa(port)) {
-			dsa_dsa_port_unapply(port);
-			continue;
-		}
-
-		if (dsa_port_is_cpu(port)) {
-			dsa_cpu_port_unapply(port);
-			continue;
-		}
-
-		dsa_user_port_unapply(port);
-	}
-
 	if (ds->slave_mii_bus && ds->ops->phy_read)
 		mdiobus_unregister(ds->slave_mii_bus);
 
@@ -472,7 +401,8 @@ static void dsa_switch_teardown(struct dsa_switch *ds)
 static int dsa_tree_setup_switches(struct dsa_switch_tree *dst)
 {
 	struct dsa_switch *ds;
-	int device;
+	struct dsa_port *dp;
+	int device, port;
 	int err;
 
 	for (device = 0; device < DSA_MAX_SWITCHES; device++) {
@@ -483,6 +413,14 @@ static int dsa_tree_setup_switches(struct dsa_switch_tree *dst)
 		err = dsa_switch_setup(ds);
 		if (err)
 			return err;
+
+		for (port = 0; port < ds->num_ports; port++) {
+			dp = &ds->ports[port];
+
+			err = dsa_port_setup(dp);
+			if (err)
+				return err;
+		}
 	}
 
 	return 0;
@@ -491,12 +429,19 @@ static int dsa_tree_setup_switches(struct dsa_switch_tree *dst)
 static void dsa_tree_teardown_switches(struct dsa_switch_tree *dst)
 {
 	struct dsa_switch *ds;
-	int device;
+	struct dsa_port *dp;
+	int device, port;
 
 	for (device = 0; device < DSA_MAX_SWITCHES; device++) {
 		ds = dst->ds[device];
 		if (!ds)
 			continue;
+
+		for (port = 0; port < ds->num_ports; port++) {
+			dp = &ds->ports[port];
+
+			dsa_port_teardown(dp);
+		}
 
 		dsa_switch_teardown(ds);
 	}
