@@ -3199,13 +3199,21 @@ static void nfs4_close_done(struct rpc_task *task, void *data)
 
 			}
 			break;
+		case -NFS4ERR_OLD_STATEID:
+			/* Did we race with OPEN? */
+			if (nfs4_refresh_open_stateid(&calldata->arg.stateid,
+						state)) {
+				task->tk_status = 0;
+				rpc_restart_call_prepare(task);
+			}
+			goto out_release;
 		case -NFS4ERR_ADMIN_REVOKED:
 		case -NFS4ERR_STALE_STATEID:
 		case -NFS4ERR_EXPIRED:
 			nfs4_free_revoked_stateid(server,
 					&calldata->arg.stateid,
 					task->tk_msg.rpc_cred);
-		case -NFS4ERR_OLD_STATEID:
+			/* Fallthrough */
 		case -NFS4ERR_BAD_STATEID:
 			if (!nfs4_stateid_match(&calldata->arg.stateid,
 						&state->open_stateid)) {
@@ -3214,6 +3222,7 @@ static void nfs4_close_done(struct rpc_task *task, void *data)
 			}
 			if (calldata->arg.fmode == 0)
 				break;
+			/* Fallthrough */
 		default:
 			if (nfs4_async_handle_error(task, server, state, NULL) == -EAGAIN) {
 				rpc_restart_call_prepare(task);
@@ -5793,9 +5802,17 @@ static void nfs4_delegreturn_done(struct rpc_task *task, void *calldata)
 		nfs4_free_revoked_stateid(data->res.server,
 				data->args.stateid,
 				task->tk_msg.rpc_cred);
+		/* Fallthrough */
 	case -NFS4ERR_BAD_STATEID:
-	case -NFS4ERR_OLD_STATEID:
 	case -NFS4ERR_STALE_STATEID:
+		task->tk_status = 0;
+		break;
+	case -NFS4ERR_OLD_STATEID:
+		if (nfs4_refresh_delegation_stateid(&data->stateid, data->inode)) {
+			task->tk_status = 0;
+			rpc_restart_call_prepare(task);
+			return;
+		}
 		task->tk_status = 0;
 		break;
 	case -NFS4ERR_ACCESS:
