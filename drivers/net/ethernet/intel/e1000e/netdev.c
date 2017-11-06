@@ -3030,9 +3030,12 @@ static void e1000_configure_tx(struct e1000_adapter *adapter)
 		ew32(IOSFPC, reg_val);
 
 		reg_val = er32(TARC(0));
-		/* SPT and KBL Si errata workaround to avoid Tx hang */
-		reg_val &= ~BIT(28);
-		reg_val |= BIT(29);
+		/* SPT and KBL Si errata workaround to avoid Tx hang.
+		 * Dropping the number of outstanding requests from
+		 * 3 to 2 in order to avoid a buffer overrun.
+		 */
+		reg_val &= ~E1000_TARC0_CB_MULTIQ_3_REQ;
+		reg_val |= E1000_TARC0_CB_MULTIQ_2_REQ;
 		ew32(TARC(0), reg_val);
 	}
 }
