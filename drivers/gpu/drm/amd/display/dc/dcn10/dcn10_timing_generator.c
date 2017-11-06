@@ -236,13 +236,10 @@ static void tgn10_program_timing(
 	if (tg->dlg_otg_param.signal == SIGNAL_TYPE_DISPLAY_PORT ||
 		tg->dlg_otg_param.signal == SIGNAL_TYPE_DISPLAY_PORT_MST ||
 		tg->dlg_otg_param.signal == SIGNAL_TYPE_EDP) {
-		v_init = asic_blank_start;
 		start_point = 1;
 		if (patched_crtc_timing.flags.INTERLACE == 1)
 			field_num = 1;
 	}
-	if (v_init < 0)
-		v_init = 0;
 	v_fp2 = 0;
 	if (tg->dlg_otg_param.vstartup_start > asic_blank_end)
 		v_fp2 = tg->dlg_otg_param.vstartup_start > asic_blank_end;
