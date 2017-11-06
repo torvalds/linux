@@ -90,6 +90,14 @@ int crypto_dh_decode_key(const char *buf, unsigned int len, struct dh *params)
 	params->p = (void *)(ptr + params->key_size);
 	params->g = (void *)(ptr + params->key_size + params->p_size);
 
+	/*
+	 * Don't permit 'p' to be 0.  It's not a prime number, and it's subject
+	 * to corner cases such as 'mod 0' being undefined or
+	 * crypto_kpp_maxsize() returning 0.
+	 */
+	if (memchr_inv(params->p, 0, params->p_size) == NULL)
+		return -EINVAL;
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(crypto_dh_decode_key);
