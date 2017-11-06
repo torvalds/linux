@@ -131,6 +131,20 @@ static inline bool is_gvt_request(struct drm_i915_gem_request *req)
 	return i915_gem_context_force_single_submission(req->ctx);
 }
 
+static void save_ring_hw_state(struct intel_vgpu *vgpu, int ring_id)
+{
+	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
+	u32 ring_base = dev_priv->engine[ring_id]->mmio_base;
+	i915_reg_t reg;
+
+	reg = RING_INSTDONE(ring_base);
+	vgpu_vreg(vgpu, i915_mmio_reg_offset(reg)) = I915_READ_FW(reg);
+	reg = RING_ACTHD(ring_base);
+	vgpu_vreg(vgpu, i915_mmio_reg_offset(reg)) = I915_READ_FW(reg);
+	reg = RING_ACTHD_UDW(ring_base);
+	vgpu_vreg(vgpu, i915_mmio_reg_offset(reg)) = I915_READ_FW(reg);
+}
+
 static int shadow_context_status_change(struct notifier_block *nb,
 		unsigned long action, void *data)
 {
@@ -175,6 +189,7 @@ static int shadow_context_status_change(struct notifier_block *nb,
 		break;
 	case INTEL_CONTEXT_SCHEDULE_OUT:
 	case INTEL_CONTEXT_SCHEDULE_PREEMPTED:
+		save_ring_hw_state(workload->vgpu, ring_id);
 		atomic_set(&workload->shadow_ctx_active, 0);
 		break;
 	default:

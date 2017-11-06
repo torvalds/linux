@@ -1471,11 +1471,29 @@ static int skl_lcpll_write(struct intel_vgpu *vgpu, unsigned int offset,
 static int mmio_read_from_hw(struct intel_vgpu *vgpu,
 		unsigned int offset, void *p_data, unsigned int bytes)
 {
-	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
+	struct intel_gvt *gvt = vgpu->gvt;
+	struct drm_i915_private *dev_priv = gvt->dev_priv;
+	int ring_id;
+	u32 ring_base;
 
-	mmio_hw_access_pre(dev_priv);
-	vgpu_vreg(vgpu, offset) = I915_READ(_MMIO(offset));
-	mmio_hw_access_post(dev_priv);
+	ring_id = intel_gvt_render_mmio_to_ring_id(gvt, offset);
+	/**
+	 * Read HW reg in following case
+	 * a. the offset isn't a ring mmio
+	 * b. the offset's ring is running on hw.
+	 * c. the offset is ring time stamp mmio
+	 */
+	if (ring_id >= 0)
+		ring_base = dev_priv->engine[ring_id]->mmio_base;
+
+	if (ring_id < 0 || vgpu  == gvt->scheduler.engine_owner[ring_id] ||
+	    offset == i915_mmio_reg_offset(RING_TIMESTAMP(ring_base)) ||
+	    offset == i915_mmio_reg_offset(RING_TIMESTAMP_UDW(ring_base))) {
+		mmio_hw_access_pre(dev_priv);
+		vgpu_vreg(vgpu, offset) = I915_READ(_MMIO(offset));
+		mmio_hw_access_post(dev_priv);
+	}
+
 	return intel_vgpu_default_mmio_read(vgpu, offset, p_data, bytes);
 }
 
