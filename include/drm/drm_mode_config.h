@@ -753,6 +753,15 @@ struct drm_mode_config {
 	/* cursor size */
 	uint32_t cursor_width, cursor_height;
 
+	/**
+	 * @suspend_state:
+	 *
+	 * Atomic state when suspended.
+	 * Set by drm_mode_config_helper_suspend() and cleared by
+	 * drm_mode_config_helper_resume().
+	 */
+	struct drm_atomic_state *suspend_state;
+
 	const struct drm_mode_config_helper_funcs *helper_private;
 };
 
