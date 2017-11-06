@@ -88,7 +88,7 @@ static struct sk_buff *lan9303_xmit(struct sk_buff *skb, struct net_device *dev)
 }
 
 static struct sk_buff *lan9303_rcv(struct sk_buff *skb, struct net_device *dev,
-			struct packet_type *pt)
+				   struct packet_type *pt)
 {
 	u16 *lan9303_tag;
 	unsigned int source_port;
