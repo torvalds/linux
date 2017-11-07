@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * linux/mm/slab.c
  * Written by Mark Hemment, 1996/97.

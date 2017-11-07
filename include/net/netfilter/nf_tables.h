@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _NET_NF_TABLES_H
 #define _NET_NF_TABLES_H
 

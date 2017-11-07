@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Connection state tracking for netfilter.  This is separated from,
  * but required by, the (future) NAT layer; it can also be used by an iptables

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_IO_H
 #define _ASM_X86_IO_H
 
@@ -109,10 +110,6 @@ build_mmio_write(__writeq, "q", unsigned long, "r", )
 #define writeq			writeq
 
 #endif
-
-#define ARCH_HAS_VALID_PHYS_ADDR_RANGE
-extern int valid_phys_addr_range(phys_addr_t addr, size_t size);
-extern int valid_mmap_phys_addr_range(unsigned long pfn, size_t size);
 
 /**
  *	virt_to_phys	-	map virtual addresses to physical

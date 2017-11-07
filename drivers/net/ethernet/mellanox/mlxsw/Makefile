@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 obj-$(CONFIG_MLXSW_CORE)	+= mlxsw_core.o
 mlxsw_core-objs			:= core.o core_acl_flex_keys.o \
 				   core_acl_flex_actions.o

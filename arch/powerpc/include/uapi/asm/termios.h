@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
 /*
  * Liberally adapted from alpha/termios.h.  In particular, the c_cc[]
  * fields have been reordered so that termio & termios share the

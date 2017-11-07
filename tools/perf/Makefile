@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # This is a simple wrapper Makefile that calls the main Makefile.perf
 # with a -j option to do parallel builds

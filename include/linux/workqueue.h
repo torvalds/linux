@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * workqueue.h --- work queue handling for Linux.
  */

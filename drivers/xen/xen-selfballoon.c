@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /******************************************************************************
  * Xen selfballoon driver (and optional frontswap self-shrinking driver)
  *

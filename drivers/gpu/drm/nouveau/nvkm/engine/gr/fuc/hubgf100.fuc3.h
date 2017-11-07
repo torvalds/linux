@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 static uint32_t gf100_grhub_data[] = {
 /* 0x0000: hub_mmio_list_head */
 	0x00000300,

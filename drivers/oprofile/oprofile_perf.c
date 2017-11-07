@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright 2010 ARM Ltd.
  * Copyright 2012 Advanced Micro Devices, Inc., Robert Richter

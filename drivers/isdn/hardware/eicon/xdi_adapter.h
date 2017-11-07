@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* $Id: xdi_adapter.h,v 1.7 2004/03/21 17:26:01 armin Exp $ */
 
 #ifndef __DIVA_OS_XDI_ADAPTER_H__

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/spinlock.h>
 #include <linux/task_work.h>
 #include <linux/tracehook.h>

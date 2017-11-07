@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * dma_timer.c -- Freescale ColdFire DMA Timer.
  *

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 1992 Krishna Balasubramanian and Linus Torvalds
  * Copyright (C) 1999 Ingo Molnar <mingo@redhat.com>

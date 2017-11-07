@@ -842,9 +842,12 @@ static int hugetlbfs_error_remove_page(struct address_space *mapping,
 				struct page *page)
 {
 	struct inode *inode = mapping->host;
+	pgoff_t index = page->index;
 
 	remove_huge_page(page);
-	hugetlb_fix_reserve_counts(inode);
+	if (unlikely(hugetlb_unreserve_pages(inode, index, index + 1, 1)))
+		hugetlb_fix_reserve_counts(inode);
+
 	return 0;
 }
 

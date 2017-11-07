@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef INT_TYPEDEFS_H
 #define INT_TYPEDEFS_H
 

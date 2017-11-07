@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _MOTOROLA_PGTABLE_H
 #define _MOTOROLA_PGTABLE_H
 

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __FS_CEPH_PAGELIST_H
 #define __FS_CEPH_PAGELIST_H
 

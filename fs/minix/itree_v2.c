@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/buffer_head.h>
 #include "minix.h"
 

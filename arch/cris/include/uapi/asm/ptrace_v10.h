@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef _CRIS_ARCH_PTRACE_H
 #define _CRIS_ARCH_PTRACE_H
 

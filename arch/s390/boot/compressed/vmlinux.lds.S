@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #include <asm-generic/vmlinux.lds.h>
 
 OUTPUT_FORMAT("elf64-s390", "elf64-s390", "elf64-s390")

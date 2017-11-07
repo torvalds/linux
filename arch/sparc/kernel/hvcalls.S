@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 	/* %o0: devhandle
 	 * %o1:	devino
 	 *

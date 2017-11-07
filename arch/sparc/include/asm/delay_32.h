@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * delay.h: Linux delay routines on the Sparc.
  *

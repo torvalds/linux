@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* smp.h: Sparc64 specific SMP stuff.
  *
  * Copyright (C) 1996, 2008 David S. Miller (davem@davemloft.net)

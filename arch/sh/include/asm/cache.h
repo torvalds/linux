@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* $Id: cache.h,v 1.6 2004/03/11 18:08:05 lethal Exp $
  *
  * include/asm-sh/cache.h
