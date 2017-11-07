@@ -3148,6 +3148,11 @@ static void nfs4_close_done(struct rpc_task *task, void *data)
 	struct nfs4_state *state = calldata->state;
 	struct nfs_server *server = NFS_SERVER(calldata->inode);
 	nfs4_stateid *res_stateid = NULL;
+	struct nfs4_exception exception = {
+		.state = state,
+		.inode = calldata->inode,
+		.stateid = &calldata->arg.stateid,
+	};
 
 	dprintk("%s: begin!\n", __func__);
 	if (!nfs4_sequence_done(task, &calldata->res.seq_res))
@@ -3213,7 +3218,9 @@ static void nfs4_close_done(struct rpc_task *task, void *data)
 		case -NFS4ERR_BAD_STATEID:
 			break;
 		default:
-			if (nfs4_async_handle_error(task, server, state, NULL) == -EAGAIN)
+			task->tk_status = nfs4_async_handle_exception(task,
+					server, task->tk_status, &exception);
+			if (exception.retry)
 				goto out_restart;
 	}
 	nfs_clear_open_stateid(state, &calldata->arg.stateid,
