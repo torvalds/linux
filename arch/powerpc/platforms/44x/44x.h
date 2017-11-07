@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __POWERPC_PLATFORMS_44X_44X_H
 #define __POWERPC_PLATFORMS_44X_44X_H
 

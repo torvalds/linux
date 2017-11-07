@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 PHONY += posttest
 
 ifeq ($(KBUILD_VERBOSE),1)

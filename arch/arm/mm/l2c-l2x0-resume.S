@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * L2C-310 early resume code.  This can be used by platforms to restore
  * the settings of their L2 cache controller before restoring the

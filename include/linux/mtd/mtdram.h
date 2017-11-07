@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __MTD_MTDRAM_H__
 #define __MTD_MTDRAM_H__
 

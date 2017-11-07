@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _XEN_TMEM_H
 #define _XEN_TMEM_H
 

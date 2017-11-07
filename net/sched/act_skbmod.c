@@ -263,7 +263,7 @@ static __net_init int skbmod_init_net(struct net *net)
 {
 	struct tc_action_net *tn = net_generic(net, skbmod_net_id);
 
-	return tc_action_net_init(tn, &act_skbmod_ops);
+	return tc_action_net_init(tn, &act_skbmod_ops, net);
 }
 
 static void __net_exit skbmod_exit_net(struct net *net)

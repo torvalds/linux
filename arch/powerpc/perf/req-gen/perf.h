@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef LINUX_POWERPC_PERF_REQ_GEN_PERF_H_
 #define LINUX_POWERPC_PERF_REQ_GEN_PERF_H_
 

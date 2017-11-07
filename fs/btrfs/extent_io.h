@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __EXTENTIO__
 #define __EXTENTIO__
 

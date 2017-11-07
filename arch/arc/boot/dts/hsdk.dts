@@ -137,14 +137,15 @@
 			/*
 			 * DW sdio controller has external ciu clock divider
 			 * controlled via register in SDIO IP. Due to its
-			 * unexpected default value (it should devide by 1
-			 * but it devides by 8) SDIO IP uses wrong clock and
+			 * unexpected default value (it should divide by 1
+			 * but it divides by 8) SDIO IP uses wrong clock and
 			 * works unstable (see STAR 9001204800)
+			 * We switched to the minimum possible value of the
+			 * divisor (div-by-2) in HSDK platform code.
 			 * So add temporary fix and change clock frequency
-			 * from 100000000 to 12500000 Hz until we fix dw sdio
-			 * driver itself.
+			 * to 50000000 Hz until we fix dw sdio driver itself.
 			 */
-			clock-frequency = <12500000>;
+			clock-frequency = <50000000>;
 			#clock-cells = <0>;
 		};
 

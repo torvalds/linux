@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef LINUX_HTIRQ_H
 #define LINUX_HTIRQ_H
 

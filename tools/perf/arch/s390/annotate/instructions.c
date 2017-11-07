@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/compiler.h>
 
 static struct ins_ops *s390__associate_ins_ops(struct arch *arch, const char *name)

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 SECTIONS {
 	. = SIZEOF_HEADERS;
 	.rodata : { *(.rodata) } :ro

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Cortina Gemini SoC Clock Controller driver
  * Copyright (c) 2017 Linus Walleij <linus.walleij@linaro.org>

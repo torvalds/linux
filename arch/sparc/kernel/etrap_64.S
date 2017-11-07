@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * etrap.S: Preparing for entry into the kernel on Sparc V9.
  *

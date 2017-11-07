@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Intel MID PCI support
  *   Copyright (c) 2008 Intel Corporation

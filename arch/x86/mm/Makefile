@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 # Kernel does not boot with instrumentation of tlb.c and mem_encrypt.c
 KCOV_INSTRUMENT_tlb.o		:= n
 KCOV_INSTRUMENT_mem_encrypt.o	:= n

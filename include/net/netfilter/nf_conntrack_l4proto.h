@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Header for use in defining a given L4 protocol for connection tracking.
  *

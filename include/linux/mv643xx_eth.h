@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * MV-643XX ethernet platform device data definition file.
  */

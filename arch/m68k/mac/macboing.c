@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *	Mac bong noise generator. Note - we ought to put a boingy noise
  *	here 8)
