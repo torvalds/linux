@@ -58,7 +58,8 @@ struct malidp_layer {
 	u16 id;			/* layer ID */
 	u16 base;		/* address offset for the register bank */
 	u16 ptr;		/* address offset for the pointer register */
-	u16 stride_offset;	/* Offset to the first stride register. */
+	u16 stride_offset;	/* offset to the first stride register. */
+	s16 yuv2rgb_offset;	/* offset to the YUV->RGB matrix entries */
 };
 
 enum malidp_scaling_coeff_set {
