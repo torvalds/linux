@@ -525,7 +525,7 @@ static int memmap_entry_callback(struct resource *res, void *arg)
 	struct e820_entry ei;
 
 	ei.addr = res->start;
-	ei.size = res->end - res->start + 1;
+	ei.size = resource_size(res);
 	ei.type = cmd->type;
 	add_e820_entry(params, &ei);
 
@@ -624,7 +624,7 @@ static int determine_backup_region(struct resource *res, void *arg)
 	struct kimage *image = arg;
 
 	image->arch.backup_src_start = res->start;
-	image->arch.backup_src_sz = res->end - res->start + 1;
+	image->arch.backup_src_sz = resource_size(res);
 
 	/* Expecting only one range for backup region */
 	return 1;
