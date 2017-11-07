@@ -162,7 +162,6 @@ struct nvme_ctrl {
 	u16 nssa;
 	u16 nr_streams;
 	atomic_t abort_limit;
-	u8 event_limit;
 	u8 vwc;
 	u32 vs;
 	u32 sgls;
@@ -237,7 +236,7 @@ struct nvme_ctrl_ops {
 	int (*reg_write32)(struct nvme_ctrl *ctrl, u32 off, u32 val);
 	int (*reg_read64)(struct nvme_ctrl *ctrl, u32 off, u64 *val);
 	void (*free_ctrl)(struct nvme_ctrl *ctrl);
-	void (*submit_async_event)(struct nvme_ctrl *ctrl, int aer_idx);
+	void (*submit_async_event)(struct nvme_ctrl *ctrl);
 	void (*delete_ctrl)(struct nvme_ctrl *ctrl);
 	int (*get_address)(struct nvme_ctrl *ctrl, char *buf, int size);
 	int (*reinit_request)(void *data, struct request *rq);

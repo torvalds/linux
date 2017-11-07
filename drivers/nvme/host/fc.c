@@ -2382,16 +2382,13 @@ nvme_fc_poll(struct blk_mq_hw_ctx *hctx, unsigned int tag)
 }
 
 static void
-nvme_fc_submit_async_event(struct nvme_ctrl *arg, int aer_idx)
+nvme_fc_submit_async_event(struct nvme_ctrl *arg)
 {
 	struct nvme_fc_ctrl *ctrl = to_fc_ctrl(arg);
 	struct nvme_fc_fcp_op *aen_op;
 	unsigned long flags;
 	bool terminating = false;
 	blk_status_t ret;
-
-	if (aer_idx > NVME_NR_AEN_COMMANDS)
-		return;
 
 	spin_lock_irqsave(&ctrl->lock, flags);
 	if (ctrl->flags & FCCTRL_TERMIO)
@@ -2401,13 +2398,13 @@ nvme_fc_submit_async_event(struct nvme_ctrl *arg, int aer_idx)
 	if (terminating)
 		return;
 
-	aen_op = &ctrl->aen_ops[aer_idx];
+	aen_op = &ctrl->aen_ops[0];
 
 	ret = nvme_fc_start_fcp_op(ctrl, aen_op->queue, aen_op, 0,
 					NVMEFC_FCP_NODATA);
 	if (ret)
 		dev_err(ctrl->ctrl.device,
-			"failed async event work [%d]\n", aer_idx);
+			"failed async event work\n");
 }
 
 static void

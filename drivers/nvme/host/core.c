@@ -2670,15 +2670,7 @@ static void nvme_async_event_work(struct work_struct *work)
 	struct nvme_ctrl *ctrl =
 		container_of(work, struct nvme_ctrl, async_event_work);
 
-	spin_lock_irq(&ctrl->lock);
-	while (ctrl->state == NVME_CTRL_LIVE && ctrl->event_limit > 0) {
-		int aer_idx = --ctrl->event_limit;
-
-		spin_unlock_irq(&ctrl->lock);
-		ctrl->ops->submit_async_event(ctrl, aer_idx);
-		spin_lock_irq(&ctrl->lock);
-	}
-	spin_unlock_irq(&ctrl->lock);
+	ctrl->ops->submit_async_event(ctrl);
 }
 
 static bool nvme_ctrl_pp_status(struct nvme_ctrl *ctrl)
@@ -2745,22 +2737,8 @@ void nvme_complete_async_event(struct nvme_ctrl *ctrl, __le16 status,
 		union nvme_result *res)
 {
 	u32 result = le32_to_cpu(res->u32);
-	bool done = true;
 
-	switch (le16_to_cpu(status) >> 1) {
-	case NVME_SC_SUCCESS:
-		done = false;
-		/*FALLTHRU*/
-	case NVME_SC_ABORT_REQ:
-		++ctrl->event_limit;
-		if (ctrl->state == NVME_CTRL_LIVE)
-			queue_work(nvme_wq, &ctrl->async_event_work);
-		break;
-	default:
-		break;
-	}
-
-	if (done)
+	if (le16_to_cpu(status) >> 1 != NVME_SC_SUCCESS)
 		return;
 
 	switch (result & 0xff07) {
@@ -2774,12 +2752,12 @@ void nvme_complete_async_event(struct nvme_ctrl *ctrl, __le16 status,
 	default:
 		dev_warn(ctrl->device, "async event result %08x\n", result);
 	}
+	queue_work(nvme_wq, &ctrl->async_event_work);
 }
 EXPORT_SYMBOL_GPL(nvme_complete_async_event);
 
 void nvme_queue_async_events(struct nvme_ctrl *ctrl)
 {
-	ctrl->event_limit = NVME_NR_AEN_COMMANDS;
 	queue_work(nvme_wq, &ctrl->async_event_work);
 }
 EXPORT_SYMBOL_GPL(nvme_queue_async_events);
