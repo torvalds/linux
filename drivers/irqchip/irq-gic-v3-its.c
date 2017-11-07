@@ -2802,7 +2802,7 @@ static int its_vpe_irq_domain_activate(struct irq_domain *domain,
 
 	/* If we use the list map, we issue VMAPP on demand... */
 	if (its_list_map)
-		return true;
+		return 0;
 
 	/* Map the VPE to the first possible CPU */
 	vpe->col_idx = cpumask_first(cpu_online_mask);
