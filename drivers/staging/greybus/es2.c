@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Greybus "AP" USB driver for "ES2" controller chips
  *

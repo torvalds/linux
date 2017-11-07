@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * USB host driver for the Greybus "generic" USB module.
  *

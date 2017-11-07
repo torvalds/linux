@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Loopback bridge driver for the Greybus loopback module.
  *

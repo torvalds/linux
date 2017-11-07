@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Greybus audio driver
  * Copyright 2015-2016 Google Inc.

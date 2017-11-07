@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * UART driver for the Greybus "generic" UART module.
  *
