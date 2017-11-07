@@ -318,6 +318,10 @@
 	};
 };
 
+&cif_sensor {
+	status = "okay";
+};
+
 &cluster0_opp {
 	rockchip,threshold-freq = <408000>;
 	rockchip,freq-limit;
@@ -361,6 +365,15 @@
 
 &gpu {
 	logic-supply = <&vdd_log>;
+};
+
+&isp {
+	pinctrl-names =
+		"isp_mipi_fl_prefl", "isp_flash_as_gpio",
+		"isp_flash_as_trigger_out";
+	pinctrl-0 = <&isp_prelight>;
+	pinctrl-1 = <&isp_flash_trigger_as_gpio>;
+	pinctrl-2 = <&isp_flash_trigger>;
 };
 
 &rockchip_suspend {

@@ -260,10 +260,6 @@
 	status = "okay";
 };
 
-&rk3368_cif_sensor {
-	status = "okay";
-};
-
 &usb_otg {
 	status = "okay";
 	clocks = <&cru SCLK_OTGPHY0>, <&cru HCLK_OTG0>;

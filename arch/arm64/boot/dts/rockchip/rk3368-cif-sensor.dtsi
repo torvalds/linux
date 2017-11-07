@@ -1,7 +1,7 @@
 #include "../../../../../drivers/soc/rockchip/rk_camera_sensor_info.h"
 
 /{
-	rk3368_cif_sensor: rk3368_cif_sensor{
+	cif_sensor: cif_sensor {
 		compatible = "rockchip,sensor";
 		status = "okay";
 
