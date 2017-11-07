@@ -229,6 +229,13 @@ void amd_sched_entity_fini(struct amd_gpu_scheduler *sched,
 		 */
 		kthread_park(sched->thread);
 		kthread_unpark(sched->thread);
+		if (entity->dependency) {
+			dma_fence_remove_callback(entity->dependency,
+						  &entity->cb);
+			dma_fence_put(entity->dependency);
+			entity->dependency = NULL;
+		}
+
 		while ((job = to_amd_sched_job(spsc_queue_pop(&entity->job_queue)))) {
 			struct amd_sched_fence *s_fence = job->s_fence;
 			amd_sched_fence_scheduled(s_fence);
