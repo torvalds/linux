@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * COMEDI driver for the ADLINK PCI-723x/743x series boards.
  * Copyright (C) 2012 H Hartley Sweeten <hsweeten@visionengravers.com>

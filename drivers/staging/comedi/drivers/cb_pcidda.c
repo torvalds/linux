@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * comedi/drivers/cb_pcidda.c
  * Driver for the ComputerBoards / MeasurementComputing PCI-DDA series.

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  *  das08_pci.c
  *  comedi driver for DAS08 PCI boards

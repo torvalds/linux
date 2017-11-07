@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * adv_pci1724.c
  * Comedi driver for the Advantech PCI-1724U card.

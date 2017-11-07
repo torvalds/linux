@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * comedi/drivers/amplc_pc236.c
  * Driver for Amplicon PC36AT DIO boards.

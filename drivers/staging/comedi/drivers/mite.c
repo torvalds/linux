@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * comedi/drivers/mite.c
  * Hardware driver for NI Mite PCI interface chip

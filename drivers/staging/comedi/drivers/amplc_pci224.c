@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * comedi/drivers/amplc_pci224.c
  * Driver for Amplicon PCI224 and PCI234 AO boards.

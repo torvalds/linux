@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * dt3000.c
  * Data Translation DT3000 series driver

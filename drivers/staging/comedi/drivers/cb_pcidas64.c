@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * comedi/drivers/cb_pcidas64.c
  * This is a driver for the ComputerBoards/MeasurementComputing PCI-DAS

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  *  Copyright (C) 2004-2014 Bernd Porr, mail@berndporr.me.uk
  *

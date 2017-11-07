@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * comedidev.h
  * header file for kernel-only structures, variables, and constants

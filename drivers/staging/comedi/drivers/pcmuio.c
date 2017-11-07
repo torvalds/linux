@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * pcmuio.c
  * Comedi driver for Winsystems PC-104 based 48/96-channel DIO boards.

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * usbdux.c
  * Copyright (C) 2003-2014 Bernd Porr, mail@berndporr.me.uk

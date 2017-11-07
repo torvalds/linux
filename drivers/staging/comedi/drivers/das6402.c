@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * das6402.c
  * Comedi driver for DAS6402 compatible boards

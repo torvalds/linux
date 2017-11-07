@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /* comedi/drivers/amplc_dio200_pci.c
  *
  * Driver for Amplicon PCI215, PCI272, PCIe215, PCIe236, PCIe296.

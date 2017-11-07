@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * comedi_8255.c
  * Generic 8255 digital I/O support

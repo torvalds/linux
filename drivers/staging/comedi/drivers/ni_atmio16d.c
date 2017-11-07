@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Comedi driver for National Instruments AT-MIO16D board
  * Copyright (C) 2000 Chris R. Baugher <baugher@enteract.com>

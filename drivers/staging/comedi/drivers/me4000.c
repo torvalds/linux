@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * me4000.c
  * Source code for the Meilhaus ME-4000 board family.

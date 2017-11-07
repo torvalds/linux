@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * COMEDI driver for generic PCI based 8255 digital i/o boards
  * Copyright (C) 2012 H Hartley Sweeten <hsweeten@visionengravers.com>

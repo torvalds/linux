@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * addi_apci_1032.c
  * Copyright (C) 2004,2005  ADDI-DATA GmbH for the source code of this module.

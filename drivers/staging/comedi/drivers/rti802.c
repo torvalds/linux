@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * rti802.c
  * Comedi driver for Analog Devices RTI-802 board

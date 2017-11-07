@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * comedi/comedi_compat32.c
  * 32-bit ioctl compatibility for 64-bit comedi kernel module.

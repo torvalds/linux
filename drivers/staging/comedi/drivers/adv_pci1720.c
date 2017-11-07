@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * COMEDI driver for Advantech PCI-1720U
  * Copyright (c) 2015 H Hartley Sweeten <hsweeten@visionengravers.com>

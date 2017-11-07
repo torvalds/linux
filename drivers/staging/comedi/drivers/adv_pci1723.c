@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * adv_pci1723.c
  * Comedi driver for the Advantech PCI-1723 card.

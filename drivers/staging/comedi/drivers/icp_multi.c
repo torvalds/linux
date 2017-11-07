@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * icp_multi.c
  * Comedi driver for Inova ICP_MULTI board

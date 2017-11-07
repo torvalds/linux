@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Comedi driver for DAS008 PCMCIA boards
  *

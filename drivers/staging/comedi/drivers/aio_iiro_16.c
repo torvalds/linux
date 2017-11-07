@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * aio_iiro_16.c
  * Comedi driver for Access I/O Products 104-IIRO-16 board

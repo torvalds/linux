@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * gsc_hpdi.c
  * Comedi driver the General Standards Corporation

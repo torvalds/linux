@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * comedi/drivers/rtd520.c
  * Comedi driver for Real Time Devices (RTD) PCI4520/DM7520

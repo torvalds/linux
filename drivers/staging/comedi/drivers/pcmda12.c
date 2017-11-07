@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * pcmda12.c
  * Driver for Winsystems PC-104 based PCM-D/A-12 8-channel AO board.

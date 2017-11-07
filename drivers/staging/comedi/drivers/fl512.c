@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * fl512.c
  * Anders Gnistrup <ex18@kalman.iau.dtu.dk>

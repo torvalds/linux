@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Comedi driver for Keithley DAS-1700/DAS-1800 series boards
  * Copyright (C) 2000 Frank Mori Hess <fmhess@users.sourceforge.net>

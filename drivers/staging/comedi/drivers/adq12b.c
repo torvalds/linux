@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * adq12b.c
  * Driver for MicroAxial ADQ12-B data acquisition and control card

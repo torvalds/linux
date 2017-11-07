@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Header for ni_labpc ISA/PCMCIA/PCI drivers
  *

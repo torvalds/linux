@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * comedi_8254.c
  * Generic 8254 timer/counter support

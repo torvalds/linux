@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * comedi/drivers/ni_usb6501.c
  * Comedi driver for National Instruments USB-6501

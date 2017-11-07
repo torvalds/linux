@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * dac02.c
  * Comedi driver for DAC02 compatible boards

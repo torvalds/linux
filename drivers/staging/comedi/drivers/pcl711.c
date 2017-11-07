@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * pcl711.c
  * Comedi driver for PC-LabCard PCL-711 and AdSys ACL-8112 and compatibles

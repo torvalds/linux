@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * usbduxsigma.c
  * Copyright (C) 2011-2015 Bernd Porr, mail@berndporr.me.uk

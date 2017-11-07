@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * adl_pci6208.c
  * Comedi driver for ADLink 6208 series cards

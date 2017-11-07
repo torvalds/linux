@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * comedi/drivers/das800.c
  * Driver for Keitley das800 series boards and compatibles

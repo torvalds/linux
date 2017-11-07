@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * comedi_bond.c
  * A Comedi driver to 'bond' or merge multiple drivers and devices as one.

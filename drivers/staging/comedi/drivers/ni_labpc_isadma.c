@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * comedi/drivers/ni_labpc_isadma.c
  * ISA DMA support for National Instruments Lab-PC series boards and

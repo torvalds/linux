@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * dt282x.c
  * Comedi driver for Data Translation DT2821 series

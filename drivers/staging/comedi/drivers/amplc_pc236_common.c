@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * comedi/drivers/amplc_pc236_common.c
  * Common support code for "amplc_pc236" and "amplc_pci236".

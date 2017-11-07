@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * vmk80xx.c
  * Velleman USB Board Low-Level Driver

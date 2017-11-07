@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Comedi driver for National Instruments PCMCIA DAQ-Card DIO-24
  * Copyright (C) 2002 Daniel Vecino Castel <dvecino@able.es>

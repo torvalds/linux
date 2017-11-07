@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * s526.c
  * Sensoray s526 Comedi driver

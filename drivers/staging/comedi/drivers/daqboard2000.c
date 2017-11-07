@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * comedi/drivers/daqboard2000.c
  * hardware driver for IOtech DAQboard/2000

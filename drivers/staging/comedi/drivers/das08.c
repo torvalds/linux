@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * comedi/drivers/das08.c
  * comedi module for common DAS08 support (used by ISA/PCI/PCMCIA drivers)

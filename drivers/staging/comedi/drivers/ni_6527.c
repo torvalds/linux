@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * ni_6527.c
  * Comedi driver for National Instruments PCI-6527

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * comedi/drivers/rti800.c
  * Hardware driver for Analog Devices RTI-800/815 board

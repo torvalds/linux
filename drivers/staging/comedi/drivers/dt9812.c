@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * comedi/drivers/dt9812.c
  *   COMEDI driver for DataTranslation DT9812 USB module

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * multiq3.c
  * Hardware driver for Quanser Consulting MultiQ-3 board

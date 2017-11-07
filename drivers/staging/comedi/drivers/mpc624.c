@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * mpc624.c
  * Hardware driver for a Micro/sys inc. MPC-624 PC/104 board

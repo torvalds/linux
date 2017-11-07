@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * comedi_parport.c
  * Comedi driver for standard parallel port

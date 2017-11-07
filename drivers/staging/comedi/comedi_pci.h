@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * comedi_pci.h
  * header file for Comedi PCI drivers

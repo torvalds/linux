@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  *  comedi/drivers/mf6x4.c
  *  Driver for Humusoft MF634 and MF624 Data acquisition cards

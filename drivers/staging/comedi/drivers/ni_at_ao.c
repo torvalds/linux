@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * ni_at_ao.c
  * Driver for NI AT-AO-6/10 boards

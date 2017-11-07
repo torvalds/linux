@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Register descriptions for NI DAQ-STC chip
  *
