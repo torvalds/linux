@@ -20,8 +20,6 @@ static int mapram_write (struct mtd_info *, loff_t, size_t, size_t *, const u_ch
 static int mapram_erase (struct mtd_info *, struct erase_info *);
 static void mapram_nop (struct mtd_info *);
 static struct mtd_info *map_ram_probe(struct map_info *map);
-static unsigned long mapram_unmapped_area(struct mtd_info *, unsigned long,
-					  unsigned long, unsigned long);
 static int mapram_point (struct mtd_info *mtd, loff_t from, size_t len,
 			 size_t *retlen, void **virt, resource_size_t *phys);
 static int mapram_unpoint(struct mtd_info *mtd, loff_t from, size_t len);
@@ -68,7 +66,6 @@ static struct mtd_info *map_ram_probe(struct map_info *map)
 	mtd->type = MTD_RAM;
 	mtd->size = map->size;
 	mtd->_erase = mapram_erase;
-	mtd->_get_unmapped_area = mapram_unmapped_area;
 	mtd->_read = mapram_read;
 	mtd->_write = mapram_write;
 	mtd->_panic_write = mapram_write;
@@ -84,21 +81,6 @@ static struct mtd_info *map_ram_probe(struct map_info *map)
 
 	__module_get(THIS_MODULE);
 	return mtd;
-}
-
-
-/*
- * Allow NOMMU mmap() to directly map the device (if not NULL)
- * - return the address to which the offset maps
- * - return -ENOSYS to indicate refusal to do the mapping
- */
-static unsigned long mapram_unmapped_area(struct mtd_info *mtd,
-					  unsigned long len,
-					  unsigned long offset,
-					  unsigned long flags)
-{
-	struct map_info *map = mtd->priv;
-	return (unsigned long) map->virt + offset;
 }
 
 static int mapram_point(struct mtd_info *mtd, loff_t from, size_t len,
