@@ -499,6 +499,7 @@ static int qmi_wwan_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 		return 1;
 	}
 	if (rawip) {
+		skb_reset_mac_header(skb);
 		skb->dev = dev->net; /* normally set by eth_type_trans */
 		skb->protocol = proto;
 		return 1;
