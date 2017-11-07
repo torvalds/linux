@@ -2756,12 +2756,6 @@ void nvme_complete_async_event(struct nvme_ctrl *ctrl, __le16 status,
 }
 EXPORT_SYMBOL_GPL(nvme_complete_async_event);
 
-void nvme_queue_async_events(struct nvme_ctrl *ctrl)
-{
-	queue_work(nvme_wq, &ctrl->async_event_work);
-}
-EXPORT_SYMBOL_GPL(nvme_queue_async_events);
-
 void nvme_stop_ctrl(struct nvme_ctrl *ctrl)
 {
 	nvme_stop_keep_alive(ctrl);
@@ -2778,7 +2772,7 @@ void nvme_start_ctrl(struct nvme_ctrl *ctrl)
 
 	if (ctrl->queue_count > 1) {
 		nvme_queue_scan(ctrl);
-		nvme_queue_async_events(ctrl);
+		queue_work(nvme_wq, &ctrl->async_event_work);
 		nvme_start_queues(ctrl);
 	}
 }
