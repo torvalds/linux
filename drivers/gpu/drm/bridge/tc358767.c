@@ -97,7 +97,7 @@
 #define DP0_ACTIVEVAL		0x0650
 #define DP0_SYNCVAL		0x0654
 #define DP0_MISC		0x0658
-#define TU_SIZE_RECOMMENDED		(0x3f << 16) /* LSCLK cycles per TU */
+#define TU_SIZE_RECOMMENDED		(63) /* LSCLK cycles per TU */
 #define BPC_6				(0 << 5)
 #define BPC_8				(1 << 5)
 
@@ -716,7 +716,8 @@ static int tc_set_video_mode(struct tc_data *tc, struct drm_display_mode *mode)
 	 * Must be less than tu_size.
 	 */
 	max_tu_symbol = TU_SIZE_RECOMMENDED - 1;
-	tc_write(DP0_MISC, (max_tu_symbol << 23) | TU_SIZE_RECOMMENDED | BPC_8);
+	tc_write(DP0_MISC, (max_tu_symbol << 23) | (TU_SIZE_RECOMMENDED << 16) |
+			   BPC_8);
 
 	return 0;
 err:
