@@ -76,6 +76,11 @@ static void __init evm_init_config(void)
 	pr_info("HMAC attrs: 0x%x\n", evm_hmac_attrs);
 }
 
+static bool evm_key_loaded(void)
+{
+	return (bool)(evm_initialized & EVM_KEY_MASK);
+}
+
 static int evm_find_protected_xattrs(struct dentry *dentry)
 {
 	struct inode *inode = d_backing_inode(dentry);
@@ -241,7 +246,7 @@ enum integrity_status evm_verifyxattr(struct dentry *dentry,
 				      void *xattr_value, size_t xattr_value_len,
 				      struct integrity_iint_cache *iint)
 {
-	if (!evm_initialized || !evm_protected_xattr(xattr_name))
+	if (!evm_key_loaded() || !evm_protected_xattr(xattr_name))
 		return INTEGRITY_UNKNOWN;
 
 	if (!iint) {
@@ -265,7 +270,7 @@ static enum integrity_status evm_verify_current_integrity(struct dentry *dentry)
 {
 	struct inode *inode = d_backing_inode(dentry);
 
-	if (!evm_initialized || !S_ISREG(inode->i_mode) || evm_fixmode)
+	if (!evm_key_loaded() || !S_ISREG(inode->i_mode) || evm_fixmode)
 		return 0;
 	return evm_verify_hmac(dentry, NULL, NULL, 0, NULL);
 }
@@ -299,6 +304,7 @@ static int evm_protect_xattr(struct dentry *dentry, const char *xattr_name,
 			return 0;
 		goto out;
 	}
+
 	evm_status = evm_verify_current_integrity(dentry);
 	if (evm_status == INTEGRITY_NOXATTRS) {
 		struct integrity_iint_cache *iint;
@@ -345,6 +351,12 @@ int evm_inode_setxattr(struct dentry *dentry, const char *xattr_name,
 {
 	const struct evm_ima_xattr_data *xattr_data = xattr_value;
 
+	/* Policy permits modification of the protected xattrs even though
+	 * there's no HMAC key loaded
+	 */
+	if (evm_initialized & EVM_ALLOW_METADATA_WRITES)
+		return 0;
+
 	if (strcmp(xattr_name, XATTR_NAME_EVM) == 0) {
 		if (!xattr_value_len)
 			return -EINVAL;
@@ -365,6 +377,12 @@ int evm_inode_setxattr(struct dentry *dentry, const char *xattr_name,
  */
 int evm_inode_removexattr(struct dentry *dentry, const char *xattr_name)
 {
+	/* Policy permits modification of the protected xattrs even though
+	 * there's no HMAC key loaded
+	 */
+	if (evm_initialized & EVM_ALLOW_METADATA_WRITES)
+		return 0;
+
 	return evm_protect_xattr(dentry, xattr_name, NULL, 0);
 }
 
@@ -393,8 +411,8 @@ static void evm_reset_status(struct inode *inode)
 void evm_inode_post_setxattr(struct dentry *dentry, const char *xattr_name,
 			     const void *xattr_value, size_t xattr_value_len)
 {
-	if (!evm_initialized || (!evm_protected_xattr(xattr_name)
-				 && !posix_xattr_acl(xattr_name)))
+	if (!evm_key_loaded() || (!evm_protected_xattr(xattr_name)
+				  && !posix_xattr_acl(xattr_name)))
 		return;
 
 	evm_reset_status(dentry->d_inode);
@@ -414,7 +432,7 @@ void evm_inode_post_setxattr(struct dentry *dentry, const char *xattr_name,
  */
 void evm_inode_post_removexattr(struct dentry *dentry, const char *xattr_name)
 {
-	if (!evm_initialized || !evm_protected_xattr(xattr_name))
+	if (!evm_key_loaded() || !evm_protected_xattr(xattr_name))
 		return;
 
 	evm_reset_status(dentry->d_inode);
@@ -430,6 +448,12 @@ int evm_inode_setattr(struct dentry *dentry, struct iattr *attr)
 {
 	unsigned int ia_valid = attr->ia_valid;
 	enum integrity_status evm_status;
+
+	/* Policy permits modification of the protected attrs even though
+	 * there's no HMAC key loaded
+	 */
+	if (evm_initialized & EVM_ALLOW_METADATA_WRITES)
+		return 0;
 
 	if (!(ia_valid & (ATTR_MODE | ATTR_UID | ATTR_GID)))
 		return 0;
@@ -456,7 +480,7 @@ int evm_inode_setattr(struct dentry *dentry, struct iattr *attr)
  */
 void evm_inode_post_setattr(struct dentry *dentry, int ia_valid)
 {
-	if (!evm_initialized)
+	if (!evm_key_loaded())
 		return;
 
 	if (ia_valid & (ATTR_MODE | ATTR_UID | ATTR_GID))
@@ -473,7 +497,7 @@ int evm_inode_init_security(struct inode *inode,
 	struct evm_ima_xattr_data *xattr_data;
 	int rc;
 
-	if (!evm_initialized || !evm_protected_xattr(lsm_xattr->name))
+	if (!evm_key_loaded() || !evm_protected_xattr(lsm_xattr->name))
 		return 0;
 
 	xattr_data = kzalloc(sizeof(*xattr_data), GFP_NOFS);
