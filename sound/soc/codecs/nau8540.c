@@ -730,6 +730,13 @@ static void nau8540_init_regs(struct nau8540 *nau8540)
 	regmap_update_bits(regmap, NAU8540_REG_ADC_SAMPLE_RATE,
 		NAU8540_CH_SYNC | NAU8540_ADC_OSR_MASK,
 		NAU8540_CH_SYNC | NAU8540_ADC_OSR_64);
+	/* PGA input mode selection */
+	regmap_update_bits(regmap, NAU8540_REG_FEPGA1,
+		NAU8540_FEPGA1_MODCH2_SHT | NAU8540_FEPGA1_MODCH1_SHT,
+		NAU8540_FEPGA1_MODCH2_SHT | NAU8540_FEPGA1_MODCH1_SHT);
+	regmap_update_bits(regmap, NAU8540_REG_FEPGA2,
+		NAU8540_FEPGA2_MODCH4_SHT | NAU8540_FEPGA2_MODCH3_SHT,
+		NAU8540_FEPGA2_MODCH4_SHT | NAU8540_FEPGA2_MODCH3_SHT);
 }
 
 static int __maybe_unused nau8540_suspend(struct snd_soc_codec *codec)
