@@ -535,7 +535,7 @@ static struct renesas_usbhs_platform_info *usbhs_parse_dt(struct device *dev)
 
 static int usbhs_probe(struct platform_device *pdev)
 {
-	struct renesas_usbhs_platform_info *info = dev_get_platdata(&pdev->dev);
+	struct renesas_usbhs_platform_info *info = renesas_usbhs_get_info(pdev);
 	struct renesas_usbhs_driver_callback *dfunc;
 	struct usbhs_priv *priv;
 	struct resource *res, *irq_res;
@@ -713,7 +713,7 @@ probe_end_pipe_exit:
 static int usbhs_remove(struct platform_device *pdev)
 {
 	struct usbhs_priv *priv = usbhs_pdev_to_priv(pdev);
-	struct renesas_usbhs_platform_info *info = dev_get_platdata(&pdev->dev);
+	struct renesas_usbhs_platform_info *info = renesas_usbhs_get_info(pdev);
 	struct renesas_usbhs_driver_callback *dfunc = &info->driver_callback;
 
 	dev_dbg(&pdev->dev, "usb remove\n");
