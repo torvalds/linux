@@ -165,7 +165,7 @@ static int int0002_probe(struct platform_device *pdev)
 	chip->direction_output = int0002_gpio_direction_output;
 	chip->base = -1;
 	chip->ngpio = GPE0A_PME_B0_VIRT_GPIO_PIN + 1;
-	chip->irq_need_valid_mask = true;
+	chip->irq.need_valid_mask = true;
 
 	ret = devm_gpiochip_add_data(&pdev->dev, chip, NULL);
 	if (ret) {
@@ -173,7 +173,7 @@ static int int0002_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	bitmap_clear(chip->irq_valid_mask, 0, GPE0A_PME_B0_VIRT_GPIO_PIN);
+	bitmap_clear(chip->irq.valid_mask, 0, GPE0A_PME_B0_VIRT_GPIO_PIN);
 
 	/*
 	 * We manually request the irq here instead of passing a flow-handler

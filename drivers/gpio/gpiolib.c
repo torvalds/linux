@@ -1504,33 +1504,33 @@ static struct gpio_chip *find_chip_by_name(const char *name)
 
 static int gpiochip_irqchip_init_valid_mask(struct gpio_chip *gpiochip)
 {
-	if (!gpiochip->irq_need_valid_mask)
+	if (!gpiochip->irq.need_valid_mask)
 		return 0;
 
-	gpiochip->irq_valid_mask = kcalloc(BITS_TO_LONGS(gpiochip->ngpio),
+	gpiochip->irq.valid_mask = kcalloc(BITS_TO_LONGS(gpiochip->ngpio),
 					   sizeof(long), GFP_KERNEL);
-	if (!gpiochip->irq_valid_mask)
+	if (!gpiochip->irq.valid_mask)
 		return -ENOMEM;
 
 	/* Assume by default all GPIOs are valid */
-	bitmap_fill(gpiochip->irq_valid_mask, gpiochip->ngpio);
+	bitmap_fill(gpiochip->irq.valid_mask, gpiochip->ngpio);
 
 	return 0;
 }
 
 static void gpiochip_irqchip_free_valid_mask(struct gpio_chip *gpiochip)
 {
-	kfree(gpiochip->irq_valid_mask);
-	gpiochip->irq_valid_mask = NULL;
+	kfree(gpiochip->irq.valid_mask);
+	gpiochip->irq.valid_mask = NULL;
 }
 
 static bool gpiochip_irqchip_irq_valid(const struct gpio_chip *gpiochip,
 				       unsigned int offset)
 {
 	/* No mask means all valid */
-	if (likely(!gpiochip->irq_valid_mask))
+	if (likely(!gpiochip->irq.valid_mask))
 		return true;
-	return test_bit(offset, gpiochip->irq_valid_mask);
+	return test_bit(offset, gpiochip->irq.valid_mask);
 }
 
 /**

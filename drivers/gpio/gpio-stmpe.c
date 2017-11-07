@@ -451,7 +451,7 @@ static int stmpe_gpio_probe(struct platform_device *pdev)
 	of_property_read_u32(np, "st,norequest-mask",
 			&stmpe_gpio->norequest_mask);
 	if (stmpe_gpio->norequest_mask)
-		stmpe_gpio->chip.irq_need_valid_mask = true;
+		stmpe_gpio->chip.irq.need_valid_mask = true;
 
 	if (irq < 0)
 		dev_info(&pdev->dev,
@@ -482,7 +482,7 @@ static int stmpe_gpio_probe(struct platform_device *pdev)
 			/* Forbid unused lines to be mapped as IRQs */
 			for (i = 0; i < sizeof(u32); i++)
 				if (stmpe_gpio->norequest_mask & BIT(i))
-					clear_bit(i, stmpe_gpio->chip.irq_valid_mask);
+					clear_bit(i, stmpe_gpio->chip.irq.valid_mask);
 		}
 		ret =  gpiochip_irqchip_add_nested(&stmpe_gpio->chip,
 						   &stmpe_gpio_irq_chip,

@@ -501,7 +501,7 @@ static void set_irq_valid_mask(struct aspeed_gpio *gpio)
 			if (i >= gpio->config->nr_gpios)
 				break;
 
-			clear_bit(i, gpio->chip.irq_valid_mask);
+			clear_bit(i, gpio->chip.irq.valid_mask);
 		}
 
 		props++;
@@ -856,7 +856,7 @@ static int __init aspeed_gpio_probe(struct platform_device *pdev)
 	gpio->chip.set_config = aspeed_gpio_set_config;
 	gpio->chip.label = dev_name(&pdev->dev);
 	gpio->chip.base = -1;
-	gpio->chip.irq_need_valid_mask = true;
+	gpio->chip.irq.need_valid_mask = true;
 
 	rc = devm_gpiochip_add_data(&pdev->dev, &gpio->chip, gpio);
 	if (rc < 0)
