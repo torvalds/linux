@@ -4606,6 +4606,46 @@ static const struct file_operations i915_hpd_storm_ctl_fops = {
 	.write = i915_hpd_storm_ctl_write
 };
 
+static int i915_drrs_ctl_set(void *data, u64 val)
+{
+	struct drm_i915_private *dev_priv = data;
+	struct drm_device *dev = &dev_priv->drm;
+	struct intel_crtc *intel_crtc;
+	struct intel_encoder *encoder;
+	struct intel_dp *intel_dp;
+
+	if (INTEL_GEN(dev_priv) < 7)
+		return -ENODEV;
+
+	drm_modeset_lock_all(dev);
+	for_each_intel_crtc(dev, intel_crtc) {
+		if (!intel_crtc->base.state->active ||
+					!intel_crtc->config->has_drrs)
+			continue;
+
+		for_each_encoder_on_crtc(dev, &intel_crtc->base, encoder) {
+			if (encoder->type != INTEL_OUTPUT_EDP)
+				continue;
+
+			DRM_DEBUG_DRIVER("Manually %sabling DRRS. %llu\n",
+						val ? "en" : "dis", val);
+
+			intel_dp = enc_to_intel_dp(&encoder->base);
+			if (val)
+				intel_edp_drrs_enable(intel_dp,
+							intel_crtc->config);
+			else
+				intel_edp_drrs_disable(intel_dp,
+							intel_crtc->config);
+		}
+	}
+	drm_modeset_unlock_all(dev);
+
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(i915_drrs_ctl_fops, NULL, i915_drrs_ctl_set, "%llu\n");
+
 static const struct drm_info_list i915_debugfs_list[] = {
 	{"i915_capabilities", i915_capabilities, 0},
 	{"i915_gem_objects", i915_gem_object_info, 0},
@@ -4683,7 +4723,8 @@ static const struct i915_debugfs_files {
 	{"i915_dp_test_active", &i915_displayport_test_active_fops},
 	{"i915_guc_log_control", &i915_guc_log_control_fops},
 	{"i915_hpd_storm_ctl", &i915_hpd_storm_ctl_fops},
-	{"i915_ipc_status", &i915_ipc_status_fops}
+	{"i915_ipc_status", &i915_ipc_status_fops},
+	{"i915_drrs_ctl", &i915_drrs_ctl_fops}
 };
 
 int i915_debugfs_register(struct drm_i915_private *dev_priv)
