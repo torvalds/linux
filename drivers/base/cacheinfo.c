@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * cacheinfo support - processor cache information via sysfs
  *

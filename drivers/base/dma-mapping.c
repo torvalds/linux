@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * drivers/base/dma-mapping.c - arch-independent dma-mapping routines
  *

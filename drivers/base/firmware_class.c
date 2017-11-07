@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * firmware_class.c - Multi purpose firmware loading support
  *

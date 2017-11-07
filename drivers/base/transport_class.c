@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * transport_class.c - implementation of generic transport classes
  *                     using attribute_containers

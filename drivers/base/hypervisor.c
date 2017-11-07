@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * hypervisor.c - /sys/hypervisor subsystem.
  *
