@@ -481,6 +481,7 @@ extern int nfs4_sequence_done(struct rpc_task *task,
 extern void nfs4_free_lock_state(struct nfs_server *server, struct nfs4_lock_state *lsp);
 
 extern const nfs4_stateid zero_stateid;
+extern const nfs4_stateid invalid_stateid;
 
 /* nfs4super.c */
 struct nfs_mount_info;

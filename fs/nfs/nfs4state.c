@@ -69,6 +69,14 @@ const nfs4_stateid zero_stateid = {
 	{ .data = { 0 } },
 	.type = NFS4_SPECIAL_STATEID_TYPE,
 };
+const nfs4_stateid invalid_stateid = {
+	{
+		.seqid = cpu_to_be32(0xffffffffU),
+		.other = { 0 },
+	},
+	.type = NFS4_INVALID_STATEID_TYPE,
+};
+
 static DEFINE_MUTEX(nfs_clid_init_mutex);
 
 int nfs4_init_clientid(struct nfs_client *clp, struct rpc_cred *cred)
