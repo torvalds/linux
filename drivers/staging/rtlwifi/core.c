@@ -509,15 +509,13 @@ static int rtl_op_suspend(struct ieee80211_hw *hw,
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_hal *rtlhal = rtl_hal(rtlpriv);
 	struct rtl_ps_ctl *ppsc = rtl_psc(rtl_priv(hw));
-	struct timeval ts;
 
 	RT_TRACE(rtlpriv, COMP_POWER, DBG_DMESG, "\n");
 	if (WARN_ON(!wow))
 		return -EINVAL;
 
 	/* to resolve s4 can not wake up*/
-	do_gettimeofday(&ts);
-	rtlhal->last_suspend_sec = ts.tv_sec;
+	rtlhal->last_suspend_sec = ktime_get_real_seconds();
 
 	if ((ppsc->wo_wlan_mode & WAKE_ON_PATTERN_MATCH) && wow->n_patterns)
 		_rtl_add_wowlan_patterns(hw, wow);
@@ -536,7 +534,6 @@ static int rtl_op_resume(struct ieee80211_hw *hw)
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_hal *rtlhal = rtl_hal(rtlpriv);
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
-	struct timeval ts;
 
 	RT_TRACE(rtlpriv, COMP_POWER, DBG_DMESG, "\n");
 	rtlhal->driver_is_goingto_unload = false;
@@ -544,8 +541,7 @@ static int rtl_op_resume(struct ieee80211_hw *hw)
 	rtlhal->wake_from_pnp_sleep = true;
 
 	/* to resovle s4 can not wake up*/
-	do_gettimeofday(&ts);
-	if (ts.tv_sec - rtlhal->last_suspend_sec < 5)
+	if (ktime_get_real_seconds() - rtlhal->last_suspend_sec < 5)
 		return -1;
 
 	rtl_op_start(hw);
