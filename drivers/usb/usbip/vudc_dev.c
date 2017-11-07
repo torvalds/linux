@@ -145,7 +145,7 @@ static int vgadget_get_frame(struct usb_gadget *_gadget)
 	do_gettimeofday(&now);
 	return ((now.tv_sec - udc->start_time.tv_sec) * 1000 +
 			(now.tv_usec - udc->start_time.tv_usec) / 1000)
-			% 0x7FF;
+			& 0x7FF;
 }
 
 static int vgadget_set_selfpowered(struct usb_gadget *_gadget, int value)
