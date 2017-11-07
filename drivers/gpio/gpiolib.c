@@ -1570,7 +1570,8 @@ static void gpiochip_set_cascaded_irqchip(struct gpio_chip *gpiochip,
 		irq_set_chained_handler_and_data(parent_irq, parent_handler,
 						 gpiochip);
 
-		gpiochip->irq_chained_parent = parent_irq;
+		gpiochip->irq.parents = &parent_irq;
+		gpiochip->irq.num_parents = 1;
 	}
 
 	/* Set the parent IRQ for all affected IRQs */
@@ -1719,17 +1720,23 @@ static int gpiochip_to_irq(struct gpio_chip *chip, unsigned offset)
  */
 static void gpiochip_irqchip_remove(struct gpio_chip *gpiochip)
 {
-	unsigned int offset, irq;
+	unsigned int offset;
 
 	acpi_gpiochip_free_interrupts(gpiochip);
 
-	if (gpiochip->irq_chained_parent) {
-		irq_set_chained_handler_and_data(
-			gpiochip->irq_chained_parent, NULL, NULL);
+	if (gpiochip->irq.num_parents > 0) {
+		struct gpio_irq_chip *irq = &gpiochip->irq;
+		unsigned int i;
+
+		for (i = 0; i < irq->num_parents; i++)
+			irq_set_chained_handler_and_data(irq->parents[i],
+							 NULL, NULL);
 	}
 
 	/* Remove all IRQ mappings and delete the domain */
 	if (gpiochip->irq.domain) {
+		unsigned int irq;
+
 		for (offset = 0; offset < gpiochip->ngpio; offset++) {
 			if (!gpiochip_irqchip_irq_valid(gpiochip, offset))
 				continue;
