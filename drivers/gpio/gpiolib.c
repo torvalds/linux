@@ -1778,7 +1778,8 @@ static int gpiochip_add_irqchip(struct gpio_chip *gpiochip)
 		ops = &gpiochip_domain_ops;
 
 	gpiochip->irq.domain = irq_domain_add_simple(np, gpiochip->ngpio,
-						     0, ops, gpiochip);
+						     gpiochip->irq.first,
+						     ops, gpiochip);
 	if (!gpiochip->irq.domain)
 		return -EINVAL;
 

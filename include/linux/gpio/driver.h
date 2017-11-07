@@ -128,6 +128,14 @@ struct gpio_irq_chip {
 	 * in IRQ domain of the chip.
 	 */
 	unsigned long *valid_mask;
+
+	/**
+	 * @first:
+	 *
+	 * Required for static IRQ allocation. If set, irq_domain_add_simple()
+	 * will allocate and map all IRQs during initialization.
+	 */
+	unsigned int first;
 };
 
 static inline struct gpio_irq_chip *to_gpio_irq_chip(struct irq_chip *chip)
