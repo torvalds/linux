@@ -46,6 +46,7 @@
 #include <net/ipv6.h>
 #include <net/mpls.h>
 #include <net/ndisc.h>
+#include <net/nsh.h>
 
 #include "conntrack.h"
 #include "datapath.h"
@@ -490,6 +491,52 @@ invalid:
 	return 0;
 }
 
+static int parse_nsh(struct sk_buff *skb, struct sw_flow_key *key)
+{
+	struct nshhdr *nh;
+	unsigned int nh_ofs = skb_network_offset(skb);
+	u8 version, length;
+	int err;
+
+	err = check_header(skb, nh_ofs + NSH_BASE_HDR_LEN);
+	if (unlikely(err))
+		return err;
+
+	nh = nsh_hdr(skb);
+	version = nsh_get_ver(nh);
+	length = nsh_hdr_len(nh);
+
+	if (version != 0)
+		return -EINVAL;
+
+	err = check_header(skb, nh_ofs + length);
+	if (unlikely(err))
+		return err;
+
+	nh = nsh_hdr(skb);
+	key->nsh.base.flags = nsh_get_flags(nh);
+	key->nsh.base.ttl = nsh_get_ttl(nh);
+	key->nsh.base.mdtype = nh->mdtype;
+	key->nsh.base.np = nh->np;
+	key->nsh.base.path_hdr = nh->path_hdr;
+	switch (key->nsh.base.mdtype) {
+	case NSH_M_TYPE1:
+		if (length != NSH_M_TYPE1_LEN)
+			return -EINVAL;
+		memcpy(key->nsh.context, nh->md1.context,
+		       sizeof(nh->md1));
+		break;
+	case NSH_M_TYPE2:
+		memset(key->nsh.context, 0,
+		       sizeof(nh->md1));
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 /**
  * key_extract - extracts a flow key from an Ethernet frame.
  * @skb: sk_buff that contains the frame, with skb->data pointing to the
@@ -735,6 +782,10 @@ static int key_extract(struct sk_buff *skb, struct sw_flow_key *key)
 				memset(&key->tp, 0, sizeof(key->tp));
 			}
 		}
+	} else if (key->eth.type == htons(ETH_P_NSH)) {
+		error = parse_nsh(skb, key);
+		if (error)
+			return error;
 	}
 	return 0;
 }
