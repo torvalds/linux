@@ -2218,18 +2218,19 @@ static int i40e_vc_add_mac_addr_msg(struct i40e_vf *vf, u8 *msg, u16 msglen)
 		struct i40e_mac_filter *f;
 
 		f = i40e_find_mac(vsi, al->list[i].addr);
-		if (!f)
+		if (!f) {
 			f = i40e_add_mac_filter(vsi, al->list[i].addr);
 
-		if (!f) {
-			dev_err(&pf->pdev->dev,
-				"Unable to add MAC filter %pM for VF %d\n",
-				 al->list[i].addr, vf->vf_id);
-			ret = I40E_ERR_PARAM;
-			spin_unlock_bh(&vsi->mac_filter_hash_lock);
-			goto error_param;
-		} else {
-			vf->num_mac++;
+			if (!f) {
+				dev_err(&pf->pdev->dev,
+					"Unable to add MAC filter %pM for VF %d\n",
+					al->list[i].addr, vf->vf_id);
+				ret = I40E_ERR_PARAM;
+				spin_unlock_bh(&vsi->mac_filter_hash_lock);
+				goto error_param;
+			} else {
+				vf->num_mac++;
+			}
 		}
 	}
 	spin_unlock_bh(&vsi->mac_filter_hash_lock);
