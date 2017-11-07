@@ -36,7 +36,6 @@ struct dev_power_governor {
 struct gpd_dev_ops {
 	int (*start)(struct device *dev);
 	int (*stop)(struct device *dev);
-	bool (*active_wakeup)(struct device *dev);
 };
 
 struct genpd_power_state {
