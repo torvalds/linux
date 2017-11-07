@@ -1397,7 +1397,7 @@ static void *xt_mttg_seq_next(struct seq_file *seq, void *v, loff_t *ppos,
 		trav->curr = trav->curr->next;
 		if (trav->curr != trav->head)
 			break;
-		/* fallthru, _stop will unlock */
+		/* fall through */
 	default:
 		return NULL;
 	}

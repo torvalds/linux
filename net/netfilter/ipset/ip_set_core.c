@@ -1386,7 +1386,7 @@ dump_last:
 				goto next_set;
 			if (set->variant->uref)
 				set->variant->uref(set, cb, true);
-			/* Fall through and add elements */
+			/* fall through */
 		default:
 			rcu_read_lock_bh();
 			ret = set->variant->list(set, skb, cb);
