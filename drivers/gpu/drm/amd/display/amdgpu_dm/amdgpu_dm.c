@@ -3904,7 +3904,6 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 			DRM_ERROR("%s: acrtc %d, already busy\n",
 				  __func__,
 				  acrtc_attach->crtc_id);
-			spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
 			/* In commit tail framework this cannot happen */
 			WARN_ON(1);
 		}
