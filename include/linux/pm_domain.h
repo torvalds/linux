@@ -18,9 +18,10 @@
 #include <linux/spinlock.h>
 
 /* Defines used for the flags field in the struct generic_pm_domain */
-#define GENPD_FLAG_PM_CLK	(1U << 0) /* PM domain uses PM clk */
-#define GENPD_FLAG_IRQ_SAFE	(1U << 1) /* PM domain operates in atomic */
-#define GENPD_FLAG_ALWAYS_ON	(1U << 2) /* PM domain is always powered on */
+#define GENPD_FLAG_PM_CLK	 (1U << 0) /* PM domain uses PM clk */
+#define GENPD_FLAG_IRQ_SAFE	 (1U << 1) /* PM domain operates in atomic */
+#define GENPD_FLAG_ALWAYS_ON	 (1U << 2) /* PM domain is always powered on */
+#define GENPD_FLAG_ACTIVE_WAKEUP (1U << 3) /* Keep devices active if wakeup */
 
 enum gpd_status {
 	GPD_STATE_ACTIVE = 0,	/* PM domain is active */
