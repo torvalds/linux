@@ -92,7 +92,7 @@ enum {
 	Opt_multiuser, Opt_sloppy, Opt_nosharesock,
 	Opt_persistent, Opt_nopersistent,
 	Opt_resilient, Opt_noresilient,
-	Opt_domainauto,
+	Opt_domainauto, Opt_rdma,
 
 	/* Mount options which take numeric value */
 	Opt_backupuid, Opt_backupgid, Opt_uid,
@@ -183,6 +183,7 @@ static const match_table_t cifs_mount_option_tokens = {
 	{ Opt_resilient, "resilienthandles"},
 	{ Opt_noresilient, "noresilienthandles"},
 	{ Opt_domainauto, "domainauto"},
+	{ Opt_rdma, "rdma"},
 
 	{ Opt_backupuid, "backupuid=%s" },
 	{ Opt_backupgid, "backupgid=%s" },
@@ -1550,6 +1551,9 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 		case Opt_domainauto:
 			vol->domainauto = true;
 			break;
+		case Opt_rdma:
+			vol->rdma = true;
+			break;
 
 		/* Numeric Values */
 		case Opt_backupuid:
@@ -1951,6 +1955,11 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 		goto cifs_parse_mount_err;
 	}
 
+	if (vol->rdma && vol->vals->protocol_id < SMB30_PROT_ID) {
+		cifs_dbg(VFS, "SMB Direct requires Version >=3.0\n");
+		goto cifs_parse_mount_err;
+	}
+
 #ifndef CONFIG_KEYS
 	/* Muliuser mounts require CONFIG_KEYS support */
 	if (vol->multiuser) {
@@ -2162,6 +2171,9 @@ static int match_server(struct TCP_Server_Info *server, struct smb_vol *vol)
 	if (server->echo_interval != vol->echo_interval * HZ)
 		return 0;
 
+	if (server->rdma != vol->rdma)
+		return 0;
+
 	return 1;
 }
 
@@ -2260,6 +2272,7 @@ cifs_get_tcp_session(struct smb_vol *volume_info)
 	tcp_ses->noblocksnd = volume_info->noblocksnd;
 	tcp_ses->noautotune = volume_info->noautotune;
 	tcp_ses->tcp_nodelay = volume_info->sockopt_tcp_nodelay;
+	tcp_ses->rdma = volume_info->rdma;
 	tcp_ses->in_flight = 0;
 	tcp_ses->credits = 1;
 	init_waitqueue_head(&tcp_ses->response_q);

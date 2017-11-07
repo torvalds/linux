@@ -327,6 +327,8 @@ cifs_show_address(struct seq_file *s, struct TCP_Server_Info *server)
 	default:
 		seq_puts(s, "(unknown)");
 	}
+	if (server->rdma)
+		seq_puts(s, ",rdma");
 }
 
 static void
