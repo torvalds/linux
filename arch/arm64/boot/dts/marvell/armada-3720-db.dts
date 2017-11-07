@@ -227,11 +227,18 @@
 
 /*
  * Exported on the micro USB connector CON30(V2.0)/CON32(V1.4) through
- * an FTDI
+ * an FTDI (also on CON24(V2.0)/CON26(V1.4)).
  */
 &uart0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart1_pins>;
+	status = "okay";
+};
+
+/* CON26(V2.0)/CON28(V1.4) */
+&uart1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart2_pins>;
 	status = "okay";
 };
 
