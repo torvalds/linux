@@ -152,7 +152,7 @@ static inline void drm_vma_node_reset(struct drm_vma_offset_node *node)
  * Start address of @node for page-based addressing. 0 if the node does not
  * have an offset allocated.
  */
-static inline unsigned long drm_vma_node_start(struct drm_vma_offset_node *node)
+static inline unsigned long drm_vma_node_start(const struct drm_vma_offset_node *node)
 {
 	return node->vm_node.start;
 }
