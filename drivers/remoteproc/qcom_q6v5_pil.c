@@ -318,7 +318,6 @@ static int q6v5_xfer_mem_ownership(struct q6v5 *qproc, int *current_perm,
 				   size_t size)
 {
 	struct qcom_scm_vmperm next;
-	int ret;
 
 	if (!qproc->need_mem_protection)
 		return 0;
@@ -330,16 +329,8 @@ static int q6v5_xfer_mem_ownership(struct q6v5 *qproc, int *current_perm,
 	next.vmid = remote_owner ? QCOM_SCM_VMID_MSS_MSA : QCOM_SCM_VMID_HLOS;
 	next.perm = remote_owner ? QCOM_SCM_PERM_RW : QCOM_SCM_PERM_RWX;
 
-	ret = qcom_scm_assign_mem(addr, ALIGN(size, SZ_4K),
-				  current_perm, &next, 1);
-	if (ret < 0) {
-		pr_err("Failed to assign memory access in range %p to %p to %s ret = %d\n",
-		       (void *)addr, (void *)(addr + size),
-		       remote_owner ? "mss" : "hlos", ret);
-		return ret;
-	}
-
-	return 0;
+	return qcom_scm_assign_mem(addr, ALIGN(size, SZ_4K),
+				   current_perm, &next, 1);
 }
 
 static int q6v5_load(struct rproc *rproc, const struct firmware *fw)
@@ -586,8 +577,11 @@ static int q6v5_mpss_init_image(struct q6v5 *qproc, const struct firmware *fw)
 	mdata_perm = BIT(QCOM_SCM_VMID_HLOS);
 	ret = q6v5_xfer_mem_ownership(qproc, &mdata_perm,
 				      true, phys, fw->size);
-	if (ret)
+	if (ret) {
+		dev_err(qproc->dev,
+			"assigning Q6 access to metadata failed: %d\n", ret);
 		return -EAGAIN;
+	}
 
 	writel(phys, qproc->rmb_base + RMB_PMI_META_DATA_REG);
 	writel(RMB_CMD_META_DATA_READY, qproc->rmb_base + RMB_MBA_COMMAND_REG);
@@ -715,8 +709,11 @@ static int q6v5_mpss_load(struct q6v5 *qproc)
 	/* Transfer ownership of modem ddr region to q6 */
 	ret = q6v5_xfer_mem_ownership(qproc, &qproc->mpss_perm, true,
 				      qproc->mpss_phys, qproc->mpss_size);
-	if (ret)
+	if (ret) {
+		dev_err(qproc->dev,
+			"assigning Q6 access to mpss memory failed: %d\n", ret);
 		return -EAGAIN;
+	}
 
 	boot_addr = relocate ? qproc->mpss_phys : min_addr;
 	writel(boot_addr, qproc->rmb_base + RMB_PMI_CODE_START_REG);
@@ -778,8 +775,12 @@ static int q6v5_start(struct rproc *rproc)
 	xfermemop_ret = q6v5_xfer_mem_ownership(qproc, &qproc->mba_perm, true,
 						qproc->mba_phys,
 						qproc->mba_size);
-	if (xfermemop_ret)
+	if (xfermemop_ret) {
+		dev_err(qproc->dev,
+			"assigning Q6 access to mba memory failed: %d\n",
+			xfermemop_ret);
 		goto disable_active_clks;
+	}
 
 	writel(qproc->mba_phys, qproc->rmb_base + RMB_MBA_IMAGE_REG);
 
