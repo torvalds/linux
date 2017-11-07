@@ -3001,7 +3001,7 @@ static int dm_plane_helper_prepare_fb(struct drm_plane *plane,
 							= lower_32_bits(afb->address);
 			plane_state->address.video_progressive.luma_addr.high_part
 							= upper_32_bits(afb->address);
-			chroma_addr = afb->address + (u64)(awidth * new_state->fb->height);
+			chroma_addr = afb->address + (u64)awidth * new_state->fb->height;
 			plane_state->address.video_progressive.chroma_addr.low_part
 							= lower_32_bits(chroma_addr);
 			plane_state->address.video_progressive.chroma_addr.high_part
