@@ -72,7 +72,8 @@ static LIST_HEAD(gpio_lookup_list);
 LIST_HEAD(gpio_devices);
 
 static void gpiochip_free_hogs(struct gpio_chip *chip);
-static int gpiochip_add_irqchip(struct gpio_chip *gpiochip);
+static int gpiochip_add_irqchip(struct gpio_chip *gpiochip,
+				struct lock_class_key *key);
 static void gpiochip_irqchip_remove(struct gpio_chip *gpiochip);
 static int gpiochip_irqchip_init_valid_mask(struct gpio_chip *gpiochip);
 static void gpiochip_irqchip_free_valid_mask(struct gpio_chip *gpiochip);
@@ -1098,30 +1099,8 @@ static void gpiochip_setup_devs(void)
 	}
 }
 
-/**
- * gpiochip_add_data() - register a gpio_chip
- * @chip: the chip to register, with chip->base initialized
- * @data: driver-private data associated with this chip
- *
- * Context: potentially before irqs will work
- *
- * When gpiochip_add_data() is called very early during boot, so that GPIOs
- * can be freely used, the chip->parent device must be registered before
- * the gpio framework's arch_initcall().  Otherwise sysfs initialization
- * for GPIOs will fail rudely.
- *
- * gpiochip_add_data() must only be called after gpiolib initialization,
- * ie after core_initcall().
- *
- * If chip->base is negative, this requests dynamic assignment of
- * a range of valid GPIOs.
- *
- * Returns:
- * A negative errno if the chip can't be registered, such as because the
- * chip->base is invalid or already associated with a different chip.
- * Otherwise it returns zero as a success code.
- */
-int gpiochip_add_data(struct gpio_chip *chip, void *data)
+int gpiochip_add_data_with_key(struct gpio_chip *chip, void *data,
+			       struct lock_class_key *key)
 {
 	unsigned long	flags;
 	int		status = 0;
@@ -1267,7 +1246,7 @@ int gpiochip_add_data(struct gpio_chip *chip, void *data)
 	if (status)
 		goto err_remove_from_list;
 
-	status = gpiochip_add_irqchip(chip);
+	status = gpiochip_add_irqchip(chip, key);
 	if (status)
 		goto err_remove_chip;
 
@@ -1314,7 +1293,7 @@ err_free_gdev:
 	kfree(gdev);
 	return status;
 }
-EXPORT_SYMBOL_GPL(gpiochip_add_data);
+EXPORT_SYMBOL_GPL(gpiochip_add_data_with_key);
 
 /**
  * gpiochip_get_data() - get per-subdriver data for the chip
@@ -1733,8 +1712,10 @@ static int gpiochip_to_irq(struct gpio_chip *chip, unsigned offset)
 /**
  * gpiochip_add_irqchip() - adds an IRQ chip to a GPIO chip
  * @gpiochip: the GPIO chip to add the IRQ chip to
+ * @lock_key: lockdep class
  */
-static int gpiochip_add_irqchip(struct gpio_chip *gpiochip)
+static int gpiochip_add_irqchip(struct gpio_chip *gpiochip,
+				struct lock_class_key *lock_key)
 {
 	struct irq_chip *irqchip = gpiochip->irq.chip;
 	const struct irq_domain_ops *ops;
@@ -1771,6 +1752,7 @@ static int gpiochip_add_irqchip(struct gpio_chip *gpiochip)
 
 	gpiochip->to_irq = gpiochip_to_irq;
 	gpiochip->irq.default_type = type;
+	gpiochip->irq.lock_key = lock_key;
 
 	if (gpiochip->irq.domain_ops)
 		ops = gpiochip->irq.domain_ops;
@@ -1957,7 +1939,8 @@ EXPORT_SYMBOL_GPL(gpiochip_irqchip_add_key);
 
 #else /* CONFIG_GPIOLIB_IRQCHIP */
 
-static inline int gpiochip_add_irqchip(struct gpio_chip *gpiochip)
+static inline int gpiochip_add_irqchip(struct gpio_chip *gpiochip,
+				       struct lock_dep_class *lock_key)
 {
 	return 0;
 }
