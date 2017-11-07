@@ -281,7 +281,7 @@ static int verify_node(struct radix_tree_node *slot, unsigned int tag,
 
 void verify_tag_consistency(struct radix_tree_root *root, unsigned int tag)
 {
-	struct radix_tree_node *node = root->rnode;
+	struct radix_tree_node *node = root->xa_head;
 	if (!radix_tree_is_internal_node(node))
 		return;
 	verify_node(node, tag, !!root_tag_get(root, tag));
@@ -311,13 +311,13 @@ void item_kill_tree(struct radix_tree_root *root)
 		}
 	}
 	assert(radix_tree_gang_lookup(root, (void **)items, 0, 32) == 0);
-	assert(root->rnode == NULL);
+	assert(root->xa_head == NULL);
 }
 
 void tree_verify_min_height(struct radix_tree_root *root, int maxindex)
 {
 	unsigned shift;
-	struct radix_tree_node *node = root->rnode;
+	struct radix_tree_node *node = root->xa_head;
 	if (!radix_tree_is_internal_node(node)) {
 		assert(maxindex == 0);
 		return;
