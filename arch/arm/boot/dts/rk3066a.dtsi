@@ -56,6 +56,51 @@
 		};
 	};
 
+	vop0: vop@1010c000 {
+		compatible = "rockchip,rk3066-vop";
+		reg = <0x1010c000 0x19c>;
+		interrupts = <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru ACLK_LCDC0>,
+			 <&cru DCLK_LCDC0>,
+			 <&cru HCLK_LCDC0>;
+		clock-names = "aclk_vop", "dclk_vop", "hclk_vop";
+		resets = <&cru SRST_LCDC0_AXI>,
+			 <&cru SRST_LCDC0_AHB>,
+			 <&cru SRST_LCDC0_DCLK>;
+		reset-names = "axi", "ahb", "dclk";
+		status = "disabled";
+
+		vop0_out: port {
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
+	};
+
+	vop1: vop@1010e000 {
+		compatible = "rockchip,rk3066-vop";
+		reg = <0x1010e000 0x19c>;
+		interrupts = <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru ACLK_LCDC1>,
+			 <&cru DCLK_LCDC1>,
+			 <&cru HCLK_LCDC1>;
+		clock-names = "aclk_vop", "dclk_vop", "hclk_vop";
+		resets = <&cru SRST_LCDC1_AXI>,
+			 <&cru SRST_LCDC1_AHB>,
+			 <&cru SRST_LCDC1_DCLK>;
+		reset-names = "axi", "ahb", "dclk";
+		status = "disabled";
+
+		vop1_out: port {
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
+	};
+
+	display-subsystem {
+		compatible = "rockchip,display-subsystem";
+		ports = <&vop0_out>, <&vop1_out>;
+	};
+
 	i2s0: i2s@10118000 {
 		compatible = "rockchip,rk3066-i2s";
 		reg = <0x10118000 0x2000>;
