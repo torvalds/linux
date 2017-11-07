@@ -136,15 +136,14 @@ struct vep *vudc_find_endpoint(struct vudc *udc, u8 address)
 
 /* gadget ops */
 
-/* FIXME - this will probably misbehave when suspend/resume is added */
 static int vgadget_get_frame(struct usb_gadget *_gadget)
 {
-	struct timeval now;
+	struct timespec64 now;
 	struct vudc *udc = usb_gadget_to_vudc(_gadget);
 
-	do_gettimeofday(&now);
+	ktime_get_ts64(&now);
 	return ((now.tv_sec - udc->start_time.tv_sec) * 1000 +
-			(now.tv_usec - udc->start_time.tv_usec) / 1000)
+		(now.tv_nsec - udc->start_time.tv_nsec) / NSEC_PER_MSEC)
 			& 0x7FF;
 }
 

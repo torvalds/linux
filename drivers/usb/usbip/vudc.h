@@ -105,7 +105,7 @@ struct vudc {
 
 	struct usbip_device ud;
 	struct transfer_timer tr_timer;
-	struct timeval start_time;
+	struct timespec64 start_time;
 
 	struct list_head urb_queue;
 

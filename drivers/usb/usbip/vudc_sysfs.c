@@ -162,7 +162,7 @@ static ssize_t store_sockfd(struct device *dev, struct device_attribute *attr,
 		udc->ud.status = SDEV_ST_USED;
 		spin_unlock_irq(&udc->ud.lock);
 
-		do_gettimeofday(&udc->start_time);
+		ktime_get_ts64(&udc->start_time);
 		v_start_timer(udc);
 		udc->connected = 1;
 	} else {
