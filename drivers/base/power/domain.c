@@ -1328,7 +1328,7 @@ static struct generic_pm_domain_data *genpd_alloc_dev_data(struct device *dev,
 
 	gpd_data->base.dev = dev;
 	gpd_data->td.constraint_changed = true;
-	gpd_data->td.effective_constraint_ns = -1;
+	gpd_data->td.effective_constraint_ns = 0;
 	gpd_data->nb.notifier_call = genpd_dev_pm_qos_notifier;
 
 	spin_lock_irq(&dev->power.lock);
