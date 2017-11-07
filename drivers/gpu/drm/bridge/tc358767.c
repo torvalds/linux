@@ -1103,7 +1103,10 @@ static bool tc_bridge_mode_fixup(struct drm_bridge *bridge,
 static int tc_connector_mode_valid(struct drm_connector *connector,
 				   struct drm_display_mode *mode)
 {
-	/* Accept any mode */
+	/* DPI interface clock limitation: upto 154 MHz */
+	if (mode->clock > 154000)
+		return MODE_CLOCK_HIGH;
+
 	return MODE_OK;
 }
 
