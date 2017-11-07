@@ -603,8 +603,15 @@ static int tc_get_display_props(struct tc_data *tc)
 	ret = drm_dp_link_probe(&tc->aux, &tc->link.base);
 	if (ret < 0)
 		goto err_dpcd_read;
-	if ((tc->link.base.rate != 162000) && (tc->link.base.rate != 270000))
-		goto err_dpcd_inval;
+	if (tc->link.base.rate != 162000 && tc->link.base.rate != 270000) {
+		dev_dbg(tc->dev, "Falling to 2.7 Gbps rate\n");
+		tc->link.base.rate = 270000;
+	}
+
+	if (tc->link.base.num_lanes > 2) {
+		dev_dbg(tc->dev, "Falling to 2 lanes\n");
+		tc->link.base.num_lanes = 2;
+	}
 
 	ret = drm_dp_dpcd_readb(&tc->aux, DP_MAX_DOWNSPREAD, tmp);
 	if (ret < 0)
@@ -637,9 +644,6 @@ static int tc_get_display_props(struct tc_data *tc)
 err_dpcd_read:
 	dev_err(tc->dev, "failed to read DPCD: %d\n", ret);
 	return ret;
-err_dpcd_inval:
-	dev_err(tc->dev, "invalid DPCD\n");
-	return -EINVAL;
 }
 
 static int tc_set_video_mode(struct tc_data *tc, struct drm_display_mode *mode)
