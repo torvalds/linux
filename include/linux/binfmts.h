@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_BINFMTS_H
 #define _LINUX_BINFMTS_H
 
@@ -131,7 +132,7 @@ extern int setup_arg_pages(struct linux_binprm * bprm,
 			   int executable_stack);
 extern int transfer_args_to_stack(struct linux_binprm *bprm,
 				  unsigned long *sp_location);
-extern int bprm_change_interp(char *interp, struct linux_binprm *bprm);
+extern int bprm_change_interp(const char *interp, struct linux_binprm *bprm);
 extern int copy_strings_kernel(int argc, const char *const *argv,
 			       struct linux_binprm *bprm);
 extern int prepare_bprm_creds(struct linux_binprm *bprm);

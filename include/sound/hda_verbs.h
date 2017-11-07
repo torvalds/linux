@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * HD-audio codec verbs
  */
@@ -95,6 +96,7 @@ enum {
 #define AC_VERB_SET_EAPD_BTLENABLE		0x70c
 #define AC_VERB_SET_DIGI_CONVERT_1		0x70d
 #define AC_VERB_SET_DIGI_CONVERT_2		0x70e
+#define AC_VERB_SET_DIGI_CONVERT_3		0x73e
 #define AC_VERB_SET_VOLUME_KNOB_CONTROL		0x70f
 #define AC_VERB_SET_GPIO_DATA			0x715
 #define AC_VERB_SET_GPIO_MASK			0x716

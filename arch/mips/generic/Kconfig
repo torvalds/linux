@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 if MIPS_GENERIC
 
 config LEGACY_BOARDS

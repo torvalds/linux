@@ -1301,7 +1301,7 @@ static struct snd_kcontrol_new *soc_tplg_dapm_widget_denum_create(
 		/* validate kcontrol */
 		if (strnlen(ec->hdr.name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN) ==
 			    SNDRV_CTL_ELEM_ID_NAME_MAXLEN)
-			return NULL;
+			goto err;
 
 		se = kzalloc(sizeof(*se), GFP_KERNEL);
 		if (se == NULL)
@@ -1378,6 +1378,9 @@ err_se:
 	for (; i >= 0; i--) {
 		/* free values and texts */
 		se = (struct soc_enum *)kc[i].private_value;
+		if (!se)
+			continue;
+
 		kfree(se->dobj.control.dvalues);
 		for (j = 0; j < ec->items; j++)
 			kfree(se->dobj.control.dtexts[j]);

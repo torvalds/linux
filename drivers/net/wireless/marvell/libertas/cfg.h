@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __LBS_CFG80211_H__
 #define __LBS_CFG80211_H__
 

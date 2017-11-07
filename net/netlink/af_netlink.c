@@ -2266,14 +2266,18 @@ int __netlink_dump_start(struct sock *ssk, struct sk_buff *skb,
 	cb->min_dump_alloc = control->min_dump_alloc;
 	cb->skb = skb;
 
+	if (cb->start) {
+		ret = cb->start(cb);
+		if (ret)
+			goto error_unlock;
+	}
+
 	nlk->cb_running = true;
 
 	mutex_unlock(nlk->cb_mutex);
 
-	if (cb->start)
-		cb->start(cb);
-
 	ret = netlink_dump(sk);
+
 	sock_put(sk);
 
 	if (ret)
@@ -2303,6 +2307,7 @@ void netlink_ack(struct sk_buff *in_skb, struct nlmsghdr *nlh, int err,
 	size_t tlvlen = 0;
 	struct netlink_sock *nlk = nlk_sk(NETLINK_CB(in_skb).sk);
 	unsigned int flags = 0;
+	bool nlk_has_extack = nlk->flags & NETLINK_F_EXT_ACK;
 
 	/* Error messages get the original request appened, unless the user
 	 * requests to cap the error message, and get extra error data if
@@ -2313,7 +2318,7 @@ void netlink_ack(struct sk_buff *in_skb, struct nlmsghdr *nlh, int err,
 			payload += nlmsg_len(nlh);
 		else
 			flags |= NLM_F_CAPPED;
-		if (nlk->flags & NETLINK_F_EXT_ACK && extack) {
+		if (nlk_has_extack && extack) {
 			if (extack->_msg)
 				tlvlen += nla_total_size(strlen(extack->_msg) + 1);
 			if (extack->bad_attr)
@@ -2322,8 +2327,7 @@ void netlink_ack(struct sk_buff *in_skb, struct nlmsghdr *nlh, int err,
 	} else {
 		flags |= NLM_F_CAPPED;
 
-		if (nlk->flags & NETLINK_F_EXT_ACK &&
-		    extack && extack->cookie_len)
+		if (nlk_has_extack && extack && extack->cookie_len)
 			tlvlen += nla_total_size(extack->cookie_len);
 	}
 
@@ -2351,7 +2355,7 @@ void netlink_ack(struct sk_buff *in_skb, struct nlmsghdr *nlh, int err,
 	errmsg->error = err;
 	memcpy(&errmsg->msg, nlh, payload > sizeof(*errmsg) ? nlh->nlmsg_len : sizeof(*nlh));
 
-	if (nlk->flags & NETLINK_F_EXT_ACK && extack) {
+	if (nlk_has_extack && extack) {
 		if (err) {
 			if (extack->_msg)
 				WARN_ON(nla_put_string(skb, NLMSGERR_ATTR_MSG,

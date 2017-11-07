@@ -8,6 +8,9 @@
 
 %{
 #include <errno.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 #include "../perf.h"
 #include "parse-events.h"
 #include "parse-events-bison.h"
@@ -53,9 +56,8 @@ static int str(yyscan_t scanner, int token)
 	return token;
 }
 
-static bool isbpf(yyscan_t scanner)
+static bool isbpf_suffix(char *text)
 {
-	char *text = parse_events_get_text(scanner);
 	int len = strlen(text);
 
 	if (len < 2)
@@ -66,6 +68,17 @@ static bool isbpf(yyscan_t scanner)
 	if (len > 4 && !strcmp(text + len - 4, ".obj"))
 		return true;
 	return false;
+}
+
+static bool isbpf(yyscan_t scanner)
+{
+	char *text = parse_events_get_text(scanner);
+	struct stat st;
+
+	if (!isbpf_suffix(text))
+		return false;
+
+	return stat(text, &st) == 0;
 }
 
 /*
@@ -140,6 +153,10 @@ do {							\
 	yylloc->first_column = yycolumn;		\
 	yycolumn += yyleng;				\
 } while (0);
+
+#define USER_REJECT		\
+	yycolumn -= yyleng;	\
+	REJECT
 
 %}
 
@@ -322,8 +339,8 @@ r{num_raw_hex}		{ return raw(yyscanner); }
 {num_hex}		{ return value(yyscanner, 16); }
 
 {modifier_event}	{ return str(yyscanner, PE_MODIFIER_EVENT); }
-{bpf_object}		{ if (!isbpf(yyscanner)) REJECT; return str(yyscanner, PE_BPF_OBJECT); }
-{bpf_source}		{ if (!isbpf(yyscanner)) REJECT; return str(yyscanner, PE_BPF_SOURCE); }
+{bpf_object}		{ if (!isbpf(yyscanner)) USER_REJECT; return str(yyscanner, PE_BPF_OBJECT); }
+{bpf_source}		{ if (!isbpf(yyscanner)) USER_REJECT; return str(yyscanner, PE_BPF_SOURCE); }
 {name}			{ return pmu_str_check(yyscanner); }
 "/"			{ BEGIN(config); return '/'; }
 -			{ return '-'; }

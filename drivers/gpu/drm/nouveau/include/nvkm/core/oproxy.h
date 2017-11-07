@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NVKM_OPROXY_H__
 #define __NVKM_OPROXY_H__
 #define nvkm_oproxy(p) container_of((p), struct nvkm_oproxy, base)

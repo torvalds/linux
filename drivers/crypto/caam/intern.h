@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * CAAM/SEC 4.x driver backend
  * Private/internal definitions between modules

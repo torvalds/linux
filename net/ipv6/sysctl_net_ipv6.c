@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * sysctl_net_ipv6.c: sysctl interface to net IPV6 subsystem.
  *

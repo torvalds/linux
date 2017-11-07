@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include "builtin.h"
 
 #include "perf.h"
@@ -586,7 +587,7 @@ static void print_sample_brstack(struct perf_sample *sample,
 			thread__find_addr_map(thread, sample->cpumode, MAP__FUNCTION, to, &alt);
 		}
 
-		printf("0x%"PRIx64, from);
+		printf(" 0x%"PRIx64, from);
 		if (PRINT_FIELD(DSO)) {
 			printf("(");
 			map__fprintf_dsoname(alf.map, stdout);
@@ -681,7 +682,7 @@ static void print_sample_brstackoff(struct perf_sample *sample,
 		if (alt.map && !alt.map->dso->adjust_symbols)
 			to = map__map_ip(alt.map, to);
 
-		printf("0x%"PRIx64, from);
+		printf(" 0x%"PRIx64, from);
 		if (PRINT_FIELD(DSO)) {
 			printf("(");
 			map__fprintf_dsoname(alf.map, stdout);

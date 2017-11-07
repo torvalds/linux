@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 config ACER_PICA_61
 	bool "Support for Acer PICA 1 chipset"
 	depends on MACH_JAZZ

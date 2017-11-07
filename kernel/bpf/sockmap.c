@@ -39,6 +39,7 @@
 #include <linux/workqueue.h>
 #include <linux/list.h>
 #include <net/strparser.h>
+#include <net/tcp.h>
 
 struct bpf_stab {
 	struct bpf_map map;
@@ -92,21 +93,45 @@ static inline struct smap_psock *smap_psock_sk(const struct sock *sk)
 	return rcu_dereference_sk_user_data(sk);
 }
 
+/* compute the linear packet data range [data, data_end) for skb when
+ * sk_skb type programs are in use.
+ */
+static inline void bpf_compute_data_end_sk_skb(struct sk_buff *skb)
+{
+	TCP_SKB_CB(skb)->bpf.data_end = skb->data + skb_headlen(skb);
+}
+
+enum __sk_action {
+	__SK_DROP = 0,
+	__SK_PASS,
+	__SK_REDIRECT,
+};
+
 static int smap_verdict_func(struct smap_psock *psock, struct sk_buff *skb)
 {
 	struct bpf_prog *prog = READ_ONCE(psock->bpf_verdict);
 	int rc;
 
 	if (unlikely(!prog))
-		return SK_DROP;
+		return __SK_DROP;
 
 	skb_orphan(skb);
+	/* We need to ensure that BPF metadata for maps is also cleared
+	 * when we orphan the skb so that we don't have the possibility
+	 * to reference a stale map.
+	 */
+	TCP_SKB_CB(skb)->bpf.map = NULL;
 	skb->sk = psock->sock;
-	bpf_compute_data_end(skb);
+	bpf_compute_data_end_sk_skb(skb);
+	preempt_disable();
 	rc = (*prog->bpf_func)(skb, prog->insnsi);
+	preempt_enable();
 	skb->sk = NULL;
 
-	return rc;
+	/* Moving return codes from UAPI namespace into internal namespace */
+	return rc == SK_PASS ?
+		(TCP_SKB_CB(skb)->bpf.map ? __SK_REDIRECT : __SK_PASS) :
+		__SK_DROP;
 }
 
 static void smap_do_verdict(struct smap_psock *psock, struct sk_buff *skb)
@@ -114,17 +139,10 @@ static void smap_do_verdict(struct smap_psock *psock, struct sk_buff *skb)
 	struct sock *sk;
 	int rc;
 
-	/* Because we use per cpu values to feed input from sock redirect
-	 * in BPF program to do_sk_redirect_map() call we need to ensure we
-	 * are not preempted. RCU read lock is not sufficient in this case
-	 * with CONFIG_PREEMPT_RCU enabled so we must be explicit here.
-	 */
-	preempt_disable();
 	rc = smap_verdict_func(psock, skb);
 	switch (rc) {
-	case SK_REDIRECT:
-		sk = do_sk_redirect_map();
-		preempt_enable();
+	case __SK_REDIRECT:
+		sk = do_sk_redirect_map(skb);
 		if (likely(sk)) {
 			struct smap_psock *peer = smap_psock_sk(sk);
 
@@ -139,10 +157,8 @@ static void smap_do_verdict(struct smap_psock *psock, struct sk_buff *skb)
 			}
 		}
 	/* Fall through and free skb otherwise */
-	case SK_DROP:
+	case __SK_DROP:
 	default:
-		if (rc != SK_REDIRECT)
-			preempt_enable();
 		kfree_skb(skb);
 	}
 }
@@ -369,7 +385,7 @@ static int smap_parse_func_strparser(struct strparser *strp,
 	 * any socket yet.
 	 */
 	skb->sk = psock->sock;
-	bpf_compute_data_end(skb);
+	bpf_compute_data_end_sk_skb(skb);
 	rc = (*prog->bpf_func)(skb, prog->insnsi);
 	skb->sk = NULL;
 	rcu_read_unlock();
@@ -486,6 +502,9 @@ static struct bpf_map *sock_map_alloc(union bpf_attr *attr)
 	struct bpf_stab *stab;
 	int err = -EINVAL;
 	u64 cost;
+
+	if (!capable(CAP_NET_ADMIN))
+		return ERR_PTR(-EPERM);
 
 	/* check sanity of attributes */
 	if (attr->max_entries == 0 || attr->key_size != 4 ||
@@ -838,6 +857,12 @@ static int sock_map_update_elem(struct bpf_map *map,
 	if (!skops.sk) {
 		fput(socket->file);
 		return -EINVAL;
+	}
+
+	if (skops.sk->sk_type != SOCK_STREAM ||
+	    skops.sk->sk_protocol != IPPROTO_TCP) {
+		fput(socket->file);
+		return -EOPNOTSUPP;
 	}
 
 	err = sock_map_ctx_update_elem(&skops, map, key, flags);

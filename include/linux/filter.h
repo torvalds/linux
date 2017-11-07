@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Linux Socket Filter Data Structures
  */
@@ -728,7 +729,7 @@ void xdp_do_flush_map(void);
 void bpf_warn_invalid_xdp_action(u32 act);
 void bpf_warn_invalid_xdp_redirect(u32 ifindex);
 
-struct sock *do_sk_redirect_map(void);
+struct sock *do_sk_redirect_map(struct sk_buff *skb);
 
 #ifdef CONFIG_BPF_JIT
 extern int bpf_jit_enable;

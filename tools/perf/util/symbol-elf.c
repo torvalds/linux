@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <fcntl.h>
 #include <stdio.h>
 #include <errno.h>
@@ -810,12 +811,6 @@ static u64 ref_reloc(struct kmap *kmap)
 void __weak arch__sym_update(struct symbol *s __maybe_unused,
 		GElf_Sym *sym __maybe_unused) { }
 
-void __weak arch__adjust_sym_map_offset(GElf_Sym *sym, GElf_Shdr *shdr,
-				       struct map *map __maybe_unused)
-{
-	sym->st_value -= shdr->sh_addr - shdr->sh_offset;
-}
-
 int dso__load_sym(struct dso *dso, struct map *map, struct symsrc *syms_ss,
 		  struct symsrc *runtime_ss, int kmodule)
 {
@@ -996,7 +991,7 @@ int dso__load_sym(struct dso *dso, struct map *map, struct symsrc *syms_ss,
 
 			/* Adjust symbol to map to file offset */
 			if (adjust_kernel_syms)
-				arch__adjust_sym_map_offset(&sym, &shdr, map);
+				sym.st_value -= shdr.sh_addr - shdr.sh_offset;
 
 			if (strcmp(section_name,
 				   (curr_dso->short_name +

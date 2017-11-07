@@ -235,6 +235,7 @@ bool ovl_inuse_trylock(struct dentry *dentry);
 void ovl_inuse_unlock(struct dentry *dentry);
 int ovl_nlink_start(struct dentry *dentry, bool *locked);
 void ovl_nlink_end(struct dentry *dentry, bool locked);
+int ovl_lock_rename_workdir(struct dentry *workdir, struct dentry *upperdir);
 
 static inline bool ovl_is_impuredir(struct dentry *dentry)
 {
@@ -285,7 +286,8 @@ int ovl_update_time(struct inode *inode, struct timespec *ts, int flags);
 bool ovl_is_private_xattr(const char *name);
 
 struct inode *ovl_new_inode(struct super_block *sb, umode_t mode, dev_t rdev);
-struct inode *ovl_get_inode(struct dentry *dentry, struct dentry *upperdentry);
+struct inode *ovl_get_inode(struct dentry *dentry, struct dentry *upperdentry,
+			    struct dentry *index);
 static inline void ovl_copyattr(struct inode *from, struct inode *to)
 {
 	to->i_uid = from->i_uid;

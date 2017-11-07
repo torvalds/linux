@@ -285,7 +285,7 @@ enum ib_tm_cap_flags {
 	IB_TM_CAP_RC		    = 1 << 0,
 };
 
-struct ib_xrq_caps {
+struct ib_tm_caps {
 	/* Max size of RNDV header */
 	u32 max_rndv_hdr_size;
 	/* Max number of entries in tag matching list */
@@ -358,7 +358,7 @@ struct ib_device_attr {
 	struct ib_rss_caps	rss_caps;
 	u32			max_wq_type_rq;
 	u32			raw_packet_caps; /* Use ib_raw_packet_caps enum */
-	struct ib_xrq_caps	xrq_caps;
+	struct ib_tm_caps	tm_caps;
 };
 
 enum ib_mtu {
@@ -1739,7 +1739,7 @@ struct ib_mr {
 	u32		   lkey;
 	u32		   rkey;
 	u64		   iova;
-	u32		   length;
+	u64		   length;
 	unsigned int	   page_size;
 	bool		   need_inval;
 	union {

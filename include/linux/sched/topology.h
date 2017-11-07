@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_SCHED_TOPOLOGY_H
 #define _LINUX_SCHED_TOPOLOGY_H
 
@@ -71,14 +72,6 @@ struct sched_domain_shared {
 	atomic_t	ref;
 	atomic_t	nr_busy_cpus;
 	int		has_idle_cores;
-
-	/*
-	 * Some variables from the most recent sd_lb_stats for this domain,
-	 * used by wake_affine().
-	 */
-	unsigned long	nr_running;
-	unsigned long	load;
-	unsigned long	capacity;
 };
 
 struct sched_domain {

@@ -46,7 +46,10 @@ struct fw_filter {
 #endif /* CONFIG_NET_CLS_IND */
 	struct tcf_exts		exts;
 	struct tcf_proto	*tp;
-	struct rcu_head		rcu;
+	union {
+		struct work_struct	work;
+		struct rcu_head		rcu;
+	};
 };
 
 static u32 fw_hash(u32 handle)
@@ -119,12 +122,22 @@ static int fw_init(struct tcf_proto *tp)
 	return 0;
 }
 
+static void fw_delete_filter_work(struct work_struct *work)
+{
+	struct fw_filter *f = container_of(work, struct fw_filter, work);
+
+	rtnl_lock();
+	tcf_exts_destroy(&f->exts);
+	kfree(f);
+	rtnl_unlock();
+}
+
 static void fw_delete_filter(struct rcu_head *head)
 {
 	struct fw_filter *f = container_of(head, struct fw_filter, rcu);
 
-	tcf_exts_destroy(&f->exts);
-	kfree(f);
+	INIT_WORK(&f->work, fw_delete_filter_work);
+	tcf_queue_work(&f->work);
 }
 
 static void fw_destroy(struct tcf_proto *tp)

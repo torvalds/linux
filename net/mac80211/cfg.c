@@ -2727,12 +2727,6 @@ static int ieee80211_set_bitrate_mask(struct wiphy *wiphy,
 	if (!ieee80211_sdata_running(sdata))
 		return -ENETDOWN;
 
-	if (ieee80211_hw_check(&local->hw, HAS_RATE_CONTROL)) {
-		ret = drv_set_bitrate_mask(local, sdata, mask);
-		if (ret)
-			return ret;
-	}
-
 	/*
 	 * If active validate the setting and reject it if it doesn't leave
 	 * at least one basic rate usable, since we really have to be able
@@ -2746,6 +2740,12 @@ static int ieee80211_set_bitrate_mask(struct wiphy *wiphy,
 
 		if (!(mask->control[band].legacy & basic_rates))
 			return -EINVAL;
+	}
+
+	if (ieee80211_hw_check(&local->hw, HAS_RATE_CONTROL)) {
+		ret = drv_set_bitrate_mask(local, sdata, mask);
+		if (ret)
+			return ret;
 	}
 
 	for (i = 0; i < NUM_NL80211_BANDS; i++) {

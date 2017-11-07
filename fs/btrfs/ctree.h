@@ -709,7 +709,6 @@ struct btrfs_delayed_root;
 #define BTRFS_FS_OPEN				5
 #define BTRFS_FS_QUOTA_ENABLED			6
 #define BTRFS_FS_QUOTA_ENABLING			7
-#define BTRFS_FS_QUOTA_DISABLING		8
 #define BTRFS_FS_UPDATE_UUID_TREE_GEN		9
 #define BTRFS_FS_CREATING_FREE_SPACE_TREE	10
 #define BTRFS_FS_BTREE_ERR			11
@@ -723,7 +722,7 @@ struct btrfs_delayed_root;
  * Indicate that a whole-filesystem exclusive operation is running
  * (device replace, resize, device add/delete, balance)
  */
-#define BTRFS_FS_EXCL_OP			14
+#define BTRFS_FS_EXCL_OP			16
 
 struct btrfs_fs_info {
 	u8 fsid[BTRFS_FSID_SIZE];

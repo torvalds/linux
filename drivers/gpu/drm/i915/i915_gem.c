@@ -2214,8 +2214,10 @@ static void __i915_gem_object_reset_page_iter(struct drm_i915_gem_object *obj)
 	struct radix_tree_iter iter;
 	void __rcu **slot;
 
+	rcu_read_lock();
 	radix_tree_for_each_slot(slot, &obj->mm.get_page.radix, &iter, 0)
 		radix_tree_delete(&obj->mm.get_page.radix, iter.index);
+	rcu_read_unlock();
 }
 
 void __i915_gem_object_put_pages(struct drm_i915_gem_object *obj,
@@ -2657,6 +2659,9 @@ i915_gem_object_pwrite_gtt(struct drm_i915_gem_object *obj,
 	if (READ_ONCE(obj->mm.pages))
 		return -ENODEV;
 
+	if (obj->mm.madv != I915_MADV_WILLNEED)
+		return -EFAULT;
+
 	/* Before the pages are instantiated the object is treated as being
 	 * in the CPU domain. The pages will be clflushed as required before
 	 * use, and we can freely write into the pages directly. If userspace
@@ -3013,10 +3018,15 @@ void i915_gem_reset_finish(struct drm_i915_private *dev_priv)
 
 static void nop_submit_request(struct drm_i915_gem_request *request)
 {
+	unsigned long flags;
+
 	GEM_BUG_ON(!i915_terminally_wedged(&request->i915->gpu_error));
 	dma_fence_set_error(&request->fence, -EIO);
-	i915_gem_request_submit(request);
+
+	spin_lock_irqsave(&request->engine->timeline->lock, flags);
+	__i915_gem_request_submit(request);
 	intel_engine_init_global_seqno(request->engine, request->global_seqno);
+	spin_unlock_irqrestore(&request->engine->timeline->lock, flags);
 }
 
 static void engine_set_wedged(struct intel_engine_cs *engine)

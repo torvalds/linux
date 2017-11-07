@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/ceph/ceph_debug.h>
 
 #include <linux/sort.h>
@@ -374,12 +375,10 @@ static int build_snap_context(struct ceph_snap_realm *realm,
 	     realm->ino, realm, snapc, snapc->seq,
 	     (unsigned int) snapc->num_snaps);
 
-	if (realm->cached_context) {
-		ceph_put_snap_context(realm->cached_context);
-		/* queue realm for cap_snap creation */
-		list_add_tail(&realm->dirty_item, dirty_realms);
-	}
+	ceph_put_snap_context(realm->cached_context);
 	realm->cached_context = snapc;
+	/* queue realm for cap_snap creation */
+	list_add_tail(&realm->dirty_item, dirty_realms);
 	return 0;
 
 fail:

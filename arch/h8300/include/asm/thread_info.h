@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* thread_info.h: h8300 low-level thread information
  * adapted from the i386 and PPC versions by Yoshinori Sato <ysato@users.sourceforge.jp>
  *

@@ -644,8 +644,7 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 		break;
 #endif
 	case KVM_CAP_PPC_HTM:
-		r = cpu_has_feature(CPU_FTR_TM_COMP) &&
-		    is_kvmppc_hv_enabled(kvm);
+		r = cpu_has_feature(CPU_FTR_TM_COMP) && hv_enabled;
 		break;
 	default:
 		r = 0;

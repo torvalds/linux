@@ -49,7 +49,6 @@
 #include "xfs_rmap.h"
 #include "xfs_ag_resv.h"
 #include "xfs_refcount.h"
-#include "xfs_rmap_btree.h"
 #include "xfs_icache.h"
 
 
@@ -192,12 +191,8 @@ xfs_bmap_worst_indlen(
 	int		maxrecs;	/* maximum record count at this level */
 	xfs_mount_t	*mp;		/* mount structure */
 	xfs_filblks_t	rval;		/* return value */
-	xfs_filblks_t   orig_len;
 
 	mp = ip->i_mount;
-
-	/* Calculate the worst-case size of the bmbt. */
-	orig_len = len;
 	maxrecs = mp->m_bmap_dmxr[0];
 	for (level = 0, rval = 0;
 	     level < XFS_BM_MAXLEVELS(mp, XFS_DATA_FORK);
@@ -205,20 +200,12 @@ xfs_bmap_worst_indlen(
 		len += maxrecs - 1;
 		do_div(len, maxrecs);
 		rval += len;
-		if (len == 1) {
-			rval += XFS_BM_MAXLEVELS(mp, XFS_DATA_FORK) -
+		if (len == 1)
+			return rval + XFS_BM_MAXLEVELS(mp, XFS_DATA_FORK) -
 				level - 1;
-			break;
-		}
 		if (level == 0)
 			maxrecs = mp->m_bmap_dmxr[1];
 	}
-
-	/* Calculate the worst-case size of the rmapbt. */
-	if (xfs_sb_version_hasrmapbt(&mp->m_sb))
-		rval += 1 + xfs_rmapbt_calc_size(mp, orig_len) +
-				mp->m_rmap_maxlevels;
-
 	return rval;
 }
 
@@ -1490,14 +1477,14 @@ xfs_bmap_isaeof(
 	int			is_empty;
 	int			error;
 
-	bma->aeof = 0;
+	bma->aeof = false;
 	error = xfs_bmap_last_extent(NULL, bma->ip, whichfork, &rec,
 				     &is_empty);
 	if (error)
 		return error;
 
 	if (is_empty) {
-		bma->aeof = 1;
+		bma->aeof = true;
 		return 0;
 	}
 
@@ -3863,6 +3850,17 @@ xfs_trim_extent(
 		distance = irec->br_startoff + irec->br_blockcount - end;
 		irec->br_blockcount -= distance;
 	}
+}
+
+/* trim extent to within eof */
+void
+xfs_trim_extent_eof(
+	struct xfs_bmbt_irec	*irec,
+	struct xfs_inode	*ip)
+
+{
+	xfs_trim_extent(irec, 0, XFS_B_TO_FSB(ip->i_mount,
+					      i_size_read(VFS_I(ip))));
 }
 
 /*

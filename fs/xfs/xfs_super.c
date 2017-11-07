@@ -1637,7 +1637,7 @@ xfs_fs_fill_super(
 
 	/* version 5 superblocks support inode version counters. */
 	if (XFS_SB_VERSION_NUM(&mp->m_sb) == XFS_SB_VERSION_5)
-		sb->s_flags |= MS_I_VERSION;
+		sb->s_flags |= SB_I_VERSION;
 
 	if (mp->m_flags & XFS_MOUNT_DAX) {
 		xfs_warn(mp,
@@ -1652,6 +1652,16 @@ xfs_fs_fill_super(
 		if (xfs_sb_version_hasreflink(&mp->m_sb))
 			xfs_alert(mp,
 		"DAX and reflink have not been tested together!");
+	}
+
+	if (mp->m_flags & XFS_MOUNT_DISCARD) {
+		struct request_queue *q = bdev_get_queue(sb->s_bdev);
+
+		if (!blk_queue_discard(q)) {
+			xfs_warn(mp, "mounting with \"discard\" option, but "
+					"the device does not support discard");
+			mp->m_flags &= ~XFS_MOUNT_DISCARD;
+		}
 	}
 
 	if (xfs_sb_version_hasrmapbt(&mp->m_sb)) {

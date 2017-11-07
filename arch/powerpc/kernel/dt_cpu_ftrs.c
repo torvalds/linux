@@ -102,10 +102,10 @@ static void cpufeatures_flush_tlb(void)
 	case PVR_POWER8:
 	case PVR_POWER8E:
 	case PVR_POWER8NVL:
-		__flush_tlb_power8(POWER8_TLB_SETS);
+		__flush_tlb_power8(TLB_INVAL_SCOPE_GLOBAL);
 		break;
 	case PVR_POWER9:
-		__flush_tlb_power9(POWER9_TLB_SETS_HASH);
+		__flush_tlb_power9(TLB_INVAL_SCOPE_GLOBAL);
 		break;
 	default:
 		pr_err("unknown CPU version for boot TLB flush\n");

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 config PPC64
 	bool "64-bit kernel"
 	default n

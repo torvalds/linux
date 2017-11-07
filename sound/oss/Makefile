@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 # Makefile for the Linux sound card driver
 #
 # 18 Apr 1998, Michael Elizabeth Chastain, <mailto:mec@shout.net>

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* csum_copy.S: Checksum+copy code for sparc64
  *
  * Copyright (C) 2005 David S. Miller <davem@davemloft.net>

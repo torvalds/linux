@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* NGpatch.S: Patch Ultra-I routines with Niagara variant.
  *
  * Copyright (C) 2006 David S. Miller <davem@davemloft.net>

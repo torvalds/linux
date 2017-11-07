@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 infiniband-$(CONFIG_INFINIBAND_ADDR_TRANS)	:= rdma_cm.o
 user_access-$(CONFIG_INFINIBAND_ADDR_TRANS)	:= rdma_ucm.o
 

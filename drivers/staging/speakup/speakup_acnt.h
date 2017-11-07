@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* speakup_acntpc.h - header file for speakups Accent-PC driver. */
 
 #define SYNTH_IO_EXTENT	0x02

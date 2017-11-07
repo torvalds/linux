@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * hibernate.c:  Hibernaton support specific for sparc64.
  *

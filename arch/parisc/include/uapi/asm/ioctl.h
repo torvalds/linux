@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
 /*
  *    Linux/PA-RISC Project (http://www.parisc-linux.org/)
  *    Copyright (C) 1999,2003 Matthew Wilcox < willy at debian . org >

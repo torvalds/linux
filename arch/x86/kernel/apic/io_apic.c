@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *	Intel IO-APIC support for multi-Pentium hosts.
  *

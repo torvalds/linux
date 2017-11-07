@@ -1249,6 +1249,7 @@ static int nvme_revalidate_disk(struct gendisk *disk)
 		goto out;
 	}
 
+	__nvme_revalidate_disk(disk, id);
 	nvme_report_ns_ids(ctrl, ns->ns_id, id, eui64, nguid, &uuid);
 	if (!uuid_equal(&ns->uuid, &uuid) ||
 	    memcmp(&ns->nguid, &nguid, sizeof(ns->nguid)) ||
@@ -2136,7 +2137,7 @@ static umode_t nvme_ns_attrs_are_visible(struct kobject *kobj,
 	struct nvme_ns *ns = nvme_get_ns_from_dev(dev);
 
 	if (a == &dev_attr_uuid.attr) {
-		if (uuid_is_null(&ns->uuid) ||
+		if (uuid_is_null(&ns->uuid) &&
 		    !memchr_inv(ns->nguid, 0, sizeof(ns->nguid)))
 			return 0;
 	}

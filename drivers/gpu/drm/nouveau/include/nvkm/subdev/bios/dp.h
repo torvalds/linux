@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NVBIOS_DP_H__
 #define __NVBIOS_DP_H__
 struct nvbios_dpout {

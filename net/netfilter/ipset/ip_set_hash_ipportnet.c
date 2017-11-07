@@ -271,7 +271,7 @@ hash_ipportnet4_uadt(struct ip_set *set, struct nlattr *tb[],
 
 	if (retried)
 		ip = ntohl(h->next.ip);
-	for (; !before(ip_to, ip); ip++) {
+	for (; ip <= ip_to; ip++) {
 		e.ip = htonl(ip);
 		p = retried && ip == ntohl(h->next.ip) ? ntohs(h->next.port)
 						       : port;
@@ -281,7 +281,7 @@ hash_ipportnet4_uadt(struct ip_set *set, struct nlattr *tb[],
 			      ip == ntohl(h->next.ip) &&
 			      p == ntohs(h->next.port)
 				? ntohl(h->next.ip2) : ip2_from;
-			while (!after(ip2, ip2_to)) {
+			while (ip2 <= ip2_to) {
 				e.ip2 = htonl(ip2);
 				ip2_last = ip_set_range_to_cidr(ip2, ip2_to,
 								&cidr);
