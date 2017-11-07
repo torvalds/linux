@@ -1,7 +1,7 @@
 /*
  * rk312x_codec.c
  *
- * Driver for rockchip rk3036 codec
+ * Driver for rockchip rk312x codec
  * Copyright (C) 2014
  *
  * This program is free software; you can redistribute  it and/or modify it
@@ -27,6 +27,7 @@
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
+#include <linux/mfd/syscon.h>
 #include <linux/slab.h>
 #include <asm/dma.h>
 #include <sound/core.h>
@@ -81,6 +82,10 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 
 struct rk312x_codec_priv {
 	void __iomem	*regbase;
+	struct regmap *regmap;
+	struct regmap *grf;
+	struct device *dev;
+	unsigned int irq;
 	struct snd_soc_codec *codec;
 
 	unsigned int stereo_sysclk;
@@ -88,8 +93,8 @@ struct rk312x_codec_priv {
 
 	int playback_active;
 	int capture_active;
-	int spk_ctl_gpio;
-	int hp_ctl_gpio;
+	struct gpio_desc	*spk_ctl_gpio;
+	struct gpio_desc	*hp_ctl_gpio;
 	int spk_mute_delay;
 	int hp_mute_delay;
 	int spk_hp_switch_gpio;
@@ -105,8 +110,6 @@ struct rk312x_codec_priv {
 	int is_rk3128;
 	int gpio_debug;
 	int codec_hp_det;
-	enum of_gpio_flags hp_active_level;
-	enum of_gpio_flags spk_active_level;
 	unsigned int spk_volume;
 	unsigned int hp_volume;
 	unsigned int capture_volume;
@@ -115,9 +118,11 @@ struct rk312x_codec_priv {
 	long int capture_path;
 	long int voice_call_path;
 	struct clk	*pclk;
+	struct clk	*mclk;
 	struct switch_dev sdev;
 	struct work_struct work;
 	struct delayed_work init_delayed_work;
+	struct delayed_work mute_delayed_work;
 	struct delayed_work hpdet_work;
 };
 static struct rk312x_codec_priv *rk312x_priv;
@@ -181,98 +186,17 @@ static const unsigned int rk312x_reg_defaults[RK312x_PGAR_AGC_CTL5+1] = {
 	[RK312x_PGAR_AGC_CTL5] = 0x0038,
 };
 
-static struct rk312x_init_bit_typ rk312x_init_bit_list[] = {
-	{RK312x_HPOUT_CTL, RK312x_HPOUTL_EN,
-	 RK312x_HPOUTL_WORK, RK312x_HPVREF_EN},
-	{RK312x_HPOUT_CTL, RK312x_HPOUTR_EN,
-	 RK312x_HPOUTR_WORK, RK312x_HPVREF_WORK},
-	{RK312x_HPMIX_CTL, RK312x_HPMIXR_EN,
-	 RK312x_HPMIXR_WORK2, RK312x_HPMIXR_WORK1},
-	{RK312x_HPMIX_CTL, RK312x_HPMIXL_EN,
-	 RK312x_HPMIXL_WORK2, RK312x_HPMIXL_WORK1},
-};
-#define RK312x_INIT_BIT_LIST_LEN ARRAY_SIZE(rk312x_init_bit_list)
-
-static int rk312x_init_bit_register(unsigned int reg, int i)
-{
-	for (; i < RK312x_INIT_BIT_LIST_LEN; i++) {
-		if (rk312x_init_bit_list[i].reg == reg)
-			return i;
-	}
-
-	return -1;
-}
-
-static unsigned int
-rk312x_codec_read(struct snd_soc_codec *codec,
-		  unsigned int reg);
-static inline void
-rk312x_write_reg_cache(struct snd_soc_codec *codec,
-		       unsigned int reg,
-		       unsigned int value);
-
-static unsigned int
-rk312x_set_init_value(struct snd_soc_codec *codec,
-		      unsigned int reg, unsigned int value)
-{
-	unsigned int read_value, power_bit, set_bit2, set_bit1;
-	int i;
-	int tmp = 0;
-
-	/* read codec init register */
-	i = rk312x_init_bit_register(reg, 0);
-
-	/* set codec init bit
-	widget init bit should be setted 0 after widget power up or unmute,
-	and should be setted 1 after widget power down or mute.
-	*/
-	if (i >= 0) {
-		read_value = rk312x_codec_read(codec, reg);
-		while (i >= 0) {
-			power_bit = rk312x_init_bit_list[i].power_bit;
-			set_bit2 = rk312x_init_bit_list[i].init2_bit;
-			set_bit1 = rk312x_init_bit_list[i].init1_bit;
-
-			if ((read_value & power_bit) != (value & power_bit)) {
-				if (value & power_bit) {
-					tmp = value | set_bit2 | set_bit1;
-					writel(value, rk312x_priv->regbase+reg);
-					writel(tmp, rk312x_priv->regbase+reg);
-
-				} else {
-					tmp = value & (~set_bit2) & (~set_bit1);
-					writel(tmp, rk312x_priv->regbase+reg);
-					writel(value, rk312x_priv->regbase+reg);
-				}
-				value = tmp;
-			} else {
-				if (read_value != value)
-					writel(value, rk312x_priv->regbase+reg);
-			}
-
-			i = rk312x_init_bit_register(reg, ++i);
-
-			rk312x_write_reg_cache(codec, reg, value);
-		}
-	} else {
-		return i;
-	}
-
-	return value;
-}
-
-static int rk312x_volatile_register(struct snd_soc_codec *codec,
-				    unsigned int reg)
+static bool rk312x_volatile_register(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
 	case RK312x_RESET:
-		return 1;
+		return true;
 	default:
-		return 0;
+		return false;
 	}
 }
 
-static int rk312x_codec_register(struct snd_soc_codec *codec, unsigned int reg)
+static bool rk312x_codec_register(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
 	case RK312x_RESET:
@@ -316,86 +240,10 @@ static int rk312x_codec_register(struct snd_soc_codec *codec, unsigned int reg)
 	case RK312x_PGAR_AGC_MIN_L:
 	case RK312x_PGAR_AGC_CTL5:
 	case RK312x_ALC_CTL:
-		return 1;
+		return true;
 	default:
-		return 0;
+		return false;
 	}
-}
-
-static inline unsigned int rk312x_read_reg_cache(struct snd_soc_codec *codec,
-						 unsigned int reg)
-{
-	unsigned int *cache = codec->reg_cache;
-
-	if (rk312x_codec_register(codec, reg))
-		return  cache[reg];
-
-	DBG("%s : reg error!\n", __func__);
-
-	return -EINVAL;
-}
-
-static inline void rk312x_write_reg_cache(struct snd_soc_codec *codec,
-					  unsigned int reg,
-					  unsigned int value)
-{
-	unsigned int *cache = codec->reg_cache;
-
-	if (rk312x_codec_register(codec, reg)) {
-		cache[reg] = value;
-		return;
-	}
-
-	DBG("%s : reg error!\n", __func__);
-}
-
-static unsigned int rk312x_codec_read(struct snd_soc_codec *codec,
-				      unsigned int reg)
-{
-	unsigned int value;
-
-	if (!rk312x_priv) {
-		DBG("%s : rk312x is NULL\n", __func__);
-		return -EINVAL;
-	}
-
-	if (!rk312x_codec_register(codec, reg)) {
-		DBG("%s : reg error!\n", __func__);
-		return -EINVAL;
-	}
-
-	if (rk312x_volatile_register(codec, reg) == 0)
-		value = rk312x_read_reg_cache(codec, reg);
-	else
-		value = readl_relaxed(rk312x_priv->regbase+reg);
-
-	value = readl_relaxed(rk312x_priv->regbase+reg);
-	dbg_codec(2, "%s : reg = 0x%x, val= 0x%x\n", __func__,
-		  reg, value);
-
-	return value;
-}
-
-static int rk312x_codec_write(struct snd_soc_codec *codec,
-			      unsigned int reg, unsigned int value)
-{
-	int new_value;
-
-	if (!rk312x_priv) {
-		DBG("%s : rk312x is NULL\n", __func__);
-		return -EINVAL;
-	} else if (!rk312x_codec_register(codec, reg)) {
-		DBG("%s : reg error!\n", __func__);
-		return -EINVAL;
-	}
-	new_value = rk312x_set_init_value(codec, reg, value);
-
-	if (new_value == -1) {
-		writel(value, rk312x_priv->regbase+reg);
-		rk312x_write_reg_cache(codec, reg, value);
-	}
-	rk312x_codec_read(codec, reg);
-	return 0;
 }
 
 static int rk312x_codec_ctl_gpio(int gpio, int level)
@@ -406,16 +254,16 @@ static int rk312x_codec_ctl_gpio(int gpio, int level)
 		return -EINVAL;
 	}
 
-	if ((gpio & CODEC_SET_SPK) && rk312x_priv
-	    && rk312x_priv->spk_ctl_gpio != INVALID_GPIO) {
-		gpio_set_value(rk312x_priv->spk_ctl_gpio, level);
+	if ((gpio & CODEC_SET_SPK) && rk312x_priv &&
+	    rk312x_priv->spk_ctl_gpio) {
+		gpiod_set_value(rk312x_priv->spk_ctl_gpio, level);
 		DBG(KERN_INFO"%s set spk clt %d\n", __func__, level);
 		msleep(rk312x_priv->spk_mute_delay);
 	}
 
-	if ((gpio & CODEC_SET_HP) && rk312x_priv
-	    && rk312x_priv->hp_ctl_gpio != INVALID_GPIO) {
-		gpio_set_value(rk312x_priv->hp_ctl_gpio, level);
+	if ((gpio & CODEC_SET_HP) && rk312x_priv &&
+	    rk312x_priv->hp_ctl_gpio) {
+		gpiod_set_value(rk312x_priv->hp_ctl_gpio, level);
 		DBG(KERN_INFO"%s set hp clt %d\n", __func__, level);
 		msleep(rk312x_priv->hp_mute_delay);
 	}
@@ -446,33 +294,13 @@ static int switch_to_spk(int enable)
 	return 0;
 }
 #endif
-static int rk312x_hw_write(const struct i2c_client *client,
-			   const char *buf, int count)
-{
-	unsigned int reg, value;
-
-	if (!rk312x_priv || !rk312x_priv->codec) {
-		DBG("%s : rk312x_priv or rk312x_priv->codec is NULL\n",
-		    __func__);
-		return -EINVAL;
-	}
-	if (count == 3) {
-		reg = (unsigned int)buf[0];
-		value = (buf[1] & 0xff00) | (0x00ff & buf[2]);
-		writel(value, rk312x_priv->regbase+reg);
-	} else {
-		DBG("%s : i2c len error\n", __func__);
-	}
-
-	return  count;
-}
 
 static int rk312x_reset(struct snd_soc_codec *codec)
 {
 	DBG("%s\n", __func__);
-	writel(0x00, rk312x_priv->regbase+RK312x_RESET);
+	regmap_write(rk312x_priv->regmap, RK312x_RESET, 0x00);
 	mdelay(10);
-	writel(0x43, rk312x_priv->regbase+RK312x_RESET);
+	regmap_write(rk312x_priv->regmap, RK312x_RESET, 0x43);
 	mdelay(10);
 
 	memcpy(codec->reg_cache, rk312x_reg_defaults,
@@ -800,6 +628,20 @@ static const SOC_ENUM_SINGLE_DECL(rk312x_voice_call_path_type, 0, 0,
 /* static int rk312x_codec_power_up(int type); */
 static int rk312x_codec_power_down(int type);
 
+int rk312x_codec_mute_dac(int mute)
+{
+	if (!rk312x_priv) {
+		DBG("%s : rk312x_priv is NULL\n", __func__);
+		return -EINVAL;
+	}
+	if (mute) {
+		snd_soc_write(rk312x_priv->codec, 0xb4, 0x40);
+		snd_soc_write(rk312x_priv->codec, 0xb8, 0x40);
+	}
+	return 0;
+}
+EXPORT_SYMBOL(rk312x_codec_mute_dac);
+
 static int rk312x_playback_path_get(struct snd_kcontrol *kcontrol,
 				    struct snd_ctl_elem_value *ucontrol)
 {
@@ -1047,7 +889,7 @@ static int rk312x_dacl_event(struct snd_soc_dapm_widget *w,
 			     struct snd_kcontrol *kcontrol,
 			     int event)
 {
-	struct snd_soc_codec *codec = w->codec;
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
@@ -1079,7 +921,7 @@ static int rk312x_dacr_event(struct snd_soc_dapm_widget *w,
 			     struct snd_kcontrol *kcontrol,
 			     int event)
 {
-	struct snd_soc_codec *codec = w->codec;
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
@@ -1113,7 +955,7 @@ static int rk312x_dacr_event(struct snd_soc_dapm_widget *w,
 static int rk312x_adcl_event(struct snd_soc_dapm_widget *w,
 			     struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = w->codec;
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
@@ -1140,7 +982,7 @@ static int rk312x_adcl_event(struct snd_soc_dapm_widget *w,
 static int rk312x_adcr_event(struct snd_soc_dapm_widget *w,
 			     struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = w->codec;
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
@@ -1186,7 +1028,7 @@ static const struct snd_kcontrol_new rk312x_hpmixr[] = {
 static int rk312x_hpmixl_event(struct snd_soc_dapm_widget *w,
 			       struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = w->codec;
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
@@ -1217,7 +1059,7 @@ static int rk312x_hpmixl_event(struct snd_soc_dapm_widget *w,
 static int rk312x_hpmixr_event(struct snd_soc_dapm_widget *w,
 			       struct snd_kcontrol *kcontrol, int event)
 {
-	/* struct snd_soc_codec *codec = w->codec; */
+	/* struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm); */
 #if 0
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
@@ -1421,8 +1263,8 @@ static int rk312x_set_bias_level(struct snd_soc_codec *codec,
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
-		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
-			writel(0x32, rk312x_priv->regbase+RK312x_DAC_INT_CTL3);
+		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_OFF) {
+			regmap_write(rk312x_priv->regmap, RK312x_DAC_INT_CTL3, 0x32);
 			snd_soc_update_bits(codec, RK312x_ADC_MIC_CTL,
 					    RK312x_ADC_CURRENT_ENABLE,
 					    RK312x_ADC_CURRENT_ENABLE);
@@ -1457,26 +1299,25 @@ static int rk312x_set_bias_level(struct snd_soc_codec *codec,
 		break;
 
 	case SND_SOC_BIAS_OFF:
-			snd_soc_update_bits(codec, RK312x_DAC_ENABLE,
-					    RK312x_DACL_REF_VOL_EN_SFT
-					    | RK312x_DACR_REF_VOL_EN_SFT, 0);
-			snd_soc_update_bits(codec, RK312x_DAC_CTL,
-					    RK312x_REF_VOL_DACL_EN_SFT
-					    | RK312x_REF_VOL_DACR_EN_SFT, 0);
-			snd_soc_update_bits(codec, RK312x_ADC_MIC_CTL,
-					    RK312x_ADCL_ZERO_DET_EN_SFT
-					    | RK312x_ADCR_ZERO_DET_EN_SFT, 0);
-			snd_soc_update_bits(codec, RK312x_ADC_ENABLE,
-					    RK312x_ADCL_REF_VOL_EN_SFT
-					    | RK312x_ADCR_REF_VOL_EN_SFT, 0);
-			snd_soc_update_bits(codec, RK312x_ADC_MIC_CTL,
-					    RK312x_ADC_CURRENT_ENABLE, 0);
-			snd_soc_update_bits(codec, RK312x_DAC_CTL,
-					    RK312x_CURRENT_EN, 0);
-			writel(0x22, rk312x_priv->regbase+RK312x_DAC_INT_CTL3);
+		snd_soc_update_bits(codec, RK312x_DAC_ENABLE,
+				    RK312x_DACL_REF_VOL_EN_SFT
+				    | RK312x_DACR_REF_VOL_EN_SFT, 0);
+		snd_soc_update_bits(codec, RK312x_DAC_CTL,
+				    RK312x_REF_VOL_DACL_EN_SFT
+				    | RK312x_REF_VOL_DACR_EN_SFT, 0);
+		snd_soc_update_bits(codec, RK312x_ADC_MIC_CTL,
+				    RK312x_ADCL_ZERO_DET_EN_SFT
+				    | RK312x_ADCR_ZERO_DET_EN_SFT, 0);
+		snd_soc_update_bits(codec, RK312x_ADC_ENABLE,
+				    RK312x_ADCL_REF_VOL_EN_SFT
+				    | RK312x_ADCR_REF_VOL_EN_SFT, 0);
+		snd_soc_update_bits(codec, RK312x_ADC_MIC_CTL,
+				    RK312x_ADC_CURRENT_ENABLE, 0);
+		snd_soc_update_bits(codec, RK312x_DAC_CTL,
+				    RK312x_CURRENT_EN, 0);
+		regmap_write(rk312x_priv->regmap, RK312x_DAC_INT_CTL3, 0x22);
 		break;
 	}
-	codec->dapm.bias_level = level;
 
 	return 0;
 }
@@ -1694,35 +1535,37 @@ static int rk312x_hw_params(struct snd_pcm_substream *substream,
 
 static void rk312x_codec_unpop(struct work_struct *work)
 {
-	rk312x_codec_ctl_gpio(CODEC_SET_SPK, rk312x_priv->spk_active_level);
+	rk312x_codec_ctl_gpio(CODEC_SET_SPK, 1);
 }
 
 static int rk312x_digital_mute(struct snd_soc_dai *dai, int mute)
 {
 
 	if (mute) {
-		rk312x_codec_ctl_gpio(CODEC_SET_SPK, !rk312x_priv->spk_active_level);
-		rk312x_codec_ctl_gpio(CODEC_SET_HP, !rk312x_priv->hp_active_level);
+		rk312x_codec_ctl_gpio(CODEC_SET_SPK, 0);
+		rk312x_codec_ctl_gpio(CODEC_SET_HP, 0);
 	} else {
 		if (!rk312x_priv->rk312x_for_mid) {
-			INIT_DELAYED_WORK(&rk312x_priv->init_delayed_work,
-					  rk312x_codec_unpop);
-			schedule_delayed_work(&rk312x_priv->init_delayed_work,
-				msecs_to_jiffies(rk312x_priv->spk_mute_delay));
+			schedule_delayed_work(&rk312x_priv->mute_delayed_work,
+					      msecs_to_jiffies(rk312x_priv->spk_mute_delay));
 		} else {
 			switch (rk312x_priv->playback_path) {
 			case SPK_PATH:
 			case RING_SPK:
+				rk312x_codec_ctl_gpio(CODEC_SET_SPK, 1);
+				rk312x_codec_ctl_gpio(CODEC_SET_HP, 0);
+				break;
 			case HP_PATH:
 			case HP_NO_MIC:
 			case RING_HP:
 			case RING_HP_NO_MIC:
+				rk312x_codec_ctl_gpio(CODEC_SET_SPK, 0);
+				rk312x_codec_ctl_gpio(CODEC_SET_HP, 1);
+				break;
 			case SPK_HP:
 			case RING_SPK_HP:
-				rk312x_codec_ctl_gpio(CODEC_SET_SPK,
-					rk312x_priv->spk_active_level);
-				rk312x_codec_ctl_gpio(CODEC_SET_HP,
-					rk312x_priv->hp_active_level);
+				rk312x_codec_ctl_gpio(CODEC_SET_SPK, 1);
+				rk312x_codec_ctl_gpio(CODEC_SET_HP, 1);
 				break;
 			default:
 				break;
@@ -1742,26 +1585,20 @@ static struct rk312x_reg_val_typ playback_power_up_list[] = {
 	{0xa8, 0x44},
 	{0xa8, 0x55},
 
-	{0xb0, 0x82},
-	{0xb0, 0xc3},
+	{0xb0, 0x90},
+	{0xb0, 0xd8},
 
 	{0xa4, 0x88},
 	{0xa4, 0xcc},
 	{0xa4, 0xee},
 	{0xa4, 0xff},
 
-	/* {0xa8, 0x44}, */
-	/* {0xb0, 0x92}, */
-	/* {0xb0, 0xdb}, */
 	{0xac, 0x11}, /*DAC*/
-	/* {0xa8, 0x55}, */
 	{0xa8, 0x77},
-
-	{0xb0, 0xee},
+	{0xb0, 0xfc},
 
 	{0xb4, OUT_VOLUME},
 	{0xb8, OUT_VOLUME},
-	/* {0xb0, 0xff}, */
 	{0xb0, 0xff},
 	{0xa0, 0x73|0x08},
 };
@@ -1842,7 +1679,7 @@ static struct rk312x_reg_val_typ capture_power_down_list[] = {
 
 static int rk312x_codec_power_up(int type)
 {
-	struct snd_soc_codec *codec = rk312x_priv->codec;
+	struct snd_soc_codec *codec;
 	int i;
 
 	if (!rk312x_priv || !rk312x_priv->codec) {
@@ -1850,6 +1687,8 @@ static int rk312x_codec_power_up(int type)
 		    __func__);
 		return -EINVAL;
 	}
+	codec = rk312x_priv->codec;
+
 	DBG("%s : power up %s%s\n", __func__,
 	    type == RK312x_CODEC_PLAYBACK ? "playback" : "",
 	    type == RK312x_CODEC_CAPTURE ? "capture" : "");
@@ -1858,6 +1697,7 @@ static int rk312x_codec_power_up(int type)
 		for (i = 0; i < RK312x_CODEC_PLAYBACK_POWER_UP_LIST_LEN; i++) {
 			snd_soc_write(codec, playback_power_up_list[i].reg,
 				      playback_power_up_list[i].value);
+			usleep_range(1000, 1100);
 		}
 	} else if (type == RK312x_CODEC_CAPTURE) {
 		if (rk312x_priv->rk312x_for_mid == 1) {
@@ -1888,7 +1728,7 @@ static int rk312x_codec_power_up(int type)
 
 static int rk312x_codec_power_down(int type)
 {
-	struct snd_soc_codec *codec = rk312x_priv->codec;
+	struct snd_soc_codec *codec;
 	int i;
 
 	if (!rk312x_priv || !rk312x_priv->codec) {
@@ -1896,6 +1736,7 @@ static int rk312x_codec_power_down(int type)
 		    __func__);
 		return -EINVAL;
 	}
+	codec = rk312x_priv->codec;
 
 	DBG("%s : power down %s%s%s\n", __func__,
 	    type == RK312x_CODEC_PLAYBACK ? "playback" : "",
@@ -1954,8 +1795,8 @@ static int rk312x_startup(struct snd_pcm_substream *substream,
 {
 	struct rk312x_codec_priv *rk312x = rk312x_priv;
 	bool playback = (substream->stream == SNDRV_PCM_STREAM_PLAYBACK);
-	bool is_codec_playback_running = rk312x->playback_active > 0;
-	bool is_codec_capture_running = rk312x->capture_active > 0;
+	bool is_codec_playback_running;
+	bool is_codec_capture_running;
 
 	if (rk312x_priv->rk312x_for_mid) {
 		return 0;
@@ -1964,6 +1805,9 @@ static int rk312x_startup(struct snd_pcm_substream *substream,
 		DBG("%s : rk312x is NULL\n", __func__);
 		return -EINVAL;
 	}
+	is_codec_playback_running = rk312x->playback_active > 0;
+	is_codec_capture_running = rk312x->capture_active > 0;
+
 	if (playback)
 		rk312x->playback_active++;
 	else
@@ -1996,8 +1840,8 @@ static void rk312x_shutdown(struct snd_pcm_substream *substream,
 {
 	struct rk312x_codec_priv *rk312x = rk312x_priv;
 	bool playback = (substream->stream == SNDRV_PCM_STREAM_PLAYBACK);
-	bool is_codec_playback_running = rk312x->playback_active > 0;
-	bool is_codec_capture_running = rk312x->capture_active > 0;
+	bool is_codec_playback_running;
+	bool is_codec_capture_running;
 
 	if (rk312x_priv->rk312x_for_mid) {
 		return;
@@ -2007,6 +1851,9 @@ static void rk312x_shutdown(struct snd_pcm_substream *substream,
 		DBG("%s : rk312x is NULL\n", __func__);
 		return;
 	}
+	is_codec_playback_running = rk312x->playback_active > 0;
+	is_codec_capture_running = rk312x->capture_active > 0;
+
 	if (playback)
 		rk312x->playback_active--;
 	else
@@ -2014,7 +1861,7 @@ static void rk312x_shutdown(struct snd_pcm_substream *substream,
 
 	if (playback) {
 		if (rk312x->playback_active <= 0) {
-			if (is_codec_playback_running == true)
+			if (is_codec_playback_running)
 				rk312x_codec_power_down(
 					RK312x_CODEC_PLAYBACK);
 			else
@@ -2024,7 +1871,7 @@ static void rk312x_shutdown(struct snd_pcm_substream *substream,
 		if (rk312x->capture_active <= 0) {
 			if ((rk312x_codec_work_capture_type !=
 			     RK312x_CODEC_WORK_POWER_DOWN) &&
-			    (is_codec_capture_running == true)) {
+			    is_codec_capture_running) {
 				cancel_delayed_work_sync(&capture_delayed_work);
 			/*
 			 * If rk312x_codec_work_capture_type is NULL
@@ -2131,9 +1978,9 @@ static int rk312x_suspend(struct snd_soc_codec *codec)
 	DBG("%s\n", __func__);
 	if (rk312x_priv->codec_hp_det) {
         /* disable hp det interrupt */
-		val = readl_relaxed(RK_GRF_VIRT + GRF_ACODEC_CON);
-		writel_relaxed(0x1f0013, RK_GRF_VIRT + GRF_ACODEC_CON);
-		val = readl_relaxed(RK_GRF_VIRT + GRF_ACODEC_CON);
+		regmap_read(rk312x_priv->grf, GRF_ACODEC_CON, &val);
+		regmap_write(rk312x_priv->grf, GRF_ACODEC_CON, 0x1f0013);
+		regmap_read(rk312x_priv->grf, GRF_ACODEC_CON, &val);
 		cancel_delayed_work_sync(&rk312x_priv->hpdet_work);
 
 	}
@@ -2148,7 +1995,7 @@ static int rk312x_suspend(struct snd_soc_codec *codec)
 		snd_soc_write(codec, RK312x_SELECT_CURRENT, 0x1e);
 		snd_soc_write(codec, RK312x_SELECT_CURRENT, 0x3e);
 	} else {
-		rk312x_set_bias_level(codec, SND_SOC_BIAS_OFF);
+		snd_soc_codec_force_bias_level(codec, SND_SOC_BIAS_OFF);
 	}
 	return 0;
 }
@@ -2173,24 +2020,24 @@ static ssize_t gpio_store(struct kobject *kobj, struct kobj_attribute *attr,
 		return ret;
 	switch (cmd) {
 	case 'd':
-		if (rk312x->spk_ctl_gpio != INVALID_GPIO) {
-			gpio_set_value(rk312x->spk_ctl_gpio, !rk312x->spk_active_level);
+		if (rk312x->spk_ctl_gpio) {
+			gpiod_set_value(rk312x->spk_ctl_gpio, 0);
 			DBG(KERN_INFO"%s : spk gpio disable\n",__func__);
 		}
 
-		if (rk312x->hp_ctl_gpio != INVALID_GPIO) {
-			gpio_set_value(rk312x->hp_ctl_gpio, !rk312x->hp_active_level);
+		if (rk312x->hp_ctl_gpio) {
+			gpiod_set_value(rk312x->hp_ctl_gpio, 0);
 			DBG(KERN_INFO"%s : disable hp gpio \n",__func__);
 		}
 		break;
 	case 'e':
-		if (rk312x->spk_ctl_gpio != INVALID_GPIO) {
-			gpio_set_value(rk312x->spk_ctl_gpio, rk312x->spk_active_level);
+		if (rk312x->spk_ctl_gpio) {
+			gpiod_set_value(rk312x->spk_ctl_gpio, 1);
 			DBG(KERN_INFO"%s : spk gpio enable\n",__func__);
 		}
 
-		if (rk312x->hp_ctl_gpio != INVALID_GPIO) {
-		gpio_set_value(rk312x->hp_ctl_gpio, rk312x->hp_active_level);
+		if (rk312x->hp_ctl_gpio) {
+		gpiod_set_value(rk312x->hp_ctl_gpio, 1);
 		DBG("%s : enable hp gpio \n",__func__);
 	}
 		break;
@@ -2224,30 +2071,30 @@ static int rk312x_resume(struct snd_soc_codec *codec)
 		/* enable hp det interrupt */
 		snd_soc_write(codec, RK312x_DAC_CTL, 0x08);
 		printk("0xa0 -- 0x%x\n",snd_soc_read(codec, RK312x_DAC_CTL));
-		val = readl_relaxed(RK_GRF_VIRT + GRF_ACODEC_CON);
-		writel_relaxed(0x1f001f, RK_GRF_VIRT + GRF_ACODEC_CON);
-		val = readl_relaxed(RK_GRF_VIRT + GRF_ACODEC_CON);
+		regmap_read(rk312x_priv->grf, GRF_ACODEC_CON, &val);
+		regmap_write(rk312x_priv->grf, GRF_ACODEC_CON, 0x1f001f);
+		regmap_read(rk312x_priv->grf, GRF_ACODEC_CON, &val);
 		printk("GRF_ACODEC_CON is 0x%x\n", val);
 		schedule_delayed_work(&rk312x_priv->hpdet_work, msecs_to_jiffies(20));
 	}
 	if (!rk312x_priv->rk312x_for_mid)
-		rk312x_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
+		snd_soc_codec_force_bias_level(codec, SND_SOC_BIAS_STANDBY);
 	return 0;
 }
 
 static irqreturn_t codec_hp_det_isr(int irq, void *data)
 {
 	unsigned int val = 0;
-	val = readl_relaxed(RK_GRF_VIRT + GRF_ACODEC_CON);
+	regmap_read(rk312x_priv->grf, GRF_ACODEC_CON, &val);
 	DBG("%s GRF_ACODEC_CON -- 0x%x\n", __func__, val);
-	if (val&0x1) {
+	if (val & 0x1) {
 		DBG("%s hp det rising\n", __func__);
-		writel_relaxed(val|0x10001, RK_GRF_VIRT + GRF_ACODEC_CON);
-	} else if (val&0x2) {
+		regmap_write(rk312x_priv->grf, GRF_ACODEC_CON, val | 0x10001);
+	} else if (val & 0x2) {
 		DBG("%s hp det falling\n", __func__);
-		writel_relaxed(val|0x20002, RK_GRF_VIRT + GRF_ACODEC_CON);
+		regmap_write(rk312x_priv->grf, GRF_ACODEC_CON, val | 0x20002);
 	}
-	cancel_delayed_work_sync(&rk312x_priv->hpdet_work);
+	cancel_delayed_work(&rk312x_priv->hpdet_work);
 	schedule_delayed_work(&rk312x_priv->hpdet_work, msecs_to_jiffies(20));
 	return IRQ_HANDLED;
 }
@@ -2277,9 +2124,8 @@ static void rk312x_delay_workq(struct work_struct *work)
 
 	int ret;
 	unsigned int val;
-	struct rk312x_codec_priv *rk312x_codec
-			= snd_soc_codec_get_drvdata(rk312x_priv->codec);
-	struct snd_soc_codec *codec = rk312x_codec->codec;
+	struct rk312x_codec_priv *rk312x_codec;
+	struct snd_soc_codec *codec;
 
 	printk("%s\n", __func__);
 	if (!rk312x_priv || !rk312x_priv->codec) {
@@ -2287,10 +2133,12 @@ static void rk312x_delay_workq(struct work_struct *work)
 		    __func__);
 		return;
 	}
+	rk312x_codec = snd_soc_codec_get_drvdata(rk312x_priv->codec);
+	codec = rk312x_codec->codec;
 	rk312x_reset(codec);
 	if (!rk312x_priv->rk312x_for_mid) {
-		codec->dapm.bias_level = SND_SOC_BIAS_OFF;
-		rk312x_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
+		snd_soc_codec_force_bias_level(codec, SND_SOC_BIAS_OFF);
+		snd_soc_codec_force_bias_level(codec, SND_SOC_BIAS_STANDBY);
 	}
 #ifdef WITH_CAP
 	snd_soc_write(codec, RK312x_SELECT_CURRENT, 0x1e);
@@ -2299,8 +2147,8 @@ static void rk312x_delay_workq(struct work_struct *work)
 
 	if (rk312x_codec->codec_hp_det) {
 		/*init codec_hp_det interrupt only for rk3128 */
-		ret = request_irq(96, codec_hp_det_isr,
-				  IRQF_TRIGGER_RISING, "codec_hp_det", NULL);
+		ret = devm_request_irq(rk312x_priv->dev, rk312x_priv->irq, codec_hp_det_isr,
+				       IRQF_TRIGGER_RISING, "codec_hp_det", NULL);
 		if (ret < 0)
 			DBG(" codec_hp_det request_irq failed %d\n", ret);
 		rk312x_codec->sdev.name = "h2w";
@@ -2308,9 +2156,9 @@ static void rk312x_delay_workq(struct work_struct *work)
 		ret = switch_dev_register(&rk312x_codec->sdev);
 		if (ret)
 			DBG(KERN_ERR"register switch dev failed\n");
-		val = readl_relaxed(RK_GRF_VIRT + GRF_ACODEC_CON);
-		writel_relaxed(0x1f001f, RK_GRF_VIRT + GRF_ACODEC_CON);
-		val = readl_relaxed(RK_GRF_VIRT + GRF_ACODEC_CON);
+		regmap_read(rk312x_priv->grf, GRF_ACODEC_CON, &val);
+		regmap_write(rk312x_priv->grf, GRF_ACODEC_CON, 0x1f001f);
+		regmap_read(rk312x_priv->grf, GRF_ACODEC_CON, &val);
 		DBG("GRF_ACODEC_CON 3334is 0x%x\n", val);
 		/* enable rk 3128 codec_hp_det */
 		snd_soc_write(codec, RK312x_DAC_CTL, 0x08);
@@ -2330,15 +2178,8 @@ static int rk312x_probe(struct snd_soc_codec *codec)
 	int i = 0;
 
 	rk312x_codec->codec = codec;
+	snd_soc_codec_force_bias_level(codec, SND_SOC_BIAS_OFF);
 	clk_prepare_enable(rk312x_codec->pclk);
-
-	ret = snd_soc_codec_set_cache_io(codec, 8, 8, SND_SOC_I2C);
-	if (ret != 0)
-		goto err__;
-	codec->hw_read = rk312x_codec_read;
-	codec->hw_write = (hw_write_t)rk312x_hw_write;
-	codec->read = rk312x_codec_read;
-	codec->write = rk312x_codec_write;
 
 	rk312x_codec->playback_active = 0;
 	rk312x_codec->capture_active = 0;
@@ -2362,6 +2203,7 @@ static int rk312x_probe(struct snd_soc_codec *codec)
 	snd_soc_add_codec_controls(codec, rk312x_snd_path_controls,
 				   ARRAY_SIZE(rk312x_snd_path_controls));
 	INIT_DELAYED_WORK(&rk312x_priv->init_delayed_work, rk312x_delay_workq);
+	INIT_DELAYED_WORK(&rk312x_priv->mute_delayed_work, rk312x_codec_unpop);
 	INIT_DELAYED_WORK(&rk312x_priv->hpdet_work, hpdet_work_func);
 
 	schedule_delayed_work(&rk312x_priv->init_delayed_work, msecs_to_jiffies(3000));
@@ -2395,11 +2237,11 @@ static int rk312x_remove(struct snd_soc_codec *codec)
 		return 0;
 	}
 
-	if (rk312x_priv->spk_ctl_gpio != INVALID_GPIO)
-		gpio_set_value(rk312x_priv->spk_ctl_gpio, !rk312x_priv->spk_active_level);
+	if (rk312x_priv->spk_ctl_gpio)
+		gpiod_set_value(rk312x_priv->spk_ctl_gpio, 0);
 
-	if (rk312x_priv->hp_ctl_gpio != INVALID_GPIO)
-		gpio_set_value(rk312x_priv->hp_ctl_gpio, !rk312x_priv->hp_active_level);
+	if (rk312x_priv->hp_ctl_gpio)
+		gpiod_set_value(rk312x_priv->hp_ctl_gpio, 0);
 
 	mdelay(10);
 
@@ -2414,9 +2256,6 @@ static int rk312x_remove(struct snd_soc_codec *codec)
 	snd_soc_write(codec, RK312x_RESET, 0x3);
 	mdelay(10);
 
-	/* if (rk312x_priv) */
-	kfree(rk312x_priv);
-
 	return 0;
 }
 
@@ -2430,10 +2269,21 @@ static struct snd_soc_codec_driver soc_codec_dev_rk312x = {
 	.reg_cache_size = ARRAY_SIZE(rk312x_reg_defaults),
 	.reg_word_size = sizeof(unsigned int),
 	.reg_cache_default = rk312x_reg_defaults,
-	.volatile_register = rk312x_volatile_register,
-	.readable_register = rk312x_codec_register,
 	.reg_cache_step = sizeof(unsigned int),
 };
+
+static const struct regmap_config rk312x_codec_regmap_config = {
+	.reg_bits = 32,
+	.reg_stride = 4,
+	.val_bits = 32,
+	.max_register = RK312x_PGAR_AGC_CTL5,
+	.writeable_reg = rk312x_codec_register,
+	.readable_reg = rk312x_codec_register,
+	.volatile_reg = rk312x_volatile_register,
+};
+
+#define GRF_SOC_CON0		0x00140
+#define GRF_ACODEC_SEL		(BIT(10) | BIT(16 + 10))
 
 static int rk312x_platform_probe(struct platform_device *pdev)
 {
@@ -2450,6 +2300,7 @@ static int rk312x_platform_probe(struct platform_device *pdev)
 	}
 	rk312x_priv = rk312x;
 	platform_set_drvdata(pdev, rk312x);
+	rk312x->dev = &pdev->dev;
 
 #if 0
 	rk312x->spk_hp_switch_gpio = of_get_named_gpio_flags(rk312x_np,
@@ -2474,51 +2325,19 @@ static int rk312x_platform_probe(struct platform_device *pdev)
 		}
 	}
 #endif
-	rk312x->hp_ctl_gpio = of_get_named_gpio_flags(rk312x_np,
-						 "hp_ctl_io", 0, &rk312x->hp_active_level);
-	rk312x->hp_active_level = !rk312x->hp_active_level;
-	if (!gpio_is_valid(rk312x->hp_ctl_gpio)) {
-		dbg_codec(2, "invalid hp_ctl_gpio: %d\n",
-			  rk312x->hp_ctl_gpio);
-        rk312x->hp_ctl_gpio = INVALID_GPIO;
-		/* ret = -ENOENT; */
-		/* goto err__; */
-	}
-	DBG("%s : hp_ctl_gpio %d active_level %d \n", __func__,
-		rk312x->hp_ctl_gpio, rk312x->hp_active_level);
-
-	if(rk312x->hp_ctl_gpio != INVALID_GPIO) {
-		ret = devm_gpio_request(&pdev->dev, rk312x->hp_ctl_gpio, "hp_ctl");
-		if (ret < 0) {
-			dbg_codec(2, "rk312x_platform_probe hp_ctl_gpio fail\n");
-			/* goto err__; */
-			rk312x->hp_ctl_gpio = INVALID_GPIO;
-		}
-		gpio_direction_output(rk312x->hp_ctl_gpio, !rk312x->hp_active_level);
+	rk312x->hp_ctl_gpio = devm_gpiod_get_optional(&pdev->dev, "hp-ctl",
+						  GPIOD_OUT_LOW);
+	if (!IS_ERR_OR_NULL(rk312x->hp_ctl_gpio)) {
+		DBG("%s : hp-ctl-gpio %d\n", __func__,
+		    desc_to_gpio(rk312x->hp_ctl_gpio));
 	}
 
-	rk312x->spk_ctl_gpio = of_get_named_gpio_flags(rk312x_np,
-						 "spk_ctl_io", 0, &rk312x->spk_active_level);
-	if (!gpio_is_valid(rk312x->spk_ctl_gpio)) {
-		dbg_codec(2, "invalid spk_ctl_gpio: %d\n",
-			  rk312x->spk_ctl_gpio);
-		rk312x->spk_ctl_gpio = INVALID_GPIO;
-		/* ret = -ENOENT; */
-		/* goto err__; */
+	rk312x->spk_ctl_gpio = devm_gpiod_get_optional(&pdev->dev, "spk-ctl",
+						  GPIOD_OUT_LOW);
+	if (!IS_ERR_OR_NULL(rk312x->spk_ctl_gpio)) {
+		DBG(KERN_INFO "%s : spk-ctl-gpio %d\n", __func__,
+		    desc_to_gpio(rk312x->spk_ctl_gpio));
 	}
-
-	rk312x->spk_active_level = !rk312x->spk_active_level;
-	if (rk312x->spk_ctl_gpio != INVALID_GPIO) {
-		ret = devm_gpio_request(&pdev->dev, rk312x->spk_ctl_gpio, "spk_ctl");
-		if (ret < 0) {
-			dbg_codec(2, "rk312x_platform_probe spk_ctl_gpio fail\n");
-			/* goto err_; */
-			rk312x->spk_ctl_gpio = INVALID_GPIO;
-		}
-		gpio_direction_output(rk312x->spk_ctl_gpio, !rk312x->spk_active_level);
-	}
-	DBG(KERN_INFO"%s : spk_ctl_gpio %d active_level %d \n", __func__,
-		rk312x->spk_ctl_gpio, rk312x->spk_active_level);
 
 	ret = of_property_read_u32(rk312x_np, "spk-mute-delay",
 				   &rk312x->spk_mute_delay);
@@ -2588,13 +2407,40 @@ static int rk312x_platform_probe(struct platform_device *pdev)
 	rk312x->regbase = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(rk312x->regbase))
 		return PTR_ERR(rk312x->regbase);
+	rk312x->regmap = devm_regmap_init_mmio(&pdev->dev, rk312x->regbase,
+					       &rk312x_codec_regmap_config);
+	if (IS_ERR(rk312x->regmap))
+		return PTR_ERR(rk312x->regmap);
+
+	rk312x->grf = syscon_regmap_lookup_by_phandle(rk312x_np, "rockchip,grf");
+	if (IS_ERR(rk312x->grf)) {
+		dev_err(&pdev->dev, "needs 'rockchip,grf' property\n");
+		return PTR_ERR(rk312x->grf);
+	}
+	ret = regmap_write(rk312x->grf, GRF_SOC_CON0, GRF_ACODEC_SEL);
+	if (ret) {
+		dev_err(&pdev->dev, "Could not write to GRF: %d\n", ret);
+		return ret;
+	}
+
+	if (rk312x->codec_hp_det)
+		rk312x->irq = platform_get_irq(pdev, 0);
 
 	rk312x->pclk = devm_clk_get(&pdev->dev, "g_pclk_acodec");
 	if (IS_ERR(rk312x->pclk)) {
-		dev_err(&pdev->dev, "Unable to get acodec hclk\n");
+		dev_err(&pdev->dev, "Unable to get acodec pclk\n");
 		ret = -ENXIO;
 		goto err__;
 	}
+	rk312x->mclk = devm_clk_get(&pdev->dev, "i2s_clk");
+	if (IS_ERR(rk312x->mclk)) {
+		dev_err(&pdev->dev, "Unable to get mclk\n");
+		ret = -ENXIO;
+		goto err__;
+	}
+
+	clk_prepare_enable(rk312x->mclk);
+	clk_set_rate(rk312x->mclk, 11289600);
 
 	return snd_soc_register_codec(&pdev->dev, &soc_codec_dev_rk312x,
 				rk312x_dai, ARRAY_SIZE(rk312x_dai));
@@ -2624,18 +2470,18 @@ void rk312x_platform_shutdown(struct platform_device *pdev)
 	}
 	if (rk312x_priv->codec_hp_det) {
 		/* disable hp det interrupt */
-		val = readl_relaxed(RK_GRF_VIRT + GRF_ACODEC_CON);
-		writel_relaxed(0x1f0013, RK_GRF_VIRT + GRF_ACODEC_CON);
-		val = readl_relaxed(RK_GRF_VIRT + GRF_ACODEC_CON);
+		regmap_read(rk312x_priv->grf, GRF_ACODEC_CON, &val);
+		regmap_write(rk312x_priv->grf, GRF_ACODEC_CON, 0x1f0013);
+		regmap_read(rk312x_priv->grf, GRF_ACODEC_CON, &val);
 		DBG("disable codec_hp_det GRF_ACODEC_CON is 0x%x\n", val);
 		cancel_delayed_work_sync(&rk312x_priv->hpdet_work);
 	}
 
-	if (rk312x_priv->spk_ctl_gpio != INVALID_GPIO)
-		gpio_set_value(rk312x_priv->spk_ctl_gpio, !rk312x_priv->spk_active_level);
+	if (rk312x_priv->spk_ctl_gpio)
+		gpiod_set_value(rk312x_priv->spk_ctl_gpio, 0);
 
-	if (rk312x_priv->hp_ctl_gpio != INVALID_GPIO)
-		gpio_set_value(rk312x_priv->hp_ctl_gpio, !rk312x_priv->hp_active_level);
+	if (rk312x_priv->hp_ctl_gpio)
+		gpiod_set_value(rk312x_priv->hp_ctl_gpio, 0);
 
 	mdelay(10);
 
@@ -2647,27 +2493,24 @@ void rk312x_platform_shutdown(struct platform_device *pdev)
 					RK312x_CODEC_WORK_NULL;
 	}
 
-	writel(0xfc, rk312x_priv->regbase+RK312x_RESET);
+	regmap_write(rk312x_priv->regmap, RK312x_RESET, 0xfc);
 	mdelay(10);
-	writel(0x03, rk312x_priv->regbase+RK312x_RESET);
+	regmap_write(rk312x_priv->regmap, RK312x_RESET, 0x03);
 
-	/* if (rk312x_priv) */
-	/* kfree(rk312x_priv); */
 }
 
 #ifdef CONFIG_OF
-static const struct of_device_id rk3126_codec_of_match[] = {
-	{ .compatible = "rk312x-codec" },
+static const struct of_device_id rk312x_codec_of_match[] = {
+	{ .compatible = "rockchip,rk3128-codec" },
 	{},
 };
-MODULE_DEVICE_TABLE(of, rk3126_codec_of_match);
+MODULE_DEVICE_TABLE(of, rk312x_codec_of_match);
 #endif
 
 static struct platform_driver rk312x_codec_driver = {
 	.driver = {
 		   .name = "rk312x-codec",
-		   .owner = THIS_MODULE,
-		   .of_match_table = of_match_ptr(rk3126_codec_of_match),
+		   .of_match_table = of_match_ptr(rk312x_codec_of_match),
 		   },
 	.probe = rk312x_platform_probe,
 	.remove = rk312x_platform_remove,

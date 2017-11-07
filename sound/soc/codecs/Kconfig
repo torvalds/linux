@@ -564,6 +564,10 @@ config SND_SOC_RK1000
 	tristate "Rockchip RK1000 CODEC"
 	depends on MFD_RK1000
 
+config SND_SOC_RK312X
+	select REGMAP_MMIO
+	tristate "Rockchip RK312X CODEC"
+
 config SND_SOC_RK3328
 	select REGMAP_MMIO
 	tristate "Rockchip RK3328 CODEC"
