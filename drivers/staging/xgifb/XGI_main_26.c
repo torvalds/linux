@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * XG20, XG21, XG40, XG42 frame buffer device
  * for Linux kernels  2.5.x, 2.6.x
