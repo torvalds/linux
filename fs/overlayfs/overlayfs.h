@@ -202,7 +202,7 @@ void ovl_drop_write(struct dentry *dentry);
 struct dentry *ovl_workdir(struct dentry *dentry);
 const struct cred *ovl_override_creds(struct super_block *sb);
 struct super_block *ovl_same_sb(struct super_block *sb);
-bool ovl_can_decode_fh(struct super_block *sb);
+int ovl_can_decode_fh(struct super_block *sb);
 struct dentry *ovl_indexdir(struct super_block *sb);
 bool ovl_index_all(struct super_block *sb);
 bool ovl_verify_lower(struct super_block *sb);
@@ -262,6 +262,13 @@ int ovl_lock_rename_workdir(struct dentry *workdir, struct dentry *upperdir);
 static inline bool ovl_is_impuredir(struct dentry *dentry)
 {
 	return ovl_check_dir_xattr(dentry, OVL_XATTR_IMPURE);
+}
+
+static inline unsigned int ovl_xino_bits(struct super_block *sb)
+{
+	struct ovl_fs *ofs = sb->s_fs_info;
+
+	return ofs->xino_bits;
 }
 
 

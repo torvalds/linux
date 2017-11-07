@@ -55,10 +55,21 @@ struct super_block *ovl_same_sb(struct super_block *sb)
 		return NULL;
 }
 
-bool ovl_can_decode_fh(struct super_block *sb)
+/*
+ * Check if underlying fs supports file handles and try to determine encoding
+ * type, in order to deduce maximum inode number used by fs.
+ *
+ * Return 0 if file handles are not supported.
+ * Return 1 (FILEID_INO32_GEN) if fs uses the default 32bit inode encoding.
+ * Return -1 if fs uses a non default encoding with unknown inode size.
+ */
+int ovl_can_decode_fh(struct super_block *sb)
 {
-	return (sb->s_export_op && sb->s_export_op->fh_to_dentry &&
-		!uuid_is_null(&sb->s_uuid));
+	if (!sb->s_export_op || !sb->s_export_op->fh_to_dentry ||
+	    uuid_is_null(&sb->s_uuid))
+		return 0;
+
+	return sb->s_export_op->encode_fh ? -1 : FILEID_INO32_GEN;
 }
 
 struct dentry *ovl_indexdir(struct super_block *sb)

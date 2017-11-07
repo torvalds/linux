@@ -63,6 +63,8 @@ struct ovl_fs {
 	/* Did we take the inuse lock? */
 	bool upperdir_locked;
 	bool workdir_locked;
+	/* Inode numbers in all layers do not use the high xino_bits */
+	unsigned int xino_bits;
 };
 
 /* private information held for every overlayfs dentry */
