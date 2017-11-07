@@ -233,6 +233,28 @@ static SOC_ENUM_SINGLE_DECL(
 static const struct snd_kcontrol_new digital_ch1_mux =
 	SOC_DAPM_ENUM("Digital CH1 Select", digital_ch1_enum);
 
+static int adc_power_control(struct snd_soc_dapm_widget *w,
+		struct snd_kcontrol *k, int  event)
+{
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
+	struct nau8540 *nau8540 = snd_soc_codec_get_drvdata(codec);
+
+	if (SND_SOC_DAPM_EVENT_ON(event)) {
+		msleep(300);
+		/* DO12 and DO34 pad output enable */
+		regmap_update_bits(nau8540->regmap, NAU8540_REG_PCM_CTRL1,
+			NAU8540_I2S_DO12_TRI, 0);
+		regmap_update_bits(nau8540->regmap, NAU8540_REG_PCM_CTRL2,
+			NAU8540_I2S_DO34_TRI, 0);
+	} else if (SND_SOC_DAPM_EVENT_OFF(event)) {
+		regmap_update_bits(nau8540->regmap, NAU8540_REG_PCM_CTRL1,
+			NAU8540_I2S_DO12_TRI, NAU8540_I2S_DO12_TRI);
+		regmap_update_bits(nau8540->regmap, NAU8540_REG_PCM_CTRL2,
+			NAU8540_I2S_DO34_TRI, NAU8540_I2S_DO34_TRI);
+	}
+	return 0;
+}
+
 static int aiftx_power_control(struct snd_soc_dapm_widget *w,
 		struct snd_kcontrol *k, int  event)
 {
@@ -260,14 +282,18 @@ static const struct snd_soc_dapm_widget nau8540_dapm_widgets[] = {
 	SND_SOC_DAPM_PGA("Frontend PGA3", NAU8540_REG_PWR, 14, 0, NULL, 0),
 	SND_SOC_DAPM_PGA("Frontend PGA4", NAU8540_REG_PWR, 15, 0, NULL, 0),
 
-	SND_SOC_DAPM_ADC("ADC1", NULL,
-		NAU8540_REG_POWER_MANAGEMENT, 0, 0),
-	SND_SOC_DAPM_ADC("ADC2", NULL,
-		NAU8540_REG_POWER_MANAGEMENT, 1, 0),
-	SND_SOC_DAPM_ADC("ADC3", NULL,
-		NAU8540_REG_POWER_MANAGEMENT, 2, 0),
-	SND_SOC_DAPM_ADC("ADC4", NULL,
-		NAU8540_REG_POWER_MANAGEMENT, 3, 0),
+	SND_SOC_DAPM_ADC_E("ADC1", NULL,
+		NAU8540_REG_POWER_MANAGEMENT, 0, 0, adc_power_control,
+		SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
+	SND_SOC_DAPM_ADC_E("ADC2", NULL,
+		NAU8540_REG_POWER_MANAGEMENT, 1, 0, adc_power_control,
+		SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
+	SND_SOC_DAPM_ADC_E("ADC3", NULL,
+		NAU8540_REG_POWER_MANAGEMENT, 2, 0, adc_power_control,
+		SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
+	SND_SOC_DAPM_ADC_E("ADC4", NULL,
+		NAU8540_REG_POWER_MANAGEMENT, 3, 0, adc_power_control,
+		SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 
 	SND_SOC_DAPM_PGA("ADC CH1", NAU8540_REG_ANALOG_PWR, 0, 0, NULL, 0),
 	SND_SOC_DAPM_PGA("ADC CH2", NAU8540_REG_ANALOG_PWR, 1, 0, NULL, 0),
@@ -737,6 +763,11 @@ static void nau8540_init_regs(struct nau8540 *nau8540)
 	regmap_update_bits(regmap, NAU8540_REG_FEPGA2,
 		NAU8540_FEPGA2_MODCH4_SHT | NAU8540_FEPGA2_MODCH3_SHT,
 		NAU8540_FEPGA2_MODCH4_SHT | NAU8540_FEPGA2_MODCH3_SHT);
+	/* DO12 and DO34 pad output disable */
+	regmap_update_bits(regmap, NAU8540_REG_PCM_CTRL1,
+		NAU8540_I2S_DO12_TRI, NAU8540_I2S_DO12_TRI);
+	regmap_update_bits(regmap, NAU8540_REG_PCM_CTRL2,
+		NAU8540_I2S_DO34_TRI, NAU8540_I2S_DO34_TRI);
 }
 
 static int __maybe_unused nau8540_suspend(struct snd_soc_codec *codec)
