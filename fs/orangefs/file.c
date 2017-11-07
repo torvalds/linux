@@ -383,9 +383,15 @@ out:
 		if (type == ORANGEFS_IO_READ) {
 			file_accessed(file);
 		} else {
-			SetMtimeFlag(orangefs_inode);
-			inode->i_mtime = current_time(inode);
-			mark_inode_dirty_sync(inode);
+			file_update_time(file);
+			/*
+			 * Must invalidate to ensure write loop doesn't
+			 * prevent kernel from reading updated
+			 * attribute.  Size probably changed because of
+			 * the write, and other clients could update
+			 * any other attribute.
+			 */
+			orangefs_inode->getattr_time = jiffies - 1;
 		}
 	}
 
@@ -615,8 +621,6 @@ static int orangefs_file_release(struct inode *inode, struct file *file)
 		     "orangefs_file_release: called on %pD\n",
 		     file);
 
-	orangefs_flush_inode(inode);
-
 	/*
 	 * remove all associated inode pages from the page cache and
 	 * readahead cache (if any); this forces an expensive refresh of
@@ -666,8 +670,6 @@ static int orangefs_fsync(struct file *file,
 		     ret);
 
 	op_release(new_op);
-
-	orangefs_flush_inode(file_inode(file));
 	return ret;
 }
 
