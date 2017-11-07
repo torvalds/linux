@@ -204,7 +204,7 @@ static int kthread(void *_create)
 	struct kthread *self;
 	int ret;
 
-	self = kmalloc(sizeof(*self), GFP_KERNEL);
+	self = kzalloc(sizeof(*self), GFP_KERNEL);
 	set_kthread_struct(self);
 
 	/* If user was SIGKILLed, I release the structure. */
@@ -220,13 +220,9 @@ static int kthread(void *_create)
 		do_exit(-ENOMEM);
 	}
 
-	self->flags = 0;
 	self->data = data;
 	init_completion(&self->exited);
 	init_completion(&self->parked);
-#ifdef CONFIG_BLK_CGROUP
-	self->blkcg_css = NULL;
-#endif
 	current->vfork_done = &self->exited;
 
 	/* OK, tell user we're spawned, wait for stop or wakeup */
