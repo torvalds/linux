@@ -233,6 +233,19 @@ static SOC_ENUM_SINGLE_DECL(
 static const struct snd_kcontrol_new digital_ch1_mux =
 	SOC_DAPM_ENUM("Digital CH1 Select", digital_ch1_enum);
 
+static int aiftx_power_control(struct snd_soc_dapm_widget *w,
+		struct snd_kcontrol *k, int  event)
+{
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
+	struct nau8540 *nau8540 = snd_soc_codec_get_drvdata(codec);
+
+	if (SND_SOC_DAPM_EVENT_OFF(event)) {
+		regmap_write(nau8540->regmap, NAU8540_REG_RST, 0x0001);
+		regmap_write(nau8540->regmap, NAU8540_REG_RST, 0x0000);
+	}
+	return 0;
+}
+
 static const struct snd_soc_dapm_widget nau8540_dapm_widgets[] = {
 	SND_SOC_DAPM_SUPPLY("MICBIAS2", NAU8540_REG_MIC_BIAS, 11, 0, NULL, 0),
 	SND_SOC_DAPM_SUPPLY("MICBIAS1", NAU8540_REG_MIC_BIAS, 10, 0, NULL, 0),
@@ -270,7 +283,8 @@ static const struct snd_soc_dapm_widget nau8540_dapm_widgets[] = {
 	SND_SOC_DAPM_MUX("Digital CH1 Mux",
 		SND_SOC_NOPM, 0, 0, &digital_ch1_mux),
 
-	SND_SOC_DAPM_AIF_OUT("AIFTX", "Capture", 0, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT_E("AIFTX", "Capture", 0, SND_SOC_NOPM, 0, 0,
+		aiftx_power_control, SND_SOC_DAPM_POST_PMD),
 };
 
 static const struct snd_soc_dapm_route nau8540_dapm_routes[] = {
@@ -710,9 +724,12 @@ static void nau8540_init_regs(struct nau8540 *nau8540)
 	regmap_update_bits(regmap, NAU8540_REG_CLOCK_CTRL,
 		NAU8540_CLK_ADC_EN | NAU8540_CLK_I2S_EN,
 		NAU8540_CLK_ADC_EN | NAU8540_CLK_I2S_EN);
-	/* ADC OSR selection, CLK_ADC = Fs * OSR */
+	/* ADC OSR selection, CLK_ADC = Fs * OSR;
+	 * Channel time alignment enable.
+	 */
 	regmap_update_bits(regmap, NAU8540_REG_ADC_SAMPLE_RATE,
-		NAU8540_ADC_OSR_MASK, NAU8540_ADC_OSR_64);
+		NAU8540_CH_SYNC | NAU8540_ADC_OSR_MASK,
+		NAU8540_CH_SYNC | NAU8540_ADC_OSR_64);
 }
 
 static int __maybe_unused nau8540_suspend(struct snd_soc_codec *codec)

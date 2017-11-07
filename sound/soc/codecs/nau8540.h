@@ -165,6 +165,7 @@
 #define NAU8540_TDM_TX_MASK		0xf
 
 /* ADC_SAMPLE_RATE (0x3A) */
+#define NAU8540_CH_SYNC		(0x1 << 14)
 #define NAU8540_ADC_OSR_MASK		0x3
 #define NAU8540_ADC_OSR_256		0x3
 #define NAU8540_ADC_OSR_128		0x2
