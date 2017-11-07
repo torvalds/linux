@@ -230,7 +230,6 @@ static int hdlcd_show_pxlclock(struct seq_file *m, void *arg)
 static struct drm_info_list hdlcd_debugfs_list[] = {
 	{ "interrupt_count", hdlcd_show_underrun_count, 0 },
 	{ "clocks", hdlcd_show_pxlclock, 0 },
-	{ "fb", drm_fb_cma_debugfs_show, 0 },
 };
 
 static int hdlcd_debugfs_init(struct drm_minor *minor)
@@ -252,6 +251,7 @@ static struct drm_driver hdlcd_driver = {
 	.irq_postinstall = hdlcd_irq_postinstall,
 	.irq_uninstall = hdlcd_irq_uninstall,
 	.gem_free_object_unlocked = drm_gem_cma_free_object,
+	.gem_print_info = drm_gem_cma_print_info,
 	.gem_vm_ops = &drm_gem_cma_vm_ops,
 	.dumb_create = drm_gem_cma_dumb_create,
 	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
