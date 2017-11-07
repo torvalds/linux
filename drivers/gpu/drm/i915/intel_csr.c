@@ -198,6 +198,7 @@ intel_get_stepping_info(struct drm_i915_private *dev_priv)
 		si = bxt_stepping_info;
 	} else {
 		size = 0;
+		si = NULL;
 	}
 
 	if (INTEL_REVID(dev_priv) < size)
