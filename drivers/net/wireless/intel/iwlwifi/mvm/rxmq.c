@@ -283,6 +283,10 @@ static int iwl_mvm_rx_crypto(struct iwl_mvm *mvm, struct ieee80211_hdr *hdr,
 		    !(status & IWL_RX_MPDU_RES_STATUS_TTAK_OK))
 			return 0;
 
+		if (mvm->trans->cfg->gen2 &&
+		    !(status & RX_MPDU_RES_STATUS_MIC_OK))
+			stats->flag |= RX_FLAG_MMIC_ERROR;
+
 		*crypt_len = IEEE80211_TKIP_IV_LEN;
 		/* fall through if TTAK OK */
 	case IWL_RX_MPDU_STATUS_SEC_WEP:
@@ -294,8 +298,11 @@ static int iwl_mvm_rx_crypto(struct iwl_mvm *mvm, struct ieee80211_hdr *hdr,
 				IWL_RX_MPDU_STATUS_SEC_WEP)
 			*crypt_len = IEEE80211_WEP_IV_LEN;
 
-		if (pkt_flags & FH_RSCSR_RADA_EN)
+		if (pkt_flags & FH_RSCSR_RADA_EN) {
 			stats->flag |= RX_FLAG_ICV_STRIPPED;
+			if (mvm->trans->cfg->gen2)
+				stats->flag |= RX_FLAG_MMIC_STRIPPED;
+		}
 
 		return 0;
 	case IWL_RX_MPDU_STATUS_SEC_EXT_ENC:
