@@ -1747,6 +1747,18 @@ static void nvme_init_subnqn(struct nvme_ctrl *ctrl, struct nvme_id_ctrl *id)
 	memset(ctrl->subnqn + off, 0, sizeof(ctrl->subnqn) - off);
 }
 
+static int nvme_get_log(struct nvme_ctrl *ctrl, u8 log_page, void *log,
+			size_t size)
+{
+	struct nvme_command c = { };
+
+	c.common.opcode = nvme_admin_get_log_page;
+	c.common.nsid = cpu_to_le32(NVME_NSID_ALL);
+	c.common.cdw10[0] = nvme_get_log_dw10(log_page, size);
+
+	return nvme_submit_sync_cmd(ctrl->admin_q, &c, log, size);
+}
+
 /*
  * Initialize the cached copies of the Identify data and various controller
  * register in our nvme_ctrl structure.  This should be called as soon as
@@ -2579,18 +2591,13 @@ static bool nvme_ctrl_pp_status(struct nvme_ctrl *ctrl)
 
 static void nvme_get_fw_slot_info(struct nvme_ctrl *ctrl)
 {
-	struct nvme_command c = { };
 	struct nvme_fw_slot_info_log *log;
 
 	log = kmalloc(sizeof(*log), GFP_KERNEL);
 	if (!log)
 		return;
 
-	c.common.opcode = nvme_admin_get_log_page;
-	c.common.nsid = cpu_to_le32(NVME_NSID_ALL);
-	c.common.cdw10[0] = nvme_get_log_dw10(NVME_LOG_FW_SLOT, sizeof(*log));
-
-	if (!nvme_submit_sync_cmd(ctrl->admin_q, &c, log, sizeof(*log)))
+	if (nvme_get_log(ctrl, NVME_LOG_FW_SLOT, log, sizeof(*log)))
 		dev_warn(ctrl->device,
 				"Get FW SLOT INFO log error\n");
 	kfree(log);
