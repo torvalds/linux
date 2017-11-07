@@ -1159,6 +1159,9 @@ static int igt_ppgtt_exhaust_huge(void *arg)
 	int n, i;
 	int err = -ENODEV;
 
+	if (supported == I915_GTT_PAGE_SIZE_4K)
+		return 0;
+
 	/*
 	 * Sanity check creating objects with a varying mix of page sizes --
 	 * ensuring that our writes lands in the right place.
