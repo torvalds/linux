@@ -30,9 +30,10 @@ static int tcf_vlan(struct sk_buff *skb, const struct tc_action *a,
 	int err;
 	u16 tci;
 
-	spin_lock(&v->tcf_lock);
 	tcf_lastuse_update(&v->tcf_tm);
-	bstats_update(&v->tcf_bstats, skb);
+	bstats_cpu_update(this_cpu_ptr(v->common.cpu_bstats), skb);
+
+	spin_lock(&v->tcf_lock);
 	action = v->tcf_action;
 
 	/* Ensure 'data' points at mac_header prior calling vlan manipulating
@@ -85,7 +86,8 @@ static int tcf_vlan(struct sk_buff *skb, const struct tc_action *a,
 
 drop:
 	action = TC_ACT_SHOT;
-	v->tcf_qstats.drops++;
+	qstats_drop_inc(this_cpu_ptr(v->common.cpu_qstats));
+
 unlock:
 	if (skb_at_tc_ingress(skb))
 		skb_pull_rcsum(skb, skb->mac_len);
@@ -172,7 +174,7 @@ static int tcf_vlan_init(struct net *net, struct nlattr *nla,
 
 	if (!exists) {
 		ret = tcf_idr_create(tn, parm->index, est, a,
-				     &act_vlan_ops, bind, false);
+				     &act_vlan_ops, bind, true);
 		if (ret)
 			return ret;
 
