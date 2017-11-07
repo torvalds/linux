@@ -555,7 +555,7 @@ static void reset_back_end_for_pipe(
 					pipe_ctx->pipe_idx, pipe_ctx->stream_res.tg->inst);
 }
 
-void dcn10_verify_allow_pstate_change_high(struct dc *dc)
+static void dcn10_verify_allow_pstate_change_high(struct dc *dc)
 {
 	static bool should_log_hw_state; /* prevent hw state log by default */
 
@@ -1331,7 +1331,7 @@ static void dcn10_enable_per_frame_crtc_position_reset(
 	DC_SYNC_INFO("Multi-display sync is complete\n");
 }
 
-static void print_rq_dlg_ttu(
+/*static void print_rq_dlg_ttu(
 		struct dc *core_dc,
 		struct pipe_ctx *pipe_ctx)
 {
@@ -1452,13 +1452,13 @@ static void print_rq_dlg_ttu(
 			pipe_ctx->rq_regs.rq_regs_l.pte_row_height_linear
 			);
 }
+*/
 
 static void dcn10_enable_plane(
 	struct dc *dc,
 	struct pipe_ctx *pipe_ctx,
 	struct dc_state *context)
 {
-	struct dc_plane_state *plane_state = pipe_ctx->plane_state;
 	struct dce_hwseq *hws = dc->hwseq;
 
 	if (dc->debug.sanity_checks) {
@@ -1479,6 +1479,7 @@ static void dcn10_enable_plane(
 			OPP_PIPE_CLOCK_EN, 1);
 	/*TODO: REG_UPDATE(DENTIST_DISPCLK_CNTL, DENTIST_DPPCLK_WDIVIDER, 0x1f);*/
 
+/* TODO: enable/disable in dm as per update type.
 	if (plane_state) {
 		dm_logger_write(dc->ctx->logger, LOG_DC,
 				"Pipe:%d 0x%x: addr hi:0x%x, "
@@ -1514,6 +1515,7 @@ static void dcn10_enable_plane(
 				pipe_ctx->plane_res.scl_data.recout.y);
 		print_rq_dlg_ttu(dc, pipe_ctx);
 	}
+*/
 
 	if (dc->debug.sanity_checks) {
 		dcn10_verify_allow_pstate_change_high(dc);
@@ -1947,15 +1949,7 @@ static void program_all_pipe_in_tree(
 		struct pipe_ctx *pipe_ctx,
 		struct dc_state *context)
 {
-	unsigned int ref_clk_mhz = dc->res_pool->ref_clock_inKhz/1000;
-
 	if (pipe_ctx->top_pipe == NULL) {
-
-		/* lock otg_master_update to process all pipes associated with
-		 * this OTG. this is done only one time.
-		 */
-		/* watermark is for all pipes */
-		hubbub1_program_watermarks(dc->res_pool->hubbub, &context->bw.dcn.watermarks, ref_clk_mhz);
 
 		if (dc->debug.sanity_checks) {
 			/* pstate stuck check after watermark update */
@@ -1978,17 +1972,6 @@ static void program_all_pipe_in_tree(
 				&dc->current_state->res_ctx.pipe_ctx[pipe_ctx->pipe_idx];
 
 		dcn10_enable_plane(dc, pipe_ctx, context);
-
-		/* temporary dcn1 wa:
-		 *   watermark update requires toggle after a/b/c/d sets are programmed
-		 *   if hubp is pg then wm value doesn't get properaged to hubp
-		 *   need to toggle after ungate to ensure wm gets to hubp.
-		 *
-		 * final solution:  we need to get SMU to do the toggle as
-		 * DCHUBBUB_ARB_WATERMARK_CHANGE_REQUEST is owned by SMU we should have
-		 * both driver and fw accessing same register
-		 */
-		hubbub1_toggle_watermark_change_req(dc->res_pool->hubbub);
 
 		update_dchubp_dpp(dc, pipe_ctx, context);
 
@@ -2101,6 +2084,7 @@ static void dcn10_apply_ctx_for_surface(
 	int i;
 	struct timing_generator *tg;
 	bool removed_pipe[4] = { false };
+	unsigned int ref_clk_mhz = dc->res_pool->ref_clock_inKhz/1000;
 
 	struct pipe_ctx *top_pipe_to_program =
 			find_top_pipe_for_stream(dc, context, stream);
@@ -2163,13 +2147,25 @@ static void dcn10_apply_ctx_for_surface(
 
 	tg->funcs->unlock(tg);
 
-
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *old_pipe_ctx =
 				&dc->current_state->res_ctx.pipe_ctx[i];
 
 		if (removed_pipe[i] && num_planes == 0)
 			dcn10_disable_plane(dc, old_pipe_ctx);
+	}
+
+	if (dc->debug.sanity_checks) {
+		/* pstate stuck check after watermark update */
+		dcn10_verify_allow_pstate_change_high(dc);
+	}
+	/* watermark is for all pipes */
+	hubbub1_program_watermarks(dc->res_pool->hubbub,
+			&context->bw.dcn.watermarks, ref_clk_mhz);
+
+	if (dc->debug.sanity_checks) {
+		/* pstate stuck check after watermark update */
+		dcn10_verify_allow_pstate_change_high(dc);
 	}
 
 	dm_logger_write(dc->ctx->logger, LOG_BANDWIDTH_CALCS,

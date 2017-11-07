@@ -1353,7 +1353,7 @@ static void commit_planes_for_stream(struct dc *dc,
 	for (j = 0; j < dc->res_pool->pipe_count; j++) {
 		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[j];
 
-		if (update_type != UPDATE_TYPE_FULL || !pipe_ctx->plane_state)
+		if (update_type == UPDATE_TYPE_FAST || !pipe_ctx->plane_state)
 			continue;
 
 		if (!pipe_ctx->top_pipe &&
@@ -1374,26 +1374,20 @@ static void commit_planes_for_stream(struct dc *dc,
 	for (i = 0; i < surface_count; i++) {
 		struct dc_plane_state *plane_state = srf_updates[i].surface;
 
-		if (update_type == UPDATE_TYPE_MED)
-			dc->hwss.apply_ctx_for_surface(
-					dc, stream, surface_count, context);
-
 		for (j = 0; j < dc->res_pool->pipe_count; j++) {
 			struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[j];
+
+			if (pipe_ctx->stream != stream)
+				continue;
 
 			if (pipe_ctx->plane_state != plane_state)
 				continue;
 
-			if (srf_updates[i].flip_addr)
-				dc->hwss.update_plane_addr(dc, pipe_ctx);
-
-			if (update_type == UPDATE_TYPE_FAST)
+			if (update_type == UPDATE_TYPE_FAST) {
+				if (srf_updates[i].flip_addr)
+					dc->hwss.update_plane_addr(dc, pipe_ctx);
 				continue;
-
-			/* work around to program degamma regs for split pipe after set mode. */
-			if (srf_updates[i].in_transfer_func ||
-			    (pipe_ctx->top_pipe && pipe_ctx->top_pipe->plane_state == pipe_ctx->plane_state))
-				dc->hwss.set_input_transfer_func(pipe_ctx, pipe_ctx->plane_state);
+			}
 		}
 	}
 
