@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * dim2_reg.h - Definitions for registers of DIM2
  * (MediaLB, Device Interface Macro IP, OS62420)

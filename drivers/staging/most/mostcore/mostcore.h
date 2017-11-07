@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * mostcore.h - Interface between MostCore,
  *   Hardware Dependent Module (HDM) and Application Interface Module (AIM).

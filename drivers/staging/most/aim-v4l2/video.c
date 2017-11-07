@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * V4L2 AIM - V4L2 Application Interface Module for MostCore
  *

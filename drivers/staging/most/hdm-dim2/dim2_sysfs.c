@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * dim2_sysfs.c - MediaLB sysfs information
  *

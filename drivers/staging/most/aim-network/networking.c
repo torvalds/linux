@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Networking AIM - Networking Application Interface Module for MostCore
  *

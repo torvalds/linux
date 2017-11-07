@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * core.c - Implementation of core module of MOST Linux driver stack
  *
