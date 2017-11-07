@@ -2779,7 +2779,7 @@ EXPORT_SYMBOL_GPL(nvme_complete_async_event);
 
 void nvme_queue_async_events(struct nvme_ctrl *ctrl)
 {
-	ctrl->event_limit = NVME_NR_AERS;
+	ctrl->event_limit = NVME_NR_AEN_COMMANDS;
 	queue_work(nvme_wq, &ctrl->async_event_work);
 }
 EXPORT_SYMBOL_GPL(nvme_queue_async_events);

@@ -313,7 +313,6 @@ void nvme_remove_namespaces(struct nvme_ctrl *ctrl);
 int nvme_sec_submit(void *data, u16 spsp, u8 secp, void *buffer, size_t len,
 		bool send);
 
-#define NVME_NR_AERS	1
 void nvme_complete_async_event(struct nvme_ctrl *ctrl, __le16 status,
 		union nvme_result *res);
 void nvme_queue_async_events(struct nvme_ctrl *ctrl);
