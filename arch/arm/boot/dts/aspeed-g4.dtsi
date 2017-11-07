@@ -225,6 +225,41 @@
 				status = "disabled";
 			};
 
+			lpc: lpc@1e789000 {
+				compatible = "aspeed,ast2400-lpc", "simple-mfd";
+				reg = <0x1e789000 0x1000>;
+
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0x0 0x1e789000 0x1000>;
+
+				lpc_bmc: lpc-bmc@0 {
+					compatible = "aspeed,ast2400-lpc-bmc";
+					reg = <0x0 0x80>;
+				};
+
+				lpc_host: lpc-host@80 {
+					compatible = "aspeed,ast2400-lpc-host", "simple-mfd", "syscon";
+					reg = <0x80 0x1e0>;
+					reg-io-width = <4>;
+
+					#address-cells = <1>;
+					#size-cells = <1>;
+					ranges = <0x0 0x80 0x1e0>;
+
+					lpc_ctrl: lpc-ctrl@0 {
+						compatible = "aspeed,ast2400-lpc-ctrl";
+						reg = <0x0 0x80>;
+						status = "disabled";
+					};
+
+					lhc: lhc@20 {
+						compatible = "aspeed,ast2400-lhc";
+						reg = <0x20 0x24 0x48 0x8>;
+					};
+				};
+			};
+
 			uart2: serial@1e78d000 {
 				compatible = "ns16550a";
 				reg = <0x1e78d000 0x20>;

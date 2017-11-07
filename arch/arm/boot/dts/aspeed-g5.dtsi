@@ -265,6 +265,16 @@
 				status = "disabled";
 			};
 
+			vuart: serial@1e787000 {
+				compatible = "aspeed,ast2500-vuart";
+				reg = <0x1e787000 0x40>;
+				reg-shift = <2>;
+				interrupts = <10>;
+				clocks = <&clk_uart>;
+				no-loopback-test;
+				status = "disabled";
+			};
+
 			lpc: lpc@1e789000 {
 				compatible = "aspeed,ast2500-lpc", "simple-mfd";
 				reg = <0x1e789000 0x1000>;
@@ -288,21 +298,18 @@
 
 					reg-io-width = <4>;
 
+					lpc_ctrl: lpc-ctrl@0 {
+						compatible = "aspeed,ast2500-lpc-ctrl";
+						reg = <0x0 0x80>;
+						status = "disabled";
+					};
+
+
 					lhc: lhc@20 {
 						compatible = "aspeed,ast2500-lhc";
 						reg = <0x20 0x24 0x48 0x8>;
 					};
 				};
-			};
-
-			vuart: serial@1e787000 {
-				compatible = "aspeed,ast2500-vuart";
-				reg = <0x1e787000 0x40>;
-				reg-shift = <2>;
-				interrupts = <10>;
-				clocks = <&clk_uart>;
-				no-loopback-test;
-				status = "disabled";
 			};
 
 			uart2: serial@1e78d000 {
