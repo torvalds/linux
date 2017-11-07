@@ -318,7 +318,7 @@ static ssize_t tc_aux_transfer(struct drm_dp_aux *aux,
 				tmp = (tmp << 8) | buf[i];
 			i++;
 			if (((i % 4) == 0) || (i == size)) {
-				tc_write(DP0_AUXWDATA(i >> 2), tmp);
+				tc_write(DP0_AUXWDATA((i - 1) >> 2), tmp);
 				tmp = 0;
 			}
 		}
