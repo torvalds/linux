@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __LINUX_MROUTE_H
 #define __LINUX_MROUTE_H
 

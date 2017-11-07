@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # Makefile for local APIC drivers and for the IO-APIC code
 #

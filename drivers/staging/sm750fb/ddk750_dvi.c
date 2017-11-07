@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #define USE_DVICHIP
 #ifdef USE_DVICHIP
 #include "ddk750_chip.h"

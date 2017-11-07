@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 
 #include <asm/cache.h>
 #include <asm/ptrace.h>

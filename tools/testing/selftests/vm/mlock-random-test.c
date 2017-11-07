@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * It tests the mlock/mlock2() when they are invoked
  * on randomly memory region.

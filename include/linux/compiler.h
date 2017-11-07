@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __LINUX_COMPILER_H
 #define __LINUX_COMPILER_H
 
@@ -190,13 +191,13 @@ void ftrace_likely_update(struct ftrace_likely_data *f, int val,
 	asm("%c0:\n\t"							\
 	    ".pushsection .discard.reachable\n\t"			\
 	    ".long %c0b - .\n\t"					\
-	    ".popsection\n\t" : : "i" (__LINE__));			\
+	    ".popsection\n\t" : : "i" (__COUNTER__));			\
 })
 #define annotate_unreachable() ({					\
 	asm("%c0:\n\t"							\
 	    ".pushsection .discard.unreachable\n\t"			\
 	    ".long %c0b - .\n\t"					\
-	    ".popsection\n\t" : : "i" (__LINE__));			\
+	    ".popsection\n\t" : : "i" (__COUNTER__));			\
 })
 #define ASM_UNREACHABLE							\
 	"999:\n\t"							\

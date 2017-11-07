@@ -40,6 +40,8 @@ struct aq_nic_cfg_s {
 	u32 vecs;		/* vecs==allocated irqs */
 	u32 irq_type;
 	u32 itr;
+	u16 rx_itr;
+	u16 tx_itr;
 	u32 num_rss_queues;
 	u32 mtu;
 	u32 ucp_0x364;
@@ -49,7 +51,6 @@ struct aq_nic_cfg_s {
 	u16 is_mc_list_enabled;
 	u16 mc_list_count;
 	bool is_autoneg;
-	bool is_interrupt_moderation;
 	bool is_polling;
 	bool is_rss;
 	bool is_lro;
@@ -104,5 +105,6 @@ int aq_nic_set_link_ksettings(struct aq_nic_s *self,
 struct aq_nic_cfg_s *aq_nic_get_cfg(struct aq_nic_s *self);
 u32 aq_nic_get_fw_version(struct aq_nic_s *self);
 int aq_nic_change_pm_state(struct aq_nic_s *self, pm_message_t *pm_msg);
+int aq_nic_update_interrupt_moderation_settings(struct aq_nic_s *self);
 
 #endif /* AQ_NIC_H */

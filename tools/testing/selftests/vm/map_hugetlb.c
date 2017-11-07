@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Example of using hugepage memory in a user application using the mmap
  * system call with MAP_HUGETLB flag.  Before running this program make

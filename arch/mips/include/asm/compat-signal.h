@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __ASM_COMPAT_SIGNAL_H
 #define __ASM_COMPAT_SIGNAL_H
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* $Date: 2005/11/12 02:13:49 $ $RCSfile: my3126.c,v $ $Revision: 1.15 $ */
 #include "cphy.h"
 #include "elmer0.h"

@@ -42,10 +42,6 @@ static void aperfmperf_snapshot_khz(void *dummy)
 	s64 time_delta = ktime_ms_delta(now, s->time);
 	unsigned long flags;
 
-	/* Don't bother re-computing within the cache threshold time. */
-	if (time_delta < APERFMPERF_CACHE_THRESHOLD_MS)
-		return;
-
 	local_irq_save(flags);
 	rdmsrl(MSR_IA32_APERF, aperf);
 	rdmsrl(MSR_IA32_MPERF, mperf);
@@ -74,6 +70,7 @@ static void aperfmperf_snapshot_khz(void *dummy)
 
 unsigned int arch_freq_get_on_cpu(int cpu)
 {
+	s64 time_delta;
 	unsigned int khz;
 
 	if (!cpu_khz)
@@ -81,6 +78,12 @@ unsigned int arch_freq_get_on_cpu(int cpu)
 
 	if (!static_cpu_has(X86_FEATURE_APERFMPERF))
 		return 0;
+
+	/* Don't bother re-computing within the cache threshold time. */
+	time_delta = ktime_ms_delta(ktime_get(), per_cpu(samples.time, cpu));
+	khz = per_cpu(samples.khz, cpu);
+	if (khz && time_delta < APERFMPERF_CACHE_THRESHOLD_MS)
+		return khz;
 
 	smp_call_function_single(cpu, aperfmperf_snapshot_khz, NULL, 1);
 	khz = per_cpu(samples.khz, cpu);

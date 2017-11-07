@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _UFS_UFS_H
 #define _UFS_UFS_H 1
 

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _PXA_DMA_H_
 #define _PXA_DMA_H_
 

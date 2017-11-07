@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 source "arch/powerpc/platforms/Kconfig.cputype"
 
 config PPC32

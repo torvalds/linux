@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* 64-bit atomic xchg() and cmpxchg() definitions.
  *
  * Copyright (C) 1996, 1997, 2000 David S. Miller (davem@redhat.com)

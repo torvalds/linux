@@ -407,10 +407,10 @@ static int mcp23s08_get(struct gpio_chip *chip, unsigned offset)
 	ret = mcp_read(mcp, MCP_GPIO, &status);
 	if (ret < 0)
 		status = 0;
-	else
+	else {
+		mcp->cached_gpio = status;
 		status = !!(status & (1 << offset));
-
-	mcp->cached_gpio = status;
+	}
 
 	mutex_unlock(&mcp->lock);
 	return status;

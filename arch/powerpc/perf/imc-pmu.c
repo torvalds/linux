@@ -399,6 +399,20 @@ static void nest_imc_counters_release(struct perf_event *event)
 
 	/* Take the mutex lock for this node and then decrement the reference count */
 	mutex_lock(&ref->lock);
+	if (ref->refc == 0) {
+		/*
+		 * The scenario where this is true is, when perf session is
+		 * started, followed by offlining of all cpus in a given node.
+		 *
+		 * In the cpuhotplug offline path, ppc_nest_imc_cpu_offline()
+		 * function set the ref->count to zero, if the cpu which is
+		 * about to offline is the last cpu in a given node and make
+		 * an OPAL call to disable the engine in that node.
+		 *
+		 */
+		mutex_unlock(&ref->lock);
+		return;
+	}
 	ref->refc--;
 	if (ref->refc == 0) {
 		rc = opal_imc_counters_stop(OPAL_IMC_COUNTERS_NEST,
@@ -523,8 +537,8 @@ static int core_imc_mem_init(int cpu, int size)
 
 	/* We need only vbase for core counters */
 	mem_info->vbase = page_address(alloc_pages_node(phys_id,
-					  GFP_KERNEL | __GFP_ZERO | __GFP_THISNODE,
-					  get_order(size)));
+					  GFP_KERNEL | __GFP_ZERO | __GFP_THISNODE |
+					  __GFP_NOWARN, get_order(size)));
 	if (!mem_info->vbase)
 		return -ENOMEM;
 
@@ -593,6 +607,20 @@ static int ppc_core_imc_cpu_offline(unsigned int cpu)
 	if (!cpumask_test_and_clear_cpu(cpu, &core_imc_cpumask))
 		return 0;
 
+	/*
+	 * Check whether core_imc is registered. We could end up here
+	 * if the cpuhotplug callback registration fails. i.e, callback
+	 * invokes the offline path for all sucessfully registered cpus.
+	 * At this stage, core_imc pmu will not be registered and we
+	 * should return here.
+	 *
+	 * We return with a zero since this is not an offline failure.
+	 * And cpuhp_setup_state() returns the actual failure reason
+	 * to the caller, which inturn will call the cleanup routine.
+	 */
+	if (!core_imc_pmu->pmu.event_init)
+		return 0;
+
 	/* Find any online cpu in that core except the current "cpu" */
 	ncpu = cpumask_any_but(cpu_sibling_mask(cpu), cpu);
 
@@ -646,6 +674,20 @@ static void core_imc_counters_release(struct perf_event *event)
 		return;
 
 	mutex_lock(&ref->lock);
+	if (ref->refc == 0) {
+		/*
+		 * The scenario where this is true is, when perf session is
+		 * started, followed by offlining of all cpus in a given core.
+		 *
+		 * In the cpuhotplug offline path, ppc_core_imc_cpu_offline()
+		 * function set the ref->count to zero, if the cpu which is
+		 * about to offline is the last cpu in a given core and make
+		 * an OPAL call to disable the engine in that core.
+		 *
+		 */
+		mutex_unlock(&ref->lock);
+		return;
+	}
 	ref->refc--;
 	if (ref->refc == 0) {
 		rc = opal_imc_counters_stop(OPAL_IMC_COUNTERS_CORE,
@@ -763,8 +805,8 @@ static int thread_imc_mem_alloc(int cpu_id, int size)
 		 * free the memory in cpu offline path.
 		 */
 		local_mem = page_address(alloc_pages_node(phys_id,
-				  GFP_KERNEL | __GFP_ZERO | __GFP_THISNODE,
-				  get_order(size)));
+				  GFP_KERNEL | __GFP_ZERO | __GFP_THISNODE |
+				  __GFP_NOWARN, get_order(size)));
 		if (!local_mem)
 			return -ENOMEM;
 
@@ -1076,7 +1118,7 @@ static int init_nest_pmu_ref(void)
 
 static void cleanup_all_core_imc_memory(void)
 {
-	int i, nr_cores = num_present_cpus() / threads_per_core;
+	int i, nr_cores = DIV_ROUND_UP(num_present_cpus(), threads_per_core);
 	struct imc_mem_info *ptr = core_imc_pmu->mem_info;
 	int size = core_imc_pmu->counter_mem_size;
 
@@ -1148,7 +1190,8 @@ static void imc_common_cpuhp_mem_free(struct imc_pmu *pmu_ptr)
 	}
 
 	/* Only free the attr_groups which are dynamically allocated  */
-	kfree(pmu_ptr->attr_groups[IMC_EVENT_ATTR]->attrs);
+	if (pmu_ptr->attr_groups[IMC_EVENT_ATTR])
+		kfree(pmu_ptr->attr_groups[IMC_EVENT_ATTR]->attrs);
 	kfree(pmu_ptr->attr_groups[IMC_EVENT_ATTR]);
 	kfree(pmu_ptr);
 	return;
@@ -1183,7 +1226,7 @@ static int imc_mem_init(struct imc_pmu *pmu_ptr, struct device_node *parent,
 		if (!pmu_ptr->pmu.name)
 			return -ENOMEM;
 
-		nr_cores = num_present_cpus() / threads_per_core;
+		nr_cores = DIV_ROUND_UP(num_present_cpus(), threads_per_core);
 		pmu_ptr->mem_info = kcalloc(nr_cores, sizeof(struct imc_mem_info),
 								GFP_KERNEL);
 

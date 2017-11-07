@@ -368,7 +368,7 @@ static void hsw_power_well_enable(struct drm_i915_private *dev_priv,
 {
 	enum i915_power_well_id id = power_well->id;
 	bool wait_fuses = power_well->hsw.has_fuses;
-	enum skl_power_gate pg;
+	enum skl_power_gate uninitialized_var(pg);
 	u32 val;
 
 	if (wait_fuses) {

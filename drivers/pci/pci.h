@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef DRIVERS_PCI_H
 #define DRIVERS_PCI_H
 

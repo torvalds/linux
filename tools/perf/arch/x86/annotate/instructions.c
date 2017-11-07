@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 static struct ins x86__instructions[] = {
 	{ .name = "add",	.ops = &mov_ops,  },
 	{ .name = "addl",	.ops = &mov_ops,  },

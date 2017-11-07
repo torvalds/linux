@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /// Return statements in functions returning bool should use
 /// true/false instead of 1/0.
 //

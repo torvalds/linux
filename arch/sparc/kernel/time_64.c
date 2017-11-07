@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* time.c: UltraSparc timer and TOD clock support.
  *
  * Copyright (C) 1997, 2008 David S. Miller (davem@davemloft.net)

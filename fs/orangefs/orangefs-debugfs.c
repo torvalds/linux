@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * What:		/sys/kernel/debug/orangefs/debug-help
  * Date:		June 2015

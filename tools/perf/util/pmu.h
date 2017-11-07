@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __PMU_H
 #define __PMU_H
 
@@ -22,6 +23,7 @@ struct perf_pmu {
 	char *name;
 	__u32 type;
 	bool selectable;
+	bool is_uncore;
 	struct perf_event_attr *default_config;
 	struct cpu_map *cpus;
 	struct list_head format;  /* HEAD struct perf_pmu_format -> list */

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /* RS-485 structures */
 
 /* Used with ioctl() TIOCSERSETRS485 for backward compatibility!

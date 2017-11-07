@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* Staging board support for KZM9D. Enable not-yet-DT-capable devices here. */
 
 #include <linux/kernel.h>
