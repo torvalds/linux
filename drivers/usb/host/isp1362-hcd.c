@@ -713,7 +713,7 @@ static inline void enable_istl_transfers(struct isp1362_hcd *isp1362_hcd, int fl
 static int submit_req(struct isp1362_hcd *isp1362_hcd, struct urb *urb,
 		      struct isp1362_ep *ep, struct isp1362_ep_queue *epq)
 {
-	int index = epq->free_ptd;
+	int index;
 
 	prepare_ptd(isp1362_hcd, urb, ep, epq, 0);
 	index = claim_ptd_buffers(epq, ep, ep->length);
@@ -2253,7 +2253,6 @@ static int isp1362_mem_config(struct usb_hcd *hcd)
 		return -ENOMEM;
 	}
 
-	total = istl_size + intl_size + atl_size;
 	spin_lock_irqsave(&isp1362_hcd->lock, flags);
 
 	for (i = 0; i < 2; i++) {
