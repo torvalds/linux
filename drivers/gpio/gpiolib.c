@@ -1656,8 +1656,8 @@ static int gpiochip_irq_map(struct irq_domain *d, unsigned int irq,
 	 * No set-up of the hardware will happen if IRQ_TYPE_NONE
 	 * is passed as default type.
 	 */
-	if (chip->irq_default_type != IRQ_TYPE_NONE)
-		irq_set_irq_type(irq, chip->irq_default_type);
+	if (chip->irq.default_type != IRQ_TYPE_NONE)
+		irq_set_irq_type(irq, chip->irq.default_type);
 
 	return 0;
 }
@@ -1821,7 +1821,7 @@ int gpiochip_irqchip_add_key(struct gpio_chip *gpiochip,
 
 	gpiochip->irq.chip = irqchip;
 	gpiochip->irq.handler = handler;
-	gpiochip->irq_default_type = type;
+	gpiochip->irq.default_type = type;
 	gpiochip->to_irq = gpiochip_to_irq;
 	gpiochip->lock_key = lock_key;
 	gpiochip->irq.domain = irq_domain_add_simple(of_node,

@@ -55,6 +55,14 @@ struct gpio_irq_chip {
 	irq_flow_handler_t handler;
 
 	/**
+	 * @default_type:
+	 *
+	 * Default IRQ triggering type applied during GPIO driver
+	 * initialization, provided by GPIO driver.
+	 */
+	unsigned int default_type;
+
+	/**
 	 * @parent_handler:
 	 *
 	 * The interrupt handler for the GPIO chip's parent interrupts, may be
@@ -140,8 +148,6 @@ static inline struct gpio_irq_chip *to_gpio_irq_chip(struct irq_chip *chip)
  *	safely.
  * @bgpio_dir: shadowed direction register for generic GPIO to clear/set
  *	direction safely.
- * @irq_default_type: default IRQ triggering type applied during GPIO driver
- *	initialization, provided by GPIO driver
  * @irq_chained_parent: GPIO IRQ chip parent/bank linux irq number,
  *	provided by GPIO driver for chained interrupt (not for nested
  *	interrupts).
@@ -220,7 +226,6 @@ struct gpio_chip {
 	 * With CONFIG_GPIOLIB_IRQCHIP we get an irqchip inside the gpiolib
 	 * to handle IRQs for most practical cases.
 	 */
-	unsigned int		irq_default_type;
 	unsigned int		irq_chained_parent;
 	bool			irq_nested;
 	bool			irq_need_valid_mask;
