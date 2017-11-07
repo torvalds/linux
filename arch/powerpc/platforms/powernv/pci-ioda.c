@@ -2797,7 +2797,7 @@ static long pnv_pci_ioda2_table_alloc_pages(int nid, __u64 bus_offset,
 	if (!levels || (levels > POWERNV_IOMMU_MAX_LEVELS))
 		return -EINVAL;
 
-	if ((window_size > memory_hotplug_max()) || !is_power_of_2(window_size))
+	if (!is_power_of_2(window_size))
 		return -EINVAL;
 
 	/* Adjust direct table size from window_size and levels */
