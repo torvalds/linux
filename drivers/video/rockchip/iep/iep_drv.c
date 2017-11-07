@@ -1053,7 +1053,7 @@ static int iep_drv_probe(struct platform_device *pdev)
 	case 1:
 		data->cap.compression_noise_reduction_supported = 0;
 		data->cap.sampling_noise_reduction_supported = 0;
-		if (soc_is_rk3126b()) {
+		if (soc_is_rk3126b() || soc_is_rk3126c()) {
 			data->cap.i4_deinterlace_supported = 0;
 			data->cap.hsb_enhancement_supported = 0;
 			data->cap.cg_enhancement_supported = 0;
