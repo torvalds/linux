@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  file.c - part of debugfs, a tiny little debug file system
  *
