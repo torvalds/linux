@@ -263,7 +263,7 @@ static inline void drm_framebuffer_unreference(struct drm_framebuffer *fb)
  *
  * This functions returns the framebuffer's reference count.
  */
-static inline uint32_t drm_framebuffer_read_refcount(struct drm_framebuffer *fb)
+static inline uint32_t drm_framebuffer_read_refcount(const struct drm_framebuffer *fb)
 {
 	return kref_read(&fb->base.refcount);
 }
