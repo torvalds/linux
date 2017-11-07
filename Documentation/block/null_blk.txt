@@ -38,7 +38,7 @@ gb=[Size in GB]: Default: 250GB
 bs=[Block size (in bytes)]: Default: 512 bytes
   The block size reported to the system.
 
-nr_devices=[Number of devices]: Default: 2
+nr_devices=[Number of devices]: Default: 1
   Number of block devices instantiated. They are instantiated as /dev/nullb0,
   etc.
 
@@ -52,7 +52,7 @@ irqmode=[0-2]: Default: 1-Soft-irq
   2: Timer: Waits a specific period (completion_nsec) for each IO before
      completion.
 
-completion_nsec=[ns]: Default: 10.000ns
+completion_nsec=[ns]: Default: 10,000ns
   Combined with irqmode=2 (timer). The time each completion event must wait.
 
 submit_queues=[1..nr_cpus]:
