@@ -26,6 +26,7 @@ static int tcf_vlan(struct sk_buff *skb, const struct tc_action *a,
 		    struct tcf_result *res)
 {
 	struct tcf_vlan *v = to_vlan(a);
+	struct tcf_vlan_params *p;
 	int action;
 	int err;
 	u16 tci;
@@ -33,24 +34,27 @@ static int tcf_vlan(struct sk_buff *skb, const struct tc_action *a,
 	tcf_lastuse_update(&v->tcf_tm);
 	bstats_cpu_update(this_cpu_ptr(v->common.cpu_bstats), skb);
 
-	spin_lock(&v->tcf_lock);
-	action = v->tcf_action;
-
 	/* Ensure 'data' points at mac_header prior calling vlan manipulating
 	 * functions.
 	 */
 	if (skb_at_tc_ingress(skb))
 		skb_push_rcsum(skb, skb->mac_len);
 
-	switch (v->tcfv_action) {
+	rcu_read_lock();
+
+	action = READ_ONCE(v->tcf_action);
+
+	p = rcu_dereference(v->vlan_p);
+
+	switch (p->tcfv_action) {
 	case TCA_VLAN_ACT_POP:
 		err = skb_vlan_pop(skb);
 		if (err)
 			goto drop;
 		break;
 	case TCA_VLAN_ACT_PUSH:
-		err = skb_vlan_push(skb, v->tcfv_push_proto, v->tcfv_push_vid |
-				    (v->tcfv_push_prio << VLAN_PRIO_SHIFT));
+		err = skb_vlan_push(skb, p->tcfv_push_proto, p->tcfv_push_vid |
+				    (p->tcfv_push_prio << VLAN_PRIO_SHIFT));
 		if (err)
 			goto drop;
 		break;
@@ -69,14 +73,14 @@ static int tcf_vlan(struct sk_buff *skb, const struct tc_action *a,
 				goto drop;
 		}
 		/* replace the vid */
-		tci = (tci & ~VLAN_VID_MASK) | v->tcfv_push_vid;
+		tci = (tci & ~VLAN_VID_MASK) | p->tcfv_push_vid;
 		/* replace prio bits, if tcfv_push_prio specified */
-		if (v->tcfv_push_prio) {
+		if (p->tcfv_push_prio) {
 			tci &= ~VLAN_PRIO_MASK;
-			tci |= v->tcfv_push_prio << VLAN_PRIO_SHIFT;
+			tci |= p->tcfv_push_prio << VLAN_PRIO_SHIFT;
 		}
 		/* put updated tci as hwaccel tag */
-		__vlan_hwaccel_put_tag(skb, v->tcfv_push_proto, tci);
+		__vlan_hwaccel_put_tag(skb, p->tcfv_push_proto, tci);
 		break;
 	default:
 		BUG();
@@ -89,10 +93,10 @@ drop:
 	qstats_drop_inc(this_cpu_ptr(v->common.cpu_qstats));
 
 unlock:
+	rcu_read_unlock();
 	if (skb_at_tc_ingress(skb))
 		skb_pull_rcsum(skb, skb->mac_len);
 
-	spin_unlock(&v->tcf_lock);
 	return action;
 }
 
@@ -109,6 +113,7 @@ static int tcf_vlan_init(struct net *net, struct nlattr *nla,
 {
 	struct tc_action_net *tn = net_generic(net, vlan_net_id);
 	struct nlattr *tb[TCA_VLAN_MAX + 1];
+	struct tcf_vlan_params *p, *p_old;
 	struct tc_vlan *parm;
 	struct tcf_vlan *v;
 	int action;
@@ -187,20 +192,40 @@ static int tcf_vlan_init(struct net *net, struct nlattr *nla,
 
 	v = to_vlan(*a);
 
-	spin_lock_bh(&v->tcf_lock);
-
-	v->tcfv_action = action;
-	v->tcfv_push_vid = push_vid;
-	v->tcfv_push_prio = push_prio;
-	v->tcfv_push_proto = push_proto;
+	ASSERT_RTNL();
+	p = kzalloc(sizeof(*p), GFP_KERNEL);
+	if (!p) {
+		if (ovr)
+			tcf_idr_release(*a, bind);
+		return -ENOMEM;
+	}
 
 	v->tcf_action = parm->action;
 
-	spin_unlock_bh(&v->tcf_lock);
+	p_old = rtnl_dereference(v->vlan_p);
+
+	p->tcfv_action = action;
+	p->tcfv_push_vid = push_vid;
+	p->tcfv_push_prio = push_prio;
+	p->tcfv_push_proto = push_proto;
+
+	rcu_assign_pointer(v->vlan_p, p);
+
+	if (p_old)
+		kfree_rcu(p_old, rcu);
 
 	if (ret == ACT_P_CREATED)
 		tcf_idr_insert(tn, *a);
 	return ret;
+}
+
+static void tcf_vlan_cleanup(struct tc_action *a, int bind)
+{
+	struct tcf_vlan *v = to_vlan(a);
+	struct tcf_vlan_params *p;
+
+	p = rcu_dereference_protected(v->vlan_p, 1);
+	kfree_rcu(p, rcu);
 }
 
 static int tcf_vlan_dump(struct sk_buff *skb, struct tc_action *a,
@@ -208,25 +233,26 @@ static int tcf_vlan_dump(struct sk_buff *skb, struct tc_action *a,
 {
 	unsigned char *b = skb_tail_pointer(skb);
 	struct tcf_vlan *v = to_vlan(a);
+	struct tcf_vlan_params *p = rtnl_dereference(v->vlan_p);
 	struct tc_vlan opt = {
 		.index    = v->tcf_index,
 		.refcnt   = v->tcf_refcnt - ref,
 		.bindcnt  = v->tcf_bindcnt - bind,
 		.action   = v->tcf_action,
-		.v_action = v->tcfv_action,
+		.v_action = p->tcfv_action,
 	};
 	struct tcf_t t;
 
 	if (nla_put(skb, TCA_VLAN_PARMS, sizeof(opt), &opt))
 		goto nla_put_failure;
 
-	if ((v->tcfv_action == TCA_VLAN_ACT_PUSH ||
-	     v->tcfv_action == TCA_VLAN_ACT_MODIFY) &&
-	    (nla_put_u16(skb, TCA_VLAN_PUSH_VLAN_ID, v->tcfv_push_vid) ||
+	if ((p->tcfv_action == TCA_VLAN_ACT_PUSH ||
+	     p->tcfv_action == TCA_VLAN_ACT_MODIFY) &&
+	    (nla_put_u16(skb, TCA_VLAN_PUSH_VLAN_ID, p->tcfv_push_vid) ||
 	     nla_put_be16(skb, TCA_VLAN_PUSH_VLAN_PROTOCOL,
-			  v->tcfv_push_proto) ||
+			  p->tcfv_push_proto) ||
 	     (nla_put_u8(skb, TCA_VLAN_PUSH_VLAN_PRIORITY,
-					      v->tcfv_push_prio))))
+					      p->tcfv_push_prio))))
 		goto nla_put_failure;
 
 	tcf_tm_dump(&t, &v->tcf_tm);
@@ -262,6 +288,7 @@ static struct tc_action_ops act_vlan_ops = {
 	.act		=	tcf_vlan,
 	.dump		=	tcf_vlan_dump,
 	.init		=	tcf_vlan_init,
+	.cleanup	=	tcf_vlan_cleanup,
 	.walk		=	tcf_vlan_walker,
 	.lookup		=	tcf_vlan_search,
 	.size		=	sizeof(struct tcf_vlan),
