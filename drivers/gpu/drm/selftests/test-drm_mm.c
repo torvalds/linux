@@ -682,6 +682,8 @@ static int __igt_insert(unsigned int count, u64 size, bool replace)
 		drm_mm_for_each_node_safe(node, next, &mm)
 			drm_mm_remove_node(node);
 		DRM_MM_BUG_ON(!drm_mm_clean(&mm));
+
+		cond_resched();
 	}
 
 	ret = 0;
@@ -944,6 +946,8 @@ static int __igt_insert_range(unsigned int count, u64 size, u64 start, u64 end)
 		drm_mm_for_each_node_safe(node, next, &mm)
 			drm_mm_remove_node(node);
 		DRM_MM_BUG_ON(!drm_mm_clean(&mm));
+
+		cond_resched();
 	}
 
 	ret = 0;
@@ -1068,6 +1072,7 @@ static int igt_align(void *ignored)
 		drm_mm_for_each_node_safe(node, next, &mm)
 			drm_mm_remove_node(node);
 		DRM_MM_BUG_ON(!drm_mm_clean(&mm));
+
 		cond_resched();
 	}
 
