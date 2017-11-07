@@ -1541,7 +1541,8 @@ static void nfs_set_open_stateid_locked(struct nfs4_state *state,
 		write_seqlock(&state->seqlock);
 	}
 
-	if (!nfs4_stateid_match_other(stateid, &state->open_stateid)) {
+	if (test_bit(NFS_OPEN_STATE, &state->flags) &&
+	    !nfs4_stateid_match_other(stateid, &state->open_stateid)) {
 		nfs4_stateid_copy(freeme, &state->open_stateid);
 		nfs_test_and_clear_all_open_stateid(state);
 	}
