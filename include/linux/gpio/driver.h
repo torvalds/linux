@@ -108,11 +108,11 @@ struct gpio_irq_chip {
 	unsigned int *map;
 
 	/**
-	 * @nested:
+	 * @threaded:
 	 *
-	 * True if set the interrupt handling is nested.
+	 * True if set the interrupt handling uses nested threads.
 	 */
-	bool nested;
+	bool threaded;
 
 	/**
 	 * @need_valid_mask:
@@ -385,7 +385,7 @@ int gpiochip_irqchip_add_key(struct gpio_chip *gpiochip,
 			     unsigned int first_irq,
 			     irq_flow_handler_t handler,
 			     unsigned int type,
-			     bool nested,
+			     bool threaded,
 			     struct lock_class_key *lock_key);
 
 #ifdef CONFIG_LOCKDEP

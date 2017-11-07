@@ -1603,6 +1603,11 @@ void gpiochip_set_chained_irqchip(struct gpio_chip *gpiochip,
 				  unsigned int parent_irq,
 				  irq_flow_handler_t parent_handler)
 {
+	if (gpiochip->irq.threaded) {
+		chip_err(gpiochip, "tried to chain a threaded gpiochip\n");
+		return;
+	}
+
 	gpiochip_set_cascaded_irqchip(gpiochip, irqchip, parent_irq,
 				      parent_handler);
 }
@@ -1619,10 +1624,6 @@ void gpiochip_set_nested_irqchip(struct gpio_chip *gpiochip,
 				 struct irq_chip *irqchip,
 				 unsigned int parent_irq)
 {
-	if (!gpiochip->irq.nested) {
-		chip_err(gpiochip, "tried to nest a chained gpiochip\n");
-		return;
-	}
 	gpiochip_set_cascaded_irqchip(gpiochip, irqchip, parent_irq,
 				      NULL);
 }
@@ -1655,7 +1656,7 @@ int gpiochip_irq_map(struct irq_domain *d, unsigned int irq,
 	irq_set_lockdep_class(irq, chip->irq.lock_key);
 	irq_set_chip_and_handler(irq, chip->irq.chip, chip->irq.handler);
 	/* Chips that use nested thread handlers have them marked */
-	if (chip->irq.nested)
+	if (chip->irq.threaded)
 		irq_set_nested_thread(irq, 1);
 	irq_set_noprobe(irq);
 
@@ -1682,7 +1683,7 @@ void gpiochip_irq_unmap(struct irq_domain *d, unsigned int irq)
 {
 	struct gpio_chip *chip = d->host_data;
 
-	if (chip->irq.nested)
+	if (chip->irq.threaded)
 		irq_set_nested_thread(irq, 0);
 	irq_set_chip_and_handler(irq, NULL, NULL);
 	irq_set_chip_data(irq, NULL);
@@ -1804,10 +1805,6 @@ static int gpiochip_add_irqchip(struct gpio_chip *gpiochip)
 							 gpiochip->irq.parent_handler,
 							 data);
 		}
-
-		gpiochip->irq.nested = false;
-	} else {
-		gpiochip->irq.nested = true;
 	}
 
 	acpi_gpiochip_request_interrupts(gpiochip);
@@ -1869,8 +1866,7 @@ static void gpiochip_irqchip_remove(struct gpio_chip *gpiochip)
  * @handler: the irq handler to use (often a predefined irq core function)
  * @type: the default type for IRQs on this irqchip, pass IRQ_TYPE_NONE
  * to have the core avoid setting up any default type in the hardware.
- * @nested: whether this is a nested irqchip calling handle_nested_irq()
- * in its IRQ handler
+ * @threaded: whether this irqchip uses a nested thread handler
  * @lock_key: lockdep class
  *
  * This function closely associates a certain irqchip with a certain
@@ -1892,7 +1888,7 @@ int gpiochip_irqchip_add_key(struct gpio_chip *gpiochip,
 			     unsigned int first_irq,
 			     irq_flow_handler_t handler,
 			     unsigned int type,
-			     bool nested,
+			     bool threaded,
 			     struct lock_class_key *lock_key)
 {
 	struct device_node *of_node;
@@ -1904,7 +1900,7 @@ int gpiochip_irqchip_add_key(struct gpio_chip *gpiochip,
 		pr_err("missing gpiochip .dev parent pointer\n");
 		return -EINVAL;
 	}
-	gpiochip->irq.nested = nested;
+	gpiochip->irq.threaded = threaded;
 	of_node = gpiochip->parent->of_node;
 #ifdef CONFIG_OF_GPIO
 	/*
