@@ -3,8 +3,6 @@
  * Greybus operations
  *
  * Copyright 2015-2016 Google Inc.
- *
- * Released under the GPLv2 only.
  */
 
 #ifndef _GB_AUDIO_MANAGER_H_

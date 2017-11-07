@@ -3,8 +3,6 @@
  * SVC Greybus "watchdog" driver.
  *
  * Copyright 2016 Google Inc.
- *
- * Released under the GPLv2 only.
  */
 
 #include <linux/delay.h>

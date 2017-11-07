@@ -4,8 +4,6 @@
  *
  * Copyright 2016 Google Inc.
  * Copyright 2016 Linaro Ltd.
- *
- * Released under the GPLv2 only.
  */
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 

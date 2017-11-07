@@ -3,8 +3,6 @@
  * Greybus audio driver
  * Copyright 2015 Google Inc.
  * Copyright 2015 Linaro Ltd.
- *
- * Released under the GPLv2 only.
  */
 
 #ifndef __LINUX_GBAUDIO_CODEC_H

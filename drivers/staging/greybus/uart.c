@@ -5,8 +5,6 @@
  * Copyright 2014 Google Inc.
  * Copyright 2014 Linaro Ltd.
  *
- * Released under the GPLv2 only.
- *
  * Heavily based on drivers/usb/class/cdc-acm.c and
  * drivers/usb/serial/usb-serial.c.
  */

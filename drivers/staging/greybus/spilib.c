@@ -4,8 +4,6 @@
  *
  * Copyright 2014-2016 Google Inc.
  * Copyright 2014-2016 Linaro Ltd.
- *
- * Released under the GPLv2 only.
  */
 
 #include <linux/bitops.h>
