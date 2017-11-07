@@ -2042,6 +2042,7 @@ static int bond_miimon_inspect(struct bonding *bond)
 
 	bond_for_each_slave_rcu(bond, slave, iter) {
 		slave->new_link = BOND_LINK_NOCHANGE;
+		slave->link_new_state = slave->link;
 
 		link_state = bond_check_dev_link(bond, slave->dev, 0);
 
