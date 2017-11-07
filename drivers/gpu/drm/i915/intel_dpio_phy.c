@@ -466,21 +466,21 @@ void bxt_ddi_phy_init(struct drm_i915_private *dev_priv, enum dpio_phy phy)
 
 	lockdep_assert_held(&dev_priv->power_domains.lock);
 
-	if (rcomp_phy != -1) {
+	was_enabled = true;
+	if (rcomp_phy != -1)
 		was_enabled = bxt_ddi_phy_is_enabled(dev_priv, rcomp_phy);
 
-		/*
-		 * We need to copy the GRC calibration value from rcomp_phy,
-		 * so make sure it's powered up.
-		 */
-		if (!was_enabled)
-			_bxt_ddi_phy_init(dev_priv, rcomp_phy);
-	}
+	/*
+	 * We need to copy the GRC calibration value from rcomp_phy,
+	 * so make sure it's powered up.
+	 */
+	if (!was_enabled)
+		_bxt_ddi_phy_init(dev_priv, rcomp_phy);
 
 	_bxt_ddi_phy_init(dev_priv, phy);
 
-	if (rcomp_phy != -1 && !was_enabled)
-		bxt_ddi_phy_uninit(dev_priv, phy_info->rcomp_phy);
+	if (!was_enabled)
+		bxt_ddi_phy_uninit(dev_priv, rcomp_phy);
 }
 
 static bool __printf(6, 7)
