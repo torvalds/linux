@@ -5,8 +5,6 @@
  * Copyright (C) IBM Corp. 2006
  * Copyright (C) 2007 Greg Kroah-Hartman <gregkh@suse.de>
  * Copyright (C) 2007 Novell Inc.
- *
- * This file is released under the GPLv2
  */
 
 #include <linux/kobject.h>

@@ -3,7 +3,6 @@
  * Copyright (C) ST-Ericsson SA 2011
  *
  * Author: Lee Jones <lee.jones@linaro.org> for ST-Ericsson.
- * License terms:  GNU General Public License (GPL), version 2
  */
 
 #include <linux/sysfs.h>

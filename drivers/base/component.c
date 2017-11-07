@@ -2,10 +2,6 @@
 /*
  * Componentized device handling.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  * This is work in progress.  We gather up the component devices into a list,
  * and bind them when instructed.  At the moment, we're specific to the DRM
  * subsystem, and only handles one master device, but this doesn't have to be
