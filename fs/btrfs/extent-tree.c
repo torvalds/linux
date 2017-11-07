@@ -4945,12 +4945,12 @@ static int may_commit_transaction(struct btrfs_fs_info *fs_info,
 		bytes = 0;
 	else
 		bytes -= delayed_rsv->size;
+	spin_unlock(&delayed_rsv->lock);
+
 	if (percpu_counter_compare(&space_info->total_bytes_pinned,
 				   bytes) < 0) {
-		spin_unlock(&delayed_rsv->lock);
 		return -ENOSPC;
 	}
-	spin_unlock(&delayed_rsv->lock);
 
 commit:
 	trans = btrfs_join_transaction(fs_info->extent_root);
