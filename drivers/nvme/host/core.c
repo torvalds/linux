@@ -2665,11 +2665,28 @@ void nvme_remove_namespaces(struct nvme_ctrl *ctrl)
 }
 EXPORT_SYMBOL_GPL(nvme_remove_namespaces);
 
+static void nvme_aen_uevent(struct nvme_ctrl *ctrl)
+{
+	char *envp[2] = { NULL, NULL };
+	u32 aen_result = ctrl->aen_result;
+
+	ctrl->aen_result = 0;
+	if (!aen_result)
+		return;
+
+	envp[0] = kasprintf(GFP_KERNEL, "NVME_AEN=%#08x", aen_result);
+	if (!envp[0])
+		return;
+	kobject_uevent_env(&ctrl->device->kobj, KOBJ_CHANGE, envp);
+	kfree(envp[0]);
+}
+
 static void nvme_async_event_work(struct work_struct *work)
 {
 	struct nvme_ctrl *ctrl =
 		container_of(work, struct nvme_ctrl, async_event_work);
 
+	nvme_aen_uevent(ctrl);
 	ctrl->ops->submit_async_event(ctrl);
 }
 
@@ -2740,6 +2757,17 @@ void nvme_complete_async_event(struct nvme_ctrl *ctrl, __le16 status,
 
 	if (le16_to_cpu(status) >> 1 != NVME_SC_SUCCESS)
 		return;
+
+	switch (result & 0x7) {
+	case NVME_AER_ERROR:
+	case NVME_AER_SMART:
+	case NVME_AER_CSS:
+	case NVME_AER_VS:
+		ctrl->aen_result = result;
+		break;
+	default:
+		break;
+	}
 
 	switch (result & 0xff07) {
 	case NVME_AER_NOTICE_NS_CHANGED:
