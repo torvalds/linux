@@ -619,6 +619,39 @@ fail:
 	return false;
 }
 
+static void disable_dangling_plane(struct dc *dc, struct dc_state *context)
+{
+	int i, j;
+	struct dc_state *dangling_context = dc_create_state();
+	struct dc_state *current_ctx;
+
+	if (dangling_context == NULL)
+		return;
+
+	dc_resource_state_copy_construct(dc->current_state, dangling_context);
+
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		struct dc_stream_state *old_stream =
+				dc->current_state->res_ctx.pipe_ctx[i].stream;
+		bool should_disable = true;
+
+		for (j = 0; j < context->stream_count; j++) {
+			if (old_stream == context->streams[j]) {
+				should_disable = false;
+				break;
+			}
+		}
+		if (should_disable && old_stream) {
+			dc_rem_all_planes_for_stream(dc, old_stream, dangling_context);
+			dc->hwss.apply_ctx_for_surface(dc, old_stream, 0, dangling_context);
+		}
+	}
+
+	current_ctx = dc->current_state;
+	dc->current_state = dangling_context;
+	dc_release_state(current_ctx);
+}
+
 /*******************************************************************************
  * Public functions
  ******************************************************************************/
@@ -801,6 +834,8 @@ static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *c
 	int i, j, k, l;
 	struct dc_stream_state *dc_streams[MAX_STREAMS] = {0};
 
+	disable_dangling_plane(dc, context);
+
 	for (i = 0; i < context->stream_count; i++)
 		dc_streams[i] =  context->streams[i];
 
@@ -829,8 +864,6 @@ static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *c
 					dc->hwss.setup_stereo(pipe, dc);
 			}
 		}
-
-
 
 		CONN_MSG_MODE(sink->link, "{%dx%d, %dx%d@%dKhz}",
 				context->streams[i]->timing.h_addressable,
