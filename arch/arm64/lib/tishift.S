@@ -57,3 +57,24 @@ ENTRY(__ashrti3)
 	mov	x1, x2
 	ret
 ENDPROC(__ashrti3)
+
+ENTRY(__lshrti3)
+	cbz	x2, 1f
+	mov	x3, #64
+	sub	x3, x3, x2
+	cmp	x3, #0
+	b.le	2f
+	lsr	x0, x0, x2
+	lsl	x3, x1, x3
+	lsr	x2, x1, x2
+	orr	x0, x0, x3
+	mov	x1, x2
+1:
+	ret
+2:
+	neg	w0, w3
+	mov	x2, #0
+	lsr	x0, x1, x0
+	mov	x1, x2
+	ret
+ENDPROC(__lshrti3)
