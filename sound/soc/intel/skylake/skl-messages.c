@@ -706,6 +706,7 @@ static void skl_set_updown_mixer_format(struct skl_sst *ctx,
 	skl_set_base_module_format(ctx,	mconfig,
 		(struct skl_base_cfg *)mixer_mconfig);
 	mixer_mconfig->out_ch_cfg = fmt->ch_cfg;
+	mixer_mconfig->ch_map = fmt->ch_map;
 }
 
 /*
