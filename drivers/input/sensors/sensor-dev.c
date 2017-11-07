@@ -40,94 +40,32 @@
 #include <linux/compat.h>
 #endif
 
-
-/*
-sensor-dev.c v1.1 add pressure and temperature support 2013-2-27
-sensor-dev.c v1.2 add akm8963 support 2013-3-10
-sensor-dev.c v1.3 add sensor debug support 2013-3-15
-sensor-dev.c v1.4 add angle calculation support between two gsensors 2013-09-01
-*/
-
-#define SENSOR_VERSION_AND_TIME  "sensor-dev.c v1.4 add angle calculation support between two gsensors 2013-09-01"
-
-struct sensor_private_data *g_sensor[SENSOR_NUM_TYPES];
+static struct sensor_private_data *g_sensor[SENSOR_NUM_TYPES];
 static struct sensor_operate *sensor_ops[SENSOR_NUM_ID];
-static struct class *g_sensor_class[SENSOR_NUM_TYPES];
-
-static ssize_t sensor_proc_write(struct file *file, const char __user *buffer,
-			   size_t count, loff_t *data)
-{
-	char c;
-	int rc;
-	int i = 0, num = 0;
-
-	rc = get_user(c, buffer);
-	if (rc)
-	{
-		for(i=SENSOR_TYPE_NULL+1; i<SENSOR_NUM_TYPES; i++)
-		atomic_set(&g_sensor[i]->flags.debug_flag, SENSOR_TYPE_NULL);
-		return rc;
-	}
-
-
-	num = c - '0';
-
-	printk("%s command list:close:%d,angle:%d accel:%d, compass:%d, gyro:%d, light:%d, psensor:%d, temp:%d, pressure:%d,total:%d,num=%d\n",__func__,
-
-		SENSOR_TYPE_NULL, SENSOR_TYPE_ANGLE, SENSOR_TYPE_ACCEL,SENSOR_TYPE_COMPASS,SENSOR_TYPE_GYROSCOPE,SENSOR_TYPE_LIGHT,SENSOR_TYPE_PROXIMITY,
-
-		SENSOR_TYPE_TEMPERATURE,SENSOR_TYPE_PRESSURE,SENSOR_NUM_TYPES,num);
-
-	if((num > SENSOR_NUM_TYPES) || (num < SENSOR_TYPE_NULL))
-	{
-		printk("%s:error! only support %d to %d\n",__func__, SENSOR_TYPE_NULL,SENSOR_NUM_TYPES);
-		return -1;
-	}
-
-	for(i=SENSOR_TYPE_NULL+1; i<SENSOR_NUM_TYPES; i++)
-	{
-		if(g_sensor[i])
-		atomic_set(&g_sensor[i]->flags.debug_flag, num);
-	}
-
-	return count;
-}
-
-static const struct file_operations sensor_proc_fops = {
-	.owner		= THIS_MODULE,
-	.write		= sensor_proc_write,
-};
-
-
+static struct class *accel_class;
 
 static int sensor_get_id(struct i2c_client *client, int *value)
 {
-	struct sensor_private_data *sensor =
-	    (struct sensor_private_data *) i2c_get_clientdata(client);
+	struct sensor_private_data *sensor = (struct sensor_private_data *) i2c_get_clientdata(client);
 	int result = 0;
 	char temp = sensor->ops->id_reg;
 	int i = 0;
 
-	if(sensor->ops->id_reg >= 0)
-	{
-		for(i=0; i<3; i++)
-		{
+	if (sensor->ops->id_reg >= 0) {
+		for (i = 0; i < 3; i++) {
 			result = sensor_rx_data(client, &temp, 1);
 			*value = temp;
-			if(!result)
-			break;
+			if (!result)
+				break;
 		}
 
-		if(result)
+		if (result)
 			return result;
 
-		if(*value != sensor->ops->id_data)
-		{
-			printk("%s:id=0x%x is not 0x%x\n",__func__,*value, sensor->ops->id_data);
+		if (*value != sensor->ops->id_data) {
+			dev_err(&client->dev, "%s:id=0x%x is not 0x%x\n", __func__, *value, sensor->ops->id_data);
 			result = -1;
 		}
-
-		DBG("%s:devid=0x%x\n",__func__,*value);
 	}
 
 	return result;
@@ -135,167 +73,112 @@ static int sensor_get_id(struct i2c_client *client, int *value)
 
 static int sensor_initial(struct i2c_client *client)
 {
-	struct sensor_private_data *sensor =
-	    (struct sensor_private_data *) i2c_get_clientdata(client);
+	struct sensor_private_data *sensor = (struct sensor_private_data *) i2c_get_clientdata(client);
 	int result = 0;
 
-	//register setting according to chip datasheet
+	/* register setting according to chip datasheet */
 	result = sensor->ops->init(client);
-	if(result < 0)
-	{
-		printk("%s:fail to init sensor\n",__func__);
+	if (result < 0) {
+		dev_err(&client->dev, "%s:fail to init sensor\n", __func__);
 		return result;
 	}
 
-
-	DBG("%s:ctrl_data=0x%x\n",__func__,sensor->ops->ctrl_data);
-
 	return result;
-
 }
 
 static int sensor_chip_init(struct i2c_client *client)
 {
-	struct sensor_private_data *sensor =
-	    (struct sensor_private_data *) i2c_get_clientdata(client);
+	struct sensor_private_data *sensor = (struct sensor_private_data *) i2c_get_clientdata(client);
 	struct sensor_operate *ops = sensor_ops[(int)sensor->i2c_id->driver_data];
 	int result = 0;
 
-	if(ops)
-	{
+	if (ops) {
 		sensor->ops = ops;
-	}
-	else
-	{
-		printk("%s:ops is null,sensor name is %s\n",__func__,sensor->i2c_id->name);
+	} else {
+		dev_err(&client->dev, "%s:ops is null,sensor name is %s\n", __func__, sensor->i2c_id->name);
 		result = -1;
 		goto error;
 	}
 
-	if((sensor->type != ops->type) || ((int)sensor->i2c_id->driver_data != ops->id_i2c))
-	{
-		printk("%s:type or id is different:type=%d,%d,id=%d,%d\n",__func__,sensor->type, ops->type, (int)sensor->i2c_id->driver_data, ops->id_i2c);
+	if ((sensor->type != ops->type) || ((int)sensor->i2c_id->driver_data != ops->id_i2c)) {
+		dev_err(&client->dev, "%s:type or id is different:type=%d,%d,id=%d,%d\n", __func__, sensor->type, ops->type, (int)sensor->i2c_id->driver_data, ops->id_i2c);
 		result = -1;
 		goto error;
 	}
 
-	if(!ops->init || !ops->active || !ops->report)
-	{
-		printk("%s:error:some function is needed\n",__func__);
+	if (!ops->init || !ops->active || !ops->report) {
+		dev_err(&client->dev, "%s:error:some function is needed\n", __func__);
 		result = -1;
 		goto error;
 	}
 
-	result = sensor_get_id(sensor->client, &sensor->devid);//get id
-	if(result < 0)
-	{
-		printk("%s:fail to read %s devid:0x%x\n",__func__, sensor->i2c_id->name, sensor->devid);
+	result = sensor_get_id(sensor->client, &sensor->devid);
+	if (result < 0) {
+		dev_err(&client->dev, "%s:fail to read %s devid:0x%x\n", __func__, sensor->i2c_id->name, sensor->devid);
 		goto error;
 	}
 
-	printk("%s:%s:devid=0x%x,ops=0x%p\n",__func__, sensor->i2c_id->name, sensor->devid,sensor->ops);
+	dev_info(&client->dev, "%s:%s:devid=0x%x,ops=0x%p\n", __func__, sensor->i2c_id->name, sensor->devid, sensor->ops);
 
-	result = sensor_initial(sensor->client);	//init sensor
-	if(result < 0)
-	{
-		printk("%s:fail to init sensor\n",__func__);
+	result = sensor_initial(sensor->client);
+	if (result < 0) {
+		dev_err(&client->dev, "%s:fail to init sensor\n", __func__);
 		goto error;
 	}
-
 	return 0;
 
 error:
-
 	return result;
 }
 
 static int sensor_reset_rate(struct i2c_client *client, int rate)
 {
-	struct sensor_private_data *sensor =
-	    (struct sensor_private_data *) i2c_get_clientdata(client);
+	struct sensor_private_data *sensor = (struct sensor_private_data *) i2c_get_clientdata(client);
 	int result = 0;
 
-	result = sensor->ops->active(client,SENSOR_OFF,rate);
-	sensor->ops->init(client);
-	result = sensor->ops->active(client,SENSOR_ON,rate);
+	if ((rate < 5) || (rate > 250)) {
+		dev_err(&client->dev, "sensor rate %d out of rang\n", rate);
+		return -1;
+	}
+	dev_info(&client->dev, "set sensor poll time to %dms\n", rate);
 
-	return result;
-}
+	/* work queue is always slow, we need more quickly to match hal rate */
+	if (sensor->pdata->poll_delay_ms == (rate - 2))
+		return 0;
 
-static int sensor_get_data(struct i2c_client *client)
-{
-	struct sensor_private_data *sensor =
-	    (struct sensor_private_data *) i2c_get_clientdata(client);
-	int result = 0;
+	sensor->pdata->poll_delay_ms = rate - 2;
 
-	result = sensor->ops->report(client);
-	if(result)
-		goto error;
-
-	/* set data_ready */
-	atomic_set(&sensor->data_ready, 1);
-	/*wake up data_ready  work queue*/
-	wake_up(&sensor->data_ready_wq);
-
-error:
-	return result;
-}
-
-#if 0
-int sensor_get_cached_data(struct i2c_client* client, char *buffer, int length, struct sensor_axis *axis)
-{
-    struct sensor_private_data* sensor = (struct sensor_private_data *)i2c_get_clientdata(client);
-    wait_event_interruptible_timeout(sensor->data_ready_wq,
-                                     atomic_read(&(sensor->data_ready) ),
-                                     msecs_to_jiffies(1000) );
-    if ( 0 == atomic_read(&(sensor->data_ready) ) ) {
-        printk("waiting 'data_ready_wq' timed out.");
-        goto error;
-    }
-
-
-	mutex_lock(&sensor->data_mutex);
-
-	switch(sensor->type)
-	{
-		case SENSOR_TYPE_ACCEL:
-		*axis = sensor->axis;
-		break;
-
-		case SENSOR_TYPE_COMPASS:
-		memcpy(buffer, sensor->sensor_data, length);
-		break;
+	if (sensor->status_cur == SENSOR_ON) {
+		if (!sensor->pdata->irq_enable) {
+			sensor->stop_work = 1;
+			cancel_delayed_work_sync(&sensor->delaywork);
+		}
+		result = sensor->ops->active(client, SENSOR_OFF, rate);
+		result = sensor->ops->active(client, SENSOR_ON, rate);
+		if (!sensor->pdata->irq_enable) {
+			sensor->stop_work = 0;
+			schedule_delayed_work(&sensor->delaywork, msecs_to_jiffies(sensor->pdata->poll_delay_ms));
+		}
 	}
 
-	mutex_unlock(&sensor->data_mutex);
-
-    return 0;
-
-error:
-	return -1;
+	return result;
 }
-#endif
 
 static void  sensor_delaywork_func(struct work_struct *work)
 {
 	struct delayed_work *delaywork = container_of(work, struct delayed_work, work);
 	struct sensor_private_data *sensor = container_of(delaywork, struct sensor_private_data, delaywork);
 	struct i2c_client *client = sensor->client;
+	int result;
 
 	mutex_lock(&sensor->sensor_mutex);
-	if (sensor_get_data(client) < 0)
-		DBG(KERN_ERR "%s: Get data failed\n",__func__);
-
-	if(!sensor->pdata->irq_enable)//restart work while polling
-	schedule_delayed_work(&sensor->delaywork, msecs_to_jiffies(sensor->pdata->poll_delay_ms));
-	//else
-	//{
-		//if((sensor->ops->trig == IRQF_TRIGGER_LOW) || (sensor->ops->trig == IRQF_TRIGGER_HIGH))
-		//enable_irq(sensor->client->irq);
-	//}
+	result = sensor->ops->report(client);
+	if (result < 0)
+		dev_err(&client->dev, "%s: Get data failed\n", __func__);
 	mutex_unlock(&sensor->sensor_mutex);
 
-	DBG("%s:%s\n",__func__,sensor->i2c_id->name);
+	if ((!sensor->pdata->irq_enable) && (sensor->stop_work == 0))
+		schedule_delayed_work(&sensor->delaywork, msecs_to_jiffies(sensor->pdata->poll_delay_ms));
 }
 
 /*
@@ -309,64 +192,55 @@ static void  sensor_delaywork_func(struct work_struct *work)
  */
 static irqreturn_t sensor_interrupt(int irq, void *dev_id)
 {
-	struct sensor_private_data *sensor = (struct sensor_private_data *)dev_id;
+	struct sensor_private_data *sensor =
+			(struct sensor_private_data *)dev_id;
+	struct i2c_client *client = sensor->client;
 
-	//use threaded IRQ
-	if (sensor_get_data(sensor->client) < 0)
-		DBG(KERN_ERR "%s: Get data failed\n",__func__);
-	msleep(sensor->pdata->poll_delay_ms);
+	mutex_lock(&sensor->sensor_mutex);
+	if (sensor->ops->report(client) < 0)
+		dev_err(&client->dev, "%s: Get data failed\n", __func__);
+	mutex_unlock(&sensor->sensor_mutex);
 
-
-	//if((sensor->ops->trig == IRQF_TRIGGER_LOW) || (sensor->ops->trig == IRQF_TRIGGER_HIGH))
-	//disable_irq_nosync(irq);
-	//schedule_delayed_work(&sensor->delaywork, msecs_to_jiffies(sensor->pdata->poll_delay_ms));
-	DBG("%s:irq=%d\n",__func__,irq);
 	return IRQ_HANDLED;
 }
-
 
 static int sensor_irq_init(struct i2c_client *client)
 {
 	struct sensor_private_data *sensor =
-	    (struct sensor_private_data *) i2c_get_clientdata(client);
+			(struct sensor_private_data *) i2c_get_clientdata(client);
 	int result = 0;
 	int irq;
-	if((sensor->pdata->irq_enable)&&(sensor->pdata->irq_flags!= SENSOR_UNKNOW_DATA))
-	{
-		//INIT_DELAYED_WORK(&sensor->delaywork, sensor_delaywork_func);
-		if(sensor->pdata->poll_delay_ms < 0)
+
+	if ((sensor->pdata->irq_enable) && (sensor->pdata->irq_flags != SENSOR_UNKNOW_DATA)) {
+		if (sensor->pdata->poll_delay_ms <= 0)
 			sensor->pdata->poll_delay_ms = 30;
 		result = gpio_request(client->irq, sensor->i2c_id->name);
 		if (result)
-		{
-			printk("%s:fail to request gpio :%d\n",__func__,client->irq);
-		}
+			dev_err(&client->dev, "%s:fail to request gpio :%d\n", __func__, client->irq);
 
-		//gpio_pull_updown(client->irq, PullEnable);
 		irq = gpio_to_irq(client->irq);
-		//result = request_irq(irq, sensor_interrupt, sensor->ops->trig, sensor->ops->name, sensor);
-		//result = request_threaded_irq(irq, NULL, sensor_interrupt, sensor->ops->trig, sensor->ops->name, sensor);
 		result = devm_request_threaded_irq(&client->dev, irq, NULL, sensor_interrupt, sensor->pdata->irq_flags | IRQF_ONESHOT, sensor->ops->name, sensor);
 		if (result) {
-			printk(KERN_ERR "%s:fail to request irq = %d, ret = 0x%x\n",__func__, irq, result);
+			dev_err(&client->dev, "%s:fail to request irq = %d, ret = 0x%x\n", __func__, irq, result);
 			goto error;
 		}
+
 		client->irq = irq;
-		if((sensor->pdata->type == SENSOR_TYPE_GYROSCOPE) || (sensor->pdata->type == SENSOR_TYPE_ACCEL) || (sensor->pdata->type == SENSOR_TYPE_ANGLE))
-		disable_irq_nosync(client->irq);//disable irq
-		if(((sensor->pdata->type == SENSOR_TYPE_LIGHT) || (sensor->pdata->type == SENSOR_TYPE_PROXIMITY))&& (!(sensor->ops->trig & IRQF_SHARED)))
-		disable_irq_nosync(client->irq);//disable irq
-		if(((sensor->pdata->type == SENSOR_TYPE_TEMPERATURE) || (sensor->pdata->type == SENSOR_TYPE_PRESSURE))&& (!(sensor->ops->trig & IRQF_SHARED)))
-		disable_irq_nosync(client->irq);//disable irq
-		DBG("%s:use irq=%d\n",__func__,irq);
-	}
-	else if(!sensor->pdata->irq_enable)
-	{
+		if ((sensor->pdata->type == SENSOR_TYPE_GYROSCOPE) || (sensor->pdata->type == SENSOR_TYPE_ACCEL) || (sensor->pdata->type == SENSOR_TYPE_ANGLE))
+			disable_irq_nosync(client->irq);
+		if (((sensor->pdata->type == SENSOR_TYPE_LIGHT) || (sensor->pdata->type == SENSOR_TYPE_PROXIMITY)) && (!(sensor->ops->trig & IRQF_SHARED)))
+			disable_irq_nosync(client->irq);
+		if (((sensor->pdata->type == SENSOR_TYPE_TEMPERATURE) || (sensor->pdata->type == SENSOR_TYPE_PRESSURE)) && (!(sensor->ops->trig & IRQF_SHARED)))
+			disable_irq_nosync(client->irq);
+
+		dev_info(&client->dev, "%s:use irq=%d\n", __func__, irq);
+	} else if (!sensor->pdata->irq_enable) {
 		INIT_DELAYED_WORK(&sensor->delaywork, sensor_delaywork_func);
-		if(sensor->pdata->poll_delay_ms < 0)
+		sensor->stop_work = 1;
+		if (sensor->pdata->poll_delay_ms <= 0)
 			sensor->pdata->poll_delay_ms = 30;
 
-		DBG("%s:use polling,delay=%d ms\n",__func__,sensor->pdata->poll_delay_ms);
+		dev_info(&client->dev, "%s:use polling,delay=%d ms\n", __func__, sensor->pdata->poll_delay_ms);
 	}
 
 error:
@@ -379,9 +253,8 @@ static void sensor_suspend(struct early_suspend *h)
 	struct sensor_private_data *sensor =
 			container_of(h, struct sensor_private_data, early_suspend);
 
-	if(sensor->ops->suspend)
+	if (sensor->ops->suspend)
 		sensor->ops->suspend(sensor->client);
-
 }
 
 static void sensor_resume(struct early_suspend *h)
@@ -389,7 +262,7 @@ static void sensor_resume(struct early_suspend *h)
 	struct sensor_private_data *sensor =
 			container_of(h, struct sensor_private_data, early_suspend);
 
-	if(sensor->ops->resume)
+	if (sensor->ops->resume)
 		sensor->ops->resume(sensor->client);
 }
 #endif
@@ -428,23 +301,45 @@ static const struct dev_pm_ops sensor_pm_ops = {
 
 static int angle_dev_open(struct inode *inode, struct file *file)
 {
-	//struct sensor_private_data *sensor = g_sensor[SENSOR_TYPE_ACCEL];
-	//struct i2c_client *client = sensor->client;
-
-	int result = 0;
-
-
-	return result;
+	return 0;
 }
-
 
 static int angle_dev_release(struct inode *inode, struct file *file)
 {
-	//struct sensor_private_data *sensor = g_sensor[SENSOR_TYPE_ANGLE];
-	//struct i2c_client *client = sensor->client;
+	return 0;
+}
 
+static int sensor_enable(struct sensor_private_data *sensor, int enable)
+{
 	int result = 0;
+	struct i2c_client *client = sensor->client;
 
+	if (enable == SENSOR_ON) {
+		result = sensor->ops->active(client, 1, sensor->pdata->poll_delay_ms);
+		if (result < 0) {
+			dev_err(&client->dev, "%s:fail to active sensor,ret=%d\n", __func__, result);
+			return result;
+		}
+		sensor->status_cur = SENSOR_ON;
+		sensor->stop_work = 0;
+		if (sensor->pdata->irq_enable)
+			enable_irq(client->irq);
+		else
+			schedule_delayed_work(&sensor->delaywork, msecs_to_jiffies(sensor->pdata->poll_delay_ms));
+		dev_info(&client->dev, "sensor on: starting poll sensor data %dms\n", sensor->pdata->poll_delay_ms);
+	} else {
+		sensor->stop_work = 1;
+		if (sensor->pdata->irq_enable)
+			disable_irq_nosync(client->irq);
+		else
+			cancel_delayed_work_sync(&sensor->delaywork);
+		result = sensor->ops->active(client, 0, sensor->pdata->poll_delay_ms);
+		if (result < 0) {
+			dev_err(&client->dev, "%s:fail to disable sensor,ret=%d\n", __func__, result);
+			return result;
+		}
+		sensor->status_cur = SENSOR_OFF;
+	}
 
 	return result;
 }
@@ -457,13 +352,12 @@ static long angle_dev_ioctl(struct file *file,
 	struct i2c_client *client = sensor->client;
 	void __user *argp = (void __user *)arg;
 	struct sensor_axis axis = {0};
-	char rate;
+	short rate;
 	int result = 0;
 
 	switch (cmd) {
 	case GSENSOR_IOCTL_APP_SET_RATE:
-		if (copy_from_user(&rate, argp, sizeof(rate)))
-		{
+		if (copy_from_user(&rate, argp, sizeof(rate))) {
 			result = -EFAULT;
 			goto error;
 		}
@@ -474,95 +368,54 @@ static long angle_dev_ioctl(struct file *file,
 
 	switch (cmd) {
 	case GSENSOR_IOCTL_START:
-		DBG("%s:GSENSOR_IOCTL_START start,status=%d\n", __func__,sensor->status_cur);
 		mutex_lock(&sensor->operation_mutex);
-		if(++sensor->start_count == 1)
-		{
-			if(sensor->status_cur == SENSOR_OFF)
-			{
-				atomic_set(&(sensor->data_ready), 0);
-				if ( (result = sensor->ops->active(client, 1, 0) ) < 0 ) {
-		        		mutex_unlock(&sensor->operation_mutex);
-					printk("%s:fail to active sensor,ret=%d\n",__func__,result);
-					goto error;
-		    		}
-				if(sensor->pdata->irq_enable)
-				{
-					DBG("%s:enable irq,irq=%d\n",__func__,client->irq);
-					enable_irq(client->irq);	//enable irq
-				}
-				else
-				{
-					schedule_delayed_work(&sensor->delaywork, msecs_to_jiffies(sensor->pdata->poll_delay_ms));
-				}
-				sensor->status_cur = SENSOR_ON;
+		if (++sensor->start_count == 1)	{
+			if (sensor->status_cur == SENSOR_OFF) {
+				sensor_enable(sensor, SENSOR_ON);
 			}
 		}
-	        mutex_unlock(&sensor->operation_mutex);
-	        DBG("%s:GSENSOR_IOCTL_START OK\n", __func__);
-	        break;
+		mutex_unlock(&sensor->operation_mutex);
+		break;
 
 	case GSENSOR_IOCTL_CLOSE:
-	        DBG("%s:GSENSOR_IOCTL_CLOSE start,status=%d\n", __func__,sensor->status_cur);
-	        mutex_lock(&sensor->operation_mutex);
-		if(--sensor->start_count == 0)
-		{
-			if(sensor->status_cur == SENSOR_ON)
-			{
-				atomic_set(&(sensor->data_ready), 0);
-				if ( (result = sensor->ops->active(client, 0, 0) ) < 0 ) {
-		                	mutex_unlock(&sensor->operation_mutex);
-					goto error;
-		            	}
-
-				if(sensor->pdata->irq_enable)
-				{
-					DBG("%s:disable irq,irq=%d\n",__func__,client->irq);
-					disable_irq_nosync(client->irq);//disable irq
-				}
-				else
-				cancel_delayed_work_sync(&sensor->delaywork);
-				sensor->status_cur = SENSOR_OFF;
-		        }
-
-			DBG("%s:GSENSOR_IOCTL_CLOSE OK\n", __func__);
+		mutex_lock(&sensor->operation_mutex);
+		if (--sensor->start_count == 0) {
+			if (sensor->status_cur == SENSOR_ON) {
+				sensor_enable(sensor, SENSOR_OFF);
+			}
 		}
-
-	        mutex_unlock(&sensor->operation_mutex);
-	        break;
+		mutex_unlock(&sensor->operation_mutex);
+		break;
 
 	case GSENSOR_IOCTL_APP_SET_RATE:
-		DBG("%s:GSENSOR_IOCTL_APP_SET_RATE start\n", __func__);
 		mutex_lock(&sensor->operation_mutex);
 		result = sensor_reset_rate(client, rate);
-		if (result < 0){
+		if (result < 0) {
 			mutex_unlock(&sensor->operation_mutex);
 			goto error;
 		}
-
-		sensor->status_cur = SENSOR_ON;
-	        mutex_unlock(&sensor->operation_mutex);
-	        DBG("%s:GSENSOR_IOCTL_APP_SET_RATE OK\n", __func__);
+		mutex_unlock(&sensor->operation_mutex);
 		break;
 
 	case GSENSOR_IOCTL_GETDATA:
 		mutex_lock(&sensor->data_mutex);
-		memcpy(&axis, &sensor->axis, sizeof(sensor->axis));	//get data from buffer
+		memcpy(&axis, &sensor->axis, sizeof(sensor->axis));
 		mutex_unlock(&sensor->data_mutex);
 		break;
+
 	default:
 		result = -ENOTTY;
+
 	goto error;
 	}
 
 	switch (cmd) {
 	case GSENSOR_IOCTL_GETDATA:
-	        if ( copy_to_user(argp, &axis, sizeof(axis) ) ) {
-	            printk("failed to copy sense data to user space.");
-				result = -EFAULT;
-				goto error;
-	        }
-		DBG("%s:GSENSOR_IOCTL_GETDATA OK\n", __func__);
+		if (copy_to_user(argp, &axis, sizeof(axis))) {
+			dev_err(&client->dev, "failed to copy sense data to user space.\n");
+			result = -EFAULT;
+			goto error;
+		}
 		break;
 	default:
 		break;
@@ -575,25 +428,12 @@ error:
 
 static int gsensor_dev_open(struct inode *inode, struct file *file)
 {
-	//struct sensor_private_data *sensor = g_sensor[SENSOR_TYPE_ACCEL];
-	//struct i2c_client *client = sensor->client;
-
-	int result = 0;
-
-
-	return result;
+	return 0;
 }
-
 
 static int gsensor_dev_release(struct inode *inode, struct file *file)
 {
-	//struct sensor_private_data *sensor = g_sensor[SENSOR_TYPE_ACCEL];
-	//struct i2c_client *client = sensor->client;
-
-	int result = 0;
-
-
-	return result;
+	return 0;
 }
 
 /* ioctl - I/O control */
@@ -601,16 +441,18 @@ static long gsensor_dev_ioctl(struct file *file,
 			  unsigned int cmd, unsigned long arg)
 {
 	struct sensor_private_data *sensor = g_sensor[SENSOR_TYPE_ACCEL];
+	struct sensor_platform_data *pdata = sensor->pdata;
 	struct i2c_client *client = sensor->client;
 	void __user *argp = (void __user *)arg;
 	struct sensor_axis axis = {0};
-	char rate;
+	short rate;
 	int result = 0;
+
+	wait_event_interruptible(sensor->is_factory_ok, (atomic_read(&sensor->is_factory) == 0));
 
 	switch (cmd) {
 	case GSENSOR_IOCTL_APP_SET_RATE:
-		if (copy_from_user(&rate, argp, sizeof(rate)))
-		{
+		if (copy_from_user(&rate, argp, sizeof(rate))) {
 			result = -EFAULT;
 			goto error;
 		}
@@ -621,82 +463,49 @@ static long gsensor_dev_ioctl(struct file *file,
 
 	switch (cmd) {
 	case GSENSOR_IOCTL_START:
-		DBG("%s:GSENSOR_IOCTL_START start,status=%d\n", __func__,sensor->status_cur);
 		mutex_lock(&sensor->operation_mutex);
-		if(++sensor->start_count == 1)
-		{
-			if(sensor->status_cur == SENSOR_OFF)
-			{
-				atomic_set(&(sensor->data_ready), 0);
-				if ( (result = sensor->ops->active(client, 1, 0) ) < 0 ) {
-		        		mutex_unlock(&sensor->operation_mutex);
-					printk("%s:fail to active sensor,ret=%d\n",__func__,result);
-					goto error;
-		    		}
-				if(sensor->pdata->irq_enable)
-				{
-					DBG("%s:enable irq,irq=%d\n",__func__,client->irq);
-					enable_irq(client->irq);	//enable irq
-				}
-				else
-				{
-					schedule_delayed_work(&sensor->delaywork, msecs_to_jiffies(sensor->pdata->poll_delay_ms));
-				}
-				sensor->status_cur = SENSOR_ON;
+		if (++sensor->start_count == 1) {
+			if (sensor->status_cur == SENSOR_OFF) {
+				sensor_enable(sensor, SENSOR_ON);
 			}
 		}
-	        mutex_unlock(&sensor->operation_mutex);
-	        DBG("%s:GSENSOR_IOCTL_START OK\n", __func__);
-	        break;
+		mutex_unlock(&sensor->operation_mutex);
+		break;
 
 	case GSENSOR_IOCTL_CLOSE:
-	        DBG("%s:GSENSOR_IOCTL_CLOSE start,status=%d\n", __func__,sensor->status_cur);
-	        mutex_lock(&sensor->operation_mutex);
-		if(--sensor->start_count == 0)
-		{
-			if(sensor->status_cur == SENSOR_ON)
-			{
-				atomic_set(&(sensor->data_ready), 0);
-				if ( (result = sensor->ops->active(client, 0, 0) ) < 0 ) {
-		                	mutex_unlock(&sensor->operation_mutex);
-					goto error;
-		            	}
-
-				if(sensor->pdata->irq_enable)
-				{
-					DBG("%s:disable irq,irq=%d\n",__func__,client->irq);
-					disable_irq_nosync(client->irq);//disable irq
-				}
-				else
-				cancel_delayed_work_sync(&sensor->delaywork);
-				sensor->status_cur = SENSOR_OFF;
-		        }
-
-			DBG("%s:GSENSOR_IOCTL_CLOSE OK\n", __func__);
+		mutex_lock(&sensor->operation_mutex);
+		if (--sensor->start_count == 0) {
+			if (sensor->status_cur == SENSOR_ON) {
+				sensor_enable(sensor, SENSOR_OFF);
+			}
 		}
-
-	        mutex_unlock(&sensor->operation_mutex);
-	        break;
+		mutex_unlock(&sensor->operation_mutex);
+		break;
 
 	case GSENSOR_IOCTL_APP_SET_RATE:
-		DBG("%s:GSENSOR_IOCTL_APP_SET_RATE start\n", __func__);
 		mutex_lock(&sensor->operation_mutex);
 		result = sensor_reset_rate(client, rate);
-		if (result < 0){
+		if (result < 0) {
 			mutex_unlock(&sensor->operation_mutex);
 			goto error;
 		}
-
-		sensor->status_cur = SENSOR_ON;
-	        mutex_unlock(&sensor->operation_mutex);
-	        DBG("%s:GSENSOR_IOCTL_APP_SET_RATE OK\n", __func__);
+		mutex_unlock(&sensor->operation_mutex);
 		break;
 
 	case GSENSOR_IOCTL_GETDATA:
 		mutex_lock(&sensor->data_mutex);
-		memcpy(&axis, &sensor->axis, sizeof(sensor->axis));	//get data from buffer
+		memcpy(&axis, &sensor->axis, sizeof(sensor->axis));
 		mutex_unlock(&sensor->data_mutex);
 		break;
+
+	case GSENSOR_IOCTL_GET_CALIBRATION:
+		if (copy_to_user(argp, pdata->accel_offset, sizeof(pdata->accel_offset))) {
+			dev_err(&client->dev, "failed to copy accel offset data to user\n");
+			result = -EFAULT;
+			goto error;
+		}
+		break;
+
 	default:
 		result = -ENOTTY;
 	goto error;
@@ -704,12 +513,11 @@ static long gsensor_dev_ioctl(struct file *file,
 
 	switch (cmd) {
 	case GSENSOR_IOCTL_GETDATA:
-	        if ( copy_to_user(argp, &axis, sizeof(axis) ) ) {
-	            printk("failed to copy sense data to user space.");
-				result = -EFAULT;
-				goto error;
-	        }
-		DBG("%s:GSENSOR_IOCTL_GETDATA OK\n", __func__);
+		if (copy_to_user(argp, &axis, sizeof(axis))) {
+			dev_err(&client->dev, "failed to copy sense data to user space.\n");
+			result = -EFAULT;
+			goto error;
+		}
 		break;
 	default:
 		break;
@@ -719,109 +527,139 @@ error:
 	return result;
 }
 
-static ssize_t gsensor_set_orientation_online(struct class *class,
-		struct class_attribute *attr, const char *buf, size_t count)
+static ssize_t accel_calibration_show(struct class *class,
+		struct class_attribute *attr, char *buf)
 {
-	int i=0;
-	char orientation[20];
-	char *tmp;
-
 	struct sensor_private_data *sensor = g_sensor[SENSOR_TYPE_ACCEL];
+
+	return sprintf(buf, "accel calibration: %d, %d, %d\n", sensor->pdata->accel_offset[0],
+				sensor->pdata->accel_offset[1], sensor->pdata->accel_offset[2]);
+}
+
+#define ACCEL_CAPTURE_TIMES 20
+#define ACCEL_SENSITIVE 16384
+static void accel_do_calibration(struct sensor_private_data *sensor)
+{
+	int i;
+	int ret;
+	long int sum_accel[3] = {0, 0, 0};
 	struct sensor_platform_data *pdata = sensor->pdata;
 
+	mutex_lock(&sensor->operation_mutex);
+	for (i = 0; i < ACCEL_CAPTURE_TIMES; i++) {
+		ret = sensor->ops->report(sensor->client);
+		if (ret < 0)
+			dev_err(&sensor->client->dev, "in %s read accel data error\n", __func__);
+		sum_accel[0] += sensor->axis.x;
+		sum_accel[1] += sensor->axis.y;
+		sum_accel[2] += sensor->axis.z;
+		dev_info(&sensor->client->dev, "%d times, read accel data is %d, %d, %d\n",
+			i, sensor->axis.x, sensor->axis.y, sensor->axis.z);
+		msleep(pdata->poll_delay_ms);
+	}
+	mutex_unlock(&sensor->operation_mutex);
 
-  	char *p = strstr(buf,"gsensor_class");
-	int start = strcspn(p,"{");
-	int end = strcspn(p,"}");
+	pdata->accel_offset[0] = sum_accel[0] / ACCEL_CAPTURE_TIMES;
+	pdata->accel_offset[1] = sum_accel[1] / ACCEL_CAPTURE_TIMES;
+	pdata->accel_offset[2] = sum_accel[2] / ACCEL_CAPTURE_TIMES;
 
-	strncpy(orientation,p+start,end-start+1);
-	tmp = orientation;
+	pdata->accel_offset[2] = pdata->accel_offset[2] > 0
+		? pdata->accel_offset[2] - ACCEL_SENSITIVE : pdata->accel_offset[2] + ACCEL_SENSITIVE;
 
-
-    	while(strncmp(tmp,"}",1)!=0)
-   	 {
-    		if((strncmp(tmp,",",1)==0)||(strncmp(tmp,"{",1)==0))
-		{
-
-			 tmp++;
-			 continue;
-		}
-		else if(strncmp(tmp,"-",1)==0)
-		{
-			pdata->orientation[i++]=-1;
-			DBG("i=%d,data=%d\n",i,pdata->orientation[i]);
-			 tmp++;
-		}
-		else
-		{
-			pdata->orientation[i++]=tmp[0]-48;
-			DBG("----i=%d,data=%d\n",i,pdata->orientation[i]);
-		}
-		tmp++;
-
-
-   	 }
-
-	for(i=0;i<9;i++)
-		DBG("i=%d gsensor_info=%d\n",i,pdata->orientation[i]);
-	return 0;
-
+	dev_info(&sensor->client->dev, "accel offset is %d, %d, %d\n", pdata->accel_offset[0], pdata->accel_offset[1], pdata->accel_offset[2]);
 }
 
-static CLASS_ATTR(orientation, 0660, NULL, gsensor_set_orientation_online);
+static ssize_t accel_calibration_store(struct class *class,
+		struct class_attribute *attr, const char *buf, size_t count)
+{
+	struct sensor_private_data *sensor = g_sensor[SENSOR_TYPE_ACCEL];
+	int val, ret;
+	int pre_status;
 
-static int  gsensor_class_init(void)
+	ret = kstrtoint(buf, 10, &val);
+	if (ret)
+		dev_err(&sensor->client->dev, "%s: kstrtoint error return %d\n", __func__, ret);
+	if (val != 1)
+		return count;
+
+	atomic_set(&sensor->is_factory, 1);
+
+	pre_status = sensor->status_cur;
+	if (pre_status == SENSOR_OFF) {
+		mutex_lock(&sensor->operation_mutex);
+		ret = sensor->ops->active(sensor->client, SENSOR_ON, sensor->pdata->poll_delay_ms);
+		mutex_unlock(&sensor->operation_mutex);
+	} else {
+		sensor->stop_work = 1;
+		if (sensor->pdata->irq_enable)
+			disable_irq_nosync(sensor->client->irq);
+		else
+			cancel_delayed_work_sync(&sensor->delaywork);
+	}
+
+	accel_do_calibration(sensor);
+
+	if (pre_status == SENSOR_ON) {
+		sensor->stop_work = 0;
+		if (sensor->pdata->irq_enable)
+			enable_irq(sensor->client->irq);
+		else
+			schedule_delayed_work(&sensor->delaywork, msecs_to_jiffies(sensor->pdata->poll_delay_ms));
+	} else {
+		mutex_lock(&sensor->operation_mutex);
+		ret = sensor->ops->active(sensor->client, SENSOR_OFF, sensor->pdata->poll_delay_ms);
+		mutex_unlock(&sensor->operation_mutex);
+	}
+
+	atomic_set(&sensor->is_factory, 0);
+	wake_up(&sensor->is_factory_ok);
+
+	return count;
+}
+
+static CLASS_ATTR(accel_calibration, 0664, accel_calibration_show, accel_calibration_store);
+
+static int  accel_class_init(void)
 {
 	int ret ;
-	struct sensor_private_data *sensor = g_sensor[SENSOR_TYPE_ACCEL];
-	g_sensor_class[SENSOR_TYPE_ACCEL] = class_create(THIS_MODULE, "gsensor_class");
-	ret =  class_create_file(g_sensor_class[SENSOR_TYPE_ACCEL], &class_attr_orientation);
-	if (ret)
-	{
-		printk("%s:Fail to creat class\n",__func__);
+
+	accel_class = class_create(THIS_MODULE, "accel_class");
+	ret =  class_create_file(accel_class, &class_attr_accel_calibration);
+	if (ret) {
+		printk(KERN_ERR "%s:Fail to creat accel class\n", __func__);
 		return ret;
 	}
-	printk("%s:%s\n",__func__,sensor->i2c_id->name);
+
 	return 0;
 }
-
-
 
 static int compass_dev_open(struct inode *inode, struct file *file)
 {
 	struct sensor_private_data *sensor = g_sensor[SENSOR_TYPE_COMPASS];
-	//struct i2c_client *client = sensor->client;
-
 	int result = 0;
 	int flag = 0;
+
 	flag = atomic_read(&sensor->flags.open_flag);
-	if(!flag)
-	{
+	if (!flag) {
 		atomic_set(&sensor->flags.open_flag, 1);
 		wake_up(&sensor->flags.open_wq);
 	}
 
-	DBG("%s\n", __func__);
 	return result;
 }
-
-
 
 static int compass_dev_release(struct inode *inode, struct file *file)
 {
 	struct sensor_private_data *sensor = g_sensor[SENSOR_TYPE_COMPASS];
-	//struct i2c_client *client = sensor->client;
-	//void __user *argp = (void __user *)arg;
 	int result = 0;
 	int flag = 0;
+
 	flag = atomic_read(&sensor->flags.open_flag);
-	if(flag)
-	{
+	if (flag) {
 		atomic_set(&sensor->flags.open_flag, 0);
 		wake_up(&sensor->flags.open_wq);
 	}
 
-	DBG("%s\n", __func__);
 	return result;
 }
 
@@ -833,7 +671,7 @@ static long compass_dev_compat_ioctl(struct file *file, unsigned int cmd, unsign
 	int result = 0;
 
 	if (!file->f_op || !file->f_op->unlocked_ioctl) {
-		pr_err("file->f_op or file->f_op->unlocked_ioctl is null\n");
+		printk(KERN_ERR "file->f_op or file->f_op->unlocked_ioctl is null\n");
 		return -ENOTTY;
 	}
 
@@ -878,83 +716,71 @@ static long compass_dev_compat_ioctl(struct file *file, unsigned int cmd, unsign
 }
 #endif
 
-
 /* ioctl - I/O control */
 static long compass_dev_ioctl(struct file *file,
 			  unsigned int cmd, unsigned long arg)
 {
 	struct sensor_private_data *sensor = g_sensor[SENSOR_TYPE_COMPASS];
-	//struct i2c_client *client = sensor->client;
 	void __user *argp = (void __user *)arg;
 	int result = 0;
 	short flag;
 
 	switch (cmd) {
-		case ECS_IOCTL_APP_SET_MFLAG:
-		case ECS_IOCTL_APP_SET_AFLAG:
-		case ECS_IOCTL_APP_SET_MVFLAG:
-			if (copy_from_user(&flag, argp, sizeof(flag))) {
-				return -EFAULT;
-			}
-			if (flag < 0 || flag > 1) {
-				return -EINVAL;
-			}
-			break;
-		case ECS_IOCTL_APP_SET_DELAY:
-			if (copy_from_user(&flag, argp, sizeof(flag))) {
-				return -EFAULT;
-			}
-			break;
-		default:
-			break;
+	case ECS_IOCTL_APP_SET_MFLAG:
+	case ECS_IOCTL_APP_SET_AFLAG:
+	case ECS_IOCTL_APP_SET_MVFLAG:
+		if (copy_from_user(&flag, argp, sizeof(flag)))
+			return -EFAULT;
+		if (flag < 0 || flag > 1)
+			return -EINVAL;
+		break;
+	case ECS_IOCTL_APP_SET_DELAY:
+		if (copy_from_user(&flag, argp, sizeof(flag)))
+			return -EFAULT;
+		break;
+	default:
+		break;
 	}
 
 	switch (cmd) {
-		case ECS_IOCTL_APP_SET_MFLAG:
-			atomic_set(&sensor->flags.m_flag, flag);
-			DBG("%s:ECS_IOCTL_APP_SET_MFLAG,flag=%d\n", __func__,flag);
-			break;
-		case ECS_IOCTL_APP_GET_MFLAG:
-			flag = atomic_read(&sensor->flags.m_flag);
-			DBG("%s:ECS_IOCTL_APP_GET_MFLAG,flag=%d\n", __func__,flag);
-			break;
-		case ECS_IOCTL_APP_SET_AFLAG:
-			atomic_set(&sensor->flags.a_flag, flag);
-			DBG("%s:ECS_IOCTL_APP_SET_AFLAG,flag=%d\n", __func__,flag);
-			break;
-		case ECS_IOCTL_APP_GET_AFLAG:
-			flag = atomic_read(&sensor->flags.a_flag);
-			DBG("%s:ECS_IOCTL_APP_GET_AFLAG,flag=%d\n", __func__,flag);
-			break;
-		case ECS_IOCTL_APP_SET_MVFLAG:
-			atomic_set(&sensor->flags.mv_flag, flag);
-			DBG("%s:ECS_IOCTL_APP_SET_MVFLAG,flag=%d\n", __func__,flag);
-			break;
-		case ECS_IOCTL_APP_GET_MVFLAG:
-			flag = atomic_read(&sensor->flags.mv_flag);
-			DBG("%s:ECS_IOCTL_APP_GET_MVFLAG,flag=%d\n", __func__,flag);
-			break;
-		case ECS_IOCTL_APP_SET_DELAY:
-			sensor->flags.delay = flag;
-			break;
-		case ECS_IOCTL_APP_GET_DELAY:
-			flag = sensor->flags.delay;
-			break;
-		default:
-			return -ENOTTY;
+	case ECS_IOCTL_APP_SET_MFLAG:
+		atomic_set(&sensor->flags.m_flag, flag);
+		break;
+	case ECS_IOCTL_APP_GET_MFLAG:
+		flag = atomic_read(&sensor->flags.m_flag);
+		break;
+	case ECS_IOCTL_APP_SET_AFLAG:
+		atomic_set(&sensor->flags.a_flag, flag);
+		break;
+	case ECS_IOCTL_APP_GET_AFLAG:
+		flag = atomic_read(&sensor->flags.a_flag);
+		break;
+	case ECS_IOCTL_APP_SET_MVFLAG:
+		atomic_set(&sensor->flags.mv_flag, flag);
+		break;
+	case ECS_IOCTL_APP_GET_MVFLAG:
+		flag = atomic_read(&sensor->flags.mv_flag);
+		break;
+	case ECS_IOCTL_APP_SET_DELAY:
+		sensor->flags.delay = flag;
+		break;
+	case ECS_IOCTL_APP_GET_DELAY:
+		flag = sensor->flags.delay;
+		break;
+	default:
+		return -ENOTTY;
 	}
 
 	switch (cmd) {
-		case ECS_IOCTL_APP_GET_MFLAG:
-		case ECS_IOCTL_APP_GET_AFLAG:
-		case ECS_IOCTL_APP_GET_MVFLAG:
-		case ECS_IOCTL_APP_GET_DELAY:
-			if (copy_to_user(argp, &flag, sizeof(flag))) {
-				return -EFAULT;
-			}
-			break;
-		default:
-			break;
+	case ECS_IOCTL_APP_GET_MFLAG:
+	case ECS_IOCTL_APP_GET_AFLAG:
+	case ECS_IOCTL_APP_GET_MVFLAG:
+	case ECS_IOCTL_APP_GET_DELAY:
+		if (copy_to_user(argp, &flag, sizeof(flag)))
+			return -EFAULT;
+		break;
+	default:
+		break;
 	}
 
 	return result;
@@ -962,27 +788,14 @@ static long compass_dev_ioctl(struct file *file,
 
 static int gyro_dev_open(struct inode *inode, struct file *file)
 {
-	//struct sensor_private_data *sensor = g_sensor[SENSOR_TYPE_GYROSCOPE];
-	//struct i2c_client *client = sensor->client;
-
-	int result = 0;
-
-
-	return result;
+	return 0;
 }
 
 
 static int gyro_dev_release(struct inode *inode, struct file *file)
 {
-	//struct sensor_private_data *sensor = g_sensor[SENSOR_TYPE_GYROSCOPE];
-	//struct i2c_client *client = sensor->client;
-
-	int result = 0;
-
-
-	return result;
+	return 0;
 }
-
 
 /* ioctl - I/O control */
 static long gyro_dev_ioctl(struct file *file,
@@ -992,108 +805,55 @@ static long gyro_dev_ioctl(struct file *file,
 	struct i2c_client *client = sensor->client;
 	void __user *argp = (void __user *)arg;
 	int result = 0;
-	char rate;
+	int rate;
+
 	switch (cmd) {
 	case L3G4200D_IOCTL_GET_ENABLE:
 		result = !sensor->status_cur;
 		if (copy_to_user(argp, &result, sizeof(result))) {
-			printk("%s:failed to copy status to user space.\n", __func__);
+			dev_err(&client->dev, "%s:failed to copy status to user space.\n", __func__);
 			return -EFAULT;
 		}
-
-		DBG("%s :L3G4200D_IOCTL_GET_ENABLE,status=%d\n", __func__, result);
 		break;
 	case L3G4200D_IOCTL_SET_ENABLE:
 		if (copy_from_user(&result, argp, sizeof(result))) {
-			printk("%s:failed to copy gyro sensor status from user space.\n", __func__);
+			dev_err(&client->dev, "%s:failed to copy gyro sensor status from user space.\n", __func__);
 			return -EFAULT;
 		}
-		DBG("%s :L3G4200D_IOCTL_SET_ENABLE,flag=%d\n", __func__, result);
-        	mutex_lock(&sensor->operation_mutex);
+		mutex_lock(&sensor->operation_mutex);
 		if (result) {
-			if(sensor->status_cur == SENSOR_OFF)
-			{
-				if ( (result = sensor->ops->active(client, 1, ODR100_BW12_5) ) < 0 ) {
-	                	mutex_unlock(&sensor->operation_mutex);
-				printk("%s:fail to active sensor,ret=%d\n",__func__,result);
-				goto error;
-	            		}
-				if(sensor->pdata->irq_enable)
-				{
-					DBG("%s:enable irq,irq=%d\n",__func__,client->irq);
-					enable_irq(client->irq);	//enable irq
-				}
-				else
-				{
-					schedule_delayed_work(&sensor->delaywork, msecs_to_jiffies(sensor->pdata->poll_delay_ms));
-				}
-				sensor->status_cur = SENSOR_ON;
-			}
+			if (sensor->status_cur == SENSOR_OFF)
+				sensor_enable(sensor, SENSOR_ON);
+		} else {
+			if (sensor->status_cur == SENSOR_ON)
+				sensor_enable(sensor, SENSOR_OFF);
 		}
-		else
-		{
-			if(sensor->status_cur == SENSOR_ON)
-			{
-		            	if ( (result = sensor->ops->active(client, 0, 0) ) < 0 ) {
-		                mutex_unlock(&sensor->operation_mutex);
-				goto error;
-	            		}
-
-				if(sensor->pdata->irq_enable)
-				{
-					DBG("%s:disable irq,irq=%d\n",__func__,client->irq);
-					disable_irq_nosync(client->irq);//disable irq
-				}
-				else
-				cancel_delayed_work_sync(&sensor->delaywork);
-				sensor->status_cur = SENSOR_OFF;
-        		}
-		}
-
 		result = sensor->status_cur;
 		if (copy_to_user(argp, &result, sizeof(result))) {
 			mutex_unlock(&sensor->operation_mutex);
-			printk("%s:failed to copy sense data to user space.\n", __func__);
+			dev_err(&client->dev, "%s:failed to copy sense data to user space.\n", __func__);
 			return -EFAULT;
 		}
-
 		mutex_unlock(&sensor->operation_mutex);
-        	DBG("%s:L3G4200D_IOCTL_SET_ENABLE OK\n", __func__);
 		break;
 	case L3G4200D_IOCTL_SET_DELAY:
-		if (copy_from_user(&rate, argp, sizeof(rate)))
-		return -EFAULT;
-		mutex_lock(&sensor->operation_mutex);
-		if(sensor->status_cur == SENSOR_OFF)
-		{
-			if ( (result = sensor->ops->active(client, 1, rate) ) < 0 ) {
-                	mutex_unlock(&sensor->operation_mutex);
-			printk("%s:fail to active sensor,ret=%d\n",__func__,result);
-			goto error;
-            		}
-
-			if(sensor->pdata->irq_enable)
-			{
-				DBG("%s:enable irq,irq=%d\n",__func__,client->irq);
-				enable_irq(client->irq);	//enable irq
-			}
-			else
-			{
-				schedule_delayed_work(&sensor->delaywork, msecs_to_jiffies(sensor->pdata->poll_delay_ms));
-			}
-			sensor->status_cur = SENSOR_ON;
+		if (copy_from_user(&rate, argp, sizeof(rate))) {
+			dev_err(&client->dev, "L3G4200D_IOCTL_SET_DELAY: copy form user failed\n");
+			return -EFAULT;
 		}
-
+		mutex_lock(&sensor->operation_mutex);
+		result = sensor_reset_rate(client, rate);
+		if (result < 0) {
+			dev_err(&client->dev, "gyro reset rate failed\n");
+			mutex_unlock(&sensor->operation_mutex);
+			goto error;
+		}
 		mutex_unlock(&sensor->operation_mutex);
-		DBG("%s :L3G4200D_IOCTL_SET_DELAY,rate=%d\n", __func__, rate);
 		break;
 
 	default:
-		printk("%s:error,cmd=0x%x\n",__func__,cmd);
 		return -ENOTTY;
 	}
-
-	DBG("%s:line=%d,cmd=0x%x\n",__func__,__LINE__,cmd);
 
 error:
 	return result;
@@ -1101,25 +861,12 @@ error:
 
 static int light_dev_open(struct inode *inode, struct file *file)
 {
-	//struct sensor_private_data *sensor = g_sensor[SENSOR_TYPE_LIGHT];
-	//struct i2c_client *client = sensor->client;
-	int result = 0;
-
-
-	return result;
+	return 0;
 }
-
-
-
 
 static int light_dev_release(struct inode *inode, struct file *file)
 {
-	//struct sensor_private_data *sensor = g_sensor[SENSOR_TYPE_LIGHT];
-	//struct i2c_client *client = sensor->client;
-	int result = 0;
-
-
-	return result;
+	return 0;
 }
 
 #ifdef CONFIG_COMPAT
@@ -1129,7 +876,7 @@ static long light_dev_compat_ioctl(struct file *file, unsigned int cmd, unsigned
 	void __user *arg64 = compat_ptr(arg);
 
 	if (!file->f_op || !file->f_op->unlocked_ioctl) {
-		pr_err("[DEBUG] file->f_op or file->f_op->unlocked_ioctl is null\n");
+		printk(KERN_ERR "[DEBUG] file->f_op or file->f_op->unlocked_ioctl is null\n");
 		return -ENOTTY;
 	}
 
@@ -1141,6 +888,10 @@ static long light_dev_compat_ioctl(struct file *file, unsigned int cmd, unsigned
 	case COMPAT_LIGHTSENSOR_IOCTL_ENABLE:
 		if (file->f_op->unlocked_ioctl)
 			ret = file->f_op->unlocked_ioctl(file, LIGHTSENSOR_IOCTL_ENABLE, (unsigned long)arg64);
+		break;
+	case COMPAT_LIGHTSENSOR_IOCTL_SET_RATE:
+		if (file->f_op->unlocked_ioctl)
+			ret = file->f_op->unlocked_ioctl(file, LIGHTSENSOR_IOCTL_SET_RATE, (unsigned long)arg64);
 		break;
 	default:
 		break;
@@ -1158,103 +909,62 @@ static long light_dev_ioctl(struct file *file,
 	struct i2c_client *client = sensor->client;
 	void __user *argp = (void __user *)arg;
 	int result = 0;
+	short rate;
 
-	switch(cmd)
-	{
-		case LIGHTSENSOR_IOCTL_GET_ENABLED:
-			result = sensor->status_cur;
-			if (copy_to_user(argp, &result, sizeof(result))) {
-				printk("%s:failed to copy light sensor status to user space.\n", __func__);
-				return -EFAULT;
-			}
-			break;
-		case LIGHTSENSOR_IOCTL_ENABLE:
-			DBG("%s:LIGHTSENSOR_IOCTL_ENABLE start\n", __func__);
-			if (copy_from_user(&result, argp, sizeof(result))) {
-				printk("%s:failed to copy light sensor status from user space.\n", __func__);
-				return -EFAULT;
-			}
-
-			mutex_lock(&sensor->operation_mutex);
-			if (result) {
-				if(sensor->status_cur == SENSOR_OFF)
-				{
-		            		if ( (result = sensor->ops->active(client, SENSOR_ON, 0) ) < 0 ) {
-		                	mutex_unlock(&sensor->operation_mutex);
-					printk("%s:fail to active sensor,ret=%d\n",__func__,result);
-					goto error;
-		            		}
-					if(sensor->pdata->irq_enable)
-					{
-						if(!(sensor->ops->trig & IRQF_SHARED))
-						{
-							DBG("%s:enable irq,irq=%d\n",__func__,client->irq);
-							enable_irq(client->irq);	//enable irq
-						}
-					}
-					else
-					{
-						schedule_delayed_work(&sensor->delaywork, msecs_to_jiffies(sensor->pdata->poll_delay_ms));
-					}
-
-					sensor->status_cur = SENSOR_ON;
-				}
-			}
-			else
-			{
-				if(sensor->status_cur == SENSOR_ON)
-				{
-		            		if ( (result = sensor->ops->active(client, SENSOR_OFF, 0) ) < 0 ) {
-		                	mutex_unlock(&sensor->operation_mutex);
-					goto error;
-		            		}
-
-					if(sensor->pdata->irq_enable)
-					{
-						if(!(sensor->ops->trig & IRQF_SHARED))
-						{
-							DBG("%s:disable irq,irq=%d\n",__func__,client->irq);
-							disable_irq_nosync(client->irq);//disable irq
-						}
-					}
-					else
-					cancel_delayed_work_sync(&sensor->delaywork);
-
-					sensor->status_cur = SENSOR_OFF;
-	        		}
-			}
+	switch (cmd) {
+	case LIGHTSENSOR_IOCTL_SET_RATE:
+		if (copy_from_user(&rate, argp, sizeof(rate))) {
+			dev_err(&client->dev, "%s:failed to copy light sensor rate from user space.\n", __func__);
+			return -EFAULT;
+		}
+		mutex_lock(&sensor->operation_mutex);
+		result = sensor_reset_rate(client, rate);
+		if (result < 0) {
 			mutex_unlock(&sensor->operation_mutex);
-	        	DBG("%s:LIGHTSENSOR_IOCTL_ENABLE OK\n", __func__);
-			break;
+			goto error;
+		}
+		mutex_unlock(&sensor->operation_mutex);
+		break;
+	case LIGHTSENSOR_IOCTL_GET_ENABLED:
+		result = sensor->status_cur;
+		if (copy_to_user(argp, &result, sizeof(result))) {
+			dev_err(&client->dev, "%s:failed to copy light sensor status to user space.\n", __func__);
+			return -EFAULT;
+		}
+		break;
+	case LIGHTSENSOR_IOCTL_ENABLE:
+		if (copy_from_user(&result, argp, sizeof(result))) {
+			dev_err(&client->dev, "%s:failed to copy light sensor status from user space.\n", __func__);
+			return -EFAULT;
+		}
 
-		default:
-			break;
+		mutex_lock(&sensor->operation_mutex);
+		if (result) {
+			if (sensor->status_cur == SENSOR_OFF)
+				sensor_enable(sensor, SENSOR_ON);
+		} else {
+			if (sensor->status_cur == SENSOR_ON)
+				sensor_enable(sensor, SENSOR_OFF);
+		}
+		mutex_unlock(&sensor->operation_mutex);
+		break;
+
+	default:
+		break;
 	}
 
 error:
 	return result;
 }
 
-
 static int proximity_dev_open(struct inode *inode, struct file *file)
 {
-	//struct sensor_private_data *sensor = g_sensor[SENSOR_TYPE_PROXIMITY];
-	//struct i2c_client *client = sensor->client;
-	int result = 0;
-
-
-	return result;
+	return 0;
 }
-
 
 static int proximity_dev_release(struct inode *inode, struct file *file)
 {
-	//struct sensor_private_data *sensor = g_sensor[SENSOR_TYPE_PROXIMITY];
-	//struct i2c_client *client = sensor->client;
-	int result = 0;
-
-
-	return result;
+	return 0;
 }
 
 #ifdef CONFIG_COMPAT
@@ -1264,7 +974,7 @@ static long proximity_dev_compat_ioctl(struct file *file, unsigned int cmd, unsi
 	void __user *arg64 = compat_ptr(arg);
 
 	if (!file->f_op || !file->f_op->unlocked_ioctl) {
-		pr_err("file->f_op or file->f_op->unlocked_ioctl is null\n");
+		printk(KERN_ERR "file->f_op or file->f_op->unlocked_ioctl is null\n");
 		return -ENOTTY;
 	}
 
@@ -1290,213 +1000,99 @@ static long proximity_dev_ioctl(struct file *file,
 			  unsigned int cmd, unsigned long arg)
 {
 	struct sensor_private_data *sensor = g_sensor[SENSOR_TYPE_PROXIMITY];
-	struct i2c_client *client = sensor->client;
 	void __user *argp = (void __user *)arg;
 	int result = 0;
-	switch(cmd)
-	{
-		case PSENSOR_IOCTL_GET_ENABLED:
-			result = sensor->status_cur;
-			if (copy_to_user(argp, &result, sizeof(result))) {
-				printk("%s:failed to copy psensor status to user space.\n", __func__);
-				return -EFAULT;
-			}
-			break;
-		case PSENSOR_IOCTL_ENABLE:
-			DBG("%s:PSENSOR_IOCTL_ENABLE start\n", __func__);
-			if (copy_from_user(&result, argp, sizeof(result))) {
-				printk("%s:failed to copy psensor status from user space.\n", __func__);
-				return -EFAULT;
-			}
-			mutex_lock(&sensor->operation_mutex);
-			if (result) {
-				if(sensor->status_cur == SENSOR_OFF)
-				{
-					if ( (result = sensor->ops->active(client, SENSOR_ON, 0) ) < 0 ) {
-					mutex_unlock(&sensor->operation_mutex);
-					printk("%s:fail to active sensor,ret=%d\n",__func__,result);
-					goto error;
-					}
 
-					if(sensor->pdata->irq_enable)
-					{
-						if(!(sensor->ops->trig & IRQF_SHARED))
-						{
-							DBG("%s:enable irq,irq=%d\n",__func__,client->irq);
-							enable_irq(client->irq);	//enable irq
-						}
-					}
-					else
-					{
-						schedule_delayed_work(&sensor->delaywork, msecs_to_jiffies(sensor->pdata->poll_delay_ms));
-					}
+	switch (cmd) {
+	case PSENSOR_IOCTL_GET_ENABLED:
+		result = sensor->status_cur;
+		if (copy_to_user(argp, &result, sizeof(result))) {
+			dev_err(&sensor->client->dev, "%s:failed to copy psensor status to user space.\n", __func__);
+			return -EFAULT;
+		}
+		break;
+	case PSENSOR_IOCTL_ENABLE:
+		if (copy_from_user(&result, argp, sizeof(result))) {
+			dev_err(&sensor->client->dev, "%s:failed to copy psensor status from user space.\n", __func__);
+			return -EFAULT;
+		}
+		mutex_lock(&sensor->operation_mutex);
+		if (result) {
+			if (sensor->status_cur == SENSOR_OFF)
+				sensor_enable(sensor, SENSOR_ON);
+		} else {
+			if (sensor->status_cur == SENSOR_ON)
+				sensor_enable(sensor, SENSOR_OFF);
+		}
+		mutex_unlock(&sensor->operation_mutex);
+		break;
 
-					sensor->status_cur = SENSOR_ON;
-				}
-			}
-			else
-			{
-				if(sensor->status_cur == SENSOR_ON)
-				{
-		            		if ( (result = sensor->ops->active(client, SENSOR_OFF, 0) ) < 0 ) {
-		                	mutex_unlock(&sensor->operation_mutex);
-					goto error;
-					}
-					if(sensor->pdata->irq_enable)
-					{
-						if(!(sensor->ops->trig & IRQF_SHARED))
-						{
-							DBG("%s:disable irq,irq=%d\n",__func__,client->irq);
-							disable_irq_nosync(client->irq);//disable irq
-						}
-					}
-					else
-					cancel_delayed_work_sync(&sensor->delaywork);
-					sensor->status_cur = SENSOR_OFF;
-	        		}
-			}
-			mutex_unlock(&sensor->operation_mutex);
-			DBG("%s:PSENSOR_IOCTL_ENABLE OK\n", __func__);
-			break;
-
-		default:
-			break;
+	default:
+		break;
 	}
 
-error:
 	return result;
 }
 
 static int temperature_dev_open(struct inode *inode, struct file *file)
 {
-	//struct sensor_private_data *sensor = g_sensor[SENSOR_TYPE_TEMPERATURE];
-	//struct i2c_client *client = sensor->client;
-
-	int result = 0;
-
-
-	return result;
+	return 0;
 }
-
 
 static int temperature_dev_release(struct inode *inode, struct file *file)
 {
-	//struct sensor_private_data *sensor = g_sensor[SENSOR_TYPE_TEMPERATURE];
-	//struct i2c_client *client = sensor->client;
-
-	int result = 0;
-
-
-	return result;
+	return 0;
 }
-
 
 /* ioctl - I/O control */
 static long temperature_dev_ioctl(struct file *file,
 			  unsigned int cmd, unsigned long arg)
 {
 	struct sensor_private_data *sensor = g_sensor[SENSOR_TYPE_TEMPERATURE];
-	struct i2c_client *client = sensor->client;
 	void __user *argp = (void __user *)arg;
 	int result = 0;
 
-	switch(cmd)
-	{
-		case TEMPERATURE_IOCTL_GET_ENABLED:
-			result = sensor->status_cur;
-			if (copy_to_user(argp, &result, sizeof(result))) {
-				printk("%s:failed to copy temperature sensor status to user space.\n", __func__);
-				return -EFAULT;
-			}
-			break;
-		case TEMPERATURE_IOCTL_ENABLE:
-			DBG("%s:LIGHTSENSOR_IOCTL_ENABLE start\n", __func__);
-			if (copy_from_user(&result, argp, sizeof(result))) {
-				printk("%s:failed to copy temperature sensor status from user space.\n", __func__);
-				return -EFAULT;
-			}
-			mutex_lock(&sensor->operation_mutex);
-			if (result) {
-				if(sensor->status_cur == SENSOR_OFF)
-				{
-					if ( (result = sensor->ops->active(client, SENSOR_ON, 0) ) < 0 ) {
-					mutex_unlock(&sensor->operation_mutex);
-					printk("%s:fail to active sensor,ret=%d\n",__func__,result);
-					goto error;
-					}
-					if(sensor->pdata->irq_enable)
-					{
-						if(!(sensor->ops->trig & IRQF_SHARED))
-						{
-							DBG("%s:enable irq,irq=%d\n",__func__,client->irq);
-							enable_irq(client->irq);	//enable irq
-						}
-					}
-					else
-					{
-						schedule_delayed_work(&sensor->delaywork, msecs_to_jiffies(sensor->pdata->poll_delay_ms));
-					}
+	switch (cmd) {
+	case TEMPERATURE_IOCTL_GET_ENABLED:
+		result = sensor->status_cur;
+		if (copy_to_user(argp, &result, sizeof(result))) {
+			dev_err(&sensor->client->dev, "%s:failed to copy temperature sensor status to user space.\n", __func__);
+			return -EFAULT;
+		}
+		break;
+	case TEMPERATURE_IOCTL_ENABLE:
+		if (copy_from_user(&result, argp, sizeof(result))) {
+			dev_err(&sensor->client->dev, "%s:failed to copy temperature sensor status from user space.\n", __func__);
+			return -EFAULT;
+		}
+		mutex_lock(&sensor->operation_mutex);
+		if (result) {
+			if (sensor->status_cur == SENSOR_OFF)
+				sensor_enable(sensor, SENSOR_ON);
+		} else {
+			if (sensor->status_cur == SENSOR_ON)
+				sensor_enable(sensor, SENSOR_OFF);
+		}
+		mutex_unlock(&sensor->operation_mutex);
+		break;
 
-					sensor->status_cur = SENSOR_ON;
-				}
-			}
-			else
-			{
-				if(sensor->status_cur == SENSOR_ON)
-				{
-					if ( (result = sensor->ops->active(client, SENSOR_OFF, 0) ) < 0 ) {
-					mutex_unlock(&sensor->operation_mutex);
-					goto error;
-					}
-
-					if(sensor->pdata->irq_enable)
-					{
-						if(!(sensor->ops->trig & IRQF_SHARED))
-						{
-							DBG("%s:disable irq,irq=%d\n",__func__,client->irq);
-							disable_irq_nosync(client->irq);//disable irq
-						}
-					}
-					else
-					cancel_delayed_work_sync(&sensor->delaywork);
-
-					sensor->status_cur = SENSOR_OFF;
-				}
-			}
-			mutex_unlock(&sensor->operation_mutex);
-			DBG("%s:LIGHTSENSOR_IOCTL_ENABLE OK\n", __func__);
-			break;
-
-		default:
-			break;
+	default:
+		break;
 	}
 
-error:
 	return result;
 }
 
 
 static int pressure_dev_open(struct inode *inode, struct file *file)
 {
-	//struct sensor_private_data *sensor = g_sensor[SENSOR_TYPE_PRESSURE];
-	//struct i2c_client *client = sensor->client;
-
-	int result = 0;
-
-
-	return result;
+	return 0;
 }
 
 
 static int pressure_dev_release(struct inode *inode, struct file *file)
 {
-	//struct sensor_private_data *sensor = g_sensor[SENSOR_TYPE_PRESSURE];
-	//struct i2c_client *client = sensor->client;
-
-	int result = 0;
-
-
-	return result;
+	return 0;
 }
 
 
@@ -1505,268 +1101,181 @@ static long pressure_dev_ioctl(struct file *file,
 			  unsigned int cmd, unsigned long arg)
 {
 	struct sensor_private_data *sensor = g_sensor[SENSOR_TYPE_PRESSURE];
-	struct i2c_client *client = sensor->client;
 	void __user *argp = (void __user *)arg;
 	int result = 0;
 
-	switch(cmd)
-	{
-		case PRESSURE_IOCTL_GET_ENABLED:
-			result = sensor->status_cur;
-			if (copy_to_user(argp, &result, sizeof(result))) {
-				printk("%s:failed to copy pressure sensor status to user space.\n", __func__);
-				return -EFAULT;
-			}
-			break;
-		case PRESSURE_IOCTL_ENABLE:
-			DBG("%s:PRESSURE_IOCTL_ENABLE start\n", __func__);
-			if (copy_from_user(&result, argp, sizeof(result))) {
-				printk("%s:failed to copy pressure sensor status from user space.\n", __func__);
-				return -EFAULT;
-			}
-			mutex_lock(&sensor->operation_mutex);
-			if (result) {
-				if(sensor->status_cur == SENSOR_OFF)
-				{
-					if ( (result = sensor->ops->active(client, SENSOR_ON, 0) ) < 0 ) {
-					mutex_unlock(&sensor->operation_mutex);
-					printk("%s:fail to active sensor,ret=%d\n",__func__,result);
-					goto error;
-					}
-					if(sensor->pdata->irq_enable)
-					{
-						if(!(sensor->ops->trig & IRQF_SHARED))
-						{
-							DBG("%s:enable irq,irq=%d\n",__func__,client->irq);
-							enable_irq(client->irq);	//enable irq
-						}
-					}
-					else
-					{
-						schedule_delayed_work(&sensor->delaywork, msecs_to_jiffies(sensor->pdata->poll_delay_ms));
-					}
+	switch (cmd) {
+	case PRESSURE_IOCTL_GET_ENABLED:
+		result = sensor->status_cur;
+		if (copy_to_user(argp, &result, sizeof(result))) {
+			dev_err(&sensor->client->dev, "%s:failed to copy pressure sensor status to user space.\n", __func__);
+			return -EFAULT;
+		}
+		break;
+	case PRESSURE_IOCTL_ENABLE:
+		if (copy_from_user(&result, argp, sizeof(result))) {
+			dev_err(&sensor->client->dev, "%s:failed to copy pressure sensor status from user space.\n", __func__);
+			return -EFAULT;
+		}
+		mutex_lock(&sensor->operation_mutex);
+		if (result) {
+			if (sensor->status_cur == SENSOR_OFF)
+				sensor_enable(sensor, SENSOR_ON);
+		} else {
+			if (sensor->status_cur == SENSOR_ON)
+				sensor_enable(sensor, SENSOR_OFF);
+		}
+		mutex_unlock(&sensor->operation_mutex);
+		break;
 
-					sensor->status_cur = SENSOR_ON;
-				}
-			}
-			else
-			{
-				if(sensor->status_cur == SENSOR_ON)
-				{
-					if ( (result = sensor->ops->active(client, SENSOR_OFF, 0) ) < 0 ) {
-					mutex_unlock(&sensor->operation_mutex);
-					goto error;
-					}
-
-					if(sensor->pdata->irq_enable)
-					{
-						if(!(sensor->ops->trig & IRQF_SHARED))
-						{
-							DBG("%s:disable irq,irq=%d\n",__func__,client->irq);
-							disable_irq_nosync(client->irq);//disable irq
-						}
-					}
-					else
-					cancel_delayed_work_sync(&sensor->delaywork);
-
-					sensor->status_cur = SENSOR_OFF;
-				}
-			}
-			mutex_unlock(&sensor->operation_mutex);
-			DBG("%s:LIGHTSENSOR_IOCTL_ENABLE OK\n", __func__);
-			break;
-
-		default:
-			break;
+	default:
+		break;
 	}
 
-error:
 	return result;
 }
-
-
-
 
 static int sensor_misc_device_register(struct sensor_private_data *sensor, int type)
 {
 	int result = 0;
 
-	switch(type)
-	{
-		case SENSOR_TYPE_ANGLE:
-			if(!sensor->ops->misc_dev)
-			{
-				sensor->fops.owner = THIS_MODULE;
-				sensor->fops.unlocked_ioctl = angle_dev_ioctl;
-				sensor->fops.open = angle_dev_open;
-				sensor->fops.release = angle_dev_release;
+	switch (type) {
+	case SENSOR_TYPE_ANGLE:
+		if (!sensor->ops->misc_dev) {
+			sensor->fops.owner = THIS_MODULE;
+			sensor->fops.unlocked_ioctl = angle_dev_ioctl;
+			sensor->fops.open = angle_dev_open;
+			sensor->fops.release = angle_dev_release;
 
-				sensor->miscdev.minor = MISC_DYNAMIC_MINOR;
-				sensor->miscdev.name = "angle";
-				sensor->miscdev.fops = &sensor->fops;
-			}
-			else
-			{
-				memcpy(&sensor->miscdev, sensor->ops->misc_dev, sizeof(*sensor->ops->misc_dev));
+			sensor->miscdev.minor = MISC_DYNAMIC_MINOR;
+			sensor->miscdev.name = "angle";
+			sensor->miscdev.fops = &sensor->fops;
+		} else {
+			memcpy(&sensor->miscdev, sensor->ops->misc_dev, sizeof(*sensor->ops->misc_dev));
+		}
+		break;
 
-			}
+	case SENSOR_TYPE_ACCEL:
+		if (!sensor->ops->misc_dev) {
+			sensor->fops.owner = THIS_MODULE;
+			sensor->fops.unlocked_ioctl = gsensor_dev_ioctl;
+			#ifdef CONFIG_COMPAT
+			sensor->fops.compat_ioctl = gsensor_dev_ioctl;
+			#endif
+			sensor->fops.open = gsensor_dev_open;
+			sensor->fops.release = gsensor_dev_release;
 
-			break;
+			sensor->miscdev.minor = MISC_DYNAMIC_MINOR;
+			sensor->miscdev.name = "mma8452_daemon";
+			sensor->miscdev.fops = &sensor->fops;
+		} else {
+			memcpy(&sensor->miscdev, sensor->ops->misc_dev, sizeof(*sensor->ops->misc_dev));
+		}
+		break;
 
-		case SENSOR_TYPE_ACCEL:
-			if(!sensor->ops->misc_dev)
-			{
-				sensor->fops.owner = THIS_MODULE;
-				sensor->fops.unlocked_ioctl = gsensor_dev_ioctl;
-                #ifdef CONFIG_COMPAT
-				sensor->fops.compat_ioctl = gsensor_dev_ioctl;
-				#endif
-				sensor->fops.open = gsensor_dev_open;
-				sensor->fops.release = gsensor_dev_release;
+	case SENSOR_TYPE_COMPASS:
+		if (!sensor->ops->misc_dev) {
+			sensor->fops.owner = THIS_MODULE;
+			sensor->fops.unlocked_ioctl = compass_dev_ioctl;
+			#ifdef CONFIG_COMPAT
+			sensor->fops.compat_ioctl = compass_dev_compat_ioctl;
+			#endif
+			sensor->fops.open = compass_dev_open;
+			sensor->fops.release = compass_dev_release;
 
-				sensor->miscdev.minor = MISC_DYNAMIC_MINOR;
-				sensor->miscdev.name = "mma8452_daemon";
-				sensor->miscdev.fops = &sensor->fops;
-			}
-			else
-			{
-				memcpy(&sensor->miscdev, sensor->ops->misc_dev, sizeof(*sensor->ops->misc_dev));
+			sensor->miscdev.minor = MISC_DYNAMIC_MINOR;
+			sensor->miscdev.name = "compass";
+			sensor->miscdev.fops = &sensor->fops;
+		} else {
+			memcpy(&sensor->miscdev, sensor->ops->misc_dev, sizeof(*sensor->ops->misc_dev));
+		}
+		break;
 
-			}
+	case SENSOR_TYPE_GYROSCOPE:
+		if (!sensor->ops->misc_dev) {
+			sensor->fops.owner = THIS_MODULE;
+			sensor->fops.unlocked_ioctl = gyro_dev_ioctl;
+			sensor->fops.open = gyro_dev_open;
+			sensor->fops.release = gyro_dev_release;
 
-			break;
+			sensor->miscdev.minor = MISC_DYNAMIC_MINOR;
+			sensor->miscdev.name = "gyrosensor";
+			sensor->miscdev.fops = &sensor->fops;
+		} else {
+			memcpy(&sensor->miscdev, sensor->ops->misc_dev, sizeof(*sensor->ops->misc_dev));
+		}
+		break;
 
-		case SENSOR_TYPE_COMPASS:
-			if(!sensor->ops->misc_dev)
-			{
-				sensor->fops.owner = THIS_MODULE;
-				sensor->fops.unlocked_ioctl = compass_dev_ioctl;
-#ifdef CONFIG_COMPAT
-				sensor->fops.compat_ioctl = compass_dev_compat_ioctl;
-#endif
-				sensor->fops.open = compass_dev_open;
-				sensor->fops.release = compass_dev_release;
+	case SENSOR_TYPE_LIGHT:
+		if (!sensor->ops->misc_dev) {
+			sensor->fops.owner = THIS_MODULE;
+			sensor->fops.unlocked_ioctl = light_dev_ioctl;
+			#ifdef CONFIG_COMPAT
+			sensor->fops.compat_ioctl = light_dev_compat_ioctl;
+			#endif
+			sensor->fops.open = light_dev_open;
+			sensor->fops.release = light_dev_release;
 
-				sensor->miscdev.minor = MISC_DYNAMIC_MINOR;
-				sensor->miscdev.name = "compass";
-				sensor->miscdev.fops = &sensor->fops;
-			}
-			else
-			{
-				memcpy(&sensor->miscdev, sensor->ops->misc_dev, sizeof(*sensor->ops->misc_dev));
+			sensor->miscdev.minor = MISC_DYNAMIC_MINOR;
+			sensor->miscdev.name = "lightsensor";
+			sensor->miscdev.fops = &sensor->fops;
+		} else {
+			memcpy(&sensor->miscdev, sensor->ops->misc_dev, sizeof(*sensor->ops->misc_dev));
+		}
+		break;
 
-			}
+	case SENSOR_TYPE_PROXIMITY:
+		if (!sensor->ops->misc_dev) {
+			sensor->fops.owner = THIS_MODULE;
+			sensor->fops.unlocked_ioctl = proximity_dev_ioctl;
+			#ifdef CONFIG_COMPAT
+			sensor->fops.compat_ioctl = proximity_dev_compat_ioctl;
+			#endif
+			sensor->fops.open = proximity_dev_open;
+			sensor->fops.release = proximity_dev_release;
 
-			break;
+			sensor->miscdev.minor = MISC_DYNAMIC_MINOR;
+			sensor->miscdev.name = "psensor";
+			sensor->miscdev.fops = &sensor->fops;
+		} else {
+			memcpy(&sensor->miscdev, sensor->ops->misc_dev, sizeof(*sensor->ops->misc_dev));
+		}
+		break;
 
-		case SENSOR_TYPE_GYROSCOPE:
-			if(!sensor->ops->misc_dev)
-			{
-				sensor->fops.owner = THIS_MODULE;
-				sensor->fops.unlocked_ioctl = gyro_dev_ioctl;
-				sensor->fops.open = gyro_dev_open;
-				sensor->fops.release = gyro_dev_release;
+	case SENSOR_TYPE_TEMPERATURE:
+		if (!sensor->ops->misc_dev) {
+			sensor->fops.owner = THIS_MODULE;
+			sensor->fops.unlocked_ioctl = temperature_dev_ioctl;
+			sensor->fops.open = temperature_dev_open;
+			sensor->fops.release = temperature_dev_release;
 
-				sensor->miscdev.minor = MISC_DYNAMIC_MINOR;
-				sensor->miscdev.name = "gyrosensor";
-				sensor->miscdev.fops = &sensor->fops;
-			}
-			else
-			{
-				memcpy(&sensor->miscdev, sensor->ops->misc_dev, sizeof(*sensor->ops->misc_dev));
+			sensor->miscdev.minor = MISC_DYNAMIC_MINOR;
+			sensor->miscdev.name = "temperature";
+			sensor->miscdev.fops = &sensor->fops;
+		} else {
+			memcpy(&sensor->miscdev, sensor->ops->misc_dev, sizeof(*sensor->ops->misc_dev));
+		}
+		break;
 
-			}
+	case SENSOR_TYPE_PRESSURE:
+		if (!sensor->ops->misc_dev) {
+			sensor->fops.owner = THIS_MODULE;
+			sensor->fops.unlocked_ioctl = pressure_dev_ioctl;
+			sensor->fops.open = pressure_dev_open;
+			sensor->fops.release = pressure_dev_release;
 
-			break;
+			sensor->miscdev.minor = MISC_DYNAMIC_MINOR;
+			sensor->miscdev.name = "pressure";
+			sensor->miscdev.fops = &sensor->fops;
+		} else {
+			memcpy(&sensor->miscdev, sensor->ops->misc_dev, sizeof(*sensor->ops->misc_dev));
+		}
+		break;
 
-		case SENSOR_TYPE_LIGHT:
-			if(!sensor->ops->misc_dev)
-			{
-				sensor->fops.owner = THIS_MODULE;
-				sensor->fops.unlocked_ioctl = light_dev_ioctl;
-#ifdef CONFIG_COMPAT
-				sensor->fops.compat_ioctl = light_dev_compat_ioctl;
-#endif
-				sensor->fops.open = light_dev_open;
-				sensor->fops.release = light_dev_release;
-
-				sensor->miscdev.minor = MISC_DYNAMIC_MINOR;
-				sensor->miscdev.name = "lightsensor";
-				sensor->miscdev.fops = &sensor->fops;
-			}
-			else
-			{
-				memcpy(&sensor->miscdev, sensor->ops->misc_dev, sizeof(*sensor->ops->misc_dev));
-
-			}
-			break;
-
-		case SENSOR_TYPE_PROXIMITY:
-			if(!sensor->ops->misc_dev)
-			{
-				sensor->fops.owner = THIS_MODULE;
-				sensor->fops.unlocked_ioctl = proximity_dev_ioctl;
-#ifdef CONFIG_COMPAT
-				sensor->fops.compat_ioctl = proximity_dev_compat_ioctl;
-#endif
-				sensor->fops.open = proximity_dev_open;
-				sensor->fops.release = proximity_dev_release;
-
-				sensor->miscdev.minor = MISC_DYNAMIC_MINOR;
-				sensor->miscdev.name = "psensor";
-				sensor->miscdev.fops = &sensor->fops;
-			}
-			else
-			{
-				memcpy(&sensor->miscdev, sensor->ops->misc_dev, sizeof(*sensor->ops->misc_dev));
-
-			}
-			break;
-
-		case SENSOR_TYPE_TEMPERATURE:
-			if(!sensor->ops->misc_dev)
-			{
-				sensor->fops.owner = THIS_MODULE;
-				sensor->fops.unlocked_ioctl = temperature_dev_ioctl;
-				sensor->fops.open = temperature_dev_open;
-				sensor->fops.release = temperature_dev_release;
-
-				sensor->miscdev.minor = MISC_DYNAMIC_MINOR;
-				sensor->miscdev.name = "temperature";
-				sensor->miscdev.fops = &sensor->fops;
-			}
-			else
-			{
-				memcpy(&sensor->miscdev, sensor->ops->misc_dev, sizeof(*sensor->ops->misc_dev));
-
-			}
-
-			break;
-
-		case SENSOR_TYPE_PRESSURE:
-			if(!sensor->ops->misc_dev)
-			{
-				sensor->fops.owner = THIS_MODULE;
-				sensor->fops.unlocked_ioctl = pressure_dev_ioctl;
-				sensor->fops.open = pressure_dev_open;
-				sensor->fops.release = pressure_dev_release;
-
-				sensor->miscdev.minor = MISC_DYNAMIC_MINOR;
-				sensor->miscdev.name = "pressure";
-				sensor->miscdev.fops = &sensor->fops;
-			}
-			else
-			{
-				memcpy(&sensor->miscdev, sensor->ops->misc_dev, sizeof(*sensor->ops->misc_dev));
-
-			}
-
-			break;
-
-		default:
-			printk("%s:unknow sensor type=%d\n",__func__,type);
-			result = -1;
-			goto error;
+	default:
+		dev_err(&sensor->client->dev, "%s:unknow sensor type=%d\n", __func__, type);
+		result = -1;
+		goto error;
 	}
 
 	sensor->miscdev.parent = &sensor->client->dev;
@@ -1776,48 +1285,45 @@ static int sensor_misc_device_register(struct sensor_private_data *sensor, int t
 			"fail to register misc device %s\n", sensor->miscdev.name);
 		goto error;
 	}
-
-	printk("%s:miscdevice: %s\n",__func__,sensor->miscdev.name);
+	dev_info(&sensor->client->dev, "%s:miscdevice: %s\n", __func__, sensor->miscdev.name);
 
 error:
-
 	return result;
-
 }
 
-int sensor_register_slave(int type,struct i2c_client *client,
+int sensor_register_slave(int type, struct i2c_client *client,
 			struct sensor_platform_data *slave_pdata,
 			struct sensor_operate *(*get_sensor_ops)(void))
 {
 	int result = 0;
 	struct sensor_operate *ops = get_sensor_ops();
-	if((ops->id_i2c >= SENSOR_NUM_ID) || (ops->id_i2c <= ID_INVALID))
-	{
-		printk("%s:%s id is error %d\n", __func__, ops->name, ops->id_i2c);
+
+	if ((ops->id_i2c >= SENSOR_NUM_ID) || (ops->id_i2c <= ID_INVALID)) {
+		dev_err(&client->dev, "%s:%s id is error %d\n", __func__, ops->name, ops->id_i2c);
 		return -1;
 	}
 	sensor_ops[ops->id_i2c] = ops;
-	printk("%s:%s,id=%d\n",__func__,sensor_ops[ops->id_i2c]->name, ops->id_i2c);
+	dev_info(&client->dev, "%s:%s,id=%d\n", __func__, sensor_ops[ops->id_i2c]->name, ops->id_i2c);
+
 	return result;
 }
 
-
-int sensor_unregister_slave(int type,struct i2c_client *client,
+int sensor_unregister_slave(int type, struct i2c_client *client,
 			struct sensor_platform_data *slave_pdata,
 			struct sensor_operate *(*get_sensor_ops)(void))
 {
 	int result = 0;
 	struct sensor_operate *ops = get_sensor_ops();
-	if((ops->id_i2c >= SENSOR_NUM_ID) || (ops->id_i2c <= ID_INVALID))
-	{
-		printk("%s:%s id is error %d\n", __func__, ops->name, ops->id_i2c);
+
+	if ((ops->id_i2c >= SENSOR_NUM_ID) || (ops->id_i2c <= ID_INVALID)) {
+		dev_err(&client->dev, "%s:%s id is error %d\n", __func__, ops->name, ops->id_i2c);
 		return -1;
 	}
-	printk("%s:%s,id=%d\n",__func__,sensor_ops[ops->id_i2c]->name, ops->id_i2c);
+	dev_info(&client->dev, "%s:%s,id=%d\n", __func__, sensor_ops[ops->id_i2c]->name, ops->id_i2c);
 	sensor_ops[ops->id_i2c] = NULL;
+
 	return result;
 }
-
 
 int sensor_probe(struct i2c_client *client, const struct i2c_device_id *devid)
 {
@@ -1840,200 +1346,177 @@ int sensor_probe(struct i2c_client *client, const struct i2c_device_id *devid)
 		dev_err(&client->dev, "no device tree\n");
 		return -EINVAL;
 	}
-    pdata = devm_kzalloc(&client->dev,sizeof(*pdata), GFP_KERNEL);
+	pdata = devm_kzalloc(&client->dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata) {
 		result = -ENOMEM;
 		goto out_no_free;
 	}
-	sensor = devm_kzalloc(&client->dev,sizeof(*sensor), GFP_KERNEL);
+	sensor = devm_kzalloc(&client->dev, sizeof(*sensor), GFP_KERNEL);
 	if (!sensor) {
 		result = -ENOMEM;
 		goto out_no_free;
 	}
 
-	of_property_read_u32(np,"type",&(pdata->type));
+	of_property_read_u32(np, "type", &(pdata->type));
 
-	pdata->irq_pin = of_get_named_gpio_flags(np, "irq-gpio", 0,(enum of_gpio_flags *)&irq_flags);
-	pdata->reset_pin = of_get_named_gpio_flags(np, "reset-gpio",0,&rst_flags);
-	pdata->power_pin = of_get_named_gpio_flags(np, "power-gpio",0,&pwr_flags);
+	pdata->irq_pin = of_get_named_gpio_flags(np, "irq-gpio", 0, (enum of_gpio_flags *)&irq_flags);
+	pdata->reset_pin = of_get_named_gpio_flags(np, "reset-gpio", 0, &rst_flags);
+	pdata->power_pin = of_get_named_gpio_flags(np, "power-gpio", 0, &pwr_flags);
 
-	of_property_read_u32(np,"irq_enable",&(pdata->irq_enable));
-	of_property_read_u32(np,"poll_delay_ms",&(pdata->poll_delay_ms));
+	of_property_read_u32(np, "irq_enable", &(pdata->irq_enable));
+	of_property_read_u32(np, "poll_delay_ms", &(pdata->poll_delay_ms));
 
-	of_property_read_u32(np,"x_min",&(pdata->x_min));
-	of_property_read_u32(np,"y_min",&(pdata->y_min));
-	of_property_read_u32(np,"z_min",&(pdata->z_min));
-	of_property_read_u32(np,"factory",&(pdata->factory));
-	of_property_read_u32(np,"layout",&(pdata->layout));
+	of_property_read_u32(np, "x_min", &(pdata->x_min));
+	of_property_read_u32(np, "y_min", &(pdata->y_min));
+	of_property_read_u32(np, "z_min", &(pdata->z_min));
+	of_property_read_u32(np, "factory", &(pdata->factory));
+	of_property_read_u32(np, "layout", &(pdata->layout));
 
-	of_property_read_u8(np,"address",&(pdata->address));
+	of_property_read_u8(np, "address", &(pdata->address));
 	of_get_property(np, "project_name", pdata->project_name);
 
 	of_property_read_u32(np, "power-off-in-suspend",
 			     &pdata->power_off_in_suspend);
 
-	switch(pdata->layout)
-	{
-		case 1:
-			pdata->orientation[0] = 1;
-			pdata->orientation[1] = 0;
-			pdata->orientation[2] = 0;
+	switch (pdata->layout) {
+	case 1:
+		pdata->orientation[0] = 1;
+		pdata->orientation[1] = 0;
+		pdata->orientation[2] = 0;
 
-			pdata->orientation[3] = 0;
-			pdata->orientation[4] = 1;
-			pdata->orientation[5] = 0;
+		pdata->orientation[3] = 0;
+		pdata->orientation[4] = 1;
+		pdata->orientation[5] = 0;
 
-			pdata->orientation[6] = 0;
-			pdata->orientation[7] = 0;
-			pdata->orientation[8] = 1;
-			break;
+		pdata->orientation[6] = 0;
+		pdata->orientation[7] = 0;
+		pdata->orientation[8] = 1;
+		break;
 
-		case 2:
-			pdata->orientation[0] = 0;
-			pdata->orientation[1] = -1;
-			pdata->orientation[2] = 0;
+	case 2:
+		pdata->orientation[0] = 0;
+		pdata->orientation[1] = -1;
+		pdata->orientation[2] = 0;
 
-			pdata->orientation[3] = 1;
-			pdata->orientation[4] = 0;
-			pdata->orientation[5] = 0;
+		pdata->orientation[3] = 1;
+		pdata->orientation[4] = 0;
+		pdata->orientation[5] = 0;
 
-			pdata->orientation[6] = 0;
-			pdata->orientation[7] = 0;
-			pdata->orientation[8] = 1;
-			break;
+		pdata->orientation[6] = 0;
+		pdata->orientation[7] = 0;
+		pdata->orientation[8] = 1;
+		break;
 
-		case 3:
-			pdata->orientation[0] = -1;
-			pdata->orientation[1] = 0;
-			pdata->orientation[2] = 0;
+	case 3:
+		pdata->orientation[0] = -1;
+		pdata->orientation[1] = 0;
+		pdata->orientation[2] = 0;
 
-			pdata->orientation[3] = 0;
-			pdata->orientation[4] = -1;
-			pdata->orientation[5] = 0;
+		pdata->orientation[3] = 0;
+		pdata->orientation[4] = -1;
+		pdata->orientation[5] = 0;
 
-			pdata->orientation[6] = 0;
-			pdata->orientation[7] = 0;
-			pdata->orientation[8] = 1;
-			break;
+		pdata->orientation[6] = 0;
+		pdata->orientation[7] = 0;
+		pdata->orientation[8] = 1;
+		break;
 
-		case 4:
-			pdata->orientation[0] = 0;
-			pdata->orientation[1] = 1;
-			pdata->orientation[2] = 0;
+	case 4:
+		pdata->orientation[0] = 0;
+		pdata->orientation[1] = 1;
+		pdata->orientation[2] = 0;
 
-			pdata->orientation[3] = -1;
-			pdata->orientation[4] = 0;
-			pdata->orientation[5] = 0;
+		pdata->orientation[3] = -1;
+		pdata->orientation[4] = 0;
+		pdata->orientation[5] = 0;
 
-			pdata->orientation[6] = 0;
-			pdata->orientation[7] = 0;
-			pdata->orientation[8] = 1;
-			break;
+		pdata->orientation[6] = 0;
+		pdata->orientation[7] = 0;
+		pdata->orientation[8] = 1;
+		break;
 
-		case 5:
-			pdata->orientation[0] = 1;
-			pdata->orientation[1] = 0;
-			pdata->orientation[2] = 0;
+	case 5:
+		pdata->orientation[0] = 1;
+		pdata->orientation[1] = 0;
+		pdata->orientation[2] = 0;
 
-			pdata->orientation[3] = 0;
-			pdata->orientation[4] = -1;
-			pdata->orientation[5] = 0;
+		pdata->orientation[3] = 0;
+		pdata->orientation[4] = -1;
+		pdata->orientation[5] = 0;
 
-			pdata->orientation[6] = 0;
-			pdata->orientation[7] = 0;
-			pdata->orientation[8] = -1;
-			break;
+		pdata->orientation[6] = 0;
+		pdata->orientation[7] = 0;
+		pdata->orientation[8] = -1;
+		break;
 
-		case 6:
-			pdata->orientation[0] = 0;
-			pdata->orientation[1] = -1;
-			pdata->orientation[2] = 0;
+	case 6:
+		pdata->orientation[0] = 0;
+		pdata->orientation[1] = -1;
+		pdata->orientation[2] = 0;
 
-			pdata->orientation[3] = -1;
-			pdata->orientation[4] = 0;
-			pdata->orientation[5] = 0;
+		pdata->orientation[3] = -1;
+		pdata->orientation[4] = 0;
+		pdata->orientation[5] = 0;
 
-			pdata->orientation[6] = 0;
-			pdata->orientation[7] = 0;
-			pdata->orientation[8] = -1;
-			break;
+		pdata->orientation[6] = 0;
+		pdata->orientation[7] = 0;
+		pdata->orientation[8] = -1;
+		break;
 
-		case 7:
-			pdata->orientation[0] = -1;
-			pdata->orientation[1] = 0;
-			pdata->orientation[2] = 0;
+	case 7:
+		pdata->orientation[0] = -1;
+		pdata->orientation[1] = 0;
+		pdata->orientation[2] = 0;
 
-			pdata->orientation[3] = 0;
-			pdata->orientation[4] = 1;
-			pdata->orientation[5] = 0;
+		pdata->orientation[3] = 0;
+		pdata->orientation[4] = 1;
+		pdata->orientation[5] = 0;
 
-			pdata->orientation[6] = 0;
-			pdata->orientation[7] = 0;
-			pdata->orientation[8] = -1;
-			break;
+		pdata->orientation[6] = 0;
+		pdata->orientation[7] = 0;
+		pdata->orientation[8] = -1;
+		break;
 
-		case 8:
-			pdata->orientation[0] = 0;
-			pdata->orientation[1] = 1;
-			pdata->orientation[2] = 0;
+	case 8:
+		pdata->orientation[0] = 0;
+		pdata->orientation[1] = 1;
+		pdata->orientation[2] = 0;
 
-			pdata->orientation[3] = 1;
-			pdata->orientation[4] = 0;
-			pdata->orientation[5] = 0;
+		pdata->orientation[3] = 1;
+		pdata->orientation[4] = 0;
+		pdata->orientation[5] = 0;
 
-			pdata->orientation[6] = 0;
-			pdata->orientation[7] = 0;
-			pdata->orientation[8] = -1;
-			break;
+		pdata->orientation[6] = 0;
+		pdata->orientation[7] = 0;
+		pdata->orientation[8] = -1;
+		break;
 
-		default:
-			pdata->orientation[0] = 1;
-			pdata->orientation[1] = 0;
-			pdata->orientation[2] = 0;
+	default:
+		pdata->orientation[0] = 1;
+		pdata->orientation[1] = 0;
+		pdata->orientation[2] = 0;
 
-			pdata->orientation[3] = 0;
-			pdata->orientation[4] = 1;
-			pdata->orientation[5] = 0;
+		pdata->orientation[3] = 0;
+		pdata->orientation[4] = 1;
+		pdata->orientation[5] = 0;
 
-			pdata->orientation[6] = 0;
-			pdata->orientation[7] = 0;
-			pdata->orientation[8] = 1;
-			break;
+		pdata->orientation[6] = 0;
+		pdata->orientation[7] = 0;
+		pdata->orientation[8] = 1;
+		break;
 	}
 
 	client->irq = pdata->irq_pin;
 	type = pdata->type;
 	pdata->irq_flags = irq_flags;
-	DBG("irq_flags = %lu  padta->irq_flags = %lu\n",irq_flags, pdata->irq_flags);
-	DBG("type = %d \n",pdata->type);
-	DBG("irq = %d \n",pdata->irq);
-	DBG("irq_pin = %d \n",pdata->irq_pin);
-	DBG("pwer_pin = %d \n",pdata->power_pin);
-	DBG("reset_pin = %d \n",pdata->reset_pin);
-	DBG("irq_enable = %d \n",pdata->irq_enable);
+	pdata->poll_delay_ms = 30;
 
-	DBG("poll_delay_ms = %d \n",pdata->poll_delay_ms);
-	DBG("x_min = %d \n",pdata->x_min);
-	DBG("y_min = %d \n",pdata->y_min);
-	DBG("z_min = %d \n",pdata->z_min);
-	DBG("factory = %d \n",pdata->factory);
-	DBG("layout = %d \n",pdata->layout);
-	DBG("address = 0x%x \n",pdata->address);
-	DBG("project_name = [%s] \n",pdata->project_name);
-
-	DBG(" == %d,%d ,%d \t ,%d ,%d ,%d , \t ,%d, %d, %d ,==%d\n",pdata->orientation[0],pdata->orientation[1],pdata->orientation[2]
-				,pdata->orientation[3],pdata->orientation[4],pdata->orientation[5]
-				,pdata->orientation[6],pdata->orientation[7],pdata->orientation[8],ARRAY_SIZE(pdata->orientation));
-
-
-	if((type >= SENSOR_NUM_TYPES) || (type <= SENSOR_TYPE_NULL))
-	{
+	if ((type >= SENSOR_NUM_TYPES) || (type <= SENSOR_TYPE_NULL)) {
 		dev_err(&client->adapter->dev, "sensor type is error %d\n", type);
 		result = -EFAULT;
 		goto out_no_free;
 	}
-	if(((int)devid->driver_data >= SENSOR_NUM_ID) || ((int)devid->driver_data <= ID_INVALID))
-	{
+	if (((int)devid->driver_data >= SENSOR_NUM_ID) || ((int)devid->driver_data <= ID_INVALID)) {
 		dev_err(&client->adapter->dev, "sensor id is error %d\n", (int)devid->driver_data);
 		result = -EFAULT;
 		goto out_no_free;
@@ -2044,14 +1527,14 @@ int sensor_probe(struct i2c_client *client, const struct i2c_device_id *devid)
 	sensor->type = type;
 	sensor->i2c_id = (struct i2c_device_id *)devid;
 
-
-	memset(&(sensor->axis), 0, sizeof(struct sensor_axis) );
-	atomic_set(&(sensor->data_ready), 0);
-	init_waitqueue_head(&(sensor->data_ready_wq));
+	memset(&(sensor->axis), 0, sizeof(struct sensor_axis));
 	mutex_init(&sensor->data_mutex);
 	mutex_init(&sensor->operation_mutex);
 	mutex_init(&sensor->sensor_mutex);
 	mutex_init(&sensor->i2c_mutex);
+
+	atomic_set(&sensor->is_factory, 0);
+	init_waitqueue_head(&sensor->is_factory_ok);
 
 	/* As default, report all information */
 	atomic_set(&sensor->flags.m_flag, 1);
@@ -2068,7 +1551,7 @@ int sensor_probe(struct i2c_client *client, const struct i2c_device_id *devid)
 	sensor->axis.z = 0;
 
 	result = sensor_chip_init(sensor->client);
-	if(result < 0)
+	if (result < 0)
 		goto out_free_memory;
 
 	sensor->input_dev = devm_input_allocate_device(&client->dev);
@@ -2079,93 +1562,90 @@ int sensor_probe(struct i2c_client *client, const struct i2c_device_id *devid)
 		goto out_free_memory;
 	}
 
-	switch(type)
-	{
-		case SENSOR_TYPE_ANGLE:
-			sensor->input_dev->name = "angle";
-			set_bit(EV_ABS, sensor->input_dev->evbit);
-			/* x-axis acceleration */
-			input_set_abs_params(sensor->input_dev, ABS_X, sensor->ops->range[0], sensor->ops->range[1], 0, 0); //2g full scale range
-			/* y-axis acceleration */
-			input_set_abs_params(sensor->input_dev, ABS_Y, sensor->ops->range[0], sensor->ops->range[1], 0, 0); //2g full scale range
-			/* z-axis acceleration */
-			input_set_abs_params(sensor->input_dev, ABS_Z, sensor->ops->range[0], sensor->ops->range[1], 0, 0); //2g full scale range
-			break;
+	switch (type) {
+	case SENSOR_TYPE_ANGLE:
+		sensor->input_dev->name = "angle";
+		set_bit(EV_ABS, sensor->input_dev->evbit);
+		/* x-axis acceleration */
+		input_set_abs_params(sensor->input_dev, ABS_X, sensor->ops->range[0], sensor->ops->range[1], 0, 0);
+		/* y-axis acceleration */
+		input_set_abs_params(sensor->input_dev, ABS_Y, sensor->ops->range[0], sensor->ops->range[1], 0, 0);
+		/* z-axis acceleration */
+		input_set_abs_params(sensor->input_dev, ABS_Z, sensor->ops->range[0], sensor->ops->range[1], 0, 0);
 
-		case SENSOR_TYPE_ACCEL:
-			sensor->input_dev->name = "gsensor";
-			set_bit(EV_ABS, sensor->input_dev->evbit);
-			/* x-axis acceleration */
-			input_set_abs_params(sensor->input_dev, ABS_X, sensor->ops->range[0], sensor->ops->range[1], 0, 0); //2g full scale range
-			/* y-axis acceleration */
-			input_set_abs_params(sensor->input_dev, ABS_Y, sensor->ops->range[0], sensor->ops->range[1], 0, 0); //2g full scale range
-			/* z-axis acceleration */
-			input_set_abs_params(sensor->input_dev, ABS_Z, sensor->ops->range[0], sensor->ops->range[1], 0, 0); //2g full scale range
-			break;
-		case SENSOR_TYPE_COMPASS:
-			sensor->input_dev->name = "compass";
-			/* Setup input device */
-			set_bit(EV_ABS, sensor->input_dev->evbit);
-			/* yaw (0, 360) */
-			input_set_abs_params(sensor->input_dev, ABS_RX, 0, 23040, 0, 0);
-			/* pitch (-180, 180) */
-			input_set_abs_params(sensor->input_dev, ABS_RY, -11520, 11520, 0, 0);
-			/* roll (-90, 90) */
-			input_set_abs_params(sensor->input_dev, ABS_RZ, -5760, 5760, 0, 0);
-			/* x-axis acceleration (720 x 8G) */
-			input_set_abs_params(sensor->input_dev, ABS_X, -5760, 5760, 0, 0);
-			/* y-axis acceleration (720 x 8G) */
-			input_set_abs_params(sensor->input_dev, ABS_Y, -5760, 5760, 0, 0);
-			/* z-axis acceleration (720 x 8G) */
-			input_set_abs_params(sensor->input_dev, ABS_Z, -5760, 5760, 0, 0);
-			/* status of magnetic sensor */
-			input_set_abs_params(sensor->input_dev, ABS_RUDDER, -32768, 3, 0, 0);
-			/* status of acceleration sensor */
-			input_set_abs_params(sensor->input_dev, ABS_WHEEL, -32768, 3, 0, 0);
-			/* x-axis of raw magnetic vector (-4096, 4095) */
-			input_set_abs_params(sensor->input_dev, ABS_HAT0X, -20480, 20479, 0, 0);
-			/* y-axis of raw magnetic vector (-4096, 4095) */
-			input_set_abs_params(sensor->input_dev, ABS_HAT0Y, -20480, 20479, 0, 0);
-			/* z-axis of raw magnetic vector (-4096, 4095) */
-			input_set_abs_params(sensor->input_dev, ABS_BRAKE, -20480, 20479, 0, 0);
-			break;
-		case SENSOR_TYPE_GYROSCOPE:
-			sensor->input_dev->name = "gyro";
-			/* x-axis acceleration */
-			input_set_capability(sensor->input_dev, EV_REL, REL_RX);
-			input_set_abs_params(sensor->input_dev, ABS_RX, sensor->ops->range[0], sensor->ops->range[1], 0, 0);
-			/* y-axis acceleration */
-			input_set_capability(sensor->input_dev, EV_REL, REL_RY);
-			input_set_abs_params(sensor->input_dev, ABS_RY, sensor->ops->range[0], sensor->ops->range[1], 0, 0);
-			/* z-axis acceleration */
-			input_set_capability(sensor->input_dev, EV_REL, REL_RZ);
-			input_set_abs_params(sensor->input_dev, ABS_RZ, sensor->ops->range[0], sensor->ops->range[1], 0, 0);
-			break;
-		case SENSOR_TYPE_LIGHT:
-			sensor->input_dev->name = "lightsensor-level";
-			set_bit(EV_ABS, sensor->input_dev->evbit);
-			input_set_abs_params(sensor->input_dev, ABS_MISC, sensor->ops->range[0], sensor->ops->range[1], 0, 0);
-			input_set_abs_params(sensor->input_dev, ABS_TOOL_WIDTH ,  sensor->ops->brightness[0],sensor->ops->brightness[1], 0, 0);
-			break;
-		case SENSOR_TYPE_PROXIMITY:
-			sensor->input_dev->name = "proximity";
-			set_bit(EV_ABS, sensor->input_dev->evbit);
-			input_set_abs_params(sensor->input_dev, ABS_DISTANCE, sensor->ops->range[0], sensor->ops->range[1], 0, 0);
-			break;
-		case SENSOR_TYPE_TEMPERATURE:
-			sensor->input_dev->name = "temperature";
-			set_bit(EV_ABS, sensor->input_dev->evbit);
-			input_set_abs_params(sensor->input_dev, ABS_THROTTLE, sensor->ops->range[0], sensor->ops->range[1], 0, 0);
-			break;
-		case SENSOR_TYPE_PRESSURE:
-			sensor->input_dev->name = "pressure";
-			set_bit(EV_ABS, sensor->input_dev->evbit);
-			input_set_abs_params(sensor->input_dev, ABS_PRESSURE, sensor->ops->range[0], sensor->ops->range[1], 0, 0);
-			break;
-		default:
-			printk("%s:unknow sensor type=%d\n",__func__,type);
-			break;
-
+	case SENSOR_TYPE_ACCEL:
+		sensor->input_dev->name = "gsensor";
+		set_bit(EV_ABS, sensor->input_dev->evbit);
+		/* x-axis acceleration */
+		input_set_abs_params(sensor->input_dev, ABS_X, sensor->ops->range[0], sensor->ops->range[1], 0, 0);
+		/* y-axis acceleration */
+		input_set_abs_params(sensor->input_dev, ABS_Y, sensor->ops->range[0], sensor->ops->range[1], 0, 0);
+		/* z-axis acceleration */
+		input_set_abs_params(sensor->input_dev, ABS_Z, sensor->ops->range[0], sensor->ops->range[1], 0, 0);
+		break;
+	case SENSOR_TYPE_COMPASS:
+		sensor->input_dev->name = "compass";
+		/* Setup input device */
+		set_bit(EV_ABS, sensor->input_dev->evbit);
+		/* yaw (0, 360) */
+		input_set_abs_params(sensor->input_dev, ABS_RX, 0, 23040, 0, 0);
+		/* pitch (-180, 180) */
+		input_set_abs_params(sensor->input_dev, ABS_RY, -11520, 11520, 0, 0);
+		/* roll (-90, 90) */
+		input_set_abs_params(sensor->input_dev, ABS_RZ, -5760, 5760, 0, 0);
+		/* x-axis acceleration (720 x 8G) */
+		input_set_abs_params(sensor->input_dev, ABS_X, -5760, 5760, 0, 0);
+		/* y-axis acceleration (720 x 8G) */
+		input_set_abs_params(sensor->input_dev, ABS_Y, -5760, 5760, 0, 0);
+		/* z-axis acceleration (720 x 8G) */
+		input_set_abs_params(sensor->input_dev, ABS_Z, -5760, 5760, 0, 0);
+		/* status of magnetic sensor */
+		input_set_abs_params(sensor->input_dev, ABS_RUDDER, -32768, 3, 0, 0);
+		/* status of acceleration sensor */
+		input_set_abs_params(sensor->input_dev, ABS_WHEEL, -32768, 3, 0, 0);
+		/* x-axis of raw magnetic vector (-4096, 4095) */
+		input_set_abs_params(sensor->input_dev, ABS_HAT0X, -20480, 20479, 0, 0);
+		/* y-axis of raw magnetic vector (-4096, 4095) */
+		input_set_abs_params(sensor->input_dev, ABS_HAT0Y, -20480, 20479, 0, 0);
+		/* z-axis of raw magnetic vector (-4096, 4095) */
+		input_set_abs_params(sensor->input_dev, ABS_BRAKE, -20480, 20479, 0, 0);
+		break;
+	case SENSOR_TYPE_GYROSCOPE:
+		sensor->input_dev->name = "gyro";
+		/* x-axis acceleration */
+		input_set_capability(sensor->input_dev, EV_REL, REL_RX);
+		input_set_abs_params(sensor->input_dev, ABS_RX, sensor->ops->range[0], sensor->ops->range[1], 0, 0);
+		/* y-axis acceleration */
+		input_set_capability(sensor->input_dev, EV_REL, REL_RY);
+		input_set_abs_params(sensor->input_dev, ABS_RY, sensor->ops->range[0], sensor->ops->range[1], 0, 0);
+		/* z-axis acceleration */
+		input_set_capability(sensor->input_dev, EV_REL, REL_RZ);
+		input_set_abs_params(sensor->input_dev, ABS_RZ, sensor->ops->range[0], sensor->ops->range[1], 0, 0);
+		break;
+	case SENSOR_TYPE_LIGHT:
+		sensor->input_dev->name = "lightsensor-level";
+		set_bit(EV_ABS, sensor->input_dev->evbit);
+		input_set_abs_params(sensor->input_dev, ABS_MISC, sensor->ops->range[0], sensor->ops->range[1], 0, 0);
+		input_set_abs_params(sensor->input_dev, ABS_TOOL_WIDTH,  sensor->ops->brightness[0], sensor->ops->brightness[1], 0, 0);
+		break;
+	case SENSOR_TYPE_PROXIMITY:
+		sensor->input_dev->name = "proximity";
+		set_bit(EV_ABS, sensor->input_dev->evbit);
+		input_set_abs_params(sensor->input_dev, ABS_DISTANCE, sensor->ops->range[0], sensor->ops->range[1], 0, 0);
+		break;
+	case SENSOR_TYPE_TEMPERATURE:
+		sensor->input_dev->name = "temperature";
+		set_bit(EV_ABS, sensor->input_dev->evbit);
+		input_set_abs_params(sensor->input_dev, ABS_THROTTLE, sensor->ops->range[0], sensor->ops->range[1], 0, 0);
+		break;
+	case SENSOR_TYPE_PRESSURE:
+		sensor->input_dev->name = "pressure";
+		set_bit(EV_ABS, sensor->input_dev->evbit);
+		input_set_abs_params(sensor->input_dev, ABS_PRESSURE, sensor->ops->range[0], sensor->ops->range[1], 0, 0);
+		break;
+	default:
+		dev_err(&client->dev, "%s:unknow sensor type=%d\n", __func__, type);
+		break;
 	}
 	sensor->input_dev->dev.parent = &client->dev;
 
@@ -2179,10 +1659,9 @@ int sensor_probe(struct i2c_client *client, const struct i2c_device_id *devid)
 	result = sensor_irq_init(sensor->client);
 	if (result) {
 		dev_err(&client->dev,
-			"fail to init sensor irq,ret=%d\n",result);
+			"fail to init sensor irq,ret=%d\n", result);
 		goto out_input_register_device_failed;
 	}
-
 
 	sensor->miscdev.parent = &client->dev;
 	result = sensor_misc_device_register(sensor, type);
@@ -2194,19 +1673,11 @@ int sensor_probe(struct i2c_client *client, const struct i2c_device_id *devid)
 
 	g_sensor[type] = sensor;
 
-	if((type == SENSOR_TYPE_ACCEL) && (sensor->pdata->factory))	//only support  setting gsensor orientation online now
-	{
-		result = gsensor_class_init();
-		if (result) {
-			dev_err(&client->dev,
-				"fail to register misc device %s\n", sensor->i2c_id->name);
-			goto out_misc_device_register_device_failed;
-		}
-	}
+	if (type == SENSOR_TYPE_ACCEL)
+		accel_class_init();
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
-	if((sensor->ops->suspend) && (sensor->ops->resume))
-	{
+	if ((sensor->ops->suspend) && (sensor->ops->resume)) {
 		sensor->early_suspend.suspend = sensor_suspend;
 		sensor->early_suspend.resume = sensor_resume;
 		sensor->early_suspend.level = 0x02;
@@ -2214,7 +1685,7 @@ int sensor_probe(struct i2c_client *client, const struct i2c_device_id *devid)
 	}
 #endif
 
-	printk("%s:initialized ok,sensor name:%s,type:%d,id=%d\n\n",__func__,sensor->ops->name,type,(int)sensor->i2c_id->driver_data);
+	dev_info(&client->dev, "%s:initialized ok,sensor name:%s,type:%d,id=%d\n\n", __func__, sensor->ops->name, type, (int)sensor->i2c_id->driver_data);
 
 	return result;
 
@@ -2224,7 +1695,6 @@ out_free_memory:
 out_no_free:
 	dev_err(&client->adapter->dev, "%s failed %d\n\n", __func__, result);
 	return result;
-
 }
 
 static void sensor_shut_down(struct i2c_client *client)
@@ -2232,9 +1702,9 @@ static void sensor_shut_down(struct i2c_client *client)
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	struct sensor_private_data *sensor =
 	    (struct sensor_private_data *) i2c_get_clientdata(client);
-	if((sensor->ops->suspend) && (sensor->ops->resume))
+
+	if ((sensor->ops->suspend) && (sensor->ops->resume))
 		unregister_early_suspend(&sensor->early_suspend);
-	DBG("%s:%s\n",__func__,sensor->i2c_id->name);
 #endif
 }
 
@@ -2242,15 +1712,16 @@ static int sensor_remove(struct i2c_client *client)
 {
 	struct sensor_private_data *sensor =
 	    (struct sensor_private_data *) i2c_get_clientdata(client);
-	int result = 0;
 
+	sensor->stop_work = 1;
 	cancel_delayed_work_sync(&sensor->delaywork);
 	misc_deregister(&sensor->miscdev);
 #ifdef CONFIG_HAS_EARLYSUSPEND
-	if((sensor->ops->suspend) && (sensor->ops->resume))
+	if ((sensor->ops->suspend) && (sensor->ops->resume))
 		unregister_early_suspend(&sensor->early_suspend);
 #endif
-	return result;
+
+	return 0;
 }
 
 static const struct i2c_device_id sensor_id[] = {
@@ -2267,9 +1738,9 @@ static const struct i2c_device_id sensor_id[] = {
 	{"gs_mxc6225", ACCEL_ID_MXC6225},
 	{"gs_dmard10", ACCEL_ID_DMARD10},
 	{"gs_lsm303d", ACCEL_ID_LSM303D},
-	{"gs_mc3230",ACCEL_ID_MC3230},
-	{"mpu6880_acc",ACCEL_ID_MPU6880},
-	{"mpu6500_acc",ACCEL_ID_MPU6500},
+	{"gs_mc3230", ACCEL_ID_MC3230},
+	{"mpu6880_acc", ACCEL_ID_MPU6880},
+	{"mpu6500_acc", ACCEL_ID_MPU6500},
 	{"lsm330_acc", ACCEL_ID_LSM330},
 	{"bma2xx_acc", ACCEL_ID_BMA2XX},
 	/*compass*/
@@ -2284,7 +1755,7 @@ static const struct i2c_device_id sensor_id[] = {
 	{"l3g20d_gyro", GYRO_ID_L3G20D},
 	{"ewtsa_gyro", GYRO_ID_EWTSA},
 	{"k3g", GYRO_ID_K3G},
-	{"mpu6880_gyro",GYRO_ID_MPU6880},
+	{"mpu6880_gyro", GYRO_ID_MPU6880},
 	{"lsm330_gyro", GYRO_ID_LSM330},
 	/*light sensor*/
 	{"lightsensor", LIGHT_ID_ALL},
@@ -2367,7 +1838,6 @@ static struct i2c_driver sensor_driver = {
 	.shutdown = sensor_shut_down,
 	.id_table = sensor_id,
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = "sensors",
 		.of_match_table = of_match_ptr(sensor_dt_ids),
 		.pm = SENSOR_PM_OPS,
@@ -2376,20 +1846,11 @@ static struct i2c_driver sensor_driver = {
 
 static int __init sensor_init(void)
 {
-	int res = i2c_add_driver(&sensor_driver);
-	struct proc_dir_entry *sensor_proc_entry;
-	pr_info("%s: Probe name %s\n", __func__, sensor_driver.driver.name);
-	if (res)
-		pr_err("%s failed\n", __func__);
-
-	sensor_proc_entry = proc_create("driver/sensor_dbg", 0660, NULL, &sensor_proc_fops);
-	printk("%s\n", SENSOR_VERSION_AND_TIME);
-	return res;
+	return i2c_add_driver(&sensor_driver);
 }
 
 static void __exit sensor_exit(void)
 {
-	pr_info("%s\n", __func__);
 	i2c_del_driver(&sensor_driver);
 }
 
@@ -2399,4 +1860,3 @@ module_exit(sensor_exit);
 MODULE_AUTHOR("ROCKCHIP Corporation:lw@rock-chips.com");
 MODULE_DESCRIPTION("User space character device interface for sensors");
 MODULE_LICENSE("GPL");
-

@@ -56,7 +56,7 @@ enum sensor_id {
 	ACCEL_ID_LSM303D,
 	ACCEL_ID_MC3230,
 	ACCEL_ID_MPU6880,
-        ACCEL_ID_MPU6500,
+	ACCEL_ID_MPU6500,
 	ACCEL_ID_LSM330,
 	ACCEL_ID_BMA2XX,
 	COMPASS_ID_ALL,
@@ -77,7 +77,7 @@ enum sensor_id {
 
 	GYRO_ID_ALL,
 	GYRO_ID_L3G4200D,
-    GYRO_ID_L3G20D,
+	GYRO_ID_L3G20D,
 	GYRO_ID_EWTSA,
 	GYRO_ID_K3G,
 	GYRO_ID_MPU6880,
@@ -113,7 +113,6 @@ enum sensor_id {
 	SENSOR_NUM_ID,
 };
 
-
 struct sensor_axis {
 	int x;
 	int y;
@@ -134,9 +133,9 @@ struct sensor_flag {
 struct sensor_operate {
 	char *name;
 	int type;
-	int	id_i2c;
-	int	range[2];
-	int 	brightness[2];//backlight min_brightness max_brightness
+	int id_i2c;
+	int range[2];
+	int brightness[2];
 	int read_reg;
 	int read_len;
 	int id_reg;
@@ -145,29 +144,27 @@ struct sensor_operate {
 	int ctrl_reg;
 	int ctrl_data;
 	int int_ctrl_reg;
-	int	int_status_reg;
-	int trig;	//intterupt trigger
+	int int_status_reg;
+	int trig;
 	int (*active)(struct i2c_client *client, int enable, int rate);
 	int (*init)(struct i2c_client *client);
 	int (*report)(struct i2c_client *client);
 	int (*suspend)(struct i2c_client *client);
 	int (*resume)(struct i2c_client *client);
 	struct miscdevice *misc_dev;
-
 };
-
 
 /* Platform data for the sensor */
 struct sensor_private_data {
 	int type;
 	struct i2c_client *client;
 	struct input_dev *input_dev;
-	struct work_struct work;
-	struct delayed_work delaywork;	/*report second event*/
+	int stop_work;
+	struct delayed_work delaywork;
 	struct sensor_axis axis;
-	char sensor_data[40];		//max support40 bytes data
-	atomic_t data_ready;
-	wait_queue_head_t data_ready_wq;
+	char sensor_data[40];
+	atomic_t is_factory;
+	wait_queue_head_t is_factory_ok;
 	struct mutex data_mutex;
 	struct mutex operation_mutex;
 	struct mutex sensor_mutex;
@@ -182,7 +179,7 @@ struct sensor_private_data {
 	struct file_operations fops;
 	struct miscdevice miscdev;
 #ifdef CONFIG_HAS_EARLYSUSPEND
-	struct 	early_suspend early_suspend;
+	struct early_suspend early_suspend;
 #endif
 };
 
@@ -193,140 +190,138 @@ struct sensor_platform_data {
 	int power_pin;
 	int reset_pin;
 	int standby_pin;
-	int irq_enable;         //if irq_enable=1 then use irq else use polling
-	int poll_delay_ms;      //polling
-	int x_min;              //filter
+	int irq_enable;
+	int poll_delay_ms;
+	int x_min;
 	int y_min;
 	int z_min;
 	int factory;
 	int layout;
+	int accel_offset[3];
+	int gyro_offset[3];
 	unsigned char address;
 	unsigned long irq_flags;
 	signed char orientation[9];
 	short m_layout[4][3][3];
-	int* project_name;
+	int *project_name;
 	int power_off_in_suspend;
 };
 
- struct gsensor_platform_data {
-         u16 model;
-         u16 swap_xy;
-         u16 swap_xyz;
-         signed char orientation[9];
-         int (*get_pendown_state)(void);
-         int (*init_platform_hw)(void);
-         int (*gsensor_platform_sleep)(void);
-         int (*gsensor_platform_wakeup)(void);
-         void (*exit_platform_hw)(void);
- };
+struct gsensor_platform_data {
+	u16 model;
+	u16 swap_xy;
+	u16 swap_xyz;
+	signed char orientation[9];
+	int (*get_pendown_state)(void);
+	int (*init_platform_hw)(void);
+	int (*gsensor_platform_sleep)(void);
+	int (*gsensor_platform_wakeup)(void);
+	void (*exit_platform_hw)(void);
+};
 
- struct akm8975_platform_data {
-         short m_layout[4][3][3];
-         char project_name[64];
-         int gpio_DRDY;
- };
+struct akm8975_platform_data {
+	short m_layout[4][3][3];
+	char project_name[64];
+	int gpio_DRDY;
+};
 
- struct akm_platform_data {
-        short m_layout[4][3][3];
-        char project_name[64];
-        char layout;
-        char outbit;
-        int gpio_DRDY;
-        int gpio_RST;
- };
+struct akm_platform_data {
+	short m_layout[4][3][3];
+	char project_name[64];
+	char layout;
+	char outbit;
+	int gpio_DRDY;
+	int gpio_RST;
+};
 
-extern int sensor_register_slave(int type,struct i2c_client *client,
+extern int sensor_register_slave(int type, struct i2c_client *client,
 			struct sensor_platform_data *slave_pdata,
 			struct sensor_operate *(*get_sensor_ops)(void));
 
 
-extern int sensor_unregister_slave(int type,struct i2c_client *client,
+extern int sensor_unregister_slave(int type, struct i2c_client *client,
 			struct sensor_platform_data *slave_pdata,
 			struct sensor_operate *(*get_sensor_ops)(void));
 
-#if 0
-#define DBG(x...) if((atomic_read(&sensor->flags.debug_flag) == sensor->pdata->type) || (atomic_read(&sensor->flags.debug_flag) == SENSOR_NUM_TYPES))printk(x)
-#else
 #define DBG(x...)
-#endif
 
 #define GSENSOR_IOCTL_MAGIC			'a'
 #define GBUFF_SIZE				12	/* Rx buffer size */
 
 /* IOCTLs for MMA8452 library */
-#define GSENSOR_IOCTL_INIT			_IO(GSENSOR_IOCTL_MAGIC, 0x01)
-#define GSENSOR_IOCTL_RESET      	        _IO(GSENSOR_IOCTL_MAGIC, 0x04)
-#define GSENSOR_IOCTL_CLOSE		        _IO(GSENSOR_IOCTL_MAGIC, 0x02)
-#define GSENSOR_IOCTL_START		        _IO(GSENSOR_IOCTL_MAGIC, 0x03)
-#define GSENSOR_IOCTL_GETDATA               	_IOR(GSENSOR_IOCTL_MAGIC, 0x08, char[GBUFF_SIZE+1])
+#define GSENSOR_IOCTL_INIT						_IO(GSENSOR_IOCTL_MAGIC, 0x01)
+#define GSENSOR_IOCTL_RESET					_IO(GSENSOR_IOCTL_MAGIC, 0x04)
+#define GSENSOR_IOCTL_CLOSE					_IO(GSENSOR_IOCTL_MAGIC, 0x02)
+#define GSENSOR_IOCTL_START					_IO(GSENSOR_IOCTL_MAGIC, 0x03)
+#define GSENSOR_IOCTL_GETDATA					_IOR(GSENSOR_IOCTL_MAGIC, 0x08, char[GBUFF_SIZE+1])
+#define GSENSOR_IOCTL_APP_SET_RATE			_IOW(GSENSOR_IOCTL_MAGIC, 0x10, short)
+#define GSENSOR_IOCTL_GET_CALIBRATION		_IOR(GSENSOR_IOCTL_MAGIC, 0x11, int[3])
+
+
+#define COMPASS_IOCTL_MAGIC					'c'
 /* IOCTLs for APPs */
-#define GSENSOR_IOCTL_APP_SET_RATE		_IOW(GSENSOR_IOCTL_MAGIC, 0x10, char)
-
-
-#define COMPASS_IOCTL_MAGIC                   'c'
-/* IOCTLs for APPs */
-#define ECS_IOCTL_APP_SET_MODE		_IOW(COMPASS_IOCTL_MAGIC, 0x10, short)
-#define ECS_IOCTL_APP_SET_MFLAG		_IOW(COMPASS_IOCTL_MAGIC, 0x11, short)
-#define ECS_IOCTL_APP_GET_MFLAG		_IOW(COMPASS_IOCTL_MAGIC, 0x12, short)
-#define ECS_IOCTL_APP_SET_AFLAG		_IOW(COMPASS_IOCTL_MAGIC, 0x13, short)
-#define ECS_IOCTL_APP_GET_AFLAG		_IOR(COMPASS_IOCTL_MAGIC, 0x14, short)
-#define ECS_IOCTL_APP_SET_TFLAG		_IOR(COMPASS_IOCTL_MAGIC, 0x15, short)/* NOT use */
-#define ECS_IOCTL_APP_GET_TFLAG		_IOR(COMPASS_IOCTL_MAGIC, 0x16, short)/* NOT use */
-#define ECS_IOCTL_APP_RESET_PEDOMETER   _IOW(COMPASS_IOCTL_MAGIC, 0x17)	/* NOT use */
-#define ECS_IOCTL_APP_SET_DELAY		_IOW(COMPASS_IOCTL_MAGIC, 0x18, short)
-#define ECS_IOCTL_APP_SET_MVFLAG	_IOW(COMPASS_IOCTL_MAGIC, 0x19, short)
-#define ECS_IOCTL_APP_GET_MVFLAG	_IOR(COMPASS_IOCTL_MAGIC, 0x1A, short)
-#define ECS_IOCTL_APP_GET_DELAY		_IOR(COMPASS_IOCTL_MAGIC, 0x1B, short)
+#define ECS_IOCTL_APP_SET_MODE				_IOW(COMPASS_IOCTL_MAGIC, 0x10, short)
+#define ECS_IOCTL_APP_SET_MFLAG				_IOW(COMPASS_IOCTL_MAGIC, 0x11, short)
+#define ECS_IOCTL_APP_GET_MFLAG				_IOW(COMPASS_IOCTL_MAGIC, 0x12, short)
+#define ECS_IOCTL_APP_SET_AFLAG				_IOW(COMPASS_IOCTL_MAGIC, 0x13, short)
+#define ECS_IOCTL_APP_GET_AFLAG				_IOR(COMPASS_IOCTL_MAGIC, 0x14, short)
+#define ECS_IOCTL_APP_SET_TFLAG				_IOR(COMPASS_IOCTL_MAGIC, 0x15, short)/* NOT use */
+#define ECS_IOCTL_APP_GET_TFLAG				_IOR(COMPASS_IOCTL_MAGIC, 0x16, short)/* NOT use */
+#define ECS_IOCTL_APP_RESET_PEDOMETER		_IOW(COMPASS_IOCTL_MAGIC, 0x17)	/* NOT use */
+#define ECS_IOCTL_APP_SET_DELAY				_IOW(COMPASS_IOCTL_MAGIC, 0x18, short)
+#define ECS_IOCTL_APP_SET_MVFLAG				_IOW(COMPASS_IOCTL_MAGIC, 0x19, short)
+#define ECS_IOCTL_APP_GET_MVFLAG				_IOR(COMPASS_IOCTL_MAGIC, 0x1A, short)
+#define ECS_IOCTL_APP_GET_DELAY				_IOR(COMPASS_IOCTL_MAGIC, 0x1B, short)
 
 #ifdef CONFIG_COMPAT
-#define COMPAT_ECS_IOCTL_APP_SET_MODE          _IOW(COMPASS_IOCTL_MAGIC, 0x10, compat_short_t)
-#define COMPAT_ECS_IOCTL_APP_SET_MFLAG         _IOW(COMPASS_IOCTL_MAGIC, 0x11, compat_short_t)
-#define COMPAT_ECS_IOCTL_APP_GET_MFLAG         _IOW(COMPASS_IOCTL_MAGIC, 0x12, compat_short_t)
-#define COMPAT_ECS_IOCTL_APP_SET_AFLAG         _IOW(COMPASS_IOCTL_MAGIC, 0x13, compat_short_t)
-#define COMPAT_ECS_IOCTL_APP_GET_AFLAG         _IOR(COMPASS_IOCTL_MAGIC, 0x14, compat_short_t)
-#define COMPAT_ECS_IOCTL_APP_SET_TFLAG         _IOR(COMPASS_IOCTL_MAGIC, 0x15, compat_short_t)/* NOT use */
-#define COMPAT_ECS_IOCTL_APP_GET_TFLAG         _IOR(COMPASS_IOCTL_MAGIC, 0x16, compat_short_t)/* NOT use */
-#define COMPAT_ECS_IOCTL_APP_RESET_PEDOMETER   _IOW(COMPASS_IOCTL_MAGIC, 0x17) /* NOT use */
-#define COMPAT_ECS_IOCTL_APP_SET_DELAY         _IOW(COMPASS_IOCTL_MAGIC, 0x18, compat_short_t)
-#define COMPAT_ECS_IOCTL_APP_SET_MVFLAG        _IOW(COMPASS_IOCTL_MAGIC, 0x19, compat_short_t)
-#define COMPAT_ECS_IOCTL_APP_GET_MVFLAG        _IOR(COMPASS_IOCTL_MAGIC, 0x1A, compat_short_t)
-#define COMPAT_ECS_IOCTL_APP_GET_DELAY         _IOR(COMPASS_IOCTL_MAGIC, 0x1B, compat_short_t)
+#define COMPAT_ECS_IOCTL_APP_SET_MODE			_IOW(COMPASS_IOCTL_MAGIC, 0x10, compat_short_t)
+#define COMPAT_ECS_IOCTL_APP_SET_MFLAG			_IOW(COMPASS_IOCTL_MAGIC, 0x11, compat_short_t)
+#define COMPAT_ECS_IOCTL_APP_GET_MFLAG			_IOW(COMPASS_IOCTL_MAGIC, 0x12, compat_short_t)
+#define COMPAT_ECS_IOCTL_APP_SET_AFLAG			_IOW(COMPASS_IOCTL_MAGIC, 0x13, compat_short_t)
+#define COMPAT_ECS_IOCTL_APP_GET_AFLAG			_IOR(COMPASS_IOCTL_MAGIC, 0x14, compat_short_t)
+#define COMPAT_ECS_IOCTL_APP_SET_TFLAG			_IOR(COMPASS_IOCTL_MAGIC, 0x15, compat_short_t)/* NOT use */
+#define COMPAT_ECS_IOCTL_APP_GET_TFLAG			_IOR(COMPASS_IOCTL_MAGIC, 0x16, compat_short_t)/* NOT use */
+#define COMPAT_ECS_IOCTL_APP_RESET_PEDOMETER	_IOW(COMPASS_IOCTL_MAGIC, 0x17) /* NOT use */
+#define COMPAT_ECS_IOCTL_APP_SET_DELAY			_IOW(COMPASS_IOCTL_MAGIC, 0x18, compat_short_t)
+#define COMPAT_ECS_IOCTL_APP_SET_MVFLAG			_IOW(COMPASS_IOCTL_MAGIC, 0x19, compat_short_t)
+#define COMPAT_ECS_IOCTL_APP_GET_MVFLAG			_IOR(COMPASS_IOCTL_MAGIC, 0x1A, compat_short_t)
+#define COMPAT_ECS_IOCTL_APP_GET_DELAY			_IOR(COMPASS_IOCTL_MAGIC, 0x1B, compat_short_t)
 #endif
 
-#define LIGHTSENSOR_IOCTL_MAGIC 'l'
-#define LIGHTSENSOR_IOCTL_GET_ENABLED		_IOR(LIGHTSENSOR_IOCTL_MAGIC, 1, int *)
-#define LIGHTSENSOR_IOCTL_ENABLE		_IOW(LIGHTSENSOR_IOCTL_MAGIC, 2, int *)
-#define LIGHTSENSOR_IOCTL_DISABLE		_IOW(LIGHTSENSOR_IOCTL_MAGIC, 3, int *)
+#define LIGHTSENSOR_IOCTL_MAGIC					'l'
+#define LIGHTSENSOR_IOCTL_GET_ENABLED			_IOR(LIGHTSENSOR_IOCTL_MAGIC, 1, int *)
+#define LIGHTSENSOR_IOCTL_ENABLE					_IOW(LIGHTSENSOR_IOCTL_MAGIC, 2, int *)
+#define LIGHTSENSOR_IOCTL_SET_RATE				_IOW(LIGHTSENSOR_IOCTL_MAGIC, 3, short)
 
 #ifdef CONFIG_COMPAT
-#define COMPAT_LIGHTSENSOR_IOCTL_GET_ENABLED    _IOR(LIGHTSENSOR_IOCTL_MAGIC, 1, compat_uptr_t)
-#define COMPAT_LIGHTSENSOR_IOCTL_ENABLE         _IOW(LIGHTSENSOR_IOCTL_MAGIC, 2, compat_uptr_t)
-#define COMPAT_LIGHTSENSOR_IOCTL_DISABLE        _IOW(LIGHTSENSOR_IOCTL_MAGIC, 3, compat_uptr_t)
+#define COMPAT_LIGHTSENSOR_IOCTL_GET_ENABLED	_IOR(LIGHTSENSOR_IOCTL_MAGIC, 1, compat_uptr_t)
+#define COMPAT_LIGHTSENSOR_IOCTL_ENABLE			_IOW(LIGHTSENSOR_IOCTL_MAGIC, 2, compat_uptr_t)
+#define COMPAT_LIGHTSENSOR_IOCTL_SET_RATE		_IOW(LIGHTSENSOR_IOCTL_MAGIC, 3, compat_short_t)
 #endif
 
-#define PSENSOR_IOCTL_MAGIC 'p'
-#define PSENSOR_IOCTL_GET_ENABLED 		_IOR(PSENSOR_IOCTL_MAGIC, 1, int *)
-#define PSENSOR_IOCTL_ENABLE 			_IOW(PSENSOR_IOCTL_MAGIC, 2, int *)
-#define PSENSOR_IOCTL_DISABLE       		_IOW(PSENSOR_IOCTL_MAGIC, 3, int *)
+#define PSENSOR_IOCTL_MAGIC				'p'
+#define PSENSOR_IOCTL_GET_ENABLED		_IOR(PSENSOR_IOCTL_MAGIC, 1, int *)
+#define PSENSOR_IOCTL_ENABLE				_IOW(PSENSOR_IOCTL_MAGIC, 2, int *)
+#define PSENSOR_IOCTL_DISABLE				_IOW(PSENSOR_IOCTL_MAGIC, 3, int *)
 
 #ifdef CONFIG_COMPAT
-#define COMPAT_PSENSOR_IOCTL_GET_ENABLED        _IOR(PSENSOR_IOCTL_MAGIC, 1, compat_uptr_t)
-#define COMPAT_PSENSOR_IOCTL_ENABLE             _IOW(PSENSOR_IOCTL_MAGIC, 2, compat_uptr_t)
-#define COMPAT_PSENSOR_IOCTL_DISABLE            _IOW(PSENSOR_IOCTL_MAGIC, 3, compat_uptr_t)
+#define COMPAT_PSENSOR_IOCTL_GET_ENABLED	_IOR(PSENSOR_IOCTL_MAGIC, 1, compat_uptr_t)
+#define COMPAT_PSENSOR_IOCTL_ENABLE			_IOW(PSENSOR_IOCTL_MAGIC, 2, compat_uptr_t)
+#define COMPAT_PSENSOR_IOCTL_DISABLE			_IOW(PSENSOR_IOCTL_MAGIC, 3, compat_uptr_t)
 #endif
 
-#define PRESSURE_IOCTL_MAGIC 'r'
-#define PRESSURE_IOCTL_GET_ENABLED 		_IOR(PRESSURE_IOCTL_MAGIC, 1, int *)
-#define PRESSURE_IOCTL_ENABLE 			_IOW(PRESSURE_IOCTL_MAGIC, 2, int *)
-#define PRESSURE_IOCTL_DISABLE       		_IOW(PRESSURE_IOCTL_MAGIC, 3, int *)
-#define PRESSURE_IOCTL_SET_DELAY       		_IOW(PRESSURE_IOCTL_MAGIC, 4, int *)
+#define PRESSURE_IOCTL_MAGIC 				'r'
+#define PRESSURE_IOCTL_GET_ENABLED		_IOR(PRESSURE_IOCTL_MAGIC, 1, int *)
+#define PRESSURE_IOCTL_ENABLE				_IOW(PRESSURE_IOCTL_MAGIC, 2, int *)
+#define PRESSURE_IOCTL_DISABLE			_IOW(PRESSURE_IOCTL_MAGIC, 3, int *)
+#define PRESSURE_IOCTL_SET_DELAY			_IOW(PRESSURE_IOCTL_MAGIC, 4, int *)
 
 
-#define TEMPERATURE_IOCTL_MAGIC 't'
-#define TEMPERATURE_IOCTL_GET_ENABLED 		_IOR(TEMPERATURE_IOCTL_MAGIC, 1, int *)
-#define TEMPERATURE_IOCTL_ENABLE 		_IOW(TEMPERATURE_IOCTL_MAGIC, 2, int *)
-#define TEMPERATURE_IOCTL_DISABLE       	_IOW(TEMPERATURE_IOCTL_MAGIC, 3, int *)
-#define TEMPERATURE_IOCTL_SET_DELAY       	_IOW(TEMPERATURE_IOCTL_MAGIC, 4, int *)
+#define TEMPERATURE_IOCTL_MAGIC			't'
+#define TEMPERATURE_IOCTL_GET_ENABLED	_IOR(TEMPERATURE_IOCTL_MAGIC, 1, int *)
+#define TEMPERATURE_IOCTL_ENABLE			_IOW(TEMPERATURE_IOCTL_MAGIC, 2, int *)
+#define TEMPERATURE_IOCTL_DISABLE		_IOW(TEMPERATURE_IOCTL_MAGIC, 3, int *)
+#define TEMPERATURE_IOCTL_SET_DELAY		_IOW(TEMPERATURE_IOCTL_MAGIC, 4, int *)
 
 
 extern int sensor_rx_data(struct i2c_client *client, char *rxData, int length);
