@@ -91,6 +91,9 @@ unsigned long drm_gem_cma_get_unmapped_area(struct file *filp,
 void drm_gem_cma_describe(struct drm_gem_cma_object *obj, struct seq_file *m);
 #endif
 
+void drm_gem_cma_print_info(struct drm_printer *p, unsigned int indent,
+			    const struct drm_gem_object *obj);
+
 struct sg_table *drm_gem_cma_prime_get_sg_table(struct drm_gem_object *obj);
 struct drm_gem_object *
 drm_gem_cma_prime_import_sg_table(struct drm_device *dev,

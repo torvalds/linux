@@ -424,6 +424,25 @@ EXPORT_SYMBOL_GPL(drm_gem_cma_describe);
 #endif
 
 /**
+ * drm_gem_cma_print_info() - Print &drm_gem_cma_object info for debugfs
+ * @p: DRM printer
+ * @indent: Tab indentation level
+ * @gem: GEM object
+ *
+ * This function can be used as the &drm_driver->gem_print_info callback.
+ * It prints paddr and vaddr for use in e.g. debugfs output.
+ */
+void drm_gem_cma_print_info(struct drm_printer *p, unsigned int indent,
+			    const struct drm_gem_object *obj)
+{
+	const struct drm_gem_cma_object *cma_obj = to_drm_gem_cma_obj(obj);
+
+	drm_printf_indent(p, indent, "paddr=%pad\n", &cma_obj->paddr);
+	drm_printf_indent(p, indent, "vaddr=%p\n", cma_obj->vaddr);
+}
+EXPORT_SYMBOL(drm_gem_cma_print_info);
+
+/**
  * drm_gem_cma_prime_get_sg_table - provide a scatter/gather table of pinned
  *     pages for a CMA GEM object
  * @obj: GEM object
