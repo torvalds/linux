@@ -387,6 +387,7 @@ EXPORT_SYMBOL(acpi_bus_power_manageable);
 
 #ifdef CONFIG_PM
 static DEFINE_MUTEX(acpi_pm_notifier_lock);
+static DEFINE_MUTEX(acpi_pm_notifier_install_lock);
 
 void acpi_pm_wakeup_event(struct device *dev)
 {
@@ -443,24 +444,25 @@ acpi_status acpi_add_pm_notifier(struct acpi_device *adev, struct device *dev,
 	if (!dev && !func)
 		return AE_BAD_PARAMETER;
 
-	mutex_lock(&acpi_pm_notifier_lock);
+	mutex_lock(&acpi_pm_notifier_install_lock);
 
 	if (adev->wakeup.flags.notifier_present)
 		goto out;
-
-	adev->wakeup.ws = wakeup_source_register(dev_name(&adev->dev));
-	adev->wakeup.context.dev = dev;
-	adev->wakeup.context.func = func;
 
 	status = acpi_install_notify_handler(adev->handle, ACPI_SYSTEM_NOTIFY,
 					     acpi_pm_notify_handler, NULL);
 	if (ACPI_FAILURE(status))
 		goto out;
 
+	mutex_lock(&acpi_pm_notifier_lock);
+	adev->wakeup.ws = wakeup_source_register(dev_name(&adev->dev));
+	adev->wakeup.context.dev = dev;
+	adev->wakeup.context.func = func;
 	adev->wakeup.flags.notifier_present = true;
+	mutex_unlock(&acpi_pm_notifier_lock);
 
  out:
-	mutex_unlock(&acpi_pm_notifier_lock);
+	mutex_unlock(&acpi_pm_notifier_install_lock);
 	return status;
 }
 
@@ -472,7 +474,7 @@ acpi_status acpi_remove_pm_notifier(struct acpi_device *adev)
 {
 	acpi_status status = AE_BAD_PARAMETER;
 
-	mutex_lock(&acpi_pm_notifier_lock);
+	mutex_lock(&acpi_pm_notifier_install_lock);
 
 	if (!adev->wakeup.flags.notifier_present)
 		goto out;
@@ -483,14 +485,15 @@ acpi_status acpi_remove_pm_notifier(struct acpi_device *adev)
 	if (ACPI_FAILURE(status))
 		goto out;
 
+	mutex_lock(&acpi_pm_notifier_lock);
 	adev->wakeup.context.func = NULL;
 	adev->wakeup.context.dev = NULL;
 	wakeup_source_unregister(adev->wakeup.ws);
-
 	adev->wakeup.flags.notifier_present = false;
+	mutex_unlock(&acpi_pm_notifier_lock);
 
  out:
-	mutex_unlock(&acpi_pm_notifier_lock);
+	mutex_unlock(&acpi_pm_notifier_install_lock);
 	return status;
 }
 
