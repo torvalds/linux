@@ -507,7 +507,6 @@ static int tilcdc_mm_show(struct seq_file *m, void *arg)
 static struct drm_info_list tilcdc_debugfs_list[] = {
 		{ "regs", tilcdc_regs_show, 0 },
 		{ "mm",   tilcdc_mm_show,   0 },
-		{ "fb",   drm_fb_cma_debugfs_show, 0 },
 };
 
 static int tilcdc_debugfs_init(struct drm_minor *minor)
@@ -541,6 +540,7 @@ static struct drm_driver tilcdc_driver = {
 	.lastclose          = tilcdc_lastclose,
 	.irq_handler        = tilcdc_irq,
 	.gem_free_object_unlocked = drm_gem_cma_free_object,
+	.gem_print_info     = drm_gem_cma_print_info,
 	.gem_vm_ops         = &drm_gem_cma_vm_ops,
 	.dumb_create        = drm_gem_cma_dumb_create,
 
