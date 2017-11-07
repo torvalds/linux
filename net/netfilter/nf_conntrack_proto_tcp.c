@@ -1541,7 +1541,7 @@ static struct nf_proto_net *tcp_get_net_proto(struct net *net)
 	return &net->ct.nf_ct_proto.tcp.pn;
 }
 
-struct nf_conntrack_l4proto nf_conntrack_l4proto_tcp4 __read_mostly =
+const struct nf_conntrack_l4proto nf_conntrack_l4proto_tcp4 =
 {
 	.l3proto		= PF_INET,
 	.l4proto 		= IPPROTO_TCP,
@@ -1579,7 +1579,7 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_tcp4 __read_mostly =
 };
 EXPORT_SYMBOL_GPL(nf_conntrack_l4proto_tcp4);
 
-struct nf_conntrack_l4proto nf_conntrack_l4proto_tcp6 __read_mostly =
+const struct nf_conntrack_l4proto nf_conntrack_l4proto_tcp6 =
 {
 	.l3proto		= PF_INET6,
 	.l4proto 		= IPPROTO_TCP,

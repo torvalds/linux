@@ -351,7 +351,7 @@ static struct nf_proto_net *icmp_get_net_proto(struct net *net)
 	return &net->ct.nf_ct_proto.icmp.pn;
 }
 
-struct nf_conntrack_l4proto nf_conntrack_l4proto_icmp __read_mostly =
+const struct nf_conntrack_l4proto nf_conntrack_l4proto_icmp =
 {
 	.l3proto		= PF_INET,
 	.l4proto		= IPPROTO_ICMP,

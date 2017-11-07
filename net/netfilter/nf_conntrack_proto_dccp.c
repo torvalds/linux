@@ -861,7 +861,7 @@ static struct nf_proto_net *dccp_get_net_proto(struct net *net)
 	return &net->ct.nf_ct_proto.dccp.pn;
 }
 
-struct nf_conntrack_l4proto nf_conntrack_l4proto_dccp4 __read_mostly = {
+const struct nf_conntrack_l4proto nf_conntrack_l4proto_dccp4 = {
 	.l3proto		= AF_INET,
 	.l4proto		= IPPROTO_DCCP,
 	.pkt_to_tuple		= dccp_pkt_to_tuple,
@@ -897,7 +897,7 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_dccp4 __read_mostly = {
 };
 EXPORT_SYMBOL_GPL(nf_conntrack_l4proto_dccp4);
 
-struct nf_conntrack_l4proto nf_conntrack_l4proto_dccp6 __read_mostly = {
+const struct nf_conntrack_l4proto nf_conntrack_l4proto_dccp6 = {
 	.l3proto		= AF_INET6,
 	.l4proto		= IPPROTO_DCCP,
 	.pkt_to_tuple		= dccp_pkt_to_tuple,

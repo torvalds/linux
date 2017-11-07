@@ -108,7 +108,7 @@ struct nf_conntrack_l4proto {
 };
 
 /* Existing built-in generic protocol */
-extern struct nf_conntrack_l4proto nf_conntrack_l4proto_generic;
+extern const struct nf_conntrack_l4proto nf_conntrack_l4proto_generic;
 
 #define MAX_NF_CT_PROTO 256
 

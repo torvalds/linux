@@ -163,7 +163,7 @@ static struct nf_proto_net *generic_get_net_proto(struct net *net)
 	return &net->ct.nf_ct_proto.generic.pn;
 }
 
-struct nf_conntrack_l4proto nf_conntrack_l4proto_generic __read_mostly =
+const struct nf_conntrack_l4proto nf_conntrack_l4proto_generic =
 {
 	.l3proto		= PF_UNSPEC,
 	.l4proto		= 255,

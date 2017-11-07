@@ -352,7 +352,7 @@ static int gre_init_net(struct net *net, u_int16_t proto)
 }
 
 /* protocol helper struct */
-static struct nf_conntrack_l4proto nf_conntrack_l4proto_gre4 __read_mostly = {
+static const struct nf_conntrack_l4proto nf_conntrack_l4proto_gre4 = {
 	.l3proto	 = AF_INET,
 	.l4proto	 = IPPROTO_GRE,
 	.pkt_to_tuple	 = gre_pkt_to_tuple,
