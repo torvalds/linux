@@ -130,43 +130,6 @@ dma_addr_t drm_fb_cma_get_gem_addr(struct drm_framebuffer *fb,
 }
 EXPORT_SYMBOL_GPL(drm_fb_cma_get_gem_addr);
 
-#ifdef CONFIG_DEBUG_FS
-static void drm_fb_cma_describe(struct drm_framebuffer *fb, struct seq_file *m)
-{
-	int i;
-
-	seq_printf(m, "fb: %dx%d@%4.4s\n", fb->width, fb->height,
-			(char *)&fb->format->format);
-
-	for (i = 0; i < fb->format->num_planes; i++) {
-		seq_printf(m, "   %d: offset=%d pitch=%d, obj: ",
-				i, fb->offsets[i], fb->pitches[i]);
-		drm_gem_cma_describe(drm_fb_cma_get_gem_obj(fb, i), m);
-	}
-}
-
-/**
- * drm_fb_cma_debugfs_show() - Helper to list CMA framebuffer objects
- *			       in debugfs.
- * @m: output file
- * @arg: private data for the callback
- */
-int drm_fb_cma_debugfs_show(struct seq_file *m, void *arg)
-{
-	struct drm_info_node *node = (struct drm_info_node *) m->private;
-	struct drm_device *dev = node->minor->dev;
-	struct drm_framebuffer *fb;
-
-	mutex_lock(&dev->mode_config.fb_lock);
-	drm_for_each_fb(fb, dev)
-		drm_fb_cma_describe(fb, m);
-	mutex_unlock(&dev->mode_config.fb_lock);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(drm_fb_cma_debugfs_show);
-#endif
-
 static int drm_fb_cma_mmap(struct fb_info *info, struct vm_area_struct *vma)
 {
 	return dma_mmap_writecombine(info->device, vma, info->screen_base,

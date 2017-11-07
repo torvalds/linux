@@ -87,10 +87,6 @@ unsigned long drm_gem_cma_get_unmapped_area(struct file *filp,
 					    unsigned long flags);
 #endif
 
-#ifdef CONFIG_DEBUG_FS
-void drm_gem_cma_describe(struct drm_gem_cma_object *obj, struct seq_file *m);
-#endif
-
 void drm_gem_cma_print_info(struct drm_printer *p, unsigned int indent,
 			    const struct drm_gem_object *obj);
 
