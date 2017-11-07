@@ -145,6 +145,14 @@ static void intel_breadcrumbs_fake_irq(struct timer_list *t)
 
 static void irq_enable(struct intel_engine_cs *engine)
 {
+	/*
+	 * FIXME: Ideally we want this on the API boundary, but for the
+	 * sake of testing with mock breadcrumbs (no HW so unable to
+	 * enable irqs) we place it deep within the bowels, at the point
+	 * of no return.
+	 */
+	GEM_BUG_ON(!intel_irqs_enabled(engine->i915));
+
 	/* Enabling the IRQ may miss the generation of the interrupt, but
 	 * we still need to force the barrier before reading the seqno,
 	 * just in case.
@@ -265,8 +273,6 @@ static bool __intel_breadcrumbs_enable_irq(struct intel_breadcrumbs *b)
 		container_of(b, struct intel_engine_cs, breadcrumbs);
 	struct drm_i915_private *i915 = engine->i915;
 	bool enabled;
-
-	GEM_BUG_ON(!intel_irqs_enabled(i915));
 
 	lockdep_assert_held(&b->irq_lock);
 	if (b->irq_armed)
