@@ -899,7 +899,7 @@ static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *c
 	result = dc->hwss.apply_ctx_to_hw(dc, context);
 
 	if (result != DC_OK)
-		goto fail;
+		return result;
 
 	if (context->stream_count > 1) {
 		enable_timing_multisync(dc, context);
@@ -938,7 +938,6 @@ static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *c
 				context->streams[i]->timing.pix_clk_khz);
 	}
 
-fail:
 	dc_enable_stereo(dc, context, dc_streams, context->stream_count);
 
 	dc_release_state(dc->current_state);
