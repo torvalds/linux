@@ -20,11 +20,8 @@ struct drm_gem_cma_object {
 	void *vaddr;
 };
 
-static inline struct drm_gem_cma_object *
-to_drm_gem_cma_obj(struct drm_gem_object *gem_obj)
-{
-	return container_of(gem_obj, struct drm_gem_cma_object, base);
-}
+#define to_drm_gem_cma_obj(gem_obj) \
+	container_of(gem_obj, struct drm_gem_cma_object, base)
 
 #ifndef CONFIG_MMU
 #define DRM_GEM_CMA_UNMAPPED_AREA_FOPS \
