@@ -102,7 +102,9 @@ static void omap_cf_timer(struct timer_list *t)
  */
 static irqreturn_t omap_cf_irq(int irq, void *_cf)
 {
-	omap_cf_timer(&_cf->timer);
+	struct omap_cf_socket *cf = (struct omap_cf_socket *)_cf;
+
+	omap_cf_timer(&cf->timer);
 	return IRQ_HANDLED;
 }
 
