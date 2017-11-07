@@ -213,16 +213,55 @@ static void virt_vbt_generation(struct vbt *v)
 	v->driver_features.lvds_config = BDB_DRIVER_FEATURE_NO_LVDS;
 }
 
+static int alloc_and_init_virt_opregion(struct intel_vgpu *vgpu)
+{
+	u8 *buf;
+	struct opregion_header *header;
+	struct vbt v;
+
+	gvt_dbg_core("init vgpu%d opregion\n", vgpu->id);
+	vgpu_opregion(vgpu)->va = (void *)__get_free_pages(GFP_KERNEL |
+			__GFP_ZERO,
+			get_order(INTEL_GVT_OPREGION_SIZE));
+	if (!vgpu_opregion(vgpu)->va) {
+		gvt_err("fail to get memory for vgpu virt opregion\n");
+		return -ENOMEM;
+	}
+
+	/* emulated opregion with VBT mailbox only */
+	buf = (u8 *)vgpu_opregion(vgpu)->va;
+	header = (struct opregion_header *)buf;
+	memcpy(header->signature, OPREGION_SIGNATURE,
+			sizeof(OPREGION_SIGNATURE));
+	header->size = 0x8;
+	header->opregion_ver = 0x02000000;
+	header->mboxes = MBOX_VBT;
+
+	/* for unknown reason, the value in LID field is incorrect
+	 * which block the windows guest, so workaround it by force
+	 * setting it to "OPEN"
+	 */
+	buf[INTEL_GVT_OPREGION_CLID] = 0x3;
+
+	/* emulated vbt from virt vbt generation */
+	virt_vbt_generation(&v);
+	memcpy(buf + INTEL_GVT_OPREGION_VBT_OFFSET, &v, sizeof(struct vbt));
+
+	return 0;
+}
+
 static int init_vgpu_opregion(struct intel_vgpu *vgpu, u32 gpa)
 {
-	int i;
+	int i, ret;
 
 	if (WARN((vgpu_opregion(vgpu)->va),
 			"vgpu%d: opregion has been initialized already.\n",
 			vgpu->id))
 		return -EINVAL;
 
-	vgpu_opregion(vgpu)->va = vgpu->gvt->opregion.opregion_va;
+	ret = alloc_and_init_virt_opregion(vgpu);
+	if (ret < 0)
+		return ret;
 
 	for (i = 0; i < INTEL_GVT_OPREGION_PAGES; i++)
 		vgpu_opregion(vgpu)->gfn[i] = (gpa >> PAGE_SHIFT) + i;
@@ -300,64 +339,6 @@ int intel_vgpu_init_opregion(struct intel_vgpu *vgpu, u32 gpa)
 		if (ret)
 			return ret;
 	}
-
-	return 0;
-}
-
-/**
- * intel_gvt_clean_opregion - clean host opergion related stuffs
- * @gvt: a GVT device
- *
- */
-void intel_gvt_clean_opregion(struct intel_gvt *gvt)
-{
-	free_pages((unsigned long)gvt->opregion.opregion_va,
-			get_order(INTEL_GVT_OPREGION_SIZE));
-	gvt->opregion.opregion_va = NULL;
-}
-
-/**
- * intel_gvt_init_opregion - initialize host opergion related stuffs
- * @gvt: a GVT device
- *
- * Returns:
- * Zero on success, negative error code if failed.
- */
-int intel_gvt_init_opregion(struct intel_gvt *gvt)
-{
-	u8 *buf;
-	struct opregion_header *header;
-	struct vbt v;
-
-	gvt_dbg_core("init host opregion\n");
-
-	gvt->opregion.opregion_va = (void *)__get_free_pages(GFP_KERNEL |
-			__GFP_ZERO,
-			get_order(INTEL_GVT_OPREGION_SIZE));
-
-	if (!gvt->opregion.opregion_va) {
-		gvt_err("fail to get memory for virt opregion\n");
-		return -ENOMEM;
-	}
-
-	/* emulated opregion with VBT mailbox only */
-	buf = (u8 *)gvt->opregion.opregion_va;
-	header = (struct opregion_header *)buf;
-	memcpy(header->signature, OPREGION_SIGNATURE,
-			sizeof(OPREGION_SIGNATURE));
-	header->size = 0x8;
-	header->opregion_ver = 0x02000000;
-	header->mboxes = MBOX_VBT;
-
-	/* for unknown reason, the value in LID field is incorrect
-	 * which block the windows guest, so workaround it by force
-	 * setting it to "OPEN"
-	 */
-	buf[INTEL_GVT_OPREGION_CLID] = 0x3;
-
-	/* emulated vbt from virt vbt generation */
-	virt_vbt_generation(&v);
-	memcpy(buf + INTEL_GVT_OPREGION_VBT_OFFSET, &v, sizeof(struct vbt));
 
 	return 0;
 }

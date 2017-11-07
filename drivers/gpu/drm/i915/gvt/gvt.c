@@ -323,7 +323,6 @@ void intel_gvt_clean_device(struct drm_i915_private *dev_priv)
 	intel_gvt_clean_cmd_parser(gvt);
 	intel_gvt_clean_sched_policy(gvt);
 	intel_gvt_clean_workload_scheduler(gvt);
-	intel_gvt_clean_opregion(gvt);
 	intel_gvt_clean_gtt(gvt);
 	intel_gvt_clean_irq(gvt);
 	intel_gvt_clean_mmio_info(gvt);
@@ -397,13 +396,9 @@ int intel_gvt_init_device(struct drm_i915_private *dev_priv)
 	if (ret)
 		goto out_clean_irq;
 
-	ret = intel_gvt_init_opregion(gvt);
-	if (ret)
-		goto out_clean_gtt;
-
 	ret = intel_gvt_init_workload_scheduler(gvt);
 	if (ret)
-		goto out_clean_opregion;
+		goto out_clean_gtt;
 
 	ret = intel_gvt_init_sched_policy(gvt);
 	if (ret)
@@ -460,8 +455,6 @@ out_clean_sched_policy:
 	intel_gvt_clean_sched_policy(gvt);
 out_clean_workload_scheduler:
 	intel_gvt_clean_workload_scheduler(gvt);
-out_clean_opregion:
-	intel_gvt_clean_opregion(gvt);
 out_clean_gtt:
 	intel_gvt_clean_gtt(gvt);
 out_clean_irq:

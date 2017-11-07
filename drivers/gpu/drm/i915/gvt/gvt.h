@@ -125,7 +125,6 @@ struct intel_vgpu_irq {
 struct intel_vgpu_opregion {
 	void *va;
 	u32 gfn[INTEL_GVT_OPREGION_PAGES];
-	struct page *pages[INTEL_GVT_OPREGION_PAGES];
 };
 
 #define vgpu_opregion(vgpu) (&(vgpu->opregion))
@@ -265,11 +264,6 @@ struct intel_gvt_firmware {
 	bool firmware_loaded;
 };
 
-struct intel_gvt_opregion {
-	void *opregion_va;
-	u32 opregion_pa;
-};
-
 #define NR_MAX_INTEL_VGPU_TYPES 20
 struct intel_vgpu_type {
 	char name[16];
@@ -293,7 +287,6 @@ struct intel_gvt {
 	struct intel_gvt_firmware firmware;
 	struct intel_gvt_irq irq;
 	struct intel_gvt_gtt gtt;
-	struct intel_gvt_opregion opregion;
 	struct intel_gvt_workload_scheduler scheduler;
 	struct notifier_block shadow_ctx_notifier_block[I915_NUM_ENGINES];
 	DECLARE_HASHTABLE(cmd_table, GVT_CMD_HASH_BITS);
@@ -510,9 +503,6 @@ static inline u64 intel_vgpu_get_bar_gpa(struct intel_vgpu *vgpu, int bar)
 	return (*(u64 *)(vgpu->cfg_space.virtual_cfg_space + bar)) &
 			PCI_BASE_ADDRESS_MEM_MASK;
 }
-
-void intel_gvt_clean_opregion(struct intel_gvt *gvt);
-int intel_gvt_init_opregion(struct intel_gvt *gvt);
 
 void intel_vgpu_clean_opregion(struct intel_vgpu *vgpu);
 int intel_vgpu_init_opregion(struct intel_vgpu *vgpu, u32 gpa);
