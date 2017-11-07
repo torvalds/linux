@@ -776,7 +776,7 @@ static int usb_get_langid(struct usb_device *dev, unsigned char *tbuf)
 	 * deal with strings at all. Set string_langid to -1 in order to
 	 * prevent any string to be retrieved from the device */
 	if (err < 0) {
-		dev_err(&dev->dev, "string descriptor 0 read error: %d\n",
+		dev_info(&dev->dev, "string descriptor 0 read error: %d\n",
 					err);
 		dev->string_langid = -1;
 		return -EPIPE;
