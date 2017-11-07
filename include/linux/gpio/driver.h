@@ -101,6 +101,13 @@ struct gpio_irq_chip {
 	unsigned int *parents;
 
 	/**
+	 * @map:
+	 *
+	 * A list of interrupt parents for each line of a GPIO chip.
+	 */
+	unsigned int *map;
+
+	/**
 	 * @nested:
 	 *
 	 * True if set the interrupt handling is nested.
