@@ -819,8 +819,6 @@ static int tc_main_link_setup(struct tc_data *tc)
 	unsigned int rate;
 	u32 dp_phy_ctrl;
 	int timeout;
-	bool aligned;
-	bool ready;
 	u32 value;
 	int ret;
 	u8 tmp[8];
@@ -965,16 +963,15 @@ static int tc_main_link_setup(struct tc_data *tc)
 		ret = drm_dp_dpcd_read_link_status(aux, tmp + 2);
 		if (ret < 0)
 			goto err_dpcd_read;
-		ready = (tmp[2] == ((DP_CHANNEL_EQ_BITS << 4) | /* Lane1 */
-				     DP_CHANNEL_EQ_BITS));      /* Lane0 */
-		aligned = tmp[4] & DP_INTERLANE_ALIGN_DONE;
-	} while ((--timeout) && !(ready && aligned));
+	} while ((--timeout) &&
+		 !(drm_dp_channel_eq_ok(tmp + 2,  tc->link.base.num_lanes)));
 
 	if (timeout == 0) {
 		/* Read DPCD 0x200-0x201 */
 		ret = drm_dp_dpcd_read(aux, DP_SINK_COUNT, tmp, 2);
 		if (ret < 0)
 			goto err_dpcd_read;
+		dev_err(dev, "channel(s) EQ not ok\n");
 		dev_info(dev, "0x0200 SINK_COUNT: 0x%02x\n", tmp[0]);
 		dev_info(dev, "0x0201 DEVICE_SERVICE_IRQ_VECTOR: 0x%02x\n",
 			 tmp[1]);
@@ -985,10 +982,6 @@ static int tc_main_link_setup(struct tc_data *tc)
 		dev_info(dev, "0x0206 ADJUST_REQUEST_LANE0_1: 0x%02x\n",
 			 tmp[6]);
 
-		if (!ready)
-			dev_err(dev, "Lane0/1 not ready\n");
-		if (!aligned)
-			dev_err(dev, "Lane0/1 not aligned\n");
 		return -EAGAIN;
 	}
 
