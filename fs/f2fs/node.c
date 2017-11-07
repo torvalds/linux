@@ -1955,6 +1955,7 @@ static void scan_free_nid_bits(struct f2fs_sb_info *sbi)
 	struct curseg_info *curseg = CURSEG_I(sbi, CURSEG_HOT_DATA);
 	struct f2fs_journal *journal = curseg->journal;
 	unsigned int i, idx;
+	nid_t nid;
 
 	down_read(&nm_i->nat_tree_lock);
 
@@ -1964,10 +1965,10 @@ static void scan_free_nid_bits(struct f2fs_sb_info *sbi)
 		if (!nm_i->free_nid_count[i])
 			continue;
 		for (idx = 0; idx < NAT_ENTRY_PER_BLOCK; idx++) {
-			nid_t nid;
-
-			if (!test_bit_le(idx, nm_i->free_nid_bitmap[i]))
-				continue;
+			idx = find_next_bit_le(nm_i->free_nid_bitmap[i],
+						NAT_ENTRY_PER_BLOCK, idx);
+			if (idx >= NAT_ENTRY_PER_BLOCK)
+				break;
 
 			nid = i * NAT_ENTRY_PER_BLOCK + idx;
 			add_free_nid(sbi, nid, true);
@@ -1980,7 +1981,6 @@ out:
 	down_read(&curseg->journal_rwsem);
 	for (i = 0; i < nats_in_cursum(journal); i++) {
 		block_t addr;
-		nid_t nid;
 
 		addr = le32_to_cpu(nat_in_journal(journal, i).block_addr);
 		nid = le32_to_cpu(nid_in_journal(journal, i));
