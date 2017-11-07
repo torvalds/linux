@@ -56,10 +56,27 @@
 	bt_sco_codec:bt_sco_codec {
 		compatible = "linux,bt-sco";
 	};
+
+	backlight_lcd: backlight_lcd {
+		compatible = "pwm-backlight";
+		pwms = <&bls 0 100000>;
+		brightness-levels = <
+			  0  16  32  48  64  80  96 112
+			128 144 160 176 192 208 224 240
+			255
+		>;
+		default-brightness-level = <9>;
+	};
 };
 
 &auxadc {
 	status = "okay";
+};
+
+&bls {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pwm_bls_gpio>;
 };
 
 &i2c0 {
@@ -108,6 +125,12 @@
 			pinmux = <MT2701_PIN_77_SDA2__FUNC_SDA2>,
 				 <MT2701_PIN_78_SCL2__FUNC_SCL2>;
 			bias-disable;
+		};
+	};
+
+	pwm_bls_gpio: pwm_bls_gpio {
+		pins_cmd_dat {
+			pinmux = <MT2701_PIN_208_AUD_EXT_CK1__FUNC_DISP_PWM>;
 		};
 	};
 
