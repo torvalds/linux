@@ -430,10 +430,12 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 	/* Display Core create. */
 	adev->dm.dc = dc_create(&init_data);
 
-	if (adev->dm.dc)
+	if (adev->dm.dc) {
 		DRM_INFO("Display Core initialized!\n");
-	else
+	} else {
 		DRM_INFO("Display Core failed to initialize!\n");
+		goto error;
+	}
 
 	INIT_WORK(&adev->dm.mst_hotplug_work, hotplug_notify_work_func);
 
@@ -2273,7 +2275,7 @@ decide_crtc_timing_for_drm_display_mode(struct drm_display_mode *drm_mode,
 	}
 }
 
-static void create_fake_sink(struct amdgpu_dm_connector *aconnector)
+static int create_fake_sink(struct amdgpu_dm_connector *aconnector)
 {
 	struct dc_sink *sink = NULL;
 	struct dc_sink_init_data sink_init_data = { 0 };
@@ -2282,14 +2284,18 @@ static void create_fake_sink(struct amdgpu_dm_connector *aconnector)
 	sink_init_data.sink_signal = aconnector->dc_link->connector_signal;
 
 	sink = dc_sink_create(&sink_init_data);
-	if (!sink)
+	if (!sink) {
 		DRM_ERROR("Failed to create sink!\n");
+		return -ENOMEM;
+	}
 
 	sink->sink_signal = SIGNAL_TYPE_VIRTUAL;
 	aconnector->fake_enable = true;
 
 	aconnector->dc_sink = sink;
 	aconnector->dc_link->local_sink = sink;
+
+	return 0;
 }
 
 static struct dc_stream_state *
@@ -2323,7 +2329,8 @@ create_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 		if (aconnector->mst_port)
 			goto stream_create_fail;
 
-		create_fake_sink(aconnector);
+		if (create_fake_sink(aconnector))
+			goto stream_create_fail;
 	}
 
 	stream = dc_create_stream_for_sink(aconnector->dc_sink);
