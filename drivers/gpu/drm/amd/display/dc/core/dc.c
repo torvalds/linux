@@ -880,8 +880,6 @@ static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *c
 	if (!dcb->funcs->is_accelerated_mode(dcb))
 		dc->hwss.enable_accelerated_mode(dc);
 
-
-
 	for (i = 0; i < context->stream_count; i++) {
 		const struct dc_sink *sink = context->streams[i]->sink;
 
