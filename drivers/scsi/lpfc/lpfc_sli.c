@@ -2732,7 +2732,8 @@ lpfc_sli_process_unsol_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
  *
  * This function looks up the iocb_lookup table to get the command iocb
  * corresponding to the given response iocb using the iotag of the
- * response iocb. This function is called with the hbalock held.
+ * response iocb. This function is called with the hbalock held
+ * for sli3 devices or the ring_lock for sli4 devices.
  * This function returns the command iocb object if it finds the command
  * iocb else returns NULL.
  **/
@@ -2828,9 +2829,15 @@ lpfc_sli_process_sol_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	unsigned long iflag;
 
 	/* Based on the iotag field, get the cmd IOCB from the txcmplq */
-	spin_lock_irqsave(&phba->hbalock, iflag);
+	if (phba->sli_rev == LPFC_SLI_REV4)
+		spin_lock_irqsave(&pring->ring_lock, iflag);
+	else
+		spin_lock_irqsave(&phba->hbalock, iflag);
 	cmdiocbp = lpfc_sli_iocbq_lookup(phba, pring, saveq);
-	spin_unlock_irqrestore(&phba->hbalock, iflag);
+	if (phba->sli_rev == LPFC_SLI_REV4)
+		spin_unlock_irqrestore(&pring->ring_lock, iflag);
+	else
+		spin_unlock_irqrestore(&phba->hbalock, iflag);
 
 	if (cmdiocbp) {
 		if (cmdiocbp->iocb_cmpl) {
