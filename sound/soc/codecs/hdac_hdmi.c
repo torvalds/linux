@@ -1453,6 +1453,8 @@ static int hdac_hdmi_parse_and_map_nid(struct hdac_ext_device *edev,
 	int i, num_nodes;
 	struct hdac_device *hdac = &edev->hdac;
 	struct hdac_hdmi_priv *hdmi = edev->private_data;
+	struct hdac_hdmi_cvt *temp_cvt, *cvt_next;
+	struct hdac_hdmi_pin *temp_pin, *pin_next;
 	int ret;
 
 	hdac_hdmi_skl_enable_all_pins(hdac);
@@ -1482,32 +1484,54 @@ static int hdac_hdmi_parse_and_map_nid(struct hdac_ext_device *edev,
 		case AC_WID_AUD_OUT:
 			ret = hdac_hdmi_add_cvt(edev, nid);
 			if (ret < 0)
-				return ret;
+				goto free_widgets;
 			break;
 
 		case AC_WID_PIN:
 			ret = hdac_hdmi_add_pin(edev, nid);
 			if (ret < 0)
-				return ret;
+				goto free_widgets;
 			break;
 		}
 	}
 
 	hdac->end_nid = nid;
 
-	if (!hdmi->num_pin || !hdmi->num_cvt)
-		return -EIO;
+	if (!hdmi->num_pin || !hdmi->num_cvt) {
+		ret = -EIO;
+		goto free_widgets;
+	}
 
 	ret = hdac_hdmi_create_dais(hdac, dais, hdmi, hdmi->num_cvt);
 	if (ret) {
 		dev_err(&hdac->dev, "Failed to create dais with err: %d\n",
 							ret);
-		return ret;
+		goto free_widgets;
 	}
 
 	*num_dais = hdmi->num_cvt;
+	ret = hdac_hdmi_init_dai_map(edev);
+	if (ret < 0)
+		goto free_widgets;
 
-	return hdac_hdmi_init_dai_map(edev);
+	return ret;
+
+free_widgets:
+	list_for_each_entry_safe(temp_cvt, cvt_next, &hdmi->cvt_list, head) {
+		list_del(&temp_cvt->head);
+		kfree(temp_cvt->name);
+		kfree(temp_cvt);
+	}
+
+	list_for_each_entry_safe(temp_pin, pin_next, &hdmi->pin_list, head) {
+		for (i = 0; i < temp_pin->num_ports; i++)
+			temp_pin->ports[i].pin = NULL;
+		kfree(temp_pin->ports);
+		list_del(&temp_pin->head);
+		kfree(temp_pin);
+	}
+
+	return ret;
 }
 
 static void hdac_hdmi_eld_notify_cb(void *aptr, int port, int pipe)
