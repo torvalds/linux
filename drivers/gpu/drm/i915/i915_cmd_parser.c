@@ -798,22 +798,15 @@ struct cmd_node {
  */
 static inline u32 cmd_header_key(u32 x)
 {
-	u32 shift;
-
 	switch (x >> INSTR_CLIENT_SHIFT) {
 	default:
 	case INSTR_MI_CLIENT:
-		shift = STD_MI_OPCODE_SHIFT;
-		break;
+		return x >> STD_MI_OPCODE_SHIFT;
 	case INSTR_RC_CLIENT:
-		shift = STD_3D_OPCODE_SHIFT;
-		break;
+		return x >> STD_3D_OPCODE_SHIFT;
 	case INSTR_BC_CLIENT:
-		shift = STD_2D_OPCODE_SHIFT;
-		break;
+		return x >> STD_2D_OPCODE_SHIFT;
 	}
-
-	return x >> shift;
 }
 
 static int init_hash_table(struct intel_engine_cs *engine,
