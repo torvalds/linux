@@ -80,6 +80,14 @@ void __drm_printfn_debug(struct drm_printer *p, struct va_format *vaf);
 __printf(2, 3)
 void drm_printf(struct drm_printer *p, const char *f, ...);
 
+/**
+ * drm_printf_indent - Print to a &drm_printer stream with indentation
+ * @printer: DRM printer
+ * @indent: Tab indentation level (max 5)
+ * @fmt: Format string
+ */
+#define drm_printf_indent(printer, indent, fmt, ...) \
+	drm_printf((printer), "%.*s" fmt, (indent), "\t\t\t\t\tX", ##__VA_ARGS__)
 
 /**
  * drm_seq_file_printer - construct a &drm_printer that outputs to &seq_file
