@@ -2429,18 +2429,21 @@ SMB2_flush(const unsigned int xid, struct cifs_tcon *tcon, u64 persistent_fid,
  */
 static int
 smb2_new_read_req(void **buf, unsigned int *total_len,
-		  struct cifs_io_parms *io_parms, unsigned int remaining_bytes,
-		  int request_type)
+	struct cifs_io_parms *io_parms, struct cifs_readdata *rdata,
+	unsigned int remaining_bytes, int request_type)
 {
 	int rc = -EACCES;
 	struct smb2_read_plain_req *req = NULL;
 	struct smb2_sync_hdr *shdr;
+	struct TCP_Server_Info *server;
 
 	rc = smb2_plain_req_init(SMB2_READ, io_parms->tcon, (void **) &req,
 				 total_len);
 	if (rc)
 		return rc;
-	if (io_parms->tcon->ses->server == NULL)
+
+	server = io_parms->tcon->ses->server;
+	if (server == NULL)
 		return -ECONNABORTED;
 
 	shdr = &req->sync_hdr;
@@ -2568,7 +2571,8 @@ smb2_async_readv(struct cifs_readdata *rdata)
 
 	server = io_parms.tcon->ses->server;
 
-	rc = smb2_new_read_req((void **) &buf, &total_len, &io_parms, 0, 0);
+	rc = smb2_new_read_req(
+		(void **) &buf, &total_len, &io_parms, rdata, 0, 0);
 	if (rc) {
 		if (rc == -EAGAIN && rdata->credits) {
 			/* credits was reset by reconnect */
@@ -2633,7 +2637,7 @@ SMB2_read(const unsigned int xid, struct cifs_io_parms *io_parms,
 	struct cifs_ses *ses = io_parms->tcon->ses;
 
 	*nbytes = 0;
-	rc = smb2_new_read_req((void **)&req, &total_len, io_parms, 0, 0);
+	rc = smb2_new_read_req((void **)&req, &total_len, io_parms, NULL, 0, 0);
 	if (rc)
 		return rc;
 
