@@ -12,6 +12,8 @@
 
 #include <linux/medusa/l3/model.h>
 
+extern medusa_answer_t medusa_ipc_perm(struct kern_ipc_perm *ipcp, u32 perms);
+
 struct medusa_l1_ipc_s {
 	unsigned int sid;
 	unsigned int sclass;

@@ -685,6 +685,8 @@ void medusa_l1_ipc_free_security(struct kern_ipc_perm *ipcp)
 
 static int medusa_l1_ipc_permission(struct kern_ipc_perm *ipcp, short flag)
 {
+	if(medusa_ipc_perm(ipcp, flag) == MED_NO)
+		return -EPERM;	
 	return 0;
 }
 
