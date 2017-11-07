@@ -811,7 +811,8 @@ static void nau8824_eject_jack(struct nau8824 *nau8824)
 		NAU8824_JD_SLEEP_MODE, NAU8824_JD_SLEEP_MODE);
 
 	/* Close clock for jack type detection at manual mode */
-	nau8824_config_sysclk(nau8824, NAU8824_CLK_DIS, 0);
+	if (dapm->bias_level < SND_SOC_BIAS_PREPARE)
+		nau8824_config_sysclk(nau8824, NAU8824_CLK_DIS, 0);
 }
 
 static void nau8824_jdet_work(struct work_struct *work)
@@ -862,7 +863,8 @@ static void nau8824_setup_auto_irq(struct nau8824 *nau8824)
 	regmap_update_bits(regmap, NAU8824_REG_INTERRUPT_SETTING,
 		NAU8824_IRQ_EJECT_DIS, 0);
 	/* Enable internal VCO needed for interruptions */
-	nau8824_config_sysclk(nau8824, NAU8824_CLK_INTERNAL, 0);
+	if (nau8824->dapm->bias_level < SND_SOC_BIAS_PREPARE)
+		nau8824_config_sysclk(nau8824, NAU8824_CLK_INTERNAL, 0);
 	regmap_update_bits(regmap, NAU8824_REG_ENA_CTRL,
 		NAU8824_JD_SLEEP_MODE, 0);
 }
