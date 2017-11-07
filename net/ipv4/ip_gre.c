@@ -800,17 +800,19 @@ static void ipgre_link_update(struct net_device *dev, bool set_mtu)
 static int ipgre_tunnel_ioctl(struct net_device *dev,
 			      struct ifreq *ifr, int cmd)
 {
-	int err;
 	struct ip_tunnel_parm p;
+	int err;
 
 	if (copy_from_user(&p, ifr->ifr_ifru.ifru_data, sizeof(p)))
 		return -EFAULT;
+
 	if (cmd == SIOCADDTUNNEL || cmd == SIOCCHGTUNNEL) {
 		if (p.iph.version != 4 || p.iph.protocol != IPPROTO_GRE ||
-		    p.iph.ihl != 5 || (p.iph.frag_off&htons(~IP_DF)) ||
-		    ((p.i_flags|p.o_flags)&(GRE_VERSION|GRE_ROUTING)))
+		    p.iph.ihl != 5 || (p.iph.frag_off & htons(~IP_DF)) ||
+		    ((p.i_flags | p.o_flags) & (GRE_VERSION | GRE_ROUTING)))
 			return -EINVAL;
 	}
+
 	p.i_flags = gre_flags_to_tnl_flags(p.i_flags);
 	p.o_flags = gre_flags_to_tnl_flags(p.o_flags);
 
@@ -818,11 +820,22 @@ static int ipgre_tunnel_ioctl(struct net_device *dev,
 	if (err)
 		return err;
 
+	if (cmd == SIOCCHGTUNNEL) {
+		struct ip_tunnel *t = netdev_priv(dev);
+
+		t->parms.i_flags = p.i_flags;
+		t->parms.o_flags = p.o_flags;
+
+		if (strcmp(dev->rtnl_link_ops->kind, "erspan"))
+			ipgre_link_update(dev, true);
+	}
+
 	p.i_flags = gre_tnl_flags_to_gre_flags(p.i_flags);
 	p.o_flags = gre_tnl_flags_to_gre_flags(p.o_flags);
 
 	if (copy_to_user(ifr->ifr_ifru.ifru_data, &p, sizeof(p)))
 		return -EFAULT;
+
 	return 0;
 }
 
