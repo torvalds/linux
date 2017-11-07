@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 # Backward compatibility
 asflags-y  += $(EXTRA_AFLAGS)
 ccflags-y  += $(EXTRA_CFLAGS)

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 SOLOS_ATTR_RO(DriverVersion)
 SOLOS_ATTR_RO(APIVersion)
 SOLOS_ATTR_RO(FirmwareVersion)

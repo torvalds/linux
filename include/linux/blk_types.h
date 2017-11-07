@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Block data types and constants.  Directly include this file only to
  * break include dependency loop.

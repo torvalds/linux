@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef __LINUX_MATROXFB_H__
 #define __LINUX_MATROXFB_H__
 

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* head.S: Initial boot code for the Sparc64 port of Linux.
  *
  * Copyright (C) 1996, 1997, 2007 David S. Miller (davem@davemloft.net)

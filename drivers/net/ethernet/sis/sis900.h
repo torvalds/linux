@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* sis900.h Definitions for SiS ethernet controllers including 7014/7016 and 900
  * Copyright 1999 Silicon Integrated System Corporation
  * References:

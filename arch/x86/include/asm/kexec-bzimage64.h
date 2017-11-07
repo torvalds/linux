@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_KEXEC_BZIMAGE64_H
 #define _ASM_KEXEC_BZIMAGE64_H
 

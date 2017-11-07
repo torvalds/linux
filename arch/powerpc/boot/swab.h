@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _PPC_BOOT_SWAB_H_
 #define _PPC_BOOT_SWAB_H_
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Main bcache entry point - handle a read or a write request and decide what to
  * do with it; the make_request functions are called by the block layer.

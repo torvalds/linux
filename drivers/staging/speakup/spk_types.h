@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef SPEAKUP_TYPES_H
 #define SPEAKUP_TYPES_H
 

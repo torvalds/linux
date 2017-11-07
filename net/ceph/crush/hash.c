@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #ifdef __KERNEL__
 # include <linux/crush/hash.h>
 #else

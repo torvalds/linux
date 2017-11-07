@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Compatibility mode system call entry point for x86-64.
  *

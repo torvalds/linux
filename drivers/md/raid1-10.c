@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* Maximum size of each resync request */
 #define RESYNC_BLOCK_SIZE (64*1024)
 #define RESYNC_PAGES ((RESYNC_BLOCK_SIZE + PAGE_SIZE-1) / PAGE_SIZE)

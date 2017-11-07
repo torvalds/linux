@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * IA-32 Huge TLB Page Support for Kernel.
  *

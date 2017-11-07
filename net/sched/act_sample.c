@@ -240,7 +240,7 @@ static __net_init int sample_init_net(struct net *net)
 {
 	struct tc_action_net *tn = net_generic(net, sample_net_id);
 
-	return tc_action_net_init(tn, &act_sample_ops);
+	return tc_action_net_init(tn, &act_sample_ops, net);
 }
 
 static void __net_exit sample_exit_net(struct net *net)
@@ -271,6 +271,6 @@ static void __exit sample_cleanup_module(void)
 module_init(sample_init_module);
 module_exit(sample_cleanup_module);
 
-MODULE_AUTHOR("Yotam Gigi <yotamg@mellanox.com>");
+MODULE_AUTHOR("Yotam Gigi <yotam.gi@gmail.com>");
 MODULE_DESCRIPTION("Packet sampling action");
 MODULE_LICENSE("GPL v2");

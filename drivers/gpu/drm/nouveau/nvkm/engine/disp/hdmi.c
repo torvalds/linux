@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include "hdmi.h"
 
 void pack_hdmi_infoframe(struct packed_hdmi_infoframe *packed_frame,
