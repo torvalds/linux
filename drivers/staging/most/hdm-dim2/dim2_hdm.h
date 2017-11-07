@@ -3,13 +3,6 @@
  * dim2_hdm.h - MediaLB DIM2 HDM Header
  *
  * Copyright (C) 2015, Microchip Technology Germany II GmbH & Co. KG
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * This file is licensed under GPLv2.
  */
 
 #ifndef DIM2_HDM_H
