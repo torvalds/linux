@@ -5764,6 +5764,10 @@ struct nfs4_delegreturndata {
 static void nfs4_delegreturn_done(struct rpc_task *task, void *calldata)
 {
 	struct nfs4_delegreturndata *data = calldata;
+	struct nfs4_exception exception = {
+		.inode = data->inode,
+		.stateid = &data->stateid,
+	};
 
 	if (!nfs4_sequence_done(task, &data->res.seq_res))
 		return;
@@ -5825,10 +5829,11 @@ static void nfs4_delegreturn_done(struct rpc_task *task, void *calldata)
 		}
 		/* Fallthrough */
 	default:
-		if (nfs4_async_handle_error(task, data->res.server,
-					    NULL, NULL) == -EAGAIN) {
+		task->tk_status = nfs4_async_handle_exception(task,
+				data->res.server, task->tk_status,
+				&exception);
+		if (exception.retry)
 			goto out_restart;
-		}
 	}
 	data->rpc_status = task->tk_status;
 	return;
