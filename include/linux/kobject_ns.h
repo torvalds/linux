@@ -8,8 +8,6 @@
  *
  * Split from kobject.h by David Howells (dhowells@redhat.com)
  *
- * This file is released under the GPLv2.
- *
  * Please read Documentation/kobject.txt before using the kobject
  * interface, ESPECIALLY the parts about reference counts and object
  * destructors.

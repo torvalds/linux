@@ -6,8 +6,6 @@
  * Copyright (C) 2004 Novell, Inc.  All rights reserved.
  * Copyright (C) 2004 IBM, Inc. All rights reserved.
  *
- * Licensed under the GNU GPL v2.
- *
  * Authors:
  *	Robert Love		<rml@novell.com>
  *	Kay Sievers		<kay.sievers@vrfy.org>

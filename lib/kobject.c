@@ -6,9 +6,6 @@
  * Copyright (c) 2006-2007 Greg Kroah-Hartman <greg@kroah.com>
  * Copyright (c) 2006-2007 Novell Inc.
  *
- * This file is released under the GPLv2.
- *
- *
  * Please see the file Documentation/kobject.txt for critical information
  * about using the kobject interface.
  */
