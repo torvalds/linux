@@ -46,6 +46,7 @@
 #include <dt-bindings/sensor-dev.h>
 #include "rk3126.dtsi"
 #include "rk312x-android.dtsi"
+#include "rk3126-m708-cif-sensor.dtsi"
 
 / {
 	model = "Rockchip RK3126 bnd-d708 board";
@@ -158,6 +159,14 @@
 		WIFI,host_wake_irq = <&gpio2 13 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
+};
+
+&cif {
+	status = "okay";
+};
+
+&cif_sensor {
+	status = "okay";
 };
 
 &cpu0 {

@@ -1,0 +1,38 @@
+#include "../../../../drivers/soc/rockchip/rk_camera_sensor_info.h"
+/{
+	cif_sensor: cif_sensor {
+		compatible = "rockchip,sensor";
+		status = "disabled";
+
+		gc2145_b {
+			is_front = <0>;
+			powerdown-gpios = <&gpio2 RK_PB7 GPIO_ACTIVE_HIGH>;
+			pwdn_active = <gc2145_PWRDN_ACTIVE>;
+			mir = <0>;
+			flash_attach = <0>;
+			resolution = <gc2145_FULL_RESOLUTION>;
+			powerup_sequence = <gc2145_PWRSEQ>;
+			orientation = <180>;
+			i2c_add = <gc2145_I2C_ADDR>;
+			i2c_chl = <0>;
+			cif_chl = <0>;
+			mclk_rate = <24>;
+		};
+
+		gc0329_f {
+			is_front = <1>;
+			powerdown-gpios = <&gpio3 RK_PB3 GPIO_ACTIVE_HIGH>;
+			pwdn_active = <gc0329_PWRDN_ACTIVE>;
+			mir = <0>;
+			flash_attach = <0>;
+			resolution = <gc0329_FULL_RESOLUTION>;
+			powerup_sequence = <gc0329_PWRSEQ>;
+			orientation = <0>;
+			i2c_add = <gc0329_I2C_ADDR>;
+			i2c_chl = <0>;
+			cif_chl = <0>;
+			mclk_rate = <24>;
+		};
+	};
+};
+
