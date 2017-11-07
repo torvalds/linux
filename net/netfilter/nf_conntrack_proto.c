@@ -385,7 +385,7 @@ void nf_ct_l4proto_unregister_sysctl(struct net *net,
 
 /* FIXME: Allow NULL functions and sub in pointers to generic for
    them. --RR */
-int nf_ct_l4proto_register_one(struct nf_conntrack_l4proto *l4proto)
+int nf_ct_l4proto_register_one(const struct nf_conntrack_l4proto *l4proto)
 {
 	int ret = 0;
 
@@ -498,7 +498,7 @@ void nf_ct_l4proto_pernet_unregister_one(struct net *net,
 }
 EXPORT_SYMBOL_GPL(nf_ct_l4proto_pernet_unregister_one);
 
-int nf_ct_l4proto_register(struct nf_conntrack_l4proto *l4proto[],
+int nf_ct_l4proto_register(const struct nf_conntrack_l4proto * const l4proto[],
 			   unsigned int num_proto)
 {
 	int ret = -EINVAL, ver;
@@ -520,7 +520,7 @@ int nf_ct_l4proto_register(struct nf_conntrack_l4proto *l4proto[],
 EXPORT_SYMBOL_GPL(nf_ct_l4proto_register);
 
 int nf_ct_l4proto_pernet_register(struct net *net,
-				  struct nf_conntrack_l4proto *const l4proto[],
+				  const struct nf_conntrack_l4proto *const l4proto[],
 				  unsigned int num_proto)
 {
 	int ret = -EINVAL;
@@ -541,7 +541,7 @@ int nf_ct_l4proto_pernet_register(struct net *net,
 }
 EXPORT_SYMBOL_GPL(nf_ct_l4proto_pernet_register);
 
-void nf_ct_l4proto_unregister(struct nf_conntrack_l4proto *l4proto[],
+void nf_ct_l4proto_unregister(const struct nf_conntrack_l4proto * const l4proto[],
 			      unsigned int num_proto)
 {
 	mutex_lock(&nf_ct_proto_mutex);
@@ -551,12 +551,12 @@ void nf_ct_l4proto_unregister(struct nf_conntrack_l4proto *l4proto[],
 
 	synchronize_net();
 	/* Remove all contrack entries for this protocol */
-	nf_ct_iterate_destroy(kill_l4proto, l4proto);
+	nf_ct_iterate_destroy(kill_l4proto, (void *)l4proto);
 }
 EXPORT_SYMBOL_GPL(nf_ct_l4proto_unregister);
 
 void nf_ct_l4proto_pernet_unregister(struct net *net,
-				struct nf_conntrack_l4proto *const l4proto[],
+				const struct nf_conntrack_l4proto *const l4proto[],
 				unsigned int num_proto)
 {
 	while (num_proto-- != 0)

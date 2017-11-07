@@ -368,7 +368,7 @@ static struct nf_sockopt_ops so_getorigdst6 = {
 	.owner		= THIS_MODULE,
 };
 
-static struct nf_conntrack_l4proto *builtin_l4proto6[] = {
+static const struct nf_conntrack_l4proto * const builtin_l4proto6[] = {
 	&nf_conntrack_l4proto_tcp6,
 	&nf_conntrack_l4proto_udp6,
 	&nf_conntrack_l4proto_icmpv6,
