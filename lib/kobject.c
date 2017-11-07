@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * kobject.c - library routines for handling generic kernel objects
  *
