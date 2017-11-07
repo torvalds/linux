@@ -1895,6 +1895,9 @@ static void hdac_hdmi_set_chmap(struct hdac_device *hdac, int pcm_idx,
 	struct hdac_hdmi_pcm *pcm = get_hdmi_pcm_from_id(hdmi, pcm_idx);
 	struct hdac_hdmi_port *port;
 
+	if (!pcm)
+		return;
+
 	if (list_empty(&pcm->port_list))
 		return;
 
@@ -1913,6 +1916,9 @@ static bool is_hdac_hdmi_pcm_attached(struct hdac_device *hdac, int pcm_idx)
 	struct hdac_hdmi_priv *hdmi = edev->private_data;
 	struct hdac_hdmi_pcm *pcm = get_hdmi_pcm_from_id(hdmi, pcm_idx);
 
+	if (!pcm)
+		return false;
+
 	if (list_empty(&pcm->port_list))
 		return false;
 
@@ -1925,6 +1931,9 @@ static int hdac_hdmi_get_spk_alloc(struct hdac_device *hdac, int pcm_idx)
 	struct hdac_hdmi_priv *hdmi = edev->private_data;
 	struct hdac_hdmi_pcm *pcm = get_hdmi_pcm_from_id(hdmi, pcm_idx);
 	struct hdac_hdmi_port *port;
+
+	if (!pcm)
+		return 0;
 
 	if (list_empty(&pcm->port_list))
 		return 0;
@@ -1978,6 +1987,9 @@ static int hdac_hdmi_dev_probe(struct hdac_ext_device *edev)
 	hdmi_priv->chmap.ops.set_chmap = hdac_hdmi_set_chmap;
 	hdmi_priv->chmap.ops.is_pcm_attached = is_hdac_hdmi_pcm_attached;
 	hdmi_priv->chmap.ops.get_spk_alloc = hdac_hdmi_get_spk_alloc;
+
+	if (!hdac_id)
+		return -ENODEV;
 
 	if (hdac_id->driver_data)
 		hdmi_priv->drv_data =
