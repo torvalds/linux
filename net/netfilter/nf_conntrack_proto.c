@@ -392,7 +392,7 @@ int nf_ct_l4proto_register_one(struct nf_conntrack_l4proto *l4proto)
 	if (l4proto->l3proto >= ARRAY_SIZE(nf_ct_protos))
 		return -EBUSY;
 
-	if ((l4proto->to_nlattr && !l4proto->nlattr_size) ||
+	if ((l4proto->to_nlattr && l4proto->nlattr_size == 0) ||
 	    (l4proto->tuple_to_nlattr && !l4proto->nlattr_tuple_size))
 		return -EINVAL;
 
@@ -427,10 +427,6 @@ int nf_ct_l4proto_register_one(struct nf_conntrack_l4proto *l4proto)
 		ret = -EBUSY;
 		goto out_unlock;
 	}
-
-	l4proto->nla_size = 0;
-	if (l4proto->nlattr_size)
-		l4proto->nla_size += l4proto->nlattr_size();
 
 	rcu_assign_pointer(nf_ct_protos[l4proto->l3proto][l4proto->l4proto],
 			   l4proto);

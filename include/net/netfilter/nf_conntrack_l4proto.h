@@ -27,6 +27,9 @@ struct nf_conntrack_l4proto {
 	/* Resolve clashes on insertion races. */
 	bool allow_clash;
 
+	/* protoinfo nlattr size, closes a hole */
+	u16 nlattr_size;
+
 	/* Try to fill in the third arg: dataoff is offset past network protocol
            hdr.  Return true if possible. */
 	bool (*pkt_to_tuple)(const struct sk_buff *skb, unsigned int dataoff,
@@ -66,8 +69,6 @@ struct nf_conntrack_l4proto {
 	/* convert protoinfo to nfnetink attributes */
 	int (*to_nlattr)(struct sk_buff *skb, struct nlattr *nla,
 			 struct nf_conn *ct);
-	/* Calculate protoinfo nlattr size */
-	int (*nlattr_size)(void);
 
 	/* convert nfnetlink attributes to protoinfo */
 	int (*from_nlattr)(struct nlattr *tb[], struct nf_conn *ct);
@@ -79,8 +80,6 @@ struct nf_conntrack_l4proto {
 	int (*nlattr_to_tuple)(struct nlattr *tb[],
 			       struct nf_conntrack_tuple *t);
 	const struct nla_policy *nla_policy;
-
-	size_t nla_size;
 
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK_TIMEOUT)
 	struct {
