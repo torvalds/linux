@@ -365,6 +365,7 @@ int main(int argc, char **argv)
 	rcu_register_thread();
 	radix_tree_init();
 
+	xarray_tests();
 	regression1_test();
 	regression2_test();
 	regression3_test();

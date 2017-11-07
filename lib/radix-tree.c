@@ -256,49 +256,6 @@ static unsigned long next_index(unsigned long index,
 }
 
 #ifndef __KERNEL__
-static void dump_node(struct radix_tree_node *node, unsigned long index)
-{
-	unsigned long i;
-
-	pr_debug("radix node: %p offset %d indices %lu-%lu parent %p tags %lx %lx %lx shift %d count %d nr_values %d\n",
-		node, node->offset, index, index | node_maxindex(node),
-		node->parent,
-		node->tags[0][0], node->tags[1][0], node->tags[2][0],
-		node->shift, node->count, node->nr_values);
-
-	for (i = 0; i < RADIX_TREE_MAP_SIZE; i++) {
-		unsigned long first = index | (i << node->shift);
-		unsigned long last = first | ((1UL << node->shift) - 1);
-		void *entry = node->slots[i];
-		if (!entry)
-			continue;
-		if (entry == RADIX_TREE_RETRY) {
-			pr_debug("radix retry offset %ld indices %lu-%lu parent %p\n",
-					i, first, last, node);
-		} else if (!radix_tree_is_internal_node(entry)) {
-			pr_debug("radix entry %p offset %ld indices %lu-%lu parent %p\n",
-					entry, i, first, last, node);
-		} else if (xa_is_sibling(entry)) {
-			pr_debug("radix sblng %p offset %ld indices %lu-%lu parent %p val %p\n",
-					entry, i, first, last, node,
-					node->slots[xa_to_sibling(entry)]);
-		} else {
-			dump_node(entry_to_node(entry), first);
-		}
-	}
-}
-
-/* For debug */
-static void radix_tree_dump(struct radix_tree_root *root)
-{
-	pr_debug("radix root: %p xa_head %p tags %x\n",
-			root, root->xa_head,
-			root->xa_flags >> ROOT_TAG_SHIFT);
-	if (!radix_tree_is_internal_node(root->xa_head))
-		return;
-	dump_node(entry_to_node(root->xa_head), 0);
-}
-
 static void dump_ida_node(void *entry, unsigned long index)
 {
 	unsigned long i;

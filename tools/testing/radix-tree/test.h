@@ -34,6 +34,7 @@ int tag_tagged_items(struct radix_tree_root *, pthread_mutex_t *,
 			unsigned iftag, unsigned thentag);
 unsigned long find_item(struct radix_tree_root *, void *item);
 
+void xarray_tests(void);
 void tag_check(void);
 void multiorder_checks(void);
 void iteration_test(unsigned order, unsigned duration);
