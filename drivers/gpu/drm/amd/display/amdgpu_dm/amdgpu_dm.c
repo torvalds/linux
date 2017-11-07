@@ -2423,6 +2423,8 @@ dm_crtc_duplicate_state(struct drm_crtc *crtc)
 		return NULL;
 
 	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	if (!state)
+		return NULL;
 
 	__drm_atomic_helper_crtc_duplicate_state(crtc, &state->base);
 
@@ -3419,6 +3421,8 @@ create_i2c(struct ddc_service *ddc_service,
 	struct amdgpu_i2c_adapter *i2c;
 
 	i2c = kzalloc(sizeof(struct amdgpu_i2c_adapter), GFP_KERNEL);
+	if (!i2c)
+		return NULL;
 	i2c->base.owner = THIS_MODULE;
 	i2c->base.class = I2C_CLASS_DDC;
 	i2c->base.dev.parent = &adev->pdev->dev;
@@ -3449,6 +3453,11 @@ static int amdgpu_dm_connector_init(struct amdgpu_display_manager *dm,
 	DRM_DEBUG_DRIVER("%s()\n", __func__);
 
 	i2c = create_i2c(link->ddc, link->link_index, &res);
+	if (!i2c) {
+		DRM_ERROR("Failed to create i2c adapter data\n");
+		return -ENOMEM;
+	}
+
 	aconnector->i2c = i2c;
 	res = i2c_add_adapter(&i2c->base);
 
