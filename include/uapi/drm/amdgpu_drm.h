@@ -877,6 +877,10 @@ struct drm_amdgpu_info_device {
 	__u32 _pad1;
 	/* always on cu bitmap */
 	__u32 cu_ao_bitmap[4][4];
+	/** Starting high virtual address for UMDs. */
+	__u64 high_va_offset;
+	/** The maximum high virtual address */
+	__u64 high_va_max;
 };
 
 struct drm_amdgpu_info_hw_ip {
