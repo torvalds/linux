@@ -6071,6 +6071,10 @@ static void nfs4_locku_release_calldata(void *data)
 static void nfs4_locku_done(struct rpc_task *task, void *data)
 {
 	struct nfs4_unlockdata *calldata = data;
+	struct nfs4_exception exception = {
+		.inode = calldata->lsp->ls_state->inode,
+		.stateid = &calldata->arg.stateid,
+	};
 
 	if (!nfs4_sequence_done(task, &calldata->res.seq_res))
 		return;
@@ -6094,8 +6098,10 @@ static void nfs4_locku_done(struct rpc_task *task, void *data)
 				rpc_restart_call_prepare(task);
 			break;
 		default:
-			if (nfs4_async_handle_error(task, calldata->server,
-						    NULL, NULL) == -EAGAIN)
+			task->tk_status = nfs4_async_handle_exception(task,
+					calldata->server, task->tk_status,
+					&exception);
+			if (exception.retry)
 				rpc_restart_call_prepare(task);
 	}
 	nfs_release_seqid(calldata->arg.seqid);
