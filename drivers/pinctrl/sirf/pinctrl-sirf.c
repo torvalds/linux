@@ -587,7 +587,7 @@ static void sirfsoc_gpio_handle_irq(struct irq_desc *desc)
 		if ((status & 0x1) && (ctrl & SIRFSOC_GPIO_CTL_INTR_EN_MASK)) {
 			pr_debug("%s: gpio id %d idx %d happens\n",
 				__func__, bank->id, idx);
-			generic_handle_irq(irq_find_mapping(gc->irqdomain, idx +
+			generic_handle_irq(irq_find_mapping(gc->irq.domain, idx +
 					bank->id * SIRFSOC_GPIO_BANK_SIZE));
 		}
 

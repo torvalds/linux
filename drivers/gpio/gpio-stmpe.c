@@ -397,7 +397,7 @@ static irqreturn_t stmpe_gpio_irq(int irq, void *dev)
 		while (stat) {
 			int bit = __ffs(stat);
 			int line = bank * 8 + bit;
-			int child_irq = irq_find_mapping(stmpe_gpio->chip.irqdomain,
+			int child_irq = irq_find_mapping(stmpe_gpio->chip.irq.domain,
 							 line);
 
 			handle_nested_irq(child_irq);

@@ -32,6 +32,14 @@ struct gpio_irq_chip {
 	struct irq_chip *chip;
 
 	/**
+	 * @domain:
+	 *
+	 * Interrupt translation domain; responsible for mapping between GPIO
+	 * hwirq number and Linux IRQ number.
+	 */
+	struct irq_domain *domain;
+
+	/**
 	 * @domain_ops:
 	 *
 	 * Table of interrupt domain operations for this IRQ chip.
@@ -124,8 +132,6 @@ static inline struct gpio_irq_chip *to_gpio_irq_chip(struct irq_chip *chip)
  *	safely.
  * @bgpio_dir: shadowed direction register for generic GPIO to clear/set
  *	direction safely.
- * @irqdomain: Interrupt translation domain; responsible for mapping
- *	between GPIO hwirq number and linux irq number
  * @irq_handler: the irq handler to use (often a predefined irq core function)
  *	for GPIO IRQs, provided by GPIO driver
  * @irq_default_type: default IRQ triggering type applied during GPIO driver
@@ -208,7 +214,6 @@ struct gpio_chip {
 	 * With CONFIG_GPIOLIB_IRQCHIP we get an irqchip inside the gpiolib
 	 * to handle IRQs for most practical cases.
 	 */
-	struct irq_domain	*irqdomain;
 	irq_flow_handler_t	irq_handler;
 	unsigned int		irq_default_type;
 	unsigned int		irq_chained_parent;

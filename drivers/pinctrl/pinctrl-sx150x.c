@@ -561,7 +561,7 @@ static irqreturn_t sx150x_irq_thread_fn(int irq, void *dev_id)
 
 	status = val;
 	for_each_set_bit(n, &status, pctl->data->ngpios)
-		handle_nested_irq(irq_find_mapping(pctl->gpio.irqdomain, n));
+		handle_nested_irq(irq_find_mapping(pctl->gpio.irq.domain, n));
 
 	return IRQ_HANDLED;
 }

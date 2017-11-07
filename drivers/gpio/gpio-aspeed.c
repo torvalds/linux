@@ -469,7 +469,7 @@ static void aspeed_gpio_irq_handler(struct irq_desc *desc)
 		reg = ioread32(bank_irq_reg(data, bank, GPIO_IRQ_STATUS));
 
 		for_each_set_bit(p, &reg, 32) {
-			girq = irq_find_mapping(gc->irqdomain, i * 32 + p);
+			girq = irq_find_mapping(gc->irq.domain, i * 32 + p);
 			generic_handle_irq(girq);
 		}
 

@@ -209,7 +209,7 @@ static void ath79_gpio_irq_handler(struct irq_desc *desc)
 	if (pending) {
 		for_each_set_bit(irq, &pending, gc->ngpio)
 			generic_handle_irq(
-				irq_linear_revmap(gc->irqdomain, irq));
+				irq_linear_revmap(gc->irq.domain, irq));
 	}
 
 	chained_irq_exit(irqchip, desc);

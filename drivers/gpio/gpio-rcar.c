@@ -207,7 +207,7 @@ static irqreturn_t gpio_rcar_irq_handler(int irq, void *dev_id)
 			  gpio_rcar_read(p, INTMSK))) {
 		offset = __ffs(pending);
 		gpio_rcar_write(p, INTCLR, BIT(offset));
-		generic_handle_irq(irq_find_mapping(p->gpio_chip.irqdomain,
+		generic_handle_irq(irq_find_mapping(p->gpio_chip.irq.domain,
 						    offset));
 		irqs_handled++;
 	}

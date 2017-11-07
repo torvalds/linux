@@ -287,7 +287,7 @@ static int xgene_gpio_sb_probe(struct platform_device *pdev)
 	if (!priv->irq_domain)
 		return -ENODEV;
 
-	priv->gc.irqdomain = priv->irq_domain;
+	priv->gc.irq.domain = priv->irq_domain;
 
 	ret = devm_gpiochip_add_data(&pdev->dev, &priv->gc, priv);
 	if (ret) {

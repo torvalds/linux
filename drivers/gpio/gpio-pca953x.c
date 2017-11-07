@@ -608,7 +608,7 @@ static irqreturn_t pca953x_irq_handler(int irq, void *devid)
 	for (i = 0; i < NBANK(chip); i++) {
 		while (pending[i]) {
 			level = __ffs(pending[i]);
-			handle_nested_irq(irq_find_mapping(chip->gpio_chip.irqdomain,
+			handle_nested_irq(irq_find_mapping(chip->gpio_chip.irq.domain,
 							level + (BANK_SZ * i)));
 			pending[i] &= ~(1 << level);
 			nhandled++;

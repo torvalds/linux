@@ -592,7 +592,7 @@ static void armada_37xx_irq_handler(struct irq_desc *desc)
 	struct gpio_chip *gc = irq_desc_get_handler_data(desc);
 	struct irq_chip *chip = irq_desc_get_chip(desc);
 	struct armada_37xx_pinctrl *info = gpiochip_get_data(gc);
-	struct irq_domain *d = gc->irqdomain;
+	struct irq_domain *d = gc->irq.domain;
 	int i;
 
 	chained_irq_enter(chip, desc);
