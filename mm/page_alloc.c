@@ -5646,16 +5646,6 @@ void __init sparse_memory_present_with_active_regions(int nid)
 	unsigned long start_pfn, end_pfn;
 	int i, this_nid;
 
-#ifdef CONFIG_SPARSEMEM_EXTREME
-	if (!mem_section) {
-		unsigned long size, align;
-
-		size = sizeof(struct mem_section) * NR_SECTION_ROOTS;
-		align = 1 << (INTERNODE_CACHE_SHIFT);
-		mem_section = memblock_virt_alloc(size, align);
-	}
-#endif
-
 	for_each_mem_pfn_range(i, nid, &start_pfn, &end_pfn, &this_nid)
 		memory_present(this_nid, start_pfn, end_pfn);
 }
