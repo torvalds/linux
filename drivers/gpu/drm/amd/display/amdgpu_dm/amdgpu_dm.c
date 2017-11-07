@@ -517,7 +517,7 @@ static int detect_mst_link_for_all_connectors(struct drm_device *dev)
 	drm_modeset_lock(&dev->mode_config.connection_mutex, NULL);
 
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
-		   aconnector = to_amdgpu_dm_connector(connector);
+		aconnector = to_amdgpu_dm_connector(connector);
 		if (aconnector->dc_link->type == dc_connection_mst_branch) {
 			DRM_DEBUG_DRIVER("DM_MST: starting TM on aconnector: %p [id: %d]\n",
 					aconnector, aconnector->base.base.id);
@@ -4712,10 +4712,10 @@ static int amdgpu_dm_atomic_check(struct drm_device *dev,
 		goto fail;
 	}
 
-	 /* Run this here since we want to validate the streams we created */
-	 ret = drm_atomic_helper_check_planes(dev, state);
-	 if (ret)
-		 goto fail;
+	/* Run this here since we want to validate the streams we created */
+	ret = drm_atomic_helper_check_planes(dev, state);
+	if (ret)
+		goto fail;
 
 	/* Check scaling and underscan changes*/
 	/*TODO Removed scaling changes validation due to inability to commit

@@ -318,7 +318,7 @@ static void process_channel_reply(
 				REG_GET(AUX_SW_DATA,
 						AUX_SW_DATA, &aux_sw_data_val);
 
-				 reply->data[i] = aux_sw_data_val;
+				reply->data[i] = aux_sw_data_val;
 				++i;
 			}
 
