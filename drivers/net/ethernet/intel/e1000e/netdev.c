@@ -3303,7 +3303,7 @@ static void e1000_configure_rx(struct e1000_adapter *adapter)
 		if (adapter->flags & FLAG_IS_ICH) {
 			u32 rxdctl = er32(RXDCTL(0));
 
-			ew32(RXDCTL(0), rxdctl | 0x3);
+			ew32(RXDCTL(0), rxdctl | 0x3 | BIT(8));
 		}
 
 		pm_qos_update_request(&adapter->pm_qos_req, lat);
