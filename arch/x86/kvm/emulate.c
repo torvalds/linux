@@ -4014,6 +4014,26 @@ static int em_fxsave(struct x86_emulate_ctxt *ctxt)
 		                   fxstate_size(ctxt));
 }
 
+/*
+ * FXRSTOR might restore XMM registers not provided by the guest. Fill
+ * in the host registers (via FXSAVE) instead, so they won't be modified.
+ * (preemption has to stay disabled until FXRSTOR).
+ *
+ * Use noinline to keep the stack for other functions called by callers small.
+ */
+static noinline int fxregs_fixup(struct fxregs_state *fx_state,
+				 const size_t used_size)
+{
+	struct fxregs_state fx_tmp;
+	int rc;
+
+	rc = asm_safe("fxsave %[fx]", , [fx] "+m"(fx_tmp));
+	memcpy((void *)fx_state + used_size, (void *)&fx_tmp + used_size,
+	       __fxstate_size(16) - used_size);
+
+	return rc;
+}
+
 static int em_fxrstor(struct x86_emulate_ctxt *ctxt)
 {
 	struct fxregs_state fx_state;
@@ -4024,18 +4044,18 @@ static int em_fxrstor(struct x86_emulate_ctxt *ctxt)
 	if (rc != X86EMUL_CONTINUE)
 		return rc;
 
+	size = fxstate_size(ctxt);
+	rc = segmented_read_std(ctxt, ctxt->memop.addr.mem, &fx_state, size);
+	if (rc != X86EMUL_CONTINUE)
+		return rc;
+
 	ctxt->ops->get_fpu(ctxt);
 
-	size = fxstate_size(ctxt);
 	if (size < __fxstate_size(16)) {
-		rc = asm_safe("fxsave %[fx]", , [fx] "+m"(fx_state));
+		rc = fxregs_fixup(&fx_state, size);
 		if (rc != X86EMUL_CONTINUE)
 			goto out;
 	}
-
-	rc = segmented_read_std(ctxt, ctxt->memop.addr.mem, &fx_state, size);
-	if (rc != X86EMUL_CONTINUE)
-		goto out;
 
 	if (fx_state.mxcsr >> 16) {
 		rc = emulate_gp(ctxt, 0);
