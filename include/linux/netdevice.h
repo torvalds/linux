@@ -770,13 +770,14 @@ typedef u16 (*select_queue_fallback_t)(struct net_device *dev,
 				       struct sk_buff *skb);
 
 enum tc_setup_type {
-	TC_SETUP_MQPRIO,
+	TC_SETUP_QDISC_MQPRIO,
 	TC_SETUP_CLSU32,
 	TC_SETUP_CLSFLOWER,
 	TC_SETUP_CLSMATCHALL,
 	TC_SETUP_CLSBPF,
 	TC_SETUP_BLOCK,
-	TC_SETUP_CBS,
+	TC_SETUP_QDISC_CBS,
+	TC_SETUP_QDISC_RED,
 };
 
 /* These structures hold the attributes of bpf state that are being passed

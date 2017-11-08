@@ -48,6 +48,7 @@
 #include <linux/notifier.h>
 #include <net/psample.h>
 #include <net/pkt_cls.h>
+#include <net/red.h>
 
 #include "port.h"
 #include "core.h"
@@ -203,6 +204,37 @@ struct mlxsw_sp_port_vlan {
 	struct list_head bridge_vlan_node;
 };
 
+enum mlxsw_sp_qdisc_type {
+	MLXSW_SP_QDISC_NO_QDISC,
+	MLXSW_SP_QDISC_RED,
+};
+
+struct mlxsw_sp_qdisc {
+	u32 handle;
+	enum mlxsw_sp_qdisc_type type;
+	struct red_stats xstats_base;
+	union {
+		struct {
+			u64 tail_drop_base;
+			u64 ecn_base;
+			u64 wred_drop_base;
+		} red;
+	} xstats;
+
+	u64 tx_bytes;
+	u64 tx_packets;
+	u64 drops;
+	u64 overlimits;
+};
+
+/* No need an internal lock; At worse - miss a single periodic iteration */
+struct mlxsw_sp_port_xstats {
+	u64 ecn;
+	u64 wred_drop[TC_MAX_QUEUE];
+	u64 tail_drop[TC_MAX_QUEUE];
+	u64 backlog[TC_MAX_QUEUE];
+};
+
 struct mlxsw_sp_port {
 	struct net_device *dev;
 	struct mlxsw_sp_port_pcpu_stats __percpu *pcpu_stats;
@@ -232,10 +264,12 @@ struct mlxsw_sp_port {
 	struct {
 		#define MLXSW_HW_STATS_UPDATE_TIME HZ
 		struct rtnl_link_stats64 stats;
+		struct mlxsw_sp_port_xstats xstats;
 		struct delayed_work update_dw;
 	} periodic_hw_stats;
 	struct mlxsw_sp_port_sample *sample;
 	struct list_head vlans_list;
+	struct mlxsw_sp_qdisc root_qdisc;
 };
 
 static inline bool
@@ -545,6 +579,10 @@ void mlxsw_sp_flower_destroy(struct mlxsw_sp_port *mlxsw_sp_port, bool ingress,
 			     struct tc_cls_flower_offload *f);
 int mlxsw_sp_flower_stats(struct mlxsw_sp_port *mlxsw_sp_port, bool ingress,
 			  struct tc_cls_flower_offload *f);
+
+/* spectrum_qdisc.c */
+int mlxsw_sp_setup_tc_red(struct mlxsw_sp_port *mlxsw_sp_port,
+			  struct tc_red_qopt_offload *p);
 
 /* spectrum_fid.c */
 int mlxsw_sp_fid_flood_set(struct mlxsw_sp_fid *fid,

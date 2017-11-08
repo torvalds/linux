@@ -7388,7 +7388,7 @@ static int bnxt_setup_tc(struct net_device *dev, enum tc_setup_type type,
 	switch (type) {
 	case TC_SETUP_BLOCK:
 		return bnxt_setup_tc_block(dev, type_data);
-	case TC_SETUP_MQPRIO: {
+	case TC_SETUP_QDISC_MQPRIO: {
 		struct tc_mqprio_qopt *mqprio = type_data;
 
 		mqprio->hw = TC_MQPRIO_HW_OFFLOAD_TCS;

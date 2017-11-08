@@ -7550,7 +7550,7 @@ static int __i40e_setup_tc(struct net_device *netdev, enum tc_setup_type type,
 			   void *type_data)
 {
 	switch (type) {
-	case TC_SETUP_MQPRIO:
+	case TC_SETUP_QDISC_MQPRIO:
 		return i40e_setup_tc(netdev, type_data);
 	case TC_SETUP_BLOCK:
 		return i40e_setup_tc_block(netdev, type_data);
