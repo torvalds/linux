@@ -1115,8 +1115,8 @@ brcmf_cfg80211_escan(struct wiphy *wiphy, struct brcmf_cfg80211_vif *vif,
 		goto scan_out;
 
 	/* Arm scan timeout timer */
-	mod_timer(&cfg->escan_timeout, jiffies +
-			BRCMF_ESCAN_TIMER_INTERVAL_MS * HZ / 1000);
+	mod_timer(&cfg->escan_timeout,
+		  jiffies + msecs_to_jiffies(BRCMF_ESCAN_TIMER_INTERVAL_MS));
 
 	return 0;
 
