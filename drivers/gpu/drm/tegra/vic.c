@@ -115,7 +115,7 @@ static int vic_boot(struct vic *vic)
 }
 
 static void *vic_falcon_alloc(struct falcon *falcon, size_t size,
-			       dma_addr_t *iova)
+			      dma_addr_t *iova)
 {
 	struct tegra_drm *tegra = falcon->data;
 
