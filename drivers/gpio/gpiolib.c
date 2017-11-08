@@ -1940,7 +1940,7 @@ EXPORT_SYMBOL_GPL(gpiochip_irqchip_add_key);
 #else /* CONFIG_GPIOLIB_IRQCHIP */
 
 static inline int gpiochip_add_irqchip(struct gpio_chip *gpiochip,
-				       struct lock_dep_class *lock_key)
+				       struct lock_class_key *key)
 {
 	return 0;
 }
