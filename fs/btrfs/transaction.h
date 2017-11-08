@@ -58,6 +58,7 @@ struct btrfs_transaction {
 
 	/* Be protected by fs_info->trans_lock when we want to change it. */
 	enum btrfs_trans_state state;
+	int aborted;
 	struct list_head list;
 	struct extent_io_tree dirty_pages;
 	unsigned long start_time;
@@ -70,7 +71,6 @@ struct btrfs_transaction {
 	struct list_head dirty_bgs;
 	struct list_head io_bgs;
 	struct list_head dropped_roots;
-	unsigned int num_dirty_bgs;
 
 	/*
 	 * we need to make sure block group deletion doesn't race with
@@ -79,11 +79,11 @@ struct btrfs_transaction {
 	 */
 	struct mutex cache_write_mutex;
 	spinlock_t dirty_bgs_lock;
+	unsigned int num_dirty_bgs;
 	/* Protected by spin lock fs_info->unused_bgs_lock. */
 	struct list_head deleted_bgs;
 	spinlock_t dropped_roots_lock;
 	struct btrfs_delayed_ref_root delayed_refs;
-	int aborted;
 	struct btrfs_fs_info *fs_info;
 };
 
