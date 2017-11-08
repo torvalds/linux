@@ -885,9 +885,7 @@ struct mvpp2 {
 	/* Maximum number of RXQs per port */
 	unsigned int max_port_rxqs;
 
-	/* Workqueue to gather hardware statistics with its lock */
-	struct mutex gather_stats_lock;
-	struct delayed_work stats_work;
+	/* Workqueue to gather hardware statistics */
 	char queue_name[30];
 	struct workqueue_struct *stats_queue;
 };
@@ -954,6 +952,10 @@ struct mvpp2_port {
 	u16 rx_ring_size;
 	struct mvpp2_pcpu_stats __percpu *stats;
 	u64 *ethtool_stats;
+
+	/* Per-port work and its lock to gather hardware statistics */
+	struct mutex gather_stats_lock;
+	struct delayed_work stats_work;
 
 	phy_interface_t phy_interface;
 	struct device_node *phy_node;
@@ -4895,32 +4897,25 @@ static void mvpp2_ethtool_get_strings(struct net_device *netdev, u32 sset,
 static void mvpp2_gather_hw_statistics(struct work_struct *work)
 {
 	struct delayed_work *del_work = to_delayed_work(work);
-	struct mvpp2 *priv = container_of(del_work, struct mvpp2, stats_work);
-	struct mvpp2_port *port;
+	struct mvpp2_port *port = container_of(del_work, struct mvpp2_port,
+					       stats_work);
 	u64 *pstats;
-	int i, j;
+	int i;
 
-	mutex_lock(&priv->gather_stats_lock);
+	mutex_lock(&port->gather_stats_lock);
 
-	for (i = 0; i < priv->port_count; i++) {
-		if (!priv->port_list[i])
-			continue;
-
-		port = priv->port_list[i];
-		pstats = port->ethtool_stats;
-		for (j = 0; j < ARRAY_SIZE(mvpp2_ethtool_regs); j++)
-			*pstats++ += mvpp2_read_count(port,
-						      &mvpp2_ethtool_regs[j]);
-	}
+	pstats = port->ethtool_stats;
+	for (i = 0; i < ARRAY_SIZE(mvpp2_ethtool_regs); i++)
+		*pstats++ += mvpp2_read_count(port, &mvpp2_ethtool_regs[i]);
 
 	/* No need to read again the counters right after this function if it
 	 * was called asynchronously by the user (ie. use of ethtool).
 	 */
-	cancel_delayed_work(&priv->stats_work);
-	queue_delayed_work(priv->stats_queue, &priv->stats_work,
+	cancel_delayed_work(&port->stats_work);
+	queue_delayed_work(port->priv->stats_queue, &port->stats_work,
 			   MVPP2_MIB_COUNTERS_STATS_DELAY);
 
-	mutex_unlock(&priv->gather_stats_lock);
+	mutex_unlock(&port->gather_stats_lock);
 }
 
 static void mvpp2_ethtool_get_stats(struct net_device *dev,
@@ -4928,13 +4923,15 @@ static void mvpp2_ethtool_get_stats(struct net_device *dev,
 {
 	struct mvpp2_port *port = netdev_priv(dev);
 
-	/* Update statistics for all ports, copy only those actually needed */
-	mvpp2_gather_hw_statistics(&port->priv->stats_work.work);
+	/* Update statistics for the given port, then take the lock to avoid
+	 * concurrent accesses on the ethtool_stats structure during its copy.
+	 */
+	mvpp2_gather_hw_statistics(&port->stats_work.work);
 
-	mutex_lock(&port->priv->gather_stats_lock);
+	mutex_lock(&port->gather_stats_lock);
 	memcpy(data, port->ethtool_stats,
 	       sizeof(u64) * ARRAY_SIZE(mvpp2_ethtool_regs));
-	mutex_unlock(&port->priv->gather_stats_lock);
+	mutex_unlock(&port->gather_stats_lock);
 }
 
 static int mvpp2_ethtool_get_sset_count(struct net_device *dev, int sset)
@@ -7089,7 +7086,7 @@ static int mvpp2_open(struct net_device *dev)
 		mvpp22_init_rss(port);
 
 	/* Start hardware statistics gathering */
-	queue_delayed_work(priv->stats_queue, &priv->stats_work,
+	queue_delayed_work(priv->stats_queue, &port->stats_work,
 			   MVPP2_MIB_COUNTERS_STATS_DELAY);
 
 	return 0;
@@ -7136,8 +7133,7 @@ static int mvpp2_stop(struct net_device *dev)
 	mvpp2_cleanup_rxqs(port);
 	mvpp2_cleanup_txqs(port);
 
-	cancel_delayed_work_sync(&priv->stats_work);
-	flush_workqueue(priv->stats_queue);
+	cancel_delayed_work_sync(&port->stats_work);
 
 	return 0;
 }
@@ -7889,6 +7885,9 @@ static int mvpp2_port_probe(struct platform_device *pdev,
 		goto err_free_stats;
 	}
 
+	mutex_init(&port->gather_stats_lock);
+	INIT_DELAYED_WORK(&port->stats_work, mvpp2_gather_hw_statistics);
+
 	mvpp2_port_copy_mac_addr(dev, priv, port_node, &mac_from);
 
 	port->tx_ring_size = MVPP2_MAX_TXD;
@@ -8356,7 +8355,6 @@ static int mvpp2_probe(struct platform_device *pdev)
 	 * smallest packets (64B) will overflow a 32-bit counter in less than
 	 * 30 seconds. Then, use a workqueue to fill 64-bit counters.
 	 */
-	mutex_init(&priv->gather_stats_lock);
 	snprintf(priv->queue_name, sizeof(priv->queue_name),
 		 "stats-wq-%s%s", netdev_name(priv->port_list[0]->dev),
 		 priv->port_count > 1 ? "+" : "");
@@ -8365,8 +8363,6 @@ static int mvpp2_probe(struct platform_device *pdev)
 		err = -ENOMEM;
 		goto err_mg_clk;
 	}
-
-	INIT_DELAYED_WORK(&priv->stats_work, mvpp2_gather_hw_statistics);
 
 	platform_set_drvdata(pdev, priv);
 	return 0;
@@ -8389,12 +8385,14 @@ static int mvpp2_remove(struct platform_device *pdev)
 	struct device_node *port_node;
 	int i = 0;
 
+	flush_workqueue(priv->stats_queue);
 	destroy_workqueue(priv->stats_queue);
-	mutex_destroy(&priv->gather_stats_lock);
 
 	for_each_available_child_of_node(dn, port_node) {
-		if (priv->port_list[i])
+		if (priv->port_list[i]) {
+			mutex_destroy(&priv->port_list[i]->gather_stats_lock);
 			mvpp2_port_remove(priv->port_list[i]);
+		}
 		i++;
 	}
 
