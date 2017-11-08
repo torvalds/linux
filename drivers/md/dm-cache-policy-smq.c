@@ -1174,12 +1174,16 @@ static void queue_writeback(struct smq_policy *mq)
 		work.cblock = infer_cblock(mq, e);
 
 		r = btracker_queue(mq->bg_work, &work, NULL);
-		WARN_ON_ONCE(r); // FIXME: finish, I think we have to get rid of this race.
+		if (r) {
+			clear_pending(mq, e);
+			q_push_front(&mq->dirty, e);
+		}
 	}
 }
 
 static void queue_demotion(struct smq_policy *mq)
 {
+	int r;
 	struct policy_work work;
 	struct entry *e;
 
@@ -1199,12 +1203,17 @@ static void queue_demotion(struct smq_policy *mq)
 	work.op = POLICY_DEMOTE;
 	work.oblock = e->oblock;
 	work.cblock = infer_cblock(mq, e);
-	btracker_queue(mq->bg_work, &work, NULL);
+	r = btracker_queue(mq->bg_work, &work, NULL);
+	if (r) {
+		clear_pending(mq, e);
+		q_push_front(&mq->clean, e);
+	}
 }
 
 static void queue_promotion(struct smq_policy *mq, dm_oblock_t oblock,
 			    struct policy_work **workp)
 {
+	int r;
 	struct entry *e;
 	struct policy_work work;
 
@@ -1234,7 +1243,9 @@ static void queue_promotion(struct smq_policy *mq, dm_oblock_t oblock,
 	work.op = POLICY_PROMOTE;
 	work.oblock = oblock;
 	work.cblock = infer_cblock(mq, e);
-	btracker_queue(mq->bg_work, &work, workp);
+	r = btracker_queue(mq->bg_work, &work, workp);
+	if (r)
+		free_entry(&mq->cache_alloc, e);
 }
 
 /*----------------------------------------------------------------*/
