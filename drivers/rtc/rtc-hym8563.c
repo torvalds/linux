@@ -532,6 +532,16 @@ static int hym8563_probe(struct i2c_client *client,
 {
 	struct hym8563 *hym8563;
 	int ret;
+	/* hym8563 initial time,avoid hym8563 read time error */
+	struct rtc_time tm_read, tm = {
+		.tm_wday = 0,
+		.tm_year = 117,
+		.tm_mon = 0,
+		.tm_mday = 1,
+		.tm_hour = 12,
+		.tm_min = 0,
+		.tm_sec = 0,
+	};
 
 	hym8563 = devm_kzalloc(&client->dev, sizeof(*hym8563), GFP_KERNEL);
 	if (!hym8563)
@@ -564,6 +574,15 @@ static int hym8563_probe(struct i2c_client *client,
 	ret = i2c_smbus_read_byte_data(client, HYM8563_SEC);
 	if (ret < 0)
 		return ret;
+	if (ret & HYM8563_SEC_VL)
+		hym8563_rtc_set_time(&client->dev, &tm);
+
+	hym8563_rtc_read_time(&client->dev, &tm_read);
+	if (((tm_read.tm_year < 70) | (tm_read.tm_year > 137)) | (tm_read.tm_mon == -1) | (rtc_valid_tm(&tm_read) != 0)) //if the hym8563 haven't initialized
+		hym8563_rtc_set_time(&client->dev, &tm);	//initialize the hym8563
+
+	if (ret & HYM8563_SEC_VL)
+		ret = i2c_smbus_read_byte_data(client, HYM8563_SEC);
 
 	hym8563->valid = !(ret & HYM8563_SEC_VL);
 	dev_dbg(&client->dev, "rtc information is %s\n",
