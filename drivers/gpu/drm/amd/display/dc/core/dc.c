@@ -887,12 +887,14 @@ static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *c
 	if (!dcb->funcs->is_accelerated_mode(dcb))
 		dc->hwss.enable_accelerated_mode(dc);
 
-	/* Combine planes if required, in case of pipe split disable */
+	/* re-program planes for existing stream, in case we need to
+	 * free up plane resource for later use
+	 */
 	for (i = 0; i < dc->current_state->stream_count; i++) {
 		dc->hwss.apply_ctx_for_surface(
 			dc, dc->current_state->streams[i],
 			dc->current_state->stream_status[i].plane_count,
-			dc->current_state);
+			context); /* use new pipe config in new context */
 	}
 
 	/* Program hardware */
