@@ -387,7 +387,7 @@ static int pcf8563_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *tm)
 	if (err)
 		return err;
 
-	return pcf8563_set_alarm_mode(client, 1);
+	return pcf8563_set_alarm_mode(client, !!tm->enabled);
 }
 
 static int pcf8563_irq_enable(struct device *dev, unsigned int enabled)
