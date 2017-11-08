@@ -475,7 +475,6 @@ struct sock *tcp_create_openreq_child(const struct sock *sk,
 		newtp->packets_out = 0;
 		newtp->retrans_out = 0;
 		newtp->sacked_out = 0;
-		newtp->fackets_out = 0;
 		newtp->snd_ssthresh = TCP_INFINITE_SSTHRESH;
 		newtp->tlp_high_seq = 0;
 		newtp->lsndtime = tcp_jiffies32;

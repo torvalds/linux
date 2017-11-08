@@ -1218,21 +1218,6 @@ static void tcp_set_skb_tso_segs(struct sk_buff *skb, unsigned int mss_now)
 	}
 }
 
-/* When a modification to fackets out becomes necessary, we need to check
- * skb is counted to fackets_out or not.
- */
-static void tcp_adjust_fackets_out(struct sock *sk, const struct sk_buff *skb,
-				   int decr)
-{
-	struct tcp_sock *tp = tcp_sk(sk);
-
-	if (!tp->sacked_out || tcp_is_reno(tp))
-		return;
-
-	if (after(tcp_highest_sack_seq(tp), TCP_SKB_CB(skb)->seq))
-		tp->fackets_out -= decr;
-}
-
 /* Pcount in the middle of the write queue got changed, we need to do various
  * tweaks to fix counters
  */
@@ -1252,8 +1237,6 @@ static void tcp_adjust_pcount(struct sock *sk, const struct sk_buff *skb, int de
 	/* Reno case is special. Sigh... */
 	if (tcp_is_reno(tp) && decr > 0)
 		tp->sacked_out -= min_t(u32, tp->sacked_out, decr);
-
-	tcp_adjust_fackets_out(sk, skb, decr);
 
 	if (tp->lost_skb_hint &&
 	    before(TCP_SKB_CB(skb)->seq, TCP_SKB_CB(tp->lost_skb_hint)->seq) &&

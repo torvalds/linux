@@ -293,7 +293,6 @@ struct tcp_sock {
 	u32	pushed_seq;	/* Last pushed seq, required to talk to windows */
 	u32	lost_out;	/* Lost packets			*/
 	u32	sacked_out;	/* SACK'd packets			*/
-	u32	fackets_out;	/* FACK'd packets			*/
 
 	struct hrtimer	pacing_timer;
 
