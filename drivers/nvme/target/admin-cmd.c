@@ -144,10 +144,8 @@ static void nvmet_execute_get_log_page(struct nvmet_req *req)
 		}
 		smart_log = buf;
 		status = nvmet_get_smart_log(req, smart_log);
-		if (status) {
-			memset(buf, '\0', data_len);
+		if (status)
 			goto err;
-		}
 		break;
 	case NVME_LOG_FW_SLOT:
 		/*
