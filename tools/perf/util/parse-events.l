@@ -5,6 +5,7 @@
 %option stack
 %option bison-locations
 %option yylineno
+%option reject
 
 %{
 #include <errno.h>
