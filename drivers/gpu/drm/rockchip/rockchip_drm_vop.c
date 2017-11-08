@@ -59,7 +59,8 @@
 		VOP_REG_SUPPORT(vop, win->phy->name)
 
 #define VOP_WIN_SCL_EXT_SUPPORT(vop, win, name) \
-		VOP_REG_SUPPORT(vop, win->phy->scl->ext->name)
+		(win->phy->scl->ext && \
+		VOP_REG_SUPPORT(vop, win->phy->scl->ext->name))
 
 #define VOP_CTRL_SUPPORT(vop, name) \
 		VOP_REG_SUPPORT(vop, vop->data->ctrl->name)
