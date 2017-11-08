@@ -123,6 +123,17 @@ struct vas_instance *find_vas_instance(int vasid)
 	return NULL;
 }
 
+int chip_to_vas_id(int chipid)
+{
+	int cpu;
+
+	for_each_possible_cpu(cpu) {
+		if (cpu_to_chip_id(cpu) == chipid)
+			return per_cpu(cpu_vas_id, cpu);
+	}
+	return -1;
+}
+
 static int vas_probe(struct platform_device *pdev)
 {
 	return init_vas_instance(pdev);

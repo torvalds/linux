@@ -104,6 +104,15 @@ struct vas_tx_win_attr {
 };
 
 /*
+ * Helper to map a chip id to VAS id.
+ * For POWER9, this is a 1:1 mapping. In the future this maybe a 1:N
+ * mapping in which case, we will need to update this helper.
+ *
+ * Return the VAS id or -1 if no matching vasid is found.
+ */
+int chip_to_vas_id(int chipid);
+
+/*
  * Helper to initialize receive window attributes to defaults for an
  * NX window.
  */

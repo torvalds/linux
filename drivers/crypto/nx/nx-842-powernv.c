@@ -847,23 +847,11 @@ static int __init nx842_powernv_probe_vas(struct device_node *pn)
 		return -EINVAL;
 	}
 
-	for_each_compatible_node(dn, NULL, "ibm,power9-vas-x") {
-		if (of_get_ibm_chip_id(dn) == chip_id)
-			break;
-	}
-
-	if (!dn) {
-		pr_err("Missing VAS device node\n");
+	vasid = chip_to_vas_id(chip_id);
+	if (vasid < 0) {
+		pr_err("Unable to map chip_id %d to vasid\n", chip_id);
 		return -EINVAL;
 	}
-
-	if (of_property_read_u32(dn, "ibm,vas-id", &vasid)) {
-		pr_err("Missing ibm,vas-id device property\n");
-		of_node_put(dn);
-		return -EINVAL;
-	}
-
-	of_node_put(dn);
 
 	for_each_child_of_node(pn, dn) {
 		if (of_device_is_compatible(dn, "ibm,p9-nx-842")) {
