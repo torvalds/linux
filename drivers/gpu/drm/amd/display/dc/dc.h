@@ -137,6 +137,7 @@ struct dc;
 struct dc_plane_state;
 struct dc_state;
 
+
 struct dc_cap_funcs {
 	bool (*get_dcc_compression_cap)(const struct dc *dc,
 			const struct dc_dcc_surface_param *input,
@@ -577,168 +578,7 @@ struct dc_flip_addrs {
 bool dc_post_update_surfaces_to_stream(
 		struct dc *dc);
 
-/*******************************************************************************
- * Stream Interfaces
- ******************************************************************************/
-
-struct dc_stream_status {
-	int primary_otg_inst;
-	int stream_enc_inst;
-	int plane_count;
-	struct dc_plane_state *plane_states[MAX_SURFACE_NUM];
-
-	/*
-	 * link this stream passes through
-	 */
-	struct dc_link *link;
-};
-
-struct dc_stream_state {
-	struct dc_sink *sink;
-	struct dc_crtc_timing timing;
-
-	struct rect src; /* composition area */
-	struct rect dst; /* stream addressable area */
-
-	struct audio_info audio_info;
-
-	struct freesync_context freesync_ctx;
-
-	struct dc_hdr_static_metadata hdr_static_metadata;
-	struct dc_transfer_func *out_transfer_func;
-	struct colorspace_transform gamut_remap_matrix;
-	struct csc_transform csc_color_matrix;
-
-	enum dc_color_space output_color_space;
-	enum dc_dither_option dither_option;
-
-	enum view_3d_format view_format;
-
-	bool ignore_msa_timing_param;
-	/* TODO: custom INFO packets */
-	/* TODO: ABM info (DMCU) */
-	/* TODO: PSR info */
-	/* TODO: CEA VIC */
-
-	/* from core_stream struct */
-	struct dc_context *ctx;
-
-	/* used by DCP and FMT */
-	struct bit_depth_reduction_params bit_depth_params;
-	struct clamping_and_pixel_encoding_params clamping;
-
-	int phy_pix_clk;
-	enum signal_type signal;
-	bool dpms_off;
-
-	struct dc_stream_status status;
-
-	struct dc_cursor_attributes cursor_attributes;
-
-	/* from stream struct */
-	struct kref refcount;
-
-	struct crtc_trigger_info triggered_crtc_reset;
-
-};
-
-struct dc_stream_update {
-	struct rect src;
-	struct rect dst;
-	struct dc_transfer_func *out_transfer_func;
-	struct dc_hdr_static_metadata *hdr_static_metadata;
-};
-
-bool dc_is_stream_unchanged(
-	struct dc_stream_state *old_stream, struct dc_stream_state *stream);
-bool dc_is_stream_scaling_unchanged(
-	struct dc_stream_state *old_stream, struct dc_stream_state *stream);
-
-/*
- * Set up surface attributes and associate to a stream
- * The surfaces parameter is an absolute set of all surface active for the stream.
- * If no surfaces are provided, the stream will be blanked; no memory read.
- * Any flip related attribute changes must be done through this interface.
- *
- * After this call:
- *   Surfaces attributes are programmed and configured to be composed into stream.
- *   This does not trigger a flip.  No surface address is programmed.
- */
-
-bool dc_commit_planes_to_stream(
-		struct dc *dc,
-		struct dc_plane_state **plane_states,
-		uint8_t new_plane_count,
-		struct dc_stream_state *dc_stream,
-		struct dc_state *state);
-
-void dc_commit_updates_for_stream(struct dc *dc,
-		struct dc_surface_update *srf_updates,
-		int surface_count,
-		struct dc_stream_state *stream,
-		struct dc_stream_update *stream_update,
-		struct dc_plane_state **plane_states,
-		struct dc_state *state);
-/*
- * Log the current stream state.
- */
-void dc_stream_log(
-	const struct dc_stream_state *stream,
-	struct dal_logger *dc_logger,
-	enum dc_log_type log_type);
-
-uint8_t dc_get_current_stream_count(struct dc *dc);
-struct dc_stream_state *dc_get_stream_at_index(struct dc *dc, uint8_t i);
-
-/*
- * Return the current frame counter.
- */
-uint32_t dc_stream_get_vblank_counter(const struct dc_stream_state *stream);
-
-/* TODO: Return parsed values rather than direct register read
- * This has a dependency on the caller (amdgpu_get_crtc_scanoutpos)
- * being refactored properly to be dce-specific
- */
-bool dc_stream_get_scanoutpos(const struct dc_stream_state *stream,
-				  uint32_t *v_blank_start,
-				  uint32_t *v_blank_end,
-				  uint32_t *h_position,
-				  uint32_t *v_position);
-
-enum dc_status dc_add_stream_to_ctx(
-			struct dc *dc,
-		struct dc_state *new_ctx,
-		struct dc_stream_state *stream);
-
-enum dc_status dc_remove_stream_from_ctx(
-		struct dc *dc,
-			struct dc_state *new_ctx,
-			struct dc_stream_state *stream);
-
-
-bool dc_add_plane_to_context(
-		const struct dc *dc,
-		struct dc_stream_state *stream,
-		struct dc_plane_state *plane_state,
-		struct dc_state *context);
-
-bool dc_remove_plane_from_context(
-		const struct dc *dc,
-		struct dc_stream_state *stream,
-		struct dc_plane_state *plane_state,
-		struct dc_state *context);
-
-bool dc_rem_all_planes_for_stream(
-		const struct dc *dc,
-		struct dc_stream_state *stream,
-		struct dc_state *context);
-
-bool dc_add_all_planes_for_stream(
-		const struct dc *dc,
-		struct dc_stream_state *stream,
-		struct dc_plane_state * const *plane_states,
-		int plane_count,
-		struct dc_state *context);
+#include "dc_stream.h"
 
 /*
  * Structure to store surface/stream associations for validation
@@ -749,21 +589,11 @@ struct dc_validation_set {
 	uint8_t plane_count;
 };
 
-enum dc_status dc_validate_stream(struct dc *dc, struct dc_stream_state *stream);
-
 enum dc_status dc_validate_plane(struct dc *dc, const struct dc_plane_state *plane_state);
 
 enum dc_status dc_validate_global_state(
 		struct dc *dc,
 		struct dc_state *new_ctx);
-
-/*
- * This function takes a stream and checks if it is guaranteed to be supported.
- * Guaranteed means that MAX_COFUNC similar streams are supported.
- *
- * After this call:
- *   No hardware is programmed for call.  Only validation is done.
- */
 
 
 void dc_resource_state_construct(
@@ -790,42 +620,6 @@ void dc_resource_state_destruct(struct dc_state *context);
  *   New streams are enabled with blank stream; no memory read.
  */
 bool dc_commit_state(struct dc *dc, struct dc_state *context);
-
-/*
- * Set up streams and links associated to drive sinks
- * The streams parameter is an absolute set of all active streams.
- *
- * After this call:
- *   Phy, Encoder, Timing Generator are programmed and enabled.
- *   New streams are enabled with blank stream; no memory read.
- */
-/*
- * Enable stereo when commit_streams is not required,
- * for example, frame alternate.
- */
-bool dc_enable_stereo(
-	struct dc *dc,
-	struct dc_state *context,
-	struct dc_stream_state *streams[],
-	uint8_t stream_count);
-
-/**
- * Create a new default stream for the requested sink
- */
-struct dc_stream_state *dc_create_stream_for_sink(struct dc_sink *dc_sink);
-
-void dc_stream_retain(struct dc_stream_state *dc_stream);
-void dc_stream_release(struct dc_stream_state *dc_stream);
-
-struct dc_stream_status *dc_stream_get_status(
-	struct dc_stream_state *dc_stream);
-
-enum surface_update_type dc_check_update_surfaces_for_stream(
-		struct dc *dc,
-		struct dc_surface_update *updates,
-		int surface_count,
-		struct dc_stream_update *stream_update,
-		const struct dc_stream_status *stream_status);
 
 
 struct dc_state *dc_create_state(void);
@@ -1076,18 +870,6 @@ struct dc_sink_init_data {
 
 struct dc_sink *dc_sink_create(const struct dc_sink_init_data *init_params);
 
-/*******************************************************************************
- * Cursor interfaces - To manages the cursor within a stream
- ******************************************************************************/
-/* TODO: Deprecated once we switch to dc_set_cursor_position */
-bool dc_stream_set_cursor_attributes(
-	struct dc_stream_state *stream,
-	const struct dc_cursor_attributes *attributes);
-
-bool dc_stream_set_cursor_position(
-	struct dc_stream_state *stream,
-	const struct dc_cursor_position *position);
-
 /* Newer interfaces  */
 struct dc_cursor {
 	struct dc_plane_address address;
@@ -1123,6 +905,5 @@ bool dc_submit_i2c(
 		struct dc *dc,
 		uint32_t link_index,
 		struct i2c_command *cmd);
-
 
 #endif /* DC_INTERFACE_H_ */
