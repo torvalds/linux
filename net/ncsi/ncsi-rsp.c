@@ -1032,11 +1032,19 @@ int ncsi_rcv_rsp(struct sk_buff *skb, struct net_device *dev,
 	if (payload < 0)
 		payload = ntohs(hdr->length);
 	ret = ncsi_validate_rsp_pkt(nr, payload);
-	if (ret)
+	if (ret) {
+		netdev_warn(ndp->ndev.dev,
+			    "NCSI: 'bad' packet ignored for type 0x%x\n",
+			    hdr->type);
 		goto out;
+	}
 
 	/* Process the packet */
 	ret = nrh->handler(nr);
+	if (ret)
+		netdev_err(ndp->ndev.dev,
+			   "NCSI: Handler for packet type 0x%x returned %d\n",
+			   hdr->type, ret);
 out:
 	ncsi_free_request(nr);
 	return ret;
