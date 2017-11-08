@@ -734,47 +734,57 @@ bool ttm_bo_eviction_valuable(struct ttm_buffer_object *bo,
 EXPORT_SYMBOL(ttm_bo_eviction_valuable);
 
 static int ttm_mem_evict_first(struct ttm_bo_device *bdev,
-				uint32_t mem_type,
-				const struct ttm_place *place,
-				bool interruptible,
-				bool no_wait_gpu)
+			       struct reservation_object *resv,
+			       uint32_t mem_type,
+			       const struct ttm_place *place,
+			       bool interruptible,
+			       bool no_wait_gpu)
 {
 	struct ttm_bo_global *glob = bdev->glob;
 	struct ttm_mem_type_manager *man = &bdev->man[mem_type];
-	struct ttm_buffer_object *bo;
-	int ret = -EBUSY;
+	struct ttm_buffer_object *bo = NULL;
+	bool locked = false;
 	unsigned i;
+	int ret;
 
 	spin_lock(&glob->lru_lock);
 	for (i = 0; i < TTM_MAX_BO_PRIORITY; ++i) {
 		list_for_each_entry(bo, &man->lru[i], lru) {
-			ret = reservation_object_trylock(bo->resv) ? 0 : -EBUSY;
-			if (ret)
-				continue;
+			if (bo->resv == resv) {
+				if (list_empty(&bo->ddestroy))
+					continue;
+			} else {
+				locked = reservation_object_trylock(bo->resv);
+				if (!locked)
+					continue;
+			}
 
 			if (place && !bdev->driver->eviction_valuable(bo,
 								      place)) {
-				reservation_object_unlock(bo->resv);
-				ret = -EBUSY;
+				if (locked)
+					reservation_object_unlock(bo->resv);
 				continue;
 			}
-
 			break;
 		}
 
-		if (!ret)
+		/* If the inner loop terminated early, we have our candidate */
+		if (&bo->lru != &man->lru[i])
 			break;
+
+		bo = NULL;
 	}
 
-	if (ret) {
+	if (!bo) {
 		spin_unlock(&glob->lru_lock);
-		return ret;
+		return -EBUSY;
 	}
 
 	kref_get(&bo->list_kref);
 
 	if (!list_empty(&bo->ddestroy)) {
-		ret = ttm_bo_cleanup_refs(bo, interruptible, no_wait_gpu, true);
+		ret = ttm_bo_cleanup_refs(bo, interruptible, no_wait_gpu,
+					  locked);
 		kref_put(&bo->list_kref, ttm_bo_release_list);
 		return ret;
 	}
@@ -782,10 +792,11 @@ static int ttm_mem_evict_first(struct ttm_bo_device *bdev,
 	ttm_bo_del_from_lru(bo);
 	spin_unlock(&glob->lru_lock);
 
-	BUG_ON(ret != 0);
-
 	ret = ttm_bo_evict(bo, interruptible, no_wait_gpu);
-	ttm_bo_unreserve(bo);
+	if (locked)
+		ttm_bo_unreserve(bo);
+	else
+		ttm_bo_add_to_lru(bo);
 
 	kref_put(&bo->list_kref, ttm_bo_release_list);
 	return ret;
@@ -849,7 +860,7 @@ static int ttm_bo_mem_force_space(struct ttm_buffer_object *bo,
 			return ret;
 		if (mem->mm_node)
 			break;
-		ret = ttm_mem_evict_first(bdev, mem_type, place,
+		ret = ttm_mem_evict_first(bdev, bo->resv, mem_type, place,
 					  interruptible, no_wait_gpu);
 		if (unlikely(ret != 0))
 			return ret;
@@ -1352,7 +1363,8 @@ static int ttm_bo_force_list_clean(struct ttm_bo_device *bdev,
 	for (i = 0; i < TTM_MAX_BO_PRIORITY; ++i) {
 		while (!list_empty(&man->lru[i])) {
 			spin_unlock(&glob->lru_lock);
-			ret = ttm_mem_evict_first(bdev, mem_type, NULL, false, false);
+			ret = ttm_mem_evict_first(bdev, NULL, mem_type, NULL,
+						  false, false);
 			if (ret)
 				return ret;
 			spin_lock(&glob->lru_lock);
