@@ -247,7 +247,7 @@ static int rx8010_init_client(struct i2c_client *client)
 
 	rx8010->ctrlreg = (ctrl[1] & ~RX8010_CTRL_TEST);
 
-	return err;
+	return 0;
 }
 
 static int rx8010_read_alarm(struct device *dev, struct rtc_wkalrm *t)
@@ -276,7 +276,7 @@ static int rx8010_read_alarm(struct device *dev, struct rtc_wkalrm *t)
 	t->enabled = !!(rx8010->ctrlreg & RX8010_CTRL_AIE);
 	t->pending = (flagreg & RX8010_FLAG_AF) && t->enabled;
 
-	return err;
+	return 0;
 }
 
 static int rx8010_set_alarm(struct device *dev, struct rtc_wkalrm *t)
