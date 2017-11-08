@@ -56,8 +56,6 @@ struct tegra_dc {
 	struct list_head list;
 
 	struct drm_info_list *debugfs_files;
-	struct drm_minor *minor;
-	struct dentry *debugfs;
 
 	/* page-flip handling */
 	struct drm_pending_vblank_event *event;
