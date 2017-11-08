@@ -145,23 +145,37 @@ static void unmap_paste_region(struct vas_window *window)
 }
 
 /*
- * Unmap the MMIO regions for a window.
+ * Unmap the MMIO regions for a window. Hold the vas_mutex so we don't
+ * unmap when the window's debugfs dir is in use. This serializes close
+ * of a window even on another VAS instance but since its not a critical
+ * path, just minimize the time we hold the mutex for now. We can add
+ * a per-instance mutex later if necessary.
  */
 static void unmap_winctx_mmio_bars(struct vas_window *window)
 {
 	int len;
+	void *uwc_map;
+	void *hvwc_map;
 	u64 busaddr_start;
 
-	if (window->hvwc_map) {
+	mutex_lock(&vas_mutex);
+
+	hvwc_map = window->hvwc_map;
+	window->hvwc_map = NULL;
+
+	uwc_map = window->uwc_map;
+	window->uwc_map = NULL;
+
+	mutex_unlock(&vas_mutex);
+
+	if (hvwc_map) {
 		get_hvwc_mmio_bar(window, &busaddr_start, &len);
-		unmap_region(window->hvwc_map, busaddr_start, len);
-		window->hvwc_map = NULL;
+		unmap_region(hvwc_map, busaddr_start, len);
 	}
 
-	if (window->uwc_map) {
+	if (uwc_map) {
 		get_uwc_mmio_bar(window, &busaddr_start, &len);
-		unmap_region(window->uwc_map, busaddr_start, len);
-		window->uwc_map = NULL;
+		unmap_region(uwc_map, busaddr_start, len);
 	}
 }
 
@@ -528,6 +542,9 @@ static void vas_window_free(struct vas_window *window)
 	struct vas_instance *vinst = window->vinst;
 
 	unmap_winctx_mmio_bars(window);
+
+	vas_window_free_dbgdir(window);
+
 	kfree(window);
 
 	vas_release_window_id(&vinst->ida, winid);
@@ -551,6 +568,8 @@ static struct vas_window *vas_window_alloc(struct vas_instance *vinst)
 
 	if (map_winctx_mmio_bars(window))
 		goto out_free;
+
+	vas_window_init_dbgdir(window);
 
 	return window;
 
@@ -974,6 +993,7 @@ struct vas_window *vas_tx_win_open(int vasid, enum vas_cop_type cop,
 		goto put_rxwin;
 	}
 
+	txwin->cop = cop;
 	txwin->tx_win = 1;
 	txwin->rxwin = rxwin;
 	txwin->nx_win = txwin->rxwin->nx_win;

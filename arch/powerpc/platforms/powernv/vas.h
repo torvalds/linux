@@ -13,6 +13,8 @@
 #include <linux/idr.h>
 #include <asm/vas.h>
 #include <linux/io.h>
+#include <linux/dcache.h>
+#include <linux/mutex.h>
 
 /*
  * Overview of Virtual Accelerator Switchboard (VAS).
@@ -317,6 +319,9 @@ struct vas_instance {
 	struct mutex mutex;
 	struct vas_window *rxwin[VAS_COP_TYPE_MAX];
 	struct vas_window *windows[VAS_WINDOWS_PER_CHIP];
+
+	char *dbgname;
+	struct dentry *dbgdir;
 };
 
 /*
@@ -333,6 +338,9 @@ struct vas_window {
 	void *uwc_map;		/* OS/User window context */
 	pid_t pid;		/* Linux process id of owner */
 	int wcreds_max;		/* Window credits */
+
+	char *dbgname;
+	struct dentry *dbgdir;
 
 	/* Fields applicable only to send windows */
 	void *paste_kaddr;
@@ -394,7 +402,13 @@ struct vas_winctx {
 	enum vas_notify_after_count notify_after_count;
 };
 
+extern struct mutex vas_mutex;
+
 extern struct vas_instance *find_vas_instance(int vasid);
+extern void vas_init_dbgdir(void);
+extern void vas_instance_init_dbgdir(struct vas_instance *vinst);
+extern void vas_window_init_dbgdir(struct vas_window *win);
+extern void vas_window_free_dbgdir(struct vas_window *win);
 
 static inline void vas_log_write(struct vas_window *win, char *name,
 			void *regptr, u64 val)

@@ -22,7 +22,7 @@
 
 #include "vas.h"
 
-static DEFINE_MUTEX(vas_mutex);
+DEFINE_MUTEX(vas_mutex);
 static LIST_HEAD(vas_instances);
 
 static DEFINE_PER_CPU(int, cpu_vas_id);
@@ -85,6 +85,8 @@ static int init_vas_instance(struct platform_device *pdev)
 	mutex_lock(&vas_mutex);
 	list_add(&vinst->node, &vas_instances);
 	mutex_unlock(&vas_mutex);
+
+	vas_instance_init_dbgdir(vinst);
 
 	dev_set_drvdata(&pdev->dev, vinst);
 
@@ -156,6 +158,8 @@ static int __init vas_init(void)
 {
 	int found = 0;
 	struct device_node *dn;
+
+	vas_init_dbgdir();
 
 	platform_driver_register(&vas_driver);
 
