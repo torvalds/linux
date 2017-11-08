@@ -2254,6 +2254,7 @@ static int bnxt_qplib_cq_process_res_raweth_qp1(struct bnxt_qplib_cq *cq,
 
 	cqe->raweth_qp1_flags = le16_to_cpu(hwcqe->raweth_qp1_flags);
 	cqe->raweth_qp1_flags2 = le32_to_cpu(hwcqe->raweth_qp1_flags2);
+	cqe->raweth_qp1_metadata = le32_to_cpu(hwcqe->raweth_qp1_metadata);
 
 	rq = &qp->rq;
 	if (wr_id_idx > rq->hwq.max_elements) {

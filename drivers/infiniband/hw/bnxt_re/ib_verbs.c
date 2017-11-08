@@ -2769,6 +2769,32 @@ static void bnxt_re_process_res_rawqp1_wc(struct ib_wc *wc,
 	wc->wc_flags |= IB_WC_GRH;
 }
 
+static bool bnxt_re_is_vlan_pkt(struct bnxt_qplib_cqe *orig_cqe,
+				u16 *vid, u8 *sl)
+{
+	bool ret = false;
+	u32 metadata;
+	u16 tpid;
+
+	metadata = orig_cqe->raweth_qp1_metadata;
+	if (orig_cqe->raweth_qp1_flags2 &
+		CQ_RES_RAWETH_QP1_RAWETH_QP1_FLAGS2_META_FORMAT_VLAN) {
+		tpid = ((metadata &
+			 CQ_RES_RAWETH_QP1_RAWETH_QP1_METADATA_TPID_MASK) >>
+			 CQ_RES_RAWETH_QP1_RAWETH_QP1_METADATA_TPID_SFT);
+		if (tpid == ETH_P_8021Q) {
+			*vid = metadata &
+			       CQ_RES_RAWETH_QP1_RAWETH_QP1_METADATA_VID_MASK;
+			*sl = (metadata &
+			       CQ_RES_RAWETH_QP1_RAWETH_QP1_METADATA_PRI_MASK) >>
+			       CQ_RES_RAWETH_QP1_RAWETH_QP1_METADATA_PRI_SFT;
+			ret = true;
+		}
+	}
+
+	return ret;
+}
+
 static void bnxt_re_process_res_rc_wc(struct ib_wc *wc,
 				      struct bnxt_qplib_cqe *cqe)
 {
@@ -2788,12 +2814,14 @@ static void bnxt_re_process_res_shadow_qp_wc(struct bnxt_re_qp *qp,
 					     struct ib_wc *wc,
 					     struct bnxt_qplib_cqe *cqe)
 {
-	u32 tbl_idx;
 	struct bnxt_re_dev *rdev = qp->rdev;
 	struct bnxt_re_qp *qp1_qp = NULL;
 	struct bnxt_qplib_cqe *orig_cqe = NULL;
 	struct bnxt_re_sqp_entries *sqp_entry = NULL;
 	int nw_type;
+	u32 tbl_idx;
+	u16 vlan_id;
+	u8 sl;
 
 	tbl_idx = cqe->wr_id;
 
@@ -2808,6 +2836,11 @@ static void bnxt_re_process_res_shadow_qp_wc(struct bnxt_re_qp *qp,
 	wc->ex.imm_data = orig_cqe->immdata;
 	wc->src_qp = orig_cqe->src_qp;
 	memcpy(wc->smac, orig_cqe->smac, ETH_ALEN);
+	if (bnxt_re_is_vlan_pkt(orig_cqe, &vlan_id, &sl)) {
+		wc->vlan_id = vlan_id;
+		wc->sl = sl;
+		wc->wc_flags |= IB_WC_WITH_VLAN;
+	}
 	wc->port_num = 1;
 	wc->vendor_err = orig_cqe->status;
 
