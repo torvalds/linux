@@ -1453,6 +1453,89 @@ static void dcn10_enable_per_frame_crtc_position_reset(
 }
 */
 
+static void mmhub_read_vm_system_aperture_settings(struct dcn10_hubp *hubp1,
+		struct vm_system_aperture_param *apt,
+		struct dce_hwseq *hws)
+{
+	PHYSICAL_ADDRESS_LOC physical_page_number;
+	uint32_t logical_addr_low;
+	uint32_t logical_addr_high;
+
+	REG_GET(MC_VM_SYSTEM_APERTURE_DEFAULT_ADDR_MSB,
+			PHYSICAL_PAGE_NUMBER_MSB, &physical_page_number.high_part);
+	REG_GET(MC_VM_SYSTEM_APERTURE_DEFAULT_ADDR_LSB,
+			PHYSICAL_PAGE_NUMBER_LSB, &physical_page_number.low_part);
+
+	REG_GET(MC_VM_SYSTEM_APERTURE_LOW_ADDR,
+			LOGICAL_ADDR, &logical_addr_low);
+
+	REG_GET(MC_VM_SYSTEM_APERTURE_HIGH_ADDR,
+			LOGICAL_ADDR, &logical_addr_high);
+
+	apt->sys_default.quad_part =  physical_page_number.quad_part << 12;
+	apt->sys_low.quad_part =  (int64_t)logical_addr_low << 18;
+	apt->sys_high.quad_part =  (int64_t)logical_addr_high << 18;
+}
+
+/* Temporary read settings, future will get values from kmd directly */
+static void mmhub_read_vm_context0_settings(struct dcn10_hubp *hubp1,
+		struct vm_context0_param *vm0,
+		struct dce_hwseq *hws)
+{
+	PHYSICAL_ADDRESS_LOC fb_base;
+	PHYSICAL_ADDRESS_LOC fb_offset;
+	uint32_t fb_base_value;
+	uint32_t fb_offset_value;
+
+	REG_GET(DCHUBBUB_SDPIF_FB_BASE, SDPIF_FB_BASE, &fb_base_value);
+	REG_GET(DCHUBBUB_SDPIF_FB_OFFSET, SDPIF_FB_OFFSET, &fb_offset_value);
+
+	REG_GET(VM_CONTEXT0_PAGE_TABLE_BASE_ADDR_HI32,
+			PAGE_DIRECTORY_ENTRY_HI32, &vm0->pte_base.high_part);
+	REG_GET(VM_CONTEXT0_PAGE_TABLE_BASE_ADDR_LO32,
+			PAGE_DIRECTORY_ENTRY_LO32, &vm0->pte_base.low_part);
+
+	REG_GET(VM_CONTEXT0_PAGE_TABLE_START_ADDR_HI32,
+			LOGICAL_PAGE_NUMBER_HI4, &vm0->pte_start.high_part);
+	REG_GET(VM_CONTEXT0_PAGE_TABLE_START_ADDR_LO32,
+			LOGICAL_PAGE_NUMBER_LO32, &vm0->pte_start.low_part);
+
+	REG_GET(VM_CONTEXT0_PAGE_TABLE_END_ADDR_HI32,
+			LOGICAL_PAGE_NUMBER_HI4, &vm0->pte_end.high_part);
+	REG_GET(VM_CONTEXT0_PAGE_TABLE_END_ADDR_LO32,
+			LOGICAL_PAGE_NUMBER_LO32, &vm0->pte_end.low_part);
+
+	REG_GET(VM_L2_PROTECTION_FAULT_DEFAULT_ADDR_HI32,
+			PHYSICAL_PAGE_ADDR_HI4, &vm0->fault_default.high_part);
+	REG_GET(VM_L2_PROTECTION_FAULT_DEFAULT_ADDR_LO32,
+			PHYSICAL_PAGE_ADDR_LO32, &vm0->fault_default.low_part);
+
+	/*
+	 * The values in VM_CONTEXT0_PAGE_TABLE_BASE_ADDR is in UMA space.
+	 * Therefore we need to do
+	 * DCN_VM_CONTEXT0_PAGE_TABLE_BASE_ADDR = VM_CONTEXT0_PAGE_TABLE_BASE_ADDR
+	 * - DCHUBBUB_SDPIF_FB_OFFSET + DCHUBBUB_SDPIF_FB_BASE
+	 */
+	fb_base.quad_part = (uint64_t)fb_base_value << 24;
+	fb_offset.quad_part = (uint64_t)fb_offset_value << 24;
+	vm0->pte_base.quad_part += fb_base.quad_part;
+	vm0->pte_base.quad_part -= fb_offset.quad_part;
+}
+
+
+static void dcn10_program_pte_vm(struct dce_hwseq *hws, struct hubp *hubp)
+{
+	struct dcn10_hubp *hubp1 = TO_DCN10_HUBP(hubp);
+	struct vm_system_aperture_param apt = { {{ 0 } } };
+	struct vm_context0_param vm0 = { { { 0 } } };
+
+	mmhub_read_vm_system_aperture_settings(hubp1, &apt, hws);
+	mmhub_read_vm_context0_settings(hubp1, &vm0, hws);
+
+	hubp->funcs->hubp_set_vm_system_aperture_settings(hubp, &apt);
+	hubp->funcs->hubp_set_vm_context0_settings(hubp, &vm0);
+}
+
 static void dcn10_enable_plane(
 	struct dc *dc,
 	struct pipe_ctx *pipe_ctx,
@@ -1515,6 +1598,8 @@ static void dcn10_enable_plane(
 		print_rq_dlg_ttu(dc, pipe_ctx);
 	}
 */
+	if (dc->config.gpu_vm_support)
+		dcn10_program_pte_vm(hws, pipe_ctx->plane_res.hubp);
 
 	if (dc->debug.sanity_checks) {
 		dcn10_verify_allow_pstate_change_high(dc);
@@ -1737,93 +1822,6 @@ void build_prescale_params(struct  dc_bias_and_scale *bias_and_scale,
 	}
 }
 
-static void mmhub_read_vm_system_aperture_settings(struct dcn10_hubp *hubp1,
-		struct vm_system_aperture_param *apt,
-		struct dce_hwseq *hws)
-{
-	PHYSICAL_ADDRESS_LOC physical_page_number;
-	uint32_t logical_addr_low;
-	uint32_t logical_addr_high;
-
-	REG_GET(MC_VM_SYSTEM_APERTURE_DEFAULT_ADDR_MSB,
-			PHYSICAL_PAGE_NUMBER_MSB, &physical_page_number.high_part);
-	REG_GET(MC_VM_SYSTEM_APERTURE_DEFAULT_ADDR_LSB,
-			PHYSICAL_PAGE_NUMBER_LSB, &physical_page_number.low_part);
-
-	REG_GET(MC_VM_SYSTEM_APERTURE_LOW_ADDR,
-			LOGICAL_ADDR, &logical_addr_low);
-
-	REG_GET(MC_VM_SYSTEM_APERTURE_HIGH_ADDR,
-			LOGICAL_ADDR, &logical_addr_high);
-
-	apt->sys_default.quad_part =  physical_page_number.quad_part << 12;
-	apt->sys_low.quad_part =  (int64_t)logical_addr_low << 18;
-	apt->sys_high.quad_part =  (int64_t)logical_addr_high << 18;
-}
-
-/* Temporary read settings, future will get values from kmd directly */
-static void mmhub_read_vm_context0_settings(struct dcn10_hubp *hubp1,
-		struct vm_context0_param *vm0,
-		struct dce_hwseq *hws)
-{
-	PHYSICAL_ADDRESS_LOC fb_base;
-	PHYSICAL_ADDRESS_LOC fb_offset;
-	uint32_t fb_base_value;
-	uint32_t fb_offset_value;
-
-	REG_GET(DCHUBBUB_SDPIF_FB_BASE, SDPIF_FB_BASE, &fb_base_value);
-	REG_GET(DCHUBBUB_SDPIF_FB_OFFSET, SDPIF_FB_OFFSET, &fb_offset_value);
-
-	REG_GET(VM_CONTEXT0_PAGE_TABLE_BASE_ADDR_HI32,
-			PAGE_DIRECTORY_ENTRY_HI32, &vm0->pte_base.high_part);
-	REG_GET(VM_CONTEXT0_PAGE_TABLE_BASE_ADDR_LO32,
-			PAGE_DIRECTORY_ENTRY_LO32, &vm0->pte_base.low_part);
-
-	REG_GET(VM_CONTEXT0_PAGE_TABLE_START_ADDR_HI32,
-			LOGICAL_PAGE_NUMBER_HI4, &vm0->pte_start.high_part);
-	REG_GET(VM_CONTEXT0_PAGE_TABLE_START_ADDR_LO32,
-			LOGICAL_PAGE_NUMBER_LO32, &vm0->pte_start.low_part);
-
-	REG_GET(VM_CONTEXT0_PAGE_TABLE_END_ADDR_HI32,
-			LOGICAL_PAGE_NUMBER_HI4, &vm0->pte_end.high_part);
-	REG_GET(VM_CONTEXT0_PAGE_TABLE_END_ADDR_LO32,
-			LOGICAL_PAGE_NUMBER_LO32, &vm0->pte_end.low_part);
-
-	REG_GET(VM_L2_PROTECTION_FAULT_DEFAULT_ADDR_HI32,
-			PHYSICAL_PAGE_ADDR_HI4, &vm0->fault_default.high_part);
-	REG_GET(VM_L2_PROTECTION_FAULT_DEFAULT_ADDR_LO32,
-			PHYSICAL_PAGE_ADDR_LO32, &vm0->fault_default.low_part);
-
-	/*
-	 * The values in VM_CONTEXT0_PAGE_TABLE_BASE_ADDR is in UMA space.
-	 * Therefore we need to do
-	 * DCN_VM_CONTEXT0_PAGE_TABLE_BASE_ADDR = VM_CONTEXT0_PAGE_TABLE_BASE_ADDR
-	 * - DCHUBBUB_SDPIF_FB_OFFSET + DCHUBBUB_SDPIF_FB_BASE
-	 */
-	fb_base.quad_part = (uint64_t)fb_base_value << 24;
-	fb_offset.quad_part = (uint64_t)fb_offset_value << 24;
-	vm0->pte_base.quad_part += fb_base.quad_part;
-	vm0->pte_base.quad_part -= fb_offset.quad_part;
-}
-
-static void dcn10_program_pte_vm(struct hubp *hubp,
-		enum surface_pixel_format format,
-		union dc_tiling_info *tiling_info,
-		enum dc_rotation_angle rotation,
-		struct dce_hwseq *hws)
-{
-	struct dcn10_hubp *hubp1 = TO_DCN10_HUBP(hubp);
-	struct vm_system_aperture_param apt = { {{ 0 } } };
-	struct vm_context0_param vm0 = { { { 0 } } };
-
-
-	mmhub_read_vm_system_aperture_settings(hubp1, &apt, hws);
-	mmhub_read_vm_context0_settings(hubp1, &vm0, hws);
-
-	hubp->funcs->hubp_set_vm_system_aperture_settings(hubp, &apt);
-	hubp->funcs->hubp_set_vm_context0_settings(hubp, &vm0);
-}
-
 static void update_dchubp_dpp(
 	struct dc *dc,
 	struct pipe_ctx *pipe_ctx,
@@ -1864,15 +1862,6 @@ static void update_dchubp_dpp(
 		&pipe_ctx->pipe_dlg_param);
 
 	size.grph.surface_size = pipe_ctx->plane_res.scl_data.viewport;
-
-	if (dc->config.gpu_vm_support)
-		dcn10_program_pte_vm(
-				pipe_ctx->plane_res.hubp,
-				plane_state->format,
-				&plane_state->tiling_info,
-				plane_state->rotation,
-				hws
-				);
 
 	// program the input csc
 	dpp->funcs->dpp_setup(dpp,
@@ -1970,18 +1959,11 @@ static void program_all_pipe_in_tree(
 		struct pipe_ctx *cur_pipe_ctx =
 				&dc->current_state->res_ctx.pipe_ctx[pipe_ctx->pipe_idx];
 
-		dcn10_enable_plane(dc, pipe_ctx, context);
+		if (pipe_ctx->plane_state->update_flags.bits.full_update)
+			dcn10_enable_plane(dc, pipe_ctx, context);
 
-		update_dchubp_dpp(dc, pipe_ctx, context);
-
-		/* TODO: this is a hack w/a for switching from mpo to pipe split */
-		if (pipe_ctx->stream->cursor_attributes.address.quad_part != 0) {
-			struct dc_cursor_position position = { 0 };
-
-			dc_stream_set_cursor_position(pipe_ctx->stream, &position);
-			dc_stream_set_cursor_attributes(pipe_ctx->stream,
-				&pipe_ctx->stream->cursor_attributes);
-		}
+		if (pipe_ctx->plane_state->update_flags.raw != 0)
+			update_dchubp_dpp(dc, pipe_ctx, context);
 
 		if (cur_pipe_ctx->plane_state != pipe_ctx->plane_state) {
 			dc->hwss.set_input_transfer_func(pipe_ctx, pipe_ctx->plane_state);
@@ -2141,8 +2123,29 @@ static void dcn10_apply_ctx_for_surface(
 		}
 	}
 
-	if (num_planes > 0)
+	if (num_planes > 0) {
+		struct dc_stream_state *stream_for_cursor;
+
 		program_all_pipe_in_tree(dc, top_pipe_to_program, context);
+
+		for (i = 0; i < dc->res_pool->pipe_count; i++) {
+			struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
+
+			if (stream == pipe_ctx->stream) {
+				stream_for_cursor = pipe_ctx->stream;
+				break;
+			}
+		}
+
+		/* TODO: this is a hack w/a for switching from mpo to pipe split */
+		if (stream_for_cursor->cursor_attributes.address.quad_part != 0) {
+			struct dc_cursor_position position = { 0 };
+
+			dc_stream_set_cursor_position(stream_for_cursor, &position);
+			dc_stream_set_cursor_attributes(stream_for_cursor,
+				&stream_for_cursor->cursor_attributes);
+		}
+	}
 
 	tg->funcs->unlock(tg);
 
