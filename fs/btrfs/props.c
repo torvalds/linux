@@ -164,7 +164,6 @@ static int iterate_object_props(struct btrfs_root *root,
 						 size_t),
 				void *ctx)
 {
-	struct btrfs_fs_info *fs_info = root->fs_info;
 	int ret;
 	char *name_buf = NULL;
 	char *value_buf = NULL;
@@ -214,12 +213,6 @@ static int iterate_object_props(struct btrfs_root *root,
 			this_len = sizeof(*di) + name_len + data_len;
 			name_ptr = (unsigned long)(di + 1);
 			data_ptr = name_ptr + name_len;
-
-			if (verify_dir_item(fs_info, leaf,
-					    path->slots[0], di)) {
-				ret = -EIO;
-				goto out;
-			}
 
 			if (name_len <= XATTR_BTRFS_PREFIX_LEN ||
 			    memcmp_extent_buffer(leaf, XATTR_BTRFS_PREFIX,
