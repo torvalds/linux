@@ -372,6 +372,7 @@ static const struct pv_time_ops xen_time_ops __initconst = {
 
 static void __init xen_time_init(void)
 {
+	struct pvclock_vcpu_time_info *pvti;
 	int cpu = smp_processor_id();
 	struct timespec tp;
 
@@ -394,6 +395,14 @@ static void __init xen_time_init(void)
 	do_settimeofday(&tp);
 
 	setup_force_cpu_cap(X86_FEATURE_TSC);
+
+	/*
+	 * We check ahead on the primary time info if this
+	 * bit is supported hence speeding up Xen clocksource.
+	 */
+	pvti = &__this_cpu_read(xen_vcpu)->time;
+	if (pvti->flags & PVCLOCK_TSC_STABLE_BIT)
+		pvclock_set_flags(PVCLOCK_TSC_STABLE_BIT);
 
 	xen_setup_runstate_info(cpu);
 	xen_setup_timer(cpu);
