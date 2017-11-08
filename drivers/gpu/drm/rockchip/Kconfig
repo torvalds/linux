@@ -97,3 +97,12 @@ config ROCKCHIP_DRM_BACKLIGHT
 	  This selects support for Rockchip backlight manager,
 	  Vop cabc function request using vop self pwm devices, needed a
 	  unique backlight devices to manager vop and soc pwm devices.
+
+config ROCKCHIP_RK3066_HDMI
+	tristate "Rockchip specific extensions for RK3066 HDMI"
+	depends on DRM_ROCKCHIP
+	select SND_SOC_HDMI_CODEC
+	help
+	  This selects support for Rockchip SoC specific extensions
+	  for the Innosilicon HDMI driver. If you want to enable
+	  HDMI on RK3066 based SoC, you should select this option.
