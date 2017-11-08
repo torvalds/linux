@@ -360,7 +360,8 @@ void
 drm_hdmi_avi_infoframe_quant_range(struct hdmi_avi_infoframe *frame,
 				   const struct drm_display_mode *mode,
 				   enum hdmi_quantization_range rgb_quant_range,
-				   bool rgb_quant_range_selectable);
+				   bool rgb_quant_range_selectable,
+				   bool is_hdmi2_sink);
 
 /**
  * drm_eld_mnl - Get ELD monitor name length in bytes.
