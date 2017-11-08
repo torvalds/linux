@@ -1158,13 +1158,13 @@ static void clear_pending(struct smq_policy *mq, struct entry *e)
 	e->pending_work = false;
 }
 
-static void queue_writeback(struct smq_policy *mq)
+static void queue_writeback(struct smq_policy *mq, bool idle)
 {
 	int r;
 	struct policy_work work;
 	struct entry *e;
 
-	e = q_peek(&mq->dirty, mq->dirty.nr_levels, !mq->migrations_allowed);
+	e = q_peek(&mq->dirty, mq->dirty.nr_levels, idle);
 	if (e) {
 		mark_pending(mq, e);
 		q_del(&mq->dirty, e);
@@ -1193,7 +1193,7 @@ static void queue_demotion(struct smq_policy *mq)
 	e = q_peek(&mq->clean, mq->clean.nr_levels / 2, true);
 	if (!e) {
 		if (!clean_target_met(mq, true))
-			queue_writeback(mq);
+			queue_writeback(mq, false);
 		return;
 	}
 
@@ -1429,7 +1429,7 @@ static int smq_get_background_work(struct dm_cache_policy *p, bool idle,
 	r = btracker_issue(mq->bg_work, result);
 	if (r == -ENODATA) {
 		if (!clean_target_met(mq, idle)) {
-			queue_writeback(mq);
+			queue_writeback(mq, idle);
 			r = btracker_issue(mq->bg_work, result);
 		}
 	}
