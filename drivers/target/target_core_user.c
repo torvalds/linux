@@ -888,6 +888,7 @@ tcmu_queue_cmd_ring(struct tcmu_cmd *tcmu_cmd)
 	ret = tcmu_setup_cmd_timer(tcmu_cmd);
 	if (ret) {
 		tcmu_cmd_free_data(tcmu_cmd, tcmu_cmd->dbi_cnt);
+		mutex_unlock(&udev->cmdr_lock);
 		return TCM_OUT_OF_RESOURCES;
 	}
 	entry->hdr.cmd_id = tcmu_cmd->cmd_id;
