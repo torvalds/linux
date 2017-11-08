@@ -135,6 +135,13 @@ struct netem_sched_data {
 		u32 a5; /* p23 used only in 4-states */
 	} clg;
 
+	struct tc_netem_slot slot_config;
+	struct slotstate {
+		u64 slot_next;
+		s32 packets_left;
+		s32 bytes_left;
+	} slot;
+
 };
 
 /* Time stamp put into socket buffer control block
@@ -591,6 +598,20 @@ finish_segs:
 	return NET_XMIT_SUCCESS;
 }
 
+/* Delay the next round with a new future slot with a
+ * correct number of bytes and packets.
+ */
+
+static void get_slot_next(struct netem_sched_data *q, u64 now)
+{
+	q->slot.slot_next = now + q->slot_config.min_delay +
+		(prandom_u32() *
+			(q->slot_config.max_delay -
+				q->slot_config.min_delay) >> 32);
+	q->slot.packets_left = q->slot_config.max_packets;
+	q->slot.bytes_left = q->slot_config.max_bytes;
+}
+
 static struct sk_buff *netem_dequeue(struct Qdisc *sch)
 {
 	struct netem_sched_data *q = qdisc_priv(sch);
@@ -608,14 +629,17 @@ deliver:
 	p = rb_first(&q->t_root);
 	if (p) {
 		u64 time_to_send;
+		u64 now = ktime_get_ns();
 
 		skb = rb_to_skb(p);
 
 		/* if more time remaining? */
 		time_to_send = netem_skb_cb(skb)->time_to_send;
-		if (time_to_send <= ktime_get_ns()) {
-			rb_erase(p, &q->t_root);
+		if (q->slot.slot_next && q->slot.slot_next < time_to_send)
+			get_slot_next(q, now);
 
+		if (time_to_send <= now &&  q->slot.slot_next <= now) {
+			rb_erase(p, &q->t_root);
 			sch->q.qlen--;
 			qdisc_qstats_backlog_dec(sch, skb);
 			skb->next = NULL;
@@ -633,6 +657,14 @@ deliver:
 			if (skb->tc_redirected && skb->tc_from_ingress)
 				skb->tstamp = 0;
 #endif
+
+			if (q->slot.slot_next) {
+				q->slot.packets_left--;
+				q->slot.bytes_left -= qdisc_pkt_len(skb);
+				if (q->slot.packets_left <= 0 ||
+				    q->slot.bytes_left <= 0)
+					get_slot_next(q, now);
+			}
 
 			if (q->qdisc) {
 				unsigned int pkt_len = qdisc_pkt_len(skb);
@@ -657,7 +689,10 @@ deliver:
 			if (skb)
 				goto deliver;
 		}
-		qdisc_watchdog_schedule_ns(&q->watchdog, time_to_send);
+
+		qdisc_watchdog_schedule_ns(&q->watchdog,
+					   max(time_to_send,
+					       q->slot.slot_next));
 	}
 
 	if (q->qdisc) {
@@ -688,6 +723,7 @@ static void dist_free(struct disttable *d)
  * Distribution data is a variable size payload containing
  * signed 16 bit values.
  */
+
 static int get_dist_table(struct Qdisc *sch, const struct nlattr *attr)
 {
 	struct netem_sched_data *q = qdisc_priv(sch);
@@ -716,6 +752,23 @@ static int get_dist_table(struct Qdisc *sch, const struct nlattr *attr)
 
 	dist_free(d);
 	return 0;
+}
+
+static void get_slot(struct netem_sched_data *q, const struct nlattr *attr)
+{
+	const struct tc_netem_slot *c = nla_data(attr);
+
+	q->slot_config = *c;
+	if (q->slot_config.max_packets == 0)
+		q->slot_config.max_packets = INT_MAX;
+	if (q->slot_config.max_bytes == 0)
+		q->slot_config.max_bytes = INT_MAX;
+	q->slot.packets_left = q->slot_config.max_packets;
+	q->slot.bytes_left = q->slot_config.max_bytes;
+	if (q->slot_config.min_delay | q->slot_config.max_delay)
+		q->slot.slot_next = ktime_get_ns();
+	else
+		q->slot.slot_next = 0;
 }
 
 static void get_correlation(struct netem_sched_data *q, const struct nlattr *attr)
@@ -821,6 +874,7 @@ static const struct nla_policy netem_policy[TCA_NETEM_MAX + 1] = {
 	[TCA_NETEM_RATE64]	= { .type = NLA_U64 },
 	[TCA_NETEM_LATENCY64]	= { .type = NLA_S64 },
 	[TCA_NETEM_JITTER64]	= { .type = NLA_S64 },
+	[TCA_NETEM_SLOT]	= { .len = sizeof(struct tc_netem_slot) },
 };
 
 static int parse_attr(struct nlattr *tb[], int maxtype, struct nlattr *nla,
@@ -927,6 +981,9 @@ static int netem_change(struct Qdisc *sch, struct nlattr *opt)
 	if (tb[TCA_NETEM_ECN])
 		q->ecn = nla_get_u32(tb[TCA_NETEM_ECN]);
 
+	if (tb[TCA_NETEM_SLOT])
+		get_slot(q, tb[TCA_NETEM_SLOT]);
+
 	return ret;
 }
 
@@ -1016,6 +1073,7 @@ static int netem_dump(struct Qdisc *sch, struct sk_buff *skb)
 	struct tc_netem_reorder reorder;
 	struct tc_netem_corrupt corrupt;
 	struct tc_netem_rate rate;
+	struct tc_netem_slot slot;
 
 	qopt.latency = min_t(psched_tdiff_t, PSCHED_NS2TICKS(q->latency),
 			     UINT_MAX);
@@ -1069,6 +1127,16 @@ static int netem_dump(struct Qdisc *sch, struct sk_buff *skb)
 
 	if (dump_loss_model(q, skb) != 0)
 		goto nla_put_failure;
+
+	if (q->slot_config.min_delay | q->slot_config.max_delay) {
+		slot = q->slot_config;
+		if (slot.max_packets == INT_MAX)
+			slot.max_packets = 0;
+		if (slot.max_bytes == INT_MAX)
+			slot.max_bytes = 0;
+		if (nla_put(skb, TCA_NETEM_SLOT, sizeof(slot), &slot))
+			goto nla_put_failure;
+	}
 
 	return nla_nest_end(skb, nla);
 
