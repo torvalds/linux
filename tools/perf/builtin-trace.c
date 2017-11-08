@@ -1138,6 +1138,14 @@ static int trace__symbols_init(struct trace *trace, struct perf_evlist *evlist)
 	return err;
 }
 
+static void trace__symbols__exit(struct trace *trace)
+{
+	machine__exit(trace->host);
+	trace->host = NULL;
+
+	symbol__exit();
+}
+
 static int syscall__alloc_arg_fmts(struct syscall *sc, int nr_args)
 {
 	int idx;
@@ -2481,6 +2489,8 @@ out_disable:
 	}
 
 out_delete_evlist:
+	trace__symbols__exit(trace);
+
 	perf_evlist__delete(evlist);
 	trace->evlist = NULL;
 	trace->live = false;
