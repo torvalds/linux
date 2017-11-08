@@ -170,46 +170,46 @@ sub push_to_global
 
 sub is_false_positive
 {
-        my ($match) = @_;
+	my ($match) = @_;
 
-        if ($match =~ '\b(0x)?(f|F){16}\b' or
-            $match =~ '\b(0x)?0{16}\b') {
-                return 1;
-        }
+	if ($match =~ '\b(0x)?(f|F){16}\b' or
+	    $match =~ '\b(0x)?0{16}\b') {
+		return 1;
+	}
 
-        # vsyscall memory region, we should probably check against a range here.
-        if ($match =~ '\bf{10}600000\b' or
-            $match =~ '\bf{10}601000\b') {
-                return 1;
-        }
 
-        return 0;
+	if ($match =~ '\bf{10}600000\b' or# vsyscall memory region, we should probably check against a range here.
+	    $match =~ '\bf{10}601000\b') {
+		return 1;
+	}
+
+	return 0;
 }
 
 # True if argument potentially contains a kernel address.
 sub may_leak_address
 {
-        my ($line) = @_;
-        my $address = '\b(0x)?ffff[[:xdigit:]]{12}\b';
+	my ($line) = @_;
+	my $address = '\b(0x)?ffff[[:xdigit:]]{12}\b';
 
-        # Signal masks.
-        if ($line =~ '^SigBlk:' or
-            $line =~ '^SigCgt:') {
-                return 0;
-        }
-
-        if ($line =~ '\bKEY=[[:xdigit:]]{14} [[:xdigit:]]{16} [[:xdigit:]]{16}\b' or
-            $line =~ '\b[[:xdigit:]]{14} [[:xdigit:]]{16} [[:xdigit:]]{16}\b') {
+	# Signal masks.
+	if ($line =~ '^SigBlk:' or
+	    $line =~ '^SigCgt:') {
 		return 0;
-        }
+	}
 
-        while (/($address)/g) {
-                if (!is_false_positive($1)) {
-                        return 1;
-                }
-        }
+	if ($line =~ '\bKEY=[[:xdigit:]]{14} [[:xdigit:]]{16} [[:xdigit:]]{16}\b' or
+	    $line =~ '\b[[:xdigit:]]{14} [[:xdigit:]]{16} [[:xdigit:]]{16}\b') {
+		return 0;
+	}
 
-        return 0;
+	while (/($address)/g) {
+		if (!is_false_positive($1)) {
+			return 1;
+		}
+	}
+
+	return 0;
 }
 
 sub parse_dmesg
