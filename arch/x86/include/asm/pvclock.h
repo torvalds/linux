@@ -4,15 +4,6 @@
 #include <linux/clocksource.h>
 #include <asm/pvclock-abi.h>
 
-#ifdef CONFIG_KVM_GUEST
-extern struct pvclock_vsyscall_time_info *pvclock_pvti_cpu0_va(void);
-#else
-static inline struct pvclock_vsyscall_time_info *pvclock_pvti_cpu0_va(void)
-{
-	return NULL;
-}
-#endif
-
 /* some helper functions for xen and kvm pv clock sources */
 u64 pvclock_clocksource_read(struct pvclock_vcpu_time_info *src);
 u8 pvclock_read_flags(struct pvclock_vcpu_time_info *src);
@@ -100,5 +91,15 @@ struct pvclock_vsyscall_time_info {
 } __attribute__((__aligned__(SMP_CACHE_BYTES)));
 
 #define PVTI_SIZE sizeof(struct pvclock_vsyscall_time_info)
+
+#ifdef CONFIG_PARAVIRT_CLOCK
+void pvclock_set_pvti_cpu0_va(struct pvclock_vsyscall_time_info *pvti);
+struct pvclock_vsyscall_time_info *pvclock_get_pvti_cpu0_va(void);
+#else
+static inline struct pvclock_vsyscall_time_info *pvclock_get_pvti_cpu0_va(void)
+{
+	return NULL;
+}
+#endif
 
 #endif /* _ASM_X86_PVCLOCK_H */
