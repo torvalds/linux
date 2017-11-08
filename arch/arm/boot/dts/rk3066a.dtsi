@@ -102,6 +102,10 @@
 		vop0_out: port {
 			#address-cells = <1>;
 			#size-cells = <0>;
+			vop0_out_hdmi: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&hdmi_in_vop0>;
+			};
 		};
 	};
 
@@ -128,6 +132,27 @@
 	display-subsystem {
 		compatible = "rockchip,display-subsystem";
 		ports = <&vop0_out>, <&vop1_out>;
+	};
+
+	hdmi: hdmi@10116000 {
+		compatible = "rockchip,rk3066-hdmi";
+		reg = <0x10116000 0x2000>;
+		interrupts = <GIC_SPI 64 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru HCLK_HDMI>;
+		clock-names = "hclk";
+		rockchip,grf = <&grf>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&hdmii2c_xfer>, <&hdmi_hpd>;
+		status = "disabled";
+
+		hdmi_in: port {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			hdmi_in_vop0: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&vop0_out_hdmi>;
+			};
+		};
 	};
 
 	i2s0: i2s@10118000 {
@@ -647,6 +672,16 @@
 						<RK_GPIO0 27 RK_FUNC_1 &pcfg_pull_default>,
 						<RK_GPIO0 28 RK_FUNC_1 &pcfg_pull_default>,
 						<RK_GPIO0 29 RK_FUNC_1 &pcfg_pull_default>;
+			};
+		};
+
+		hdmi {
+			hdmi_hpd: hdmi-hpd {
+				rockchip,pins = <RK_GPIO0 0 RK_FUNC_1 &pcfg_pull_default>;
+			};
+			hdmii2c_xfer: hdmii2c-xfer {
+				rockchip,pins = <RK_GPIO0 1 RK_FUNC_1 &pcfg_pull_none>,
+						<RK_GPIO0 2 RK_FUNC_1 &pcfg_pull_none>;
 			};
 		};
 	};
