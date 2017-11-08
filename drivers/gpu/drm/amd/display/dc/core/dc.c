@@ -1310,7 +1310,7 @@ static enum surface_update_type det_surface_update(const struct dc *dc,
 	return overall_type;
 }
 
-enum surface_update_type dc_check_update_surfaces_for_stream(
+static enum surface_update_type check_update_surfaces_for_stream(
 		struct dc *dc,
 		struct dc_surface_update *updates,
 		int surface_count,
@@ -1330,7 +1330,6 @@ enum surface_update_type dc_check_update_surfaces_for_stream(
 		enum surface_update_type type =
 				det_surface_update(dc, &updates[i]);
 
-		updates[i].surface->update_type = type;
 		if (type == UPDATE_TYPE_FULL)
 			return type;
 
@@ -1338,6 +1337,27 @@ enum surface_update_type dc_check_update_surfaces_for_stream(
 	}
 
 	return overall_type;
+}
+
+enum surface_update_type dc_check_update_surfaces_for_stream(
+		struct dc *dc,
+		struct dc_surface_update *updates,
+		int surface_count,
+		struct dc_stream_update *stream_update,
+		const struct dc_stream_status *stream_status)
+{
+	int i;
+	enum surface_update_type type;
+
+	for (i = 0; i < surface_count; i++)
+		updates[i].surface->update_flags.raw = 0;
+
+	type = check_update_surfaces_for_stream(dc, updates, surface_count, stream_update, stream_status);
+	if (type == UPDATE_TYPE_FULL)
+		for (i = 0; i < surface_count; i++)
+			updates[i].surface->update_flags.bits.full_update = 1;
+
+	return type;
 }
 
 static struct dc_stream_status *stream_get_status(

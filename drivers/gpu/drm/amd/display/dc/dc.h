@@ -453,6 +453,7 @@ union surface_update_flags {
 		uint32_t bandwidth_change:1;
 		uint32_t clock_change:1;
 		uint32_t stereo_format_change:1;
+		uint32_t full_update:1;
 	} bits;
 
 	uint32_t raw;
@@ -492,7 +493,6 @@ struct dc_plane_state {
 	bool horizontal_mirror;
 
 	union surface_update_flags update_flags;
-	enum surface_update_type update_type;
 	/* private to DC core */
 	struct dc_plane_status status;
 	struct dc_context *ctx;
