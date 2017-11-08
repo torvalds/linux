@@ -2390,6 +2390,9 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 		    amdgpu_virt_mmio_blocked(adev) &&
 		    !amdgpu_virt_wait_reset(adev)) {
 			dev_err(adev->dev, "VF exclusive mode timeout\n");
+			/* Don't send request since VF is inactive. */
+			adev->virt.caps &= ~AMDGPU_SRIOV_CAPS_RUNTIME;
+			adev->virt.ops = NULL;
 			r = -EAGAIN;
 			goto failed;
 		}
