@@ -1233,8 +1233,6 @@ static inline void __set_task_cpu(struct task_struct *p, unsigned int cpu)
 # define const_debug const
 #endif
 
-extern const_debug unsigned int sysctl_sched_features;
-
 #define SCHED_FEAT(name, enabled)	\
 	__SCHED_FEAT_##name ,
 
@@ -1246,6 +1244,13 @@ enum {
 #undef SCHED_FEAT
 
 #if defined(CONFIG_SCHED_DEBUG) && defined(HAVE_JUMP_LABEL)
+
+/*
+ * To support run-time toggling of sched features, all the translation units
+ * (but core.c) reference the sysctl_sched_features defined in core.c.
+ */
+extern const_debug unsigned int sysctl_sched_features;
+
 #define SCHED_FEAT(name, enabled)					\
 static __always_inline bool static_branch_##name(struct static_key *key) \
 {									\
@@ -1253,13 +1258,27 @@ static __always_inline bool static_branch_##name(struct static_key *key) \
 }
 
 #include "features.h"
-
 #undef SCHED_FEAT
 
 extern struct static_key sched_feat_keys[__SCHED_FEAT_NR];
 #define sched_feat(x) (static_branch_##x(&sched_feat_keys[__SCHED_FEAT_##x]))
+
 #else /* !(SCHED_DEBUG && HAVE_JUMP_LABEL) */
+
+/*
+ * Each translation unit has its own copy of sysctl_sched_features to allow
+ * constants propagation at compile time and compiler optimization based on
+ * features default.
+ */
+#define SCHED_FEAT(name, enabled)	\
+	(1UL << __SCHED_FEAT_##name) * enabled |
+static const_debug __maybe_unused unsigned int sysctl_sched_features =
+#include "features.h"
+	0;
+#undef SCHED_FEAT
+
 #define sched_feat(x) (sysctl_sched_features & (1UL << __SCHED_FEAT_##x))
+
 #endif /* SCHED_DEBUG && HAVE_JUMP_LABEL */
 
 extern struct static_key_false sched_numa_balancing;
