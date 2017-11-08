@@ -83,6 +83,14 @@ static int bcm2835_rng_init(struct hwrng *rng)
 	return 0;
 }
 
+static void bcm2835_rng_cleanup(struct hwrng *rng)
+{
+	struct bcm2835_rng_priv *priv = to_rng_priv(rng);
+
+	/* disable rng hardware */
+	__raw_writel(0, priv->base + RNG_CTRL);
+}
+
 static const struct of_device_id bcm2835_rng_of_match[] = {
 	{ .compatible = "brcm,bcm2835-rng"},
 	{ .compatible = "brcm,bcm-nsp-rng", .data = nsp_rng_init},
@@ -118,6 +126,7 @@ static int bcm2835_rng_probe(struct platform_device *pdev)
 	priv->rng.name = "bcm2835-rng";
 	priv->rng.init = bcm2835_rng_init;
 	priv->rng.read = bcm2835_rng_read;
+	priv->rng.cleanup = bcm2835_rng_cleanup;
 
 	rng_id = of_match_node(bcm2835_rng_of_match, np);
 	if (!rng_id)
@@ -141,9 +150,6 @@ static int bcm2835_rng_probe(struct platform_device *pdev)
 static int bcm2835_rng_remove(struct platform_device *pdev)
 {
 	struct bcm2835_rng_priv *priv = platform_get_drvdata(pdev);
-
-	/* disable rng hardware */
-	__raw_writel(0, priv->base + RNG_CTRL);
 
 	/* unregister driver */
 	hwrng_unregister(&priv->rng);
