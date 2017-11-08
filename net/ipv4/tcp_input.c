@@ -842,18 +842,6 @@ __u32 tcp_init_cwnd(const struct tcp_sock *tp, const struct dst_entry *dst)
 	return min_t(__u32, cwnd, tp->snd_cwnd_clamp);
 }
 
-/*
- * Packet counting of FACK is based on in-order assumptions, therefore TCP
- * disables it when reordering is detected
- */
-void tcp_disable_fack(struct tcp_sock *tp)
-{
-	/* RFC3517 uses different metric in lost marker => reset on change */
-	if (tcp_is_fack(tp))
-		tp->lost_skb_hint = NULL;
-	tp->rx_opt.sack_ok &= ~TCP_FACK_ENABLED;
-}
-
 /* Take a notice that peer is sending D-SACKs */
 static void tcp_dsack_seen(struct tcp_sock *tp)
 {
@@ -881,7 +869,6 @@ static void tcp_update_reordering(struct sock *sk, const int metric,
 			 tp->sacked_out,
 			 tp->undo_marker ? tp->undo_retrans : 0);
 #endif
-		tcp_disable_fack(tp);
 	}
 
 	tp->rack.reord = 1;
@@ -891,8 +878,6 @@ static void tcp_update_reordering(struct sock *sk, const int metric,
 		mib_idx = LINUX_MIB_TCPTSREORDER;
 	else if (tcp_is_reno(tp))
 		mib_idx = LINUX_MIB_TCPRENOREORDER;
-	else if (tcp_is_fack(tp))
-		mib_idx = LINUX_MIB_TCPFACKREORDER;
 	else
 		mib_idx = LINUX_MIB_TCPSACKREORDER;
 
@@ -970,7 +955,6 @@ void tcp_skb_mark_lost_uncond_verify(struct tcp_sock *tp, struct sk_buff *skb)
  * 3. Loss detection event of two flavors:
  *	A. Scoreboard estimator decided the packet is lost.
  *	   A'. Reno "three dupacks" marks head of queue lost.
- *	   A''. Its FACK modification, head until snd.fack is lost.
  *	B. SACK arrives sacking SND.NXT at the moment, when the
  *	   segment was retransmitted.
  * 4. D-SACK added new rule: D-SACK changes any tag to S.
@@ -1248,7 +1232,7 @@ static u8 tcp_sacktag_one(struct sock *sk,
 		fack_count += pcount;
 
 		/* Lost marker hint past SACKed? Tweak RFC3517 cnt */
-		if (!tcp_is_fack(tp) && tp->lost_skb_hint &&
+		if (tp->lost_skb_hint &&
 		    before(start_seq, TCP_SKB_CB(tp->lost_skb_hint)->seq))
 			tp->lost_cnt_hint += pcount;
 
@@ -2051,10 +2035,6 @@ static inline int tcp_fackets_out(const struct tcp_sock *tp)
  * counter when SACK is enabled (without SACK, sacked_out is used for
  * that purpose).
  *
- * Instead, with FACK TCP uses fackets_out that includes both SACKed
- * segments up to the highest received SACK block so far and holes in
- * between them.
- *
  * With reordering, holes may still be in flight, so RFC3517 recovery
  * uses pure sacked_out (total number of SACKed segments) even though
  * it violates the RFC that uses duplicate ACKs, often these are equal
@@ -2064,10 +2044,10 @@ static inline int tcp_fackets_out(const struct tcp_sock *tp)
  */
 static inline int tcp_dupack_heuristics(const struct tcp_sock *tp)
 {
-	return tcp_is_fack(tp) ? tp->fackets_out : tp->sacked_out + 1;
+	return tp->sacked_out + 1;
 }
 
-/* Linux NewReno/SACK/FACK/ECN state machine.
+/* Linux NewReno/SACK/ECN state machine.
  * --------------------------------------
  *
  * "Open"	Normal state, no dubious events, fast path.
@@ -2132,16 +2112,6 @@ static inline int tcp_dupack_heuristics(const struct tcp_sock *tp)
  *		dynamically measured and adjusted. This is implemented in
  *		tcp_rack_mark_lost.
  *
- *		FACK (Disabled by default. Subsumbed by RACK):
- *		It is the simplest heuristics. As soon as we decided
- *		that something is lost, we decide that _all_ not SACKed
- *		packets until the most forward SACK are lost. I.e.
- *		lost_out = fackets_out - sacked_out and left_out = fackets_out.
- *		It is absolutely correct estimate, if network does not reorder
- *		packets. And it loses any connection to reality when reordering
- *		takes place. We use FACK by default until reordering
- *		is suspected on the path to this destination.
- *
  *		If the receiver does not support SACK:
  *
  *		NewReno (RFC6582): in Recovery we assume that one segment
@@ -2190,7 +2160,7 @@ static bool tcp_time_to_recover(struct sock *sk, int flag)
 }
 
 /* Detect loss in event "A" above by marking head of queue up as lost.
- * For FACK or non-SACK(Reno) senders, the first "packets" number of segments
+ * For non-SACK(Reno) senders, the first "packets" number of segments
  * are considered lost. For RFC3517 SACK, a segment is considered lost if it
  * has at least tp->reordering SACKed seqments above it; "packets" refers to
  * the maximum SACKed segments to pass before reaching this limit.
@@ -2226,12 +2196,12 @@ static void tcp_mark_head_lost(struct sock *sk, int packets, int mark_head)
 			break;
 
 		oldcnt = cnt;
-		if (tcp_is_fack(tp) || tcp_is_reno(tp) ||
+		if (tcp_is_reno(tp) ||
 		    (TCP_SKB_CB(skb)->sacked & TCPCB_SACKED_ACKED))
 			cnt += tcp_skb_pcount(skb);
 
 		if (cnt > packets) {
-			if ((tcp_is_sack(tp) && !tcp_is_fack(tp)) ||
+			if (tcp_is_sack(tp) ||
 			    (TCP_SKB_CB(skb)->sacked & TCPCB_SACKED_ACKED) ||
 			    (oldcnt >= packets))
 				break;
@@ -2262,11 +2232,6 @@ static void tcp_update_scoreboard(struct sock *sk, int fast_rexmit)
 
 	if (tcp_is_reno(tp)) {
 		tcp_mark_head_lost(sk, 1, 1);
-	} else if (tcp_is_fack(tp)) {
-		int lost = tp->fackets_out - tp->reordering;
-		if (lost <= 0)
-			lost = 1;
-		tcp_mark_head_lost(sk, lost, 0);
 	} else {
 		int sacked_upto = tp->sacked_out - tp->reordering;
 		if (sacked_upto >= 0)
@@ -3199,8 +3164,7 @@ static int tcp_clean_rtx_queue(struct sock *sk, int prior_fackets,
 			if (reord < prior_fackets && reord <= tp->fackets_out)
 				tcp_update_reordering(sk, tp->fackets_out - reord, 0);
 
-			delta = tcp_is_fack(tp) ? pkts_acked :
-						  prior_sacked - tp->sacked_out;
+			delta = prior_sacked - tp->sacked_out;
 			tp->lost_cnt_hint -= min(tp->lost_cnt_hint, delta);
 		}
 
@@ -5707,9 +5671,6 @@ static int tcp_rcv_synsent_state_process(struct sock *sk, struct sk_buff *skb,
 		} else {
 			tp->tcp_header_len = sizeof(struct tcphdr);
 		}
-
-		if (tcp_is_sack(tp) && sock_net(sk)->ipv4.sysctl_tcp_fack)
-			tcp_enable_fack(tp);
 
 		tcp_sync_mss(sk, icsk->icsk_pmtu_cookie);
 		tcp_initialize_rcv_mss(sk);
