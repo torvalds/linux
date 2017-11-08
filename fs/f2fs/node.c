@@ -1949,11 +1949,30 @@ static void scan_nat_page(struct f2fs_sb_info *sbi,
 	}
 }
 
+static void scan_curseg_cache(struct f2fs_sb_info *sbi)
+{
+	struct curseg_info *curseg = CURSEG_I(sbi, CURSEG_HOT_DATA);
+	struct f2fs_journal *journal = curseg->journal;
+	int i;
+
+	down_read(&curseg->journal_rwsem);
+	for (i = 0; i < nats_in_cursum(journal); i++) {
+		block_t addr;
+		nid_t nid;
+
+		addr = le32_to_cpu(nat_in_journal(journal, i).block_addr);
+		nid = le32_to_cpu(nid_in_journal(journal, i));
+		if (addr == NULL_ADDR)
+			add_free_nid(sbi, nid, true);
+		else
+			remove_free_nid(sbi, nid);
+	}
+	up_read(&curseg->journal_rwsem);
+}
+
 static void scan_free_nid_bits(struct f2fs_sb_info *sbi)
 {
 	struct f2fs_nm_info *nm_i = NM_I(sbi);
-	struct curseg_info *curseg = CURSEG_I(sbi, CURSEG_HOT_DATA);
-	struct f2fs_journal *journal = curseg->journal;
 	unsigned int i, idx;
 	nid_t nid;
 
@@ -1978,26 +1997,14 @@ static void scan_free_nid_bits(struct f2fs_sb_info *sbi)
 		}
 	}
 out:
-	down_read(&curseg->journal_rwsem);
-	for (i = 0; i < nats_in_cursum(journal); i++) {
-		block_t addr;
+	scan_curseg_cache(sbi);
 
-		addr = le32_to_cpu(nat_in_journal(journal, i).block_addr);
-		nid = le32_to_cpu(nid_in_journal(journal, i));
-		if (addr == NULL_ADDR)
-			add_free_nid(sbi, nid, true);
-		else
-			remove_free_nid(sbi, nid);
-	}
-	up_read(&curseg->journal_rwsem);
 	up_read(&nm_i->nat_tree_lock);
 }
 
 static void __build_free_nids(struct f2fs_sb_info *sbi, bool sync, bool mount)
 {
 	struct f2fs_nm_info *nm_i = NM_I(sbi);
-	struct curseg_info *curseg = CURSEG_I(sbi, CURSEG_HOT_DATA);
-	struct f2fs_journal *journal = curseg->journal;
 	int i = 0;
 	nid_t nid = nm_i->next_scan_nid;
 
@@ -2043,18 +2050,8 @@ static void __build_free_nids(struct f2fs_sb_info *sbi, bool sync, bool mount)
 	nm_i->next_scan_nid = nid;
 
 	/* find free nids from current sum_pages */
-	down_read(&curseg->journal_rwsem);
-	for (i = 0; i < nats_in_cursum(journal); i++) {
-		block_t addr;
+	scan_curseg_cache(sbi);
 
-		addr = le32_to_cpu(nat_in_journal(journal, i).block_addr);
-		nid = le32_to_cpu(nid_in_journal(journal, i));
-		if (addr == NULL_ADDR)
-			add_free_nid(sbi, nid, true);
-		else
-			remove_free_nid(sbi, nid);
-	}
-	up_read(&curseg->journal_rwsem);
 	up_read(&nm_i->nat_tree_lock);
 
 	ra_meta_pages(sbi, NAT_BLOCK_OFFSET(nm_i->next_scan_nid),
