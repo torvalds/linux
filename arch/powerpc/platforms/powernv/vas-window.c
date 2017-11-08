@@ -1060,21 +1060,23 @@ int vas_paste_crb(struct vas_window *txwin, int offset, bool re)
 }
 EXPORT_SYMBOL_GPL(vas_paste_crb);
 
+/*
+ * Wait for the window to go to "not-busy" state. It should only take a
+ * short time to queue a CRB, so window should not be busy for too long.
+ * Trying 5ms intervals.
+ */
 static void poll_window_busy_state(struct vas_window *window)
 {
 	int busy;
 	u64 val;
 
 retry:
-	/*
-	 * Poll Window Busy flag
-	 */
 	val = read_hvwc_reg(window, VREG(WIN_STATUS));
 	busy = GET_FIELD(VAS_WIN_BUSY, val);
 	if (busy) {
 		val = 0;
 		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(HZ);
+		schedule_timeout(msecs_to_jiffies(5));
 		goto retry;
 	}
 }
