@@ -1982,8 +1982,6 @@ static int rtl8169_set_speed_xmii(struct net_device *dev,
 		rtl_writephy(tp, MII_ADVERTISE, auto_nego);
 		rtl_writephy(tp, MII_CTRL1000, giga_ctrl);
 	} else {
-		giga_ctrl = 0;
-
 		if (speed == SPEED_10)
 			bmcr = 0;
 		else if (speed == SPEED_100)
