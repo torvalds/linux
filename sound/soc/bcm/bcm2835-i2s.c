@@ -344,6 +344,9 @@ static int bcm2835_i2s_hw_params(struct snd_pcm_substream *substream,
 	unsigned int rx_mask, tx_mask;
 	unsigned int rx_ch1_pos, rx_ch2_pos, tx_ch1_pos, tx_ch2_pos;
 	unsigned int mode, format;
+	bool bit_clock_master = false;
+	bool frame_sync_master = false;
+	bool frame_start_falling_edge = false;
 	uint32_t csreg;
 	int ret = 0;
 
@@ -387,16 +390,39 @@ static int bcm2835_i2s_hw_params(struct snd_pcm_substream *substream,
 	if (data_length > slot_width)
 		return -EINVAL;
 
-	/* Clock should only be set up here if CPU is clock master */
+	/* Check if CPU is bit clock master */
 	switch (dev->fmt & SND_SOC_DAIFMT_MASTER_MASK) {
 	case SND_SOC_DAIFMT_CBS_CFS:
 	case SND_SOC_DAIFMT_CBS_CFM:
+		bit_clock_master = true;
+		break;
+	case SND_SOC_DAIFMT_CBM_CFS:
+	case SND_SOC_DAIFMT_CBM_CFM:
+		bit_clock_master = false;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	/* Check if CPU is frame sync master */
+	switch (dev->fmt & SND_SOC_DAIFMT_MASTER_MASK) {
+	case SND_SOC_DAIFMT_CBS_CFS:
+	case SND_SOC_DAIFMT_CBM_CFS:
+		frame_sync_master = true;
+		break;
+	case SND_SOC_DAIFMT_CBS_CFM:
+	case SND_SOC_DAIFMT_CBM_CFM:
+		frame_sync_master = false;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	/* Clock should only be set up here if CPU is clock master */
+	if (bit_clock_master) {
 		ret = clk_set_rate(dev->clk, bclk_rate);
 		if (ret)
 			return ret;
-		break;
-	default:
-		break;
 	}
 
 	/* Setup the frame format */
@@ -427,13 +453,41 @@ static int bcm2835_i2s_hw_params(struct snd_pcm_substream *substream,
 
 		/* Setup frame sync signal for 50% duty cycle */
 		framesync_length = frame_length / 2;
+		frame_start_falling_edge = true;
+		break;
+	case SND_SOC_DAIFMT_LEFT_J:
+		if (slots & 1)
+			return -EINVAL;
+
+		odd_slot_offset = slots >> 1;
+		data_delay = 0;
+		framesync_length = frame_length / 2;
+		frame_start_falling_edge = false;
+		break;
+	case SND_SOC_DAIFMT_RIGHT_J:
+		if (slots & 1)
+			return -EINVAL;
+
+		/* Odd frame lengths aren't supported */
+		if (frame_length & 1)
+			return -EINVAL;
+
+		odd_slot_offset = slots >> 1;
+		data_delay = slot_width - data_length;
+		framesync_length = frame_length / 2;
+		frame_start_falling_edge = false;
+		break;
+	case SND_SOC_DAIFMT_DSP_A:
+		data_delay = 1;
+		framesync_length = 1;
+		frame_start_falling_edge = false;
+		break;
+	case SND_SOC_DAIFMT_DSP_B:
+		data_delay = 0;
+		framesync_length = 1;
+		frame_start_falling_edge = false;
 		break;
 	default:
-		/*
-		 * TODO
-		 * Others are possible but are not implemented at the moment.
-		 */
-		dev_err(dev->dev, "%s:bad format\n", __func__);
 		return -EINVAL;
 	}
 
@@ -441,6 +495,15 @@ static int bcm2835_i2s_hw_params(struct snd_pcm_substream *substream,
 		rx_mask, slot_width, data_delay, odd_slot_offset);
 	bcm2835_i2s_calc_channel_pos(&tx_ch1_pos, &tx_ch2_pos,
 		tx_mask, slot_width, data_delay, odd_slot_offset);
+
+	/*
+	 * Transmitting data immediately after frame start, eg
+	 * in left-justified or DSP mode A, only works stable
+	 * if bcm2835 is the frame clock master.
+	 */
+	if ((!rx_ch1_pos || !tx_ch1_pos) && !frame_sync_master)
+		dev_warn(dev->dev,
+			"Unstable slave config detected, L/R may be swapped");
 
 	/*
 	 * Set format for both streams.
@@ -472,62 +535,38 @@ static int bcm2835_i2s_hw_params(struct snd_pcm_substream *substream,
 	mode |= BCM2835_I2S_FLEN(frame_length - 1);
 	mode |= BCM2835_I2S_FSLEN(framesync_length);
 
-	/* Master or slave? */
-	switch (dev->fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBS_CFS:
-		/* CPU is master */
-		break;
-	case SND_SOC_DAIFMT_CBM_CFS:
-		/*
-		 * CODEC is bit clock master
-		 * CPU is frame master
-		 */
+	/* CLKM selects bcm2835 clock slave mode */
+	if (!bit_clock_master)
 		mode |= BCM2835_I2S_CLKM;
-		break;
-	case SND_SOC_DAIFMT_CBS_CFM:
-		/*
-		 * CODEC is frame master
-		 * CPU is bit clock master
-		 */
-		mode |= BCM2835_I2S_FSM;
-		break;
-	case SND_SOC_DAIFMT_CBM_CFM:
-		/* CODEC is master */
-		mode |= BCM2835_I2S_CLKM;
-		mode |= BCM2835_I2S_FSM;
-		break;
-	default:
-		dev_err(dev->dev, "%s:bad master\n", __func__);
-		return -EINVAL;
-	}
 
-	/*
-	 * Invert clocks?
-	 *
-	 * The BCM approach seems to be inverted to the classical I2S approach.
-	 */
-	switch (dev->fmt & SND_SOC_DAIFMT_INV_MASK) {
+	/* FSM selects bcm2835 frame sync slave mode */
+	if (!frame_sync_master)
+		mode |= BCM2835_I2S_FSM;
+
+	/* CLKI selects normal clocking mode, sampling on rising edge */
+        switch (dev->fmt & SND_SOC_DAIFMT_INV_MASK) {
 	case SND_SOC_DAIFMT_NB_NF:
-		/* None. Therefore, both for BCM */
-		mode |= BCM2835_I2S_CLKI;
-		mode |= BCM2835_I2S_FSI;
-		break;
-	case SND_SOC_DAIFMT_IB_IF:
-		/* Both. Therefore, none for BCM */
-		break;
 	case SND_SOC_DAIFMT_NB_IF:
-		/*
-		 * Invert only frame sync. Therefore,
-		 * invert only bit clock for BCM
-		 */
 		mode |= BCM2835_I2S_CLKI;
 		break;
 	case SND_SOC_DAIFMT_IB_NF:
-		/*
-		 * Invert only bit clock. Therefore,
-		 * invert only frame sync for BCM
-		 */
-		mode |= BCM2835_I2S_FSI;
+	case SND_SOC_DAIFMT_IB_IF:
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	/* FSI selects frame start on falling edge */
+	switch (dev->fmt & SND_SOC_DAIFMT_INV_MASK) {
+	case SND_SOC_DAIFMT_NB_NF:
+	case SND_SOC_DAIFMT_IB_NF:
+		if (frame_start_falling_edge)
+			mode |= BCM2835_I2S_FSI;
+		break;
+	case SND_SOC_DAIFMT_NB_IF:
+	case SND_SOC_DAIFMT_IB_IF:
+		if (!frame_start_falling_edge)
+			mode |= BCM2835_I2S_FSI;
 		break;
 	default:
 		return -EINVAL;
@@ -562,6 +601,13 @@ static int bcm2835_i2s_hw_params(struct snd_pcm_substream *substream,
 
 	dev_dbg(dev->dev, "sampling rate: %d bclk rate: %d\n",
 		params_rate(params), bclk_rate);
+
+	dev_dbg(dev->dev, "CLKM: %d CLKI: %d FSM: %d FSI: %d frame start: %s edge\n",
+		!!(mode & BCM2835_I2S_CLKM),
+		!!(mode & BCM2835_I2S_CLKI),
+		!!(mode & BCM2835_I2S_FSM),
+		!!(mode & BCM2835_I2S_FSI),
+		(mode & BCM2835_I2S_FSI) ? "falling" : "rising");
 
 	return ret;
 }
