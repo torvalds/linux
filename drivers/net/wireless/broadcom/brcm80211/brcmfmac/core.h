@@ -203,6 +203,7 @@ int brcmf_netdev_wait_pend8021x(struct brcmf_if *ifp);
 /* Return pointer to interface name */
 char *brcmf_ifname(struct brcmf_if *ifp);
 struct brcmf_if *brcmf_get_ifp(struct brcmf_pub *drvr, int ifidx);
+void brcmf_configure_arp_nd_offload(struct brcmf_if *ifp, bool enable);
 int brcmf_net_attach(struct brcmf_if *ifp, bool rtnl_locked);
 struct brcmf_if *brcmf_add_if(struct brcmf_pub *drvr, s32 bsscfgidx, s32 ifidx,
 			      bool is_p2pdev, const char *name, u8 *mac_addr);
