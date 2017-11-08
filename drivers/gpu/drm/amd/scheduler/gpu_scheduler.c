@@ -463,7 +463,8 @@ void amd_sched_hw_job_reset(struct amd_gpu_scheduler *sched, struct amd_sched_jo
 	}
 	spin_unlock(&sched->job_list_lock);
 
-	if (bad) {
+	if (bad && bad->s_priority != AMD_SCHED_PRIORITY_KERNEL) {
+		atomic_inc(&bad->karma);
 		/* don't increase @bad's karma if it's from KERNEL RQ,
 		 * becuase sometimes GPU hang would cause kernel jobs (like VM updating jobs)
 		 * corrupt but keep in mind that kernel jobs always considered good.
@@ -474,7 +475,7 @@ void amd_sched_hw_job_reset(struct amd_gpu_scheduler *sched, struct amd_sched_jo
 			spin_lock(&rq->lock);
 			list_for_each_entry_safe(entity, tmp, &rq->entities, list) {
 				if (bad->s_fence->scheduled.context == entity->fence_context) {
-				    if (atomic_inc_return(&bad->karma) > bad->sched->hang_limit)
+				    if (atomic_read(&bad->karma) > bad->sched->hang_limit)
 						if (entity->guilty)
 							atomic_set(entity->guilty, 1);
 					break;
