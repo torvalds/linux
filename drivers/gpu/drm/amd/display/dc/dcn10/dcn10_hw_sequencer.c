@@ -1878,46 +1878,9 @@ void build_prescale_params(struct  dc_bias_and_scale *bias_and_scale,
 	}
 }
 
-static void update_dchubp_dpp(
-	struct dc *dc,
-	struct pipe_ctx *pipe_ctx,
-	struct dc_state *context)
+static void update_dpp(struct dpp *dpp, struct dc_plane_state *plane_state)
 {
-	struct dce_hwseq *hws = dc->hwseq;
-	struct hubp *hubp = pipe_ctx->plane_res.hubp;
-	struct dpp *dpp = pipe_ctx->plane_res.dpp;
-	struct dc_plane_state *plane_state = pipe_ctx->plane_state;
-	union plane_size size = plane_state->plane_size;
-	struct mpcc_cfg mpcc_cfg = {0};
-	struct pipe_ctx *top_pipe;
-	bool per_pixel_alpha = plane_state->per_pixel_alpha && pipe_ctx->bottom_pipe;
 	struct dc_bias_and_scale bns_params = {0};
-
-	/* TODO: proper fix once fpga works */
-	/* depends on DML calculation, DPP clock value may change dynamically */
-	enable_dppclk(
-		dc->hwseq,
-		pipe_ctx->pipe_idx,
-		pipe_ctx->stream_res.pix_clk_params.requested_pix_clk,
-		context->bw.dcn.calc_clk.dppclk_div);
-	dc->current_state->bw.dcn.cur_clk.dppclk_div =
-			context->bw.dcn.calc_clk.dppclk_div;
-	context->bw.dcn.cur_clk.dppclk_div = context->bw.dcn.calc_clk.dppclk_div;
-
-	/* TODO: Need input parameter to tell current DCHUB pipe tie to which OTG
-	 * VTG is within DCHUBBUB which is commond block share by each pipe HUBP.
-	 * VTG is 1:1 mapping with OTG. Each pipe HUBP will select which VTG
-	 */
-	REG_UPDATE(DCHUBP_CNTL[pipe_ctx->pipe_idx], HUBP_VTG_SEL, pipe_ctx->stream_res.tg->inst);
-
-	hubp->funcs->hubp_setup(
-		hubp,
-		&pipe_ctx->dlg_regs,
-		&pipe_ctx->ttu_regs,
-		&pipe_ctx->rq_regs,
-		&pipe_ctx->pipe_dlg_param);
-
-	size.grph.surface_size = pipe_ctx->plane_res.scl_data.viewport;
 
 	// program the input csc
 	dpp->funcs->dpp_setup(dpp,
@@ -1930,6 +1893,17 @@ static void update_dchubp_dpp(
 	build_prescale_params(&bns_params, plane_state);
 	if (dpp->funcs->dpp_program_bias_and_scale)
 		dpp->funcs->dpp_program_bias_and_scale(dpp, &bns_params);
+}
+
+static void update_mpcc(struct dc *dc, struct pipe_ctx *pipe_ctx)
+{
+	struct mpcc_cfg mpcc_cfg = {0};
+	struct hubp *hubp = pipe_ctx->plane_res.hubp;
+	struct pipe_ctx *top_pipe;
+	bool per_pixel_alpha =
+			pipe_ctx->plane_state->per_pixel_alpha && pipe_ctx->bottom_pipe;
+
+	/* TODO: proper fix once fpga works */
 
 	mpcc_cfg.dpp_id = hubp->inst;
 	mpcc_cfg.opp_id = pipe_ctx->stream_res.opp->inst;
@@ -1952,33 +1926,110 @@ static void update_dchubp_dpp(
 					&& per_pixel_alpha;
 	hubp->mpcc_id = dc->res_pool->mpc->funcs->add(dc->res_pool->mpc, &mpcc_cfg);
 	hubp->opp_id = mpcc_cfg.opp_id;
+}
+
+static void update_scaler(struct pipe_ctx *pipe_ctx)
+{
+	bool per_pixel_alpha =
+			pipe_ctx->plane_state->per_pixel_alpha && pipe_ctx->bottom_pipe;
+
+	/* TODO: proper fix once fpga works */
 
 	pipe_ctx->plane_res.scl_data.lb_params.alpha_en = per_pixel_alpha;
 	pipe_ctx->plane_res.scl_data.lb_params.depth = LB_PIXEL_DEPTH_30BPP;
 	/* scaler configuration */
 	pipe_ctx->plane_res.dpp->funcs->dpp_set_scaler(
 			pipe_ctx->plane_res.dpp, &pipe_ctx->plane_res.scl_data);
+}
 
-	hubp->funcs->mem_program_viewport(hubp,
-			&pipe_ctx->plane_res.scl_data.viewport, &pipe_ctx->plane_res.scl_data.viewport_c);
+static void update_dchubp_dpp(
+	struct dc *dc,
+	struct pipe_ctx *pipe_ctx,
+	struct dc_state *context)
+{
+	struct dce_hwseq *hws = dc->hwseq;
+	struct hubp *hubp = pipe_ctx->plane_res.hubp;
+	struct dpp *dpp = pipe_ctx->plane_res.dpp;
+	struct dc_plane_state *plane_state = pipe_ctx->plane_state;
+	union plane_size size = plane_state->plane_size;
 
-	/*gamut remap*/
-	program_gamut_remap(pipe_ctx);
+	/* depends on DML calculation, DPP clock value may change dynamically */
+	if (pipe_ctx->plane_state->update_flags.raw != 0) {
+		enable_dppclk(
+			dc->hwseq,
+			pipe_ctx->pipe_idx,
+			pipe_ctx->stream_res.pix_clk_params.requested_pix_clk,
+			context->bw.dcn.calc_clk.dppclk_div);
+		dc->current_state->bw.dcn.cur_clk.dppclk_div =
+				context->bw.dcn.calc_clk.dppclk_div;
+		context->bw.dcn.cur_clk.dppclk_div = context->bw.dcn.calc_clk.dppclk_div;
+	}
 
-	program_output_csc(dc,
-			pipe_ctx,
-			pipe_ctx->stream->output_color_space,
-			pipe_ctx->stream->csc_color_matrix.matrix,
-			mpcc_cfg.opp_id);
+	/* TODO: Need input parameter to tell current DCHUB pipe tie to which OTG
+	 * VTG is within DCHUBBUB which is commond block share by each pipe HUBP.
+	 * VTG is 1:1 mapping with OTG. Each pipe HUBP will select which VTG
+	 */
+	if (plane_state->update_flags.bits.full_update) {
+		REG_UPDATE(DCHUBP_CNTL[pipe_ctx->pipe_idx], HUBP_VTG_SEL, pipe_ctx->stream_res.tg->inst);
 
-	hubp->funcs->hubp_program_surface_config(
-		hubp,
-		plane_state->format,
-		&plane_state->tiling_info,
-		&size,
-		plane_state->rotation,
-		&plane_state->dcc,
-		plane_state->horizontal_mirror);
+		hubp->funcs->hubp_setup(
+			hubp,
+			&pipe_ctx->dlg_regs,
+			&pipe_ctx->ttu_regs,
+			&pipe_ctx->rq_regs,
+			&pipe_ctx->pipe_dlg_param);
+	}
+
+	size.grph.surface_size = pipe_ctx->plane_res.scl_data.viewport;
+
+	if (plane_state->update_flags.bits.full_update ||
+		plane_state->update_flags.bits.bpp_change)
+		update_dpp(dpp, plane_state);
+
+	if (plane_state->update_flags.bits.full_update ||
+		plane_state->update_flags.bits.per_pixel_alpha_change)
+		update_mpcc(dc, pipe_ctx);
+
+	if (plane_state->update_flags.bits.full_update ||
+		plane_state->update_flags.bits.per_pixel_alpha_change ||
+		plane_state->update_flags.bits.scaling_change ||
+		plane_state->update_flags.bits.position_change) {
+		update_scaler(pipe_ctx);
+	}
+
+	if (plane_state->update_flags.bits.full_update ||
+		plane_state->update_flags.bits.scaling_change) {
+		hubp->funcs->mem_program_viewport(
+			hubp,
+			&pipe_ctx->plane_res.scl_data.viewport,
+			&pipe_ctx->plane_res.scl_data.viewport_c);
+	}
+
+	if (plane_state->update_flags.bits.full_update) {
+		/*gamut remap*/
+		program_gamut_remap(pipe_ctx);
+
+		program_output_csc(dc,
+				pipe_ctx,
+				pipe_ctx->stream->output_color_space,
+				pipe_ctx->stream->csc_color_matrix.matrix,
+				hubp->opp_id);
+	}
+
+	if (plane_state->update_flags.bits.full_update ||
+		plane_state->update_flags.bits.horizontal_mirror_change ||
+		plane_state->update_flags.bits.rotation_change ||
+		plane_state->update_flags.bits.swizzle_change ||
+		plane_state->update_flags.bits.bpp_change) {
+		hubp->funcs->hubp_program_surface_config(
+			hubp,
+			plane_state->format,
+			&plane_state->tiling_info,
+			&size,
+			plane_state->rotation,
+			&plane_state->dcc,
+			plane_state->horizontal_mirror);
+	}
 
 	hubp->power_gated = false;
 
@@ -2019,8 +2070,7 @@ static void program_all_pipe_in_tree(
 		if (pipe_ctx->plane_state->update_flags.bits.full_update)
 			dcn10_enable_plane(dc, pipe_ctx, context);
 
-		if (pipe_ctx->plane_state->update_flags.raw != 0)
-			update_dchubp_dpp(dc, pipe_ctx, context);
+		update_dchubp_dpp(dc, pipe_ctx, context);
 
 		if (cur_pipe_ctx->plane_state != pipe_ctx->plane_state) {
 			dc->hwss.set_input_transfer_func(pipe_ctx, pipe_ctx->plane_state);
@@ -2181,26 +2231,18 @@ static void dcn10_apply_ctx_for_surface(
 	}
 
 	if (num_planes > 0) {
-		struct dc_stream_state *stream_for_cursor = NULL;
-
 		program_all_pipe_in_tree(dc, top_pipe_to_program, context);
 
-		for (i = 0; i < dc->res_pool->pipe_count; i++) {
-			struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
-
-			if (stream == pipe_ctx->stream) {
-				stream_for_cursor = pipe_ctx->stream;
-				break;
-			}
-		}
-
 		/* TODO: this is a hack w/a for switching from mpo to pipe split */
-		if (stream_for_cursor->cursor_attributes.address.quad_part != 0) {
+		if (stream->cursor_attributes.address.quad_part != 0) {
 			struct dc_cursor_position position = { 0 };
 
-			dc_stream_set_cursor_position(stream_for_cursor, &position);
-			dc_stream_set_cursor_attributes(stream_for_cursor,
-				&stream_for_cursor->cursor_attributes);
+			dc_stream_set_cursor_position(
+				(struct dc_stream_state *)stream,
+				&position);
+			dc_stream_set_cursor_attributes(
+				(struct dc_stream_state *)stream,
+				&stream->cursor_attributes);
 		}
 	}
 
@@ -2227,7 +2269,7 @@ static void dcn10_apply_ctx_for_surface(
 		dcn10_verify_allow_pstate_change_high(dc);
 	}
 
-	dm_logger_write(dc->ctx->logger, LOG_BANDWIDTH_CALCS,
+/*	dm_logger_write(dc->ctx->logger, LOG_BANDWIDTH_CALCS,
 			"\n============== Watermark parameters ==============\n"
 			"a.urgent_ns: %d \n"
 			"a.cstate_enter_plus_exit: %d \n"
@@ -2273,6 +2315,7 @@ static void dcn10_apply_ctx_for_surface(
 			context->bw.dcn.watermarks.d.cstate_pstate.pstate_change_ns,
 			context->bw.dcn.watermarks.d.pte_meta_urgent_ns
 			);
+*/
 
 	if (dc->debug.sanity_checks)
 		dcn10_verify_allow_pstate_change_high(dc);
