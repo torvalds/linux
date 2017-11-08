@@ -957,19 +957,6 @@ static inline void ttm_bo_unreserve(struct ttm_buffer_object *bo)
 	reservation_object_unlock(bo->resv);
 }
 
-/**
- * ttm_bo_unreserve_ticket
- * @bo: A pointer to a struct ttm_buffer_object.
- * @ticket: ww_acquire_ctx used for reserving
- *
- * Unreserve a previous reservation of @bo made with @ticket.
- */
-static inline void ttm_bo_unreserve_ticket(struct ttm_buffer_object *bo,
-					   struct ww_acquire_ctx *t)
-{
-	ttm_bo_unreserve(bo);
-}
-
 /*
  * ttm_bo_util.c
  */
