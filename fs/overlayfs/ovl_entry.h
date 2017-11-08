@@ -22,6 +22,8 @@ struct ovl_config {
 struct ovl_layer {
 	struct vfsmount *mnt;
 	dev_t pseudo_dev;
+	/* Index of this layer in fs root (upper == 0) */
+	int idx;
 };
 
 struct ovl_path {

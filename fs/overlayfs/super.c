@@ -1106,6 +1106,7 @@ static int ovl_get_lower_layers(struct ovl_fs *ofs, struct path *stack,
 
 		ofs->lower_layers[ofs->numlower].mnt = mnt;
 		ofs->lower_layers[ofs->numlower].pseudo_dev = dev;
+		ofs->lower_layers[ofs->numlower].idx = i + 1;
 		ofs->numlower++;
 
 		/* Check if all lower layers are on same sb */
