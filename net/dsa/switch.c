@@ -133,6 +133,8 @@ static int dsa_switch_mdb_add(struct dsa_switch *ds,
 			if (err)
 				return err;
 		}
+
+		return 0;
 	}
 
 	for_each_set_bit(port, group, ds->num_ports)
