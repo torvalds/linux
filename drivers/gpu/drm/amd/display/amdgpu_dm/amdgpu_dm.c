@@ -1787,8 +1787,6 @@ static int fill_plane_attributes_from_fb(struct amdgpu_device *adev,
 					 const struct amdgpu_framebuffer *amdgpu_fb)
 {
 	uint64_t tiling_flags;
-	uint64_t fb_location = 0;
-	uint64_t chroma_addr = 0;
 	unsigned int awidth;
 	const struct drm_framebuffer *fb = &amdgpu_fb->base;
 	int ret = 0;
@@ -1834,8 +1832,6 @@ static int fill_plane_attributes_from_fb(struct amdgpu_device *adev,
 
 	if (plane_state->format < SURFACE_PIXEL_FORMAT_VIDEO_BEGIN) {
 		plane_state->address.type = PLN_ADDR_TYPE_GRAPHICS;
-		plane_state->address.grph.addr.low_part = lower_32_bits(fb_location);
-		plane_state->address.grph.addr.high_part = upper_32_bits(fb_location);
 		plane_state->plane_size.grph.surface_size.x = 0;
 		plane_state->plane_size.grph.surface_size.y = 0;
 		plane_state->plane_size.grph.surface_size.width = fb->width;
@@ -1848,15 +1844,6 @@ static int fill_plane_attributes_from_fb(struct amdgpu_device *adev,
 	} else {
 		awidth = ALIGN(fb->width, 64);
 		plane_state->address.type = PLN_ADDR_TYPE_VIDEO_PROGRESSIVE;
-		plane_state->address.video_progressive.luma_addr.low_part
-						= lower_32_bits(fb_location);
-		plane_state->address.video_progressive.luma_addr.high_part
-						= upper_32_bits(fb_location);
-		chroma_addr = fb_location + (u64)(awidth * fb->height);
-		plane_state->address.video_progressive.chroma_addr.low_part
-						= lower_32_bits(chroma_addr);
-		plane_state->address.video_progressive.chroma_addr.high_part
-						= upper_32_bits(chroma_addr);
 		plane_state->plane_size.video.luma_size.x = 0;
 		plane_state->plane_size.video.luma_size.y = 0;
 		plane_state->plane_size.video.luma_size.width = awidth;
