@@ -68,17 +68,25 @@ static void blk_mq_sched_mark_restart_hctx(struct blk_mq_hw_ctx *hctx)
 		set_bit(BLK_MQ_S_SCHED_RESTART, &hctx->state);
 }
 
-void blk_mq_sched_restart(struct blk_mq_hw_ctx *hctx)
+static bool blk_mq_sched_restart_hctx(struct blk_mq_hw_ctx *hctx)
 {
 	if (!test_bit(BLK_MQ_S_SCHED_RESTART, &hctx->state))
-		return;
+		return false;
 
-	clear_bit(BLK_MQ_S_SCHED_RESTART, &hctx->state);
+	if (hctx->flags & BLK_MQ_F_TAG_SHARED) {
+		struct request_queue *q = hctx->queue;
+
+		if (test_and_clear_bit(BLK_MQ_S_SCHED_RESTART, &hctx->state))
+			atomic_dec(&q->shared_hctx_restart);
+	} else
+		clear_bit(BLK_MQ_S_SCHED_RESTART, &hctx->state);
 
 	if (blk_mq_hctx_has_pending(hctx)) {
 		blk_mq_run_hw_queue(hctx, true);
-		return;
+		return true;
 	}
+
+	return false;
 }
 
 /*
@@ -360,6 +368,68 @@ static bool blk_mq_sched_bypass_insert(struct blk_mq_hw_ctx *hctx,
 		rq->rq_flags |= RQF_SORTED;
 
 	return false;
+}
+
+/**
+ * list_for_each_entry_rcu_rr - iterate in a round-robin fashion over rcu list
+ * @pos:    loop cursor.
+ * @skip:   the list element that will not be examined. Iteration starts at
+ *          @skip->next.
+ * @head:   head of the list to examine. This list must have at least one
+ *          element, namely @skip.
+ * @member: name of the list_head structure within typeof(*pos).
+ */
+#define list_for_each_entry_rcu_rr(pos, skip, head, member)		\
+	for ((pos) = (skip);						\
+	     (pos = (pos)->member.next != (head) ? list_entry_rcu(	\
+			(pos)->member.next, typeof(*pos), member) :	\
+	      list_entry_rcu((pos)->member.next->next, typeof(*pos), member)), \
+	     (pos) != (skip); )
+
+/*
+ * Called after a driver tag has been freed to check whether a hctx needs to
+ * be restarted. Restarts @hctx if its tag set is not shared. Restarts hardware
+ * queues in a round-robin fashion if the tag set of @hctx is shared with other
+ * hardware queues.
+ */
+void blk_mq_sched_restart(struct blk_mq_hw_ctx *const hctx)
+{
+	struct blk_mq_tags *const tags = hctx->tags;
+	struct blk_mq_tag_set *const set = hctx->queue->tag_set;
+	struct request_queue *const queue = hctx->queue, *q;
+	struct blk_mq_hw_ctx *hctx2;
+	unsigned int i, j;
+
+	if (set->flags & BLK_MQ_F_TAG_SHARED) {
+		/*
+		 * If this is 0, then we know that no hardware queues
+		 * have RESTART marked. We're done.
+		 */
+		if (!atomic_read(&queue->shared_hctx_restart))
+			return;
+
+		rcu_read_lock();
+		list_for_each_entry_rcu_rr(q, queue, &set->tag_list,
+					   tag_set_list) {
+			queue_for_each_hw_ctx(q, hctx2, i)
+				if (hctx2->tags == tags &&
+				    blk_mq_sched_restart_hctx(hctx2))
+					goto done;
+		}
+		j = hctx->queue_num + 1;
+		for (i = 0; i < queue->nr_hw_queues; i++, j++) {
+			if (j == queue->nr_hw_queues)
+				j = 0;
+			hctx2 = queue->queue_hw_ctx[j];
+			if (hctx2->tags == tags &&
+			    blk_mq_sched_restart_hctx(hctx2))
+				break;
+		}
+done:
+		rcu_read_unlock();
+	} else {
+		blk_mq_sched_restart_hctx(hctx);
+	}
 }
 
 void blk_mq_sched_insert_request(struct request *rq, bool at_head,
