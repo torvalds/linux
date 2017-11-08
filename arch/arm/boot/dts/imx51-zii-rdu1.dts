@@ -242,7 +242,7 @@
 
 	sound {
 		compatible = "simple-audio-card";
-		simple-audio-card,name = "RDU1 audio";
+		simple-audio-card,name = "Front";
 		simple-audio-card,format = "i2s";
 		simple-audio-card,bitclock-master = <&sound_codec>;
 		simple-audio-card,frame-master = <&sound_codec>;
@@ -251,7 +251,7 @@
 		simple-audio-card,routing =
 			"Headphone Jack", "HPLEFT",
 			"Headphone Jack", "HPRIGHT";
-		simple-audio-card,aux-devs = <&tpa6130a2>;
+		simple-audio-card,aux-devs = <&hpa1>;
 
 		sound_cpu: simple-audio-card,cpu {
 			sound-dai = <&ssi2>;
@@ -479,7 +479,7 @@
 		reg = <0x50>;
 	};
 
-	tpa6130a2: amp@60 {
+	hpa1: amp@60 {
 		compatible = "ti,tpa6130a2";
 		reg = <0x60>;
 		pinctrl-names = "default";
