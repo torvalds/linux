@@ -49,6 +49,7 @@
 
 	aliases {
 		mdio-gpio0 = &mdio1;
+		rtc0 = &ds1341;
 	};
 
 	mdio1: mdio {
@@ -501,7 +502,7 @@
 		reg = <0x54>;
 	};
 
-	rtc@68 {
+	ds1341: rtc@68 {
 		compatible = "dallas,ds1341";
 		reg = <0x68>;
 	};
