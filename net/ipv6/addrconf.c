@@ -5059,6 +5059,7 @@ static inline void ipv6_store_devconf(struct ipv6_devconf *cnf,
 	array[DEVCONF_ENHANCED_DAD] = cnf->enhanced_dad;
 	array[DEVCONF_ADDR_GEN_MODE] = cnf->addr_gen_mode;
 	array[DEVCONF_DISABLE_POLICY] = cnf->disable_policy;
+	array[DEVCONF_NDISC_TCLASS] = cnf->ndisc_tclass;
 }
 
 static inline size_t inet6_ifla6_size(void)
@@ -5986,6 +5987,7 @@ int addrconf_sysctl_disable_policy(struct ctl_table *ctl, int write,
 }
 
 static int minus_one = -1;
+static const int zero = 0;
 static const int one = 1;
 static const int two_five_five = 255;
 
@@ -6355,6 +6357,15 @@ static const struct ctl_table addrconf_sysctl[] = {
 		.maxlen         = sizeof(int),
 		.mode           = 0644,
 		.proc_handler   = addrconf_sysctl_disable_policy,
+	},
+	{
+		.procname	= "ndisc_tclass",
+		.data		= &ipv6_devconf.ndisc_tclass,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= (void *)&zero,
+		.extra2		= (void *)&two_five_five,
 	},
 	{
 		/* sentinel */
