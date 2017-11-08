@@ -402,17 +402,17 @@ void __init vmem_map_init(void)
 
 	for_each_memblock(memory, reg)
 		vmem_add_mem(reg->base, reg->size);
-	__set_memory((unsigned long) _stext,
-		     (_etext - _stext) >> PAGE_SHIFT,
+	__set_memory((unsigned long)_stext,
+		     (unsigned long)(_etext - _stext) >> PAGE_SHIFT,
 		     SET_MEMORY_RO | SET_MEMORY_X);
-	__set_memory((unsigned long) _etext,
-		     (__end_rodata - _etext) >> PAGE_SHIFT,
+	__set_memory((unsigned long)_etext,
+		     (unsigned long)(__end_rodata - _etext) >> PAGE_SHIFT,
 		     SET_MEMORY_RO);
-	__set_memory((unsigned long) _sinittext,
-		     (_einittext - _sinittext) >> PAGE_SHIFT,
+	__set_memory((unsigned long)_sinittext,
+		     (unsigned long)(_einittext - _sinittext) >> PAGE_SHIFT,
 		     SET_MEMORY_RO | SET_MEMORY_X);
 	pr_info("Write protected kernel read-only data: %luk\n",
-		(__end_rodata - _stext) >> 10);
+		(unsigned long)(__end_rodata - _stext) >> 10);
 }
 
 /*
