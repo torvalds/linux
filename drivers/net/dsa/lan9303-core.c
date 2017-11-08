@@ -719,7 +719,7 @@ static int lan9303_alr_del_port(struct lan9303 *chip, const u8 *mac, int port)
 
 	entr->port_map &= ~BIT(port);
 	if (entr->port_map == 0) /* zero means its free again */
-		eth_zero_addr(&entr->port_map);
+		eth_zero_addr(entr->mac_addr);
 	lan9303_alr_set_entry(chip, mac, entr->port_map, entr->stp_override);
 
 	return 0;
