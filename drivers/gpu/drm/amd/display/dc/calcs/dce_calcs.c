@@ -2794,6 +2794,8 @@ bool bw_calcs(struct dc_context *ctx,
 {
 	struct bw_calcs_data *data = kzalloc(sizeof(struct bw_calcs_data),
 					     GFP_KERNEL);
+	if (!data)
+		return false;
 
 	populate_initial_data(pipe, pipe_count, data);
 
