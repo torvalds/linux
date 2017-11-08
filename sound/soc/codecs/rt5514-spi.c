@@ -147,8 +147,13 @@ done:
 
 static void rt5514_schedule_copy(struct rt5514_dsp *rt5514_dsp)
 {
+	size_t period_bytes;
 	u8 buf[8];
 
+	if (!rt5514_dsp->substream)
+		return;
+
+	period_bytes = snd_pcm_lib_period_bytes(rt5514_dsp->substream);
 	rt5514_dsp->get_size = 0;
 
 	/**
@@ -175,6 +180,10 @@ static void rt5514_schedule_copy(struct rt5514_dsp *rt5514_dsp)
 		rt5514_dsp->buf_rp = (rt5514_dsp->buf_rp / 8) * 8;
 
 	rt5514_dsp->buf_size = rt5514_dsp->buf_limit - rt5514_dsp->buf_base;
+
+	if (rt5514_dsp->buf_size % period_bytes)
+		rt5514_dsp->buf_size = (rt5514_dsp->buf_size / period_bytes) *
+			period_bytes;
 
 	if (rt5514_dsp->buf_base && rt5514_dsp->buf_limit &&
 		rt5514_dsp->buf_rp && rt5514_dsp->buf_size)
