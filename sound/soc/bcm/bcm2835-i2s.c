@@ -31,6 +31,7 @@
  * General Public License for more details.
  */
 
+#include <linux/bitops.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/device.h>
@@ -99,6 +100,8 @@
 #define BCM2835_I2S_CHWID(v)		(v)
 #define BCM2835_I2S_CH1(v)		((v) << 16)
 #define BCM2835_I2S_CH2(v)		(v)
+#define BCM2835_I2S_CH1_POS(v)		BCM2835_I2S_CH1(BCM2835_I2S_CHPOS(v))
+#define BCM2835_I2S_CH2_POS(v)		BCM2835_I2S_CH2(BCM2835_I2S_CHPOS(v))
 
 #define BCM2835_I2S_TX_PANIC(v)	((v) << 24)
 #define BCM2835_I2S_RX_PANIC(v)	((v) << 16)
@@ -110,12 +113,19 @@
 #define BCM2835_I2S_INT_RXR		BIT(1)
 #define BCM2835_I2S_INT_TXW		BIT(0)
 
+/* Frame length register is 10 bit, maximum length 1024 */
+#define BCM2835_I2S_MAX_FRAME_LENGTH	1024
+
 /* General device struct */
 struct bcm2835_i2s_dev {
 	struct device				*dev;
 	struct snd_dmaengine_dai_dma_data	dma_data[2];
 	unsigned int				fmt;
-	unsigned int				bclk_ratio;
+	unsigned int				tdm_slots;
+	unsigned int				rx_mask;
+	unsigned int				tx_mask;
+	unsigned int				slot_width;
+	unsigned int				frame_length;
 
 	struct regmap				*i2s_regmap;
 	struct clk				*clk;
@@ -225,8 +235,102 @@ static int bcm2835_i2s_set_dai_bclk_ratio(struct snd_soc_dai *dai,
 				      unsigned int ratio)
 {
 	struct bcm2835_i2s_dev *dev = snd_soc_dai_get_drvdata(dai);
-	dev->bclk_ratio = ratio;
+
+	if (!ratio) {
+		dev->tdm_slots = 0;
+		return 0;
+	}
+
+	if (ratio > BCM2835_I2S_MAX_FRAME_LENGTH)
+		return -EINVAL;
+
+	dev->tdm_slots = 2;
+	dev->rx_mask = 0x03;
+	dev->tx_mask = 0x03;
+	dev->slot_width = ratio / 2;
+	dev->frame_length = ratio;
+
 	return 0;
+}
+
+static int bcm2835_i2s_set_dai_tdm_slot(struct snd_soc_dai *dai,
+	unsigned int tx_mask, unsigned int rx_mask,
+	int slots, int width)
+{
+	struct bcm2835_i2s_dev *dev = snd_soc_dai_get_drvdata(dai);
+
+	if (slots) {
+		if (slots < 0 || width < 0)
+			return -EINVAL;
+
+		/* Limit masks to available slots */
+		rx_mask &= GENMASK(slots - 1, 0);
+		tx_mask &= GENMASK(slots - 1, 0);
+
+		/*
+		 * The driver is limited to 2-channel setups.
+		 * Check that exactly 2 bits are set in the masks.
+		 */
+		if (hweight_long((unsigned long) rx_mask) != 2
+		    || hweight_long((unsigned long) tx_mask) != 2)
+			return -EINVAL;
+
+		if (slots * width > BCM2835_I2S_MAX_FRAME_LENGTH)
+			return -EINVAL;
+	}
+
+	dev->tdm_slots = slots;
+
+	dev->rx_mask = rx_mask;
+	dev->tx_mask = tx_mask;
+	dev->slot_width = width;
+	dev->frame_length = slots * width;
+
+	return 0;
+}
+
+/*
+ * Convert logical slot number into physical slot number.
+ *
+ * If odd_offset is 0 sequential number is identical to logical number.
+ * This is used for DSP modes with slot numbering 0 1 2 3 ...
+ *
+ * Otherwise odd_offset defines the physical offset for odd numbered
+ * slots. This is used for I2S and left/right justified modes to
+ * translate from logical slot numbers 0 1 2 3 ... into physical slot
+ * numbers 0 2 ... 3 4 ...
+ */
+static int bcm2835_i2s_convert_slot(unsigned int slot, unsigned int odd_offset)
+{
+	if (!odd_offset)
+		return slot;
+
+	if (slot & 1)
+		return (slot >> 1) + odd_offset;
+
+	return slot >> 1;
+}
+
+/*
+ * Calculate channel position from mask and slot width.
+ *
+ * Mask must contain exactly 2 set bits.
+ * Lowest set bit is channel 1 position, highest set bit channel 2.
+ * The constant offset is added to both channel positions.
+ *
+ * If odd_offset is > 0 slot positions are translated to
+ * I2S-style TDM slot numbering ( 0 2 ... 3 4 ...) with odd
+ * logical slot numbers starting at physical slot odd_offset.
+ */
+static void bcm2835_i2s_calc_channel_pos(
+	unsigned int *ch1_pos, unsigned int *ch2_pos,
+	unsigned int mask, unsigned int width,
+	unsigned int bit_offset, unsigned int odd_offset)
+{
+	*ch1_pos = bcm2835_i2s_convert_slot((ffs(mask) - 1), odd_offset)
+			* width + bit_offset;
+	*ch2_pos = bcm2835_i2s_convert_slot((fls(mask) - 1), odd_offset)
+			* width + bit_offset;
 }
 
 static int bcm2835_i2s_hw_params(struct snd_pcm_substream *substream,
@@ -234,10 +338,14 @@ static int bcm2835_i2s_hw_params(struct snd_pcm_substream *substream,
 				 struct snd_soc_dai *dai)
 {
 	struct bcm2835_i2s_dev *dev = snd_soc_dai_get_drvdata(dai);
-	unsigned int sampling_rate = params_rate(params);
-	unsigned int data_length, data_delay, bclk_ratio;
-	unsigned int ch1pos, ch2pos, mode, format;
+	unsigned int data_length, data_delay, framesync_length;
+	unsigned int slots, slot_width, odd_slot_offset;
+	int frame_length, bclk_rate;
+	unsigned int rx_mask, tx_mask;
+	unsigned int rx_ch1_pos, rx_ch2_pos, tx_ch1_pos, tx_ch2_pos;
+	unsigned int mode, format;
 	uint32_t csreg;
+	int ret = 0;
 
 	/*
 	 * If a stream is already enabled,
@@ -248,39 +356,44 @@ static int bcm2835_i2s_hw_params(struct snd_pcm_substream *substream,
 	if (csreg & (BCM2835_I2S_TXON | BCM2835_I2S_RXON))
 		return 0;
 
-	/*
-	 * Adjust the data length according to the format.
-	 * We prefill the half frame length with an integer
-	 * divider of 2400 as explained at the clock settings.
-	 * Maybe it is overwritten there, if the Integer mode
-	 * does not apply.
-	 */
-	switch (params_format(params)) {
-	case SNDRV_PCM_FORMAT_S16_LE:
-		data_length = 16;
-		break;
-	case SNDRV_PCM_FORMAT_S24_LE:
-		data_length = 24;
-		break;
-	case SNDRV_PCM_FORMAT_S32_LE:
-		data_length = 32;
-		break;
-	default:
-		return -EINVAL;
+	data_length = params_width(params);
+	data_delay = 0;
+	odd_slot_offset = 0;
+	mode = 0;
+
+	if (dev->tdm_slots) {
+		slots = dev->tdm_slots;
+		slot_width = dev->slot_width;
+		frame_length = dev->frame_length;
+		rx_mask = dev->rx_mask;
+		tx_mask = dev->tx_mask;
+		bclk_rate = dev->frame_length * params_rate(params);
+	} else {
+		slots = 2;
+		slot_width = params_width(params);
+		rx_mask = 0x03;
+		tx_mask = 0x03;
+
+		frame_length = snd_soc_params_to_frame_size(params);
+		if (frame_length < 0)
+			return frame_length;
+
+		bclk_rate = snd_soc_params_to_bclk(params);
+		if (bclk_rate < 0)
+			return bclk_rate;
 	}
 
-	/* If bclk_ratio already set, use that one. */
-	if (dev->bclk_ratio)
-		bclk_ratio = dev->bclk_ratio;
-	else
-		/* otherwise calculate a fitting block ratio */
-		bclk_ratio = 2 * data_length;
+	/* Check if data fits into slots */
+	if (data_length > slot_width)
+		return -EINVAL;
 
 	/* Clock should only be set up here if CPU is clock master */
 	switch (dev->fmt & SND_SOC_DAIFMT_MASTER_MASK) {
 	case SND_SOC_DAIFMT_CBS_CFS:
 	case SND_SOC_DAIFMT_CBS_CFM:
-		clk_set_rate(dev->clk, sampling_rate * bclk_ratio);
+		ret = clk_set_rate(dev->clk, bclk_rate);
+		if (ret)
+			return ret;
 		break;
 	default:
 		break;
@@ -294,9 +407,26 @@ static int bcm2835_i2s_hw_params(struct snd_pcm_substream *substream,
 
 	format |= BCM2835_I2S_CHWID((data_length-8)&0xf);
 
+	/* CH2 format is the same as for CH1 */
+	format = BCM2835_I2S_CH1(format) | BCM2835_I2S_CH2(format);
+
 	switch (dev->fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_I2S:
+		/* I2S mode needs an even number of slots */
+		if (slots & 1)
+			return -EINVAL;
+
+		/*
+		 * Use I2S-style logical slot numbering: even slots
+		 * are in first half of frame, odd slots in second half.
+		 */
+		odd_slot_offset = slots >> 1;
+
+		/* MSB starts one cycle after frame start */
 		data_delay = 1;
+
+		/* Setup frame sync signal for 50% duty cycle */
+		framesync_length = frame_length / 2;
 		break;
 	default:
 		/*
@@ -307,18 +437,10 @@ static int bcm2835_i2s_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
-	ch1pos = data_delay;
-	ch2pos = bclk_ratio / 2 + data_delay;
-
-	switch (params_channels(params)) {
-	case 2:
-		format = BCM2835_I2S_CH1(format) | BCM2835_I2S_CH2(format);
-		format |= BCM2835_I2S_CH1(BCM2835_I2S_CHPOS(ch1pos));
-		format |= BCM2835_I2S_CH2(BCM2835_I2S_CHPOS(ch2pos));
-		break;
-	default:
-		return -EINVAL;
-	}
+	bcm2835_i2s_calc_channel_pos(&rx_ch1_pos, &rx_ch2_pos,
+		rx_mask, slot_width, data_delay, odd_slot_offset);
+	bcm2835_i2s_calc_channel_pos(&tx_ch1_pos, &tx_ch2_pos,
+		tx_mask, slot_width, data_delay, odd_slot_offset);
 
 	/*
 	 * Set format for both streams.
@@ -326,11 +448,16 @@ static int bcm2835_i2s_hw_params(struct snd_pcm_substream *substream,
 	 * (and therefore word length) anyway,
 	 * so the format will be the same.
 	 */
-	regmap_write(dev->i2s_regmap, BCM2835_I2S_RXC_A_REG, format);
-	regmap_write(dev->i2s_regmap, BCM2835_I2S_TXC_A_REG, format);
+	regmap_write(dev->i2s_regmap, BCM2835_I2S_RXC_A_REG, 
+		  format
+		| BCM2835_I2S_CH1_POS(rx_ch1_pos)
+		| BCM2835_I2S_CH2_POS(rx_ch2_pos));
+	regmap_write(dev->i2s_regmap, BCM2835_I2S_TXC_A_REG, 
+		  format
+		| BCM2835_I2S_CH1_POS(tx_ch1_pos)
+		| BCM2835_I2S_CH2_POS(tx_ch2_pos));
 
 	/* Setup the I2S mode */
-	mode = 0;
 
 	if (data_length <= 16) {
 		/*
@@ -342,8 +469,8 @@ static int bcm2835_i2s_hw_params(struct snd_pcm_substream *substream,
 		mode |= BCM2835_I2S_FTXP | BCM2835_I2S_FRXP;
 	}
 
-	mode |= BCM2835_I2S_FLEN(bclk_ratio - 1);
-	mode |= BCM2835_I2S_FSLEN(bclk_ratio / 2);
+	mode |= BCM2835_I2S_FLEN(frame_length - 1);
+	mode |= BCM2835_I2S_FSLEN(framesync_length);
 
 	/* Master or slave? */
 	switch (dev->fmt & SND_SOC_DAIFMT_MASTER_MASK) {
@@ -423,7 +550,20 @@ static int bcm2835_i2s_hw_params(struct snd_pcm_substream *substream,
 	/* Clear FIFOs */
 	bcm2835_i2s_clear_fifos(dev, true, true);
 
-	return 0;
+	dev_dbg(dev->dev,
+		"slots: %d width: %d rx mask: 0x%02x tx_mask: 0x%02x\n",
+		slots, slot_width, rx_mask, tx_mask);
+
+	dev_dbg(dev->dev, "frame len: %d sync len: %d data len: %d\n",
+		frame_length, framesync_length, data_length);
+
+	dev_dbg(dev->dev, "rx pos: %d,%d tx pos: %d,%d\n",
+		rx_ch1_pos, rx_ch2_pos, tx_ch1_pos, tx_ch2_pos);
+
+	dev_dbg(dev->dev, "sampling rate: %d bclk rate: %d\n",
+		params_rate(params), bclk_rate);
+
+	return ret;
 }
 
 static int bcm2835_i2s_prepare(struct snd_pcm_substream *substream,
@@ -559,6 +699,7 @@ static const struct snd_soc_dai_ops bcm2835_i2s_dai_ops = {
 	.hw_params	= bcm2835_i2s_hw_params,
 	.set_fmt	= bcm2835_i2s_set_dai_fmt,
 	.set_bclk_ratio	= bcm2835_i2s_set_dai_bclk_ratio,
+	.set_tdm_slot	= bcm2835_i2s_set_dai_tdm_slot,
 };
 
 static int bcm2835_i2s_dai_probe(struct snd_soc_dai *dai)
@@ -698,9 +839,6 @@ static int bcm2835_i2s_probe(struct platform_device *pdev)
 		SND_DMAENGINE_PCM_DAI_FLAG_PACK;
 	dev->dma_data[SNDRV_PCM_STREAM_CAPTURE].flags =
 		SND_DMAENGINE_PCM_DAI_FLAG_PACK;
-
-	/* BCLK ratio - use default */
-	dev->bclk_ratio = 0;
 
 	/* Store the pdev */
 	dev->dev = &pdev->dev;
