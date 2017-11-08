@@ -138,23 +138,13 @@ static int bcm2835_rng_probe(struct platform_device *pdev)
 		rng_setup(priv->base);
 
 	/* register driver */
-	err = hwrng_register(&priv->rng);
+	err = devm_hwrng_register(dev, &priv->rng);
 	if (err)
 		dev_err(dev, "hwrng registration failed\n");
 	else
 		dev_info(dev, "hwrng registered\n");
 
 	return err;
-}
-
-static int bcm2835_rng_remove(struct platform_device *pdev)
-{
-	struct bcm2835_rng_priv *priv = platform_get_drvdata(pdev);
-
-	/* unregister driver */
-	hwrng_unregister(&priv->rng);
-
-	return 0;
 }
 
 MODULE_DEVICE_TABLE(of, bcm2835_rng_of_match);
@@ -165,7 +155,6 @@ static struct platform_driver bcm2835_rng_driver = {
 		.of_match_table = bcm2835_rng_of_match,
 	},
 	.probe		= bcm2835_rng_probe,
-	.remove		= bcm2835_rng_remove,
 };
 module_platform_driver(bcm2835_rng_driver);
 
