@@ -909,82 +909,6 @@ static int tegra_dc_add_planes(struct drm_device *drm, struct tegra_dc *dc)
 	return 0;
 }
 
-static u32 tegra_dc_get_vblank_counter(struct drm_crtc *crtc)
-{
-	struct tegra_dc *dc = to_tegra_dc(crtc);
-
-	if (dc->syncpt)
-		return host1x_syncpt_read(dc->syncpt);
-
-	/* fallback to software emulated VBLANK counter */
-	return drm_crtc_vblank_count(&dc->base);
-}
-
-static int tegra_dc_enable_vblank(struct drm_crtc *crtc)
-{
-	struct tegra_dc *dc = to_tegra_dc(crtc);
-	unsigned long value, flags;
-
-	spin_lock_irqsave(&dc->lock, flags);
-
-	value = tegra_dc_readl(dc, DC_CMD_INT_MASK);
-	value |= VBLANK_INT;
-	tegra_dc_writel(dc, value, DC_CMD_INT_MASK);
-
-	spin_unlock_irqrestore(&dc->lock, flags);
-
-	return 0;
-}
-
-static void tegra_dc_disable_vblank(struct drm_crtc *crtc)
-{
-	struct tegra_dc *dc = to_tegra_dc(crtc);
-	unsigned long value, flags;
-
-	spin_lock_irqsave(&dc->lock, flags);
-
-	value = tegra_dc_readl(dc, DC_CMD_INT_MASK);
-	value &= ~VBLANK_INT;
-	tegra_dc_writel(dc, value, DC_CMD_INT_MASK);
-
-	spin_unlock_irqrestore(&dc->lock, flags);
-}
-
-static void tegra_dc_finish_page_flip(struct tegra_dc *dc)
-{
-	struct drm_device *drm = dc->base.dev;
-	struct drm_crtc *crtc = &dc->base;
-	unsigned long flags, base;
-	struct tegra_bo *bo;
-
-	spin_lock_irqsave(&drm->event_lock, flags);
-
-	if (!dc->event) {
-		spin_unlock_irqrestore(&drm->event_lock, flags);
-		return;
-	}
-
-	bo = tegra_fb_get_plane(crtc->primary->fb, 0);
-
-	spin_lock(&dc->lock);
-
-	/* check if new start address has been latched */
-	tegra_dc_writel(dc, WINDOW_A_SELECT, DC_CMD_DISPLAY_WINDOW_HEADER);
-	tegra_dc_writel(dc, READ_MUX, DC_CMD_STATE_ACCESS);
-	base = tegra_dc_readl(dc, DC_WINBUF_START_ADDR);
-	tegra_dc_writel(dc, 0, DC_CMD_STATE_ACCESS);
-
-	spin_unlock(&dc->lock);
-
-	if (base == bo->paddr + crtc->primary->fb->offsets[0]) {
-		drm_crtc_send_vblank_event(crtc, dc->event);
-		drm_crtc_vblank_put(crtc);
-		dc->event = NULL;
-	}
-
-	spin_unlock_irqrestore(&drm->event_lock, flags);
-}
-
 static void tegra_dc_destroy(struct drm_crtc *crtc)
 {
 	drm_crtc_cleanup(crtc);
@@ -1033,6 +957,47 @@ static void tegra_crtc_atomic_destroy_state(struct drm_crtc *crtc,
 {
 	__drm_atomic_helper_crtc_destroy_state(state);
 	kfree(state);
+}
+
+static u32 tegra_dc_get_vblank_counter(struct drm_crtc *crtc)
+{
+	struct tegra_dc *dc = to_tegra_dc(crtc);
+
+	if (dc->syncpt)
+		return host1x_syncpt_read(dc->syncpt);
+
+	/* fallback to software emulated VBLANK counter */
+	return drm_crtc_vblank_count(&dc->base);
+}
+
+static int tegra_dc_enable_vblank(struct drm_crtc *crtc)
+{
+	struct tegra_dc *dc = to_tegra_dc(crtc);
+	unsigned long value, flags;
+
+	spin_lock_irqsave(&dc->lock, flags);
+
+	value = tegra_dc_readl(dc, DC_CMD_INT_MASK);
+	value |= VBLANK_INT;
+	tegra_dc_writel(dc, value, DC_CMD_INT_MASK);
+
+	spin_unlock_irqrestore(&dc->lock, flags);
+
+	return 0;
+}
+
+static void tegra_dc_disable_vblank(struct drm_crtc *crtc)
+{
+	struct tegra_dc *dc = to_tegra_dc(crtc);
+	unsigned long value, flags;
+
+	spin_lock_irqsave(&dc->lock, flags);
+
+	value = tegra_dc_readl(dc, DC_CMD_INT_MASK);
+	value &= ~VBLANK_INT;
+	tegra_dc_writel(dc, value, DC_CMD_INT_MASK);
+
+	spin_unlock_irqrestore(&dc->lock, flags);
 }
 
 static const struct drm_crtc_funcs tegra_crtc_funcs = {
@@ -1341,6 +1306,41 @@ static const struct drm_crtc_helper_funcs tegra_crtc_helper_funcs = {
 	.atomic_enable = tegra_crtc_atomic_enable,
 	.atomic_disable = tegra_crtc_atomic_disable,
 };
+
+static void tegra_dc_finish_page_flip(struct tegra_dc *dc)
+{
+	struct drm_device *drm = dc->base.dev;
+	struct drm_crtc *crtc = &dc->base;
+	unsigned long flags, base;
+	struct tegra_bo *bo;
+
+	spin_lock_irqsave(&drm->event_lock, flags);
+
+	if (!dc->event) {
+		spin_unlock_irqrestore(&drm->event_lock, flags);
+		return;
+	}
+
+	bo = tegra_fb_get_plane(crtc->primary->fb, 0);
+
+	spin_lock(&dc->lock);
+
+	/* check if new start address has been latched */
+	tegra_dc_writel(dc, WINDOW_A_SELECT, DC_CMD_DISPLAY_WINDOW_HEADER);
+	tegra_dc_writel(dc, READ_MUX, DC_CMD_STATE_ACCESS);
+	base = tegra_dc_readl(dc, DC_WINBUF_START_ADDR);
+	tegra_dc_writel(dc, 0, DC_CMD_STATE_ACCESS);
+
+	spin_unlock(&dc->lock);
+
+	if (base == bo->paddr + crtc->primary->fb->offsets[0]) {
+		drm_crtc_send_vblank_event(crtc, dc->event);
+		drm_crtc_vblank_put(crtc);
+		dc->event = NULL;
+	}
+
+	spin_unlock_irqrestore(&drm->event_lock, flags);
+}
 
 static irqreturn_t tegra_dc_irq(int irq, void *data)
 {
