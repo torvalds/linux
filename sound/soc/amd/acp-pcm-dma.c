@@ -40,6 +40,8 @@
 #define ST_MAX_BUFFER (ST_PLAYBACK_MAX_PERIOD_SIZE * PLAYBACK_MAX_NUM_PERIODS)
 #define ST_MIN_BUFFER ST_MAX_BUFFER
 
+#define DRV_NAME "acp_audio_dma"
+
 static const struct snd_pcm_hardware acp_pcm_hardware_playback = {
 	.info = SNDRV_PCM_INFO_INTERLEAVED |
 		SNDRV_PCM_INFO_BLOCK_TRANSFER | SNDRV_PCM_INFO_MMAP |
@@ -1189,7 +1191,7 @@ static struct platform_driver acp_dma_driver = {
 	.probe = acp_audio_probe,
 	.remove = acp_audio_remove,
 	.driver = {
-		.name = "acp_audio_dma",
+		.name = DRV_NAME,
 		.pm = &acp_pm_ops,
 	},
 };
@@ -1200,4 +1202,4 @@ MODULE_AUTHOR("Vijendar.Mukunda@amd.com");
 MODULE_AUTHOR("Maruthi.Bayyavarapu@amd.com");
 MODULE_DESCRIPTION("AMD ACP PCM Driver");
 MODULE_LICENSE("GPL v2");
-MODULE_ALIAS("platform:acp-dma-audio");
+MODULE_ALIAS("platform:"DRV_NAME);
