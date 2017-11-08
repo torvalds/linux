@@ -72,6 +72,17 @@ static int bcm2835_rng_read(struct hwrng *rng, void *buf, size_t max,
 	return num_words * sizeof(u32);
 }
 
+static int bcm2835_rng_init(struct hwrng *rng)
+{
+	struct bcm2835_rng_priv *priv = to_rng_priv(rng);
+
+	/* set warm-up count & enable */
+	__raw_writel(RNG_WARMUP_COUNT, priv->base + RNG_STATUS);
+	__raw_writel(RNG_RBGEN, priv->base + RNG_CTRL);
+
+	return 0;
+}
+
 static const struct of_device_id bcm2835_rng_of_match[] = {
 	{ .compatible = "brcm,bcm2835-rng"},
 	{ .compatible = "brcm,bcm-nsp-rng", .data = nsp_rng_init},
@@ -105,6 +116,7 @@ static int bcm2835_rng_probe(struct platform_device *pdev)
 	}
 
 	priv->rng.name = "bcm2835-rng";
+	priv->rng.init = bcm2835_rng_init;
 	priv->rng.read = bcm2835_rng_read;
 
 	rng_id = of_match_node(bcm2835_rng_of_match, np);
@@ -115,10 +127,6 @@ static int bcm2835_rng_probe(struct platform_device *pdev)
 	rng_setup = rng_id->data;
 	if (rng_setup)
 		rng_setup(priv->base);
-
-	/* set warm-up count & enable */
-	__raw_writel(RNG_WARMUP_COUNT, priv->base + RNG_STATUS);
-	__raw_writel(RNG_RBGEN, priv->base + RNG_CTRL);
 
 	/* register driver */
 	err = hwrng_register(&priv->rng);
