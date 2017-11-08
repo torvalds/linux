@@ -254,7 +254,6 @@
 #define		CODA9_STD_H264					0
 #define		CODA_STD_H263					1
 #define		CODA_STD_H264					2
-#define		CODA_STD_MJPG					3
 #define		CODA9_STD_MPEG4					3
 
 #define CODA_CMD_ENC_SEQ_SRC_SIZE				0x190
