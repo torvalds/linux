@@ -1190,7 +1190,7 @@ static void __meminit __init_single_pfn(unsigned long pfn, unsigned long zone,
 }
 
 #ifdef CONFIG_DEFERRED_STRUCT_PAGE_INIT
-static void init_reserved_page(unsigned long pfn)
+static void __meminit init_reserved_page(unsigned long pfn)
 {
 	pg_data_t *pgdat;
 	int nid, zid;
@@ -5367,6 +5367,7 @@ not_early:
 
 			__init_single_page(page, pfn, zone, nid);
 			set_pageblock_migratetype(page, MIGRATE_MOVABLE);
+			cond_resched();
 		} else {
 			__init_single_pfn(pfn, zone, nid);
 		}

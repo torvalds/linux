@@ -564,8 +564,8 @@ static int iwl_mvm_get_ctrl_vif_queue(struct iwl_mvm *mvm,
 	case NL80211_IFTYPE_AP:
 	case NL80211_IFTYPE_ADHOC:
 		/*
-		 * Handle legacy hostapd as well, where station will be added
-		 * only just before sending the association response.
+		 * Non-bufferable frames use the broadcast station, thus they
+		 * use the probe queue.
 		 * Also take care of the case where we send a deauth to a
 		 * station that we don't have, or similarly an association
 		 * response (with non-success status) for a station we can't
@@ -573,9 +573,9 @@ static int iwl_mvm_get_ctrl_vif_queue(struct iwl_mvm *mvm,
 		 * Also, disassociate frames might happen, particular with
 		 * reason 7 ("Class 3 frame received from nonassociated STA").
 		 */
-		if (ieee80211_is_probe_resp(fc) || ieee80211_is_auth(fc) ||
-		    ieee80211_is_deauth(fc) || ieee80211_is_assoc_resp(fc) ||
-		    ieee80211_is_disassoc(fc))
+		if (ieee80211_is_mgmt(fc) &&
+		    (!ieee80211_is_bufferable_mmpdu(fc) ||
+		     ieee80211_is_deauth(fc) || ieee80211_is_disassoc(fc)))
 			return mvm->probe_queue;
 		if (info->hw_queue == info->control.vif->cab_queue)
 			return mvmvif->cab_queue;

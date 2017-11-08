@@ -3854,6 +3854,9 @@ static int rtnl_fill_statsinfo(struct sk_buff *skb, struct net_device *dev,
 		return -EMSGSIZE;
 
 	ifsm = nlmsg_data(nlh);
+	ifsm->family = PF_UNSPEC;
+	ifsm->pad1 = 0;
+	ifsm->pad2 = 0;
 	ifsm->ifindex = dev->ifindex;
 	ifsm->filter_mask = filter_mask;
 

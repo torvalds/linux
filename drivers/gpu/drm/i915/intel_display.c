@@ -12359,7 +12359,6 @@ static void intel_atomic_commit_tail(struct drm_atomic_state *state)
 	struct drm_crtc_state *old_crtc_state, *new_crtc_state;
 	struct drm_crtc *crtc;
 	struct intel_crtc_state *intel_cstate;
-	bool hw_check = intel_state->modeset;
 	u64 put_domains[I915_MAX_PIPES] = {};
 	unsigned crtc_vblank_mask = 0;
 	int i;
@@ -12376,7 +12375,6 @@ static void intel_atomic_commit_tail(struct drm_atomic_state *state)
 
 		if (needs_modeset(new_crtc_state) ||
 		    to_intel_crtc_state(new_crtc_state)->update_pipe) {
-			hw_check = true;
 
 			put_domains[to_intel_crtc(crtc)->pipe] =
 				modeset_get_crtc_power_domains(crtc,

@@ -468,7 +468,9 @@ static inline int may_write_real(struct file *file)
 
 	/* File refers to upper, writable layer? */
 	upperdentry = d_real(dentry, NULL, 0, D_REAL_UPPER);
-	if (upperdentry && file_inode(file) == d_inode(upperdentry))
+	if (upperdentry &&
+	    (file_inode(file) == d_inode(upperdentry) ||
+	     file_inode(file) == d_inode(dentry)))
 		return 0;
 
 	/* Lower layer: can't write to real file, sorry... */

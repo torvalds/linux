@@ -734,12 +734,13 @@ static int __choose_mds(struct ceph_mds_client *mdsc,
 			inode = req->r_inode;
 			ihold(inode);
 		} else {
-			/* req->r_dentry is non-null for LSSNAP request.
-			 * fall-thru */
-			WARN_ON_ONCE(!req->r_dentry);
+			/* req->r_dentry is non-null for LSSNAP request */
+			rcu_read_lock();
+			inode = get_nonsnap_parent(req->r_dentry);
+			rcu_read_unlock();
+			dout("__choose_mds using snapdir's parent %p\n", inode);
 		}
-	}
-	if (!inode && req->r_dentry) {
+	} else if (req->r_dentry) {
 		/* ignore race with rename; old or new d_parent is okay */
 		struct dentry *parent;
 		struct inode *dir;

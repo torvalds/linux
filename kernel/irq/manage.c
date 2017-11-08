@@ -1643,6 +1643,10 @@ const void *free_irq(unsigned int irq, void *dev_id)
 #endif
 
 	action = __free_irq(irq, dev_id);
+
+	if (!action)
+		return NULL;
+
 	devname = action->name;
 	kfree(action);
 	return devname;

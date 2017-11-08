@@ -403,7 +403,7 @@ struct address_space {
 	unsigned long		flags;		/* error bits */
 	spinlock_t		private_lock;	/* for use by the address_space */
 	gfp_t			gfp_mask;	/* implicit gfp mask for allocations */
-	struct list_head	private_list;	/* ditto */
+	struct list_head	private_list;	/* for use by the address_space */
 	void			*private_data;	/* ditto */
 	errseq_t		wb_err;
 } __attribute__((aligned(sizeof(long)))) __randomize_layout;

@@ -581,8 +581,7 @@ static int acpi_dev_pm_get_state(struct device *dev, struct acpi_device *adev,
 		d_min = ret;
 		wakeup = device_may_wakeup(dev) && adev->wakeup.flags.valid
 			&& adev->wakeup.sleep_state >= target_state;
-	} else if (dev_pm_qos_flags(dev, PM_QOS_FLAG_REMOTE_WAKEUP) !=
-			PM_QOS_FLAGS_NONE) {
+	} else {
 		wakeup = adev->wakeup.flags.valid;
 	}
 
@@ -865,8 +864,7 @@ int acpi_dev_runtime_suspend(struct device *dev)
 	if (!adev)
 		return 0;
 
-	remote_wakeup = dev_pm_qos_flags(dev, PM_QOS_FLAG_REMOTE_WAKEUP) >
-				PM_QOS_FLAGS_NONE;
+	remote_wakeup = acpi_device_can_wakeup(adev);
 	if (remote_wakeup) {
 		error = acpi_device_wakeup_enable(adev, ACPI_STATE_S0);
 		if (error)
