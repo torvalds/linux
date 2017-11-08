@@ -77,8 +77,8 @@ struct netem_sched_data {
 
 	struct qdisc_watchdog watchdog;
 
-	psched_tdiff_t latency;
-	psched_tdiff_t jitter;
+	s64 latency;
+	s64 jitter;
 
 	u32 loss;
 	u32 ecn;
@@ -145,7 +145,7 @@ struct netem_sched_data {
  * we save skb->tstamp value in skb->cb[] before destroying it.
  */
 struct netem_skb_cb {
-	psched_time_t	time_to_send;
+	u64	        time_to_send;
 };
 
 static inline struct netem_skb_cb *netem_skb_cb(struct sk_buff *skb)
@@ -305,11 +305,11 @@ static bool loss_event(struct netem_sched_data *q)
  * std deviation sigma.  Uses table lookup to approximate the desired
  * distribution, and a uniformly-distributed pseudo-random source.
  */
-static psched_tdiff_t tabledist(psched_tdiff_t mu, psched_tdiff_t sigma,
-				struct crndstate *state,
-				const struct disttable *dist)
+static s64 tabledist(s64 mu, s64 sigma,
+		     struct crndstate *state,
+			 const struct disttable *dist)
 {
-	psched_tdiff_t x;
+	s64 x;
 	long t;
 	u32 rnd;
 
@@ -332,10 +332,10 @@ static psched_tdiff_t tabledist(psched_tdiff_t mu, psched_tdiff_t sigma,
 	return  x / NETEM_DIST_SCALE + (sigma / NETEM_DIST_SCALE) * t + mu;
 }
 
-static psched_time_t packet_len_2_sched_time(unsigned int len, struct netem_sched_data *q)
+static u64 packet_len_2_sched_time(unsigned int len,
+				   struct netem_sched_data *q)
 {
-	u64 ticks;
-
+	u64 offset;
 	len += q->packet_overhead;
 
 	if (q->cell_size) {
@@ -345,11 +345,9 @@ static psched_time_t packet_len_2_sched_time(unsigned int len, struct netem_sche
 			cells++;
 		len = cells * (q->cell_size + q->cell_overhead);
 	}
-
-	ticks = (u64)len * NSEC_PER_SEC;
-
-	do_div(ticks, q->rate);
-	return PSCHED_NS2TICKS(ticks);
+	offset = (u64)len * NSEC_PER_SEC;
+	do_div(offset, q->rate);
+	return offset;
 }
 
 static void tfifo_reset(struct Qdisc *sch)
@@ -369,7 +367,7 @@ static void tfifo_reset(struct Qdisc *sch)
 static void tfifo_enqueue(struct sk_buff *nskb, struct Qdisc *sch)
 {
 	struct netem_sched_data *q = qdisc_priv(sch);
-	psched_time_t tnext = netem_skb_cb(nskb)->time_to_send;
+	u64 tnext = netem_skb_cb(nskb)->time_to_send;
 	struct rb_node **p = &q->t_root.rb_node, *parent = NULL;
 
 	while (*p) {
@@ -515,13 +513,13 @@ static int netem_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 	if (q->gap == 0 ||		/* not doing reordering */
 	    q->counter < q->gap - 1 ||	/* inside last reordering gap */
 	    q->reorder < get_crandom(&q->reorder_cor)) {
-		psched_time_t now;
-		psched_tdiff_t delay;
+		u64 now;
+		s64 delay;
 
 		delay = tabledist(q->latency, q->jitter,
 				  &q->delay_cor, q->delay_dist);
 
-		now = psched_get_time();
+		now = ktime_get_ns();
 
 		if (q->rate) {
 			struct netem_skb_cb *last = NULL;
@@ -547,7 +545,7 @@ static int netem_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 				 * from delay.
 				 */
 				delay -= last->time_to_send - now;
-				delay = max_t(psched_tdiff_t, 0, delay);
+				delay = max_t(s64, 0, delay);
 				now = last->time_to_send;
 			}
 
@@ -562,7 +560,7 @@ static int netem_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 		 * Do re-ordering by putting one out of N packets at the front
 		 * of the queue.
 		 */
-		cb->time_to_send = psched_get_time();
+		cb->time_to_send = ktime_get_ns();
 		q->counter = 0;
 
 		netem_enqueue_skb_head(&sch->q, skb);
@@ -609,13 +607,13 @@ deliver:
 	}
 	p = rb_first(&q->t_root);
 	if (p) {
-		psched_time_t time_to_send;
+		u64 time_to_send;
 
 		skb = rb_to_skb(p);
 
 		/* if more time remaining? */
 		time_to_send = netem_skb_cb(skb)->time_to_send;
-		if (time_to_send <= psched_get_time()) {
+		if (time_to_send <= ktime_get_ns()) {
 			rb_erase(p, &q->t_root);
 
 			sch->q.qlen--;
@@ -659,7 +657,7 @@ deliver:
 			if (skb)
 				goto deliver;
 		}
-		qdisc_watchdog_schedule(&q->watchdog, time_to_send);
+		qdisc_watchdog_schedule_ns(&q->watchdog, time_to_send);
 	}
 
 	if (q->qdisc) {
@@ -888,8 +886,8 @@ static int netem_change(struct Qdisc *sch, struct nlattr *opt)
 
 	sch->limit = qopt->limit;
 
-	q->latency = qopt->latency;
-	q->jitter = qopt->jitter;
+	q->latency = PSCHED_TICKS2NS(qopt->latency);
+	q->jitter = PSCHED_TICKS2NS(qopt->jitter);
 	q->limit = qopt->limit;
 	q->gap = qopt->gap;
 	q->counter = 0;
@@ -1011,8 +1009,10 @@ static int netem_dump(struct Qdisc *sch, struct sk_buff *skb)
 	struct tc_netem_corrupt corrupt;
 	struct tc_netem_rate rate;
 
-	qopt.latency = q->latency;
-	qopt.jitter = q->jitter;
+	qopt.latency = min_t(psched_tdiff_t, PSCHED_NS2TICKS(q->latency),
+			     UINT_MAX);
+	qopt.jitter = min_t(psched_tdiff_t, PSCHED_NS2TICKS(q->jitter),
+			    UINT_MAX);
 	qopt.limit = q->limit;
 	qopt.loss = q->loss;
 	qopt.gap = q->gap;
