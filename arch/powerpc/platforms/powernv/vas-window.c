@@ -726,7 +726,10 @@ static void init_winctx_for_rxwin(struct vas_window *rxwin,
 static bool rx_win_args_valid(enum vas_cop_type cop,
 			struct vas_rx_win_attr *attr)
 {
-	dump_rx_win_attr(attr);
+	pr_debug("Rxattr: fault %d, notify %d, intr %d, early %d, fifo %d\n",
+			attr->fault_win, attr->notify_disable,
+			attr->intr_disable, attr->notify_early,
+			attr->rx_fifo_size);
 
 	if (cop >= VAS_COP_TYPE_MAX)
 		return false;
@@ -1050,7 +1053,8 @@ int vas_paste_crb(struct vas_window *txwin, int offset, bool re)
 	else
 		rc = -EINVAL;
 
-	print_fifo_msg_count(txwin);
+	pr_debug("Txwin #%d: Msg count %llu\n", txwin->winid,
+			read_hvwc_reg(txwin, VREG(LRFIFO_PUSH)));
 
 	return rc;
 }
