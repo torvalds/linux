@@ -1,10 +1,12 @@
 config SND_SOC_INTEL_MACH
 	tristate "Intel Audio machine drivers"
+	depends on SND_SOC_INTEL_SST_TOPLEVEL
 	select SND_SOC_ACPI_INTEL_MATCH if ACPI
+
+if SND_SOC_INTEL_MACH
 
 config SND_MFLD_MACHINE
 	tristate "SOC Machine Audio driver for Intel Medfield MID platform"
-	depends on SND_SOC_INTEL_MACH
 	depends on INTEL_SCU_IPC
 	select SND_SOC_SN95031
 	depends on SND_SST_ATOM_HIFI2_PLATFORM
@@ -17,7 +19,6 @@ config SND_MFLD_MACHINE
 
 config SND_SOC_INTEL_HASWELL_MACH
 	tristate "ASoC Audio DSP support for Intel Haswell Lynxpoint"
-	depends on SND_SOC_INTEL_MACH
 	depends on X86_INTEL_LPSS && I2C && I2C_DESIGNWARE_PLATFORM
 	depends on SND_SOC_INTEL_HASWELL
 	select SND_SOC_RT5640
@@ -29,7 +30,6 @@ config SND_SOC_INTEL_HASWELL_MACH
 
 config SND_SOC_INTEL_BDW_RT5677_MACH
 	tristate "ASoC Audio driver for Intel Broadwell with RT5677 codec"
-	depends on SND_SOC_INTEL_MACH
 	depends on X86_INTEL_LPSS && GPIOLIB && I2C
 	depends on SND_SOC_INTEL_HASWELL
 	select SND_SOC_RT5677
@@ -39,7 +39,6 @@ config SND_SOC_INTEL_BDW_RT5677_MACH
 
 config SND_SOC_INTEL_BROADWELL_MACH
 	tristate "ASoC Audio DSP support for Intel Broadwell Wildcatpoint"
-	depends on SND_SOC_INTEL_MACH
 	depends on X86_INTEL_LPSS && I2C && I2C_DESIGNWARE_PLATFORM
 	depends on SND_SOC_INTEL_HASWELL
 	select SND_SOC_RT286
@@ -51,7 +50,6 @@ config SND_SOC_INTEL_BROADWELL_MACH
 
 config SND_SOC_INTEL_BYT_MAX98090_MACH
 	tristate "ASoC Audio driver for Intel Baytrail with MAX98090 codec"
-	depends on SND_SOC_INTEL_MACH
 	depends on X86_INTEL_LPSS && I2C
 	depends on SND_SST_IPC_ACPI = n
 	depends on SND_SOC_INTEL_BAYTRAIL
@@ -62,7 +60,6 @@ config SND_SOC_INTEL_BYT_MAX98090_MACH
 
 config SND_SOC_INTEL_BYT_RT5640_MACH
 	tristate "ASoC Audio driver for Intel Baytrail with RT5640 codec"
-	depends on SND_SOC_INTEL_MACH
 	depends on X86_INTEL_LPSS && I2C
 	depends on SND_SST_IPC_ACPI = n
 	depends on SND_SOC_INTEL_BAYTRAIL
@@ -74,7 +71,6 @@ config SND_SOC_INTEL_BYT_RT5640_MACH
 
 config SND_SOC_INTEL_BYTCR_RT5640_MACH
         tristate "ASoC Audio driver for Intel Baytrail and Baytrail-CR with RT5640 codec"
-	depends on SND_SOC_INTEL_MACH
 	depends on X86 && I2C && ACPI
 	select SND_SOC_RT5640
 	depends on SND_SST_ATOM_HIFI2_PLATFORM
@@ -87,7 +83,6 @@ config SND_SOC_INTEL_BYTCR_RT5640_MACH
 
 config SND_SOC_INTEL_BYTCR_RT5651_MACH
         tristate "ASoC Audio driver for Intel Baytrail and Baytrail-CR with RT5651 codec"
-	depends on SND_SOC_INTEL_MACH
 	depends on X86 && I2C && ACPI
 	select SND_SOC_RT5651
 	depends on SND_SST_ATOM_HIFI2_PLATFORM
@@ -100,7 +95,6 @@ config SND_SOC_INTEL_BYTCR_RT5651_MACH
 
 config SND_SOC_INTEL_CHT_BSW_RT5672_MACH
         tristate "ASoC Audio driver for Intel Cherrytrail & Braswell with RT5672 codec"
-        depends on SND_SOC_INTEL_MACH
 	depends on X86_INTEL_LPSS && I2C && ACPI
         select SND_SOC_RT5670
         depends on SND_SST_ATOM_HIFI2_PLATFORM
@@ -113,7 +107,6 @@ config SND_SOC_INTEL_CHT_BSW_RT5672_MACH
 
 config SND_SOC_INTEL_CHT_BSW_RT5645_MACH
 	tristate "ASoC Audio driver for Intel Cherrytrail & Braswell with RT5645/5650 codec"
-	depends on SND_SOC_INTEL_MACH
 	depends on X86_INTEL_LPSS && I2C && ACPI
 	select SND_SOC_RT5645
 	depends on SND_SST_ATOM_HIFI2_PLATFORM
@@ -125,7 +118,6 @@ config SND_SOC_INTEL_CHT_BSW_RT5645_MACH
 
 config SND_SOC_INTEL_CHT_BSW_MAX98090_TI_MACH
 	tristate "ASoC Audio driver for Intel Cherrytrail & Braswell with MAX98090 & TI codec"
-	depends on SND_SOC_INTEL_MACH
 	depends on X86_INTEL_LPSS && I2C && ACPI
 	select SND_SOC_MAX98090
 	select SND_SOC_TS3A227E
@@ -138,7 +130,6 @@ config SND_SOC_INTEL_CHT_BSW_MAX98090_TI_MACH
 
 config SND_SOC_INTEL_BYT_CHT_DA7213_MACH
 	tristate "ASoC Audio driver for Intel Baytrail & Cherrytrail with DA7212/7213 codec"
-	depends on SND_SOC_INTEL_MACH
 	depends on X86_INTEL_LPSS && I2C && ACPI
 	select SND_SOC_DA7213
 	depends on SND_SST_ATOM_HIFI2_PLATFORM
@@ -150,7 +141,6 @@ config SND_SOC_INTEL_BYT_CHT_DA7213_MACH
 
 config SND_SOC_INTEL_BYT_CHT_ES8316_MACH
 	tristate "ASoC Audio driver for Intel Baytrail & Cherrytrail with ES8316 codec"
-	depends on SND_SOC_INTEL_MACH
 	depends on X86_INTEL_LPSS && I2C && ACPI
 	select SND_SOC_ES8316
 	depends on SND_SST_ATOM_HIFI2_PLATFORM
@@ -162,7 +152,6 @@ config SND_SOC_INTEL_BYT_CHT_ES8316_MACH
 
 config SND_SOC_INTEL_BYT_CHT_NOCODEC_MACH
 	tristate "ASoC Audio driver for Intel Baytrail & Cherrytrail platform with no codec (MinnowBoard MAX, Up)"
-	depends on SND_SOC_INTEL_MACH
 	depends on X86_INTEL_LPSS && I2C && ACPI
 	depends on SND_SST_ATOM_HIFI2_PLATFORM
 	select SND_SST_IPC_ACPI
@@ -174,7 +163,6 @@ config SND_SOC_INTEL_BYT_CHT_NOCODEC_MACH
 
 config SND_SOC_INTEL_SKL_RT286_MACH
 	tristate "ASoC Audio driver for SKL with RT286 I2S mode"
-	depends on SND_SOC_INTEL_MACH
 	depends on X86 && ACPI && I2C
 	depends on SND_SOC_INTEL_SKYLAKE
 	select SND_SOC_RT286
@@ -188,7 +176,6 @@ config SND_SOC_INTEL_SKL_RT286_MACH
 
 config SND_SOC_INTEL_SKL_NAU88L25_SSM4567_MACH
 	tristate "ASoC Audio driver for SKL with NAU88L25 and SSM4567 in I2S Mode"
-	depends on SND_SOC_INTEL_MACH
 	depends on X86_INTEL_LPSS && I2C
 	depends on SND_SOC_INTEL_SKYLAKE
 	select SND_SOC_NAU8825
@@ -203,7 +190,6 @@ config SND_SOC_INTEL_SKL_NAU88L25_SSM4567_MACH
 
 config SND_SOC_INTEL_SKL_NAU88L25_MAX98357A_MACH
 	tristate "ASoC Audio driver for SKL with NAU88L25 and MAX98357A in I2S Mode"
-	depends on SND_SOC_INTEL_MACH
 	depends on X86_INTEL_LPSS && I2C
 	depends on SND_SOC_INTEL_SKYLAKE
 	select SND_SOC_NAU8825
@@ -218,7 +204,6 @@ config SND_SOC_INTEL_SKL_NAU88L25_MAX98357A_MACH
 
 config SND_SOC_INTEL_BXT_DA7219_MAX98357A_MACH
 	tristate "ASoC Audio driver for Broxton with DA7219 and MAX98357A in I2S Mode"
-	depends on SND_SOC_INTEL_MACH
 	depends on X86 && ACPI && I2C
 	depends on SND_SOC_INTEL_SKYLAKE
 	select SND_SOC_DA7219
@@ -234,7 +219,6 @@ config SND_SOC_INTEL_BXT_DA7219_MAX98357A_MACH
 
 config SND_SOC_INTEL_BXT_RT298_MACH
 	tristate "ASoC Audio driver for Broxton with RT298 I2S mode"
-	depends on SND_SOC_INTEL_MACH
 	depends on X86 && ACPI && I2C
 	depends on SND_SOC_INTEL_SKYLAKE
 	select SND_SOC_RT298
@@ -249,7 +233,6 @@ config SND_SOC_INTEL_BXT_RT298_MACH
 
 config SND_SOC_INTEL_KBL_RT5663_MAX98927_MACH
 	tristate "ASoC Audio driver for KBL with RT5663 and MAX98927 in I2S Mode"
-	depends on SND_SOC_INTEL_MACH
 	depends on X86_INTEL_LPSS && I2C
 	select SND_SOC_INTEL_SST
 	depends on SND_SOC_INTEL_SKYLAKE
@@ -265,7 +248,6 @@ config SND_SOC_INTEL_KBL_RT5663_MAX98927_MACH
 
 config SND_SOC_INTEL_KBL_RT5663_RT5514_MAX98927_MACH
         tristate "ASoC Audio driver for KBL with RT5663, RT5514 and MAX98927 in I2S Mode"
-        depends on SND_SOC_INTEL_MACH
         depends on X86_INTEL_LPSS && I2C && SPI
         select SND_SOC_INTEL_SST
         depends on SND_SOC_INTEL_SKYLAKE
@@ -279,3 +261,5 @@ config SND_SOC_INTEL_KBL_RT5663_RT5514_MAX98927_MACH
           create an alsa sound card for RT5663 + RT5514 + MAX98927.
           Say Y if you have such a device.
           If unsure select "N".
+
+endif
