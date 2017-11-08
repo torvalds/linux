@@ -1010,7 +1010,7 @@ static int genpd_prepare(struct device *dev)
 	genpd_unlock(genpd);
 
 	ret = pm_generic_prepare(dev);
-	if (ret) {
+	if (ret < 0) {
 		genpd_lock(genpd);
 
 		genpd->prepared_count--;
@@ -1018,7 +1018,8 @@ static int genpd_prepare(struct device *dev)
 		genpd_unlock(genpd);
 	}
 
-	return ret;
+	/* Never return 1, as genpd don't cope with the direct_complete path. */
+	return ret >= 0 ? 0 : ret;
 }
 
 /**
