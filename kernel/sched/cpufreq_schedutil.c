@@ -130,8 +130,11 @@ static void sugov_update_commit(struct sugov_policy *sg_policy, u64 time,
 {
 	struct cpufreq_policy *policy = sg_policy->policy;
 
-	if (sugov_up_down_rate_limit(sg_policy, time, next_freq))
+	if (sugov_up_down_rate_limit(sg_policy, time, next_freq)) {
+		/* Reset cached freq as next_freq isn't changed */
+		sg_policy->cached_raw_freq = 0;
 		return;
+	}
 
 	if (sg_policy->next_freq == next_freq)
 		return;
@@ -317,8 +320,12 @@ static void sugov_update_single(struct update_util_data *hook, u64 time,
 		 * Do not reduce the frequency if the CPU has not been idle
 		 * recently, as the reduction is likely to be premature then.
 		 */
-		if (busy && next_f < sg_policy->next_freq)
+		if (busy && next_f < sg_policy->next_freq) {
 			next_f = sg_policy->next_freq;
+
+			/* Reset cached freq as next_freq has changed */
+			sg_policy->cached_raw_freq = 0;
+		}
 	}
 	sugov_update_commit(sg_policy, time, next_f);
 }
