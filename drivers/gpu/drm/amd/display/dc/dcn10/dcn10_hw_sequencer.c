@@ -431,7 +431,6 @@ static enum dc_status dcn10_prog_pixclk_crtc_otg(
 		struct dc *dc)
 {
 	struct dc_stream_state *stream = pipe_ctx->stream;
-	struct mpc *mpc = dc->res_pool->mpc;
 	enum dc_color_space color_space;
 	struct tg_color black_color = {0};
 	bool enableStereo    = stream->timing.timing_3d_format == TIMING_3D_FORMAT_NONE ?
