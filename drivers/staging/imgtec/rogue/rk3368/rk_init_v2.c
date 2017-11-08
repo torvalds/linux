@@ -56,7 +56,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
 #include <linux/delay.h>
+#include <linux/version.h>
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 4, 0))
 #include <linux/rockchip/dvfs.h>
+#endif
 #include <linux/rockchip/common.h>
 #include "power.h"
 #include "rk_init_v2.h"
