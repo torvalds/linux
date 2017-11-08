@@ -420,11 +420,6 @@ static int vtg_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int vtg_remove(struct platform_device *pdev)
-{
-	return 0;
-}
-
 static const struct of_device_id vtg_of_match[] = {
 	{ .compatible = "st,vtg", },
 	{ /* sentinel */ }
@@ -438,7 +433,6 @@ struct platform_driver sti_vtg_driver = {
 		.of_match_table = vtg_of_match,
 	},
 	.probe	= vtg_probe,
-	.remove = vtg_remove,
 };
 
 MODULE_AUTHOR("Benjamin Gaignard <benjamin.gaignard@st.com>");
