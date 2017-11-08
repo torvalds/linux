@@ -5762,11 +5762,29 @@ void vlv_wm_sanitize(struct drm_i915_private *dev_priv)
 	mutex_unlock(&dev_priv->wm.wm_mutex);
 }
 
+/*
+ * FIXME should probably kill this and improve
+ * the real watermark readout/sanitation instead
+ */
+static void ilk_init_lp_watermarks(struct drm_i915_private *dev_priv)
+{
+	I915_WRITE(WM3_LP_ILK, I915_READ(WM3_LP_ILK) & ~WM1_LP_SR_EN);
+	I915_WRITE(WM2_LP_ILK, I915_READ(WM2_LP_ILK) & ~WM1_LP_SR_EN);
+	I915_WRITE(WM1_LP_ILK, I915_READ(WM1_LP_ILK) & ~WM1_LP_SR_EN);
+
+	/*
+	 * Don't touch WM1S_LP_EN here.
+	 * Doing so could cause underruns.
+	 */
+}
+
 void ilk_wm_get_hw_state(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct ilk_wm_values *hw = &dev_priv->wm.hw;
 	struct drm_crtc *crtc;
+
+	ilk_init_lp_watermarks(dev_priv);
 
 	for_each_crtc(dev, crtc)
 		ilk_pipe_wm_get_hw_state(crtc);
@@ -8214,18 +8232,6 @@ static void g4x_disable_trickle_feed(struct drm_i915_private *dev_priv)
 	}
 }
 
-static void ilk_init_lp_watermarks(struct drm_i915_private *dev_priv)
-{
-	I915_WRITE(WM3_LP_ILK, I915_READ(WM3_LP_ILK) & ~WM1_LP_SR_EN);
-	I915_WRITE(WM2_LP_ILK, I915_READ(WM2_LP_ILK) & ~WM1_LP_SR_EN);
-	I915_WRITE(WM1_LP_ILK, I915_READ(WM1_LP_ILK) & ~WM1_LP_SR_EN);
-
-	/*
-	 * Don't touch WM1S_LP_EN here.
-	 * Doing so could cause underruns.
-	 */
-}
-
 static void ilk_init_clock_gating(struct drm_i915_private *dev_priv)
 {
 	uint32_t dspclk_gate = ILK_VRHUNIT_CLOCK_GATE_DISABLE;
@@ -8258,8 +8264,6 @@ static void ilk_init_clock_gating(struct drm_i915_private *dev_priv)
 	I915_WRITE(DISP_ARB_CTL,
 		   (I915_READ(DISP_ARB_CTL) |
 		    DISP_FBC_WM_DIS));
-
-	ilk_init_lp_watermarks(dev_priv);
 
 	/*
 	 * Based on the document from hardware guys the following bits
@@ -8372,8 +8376,6 @@ static void gen6_init_clock_gating(struct drm_i915_private *dev_priv)
 	 */
 	I915_WRITE(GEN6_GT_MODE,
 		   _MASKED_FIELD(GEN6_WIZ_HASHING_MASK, GEN6_WIZ_HASHING_16x4));
-
-	ilk_init_lp_watermarks(dev_priv);
 
 	I915_WRITE(CACHE_MODE_0,
 		   _MASKED_BIT_DISABLE(CM0_STC_EVICT_DISABLE_LRA_SNB));
@@ -8601,8 +8603,6 @@ static void bdw_init_clock_gating(struct drm_i915_private *dev_priv)
 						 I915_GTT_PAGE_SIZE_2M);
 	enum pipe pipe;
 
-	ilk_init_lp_watermarks(dev_priv);
-
 	/* WaSwitchSolVfFArbitrationPriority:bdw */
 	I915_WRITE(GAM_ECOCHK, I915_READ(GAM_ECOCHK) | HSW_ECOCHK_ARB_PRIO_SOL);
 
@@ -8653,8 +8653,6 @@ static void bdw_init_clock_gating(struct drm_i915_private *dev_priv)
 
 static void hsw_init_clock_gating(struct drm_i915_private *dev_priv)
 {
-	ilk_init_lp_watermarks(dev_priv);
-
 	/* L3 caching of data atomics doesn't work -- disable it. */
 	I915_WRITE(HSW_SCRATCH1, HSW_SCRATCH1_L3_DATA_ATOMICS_DISABLE);
 	I915_WRITE(HSW_ROW_CHICKEN3,
@@ -8698,18 +8696,12 @@ static void hsw_init_clock_gating(struct drm_i915_private *dev_priv)
 	/* WaSwitchSolVfFArbitrationPriority:hsw */
 	I915_WRITE(GAM_ECOCHK, I915_READ(GAM_ECOCHK) | HSW_ECOCHK_ARB_PRIO_SOL);
 
-	/* WaRsPkgCStateDisplayPMReq:hsw */
-	I915_WRITE(CHICKEN_PAR1_1,
-		   I915_READ(CHICKEN_PAR1_1) | FORCE_ARB_IDLE_PLANES);
-
 	lpt_init_clock_gating(dev_priv);
 }
 
 static void ivb_init_clock_gating(struct drm_i915_private *dev_priv)
 {
 	uint32_t snpcr;
-
-	ilk_init_lp_watermarks(dev_priv);
 
 	I915_WRITE(ILK_DSPCLK_GATE_D, ILK_VRHUNIT_CLOCK_GATE_DISABLE);
 
