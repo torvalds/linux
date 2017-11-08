@@ -463,8 +463,6 @@ static struct platform_driver platform_driver = {
 
 static int build_tokens_sysfs(struct platform_device *dev)
 {
-	char buffer_location[13];
-	char buffer_value[10];
 	char *location_name;
 	char *value_name;
 	size_t size;
@@ -491,9 +489,8 @@ static int build_tokens_sysfs(struct platform_device *dev)
 		if (da_tokens[i].tokenID == 0)
 			continue;
 		/* add location */
-		sprintf(buffer_location, "%04x_location",
-			da_tokens[i].tokenID);
-		location_name = kstrdup(buffer_location, GFP_KERNEL);
+		location_name = kasprintf(GFP_KERNEL, "%04x_location",
+					  da_tokens[i].tokenID);
 		if (location_name == NULL)
 			goto out_unwind_strings;
 		sysfs_attr_init(&token_location_attrs[i].attr);
@@ -503,9 +500,8 @@ static int build_tokens_sysfs(struct platform_device *dev)
 		token_attrs[j++] = &token_location_attrs[i].attr;
 
 		/* add value */
-		sprintf(buffer_value, "%04x_value",
-			da_tokens[i].tokenID);
-		value_name = kstrdup(buffer_value, GFP_KERNEL);
+		value_name = kasprintf(GFP_KERNEL, "%04x_value",
+				       da_tokens[i].tokenID);
 		if (value_name == NULL)
 			goto loop_fail_create_value;
 		sysfs_attr_init(&token_value_attrs[i].attr);
