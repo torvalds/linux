@@ -708,6 +708,18 @@
 		};
 	};
 
+	codec: codec@20030000 {
+		compatible = "rockchip,rk3128-codec";
+		reg = <0x20030000 0x4000>;
+		interrupts = <GIC_SPI 96 IRQ_TYPE_LEVEL_HIGH>;
+		boot_depop = <1>;
+		pa_enable_time = <1000>;
+		rockchip,grf = <&grf>;
+		clocks = <&cru PCLK_ACODEC>, <&cru SCLK_I2S1>;
+		clock-names = "g_pclk_acodec", "i2s_clk";
+		status = "disabled";
+	};
+
 	mipi_dphy: mipi-dphy@20038000 {
 		compatible = "rockchip,rk3128-mipi-dphy";
 		reg = <0x20038000 0x4000>;
