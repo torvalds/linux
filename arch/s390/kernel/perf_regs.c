@@ -4,11 +4,28 @@
 #include <linux/errno.h>
 #include <linux/bug.h>
 #include <asm/ptrace.h>
+#include <asm/fpu/api.h>
+#include <asm/fpu/types.h>
 
 u64 perf_reg_value(struct pt_regs *regs, int idx)
 {
+	freg_t fp;
+
 	if (WARN_ON_ONCE((u32)idx >= PERF_REG_S390_MAX))
 		return 0;
+
+	if (idx >= PERF_REG_S390_R0 && idx <= PERF_REG_S390_R15)
+		return regs->gprs[idx];
+
+	if (idx >= PERF_REG_S390_FP0 && idx <= PERF_REG_S390_FP15) {
+		if (!user_mode(regs))
+			return 0;
+
+		idx -= PERF_REG_S390_FP0;
+		fp = MACHINE_HAS_VX ? *(freg_t *)(current->thread.fpu.vxrs + idx)
+				    : current->thread.fpu.fprs[idx];
+		return fp.ui;
+	}
 
 	if (idx == PERF_REG_S390_MASK)
 		return regs->psw.mask;
@@ -43,7 +60,11 @@ void perf_get_regs_user(struct perf_regs *regs_user,
 	/*
 	 * Use the regs from the first interruption and let
 	 * perf_sample_regs_intr() handle interrupts (regs == get_irq_regs()).
+	 *
+	 * Also save FPU registers for user-space tasks only.
 	 */
 	regs_user->regs = task_pt_regs(current);
+	if (user_mode(regs_user->regs))
+		save_fpu_regs();
 	regs_user->abi = perf_reg_abi(current);
 }
