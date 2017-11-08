@@ -615,7 +615,6 @@ static int mac_probe(struct platform_device *_of_dev)
 	mac_dev = devm_kzalloc(dev, sizeof(*mac_dev), GFP_KERNEL);
 	if (!mac_dev) {
 		err = -ENOMEM;
-		dev_err(dev, "devm_kzalloc() = %d\n", err);
 		goto _return;
 	}
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
@@ -709,12 +708,8 @@ static int mac_probe(struct platform_device *_of_dev)
 	}
 
 	if (!of_device_is_available(mac_node)) {
-		devm_iounmap(dev, priv->vaddr);
-		__devm_release_region(dev, fman_get_mem_region(priv->fman),
-				      res.start, res.end + 1 - res.start);
-		devm_kfree(dev, mac_dev);
-		dev_set_drvdata(dev, NULL);
-		return -ENODEV;
+		err = -ENODEV;
+		goto _return_of_get_parent;
 	}
 
 	/* Get the cell-index */
@@ -825,6 +820,7 @@ static int mac_probe(struct platform_device *_of_dev)
 		phy = of_phy_find_device(mac_dev->phy_node);
 		if (!phy) {
 			err = -EINVAL;
+			of_node_put(mac_dev->phy_node);
 			goto _return_of_get_parent;
 		}
 
