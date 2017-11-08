@@ -260,10 +260,11 @@ struct rte_console {
 #define I_HMB_HOST_INT	I_HMB_SW3	/* Miscellaneous Interrupt */
 
 /* tohostmailboxdata */
-#define HMB_DATA_NAKHANDLED	1	/* retransmit NAK'd frame */
-#define HMB_DATA_DEVREADY	2	/* talk to host after enable */
-#define HMB_DATA_FC		4	/* per prio flowcontrol update flag */
-#define HMB_DATA_FWREADY	8	/* fw ready for protocol activity */
+#define HMB_DATA_NAKHANDLED	0x0001	/* retransmit NAK'd frame */
+#define HMB_DATA_DEVREADY	0x0002	/* talk to host after enable */
+#define HMB_DATA_FC		0x0004	/* per prio flowcontrol update flag */
+#define HMB_DATA_FWREADY	0x0008	/* fw ready for protocol activity */
+#define HMB_DATA_FWHALT		0x0010	/* firmware halted */
 
 #define HMB_DATA_FCDATA_MASK	0xff000000
 #define HMB_DATA_FCDATA_SHIFT	24
@@ -1094,6 +1095,10 @@ static u32 brcmf_sdio_hostmail(struct brcmf_sdio *bus)
 			  offsetof(struct sdpcmd_regs, tosbmailbox));
 	bus->sdcnt.f1regdata += 2;
 
+	/* dongle indicates the firmware has halted/crashed */
+	if (hmb_data & HMB_DATA_FWHALT)
+		brcmf_err("mailbox indicates firmware halted\n");
+
 	/* Dongle recomposed rx frames, accept them again */
 	if (hmb_data & HMB_DATA_NAKHANDLED) {
 		brcmf_dbg(SDIO, "Dongle reports NAK handled, expect rtx of %d\n",
@@ -1151,6 +1156,7 @@ static u32 brcmf_sdio_hostmail(struct brcmf_sdio *bus)
 			 HMB_DATA_NAKHANDLED |
 			 HMB_DATA_FC |
 			 HMB_DATA_FWREADY |
+			 HMB_DATA_FWHALT |
 			 HMB_DATA_FCDATA_MASK | HMB_DATA_VERSION_MASK))
 		brcmf_err("Unknown mailbox data content: 0x%02x\n",
 			  hmb_data);
