@@ -57,6 +57,8 @@ struct ibmvnic_login_buffer {
 	__be32 off_rxcomp_subcrqs;
 	__be32 login_rsp_ioba;
 	__be32 login_rsp_len;
+	__be32 client_data_offset;
+	__be32 client_data_len;
 } __packed __aligned(8);
 
 struct ibmvnic_login_rsp_buffer {

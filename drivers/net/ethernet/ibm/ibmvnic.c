@@ -75,6 +75,7 @@
 #include <asm/firmware.h>
 #include <linux/workqueue.h>
 #include <linux/if_vlan.h>
+#include <linux/utsname.h>
 
 #include "ibmvnic.h"
 
@@ -2813,6 +2814,55 @@ static int send_version_xchg(struct ibmvnic_adapter *adapter)
 	return ibmvnic_send_crq(adapter, &crq);
 }
 
+struct vnic_login_client_data {
+	u8	type;
+	__be16	len;
+	char	name;
+} __packed;
+
+static int vnic_client_data_len(struct ibmvnic_adapter *adapter)
+{
+	int len;
+
+	/* Calculate the amount of buffer space needed for the
+	 * vnic client data in the login buffer. There are four entries,
+	 * OS name, LPAR name, device name, and a null last entry.
+	 */
+	len = 4 * sizeof(struct vnic_login_client_data);
+	len += 6; /* "Linux" plus NULL */
+	len += strlen(utsname()->nodename) + 1;
+	len += strlen(adapter->netdev->name) + 1;
+
+	return len;
+}
+
+static void vnic_add_client_data(struct ibmvnic_adapter *adapter,
+				 struct vnic_login_client_data *vlcd)
+{
+	const char *os_name = "Linux";
+	int len;
+
+	/* Type 1 - LPAR OS */
+	vlcd->type = 1;
+	len = strlen(os_name) + 1;
+	vlcd->len = cpu_to_be16(len);
+	strncpy(&vlcd->name, os_name, len);
+	vlcd = (struct vnic_login_client_data *)((char *)&vlcd->name + len);
+
+	/* Type 2 - LPAR name */
+	vlcd->type = 2;
+	len = strlen(utsname()->nodename) + 1;
+	vlcd->len = cpu_to_be16(len);
+	strncpy(&vlcd->name, utsname()->nodename, len);
+	vlcd = (struct vnic_login_client_data *)((char *)&vlcd->name + len);
+
+	/* Type 3 - device name */
+	vlcd->type = 3;
+	len = strlen(adapter->netdev->name) + 1;
+	vlcd->len = cpu_to_be16(len);
+	strncpy(&vlcd->name, adapter->netdev->name, len);
+}
+
 static void send_login(struct ibmvnic_adapter *adapter)
 {
 	struct ibmvnic_login_rsp_buffer *login_rsp_buffer;
@@ -2825,13 +2875,18 @@ static void send_login(struct ibmvnic_adapter *adapter)
 	size_t buffer_size;
 	__be64 *tx_list_p;
 	__be64 *rx_list_p;
+	int client_data_len;
+	struct vnic_login_client_data *vlcd;
 	int i;
+
+	client_data_len = vnic_client_data_len(adapter);
 
 	buffer_size =
 	    sizeof(struct ibmvnic_login_buffer) +
-	    sizeof(u64) * (adapter->req_tx_queues + adapter->req_rx_queues);
+	    sizeof(u64) * (adapter->req_tx_queues + adapter->req_rx_queues) +
+	    client_data_len;
 
-	login_buffer = kmalloc(buffer_size, GFP_ATOMIC);
+	login_buffer = kzalloc(buffer_size, GFP_ATOMIC);
 	if (!login_buffer)
 		goto buf_alloc_failed;
 
@@ -2897,6 +2952,15 @@ static void send_login(struct ibmvnic_adapter *adapter)
 						   crq_num);
 		}
 	}
+
+	/* Insert vNIC login client data */
+	vlcd = (struct vnic_login_client_data *)
+		((char *)rx_list_p + (sizeof(u64) * adapter->req_rx_queues));
+	login_buffer->client_data_offset =
+			cpu_to_be32((char *)vlcd - (char *)login_buffer);
+	login_buffer->client_data_len = cpu_to_be32(client_data_len);
+
+	vnic_add_client_data(adapter, vlcd);
 
 	netdev_dbg(adapter->netdev, "Login Buffer:\n");
 	for (i = 0; i < (adapter->login_buf_sz - 1) / 8 + 1; i++) {
