@@ -468,7 +468,7 @@ void qxl_release_fence_buffer_objects(struct qxl_release *release)
 
 		reservation_object_add_shared_fence(bo->resv, &release->base);
 		ttm_bo_add_to_lru(bo);
-		__ttm_bo_unreserve(bo);
+		reservation_object_unlock(bo->resv);
 	}
 	spin_unlock(&glob->lru_lock);
 	ww_acquire_fini(&release->ticket);

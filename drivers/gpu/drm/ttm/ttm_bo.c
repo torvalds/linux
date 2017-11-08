@@ -471,7 +471,7 @@ static void ttm_bo_cleanup_refs_or_queue(struct ttm_buffer_object *bo)
 			ttm_bo_add_to_lru(bo);
 		}
 
-		__ttm_bo_unreserve(bo);
+		reservation_object_unlock(bo->resv);
 	}
 	if (bo->resv != &bo->ttm_resv)
 		reservation_object_unlock(&bo->ttm_resv);
@@ -517,7 +517,8 @@ static int ttm_bo_cleanup_refs_and_unlock(struct ttm_buffer_object *bo,
 
 	if (ret && !no_wait_gpu) {
 		long lret;
-		ww_mutex_unlock(&bo->resv->lock);
+
+		reservation_object_unlock(bo->resv);
 		spin_unlock(&glob->lru_lock);
 
 		lret = reservation_object_wait_timeout_rcu(resv, true,
@@ -547,7 +548,7 @@ static int ttm_bo_cleanup_refs_and_unlock(struct ttm_buffer_object *bo,
 	}
 
 	if (ret || unlikely(list_empty(&bo->ddestroy))) {
-		__ttm_bo_unreserve(bo);
+		reservation_object_unlock(bo->resv);
 		spin_unlock(&glob->lru_lock);
 		return ret;
 	}
@@ -749,7 +750,7 @@ static int ttm_mem_evict_first(struct ttm_bo_device *bdev,
 
 			if (place && !bdev->driver->eviction_valuable(bo,
 								      place)) {
-				__ttm_bo_unreserve(bo);
+				reservation_object_unlock(bo->resv);
 				ret = -EBUSY;
 				continue;
 			}
@@ -1788,7 +1789,7 @@ out:
 	 * already swapped buffer.
 	 */
 
-	__ttm_bo_unreserve(bo);
+	reservation_object_unlock(bo->resv);
 	kref_put(&bo->list_kref, ttm_bo_release_list);
 	return ret;
 }
@@ -1825,7 +1826,7 @@ int ttm_bo_wait_unreserved(struct ttm_buffer_object *bo)
 	ret = __ttm_bo_reserve(bo, true, false, NULL);
 	if (unlikely(ret != 0))
 		goto out_unlock;
-	__ttm_bo_unreserve(bo);
+	reservation_object_unlock(bo->resv);
 
 out_unlock:
 	mutex_unlock(&bo->wu_mutex);

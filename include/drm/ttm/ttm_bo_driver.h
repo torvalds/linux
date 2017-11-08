@@ -941,18 +941,6 @@ static inline int ttm_bo_reserve_slowpath(struct ttm_buffer_object *bo,
 }
 
 /**
- * __ttm_bo_unreserve
- * @bo: A pointer to a struct ttm_buffer_object.
- *
- * Unreserve a previous reservation of @bo where the buffer object is
- * already on lru lists.
- */
-static inline void __ttm_bo_unreserve(struct ttm_buffer_object *bo)
-{
-	ww_mutex_unlock(&bo->resv->lock);
-}
-
-/**
  * ttm_bo_unreserve
  *
  * @bo: A pointer to a struct ttm_buffer_object.
@@ -966,7 +954,7 @@ static inline void ttm_bo_unreserve(struct ttm_buffer_object *bo)
 		ttm_bo_add_to_lru(bo);
 		spin_unlock(&bo->glob->lru_lock);
 	}
-	__ttm_bo_unreserve(bo);
+	reservation_object_unlock(bo->resv);
 }
 
 /**
