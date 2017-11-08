@@ -315,6 +315,13 @@ void fintek_8250_set_termios(struct uart_port *port, struct ktermios *termios,
 			F81866_UART_CLK_14_769MHZ, F81866_UART_CLK_18_432MHZ,
 			F81866_UART_CLK_24MHZ };
 
+	/*
+	 * We'll use serial8250_do_set_termios() for baud = 0, otherwise It'll
+	 * crash on baudrate_table[i] % baud with "division by zero".
+	 */
+	if (!baud)
+		goto exit;
+
 	switch (pdata->pid) {
 	case CHIP_ID_F81216H:
 		reg = RS485;
@@ -327,8 +334,7 @@ void fintek_8250_set_termios(struct uart_port *port, struct ktermios *termios,
 		dev_warn(port->dev,
 			"%s: pid: %x Not support. use default set_termios.\n",
 			__func__, pdata->pid);
-		serial8250_do_set_termios(port, termios, old);
-		return;
+		goto exit;
 	}
 
 	for (i = 0; i < ARRAY_SIZE(baudrate_table); ++i) {
@@ -356,6 +362,7 @@ void fintek_8250_set_termios(struct uart_port *port, struct ktermios *termios,
 		tty_termios_encode_baud_rate(termios, baud, baud);
 	}
 
+exit:
 	serial8250_do_set_termios(port, termios, old);
 }
 
