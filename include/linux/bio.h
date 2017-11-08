@@ -129,18 +129,6 @@ static inline void *bio_data(struct bio *bio)
 #define bvec_to_phys(bv)	(page_to_phys((bv)->bv_page) + (unsigned long) (bv)->bv_offset)
 
 /*
- * queues that have highmem support enabled may still need to revert to
- * PIO transfers occasionally and thus map high pages temporarily. For
- * permanent PIO fall back, user is probably better off disabling highmem
- * I/O completely on that queue (see ide-dma for example)
- */
-#define __bio_kmap_atomic(bio, iter)				\
-	(kmap_atomic(bio_iter_iovec((bio), (iter)).bv_page) +	\
-		bio_iter_iovec((bio), (iter)).bv_offset)
-
-#define __bio_kunmap_atomic(addr)	kunmap_atomic(addr)
-
-/*
  * merge helpers etc
  */
 
