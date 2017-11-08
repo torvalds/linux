@@ -226,6 +226,16 @@ static inline void msg_set_dest_droppable(struct tipc_msg *m, u32 d)
 	msg_set_bits(m, 0, 19, 1, d);
 }
 
+static inline int msg_is_keepalive(struct tipc_msg *m)
+{
+	return msg_bits(m, 0, 19, 1);
+}
+
+static inline void msg_set_is_keepalive(struct tipc_msg *m, u32 d)
+{
+	msg_set_bits(m, 0, 19, 1, d);
+}
+
 static inline int msg_src_droppable(struct tipc_msg *m)
 {
 	return msg_bits(m, 0, 18, 1);

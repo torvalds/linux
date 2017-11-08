@@ -10,6 +10,7 @@
 #include <net/ipv6.h>
 #include <net/gre.h>
 #include <net/pptp.h>
+#include <net/tipc.h>
 #include <linux/igmp.h>
 #include <linux/icmp.h>
 #include <linux/sctp.h>
@@ -772,23 +773,22 @@ proto_again:
 		break;
 	}
 	case htons(ETH_P_TIPC): {
-		struct {
-			__be32 pre[3];
-			__be32 srcnode;
-		} *hdr, _hdr;
-		hdr = __skb_header_pointer(skb, nhoff, sizeof(_hdr), data, hlen, &_hdr);
+		struct tipc_basic_hdr *hdr, _hdr;
+
+		hdr = __skb_header_pointer(skb, nhoff, sizeof(_hdr),
+					   data, hlen, &_hdr);
 		if (!hdr) {
 			fdret = FLOW_DISSECT_RET_OUT_BAD;
 			break;
 		}
 
 		if (dissector_uses_key(flow_dissector,
-				       FLOW_DISSECTOR_KEY_TIPC_ADDRS)) {
+				       FLOW_DISSECTOR_KEY_TIPC)) {
 			key_addrs = skb_flow_dissector_target(flow_dissector,
-							      FLOW_DISSECTOR_KEY_TIPC_ADDRS,
+							      FLOW_DISSECTOR_KEY_TIPC,
 							      target_container);
-			key_addrs->tipcaddrs.srcnode = hdr->srcnode;
-			key_control->addr_type = FLOW_DISSECTOR_KEY_TIPC_ADDRS;
+			key_addrs->tipckey.key = tipc_hdr_rps_key(hdr);
+			key_control->addr_type = FLOW_DISSECTOR_KEY_TIPC;
 		}
 		fdret = FLOW_DISSECT_RET_OUT_GOOD;
 		break;
@@ -1024,8 +1024,8 @@ static inline size_t flow_keys_hash_length(const struct flow_keys *flow)
 	case FLOW_DISSECTOR_KEY_IPV6_ADDRS:
 		diff -= sizeof(flow->addrs.v6addrs);
 		break;
-	case FLOW_DISSECTOR_KEY_TIPC_ADDRS:
-		diff -= sizeof(flow->addrs.tipcaddrs);
+	case FLOW_DISSECTOR_KEY_TIPC:
+		diff -= sizeof(flow->addrs.tipckey);
 		break;
 	}
 	return (sizeof(*flow) - diff) / sizeof(u32);
@@ -1039,8 +1039,8 @@ __be32 flow_get_u32_src(const struct flow_keys *flow)
 	case FLOW_DISSECTOR_KEY_IPV6_ADDRS:
 		return (__force __be32)ipv6_addr_hash(
 			&flow->addrs.v6addrs.src);
-	case FLOW_DISSECTOR_KEY_TIPC_ADDRS:
-		return flow->addrs.tipcaddrs.srcnode;
+	case FLOW_DISSECTOR_KEY_TIPC:
+		return flow->addrs.tipckey.key;
 	default:
 		return 0;
 	}
@@ -1321,8 +1321,8 @@ static const struct flow_dissector_key flow_keys_dissector_keys[] = {
 		.offset = offsetof(struct flow_keys, addrs.v6addrs),
 	},
 	{
-		.key_id = FLOW_DISSECTOR_KEY_TIPC_ADDRS,
-		.offset = offsetof(struct flow_keys, addrs.tipcaddrs),
+		.key_id = FLOW_DISSECTOR_KEY_TIPC,
+		.offset = offsetof(struct flow_keys, addrs.tipckey),
 	},
 	{
 		.key_id = FLOW_DISSECTOR_KEY_PORTS,
