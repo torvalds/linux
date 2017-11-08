@@ -16,13 +16,6 @@
 #include "overlayfs.h"
 
 
-static dev_t ovl_get_pseudo_dev(struct dentry *dentry)
-{
-	struct ovl_entry *oe = dentry->d_fsdata;
-
-	return oe->lowerstack[0].layer->pseudo_dev;
-}
-
 int ovl_setattr(struct dentry *dentry, struct iattr *attr)
 {
 	int err;
@@ -66,6 +59,43 @@ out:
 	return err;
 }
 
+static int ovl_map_dev_ino(struct dentry *dentry, struct kstat *stat,
+			   struct ovl_layer *lower_layer)
+{
+	bool samefs = ovl_same_sb(dentry->d_sb);
+
+	if (samefs) {
+		/*
+		 * When all layers are on the same fs, all real inode
+		 * number are unique, so we use the overlay st_dev,
+		 * which is friendly to du -x.
+		 */
+		stat->dev = dentry->d_sb->s_dev;
+	} else if (S_ISDIR(dentry->d_inode->i_mode)) {
+		/*
+		 * Always use the overlay st_dev for directories, so 'find
+		 * -xdev' will scan the entire overlay mount and won't cross the
+		 * overlay mount boundaries.
+		 *
+		 * If not all layers are on the same fs the pair {real st_ino;
+		 * overlay st_dev} is not unique, so use the non persistent
+		 * overlay st_ino for directories.
+		 */
+		stat->dev = dentry->d_sb->s_dev;
+		stat->ino = dentry->d_inode->i_ino;
+	} else if (lower_layer) {
+		/*
+		 * For non-samefs setup, if we cannot map all layers st_ino
+		 * to a unified address space, we need to make sure that st_dev
+		 * is unique per layer. Upper layer uses real st_dev and lower
+		 * layers use the unique anonymous bdev.
+		 */
+		stat->dev = lower_layer->pseudo_dev;
+	}
+
+	return 0;
+}
+
 int ovl_getattr(const struct path *path, struct kstat *stat,
 		u32 request_mask, unsigned int flags)
 {
@@ -75,6 +105,7 @@ int ovl_getattr(const struct path *path, struct kstat *stat,
 	const struct cred *old_cred;
 	bool is_dir = S_ISDIR(dentry->d_inode->i_mode);
 	bool samefs = ovl_same_sb(dentry->d_sb);
+	struct ovl_layer *lower_layer = NULL;
 	int err;
 
 	type = ovl_path_real(dentry, &realpath);
@@ -84,14 +115,16 @@ int ovl_getattr(const struct path *path, struct kstat *stat,
 		goto out;
 
 	/*
-	 * For non-dir or same fs, we use st_ino of the copy up origin, if we
-	 * know it. This guaranties constant st_dev/st_ino across copy up.
+	 * For non-dir or same fs, we use st_ino of the copy up origin.
+	 * This guaranties constant st_dev/st_ino across copy up.
 	 *
-	 * If filesystem supports NFS export ops, this also guaranties
+	 * If lower filesystem supports NFS file handles, this also guaranties
 	 * persistent st_ino across mount cycle.
 	 */
 	if (!is_dir || samefs) {
-		if (OVL_TYPE_ORIGIN(type)) {
+		if (!OVL_TYPE_UPPER(type)) {
+			lower_layer = ovl_layer_lower(dentry);
+		} else if (OVL_TYPE_ORIGIN(type)) {
 			struct kstat lowerstat;
 			u32 lowermask = STATX_INO | (!is_dir ? STATX_NLINK : 0);
 
@@ -120,37 +153,14 @@ int ovl_getattr(const struct path *path, struct kstat *stat,
 			    (!ovl_verify_lower(dentry->d_sb) &&
 			     (is_dir || lowerstat.nlink == 1))) {
 				stat->ino = lowerstat.ino;
-				stat->dev = ovl_get_pseudo_dev(dentry);
+				lower_layer = ovl_layer_lower(dentry);
 			}
 		}
-		if (samefs) {
-			/*
-			 * When all layers are on the same fs, all real inode
-			 * number are unique, so we use the overlay st_dev,
-			 * which is friendly to du -x.
-			 */
-			stat->dev = dentry->d_sb->s_dev;
-		} else if (!OVL_TYPE_UPPER(type)) {
-			/*
-			 * For non-samefs setup, to make sure that st_dev/st_ino
-			 * pair is unique across the system, we use a unique
-			 * anonymous st_dev for lower layer inode.
-			 */
-			stat->dev = ovl_get_pseudo_dev(dentry);
-		}
-	} else {
-		/*
-		 * Always use the overlay st_dev for directories, so 'find
-		 * -xdev' will scan the entire overlay mount and won't cross the
-		 * overlay mount boundaries.
-		 *
-		 * If not all layers are on the same fs the pair {real st_ino;
-		 * overlay st_dev} is not unique, so use the non persistent
-		 * overlay st_ino for directories.
-		 */
-		stat->dev = dentry->d_sb->s_dev;
-		stat->ino = dentry->d_inode->i_ino;
 	}
+
+	err = ovl_map_dev_ino(dentry, stat, lower_layer);
+	if (err)
+		goto out;
 
 	/*
 	 * It's probably not worth it to count subdirs to get the
