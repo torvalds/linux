@@ -70,9 +70,13 @@ if printf '\000' >"$DIR"/trigger_request 2> /dev/null; then
 	exit 1
 fi
 
-if printf '\000' >"$DIR"/trigger_async_request 2> /dev/null; then
-	echo "$0: empty filename should not succeed (async)" >&2
-	exit 1
+if [ ! -e "$DIR"/trigger_async_request ]; then
+	echo "$0: empty filename: async trigger not present, ignoring test" >&2
+else
+	if printf '\000' >"$DIR"/trigger_async_request 2> /dev/null; then
+		echo "$0: empty filename should not succeed (async)" >&2
+		exit 1
+	fi
 fi
 
 # Request a firmware that doesn't exist, it should fail.
@@ -105,17 +109,21 @@ else
 fi
 
 # Try the asynchronous version too
-if ! echo -n "$NAME" >"$DIR"/trigger_async_request ; then
-	echo "$0: could not trigger async request" >&2
-	exit 1
-fi
-
-# Verify the contents are what we expect.
-if ! diff -q "$FW" /dev/test_firmware >/dev/null ; then
-	echo "$0: firmware was not loaded (async)" >&2
-	exit 1
+if [ ! -e "$DIR"/trigger_async_request ]; then
+	echo "$0: firmware loading: async trigger not present, ignoring test" >&2
 else
-	echo "$0: async filesystem loading works"
+	if ! echo -n "$NAME" >"$DIR"/trigger_async_request ; then
+		echo "$0: could not trigger async request" >&2
+		exit 1
+	fi
+
+	# Verify the contents are what we expect.
+	if ! diff -q "$FW" /dev/test_firmware >/dev/null ; then
+		echo "$0: firmware was not loaded (async)" >&2
+		exit 1
+	else
+		echo "$0: async filesystem loading works"
+	fi
 fi
 
 ### Batched requests tests
