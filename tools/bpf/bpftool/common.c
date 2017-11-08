@@ -122,9 +122,8 @@ static int mnt_bpffs(const char *target, char *buff, size_t bufflen)
 	return 0;
 }
 
-int open_obj_pinned_any(char *path, enum bpf_obj_type exp_type)
+int open_obj_pinned(char *path)
 {
-	enum bpf_obj_type type;
 	int fd;
 
 	fd = bpf_obj_get(path);
@@ -135,6 +134,18 @@ int open_obj_pinned_any(char *path, enum bpf_obj_type exp_type)
 		    strerror(errno));
 		return -1;
 	}
+
+	return fd;
+}
+
+int open_obj_pinned_any(char *path, enum bpf_obj_type exp_type)
+{
+	enum bpf_obj_type type;
+	int fd;
+
+	fd = open_obj_pinned(path);
+	if (fd < 0)
+		return -1;
 
 	type = get_fd_type(fd);
 	if (type < 0) {
