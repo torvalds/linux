@@ -42,6 +42,7 @@
 #include <stdio.h>
 #include <linux/bpf.h>
 #include <linux/kernel.h>
+#include <linux/hashtable.h>
 
 #include "json_writer.h"
 
@@ -70,6 +71,8 @@ extern const char *bin_name;
 
 extern json_writer_t *json_wtr;
 extern bool json_output;
+extern struct pinned_obj_table prog_table;
+extern struct pinned_obj_table map_table;
 
 void p_err(const char *fmt, ...);
 void p_info(const char *fmt, ...);
@@ -77,6 +80,20 @@ void p_info(const char *fmt, ...);
 bool is_prefix(const char *pfx, const char *str);
 void fprint_hex(FILE *f, void *arg, unsigned int n, const char *sep);
 void usage(void) __attribute__((noreturn));
+
+struct pinned_obj_table {
+	DECLARE_HASHTABLE(table, 16);
+};
+
+struct pinned_obj {
+	__u32 id;
+	char *path;
+	struct hlist_node hash;
+};
+
+int build_pinned_obj_table(struct pinned_obj_table *table,
+			   enum bpf_obj_type type);
+void delete_pinned_obj_table(struct pinned_obj_table *tab);
 
 struct cmd {
 	const char *cmd;

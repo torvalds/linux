@@ -54,6 +54,8 @@ static int (*last_do_help)(int argc, char **argv);
 json_writer_t *json_wtr;
 bool pretty_output;
 bool json_output;
+struct pinned_obj_table prog_table;
+struct pinned_obj_table map_table;
 
 void usage(void)
 {
@@ -272,6 +274,9 @@ int main(int argc, char **argv)
 	json_output = false;
 	bin_name = argv[0];
 
+	hash_init(prog_table.table);
+	hash_init(map_table.table);
+
 	while ((opt = getopt_long(argc, argv, "Vhpj",
 				  options, NULL)) >= 0) {
 		switch (opt) {
@@ -310,6 +315,9 @@ int main(int argc, char **argv)
 
 	if (json_output)
 		jsonw_destroy(&json_wtr);
+
+	delete_pinned_obj_table(&prog_table);
+	delete_pinned_obj_table(&map_table);
 
 	return ret;
 }
