@@ -446,7 +446,7 @@ static void ttm_bo_cleanup_refs_or_queue(struct ttm_buffer_object *bo)
 	}
 
 	spin_lock(&glob->lru_lock);
-	ret = __ttm_bo_reserve(bo, false, true, NULL);
+	ret = reservation_object_trylock(bo->resv) ? 0 : -EBUSY;
 	if (!ret) {
 		if (reservation_object_test_signaled_rcu(&bo->ttm_resv, true)) {
 			ttm_bo_del_from_lru(bo);
@@ -531,7 +531,7 @@ static int ttm_bo_cleanup_refs_and_unlock(struct ttm_buffer_object *bo,
 			return -EBUSY;
 
 		spin_lock(&glob->lru_lock);
-		ret = __ttm_bo_reserve(bo, false, true, NULL);
+		ret = reservation_object_trylock(bo->resv) ? 0 : -EBUSY;
 
 		/*
 		 * We raced, and lost, someone else holds the reservation now,
@@ -592,10 +592,10 @@ static int ttm_bo_delayed_delete(struct ttm_bo_device *bdev, bool remove_all)
 			kref_get(&nentry->list_kref);
 		}
 
-		ret = __ttm_bo_reserve(entry, false, true, NULL);
+		ret = reservation_object_trylock(entry->resv) ? 0 : -EBUSY;
 		if (remove_all && ret) {
 			spin_unlock(&glob->lru_lock);
-			ret = __ttm_bo_reserve(entry, false, false, NULL);
+			ret = reservation_object_lock(entry->resv, NULL);
 			spin_lock(&glob->lru_lock);
 		}
 
@@ -744,7 +744,7 @@ static int ttm_mem_evict_first(struct ttm_bo_device *bdev,
 	spin_lock(&glob->lru_lock);
 	for (i = 0; i < TTM_MAX_BO_PRIORITY; ++i) {
 		list_for_each_entry(bo, &man->lru[i], lru) {
-			ret = __ttm_bo_reserve(bo, false, true, NULL);
+			ret = reservation_object_trylock(bo->resv) ? 0 : -EBUSY;
 			if (ret)
 				continue;
 
@@ -1719,7 +1719,7 @@ static int ttm_bo_swapout(struct ttm_mem_shrink *shrink)
 	spin_lock(&glob->lru_lock);
 	for (i = 0; i < TTM_MAX_BO_PRIORITY; ++i) {
 		list_for_each_entry(bo, &glob->swap_lru[i], swap) {
-			ret = __ttm_bo_reserve(bo, false, true, NULL);
+			ret = reservation_object_trylock(bo->resv) ? 0 : -EBUSY;
 			if (!ret)
 				break;
 		}
@@ -1823,7 +1823,9 @@ int ttm_bo_wait_unreserved(struct ttm_buffer_object *bo)
 		return -ERESTARTSYS;
 	if (!ww_mutex_is_locked(&bo->resv->lock))
 		goto out_unlock;
-	ret = __ttm_bo_reserve(bo, true, false, NULL);
+	ret = reservation_object_lock_interruptible(bo->resv, NULL);
+	if (ret == -EINTR)
+		ret = -ERESTARTSYS;
 	if (unlikely(ret != 0))
 		goto out_unlock;
 	reservation_object_unlock(bo->resv);

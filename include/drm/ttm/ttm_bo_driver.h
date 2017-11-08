@@ -836,14 +836,14 @@ static inline int __ttm_bo_reserve(struct ttm_buffer_object *bo,
 		if (WARN_ON(ticket))
 			return -EBUSY;
 
-		success = ww_mutex_trylock(&bo->resv->lock);
+		success = reservation_object_trylock(bo->resv);
 		return success ? 0 : -EBUSY;
 	}
 
 	if (interruptible)
-		ret = ww_mutex_lock_interruptible(&bo->resv->lock, ticket);
+		ret = reservation_object_lock_interruptible(bo->resv, ticket);
 	else
-		ret = ww_mutex_lock(&bo->resv->lock, ticket);
+		ret = reservation_object_lock(bo->resv, ticket);
 	if (ret == -EINTR)
 		return -ERESTARTSYS;
 	return ret;
