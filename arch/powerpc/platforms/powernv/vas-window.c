@@ -1101,6 +1101,20 @@ static void poll_window_castout(struct vas_window *window)
 }
 
 /*
+ * Unpin and close a window so no new requests are accepted and the
+ * hardware can evict this window from cache if necessary.
+ */
+static void unpin_close_window(struct vas_window *window)
+{
+	u64 val;
+
+	val = read_hvwc_reg(window, VREG(WINCTL));
+	val = SET_FIELD(VAS_WINCTL_PIN, val, 0);
+	val = SET_FIELD(VAS_WINCTL_OPEN, val, 0);
+	write_hvwc_reg(window, VREG(WINCTL), val);
+}
+
+/*
  * Close a window.
  *
  * See Section 1.12.1 of VAS workbook v1.05 for details on closing window:
@@ -1114,8 +1128,6 @@ static void poll_window_castout(struct vas_window *window)
  */
 int vas_win_close(struct vas_window *window)
 {
-	u64 val;
-
 	if (!window)
 		return 0;
 
@@ -1131,11 +1143,7 @@ int vas_win_close(struct vas_window *window)
 
 	poll_window_busy_state(window);
 
-	/* Unpin window from cache and close it */
-	val = read_hvwc_reg(window, VREG(WINCTL));
-	val = SET_FIELD(VAS_WINCTL_PIN, val, 0);
-	val = SET_FIELD(VAS_WINCTL_OPEN, val, 0);
-	write_hvwc_reg(window, VREG(WINCTL), val);
+	unpin_close_window(window);
 
 	poll_window_castout(window);
 
