@@ -111,11 +111,12 @@ struct btrfs_trans_handle {
 	u64 transid;
 	u64 bytes_reserved;
 	u64 chunk_bytes_reserved;
-	refcount_t use_count;
 	unsigned long delayed_ref_updates;
 	struct btrfs_transaction *transaction;
 	struct btrfs_block_rsv *block_rsv;
 	struct btrfs_block_rsv *orig_rsv;
+	refcount_t use_count;
+	unsigned int type;
 	short aborted;
 	bool adding_csums;
 	bool allocating_chunk;
@@ -123,7 +124,6 @@ struct btrfs_trans_handle {
 	bool reloc_reserved;
 	bool sync;
 	bool dirty;
-	unsigned int type;
 	struct btrfs_root *root;
 	struct btrfs_fs_info *fs_info;
 	struct list_head new_bgs;
