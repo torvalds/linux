@@ -2894,7 +2894,7 @@ int btrfs_check_space_for_delayed_refs(struct btrfs_trans_handle *trans,
 	struct btrfs_block_rsv *global_rsv;
 	u64 num_heads = trans->transaction->delayed_refs.num_heads_ready;
 	u64 csum_bytes = trans->transaction->delayed_refs.pending_csums;
-	u64 num_dirty_bgs = trans->transaction->num_dirty_bgs;
+	unsigned int num_dirty_bgs = trans->transaction->num_dirty_bgs;
 	u64 num_bytes, num_dirty_bgs_bytes;
 	int ret = 0;
 

@@ -70,7 +70,7 @@ struct btrfs_transaction {
 	struct list_head dirty_bgs;
 	struct list_head io_bgs;
 	struct list_head dropped_roots;
-	u64 num_dirty_bgs;
+	unsigned int num_dirty_bgs;
 
 	/*
 	 * we need to make sure block group deletion doesn't race with
