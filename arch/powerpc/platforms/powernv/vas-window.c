@@ -1063,6 +1063,49 @@ int vas_paste_crb(struct vas_window *txwin, int offset, bool re)
 EXPORT_SYMBOL_GPL(vas_paste_crb);
 
 /*
+ * If credit checking is enabled for this window, poll for the return
+ * of window credits (i.e for NX engines to process any outstanding CRBs).
+ * Since NX-842 waits for the CRBs to be processed before closing the
+ * window, we should not have to wait for too long.
+ *
+ * TODO: We retry in 10ms intervals now. We could/should probably peek at
+ *	the VAS_LRFIFO_PUSH_OFFSET register to get an estimate of pending
+ *	CRBs on the FIFO and compute the delay dynamically on each retry.
+ *	But that is not really needed until we support NX-GZIP access from
+ *	user space. (NX-842 driver waits for CSB and Fast thread-wakeup
+ *	doesn't use credit checking).
+ */
+static void poll_window_credits(struct vas_window *window)
+{
+	u64 val;
+	int creds, mode;
+
+	val = read_hvwc_reg(window, VREG(WINCTL));
+	if (window->tx_win)
+		mode = GET_FIELD(VAS_WINCTL_TX_WCRED_MODE, val);
+	else
+		mode = GET_FIELD(VAS_WINCTL_RX_WCRED_MODE, val);
+
+	if (!mode)
+		return;
+retry:
+	if (window->tx_win) {
+		val = read_hvwc_reg(window, VREG(TX_WCRED));
+		creds = GET_FIELD(VAS_TX_WCRED, val);
+	} else {
+		val = read_hvwc_reg(window, VREG(LRX_WCRED));
+		creds = GET_FIELD(VAS_LRX_WCRED, val);
+	}
+
+	if (creds < window->wcreds_max) {
+		val = 0;
+		set_current_state(TASK_UNINTERRUPTIBLE);
+		schedule_timeout(msecs_to_jiffies(10));
+		goto retry;
+	}
+}
+
+/*
  * Wait for the window to go to "not-busy" state. It should only take a
  * short time to queue a CRB, so window should not be busy for too long.
  * Trying 5ms intervals.
@@ -1148,6 +1191,8 @@ int vas_win_close(struct vas_window *window)
 	poll_window_busy_state(window);
 
 	unpin_close_window(window);
+
+	poll_window_credits(window);
 
 	poll_window_castout(window);
 
