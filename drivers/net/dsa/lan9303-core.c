@@ -284,7 +284,7 @@ static int lan9303_indirect_phy_wait_for_completion(struct lan9303 *chip)
 		}
 		if (!(reg & LAN9303_PMI_ACCESS_MII_BUSY))
 			return 0;
-		msleep(1);
+		usleep_range(1000, 2000);
 	}
 
 	return -EIO;
@@ -376,7 +376,7 @@ static int lan9303_switch_wait_for_completion(struct lan9303 *chip)
 		}
 		if (!(reg & LAN9303_SWITCH_CSR_CMD_BUSY))
 			return 0;
-		msleep(1);
+		usleep_range(1000, 2000);
 	}
 
 	return -EIO;

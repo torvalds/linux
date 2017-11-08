@@ -13,8 +13,8 @@ struct lan9303_phy_ops {
 #define LAN9303_NUM_ALR_RECORDS 512
 struct lan9303_alr_cache_entry {
 	u8  mac_addr[ETH_ALEN];
-	u8  port_map;           /* Bitmap of ports. Zero if unused entry */
-	u8  stp_override;       /* non zero if set ALR_DAT1_AGE_OVERRID */
+	u8  port_map;         /* Bitmap of ports. Zero if unused entry */
+	u8  stp_override;     /* non zero if set LAN9303_ALR_DAT1_AGE_OVERRID */
 };
 
 struct lan9303 {
@@ -28,7 +28,9 @@ struct lan9303 {
 	struct mutex indirect_mutex; /* protect indexed register access */
 	const struct lan9303_phy_ops *ops;
 	bool is_bridged; /* true if port 1 and 2 are bridged */
-	u32 swe_port_state; /* remember SWE_PORT_STATE while not bridged */
+
+	/* remember LAN9303_SWE_PORT_STATE while not bridged */
+	u32 swe_port_state;
 	/* LAN9303 do not offer reading specific ALR entry. Cache all
 	 * static entries in a flat table
 	 **/

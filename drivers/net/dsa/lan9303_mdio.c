@@ -116,7 +116,7 @@ static int lan9303_mdio_probe(struct mdio_device *mdiodev)
 		return -ENOMEM;
 
 	sw_dev->chip.regmap = devm_regmap_init(&mdiodev->dev, NULL, sw_dev,
-						&lan9303_mdio_regmap_config);
+					       &lan9303_mdio_regmap_config);
 	if (IS_ERR(sw_dev->chip.regmap)) {
 		ret = PTR_ERR(sw_dev->chip.regmap);
 		dev_err(&mdiodev->dev, "regmap init failed: %d\n", ret);
