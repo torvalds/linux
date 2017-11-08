@@ -382,7 +382,8 @@ static int do_show(int argc, char **argv)
 	int err;
 	int fd;
 
-	build_pinned_obj_table(&prog_table, BPF_OBJ_PROG);
+	if (show_pinned)
+		build_pinned_obj_table(&prog_table, BPF_OBJ_PROG);
 
 	if (argc == 2) {
 		fd = prog_parse_fd(&argc, &argv);

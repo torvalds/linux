@@ -497,7 +497,8 @@ static int do_show(int argc, char **argv)
 	int err;
 	int fd;
 
-	build_pinned_obj_table(&map_table, BPF_OBJ_MAP);
+	if (show_pinned)
+		build_pinned_obj_table(&map_table, BPF_OBJ_MAP);
 
 	if (argc == 2) {
 		fd = map_parse_fd_and_info(&argc, &argv, &info, &len);

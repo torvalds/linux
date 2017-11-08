@@ -59,7 +59,7 @@
 #define HELP_SPEC_PROGRAM						\
 	"PROG := { id PROG_ID | pinned FILE | tag PROG_TAG }"
 #define HELP_SPEC_OPTIONS						\
-	"OPTIONS := { {-j|--json} [{-p|--pretty}] }"
+	"OPTIONS := { {-j|--json} [{-p|--pretty}] | {-f|--bpffs} }"
 
 enum bpf_obj_type {
 	BPF_OBJ_UNKNOWN,
@@ -71,6 +71,7 @@ extern const char *bin_name;
 
 extern json_writer_t *json_wtr;
 extern bool json_output;
+extern bool show_pinned;
 extern struct pinned_obj_table prog_table;
 extern struct pinned_obj_table map_table;
 
