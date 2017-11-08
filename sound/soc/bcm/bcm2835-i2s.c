@@ -737,7 +737,8 @@ static struct snd_soc_dai_driver bcm2835_i2s_dai = {
 				| SNDRV_PCM_FMTBIT_S32_LE
 		},
 	.ops = &bcm2835_i2s_dai_ops,
-	.symmetric_rates = 1
+	.symmetric_rates = 1,
+	.symmetric_samplebits = 1,
 };
 
 static bool bcm2835_i2s_volatile_reg(struct device *dev, unsigned int reg)
