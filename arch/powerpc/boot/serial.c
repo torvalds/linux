@@ -138,8 +138,10 @@ int serial_console_init(void)
 		 dt_is_compatible(devp, "xlnx,xps-uartlite-1.00.a"))
 		rc = uartlite_console_init(devp, &serial_cd);
 #endif
+#ifdef CONFIG_PPC64_BOOT_WRAPPER
 	else if (dt_is_compatible(devp, "ibm,opal-console-raw"))
 		rc = opal_console_init(devp, &serial_cd);
+#endif
 
 	/* Add other serial console driver calls here */
 

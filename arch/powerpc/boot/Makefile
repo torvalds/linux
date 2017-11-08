@@ -108,10 +108,10 @@ src-wlib-y := string.S crt0.S stdio.c decompress.c main.c \
 		$(libfdt) libfdt-wrapper.c \
 		ns16550.c serial.c simple_alloc.c div64.S util.S \
 		elf_util.c $(zlib-y) devtree.c stdlib.c \
-		oflib.c ofconsole.c cuboot.c cpm-serial.c \
-		opal.c
+		oflib.c ofconsole.c cuboot.c cpm-serial.c
+
 src-wlib-$(CONFIG_PPC_MPC52XX) += mpc52xx-psc.c
-src-wlib-$(CONFIG_PPC64_BOOT_WRAPPER) +=  opal-calls.S
+src-wlib-$(CONFIG_PPC64_BOOT_WRAPPER) += opal-calls.S opal.c
 ifndef CONFIG_PPC64_BOOT_WRAPPER
 src-wlib-y += crtsavres.S
 endif
