@@ -44,13 +44,22 @@ static inline struct bcm2835_rng_priv *to_rng_priv(struct hwrng *rng)
 
 static inline u32 rng_readl(struct bcm2835_rng_priv *priv, u32 offset)
 {
-	return readl(priv->base + offset);
+	/* MIPS chips strapped for BE will automagically configure the
+	 * peripheral registers for CPU-native byte order.
+	 */
+	if (IS_ENABLED(CONFIG_MIPS) && IS_ENABLED(CONFIG_CPU_BIG_ENDIAN))
+		return __raw_readl(priv->base + offset);
+	else
+		return readl(priv->base + offset);
 }
 
 static inline void rng_writel(struct bcm2835_rng_priv *priv, u32 val,
 			      u32 offset)
 {
-	writel(val, priv->base + offset);
+	if (IS_ENABLED(CONFIG_MIPS) && IS_ENABLED(CONFIG_CPU_BIG_ENDIAN))
+		__raw_writel(val, priv->base + offset);
+	else
+		writel(val, priv->base + offset);
 }
 
 static int bcm2835_rng_read(struct hwrng *rng, void *buf, size_t max,
