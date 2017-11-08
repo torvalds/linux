@@ -663,7 +663,7 @@ static int deliver_to_subscribers(struct snd_seq_client *client,
 	if (atomic)
 		read_lock(&grp->list_lock);
 	else
-		down_read(&grp->list_mutex);
+		down_read_nested(&grp->list_mutex, hop);
 	list_for_each_entry(subs, &grp->list_head, src_list) {
 		/* both ports ready? */
 		if (atomic_read(&subs->ref_count) != 2)

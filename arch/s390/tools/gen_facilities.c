@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Simple program to generate defines out of facility lists that use the bit
  * numbering scheme from the Princples of Operations: most significant bit

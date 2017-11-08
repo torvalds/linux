@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _MLX4_STATS_
 #define _MLX4_STATS_
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/mm.h>
 #include <linux/vmacache.h>
 #include <linux/hugetlb.h>
@@ -1310,13 +1311,15 @@ static int pagemap_pmd_range(pmd_t *pmdp, unsigned long addr, unsigned long end,
 		pmd_t pmd = *pmdp;
 		struct page *page = NULL;
 
-		if ((vma->vm_flags & VM_SOFTDIRTY) || pmd_soft_dirty(pmd))
+		if (vma->vm_flags & VM_SOFTDIRTY)
 			flags |= PM_SOFT_DIRTY;
 
 		if (pmd_present(pmd)) {
 			page = pmd_page(pmd);
 
 			flags |= PM_PRESENT;
+			if (pmd_soft_dirty(pmd))
+				flags |= PM_SOFT_DIRTY;
 			if (pm->show_pfn)
 				frame = pmd_pfn(pmd) +
 					((addr & ~PMD_MASK) >> PAGE_SHIFT);
@@ -1328,6 +1331,8 @@ static int pagemap_pmd_range(pmd_t *pmdp, unsigned long addr, unsigned long end,
 			frame = swp_type(entry) |
 				(swp_offset(entry) << MAX_SWAPFILES_SHIFT);
 			flags |= PM_SWAP;
+			if (pmd_swp_soft_dirty(pmd))
+				flags |= PM_SOFT_DIRTY;
 			VM_BUG_ON(!is_pmd_migration_entry(pmd));
 			page = migration_entry_to_page(entry);
 		}

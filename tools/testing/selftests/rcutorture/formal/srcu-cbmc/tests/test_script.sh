@@ -1,4 +1,5 @@
 #!/bin/sh
+# SPDX-License-Identifier: GPL-2.0
 
 # This script expects a mode (either --should-pass or --should-fail) followed by
 # an input file. The script uses the following environment variables. The test C

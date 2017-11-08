@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _TRANSP_V6_H
 #define _TRANSP_V6_H
 

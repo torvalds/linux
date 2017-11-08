@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_PARAVIRT_H
 #define _ASM_X86_PARAVIRT_H
 /* Various instructions on x86 need to be replaced for

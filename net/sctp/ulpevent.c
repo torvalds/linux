@@ -847,7 +847,7 @@ struct sctp_ulpevent *sctp_ulpevent_make_sender_dry_event(
 
 struct sctp_ulpevent *sctp_ulpevent_make_stream_reset_event(
 	const struct sctp_association *asoc, __u16 flags, __u16 stream_num,
-	__u16 *stream_list, gfp_t gfp)
+	__be16 *stream_list, gfp_t gfp)
 {
 	struct sctp_stream_reset_event *sreset;
 	struct sctp_ulpevent *event;

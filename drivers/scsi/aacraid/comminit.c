@@ -302,9 +302,11 @@ int aac_send_shutdown(struct aac_dev * dev)
 		return -ENOMEM;
 	aac_fib_init(fibctx);
 
-	mutex_lock(&dev->ioctl_mutex);
-	dev->adapter_shutdown = 1;
-	mutex_unlock(&dev->ioctl_mutex);
+	if (!dev->adapter_shutdown) {
+		mutex_lock(&dev->ioctl_mutex);
+		dev->adapter_shutdown = 1;
+		mutex_unlock(&dev->ioctl_mutex);
+	}
 
 	cmd = (struct aac_close *) fib_data(fibctx);
 	cmd->command = cpu_to_le32(VM_CloseAll);

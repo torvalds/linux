@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * To speed up listener socket lookup, create an array to store all sockets
  * listening on the same port.  This allows a decision to be made after finding

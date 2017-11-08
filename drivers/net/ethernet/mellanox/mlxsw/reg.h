@@ -5827,6 +5827,29 @@ MLXSW_ITEM32(reg, mtmp, mtr, 0x08, 30, 1);
  */
 MLXSW_ITEM32(reg, mtmp, max_temperature, 0x08, 0, 16);
 
+/* reg_mtmp_tee
+ * Temperature Event Enable.
+ * 0 - Do not generate event
+ * 1 - Generate event
+ * 2 - Generate single event
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, mtmp, tee, 0x0C, 30, 2);
+
+#define MLXSW_REG_MTMP_THRESH_HI 0x348	/* 105 Celsius */
+
+/* reg_mtmp_temperature_threshold_hi
+ * High threshold for Temperature Warning Event. In 0.125 Celsius.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, mtmp, temperature_threshold_hi, 0x0C, 0, 16);
+
+/* reg_mtmp_temperature_threshold_lo
+ * Low threshold for Temperature Warning Event. In 0.125 Celsius.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, mtmp, temperature_threshold_lo, 0x10, 0, 16);
+
 #define MLXSW_REG_MTMP_SENSOR_NAME_SIZE 8
 
 /* reg_mtmp_sensor_name
@@ -5843,6 +5866,8 @@ static inline void mlxsw_reg_mtmp_pack(char *payload, u8 sensor_index,
 	mlxsw_reg_mtmp_sensor_index_set(payload, sensor_index);
 	mlxsw_reg_mtmp_mte_set(payload, max_temp_enable);
 	mlxsw_reg_mtmp_mtr_set(payload, max_temp_reset);
+	mlxsw_reg_mtmp_temperature_threshold_hi_set(payload,
+						    MLXSW_REG_MTMP_THRESH_HI);
 }
 
 static inline void mlxsw_reg_mtmp_unpack(char *payload, unsigned int *p_temp,

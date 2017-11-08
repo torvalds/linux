@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  * lirc.h - linux infrared remote control header file
  * last modified 2010/07/13 by Jarod Wilson

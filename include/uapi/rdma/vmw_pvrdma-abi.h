@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-2-Clause) */
 /*
  * Copyright (c) 2012-2016 VMware, Inc.  All rights reserved.
  *

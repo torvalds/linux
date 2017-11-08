@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __ARCH_H8300_CACHE_H
 #define __ARCH_H8300_CACHE_H
 

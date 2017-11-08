@@ -477,6 +477,11 @@ static int da9052_hwmon_probe(struct platform_device *pdev)
 		/* disable touchscreen features */
 		da9052_reg_write(hwmon->da9052, DA9052_TSI_CONT_A_REG, 0x00);
 
+		/* Sample every 1ms */
+		da9052_reg_update(hwmon->da9052, DA9052_ADC_CONT_REG,
+					  DA9052_ADCCONT_ADCMODE,
+					  DA9052_ADCCONT_ADCMODE);
+
 		err = da9052_request_irq(hwmon->da9052, DA9052_IRQ_TSIREADY,
 					 "tsiready-irq", da9052_tsi_datardy_irq,
 					 hwmon);

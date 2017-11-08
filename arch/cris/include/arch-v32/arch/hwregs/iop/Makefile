@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 # $Id: Makefile,v 1.3 2004/01/07 20:34:55 johana Exp $
 # Makefile to generate or copy the latest register definitions
 # and related datastructures and helpermacros.

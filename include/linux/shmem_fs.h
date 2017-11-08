@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __SHMEM_FS_H
 #define __SHMEM_FS_H
 

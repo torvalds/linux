@@ -86,8 +86,8 @@ static struct orc_entry *orc_find(unsigned long ip)
 		idx = (ip - LOOKUP_START_IP) / LOOKUP_BLOCK_SIZE;
 
 		if (unlikely((idx >= lookup_num_blocks-1))) {
-			orc_warn("WARNING: bad lookup idx: idx=%u num=%u ip=%lx\n",
-				 idx, lookup_num_blocks, ip);
+			orc_warn("WARNING: bad lookup idx: idx=%u num=%u ip=%pB\n",
+				 idx, lookup_num_blocks, (void *)ip);
 			return NULL;
 		}
 
@@ -96,8 +96,8 @@ static struct orc_entry *orc_find(unsigned long ip)
 
 		if (unlikely((__start_orc_unwind + start >= __stop_orc_unwind) ||
 			     (__start_orc_unwind + stop > __stop_orc_unwind))) {
-			orc_warn("WARNING: bad lookup value: idx=%u num=%u start=%u stop=%u ip=%lx\n",
-				 idx, lookup_num_blocks, start, stop, ip);
+			orc_warn("WARNING: bad lookup value: idx=%u num=%u start=%u stop=%u ip=%pB\n",
+				 idx, lookup_num_blocks, start, stop, (void *)ip);
 			return NULL;
 		}
 
@@ -373,7 +373,7 @@ bool unwind_next_frame(struct unwind_state *state)
 
 	case ORC_REG_R10:
 		if (!state->regs || !state->full_regs) {
-			orc_warn("missing regs for base reg R10 at ip %p\n",
+			orc_warn("missing regs for base reg R10 at ip %pB\n",
 				 (void *)state->ip);
 			goto done;
 		}
@@ -382,7 +382,7 @@ bool unwind_next_frame(struct unwind_state *state)
 
 	case ORC_REG_R13:
 		if (!state->regs || !state->full_regs) {
-			orc_warn("missing regs for base reg R13 at ip %p\n",
+			orc_warn("missing regs for base reg R13 at ip %pB\n",
 				 (void *)state->ip);
 			goto done;
 		}
@@ -391,7 +391,7 @@ bool unwind_next_frame(struct unwind_state *state)
 
 	case ORC_REG_DI:
 		if (!state->regs || !state->full_regs) {
-			orc_warn("missing regs for base reg DI at ip %p\n",
+			orc_warn("missing regs for base reg DI at ip %pB\n",
 				 (void *)state->ip);
 			goto done;
 		}
@@ -400,7 +400,7 @@ bool unwind_next_frame(struct unwind_state *state)
 
 	case ORC_REG_DX:
 		if (!state->regs || !state->full_regs) {
-			orc_warn("missing regs for base reg DX at ip %p\n",
+			orc_warn("missing regs for base reg DX at ip %pB\n",
 				 (void *)state->ip);
 			goto done;
 		}
@@ -408,7 +408,7 @@ bool unwind_next_frame(struct unwind_state *state)
 		break;
 
 	default:
-		orc_warn("unknown SP base reg %d for ip %p\n",
+		orc_warn("unknown SP base reg %d for ip %pB\n",
 			 orc->sp_reg, (void *)state->ip);
 		goto done;
 	}
@@ -436,7 +436,7 @@ bool unwind_next_frame(struct unwind_state *state)
 
 	case ORC_TYPE_REGS:
 		if (!deref_stack_regs(state, sp, &state->ip, &state->sp, true)) {
-			orc_warn("can't dereference registers at %p for ip %p\n",
+			orc_warn("can't dereference registers at %p for ip %pB\n",
 				 (void *)sp, (void *)orig_ip);
 			goto done;
 		}
@@ -448,7 +448,7 @@ bool unwind_next_frame(struct unwind_state *state)
 
 	case ORC_TYPE_REGS_IRET:
 		if (!deref_stack_regs(state, sp, &state->ip, &state->sp, false)) {
-			orc_warn("can't dereference iret registers at %p for ip %p\n",
+			orc_warn("can't dereference iret registers at %p for ip %pB\n",
 				 (void *)sp, (void *)orig_ip);
 			goto done;
 		}
@@ -465,7 +465,8 @@ bool unwind_next_frame(struct unwind_state *state)
 		break;
 
 	default:
-		orc_warn("unknown .orc_unwind entry type %d\n", orc->type);
+		orc_warn("unknown .orc_unwind entry type %d for ip %pB\n",
+			 orc->type, (void *)orig_ip);
 		break;
 	}
 
@@ -487,7 +488,7 @@ bool unwind_next_frame(struct unwind_state *state)
 		break;
 
 	default:
-		orc_warn("unknown BP base reg %d for ip %p\n",
+		orc_warn("unknown BP base reg %d for ip %pB\n",
 			 orc->bp_reg, (void *)orig_ip);
 		goto done;
 	}
@@ -496,7 +497,7 @@ bool unwind_next_frame(struct unwind_state *state)
 	if (state->stack_info.type == prev_type &&
 	    on_stack(&state->stack_info, (void *)state->sp, sizeof(long)) &&
 	    state->sp <= prev_sp) {
-		orc_warn("stack going in the wrong direction? ip=%p\n",
+		orc_warn("stack going in the wrong direction? ip=%pB\n",
 			 (void *)orig_ip);
 		goto done;
 	}

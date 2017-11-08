@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _NET_IP6_ROUTE_H
 #define _NET_IP6_ROUTE_H
 
