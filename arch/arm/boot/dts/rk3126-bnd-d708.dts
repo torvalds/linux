@@ -135,6 +135,24 @@
 		};
 	};
 
+	rockchip_headset {
+		compatible = "rockchip_headset";
+		headset_gpio = <&gpio2 18 GPIO_ACTIVE_LOW>;
+	};
+
+	sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,mclk-fs = <256>;
+		simple-audio-card,name = "rockchip,rk312x";
+		simple-audio-card,cpu {
+			sound-dai = <&i2s_2ch>;
+		};
+		simple-audio-card,codec {
+			sound-dai = <&codec>;
+		};
+	};
+
 	vccadc_ref: vccadc-ref {
 		compatible = "regulator-fixed";
 		regulator-name = "SARADC_AVDD33";
@@ -159,6 +177,21 @@
 		WIFI,host_wake_irq = <&gpio2 13 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
+};
+
+&codec {
+	#sound-dai-cells = <0>;
+	hp-ctl-gpios = <&gpio2 17 GPIO_ACTIVE_LOW>;
+	spk-ctl-gpios = <&gpio2 10 GPIO_ACTIVE_HIGH>;
+	spk-mute-delay = <200>;
+	hp-mute-delay = <100>;
+	is_rk3128 = <0>;
+	spk_volume = <25>;
+	hp_volume = <25>;
+	capture_volume = <26>;
+	gpio_debug = <1>;
+	codec_hp_det = <0>;
+	status = "okay";
 };
 
 &cif {
@@ -447,6 +480,11 @@
 		layout = <3>;
 		reprobe_en = <1>;
 	};
+};
+
+&i2s_2ch {
+	#sound-dai-cells = <0>;
+	status = "okay";
 };
 
 &mipi_dphy {
