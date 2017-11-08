@@ -221,8 +221,7 @@ static int xgene_rtc_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int xgene_rtc_suspend(struct device *dev)
+static int __maybe_unused xgene_rtc_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct xgene_rtc_dev *pdata = platform_get_drvdata(pdev);
@@ -246,7 +245,7 @@ static int xgene_rtc_suspend(struct device *dev)
 	return 0;
 }
 
-static int xgene_rtc_resume(struct device *dev)
+static int __maybe_unused xgene_rtc_resume(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct xgene_rtc_dev *pdata = platform_get_drvdata(pdev);
@@ -271,7 +270,6 @@ static int xgene_rtc_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
 static SIMPLE_DEV_PM_OPS(xgene_rtc_pm_ops, xgene_rtc_suspend, xgene_rtc_resume);
 
