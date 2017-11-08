@@ -341,7 +341,9 @@ struct thread_struct {
 	unsigned long	sier;
 	unsigned long	mmcr2;
 	unsigned 	mmcr0;
+
 	unsigned 	used_ebb;
+	unsigned int	used_vas;
 #endif
 };
 

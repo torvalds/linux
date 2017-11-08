@@ -1244,17 +1244,17 @@ struct task_struct *__switch_to(struct task_struct *prev,
 		 * The copy-paste buffer can only store into foreign real
 		 * addresses, so unprivileged processes can not see the
 		 * data or use it in any way unless they have foreign real
-		 * mappings. We don't have a VAS driver that allocates those
-		 * yet, so no cpabort is required.
+		 * mappings. If the new process has the foreign real address
+		 * mappings, we must issue a cp_abort to clear any state and
+		 * prevent snooping, corruption or a covert channel.
+		 *
+		 * DD1 allows paste into normal system memory so we do an
+		 * unpaired copy, rather than cp_abort, to clear the buffer,
+		 * since cp_abort is quite expensive.
 		 */
-		if (cpu_has_feature(CPU_FTR_POWER9_DD1)) {
-			/*
-			 * DD1 allows paste into normal system memory, so we
-			 * do an unpaired copy here to clear the buffer and
-			 * prevent a covert channel being set up.
-			 *
-			 * cpabort is not used because it is quite expensive.
-			 */
+		if (current_thread_info()->task->thread.used_vas) {
+			asm volatile(PPC_CP_ABORT);
+		} else if (cpu_has_feature(CPU_FTR_POWER9_DD1)) {
 			asm volatile(PPC_COPY(%0, %1)
 					: : "r"(dummy_copy_buffer), "r"(0));
 		}
@@ -1453,6 +1453,27 @@ void flush_thread(void)
 #else /* CONFIG_HAVE_HW_BREAKPOINT */
 	set_debug_reg_defaults(&current->thread);
 #endif /* CONFIG_HAVE_HW_BREAKPOINT */
+}
+
+int set_thread_uses_vas(void)
+{
+#ifdef CONFIG_PPC_BOOK3S_64
+	if (!cpu_has_feature(CPU_FTR_ARCH_300))
+		return -EINVAL;
+
+	current->thread.used_vas = 1;
+
+	/*
+	 * Even a process that has no foreign real address mapping can use
+	 * an unpaired COPY instruction (to no real effect). Issue CP_ABORT
+	 * to clear any pending COPY and prevent a covert channel.
+	 *
+	 * __switch_to() will issue CP_ABORT on future context switches.
+	 */
+	asm volatile(PPC_CP_ABORT);
+
+#endif /* CONFIG_PPC_BOOK3S_64 */
+	return 0;
 }
 
 #ifdef CONFIG_PPC64
