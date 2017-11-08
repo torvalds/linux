@@ -144,37 +144,6 @@ struct dc_cap_funcs {
 			struct dc_surface_dcc_cap *output);
 };
 
-struct dc_stream_state_funcs {
-	bool (*adjust_vmin_vmax)(struct dc *dc,
-			struct dc_stream_state **stream,
-			int num_streams,
-			int vmin,
-			int vmax);
-	bool (*get_crtc_position)(struct dc *dc,
-			struct dc_stream_state **stream,
-			int num_streams,
-			unsigned int *v_pos,
-			unsigned int *nom_v_pos);
-
-	bool (*set_gamut_remap)(struct dc *dc,
-			const struct dc_stream_state *stream);
-
-	bool (*program_csc_matrix)(struct dc *dc,
-			struct dc_stream_state *stream);
-
-	void (*set_static_screen_events)(struct dc *dc,
-			struct dc_stream_state **stream,
-			int num_streams,
-			const struct dc_static_screen_events *events);
-
-	void (*set_dither_option)(struct dc_stream_state *stream,
-			enum dc_dither_option option);
-
-	void (*set_dpms)(struct dc *dc,
-			struct dc_stream_state *stream,
-			bool dpms_off);
-};
-
 struct link_training_settings;
 
 struct dc_link_funcs {
@@ -268,7 +237,6 @@ struct dce_hwseq;
 struct dc {
 	struct dc_caps caps;
 	struct dc_cap_funcs cap_funcs;
-	struct dc_stream_state_funcs stream_funcs;
 	struct dc_link_funcs link_funcs;
 	struct dc_config config;
 	struct dc_debug debug;
