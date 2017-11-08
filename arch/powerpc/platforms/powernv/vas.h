@@ -332,6 +332,7 @@ struct vas_window {
 	void *hvwc_map;		/* HV window context */
 	void *uwc_map;		/* OS/User window context */
 	pid_t pid;		/* Linux process id of owner */
+	int wcreds_max;		/* Window credits */
 
 	/* Fields applicable only to send windows */
 	void *paste_kaddr;
