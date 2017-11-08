@@ -819,6 +819,8 @@ static const struct nla_policy netem_policy[TCA_NETEM_MAX + 1] = {
 	[TCA_NETEM_LOSS]	= { .type = NLA_NESTED },
 	[TCA_NETEM_ECN]		= { .type = NLA_U32 },
 	[TCA_NETEM_RATE64]	= { .type = NLA_U64 },
+	[TCA_NETEM_LATENCY64]	= { .type = NLA_S64 },
+	[TCA_NETEM_JITTER64]	= { .type = NLA_S64 },
 };
 
 static int parse_attr(struct nlattr *tb[], int maxtype, struct nlattr *nla,
@@ -915,6 +917,12 @@ static int netem_change(struct Qdisc *sch, struct nlattr *opt)
 	if (tb[TCA_NETEM_RATE64])
 		q->rate = max_t(u64, q->rate,
 				nla_get_u64(tb[TCA_NETEM_RATE64]));
+
+	if (tb[TCA_NETEM_LATENCY64])
+		q->latency = nla_get_s64(tb[TCA_NETEM_LATENCY64]);
+
+	if (tb[TCA_NETEM_JITTER64])
+		q->jitter = nla_get_s64(tb[TCA_NETEM_JITTER64]);
 
 	if (tb[TCA_NETEM_ECN])
 		q->ecn = nla_get_u32(tb[TCA_NETEM_ECN]);
@@ -1018,6 +1026,12 @@ static int netem_dump(struct Qdisc *sch, struct sk_buff *skb)
 	qopt.gap = q->gap;
 	qopt.duplicate = q->duplicate;
 	if (nla_put(skb, TCA_OPTIONS, sizeof(qopt), &qopt))
+		goto nla_put_failure;
+
+	if (nla_put(skb, TCA_NETEM_LATENCY64, sizeof(q->latency), &q->latency))
+		goto nla_put_failure;
+
+	if (nla_put(skb, TCA_NETEM_JITTER64, sizeof(q->jitter), &q->jitter))
 		goto nla_put_failure;
 
 	cor.delay_corr = q->delay_cor.rho;
