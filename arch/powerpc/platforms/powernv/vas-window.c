@@ -1079,25 +1079,25 @@ retry:
 	}
 }
 
+/*
+ * Have the hardware cast a window out of cache and wait for it to
+ * be completed.
+ *
+ * NOTE: It can take a relatively long time to cast the window context
+ *	out of the cache. It is not strictly necessary to cast out if:
+ *
+ *	- we clear the "Pin Window" bit (so hardware is free to evict)
+ *
+ *	- we re-initialize the window context when it is reassigned.
+ *
+ *	We do the former in vas_win_close() and latter in vas_win_open().
+ *	So, ignoring the cast-out for now. We can add it as needed. If
+ *	casting out becomes necessary we should consider offloading the
+ *	job to a worker thread, so the window close can proceed quickly.
+ */
 static void poll_window_castout(struct vas_window *window)
 {
-	int cached;
-	u64 val;
-
-	/* Cast window context out of the cache */
-retry:
-	val = read_hvwc_reg(window, VREG(WIN_CTX_CACHING_CTL));
-	cached = GET_FIELD(VAS_WIN_CACHE_STATUS, val);
-	if (cached) {
-		val = 0ULL;
-		val = SET_FIELD(VAS_CASTOUT_REQ, val, 1);
-		val = SET_FIELD(VAS_PUSH_TO_MEM, val, 0);
-		write_hvwc_reg(window, VREG(WIN_CTX_CACHING_CTL), val);
-
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(HZ);
-		goto retry;
-	}
+	/* stub for now */
 }
 
 /*
