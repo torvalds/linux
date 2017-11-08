@@ -473,10 +473,20 @@ static int rt5514_suspend(struct device *dev)
 
 static int rt5514_resume(struct device *dev)
 {
+	struct snd_soc_platform *platform = snd_soc_lookup_platform(dev);
+	struct rt5514_dsp *rt5514_dsp =
+		snd_soc_platform_get_drvdata(platform);
 	int irq = to_spi_device(dev)->irq;
+	u8 buf[8];
 
 	if (device_may_wakeup(dev))
 		disable_irq_wake(irq);
+
+	if (rt5514_dsp->substream) {
+		rt5514_spi_burst_read(RT5514_IRQ_CTRL, (u8 *)&buf, sizeof(buf));
+		if (buf[0] & RT5514_IRQ_STATUS_BIT)
+			rt5514_schedule_copy(rt5514_dsp);
+	}
 
 	return 0;
 }
