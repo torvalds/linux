@@ -456,8 +456,34 @@ static int rt5514_spi_probe(struct spi_device *spi)
 		return ret;
 	}
 
+	device_init_wakeup(&spi->dev, true);
+
 	return 0;
 }
+
+static int rt5514_suspend(struct device *dev)
+{
+	int irq = to_spi_device(dev)->irq;
+
+	if (device_may_wakeup(dev))
+		enable_irq_wake(irq);
+
+	return 0;
+}
+
+static int rt5514_resume(struct device *dev)
+{
+	int irq = to_spi_device(dev)->irq;
+
+	if (device_may_wakeup(dev))
+		disable_irq_wake(irq);
+
+	return 0;
+}
+
+static const struct dev_pm_ops rt5514_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(rt5514_suspend, rt5514_resume)
+};
 
 static const struct of_device_id rt5514_of_match[] = {
 	{ .compatible = "realtek,rt5514", },
@@ -468,6 +494,7 @@ MODULE_DEVICE_TABLE(of, rt5514_of_match);
 static struct spi_driver rt5514_spi_driver = {
 	.driver = {
 		.name = "rt5514",
+		.pm = &rt5514_pm_ops,
 		.of_match_table = of_match_ptr(rt5514_of_match),
 	},
 	.probe = rt5514_spi_probe,
