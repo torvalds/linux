@@ -856,12 +856,11 @@ static snd_pcm_uframes_t acp_dma_pointer(struct snd_pcm_substream *substream)
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		if (bytescount > rtd->renderbytescount)
 			bytescount = bytescount - rtd->renderbytescount;
-		pos =  bytescount % buffersize;
 	} else {
 		if (bytescount > rtd->capturebytescount)
 			bytescount = bytescount - rtd->capturebytescount;
-		pos = bytescount % buffersize;
 	}
+	pos = do_div(bytescount, buffersize);
 	return bytes_to_frames(runtime, pos);
 }
 
