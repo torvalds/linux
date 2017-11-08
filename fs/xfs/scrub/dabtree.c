@@ -378,7 +378,8 @@ xfs_scrub_da_btree_block(
 	blk->magic = be16_to_cpu(hdr3->hdr.magic);
 	pmaxrecs = &ds->maxrecs[level];
 
-	if (hdr3->hdr.pad != cpu_to_be16(0))
+	/* We only started zeroing the header on v5 filesystems. */
+	if (xfs_sb_version_hascrc(&ds->sc->mp->m_sb) && hdr3->hdr.pad)
 		xfs_scrub_da_set_corrupt(ds, level);
 
 	/* Check the owner. */
