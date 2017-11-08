@@ -92,8 +92,6 @@ static const __initdata struct idt_data def_idts[] = {
 	INTG(X86_TRAP_DF,		double_fault),
 #endif
 	INTG(X86_TRAP_DB,		debug),
-	INTG(X86_TRAP_NMI,		nmi),
-	INTG(X86_TRAP_BP,		int3),
 
 #ifdef CONFIG_X86_MCE
 	INTG(X86_TRAP_MC,		&machine_check),
