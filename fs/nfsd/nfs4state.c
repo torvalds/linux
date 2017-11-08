@@ -86,6 +86,11 @@ static void nfs4_free_ol_stateid(struct nfs4_stid *stid);
  */
 static DEFINE_SPINLOCK(state_lock);
 
+enum nfsd4_st_mutex_lock_subclass {
+	OPEN_STATEID_MUTEX = 0,
+	LOCK_STATEID_MUTEX = 1,
+};
+
 /*
  * A waitqueue for all in-progress 4.0 CLOSE operations that are waiting for
  * the refcount on the open stateid to drop.
@@ -3600,7 +3605,7 @@ nfsd4_lock_ol_stateid(struct nfs4_ol_stateid *stp)
 {
 	__be32 ret;
 
-	mutex_lock(&stp->st_mutex);
+	mutex_lock_nested(&stp->st_mutex, LOCK_STATEID_MUTEX);
 	ret = nfsd4_verify_open_stid(&stp->st_stid);
 	if (ret != nfs_ok)
 		mutex_unlock(&stp->st_mutex);
@@ -3664,7 +3669,7 @@ init_open_stateid(struct nfs4_file *fp, struct nfsd4_open *open)
 	stp = open->op_stp;
 	/* We are moving these outside of the spinlocks to avoid the warnings */
 	mutex_init(&stp->st_mutex);
-	mutex_lock(&stp->st_mutex);
+	mutex_lock_nested(&stp->st_mutex, OPEN_STATEID_MUTEX);
 
 retry:
 	spin_lock(&oo->oo_owner.so_client->cl_lock);
@@ -5741,7 +5746,7 @@ init_lock_stateid(struct nfs4_ol_stateid *stp, struct nfs4_lockowner *lo,
 	struct nfs4_ol_stateid *retstp;
 
 	mutex_init(&stp->st_mutex);
-	mutex_lock(&stp->st_mutex);
+	mutex_lock_nested(&stp->st_mutex, OPEN_STATEID_MUTEX);
 retry:
 	spin_lock(&clp->cl_lock);
 	spin_lock(&fp->fi_lock);
