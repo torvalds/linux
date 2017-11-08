@@ -112,7 +112,7 @@ static void cyc2ns_data_init(struct cyc2ns_data *data)
 	data->cyc2ns_offset = 0;
 }
 
-static void cyc2ns_init(int cpu)
+static void __init cyc2ns_init(int cpu)
 {
 	struct cyc2ns *c2n = &per_cpu(cyc2ns, cpu);
 
@@ -955,7 +955,7 @@ core_initcall(cpufreq_register_tsc_scaling);
 /*
  * If ART is present detect the numerator:denominator to convert to TSC
  */
-static void detect_art(void)
+static void __init detect_art(void)
 {
 	unsigned int unused[2];
 
