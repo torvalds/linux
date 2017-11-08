@@ -168,6 +168,11 @@ int vas_copy_crb(void *crb, int offset);
 int vas_paste_crb(struct vas_window *win, int offset, bool re);
 
 /*
+ * Return a system-wide unique id for the VAS window @win.
+ */
+extern u32 vas_win_id(struct vas_window *win);
+
+/*
  * Return the power bus paste address associated with @win so the caller
  * can map that address into their address space.
  */
