@@ -38,7 +38,7 @@ The two cells in order are:
 2. The port ID as specified in the datasheet
 
 Example:
-spi2: spi@01c6a000 {
+spi2: spi@1c6a000 {
 	compatible = "allwinner,sun6i-a31-spi";
 	reg = <0x01c6a000 0x1000>;
 	interrupts = <0 67 4>;

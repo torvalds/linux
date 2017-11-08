@@ -109,7 +109,7 @@ ethernet@f0ba0000 {
 	reg = <0xf0ba0000 0xfc4c>;
 	interrupts = <0x0 0x18 0x0>, <0x0 0x19 0x0>;
 
-	mdio@0e14 {
+	mdio@e14 {
 		compatible = "brcm,genet-mdio-v4";
 		#address-cells = <0x1>;
 		#size-cells = <0x0>;

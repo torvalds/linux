@@ -32,11 +32,11 @@ Optional properties
 
 Example:
 
-	gpr: iomuxc-gpr@020e0000 {
+	gpr: iomuxc-gpr@20e0000 {
 		/* ... */
 	};
 
-        hdmi: hdmi@0120000 {
+        hdmi: hdmi@120000 {
                 #address-cells = <1>;
                 #size-cells = <0>;
                 compatible = "fsl,imx6q-hdmi";
