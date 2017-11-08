@@ -259,7 +259,7 @@ static int lockd_up_net(struct svc_serv *serv, struct net *net)
 	if (error < 0)
 		goto err_bind;
 	set_grace_period(net);
-	dprintk("lockd_up_net: per-net data created; net=%p\n", net);
+	dprintk("%s: per-net data created; net=%x\n", __func__, net->ns.inum);
 	return 0;
 
 err_bind:
@@ -275,11 +275,12 @@ static void lockd_down_net(struct svc_serv *serv, struct net *net)
 		if (--ln->nlmsvc_users == 0) {
 			nlm_shutdown_hosts_net(net);
 			svc_shutdown_net(serv, net);
-			dprintk("lockd_down_net: per-net data destroyed; net=%p\n", net);
+			dprintk("%s: per-net data destroyed; net=%x\n",
+				__func__, net->ns.inum);
 		}
 	} else {
-		printk(KERN_ERR "lockd_down_net: no users! task=%p, net=%p\n",
-				nlmsvc_task, net);
+		pr_err("%s: no users! task=%p, net=%x\n",
+			__func__, nlmsvc_task, net->ns.inum);
 		BUG();
 	}
 }
