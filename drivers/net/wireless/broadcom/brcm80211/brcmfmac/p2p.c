@@ -692,10 +692,7 @@ static s32 brcmf_p2p_escan(struct brcmf_p2p_info *p2p, u32 num_chans,
 
 	/* determine the scan engine parameters */
 	sparams->bss_type = DOT11_BSSTYPE_ANY;
-	if (p2p->cfg->active_scan)
-		sparams->scan_type = 0;
-	else
-		sparams->scan_type = 1;
+	sparams->scan_type = BRCMF_SCANTYPE_ACTIVE;
 
 	eth_broadcast_addr(sparams->bssid);
 	sparams->home_time = cpu_to_le32(P2PAPI_SCAN_HOME_TIME_MS);
