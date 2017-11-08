@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 config EMBEDDED6xx
 	bool "Embedded 6xx/7xx/7xxx-based boards"
 	depends on 6xx && BROKEN_ON_SMP

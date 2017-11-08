@@ -6998,6 +6998,7 @@ enum {
  */
 #define  L3_GENERAL_PRIO_CREDITS(x)		(((x) >> 1) << 19)
 #define  L3_HIGH_PRIO_CREDITS(x)		(((x) >> 1) << 14)
+#define  L3_PRIO_CREDITS_MASK			((0x1f << 19) | (0x1f << 14))
 
 #define GEN7_L3CNTLREG1				_MMIO(0xB01C)
 #define  GEN7_WA_FOR_GEN7_L3_CONTROL			0x3C47FF8C

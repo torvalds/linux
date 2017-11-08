@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 obj-$(CONFIG_6LOWPAN) += 6lowpan.o
 
 6lowpan-y := core.o iphc.o nhc.o ndisc.o

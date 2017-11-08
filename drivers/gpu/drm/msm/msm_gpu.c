@@ -718,7 +718,8 @@ void msm_gpu_cleanup(struct msm_gpu *gpu)
 			msm_gem_put_iova(gpu->rb->bo, gpu->aspace);
 		msm_ringbuffer_destroy(gpu->rb);
 	}
-	if (gpu->aspace) {
+
+	if (!IS_ERR_OR_NULL(gpu->aspace)) {
 		gpu->aspace->mmu->funcs->detach(gpu->aspace->mmu,
 			NULL, 0);
 		msm_gem_address_space_put(gpu->aspace);

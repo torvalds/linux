@@ -265,8 +265,8 @@ int irq_startup(struct irq_desc *desc, bool resend, bool force)
 			irq_setup_affinity(desc);
 			break;
 		case IRQ_STARTUP_MANAGED:
+			irq_do_set_affinity(d, aff, false);
 			ret = __irq_startup(desc);
-			irq_set_affinity_locked(d, aff, false);
 			break;
 		case IRQ_STARTUP_ABORT:
 			return 0;

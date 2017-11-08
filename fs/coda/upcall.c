@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Mostly platform independent upcall operations to Venus:
  *  -- upcalls

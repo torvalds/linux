@@ -360,6 +360,7 @@ static int omap_i2c_init(struct omap_i2c_dev *omap)
 	unsigned long fclk_rate = 12000000;
 	unsigned long internal_clk = 0;
 	struct clk *fclk;
+	int error;
 
 	if (omap->rev >= OMAP_I2C_REV_ON_3430_3530) {
 		/*
@@ -378,6 +379,13 @@ static int omap_i2c_init(struct omap_i2c_dev *omap)
 		 * do this bit unconditionally.
 		 */
 		fclk = clk_get(omap->dev, "fck");
+		if (IS_ERR(fclk)) {
+			error = PTR_ERR(fclk);
+			dev_err(omap->dev, "could not get fck: %i\n", error);
+
+			return error;
+		}
+
 		fclk_rate = clk_get_rate(fclk);
 		clk_put(fclk);
 
@@ -410,6 +418,12 @@ static int omap_i2c_init(struct omap_i2c_dev *omap)
 		else
 			internal_clk = 4000;
 		fclk = clk_get(omap->dev, "fck");
+		if (IS_ERR(fclk)) {
+			error = PTR_ERR(fclk);
+			dev_err(omap->dev, "could not get fck: %i\n", error);
+
+			return error;
+		}
 		fclk_rate = clk_get_rate(fclk) / 1000;
 		clk_put(fclk);
 

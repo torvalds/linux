@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_MSHYPER_H
 #define _ASM_X86_MSHYPER_H
 
@@ -289,6 +290,7 @@ static inline u64 hv_do_rep_hypercall(u16 code, u16 rep_count, u16 varhead_size,
  * to this information.
  */
 extern u32 *hv_vp_index;
+extern u32 hv_max_vp_index;
 
 /**
  * hv_cpu_number_to_vp_number() - Map CPU to VP.

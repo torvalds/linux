@@ -397,7 +397,7 @@ static void retry_copy_page(int ufd, struct uffdio_copy *uffdio_copy,
 	}
 }
 
-static int copy_page(int ufd, unsigned long offset)
+static int __copy_page(int ufd, unsigned long offset, bool retry)
 {
 	struct uffdio_copy uffdio_copy;
 
@@ -418,13 +418,23 @@ static int copy_page(int ufd, unsigned long offset)
 		fprintf(stderr, "UFFDIO_COPY unexpected copy %Ld\n",
 			uffdio_copy.copy), exit(1);
 	} else {
-		if (test_uffdio_copy_eexist) {
+		if (test_uffdio_copy_eexist && retry) {
 			test_uffdio_copy_eexist = false;
 			retry_copy_page(ufd, &uffdio_copy, offset);
 		}
 		return 1;
 	}
 	return 0;
+}
+
+static int copy_page_retry(int ufd, unsigned long offset)
+{
+	return __copy_page(ufd, offset, true);
+}
+
+static int copy_page(int ufd, unsigned long offset)
+{
+	return __copy_page(ufd, offset, false);
 }
 
 static void *uffd_poll_thread(void *arg)
@@ -544,7 +554,7 @@ static void *background_thread(void *arg)
 	for (page_nr = cpu * nr_pages_per_cpu;
 	     page_nr < (cpu+1) * nr_pages_per_cpu;
 	     page_nr++)
-		copy_page(uffd, page_nr * page_size);
+		copy_page_retry(uffd, page_nr * page_size);
 
 	return NULL;
 }
@@ -779,7 +789,7 @@ static void retry_uffdio_zeropage(int ufd,
 	}
 }
 
-static int uffdio_zeropage(int ufd, unsigned long offset)
+static int __uffdio_zeropage(int ufd, unsigned long offset, bool retry)
 {
 	struct uffdio_zeropage uffdio_zeropage;
 	int ret;
@@ -814,7 +824,7 @@ static int uffdio_zeropage(int ufd, unsigned long offset)
 			fprintf(stderr, "UFFDIO_ZEROPAGE unexpected %Ld\n",
 				uffdio_zeropage.zeropage), exit(1);
 		} else {
-			if (test_uffdio_zeropage_eexist) {
+			if (test_uffdio_zeropage_eexist && retry) {
 				test_uffdio_zeropage_eexist = false;
 				retry_uffdio_zeropage(ufd, &uffdio_zeropage,
 						      offset);
@@ -828,6 +838,11 @@ static int uffdio_zeropage(int ufd, unsigned long offset)
 	}
 
 	return 0;
+}
+
+static int uffdio_zeropage(int ufd, unsigned long offset)
+{
+	return __uffdio_zeropage(ufd, offset, false);
 }
 
 /* exercise UFFDIO_ZEROPAGE */

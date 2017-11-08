@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*  arch/sparc64/kernel/signal32.c
  *
  *  Copyright (C) 1991, 1992  Linus Torvalds

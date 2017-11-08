@@ -1809,15 +1809,17 @@ static inline void bcm_sysport_mask_all_intrs(struct bcm_sysport_priv *priv)
 
 static inline void gib_set_pad_extension(struct bcm_sysport_priv *priv)
 {
-	u32 __maybe_unused reg;
+	u32 reg;
 
-	/* Include Broadcom tag in pad extension */
+	reg = gib_readl(priv, GIB_CONTROL);
+	/* Include Broadcom tag in pad extension and fix up IPG_LENGTH */
 	if (netdev_uses_dsa(priv->netdev)) {
-		reg = gib_readl(priv, GIB_CONTROL);
 		reg &= ~(GIB_PAD_EXTENSION_MASK << GIB_PAD_EXTENSION_SHIFT);
 		reg |= ENET_BRCM_TAG_LEN << GIB_PAD_EXTENSION_SHIFT;
-		gib_writel(priv, reg, GIB_CONTROL);
 	}
+	reg &= ~(GIB_IPG_LEN_MASK << GIB_IPG_LEN_SHIFT);
+	reg |= 12 << GIB_IPG_LEN_SHIFT;
+	gib_writel(priv, reg, GIB_CONTROL);
 }
 
 static int bcm_sysport_open(struct net_device *dev)

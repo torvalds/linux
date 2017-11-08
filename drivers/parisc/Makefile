@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # Makefile for most of the non-PCI devices in PA-RISC machines
 #

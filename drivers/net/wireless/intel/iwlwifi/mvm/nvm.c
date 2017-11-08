@@ -295,18 +295,24 @@ iwl_parse_nvm_sections(struct iwl_mvm *mvm)
 	const __be16 *hw;
 	const __le16 *sw, *calib, *regulatory, *mac_override, *phy_sku;
 	bool lar_enabled;
+	int regulatory_type;
 
 	/* Checking for required sections */
-	if (!mvm->trans->cfg->ext_nvm) {
+	if (mvm->trans->cfg->nvm_type != IWL_NVM_EXT) {
 		if (!mvm->nvm_sections[NVM_SECTION_TYPE_SW].data ||
 		    !mvm->nvm_sections[mvm->cfg->nvm_hw_section_num].data) {
 			IWL_ERR(mvm, "Can't parse empty OTP/NVM sections\n");
 			return NULL;
 		}
 	} else {
+		if (mvm->trans->cfg->nvm_type == IWL_NVM_SDP)
+			regulatory_type = NVM_SECTION_TYPE_REGULATORY_SDP;
+		else
+			regulatory_type = NVM_SECTION_TYPE_REGULATORY;
+
 		/* SW and REGULATORY sections are mandatory */
 		if (!mvm->nvm_sections[NVM_SECTION_TYPE_SW].data ||
-		    !mvm->nvm_sections[NVM_SECTION_TYPE_REGULATORY].data) {
+		    !mvm->nvm_sections[regulatory_type].data) {
 			IWL_ERR(mvm,
 				"Can't parse empty family 8000 OTP/NVM sections\n");
 			return NULL;
@@ -330,10 +336,13 @@ iwl_parse_nvm_sections(struct iwl_mvm *mvm)
 	hw = (const __be16 *)sections[mvm->cfg->nvm_hw_section_num].data;
 	sw = (const __le16 *)sections[NVM_SECTION_TYPE_SW].data;
 	calib = (const __le16 *)sections[NVM_SECTION_TYPE_CALIBRATION].data;
-	regulatory = (const __le16 *)sections[NVM_SECTION_TYPE_REGULATORY].data;
 	mac_override =
 		(const __le16 *)sections[NVM_SECTION_TYPE_MAC_OVERRIDE].data;
 	phy_sku = (const __le16 *)sections[NVM_SECTION_TYPE_PHY_SKU].data;
+
+	regulatory = mvm->trans->cfg->nvm_type == IWL_NVM_SDP ?
+		(const __le16 *)sections[NVM_SECTION_TYPE_REGULATORY_SDP].data :
+		(const __le16 *)sections[NVM_SECTION_TYPE_REGULATORY].data;
 
 	lar_enabled = !iwlwifi_mod_params.lar_disable &&
 		      fw_has_capa(&mvm->fw->ucode_capa,
@@ -394,7 +403,7 @@ int iwl_mvm_read_external_nvm(struct iwl_mvm *mvm)
 	IWL_DEBUG_EEPROM(mvm->trans->dev, "Read from external NVM\n");
 
 	/* Maximal size depends on NVM version */
-	if (!mvm->trans->cfg->ext_nvm)
+	if (mvm->trans->cfg->nvm_type != IWL_NVM_EXT)
 		max_section_size = IWL_MAX_NVM_SECTION_SIZE;
 	else
 		max_section_size = IWL_MAX_EXT_NVM_SECTION_SIZE;
@@ -465,7 +474,7 @@ int iwl_mvm_read_external_nvm(struct iwl_mvm *mvm)
 			break;
 		}
 
-		if (!mvm->trans->cfg->ext_nvm) {
+		if (mvm->trans->cfg->nvm_type != IWL_NVM_EXT) {
 			section_size =
 				2 * NVM_WORD1_LEN(le16_to_cpu(file_sec->word1));
 			section_id = NVM_WORD2_ID(le16_to_cpu(file_sec->word2));
@@ -740,7 +749,7 @@ int iwl_mvm_init_mcc(struct iwl_mvm *mvm)
 	struct ieee80211_regdomain *regd;
 	char mcc[3];
 
-	if (mvm->cfg->ext_nvm) {
+	if (mvm->cfg->nvm_type == IWL_NVM_EXT) {
 		tlv_lar = fw_has_capa(&mvm->fw->ucode_capa,
 				      IWL_UCODE_TLV_CAPA_LAR_SUPPORT);
 		nvm_lar = mvm->nvm_data->lar_enabled;

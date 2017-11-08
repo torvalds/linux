@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* sbuslib.h: SBUS fb helper library interfaces */
 #ifndef _SBUSLIB_H
 #define _SBUSLIB_H

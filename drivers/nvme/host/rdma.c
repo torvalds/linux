@@ -571,6 +571,12 @@ static void nvme_rdma_free_queue(struct nvme_rdma_queue *queue)
 	if (test_and_set_bit(NVME_RDMA_Q_DELETING, &queue->flags))
 		return;
 
+	if (nvme_rdma_queue_idx(queue) == 0) {
+		nvme_rdma_free_qe(queue->device->dev,
+			&queue->ctrl->async_event_sqe,
+			sizeof(struct nvme_command), DMA_TO_DEVICE);
+	}
+
 	nvme_rdma_destroy_queue_ib(queue);
 	rdma_destroy_id(queue->cm_id);
 }
@@ -739,8 +745,6 @@ out:
 static void nvme_rdma_destroy_admin_queue(struct nvme_rdma_ctrl *ctrl,
 		bool remove)
 {
-	nvme_rdma_free_qe(ctrl->queues[0].device->dev, &ctrl->async_event_sqe,
-			sizeof(struct nvme_command), DMA_TO_DEVICE);
 	nvme_rdma_stop_queue(&ctrl->queues[0]);
 	if (remove) {
 		blk_cleanup_queue(ctrl->ctrl.admin_q);
@@ -765,8 +769,10 @@ static int nvme_rdma_configure_admin_queue(struct nvme_rdma_ctrl *ctrl,
 
 	if (new) {
 		ctrl->ctrl.admin_tagset = nvme_rdma_alloc_tagset(&ctrl->ctrl, true);
-		if (IS_ERR(ctrl->ctrl.admin_tagset))
+		if (IS_ERR(ctrl->ctrl.admin_tagset)) {
+			error = PTR_ERR(ctrl->ctrl.admin_tagset);
 			goto out_free_queue;
+		}
 
 		ctrl->ctrl.admin_q = blk_mq_init_queue(&ctrl->admin_tag_set);
 		if (IS_ERR(ctrl->ctrl.admin_q)) {
@@ -846,8 +852,10 @@ static int nvme_rdma_configure_io_queues(struct nvme_rdma_ctrl *ctrl, bool new)
 
 	if (new) {
 		ctrl->ctrl.tagset = nvme_rdma_alloc_tagset(&ctrl->ctrl, false);
-		if (IS_ERR(ctrl->ctrl.tagset))
+		if (IS_ERR(ctrl->ctrl.tagset)) {
+			ret = PTR_ERR(ctrl->ctrl.tagset);
 			goto out_free_io_queues;
+		}
 
 		ctrl->ctrl.connect_q = blk_mq_init_queue(&ctrl->tag_set);
 		if (IS_ERR(ctrl->ctrl.connect_q)) {
@@ -1606,12 +1614,15 @@ nvme_rdma_queue_is_ready(struct nvme_rdma_queue *queue, struct request *rq)
 			/*
 			 * reconnecting state means transport disruption, which
 			 * can take a long time and even might fail permanently,
-			 * so we can't let incoming I/O be requeued forever.
-			 * fail it fast to allow upper layers a chance to
-			 * failover.
+			 * fail fast to give upper layers a chance to failover.
+			 * deleting state means that the ctrl will never accept
+			 * commands again, fail it permanently.
 			 */
-			if (queue->ctrl->ctrl.state == NVME_CTRL_RECONNECTING)
+			if (queue->ctrl->ctrl.state == NVME_CTRL_RECONNECTING ||
+			    queue->ctrl->ctrl.state == NVME_CTRL_DELETING) {
+				nvme_req(rq)->status = NVME_SC_ABORT_REQ;
 				return BLK_STS_IOERR;
+			}
 			return BLK_STS_RESOURCE; /* try again later */
 		}
 	}

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef LINUX_QUICKLIST_H
 #define LINUX_QUICKLIST_H
 /*

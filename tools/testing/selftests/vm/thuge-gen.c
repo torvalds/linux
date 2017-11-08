@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* Test selecting other page sizes for mmap/shmget.
 
    Before running this huge pages for each huge page size must have been

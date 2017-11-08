@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 # Platform
 snd-soc-txx9aclc-objs := txx9aclc.o
 snd-soc-txx9aclc-ac97-objs := txx9aclc-ac97.o

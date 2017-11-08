@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * The owner field of the rw_semaphore structure will be set to
  * RWSEM_READ_OWNED when a reader grabs the lock. A writer will clear

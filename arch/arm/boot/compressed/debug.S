@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #include <linux/linkage.h>
 #include <asm/assembler.h>
 
@@ -23,7 +24,11 @@ ENTRY(putc)
 	strb	r0, [r1]
 	mov	r0, #0x03		@ SYS_WRITEC
    ARM(	svc	#0x123456	)
+#ifdef CONFIG_CPU_V7M
+ THUMB(	bkpt	#0xab		)
+#else
  THUMB(	svc	#0xab		)
+#endif
 	mov	pc, lr
 	.align	2
 1:	.word	_GLOBAL_OFFSET_TABLE_ - .

@@ -8,8 +8,8 @@ perf-record - Run a command and record its profile into perf.data
 SYNOPSIS
 --------
 [verse]
-'perf record' [-e <EVENT> | --event=EVENT] [-l] [-a] <command>
-'perf record' [-e <EVENT> | --event=EVENT] [-l] [-a] -- <command> [<options>]
+'perf record' [-e <EVENT> | --event=EVENT] [-a] <command>
+'perf record' [-e <EVENT> | --event=EVENT] [-a] -- <command> [<options>]
 
 DESCRIPTION
 -----------

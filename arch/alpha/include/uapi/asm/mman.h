@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef __ALPHA_MMAN_H__
 #define __ALPHA_MMAN_H__
 

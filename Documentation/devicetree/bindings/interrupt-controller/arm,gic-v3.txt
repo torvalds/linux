@@ -99,7 +99,7 @@ Examples:
 			compatible = "arm,gic-v3-its";
 			msi-controller;
 			#msi-cells = <1>;
-			reg = <0x0 0x2c200000 0 0x200000>;
+			reg = <0x0 0x2c200000 0 0x20000>;
 		};
 	};
 
@@ -124,14 +124,14 @@ Examples:
 			compatible = "arm,gic-v3-its";
 			msi-controller;
 			#msi-cells = <1>;
-			reg = <0x0 0x2c200000 0 0x200000>;
+			reg = <0x0 0x2c200000 0 0x20000>;
 		};
 
 		gic-its@2c400000 {
 			compatible = "arm,gic-v3-its";
 			msi-controller;
 			#msi-cells = <1>;
-			reg = <0x0 0x2c400000 0 0x200000>;
+			reg = <0x0 0x2c400000 0 0x20000>;
 		};
 
 		ppi-partitions {

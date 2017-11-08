@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _CPUMAP_H
 #define _CPUMAP_H
 

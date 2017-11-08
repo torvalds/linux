@@ -373,8 +373,11 @@ int aq_vec_get_sw_stats(struct aq_vec_s *self, u64 *data, unsigned int *p_count)
 	memset(&stats_tx, 0U, sizeof(struct aq_ring_stats_tx_s));
 	aq_vec_add_stats(self, &stats_rx, &stats_tx);
 
+	/* This data should mimic aq_ethtool_queue_stat_names structure
+	 */
 	data[count] += stats_rx.packets;
 	data[++count] += stats_tx.packets;
+	data[++count] += stats_tx.queue_restarts;
 	data[++count] += stats_rx.jumbo_packets;
 	data[++count] += stats_rx.lro_packets;
 	data[++count] += stats_rx.errors;

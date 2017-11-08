@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __AD5816G_H__
 #define __AD5816G_H__
 

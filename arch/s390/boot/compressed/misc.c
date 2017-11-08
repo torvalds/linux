@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Definitions and wrapper functions for kernel decompressor
  *

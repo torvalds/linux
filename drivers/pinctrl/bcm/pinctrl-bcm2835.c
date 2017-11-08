@@ -373,16 +373,12 @@ static void bcm2835_gpio_irq_handle_bank(struct bcm2835_pinctrl *pc,
 	unsigned long events;
 	unsigned offset;
 	unsigned gpio;
-	unsigned int type;
 
 	events = bcm2835_gpio_rd(pc, GPEDS0 + bank * 4);
 	events &= mask;
 	events &= pc->enabled_irq_map[bank];
 	for_each_set_bit(offset, &events, 32) {
 		gpio = (32 * bank) + offset;
-		/* FIXME: no clue why the code looks up the type here */
-		type = pc->irq_type[gpio];
-
 		generic_handle_irq(irq_linear_revmap(pc->gpio_chip.irqdomain,
 						     gpio));
 	}

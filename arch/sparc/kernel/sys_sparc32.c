@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* sys_sparc32.c: Conversion between 32bit and 64bit native syscalls.
  *
  * Copyright (C) 1997,1998 Jakub Jelinek (jj@sunsite.mff.cuni.cz)
