@@ -146,7 +146,7 @@ static int ncsi_rsp_handler_ec(struct ncsi_request *nr)
 
 	ncm = &nc->modes[NCSI_MODE_ENABLE];
 	if (ncm->enable)
-		return -EBUSY;
+		return 0;
 
 	ncm->enable = 1;
 	return 0;
@@ -173,7 +173,7 @@ static int ncsi_rsp_handler_dc(struct ncsi_request *nr)
 
 	ncm = &nc->modes[NCSI_MODE_ENABLE];
 	if (!ncm->enable)
-		return -EBUSY;
+		return 0;
 
 	ncm->enable = 0;
 	return 0;
@@ -217,7 +217,7 @@ static int ncsi_rsp_handler_ecnt(struct ncsi_request *nr)
 
 	ncm = &nc->modes[NCSI_MODE_TX_ENABLE];
 	if (ncm->enable)
-		return -EBUSY;
+		return 0;
 
 	ncm->enable = 1;
 	return 0;
@@ -239,7 +239,7 @@ static int ncsi_rsp_handler_dcnt(struct ncsi_request *nr)
 
 	ncm = &nc->modes[NCSI_MODE_TX_ENABLE];
 	if (!ncm->enable)
-		return -EBUSY;
+		return 0;
 
 	ncm->enable = 1;
 	return 0;
@@ -263,7 +263,7 @@ static int ncsi_rsp_handler_ae(struct ncsi_request *nr)
 	/* Check if the AEN has been enabled */
 	ncm = &nc->modes[NCSI_MODE_AEN];
 	if (ncm->enable)
-		return -EBUSY;
+		return 0;
 
 	/* Update to AEN configuration */
 	cmd = (struct ncsi_cmd_ae_pkt *)skb_network_header(nr->cmd);
@@ -382,7 +382,7 @@ static int ncsi_rsp_handler_ev(struct ncsi_request *nr)
 	/* Check if VLAN mode has been enabled */
 	ncm = &nc->modes[NCSI_MODE_VLAN];
 	if (ncm->enable)
-		return -EBUSY;
+		return 0;
 
 	/* Update to VLAN mode */
 	cmd = (struct ncsi_cmd_ev_pkt *)skb_network_header(nr->cmd);
@@ -409,7 +409,7 @@ static int ncsi_rsp_handler_dv(struct ncsi_request *nr)
 	/* Check if VLAN mode has been enabled */
 	ncm = &nc->modes[NCSI_MODE_VLAN];
 	if (!ncm->enable)
-		return -EBUSY;
+		return 0;
 
 	/* Update to VLAN mode */
 	ncm->enable = 0;
@@ -455,13 +455,10 @@ static int ncsi_rsp_handler_sma(struct ncsi_request *nr)
 
 	bitmap = &ncf->bitmap;
 	if (cmd->at_e & 0x1) {
-		if (test_and_set_bit(cmd->index, bitmap))
-			return -EBUSY;
+		set_bit(cmd->index, bitmap);
 		memcpy(ncf->data + 6 * cmd->index, cmd->mac, 6);
 	} else {
-		if (!test_and_clear_bit(cmd->index, bitmap))
-			return -EBUSY;
-
+		clear_bit(cmd->index, bitmap);
 		memset(ncf->data + 6 * cmd->index, 0, 6);
 	}
 
@@ -485,7 +482,7 @@ static int ncsi_rsp_handler_ebf(struct ncsi_request *nr)
 	/* Check if broadcast filter has been enabled */
 	ncm = &nc->modes[NCSI_MODE_BC];
 	if (ncm->enable)
-		return -EBUSY;
+		return 0;
 
 	/* Update to broadcast filter mode */
 	cmd = (struct ncsi_cmd_ebf_pkt *)skb_network_header(nr->cmd);
@@ -511,7 +508,7 @@ static int ncsi_rsp_handler_dbf(struct ncsi_request *nr)
 	/* Check if broadcast filter isn't enabled */
 	ncm = &nc->modes[NCSI_MODE_BC];
 	if (!ncm->enable)
-		return -EBUSY;
+		return 0;
 
 	/* Update to broadcast filter mode */
 	ncm->enable = 0;
@@ -538,7 +535,7 @@ static int ncsi_rsp_handler_egmf(struct ncsi_request *nr)
 	/* Check if multicast filter has been enabled */
 	ncm = &nc->modes[NCSI_MODE_MC];
 	if (ncm->enable)
-		return -EBUSY;
+		return 0;
 
 	/* Update to multicast filter mode */
 	cmd = (struct ncsi_cmd_egmf_pkt *)skb_network_header(nr->cmd);
@@ -564,7 +561,7 @@ static int ncsi_rsp_handler_dgmf(struct ncsi_request *nr)
 	/* Check if multicast filter has been enabled */
 	ncm = &nc->modes[NCSI_MODE_MC];
 	if (!ncm->enable)
-		return -EBUSY;
+		return 0;
 
 	/* Update to multicast filter mode */
 	ncm->enable = 0;
@@ -591,7 +588,7 @@ static int ncsi_rsp_handler_snfc(struct ncsi_request *nr)
 	/* Check if flow control has been enabled */
 	ncm = &nc->modes[NCSI_MODE_FC];
 	if (ncm->enable)
-		return -EBUSY;
+		return 0;
 
 	/* Update to flow control mode */
 	cmd = (struct ncsi_cmd_snfc_pkt *)skb_network_header(nr->cmd);
