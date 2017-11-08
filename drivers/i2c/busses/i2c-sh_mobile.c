@@ -702,7 +702,6 @@ static int sh_mobile_i2c_xfer(struct i2c_adapter *adapter,
 
 	/* Wake up device and enable clock */
 	pm_runtime_get_sync(pd->dev);
-	clk_prepare_enable(pd->clk);
 
 	/* Process all messages */
 	for (i = 0; i < num; i++) {
@@ -743,7 +742,6 @@ static int sh_mobile_i2c_xfer(struct i2c_adapter *adapter,
 	iic_wr(pd, ICCR, 0);
 
 	/* Disable clock and mark device as idle */
-	clk_disable_unprepare(pd->clk);
 	pm_runtime_put_sync(pd->dev);
 
 	return err ?: num;
