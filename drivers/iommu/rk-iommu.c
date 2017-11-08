@@ -23,9 +23,7 @@
 #include <asm/pgtable.h>
 #include <linux/of.h>
 #include <linux/rockchip-iovmm.h>
-#include <linux/rockchip/grf.h>
 #include <linux/rockchip/cpu.h>
-#include <linux/rockchip/iomap.h>
 #include <linux/device.h>
 #include "rk-iommu.h"
 
@@ -427,17 +425,13 @@ static inline bool rockchip_iommu_raw_reset(void __iomem *base)
 {
 	int i;
 	unsigned int ret;
-	unsigned int grf_value;
 
 	__raw_writel(0xCAFEBABE, base + IOMMU_REGISTER_DTE_ADDR);
 
 	if (base != rk312x_vop_mmu_base) {
 		ret = __raw_readl(base + IOMMU_REGISTER_DTE_ADDR);
-		if (!(0xCAFEB000 == ret)) {
-			grf_value = readl_relaxed(RK_GRF_VIRT + RK3036_GRF_SOC_CON1);
-			pr_info("error when %s. grf = 0x%08x\n", __func__, grf_value);
+		if (ret != 0xCAFEB000)
 			return false;
-		}
 	}
 	__raw_writel(IOMMU_COMMAND_HARD_RESET,
 		     base + IOMMU_REGISTER_COMMAND);
