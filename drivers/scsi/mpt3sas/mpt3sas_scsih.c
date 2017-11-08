@@ -7700,17 +7700,18 @@ _scsih_pcie_enumeration_event(struct MPT3SAS_ADAPTER *ioc,
 	Mpi26EventDataPCIeEnumeration_t *event_data =
 		(Mpi26EventDataPCIeEnumeration_t *)fw_event->event_data;
 
-	if (ioc->logging_level & MPT_DEBUG_EVENT_WORK_TASK) {
-		pr_info(MPT3SAS_FMT "pcie enumeration event: (%s) Flag 0x%02x",
-			ioc->name,
-			((event_data->ReasonCode ==
-			MPI26_EVENT_PCIE_ENUM_RC_STARTED) ?
-			"started" : "completed"), event_data->Flags);
+	if (!(ioc->logging_level & MPT_DEBUG_EVENT_WORK_TASK))
+		return;
+
+	pr_info(MPT3SAS_FMT "pcie enumeration event: (%s) Flag 0x%02x",
+		ioc->name,
+		(event_data->ReasonCode == MPI26_EVENT_PCIE_ENUM_RC_STARTED) ?
+			"started" : "completed",
+		event_data->Flags);
 	if (event_data->EnumerationStatus)
-		pr_info("enumeration_status(0x%08x)",
-		    le32_to_cpu(event_data->EnumerationStatus));
-	pr_info("\n");
-	}
+		pr_cont("enumeration_status(0x%08x)",
+			le32_to_cpu(event_data->EnumerationStatus));
+	pr_cont("\n");
 }
 
 /**
