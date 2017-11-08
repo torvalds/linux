@@ -8684,7 +8684,7 @@ _scsih_mark_responding_pcie_device(struct MPT3SAS_ADAPTER *ioc,
 
 			if (pcie_device->handle == pcie_device_pg0->DevHandle)
 				goto out;
-			pr_info(KERN_INFO "\thandle changed from(0x%04x)!!!\n",
+			pr_info("\thandle changed from(0x%04x)!!!\n",
 			    pcie_device->handle);
 			pcie_device->handle = pcie_device_pg0->DevHandle;
 			if (sas_target_priv_data)
