@@ -390,8 +390,6 @@ static void ttm_bo_cleanup_memtype_use(struct ttm_buffer_object *bo)
 	ttm_tt_destroy(bo->ttm);
 	bo->ttm = NULL;
 	ttm_bo_mem_put(bo, &bo->mem);
-
-	ww_mutex_unlock (&bo->resv->lock);
 }
 
 static int ttm_bo_individualize_resv(struct ttm_buffer_object *bo)
@@ -457,6 +455,7 @@ static void ttm_bo_cleanup_refs_or_queue(struct ttm_buffer_object *bo)
 				reservation_object_unlock(&bo->ttm_resv);
 
 			ttm_bo_cleanup_memtype_use(bo);
+			reservation_object_unlock(bo->resv);
 			return;
 		}
 
@@ -559,6 +558,7 @@ static int ttm_bo_cleanup_refs_and_unlock(struct ttm_buffer_object *bo,
 
 	spin_unlock(&glob->lru_lock);
 	ttm_bo_cleanup_memtype_use(bo);
+	reservation_object_unlock(bo->resv);
 
 	return 0;
 }
