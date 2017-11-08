@@ -1071,13 +1071,16 @@ brcmf_do_escan(struct brcmf_if *ifp, struct cfg80211_scan_request *request)
 }
 
 static s32
-brcmf_cfg80211_escan(struct wiphy *wiphy, struct brcmf_cfg80211_vif *vif,
-		     struct cfg80211_scan_request *request)
+brcmf_cfg80211_scan(struct wiphy *wiphy, struct cfg80211_scan_request *request)
 {
 	struct brcmf_cfg80211_info *cfg = wiphy_to_cfg(wiphy);
-	s32 err;
+	struct brcmf_cfg80211_vif *vif;
+	s32 err = 0;
 
-	brcmf_dbg(SCAN, "START ESCAN\n");
+	brcmf_dbg(TRACE, "Enter\n");
+	vif = container_of(request->wdev, struct brcmf_cfg80211_vif, wdev);
+	if (!check_vif_up(vif))
+		return -EIO;
 
 	if (test_bit(BRCMF_SCAN_STATUS_BUSY, &cfg->scan_status)) {
 		brcmf_err("Scanning already: status (%lu)\n", cfg->scan_status);
@@ -1102,6 +1105,8 @@ brcmf_cfg80211_escan(struct wiphy *wiphy, struct brcmf_cfg80211_vif *vif,
 	if (vif == cfg->p2p.bss_idx[P2PAPI_BSSCFG_DEVICE].vif)
 		vif = cfg->p2p.bss_idx[P2PAPI_BSSCFG_PRIMARY].vif;
 
+	brcmf_dbg(SCAN, "START ESCAN\n");
+
 	cfg->scan_request = request;
 	set_bit(BRCMF_SCAN_STATUS_BUSY, &cfg->scan_status);
 
@@ -1121,28 +1126,9 @@ brcmf_cfg80211_escan(struct wiphy *wiphy, struct brcmf_cfg80211_vif *vif,
 	return 0;
 
 scan_out:
+	brcmf_err("scan error (%d)\n", err);
 	clear_bit(BRCMF_SCAN_STATUS_BUSY, &cfg->scan_status);
 	cfg->scan_request = NULL;
-	return err;
-}
-
-static s32
-brcmf_cfg80211_scan(struct wiphy *wiphy, struct cfg80211_scan_request *request)
-{
-	struct brcmf_cfg80211_vif *vif;
-	s32 err = 0;
-
-	brcmf_dbg(TRACE, "Enter\n");
-	vif = container_of(request->wdev, struct brcmf_cfg80211_vif, wdev);
-	if (!check_vif_up(vif))
-		return -EIO;
-
-	err = brcmf_cfg80211_escan(wiphy, vif, request);
-
-	if (err)
-		brcmf_err("scan error (%d)\n", err);
-
-	brcmf_dbg(TRACE, "Exit\n");
 	return err;
 }
 
