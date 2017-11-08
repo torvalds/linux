@@ -41,6 +41,10 @@ unsigned long long dm_get_timestamp(struct dc_context *ctx)
 	return 0;
 }
 
+void dm_perf_trace_timestamp(const char *func_name, unsigned int line)
+{
+}
+
 bool dm_write_persistent_data(struct dc_context *ctx,
 		const struct dc_sink *sink,
 		const char *module_name,

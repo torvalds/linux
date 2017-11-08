@@ -1047,6 +1047,8 @@ dcn10_translate_regamma_to_hw_format(const struct dc_transfer_func *output_tf,
 	if (output_tf == NULL || regamma_params == NULL || output_tf->type == TF_TYPE_BYPASS)
 		return false;
 
+	PERF_TRACE();
+
 	arr_points = regamma_params->arr_points;
 	rgb_resulted = regamma_params->rgb_resulted;
 	hw_points = 0;
@@ -1188,6 +1190,8 @@ dcn10_translate_regamma_to_hw_format(const struct dc_transfer_func *output_tf,
 	}
 
 	convert_to_custom_float(rgb_resulted, arr_points, hw_points);
+
+	PERF_TRACE();
 
 	return true;
 }
