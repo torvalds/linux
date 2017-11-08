@@ -9,19 +9,10 @@
 
 #include <stddef.h>
 #include <dwarf-regs.h>
-
-#define NUM_GPRS 16
-
-static const char *gpr_names[NUM_GPRS] = {
-	"%r0", "%r1",  "%r2",  "%r3",  "%r4",  "%r5",  "%r6",  "%r7",
-	"%r8", "%r9", "%r10", "%r11", "%r12", "%r13", "%r14", "%r15",
-};
+#include <linux/kernel.h>
+#include "dwarf-regs-table.h"
 
 const char *get_arch_regstr(unsigned int n)
 {
-	if (n == 64)
-		return "mask";
-	if (n == 65)
-		return "pc";
-	return (n >= NUM_GPRS) ? NULL : gpr_names[n];
+	return (n >= ARRAY_SIZE(s390_dwarf_regs)) ? NULL : s390_dwarf_regs[n];
 }

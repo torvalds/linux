@@ -1,21 +1,26 @@
+#include <linux/kernel.h>
 #include <elfutils/libdwfl.h>
 #include "../../util/unwind-libdw.h"
 #include "../../util/perf_regs.h"
 #include "../../util/event.h"
+#include "dwarf-regs-table.h"
 
 
 bool libdw__arch_set_initial_registers(Dwfl_Thread *thread, void *arg)
 {
 	struct unwind_info *ui = arg;
 	struct regs_dump *user_regs = &ui->sample->user_regs;
-	Dwarf_Word dwarf_regs[PERF_REG_S390_MAX];
+	Dwarf_Word dwarf_regs[ARRAY_SIZE(s390_dwarf_regs)];
 
 #define REG(r) ({						\
 	Dwarf_Word val = 0;					\
 	perf_reg_value(&val, user_regs, PERF_REG_S390_##r);	\
 	val;							\
 })
-
+	/*
+	 * For DWARF register mapping details,
+	 * see also perf/arch/s390/include/dwarf-regs-table.h
+	 */
 	dwarf_regs[0]  = REG(R0);
 	dwarf_regs[1]  = REG(R1);
 	dwarf_regs[2]  = REG(R2);
@@ -32,9 +37,9 @@ bool libdw__arch_set_initial_registers(Dwfl_Thread *thread, void *arg)
 	dwarf_regs[13] = REG(R13);
 	dwarf_regs[14] = REG(R14);
 	dwarf_regs[15] = REG(R15);
-	dwarf_regs[16] = REG(MASK);
-	dwarf_regs[17] = REG(PC);
+	dwarf_regs[64] = REG(MASK);
+	dwarf_regs[65] = REG(PC);
 
-	dwfl_thread_state_register_pc(thread, dwarf_regs[17]);
+	dwfl_thread_state_register_pc(thread, dwarf_regs[65]);
 	return dwfl_thread_state_registers(thread, 0, 16, dwarf_regs);
 }
