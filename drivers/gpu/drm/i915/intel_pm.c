@@ -75,9 +75,6 @@ static void gen9_init_clock_gating(struct drm_i915_private *dev_priv)
 	I915_WRITE(CHICKEN_PAR1_1,
 		   I915_READ(CHICKEN_PAR1_1) | SKL_EDP_PSR_FIX_RDWRAP);
 
-	I915_WRITE(GEN8_CONFIG0,
-		   I915_READ(GEN8_CONFIG0) | GEN9_DEFAULT_FIXES);
-
 	/* WaEnableChickenDCPR:skl,bxt,kbl,glk,cfl */
 	I915_WRITE(GEN8_CHICKEN_DCPR_1,
 		   I915_READ(GEN8_CHICKEN_DCPR_1) | MASK_WAKEMEM);

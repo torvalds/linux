@@ -355,9 +355,6 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 #define   ECOCHK_PPGTT_WT_HSW		(0x2<<3)
 #define   ECOCHK_PPGTT_WB_HSW		(0x3<<3)
 
-#define GEN8_CONFIG0			_MMIO(0xD00)
-#define  GEN9_DEFAULT_FIXES		(1 << 3 | 1 << 2 | 1 << 1)
-
 #define GAC_ECO_BITS			_MMIO(0x14090)
 #define   ECOBITS_SNB_BIT		(1<<13)
 #define   ECOBITS_PPGTT_CACHE64B	(3<<8)
