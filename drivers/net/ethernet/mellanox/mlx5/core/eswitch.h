@@ -73,6 +73,7 @@ struct vport_ingress {
 	struct mlx5_flow_group *drop_grp;
 	struct mlx5_flow_handle  *allow_rule;
 	struct mlx5_flow_handle  *drop_rule;
+	struct mlx5_fc           *drop_counter;
 };
 
 struct vport_egress {
@@ -81,6 +82,12 @@ struct vport_egress {
 	struct mlx5_flow_group *drop_grp;
 	struct mlx5_flow_handle  *allowed_vlan;
 	struct mlx5_flow_handle  *drop_rule;
+	struct mlx5_fc           *drop_counter;
+};
+
+struct mlx5_vport_drop_stats {
+	u64 rx_dropped;
+	u64 tx_dropped;
 };
 
 struct mlx5_vport_info {
