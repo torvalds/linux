@@ -305,8 +305,9 @@ drm_property_unreference_blob(struct drm_property_blob *blob)
 }
 
 /**
- * drm_connector_find - find property object
+ * drm_property_find - find property object
  * @dev: DRM device
+ * @file_priv: drm file to check for lease against.
  * @id: property object id
  *
  * This function looks up the property object specified by id and returns it.

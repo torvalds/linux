@@ -591,6 +591,7 @@ int drm_mode_plane_set_obj_prop(struct drm_plane *plane,
 /**
  * drm_plane_find - find a &drm_plane
  * @dev: DRM device
+ * @file_priv: drm file to check for lease against.
  * @id: plane id
  *
  * Returns the plane with @id, NULL if it doesn't exist. Simple wrapper around

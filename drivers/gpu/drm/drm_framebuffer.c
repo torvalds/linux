@@ -681,6 +681,7 @@ EXPORT_SYMBOL(drm_framebuffer_init);
 /**
  * drm_framebuffer_lookup - look up a drm framebuffer and grab a reference
  * @dev: drm device
+ * @file_priv: drm file to check for lease against.
  * @id: id of the fb object
  *
  * If successful, this grabs an additional reference to the framebuffer -

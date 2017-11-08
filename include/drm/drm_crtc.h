@@ -952,6 +952,7 @@ struct drm_crtc *drm_crtc_from_index(struct drm_device *dev, int idx);
 /**
  * drm_crtc_find - look up a CRTC object from its ID
  * @dev: DRM device
+ * @file_priv: drm file to check for lease against.
  * @id: &drm_mode_object ID
  *
  * This can be used to look up a CRTC from its userspace ID. Only used by

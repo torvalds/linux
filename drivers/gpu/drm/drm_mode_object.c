@@ -151,6 +151,7 @@ struct drm_mode_object *__drm_mode_object_find(struct drm_device *dev,
 
 /**
  * drm_mode_object_find - look up a drm object with static lifetime
+ * @dev: drm device
  * @file_priv: drm file
  * @id: id of the mode object
  * @type: type of the mode object
