@@ -1724,11 +1724,10 @@ static ssize_t tcmu_set_configfs_dev_params(struct se_device *dev,
 				ret = -ENOMEM;
 				break;
 			}
-			ret = kstrtol(arg_p, 0,
-					(long int *) &udev->nl_reply_supported);
+			ret = kstrtoint(arg_p, 0, &udev->nl_reply_supported);
 			kfree(arg_p);
 			if (ret < 0)
-				pr_err("kstrtoul() failed for nl_reply_supported=\n");
+				pr_err("kstrtoint() failed for nl_reply_supported=\n");
 			break;
 		default:
 			break;
