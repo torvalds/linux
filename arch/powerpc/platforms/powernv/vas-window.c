@@ -16,7 +16,8 @@
 #include <linux/log2.h>
 #include <linux/rcupdate.h>
 #include <linux/cred.h>
-
+#include <asm/switch_to.h>
+#include <asm/ppc-opcode.h>
 #include "vas.h"
 #include "copy-paste.h"
 
@@ -598,6 +599,32 @@ static void put_rx_win(struct vas_window *rxwin)
 }
 
 /*
+ * Find the user space receive window given the @pswid.
+ *      - We must have a valid vasid and it must belong to this instance.
+ *        (so both send and receive windows are on the same VAS instance)
+ *      - The window must refer to an OPEN, FTW, RECEIVE window.
+ *
+ * NOTE: We access ->windows[] table and assume that vinst->mutex is held.
+ */
+static struct vas_window *get_user_rxwin(struct vas_instance *vinst, u32 pswid)
+{
+	int vasid, winid;
+	struct vas_window *rxwin;
+
+	decode_pswid(pswid, &vasid, &winid);
+
+	if (vinst->vas_id != vasid)
+		return ERR_PTR(-EINVAL);
+
+	rxwin = vinst->windows[winid];
+
+	if (!rxwin || rxwin->tx_win || rxwin->cop != VAS_COP_TYPE_FTW)
+		return ERR_PTR(-EINVAL);
+
+	return rxwin;
+}
+
+/*
  * Get the VAS receive window associated with NX engine identified
  * by @cop and if applicable, @pswid.
  *
@@ -610,10 +637,10 @@ static struct vas_window *get_vinst_rxwin(struct vas_instance *vinst,
 
 	mutex_lock(&vinst->mutex);
 
-	if (cop == VAS_COP_TYPE_842 || cop == VAS_COP_TYPE_842_HIPRI)
-		rxwin = vinst->rxwin[cop] ?: ERR_PTR(-EINVAL);
+	if (cop == VAS_COP_TYPE_FTW)
+		rxwin = get_user_rxwin(vinst, pswid);
 	else
-		rxwin = ERR_PTR(-EINVAL);
+		rxwin = vinst->rxwin[cop] ?: ERR_PTR(-EINVAL);
 
 	if (!IS_ERR(rxwin))
 		atomic_inc(&rxwin->num_txwins);
@@ -937,10 +964,9 @@ static void init_winctx_for_txwin(struct vas_window *txwin,
 	winctx->tx_word_mode = txattr->tx_win_ord_mode;
 	winctx->rsvd_txbuf_count = txattr->rsvd_txbuf_count;
 
-	if (winctx->nx_win) {
+	winctx->intr_disable = true;
+	if (winctx->nx_win)
 		winctx->data_stamp = true;
-		winctx->intr_disable = true;
-	}
 
 	winctx->lpid = txattr->lpid;
 	winctx->pidr = txattr->pidr;
@@ -984,6 +1010,14 @@ struct vas_window *vas_tx_win_open(int vasid, enum vas_cop_type cop,
 
 	if (!tx_win_args_valid(cop, attr))
 		return ERR_PTR(-EINVAL);
+
+	/*
+	 * If caller did not specify a vasid but specified the PSWID of a
+	 * receive window (applicable only to FTW windows), use the vasid
+	 * from that receive window.
+	 */
+	if (vasid == -1 && attr->pswid)
+		decode_pswid(attr->pswid, &vasid, NULL);
 
 	vinst = find_vas_instance(vasid);
 	if (!vinst) {
@@ -1030,6 +1064,14 @@ struct vas_window *vas_tx_win_open(int vasid, enum vas_cop_type cop,
 			goto free_window;
 		}
 	}
+
+	/*
+	 * Now that we have a send window, ensure context switch issues
+	 * CP_ABORT for this thread.
+	 */
+	rc = -EINVAL;
+	if (set_thread_uses_vas() < 0)
+		goto free_window;
 
 	set_vinst_win(vinst, txwin);
 
