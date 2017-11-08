@@ -18,15 +18,18 @@
 #include <linux/of_platform.h>
 #include <linux/of_address.h>
 #include <linux/of.h>
+#include <asm/prom.h>
 
 #include "vas.h"
 
 static DEFINE_MUTEX(vas_mutex);
 static LIST_HEAD(vas_instances);
 
+static DEFINE_PER_CPU(int, cpu_vas_id);
+
 static int init_vas_instance(struct platform_device *pdev)
 {
-	int rc, vasid;
+	int rc, cpu, vasid;
 	struct resource *res;
 	struct vas_instance *vinst;
 	struct device_node *dn = pdev->dev.of_node;
@@ -74,6 +77,11 @@ static int init_vas_instance(struct platform_device *pdev)
 			"paste_win_id_shift 0x%llx\n", pdev->name, vasid,
 			vinst->paste_base_addr, vinst->paste_win_id_shift);
 
+	for_each_possible_cpu(cpu) {
+		if (cpu_to_chip_id(cpu) == of_get_ibm_chip_id(dn))
+			per_cpu(cpu_vas_id, cpu) = vasid;
+	}
+
 	mutex_lock(&vas_mutex);
 	list_add(&vinst->node, &vas_instances);
 	mutex_unlock(&vas_mutex);
@@ -98,6 +106,10 @@ struct vas_instance *find_vas_instance(int vasid)
 	struct vas_instance *vinst;
 
 	mutex_lock(&vas_mutex);
+
+	if (vasid == -1)
+		vasid = per_cpu(cpu_vas_id, smp_processor_id());
+
 	list_for_each(ent, &vas_instances) {
 		vinst = list_entry(ent, struct vas_instance, node);
 		if (vinst->vas_id == vasid) {
