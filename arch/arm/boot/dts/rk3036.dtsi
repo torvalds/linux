@@ -389,7 +389,6 @@
 		dmas = <&pdma 12>;
 		dma-names = "rx-tx";
 		fifo-depth = <0x100>;
-		mmc-ddr-1_8v;
 		non-removable;
 		supports-emmc;
 		pinctrl-names = "default";
