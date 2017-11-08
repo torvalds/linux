@@ -133,14 +133,6 @@ walk(@DIRS);
 
 exit 0;
 
-sub debug_arrays
-{
-	print 'dirs_any: ' . join(", ", @skip_walk_dirs_any) . "\n";
-	print 'dirs_abs: ' . join(", ", @skip_walk_dirs_abs) . "\n";
-	print 'parse_any: ' . join(", ", @skip_parse_files_any) . "\n";
-	print 'parse_abs: ' . join(", ", @skip_parse_files_abs) . "\n";
-}
-
 sub dprint
 {
 	printf(STDERR @_) if $debug;
@@ -281,7 +273,6 @@ sub skip_walk
 sub walk
 {
 	my @dirs = @_;
-	my %seen;
 
 	while (my $pwd = shift @dirs) {
 		next if (skip_walk($pwd));
