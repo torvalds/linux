@@ -1246,8 +1246,6 @@ static void l2tp_tunnel_destruct(struct sock *sk)
 	list_del_rcu(&tunnel->list);
 	spin_unlock_bh(&pn->l2tp_tunnel_list_lock);
 
-	l2tp_tunnel_closeall(tunnel);
-
 	tunnel->sock = NULL;
 	l2tp_tunnel_dec_refcount(tunnel);
 
