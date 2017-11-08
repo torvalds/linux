@@ -1270,7 +1270,6 @@ static bool construct(
 	dc->caps.max_downscale_ratio = 200;
 	dc->caps.i2c_speed_in_khz = 100;
 	dc->caps.max_cursor_size = 256;
-	dc->caps.pitch_alignment = 64; /* Alignment is 64 on DCN1 */
 	dc->caps.max_slave_planes = 1;
 	dc->caps.is_apu = true;
 

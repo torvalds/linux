@@ -702,6 +702,7 @@ struct dc *dc_create(const struct dc_init_data *init_params)
 
 	dc->caps.max_links = dc->link_count;
 	dc->caps.max_audios = dc->res_pool->audio_count;
+	dc->caps.linear_pitch_alignment = 64;
 
 	dc->config = init_params->flags;
 
