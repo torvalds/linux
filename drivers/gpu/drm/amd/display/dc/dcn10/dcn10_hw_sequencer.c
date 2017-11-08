@@ -2124,7 +2124,7 @@ static void dcn10_apply_ctx_for_surface(
 	}
 
 	if (num_planes > 0) {
-		struct dc_stream_state *stream_for_cursor;
+		struct dc_stream_state *stream_for_cursor = NULL;
 
 		program_all_pipe_in_tree(dc, top_pipe_to_program, context);
 
