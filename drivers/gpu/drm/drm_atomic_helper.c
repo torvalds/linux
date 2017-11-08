@@ -907,6 +907,12 @@ disable_outputs(struct drm_device *dev, struct drm_atomic_state *old_state)
  *
  * Drivers can use this for building their own atomic commit if they don't have
  * a pure helper-based modeset implementation.
+ *
+ * Since these updates are not synchronized with lockings, only code paths
+ * called from &drm_mode_config_helper_funcs.atomic_commit_tail can look at the
+ * legacy state filled out by this helper. Defacto this means this helper and
+ * the legacy state pointers are only really useful for transitioning an
+ * existing driver to the atomic world.
  */
 void
 drm_atomic_helper_update_legacy_modeset_state(struct drm_device *dev,
