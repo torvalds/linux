@@ -37,9 +37,27 @@ bool libdw__arch_set_initial_registers(Dwfl_Thread *thread, void *arg)
 	dwarf_regs[13] = REG(R13);
 	dwarf_regs[14] = REG(R14);
 	dwarf_regs[15] = REG(R15);
+
+	dwarf_regs[16] = REG(FP0);
+	dwarf_regs[17] = REG(FP2);
+	dwarf_regs[18] = REG(FP4);
+	dwarf_regs[19] = REG(FP6);
+	dwarf_regs[20] = REG(FP1);
+	dwarf_regs[21] = REG(FP3);
+	dwarf_regs[22] = REG(FP5);
+	dwarf_regs[23] = REG(FP7);
+	dwarf_regs[24] = REG(FP8);
+	dwarf_regs[25] = REG(FP10);
+	dwarf_regs[26] = REG(FP12);
+	dwarf_regs[27] = REG(FP14);
+	dwarf_regs[28] = REG(FP9);
+	dwarf_regs[29] = REG(FP11);
+	dwarf_regs[30] = REG(FP13);
+	dwarf_regs[31] = REG(FP15);
+
 	dwarf_regs[64] = REG(MASK);
 	dwarf_regs[65] = REG(PC);
 
 	dwfl_thread_state_register_pc(thread, dwarf_regs[65]);
-	return dwfl_thread_state_registers(thread, 0, 16, dwarf_regs);
+	return dwfl_thread_state_registers(thread, 0, 32, dwarf_regs);
 }

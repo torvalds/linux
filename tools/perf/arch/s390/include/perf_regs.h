@@ -49,6 +49,38 @@ static inline const char *perf_reg_name(int id)
 		return "R14";
 	case PERF_REG_S390_R15:
 		return "R15";
+	case PERF_REG_S390_FP0:
+		return "FP0";
+	case PERF_REG_S390_FP1:
+		return "FP1";
+	case PERF_REG_S390_FP2:
+		return "FP2";
+	case PERF_REG_S390_FP3:
+		return "FP3";
+	case PERF_REG_S390_FP4:
+		return "FP4";
+	case PERF_REG_S390_FP5:
+		return "FP5";
+	case PERF_REG_S390_FP6:
+		return "FP6";
+	case PERF_REG_S390_FP7:
+		return "FP7";
+	case PERF_REG_S390_FP8:
+		return "FP8";
+	case PERF_REG_S390_FP9:
+		return "FP9";
+	case PERF_REG_S390_FP10:
+		return "FP10";
+	case PERF_REG_S390_FP11:
+		return "FP11";
+	case PERF_REG_S390_FP12:
+		return "FP12";
+	case PERF_REG_S390_FP13:
+		return "FP13";
+	case PERF_REG_S390_FP14:
+		return "FP14";
+	case PERF_REG_S390_FP15:
+		return "FP15";
 	case PERF_REG_S390_MASK:
 		return "MASK";
 	case PERF_REG_S390_PC:
