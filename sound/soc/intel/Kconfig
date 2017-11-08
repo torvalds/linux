@@ -32,19 +32,20 @@ config SND_SOC_ACPI_INTEL_MATCH
 config SND_SOC_INTEL_SST_TOPLEVEL
 	tristate "Intel ASoC SST drivers"
 	depends on X86 || COMPILE_TEST
-	depends on DMADEVICES
 	select SND_SOC_INTEL_MACH
 	select SND_SOC_INTEL_COMMON
 
 config SND_SOC_INTEL_HASWELL
 	tristate "Intel ASoC SST driver for Haswell/Broadwell"
 	depends on SND_SOC_INTEL_SST_TOPLEVEL && SND_DMA_SGBUF
+	depends on DMADEVICES
 	select SND_SOC_INTEL_SST
 	select SND_SOC_INTEL_SST_FIRMWARE
 
 config SND_SOC_INTEL_BAYTRAIL
 	tristate "Intel ASoC SST driver for Baytrail (legacy)"
 	depends on SND_SOC_INTEL_SST_TOPLEVEL
+	depends on DMADEVICES
 	select SND_SOC_INTEL_SST
 	select SND_SOC_INTEL_SST_FIRMWARE
 
