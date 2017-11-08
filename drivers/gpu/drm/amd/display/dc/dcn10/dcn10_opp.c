@@ -38,25 +38,6 @@
 	oppn10->base.ctx
 
 
-enum dpg_mode {
-	/* RGB colour block mode */
-	DPG_MODE_RGB_COLOUR_BLOCK,
-	/* YCbCr-601 colour block mode */
-	DPG_MODE_YCBCR_601_COLOUR_BLOCK,
-	/* YCbCr-709 colour block mode */
-	DPG_MODE_YCBCR_709_COLOUR_BLOCK,
-	/* Vertical bar mode */
-	DPG_MODE_VERTICAL_BAR,
-	/* Horizontal bar mode */
-	DPG_MODE_HORIZONTAL_BAR,
-	/* Single ramp mode */
-	DPG_MODE_RGB_SINGLE_RAMP,
-	/* Dual ramp mode */
-	DPG_MODE_RGB_DUAL_RAMP,
-	/* RGB XR BIAS mode */
-	DPG_MODE_RGB_XR_BIAS
-};
-
 /************* FORMATTER ************/
 
 /**
@@ -154,7 +135,7 @@ static void opp1_set_spatial_dither(
 			FMT_RGB_RANDOM_ENABLE, params->flags.RGB_RANDOM);
 }
 
-static void opp1_program_bit_depth_reduction(
+void opp1_program_bit_depth_reduction(
 	struct output_pixel_processor *opp,
 	const struct bit_depth_reduction_params *params)
 {
@@ -242,7 +223,7 @@ static void opp1_set_clamping(
 
 }
 
-static void opp1_set_dyn_expansion(
+void opp1_set_dyn_expansion(
 	struct output_pixel_processor *opp,
 	enum dc_color_space color_sp,
 	enum dc_color_depth color_dpth,
@@ -292,7 +273,7 @@ static void opp1_program_clamping_and_pixel_encoding(
 	opp1_set_pixel_encoding(oppn10, params);
 }
 
-static void opp1_program_fmt(
+void opp1_program_fmt(
 	struct output_pixel_processor *opp,
 	struct bit_depth_reduction_params *fmt_bit_depth,
 	struct clamping_and_pixel_encoding_params *clamping)
@@ -315,7 +296,7 @@ static void opp1_program_fmt(
 	return;
 }
 
-static void opp1_set_stereo_polarity(
+void opp1_set_stereo_polarity(
 		struct output_pixel_processor *opp,
 		bool enable, bool rightEyePolarity)
 {
@@ -328,7 +309,7 @@ static void opp1_set_stereo_polarity(
 /* Constructor, Destructor               */
 /*****************************************/
 
-static void opp1_destroy(struct output_pixel_processor **opp)
+void opp1_destroy(struct output_pixel_processor **opp)
 {
 	kfree(TO_DCN10_OPP(*opp));
 	*opp = NULL;

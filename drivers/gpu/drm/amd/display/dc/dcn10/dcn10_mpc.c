@@ -335,7 +335,7 @@ void mpc10_update_blend_mode(
 			MPCC_ALPHA_MULTIPLIED_MODE, cfg->pre_multiplied_alpha);
 }
 
-static int mpc10_get_opp_id(struct mpc *mpc, int mpcc_id)
+int mpc10_get_opp_id(struct mpc *mpc, int mpcc_id)
 {
 	struct dcn10_mpc *mpc10 = TO_DCN10_MPC(mpc);
 	int opp_id = 0xF;

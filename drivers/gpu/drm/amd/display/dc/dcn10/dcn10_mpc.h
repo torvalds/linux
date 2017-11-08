@@ -134,5 +134,6 @@ void mpc10_assert_idle_mpcc(
 void mpc10_update_blend_mode(
 		struct mpc *mpc,
 		struct mpcc_cfg *cfg);
+int mpc10_get_opp_id(struct mpc *mpc, int mpcc_id);
 
 #endif
