@@ -407,13 +407,13 @@ int rndis_filter_receive(struct net_device *ndev,
 
 	/* Make sure the rndis device state is initialized */
 	if (unlikely(!rndis_dev)) {
-		netif_err(net_device_ctx, rx_err, ndev,
+		netif_dbg(net_device_ctx, rx_err, ndev,
 			  "got rndis message but no rndis device!\n");
 		return NVSP_STAT_FAIL;
 	}
 
 	if (unlikely(rndis_dev->state == RNDIS_DEV_UNINITIALIZED)) {
-		netif_err(net_device_ctx, rx_err, ndev,
+		netif_dbg(net_device_ctx, rx_err, ndev,
 			  "got rndis message uninitialized\n");
 		return NVSP_STAT_FAIL;
 	}
