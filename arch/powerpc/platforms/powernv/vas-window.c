@@ -738,6 +738,9 @@ static bool rx_win_args_valid(enum vas_cop_type cop,
 	if (attr->rx_fifo_size > VAS_RX_FIFO_SIZE_MAX)
 		return false;
 
+	if (attr->wcreds_max > VAS_RX_WCREDS_MAX)
+		return false;
+
 	if (attr->nx_win) {
 		/* cannot be fault or user window if it is nx */
 		if (attr->fault_win || attr->user_win)
@@ -925,6 +928,9 @@ static bool tx_win_args_valid(enum vas_cop_type cop,
 		return false;
 
 	if (cop > VAS_COP_TYPE_MAX)
+		return false;
+
+	if (attr->wcreds_max > VAS_TX_WCREDS_MAX)
 		return false;
 
 	if (attr->user_win &&
