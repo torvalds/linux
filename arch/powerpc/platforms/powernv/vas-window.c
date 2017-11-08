@@ -679,10 +679,13 @@ static void init_winctx_for_rxwin(struct vas_window *rxwin,
 
 	winctx->nx_win = rxattr->nx_win;
 	winctx->fault_win = rxattr->fault_win;
+	winctx->user_win = rxattr->user_win;
+	winctx->rej_no_credit = rxattr->rej_no_credit;
 	winctx->rx_word_mode = rxattr->rx_win_ord_mode;
 	winctx->tx_word_mode = rxattr->tx_win_ord_mode;
 	winctx->rx_wcred_mode = rxattr->rx_wcred_mode;
 	winctx->tx_wcred_mode = rxattr->tx_wcred_mode;
+	winctx->notify_early = rxattr->notify_early;
 
 	if (winctx->nx_win) {
 		winctx->data_stamp = true;
@@ -889,11 +892,14 @@ static void init_winctx_for_txwin(struct vas_window *txwin,
 	winctx->user_win = txattr->user_win;
 	winctx->nx_win = txwin->rxwin->nx_win;
 	winctx->pin_win = txattr->pin_win;
+	winctx->rej_no_credit = txattr->rej_no_credit;
+	winctx->rsvd_txbuf_enable = txattr->rsvd_txbuf_enable;
 
 	winctx->rx_wcred_mode = txattr->rx_wcred_mode;
 	winctx->tx_wcred_mode = txattr->tx_wcred_mode;
 	winctx->rx_word_mode = txattr->rx_win_ord_mode;
 	winctx->tx_word_mode = txattr->tx_win_ord_mode;
+	winctx->rsvd_txbuf_count = txattr->rsvd_txbuf_count;
 
 	if (winctx->nx_win) {
 		winctx->data_stamp = true;
