@@ -118,7 +118,7 @@ struct btrfs_trans_handle {
 	struct btrfs_block_rsv *block_rsv;
 	struct btrfs_block_rsv *orig_rsv;
 	short aborted;
-	short adding_csums;
+	bool adding_csums;
 	bool allocating_chunk;
 	bool can_flush_pending_bgs;
 	bool reloc_reserved;
