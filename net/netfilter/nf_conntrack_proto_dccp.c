@@ -428,13 +428,13 @@ static bool dccp_new(struct nf_conn *ct, const struct sk_buff *skb,
 	default:
 		dn = dccp_pernet(net);
 		if (dn->dccp_loose == 0) {
-			msg = "nf_ct_dccp: not picking up existing connection ";
+			msg = "not picking up existing connection ";
 			goto out_invalid;
 		}
 	case CT_DCCP_REQUEST:
 		break;
 	case CT_DCCP_INVALID:
-		msg = "nf_ct_dccp: invalid state transition ";
+		msg = "invalid state transition ";
 		goto out_invalid;
 	}
 
@@ -447,9 +447,7 @@ static bool dccp_new(struct nf_conn *ct, const struct sk_buff *skb,
 	return true;
 
 out_invalid:
-	if (LOG_INVALID(net, IPPROTO_DCCP))
-		nf_log_packet(net, nf_ct_l3num(ct), 0, skb, NULL, NULL,
-			      NULL, "%s", msg);
+	nf_ct_l4proto_log_invalid(skb, ct, "%s", msg);
 	return false;
 }
 
@@ -469,10 +467,8 @@ static unsigned int *dccp_get_timeouts(struct net *net)
 
 static int dccp_packet(struct nf_conn *ct, const struct sk_buff *skb,
 		       unsigned int dataoff, enum ip_conntrack_info ctinfo,
-		       u_int8_t pf,
 		       unsigned int *timeouts)
 {
-	struct net *net = nf_ct_net(ct);
 	enum ip_conntrack_dir dir = CTINFO2DIR(ctinfo);
 	struct dccp_hdr _dh, *dh;
 	u_int8_t type, old_state, new_state;
@@ -534,15 +530,11 @@ static int dccp_packet(struct nf_conn *ct, const struct sk_buff *skb,
 		ct->proto.dccp.last_pkt = type;
 
 		spin_unlock_bh(&ct->lock);
-		if (LOG_INVALID(net, IPPROTO_DCCP))
-			nf_log_packet(net, pf, 0, skb, NULL, NULL, NULL,
-				      "nf_ct_dccp: invalid packet ignored ");
+		nf_ct_l4proto_log_invalid(skb, ct, "%s", "invalid packet");
 		return NF_ACCEPT;
 	case CT_DCCP_INVALID:
 		spin_unlock_bh(&ct->lock);
-		if (LOG_INVALID(net, IPPROTO_DCCP))
-			nf_log_packet(net, pf, 0, skb, NULL, NULL, NULL,
-				      "nf_ct_dccp: invalid state transition ");
+		nf_ct_l4proto_log_invalid(skb, ct, "%s", "invalid state transition");
 		return -NF_ACCEPT;
 	}
 
@@ -604,8 +596,7 @@ static int dccp_error(struct net *net, struct nf_conn *tmpl,
 	return NF_ACCEPT;
 
 out_invalid:
-	if (LOG_INVALID(net, IPPROTO_DCCP))
-		nf_log_packet(net, pf, 0, skb, NULL, NULL, NULL, "%s", msg);
+	nf_l4proto_log_invalid(skb, net, pf, IPPROTO_DCCP, "%s", msg);
 	return -NF_ACCEPT;
 }
 
