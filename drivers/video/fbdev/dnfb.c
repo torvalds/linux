@@ -242,16 +242,13 @@ static int dnfb_probe(struct platform_device *dev)
 	info->screen_base = (u_char *) info->fix.smem_start;
 
 	err = fb_alloc_cmap(&info->cmap, 2, 0);
-	if (err < 0) {
-		framebuffer_release(info);
-		return err;
-	}
+	if (err < 0)
+		goto release_framebuffer;
 
 	err = register_framebuffer(info);
 	if (err < 0) {
 		fb_dealloc_cmap(&info->cmap);
-		framebuffer_release(info);
-		return err;
+		goto release_framebuffer;
 	}
 	platform_set_drvdata(dev, info);
 
@@ -264,6 +261,10 @@ static int dnfb_probe(struct platform_device *dev)
 	out_be16(AP_ROP_1, SWAP(0x3));
 
 	printk("apollo frame buffer alive and kicking !\n");
+	return err;
+
+release_framebuffer:
+	framebuffer_release(info);
 	return err;
 }
 
