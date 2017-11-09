@@ -21,12 +21,18 @@ use File::Spec;
 use Cwd 'abs_path';
 use Term::ANSIColor qw(:constants);
 use Getopt::Long qw(:config no_auto_abbrev);
+use Config;
 
 my $P = $0;
 my $V = '0.01';
 
 # Directories to scan.
 my @DIRS = ('/proc', '/sys');
+
+# Script can only grep for kernel addresses on the following architectures. If
+# your architecture is not listed here and has a grep'able kernel address please
+# consider submitting a patch.
+my @SUPPORTED_ARCHITECTURES = ('x86_64', 'ppc64');
 
 # Command line options.
 my $help = 0;
@@ -137,6 +143,20 @@ if (!$input_raw and ($squash_by_path or $squash_by_filename)) {
 	exit(128);
 }
 
+if (!is_supported_architecture()) {
+	printf "\nScript does not support your architecture, sorry.\n";
+	printf "\nCurrently we support: \n\n";
+	foreach(@SUPPORTED_ARCHITECTURES) {
+		printf "\t%s\n", $_;
+	}
+
+	my $archname = $Config{archname};
+	printf "\n\$ perl -MConfig -e \'print \"\$Config{archname}\\n\"\'\n";
+	printf "%s\n", $archname;
+
+	exit(129);
+}
+
 if ($output_raw) {
 	open my $fh, '>', $output_raw or die "$0: $output_raw: $!\n";
 	select $fh;
@@ -152,6 +172,31 @@ sub dprint
 	printf(STDERR @_) if $debug;
 }
 
+sub is_supported_architecture
+{
+	return (is_x86_64() or is_ppc64());
+}
+
+sub is_x86_64
+{
+	my $archname = $Config{archname};
+
+	if ($archname =~ m/x86_64/) {
+		return 1;
+	}
+	return 0;
+}
+
+sub is_ppc64
+{
+	my $archname = $Config{archname};
+
+	if ($archname =~ m/powerpc/ and $archname =~ m/64/) {
+		return 1;
+	}
+	return 0;
+}
+
 sub is_false_positive
 {
 	my ($match) = @_;
@@ -161,10 +206,12 @@ sub is_false_positive
 		return 1;
 	}
 
-
-	if ($match =~ '\bf{10}600000\b' or# vsyscall memory region, we should probably check against a range here.
-	    $match =~ '\bf{10}601000\b') {
-		return 1;
+	if (is_x86_64) {
+		# vsyscall memory region, we should probably check against a range here.
+		if ($match =~ '\bf{10}600000\b' or
+		    $match =~ '\bf{10}601000\b') {
+			return 1;
+		}
 	}
 
 	return 0;
@@ -174,7 +221,7 @@ sub is_false_positive
 sub may_leak_address
 {
 	my ($line) = @_;
-	my $address = '\b(0x)?ffff[[:xdigit:]]{12}\b';
+	my $address_re;
 
 	# Signal masks.
 	if ($line =~ '^SigBlk:' or
@@ -187,7 +234,14 @@ sub may_leak_address
 		return 0;
 	}
 
-	while (/($address)/g) {
+	# One of these is guaranteed to be true.
+	if (is_x86_64()) {
+		$address_re = '\b(0x)?ffff[[:xdigit:]]{12}\b';
+	} elsif (is_ppc64()) {
+		$address_re = '\b(0x)?[89abcdef]00[[:xdigit:]]{13}\b';
+	}
+
+	while (/($address_re)/g) {
 		if (!is_false_positive($1)) {
 			return 1;
 		}
