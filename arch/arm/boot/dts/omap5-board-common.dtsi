@@ -69,12 +69,14 @@
 		clocks = <&auxclk1_ck>;
 		clock-names = "main_clk";
 		clock-frequency = <19200000>;
+		#phy-cells = <0>;
 	};
 
 	/* HS USB Host PHY on PORT 3 */
 	hsusb3_phy: hsusb3_phy {
 		compatible = "usb-nop-xceiv";
 		reset-gpios = <&gpio3 15 GPIO_ACTIVE_LOW>; /* gpio3_79 ETH_NRESET */
+		#phy-cells = <0>;
 	};
 
 	tpd12s015: encoder {
