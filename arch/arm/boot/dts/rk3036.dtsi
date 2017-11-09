@@ -497,6 +497,13 @@
 		clock-names = "timer", "pclk";
 	};
 
+	wdt: watchdog@2004c000 {
+		compatible = "rockchip,rk3036-wdt", "snps,dw-wdt";
+		reg = <0x2004c000 0x100>;
+		clocks = <&cru PCLK_WDT>;
+		status = "disabled";
+	};
+
 	pwm0: pwm@20050000 {
 		compatible = "rockchip,rk3036-pwm", "rockchip,rk2928-pwm";
 		reg = <0x20050000 0x10>;
