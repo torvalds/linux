@@ -385,6 +385,9 @@ static int amdgpu_cgs_get_firmware_info(struct cgs_device *cgs_device,
 			case CHIP_POLARIS12:
 				strcpy(fw_name, "amdgpu/polaris12_smc.bin");
 				break;
+			case CHIP_VEGAM:
+				strcpy(fw_name, "amdgpu/vegam_smc.bin");
+				break;
 			case CHIP_VEGA10:
 				if ((adev->pdev->device == 0x687f) &&
 					((adev->pdev->revision == 0xc0) ||
