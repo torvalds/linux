@@ -525,6 +525,10 @@ again:
 	if (nr_entries == KEYS_PER_NODE)
 		new = xfs_iext_split_node(&node, &pos, &nr_entries);
 
+	/*
+	 * Update the pointers in higher levels if the first entry changes
+	 * in an existing node.
+	 */
 	if (node != new && pos == 0 && nr_entries > 0)
 		xfs_iext_update_node(ifp, node->keys[0], offset, level, node);
 
@@ -643,6 +647,10 @@ xfs_iext_insert(
 	if (nr_entries == RECS_PER_LEAF)
 		new = xfs_iext_split_leaf(cur, &nr_entries);
 
+	/*
+	 * Update the pointers in higher levels if the first entry changes
+	 * in an existing node.
+	 */
 	if (cur->leaf != new && cur->pos == 0 && nr_entries > 0) {
 		xfs_iext_update_node(ifp, xfs_iext_leaf_key(cur->leaf, 0),
 				offset, 1, cur->leaf);
