@@ -7068,6 +7068,14 @@ R:	Dan Williams <dan.j.williams@intel.com>
 S:	Odd fixes
 F:	drivers/dma/iop-adma.c
 
+INTEL IPU3 CSI-2 CIO2 DRIVER
+M:	Yong Zhi <yong.zhi@intel.com>
+M:	Sakari Ailus <sakari.ailus@linux.intel.com>
+L:	linux-media@vger.kernel.org
+S:	Maintained
+F:	drivers/media/pci/intel/ipu3/
+F:	Documentation/media/uapi/v4l/pixfmt-srggb10-ipu3.rst
+
 INTEL IXP4XX QMGR, NPE, ETHERNET and HSS SUPPORT
 M:	Krzysztof Halasa <khalasa@piap.pl>
 S:	Maintained

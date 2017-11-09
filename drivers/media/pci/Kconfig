@@ -54,5 +54,7 @@ source "drivers/media/pci/smipcie/Kconfig"
 source "drivers/media/pci/netup_unidvb/Kconfig"
 endif
 
+source "drivers/media/pci/intel/ipu3/Kconfig"
+
 endif #MEDIA_PCI_SUPPORT
 endif #PCI
