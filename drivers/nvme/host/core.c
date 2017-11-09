@@ -291,6 +291,22 @@ bool nvme_change_ctrl_state(struct nvme_ctrl *ctrl,
 }
 EXPORT_SYMBOL_GPL(nvme_change_ctrl_state);
 
+static void nvme_free_ns_head(struct kref *ref)
+{
+	struct nvme_ns_head *head =
+		container_of(ref, struct nvme_ns_head, ref);
+
+	ida_simple_remove(&head->subsys->ns_ida, head->instance);
+	list_del_init(&head->entry);
+	cleanup_srcu_struct(&head->srcu);
+	kfree(head);
+}
+
+static void nvme_put_ns_head(struct nvme_ns_head *head)
+{
+	kref_put(&head->ref, nvme_free_ns_head);
+}
+
 static void nvme_free_ns(struct kref *kref)
 {
 	struct nvme_ns *ns = container_of(kref, struct nvme_ns, kref);
@@ -299,7 +315,7 @@ static void nvme_free_ns(struct kref *kref)
 		nvme_nvm_unregister(ns);
 
 	put_disk(ns->disk);
-	ida_simple_remove(&ns->ctrl->ns_ida, ns->instance);
+	nvme_put_ns_head(ns->head);
 	nvme_put_ctrl(ns->ctrl);
 	kfree(ns);
 }
@@ -435,7 +451,7 @@ static inline void nvme_setup_flush(struct nvme_ns *ns,
 {
 	memset(cmnd, 0, sizeof(*cmnd));
 	cmnd->common.opcode = nvme_cmd_flush;
-	cmnd->common.nsid = cpu_to_le32(ns->ns_id);
+	cmnd->common.nsid = cpu_to_le32(ns->head->ns_id);
 }
 
 static blk_status_t nvme_setup_discard(struct nvme_ns *ns, struct request *req,
@@ -466,7 +482,7 @@ static blk_status_t nvme_setup_discard(struct nvme_ns *ns, struct request *req,
 
 	memset(cmnd, 0, sizeof(*cmnd));
 	cmnd->dsm.opcode = nvme_cmd_dsm;
-	cmnd->dsm.nsid = cpu_to_le32(ns->ns_id);
+	cmnd->dsm.nsid = cpu_to_le32(ns->head->ns_id);
 	cmnd->dsm.nr = cpu_to_le32(segments - 1);
 	cmnd->dsm.attributes = cpu_to_le32(NVME_DSMGMT_AD);
 
@@ -495,7 +511,7 @@ static inline blk_status_t nvme_setup_rw(struct nvme_ns *ns,
 
 	memset(cmnd, 0, sizeof(*cmnd));
 	cmnd->rw.opcode = (rq_data_dir(req) ? nvme_cmd_write : nvme_cmd_read);
-	cmnd->rw.nsid = cpu_to_le32(ns->ns_id);
+	cmnd->rw.nsid = cpu_to_le32(ns->head->ns_id);
 	cmnd->rw.slba = cpu_to_le64(nvme_block_nr(ns, blk_rq_pos(req)));
 	cmnd->rw.length = cpu_to_le16((blk_rq_bytes(req) >> ns->lba_shift) - 1);
 
@@ -987,7 +1003,7 @@ static int nvme_submit_io(struct nvme_ns *ns, struct nvme_user_io __user *uio)
 	memset(&c, 0, sizeof(c));
 	c.rw.opcode = io.opcode;
 	c.rw.flags = io.flags;
-	c.rw.nsid = cpu_to_le32(ns->ns_id);
+	c.rw.nsid = cpu_to_le32(ns->head->ns_id);
 	c.rw.slba = cpu_to_le64(io.slba);
 	c.rw.length = cpu_to_le16(io.nblocks);
 	c.rw.control = cpu_to_le16(io.control);
@@ -1130,7 +1146,7 @@ static int nvme_ioctl(struct block_device *bdev, fmode_t mode,
 	switch (cmd) {
 	case NVME_IOCTL_ID:
 		force_successful_syscall_return();
-		return ns->ns_id;
+		return ns->head->ns_id;
 	case NVME_IOCTL_ADMIN_CMD:
 		return nvme_user_cmd(ns->ctrl, NULL, (void __user *)arg);
 	case NVME_IOCTL_IO_CMD:
@@ -1251,6 +1267,13 @@ static void nvme_report_ns_ids(struct nvme_ctrl *ctrl, unsigned int nsid,
 	}
 }
 
+static bool nvme_ns_ids_valid(struct nvme_ns_ids *ids)
+{
+	return !uuid_is_null(&ids->uuid) ||
+		memchr_inv(ids->nguid, 0, sizeof(ids->nguid)) ||
+		memchr_inv(ids->eui64, 0, sizeof(ids->eui64));
+}
+
 static bool nvme_ns_ids_equal(struct nvme_ns_ids *a, struct nvme_ns_ids *b)
 {
 	return uuid_equal(&a->uuid, &b->uuid) &&
@@ -1321,7 +1344,7 @@ static int nvme_revalidate_disk(struct gendisk *disk)
 		return -ENODEV;
 	}
 
-	id = nvme_identify_ns(ctrl, ns->ns_id);
+	id = nvme_identify_ns(ctrl, ns->head->ns_id);
 	if (!id)
 		return -ENODEV;
 
@@ -1330,10 +1353,10 @@ static int nvme_revalidate_disk(struct gendisk *disk)
 		goto out;
 	}
 
-	nvme_report_ns_ids(ctrl, ns->ns_id, id, &ids);
-	if (!nvme_ns_ids_equal(&ns->ids, &ids)) {
+	nvme_report_ns_ids(ctrl, ns->head->ns_id, id, &ids);
+	if (!nvme_ns_ids_equal(&ns->head->ids, &ids)) {
 		dev_err(ctrl->device,
-			"identifiers changed for nsid %d\n", ns->ns_id);
+			"identifiers changed for nsid %d\n", ns->head->ns_id);
 		ret = -ENODEV;
 	}
 
@@ -1374,7 +1397,7 @@ static int nvme_pr_command(struct block_device *bdev, u32 cdw10,
 
 	memset(&c, 0, sizeof(c));
 	c.common.opcode = op;
-	c.common.nsid = cpu_to_le32(ns->ns_id);
+	c.common.nsid = cpu_to_le32(ns->head->ns_id);
 	c.common.cdw10[0] = cpu_to_le32(cdw10);
 
 	return nvme_submit_sync_cmd(ns->queue, &c, data, 16);
@@ -1861,6 +1884,7 @@ static void nvme_destroy_subsystem(struct kref *ref)
 	list_del(&subsys->entry);
 	mutex_unlock(&nvme_subsystems_lock);
 
+	ida_destroy(&subsys->ns_ida);
 	device_del(&subsys->dev);
 	put_device(&subsys->dev);
 }
@@ -1904,6 +1928,7 @@ static int nvme_init_subsystem(struct nvme_ctrl *ctrl, struct nvme_id_ctrl *id)
 	mutex_init(&subsys->lock);
 	kref_init(&subsys->ref);
 	INIT_LIST_HEAD(&subsys->ctrls);
+	INIT_LIST_HEAD(&subsys->nsheads);
 	nvme_init_subnqn(subsys, ctrl, id);
 	memcpy(subsys->serial, id->sn, sizeof(subsys->serial));
 	memcpy(subsys->model, id->mn, sizeof(subsys->model));
@@ -1941,6 +1966,7 @@ static int nvme_init_subsystem(struct nvme_ctrl *ctrl, struct nvme_id_ctrl *id)
 				"failed to register subsystem device.\n");
 			goto out_unlock;
 		}
+		ida_init(&subsys->ns_ida);
 		list_add_tail(&subsys->entry, &nvme_subsystems);
 	}
 
@@ -2272,7 +2298,7 @@ static ssize_t wwid_show(struct device *dev, struct device_attribute *attr,
 								char *buf)
 {
 	struct nvme_ns *ns = nvme_get_ns_from_dev(dev);
-	struct nvme_ns_ids *ids = &ns->ids;
+	struct nvme_ns_ids *ids = &ns->head->ids;
 	struct nvme_subsystem *subsys = ns->ctrl->subsys;
 	int serial_len = sizeof(subsys->serial);
 	int model_len = sizeof(subsys->model);
@@ -2295,7 +2321,7 @@ static ssize_t wwid_show(struct device *dev, struct device_attribute *attr,
 
 	return sprintf(buf, "nvme.%04x-%*phN-%*phN-%08x\n", subsys->vendor_id,
 		serial_len, subsys->serial, model_len, subsys->model,
-		ns->ns_id);
+		ns->head->ns_id);
 }
 static DEVICE_ATTR(wwid, S_IRUGO, wwid_show, NULL);
 
@@ -2303,7 +2329,7 @@ static ssize_t nguid_show(struct device *dev, struct device_attribute *attr,
 			  char *buf)
 {
 	struct nvme_ns *ns = nvme_get_ns_from_dev(dev);
-	return sprintf(buf, "%pU\n", ns->ids.nguid);
+	return sprintf(buf, "%pU\n", ns->head->ids.nguid);
 }
 static DEVICE_ATTR(nguid, S_IRUGO, nguid_show, NULL);
 
@@ -2311,7 +2337,7 @@ static ssize_t uuid_show(struct device *dev, struct device_attribute *attr,
 								char *buf)
 {
 	struct nvme_ns *ns = nvme_get_ns_from_dev(dev);
-	struct nvme_ns_ids *ids = &ns->ids;
+	struct nvme_ns_ids *ids = &ns->head->ids;
 
 	/* For backward compatibility expose the NGUID to userspace if
 	 * we have no UUID set
@@ -2329,7 +2355,7 @@ static ssize_t eui_show(struct device *dev, struct device_attribute *attr,
 								char *buf)
 {
 	struct nvme_ns *ns = nvme_get_ns_from_dev(dev);
-	return sprintf(buf, "%8ph\n", ns->ids.eui64);
+	return sprintf(buf, "%8ph\n", ns->head->ids.eui64);
 }
 static DEVICE_ATTR(eui, S_IRUGO, eui_show, NULL);
 
@@ -2337,7 +2363,7 @@ static ssize_t nsid_show(struct device *dev, struct device_attribute *attr,
 								char *buf)
 {
 	struct nvme_ns *ns = nvme_get_ns_from_dev(dev);
-	return sprintf(buf, "%d\n", ns->ns_id);
+	return sprintf(buf, "%d\n", ns->head->ns_id);
 }
 static DEVICE_ATTR(nsid, S_IRUGO, nsid_show, NULL);
 
@@ -2355,7 +2381,7 @@ static umode_t nvme_ns_attrs_are_visible(struct kobject *kobj,
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
 	struct nvme_ns *ns = nvme_get_ns_from_dev(dev);
-	struct nvme_ns_ids *ids = &ns->ids;
+	struct nvme_ns_ids *ids = &ns->head->ids;
 
 	if (a == &dev_attr_uuid.attr) {
 		if (uuid_is_null(&ids->uuid) ||
@@ -2507,12 +2533,124 @@ static const struct attribute_group *nvme_dev_attr_groups[] = {
 	NULL,
 };
 
+static struct nvme_ns_head *__nvme_find_ns_head(struct nvme_subsystem *subsys,
+		unsigned nsid)
+{
+	struct nvme_ns_head *h;
+
+	lockdep_assert_held(&subsys->lock);
+
+	list_for_each_entry(h, &subsys->nsheads, entry) {
+		if (h->ns_id == nsid && kref_get_unless_zero(&h->ref))
+			return h;
+	}
+
+	return NULL;
+}
+
+static int __nvme_check_ids(struct nvme_subsystem *subsys,
+		struct nvme_ns_head *new)
+{
+	struct nvme_ns_head *h;
+
+	lockdep_assert_held(&subsys->lock);
+
+	list_for_each_entry(h, &subsys->nsheads, entry) {
+		if (nvme_ns_ids_valid(&new->ids) &&
+		    nvme_ns_ids_equal(&new->ids, &h->ids))
+			return -EINVAL;
+	}
+
+	return 0;
+}
+
+static struct nvme_ns_head *nvme_alloc_ns_head(struct nvme_ctrl *ctrl,
+		unsigned nsid, struct nvme_id_ns *id)
+{
+	struct nvme_ns_head *head;
+	int ret = -ENOMEM;
+
+	head = kzalloc(sizeof(*head), GFP_KERNEL);
+	if (!head)
+		goto out;
+	ret = ida_simple_get(&ctrl->subsys->ns_ida, 1, 0, GFP_KERNEL);
+	if (ret < 0)
+		goto out_free_head;
+	head->instance = ret;
+	INIT_LIST_HEAD(&head->list);
+	init_srcu_struct(&head->srcu);
+	head->subsys = ctrl->subsys;
+	head->ns_id = nsid;
+	kref_init(&head->ref);
+
+	nvme_report_ns_ids(ctrl, nsid, id, &head->ids);
+
+	ret = __nvme_check_ids(ctrl->subsys, head);
+	if (ret) {
+		dev_err(ctrl->device,
+			"duplicate IDs for nsid %d\n", nsid);
+		goto out_cleanup_srcu;
+	}
+
+	list_add_tail(&head->entry, &ctrl->subsys->nsheads);
+	return head;
+out_cleanup_srcu:
+	cleanup_srcu_struct(&head->srcu);
+	ida_simple_remove(&ctrl->subsys->ns_ida, head->instance);
+out_free_head:
+	kfree(head);
+out:
+	return ERR_PTR(ret);
+}
+
+static int nvme_init_ns_head(struct nvme_ns *ns, unsigned nsid,
+		struct nvme_id_ns *id, bool *new)
+{
+	struct nvme_ctrl *ctrl = ns->ctrl;
+	bool is_shared = id->nmic & (1 << 0);
+	struct nvme_ns_head *head = NULL;
+	int ret = 0;
+
+	mutex_lock(&ctrl->subsys->lock);
+	if (is_shared)
+		head = __nvme_find_ns_head(ctrl->subsys, nsid);
+	if (!head) {
+		head = nvme_alloc_ns_head(ctrl, nsid, id);
+		if (IS_ERR(head)) {
+			ret = PTR_ERR(head);
+			goto out_unlock;
+		}
+
+		*new = true;
+	} else {
+		struct nvme_ns_ids ids;
+
+		nvme_report_ns_ids(ctrl, nsid, id, &ids);
+		if (!nvme_ns_ids_equal(&head->ids, &ids)) {
+			dev_err(ctrl->device,
+				"IDs don't match for shared namespace %d\n",
+					nsid);
+			ret = -EINVAL;
+			goto out_unlock;
+		}
+
+		*new = false;
+	}
+
+	list_add_tail(&ns->siblings, &head->list);
+	ns->head = head;
+
+out_unlock:
+	mutex_unlock(&ctrl->subsys->lock);
+	return ret;
+}
+
 static int ns_cmp(void *priv, struct list_head *a, struct list_head *b)
 {
 	struct nvme_ns *nsa = container_of(a, struct nvme_ns, list);
 	struct nvme_ns *nsb = container_of(b, struct nvme_ns, list);
 
-	return nsa->ns_id - nsb->ns_id;
+	return nsa->head->ns_id - nsb->head->ns_id;
 }
 
 static struct nvme_ns *nvme_find_get_ns(struct nvme_ctrl *ctrl, unsigned nsid)
@@ -2521,13 +2659,13 @@ static struct nvme_ns *nvme_find_get_ns(struct nvme_ctrl *ctrl, unsigned nsid)
 
 	mutex_lock(&ctrl->namespaces_mutex);
 	list_for_each_entry(ns, &ctrl->namespaces, list) {
-		if (ns->ns_id == nsid) {
+		if (ns->head->ns_id == nsid) {
 			if (!kref_get_unless_zero(&ns->kref))
 				continue;
 			ret = ns;
 			break;
 		}
-		if (ns->ns_id > nsid)
+		if (ns->head->ns_id > nsid)
 			break;
 	}
 	mutex_unlock(&ctrl->namespaces_mutex);
@@ -2542,7 +2680,7 @@ static int nvme_setup_streams_ns(struct nvme_ctrl *ctrl, struct nvme_ns *ns)
 	if (!ctrl->nr_streams)
 		return 0;
 
-	ret = nvme_get_stream_params(ctrl, &s, ns->ns_id);
+	ret = nvme_get_stream_params(ctrl, &s, ns->head->ns_id);
 	if (ret)
 		return ret;
 
@@ -2567,31 +2705,25 @@ static void nvme_alloc_ns(struct nvme_ctrl *ctrl, unsigned nsid)
 	struct nvme_id_ns *id;
 	char disk_name[DISK_NAME_LEN];
 	int node = dev_to_node(ctrl->dev);
+	bool new = true;
 
 	ns = kzalloc_node(sizeof(*ns), GFP_KERNEL, node);
 	if (!ns)
 		return;
 
-	ns->instance = ida_simple_get(&ctrl->ns_ida, 1, 0, GFP_KERNEL);
-	if (ns->instance < 0)
-		goto out_free_ns;
-
 	ns->queue = blk_mq_init_queue(ctrl->tagset);
 	if (IS_ERR(ns->queue))
-		goto out_release_instance;
+		goto out_free_ns;
 	queue_flag_set_unlocked(QUEUE_FLAG_NONROT, ns->queue);
 	ns->queue->queuedata = ns;
 	ns->ctrl = ctrl;
 
 	kref_init(&ns->kref);
-	ns->ns_id = nsid;
 	ns->lba_shift = 9; /* set to a default value for 512 until disk is validated */
 
 	blk_queue_logical_block_size(ns->queue, 1 << ns->lba_shift);
 	nvme_set_queue_limits(ctrl, ns->queue);
 	nvme_setup_streams_ns(ctrl, ns);
-
-	sprintf(disk_name, "nvme%dn%d", ctrl->instance, ns->instance);
 
 	id = nvme_identify_ns(ctrl, nsid);
 	if (!id)
@@ -2600,18 +2732,21 @@ static void nvme_alloc_ns(struct nvme_ctrl *ctrl, unsigned nsid)
 	if (id->ncap == 0)
 		goto out_free_id;
 
-	nvme_report_ns_ids(ctrl, ns->ns_id, id, &ns->ids);
+	if (nvme_init_ns_head(ns, nsid, id, &new))
+		goto out_free_id;
+	
+	sprintf(disk_name, "nvme%dn%d", ctrl->instance, ns->head->instance);
 
 	if ((ctrl->quirks & NVME_QUIRK_LIGHTNVM) && id->vs[0] == 0x1) {
 		if (nvme_nvm_register(ns, disk_name, node)) {
 			dev_warn(ctrl->device, "LightNVM init failure\n");
-			goto out_free_id;
+			goto out_unlink_ns;
 		}
 	}
 
 	disk = alloc_disk_node(0, node);
 	if (!disk)
-		goto out_free_id;
+		goto out_unlink_ns;
 
 	disk->fops = &nvme_fops;
 	disk->private_data = ns;
@@ -2639,18 +2774,22 @@ static void nvme_alloc_ns(struct nvme_ctrl *ctrl, unsigned nsid)
 		pr_warn("%s: failed to register lightnvm sysfs group for identification\n",
 			ns->disk->disk_name);
 	return;
+ out_unlink_ns:
+	mutex_lock(&ctrl->subsys->lock);
+	list_del_rcu(&ns->siblings);
+	mutex_unlock(&ctrl->subsys->lock);
  out_free_id:
 	kfree(id);
  out_free_queue:
 	blk_cleanup_queue(ns->queue);
- out_release_instance:
-	ida_simple_remove(&ctrl->ns_ida, ns->instance);
  out_free_ns:
 	kfree(ns);
 }
 
 static void nvme_ns_remove(struct nvme_ns *ns)
 {
+	struct nvme_ns_head *head = ns->head;
+
 	if (test_and_set_bit(NVME_NS_REMOVING, &ns->flags))
 		return;
 
@@ -2665,10 +2804,16 @@ static void nvme_ns_remove(struct nvme_ns *ns)
 		blk_cleanup_queue(ns->queue);
 	}
 
+	mutex_lock(&ns->ctrl->subsys->lock);
+	if (head)
+		list_del_rcu(&ns->siblings);
+	mutex_unlock(&ns->ctrl->subsys->lock);
+
 	mutex_lock(&ns->ctrl->namespaces_mutex);
 	list_del_init(&ns->list);
 	mutex_unlock(&ns->ctrl->namespaces_mutex);
 
+	synchronize_srcu(&head->srcu);
 	nvme_put_ns(ns);
 }
 
@@ -2691,7 +2836,7 @@ static void nvme_remove_invalid_namespaces(struct nvme_ctrl *ctrl,
 	struct nvme_ns *ns, *next;
 
 	list_for_each_entry_safe(ns, next, &ctrl->namespaces, list) {
-		if (ns->ns_id > nsid)
+		if (ns->head->ns_id > nsid)
 			nvme_ns_remove(ns);
 	}
 }
@@ -2961,7 +3106,6 @@ static void nvme_free_ctrl(struct device *dev)
 	struct nvme_subsystem *subsys = ctrl->subsys;
 
 	ida_simple_remove(&nvme_instance_ida, ctrl->instance);
-	ida_destroy(&ctrl->ns_ida);
 	kfree(ctrl->effects);
 
 	if (subsys) {
@@ -3021,8 +3165,6 @@ int nvme_init_ctrl(struct nvme_ctrl *ctrl, struct device *dev,
 	ret = cdev_device_add(&ctrl->cdev, ctrl->device);
 	if (ret)
 		goto out_free_name;
-
-	ida_init(&ctrl->ns_ida);
 
 	/*
 	 * Initialize latency tolerance controls.  The sysfs files won't

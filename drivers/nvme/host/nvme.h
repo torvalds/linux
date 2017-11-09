@@ -136,7 +136,6 @@ struct nvme_ctrl {
 	struct device ctrl_device;
 	struct device *device;	/* char device */
 	struct cdev cdev;
-	struct ida ns_ida;
 	struct work_struct reset_work;
 	struct work_struct delete_work;
 
@@ -209,12 +208,14 @@ struct nvme_subsystem {
 	struct list_head	entry;
 	struct mutex		lock;
 	struct list_head	ctrls;
+	struct list_head	nsheads;
 	char			subnqn[NVMF_NQN_SIZE];
 	char			serial[20];
 	char			model[40];
 	char			firmware_rev[8];
 	u8			cmic;
 	u16			vendor_id;
+	struct ida		ns_ida;
 };
 
 /*
@@ -226,18 +227,35 @@ struct nvme_ns_ids {
 	uuid_t	uuid;
 };
 
+/*
+ * Anchor structure for namespaces.  There is one for each namespace in a
+ * NVMe subsystem that any of our controllers can see, and the namespace
+ * structure for each controller is chained of it.  For private namespaces
+ * there is a 1:1 relation to our namespace structures, that is ->list
+ * only ever has a single entry for private namespaces.
+ */
+struct nvme_ns_head {
+	struct list_head	list;
+	struct srcu_struct      srcu;
+	struct nvme_subsystem	*subsys;
+	unsigned		ns_id;
+	struct nvme_ns_ids	ids;
+	struct list_head	entry;
+	struct kref		ref;
+	int			instance;
+};
+
 struct nvme_ns {
 	struct list_head list;
 
 	struct nvme_ctrl *ctrl;
 	struct request_queue *queue;
 	struct gendisk *disk;
+	struct list_head siblings;
 	struct nvm_dev *ndev;
 	struct kref kref;
-	int instance;
+	struct nvme_ns_head *head;
 
-	unsigned ns_id;
-	struct nvme_ns_ids ids;
 	int lba_shift;
 	u16 ms;
 	u16 sgs;
