@@ -40,7 +40,7 @@ my @skip_parse_files_abs = ('/proc/kmsg',
 			    '/sys/kernel/debug/tracing/trace_pipe',
 			    '/sys/kernel/security/apparmor/revision');
 
-# Do not parse thes files under any subdirectory.
+# Do not parse these files under any subdirectory.
 my @skip_parse_files_any = ('0',
 			    '1',
 			    '2',
