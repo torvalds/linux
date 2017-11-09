@@ -827,6 +827,39 @@ static const struct xattr_handler *ovl_xattr_handlers[] = {
 	NULL
 };
 
+static int ovl_get_upperpath(struct ovl_fs *ufs, struct path *upperpath)
+{
+	int err;
+
+	err = ovl_mount_dir(ufs->config.upperdir, upperpath);
+	if (err)
+		goto out;
+
+	/* Upper fs should not be r/o */
+	if (sb_rdonly(upperpath->mnt->mnt_sb)) {
+		pr_err("overlayfs: upper fs is r/o, try multi-lower layers mount\n");
+		err = -EINVAL;
+		goto out;
+	}
+
+	err = ovl_check_namelen(upperpath, ufs, ufs->config.upperdir);
+	if (err)
+		goto out;
+
+	err = -EBUSY;
+	if (ovl_inuse_trylock(upperpath->dentry)) {
+		ufs->upperdir_locked = true;
+	} else if (ufs->config.index) {
+		pr_err("overlayfs: upperdir is in-use by another mount, mount with '-o index=off' to override exclusive upperdir protection.\n");
+		goto out;
+	} else {
+		pr_warn("overlayfs: upperdir is in-use by another mount, accessing files from both mounts will result in undefined behavior.\n");
+	}
+	err = 0;
+out:
+	return err;
+}
+
 static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 {
 	struct path upperpath = { };
@@ -870,30 +903,9 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 			goto out_free_config;
 		}
 
-		err = ovl_mount_dir(ufs->config.upperdir, &upperpath);
+		err = ovl_get_upperpath(ufs, &upperpath);
 		if (err)
-			goto out_free_config;
-
-		/* Upper fs should not be r/o */
-		if (sb_rdonly(upperpath.mnt->mnt_sb)) {
-			pr_err("overlayfs: upper fs is r/o, try multi-lower layers mount\n");
-			err = -EINVAL;
-			goto out_put_upperpath;
-		}
-
-		err = ovl_check_namelen(&upperpath, ufs, ufs->config.upperdir);
-		if (err)
-			goto out_put_upperpath;
-
-		err = -EBUSY;
-		if (ovl_inuse_trylock(upperpath.dentry)) {
-			ufs->upperdir_locked = true;
-		} else if (ufs->config.index) {
-			pr_err("overlayfs: upperdir is in-use by another mount, mount with '-o index=off' to override exclusive upperdir protection.\n");
-			goto out_put_upperpath;
-		} else {
-			pr_warn("overlayfs: upperdir is in-use by another mount, accessing files from both mounts will result in undefined behavior.\n");
-		}
+			goto out_unlock_upperdentry;
 
 		err = ovl_mount_dir(ufs->config.workdir, &workpath);
 		if (err)
@@ -1196,7 +1208,6 @@ out_put_workpath:
 out_unlock_upperdentry:
 	if (ufs->upperdir_locked)
 		ovl_inuse_unlock(upperpath.dentry);
-out_put_upperpath:
 	path_put(&upperpath);
 out_free_config:
 	kfree(ufs->config.lowerdir);
