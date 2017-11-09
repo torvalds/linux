@@ -3044,7 +3044,6 @@ struct prot_inuse {
 
 static DECLARE_BITMAP(proto_inuse_idx, PROTO_INUSE_NR);
 
-#ifdef CONFIG_NET_NS
 void sock_prot_inuse_add(struct net *net, struct proto *prot, int val)
 {
 	__this_cpu_add(net->core.inuse->val[prot->inuse_idx], val);
@@ -3088,27 +3087,6 @@ static __init int net_inuse_init(void)
 }
 
 core_initcall(net_inuse_init);
-#else
-static DEFINE_PER_CPU(struct prot_inuse, prot_inuse);
-
-void sock_prot_inuse_add(struct net *net, struct proto *prot, int val)
-{
-	__this_cpu_add(prot_inuse.val[prot->inuse_idx], val);
-}
-EXPORT_SYMBOL_GPL(sock_prot_inuse_add);
-
-int sock_prot_inuse_get(struct net *net, struct proto *prot)
-{
-	int cpu, idx = prot->inuse_idx;
-	int res = 0;
-
-	for_each_possible_cpu(cpu)
-		res += per_cpu(prot_inuse, cpu).val[idx];
-
-	return res >= 0 ? res : 0;
-}
-EXPORT_SYMBOL_GPL(sock_prot_inuse_get);
-#endif
 
 static void assign_proto_idx(struct proto *prot)
 {
