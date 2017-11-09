@@ -423,11 +423,6 @@ static int perf_evsel__check_attr(struct perf_evsel *evsel,
 					   PERF_OUTPUT_CPU, allow_user_set))
 		return -EINVAL;
 
-	if (PRINT_FIELD(PERIOD) &&
-		perf_evsel__check_stype(evsel, PERF_SAMPLE_PERIOD, "PERIOD",
-					PERF_OUTPUT_PERIOD))
-		return -EINVAL;
-
 	if (PRINT_FIELD(IREGS) &&
 		perf_evsel__check_stype(evsel, PERF_SAMPLE_REGS_INTR, "IREGS",
 					PERF_OUTPUT_IREGS))
