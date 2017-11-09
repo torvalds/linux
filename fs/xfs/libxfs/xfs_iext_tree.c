@@ -787,13 +787,21 @@ xfs_iext_rebalance_leaf(
 	struct xfs_iext_cursor	*cur,
 	struct xfs_iext_leaf	*leaf,
 	xfs_fileoff_t		offset,
-	int			fill)
+	int			nr_entries)
 {
+	/*
+	 * If the neighbouring nodes are completely full we might never be able
+	 * to merge our node, and will only delete it once the number of
+	 * entries hits zero.
+	 */
+	if (nr_entries == 0)
+		goto remove_node;
+
 	if (leaf->prev) {
 		int nr_prev = xfs_iext_leaf_nr_entries(ifp, leaf->prev, 0), i;
 
-		if (nr_prev + fill <= RECS_PER_LEAF) {
-			for (i = 0; i < fill; i++)
+		if (nr_prev + nr_entries <= RECS_PER_LEAF) {
+			for (i = 0; i < nr_entries; i++)
 				leaf->prev->recs[nr_prev + i] = leaf->recs[i];
 
 			if (cur->leaf == leaf) {
@@ -807,18 +815,20 @@ xfs_iext_rebalance_leaf(
 	if (leaf->next) {
 		int nr_next = xfs_iext_leaf_nr_entries(ifp, leaf->next, 0), i;
 
-		if (fill + nr_next <= RECS_PER_LEAF) {
+		if (nr_entries + nr_next <= RECS_PER_LEAF) {
 			/*
 			 * Merge the next node into this node so that we don't
 			 * have to do an additional update of the keys in the
 			 * higher levels.
 			 */
-			for (i = 0; i < nr_next; i++)
-				leaf->recs[fill + i] = leaf->next->recs[i];
+			for (i = 0; i < nr_next; i++) {
+				leaf->recs[nr_entries + i] =
+					leaf->next->recs[i];
+			}
 
 			if (cur->leaf == leaf->next) {
 				cur->leaf = leaf;
-				cur->pos += fill;
+				cur->pos += nr_entries;
 			}
 
 			offset = xfs_iext_leaf_key(leaf->next, 0);
