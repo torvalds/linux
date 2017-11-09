@@ -990,6 +990,8 @@ static void vop_initial(struct drm_crtc *crtc)
 
 	VOP_CTRL_SET(vop, global_regdone_en, 1);
 	VOP_CTRL_SET(vop, dsp_blank, 0);
+	VOP_CTRL_SET(vop, axi_outstanding_max_num, 30);
+	VOP_CTRL_SET(vop, axi_max_outstanding_en, 1);
 
 	/*
 	 * restore the lut table.

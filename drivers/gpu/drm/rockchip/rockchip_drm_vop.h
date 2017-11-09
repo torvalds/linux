@@ -94,6 +94,8 @@ struct vop_csc {
 struct vop_ctrl {
 	struct vop_reg version;
 	struct vop_reg standby;
+	struct vop_reg axi_outstanding_max_num;
+	struct vop_reg axi_max_outstanding_en;
 	struct vop_reg htotal_pw;
 	struct vop_reg hact_st_end;
 	struct vop_reg vtotal_pw;
