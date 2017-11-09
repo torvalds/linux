@@ -408,7 +408,6 @@ struct cache {
 	int sectors_per_block_shift;
 
 	spinlock_t lock;
-	struct list_head deferred_cells;
 	struct bio_list deferred_bios;
 	sector_t migration_threshold;
 	wait_queue_head_t migration_wait;
@@ -2586,7 +2585,6 @@ static int cache_create(struct cache_args *ca, struct cache **result)
 	}
 
 	spin_lock_init(&cache->lock);
-	INIT_LIST_HEAD(&cache->deferred_cells);
 	bio_list_init(&cache->deferred_bios);
 	atomic_set(&cache->nr_allocated_migrations, 0);
 	atomic_set(&cache->nr_io_migrations, 0);
