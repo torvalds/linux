@@ -292,10 +292,11 @@ __add_event(struct list_head *list, int *idx,
 
 	event_attr_init(attr);
 
-	evsel = perf_evsel__new_idx(attr, (*idx)++);
+	evsel = perf_evsel__new_idx(attr, *idx);
 	if (!evsel)
 		return NULL;
 
+	(*idx)++;
 	evsel->cpus     = cpu_map__get(cpus);
 	evsel->own_cpus = cpu_map__get(cpus);
 
