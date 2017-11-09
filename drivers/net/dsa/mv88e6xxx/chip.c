@@ -1252,6 +1252,29 @@ static int mv88e6xxx_port_db_load_purge(struct mv88e6xxx_chip *chip, int port,
 	return mv88e6xxx_g1_atu_loadpurge(chip, vlan.fid, &entry);
 }
 
+static int mv88e6xxx_port_add_broadcast(struct mv88e6xxx_chip *chip, int port,
+					u16 vid)
+{
+	const char broadcast[6] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
+	u8 state = MV88E6XXX_G1_ATU_DATA_STATE_MC_STATIC;
+
+	return mv88e6xxx_port_db_load_purge(chip, port, broadcast, vid, state);
+}
+
+static int mv88e6xxx_broadcast_setup(struct mv88e6xxx_chip *chip, u16 vid)
+{
+	int port;
+	int err;
+
+	for (port = 0; port < mv88e6xxx_num_ports(chip); port++) {
+		err = mv88e6xxx_port_add_broadcast(chip, port, vid);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
 static int _mv88e6xxx_port_vlan_add(struct mv88e6xxx_chip *chip, int port,
 				    u16 vid, u8 member)
 {
@@ -1264,7 +1287,11 @@ static int _mv88e6xxx_port_vlan_add(struct mv88e6xxx_chip *chip, int port,
 
 	vlan.member[port] = member;
 
-	return mv88e6xxx_vtu_loadpurge(chip, &vlan);
+	err = mv88e6xxx_vtu_loadpurge(chip, &vlan);
+	if (err)
+		return err;
+
+	return mv88e6xxx_broadcast_setup(chip, vid);
 }
 
 static void mv88e6xxx_port_vlan_add(struct dsa_switch *ds, int port,
@@ -2046,6 +2073,10 @@ static int mv88e6xxx_setup(struct dsa_switch *ds)
 		goto unlock;
 
 	err = mv88e6xxx_atu_setup(chip);
+	if (err)
+		goto unlock;
+
+	err = mv88e6xxx_broadcast_setup(chip, 0);
 	if (err)
 		goto unlock;
 
