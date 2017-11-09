@@ -555,15 +555,12 @@ xfs_iext_split_leaf(
 	int			i;
 
 	/* for sequential append operations just spill over into the new node */
-	if (cur->pos == KEYS_PER_NODE) {
+	if (cur->pos == RECS_PER_LEAF) {
 		cur->leaf = new;
 		cur->pos = 0;
 		*nr_entries = 0;
 		goto done;
 	}
-
-	if (nr_keep & 1)
-		nr_keep++;
 
 	for (i = 0; i < nr_move; i++) {
 		new->recs[i] = leaf->recs[nr_keep + i];
