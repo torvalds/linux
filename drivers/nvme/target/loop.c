@@ -127,7 +127,7 @@ static void nvme_loop_execute_work(struct work_struct *work)
 	struct nvme_loop_iod *iod =
 		container_of(work, struct nvme_loop_iod, work);
 
-	iod->req.execute(&iod->req);
+	nvmet_req_execute(&iod->req);
 }
 
 static enum blk_eh_timer_return
@@ -176,6 +176,7 @@ static blk_status_t nvme_loop_queue_rq(struct blk_mq_hw_ctx *hctx,
 
 		iod->req.sg = iod->sg_table.sgl;
 		iod->req.sg_cnt = blk_rq_map_sg(req->q, req, iod->sg_table.sgl);
+		iod->req.transfer_len = blk_rq_bytes(req);
 	}
 
 	blk_mq_start_request(req);

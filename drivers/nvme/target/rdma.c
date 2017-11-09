@@ -148,14 +148,14 @@ static inline u32 get_unaligned_le24(const u8 *p)
 static inline bool nvmet_rdma_need_data_in(struct nvmet_rdma_rsp *rsp)
 {
 	return nvme_is_write(rsp->req.cmd) &&
-		rsp->req.data_len &&
+		rsp->req.transfer_len &&
 		!(rsp->flags & NVMET_RDMA_REQ_INLINE_DATA);
 }
 
 static inline bool nvmet_rdma_need_data_out(struct nvmet_rdma_rsp *rsp)
 {
 	return !nvme_is_write(rsp->req.cmd) &&
-		rsp->req.data_len &&
+		rsp->req.transfer_len &&
 		!rsp->req.rsp->status &&
 		!(rsp->flags & NVMET_RDMA_REQ_INLINE_DATA);
 }
@@ -577,7 +577,7 @@ static void nvmet_rdma_read_data_done(struct ib_cq *cq, struct ib_wc *wc)
 		return;
 	}
 
-	rsp->req.execute(&rsp->req);
+	nvmet_req_execute(&rsp->req);
 }
 
 static void nvmet_rdma_use_inline_sg(struct nvmet_rdma_rsp *rsp, u32 len,
@@ -609,6 +609,7 @@ static u16 nvmet_rdma_map_sgl_inline(struct nvmet_rdma_rsp *rsp)
 
 	nvmet_rdma_use_inline_sg(rsp, len, off);
 	rsp->flags |= NVMET_RDMA_REQ_INLINE_DATA;
+	rsp->req.transfer_len += len;
 	return 0;
 }
 
@@ -636,6 +637,7 @@ static u16 nvmet_rdma_map_sgl_keyed(struct nvmet_rdma_rsp *rsp,
 			nvmet_data_dir(&rsp->req));
 	if (ret < 0)
 		return NVME_SC_INTERNAL;
+	rsp->req.transfer_len += len;
 	rsp->n_rdma += ret;
 
 	if (invalidate) {
@@ -693,7 +695,7 @@ static bool nvmet_rdma_execute_command(struct nvmet_rdma_rsp *rsp)
 				queue->cm_id->port_num, &rsp->read_cqe, NULL))
 			nvmet_req_complete(&rsp->req, NVME_SC_DATA_XFER_ERROR);
 	} else {
-		rsp->req.execute(&rsp->req);
+		nvmet_req_execute(&rsp->req);
 	}
 
 	return true;

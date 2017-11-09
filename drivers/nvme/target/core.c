@@ -501,6 +501,7 @@ bool nvmet_req_init(struct nvmet_req *req, struct nvmet_cq *cq,
 	req->ops = ops;
 	req->sg = NULL;
 	req->sg_cnt = 0;
+	req->transfer_len = 0;
 	req->rsp->status = 0;
 
 	/* no support for fused commands yet */
@@ -549,6 +550,15 @@ void nvmet_req_uninit(struct nvmet_req *req)
 	percpu_ref_put(&req->sq->ref);
 }
 EXPORT_SYMBOL_GPL(nvmet_req_uninit);
+
+void nvmet_req_execute(struct nvmet_req *req)
+{
+	if (unlikely(req->data_len != req->transfer_len))
+		nvmet_req_complete(req, NVME_SC_SGL_INVALID_DATA | NVME_SC_DNR);
+	else
+		req->execute(req);
+}
+EXPORT_SYMBOL_GPL(nvmet_req_execute);
 
 static inline bool nvmet_cc_en(u32 cc)
 {
