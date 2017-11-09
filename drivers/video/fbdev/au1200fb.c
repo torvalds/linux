@@ -1667,10 +1667,6 @@ static int au1200fb_drv_probe(struct platform_device *dev)
 	printk(DRIVER_NAME ": Panel %d %s\n", panel_index, panel->name);
 	printk(DRIVER_NAME ": Win %d %s\n", window_index, win->name);
 
-	/* shut gcc up */
-	ret = 0;
-	fbdev = NULL;
-
 	for (plane = 0; plane < device_count; ++plane) {
 		bpp = winbpp(win->w[plane].mode_winctrl1);
 		if (win->w[plane].xres == 0)
@@ -1780,7 +1776,6 @@ failed:
 static int au1200fb_drv_remove(struct platform_device *dev)
 {
 	struct au1200fb_platdata *pd = platform_get_drvdata(dev);
-	struct au1200fb_device *fbdev;
 	struct fb_info *fbi;
 	int plane;
 
@@ -1789,7 +1784,6 @@ static int au1200fb_drv_remove(struct platform_device *dev)
 
 	for (plane = 0; plane < device_count; ++plane)	{
 		fbi = _au1200fb_infos[plane];
-		fbdev = fbi->par;
 
 		/* Clean up all probe data */
 		unregister_framebuffer(fbi);
