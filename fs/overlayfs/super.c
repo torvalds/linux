@@ -1038,6 +1038,55 @@ out_free_stack:
 	goto out;
 }
 
+static int ovl_get_lower_layers(struct ovl_fs *ufs, struct path *stack,
+				unsigned int numlower)
+{
+	int err;
+	unsigned int i;
+
+	err = -ENOMEM;
+	ufs->lower_layers = kcalloc(numlower, sizeof(struct ovl_layer),
+				    GFP_KERNEL);
+	if (ufs->lower_layers == NULL)
+		goto out;
+	for (i = 0; i < numlower; i++) {
+		struct vfsmount *mnt;
+		dev_t dev;
+
+		err = get_anon_bdev(&dev);
+		if (err) {
+			pr_err("overlayfs: failed to get anonymous bdev for lowerpath\n");
+			goto out;
+		}
+
+		mnt = clone_private_mount(&stack[i]);
+		err = PTR_ERR(mnt);
+		if (IS_ERR(mnt)) {
+			pr_err("overlayfs: failed to clone lowerpath\n");
+			free_anon_bdev(dev);
+			goto out;
+		}
+		/*
+		 * Make lower layers R/O.  That way fchmod/fchown on lower file
+		 * will fail instead of modifying lower fs.
+		 */
+		mnt->mnt_flags |= MNT_READONLY | MNT_NOATIME;
+
+		ufs->lower_layers[ufs->numlower].mnt = mnt;
+		ufs->lower_layers[ufs->numlower].pseudo_dev = dev;
+		ufs->numlower++;
+
+		/* Check if all lower layers are on same sb */
+		if (i == 0)
+			ufs->same_sb = mnt->mnt_sb;
+		else if (ufs->same_sb != mnt->mnt_sb)
+			ufs->same_sb = NULL;
+	}
+	err = 0;
+out:
+	return err;
+}
+
 static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 {
 	struct path upperpath = { };
@@ -1103,44 +1152,9 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 			goto out_put_workdir;
 	}
 
-	err = -ENOMEM;
-	ufs->lower_layers = kcalloc(numlower, sizeof(struct ovl_layer),
-				    GFP_KERNEL);
-	if (ufs->lower_layers == NULL)
-		goto out_put_workdir;
-	for (i = 0; i < numlower; i++) {
-		struct vfsmount *mnt;
-		dev_t dev;
-
-		err = get_anon_bdev(&dev);
-		if (err) {
-			pr_err("overlayfs: failed to get anonymous bdev for lowerpath\n");
-			goto out_put_lower_layers;
-		}
-
-		mnt = clone_private_mount(&stack[i]);
-		err = PTR_ERR(mnt);
-		if (IS_ERR(mnt)) {
-			pr_err("overlayfs: failed to clone lowerpath\n");
-			free_anon_bdev(dev);
-			goto out_put_lower_layers;
-		}
-		/*
-		 * Make lower layers R/O.  That way fchmod/fchown on lower file
-		 * will fail instead of modifying lower fs.
-		 */
-		mnt->mnt_flags |= MNT_READONLY | MNT_NOATIME;
-
-		ufs->lower_layers[ufs->numlower].mnt = mnt;
-		ufs->lower_layers[ufs->numlower].pseudo_dev = dev;
-		ufs->numlower++;
-
-		/* Check if all lower layers are on same sb */
-		if (i == 0)
-			ufs->same_sb = mnt->mnt_sb;
-		else if (ufs->same_sb != mnt->mnt_sb)
-			ufs->same_sb = NULL;
-	}
+	err = ovl_get_lower_layers(ufs, stack, numlower);
+	if (err)
+		goto out_put_lower_layers;
 
 	/* If the upper fs is nonexistent, we mark overlayfs r/o too */
 	if (!ufs->upper_mnt)
