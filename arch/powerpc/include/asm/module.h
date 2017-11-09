@@ -45,6 +45,9 @@ struct mod_arch_specific {
 	unsigned long tramp;
 #endif
 
+	/* For module function descriptor dereference */
+	unsigned long start_opd;
+	unsigned long end_opd;
 #else /* powerpc64 */
 	/* Indices of PLT sections within module. */
 	unsigned int core_plt_section;

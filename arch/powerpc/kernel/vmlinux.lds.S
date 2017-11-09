@@ -278,7 +278,9 @@ SECTIONS
 	}
 
 	.opd : AT(ADDR(.opd) - LOAD_OFFSET) {
+		__start_opd = .;
 		*(.opd)
+		__end_opd = .;
 	}
 
 	. = ALIGN(256);
