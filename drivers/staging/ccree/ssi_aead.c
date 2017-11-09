@@ -251,13 +251,11 @@ static void ssi_aead_complete(struct device *dev, void *ssi_req, void __iomem *c
 		}
 	} else { /*ENCRYPT*/
 		if (unlikely(areq_ctx->is_icv_fragmented)) {
+			u32 skip = areq->cryptlen + areq_ctx->dst_offset;
+
 			cc_copy_sg_portion(dev, areq_ctx->mac_buf,
-					   areq_ctx->dst_sgl,
-					   (areq->cryptlen +
-					    areq_ctx->dst_offset),
-					   (areq->cryptlen +
-					    areq_ctx->dst_offset +
-					    ctx->authsize),
+					   areq_ctx->dst_sgl, skip,
+					   (skip + ctx->authsize),
 					   SSI_SG_FROM_BUF);
 		}
 
