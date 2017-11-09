@@ -395,6 +395,7 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 	case KVM_CAP_S390_USER_INSTR0:
 	case KVM_CAP_S390_CMMA_MIGRATION:
 	case KVM_CAP_S390_AIS:
+	case KVM_CAP_S390_AIS_MIGRATION:
 		r = 1;
 		break;
 	case KVM_CAP_S390_MEM_OP:

@@ -151,6 +151,8 @@ struct kvm_s390_ais_all {
     to an ISC (MSB0 bit 0 to ISC 0 and so on). The combination of simm bit and
     nimm bit presents AIS mode for a ISC.
 
+    KVM_DEV_FLIC_AISM_ALL is indicated by KVM_CAP_S390_AIS_MIGRATION.
+
 Note: The KVM_SET_DEVICE_ATTR/KVM_GET_DEVICE_ATTR device ioctls executed on
 FLIC with an unknown group or attribute gives the error code EINVAL (instead of
 ENXIO, as specified in the API documentation). It is not possible to conclude
