@@ -67,7 +67,7 @@ struct ssi_ablkcipher_ctx {
 	struct crypto_shash *shash_tfm;
 };
 
-static void ssi_ablkcipher_complete(struct device *dev, void *ssi_req, void __iomem *cc_base);
+static void ssi_ablkcipher_complete(struct device *dev, void *ssi_req);
 
 static int validate_keys_sizes(struct ssi_ablkcipher_ctx *ctx_p, u32 size)
 {
@@ -688,8 +688,7 @@ static int ssi_blkcipher_complete(struct device *dev,
 				  struct scatterlist *dst,
 				  struct scatterlist *src,
 				  unsigned int ivsize,
-				  void *areq,
-				  void __iomem *cc_base)
+				  void *areq)
 {
 	int completion_error = 0;
 	struct ablkcipher_request *req = (struct ablkcipher_request *)areq;
@@ -832,8 +831,7 @@ static int ssi_blkcipher_process(
 						   dst);
 		} else {
 			rc = ssi_blkcipher_complete(dev, ctx_p, req_ctx, dst,
-						    src, ivsize, NULL,
-						    ctx_p->drvdata->cc_base);
+						    src, ivsize, NULL);
 		}
 	}
 
@@ -849,7 +847,7 @@ exit_process:
 	return rc;
 }
 
-static void ssi_ablkcipher_complete(struct device *dev, void *ssi_req, void __iomem *cc_base)
+static void ssi_ablkcipher_complete(struct device *dev, void *ssi_req)
 {
 	struct ablkcipher_request *areq = (struct ablkcipher_request *)ssi_req;
 	struct blkcipher_req_ctx *req_ctx = ablkcipher_request_ctx(areq);
@@ -858,7 +856,7 @@ static void ssi_ablkcipher_complete(struct device *dev, void *ssi_req, void __io
 	unsigned int ivsize = crypto_ablkcipher_ivsize(tfm);
 
 	ssi_blkcipher_complete(dev, ctx_p, req_ctx, areq->dst, areq->src,
-			       ivsize, areq, cc_base);
+			       ivsize, areq);
 }
 
 /* Async wrap functions */

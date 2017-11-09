@@ -100,7 +100,7 @@
 
 #define SSI_MAX_IVGEN_DMA_ADDRESSES	3
 struct ssi_crypto_req {
-	void (*user_cb)(struct device *dev, void *req, void __iomem *cc_base);
+	void (*user_cb)(struct device *dev, void *req);
 	void *user_arg;
 	dma_addr_t ivgen_dma_addr[SSI_MAX_IVGEN_DMA_ADDRESSES];
 	/* For the first 'ivgen_dma_addr_len' addresses of this array,

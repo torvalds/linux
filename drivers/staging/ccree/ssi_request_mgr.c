@@ -189,7 +189,7 @@ static inline void enqueue_seq(
  * \param dev
  * \param dx_compl_h The completion event to signal
  */
-static void request_mgr_complete(struct device *dev, void *dx_compl_h, void __iomem *cc_base)
+static void request_mgr_complete(struct device *dev, void *dx_compl_h)
 {
 	struct completion *this_compl = dx_compl_h;
 
@@ -491,8 +491,7 @@ static void proc_completions(struct ssi_drvdata *drvdata)
 #endif /* COMPLETION_DELAY */
 
 		if (likely(ssi_req->user_cb))
-			ssi_req->user_cb(dev, ssi_req->user_arg,
-					 drvdata->cc_base);
+			ssi_req->user_cb(dev, ssi_req->user_arg);
 		request_mgr_handle->req_queue_tail = (request_mgr_handle->req_queue_tail + 1) & (MAX_REQUEST_QUEUE_SIZE - 1);
 		dev_dbg(dev, "Dequeue request tail=%u\n",
 			request_mgr_handle->req_queue_tail);

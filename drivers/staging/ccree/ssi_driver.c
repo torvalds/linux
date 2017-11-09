@@ -199,7 +199,6 @@ int init_cc_regs(struct ssi_drvdata *drvdata, bool is_probe)
 static int init_cc_resources(struct platform_device *plat_dev)
 {
 	struct resource *req_mem_cc_regs = NULL;
-	void __iomem *cc_base = NULL;
 	struct ssi_drvdata *new_drvdata;
 	struct device *dev = &plat_dev->dev;
 	struct device_node *np = dev->of_node;
@@ -231,8 +230,6 @@ static int init_cc_resources(struct platform_device *plat_dev)
 		req_mem_cc_regs);
 	dev_dbg(dev, "CC registers mapped from %pa to 0x%p\n",
 		&req_mem_cc_regs->start, new_drvdata->cc_base);
-
-	cc_base = new_drvdata->cc_base;
 
 	/* Then IRQ */
 	new_drvdata->irq = platform_get_irq(plat_dev, 0);

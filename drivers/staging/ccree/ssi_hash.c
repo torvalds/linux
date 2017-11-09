@@ -357,7 +357,7 @@ static void ssi_hash_unmap_result(struct device *dev,
 	state->digest_result_dma_addr = 0;
 }
 
-static void ssi_hash_update_complete(struct device *dev, void *ssi_req, void __iomem *cc_base)
+static void ssi_hash_update_complete(struct device *dev, void *ssi_req)
 {
 	struct ahash_request *req = (struct ahash_request *)ssi_req;
 	struct ahash_req_ctx *state = ahash_request_ctx(req);
@@ -368,7 +368,7 @@ static void ssi_hash_update_complete(struct device *dev, void *ssi_req, void __i
 	req->base.complete(&req->base, 0);
 }
 
-static void ssi_hash_digest_complete(struct device *dev, void *ssi_req, void __iomem *cc_base)
+static void ssi_hash_digest_complete(struct device *dev, void *ssi_req)
 {
 	struct ahash_request *req = (struct ahash_request *)ssi_req;
 	struct ahash_req_ctx *state = ahash_request_ctx(req);
@@ -384,7 +384,7 @@ static void ssi_hash_digest_complete(struct device *dev, void *ssi_req, void __i
 	req->base.complete(&req->base, 0);
 }
 
-static void ssi_hash_complete(struct device *dev, void *ssi_req, void __iomem *cc_base)
+static void ssi_hash_complete(struct device *dev, void *ssi_req)
 {
 	struct ahash_request *req = (struct ahash_request *)ssi_req;
 	struct ahash_req_ctx *state = ahash_request_ctx(req);
