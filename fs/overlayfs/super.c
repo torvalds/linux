@@ -860,6 +860,41 @@ out:
 	return err;
 }
 
+static int ovl_get_workpath(struct ovl_fs *ufs, struct path *upperpath,
+			    struct path *workpath)
+{
+	int err;
+
+	err = ovl_mount_dir(ufs->config.workdir, workpath);
+	if (err)
+		goto out;
+
+	err = -EINVAL;
+	if (upperpath->mnt != workpath->mnt) {
+		pr_err("overlayfs: workdir and upperdir must reside under the same mount\n");
+		goto out;
+	}
+	if (!ovl_workdir_ok(workpath->dentry, upperpath->dentry)) {
+		pr_err("overlayfs: workdir and upperdir must be separate subtrees\n");
+		goto out;
+	}
+
+	err = -EBUSY;
+	if (ovl_inuse_trylock(workpath->dentry)) {
+		ufs->workdir_locked = true;
+	} else if (ufs->config.index) {
+		pr_err("overlayfs: workdir is in-use by another mount, mount with '-o index=off' to override exclusive workdir protection.\n");
+		goto out;
+	} else {
+		pr_warn("overlayfs: workdir is in-use by another mount, accessing files from both mounts will result in undefined behavior.\n");
+	}
+
+	ufs->workbasedir = workpath->dentry;
+	err = 0;
+out:
+	return err;
+}
+
 static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 {
 	struct path upperpath = { };
@@ -907,31 +942,10 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 		if (err)
 			goto out_unlock_upperdentry;
 
-		err = ovl_mount_dir(ufs->config.workdir, &workpath);
+		err = ovl_get_workpath(ufs, &upperpath, &workpath);
 		if (err)
-			goto out_unlock_upperdentry;
+			goto out_unlock_workdentry;
 
-		err = -EINVAL;
-		if (upperpath.mnt != workpath.mnt) {
-			pr_err("overlayfs: workdir and upperdir must reside under the same mount\n");
-			goto out_put_workpath;
-		}
-		if (!ovl_workdir_ok(workpath.dentry, upperpath.dentry)) {
-			pr_err("overlayfs: workdir and upperdir must be separate subtrees\n");
-			goto out_put_workpath;
-		}
-
-		err = -EBUSY;
-		if (ovl_inuse_trylock(workpath.dentry)) {
-			ufs->workdir_locked = true;
-		} else if (ufs->config.index) {
-			pr_err("overlayfs: workdir is in-use by another mount, mount with '-o index=off' to override exclusive workdir protection.\n");
-			goto out_put_workpath;
-		} else {
-			pr_warn("overlayfs: workdir is in-use by another mount, accessing files from both mounts will result in undefined behavior.\n");
-		}
-
-		ufs->workbasedir = workpath.dentry;
 		sb->s_stack_depth = upperpath.mnt->mnt_sb->s_stack_depth;
 	}
 	err = -ENOMEM;
@@ -1203,7 +1217,6 @@ out_free_lowertmp:
 out_unlock_workdentry:
 	if (ufs->workdir_locked)
 		ovl_inuse_unlock(workpath.dentry);
-out_put_workpath:
 	path_put(&workpath);
 out_unlock_upperdentry:
 	if (ufs->upperdir_locked)
