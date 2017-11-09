@@ -49,8 +49,6 @@
 #include <linux/dma-mapping.h>
 #include "mipi_dsi.h"
 #include "rk32_mipi_dsi.h"
-#include <linux/rockchip/iomap.h>
-#include <linux/rockchip/cpu.h>
 #include<linux/mfd/syscon.h>
 #include<linux/regmap.h>
 
@@ -1781,12 +1779,14 @@ static void rockchip_3399_grf_config(int lcdc_id)
 
 static void rk32_init_phy_mode(int lcdc_id)
 {
-	int val0 = 0, val1 = 0;
 
 	MIPI_DBG("rk32_init_phy_mode----------lcdc_id=%d\n", lcdc_id);
 
 	/* Only the rk3288 VOP need setting the VOP output. */
 	if (dsi0->ops.id == DSI_RK3288) {
+#if 0
+		int val0 = 0, val1 = 0;
+
 		/* D-PHY mode select */
 		if (rk_mipi_get_dsi_num() == 1) {
 			if (lcdc_id == 1)
@@ -1806,6 +1806,7 @@ static void rk32_init_phy_mode(int lcdc_id)
 			writel_relaxed(val0, RK_GRF_VIRT + RK3288_GRF_SOC_CON6);
 			writel_relaxed(val1, RK_GRF_VIRT + RK3288_GRF_SOC_CON14);
 		}
+#endif
 	} else if (dsi0->ops.id == DSI_RK3399) {
 		rockchip_3399_grf_config(lcdc_id);
 	}

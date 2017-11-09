@@ -11,7 +11,6 @@
 #include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/rockchip/cpu.h>
-#include <linux/rockchip/iomap.h>
 #include <linux/rockchip/grf.h>
 #include "rk32_dp.h"
 
