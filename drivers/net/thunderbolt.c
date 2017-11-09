@@ -536,6 +536,7 @@ static void tbnet_tx_callback(struct tb_ring *ring, struct ring_frame *frame,
 
 	dma_unmap_page(dma_dev, tf->frame.buffer_phy, tbnet_frame_size(tf),
 		       DMA_TO_DEVICE);
+	tf->frame.buffer_phy = 0;
 
 	/* Return buffer to the ring */
 	net->tx_ring.prod++;
