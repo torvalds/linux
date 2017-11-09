@@ -1,15 +1,11 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
-#include <linux/rockchip/cru.h>
 #include <linux/rockchip/grf.h>
-#include <linux/rockchip/iomap.h>
 #include "rockchip_hdmiv2.h"
 #include "rockchip_hdmiv2_hw.h"
-#include <linux/rockchip/grf.h>
 
 #define HDMI_SEL_LCDC(x, bit)	((((x) & 1) << bit) | (1 << (16 + bit)))
-#define grf_writel(v, offset)	writel_relaxed(v, RK_GRF_VIRT + offset)
 #define RK3399_GRF_SOC_CON20 0x6250
 
 static const struct phy_mpll_config_tab PHY_MPLL_TABLE[] = {
@@ -2189,10 +2185,12 @@ void rockchip_hdmiv2_dev_initial(struct hdmi_dev *hdmi_dev)
 
 	/*lcdc source select*/
 	if (hdmi_dev->soctype == HDMI_SOC_RK3288) {
-		grf_writel(HDMI_SEL_LCDC(hdmi->property->videosrc, 4),
-			   RK3288_GRF_SOC_CON6);
+		regmap_write(hdmi_dev->grf_base,
+			     RK3288_GRF_SOC_CON6,
+			     HDMI_SEL_LCDC(hdmi->property->videosrc, 4));
 		/* select GPIO7_C0 as cec pin */
-		grf_writel(((1 << 12) | (1 << 28)), RK3288_GRF_SOC_CON8);
+		regmap_write(hdmi_dev->grf_base, RK3288_GRF_SOC_CON8,
+			     BIT(12) | BIT(28));
 	} else if (hdmi_dev->soctype == HDMI_SOC_RK3399) {
 		regmap_write(hdmi_dev->grf_base,
 			     RK3399_GRF_SOC_CON20,
@@ -2201,23 +2199,17 @@ void rockchip_hdmiv2_dev_initial(struct hdmi_dev *hdmi_dev)
 
 	if (!hdmi->uboot) {
 		pr_info("reset hdmi\n");
-		if (hdmi_dev->soctype == HDMI_SOC_RK3288) {
-			rk3288_cru_set_soft_reset(RK3288_SOFT_RST_HDMI, true);
-			usleep_range(10, 20);
-			rk3288_cru_set_soft_reset(RK3288_SOFT_RST_HDMI, false);
-		} else {
-			if (hdmi_dev->soctype == HDMI_SOC_RK322X) {
-				regmap_write(hdmi_dev->grf_base,
-					     RK322X_GRF_SOC_CON2,
-					     RK322X_DDC_MASK_EN);
-				regmap_write(hdmi_dev->grf_base,
-					     RK322X_GRF_SOC_CON6,
-					     RK322X_IO_3V_DOMAIN);
-			}
-			reset_control_assert(hdmi_dev->reset);
-			usleep_range(10, 20);
-			reset_control_deassert(hdmi_dev->reset);
+		if (hdmi_dev->soctype == HDMI_SOC_RK322X) {
+			regmap_write(hdmi_dev->grf_base,
+				     RK322X_GRF_SOC_CON2,
+				     RK322X_DDC_MASK_EN);
+			regmap_write(hdmi_dev->grf_base,
+				     RK322X_GRF_SOC_CON6,
+				     RK322X_IO_3V_DOMAIN);
 		}
+		reset_control_assert(hdmi_dev->reset);
+		usleep_range(10, 20);
+		reset_control_deassert(hdmi_dev->reset);
 		rockchip_hdmiv2_powerdown(hdmi_dev);
 	} else {
 		hdmi->hotplug = hdmi_dev_detect_hotplug(hdmi);
