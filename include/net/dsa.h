@@ -122,7 +122,7 @@ struct dsa_switch_tree {
 	struct kref refcount;
 
 	/* Has this tree been applied to the hardware? */
-	bool applied;
+	bool setup;
 
 	/*
 	 * Configuration data for the platform device that owns
@@ -190,7 +190,7 @@ struct dsa_port {
 	struct dsa_switch	*ds;
 	unsigned int		index;
 	const char		*name;
-	struct dsa_port		*cpu_dp;
+	const struct dsa_port	*cpu_dp;
 	struct device_node	*dn;
 	unsigned int		ageing_time;
 	u8			stp_state;

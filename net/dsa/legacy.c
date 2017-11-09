@@ -593,15 +593,7 @@ static int dsa_setup_dst(struct dsa_switch_tree *dst, struct net_device *dev,
 	if (!configured)
 		return -EPROBE_DEFER;
 
-	/*
-	 * If we use a tagging format that doesn't have an ethertype
-	 * field, make sure that all packets from this point on get
-	 * sent to the tag format's receive function.
-	 */
-	wmb();
-	dev->dsa_ptr = dst->cpu_dp;
-
-	return dsa_master_ethtool_setup(dst->cpu_dp->master);
+	return dsa_master_setup(dst->cpu_dp->master, dst->cpu_dp);
 }
 
 static int dsa_probe(struct platform_device *pdev)
@@ -666,15 +658,7 @@ static void dsa_remove_dst(struct dsa_switch_tree *dst)
 {
 	int i;
 
-	dsa_master_ethtool_restore(dst->cpu_dp->master);
-
-	dst->cpu_dp->master->dsa_ptr = NULL;
-
-	/* If we used a tagging format that doesn't have an ethertype
-	 * field, make sure that all packets from this point get sent
-	 * without the tag and go through the regular receive path.
-	 */
-	wmb();
+	dsa_master_teardown(dst->cpu_dp->master);
 
 	for (i = 0; i < dst->pd->nr_chips; i++) {
 		struct dsa_switch *ds = dst->ds[i];

@@ -108,8 +108,8 @@ int dsa_legacy_fdb_del(struct ndmsg *ndm, struct nlattr *tb[],
 		       const unsigned char *addr, u16 vid);
 
 /* master.c */
-int dsa_master_ethtool_setup(struct net_device *dev);
-void dsa_master_ethtool_restore(struct net_device *dev);
+int dsa_master_setup(struct net_device *dev, struct dsa_port *cpu_dp);
+void dsa_master_teardown(struct net_device *dev);
 
 static inline struct net_device *dsa_master_find_slave(struct net_device *dev,
 						       int device, int port)

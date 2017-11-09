@@ -85,7 +85,7 @@ static void dsa_master_get_strings(struct net_device *dev, uint32_t stringset,
 	}
 }
 
-int dsa_master_ethtool_setup(struct net_device *dev)
+static int dsa_master_ethtool_setup(struct net_device *dev)
 {
 	struct dsa_port *cpu_dp = dev->dsa_ptr;
 	struct dsa_switch *ds = cpu_dp->ds;
@@ -108,10 +108,36 @@ int dsa_master_ethtool_setup(struct net_device *dev)
 	return 0;
 }
 
-void dsa_master_ethtool_restore(struct net_device *dev)
+static void dsa_master_ethtool_teardown(struct net_device *dev)
 {
 	struct dsa_port *cpu_dp = dev->dsa_ptr;
 
 	dev->ethtool_ops = cpu_dp->orig_ethtool_ops;
 	cpu_dp->orig_ethtool_ops = NULL;
+}
+
+int dsa_master_setup(struct net_device *dev, struct dsa_port *cpu_dp)
+{
+	/* If we use a tagging format that doesn't have an ethertype
+	 * field, make sure that all packets from this point on get
+	 * sent to the tag format's receive function.
+	 */
+	wmb();
+
+	dev->dsa_ptr = cpu_dp;
+
+	return dsa_master_ethtool_setup(dev);
+}
+
+void dsa_master_teardown(struct net_device *dev)
+{
+	dsa_master_ethtool_teardown(dev);
+
+	dev->dsa_ptr = NULL;
+
+	/* If we used a tagging format that doesn't have an ethertype
+	 * field, make sure that all packets from this point get sent
+	 * without the tag and go through the regular receive path.
+	 */
+	wmb();
 }
