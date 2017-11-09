@@ -2079,8 +2079,10 @@ static int sm501fb_remove(struct platform_device *pdev)
 	sm501_free_init_fb(info, HEAD_CRT);
 	sm501_free_init_fb(info, HEAD_PANEL);
 
-	unregister_framebuffer(fbinfo_crt);
-	unregister_framebuffer(fbinfo_pnl);
+	if (fbinfo_crt)
+		unregister_framebuffer(fbinfo_crt);
+	if (fbinfo_pnl)
+		unregister_framebuffer(fbinfo_pnl);
 
 	sm501fb_stop(info);
 	kfree(info);
