@@ -420,7 +420,7 @@ static void dln2_gpio_event(struct platform_device *pdev, u16 echo,
 		return;
 	}
 
-	irq = irq_find_mapping(dln2->gpio.irqdomain, pin);
+	irq = irq_find_mapping(dln2->gpio.irq.domain, pin);
 	if (!irq) {
 		dev_err(dln2->gpio.parent, "pin %d not mapped to IRQ\n", pin);
 		return;
