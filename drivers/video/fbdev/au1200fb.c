@@ -1760,11 +1760,19 @@ static int au1200fb_drv_probe(struct platform_device *dev)
 	return 0;
 
 failed:
-	/* NOTE: This only does the current plane/window that failed; others are still active */
-	if (fbi) {
+	for (plane = 0; plane < device_count; ++plane) {
+		fbi = _au1200fb_infos[plane];
+		if (!fbi)
+			break;
+
+		/* Clean up all probe data */
+		unregister_framebuffer(fbi);
 		if (fbi->cmap.len != 0)
 			fb_dealloc_cmap(&fbi->cmap);
 		kfree(fbi->pseudo_palette);
+
+		framebuffer_release(fbi);
+		_au1200fb_infos[plane] = NULL;
 	}
 	return ret;
 }
