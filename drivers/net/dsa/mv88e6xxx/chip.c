@@ -1151,8 +1151,8 @@ static int mv88e6xxx_port_check_hw_vlan(struct dsa_switch *ds, int port,
 			if (!dsa_to_port(ds, i)->bridge_dev)
 				continue;
 
-			dev_err(ds->dev, "p%d: hw VLAN %d already used by %s\n",
-				port, vlan.vid,
+			dev_err(ds->dev, "p%d: hw VLAN %d already used by port %d in %s\n",
+				port, vlan.vid, i,
 				netdev_name(dsa_to_port(ds, i)->bridge_dev));
 			err = -EOPNOTSUPP;
 			goto unlock;
