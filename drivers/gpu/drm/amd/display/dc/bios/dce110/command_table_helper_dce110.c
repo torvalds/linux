@@ -358,7 +358,7 @@ static const struct command_table_helper command_table_helper_funcs = {
  * const struct command_table_helper **h - [out] struct of functions
  *
  */
-const struct command_table_helper *dal_cmd_tbl_helper_dce110_get_table()
+const struct command_table_helper *dal_cmd_tbl_helper_dce110_get_table(void)
 {
 	return &command_table_helper_funcs;
 }

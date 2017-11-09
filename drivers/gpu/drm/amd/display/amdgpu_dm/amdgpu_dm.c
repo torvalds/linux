@@ -430,10 +430,12 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 	/* Display Core create. */
 	adev->dm.dc = dc_create(&init_data);
 
-	if (adev->dm.dc)
+	if (adev->dm.dc) {
 		DRM_INFO("Display Core initialized!\n");
-	else
+	} else {
 		DRM_INFO("Display Core failed to initialize!\n");
+		goto error;
+	}
 
 	INIT_WORK(&adev->dm.mst_hotplug_work, hotplug_notify_work_func);
 
@@ -517,7 +519,7 @@ static int detect_mst_link_for_all_connectors(struct drm_device *dev)
 	drm_modeset_lock(&dev->mode_config.connection_mutex, NULL);
 
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
-		   aconnector = to_amdgpu_dm_connector(connector);
+		aconnector = to_amdgpu_dm_connector(connector);
 		if (aconnector->dc_link->type == dc_connection_mst_branch) {
 			DRM_DEBUG_DRIVER("DM_MST: starting TM on aconnector: %p [id: %d]\n",
 					aconnector, aconnector->base.base.id);
@@ -1296,7 +1298,7 @@ amdgpu_dm_register_backlight_device(struct amdgpu_display_manager *dm)
 			&amdgpu_dm_backlight_ops,
 			&props);
 
-	if (NULL == dm->backlight_dev)
+	if (IS_ERR(dm->backlight_dev))
 		DRM_ERROR("DM: Backlight registration failed!\n");
 	else
 		DRM_DEBUG_DRIVER("DM: Registered Backlight device: %s\n", bl_name);
@@ -2273,7 +2275,7 @@ decide_crtc_timing_for_drm_display_mode(struct drm_display_mode *drm_mode,
 	}
 }
 
-static void create_fake_sink(struct amdgpu_dm_connector *aconnector)
+static int create_fake_sink(struct amdgpu_dm_connector *aconnector)
 {
 	struct dc_sink *sink = NULL;
 	struct dc_sink_init_data sink_init_data = { 0 };
@@ -2282,14 +2284,18 @@ static void create_fake_sink(struct amdgpu_dm_connector *aconnector)
 	sink_init_data.sink_signal = aconnector->dc_link->connector_signal;
 
 	sink = dc_sink_create(&sink_init_data);
-	if (!sink)
+	if (!sink) {
 		DRM_ERROR("Failed to create sink!\n");
+		return -ENOMEM;
+	}
 
 	sink->sink_signal = SIGNAL_TYPE_VIRTUAL;
 	aconnector->fake_enable = true;
 
 	aconnector->dc_sink = sink;
 	aconnector->dc_link->local_sink = sink;
+
+	return 0;
 }
 
 static struct dc_stream_state *
@@ -2323,7 +2329,8 @@ create_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 		if (aconnector->mst_port)
 			goto stream_create_fail;
 
-		create_fake_sink(aconnector);
+		if (create_fake_sink(aconnector))
+			goto stream_create_fail;
 	}
 
 	stream = dc_create_stream_for_sink(aconnector->dc_sink);
@@ -2423,6 +2430,8 @@ dm_crtc_duplicate_state(struct drm_crtc *crtc)
 		return NULL;
 
 	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	if (!state)
+		return NULL;
 
 	__drm_atomic_helper_crtc_duplicate_state(crtc, &state->base);
 
@@ -3419,6 +3428,8 @@ create_i2c(struct ddc_service *ddc_service,
 	struct amdgpu_i2c_adapter *i2c;
 
 	i2c = kzalloc(sizeof(struct amdgpu_i2c_adapter), GFP_KERNEL);
+	if (!i2c)
+		return NULL;
 	i2c->base.owner = THIS_MODULE;
 	i2c->base.class = I2C_CLASS_DDC;
 	i2c->base.dev.parent = &adev->pdev->dev;
@@ -3449,6 +3460,11 @@ static int amdgpu_dm_connector_init(struct amdgpu_display_manager *dm,
 	DRM_DEBUG_DRIVER("%s()\n", __func__);
 
 	i2c = create_i2c(link->ddc, link->link_index, &res);
+	if (!i2c) {
+		DRM_ERROR("Failed to create i2c adapter data\n");
+		return -ENOMEM;
+	}
+
 	aconnector->i2c = i2c;
 	res = i2c_add_adapter(&i2c->base);
 
@@ -3888,7 +3904,6 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 			DRM_ERROR("%s: acrtc %d, already busy\n",
 				  __func__,
 				  acrtc_attach->crtc_id);
-			spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
 			/* In commit tail framework this cannot happen */
 			WARN_ON(1);
 		}
@@ -4712,10 +4727,10 @@ static int amdgpu_dm_atomic_check(struct drm_device *dev,
 		goto fail;
 	}
 
-	 /* Run this here since we want to validate the streams we created */
-	 ret = drm_atomic_helper_check_planes(dev, state);
-	 if (ret)
-		 goto fail;
+	/* Run this here since we want to validate the streams we created */
+	ret = drm_atomic_helper_check_planes(dev, state);
+	if (ret)
+		goto fail;
 
 	/* Check scaling and underscan changes*/
 	/*TODO Removed scaling changes validation due to inability to commit

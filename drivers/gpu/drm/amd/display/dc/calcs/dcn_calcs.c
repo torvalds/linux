@@ -1155,7 +1155,7 @@ static unsigned int dcn_find_normalized_clock_vdd_Level(
 			unsigned factor = (ddr4_dram_factor_single_Channel * dc->dcn_soc->number_of_channels);
 
 			if (clocks_in_khz > dc->dcn_soc->fabric_and_dram_bandwidth_vmax0p9*1000000/factor) {
-			vdd_level = dcn_bw_v_max0p91;
+				vdd_level = dcn_bw_v_max0p91;
 				BREAK_TO_DEBUGGER();
 			} else if (clocks_in_khz > dc->dcn_soc->fabric_and_dram_bandwidth_vnom0p8*1000000/factor) {
 				vdd_level = dcn_bw_v_max0p9;

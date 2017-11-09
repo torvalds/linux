@@ -1373,7 +1373,7 @@ static enum bp_result get_firmware_info_v3_1(
 				bp->cmd_tbl.get_smu_clock_info(bp) * 10;
 	}
 
-	 return BP_RESULT_OK;
+	return BP_RESULT_OK;
 }
 
 static enum bp_result bios_parser_get_encoder_cap_info(

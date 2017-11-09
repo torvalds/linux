@@ -373,15 +373,15 @@ static void init_set_crtc_timing(struct bios_parser *bp)
 	uint32_t dtd_version =
 			BIOS_CMD_TABLE_PARA_REVISION(setcrtc_usingdtdtiming);
 
-		switch (dtd_version) {
-		case 3:
-			bp->cmd_tbl.set_crtc_timing =
-					set_crtc_using_dtd_timing_v3;
-			break;
-		default:
-			bp->cmd_tbl.set_crtc_timing = NULL;
-			break;
-		}
+	switch (dtd_version) {
+	case 3:
+		bp->cmd_tbl.set_crtc_timing =
+			set_crtc_using_dtd_timing_v3;
+		break;
+	default:
+		bp->cmd_tbl.set_crtc_timing = NULL;
+		break;
+	}
 }
 
 static enum bp_result set_crtc_using_dtd_timing_v3(

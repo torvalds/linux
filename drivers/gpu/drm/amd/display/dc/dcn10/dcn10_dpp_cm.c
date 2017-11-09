@@ -124,7 +124,7 @@ static void program_gamut_remap(
 		const uint16_t *regval,
 		enum gamut_remap_select select)
 {
-	 uint16_t selection = 0;
+	uint16_t selection = 0;
 	struct color_matrices_reg gam_regs;
 
 	if (regval == NULL || select == GAMUT_REMAP_BYPASS) {

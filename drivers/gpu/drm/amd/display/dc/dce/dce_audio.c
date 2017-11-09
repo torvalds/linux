@@ -179,19 +179,19 @@ static void check_audio_bandwidth_hdmi(
 	/* Number of Audio Packets (multiplied by 10) per Line (for 8 ch number
 	 * of Audio samples per line multiplied by 10 - Layout 1)
 	 */
-	 samples /= 32;
-	 samples *= crtc_info->v_active;
-	 /*Number of samples multiplied by 10, per second */
-	 samples *= crtc_info->refresh_rate;
-	 /*Number of Audio samples per second */
-	 samples /= 10;
+	samples /= 32;
+	samples *= crtc_info->v_active;
+	/*Number of samples multiplied by 10, per second */
+	samples *= crtc_info->refresh_rate;
+	/*Number of Audio samples per second */
+	samples /= 10;
 
-	 /* @todo do it after deep color is implemented
-	  * 8xx - deep color bandwidth scaling
-	  * Extra bandwidth is avaliable in deep color b/c link runs faster than
-	  * pixel rate. This has the effect of allowing more tmds characters to
-	  * be transmitted during blank
-	  */
+	/* @todo do it after deep color is implemented
+	 * 8xx - deep color bandwidth scaling
+	 * Extra bandwidth is avaliable in deep color b/c link runs faster than
+	 * pixel rate. This has the effect of allowing more tmds characters to
+	 * be transmitted during blank
+	 */
 
 	switch (crtc_info->color_depth) {
 	case COLOR_DEPTH_888:

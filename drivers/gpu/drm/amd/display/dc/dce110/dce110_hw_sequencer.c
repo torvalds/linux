@@ -775,8 +775,8 @@ void dce110_enable_stream(struct pipe_ctx *pipe_ctx)
 	 * connect DIG back_end to front_end while enable_stream and
 	 * disconnect them during disable_stream
 	 * BY this, it is logic clean to separate stream and link */
-	 link->link_enc->funcs->connect_dig_be_to_fe(link->link_enc,
-			pipe_ctx->stream_res.stream_enc->id, true);
+	link->link_enc->funcs->connect_dig_be_to_fe(link->link_enc,
+						    pipe_ctx->stream_res.stream_enc->id, true);
 
 }
 
@@ -1306,7 +1306,7 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 		stream->timing.display_color_depth,
 		pipe_ctx->stream->signal);
 
-	pipe_ctx->stream_res.opp->funcs->opp_program_fmt(
+		pipe_ctx->stream_res.opp->funcs->opp_program_fmt(
 			pipe_ctx->stream_res.opp,
 			&stream->bit_depth_params,
 			&stream->clamping);
@@ -2594,21 +2594,21 @@ uint32_t dce110_get_min_vblank_time_us(const struct dc_state *context)
 	uint8_t j;
 	uint32_t min_vertical_blank_time = -1;
 
-		for (j = 0; j < context->stream_count; j++) {
-			struct dc_stream_state *stream = context->streams[j];
-			uint32_t vertical_blank_in_pixels = 0;
-			uint32_t vertical_blank_time = 0;
+	for (j = 0; j < context->stream_count; j++) {
+		struct dc_stream_state *stream = context->streams[j];
+		uint32_t vertical_blank_in_pixels = 0;
+		uint32_t vertical_blank_time = 0;
 
-			vertical_blank_in_pixels = stream->timing.h_total *
-				(stream->timing.v_total
-					- stream->timing.v_addressable);
+		vertical_blank_in_pixels = stream->timing.h_total *
+			(stream->timing.v_total
+			 - stream->timing.v_addressable);
 
-			vertical_blank_time = vertical_blank_in_pixels
-				* 1000 / stream->timing.pix_clk_khz;
+		vertical_blank_time = vertical_blank_in_pixels
+			* 1000 / stream->timing.pix_clk_khz;
 
-			if (min_vertical_blank_time > vertical_blank_time)
-				min_vertical_blank_time = vertical_blank_time;
-		}
+		if (min_vertical_blank_time > vertical_blank_time)
+			min_vertical_blank_time = vertical_blank_time;
+	}
 
 	return min_vertical_blank_time;
 }
