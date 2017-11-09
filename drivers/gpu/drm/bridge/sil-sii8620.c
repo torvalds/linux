@@ -1169,8 +1169,18 @@ static void sii8620_set_infoframes(struct sii8620 *ctx)
 	sii8620_write_buf(ctx, REG_TPI_INFO_B0, buf, ret);
 }
 
-static void sii8620_start_hdmi(struct sii8620 *ctx)
+static void sii8620_start_video(struct sii8620 *ctx)
 {
+	if (!sii8620_is_mhl3(ctx))
+		sii8620_stop_video(ctx);
+
+	if (ctx->sink_type == SINK_DVI && !sii8620_is_mhl3(ctx)) {
+		sii8620_write(ctx, REG_RX_HDMI_CTRL2,
+			      VAL_RX_HDMI_CTRL2_DEFVAL);
+		sii8620_write(ctx, REG_TPI_SC, 0);
+		return;
+	}
+
 	sii8620_write_seq_static(ctx,
 		REG_RX_HDMI_CTRL2, VAL_RX_HDMI_CTRL2_DEFVAL
 			| BIT_RX_HDMI_CTRL2_USE_AV_MUTE,
@@ -1227,21 +1237,6 @@ static void sii8620_start_hdmi(struct sii8620 *ctx)
 	}
 
 	sii8620_set_infoframes(ctx);
-}
-
-static void sii8620_start_video(struct sii8620 *ctx)
-{
-	if (!sii8620_is_mhl3(ctx))
-		sii8620_stop_video(ctx);
-
-	switch (ctx->sink_type) {
-	case SINK_HDMI:
-		sii8620_start_hdmi(ctx);
-		break;
-	case SINK_DVI:
-	default:
-		break;
-	}
 }
 
 static void sii8620_disable_hpd(struct sii8620 *ctx)
@@ -1945,8 +1940,13 @@ static void sii8620_irq_scdt(struct sii8620 *ctx)
 	if (stat & BIT_INTR_SCDT_CHANGE) {
 		u8 cstat = sii8620_readb(ctx, REG_TMDS_CSTAT_P3);
 
-		if (cstat & BIT_TMDS_CSTAT_P3_SCDT)
-			sii8620_scdt_high(ctx);
+		if (cstat & BIT_TMDS_CSTAT_P3_SCDT) {
+			if (ctx->sink_type == SINK_HDMI)
+				/* enable infoframe interrupt */
+				sii8620_scdt_high(ctx);
+			else
+				sii8620_start_video(ctx);
+		}
 	}
 
 	sii8620_write(ctx, REG_INTR5, stat);
