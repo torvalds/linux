@@ -46,6 +46,16 @@
 #define OPP_REG_LIST_DCN10(id) \
 	OPP_REG_LIST_DCN(id)
 
+#define OPP_COMMON_REG_VARIABLE_LIST \
+	uint32_t FMT_BIT_DEPTH_CONTROL; \
+	uint32_t FMT_CONTROL; \
+	uint32_t FMT_DITHER_RAND_R_SEED; \
+	uint32_t FMT_DITHER_RAND_G_SEED; \
+	uint32_t FMT_DITHER_RAND_B_SEED; \
+	uint32_t FMT_CLAMP_CNTL; \
+	uint32_t FMT_DYNAMIC_EXP_CNTL; \
+	uint32_t FMT_MAP420_MEMORY_CONTROL;
+
 #define OPP_MASK_SH_LIST_DCN(mask_sh) \
 	OPP_SF(FMT0_FMT_BIT_DEPTH_CONTROL, FMT_TRUNCATE_EN, mask_sh), \
 	OPP_SF(FMT0_FMT_BIT_DEPTH_CONTROL, FMT_TRUNCATE_DEPTH, mask_sh), \
@@ -97,23 +107,16 @@
 	type FMT_MAP420MEM_PWR_FORCE; \
 	type FMT_STEREOSYNC_OVERRIDE;
 
+struct dcn10_opp_registers {
+	OPP_COMMON_REG_VARIABLE_LIST
+};
+
 struct dcn10_opp_shift {
 	OPP_DCN10_REG_FIELD_LIST(uint8_t)
 };
 
 struct dcn10_opp_mask {
 	OPP_DCN10_REG_FIELD_LIST(uint32_t)
-};
-
-struct dcn10_opp_registers {
-	uint32_t FMT_BIT_DEPTH_CONTROL;
-	uint32_t FMT_CONTROL;
-	uint32_t FMT_DITHER_RAND_R_SEED;
-	uint32_t FMT_DITHER_RAND_G_SEED;
-	uint32_t FMT_DITHER_RAND_B_SEED;
-	uint32_t FMT_CLAMP_CNTL;
-	uint32_t FMT_DYNAMIC_EXP_CNTL;
-	uint32_t FMT_MAP420_MEMORY_CONTROL;
 };
 
 struct dcn10_opp {
