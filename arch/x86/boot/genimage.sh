@@ -19,6 +19,13 @@
 #   $6 - inird image file
 #
 
+# Use "make V=1" to debug this script
+case "${KBUILD_VERBOSE}" in
+*1*)
+        set -x
+        ;;
+esac
+
 verify () {
 	if [ ! -f "$1" ]; then
 		echo ""                                                   1>&2
@@ -50,7 +57,7 @@ genbzdisk() {
 }
 
 genfdimage144() {
-	dd if=/dev/zero of=$FIMAGE bs=1024 count=1440
+	dd if=/dev/zero of=$FIMAGE bs=1024 count=1440 2> /dev/null
 	mformat v:
 	syslinux $FIMAGE
 	echo "$KCMDLINE" | mcopy - v:syslinux.cfg
@@ -61,7 +68,7 @@ genfdimage144() {
 }
 
 genfdimage288() {
-	dd if=/dev/zero of=$FIMAGE bs=1024 count=2880
+	dd if=/dev/zero of=$FIMAGE bs=1024 count=2880 2> /dev/null
 	mformat w:
 	syslinux $FIMAGE
 	echo "$KCMDLINE" | mcopy - W:syslinux.cfg
@@ -79,14 +86,12 @@ genisoimage() {
 		for j in syslinux ISOLINUX ; do
 			if [ -f /usr/$i/$j/isolinux.bin ] ; then
 				isolinux=/usr/$i/$j/isolinux.bin
-				echo "Using $isolinux"
 				cp $isolinux $tmp_dir
 			fi
 		done
 		for j in syslinux syslinux/modules/bios ; do
 			if [ -f /usr/$i/$j/ldlinux.c32 ]; then
 				ldlinux=/usr/$i/$j/ldlinux.c32
-				echo "Using $ldlinux"
 				cp $ldlinux $tmp_dir
 			fi
 		done
@@ -103,7 +108,7 @@ genisoimage() {
 	if [ -f "$FDINITRD" ] ; then
 		cp "$FDINITRD" $tmp_dir/initrd.img
 	fi
-	mkisofs -J -r -input-charset=utf-8 -o $FIMAGE -b isolinux.bin \
+	mkisofs -J -r -input-charset=utf-8 -quiet -o $FIMAGE -b isolinux.bin \
 		-c boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table \
 		$tmp_dir
 	isohybrid $FIMAGE 2>/dev/null || true
