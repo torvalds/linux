@@ -733,8 +733,7 @@ again:
 	node->ptrs[nr_entries] = NULL;
 
 	if (pos == 0 && nr_entries > 0) {
-		xfs_iext_update_node(ifp, offset, node->keys[0], level,
-				node);
+		xfs_iext_update_node(ifp, offset, node->keys[0], level, node);
 		offset = node->keys[0];
 	}
 
