@@ -1400,6 +1400,10 @@ SMB2_tdis(const unsigned int xid, struct cifs_tcon *tcon)
 	int rc = 0;
 	struct cifs_ses *ses = tcon->ses;
 	int flags = 0;
+	unsigned int total_len;
+	struct kvec iov[1];
+	struct kvec rsp_iov;
+	int resp_buf_type;
 
 	cifs_dbg(FYI, "Tree Disconnect\n");
 
@@ -1409,14 +1413,20 @@ SMB2_tdis(const unsigned int xid, struct cifs_tcon *tcon)
 	if ((tcon->need_reconnect) || (tcon->ses->need_reconnect))
 		return 0;
 
-	rc = small_smb2_init(SMB2_TREE_DISCONNECT, tcon, (void **) &req);
+	rc = smb2_plain_req_init(SMB2_TREE_DISCONNECT, tcon, (void **) &req,
+			     &total_len);
 	if (rc)
 		return rc;
 
 	if (encryption_required(tcon))
 		flags |= CIFS_TRANSFORM_REQ;
 
-	rc = SendReceiveNoRsp(xid, ses, (char *)req, flags);
+	flags |= CIFS_NO_RESP;
+
+	iov[0].iov_base = (char *)req;
+	iov[0].iov_len = total_len;
+
+	rc = smb2_send_recv(xid, ses, iov, 1, &resp_buf_type, flags, &rsp_iov);
 	cifs_small_buf_release(req);
 	if (rc)
 		cifs_stats_fail_inc(tcon, SMB2_TREE_DISCONNECT_HE);
