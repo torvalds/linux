@@ -93,11 +93,11 @@ static int hash__init_new_context(struct mm_struct *mm)
 		return index;
 
 	/*
-	 * We do switch_slb() early in fork, even before we setup the
-	 * mm->context.addr_limit. Default to max task size so that we copy the
-	 * default values to paca which will help us to handle slb miss early.
+	 * In the case of exec, use the default limit,
+	 * otherwise inherit it from the mm we are duplicating.
 	 */
-	mm->context.addr_limit = DEFAULT_MAP_WINDOW_USER64;
+	if (!mm->context.addr_limit)
+		mm->context.addr_limit = DEFAULT_MAP_WINDOW_USER64;
 
 	/*
 	 * The old code would re-promote on fork, we don't do that when using
