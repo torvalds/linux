@@ -207,6 +207,12 @@ static const u32 golden_settings_gc_9_1_rv1[] =
 	SOC15_REG_OFFSET(GC, 0, mmTD_CNTL), 0x01bd9f33, 0x00000800
 };
 
+static const u32 golden_settings_gc_9_x_common[] =
+{
+	SOC15_REG_OFFSET(GC, 0, mmGRBM_CAM_INDEX), 0xffffffff, 0x00000000,
+	SOC15_REG_OFFSET(GC, 0, mmGRBM_CAM_DATA), 0xffffffff, 0x2544c382
+};
+
 #define VEGA10_GB_ADDR_CONFIG_GOLDEN 0x2a114042
 #define RAVEN_GB_ADDR_CONFIG_GOLDEN 0x24000042
 
@@ -242,6 +248,9 @@ static void gfx_v9_0_init_golden_registers(struct amdgpu_device *adev)
 	default:
 		break;
 	}
+
+	amdgpu_program_register_sequence(adev, golden_settings_gc_9_x_common,
+					(const u32)ARRAY_SIZE(golden_settings_gc_9_x_common));
 }
 
 static void gfx_v9_0_scratch_init(struct amdgpu_device *adev)
