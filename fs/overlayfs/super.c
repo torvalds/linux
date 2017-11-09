@@ -969,6 +969,45 @@ static int ovl_get_workdir(struct super_block *sb, struct ovl_fs *ufs,
 	return 0;
 }
 
+static int ovl_get_indexdir(struct super_block *sb, struct ovl_fs *ufs,
+			    struct ovl_entry *oe,
+			    struct path *upperpath, struct path *workpath)
+{
+	int err;
+
+	/* Verify lower root is upper root origin */
+	err = ovl_verify_origin(upperpath->dentry,
+				oe->lowerstack[0].layer->mnt,
+				oe->lowerstack[0].dentry,
+				false, true);
+	if (err) {
+		pr_err("overlayfs: failed to verify upper root origin\n");
+		goto out;
+	}
+
+	ufs->indexdir = ovl_workdir_create(sb, ufs, workpath->dentry,
+					   OVL_INDEXDIR_NAME, true);
+	if (ufs->indexdir) {
+		/* Verify upper root is index dir origin */
+		err = ovl_verify_origin(ufs->indexdir, ufs->upper_mnt,
+					upperpath->dentry, true, true);
+		if (err)
+			pr_err("overlayfs: failed to verify index dir origin\n");
+
+		/* Cleanup bad/stale/orphan index entries */
+		if (!err)
+			err = ovl_indexdir_cleanup(ufs->indexdir,
+						   ufs->upper_mnt,
+						   oe->lowerstack,
+						   oe->numlower);
+	}
+	if (err || !ufs->indexdir)
+		pr_warn("overlayfs: try deleting index dir or mounting with '-o index=off' to disable inodes index.\n");
+
+out:
+	return err;
+}
+
 static int ovl_get_lowerstack(struct super_block *sb, struct ovl_fs *ufs,
 			      struct path **stackp, unsigned int *stacklenp)
 {
@@ -1173,34 +1212,7 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 	}
 
 	if (!(ovl_force_readonly(ufs)) && ufs->config.index) {
-		/* Verify lower root is upper root origin */
-		err = ovl_verify_origin(upperpath.dentry,
-					oe->lowerstack[0].layer->mnt,
-					oe->lowerstack[0].dentry,
-					false, true);
-		if (err) {
-			pr_err("overlayfs: failed to verify upper root origin\n");
-			goto out_free_oe;
-		}
-
-		ufs->indexdir = ovl_workdir_create(sb, ufs, workpath.dentry,
-						   OVL_INDEXDIR_NAME, true);
-		if (ufs->indexdir) {
-			/* Verify upper root is index dir origin */
-			err = ovl_verify_origin(ufs->indexdir, ufs->upper_mnt,
-						upperpath.dentry, true, true);
-			if (err)
-				pr_err("overlayfs: failed to verify index dir origin\n");
-
-			/* Cleanup bad/stale/orphan index entries */
-			if (!err)
-				err = ovl_indexdir_cleanup(ufs->indexdir,
-							   ufs->upper_mnt,
-							   oe->lowerstack,
-							   numlower);
-		}
-		if (err || !ufs->indexdir)
-			pr_warn("overlayfs: try deleting index dir or mounting with '-o index=off' to disable inodes index.\n");
+		err = ovl_get_indexdir(sb, ufs, oe, &upperpath, &workpath);
 		if (err)
 			goto out_put_indexdir;
 	}
@@ -1254,7 +1266,6 @@ out_put_cred:
 	put_cred(ufs->creator_cred);
 out_put_indexdir:
 	dput(ufs->indexdir);
-out_free_oe:
 	kfree(oe);
 out_put_lower_layers:
 	for (i = 0; i < ufs->numlower; i++) {
