@@ -659,6 +659,70 @@ static void btrfs_free_stale_device(struct btrfs_device *cur_dev)
 	}
 }
 
+static int btrfs_open_one_device(struct btrfs_fs_devices *fs_devices,
+			struct btrfs_device *device, fmode_t flags,
+			void *holder)
+{
+	struct request_queue *q;
+	struct block_device *bdev;
+	struct buffer_head *bh;
+	struct btrfs_super_block *disk_super;
+	u64 devid;
+	int ret;
+
+	if (device->bdev)
+		return -EINVAL;
+	if (!device->name)
+		return -EINVAL;
+
+	ret = btrfs_get_bdev_and_sb(device->name->str, flags, holder, 1,
+				    &bdev, &bh);
+	if (ret)
+		return ret;
+
+	disk_super = (struct btrfs_super_block *)bh->b_data;
+	devid = btrfs_stack_device_id(&disk_super->dev_item);
+	if (devid != device->devid)
+		goto error_brelse;
+
+	if (memcmp(device->uuid, disk_super->dev_item.uuid, BTRFS_UUID_SIZE))
+		goto error_brelse;
+
+	device->generation = btrfs_super_generation(disk_super);
+
+	if (btrfs_super_flags(disk_super) & BTRFS_SUPER_FLAG_SEEDING) {
+		device->writeable = 0;
+		fs_devices->seeding = 1;
+	} else {
+		device->writeable = !bdev_read_only(bdev);
+	}
+
+	q = bdev_get_queue(bdev);
+	if (blk_queue_discard(q))
+		device->can_discard = 1;
+	if (!blk_queue_nonrot(q))
+		fs_devices->rotating = 1;
+
+	device->bdev = bdev;
+	device->in_fs_metadata = 0;
+	device->mode = flags;
+
+	fs_devices->open_devices++;
+	if (device->writeable && device->devid != BTRFS_DEV_REPLACE_DEVID) {
+		fs_devices->rw_devices++;
+		list_add(&device->dev_alloc_list, &fs_devices->alloc_list);
+	}
+	brelse(bh);
+
+	return 0;
+
+error_brelse:
+	brelse(bh);
+	blkdev_put(bdev, flags);
+
+	return -EINVAL;
+}
+
 /*
  * Add new device to list of registered devices
  *
@@ -1011,76 +1075,21 @@ int btrfs_close_devices(struct btrfs_fs_devices *fs_devices)
 static int __btrfs_open_devices(struct btrfs_fs_devices *fs_devices,
 				fmode_t flags, void *holder)
 {
-	struct request_queue *q;
-	struct block_device *bdev;
 	struct list_head *head = &fs_devices->devices;
 	struct btrfs_device *device;
 	struct btrfs_device *latest_dev = NULL;
-	struct buffer_head *bh;
-	struct btrfs_super_block *disk_super;
-	u64 devid;
 	int ret = 0;
 
 	flags |= FMODE_EXCL;
 
 	list_for_each_entry(device, head, dev_list) {
-		if (device->bdev)
-			continue;
-		if (!device->name)
-			continue;
-
 		/* Just open everything we can; ignore failures here */
-		if (btrfs_get_bdev_and_sb(device->name->str, flags, holder, 1,
-					    &bdev, &bh))
+		if (btrfs_open_one_device(fs_devices, device, flags, holder))
 			continue;
-
-		disk_super = (struct btrfs_super_block *)bh->b_data;
-		devid = btrfs_stack_device_id(&disk_super->dev_item);
-		if (devid != device->devid)
-			goto error_brelse;
-
-		if (memcmp(device->uuid, disk_super->dev_item.uuid,
-			   BTRFS_UUID_SIZE))
-			goto error_brelse;
-
-		device->generation = btrfs_super_generation(disk_super);
-
-		if (btrfs_super_flags(disk_super) & BTRFS_SUPER_FLAG_SEEDING) {
-			device->writeable = 0;
-			fs_devices->seeding = 1;
-		} else {
-			device->writeable = !bdev_read_only(bdev);
-		}
-
-		q = bdev_get_queue(bdev);
-		if (blk_queue_discard(q))
-			device->can_discard = 1;
-		if (!blk_queue_nonrot(q))
-			fs_devices->rotating = 1;
-
-		device->bdev = bdev;
-		device->in_fs_metadata = 0;
-		device->mode = flags;
-
-		fs_devices->open_devices++;
-		if (device->writeable &&
-		    device->devid != BTRFS_DEV_REPLACE_DEVID) {
-			fs_devices->rw_devices++;
-			list_add(&device->dev_alloc_list,
-				 &fs_devices->alloc_list);
-		}
-		brelse(bh);
 
 		if (!latest_dev ||
 		    device->generation > latest_dev->generation)
 			latest_dev = device;
-
-		continue;
-
-error_brelse:
-		brelse(bh);
-		blkdev_put(bdev, flags);
-		continue;
 	}
 	if (fs_devices->open_devices == 0) {
 		ret = -EINVAL;
