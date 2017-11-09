@@ -2280,7 +2280,7 @@ static void nvme_remove_dead_ctrl(struct nvme_dev *dev, int status)
 
 	nvme_get_ctrl(&dev->ctrl);
 	nvme_dev_disable(dev, false);
-	if (!schedule_work(&dev->remove_work))
+	if (!queue_work(nvme_wq, &dev->remove_work))
 		nvme_put_ctrl(&dev->ctrl);
 }
 
@@ -2703,6 +2703,7 @@ static int __init nvme_init(void)
 static void __exit nvme_exit(void)
 {
 	pci_unregister_driver(&nvme_driver);
+	flush_workqueue(nvme_wq);
 	_nvme_check_size();
 }
 
