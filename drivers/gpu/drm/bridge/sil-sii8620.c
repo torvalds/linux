@@ -2191,6 +2191,19 @@ static void sii8620_detach(struct drm_bridge *bridge)
 	rc_unregister_device(ctx->rc_dev);
 }
 
+static enum drm_mode_status sii8620_mode_valid(struct drm_bridge *bridge,
+					 const struct drm_display_mode *mode)
+{
+	struct sii8620 *ctx = bridge_to_sii8620(bridge);
+	bool can_pack = ctx->devcap[MHL_DCAP_VID_LINK_MODE] &
+			MHL_DCAP_VID_LINK_PPIXEL;
+	unsigned int max_pclk = sii8620_is_mhl3(ctx) ? MHL3_MAX_LCLK :
+						       MHL1_MAX_LCLK;
+	max_pclk /= can_pack ? 2 : 3;
+
+	return (mode->clock > max_pclk) ? MODE_CLOCK_HIGH : MODE_OK;
+}
+
 static bool sii8620_mode_fixup(struct drm_bridge *bridge,
 			       const struct drm_display_mode *mode,
 			       struct drm_display_mode *adjusted_mode)
@@ -2238,6 +2251,7 @@ static const struct drm_bridge_funcs sii8620_bridge_funcs = {
 	.attach = sii8620_attach,
 	.detach = sii8620_detach,
 	.mode_fixup = sii8620_mode_fixup,
+	.mode_valid = sii8620_mode_valid,
 };
 
 static int sii8620_probe(struct i2c_client *client,
