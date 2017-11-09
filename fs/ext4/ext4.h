@@ -1355,8 +1355,6 @@ struct ext4_sb_info {
 	int s_first_ino;
 	unsigned int s_inode_readahead_blks;
 	unsigned int s_inode_goal;
-	spinlock_t s_next_gen_lock;
-	u32 s_next_generation;
 	u32 s_hash_seed[4];
 	int s_def_hash_version;
 	int s_hash_unsigned;	/* 3 if hash should be signed, 0 if not */
