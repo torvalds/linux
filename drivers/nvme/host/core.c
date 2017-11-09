@@ -305,7 +305,7 @@ static void nvme_put_ns(struct nvme_ns *ns)
 }
 
 struct request *nvme_alloc_request(struct request_queue *q,
-		struct nvme_command *cmd, unsigned int flags, int qid)
+		struct nvme_command *cmd, blk_mq_req_flags_t flags, int qid)
 {
 	unsigned op = nvme_is_write(cmd) ? REQ_OP_DRV_OUT : REQ_OP_DRV_IN;
 	struct request *req;
@@ -573,7 +573,8 @@ EXPORT_SYMBOL_GPL(nvme_setup_cmd);
  */
 int __nvme_submit_sync_cmd(struct request_queue *q, struct nvme_command *cmd,
 		union nvme_result *result, void *buffer, unsigned bufflen,
-		unsigned timeout, int qid, int at_head, int flags)
+		unsigned timeout, int qid, int at_head,
+		blk_mq_req_flags_t flags)
 {
 	struct request *req;
 	int ret;

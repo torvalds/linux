@@ -801,7 +801,7 @@ EXPORT_SYMBOL(blk_alloc_queue);
  * @q: request queue pointer
  * @flags: BLK_MQ_REQ_NOWAIT and/or BLK_MQ_REQ_PREEMPT
  */
-int blk_queue_enter(struct request_queue *q, unsigned int flags)
+int blk_queue_enter(struct request_queue *q, blk_mq_req_flags_t flags)
 {
 	const bool preempt = flags & BLK_MQ_REQ_PREEMPT;
 
@@ -1225,7 +1225,7 @@ int blk_update_nr_requests(struct request_queue *q, unsigned int nr)
  * Returns request pointer on success, with @q->queue_lock *not held*.
  */
 static struct request *__get_request(struct request_list *rl, unsigned int op,
-				     struct bio *bio, unsigned int flags)
+				     struct bio *bio, blk_mq_req_flags_t flags)
 {
 	struct request_queue *q = rl->q;
 	struct request *rq;
@@ -1408,7 +1408,7 @@ rq_starved:
  * Returns request pointer on success, with @q->queue_lock *not held*.
  */
 static struct request *get_request(struct request_queue *q, unsigned int op,
-				   struct bio *bio, unsigned int flags)
+				   struct bio *bio, blk_mq_req_flags_t flags)
 {
 	const bool is_sync = op_is_sync(op);
 	DEFINE_WAIT(wait);
@@ -1458,7 +1458,7 @@ retry:
 
 /* flags: BLK_MQ_REQ_PREEMPT and/or BLK_MQ_REQ_NOWAIT. */
 static struct request *blk_old_get_request(struct request_queue *q,
-					   unsigned int op, unsigned int flags)
+				unsigned int op, blk_mq_req_flags_t flags)
 {
 	struct request *rq;
 	gfp_t gfp_mask = flags & BLK_MQ_REQ_NOWAIT ? GFP_ATOMIC :
@@ -1495,7 +1495,7 @@ static struct request *blk_old_get_request(struct request_queue *q,
  * @flags: BLK_MQ_REQ_* flags, e.g. BLK_MQ_REQ_NOWAIT.
  */
 struct request *blk_get_request_flags(struct request_queue *q, unsigned int op,
-				      unsigned int flags)
+				      blk_mq_req_flags_t flags)
 {
 	struct request *req;
 
@@ -2291,7 +2291,7 @@ blk_qc_t generic_make_request(struct bio *bio)
 	current->bio_list = bio_list_on_stack;
 	do {
 		struct request_queue *q = bio->bi_disk->queue;
-		unsigned int flags = bio->bi_opf & REQ_NOWAIT ?
+		blk_mq_req_flags_t flags = bio->bi_opf & REQ_NOWAIT ?
 			BLK_MQ_REQ_NOWAIT : 0;
 
 		if (likely(blk_queue_enter(q, flags) == 0)) {

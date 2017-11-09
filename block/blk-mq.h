@@ -111,7 +111,7 @@ static inline void blk_mq_put_ctx(struct blk_mq_ctx *ctx)
 struct blk_mq_alloc_data {
 	/* input parameter */
 	struct request_queue *q;
-	unsigned int flags;
+	blk_mq_req_flags_t flags;
 	unsigned int shallow_depth;
 
 	/* input & output parameter */

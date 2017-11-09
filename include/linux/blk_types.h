@@ -162,6 +162,8 @@ struct bio {
  */
 #define BIO_RESET_BITS	BVEC_POOL_OFFSET
 
+typedef __u32 __bitwise blk_mq_req_flags_t;
+
 /*
  * Operations and flags common to the bio and request structures.
  * We use 8 bits for encoding the operation, and the remaining 24 for flags.
