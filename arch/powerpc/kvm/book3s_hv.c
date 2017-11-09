@@ -2717,11 +2717,13 @@ static noinline void kvmppc_run_core(struct kvmppc_vcore *vc)
 	 * Hard-disable interrupts, and check resched flag and signals.
 	 * If we need to reschedule or deliver a signal, clean up
 	 * and return without going into the guest(s).
+	 * If the mmu_ready flag has been cleared, don't go into the
+	 * guest because that means a HPT resize operation is in progress.
 	 */
 	local_irq_disable();
 	hard_irq_disable();
 	if (lazy_irq_pending() || need_resched() ||
-	    recheck_signals(&core_info)) {
+	    recheck_signals(&core_info) || !vc->kvm->arch.mmu_ready) {
 		local_irq_enable();
 		vc->vcore_state = VCORE_INACTIVE;
 		/* Unlock all except the primary vcore */
@@ -3118,9 +3120,28 @@ out:
 	trace_kvmppc_vcore_wakeup(do_sleep, block_ns);
 }
 
+static int kvmhv_setup_mmu(struct kvm_vcpu *vcpu)
+{
+	int r = 0;
+	struct kvm *kvm = vcpu->kvm;
+
+	mutex_lock(&kvm->lock);
+	if (!kvm->arch.mmu_ready) {
+		if (!kvm_is_radix(kvm))
+			r = kvmppc_hv_setup_htab_rma(vcpu);
+		if (!r) {
+			if (cpu_has_feature(CPU_FTR_ARCH_300))
+				kvmppc_setup_partition_table(kvm);
+			kvm->arch.mmu_ready = 1;
+		}
+	}
+	mutex_unlock(&kvm->lock);
+	return r;
+}
+
 static int kvmppc_run_vcpu(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 {
-	int n_ceded, i;
+	int n_ceded, i, r;
 	struct kvmppc_vcore *vc;
 	struct kvm_vcpu *v;
 
@@ -3174,6 +3195,20 @@ static int kvmppc_run_vcpu(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 
 	while (vcpu->arch.state == KVMPPC_VCPU_RUNNABLE &&
 	       !signal_pending(current)) {
+		/* See if the MMU is ready to go */
+		if (!vcpu->kvm->arch.mmu_ready) {
+			spin_unlock(&vc->lock);
+			r = kvmhv_setup_mmu(vcpu);
+			spin_lock(&vc->lock);
+			if (r) {
+				kvm_run->exit_reason = KVM_EXIT_FAIL_ENTRY;
+				kvm_run->fail_entry.
+					hardware_entry_failure_reason = 0;
+				vcpu->arch.ret = r;
+				break;
+			}
+		}
+
 		if (vc->vcore_state == VCORE_PREEMPT && vc->runner == NULL)
 			kvmppc_vcore_end_preempt(vc);
 
@@ -3293,24 +3328,6 @@ static int kvmppc_vcpu_run_hv(struct kvm_run *run, struct kvm_vcpu *vcpu)
 	/* Order vcpus_running vs. mmu_ready, see kvmppc_alloc_reset_hpt */
 	smp_mb();
 
-	/* On the first time here, set up MMU if necessary */
-	if (!vcpu->kvm->arch.mmu_ready) {
-		mutex_lock(&kvm->lock);
-		r = 0;
-		if (!kvm->arch.mmu_ready) {
-			if (!kvm_is_radix(vcpu->kvm))
-				r = kvmppc_hv_setup_htab_rma(vcpu);
-			if (!r) {
-				if (cpu_has_feature(CPU_FTR_ARCH_300))
-					kvmppc_setup_partition_table(kvm);
-				kvm->arch.mmu_ready = 1;
-			}
-		}
-		mutex_unlock(&kvm->lock);
-		if (r)
-			goto out;
-	}
-
 	flush_all_to_thread(current);
 
 	/* Save userspace EBB and other register values */
@@ -3336,10 +3353,10 @@ static int kvmppc_vcpu_run_hv(struct kvm_run *run, struct kvm_vcpu *vcpu)
 			trace_kvm_hcall_exit(vcpu, r);
 			kvmppc_core_prepare_to_enter(vcpu);
 		} else if (r == RESUME_PAGE_FAULT) {
-			srcu_idx = srcu_read_lock(&vcpu->kvm->srcu);
+			srcu_idx = srcu_read_lock(&kvm->srcu);
 			r = kvmppc_book3s_hv_page_fault(run, vcpu,
 				vcpu->arch.fault_dar, vcpu->arch.fault_dsisr);
-			srcu_read_unlock(&vcpu->kvm->srcu, srcu_idx);
+			srcu_read_unlock(&kvm->srcu, srcu_idx);
 		} else if (r == RESUME_PASSTHROUGH) {
 			if (WARN_ON(xive_enabled()))
 				r = H_SUCCESS;
@@ -3358,9 +3375,8 @@ static int kvmppc_vcpu_run_hv(struct kvm_run *run, struct kvm_vcpu *vcpu)
 	}
 	mtspr(SPRN_VRSAVE, user_vrsave);
 
- out:
 	vcpu->arch.state = KVMPPC_VCPU_NOTREADY;
-	atomic_dec(&vcpu->kvm->arch.vcpus_running);
+	atomic_dec(&kvm->arch.vcpus_running);
 	return r;
 }
 

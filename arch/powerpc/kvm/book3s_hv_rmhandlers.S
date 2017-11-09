@@ -1025,13 +1025,14 @@ ALT_FTR_SECTION_END_IFCLR(CPU_FTR_ARCH_300)
 	beq	no_xive
 	ld	r11, VCPU_XIVE_SAVED_STATE(r4)
 	li	r9, TM_QW1_OS
-	stdcix	r11,r9,r10
 	eieio
+	stdcix	r11,r9,r10
 	lwz	r11, VCPU_XIVE_CAM_WORD(r4)
 	li	r9, TM_QW1_OS + TM_WORD2
 	stwcix	r11,r9,r10
 	li	r9, 1
 	stw	r9, VCPU_XIVE_PUSHED(r4)
+	eieio
 no_xive:
 #endif /* CONFIG_KVM_XICS */
 
@@ -1346,6 +1347,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 	bne	3f
 BEGIN_FTR_SECTION
 	PPC_MSGSYNC
+	lwsync
 END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
 	lbz	r0, HSTATE_HOST_IPI(r13)
 	cmpwi	r0, 0
@@ -1436,8 +1438,8 @@ guest_exit_cont:		/* r9 = vcpu, r12 = trap, r13 = paca */
 	cmpldi	cr0, r10, 0
 	beq	1f
 	/* First load to pull the context, we ignore the value */
-	lwzx	r11, r7, r10
 	eieio
+	lwzx	r11, r7, r10
 	/* Second load to recover the context state (Words 0 and 1) */
 	ldx	r11, r6, r10
 	b	3f
@@ -1445,8 +1447,8 @@ guest_exit_cont:		/* r9 = vcpu, r12 = trap, r13 = paca */
 	cmpldi	cr0, r10, 0
 	beq	1f
 	/* First load to pull the context, we ignore the value */
-	lwzcix	r11, r7, r10
 	eieio
+	lwzcix	r11, r7, r10
 	/* Second load to recover the context state (Words 0 and 1) */
 	ldcix	r11, r6, r10
 3:	std	r11, VCPU_XIVE_SAVED_STATE(r9)
@@ -1456,6 +1458,7 @@ guest_exit_cont:		/* r9 = vcpu, r12 = trap, r13 = paca */
 	stw	r10, VCPU_XIVE_PUSHED(r9)
 	stb	r10, (VCPU_XIVE_SAVED_STATE+3)(r9)
 	stb	r0, (VCPU_XIVE_SAVED_STATE+4)(r9)
+	eieio
 1:
 #endif /* CONFIG_KVM_XICS */
 	/* Save more register state  */
@@ -2838,6 +2841,10 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 	PPC_MSGCLR(6)
 	/* see if it's a host IPI */
 	li	r3, 1
+BEGIN_FTR_SECTION
+	PPC_MSGSYNC
+	lwsync
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
 	lbz	r0, HSTATE_HOST_IPI(r13)
 	cmpwi	r0, 0
 	bnelr
