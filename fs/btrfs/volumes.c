@@ -1019,7 +1019,6 @@ static int __btrfs_open_devices(struct btrfs_fs_devices *fs_devices,
 	struct buffer_head *bh;
 	struct btrfs_super_block *disk_super;
 	u64 devid;
-	int seeding = 1;
 	int ret = 0;
 
 	flags |= FMODE_EXCL;
@@ -1051,9 +1050,9 @@ static int __btrfs_open_devices(struct btrfs_fs_devices *fs_devices,
 
 		if (btrfs_super_flags(disk_super) & BTRFS_SUPER_FLAG_SEEDING) {
 			device->writeable = 0;
+			fs_devices->seeding = 1;
 		} else {
 			device->writeable = !bdev_read_only(bdev);
-			seeding = 0;
 		}
 
 		q = bdev_get_queue(bdev);
@@ -1085,7 +1084,6 @@ error_brelse:
 		ret = -EINVAL;
 		goto out;
 	}
-	fs_devices->seeding = seeding;
 	fs_devices->opened = 1;
 	fs_devices->latest_bdev = latest_dev->bdev;
 	fs_devices->total_rw_bytes = 0;
