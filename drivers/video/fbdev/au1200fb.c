@@ -1518,7 +1518,7 @@ static irqreturn_t au1200fb_handle_irq(int irq, void* dev_id)
 static int au1200fb_init_fbinfo(struct au1200fb_device *fbdev)
 {
 	struct fb_info *fbi = fbdev->fb_info;
-	int bpp;
+	int bpp, ret;
 
 	fbi->fbops = &au1200fb_fb_ops;
 
@@ -1550,10 +1550,11 @@ static int au1200fb_init_fbinfo(struct au1200fb_device *fbdev)
 		return -ENOMEM;
 	}
 
-	if (fb_alloc_cmap(&fbi->cmap, AU1200_LCD_NBR_PALETTE_ENTRIES, 0) < 0) {
+	ret = fb_alloc_cmap(&fbi->cmap, AU1200_LCD_NBR_PALETTE_ENTRIES, 0);
+	if (ret < 0) {
 		print_err("Fail to allocate colormap (%d entries)",
 			   AU1200_LCD_NBR_PALETTE_ENTRIES);
-		return -EFAULT;
+		return ret;
 	}
 
 	strncpy(fbi->fix.id, "AU1200", sizeof(fbi->fix.id));
