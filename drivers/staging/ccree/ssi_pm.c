@@ -90,20 +90,24 @@ int cc_pm_resume(struct device *dev)
 int cc_pm_get(struct device *dev)
 {
 	int rc = 0;
+	struct ssi_drvdata *drvdata =
+		(struct ssi_drvdata *)dev_get_drvdata(dev);
 
-	if (cc_req_queue_suspended((struct ssi_drvdata *)dev_get_drvdata(dev))) {
+	if (cc_req_queue_suspended(drvdata))
 		rc = pm_runtime_get_sync(dev);
-	} else {
+	else
 		pm_runtime_get_noresume(dev);
-	}
+
 	return rc;
 }
 
 int cc_pm_put_suspend(struct device *dev)
 {
 	int rc = 0;
+	struct ssi_drvdata *drvdata =
+		(struct ssi_drvdata *)dev_get_drvdata(dev);
 
-	if (!cc_req_queue_suspended((struct ssi_drvdata *)dev_get_drvdata(dev))) {
+	if (!cc_req_queue_suspended(drvdata)) {
 		pm_runtime_mark_last_busy(dev);
 		rc = pm_runtime_put_autosuspend(dev);
 	} else {
