@@ -1491,9 +1491,8 @@ int cc_map_hash_request_final(struct ssi_drvdata *drvdata, void *ctx,
 		/* add the src data to the sg_data */
 		cc_add_sg_entry(dev, &sg_data, areq_ctx->in_nents, src, nbytes,
 				0, true, &areq_ctx->mlli_nents);
-		if (unlikely(cc_generate_mlli(dev, &sg_data, mlli_params))) {
+		if (unlikely(cc_generate_mlli(dev, &sg_data, mlli_params)))
 			goto fail_unmap_din;
-		}
 	}
 	/* change the buffer index for the unmap function */
 	areq_ctx->buff_index = (areq_ctx->buff_index ^ 1);
@@ -1610,9 +1609,8 @@ int cc_map_hash_request_update(struct ssi_drvdata *drvdata, void *ctx,
 		cc_add_sg_entry(dev, &sg_data, areq_ctx->in_nents, src,
 				(update_data_len - *curr_buff_cnt), 0, true,
 				&areq_ctx->mlli_nents);
-		if (unlikely(cc_generate_mlli(dev, &sg_data, mlli_params))) {
+		if (unlikely(cc_generate_mlli(dev, &sg_data, mlli_params)))
 			goto fail_unmap_din;
-		}
 	}
 	areq_ctx->buff_index = (areq_ctx->buff_index ^ swap_index);
 
