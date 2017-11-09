@@ -463,6 +463,10 @@
 	status = "okay";
 };
 
+&wdt {
+	status = "okay";
+};
+
 &pinctrl {
 	leds {
 		led_ctl: led-ctl {
