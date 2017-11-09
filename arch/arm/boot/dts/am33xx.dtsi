@@ -628,6 +628,7 @@
 				reg-names = "phy";
 				status = "disabled";
 				ti,ctrl_mod = <&usb_ctrl_mod>;
+				#phy-cells = <0>;
 			};
 
 			usb0: usb@47401000 {
@@ -676,6 +677,7 @@
 				reg-names = "phy";
 				status = "disabled";
 				ti,ctrl_mod = <&usb_ctrl_mod>;
+				#phy-cells = <0>;
 			};
 
 			usb1: usb@47401800 {
