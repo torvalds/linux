@@ -5,11 +5,11 @@ The reference binding doc is from:
 http://www.devicetree.org/open-firmware/bindings/usb/usb-1_0.ps
 
 Required properties:
-- compatible: usbVID,PID. The textual representation of VID, PID shall
-  be in lower case hexadecimal with leading zeroes suppressed. The
-  other compatible strings from the above standard binding could also
-  be used, but a device adhering to this binding may leave out all except
-  for usbVID,PID.
+- compatible: "usbVID,PID", where VID is the vendor id and PID the product id.
+  The textual representation of VID and PID shall be in lower case hexadecimal
+  with leading zeroes suppressed. The other compatible strings from the above
+  standard binding could also be used, but a device adhering to this binding
+  may leave out all except for "usbVID,PID".
 - reg: the port number which this device is connecting to, the range
   is 1-255.
 
