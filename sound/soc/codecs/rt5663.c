@@ -3428,7 +3428,16 @@ static int rt5663_i2c_probe(struct i2c_client *i2c,
 			ret);
 		return ret;
 	}
-	regmap_read(regmap, RT5663_VENDOR_ID_2, &val);
+
+	ret = regmap_read(regmap, RT5663_VENDOR_ID_2, &val);
+	if (ret || (val != RT5663_DEVICE_ID_2 && val != RT5663_DEVICE_ID_1)) {
+		dev_err(&i2c->dev,
+			"Device with ID register %#x is not rt5663, retry one time.\n",
+			val);
+		msleep(100);
+		regmap_read(regmap, RT5663_VENDOR_ID_2, &val);
+	}
+
 	switch (val) {
 	case RT5663_DEVICE_ID_2:
 		rt5663->regmap = devm_regmap_init_i2c(i2c, &rt5663_v2_regmap);
