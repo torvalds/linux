@@ -311,7 +311,7 @@ static int ssi_blkcipher_setkey(struct crypto_tfm *tfm,
 		keylen -= 1;
 #endif /*SSI_CC_HAS_MULTI2*/
 
-	if (unlikely(validate_keys_sizes(ctx_p, keylen) != 0)) {
+	if (unlikely(validate_keys_sizes(ctx_p, keylen))) {
 		dev_err(dev, "Unsupported key size %d.\n", keylen);
 		crypto_tfm_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
 		return -EINVAL;
@@ -365,13 +365,13 @@ static int ssi_blkcipher_setkey(struct crypto_tfm *tfm,
 		}
 	}
 	if ((ctx_p->cipher_mode == DRV_CIPHER_XTS) &&
-	    xts_check_key(tfm, key, keylen) != 0) {
+	    xts_check_key(tfm, key, keylen)) {
 		dev_dbg(dev, "weak XTS key");
 		return -EINVAL;
 	}
 	if ((ctx_p->flow_mode == S_DIN_to_DES) &&
 	    (keylen == DES3_EDE_KEY_SIZE) &&
-	    ssi_verify_3des_keys(key, keylen) != 0) {
+	    ssi_verify_3des_keys(key, keylen)) {
 		dev_dbg(dev, "weak 3DES key");
 		return -EINVAL;
 	}
@@ -788,7 +788,7 @@ static int ssi_blkcipher_process(
 
 	rc = cc_map_blkcipher_request(ctx_p->drvdata, req_ctx, ivsize, nbytes,
 				      req_ctx->iv, src, dst);
-	if (unlikely(rc != 0)) {
+	if (unlikely(rc)) {
 		dev_err(dev, "map_request() failed\n");
 		goto exit_process;
 	}
@@ -827,7 +827,7 @@ static int ssi_blkcipher_process(
 		}
 
 	} else {
-		if (rc != 0) {
+		if (rc) {
 			cc_unmap_blkcipher_request(dev, req_ctx, ivsize, src,
 						   dst);
 		} else {
@@ -838,7 +838,7 @@ static int ssi_blkcipher_process(
 	}
 
 exit_process:
-	if (cts_restore_flag != 0)
+	if (cts_restore_flag)
 		ctx_p->cipher_mode = DRV_CIPHER_CBC_CTS;
 
 	if (rc != -EINPROGRESS) {
@@ -1338,7 +1338,7 @@ int ssi_ablkcipher_alloc(struct ssi_drvdata *drvdata)
 		rc = crypto_register_alg(&t_alg->crypto_alg);
 		dev_dbg(dev, "%s alg registration rc = %x\n",
 			t_alg->crypto_alg.cra_driver_name, rc);
-		if (unlikely(rc != 0)) {
+		if (unlikely(rc)) {
 			dev_err(dev, "%s alg registration failed\n",
 				t_alg->crypto_alg.cra_driver_name);
 			kfree(t_alg);

@@ -42,7 +42,7 @@ int cc_pm_suspend(struct device *dev)
 	dev_dbg(dev, "set HOST_POWER_DOWN_EN\n");
 	cc_iowrite(drvdata, CC_REG(HOST_POWER_DOWN_EN), POWER_DOWN_ENABLE);
 	rc = cc_suspend_req_queue(drvdata);
-	if (rc != 0) {
+	if (rc) {
 		dev_err(dev, "cc_suspend_req_queue (%x)\n",
 			rc);
 		return rc;
@@ -67,13 +67,13 @@ int cc_pm_resume(struct device *dev)
 	}
 
 	rc = init_cc_regs(drvdata, false);
-	if (rc != 0) {
+	if (rc) {
 		dev_err(dev, "init_cc_regs (%x)\n", rc);
 		return rc;
 	}
 
 	rc = cc_resume_req_queue(drvdata);
-	if (rc != 0) {
+	if (rc) {
 		dev_err(dev, "cc_resume_req_queue (%x)\n", rc);
 		return rc;
 	}
@@ -127,7 +127,7 @@ int cc_pm_init(struct ssi_drvdata *drvdata)
 	pm_runtime_use_autosuspend(dev);
 	/* activate the PM module */
 	rc = pm_runtime_set_active(dev);
-	if (rc != 0)
+	if (rc)
 		return rc;
 	/* enable the PM module*/
 	pm_runtime_enable(dev);

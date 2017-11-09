@@ -75,7 +75,7 @@ ssi_sram_addr_t cc_sram_alloc(struct ssi_drvdata *drvdata, u32 size)
 	struct device *dev = drvdata_to_dev(drvdata);
 	ssi_sram_addr_t p;
 
-	if (unlikely((size & 0x3) != 0)) {
+	if (unlikely((size & 0x3))) {
 		dev_err(dev, "Requested buffer size (%u) is not multiple of 4",
 			size);
 		return NULL_SRAM_ADDR;

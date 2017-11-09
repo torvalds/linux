@@ -73,7 +73,7 @@ void request_mgr_fini(struct ssi_drvdata *drvdata)
 	if (!req_mgr_h)
 		return; /* Not allocated */
 
-	if (req_mgr_h->dummy_comp_buff_dma != 0) {
+	if (req_mgr_h->dummy_comp_buff_dma) {
 		dma_free_coherent(dev, sizeof(u32), req_mgr_h->dummy_comp_buff,
 				  req_mgr_h->dummy_comp_buff_dma);
 	}
@@ -275,8 +275,8 @@ int send_request(
 
 #if defined(CONFIG_PM_RUNTIME) || defined(CONFIG_PM_SLEEP)
 	rc = cc_pm_get(dev);
-	if (rc != 0) {
-		dev_err(dev, "cc_pm_get returned %x\n", rc);
+	if (rc) {
+		dev_err(dev, "ssi_power_mgr_runtime_get returned %x\n", rc);
 		return rc;
 	}
 #endif
@@ -333,7 +333,7 @@ int send_request(
 				     ssi_req->ivgen_dma_addr_len,
 				     ssi_req->ivgen_size, iv_seq, &iv_seq_len);
 
-		if (unlikely(rc != 0)) {
+		if (unlikely(rc)) {
 			dev_err(dev, "Failed to generate IV (rc=%d)\n", rc);
 			spin_unlock_bh(&req_mgr_h->hw_lock);
 #if defined(CONFIG_PM_RUNTIME) || defined(CONFIG_PM_SLEEP)
@@ -412,7 +412,7 @@ int send_request_init(
 	/* Wait for space in HW and SW FIFO. Poll for as much as FIFO_TIMEOUT. */
 	rc = request_mgr_queues_status_check(drvdata, req_mgr_h,
 					     total_seq_len);
-	if (unlikely(rc != 0))
+	if (unlikely(rc))
 		return rc;
 
 	set_queue_last_ind(&desc[(len - 1)]);
@@ -500,7 +500,7 @@ static void proc_completions(struct ssi_drvdata *drvdata)
 			request_mgr_handle->axi_completed);
 #if defined(CONFIG_PM_RUNTIME) || defined(CONFIG_PM_SLEEP)
 		rc = cc_pm_put_suspend(dev);
-		if (rc != 0)
+		if (rc)
 			dev_err(dev, "Failed to set runtime suspension %d\n",
 				rc);
 #endif
