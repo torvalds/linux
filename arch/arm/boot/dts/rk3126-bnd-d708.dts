@@ -434,6 +434,7 @@
 		irq_enable = <0>;
 		poll_delay_ms = <30>;
 		layout = <3>;
+		reprobe_en = <1>;
 	};
 };
 
