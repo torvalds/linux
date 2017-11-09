@@ -167,7 +167,7 @@ END_MMU_FTR_SECTION_IFCLR(MMU_FTR_1T_SEGMENT)
         /*
          * user space make sure we are within the allowed limit
 	 */
-	ld	r11,PACA_ADDR_LIMIT(r13)
+	ld	r11,PACA_SLB_ADDR_LIMIT(r13)
 	cmpld	r3,r11
 	bge-	8f
 

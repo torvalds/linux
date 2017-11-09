@@ -96,8 +96,8 @@ static int hash__init_new_context(struct mm_struct *mm)
 	 * In the case of exec, use the default limit,
 	 * otherwise inherit it from the mm we are duplicating.
 	 */
-	if (!mm->context.addr_limit)
-		mm->context.addr_limit = DEFAULT_MAP_WINDOW_USER64;
+	if (!mm->context.slb_addr_limit)
+		mm->context.slb_addr_limit = DEFAULT_MAP_WINDOW_USER64;
 
 	/*
 	 * The old code would re-promote on fork, we don't do that when using

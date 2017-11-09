@@ -116,17 +116,12 @@ radix__arch_get_unmapped_area(struct file *filp, unsigned long addr,
 
 	if (len > high_limit)
 		return -ENOMEM;
+
 	if (fixed) {
 		if (addr > high_limit - len)
 			return -ENOMEM;
-	}
-
-	if (unlikely(addr > mm->context.addr_limit &&
-		     mm->context.addr_limit != TASK_SIZE))
-		mm->context.addr_limit = TASK_SIZE;
-
-	if (fixed)
 		return addr;
+	}
 
 	if (addr) {
 		addr = PAGE_ALIGN(addr);
@@ -165,17 +160,12 @@ radix__arch_get_unmapped_area_topdown(struct file *filp,
 
 	if (len > high_limit)
 		return -ENOMEM;
+
 	if (fixed) {
 		if (addr > high_limit - len)
 			return -ENOMEM;
-	}
-
-	if (unlikely(addr > mm->context.addr_limit &&
-		     mm->context.addr_limit != TASK_SIZE))
-		mm->context.addr_limit = TASK_SIZE;
-
-	if (fixed)
 		return addr;
+	}
 
 	if (addr) {
 		addr = PAGE_ALIGN(addr);
