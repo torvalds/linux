@@ -912,6 +912,63 @@ static int ovl_get_upper(struct ovl_fs *ufs, struct path *upperpath)
 	return 0;
 }
 
+static int ovl_get_workdir(struct super_block *sb, struct ovl_fs *ufs,
+			   struct path *workpath)
+{
+	struct dentry *temp;
+	int err;
+
+	ufs->workdir = ovl_workdir_create(sb, ufs, workpath->dentry,
+					  OVL_WORKDIR_NAME, false);
+	if (!ufs->workdir)
+		return 0;
+
+	/*
+	 * Upper should support d_type, else whiteouts are visible.  Given
+	 * workdir and upper are on same fs, we can do iterate_dir() on
+	 * workdir. This check requires successful creation of workdir in
+	 * previous step.
+	 */
+	err = ovl_check_d_type_supported(workpath);
+	if (err < 0)
+		return err;
+
+	/*
+	 * We allowed this configuration and don't want to break users over
+	 * kernel upgrade. So warn instead of erroring out.
+	 */
+	if (!err)
+		pr_warn("overlayfs: upper fs needs to support d_type.\n");
+
+	/* Check if upper/work fs supports O_TMPFILE */
+	temp = ovl_do_tmpfile(ufs->workdir, S_IFREG | 0);
+	ufs->tmpfile = !IS_ERR(temp);
+	if (ufs->tmpfile)
+		dput(temp);
+	else
+		pr_warn("overlayfs: upper fs does not support tmpfile.\n");
+
+	/*
+	 * Check if upper/work fs supports trusted.overlay.* xattr
+	 */
+	err = ovl_do_setxattr(ufs->workdir, OVL_XATTR_OPAQUE, "0", 1, 0);
+	if (err) {
+		ufs->noxattr = true;
+		pr_warn("overlayfs: upper fs does not support xattr.\n");
+	} else {
+		vfs_removexattr(ufs->workdir, OVL_XATTR_OPAQUE);
+	}
+
+	/* Check if upper/work fs supports file handles */
+	if (ufs->config.index &&
+	    !ovl_can_decode_fh(ufs->workdir->d_sb)) {
+		ufs->config.index = false;
+		pr_warn("overlayfs: upper fs does not support file handles, falling back to index=off.\n");
+	}
+
+	return 0;
+}
+
 static int ovl_get_lowerstack(struct super_block *sb, struct ovl_fs *ufs,
 			      struct path **stackp, unsigned int *stacklenp)
 {
@@ -1041,57 +1098,9 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 
 		sb->s_time_gran = ufs->upper_mnt->mnt_sb->s_time_gran;
 
-		ufs->workdir = ovl_workdir_create(sb, ufs, workpath.dentry,
-						  OVL_WORKDIR_NAME, false);
-		/*
-		 * Upper should support d_type, else whiteouts are visible.
-		 * Given workdir and upper are on same fs, we can do
-		 * iterate_dir() on workdir. This check requires successful
-		 * creation of workdir in previous step.
-		 */
-		if (ufs->workdir) {
-			struct dentry *temp;
-
-			err = ovl_check_d_type_supported(&workpath);
-			if (err < 0)
-				goto out_put_workdir;
-
-			/*
-			 * We allowed this configuration and don't want to
-			 * break users over kernel upgrade. So warn instead
-			 * of erroring out.
-			 */
-			if (!err)
-				pr_warn("overlayfs: upper fs needs to support d_type.\n");
-
-			/* Check if upper/work fs supports O_TMPFILE */
-			temp = ovl_do_tmpfile(ufs->workdir, S_IFREG | 0);
-			ufs->tmpfile = !IS_ERR(temp);
-			if (ufs->tmpfile)
-				dput(temp);
-			else
-				pr_warn("overlayfs: upper fs does not support tmpfile.\n");
-
-			/*
-			 * Check if upper/work fs supports trusted.overlay.*
-			 * xattr
-			 */
-			err = ovl_do_setxattr(ufs->workdir, OVL_XATTR_OPAQUE,
-					      "0", 1, 0);
-			if (err) {
-				ufs->noxattr = true;
-				pr_warn("overlayfs: upper fs does not support xattr.\n");
-			} else {
-				vfs_removexattr(ufs->workdir, OVL_XATTR_OPAQUE);
-			}
-
-			/* Check if upper/work fs supports file handles */
-			if (ufs->config.index &&
-			    !ovl_can_decode_fh(ufs->workdir->d_sb)) {
-				ufs->config.index = false;
-				pr_warn("overlayfs: upper fs does not support file handles, falling back to index=off.\n");
-			}
-		}
+		err = ovl_get_workdir(sb, ufs, &workpath);
+		if (err)
+			goto out_put_workdir;
 	}
 
 	err = -ENOMEM;
