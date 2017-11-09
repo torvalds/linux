@@ -1546,14 +1546,13 @@ static int au1200fb_init_fbinfo(struct au1200fb_device *fbdev)
 	}
 
 	fbi->pseudo_palette = kcalloc(16, sizeof(u32), GFP_KERNEL);
-	if (!fbi->pseudo_palette) {
+	if (!fbi->pseudo_palette)
 		return -ENOMEM;
-	}
 
 	ret = fb_alloc_cmap(&fbi->cmap, AU1200_LCD_NBR_PALETTE_ENTRIES, 0);
 	if (ret < 0) {
 		print_err("Fail to allocate colormap (%d entries)",
-			   AU1200_LCD_NBR_PALETTE_ENTRIES);
+			  AU1200_LCD_NBR_PALETTE_ENTRIES);
 		return ret;
 	}
 
@@ -1717,7 +1716,8 @@ static int au1200fb_drv_probe(struct platform_device *dev)
 		print_dbg("phys=0x%08x, size=%dK", fbdev->fb_phys, fbdev->fb_len / 1024);
 
 		/* Init FB data */
-		if ((ret = au1200fb_init_fbinfo(fbdev)) < 0)
+		ret = au1200fb_init_fbinfo(fbdev);
+		if (ret < 0)
 			goto failed;
 
 		/* Register new framebuffer */
