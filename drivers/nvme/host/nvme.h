@@ -140,13 +140,12 @@ struct nvme_ctrl {
 	struct work_struct reset_work;
 	struct work_struct delete_work;
 
+	struct nvme_subsystem *subsys;
+	struct list_head subsys_entry;
+
 	struct opal_dev *opal_dev;
 
 	char name[12];
-	char serial[20];
-	char model[40];
-	char firmware_rev[8];
-	char subnqn[NVMF_NQN_SIZE];
 	u16 cntlid;
 
 	u32 ctrl_config;
@@ -157,7 +156,6 @@ struct nvme_ctrl {
 	u32 page_size;
 	u32 max_hw_sectors;
 	u16 oncs;
-	u16 vid;
 	u16 oacs;
 	u16 nssa;
 	u16 nr_streams;
@@ -198,6 +196,25 @@ struct nvme_ctrl {
 	u16 maxcmd;
 	int nr_reconnects;
 	struct nvmf_ctrl_options *opts;
+};
+
+struct nvme_subsystem {
+	int			instance;
+	struct device		dev;
+	/*
+	 * Because we unregister the device on the last put we need
+	 * a separate refcount.
+	 */
+	struct kref		ref;
+	struct list_head	entry;
+	struct mutex		lock;
+	struct list_head	ctrls;
+	char			subnqn[NVMF_NQN_SIZE];
+	char			serial[20];
+	char			model[40];
+	char			firmware_rev[8];
+	u8			cmic;
+	u16			vendor_id;
 };
 
 struct nvme_ns {
