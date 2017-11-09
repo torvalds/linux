@@ -109,9 +109,11 @@ static void post_qp_event(struct c4iw_dev *dev, struct c4iw_cq *chp,
 	if (qhp->ibqp.event_handler)
 		(*qhp->ibqp.event_handler)(&event, qhp->ibqp.qp_context);
 
-	spin_lock_irqsave(&chp->comp_handler_lock, flag);
-	(*chp->ibcq.comp_handler)(&chp->ibcq, chp->ibcq.cq_context);
-	spin_unlock_irqrestore(&chp->comp_handler_lock, flag);
+	if (t4_clear_cq_armed(&chp->cq)) {
+		spin_lock_irqsave(&chp->comp_handler_lock, flag);
+		(*chp->ibcq.comp_handler)(&chp->ibcq, chp->ibcq.cq_context);
+		spin_unlock_irqrestore(&chp->comp_handler_lock, flag);
+	}
 }
 
 void c4iw_ev_dispatch(struct c4iw_dev *dev, struct t4_cqe *err_cqe)

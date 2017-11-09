@@ -813,10 +813,12 @@ static void complete_sq_drain_wr(struct c4iw_qp *qhp, struct ib_send_wr *wr)
 	t4_swcq_produce(cq);
 	spin_unlock_irqrestore(&schp->lock, flag);
 
-	spin_lock_irqsave(&schp->comp_handler_lock, flag);
-	(*schp->ibcq.comp_handler)(&schp->ibcq,
-				   schp->ibcq.cq_context);
-	spin_unlock_irqrestore(&schp->comp_handler_lock, flag);
+	if (t4_clear_cq_armed(&schp->cq)) {
+		spin_lock_irqsave(&schp->comp_handler_lock, flag);
+		(*schp->ibcq.comp_handler)(&schp->ibcq,
+					   schp->ibcq.cq_context);
+		spin_unlock_irqrestore(&schp->comp_handler_lock, flag);
+	}
 }
 
 static void complete_rq_drain_wr(struct c4iw_qp *qhp, struct ib_recv_wr *wr)
@@ -842,10 +844,12 @@ static void complete_rq_drain_wr(struct c4iw_qp *qhp, struct ib_recv_wr *wr)
 	t4_swcq_produce(cq);
 	spin_unlock_irqrestore(&rchp->lock, flag);
 
-	spin_lock_irqsave(&rchp->comp_handler_lock, flag);
-	(*rchp->ibcq.comp_handler)(&rchp->ibcq,
-				   rchp->ibcq.cq_context);
-	spin_unlock_irqrestore(&rchp->comp_handler_lock, flag);
+	if (t4_clear_cq_armed(&rchp->cq)) {
+		spin_lock_irqsave(&rchp->comp_handler_lock, flag);
+		(*rchp->ibcq.comp_handler)(&rchp->ibcq,
+					   rchp->ibcq.cq_context);
+		spin_unlock_irqrestore(&rchp->comp_handler_lock, flag);
+	}
 }
 
 int c4iw_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
