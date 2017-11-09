@@ -1553,7 +1553,6 @@ static int au1200fb_init_fbinfo(struct au1200fb_device *fbdev)
 	if (fb_alloc_cmap(&fbi->cmap, AU1200_LCD_NBR_PALETTE_ENTRIES, 0) < 0) {
 		print_err("Fail to allocate colormap (%d entries)",
 			   AU1200_LCD_NBR_PALETTE_ENTRIES);
-		kfree(fbi->pseudo_palette);
 		return -EFAULT;
 	}
 
