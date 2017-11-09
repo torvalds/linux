@@ -121,6 +121,11 @@ static int dell_wmi_descriptor_probe(struct wmi_device *wdev)
 	priv = devm_kzalloc(&wdev->dev, sizeof(struct descriptor_priv),
 	GFP_KERNEL);
 
+	if (!priv) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
 	priv->interface_version = buffer[2];
 	priv->size = buffer[3];
 	ret = 0;
