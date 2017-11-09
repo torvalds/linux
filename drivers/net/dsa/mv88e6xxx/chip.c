@@ -1137,7 +1137,7 @@ static int mv88e6xxx_port_check_hw_vlan(struct dsa_switch *ds, int port,
 			if (dsa_is_dsa_port(ds, i) || dsa_is_cpu_port(ds, i))
 				continue;
 
-			if (!ds->ports[port].slave)
+			if (!ds->ports[i].slave)
 				continue;
 
 			if (vlan.member[i] ==
