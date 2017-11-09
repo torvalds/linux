@@ -35,7 +35,7 @@ struct blk_mq_hw_ctx {
 	struct blk_mq_ctx	**ctxs;
 	unsigned int		nr_ctx;
 
-	wait_queue_entry_t		dispatch_wait;
+	wait_queue_entry_t	dispatch_wait;
 	atomic_t		wait_index;
 
 	struct blk_mq_tags	*tags;
@@ -181,8 +181,7 @@ enum {
 	BLK_MQ_S_STOPPED	= 0,
 	BLK_MQ_S_TAG_ACTIVE	= 1,
 	BLK_MQ_S_SCHED_RESTART	= 2,
-	BLK_MQ_S_TAG_WAITING	= 3,
-	BLK_MQ_S_START_ON_RUN	= 4,
+	BLK_MQ_S_START_ON_RUN	= 3,
 
 	BLK_MQ_MAX_DEPTH	= 10240,
 
