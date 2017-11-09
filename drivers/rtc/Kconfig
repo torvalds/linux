@@ -1187,6 +1187,17 @@ config RTC_DRV_WM8350
 	  This driver can also be built as a module. If so, the module
 	  will be called "rtc-wm8350".
 
+config RTC_DRV_SC27XX
+	tristate "Spreadtrum SC27xx RTC"
+	depends on MFD_SC27XX_PMIC || COMPILE_TEST
+	help
+	  If you say Y here you will get support for the RTC subsystem
+	  of the Spreadtrum SC27xx series PMICs. The SC27xx series PMICs
+	  includes the SC2720, SC2721, SC2723, SC2730 and SC2731 chips.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-sc27xx.
+
 config RTC_DRV_SPEAR
 	tristate "SPEAR ST RTC"
 	depends on PLAT_SPEAR || COMPILE_TEST
