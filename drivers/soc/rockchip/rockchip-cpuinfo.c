@@ -12,6 +12,7 @@
  */
 
 #include <linux/crc32.h>
+#include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/nvmem-consumer.h>
@@ -86,6 +87,58 @@ static struct platform_driver rockchip_cpuinfo_driver = {
 		.of_match_table = rockchip_cpuinfo_of_match,
 	},
 };
+
+#ifdef CONFIG_ARM
+static void rk3288_init(void)
+{
+	void __iomem *base;
+
+	rockchip_soc_id = ROCKCHIP_SOC_RK3288;
+#define RK3288_HDMI_PHYS	0xFF980000
+	base = ioremap(RK3288_HDMI_PHYS, SZ_4K);
+	if (base) {
+		/* RK3288W HDMI Revision ID is 0x1A */
+		if (readl_relaxed(base + 4) == 0x1A)
+			rockchip_soc_id = ROCKCHIP_SOC_RK3288W;
+		iounmap(base);
+	}
+}
+
+static void rk3126_init(void)
+{
+	void __iomem *base;
+
+	rockchip_soc_id = ROCKCHIP_SOC_RK3126;
+#define RK312X_GRF_PHYS		0x20008000
+#define RK312X_GRF_SOC_CON1	0x00000144
+#define RK312X_GRF_CHIP_TAG	0x00000300
+	base = ioremap(RK312X_GRF_PHYS, SZ_4K);
+	if (base) {
+		if (readl_relaxed(base + RK312X_GRF_CHIP_TAG) == 0x3136) {
+			if (readl_relaxed(base + RK312X_GRF_SOC_CON1) & 0x1)
+				rockchip_soc_id = ROCKCHIP_SOC_RK3126C;
+			else
+				rockchip_soc_id = ROCKCHIP_SOC_RK3126B;
+		}
+		iounmap(base);
+	}
+}
+
+static int __init rockchip_soc_id_init(void)
+{
+	if (cpu_is_rk3288()) {
+		rk3288_init();
+	} else if (cpu_is_rk312x()) {
+		if (of_machine_is_compatible("rockchip,rk3128"))
+			rockchip_soc_id = ROCKCHIP_SOC_RK3128;
+		else
+			rk3126_init();
+	}
+
+	return 0;
+}
+pure_initcall(rockchip_soc_id_init);
+#endif
 
 static int __init rockchip_cpuinfo_init(void)
 {

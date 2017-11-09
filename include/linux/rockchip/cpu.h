@@ -1,14 +1,24 @@
-#ifndef __MACH_ROCKCHIP_CPU_H
-#define __MACH_ROCKCHIP_CPU_H
+/*
+ * Copyright (C) 2017 Rockchip Electronics Co. Ltd.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of version 2 of the GNU General Public License as
+ * published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
+ * more details.
+ */
+
+#ifndef __LINUX_ROCKCHIP_CPU_H
+#define __LINUX_ROCKCHIP_CPU_H
+
+#include <linux/of.h>
 
 #ifdef CONFIG_ROCKCHIP_CPUINFO
 
 extern unsigned long rockchip_soc_id;
-
-static inline bool cpu_is_rockchip(void)
-{
-	return rockchip_soc_id;
-}
 
 #define ROCKCHIP_CPU_VERION_MASK	0x0000f000
 #define ROCKCHIP_CPU_VERION_SHIFT	12
@@ -28,10 +38,7 @@ static inline void rockchip_set_cpu_version(unsigned long ver)
 
 #else
 
-static inline bool cpu_is_rockchip(void)
-{
-	return true;
-}
+#define rockchip_soc_id 0
 
 static inline unsigned long rockchip_get_cpu_version(void)
 {
@@ -45,91 +52,48 @@ static inline void rockchip_set_cpu_version(unsigned long ver)
 #endif
 
 #define ROCKCHIP_CPU_MASK       0xffff0000
-#define ROCKCHIP_CPU_RK2928     0x29280000
-#define ROCKCHIP_CPU_RK3026     0x30260000
 #define ROCKCHIP_CPU_RK312X     0x31260000
-#define ROCKCHIP_CPU_RK3036     0x30360000
-#define ROCKCHIP_CPU_RK30XX     0x30660000
-#define ROCKCHIP_CPU_RK3066B    0x31680000
-#define ROCKCHIP_CPU_RK3188     0x31880000
-#define ROCKCHIP_CPU_RK319X     0x31900000
 #define ROCKCHIP_CPU_RK3288     0x32880000
-#define ROCKCHIP_CPU_RK3228     0x32280000
 
-#ifdef CONFIG_ROCKCHIP_CPUINFO
-#define ROCKCHIP_CPU(id, ID) \
-static inline bool cpu_is_rk##id(void) \
-{ \
-	return (rockchip_soc_id & ROCKCHIP_CPU_MASK) == ROCKCHIP_CPU_RK ##ID; \
+static inline bool cpu_is_rk312x(void)
+{
+	if (rockchip_soc_id)
+		return (rockchip_soc_id & ROCKCHIP_CPU_MASK) == ROCKCHIP_CPU_RK312X;
+	return of_machine_is_compatible("rockchip,rk3126") ||
+	       of_machine_is_compatible("rockchip,rk3126b") ||
+	       of_machine_is_compatible("rockchip,rk3126c") ||
+	       of_machine_is_compatible("rockchip,rk3128");
 }
-#else
-#define ROCKCHIP_CPU(id, ID) \
-static inline bool cpu_is_rk##id(void) { return false; }
-#endif
 
-ROCKCHIP_CPU(2928, 2928)
-ROCKCHIP_CPU(3026, 3026)
-ROCKCHIP_CPU(3036, 3036)
-ROCKCHIP_CPU(30xx, 30XX)
-ROCKCHIP_CPU(3066b, 3066B)
-ROCKCHIP_CPU(312x, 312X)
-ROCKCHIP_CPU(3188, 3188)
-ROCKCHIP_CPU(319x, 319X)
-ROCKCHIP_CPU(3288, 3288)
-ROCKCHIP_CPU(3228, 3228)
+static inline bool cpu_is_rk3288(void)
+{
+	if (rockchip_soc_id)
+		return (rockchip_soc_id & ROCKCHIP_CPU_MASK) == ROCKCHIP_CPU_RK3288;
+	return of_machine_is_compatible("rockchip,rk3288") ||
+	       of_machine_is_compatible("rockchip,rk3288w");
+}
 
 #define ROCKCHIP_SOC_MASK	(ROCKCHIP_CPU_MASK | 0xff)
-#define ROCKCHIP_SOC_RK2926     (ROCKCHIP_CPU_RK2928 | 0x00)
-#define ROCKCHIP_SOC_RK2928G    (ROCKCHIP_CPU_RK2928 | 0x01)
-#define ROCKCHIP_SOC_RK2928L    (ROCKCHIP_CPU_RK2928 | 0x02)
-#define ROCKCHIP_SOC_RK3028A    (ROCKCHIP_CPU_RK3026 | 0x03)
-#define ROCKCHIP_SOC_RK3026     (ROCKCHIP_CPU_RK3026 | 0x04)
 #define ROCKCHIP_SOC_RK3126     (ROCKCHIP_CPU_RK312X | 0x00)
 #define ROCKCHIP_SOC_RK3126B    (ROCKCHIP_CPU_RK312X | 0x10)
+#define ROCKCHIP_SOC_RK3126C    (ROCKCHIP_CPU_RK312X | 0x20)
 #define ROCKCHIP_SOC_RK3128     (ROCKCHIP_CPU_RK312X | 0x01)
-#define ROCKCHIP_SOC_RK3036     (ROCKCHIP_CPU_RK3036 | 0x00)
-#define ROCKCHIP_SOC_RK3000     (ROCKCHIP_CPU_RK30XX | 0x00)
-#define ROCKCHIP_SOC_RK3066     (ROCKCHIP_CPU_RK30XX | 0x01)
-#define ROCKCHIP_SOC_RK3068     (ROCKCHIP_CPU_RK30XX | 0x02)
-#define ROCKCHIP_SOC_RK3066B    (ROCKCHIP_CPU_RK3066B| 0x00)
-#define ROCKCHIP_SOC_RK3168     (ROCKCHIP_CPU_RK3066B| 0x01)
-#define ROCKCHIP_SOC_RK3028     (ROCKCHIP_CPU_RK3066B| 0x03)
-#define ROCKCHIP_SOC_RK3188     (ROCKCHIP_CPU_RK3188 | 0x00)
-#define ROCKCHIP_SOC_RK3188PLUS (ROCKCHIP_CPU_RK3188 | 0x10)
-#define ROCKCHIP_SOC_RK3190     (ROCKCHIP_CPU_RK319X | 0x00)
 #define ROCKCHIP_SOC_RK3288     (ROCKCHIP_CPU_RK3288 | 0x00)
-#define ROCKCHIP_SOC_RK3228     (ROCKCHIP_CPU_RK3228 | 0x00)
+#define ROCKCHIP_SOC_RK3288W    (ROCKCHIP_CPU_RK3288 | 0x01)
 
-#ifdef CONFIG_ROCKCHIP_CPUINFO
 #define ROCKCHIP_SOC(id, ID) \
-static inline bool soc_is_rk##id(void) \
+static inline bool soc_is_##id(void) \
 { \
-	return (rockchip_soc_id & ROCKCHIP_SOC_MASK) == ROCKCHIP_SOC_RK ##ID; \
+	if (rockchip_soc_id) \
+		return ((rockchip_soc_id & ROCKCHIP_SOC_MASK) == ROCKCHIP_SOC_ ##ID); \
+	return of_machine_is_compatible("rockchip,"#id); \
 }
-#else
-#define ROCKCHIP_SOC(id, ID) \
-static inline bool soc_is_rk##id(void) { return false; }
-#endif
 
-ROCKCHIP_SOC(2926, 2926)
-ROCKCHIP_SOC(2928g, 2928G)
-ROCKCHIP_SOC(2928l, 2928L)
-ROCKCHIP_SOC(3028a, 3028A)
-ROCKCHIP_SOC(3026, 3026)
-ROCKCHIP_SOC(3126, 3126)
-ROCKCHIP_SOC(3126b, 3126B)
-ROCKCHIP_SOC(3128, 3128)
-ROCKCHIP_SOC(3036, 3036)
-ROCKCHIP_SOC(3000, 3000)
-ROCKCHIP_SOC(3066, 3066)
-ROCKCHIP_SOC(3068, 3068)
-ROCKCHIP_SOC(3066b, 3066B)
-ROCKCHIP_SOC(3168, 3168)
-ROCKCHIP_SOC(3028, 3028)
-ROCKCHIP_SOC(3188, 3188)
-ROCKCHIP_SOC(3188plus, 3188PLUS)
-ROCKCHIP_SOC(3190, 3190)
-ROCKCHIP_SOC(3288, 3288)
-ROCKCHIP_SOC(3228, 3228)
+ROCKCHIP_SOC(rk3126, RK3126)
+ROCKCHIP_SOC(rk3126b, RK3126B)
+ROCKCHIP_SOC(rk3126c, RK3126C)
+ROCKCHIP_SOC(rk3128, RK3128)
+ROCKCHIP_SOC(rk3288, RK3288)
+ROCKCHIP_SOC(rk3288w, RK3288W)
 
 #endif
