@@ -418,7 +418,7 @@ unsigned long slice_get_unmapped_area(unsigned long addr, unsigned long len,
 	unsigned long high_limit;
 
 	high_limit = DEFAULT_MAP_WINDOW;
-	if (addr >= high_limit)
+	if (addr >= high_limit || (fixed && (addr + len > high_limit)))
 		high_limit = TASK_SIZE;
 
 	if (len > high_limit)
