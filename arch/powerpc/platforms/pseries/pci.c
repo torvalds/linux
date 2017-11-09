@@ -63,6 +63,7 @@ int pseries_pcibios_sriov_enable(struct pci_dev *pdev, u16 num_vfs)
 {
 	/* Allocate PCI data */
 	add_dev_pci_data(pdev);
+	pci_vf_drivers_autoprobe(pdev, false);
 	return 0;
 }
 
@@ -70,6 +71,7 @@ int pseries_pcibios_sriov_disable(struct pci_dev *pdev)
 {
 	/* Release PCI data */
 	remove_dev_pci_data(pdev);
+	pci_vf_drivers_autoprobe(pdev, true);
 	return 0;
 }
 #endif

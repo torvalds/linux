@@ -636,6 +636,17 @@ void pci_restore_iov_state(struct pci_dev *dev)
 }
 
 /**
+ * pci_vf_drivers_autoprobe - set PF property drivers_autoprobe for VFs
+ * @dev: the PCI device
+ * @auto_probe: set VF drivers auto probe flag
+ */
+void pci_vf_drivers_autoprobe(struct pci_dev *dev, bool auto_probe)
+{
+	if (dev->is_physfn)
+		dev->sriov->drivers_autoprobe = auto_probe;
+}
+
+/**
  * pci_iov_bus_range - find bus range used by Virtual Function
  * @bus: the PCI bus
  *
