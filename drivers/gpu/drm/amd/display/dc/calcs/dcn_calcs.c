@@ -439,18 +439,6 @@ static void dcn_bw_calc_rq_dlg_ttu(
 	input.dout.output_format = (v->output_format[in_idx] == dcn_bw_420) ? dm_420 : dm_444;
 	input.dout.output_type  = (v->output[in_idx] == dcn_bw_hdmi) ? dm_hdmi : dm_dp;
 	//input[in_idx].dout.output_standard;
-	switch (v->output_deep_color[in_idx]) {
-	case dcn_bw_encoder_12bpc:
-		input.dout.output_bpc = dm_out_12;
-	break;
-	case dcn_bw_encoder_10bpc:
-		input.dout.output_bpc = dm_out_10;
-	break;
-	case dcn_bw_encoder_8bpc:
-	default:
-		input.dout.output_bpc = dm_out_8;
-	break;
-	}
 
 	/*todo: soc->sr_enter_plus_exit_time??*/
 	dlg_sys_param.t_srx_delay_us = dc->dcn_ip->dcfclk_cstate_latency / v->dcf_clk_deep_sleep;
