@@ -1046,6 +1046,7 @@ static int el3_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	switch(cmd) {
 	case SIOCGMIIPHY:		/* Get the address of the PHY in use. */
 		data->phy_id = phy;
+		/* fall through */
 	case SIOCGMIIREG:		/* Read the specified MII register. */
 		{
 			int saved_window;
