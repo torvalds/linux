@@ -62,6 +62,8 @@ MODULE_FIRMWARE("amdgpu/polaris11_sdma.bin");
 MODULE_FIRMWARE("amdgpu/polaris11_sdma1.bin");
 MODULE_FIRMWARE("amdgpu/polaris12_sdma.bin");
 MODULE_FIRMWARE("amdgpu/polaris12_sdma1.bin");
+MODULE_FIRMWARE("amdgpu/vegam_sdma.bin");
+MODULE_FIRMWARE("amdgpu/vegam_sdma1.bin");
 
 
 static const u32 sdma_offsets[SDMA_MAX_INSTANCE] =
@@ -275,14 +277,17 @@ static int sdma_v3_0_init_microcode(struct amdgpu_device *adev)
 	case CHIP_FIJI:
 		chip_name = "fiji";
 		break;
-	case CHIP_POLARIS11:
-		chip_name = "polaris11";
-		break;
 	case CHIP_POLARIS10:
 		chip_name = "polaris10";
 		break;
+	case CHIP_POLARIS11:
+		chip_name = "polaris11";
+		break;
 	case CHIP_POLARIS12:
 		chip_name = "polaris12";
+		break;
+	case CHIP_VEGAM:
+		chip_name = "vegam";
 		break;
 	case CHIP_CARRIZO:
 		chip_name = "carrizo";
