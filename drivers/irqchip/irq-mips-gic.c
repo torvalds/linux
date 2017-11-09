@@ -701,6 +701,8 @@ static int __init gic_of_init(struct device_node *node,
 			gic_base = read_gcr_gic_base() &
 				~CM_GCR_GIC_BASE_GICEN;
 			gic_len = 0x20000;
+			pr_warn("Using inherited base address %pa\n",
+				&gic_base);
 		} else {
 			pr_err("Failed to get memory range\n");
 			return -ENODEV;
