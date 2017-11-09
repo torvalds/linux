@@ -4662,10 +4662,8 @@ static int amdgpu_dm_atomic_check(struct drm_device *dev,
 	bool lock_and_validation_needed = false;
 
 	ret = drm_atomic_helper_check_modeset(dev, state);
-	if (ret) {
-		DRM_ERROR("Atomic state validation failed with error :%d !\n", ret);
-		return ret;
-	}
+	if (ret)
+		goto fail;
 
 	/*
 	 * legacy_cursor_update should be made false for SoC's having
@@ -4782,11 +4780,11 @@ static int amdgpu_dm_atomic_check(struct drm_device *dev,
 
 fail:
 	if (ret == -EDEADLK)
-		DRM_DEBUG_DRIVER("Atomic check stopped due to to deadlock.\n");
+		DRM_DEBUG_DRIVER("Atomic check stopped to avoid deadlock.\n");
 	else if (ret == -EINTR || ret == -EAGAIN || ret == -ERESTARTSYS)
-		DRM_DEBUG_DRIVER("Atomic check stopped due to to signal.\n");
+		DRM_DEBUG_DRIVER("Atomic check stopped due to signal.\n");
 	else
-		DRM_ERROR("Atomic check failed with err: %d \n", ret);
+		DRM_DEBUG_DRIVER("Atomic check failed with err: %d \n", ret);
 
 	return ret;
 }
