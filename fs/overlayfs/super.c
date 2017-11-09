@@ -895,6 +895,75 @@ out:
 	return err;
 }
 
+static int ovl_get_lowerstack(struct super_block *sb, struct ovl_fs *ufs,
+			      struct path **stackp, unsigned int *stacklenp)
+{
+	int err;
+	char *lowertmp, *lower;
+	struct path *stack;
+	unsigned int stacklen, numlower, i;
+	bool remote = false;
+
+	err = -ENOMEM;
+	lowertmp = kstrdup(ufs->config.lowerdir, GFP_KERNEL);
+	if (!lowertmp)
+		goto out;
+
+	err = -EINVAL;
+	stacklen = ovl_split_lowerdirs(lowertmp);
+	if (stacklen > OVL_MAX_STACK) {
+		pr_err("overlayfs: too many lower directories, limit is %d\n",
+		       OVL_MAX_STACK);
+		goto out;
+	} else if (!ufs->config.upperdir && stacklen == 1) {
+		pr_err("overlayfs: at least 2 lowerdir are needed while upperdir nonexistent\n");
+		goto out;
+	}
+
+	err = -ENOMEM;
+	stack = kcalloc(stacklen, sizeof(struct path), GFP_KERNEL);
+	if (!stack)
+		goto out;
+
+	err = -EINVAL;
+	lower = lowertmp;
+	for (numlower = 0; numlower < stacklen; numlower++) {
+		err = ovl_lower_dir(lower, &stack[numlower], ufs,
+				    &sb->s_stack_depth, &remote);
+		if (err)
+			goto out_free_stack;
+
+		lower = strchr(lower, '\0') + 1;
+	}
+
+	err = -EINVAL;
+	sb->s_stack_depth++;
+	if (sb->s_stack_depth > FILESYSTEM_MAX_STACK_DEPTH) {
+		pr_err("overlayfs: maximum fs stacking depth exceeded\n");
+		goto out_free_stack;
+	}
+
+	*stackp = stack;
+	*stacklenp = numlower;
+
+	if (remote)
+		sb->s_d_op = &ovl_reval_dentry_operations;
+	else
+		sb->s_d_op = &ovl_dentry_operations;
+
+	err = 0;
+
+out:
+	kfree(lowertmp);
+	return err;
+
+out_free_stack:
+	for (i = 0; i < numlower; i++)
+		path_put(&stack[i]);
+	kfree(stack);
+	goto out;
+}
+
 static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 {
 	struct path upperpath = { };
@@ -903,12 +972,8 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 	struct ovl_entry *oe;
 	struct ovl_fs *ufs;
 	struct path *stack = NULL;
-	char *lowertmp;
-	char *lower;
-	unsigned int numlower;
-	unsigned int stacklen = 0;
+	unsigned int numlower = 0;
 	unsigned int i;
-	bool remote = false;
 	struct cred *cred;
 	int err;
 
@@ -948,44 +1013,9 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 
 		sb->s_stack_depth = upperpath.mnt->mnt_sb->s_stack_depth;
 	}
-	err = -ENOMEM;
-	lowertmp = kstrdup(ufs->config.lowerdir, GFP_KERNEL);
-	if (!lowertmp)
+	err = ovl_get_lowerstack(sb, ufs, &stack, &numlower);
+	if (err)
 		goto out_unlock_workdentry;
-
-	err = -EINVAL;
-	stacklen = ovl_split_lowerdirs(lowertmp);
-	if (stacklen > OVL_MAX_STACK) {
-		pr_err("overlayfs: too many lower directories, limit is %d\n",
-		       OVL_MAX_STACK);
-		goto out_free_lowertmp;
-	} else if (!ufs->config.upperdir && stacklen == 1) {
-		pr_err("overlayfs: at least 2 lowerdir are needed while upperdir nonexistent\n");
-		goto out_free_lowertmp;
-	}
-
-	err = -ENOMEM;
-	stack = kcalloc(stacklen, sizeof(struct path), GFP_KERNEL);
-	if (!stack)
-		goto out_free_lowertmp;
-
-	err = -EINVAL;
-	lower = lowertmp;
-	for (numlower = 0; numlower < stacklen; numlower++) {
-		err = ovl_lower_dir(lower, &stack[numlower], ufs,
-				    &sb->s_stack_depth, &remote);
-		if (err)
-			goto out_put_lowerpath;
-
-		lower = strchr(lower, '\0') + 1;
-	}
-
-	err = -EINVAL;
-	sb->s_stack_depth++;
-	if (sb->s_stack_depth > FILESYSTEM_MAX_STACK_DEPTH) {
-		pr_err("overlayfs: maximum fs stacking depth exceeded\n");
-		goto out_put_lowerpath;
-	}
 
 	if (ufs->config.upperdir) {
 		ufs->upper_mnt = clone_private_mount(&upperpath);
@@ -1145,11 +1175,6 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 	if (!ufs->indexdir)
 		ufs->config.index = false;
 
-	if (remote)
-		sb->s_d_op = &ovl_reval_dentry_operations;
-	else
-		sb->s_d_op = &ovl_dentry_operations;
-
 	err = -ENOMEM;
 	ufs->creator_cred = cred = prepare_creds();
 	if (!cred)
@@ -1173,7 +1198,6 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 		mntput(stack[i].mnt);
 	kfree(stack);
 	mntput(workpath.mnt);
-	kfree(lowertmp);
 
 	if (upperpath.dentry) {
 		oe->has_upper = true;
@@ -1212,8 +1236,6 @@ out_put_lowerpath:
 	for (i = 0; i < numlower; i++)
 		path_put(&stack[i]);
 	kfree(stack);
-out_free_lowertmp:
-	kfree(lowertmp);
 out_unlock_workdentry:
 	if (ufs->workdir_locked)
 		ovl_inuse_unlock(workpath.dentry);
