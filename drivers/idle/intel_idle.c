@@ -1066,7 +1066,7 @@ static const struct idle_cpu idle_cpu_dnv = {
 };
 
 #define ICPU(model, cpu) \
-	{ X86_VENDOR_INTEL, 6, model, X86_FEATURE_MWAIT, (unsigned long)&cpu }
+	{ X86_VENDOR_INTEL, 6, model, X86_FEATURE_ANY, (unsigned long)&cpu }
 
 static const struct x86_cpu_id intel_idle_ids[] __initconst = {
 	ICPU(INTEL_FAM6_NEHALEM_EP,		idle_cpu_nehalem),
@@ -1127,6 +1127,11 @@ static int __init intel_idle_probe(void)
 		    boot_cpu_data.x86 == 6)
 			pr_debug("does not run on family %d model %d\n",
 				 boot_cpu_data.x86, boot_cpu_data.x86_model);
+		return -ENODEV;
+	}
+
+	if (!boot_cpu_has(X86_FEATURE_MWAIT)) {
+		pr_debug("Please enable MWAIT in BIOS SETUP\n");
 		return -ENODEV;
 	}
 
