@@ -225,16 +225,18 @@ static int cc_generate_mlli(
 	mlli_p = (u32 *)mlli_params->mlli_virt_addr;
 	/* go over all SG's and link it to one MLLI table */
 	for (i = 0; i < sg_data->num_of_buffers; i++) {
+		union buffer_array_entry *entry = &sg_data->entry[i];
+		u32 tot_len = sg_data->total_data_len[i];
+		u32 offset = sg_data->offset[i];
+
 		if (sg_data->type[i] == DMA_SGL_TYPE)
-			rc = cc_render_sg_to_mlli(dev, sg_data->entry[i].sgl,
-						  sg_data->total_data_len[i],
-						  sg_data->offset[i],
-						  &total_nents, &mlli_p);
+			rc = cc_render_sg_to_mlli(dev, entry->sgl, tot_len,
+						  offset, &total_nents,
+						  &mlli_p);
 		else /*DMA_BUFF_TYPE*/
-			rc = cc_render_buff_to_mlli(dev,
-						    sg_data->entry[i].buffer_dma,
-						    sg_data->total_data_len[i],
-						    &total_nents, &mlli_p);
+			rc = cc_render_buff_to_mlli(dev, entry->buffer_dma,
+						    tot_len, &total_nents,
+						    &mlli_p);
 		if (rc != 0)
 			return rc;
 
