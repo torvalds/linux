@@ -4703,6 +4703,11 @@ static int dm_update_planes_state(struct dc *dc,
 				return ret;
 			}
 
+			/* Tell DC to do a full surface update every time there
+			 * is a plane change. Inefficient, but works for now.
+			 */
+			dm_new_plane_state->dc_state->update_flags.bits.full_update = 1;
+
 			*lock_and_validation_needed = true;
 		}
 	}
