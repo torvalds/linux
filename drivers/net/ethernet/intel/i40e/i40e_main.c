@@ -5629,14 +5629,6 @@ static int i40e_validate_num_queues(struct i40e_pf *pf, int num_queues,
 		return -EINVAL;
 
 	*reconfig_rss = false;
-
-	if (num_queues > I40E_MAX_QUEUES_PER_CH) {
-		dev_err(&pf->pdev->dev,
-			"Failed to create VMDq VSI. User requested num_queues (%d) > I40E_MAX_QUEUES_PER_VSI (%u)\n",
-			num_queues, I40E_MAX_QUEUES_PER_CH);
-		return -EINVAL;
-	}
-
 	if (vsi->current_rss_size) {
 		if (num_queues > vsi->current_rss_size) {
 			dev_dbg(&pf->pdev->dev,
