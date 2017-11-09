@@ -1889,6 +1889,9 @@ static void sm501_free_init_fb(struct sm501fb_info *info,
 {
 	struct fb_info *fbi = info->fb[head];
 
+	if (!fbi)
+		return;
+
 	fb_dealloc_cmap(&fbi->cmap);
 }
 
