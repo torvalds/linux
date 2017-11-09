@@ -2434,6 +2434,18 @@ static bool __has_curseg_space(struct f2fs_sb_info *sbi, int type)
 	return false;
 }
 
+int rw_hint_to_seg_type(enum rw_hint hint)
+{
+	switch (hint) {
+	case WRITE_LIFE_SHORT:
+		return CURSEG_HOT_DATA;
+	case WRITE_LIFE_EXTREME:
+		return CURSEG_COLD_DATA;
+	default:
+		return CURSEG_WARM_DATA;
+	}
+}
+
 static int __get_segment_type_2(struct f2fs_io_info *fio)
 {
 	if (fio->type == DATA)
@@ -2468,7 +2480,7 @@ static int __get_segment_type_6(struct f2fs_io_info *fio)
 			return CURSEG_COLD_DATA;
 		if (is_inode_flag_set(inode, FI_HOT_DATA))
 			return CURSEG_HOT_DATA;
-		return CURSEG_WARM_DATA;
+		return rw_hint_to_seg_type(inode->i_write_hint);
 	} else {
 		if (IS_DNODE(fio->page))
 			return is_cold_node(fio->page) ? CURSEG_WARM_NODE :
