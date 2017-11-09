@@ -79,7 +79,6 @@ int pciehp_configure_device(struct slot *p_slot)
 int pciehp_unconfigure_device(struct slot *p_slot)
 {
 	int rc = 0;
-	u8 bctl = 0;
 	u8 presence = 0;
 	struct pci_dev *dev, *temp;
 	struct pci_bus *parent = p_slot->ctrl->pcie->port->subordinate;
@@ -101,17 +100,6 @@ int pciehp_unconfigure_device(struct slot *p_slot)
 	list_for_each_entry_safe_reverse(dev, temp, &parent->devices,
 					 bus_list) {
 		pci_dev_get(dev);
-		if (dev->hdr_type == PCI_HEADER_TYPE_BRIDGE && presence) {
-			pci_read_config_byte(dev, PCI_BRIDGE_CONTROL, &bctl);
-			if (bctl & PCI_BRIDGE_CTL_VGA) {
-				ctrl_err(ctrl,
-					 "Cannot remove display device %s\n",
-					 pci_name(dev));
-				pci_dev_put(dev);
-				rc = -EINVAL;
-				break;
-			}
-		}
 		if (!presence) {
 			pci_dev_set_disconnected(dev, NULL);
 			if (pci_has_subordinate(dev))
