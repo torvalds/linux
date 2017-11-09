@@ -531,10 +531,12 @@ static void get_dev_fw_str(struct ib_device *dev, char *str)
 		 FW_HDR_FW_VER_BUILD_G(c4iw_dev->rdev.lldi.fw_vers));
 }
 
-int c4iw_register_device(struct c4iw_dev *dev)
+void c4iw_register_device(struct work_struct *work)
 {
 	int ret;
 	int i;
+	struct uld_ctx *ctx = container_of(work, struct uld_ctx, reg_work);
+	struct c4iw_dev *dev = ctx->dev;
 
 	pr_debug("c4iw_dev %p\n", dev);
 	strlcpy(dev->ibdev.name, "cxgb4_%d", IB_DEVICE_NAME_MAX);
@@ -609,8 +611,10 @@ int c4iw_register_device(struct c4iw_dev *dev)
 	dev->ibdev.get_dev_fw_str = get_dev_fw_str;
 
 	dev->ibdev.iwcm = kmalloc(sizeof(struct iw_cm_verbs), GFP_KERNEL);
-	if (!dev->ibdev.iwcm)
-		return -ENOMEM;
+	if (!dev->ibdev.iwcm) {
+		ret = -ENOMEM;
+		goto err_dealloc_ctx;
+	}
 
 	dev->ibdev.iwcm->connect = c4iw_connect;
 	dev->ibdev.iwcm->accept = c4iw_accept_cr;
@@ -625,20 +629,24 @@ int c4iw_register_device(struct c4iw_dev *dev)
 
 	ret = ib_register_device(&dev->ibdev, NULL);
 	if (ret)
-		goto bail1;
+		goto err_kfree_iwcm;
 
 	for (i = 0; i < ARRAY_SIZE(c4iw_class_attributes); ++i) {
 		ret = device_create_file(&dev->ibdev.dev,
 					 c4iw_class_attributes[i]);
 		if (ret)
-			goto bail2;
+			goto err_unregister_device;
 	}
-	return 0;
-bail2:
+	return;
+err_unregister_device:
 	ib_unregister_device(&dev->ibdev);
-bail1:
+err_kfree_iwcm:
 	kfree(dev->ibdev.iwcm);
-	return ret;
+err_dealloc_ctx:
+	pr_err("%s - Failed registering iwarp device: %d\n",
+	       pci_name(ctx->lldi.pdev), ret);
+	c4iw_dealloc(ctx);
+	return;
 }
 
 void c4iw_unregister_device(struct c4iw_dev *dev)

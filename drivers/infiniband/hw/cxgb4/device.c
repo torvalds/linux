@@ -64,14 +64,9 @@ module_param(c4iw_wr_log_size_order, int, 0444);
 MODULE_PARM_DESC(c4iw_wr_log_size_order,
 		 "Number of entries (log2) in the work request timing log.");
 
-struct uld_ctx {
-	struct list_head entry;
-	struct cxgb4_lld_info lldi;
-	struct c4iw_dev *dev;
-};
-
 static LIST_HEAD(uld_ctx_list);
 static DEFINE_MUTEX(dev_mutex);
+struct workqueue_struct *reg_workq;
 
 #define DB_FC_RESUME_SIZE 64
 #define DB_FC_RESUME_DELAY 1
@@ -912,7 +907,7 @@ static void c4iw_rdev_close(struct c4iw_rdev *rdev)
 	c4iw_destroy_resource(&rdev->resource);
 }
 
-static void c4iw_dealloc(struct uld_ctx *ctx)
+void c4iw_dealloc(struct uld_ctx *ctx)
 {
 	c4iw_rdev_close(&ctx->dev->rdev);
 	WARN_ON_ONCE(!idr_is_empty(&ctx->dev->cqidr));
@@ -1208,8 +1203,6 @@ static int c4iw_uld_state_change(void *handle, enum cxgb4_state new_state)
 	case CXGB4_STATE_UP:
 		pr_info("%s: Up\n", pci_name(ctx->lldi.pdev));
 		if (!ctx->dev) {
-			int ret;
-
 			ctx->dev = c4iw_alloc(&ctx->lldi);
 			if (IS_ERR(ctx->dev)) {
 				pr_err("%s: initialization failed: %ld\n",
@@ -1218,12 +1211,9 @@ static int c4iw_uld_state_change(void *handle, enum cxgb4_state new_state)
 				ctx->dev = NULL;
 				break;
 			}
-			ret = c4iw_register_device(ctx->dev);
-			if (ret) {
-				pr_err("%s: RDMA registration failed: %d\n",
-				       pci_name(ctx->lldi.pdev), ret);
-				c4iw_dealloc(ctx);
-			}
+
+			INIT_WORK(&ctx->reg_work, c4iw_register_device);
+			queue_work(reg_workq, &ctx->reg_work);
 		}
 		break;
 	case CXGB4_STATE_DOWN:
@@ -1551,6 +1541,12 @@ static int __init c4iw_init_module(void)
 	if (!c4iw_debugfs_root)
 		pr_warn("could not create debugfs entry, continuing\n");
 
+	reg_workq = create_singlethread_workqueue("Register_iWARP_device");
+	if (!reg_workq) {
+		pr_err("Failed creating workqueue to register iwarp device\n");
+		return -ENOMEM;
+	}
+
 	cxgb4_register_uld(CXGB4_ULD_RDMA, &c4iw_uld_info);
 
 	return 0;
@@ -1567,6 +1563,8 @@ static void __exit c4iw_exit_module(void)
 		kfree(ctx);
 	}
 	mutex_unlock(&dev_mutex);
+	flush_workqueue(reg_workq);
+	destroy_workqueue(reg_workq);
 	cxgb4_unregister_uld(CXGB4_ULD_RDMA);
 	c4iw_cm_term();
 	debugfs_remove_recursive(c4iw_debugfs_root);

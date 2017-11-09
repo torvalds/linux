@@ -322,6 +322,13 @@ struct c4iw_dev {
 	wait_queue_head_t wait;
 };
 
+struct uld_ctx {
+	struct list_head entry;
+	struct cxgb4_lld_info lldi;
+	struct c4iw_dev *dev;
+	struct work_struct reg_work;
+};
+
 static inline struct c4iw_dev *to_c4iw_dev(struct ib_device *ibdev)
 {
 	return container_of(ibdev, struct c4iw_dev, ibdev);
@@ -988,7 +995,7 @@ void c4iw_rqtpool_destroy(struct c4iw_rdev *rdev);
 void c4iw_ocqp_pool_destroy(struct c4iw_rdev *rdev);
 void c4iw_destroy_resource(struct c4iw_resource *rscp);
 int c4iw_destroy_ctrl_qp(struct c4iw_rdev *rdev);
-int c4iw_register_device(struct c4iw_dev *dev);
+void c4iw_register_device(struct work_struct *work);
 void c4iw_unregister_device(struct c4iw_dev *dev);
 int __init c4iw_cm_init(void);
 void c4iw_cm_term(void);
@@ -1014,6 +1021,7 @@ struct ib_mr *c4iw_alloc_mr(struct ib_pd *pd,
 int c4iw_map_mr_sg(struct ib_mr *ibmr, struct scatterlist *sg, int sg_nents,
 		   unsigned int *sg_offset);
 int c4iw_dealloc_mw(struct ib_mw *mw);
+void c4iw_dealloc(struct uld_ctx *ctx);
 struct ib_mw *c4iw_alloc_mw(struct ib_pd *pd, enum ib_mw_type type,
 			    struct ib_udata *udata);
 struct ib_mr *c4iw_reg_user_mr(struct ib_pd *pd, u64 start,
