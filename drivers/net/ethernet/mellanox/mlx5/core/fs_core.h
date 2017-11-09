@@ -176,11 +176,8 @@ struct fs_fte {
 	struct fs_node			node;
 	u32				val[MLX5_ST_SZ_DW_MATCH_PARAM];
 	u32				dests_size;
-	u32				flow_tag;
 	u32				index;
-	u32				action;
-	u32				encap_id;
-	u32				modify_id;
+	struct mlx5_flow_act		action;
 	enum fs_fte_status		status;
 	struct mlx5_fc			*counter;
 	struct rhash_head		hash;

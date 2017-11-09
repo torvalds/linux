@@ -481,12 +481,12 @@ static void del_sw_hw_rule(struct fs_node *node)
 	if (rule->dest_attr.type == MLX5_FLOW_DESTINATION_TYPE_COUNTER  &&
 	    --fte->dests_size) {
 		modify_mask = BIT(MLX5_SET_FTE_MODIFY_ENABLE_MASK_ACTION);
-		fte->action &= ~MLX5_FLOW_CONTEXT_ACTION_COUNT;
+		fte->action.action &= ~MLX5_FLOW_CONTEXT_ACTION_COUNT;
 		update_fte = true;
 		goto out;
 	}
 
-	if ((fte->action & MLX5_FLOW_CONTEXT_ACTION_FWD_DEST) &&
+	if ((fte->action.action & MLX5_FLOW_CONTEXT_ACTION_FWD_DEST) &&
 	    --fte->dests_size) {
 		modify_mask = BIT(MLX5_SET_FTE_MODIFY_ENABLE_MASK_DESTINATION_LIST),
 		update_fte = true;
@@ -623,10 +623,7 @@ static struct fs_fte *alloc_fte(struct mlx5_flow_table *ft,
 
 	memcpy(fte->val, match_value, sizeof(fte->val));
 	fte->node.type =  FS_TYPE_FLOW_ENTRY;
-	fte->flow_tag = flow_act->flow_tag;
-	fte->action = flow_act->action;
-	fte->encap_id = flow_act->encap_id;
-	fte->modify_id = flow_act->modify_id;
+	fte->action = *flow_act;
 
 	tree_init_node(&fte->node, del_hw_fte, del_sw_fte);
 
@@ -892,7 +889,7 @@ static int _mlx5_modify_rule_destination(struct mlx5_flow_rule *rule,
 	int err = 0;
 
 	fs_get_obj(fte, rule->node.parent);
-	if (!(fte->action & MLX5_FLOW_CONTEXT_ACTION_FWD_DEST))
+	if (!(fte->action.action & MLX5_FLOW_CONTEXT_ACTION_FWD_DEST))
 		return -EINVAL;
 	down_write_ref_node(&fte->node);
 	fs_get_obj(fg, fte->node.parent);
@@ -1448,16 +1445,17 @@ static bool check_conflicting_actions(u32 action1, u32 action2)
 
 static int check_conflicting_ftes(struct fs_fte *fte, const struct mlx5_flow_act *flow_act)
 {
-	if (check_conflicting_actions(flow_act->action, fte->action)) {
+	if (check_conflicting_actions(flow_act->action, fte->action.action)) {
 		mlx5_core_warn(get_dev(&fte->node),
 			       "Found two FTEs with conflicting actions\n");
 		return -EEXIST;
 	}
 
-	if (flow_act->has_flow_tag && fte->flow_tag != flow_act->flow_tag) {
+	if (flow_act->has_flow_tag &&
+	    fte->action.flow_tag != flow_act->flow_tag) {
 		mlx5_core_warn(get_dev(&fte->node),
 			       "FTE flow tag %u already exists with different flow tag %u\n",
-			       fte->flow_tag,
+			       fte->action.flow_tag,
 			       flow_act->flow_tag);
 		return -EEXIST;
 	}
@@ -1481,12 +1479,12 @@ static struct mlx5_flow_handle *add_rule_fg(struct mlx5_flow_group *fg,
 	if (ret)
 		return ERR_PTR(ret);
 
-	old_action = fte->action;
-	fte->action |= flow_act->action;
+	old_action = fte->action.action;
+	fte->action.action |= flow_act->action;
 	handle = add_rule_fte(fte, fg, dest, dest_num,
 			      old_action != flow_act->action);
 	if (IS_ERR(handle)) {
-		fte->action = old_action;
+		fte->action.action = old_action;
 		return handle;
 	}
 	trace_mlx5_fs_set_fte(fte, false);

@@ -340,16 +340,17 @@ static int mlx5_cmd_set_fte(struct mlx5_core_dev *dev,
 
 	in_flow_context = MLX5_ADDR_OF(set_fte_in, in, flow_context);
 	MLX5_SET(flow_context, in_flow_context, group_id, group_id);
-	MLX5_SET(flow_context, in_flow_context, flow_tag, fte->flow_tag);
-	MLX5_SET(flow_context, in_flow_context, action, fte->action);
-	MLX5_SET(flow_context, in_flow_context, encap_id, fte->encap_id);
-	MLX5_SET(flow_context, in_flow_context, modify_header_id, fte->modify_id);
+	MLX5_SET(flow_context, in_flow_context, flow_tag, fte->action.flow_tag);
+	MLX5_SET(flow_context, in_flow_context, action, fte->action.action);
+	MLX5_SET(flow_context, in_flow_context, encap_id, fte->action.encap_id);
+	MLX5_SET(flow_context, in_flow_context, modify_header_id,
+		 fte->action.modify_id);
 	in_match_value = MLX5_ADDR_OF(flow_context, in_flow_context,
 				      match_value);
 	memcpy(in_match_value, &fte->val, sizeof(fte->val));
 
 	in_dests = MLX5_ADDR_OF(flow_context, in_flow_context, destination);
-	if (fte->action & MLX5_FLOW_CONTEXT_ACTION_FWD_DEST) {
+	if (fte->action.action & MLX5_FLOW_CONTEXT_ACTION_FWD_DEST) {
 		int list_size = 0;
 
 		list_for_each_entry(dst, &fte->node.children, node.list) {
@@ -375,7 +376,7 @@ static int mlx5_cmd_set_fte(struct mlx5_core_dev *dev,
 			 list_size);
 	}
 
-	if (fte->action & MLX5_FLOW_CONTEXT_ACTION_COUNT) {
+	if (fte->action.action & MLX5_FLOW_CONTEXT_ACTION_COUNT) {
 		int max_list_size = BIT(MLX5_CAP_FLOWTABLE_TYPE(dev,
 					log_max_flow_counter,
 					ft->type));
