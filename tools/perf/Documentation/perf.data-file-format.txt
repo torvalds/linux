@@ -238,6 +238,29 @@ struct auxtrace_index {
 	struct auxtrace_index_entry entries[PERF_AUXTRACE_INDEX_ENTRY_COUNT];
 };
 
+	HEADER_STAT = 19,
+
+This is merely a flag signifying that the data section contains data
+recorded from perf stat record.
+
+	HEADER_CACHE = 20,
+
+Description of the cache hierarchy. Based on the Linux sysfs format
+in /sys/devices/system/cpu/cpu*/cache/
+
+	u32 version	Currently always 1
+	u32 number_of_cache_levels
+
+struct {
+	u32	level;
+	u32	line_size;
+	u32	sets;
+	u32	ways;
+	struct perf_header_string type;
+	struct perf_header_string size;
+	struct perf_header_string map;
+}[number_of_cache_levels];
+
 	other bits are reserved and should ignored for now
 	HEADER_FEAT_BITS	= 256,
 
