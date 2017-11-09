@@ -26,7 +26,7 @@
 
 
 struct cx20442_priv {
-	void *control_data;
+	struct tty_struct *tty;
 	struct regulator *por;
 };
 
@@ -163,9 +163,9 @@ static int cx20442_write(struct snd_soc_codec *codec, unsigned int reg,
 	if (reg >= codec->driver->reg_cache_size)
 		return -EINVAL;
 
-	/* hw_write and control_data pointers required for talking to the modem
+	/* tty and write pointers required for talking to the modem
 	 * are expected to be set by the line discipline initialization code */
-	if (!codec->hw_write || !cx20442->control_data)
+	if (!cx20442->tty || !cx20442->tty->ops->write)
 		return -EIO;
 
 	old = reg_cache[reg];
@@ -194,7 +194,7 @@ static int cx20442_write(struct snd_soc_codec *codec, unsigned int reg,
 		return -ENOMEM;
 
 	dev_dbg(codec->dev, "%s: %s\n", __func__, buf);
-	if (codec->hw_write(cx20442->control_data, buf, len) != len)
+	if (cx20442->tty->ops->write(cx20442->tty, buf, len) != len)
 		return -EIO;
 
 	return 0;
@@ -252,8 +252,7 @@ static void v253_close(struct tty_struct *tty)
 	cx20442 = snd_soc_codec_get_drvdata(codec);
 
 	/* Prevent the codec driver from further accessing the modem */
-	codec->hw_write = NULL;
-	cx20442->control_data = NULL;
+	cx20442->tty = NULL;
 	codec->component.card->pop_time = 0;
 }
 
@@ -276,12 +275,11 @@ static void v253_receive(struct tty_struct *tty,
 
 	cx20442 = snd_soc_codec_get_drvdata(codec);
 
-	if (!cx20442->control_data) {
+	if (!cx20442->tty) {
 		/* First modem response, complete setup procedure */
 
 		/* Set up codec driver access to modem controls */
-		cx20442->control_data = tty;
-		codec->hw_write = (hw_write_t)tty->ops->write;
+		cx20442->tty = tty;
 		codec->component.card->pop_time = 1;
 	}
 }
@@ -367,10 +365,9 @@ static int cx20442_codec_probe(struct snd_soc_codec *codec)
 	cx20442->por = regulator_get(codec->dev, "POR");
 	if (IS_ERR(cx20442->por))
 		dev_warn(codec->dev, "failed to get the regulator");
-	cx20442->control_data = NULL;
+	cx20442->tty = NULL;
 
 	snd_soc_codec_set_drvdata(codec, cx20442);
-	codec->hw_write = NULL;
 	codec->component.card->pop_time = 0;
 
 	return 0;
@@ -381,8 +378,8 @@ static int cx20442_codec_remove(struct snd_soc_codec *codec)
 {
 	struct cx20442_priv *cx20442 = snd_soc_codec_get_drvdata(codec);
 
-	if (cx20442->control_data) {
-		struct tty_struct *tty = cx20442->control_data;
+	if (cx20442->tty) {
+		struct tty_struct *tty = cx20442->tty;
 		tty_hangup(tty);
 	}
 
