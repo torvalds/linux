@@ -65,6 +65,27 @@ struct buffer_array {
 };
 
 /**
+ * cc_copy_mac() - Copy MAC to temporary location
+ *
+ * @dev: device object
+ * @req: aead request object
+ * @dir: [IN] copy from/to sgl
+ */
+static inline void cc_copy_mac(struct device *dev, struct aead_request *req,
+			       enum ssi_sg_cpy_direct dir)
+{
+	struct aead_req_ctx *areq_ctx = aead_request_ctx(req);
+	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
+	u32 skip = req->assoclen + req->cryptlen;
+
+	if (areq_ctx->is_gcm4543)
+		skip += crypto_aead_ivsize(tfm);
+
+	cc_copy_sg_portion(dev, areq_ctx->backup_mac, req->src,
+			   (skip - areq_ctx->req_authsize), skip, dir);
+}
+
+/**
  * cc_get_sgl_nents() - Get scatterlist number of entries.
  *
  * @sg_list: SG list
@@ -670,19 +691,11 @@ void cc_unmap_aead_request(struct device *dev, struct aead_request *req)
 	if (drvdata->coherent &&
 	    (areq_ctx->gen_ctx.op_type == DRV_CRYPTO_DIRECTION_DECRYPT) &&
 	    likely(req->src == req->dst)) {
-		u32 size_to_skip = req->assoclen;
 
-		if (areq_ctx->is_gcm4543)
-			size_to_skip += crypto_aead_ivsize(tfm);
-
-		/* copy mac to a temporary location to deal with possible
+		/* copy back mac from temporary location to deal with possible
 		 * data memory overriding that caused by cache coherence problem.
 		 */
-		cc_copy_sg_portion(dev, areq_ctx->backup_mac, req->src,
-				   (size_to_skip + req->cryptlen -
-				    areq_ctx->req_authsize),
-				   (size_to_skip + req->cryptlen),
-				   SSI_SG_FROM_BUF);
+		cc_copy_mac(dev, req, SSI_SG_FROM_BUF);
 	}
 }
 
@@ -918,7 +931,6 @@ static inline int cc_prepare_aead_data_mlli(
 	enum drv_crypto_direction direct = areq_ctx->gen_ctx.op_type;
 	unsigned int authsize = areq_ctx->req_authsize;
 	int rc = 0, icv_nents;
-	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
 	struct device *dev = drvdata_to_dev(drvdata);
 
 	if (likely(req->src == req->dst)) {
@@ -943,24 +955,14 @@ static inline int cc_prepare_aead_data_mlli(
 			 * MAC verification upon request completion
 			 */
 			if (direct == DRV_CRYPTO_DIRECTION_DECRYPT) {
-				if (!drvdata->coherent) {
 				/* In coherent platforms (e.g. ACP)
 				 * already copying ICV for any
 				 * INPLACE-DECRYPT operation, hence
 				 * we must neglect this code.
 				 */
-					u32 skip = req->assoclen;
+				if (!drvdata->coherent)
+					cc_copy_mac(dev, req, SSI_SG_TO_BUF);
 
-					if (areq_ctx->is_gcm4543)
-						skip += crypto_aead_ivsize(tfm);
-
-					cc_copy_sg_portion(dev,
-							   areq_ctx->backup_mac,
-							   req->src,
-							   (skip + req->cryptlen - areq_ctx->req_authsize),
-							   (skip + req->cryptlen),
-							   SSI_SG_TO_BUF);
-				}
 				areq_ctx->icv_virt_addr = areq_ctx->backup_mac;
 			} else {
 				areq_ctx->icv_virt_addr = areq_ctx->mac_buf;
@@ -996,22 +998,14 @@ static inline int cc_prepare_aead_data_mlli(
 			goto prepare_data_mlli_exit;
 		}
 
+		/* Backup happens only when ICV is fragmented, ICV
+		 * verification is made by CPU compare in order to simplify
+		 * MAC verification upon request completion
+		 */
 		if (unlikely(areq_ctx->is_icv_fragmented)) {
-			/* Backup happens only when ICV is fragmented, ICV
-			 * verification is made by CPU compare in order to simplify
-			 * MAC verification upon request completion
-			 */
-			u32 size_to_skip = req->assoclen;
-
-			if (areq_ctx->is_gcm4543)
-				size_to_skip += crypto_aead_ivsize(tfm);
-
-			  cc_copy_sg_portion(dev, areq_ctx->backup_mac,
-					     req->src,
-					     (size_to_skip + req->cryptlen - areq_ctx->req_authsize),
-					     (size_to_skip + req->cryptlen),
-					     SSI_SG_TO_BUF);
+			cc_copy_mac(dev, req, SSI_SG_TO_BUF);
 			areq_ctx->icv_virt_addr = areq_ctx->backup_mac;
+
 		} else { /* Contig. ICV */
 			/*Should hanlde if the sg is not contig.*/
 			areq_ctx->icv_dma_addr = sg_dma_address(
@@ -1249,22 +1243,13 @@ int cc_map_aead_request(
 	mlli_params->curr_pool = NULL;
 	sg_data.num_of_buffers = 0;
 
+	/* copy mac to a temporary location to deal with possible
+	 * data memory overriding that caused by cache coherence problem.
+	 */
 	if (drvdata->coherent &&
 	    (areq_ctx->gen_ctx.op_type == DRV_CRYPTO_DIRECTION_DECRYPT) &&
-	    likely(req->src == req->dst)) {
-		u32 size_to_skip = req->assoclen;
-
-		if (is_gcm4543)
-			size_to_skip += crypto_aead_ivsize(tfm);
-
-		/* copy mac to a temporary location to deal with possible
-		 * data memory overriding that caused by cache coherence problem.
-		 */
-		cc_copy_sg_portion(dev, areq_ctx->backup_mac, req->src,
-				   (size_to_skip + req->cryptlen - areq_ctx->req_authsize),
-				   (size_to_skip + req->cryptlen),
-				   SSI_SG_TO_BUF);
-	}
+	    likely(req->src == req->dst))
+		cc_copy_mac(dev, req, SSI_SG_TO_BUF);
 
 	/* cacluate the size for cipher remove ICV in decrypt*/
 	areq_ctx->cryptlen = (areq_ctx->gen_ctx.op_type ==
