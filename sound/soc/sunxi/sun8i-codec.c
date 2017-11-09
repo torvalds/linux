@@ -170,11 +170,11 @@ static int sun8i_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 
 	/* clock masters */
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBS_CFS: /* DAI Slave */
-		value = 0x0; /* Codec Master */
+	case SND_SOC_DAIFMT_CBS_CFS: /* Codec slave, DAI master */
+		value = 0x1;
 		break;
-	case SND_SOC_DAIFMT_CBM_CFM: /* DAI Master */
-		value = 0x1; /* Codec Slave */
+	case SND_SOC_DAIFMT_CBM_CFM: /* Codec Master, DAI slave */
+		value = 0x0;
 		break;
 	default:
 		return -EINVAL;
@@ -199,7 +199,7 @@ static int sun8i_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 			   value << SUN8I_AIF1CLK_CTRL_AIF1_BCLK_INV);
 	regmap_update_bits(scodec->regmap, SUN8I_AIF1CLK_CTRL,
 			   BIT(SUN8I_AIF1CLK_CTRL_AIF1_LRCK_INV),
-			   value << SUN8I_AIF1CLK_CTRL_AIF1_LRCK_INV);
+			   !value << SUN8I_AIF1CLK_CTRL_AIF1_LRCK_INV);
 
 	/* DAI format */
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
