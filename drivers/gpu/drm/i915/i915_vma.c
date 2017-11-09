@@ -743,6 +743,7 @@ int i915_vma_unbind(struct i915_vma *vma)
 	/* First wait upon any activity as retiring the request may
 	 * have side-effects such as unpinning or even unbinding this vma.
 	 */
+	might_sleep();
 	active = i915_vma_get_active(vma);
 	if (active) {
 		int idx;
