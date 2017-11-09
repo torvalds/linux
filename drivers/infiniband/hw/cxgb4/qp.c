@@ -1255,31 +1255,34 @@ static void __flush_qp(struct c4iw_qp *qhp, struct c4iw_cq *rchp,
 
 	pr_debug("qhp %p rchp %p schp %p\n", qhp, rchp, schp);
 
-	/* locking hierarchy: cq lock first, then qp lock. */
+	/* locking hierarchy: cqs lock first, then qp lock. */
 	spin_lock_irqsave(&rchp->lock, flag);
+	if (schp != rchp)
+		spin_lock(&schp->lock);
 	spin_lock(&qhp->lock);
 
 	if (qhp->wq.flushed) {
 		spin_unlock(&qhp->lock);
+		if (schp != rchp)
+			spin_unlock(&schp->lock);
 		spin_unlock_irqrestore(&rchp->lock, flag);
 		return;
 	}
 	qhp->wq.flushed = 1;
+	t4_set_wq_in_error(&qhp->wq);
 
 	c4iw_flush_hw_cq(rchp);
 	c4iw_count_rcqes(&rchp->cq, &qhp->wq, &count);
 	rq_flushed = c4iw_flush_rq(&qhp->wq, &rchp->cq, count);
-	spin_unlock(&qhp->lock);
-	spin_unlock_irqrestore(&rchp->lock, flag);
 
-	/* locking hierarchy: cq lock first, then qp lock. */
-	spin_lock_irqsave(&schp->lock, flag);
-	spin_lock(&qhp->lock);
 	if (schp != rchp)
 		c4iw_flush_hw_cq(schp);
 	sq_flushed = c4iw_flush_sq(qhp);
+
 	spin_unlock(&qhp->lock);
-	spin_unlock_irqrestore(&schp->lock, flag);
+	if (schp != rchp)
+		spin_unlock(&schp->lock);
+	spin_unlock_irqrestore(&rchp->lock, flag);
 
 	if (schp == rchp) {
 		if (t4_clear_cq_armed(&rchp->cq) &&
@@ -1313,8 +1316,8 @@ static void flush_qp(struct c4iw_qp *qhp)
 	rchp = to_c4iw_cq(qhp->ibqp.recv_cq);
 	schp = to_c4iw_cq(qhp->ibqp.send_cq);
 
-	t4_set_wq_in_error(&qhp->wq);
 	if (qhp->ibqp.uobject) {
+		t4_set_wq_in_error(&qhp->wq);
 		t4_set_cq_in_error(&rchp->cq);
 		spin_lock_irqsave(&rchp->comp_handler_lock, flag);
 		(*rchp->ibcq.comp_handler)(&rchp->ibcq, rchp->ibcq.cq_context);
