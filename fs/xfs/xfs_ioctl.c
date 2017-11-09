@@ -311,8 +311,8 @@ xfs_readlink_by_handle(
 int
 xfs_set_dmattrs(
 	xfs_inode_t     *ip,
-	u_int		evmask,
-	u_int16_t	state)
+	uint		evmask,
+	uint16_t	state)
 {
 	xfs_mount_t	*mp = ip->i_mount;
 	xfs_trans_t	*tp;

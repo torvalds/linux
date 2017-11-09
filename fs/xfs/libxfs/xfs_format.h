@@ -1147,7 +1147,7 @@ static inline void xfs_dinode_put_rdev(struct xfs_dinode *dip, xfs_dev_t rdev)
  * Dquot and dquot block format definitions
  */
 #define XFS_DQUOT_MAGIC		0x4451		/* 'DQ' */
-#define XFS_DQUOT_VERSION	(u_int8_t)0x01	/* latest version number */
+#define XFS_DQUOT_VERSION	(uint8_t)0x01	/* latest version number */
 
 /*
  * This is the main portion of the on-disk representation of quota

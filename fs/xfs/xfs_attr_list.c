@@ -546,8 +546,8 @@ xfs_attr_list_int(
 #define	ATTR_ENTBASESIZE		/* minimum bytes used by an attr */ \
 	(((struct attrlist_ent *) 0)->a_name - (char *) 0)
 #define	ATTR_ENTSIZE(namelen)		/* actual bytes used by an attr */ \
-	((ATTR_ENTBASESIZE + (namelen) + 1 + sizeof(u_int32_t)-1) \
-	 & ~(sizeof(u_int32_t)-1))
+	((ATTR_ENTBASESIZE + (namelen) + 1 + sizeof(uint32_t)-1) \
+	 & ~(sizeof(uint32_t)-1))
 
 /*
  * Format an attribute and copy it out to the user's buffer.
