@@ -2881,6 +2881,9 @@ static void dce110_apply_ctx_for_surface(
 					context->stream_count);
 
 		dce110_program_front_end_for_pipe(dc, pipe_ctx);
+
+		dc->hwss.update_plane_addr(dc, pipe_ctx);
+
 		program_surface_visibility(dc, pipe_ctx);
 
 	}

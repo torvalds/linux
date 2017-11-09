@@ -1314,8 +1314,8 @@ static void commit_planes_for_stream(struct dc *dc,
 			if (pipe_ctx->plane_state != plane_state)
 				continue;
 
-			if (srf_updates[i].flip_addr)
-				dc->hwss.update_plane_addr(dc, pipe_ctx);
+			if (update_type == UPDATE_TYPE_FAST && srf_updates[i].flip_addr)
+					dc->hwss.update_plane_addr(dc, pipe_ctx);
 		}
 	}
 
