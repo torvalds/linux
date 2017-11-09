@@ -37,7 +37,7 @@ struct uda1380_priv {
 	struct snd_soc_codec *codec;
 	unsigned int dac_clk;
 	struct work_struct work;
-	void *control_data;
+	struct i2c_client *i2c;
 };
 
 /*
@@ -92,6 +92,7 @@ static inline void uda1380_write_reg_cache(struct snd_soc_codec *codec,
 static int uda1380_write(struct snd_soc_codec *codec, unsigned int reg,
 	unsigned int value)
 {
+	struct uda1380_priv *uda1380 = snd_soc_codec_get_drvdata(codec);
 	u8 data[3];
 
 	/* data is
@@ -111,10 +112,10 @@ static int uda1380_write(struct snd_soc_codec *codec, unsigned int reg,
 	if (!snd_soc_codec_is_active(codec) && (reg >= UDA1380_MVOL))
 		return 0;
 	pr_debug("uda1380: hw write %x val %x\n", reg, value);
-	if (codec->hw_write(codec->control_data, data, 3) == 3) {
+	if (i2c_master_send(uda1380->i2c, data, 3) == 3) {
 		unsigned int val;
-		i2c_master_send(codec->control_data, data, 1);
-		i2c_master_recv(codec->control_data, data, 2);
+		i2c_master_send(uda1380->i2c, data, 1);
+		i2c_master_recv(uda1380->i2c, data, 2);
 		val = (data[0]<<8) | data[1];
 		if (val != value) {
 			pr_debug("uda1380: READ BACK VAL %x\n",
@@ -130,6 +131,7 @@ static int uda1380_write(struct snd_soc_codec *codec, unsigned int reg,
 
 static void uda1380_sync_cache(struct snd_soc_codec *codec)
 {
+	struct uda1380_priv *uda1380 = snd_soc_codec_get_drvdata(codec);
 	int reg;
 	u8 data[3];
 	u16 *cache = codec->reg_cache;
@@ -139,7 +141,7 @@ static void uda1380_sync_cache(struct snd_soc_codec *codec)
 		data[0] = reg;
 		data[1] = (cache[reg] & 0xff00) >> 8;
 		data[2] = cache[reg] & 0x00ff;
-		if (codec->hw_write(codec->control_data, data, 3) != 3)
+		if (i2c_master_send(uda1380->i2c, data, 3) != 3)
 			dev_err(codec->dev, "%s: write to reg 0x%x failed\n",
 				__func__, reg);
 	}
@@ -148,6 +150,7 @@ static void uda1380_sync_cache(struct snd_soc_codec *codec)
 static int uda1380_reset(struct snd_soc_codec *codec)
 {
 	struct uda1380_platform_data *pdata = codec->dev->platform_data;
+	struct uda1380_priv *uda1380 = snd_soc_codec_get_drvdata(codec);
 
 	if (gpio_is_valid(pdata->gpio_reset)) {
 		gpio_set_value(pdata->gpio_reset, 1);
@@ -160,7 +163,7 @@ static int uda1380_reset(struct snd_soc_codec *codec)
 		data[1] = 0;
 		data[2] = 0;
 
-		if (codec->hw_write(codec->control_data, data, 3) != 3) {
+		if (i2c_master_send(uda1380->i2c, data, 3) != 3) {
 			dev_err(codec->dev, "%s: failed\n", __func__);
 			return -EIO;
 		}
@@ -695,9 +698,6 @@ static int uda1380_probe(struct snd_soc_codec *codec)
 
 	uda1380->codec = codec;
 
-	codec->hw_write = (hw_write_t)i2c_master_send;
-	codec->control_data = uda1380->control_data;
-
 	if (!gpio_is_valid(pdata->gpio_power)) {
 		ret = uda1380_reset(codec);
 		if (ret)
@@ -772,7 +772,7 @@ static int uda1380_i2c_probe(struct i2c_client *i2c,
 	}
 
 	i2c_set_clientdata(i2c, uda1380);
-	uda1380->control_data = i2c;
+	uda1380->i2c = i2c;
 
 	ret =  snd_soc_register_codec(&i2c->dev,
 			&soc_codec_dev_uda1380, uda1380_dai, ARRAY_SIZE(uda1380_dai));
