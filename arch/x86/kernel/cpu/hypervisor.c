@@ -26,6 +26,12 @@
 #include <asm/processor.h>
 #include <asm/hypervisor.h>
 
+extern const struct hypervisor_x86 x86_hyper_vmware;
+extern const struct hypervisor_x86 x86_hyper_ms_hyperv;
+extern const struct hypervisor_x86 x86_hyper_xen_pv;
+extern const struct hypervisor_x86 x86_hyper_xen_hvm;
+extern const struct hypervisor_x86 x86_hyper_kvm;
+
 static const __initconst struct hypervisor_x86 * const hypervisors[] =
 {
 #ifdef CONFIG_XEN_PV
@@ -41,8 +47,8 @@ static const __initconst struct hypervisor_x86 * const hypervisors[] =
 #endif
 };
 
-const struct hypervisor_x86 *x86_hyper;
-EXPORT_SYMBOL(x86_hyper);
+enum x86_hypervisor_type x86_hyper_type;
+EXPORT_SYMBOL(x86_hyper_type);
 
 static inline const struct hypervisor_x86 * __init
 detect_hypervisor_vendor(void)
@@ -87,6 +93,6 @@ void __init init_hypervisor_platform(void)
 	copy_array(&h->init, &x86_init.hyper, sizeof(h->init));
 	copy_array(&h->runtime, &x86_platform.hyper, sizeof(h->runtime));
 
-	x86_hyper = h;
+	x86_hyper_type = h->type;
 	x86_init.hyper.init_platform();
 }
