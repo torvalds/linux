@@ -975,6 +975,7 @@ int usb_get_status(struct usb_device *dev, int recip, int type, int target,
 		}
 
 		*(u32 *) data = le32_to_cpu(*(__le32 *) status);
+		ret = 0;
 		break;
 	case 2:
 		if (type != USB_STATUS_TYPE_STANDARD) {
@@ -983,6 +984,7 @@ int usb_get_status(struct usb_device *dev, int recip, int type, int target,
 		}
 
 		*(u16 *) data = le16_to_cpu(*(__le16 *) status);
+		ret = 0;
 		break;
 	default:
 		ret = -EIO;
