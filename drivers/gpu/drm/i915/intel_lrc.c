@@ -466,6 +466,11 @@ static void execlists_submit_ports(struct intel_engine_cs *engine)
 			port_set(&port[n], port_pack(rq, count));
 			desc = execlists_update_context(rq);
 			GEM_DEBUG_EXEC(port[n].context_id = upper_32_bits(desc));
+
+			GEM_TRACE("%s in[%d]:  ctx=%d.%d, seqno=%x\n",
+				  engine->name, n,
+				  rq->ctx->hw_id, count,
+				  rq->global_seqno);
 		} else {
 			GEM_BUG_ON(!n);
 			desc = 0;
@@ -520,6 +525,7 @@ static void inject_preempt_context(struct intel_engine_cs *engine)
 	ce->ring->tail &= (ce->ring->size - 1);
 	ce->lrc_reg_state[CTX_RING_TAIL+1] = ce->ring->tail;
 
+	GEM_TRACE("\n");
 	for (n = execlists_num_ports(&engine->execlists); --n; )
 		elsp_write(0, elsp);
 
@@ -832,6 +838,10 @@ static void intel_lrc_irq_handler(unsigned long data)
 			head = execlists->csb_head;
 			tail = READ_ONCE(buf[write_idx]);
 		}
+		GEM_TRACE("%s cs-irq head=%d [%d], tail=%d [%d]\n",
+			  engine->name,
+			  head, GEN8_CSB_READ_PTR(readl(dev_priv->regs + i915_mmio_reg_offset(RING_CONTEXT_STATUS_PTR(engine)))),
+			  tail, GEN8_CSB_WRITE_PTR(readl(dev_priv->regs + i915_mmio_reg_offset(RING_CONTEXT_STATUS_PTR(engine)))));
 
 		while (head != tail) {
 			struct drm_i915_gem_request *rq;
@@ -859,6 +869,9 @@ static void intel_lrc_irq_handler(unsigned long data)
 			 */
 
 			status = READ_ONCE(buf[2 * head]); /* maybe mmio! */
+			GEM_TRACE("%s csb[%dd]: status=0x%08x:0x%08x\n",
+				  engine->name, head,
+				  status, buf[2*head + 1]);
 			if (!(status & GEN8_CTX_STATUS_COMPLETED_MASK))
 				continue;
 
@@ -886,6 +899,10 @@ static void intel_lrc_irq_handler(unsigned long data)
 			GEM_DEBUG_BUG_ON(buf[2 * head + 1] != port->context_id);
 
 			rq = port_unpack(port, &count);
+			GEM_TRACE("%s out[0]: ctx=%d.%d, seqno=%x\n",
+				  engine->name,
+				  rq->ctx->hw_id, count,
+				  rq->global_seqno);
 			GEM_BUG_ON(count == 0);
 			if (--count == 0) {
 				GEM_BUG_ON(status & GEN8_CTX_STATUS_PREEMPTED);
