@@ -250,6 +250,7 @@ static void br_multicast_group_expired(struct timer_list *t)
 		goto out;
 
 	mp->host_joined = false;
+	br_mdb_notify(br->dev, NULL, &mp->addr, RTM_DELMDB, 0);
 
 	if (mp->ports)
 		goto out;
@@ -773,7 +774,10 @@ static int br_multicast_add_group(struct net_bridge *br,
 		goto err;
 
 	if (!port) {
-		mp->host_joined = true;
+		if (!mp->host_joined) {
+			mp->host_joined = true;
+			br_mdb_notify(br->dev, NULL, &mp->addr, RTM_NEWMDB, 0);
+		}
 		mod_timer(&mp->timer, now + br->multicast_membership_interval);
 		goto out;
 	}
