@@ -6662,7 +6662,8 @@ static int select_energy_cpu_brute(struct task_struct *p, int prev_cpu, int sync
 
 
 #ifdef CONFIG_SCHED_WALT
-		if (!walt_disabled && sysctl_sched_use_walt_cpu_util)
+		if (!walt_disabled && sysctl_sched_use_walt_cpu_util &&
+			p->state == TASK_WAKING)
 			delta = task_util(p);
 #endif
 		/* Not enough spare capacity on previous cpu */
