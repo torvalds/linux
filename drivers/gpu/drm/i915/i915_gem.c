@@ -538,7 +538,7 @@ i915_gem_object_wait_priority(struct drm_i915_gem_object *obj,
  * @obj: i915 gem object
  * @flags: how to wait (under a lock, for all rendering or just for writes etc)
  * @timeout: how long to wait
- * @rps: client (user process) to charge for any waitboosting
+ * @rps_client: client (user process) to charge for any waitboosting
  */
 int
 i915_gem_object_wait(struct drm_i915_gem_object *obj,
