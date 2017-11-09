@@ -1789,7 +1789,7 @@ static struct dm_cache_policy *__smq_create(dm_cblock_t cache_size,
 	mq->next_hotspot_period = jiffies;
 	mq->next_cache_period = jiffies;
 
-	mq->bg_work = btracker_create(10240); /* FIXME: hard coded value */
+	mq->bg_work = btracker_create(4096); /* FIXME: hard coded value */
 	if (!mq->bg_work)
 		goto bad_btracker;
 
