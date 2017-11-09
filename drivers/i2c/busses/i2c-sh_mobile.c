@@ -433,8 +433,9 @@ static int sh_mobile_i2c_isr_rx(struct sh_mobile_i2c_data *pd)
 				break;
 			}
 			data = i2c_op(pd, OP_RX_STOP_DATA, 0);
-		} else
+		} else if (real_pos >= 0) {
 			data = i2c_op(pd, OP_RX, 0);
+		}
 
 		if (real_pos >= 0)
 			pd->msg->buf[real_pos] = data;
