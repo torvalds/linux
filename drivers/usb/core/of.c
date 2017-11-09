@@ -12,31 +12,32 @@
 #include <linux/usb/of.h>
 
 /**
- * usb_of_get_child_node - Find the device node match port number
- * @parent: the parent device node
- * @portnum: the port number which device is connecting
+ * usb_of_get_device_node() - get a USB device node
+ * @hub: hub to which device is connected
+ * @port1: one-based index of port
  *
- * Find the node from device tree according to its port number.
+ * Look up the node of a USB device given its parent hub device and one-based
+ * port number.
  *
  * Return: A pointer to the node with incremented refcount if found, or
  * %NULL otherwise.
  */
-struct device_node *usb_of_get_child_node(struct device_node *parent,
-					int portnum)
+struct device_node *usb_of_get_device_node(struct usb_device *hub, int port1)
 {
 	struct device_node *node;
-	u32 port;
+	u32 reg;
 
-	for_each_child_of_node(parent, node) {
-		if (!of_property_read_u32(node, "reg", &port)) {
-			if (port == portnum)
-				return node;
-		}
+	for_each_child_of_node(hub->dev.of_node, node) {
+		if (of_property_read_u32(node, "reg", &reg))
+			continue;
+
+		if (reg == port1)
+			return node;
 	}
 
 	return NULL;
 }
-EXPORT_SYMBOL_GPL(usb_of_get_child_node);
+EXPORT_SYMBOL_GPL(usb_of_get_device_node);
 
 /**
  * usb_of_has_combined_node() - determine whether a device has a combined node

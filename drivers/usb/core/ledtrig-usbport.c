@@ -142,7 +142,7 @@ static bool usbport_trig_port_observed(struct usbport_trig_data *usbport_data,
 	 *
 	 * FIXME: This is really the device node of the connected device
 	 */
-	port_np = usb_of_get_child_node(usb_dev->dev.of_node, port1);
+	port_np = usb_of_get_device_node(usb_dev, port1);
 	if (!port_np)
 		return false;
 
