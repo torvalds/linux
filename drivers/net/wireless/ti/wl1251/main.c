@@ -1491,7 +1491,24 @@ int wl1251_init_ieee80211(struct wl1251 *wl)
 	wl->hw->queues = 4;
 
 	if (wl->use_eeprom)
-		wl1251_read_eeprom_mac(wl);
+		ret = wl1251_read_eeprom_mac(wl);
+	else
+		ret = -EINVAL;
+
+	if (ret == 0 && !is_valid_ether_addr(wl->mac_addr))
+		ret = -EINVAL;
+
+	if (ret < 0) {
+		/*
+		 * In case our MAC address is not correctly set,
+		 * we use a random but Nokia MAC.
+		 */
+		static const u8 nokia_oui[3] = {0x00, 0x1f, 0xdf};
+		memcpy(wl->mac_addr, nokia_oui, 3);
+		get_random_bytes(wl->mac_addr + 3, 3);
+		wl1251_warning("MAC address in eeprom or nvs data is not valid");
+		wl1251_warning("Setting random MAC address: %pM", wl->mac_addr);
+	}
 
 	ret = wl1251_register_hw(wl);
 	if (ret)
@@ -1512,7 +1529,6 @@ struct ieee80211_hw *wl1251_alloc_hw(void)
 	struct ieee80211_hw *hw;
 	struct wl1251 *wl;
 	int i;
-	static const u8 nokia_oui[3] = {0x00, 0x1f, 0xdf};
 
 	hw = ieee80211_alloc_hw(sizeof(*wl), &wl1251_ops);
 	if (!hw) {
@@ -1561,13 +1577,6 @@ struct ieee80211_hw *wl1251_alloc_hw(void)
 
 	INIT_WORK(&wl->irq_work, wl1251_irq_work);
 	INIT_WORK(&wl->tx_work, wl1251_tx_work);
-
-	/*
-	 * In case our MAC address is not correctly set,
-	 * we use a random but Nokia MAC.
-	 */
-	memcpy(wl->mac_addr, nokia_oui, 3);
-	get_random_bytes(wl->mac_addr + 3, 3);
 
 	wl->state = WL1251_STATE_OFF;
 	mutex_init(&wl->mutex);
