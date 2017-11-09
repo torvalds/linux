@@ -42,6 +42,7 @@
 
 static struct sensor_private_data *g_sensor[SENSOR_NUM_TYPES];
 static struct sensor_operate *sensor_ops[SENSOR_NUM_ID];
+static int sensor_probe_times[SENSOR_NUM_ID];
 static struct class *accel_class;
 
 static int sensor_get_id(struct i2c_client *client, int *value)
@@ -115,6 +116,7 @@ static int sensor_chip_init(struct i2c_client *client)
 	result = sensor_get_id(sensor->client, &sensor->devid);
 	if (result < 0) {
 		dev_err(&client->dev, "%s:fail to read %s devid:0x%x\n", __func__, sensor->i2c_id->name, sensor->devid);
+		result = -2;
 		goto error;
 	}
 
@@ -123,6 +125,7 @@ static int sensor_chip_init(struct i2c_client *client)
 	result = sensor_initial(sensor->client);
 	if (result < 0) {
 		dev_err(&client->dev, "%s:fail to init sensor\n", __func__);
+		result = -2;
 		goto error;
 	}
 	return 0;
@@ -1303,6 +1306,8 @@ int sensor_register_slave(int type, struct i2c_client *client,
 		return -1;
 	}
 	sensor_ops[ops->id_i2c] = ops;
+	sensor_probe_times[ops->id_i2c] = 0;
+
 	dev_info(&client->dev, "%s:%s,id=%d\n", __func__, sensor_ops[ops->id_i2c]->name, ops->id_i2c);
 
 	return result;
@@ -1335,6 +1340,7 @@ int sensor_probe(struct i2c_client *client, const struct i2c_device_id *devid)
 	unsigned long irq_flags;
 	int result = 0;
 	int type = 0;
+	int reprobe_en = 0;
 
 	dev_info(&client->adapter->dev, "%s: %s,%p\n", __func__, devid->name, client);
 
@@ -1371,6 +1377,7 @@ int sensor_probe(struct i2c_client *client, const struct i2c_device_id *devid)
 	of_property_read_u32(np, "z_min", &(pdata->z_min));
 	of_property_read_u32(np, "factory", &(pdata->factory));
 	of_property_read_u32(np, "layout", &(pdata->layout));
+	of_property_read_u32(np, "reprobe_en", &reprobe_en);
 
 	of_property_read_u8(np, "address", &(pdata->address));
 	of_get_property(np, "project_name", pdata->project_name);
@@ -1551,8 +1558,14 @@ int sensor_probe(struct i2c_client *client, const struct i2c_device_id *devid)
 	sensor->axis.z = 0;
 
 	result = sensor_chip_init(sensor->client);
-	if (result < 0)
+	if (result < 0) {
+		if (reprobe_en && (result == -2)) {
+			sensor_probe_times[sensor->ops->id_i2c]++;
+			if (sensor_probe_times[sensor->ops->id_i2c] < 3)
+				result = -EPROBE_DEFER;
+		}
 		goto out_free_memory;
+	}
 
 	sensor->input_dev = devm_input_allocate_device(&client->dev);
 	if (!sensor->input_dev) {
