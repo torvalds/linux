@@ -454,6 +454,14 @@ static void vm_free_pages_release(struct i915_address_space *vm,
 
 static void vm_free_page(struct i915_address_space *vm, struct page *page)
 {
+	/*
+	 * On !llc, we need to change the pages back to WB. We only do so
+	 * in bulk, so we rarely need to change the page attributes here,
+	 * but doing so requires a stop_machine() from deep inside arch/x86/mm.
+	 * To make detection of the possible sleep more likely, use an
+	 * unconditional might_sleep() for everybody.
+	 */
+	might_sleep();
 	if (!pagevec_add(&vm->free_pages, page))
 		vm_free_pages_release(vm, false);
 }
