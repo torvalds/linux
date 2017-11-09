@@ -16,12 +16,11 @@ Required properties:
 Example:
 
 &usb1 {
-
 	#address-cells = <1>;
 	#size-cells = <0>;
 
-	hub: genesys@1 {
+	hub@1 {
 		compatible = "usb5e3,608";
 		reg = <1>;
 	};
-}
+};
