@@ -76,14 +76,27 @@ static void notify_handler(acpi_handle handle, u32 event, void *context)
 {
 	struct platform_device *device = context;
 	struct intel_vbtn_priv *priv = dev_get_drvdata(&device->dev);
+	const struct key_entry *ke_rel;
+	bool autorelease;
 
 	if (priv->wakeup_mode) {
 		if (sparse_keymap_entry_from_scancode(priv->input_dev, event)) {
 			pm_wakeup_hard_event(&device->dev);
 			return;
 		}
-	} else if (sparse_keymap_report_event(priv->input_dev, event, 1, true)) {
-		return;
+	} else {
+		/* Use the fact press/release come in even/odd pairs */
+		if ((event & 1) && sparse_keymap_report_event(priv->input_dev,
+							      event, 0, false))
+			return;
+
+		ke_rel = sparse_keymap_entry_from_scancode(priv->input_dev,
+							   event | 1);
+		autorelease = !ke_rel || ke_rel->type == KE_IGNORE;
+
+		if (sparse_keymap_report_event(priv->input_dev, event, 1,
+					       autorelease))
+			return;
 	}
 	dev_dbg(&device->dev, "unknown event index 0x%x\n", event);
 }
