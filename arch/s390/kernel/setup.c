@@ -61,7 +61,6 @@
 #include <asm/ptrace.h>
 #include <asm/sections.h>
 #include <asm/ebcdic.h>
-#include <asm/kvm_virtio.h>
 #include <asm/diag.h>
 #include <asm/os_info.h>
 #include <asm/sclp.h>
