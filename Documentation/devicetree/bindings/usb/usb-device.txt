@@ -11,7 +11,7 @@ Required properties:
   be used, but a device adhering to this binding may leave out all except
   for usbVID,PID.
 - reg: the port number which this device is connecting to, the range
-  is 1-31.
+  is 1-255.
 
 Example:
 
