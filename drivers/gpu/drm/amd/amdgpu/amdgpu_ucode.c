@@ -295,6 +295,7 @@ amdgpu_ucode_get_load_type(struct amdgpu_device *adev, int load_type)
 	case CHIP_POLARIS10:
 	case CHIP_POLARIS11:
 	case CHIP_POLARIS12:
+	case CHIP_VEGAM:
 		if (!load_type)
 			return AMDGPU_FW_LOAD_DIRECT;
 		else
