@@ -465,7 +465,7 @@ static void __init kvm_apf_trap_init(void)
 	update_intr_gate(X86_TRAP_PF, async_page_fault);
 }
 
-void __init kvm_guest_init(void)
+static void __init kvm_guest_init(void)
 {
 	int i;
 
@@ -548,6 +548,7 @@ const __initconst struct hypervisor_x86 x86_hyper_kvm = {
 	.name			= "KVM",
 	.detect			= kvm_detect,
 	.type			= X86_HYPER_KVM,
+	.init.guest_late_init	= kvm_guest_init,
 	.init.x2apic_available	= kvm_para_available,
 };
 

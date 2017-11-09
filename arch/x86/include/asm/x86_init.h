@@ -117,11 +117,13 @@ struct x86_init_pci {
 /**
  * struct x86_hyper_init - x86 hypervisor init functions
  * @init_platform:		platform setup
+ * @guest_late_init:		guest late init
  * @x2apic_available:		X2APIC detection
  * @init_mem_mapping:		setup early mappings during init_mem_mapping()
  */
 struct x86_hyper_init {
 	void (*init_platform)(void);
+	void (*guest_late_init)(void);
 	bool (*x2apic_available)(void);
 	void (*init_mem_mapping)(void);
 };

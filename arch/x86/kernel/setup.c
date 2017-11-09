@@ -1294,7 +1294,7 @@ void __init setup_arch(char **cmdline_p)
 
 	io_apic_init_mappings();
 
-	kvm_guest_init();
+	x86_init.hyper.guest_late_init();
 
 	e820__reserve_resources();
 	e820__register_nosave_regions(max_low_pfn);
