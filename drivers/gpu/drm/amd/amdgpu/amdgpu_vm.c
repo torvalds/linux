@@ -1244,7 +1244,7 @@ static void amdgpu_vm_invalidate_level(struct amdgpu_vm *vm,
 int amdgpu_vm_update_directories(struct amdgpu_device *adev,
 				 struct amdgpu_vm *vm)
 {
-	int r;
+	int r = 0;
 
 	spin_lock(&vm->status_lock);
 	while (!list_empty(&vm->relocated)) {
