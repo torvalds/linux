@@ -379,22 +379,24 @@ static int rknand_probe(struct platform_device *pdev)
 	g_nandc_info[id].clk = devm_clk_get(&pdev->dev, "clk_nandc");
 	g_nandc_info[id].gclk = devm_clk_get(&pdev->dev, "g_clk_nandc");
 
-	if (unlikely(IS_ERR(g_nandc_info[id].clk)) ||
-	    unlikely(IS_ERR(g_nandc_info[id].hclk))) {
-		dev_err(&pdev->dev, "rknand_probe get clk error\n");
-		return -1;
+	if (unlikely(IS_ERR(g_nandc_info[id].hclk))) {
+		dev_err(&pdev->dev, "rknand_probe get hclk error\n");
+		return PTR_ERR(g_nandc_info[id].hclk);
 	}
 
-	clk_set_rate(g_nandc_info[id].clk, 150 * 1000 * 1000);
-	g_nandc_info[id].clk_rate = clk_get_rate(g_nandc_info[id].clk);
-	clk_prepare_enable(g_nandc_info[id].clk);
+	if (!(IS_ERR(g_nandc_info[id].clk))) {
+		clk_set_rate(g_nandc_info[id].clk, 150 * 1000 * 1000);
+		g_nandc_info[id].clk_rate = clk_get_rate(g_nandc_info[id].clk);
+		clk_prepare_enable(g_nandc_info[id].clk);
+		dev_info(&pdev->dev,
+			 "rknand_probe clk rate = %d\n",
+			 g_nandc_info[id].clk_rate);
+	}
+
 	clk_prepare_enable(g_nandc_info[id].hclk);
 	if (!(IS_ERR(g_nandc_info[id].gclk)))
 		clk_prepare_enable(g_nandc_info[id].gclk);
 
-	dev_info(&pdev->dev,
-		 "rknand_probe clk rate = %d\n",
-		 g_nandc_info[id].clk_rate);
 	return 0;
 }
 
