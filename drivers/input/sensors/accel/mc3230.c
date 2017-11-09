@@ -145,8 +145,6 @@ static int g_value;
 /* Addresses to scan -- protected by sense_data_mutex */
 static struct i2c_client *this_client;
 
-static DECLARE_WAIT_QUEUE_HEAD(data_ready_wq);
-
 #ifdef CONFIG_HAS_EARLYSUSPEND
 static struct early_suspend mc3230_early_suspend;
 #endif
@@ -370,7 +368,7 @@ static int mc3230_reg_init(struct i2c_client *client)
 	mc3230_active(client, 0);
 
 	pcode = sensor_read_reg(client, MC3230_REG_PRODUCT_CODE);
-	GSE_LOG("mc3230_reg_init pcode=%x\n", pcode);
+	printk(KERN_INFO "mc3230_reg_init pcode=%x\n", pcode);
 	if ((pcode == 0x19) || (pcode == 0x29)) {
 		mc32x0_type = IS_MC3230;
 	} else if ((pcode == 0x90) || (pcode == 0xA8) || (pcode == 0x88)) {
@@ -523,35 +521,23 @@ static inline int mc3230_convert_to_int(s16 value)
 	int result;
 
 	if ((mc32x0_type == IS_MC3230) || (mc32x0_type == IS_MC2234)) {
-		if (value < MC3230_BOUNDARY) {
-			result = value * MC3230_GRAVITY_STEPS;
-		} else {
-			result =
-			    ~(((~value & 0x7f) + 1) * MC3230_GRAVITY_STEPS) + 1;
-		}
+		result = value * 192;
 	} else if (mc32x0_type == IS_MC3236) {
-		if (value < MC3230_BOUNDARY) {
-			result = value * MC3236_GRAVITY_STEP;
-		} else {
-			result =
-			    ~(((~value & 0x7f) + 1) * MC3236_GRAVITY_STEP) + 1;
-		}
+		result = value * 256;
 	} else if (mc32x0_type == IS_MC3210) {
-		if (value < MC3210_BOUNDARY) {
-			result = value * MC3210_GRAVITY_STEP;
-		} else {
-			result =
-			    ~(((~value & 0x7f) + 1) * MC3210_GRAVITY_STEP) + 1;
-		}
+		result = value * 16;
 	}
 
 	return result;
 }
 
 static void mc3230_report_value(struct i2c_client *client,
-				struct mc3230_axis *axis)
+				struct sensor_axis *axis)
 {
 	struct sensor_private_data *mc3230 = i2c_get_clientdata(client);
+
+	if (mc3230->status_cur == SENSOR_OFF)
+		return;
 
 	if (mc32x0_type == IS_MC2234) {
 		input_report_abs(mc3230->input_dev, ABS_X, (axis->x));
@@ -582,7 +568,8 @@ static int mc3230_get_data(struct i2c_client *client)
 	int ret;
 	int x, y, z;
 	int value = 0;
-	struct mc3230_axis axis;
+	static int flag;
+	struct sensor_axis axis;
 
 	if (load_cali_flg > 0) {
 		ret = mcube_read_cali_file(client);
@@ -626,16 +613,27 @@ static int mc3230_get_data(struct i2c_client *client)
 	    (pdata->orientation[6]) * x + (pdata->orientation[7]) * y +
 	    (pdata->orientation[8]) * z;
 
+	/* input dev will ignore report data if data value is the same with last_value,
+		sample rate will not enough by this way, so just avoid this case */
+	if ((sensor->axis.x == axis.x) && (sensor->axis.y == axis.y) && (sensor->axis.z == axis.z)) {
+		if (flag) {
+			flag = 0;
+			axis.x += 1;
+			axis.y += 1;
+			axis.z += 1;
+		} else {
+			flag = 1;
+			axis.x -= 1;
+			axis.y -= 1;
+			axis.z -= 1;
+		}
+	}
+
 	mc3230_report_value(client, &axis);
 
 	mutex_lock(&sensor->data_mutex);
-	/* get data from buffer */
-	memcpy(&axis, &sensor->axis, sizeof(sensor->axis));
+	sensor->axis = axis;
 	mutex_unlock(&sensor->data_mutex);
-
-	/* data_ready */
-	atomic_set(&sensor->data_ready, 1);
-	wake_up(&sensor->data_ready_wq);
 
 	return 0;
 }
@@ -1040,7 +1038,7 @@ long mc3230_ioctl(struct file *file, unsigned int cmd, unsigned long arg,
 	int cali[3];
 
 	struct mc3230_data *p_mc3230_data = get_3230_ctl_data();
-	struct mc3230_axis sense_data = { 0 };
+	struct sensor_axis sense_data = { 0 };
 
 	mcprintkreg("mc3230_ioctl cmd is %d.", cmd);
 
@@ -1169,6 +1167,23 @@ long mc3230_ioctl(struct file *file, unsigned int cmd, unsigned long arg,
 	return 0;
 }
 
+/* odr table, hz */
+static const int odr_table[8] = {
+	1, 2, 4, 8, 16, 32, 64, 128
+};
+
+static int mc3230_select_odr(int want)
+{
+	int i;
+	int max_index = ARRAY_SIZE(odr_table);
+
+	for (i = 0; i < max_index; i++) {
+		if (want <= odr_table[i])
+			return max_index - i - 1;
+	}
+
+	return 0;
+}
 static int sensor_active(struct i2c_client *client, int enable, int rate)
 {
 	struct sensor_private_data *sensor =
@@ -1176,7 +1191,14 @@ static int sensor_active(struct i2c_client *client, int enable, int rate)
 	int result = 0;
 	int mc3230_rate = 0;
 
-	mc3230_rate = 0xf8 | (0x07 & rate);
+	if (rate == 0) {
+		dev_err(&client->dev, "%s: rate == 0!!!\n", __func__);
+		return -1;
+	}
+
+	mc3230_rate = mc3230_select_odr(1000 / rate);
+
+	mc3230_rate = 0xf8 | (0x07 & mc3230_rate);
 
 	if (rate != 0xff)
 		result =
@@ -1211,19 +1233,11 @@ static int sensor_init(struct i2c_client *client)
 	struct sensor_private_data *sensor =
 	    (struct sensor_private_data *)i2c_get_clientdata(client);
 	int result = 0;
-	int retry = 5;
-	static int MC3230_is_init;
 
-	if (MC3230_is_init == 0) {
-		while (retry--) {
-			if (init_3230_ctl_data(client) == 0)
-				break;
-		}
-	}
+	if (init_3230_ctl_data(client))
+		return -1;
 
-	MC3230_is_init = 1;
-
-	result = sensor->ops->active(client, 0, 0);
+	result = sensor->ops->active(client, 0, sensor->pdata->poll_delay_ms);
 	if (result) {
 		GSE_LOG("%s:line=%d,error\n", __func__, __LINE__);
 		return result;
@@ -1237,7 +1251,7 @@ static int sensor_init(struct i2c_client *client)
 		return result;
 	}
 
-	result = sensor->ops->active(client, 1, MC3230_RATE_32);
+	result = sensor->ops->active(client, 1, 31);
 	if (result) {
 		GSE_LOG("%s:line=%d,error\n", __func__, __LINE__);
 		return result;
@@ -1275,7 +1289,7 @@ static struct sensor_operate gsensor_ops = {
 	.ctrl_reg = MC32X0_Mode_Feature_REG,
 	/* intterupt status register */
 	.int_status_reg = MC32X0_Interrupt_Enable_REG,
-	.range = {-MC3230_RANGE, MC3230_RANGE},
+	.range = {-32768, 32768},
 	.trig = (IRQF_TRIGGER_HIGH | IRQF_ONESHOT),
 	.active = sensor_active,
 	.init = sensor_init,
