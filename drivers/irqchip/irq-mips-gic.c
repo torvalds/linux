@@ -6,6 +6,9 @@
  * Copyright (C) 2008 Ralf Baechle (ralf@linux-mips.org)
  * Copyright (C) 2012 MIPS Technologies, Inc.  All rights reserved.
  */
+
+#define pr_fmt(fmt) "irq-mips-gic: " fmt
+
 #include <linux/bitmap.h>
 #include <linux/clocksource.h>
 #include <linux/cpuhotplug.h>
@@ -685,7 +688,7 @@ static int __init gic_of_init(struct device_node *node,
 
 	cpu_vec = find_first_zero_bit(&reserved, hweight_long(ST0_IM));
 	if (cpu_vec == hweight_long(ST0_IM)) {
-		pr_err("No CPU vectors available for GIC\n");
+		pr_err("No CPU vectors available\n");
 		return -ENODEV;
 	}
 
@@ -698,8 +701,10 @@ static int __init gic_of_init(struct device_node *node,
 			gic_base = read_gcr_gic_base() &
 				~CM_GCR_GIC_BASE_GICEN;
 			gic_len = 0x20000;
+			pr_warn("Using inherited base address %pa\n",
+				&gic_base);
 		} else {
-			pr_err("Failed to get GIC memory range\n");
+			pr_err("Failed to get memory range\n");
 			return -ENODEV;
 		}
 	} else {
@@ -757,7 +762,7 @@ static int __init gic_of_init(struct device_node *node,
 					       gic_shared_intrs, 0,
 					       &gic_irq_domain_ops, NULL);
 	if (!gic_irq_domain) {
-		pr_err("Failed to add GIC IRQ domain");
+		pr_err("Failed to add IRQ domain");
 		return -ENXIO;
 	}
 
@@ -766,7 +771,7 @@ static int __init gic_of_init(struct device_node *node,
 						  GIC_NUM_LOCAL_INTRS + gic_shared_intrs,
 						  node, &gic_ipi_domain_ops, NULL);
 	if (!gic_ipi_domain) {
-		pr_err("Failed to add GIC IPI domain");
+		pr_err("Failed to add IPI domain");
 		return -ENXIO;
 	}
 
