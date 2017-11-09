@@ -18,6 +18,7 @@
 #include <linux/usb/cdc.h>
 #include <linux/usb/quirks.h>
 #include <linux/usb/hcd.h>	/* for usbcore internals */
+#include <linux/usb/of.h>
 #include <asm/byteorder.h>
 
 #include "usb.h"
@@ -1583,6 +1584,7 @@ static void usb_release_interface(struct device *dev)
 
 	kref_put(&intfc->ref, usb_release_interface_cache);
 	usb_put_dev(interface_to_usbdev(intf));
+	of_node_put(dev->of_node);
 	kfree(intf);
 }
 
@@ -1868,6 +1870,7 @@ free_interfaces:
 		struct usb_interface_cache *intfc;
 		struct usb_interface *intf;
 		struct usb_host_interface *alt;
+		u8 ifnum;
 
 		cp->interface[i] = intf = new_interfaces[i];
 		intfc = cp->intf_cache[i];
@@ -1886,11 +1889,17 @@ free_interfaces:
 		if (!alt)
 			alt = &intf->altsetting[0];
 
-		intf->intf_assoc =
-			find_iad(dev, cp, alt->desc.bInterfaceNumber);
+		ifnum = alt->desc.bInterfaceNumber;
+		intf->intf_assoc = find_iad(dev, cp, ifnum);
 		intf->cur_altsetting = alt;
 		usb_enable_interface(dev, intf, true);
 		intf->dev.parent = &dev->dev;
+		if (usb_of_has_combined_node(dev)) {
+			device_set_of_node_from_dev(&intf->dev, &dev->dev);
+		} else {
+			intf->dev.of_node = usb_of_get_interface_node(dev,
+					configuration, ifnum);
+		}
 		intf->dev.driver = NULL;
 		intf->dev.bus = &usb_bus_type;
 		intf->dev.type = &usb_if_device_type;
@@ -1905,9 +1914,8 @@ free_interfaces:
 		intf->minor = -1;
 		device_initialize(&intf->dev);
 		pm_runtime_no_callbacks(&intf->dev);
-		dev_set_name(&intf->dev, "%d-%s:%d.%d",
-			dev->bus->busnum, dev->devpath,
-			configuration, alt->desc.bInterfaceNumber);
+		dev_set_name(&intf->dev, "%d-%s:%d.%d", dev->bus->busnum,
+				dev->devpath, configuration, ifnum);
 		usb_get_dev(dev);
 	}
 	kfree(new_interfaces);
