@@ -827,6 +827,44 @@ SendReceive2(const unsigned int xid, struct cifs_ses *ses,
 	return rc;
 }
 
+/* Like SendReceive2 but iov[0] does not contain an rfc1002 header */
+int
+smb2_send_recv(const unsigned int xid, struct cifs_ses *ses,
+	       struct kvec *iov, int n_vec, int *resp_buf_type /* ret */,
+	       const int flags, struct kvec *resp_iov)
+{
+	struct smb_rqst rqst;
+	struct kvec *new_iov;
+	int rc;
+	int i;
+	__u32 count;
+	__be32 rfc1002_marker;
+
+	new_iov = kmalloc(sizeof(struct kvec) * (n_vec + 1), GFP_KERNEL);
+	if (!new_iov)
+		return -ENOMEM;
+
+	/* 1st iov is an RFC1002 Session Message length */
+	memcpy(new_iov + 1, iov, (sizeof(struct kvec) * n_vec));
+
+	count = 0;
+	for (i = 1; i < n_vec + 1; i++)
+		count += new_iov[i].iov_len;
+
+	rfc1002_marker = cpu_to_be32(count);
+
+	new_iov[0].iov_base = &rfc1002_marker;
+	new_iov[0].iov_len = 4;
+
+	memset(&rqst, 0, sizeof(struct smb_rqst));
+	rqst.rq_iov = new_iov;
+	rqst.rq_nvec = n_vec + 1;
+
+	rc = cifs_send_recv(xid, ses, &rqst, resp_buf_type, flags, resp_iov);
+	kfree(new_iov);
+	return rc;
+}
+
 int
 SendReceive(const unsigned int xid, struct cifs_ses *ses,
 	    struct smb_hdr *in_buf, struct smb_hdr *out_buf,
