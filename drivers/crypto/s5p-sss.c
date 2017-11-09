@@ -1461,7 +1461,7 @@ static void s5p_hash_tasklet_cb(unsigned long data)
 				       &dd->hash_flags)) {
 			/* hash or semi-hash ready */
 			clear_bit(HASH_FLAGS_DMA_READY, &dd->hash_flags);
-				goto finish;
+			goto finish;
 		}
 	}
 
