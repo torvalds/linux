@@ -1524,6 +1524,9 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 	case CHIP_POLARIS11:
 	case CHIP_POLARIS10:
 	case CHIP_POLARIS12:
+#if defined(CONFIG_DRM_AMD_DC_VEGAM)
+	case CHIP_VEGAM:
+#endif
 	case CHIP_VEGA10:
 	case CHIP_VEGA12:
 		if (dce110_register_irq_handlers(dm->adev)) {
@@ -1716,6 +1719,9 @@ static int dm_early_init(void *handle)
 		adev->mode_info.plane_type = dm_plane_type_default;
 		break;
 	case CHIP_POLARIS10:
+#if defined(CONFIG_DRM_AMD_DC_VEGAM)
+	case CHIP_VEGAM:
+#endif
 		adev->mode_info.num_crtc = 6;
 		adev->mode_info.num_hpd = 6;
 		adev->mode_info.num_dig = 6;
