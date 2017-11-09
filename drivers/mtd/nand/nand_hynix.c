@@ -81,6 +81,15 @@ static int hynix_nand_cmd_op(struct nand_chip *chip, u8 cmd)
 {
 	struct mtd_info *mtd = nand_to_mtd(chip);
 
+	if (chip->exec_op) {
+		struct nand_op_instr instrs[] = {
+			NAND_OP_CMD(cmd, 0),
+		};
+		struct nand_operation op = NAND_OPERATION(instrs);
+
+		return nand_exec_op(chip, &op);
+	}
+
 	chip->cmdfunc(mtd, cmd, -1, -1);
 
 	return 0;

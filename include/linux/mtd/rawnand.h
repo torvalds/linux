@@ -735,6 +735,350 @@ struct nand_manufacturer_ops {
 };
 
 /**
+ * struct nand_op_cmd_instr - Definition of a command instruction
+ * @opcode: the command to issue in one cycle
+ */
+struct nand_op_cmd_instr {
+	u8 opcode;
+};
+
+/**
+ * struct nand_op_addr_instr - Definition of an address instruction
+ * @naddrs: length of the @addrs array
+ * @addrs: array containing the address cycles to issue
+ */
+struct nand_op_addr_instr {
+	unsigned int naddrs;
+	const u8 *addrs;
+};
+
+/**
+ * struct nand_op_data_instr - Definition of a data instruction
+ * @len: number of data bytes to move
+ * @in: buffer to fill when reading from the NAND chip
+ * @out: buffer to read from when writing to the NAND chip
+ * @force_8bit: force 8-bit access
+ *
+ * Please note that "in" and "out" are inverted from the ONFI specification
+ * and are from the controller perspective, so a "in" is a read from the NAND
+ * chip while a "out" is a write to the NAND chip.
+ */
+struct nand_op_data_instr {
+	unsigned int len;
+	union {
+		void *in;
+		const void *out;
+	} buf;
+	bool force_8bit;
+};
+
+/**
+ * struct nand_op_waitrdy_instr - Definition of a wait ready instruction
+ * @timeout_ms: maximum delay while waiting for the ready/busy pin in ms
+ */
+struct nand_op_waitrdy_instr {
+	unsigned int timeout_ms;
+};
+
+/**
+ * enum nand_op_instr_type - Definition of all instruction types
+ * @NAND_OP_CMD_INSTR: command instruction
+ * @NAND_OP_ADDR_INSTR: address instruction
+ * @NAND_OP_DATA_IN_INSTR: data in instruction
+ * @NAND_OP_DATA_OUT_INSTR: data out instruction
+ * @NAND_OP_WAITRDY_INSTR: wait ready instruction
+ */
+enum nand_op_instr_type {
+	NAND_OP_CMD_INSTR,
+	NAND_OP_ADDR_INSTR,
+	NAND_OP_DATA_IN_INSTR,
+	NAND_OP_DATA_OUT_INSTR,
+	NAND_OP_WAITRDY_INSTR,
+};
+
+/**
+ * struct nand_op_instr - Instruction object
+ * @type: the instruction type
+ * @cmd/@addr/@data/@waitrdy: extra data associated to the instruction.
+ *                            You'll have to use the appropriate element
+ *                            depending on @type
+ * @delay_ns: delay the controller should apply after the instruction has been
+ *	      issued on the bus. Most modern controllers have internal timings
+ *	      control logic, and in this case, the controller driver can ignore
+ *	      this field.
+ */
+struct nand_op_instr {
+	enum nand_op_instr_type type;
+	union {
+		struct nand_op_cmd_instr cmd;
+		struct nand_op_addr_instr addr;
+		struct nand_op_data_instr data;
+		struct nand_op_waitrdy_instr waitrdy;
+	} ctx;
+	unsigned int delay_ns;
+};
+
+/*
+ * Special handling must be done for the WAITRDY timeout parameter as it usually
+ * is either tPROG (after a prog), tR (before a read), tRST (during a reset) or
+ * tBERS (during an erase) which all of them are u64 values that cannot be
+ * divided by usual kernel macros and must be handled with the special
+ * DIV_ROUND_UP_ULL() macro.
+ */
+#define __DIVIDE(dividend, divisor) ({					\
+	sizeof(dividend) == sizeof(u32) ?				\
+		DIV_ROUND_UP(dividend, divisor) :			\
+		DIV_ROUND_UP_ULL(dividend, divisor);			\
+		})
+#define PSEC_TO_NSEC(x) __DIVIDE(x, 1000)
+#define PSEC_TO_MSEC(x) __DIVIDE(x, 1000000000)
+
+#define NAND_OP_CMD(id, ns)						\
+	{								\
+		.type = NAND_OP_CMD_INSTR,				\
+		.ctx.cmd.opcode = id,					\
+		.delay_ns = ns,						\
+	}
+
+#define NAND_OP_ADDR(ncycles, cycles, ns)				\
+	{								\
+		.type = NAND_OP_ADDR_INSTR,				\
+		.ctx.addr = {						\
+			.naddrs = ncycles,				\
+			.addrs = cycles,				\
+		},							\
+		.delay_ns = ns,						\
+	}
+
+#define NAND_OP_DATA_IN(l, b, ns)					\
+	{								\
+		.type = NAND_OP_DATA_IN_INSTR,				\
+		.ctx.data = {						\
+			.len = l,					\
+			.buf.in = b,					\
+			.force_8bit = false,				\
+		},							\
+		.delay_ns = ns,						\
+	}
+
+#define NAND_OP_DATA_OUT(l, b, ns)					\
+	{								\
+		.type = NAND_OP_DATA_OUT_INSTR,				\
+		.ctx.data = {						\
+			.len = l,					\
+			.buf.out = b,					\
+			.force_8bit = false,				\
+		},							\
+		.delay_ns = ns,						\
+	}
+
+#define NAND_OP_8BIT_DATA_IN(l, b, ns)					\
+	{								\
+		.type = NAND_OP_DATA_IN_INSTR,				\
+		.ctx.data = {						\
+			.len = l,					\
+			.buf.in = b,					\
+			.force_8bit = true,				\
+		},							\
+		.delay_ns = ns,						\
+	}
+
+#define NAND_OP_8BIT_DATA_OUT(l, b, ns)					\
+	{								\
+		.type = NAND_OP_DATA_OUT_INSTR,				\
+		.ctx.data = {						\
+			.len = l,					\
+			.buf.out = b,					\
+			.force_8bit = true,				\
+		},							\
+		.delay_ns = ns,						\
+	}
+
+#define NAND_OP_WAIT_RDY(tout_ms, ns)					\
+	{								\
+		.type = NAND_OP_WAITRDY_INSTR,				\
+		.ctx.waitrdy.timeout_ms = tout_ms,			\
+		.delay_ns = ns,						\
+	}
+
+/**
+ * struct nand_subop - a sub operation
+ * @instrs: array of instructions
+ * @ninstrs: length of the @instrs array
+ * @first_instr_start_off: offset to start from for the first instruction
+ *			   of the sub-operation
+ * @last_instr_end_off: offset to end at (excluded) for the last instruction
+ *			of the sub-operation
+ *
+ * Both @first_instr_start_off and @last_instr_end_off only apply to data or
+ * address instructions.
+ *
+ * When an operation cannot be handled as is by the NAND controller, it will
+ * be split by the parser into sub-operations which will be passed to the
+ * controller driver.
+ */
+struct nand_subop {
+	const struct nand_op_instr *instrs;
+	unsigned int ninstrs;
+	unsigned int first_instr_start_off;
+	unsigned int last_instr_end_off;
+};
+
+int nand_subop_get_addr_start_off(const struct nand_subop *subop,
+				  unsigned int op_id);
+int nand_subop_get_num_addr_cyc(const struct nand_subop *subop,
+				unsigned int op_id);
+int nand_subop_get_data_start_off(const struct nand_subop *subop,
+				  unsigned int op_id);
+int nand_subop_get_data_len(const struct nand_subop *subop,
+			    unsigned int op_id);
+
+/**
+ * struct nand_op_parser_addr_constraints - Constraints for address instructions
+ * @maxcycles: maximum number of address cycles the controller can issue in a
+ *	       single step
+ */
+struct nand_op_parser_addr_constraints {
+	unsigned int maxcycles;
+};
+
+/**
+ * struct nand_op_parser_data_constraints - Constraints for data instructions
+ * @maxlen: maximum data length that the controller can handle in a single step
+ */
+struct nand_op_parser_data_constraints {
+	unsigned int maxlen;
+};
+
+/**
+ * struct nand_op_parser_pattern_elem - One element of a pattern
+ * @type: the instructuction type
+ * @optional: whether this element of the pattern is optional or mandatory
+ * @addr/@data: address or data constraint (number of cycles or data length)
+ */
+struct nand_op_parser_pattern_elem {
+	enum nand_op_instr_type type;
+	bool optional;
+	union {
+		struct nand_op_parser_addr_constraints addr;
+		struct nand_op_parser_data_constraints data;
+	};
+};
+
+#define NAND_OP_PARSER_PAT_CMD_ELEM(_opt)			\
+	{							\
+		.type = NAND_OP_CMD_INSTR,			\
+		.optional = _opt,				\
+	}
+
+#define NAND_OP_PARSER_PAT_ADDR_ELEM(_opt, _maxcycles)		\
+	{							\
+		.type = NAND_OP_ADDR_INSTR,			\
+		.optional = _opt,				\
+		.addr.maxcycles = _maxcycles,			\
+	}
+
+#define NAND_OP_PARSER_PAT_DATA_IN_ELEM(_opt, _maxlen)		\
+	{							\
+		.type = NAND_OP_DATA_IN_INSTR,			\
+		.optional = _opt,				\
+		.data.maxlen = _maxlen,				\
+	}
+
+#define NAND_OP_PARSER_PAT_DATA_OUT_ELEM(_opt, _maxlen)		\
+	{							\
+		.type = NAND_OP_DATA_OUT_INSTR,			\
+		.optional = _opt,				\
+		.data.maxlen = _maxlen,				\
+	}
+
+#define NAND_OP_PARSER_PAT_WAITRDY_ELEM(_opt)			\
+	{							\
+		.type = NAND_OP_WAITRDY_INSTR,			\
+		.optional = _opt,				\
+	}
+
+/**
+ * struct nand_op_parser_pattern - NAND sub-operation pattern descriptor
+ * @elems: array of pattern elements
+ * @nelems: number of pattern elements in @elems array
+ * @exec: the function that will issue a sub-operation
+ *
+ * A pattern is a list of elements, each element reprensenting one instruction
+ * with its constraints. The pattern itself is used by the core to match NAND
+ * chip operation with NAND controller operations.
+ * Once a match between a NAND controller operation pattern and a NAND chip
+ * operation (or a sub-set of a NAND operation) is found, the pattern ->exec()
+ * hook is called so that the controller driver can issue the operation on the
+ * bus.
+ *
+ * Controller drivers should declare as many patterns as they support and pass
+ * this list of patterns (created with the help of the following macro) to
+ * the nand_op_parser_exec_op() helper.
+ */
+struct nand_op_parser_pattern {
+	const struct nand_op_parser_pattern_elem *elems;
+	unsigned int nelems;
+	int (*exec)(struct nand_chip *chip, const struct nand_subop *subop);
+};
+
+#define NAND_OP_PARSER_PATTERN(_exec, ...)							\
+	{											\
+		.exec = _exec,									\
+		.elems = (struct nand_op_parser_pattern_elem[]) { __VA_ARGS__ },		\
+		.nelems = sizeof((struct nand_op_parser_pattern_elem[]) { __VA_ARGS__ }) /	\
+			  sizeof(struct nand_op_parser_pattern_elem),				\
+	}
+
+/**
+ * struct nand_op_parser - NAND controller operation parser descriptor
+ * @patterns: array of supported patterns
+ * @npatterns: length of the @patterns array
+ *
+ * The parser descriptor is just an array of supported patterns which will be
+ * iterated by nand_op_parser_exec_op() everytime it tries to execute an
+ * NAND operation (or tries to determine if a specific operation is supported).
+ *
+ * It is worth mentioning that patterns will be tested in their declaration
+ * order, and the first match will be taken, so it's important to order patterns
+ * appropriately so that simple/inefficient patterns are placed at the end of
+ * the list. Usually, this is where you put single instruction patterns.
+ */
+struct nand_op_parser {
+	const struct nand_op_parser_pattern *patterns;
+	unsigned int npatterns;
+};
+
+#define NAND_OP_PARSER(...)									\
+	{											\
+		.patterns = (struct nand_op_parser_pattern[]) { __VA_ARGS__ },			\
+		.npatterns = sizeof((struct nand_op_parser_pattern[]) { __VA_ARGS__ }) /	\
+			     sizeof(struct nand_op_parser_pattern),				\
+	}
+
+/**
+ * struct nand_operation - NAND operation descriptor
+ * @instrs: array of instructions to execute
+ * @ninstrs: length of the @instrs array
+ *
+ * The actual operation structure that will be passed to chip->exec_op().
+ */
+struct nand_operation {
+	const struct nand_op_instr *instrs;
+	unsigned int ninstrs;
+};
+
+#define NAND_OPERATION(_instrs)					\
+	{							\
+		.instrs = _instrs,				\
+		.ninstrs = ARRAY_SIZE(_instrs),			\
+	}
+
+int nand_op_parser_exec_op(struct nand_chip *chip,
+			   const struct nand_op_parser *parser,
+			   const struct nand_operation *op, bool check_only);
+
+/**
  * struct nand_chip - NAND Private Flash Chip Data
  * @mtd:		MTD device registered to the MTD framework
  * @IO_ADDR_R:		[BOARDSPECIFIC] address to read the 8 I/O lines of the
@@ -760,6 +1104,10 @@ struct nand_manufacturer_ops {
  *			commands to the chip.
  * @waitfunc:		[REPLACEABLE] hardwarespecific function for wait on
  *			ready.
+ * @exec_op:		controller specific method to execute NAND operations.
+ *			This method replaces ->cmdfunc(),
+ *			->{read,write}_{buf,byte,word}(), ->dev_ready() and
+ *			->waifunc().
  * @setup_read_retry:	[FLASHSPECIFIC] flash (vendor) specific function for
  *			setting the read-retry mode. Mostly needed for MLC NAND.
  * @ecc:		[BOARDSPECIFIC] ECC control structure
@@ -859,6 +1207,9 @@ struct nand_chip {
 	void (*cmdfunc)(struct mtd_info *mtd, unsigned command, int column,
 			int page_addr);
 	int(*waitfunc)(struct mtd_info *mtd, struct nand_chip *this);
+	int (*exec_op)(struct nand_chip *chip,
+		       const struct nand_operation *op,
+		       bool check_only);
 	int (*erase)(struct mtd_info *mtd, int page);
 	int (*scan_bbt)(struct mtd_info *mtd);
 	int (*onfi_set_features)(struct mtd_info *mtd, struct nand_chip *chip,
@@ -868,7 +1219,6 @@ struct nand_chip {
 	int (*setup_read_retry)(struct mtd_info *mtd, int retry_mode);
 	int (*setup_data_interface)(struct mtd_info *mtd, int chipnr,
 				    const struct nand_data_interface *conf);
-
 
 	int chip_delay;
 	unsigned int options;
@@ -928,6 +1278,15 @@ struct nand_chip {
 		void *priv;
 	} manufacturer;
 };
+
+static inline int nand_exec_op(struct nand_chip *chip,
+			       const struct nand_operation *op)
+{
+	if (!chip->exec_op)
+		return -ENOTSUPP;
+
+	return chip->exec_op(chip, op, false);
+}
 
 extern const struct mtd_ooblayout_ops nand_ooblayout_sp_ops;
 extern const struct mtd_ooblayout_ops nand_ooblayout_lp_ops;
@@ -1320,4 +1679,11 @@ void nand_cleanup(struct nand_chip *chip);
 
 /* Default extended ID decoding function */
 void nand_decode_ext_id(struct nand_chip *chip);
+
+/*
+ * External helper for controller drivers that have to implement the WAITRDY
+ * instruction and have no physical pin to check it.
+ */
+int nand_soft_waitrdy(struct nand_chip *chip, unsigned long timeout_ms);
+
 #endif /* __LINUX_MTD_RAWNAND_H */
