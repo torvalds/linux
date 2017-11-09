@@ -4,6 +4,3 @@ dtb-$(CONFIG_ARCH_UNIPHIER) += \
 	uniphier-ld20-global.dtb \
 	uniphier-ld20-ref.dtb \
 	uniphier-pxs3-ref.dtb
-
-always		:= $(dtb-y)
-clean-files	:= *.dtb
