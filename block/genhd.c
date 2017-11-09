@@ -585,13 +585,13 @@ static void register_disk(struct device *parent, struct gendisk *disk)
 	 */
 	pm_runtime_set_memalloc_noio(ddev, true);
 
+	disk->part0.holder_dir = kobject_create_and_add("holders", &ddev->kobj);
+	disk->slave_dir = kobject_create_and_add("slaves", &ddev->kobj);
+
 	if (disk->flags & GENHD_FL_HIDDEN) {
 		dev_set_uevent_suppress(ddev, 0);
 		return;
 	}
-
-	disk->part0.holder_dir = kobject_create_and_add("holders", &ddev->kobj);
-	disk->slave_dir = kobject_create_and_add("slaves", &ddev->kobj);
 
 	/* No minors to use for partitions */
 	if (!disk_part_scan_enabled(disk))
@@ -728,11 +728,11 @@ void del_gendisk(struct gendisk *disk)
 		WARN_ON(1);
 	}
 
-	if (!(disk->flags & GENHD_FL_HIDDEN)) {
+	if (!(disk->flags & GENHD_FL_HIDDEN))
 		blk_unregister_region(disk_devt(disk), disk->minors);
-		kobject_put(disk->part0.holder_dir);
-		kobject_put(disk->slave_dir);
-	}
+
+	kobject_put(disk->part0.holder_dir);
+	kobject_put(disk->slave_dir);
 
 	part_stat_set_all(&disk->part0, 0);
 	disk->part0.stamp = 0;
