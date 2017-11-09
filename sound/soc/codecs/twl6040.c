@@ -106,10 +106,12 @@ static const struct snd_pcm_hw_constraint_list sysclk_constraints[] = {
 	{ .count = ARRAY_SIZE(hp_rates), .list = hp_rates, },
 };
 
+#define to_twl6040(codec)	dev_get_drvdata((codec)->dev->parent)
+
 static unsigned int twl6040_read(struct snd_soc_codec *codec, unsigned int reg)
 {
 	struct twl6040_data *priv = snd_soc_codec_get_drvdata(codec);
-	struct twl6040 *twl6040 = codec->control_data;
+	struct twl6040 *twl6040 = to_twl6040(codec);
 	u8 value;
 
 	if (reg >= TWL6040_CACHEREGNUM)
@@ -171,7 +173,7 @@ static inline void twl6040_update_dl12_cache(struct snd_soc_codec *codec,
 static int twl6040_write(struct snd_soc_codec *codec,
 			unsigned int reg, unsigned int value)
 {
-	struct twl6040 *twl6040 = codec->control_data;
+	struct twl6040 *twl6040 = to_twl6040(codec);
 
 	if (reg >= TWL6040_CACHEREGNUM)
 		return -EIO;
@@ -572,7 +574,7 @@ EXPORT_SYMBOL_GPL(twl6040_get_trim_value);
 
 int twl6040_get_hs_step_size(struct snd_soc_codec *codec)
 {
-	struct twl6040 *twl6040 = codec->control_data;
+	struct twl6040 *twl6040 = to_twl6040(codec);
 
 	if (twl6040_get_revid(twl6040) < TWL6040_REV_ES1_3)
 		/* For ES under ES_1.3 HS step is 2 mV */
@@ -830,7 +832,7 @@ static const struct snd_soc_dapm_route intercon[] = {
 static int twl6040_set_bias_level(struct snd_soc_codec *codec,
 				enum snd_soc_bias_level level)
 {
-	struct twl6040 *twl6040 = codec->control_data;
+	struct twl6040 *twl6040 = to_twl6040(codec);
 	struct twl6040_data *priv = snd_soc_codec_get_drvdata(codec);
 	int ret = 0;
 
@@ -922,7 +924,7 @@ static int twl6040_prepare(struct snd_pcm_substream *substream,
 			struct snd_soc_dai *dai)
 {
 	struct snd_soc_codec *codec = dai->codec;
-	struct twl6040 *twl6040 = codec->control_data;
+	struct twl6040 *twl6040 = to_twl6040(codec);
 	struct twl6040_data *priv = snd_soc_codec_get_drvdata(codec);
 	int ret;
 
@@ -964,7 +966,7 @@ static int twl6040_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 static void twl6040_mute_path(struct snd_soc_codec *codec, enum twl6040_dai_id id,
 			     int mute)
 {
-	struct twl6040 *twl6040 = codec->control_data;
+	struct twl6040 *twl6040 = to_twl6040(codec);
 	struct twl6040_data *priv = snd_soc_codec_get_drvdata(codec);
 	int hslctl, hsrctl, earctl;
 	int hflctl, hfrctl;
@@ -1108,7 +1110,6 @@ static struct snd_soc_dai_driver twl6040_dai[] = {
 static int twl6040_probe(struct snd_soc_codec *codec)
 {
 	struct twl6040_data *priv;
-	struct twl6040 *twl6040 = dev_get_drvdata(codec->dev->parent);
 	struct platform_device *pdev = to_platform_device(codec->dev);
 	int ret = 0;
 
@@ -1119,7 +1120,6 @@ static int twl6040_probe(struct snd_soc_codec *codec)
 	snd_soc_codec_set_drvdata(codec, priv);
 
 	priv->codec = codec;
-	codec->control_data = twl6040;
 
 	priv->plug_irq = platform_get_irq(pdev, 0);
 	if (priv->plug_irq < 0) {
