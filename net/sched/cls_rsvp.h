@@ -285,13 +285,19 @@ static int rsvp_init(struct tcf_proto *tp)
 	return -ENOBUFS;
 }
 
+static void __rsvp_delete_filter(struct rsvp_filter *f)
+{
+	tcf_exts_destroy(&f->exts);
+	tcf_exts_put_net(&f->exts);
+	kfree(f);
+}
+
 static void rsvp_delete_filter_work(struct work_struct *work)
 {
 	struct rsvp_filter *f = container_of(work, struct rsvp_filter, work);
 
 	rtnl_lock();
-	tcf_exts_destroy(&f->exts);
-	kfree(f);
+	__rsvp_delete_filter(f);
 	rtnl_unlock();
 }
 
@@ -310,7 +316,10 @@ static void rsvp_delete_filter(struct tcf_proto *tp, struct rsvp_filter *f)
 	 * grace period, since converted-to-rcu actions are relying on that
 	 * in cleanup() callback
 	 */
-	call_rcu(&f->rcu, rsvp_delete_filter_rcu);
+	if (tcf_exts_get_net(&f->exts))
+		call_rcu(&f->rcu, rsvp_delete_filter_rcu);
+	else
+		__rsvp_delete_filter(f);
 }
 
 static void rsvp_destroy(struct tcf_proto *tp)

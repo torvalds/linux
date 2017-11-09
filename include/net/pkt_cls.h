@@ -94,6 +94,7 @@ struct tcf_exts {
 	__u32	type; /* for backward compat(TCA_OLD_COMPAT) */
 	int nr_actions;
 	struct tc_action **actions;
+	struct net *net;
 #endif
 	/* Map to export classifier specific extension TLV types to the
 	 * generic extensions API. Unsupported extensions must be set to 0.
@@ -107,6 +108,7 @@ static inline int tcf_exts_init(struct tcf_exts *exts, int action, int police)
 #ifdef CONFIG_NET_CLS_ACT
 	exts->type = 0;
 	exts->nr_actions = 0;
+	exts->net = NULL;
 	exts->actions = kcalloc(TCA_ACT_MAX_PRIO, sizeof(struct tc_action *),
 				GFP_KERNEL);
 	if (!exts->actions)
@@ -115,6 +117,28 @@ static inline int tcf_exts_init(struct tcf_exts *exts, int action, int police)
 	exts->action = action;
 	exts->police = police;
 	return 0;
+}
+
+/* Return false if the netns is being destroyed in cleanup_net(). Callers
+ * need to do cleanup synchronously in this case, otherwise may race with
+ * tc_action_net_exit(). Return true for other cases.
+ */
+static inline bool tcf_exts_get_net(struct tcf_exts *exts)
+{
+#ifdef CONFIG_NET_CLS_ACT
+	exts->net = maybe_get_net(exts->net);
+	return exts->net != NULL;
+#else
+	return true;
+#endif
+}
+
+static inline void tcf_exts_put_net(struct tcf_exts *exts)
+{
+#ifdef CONFIG_NET_CLS_ACT
+	if (exts->net)
+		put_net(exts->net);
+#endif
 }
 
 static inline void tcf_exts_to_list(const struct tcf_exts *exts,
