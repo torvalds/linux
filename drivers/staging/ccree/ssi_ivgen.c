@@ -209,7 +209,7 @@ int ssi_ivgen_init(struct ssi_drvdata *drvdata)
 		goto out;
 	}
 	/* Allocate IV pool in SRAM */
-	ivgen_ctx->pool = ssi_sram_mgr_alloc(drvdata, SSI_IVPOOL_SIZE);
+	ivgen_ctx->pool = cc_sram_alloc(drvdata, SSI_IVPOOL_SIZE);
 	if (ivgen_ctx->pool == NULL_SRAM_ADDR) {
 		dev_err(device, "SRAM pool exhausted\n");
 		rc = -ENOMEM;

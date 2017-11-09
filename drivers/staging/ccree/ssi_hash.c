@@ -364,7 +364,7 @@ static void ssi_hash_update_complete(struct device *dev, void *ssi_req, void __i
 
 	dev_dbg(dev, "req=%pK\n", req);
 
-	ssi_buffer_mgr_unmap_hash_request(dev, state, req->src, false);
+	cc_unmap_hash_request(dev, state, req->src, false);
 	req->base.complete(&req->base, 0);
 }
 
@@ -378,7 +378,7 @@ static void ssi_hash_digest_complete(struct device *dev, void *ssi_req, void __i
 
 	dev_dbg(dev, "req=%pK\n", req);
 
-	ssi_buffer_mgr_unmap_hash_request(dev, state, req->src, false);
+	cc_unmap_hash_request(dev, state, req->src, false);
 	ssi_hash_unmap_result(dev, state, digestsize, req->result);
 	ssi_hash_unmap_request(dev, state, ctx);
 	req->base.complete(&req->base, 0);
@@ -394,7 +394,7 @@ static void ssi_hash_complete(struct device *dev, void *ssi_req, void __iomem *c
 
 	dev_dbg(dev, "req=%pK\n", req);
 
-	ssi_buffer_mgr_unmap_hash_request(dev, state, req->src, false);
+	cc_unmap_hash_request(dev, state, req->src, false);
 	ssi_hash_unmap_result(dev, state, digestsize, req->result);
 	ssi_hash_unmap_request(dev, state, ctx);
 	req->base.complete(&req->base, 0);
@@ -429,7 +429,8 @@ static int ssi_hash_digest(struct ahash_req_ctx *state,
 		return -ENOMEM;
 	}
 
-	if (unlikely(ssi_buffer_mgr_map_hash_request_final(ctx->drvdata, state, src, nbytes, 1) != 0)) {
+	if (unlikely(cc_map_hash_request_final(ctx->drvdata, state,
+					       src, nbytes, 1) != 0)) {
 		dev_err(dev, "map_ahash_request_final() failed\n");
 		return -ENOMEM;
 	}
@@ -548,7 +549,7 @@ ctx->drvdata, ctx->hash_mode), HASH_LEN_SIZE);
 		rc = send_request(ctx->drvdata, &ssi_req, desc, idx, 1);
 		if (unlikely(rc != -EINPROGRESS)) {
 			dev_err(dev, "send_request() failed (rc=%d)\n", rc);
-			ssi_buffer_mgr_unmap_hash_request(dev, state, src, true);
+			cc_unmap_hash_request(dev, state, src, true);
 			ssi_hash_unmap_result(dev, state, digestsize, result);
 			ssi_hash_unmap_request(dev, state, ctx);
 		}
@@ -556,9 +557,9 @@ ctx->drvdata, ctx->hash_mode), HASH_LEN_SIZE);
 		rc = send_request(ctx->drvdata, &ssi_req, desc, idx, 0);
 		if (rc != 0) {
 			dev_err(dev, "send_request() failed (rc=%d)\n", rc);
-			ssi_buffer_mgr_unmap_hash_request(dev, state, src, true);
+			cc_unmap_hash_request(dev, state, src, true);
 		} else {
-			ssi_buffer_mgr_unmap_hash_request(dev, state, src, false);
+			cc_unmap_hash_request(dev, state, src, false);
 		}
 		ssi_hash_unmap_result(dev, state, digestsize, result);
 		ssi_hash_unmap_request(dev, state, ctx);
@@ -587,7 +588,8 @@ static int ssi_hash_update(struct ahash_req_ctx *state,
 		return 0;
 	}
 
-	rc = ssi_buffer_mgr_map_hash_request_update(ctx->drvdata, state, src, nbytes, block_size);
+	rc = cc_map_hash_request_update(ctx->drvdata, state, src, nbytes,
+					block_size);
 	if (unlikely(rc)) {
 		if (rc == 1) {
 			dev_dbg(dev, " data size not require HW update %x\n",
@@ -648,15 +650,15 @@ static int ssi_hash_update(struct ahash_req_ctx *state,
 		rc = send_request(ctx->drvdata, &ssi_req, desc, idx, 1);
 		if (unlikely(rc != -EINPROGRESS)) {
 			dev_err(dev, "send_request() failed (rc=%d)\n", rc);
-			ssi_buffer_mgr_unmap_hash_request(dev, state, src, true);
+			cc_unmap_hash_request(dev, state, src, true);
 		}
 	} else {
 		rc = send_request(ctx->drvdata, &ssi_req, desc, idx, 0);
 		if (rc != 0) {
 			dev_err(dev, "send_request() failed (rc=%d)\n", rc);
-			ssi_buffer_mgr_unmap_hash_request(dev, state, src, true);
+			cc_unmap_hash_request(dev, state, src, true);
 		} else {
-			ssi_buffer_mgr_unmap_hash_request(dev, state, src, false);
+			cc_unmap_hash_request(dev, state, src, false);
 		}
 	}
 	return rc;
@@ -680,7 +682,8 @@ static int ssi_hash_finup(struct ahash_req_ctx *state,
 	dev_dbg(dev, "===== %s-finup (%d) ====\n", is_hmac ? "hmac" : "hash",
 		nbytes);
 
-	if (unlikely(ssi_buffer_mgr_map_hash_request_final(ctx->drvdata, state, src, nbytes, 1) != 0)) {
+	if (unlikely(cc_map_hash_request_final(ctx->drvdata, state, src,
+					       nbytes, 1) != 0)) {
 		dev_err(dev, "map_ahash_request_final() failed\n");
 		return -ENOMEM;
 	}
@@ -779,17 +782,17 @@ ctx->drvdata, ctx->hash_mode), HASH_LEN_SIZE);
 		rc = send_request(ctx->drvdata, &ssi_req, desc, idx, 1);
 		if (unlikely(rc != -EINPROGRESS)) {
 			dev_err(dev, "send_request() failed (rc=%d)\n", rc);
-			ssi_buffer_mgr_unmap_hash_request(dev, state, src, true);
+			cc_unmap_hash_request(dev, state, src, true);
 			ssi_hash_unmap_result(dev, state, digestsize, result);
 		}
 	} else {
 		rc = send_request(ctx->drvdata, &ssi_req, desc, idx, 0);
 		if (rc != 0) {
 			dev_err(dev, "send_request() failed (rc=%d)\n", rc);
-			ssi_buffer_mgr_unmap_hash_request(dev, state, src, true);
+			cc_unmap_hash_request(dev, state, src, true);
 			ssi_hash_unmap_result(dev, state, digestsize, result);
 		} else {
-			ssi_buffer_mgr_unmap_hash_request(dev, state, src, false);
+			cc_unmap_hash_request(dev, state, src, false);
 			ssi_hash_unmap_result(dev, state, digestsize, result);
 			ssi_hash_unmap_request(dev, state, ctx);
 		}
@@ -815,7 +818,8 @@ static int ssi_hash_final(struct ahash_req_ctx *state,
 	dev_dbg(dev, "===== %s-final (%d) ====\n", is_hmac ? "hmac" : "hash",
 		nbytes);
 
-	if (unlikely(ssi_buffer_mgr_map_hash_request_final(ctx->drvdata, state, src, nbytes, 0) != 0)) {
+	if (unlikely(cc_map_hash_request_final(ctx->drvdata, state, src,
+					       nbytes, 0) != 0)) {
 		dev_err(dev, "map_ahash_request_final() failed\n");
 		return -ENOMEM;
 	}
@@ -924,17 +928,17 @@ ctx->drvdata, ctx->hash_mode), HASH_LEN_SIZE);
 		rc = send_request(ctx->drvdata, &ssi_req, desc, idx, 1);
 		if (unlikely(rc != -EINPROGRESS)) {
 			dev_err(dev, "send_request() failed (rc=%d)\n", rc);
-			ssi_buffer_mgr_unmap_hash_request(dev, state, src, true);
+			cc_unmap_hash_request(dev, state, src, true);
 			ssi_hash_unmap_result(dev, state, digestsize, result);
 		}
 	} else {
 		rc = send_request(ctx->drvdata, &ssi_req, desc, idx, 0);
 		if (rc != 0) {
 			dev_err(dev, "send_request() failed (rc=%d)\n", rc);
-			ssi_buffer_mgr_unmap_hash_request(dev, state, src, true);
+			cc_unmap_hash_request(dev, state, src, true);
 			ssi_hash_unmap_result(dev, state, digestsize, result);
 		} else {
-			ssi_buffer_mgr_unmap_hash_request(dev, state, src, false);
+			cc_unmap_hash_request(dev, state, src, false);
 			ssi_hash_unmap_result(dev, state, digestsize, result);
 			ssi_hash_unmap_request(dev, state, ctx);
 		}
@@ -1372,7 +1376,8 @@ static int ssi_mac_update(struct ahash_request *req)
 
 	state->xcbc_count++;
 
-	rc = ssi_buffer_mgr_map_hash_request_update(ctx->drvdata, state, req->src, req->nbytes, block_size);
+	rc = cc_map_hash_request_update(ctx->drvdata, state, req->src,
+					req->nbytes, block_size);
 	if (unlikely(rc)) {
 		if (rc == 1) {
 			dev_dbg(dev, " data size not require HW update %x\n",
@@ -1408,7 +1413,7 @@ static int ssi_mac_update(struct ahash_request *req)
 	rc = send_request(ctx->drvdata, &ssi_req, desc, idx, 1);
 	if (unlikely(rc != -EINPROGRESS)) {
 		dev_err(dev, "send_request() failed (rc=%d)\n", rc);
-		ssi_buffer_mgr_unmap_hash_request(dev, state, req->src, true);
+		cc_unmap_hash_request(dev, state, req->src, true);
 	}
 	return rc;
 }
@@ -1440,7 +1445,8 @@ static int ssi_mac_final(struct ahash_request *req)
 
 	dev_dbg(dev, "===== final  xcbc reminder (%d) ====\n", rem_cnt);
 
-	if (unlikely(ssi_buffer_mgr_map_hash_request_final(ctx->drvdata, state, req->src, req->nbytes, 0) != 0)) {
+	if (unlikely(cc_map_hash_request_final(ctx->drvdata, state, req->src,
+					       req->nbytes, 0) != 0)) {
 		dev_err(dev, "map_ahash_request_final() failed\n");
 		return -ENOMEM;
 	}
@@ -1518,7 +1524,7 @@ static int ssi_mac_final(struct ahash_request *req)
 	rc = send_request(ctx->drvdata, &ssi_req, desc, idx, 1);
 	if (unlikely(rc != -EINPROGRESS)) {
 		dev_err(dev, "send_request() failed (rc=%d)\n", rc);
-		ssi_buffer_mgr_unmap_hash_request(dev, state, req->src, true);
+		cc_unmap_hash_request(dev, state, req->src, true);
 		ssi_hash_unmap_result(dev, state, digestsize, req->result);
 	}
 	return rc;
@@ -1543,7 +1549,8 @@ static int ssi_mac_finup(struct ahash_request *req)
 		return ssi_mac_final(req);
 	}
 
-	if (unlikely(ssi_buffer_mgr_map_hash_request_final(ctx->drvdata, state, req->src, req->nbytes, 1) != 0)) {
+	if (unlikely(cc_map_hash_request_final(ctx->drvdata, state, req->src,
+					       req->nbytes, 1) != 0)) {
 		dev_err(dev, "map_ahash_request_final() failed\n");
 		return -ENOMEM;
 	}
@@ -1589,7 +1596,7 @@ static int ssi_mac_finup(struct ahash_request *req)
 	rc = send_request(ctx->drvdata, &ssi_req, desc, idx, 1);
 	if (unlikely(rc != -EINPROGRESS)) {
 		dev_err(dev, "send_request() failed (rc=%d)\n", rc);
-		ssi_buffer_mgr_unmap_hash_request(dev, state, req->src, true);
+		cc_unmap_hash_request(dev, state, req->src, true);
 		ssi_hash_unmap_result(dev, state, digestsize, req->result);
 	}
 	return rc;
@@ -1619,7 +1626,8 @@ static int ssi_mac_digest(struct ahash_request *req)
 		return -ENOMEM;
 	}
 
-	if (unlikely(ssi_buffer_mgr_map_hash_request_final(ctx->drvdata, state, req->src, req->nbytes, 1) != 0)) {
+	if (unlikely(cc_map_hash_request_final(ctx->drvdata, state, req->src,
+					       req->nbytes, 1) != 0)) {
 		dev_err(dev, "map_ahash_request_final() failed\n");
 		return -ENOMEM;
 	}
@@ -1661,7 +1669,7 @@ static int ssi_mac_digest(struct ahash_request *req)
 	rc = send_request(ctx->drvdata, &ssi_req, desc, idx, 1);
 	if (unlikely(rc != -EINPROGRESS)) {
 		dev_err(dev, "send_request() failed (rc=%d)\n", rc);
-		ssi_buffer_mgr_unmap_hash_request(dev, state, req->src, true);
+		cc_unmap_hash_request(dev, state, req->src, true);
 		ssi_hash_unmap_result(dev, state, digestsize, req->result);
 		ssi_hash_unmap_request(dev, state, ctx);
 	}
@@ -2102,9 +2110,9 @@ int ssi_hash_init_sram_digest_consts(struct ssi_drvdata *drvdata)
 #endif
 
 	/* Copy-to-sram digest-len */
-	ssi_sram_mgr_const2sram_desc(digest_len_init, sram_buff_ofs,
-				     ARRAY_SIZE(digest_len_init),
-				     larval_seq, &larval_seq_len);
+	cc_set_sram_desc(digest_len_init, sram_buff_ofs,
+			 ARRAY_SIZE(digest_len_init), larval_seq,
+			 &larval_seq_len);
 	rc = send_request_init(drvdata, larval_seq, larval_seq_len);
 	if (unlikely(rc != 0))
 		goto init_digest_const_err;
@@ -2114,9 +2122,9 @@ int ssi_hash_init_sram_digest_consts(struct ssi_drvdata *drvdata)
 
 #if (DX_DEV_SHA_MAX > 256)
 	/* Copy-to-sram digest-len for sha384/512 */
-	ssi_sram_mgr_const2sram_desc(digest_len_sha512_init, sram_buff_ofs,
-				     ARRAY_SIZE(digest_len_sha512_init),
-				     larval_seq, &larval_seq_len);
+	cc_set_sram_desc(digest_len_sha512_init, sram_buff_ofs,
+			 ARRAY_SIZE(digest_len_sha512_init),
+			 larval_seq, &larval_seq_len);
 	rc = send_request_init(drvdata, larval_seq, larval_seq_len);
 	if (unlikely(rc != 0))
 		goto init_digest_const_err;
@@ -2129,36 +2137,36 @@ int ssi_hash_init_sram_digest_consts(struct ssi_drvdata *drvdata)
 	hash_handle->larval_digest_sram_addr = sram_buff_ofs;
 
 	/* Copy-to-sram initial SHA* digests */
-	ssi_sram_mgr_const2sram_desc(md5_init, sram_buff_ofs,
-				     ARRAY_SIZE(md5_init), larval_seq,
-				     &larval_seq_len);
+	cc_set_sram_desc(md5_init, sram_buff_ofs,
+			 ARRAY_SIZE(md5_init), larval_seq,
+			 &larval_seq_len);
 	rc = send_request_init(drvdata, larval_seq, larval_seq_len);
 	if (unlikely(rc != 0))
 		goto init_digest_const_err;
 	sram_buff_ofs += sizeof(md5_init);
 	larval_seq_len = 0;
 
-	ssi_sram_mgr_const2sram_desc(sha1_init, sram_buff_ofs,
-				     ARRAY_SIZE(sha1_init), larval_seq,
-				     &larval_seq_len);
+	cc_set_sram_desc(sha1_init, sram_buff_ofs,
+			 ARRAY_SIZE(sha1_init), larval_seq,
+			 &larval_seq_len);
 	rc = send_request_init(drvdata, larval_seq, larval_seq_len);
 	if (unlikely(rc != 0))
 		goto init_digest_const_err;
 	sram_buff_ofs += sizeof(sha1_init);
 	larval_seq_len = 0;
 
-	ssi_sram_mgr_const2sram_desc(sha224_init, sram_buff_ofs,
-				     ARRAY_SIZE(sha224_init), larval_seq,
-				     &larval_seq_len);
+	cc_set_sram_desc(sha224_init, sram_buff_ofs,
+			 ARRAY_SIZE(sha224_init), larval_seq,
+			 &larval_seq_len);
 	rc = send_request_init(drvdata, larval_seq, larval_seq_len);
 	if (unlikely(rc != 0))
 		goto init_digest_const_err;
 	sram_buff_ofs += sizeof(sha224_init);
 	larval_seq_len = 0;
 
-	ssi_sram_mgr_const2sram_desc(sha256_init, sram_buff_ofs,
-				     ARRAY_SIZE(sha256_init), larval_seq,
-				     &larval_seq_len);
+	cc_set_sram_desc(sha256_init, sram_buff_ofs,
+			 ARRAY_SIZE(sha256_init), larval_seq,
+			 &larval_seq_len);
 	rc = send_request_init(drvdata, larval_seq, larval_seq_len);
 	if (unlikely(rc != 0))
 		goto init_digest_const_err;
@@ -2171,11 +2179,11 @@ int ssi_hash_init_sram_digest_consts(struct ssi_drvdata *drvdata)
 		const u32 const0 = ((u32 *)((u64 *)&sha384_init[i]))[1];
 		const u32 const1 = ((u32 *)((u64 *)&sha384_init[i]))[0];
 
-		ssi_sram_mgr_const2sram_desc(&const0, sram_buff_ofs, 1,
-					     larval_seq, &larval_seq_len);
+		cc_set_sram_desc(&const0, sram_buff_ofs, 1, larval_seq,
+				 &larval_seq_len);
 		sram_buff_ofs += sizeof(u32);
-		ssi_sram_mgr_const2sram_desc(&const1, sram_buff_ofs, 1,
-					     larval_seq, &larval_seq_len);
+		cc_set_sram_desc(&const1, sram_buff_ofs, 1, larval_seq,
+				 &larval_seq_len);
 		sram_buff_ofs += sizeof(u32);
 	}
 	rc = send_request_init(drvdata, larval_seq, larval_seq_len);
@@ -2189,11 +2197,11 @@ int ssi_hash_init_sram_digest_consts(struct ssi_drvdata *drvdata)
 		const u32 const0 = ((u32 *)((u64 *)&sha512_init[i]))[1];
 		const u32 const1 = ((u32 *)((u64 *)&sha512_init[i]))[0];
 
-		ssi_sram_mgr_const2sram_desc(&const0, sram_buff_ofs, 1,
-					     larval_seq, &larval_seq_len);
+		cc_set_sram_desc(&const0, sram_buff_ofs, 1, larval_seq,
+				 &larval_seq_len);
 		sram_buff_ofs += sizeof(u32);
-		ssi_sram_mgr_const2sram_desc(&const1, sram_buff_ofs, 1,
-					     larval_seq, &larval_seq_len);
+		cc_set_sram_desc(&const1, sram_buff_ofs, 1, larval_seq,
+				 &larval_seq_len);
 		sram_buff_ofs += sizeof(u32);
 	}
 	rc = send_request_init(drvdata, larval_seq, larval_seq_len);
@@ -2234,7 +2242,7 @@ int ssi_hash_alloc(struct ssi_drvdata *drvdata)
 			sizeof(sha224_init) +
 			sizeof(sha256_init);
 
-	sram_buff = ssi_sram_mgr_alloc(drvdata, sram_size_to_alloc);
+	sram_buff = cc_sram_alloc(drvdata, sram_size_to_alloc);
 	if (sram_buff == NULL_SRAM_ADDR) {
 		dev_err(dev, "SRAM pool exhausted\n");
 		rc = -ENOMEM;

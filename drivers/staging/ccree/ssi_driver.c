@@ -317,7 +317,7 @@ static int init_cc_resources(struct platform_device *plat_dev)
 	}
 
 	new_drvdata->mlli_sram_addr =
-		ssi_sram_mgr_alloc(new_drvdata, MAX_MLLI_BUFF_SIZE);
+		cc_sram_alloc(new_drvdata, MAX_MLLI_BUFF_SIZE);
 	if (unlikely(new_drvdata->mlli_sram_addr == NULL_SRAM_ADDR)) {
 		dev_err(dev, "Failed to alloc MLLI Sram buffer\n");
 		rc = -ENOMEM;
@@ -330,15 +330,15 @@ static int init_cc_resources(struct platform_device *plat_dev)
 		goto post_sram_mgr_err;
 	}
 
-	rc = ssi_buffer_mgr_init(new_drvdata);
+	rc = cc_buffer_mgr_init(new_drvdata);
 	if (unlikely(rc != 0)) {
 		dev_err(dev, "buffer_mgr_init failed\n");
 		goto post_req_mgr_err;
 	}
 
-	rc = ssi_power_mgr_init(new_drvdata);
+	rc = cc_pm_init(new_drvdata);
 	if (unlikely(rc != 0)) {
-		dev_err(dev, "ssi_power_mgr_init failed\n");
+		dev_err(dev, "cc_pm_init failed\n");
 		goto post_buf_mgr_err;
 	}
 
@@ -383,9 +383,9 @@ post_cipher_err:
 post_ivgen_err:
 	ssi_ivgen_fini(new_drvdata);
 post_power_mgr_err:
-	ssi_power_mgr_fini(new_drvdata);
+	cc_pm_fini(new_drvdata);
 post_buf_mgr_err:
-	 ssi_buffer_mgr_fini(new_drvdata);
+	 cc_buffer_mgr_fini(new_drvdata);
 post_req_mgr_err:
 	request_mgr_fini(new_drvdata);
 post_sram_mgr_err:
@@ -418,8 +418,8 @@ static void cleanup_cc_resources(struct platform_device *plat_dev)
 	ssi_hash_free(drvdata);
 	ssi_ablkcipher_free(drvdata);
 	ssi_ivgen_fini(drvdata);
-	ssi_power_mgr_fini(drvdata);
-	ssi_buffer_mgr_fini(drvdata);
+	cc_pm_fini(drvdata);
+	cc_buffer_mgr_fini(drvdata);
 	request_mgr_fini(drvdata);
 	ssi_sram_mgr_fini(drvdata);
 	ssi_fips_fini(drvdata);
@@ -500,7 +500,7 @@ static int cc7x_remove(struct platform_device *plat_dev)
 
 #if defined(CONFIG_PM_RUNTIME) || defined(CONFIG_PM_SLEEP)
 static const struct dev_pm_ops arm_cc7x_driver_pm = {
-	SET_RUNTIME_PM_OPS(ssi_power_mgr_runtime_suspend, ssi_power_mgr_runtime_resume, NULL)
+	SET_RUNTIME_PM_OPS(cc_pm_suspend, cc_pm_resume, NULL)
 };
 #endif
 

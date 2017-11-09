@@ -50,42 +50,39 @@ struct mlli_params {
 	u32 mlli_len;
 };
 
-int ssi_buffer_mgr_init(struct ssi_drvdata *drvdata);
+int cc_buffer_mgr_init(struct ssi_drvdata *drvdata);
 
-int ssi_buffer_mgr_fini(struct ssi_drvdata *drvdata);
+int cc_buffer_mgr_fini(struct ssi_drvdata *drvdata);
 
-int ssi_buffer_mgr_map_blkcipher_request(
-	struct ssi_drvdata *drvdata,
-	void *ctx,
-	unsigned int ivsize,
-	unsigned int nbytes,
-	void *info,
-	struct scatterlist *src,
-	struct scatterlist *dst);
+int cc_map_blkcipher_request(struct ssi_drvdata *drvdata, void *ctx,
+			     unsigned int ivsize, unsigned int nbytes,
+			     void *info, struct scatterlist *src,
+			     struct scatterlist *dst);
 
-void ssi_buffer_mgr_unmap_blkcipher_request(
-	struct device *dev,
-	void *ctx,
-	unsigned int ivsize,
-	struct scatterlist *src,
-	struct scatterlist *dst);
+void cc_unmap_blkcipher_request(struct device *dev, void *ctx,
+				unsigned int ivsize,
+				struct scatterlist *src,
+				struct scatterlist *dst);
 
-int ssi_buffer_mgr_map_aead_request(struct ssi_drvdata *drvdata, struct aead_request *req);
+int cc_map_aead_request(struct ssi_drvdata *drvdata, struct aead_request *req);
 
-void ssi_buffer_mgr_unmap_aead_request(struct device *dev, struct aead_request *req);
+void cc_unmap_aead_request(struct device *dev, struct aead_request *req);
 
-int ssi_buffer_mgr_map_hash_request_final(struct ssi_drvdata *drvdata, void *ctx, struct scatterlist *src, unsigned int nbytes, bool do_update);
+int cc_map_hash_request_final(struct ssi_drvdata *drvdata, void *ctx,
+			      struct scatterlist *src, unsigned int nbytes,
+			      bool do_update);
 
-int ssi_buffer_mgr_map_hash_request_update(struct ssi_drvdata *drvdata, void *ctx, struct scatterlist *src, unsigned int nbytes, unsigned int block_size);
+int cc_map_hash_request_update(struct ssi_drvdata *drvdata, void *ctx,
+			       struct scatterlist *src, unsigned int nbytes,
+			       unsigned int block_size);
 
-void ssi_buffer_mgr_unmap_hash_request(struct device *dev, void *ctx, struct scatterlist *src, bool do_revert);
+void cc_unmap_hash_request(struct device *dev, void *ctx,
+			   struct scatterlist *src, bool do_revert);
 
-void ssi_buffer_mgr_copy_scatterlist_portion(struct device *dev, u8 *dest,
-					     struct scatterlist *sg,
-					     u32 to_skip, u32 end,
-					     enum ssi_sg_cpy_direct direct);
+void cc_copy_sg_portion(struct device *dev, u8 *dest, struct scatterlist *sg,
+			u32 to_skip, u32 end, enum ssi_sg_cpy_direct direct);
 
-void ssi_buffer_mgr_zero_sgl(struct scatterlist *sgl, u32 data_len);
+void cc_zero_sgl(struct scatterlist *sgl, u32 data_len);
 
 #endif /*__BUFFER_MGR_H__*/
 

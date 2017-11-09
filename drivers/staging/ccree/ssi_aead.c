@@ -233,7 +233,7 @@ static void ssi_aead_complete(struct device *dev, void *ssi_req, void __iomem *c
 	struct ssi_aead_ctx *ctx = crypto_aead_ctx(tfm);
 	int err = 0;
 
-	ssi_buffer_mgr_unmap_aead_request(dev, areq);
+	cc_unmap_aead_request(dev, areq);
 
 	/* Restore ordinary iv pointer */
 	areq->iv = areq_ctx->backup_iv;
@@ -246,17 +246,20 @@ static void ssi_aead_complete(struct device *dev, void *ssi_req, void __iomem *c
 			/* In case of payload authentication failure, MUST NOT
 			 * revealed the decrypted message --> zero its memory.
 			 */
-			ssi_buffer_mgr_zero_sgl(areq->dst, areq_ctx->cryptlen);
+			cc_zero_sgl(areq->dst, areq_ctx->cryptlen);
 			err = -EBADMSG;
 		}
 	} else { /*ENCRYPT*/
-		if (unlikely(areq_ctx->is_icv_fragmented))
-			ssi_buffer_mgr_copy_scatterlist_portion(
-				dev, areq_ctx->mac_buf, areq_ctx->dst_sgl,
-				areq->cryptlen + areq_ctx->dst_offset,
-				(areq->cryptlen + areq_ctx->dst_offset +
-				 ctx->authsize),
-				SSI_SG_FROM_BUF);
+		if (unlikely(areq_ctx->is_icv_fragmented)) {
+			cc_copy_sg_portion(dev, areq_ctx->mac_buf,
+					   areq_ctx->dst_sgl,
+					   (areq->cryptlen +
+					    areq_ctx->dst_offset),
+					   (areq->cryptlen +
+					    areq_ctx->dst_offset +
+					    ctx->authsize),
+					   SSI_SG_FROM_BUF);
+		}
 
 		/* If an IV was generated, copy it back to the user provided buffer. */
 		if (areq_ctx->backup_giv) {
@@ -2053,7 +2056,7 @@ static int ssi_aead_process(struct aead_request *req, enum drv_crypto_direction 
 	}
 #endif /*SSI_CC_HAS_AES_GCM*/
 
-	rc = ssi_buffer_mgr_map_aead_request(ctx->drvdata, req);
+	rc = cc_map_aead_request(ctx->drvdata, req);
 	if (unlikely(rc != 0)) {
 		dev_err(dev, "map_request() failed\n");
 		goto exit;
@@ -2112,7 +2115,7 @@ static int ssi_aead_process(struct aead_request *req, enum drv_crypto_direction 
 #endif
 	default:
 		dev_err(dev, "Unsupported authenc (%d)\n", ctx->auth_mode);
-		ssi_buffer_mgr_unmap_aead_request(dev, req);
+		cc_unmap_aead_request(dev, req);
 		rc = -ENOTSUPP;
 		goto exit;
 	}
@@ -2123,7 +2126,7 @@ static int ssi_aead_process(struct aead_request *req, enum drv_crypto_direction 
 
 	if (unlikely(rc != -EINPROGRESS)) {
 		dev_err(dev, "send_request() failed (rc=%d)\n", rc);
-		ssi_buffer_mgr_unmap_aead_request(dev, req);
+		cc_unmap_aead_request(dev, req);
 	}
 
 exit:
@@ -2753,8 +2756,9 @@ int ssi_aead_alloc(struct ssi_drvdata *drvdata)
 	INIT_LIST_HEAD(&aead_handle->aead_list);
 	drvdata->aead_handle = aead_handle;
 
-	aead_handle->sram_workspace_addr = ssi_sram_mgr_alloc(
-		drvdata, MAX_HMAC_DIGEST_SIZE);
+	aead_handle->sram_workspace_addr = cc_sram_alloc(drvdata,
+							 MAX_HMAC_DIGEST_SIZE);
+
 	if (aead_handle->sram_workspace_addr == NULL_SRAM_ADDR) {
 		dev_err(dev, "SRAM pool exhausted\n");
 		rc = -ENOMEM;

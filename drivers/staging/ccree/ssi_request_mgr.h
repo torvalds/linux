@@ -50,11 +50,11 @@ void complete_request(struct ssi_drvdata *drvdata);
 void request_mgr_fini(struct ssi_drvdata *drvdata);
 
 #if defined(CONFIG_PM_RUNTIME) || defined(CONFIG_PM_SLEEP)
-int ssi_request_mgr_runtime_resume_queue(struct ssi_drvdata *drvdata);
+int cc_resume_req_queue(struct ssi_drvdata *drvdata);
 
-int ssi_request_mgr_runtime_suspend_queue(struct ssi_drvdata *drvdata);
+int cc_suspend_req_queue(struct ssi_drvdata *drvdata);
 
-bool ssi_request_mgr_is_queue_runtime_suspend(struct ssi_drvdata *drvdata);
+bool cc_req_queue_suspended(struct ssi_drvdata *drvdata);
 #endif
 
 #endif /*__REQUEST_MGR_H__*/

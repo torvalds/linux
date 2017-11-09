@@ -274,9 +274,9 @@ int send_request(
 					(!is_dout ? 1 : 0));
 
 #if defined(CONFIG_PM_RUNTIME) || defined(CONFIG_PM_SLEEP)
-	rc = ssi_power_mgr_runtime_get(dev);
+	rc = cc_pm_get(dev);
 	if (rc != 0) {
-		dev_err(dev, "ssi_power_mgr_runtime_get returned %x\n", rc);
+		dev_err(dev, "cc_pm_get returned %x\n", rc);
 		return rc;
 	}
 #endif
@@ -301,7 +301,7 @@ int send_request(
 			 * (SW queue is full)
 			 */
 #if defined(CONFIG_PM_RUNTIME) || defined(CONFIG_PM_SLEEP)
-			ssi_power_mgr_runtime_put_suspend(dev);
+			cc_pm_put_suspend(dev);
 #endif
 			return rc;
 		}
@@ -337,7 +337,7 @@ int send_request(
 			dev_err(dev, "Failed to generate IV (rc=%d)\n", rc);
 			spin_unlock_bh(&req_mgr_h->hw_lock);
 #if defined(CONFIG_PM_RUNTIME) || defined(CONFIG_PM_SLEEP)
-			ssi_power_mgr_runtime_put_suspend(dev);
+			cc_pm_put_suspend(dev);
 #endif
 			return rc;
 		}
@@ -499,7 +499,7 @@ static void proc_completions(struct ssi_drvdata *drvdata)
 		dev_dbg(dev, "Request completed. axi_completed=%d\n",
 			request_mgr_handle->axi_completed);
 #if defined(CONFIG_PM_RUNTIME) || defined(CONFIG_PM_SLEEP)
-		rc = ssi_power_mgr_runtime_put_suspend(dev);
+		rc = cc_pm_put_suspend(dev);
 		if (rc != 0)
 			dev_err(dev, "Failed to set runtime suspension %d\n",
 				rc);
@@ -565,7 +565,7 @@ static void comp_handler(unsigned long devarg)
  * the spin lock protection
  */
 #if defined(CONFIG_PM_RUNTIME) || defined(CONFIG_PM_SLEEP)
-int ssi_request_mgr_runtime_resume_queue(struct ssi_drvdata *drvdata)
+int cc_resume_req_queue(struct ssi_drvdata *drvdata)
 {
 	struct ssi_request_mgr_handle *request_mgr_handle = drvdata->request_mgr_handle;
 
@@ -580,7 +580,7 @@ int ssi_request_mgr_runtime_resume_queue(struct ssi_drvdata *drvdata)
  * suspend the queue configuration. Since it is used for the runtime suspend
  * only verify that the queue can be suspended.
  */
-int ssi_request_mgr_runtime_suspend_queue(struct ssi_drvdata *drvdata)
+int cc_suspend_req_queue(struct ssi_drvdata *drvdata)
 {
 	struct ssi_request_mgr_handle *request_mgr_handle =
 						drvdata->request_mgr_handle;
@@ -598,7 +598,7 @@ int ssi_request_mgr_runtime_suspend_queue(struct ssi_drvdata *drvdata)
 	return 0;
 }
 
-bool ssi_request_mgr_is_queue_runtime_suspend(struct ssi_drvdata *drvdata)
+bool cc_req_queue_suspended(struct ssi_drvdata *drvdata)
 {
 	struct ssi_request_mgr_handle *request_mgr_handle =
 						drvdata->request_mgr_handle;

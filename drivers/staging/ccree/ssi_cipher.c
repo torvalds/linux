@@ -694,7 +694,7 @@ static int ssi_blkcipher_complete(struct device *dev,
 	int completion_error = 0;
 	struct ablkcipher_request *req = (struct ablkcipher_request *)areq;
 
-	ssi_buffer_mgr_unmap_blkcipher_request(dev, req_ctx, ivsize, src, dst);
+	cc_unmap_blkcipher_request(dev, req_ctx, ivsize, src, dst);
 	kfree(req_ctx->iv);
 
 	if (areq) {
@@ -786,9 +786,8 @@ static int ssi_blkcipher_process(
 
 	/* STAT_PHASE_1: Map buffers */
 
-	rc = ssi_buffer_mgr_map_blkcipher_request(ctx_p->drvdata, req_ctx,
-						  ivsize, nbytes, req_ctx->iv,
-						  src, dst);
+	rc = cc_map_blkcipher_request(ctx_p->drvdata, req_ctx, ivsize, nbytes,
+				      req_ctx->iv, src, dst);
 	if (unlikely(rc != 0)) {
 		dev_err(dev, "map_request() failed\n");
 		goto exit_process;
@@ -823,12 +822,14 @@ static int ssi_blkcipher_process(
 	if (areq) {
 		if (unlikely(rc != -EINPROGRESS)) {
 			/* Failed to send the request or request completed synchronously */
-			ssi_buffer_mgr_unmap_blkcipher_request(dev, req_ctx, ivsize, src, dst);
+			cc_unmap_blkcipher_request(dev, req_ctx, ivsize, src,
+						   dst);
 		}
 
 	} else {
 		if (rc != 0) {
-			ssi_buffer_mgr_unmap_blkcipher_request(dev, req_ctx, ivsize, src, dst);
+			cc_unmap_blkcipher_request(dev, req_ctx, ivsize, src,
+						   dst);
 		} else {
 			rc = ssi_blkcipher_complete(dev, ctx_p, req_ctx, dst,
 						    src, ivsize, NULL,

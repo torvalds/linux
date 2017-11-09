@@ -58,10 +58,10 @@ void ssi_sram_mgr_fini(struct ssi_drvdata *drvdata);
  * \param drvdata
  * \param size The requested bytes to allocate
  */
-ssi_sram_addr_t ssi_sram_mgr_alloc(struct ssi_drvdata *drvdata, u32 size);
+ssi_sram_addr_t cc_sram_alloc(struct ssi_drvdata *drvdata, u32 size);
 
 /**
- * ssi_sram_mgr_const2sram_desc() - Create const descriptors sequence to
+ * cc_set_sram_desc() - Create const descriptors sequence to
  *	set values in given array into SRAM.
  * Note: each const value can't exceed word size.
  *
@@ -71,7 +71,7 @@ ssi_sram_addr_t ssi_sram_mgr_alloc(struct ssi_drvdata *drvdata, u32 size);
  * @seq:	  A pointer to the given IN/OUT descriptor sequence
  * @seq_len:	  A pointer to the given IN/OUT sequence length
  */
-void ssi_sram_mgr_const2sram_desc(
+void cc_set_sram_desc(
 	const u32 *src, ssi_sram_addr_t dst,
 	unsigned int nelement,
 	struct cc_hw_desc *seq, unsigned int *seq_len);
