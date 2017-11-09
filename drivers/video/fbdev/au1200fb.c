@@ -1766,8 +1766,6 @@ failed:
 			fb_dealloc_cmap(&fbi->cmap);
 		kfree(fbi->pseudo_palette);
 	}
-	if (plane == 0)
-		free_irq(AU1200_LCD_INT, (void*)dev);
 	return ret;
 }
 
