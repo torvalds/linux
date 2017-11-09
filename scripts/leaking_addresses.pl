@@ -37,6 +37,8 @@ my @skip_parse_files_abs = ('/proc/kmsg',
 			    '/proc/kcore',
 			    '/proc/fs/ext4/sdb1/mb_groups',
 			    '/proc/1/fd/3',
+			    '/sys/firmware/devicetree',
+			    '/proc/device-tree',
 			    '/sys/kernel/debug/tracing/trace_pipe',
 			    '/sys/kernel/security/apparmor/revision');
 
@@ -61,6 +63,7 @@ my @skip_walk_dirs_any = ('self',
 			  'thread-self',
 			  'cwd',
 			  'fd',
+			  'usbmon',
 			  'stderr',
 			  'stdin',
 			  'stdout');
