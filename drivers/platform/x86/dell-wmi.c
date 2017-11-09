@@ -655,9 +655,11 @@ static int dell_wmi_events_set_enabled(bool enable)
 static int dell_wmi_probe(struct wmi_device *wdev)
 {
 	struct dell_wmi_priv *priv;
+	int ret;
 
-	if (!wmi_has_guid(DELL_WMI_DESCRIPTOR_GUID))
-		return -ENODEV;
+	ret = dell_wmi_get_descriptor_valid();
+	if (ret)
+		return ret;
 
 	priv = devm_kzalloc(
 		&wdev->dev, sizeof(struct dell_wmi_priv), GFP_KERNEL);

@@ -151,8 +151,9 @@ static int dell_smbios_wmi_probe(struct wmi_device *wdev)
 	int count;
 	int ret;
 
-	if (!wmi_has_guid(DELL_WMI_DESCRIPTOR_GUID))
-		return -ENODEV;
+	ret = dell_wmi_get_descriptor_valid();
+	if (ret)
+		return ret;
 
 	priv = devm_kzalloc(&wdev->dev, sizeof(struct wmi_smbios_priv),
 			    GFP_KERNEL);
