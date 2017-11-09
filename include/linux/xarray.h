@@ -252,6 +252,33 @@ static inline void xa_init(struct xarray *xa)
 #endif
 #define XA_CHUNK_SIZE		(1UL << XA_CHUNK_SHIFT)
 #define XA_CHUNK_MASK		(XA_CHUNK_SIZE - 1)
+#define XA_MAX_MARKS		3
+#define XA_MARK_LONGS		DIV_ROUND_UP(XA_CHUNK_SIZE, BITS_PER_LONG)
+
+/*
+ * @count is the count of every non-NULL element in the ->slots array
+ * whether that is a value entry, a retry entry, a user pointer,
+ * a sibling entry or a pointer to the next level of the tree.
+ * @nr_values is the count of every element in ->slots which is
+ * either a value entry or a sibling of a value entry.
+ */
+struct xa_node {
+	unsigned char	shift;		/* Bits remaining in each slot */
+	unsigned char	offset;		/* Slot offset in parent */
+	unsigned char	count;		/* Total entry count */
+	unsigned char	nr_values;	/* Value entry count */
+	struct xa_node __rcu *parent;	/* NULL at top of tree */
+	struct xarray	*array;		/* The array we belong to */
+	union {
+		struct list_head private_list;	/* For tree user */
+		struct rcu_head	rcu_head;	/* Used when freeing node */
+	};
+	void __rcu	*slots[XA_CHUNK_SIZE];
+	union {
+		unsigned long	tags[XA_MAX_MARKS][XA_MARK_LONGS];
+		unsigned long	marks[XA_MAX_MARKS][XA_MARK_LONGS];
+	};
+};
 
 /* Private */
 static inline bool xa_is_node(const void *entry)

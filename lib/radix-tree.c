@@ -260,11 +260,11 @@ static void dump_node(struct radix_tree_node *node, unsigned long index)
 {
 	unsigned long i;
 
-	pr_debug("radix node: %p offset %d indices %lu-%lu parent %p tags %lx %lx %lx shift %d count %d exceptional %d\n",
+	pr_debug("radix node: %p offset %d indices %lu-%lu parent %p tags %lx %lx %lx shift %d count %d nr_values %d\n",
 		node, node->offset, index, index | node_maxindex(node),
 		node->parent,
 		node->tags[0][0], node->tags[1][0], node->tags[2][0],
-		node->shift, node->count, node->exceptional);
+		node->shift, node->count, node->nr_values);
 
 	for (i = 0; i < RADIX_TREE_MAP_SIZE; i++) {
 		unsigned long first = index | (i << node->shift);
@@ -354,7 +354,7 @@ static struct radix_tree_node *
 radix_tree_node_alloc(gfp_t gfp_mask, struct radix_tree_node *parent,
 			struct radix_tree_root *root,
 			unsigned int shift, unsigned int offset,
-			unsigned int count, unsigned int exceptional)
+			unsigned int count, unsigned int nr_values)
 {
 	struct radix_tree_node *ret = NULL;
 
@@ -401,9 +401,9 @@ out:
 		ret->shift = shift;
 		ret->offset = offset;
 		ret->count = count;
-		ret->exceptional = exceptional;
+		ret->nr_values = nr_values;
 		ret->parent = parent;
-		ret->root = root;
+		ret->array = root;
 	}
 	return ret;
 }
@@ -633,8 +633,8 @@ static int radix_tree_extend(struct radix_tree_root *root, gfp_t gfp,
 		if (radix_tree_is_internal_node(entry)) {
 			entry_to_node(entry)->parent = node;
 		} else if (xa_is_value(entry)) {
-			/* Moving an exceptional root->xa_head to a node */
-			node->exceptional = 1;
+			/* Moving a value entry root->xa_head to a node */
+			node->nr_values = 1;
 		}
 		/*
 		 * entry was already in the radix tree, so we do not need
@@ -928,12 +928,12 @@ static inline int insert_entries(struct radix_tree_node *node,
 		if (xa_is_node(old))
 			radix_tree_free_nodes(old);
 		if (xa_is_value(old))
-			node->exceptional--;
+			node->nr_values--;
 	}
 	if (node) {
 		node->count += n;
 		if (xa_is_value(item))
-			node->exceptional += n;
+			node->nr_values += n;
 	}
 	return n;
 }
@@ -947,7 +947,7 @@ static inline int insert_entries(struct radix_tree_node *node,
 	if (node) {
 		node->count++;
 		if (xa_is_value(item))
-			node->exceptional++;
+			node->nr_values++;
 	}
 	return 1;
 }
@@ -1083,7 +1083,7 @@ void *radix_tree_lookup(const struct radix_tree_root *root, unsigned long index)
 EXPORT_SYMBOL(radix_tree_lookup);
 
 static inline void replace_sibling_entries(struct radix_tree_node *node,
-				void __rcu **slot, int count, int exceptional)
+				void __rcu **slot, int count, int values)
 {
 #ifdef CONFIG_RADIX_TREE_MULTIORDER
 	unsigned offset = get_slot_offset(node, slot);
@@ -1096,18 +1096,18 @@ static inline void replace_sibling_entries(struct radix_tree_node *node,
 			node->slots[offset] = NULL;
 			node->count--;
 		}
-		node->exceptional += exceptional;
+		node->nr_values += values;
 	}
 #endif
 }
 
 static void replace_slot(void __rcu **slot, void *item,
-		struct radix_tree_node *node, int count, int exceptional)
+		struct radix_tree_node *node, int count, int values)
 {
-	if (node && (count || exceptional)) {
+	if (node && (count || values)) {
 		node->count += count;
-		node->exceptional += exceptional;
-		replace_sibling_entries(node, slot, count, exceptional);
+		node->nr_values += values;
+		replace_sibling_entries(node, slot, count, values);
 	}
 
 	rcu_assign_pointer(*slot, item);
@@ -1161,17 +1161,17 @@ void __radix_tree_replace(struct radix_tree_root *root,
 			  radix_tree_update_node_t update_node)
 {
 	void *old = rcu_dereference_raw(*slot);
-	int exceptional = !!xa_is_value(item) - !!xa_is_value(old);
+	int values = !!xa_is_value(item) - !!xa_is_value(old);
 	int count = calculate_count(root, node, slot, item, old);
 
 	/*
-	 * This function supports replacing exceptional entries and
+	 * This function supports replacing value entries and
 	 * deleting entries, but that needs accounting against the
 	 * node unless the slot is root->xa_head.
 	 */
 	WARN_ON_ONCE(!node && (slot != (void __rcu **)&root->xa_head) &&
-			(count || exceptional));
-	replace_slot(slot, item, node, count, exceptional);
+			(count || values));
+	replace_slot(slot, item, node, count, values);
 
 	if (!node)
 		return;
@@ -1193,7 +1193,7 @@ void __radix_tree_replace(struct radix_tree_root *root,
  * across slot lookup and replacement.
  *
  * NOTE: This cannot be used to switch between non-entries (empty slots),
- * regular entries, and exceptional entries, as that requires accounting
+ * regular entries, and value entries, as that requires accounting
  * inside the radix tree node. When switching from one type of entry or
  * deleting, use __radix_tree_lookup() and __radix_tree_replace() or
  * radix_tree_iter_replace().
@@ -1301,7 +1301,7 @@ int radix_tree_split(struct radix_tree_root *root, unsigned long index,
 		rcu_assign_pointer(parent->slots[end], RADIX_TREE_RETRY);
 	}
 	rcu_assign_pointer(parent->slots[offset], RADIX_TREE_RETRY);
-	parent->exceptional -= (end - offset);
+	parent->nr_values -= (end - offset);
 
 	if (order == parent->shift)
 		return 0;
@@ -1961,7 +1961,7 @@ static bool __radix_tree_delete(struct radix_tree_root *root,
 				struct radix_tree_node *node, void __rcu **slot)
 {
 	void *old = rcu_dereference_raw(*slot);
-	int exceptional = xa_is_value(old) ? -1 : 0;
+	int values = xa_is_value(old) ? -1 : 0;
 	unsigned offset = get_slot_offset(node, slot);
 	int tag;
 
@@ -1971,7 +1971,7 @@ static bool __radix_tree_delete(struct radix_tree_root *root,
 		for (tag = 0; tag < RADIX_TREE_MAX_TAGS; tag++)
 			node_tag_clear(root, node, tag, offset);
 
-	replace_slot(slot, NULL, node, -1, exceptional);
+	replace_slot(slot, NULL, node, -1, values);
 	return node && delete_node(root, node, NULL);
 }
 

@@ -349,7 +349,7 @@ void workingset_update_node(struct radix_tree_node *node)
 	 * already where they should be. The list_empty() test is safe
 	 * as node->private_list is protected by the i_pages lock.
 	 */
-	if (node->count && node->count == node->exceptional) {
+	if (node->count && node->count == node->nr_values) {
 		if (list_empty(&node->private_list))
 			list_lru_add(&shadow_nodes, &node->private_list);
 	} else {
@@ -428,8 +428,8 @@ static enum lru_status shadow_lru_isolate(struct list_head *item,
 	 * to reclaim, take the node off-LRU, and drop the lru_lock.
 	 */
 
-	node = container_of(item, struct radix_tree_node, private_list);
-	mapping = container_of(node->root, struct address_space, i_pages);
+	node = container_of(item, struct xa_node, private_list);
+	mapping = container_of(node->array, struct address_space, i_pages);
 
 	/* Coming from the list, invert the lock order */
 	if (!xa_trylock(&mapping->i_pages)) {
@@ -446,25 +446,25 @@ static enum lru_status shadow_lru_isolate(struct list_head *item,
 	 * no pages, so we expect to be able to remove them all and
 	 * delete and free the empty node afterwards.
 	 */
-	if (WARN_ON_ONCE(!node->exceptional))
+	if (WARN_ON_ONCE(!node->nr_values))
 		goto out_invalid;
-	if (WARN_ON_ONCE(node->count != node->exceptional))
+	if (WARN_ON_ONCE(node->count != node->nr_values))
 		goto out_invalid;
 	for (i = 0; i < RADIX_TREE_MAP_SIZE; i++) {
 		if (node->slots[i]) {
 			if (WARN_ON_ONCE(!xa_is_value(node->slots[i])))
 				goto out_invalid;
-			if (WARN_ON_ONCE(!node->exceptional))
+			if (WARN_ON_ONCE(!node->nr_values))
 				goto out_invalid;
 			if (WARN_ON_ONCE(!mapping->nrexceptional))
 				goto out_invalid;
 			node->slots[i] = NULL;
-			node->exceptional--;
+			node->nr_values--;
 			node->count--;
 			mapping->nrexceptional--;
 		}
 	}
-	if (WARN_ON_ONCE(node->exceptional))
+	if (WARN_ON_ONCE(node->nr_values))
 		goto out_invalid;
 	inc_lruvec_page_state(virt_to_page(node), WORKINGSET_NODERECLAIM);
 	__radix_tree_delete_node(&mapping->i_pages, node,
