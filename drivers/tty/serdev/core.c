@@ -268,8 +268,8 @@ static int serdev_drv_probe(struct device *dev)
 static int serdev_drv_remove(struct device *dev)
 {
 	const struct serdev_device_driver *sdrv = to_serdev_device_driver(dev->driver);
-
-	sdrv->remove(to_serdev_device(dev));
+	if (sdrv->remove)
+		sdrv->remove(to_serdev_device(dev));
 	return 0;
 }
 
