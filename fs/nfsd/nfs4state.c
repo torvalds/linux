@@ -4790,7 +4790,7 @@ nfs4_laundromat(struct nfsd_net *nn)
 	spin_unlock(&nn->blocked_locks_lock);
 
 	while (!list_empty(&reaplist)) {
-		nbl = list_first_entry(&nn->blocked_locks_lru,
+		nbl = list_first_entry(&reaplist,
 					struct nfsd4_blocked_lock, nbl_lru);
 		list_del_init(&nbl->nbl_lru);
 		posix_unblock_lock(&nbl->nbl_lock);
@@ -7236,7 +7236,7 @@ nfs4_state_shutdown_net(struct net *net)
 	spin_unlock(&nn->blocked_locks_lock);
 
 	while (!list_empty(&reaplist)) {
-		nbl = list_first_entry(&nn->blocked_locks_lru,
+		nbl = list_first_entry(&reaplist,
 					struct nfsd4_blocked_lock, nbl_lru);
 		list_del_init(&nbl->nbl_lru);
 		posix_unblock_lock(&nbl->nbl_lock);
