@@ -100,6 +100,7 @@ int copy_thread_tls(unsigned long clone_flags, unsigned long new_stackp,
 	memset(&p->thread.per_user, 0, sizeof(p->thread.per_user));
 	memset(&p->thread.per_event, 0, sizeof(p->thread.per_event));
 	clear_tsk_thread_flag(p, TIF_SINGLE_STEP);
+	p->thread.per_flags = 0;
 	/* Initialize per thread user and system timer values */
 	p->thread.user_timer = 0;
 	p->thread.guest_timer = 0;
