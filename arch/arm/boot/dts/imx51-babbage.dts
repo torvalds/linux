@@ -165,6 +165,7 @@
 			clocks = <&clks IMX5_CLK_DUMMY>;
 			clock-names = "main_clk";
 			reset-gpios = <&gpio2 5 GPIO_ACTIVE_LOW>;
+			#phy-cells = <0>;
 		};
 	};
 };

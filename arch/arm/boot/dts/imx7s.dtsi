@@ -949,12 +949,14 @@
 				compatible = "usb-nop-xceiv";
 				clocks = <&clks IMX7D_USB_PHY1_CLK>;
 				clock-names = "main_clk";
+				#phy-cells = <0>;
 			};
 
 			usbphynop3: usbphynop3 {
 				compatible = "usb-nop-xceiv";
 				clocks = <&clks IMX7D_USB_HSIC_ROOT_CLK>;
 				clock-names = "main_clk";
+				#phy-cells = <0>;
 			};
 
 			usdhc1: usdhc@30b40000 {

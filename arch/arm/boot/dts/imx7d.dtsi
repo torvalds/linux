@@ -109,6 +109,7 @@
 		compatible = "usb-nop-xceiv";
 		clocks = <&clks IMX7D_USB_PHY2_CLK>;
 		clock-names = "main_clk";
+		#phy-cells = <0>;
 	};
 
 	fec2: ethernet@30bf0000 {

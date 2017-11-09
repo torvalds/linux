@@ -94,6 +94,7 @@
 			clocks = <&clks IMX5_CLK_USB_PHY_GATE>;
 			clock-names = "main_clk";
 			clock-frequency = <19200000>;
+			#phy-cells = <0>;
 		};
 	};
 };

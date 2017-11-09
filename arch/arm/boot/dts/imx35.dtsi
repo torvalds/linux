@@ -402,11 +402,13 @@
 		usbphy0: usb-phy@0 {
 			reg = <0>;
 			compatible = "usb-nop-xceiv";
+			#phy-cells = <0>;
 		};
 
 		usbphy1: usb-phy@1 {
 			reg = <1>;
 			compatible = "usb-nop-xceiv";
+			#phy-cells = <0>;
 		};
 	};
 };
