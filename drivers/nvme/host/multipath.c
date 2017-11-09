@@ -239,12 +239,18 @@ void nvme_mpath_add_disk(struct nvme_ns_head *head)
 	if (!head->disk)
 		return;
 	device_add_disk(&head->subsys->dev, head->disk);
+	if (sysfs_create_group(&disk_to_dev(head->disk)->kobj,
+			&nvme_ns_id_attr_group))
+		pr_warn("%s: failed to create sysfs group for identification\n",
+			head->disk->disk_name);
 }
 
 void nvme_mpath_remove_disk(struct nvme_ns_head *head)
 {
 	if (!head->disk)
 		return;
+	sysfs_remove_group(&disk_to_dev(head->disk)->kobj,
+			   &nvme_ns_id_attr_group);
 	del_gendisk(head->disk);
 	blk_set_queue_dying(head->disk->queue);
 	/* make sure all pending bios are cleaned up */
