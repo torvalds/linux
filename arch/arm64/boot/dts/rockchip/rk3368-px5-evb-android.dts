@@ -635,7 +635,7 @@
 		irq_enable = <1>;
 		poll_delay_ms = <200>;
 		layout = <6>;
-		reprobe_enable = <1>;/* this sensor need to be probe again */
+		reprobe_en = <1>;/* this sensor need to be probe again */
 	};
 
 	ls_stk3410: light@48 {
