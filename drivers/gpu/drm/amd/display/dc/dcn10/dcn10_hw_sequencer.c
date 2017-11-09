@@ -1686,7 +1686,6 @@ static void program_csc_matrix(struct pipe_ctx *pipe_ctx,
 	}
 }
 
-//program ocsc matrix for dcn 2
 static void set_mpc_output_csc(struct dc *dc,
 		struct pipe_ctx *pipe_ctx,
 		enum dc_color_space colorspace,
@@ -1710,9 +1709,7 @@ static void set_mpc_output_csc(struct dc *dc,
 					opp_id,
 					&tbl_entry,
 					ocsc_mode);
-	}
-
-	else {
+	} else {
 		if (mpc->funcs->set_ocsc_default != NULL)
 			mpc->funcs->set_ocsc_default(mpc,
 					opp_id,
