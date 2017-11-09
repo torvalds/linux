@@ -36,8 +36,8 @@ static inline void restore_access_regs(unsigned int *acrs)
 		save_ri_cb(prev->thread.ri_cb);				\
 		save_gs_cb(prev->thread.gs_cb);				\
 	}								\
+	update_cr_regs(next);						\
 	if (next->mm) {							\
-		update_cr_regs(next);					\
 		set_cpu_flag(CIF_FPU);					\
 		restore_access_regs(&next->thread.acrs[0]);		\
 		restore_ri_cb(next->thread.ri_cb, prev->thread.ri_cb);	\
