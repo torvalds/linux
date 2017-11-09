@@ -1701,7 +1701,7 @@ void vlv_wait_port_ready(struct drm_i915_private *dev_priv,
 	u32 port_mask;
 	i915_reg_t dpll_reg;
 
-	switch (dport->port) {
+	switch (dport->base.port) {
 	case PORT_B:
 		port_mask = DPLL_PORTB_READY_MASK;
 		dpll_reg = DPLL(0);
@@ -1723,7 +1723,8 @@ void vlv_wait_port_ready(struct drm_i915_private *dev_priv,
 				    dpll_reg, port_mask, expected_mask,
 				    1000))
 		WARN(1, "timed out waiting for port %c ready: got 0x%x, expected 0x%x\n",
-		     port_name(dport->port), I915_READ(dpll_reg) & port_mask, expected_mask);
+		     port_name(dport->base.port),
+		     I915_READ(dpll_reg) & port_mask, expected_mask);
 }
 
 static void ironlake_enable_pch_transcoder(struct drm_i915_private *dev_priv,
@@ -4481,7 +4482,7 @@ intel_trans_dp_port_sel(struct intel_crtc *crtc)
 	for_each_encoder_on_crtc(dev, &crtc->base, encoder) {
 		if (encoder->type == INTEL_OUTPUT_DP ||
 		    encoder->type == INTEL_OUTPUT_EDP)
-			return enc_to_dig_port(&encoder->base)->port;
+			return encoder->port;
 	}
 
 	return -1;
@@ -7632,7 +7633,7 @@ static void ironlake_init_pch_refclk(struct drm_i915_private *dev_priv)
 			break;
 		case INTEL_OUTPUT_EDP:
 			has_panel = true;
-			if (enc_to_dig_port(&encoder->base)->port == PORT_A)
+			if (encoder->port == PORT_A)
 				has_cpu_edp = true;
 			break;
 		default:
@@ -10755,7 +10756,7 @@ static bool check_digital_port_conflicts(struct drm_atomic_state *state)
 		case INTEL_OUTPUT_DP:
 		case INTEL_OUTPUT_HDMI:
 		case INTEL_OUTPUT_EDP:
-			port_mask = 1 << enc_to_dig_port(&encoder->base)->port;
+			port_mask = 1 << encoder->port;
 
 			/* the same port mustn't appear more than once */
 			if (used_ports & port_mask)
@@ -10765,7 +10766,7 @@ static bool check_digital_port_conflicts(struct drm_atomic_state *state)
 			break;
 		case INTEL_OUTPUT_DP_MST:
 			used_mst_ports |=
-				1 << enc_to_mst(&encoder->base)->primary->port;
+				1 << encoder->port;
 			break;
 		default:
 			break;

@@ -223,7 +223,7 @@ intel_dp_set_source_rates(struct intel_dp *intel_dp)
 {
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	struct drm_i915_private *dev_priv = to_i915(dig_port->base.base.dev);
-	enum port port = dig_port->port;
+	enum port port = dig_port->base.port;
 	const int *source_rates;
 	int size;
 	u32 voltage;
@@ -479,11 +479,11 @@ vlv_power_sequencer_kick(struct intel_dp *intel_dp)
 
 	if (WARN(I915_READ(intel_dp->output_reg) & DP_PORT_EN,
 		 "skipping pipe %c power seqeuncer kick due to port %c being active\n",
-		 pipe_name(pipe), port_name(intel_dig_port->port)))
+		 pipe_name(pipe), port_name(intel_dig_port->base.port)))
 		return;
 
 	DRM_DEBUG_KMS("kicking pipe %c power sequencer for port %c\n",
-		      pipe_name(pipe), port_name(intel_dig_port->port));
+		      pipe_name(pipe), port_name(intel_dig_port->base.port));
 
 	/* Preserve the BIOS-computed detected bit. This is
 	 * supposed to be read-only.
@@ -610,7 +610,7 @@ vlv_power_sequencer_pipe(struct intel_dp *intel_dp)
 
 	DRM_DEBUG_KMS("picked pipe %c power sequencer for port %c\n",
 		      pipe_name(intel_dp->pps_pipe),
-		      port_name(intel_dig_port->port));
+		      port_name(intel_dig_port->base.port));
 
 	/* init power sequencer on this pipe and port */
 	intel_dp_init_panel_power_sequencer(dev, intel_dp);
@@ -706,7 +706,7 @@ vlv_initial_power_sequencer_setup(struct intel_dp *intel_dp)
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
 	struct drm_device *dev = intel_dig_port->base.base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	enum port port = intel_dig_port->port;
+	enum port port = intel_dig_port->base.port;
 
 	lockdep_assert_held(&dev_priv->pps_mutex);
 
@@ -966,7 +966,7 @@ static uint32_t ilk_get_aux_clock_divider(struct intel_dp *intel_dp, int index)
 	 * like to run at 2MHz.  So, take the cdclk or PCH rawclk value and
 	 * divide by 2000 and use that
 	 */
-	if (intel_dig_port->port == PORT_A)
+	if (intel_dig_port->base.port == PORT_A)
 		return DIV_ROUND_CLOSEST(dev_priv->cdclk.hw.cdclk, 2000);
 	else
 		return DIV_ROUND_CLOSEST(dev_priv->rawclk_freq, 2000);
@@ -977,7 +977,7 @@ static uint32_t hsw_get_aux_clock_divider(struct intel_dp *intel_dp, int index)
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
 	struct drm_i915_private *dev_priv = to_i915(intel_dig_port->base.base.dev);
 
-	if (intel_dig_port->port != PORT_A && HAS_PCH_LPT_H(dev_priv)) {
+	if (intel_dig_port->base.port != PORT_A && HAS_PCH_LPT_H(dev_priv)) {
 		/* Workaround for non-ULT HSW */
 		switch (index) {
 		case 0: return 63;
@@ -1447,7 +1447,7 @@ static void intel_aux_reg_init(struct intel_dp *intel_dp)
 {
 	struct drm_i915_private *dev_priv = to_i915(intel_dp_to_dev(intel_dp));
 	enum port port = intel_aux_port(dev_priv,
-					dp_to_dig_port(intel_dp)->port);
+					dp_to_dig_port(intel_dp)->base.port);
 	int i;
 
 	intel_dp->aux_ch_ctl_reg = intel_aux_ctl_reg(dev_priv, port);
@@ -1465,7 +1465,7 @@ static void
 intel_dp_aux_init(struct intel_dp *intel_dp)
 {
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
-	enum port port = intel_dig_port->port;
+	enum port port = intel_dig_port->base.port;
 
 	intel_aux_reg_init(intel_dp);
 	drm_dp_aux_init(&intel_dp->aux);
@@ -1635,7 +1635,7 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct drm_display_mode *adjusted_mode = &pipe_config->base.adjusted_mode;
 	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
-	enum port port = dp_to_dig_port(intel_dp)->port;
+	enum port port = encoder->port;
 	struct intel_crtc *intel_crtc = to_intel_crtc(pipe_config->base.crtc);
 	struct intel_connector *intel_connector = intel_dp->attached_connector;
 	struct intel_digital_connector_state *intel_conn_state =
@@ -1859,7 +1859,7 @@ static void intel_dp_prepare(struct intel_encoder *encoder,
 	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
-	enum port port = dp_to_dig_port(intel_dp)->port;
+	enum port port = encoder->port;
 	struct intel_crtc *crtc = to_intel_crtc(pipe_config->base.crtc);
 	const struct drm_display_mode *adjusted_mode = &pipe_config->base.adjusted_mode;
 
@@ -2074,7 +2074,7 @@ static bool edp_panel_vdd_on(struct intel_dp *intel_dp)
 	intel_display_power_get(dev_priv, intel_dp->aux_power_domain);
 
 	DRM_DEBUG_KMS("Turning eDP port %c VDD on\n",
-		      port_name(intel_dig_port->port));
+		      port_name(intel_dig_port->base.port));
 
 	if (!edp_have_panel_power(intel_dp))
 		wait_panel_power_cycle(intel_dp);
@@ -2094,7 +2094,7 @@ static bool edp_panel_vdd_on(struct intel_dp *intel_dp)
 	 */
 	if (!edp_have_panel_power(intel_dp)) {
 		DRM_DEBUG_KMS("eDP port %c panel power wasn't enabled\n",
-			      port_name(intel_dig_port->port));
+			      port_name(intel_dig_port->base.port));
 		msleep(intel_dp->panel_power_up_delay);
 	}
 
@@ -2120,7 +2120,7 @@ void intel_edp_panel_vdd_on(struct intel_dp *intel_dp)
 	pps_unlock(intel_dp);
 
 	I915_STATE_WARN(!vdd, "eDP port %c VDD already requested on\n",
-	     port_name(dp_to_dig_port(intel_dp)->port));
+	     port_name(dp_to_dig_port(intel_dp)->base.port));
 }
 
 static void edp_panel_vdd_off_sync(struct intel_dp *intel_dp)
@@ -2140,7 +2140,7 @@ static void edp_panel_vdd_off_sync(struct intel_dp *intel_dp)
 		return;
 
 	DRM_DEBUG_KMS("Turning eDP port %c VDD off\n",
-		      port_name(intel_dig_port->port));
+		      port_name(intel_dig_port->base.port));
 
 	pp = ironlake_get_pp_control(intel_dp);
 	pp &= ~EDP_FORCE_VDD;
@@ -2200,7 +2200,7 @@ static void edp_panel_vdd_off(struct intel_dp *intel_dp, bool sync)
 		return;
 
 	I915_STATE_WARN(!intel_dp->want_panel_vdd, "eDP port %c VDD not forced on",
-	     port_name(dp_to_dig_port(intel_dp)->port));
+	     port_name(dp_to_dig_port(intel_dp)->base.port));
 
 	intel_dp->want_panel_vdd = false;
 
@@ -2223,11 +2223,11 @@ static void edp_panel_on(struct intel_dp *intel_dp)
 		return;
 
 	DRM_DEBUG_KMS("Turn eDP port %c panel power on\n",
-		      port_name(dp_to_dig_port(intel_dp)->port));
+		      port_name(dp_to_dig_port(intel_dp)->base.port));
 
 	if (WARN(edp_have_panel_power(intel_dp),
 		 "eDP port %c panel power already on\n",
-		 port_name(dp_to_dig_port(intel_dp)->port)))
+		 port_name(dp_to_dig_port(intel_dp)->base.port)))
 		return;
 
 	wait_panel_power_cycle(intel_dp);
@@ -2282,10 +2282,10 @@ static void edp_panel_off(struct intel_dp *intel_dp)
 		return;
 
 	DRM_DEBUG_KMS("Turn eDP port %c panel power off\n",
-		      port_name(dp_to_dig_port(intel_dp)->port));
+		      port_name(dp_to_dig_port(intel_dp)->base.port));
 
 	WARN(!intel_dp->want_panel_vdd, "Need eDP port %c VDD to turn off panel\n",
-	     port_name(dp_to_dig_port(intel_dp)->port));
+	     port_name(dp_to_dig_port(intel_dp)->base.port));
 
 	pp = ironlake_get_pp_control(intel_dp);
 	/* We need to switch off panel power _and_ force vdd, for otherwise some
@@ -2437,7 +2437,7 @@ static void assert_dp_port(struct intel_dp *intel_dp, bool state)
 
 	I915_STATE_WARN(cur_state != state,
 			"DP port %c state assertion failure (expected %s, current %s)\n",
-			port_name(dig_port->port),
+			port_name(dig_port->base.port),
 			onoff(state), onoff(cur_state));
 }
 #define assert_dp_port_disabled(d) assert_dp_port((d), false)
@@ -2570,7 +2570,7 @@ static bool intel_dp_get_hw_state(struct intel_encoder *encoder,
 				  enum pipe *pipe)
 {
 	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
-	enum port port = dp_to_dig_port(intel_dp)->port;
+	enum port port = encoder->port;
 	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	u32 tmp;
@@ -2625,7 +2625,7 @@ static void intel_dp_get_config(struct intel_encoder *encoder,
 	u32 tmp, flags = 0;
 	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	enum port port = dp_to_dig_port(intel_dp)->port;
+	enum port port = encoder->port;
 	struct intel_crtc *crtc = to_intel_crtc(pipe_config->base.crtc);
 
 	if (encoder->type == INTEL_OUTPUT_EDP)
@@ -2794,7 +2794,7 @@ _intel_dp_set_link_train(struct intel_dp *intel_dp,
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
 	struct drm_device *dev = intel_dig_port->base.base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	enum port port = intel_dig_port->port;
+	enum port port = intel_dig_port->base.port;
 
 	if (dp_train_pat & DP_TRAINING_PATTERN_MASK)
 		DRM_DEBUG_KMS("Using DP training pattern TPS%d\n",
@@ -2969,7 +2969,7 @@ static void g4x_pre_enable_dp(struct intel_encoder *encoder,
 			      const struct drm_connector_state *conn_state)
 {
 	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
-	enum port port = dp_to_dig_port(intel_dp)->port;
+	enum port port = encoder->port;
 
 	intel_dp_prepare(encoder, pipe_config);
 
@@ -3002,7 +3002,7 @@ static void vlv_detach_power_sequencer(struct intel_dp *intel_dp)
 	 * from a port.
 	 */
 	DRM_DEBUG_KMS("detaching pipe %c power sequencer from port %c\n",
-		      pipe_name(pipe), port_name(intel_dig_port->port));
+		      pipe_name(pipe), port_name(intel_dig_port->base.port));
 	I915_WRITE(pp_on_reg, 0);
 	POSTING_READ(pp_on_reg);
 
@@ -3026,7 +3026,7 @@ static void vlv_steal_power_sequencer(struct drm_device *dev,
 			continue;
 
 		intel_dp = enc_to_intel_dp(&encoder->base);
-		port = dp_to_dig_port(intel_dp)->port;
+		port = dp_to_dig_port(intel_dp)->base.port;
 
 		WARN(intel_dp->active_pipe == pipe,
 		     "stealing pipe %c power sequencer from active (e)DP port %c\n",
@@ -3178,7 +3178,7 @@ uint8_t
 intel_dp_voltage_max(struct intel_dp *intel_dp)
 {
 	struct drm_i915_private *dev_priv = to_i915(intel_dp_to_dev(intel_dp));
-	enum port port = dp_to_dig_port(intel_dp)->port;
+	enum port port = dp_to_dig_port(intel_dp)->base.port;
 
 	if (INTEL_GEN(dev_priv) >= 9) {
 		struct intel_encoder *encoder = &dp_to_dig_port(intel_dp)->base;
@@ -3197,7 +3197,7 @@ uint8_t
 intel_dp_pre_emphasis_max(struct intel_dp *intel_dp, uint8_t voltage_swing)
 {
 	struct drm_i915_private *dev_priv = to_i915(intel_dp_to_dev(intel_dp));
-	enum port port = dp_to_dig_port(intel_dp)->port;
+	enum port port = dp_to_dig_port(intel_dp)->base.port;
 
 	if (INTEL_GEN(dev_priv) >= 9) {
 		switch (voltage_swing & DP_TRAIN_VOLTAGE_SWING_MASK) {
@@ -3531,7 +3531,7 @@ void
 intel_dp_set_signal_levels(struct intel_dp *intel_dp)
 {
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
-	enum port port = intel_dig_port->port;
+	enum port port = intel_dig_port->base.port;
 	struct drm_device *dev = intel_dig_port->base.base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	uint32_t signal_levels, mask = 0;
@@ -3591,7 +3591,7 @@ void intel_dp_set_idle_link_train(struct intel_dp *intel_dp)
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
 	struct drm_device *dev = intel_dig_port->base.base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	enum port port = intel_dig_port->port;
+	enum port port = intel_dig_port->base.port;
 	uint32_t val;
 
 	if (!HAS_DDI(dev_priv))
@@ -4490,7 +4490,7 @@ static bool ibx_digital_port_connected(struct drm_i915_private *dev_priv,
 {
 	u32 bit;
 
-	switch (port->port) {
+	switch (port->base.port) {
 	case PORT_B:
 		bit = SDE_PORTB_HOTPLUG;
 		break;
@@ -4501,7 +4501,7 @@ static bool ibx_digital_port_connected(struct drm_i915_private *dev_priv,
 		bit = SDE_PORTD_HOTPLUG;
 		break;
 	default:
-		MISSING_CASE(port->port);
+		MISSING_CASE(port->base.port);
 		return false;
 	}
 
@@ -4513,7 +4513,7 @@ static bool cpt_digital_port_connected(struct drm_i915_private *dev_priv,
 {
 	u32 bit;
 
-	switch (port->port) {
+	switch (port->base.port) {
 	case PORT_B:
 		bit = SDE_PORTB_HOTPLUG_CPT;
 		break;
@@ -4524,7 +4524,7 @@ static bool cpt_digital_port_connected(struct drm_i915_private *dev_priv,
 		bit = SDE_PORTD_HOTPLUG_CPT;
 		break;
 	default:
-		MISSING_CASE(port->port);
+		MISSING_CASE(port->base.port);
 		return false;
 	}
 
@@ -4536,7 +4536,7 @@ static bool spt_digital_port_connected(struct drm_i915_private *dev_priv,
 {
 	u32 bit;
 
-	switch (port->port) {
+	switch (port->base.port) {
 	case PORT_A:
 		bit = SDE_PORTA_HOTPLUG_SPT;
 		break;
@@ -4555,7 +4555,7 @@ static bool g4x_digital_port_connected(struct drm_i915_private *dev_priv,
 {
 	u32 bit;
 
-	switch (port->port) {
+	switch (port->base.port) {
 	case PORT_B:
 		bit = PORTB_HOTPLUG_LIVE_STATUS_G4X;
 		break;
@@ -4566,7 +4566,7 @@ static bool g4x_digital_port_connected(struct drm_i915_private *dev_priv,
 		bit = PORTD_HOTPLUG_LIVE_STATUS_G4X;
 		break;
 	default:
-		MISSING_CASE(port->port);
+		MISSING_CASE(port->base.port);
 		return false;
 	}
 
@@ -4578,7 +4578,7 @@ static bool gm45_digital_port_connected(struct drm_i915_private *dev_priv,
 {
 	u32 bit;
 
-	switch (port->port) {
+	switch (port->base.port) {
 	case PORT_B:
 		bit = PORTB_HOTPLUG_LIVE_STATUS_GM45;
 		break;
@@ -4589,7 +4589,7 @@ static bool gm45_digital_port_connected(struct drm_i915_private *dev_priv,
 		bit = PORTD_HOTPLUG_LIVE_STATUS_GM45;
 		break;
 	default:
-		MISSING_CASE(port->port);
+		MISSING_CASE(port->base.port);
 		return false;
 	}
 
@@ -4599,7 +4599,7 @@ static bool gm45_digital_port_connected(struct drm_i915_private *dev_priv,
 static bool ilk_digital_port_connected(struct drm_i915_private *dev_priv,
 				       struct intel_digital_port *port)
 {
-	if (port->port == PORT_A)
+	if (port->base.port == PORT_A)
 		return I915_READ(DEISR) & DE_DP_A_HOTPLUG;
 	else
 		return ibx_digital_port_connected(dev_priv, port);
@@ -4608,7 +4608,7 @@ static bool ilk_digital_port_connected(struct drm_i915_private *dev_priv,
 static bool snb_digital_port_connected(struct drm_i915_private *dev_priv,
 				       struct intel_digital_port *port)
 {
-	if (port->port == PORT_A)
+	if (port->base.port == PORT_A)
 		return I915_READ(DEISR) & DE_DP_A_HOTPLUG;
 	else
 		return cpt_digital_port_connected(dev_priv, port);
@@ -4617,7 +4617,7 @@ static bool snb_digital_port_connected(struct drm_i915_private *dev_priv,
 static bool ivb_digital_port_connected(struct drm_i915_private *dev_priv,
 				       struct intel_digital_port *port)
 {
-	if (port->port == PORT_A)
+	if (port->base.port == PORT_A)
 		return I915_READ(DEISR) & DE_DP_A_HOTPLUG_IVB;
 	else
 		return cpt_digital_port_connected(dev_priv, port);
@@ -4626,7 +4626,7 @@ static bool ivb_digital_port_connected(struct drm_i915_private *dev_priv,
 static bool bdw_digital_port_connected(struct drm_i915_private *dev_priv,
 				       struct intel_digital_port *port)
 {
-	if (port->port == PORT_A)
+	if (port->base.port == PORT_A)
 		return I915_READ(GEN8_DE_PORT_ISR) & GEN8_PORT_DP_A_HOTPLUG;
 	else
 		return cpt_digital_port_connected(dev_priv, port);
@@ -5109,12 +5109,12 @@ intel_dp_hpd_pulse(struct intel_digital_port *intel_dig_port, bool long_hpd)
 		 * "vdd off -> long hpd -> vdd on -> detect -> vdd off -> ..."
 		 */
 		DRM_DEBUG_KMS("ignoring long hpd on eDP port %c\n",
-			      port_name(intel_dig_port->port));
+			      port_name(intel_dig_port->base.port));
 		return IRQ_HANDLED;
 	}
 
 	DRM_DEBUG_KMS("got hpd irq on port %c - %s\n",
-		      port_name(intel_dig_port->port),
+		      port_name(intel_dig_port->base.port),
 		      long_hpd ? "long" : "short");
 
 	if (long_hpd) {
@@ -5364,7 +5364,7 @@ intel_dp_init_panel_power_sequencer_registers(struct drm_device *dev,
 	u32 pp_on, pp_off, pp_div, port_sel = 0;
 	int div = dev_priv->rawclk_freq / 1000;
 	struct pps_registers regs;
-	enum port port = dp_to_dig_port(intel_dp)->port;
+	enum port port = dp_to_dig_port(intel_dp)->base.port;
 	const struct edp_power_seq *seq = &intel_dp->pps_delays;
 
 	lockdep_assert_held(&dev_priv->pps_mutex);
@@ -5965,9 +5965,9 @@ intel_dp_init_connector_port_info(struct intel_digital_port *intel_dig_port)
 	struct intel_encoder *encoder = &intel_dig_port->base;
 	struct intel_dp *intel_dp = &intel_dig_port->dp;
 
-	encoder->hpd_pin = intel_hpd_pin(intel_dig_port->port);
+	encoder->hpd_pin = intel_hpd_pin(encoder->port);
 
-	switch (intel_dig_port->port) {
+	switch (encoder->port) {
 	case PORT_A:
 		intel_dp->aux_power_domain = POWER_DOMAIN_AUX_A;
 		break;
@@ -5985,7 +5985,7 @@ intel_dp_init_connector_port_info(struct intel_digital_port *intel_dig_port)
 		intel_dp->aux_power_domain = POWER_DOMAIN_AUX_D;
 		break;
 	default:
-		MISSING_CASE(intel_dig_port->port);
+		MISSING_CASE(encoder->port);
 	}
 }
 
@@ -6021,7 +6021,7 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 	struct intel_encoder *intel_encoder = &intel_dig_port->base;
 	struct drm_device *dev = intel_encoder->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	enum port port = intel_dig_port->port;
+	enum port port = intel_encoder->port;
 	int type;
 
 	/* Initialize the work for modeset in case of link train failure */
@@ -6191,7 +6191,6 @@ bool intel_dp_init(struct drm_i915_private *dev_priv,
 		intel_encoder->disable = g4x_disable_dp;
 	}
 
-	intel_dig_port->port = port;
 	intel_dig_port->dp.output_reg = output_reg;
 	intel_dig_port->max_lanes = 4;
 

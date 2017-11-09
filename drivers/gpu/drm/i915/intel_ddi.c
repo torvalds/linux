@@ -1801,8 +1801,8 @@ static void skl_ddi_set_iboost(struct intel_encoder *encoder,
 			       int level, enum intel_output_type type)
 {
 	struct intel_digital_port *intel_dig_port = enc_to_dig_port(&encoder->base);
-	struct drm_i915_private *dev_priv = to_i915(intel_dig_port->base.base.dev);
-	enum port port = intel_dig_port->port;
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	enum port port = encoder->port;
 	uint8_t iboost;
 
 	if (type == INTEL_OUTPUT_HDMI)
@@ -2470,7 +2470,7 @@ void intel_ddi_prepare_link_retrain(struct intel_dp *intel_dp)
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
 	struct drm_i915_private *dev_priv =
 		to_i915(intel_dig_port->base.base.dev);
-	enum port port = intel_dig_port->port;
+	enum port port = intel_dig_port->base.port;
 	uint32_t val;
 	bool wait = false;
 
@@ -2698,7 +2698,7 @@ static struct intel_connector *
 intel_ddi_init_dp_connector(struct intel_digital_port *intel_dig_port)
 {
 	struct intel_connector *connector;
-	enum port port = intel_dig_port->port;
+	enum port port = intel_dig_port->base.port;
 
 	connector = intel_connector_alloc();
 	if (!connector)
@@ -2717,7 +2717,7 @@ static struct intel_connector *
 intel_ddi_init_hdmi_connector(struct intel_digital_port *intel_dig_port)
 {
 	struct intel_connector *connector;
-	enum port port = intel_dig_port->port;
+	enum port port = intel_dig_port->base.port;
 
 	connector = intel_connector_alloc();
 	if (!connector)
@@ -2733,7 +2733,7 @@ static bool intel_ddi_a_force_4_lanes(struct intel_digital_port *dport)
 {
 	struct drm_i915_private *dev_priv = to_i915(dport->base.base.dev);
 
-	if (dport->port != PORT_A)
+	if (dport->base.port != PORT_A)
 		return false;
 
 	if (dport->saved_port_bits & DDI_A_4_LANES)
@@ -2836,7 +2836,6 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 	intel_encoder->suspend = intel_dp_encoder_suspend;
 	intel_encoder->get_power_domains = intel_ddi_get_power_domains;
 
-	intel_dig_port->port = port;
 	intel_dig_port->saved_port_bits = I915_READ(DDI_BUF_CTL(port)) &
 					  (DDI_BUF_PORT_REVERSAL |
 					   DDI_A_4_LANES);

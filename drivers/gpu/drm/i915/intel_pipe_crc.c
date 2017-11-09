@@ -269,7 +269,7 @@ static int i9xx_pipe_crc_auto_source(struct drm_i915_private *dev_priv,
 		case INTEL_OUTPUT_DP:
 		case INTEL_OUTPUT_EDP:
 			dig_port = enc_to_dig_port(&encoder->base);
-			switch (dig_port->port) {
+			switch (dig_port->base.port) {
 			case PORT_B:
 				*source = INTEL_PIPE_CRC_SOURCE_DP_B;
 				break;
@@ -281,7 +281,7 @@ static int i9xx_pipe_crc_auto_source(struct drm_i915_private *dev_priv,
 				break;
 			default:
 				WARN(1, "nonexisting DP port %c\n",
-				     port_name(dig_port->port));
+				     port_name(dig_port->base.port));
 				break;
 			}
 			break;

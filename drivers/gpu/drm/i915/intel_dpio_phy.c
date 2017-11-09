@@ -586,9 +586,8 @@ bxt_ddi_phy_calc_lane_lat_optim_mask(uint8_t lane_count)
 void bxt_ddi_phy_set_lane_optim_mask(struct intel_encoder *encoder,
 				     uint8_t lane_lat_optim_mask)
 {
-	struct intel_digital_port *dport = enc_to_dig_port(&encoder->base);
-	struct drm_i915_private *dev_priv = to_i915(dport->base.base.dev);
-	enum port port = dport->port;
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	enum port port = encoder->port;
 	enum dpio_phy phy;
 	enum dpio_channel ch;
 	int lane;
@@ -613,9 +612,8 @@ void bxt_ddi_phy_set_lane_optim_mask(struct intel_encoder *encoder,
 uint8_t
 bxt_ddi_phy_get_lane_lat_optim_mask(struct intel_encoder *encoder)
 {
-	struct intel_digital_port *dport = enc_to_dig_port(&encoder->base);
-	struct drm_i915_private *dev_priv = to_i915(dport->base.base.dev);
-	enum port port = dport->port;
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	enum port port = encoder->port;
 	enum dpio_phy phy;
 	enum dpio_channel ch;
 	int lane;
@@ -641,7 +639,7 @@ void chv_set_phy_signal_level(struct intel_encoder *encoder,
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_digital_port *dport = enc_to_dig_port(&encoder->base);
-	struct intel_crtc *intel_crtc = to_intel_crtc(dport->base.base.crtc);
+	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->base.crtc);
 	enum dpio_channel ch = vlv_dport_to_channel(dport);
 	enum pipe pipe = intel_crtc->pipe;
 	u32 val;

@@ -209,7 +209,7 @@ static void intel_mst_pre_enable_dp(struct intel_encoder *encoder,
 	struct intel_digital_port *intel_dig_port = intel_mst->primary;
 	struct intel_dp *intel_dp = &intel_dig_port->dp;
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	enum port port = intel_dig_port->port;
+	enum port port = intel_dig_port->base.port;
 	struct intel_connector *connector =
 		to_intel_connector(conn_state->connector);
 	int ret;
@@ -253,7 +253,7 @@ static void intel_mst_enable_dp(struct intel_encoder *encoder,
 	struct intel_digital_port *intel_dig_port = intel_mst->primary;
 	struct intel_dp *intel_dp = &intel_dig_port->dp;
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	enum port port = intel_dig_port->port;
+	enum port port = intel_dig_port->base.port;
 	int ret;
 
 	DRM_DEBUG_KMS("active links %d\n", intel_dp->active_mst_links);
@@ -552,7 +552,7 @@ intel_dp_create_fake_mst_encoder(struct intel_digital_port *intel_dig_port, enum
 
 	intel_encoder->type = INTEL_OUTPUT_DP_MST;
 	intel_encoder->power_domain = intel_dig_port->base.power_domain;
-	intel_encoder->port = intel_dig_port->port;
+	intel_encoder->port = intel_dig_port->base.port;
 	intel_encoder->crtc_mask = 0x7;
 	intel_encoder->cloneable = 0;
 

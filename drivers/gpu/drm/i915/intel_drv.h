@@ -1056,7 +1056,6 @@ struct intel_lspcon {
 
 struct intel_digital_port {
 	struct intel_encoder base;
-	enum port port;
 	u32 saved_port_bits;
 	struct intel_dp dp;
 	struct intel_hdmi hdmi;
@@ -1088,7 +1087,7 @@ struct intel_dp_mst_encoder {
 static inline enum dpio_channel
 vlv_dport_to_channel(struct intel_digital_port *dport)
 {
-	switch (dport->port) {
+	switch (dport->base.port) {
 	case PORT_B:
 	case PORT_D:
 		return DPIO_CH0;
@@ -1102,7 +1101,7 @@ vlv_dport_to_channel(struct intel_digital_port *dport)
 static inline enum dpio_phy
 vlv_dport_to_phy(struct intel_digital_port *dport)
 {
-	switch (dport->port) {
+	switch (dport->base.port) {
 	case PORT_B:
 	case PORT_C:
 		return DPIO_PHY0;

@@ -3603,7 +3603,7 @@ static int i915_dp_mst_info(struct seq_file *m, void *unused)
 			continue;
 
 		seq_printf(m, "MST Source Port %c\n",
-			   port_name(intel_dig_port->port));
+			   port_name(intel_dig_port->base.port));
 		drm_dp_mst_dump_topology(m, &intel_dig_port->dp.mst_mgr);
 	}
 	drm_connector_list_iter_end(&conn_iter);
