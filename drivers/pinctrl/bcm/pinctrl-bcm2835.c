@@ -383,7 +383,7 @@ static void bcm2835_gpio_irq_handle_bank(struct bcm2835_pinctrl *pc,
 		/* FIXME: no clue why the code looks up the type here */
 		type = pc->irq_type[gpio];
 
-		generic_handle_irq(irq_linear_revmap(pc->gpio_chip.irq.irqdomain,
+		generic_handle_irq(irq_linear_revmap(pc->gpio_chip.irq.domain,
 						     gpio));
 	}
 }
