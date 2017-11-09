@@ -759,7 +759,7 @@ static int __init setup_hwcaps(void)
 	/*
 	 * Transactional execution support HWCAP_S390_TE is bit 10.
 	 */
-	if (test_facility(50) && test_facility(73))
+	if (MACHINE_HAS_TE)
 		elf_hwcap |= HWCAP_S390_TE;
 
 	/*
