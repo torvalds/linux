@@ -160,7 +160,6 @@ static inline void chcr_handle_ahash_resp(struct ahash_request *req,
 
 	if (input == NULL)
 		goto out;
-	reqctx = ahash_request_ctx(req);
 	digestsize = crypto_ahash_digestsize(crypto_ahash_reqtfm(req));
 	if (reqctx->is_sg_map)
 		chcr_hash_dma_unmap(&u_ctx->lldi.pdev->dev, req);
@@ -2014,11 +2013,8 @@ static int chcr_aead_common_init(struct aead_request *req,
 	struct chcr_aead_ctx *aeadctx = AEAD_CTX(a_ctx(tfm));
 	struct chcr_aead_reqctx  *reqctx = aead_request_ctx(req);
 	int error = -EINVAL;
-	unsigned int dst_size;
 	unsigned int authsize = crypto_aead_authsize(tfm);
 
-	dst_size = req->assoclen + req->cryptlen + (op_type ?
-					-authsize : authsize);
 	/* validate key size */
 	if (aeadctx->enckey_len == 0)
 		goto err;
