@@ -213,6 +213,19 @@ static void l_del(struct entry_space *es, struct ilist *l, struct entry *e)
 		l->nr_elts--;
 }
 
+static struct entry *l_pop_head(struct entry_space *es, struct ilist *l)
+{
+	struct entry *e;
+
+	for (e = l_head(es, l); e; e = l_next(es, e))
+		if (!e->sentinel) {
+			l_del(es, l, e);
+			return e;
+		}
+
+	return NULL;
+}
+
 static struct entry *l_pop_tail(struct entry_space *es, struct ilist *l)
 {
 	struct entry *e;
@@ -719,7 +732,7 @@ static struct entry *alloc_entry(struct entry_alloc *ea)
 	if (l_empty(&ea->free))
 		return NULL;
 
-	e = l_pop_tail(ea->es, &ea->free);
+	e = l_pop_head(ea->es, &ea->free);
 	init_entry(e);
 	ea->nr_allocated++;
 
