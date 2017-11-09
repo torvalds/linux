@@ -29,6 +29,9 @@ my $V = '0.01';
 # Directories to scan.
 my @DIRS = ('/proc', '/sys');
 
+# Timer for parsing each file, in seconds.
+my $TIMEOUT = 10;
+
 # Script can only grep for kernel addresses on the following architectures. If
 # your architecture is not listed here and has a grep'able kernel address please
 # consider submitting a patch.
@@ -284,6 +287,23 @@ sub skip_parse
 	return skip($path, \@skip_parse_files_abs, \@skip_parse_files_any);
 }
 
+sub timed_parse_file
+{
+	my ($file) = @_;
+
+	eval {
+		local $SIG{ALRM} = sub { die "alarm\n" }; # NB: \n required.
+		alarm $TIMEOUT;
+		parse_file($file);
+		alarm 0;
+	};
+
+	if ($@) {
+		die unless $@ eq "alarm\n";	# Propagate unexpected errors.
+		printf STDERR "timed out parsing: %s\n", $file;
+	}
+}
+
 sub parse_file
 {
 	my ($file) = @_;
@@ -335,7 +355,7 @@ sub walk
 			if (-d $path) {
 				push @dirs, $path;
 			} else {
-				parse_file($path);
+				timed_parse_file($path);
 			}
 		}
 	}
