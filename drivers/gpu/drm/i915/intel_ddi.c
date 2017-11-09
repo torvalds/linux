@@ -1681,8 +1681,8 @@ bool intel_ddi_get_hw_state(struct intel_encoder *encoder,
 	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	enum port port = encoder->port;
+	enum pipe p;
 	u32 tmp;
-	int i;
 	bool ret;
 
 	if (!intel_display_power_get_if_enabled(dev_priv,
@@ -1717,15 +1717,17 @@ bool intel_ddi_get_hw_state(struct intel_encoder *encoder,
 		goto out;
 	}
 
-	for (i = TRANSCODER_A; i <= TRANSCODER_C; i++) {
-		tmp = I915_READ(TRANS_DDI_FUNC_CTL(i));
+	for_each_pipe(dev_priv, p) {
+		enum transcoder cpu_transcoder = (enum transcoder) p;
+
+		tmp = I915_READ(TRANS_DDI_FUNC_CTL(cpu_transcoder));
 
 		if ((tmp & TRANS_DDI_PORT_MASK) == TRANS_DDI_SELECT_PORT(port)) {
 			if ((tmp & TRANS_DDI_MODE_SELECT_MASK) ==
 			    TRANS_DDI_MODE_SELECT_DP_MST)
 				goto out;
 
-			*pipe = i;
+			*pipe = p;
 			ret = true;
 
 			goto out;
