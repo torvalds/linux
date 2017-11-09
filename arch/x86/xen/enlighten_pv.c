@@ -1460,9 +1460,9 @@ static uint32_t __init xen_platform_pv(void)
 	return 0;
 }
 
-const struct hypervisor_x86 x86_hyper_xen_pv = {
+const __initconst struct hypervisor_x86 x86_hyper_xen_pv = {
 	.name                   = "Xen PV",
 	.detect                 = xen_platform_pv,
+	.type			= X86_HYPER_XEN_PV,
 	.runtime.pin_vcpu       = xen_pin_vcpu,
 };
-EXPORT_SYMBOL(x86_hyper_xen_pv);

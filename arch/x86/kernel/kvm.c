@@ -544,12 +544,12 @@ static uint32_t __init kvm_detect(void)
 	return kvm_cpuid_base();
 }
 
-const struct hypervisor_x86 x86_hyper_kvm __refconst = {
+const __initconst struct hypervisor_x86 x86_hyper_kvm = {
 	.name			= "KVM",
 	.detect			= kvm_detect,
+	.type			= X86_HYPER_KVM,
 	.init.x2apic_available	= kvm_para_available,
 };
-EXPORT_SYMBOL_GPL(x86_hyper_kvm);
 
 static __init int activate_jump_labels(void)
 {
