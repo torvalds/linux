@@ -4056,7 +4056,7 @@ void decode_misc_enable_msr(void)
 			base_cpu, msr,
 			msr & MSR_IA32_MISC_ENABLE_TM1 ? "" : "No-",
 			msr & MSR_IA32_MISC_ENABLE_ENHANCED_SPEEDSTEP ? "" : "No-",
-			msr & MSR_IA32_MISC_ENABLE_MWAIT ? "No-" : "",
+			msr & MSR_IA32_MISC_ENABLE_MWAIT ? "" : "No-",
 			msr & MSR_IA32_MISC_ENABLE_PREFETCH_DISABLE ? "No-" : "",
 			msr & MSR_IA32_MISC_ENABLE_TURBO_DISABLE ? "No-" : "");
 }
