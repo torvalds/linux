@@ -644,7 +644,7 @@
 		irq_enable = <0>;
 		poll_delay_ms = <30>;
 		layout = <4>;
-		support-hw-poweroff = <1>;
+		reprobe_en = <1>;
 	};
 
 	sensor@19 {
@@ -653,9 +653,10 @@
 		reg = <0x19>;
 		type = <SENSOR_TYPE_ACCEL>;
 		irq-gpio = <&gpio3 14 IRQ_TYPE_LEVEL_LOW>;
-		irq_enable = <1>;
+		irq_enable = <0>;
 		poll_delay_ms = <30>;
 		layout = <6>;
+		reprobe_en = <1>;
 	};
 
 	sensor@10 {
