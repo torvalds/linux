@@ -2101,6 +2101,9 @@ static int sm501fb_suspend_fb(struct sm501fb_info *info,
 	struct fb_info *fbi = info->fb[head];
 	struct sm501fb_par *par = fbi->par;
 
+	if (!fbi)
+		return 0;
+
 	if (par->screen.size == 0)
 		return 0;
 
@@ -2147,6 +2150,9 @@ static void sm501fb_resume_fb(struct sm501fb_info *info,
 {
 	struct fb_info *fbi = info->fb[head];
 	struct sm501fb_par *par = fbi->par;
+
+	if (!fbi)
+		return;
 
 	if (par->screen.size == 0)
 		return;
