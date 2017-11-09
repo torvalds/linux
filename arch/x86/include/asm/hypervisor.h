@@ -23,6 +23,7 @@
 #ifdef CONFIG_HYPERVISOR_GUEST
 
 #include <asm/kvm_para.h>
+#include <asm/x86_init.h>
 #include <asm/xen/hypervisor.h>
 
 /*
@@ -35,17 +36,11 @@ struct hypervisor_x86 {
 	/* Detection routine */
 	uint32_t	(*detect)(void);
 
-	/* Platform setup (run once per boot) */
-	void		(*init_platform)(void);
+	/* init time callbacks */
+	struct x86_hyper_init init;
 
-	/* X2APIC detection (run once per boot) */
-	bool		(*x2apic_available)(void);
-
-	/* pin current vcpu to specified physical cpu (run rarely) */
-	void		(*pin_vcpu)(int);
-
-	/* called during init_mem_mapping() to setup early mappings. */
-	void		(*init_mem_mapping)(void);
+	/* runtime callbacks */
+	struct x86_hyper_runtime runtime;
 };
 
 extern const struct hypervisor_x86 *x86_hyper;
@@ -58,17 +53,7 @@ extern const struct hypervisor_x86 x86_hyper_xen_hvm;
 extern const struct hypervisor_x86 x86_hyper_kvm;
 
 extern void init_hypervisor_platform(void);
-extern bool hypervisor_x2apic_available(void);
-extern void hypervisor_pin_vcpu(int cpu);
-
-static inline void hypervisor_init_mem_mapping(void)
-{
-	if (x86_hyper && x86_hyper->init_mem_mapping)
-		x86_hyper->init_mem_mapping();
-}
 #else
 static inline void init_hypervisor_platform(void) { }
-static inline bool hypervisor_x2apic_available(void) { return false; }
-static inline void hypervisor_init_mem_mapping(void) { }
 #endif /* CONFIG_HYPERVISOR_GUEST */
 #endif /* _ASM_X86_HYPERVISOR_H */
