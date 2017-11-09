@@ -121,7 +121,7 @@ struct tlv320dac33_priv {
 	unsigned int uthr;
 
 	enum dac33_state state;
-	void *control_data;
+	struct i2c_client *i2c;
 };
 
 static const u8 dac33_reg[DAC33_CACHEREGNUM] = {
@@ -200,7 +200,7 @@ static int dac33_read(struct snd_soc_codec *codec, unsigned int reg,
 
 	/* If powered off, return the cached value */
 	if (dac33->chip_power) {
-		val = i2c_smbus_read_byte_data(codec->control_data, value[0]);
+		val = i2c_smbus_read_byte_data(dac33->i2c, value[0]);
 		if (val < 0) {
 			dev_err(codec->dev, "Read failed (%d)\n", val);
 			value[0] = dac33_read_reg_cache(codec, reg);
@@ -233,7 +233,7 @@ static int dac33_write(struct snd_soc_codec *codec, unsigned int reg,
 
 	dac33_write_reg_cache(codec, data[0], data[1]);
 	if (dac33->chip_power) {
-		ret = codec->hw_write(codec->control_data, data, 2);
+		ret = i2c_master_send(dac33->i2c, data, 2);
 		if (ret != 2)
 			dev_err(codec->dev, "Write failed (%d)\n", ret);
 		else
@@ -280,7 +280,7 @@ static int dac33_write16(struct snd_soc_codec *codec, unsigned int reg,
 	if (dac33->chip_power) {
 		/* We need to set autoincrement mode for 16 bit writes */
 		data[0] |= DAC33_I2C_ADDR_AUTOINC;
-		ret = codec->hw_write(codec->control_data, data, 3);
+		ret = i2c_master_send(dac33->i2c, data, 3);
 		if (ret != 3)
 			dev_err(codec->dev, "Write failed (%d)\n", ret);
 		else
@@ -1379,8 +1379,6 @@ static int dac33_soc_probe(struct snd_soc_codec *codec)
 	struct tlv320dac33_priv *dac33 = snd_soc_codec_get_drvdata(codec);
 	int ret = 0;
 
-	codec->control_data = dac33->control_data;
-	codec->hw_write = (hw_write_t) i2c_master_send;
 	dac33->codec = codec;
 
 	/* Read the tlv320dac33 ID registers */
@@ -1499,7 +1497,7 @@ static int dac33_i2c_probe(struct i2c_client *client,
 	if (dac33 == NULL)
 		return -ENOMEM;
 
-	dac33->control_data = client;
+	dac33->i2c = client;
 	mutex_init(&dac33->mutex);
 	spin_lock_init(&dac33->lock);
 
