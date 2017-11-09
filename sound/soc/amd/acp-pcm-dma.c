@@ -193,8 +193,8 @@ static void set_acp_sysmem_dma_descriptors(void __iomem *acp_mmio,
 		dmadscr[i].xfer_val = 0;
 		if (direction == SNDRV_PCM_STREAM_PLAYBACK) {
 			dma_dscr_idx = PLAYBACK_START_DMA_DESCR_CH12 + i;
-			dmadscr[i].dest = ACP_SHARED_RAM_BANK_1_ADDRESS +
-					(size / 2) - (i * (size/2));
+			dmadscr[i].dest = ACP_SHARED_RAM_BANK_1_ADDRESS
+					+ (i * (size/2));
 			dmadscr[i].src = ACP_INTERNAL_APERTURE_WINDOW_0_ADDRESS
 				+ (pte_offset * SZ_4K) + (i * (size/2));
 			switch (asic_type) {
@@ -655,9 +655,9 @@ static irqreturn_t dma_irq_handler(int irq, void *arg)
 		valid_irq = true;
 		if (acp_reg_read(acp_mmio, mmACP_DMA_CUR_DSCR_13) ==
 				PLAYBACK_START_DMA_DESCR_CH13)
-			dscr_idx = PLAYBACK_START_DMA_DESCR_CH12;
-		else
 			dscr_idx = PLAYBACK_END_DMA_DESCR_CH12;
+		else
+			dscr_idx = PLAYBACK_START_DMA_DESCR_CH12;
 		config_acp_dma_channel(acp_mmio, SYSRAM_TO_ACP_CH_NUM, dscr_idx,
 				       1, 0);
 		acp_dma_start(acp_mmio, SYSRAM_TO_ACP_CH_NUM, false);
@@ -882,23 +882,6 @@ static int acp_dma_prepare(struct snd_pcm_substream *substream)
 		config_acp_dma_channel(rtd->acp_mmio, ACP_TO_I2S_DMA_CH_NUM,
 					PLAYBACK_START_DMA_DESCR_CH13,
 					NUM_DSCRS_PER_CHANNEL, 0);
-		/* Fill ACP SRAM (2 periods) with zeros from System RAM
-		 * which is zero-ed in hw_params
-		*/
-		acp_dma_start(rtd->acp_mmio, SYSRAM_TO_ACP_CH_NUM, false);
-
-		/* ACP SRAM (2 periods of buffer size) is intially filled with
-		 * zeros. Before rendering starts, 2nd half of SRAM will be
-		 * filled with valid audio data DMA'ed from first half of system
-		 * RAM and 1st half of SRAM will be filled with Zeros. This is
-		 * the initial scenario when redering starts from SRAM. Later
-		 * on, 2nd half of system memory will be DMA'ed to 1st half of
-		 * SRAM, 1st half of system memory will be DMA'ed to 2nd half of
-		 * SRAM in ping-pong way till rendering stops.
-		*/
-		config_acp_dma_channel(rtd->acp_mmio, SYSRAM_TO_ACP_CH_NUM,
-					PLAYBACK_START_DMA_DESCR_CH12,
-					1, 0);
 	} else {
 		config_acp_dma_channel(rtd->acp_mmio, ACP_TO_SYSRAM_CH_NUM,
 					CAPTURE_START_DMA_DESCR_CH14,
@@ -913,7 +896,7 @@ static int acp_dma_prepare(struct snd_pcm_substream *substream)
 static int acp_dma_trigger(struct snd_pcm_substream *substream, int cmd)
 {
 	int ret;
-	u32 loops = 1000;
+	u32 loops = 4000;
 	u64 bytescount = 0;
 
 	struct snd_pcm_runtime *runtime = substream->runtime;
