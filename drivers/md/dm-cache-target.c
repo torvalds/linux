@@ -551,10 +551,13 @@ static struct dm_cache_migration *alloc_migration(struct cache *cache)
 	struct dm_cache_migration *mg;
 
 	mg = mempool_alloc(cache->migration_pool, GFP_NOWAIT);
-	if (mg) {
-		mg->cache = cache;
-		atomic_inc(&mg->cache->nr_allocated_migrations);
-	}
+	if (!mg)
+		return NULL;
+
+	memset(mg, 0, sizeof(*mg));
+
+	mg->cache = cache;
+	atomic_inc(&cache->nr_allocated_migrations);
 
 	return mg;
 }
@@ -1542,9 +1545,6 @@ static int mg_start(struct cache *cache, struct policy_work *op, struct bio *bio
 		return -ENOMEM;
 	}
 
-	memset(mg, 0, sizeof(*mg));
-
-	mg->cache = cache;
 	mg->op = op;
 	mg->overwrite_bio = bio;
 
@@ -1678,9 +1678,6 @@ static int invalidate_start(struct cache *cache, dm_cblock_t cblock,
 		return -ENOMEM;
 	}
 
-	memset(mg, 0, sizeof(*mg));
-
-	mg->cache = cache;
 	mg->overwrite_bio = bio;
 	mg->invalidate_cblock = cblock;
 	mg->invalidate_oblock = oblock;
