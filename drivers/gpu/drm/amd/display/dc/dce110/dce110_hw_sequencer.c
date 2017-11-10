@@ -2095,16 +2095,8 @@ static void set_default_colors(struct pipe_ctx *pipe_ctx)
 	struct default_adjustment default_adjust = { 0 };
 
 	default_adjust.force_hw_default = false;
-	if (pipe_ctx->plane_state == NULL)
-		default_adjust.in_color_space = COLOR_SPACE_SRGB;
-	else
-		default_adjust.in_color_space =
-				pipe_ctx->plane_state->color_space;
-	if (pipe_ctx->stream == NULL)
-		default_adjust.out_color_space = COLOR_SPACE_SRGB;
-	else
-		default_adjust.out_color_space =
-				pipe_ctx->stream->output_color_space;
+	default_adjust.in_color_space = pipe_ctx->plane_state->color_space;
+	default_adjust.out_color_space = pipe_ctx->stream->output_color_space;
 	default_adjust.csc_adjust_type = GRAPHICS_CSC_ADJUST_TYPE_SW;
 	default_adjust.surface_pixel_format = pipe_ctx->plane_res.scl_data.format;
 
