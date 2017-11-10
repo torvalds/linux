@@ -1211,9 +1211,17 @@ dcn10_set_output_transfer_func(struct pipe_ctx *pipe_ctx,
 	    stream->out_transfer_func->type == TF_TYPE_PREDEFINED &&
 	    stream->out_transfer_func->tf == TRANSFER_FUNCTION_SRGB)
 		dpp->funcs->dpp_program_regamma_pwl(dpp, NULL, OPP_REGAMMA_SRGB);
-	else if (dcn10_translate_regamma_to_hw_format(stream->out_transfer_func, &dpp->regamma_params))
-		dpp->funcs->dpp_program_regamma_pwl(dpp, &dpp->regamma_params, OPP_REGAMMA_USER);
-	else
+
+	/* dcn10_translate_regamma_to_hw_format takes 750us, only do it when full
+	 * update.
+	 */
+	else if (dcn10_translate_regamma_to_hw_format(
+			stream->out_transfer_func,
+			&dpp->regamma_params)) {
+		dpp->funcs->dpp_program_regamma_pwl(
+				dpp,
+				&dpp->regamma_params, OPP_REGAMMA_USER);
+	} else
 		dpp->funcs->dpp_program_regamma_pwl(dpp, NULL, OPP_REGAMMA_BYPASS);
 
 	return true;
@@ -2076,16 +2084,17 @@ static void program_all_pipe_in_tree(
 
 		update_dchubp_dpp(dc, pipe_ctx, context);
 
-		if (cur_pipe_ctx->plane_state != pipe_ctx->plane_state) {
+		if (cur_pipe_ctx->plane_state != pipe_ctx->plane_state)
 			dc->hwss.set_input_transfer_func(pipe_ctx, pipe_ctx->plane_state);
-		}
 
-		/*
+		/* dcn10_translate_regamma_to_hw_format takes 750us to finish
+		 * only do gamma programming for full update.
 		 * TODO: This can be further optimized/cleaned up
 		 * Always call this for now since it does memcmp inside before
 		 * doing heavy calculation and programming
 		 */
-		dc->hwss.set_output_transfer_func(pipe_ctx, pipe_ctx->stream);
+		if (pipe_ctx->plane_state->update_flags.bits.full_update)
+			dc->hwss.set_output_transfer_func(pipe_ctx, pipe_ctx->stream);
 	}
 
 	if (dc->debug.sanity_checks) {
