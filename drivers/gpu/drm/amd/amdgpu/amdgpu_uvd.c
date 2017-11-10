@@ -66,6 +66,7 @@
 #define FIRMWARE_POLARIS10	"amdgpu/polaris10_uvd.bin"
 #define FIRMWARE_POLARIS11	"amdgpu/polaris11_uvd.bin"
 #define FIRMWARE_POLARIS12	"amdgpu/polaris12_uvd.bin"
+#define FIRMWARE_VEGAM		"amdgpu/vegam_uvd.bin"
 
 #define FIRMWARE_VEGA10		"amdgpu/vega10_uvd.bin"
 #define FIRMWARE_VEGA12		"amdgpu/vega12_uvd.bin"
@@ -109,6 +110,7 @@ MODULE_FIRMWARE(FIRMWARE_STONEY);
 MODULE_FIRMWARE(FIRMWARE_POLARIS10);
 MODULE_FIRMWARE(FIRMWARE_POLARIS11);
 MODULE_FIRMWARE(FIRMWARE_POLARIS12);
+MODULE_FIRMWARE(FIRMWARE_VEGAM);
 
 MODULE_FIRMWARE(FIRMWARE_VEGA10);
 MODULE_FIRMWARE(FIRMWARE_VEGA12);
@@ -171,6 +173,9 @@ int amdgpu_uvd_sw_init(struct amdgpu_device *adev)
 		break;
 	case CHIP_VEGA12:
 		fw_name = FIRMWARE_VEGA12;
+		break;
+	case CHIP_VEGAM:
+		fw_name = FIRMWARE_VEGAM;
 		break;
 	default:
 		return -EINVAL;
