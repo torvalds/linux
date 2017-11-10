@@ -55,6 +55,7 @@
 #include "flow.h"
 #include "flow_table.h"
 #include "flow_netlink.h"
+#include "meter.h"
 #include "vport-internal_dev.h"
 #include "vport-netdev.h"
 
@@ -174,6 +175,7 @@ static void destroy_dp_rcu(struct rcu_head *rcu)
 	ovs_flow_tbl_destroy(&dp->table);
 	free_percpu(dp->stats_percpu);
 	kfree(dp->ports);
+	ovs_meters_exit(dp);
 	kfree(dp);
 }
 
@@ -1572,6 +1574,10 @@ static int ovs_dp_cmd_new(struct sk_buff *skb, struct genl_info *info)
 	for (i = 0; i < DP_VPORT_HASH_BUCKETS; i++)
 		INIT_HLIST_HEAD(&dp->ports[i]);
 
+	err = ovs_meters_init(dp);
+	if (err)
+		goto err_destroy_ports_array;
+
 	/* Set up our datapath device. */
 	parms.name = nla_data(a[OVS_DP_ATTR_NAME]);
 	parms.type = OVS_VPORT_TYPE_INTERNAL;
@@ -1600,7 +1606,7 @@ static int ovs_dp_cmd_new(struct sk_buff *skb, struct genl_info *info)
 				ovs_dp_reset_user_features(skb, info);
 		}
 
-		goto err_destroy_ports_array;
+		goto err_destroy_meters;
 	}
 
 	err = ovs_dp_cmd_fill_info(dp, reply, info->snd_portid,
@@ -1615,8 +1621,10 @@ static int ovs_dp_cmd_new(struct sk_buff *skb, struct genl_info *info)
 	ovs_notify(&dp_datapath_genl_family, reply, info);
 	return 0;
 
-err_destroy_ports_array:
+err_destroy_meters:
 	ovs_unlock();
+	ovs_meters_exit(dp);
+err_destroy_ports_array:
 	kfree(dp->ports);
 err_destroy_percpu:
 	free_percpu(dp->stats_percpu);
@@ -2265,6 +2273,7 @@ static struct genl_family * const dp_genl_families[] = {
 	&dp_vport_genl_family,
 	&dp_flow_genl_family,
 	&dp_packet_genl_family,
+	&dp_meter_genl_family,
 };
 
 static void dp_unregister_genl(int n_families)
@@ -2445,3 +2454,4 @@ MODULE_ALIAS_GENL_FAMILY(OVS_DATAPATH_FAMILY);
 MODULE_ALIAS_GENL_FAMILY(OVS_VPORT_FAMILY);
 MODULE_ALIAS_GENL_FAMILY(OVS_FLOW_FAMILY);
 MODULE_ALIAS_GENL_FAMILY(OVS_PACKET_FAMILY);
+MODULE_ALIAS_GENL_FAMILY(OVS_METER_FAMILY);

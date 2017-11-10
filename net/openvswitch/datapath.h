@@ -92,6 +92,9 @@ struct datapath {
 	u32 user_features;
 
 	u32 max_headroom;
+
+	/* Switch meters. */
+	struct hlist_head *meters;
 };
 
 /**
