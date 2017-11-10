@@ -35,7 +35,8 @@
 #include "b53/b53_priv.h"
 #include "b53/b53_regs.h"
 
-static enum dsa_tag_protocol bcm_sf2_sw_get_tag_protocol(struct dsa_switch *ds)
+static enum dsa_tag_protocol bcm_sf2_sw_get_tag_protocol(struct dsa_switch *ds,
+							 int port)
 {
 	return DSA_TAG_PROTO_BRCM;
 }

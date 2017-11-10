@@ -151,7 +151,7 @@ static int dsa_switch_setup_one(struct dsa_switch *ds,
 		const struct dsa_device_ops *tag_ops;
 		enum dsa_tag_protocol tag_protocol;
 
-		tag_protocol = ops->get_tag_protocol(ds);
+		tag_protocol = ops->get_tag_protocol(ds, dst->cpu_dp->index);
 		tag_ops = dsa_resolve_tag_protocol(tag_protocol);
 		if (IS_ERR(tag_ops))
 			return PTR_ERR(tag_ops);
