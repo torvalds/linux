@@ -426,15 +426,8 @@ static enum pixel_format convert_pixel_format_to_dalsurface(
 
 static void rect_swap_helper(struct rect *rect)
 {
-	uint32_t temp = 0;
-
-	temp = rect->height;
-	rect->height = rect->width;
-	rect->width = temp;
-
-	temp = rect->x;
-	rect->x = rect->y;
-	rect->y = temp;
+	swap(rect->height, rect->width);
+	swap(rect->x, rect->y);
 }
 
 static void calculate_viewport(struct pipe_ctx *pipe_ctx)
