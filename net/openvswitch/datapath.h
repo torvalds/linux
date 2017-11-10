@@ -30,6 +30,7 @@
 #include "conntrack.h"
 #include "flow.h"
 #include "flow_table.h"
+#include "vport-internal_dev.h"
 
 #define DP_MAX_PORTS           USHRT_MAX
 #define DP_VPORT_HASH_BUCKETS  1024
@@ -188,6 +189,36 @@ static inline struct vport *ovs_vport_ovsl(const struct datapath *dp, int port_n
 {
 	ASSERT_OVSL();
 	return ovs_lookup_vport(dp, port_no);
+}
+
+/* Must be called with rcu_read_lock. */
+static inline struct datapath *get_dp_rcu(struct net *net, int dp_ifindex)
+{
+	struct net_device *dev = dev_get_by_index_rcu(net, dp_ifindex);
+
+	if (dev) {
+		struct vport *vport = ovs_internal_dev_get_vport(dev);
+
+		if (vport)
+			return vport->dp;
+	}
+
+	return NULL;
+}
+
+/* The caller must hold either ovs_mutex or rcu_read_lock to keep the
+ * returned dp pointer valid.
+ */
+static inline struct datapath *get_dp(struct net *net, int dp_ifindex)
+{
+	struct datapath *dp;
+
+	WARN_ON_ONCE(!rcu_read_lock_held() && !lockdep_ovsl_is_held());
+	rcu_read_lock();
+	dp = get_dp_rcu(net, dp_ifindex);
+	rcu_read_unlock();
+
+	return dp;
 }
 
 extern struct notifier_block ovs_dp_device_notifier;
