@@ -61,10 +61,10 @@ static int blk_mq_poll_stats_bkt(const struct request *rq)
 /*
  * Check if any of the ctx's have pending work in this hardware queue
  */
-bool blk_mq_hctx_has_pending(struct blk_mq_hw_ctx *hctx)
+static bool blk_mq_hctx_has_pending(struct blk_mq_hw_ctx *hctx)
 {
-	return sbitmap_any_bit_set(&hctx->ctx_map) ||
-			!list_empty_careful(&hctx->dispatch) ||
+	return !list_empty_careful(&hctx->dispatch) ||
+		sbitmap_any_bit_set(&hctx->ctx_map) ||
 			blk_mq_sched_has_work(hctx);
 }
 
@@ -1253,9 +1253,14 @@ void blk_mq_delay_run_hw_queue(struct blk_mq_hw_ctx *hctx, unsigned long msecs)
 }
 EXPORT_SYMBOL(blk_mq_delay_run_hw_queue);
 
-void blk_mq_run_hw_queue(struct blk_mq_hw_ctx *hctx, bool async)
+bool blk_mq_run_hw_queue(struct blk_mq_hw_ctx *hctx, bool async)
 {
-	__blk_mq_delay_run_hw_queue(hctx, async, 0);
+	if (blk_mq_hctx_has_pending(hctx)) {
+		__blk_mq_delay_run_hw_queue(hctx, async, 0);
+		return true;
+	}
+
+	return false;
 }
 EXPORT_SYMBOL(blk_mq_run_hw_queue);
 
@@ -1265,8 +1270,7 @@ void blk_mq_run_hw_queues(struct request_queue *q, bool async)
 	int i;
 
 	queue_for_each_hw_ctx(q, hctx, i) {
-		if (!blk_mq_hctx_has_pending(hctx) ||
-		    blk_mq_hctx_stopped(hctx))
+		if (blk_mq_hctx_stopped(hctx))
 			continue;
 
 		blk_mq_run_hw_queue(hctx, async);

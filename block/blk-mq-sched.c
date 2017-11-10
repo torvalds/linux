@@ -81,12 +81,7 @@ static bool blk_mq_sched_restart_hctx(struct blk_mq_hw_ctx *hctx)
 	} else
 		clear_bit(BLK_MQ_S_SCHED_RESTART, &hctx->state);
 
-	if (blk_mq_hctx_has_pending(hctx)) {
-		blk_mq_run_hw_queue(hctx, true);
-		return true;
-	}
-
-	return false;
+	return blk_mq_run_hw_queue(hctx, true);
 }
 
 /*
