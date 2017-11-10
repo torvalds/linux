@@ -1083,6 +1083,7 @@
 				reg = <0x4a064800 0x400>;
 				interrupt-parent = <&gic>;
 				interrupts = <GIC_SPI 76 IRQ_TYPE_LEVEL_HIGH>;
+				remote-wakeup-connected;
 			};
 
 			usbhsehci: ehci@4a064c00 {
