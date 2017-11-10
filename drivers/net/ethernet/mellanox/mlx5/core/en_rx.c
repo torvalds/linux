@@ -563,7 +563,6 @@ static void mlx5e_lro_update_hdr(struct sk_buff *skb, struct mlx5_cqe64 *cqe,
 	u8 tcp_ack = (l4_hdr_type == CQE_L4_HDR_TYPE_TCP_ACK_NO_DATA) ||
 		(l4_hdr_type == CQE_L4_HDR_TYPE_TCP_ACK_AND_DATA);
 
-	skb->mac_len = ETH_HLEN;
 	proto = __vlan_get_protocol(skb, eth->h_proto, &network_depth);
 
 	tot_len = cqe_bcnt - network_depth;
@@ -610,10 +609,11 @@ static inline void mlx5e_skb_set_hash(struct mlx5_cqe64 *cqe,
 	skb_set_hash(skb, be32_to_cpu(cqe->rss_hash_result), ht);
 }
 
-static inline bool is_first_ethertype_ip(struct sk_buff *skb)
+static inline bool is_last_ethertype_ip(struct sk_buff *skb, int *network_depth)
 {
 	__be16 ethertype = ((struct ethhdr *)skb->data)->h_proto;
 
+	ethertype = __vlan_get_protocol(skb, ethertype, network_depth);
 	return (ethertype == htons(ETH_P_IP) || ethertype == htons(ETH_P_IPV6));
 }
 
@@ -623,6 +623,8 @@ static inline void mlx5e_handle_csum(struct net_device *netdev,
 				     struct sk_buff *skb,
 				     bool   lro)
 {
+	int network_depth = 0;
+
 	if (unlikely(!(netdev->features & NETIF_F_RXCSUM)))
 		goto csum_none;
 
@@ -632,9 +634,17 @@ static inline void mlx5e_handle_csum(struct net_device *netdev,
 		return;
 	}
 
-	if (is_first_ethertype_ip(skb)) {
+	if (is_last_ethertype_ip(skb, &network_depth)) {
 		skb->ip_summed = CHECKSUM_COMPLETE;
 		skb->csum = csum_unfold((__force __sum16)cqe->check_sum);
+		if (network_depth > ETH_HLEN)
+			/* CQE csum is calculated from the IP header and does
+			 * not cover VLAN headers (if present). This will add
+			 * the checksum manually.
+			 */
+			skb->csum = csum_partial(skb->data + ETH_HLEN,
+						 network_depth - ETH_HLEN,
+						 skb->csum);
 		rq->stats.csum_complete++;
 		return;
 	}
@@ -664,6 +674,7 @@ static inline void mlx5e_build_rx_skb(struct mlx5_cqe64 *cqe,
 	struct net_device *netdev = rq->netdev;
 	int lro_num_seg;
 
+	skb->mac_len = ETH_HLEN;
 	lro_num_seg = be32_to_cpu(cqe->srqn) >> 24;
 	if (lro_num_seg > 1) {
 		mlx5e_lro_update_hdr(skb, cqe, cqe_bcnt);
@@ -685,9 +696,11 @@ static inline void mlx5e_build_rx_skb(struct mlx5_cqe64 *cqe,
 	if (likely(netdev->features & NETIF_F_RXHASH))
 		mlx5e_skb_set_hash(cqe, skb);
 
-	if (cqe_has_vlan(cqe))
+	if (cqe_has_vlan(cqe)) {
 		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q),
 				       be16_to_cpu(cqe->vlan_info));
+		rq->stats.removed_vlan_packets++;
+	}
 
 	skb->mark = be32_to_cpu(cqe->sop_drop_qpn) & MLX5E_TC_FLOW_ID_MASK;
 

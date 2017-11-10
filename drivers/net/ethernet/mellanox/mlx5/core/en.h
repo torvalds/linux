@@ -655,12 +655,14 @@ struct mlx5e_tc_table {
 
 struct mlx5e_vlan_table {
 	struct mlx5e_flow_table		ft;
-	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
-	struct mlx5_flow_handle	*active_vlans_rule[VLAN_N_VID];
+	DECLARE_BITMAP(active_cvlans, VLAN_N_VID);
+	DECLARE_BITMAP(active_svlans, VLAN_N_VID);
+	struct mlx5_flow_handle	*active_cvlans_rule[VLAN_N_VID];
+	struct mlx5_flow_handle	*active_svlans_rule[VLAN_N_VID];
 	struct mlx5_flow_handle	*untagged_rule;
 	struct mlx5_flow_handle	*any_cvlan_rule;
 	struct mlx5_flow_handle	*any_svlan_rule;
-	bool			filter_disabled;
+	bool			cvlan_filter_disabled;
 };
 
 struct mlx5e_l2_table {
@@ -887,8 +889,8 @@ int mlx5e_vlan_rx_add_vid(struct net_device *dev, __always_unused __be16 proto,
 			  u16 vid);
 int mlx5e_vlan_rx_kill_vid(struct net_device *dev, __always_unused __be16 proto,
 			   u16 vid);
-void mlx5e_enable_vlan_filter(struct mlx5e_priv *priv);
-void mlx5e_disable_vlan_filter(struct mlx5e_priv *priv);
+void mlx5e_enable_cvlan_filter(struct mlx5e_priv *priv);
+void mlx5e_disable_cvlan_filter(struct mlx5e_priv *priv);
 void mlx5e_timestamp_set(struct mlx5e_priv *priv);
 
 struct mlx5e_redirect_rqt_param {
