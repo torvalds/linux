@@ -101,10 +101,10 @@ static int _aead_recvmsg(struct socket *sock, struct msghdr *msg,
 	struct aead_tfm *aeadc = pask->private;
 	struct crypto_aead *tfm = aeadc->aead;
 	struct crypto_skcipher *null_tfm = aeadc->null_tfm;
-	unsigned int as = crypto_aead_authsize(tfm);
+	unsigned int i, as = crypto_aead_authsize(tfm);
 	struct af_alg_async_req *areq;
-	struct af_alg_tsgl *tsgl;
-	struct scatterlist *src;
+	struct af_alg_tsgl *tsgl, *tmp;
+	struct scatterlist *rsgl_src, *tsgl_src = NULL;
 	int err = 0;
 	size_t used = 0;		/* [in]  TX bufs to be en/decrypted */
 	size_t outlen = 0;		/* [out] RX bufs produced by kernel */
@@ -178,7 +178,22 @@ static int _aead_recvmsg(struct socket *sock, struct msghdr *msg,
 	}
 
 	processed = used + ctx->aead_assoclen;
-	tsgl = list_first_entry(&ctx->tsgl_list, struct af_alg_tsgl, list);
+	list_for_each_entry_safe(tsgl, tmp, &ctx->tsgl_list, list) {
+		for (i = 0; i < tsgl->cur; i++) {
+			struct scatterlist *process_sg = tsgl->sg + i;
+
+			if (!(process_sg->length) || !sg_page(process_sg))
+				continue;
+			tsgl_src = process_sg;
+			break;
+		}
+		if (tsgl_src)
+			break;
+	}
+	if (processed && !tsgl_src) {
+		err = -EFAULT;
+		goto free;
+	}
 
 	/*
 	 * Copy of AAD from source to destination
@@ -194,7 +209,7 @@ static int _aead_recvmsg(struct socket *sock, struct msghdr *msg,
 	 */
 
 	/* Use the RX SGL as source (and destination) for crypto op. */
-	src = areq->first_rsgl.sgl.sg;
+	rsgl_src = areq->first_rsgl.sgl.sg;
 
 	if (ctx->enc) {
 		/*
@@ -207,7 +222,7 @@ static int _aead_recvmsg(struct socket *sock, struct msghdr *msg,
 		 *	    v	   v
 		 * RX SGL: AAD || PT || Tag
 		 */
-		err = crypto_aead_copy_sgl(null_tfm, tsgl->sg,
+		err = crypto_aead_copy_sgl(null_tfm, tsgl_src,
 					   areq->first_rsgl.sgl.sg, processed);
 		if (err)
 			goto free;
@@ -225,7 +240,7 @@ static int _aead_recvmsg(struct socket *sock, struct msghdr *msg,
 		 */
 
 		 /* Copy AAD || CT to RX SGL buffer for in-place operation. */
-		err = crypto_aead_copy_sgl(null_tfm, tsgl->sg,
+		err = crypto_aead_copy_sgl(null_tfm, tsgl_src,
 					   areq->first_rsgl.sgl.sg, outlen);
 		if (err)
 			goto free;
@@ -257,11 +272,11 @@ static int _aead_recvmsg(struct socket *sock, struct msghdr *msg,
 				 areq->tsgl);
 		} else
 			/* no RX SGL present (e.g. authentication only) */
-			src = areq->tsgl;
+			rsgl_src = areq->tsgl;
 	}
 
 	/* Initialize the crypto operation */
-	aead_request_set_crypt(&areq->cra_u.aead_req, src,
+	aead_request_set_crypt(&areq->cra_u.aead_req, rsgl_src,
 			       areq->first_rsgl.sgl.sg, used, ctx->iv);
 	aead_request_set_ad(&areq->cra_u.aead_req, ctx->aead_assoclen);
 	aead_request_set_tfm(&areq->cra_u.aead_req, tfm);
