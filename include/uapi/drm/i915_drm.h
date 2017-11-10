@@ -466,6 +466,21 @@ typedef struct drm_i915_irq_wait {
  */
 #define I915_PARAM_HAS_EXEC_FENCE_ARRAY  49
 
+/*
+ * Query whether every context (both per-file default and user created) is
+ * isolated (insofar as HW supports). If this parameter is not true, then
+ * freshly created contexts may inherit values from an existing context,
+ * rather than default HW values. If true, it also ensures (insofar as HW
+ * supports) that all state set by this context will not leak to any other
+ * context.
+ *
+ * As not every engine across every gen support contexts, the returned
+ * value reports the support of context isolation for individual engines by
+ * returning a bitmask of each engine class set to true if that class supports
+ * isolation.
+ */
+#define I915_PARAM_HAS_CONTEXT_ISOLATION 50
+
 typedef struct drm_i915_getparam {
 	__s32 param;
 	/*

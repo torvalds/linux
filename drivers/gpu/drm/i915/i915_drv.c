@@ -406,6 +406,9 @@ static int i915_getparam(struct drm_device *dev, void *data,
 		 */
 		value = 1;
 		break;
+	case I915_PARAM_HAS_CONTEXT_ISOLATION:
+		value = intel_engines_has_context_isolation(dev_priv);
+		break;
 	case I915_PARAM_SLICE_MASK:
 		value = INTEL_INFO(dev_priv)->sseu.slice_mask;
 		if (!value)

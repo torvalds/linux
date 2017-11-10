@@ -1180,7 +1180,6 @@ static int execlists_request_alloc(struct drm_i915_gem_request *request)
 	struct intel_engine_cs *engine = request->engine;
 	struct intel_context *ce = &request->ctx->engine[engine->id];
 	u32 *cs;
-	int ret;
 
 	GEM_BUG_ON(!ce->pin_count);
 
@@ -1193,14 +1192,6 @@ static int execlists_request_alloc(struct drm_i915_gem_request *request)
 	cs = intel_ring_begin(request, 0);
 	if (IS_ERR(cs))
 		return PTR_ERR(cs);
-
-	if (!ce->initialised) {
-		ret = engine->init_context(request);
-		if (ret)
-			return ret;
-
-		ce->initialised = true;
-	}
 
 	/* Note that after this point, we have committed to using
 	 * this request as it is being used to both track the
@@ -2133,7 +2124,6 @@ static void execlists_init_reg_state(u32 *regs,
 
 	CTX_REG(regs, CTX_CONTEXT_CONTROL, RING_CONTEXT_CONTROL(engine),
 		_MASKED_BIT_ENABLE(CTX_CTRL_INHIBIT_SYN_CTX_SWITCH |
-				   CTX_CTRL_ENGINE_CTX_RESTORE_INHIBIT |
 				   (HAS_RESOURCE_STREAMER(dev_priv) ?
 				   CTX_CTRL_RS_CTX_ENABLE : 0)));
 	CTX_REG(regs, CTX_RING_HEAD, RING_HEAD(base), 0);
@@ -2210,6 +2200,7 @@ populate_lr_context(struct i915_gem_context *ctx,
 		    struct intel_ring *ring)
 {
 	void *vaddr;
+	u32 *regs;
 	int ret;
 
 	ret = i915_gem_object_set_to_cpu_domain(ctx_obj, true);
@@ -2226,11 +2217,31 @@ populate_lr_context(struct i915_gem_context *ctx,
 	}
 	ctx_obj->mm.dirty = true;
 
+	if (engine->default_state) {
+		/*
+		 * We only want to copy over the template context state;
+		 * skipping over the headers reserved for GuC communication,
+		 * leaving those as zero.
+		 */
+		const unsigned long start = LRC_HEADER_PAGES * PAGE_SIZE;
+		void *defaults;
+
+		defaults = i915_gem_object_pin_map(engine->default_state,
+						   I915_MAP_WB);
+		if (IS_ERR(defaults))
+			return PTR_ERR(defaults);
+
+		memcpy(vaddr + start, defaults + start, engine->context_size);
+		i915_gem_object_unpin_map(engine->default_state);
+	}
+
 	/* The second page of the context object contains some fields which must
 	 * be set up prior to the first execution. */
-
-	execlists_init_reg_state(vaddr + LRC_STATE_PN * PAGE_SIZE,
-				 ctx, engine, ring);
+	regs = vaddr + LRC_STATE_PN * PAGE_SIZE;
+	execlists_init_reg_state(regs, ctx, engine, ring);
+	if (!engine->default_state)
+		regs[CTX_CONTEXT_CONTROL + 1] |=
+			_MASKED_BIT_ENABLE(CTX_CTRL_ENGINE_CTX_RESTORE_INHIBIT);
 
 	i915_gem_object_unpin_map(ctx_obj);
 
@@ -2283,7 +2294,6 @@ static int execlists_context_deferred_alloc(struct i915_gem_context *ctx,
 
 	ce->ring = ring;
 	ce->state = vma;
-	ce->initialised |= engine->init_context == NULL;
 
 	return 0;
 

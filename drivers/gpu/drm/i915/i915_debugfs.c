@@ -1974,7 +1974,6 @@ static int i915_context_status(struct seq_file *m, void *unused)
 			struct intel_context *ce = &ctx->engine[engine->id];
 
 			seq_printf(m, "%s: ", engine->name);
-			seq_putc(m, ce->initialised ? 'I' : 'i');
 			if (ce->state)
 				describe_obj(m, ce->state->obj);
 			if (ce->ring)

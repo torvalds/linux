@@ -4972,6 +4972,120 @@ bool intel_sanitize_semaphores(struct drm_i915_private *dev_priv, int value)
 	return true;
 }
 
+static int __intel_engines_record_defaults(struct drm_i915_private *i915)
+{
+	struct i915_gem_context *ctx;
+	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
+	int err;
+
+	/*
+	 * As we reset the gpu during very early sanitisation, the current
+	 * register state on the GPU should reflect its defaults values.
+	 * We load a context onto the hw (with restore-inhibit), then switch
+	 * over to a second context to save that default register state. We
+	 * can then prime every new context with that state so they all start
+	 * from the same default HW values.
+	 */
+
+	ctx = i915_gem_context_create_kernel(i915, 0);
+	if (IS_ERR(ctx))
+		return PTR_ERR(ctx);
+
+	for_each_engine(engine, i915, id) {
+		struct drm_i915_gem_request *rq;
+
+		rq = i915_gem_request_alloc(engine, ctx);
+		if (IS_ERR(rq)) {
+			err = PTR_ERR(rq);
+			goto out_ctx;
+		}
+
+		err = i915_switch_context(rq);
+		if (engine->init_context)
+			err = engine->init_context(rq);
+
+		__i915_add_request(rq, true);
+		if (err)
+			goto err_active;
+	}
+
+	err = i915_gem_switch_to_kernel_context(i915);
+	if (err)
+		goto err_active;
+
+	err = i915_gem_wait_for_idle(i915, I915_WAIT_LOCKED);
+	if (err)
+		goto err_active;
+
+	assert_kernel_context_is_current(i915);
+
+	for_each_engine(engine, i915, id) {
+		struct i915_vma *state;
+
+		state = ctx->engine[id].state;
+		if (!state)
+			continue;
+
+		/*
+		 * As we will hold a reference to the logical state, it will
+		 * not be torn down with the context, and importantly the
+		 * object will hold onto its vma (making it possible for a
+		 * stray GTT write to corrupt our defaults). Unmap the vma
+		 * from the GTT to prevent such accidents and reclaim the
+		 * space.
+		 */
+		err = i915_vma_unbind(state);
+		if (err)
+			goto err_active;
+
+		err = i915_gem_object_set_to_cpu_domain(state->obj, false);
+		if (err)
+			goto err_active;
+
+		engine->default_state = i915_gem_object_get(state->obj);
+	}
+
+	if (IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM)) {
+		unsigned int found = intel_engines_has_context_isolation(i915);
+
+		/*
+		 * Make sure that classes with multiple engine instances all
+		 * share the same basic configuration.
+		 */
+		for_each_engine(engine, i915, id) {
+			unsigned int bit = BIT(engine->uabi_class);
+			unsigned int expected = engine->default_state ? bit : 0;
+
+			if ((found & bit) != expected) {
+				DRM_ERROR("mismatching default context state for class %d on engine %s\n",
+					  engine->uabi_class, engine->name);
+			}
+		}
+	}
+
+out_ctx:
+	i915_gem_context_set_closed(ctx);
+	i915_gem_context_put(ctx);
+	return err;
+
+err_active:
+	/*
+	 * If we have to abandon now, we expect the engines to be idle
+	 * and ready to be torn-down. First try to flush any remaining
+	 * request, ensure we are pointing at the kernel context and
+	 * then remove it.
+	 */
+	if (WARN_ON(i915_gem_switch_to_kernel_context(i915)))
+		goto out_ctx;
+
+	if (WARN_ON(i915_gem_wait_for_idle(i915, I915_WAIT_LOCKED)))
+		goto out_ctx;
+
+	i915_gem_contexts_lost(i915);
+	goto out_ctx;
+}
+
 int i915_gem_init(struct drm_i915_private *dev_priv)
 {
 	int ret;
@@ -5038,6 +5152,7 @@ int i915_gem_init(struct drm_i915_private *dev_priv)
 	 */
 	intel_init_clock_gating(dev_priv);
 
+	ret = __intel_engines_record_defaults(dev_priv);
 out_unlock:
 	if (ret == -EIO) {
 		/* Allow engine initialisation to fail by marking the GPU as

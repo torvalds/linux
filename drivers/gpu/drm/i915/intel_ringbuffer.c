@@ -1384,10 +1384,33 @@ alloc_context_vma(struct intel_engine_cs *engine)
 	struct drm_i915_private *i915 = engine->i915;
 	struct drm_i915_gem_object *obj;
 	struct i915_vma *vma;
+	int err;
 
 	obj = i915_gem_object_create(i915, engine->context_size);
 	if (IS_ERR(obj))
 		return ERR_CAST(obj);
+
+	if (engine->default_state) {
+		void *defaults, *vaddr;
+
+		vaddr = i915_gem_object_pin_map(obj, I915_MAP_WB);
+		if (IS_ERR(vaddr)) {
+			err = PTR_ERR(vaddr);
+			goto err_obj;
+		}
+
+		defaults = i915_gem_object_pin_map(engine->default_state,
+						   I915_MAP_WB);
+		if (IS_ERR(defaults)) {
+			err = PTR_ERR(defaults);
+			goto err_map;
+		}
+
+		memcpy(vaddr, defaults, engine->context_size);
+
+		i915_gem_object_unpin_map(engine->default_state);
+		i915_gem_object_unpin_map(obj);
+	}
 
 	/*
 	 * Try to make the context utilize L3 as well as LLC.
@@ -1410,10 +1433,18 @@ alloc_context_vma(struct intel_engine_cs *engine)
 	}
 
 	vma = i915_vma_instance(obj, &i915->ggtt.base, NULL);
-	if (IS_ERR(vma))
-		i915_gem_object_put(obj);
+	if (IS_ERR(vma)) {
+		err = PTR_ERR(vma);
+		goto err_obj;
+	}
 
 	return vma;
+
+err_map:
+	i915_gem_object_unpin_map(obj);
+err_obj:
+	i915_gem_object_put(obj);
+	return ERR_PTR(err);
 }
 
 static struct intel_ring *
@@ -1448,16 +1479,6 @@ intel_ring_context_pin(struct intel_engine_cs *engine,
 
 		ce->state->obj->pin_global++;
 	}
-
-	/* The kernel context is only used as a placeholder for flushing the
-	 * active context. It is never used for submitting user rendering and
-	 * as such never requires the golden render context, and so we can skip
-	 * emitting it when we switch to the kernel context. This is required
-	 * as during eviction we cannot allocate and pin the renderstate in
-	 * order to initialise the context.
-	 */
-	if (i915_gem_context_is_kernel(ctx))
-		ce->initialised = true;
 
 	i915_gem_context_get(ctx);
 
