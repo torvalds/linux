@@ -104,13 +104,15 @@ static int hns_roce_v2_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 		qp->sq.wrid[(qp->sq.head + nreq) & (qp->sq.wqe_cnt - 1)] =
 								      wr->wr_id;
 
-
 		rc_sq_wqe = wqe;
 		memset(rc_sq_wqe, 0, sizeof(*rc_sq_wqe));
 		for (i = 0; i < wr->num_sge; i++)
 			rc_sq_wqe->msg_len += wr->sg_list[i].length;
 
 		rc_sq_wqe->inv_key_immtdata = send_ieth(wr);
+
+		roce_set_bit(rc_sq_wqe->byte_4, V2_RC_SEND_WQE_BYTE_4_FENCE_S,
+			    (wr->send_flags & IB_SEND_FENCE) ? 1 : 0);
 
 		switch (wr->opcode) {
 		case IB_WR_RDMA_READ:
