@@ -815,27 +815,17 @@ static inline unsigned long *gmap_table_walk(struct gmap *gmap,
  * @ptl: pointer to the spinlock pointer
  *
  * Returns a pointer to the locked pte for a guest address, or NULL
- *
- * Note: Can also be called for shadow gmaps.
  */
 static pte_t *gmap_pte_op_walk(struct gmap *gmap, unsigned long gaddr,
 			       spinlock_t **ptl)
 {
 	unsigned long *table;
 
-	if (gmap_is_shadow(gmap))
-		spin_lock(&gmap->guest_table_lock);
+	BUG_ON(gmap_is_shadow(gmap));
 	/* Walk the gmap page table, lock and get pte pointer */
 	table = gmap_table_walk(gmap, gaddr, 1); /* get segment pointer */
-	if (!table || *table & _SEGMENT_ENTRY_INVALID) {
-		if (gmap_is_shadow(gmap))
-			spin_unlock(&gmap->guest_table_lock);
+	if (!table || *table & _SEGMENT_ENTRY_INVALID)
 		return NULL;
-	}
-	if (gmap_is_shadow(gmap)) {
-		*ptl = &gmap->guest_table_lock;
-		return pte_offset_map((pmd_t *) table, gaddr);
-	}
 	return pte_alloc_map_lock(gmap->mm, (pmd_t *) table, gaddr, ptl);
 }
 
@@ -889,8 +879,6 @@ static void gmap_pte_op_end(spinlock_t *ptl)
  * -EFAULT if gaddr is invalid (or mapping for shadows is missing).
  *
  * Called with sg->mm->mmap_sem in read.
- *
- * Note: Can also be called for shadow gmaps.
  */
 static int gmap_protect_range(struct gmap *gmap, unsigned long gaddr,
 			      unsigned long len, int prot, unsigned long bits)
@@ -900,6 +888,7 @@ static int gmap_protect_range(struct gmap *gmap, unsigned long gaddr,
 	pte_t *ptep;
 	int rc;
 
+	BUG_ON(gmap_is_shadow(gmap));
 	while (len) {
 		rc = -EAGAIN;
 		ptep = gmap_pte_op_walk(gmap, gaddr, &ptl);
@@ -960,7 +949,8 @@ EXPORT_SYMBOL_GPL(gmap_mprotect_notify);
  * @val: pointer to the unsigned long value to return
  *
  * Returns 0 if the value was read, -ENOMEM if out of memory and -EFAULT
- * if reading using the virtual address failed.
+ * if reading using the virtual address failed. -EINVAL if called on a gmap
+ * shadow.
  *
  * Called with gmap->mm->mmap_sem in read.
  */
@@ -970,6 +960,9 @@ int gmap_read_table(struct gmap *gmap, unsigned long gaddr, unsigned long *val)
 	spinlock_t *ptl;
 	pte_t *ptep, pte;
 	int rc;
+
+	if (gmap_is_shadow(gmap))
+		return -EINVAL;
 
 	while (1) {
 		rc = -EAGAIN;
