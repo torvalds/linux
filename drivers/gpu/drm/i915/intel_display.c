@@ -11092,6 +11092,15 @@ intel_pipe_config_compare(struct drm_i915_private *dev_priv,
 		ret = false; \
 	}
 
+#define PIPE_CONF_CHECK_BOOL(name)	\
+	if (current_config->name != pipe_config->name) { \
+		pipe_config_err(adjust, __stringify(name), \
+			  "(expected %s, found %s)\n", \
+			  yesno(current_config->name), \
+			  yesno(pipe_config->name)); \
+		ret = false; \
+	}
+
 #define PIPE_CONF_CHECK_P(name)	\
 	if (current_config->name != pipe_config->name) { \
 		pipe_config_err(adjust, __stringify(name), \
@@ -11177,7 +11186,7 @@ intel_pipe_config_compare(struct drm_i915_private *dev_priv,
 
 	PIPE_CONF_CHECK_I(cpu_transcoder);
 
-	PIPE_CONF_CHECK_I(has_pch_encoder);
+	PIPE_CONF_CHECK_BOOL(has_pch_encoder);
 	PIPE_CONF_CHECK_I(fdi_lanes);
 	PIPE_CONF_CHECK_M_N(fdi_m_n);
 
@@ -11209,17 +11218,17 @@ intel_pipe_config_compare(struct drm_i915_private *dev_priv,
 	PIPE_CONF_CHECK_I(base.adjusted_mode.crtc_vsync_end);
 
 	PIPE_CONF_CHECK_I(pixel_multiplier);
-	PIPE_CONF_CHECK_I(has_hdmi_sink);
+	PIPE_CONF_CHECK_BOOL(has_hdmi_sink);
 	if ((INTEL_GEN(dev_priv) < 8 && !IS_HASWELL(dev_priv)) ||
 	    IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
-		PIPE_CONF_CHECK_I(limited_color_range);
+		PIPE_CONF_CHECK_BOOL(limited_color_range);
 
-	PIPE_CONF_CHECK_I(hdmi_scrambling);
-	PIPE_CONF_CHECK_I(hdmi_high_tmds_clock_ratio);
-	PIPE_CONF_CHECK_I(has_infoframe);
-	PIPE_CONF_CHECK_I(ycbcr420);
+	PIPE_CONF_CHECK_BOOL(hdmi_scrambling);
+	PIPE_CONF_CHECK_BOOL(hdmi_high_tmds_clock_ratio);
+	PIPE_CONF_CHECK_BOOL(has_infoframe);
+	PIPE_CONF_CHECK_BOOL(ycbcr420);
 
-	PIPE_CONF_CHECK_I(has_audio);
+	PIPE_CONF_CHECK_BOOL(has_audio);
 
 	PIPE_CONF_CHECK_FLAGS(base.adjusted_mode.flags,
 			      DRM_MODE_FLAG_INTERLACE);
@@ -11245,7 +11254,7 @@ intel_pipe_config_compare(struct drm_i915_private *dev_priv,
 		PIPE_CONF_CHECK_I(pipe_src_w);
 		PIPE_CONF_CHECK_I(pipe_src_h);
 
-		PIPE_CONF_CHECK_I(pch_pfit.enabled);
+		PIPE_CONF_CHECK_BOOL(pch_pfit.enabled);
 		if (current_config->pch_pfit.enabled) {
 			PIPE_CONF_CHECK_X(pch_pfit.pos);
 			PIPE_CONF_CHECK_X(pch_pfit.size);
@@ -11255,7 +11264,7 @@ intel_pipe_config_compare(struct drm_i915_private *dev_priv,
 		PIPE_CONF_CHECK_CLOCK_FUZZY(pixel_rate);
 	}
 
-	PIPE_CONF_CHECK_I(double_wide);
+	PIPE_CONF_CHECK_BOOL(double_wide);
 
 	PIPE_CONF_CHECK_P(shared_dpll);
 	PIPE_CONF_CHECK_X(dpll_hw_state.dpll);
@@ -11293,6 +11302,7 @@ intel_pipe_config_compare(struct drm_i915_private *dev_priv,
 
 #undef PIPE_CONF_CHECK_X
 #undef PIPE_CONF_CHECK_I
+#undef PIPE_CONF_CHECK_BOOL
 #undef PIPE_CONF_CHECK_P
 #undef PIPE_CONF_CHECK_FLAGS
 #undef PIPE_CONF_CHECK_CLOCK_FUZZY
