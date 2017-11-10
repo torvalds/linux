@@ -563,7 +563,7 @@ static void uvd_v4_2_mc_resume(struct amdgpu_device *adev)
 
 	/* programm the VCPU memory controller bits 0-27 */
 	addr = (adev->uvd.gpu_addr + AMDGPU_UVD_FIRMWARE_OFFSET) >> 3;
-	size = AMDGPU_GPU_PAGE_ALIGN(adev->uvd.fw->size + 4) >> 3;
+	size = AMDGPU_UVD_FIRMWARE_SIZE(adev) >> 3;
 	WREG32(mmUVD_VCPU_CACHE_OFFSET0, addr);
 	WREG32(mmUVD_VCPU_CACHE_SIZE0, size);
 

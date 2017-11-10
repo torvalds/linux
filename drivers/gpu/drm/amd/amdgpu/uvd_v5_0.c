@@ -258,7 +258,7 @@ static void uvd_v5_0_mc_resume(struct amdgpu_device *adev)
 			upper_32_bits(adev->uvd.gpu_addr));
 
 	offset = AMDGPU_UVD_FIRMWARE_OFFSET;
-	size = AMDGPU_GPU_PAGE_ALIGN(adev->uvd.fw->size + 4);
+	size = AMDGPU_UVD_FIRMWARE_SIZE(adev);
 	WREG32(mmUVD_VCPU_CACHE_OFFSET0, offset >> 3);
 	WREG32(mmUVD_VCPU_CACHE_SIZE0, size);
 

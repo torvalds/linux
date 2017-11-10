@@ -616,7 +616,7 @@ static int uvd_v7_0_resume(void *handle)
  */
 static void uvd_v7_0_mc_resume(struct amdgpu_device *adev)
 {
-	uint32_t size = AMDGPU_GPU_PAGE_ALIGN(adev->uvd.fw->size + 4);
+	uint32_t size = AMDGPU_UVD_FIRMWARE_SIZE(adev);
 	uint32_t offset;
 
 	if (adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) {
