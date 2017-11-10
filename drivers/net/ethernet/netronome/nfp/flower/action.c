@@ -58,7 +58,6 @@ nfp_fl_push_vlan(struct nfp_fl_push_vlan *push_vlan,
 		 const struct tc_action *action)
 {
 	size_t act_size = sizeof(struct nfp_fl_push_vlan);
-	struct tcf_vlan *vlan = to_vlan(action);
 	u16 tmp_push_vlan_tci;
 
 	push_vlan->head.jump_id = NFP_FL_ACTION_OPCODE_PUSH_VLAN;
@@ -67,8 +66,8 @@ nfp_fl_push_vlan(struct nfp_fl_push_vlan *push_vlan,
 	push_vlan->vlan_tpid = tcf_vlan_push_proto(action);
 
 	tmp_push_vlan_tci =
-		FIELD_PREP(NFP_FL_PUSH_VLAN_PRIO, vlan->tcfv_push_prio) |
-		FIELD_PREP(NFP_FL_PUSH_VLAN_VID, vlan->tcfv_push_vid) |
+		FIELD_PREP(NFP_FL_PUSH_VLAN_PRIO, tcf_vlan_push_prio(action)) |
+		FIELD_PREP(NFP_FL_PUSH_VLAN_VID, tcf_vlan_push_vid(action)) |
 		NFP_FL_PUSH_VLAN_CFI;
 	push_vlan->vlan_tci = cpu_to_be16(tmp_push_vlan_tci);
 }
