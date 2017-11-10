@@ -127,8 +127,6 @@ struct pppol2tp_session {
 						 * PPPoX socket */
 	struct sock		*__sk;		/* Copy of .sk, for cleanup */
 	struct rcu_head		rcu;		/* For asynchronous release */
-	struct sock		*tunnel_sock;	/* Pointer to the tunnel UDP
-						 * socket */
 	int			flags;		/* accessed by PPPIOCGFLAGS.
 						 * Unused. */
 };
@@ -592,7 +590,6 @@ static void pppol2tp_session_init(struct l2tp_session *session)
 
 	ps = l2tp_session_priv(session);
 	mutex_init(&ps->sk_lock);
-	ps->tunnel_sock = session->tunnel->sock;
 	ps->owner = current->pid;
 
 	/* If PMTU discovery was enabled, use the MTU that was discovered */
@@ -739,13 +736,6 @@ static int pppol2tp_connect(struct socket *sock, struct sockaddr *uservaddr,
 		mutex_lock(&ps->sk_lock);
 		if (rcu_dereference_protected(ps->sk,
 					      lockdep_is_held(&ps->sk_lock))) {
-			mutex_unlock(&ps->sk_lock);
-			error = -EEXIST;
-			goto end;
-		}
-
-		/* consistency checks */
-		if (ps->tunnel_sock != tunnel->sock) {
 			mutex_unlock(&ps->sk_lock);
 			error = -EEXIST;
 			goto end;
