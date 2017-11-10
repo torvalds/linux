@@ -4460,7 +4460,7 @@ static int dm_update_crtcs_state(struct dc *dc,
 			}
 		}
 
-		if (dc_is_stream_unchanged(new_stream, dm_old_crtc_state->stream) &&
+		if (enable && dc_is_stream_unchanged(new_stream, dm_old_crtc_state->stream) &&
 				dc_is_stream_scaling_unchanged(new_stream, dm_old_crtc_state->stream)) {
 
 			new_crtc_state->mode_changed = false;
