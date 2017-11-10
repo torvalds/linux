@@ -1364,8 +1364,15 @@ static int i915_pmic_bus_access_notifier(struct notifier_block *nb,
 		 * bus, which will be busy after this notification, leading to:
 		 * "render: timed out waiting for forcewake ack request."
 		 * errors.
+		 *
+		 * The notifier is unregistered during intel_runtime_suspend(),
+		 * so it's ok to access the HW here without holding a RPM
+		 * wake reference -> disable wakeref asserts for the time of
+		 * the access.
 		 */
+		disable_rpm_wakeref_asserts(dev_priv);
 		intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
+		enable_rpm_wakeref_asserts(dev_priv);
 		break;
 	case MBI_PMIC_BUS_ACCESS_END:
 		intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
