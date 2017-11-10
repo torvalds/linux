@@ -90,6 +90,7 @@ static bool actions_may_change_flow(const struct nlattr *actions)
 		case OVS_ACTION_ATTR_SAMPLE:
 		case OVS_ACTION_ATTR_SET:
 		case OVS_ACTION_ATTR_SET_MASKED:
+		case OVS_ACTION_ATTR_METER:
 		default:
 			return true;
 		}
@@ -2844,6 +2845,7 @@ static int __ovs_nla_copy_actions(struct net *net, const struct nlattr *attr,
 			[OVS_ACTION_ATTR_POP_ETH] = 0,
 			[OVS_ACTION_ATTR_PUSH_NSH] = (u32)-1,
 			[OVS_ACTION_ATTR_POP_NSH] = 0,
+			[OVS_ACTION_ATTR_METER] = sizeof(u32),
 		};
 		const struct ovs_action_push_vlan *vlan;
 		int type = nla_type(a);
@@ -3028,6 +3030,10 @@ static int __ovs_nla_copy_actions(struct net *net, const struct nlattr *attr,
 				mac_proto = MAC_PROTO_NONE;
 			break;
 		}
+
+		case OVS_ACTION_ATTR_METER:
+			/* Non-existent meters are simply ignored.  */
+			break;
 
 		default:
 			OVS_NLERR(log, "Unknown Action type %d", type);
