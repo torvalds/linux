@@ -232,7 +232,8 @@ out:
 }
 
 static int stat_src(const char *path, unsigned int *type, unsigned int *mode,
-		    long long *size)
+		    long long *size, struct lkl_timespec *mtime,
+		    struct lkl_timespec *atime)
 {
 	struct stat stat;
 	struct lkl_stat lkl_stat;
@@ -246,6 +247,14 @@ static int stat_src(const char *path, unsigned int *type, unsigned int *mode,
 			*mode = stat.st_mode & ~S_IFMT;
 		if (size)
 			*size = stat.st_size;
+		if (mtime) {
+			mtime->tv_sec = stat.st_mtim.tv_sec;
+			mtime->tv_nsec = stat.st_mtim.tv_nsec;
+		}
+		if (atime) {
+			atime->tv_sec = stat.st_atim.tv_sec;
+			atime->tv_nsec = stat.st_atim.tv_nsec;
+		}
 	} else {
 		ret = lkl_sys_lstat(path, &lkl_stat);
 		if (type)
@@ -254,6 +263,14 @@ static int stat_src(const char *path, unsigned int *type, unsigned int *mode,
 			*mode = lkl_stat.st_mode & ~S_IFMT;
 		if (size)
 			*size = lkl_stat.st_size;
+		if (mtime) {
+			mtime->tv_sec = lkl_stat.lkl_st_mtime;
+			mtime->tv_nsec = lkl_stat.st_mtime_nsec;
+		}
+		if (atime) {
+			atime->tv_sec = lkl_stat.lkl_st_atime;
+			atime->tv_nsec = lkl_stat.st_atime_nsec;
+		}
 	}
 
 	if (ret)
@@ -323,7 +340,7 @@ static int copy_symlink(const char *src, const char *dst)
 	long long size, actual_size;
 	char *target = NULL;
 
-	ret = stat_src(src, NULL, NULL, &size);
+	ret = stat_src(src, NULL, NULL, &size, NULL, NULL);
 	if (ret) {
 		ret = -1;
 		goto out;
@@ -360,13 +377,14 @@ out:
 static int do_entry(const char *_src, const char *_dst, const char *name)
 {
 	char src[PATH_MAX], dst[PATH_MAX];
+	struct lkl_timespec mtime, atime;
 	unsigned int type, mode;
 	int ret;
 
 	snprintf(src, sizeof(src), "%s/%s", _src, name);
 	snprintf(dst, sizeof(dst), "%s/%s", _dst, name);
 
-	ret = stat_src(src, &type, &mode, NULL);
+	ret = stat_src(src, &type, &mode, NULL, &mtime, &atime);
 
 	switch (type) {
 	case S_IFREG:
@@ -389,6 +407,21 @@ static int do_entry(const char *_src, const char *_dst, const char *name)
 	case S_IFIFO:
 	default:
 		printf("skipping %s: unsupported entry type %d\n", src, type);
+	}
+
+	if (!ret) {
+		if (cptofs) {
+			struct lkl_timespec lkl_ts[] = { atime, mtime };
+
+			ret = lkl_sys_utimensat(-1, dst, lkl_ts, LKL_AT_SYMLINK_NOFOLLOW);
+		} else {
+			struct timespec ts[] = {
+				{ .tv_sec = atime.tv_sec, .tv_nsec = atime.tv_nsec, },
+				{ .tv_sec = mtime.tv_sec, .tv_nsec = mtime.tv_nsec, },
+			};
+
+			ret = utimensat(-1, dst, ts, AT_SYMLINK_NOFOLLOW);
+		}
 	}
 
 	if (ret)
