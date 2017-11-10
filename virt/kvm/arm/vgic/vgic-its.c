@@ -292,10 +292,13 @@ static int update_lpi_config(struct kvm *kvm, struct vgic_irq *irq,
 		irq->priority = LPI_PROP_PRIORITY(prop);
 		irq->enabled = LPI_PROP_ENABLE_BIT(prop);
 
-		vgic_queue_irq_unlock(kvm, irq, flags);
-	} else {
-		spin_unlock_irqrestore(&irq->irq_lock, flags);
+		if (!irq->hw) {
+			vgic_queue_irq_unlock(kvm, irq, flags);
+			return 0;
+		}
 	}
+
+	spin_unlock_irqrestore(&irq->irq_lock, flags);
 
 	if (irq->hw)
 		return its_prop_update_vlpi(irq->host_irq, prop, needs_inv);
