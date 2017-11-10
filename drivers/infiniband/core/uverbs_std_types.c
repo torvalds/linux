@@ -227,27 +227,26 @@ static void create_udata(struct uverbs_attr_bundle *ctx,
 	 * to use uverbs_attr_bundle instead of ib_udata.
 	 * Assume attr == 0 is input and attr == 1 is output.
 	 */
-	void __user *inbuf;
-	size_t inbuf_len = 0;
-	void __user *outbuf;
-	size_t outbuf_len = 0;
 	const struct uverbs_attr *uhw_in =
 		uverbs_attr_get(ctx, UVERBS_UHW_IN);
 	const struct uverbs_attr *uhw_out =
 		uverbs_attr_get(ctx, UVERBS_UHW_OUT);
 
 	if (!IS_ERR(uhw_in)) {
-		inbuf = uhw_in->ptr_attr.ptr;
-		inbuf_len = uhw_in->ptr_attr.len;
+		udata->inbuf = uhw_in->ptr_attr.ptr;
+		udata->inlen = uhw_in->ptr_attr.len;
+	} else {
+		udata->inbuf = NULL;
+		udata->inlen = 0;
 	}
 
 	if (!IS_ERR(uhw_out)) {
-		outbuf = uhw_out->ptr_attr.ptr;
-		outbuf_len = uhw_out->ptr_attr.len;
+		udata->outbuf = uhw_out->ptr_attr.ptr;
+		udata->outlen = uhw_out->ptr_attr.len;
+	} else {
+		udata->outbuf = NULL;
+		udata->outlen = 0;
 	}
-
-	ib_uverbs_init_udata_buf_or_null(udata, inbuf, outbuf, inbuf_len,
-					 outbuf_len);
 }
 
 static int uverbs_create_cq_handler(struct ib_device *ib_dev,
