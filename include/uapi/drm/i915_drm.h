@@ -481,6 +481,12 @@ typedef struct drm_i915_irq_wait {
  */
 #define I915_PARAM_HAS_CONTEXT_ISOLATION 50
 
+/* Frequency of the command streamer timestamps given by the *_TIMESTAMP
+ * registers. This used to be fixed per platform but from CNL onwards, this
+ * might vary depending on the parts.
+ */
+#define I915_PARAM_CS_TIMESTAMP_FREQUENCY 51
+
 typedef struct drm_i915_getparam {
 	__s32 param;
 	/*

@@ -329,6 +329,108 @@ static void broadwell_sseu_info_init(struct drm_i915_private *dev_priv)
 	sseu->has_eu_pg = 0;
 }
 
+static u64 read_reference_ts_freq(struct drm_i915_private *dev_priv)
+{
+	u32 ts_override = I915_READ(GEN9_TIMESTAMP_OVERRIDE);
+	u64 base_freq, frac_freq;
+
+	base_freq = ((ts_override & GEN9_TIMESTAMP_OVERRIDE_US_COUNTER_DIVIDER_MASK) >>
+		     GEN9_TIMESTAMP_OVERRIDE_US_COUNTER_DIVIDER_SHIFT) + 1;
+	base_freq *= 1000000;
+
+	frac_freq = ((ts_override &
+		      GEN9_TIMESTAMP_OVERRIDE_US_COUNTER_DENOMINATOR_MASK) >>
+		     GEN9_TIMESTAMP_OVERRIDE_US_COUNTER_DENOMINATOR_SHIFT);
+	if (frac_freq != 0)
+		frac_freq = 1000000 / (frac_freq + 1);
+
+	return base_freq + frac_freq;
+}
+
+static u64 read_timestamp_frequency(struct drm_i915_private *dev_priv)
+{
+	u64 f12_5_mhz = 12500000;
+	u64 f19_2_mhz = 19200000;
+	u64 f24_mhz = 24000000;
+
+	if (INTEL_GEN(dev_priv) <= 4) {
+		/* PRMs say:
+		 *
+		 *     "The value in this register increments once every 16
+		 *      hclks." (through the “Clocking Configuration”
+		 *      (“CLKCFG”) MCHBAR register)
+		 */
+		return (dev_priv->rawclk_freq * 1000) / 16;
+	} else if (INTEL_GEN(dev_priv) <= 8) {
+		/* PRMs say:
+		 *
+		 *     "The PCU TSC counts 10ns increments; this timestamp
+		 *      reflects bits 38:3 of the TSC (i.e. 80ns granularity,
+		 *      rolling over every 1.5 hours).
+		 */
+		return f12_5_mhz;
+	} else if (INTEL_GEN(dev_priv) <= 9) {
+		u32 ctc_reg = I915_READ(CTC_MODE);
+		u64 freq = 0;
+
+		if ((ctc_reg & CTC_SOURCE_PARAMETER_MASK) == CTC_SOURCE_DIVIDE_LOGIC) {
+			freq = read_reference_ts_freq(dev_priv);
+		} else {
+			freq = IS_GEN9_LP(dev_priv) ? f19_2_mhz : f24_mhz;
+
+			/* Now figure out how the command stream's timestamp
+			 * register increments from this frequency (it might
+			 * increment only every few clock cycle).
+			 */
+			freq >>= 3 - ((ctc_reg & CTC_SHIFT_PARAMETER_MASK) >>
+				      CTC_SHIFT_PARAMETER_SHIFT);
+		}
+
+		return freq;
+	} else if (INTEL_GEN(dev_priv) <= 10) {
+		u32 ctc_reg = I915_READ(CTC_MODE);
+		u64 freq = 0;
+		u32 rpm_config_reg = 0;
+
+		/* First figure out the reference frequency. There are 2 ways
+		 * we can compute the frequency, either through the
+		 * TIMESTAMP_OVERRIDE register or through RPM_CONFIG. CTC_MODE
+		 * tells us which one we should use.
+		 */
+		if ((ctc_reg & CTC_SOURCE_PARAMETER_MASK) == CTC_SOURCE_DIVIDE_LOGIC) {
+			freq = read_reference_ts_freq(dev_priv);
+		} else {
+			u32 crystal_clock;
+
+			rpm_config_reg = I915_READ(RPM_CONFIG0);
+			crystal_clock = (rpm_config_reg &
+					 GEN9_RPM_CONFIG0_CRYSTAL_CLOCK_FREQ_MASK) >>
+				GEN9_RPM_CONFIG0_CRYSTAL_CLOCK_FREQ_SHIFT;
+			switch (crystal_clock) {
+			case GEN9_RPM_CONFIG0_CRYSTAL_CLOCK_FREQ_19_2_MHZ:
+				freq = f19_2_mhz;
+				break;
+			case GEN9_RPM_CONFIG0_CRYSTAL_CLOCK_FREQ_24_MHZ:
+				freq = f24_mhz;
+				break;
+			}
+		}
+
+		/* Now figure out how the command stream's timestamp register
+		 * increments from this frequency (it might increment only
+		 * every few clock cycle).
+		 */
+		freq >>= 3 - ((rpm_config_reg &
+			       GEN10_RPM_CONFIG0_CTC_SHIFT_PARAMETER_MASK) >>
+			      GEN10_RPM_CONFIG0_CTC_SHIFT_PARAMETER_SHIFT);
+
+		return freq;
+	}
+
+	DRM_ERROR("Unknown gen, unable to compute command stream timestamp frequency\n");
+	return 0;
+}
+
 /*
  * Determine various intel_device_info fields at runtime.
  *
@@ -450,6 +552,9 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 	else if (INTEL_GEN(dev_priv) >= 10)
 		gen10_sseu_info_init(dev_priv);
 
+	/* Initialize command stream timestamp frequency */
+	info->cs_timestamp_frequency = read_timestamp_frequency(dev_priv);
+
 	DRM_DEBUG_DRIVER("slice mask: %04x\n", info->sseu.slice_mask);
 	DRM_DEBUG_DRIVER("slice total: %u\n", hweight8(info->sseu.slice_mask));
 	DRM_DEBUG_DRIVER("subslice total: %u\n",
@@ -465,4 +570,6 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 			 info->sseu.has_subslice_pg ? "y" : "n");
 	DRM_DEBUG_DRIVER("has EU power gating: %s\n",
 			 info->sseu.has_eu_pg ? "y" : "n");
+	DRM_DEBUG_DRIVER("CS timestamp frequency: %llu\n",
+			 info->cs_timestamp_frequency);
 }

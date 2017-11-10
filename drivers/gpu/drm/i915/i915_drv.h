@@ -885,6 +885,8 @@ struct intel_device_info {
 	/* Slice/subslice/EU info */
 	struct sseu_dev_info sseu;
 
+	u64 cs_timestamp_frequency;
+
 	struct color_luts {
 		u16 degamma_lut_size;
 		u16 gamma_lut_size;
