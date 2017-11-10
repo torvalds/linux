@@ -209,7 +209,7 @@ struct net_bridge_mdb_entry
 	struct rcu_head			rcu;
 	struct timer_list		timer;
 	struct br_ip			addr;
-	bool				mglist;
+	bool				host_joined;
 };
 
 struct net_bridge_mdb_htable
