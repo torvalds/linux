@@ -18,4 +18,8 @@
 #define pr_debug printk
 #define pr_cont printk
 
+#define __acquires(x)
+#define __releases(x)
+#define __must_hold(x)
+
 #endif /* _KERNEL_H */

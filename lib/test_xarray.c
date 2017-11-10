@@ -30,13 +30,49 @@ void xa_dump(const struct xarray *xa) { }
 
 static void *xa_store_index(struct xarray *xa, unsigned long index, gfp_t gfp)
 {
-	radix_tree_insert(xa, index, xa_mk_value(index));
-	return NULL;
+	return xa_store(xa, index, xa_mk_value(index & LONG_MAX), gfp);
 }
 
 static void xa_erase_index(struct xarray *xa, unsigned long index)
 {
-	radix_tree_delete(xa, index);
+	XA_BUG_ON(xa, xa_erase(xa, index) != xa_mk_value(index & LONG_MAX));
+	XA_BUG_ON(xa, xa_load(xa, index) != NULL);
+}
+
+/*
+ * If anyone needs this, please move it to xarray.c.  We have no current
+ * users outside the test suite because all current multislot users want
+ * to use the advanced API.
+ */
+static void *xa_store_order(struct xarray *xa, unsigned long index,
+		unsigned order, void *entry, gfp_t gfp)
+{
+	XA_STATE_ORDER(xas, xa, index, order);
+	void *curr;
+
+	do {
+		xas_lock(&xas);
+		curr = xas_store(&xas, entry);
+		xas_unlock(&xas);
+	} while (xas_nomem(&xas, gfp));
+
+	return curr;
+}
+
+static noinline void check_xa_err(struct xarray *xa)
+{
+	XA_BUG_ON(xa, xa_err(xa_store_index(xa, 0, GFP_NOWAIT)) != 0);
+	XA_BUG_ON(xa, xa_err(xa_erase(xa, 0)) != 0);
+#ifndef __KERNEL__
+	/* The kernel does not fail GFP_NOWAIT allocations */
+	XA_BUG_ON(xa, xa_err(xa_store_index(xa, 1, GFP_NOWAIT)) != -ENOMEM);
+	XA_BUG_ON(xa, xa_err(xa_store_index(xa, 1, GFP_NOWAIT)) != -ENOMEM);
+#endif
+	XA_BUG_ON(xa, xa_err(xa_store_index(xa, 1, GFP_KERNEL)) != 0);
+	XA_BUG_ON(xa, xa_err(xa_store(xa, 1, xa_mk_value(0), GFP_KERNEL)) != 0);
+	XA_BUG_ON(xa, xa_err(xa_erase(xa, 1)) != 0);
+// kills the test-suite :-(
+//	XA_BUG_ON(xa, xa_err(xa_store(xa, 0, xa_mk_internal(0), 0)) != -EINVAL);
 }
 
 static noinline void check_xa_load(struct xarray *xa)
@@ -69,6 +105,9 @@ static noinline void check_xa_load(struct xarray *xa)
 
 static noinline void check_xa_mark_1(struct xarray *xa, unsigned long index)
 {
+	unsigned int order;
+	unsigned int max_order = IS_ENABLED(CONFIG_XARRAY_MULTI) ? 8 : 1;
+
 	/* NULL elements have no marks set */
 	XA_BUG_ON(xa, xa_get_mark(xa, index, XA_MARK_0));
 	xa_set_mark(xa, index, XA_MARK_0);
@@ -90,6 +129,37 @@ static noinline void check_xa_mark_1(struct xarray *xa, unsigned long index)
 	XA_BUG_ON(xa, xa_get_mark(xa, index, XA_MARK_0));
 	xa_set_mark(xa, index, XA_MARK_0);
 	XA_BUG_ON(xa, xa_get_mark(xa, index, XA_MARK_0));
+
+	/*
+	 * Storing a multi-index entry over entries with marks gives the
+	 * entire entry the union of the marks
+	 */
+	BUG_ON((index % 4) != 0);
+	for (order = 2; order < max_order; order++) {
+		unsigned long base = round_down(index, 1UL << order);
+		unsigned long next = base + (1UL << order);
+		unsigned long i;
+
+		XA_BUG_ON(xa, xa_store_index(xa, index + 1, GFP_KERNEL));
+		xa_set_mark(xa, index + 1, XA_MARK_0);
+		XA_BUG_ON(xa, xa_store_index(xa, index + 2, GFP_KERNEL));
+		xa_set_mark(xa, index + 2, XA_MARK_1);
+		XA_BUG_ON(xa, xa_store_index(xa, next, GFP_KERNEL));
+		xa_store_order(xa, index, order, xa_mk_value(index),
+				GFP_KERNEL);
+		for (i = base; i < next; i++) {
+			XA_BUG_ON(xa, !xa_get_mark(xa, i, XA_MARK_0));
+			XA_BUG_ON(xa, !xa_get_mark(xa, i, XA_MARK_1));
+			XA_BUG_ON(xa, xa_get_mark(xa, i, XA_MARK_2));
+		}
+		XA_BUG_ON(xa, xa_get_mark(xa, next, XA_MARK_0));
+		XA_BUG_ON(xa, xa_get_mark(xa, next, XA_MARK_1));
+		XA_BUG_ON(xa, xa_get_mark(xa, next, XA_MARK_2));
+		xa_erase_index(xa, index);
+		xa_erase_index(xa, next);
+		XA_BUG_ON(xa, !xa_empty(xa));
+	}
+	XA_BUG_ON(xa, !xa_empty(xa));
 }
 
 static noinline void check_xa_mark(struct xarray *xa)
@@ -100,12 +170,111 @@ static noinline void check_xa_mark(struct xarray *xa)
 		check_xa_mark_1(xa, index);
 }
 
-static RADIX_TREE(array, GFP_KERNEL);
+static noinline void check_xa_shrink(struct xarray *xa)
+{
+	XA_STATE(xas, xa, 1);
+	struct xa_node *node;
+
+	XA_BUG_ON(xa, !xa_empty(xa));
+	XA_BUG_ON(xa, xa_store_index(xa, 0, GFP_KERNEL) != NULL);
+	XA_BUG_ON(xa, xa_store_index(xa, 1, GFP_KERNEL) != NULL);
+
+	/*
+	 * Check that erasing the entry at 1 shrinks the tree and properly
+	 * marks the node as being deleted.
+	 */
+	xas_lock(&xas);
+	XA_BUG_ON(xa, xas_load(&xas) != xa_mk_value(1));
+	node = xas.xa_node;
+	XA_BUG_ON(xa, xa_entry_locked(xa, node, 0) != xa_mk_value(0));
+	XA_BUG_ON(xa, xas_store(&xas, NULL) != xa_mk_value(1));
+	XA_BUG_ON(xa, xa_load(xa, 1) != NULL);
+	XA_BUG_ON(xa, xas.xa_node != XAS_BOUNDS);
+	XA_BUG_ON(xa, xa_entry_locked(xa, node, 0) != XA_RETRY_ENTRY);
+	XA_BUG_ON(xa, xas_load(&xas) != NULL);
+	xas_unlock(&xas);
+	XA_BUG_ON(xa, xa_load(xa, 0) != xa_mk_value(0));
+	xa_erase_index(xa, 0);
+	XA_BUG_ON(xa, !xa_empty(xa));
+}
+
+static noinline void check_multi_store(struct xarray *xa)
+{
+#ifdef CONFIG_XARRAY_MULTI
+	unsigned long i, j, k;
+	unsigned int max_order = (sizeof(long) == 4) ? 30 : 60;
+
+	/* Loading from any position returns the same value */
+	xa_store_order(xa, 0, 1, xa_mk_value(0), GFP_KERNEL);
+	XA_BUG_ON(xa, xa_load(xa, 0) != xa_mk_value(0));
+	XA_BUG_ON(xa, xa_load(xa, 1) != xa_mk_value(0));
+	XA_BUG_ON(xa, xa_load(xa, 2) != NULL);
+	rcu_read_lock();
+	XA_BUG_ON(xa, xa_to_node(xa_head(xa))->count != 2);
+	XA_BUG_ON(xa, xa_to_node(xa_head(xa))->nr_values != 2);
+	rcu_read_unlock();
+
+	/* Storing adjacent to the value does not alter the value */
+	xa_store(xa, 3, xa, GFP_KERNEL);
+	XA_BUG_ON(xa, xa_load(xa, 0) != xa_mk_value(0));
+	XA_BUG_ON(xa, xa_load(xa, 1) != xa_mk_value(0));
+	XA_BUG_ON(xa, xa_load(xa, 2) != NULL);
+	rcu_read_lock();
+	XA_BUG_ON(xa, xa_to_node(xa_head(xa))->count != 3);
+	XA_BUG_ON(xa, xa_to_node(xa_head(xa))->nr_values != 2);
+	rcu_read_unlock();
+
+	/* Overwriting multiple indexes works */
+	xa_store_order(xa, 0, 2, xa_mk_value(1), GFP_KERNEL);
+	XA_BUG_ON(xa, xa_load(xa, 0) != xa_mk_value(1));
+	XA_BUG_ON(xa, xa_load(xa, 1) != xa_mk_value(1));
+	XA_BUG_ON(xa, xa_load(xa, 2) != xa_mk_value(1));
+	XA_BUG_ON(xa, xa_load(xa, 3) != xa_mk_value(1));
+	XA_BUG_ON(xa, xa_load(xa, 4) != NULL);
+	rcu_read_lock();
+	XA_BUG_ON(xa, xa_to_node(xa_head(xa))->count != 4);
+	XA_BUG_ON(xa, xa_to_node(xa_head(xa))->nr_values != 4);
+	rcu_read_unlock();
+
+	/* We can erase multiple values with a single store */
+	xa_store_order(xa, 0, 63, NULL, GFP_KERNEL);
+	XA_BUG_ON(xa, !xa_empty(xa));
+
+	/* Even when the first slot is empty but the others aren't */
+	xa_store_index(xa, 1, GFP_KERNEL);
+	xa_store_index(xa, 2, GFP_KERNEL);
+	xa_store_order(xa, 0, 2, NULL, GFP_KERNEL);
+	XA_BUG_ON(xa, !xa_empty(xa));
+
+	for (i = 0; i < max_order; i++) {
+		for (j = 0; j < max_order; j++) {
+			xa_store_order(xa, 0, i, xa_mk_value(i), GFP_KERNEL);
+			xa_store_order(xa, 0, j, xa_mk_value(j), GFP_KERNEL);
+
+			for (k = 0; k < max_order; k++) {
+				void *entry = xa_load(xa, (1UL << k) - 1);
+				if ((i < k) && (j < k))
+					XA_BUG_ON(xa, entry != NULL);
+				else
+					XA_BUG_ON(xa, entry != xa_mk_value(j));
+			}
+
+			xa_erase(xa, 0);
+			XA_BUG_ON(xa, !xa_empty(xa));
+		}
+	}
+#endif
+}
+
+static DEFINE_XARRAY(array);
 
 static int xarray_checks(void)
 {
+	check_xa_err(&array);
 	check_xa_load(&array);
 	check_xa_mark(&array);
+	check_xa_shrink(&array);
+	check_multi_store(&array);
 
 	printk("XArray: %u of %u tests passed\n", tests_passed, tests_run);
 	return (tests_run == tests_passed) ? 0 : -EINVAL;

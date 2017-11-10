@@ -205,10 +205,17 @@ typedef unsigned __bitwise xa_mark_t;
 #define XA_PRESENT		((__force xa_mark_t)8U)
 #define XA_MARK_MAX		XA_MARK_2
 
+enum xa_lock_type {
+	XA_LOCK_IRQ = 1,
+	XA_LOCK_BH = 2,
+};
+
 /*
  * Values for xa_flags.  The radix tree stores its GFP flags in the xa_flags,
  * and we remain compatible with that.
  */
+#define XA_FLAGS_LOCK_IRQ	((__force gfp_t)XA_LOCK_IRQ)
+#define XA_FLAGS_LOCK_BH	((__force gfp_t)XA_LOCK_BH)
 #define XA_FLAGS_MARK(mark)	((__force gfp_t)((1U << __GFP_BITS_SHIFT) << \
 						(__force unsigned)(mark)))
 
@@ -267,6 +274,7 @@ struct xarray {
 
 void xa_init_flags(struct xarray *, gfp_t flags);
 void *xa_load(struct xarray *, unsigned long index);
+void *xa_store(struct xarray *, unsigned long index, void *entry, gfp_t);
 bool xa_get_mark(struct xarray *, unsigned long index, xa_mark_t);
 void xa_set_mark(struct xarray *, unsigned long index, xa_mark_t);
 void xa_clear_mark(struct xarray *, unsigned long index, xa_mark_t);
@@ -309,6 +317,23 @@ static inline bool xa_marked(const struct xarray *xa, xa_mark_t mark)
 	return xa->xa_flags & XA_FLAGS_MARK(mark);
 }
 
+/**
+ * xa_erase() - Erase this entry from the XArray.
+ * @xa: XArray.
+ * @index: Index of entry.
+ *
+ * This function is the equivalent of calling xa_store() with %NULL as
+ * the third argument.  The XArray does not need to allocate memory, so
+ * the user does not need to provide GFP flags.
+ *
+ * Context: Process context.  Takes and releases the xa_lock.
+ * Return: The entry which used to be at this index.
+ */
+static inline void *xa_erase(struct xarray *xa, unsigned long index)
+{
+	return xa_store(xa, index, NULL, 0);
+}
+
 #define xa_trylock(xa)		spin_trylock(&(xa)->xa_lock)
 #define xa_lock(xa)		spin_lock(&(xa)->xa_lock)
 #define xa_unlock(xa)		spin_unlock(&(xa)->xa_lock)
@@ -322,10 +347,64 @@ static inline bool xa_marked(const struct xarray *xa, xa_mark_t mark)
 				spin_unlock_irqrestore(&(xa)->xa_lock, flags)
 
 /*
- * Versions of the normal API which require the caller to hold the xa_lock.
+ * Versions of the normal API which require the caller to hold the
+ * xa_lock.  If the GFP flags allow it, they will drop the lock to
+ * allocate memory, then reacquire it afterwards.  These functions
+ * may also re-enable interrupts if the XArray flags indicate the
+ * locking should be interrupt safe.
  */
+void *__xa_erase(struct xarray *, unsigned long index);
+void *__xa_store(struct xarray *, unsigned long index, void *entry, gfp_t);
 void __xa_set_mark(struct xarray *, unsigned long index, xa_mark_t);
 void __xa_clear_mark(struct xarray *, unsigned long index, xa_mark_t);
+
+/**
+ * xa_erase_bh() - Erase this entry from the XArray.
+ * @xa: XArray.
+ * @index: Index of entry.
+ *
+ * This function is the equivalent of calling xa_store() with %NULL as
+ * the third argument.  The XArray does not need to allocate memory, so
+ * the user does not need to provide GFP flags.
+ *
+ * Context: Process context.  Takes and releases the xa_lock while
+ * disabling softirqs.
+ * Return: The entry which used to be at this index.
+ */
+static inline void *xa_erase_bh(struct xarray *xa, unsigned long index)
+{
+	void *entry;
+
+	xa_lock_bh(xa);
+	entry = __xa_erase(xa, index);
+	xa_unlock_bh(xa);
+
+	return entry;
+}
+
+/**
+ * xa_erase_irq() - Erase this entry from the XArray.
+ * @xa: XArray.
+ * @index: Index of entry.
+ *
+ * This function is the equivalent of calling xa_store() with %NULL as
+ * the third argument.  The XArray does not need to allocate memory, so
+ * the user does not need to provide GFP flags.
+ *
+ * Context: Process context.  Takes and releases the xa_lock while
+ * disabling interrupts.
+ * Return: The entry which used to be at this index.
+ */
+static inline void *xa_erase_irq(struct xarray *xa, unsigned long index)
+{
+	void *entry;
+
+	xa_lock_irq(xa);
+	entry = __xa_erase(xa, index);
+	xa_unlock_irq(xa);
+
+	return entry;
+}
 
 /* Everything below here is the Advanced API.  Proceed with caution. */
 
@@ -439,6 +518,12 @@ static inline struct xa_node *xa_parent_locked(const struct xarray *xa,
 {
 	return rcu_dereference_protected(node->parent,
 						lockdep_is_held(&xa->xa_lock));
+}
+
+/* Private */
+static inline void *xa_mk_node(const struct xa_node *node)
+{
+	return (void *)((unsigned long)node | 2);
 }
 
 /* Private */
@@ -647,6 +732,12 @@ static inline bool xas_not_node(struct xa_node *node)
 	return ((unsigned long)node & 3) || !node;
 }
 
+/* True if the node represents head-of-tree, RESTART or BOUNDS */
+static inline bool xas_top(struct xa_node *node)
+{
+	return node <= XAS_RESTART;
+}
+
 /**
  * xas_reset() - Reset an XArray operation state.
  * @xas: XArray operation state.
@@ -683,10 +774,14 @@ static inline bool xas_retry(struct xa_state *xas, const void *entry)
 }
 
 void *xas_load(struct xa_state *);
+void *xas_store(struct xa_state *, void *entry);
 
 bool xas_get_mark(const struct xa_state *, xa_mark_t);
 void xas_set_mark(const struct xa_state *, xa_mark_t);
 void xas_clear_mark(const struct xa_state *, xa_mark_t);
+void xas_init_marks(const struct xa_state *);
+
+bool xas_nomem(struct xa_state *, gfp_t);
 
 /**
  * xas_reload() - Refetch an entry from the xarray.
@@ -709,6 +804,54 @@ static inline void *xas_reload(struct xa_state *xas)
 	if (node)
 		return xa_entry(xas->xa, node, xas->xa_offset);
 	return xa_head(xas->xa);
+}
+
+/**
+ * xas_set() - Set up XArray operation state for a different index.
+ * @xas: XArray operation state.
+ * @index: New index into the XArray.
+ *
+ * Move the operation state to refer to a different index.  This will
+ * have the effect of starting a walk from the top; see xas_next()
+ * to move to an adjacent index.
+ */
+static inline void xas_set(struct xa_state *xas, unsigned long index)
+{
+	xas->xa_index = index;
+	xas->xa_node = XAS_RESTART;
+}
+
+/**
+ * xas_set_order() - Set up XArray operation state for a multislot entry.
+ * @xas: XArray operation state.
+ * @index: Target of the operation.
+ * @order: Entry occupies 2^@order indices.
+ */
+static inline void xas_set_order(struct xa_state *xas, unsigned long index,
+					unsigned int order)
+{
+#ifdef CONFIG_XARRAY_MULTI
+	xas->xa_index = order < BITS_PER_LONG ? (index >> order) << order : 0;
+	xas->xa_shift = order - (order % XA_CHUNK_SHIFT);
+	xas->xa_sibs = (1 << (order % XA_CHUNK_SHIFT)) - 1;
+	xas->xa_node = XAS_RESTART;
+#else
+	BUG_ON(order > 0);
+	xas_set(xas, index);
+#endif
+}
+
+/**
+ * xas_set_update() - Set up XArray operation state for a callback.
+ * @xas: XArray operation state.
+ * @update: Function to call when updating a node.
+ *
+ * The XArray can notify a caller after it has updated an xa_node.
+ * This is advanced functionality and is only needed by the page cache.
+ */
+static inline void xas_set_update(struct xa_state *xas, xa_update_node_t update)
+{
+	xas->xa_update = update;
 }
 
 #endif /* _LINUX_XARRAY_H */
