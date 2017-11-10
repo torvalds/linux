@@ -1809,13 +1809,12 @@ static void
 bfa_ioc_send_enable(struct bfa_ioc_s *ioc)
 {
 	struct bfi_ioc_ctrl_req_s enable_req;
-	struct timeval tv;
 
 	bfi_h2i_set(enable_req.mh, BFI_MC_IOC, BFI_IOC_H2I_ENABLE_REQ,
 		    bfa_ioc_portid(ioc));
 	enable_req.clscode = cpu_to_be16(ioc->clscode);
-	do_gettimeofday(&tv);
-	enable_req.tv_sec = be32_to_cpu(tv.tv_sec);
+	/* unsigned 32-bit time_t overflow in y2106 */
+	enable_req.tv_sec = be32_to_cpu(ktime_get_real_seconds());
 	bfa_ioc_mbox_send(ioc, &enable_req, sizeof(struct bfi_ioc_ctrl_req_s));
 }
 
@@ -1826,6 +1825,9 @@ bfa_ioc_send_disable(struct bfa_ioc_s *ioc)
 
 	bfi_h2i_set(disable_req.mh, BFI_MC_IOC, BFI_IOC_H2I_DISABLE_REQ,
 		    bfa_ioc_portid(ioc));
+	disable_req.clscode = cpu_to_be16(ioc->clscode);
+	/* unsigned 32-bit time_t overflow in y2106 */
+	disable_req.tv_sec = be32_to_cpu(ktime_get_real_seconds());
 	bfa_ioc_mbox_send(ioc, &disable_req, sizeof(struct bfi_ioc_ctrl_req_s));
 }
 
