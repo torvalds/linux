@@ -2393,11 +2393,11 @@ static int modify_qp_init_to_rtr(struct ib_qp *ibqp,
 		       V2_QPC_BYTE_108_RX_REQ_EPSN_M,
 		       V2_QPC_BYTE_108_RX_REQ_EPSN_S, 0);
 
-	context->irrl_ba = (u32)dma_handle_2;
+	context->irrl_ba = (u32)(dma_handle_2 >> 6);
 	qpc_mask->irrl_ba = 0;
 	roce_set_field(context->byte_208_irrl, V2_QPC_BYTE_208_IRRL_BA_M,
 		       V2_QPC_BYTE_208_IRRL_BA_S,
-		      (dma_handle_2 >> 32) & V2_QPC_BYTE_208_IRRL_BA_M);
+		       dma_handle_2 >> (32 + 6));
 	roce_set_field(qpc_mask->byte_208_irrl, V2_QPC_BYTE_208_IRRL_BA_M,
 		       V2_QPC_BYTE_208_IRRL_BA_S, 0);
 
