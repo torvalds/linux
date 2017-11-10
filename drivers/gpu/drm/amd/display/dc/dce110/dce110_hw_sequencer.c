@@ -2872,13 +2872,12 @@ static void dce110_apply_ctx_for_surface(
 			continue;
 
 		/* Need to allocate mem before program front end for Fiji */
-		if (pipe_ctx->plane_res.mi != NULL)
-			pipe_ctx->plane_res.mi->funcs->allocate_mem_input(
-					pipe_ctx->plane_res.mi,
-					pipe_ctx->stream->timing.h_total,
-					pipe_ctx->stream->timing.v_total,
-					pipe_ctx->stream->timing.pix_clk_khz,
-					context->stream_count);
+		pipe_ctx->plane_res.mi->funcs->allocate_mem_input(
+				pipe_ctx->plane_res.mi,
+				pipe_ctx->stream->timing.h_total,
+				pipe_ctx->stream->timing.v_total,
+				pipe_ctx->stream->timing.pix_clk_khz,
+				context->stream_count);
 
 		dce110_program_front_end_for_pipe(dc, pipe_ctx);
 
