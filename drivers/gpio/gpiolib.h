@@ -126,7 +126,7 @@ void acpi_gpiochip_request_interrupts(struct gpio_chip *chip);
 void acpi_gpiochip_free_interrupts(struct gpio_chip *chip);
 
 int acpi_gpio_update_gpiod_flags(enum gpiod_flags *flags,
-				 enum gpiod_flags update);
+				 struct acpi_gpio_info *info);
 
 struct gpio_desc *acpi_find_gpio(struct device *dev,
 				 const char *con_id,
@@ -151,7 +151,7 @@ static inline void
 acpi_gpiochip_free_interrupts(struct gpio_chip *chip) { }
 
 static inline int
-acpi_gpio_update_gpiod_flags(enum gpiod_flags *flags, enum gpiod_flags update)
+acpi_gpio_update_gpiod_flags(enum gpiod_flags *flags, struct acpi_gpio_info *info)
 {
 	return 0;
 }

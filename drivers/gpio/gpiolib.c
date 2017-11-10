@@ -3681,9 +3681,7 @@ struct gpio_desc *fwnode_get_named_gpiod(struct fwnode_handle *fwnode,
 		desc = acpi_node_get_gpiod(fwnode, propname, index, &info);
 		if (!IS_ERR(desc)) {
 			active_low = info.polarity == GPIO_ACTIVE_LOW;
-			ret = acpi_gpio_update_gpiod_flags(&dflags, info.flags);
-			if (ret)
-				pr_debug("Override GPIO initialization flags\n");
+			acpi_gpio_update_gpiod_flags(&dflags, &info);
 		}
 	}
 

@@ -461,8 +461,8 @@ acpi_gpio_to_gpiod_flags(const struct acpi_resource_gpio *agpio)
 	}
 }
 
-int
-acpi_gpio_update_gpiod_flags(enum gpiod_flags *flags, enum gpiod_flags update)
+static int
+__acpi_gpio_update_gpiod_flags(enum gpiod_flags *flags, enum gpiod_flags update)
 {
 	int ret = 0;
 
@@ -486,6 +486,19 @@ acpi_gpio_update_gpiod_flags(enum gpiod_flags *flags, enum gpiod_flags update)
 			ret = -EINVAL;
 		*flags = update;
 	}
+	return ret;
+}
+
+int
+acpi_gpio_update_gpiod_flags(enum gpiod_flags *flags, struct acpi_gpio_info *info)
+{
+	struct device *dev = &info->adev->dev;
+	int ret;
+
+	ret = __acpi_gpio_update_gpiod_flags(flags, info->flags);
+	if (ret)
+		dev_dbg(dev, "Override GPIO initialization flags\n");
+
 	return ret;
 }
 
@@ -661,7 +674,6 @@ struct gpio_desc *acpi_find_gpio(struct device *dev,
 	struct acpi_gpio_info info;
 	struct gpio_desc *desc;
 	char propname[32];
-	int err;
 	int i;
 
 	/* Try first from _DSD */
@@ -700,10 +712,7 @@ struct gpio_desc *acpi_find_gpio(struct device *dev,
 	if (info.polarity == GPIO_ACTIVE_LOW)
 		*lookupflags |= GPIO_ACTIVE_LOW;
 
-	err = acpi_gpio_update_gpiod_flags(dflags, info.flags);
-	if (err)
-		dev_dbg(dev, "Override GPIO initialization flags\n");
-
+	acpi_gpio_update_gpiod_flags(dflags, &info);
 	return desc;
 }
 
