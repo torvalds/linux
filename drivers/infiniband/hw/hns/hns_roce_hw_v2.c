@@ -62,6 +62,7 @@ static int hns_roce_v2_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 	struct hns_roce_v2_db sq_db;
 	unsigned int sge_ind = 0;
 	unsigned int wqe_sz = 0;
+	unsigned int owner_bit;
 	unsigned long flags;
 	unsigned int ind;
 	void *wqe = NULL;
@@ -104,6 +105,7 @@ static int hns_roce_v2_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 		qp->sq.wrid[(qp->sq.head + nreq) & (qp->sq.wqe_cnt - 1)] =
 								      wr->wr_id;
 
+		owner_bit = ~(qp->sq.head >> ilog2(qp->sq.wqe_cnt)) & 0x1;
 		rc_sq_wqe = wqe;
 		memset(rc_sq_wqe, 0, sizeof(*rc_sq_wqe));
 		for (i = 0; i < wr->num_sge; i++)
@@ -119,6 +121,9 @@ static int hns_roce_v2_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 
 		roce_set_bit(rc_sq_wqe->byte_4, V2_RC_SEND_WQE_BYTE_4_CQE_S,
 			    (wr->send_flags & IB_SEND_SIGNALED) ? 1 : 0);
+
+		roce_set_bit(rc_sq_wqe->byte_4, V2_RC_SEND_WQE_BYTE_4_OWNER_S,
+			     owner_bit);
 
 		switch (wr->opcode) {
 		case IB_WR_RDMA_READ:
