@@ -388,7 +388,8 @@ static unsigned vce_v3_0_get_harvest_config(struct amdgpu_device *adev)
 	default:
 		if ((adev->asic_type == CHIP_POLARIS10) ||
 		    (adev->asic_type == CHIP_POLARIS11) ||
-		    (adev->asic_type == CHIP_POLARIS12))
+		    (adev->asic_type == CHIP_POLARIS12) ||
+		    (adev->asic_type == CHIP_VEGAM))
 			return AMDGPU_VCE_HARVEST_VCE1;
 
 		return 0;
