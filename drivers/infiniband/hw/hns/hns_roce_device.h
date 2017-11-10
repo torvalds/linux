@@ -367,6 +367,7 @@ struct hns_roce_qp_table {
 	spinlock_t			lock;
 	struct hns_roce_hem_table	qp_table;
 	struct hns_roce_hem_table	irrl_table;
+	struct hns_roce_hem_table	trrl_table;
 };
 
 struct hns_roce_cq_table {
@@ -542,6 +543,7 @@ struct hns_roce_caps {
 	int		mtpt_entry_sz;
 	int		qpc_entry_sz;
 	int		irrl_entry_sz;
+	int		trrl_entry_sz;
 	int		cqc_entry_sz;
 	u32		pbl_ba_pg_sz;
 	u32		pbl_buf_pg_sz;

@@ -597,15 +597,34 @@ static int hns_roce_init_hem(struct hns_roce_dev *hr_dev)
 		goto err_unmap_qp;
 	}
 
+	if (hr_dev->caps.trrl_entry_sz) {
+		ret = hns_roce_init_hem_table(hr_dev,
+					      &hr_dev->qp_table.trrl_table,
+					      HEM_TYPE_TRRL,
+					      hr_dev->caps.trrl_entry_sz *
+					      hr_dev->caps.max_qp_dest_rdma,
+					      hr_dev->caps.num_qps, 1);
+		if (ret) {
+			dev_err(dev,
+			       "Failed to init trrl_table memory, aborting.\n");
+			goto err_unmap_irrl;
+		}
+	}
+
 	ret = hns_roce_init_hem_table(hr_dev, &hr_dev->cq_table.table,
 				      HEM_TYPE_CQC, hr_dev->caps.cqc_entry_sz,
 				      hr_dev->caps.num_cqs, 1);
 	if (ret) {
 		dev_err(dev, "Failed to init CQ context memory, aborting.\n");
-		goto err_unmap_irrl;
+		goto err_unmap_trrl;
 	}
 
 	return 0;
+
+err_unmap_trrl:
+	if (hr_dev->caps.trrl_entry_sz)
+		hns_roce_cleanup_hem_table(hr_dev,
+					   &hr_dev->qp_table.trrl_table);
 
 err_unmap_irrl:
 	hns_roce_cleanup_hem_table(hr_dev, &hr_dev->qp_table.irrl_table);

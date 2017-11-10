@@ -911,6 +911,7 @@ static int hns_roce_v2_profile(struct hns_roce_dev *hr_dev)
 	caps->max_srq_desc_sz	= HNS_ROCE_V2_MAX_SRQ_DESC_SZ;
 	caps->qpc_entry_sz	= HNS_ROCE_V2_QPC_ENTRY_SZ;
 	caps->irrl_entry_sz	= HNS_ROCE_V2_IRRL_ENTRY_SZ;
+	caps->trrl_entry_sz	= HNS_ROCE_V2_TRRL_ENTRY_SZ;
 	caps->cqc_entry_sz	= HNS_ROCE_V2_CQC_ENTRY_SZ;
 	caps->mtpt_entry_sz	= HNS_ROCE_V2_MTPT_ENTRY_SZ;
 	caps->mtt_entry_sz	= HNS_ROCE_V2_MTT_ENTRY_SZ;
@@ -2265,10 +2266,12 @@ static int modify_qp_init_to_rtr(struct ib_qp *ibqp,
 	struct hns_roce_dev *hr_dev = to_hr_dev(ibqp->device);
 	struct hns_roce_qp *hr_qp = to_hr_qp(ibqp);
 	struct device *dev = hr_dev->dev;
+	dma_addr_t dma_handle_3;
 	dma_addr_t dma_handle_2;
 	dma_addr_t dma_handle;
 	u32 page_size;
 	u8 port_num;
+	u64 *mtts_3;
 	u64 *mtts_2;
 	u64 *mtts;
 	u8 *dmac;
@@ -2288,6 +2291,14 @@ static int modify_qp_init_to_rtr(struct ib_qp *ibqp,
 				     hr_qp->qpn, &dma_handle_2);
 	if (!mtts_2) {
 		dev_err(dev, "qp irrl_table find failed\n");
+		return -EINVAL;
+	}
+
+	/* Search TRRL's mtts */
+	mtts_3 = hns_roce_table_find(hr_dev, &hr_dev->qp_table.trrl_table,
+				     hr_qp->qpn, &dma_handle_3);
+	if (!mtts_3) {
+		dev_err(dev, "qp trrl_table find failed\n");
 		return -EINVAL;
 	}
 
@@ -2392,6 +2403,18 @@ static int modify_qp_init_to_rtr(struct ib_qp *ibqp,
 	roce_set_field(qpc_mask->byte_108_rx_reqepsn,
 		       V2_QPC_BYTE_108_RX_REQ_EPSN_M,
 		       V2_QPC_BYTE_108_RX_REQ_EPSN_S, 0);
+
+	roce_set_field(context->byte_132_trrl, V2_QPC_BYTE_132_TRRL_BA_M,
+		       V2_QPC_BYTE_132_TRRL_BA_S, dma_handle_3 >> 4);
+	roce_set_field(qpc_mask->byte_132_trrl, V2_QPC_BYTE_132_TRRL_BA_M,
+		       V2_QPC_BYTE_132_TRRL_BA_S, 0);
+	context->trrl_ba = (u32)(dma_handle_3 >> (16 + 4));
+	qpc_mask->trrl_ba = 0;
+	roce_set_field(context->byte_140_raq, V2_QPC_BYTE_140_TRRL_BA_M,
+		       V2_QPC_BYTE_140_TRRL_BA_S,
+		       (u32)(dma_handle_3 >> (32 + 16 + 4)));
+	roce_set_field(qpc_mask->byte_140_raq, V2_QPC_BYTE_140_TRRL_BA_M,
+		       V2_QPC_BYTE_140_TRRL_BA_S, 0);
 
 	context->irrl_ba = (u32)(dma_handle_2 >> 6);
 	qpc_mask->irrl_ba = 0;
