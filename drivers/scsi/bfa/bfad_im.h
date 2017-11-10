@@ -131,16 +131,28 @@ struct bfad_im_s {
 } while (0)
 
 /* post fc_host vendor event */
-#define bfad_im_post_vendor_event(_entry, _drv, _cnt, _cat, _evt) do {	      \
-	do_gettimeofday(&(_entry)->aen_tv);				      \
-	(_entry)->bfad_num = (_drv)->inst_no;				      \
-	(_entry)->seq_num = (_cnt);					      \
-	(_entry)->aen_category = (_cat);				      \
-	(_entry)->aen_type = (_evt);					      \
-	if ((_drv)->bfad_flags & BFAD_FC4_PROBE_DONE)			      \
-		queue_work((_drv)->im->drv_workq,			      \
-			   &(_drv)->im->aen_im_notify_work);		      \
-} while (0)
+static inline void bfad_im_post_vendor_event(struct bfa_aen_entry_s *entry,
+					     struct bfad_s *drv, int cnt,
+					     enum bfa_aen_category cat,
+					     enum bfa_ioc_aen_event evt)
+{
+	struct timespec64 ts;
+
+	ktime_get_real_ts64(&ts);
+	/*
+	 * 'unsigned long aen_tv_sec' overflows in y2106 on 32-bit
+	 * architectures, or in 2038 if user space interprets it
+	 * as 'signed'.
+	 */
+	entry->aen_tv_sec = ts.tv_sec;
+	entry->aen_tv_usec = ts.tv_nsec / NSEC_PER_USEC;
+	entry->bfad_num = drv->inst_no;
+	entry->seq_num = cnt;
+	entry->aen_category = cat;
+	entry->aen_type = evt;
+	if (drv->bfad_flags & BFAD_FC4_PROBE_DONE)
+		queue_work(drv->im->drv_workq, &drv->im->aen_im_notify_work);
+}
 
 struct Scsi_Host *bfad_scsi_host_alloc(struct bfad_im_port_s *im_port,
 				struct bfad_s *);
