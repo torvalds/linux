@@ -18,6 +18,24 @@
 
 struct tegra_output;
 
+struct tegra_dc_state {
+	struct drm_crtc_state base;
+
+	struct clk *clk;
+	unsigned long pclk;
+	unsigned int div;
+
+	u32 planes;
+};
+
+static inline struct tegra_dc_state *to_dc_state(struct drm_crtc_state *state)
+{
+	if (state)
+		return container_of(state, struct tegra_dc_state, base);
+
+	return NULL;
+}
+
 struct tegra_dc_stats {
 	unsigned long frames;
 	unsigned long vblank;

@@ -34,24 +34,6 @@ static inline struct tegra_plane *to_tegra_plane(struct drm_plane *plane)
 	return container_of(plane, struct tegra_plane, base);
 }
 
-struct tegra_dc_state {
-	struct drm_crtc_state base;
-
-	struct clk *clk;
-	unsigned long pclk;
-	unsigned int div;
-
-	u32 planes;
-};
-
-static inline struct tegra_dc_state *to_dc_state(struct drm_crtc_state *state)
-{
-	if (state)
-		return container_of(state, struct tegra_dc_state, base);
-
-	return NULL;
-}
-
 struct tegra_plane_state {
 	struct drm_plane_state base;
 
