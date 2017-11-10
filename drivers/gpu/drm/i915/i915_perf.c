@@ -3423,41 +3423,46 @@ void i915_perf_init(struct drm_i915_private *dev_priv)
 		 * worth the complexity to maintain now that BDW+ enable
 		 * execlist mode by default.
 		 */
-		dev_priv->perf.oa.ops.is_valid_b_counter_reg =
-			gen7_is_valid_b_counter_addr;
-		dev_priv->perf.oa.ops.is_valid_mux_reg =
-			gen8_is_valid_mux_addr;
-		dev_priv->perf.oa.ops.is_valid_flex_reg =
-			gen8_is_valid_flex_addr;
+		dev_priv->perf.oa.oa_formats = gen8_plus_oa_formats;
 
 		dev_priv->perf.oa.ops.init_oa_buffer = gen8_init_oa_buffer;
-		dev_priv->perf.oa.ops.enable_metric_set = gen8_enable_metric_set;
-		dev_priv->perf.oa.ops.disable_metric_set = gen8_disable_metric_set;
 		dev_priv->perf.oa.ops.oa_enable = gen8_oa_enable;
 		dev_priv->perf.oa.ops.oa_disable = gen8_oa_disable;
 		dev_priv->perf.oa.ops.read = gen8_oa_read;
 		dev_priv->perf.oa.ops.oa_hw_tail_read = gen8_oa_hw_tail_read;
 
-		dev_priv->perf.oa.oa_formats = gen8_plus_oa_formats;
+		if (IS_GEN8(dev_priv) || IS_GEN9(dev_priv)) {
+			dev_priv->perf.oa.ops.is_valid_b_counter_reg =
+				gen7_is_valid_b_counter_addr;
+			dev_priv->perf.oa.ops.is_valid_mux_reg =
+				gen8_is_valid_mux_addr;
+			dev_priv->perf.oa.ops.is_valid_flex_reg =
+				gen8_is_valid_flex_addr;
 
-		if (IS_GEN8(dev_priv)) {
-			dev_priv->perf.oa.ctx_oactxctrl_offset = 0x120;
-			dev_priv->perf.oa.ctx_flexeu0_offset = 0x2ce;
-
-			dev_priv->perf.oa.timestamp_frequency = 12500000;
-
-			dev_priv->perf.oa.gen8_valid_ctx_bit = (1<<25);
 			if (IS_CHERRYVIEW(dev_priv)) {
 				dev_priv->perf.oa.ops.is_valid_mux_reg =
 					chv_is_valid_mux_addr;
 			}
-		} else if (IS_GEN9(dev_priv)) {
-			dev_priv->perf.oa.ctx_oactxctrl_offset = 0x128;
-			dev_priv->perf.oa.ctx_flexeu0_offset = 0x3de;
 
-			dev_priv->perf.oa.gen8_valid_ctx_bit = (1<<16);
+			dev_priv->perf.oa.ops.enable_metric_set = gen8_enable_metric_set;
+			dev_priv->perf.oa.ops.disable_metric_set = gen8_disable_metric_set;
+
+			if (IS_GEN8(dev_priv)) {
+				dev_priv->perf.oa.ctx_oactxctrl_offset = 0x120;
+				dev_priv->perf.oa.ctx_flexeu0_offset = 0x2ce;
+
+				dev_priv->perf.oa.gen8_valid_ctx_bit = (1<<25);
+			} else {
+				dev_priv->perf.oa.ctx_oactxctrl_offset = 0x128;
+				dev_priv->perf.oa.ctx_flexeu0_offset = 0x3de;
+
+				dev_priv->perf.oa.gen8_valid_ctx_bit = (1<<16);
+			}
 
 			switch (dev_priv->info.platform) {
+			case INTEL_BROADWELL:
+				dev_priv->perf.oa.timestamp_frequency = 12500000;
+				break;
 			case INTEL_BROXTON:
 			case INTEL_GEMINILAKE:
 				dev_priv->perf.oa.timestamp_frequency = 19200000;
@@ -3468,9 +3473,6 @@ void i915_perf_init(struct drm_i915_private *dev_priv)
 				dev_priv->perf.oa.timestamp_frequency = 12000000;
 				break;
 			default:
-				/* Leave timestamp_frequency to 0 so we can
-				 * detect unsupported platforms.
-				 */
 				break;
 			}
 		}
