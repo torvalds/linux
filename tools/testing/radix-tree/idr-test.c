@@ -380,7 +380,7 @@ void ida_check_random(void)
 			do {
 				ida_pre_get(&ida, GFP_KERNEL);
 				err = ida_get_new_above(&ida, bit, &id);
-			} while (err == -ENOMEM);
+			} while (err == -EAGAIN);
 			assert(!err);
 			assert(id == bit);
 		}
@@ -489,7 +489,7 @@ static void *ida_random_fn(void *arg)
 
 void ida_thread_tests(void)
 {
-	pthread_t threads[10];
+	pthread_t threads[20];
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(threads); i++)
