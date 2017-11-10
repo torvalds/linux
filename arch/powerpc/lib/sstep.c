@@ -1699,11 +1699,13 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
  * Logical instructions
  */
 		case 26:	/* cntlzw */
-			op->val = __builtin_clz((unsigned int) regs->gpr[rd]);
+			val = (unsigned int) regs->gpr[rd];
+			op->val = ( val ? __builtin_clz(val) : 32 );
 			goto logical_done;
 #ifdef __powerpc64__
 		case 58:	/* cntlzd */
-			op->val = __builtin_clzl(regs->gpr[rd]);
+			val = regs->gpr[rd];
+			op->val = ( val ? __builtin_clzl(val) : 64 );
 			goto logical_done;
 #endif
 		case 28:	/* and */
