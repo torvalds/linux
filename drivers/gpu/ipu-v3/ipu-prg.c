@@ -287,7 +287,7 @@ int ipu_prg_channel_configure(struct ipuv3_channel *ipu_chan,
 		return ret;
 
 	ipu_pre_configure(prg->pres[chan->used_pre],
-			  width, height, stride, format, *eba);
+			  width, height, stride, format, 0, *eba);
 
 
 	pm_runtime_get_sync(prg->dev);
