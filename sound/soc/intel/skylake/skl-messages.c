@@ -702,18 +702,11 @@ static void skl_set_updown_mixer_format(struct skl_sst *ctx,
 	struct skl_module *module = mconfig->module;
 	struct skl_module_iface *iface = &module->formats[mconfig->fmt_idx];
 	struct skl_module_fmt *fmt = &iface->outputs[0].fmt;
-	int i = 0;
 
 	skl_set_base_module_format(ctx,	mconfig,
 		(struct skl_base_cfg *)mixer_mconfig);
 	mixer_mconfig->out_ch_cfg = fmt->ch_cfg;
-
-	/* Select F/W default coefficient */
-	mixer_mconfig->coeff_sel = 0x0;
-
-	/* User coeff, don't care since we are selecting F/W defaults */
-	for (i = 0; i < UP_DOWN_MIXER_MAX_COEFF; i++)
-		mixer_mconfig->coeff[i] = 0xDEADBEEF;
+	mixer_mconfig->ch_map = fmt->ch_map;
 }
 
 /*

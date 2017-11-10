@@ -20,6 +20,8 @@
 #include <linux/pci.h>
 #include "skl.h"
 
+#define NHLT_ACPI_HEADER_SIG	"NHLT"
+
 /* Unique identification for getting NHLT blobs */
 static guid_t osc_guid =
 	GUID_INIT(0xA69F886E, 0x6CEB, 0x4594,
@@ -45,6 +47,13 @@ struct nhlt_acpi_table *skl_nhlt_init(struct device *dev)
 				memremap(nhlt_ptr->min_addr, nhlt_ptr->length,
 				MEMREMAP_WB);
 		ACPI_FREE(obj);
+		if (nhlt_table && (strncmp(nhlt_table->header.signature,
+					NHLT_ACPI_HEADER_SIG,
+					strlen(NHLT_ACPI_HEADER_SIG)) != 0)) {
+			memunmap(nhlt_table);
+			dev_err(dev, "NHLT ACPI header signature incorrect\n");
+			return NULL;
+		}
 		return nhlt_table;
 	}
 
