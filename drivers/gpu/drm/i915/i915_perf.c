@@ -3023,7 +3023,8 @@ static bool hsw_is_valid_mux_addr(struct drm_i915_private *dev_priv, u32 addr)
 {
 	return gen7_is_valid_mux_addr(dev_priv, addr) ||
 		(addr >= 0x25100 && addr <= 0x2FF90) ||
-		addr == 0x9ec0;
+		(addr >= HSW_MBVID2_NOA0.reg && addr <= HSW_MBVID2_NOA9.reg) ||
+		addr == HSW_MBVID2_MISR0.reg;
 }
 
 static bool chv_is_valid_mux_addr(struct drm_i915_private *dev_priv, u32 addr)
