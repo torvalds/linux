@@ -1064,40 +1064,11 @@ static int get_coalesce(struct net_device *dev, struct ethtool_coalesce *c)
 	return 0;
 }
 
-/**
- *	eeprom_ptov - translate a physical EEPROM address to virtual
- *	@phys_addr: the physical EEPROM address
- *	@fn: the PCI function number
- *	@sz: size of function-specific area
- *
- *	Translate a physical EEPROM address to virtual.  The first 1K is
- *	accessed through virtual addresses starting at 31K, the rest is
- *	accessed through virtual addresses starting at 0.
- *
- *	The mapping is as follows:
- *	[0..1K) -> [31K..32K)
- *	[1K..1K+A) -> [31K-A..31K)
- *	[1K+A..ES) -> [0..ES-A-1K)
- *
- *	where A = @fn * @sz, and ES = EEPROM size.
- */
-static int eeprom_ptov(unsigned int phys_addr, unsigned int fn, unsigned int sz)
-{
-	fn *= sz;
-	if (phys_addr < 1024)
-		return phys_addr + (31 << 10);
-	if (phys_addr < 1024 + fn)
-		return 31744 - fn + phys_addr - 1024;
-	if (phys_addr < EEPROMSIZE)
-		return phys_addr - 1024 - fn;
-	return -EINVAL;
-}
-
 /* The next two routines implement eeprom read/write from physical addresses.
  */
 static int eeprom_rd_phys(struct adapter *adap, unsigned int phys_addr, u32 *v)
 {
-	int vaddr = eeprom_ptov(phys_addr, adap->pf, EEPROMPFSIZE);
+	int vaddr = t4_eeprom_ptov(phys_addr, adap->pf, EEPROMPFSIZE);
 
 	if (vaddr >= 0)
 		vaddr = pci_read_vpd(adap->pdev, vaddr, sizeof(u32), v);
@@ -1106,7 +1077,7 @@ static int eeprom_rd_phys(struct adapter *adap, unsigned int phys_addr, u32 *v)
 
 static int eeprom_wr_phys(struct adapter *adap, unsigned int phys_addr, u32 v)
 {
-	int vaddr = eeprom_ptov(phys_addr, adap->pf, EEPROMPFSIZE);
+	int vaddr = t4_eeprom_ptov(phys_addr, adap->pf, EEPROMPFSIZE);
 
 	if (vaddr >= 0)
 		vaddr = pci_write_vpd(adap->pdev, vaddr, sizeof(u32), &v);

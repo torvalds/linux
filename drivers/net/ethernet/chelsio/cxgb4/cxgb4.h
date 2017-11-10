@@ -1459,6 +1459,7 @@ static inline int t4_memory_write(struct adapter *adap, int mtype, u32 addr,
 unsigned int t4_get_regs_len(struct adapter *adapter);
 void t4_get_regs(struct adapter *adap, void *buf, size_t buf_size);
 
+int t4_eeprom_ptov(unsigned int phys_addr, unsigned int fn, unsigned int sz);
 int t4_seeprom_wp(struct adapter *adapter, bool enable);
 int t4_get_raw_vpd_params(struct adapter *adapter, struct vpd_params *p);
 int t4_get_vpd_params(struct adapter *adapter, struct vpd_params *p);
