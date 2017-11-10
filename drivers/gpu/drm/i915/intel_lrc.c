@@ -1077,12 +1077,34 @@ static void execlists_schedule(struct drm_i915_gem_request *request, int prio)
 	spin_unlock_irq(&engine->timeline->lock);
 }
 
+static int __context_pin(struct i915_gem_context *ctx, struct i915_vma *vma)
+{
+	unsigned int flags;
+	int err;
+
+	/*
+	 * Clear this page out of any CPU caches for coherent swap-in/out.
+	 * We only want to do this on the first bind so that we do not stall
+	 * on an active context (which by nature is already on the GPU).
+	 */
+	if (!(vma->flags & I915_VMA_GLOBAL_BIND)) {
+		err = i915_gem_object_set_to_gtt_domain(vma->obj, true);
+		if (err)
+			return err;
+	}
+
+	flags = PIN_GLOBAL | PIN_HIGH;
+	if (ctx->ggtt_offset_bias)
+		flags |= PIN_OFFSET_BIAS | ctx->ggtt_offset_bias;
+
+	return i915_vma_pin(vma, 0, GEN8_LR_CONTEXT_ALIGN, flags);
+}
+
 static struct intel_ring *
 execlists_context_pin(struct intel_engine_cs *engine,
 		      struct i915_gem_context *ctx)
 {
 	struct intel_context *ce = &ctx->engine[engine->id];
-	unsigned int flags;
 	void *vaddr;
 	int ret;
 
@@ -1099,11 +1121,7 @@ execlists_context_pin(struct intel_engine_cs *engine,
 	}
 	GEM_BUG_ON(!ce->state);
 
-	flags = PIN_GLOBAL | PIN_HIGH;
-	if (ctx->ggtt_offset_bias)
-		flags |= PIN_OFFSET_BIAS | ctx->ggtt_offset_bias;
-
-	ret = i915_vma_pin(ce->state, 0, GEN8_LR_CONTEXT_ALIGN, flags);
+	ret = __context_pin(ctx, ce->state);
 	if (ret)
 		goto err;
 
@@ -1123,9 +1141,7 @@ execlists_context_pin(struct intel_engine_cs *engine,
 	ce->lrc_reg_state[CTX_RING_BUFFER_START+1] =
 		i915_ggtt_offset(ce->ring->vma);
 
-	ce->state->obj->mm.dirty = true;
 	ce->state->obj->pin_global++;
-
 	i915_gem_context_get(ctx);
 out:
 	return ce->ring;

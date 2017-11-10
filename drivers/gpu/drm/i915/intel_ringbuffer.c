@@ -1363,12 +1363,13 @@ static int context_pin(struct i915_gem_context *ctx)
 	struct i915_vma *vma = ctx->engine[RCS].state;
 	int ret;
 
-	/* Clear this page out of any CPU caches for coherent swap-in/out.
+	/*
+	 * Clear this page out of any CPU caches for coherent swap-in/out.
 	 * We only want to do this on the first bind so that we do not stall
 	 * on an active context (which by nature is already on the GPU).
 	 */
 	if (!(vma->flags & I915_VMA_GLOBAL_BIND)) {
-		ret = i915_gem_object_set_to_gtt_domain(vma->obj, false);
+		ret = i915_gem_object_set_to_gtt_domain(vma->obj, true);
 		if (ret)
 			return ret;
 	}
@@ -1445,7 +1446,6 @@ intel_ring_context_pin(struct intel_engine_cs *engine,
 		if (ret)
 			goto err;
 
-		ce->state->obj->mm.dirty = true;
 		ce->state->obj->pin_global++;
 	}
 
