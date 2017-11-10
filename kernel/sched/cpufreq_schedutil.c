@@ -649,6 +649,7 @@ static int sugov_start(struct cpufreq_policy *policy)
 		struct sugov_cpu *sg_cpu = &per_cpu(sugov_cpu, cpu);
 
 		memset(sg_cpu, 0, sizeof(*sg_cpu));
+		sg_cpu->cpu = cpu;
 		sg_cpu->sg_policy = sg_policy;
 		sg_cpu->flags = SCHED_CPUFREQ_RT;
 		sg_cpu->iowait_boost_max = policy->cpuinfo.max_freq;
@@ -714,11 +715,6 @@ struct cpufreq_governor *cpufreq_default_governor(void)
 
 static int __init sugov_register(void)
 {
-	int cpu;
-
-	for_each_possible_cpu(cpu)
-		per_cpu(sugov_cpu, cpu).cpu = cpu;
-
 	return cpufreq_register_governor(&schedutil_gov);
 }
 fs_initcall(sugov_register);
