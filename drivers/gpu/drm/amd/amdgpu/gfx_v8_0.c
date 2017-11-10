@@ -125,18 +125,6 @@ MODULE_FIRMWARE("amdgpu/fiji_mec.bin");
 MODULE_FIRMWARE("amdgpu/fiji_mec2.bin");
 MODULE_FIRMWARE("amdgpu/fiji_rlc.bin");
 
-MODULE_FIRMWARE("amdgpu/polaris11_ce.bin");
-MODULE_FIRMWARE("amdgpu/polaris11_ce_2.bin");
-MODULE_FIRMWARE("amdgpu/polaris11_pfp.bin");
-MODULE_FIRMWARE("amdgpu/polaris11_pfp_2.bin");
-MODULE_FIRMWARE("amdgpu/polaris11_me.bin");
-MODULE_FIRMWARE("amdgpu/polaris11_me_2.bin");
-MODULE_FIRMWARE("amdgpu/polaris11_mec.bin");
-MODULE_FIRMWARE("amdgpu/polaris11_mec_2.bin");
-MODULE_FIRMWARE("amdgpu/polaris11_mec2.bin");
-MODULE_FIRMWARE("amdgpu/polaris11_mec2_2.bin");
-MODULE_FIRMWARE("amdgpu/polaris11_rlc.bin");
-
 MODULE_FIRMWARE("amdgpu/polaris10_ce.bin");
 MODULE_FIRMWARE("amdgpu/polaris10_ce_2.bin");
 MODULE_FIRMWARE("amdgpu/polaris10_pfp.bin");
@@ -149,6 +137,18 @@ MODULE_FIRMWARE("amdgpu/polaris10_mec2.bin");
 MODULE_FIRMWARE("amdgpu/polaris10_mec2_2.bin");
 MODULE_FIRMWARE("amdgpu/polaris10_rlc.bin");
 
+MODULE_FIRMWARE("amdgpu/polaris11_ce.bin");
+MODULE_FIRMWARE("amdgpu/polaris11_ce_2.bin");
+MODULE_FIRMWARE("amdgpu/polaris11_pfp.bin");
+MODULE_FIRMWARE("amdgpu/polaris11_pfp_2.bin");
+MODULE_FIRMWARE("amdgpu/polaris11_me.bin");
+MODULE_FIRMWARE("amdgpu/polaris11_me_2.bin");
+MODULE_FIRMWARE("amdgpu/polaris11_mec.bin");
+MODULE_FIRMWARE("amdgpu/polaris11_mec_2.bin");
+MODULE_FIRMWARE("amdgpu/polaris11_mec2.bin");
+MODULE_FIRMWARE("amdgpu/polaris11_mec2_2.bin");
+MODULE_FIRMWARE("amdgpu/polaris11_rlc.bin");
+
 MODULE_FIRMWARE("amdgpu/polaris12_ce.bin");
 MODULE_FIRMWARE("amdgpu/polaris12_ce_2.bin");
 MODULE_FIRMWARE("amdgpu/polaris12_pfp.bin");
@@ -160,6 +160,13 @@ MODULE_FIRMWARE("amdgpu/polaris12_mec_2.bin");
 MODULE_FIRMWARE("amdgpu/polaris12_mec2.bin");
 MODULE_FIRMWARE("amdgpu/polaris12_mec2_2.bin");
 MODULE_FIRMWARE("amdgpu/polaris12_rlc.bin");
+
+MODULE_FIRMWARE("amdgpu/vegam_ce.bin");
+MODULE_FIRMWARE("amdgpu/vegam_pfp.bin");
+MODULE_FIRMWARE("amdgpu/vegam_me.bin");
+MODULE_FIRMWARE("amdgpu/vegam_mec.bin");
+MODULE_FIRMWARE("amdgpu/vegam_mec2.bin");
+MODULE_FIRMWARE("amdgpu/vegam_rlc.bin");
 
 static const struct amdgpu_gds_reg_offset amdgpu_gds_reg_offset[] =
 {
@@ -918,17 +925,20 @@ static int gfx_v8_0_init_microcode(struct amdgpu_device *adev)
 	case CHIP_FIJI:
 		chip_name = "fiji";
 		break;
-	case CHIP_POLARIS11:
-		chip_name = "polaris11";
+	case CHIP_STONEY:
+		chip_name = "stoney";
 		break;
 	case CHIP_POLARIS10:
 		chip_name = "polaris10";
 		break;
+	case CHIP_POLARIS11:
+		chip_name = "polaris11";
+		break;
 	case CHIP_POLARIS12:
 		chip_name = "polaris12";
 		break;
-	case CHIP_STONEY:
-		chip_name = "stoney";
+	case CHIP_VEGAM:
+		chip_name = "vegam";
 		break;
 	default:
 		BUG();
