@@ -475,8 +475,26 @@ drm_gem_cma_prime_import_sg_table(struct drm_device *dev,
 {
 	struct drm_gem_cma_object *cma_obj;
 
-	if (sgt->nents != 1)
-		return ERR_PTR(-EINVAL);
+	if (sgt->nents != 1) {
+		/* check if the entries in the sg_table are contiguous */
+		dma_addr_t next_addr = sg_dma_address(sgt->sgl);
+		struct scatterlist *s;
+		unsigned int i;
+
+		for_each_sg(sgt->sgl, s, sgt->nents, i) {
+			/*
+			 * sg_dma_address(s) is only valid for entries
+			 * that have sg_dma_len(s) != 0
+			 */
+			if (!sg_dma_len(s))
+				continue;
+
+			if (sg_dma_address(s) != next_addr)
+				return ERR_PTR(-EINVAL);
+
+			next_addr = sg_dma_address(s) + sg_dma_len(s);
+		}
+	}
 
 	/* Create a CMA GEM buffer. */
 	cma_obj = __drm_gem_cma_create(dev, attach->dmabuf->size);

@@ -8,7 +8,9 @@
  * struct drm_gem_cma_object - GEM object backed by CMA memory allocations
  * @base: base GEM object
  * @paddr: physical address of the backing memory
- * @sgt: scatter/gather table for imported PRIME buffers
+ * @sgt: scatter/gather table for imported PRIME buffers. The table can have
+ *       more than one entry but they are guaranteed to have contiguous
+ *       DMA addresses.
  * @vaddr: kernel virtual address of the backing memory
  */
 struct drm_gem_cma_object {
