@@ -2725,15 +2725,12 @@ static int modify_qp_rtr_to_rts(struct ib_qp *ibqp,
 	roce_set_field(qpc_mask->byte_212_lsn, V2_QPC_BYTE_212_LSN_M,
 		       V2_QPC_BYTE_212_LSN_S, 0);
 
-	if (attr->timeout < 0xf)
-		roce_set_field(context->byte_28_at_fl, V2_QPC_BYTE_28_AT_M,
-			       V2_QPC_BYTE_28_AT_S, 0xf);
-	else
+	if (attr_mask & IB_QP_TIMEOUT) {
 		roce_set_field(context->byte_28_at_fl, V2_QPC_BYTE_28_AT_M,
 			       V2_QPC_BYTE_28_AT_S, attr->timeout);
-
-	roce_set_field(qpc_mask->byte_28_at_fl, V2_QPC_BYTE_28_AT_M,
-		       V2_QPC_BYTE_28_AT_S, 0);
+		roce_set_field(qpc_mask->byte_28_at_fl, V2_QPC_BYTE_28_AT_M,
+			      V2_QPC_BYTE_28_AT_S, 0);
+	}
 
 	roce_set_field(context->byte_28_at_fl, V2_QPC_BYTE_28_SL_M,
 		       V2_QPC_BYTE_28_SL_S,
