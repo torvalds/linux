@@ -546,6 +546,7 @@ struct mlx5_core_sriov {
 };
 
 struct mlx5_irq_info {
+	cpumask_var_t mask;
 	char name[MLX5_MAX_IRQ_NAME];
 };
 
