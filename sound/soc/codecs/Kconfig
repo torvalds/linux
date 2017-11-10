@@ -749,6 +749,10 @@ config SND_SOC_RT5514
 config SND_SOC_RT5514_SPI
 	tristate
 
+config SND_SOC_RT5514_SPI_BUILTIN
+	bool # force RT5514_SPI to be built-in to avoid link errors
+	default SND_SOC_RT5514=y && SND_SOC_RT5514_SPI=m
+
 config SND_SOC_RT5616
 	tristate "Realtek RT5616 CODEC"
 	depends on I2C
