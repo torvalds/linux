@@ -151,6 +151,10 @@
 	       <&ipmmu_mp1 30>, <&ipmmu_mp1 31>;
 };
 
+&fcpvb1 {
+	iommus = <&ipmmu_vp0 7>;
+};
+
 &fcpf1 {
 	iommus = <&ipmmu_vp0 1>;
 };
