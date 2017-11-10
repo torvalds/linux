@@ -56,6 +56,7 @@
 		clocks = <&cpg CPG_MOD 613>;
 		power-domains = <&sysc R8A7795_PD_A3VP>;
 		resets = <&cpg 613>;
+		iommus = <&ipmmu_vp0 2>;
 	};
 
 	vspi2: vsp@fe9c0000 {
