@@ -206,9 +206,8 @@ static void ovl_destroy_inode(struct inode *inode)
 	call_rcu(&inode->i_rcu, ovl_i_callback);
 }
 
-static void ovl_put_super(struct super_block *sb)
+static void ovl_free_fs(struct ovl_fs *ufs)
 {
-	struct ovl_fs *ufs = sb->s_fs_info;
 	unsigned i;
 
 	dput(ufs->indexdir);
@@ -216,7 +215,7 @@ static void ovl_put_super(struct super_block *sb)
 	if (ufs->workdir_locked)
 		ovl_inuse_unlock(ufs->workbasedir);
 	dput(ufs->workbasedir);
-	if (ufs->upper_mnt && ufs->upperdir_locked)
+	if (ufs->upperdir_locked)
 		ovl_inuse_unlock(ufs->upper_mnt->mnt_root);
 	mntput(ufs->upper_mnt);
 	for (i = 0; i < ufs->numlower; i++) {
@@ -228,8 +227,16 @@ static void ovl_put_super(struct super_block *sb)
 	kfree(ufs->config.lowerdir);
 	kfree(ufs->config.upperdir);
 	kfree(ufs->config.workdir);
-	put_cred(ufs->creator_cred);
+	if (ufs->creator_cred)
+		put_cred(ufs->creator_cred);
 	kfree(ufs);
+}
+
+static void ovl_put_super(struct super_block *sb)
+{
+	struct ovl_fs *ofs = sb->s_fs_info;
+
+	ovl_free_fs(ofs);
 }
 
 static int ovl_sync_fs(struct super_block *sb, int wait)
@@ -1131,7 +1138,7 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 	struct path upperpath = { };
 	struct path workpath = { };
 	struct dentry *root_dentry;
-	struct ovl_entry *oe;
+	struct ovl_entry *oe = NULL;
 	struct ovl_fs *ufs;
 	struct path *stack = NULL;
 	unsigned int numlower = 0;
@@ -1148,13 +1155,13 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 	ufs->config.index = ovl_index_def;
 	err = ovl_parse_opt((char *) data, &ufs->config);
 	if (err)
-		goto out_free_config;
+		goto out_err;
 
 	err = -EINVAL;
 	if (!ufs->config.lowerdir) {
 		if (!silent)
 			pr_err("overlayfs: missing 'lowerdir'\n");
-		goto out_free_config;
+		goto out_err;
 	}
 
 	sb->s_stack_depth = 0;
@@ -1162,38 +1169,38 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 	if (ufs->config.upperdir) {
 		if (!ufs->config.workdir) {
 			pr_err("overlayfs: missing 'workdir'\n");
-			goto out_free_config;
+			goto out_err;
 		}
 
 		err = ovl_get_upperpath(ufs, &upperpath);
 		if (err)
-			goto out_unlock_upperdentry;
+			goto out_err;
 
 		err = ovl_get_workpath(ufs, &upperpath, &workpath);
 		if (err)
-			goto out_unlock_workdentry;
+			goto out_err;
 
 		sb->s_stack_depth = upperpath.mnt->mnt_sb->s_stack_depth;
 	}
 	err = ovl_get_lowerstack(sb, ufs, &stack, &numlower);
 	if (err)
-		goto out_unlock_workdentry;
+		goto out_err;
 
 	if (ufs->config.upperdir) {
 		err = ovl_get_upper(ufs, &upperpath);
 		if (err)
-			goto out_put_lowerpath;
+			goto out_err;
 
 		sb->s_time_gran = ufs->upper_mnt->mnt_sb->s_time_gran;
 
 		err = ovl_get_workdir(sb, ufs, &workpath);
 		if (err)
-			goto out_put_workdir;
+			goto out_err;
 	}
 
 	err = ovl_get_lower_layers(ufs, stack, numlower);
 	if (err)
-		goto out_put_lower_layers;
+		goto out_err;
 
 	/* If the upper fs is nonexistent, we mark overlayfs r/o too */
 	if (!ufs->upper_mnt)
@@ -1204,7 +1211,7 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 	err = -ENOMEM;
 	oe = ovl_alloc_entry(numlower);
 	if (!oe)
-		goto out_put_lower_layers;
+		goto out_err;
 
 	for (i = 0; i < numlower; i++) {
 		oe->lowerstack[i].dentry = stack[i].dentry;
@@ -1214,7 +1221,7 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 	if (!(ovl_force_readonly(ufs)) && ufs->config.index) {
 		err = ovl_get_indexdir(sb, ufs, oe, &upperpath);
 		if (err)
-			goto out_put_indexdir;
+			goto out_err;
 	}
 
 	/* Show index=off/on in /proc/mounts for any of the reasons above */
@@ -1224,7 +1231,7 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 	err = -ENOMEM;
 	ufs->creator_cred = cred = prepare_creds();
 	if (!cred)
-		goto out_put_indexdir;
+		goto out_err;
 
 	/* Never override disk quota limits or use reserved space */
 	cap_lower(cred->cap_effective, CAP_SYS_RESOURCE);
@@ -1237,7 +1244,7 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 
 	root_dentry = d_make_root(ovl_new_inode(sb, S_IFDIR, 0));
 	if (!root_dentry)
-		goto out_put_cred;
+		goto out_err;
 
 	mntput(upperpath.mnt);
 	for (i = 0; i < numlower; i++)
@@ -1262,39 +1269,14 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 
 	return 0;
 
-out_put_cred:
-	put_cred(ufs->creator_cred);
-out_put_indexdir:
-	dput(ufs->indexdir);
+out_err:
 	kfree(oe);
-out_put_lower_layers:
-	for (i = 0; i < ufs->numlower; i++) {
-		if (ufs->lower_layers[i].mnt)
-			free_anon_bdev(ufs->lower_layers[i].pseudo_dev);
-		mntput(ufs->lower_layers[i].mnt);
-	}
-	kfree(ufs->lower_layers);
-out_put_workdir:
-	dput(ufs->workdir);
-	mntput(ufs->upper_mnt);
-out_put_lowerpath:
 	for (i = 0; i < numlower; i++)
 		path_put(&stack[i]);
 	kfree(stack);
-out_unlock_workdentry:
-	if (ufs->workdir_locked)
-		ovl_inuse_unlock(ufs->workbasedir);
-	dput(ufs->workbasedir);
 	path_put(&workpath);
-out_unlock_upperdentry:
-	if (ufs->upperdir_locked)
-		ovl_inuse_unlock(upperpath.dentry);
 	path_put(&upperpath);
-out_free_config:
-	kfree(ufs->config.lowerdir);
-	kfree(ufs->config.upperdir);
-	kfree(ufs->config.workdir);
-	kfree(ufs);
+	ovl_free_fs(ufs);
 out:
 	return err;
 }
