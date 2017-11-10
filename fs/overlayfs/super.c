@@ -864,58 +864,6 @@ out:
 	return err;
 }
 
-static int ovl_get_workpath(struct ovl_fs *ufs, struct path *upperpath,
-			    struct path *workpath)
-{
-	int err;
-
-	err = ovl_mount_dir(ufs->config.workdir, workpath);
-	if (err)
-		goto out;
-
-	err = -EINVAL;
-	if (upperpath->mnt != workpath->mnt) {
-		pr_err("overlayfs: workdir and upperdir must reside under the same mount\n");
-		goto out;
-	}
-	if (!ovl_workdir_ok(workpath->dentry, upperpath->dentry)) {
-		pr_err("overlayfs: workdir and upperdir must be separate subtrees\n");
-		goto out;
-	}
-
-	err = -EBUSY;
-	if (ovl_inuse_trylock(workpath->dentry)) {
-		ufs->workdir_locked = true;
-	} else if (ufs->config.index) {
-		pr_err("overlayfs: workdir is in-use by another mount, mount with '-o index=off' to override exclusive workdir protection.\n");
-		goto out;
-	} else {
-		pr_warn("overlayfs: workdir is in-use by another mount, accessing files from both mounts will result in undefined behavior.\n");
-	}
-
-	ufs->workbasedir = dget(workpath->dentry);
-	err = 0;
-out:
-	return err;
-}
-
-static int ovl_get_upper(struct ovl_fs *ufs, struct path *upperpath)
-{
-	struct vfsmount *upper_mnt;
-
-	upper_mnt = clone_private_mount(upperpath);
-	if (IS_ERR(upper_mnt)) {
-		pr_err("overlayfs: failed to clone upperpath\n");
-		return PTR_ERR(upper_mnt);
-	}
-
-	/* Don't inherit atime flags */
-	upper_mnt->mnt_flags &= ~(MNT_NOATIME | MNT_NODIRATIME | MNT_RELATIME);
-	ufs->upper_mnt = upper_mnt;
-
-	return 0;
-}
-
 static int ovl_get_workdir(struct ovl_fs *ufs, struct path *workpath)
 {
 	struct dentry *temp;
@@ -971,6 +919,58 @@ static int ovl_get_workdir(struct ovl_fs *ufs, struct path *workpath)
 	return 0;
 }
 
+static int ovl_get_workpath(struct ovl_fs *ufs, struct path *upperpath,
+			    struct path *workpath)
+{
+	int err;
+
+	err = ovl_mount_dir(ufs->config.workdir, workpath);
+	if (err)
+		goto out;
+
+	err = -EINVAL;
+	if (upperpath->mnt != workpath->mnt) {
+		pr_err("overlayfs: workdir and upperdir must reside under the same mount\n");
+		goto out;
+	}
+	if (!ovl_workdir_ok(workpath->dentry, upperpath->dentry)) {
+		pr_err("overlayfs: workdir and upperdir must be separate subtrees\n");
+		goto out;
+	}
+
+	err = -EBUSY;
+	if (ovl_inuse_trylock(workpath->dentry)) {
+		ufs->workdir_locked = true;
+	} else if (ufs->config.index) {
+		pr_err("overlayfs: workdir is in-use by another mount, mount with '-o index=off' to override exclusive workdir protection.\n");
+		goto out;
+	} else {
+		pr_warn("overlayfs: workdir is in-use by another mount, accessing files from both mounts will result in undefined behavior.\n");
+	}
+
+	ufs->workbasedir = dget(workpath->dentry);
+	err = 0;
+out:
+	return err;
+}
+
+static int ovl_get_upper(struct ovl_fs *ufs, struct path *upperpath)
+{
+	struct vfsmount *upper_mnt;
+
+	upper_mnt = clone_private_mount(upperpath);
+	if (IS_ERR(upper_mnt)) {
+		pr_err("overlayfs: failed to clone upperpath\n");
+		return PTR_ERR(upper_mnt);
+	}
+
+	/* Don't inherit atime flags */
+	upper_mnt->mnt_flags &= ~(MNT_NOATIME | MNT_NODIRATIME | MNT_RELATIME);
+	ufs->upper_mnt = upper_mnt;
+
+	return 0;
+}
+
 static int ovl_get_indexdir(struct ovl_fs *ufs, struct ovl_entry *oe,
 			    struct path *upperpath)
 {
@@ -1004,6 +1004,55 @@ static int ovl_get_indexdir(struct ovl_fs *ufs, struct ovl_entry *oe,
 	if (err || !ufs->indexdir)
 		pr_warn("overlayfs: try deleting index dir or mounting with '-o index=off' to disable inodes index.\n");
 
+out:
+	return err;
+}
+
+static int ovl_get_lower_layers(struct ovl_fs *ufs, struct path *stack,
+				unsigned int numlower)
+{
+	int err;
+	unsigned int i;
+
+	err = -ENOMEM;
+	ufs->lower_layers = kcalloc(numlower, sizeof(struct ovl_layer),
+				    GFP_KERNEL);
+	if (ufs->lower_layers == NULL)
+		goto out;
+	for (i = 0; i < numlower; i++) {
+		struct vfsmount *mnt;
+		dev_t dev;
+
+		err = get_anon_bdev(&dev);
+		if (err) {
+			pr_err("overlayfs: failed to get anonymous bdev for lowerpath\n");
+			goto out;
+		}
+
+		mnt = clone_private_mount(&stack[i]);
+		err = PTR_ERR(mnt);
+		if (IS_ERR(mnt)) {
+			pr_err("overlayfs: failed to clone lowerpath\n");
+			free_anon_bdev(dev);
+			goto out;
+		}
+		/*
+		 * Make lower layers R/O.  That way fchmod/fchown on lower file
+		 * will fail instead of modifying lower fs.
+		 */
+		mnt->mnt_flags |= MNT_READONLY | MNT_NOATIME;
+
+		ufs->lower_layers[ufs->numlower].mnt = mnt;
+		ufs->lower_layers[ufs->numlower].pseudo_dev = dev;
+		ufs->numlower++;
+
+		/* Check if all lower layers are on same sb */
+		if (i == 0)
+			ufs->same_sb = mnt->mnt_sb;
+		else if (ufs->same_sb != mnt->mnt_sb)
+			ufs->same_sb = NULL;
+	}
+	err = 0;
 out:
 	return err;
 }
@@ -1075,55 +1124,6 @@ out_free_stack:
 		path_put(&stack[i]);
 	kfree(stack);
 	goto out;
-}
-
-static int ovl_get_lower_layers(struct ovl_fs *ufs, struct path *stack,
-				unsigned int numlower)
-{
-	int err;
-	unsigned int i;
-
-	err = -ENOMEM;
-	ufs->lower_layers = kcalloc(numlower, sizeof(struct ovl_layer),
-				    GFP_KERNEL);
-	if (ufs->lower_layers == NULL)
-		goto out;
-	for (i = 0; i < numlower; i++) {
-		struct vfsmount *mnt;
-		dev_t dev;
-
-		err = get_anon_bdev(&dev);
-		if (err) {
-			pr_err("overlayfs: failed to get anonymous bdev for lowerpath\n");
-			goto out;
-		}
-
-		mnt = clone_private_mount(&stack[i]);
-		err = PTR_ERR(mnt);
-		if (IS_ERR(mnt)) {
-			pr_err("overlayfs: failed to clone lowerpath\n");
-			free_anon_bdev(dev);
-			goto out;
-		}
-		/*
-		 * Make lower layers R/O.  That way fchmod/fchown on lower file
-		 * will fail instead of modifying lower fs.
-		 */
-		mnt->mnt_flags |= MNT_READONLY | MNT_NOATIME;
-
-		ufs->lower_layers[ufs->numlower].mnt = mnt;
-		ufs->lower_layers[ufs->numlower].pseudo_dev = dev;
-		ufs->numlower++;
-
-		/* Check if all lower layers are on same sb */
-		if (i == 0)
-			ufs->same_sb = mnt->mnt_sb;
-		else if (ufs->same_sb != mnt->mnt_sb)
-			ufs->same_sb = NULL;
-	}
-	err = 0;
-out:
-	return err;
 }
 
 static int ovl_fill_super(struct super_block *sb, void *data, int silent)
