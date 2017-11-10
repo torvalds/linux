@@ -496,11 +496,18 @@ int
 acpi_gpio_update_gpiod_flags(enum gpiod_flags *flags, struct acpi_gpio_info *info)
 {
 	struct device *dev = &info->adev->dev;
+	enum gpiod_flags old = *flags;
 	int ret;
 
-	ret = __acpi_gpio_update_gpiod_flags(flags, info->flags);
-	if (ret)
-		dev_dbg(dev, "Override GPIO initialization flags\n");
+	ret = __acpi_gpio_update_gpiod_flags(&old, info->flags);
+	if (info->quirks & ACPI_GPIO_QUIRK_NO_IO_RESTRICTION) {
+		if (ret)
+			dev_warn(dev, FW_BUG "GPIO not in correct mode, fixing\n");
+	} else {
+		if (ret)
+			dev_dbg(dev, "Override GPIO initialization flags\n");
+		*flags = old;
+	}
 
 	return ret;
 }
