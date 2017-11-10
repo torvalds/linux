@@ -5021,6 +5021,8 @@ int i915_gem_init(struct drm_i915_private *dev_priv)
 	if (ret)
 		goto out_unlock;
 
+	intel_init_gt_powersave(dev_priv);
+
 	ret = i915_gem_init_hw(dev_priv);
 	if (ret == -EIO) {
 		/* Allow engine initialisation to fail by marking the GPU as
