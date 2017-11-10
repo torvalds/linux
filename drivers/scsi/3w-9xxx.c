@@ -645,8 +645,7 @@ static long twa_chrdev_ioctl(struct file *file, unsigned int cmd, unsigned long 
 	TW_Command_Full *full_command_packet;
 	TW_Compatibility_Info *tw_compat_info;
 	TW_Event *event;
-	struct timeval current_time;
-	u32 current_time_ms;
+	ktime_t current_time;
 	TW_Device_Extension *tw_dev = twa_device_extension_list[iminor(inode)];
 	int retval = TW_IOCTL_ERROR_OS_EFAULT;
 	void __user *argp = (void __user *)arg;
@@ -837,17 +836,17 @@ static long twa_chrdev_ioctl(struct file *file, unsigned int cmd, unsigned long 
 		break;
 	case TW_IOCTL_GET_LOCK:
 		tw_lock = (TW_Lock *)tw_ioctl->data_buffer;
-		do_gettimeofday(&current_time);
-		current_time_ms = (current_time.tv_sec * 1000) + (current_time.tv_usec / 1000);
+		current_time = ktime_get();
 
-		if ((tw_lock->force_flag == 1) || (tw_dev->ioctl_sem_lock == 0) || (current_time_ms >= tw_dev->ioctl_msec)) {
+		if ((tw_lock->force_flag == 1) || (tw_dev->ioctl_sem_lock == 0) ||
+		    ktime_after(current_time, tw_dev->ioctl_time)) {
 			tw_dev->ioctl_sem_lock = 1;
-			tw_dev->ioctl_msec = current_time_ms + tw_lock->timeout_msec;
+			tw_dev->ioctl_time = ktime_add_ms(current_time, tw_lock->timeout_msec);
 			tw_ioctl->driver_command.status = 0;
 			tw_lock->time_remaining_msec = tw_lock->timeout_msec;
 		} else {
 			tw_ioctl->driver_command.status = TW_IOCTL_ERROR_STATUS_LOCKED;
-			tw_lock->time_remaining_msec = tw_dev->ioctl_msec - current_time_ms;
+			tw_lock->time_remaining_msec = ktime_ms_delta(tw_dev->ioctl_time, current_time);
 		}
 		break;
 	case TW_IOCTL_RELEASE_LOCK:
