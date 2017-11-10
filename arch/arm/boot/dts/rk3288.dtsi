@@ -1615,6 +1615,41 @@
 		reg = <0x0 0xffac0000 0x0 0x2000>;
 	};
 
+	nocp_core: nocp-core@ffac0400 {
+		compatible = "rockchip,rk3288-nocp";
+		reg = <0x0 0xffac0400 0x0 0x400>;
+	};
+
+	nocp_gpu: nocp-gpu@ffac0800 {
+		compatible = "rockchip,rk3288-nocp";
+		reg = <0x0 0xffac0800 0x0 0x400>;
+	};
+
+	nocp_peri: nocp-peri@ffac0c00 {
+		compatible = "rockchip,rk3288-nocp";
+		reg = <0x0 0xffac0c00 0x0 0x400>;
+	};
+
+	nocp_vpu: nocp-vpu@ffac1000 {
+		compatible = "rockchip,rk3288-nocp";
+		reg = <0x0 0xffac1000 0x0 0x400>;
+	};
+
+	nocp_vio0: nocp-vio0@ffac1400 {
+		compatible = "rockchip,rk3288-nocp";
+		reg = <0x0 0xffac1400 0x0 0x400>;
+	};
+
+	nocp_vio1: nocp-vio1@ffac1800 {
+		compatible = "rockchip,rk3288-nocp";
+		reg = <0x0 0xffac1800 0x0 0x400>;
+	};
+
+	nocp_vio2: nocp-vio2@ffac1c00 {
+		compatible = "rockchip,rk3288-nocp";
+		reg = <0x0 0xffac1c00 0x0 0x400>;
+	};
+
 	efuse: efuse@ffb40000 {
 		compatible = "rockchip,rockchip-efuse";
 		reg = <0x0 0xffb40000 0x0 0x20>;
