@@ -207,6 +207,7 @@
 #include "i915_oa_kblgt3.h"
 #include "i915_oa_glk.h"
 #include "i915_oa_cflgt2.h"
+#include "i915_oa_cflgt3.h"
 
 /* HW requires this to be a power of two, between 128k and 16M, though driver
  * is currently generally designed assuming the largest 16M size is used such
@@ -2934,6 +2935,8 @@ void i915_perf_register(struct drm_i915_private *dev_priv)
 	} else if (IS_COFFEELAKE(dev_priv)) {
 		if (IS_CFL_GT2(dev_priv))
 			i915_perf_load_test_config_cflgt2(dev_priv);
+		if (IS_CFL_GT3(dev_priv))
+			i915_perf_load_test_config_cflgt3(dev_priv);
 	}
 
 	if (dev_priv->perf.oa.test_config.id == 0)
