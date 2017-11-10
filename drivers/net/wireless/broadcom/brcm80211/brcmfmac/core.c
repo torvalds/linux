@@ -988,6 +988,8 @@ static int brcmf_revinfo_read(struct seq_file *s, void *data)
 	seq_printf(s, "anarev: %u\n", ri->anarev);
 	seq_printf(s, "nvramrev: %08x\n", ri->nvramrev);
 
+	seq_printf(s, "clmver: %s\n", bus_if->drvr->clmver);
+
 	return 0;
 }
 
