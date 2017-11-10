@@ -2709,7 +2709,7 @@ static void create_eml_sink(struct amdgpu_dm_connector *aconnector)
 			.link = aconnector->dc_link,
 			.sink_signal = SIGNAL_TYPE_VIRTUAL
 	};
-	struct edid *edid = (struct edid *) aconnector->base.edid_blob_ptr->data;
+	struct edid *edid;
 
 	if (!aconnector->base.edid_blob_ptr ||
 		!aconnector->base.edid_blob_ptr->data) {
@@ -2720,6 +2720,8 @@ static void create_eml_sink(struct amdgpu_dm_connector *aconnector)
 		aconnector->base.override_edid = false;
 		return;
 	}
+
+	edid = (struct edid *) aconnector->base.edid_blob_ptr->data;
 
 	aconnector->edid = edid;
 
@@ -4198,12 +4200,12 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 		update_stream_scaling_settings(&dm_new_con_state->base.crtc->mode,
 				dm_new_con_state, (struct dc_stream_state *)dm_new_crtc_state->stream);
 
+		if (!dm_new_crtc_state->stream)
+			continue;
+
 		status = dc_stream_get_status(dm_new_crtc_state->stream);
 		WARN_ON(!status);
 		WARN_ON(!status->plane_count);
-
-		if (!dm_new_crtc_state->stream)
-			continue;
 
 		/*TODO How it works with MPO ?*/
 		if (!dc_commit_planes_to_stream(
@@ -4337,9 +4339,11 @@ void dm_restore_drm_connector_state(struct drm_device *dev,
 		return;
 
 	disconnected_acrtc = to_amdgpu_crtc(connector->encoder->crtc);
-	acrtc_state = to_dm_crtc_state(disconnected_acrtc->base.state);
+	if (!disconnected_acrtc)
+		return;
 
-	if (!disconnected_acrtc || !acrtc_state->stream)
+	acrtc_state = to_dm_crtc_state(disconnected_acrtc->base.state);
+	if (!acrtc_state->stream)
 		return;
 
 	/*
