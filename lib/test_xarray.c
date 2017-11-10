@@ -67,11 +67,45 @@ static noinline void check_xa_load(struct xarray *xa)
 	XA_BUG_ON(xa, !xa_empty(xa));
 }
 
+static noinline void check_xa_mark_1(struct xarray *xa, unsigned long index)
+{
+	/* NULL elements have no marks set */
+	XA_BUG_ON(xa, xa_get_mark(xa, index, XA_MARK_0));
+	xa_set_mark(xa, index, XA_MARK_0);
+	XA_BUG_ON(xa, xa_get_mark(xa, index, XA_MARK_0));
+
+	/* Storing a pointer will not make a mark appear */
+	XA_BUG_ON(xa, xa_store_index(xa, index, GFP_KERNEL) != NULL);
+	XA_BUG_ON(xa, xa_get_mark(xa, index, XA_MARK_0));
+	xa_set_mark(xa, index, XA_MARK_0);
+	XA_BUG_ON(xa, !xa_get_mark(xa, index, XA_MARK_0));
+
+	/* Setting one mark will not set another mark */
+	XA_BUG_ON(xa, xa_get_mark(xa, index + 1, XA_MARK_0));
+	XA_BUG_ON(xa, xa_get_mark(xa, index, XA_MARK_1));
+
+	/* Storing NULL clears marks, and they can't be set again */
+	xa_erase_index(xa, index);
+	XA_BUG_ON(xa, !xa_empty(xa));
+	XA_BUG_ON(xa, xa_get_mark(xa, index, XA_MARK_0));
+	xa_set_mark(xa, index, XA_MARK_0);
+	XA_BUG_ON(xa, xa_get_mark(xa, index, XA_MARK_0));
+}
+
+static noinline void check_xa_mark(struct xarray *xa)
+{
+	unsigned long index;
+
+	for (index = 0; index < 16384; index += 4)
+		check_xa_mark_1(xa, index);
+}
+
 static RADIX_TREE(array, GFP_KERNEL);
 
 static int xarray_checks(void)
 {
 	check_xa_load(&array);
+	check_xa_mark(&array);
 
 	printk("XArray: %u of %u tests passed\n", tests_passed, tests_run);
 	return (tests_run == tests_passed) ? 0 : -EINVAL;

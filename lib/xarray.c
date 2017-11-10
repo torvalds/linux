@@ -5,6 +5,7 @@
  * Author: Matthew Wilcox <willy@infradead.org>
  */
 
+#include <linux/bitmap.h>
 #include <linux/export.h>
 #include <linux/xarray.h>
 
@@ -23,6 +24,48 @@
  * @parent refers to the @xa_node closer to the head than @node.
  * @entry refers to something stored in a slot in the xarray
  */
+
+static inline void xa_mark_set(struct xarray *xa, xa_mark_t mark)
+{
+	if (!(xa->xa_flags & XA_FLAGS_MARK(mark)))
+		xa->xa_flags |= XA_FLAGS_MARK(mark);
+}
+
+static inline void xa_mark_clear(struct xarray *xa, xa_mark_t mark)
+{
+	if (xa->xa_flags & XA_FLAGS_MARK(mark))
+		xa->xa_flags &= ~(XA_FLAGS_MARK(mark));
+}
+
+static inline unsigned long *node_marks(struct xa_node *node, xa_mark_t mark)
+{
+	return node->marks[(__force unsigned)mark];
+}
+
+static inline bool node_get_mark(struct xa_node *node,
+		unsigned int offset, xa_mark_t mark)
+{
+	return test_bit(offset, node_marks(node, mark));
+}
+
+/* returns true if the bit was set */
+static inline bool node_set_mark(struct xa_node *node, unsigned int offset,
+				xa_mark_t mark)
+{
+	return __test_and_set_bit(offset, node_marks(node, mark));
+}
+
+/* returns true if the bit was set */
+static inline bool node_clear_mark(struct xa_node *node, unsigned int offset,
+				xa_mark_t mark)
+{
+	return __test_and_clear_bit(offset, node_marks(node, mark));
+}
+
+static inline bool node_any_mark(struct xa_node *node, xa_mark_t mark)
+{
+	return !bitmap_empty(node_marks(node, mark), XA_CHUNK_SIZE);
+}
 
 /* extracts the offset within this node from the index */
 static unsigned int get_offset(unsigned long index, struct xa_node *node)
@@ -119,6 +162,85 @@ void *xas_load(struct xa_state *xas)
 EXPORT_SYMBOL_GPL(xas_load);
 
 /**
+ * xas_get_mark() - Returns the state of this mark.
+ * @xas: XArray operation state.
+ * @mark: Mark number.
+ *
+ * Return: true if the mark is set, false if the mark is clear or @xas
+ * is in an error state.
+ */
+bool xas_get_mark(const struct xa_state *xas, xa_mark_t mark)
+{
+	if (xas_invalid(xas))
+		return false;
+	if (!xas->xa_node)
+		return xa_marked(xas->xa, mark);
+	return node_get_mark(xas->xa_node, xas->xa_offset, mark);
+}
+EXPORT_SYMBOL_GPL(xas_get_mark);
+
+/**
+ * xas_set_mark() - Sets the mark on this entry and its parents.
+ * @xas: XArray operation state.
+ * @mark: Mark number.
+ *
+ * Sets the specified mark on this entry, and walks up the tree setting it
+ * on all the ancestor entries.  Does nothing if @xas has not been walked to
+ * an entry, or is in an error state.
+ */
+void xas_set_mark(const struct xa_state *xas, xa_mark_t mark)
+{
+	struct xa_node *node = xas->xa_node;
+	unsigned int offset = xas->xa_offset;
+
+	if (xas_invalid(xas))
+		return;
+
+	while (node) {
+		if (node_set_mark(node, offset, mark))
+			return;
+		offset = node->offset;
+		node = xa_parent_locked(xas->xa, node);
+	}
+
+	if (!xa_marked(xas->xa, mark))
+		xa_mark_set(xas->xa, mark);
+}
+EXPORT_SYMBOL_GPL(xas_set_mark);
+
+/**
+ * xas_clear_mark() - Clears the mark on this entry and its parents.
+ * @xas: XArray operation state.
+ * @mark: Mark number.
+ *
+ * Clears the specified mark on this entry, and walks back to the head
+ * attempting to clear it on all the ancestor entries.  Does nothing if
+ * @xas has not been walked to an entry, or is in an error state.
+ */
+void xas_clear_mark(const struct xa_state *xas, xa_mark_t mark)
+{
+	struct xa_node *node = xas->xa_node;
+	unsigned int offset = xas->xa_offset;
+
+	if (xas_invalid(xas))
+		return;
+
+	while (node) {
+		if (!node_clear_mark(node, offset, mark))
+			return;
+		if (node_any_mark(node, mark))
+			return;
+
+		offset = node->offset;
+		node = xa_parent_locked(xas->xa, node);
+	}
+
+	if (xa_marked(xas->xa, mark))
+		xa_mark_clear(xas->xa, mark);
+}
+EXPORT_SYMBOL_GPL(xas_clear_mark);
+
+/**
  * xa_init_flags() - Initialise an empty XArray with flags.
  * @xa: XArray.
  * @flags: XA_FLAG values.
@@ -159,6 +281,112 @@ void *xa_load(struct xarray *xa, unsigned long index)
 	return entry;
 }
 EXPORT_SYMBOL(xa_load);
+
+/**
+ * __xa_set_mark() - Set this mark on this entry while locked.
+ * @xa: XArray.
+ * @index: Index of entry.
+ * @mark: Mark number.
+ *
+ * Attempting to set a mark on a NULL entry does not succeed.
+ *
+ * Context: Any context.  Expects xa_lock to be held on entry.
+ */
+void __xa_set_mark(struct xarray *xa, unsigned long index, xa_mark_t mark)
+{
+	XA_STATE(xas, xa, index);
+	void *entry = xas_load(&xas);
+
+	if (entry)
+		xas_set_mark(&xas, mark);
+}
+EXPORT_SYMBOL_GPL(__xa_set_mark);
+
+/**
+ * __xa_clear_mark() - Clear this mark on this entry while locked.
+ * @xa: XArray.
+ * @index: Index of entry.
+ * @mark: Mark number.
+ *
+ * Context: Any context.  Expects xa_lock to be held on entry.
+ */
+void __xa_clear_mark(struct xarray *xa, unsigned long index, xa_mark_t mark)
+{
+	XA_STATE(xas, xa, index);
+	void *entry = xas_load(&xas);
+
+	if (entry)
+		xas_clear_mark(&xas, mark);
+}
+EXPORT_SYMBOL_GPL(__xa_clear_mark);
+
+/**
+ * xa_get_mark() - Inquire whether this mark is set on this entry.
+ * @xa: XArray.
+ * @index: Index of entry.
+ * @mark: Mark number.
+ *
+ * This function uses the RCU read lock, so the result may be out of date
+ * by the time it returns.  If you need the result to be stable, use a lock.
+ *
+ * Context: Any context.  Takes and releases the RCU lock.
+ * Return: True if the entry at @index has this mark set, false if it doesn't.
+ */
+bool xa_get_mark(struct xarray *xa, unsigned long index, xa_mark_t mark)
+{
+	XA_STATE(xas, xa, index);
+	void *entry;
+
+	rcu_read_lock();
+	entry = xas_start(&xas);
+	while (xas_get_mark(&xas, mark)) {
+		if (!xa_is_node(entry))
+			goto found;
+		entry = xas_descend(&xas, xa_to_node(entry));
+	}
+	rcu_read_unlock();
+	return false;
+ found:
+	rcu_read_unlock();
+	return true;
+}
+EXPORT_SYMBOL(xa_get_mark);
+
+/**
+ * xa_set_mark() - Set this mark on this entry.
+ * @xa: XArray.
+ * @index: Index of entry.
+ * @mark: Mark number.
+ *
+ * Attempting to set a mark on a NULL entry does not succeed.
+ *
+ * Context: Process context.  Takes and releases the xa_lock.
+ */
+void xa_set_mark(struct xarray *xa, unsigned long index, xa_mark_t mark)
+{
+	xa_lock(xa);
+	__xa_set_mark(xa, index, mark);
+	xa_unlock(xa);
+}
+EXPORT_SYMBOL(xa_set_mark);
+
+/**
+ * xa_clear_mark() - Clear this mark on this entry.
+ * @xa: XArray.
+ * @index: Index of entry.
+ * @mark: Mark number.
+ *
+ * Clearing a mark always succeeds.
+ *
+ * Context: Process context.  Takes and releases the xa_lock.
+ */
+void xa_clear_mark(struct xarray *xa, unsigned long index, xa_mark_t mark)
+{
+	xa_lock(xa);
+	__xa_clear_mark(xa, index, mark);
+	xa_unlock(xa);
+}
+EXPORT_SYMBOL(xa_clear_mark);
 
 #ifdef XA_DEBUG
 void xa_dump_node(const struct xa_node *node)
@@ -230,8 +458,8 @@ void xa_dump(const struct xarray *xa)
 	unsigned int shift = 0;
 
 	pr_info("xarray: %px head %px flags %x marks %d %d %d\n", xa, entry,
-			xa->xa_flags, radix_tree_tagged(xa, 0),
-			radix_tree_tagged(xa, 1), radix_tree_tagged(xa, 2));
+			xa->xa_flags, xa_marked(xa, XA_MARK_0),
+			xa_marked(xa, XA_MARK_1), xa_marked(xa, XA_MARK_2));
 	if (xa_is_node(entry))
 		shift = xa_to_node(entry)->shift + XA_CHUNK_SHIFT;
 	xa_dump_entry(entry, 0, shift);

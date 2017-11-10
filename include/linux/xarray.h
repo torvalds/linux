@@ -11,6 +11,7 @@
 
 #include <linux/bug.h>
 #include <linux/compiler.h>
+#include <linux/gfp.h>
 #include <linux/kconfig.h>
 #include <linux/kernel.h>
 #include <linux/rcupdate.h>
@@ -197,6 +198,20 @@ static inline int xa_err(void *entry)
 	return 0;
 }
 
+typedef unsigned __bitwise xa_mark_t;
+#define XA_MARK_0		((__force xa_mark_t)0U)
+#define XA_MARK_1		((__force xa_mark_t)1U)
+#define XA_MARK_2		((__force xa_mark_t)2U)
+#define XA_PRESENT		((__force xa_mark_t)8U)
+#define XA_MARK_MAX		XA_MARK_2
+
+/*
+ * Values for xa_flags.  The radix tree stores its GFP flags in the xa_flags,
+ * and we remain compatible with that.
+ */
+#define XA_FLAGS_MARK(mark)	((__force gfp_t)((1U << __GFP_BITS_SHIFT) << \
+						(__force unsigned)(mark)))
+
 /**
  * struct xarray - The anchor of the XArray.
  * @xa_lock: Lock that protects the contents of the XArray.
@@ -252,6 +267,9 @@ struct xarray {
 
 void xa_init_flags(struct xarray *, gfp_t flags);
 void *xa_load(struct xarray *, unsigned long index);
+bool xa_get_mark(struct xarray *, unsigned long index, xa_mark_t);
+void xa_set_mark(struct xarray *, unsigned long index, xa_mark_t);
+void xa_clear_mark(struct xarray *, unsigned long index, xa_mark_t);
 
 /**
  * xa_init() - Initialise an empty XArray.
@@ -278,6 +296,19 @@ static inline bool xa_empty(const struct xarray *xa)
 	return xa->xa_head == NULL;
 }
 
+/**
+ * xa_marked() - Inquire whether any entry in this array has a mark set
+ * @xa: Array
+ * @mark: Mark value
+ *
+ * Context: Any context.
+ * Return: %true if any entry has this mark set.
+ */
+static inline bool xa_marked(const struct xarray *xa, xa_mark_t mark)
+{
+	return xa->xa_flags & XA_FLAGS_MARK(mark);
+}
+
 #define xa_trylock(xa)		spin_trylock(&(xa)->xa_lock)
 #define xa_lock(xa)		spin_lock(&(xa)->xa_lock)
 #define xa_unlock(xa)		spin_unlock(&(xa)->xa_lock)
@@ -289,6 +320,12 @@ static inline bool xa_empty(const struct xarray *xa)
 				spin_lock_irqsave(&(xa)->xa_lock, flags)
 #define xa_unlock_irqrestore(xa, flags) \
 				spin_unlock_irqrestore(&(xa)->xa_lock, flags)
+
+/*
+ * Versions of the normal API which require the caller to hold the xa_lock.
+ */
+void __xa_set_mark(struct xarray *, unsigned long index, xa_mark_t);
+void __xa_clear_mark(struct xarray *, unsigned long index, xa_mark_t);
 
 /* Everything below here is the Advanced API.  Proceed with caution. */
 
@@ -385,6 +422,22 @@ static inline void *xa_entry_locked(const struct xarray *xa,
 {
 	XA_NODE_BUG_ON(node, offset >= XA_CHUNK_SIZE);
 	return rcu_dereference_protected(node->slots[offset],
+						lockdep_is_held(&xa->xa_lock));
+}
+
+/* Private */
+static inline struct xa_node *xa_parent(const struct xarray *xa,
+					const struct xa_node *node)
+{
+	return rcu_dereference_check(node->parent,
+						lockdep_is_held(&xa->xa_lock));
+}
+
+/* Private */
+static inline struct xa_node *xa_parent_locked(const struct xarray *xa,
+					const struct xa_node *node)
+{
+	return rcu_dereference_protected(node->parent,
 						lockdep_is_held(&xa->xa_lock));
 }
 
@@ -588,6 +641,12 @@ static inline bool xas_valid(const struct xa_state *xas)
 	return !xas_invalid(xas);
 }
 
+/* True if the pointer is something other than a node */
+static inline bool xas_not_node(struct xa_node *node)
+{
+	return ((unsigned long)node & 3) || !node;
+}
+
 /**
  * xas_reset() - Reset an XArray operation state.
  * @xas: XArray operation state.
@@ -624,6 +683,10 @@ static inline bool xas_retry(struct xa_state *xas, const void *entry)
 }
 
 void *xas_load(struct xa_state *);
+
+bool xas_get_mark(const struct xa_state *, xa_mark_t);
+void xas_set_mark(const struct xa_state *, xa_mark_t);
+void xas_clear_mark(const struct xa_state *, xa_mark_t);
 
 /**
  * xas_reload() - Refetch an entry from the xarray.
