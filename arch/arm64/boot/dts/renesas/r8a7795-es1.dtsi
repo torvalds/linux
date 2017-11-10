@@ -31,7 +31,6 @@
 		reg = <0 0xec680000 0 0x1000>;
 		renesas,ipmmu-main = <&ipmmu_mm 5>;
 		#iommu-cells = <1>;
-		status = "disabled";
 	};
 
 	ipmmu_sy: mmu@e7730000 {
