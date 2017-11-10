@@ -193,13 +193,19 @@ static int fl_init(struct tcf_proto *tp)
 	return 0;
 }
 
+static void __fl_destroy_filter(struct cls_fl_filter *f)
+{
+	tcf_exts_destroy(&f->exts);
+	tcf_exts_put_net(&f->exts);
+	kfree(f);
+}
+
 static void fl_destroy_filter_work(struct work_struct *work)
 {
 	struct cls_fl_filter *f = container_of(work, struct cls_fl_filter, work);
 
 	rtnl_lock();
-	tcf_exts_destroy(&f->exts);
-	kfree(f);
+	__fl_destroy_filter(f);
 	rtnl_unlock();
 }
 
@@ -282,7 +288,10 @@ static void __fl_delete(struct tcf_proto *tp, struct cls_fl_filter *f)
 	if (!tc_skip_hw(f->flags))
 		fl_hw_destroy_filter(tp, f);
 	tcf_unbind_filter(tp, &f->res);
-	call_rcu(&f->rcu, fl_destroy_filter);
+	if (tcf_exts_get_net(&f->exts))
+		call_rcu(&f->rcu, fl_destroy_filter);
+	else
+		__fl_destroy_filter(f);
 }
 
 static void fl_destroy_sleepable(struct work_struct *work)
@@ -952,6 +961,7 @@ static int fl_change(struct net *net, struct sk_buff *in_skb,
 		idr_replace_ext(&head->handle_idr, fnew, fnew->handle);
 		list_replace_rcu(&fold->list, &fnew->list);
 		tcf_unbind_filter(tp, &fold->res);
+		tcf_exts_get_net(&fold->exts);
 		call_rcu(&fold->rcu, fl_destroy_filter);
 	} else {
 		list_add_tail_rcu(&fnew->list, &head->filters);

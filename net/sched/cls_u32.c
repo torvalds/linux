@@ -399,6 +399,7 @@ static int u32_destroy_key(struct tcf_proto *tp, struct tc_u_knode *n,
 			   bool free_pf)
 {
 	tcf_exts_destroy(&n->exts);
+	tcf_exts_put_net(&n->exts);
 	if (n->ht_down)
 		n->ht_down->refcnt--;
 #ifdef CONFIG_CLS_U32_PERF
@@ -476,6 +477,7 @@ static int u32_delete_key(struct tcf_proto *tp, struct tc_u_knode *key)
 				RCU_INIT_POINTER(*kp, key->next);
 
 				tcf_unbind_filter(tp, &key->res);
+				tcf_exts_get_net(&key->exts);
 				call_rcu(&key->rcu, u32_delete_key_freepf_rcu);
 				return 0;
 			}
@@ -590,7 +592,10 @@ static void u32_clear_hnode(struct tcf_proto *tp, struct tc_u_hnode *ht)
 			tcf_unbind_filter(tp, &n->res);
 			u32_remove_hw_knode(tp, n->handle);
 			idr_remove_ext(&ht->handle_idr, n->handle);
-			call_rcu(&n->rcu, u32_delete_key_freepf_rcu);
+			if (tcf_exts_get_net(&n->exts))
+				call_rcu(&n->rcu, u32_delete_key_freepf_rcu);
+			else
+				u32_destroy_key(n->tp, n, true);
 		}
 	}
 }
@@ -949,6 +954,7 @@ static int u32_change(struct net *net, struct sk_buff *in_skb,
 
 		u32_replace_knode(tp, tp_c, new);
 		tcf_unbind_filter(tp, &n->res);
+		tcf_exts_get_net(&n->exts);
 		call_rcu(&n->rcu, u32_delete_key_rcu);
 		return 0;
 	}

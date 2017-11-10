@@ -1360,36 +1360,29 @@ xfrm_tmpl_resolve_one(struct xfrm_policy *policy, const struct flowi *fl,
 	struct net *net = xp_net(policy);
 	int nx;
 	int i, error;
-	xfrm_address_t *daddr = xfrm_flowi_daddr(fl, family);
-	xfrm_address_t *saddr = xfrm_flowi_saddr(fl, family);
 	xfrm_address_t tmp;
 
 	for (nx = 0, i = 0; i < policy->xfrm_nr; i++) {
 		struct xfrm_state *x;
-		xfrm_address_t *remote = daddr;
-		xfrm_address_t *local  = saddr;
+		xfrm_address_t *local;
+		xfrm_address_t *remote;
 		struct xfrm_tmpl *tmpl = &policy->xfrm_vec[i];
 
-		if (tmpl->mode == XFRM_MODE_TUNNEL ||
-		    tmpl->mode == XFRM_MODE_BEET) {
-			remote = &tmpl->id.daddr;
-			local = &tmpl->saddr;
-			if (xfrm_addr_any(local, tmpl->encap_family)) {
-				error = xfrm_get_saddr(net, fl->flowi_oif,
-						       &tmp, remote,
-						       tmpl->encap_family, 0);
-				if (error)
-					goto fail;
-				local = &tmp;
-			}
+		remote = &tmpl->id.daddr;
+		local = &tmpl->saddr;
+		if (xfrm_addr_any(local, tmpl->encap_family)) {
+			error = xfrm_get_saddr(net, fl->flowi_oif,
+					       &tmp, remote,
+					       tmpl->encap_family, 0);
+			if (error)
+				goto fail;
+			local = &tmp;
 		}
 
 		x = xfrm_state_find(remote, local, fl, tmpl, policy, &error, family);
 
 		if (x && x->km.state == XFRM_STATE_VALID) {
 			xfrm[nx++] = x;
-			daddr = remote;
-			saddr = local;
 			continue;
 		}
 		if (x) {
@@ -1786,19 +1779,23 @@ void xfrm_policy_cache_flush(void)
 	put_online_cpus();
 }
 
-static bool xfrm_pol_dead(struct xfrm_dst *xdst)
+static bool xfrm_xdst_can_reuse(struct xfrm_dst *xdst,
+				struct xfrm_state * const xfrm[],
+				int num)
 {
-	unsigned int num_pols = xdst->num_pols;
-	unsigned int pol_dead = 0, i;
+	const struct dst_entry *dst = &xdst->u.dst;
+	int i;
 
-	for (i = 0; i < num_pols; i++)
-		pol_dead |= xdst->pols[i]->walk.dead;
+	if (xdst->num_xfrms != num)
+		return false;
 
-	/* Mark DST_OBSOLETE_DEAD to fail the next xfrm_dst_check() */
-	if (pol_dead)
-		xdst->u.dst.obsolete = DST_OBSOLETE_DEAD;
+	for (i = 0; i < num; i++) {
+		if (!dst || dst->xfrm != xfrm[i])
+			return false;
+		dst = dst->child;
+	}
 
-	return pol_dead;
+	return xfrm_bundle_ok(xdst);
 }
 
 static struct xfrm_dst *
@@ -1812,19 +1809,6 @@ xfrm_resolve_and_create_bundle(struct xfrm_policy **pols, int num_pols,
 	struct dst_entry *dst;
 	int err;
 
-	xdst = this_cpu_read(xfrm_last_dst);
-	if (xdst &&
-	    xdst->u.dst.dev == dst_orig->dev &&
-	    xdst->num_pols == num_pols &&
-	    !xfrm_pol_dead(xdst) &&
-	    memcmp(xdst->pols, pols,
-		   sizeof(struct xfrm_policy *) * num_pols) == 0 &&
-	    xfrm_bundle_ok(xdst)) {
-		dst_hold(&xdst->u.dst);
-		return xdst;
-	}
-
-	old = xdst;
 	/* Try to instantiate a bundle */
 	err = xfrm_tmpl_resolve(pols, num_pols, fl, xfrm, family);
 	if (err <= 0) {
@@ -1832,6 +1816,21 @@ xfrm_resolve_and_create_bundle(struct xfrm_policy **pols, int num_pols,
 			XFRM_INC_STATS(net, LINUX_MIB_XFRMOUTPOLERROR);
 		return ERR_PTR(err);
 	}
+
+	xdst = this_cpu_read(xfrm_last_dst);
+	if (xdst &&
+	    xdst->u.dst.dev == dst_orig->dev &&
+	    xdst->num_pols == num_pols &&
+	    memcmp(xdst->pols, pols,
+		   sizeof(struct xfrm_policy *) * num_pols) == 0 &&
+	    xfrm_xdst_can_reuse(xdst, xfrm, err)) {
+		dst_hold(&xdst->u.dst);
+		while (err > 0)
+			xfrm_state_put(xfrm[--err]);
+		return xdst;
+	}
+
+	old = xdst;
 
 	dst = xfrm_bundle_create(pols[0], xfrm, err, fl, dst_orig);
 	if (IS_ERR(dst)) {

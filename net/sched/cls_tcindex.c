@@ -142,13 +142,19 @@ static int tcindex_init(struct tcf_proto *tp)
 	return 0;
 }
 
+static void __tcindex_destroy_rexts(struct tcindex_filter_result *r)
+{
+	tcf_exts_destroy(&r->exts);
+	tcf_exts_put_net(&r->exts);
+}
+
 static void tcindex_destroy_rexts_work(struct work_struct *work)
 {
 	struct tcindex_filter_result *r;
 
 	r = container_of(work, struct tcindex_filter_result, work);
 	rtnl_lock();
-	tcf_exts_destroy(&r->exts);
+	__tcindex_destroy_rexts(r);
 	rtnl_unlock();
 }
 
@@ -161,14 +167,20 @@ static void tcindex_destroy_rexts(struct rcu_head *head)
 	tcf_queue_work(&r->work);
 }
 
+static void __tcindex_destroy_fexts(struct tcindex_filter *f)
+{
+	tcf_exts_destroy(&f->result.exts);
+	tcf_exts_put_net(&f->result.exts);
+	kfree(f);
+}
+
 static void tcindex_destroy_fexts_work(struct work_struct *work)
 {
 	struct tcindex_filter *f = container_of(work, struct tcindex_filter,
 						work);
 
 	rtnl_lock();
-	tcf_exts_destroy(&f->result.exts);
-	kfree(f);
+	__tcindex_destroy_fexts(f);
 	rtnl_unlock();
 }
 
@@ -213,10 +225,17 @@ found:
 	 * grace period, since converted-to-rcu actions are relying on that
 	 * in cleanup() callback
 	 */
-	if (f)
-		call_rcu(&f->rcu, tcindex_destroy_fexts);
-	else
-		call_rcu(&r->rcu, tcindex_destroy_rexts);
+	if (f) {
+		if (tcf_exts_get_net(&f->result.exts))
+			call_rcu(&f->rcu, tcindex_destroy_fexts);
+		else
+			__tcindex_destroy_fexts(f);
+	} else {
+		if (tcf_exts_get_net(&r->exts))
+			call_rcu(&r->rcu, tcindex_destroy_rexts);
+		else
+			__tcindex_destroy_rexts(r);
+	}
 
 	*last = false;
 	return 0;

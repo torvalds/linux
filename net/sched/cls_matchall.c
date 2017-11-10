@@ -44,13 +44,19 @@ static int mall_init(struct tcf_proto *tp)
 	return 0;
 }
 
+static void __mall_destroy(struct cls_mall_head *head)
+{
+	tcf_exts_destroy(&head->exts);
+	tcf_exts_put_net(&head->exts);
+	kfree(head);
+}
+
 static void mall_destroy_work(struct work_struct *work)
 {
 	struct cls_mall_head *head = container_of(work, struct cls_mall_head,
 						  work);
 	rtnl_lock();
-	tcf_exts_destroy(&head->exts);
-	kfree(head);
+	__mall_destroy(head);
 	rtnl_unlock();
 }
 
@@ -116,7 +122,10 @@ static void mall_destroy(struct tcf_proto *tp)
 	if (!tc_skip_hw(head->flags))
 		mall_destroy_hw_filter(tp, head, (unsigned long) head);
 
-	call_rcu(&head->rcu, mall_destroy_rcu);
+	if (tcf_exts_get_net(&head->exts))
+		call_rcu(&head->rcu, mall_destroy_rcu);
+	else
+		__mall_destroy(head);
 }
 
 static void *mall_get(struct tcf_proto *tp, u32 handle)
