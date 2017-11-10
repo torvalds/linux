@@ -407,11 +407,10 @@ out:
 static void twl_aen_sync_time(TW_Device_Extension *tw_dev, int request_id)
 {
 	u32 schedulertime;
-	struct timeval utc;
 	TW_Command_Full *full_command_packet;
 	TW_Command *command_packet;
 	TW_Param_Apache *param;
-	u32 local_time;
+	time64_t local_time;
 
 	/* Fill out the command packet */
 	full_command_packet = tw_dev->command_packet_virt[request_id];
@@ -433,10 +432,9 @@ static void twl_aen_sync_time(TW_Device_Extension *tw_dev, int request_id)
 
 	/* Convert system time in UTC to local time seconds since last 
            Sunday 12:00AM */
-	do_gettimeofday(&utc);
-	local_time = (u32)(utc.tv_sec - (sys_tz.tz_minuteswest * 60));
-	schedulertime = local_time - (3 * 86400);
-	schedulertime = cpu_to_le32(schedulertime % 604800);
+	local_time = (ktime_get_real_seconds() - (sys_tz.tz_minuteswest * 60));
+	div_u64_rem(local_time - (3 * 86400), 604800, &schedulertime);
+	schedulertime = cpu_to_le32(schedulertime);
 
 	memcpy(param->data, &schedulertime, sizeof(u32));
 
