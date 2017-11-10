@@ -52,7 +52,7 @@ struct rt5663_priv {
 	struct snd_soc_codec *codec;
 	struct rt5663_platform_data pdata;
 	struct regmap *regmap;
-	struct delayed_work jack_detect_work;
+	struct delayed_work jack_detect_work, jd_unplug_work;
 	struct snd_soc_jack *hs_jack;
 	struct timer_list btn_check_timer;
 	struct impedance_mapping_table *imp_table;
@@ -1940,8 +1940,15 @@ static void rt5663_jack_detect_work(struct work_struct *work)
 				break;
 			}
 			/* button release or spurious interrput*/
-			if (btn_type == 0)
+			if (btn_type == 0) {
 				report =  rt5663->jack_type;
+				cancel_delayed_work_sync(
+					&rt5663->jd_unplug_work);
+			} else {
+				queue_delayed_work(system_wq,
+					&rt5663->jd_unplug_work,
+					msecs_to_jiffies(500));
+			}
 		}
 	} else {
 		/* jack out */
@@ -1960,6 +1967,37 @@ static void rt5663_jack_detect_work(struct work_struct *work)
 	snd_soc_jack_report(rt5663->hs_jack, report, SND_JACK_HEADSET |
 			    SND_JACK_BTN_0 | SND_JACK_BTN_1 |
 			    SND_JACK_BTN_2 | SND_JACK_BTN_3);
+}
+
+static void rt5663_jd_unplug_work(struct work_struct *work)
+{
+	struct rt5663_priv *rt5663 =
+		container_of(work, struct rt5663_priv, jd_unplug_work.work);
+	struct snd_soc_codec *codec = rt5663->codec;
+
+	if (!codec)
+		return;
+
+	if (!rt5663_check_jd_status(codec)) {
+		/* jack out */
+		switch (rt5663->codec_ver) {
+		case CODEC_VER_1:
+			rt5663_v2_jack_detect(rt5663->codec, 0);
+			break;
+		case CODEC_VER_0:
+			rt5663_jack_detect(rt5663->codec, 0);
+			break;
+		default:
+			dev_err(codec->dev, "Unknown CODEC Version\n");
+		}
+
+		snd_soc_jack_report(rt5663->hs_jack, 0, SND_JACK_HEADSET |
+				    SND_JACK_BTN_0 | SND_JACK_BTN_1 |
+				    SND_JACK_BTN_2 | SND_JACK_BTN_3);
+	} else {
+		queue_delayed_work(system_wq, &rt5663->jd_unplug_work,
+			msecs_to_jiffies(500));
+	}
 }
 
 static const struct snd_kcontrol_new rt5663_snd_controls[] = {
@@ -3556,6 +3594,7 @@ static int rt5663_i2c_probe(struct i2c_client *i2c,
 	}
 
 	INIT_DELAYED_WORK(&rt5663->jack_detect_work, rt5663_jack_detect_work);
+	INIT_DELAYED_WORK(&rt5663->jd_unplug_work, rt5663_jd_unplug_work);
 
 	if (i2c->irq) {
 		ret = request_irq(i2c->irq, rt5663_irq,
