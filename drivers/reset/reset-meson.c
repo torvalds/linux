@@ -139,6 +139,8 @@ static const struct of_device_id meson_reset_dt_ids[] = {
 	   .data = &meson_reset_meson8_ops, },
 	 { .compatible = "amlogic,meson-gxbb-reset",
 	   .data = &meson_reset_gx_ops, },
+	 { .compatible = "amlogic,meson-axg-reset",
+	   .data = &meson_reset_gx_ops, },
 	 { /* sentinel */ },
 };
 
