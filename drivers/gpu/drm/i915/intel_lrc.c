@@ -136,6 +136,7 @@
 #include <drm/drmP.h>
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
+#include "i915_gem_render_state.h"
 #include "intel_mocs.h"
 
 #define RING_EXECLIST_QFULL		(1 << 0x2)

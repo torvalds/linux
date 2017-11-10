@@ -28,9 +28,12 @@
  */
 
 #include <linux/log2.h>
+
 #include <drm/drmP.h>
-#include "i915_drv.h"
 #include <drm/i915_drm.h>
+
+#include "i915_drv.h"
+#include "i915_gem_render_state.h"
 #include "i915_trace.h"
 #include "intel_drv.h"
 

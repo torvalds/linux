@@ -641,21 +641,15 @@ int intel_engine_init_common(struct intel_engine_cs *engine)
 	if (ret)
 		goto err_unpin_preempt;
 
-	ret = i915_gem_render_state_init(engine);
-	if (ret)
-		goto err_breadcrumbs;
-
 	if (HWS_NEEDS_PHYSICAL(engine->i915))
 		ret = init_phys_status_page(engine);
 	else
 		ret = init_status_page(engine);
 	if (ret)
-		goto err_rs_fini;
+		goto err_breadcrumbs;
 
 	return 0;
 
-err_rs_fini:
-	i915_gem_render_state_fini(engine);
 err_breadcrumbs:
 	intel_engine_fini_breadcrumbs(engine);
 err_unpin_preempt:
@@ -682,7 +676,6 @@ void intel_engine_cleanup_common(struct intel_engine_cs *engine)
 	else
 		cleanup_status_page(engine);
 
-	i915_gem_render_state_fini(engine);
 	intel_engine_fini_breadcrumbs(engine);
 	intel_engine_cleanup_cmd_parser(engine);
 	i915_gem_batch_pool_fini(&engine->batch_pool);
