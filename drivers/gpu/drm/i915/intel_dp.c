@@ -3861,11 +3861,12 @@ intel_dp_configure_mst(struct intel_dp *intel_dp)
 					intel_dp->is_mst);
 }
 
-static int intel_dp_sink_crc_stop(struct intel_dp *intel_dp)
+static int intel_dp_sink_crc_stop(struct intel_dp *intel_dp,
+				  struct intel_crtc_state *crtc_state, bool disable_wa)
 {
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	struct drm_i915_private *dev_priv = to_i915(dig_port->base.base.dev);
-	struct intel_crtc *intel_crtc = to_intel_crtc(dig_port->base.base.crtc);
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc_state->base.crtc);
 	u8 buf;
 	int ret = 0;
 	int count = 0;
@@ -3901,15 +3902,17 @@ static int intel_dp_sink_crc_stop(struct intel_dp *intel_dp)
 	}
 
  out:
-	hsw_enable_ips(intel_crtc);
+	if (disable_wa)
+		hsw_enable_ips(intel_crtc);
 	return ret;
 }
 
-static int intel_dp_sink_crc_start(struct intel_dp *intel_dp)
+static int intel_dp_sink_crc_start(struct intel_dp *intel_dp,
+				   struct intel_crtc_state *crtc_state)
 {
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	struct drm_i915_private *dev_priv = to_i915(dig_port->base.base.dev);
-	struct intel_crtc *intel_crtc = to_intel_crtc(dig_port->base.base.crtc);
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc_state->base.crtc);
 	u8 buf;
 	int ret;
 
@@ -3923,7 +3926,7 @@ static int intel_dp_sink_crc_start(struct intel_dp *intel_dp)
 		return -EIO;
 
 	if (buf & DP_TEST_SINK_START) {
-		ret = intel_dp_sink_crc_stop(intel_dp);
+		ret = intel_dp_sink_crc_stop(intel_dp, crtc_state, false);
 		if (ret)
 			return ret;
 	}
@@ -3940,16 +3943,16 @@ static int intel_dp_sink_crc_start(struct intel_dp *intel_dp)
 	return 0;
 }
 
-int intel_dp_sink_crc(struct intel_dp *intel_dp, u8 *crc)
+int intel_dp_sink_crc(struct intel_dp *intel_dp, struct intel_crtc_state *crtc_state, u8 *crc)
 {
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	struct drm_i915_private *dev_priv = to_i915(dig_port->base.base.dev);
-	struct intel_crtc *intel_crtc = to_intel_crtc(dig_port->base.base.crtc);
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc_state->base.crtc);
 	u8 buf;
 	int count, ret;
 	int attempts = 6;
 
-	ret = intel_dp_sink_crc_start(intel_dp);
+	ret = intel_dp_sink_crc_start(intel_dp, crtc_state);
 	if (ret)
 		return ret;
 
@@ -3977,7 +3980,7 @@ int intel_dp_sink_crc(struct intel_dp *intel_dp, u8 *crc)
 	}
 
 stop:
-	intel_dp_sink_crc_stop(intel_dp);
+	intel_dp_sink_crc_stop(intel_dp, crtc_state, true);
 	return ret;
 }
 
