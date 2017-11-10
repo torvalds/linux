@@ -590,6 +590,7 @@ struct mlx5e_channel {
 	struct mlx5_core_dev      *mdev;
 	struct hwtstamp_config    *tstamp;
 	int                        ix;
+	int                        cpu;
 };
 
 struct mlx5e_channels {
