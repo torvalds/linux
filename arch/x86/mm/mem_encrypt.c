@@ -69,7 +69,6 @@ static void __init __sme_early_enc_dec(resource_size_t paddr,
 	if (!sme_me_mask)
 		return;
 
-	local_flush_tlb();
 	wbinvd();
 
 	/*
