@@ -43,7 +43,7 @@
 static struct sensor_private_data *g_sensor[SENSOR_NUM_TYPES];
 static struct sensor_operate *sensor_ops[SENSOR_NUM_ID];
 static int sensor_probe_times[SENSOR_NUM_ID];
-static struct class *accel_class;
+static struct class *sensor_class;
 
 static int sensor_get_id(struct i2c_client *client, int *value)
 {
@@ -535,6 +535,9 @@ static ssize_t accel_calibration_show(struct class *class,
 {
 	struct sensor_private_data *sensor = g_sensor[SENSOR_TYPE_ACCEL];
 
+	if (sensor == NULL)
+		return sprintf(buf, "no accel sensor find\n");
+
 	return sprintf(buf, "accel calibration: %d, %d, %d\n", sensor->pdata->accel_offset[0],
 				sensor->pdata->accel_offset[1], sensor->pdata->accel_offset[2]);
 }
@@ -579,6 +582,9 @@ static ssize_t accel_calibration_store(struct class *class,
 	int val, ret;
 	int pre_status;
 
+	if (sensor == NULL)
+		return count;
+
 	ret = kstrtoint(buf, 10, &val);
 	if (ret)
 		dev_err(&sensor->client->dev, "%s: kstrtoint error return %d\n", __func__, ret);
@@ -622,14 +628,114 @@ static ssize_t accel_calibration_store(struct class *class,
 
 static CLASS_ATTR(accel_calibration, 0664, accel_calibration_show, accel_calibration_store);
 
-static int  accel_class_init(void)
+static ssize_t gyro_calibration_show(struct class *class,
+		struct class_attribute *attr, char *buf)
+{
+	struct sensor_private_data *sensor = g_sensor[SENSOR_TYPE_GYROSCOPE];
+
+	if (sensor == NULL)
+		return sprintf(buf, "no gyro sensor find\n");
+
+	return sprintf(buf, "gyro calibration: %d, %d, %d\n", sensor->pdata->gyro_offset[0],
+				sensor->pdata->gyro_offset[1], sensor->pdata->gyro_offset[2]);
+}
+
+#define GYRO_CAPTURE_TIMES 20
+static void gyro_do_calibration(struct sensor_private_data *sensor)
+{
+	int i;
+	int ret;
+	long int sum_gyro[3] = {0, 0, 0};
+	struct sensor_platform_data *pdata = sensor->pdata;
+
+	mutex_lock(&sensor->operation_mutex);
+	for (i = 0; i < GYRO_CAPTURE_TIMES; i++) {
+		ret = sensor->ops->report(sensor->client);
+		if (ret < 0)
+			dev_err(&sensor->client->dev, "in %s read gyro data error\n", __func__);
+		sum_gyro[0] += sensor->axis.x;
+		sum_gyro[1] += sensor->axis.y;
+		sum_gyro[2] += sensor->axis.z;
+		dev_info(&sensor->client->dev, "%d times, read gyro data is %d, %d, %d\n",
+			i, sensor->axis.x, sensor->axis.y, sensor->axis.z);
+		msleep(pdata->poll_delay_ms);
+	}
+	mutex_unlock(&sensor->operation_mutex);
+
+	pdata->gyro_offset[0] = sum_gyro[0] / GYRO_CAPTURE_TIMES;
+	pdata->gyro_offset[1] = sum_gyro[1] / GYRO_CAPTURE_TIMES;
+	pdata->gyro_offset[2] = sum_gyro[2] / GYRO_CAPTURE_TIMES;
+
+	dev_info(&sensor->client->dev, "gyro offset is %d, %d, %d\n", pdata->gyro_offset[0], pdata->gyro_offset[1], pdata->gyro_offset[2]);
+}
+
+static ssize_t gyro_calibration_store(struct class *class,
+		struct class_attribute *attr, const char *buf, size_t count)
+{
+	struct sensor_private_data *sensor = g_sensor[SENSOR_TYPE_GYROSCOPE];
+	int val, ret;
+	int pre_status;
+
+	if (sensor == NULL)
+		return count;
+
+	ret = kstrtoint(buf, 10, &val);
+	if (ret)
+		dev_err(&sensor->client->dev, "%s: kstrtoint error return %d\n", __func__, ret);
+	if (val != 1)
+		return count;
+
+	atomic_set(&sensor->is_factory, 1);
+
+	pre_status = sensor->status_cur;
+	if (pre_status == SENSOR_OFF) {
+		mutex_lock(&sensor->operation_mutex);
+		ret = sensor->ops->active(sensor->client, SENSOR_ON, sensor->pdata->poll_delay_ms);
+		mutex_unlock(&sensor->operation_mutex);
+	} else {
+		sensor->stop_work = 1;
+		if (sensor->pdata->irq_enable)
+			disable_irq_nosync(sensor->client->irq);
+		else
+			cancel_delayed_work_sync(&sensor->delaywork);
+	}
+
+	gyro_do_calibration(sensor);
+
+	if (pre_status == SENSOR_ON) {
+		sensor->stop_work = 0;
+		if (sensor->pdata->irq_enable)
+			enable_irq(sensor->client->irq);
+		else
+			schedule_delayed_work(&sensor->delaywork, msecs_to_jiffies(sensor->pdata->poll_delay_ms));
+	} else {
+		mutex_lock(&sensor->operation_mutex);
+		ret = sensor->ops->active(sensor->client, SENSOR_OFF, sensor->pdata->poll_delay_ms);
+		mutex_unlock(&sensor->operation_mutex);
+	}
+
+	atomic_set(&sensor->is_factory, 0);
+	wake_up(&sensor->is_factory_ok);
+
+	return count;
+}
+
+static CLASS_ATTR(gyro_calibration, 0664, gyro_calibration_show, gyro_calibration_store);
+
+static int sensor_class_init(void)
 {
 	int ret ;
 
-	accel_class = class_create(THIS_MODULE, "accel_class");
-	ret =  class_create_file(accel_class, &class_attr_accel_calibration);
+	sensor_class = class_create(THIS_MODULE, "sensor_class");
+	ret = class_create_file(sensor_class, &class_attr_accel_calibration);
 	if (ret) {
-		printk(KERN_ERR "%s:Fail to creat accel class\n", __func__);
+		printk(KERN_ERR "%s:Fail to creat accel class file\n", __func__);
+		return ret;
+	}
+
+	ret = class_create_file(sensor_class, &class_attr_gyro_calibration);
+	if (ret) {
+		printk(KERN_ERR "%s:Fail to creat gyro class file\n", __func__);
 		return ret;
 	}
 
@@ -1686,9 +1792,6 @@ int sensor_probe(struct i2c_client *client, const struct i2c_device_id *devid)
 
 	g_sensor[type] = sensor;
 
-	if (type == SENSOR_TYPE_ACCEL)
-		accel_class_init();
-
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	if ((sensor->ops->suspend) && (sensor->ops->resume)) {
 		sensor->early_suspend.suspend = sensor_suspend;
@@ -1859,6 +1962,7 @@ static struct i2c_driver sensor_driver = {
 
 static int __init sensor_init(void)
 {
+	sensor_class_init();
 	return i2c_add_driver(&sensor_driver);
 }
 
