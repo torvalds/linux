@@ -248,6 +248,7 @@ static int sata_dwc_dma_init_old(struct platform_device *pdev,
 		return -ENOMEM;
 
 	hsdev->dma->dev = &pdev->dev;
+	hsdev->dma->id = pdev->id;
 
 	/* Get SATA DMA interrupt number */
 	hsdev->dma->irq = irq_of_parse_and_map(np, 1);
