@@ -114,6 +114,9 @@ static int hns_roce_v2_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 		roce_set_bit(rc_sq_wqe->byte_4, V2_RC_SEND_WQE_BYTE_4_FENCE_S,
 			    (wr->send_flags & IB_SEND_FENCE) ? 1 : 0);
 
+		roce_set_bit(rc_sq_wqe->byte_4, V2_RC_SEND_WQE_BYTE_4_SE_S,
+			    (wr->send_flags & IB_SEND_SOLICITED) ? 1 : 0);
+
 		switch (wr->opcode) {
 		case IB_WR_RDMA_READ:
 			roce_set_field(rc_sq_wqe->byte_4,
