@@ -995,19 +995,19 @@
 #define  PCI_PTM_CTRL_ENABLE		0x00000001  /* PTM enable */
 #define  PCI_PTM_CTRL_ROOT		0x00000002  /* Root select */
 
-/* L1 PM Substates */
-#define PCI_L1SS_CAP		    4	/* capability register */
-#define  PCI_L1SS_CAP_PCIPM_L1_2	 1	/* PCI PM L1.2 Support */
-#define  PCI_L1SS_CAP_PCIPM_L1_1	 2	/* PCI PM L1.1 Support */
-#define  PCI_L1SS_CAP_ASPM_L1_2		 4	/* ASPM L1.2 Support */
-#define  PCI_L1SS_CAP_ASPM_L1_1		 8	/* ASPM L1.1 Support */
-#define  PCI_L1SS_CAP_L1_PM_SS		16	/* L1 PM Substates Support */
-#define PCI_L1SS_CTL1		    8	/* Control Register 1 */
-#define  PCI_L1SS_CTL1_PCIPM_L1_2	1	/* PCI PM L1.2 Enable */
-#define  PCI_L1SS_CTL1_PCIPM_L1_1	2	/* PCI PM L1.1 Support */
-#define  PCI_L1SS_CTL1_ASPM_L1_2	4	/* ASPM L1.2 Support */
-#define  PCI_L1SS_CTL1_ASPM_L1_1	8	/* ASPM L1.1 Support */
-#define  PCI_L1SS_CTL1_L1SS_MASK	0x0000000F
-#define PCI_L1SS_CTL2		    0xC	/* Control Register 2 */
+/* ASPM L1 PM Substates */
+#define PCI_L1SS_CAP		0x04	/* Capabilities Register */
+#define  PCI_L1SS_CAP_PCIPM_L1_2	0x00000001  /* PCI-PM L1.2 Supported */
+#define  PCI_L1SS_CAP_PCIPM_L1_1	0x00000002  /* PCI-PM L1.1 Supported */
+#define  PCI_L1SS_CAP_ASPM_L1_2		0x00000004  /* ASPM L1.2 Supported */
+#define  PCI_L1SS_CAP_ASPM_L1_1		0x00000008  /* ASPM L1.1 Supported */
+#define  PCI_L1SS_CAP_L1_PM_SS		0x00000010  /* L1 PM Substates Supported */
+#define PCI_L1SS_CTL1		0x08	/* Control 1 Register */
+#define  PCI_L1SS_CTL1_PCIPM_L1_2	0x00000001  /* PCI-PM L1.2 Enable */
+#define  PCI_L1SS_CTL1_PCIPM_L1_1	0x00000002  /* PCI-PM L1.1 Enable */
+#define  PCI_L1SS_CTL1_ASPM_L1_2	0x00000004  /* ASPM L1.2 Enable */
+#define  PCI_L1SS_CTL1_ASPM_L1_1	0x00000008  /* ASPM L1.1 Enable */
+#define  PCI_L1SS_CTL1_L1SS_MASK	0x0000000f
+#define PCI_L1SS_CTL2		0x0c	/* Control 2 Register */
 
 #endif /* LINUX_PCI_REGS_H */
