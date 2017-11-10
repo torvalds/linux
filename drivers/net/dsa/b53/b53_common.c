@@ -541,8 +541,8 @@ EXPORT_SYMBOL(b53_disable_port);
 
 void b53_brcm_hdr_setup(struct dsa_switch *ds, int port)
 {
-	bool tag_en = !!(ds->ops->get_tag_protocol(ds, port) ==
-			 DSA_TAG_PROTO_BRCM);
+	bool tag_en = !(ds->ops->get_tag_protocol(ds, port) ==
+			 DSA_TAG_PROTO_NONE);
 	struct b53_device *dev = ds->priv;
 	u8 hdr_ctl, val;
 	u16 reg;
@@ -1505,8 +1505,14 @@ static enum dsa_tag_protocol b53_get_tag_protocol(struct dsa_switch *ds,
 	 */
 	if (is5325(dev) || is5365(dev) || !b53_can_enable_brcm_tags(ds, port))
 		return DSA_TAG_PROTO_NONE;
-	else
-		return DSA_TAG_PROTO_BRCM;
+
+	/* Broadcom BCM58xx chips have a flow accelerator on Port 8
+	 * which requires us to use the prepended Broadcom tag type
+	 */
+	if (dev->chip_id == BCM58XX_DEVICE_ID && port == B53_CPU_PORT)
+		return DSA_TAG_PROTO_BRCM_PREPEND;
+
+	return DSA_TAG_PROTO_BRCM;
 }
 
 int b53_mirror_add(struct dsa_switch *ds, int port,
