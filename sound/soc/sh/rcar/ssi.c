@@ -1112,6 +1112,9 @@ int rsnd_ssi_probe(struct rsnd_priv *priv)
 
 	i = 0;
 	for_each_child_of_node(node, np) {
+		if (!of_device_is_available(np))
+			goto skip;
+
 		ssi = rsnd_ssi_get(priv, i);
 
 		snprintf(name, RSND_SSI_NAME_SIZE, "%s.%d",
@@ -1148,7 +1151,7 @@ int rsnd_ssi_probe(struct rsnd_priv *priv)
 			of_node_put(np);
 			goto rsnd_ssi_probe_done;
 		}
-
+skip:
 		i++;
 	}
 
