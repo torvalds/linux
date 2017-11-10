@@ -727,7 +727,7 @@ config TOUCHSCREEN_WM831X
 
 config TOUCHSCREEN_WM97XX
 	tristate "Support for WM97xx AC97 touchscreen controllers"
-	depends on AC97_BUS
+	depends on AC97_BUS || AC97_BUS_NEW
 	help
 	  Say Y here if you have a Wolfson Microelectronics WM97xx
 	  touchscreen connected to your system. Note that this option
