@@ -134,6 +134,12 @@
 				status = "disabled";
 			};
 
+			reset: reset-controller@1004 {
+				compatible = "amlogic,meson-axg-reset";
+				reg = <0x0 0x01004 0x0 0x9c>;
+				#reset-cells = <1>;
+			};
+
 			uart_A: serial@24000 {
 				compatible = "amlogic,meson-gx-uart", "amlogic,meson-uart";
 				reg = <0x0 0x24000 0x0 0x14>;
