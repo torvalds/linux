@@ -257,6 +257,11 @@ ssize_t rdtgroup_schemata_write(struct kernfs_open_file *of,
 			ret = -EINVAL;
 			goto out;
 		}
+		if (tok[0] == '\0') {
+			rdt_last_cmd_printf("Missing '%s' value\n", resname);
+			ret = -EINVAL;
+			goto out;
+		}
 		ret = rdtgroup_parse_resource(resname, tok, closid);
 		if (ret)
 			goto out;
