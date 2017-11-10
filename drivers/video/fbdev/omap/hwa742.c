@@ -474,7 +474,7 @@ static void auto_update_complete(void *data)
 			  jiffies + HWA742_AUTO_UPDATE_TIME);
 }
 
-static void hwa742_update_window_auto(unsigned long arg)
+static void hwa742_update_window_auto(struct timer_list *unused)
 {
 	LIST_HEAD(req_list);
 	struct hwa742_request *last;
@@ -1002,9 +1002,7 @@ static int hwa742_init(struct omapfb_device *fbdev, int ext_mode,
 	hwa742.auto_update_window.height = fbdev->panel->y_res;
 	hwa742.auto_update_window.format = 0;
 
-	init_timer(&hwa742.auto_update_timer);
-	hwa742.auto_update_timer.function = hwa742_update_window_auto;
-	hwa742.auto_update_timer.data = 0;
+	timer_setup(&hwa742.auto_update_timer, hwa742_update_window_auto, 0);
 
 	hwa742.prev_color_mode = -1;
 	hwa742.prev_flags = 0;
