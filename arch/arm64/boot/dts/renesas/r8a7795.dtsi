@@ -724,6 +724,14 @@
 			resets = <&cpg 502>;
 			#dma-cells = <1>;
 			dma-channels = <16>;
+			iommus = <&ipmmu_mp0 0>, <&ipmmu_mp0 1>,
+			       <&ipmmu_mp0 2>, <&ipmmu_mp0 3>,
+			       <&ipmmu_mp0 4>, <&ipmmu_mp0 5>,
+			       <&ipmmu_mp0 6>, <&ipmmu_mp0 7>,
+			       <&ipmmu_mp0 8>, <&ipmmu_mp0 9>,
+			       <&ipmmu_mp0 10>, <&ipmmu_mp0 11>,
+			       <&ipmmu_mp0 12>, <&ipmmu_mp0 13>,
+			       <&ipmmu_mp0 14>, <&ipmmu_mp0 15>;
 		};
 
 		audma1: dma-controller@ec720000 {
@@ -758,6 +766,14 @@
 			resets = <&cpg 501>;
 			#dma-cells = <1>;
 			dma-channels = <16>;
+			iommus = <&ipmmu_mp0 16>, <&ipmmu_mp0 17>,
+			       <&ipmmu_mp0 18>, <&ipmmu_mp0 19>,
+			       <&ipmmu_mp0 20>, <&ipmmu_mp0 21>,
+			       <&ipmmu_mp0 22>, <&ipmmu_mp0 23>,
+			       <&ipmmu_mp0 24>, <&ipmmu_mp0 25>,
+			       <&ipmmu_mp0 26>, <&ipmmu_mp0 27>,
+			       <&ipmmu_mp0 28>, <&ipmmu_mp0 29>,
+			       <&ipmmu_mp0 30>, <&ipmmu_mp0 31>;
 		};
 
 		avb: ethernet@e6800000 {
