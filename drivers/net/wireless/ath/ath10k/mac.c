@@ -8329,15 +8329,6 @@ int ath10k_mac_register(struct ath10k *ar)
 			ath10k_warn(ar, "failed to initialise DFS pattern detector\n");
 	}
 
-	/* Current wake_tx_queue implementation imposes a significant
-	 * performance penalty in some setups. The tx scheduling code needs
-	 * more work anyway so disable the wake_tx_queue unless firmware
-	 * supports the pull-push mechanism.
-	 */
-	if (!test_bit(ATH10K_FW_FEATURE_PEER_FLOW_CONTROL,
-		      ar->running_fw->fw_file.fw_features))
-		ar->ops->wake_tx_queue = NULL;
-
 	ret = ath10k_mac_init_rd(ar);
 	if (ret) {
 		ath10k_err(ar, "failed to derive regdom: %d\n", ret);
