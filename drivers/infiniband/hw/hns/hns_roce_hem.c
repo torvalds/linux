@@ -724,7 +724,8 @@ void *hns_roce_table_find(struct hns_roce_dev *hr_dev,
 	struct hns_roce_hem *hem;
 	struct page *page = NULL;
 	unsigned long mhop_obj = obj;
-	unsigned long idx;
+	unsigned long obj_per_chunk;
+	unsigned long idx_offset;
 	int offset, dma_offset;
 	int i, j;
 	u32 hem_idx = 0;
@@ -735,9 +736,10 @@ void *hns_roce_table_find(struct hns_roce_dev *hr_dev,
 	mutex_lock(&table->mutex);
 
 	if (!hns_roce_check_whether_mhop(hr_dev, table->type)) {
-		idx = (obj & (table->num_obj - 1)) * table->obj_size;
-		hem = table->hem[idx / table->table_chunk_size];
-		dma_offset = offset = idx % table->table_chunk_size;
+		obj_per_chunk = table->table_chunk_size / table->obj_size;
+		hem = table->hem[(obj & (table->num_obj - 1)) / obj_per_chunk];
+		idx_offset = (obj & (table->num_obj - 1)) % obj_per_chunk;
+		dma_offset = offset = idx_offset * table->obj_size;
 	} else {
 		hns_roce_calc_hem_mhop(hr_dev, table, &mhop_obj, &mhop);
 		/* mtt mhop */
