@@ -590,6 +590,7 @@ static const struct rk808_reg_data rk805_pre_init_reg[] = {
 	{RK805_GPIO_IO_POL_REG, SLP_SD_MSK, SLEEP_FUN},
 	{RK808_RTC_CTRL_REG, RTC_STOP, RTC_STOP},
 	{RK805_THERMAL_REG, TEMP_HOTDIE_MSK, TEMP115C},
+	{RK805_DCDC_VRP_REG, REG_WRITE_MSK, BUCK4_VRP_3PERCENT},
 };
 
 static struct rk808_reg_data rk805_suspend_reg[] = {

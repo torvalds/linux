@@ -537,6 +537,7 @@ enum rk805_reg {
 #define RK805_OUT_REG			0x52
 #define RK805_ON_SOURCE_REG		0xAE
 #define RK805_OFF_SOURCE_REG		0xAF
+#define RK805_DCDC_VRP_REG		0x92
 
 #define RK805_NUM_REGULATORS		7
 
@@ -752,6 +753,7 @@ enum rk805_reg {
 #define BUCK1_2_IMAX_MAX			(0x3 << 6)
 #define BUCK3_4_IMAX_MAX			(0x3 << 3)
 #define BOOST_DISABLE				((0x1 << 5) | (0x0 << 1))
+#define BUCK4_VRP_3PERCENT			0xc0
 
 #define TEMP105C			0x08
 #define TEMP115C			0x0c
