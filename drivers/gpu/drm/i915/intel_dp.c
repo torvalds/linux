@@ -3903,7 +3903,7 @@ static int intel_dp_sink_crc_stop(struct intel_dp *intel_dp,
 
  out:
 	if (disable_wa)
-		hsw_enable_ips(intel_crtc);
+		hsw_enable_ips(crtc_state);
 	return ret;
 }
 
@@ -3931,11 +3931,11 @@ static int intel_dp_sink_crc_start(struct intel_dp *intel_dp,
 			return ret;
 	}
 
-	hsw_disable_ips(intel_crtc);
+	hsw_disable_ips(crtc_state);
 
 	if (drm_dp_dpcd_writeb(&intel_dp->aux, DP_TEST_SINK,
 			       buf | DP_TEST_SINK_START) < 0) {
-		hsw_enable_ips(intel_crtc);
+		hsw_enable_ips(crtc_state);
 		return -EIO;
 	}
 
