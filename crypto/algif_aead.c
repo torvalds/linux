@@ -283,12 +283,23 @@ static int _aead_recvmsg(struct socket *sock, struct msghdr *msg,
 
 	if (msg->msg_iocb && !is_sync_kiocb(msg->msg_iocb)) {
 		/* AIO operation */
+		sock_hold(sk);
 		areq->iocb = msg->msg_iocb;
 		aead_request_set_callback(&areq->cra_u.aead_req,
 					  CRYPTO_TFM_REQ_MAY_BACKLOG,
 					  af_alg_async_cb, areq);
 		err = ctx->enc ? crypto_aead_encrypt(&areq->cra_u.aead_req) :
 				 crypto_aead_decrypt(&areq->cra_u.aead_req);
+
+		/* AIO operation in progress */
+		if (err == -EINPROGRESS || err == -EBUSY) {
+			/* Remember output size that will be generated. */
+			areq->outlen = outlen;
+
+			return -EIOCBQUEUED;
+		}
+
+		sock_put(sk);
 	} else {
 		/* Synchronous operation */
 		aead_request_set_callback(&areq->cra_u.aead_req,
@@ -300,19 +311,9 @@ static int _aead_recvmsg(struct socket *sock, struct msghdr *msg,
 				&ctx->wait);
 	}
 
-	/* AIO operation in progress */
-	if (err == -EINPROGRESS) {
-		sock_hold(sk);
-
-		/* Remember output size that will be generated. */
-		areq->outlen = outlen;
-
-		return -EIOCBQUEUED;
-	}
 
 free:
-	af_alg_free_areq_sgls(areq);
-	sock_kfree_s(sk, areq, areq->areqlen);
+	af_alg_free_resources(areq);
 
 	return err ? err : outlen;
 }
