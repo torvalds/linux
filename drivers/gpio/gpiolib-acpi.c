@@ -531,8 +531,8 @@ static int acpi_populate_gpio_lookup(struct acpi_resource *ares, void *data)
 			lookup->info.triggering = agpio->triggering;
 		} else {
 			lookup->info.flags = acpi_gpio_to_gpiod_flags(agpio);
+			lookup->info.polarity = lookup->active_low;
 		}
-
 	}
 
 	return 1;
@@ -557,11 +557,8 @@ static int acpi_gpio_resource_lookup(struct acpi_gpio_lookup *lookup,
 	if (!lookup->desc)
 		return -ENOENT;
 
-	if (info) {
+	if (info)
 		*info = lookup->info;
-		if (lookup->active_low)
-			info->polarity = lookup->active_low;
-	}
 	return 0;
 }
 
