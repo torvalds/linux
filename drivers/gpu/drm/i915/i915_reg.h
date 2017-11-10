@@ -1114,8 +1114,8 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 #define RPM_CONFIG0	    _MMIO(0x0D00)
 #define RPM_CONFIG1	    _MMIO(0x0D04)
 
-/* RPC unit config (Gen8+) */
-#define RPM_CONFIG	    _MMIO(0x0D08)
+/* RCP unit config (Gen8+) */
+#define RCP_CONFIG	    _MMIO(0x0D08)
 
 /* NOA (HSW) */
 #define HSW_MBVID2_NOA0		_MMIO(0x9E80)
