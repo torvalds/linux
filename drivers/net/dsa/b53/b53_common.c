@@ -505,7 +505,7 @@ EXPORT_SYMBOL(b53_imp_vlan_setup);
 int b53_enable_port(struct dsa_switch *ds, int port, struct phy_device *phy)
 {
 	struct b53_device *dev = ds->priv;
-	unsigned int cpu_port = dev->cpu_port;
+	unsigned int cpu_port = ds->ports[port].cpu_dp->index;
 	u16 pvlan;
 
 	/* Clear the Rx and Tx disable bits and set to no spanning tree */
@@ -1054,7 +1054,6 @@ void b53_vlan_add(struct dsa_switch *ds, int port,
 	struct b53_device *dev = ds->priv;
 	bool untagged = vlan->flags & BRIDGE_VLAN_INFO_UNTAGGED;
 	bool pvid = vlan->flags & BRIDGE_VLAN_INFO_PVID;
-	unsigned int cpu_port = dev->cpu_port;
 	struct b53_vlan *vl;
 	u16 vid;
 
@@ -1063,12 +1062,11 @@ void b53_vlan_add(struct dsa_switch *ds, int port,
 
 		b53_get_vlan_entry(dev, vid, vl);
 
-		vl->members |= BIT(port) | BIT(cpu_port);
+		vl->members |= BIT(port);
 		if (untagged)
 			vl->untag |= BIT(port);
 		else
 			vl->untag &= ~BIT(port);
-		vl->untag &= ~BIT(cpu_port);
 
 		b53_set_vlan_entry(dev, vid, vl);
 		b53_fast_age_vlan(dev, vid);
@@ -1432,8 +1430,8 @@ void b53_br_leave(struct dsa_switch *ds, int port, struct net_device *br)
 		b53_write16(dev, B53_VLAN_PAGE, B53_JOIN_ALL_VLAN_EN, reg);
 	} else {
 		b53_get_vlan_entry(dev, pvid, vl);
-		vl->members |= BIT(port) | BIT(dev->cpu_port);
-		vl->untag |= BIT(port) | BIT(dev->cpu_port);
+		vl->members |= BIT(port) | BIT(cpu_port);
+		vl->untag |= BIT(port) | BIT(cpu_port);
 		b53_set_vlan_entry(dev, pvid, vl);
 	}
 }
