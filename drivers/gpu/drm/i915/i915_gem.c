@@ -4693,14 +4693,16 @@ void __i915_gem_object_release_unless_active(struct drm_i915_gem_object *obj)
 		i915_gem_object_put(obj);
 }
 
-static void assert_kernel_context_is_current(struct drm_i915_private *dev_priv)
+static void assert_kernel_context_is_current(struct drm_i915_private *i915)
 {
+	struct i915_gem_context *kernel_context = i915->kernel_context;
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 
-	for_each_engine(engine, dev_priv, id)
-		GEM_BUG_ON(engine->last_retired_context &&
-			   !i915_gem_context_is_kernel(engine->last_retired_context));
+	for_each_engine(engine, i915, id) {
+		GEM_BUG_ON(__i915_gem_active_peek(&engine->timeline->last_request));
+		GEM_BUG_ON(engine->last_retired_context != kernel_context);
+	}
 }
 
 void i915_gem_sanitize(struct drm_i915_private *i915)

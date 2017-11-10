@@ -1596,10 +1596,32 @@ bool intel_engines_are_idle(struct drm_i915_private *dev_priv)
 	return true;
 }
 
+/**
+ * intel_engine_has_kernel_context:
+ * @engine: the engine
+ *
+ * Returns true if the last context to be executed on this engine, or has been
+ * executed if the engine is already idle, is the kernel context
+ * (#i915.kernel_context).
+ */
 bool intel_engine_has_kernel_context(const struct intel_engine_cs *engine)
 {
-	return (!engine->last_retired_context ||
-		i915_gem_context_is_kernel(engine->last_retired_context));
+	const struct i915_gem_context * const kernel_context =
+		engine->i915->kernel_context;
+	struct drm_i915_gem_request *rq;
+
+	lockdep_assert_held(&engine->i915->drm.struct_mutex);
+
+	/*
+	 * Check the last context seen by the engine. If active, it will be
+	 * the last request that remains in the timeline. When idle, it is
+	 * the last executed context as tracked by retirement.
+	 */
+	rq = __i915_gem_active_peek(&engine->timeline->last_request);
+	if (rq)
+		return rq->ctx == kernel_context;
+	else
+		return engine->last_retired_context == kernel_context;
 }
 
 void intel_engines_reset_default_submission(struct drm_i915_private *i915)
