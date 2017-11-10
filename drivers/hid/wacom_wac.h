@@ -11,6 +11,7 @@
 
 #include <linux/types.h>
 #include <linux/hid.h>
+#include <linux/kfifo.h>
 
 /* maximum packet length for USB/BT devices */
 #define WACOM_PKGLEN_MAX	361
@@ -88,6 +89,7 @@
 #define WACOM_QUIRK_SENSE		0x0002
 #define WACOM_QUIRK_AESPEN		0x0004
 #define WACOM_QUIRK_BATTERY		0x0008
+#define WACOM_QUIRK_TOOLSERIAL		0x0010
 
 /* device types */
 #define WACOM_DEVICETYPE_NONE           0x0000
@@ -339,6 +341,7 @@ struct wacom_wac {
 	struct input_dev *pen_input;
 	struct input_dev *touch_input;
 	struct input_dev *pad_input;
+	struct kfifo_rec_ptr_2 pen_fifo;
 	int pid;
 	int num_contacts_left;
 	u8 bt_features;
