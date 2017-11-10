@@ -857,8 +857,10 @@ static long uinput_ioctl_handler(struct file *file, unsigned int cmd,
 
 	if (!udev->dev) {
 		udev->dev = input_allocate_device();
-		if (!udev->dev)
-			return -ENOMEM;
+		if (!udev->dev) {
+			retval = -ENOMEM;
+			goto out;
+		}
 	}
 
 	switch (cmd) {
