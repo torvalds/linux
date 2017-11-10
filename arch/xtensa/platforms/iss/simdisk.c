@@ -116,7 +116,7 @@ static blk_qc_t simdisk_make_request(struct request_queue *q, struct bio *bio)
 		simdisk_transfer(dev, sector, len, buffer,
 				bio_data_dir(bio) == WRITE);
 		sector += len;
-		kunmap_atomic(buffer)
+		kunmap_atomic(buffer);
 	}
 
 	bio_endio(bio);
