@@ -92,6 +92,9 @@ struct dc_stream_state {
 
 	struct crtc_trigger_info triggered_crtc_reset;
 
+	/* Computed state bits */
+	bool mode_changed : 1;
+
 };
 
 struct dc_stream_update {

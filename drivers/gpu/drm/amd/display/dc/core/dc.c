@@ -672,10 +672,13 @@ static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *c
 	/* re-program planes for existing stream, in case we need to
 	 * free up plane resource for later use
 	 */
-	for (i = 0; i < dc->current_state->stream_count; i++) {
+	for (i = 0; i < context->stream_count; i++) {
+		if (context->streams[i]->mode_changed)
+			continue;
+
 		dc->hwss.apply_ctx_for_surface(
-			dc, dc->current_state->streams[i],
-			dc->current_state->stream_status[i].plane_count,
+			dc, context->streams[i],
+			context->stream_status[i].plane_count,
 			context); /* use new pipe config in new context */
 	}
 
@@ -700,6 +703,9 @@ static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *c
 	/* Program all planes within new context*/
 	for (i = 0; i < context->stream_count; i++) {
 		const struct dc_sink *sink = context->streams[i]->sink;
+
+		if (!context->streams[i]->mode_changed)
+			continue;
 
 		dc->hwss.apply_ctx_for_surface(
 				dc, context->streams[i],
