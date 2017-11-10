@@ -22,6 +22,7 @@ static int orangefs_create(struct inode *dir,
 {
 	struct orangefs_inode_s *parent = ORANGEFS_I(dir);
 	struct orangefs_kernel_op_s *new_op;
+	struct orangefs_object_kref ref;
 	struct inode *inode;
 	struct iattr iattr;
 	int ret;
@@ -56,8 +57,10 @@ static int orangefs_create(struct inode *dir,
 	if (ret < 0)
 		goto out;
 
-	inode = orangefs_new_inode(dir->i_sb, dir, S_IFREG | mode, 0,
-				&new_op->downcall.resp.create.refn);
+	ref = new_op->downcall.resp.create.refn;
+	op_release(new_op);
+
+	inode = orangefs_new_inode(dir->i_sb, dir, S_IFREG | mode, 0, &ref);
 	if (IS_ERR(inode)) {
 		gossip_err("%s: Failed to allocate inode for file :%pd:\n",
 			   __func__,
@@ -90,7 +93,6 @@ static int orangefs_create(struct inode *dir,
 	mark_inode_dirty_sync(dir);
 	ret = 0;
 out:
-	op_release(new_op);
 	gossip_debug(GOSSIP_NAME_DEBUG,
 		     "%s: %pd: returning %d\n",
 		     __func__,
@@ -272,6 +274,7 @@ static int orangefs_symlink(struct inode *dir,
 {
 	struct orangefs_inode_s *parent = ORANGEFS_I(dir);
 	struct orangefs_kernel_op_s *new_op;
+	struct orangefs_object_kref ref;
 	struct inode *inode;
 	struct iattr iattr;
 	int mode = 755;
@@ -314,8 +317,10 @@ static int orangefs_symlink(struct inode *dir,
 		goto out;
 	}
 
-	inode = orangefs_new_inode(dir->i_sb, dir, S_IFLNK | mode, 0,
-				&new_op->downcall.resp.sym.refn);
+	ref = new_op->downcall.resp.sym.refn;
+	op_release(new_op);
+
+	inode = orangefs_new_inode(dir->i_sb, dir, S_IFLNK | mode, 0, &ref);
 	if (IS_ERR(inode)) {
 		gossip_err
 		    ("*** Failed to allocate orangefs symlink inode\n");
@@ -345,7 +350,6 @@ static int orangefs_symlink(struct inode *dir,
 	mark_inode_dirty_sync(dir);
 	ret = 0;
 out:
-	op_release(new_op);
 	return ret;
 }
 
@@ -353,6 +357,7 @@ static int orangefs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode
 {
 	struct orangefs_inode_s *parent = ORANGEFS_I(dir);
 	struct orangefs_kernel_op_s *new_op;
+	struct orangefs_object_kref ref;
 	struct inode *inode;
 	struct iattr iattr;
 	int ret;
@@ -383,8 +388,10 @@ static int orangefs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode
 		goto out;
 	}
 
-	inode = orangefs_new_inode(dir->i_sb, dir, S_IFDIR | mode, 0,
-				&new_op->downcall.resp.mkdir.refn);
+	ref = new_op->downcall.resp.mkdir.refn;
+	op_release(new_op);
+
+	inode = orangefs_new_inode(dir->i_sb, dir, S_IFDIR | mode, 0, &ref);
 	if (IS_ERR(inode)) {
 		gossip_err("*** Failed to allocate orangefs dir inode\n");
 		ret = PTR_ERR(inode);
@@ -416,7 +423,6 @@ static int orangefs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode
 	orangefs_inode_setattr(dir, &iattr);
 	mark_inode_dirty_sync(dir);
 out:
-	op_release(new_op);
 	return ret;
 }
 
