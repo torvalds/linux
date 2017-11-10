@@ -134,11 +134,8 @@ void pci_hp_add_devices(struct pci_bus *bus)
 		pcibios_setup_bus_devices(bus);
 		max = bus->busn_res.start;
 		for (pass = 0; pass < 2; pass++) {
-			list_for_each_entry(dev, &bus->devices, bus_list) {
-				if (pci_is_bridge(dev))
-					max = pci_scan_bridge(bus, dev,
-							      max, pass);
-			}
+			for_each_pci_bridge(dev, bus)
+				max = pci_scan_bridge(bus, dev, max, pass);
 		}
 	}
 	pcibios_finish_adding_to_bus(bus);
