@@ -585,7 +585,6 @@ static int acpi_gpio_property_lookup(struct fwnode_handle *fwnode,
 	 * The property was found and resolved, so need to lookup the GPIO based
 	 * on returned args.
 	 */
-	lookup->adev = args.adev;
 	if (args.nargs != 3)
 		return -EPROTO;
 
@@ -593,6 +592,7 @@ static int acpi_gpio_property_lookup(struct fwnode_handle *fwnode,
 	lookup->pin_index = args.args[1];
 	lookup->active_low = !!args.args[2];
 
+	lookup->adev = args.adev;
 	return 0;
 }
 
