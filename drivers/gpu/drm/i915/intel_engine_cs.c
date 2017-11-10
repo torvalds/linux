@@ -1626,11 +1626,12 @@ void intel_engines_park(struct drm_i915_private *i915)
 		 * will be no more interrupts arriving later and the engines
 		 * are truly idle.
 		 */
-		if (!intel_engine_is_idle(engine)) {
+		if (wait_for(intel_engine_is_idle(engine), 10)) {
 			struct drm_printer p = drm_debug_printer(__func__);
 
-			DRM_ERROR("%s is not idle before parking\n",
-				  engine->name);
+			dev_err(i915->drm.dev,
+				"%s is not idle before parking\n",
+				engine->name);
 			intel_engine_dump(engine, &p);
 		}
 
