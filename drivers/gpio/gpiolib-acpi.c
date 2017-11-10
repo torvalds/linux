@@ -494,7 +494,6 @@ struct acpi_gpio_lookup {
 	int index;
 	int pin_index;
 	bool active_low;
-	struct acpi_device *adev;
 	struct gpio_desc *desc;
 	int n;
 };
@@ -541,12 +540,13 @@ static int acpi_populate_gpio_lookup(struct acpi_resource *ares, void *data)
 static int acpi_gpio_resource_lookup(struct acpi_gpio_lookup *lookup,
 				     struct acpi_gpio_info *info)
 {
+	struct acpi_device *adev = lookup->info.adev;
 	struct list_head res_list;
 	int ret;
 
 	INIT_LIST_HEAD(&res_list);
 
-	ret = acpi_dev_get_resources(lookup->adev, &res_list,
+	ret = acpi_dev_get_resources(adev, &res_list,
 				     acpi_populate_gpio_lookup,
 				     lookup);
 	if (ret < 0)
@@ -592,7 +592,7 @@ static int acpi_gpio_property_lookup(struct fwnode_handle *fwnode,
 	lookup->pin_index = args.args[1];
 	lookup->active_low = !!args.args[2];
 
-	lookup->adev = args.adev;
+	lookup->info.adev = args.adev;
 	return 0;
 }
 
@@ -640,11 +640,11 @@ static struct gpio_desc *acpi_get_gpiod_by_index(struct acpi_device *adev,
 			return ERR_PTR(ret);
 
 		dev_dbg(&adev->dev, "GPIO: _DSD returned %s %d %d %u\n",
-			dev_name(&lookup.adev->dev), lookup.index,
+			dev_name(&lookup.info.adev->dev), lookup.index,
 			lookup.pin_index, lookup.active_low);
 	} else {
 		dev_dbg(&adev->dev, "GPIO: looking up %d in _CRS\n", index);
-		lookup.adev = adev;
+		lookup.info.adev = adev;
 	}
 
 	ret = acpi_gpio_resource_lookup(&lookup, info);

@@ -75,12 +75,14 @@ struct gpio_device {
 
 /**
  * struct acpi_gpio_info - ACPI GPIO specific information
+ * @adev: reference to ACPI device which consumes GPIO resource
  * @flags: GPIO initialization flags
  * @gpioint: if %true this GPIO is of type GpioInt otherwise type is GpioIo
  * @polarity: interrupt polarity as provided by ACPI
  * @triggering: triggering type as provided by ACPI
  */
 struct acpi_gpio_info {
+	struct acpi_device *adev;
 	enum gpiod_flags flags;
 	bool gpioint;
 	int polarity;
