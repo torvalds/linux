@@ -92,6 +92,8 @@ static struct sk_buff *lan9303_rcv(struct sk_buff *skb, struct net_device *dev,
 {
 	u16 *lan9303_tag;
 	unsigned int source_port;
+	u16 ether_type_nw;
+	u8 ip_protocol;
 
 	if (unlikely(!pskb_may_pull(skb, LAN9303_TAG_LEN))) {
 		dev_warn_ratelimited(&dev->dev,
@@ -128,6 +130,17 @@ static struct sk_buff *lan9303_rcv(struct sk_buff *skb, struct net_device *dev,
 		2 * ETH_ALEN);
 	skb->offload_fwd_mark = !ether_addr_equal(skb->data - ETH_HLEN,
 						  eth_stp_addr);
+
+	/* We also need IGMP packets to have skb->offload_fwd_mark = 0.
+	 * Solving this for all conceivable situations would add more cost to
+	 * every packet. Instead we handle just the common case:
+	 * No VLAN tag + Ethernet II framing.
+	 * Test least probable term first.
+	 */
+	ether_type_nw = lan9303_tag[2];
+	ip_protocol = *(skb->data + 9);
+	if (ip_protocol == IPPROTO_IGMP && ether_type_nw == htons(ETH_P_IP))
+		skb->offload_fwd_mark = 0;
 
 	return skb;
 }
