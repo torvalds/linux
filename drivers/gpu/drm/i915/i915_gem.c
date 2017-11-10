@@ -5218,6 +5218,22 @@ i915_gem_load_init_fences(struct drm_i915_private *dev_priv)
 	i915_gem_detect_bit_6_swizzle(dev_priv);
 }
 
+static void i915_gem_init__mm(struct drm_i915_private *i915)
+{
+	spin_lock_init(&i915->mm.object_stat_lock);
+	spin_lock_init(&i915->mm.obj_lock);
+	spin_lock_init(&i915->mm.free_lock);
+
+	init_llist_head(&i915->mm.free_list);
+
+	INIT_LIST_HEAD(&i915->mm.unbound_list);
+	INIT_LIST_HEAD(&i915->mm.bound_list);
+	INIT_LIST_HEAD(&i915->mm.fence_list);
+	INIT_LIST_HEAD(&i915->mm.userfault_list);
+
+	INIT_WORK(&i915->mm.free_work, __i915_gem_free_work);
+}
+
 int
 i915_gem_load_init(struct drm_i915_private *dev_priv)
 {
@@ -5259,15 +5275,7 @@ i915_gem_load_init(struct drm_i915_private *dev_priv)
 	if (err)
 		goto err_priorities;
 
-	INIT_WORK(&dev_priv->mm.free_work, __i915_gem_free_work);
-
-	spin_lock_init(&dev_priv->mm.obj_lock);
-	spin_lock_init(&dev_priv->mm.free_lock);
-	init_llist_head(&dev_priv->mm.free_list);
-	INIT_LIST_HEAD(&dev_priv->mm.unbound_list);
-	INIT_LIST_HEAD(&dev_priv->mm.bound_list);
-	INIT_LIST_HEAD(&dev_priv->mm.fence_list);
-	INIT_LIST_HEAD(&dev_priv->mm.userfault_list);
+	i915_gem_init__mm(dev_priv);
 
 	INIT_DELAYED_WORK(&dev_priv->gt.retire_work,
 			  i915_gem_retire_work_handler);
