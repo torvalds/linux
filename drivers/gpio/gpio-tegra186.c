@@ -404,8 +404,6 @@ static const struct irq_domain_ops tegra186_gpio_irq_domain_ops = {
 	.xlate = tegra186_gpio_irq_domain_xlate,
 };
 
-static struct lock_class_key tegra186_gpio_lock_class;
-
 static int tegra186_gpio_probe(struct platform_device *pdev)
 {
 	unsigned int i, j, offset;
@@ -496,7 +494,6 @@ static int tegra186_gpio_probe(struct platform_device *pdev)
 	irq->chip = &gpio->intc;
 	irq->domain_ops = &tegra186_gpio_irq_domain_ops;
 	irq->handler = handle_simple_irq;
-	irq->lock_key = &tegra186_gpio_lock_class;
 	irq->default_type = IRQ_TYPE_NONE;
 	irq->parent_handler = tegra186_gpio_irq;
 	irq->parent_handler_data = gpio;
