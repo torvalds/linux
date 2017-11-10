@@ -1673,7 +1673,7 @@ static int vgic_its_create(struct kvm_device *dev, u32 type)
 
 	if (vgic_initialized(dev->kvm)) {
 		int ret = vgic_v4_init(dev->kvm);
-		if (ret) {
+		if (ret < 0) {
 			kfree(its);
 			return ret;
 		}

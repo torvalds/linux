@@ -285,11 +285,9 @@ int vgic_init(struct kvm *kvm)
 	if (ret)
 		goto out;
 
-	if (vgic_supports_direct_msis(kvm)) {
-		ret = vgic_v4_init(kvm);
-		if (ret)
-			goto out;
-	}
+	ret = vgic_v4_init(kvm);
+	if (ret)
+		goto out;
 
 	kvm_for_each_vcpu(i, vcpu, kvm)
 		kvm_vgic_vcpu_enable(vcpu);

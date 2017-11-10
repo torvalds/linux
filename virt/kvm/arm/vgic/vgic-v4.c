@@ -118,6 +118,9 @@ int vgic_v4_init(struct kvm *kvm)
 	struct kvm_vcpu *vcpu;
 	int i, nr_vcpus, ret;
 
+	if (!vgic_supports_direct_msis(kvm))
+		return 0; /* Nothing to see here... move along. */
+
 	if (dist->its_vm.vpes)
 		return 0;
 
