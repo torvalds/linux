@@ -551,7 +551,7 @@ static void ipu_plane_atomic_update(struct drm_plane *plane,
 					  drm_rect_width(&state->src) >> 16,
 					  drm_rect_height(&state->src) >> 16,
 					  fb->pitches[0], fb->format->format,
-					  0, &eba);
+					  fb->modifier, &eba);
 	}
 
 	if (old_state->fb && !drm_atomic_crtc_needs_modeset(crtc_state)) {
@@ -700,18 +700,71 @@ static const struct drm_plane_helper_funcs ipu_plane_helper_funcs = {
 int ipu_planes_assign_pre(struct drm_device *dev,
 			  struct drm_atomic_state *state)
 {
+	struct drm_crtc_state *old_crtc_state, *crtc_state;
 	struct drm_plane_state *plane_state;
+	struct ipu_plane_state *ipu_state;
+	struct ipu_plane *ipu_plane;
 	struct drm_plane *plane;
+	struct drm_crtc *crtc;
 	int available_pres = ipu_prg_max_active_channels();
-	int i;
+	int ret, i;
+
+	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, crtc_state, i) {
+		ret = drm_atomic_add_affected_planes(state, crtc);
+		if (ret)
+			return ret;
+	}
+
+	/*
+	 * We are going over the planes in 2 passes: first we assign PREs to
+	 * planes with a tiling modifier, which need the PREs to resolve into
+	 * linear. Any failure to assign a PRE there is fatal. In the second
+	 * pass we try to assign PREs to linear FBs, to improve memory access
+	 * patterns for them. Failure at this point is non-fatal, as we can
+	 * scan out linear FBs without a PRE.
+	 */
+	for_each_new_plane_in_state(state, plane, plane_state, i) {
+		ipu_state = to_ipu_plane_state(plane_state);
+		ipu_plane = to_ipu_plane(plane);
+
+		if (!plane_state->fb) {
+			ipu_state->use_pre = false;
+			continue;
+		}
+
+		if (!(plane_state->fb->flags & DRM_MODE_FB_MODIFIERS) ||
+		    plane_state->fb->modifier == DRM_FORMAT_MOD_LINEAR)
+			continue;
+
+		if (!ipu_prg_present(ipu_plane->ipu) || !available_pres)
+			return -EINVAL;
+
+		if (!ipu_prg_format_supported(ipu_plane->ipu,
+					      plane_state->fb->format->format,
+					      plane_state->fb->modifier))
+			return -EINVAL;
+
+		ipu_state->use_pre = true;
+		available_pres--;
+	}
 
 	for_each_new_plane_in_state(state, plane, plane_state, i) {
-		struct ipu_plane_state *ipu_state =
-				to_ipu_plane_state(plane_state);
-		struct ipu_plane *ipu_plane = to_ipu_plane(plane);
+		ipu_state = to_ipu_plane_state(plane_state);
+		ipu_plane = to_ipu_plane(plane);
+
+		if (!plane_state->fb) {
+			ipu_state->use_pre = false;
+			continue;
+		}
+
+		if ((plane_state->fb->flags & DRM_MODE_FB_MODIFIERS) &&
+		    plane_state->fb->modifier != DRM_FORMAT_MOD_LINEAR)
+			continue;
+
+		/* make sure that modifier is initialized */
+		plane_state->fb->modifier = DRM_FORMAT_MOD_LINEAR;
 
 		if (ipu_prg_present(ipu_plane->ipu) && available_pres &&
-		    plane_state->fb &&
 		    ipu_prg_format_supported(ipu_plane->ipu,
 					     plane_state->fb->format->format,
 					     plane_state->fb->modifier)) {
