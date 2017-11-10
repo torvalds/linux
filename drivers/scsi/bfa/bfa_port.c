@@ -96,14 +96,11 @@ bfa_port_get_stats_isr(struct bfa_port_s *port, bfa_status_t status)
 	port->stats_busy = BFA_FALSE;
 
 	if (status == BFA_STATUS_OK) {
-		struct timeval tv;
-
 		memcpy(port->stats, port->stats_dma.kva,
 		       sizeof(union bfa_port_stats_u));
 		bfa_port_stats_swap(port, port->stats);
 
-		do_gettimeofday(&tv);
-		port->stats->fc.secs_reset = tv.tv_sec - port->stats_reset_time;
+		port->stats->fc.secs_reset = ktime_get_seconds() - port->stats_reset_time;
 	}
 
 	if (port->stats_cbfn) {
@@ -124,16 +121,13 @@ bfa_port_get_stats_isr(struct bfa_port_s *port, bfa_status_t status)
 static void
 bfa_port_clear_stats_isr(struct bfa_port_s *port, bfa_status_t status)
 {
-	struct timeval tv;
-
 	port->stats_status = status;
 	port->stats_busy   = BFA_FALSE;
 
 	/*
 	* re-initialize time stamp for stats reset
 	*/
-	do_gettimeofday(&tv);
-	port->stats_reset_time = tv.tv_sec;
+	port->stats_reset_time = ktime_get_seconds();
 
 	if (port->stats_cbfn) {
 		port->stats_cbfn(port->stats_cbarg, status);
@@ -471,8 +465,6 @@ void
 bfa_port_attach(struct bfa_port_s *port, struct bfa_ioc_s *ioc,
 		 void *dev, struct bfa_trc_mod_s *trcmod)
 {
-	struct timeval tv;
-
 	WARN_ON(!port);
 
 	port->dev    = dev;
@@ -494,8 +486,7 @@ bfa_port_attach(struct bfa_port_s *port, struct bfa_ioc_s *ioc,
 	/*
 	 * initialize time stamp for stats reset
 	 */
-	do_gettimeofday(&tv);
-	port->stats_reset_time = tv.tv_sec;
+	port->stats_reset_time = ktime_get_seconds();
 
 	bfa_trc(port, 0);
 }
