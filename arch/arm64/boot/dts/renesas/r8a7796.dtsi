@@ -1884,6 +1884,7 @@
 			clocks = <&cpg CPG_MOD 611>;
 			power-domains = <&sysc R8A7796_PD_A3VC>;
 			resets = <&cpg 611>;
+			iommus = <&ipmmu_vc0 19>;
 		};
 
 		vspd0: vsp@fea20000 {
