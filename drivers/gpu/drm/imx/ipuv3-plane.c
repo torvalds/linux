@@ -77,6 +77,18 @@ static const uint32_t ipu_plane_formats[] = {
 	DRM_FORMAT_BGRX8888_A8,
 };
 
+static const uint64_t ipu_format_modifiers[] = {
+	DRM_FORMAT_MOD_LINEAR,
+	DRM_FORMAT_MOD_INVALID
+};
+
+static const uint64_t pre_format_modifiers[] = {
+	DRM_FORMAT_MOD_LINEAR,
+	DRM_FORMAT_MOD_VIVANTE_TILED,
+	DRM_FORMAT_MOD_VIVANTE_SUPER_TILED,
+	DRM_FORMAT_MOD_INVALID
+};
+
 int ipu_plane_irq(struct ipu_plane *ipu_plane)
 {
 	return ipu_idmac_channel_irq(ipu_plane->ipu, ipu_plane->ipu_ch,
@@ -303,6 +315,22 @@ void ipu_plane_destroy_state(struct drm_plane *plane,
 	kfree(ipu_state);
 }
 
+static bool ipu_plane_format_mod_supported(struct drm_plane *plane,
+					   uint32_t format, uint64_t modifier)
+{
+	struct ipu_soc *ipu = to_ipu_plane(plane)->ipu;
+
+	/* linear is supported for all planes and formats */
+	if (modifier == DRM_FORMAT_MOD_LINEAR)
+		return true;
+
+	/* without a PRG there are no supported modifiers */
+	if (!ipu_prg_present(ipu))
+		return false;
+
+	return ipu_prg_format_supported(ipu, format, modifier);
+}
+
 static const struct drm_plane_funcs ipu_plane_funcs = {
 	.update_plane	= drm_atomic_helper_update_plane,
 	.disable_plane	= drm_atomic_helper_disable_plane,
@@ -310,6 +338,7 @@ static const struct drm_plane_funcs ipu_plane_funcs = {
 	.reset		= ipu_plane_state_reset,
 	.atomic_duplicate_state	= ipu_plane_duplicate_state,
 	.atomic_destroy_state	= ipu_plane_destroy_state,
+	.format_mod_supported = ipu_plane_format_mod_supported,
 };
 
 static int ipu_plane_atomic_check(struct drm_plane *plane,
@@ -784,6 +813,7 @@ struct ipu_plane *ipu_plane_init(struct drm_device *dev, struct ipu_soc *ipu,
 				 enum drm_plane_type type)
 {
 	struct ipu_plane *ipu_plane;
+	const uint64_t *modifiers = ipu_format_modifiers;
 	int ret;
 
 	DRM_DEBUG_KMS("channel %d, dp flow %d, possible_crtcs=0x%x\n",
@@ -799,10 +829,13 @@ struct ipu_plane *ipu_plane_init(struct drm_device *dev, struct ipu_soc *ipu,
 	ipu_plane->dma = dma;
 	ipu_plane->dp_flow = dp;
 
+	if (ipu_prg_present(ipu))
+		modifiers = pre_format_modifiers;
+
 	ret = drm_universal_plane_init(dev, &ipu_plane->base, possible_crtcs,
 				       &ipu_plane_funcs, ipu_plane_formats,
 				       ARRAY_SIZE(ipu_plane_formats),
-				       NULL, type, NULL);
+				       modifiers, type, NULL);
 	if (ret) {
 		DRM_ERROR("failed to initialize plane\n");
 		kfree(ipu_plane);
