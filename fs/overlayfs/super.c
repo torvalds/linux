@@ -831,8 +831,9 @@ static const struct xattr_handler *ovl_xattr_handlers[] = {
 	NULL
 };
 
-static int ovl_get_upperpath(struct ovl_fs *ufs, struct path *upperpath)
+static int ovl_get_upper(struct ovl_fs *ufs, struct path *upperpath)
 {
+	struct vfsmount *upper_mnt;
 	int err;
 
 	err = ovl_mount_dir(ufs->config.upperdir, upperpath);
@@ -859,6 +860,17 @@ static int ovl_get_upperpath(struct ovl_fs *ufs, struct path *upperpath)
 	} else {
 		pr_warn("overlayfs: upperdir is in-use by another mount, accessing files from both mounts will result in undefined behavior.\n");
 	}
+
+	upper_mnt = clone_private_mount(upperpath);
+	err = PTR_ERR(upper_mnt);
+	if (IS_ERR(upper_mnt)) {
+		pr_err("overlayfs: failed to clone upperpath\n");
+		goto out;
+	}
+
+	/* Don't inherit atime flags */
+	upper_mnt->mnt_flags &= ~(MNT_NOATIME | MNT_NODIRATIME | MNT_RELATIME);
+	ufs->upper_mnt = upper_mnt;
 	err = 0;
 out:
 	return err;
@@ -952,23 +964,6 @@ static int ovl_get_workpath(struct ovl_fs *ufs, struct path *upperpath,
 	err = 0;
 out:
 	return err;
-}
-
-static int ovl_get_upper(struct ovl_fs *ufs, struct path *upperpath)
-{
-	struct vfsmount *upper_mnt;
-
-	upper_mnt = clone_private_mount(upperpath);
-	if (IS_ERR(upper_mnt)) {
-		pr_err("overlayfs: failed to clone upperpath\n");
-		return PTR_ERR(upper_mnt);
-	}
-
-	/* Don't inherit atime flags */
-	upper_mnt->mnt_flags &= ~(MNT_NOATIME | MNT_NODIRATIME | MNT_RELATIME);
-	ufs->upper_mnt = upper_mnt;
-
-	return 0;
 }
 
 static int ovl_get_indexdir(struct ovl_fs *ufs, struct ovl_entry *oe,
@@ -1168,10 +1163,6 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 			pr_err("overlayfs: missing 'workdir'\n");
 			goto out_err;
 		}
-
-		err = ovl_get_upperpath(ufs, &upperpath);
-		if (err)
-			goto out_err;
 
 		err = ovl_get_upper(ufs, &upperpath);
 		if (err)
