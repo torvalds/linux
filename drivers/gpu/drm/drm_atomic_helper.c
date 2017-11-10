@@ -1793,11 +1793,8 @@ int drm_atomic_helper_setup_commit(struct drm_atomic_state *state,
 		    !try_wait_for_completion(&old_conn_state->commit->flip_done))
 			return -EBUSY;
 
-		/* commit tracked through new_crtc_state->commit, no need to do it explicitly */
-		if (new_conn_state->crtc)
-			continue;
-
-		commit = crtc_or_fake_commit(state, old_conn_state->crtc);
+		/* Always track connectors explicitly for e.g. link retraining. */
+		commit = crtc_or_fake_commit(state, new_conn_state->crtc ?: old_conn_state->crtc);
 		if (!commit)
 			return -ENOMEM;
 
@@ -1811,10 +1808,7 @@ int drm_atomic_helper_setup_commit(struct drm_atomic_state *state,
 		    !try_wait_for_completion(&old_plane_state->commit->flip_done))
 			return -EBUSY;
 
-		/*
-		 * Unlike connectors, always track planes explicitly for
-		 * async pageflip support.
-		 */
+		/* Always track planes explicitly for async pageflip support. */
 		commit = crtc_or_fake_commit(state, new_plane_state->crtc ?: old_plane_state->crtc);
 		if (!commit)
 			return -ENOMEM;
