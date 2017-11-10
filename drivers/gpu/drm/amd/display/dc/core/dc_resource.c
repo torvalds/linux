@@ -516,13 +516,11 @@ static void calculate_viewport(struct pipe_ctx *pipe_ctx)
 			right_view = (plane_state->rotation == ROTATION_ANGLE_270) != sec_split;
 
 		if (right_view) {
-			data->viewport.width /= 2;
-			data->viewport_c.width /= 2;
-			data->viewport.x +=  data->viewport.width;
-			data->viewport_c.x +=  data->viewport_c.width;
+			data->viewport.x +=  data->viewport.width / 2;
+			data->viewport_c.x +=  data->viewport_c.width / 2;
 			/* Ceil offset pipe */
-			data->viewport.width += data->viewport.width % 2;
-			data->viewport_c.width += data->viewport_c.width % 2;
+			data->viewport.width = (data->viewport.width + 1) / 2;
+			data->viewport_c.width = (data->viewport_c.width + 1) / 2;
 		} else {
 			data->viewport.width /= 2;
 			data->viewport_c.width /= 2;
