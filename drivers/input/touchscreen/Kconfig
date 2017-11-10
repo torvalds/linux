@@ -404,6 +404,17 @@ config TOUCHSCREEN_S3C2410
 	  To compile this driver as a module, choose M here: the
 	  module will be called s3c2410_ts.
 
+config TOUCHSCREEN_S6SY761
+	tristate "Samsung S6SY761 Touchscreen driver"
+	depends on I2C
+	help
+	  Say Y if you have the Samsung S6SY761 driver
+
+	  If unsure, say N
+
+	  To compile this driver as module, choose M here: the
+	  module will be called s6sy761.
+
 config TOUCHSCREEN_GUNZE
 	tristate "Gunze AHL-51S touchscreen"
 	select SERIO
