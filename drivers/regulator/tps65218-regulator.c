@@ -154,7 +154,7 @@ static int tps65218_pmic_set_suspend_disable(struct regulator_dev *dev)
 
 	if (!tps->strobes[rid]) {
 		if (rid == TPS65218_DCDC_3)
-			tps->info[rid]->strobe = 3;
+			tps->strobes[rid] = 3;
 		else
 			return -EINVAL;
 	}
