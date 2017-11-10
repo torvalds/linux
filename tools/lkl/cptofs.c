@@ -231,7 +231,8 @@ out:
 	return ret;
 }
 
-static int stat_src(const char *path, int *type, int *mode, int *size)
+static int stat_src(const char *path, unsigned int *type, unsigned int *mode,
+		    long long *size)
 {
 	struct stat stat;
 	struct lkl_stat lkl_stat;
@@ -262,7 +263,7 @@ static int stat_src(const char *path, int *type, int *mode, int *size)
 	return ret;
 }
 
-static int mkdir_dst(const char *path, int mode)
+static int mkdir_dst(const char *path, unsigned int mode)
 {
 	int ret;
 
@@ -319,7 +320,7 @@ static int symlink_dst(const char *path, const char *target)
 static int copy_symlink(const char *src, const char *dst)
 {
 	int ret;
-	int size;
+	long long size, actual_size;
 	char *target = NULL;
 
 	ret = stat_src(src, NULL, NULL, &size);
@@ -330,16 +331,16 @@ static int copy_symlink(const char *src, const char *dst)
 
 	target = malloc(size + 1);
 	if (!target) {
-		fprintf(stderr, "Unable to allocate memory (%d bytes)\n",
+		fprintf(stderr, "Unable to allocate memory (%lld bytes)\n",
 			size + 1);
 		ret = -1;
 		goto out;
 	}
 
-	ret = readlink_src(src, target, size);
-	if (ret != size) {
-		fprintf(stderr, "readlink(%s) bad size: got %d, expected %d\n",
-			src, ret, size);
+	actual_size = readlink_src(src, target, size);
+	if (actual_size != size) {
+		fprintf(stderr, "readlink(%s) bad size: got %lld, expected %lld\n",
+			src, actual_size, size);
 		ret = -1;
 		goto out;
 	}
@@ -359,7 +360,7 @@ out:
 static int do_entry(const char *_src, const char *_dst, const char *name)
 {
 	char src[PATH_MAX], dst[PATH_MAX];
-	int type, mode;
+	unsigned int type, mode;
 	int ret;
 
 	snprintf(src, sizeof(src), "%s/%s", _src, name);
