@@ -1106,6 +1106,10 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 #define OA_PERFCNT1_HI      _MMIO(0x91BC)
 #define OA_PERFCNT2_LO      _MMIO(0x91C0)
 #define OA_PERFCNT2_HI      _MMIO(0x91C4)
+#define OA_PERFCNT3_LO      _MMIO(0x91C8)
+#define OA_PERFCNT3_HI      _MMIO(0x91CC)
+#define OA_PERFCNT4_LO      _MMIO(0x91D8)
+#define OA_PERFCNT4_HI      _MMIO(0x91DC)
 
 #define OA_PERFMATRIX_LO    _MMIO(0x91C8)
 #define OA_PERFMATRIX_HI    _MMIO(0x91CC)
@@ -1113,6 +1117,7 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 /* RPM unit config (Gen8+) */
 #define RPM_CONFIG0	    _MMIO(0x0D00)
 #define RPM_CONFIG1	    _MMIO(0x0D04)
+#define  GEN10_GT_NOA_ENABLE  (1 << 9)
 
 /* RCP unit config (Gen8+) */
 #define RCP_CONFIG	    _MMIO(0x0D08)
