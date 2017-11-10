@@ -461,7 +461,7 @@ static int rt5514_spi_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int rt5514_suspend(struct device *dev)
+static int __maybe_unused rt5514_suspend(struct device *dev)
 {
 	int irq = to_spi_device(dev)->irq;
 
@@ -471,7 +471,7 @@ static int rt5514_suspend(struct device *dev)
 	return 0;
 }
 
-static int rt5514_resume(struct device *dev)
+static int __maybe_unused rt5514_resume(struct device *dev)
 {
 	struct snd_soc_platform *platform = snd_soc_lookup_platform(dev);
 	struct rt5514_dsp *rt5514_dsp =
