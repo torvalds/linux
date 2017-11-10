@@ -978,6 +978,7 @@ struct acpi_gpio_mapping {
 	const char *name;
 	const struct acpi_gpio_params *data;
 	unsigned int size;
+	unsigned int quirks;
 };
 
 #if defined(CONFIG_ACPI) && defined(CONFIG_GPIOLIB)

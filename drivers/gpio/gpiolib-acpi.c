@@ -414,7 +414,8 @@ EXPORT_SYMBOL_GPL(devm_acpi_dev_remove_driver_gpios);
 
 static bool acpi_get_driver_gpio_data(struct acpi_device *adev,
 				      const char *name, int index,
-				      struct acpi_reference_args *args)
+				      struct acpi_reference_args *args,
+				      unsigned int *quirks)
 {
 	const struct acpi_gpio_mapping *gm;
 
@@ -430,6 +431,8 @@ static bool acpi_get_driver_gpio_data(struct acpi_device *adev,
 			args->args[1] = par->line_index;
 			args->args[2] = par->active_low;
 			args->nargs = 3;
+
+			*quirks = gm->quirks;
 			return true;
 		}
 
@@ -580,6 +583,7 @@ static int acpi_gpio_property_lookup(struct fwnode_handle *fwnode,
 				     struct acpi_gpio_lookup *lookup)
 {
 	struct acpi_reference_args args;
+	unsigned int quirks = 0;
 	int ret;
 
 	memset(&args, 0, sizeof(args));
@@ -591,7 +595,8 @@ static int acpi_gpio_property_lookup(struct fwnode_handle *fwnode,
 		if (!adev)
 			return ret;
 
-		if (!acpi_get_driver_gpio_data(adev, propname, index, &args))
+		if (!acpi_get_driver_gpio_data(adev, propname, index, &args,
+					       &quirks))
 			return ret;
 	}
 	/*
@@ -606,6 +611,7 @@ static int acpi_gpio_property_lookup(struct fwnode_handle *fwnode,
 	lookup->active_low = !!args.args[2];
 
 	lookup->info.adev = args.adev;
+	lookup->info.quirks = quirks;
 	return 0;
 }
 

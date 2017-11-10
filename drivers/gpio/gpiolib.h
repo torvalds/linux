@@ -80,6 +80,7 @@ struct gpio_device {
  * @gpioint: if %true this GPIO is of type GpioInt otherwise type is GpioIo
  * @polarity: interrupt polarity as provided by ACPI
  * @triggering: triggering type as provided by ACPI
+ * @quirks: Linux specific quirks as provided by struct acpi_gpio_mapping
  */
 struct acpi_gpio_info {
 	struct acpi_device *adev;
@@ -87,6 +88,7 @@ struct acpi_gpio_info {
 	bool gpioint;
 	int polarity;
 	int triggering;
+	unsigned int quirks;
 };
 
 /* gpio suffixes used for ACPI and device tree lookup */
