@@ -216,7 +216,7 @@ static ssize_t pm_qos_resume_latency_show(struct device *dev,
 
 	if (value == 0)
 		return sprintf(buf, "n/a\n");
-	else if (value == PM_QOS_RESUME_LATENCY_NO_CONSTRAINT)
+	if (value == PM_QOS_RESUME_LATENCY_NO_CONSTRAINT)
 		value = 0;
 
 	return sprintf(buf, "%d\n", value);
@@ -261,7 +261,7 @@ static ssize_t pm_qos_latency_tolerance_show(struct device *dev,
 
 	if (value < 0)
 		return sprintf(buf, "auto\n");
-	else if (value == PM_QOS_LATENCY_ANY)
+	if (value == PM_QOS_LATENCY_ANY)
 		return sprintf(buf, "any\n");
 
 	return sprintf(buf, "%d\n", value);
@@ -527,11 +527,11 @@ static ssize_t rtpm_children_show(struct device *dev,
 static ssize_t rtpm_enabled_show(struct device *dev,
 				 struct device_attribute *attr, char *buf)
 {
-	if ((dev->power.disable_depth) && (dev->power.runtime_auto == false))
+	if (dev->power.disable_depth && (dev->power.runtime_auto == false))
 		return sprintf(buf, "disabled & forbidden\n");
-	else if (dev->power.disable_depth)
+	if (dev->power.disable_depth)
 		return sprintf(buf, "disabled\n");
-	else if (dev->power.runtime_auto == false)
+	if (dev->power.runtime_auto == false)
 		return sprintf(buf, "forbidden\n");
 	return sprintf(buf, "enabled\n");
 }
