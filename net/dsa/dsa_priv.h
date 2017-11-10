@@ -191,6 +191,7 @@ void dsa_switch_unregister_notifier(struct dsa_switch *ds);
 
 /* tag_brcm.c */
 extern const struct dsa_device_ops brcm_netdev_ops;
+extern const struct dsa_device_ops brcm_prepend_netdev_ops;
 
 /* tag_dsa.c */
 extern const struct dsa_device_ops dsa_netdev_ops;

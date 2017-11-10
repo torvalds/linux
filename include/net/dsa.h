@@ -29,6 +29,7 @@ struct fixed_phy_status;
 enum dsa_tag_protocol {
 	DSA_TAG_PROTO_NONE = 0,
 	DSA_TAG_PROTO_BRCM,
+	DSA_TAG_PROTO_BRCM_PREPEND,
 	DSA_TAG_PROTO_DSA,
 	DSA_TAG_PROTO_EDSA,
 	DSA_TAG_PROTO_KSZ,

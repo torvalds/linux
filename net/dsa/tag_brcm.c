@@ -96,13 +96,6 @@ static struct sk_buff *brcm_tag_xmit_ll(struct sk_buff *skb,
 	return skb;
 }
 
-static struct sk_buff *brcm_tag_xmit(struct sk_buff *skb,
-				     struct net_device *dev)
-{
-	/* Build the tag after the MAC Source Address */
-	return brcm_tag_xmit_ll(skb, dev, 2 * ETH_ALEN);
-}
-
 static struct sk_buff *brcm_tag_rcv_ll(struct sk_buff *skb,
 				       struct net_device *dev,
 				       struct packet_type *pt,
@@ -139,6 +132,15 @@ static struct sk_buff *brcm_tag_rcv_ll(struct sk_buff *skb,
 	return skb;
 }
 
+#ifdef CONFIG_NET_DSA_TAG_BRCM
+static struct sk_buff *brcm_tag_xmit(struct sk_buff *skb,
+				     struct net_device *dev)
+{
+	/* Build the tag after the MAC Source Address */
+	return brcm_tag_xmit_ll(skb, dev, 2 * ETH_ALEN);
+}
+
+
 static struct sk_buff *brcm_tag_rcv(struct sk_buff *skb, struct net_device *dev,
 				    struct packet_type *pt)
 {
@@ -161,3 +163,26 @@ const struct dsa_device_ops brcm_netdev_ops = {
 	.xmit	= brcm_tag_xmit,
 	.rcv	= brcm_tag_rcv,
 };
+#endif
+
+#ifdef CONFIG_NET_DSA_TAG_BRCM_PREPEND
+static struct sk_buff *brcm_tag_xmit_prepend(struct sk_buff *skb,
+					     struct net_device *dev)
+{
+	/* tag is prepended to the packet */
+	return brcm_tag_xmit_ll(skb, dev, 0);
+}
+
+static struct sk_buff *brcm_tag_rcv_prepend(struct sk_buff *skb,
+					    struct net_device *dev,
+					    struct packet_type *pt)
+{
+	/* tag is prepended to the packet */
+	return brcm_tag_rcv_ll(skb, dev, pt, ETH_HLEN);
+}
+
+const struct dsa_device_ops brcm_prepend_netdev_ops = {
+	.xmit	= brcm_tag_xmit_prepend,
+	.rcv	= brcm_tag_rcv_prepend,
+};
+#endif
