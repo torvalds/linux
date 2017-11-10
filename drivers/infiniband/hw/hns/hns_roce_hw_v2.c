@@ -2566,6 +2566,7 @@ static int modify_qp_rtr_to_rts(struct ib_qp *ibqp,
 	struct hns_roce_qp *hr_qp = to_hr_qp(ibqp);
 	struct device *dev = hr_dev->dev;
 	dma_addr_t dma_handle;
+	u32 page_size;
 	u64 *mtts;
 
 	/* Search qp buf's mtts */
@@ -2607,6 +2608,21 @@ static int modify_qp_rtr_to_rts(struct ib_qp *ibqp,
 	roce_set_field(qpc_mask->byte_168_irrl_idx,
 		       V2_QPC_BYTE_168_SQ_CUR_BLK_ADDR_M,
 		       V2_QPC_BYTE_168_SQ_CUR_BLK_ADDR_S, 0);
+
+	page_size = 1 << (hr_dev->caps.mtt_buf_pg_sz + PAGE_SHIFT);
+	context->sq_cur_sge_blk_addr = hr_qp->sq.max_gs > 2 ?
+				      ((u32)(mtts[hr_qp->sge.offset / page_size]
+				      >> PAGE_ADDR_SHIFT)) : 0;
+	roce_set_field(context->byte_184_irrl_idx,
+		       V2_QPC_BYTE_184_SQ_CUR_SGE_BLK_ADDR_M,
+		       V2_QPC_BYTE_184_SQ_CUR_SGE_BLK_ADDR_S,
+		       hr_qp->sq.max_gs > 2 ?
+		       (mtts[hr_qp->sge.offset / page_size] >>
+		       (32 + PAGE_ADDR_SHIFT)) : 0);
+	qpc_mask->sq_cur_sge_blk_addr = 0;
+	roce_set_field(qpc_mask->byte_184_irrl_idx,
+		       V2_QPC_BYTE_184_SQ_CUR_SGE_BLK_ADDR_M,
+		       V2_QPC_BYTE_184_SQ_CUR_SGE_BLK_ADDR_S, 0);
 
 	context->rx_sq_cur_blk_addr = (u32)(mtts[0] >> PAGE_ADDR_SHIFT);
 	roce_set_field(context->byte_232_irrl_sge,

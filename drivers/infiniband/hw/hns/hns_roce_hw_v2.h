@@ -353,7 +353,7 @@ struct hns_roce_v2_qp_context {
 	u32	byte_168_irrl_idx;
 	u32	byte_172_sq_psn;
 	u32	byte_176_msg_pktn;
-	u32	sq_cur_sqe_blk_addr;
+	u32	sq_cur_sge_blk_addr;
 	u32	byte_184_irrl_idx;
 	u32	cur_sge_offset;
 	u32	byte_192_ext_sge;
