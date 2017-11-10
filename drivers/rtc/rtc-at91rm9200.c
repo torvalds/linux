@@ -208,7 +208,6 @@ static int at91_rtc_readalarm(struct device *dev, struct rtc_wkalrm *alrm)
 	struct rtc_time *tm = &alrm->time;
 
 	at91_rtc_decodetime(AT91_RTC_TIMALR, AT91_RTC_CALALR, tm);
-	tm->tm_yday = rtc_year_days(tm->tm_mday, tm->tm_mon, tm->tm_year);
 	tm->tm_year = at91_alarm_year - 1900;
 
 	alrm->enabled = (at91_rtc_read_imr() & AT91_RTC_ALARM)
