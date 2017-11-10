@@ -2789,7 +2789,9 @@ wl_run_escan(struct bcm_cfg80211 *cfg, struct net_device *ndev,
 
 		err = wldev_iovar_setbuf(ndev, "escan", params, params_size,
 			cfg->escan_ioctl_buf, WLC_IOCTL_MEDLEN, NULL);
-		printf("%s: LEGACY_SCAN sync ID: %d, bssidx: %d\n", __FUNCTION__, params->sync_id, bssidx);
+		WL_DBG(("LEGACY_SCAN sync ID: %d, bssidx: %d\n",
+			params->sync_id, bssidx));
+
 		if (unlikely(err)) {
 			if (err == BCME_EPERM)
 				/* Scan Not permitted at this point of time */
