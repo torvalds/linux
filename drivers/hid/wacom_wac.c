@@ -2086,6 +2086,27 @@ static void wacom_wac_pen_usage_mapping(struct hid_device *hdev,
 		break;
 	case HID_DG_TOOLSERIALNUMBER:
 		wacom_map_usage(input, usage, field, EV_MSC, MSC_SERIAL, 0);
+
+		/* Adjust AES usages to match modern convention */
+		if (usage->hid == WACOM_HID_WT_SERIALNUMBER && field->report_size == 16) {
+			if (field->index + 2 < field->report->maxfield) {
+				struct hid_field *a = field->report->field[field->index + 1];
+				struct hid_field *b = field->report->field[field->index + 2];
+
+				if (a->maxusage > 0 && a->usage[0].hid == HID_DG_TOOLSERIALNUMBER && a->report_size == 32 &&
+				    b->maxusage > 0 && b->usage[0].hid == 0xFF000000 && b->report_size == 8) {
+					features->quirks |= WACOM_QUIRK_AESPEN;
+					usage->hid = WACOM_HID_WD_TOOLTYPE;
+					field->logical_minimum = S16_MIN;
+					field->logical_maximum = S16_MAX;
+					a->logical_minimum = S32_MIN;
+					a->logical_maximum = S32_MAX;
+					b->usage[0].hid = WACOM_HID_WD_SERIALHI;
+					b->logical_minimum = 0;
+					b->logical_maximum = U8_MAX;
+				}
+			}
+		}
 		break;
 	case WACOM_HID_WD_SENSE:
 		features->quirks |= WACOM_QUIRK_SENSE;
@@ -2093,15 +2114,18 @@ static void wacom_wac_pen_usage_mapping(struct hid_device *hdev,
 		break;
 	case WACOM_HID_WD_SERIALHI:
 		wacom_map_usage(input, usage, field, EV_ABS, ABS_MISC, 0);
-		set_bit(EV_KEY, input->evbit);
-		input_set_capability(input, EV_KEY, BTN_TOOL_PEN);
-		input_set_capability(input, EV_KEY, BTN_TOOL_RUBBER);
-		input_set_capability(input, EV_KEY, BTN_TOOL_BRUSH);
-		input_set_capability(input, EV_KEY, BTN_TOOL_PENCIL);
-		input_set_capability(input, EV_KEY, BTN_TOOL_AIRBRUSH);
-		if (!(features->device_type & WACOM_DEVICETYPE_DIRECT)) {
-			input_set_capability(input, EV_KEY, BTN_TOOL_MOUSE);
-			input_set_capability(input, EV_KEY, BTN_TOOL_LENS);
+
+		if (!(features->quirks & WACOM_QUIRK_AESPEN)) {
+			set_bit(EV_KEY, input->evbit);
+			input_set_capability(input, EV_KEY, BTN_TOOL_PEN);
+			input_set_capability(input, EV_KEY, BTN_TOOL_RUBBER);
+			input_set_capability(input, EV_KEY, BTN_TOOL_BRUSH);
+			input_set_capability(input, EV_KEY, BTN_TOOL_PENCIL);
+			input_set_capability(input, EV_KEY, BTN_TOOL_AIRBRUSH);
+			if (!(features->device_type & WACOM_DEVICETYPE_DIRECT)) {
+				input_set_capability(input, EV_KEY, BTN_TOOL_MOUSE);
+				input_set_capability(input, EV_KEY, BTN_TOOL_LENS);
+			}
 		}
 		break;
 	case WACOM_HID_WD_FINGERWHEEL:
