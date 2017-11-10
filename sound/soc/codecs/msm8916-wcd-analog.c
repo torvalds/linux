@@ -285,7 +285,7 @@ struct pm8916_wcd_analog_priv {
 	u16 codec_version;
 	bool	mbhc_btn_enabled;
 	/* special event to detect accessory type */
-	bool	mbhc_btn0_pressed;
+	int	mbhc_btn0_released;
 	bool	detect_accessory_type;
 	struct clk *mclk;
 	struct snd_soc_codec *codec;
@@ -444,50 +444,6 @@ static int pm8916_wcd_analog_enable_micbias_int1(struct
 						     wcd->micbias1_cap_mode);
 }
 
-static void pm8916_wcd_setup_mbhc(struct pm8916_wcd_analog_priv *wcd)
-{
-	struct snd_soc_codec *codec = wcd->codec;
-	u32 plug_type = 0;
-	u32 int_en_mask;
-
-	snd_soc_write(codec, CDC_A_MBHC_DET_CTL_1,
-		      CDC_A_MBHC_DET_CTL_L_DET_EN |
-		      CDC_A_MBHC_DET_CTL_MECH_DET_TYPE_INSERTION |
-		      CDC_A_MBHC_DET_CTL_MIC_CLAMP_CTL_AUTO |
-		      CDC_A_MBHC_DET_CTL_MBHC_BIAS_EN);
-
-	if (wcd->hphl_jack_type_normally_open)
-		plug_type |= CDC_A_HPHL_PLUG_TYPE_NO;
-
-	if (wcd->gnd_jack_type_normally_open)
-		plug_type |= CDC_A_GND_PLUG_TYPE_NO;
-
-	snd_soc_write(codec, CDC_A_MBHC_DET_CTL_2,
-		      CDC_A_MBHC_DET_CTL_HS_L_DET_PULL_UP_CTRL_I_3P0 |
-		      CDC_A_MBHC_DET_CTL_HS_L_DET_COMPA_CTRL_V0P9_VDD |
-		      plug_type |
-		      CDC_A_MBHC_DET_CTL_HPHL_100K_TO_GND_EN);
-
-
-	snd_soc_write(codec, CDC_A_MBHC_DBNC_TIMER,
-		      CDC_A_MBHC_DBNC_TIMER_INSREM_DBNC_T_256_MS |
-		      CDC_A_MBHC_DBNC_TIMER_BTN_DBNC_T_16MS);
-
-	/* enable MBHC clock */
-	snd_soc_update_bits(codec, CDC_D_CDC_DIG_CLK_CTL,
-			    DIG_CLK_CTL_D_MBHC_CLK_EN_MASK,
-			    DIG_CLK_CTL_D_MBHC_CLK_EN);
-
-	int_en_mask = MBHC_SWITCH_INT;
-	if (wcd->mbhc_btn_enabled)
-		int_en_mask |= MBHC_BUTTON_PRESS_DET | MBHC_BUTTON_RELEASE_DET;
-
-	snd_soc_update_bits(codec, CDC_D_INT_EN_CLR, int_en_mask, 0);
-	snd_soc_update_bits(codec, CDC_D_INT_EN_SET, int_en_mask, int_en_mask);
-	wcd->mbhc_btn0_pressed = false;
-	wcd->detect_accessory_type = true;
-}
-
 static int pm8916_mbhc_configure_bias(struct pm8916_wcd_analog_priv *priv,
 				      bool micbias2_enabled)
 {
@@ -533,6 +489,56 @@ static int pm8916_mbhc_configure_bias(struct pm8916_wcd_analog_priv *priv,
 	}
 
 	return 0;
+}
+
+static void pm8916_wcd_setup_mbhc(struct pm8916_wcd_analog_priv *wcd)
+{
+	struct snd_soc_codec *codec = wcd->codec;
+	bool micbias_enabled = false;
+	u32 plug_type = 0;
+	u32 int_en_mask;
+
+	snd_soc_write(codec, CDC_A_MBHC_DET_CTL_1,
+		      CDC_A_MBHC_DET_CTL_L_DET_EN |
+		      CDC_A_MBHC_DET_CTL_MECH_DET_TYPE_INSERTION |
+		      CDC_A_MBHC_DET_CTL_MIC_CLAMP_CTL_AUTO |
+		      CDC_A_MBHC_DET_CTL_MBHC_BIAS_EN);
+
+	if (wcd->hphl_jack_type_normally_open)
+		plug_type |= CDC_A_HPHL_PLUG_TYPE_NO;
+
+	if (wcd->gnd_jack_type_normally_open)
+		plug_type |= CDC_A_GND_PLUG_TYPE_NO;
+
+	snd_soc_write(codec, CDC_A_MBHC_DET_CTL_2,
+		      CDC_A_MBHC_DET_CTL_HS_L_DET_PULL_UP_CTRL_I_3P0 |
+		      CDC_A_MBHC_DET_CTL_HS_L_DET_COMPA_CTRL_V0P9_VDD |
+		      plug_type |
+		      CDC_A_MBHC_DET_CTL_HPHL_100K_TO_GND_EN);
+
+
+	snd_soc_write(codec, CDC_A_MBHC_DBNC_TIMER,
+		      CDC_A_MBHC_DBNC_TIMER_INSREM_DBNC_T_256_MS |
+		      CDC_A_MBHC_DBNC_TIMER_BTN_DBNC_T_16MS);
+
+	/* enable MBHC clock */
+	snd_soc_update_bits(codec, CDC_D_CDC_DIG_CLK_CTL,
+			    DIG_CLK_CTL_D_MBHC_CLK_EN_MASK,
+			    DIG_CLK_CTL_D_MBHC_CLK_EN);
+
+	if (snd_soc_read(codec, CDC_A_MICB_2_EN) & CDC_A_MICB_2_EN_ENABLE)
+		micbias_enabled = true;
+
+	pm8916_mbhc_configure_bias(wcd, micbias_enabled);
+
+	int_en_mask = MBHC_SWITCH_INT;
+	if (wcd->mbhc_btn_enabled)
+		int_en_mask |= MBHC_BUTTON_PRESS_DET | MBHC_BUTTON_RELEASE_DET;
+
+	snd_soc_update_bits(codec, CDC_D_INT_EN_CLR, int_en_mask, 0);
+	snd_soc_update_bits(codec, CDC_D_INT_EN_SET, int_en_mask, int_en_mask);
+	wcd->mbhc_btn0_released = false;
+	wcd->detect_accessory_type = true;
 }
 
 static int pm8916_wcd_analog_enable_micbias_int2(struct
@@ -952,7 +958,7 @@ static irqreturn_t mbhc_btn_release_irq_handler(int irq, void *arg)
 
 		/* check if its BTN0 thats released */
 		if ((val != -1) && !(val & CDC_A_MBHC_RESULT_1_BTN_RESULT_MASK))
-			priv->mbhc_btn0_pressed = false;
+			priv->mbhc_btn0_released = true;
 
 	} else {
 		snd_soc_jack_report(priv->jack, 0, btn_mask);
@@ -985,9 +991,7 @@ static irqreturn_t mbhc_btn_press_irq_handler(int irq, void *arg)
 		break;
 	case 0x0:
 		/* handle BTN_0 specially for type detection */
-		if (priv->detect_accessory_type)
-			priv->mbhc_btn0_pressed = true;
-		else
+		if (!priv->detect_accessory_type)
 			snd_soc_jack_report(priv->jack,
 					    SND_JACK_BTN_0, btn_mask);
 		break;
@@ -1031,19 +1035,19 @@ static irqreturn_t pm8916_mbhc_switch_irq_handler(int irq, void *arg)
 		 * both press and release event received then its
 		 * a headset.
 		 */
-		if (priv->mbhc_btn0_pressed)
-			snd_soc_jack_report(priv->jack,
-					    SND_JACK_HEADPHONE, hs_jack_mask);
-		else
+		if (priv->mbhc_btn0_released)
 			snd_soc_jack_report(priv->jack,
 					    SND_JACK_HEADSET, hs_jack_mask);
+		else
+			snd_soc_jack_report(priv->jack,
+					    SND_JACK_HEADPHONE, hs_jack_mask);
 
 		priv->detect_accessory_type = false;
 
 	} else { /* removal */
 		snd_soc_jack_report(priv->jack, 0, hs_jack_mask);
 		priv->detect_accessory_type = true;
-		priv->mbhc_btn0_pressed = false;
+		priv->mbhc_btn0_released = false;
 	}
 
 	return IRQ_HANDLED;
@@ -1242,6 +1246,8 @@ static const struct of_device_id pm8916_wcd_analog_spmi_match_table[] = {
 	{ .compatible = "qcom,pm8916-wcd-analog-codec", },
 	{ }
 };
+
+MODULE_DEVICE_TABLE(of, pm8916_wcd_analog_spmi_match_table);
 
 static struct platform_driver pm8916_wcd_analog_spmi_driver = {
 	.driver = {
