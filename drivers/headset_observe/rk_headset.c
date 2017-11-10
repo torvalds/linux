@@ -373,13 +373,14 @@ int rk_headset_probe(struct platform_device *pdev,struct rk_headset_pdata *pdata
 {
 	int ret;
 	struct headset_priv *headset;
-	
+
 	headset = kzalloc(sizeof(struct headset_priv), GFP_KERNEL);
 	if (headset == NULL) {
 		dev_err(&pdev->dev, "failed to allocate driver data\n");
 		return -ENOMEM;
 	}
 
+	headset_info = headset;
 	headset->pdata = pdata;
 	headset->headset_status = HEADSET_OUT;
 	headset->hook_status = HOOK_UP;
@@ -429,42 +430,36 @@ int rk_headset_probe(struct platform_device *pdev,struct rk_headset_pdata *pdata
 	hs_early_suspend.level = ~0x0;
 	register_early_suspend(&hs_early_suspend);
 #endif
-	//------------------------------------------------------------------
 	if (pdata->headset_gpio) {
-		if(!pdata->headset_gpio){
-			dev_err(&pdev->dev,"failed init headset,please full hook_io_init function in board\n");
-			goto failed_free_dev;
-		}	
-
 		headset->irq[HEADSET] = gpio_to_irq(pdata->headset_gpio);
 
 		if(pdata->headset_insert_type == HEADSET_IN_HIGH)
 			headset->irq_type[HEADSET] = IRQF_TRIGGER_RISING;
 		else
 			headset->irq_type[HEADSET] = IRQF_TRIGGER_FALLING;
-		ret = request_irq(headset->irq[HEADSET], headset_interrupt, headset->irq_type[HEADSET], "headset_input", NULL);
-		if (ret) 
+		ret = devm_request_irq(&pdev->dev, headset->irq[HEADSET], headset_interrupt, headset->irq_type[HEADSET], "headset_input", NULL);
+		if (ret)
 			goto failed_free_dev;
 		if (pdata->headset_wakeup)
 			enable_irq_wake(headset->irq[HEADSET]);
-	}
-	else
+	} else {
+		dev_err(&pdev->dev, "failed init headset,please full hook_io_init function in board\n");
 		goto failed_free_dev;
-//------------------------------------------------------------------
+	}
+
 	if (pdata->hook_gpio) {
 		headset->irq[HOOK] = gpio_to_irq(pdata->hook_gpio);
 		headset->irq_type[HOOK] = pdata->hook_down_type == HOOK_DOWN_HIGH ? IRQF_TRIGGER_RISING : IRQF_TRIGGER_FALLING;
-			
-		ret = request_irq(headset->irq[HOOK], hook_interrupt, headset->irq_type[HOOK] , "headset_hook", NULL);
-		if (ret) 
+
+		ret = devm_request_irq(&pdev->dev, headset->irq[HOOK], hook_interrupt, headset->irq_type[HOOK], "headset_hook", NULL);
+		if (ret)
 			goto failed_free_dev;
 		disable_irq(headset->irq[HOOK]);
 	}
-//------------------------------------------------------------------	
-	headset_info = headset;
-	schedule_delayed_work(&headset->h_delayed_work[HEADSET], msecs_to_jiffies(500));		
-	return 0;	
-	
+
+	schedule_delayed_work(&headset->h_delayed_work[HEADSET], msecs_to_jiffies(500));
+	return 0;
+
 failed_free_dev:
 	platform_set_drvdata(pdev, NULL);
 	input_free_device(headset->input_dev);
