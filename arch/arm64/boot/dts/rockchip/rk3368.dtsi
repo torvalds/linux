@@ -1713,6 +1713,36 @@
 		};
 	};
 
+	nocp_peri: nocp-peri@ffac1000 {
+		compatible = "rockchip,rk3368-nocp";
+		reg = <0x0 0xffac1000 0x0 0x400>;
+	};
+
+	nocp_core: nocp-core@ffac1400 {
+		compatible = "rockchip,rk3368-nocp";
+		reg = <0x0 0xffac1400 0x0 0x400>;
+	};
+
+	nocp_gpu: nocp-gpu@ffac1800 {
+		compatible = "rockchip,rk3368-nocp";
+		reg = <0x0 0xffac1800 0x0 0x400>;
+	};
+
+	nocp_vpu: nocp-vpu@ffac2000 {
+		compatible = "rockchip,rk3368-nocp";
+		reg = <0x0 0xffac2000 0x0 0x400>;
+	};
+
+	nocp_vop: nocp-vop@ffac2400 {
+		compatible = "rockchip,rk3368-nocp";
+		reg = <0x0 0xffac2400 0x0 0x400>;
+	};
+
+	nocp_rga: nocp-rga@ffac2800 {
+		compatible = "rockchip,rk3368-nocp";
+		reg = <0x0 0xffac2800 0x0 0x400>;
+	};
+
 	efuse: efuse@ffb00000 {
 		compatible = "rockchip,rk3368-efuse";
 		reg = <0x0 0xffb00000 0x0 0x20>;
