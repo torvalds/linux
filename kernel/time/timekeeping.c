@@ -528,6 +528,7 @@ u64 ktime_get_real_fast_ns(void)
 {
 	return __ktime_get_real_fast_ns(&tk_fast_mono);
 }
+EXPORT_SYMBOL_GPL(ktime_get_real_fast_ns);
 
 /**
  * halt_fast_timekeeper - Prevent fast timekeeper from accessing clocksource.
