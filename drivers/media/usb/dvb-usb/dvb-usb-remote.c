@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* dvb-usb-remote.c is part of the DVB USB library.
  *
  * Copyright (C) 2004-6 Patrick Boettcher (patrick.boettcher@posteo.de)

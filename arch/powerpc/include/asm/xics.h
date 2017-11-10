@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Common definitions across all variants of ICP and ICS interrupt
  * controllers.

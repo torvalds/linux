@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NET_ACT_API_H
 #define __NET_ACT_API_H
 
@@ -122,7 +123,9 @@ void tcf_idrinfo_destroy(const struct tc_action_ops *ops,
 
 static inline void tc_action_net_exit(struct tc_action_net *tn)
 {
+	rtnl_lock();
 	tcf_idrinfo_destroy(tn->ops, tn->idrinfo);
+	rtnl_unlock();
 	kfree(tn->idrinfo);
 }
 

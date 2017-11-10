@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 dvb_usb_v2-objs := dvb_usb_core.o dvb_usb_urb.o usb_urb.o
 obj-$(CONFIG_DVB_USB_V2) += dvb_usb_v2.o
 

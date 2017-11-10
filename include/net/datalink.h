@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _NET_INET_DATALINK_H_
 #define _NET_INET_DATALINK_H_
 

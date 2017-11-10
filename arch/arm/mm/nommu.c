@@ -344,6 +344,11 @@ void __init arm_mm_memblock_reserve(void)
 	 * reserved here.
 	 */
 #endif
+	/*
+	 * In any case, always ensure address 0 is never used as many things
+	 * get very confused if 0 is returned as a legitimate address.
+	 */
+	memblock_reserve(0, 1);
 }
 
 void __init adjust_lowmem_bounds(void)

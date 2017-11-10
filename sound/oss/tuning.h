@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 static unsigned short semitone_tuning[24] =
 {
 /*   0 */ 10000, 10595, 11225, 11892, 12599, 13348, 14142, 14983, 

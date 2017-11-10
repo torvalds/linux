@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* include/asm/processor.h
  *
  * Copyright (C) 1994 David S. Miller (davem@caip.rutgers.edu)

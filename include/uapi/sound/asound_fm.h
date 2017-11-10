@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
 #ifndef __SOUND_ASOUND_FM_H
 #define __SOUND_ASOUND_FM_H
 

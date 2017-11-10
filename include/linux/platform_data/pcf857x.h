@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __LINUX_PCF857X_H
 #define __LINUX_PCF857X_H
 

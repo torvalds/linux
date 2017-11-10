@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _USB_VIDEO_H_
 #define _USB_VIDEO_H_
 

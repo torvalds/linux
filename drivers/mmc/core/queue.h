@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef MMC_QUEUE_H
 #define MMC_QUEUE_H
 

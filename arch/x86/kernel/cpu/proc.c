@@ -1,7 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/smp.h>
 #include <linux/timex.h>
 #include <linux/string.h>
 #include <linux/seq_file.h>
+#include <linux/cpufreq.h>
 
 /*
  *	Get CPU information for use by the procfs.
@@ -75,9 +77,16 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	if (c->microcode)
 		seq_printf(m, "microcode\t: 0x%x\n", c->microcode);
 
-	if (cpu_has(c, X86_FEATURE_TSC))
+	if (cpu_has(c, X86_FEATURE_TSC)) {
+		unsigned int freq = arch_freq_get_on_cpu(cpu);
+
+		if (!freq)
+			freq = cpufreq_quick_get(cpu);
+		if (!freq)
+			freq = cpu_khz;
 		seq_printf(m, "cpu MHz\t\t: %u.%03u\n",
-			   cpu_khz / 1000, (cpu_khz % 1000));
+			   freq / 1000, (freq % 1000));
+	}
 
 	/* Cache size */
 	if (c->x86_cache_size >= 0)

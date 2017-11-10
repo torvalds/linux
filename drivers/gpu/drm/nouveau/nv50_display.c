@@ -3265,10 +3265,13 @@ nv50_mstm = {
 void
 nv50_mstm_service(struct nv50_mstm *mstm)
 {
-	struct drm_dp_aux *aux = mstm->mgr.aux;
+	struct drm_dp_aux *aux = mstm ? mstm->mgr.aux : NULL;
 	bool handled = true;
 	int ret;
 	u8 esi[8] = {};
+
+	if (!aux)
+		return;
 
 	while (handled) {
 		ret = drm_dp_dpcd_read(aux, DP_SINK_COUNT_ESI, esi, 8);
@@ -4096,7 +4099,7 @@ nv50_disp_atomic_commit(struct drm_device *dev,
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nv50_disp *disp = nv50_disp(dev);
-	struct drm_plane_state *old_plane_state;
+	struct drm_plane_state *new_plane_state;
 	struct drm_plane *plane;
 	struct drm_crtc *crtc;
 	bool active = false;
@@ -4126,8 +4129,8 @@ nv50_disp_atomic_commit(struct drm_device *dev,
 	if (ret)
 		goto err_cleanup;
 
-	for_each_old_plane_in_state(state, plane, old_plane_state, i) {
-		struct nv50_wndw_atom *asyw = nv50_wndw_atom(old_plane_state);
+	for_each_new_plane_in_state(state, plane, new_plane_state, i) {
+		struct nv50_wndw_atom *asyw = nv50_wndw_atom(new_plane_state);
 		struct nv50_wndw *wndw = nv50_wndw(plane);
 
 		if (asyw->set.image) {

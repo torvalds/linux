@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 config PPC_XICS
        def_bool n
        select PPC_SMP_MUXED_IPI

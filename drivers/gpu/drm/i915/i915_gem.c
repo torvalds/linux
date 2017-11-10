@@ -2214,8 +2214,10 @@ static void __i915_gem_object_reset_page_iter(struct drm_i915_gem_object *obj)
 	struct radix_tree_iter iter;
 	void __rcu **slot;
 
+	rcu_read_lock();
 	radix_tree_for_each_slot(slot, &obj->mm.get_page.radix, &iter, 0)
 		radix_tree_delete(&obj->mm.get_page.radix, iter.index);
+	rcu_read_unlock();
 }
 
 void __i915_gem_object_put_pages(struct drm_i915_gem_object *obj,
@@ -2656,6 +2658,9 @@ i915_gem_object_pwrite_gtt(struct drm_i915_gem_object *obj,
 	 */
 	if (READ_ONCE(obj->mm.pages))
 		return -ENODEV;
+
+	if (obj->mm.madv != I915_MADV_WILLNEED)
+		return -EFAULT;
 
 	/* Before the pages are instantiated the object is treated as being
 	 * in the CPU domain. The pages will be clflushed as required before

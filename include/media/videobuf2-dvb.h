@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _VIDEOBUF2_DVB_H_
 #define	_VIDEOBUF2_DVB_H_
 

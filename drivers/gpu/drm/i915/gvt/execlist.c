@@ -701,8 +701,7 @@ static int submit_context(struct intel_vgpu *vgpu, int ring_id,
 			CACHELINE_BYTES;
 		workload->wa_ctx.per_ctx.guest_gma =
 			per_ctx & PER_CTX_ADDR_MASK;
-
-		WARN_ON(workload->wa_ctx.indirect_ctx.size && !(per_ctx & 0x1));
+		workload->wa_ctx.per_ctx.valid = per_ctx & 1;
 	}
 
 	if (emulate_schedule_in)

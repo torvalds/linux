@@ -57,7 +57,10 @@ struct route4_filter {
 	u32			handle;
 	struct route4_bucket	*bkt;
 	struct tcf_proto	*tp;
-	struct rcu_head		rcu;
+	union {
+		struct work_struct	work;
+		struct rcu_head		rcu;
+	};
 };
 
 #define ROUTE4_FAILURE ((struct route4_filter *)(-1L))
@@ -254,12 +257,28 @@ static int route4_init(struct tcf_proto *tp)
 	return 0;
 }
 
+static void __route4_delete_filter(struct route4_filter *f)
+{
+	tcf_exts_destroy(&f->exts);
+	tcf_exts_put_net(&f->exts);
+	kfree(f);
+}
+
+static void route4_delete_filter_work(struct work_struct *work)
+{
+	struct route4_filter *f = container_of(work, struct route4_filter, work);
+
+	rtnl_lock();
+	__route4_delete_filter(f);
+	rtnl_unlock();
+}
+
 static void route4_delete_filter(struct rcu_head *head)
 {
 	struct route4_filter *f = container_of(head, struct route4_filter, rcu);
 
-	tcf_exts_destroy(&f->exts);
-	kfree(f);
+	INIT_WORK(&f->work, route4_delete_filter_work);
+	tcf_queue_work(&f->work);
 }
 
 static void route4_destroy(struct tcf_proto *tp)
@@ -284,7 +303,10 @@ static void route4_destroy(struct tcf_proto *tp)
 					next = rtnl_dereference(f->next);
 					RCU_INIT_POINTER(b->ht[h2], next);
 					tcf_unbind_filter(tp, &f->res);
-					call_rcu(&f->rcu, route4_delete_filter);
+					if (tcf_exts_get_net(&f->exts))
+						call_rcu(&f->rcu, route4_delete_filter);
+					else
+						__route4_delete_filter(f);
 				}
 			}
 			RCU_INIT_POINTER(head->table[h1], NULL);
@@ -325,6 +347,7 @@ static int route4_delete(struct tcf_proto *tp, void *arg, bool *last)
 
 			/* Delete it */
 			tcf_unbind_filter(tp, &f->res);
+			tcf_exts_get_net(&f->exts);
 			call_rcu(&f->rcu, route4_delete_filter);
 
 			/* Strip RTNL protected tree */
@@ -528,6 +551,7 @@ static int route4_change(struct net *net, struct sk_buff *in_skb,
 	*arg = f;
 	if (fold) {
 		tcf_unbind_filter(tp, &fold->res);
+		tcf_exts_get_net(&fold->exts);
 		call_rcu(&fold->rcu, route4_delete_filter);
 	}
 	return 0;
