@@ -14443,6 +14443,8 @@ retry:
 
 		cs->wm.need_postvbl_update = true;
 		dev_priv->display.optimize_watermarks(intel_state, cs);
+
+		to_intel_crtc_state(crtc->state)->wm = cs->wm;
 	}
 
 put_state:
