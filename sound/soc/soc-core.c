@@ -2800,7 +2800,7 @@ EXPORT_SYMBOL_GPL(snd_soc_dai_set_bclk_ratio);
 /**
  * snd_soc_dai_set_fmt - configure DAI hardware audio format.
  * @dai: DAI
- * @fmt: SND_SOC_DAIFMT_ format value.
+ * @fmt: SND_SOC_DAIFMT_* format value.
  *
  * Configures the DAI hardware format and clocking.
  */
