@@ -1906,15 +1906,18 @@ static void update_free_nid_bitmap(struct f2fs_sb_info *sbi, nid_t nid,
 	if (!test_bit_le(nat_ofs, nm_i->nat_block_bitmap))
 		return;
 
-	if (set)
+	if (set) {
+		if (test_bit_le(nid_ofs, nm_i->free_nid_bitmap[nat_ofs]))
+			return;
 		__set_bit_le(nid_ofs, nm_i->free_nid_bitmap[nat_ofs]);
-	else
-		__clear_bit_le(nid_ofs, nm_i->free_nid_bitmap[nat_ofs]);
-
-	if (set)
 		nm_i->free_nid_count[nat_ofs]++;
-	else if (!build)
-		nm_i->free_nid_count[nat_ofs]--;
+	} else {
+		if (!test_bit_le(nid_ofs, nm_i->free_nid_bitmap[nat_ofs]))
+			return;
+		__clear_bit_le(nid_ofs, nm_i->free_nid_bitmap[nat_ofs]);
+		if (!build)
+			nm_i->free_nid_count[nat_ofs]--;
+	}
 }
 
 static void scan_nat_page(struct f2fs_sb_info *sbi,
