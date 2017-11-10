@@ -1,10 +1,6 @@
 #
 # SPI driver configuration
 #
-# NOTE:  the reason this doesn't show SPI slave support is mostly that
-# nobody's needed a slave side API yet.  The master-role API is not
-# fully appropriate there, so it'd need some thought to do well.
-#
 menuconfig SPI
 	bool "SPI support"
 	depends on HAS_IOMEM
@@ -625,6 +621,13 @@ config SPI_SIRF
 	select SPI_BITBANG
 	help
 	  SPI driver for CSR SiRFprimaII SoCs
+
+config SPI_SPRD_ADI
+	tristate "Spreadtrum ADI controller"
+	depends on ARCH_SPRD || COMPILE_TEST
+	depends on HWSPINLOCK || (COMPILE_TEST && !HWSPINLOCK)
+	help
+	  ADI driver based on SPI for Spreadtrum SoCs.
 
 config SPI_STM32
 	tristate "STMicroelectronics STM32 SPI controller"
