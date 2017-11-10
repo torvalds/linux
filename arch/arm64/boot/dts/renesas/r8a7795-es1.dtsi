@@ -21,6 +21,11 @@
 		status = "disabled";
 	};
 
+	/delete-node/ mmu@febe0000;
+	/delete-node/ mmu@fe980000;
+	/delete-node/ mmu@fd960000;
+	/delete-node/ mmu@fd970000;
+
 	/delete-node/ usb-phy@ee0e0200;
 	/delete-node/ usb@ee0e0100;
 	/delete-node/ usb@ee0e0000;
@@ -84,6 +89,26 @@
 		resets = <&cpg 117>;
 		renesas,fcp = <&fcpf2>;
 	};
+};
+
+&ipmmu_vi0 {
+	renesas,ipmmu-main = <&ipmmu_mm 11>;
+};
+
+&ipmmu_vp0 {
+	renesas,ipmmu-main = <&ipmmu_mm 12>;
+};
+
+&ipmmu_vc0 {
+	renesas,ipmmu-main = <&ipmmu_mm 9>;
+};
+
+&ipmmu_vc1 {
+	renesas,ipmmu-main = <&ipmmu_mm 10>;
+};
+
+&ipmmu_rt {
+	renesas,ipmmu-main = <&ipmmu_mm 7>;
 };
 
 &du {
