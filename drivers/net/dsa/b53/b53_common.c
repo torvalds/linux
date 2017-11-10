@@ -325,7 +325,6 @@ static void b53_get_vlan_entry(struct b53_device *dev, u16 vid,
 
 static void b53_set_forwarding(struct b53_device *dev, int enable)
 {
-	struct dsa_switch *ds = dev->ds;
 	u8 mgmt;
 
 	b53_read8(dev, B53_CTRL_PAGE, B53_SWITCH_MODE, &mgmt);
@@ -337,14 +336,11 @@ static void b53_set_forwarding(struct b53_device *dev, int enable)
 
 	b53_write8(dev, B53_CTRL_PAGE, B53_SWITCH_MODE, mgmt);
 
-	/* Include IMP port in dumb forwarding mode when no tagging protocol is
-	 * set
+	/* Include IMP port in dumb forwarding mode
 	 */
-	if (ds->ops->get_tag_protocol(ds) == DSA_TAG_PROTO_NONE) {
-		b53_read8(dev, B53_CTRL_PAGE, B53_SWITCH_CTRL, &mgmt);
-		mgmt |= B53_MII_DUMB_FWDG_EN;
-		b53_write8(dev, B53_CTRL_PAGE, B53_SWITCH_CTRL, mgmt);
-	}
+	b53_read8(dev, B53_CTRL_PAGE, B53_SWITCH_CTRL, &mgmt);
+	mgmt |= B53_MII_DUMB_FWDG_EN;
+	b53_write8(dev, B53_CTRL_PAGE, B53_SWITCH_CTRL, mgmt);
 }
 
 static void b53_enable_vlan(struct b53_device *dev, bool enable)
@@ -612,6 +608,8 @@ static void b53_enable_cpu_port(struct b53_device *dev, int port)
 		    PORT_CTRL_RX_MCST_EN |
 		    PORT_CTRL_RX_UCST_EN;
 	b53_write8(dev, B53_CTRL_PAGE, B53_PORT_CTRL(port), port_ctrl);
+
+	b53_brcm_hdr_setup(dev->ds, port);
 }
 
 static void b53_enable_mib(struct b53_device *dev)
@@ -1480,9 +1478,41 @@ void b53_br_fast_age(struct dsa_switch *ds, int port)
 }
 EXPORT_SYMBOL(b53_br_fast_age);
 
+static bool b53_can_enable_brcm_tags(struct dsa_switch *ds)
+{
+	unsigned int brcm_tag_mask;
+	unsigned int i;
+
+	/* Broadcom switches will accept enabling Broadcom tags on the
+	 * following ports: 5, 7 and 8, any other port is not supported
+	 */
+	brcm_tag_mask = BIT(B53_CPU_PORT_25) | BIT(7) | BIT(B53_CPU_PORT);
+
+	for (i = 0; i < ds->num_ports; i++) {
+		if (dsa_is_cpu_port(ds, i)) {
+			if (!(BIT(i) & brcm_tag_mask)) {
+				dev_warn(ds->dev,
+					 "Port %d is not Broadcom tag capable\n",
+					 i);
+				return false;
+			}
+		}
+	}
+
+	return true;
+}
+
 static enum dsa_tag_protocol b53_get_tag_protocol(struct dsa_switch *ds)
 {
-	return DSA_TAG_PROTO_NONE;
+	struct b53_device *dev = ds->priv;
+
+	/* Older models support a different tag format that we do not
+	 * support in net/dsa/tag_brcm.c yet.
+	 */
+	if (is5325(dev) || is5365(dev) || !b53_can_enable_brcm_tags(ds))
+		return DSA_TAG_PROTO_NONE;
+	else
+		return DSA_TAG_PROTO_BRCM;
 }
 
 int b53_mirror_add(struct dsa_switch *ds, int port,
