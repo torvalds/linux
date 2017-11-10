@@ -347,6 +347,7 @@ struct hns_roce_cq {
 	u32				cons_index;
 	void __iomem			*cq_db_l;
 	u16				*tptr_addr;
+	int				arm_sn;
 	unsigned long			cqn;
 	u32				vector;
 	atomic_t			refcount;

@@ -1440,7 +1440,7 @@ static int hns_roce_v2_req_notify_cq(struct ib_cq *ibcq,
 		       V2_CQ_DB_PARAMETER_CONS_IDX_S,
 		       hr_cq->cons_index & ((hr_cq->cq_depth << 1) - 1));
 	roce_set_field(doorbell[1], V2_CQ_DB_PARAMETER_CMD_SN_M,
-		       V2_CQ_DB_PARAMETER_CMD_SN_S, 1);
+		       V2_CQ_DB_PARAMETER_CMD_SN_S, hr_cq->arm_sn & 0x3);
 	roce_set_bit(doorbell[1], V2_CQ_DB_PARAMETER_NOTIFY_S,
 		     notification_flag);
 

@@ -156,6 +156,7 @@ static int hns_roce_cq_alloc(struct hns_roce_dev *hr_dev, int nent,
 	}
 
 	hr_cq->cons_index = 0;
+	hr_cq->arm_sn = 1;
 	hr_cq->uar = hr_uar;
 
 	atomic_set(&hr_cq->refcount, 1);
@@ -456,6 +457,7 @@ void hns_roce_cq_completion(struct hns_roce_dev *hr_dev, u32 cqn)
 		return;
 	}
 
+	++cq->arm_sn;
 	cq->comp(cq);
 }
 
