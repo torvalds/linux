@@ -133,7 +133,14 @@ bool ipu_prg_format_supported(struct ipu_soc *ipu, uint32_t format,
 	if (info->num_planes != 1)
 		return false;
 
-	return true;
+	switch (modifier) {
+	case DRM_FORMAT_MOD_LINEAR:
+	case DRM_FORMAT_MOD_VIVANTE_TILED:
+	case DRM_FORMAT_MOD_VIVANTE_SUPER_TILED:
+		return true;
+	default:
+		return false;
+	}
 }
 EXPORT_SYMBOL_GPL(ipu_prg_format_supported);
 
@@ -266,7 +273,7 @@ EXPORT_SYMBOL_GPL(ipu_prg_channel_disable);
 int ipu_prg_channel_configure(struct ipuv3_channel *ipu_chan,
 			      unsigned int axi_id, unsigned int width,
 			      unsigned int height, unsigned int stride,
-			      u32 format, unsigned long *eba)
+			      u32 format, uint64_t modifier, unsigned long *eba)
 {
 	int prg_chan = ipu_prg_ipu_to_prg_chan(ipu_chan->num);
 	struct ipu_prg *prg = ipu_chan->ipu->prg_priv;
@@ -287,7 +294,7 @@ int ipu_prg_channel_configure(struct ipuv3_channel *ipu_chan,
 		return ret;
 
 	ipu_pre_configure(prg->pres[chan->used_pre],
-			  width, height, stride, format, 0, *eba);
+			  width, height, stride, format, modifier, *eba);
 
 
 	pm_runtime_get_sync(prg->dev);

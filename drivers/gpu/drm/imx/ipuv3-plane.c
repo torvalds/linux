@@ -550,8 +550,8 @@ static void ipu_plane_atomic_update(struct drm_plane *plane,
 		ipu_prg_channel_configure(ipu_plane->ipu_ch, axi_id,
 					  drm_rect_width(&state->src) >> 16,
 					  drm_rect_height(&state->src) >> 16,
-					  fb->pitches[0],
-					  fb->format->format, &eba);
+					  fb->pitches[0], fb->format->format,
+					  0, &eba);
 	}
 
 	if (old_state->fb && !drm_atomic_crtc_needs_modeset(crtc_state)) {
