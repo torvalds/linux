@@ -11,6 +11,7 @@
 
 #include <linux/init.h>
 #include <linux/slab.h>
+#include <linux/mfd/wm97xx.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/device.h>
@@ -18,11 +19,18 @@
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/ac97_codec.h>
+#include <sound/ac97/codec.h>
+#include <sound/ac97/compat.h>
 #include <sound/initval.h>
 #include <sound/soc.h>
 
 #define WM9705_VENDOR_ID 0x574d4c05
 #define WM9705_VENDOR_ID_MASK 0xffffffff
+
+struct wm9705_priv {
+	struct snd_ac97 *ac97;
+	struct wm97xx_platform_data *mfd_pdata;
+};
 
 static const struct reg_default wm9705_reg_defaults[] = {
 	{ 0x02, 0x8000 },
@@ -292,10 +300,10 @@ static int wm9705_soc_suspend(struct snd_soc_codec *codec)
 
 static int wm9705_soc_resume(struct snd_soc_codec *codec)
 {
-	struct snd_ac97 *ac97 = snd_soc_codec_get_drvdata(codec);
+	struct wm9705_priv *wm9705 = snd_soc_codec_get_drvdata(codec);
 	int ret;
 
-	ret = snd_ac97_reset(ac97, true, WM9705_VENDOR_ID,
+	ret = snd_ac97_reset(wm9705->ac97, true, WM9705_VENDOR_ID,
 		WM9705_VENDOR_ID_MASK);
 	if (ret < 0)
 		return ret;
@@ -311,38 +319,45 @@ static int wm9705_soc_resume(struct snd_soc_codec *codec)
 
 static int wm9705_soc_probe(struct snd_soc_codec *codec)
 {
-	struct snd_ac97 *ac97;
+	struct wm9705_priv *wm9705 = snd_soc_codec_get_drvdata(codec);
 	struct regmap *regmap;
-	int ret;
 
-	ac97 = snd_soc_new_ac97_codec(codec, WM9705_VENDOR_ID,
-		WM9705_VENDOR_ID_MASK);
-	if (IS_ERR(ac97)) {
-		dev_err(codec->dev, "Failed to register AC97 codec\n");
-		return PTR_ERR(ac97);
+	if (wm9705->mfd_pdata) {
+		wm9705->ac97 = wm9705->mfd_pdata->ac97;
+		regmap = wm9705->mfd_pdata->regmap;
+	} else {
+#ifdef CONFIG_SND_SOC_AC97_BUS
+		wm9705->ac97 = snd_soc_new_ac97_codec(codec, WM9705_VENDOR_ID,
+						      WM9705_VENDOR_ID_MASK);
+		if (IS_ERR(wm9705->ac97)) {
+			dev_err(codec->dev, "Failed to register AC97 codec\n");
+			return PTR_ERR(wm9705->ac97);
+		}
+
+		regmap = regmap_init_ac97(wm9705->ac97, &wm9705_regmap_config);
+		if (IS_ERR(regmap)) {
+			snd_soc_free_ac97_codec(wm9705->ac97);
+			return PTR_ERR(regmap);
+		}
+#endif
 	}
 
-	regmap = regmap_init_ac97(ac97, &wm9705_regmap_config);
-	if (IS_ERR(regmap)) {
-		ret = PTR_ERR(regmap);
-		goto err_free_ac97_codec;
-	}
-
-	snd_soc_codec_set_drvdata(codec, ac97);
+	snd_soc_codec_set_drvdata(codec, wm9705->ac97);
 	snd_soc_codec_init_regmap(codec, regmap);
 
 	return 0;
-err_free_ac97_codec:
-	snd_soc_free_ac97_codec(ac97);
-	return ret;
 }
 
 static int wm9705_soc_remove(struct snd_soc_codec *codec)
 {
-	struct snd_ac97 *ac97 = snd_soc_codec_get_drvdata(codec);
+#ifdef CONFIG_SND_SOC_AC97_BUS
+	struct wm9705_priv *wm9705 = snd_soc_codec_get_drvdata(codec);
 
-	snd_soc_codec_exit_regmap(codec);
-	snd_soc_free_ac97_codec(ac97);
+	if (!wm9705->mfd_pdata) {
+		snd_soc_codec_exit_regmap(codec);
+		snd_soc_free_ac97_codec(wm9705->ac97);
+	}
+#endif
 	return 0;
 }
 
@@ -364,6 +379,15 @@ static const struct snd_soc_codec_driver soc_codec_dev_wm9705 = {
 
 static int wm9705_probe(struct platform_device *pdev)
 {
+	struct wm9705_priv *wm9705;
+
+	wm9705 = devm_kzalloc(&pdev->dev, sizeof(*wm9705), GFP_KERNEL);
+	if (wm9705 == NULL)
+		return -ENOMEM;
+
+	wm9705->mfd_pdata = dev_get_platdata(&pdev->dev);
+	platform_set_drvdata(pdev, wm9705);
+
 	return snd_soc_register_codec(&pdev->dev,
 			&soc_codec_dev_wm9705, wm9705_dai, ARRAY_SIZE(wm9705_dai));
 }
