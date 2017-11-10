@@ -354,8 +354,8 @@ static bool convert_to_custom_float(struct pwl_result_data *rgb_resulted,
 		return false;
 	}
 
-	if (!convert_to_custom_float_format(arr_points[2].slope, &fmt,
-					    &arr_points[2].custom_float_slope)) {
+	if (!convert_to_custom_float_format(arr_points[1].slope, &fmt,
+					    &arr_points[1].custom_float_slope)) {
 		BREAK_TO_DEBUGGER();
 		return false;
 	}
