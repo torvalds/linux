@@ -180,6 +180,7 @@ struct drm_i915_private *mock_gem_device(void)
 		I915_GTT_PAGE_SIZE_2M;
 
 	spin_lock_init(&i915->mm.object_stat_lock);
+	spin_lock_init(&i915->mm.obj_lock);
 	mock_uncore_init(i915);
 
 	init_waitqueue_head(&i915->gpu_error.wait_queue);
