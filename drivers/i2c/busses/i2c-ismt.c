@@ -572,8 +572,7 @@ static int ismt_access(struct i2c_adapter *adap, u16 addr,
 			return -EIO;
 		}
 
-		dev_dbg(dev, " dma_addr = 0x%016llX\n",
-			(unsigned long long)dma_addr);
+		dev_dbg(dev, " dma_addr = %pad\n", &dma_addr);
 
 		desc->dptr_low = lower_32_bits(dma_addr);
 		desc->dptr_high = upper_32_bits(dma_addr);
