@@ -281,6 +281,44 @@ void amdgpu_bo_free_kernel(struct amdgpu_bo **bo, u64 *gpu_addr,
 		*cpu_addr = NULL;
 }
 
+/* Validate bo size is bit bigger then the request domain */
+static bool amdgpu_bo_validate_size(struct amdgpu_device *adev,
+					  unsigned long size, u32 domain)
+{
+	struct ttm_mem_type_manager *man = NULL;
+
+	/*
+	 * If GTT is part of requested domains the check must succeed to
+	 * allow fall back to GTT
+	 */
+	if (domain & AMDGPU_GEM_DOMAIN_GTT) {
+		man = &adev->mman.bdev.man[TTM_PL_TT];
+
+		if (size < (man->size << PAGE_SHIFT))
+			return true;
+		else
+			goto fail;
+	}
+
+	if (domain & AMDGPU_GEM_DOMAIN_VRAM) {
+		man = &adev->mman.bdev.man[TTM_PL_VRAM];
+
+		if (size < (man->size << PAGE_SHIFT))
+			return true;
+		else
+			goto fail;
+	}
+
+
+	/* TODO add more domains checks, such as AMDGPU_GEM_DOMAIN_CPU */
+	return true;
+
+fail:
+	DRM_ERROR("BO size %lu > total memory in domain: %llu\n", size,
+					      man->size << PAGE_SHIFT);
+	return false;
+}
+
 static int amdgpu_bo_do_create(struct amdgpu_device *adev,
 			       unsigned long size, int byte_align,
 			       bool kernel, u32 domain, u64 flags,
@@ -298,6 +336,9 @@ static int amdgpu_bo_do_create(struct amdgpu_device *adev,
 
 	page_align = roundup(byte_align, PAGE_SIZE) >> PAGE_SHIFT;
 	size = ALIGN(size, PAGE_SIZE);
+
+	if (!amdgpu_bo_validate_size(adev, size, domain))
+		return -ENOMEM;
 
 	if (kernel) {
 		type = ttm_bo_type_kernel;
