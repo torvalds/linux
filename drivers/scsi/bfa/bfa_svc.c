@@ -288,18 +288,6 @@ plkd_validate_logrec(struct bfa_plog_rec_s *pl_rec)
 	return 0;
 }
 
-static u64
-bfa_get_log_time(void)
-{
-	u64 system_time = 0;
-	struct timeval tv;
-	do_gettimeofday(&tv);
-
-	/* We are interested in seconds only. */
-	system_time = tv.tv_sec;
-	return system_time;
-}
-
 static void
 bfa_plog_add(struct bfa_plog_s *plog, struct bfa_plog_rec_s *pl_rec)
 {
@@ -320,7 +308,7 @@ bfa_plog_add(struct bfa_plog_s *plog, struct bfa_plog_rec_s *pl_rec)
 
 	memcpy(pl_recp, pl_rec, sizeof(struct bfa_plog_rec_s));
 
-	pl_recp->tv = bfa_get_log_time();
+	pl_recp->tv = ktime_get_real_seconds();
 	BFA_PL_LOG_REC_INCR(plog->tail);
 
 	if (plog->head == plog->tail)
@@ -6141,13 +6129,13 @@ bfa_fcdiag_lb_is_running(struct bfa_s *bfa)
 /*
  *	D-port
  */
-#define bfa_dport_result_start(__dport, __mode) do {			\
-		(__dport)->result.start_time = bfa_get_log_time();	\
-		(__dport)->result.status = DPORT_TEST_ST_INPRG;		\
-		(__dport)->result.mode = (__mode);			\
-		(__dport)->result.rp_pwwn = (__dport)->rp_pwwn;		\
-		(__dport)->result.rp_nwwn = (__dport)->rp_nwwn;		\
-		(__dport)->result.lpcnt = (__dport)->lpcnt;		\
+#define bfa_dport_result_start(__dport, __mode) do {				\
+		(__dport)->result.start_time = ktime_get_real_seconds();	\
+		(__dport)->result.status = DPORT_TEST_ST_INPRG;			\
+		(__dport)->result.mode = (__mode);				\
+		(__dport)->result.rp_pwwn = (__dport)->rp_pwwn;			\
+		(__dport)->result.rp_nwwn = (__dport)->rp_nwwn;			\
+		(__dport)->result.lpcnt = (__dport)->lpcnt;			\
 } while (0)
 
 static bfa_boolean_t bfa_dport_send_req(struct bfa_dport_s *dport,
@@ -6581,7 +6569,7 @@ bfa_dport_scn(struct bfa_dport_s *dport, struct bfi_diag_dport_scn_s *msg)
 
 	switch (dport->i2hmsg.scn.state) {
 	case BFI_DPORT_SCN_TESTCOMP:
-		dport->result.end_time = bfa_get_log_time();
+		dport->result.end_time = ktime_get_real_seconds();
 		bfa_trc(dport->bfa, dport->result.end_time);
 
 		dport->result.status = msg->info.testcomp.status;
@@ -6628,7 +6616,7 @@ bfa_dport_scn(struct bfa_dport_s *dport, struct bfi_diag_dport_scn_s *msg)
 	case BFI_DPORT_SCN_SUBTESTSTART:
 		subtesttype = msg->info.teststart.type;
 		dport->result.subtest[subtesttype].start_time =
-			bfa_get_log_time();
+			ktime_get_real_seconds();
 		dport->result.subtest[subtesttype].status =
 			DPORT_TEST_ST_INPRG;
 
