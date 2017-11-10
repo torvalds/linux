@@ -5024,6 +5024,21 @@ int i915_gem_init(struct drm_i915_private *dev_priv)
 	intel_init_gt_powersave(dev_priv);
 
 	ret = i915_gem_init_hw(dev_priv);
+	if (ret)
+		goto out_unlock;
+
+	/*
+	 * Despite its name intel_init_clock_gating applies both display
+	 * clock gating workarounds; GT mmio workarounds and the occasional
+	 * GT power context workaround. Worse, sometimes it includes a context
+	 * register workaround which we need to apply before we record the
+	 * default HW state for all contexts.
+	 *
+	 * FIXME: break up the workarounds and apply them at the right time!
+	 */
+	intel_init_clock_gating(dev_priv);
+
+out_unlock:
 	if (ret == -EIO) {
 		/* Allow engine initialisation to fail by marking the GPU as
 		 * wedged. But we only want to do this where the GPU is angry,
@@ -5035,8 +5050,6 @@ int i915_gem_init(struct drm_i915_private *dev_priv)
 		}
 		ret = 0;
 	}
-
-out_unlock:
 	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
 	mutex_unlock(&dev_priv->drm.struct_mutex);
 
