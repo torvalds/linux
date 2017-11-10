@@ -63,6 +63,11 @@ retry:
 			     flags, NULL, resv, 0, &bo);
 	if (r) {
 		if (r != -ERESTARTSYS) {
+			if (flags & AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED) {
+				flags &= ~AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED;
+				goto retry;
+			}
+
 			if (initial_domain == AMDGPU_GEM_DOMAIN_VRAM) {
 				initial_domain |= AMDGPU_GEM_DOMAIN_GTT;
 				goto retry;
