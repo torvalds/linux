@@ -2200,7 +2200,7 @@ static void devm_spi_unregister(struct device *dev, void *res)
  * Context: can sleep
  *
  * Register a SPI device as with spi_register_controller() which will
- * automatically be unregister
+ * automatically be unregistered and freed.
  *
  * Return: zero on success, else a negative error code.
  */
@@ -2241,6 +2241,8 @@ static int __unregister(struct device *dev, void *null)
  * only ones directly touching chip registers.
  *
  * This must be called from context that can sleep.
+ *
+ * Note that this function also drops a reference to the controller.
  */
 void spi_unregister_controller(struct spi_controller *ctlr)
 {
