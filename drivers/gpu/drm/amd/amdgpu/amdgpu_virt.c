@@ -318,7 +318,6 @@ int amdgpu_virt_fw_reserve_get_checksum(void *obj,
 
 void amdgpu_virt_init_data_exchange(struct amdgpu_device *adev)
 {
-	uint32_t pf2vf_ver = 0;
 	uint32_t pf2vf_size = 0;
 	uint32_t checksum = 0;
 	uint32_t checkval;
@@ -331,7 +330,6 @@ void amdgpu_virt_init_data_exchange(struct amdgpu_device *adev)
 		adev->virt.fw_reserve.p_pf2vf =
 			(struct amdgim_pf2vf_info_header *)(
 			adev->fw_vram_usage.va + AMDGIM_DATAEXCHANGE_OFFSET);
-		pf2vf_ver = adev->virt.fw_reserve.p_pf2vf->version;
 		AMDGPU_FW_VRAM_PF2VF_READ(adev, header.size, &pf2vf_size);
 		AMDGPU_FW_VRAM_PF2VF_READ(adev, checksum, &checksum);
 		AMDGPU_FW_VRAM_PF2VF_READ(adev, feature_flags, &adev->virt.gim_feature);
