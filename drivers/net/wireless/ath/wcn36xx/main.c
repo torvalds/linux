@@ -1233,7 +1233,7 @@ static int wcn36xx_platform_get_resources(struct wcn36xx *wcn,
 	}
 
 	/* External RF module */
-	iris_node = of_find_node_by_name(mmio_node, "iris");
+	iris_node = of_get_child_by_name(mmio_node, "iris");
 	if (iris_node) {
 		if (of_device_is_compatible(iris_node, "qcom,wcn3620"))
 			wcn->rf_id = RF_IRIS_WCN3620;
