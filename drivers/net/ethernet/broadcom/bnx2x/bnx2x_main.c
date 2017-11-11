@@ -9332,7 +9332,7 @@ void bnx2x_chip_cleanup(struct bnx2x *bp, int unload_mode, bool keep_link)
 	/* Schedule the rx_mode command */
 	if (test_bit(BNX2X_FILTER_RX_MODE_PENDING, &bp->sp_state))
 		set_bit(BNX2X_FILTER_RX_MODE_SCHED, &bp->sp_state);
-	else
+	else if (bp->slowpath)
 		bnx2x_set_storm_rx_mode(bp);
 
 	/* Cleanup multicast configuration */
@@ -10271,8 +10271,15 @@ static void bnx2x_sp_rtnl_task(struct work_struct *work)
 		smp_mb();
 
 		bnx2x_nic_unload(bp, UNLOAD_NORMAL, true);
-		bnx2x_nic_load(bp, LOAD_NORMAL);
-
+		/* When ret value shows failure of allocation failure,
+		 * the nic is rebooted again. If open still fails, a error
+		 * message to notify the user.
+		 */
+		if (bnx2x_nic_load(bp, LOAD_NORMAL) == -ENOMEM) {
+			bnx2x_nic_unload(bp, UNLOAD_NORMAL, true);
+			if (bnx2x_nic_load(bp, LOAD_NORMAL))
+				BNX2X_ERR("Open the NIC fails again!\n");
+		}
 		rtnl_unlock();
 		return;
 	}
