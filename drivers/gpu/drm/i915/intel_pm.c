@@ -8471,11 +8471,13 @@ static void cnl_init_clock_gating(struct drm_i915_private *dev_priv)
 	I915_WRITE(DISP_ARB_CTL, I915_READ(DISP_ARB_CTL) |
 		   DISP_FBC_MEMORY_WAKE);
 
+	val = I915_READ(SLICE_UNIT_LEVEL_CLKGATE);
+	/* ReadHitWriteOnlyDisable:cnl */
+	val |= RCCUNIT_CLKGATE_DIS;
 	/* WaSarbUnitClockGatingDisable:cnl (pre-prod) */
 	if (IS_CNL_REVID(dev_priv, CNL_REVID_A0, CNL_REVID_B0))
-		I915_WRITE(SLICE_UNIT_LEVEL_CLKGATE,
-			   I915_READ(SLICE_UNIT_LEVEL_CLKGATE) |
-			   SARBUNIT_CLKGATE_DIS);
+		val |= SARBUNIT_CLKGATE_DIS;
+	I915_WRITE(SLICE_UNIT_LEVEL_CLKGATE, val);
 
 	/* Display WA #1133: WaFbcSkipSegments:cnl */
 	val = I915_READ(ILK_DPFC_CHICKEN);
