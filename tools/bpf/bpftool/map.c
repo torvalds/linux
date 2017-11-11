@@ -436,6 +436,18 @@ static int show_map_close_json(int fd, struct bpf_map_info *info)
 		jsonw_int_field(json_wtr, "bytes_memlock", atoi(memlock));
 	free(memlock);
 
+	if (!hash_empty(map_table.table)) {
+		struct pinned_obj *obj;
+
+		jsonw_name(json_wtr, "pinned");
+		jsonw_start_array(json_wtr);
+		hash_for_each_possible(map_table.table, obj, hash, info->id) {
+			if (obj->id == info->id)
+				jsonw_string(json_wtr, obj->path);
+		}
+		jsonw_end_array(json_wtr);
+	}
+
 	jsonw_end_object(json_wtr);
 
 	return 0;
@@ -466,7 +478,14 @@ static int show_map_close_plain(int fd, struct bpf_map_info *info)
 	free(memlock);
 
 	printf("\n");
+	if (!hash_empty(map_table.table)) {
+		struct pinned_obj *obj;
 
+		hash_for_each_possible(map_table.table, obj, hash, info->id) {
+			if (obj->id == info->id)
+				printf("\tpinned %s\n", obj->path);
+		}
+	}
 	return 0;
 }
 
@@ -477,6 +496,9 @@ static int do_show(int argc, char **argv)
 	__u32 id = 0;
 	int err;
 	int fd;
+
+	if (show_pinned)
+		build_pinned_obj_table(&map_table, BPF_OBJ_MAP);
 
 	if (argc == 2) {
 		fd = map_parse_fd_and_info(&argc, &argv, &info, &len);

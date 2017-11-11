@@ -54,6 +54,9 @@ static int (*last_do_help)(int argc, char **argv);
 json_writer_t *json_wtr;
 bool pretty_output;
 bool json_output;
+bool show_pinned;
+struct pinned_obj_table prog_table;
+struct pinned_obj_table map_table;
 
 void usage(void)
 {
@@ -263,6 +266,7 @@ int main(int argc, char **argv)
 		{ "help",	no_argument,	NULL,	'h' },
 		{ "pretty",	no_argument,	NULL,	'p' },
 		{ "version",	no_argument,	NULL,	'V' },
+		{ "bpffs",	no_argument,	NULL,	'f' },
 		{ 0 }
 	};
 	int opt, ret;
@@ -270,9 +274,13 @@ int main(int argc, char **argv)
 	last_do_help = do_help;
 	pretty_output = false;
 	json_output = false;
+	show_pinned = false;
 	bin_name = argv[0];
 
-	while ((opt = getopt_long(argc, argv, "Vhpj",
+	hash_init(prog_table.table);
+	hash_init(map_table.table);
+
+	while ((opt = getopt_long(argc, argv, "Vhpjf",
 				  options, NULL)) >= 0) {
 		switch (opt) {
 		case 'V':
@@ -284,6 +292,9 @@ int main(int argc, char **argv)
 			/* fall through */
 		case 'j':
 			json_output = true;
+			break;
+		case 'f':
+			show_pinned = true;
 			break;
 		default:
 			usage();
@@ -310,6 +321,11 @@ int main(int argc, char **argv)
 
 	if (json_output)
 		jsonw_destroy(&json_wtr);
+
+	if (show_pinned) {
+		delete_pinned_obj_table(&prog_table);
+		delete_pinned_obj_table(&map_table);
+	}
 
 	return ret;
 }

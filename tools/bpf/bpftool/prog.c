@@ -272,6 +272,18 @@ static void print_prog_json(struct bpf_prog_info *info, int fd)
 	if (info->nr_map_ids)
 		show_prog_maps(fd, info->nr_map_ids);
 
+	if (!hash_empty(prog_table.table)) {
+		struct pinned_obj *obj;
+
+		jsonw_name(json_wtr, "pinned");
+		jsonw_start_array(json_wtr);
+		hash_for_each_possible(prog_table.table, obj, hash, info->id) {
+			if (obj->id == info->id)
+				jsonw_string(json_wtr, obj->path);
+		}
+		jsonw_end_array(json_wtr);
+	}
+
 	jsonw_end_object(json_wtr);
 }
 
@@ -331,6 +343,16 @@ static void print_prog_plain(struct bpf_prog_info *info, int fd)
 	if (info->nr_map_ids)
 		show_prog_maps(fd, info->nr_map_ids);
 
+	if (!hash_empty(prog_table.table)) {
+		struct pinned_obj *obj;
+
+		printf("\n");
+		hash_for_each_possible(prog_table.table, obj, hash, info->id) {
+			if (obj->id == info->id)
+				printf("\tpinned %s\n", obj->path);
+		}
+	}
+
 	printf("\n");
 }
 
@@ -359,6 +381,9 @@ static int do_show(int argc, char **argv)
 	__u32 id = 0;
 	int err;
 	int fd;
+
+	if (show_pinned)
+		build_pinned_obj_table(&prog_table, BPF_OBJ_PROG);
 
 	if (argc == 2) {
 		fd = prog_parse_fd(&argc, &argv);
