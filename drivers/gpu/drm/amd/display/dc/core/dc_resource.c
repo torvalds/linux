@@ -993,8 +993,10 @@ static struct pipe_ctx *acquire_free_pipe_for_stream(
 
 	head_pipe = resource_get_head_pipe_for_stream(res_ctx, stream);
 
-	if (!head_pipe)
+	if (!head_pipe) {
 		ASSERT(0);
+		return NULL;
+	}
 
 	if (!head_pipe->plane_state)
 		return head_pipe;
@@ -1772,13 +1774,16 @@ enum dc_status dc_validate_global_state(
 	enum dc_status result = DC_ERROR_UNEXPECTED;
 	int i, j;
 
+	if (!new_ctx)
+		return DC_ERROR_UNEXPECTED;
+
 	if (dc->res_pool->funcs->validate_global) {
 			result = dc->res_pool->funcs->validate_global(dc, new_ctx);
 			if (result != DC_OK)
 				return result;
 	}
 
-	for (i = 0; new_ctx && i < new_ctx->stream_count; i++) {
+	for (i = 0; i < new_ctx->stream_count; i++) {
 		struct dc_stream_state *stream = new_ctx->streams[i];
 
 		for (j = 0; j < dc->res_pool->pipe_count; j++) {
