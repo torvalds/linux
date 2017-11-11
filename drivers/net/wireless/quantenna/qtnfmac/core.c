@@ -171,7 +171,7 @@ static int qtnf_mac_init_single_band(struct wiphy *wiphy,
 
 	wiphy->bands[band]->band = band;
 
-	ret = qtnf_cmd_get_mac_chan_info(mac, wiphy->bands[band]);
+	ret = qtnf_cmd_band_info_get(mac, wiphy->bands[band]);
 	if (ret) {
 		pr_err("MAC%u: band %u: failed to get chans info: %d\n",
 		       mac->macid, band, ret);
@@ -179,7 +179,6 @@ static int qtnf_mac_init_single_band(struct wiphy *wiphy,
 	}
 
 	qtnf_band_init_rates(wiphy->bands[band]);
-	qtnf_band_setup_htvht_caps(&mac->macinfo, wiphy->bands[band]);
 
 	return 0;
 }

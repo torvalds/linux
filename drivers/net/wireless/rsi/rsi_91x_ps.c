@@ -36,7 +36,6 @@ char *str_psstate(enum ps_state state)
 	default:
 		return "INVALID_STATE";
 	}
-	return "INVALID_STATE";
 }
 
 static inline void rsi_modify_ps_state(struct rsi_hw *adapter,

@@ -65,34 +65,39 @@ qtnf_event_handle_sta_assoc(struct qtnf_wmac *mac, struct qtnf_vif *vif,
 	sinfo.assoc_req_ies_len = 0;
 
 	payload_len = len - sizeof(*sta_assoc);
-	tlv = (struct qlink_tlv_hdr *)sta_assoc->ies;
+	tlv = (const struct qlink_tlv_hdr *)sta_assoc->ies;
 
-	while (payload_len >= sizeof(struct qlink_tlv_hdr)) {
+	while (payload_len >= sizeof(*tlv)) {
 		tlv_type = le16_to_cpu(tlv->type);
 		tlv_value_len = le16_to_cpu(tlv->len);
 		tlv_full_len = tlv_value_len + sizeof(struct qlink_tlv_hdr);
 
-		if (tlv_full_len > payload_len) {
-			pr_warn("VIF%u.%u: malformed TLV 0x%.2X; LEN: %u\n",
-				mac->macid, vif->vifid, tlv_type,
-				tlv_value_len);
+		if (tlv_full_len > payload_len)
 			return -EINVAL;
-		}
 
 		if (tlv_type == QTN_TLV_ID_IE_SET) {
-			sinfo.assoc_req_ies = tlv->val;
-			sinfo.assoc_req_ies_len = tlv_value_len;
+			const struct qlink_tlv_ie_set *ie_set;
+			unsigned int ie_len;
+
+			if (payload_len < sizeof(*ie_set))
+				return -EINVAL;
+
+			ie_set = (const struct qlink_tlv_ie_set *)tlv;
+			ie_len = tlv_value_len -
+				(sizeof(*ie_set) - sizeof(ie_set->hdr));
+
+			if (ie_set->type == QLINK_IE_SET_ASSOC_REQ && ie_len) {
+				sinfo.assoc_req_ies = ie_set->ie_data;
+				sinfo.assoc_req_ies_len = ie_len;
+			}
 		}
 
 		payload_len -= tlv_full_len;
 		tlv = (struct qlink_tlv_hdr *)(tlv->val + tlv_value_len);
 	}
 
-	if (payload_len) {
-		pr_warn("VIF%u.%u: malformed TLV buf; bytes left: %zu\n",
-			mac->macid, vif->vifid, payload_len);
+	if (payload_len)
 		return -EINVAL;
-	}
 
 	cfg80211_new_sta(vif->netdev, sta_assoc->sta_addr, &sinfo,
 			 GFP_KERNEL);
@@ -247,13 +252,12 @@ qtnf_event_handle_scan_results(struct qtnf_vif *vif,
 	struct cfg80211_bss *bss;
 	struct ieee80211_channel *channel;
 	struct wiphy *wiphy = priv_to_wiphy(vif->mac);
-	enum cfg80211_bss_frame_type frame_type;
+	enum cfg80211_bss_frame_type frame_type = CFG80211_BSS_FTYPE_UNKNOWN;
 	size_t payload_len;
 	u16 tlv_type;
 	u16 tlv_value_len;
 	size_t tlv_full_len;
 	const struct qlink_tlv_hdr *tlv;
-
 	const u8 *ies = NULL;
 	size_t ies_len = 0;
 
@@ -270,17 +274,6 @@ qtnf_event_handle_scan_results(struct qtnf_vif *vif,
 		return -EINVAL;
 	}
 
-	switch (sr->frame_type) {
-	case QLINK_BSS_FTYPE_BEACON:
-		frame_type = CFG80211_BSS_FTYPE_BEACON;
-		break;
-	case QLINK_BSS_FTYPE_PRESP:
-		frame_type = CFG80211_BSS_FTYPE_PRESP;
-		break;
-	default:
-		frame_type = CFG80211_BSS_FTYPE_UNKNOWN;
-	}
-
 	payload_len = len - sizeof(*sr);
 	tlv = (struct qlink_tlv_hdr *)sr->payload;
 
@@ -289,27 +282,43 @@ qtnf_event_handle_scan_results(struct qtnf_vif *vif,
 		tlv_value_len = le16_to_cpu(tlv->len);
 		tlv_full_len = tlv_value_len + sizeof(struct qlink_tlv_hdr);
 
-		if (tlv_full_len > payload_len) {
-			pr_warn("VIF%u.%u: malformed TLV 0x%.2X; LEN: %u\n",
-				vif->mac->macid, vif->vifid, tlv_type,
-				tlv_value_len);
+		if (tlv_full_len > payload_len)
 			return -EINVAL;
-		}
 
 		if (tlv_type == QTN_TLV_ID_IE_SET) {
-			ies = tlv->val;
-			ies_len = tlv_value_len;
+			const struct qlink_tlv_ie_set *ie_set;
+			unsigned int ie_len;
+
+			if (payload_len < sizeof(*ie_set))
+				return -EINVAL;
+
+			ie_set = (const struct qlink_tlv_ie_set *)tlv;
+			ie_len = tlv_value_len -
+				(sizeof(*ie_set) - sizeof(ie_set->hdr));
+
+			switch (ie_set->type) {
+			case QLINK_IE_SET_BEACON_IES:
+				frame_type = CFG80211_BSS_FTYPE_BEACON;
+				break;
+			case QLINK_IE_SET_PROBE_RESP_IES:
+				frame_type = CFG80211_BSS_FTYPE_PRESP;
+				break;
+			default:
+				frame_type = CFG80211_BSS_FTYPE_UNKNOWN;
+			}
+
+			if (ie_len) {
+				ies = ie_set->ie_data;
+				ies_len = ie_len;
+			}
 		}
 
 		payload_len -= tlv_full_len;
 		tlv = (struct qlink_tlv_hdr *)(tlv->val + tlv_value_len);
 	}
 
-	if (payload_len) {
-		pr_warn("VIF%u.%u: malformed TLV buf; bytes left: %zu\n",
-			vif->mac->macid, vif->vifid, payload_len);
+	if (payload_len)
 		return -EINVAL;
-	}
 
 	bss = cfg80211_inform_bss(wiphy, channel, frame_type,
 				  sr->bssid, get_unaligned_le64(&sr->tsf),

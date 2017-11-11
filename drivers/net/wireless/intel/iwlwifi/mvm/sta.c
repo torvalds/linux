@@ -252,9 +252,11 @@ int iwl_mvm_sta_send_to_fw(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 	return ret;
 }
 
-static void iwl_mvm_rx_agg_session_expired(unsigned long data)
+static void iwl_mvm_rx_agg_session_expired(struct timer_list *t)
 {
-	struct iwl_mvm_baid_data __rcu **rcu_ptr = (void *)data;
+	struct iwl_mvm_baid_data *data =
+		from_timer(data, t, session_timer);
+	struct iwl_mvm_baid_data __rcu **rcu_ptr = data->rcu_ptr;
 	struct iwl_mvm_baid_data *ba_data;
 	struct ieee80211_sta *sta;
 	struct iwl_mvm_sta *mvm_sta;
@@ -644,8 +646,7 @@ int iwl_mvm_scd_queue_redirect(struct iwl_mvm *mvm, int queue, int tid,
 
 	/* Redirect to lower AC */
 	iwl_mvm_reconfig_scd(mvm, queue, iwl_mvm_ac_to_tx_fifo[ac],
-			     cmd.sta_id, tid, LINK_QUAL_AGG_FRAME_LIMIT_DEF,
-			     ssn);
+			     cmd.sta_id, tid, IWL_FRAME_LIMIT, ssn);
 
 	/* Update AC marking of the queue */
 	spin_lock_bh(&mvm->queue_info_lock);
@@ -1258,6 +1259,14 @@ static void iwl_mvm_realloc_queues_after_restart(struct iwl_mvm *mvm,
 							 mvm_sta->sta_id,
 							 i, wdg_timeout);
 			tid_data->txq_id = txq_id;
+
+			/*
+			 * Since we don't set the seq number after reset, and HW
+			 * sets it now, FW reset will cause the seq num to start
+			 * at 0 again, so driver will need to update it
+			 * internally as well, so it keeps in sync with real val
+			 */
+			tid_data->seq_number = 0;
 		} else {
 			u16 seq = IEEE80211_SEQ_TO_SN(tid_data->seq_number);
 
@@ -2153,10 +2162,8 @@ static void iwl_mvm_init_reorder_buffer(struct iwl_mvm *mvm,
 		reorder_buf->head_sn = ssn;
 		reorder_buf->buf_size = buf_size;
 		/* rx reorder timer */
-		reorder_buf->reorder_timer.function =
-			iwl_mvm_reorder_timer_expired;
-		reorder_buf->reorder_timer.data = (unsigned long)reorder_buf;
-		init_timer(&reorder_buf->reorder_timer);
+		timer_setup(&reorder_buf->reorder_timer,
+			    iwl_mvm_reorder_timer_expired, 0);
 		spin_lock_init(&reorder_buf->lock);
 		reorder_buf->mvm = mvm;
 		reorder_buf->queue = i;
@@ -2279,9 +2286,9 @@ int iwl_mvm_sta_rx_agg(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 		baid_data->baid = baid;
 		baid_data->timeout = timeout;
 		baid_data->last_rx = jiffies;
-		setup_timer(&baid_data->session_timer,
-			    iwl_mvm_rx_agg_session_expired,
-			    (unsigned long)&mvm->baid_map[baid]);
+		baid_data->rcu_ptr = &mvm->baid_map[baid];
+		timer_setup(&baid_data->session_timer,
+			    iwl_mvm_rx_agg_session_expired, 0);
 		baid_data->mvm = mvm;
 		baid_data->tid = tid;
 		baid_data->sta_id = mvm_sta->sta_id;
@@ -2544,12 +2551,6 @@ int iwl_mvm_sta_tx_agg_oper(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	BUILD_BUG_ON((sizeof(mvmsta->agg_tids) * BITS_PER_BYTE)
 		     != IWL_MAX_TID_COUNT);
 
-	if (!mvm->trans->cfg->gen2)
-		buf_size = min_t(int, buf_size, LINK_QUAL_AGG_FRAME_LIMIT_DEF);
-	else
-		buf_size = min_t(int, buf_size,
-				 LINK_QUAL_AGG_FRAME_LIMIT_GEN2_DEF);
-
 	spin_lock_bh(&mvmsta->lock);
 	ssn = tid_data->ssn;
 	queue = tid_data->txq_id;
@@ -2561,10 +2562,17 @@ int iwl_mvm_sta_tx_agg_oper(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 	if (iwl_mvm_has_new_tx_api(mvm)) {
 		/*
-		 * If no queue iwl_mvm_sta_tx_agg_start() would have failed so
-		 * no need to check queue's status
+		 * If there is no queue for this tid, iwl_mvm_sta_tx_agg_start()
+		 * would have failed, so if we are here there is no need to
+		 * allocate a queue.
+		 * However, if aggregation size is different than the default
+		 * size, the scheduler should be reconfigured.
+		 * We cannot do this with the new TX API, so return unsupported
+		 * for now, until it will be offloaded to firmware..
+		 * Note that if SCD default value changes - this condition
+		 * should be updated as well.
 		 */
-		if (buf_size < mvmsta->max_agg_bufsize)
+		if (buf_size < IWL_FRAME_LIMIT)
 			return -ENOTSUPP;
 
 		ret = iwl_mvm_sta_tx_agg(mvm, sta, tid, queue, true);
@@ -2587,7 +2595,7 @@ int iwl_mvm_sta_tx_agg_oper(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	 * Only reconfig the SCD for the queue if the window size has
 	 * changed from current (become smaller)
 	 */
-	if (!alloc_queue && buf_size < mvmsta->max_agg_bufsize) {
+	if (!alloc_queue && buf_size < IWL_FRAME_LIMIT) {
 		/*
 		 * If reconfiguring an existing queue, it first must be
 		 * drained

@@ -217,10 +217,10 @@ static int qtnf_mgmt_set_appie(struct qtnf_vif *vif,
 	int ret = 0;
 
 	if (!info->beacon_ies || !info->beacon_ies_len) {
-		ret = qtnf_cmd_send_mgmt_set_appie(vif, QLINK_MGMT_FRAME_BEACON,
+		ret = qtnf_cmd_send_mgmt_set_appie(vif, QLINK_IE_SET_BEACON_IES,
 						   NULL, 0);
 	} else {
-		ret = qtnf_cmd_send_mgmt_set_appie(vif, QLINK_MGMT_FRAME_BEACON,
+		ret = qtnf_cmd_send_mgmt_set_appie(vif, QLINK_IE_SET_BEACON_IES,
 						   info->beacon_ies,
 						   info->beacon_ies_len);
 	}
@@ -230,11 +230,11 @@ static int qtnf_mgmt_set_appie(struct qtnf_vif *vif,
 
 	if (!info->proberesp_ies || !info->proberesp_ies_len) {
 		ret = qtnf_cmd_send_mgmt_set_appie(vif,
-						   QLINK_MGMT_FRAME_PROBE_RESP,
+						   QLINK_IE_SET_PROBE_RESP_IES,
 						   NULL, 0);
 	} else {
 		ret = qtnf_cmd_send_mgmt_set_appie(vif,
-						   QLINK_MGMT_FRAME_PROBE_RESP,
+						   QLINK_IE_SET_PROBE_RESP_IES,
 						   info->proberesp_ies,
 						   info->proberesp_ies_len);
 	}
@@ -244,11 +244,11 @@ static int qtnf_mgmt_set_appie(struct qtnf_vif *vif,
 
 	if (!info->assocresp_ies || !info->assocresp_ies_len) {
 		ret = qtnf_cmd_send_mgmt_set_appie(vif,
-						   QLINK_MGMT_FRAME_ASSOC_RESP,
+						   QLINK_IE_SET_ASSOC_RESP,
 						   NULL, 0);
 	} else {
 		ret = qtnf_cmd_send_mgmt_set_appie(vif,
-						   QLINK_MGMT_FRAME_ASSOC_RESP,
+						   QLINK_IE_SET_ASSOC_RESP,
 						   info->assocresp_ies,
 						   info->assocresp_ies_len);
 	}
@@ -271,26 +271,11 @@ static int qtnf_start_ap(struct wiphy *wiphy, struct net_device *dev,
 	struct qtnf_vif *vif = qtnf_netdev_get_priv(dev);
 	int ret;
 
-	ret = qtnf_cmd_send_config_ap(vif, settings);
-	if (ret) {
-		pr_err("VIF%u.%u: failed to push config to FW\n",
-		       vif->mac->macid, vif->vifid);
-		goto out;
-	}
-
-	ret = qtnf_mgmt_set_appie(vif, &settings->beacon);
-	if (ret) {
-		pr_err("VIF%u.%u: failed to add IEs to beacon\n",
-		       vif->mac->macid, vif->vifid);
-		goto out;
-	}
-
-	ret = qtnf_cmd_send_start_ap(vif);
+	ret = qtnf_cmd_send_start_ap(vif, settings);
 	if (ret)
 		pr_err("VIF%u.%u: failed to start AP\n", vif->mac->macid,
 		       vif->vifid);
 
-out:
 	return ret;
 }
 
@@ -823,39 +808,11 @@ static void qtnf_cfg80211_reg_notifier(struct wiphy *wiphy_in,
 			if (!wiphy->bands[band])
 				continue;
 
-			ret = qtnf_cmd_get_mac_chan_info(mac,
-							 wiphy->bands[band]);
+			ret = qtnf_cmd_band_info_get(mac, wiphy->bands[band]);
 			if (ret)
 				pr_err("failed to get chan info for mac %u band %u\n",
 				       mac_idx, band);
 		}
-	}
-}
-
-void qtnf_band_setup_htvht_caps(struct qtnf_mac_info *macinfo,
-				struct ieee80211_supported_band *band)
-{
-	struct ieee80211_sta_ht_cap *ht_cap;
-	struct ieee80211_sta_vht_cap *vht_cap;
-
-	ht_cap = &band->ht_cap;
-	ht_cap->ht_supported = true;
-	memcpy(&ht_cap->cap, &macinfo->ht_cap.cap_info,
-	       sizeof(u16));
-	ht_cap->ampdu_factor = IEEE80211_HT_MAX_AMPDU_64K;
-	ht_cap->ampdu_density = IEEE80211_HT_MPDU_DENSITY_NONE;
-	memcpy(&ht_cap->mcs, &macinfo->ht_cap.mcs,
-	       sizeof(ht_cap->mcs));
-
-	if (macinfo->phymode_cap & QLINK_PHYMODE_AC) {
-		vht_cap = &band->vht_cap;
-		vht_cap->vht_supported = true;
-		memcpy(&vht_cap->cap,
-		       &macinfo->vht_cap.vht_cap_info, sizeof(u32));
-		/* Update MCS support for VHT */
-		memcpy(&vht_cap->vht_mcs,
-		       &macinfo->vht_cap.supp_mcs,
-		       sizeof(struct ieee80211_vht_mcs_info));
 	}
 }
 
@@ -919,9 +876,6 @@ int qtnf_wiphy_register(struct qtnf_hw_info *hw_info, struct qtnf_wmac *mac)
 	if (ret)
 		goto out;
 
-	pr_info("MAC%u: phymode=%#x radar=%#x\n", mac->macid,
-		mac->macinfo.phymode_cap, mac->macinfo.radar_detect_widths);
-
 	wiphy->frag_threshold = mac->macinfo.frag_thr;
 	wiphy->rts_threshold = mac->macinfo.rts_thr;
 	wiphy->retry_short = mac->macinfo.sretry_limit;
@@ -953,6 +907,8 @@ int qtnf_wiphy_register(struct qtnf_hw_info *hw_info, struct qtnf_wmac *mac)
 	wiphy->available_antennas_rx = mac->macinfo.num_rx_chain;
 
 	wiphy->max_ap_assoc_sta = mac->macinfo.max_ap_assoc_sta;
+	wiphy->ht_capa_mod_mask = &mac->macinfo.ht_cap_mod_mask;
+	wiphy->vht_capa_mod_mask = &mac->macinfo.vht_cap_mod_mask;
 
 	ether_addr_copy(wiphy->perm_addr, mac->macaddr);
 
