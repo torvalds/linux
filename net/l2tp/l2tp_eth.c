@@ -41,7 +41,6 @@
 
 /* via netdev_priv() */
 struct l2tp_eth {
-	struct sock		*tunnel_sock;
 	struct l2tp_session	*session;
 	atomic_long_t		tx_bytes;
 	atomic_long_t		tx_packets;
@@ -313,7 +312,6 @@ static int l2tp_eth_create(struct net *net, struct l2tp_tunnel *tunnel,
 	priv = netdev_priv(dev);
 	priv->session = session;
 
-	priv->tunnel_sock = tunnel->sock;
 	session->recv_skb = l2tp_eth_dev_recv;
 	session->session_close = l2tp_eth_delete;
 #if IS_ENABLED(CONFIG_L2TP_DEBUGFS)
