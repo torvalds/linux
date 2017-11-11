@@ -15148,6 +15148,23 @@ get_encoder_power_domains(struct drm_i915_private *dev_priv)
 	}
 }
 
+static void intel_early_display_was(struct drm_i915_private *dev_priv)
+{
+	/* Display WA #1185 WaDisableDARBFClkGating:cnl,glk */
+	if (IS_CANNONLAKE(dev_priv) || IS_GEMINILAKE(dev_priv))
+		I915_WRITE(GEN9_CLKGATE_DIS_0, I915_READ(GEN9_CLKGATE_DIS_0) |
+			   DARBF_GATING_DIS);
+
+	if (IS_HASWELL(dev_priv)) {
+		/*
+		 * WaRsPkgCStateDisplayPMReq:hsw
+		 * System hang if this isn't done before disabling all planes!
+		 */
+		I915_WRITE(CHICKEN_PAR1_1,
+			   I915_READ(CHICKEN_PAR1_1) | FORCE_ARB_IDLE_PLANES);
+	}
+}
+
 /* Scan out the current hw modeset state,
  * and sanitizes it to the current state
  */
@@ -15161,15 +15178,7 @@ intel_modeset_setup_hw_state(struct drm_device *dev,
 	struct intel_encoder *encoder;
 	int i;
 
-	if (IS_HASWELL(dev_priv)) {
-		/*
-		 * WaRsPkgCStateDisplayPMReq:hsw
-		 * System hang if this isn't done before disabling all planes!
-		 */
-		I915_WRITE(CHICKEN_PAR1_1,
-			   I915_READ(CHICKEN_PAR1_1) | FORCE_ARB_IDLE_PLANES);
-	}
-
+	intel_early_display_was(dev_priv);
 	intel_modeset_readout_hw_state(dev);
 
 	/* HW state is read out, now we need to sanitize this mess. */
