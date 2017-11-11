@@ -289,6 +289,8 @@ int intel_engines_init_mmio(struct drm_i915_private *dev_priv)
 
 	device_info->num_rings = hweight32(mask);
 
+	i915_check_and_clear_faults(dev_priv);
+
 	return 0;
 
 cleanup:

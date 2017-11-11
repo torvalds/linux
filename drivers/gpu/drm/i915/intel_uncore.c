@@ -1420,8 +1420,6 @@ void intel_uncore_init(struct drm_i915_private *dev_priv)
 
 	iosf_mbi_register_pmic_bus_access_notifier(
 		&dev_priv->uncore.pmic_bus_access_nb);
-
-	i915_check_and_clear_faults(dev_priv);
 }
 
 void intel_uncore_fini(struct drm_i915_private *dev_priv)
