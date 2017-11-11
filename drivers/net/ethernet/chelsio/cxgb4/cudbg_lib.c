@@ -1367,6 +1367,181 @@ int cudbg_collect_vpd_data(struct cudbg_init *pdbg_init,
 	return rc;
 }
 
+static int cudbg_read_tid(struct cudbg_init *pdbg_init, u32 tid,
+			  struct cudbg_tid_data *tid_data)
+{
+	struct adapter *padap = pdbg_init->adap;
+	int i, cmd_retry = 8;
+	u32 val;
+
+	/* Fill REQ_DATA regs with 0's */
+	for (i = 0; i < NUM_LE_DB_DBGI_REQ_DATA_INSTANCES; i++)
+		t4_write_reg(padap, LE_DB_DBGI_REQ_DATA_A + (i << 2), 0);
+
+	/* Write DBIG command */
+	val = DBGICMD_V(4) | DBGITID_V(tid);
+	t4_write_reg(padap, LE_DB_DBGI_REQ_TCAM_CMD_A, val);
+	tid_data->dbig_cmd = val;
+
+	val = DBGICMDSTRT_F | DBGICMDMODE_V(1); /* LE mode */
+	t4_write_reg(padap, LE_DB_DBGI_CONFIG_A, val);
+	tid_data->dbig_conf = val;
+
+	/* Poll the DBGICMDBUSY bit */
+	val = 1;
+	while (val) {
+		val = t4_read_reg(padap, LE_DB_DBGI_CONFIG_A);
+		val = val & DBGICMDBUSY_F;
+		cmd_retry--;
+		if (!cmd_retry)
+			return CUDBG_SYSTEM_ERROR;
+	}
+
+	/* Check RESP status */
+	val = t4_read_reg(padap, LE_DB_DBGI_RSP_STATUS_A);
+	tid_data->dbig_rsp_stat = val;
+	if (!(val & 1))
+		return CUDBG_SYSTEM_ERROR;
+
+	/* Read RESP data */
+	for (i = 0; i < NUM_LE_DB_DBGI_RSP_DATA_INSTANCES; i++)
+		tid_data->data[i] = t4_read_reg(padap,
+						LE_DB_DBGI_RSP_DATA_A +
+						(i << 2));
+	tid_data->tid = tid;
+	return 0;
+}
+
+static int cudbg_get_le_type(u32 tid, struct cudbg_tcam tcam_region)
+{
+	int type = LE_ET_UNKNOWN;
+
+	if (tid < tcam_region.server_start)
+		type = LE_ET_TCAM_CON;
+	else if (tid < tcam_region.filter_start)
+		type = LE_ET_TCAM_SERVER;
+	else if (tid < tcam_region.clip_start)
+		type = LE_ET_TCAM_FILTER;
+	else if (tid < tcam_region.routing_start)
+		type = LE_ET_TCAM_CLIP;
+	else if (tid < tcam_region.tid_hash_base)
+		type = LE_ET_TCAM_ROUTING;
+	else if (tid < tcam_region.max_tid)
+		type = LE_ET_HASH_CON;
+	else
+		type = LE_ET_INVALID_TID;
+
+	return type;
+}
+
+static int cudbg_is_ipv6_entry(struct cudbg_tid_data *tid_data,
+			       struct cudbg_tcam tcam_region)
+{
+	int ipv6 = 0;
+	int le_type;
+
+	le_type = cudbg_get_le_type(tid_data->tid, tcam_region);
+	if (tid_data->tid & 1)
+		return 0;
+
+	if (le_type == LE_ET_HASH_CON) {
+		ipv6 = tid_data->data[16] & 0x8000;
+	} else if (le_type == LE_ET_TCAM_CON) {
+		ipv6 = tid_data->data[16] & 0x8000;
+		if (ipv6)
+			ipv6 = tid_data->data[9] == 0x00C00000;
+	} else {
+		ipv6 = 0;
+	}
+	return ipv6;
+}
+
+void cudbg_fill_le_tcam_info(struct adapter *padap,
+			     struct cudbg_tcam *tcam_region)
+{
+	u32 value;
+
+	/* Get the LE regions */
+	value = t4_read_reg(padap, LE_DB_TID_HASHBASE_A); /* hash base index */
+	tcam_region->tid_hash_base = value;
+
+	/* Get routing table index */
+	value = t4_read_reg(padap, LE_DB_ROUTING_TABLE_INDEX_A);
+	tcam_region->routing_start = value;
+
+	/*Get clip table index */
+	value = t4_read_reg(padap, LE_DB_CLIP_TABLE_INDEX_A);
+	tcam_region->clip_start = value;
+
+	/* Get filter table index */
+	value = t4_read_reg(padap, LE_DB_FILTER_TABLE_INDEX_A);
+	tcam_region->filter_start = value;
+
+	/* Get server table index */
+	value = t4_read_reg(padap, LE_DB_SERVER_INDEX_A);
+	tcam_region->server_start = value;
+
+	/* Check whether hash is enabled and calculate the max tids */
+	value = t4_read_reg(padap, LE_DB_CONFIG_A);
+	if ((value >> HASHEN_S) & 1) {
+		value = t4_read_reg(padap, LE_DB_HASH_CONFIG_A);
+		if (CHELSIO_CHIP_VERSION(padap->params.chip) > CHELSIO_T5) {
+			tcam_region->max_tid = (value & 0xFFFFF) +
+					       tcam_region->tid_hash_base;
+		} else {
+			value = HASHTIDSIZE_G(value);
+			value = 1 << value;
+			tcam_region->max_tid = value +
+					       tcam_region->tid_hash_base;
+		}
+	} else { /* hash not enabled */
+		tcam_region->max_tid = CUDBG_MAX_TCAM_TID;
+	}
+}
+
+int cudbg_collect_le_tcam(struct cudbg_init *pdbg_init,
+			  struct cudbg_buffer *dbg_buff,
+			  struct cudbg_error *cudbg_err)
+{
+	struct adapter *padap = pdbg_init->adap;
+	struct cudbg_buffer temp_buff = { 0 };
+	struct cudbg_tcam tcam_region = { 0 };
+	struct cudbg_tid_data *tid_data;
+	u32 bytes = 0;
+	int rc, size;
+	u32 i;
+
+	cudbg_fill_le_tcam_info(padap, &tcam_region);
+
+	size = sizeof(struct cudbg_tid_data) * tcam_region.max_tid;
+	size += sizeof(struct cudbg_tcam);
+	rc = cudbg_get_buff(dbg_buff, size, &temp_buff);
+	if (rc)
+		return rc;
+
+	memcpy(temp_buff.data, &tcam_region, sizeof(struct cudbg_tcam));
+	bytes = sizeof(struct cudbg_tcam);
+	tid_data = (struct cudbg_tid_data *)(temp_buff.data + bytes);
+	/* read all tid */
+	for (i = 0; i < tcam_region.max_tid; ) {
+		rc = cudbg_read_tid(pdbg_init, i, tid_data);
+		if (rc) {
+			cudbg_err->sys_err = rc;
+			cudbg_put_buff(&temp_buff, dbg_buff);
+			return rc;
+		}
+
+		/* ipv6 takes two tids */
+		cudbg_is_ipv6_entry(tid_data, tcam_region) ? i += 2 : i++;
+
+		tid_data++;
+		bytes += sizeof(struct cudbg_tid_data);
+	}
+
+	cudbg_write_and_release_buff(&temp_buff, dbg_buff);
+	return rc;
+}
+
 int cudbg_collect_cctrl(struct cudbg_init *pdbg_init,
 			struct cudbg_buffer *dbg_buff,
 			struct cudbg_error *cudbg_err)

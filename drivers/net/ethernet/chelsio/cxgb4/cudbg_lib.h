@@ -129,6 +129,9 @@ int cudbg_collect_mps_tcam(struct cudbg_init *pdbg_init,
 int cudbg_collect_vpd_data(struct cudbg_init *pdbg_init,
 			   struct cudbg_buffer *dbg_buff,
 			   struct cudbg_error *cudbg_err);
+int cudbg_collect_le_tcam(struct cudbg_init *pdbg_init,
+			  struct cudbg_buffer *dbg_buff,
+			  struct cudbg_error *cudbg_err);
 int cudbg_collect_cctrl(struct cudbg_init *pdbg_init,
 			struct cudbg_buffer *dbg_buff,
 			struct cudbg_error *cudbg_err);
@@ -155,4 +158,8 @@ struct cudbg_entity_hdr *cudbg_get_entity_hdr(void *outbuf, int i);
 void cudbg_align_debug_buffer(struct cudbg_buffer *dbg_buff,
 			      struct cudbg_entity_hdr *entity_hdr);
 u32 cudbg_cim_obq_size(struct adapter *padap, int qid);
+
+struct cudbg_tcam;
+void cudbg_fill_le_tcam_info(struct adapter *padap,
+			     struct cudbg_tcam *tcam_region);
 #endif /* __CUDBG_LIB_H__ */
