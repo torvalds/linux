@@ -8171,13 +8171,6 @@ static int perf_event_set_bpf_prog(struct perf_event *event, u32 prog_fd)
 		return -EINVAL;
 	}
 
-	/* Kprobe override only works for kprobes, not uprobes. */
-	if (prog->kprobe_override &&
-	    !(event->tp_event->flags & TRACE_EVENT_FL_KPROBE)) {
-		bpf_prog_put(prog);
-		return -EINVAL;
-	}
-
 	if (is_tracepoint || is_syscall_tp) {
 		int off = trace_event_get_offsets(event->tp_event);
 
