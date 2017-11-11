@@ -1115,6 +1115,84 @@ int cudbg_collect_tid(struct cudbg_init *pdbg_init,
 	return rc;
 }
 
+int cudbg_dump_context_size(struct adapter *padap)
+{
+	u32 value, size;
+	u8 flq;
+
+	value = t4_read_reg(padap, SGE_FLM_CFG_A);
+
+	/* Get number of data freelist queues */
+	flq = HDRSTARTFLQ_G(value);
+	size = CUDBG_MAX_FL_QIDS >> flq;
+
+	/* Add extra space for congestion manager contexts.
+	 * The number of CONM contexts are same as number of freelist
+	 * queues.
+	 */
+	size += size;
+	return size * sizeof(struct cudbg_ch_cntxt);
+}
+
+static void cudbg_read_sge_ctxt(struct cudbg_init *pdbg_init, u32 cid,
+				enum ctxt_type ctype, u32 *data)
+{
+	struct adapter *padap = pdbg_init->adap;
+	int rc = -1;
+
+	/* Under heavy traffic, the SGE Queue contexts registers will be
+	 * frequently accessed by firmware.
+	 *
+	 * To avoid conflicts with firmware, always ask firmware to fetch
+	 * the SGE Queue contexts via mailbox. On failure, fallback to
+	 * accessing hardware registers directly.
+	 */
+	if (is_fw_attached(pdbg_init))
+		rc = t4_sge_ctxt_rd(padap, padap->mbox, cid, ctype, data);
+	if (rc)
+		t4_sge_ctxt_rd_bd(padap, cid, ctype, data);
+}
+
+int cudbg_collect_dump_context(struct cudbg_init *pdbg_init,
+			       struct cudbg_buffer *dbg_buff,
+			       struct cudbg_error *cudbg_err)
+{
+	struct adapter *padap = pdbg_init->adap;
+	struct cudbg_buffer temp_buff = { 0 };
+	struct cudbg_ch_cntxt *buff;
+	u32 size, i = 0;
+	int rc;
+
+	rc = cudbg_dump_context_size(padap);
+	if (rc <= 0)
+		return CUDBG_STATUS_ENTITY_NOT_FOUND;
+
+	size = rc;
+	rc = cudbg_get_buff(dbg_buff, size, &temp_buff);
+	if (rc)
+		return rc;
+
+	buff = (struct cudbg_ch_cntxt *)temp_buff.data;
+	while (size > 0) {
+		buff->cntxt_type = CTXT_FLM;
+		buff->cntxt_id = i;
+		cudbg_read_sge_ctxt(pdbg_init, i, CTXT_FLM, buff->data);
+		buff++;
+		size -= sizeof(struct cudbg_ch_cntxt);
+
+		buff->cntxt_type = CTXT_CNM;
+		buff->cntxt_id = i;
+		cudbg_read_sge_ctxt(pdbg_init, i, CTXT_CNM, buff->data);
+		buff++;
+		size -= sizeof(struct cudbg_ch_cntxt);
+
+		i++;
+	}
+
+	cudbg_write_and_release_buff(&temp_buff, dbg_buff);
+	return rc;
+}
+
 static inline void cudbg_tcamxy2valmask(u64 x, u64 y, u8 *addr, u64 *mask)
 {
 	*mask = x | y;

@@ -145,6 +145,14 @@ struct cudbg_tid_info_region_rev1 {
 	u32 reserved[16];
 };
 
+#define CUDBG_MAX_FL_QIDS 1024
+
+struct cudbg_ch_cntxt {
+	u32 cntxt_type;
+	u32 cntxt_id;
+	u32 data[SGE_CTXT_SIZE / 4];
+};
+
 #define CUDBG_MAX_RPLC_SIZE 128
 
 struct cudbg_mps_tcam {

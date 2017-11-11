@@ -1670,6 +1670,10 @@ int t4_fwaddrspace_write(struct adapter *adap, unsigned int mbox,
 void t4_read_pace_tbl(struct adapter *adap, unsigned int pace_vals[NTX_SCHED]);
 void t4_get_tx_sched(struct adapter *adap, unsigned int sched,
 		     unsigned int *kbps, unsigned int *ipg, bool sleep_ok);
+int t4_sge_ctxt_rd(struct adapter *adap, unsigned int mbox, unsigned int cid,
+		   enum ctxt_type ctype, u32 *data);
+int t4_sge_ctxt_rd_bd(struct adapter *adap, unsigned int cid,
+		      enum ctxt_type ctype, u32 *data);
 int t4_sched_params(struct adapter *adapter, int type, int level, int mode,
 		    int rateunit, int ratemode, int channel, int class,
 		    int minrate, int maxrate, int weight, int pktsize);

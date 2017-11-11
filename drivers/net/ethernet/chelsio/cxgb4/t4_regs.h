@@ -153,6 +153,23 @@
 #define T6_DBVFIFO_SIZE_M    0x1fffU
 #define T6_DBVFIFO_SIZE_G(x) (((x) >> T6_DBVFIFO_SIZE_S) & T6_DBVFIFO_SIZE_M)
 
+#define SGE_CTXT_CMD_A 0x11fc
+
+#define BUSY_S    31
+#define BUSY_V(x) ((x) << BUSY_S)
+#define BUSY_F    BUSY_V(1U)
+
+#define CTXTTYPE_S    24
+#define CTXTTYPE_M    0x3U
+#define CTXTTYPE_V(x) ((x) << CTXTTYPE_S)
+
+#define CTXTQID_S    0
+#define CTXTQID_M    0x1ffffU
+#define CTXTQID_V(x) ((x) << CTXTQID_S)
+
+#define SGE_CTXT_DATA0_A 0x1200
+#define SGE_CTXT_DATA5_A 0x1214
+
 #define GLOBALENABLE_S    0
 #define GLOBALENABLE_V(x) ((x) << GLOBALENABLE_S)
 #define GLOBALENABLE_F    GLOBALENABLE_V(1U)
@@ -322,6 +339,16 @@
 
 #define SGE_IMSG_CTXT_BADDR_A 0x1088
 #define SGE_FLM_CACHE_BADDR_A 0x108c
+#define SGE_FLM_CFG_A 0x1090
+
+#define NOHDR_S    18
+#define NOHDR_V(x) ((x) << NOHDR_S)
+#define NOHDR_F    NOHDR_V(1U)
+
+#define HDRSTARTFLQ_S    11
+#define HDRSTARTFLQ_M    0x7U
+#define HDRSTARTFLQ_G(x) (((x) >> HDRSTARTFLQ_S) & HDRSTARTFLQ_M)
+
 #define SGE_INGRESS_RX_THRESHOLD_A 0x10a0
 
 #define THRESHOLD_0_S    24
