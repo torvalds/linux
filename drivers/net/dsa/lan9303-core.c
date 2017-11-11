@@ -153,6 +153,8 @@
 # define LAN9303_SWE_VLAN_UNTAG_PORT0 BIT(12)
 #define LAN9303_SWE_VLAN_CMD_STS 0x1810
 #define LAN9303_SWE_GLB_INGRESS_CFG 0x1840
+# define LAN9303_SWE_GLB_INGR_IGMP_TRAP BIT(7)
+# define LAN9303_SWE_GLB_INGR_IGMP_PORT(p) BIT(10 + p)
 #define LAN9303_SWE_PORT_STATE 0x1843
 # define LAN9303_SWE_PORT_STATE_FORWARDING_PORT2 (0)
 # define LAN9303_SWE_PORT_STATE_LEARNING_PORT2 BIT(5)
@@ -448,6 +450,21 @@ static int lan9303_read_switch_reg(struct lan9303 *chip, u16 regnum, u32 *val)
 on_error:
 	mutex_unlock(&chip->indirect_mutex);
 	return ret;
+}
+
+static int lan9303_write_switch_reg_mask(struct lan9303 *chip, u16 regnum,
+					 u32 val, u32 mask)
+{
+	int ret;
+	u32 reg;
+
+	ret = lan9303_read_switch_reg(chip, regnum, &reg);
+	if (ret)
+		return ret;
+
+	reg = (reg & ~mask) | val;
+
+	return lan9303_write_switch_reg(chip, regnum, reg);
 }
 
 static int lan9303_write_switch_port(struct lan9303 *chip, int port,
@@ -904,6 +921,15 @@ static int lan9303_setup(struct dsa_switch *ds)
 	ret = lan9303_enable_processing_port(chip, 0);
 	if (ret)
 		dev_err(chip->dev, "failed to re-enable switching %d\n", ret);
+
+	/* Trap IGMP to port 0 */
+	ret = lan9303_write_switch_reg_mask(chip, LAN9303_SWE_GLB_INGRESS_CFG,
+					    LAN9303_SWE_GLB_INGR_IGMP_TRAP |
+					    LAN9303_SWE_GLB_INGR_IGMP_PORT(0),
+					    LAN9303_SWE_GLB_INGR_IGMP_PORT(1) |
+					    LAN9303_SWE_GLB_INGR_IGMP_PORT(2));
+	if (ret)
+		dev_err(chip->dev, "failed to setup IGMP trap %d\n", ret);
 
 	return 0;
 }
