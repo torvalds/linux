@@ -307,7 +307,7 @@ int bus_for_each_dev(struct bus_type *bus, struct device *start,
 
 	klist_iter_init_node(&bus->p->klist_devices, &i,
 			     (start ? &start->p->knode_bus : NULL));
-	while ((dev = next_device(&i)) && !error)
+	while (!error && (dev = next_device(&i)))
 		error = fn(dev, data);
 	klist_iter_exit(&i);
 	return error;

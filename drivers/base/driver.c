@@ -50,7 +50,7 @@ int driver_for_each_device(struct device_driver *drv, struct device *start,
 
 	klist_iter_init_node(&drv->p->klist_devices, &i,
 			     start ? &start->p->knode_driver : NULL);
-	while ((dev = next_device(&i)) && !error)
+	while (!error && (dev = next_device(&i)))
 		error = fn(dev, data);
 	klist_iter_exit(&i);
 	return error;

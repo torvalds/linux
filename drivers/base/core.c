@@ -2114,7 +2114,7 @@ int device_for_each_child(struct device *parent, void *data,
 		return 0;
 
 	klist_iter_init(&parent->p->klist_children, &i);
-	while ((child = next_device(&i)) && !error)
+	while (!error && (child = next_device(&i)))
 		error = fn(child, data);
 	klist_iter_exit(&i);
 	return error;
