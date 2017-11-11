@@ -471,15 +471,16 @@ static int
 ip6_tnl_err(struct sk_buff *skb, __u8 ipproto, struct inet6_skb_parm *opt,
 	    u8 *type, u8 *code, int *msg, __u32 *info, int offset)
 {
-	const struct ipv6hdr *ipv6h = (const struct ipv6hdr *) skb->data;
-	struct ip6_tnl *t;
-	int rel_msg = 0;
+	const struct ipv6hdr *ipv6h = (const struct ipv6hdr *)skb->data;
+	struct net *net = dev_net(skb->dev);
 	u8 rel_type = ICMPV6_DEST_UNREACH;
 	u8 rel_code = ICMPV6_ADDR_UNREACH;
-	u8 tproto;
 	__u32 rel_info = 0;
-	__u16 len;
+	struct ip6_tnl *t;
 	int err = -ENOENT;
+	int rel_msg = 0;
+	u8 tproto;
+	__u16 len;
 
 	/* If the packet doesn't contain the original IPv6 header we are
 	   in trouble since we might need the source address for further
@@ -542,6 +543,10 @@ ip6_tnl_err(struct sk_buff *skb, __u8 ipproto, struct inet6_skb_parm *opt,
 			rel_info = mtu;
 			rel_msg = 1;
 		}
+		break;
+	case NDISC_REDIRECT:
+		ip6_redirect(skb, net, skb->dev->ifindex, 0,
+			     sock_net_uid(net, NULL));
 		break;
 	}
 
