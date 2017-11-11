@@ -1137,7 +1137,7 @@ static int mv88e6xxx_port_check_hw_vlan(struct dsa_switch *ds, int port,
 			if (dsa_is_dsa_port(ds, i) || dsa_is_cpu_port(ds, i))
 				continue;
 
-			if (!ds->ports[port].slave)
+			if (!ds->ports[i].slave)
 				continue;
 
 			if (vlan.member[i] ==
@@ -1151,8 +1151,8 @@ static int mv88e6xxx_port_check_hw_vlan(struct dsa_switch *ds, int port,
 			if (!dsa_to_port(ds, i)->bridge_dev)
 				continue;
 
-			dev_err(ds->dev, "p%d: hw VLAN %d already used by %s\n",
-				port, vlan.vid,
+			dev_err(ds->dev, "p%d: hw VLAN %d already used by port %d in %s\n",
+				port, vlan.vid, i,
 				netdev_name(dsa_to_port(ds, i)->bridge_dev));
 			err = -EOPNOTSUPP;
 			goto unlock;
@@ -1208,6 +1208,73 @@ mv88e6xxx_port_vlan_prepare(struct dsa_switch *ds, int port,
 	return 0;
 }
 
+static int mv88e6xxx_port_db_load_purge(struct mv88e6xxx_chip *chip, int port,
+					const unsigned char *addr, u16 vid,
+					u8 state)
+{
+	struct mv88e6xxx_vtu_entry vlan;
+	struct mv88e6xxx_atu_entry entry;
+	int err;
+
+	/* Null VLAN ID corresponds to the port private database */
+	if (vid == 0)
+		err = mv88e6xxx_port_get_fid(chip, port, &vlan.fid);
+	else
+		err = mv88e6xxx_vtu_get(chip, vid, &vlan, false);
+	if (err)
+		return err;
+
+	entry.state = MV88E6XXX_G1_ATU_DATA_STATE_UNUSED;
+	ether_addr_copy(entry.mac, addr);
+	eth_addr_dec(entry.mac);
+
+	err = mv88e6xxx_g1_atu_getnext(chip, vlan.fid, &entry);
+	if (err)
+		return err;
+
+	/* Initialize a fresh ATU entry if it isn't found */
+	if (entry.state == MV88E6XXX_G1_ATU_DATA_STATE_UNUSED ||
+	    !ether_addr_equal(entry.mac, addr)) {
+		memset(&entry, 0, sizeof(entry));
+		ether_addr_copy(entry.mac, addr);
+	}
+
+	/* Purge the ATU entry only if no port is using it anymore */
+	if (state == MV88E6XXX_G1_ATU_DATA_STATE_UNUSED) {
+		entry.portvec &= ~BIT(port);
+		if (!entry.portvec)
+			entry.state = MV88E6XXX_G1_ATU_DATA_STATE_UNUSED;
+	} else {
+		entry.portvec |= BIT(port);
+		entry.state = state;
+	}
+
+	return mv88e6xxx_g1_atu_loadpurge(chip, vlan.fid, &entry);
+}
+
+static int mv88e6xxx_port_add_broadcast(struct mv88e6xxx_chip *chip, int port,
+					u16 vid)
+{
+	const char broadcast[6] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
+	u8 state = MV88E6XXX_G1_ATU_DATA_STATE_MC_STATIC;
+
+	return mv88e6xxx_port_db_load_purge(chip, port, broadcast, vid, state);
+}
+
+static int mv88e6xxx_broadcast_setup(struct mv88e6xxx_chip *chip, u16 vid)
+{
+	int port;
+	int err;
+
+	for (port = 0; port < mv88e6xxx_num_ports(chip); port++) {
+		err = mv88e6xxx_port_add_broadcast(chip, port, vid);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
 static int _mv88e6xxx_port_vlan_add(struct mv88e6xxx_chip *chip, int port,
 				    u16 vid, u8 member)
 {
@@ -1220,7 +1287,11 @@ static int _mv88e6xxx_port_vlan_add(struct mv88e6xxx_chip *chip, int port,
 
 	vlan.member[port] = member;
 
-	return mv88e6xxx_vtu_loadpurge(chip, &vlan);
+	err = mv88e6xxx_vtu_loadpurge(chip, &vlan);
+	if (err)
+		return err;
+
+	return mv88e6xxx_broadcast_setup(chip, vid);
 }
 
 static void mv88e6xxx_port_vlan_add(struct dsa_switch *ds, int port,
@@ -1322,50 +1393,6 @@ unlock:
 	mutex_unlock(&chip->reg_lock);
 
 	return err;
-}
-
-static int mv88e6xxx_port_db_load_purge(struct mv88e6xxx_chip *chip, int port,
-					const unsigned char *addr, u16 vid,
-					u8 state)
-{
-	struct mv88e6xxx_vtu_entry vlan;
-	struct mv88e6xxx_atu_entry entry;
-	int err;
-
-	/* Null VLAN ID corresponds to the port private database */
-	if (vid == 0)
-		err = mv88e6xxx_port_get_fid(chip, port, &vlan.fid);
-	else
-		err = mv88e6xxx_vtu_get(chip, vid, &vlan, false);
-	if (err)
-		return err;
-
-	entry.state = MV88E6XXX_G1_ATU_DATA_STATE_UNUSED;
-	ether_addr_copy(entry.mac, addr);
-	eth_addr_dec(entry.mac);
-
-	err = mv88e6xxx_g1_atu_getnext(chip, vlan.fid, &entry);
-	if (err)
-		return err;
-
-	/* Initialize a fresh ATU entry if it isn't found */
-	if (entry.state == MV88E6XXX_G1_ATU_DATA_STATE_UNUSED ||
-	    !ether_addr_equal(entry.mac, addr)) {
-		memset(&entry, 0, sizeof(entry));
-		ether_addr_copy(entry.mac, addr);
-	}
-
-	/* Purge the ATU entry only if no port is using it anymore */
-	if (state == MV88E6XXX_G1_ATU_DATA_STATE_UNUSED) {
-		entry.portvec &= ~BIT(port);
-		if (!entry.portvec)
-			entry.state = MV88E6XXX_G1_ATU_DATA_STATE_UNUSED;
-	} else {
-		entry.portvec |= BIT(port);
-		entry.state = state;
-	}
-
-	return mv88e6xxx_g1_atu_loadpurge(chip, vlan.fid, &entry);
 }
 
 static int mv88e6xxx_port_fdb_add(struct dsa_switch *ds, int port,
@@ -2046,6 +2073,10 @@ static int mv88e6xxx_setup(struct dsa_switch *ds)
 		goto unlock;
 
 	err = mv88e6xxx_atu_setup(chip);
+	if (err)
+		goto unlock;
+
+	err = mv88e6xxx_broadcast_setup(chip, 0);
 	if (err)
 		goto unlock;
 

@@ -141,6 +141,8 @@ static struct sk_buff *dsa_rcv(struct sk_buff *skb, struct net_device *dev,
 			2 * ETH_ALEN);
 	}
 
+	skb->offload_fwd_mark = 1;
+
 	return skb;
 }
 
