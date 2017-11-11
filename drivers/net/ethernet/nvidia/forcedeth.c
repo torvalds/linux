@@ -2226,8 +2226,6 @@ static netdev_tx_t nv_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	/* setup the header buffer */
 	do {
-		prev_tx = put_tx;
-		prev_tx_ctx = np->put_tx_ctx;
 		bcnt = (size > NV_TX2_TSO_MAX_SIZE) ? NV_TX2_TSO_MAX_SIZE : size;
 		np->put_tx_ctx->dma = dma_map_single(&np->pci_dev->dev,
 						     skb->data + offset, bcnt,
@@ -2262,8 +2260,6 @@ static netdev_tx_t nv_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		offset = 0;
 
 		do {
-			prev_tx = put_tx;
-			prev_tx_ctx = np->put_tx_ctx;
 			if (!start_tx_ctx)
 				start_tx_ctx = tmp_tx_ctx = np->put_tx_ctx;
 
@@ -2303,6 +2299,16 @@ static netdev_tx_t nv_start_xmit(struct sk_buff *skb, struct net_device *dev)
 				np->put_tx_ctx = np->first_tx_ctx;
 		} while (frag_size);
 	}
+
+	if (unlikely(put_tx == np->first_tx.orig))
+		prev_tx = np->last_tx.orig;
+	else
+		prev_tx = put_tx - 1;
+
+	if (unlikely(np->put_tx_ctx == np->first_tx_ctx))
+		prev_tx_ctx = np->last_tx_ctx;
+	else
+		prev_tx_ctx = np->put_tx_ctx - 1;
 
 	/* set last fragment flag  */
 	prev_tx->flaglen |= cpu_to_le32(tx_flags_extra);
@@ -2377,8 +2383,6 @@ static netdev_tx_t nv_start_xmit_optimized(struct sk_buff *skb,
 
 	/* setup the header buffer */
 	do {
-		prev_tx = put_tx;
-		prev_tx_ctx = np->put_tx_ctx;
 		bcnt = (size > NV_TX2_TSO_MAX_SIZE) ? NV_TX2_TSO_MAX_SIZE : size;
 		np->put_tx_ctx->dma = dma_map_single(&np->pci_dev->dev,
 						     skb->data + offset, bcnt,
@@ -2414,8 +2418,6 @@ static netdev_tx_t nv_start_xmit_optimized(struct sk_buff *skb,
 		offset = 0;
 
 		do {
-			prev_tx = put_tx;
-			prev_tx_ctx = np->put_tx_ctx;
 			bcnt = (frag_size > NV_TX2_TSO_MAX_SIZE) ? NV_TX2_TSO_MAX_SIZE : frag_size;
 			if (!start_tx_ctx)
 				start_tx_ctx = tmp_tx_ctx = np->put_tx_ctx;
@@ -2455,6 +2457,16 @@ static netdev_tx_t nv_start_xmit_optimized(struct sk_buff *skb,
 				np->put_tx_ctx = np->first_tx_ctx;
 		} while (frag_size);
 	}
+
+	if (unlikely(put_tx == np->first_tx.ex))
+		prev_tx = np->last_tx.ex;
+	else
+		prev_tx = put_tx - 1;
+
+	if (unlikely(np->put_tx_ctx == np->first_tx_ctx))
+		prev_tx_ctx = np->last_tx_ctx;
+	else
+		prev_tx_ctx = np->put_tx_ctx - 1;
 
 	/* set last fragment flag  */
 	prev_tx->flaglen |= cpu_to_le32(NV_TX2_LASTPACKET);
