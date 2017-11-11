@@ -97,3 +97,17 @@ int arch_prepare_kprobe_ftrace(struct kprobe *p)
 	p->ainsn.boostable = false;
 	return 0;
 }
+
+asmlinkage void override_func(void);
+asm(
+	".type override_func, @function\n"
+	"override_func:\n"
+	"	ret\n"
+	".size override_func, .-override_func\n"
+);
+
+void arch_ftrace_kprobe_override_function(struct pt_regs *regs)
+{
+	regs->ip = (unsigned long)&override_func;
+}
+NOKPROBE_SYMBOL(arch_ftrace_kprobe_override_function);

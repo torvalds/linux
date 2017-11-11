@@ -67,6 +67,10 @@ extern const int kretprobe_blacklist_size;
 void arch_remove_kprobe(struct kprobe *p);
 asmlinkage void kretprobe_trampoline(void);
 
+#ifdef CONFIG_KPROBES_ON_FTRACE
+extern void arch_ftrace_kprobe_override_function(struct pt_regs *regs);
+#endif
+
 /* Architecture specific copy of original instruction*/
 struct arch_specific_insn {
 	/* copy of the original instruction */
