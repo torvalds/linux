@@ -369,6 +369,7 @@ static void ip6gre_tunnel_uninit(struct net_device *dev)
 static void ip6gre_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 		       u8 type, u8 code, int offset, __be32 info)
 {
+	struct net *net = dev_net(skb->dev);
 	const struct gre_base_hdr *greh;
 	const struct ipv6hdr *ipv6h;
 	int grehlen = sizeof(*greh);
@@ -441,6 +442,10 @@ static void ip6gre_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 		if (mtu < IPV6_MIN_MTU)
 			mtu = IPV6_MIN_MTU;
 		t->dev->mtu = mtu;
+		return;
+	case NDISC_REDIRECT:
+		ip6_redirect(skb, net, skb->dev->ifindex, 0,
+			     sock_net_uid(net, NULL));
 		return;
 	}
 
