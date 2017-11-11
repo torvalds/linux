@@ -2325,18 +2325,7 @@ static int hclge_update_speed_duplex(struct hclge_dev *hdev)
 	/* get the speed and duplex as autoneg'result from mac cmd when phy
 	 * doesn't exit.
 	 */
-	if (mac.phydev)
-		return 0;
-
-	/* update mac->antoneg. */
-	ret = hclge_query_autoneg_result(hdev);
-	if (ret) {
-		dev_err(&hdev->pdev->dev,
-			"autoneg result query failed %d\n", ret);
-		return ret;
-	}
-
-	if (!mac.autoneg)
+	if (mac.phydev || !mac.autoneg)
 		return 0;
 
 	ret = hclge_query_mac_an_speed_dup(hdev, &speed, &duplex);
