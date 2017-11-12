@@ -61,8 +61,6 @@ do_steps: &do_steps
           /home/ubuntu/circle-android.sh wait-for-boot;
         fi
   - run: cd tools/lkl && make test
-  - run: git remote add upstream git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
-  - run: tools/lkl/scripts/checkpatch.sh
   - run: if [ $VALGRIND = 1]; then cd tools/lkl && make valgrind; fi
   - run:
       name: save test results
@@ -124,6 +122,21 @@ jobs:
      VALGRIND: 1
    <<: *do_steps
 
+  checkpatch:
+   docker:
+     - image: thehajime/lkl-docker:1.1
+   environment:
+   steps:
+     - restore_cache:
+        key: code-tree-full-history
+     - checkout
+     - run: tools/lkl/scripts/checkpatch.sh
+     - save_cache:
+        key: code-tree-full-history-{{ epoch }}
+        paths:
+          - /home/ubuntu/project/.git
+        when: always
+
 workflows:
   version: 2
   build:
@@ -132,3 +145,4 @@ workflows:
      - mingw32
      - android-arm32
      - android-aarch64
+     - checkpatch
