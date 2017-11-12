@@ -1833,6 +1833,7 @@ static __net_exit void l2tp_exit_net(struct net *net)
 {
 	struct l2tp_net *pn = l2tp_pernet(net);
 	struct l2tp_tunnel *tunnel = NULL;
+	int hash;
 
 	rcu_read_lock_bh();
 	list_for_each_entry_rcu(tunnel, &pn->l2tp_tunnel_list, list) {
@@ -1842,6 +1843,9 @@ static __net_exit void l2tp_exit_net(struct net *net)
 
 	flush_workqueue(l2tp_wq);
 	rcu_barrier();
+
+	for (hash = 0; hash < L2TP_HASH_SIZE_2; hash++)
+		WARN_ON_ONCE(!hlist_empty(&pn->l2tp_session_hlist[hash]));
 }
 
 static struct pernet_operations l2tp_net_ops = {
