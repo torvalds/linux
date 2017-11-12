@@ -2084,8 +2084,12 @@ static int nfs_net_init(struct net *net)
 
 static void nfs_net_exit(struct net *net)
 {
+	struct nfs_net *nn = net_generic(net, nfs_net_id);
+
 	nfs_fs_proc_net_exit(net);
 	nfs_cleanup_cb_ident_idr(net);
+	WARN_ON_ONCE(!list_empty(&nn->nfs_client_list));
+	WARN_ON_ONCE(!list_empty(&nn->nfs_volume_list));
 }
 
 static struct pernet_operations nfs_net_ops = {
