@@ -10,7 +10,12 @@ do_steps: &do_steps
       command: |
         mkdir -p ~/.ssh/
         ssh-keyscan -H github.com >> ~/.ssh/known_hosts
-        git clone --depth=1 --branch $CIRCLE_BRANCH --single-branch $CIRCLE_REPOSITORY_URL .
+        git clone --depth=1 $CIRCLE_REPOSITORY_URL .;
+        if [[ $CIRCLE_BRANCH == pull/* ]]; then
+           git fetch --depth=1 origin $CIRCLE_BRANCH/head;
+        else
+           git fetch --depth=1 origin $CIRCLE_BRANCH;
+        fi
         git reset --hard $CIRCLE_SHA1
   - run: cd tools/lkl && make clean
   - run: mkdir -p /home/ubuntu/.ccache
