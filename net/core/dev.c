@@ -1064,6 +1064,9 @@ static int __dev_alloc_name(struct net *net, const char *name, char *buf)
 	unsigned long *inuse;
 	struct net_device *d;
 
+	if (!dev_valid_name(name))
+		return -EINVAL;
+
 	p = strchr(name, '%');
 	if (p) {
 		/*
