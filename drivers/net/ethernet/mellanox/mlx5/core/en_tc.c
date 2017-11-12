@@ -93,6 +93,14 @@ enum {
 #define MLX5E_TC_TABLE_NUM_GROUPS 4
 #define MLX5E_TC_TABLE_MAX_GROUP_SIZE (1 << 16)
 
+struct mlx5e_hairpin {
+	struct mlx5_hairpin *pair;
+
+	struct mlx5_core_dev *func_mdev;
+	u32 tdn;
+	u32 tirn;
+};
+
 struct mod_hdr_key {
 	int num_actions;
 	void *actions;
@@ -220,6 +228,95 @@ static void mlx5e_detach_mod_hdr(struct mlx5e_priv *priv,
 		hash_del(&mh->mod_hdr_hlist);
 		kfree(mh);
 	}
+}
+
+static
+struct mlx5_core_dev *mlx5e_hairpin_get_mdev(struct net *net, int ifindex)
+{
+	struct net_device *netdev;
+	struct mlx5e_priv *priv;
+
+	netdev = __dev_get_by_index(net, ifindex);
+	priv = netdev_priv(netdev);
+	return priv->mdev;
+}
+
+static int mlx5e_hairpin_create_transport(struct mlx5e_hairpin *hp)
+{
+	u32 in[MLX5_ST_SZ_DW(create_tir_in)] = {0};
+	void *tirc;
+	int err;
+
+	err = mlx5_core_alloc_transport_domain(hp->func_mdev, &hp->tdn);
+	if (err)
+		goto alloc_tdn_err;
+
+	tirc = MLX5_ADDR_OF(create_tir_in, in, ctx);
+
+	MLX5_SET(tirc, tirc, disp_type, MLX5_TIRC_DISP_TYPE_DIRECT);
+	MLX5_SET(tirc, tirc, inline_rqn, hp->pair->rqn);
+	MLX5_SET(tirc, tirc, transport_domain, hp->tdn);
+
+	err = mlx5_core_create_tir(hp->func_mdev, in, MLX5_ST_SZ_BYTES(create_tir_in), &hp->tirn);
+	if (err)
+		goto create_tir_err;
+
+	return 0;
+
+create_tir_err:
+	mlx5_core_dealloc_transport_domain(hp->func_mdev, hp->tdn);
+alloc_tdn_err:
+	return err;
+}
+
+static void mlx5e_hairpin_destroy_transport(struct mlx5e_hairpin *hp)
+{
+	mlx5_core_destroy_tir(hp->func_mdev, hp->tirn);
+	mlx5_core_dealloc_transport_domain(hp->func_mdev, hp->tdn);
+}
+
+static struct mlx5e_hairpin *
+mlx5e_hairpin_create(struct mlx5e_priv *priv, struct mlx5_hairpin_params *params,
+		     int peer_ifindex)
+{
+	struct mlx5_core_dev *func_mdev, *peer_mdev;
+	struct mlx5e_hairpin *hp;
+	struct mlx5_hairpin *pair;
+	int err;
+
+	hp = kzalloc(sizeof(*hp), GFP_KERNEL);
+	if (!hp)
+		return ERR_PTR(-ENOMEM);
+
+	func_mdev = priv->mdev;
+	peer_mdev = mlx5e_hairpin_get_mdev(dev_net(priv->netdev), peer_ifindex);
+
+	pair = mlx5_core_hairpin_create(func_mdev, peer_mdev, params);
+	if (IS_ERR(pair)) {
+		err = PTR_ERR(pair);
+		goto create_pair_err;
+	}
+	hp->pair = pair;
+	hp->func_mdev = func_mdev;
+
+	err = mlx5e_hairpin_create_transport(hp);
+	if (err)
+		goto create_transport_err;
+
+	return hp;
+
+create_transport_err:
+	mlx5_core_hairpin_destroy(hp->pair);
+create_pair_err:
+	kfree(hp);
+	return ERR_PTR(err);
+}
+
+static void mlx5e_hairpin_destroy(struct mlx5e_hairpin *hp)
+{
+	mlx5e_hairpin_destroy_transport(hp);
+	mlx5_core_hairpin_destroy(hp->pair);
+	kvfree(hp);
 }
 
 static struct mlx5_flow_handle *
