@@ -924,10 +924,8 @@ static irqreturn_t _rtl_pci_interrupt(int irq, void *dev_id)
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
 	unsigned long flags;
-	u32 inta = 0;
-	u32 intb = 0;
-	u32 intc = 0;
-	u32 intd = 0;
+	struct rtl_int intvec = {0};
+
 	irqreturn_t ret = IRQ_HANDLED;
 
 	if (rtlpci->irq_enabled == 0)
@@ -937,47 +935,47 @@ static irqreturn_t _rtl_pci_interrupt(int irq, void *dev_id)
 	rtlpriv->cfg->ops->disable_interrupt(hw);
 
 	/*read ISR: 4/8bytes */
-	rtlpriv->cfg->ops->interrupt_recognized(hw, &inta, &intb, &intc, &intd);
+	rtlpriv->cfg->ops->interrupt_recognized(hw, &intvec);
 
 	/*Shared IRQ or HW disappeared */
-	if (!inta || inta == 0xffff)
+	if (!intvec.inta || intvec.inta == 0xffff)
 		goto done;
 
 	/*<1> beacon related */
-	if (inta & rtlpriv->cfg->maps[RTL_IMR_TBDOK])
+	if (intvec.inta & rtlpriv->cfg->maps[RTL_IMR_TBDOK])
 		RT_TRACE(rtlpriv, COMP_INTR, DBG_TRACE,
 			 "beacon ok interrupt!\n");
 
-	if (unlikely(inta & rtlpriv->cfg->maps[RTL_IMR_TBDER]))
+	if (unlikely(intvec.inta & rtlpriv->cfg->maps[RTL_IMR_TBDER]))
 		RT_TRACE(rtlpriv, COMP_INTR, DBG_TRACE,
 			 "beacon err interrupt!\n");
 
-	if (inta & rtlpriv->cfg->maps[RTL_IMR_BDOK])
+	if (intvec.inta & rtlpriv->cfg->maps[RTL_IMR_BDOK])
 		RT_TRACE(rtlpriv, COMP_INTR, DBG_TRACE, "beacon interrupt!\n");
 
-	if (inta & rtlpriv->cfg->maps[RTL_IMR_BCNINT]) {
+	if (intvec.inta & rtlpriv->cfg->maps[RTL_IMR_BCNINT]) {
 		RT_TRACE(rtlpriv, COMP_INTR, DBG_TRACE,
 			 "prepare beacon for interrupt!\n");
 		tasklet_schedule(&rtlpriv->works.irq_prepare_bcn_tasklet);
 	}
 
 	/*<2> Tx related */
-	if (unlikely(intb & rtlpriv->cfg->maps[RTL_IMR_TXFOVW]))
+	if (unlikely(intvec.intb & rtlpriv->cfg->maps[RTL_IMR_TXFOVW]))
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_WARNING, "IMR_TXFOVW!\n");
 
-	if (inta & rtlpriv->cfg->maps[RTL_IMR_MGNTDOK]) {
+	if (intvec.inta & rtlpriv->cfg->maps[RTL_IMR_MGNTDOK]) {
 		RT_TRACE(rtlpriv, COMP_INTR, DBG_TRACE,
 			 "Manage ok interrupt!\n");
 		_rtl_pci_tx_isr(hw, MGNT_QUEUE);
 	}
 
-	if (inta & rtlpriv->cfg->maps[RTL_IMR_HIGHDOK]) {
+	if (intvec.inta & rtlpriv->cfg->maps[RTL_IMR_HIGHDOK]) {
 		RT_TRACE(rtlpriv, COMP_INTR, DBG_TRACE,
 			 "HIGH_QUEUE ok interrupt!\n");
 		_rtl_pci_tx_isr(hw, HIGH_QUEUE);
 	}
 
-	if (inta & rtlpriv->cfg->maps[RTL_IMR_BKDOK]) {
+	if (intvec.inta & rtlpriv->cfg->maps[RTL_IMR_BKDOK]) {
 		rtlpriv->link_info.num_tx_inperiod++;
 
 		RT_TRACE(rtlpriv, COMP_INTR, DBG_TRACE,
@@ -985,7 +983,7 @@ static irqreturn_t _rtl_pci_interrupt(int irq, void *dev_id)
 		_rtl_pci_tx_isr(hw, BK_QUEUE);
 	}
 
-	if (inta & rtlpriv->cfg->maps[RTL_IMR_BEDOK]) {
+	if (intvec.inta & rtlpriv->cfg->maps[RTL_IMR_BEDOK]) {
 		rtlpriv->link_info.num_tx_inperiod++;
 
 		RT_TRACE(rtlpriv, COMP_INTR, DBG_TRACE,
@@ -993,7 +991,7 @@ static irqreturn_t _rtl_pci_interrupt(int irq, void *dev_id)
 		_rtl_pci_tx_isr(hw, BE_QUEUE);
 	}
 
-	if (inta & rtlpriv->cfg->maps[RTL_IMR_VIDOK]) {
+	if (intvec.inta & rtlpriv->cfg->maps[RTL_IMR_VIDOK]) {
 		rtlpriv->link_info.num_tx_inperiod++;
 
 		RT_TRACE(rtlpriv, COMP_INTR, DBG_TRACE,
@@ -1001,7 +999,7 @@ static irqreturn_t _rtl_pci_interrupt(int irq, void *dev_id)
 		_rtl_pci_tx_isr(hw, VI_QUEUE);
 	}
 
-	if (inta & rtlpriv->cfg->maps[RTL_IMR_VODOK]) {
+	if (intvec.inta & rtlpriv->cfg->maps[RTL_IMR_VODOK]) {
 		rtlpriv->link_info.num_tx_inperiod++;
 
 		RT_TRACE(rtlpriv, COMP_INTR, DBG_TRACE,
@@ -1010,7 +1008,7 @@ static irqreturn_t _rtl_pci_interrupt(int irq, void *dev_id)
 	}
 
 	if (rtlhal->hw_type == HARDWARE_TYPE_RTL8822BE) {
-		if (intd & rtlpriv->cfg->maps[RTL_IMR_H2CDOK]) {
+		if (intvec.intd & rtlpriv->cfg->maps[RTL_IMR_H2CDOK]) {
 			rtlpriv->link_info.num_tx_inperiod++;
 
 			RT_TRACE(rtlpriv, COMP_INTR, DBG_TRACE,
@@ -1020,7 +1018,7 @@ static irqreturn_t _rtl_pci_interrupt(int irq, void *dev_id)
 	}
 
 	if (rtlhal->hw_type == HARDWARE_TYPE_RTL8192SE) {
-		if (inta & rtlpriv->cfg->maps[RTL_IMR_COMDOK]) {
+		if (intvec.inta & rtlpriv->cfg->maps[RTL_IMR_COMDOK]) {
 			rtlpriv->link_info.num_tx_inperiod++;
 
 			RT_TRACE(rtlpriv, COMP_INTR, DBG_TRACE,
@@ -1030,25 +1028,25 @@ static irqreturn_t _rtl_pci_interrupt(int irq, void *dev_id)
 	}
 
 	/*<3> Rx related */
-	if (inta & rtlpriv->cfg->maps[RTL_IMR_ROK]) {
+	if (intvec.inta & rtlpriv->cfg->maps[RTL_IMR_ROK]) {
 		RT_TRACE(rtlpriv, COMP_INTR, DBG_TRACE, "Rx ok interrupt!\n");
 		_rtl_pci_rx_interrupt(hw);
 	}
 
-	if (unlikely(inta & rtlpriv->cfg->maps[RTL_IMR_RDU])) {
+	if (unlikely(intvec.inta & rtlpriv->cfg->maps[RTL_IMR_RDU])) {
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_WARNING,
 			 "rx descriptor unavailable!\n");
 		_rtl_pci_rx_interrupt(hw);
 	}
 
-	if (unlikely(intb & rtlpriv->cfg->maps[RTL_IMR_RXFOVW])) {
+	if (unlikely(intvec.intb & rtlpriv->cfg->maps[RTL_IMR_RXFOVW])) {
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_WARNING, "rx overflow !\n");
 		_rtl_pci_rx_interrupt(hw);
 	}
 
 	/*<4> fw related*/
 	if (rtlhal->hw_type == HARDWARE_TYPE_RTL8723AE) {
-		if (inta & rtlpriv->cfg->maps[RTL_IMR_C2HCMD]) {
+		if (intvec.inta & rtlpriv->cfg->maps[RTL_IMR_C2HCMD]) {
 			RT_TRACE(rtlpriv, COMP_INTR, DBG_TRACE,
 				 "firmware interrupt!\n");
 			queue_delayed_work(rtlpriv->works.rtl_wq,
@@ -1064,7 +1062,8 @@ static irqreturn_t _rtl_pci_interrupt(int irq, void *dev_id)
 	 */
 	if (rtlhal->hw_type == HARDWARE_TYPE_RTL8188EE ||
 	    rtlhal->hw_type == HARDWARE_TYPE_RTL8723BE) {
-		if (unlikely(inta & rtlpriv->cfg->maps[RTL_IMR_HSISR_IND])) {
+		if (unlikely(intvec.inta &
+		    rtlpriv->cfg->maps[RTL_IMR_HSISR_IND])) {
 			RT_TRACE(rtlpriv, COMP_INTR, DBG_TRACE,
 				 "hsisr interrupt!\n");
 			_rtl_pci_hs_interrupt(hw);
