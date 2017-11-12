@@ -18,14 +18,12 @@
 #ifndef RF69_ENUM_H
 #define RF69_ENUM_H
 
-enum optionOnOff
-{
+enum optionOnOff {
     optionOff,
     optionOn
 };
 
-enum mode
-{
+enum mode {
     mode_sleep,
     standby,
     synthesizer,
@@ -33,21 +31,18 @@ enum mode
     receive
 };
 
-enum dataMode
-{
+enum dataMode {
     packet,
     continuous,
     continuousNoSync
 };
 
-enum modulation
-{
+enum modulation {
     OOK,
     FSK
 };
 
-enum modShaping
-{
+enum modShaping {
     shapingOff,
     shaping1_0,
     shaping0_5,
@@ -56,8 +51,7 @@ enum modShaping
     shaping2BR
 };
 
-enum paRamp
-{
+enum paRamp {
     ramp3400,
     ramp2000,
     ramp1000,
@@ -76,14 +70,12 @@ enum paRamp
     ramp10
 };
 
-enum antennaImpedance
-{
+enum antennaImpedance {
     fiftyOhm,
     twohundretOhm
 };
 
-enum lnaGain
-{
+enum lnaGain {
     automatic,
     max,
     maxMinus6,
@@ -94,8 +86,7 @@ enum lnaGain
     undefined
 };
 
-enum dccPercent
-{
+enum dccPercent {
     dcc16Percent,
     dcc8Percent,
     dcc4Percent,
@@ -106,22 +97,19 @@ enum dccPercent
     dcc0_125Percent
 };
 
-enum mantisse
-{
+enum mantisse {
     mantisse16,
     mantisse20,
     mantisse24
 };
 
-enum thresholdType
-{
+enum thresholdType {
     fixed,
     peak,
     average
 };
 
-enum thresholdStep
-{
+enum thresholdStep {
     step_0_5db,
     step_1_0db,
     step_1_5db,
@@ -132,8 +120,7 @@ enum thresholdStep
     step_6_0db
 };
 
-enum thresholdDecrement
-{
+enum thresholdDecrement {
     dec_every8th,
     dec_every4th,
     dec_every2nd,
@@ -144,8 +131,7 @@ enum thresholdDecrement
     dec_16times
 };
 
-enum flag
-{
+enum flag {
     modeSwitchCompleted,
     readyToReceive,
     readyToSend,
@@ -165,33 +151,28 @@ enum flag
     batteryLow
 };
 
-enum fifoFillCondition
-{
+enum fifoFillCondition {
     afterSyncInterrupt,
     always
 };
 
-enum packetFormat
-{
+enum packetFormat {
     packetLengthFix,
     packetLengthVar
 };
 
-enum txStartCondition
-{
+enum txStartCondition {
     fifoLevel,
     fifoNotEmpty
 };
 
-enum addressFiltering
-{
+enum addressFiltering {
     filteringOff,
     nodeAddress,
     nodeOrBroadcastAddress
 };
 
-enum dagc
-{
+enum dagc {
     normalMode,
     improve,
     improve4LowModulationIndex
