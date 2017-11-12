@@ -1107,6 +1107,19 @@ static int __dev_alloc_name(struct net *net, const char *name, char *buf)
 	return -ENFILE;
 }
 
+static int dev_alloc_name_ns(struct net *net,
+			     struct net_device *dev,
+			     const char *name)
+{
+	char buf[IFNAMSIZ];
+	int ret;
+
+	ret = __dev_alloc_name(net, name, buf);
+	if (ret >= 0)
+		strlcpy(dev->name, buf, IFNAMSIZ);
+	return ret;
+}
+
 /**
  *	dev_alloc_name - allocate a name for a device
  *	@dev: device
@@ -1135,19 +1148,6 @@ int dev_alloc_name(struct net_device *dev, const char *name)
 	return ret;
 }
 EXPORT_SYMBOL(dev_alloc_name);
-
-static int dev_alloc_name_ns(struct net *net,
-			     struct net_device *dev,
-			     const char *name)
-{
-	char buf[IFNAMSIZ];
-	int ret;
-
-	ret = __dev_alloc_name(net, name, buf);
-	if (ret >= 0)
-		strlcpy(dev->name, buf, IFNAMSIZ);
-	return ret;
-}
 
 int dev_get_valid_name(struct net *net, struct net_device *dev,
 		       const char *name)
