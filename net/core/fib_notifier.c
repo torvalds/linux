@@ -161,8 +161,14 @@ static int __net_init fib_notifier_net_init(struct net *net)
 	return 0;
 }
 
+static void __net_exit fib_notifier_net_exit(struct net *net)
+{
+	WARN_ON_ONCE(!list_empty(&net->fib_notifier_ops));
+}
+
 static struct pernet_operations fib_notifier_net_ops = {
 	.init = fib_notifier_net_init,
+	.exit = fib_notifier_net_exit,
 };
 
 static int __init fib_notifier_init(void)
