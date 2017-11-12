@@ -257,11 +257,13 @@ static unsigned int update_balloon_stats(struct virtio_balloon *vb)
 	struct sysinfo i;
 	unsigned int idx = 0;
 	long available;
+	unsigned long caches;
 
 	all_vm_events(events);
 	si_meminfo(&i);
 
 	available = si_mem_available();
+	caches = global_node_page_state(NR_FILE_PAGES);
 
 #ifdef CONFIG_VM_EVENT_COUNTERS
 	update_stat(vb, idx++, VIRTIO_BALLOON_S_SWAP_IN,
@@ -277,6 +279,8 @@ static unsigned int update_balloon_stats(struct virtio_balloon *vb)
 				pages_to_bytes(i.totalram));
 	update_stat(vb, idx++, VIRTIO_BALLOON_S_AVAIL,
 				pages_to_bytes(available));
+	update_stat(vb, idx++, VIRTIO_BALLOON_S_CACHES,
+				pages_to_bytes(caches));
 
 	return idx;
 }
