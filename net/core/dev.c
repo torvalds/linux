@@ -1106,7 +1106,7 @@ static int __dev_alloc_name(struct net *net, const char *name, char *buf)
 	 * when the name is long and there isn't enough space left
 	 * for the digits, or if all bits are used.
 	 */
-	return -ENFILE;
+	return p ? -ENFILE : -EEXIST;
 }
 
 static int dev_alloc_name_ns(struct net *net,
