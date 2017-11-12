@@ -483,13 +483,14 @@ int acpi_nfit_ctl(struct nvdimm_bus_descriptor *nd_desc, struct nvdimm *nvdimm,
 			min_t(u32, 256, in_buf.buffer.length), true);
 
 	/* call the BIOS, prefer the named methods over _DSM if available */
-	if (cmd == ND_CMD_GET_CONFIG_SIZE && nfit_mem->has_lsi)
+	if (nvdimm && cmd == ND_CMD_GET_CONFIG_SIZE && nfit_mem->has_lsi)
 		out_obj = acpi_label_info(handle);
-	else if (cmd == ND_CMD_GET_CONFIG_DATA && nfit_mem->has_lsr) {
+	else if (nvdimm && cmd == ND_CMD_GET_CONFIG_DATA && nfit_mem->has_lsr) {
 		struct nd_cmd_get_config_data_hdr *p = buf;
 
 		out_obj = acpi_label_read(handle, p->in_offset, p->in_length);
-	} else if (cmd == ND_CMD_SET_CONFIG_DATA && nfit_mem->has_lsw) {
+	} else if (nvdimm && cmd == ND_CMD_SET_CONFIG_DATA
+			&& nfit_mem->has_lsw) {
 		struct nd_cmd_set_config_hdr *p = buf;
 
 		out_obj = acpi_label_write(handle, p->in_offset, p->in_length,
@@ -497,7 +498,7 @@ int acpi_nfit_ctl(struct nvdimm_bus_descriptor *nd_desc, struct nvdimm *nvdimm,
 	} else {
 		u8 revid;
 
-		if (nfit_mem)
+		if (nvdimm)
 			revid = nfit_dsm_revid(nfit_mem->family, func);
 		else
 			revid = 1;
@@ -565,8 +566,10 @@ int acpi_nfit_ctl(struct nvdimm_bus_descriptor *nd_desc, struct nvdimm *nvdimm,
 	 * Set fw_status for all the commands with a known format to be
 	 * later interpreted by xlat_status().
 	 */
-	if (i >= 1 && ((cmd >= ND_CMD_ARS_CAP && cmd <= ND_CMD_CLEAR_ERROR)
-			|| (cmd >= ND_CMD_SMART && cmd <= ND_CMD_VENDOR)))
+	if (i >= 1 && ((!nvdimm && cmd >= ND_CMD_ARS_CAP
+					&& cmd <= ND_CMD_CLEAR_ERROR)
+				|| (nvdimm && cmd >= ND_CMD_SMART
+					&& cmd <= ND_CMD_VENDOR)))
 		fw_status = *(u32 *) out_obj->buffer.pointer;
 
 	if (offset + in_buf.buffer.length < buf_len) {
