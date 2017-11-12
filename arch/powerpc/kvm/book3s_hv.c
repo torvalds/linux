@@ -2705,11 +2705,14 @@ static noinline void kvmppc_run_core(struct kvmppc_vcore *vc)
 	 * Hard-disable interrupts, and check resched flag and signals.
 	 * If we need to reschedule or deliver a signal, clean up
 	 * and return without going into the guest(s).
+	 * If the hpte_setup_done flag has been cleared, don't go into the
+	 * guest because that means a HPT resize operation is in progress.
 	 */
 	local_irq_disable();
 	hard_irq_disable();
 	if (lazy_irq_pending() || need_resched() ||
-	    recheck_signals(&core_info)) {
+	    recheck_signals(&core_info) ||
+	    (!kvm_is_radix(vc->kvm) && !vc->kvm->arch.hpte_setup_done)) {
 		local_irq_enable();
 		vc->vcore_state = VCORE_INACTIVE;
 		/* Unlock all except the primary vcore */
@@ -3078,7 +3081,7 @@ out:
 
 static int kvmppc_run_vcpu(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 {
-	int n_ceded, i;
+	int n_ceded, i, r;
 	struct kvmppc_vcore *vc;
 	struct kvm_vcpu *v;
 
@@ -3132,6 +3135,20 @@ static int kvmppc_run_vcpu(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 
 	while (vcpu->arch.state == KVMPPC_VCPU_RUNNABLE &&
 	       !signal_pending(current)) {
+		/* See if the HPT and VRMA are ready to go */
+		if (!kvm_is_radix(vcpu->kvm) &&
+		    !vcpu->kvm->arch.hpte_setup_done) {
+			spin_unlock(&vc->lock);
+			r = kvmppc_hv_setup_htab_rma(vcpu);
+			spin_lock(&vc->lock);
+			if (r) {
+				kvm_run->exit_reason = KVM_EXIT_FAIL_ENTRY;
+				kvm_run->fail_entry.hardware_entry_failure_reason = 0;
+				vcpu->arch.ret = r;
+				break;
+			}
+		}
+
 		if (vc->vcore_state == VCORE_PREEMPT && vc->runner == NULL)
 			kvmppc_vcore_end_preempt(vc);
 
@@ -3249,13 +3266,6 @@ static int kvmppc_vcpu_run_hv(struct kvm_run *run, struct kvm_vcpu *vcpu)
 	/* Order vcpus_running vs. hpte_setup_done, see kvmppc_alloc_reset_hpt */
 	smp_mb();
 
-	/* On the first time here, set up HTAB and VRMA */
-	if (!kvm_is_radix(vcpu->kvm) && !vcpu->kvm->arch.hpte_setup_done) {
-		r = kvmppc_hv_setup_htab_rma(vcpu);
-		if (r)
-			goto out;
-	}
-
 	flush_all_to_thread(current);
 
 	/* Save userspace EBB and other register values */
@@ -3303,7 +3313,6 @@ static int kvmppc_vcpu_run_hv(struct kvm_run *run, struct kvm_vcpu *vcpu)
 	}
 	mtspr(SPRN_VRSAVE, user_vrsave);
 
- out:
 	vcpu->arch.state = KVMPPC_VCPU_NOTREADY;
 	atomic_dec(&vcpu->kvm->arch.vcpus_running);
 	return r;

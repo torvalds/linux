@@ -832,10 +832,14 @@ static void gen8_ppgtt_clear_4lvl(struct i915_address_space *vm,
 	}
 }
 
-struct sgt_dma {
+static inline struct sgt_dma {
 	struct scatterlist *sg;
 	dma_addr_t dma, max;
-};
+} sgt_dma(struct i915_vma *vma) {
+	struct scatterlist *sg = vma->pages->sgl;
+	dma_addr_t addr = sg_dma_address(sg);
+	return (struct sgt_dma) { sg, addr, addr + sg->length };
+}
 
 struct gen8_insert_pte {
 	u16 pml4e;
@@ -916,11 +920,7 @@ static void gen8_ppgtt_insert_3lvl(struct i915_address_space *vm,
 				   u32 unused)
 {
 	struct i915_hw_ppgtt *ppgtt = i915_vm_to_ppgtt(vm);
-	struct sgt_dma iter = {
-		.sg = vma->pages->sgl,
-		.dma = sg_dma_address(iter.sg),
-		.max = iter.dma + iter.sg->length,
-	};
+	struct sgt_dma iter = sgt_dma(vma);
 	struct gen8_insert_pte idx = gen8_insert_pte(vma->node.start);
 
 	gen8_ppgtt_insert_pte_entries(ppgtt, &ppgtt->pdp, &iter, &idx,
@@ -933,11 +933,7 @@ static void gen8_ppgtt_insert_4lvl(struct i915_address_space *vm,
 				   u32 unused)
 {
 	struct i915_hw_ppgtt *ppgtt = i915_vm_to_ppgtt(vm);
-	struct sgt_dma iter = {
-		.sg = vma->pages->sgl,
-		.dma = sg_dma_address(iter.sg),
-		.max = iter.dma + iter.sg->length,
-	};
+	struct sgt_dma iter = sgt_dma(vma);
 	struct i915_page_directory_pointer **pdps = ppgtt->pml4.pdps;
 	struct gen8_insert_pte idx = gen8_insert_pte(vma->node.start);
 
@@ -1632,13 +1628,10 @@ static void gen6_ppgtt_insert_entries(struct i915_address_space *vm,
 	unsigned act_pt = first_entry / GEN6_PTES;
 	unsigned act_pte = first_entry % GEN6_PTES;
 	const u32 pte_encode = vm->pte_encode(0, cache_level, flags);
-	struct sgt_dma iter;
+	struct sgt_dma iter = sgt_dma(vma);
 	gen6_pte_t *vaddr;
 
 	vaddr = kmap_atomic_px(ppgtt->pd.page_table[act_pt]);
-	iter.sg = vma->pages->sgl;
-	iter.dma = sg_dma_address(iter.sg);
-	iter.max = iter.dma + iter.sg->length;
 	do {
 		vaddr[act_pte] = pte_encode | GEN6_PTE_ADDR_ENCODE(iter.dma);
 

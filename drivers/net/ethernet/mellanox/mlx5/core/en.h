@@ -68,7 +68,7 @@
 #define MLX5E_PARAMS_DEFAULT_LOG_RQ_SIZE                0xa
 #define MLX5E_PARAMS_MAXIMUM_LOG_RQ_SIZE                0xd
 
-#define MLX5E_PARAMS_MINIMUM_LOG_RQ_SIZE_MPW            0x1
+#define MLX5E_PARAMS_MINIMUM_LOG_RQ_SIZE_MPW            0x2
 #define MLX5E_PARAMS_DEFAULT_LOG_RQ_SIZE_MPW            0x3
 #define MLX5E_PARAMS_MAXIMUM_LOG_RQ_SIZE_MPW            0x6
 

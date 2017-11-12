@@ -1486,9 +1486,16 @@ static int mlx5_try_fast_unload(struct mlx5_core_dev *dev)
 		return -EAGAIN;
 	}
 
+	/* Panic tear down fw command will stop the PCI bus communication
+	 * with the HCA, so the health polll is no longer needed.
+	 */
+	mlx5_drain_health_wq(dev);
+	mlx5_stop_health_poll(dev);
+
 	ret = mlx5_cmd_force_teardown_hca(dev);
 	if (ret) {
 		mlx5_core_dbg(dev, "Firmware couldn't do fast unload error: %d\n", ret);
+		mlx5_start_health_poll(dev);
 		return ret;
 	}
 

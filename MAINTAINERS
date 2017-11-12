@@ -10349,7 +10349,6 @@ F:	drivers/pci/host/vmd.c
 
 PCI DRIVER FOR MICROSEMI SWITCHTEC
 M:	Kurt Schwemmer <kurt.schwemmer@microsemi.com>
-M:	Stephen Bates <stephen.bates@microsemi.com>
 M:	Logan Gunthorpe <logang@deltatee.com>
 L:	linux-pci@vger.kernel.org
 S:	Maintained
@@ -10414,6 +10413,7 @@ F:	drivers/pci/dwc/*keystone*
 
 PCI ENDPOINT SUBSYSTEM
 M:	Kishon Vijay Abraham I <kishon@ti.com>
+M:	Lorenzo Pieralisi <lorenzo.pieralisi@arm.com>
 L:	linux-pci@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/kishon/pci-endpoint.git
 S:	Supported
@@ -10465,6 +10465,15 @@ F:	include/linux/pci*
 F:	arch/x86/pci/
 F:	arch/x86/kernel/quirks.c
 
+PCI NATIVE HOST BRIDGE AND ENDPOINT DRIVERS
+M:	Lorenzo Pieralisi <lorenzo.pieralisi@arm.com>
+L:	linux-pci@vger.kernel.org
+Q:	http://patchwork.ozlabs.org/project/linux-pci/list/
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/lpieralisi/pci.git/
+S:	Supported
+F:	drivers/pci/host/
+F:	drivers/pci/dwc/
+
 PCIE DRIVER FOR AXIS ARTPEC
 M:	Niklas Cassel <niklas.cassel@axis.com>
 M:	Jesper Nilsson <jesper.nilsson@axis.com>
@@ -10484,7 +10493,6 @@ F:	drivers/pci/host/pci-thunder-*
 
 PCIE DRIVER FOR HISILICON
 M:	Zhou Wang <wangzhou1@hisilicon.com>
-M:	Gabriele Paoloni <gabriele.paoloni@huawei.com>
 L:	linux-pci@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/pci/hisilicon-pcie.txt
@@ -13621,22 +13629,13 @@ F:	drivers/platform/x86/toshiba-wmi.c
 
 TPM DEVICE DRIVER
 M:	Peter Huewe <peterhuewe@gmx.de>
-M:	Marcel Selhorst <tpmdd@selhorst.net>
 M:	Jarkko Sakkinen <jarkko.sakkinen@linux.intel.com>
 R:	Jason Gunthorpe <jgunthorpe@obsidianresearch.com>
-W:	http://tpmdd.sourceforge.net
-L:	tpmdd-devel@lists.sourceforge.net (moderated for non-subscribers)
-Q:	https://patchwork.kernel.org/project/tpmdd-devel/list/
+L:	linux-integrity@vger.kernel.org
+Q:	https://patchwork.kernel.org/project/linux-integrity/list/
 T:	git git://git.infradead.org/users/jjs/linux-tpmdd.git
 S:	Maintained
 F:	drivers/char/tpm/
-
-TPM IBM_VTPM DEVICE DRIVER
-M:	Ashley Lai <ashleydlai@gmail.com>
-W:	http://tpmdd.sourceforge.net
-L:	tpmdd-devel@lists.sourceforge.net (moderated for non-subscribers)
-S:	Maintained
-F:	drivers/char/tpm/tpm_ibmvtpm*
 
 TRACING
 M:	Steven Rostedt <rostedt@goodmis.org>

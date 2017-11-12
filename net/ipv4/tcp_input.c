@@ -2554,7 +2554,6 @@ void tcp_simple_retransmit(struct sock *sk)
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct sk_buff *skb;
 	unsigned int mss = tcp_current_mss(sk);
-	u32 prior_lost = tp->lost_out;
 
 	skb_rbtree_walk(skb, &sk->tcp_rtx_queue) {
 		if (tcp_skb_seglen(skb) > mss &&
@@ -2569,7 +2568,7 @@ void tcp_simple_retransmit(struct sock *sk)
 
 	tcp_clear_retrans_hints_partial(tp);
 
-	if (prior_lost == tp->lost_out)
+	if (!tp->lost_out)
 		return;
 
 	if (tcp_is_reno(tp))
