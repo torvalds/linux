@@ -4806,23 +4806,38 @@ err_unlock:
 	return ret;
 }
 
-void i915_gem_resume(struct drm_i915_private *dev_priv)
+void i915_gem_resume(struct drm_i915_private *i915)
 {
-	struct drm_device *dev = &dev_priv->drm;
+	WARN_ON(i915->gt.awake);
 
-	WARN_ON(dev_priv->gt.awake);
+	mutex_lock(&i915->drm.struct_mutex);
+	intel_uncore_forcewake_get(i915, FORCEWAKE_ALL);
 
-	mutex_lock(&dev->struct_mutex);
-	i915_gem_restore_gtt_mappings(dev_priv);
-	i915_gem_restore_fences(dev_priv);
+	i915_gem_restore_gtt_mappings(i915);
+	i915_gem_restore_fences(i915);
 
 	/* As we didn't flush the kernel context before suspend, we cannot
 	 * guarantee that the context image is complete. So let's just reset
 	 * it and start again.
 	 */
-	dev_priv->gt.resume(dev_priv);
+	i915->gt.resume(i915);
 
-	mutex_unlock(&dev->struct_mutex);
+	if (i915_gem_init_hw(i915))
+		goto err_wedged;
+
+	/* Always reload a context for powersaving. */
+	if (i915_gem_switch_to_kernel_context(i915))
+		goto err_wedged;
+
+out_unlock:
+	intel_uncore_forcewake_put(i915, FORCEWAKE_ALL);
+	mutex_unlock(&i915->drm.struct_mutex);
+	return;
+
+err_wedged:
+	DRM_ERROR("failed to re-initialize GPU, declaring wedged!\n");
+	i915_gem_set_wedged(i915);
+	goto out_unlock;
 }
 
 void i915_gem_init_swizzling(struct drm_i915_private *dev_priv)

@@ -1392,7 +1392,6 @@ struct intel_gen6_power_mgmt {
 	struct intel_rps rps;
 	struct intel_rc6 rc6;
 	struct intel_llc_pstate llc_pstate;
-	struct delayed_work autoenable_work;
 };
 
 /* defined intel_pm.c */

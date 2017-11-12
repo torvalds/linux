@@ -7959,8 +7959,6 @@ void intel_init_gt_powersave(struct drm_i915_private *dev_priv)
 	rps->boost_freq = rps->max_freq;
 
 	mutex_unlock(&dev_priv->pcu_lock);
-
-	intel_autoenable_gt_powersave(dev_priv);
 }
 
 void intel_cleanup_gt_powersave(struct drm_i915_private *dev_priv)
@@ -7984,9 +7982,6 @@ void intel_suspend_gt_powersave(struct drm_i915_private *dev_priv)
 {
 	if (INTEL_GEN(dev_priv) < 6)
 		return;
-
-	if (cancel_delayed_work_sync(&dev_priv->gt_pm.autoenable_work))
-		intel_runtime_pm_put(dev_priv);
 
 	/* gen6_rps_idle() will be called later to disable interrupts */
 }
@@ -8144,65 +8139,6 @@ void intel_enable_gt_powersave(struct drm_i915_private *dev_priv)
 		intel_enable_llc_pstate(dev_priv);
 
 	mutex_unlock(&dev_priv->pcu_lock);
-}
-
-static void __intel_autoenable_gt_powersave(struct work_struct *work)
-{
-	struct drm_i915_private *dev_priv =
-		container_of(work,
-			     typeof(*dev_priv),
-			     gt_pm.autoenable_work.work);
-	struct intel_engine_cs *rcs;
-	struct drm_i915_gem_request *req;
-
-	rcs = dev_priv->engine[RCS];
-	if (rcs->last_retired_context)
-		goto out;
-
-	if (!rcs->init_context)
-		goto out;
-
-	mutex_lock(&dev_priv->drm.struct_mutex);
-
-	req = i915_gem_request_alloc(rcs, dev_priv->kernel_context);
-	if (IS_ERR(req))
-		goto unlock;
-
-	if (!i915_modparams.enable_execlists && i915_switch_context(req) == 0)
-		rcs->init_context(req);
-
-	/* Mark the device busy, calling intel_enable_gt_powersave() */
-	i915_add_request(req);
-
-unlock:
-	mutex_unlock(&dev_priv->drm.struct_mutex);
-out:
-	intel_runtime_pm_put(dev_priv);
-}
-
-void intel_autoenable_gt_powersave(struct drm_i915_private *dev_priv)
-{
-	if (IS_IRONLAKE_M(dev_priv)) {
-		ironlake_enable_drps(dev_priv);
-		intel_init_emon(dev_priv);
-	} else if (INTEL_INFO(dev_priv)->gen >= 6) {
-		/*
-		 * PCU communication is slow and this doesn't need to be
-		 * done at any specific time, so do this out of our fast path
-		 * to make resume and init faster.
-		 *
-		 * We depend on the HW RC6 power context save/restore
-		 * mechanism when entering D3 through runtime PM suspend. So
-		 * disable RPM until RPS/RC6 is properly setup. We can only
-		 * get here via the driver load/system resume/runtime resume
-		 * paths, so the _noresume version is enough (and in case of
-		 * runtime resume it's necessary).
-		 */
-		if (queue_delayed_work(dev_priv->wq,
-				       &dev_priv->gt_pm.autoenable_work,
-				       round_jiffies_up_relative(HZ)))
-			intel_runtime_pm_get_noresume(dev_priv);
-	}
 }
 
 static void ibx_init_clock_gating(struct drm_i915_private *dev_priv)
@@ -9435,8 +9371,6 @@ void intel_pm_setup(struct drm_i915_private *dev_priv)
 {
 	mutex_init(&dev_priv->pcu_lock);
 
-	INIT_DELAYED_WORK(&dev_priv->gt_pm.autoenable_work,
-			  __intel_autoenable_gt_powersave);
 	atomic_set(&dev_priv->gt_pm.rps.num_waiters, 0);
 
 	dev_priv->runtime_pm.suspended = false;

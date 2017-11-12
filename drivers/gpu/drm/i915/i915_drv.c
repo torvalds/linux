@@ -1683,8 +1683,6 @@ static int i915_drm_resume(struct drm_device *dev)
 
 	intel_csr_ucode_resume(dev_priv);
 
-	i915_gem_resume(dev_priv);
-
 	i915_restore_state(dev_priv);
 	intel_pps_unlock_regs_wa(dev_priv);
 	intel_opregion_setup(dev_priv);
@@ -1705,12 +1703,7 @@ static int i915_drm_resume(struct drm_device *dev)
 
 	drm_mode_config_reset(dev);
 
-	mutex_lock(&dev->struct_mutex);
-	if (i915_gem_init_hw(dev_priv)) {
-		DRM_ERROR("failed to re-initialize GPU, declaring wedged!\n");
-		i915_gem_set_wedged(dev_priv);
-	}
-	mutex_unlock(&dev->struct_mutex);
+	i915_gem_resume(dev_priv);
 
 	intel_guc_resume(dev_priv);
 
@@ -1744,8 +1737,6 @@ static int i915_drm_resume(struct drm_device *dev)
 	mutex_unlock(&dev_priv->modeset_restore_lock);
 
 	intel_opregion_notify_adapter(dev_priv, PCI_D0);
-
-	intel_autoenable_gt_powersave(dev_priv);
 
 	enable_rpm_wakeref_asserts(dev_priv);
 
