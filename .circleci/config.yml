@@ -5,18 +5,26 @@ general:
 do_steps: &do_steps
  steps:
   - run: echo "$CROSS_COMPILE" > ~/_cross_compile
+  - restore_cache:
+      key: code-tree-shallow
   - run:
       name: checkout build tree
       command: |
         mkdir -p ~/.ssh/
         ssh-keyscan -H github.com >> ~/.ssh/known_hosts
-        git clone --depth=1 $CIRCLE_REPOSITORY_URL .;
+        if ! [ -d .git ]; then
+          git clone --depth=1 $CIRCLE_REPOSITORY_URL .;
+        fi
         if [[ $CIRCLE_BRANCH == pull/* ]]; then
            git fetch --depth=1 origin $CIRCLE_BRANCH/head;
         else
            git fetch --depth=1 origin $CIRCLE_BRANCH;
         fi
         git reset --hard $CIRCLE_SHA1
+  - save_cache:
+      key: code-tree-shallow-{{ epoch }}
+      paths:
+        - /home/ubuntu/project/.git
   - run: cd tools/lkl && make clean
   - run: mkdir -p /home/ubuntu/.ccache
   - restore_cache:
