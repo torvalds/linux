@@ -115,11 +115,13 @@ static int rtl8211f_config_intr(struct phy_device *phydev)
 {
 	int err;
 
+	phy_write(phydev, RTL821x_PAGE_SELECT, 0xa42);
 	if (phydev->interrupts == PHY_INTERRUPT_ENABLED)
 		err = phy_write(phydev, RTL821x_INER,
 				RTL8211F_INER_LINK_STATUS);
 	else
 		err = phy_write(phydev, RTL821x_INER, 0);
+	phy_write(phydev, RTL821x_PAGE_SELECT, 0);
 
 	return err;
 }
