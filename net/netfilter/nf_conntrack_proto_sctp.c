@@ -52,7 +52,7 @@ static const char *const sctp_conntrack_names[] = {
 #define HOURS * 60 MINS
 #define DAYS  * 24 HOURS
 
-static unsigned int sctp_timeouts[SCTP_CONNTRACK_MAX] __read_mostly = {
+static const unsigned int sctp_timeouts[SCTP_CONNTRACK_MAX] = {
 	[SCTP_CONNTRACK_CLOSED]			= 10 SECS,
 	[SCTP_CONNTRACK_COOKIE_WAIT]		= 3 SECS,
 	[SCTP_CONNTRACK_COOKIE_ECHOED]		= 3 SECS,

@@ -68,7 +68,7 @@ static const char *const tcp_conntrack_names[] = {
 #define HOURS * 60 MINS
 #define DAYS * 24 HOURS
 
-static unsigned int tcp_timeouts[TCP_CONNTRACK_TIMEOUT_MAX] __read_mostly = {
+static const unsigned int tcp_timeouts[TCP_CONNTRACK_TIMEOUT_MAX] = {
 	[TCP_CONNTRACK_SYN_SENT]	= 2 MINS,
 	[TCP_CONNTRACK_SYN_RECV]	= 60 SECS,
 	[TCP_CONNTRACK_ESTABLISHED]	= 5 DAYS,

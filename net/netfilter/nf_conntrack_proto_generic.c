@@ -12,7 +12,7 @@
 #include <linux/netfilter.h>
 #include <net/netfilter/nf_conntrack_l4proto.h>
 
-static unsigned int nf_ct_generic_timeout __read_mostly = 600*HZ;
+static const unsigned int nf_ct_generic_timeout = 600*HZ;
 
 static bool nf_generic_should_process(u8 proto)
 {

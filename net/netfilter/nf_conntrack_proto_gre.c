@@ -48,7 +48,7 @@ enum grep_conntrack {
 	GRE_CT_MAX
 };
 
-static unsigned int gre_timeouts[GRE_CT_MAX] = {
+static const unsigned int gre_timeouts[GRE_CT_MAX] = {
 	[GRE_CT_UNREPLIED]	= 30*HZ,
 	[GRE_CT_REPLIED]	= 180*HZ,
 };
