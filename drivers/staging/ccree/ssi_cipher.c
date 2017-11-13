@@ -140,7 +140,7 @@ static int validate_data_size(struct ssi_ablkcipher_ctx *ctx_p, unsigned int siz
 		break;
 	case S_DIN_to_DES:
 		if (likely(IS_ALIGNED(size, DES_BLOCK_SIZE)))
-				return 0;
+			return 0;
 		break;
 #if SSI_CC_HAS_MULTI2
 	case S_DIN_to_MULTI2:
