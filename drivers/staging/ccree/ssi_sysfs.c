@@ -47,7 +47,7 @@ static ssize_t ssi_sys_regdump_show(struct kobject *kobj,
 static ssize_t ssi_sys_help_show(struct kobject *kobj,
 				 struct kobj_attribute *attr, char *buf)
 {
-	char *help_str[] = {
+	static const char * const help_str[] = {
 				"cat reg_dump              ", "Print several of CC register values",
 				};
 	int i = 0, offset = 0;
