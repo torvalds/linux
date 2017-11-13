@@ -2256,35 +2256,62 @@ static bool needs_idle_maps(struct drm_i915_private *dev_priv)
 	return IS_GEN5(dev_priv) && IS_MOBILE(dev_priv) && intel_vtd_active();
 }
 
-void i915_check_and_clear_faults(struct drm_i915_private *dev_priv)
+static void gen6_check_and_clear_faults(struct drm_i915_private *dev_priv)
 {
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
-
-	if (INTEL_INFO(dev_priv)->gen < 6)
-		return;
+	u32 fault;
 
 	for_each_engine(engine, dev_priv, id) {
-		u32 fault_reg;
-		fault_reg = I915_READ(RING_FAULT_REG(engine));
-		if (fault_reg & RING_FAULT_VALID) {
+		fault = I915_READ(RING_FAULT_REG(engine));
+		if (fault & RING_FAULT_VALID) {
 			DRM_DEBUG_DRIVER("Unexpected fault\n"
 					 "\tAddr: 0x%08lx\n"
 					 "\tAddress space: %s\n"
 					 "\tSource ID: %d\n"
 					 "\tType: %d\n",
-					 fault_reg & PAGE_MASK,
-					 fault_reg & RING_FAULT_GTTSEL_MASK ? "GGTT" : "PPGTT",
-					 RING_FAULT_SRCID(fault_reg),
-					 RING_FAULT_FAULT_TYPE(fault_reg));
+					 fault & PAGE_MASK,
+					 fault & RING_FAULT_GTTSEL_MASK ? "GGTT" : "PPGTT",
+					 RING_FAULT_SRCID(fault),
+					 RING_FAULT_FAULT_TYPE(fault));
 			I915_WRITE(RING_FAULT_REG(engine),
-				   fault_reg & ~RING_FAULT_VALID);
+				   fault & ~RING_FAULT_VALID);
 		}
 	}
 
-	/* Engine specific init may not have been done till this point. */
-	if (dev_priv->engine[RCS])
-		POSTING_READ(RING_FAULT_REG(dev_priv->engine[RCS]));
+	POSTING_READ(RING_FAULT_REG(dev_priv->engine[RCS]));
+}
+
+static void gen8_check_and_clear_faults(struct drm_i915_private *dev_priv)
+{
+	u32 fault = I915_READ(GEN8_RING_FAULT_REG);
+
+	if (fault & RING_FAULT_VALID) {
+		DRM_DEBUG_DRIVER("Unexpected fault\n"
+				 "\tAddr: 0x%08lx\n"
+				 "\tEngine ID: %d\n"
+				 "\tSource ID: %d\n"
+				 "\tType: %d\n",
+				 fault & PAGE_MASK,
+				 GEN8_RING_FAULT_ENGINE_ID(fault),
+				 RING_FAULT_SRCID(fault),
+				 RING_FAULT_FAULT_TYPE(fault));
+		I915_WRITE(GEN8_RING_FAULT_REG,
+			   fault & ~RING_FAULT_VALID);
+	}
+
+	POSTING_READ(GEN8_RING_FAULT_REG);
+}
+
+void i915_check_and_clear_faults(struct drm_i915_private *dev_priv)
+{
+	/* From GEN8 onwards we only have one 'All Engine Fault Register' */
+	if (INTEL_GEN(dev_priv) >= 8)
+		gen8_check_and_clear_faults(dev_priv);
+	else if (INTEL_GEN(dev_priv) >= 6)
+		gen6_check_and_clear_faults(dev_priv);
+	else
+		return;
 }
 
 void i915_gem_suspend_gtt_mappings(struct drm_i915_private *dev_priv)
