@@ -557,13 +557,6 @@ static void _rtl_pci_tx_isr(struct ieee80211_hw *hw, int prio)
 		else
 			entry = (u8 *)(&ring->desc[ring->idx]);
 
-		if (rtlpriv->cfg->ops->get_available_desc &&
-		    rtlpriv->cfg->ops->get_available_desc(hw, prio) <= 1) {
-			RT_TRACE(rtlpriv, (COMP_INTR | COMP_SEND), DBG_DMESG,
-				 "no available desc!\n");
-			return;
-		}
-
 		if (!rtlpriv->cfg->ops->is_tx_desc_closed(hw, prio, ring->idx))
 			return;
 		ring->idx = (ring->idx + 1) % ring->entries;
@@ -1250,7 +1243,6 @@ static int _rtl_pci_init_tx_ring(struct ieee80211_hw *hw,
 
 		rtlpci->tx_ring[prio].cur_tx_rp = 0;
 		rtlpci->tx_ring[prio].cur_tx_wp = 0;
-		rtlpci->tx_ring[prio].avl_desc = entries;
 	}
 
 	/* alloc dma for this ring */
