@@ -43,6 +43,9 @@ struct ssi_request_mgr_handle {
 	u32 req_queue_tail;
 	u32 axi_completed;
 	u32 q_free_slots;
+	/* This lock protects access to HW register
+	 * that must be single request at a time
+	 */
 	spinlock_t hw_lock;
 	struct cc_hw_desc compl_desc;
 	u8 *dummy_comp_buff;
