@@ -1642,11 +1642,11 @@ perf_event_groups_rotate(struct perf_event_groups *groups, int cpu)
 /*
  * Iterate through the whole groups tree.
  */
-#define perf_event_groups_for_each(event, groups, node)		\
-	for (event = rb_entry_safe(rb_first(&((groups)->tree)),	\
-				typeof(*event), node); event;	\
-		event = rb_entry_safe(rb_next(&event->node),	\
-				typeof(*event), node))
+#define perf_event_groups_for_each(event, groups)			\
+	for (event = rb_entry_safe(rb_first(&((groups)->tree)),		\
+				typeof(*event), group_node); event;	\
+		event = rb_entry_safe(rb_next(&event->group_node),	\
+				typeof(*event), group_node))
 
 /*
  * Add a event from the lists for its context.
@@ -11345,7 +11345,7 @@ static int perf_event_init_context(struct task_struct *child, int ctxn)
 	 * We dont have to disable NMIs - we are only looking at
 	 * the list, not manipulating it:
 	 */
-	perf_event_groups_for_each(event, &parent_ctx->pinned_groups, group_node) {
+	perf_event_groups_for_each(event, &parent_ctx->pinned_groups) {
 		ret = inherit_task_group(event, parent, parent_ctx,
 					 child, ctxn, &inherited_all);
 		if (ret)
@@ -11361,7 +11361,7 @@ static int perf_event_init_context(struct task_struct *child, int ctxn)
 	parent_ctx->rotate_disable = 1;
 	raw_spin_unlock_irqrestore(&parent_ctx->lock, flags);
 
-	perf_event_groups_for_each(event, &parent_ctx->flexible_groups, group_node) {
+	perf_event_groups_for_each(event, &parent_ctx->flexible_groups) {
 		ret = inherit_task_group(event, parent, parent_ctx,
 					 child, ctxn, &inherited_all);
 		if (ret)
