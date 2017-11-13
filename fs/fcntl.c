@@ -725,7 +725,7 @@ static void send_sigio_to_task(struct task_struct *p,
 	 * F_SETSIG can change ->signum lockless in parallel, make
 	 * sure we read it once and use the same value throughout.
 	 */
-	int signum = ACCESS_ONCE(fown->signum);
+	int signum = READ_ONCE(fown->signum);
 
 	if (!sigio_perm(p, fown, signum))
 		return;

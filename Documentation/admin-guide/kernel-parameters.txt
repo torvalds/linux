@@ -709,6 +709,9 @@
 			It will be ignored when crashkernel=X,high is not used
 			or memory reserved is below 4G.
 
+	crossrelease_fullstack
+			[KNL] Allow to record full stack trace in cross-release
+
 	cryptomgr.notests
                         [KNL] Disable crypto self-tests
 

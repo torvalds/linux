@@ -443,7 +443,7 @@ static u64 __update_clear_spte_slow(u64 *sptep, u64 spte)
 
 static u64 __get_spte_lockless(u64 *sptep)
 {
-	return ACCESS_ONCE(*sptep);
+	return READ_ONCE(*sptep);
 }
 #else
 union split_spte {
@@ -4819,7 +4819,7 @@ static void kvm_mmu_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
 	 * If we don't have indirect shadow pages, it means no page is
 	 * write-protected, so we can exit simply.
 	 */
-	if (!ACCESS_ONCE(vcpu->kvm->arch.indirect_shadow_pages))
+	if (!READ_ONCE(vcpu->kvm->arch.indirect_shadow_pages))
 		return;
 
 	remote_flush = local_flush = false;

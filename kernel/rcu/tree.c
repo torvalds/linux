@@ -734,7 +734,7 @@ static int rcu_future_needs_gp(struct rcu_state *rsp)
 	int idx = (READ_ONCE(rnp->completed) + 1) & 0x1;
 	int *fp = &rnp->need_future_gp[idx];
 
-	RCU_LOCKDEP_WARN(!irqs_disabled(), "rcu_future_needs_gp() invoked with irqs enabled!!!");
+	lockdep_assert_irqs_disabled();
 	return READ_ONCE(*fp);
 }
 
@@ -746,7 +746,7 @@ static int rcu_future_needs_gp(struct rcu_state *rsp)
 static bool
 cpu_needs_another_gp(struct rcu_state *rsp, struct rcu_data *rdp)
 {
-	RCU_LOCKDEP_WARN(!irqs_disabled(), "cpu_needs_another_gp() invoked with irqs enabled!!!");
+	lockdep_assert_irqs_disabled();
 	if (rcu_gp_in_progress(rsp))
 		return false;  /* No, a grace period is already in progress. */
 	if (rcu_future_needs_gp(rsp))
@@ -773,7 +773,7 @@ static void rcu_eqs_enter_common(bool user)
 	struct rcu_data *rdp;
 	struct rcu_dynticks *rdtp = this_cpu_ptr(&rcu_dynticks);
 
-	RCU_LOCKDEP_WARN(!irqs_disabled(), "rcu_eqs_enter_common() invoked with irqs enabled!!!");
+	lockdep_assert_irqs_disabled();
 	trace_rcu_dyntick(TPS("Start"), rdtp->dynticks_nesting, 0);
 	if (IS_ENABLED(CONFIG_RCU_EQS_DEBUG) &&
 	    !user && !is_idle_task(current)) {
@@ -843,7 +843,7 @@ static void rcu_eqs_enter(bool user)
  */
 void rcu_idle_enter(void)
 {
-	RCU_LOCKDEP_WARN(!irqs_disabled(), "rcu_idle_enter() invoked with irqs enabled!!!");
+	lockdep_assert_irqs_disabled();
 	rcu_eqs_enter(false);
 }
 
@@ -861,7 +861,7 @@ void rcu_idle_enter(void)
  */
 void rcu_user_enter(void)
 {
-	RCU_LOCKDEP_WARN(!irqs_disabled(), "rcu_user_enter() invoked with irqs enabled!!!");
+	lockdep_assert_irqs_disabled();
 	rcu_eqs_enter(true);
 }
 #endif /* CONFIG_NO_HZ_FULL */
@@ -889,7 +889,7 @@ void rcu_irq_exit(void)
 {
 	struct rcu_dynticks *rdtp;
 
-	RCU_LOCKDEP_WARN(!irqs_disabled(), "rcu_irq_exit() invoked with irqs enabled!!!");
+	lockdep_assert_irqs_disabled();
 	rdtp = this_cpu_ptr(&rcu_dynticks);
 
 	/* Page faults can happen in NMI handlers, so check... */
@@ -959,7 +959,7 @@ static void rcu_eqs_exit(bool user)
 	struct rcu_dynticks *rdtp;
 	long long oldval;
 
-	RCU_LOCKDEP_WARN(!irqs_disabled(), "rcu_eqs_exit() invoked with irqs enabled!!!");
+	lockdep_assert_irqs_disabled();
 	rdtp = this_cpu_ptr(&rcu_dynticks);
 	oldval = rdtp->dynticks_nesting;
 	WARN_ON_ONCE(IS_ENABLED(CONFIG_RCU_EQS_DEBUG) && oldval < 0);
@@ -1039,7 +1039,7 @@ void rcu_irq_enter(void)
 	struct rcu_dynticks *rdtp;
 	long long oldval;
 
-	RCU_LOCKDEP_WARN(!irqs_disabled(), "rcu_irq_enter() invoked with irqs enabled!!!");
+	lockdep_assert_irqs_disabled();
 	rdtp = this_cpu_ptr(&rcu_dynticks);
 
 	/* Page faults can happen in NMI handlers, so check... */

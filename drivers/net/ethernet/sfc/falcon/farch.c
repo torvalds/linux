@@ -834,7 +834,7 @@ ef4_farch_handle_tx_event(struct ef4_channel *channel, ef4_qword_t *event)
 	struct ef4_nic *efx = channel->efx;
 	int tx_packets = 0;
 
-	if (unlikely(ACCESS_ONCE(efx->reset_pending)))
+	if (unlikely(READ_ONCE(efx->reset_pending)))
 		return 0;
 
 	if (likely(EF4_QWORD_FIELD(*event, FSF_AZ_TX_EV_COMP))) {
@@ -990,7 +990,7 @@ ef4_farch_handle_rx_event(struct ef4_channel *channel, const ef4_qword_t *event)
 	struct ef4_rx_queue *rx_queue;
 	struct ef4_nic *efx = channel->efx;
 
-	if (unlikely(ACCESS_ONCE(efx->reset_pending)))
+	if (unlikely(READ_ONCE(efx->reset_pending)))
 		return;
 
 	rx_ev_cont = EF4_QWORD_FIELD(*event, FSF_AZ_RX_EV_JUMBO_CONT);
@@ -1504,7 +1504,7 @@ irqreturn_t ef4_farch_fatal_interrupt(struct ef4_nic *efx)
 irqreturn_t ef4_farch_legacy_interrupt(int irq, void *dev_id)
 {
 	struct ef4_nic *efx = dev_id;
-	bool soft_enabled = ACCESS_ONCE(efx->irq_soft_enabled);
+	bool soft_enabled = READ_ONCE(efx->irq_soft_enabled);
 	ef4_oword_t *int_ker = efx->irq_status.addr;
 	irqreturn_t result = IRQ_NONE;
 	struct ef4_channel *channel;
@@ -1596,7 +1596,7 @@ irqreturn_t ef4_farch_msi_interrupt(int irq, void *dev_id)
 		   "IRQ %d on CPU %d status " EF4_OWORD_FMT "\n",
 		   irq, raw_smp_processor_id(), EF4_OWORD_VAL(*int_ker));
 
-	if (!likely(ACCESS_ONCE(efx->irq_soft_enabled)))
+	if (!likely(READ_ONCE(efx->irq_soft_enabled)))
 		return IRQ_HANDLED;
 
 	/* Handle non-event-queue sources */

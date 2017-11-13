@@ -219,7 +219,7 @@ static inline unsigned int work_static(struct work_struct *work) { return 0; }
 									\
 		__init_work((_work), _onstack);				\
 		(_work)->data = (atomic_long_t) WORK_DATA_INIT();	\
-		lockdep_init_map(&(_work)->lockdep_map, #_work, &__key, 0); \
+		lockdep_init_map(&(_work)->lockdep_map, "(work_completion)"#_work, &__key, 0); \
 		INIT_LIST_HEAD(&(_work)->entry);			\
 		(_work)->func = (_func);				\
 	} while (0)
@@ -399,7 +399,7 @@ __alloc_workqueue_key(const char *fmt, unsigned int flags, int max_active,
 	static struct lock_class_key __key;				\
 	const char *__lock_name;					\
 									\
-	__lock_name = #fmt#args;					\
+	__lock_name = "(wq_completion)"#fmt#args;			\
 									\
 	__alloc_workqueue_key((fmt), (flags), (max_active),		\
 			      &__key, __lock_name, ##args);		\

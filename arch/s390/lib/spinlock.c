@@ -215,7 +215,7 @@ static inline void arch_spin_lock_classic(arch_spinlock_t *lp)
 	lockval = SPINLOCK_LOCKVAL;	/* cpu + 1 */
 
 	/* Pass the virtual CPU to the lock holder if it is not running */
-	owner = arch_spin_yield_target(ACCESS_ONCE(lp->lock), NULL);
+	owner = arch_spin_yield_target(READ_ONCE(lp->lock), NULL);
 	if (owner && arch_vcpu_is_preempted(owner - 1))
 		smp_yield_cpu(owner - 1);
 

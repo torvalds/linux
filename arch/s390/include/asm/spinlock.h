@@ -38,6 +38,7 @@ bool arch_vcpu_is_preempted(int cpu);
  */
 
 void arch_spin_relax(arch_spinlock_t *lock);
+#define arch_spin_relax	arch_spin_relax
 
 void arch_spin_lock_wait(arch_spinlock_t *);
 int arch_spin_trylock_retry(arch_spinlock_t *);
@@ -76,6 +77,7 @@ static inline void arch_spin_lock_flags(arch_spinlock_t *lp,
 	if (!arch_spin_trylock_once(lp))
 		arch_spin_lock_wait(lp);
 }
+#define arch_spin_lock_flags	arch_spin_lock_flags
 
 static inline int arch_spin_trylock(arch_spinlock_t *lp)
 {
@@ -105,20 +107,6 @@ static inline void arch_spin_unlock(arch_spinlock_t *lp)
  * read-locks.
  */
 
-/**
- * read_can_lock - would read_trylock() succeed?
- * @lock: the rwlock in question.
- */
-#define arch_read_can_lock(x) (((x)->cnts & 0xffff0000) == 0)
-
-/**
- * write_can_lock - would write_trylock() succeed?
- * @lock: the rwlock in question.
- */
-#define arch_write_can_lock(x) ((x)->cnts == 0)
-
-#define arch_read_lock_flags(lock, flags) arch_read_lock(lock)
-#define arch_write_lock_flags(lock, flags) arch_write_lock(lock)
 #define arch_read_relax(rw) barrier()
 #define arch_write_relax(rw) barrier()
 

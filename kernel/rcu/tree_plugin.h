@@ -326,7 +326,7 @@ static void rcu_preempt_note_context_switch(bool preempt)
 	struct rcu_data *rdp;
 	struct rcu_node *rnp;
 
-	RCU_LOCKDEP_WARN(!irqs_disabled(), "rcu_preempt_note_context_switch() invoked with interrupts enabled!!!\n");
+	lockdep_assert_irqs_disabled();
 	WARN_ON_ONCE(!preempt && t->rcu_read_lock_nesting > 0);
 	if (t->rcu_read_lock_nesting > 0 &&
 	    !t->rcu_read_unlock_special.b.blocked) {
@@ -1420,7 +1420,7 @@ int rcu_needs_cpu(u64 basemono, u64 *nextevt)
 	struct rcu_dynticks *rdtp = this_cpu_ptr(&rcu_dynticks);
 	unsigned long dj;
 
-	RCU_LOCKDEP_WARN(!irqs_disabled(), "rcu_needs_cpu() invoked with irqs enabled!!!");
+	lockdep_assert_irqs_disabled();
 
 	/* Snapshot to detect later posting of non-lazy callback. */
 	rdtp->nonlazy_posted_snap = rdtp->nonlazy_posted;
@@ -1469,7 +1469,7 @@ static void rcu_prepare_for_idle(void)
 	struct rcu_state *rsp;
 	int tne;
 
-	RCU_LOCKDEP_WARN(!irqs_disabled(), "rcu_prepare_for_idle() invoked with irqs enabled!!!");
+	lockdep_assert_irqs_disabled();
 	if (rcu_is_nocb_cpu(smp_processor_id()))
 		return;
 
@@ -1524,7 +1524,7 @@ static void rcu_prepare_for_idle(void)
  */
 static void rcu_cleanup_after_idle(void)
 {
-	RCU_LOCKDEP_WARN(!irqs_disabled(), "rcu_cleanup_after_idle() invoked with irqs enabled!!!");
+	lockdep_assert_irqs_disabled();
 	if (rcu_is_nocb_cpu(smp_processor_id()))
 		return;
 	if (rcu_try_advance_all_cbs())
@@ -2016,7 +2016,7 @@ static bool __maybe_unused rcu_nocb_adopt_orphan_cbs(struct rcu_data *my_rdp,
 						     struct rcu_data *rdp,
 						     unsigned long flags)
 {
-	RCU_LOCKDEP_WARN(!irqs_disabled(), "rcu_nocb_adopt_orphan_cbs() invoked with irqs enabled!!!");
+	lockdep_assert_irqs_disabled();
 	if (!rcu_is_nocb_cpu(smp_processor_id()))
 		return false; /* Not NOCBs CPU, caller must migrate CBs. */
 	__call_rcu_nocb_enqueue(my_rdp, rcu_segcblist_head(&rdp->cblist),

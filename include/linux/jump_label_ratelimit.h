@@ -25,18 +25,18 @@ struct static_key_deferred {
 };
 static inline void static_key_slow_dec_deferred(struct static_key_deferred *key)
 {
-	STATIC_KEY_CHECK_USE();
+	STATIC_KEY_CHECK_USE(key);
 	static_key_slow_dec(&key->key);
 }
 static inline void static_key_deferred_flush(struct static_key_deferred *key)
 {
-	STATIC_KEY_CHECK_USE();
+	STATIC_KEY_CHECK_USE(key);
 }
 static inline void
 jump_label_rate_limit(struct static_key_deferred *key,
 		unsigned long rl)
 {
-	STATIC_KEY_CHECK_USE();
+	STATIC_KEY_CHECK_USE(key);
 }
 #endif	/* HAVE_JUMP_LABEL */
 #endif	/* _LINUX_JUMP_LABEL_RATELIMIT_H */
