@@ -1121,7 +1121,6 @@ struct amdgpu_job {
 	struct amdgpu_vm	*vm;
 	struct amdgpu_ring	*ring;
 	struct amdgpu_sync	sync;
-	struct amdgpu_sync	dep_sync;
 	struct amdgpu_sync	sched_sync;
 	struct amdgpu_ib	*ibs;
 	struct dma_fence	*fence; /* the hw fence */
