@@ -36,6 +36,49 @@
 		};
 	};
 
+	sdio_pwrseq: sdio-pwrseq {
+		compatible = "mmc-pwrseq-simple";
+		clock-names = "ext_clock";
+		pinctrl-names = "default";
+		pinctrl-0 = <&wifi_reg_on>;
+
+		/*
+		 * On the module itself this is one of these (depending
+		 * on the actual card populated):
+		 * - SDIO_RESET_L_WL_REG_ON
+		 * - PDN (power down when low)
+		 */
+		reset-gpios = <&gpio3 24 GPIO_ACTIVE_LOW>; /* GPIO3_D0 */
+	};
+
+	wireless-wlan {
+		compatible = "wlan-platdata";
+		rockchip,grf = <&grf>;
+		wifi_chip_type = "ap6330";
+		sdio_vref = <1800>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&wifi_host_wake>;
+		WIFI,host_wake_irq = <&gpio3 26 GPIO_ACTIVE_HIGH>; /* GPIO3_D2 */
+		status = "okay";
+	};
+
+	wireless-bluetooth {
+		compatible = "bluetooth-platdata";
+		clock-names = "ext_clock";
+		//wifi-bt-power-toggle;
+		uart_rts_gpios = <&gpio1 3 GPIO_ACTIVE_LOW>; /* GPIO2_C3 */
+		pinctrl-names = "default", "rts_gpio";
+		pinctrl-0 = <&uart0_rts>;
+		pinctrl-1 = <&uart0_gpios>;
+		//BT,power_gpio  = <&gpio3 19 GPIO_ACTIVE_HIGH>; /* GPIOx_xx */
+		BT,reset_gpio    = <&gpio3 25 GPIO_ACTIVE_HIGH>; /* GPIO3_D1 */
+		BT,wake_gpio     = <&gpio3 22 GPIO_ACTIVE_HIGH>; /* GPIO3_C6 */
+		BT,wake_host_irq = <&gpio3 23 GPIO_ACTIVE_HIGH>; /* GPIO3_C7 */
+		status = "okay";
+	};
+
+
 	vdd_log: vdd-log {
 		compatible = "pwm-regulator";
 		pwms = <&pwm3 0 1000>;
@@ -257,8 +300,8 @@
 
 			vccio_wl: regulator@8 {
 				regulator-name = "vccio_wl";
-				regulator-min-microvolt = <1800000>;
-				regulator-max-microvolt = <1800000>;
+				regulator-min-microvolt = <2800000>;
+				regulator-max-microvolt = <2800000>;
 			};
 
 			vcc25_hdmi: regulator@9 {
@@ -314,6 +357,12 @@
 };
 
 &mmc1 {
+	max-frequency = <50000000>;
+	cap-sd-highspeed;
+	keep-power-in-suspend;
+	mmc-pwrseq = <&sdio_pwrseq>;
+	sd-uhs-sdr104;
+
 	bus-width = <4>;
 	disable-wp;
 	non-removable;
@@ -397,6 +446,20 @@
 			rockchip,pins = <6 8 RK_FUNC_GPIO &pcfg_output_high>;
 		};
 	};
+
+	wireless-bluetooth {
+		uart0_gpios: uart0-gpios {
+			rockchip,pins = <1 3 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		wifi_reg_on: wifi-reg-on {
+			rockchip,pins = <3 24 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		wifi_host_wake: wifi-host-wake {
+			rockchip,pins = <1 26 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
 };
 
 &pwm1 {
@@ -422,7 +485,7 @@
 
 &uart0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart0_xfer>, <&uart0_cts>, <&uart0_rts>;
+	pinctrl-0 = <&uart0_xfer>, <&uart0_cts>;
 	status = "okay";
 };
 
