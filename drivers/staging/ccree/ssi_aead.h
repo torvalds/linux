@@ -28,7 +28,7 @@
 /* mac_cmp - HW writes 8 B but all bytes hold the same value */
 #define ICV_CMP_SIZE 8
 #define CCM_CONFIG_BUF_SIZE (AES_BLOCK_SIZE * 3)
-#define MAX_MAC_SIZE MAX(SHA256_DIGEST_SIZE, AES_BLOCK_SIZE)
+#define MAX_MAC_SIZE SHA256_DIGEST_SIZE
 
 /* defines for AES GCM configuration buffer */
 #define GCM_BLOCK_LEN_SIZE 8

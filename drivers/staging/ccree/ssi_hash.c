@@ -32,7 +32,7 @@
 #include "ssi_sram_mgr.h"
 
 #define SSI_MAX_AHASH_SEQ_LEN 12
-#define SSI_MAX_HASH_OPAD_TMP_KEYS_SIZE MAX(SSI_MAX_HASH_BLCK_SIZE, 3 * AES_BLOCK_SIZE)
+#define SSI_MAX_HASH_OPAD_TMP_KEYS_SIZE SSI_MAX_HASH_BLCK_SIZE
 
 struct ssi_hash_handle {
 	ssi_sram_addr_t digest_len_sram_addr; /* const value in SRAM*/

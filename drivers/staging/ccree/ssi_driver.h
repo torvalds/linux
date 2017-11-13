@@ -95,9 +95,6 @@
  * field in the HW descriptor. The DMA engine +8 that value.
  */
 
-#define MIN(a, b) (((a) < (b)) ? (a) : (b))
-#define MAX(a, b) (((a) > (b)) ? (a) : (b))
-
 #define SSI_MAX_IVGEN_DMA_ADDRESSES	3
 struct ssi_crypto_req {
 	void (*user_cb)(struct device *dev, void *req);
