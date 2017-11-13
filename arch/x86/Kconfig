@@ -2581,7 +2581,7 @@ config PCI_DIRECT
 config PCI_MMCONFIG
 	bool "Support mmconfig PCI config space access" if X86_64
 	default y
-	depends on PCI && (ACPI || SFI) && (PCI_GOMMCONFIG || PCI_GOANY || X86_64)
+	depends on PCI && (ACPI || SFI || JAILHOUSE_GUEST) && (PCI_GOMMCONFIG || PCI_GOANY || X86_64)
 
 config PCI_OLPC
 	def_bool y
@@ -2595,6 +2595,10 @@ config PCI_XEN
 config PCI_DOMAINS
 	def_bool y
 	depends on PCI
+
+config MMCONF_FAM10H
+	def_bool y
+	depends on PCI_MMCONFIG && ACPI
 
 config PCI_CNB20LE_QUIRK
 	bool "Read CNB20LE Host Bridge Windows" if EXPERT
