@@ -1,14 +1,5 @@
 #!/bin/sh -ex
 
-# Sometime we might want to skip certain checkpatch.pl errors
-# (e.g. when trying to preserve existing code style that checkpatch.pl
-# complains about). In that case just add a new variable in the
-# CircleCI project settings and rebuild. Don't forget to remove them
-# after restarting the build.
-if [ -n "$SKIP_CHECKPATCH" ]; then
-    exit 0
-fi
-
 if [ -z "$origin_master" ]; then
     origin_master="origin/master"
 fi
@@ -20,7 +11,7 @@ upstream=`git remote -v | grep $UPSTREAM | cut -f1 | head -n1`
 lkl=`git remote -v | grep $LKL | cut -f1 | head -n1`
 
 if [ -z "$upstream" ]; then
-    git fetch --tags --progress http://$UPSTREAM
+    git fetch --tags --progress git://$UPSTREAM
 else
     git fetch --tags $upstream
 fi
