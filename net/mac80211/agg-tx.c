@@ -330,6 +330,11 @@ int ___ieee80211_stop_tx_ba_session(struct sta_info *sta, u16 tid,
 
 	spin_lock_bh(&sta->lock);
 
+	/* free struct pending for start, if present */
+	tid_tx = sta->ampdu_mlme.tid_start_tx[tid];
+	kfree(tid_tx);
+	sta->ampdu_mlme.tid_start_tx[tid] = NULL;
+
 	tid_tx = rcu_dereference_protected_tid_tx(sta, tid);
 	if (!tid_tx) {
 		spin_unlock_bh(&sta->lock);
