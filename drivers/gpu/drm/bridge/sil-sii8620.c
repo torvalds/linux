@@ -2233,8 +2233,9 @@ end:
 			union hdmi_infoframe frm;
 			u8 mhl_vic[] = { 0, 95, 94, 93, 98 };
 
+			/* FIXME: We need the connector here */
 			drm_hdmi_vendor_infoframe_from_display_mode(
-				&frm.vendor.hdmi, adjusted_mode);
+				&frm.vendor.hdmi, NULL, adjusted_mode);
 			vic = frm.vendor.hdmi.vic;
 			if (vic >= ARRAY_SIZE(mhl_vic))
 				vic = 0;

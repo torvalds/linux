@@ -515,7 +515,9 @@ static int hdmi_vendor_infoframe_config(struct sti_hdmi *hdmi)
 
 	DRM_DEBUG_DRIVER("\n");
 
-	ret = drm_hdmi_vendor_infoframe_from_display_mode(&infoframe, mode);
+	ret = drm_hdmi_vendor_infoframe_from_display_mode(&infoframe,
+							  hdmi->drm_connector,
+							  mode);
 	if (ret < 0) {
 		/*
 		 * Going into that statement does not means vendor infoframe

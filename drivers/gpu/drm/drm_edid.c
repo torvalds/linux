@@ -3393,6 +3393,7 @@ static int
 do_hdmi_vsdb_modes(struct drm_connector *connector, const u8 *db, u8 len,
 		   const u8 *video_db, u8 video_len)
 {
+	struct drm_display_info *info = &connector->display_info;
 	int modes = 0, offset = 0, i, multi_present = 0, multi_len;
 	u8 vic_len, hdmi_3d_len = 0;
 	u16 mask;
@@ -3520,6 +3521,8 @@ do_hdmi_vsdb_modes(struct drm_connector *connector, const u8 *db, u8 len,
 	}
 
 out:
+	if (modes > 0)
+		info->has_hdmi_infoframe = true;
 	return modes;
 }
 
@@ -4243,6 +4246,8 @@ static void drm_parse_hdmi_forum_vsdb(struct drm_connector *connector,
 	struct drm_display_info *display = &connector->display_info;
 	struct drm_hdmi_info *hdmi = &display->hdmi;
 
+	display->has_hdmi_infoframe = true;
+
 	if (hf_vsdb[6] & 0x80) {
 		hdmi->scdc.supported = true;
 		if (hf_vsdb[6] & 0x40)
@@ -4416,6 +4421,7 @@ static void drm_add_display_info(struct drm_connector *connector,
 	info->cea_rev = 0;
 	info->max_tmds_clock = 0;
 	info->dvi_dual = false;
+	info->has_hdmi_infoframe = false;
 
 	if (edid->revision < 3)
 		return;
@@ -4903,6 +4909,7 @@ s3d_structure_from_display_mode(const struct drm_display_mode *mode)
  * drm_hdmi_vendor_infoframe_from_display_mode() - fill an HDMI infoframe with
  * data from a DRM display mode
  * @frame: HDMI vendor infoframe
+ * @connector: the connector
  * @mode: DRM display mode
  *
  * Note that there's is a need to send HDMI vendor infoframes only when using a
@@ -4913,8 +4920,15 @@ s3d_structure_from_display_mode(const struct drm_display_mode *mode)
  */
 int
 drm_hdmi_vendor_infoframe_from_display_mode(struct hdmi_vendor_infoframe *frame,
+					    struct drm_connector *connector,
 					    const struct drm_display_mode *mode)
 {
+	/*
+	 * FIXME: sil-sii8620 doesn't have a connector around when
+	 * we need one, so we have to be prepared for a NULL connector.
+	 */
+	bool has_hdmi_infoframe = connector ?
+		connector->display_info.has_hdmi_infoframe : false;
 	int err;
 	u32 s3d_flags;
 	u8 vic;
@@ -4922,11 +4936,21 @@ drm_hdmi_vendor_infoframe_from_display_mode(struct hdmi_vendor_infoframe *frame,
 	if (!frame || !mode)
 		return -EINVAL;
 
+	if (!has_hdmi_infoframe)
+		return -EINVAL;
+
 	vic = drm_match_hdmi_mode(mode);
 	s3d_flags = mode->flags & DRM_MODE_FLAG_3D_MASK;
 
-	if (!vic && !s3d_flags)
-		return -EINVAL;
+	/*
+	 * Even if it's not absolutely necessary to send the infoframe
+	 * (ie.vic==0 and s3d_struct==0) we will still send it if we
+	 * know that the sink can handle it. This is based on a
+	 * suggestion in HDMI 2.0 Appendix F. Apparently some sinks
+	 * have trouble realizing that they shuld switch from 3D to 2D
+	 * mode if the source simply stops sending the infoframe when
+	 * it wants to switch from 3D to 2D.
+	 */
 
 	if (vic && s3d_flags)
 		return -EINVAL;
@@ -4935,10 +4959,8 @@ drm_hdmi_vendor_infoframe_from_display_mode(struct hdmi_vendor_infoframe *frame,
 	if (err < 0)
 		return err;
 
-	if (vic)
-		frame->vic = vic;
-	else
-		frame->s3d_struct = s3d_structure_from_display_mode(mode);
+	frame->vic = vic;
+	frame->s3d_struct = s3d_structure_from_display_mode(mode);
 
 	return 0;
 }
