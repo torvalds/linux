@@ -26,7 +26,7 @@ subdirs       := $(patsubst $(srcdir)/%/,%,\
 # Recursion
 __headers: $(subdirs)
 
-.PHONY: $(subdirs)
+PHONY += $(subdirs)
 $(subdirs):
 	$(Q)$(MAKE) $(hdr-inst)=$(obj)/$@ dst=$(dst)/$@
 
@@ -123,6 +123,7 @@ endif
 
 endif # skip-inst
 
-.PHONY: $(PHONY)
 PHONY += FORCE
 FORCE: ;
+
+.PHONY: $(PHONY)
