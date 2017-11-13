@@ -52,6 +52,8 @@
 #define SCLK_PVTM_CORE		123
 #define SCLK_PVTM_GPU		124
 #define SCLK_PVTM_VIDEO		125
+#define SCLK_I2S_FRAC		126
+#define SCLK_I2S_PRE		127
 #define SCLK_MAC		151
 #define SCLK_MACREF		152
 #define SCLK_MACPLL		153
