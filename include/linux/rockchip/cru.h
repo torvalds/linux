@@ -3,8 +3,6 @@
 
 #include <dt-bindings/clock/rockchip,rk3188.h>
 #include <dt-bindings/clock/rockchip,rk3288.h>
-#include <linux/rockchip/iomap.h>
-
 
 /*******************CRU BITS*******************************/
 
@@ -115,14 +113,6 @@ enum rk3288_cru_clk_gate {
 
 #define RK3288_CRU_SOFTRSTS_CON_CNT	(12)
 #define RK3288_CRU_SOFTRSTS_CON(i)	(RK3288_CRU_SOFTRST_CON + ((i) * 4))
-
-static inline void rk3288_cru_set_soft_reset(u32 idx, bool on)
-{
-	void __iomem *reg = RK_CRU_VIRT + RK3288_CRU_SOFTRSTS_CON(idx >> 4);
-	u32 val = on ? 0x10001U << (idx & 0xf) : 0x10000U << (idx & 0xf);
-	writel_relaxed(val, reg);
-	dsb(sy);
-}
 
 #define RK3036_CRU_MODE_CON 0x0040
 
