@@ -560,6 +560,12 @@ struct ibmvnic_multicast_ctrl {
 	struct ibmvnic_rc rc;
 } __packed __aligned(8);
 
+struct ibmvnic_get_vpd_size {
+	u8 first;
+	u8 cmd;
+	u8 reserved[14];
+} __packed __aligned(8);
+
 struct ibmvnic_get_vpd_size_rsp {
 	u8 first;
 	u8 cmd;
@@ -575,6 +581,13 @@ struct ibmvnic_get_vpd {
 	__be32 ioba;
 	__be32 len;
 	u8 reserved[4];
+} __packed __aligned(8);
+
+struct ibmvnic_get_vpd_rsp {
+	u8 first;
+	u8 cmd;
+	u8 reserved[10];
+	struct ibmvnic_rc rc;
 } __packed __aligned(8);
 
 struct ibmvnic_acl_change_indication {
@@ -702,10 +715,10 @@ union ibmvnic_crq {
 	struct ibmvnic_change_mac_addr change_mac_addr_rsp;
 	struct ibmvnic_multicast_ctrl multicast_ctrl;
 	struct ibmvnic_multicast_ctrl multicast_ctrl_rsp;
-	struct ibmvnic_generic_crq get_vpd_size;
+	struct ibmvnic_get_vpd_size get_vpd_size;
 	struct ibmvnic_get_vpd_size_rsp get_vpd_size_rsp;
 	struct ibmvnic_get_vpd get_vpd;
-	struct ibmvnic_generic_crq get_vpd_rsp;
+	struct ibmvnic_get_vpd_rsp get_vpd_rsp;
 	struct ibmvnic_acl_change_indication acl_change_indication;
 	struct ibmvnic_acl_query acl_query;
 	struct ibmvnic_generic_crq acl_query_rsp;
@@ -939,6 +952,12 @@ struct ibmvnic_error_buff {
 	__be32 error_id;
 };
 
+struct ibmvnic_vpd {
+	unsigned char *buff;
+	dma_addr_t dma_addr;
+	u64 len;
+};
+
 enum vnic_state {VNIC_PROBING = 1,
 		 VNIC_PROBED,
 		 VNIC_OPENING,
@@ -979,6 +998,10 @@ struct ibmvnic_adapter {
 	struct ibmvnic_control_ip_offload_buffer ip_offload_ctrl;
 	dma_addr_t ip_offload_ctrl_tok;
 	u32 msg_enable;
+
+	/* Vital Product Data (VPD) */
+	struct ibmvnic_vpd *vpd;
+	char fw_version[32];
 
 	/* Statistics */
 	struct ibmvnic_statistics stats;
