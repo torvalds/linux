@@ -599,9 +599,9 @@ static void snd_korg1212_SendStopAndWait(struct snd_korg1212 *korg1212)
 }
 
 /* timer callback for checking the ack of stop request */
-static void snd_korg1212_timer_func(unsigned long data)
+static void snd_korg1212_timer_func(struct timer_list *t)
 {
-        struct snd_korg1212 *korg1212 = (struct snd_korg1212 *) data;
+	struct snd_korg1212 *korg1212 = from_timer(korg1212, t, timer);
 	unsigned long flags;
 	
 	spin_lock_irqsave(&korg1212->lock, flags);
@@ -2189,8 +2189,7 @@ static int snd_korg1212_create(struct snd_card *card, struct pci_dev *pci,
         init_waitqueue_head(&korg1212->wait);
         spin_lock_init(&korg1212->lock);
 	mutex_init(&korg1212->open_mutex);
-	setup_timer(&korg1212->timer, snd_korg1212_timer_func,
-		    (unsigned long)korg1212);
+	timer_setup(&korg1212->timer, snd_korg1212_timer_func, 0);
 
         korg1212->irq = -1;
         korg1212->clkSource = K1212_CLKIDX_Local;

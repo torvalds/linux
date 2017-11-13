@@ -677,6 +677,9 @@ static int usX2Y_rate_set(struct usX2Ydev *usX2Y, int rate)
 			usb_fill_bulk_urb(us->urb[i], usX2Y->dev, usb_sndbulkpipe(usX2Y->dev, 4),
 					  usbdata + i, 2, i_usX2Y_04Int, usX2Y);
 		}
+		err = usb_urb_ep_type_check(us->urb[0]);
+		if (err < 0)
+			goto cleanup;
 		us->submitted =	0;
 		us->len =	NOOF_SETRATE_URBS;
 		usX2Y->US04 =	us;
