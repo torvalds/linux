@@ -629,6 +629,7 @@ struct sas_task_slow {
 	 */
 	struct timer_list     timer;
 	struct completion     completion;
+	struct sas_task       *task;
 };
 
 #define SAS_TASK_STATE_PENDING      1

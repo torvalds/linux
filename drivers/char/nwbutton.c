@@ -27,7 +27,7 @@ static void button_sequence_finished (unsigned long parameters);
 
 static int button_press_count;		/* The count of button presses */
 /* Times for the end of a sequence */
-static DEFINE_TIMER(button_timer, button_sequence_finished, 0, 0);
+static DEFINE_TIMER(button_timer, button_sequence_finished);
 static DECLARE_WAIT_QUEUE_HEAD(button_wait_queue); /* Used for blocking read */
 static char button_output_buffer[32];	/* Stores data to write out of device */
 static int bcount;			/* The number of bytes in the buffer */

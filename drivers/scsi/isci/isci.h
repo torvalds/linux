@@ -498,12 +498,10 @@ struct sci_timer {
 };
 
 static inline
-void sci_init_timer(struct sci_timer *tmr, void (*fn)(unsigned long))
+void sci_init_timer(struct sci_timer *tmr, void (*fn)(struct timer_list *t))
 {
-	tmr->timer.function = fn;
-	tmr->timer.data = (unsigned long) tmr;
 	tmr->cancel = 0;
-	init_timer(&tmr->timer);
+	timer_setup(&tmr->timer, fn, 0);
 }
 
 static inline void sci_mod_timer(struct sci_timer *tmr, unsigned long msec)

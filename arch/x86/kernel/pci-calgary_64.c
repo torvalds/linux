@@ -898,10 +898,9 @@ static void calioc2_dump_error_regs(struct iommu_table *tbl)
 	       PHB_ROOT_COMPLEX_STATUS);
 }
 
-static void calgary_watchdog(unsigned long data)
+static void calgary_watchdog(struct timer_list *t)
 {
-	struct pci_dev *dev = (struct pci_dev *)data;
-	struct iommu_table *tbl = pci_iommu(dev->bus);
+	struct iommu_table *tbl = from_timer(tbl, t, watchdog_timer);
 	void __iomem *bbar = tbl->bbar;
 	u32 val32;
 	void __iomem *target;
@@ -1016,8 +1015,7 @@ static void __init calgary_enable_translation(struct pci_dev *dev)
 	writel(cpu_to_be32(val32), target);
 	readl(target); /* flush */
 
-	setup_timer(&tbl->watchdog_timer, &calgary_watchdog,
-		    (unsigned long)dev);
+	timer_setup(&tbl->watchdog_timer, calgary_watchdog, 0);
 	mod_timer(&tbl->watchdog_timer, jiffies);
 }
 
