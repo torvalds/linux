@@ -158,10 +158,12 @@ int drm_debugfs_init(struct drm_minor *minor, int minor_id,
 		}
 	}
 
-	ret = drm_framebuffer_debugfs_init(minor);
-	if (ret) {
-		DRM_ERROR("Failed to create framebuffer debugfs file\n");
-		return ret;
+	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
+		ret = drm_framebuffer_debugfs_init(minor);
+		if (ret) {
+			DRM_ERROR("Failed to create framebuffer debugfs file\n");
+			return ret;
+		}
 	}
 
 	if (dev->driver->debugfs_init) {
