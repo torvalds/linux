@@ -44,10 +44,10 @@ static long vexpress_osc_round_rate(struct clk_hw *hw, unsigned long rate,
 {
 	struct vexpress_osc *osc = to_vexpress_osc(hw);
 
-	if (WARN_ON(osc->rate_min && rate < osc->rate_min))
+	if (osc->rate_min && rate < osc->rate_min)
 		rate = osc->rate_min;
 
-	if (WARN_ON(osc->rate_max && rate > osc->rate_max))
+	if (osc->rate_max && rate > osc->rate_max)
 		rate = osc->rate_max;
 
 	return rate;
