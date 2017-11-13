@@ -230,6 +230,43 @@ void brcmf_sdiod_change_state(struct brcmf_sdio_dev *sdiodev,
 	sdiodev->state = state;
 }
 
+static int brcmf_sdiod_set_sbaddr_window(struct brcmf_sdio_dev *sdiodev,
+					 u32 address)
+{
+	int err = 0, i;
+	u32 addr;
+
+	if (sdiodev->state == BRCMF_SDIOD_NOMEDIUM)
+		return -ENOMEDIUM;
+
+	addr = (address & SBSDIO_SBWINDOW_MASK) >> 8;
+
+	for (i = 0 ; i < 3 && !err ; i++, addr >>= 8)
+		brcmf_sdiod_regwb(sdiodev, SBSDIO_FUNC1_SBADDRLOW + i,
+				  addr & 0xff, &err);
+
+	return err;
+}
+
+static int brcmf_sdiod_addrprep(struct brcmf_sdio_dev *sdiodev, u32 *addr)
+{
+	uint bar0 = *addr & ~SBSDIO_SB_OFT_ADDR_MASK;
+	int err = 0;
+
+	if (bar0 != sdiodev->sbwad) {
+		err = brcmf_sdiod_set_sbaddr_window(sdiodev, bar0);
+		if (err)
+			return err;
+
+		sdiodev->sbwad = bar0;
+	}
+
+	*addr &= SBSDIO_SB_OFT_ADDR_MASK;
+	*addr |= SBSDIO_SB_ACCESS_2_4B_FLAG;
+
+	return 0;
+}
+
 static inline int brcmf_sdiod_f0_writeb(struct sdio_func *func, u8 byte,
 					uint regaddr)
 {
@@ -249,173 +286,84 @@ static inline int brcmf_sdiod_f0_writeb(struct sdio_func *func, u8 byte,
 	return err_ret;
 }
 
-static int brcmf_sdiod_request_data(struct brcmf_sdio_dev *sdiodev, u8 fn,
-				    u32 addr, u8 regsz, void *data, bool write)
-{
-	struct sdio_func *func;
-	int ret = -EINVAL;
-
-	brcmf_dbg(SDIO, "rw=%d, func=%d, addr=0x%05x, nbytes=%d\n",
-		  write, fn, addr, regsz);
-
-	/* only allow byte access on F0 */
-	if (WARN_ON(regsz > 1 && !fn))
-		return -EINVAL;
-	func = sdiodev->func[fn];
-
-	switch (regsz) {
-	case 1:
-		if (write) {
-			if (fn)
-				sdio_writeb(func, *(u8 *)data, addr, &ret);
-			else
-				ret = brcmf_sdiod_f0_writeb(func, *(u8 *)data,
-							    addr);
-		} else {
-			if (fn)
-				*(u8 *)data = sdio_readb(func, addr, &ret);
-			else
-				*(u8 *)data = sdio_f0_readb(func, addr, &ret);
-		}
-		break;
-	case 2:
-		if (write)
-			sdio_writew(func, *(u16 *)data, addr, &ret);
-		else
-			*(u16 *)data = sdio_readw(func, addr, &ret);
-		break;
-	case 4:
-		if (write)
-			sdio_writel(func, *(u32 *)data, addr, &ret);
-		else
-			*(u32 *)data = sdio_readl(func, addr, &ret);
-		break;
-	default:
-		brcmf_err("invalid size: %d\n", regsz);
-		break;
-	}
-
-	if (ret)
-		brcmf_dbg(SDIO, "failed to %s data F%d@0x%05x, err: %d\n",
-			  write ? "write" : "read", fn, addr, ret);
-
-	return ret;
-}
-
 static int brcmf_sdiod_reg_write(struct brcmf_sdio_dev *sdiodev, u32 addr,
 				 u8 regsz, void *data)
 {
-	u8 func;
-	s32 retry = 0;
 	int ret;
-
-	if (sdiodev->state == BRCMF_SDIOD_NOMEDIUM)
-		return -ENOMEDIUM;
 
 	/*
 	 * figure out how to read the register based on address range
 	 * 0x00 ~ 0x7FF: function 0 CCCR and FBR
 	 * 0x10000 ~ 0x1FFFF: function 1 miscellaneous registers
 	 * The rest: function 1 silicon backplane core registers
+	 * f0 writes must be bytewise
 	 */
-	if ((addr & ~REG_F0_REG_MASK) == 0)
-		func = SDIO_FUNC_0;
-	else
-		func = SDIO_FUNC_1;
 
-	do {
-		/* for retry wait for 1 ms till bus get settled down */
-		if (retry)
-			usleep_range(1000, 2000);
+	if ((addr & ~REG_F0_REG_MASK) == 0) {
+		if (WARN_ON(regsz > 1))
+			return -EINVAL;
+		ret = brcmf_sdiod_f0_writeb(sdiodev->func[0],
+					    *(u8 *)data, addr);
+	} else {
+		switch (regsz) {
+		case 1:
+			sdio_writeb(sdiodev->func[1], *(u8 *)data, addr, &ret);
+			break;
+		case 4:
+			ret = brcmf_sdiod_addrprep(sdiodev, &addr);
+			if (ret)
+				goto done;
 
-		ret = brcmf_sdiod_request_data(sdiodev, func, addr, regsz,
-					       data, true);
+			sdio_writel(sdiodev->func[1], *(u32 *)data, addr, &ret);
+			break;
+		default:
+			WARN(1, "Invalid reg size\n");
+			ret = -EINVAL;
+			break;
+		}
+	}
 
-	} while (ret != 0 && ret != -ENOMEDIUM &&
-		 retry++ < SDIOH_API_ACCESS_RETRY_LIMIT);
-
-	if (ret == -ENOMEDIUM)
-		brcmf_sdiod_change_state(sdiodev, BRCMF_SDIOD_NOMEDIUM);
-
+done:
 	return ret;
 }
 
 static int brcmf_sdiod_reg_read(struct brcmf_sdio_dev *sdiodev, u32 addr,
 				u8 regsz, void *data)
 {
-	u8 func;
-	s32 retry = 0;
 	int ret;
-
-	if (sdiodev->state == BRCMF_SDIOD_NOMEDIUM)
-		return -ENOMEDIUM;
 
 	/*
 	 * figure out how to read the register based on address range
 	 * 0x00 ~ 0x7FF: function 0 CCCR and FBR
 	 * 0x10000 ~ 0x1FFFF: function 1 miscellaneous registers
 	 * The rest: function 1 silicon backplane core registers
+	 * f0 reads must be bytewise
 	 */
-	if ((addr & ~REG_F0_REG_MASK) == 0)
-		func = SDIO_FUNC_0;
-	else
-		func = SDIO_FUNC_1;
+	if ((addr & ~REG_F0_REG_MASK) == 0) {
+		if (WARN_ON(regsz > 1))
+			return -EINVAL;
+		*(u8 *)data = sdio_f0_readb(sdiodev->func[0], addr, &ret);
+	} else {
+		switch (regsz) {
+		case 1:
+			*(u8 *)data = sdio_readb(sdiodev->func[1], addr, &ret);
+			break;
+		case 4:
+			ret = brcmf_sdiod_addrprep(sdiodev, &addr);
+			if (ret)
+				goto done;
 
-	do {
-		memset(data, 0, regsz);
-
-		/* for retry wait for 1 ms till bus get settled down */
-		if (retry)
-			usleep_range(1000, 2000);
-
-		ret = brcmf_sdiod_request_data(sdiodev, func, addr, regsz,
-					       data, false);
-
-	} while (ret != 0 && ret != -ENOMEDIUM &&
-		 retry++ < SDIOH_API_ACCESS_RETRY_LIMIT);
-
-	if (ret == -ENOMEDIUM)
-		brcmf_sdiod_change_state(sdiodev, BRCMF_SDIOD_NOMEDIUM);
-
-	return ret;
-}
-
-static int
-brcmf_sdiod_set_sbaddr_window(struct brcmf_sdio_dev *sdiodev, u32 address)
-{
-	int err = 0, i;
-	u32 addr;
-
-	if (sdiodev->state == BRCMF_SDIOD_NOMEDIUM)
-		return -ENOMEDIUM;
-
-	addr = (address & SBSDIO_SBWINDOW_MASK) >> 8;
-
-	for (i = 0 ; i < 3 && !err ; i++, addr >>= 8)
-		brcmf_sdiod_regwb(sdiodev, SBSDIO_FUNC1_SBADDRLOW + i,
-				  addr & 0xff, &err);
-
-	return err;
-}
-
-static int
-brcmf_sdiod_addrprep(struct brcmf_sdio_dev *sdiodev, u32 *addr)
-{
-	uint bar0 = *addr & ~SBSDIO_SB_OFT_ADDR_MASK;
-	int err = 0;
-
-	if (bar0 != sdiodev->sbwad) {
-		err = brcmf_sdiod_set_sbaddr_window(sdiodev, bar0);
-		if (err)
-			return err;
-
-		sdiodev->sbwad = bar0;
+			*(u32 *)data = sdio_readl(sdiodev->func[1], addr, &ret);
+			break;
+		default:
+			WARN(1, "Invalid reg size\n");
+			ret = -EINVAL;
+			break;
+		}
 	}
 
-	*addr &= SBSDIO_SB_OFT_ADDR_MASK;
-	*addr |= SBSDIO_SB_ACCESS_2_4B_FLAG;
-
-	return 0;
+done:
+	return ret;
 }
 
 u8 brcmf_sdiod_regrb(struct brcmf_sdio_dev *sdiodev, u32 addr, int *ret)
@@ -439,15 +387,9 @@ u32 brcmf_sdiod_regrl(struct brcmf_sdio_dev *sdiodev, u32 addr, int *ret)
 	int retval;
 
 	brcmf_dbg(SDIO, "addr:0x%08x\n", addr);
-	retval = brcmf_sdiod_addrprep(sdiodev, &addr);
-	if (retval)
-		goto done;
-
 	retval = brcmf_sdiod_reg_read(sdiodev, addr, 4, &data);
-
 	brcmf_dbg(SDIO, "data:0x%08x\n", data);
 
-done:
 	if (ret)
 		*ret = retval;
 
@@ -472,13 +414,8 @@ void brcmf_sdiod_regwl(struct brcmf_sdio_dev *sdiodev, u32 addr,
 	int retval;
 
 	brcmf_dbg(SDIO, "addr:0x%08x, data:0x%08x\n", addr, data);
-	retval = brcmf_sdiod_addrprep(sdiodev, &addr);
-	if (retval)
-		goto done;
-
 	retval = brcmf_sdiod_reg_write(sdiodev, addr, 4, &data);
 
-done:
 	if (ret)
 		*ret = retval;
 }
@@ -886,14 +823,12 @@ brcmf_sdiod_ramrw(struct brcmf_sdio_dev *sdiodev, bool write, u32 address,
 	return bcmerror;
 }
 
-int brcmf_sdiod_abort(struct brcmf_sdio_dev *sdiodev, uint fn)
+int brcmf_sdiod_abort(struct brcmf_sdio_dev *sdiodev, u8 fn)
 {
-	char t_func = (char)fn;
 	brcmf_dbg(SDIO, "Enter\n");
 
 	/* issue abort cmd52 command through F0 */
-	brcmf_sdiod_request_data(sdiodev, SDIO_FUNC_0, SDIO_CCCR_ABORT,
-				 1, &t_func, true);
+	brcmf_sdiod_reg_write(sdiodev, SDIO_CCCR_ABORT, 1, &fn);
 
 	brcmf_dbg(SDIO, "Exit\n");
 	return 0;
