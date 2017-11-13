@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __RK3288_CRYPTO_H__
 #define __RK3288_CRYPTO_H__
 

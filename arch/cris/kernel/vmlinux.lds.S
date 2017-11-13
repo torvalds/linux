@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* ld script to make the Linux/CRIS kernel
  * Authors: Bjorn Wesen (bjornw@axis.com)
  *

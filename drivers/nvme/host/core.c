@@ -1249,6 +1249,7 @@ static int nvme_revalidate_disk(struct gendisk *disk)
 		goto out;
 	}
 
+	__nvme_revalidate_disk(disk, id);
 	nvme_report_ns_ids(ctrl, ns->ns_id, id, eui64, nguid, &uuid);
 	if (!uuid_equal(&ns->uuid, &uuid) ||
 	    memcmp(&ns->nguid, &nguid, sizeof(ns->nguid)) ||

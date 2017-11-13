@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __CGROUP_INTERNAL_H
 #define __CGROUP_INTERNAL_H
 

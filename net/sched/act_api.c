@@ -78,6 +78,7 @@ static void tcf_idr_remove(struct tcf_idrinfo *idrinfo, struct tc_action *p)
 	spin_lock_bh(&idrinfo->lock);
 	idr_remove_ext(&idrinfo->action_idr, p->tcfa_index);
 	spin_unlock_bh(&idrinfo->lock);
+	put_net(idrinfo->net);
 	gen_kill_estimator(&p->tcfa_rate_est);
 	free_tcf(p);
 }
@@ -85,6 +86,8 @@ static void tcf_idr_remove(struct tcf_idrinfo *idrinfo, struct tc_action *p)
 int __tcf_idr_release(struct tc_action *p, bool bind, bool strict)
 {
 	int ret = 0;
+
+	ASSERT_RTNL();
 
 	if (p) {
 		if (bind)
@@ -334,6 +337,7 @@ err3:
 	p->idrinfo = idrinfo;
 	p->ops = ops;
 	INIT_LIST_HEAD(&p->list);
+	get_net(idrinfo->net);
 	*a = p;
 	return 0;
 }

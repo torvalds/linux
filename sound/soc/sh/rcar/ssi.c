@@ -101,9 +101,6 @@ struct rsnd_ssi {
 #define rsnd_ssi_get(priv, id) ((struct rsnd_ssi *)(priv->ssi) + id)
 #define rsnd_ssi_nr(priv) ((priv)->ssi_nr)
 #define rsnd_mod_to_ssi(_mod) container_of((_mod), struct rsnd_ssi, mod)
-#define rsnd_ssi_flags_has(p, f) ((p)->flags & f)
-#define rsnd_ssi_flags_set(p, f) ((p)->flags |= f)
-#define rsnd_ssi_flags_del(p, f) ((p)->flags = ((p)->flags & ~f))
 #define rsnd_ssi_is_parent(ssi, io) ((ssi) == rsnd_io_to_mod_ssip(io))
 #define rsnd_ssi_is_multi_slave(mod, io) \
 	(rsnd_ssi_multi_slaves(io) & (1 << rsnd_mod_id(mod)))
@@ -116,10 +113,10 @@ int rsnd_ssi_hdmi_port(struct rsnd_dai_stream *io)
 	struct rsnd_mod *mod = rsnd_io_to_mod_ssi(io);
 	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
 
-	if (rsnd_ssi_flags_has(ssi, RSND_SSI_HDMI0))
+	if (rsnd_flags_has(ssi, RSND_SSI_HDMI0))
 		return RSND_SSI_HDMI_PORT0;
 
-	if (rsnd_ssi_flags_has(ssi, RSND_SSI_HDMI1))
+	if (rsnd_flags_has(ssi, RSND_SSI_HDMI1))
 		return RSND_SSI_HDMI_PORT1;
 
 	return 0;
@@ -134,7 +131,7 @@ int rsnd_ssi_use_busif(struct rsnd_dai_stream *io)
 	if (!rsnd_ssi_is_dma_mode(mod))
 		return 0;
 
-	if (!(rsnd_ssi_flags_has(ssi, RSND_SSI_NO_BUSIF)))
+	if (!(rsnd_flags_has(ssi, RSND_SSI_NO_BUSIF)))
 		use_busif = 1;
 	if (rsnd_io_to_mod_src(io))
 		use_busif = 1;
@@ -198,10 +195,15 @@ static u32 rsnd_ssi_run_mods(struct rsnd_dai_stream *io)
 {
 	struct rsnd_mod *ssi_mod = rsnd_io_to_mod_ssi(io);
 	struct rsnd_mod *ssi_parent_mod = rsnd_io_to_mod_ssip(io);
+	u32 mods;
 
-	return rsnd_ssi_multi_slaves_runtime(io) |
-		1 << rsnd_mod_id(ssi_mod) |
-		1 << rsnd_mod_id(ssi_parent_mod);
+	mods = rsnd_ssi_multi_slaves_runtime(io) |
+		1 << rsnd_mod_id(ssi_mod);
+
+	if (ssi_parent_mod)
+		mods |= 1 << rsnd_mod_id(ssi_parent_mod);
+
+	return mods;
 }
 
 u32 rsnd_ssi_multi_slaves_runtime(struct rsnd_dai_stream *io)
@@ -601,15 +603,18 @@ static int rsnd_ssi_stop(struct rsnd_mod *mod,
 	if (rsnd_ssi_is_parent(mod, io))
 		return 0;
 
-	/*
-	 * disable all IRQ,
-	 * and, wait all data was sent
-	 */
 	cr  =	ssi->cr_own	|
 		ssi->cr_clk;
 
-	rsnd_mod_write(mod, SSICR, cr | EN);
-	rsnd_ssi_status_check(mod, DIRQ);
+	/*
+	 * disable all IRQ,
+	 * Playback: Wait all data was sent
+	 * Capture:  It might not receave data. Do nothing
+	 */
+	if (rsnd_io_is_play(io)) {
+		rsnd_mod_write(mod, SSICR, cr | EN);
+		rsnd_ssi_status_check(mod, DIRQ);
+	}
 
 	/*
 	 * disable SSI,
@@ -793,13 +798,13 @@ static int rsnd_ssi_common_probe(struct rsnd_mod *mod,
 	 * But it don't need to call request_irq() many times.
 	 * Let's control it by RSND_SSI_PROBED flag.
 	 */
-	if (!rsnd_ssi_flags_has(ssi, RSND_SSI_PROBED)) {
+	if (!rsnd_flags_has(ssi, RSND_SSI_PROBED)) {
 		ret = request_irq(ssi->irq,
 				  rsnd_ssi_interrupt,
 				  IRQF_SHARED,
 				  dev_name(dev), mod);
 
-		rsnd_ssi_flags_set(ssi, RSND_SSI_PROBED);
+		rsnd_flags_set(ssi, RSND_SSI_PROBED);
 	}
 
 	return ret;
@@ -817,10 +822,10 @@ static int rsnd_ssi_common_remove(struct rsnd_mod *mod,
 		return 0;
 
 	/* PIO will request IRQ again */
-	if (rsnd_ssi_flags_has(ssi, RSND_SSI_PROBED)) {
+	if (rsnd_flags_has(ssi, RSND_SSI_PROBED)) {
 		free_irq(ssi->irq, mod);
 
-		rsnd_ssi_flags_del(ssi, RSND_SSI_PROBED);
+		rsnd_flags_del(ssi, RSND_SSI_PROBED);
 	}
 
 	return 0;
@@ -1003,13 +1008,13 @@ static void __rsnd_ssi_parse_hdmi_connection(struct rsnd_priv *priv,
 	ssi  = rsnd_mod_to_ssi(mod);
 
 	if (strstr(remote_ep->full_name, "hdmi0")) {
-		rsnd_ssi_flags_set(ssi, RSND_SSI_HDMI0);
+		rsnd_flags_set(ssi, RSND_SSI_HDMI0);
 		dev_dbg(dev, "%s[%d] connected to HDMI0\n",
 			 rsnd_mod_name(mod), rsnd_mod_id(mod));
 	}
 
 	if (strstr(remote_ep->full_name, "hdmi1")) {
-		rsnd_ssi_flags_set(ssi, RSND_SSI_HDMI1);
+		rsnd_flags_set(ssi, RSND_SSI_HDMI1);
 		dev_dbg(dev, "%s[%d] connected to HDMI1\n",
 			rsnd_mod_name(mod), rsnd_mod_id(mod));
 	}
@@ -1042,7 +1047,7 @@ int __rsnd_ssi_is_pin_sharing(struct rsnd_mod *mod)
 {
 	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
 
-	return !!(rsnd_ssi_flags_has(ssi, RSND_SSI_CLK_PIN_SHARE));
+	return !!(rsnd_flags_has(ssi, RSND_SSI_CLK_PIN_SHARE));
 }
 
 static u32 *rsnd_ssi_get_status(struct rsnd_dai_stream *io,
@@ -1112,6 +1117,9 @@ int rsnd_ssi_probe(struct rsnd_priv *priv)
 
 	i = 0;
 	for_each_child_of_node(node, np) {
+		if (!of_device_is_available(np))
+			goto skip;
+
 		ssi = rsnd_ssi_get(priv, i);
 
 		snprintf(name, RSND_SSI_NAME_SIZE, "%s.%d",
@@ -1125,10 +1133,10 @@ int rsnd_ssi_probe(struct rsnd_priv *priv)
 		}
 
 		if (of_get_property(np, "shared-pin", NULL))
-			rsnd_ssi_flags_set(ssi, RSND_SSI_CLK_PIN_SHARE);
+			rsnd_flags_set(ssi, RSND_SSI_CLK_PIN_SHARE);
 
 		if (of_get_property(np, "no-busif", NULL))
-			rsnd_ssi_flags_set(ssi, RSND_SSI_NO_BUSIF);
+			rsnd_flags_set(ssi, RSND_SSI_NO_BUSIF);
 
 		ssi->irq = irq_of_parse_and_map(np, 0);
 		if (!ssi->irq) {
@@ -1148,7 +1156,7 @@ int rsnd_ssi_probe(struct rsnd_priv *priv)
 			of_node_put(np);
 			goto rsnd_ssi_probe_done;
 		}
-
+skip:
 		i++;
 	}
 

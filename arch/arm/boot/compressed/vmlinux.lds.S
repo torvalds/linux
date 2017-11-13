@@ -85,6 +85,15 @@ SECTIONS
 
   _edata = .;
 
+  /*
+   * The image_end section appears after any additional loadable sections
+   * that the linker may decide to insert in the binary image.  Having
+   * this symbol allows further debug in the near future.
+   */
+  .image_end (NOLOAD) : {
+    _edata_real = .;
+  }
+
   _magic_sig = ZIMAGE_MAGIC(0x016f2818);
   _magic_start = ZIMAGE_MAGIC(_start);
   _magic_end = ZIMAGE_MAGIC(_edata);

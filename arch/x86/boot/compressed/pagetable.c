@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * This code is used on x86_64 to create page table identity mappings on
  * demand by building up a new set of page tables (or appending to the

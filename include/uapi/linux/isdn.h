@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /* $Id: isdn.h,v 1.125.2.3 2004/02/10 01:07:14 keil Exp $
  *
  * Main header for the Linux ISDN subsystem (linklevel).

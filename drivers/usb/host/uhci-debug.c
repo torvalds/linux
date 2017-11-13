@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * UHCI-specific debugging code. Invaluable when something
  * goes wrong, but don't get in my face.

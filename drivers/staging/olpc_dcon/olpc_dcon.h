@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef OLPC_DCON_H_
 #define OLPC_DCON_H_
 

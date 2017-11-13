@@ -1,4 +1,5 @@
 #!/bin/sh
+# SPDX-License-Identifier: GPL-2.0
 # Runs printf infrastructure using test_printf kernel module
 if ! /sbin/modprobe -q -n test_printf; then
 	echo "printf: [SKIP]"

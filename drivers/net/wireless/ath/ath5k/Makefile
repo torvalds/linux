@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 ath5k-y				+= caps.o
 ath5k-y				+= initvals.o
 ath5k-y				+= eeprom.o

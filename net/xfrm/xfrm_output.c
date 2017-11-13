@@ -105,6 +105,9 @@ static int xfrm_output_one(struct sk_buff *skb, int err)
 		if (xfrm_offload(skb)) {
 			x->type_offload->encap(x, skb);
 		} else {
+			/* Inner headers are invalid now. */
+			skb->encapsulation = 0;
+
 			err = x->type->output(x, skb);
 			if (err == -EINPROGRESS)
 				goto out;
@@ -208,7 +211,6 @@ int xfrm_output(struct sock *sk, struct sk_buff *skb)
 	int err;
 
 	secpath_reset(skb);
-	skb->encapsulation = 0;
 
 	if (xfrm_dev_offload_ok(skb, x)) {
 		struct sec_path *sp;

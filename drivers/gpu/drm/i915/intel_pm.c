@@ -2716,9 +2716,9 @@ static void ilk_compute_wm_level(const struct drm_i915_private *dev_priv,
 				 const struct intel_crtc *intel_crtc,
 				 int level,
 				 struct intel_crtc_state *cstate,
-				 struct intel_plane_state *pristate,
-				 struct intel_plane_state *sprstate,
-				 struct intel_plane_state *curstate,
+				 const struct intel_plane_state *pristate,
+				 const struct intel_plane_state *sprstate,
+				 const struct intel_plane_state *curstate,
 				 struct intel_wm_level *result)
 {
 	uint16_t pri_latency = dev_priv->wm.pri_latency[level];
@@ -3038,28 +3038,24 @@ static int ilk_compute_pipe_wm(struct intel_crtc_state *cstate)
 	struct intel_pipe_wm *pipe_wm;
 	struct drm_device *dev = state->dev;
 	const struct drm_i915_private *dev_priv = to_i915(dev);
-	struct intel_plane *intel_plane;
-	struct intel_plane_state *pristate = NULL;
-	struct intel_plane_state *sprstate = NULL;
-	struct intel_plane_state *curstate = NULL;
+	struct drm_plane *plane;
+	const struct drm_plane_state *plane_state;
+	const struct intel_plane_state *pristate = NULL;
+	const struct intel_plane_state *sprstate = NULL;
+	const struct intel_plane_state *curstate = NULL;
 	int level, max_level = ilk_wm_max_level(dev_priv), usable_level;
 	struct ilk_wm_maximums max;
 
 	pipe_wm = &cstate->wm.ilk.optimal;
 
-	for_each_intel_plane_on_crtc(dev, intel_crtc, intel_plane) {
-		struct intel_plane_state *ps;
+	drm_atomic_crtc_state_for_each_plane_state(plane, plane_state, &cstate->base) {
+		const struct intel_plane_state *ps = to_intel_plane_state(plane_state);
 
-		ps = intel_atomic_get_existing_plane_state(state,
-							   intel_plane);
-		if (!ps)
-			continue;
-
-		if (intel_plane->base.type == DRM_PLANE_TYPE_PRIMARY)
+		if (plane->type == DRM_PLANE_TYPE_PRIMARY)
 			pristate = ps;
-		else if (intel_plane->base.type == DRM_PLANE_TYPE_OVERLAY)
+		else if (plane->type == DRM_PLANE_TYPE_OVERLAY)
 			sprstate = ps;
-		else if (intel_plane->base.type == DRM_PLANE_TYPE_CURSOR)
+		else if (plane->type == DRM_PLANE_TYPE_CURSOR)
 			curstate = ps;
 	}
 
@@ -3081,11 +3077,9 @@ static int ilk_compute_pipe_wm(struct intel_crtc_state *cstate)
 	if (pipe_wm->sprites_scaled)
 		usable_level = 0;
 
-	ilk_compute_wm_level(dev_priv, intel_crtc, 0, cstate,
-			     pristate, sprstate, curstate, &pipe_wm->raw_wm[0]);
-
 	memset(&pipe_wm->wm, 0, sizeof(pipe_wm->wm));
-	pipe_wm->wm[0] = pipe_wm->raw_wm[0];
+	ilk_compute_wm_level(dev_priv, intel_crtc, 0, cstate,
+			     pristate, sprstate, curstate, &pipe_wm->wm[0]);
 
 	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
 		pipe_wm->linetime = hsw_compute_linetime_wm(cstate);
@@ -3095,8 +3089,8 @@ static int ilk_compute_pipe_wm(struct intel_crtc_state *cstate)
 
 	ilk_compute_wm_reg_maximums(dev_priv, 1, &max);
 
-	for (level = 1; level <= max_level; level++) {
-		struct intel_wm_level *wm = &pipe_wm->raw_wm[level];
+	for (level = 1; level <= usable_level; level++) {
+		struct intel_wm_level *wm = &pipe_wm->wm[level];
 
 		ilk_compute_wm_level(dev_priv, intel_crtc, level, cstate,
 				     pristate, sprstate, curstate, wm);
@@ -3106,13 +3100,10 @@ static int ilk_compute_pipe_wm(struct intel_crtc_state *cstate)
 		 * register maximums since such watermarks are
 		 * always invalid.
 		 */
-		if (level > usable_level)
-			continue;
-
-		if (ilk_validate_wm_level(level, &max, wm))
-			pipe_wm->wm[level] = *wm;
-		else
-			usable_level = level;
+		if (!ilk_validate_wm_level(level, &max, wm)) {
+			memset(wm, 0, sizeof(*wm));
+			break;
+		}
 	}
 
 	return 0;
