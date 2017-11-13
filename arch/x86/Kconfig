@@ -171,7 +171,7 @@ config X86
 	select HAVE_PERF_USER_STACK_DUMP
 	select HAVE_RCU_TABLE_FREE
 	select HAVE_REGS_AND_STACK_ACCESS_API
-	select HAVE_RELIABLE_STACKTRACE		if X86_64 && FRAME_POINTER_UNWINDER && STACK_VALIDATION
+	select HAVE_RELIABLE_STACKTRACE		if X86_64 && UNWINDER_FRAME_POINTER && STACK_VALIDATION
 	select HAVE_STACK_VALIDATION		if X86_64
 	select HAVE_SYSCALL_TRACEPOINTS
 	select HAVE_UNSTABLE_SCHED_CLOCK
@@ -303,7 +303,6 @@ config ARCH_SUPPORTS_DEBUG_PAGEALLOC
 config KASAN_SHADOW_OFFSET
 	hex
 	depends on KASAN
-	default 0xdff8000000000000 if X86_5LEVEL
 	default 0xdffffc0000000000
 
 config HAVE_INTEL_TXT
@@ -1802,6 +1801,16 @@ config X86_SMAP
 	  also a small increase in the kernel size if this is enabled.
 
 	  If unsure, say Y.
+
+config X86_INTEL_UMIP
+	def_bool n
+	depends on CPU_SUP_INTEL
+	prompt "Intel User Mode Instruction Prevention" if EXPERT
+	---help---
+	  The User Mode Instruction Prevention (UMIP) is a security
+	  feature in newer Intel processors. If enabled, a general
+	  protection fault is issued if the instructions SGDT, SLDT,
+	  SIDT, SMSW and STR are executed in user mode.
 
 config X86_INTEL_MPX
 	prompt "Intel MPX (Memory Protection Extensions)"
