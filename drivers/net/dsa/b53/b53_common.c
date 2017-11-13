@@ -541,7 +541,8 @@ EXPORT_SYMBOL(b53_disable_port);
 
 void b53_brcm_hdr_setup(struct dsa_switch *ds, int port)
 {
-	bool tag_en = !!(ds->ops->get_tag_protocol(ds) == DSA_TAG_PROTO_BRCM);
+	bool tag_en = !(ds->ops->get_tag_protocol(ds, port) ==
+			 DSA_TAG_PROTO_NONE);
 	struct b53_device *dev = ds->priv;
 	u8 hdr_ctl, val;
 	u16 reg;
@@ -1478,41 +1479,40 @@ void b53_br_fast_age(struct dsa_switch *ds, int port)
 }
 EXPORT_SYMBOL(b53_br_fast_age);
 
-static bool b53_can_enable_brcm_tags(struct dsa_switch *ds)
+static bool b53_can_enable_brcm_tags(struct dsa_switch *ds, int port)
 {
-	unsigned int brcm_tag_mask;
-	unsigned int i;
-
 	/* Broadcom switches will accept enabling Broadcom tags on the
 	 * following ports: 5, 7 and 8, any other port is not supported
 	 */
-	brcm_tag_mask = BIT(B53_CPU_PORT_25) | BIT(7) | BIT(B53_CPU_PORT);
-
-	for (i = 0; i < ds->num_ports; i++) {
-		if (dsa_is_cpu_port(ds, i)) {
-			if (!(BIT(i) & brcm_tag_mask)) {
-				dev_warn(ds->dev,
-					 "Port %d is not Broadcom tag capable\n",
-					 i);
-				return false;
-			}
-		}
+	switch (port) {
+	case B53_CPU_PORT_25:
+	case 7:
+	case B53_CPU_PORT:
+		return true;
 	}
 
-	return true;
+	dev_warn(ds->dev, "Port %d is not Broadcom tag capable\n", port);
+	return false;
 }
 
-static enum dsa_tag_protocol b53_get_tag_protocol(struct dsa_switch *ds)
+static enum dsa_tag_protocol b53_get_tag_protocol(struct dsa_switch *ds,
+						  int port)
 {
 	struct b53_device *dev = ds->priv;
 
 	/* Older models support a different tag format that we do not
 	 * support in net/dsa/tag_brcm.c yet.
 	 */
-	if (is5325(dev) || is5365(dev) || !b53_can_enable_brcm_tags(ds))
+	if (is5325(dev) || is5365(dev) || !b53_can_enable_brcm_tags(ds, port))
 		return DSA_TAG_PROTO_NONE;
-	else
-		return DSA_TAG_PROTO_BRCM;
+
+	/* Broadcom BCM58xx chips have a flow accelerator on Port 8
+	 * which requires us to use the prepended Broadcom tag type
+	 */
+	if (dev->chip_id == BCM58XX_DEVICE_ID && port == B53_CPU_PORT)
+		return DSA_TAG_PROTO_BRCM_PREPEND;
+
+	return DSA_TAG_PROTO_BRCM;
 }
 
 int b53_mirror_add(struct dsa_switch *ds, int port,

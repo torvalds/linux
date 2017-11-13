@@ -59,7 +59,9 @@
 #define BRCM_EG_TC_MASK		0x7
 #define BRCM_EG_PID_MASK	0x1f
 
-static struct sk_buff *brcm_tag_xmit(struct sk_buff *skb, struct net_device *dev)
+static struct sk_buff *brcm_tag_xmit_ll(struct sk_buff *skb,
+					struct net_device *dev,
+					unsigned int offset)
 {
 	struct dsa_port *dp = dsa_slave_to_port(dev);
 	u16 queue = skb_get_queue_mapping(skb);
@@ -70,10 +72,10 @@ static struct sk_buff *brcm_tag_xmit(struct sk_buff *skb, struct net_device *dev
 
 	skb_push(skb, BRCM_TAG_LEN);
 
-	memmove(skb->data, skb->data + BRCM_TAG_LEN, 2 * ETH_ALEN);
+	if (offset)
+		memmove(skb->data, skb->data + BRCM_TAG_LEN, offset);
 
-	/* Build the tag after the MAC Source Address */
-	brcm_tag = skb->data + 2 * ETH_ALEN;
+	brcm_tag = skb->data + offset;
 
 	/* Set the ingress opcode, traffic class, tag enforcment is
 	 * deprecated
@@ -94,8 +96,10 @@ static struct sk_buff *brcm_tag_xmit(struct sk_buff *skb, struct net_device *dev
 	return skb;
 }
 
-static struct sk_buff *brcm_tag_rcv(struct sk_buff *skb, struct net_device *dev,
-				    struct packet_type *pt)
+static struct sk_buff *brcm_tag_rcv_ll(struct sk_buff *skb,
+				       struct net_device *dev,
+				       struct packet_type *pt,
+				       unsigned int offset)
 {
 	int source_port;
 	u8 *brcm_tag;
@@ -103,8 +107,7 @@ static struct sk_buff *brcm_tag_rcv(struct sk_buff *skb, struct net_device *dev,
 	if (unlikely(!pskb_may_pull(skb, BRCM_TAG_LEN)))
 		return NULL;
 
-	/* skb->data points to the EtherType, the tag is right before it */
-	brcm_tag = skb->data - 2;
+	brcm_tag = skb->data - offset;
 
 	/* The opcode should never be different than 0b000 */
 	if (unlikely((brcm_tag[0] >> BRCM_OPCODE_SHIFT) & BRCM_OPCODE_MASK))
@@ -126,15 +129,60 @@ static struct sk_buff *brcm_tag_rcv(struct sk_buff *skb, struct net_device *dev,
 	/* Remove Broadcom tag and update checksum */
 	skb_pull_rcsum(skb, BRCM_TAG_LEN);
 
+	return skb;
+}
+
+#ifdef CONFIG_NET_DSA_TAG_BRCM
+static struct sk_buff *brcm_tag_xmit(struct sk_buff *skb,
+				     struct net_device *dev)
+{
+	/* Build the tag after the MAC Source Address */
+	return brcm_tag_xmit_ll(skb, dev, 2 * ETH_ALEN);
+}
+
+
+static struct sk_buff *brcm_tag_rcv(struct sk_buff *skb, struct net_device *dev,
+				    struct packet_type *pt)
+{
+	struct sk_buff *nskb;
+
+	/* skb->data points to the EtherType, the tag is right before it */
+	nskb = brcm_tag_rcv_ll(skb, dev, pt, 2);
+	if (!nskb)
+		return nskb;
+
 	/* Move the Ethernet DA and SA */
-	memmove(skb->data - ETH_HLEN,
-		skb->data - ETH_HLEN - BRCM_TAG_LEN,
+	memmove(nskb->data - ETH_HLEN,
+		nskb->data - ETH_HLEN - BRCM_TAG_LEN,
 		2 * ETH_ALEN);
 
-	return skb;
+	return nskb;
 }
 
 const struct dsa_device_ops brcm_netdev_ops = {
 	.xmit	= brcm_tag_xmit,
 	.rcv	= brcm_tag_rcv,
 };
+#endif
+
+#ifdef CONFIG_NET_DSA_TAG_BRCM_PREPEND
+static struct sk_buff *brcm_tag_xmit_prepend(struct sk_buff *skb,
+					     struct net_device *dev)
+{
+	/* tag is prepended to the packet */
+	return brcm_tag_xmit_ll(skb, dev, 0);
+}
+
+static struct sk_buff *brcm_tag_rcv_prepend(struct sk_buff *skb,
+					    struct net_device *dev,
+					    struct packet_type *pt)
+{
+	/* tag is prepended to the packet */
+	return brcm_tag_rcv_ll(skb, dev, pt, ETH_HLEN);
+}
+
+const struct dsa_device_ops brcm_prepend_netdev_ops = {
+	.xmit	= brcm_tag_xmit_prepend,
+	.rcv	= brcm_tag_rcv_prepend,
+};
+#endif

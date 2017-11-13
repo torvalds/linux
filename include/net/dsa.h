@@ -29,6 +29,7 @@ struct fixed_phy_status;
 enum dsa_tag_protocol {
 	DSA_TAG_PROTO_NONE = 0,
 	DSA_TAG_PROTO_BRCM,
+	DSA_TAG_PROTO_BRCM_PREPEND,
 	DSA_TAG_PROTO_DSA,
 	DSA_TAG_PROTO_EDSA,
 	DSA_TAG_PROTO_KSZ,
@@ -321,7 +322,8 @@ struct dsa_switch_ops {
 				  struct device *host_dev, int sw_addr,
 				  void **priv);
 
-	enum dsa_tag_protocol (*get_tag_protocol)(struct dsa_switch *ds);
+	enum dsa_tag_protocol (*get_tag_protocol)(struct dsa_switch *ds,
+						  int port);
 
 	int	(*setup)(struct dsa_switch *ds);
 	u32	(*get_phy_flags)(struct dsa_switch *ds, int port);

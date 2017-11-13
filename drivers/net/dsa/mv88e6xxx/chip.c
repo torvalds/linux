@@ -3731,7 +3731,8 @@ static int mv88e6xxx_smi_init(struct mv88e6xxx_chip *chip,
 	return 0;
 }
 
-static enum dsa_tag_protocol mv88e6xxx_get_tag_protocol(struct dsa_switch *ds)
+static enum dsa_tag_protocol mv88e6xxx_get_tag_protocol(struct dsa_switch *ds,
+							int port)
 {
 	struct mv88e6xxx_chip *chip = ds->priv;
 

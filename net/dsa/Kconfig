@@ -19,6 +19,9 @@ if NET_DSA
 config NET_DSA_TAG_BRCM
 	bool
 
+config NET_DSA_TAG_BRCM_PREPEND
+	bool
+
 config NET_DSA_TAG_DSA
 	bool
 

@@ -907,11 +907,11 @@ err:
 }
 
 static enum dsa_tag_protocol
-mtk_get_tag_protocol(struct dsa_switch *ds)
+mtk_get_tag_protocol(struct dsa_switch *ds, int port)
 {
 	struct mt7530_priv *priv = ds->priv;
 
-	if (!dsa_is_cpu_port(ds, MT7530_CPU_PORT)) {
+	if (port != MT7530_CPU_PORT) {
 		dev_warn(priv->dev,
 			 "port not matched with tagging CPU port\n");
 		return DSA_TAG_PROTO_NONE;

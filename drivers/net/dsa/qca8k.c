@@ -823,7 +823,7 @@ qca8k_port_fdb_dump(struct dsa_switch *ds, int port,
 }
 
 static enum dsa_tag_protocol
-qca8k_get_tag_protocol(struct dsa_switch *ds)
+qca8k_get_tag_protocol(struct dsa_switch *ds, int port)
 {
 	return DSA_TAG_PROTO_QCA;
 }
