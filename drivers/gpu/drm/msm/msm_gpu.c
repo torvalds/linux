@@ -294,6 +294,8 @@ static void recover_worker(struct work_struct *work)
 
 			msm_rd_dump_submit(priv->hangrd, submit,
 				"offending task: %s (%s)", task->comm, cmd);
+
+			kfree(cmd);
 		} else {
 			msm_rd_dump_submit(priv->hangrd, submit, NULL);
 		}
