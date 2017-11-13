@@ -1,7 +1,7 @@
 VERSION = 4
 PATCHLEVEL = 14
 SUBLEVEL = 0
-EXTRAVERSION = -rc1
+EXTRAVERSION = -rc4
 NAME = Fearless Coyote
 
 # *DOCUMENTATION*
@@ -1172,11 +1172,11 @@ headers_check: headers_install
 
 PHONY += kselftest
 kselftest:
-	$(Q)$(MAKE) -C tools/testing/selftests run_tests
+	$(Q)$(MAKE) -C $(srctree)/tools/testing/selftests run_tests
 
 PHONY += kselftest-clean
 kselftest-clean:
-	$(Q)$(MAKE) -C tools/testing/selftests clean
+	$(Q)$(MAKE) -C $(srctree)/tools/testing/selftests clean
 
 PHONY += kselftest-merge
 kselftest-merge:

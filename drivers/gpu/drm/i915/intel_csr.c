@@ -216,7 +216,7 @@ static void gen9_set_dc_state_debugmask(struct drm_i915_private *dev_priv)
 
 	mask = DC_STATE_DEBUG_MASK_MEMORY_UP;
 
-	if (IS_BROXTON(dev_priv))
+	if (IS_GEN9_LP(dev_priv))
 		mask |= DC_STATE_DEBUG_MASK_CORES;
 
 	/* The below bit doesn't need to be cleared ever afterwards */

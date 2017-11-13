@@ -620,6 +620,14 @@ int file_check_and_advance_wb_err(struct file *file)
 		trace_file_check_and_advance_wb_err(file, old);
 		spin_unlock(&file->f_lock);
 	}
+
+	/*
+	 * We're mostly using this function as a drop in replacement for
+	 * filemap_check_errors. Clear AS_EIO/AS_ENOSPC to emulate the effect
+	 * that the legacy code would have had on these flags.
+	 */
+	clear_bit(AS_EIO, &mapping->flags);
+	clear_bit(AS_ENOSPC, &mapping->flags);
 	return err;
 }
 EXPORT_SYMBOL(file_check_and_advance_wb_err);
@@ -2926,9 +2934,15 @@ generic_file_direct_write(struct kiocb *iocb, struct iov_iter *from)
 	 * we're writing.  Either one is a pretty crazy thing to do,
 	 * so we don't support it 100%.  If this invalidation
 	 * fails, tough, the write still worked...
+	 *
+	 * Most of the time we do not need this since dio_complete() will do
+	 * the invalidation for us. However there are some file systems that
+	 * do not end up with dio_complete() being called, so let's not break
+	 * them by removing it completely
 	 */
-	invalidate_inode_pages2_range(mapping,
-				pos >> PAGE_SHIFT, end);
+	if (mapping->nrpages)
+		invalidate_inode_pages2_range(mapping,
+					pos >> PAGE_SHIFT, end);
 
 	if (written > 0) {
 		pos += written;

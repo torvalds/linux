@@ -908,11 +908,12 @@ struct fwnode_handle *acpi_get_next_subnode(const struct fwnode_handle *fwnode,
 					    struct fwnode_handle *child)
 {
 	const struct acpi_device *adev = to_acpi_device_node(fwnode);
-	struct acpi_device *child_adev = NULL;
 	const struct list_head *head;
 	struct list_head *next;
 
 	if (!child || is_acpi_device_node(child)) {
+		struct acpi_device *child_adev;
+
 		if (adev)
 			head = &adev->children;
 		else
@@ -922,8 +923,8 @@ struct fwnode_handle *acpi_get_next_subnode(const struct fwnode_handle *fwnode,
 			goto nondev;
 
 		if (child) {
-			child_adev = to_acpi_device_node(child);
-			next = child_adev->node.next;
+			adev = to_acpi_device_node(child);
+			next = adev->node.next;
 			if (next == head) {
 				child = NULL;
 				goto nondev;
@@ -941,8 +942,8 @@ struct fwnode_handle *acpi_get_next_subnode(const struct fwnode_handle *fwnode,
 		const struct acpi_data_node *data = to_acpi_data_node(fwnode);
 		struct acpi_data_node *dn;
 
-		if (child_adev)
-			head = &child_adev->data.subnodes;
+		if (adev)
+			head = &adev->data.subnodes;
 		else if (data)
 			head = &data->data.subnodes;
 		else
@@ -1293,3 +1294,16 @@ static int acpi_fwnode_graph_parse_endpoint(const struct fwnode_handle *fwnode,
 DECLARE_ACPI_FWNODE_OPS(acpi_device_fwnode_ops);
 DECLARE_ACPI_FWNODE_OPS(acpi_data_fwnode_ops);
 const struct fwnode_operations acpi_static_fwnode_ops;
+
+bool is_acpi_device_node(const struct fwnode_handle *fwnode)
+{
+	return !IS_ERR_OR_NULL(fwnode) &&
+		fwnode->ops == &acpi_device_fwnode_ops;
+}
+EXPORT_SYMBOL(is_acpi_device_node);
+
+bool is_acpi_data_node(const struct fwnode_handle *fwnode)
+{
+	return !IS_ERR_OR_NULL(fwnode) && fwnode->ops == &acpi_data_fwnode_ops;
+}
+EXPORT_SYMBOL(is_acpi_data_node);

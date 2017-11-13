@@ -263,6 +263,7 @@ struct exynos_iommu_domain {
 struct sysmmu_drvdata {
 	struct device *sysmmu;		/* SYSMMU controller device */
 	struct device *master;		/* master device (owner) */
+	struct device_link *link;	/* runtime PM link to master */
 	void __iomem *sfrbase;		/* our registers */
 	struct clk *clk;		/* SYSMMU's clock */
 	struct clk *aclk;		/* SYSMMU's aclk clock */
@@ -709,7 +710,7 @@ static const struct dev_pm_ops sysmmu_pm_ops = {
 				pm_runtime_force_resume)
 };
 
-static const struct of_device_id sysmmu_of_match[] __initconst = {
+static const struct of_device_id sysmmu_of_match[] = {
 	{ .compatible	= "samsung,exynos-sysmmu", },
 	{ },
 };
@@ -1250,6 +1251,8 @@ static struct iommu_group *get_device_iommu_group(struct device *dev)
 
 static int exynos_iommu_add_device(struct device *dev)
 {
+	struct exynos_iommu_owner *owner = dev->archdata.iommu;
+	struct sysmmu_drvdata *data;
 	struct iommu_group *group;
 
 	if (!has_sysmmu(dev))
@@ -1260,6 +1263,15 @@ static int exynos_iommu_add_device(struct device *dev)
 	if (IS_ERR(group))
 		return PTR_ERR(group);
 
+	list_for_each_entry(data, &owner->controllers, owner_node) {
+		/*
+		 * SYSMMU will be runtime activated via device link
+		 * (dependency) to its master device, so there are no
+		 * direct calls to pm_runtime_get/put in this driver.
+		 */
+		data->link = device_link_add(dev, data->sysmmu,
+					     DL_FLAG_PM_RUNTIME);
+	}
 	iommu_group_put(group);
 
 	return 0;
@@ -1268,6 +1280,7 @@ static int exynos_iommu_add_device(struct device *dev)
 static void exynos_iommu_remove_device(struct device *dev)
 {
 	struct exynos_iommu_owner *owner = dev->archdata.iommu;
+	struct sysmmu_drvdata *data;
 
 	if (!has_sysmmu(dev))
 		return;
@@ -1283,6 +1296,9 @@ static void exynos_iommu_remove_device(struct device *dev)
 		}
 	}
 	iommu_group_remove_device(dev);
+
+	list_for_each_entry(data, &owner->controllers, owner_node)
+		device_link_del(data->link);
 }
 
 static int exynos_iommu_of_xlate(struct device *dev,
@@ -1315,13 +1331,6 @@ static int exynos_iommu_of_xlate(struct device *dev,
 
 	list_add_tail(&data->owner_node, &owner->controllers);
 	data->master = dev;
-
-	/*
-	 * SYSMMU will be runtime activated via device link (dependency) to its
-	 * master device, so there are no direct calls to pm_runtime_get/put
-	 * in this driver.
-	 */
-	device_link_add(dev, data->sysmmu, DL_FLAG_PM_RUNTIME);
 
 	return 0;
 }

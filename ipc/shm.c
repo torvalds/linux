@@ -1154,7 +1154,7 @@ static int put_compat_shm_info(struct shm_info *ip,
 	info.shm_swp = ip->shm_swp;
 	info.swap_attempts = ip->swap_attempts;
 	info.swap_successes = ip->swap_successes;
-	return copy_to_user(up, &info, sizeof(info));
+	return copy_to_user(uip, &info, sizeof(info));
 }
 
 static int copy_compat_shmid_to_user(void __user *buf, struct shmid64_ds *in,
@@ -1237,7 +1237,7 @@ COMPAT_SYSCALL_DEFINE3(shmctl, int, shmid, int, cmd, void __user *, uptr)
 		err = shmctl_stat(ns, shmid, cmd, &sem64);
 		if (err < 0)
 			return err;
-		if (copy_compat_shmid_to_user(&sem64, uptr, version))
+		if (copy_compat_shmid_to_user(uptr, &sem64, version))
 			err = -EFAULT;
 		return err;
 

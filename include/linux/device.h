@@ -307,8 +307,6 @@ struct driver_attribute {
 			 size_t count);
 };
 
-#define DRIVER_ATTR(_name, _mode, _show, _store) \
-	struct driver_attribute driver_attr_##_name = __ATTR(_name, _mode, _show, _store)
 #define DRIVER_ATTR_RW(_name) \
 	struct driver_attribute driver_attr_##_name = __ATTR_RW(_name)
 #define DRIVER_ATTR_RO(_name) \
@@ -838,7 +836,7 @@ struct dev_links_info {
  * @driver_data: Private pointer for driver specific info.
  * @links:	Links to suppliers and consumers of this device.
  * @power:	For device power management.
- * 		See Documentation/power/admin-guide/devices.rst for details.
+ *		See Documentation/driver-api/pm/devices.rst for details.
  * @pm_domain:	Provide callbacks that are executed during system suspend,
  * 		hibernation, system resume and during runtime PM transitions
  * 		along with subsystem-level and driver-level callbacks.

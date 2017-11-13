@@ -322,7 +322,6 @@ int __irq_alloc_domain_generic_chips(struct irq_domain *d, int irqs_per_chip,
 		/* Calc pointer to the next generic chip */
 		tmp += sizeof(*gc) + num_ct * sizeof(struct irq_chip_type);
 	}
-	d->name = name;
 	return 0;
 }
 EXPORT_SYMBOL_GPL(__irq_alloc_domain_generic_chips);

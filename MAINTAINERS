@@ -352,6 +352,18 @@ L:	linux-acpi@vger.kernel.org
 S:	Maintained
 F:	drivers/acpi/arm64
 
+ACPI PMIC DRIVERS
+M:	"Rafael J. Wysocki" <rjw@rjwysocki.net>
+M:	Len Brown <lenb@kernel.org>
+R:	Andy Shevchenko <andy@infradead.org>
+R:	Mika Westerberg <mika.westerberg@linux.intel.com>
+L:	linux-acpi@vger.kernel.org
+Q:	https://patchwork.kernel.org/project/linux-acpi/list/
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/rafael/linux-pm
+B:	https://bugzilla.kernel.org
+S:	Supported
+F:	drivers/acpi/pmic/
+
 ACPI THERMAL DRIVER
 M:	Zhang Rui <rui.zhang@intel.com>
 L:	linux-acpi@vger.kernel.org
@@ -2853,7 +2865,6 @@ S:	Supported
 F:	drivers/scsi/bnx2i/
 
 BROADCOM BNX2X 10 GIGABIT ETHERNET DRIVER
-M:	Yuval Mintz <Yuval.Mintz@cavium.com>
 M:	Ariel Elior <ariel.elior@cavium.com>
 M:	everest-linux-l2@cavium.com
 L:	netdev@vger.kernel.org
@@ -5248,7 +5259,8 @@ S:	Maintained
 F:	drivers/iommu/exynos-iommu.c
 
 EZchip NPS platform support
-M:	Noam Camus <noamc@ezchip.com>
+M:	Elad Kanfi <eladkan@mellanox.com>
+M:	Vineet Gupta <vgupta@synopsys.com>
 S:	Supported
 F:	arch/arc/plat-eznps
 F:	arch/arc/boot/dts/eznps.dts
@@ -6643,8 +6655,8 @@ M:	Alexander Aring <alex.aring@gmail.com>
 M:	Stefan Schmidt <stefan@osg.samsung.com>
 L:	linux-wpan@vger.kernel.org
 W:	http://wpan.cakelab.org/
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/bluetooth/bluetooth.git
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/bluetooth/bluetooth-next.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/sschmidt/wpan.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/sschmidt/wpan-next.git
 S:	Maintained
 F:	net/ieee802154/
 F:	net/mac802154/
@@ -6727,7 +6739,7 @@ F:	Documentation/devicetree/bindings/auxdisplay/img-ascii-lcd.txt
 F:	drivers/auxdisplay/img-ascii-lcd.c
 
 IMGTEC IR DECODER DRIVER
-M:	James Hogan <james.hogan@imgtec.com>
+M:	James Hogan <jhogan@kernel.org>
 S:	Maintained
 F:	drivers/media/rc/img-ir/
 
@@ -7551,7 +7563,7 @@ F:	arch/arm64/include/asm/kvm*
 F:	arch/arm64/kvm/
 
 KERNEL VIRTUAL MACHINE FOR MIPS (KVM/mips)
-M:	James Hogan <james.hogan@imgtec.com>
+M:	James Hogan <jhogan@kernel.org>
 L:	linux-mips@linux-mips.org
 S:	Supported
 F:	arch/mips/include/uapi/asm/kvm*
@@ -8253,6 +8265,12 @@ L:	libertas-dev@lists.infradead.org
 S:	Orphan
 F:	drivers/net/wireless/marvell/libertas/
 
+MARVELL MACCHIATOBIN SUPPORT
+M:	Russell King <rmk@armlinux.org.uk>
+L:	linux-arm-kernel@lists.infradead.org
+S:	Maintained
+F:	arch/arm64/boot/dts/marvell/armada-8040-mcbin.dts
+
 MARVELL MV643XX ETHERNET DRIVER
 M:	Sebastian Hesselbarth <sebastian.hesselbarth@gmail.com>
 L:	netdev@vger.kernel.org
@@ -8586,6 +8604,12 @@ M:	Sean Wang <sean.wang@mediatek.com>
 S:	Maintained
 F:	drivers/media/rc/mtk-cir.c
 
+MEDIATEK PMIC LED DRIVER
+M:	Sean Wang <sean.wang@mediatek.com>
+S:	Maintained
+F:	drivers/leds/leds-mt6323.c
+F:	Documentation/devicetree/bindings/leds/leds-mt6323.txt
+
 MEDIATEK ETHERNET DRIVER
 M:	Felix Fietkau <nbd@openwrt.org>
 M:	John Crispin <john@phrozen.org>
@@ -8868,7 +8892,7 @@ F:	Documentation/devicetree/bindings/media/meson-ao-cec.txt
 T:	git git://linuxtv.org/media_tree.git
 
 METAG ARCHITECTURE
-M:	James Hogan <james.hogan@imgtec.com>
+M:	James Hogan <jhogan@kernel.org>
 L:	linux-metag@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jhogan/metag.git
 S:	Odd Fixes
@@ -9337,7 +9361,7 @@ NETWORK BLOCK DEVICE (NBD)
 M:	Josef Bacik <jbacik@fb.com>
 S:	Maintained
 L:	linux-block@vger.kernel.org
-L:	nbd-general@lists.sourceforge.net
+L:	nbd@other.debian.org
 F:	Documentation/blockdev/nbd.txt
 F:	drivers/block/nbd.c
 F:	include/uapi/linux/nbd.h
@@ -11047,7 +11071,6 @@ S:	Supported
 F:	drivers/scsi/qedi/
 
 QLOGIC QL4xxx ETHERNET DRIVER
-M:	Yuval Mintz <Yuval.Mintz@cavium.com>
 M:	Ariel Elior <Ariel.Elior@cavium.com>
 M:	everest-linux-l2@cavium.com
 L:	netdev@vger.kernel.org
@@ -12915,9 +12938,9 @@ F:	drivers/mmc/host/dw_mmc*
 SYNOPSYS HSDK RESET CONTROLLER DRIVER
 M:	Eugeniy Paltsev <Eugeniy.Paltsev@synopsys.com>
 S:	Supported
-F:	drivers/reset/reset-hsdk-v1.c
-F:	include/dt-bindings/reset/snps,hsdk-v1-reset.h
-F:	Documentation/devicetree/bindings/reset/snps,hsdk-v1-reset.txt
+F:	drivers/reset/reset-hsdk.c
+F:	include/dt-bindings/reset/snps,hsdk-reset.h
+F:	Documentation/devicetree/bindings/reset/snps,hsdk-reset.txt
 
 SYSTEM CONFIGURATION (SYSCON)
 M:	Lee Jones <lee.jones@linaro.org>

@@ -216,26 +216,6 @@ out_unlock:
 	return err;
 }
 
-static int ovl_lock_rename_workdir(struct dentry *workdir,
-				   struct dentry *upperdir)
-{
-	/* Workdir should not be the same as upperdir */
-	if (workdir == upperdir)
-		goto err;
-
-	/* Workdir should not be subdir of upperdir and vice versa */
-	if (lock_rename(workdir, upperdir) != NULL)
-		goto err_unlock;
-
-	return 0;
-
-err_unlock:
-	unlock_rename(workdir, upperdir);
-err:
-	pr_err("overlayfs: failed to lock workdir+upperdir\n");
-	return -EIO;
-}
-
 static struct dentry *ovl_clear_empty(struct dentry *dentry,
 				      struct list_head *list)
 {

@@ -294,10 +294,10 @@ int cap_capset(struct cred *new,
  *
  * Determine if an inode having a change applied that's marked ATTR_KILL_PRIV
  * affects the security markings on that inode, and if it is, should
- * inode_killpriv() be invoked or the change rejected?
+ * inode_killpriv() be invoked or the change rejected.
  *
- * Returns 0 if granted; +ve if granted, but inode_killpriv() is required; and
- * -ve to deny the change.
+ * Returns 1 if security.capability has a value, meaning inode_killpriv()
+ * is required, 0 otherwise, meaning inode_killpriv() is not required.
  */
 int cap_inode_need_killpriv(struct dentry *dentry)
 {

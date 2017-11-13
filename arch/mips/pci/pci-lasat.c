@@ -61,7 +61,7 @@ arch_initcall(lasat_pci_setup);
 #define LASAT_IRQ_PCIC	 (LASAT_IRQ_BASE + 7)
 #define LASAT_IRQ_PCID	 (LASAT_IRQ_BASE + 8)
 
-int __init pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
+int pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
 	switch (slot) {
 	case 1:

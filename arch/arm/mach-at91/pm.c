@@ -533,8 +533,8 @@ static void __init at91_pm_backup_init(void)
 	}
 
 	pm_bu->suspended = 0;
-	pm_bu->canary = virt_to_phys(&canary);
-	pm_bu->resume = virt_to_phys(cpu_resume);
+	pm_bu->canary = __pa_symbol(&canary);
+	pm_bu->resume = __pa_symbol(cpu_resume);
 
 	return;
 

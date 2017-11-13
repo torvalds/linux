@@ -51,10 +51,7 @@ struct rmnet_walk_data {
 
 static int rmnet_is_real_dev_registered(const struct net_device *real_dev)
 {
-	rx_handler_func_t *rx_handler;
-
-	rx_handler = rcu_dereference(real_dev->rx_handler);
-	return (rx_handler == rmnet_rx_handler);
+	return rcu_access_pointer(real_dev->rx_handler) == rmnet_rx_handler;
 }
 
 /* Needs rtnl lock */

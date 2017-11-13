@@ -144,15 +144,6 @@
 		io-channel-names = "temp", "bsi", "vbat";
 	};
 
-	rear_camera: camera@0 {
-		compatible = "linux,camera";
-
-		module {
-			model = "TCM8341MD";
-			sensor = <&cam1>;
-		};
-	};
-
 	pwm9: dmtimer-pwm {
 		compatible = "ti,omap-dmtimer-pwm";
 		#pwm-cells = <3>;
@@ -189,10 +180,8 @@
 				clock-lanes = <1>;
 				data-lanes = <0>;
 				lane-polarity = <0 0>;
-				clock-inv = <0>;
 				/* Select strobe = <1> for back camera, <0> for front camera */
 				strobe = <1>;
-				crc = <0>;
 			};
 		};
 	};
