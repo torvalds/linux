@@ -2962,25 +2962,7 @@ static void gfx_v6_0_get_csb_buffer(struct amdgpu_device *adev,
 
 	buffer[count++] = cpu_to_le32(PACKET3(PACKET3_SET_CONTEXT_REG, 1));
 	buffer[count++] = cpu_to_le32(mmPA_SC_RASTER_CONFIG - PACKET3_SET_CONTEXT_REG_START);
-
-	switch (adev->asic_type) {
-	case CHIP_TAHITI:
-	case CHIP_PITCAIRN:
-		buffer[count++] = cpu_to_le32(0x2a00126a);
-		break;
-	case CHIP_VERDE:
-		buffer[count++] = cpu_to_le32(0x0000124a);
-		break;
-	case CHIP_OLAND:
-		buffer[count++] = cpu_to_le32(0x00000082);
-		break;
-	case CHIP_HAINAN:
-		buffer[count++] = cpu_to_le32(0x00000000);
-		break;
-	default:
-		buffer[count++] = cpu_to_le32(0x00000000);
-		break;
-	}
+	buffer[count++] = cpu_to_le32(adev->gfx.config.rb_config[0][0].raster_config);
 
 	buffer[count++] = cpu_to_le32(PACKET3(PACKET3_PREAMBLE_CNTL, 0));
 	buffer[count++] = cpu_to_le32(PACKET3_PREAMBLE_END_CLEAR_STATE);
