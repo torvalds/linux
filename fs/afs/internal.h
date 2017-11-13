@@ -430,6 +430,16 @@ struct afs_volume {
 	u8			name[AFS_MAXVOLNAME + 1]; /* NUL-padded volume name */
 };
 
+enum afs_lock_state {
+	AFS_VNODE_LOCK_NONE,		/* The vnode has no lock on the server */
+	AFS_VNODE_LOCK_WAITING_FOR_CB,	/* We're waiting for the server to break the callback */
+	AFS_VNODE_LOCK_SETTING,		/* We're asking the server for a lock */
+	AFS_VNODE_LOCK_GRANTED,		/* We have a lock on the server */
+	AFS_VNODE_LOCK_EXTENDING,	/* We're extending a lock on the server */
+	AFS_VNODE_LOCK_NEED_UNLOCK,	/* We need to unlock on the server */
+	AFS_VNODE_LOCK_UNLOCKING,	/* We're telling the server to unlock */
+};
+
 /*
  * AFS inode private data
  */
@@ -454,18 +464,16 @@ struct afs_vnode {
 #define AFS_VNODE_ZAP_DATA	3		/* set if vnode's data should be invalidated */
 #define AFS_VNODE_DELETED	4		/* set if vnode deleted on server */
 #define AFS_VNODE_MOUNTPOINT	5		/* set if vnode is a mountpoint symlink */
-#define AFS_VNODE_LOCKING	6		/* set if waiting for lock on vnode */
-#define AFS_VNODE_READLOCKED	7		/* set if vnode is read-locked on the server */
-#define AFS_VNODE_WRITELOCKED	8		/* set if vnode is write-locked on the server */
-#define AFS_VNODE_UNLOCKING	9		/* set if vnode is being unlocked on the server */
-#define AFS_VNODE_AUTOCELL	10		/* set if Vnode is an auto mount point */
-#define AFS_VNODE_PSEUDODIR	11		/* set if Vnode is a pseudo directory */
+#define AFS_VNODE_AUTOCELL	6		/* set if Vnode is an auto mount point */
+#define AFS_VNODE_PSEUDODIR	7 		/* set if Vnode is a pseudo directory */
 
 	struct list_head	wb_keys;	/* List of keys available for writeback */
 	struct list_head	pending_locks;	/* locks waiting to be granted */
 	struct list_head	granted_locks;	/* locks granted on this file */
 	struct delayed_work	lock_work;	/* work to be done in locking */
-	struct key		*unlock_key;	/* key to be used in unlocking */
+	struct key		*lock_key;	/* Key to be used in lock ops */
+	enum afs_lock_state	lock_state : 8;
+	afs_lock_type_t		lock_type : 8;
 
 	/* outstanding callback notification on this file */
 	struct afs_cb_interest	*cb_interest;	/* Server on which this resides */
@@ -843,6 +851,7 @@ extern void afs_clear_permits(struct afs_vnode *);
 extern void afs_cache_permit(struct afs_vnode *, struct key *, unsigned int);
 extern void afs_zap_permits(struct rcu_head *);
 extern struct key *afs_request_key(struct afs_cell *);
+extern int afs_check_permit(struct afs_vnode *, struct key *, afs_access_t *);
 extern int afs_permission(struct inode *, int);
 extern void __exit afs_clean_up_permit_cache(void);
 
