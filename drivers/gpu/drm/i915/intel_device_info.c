@@ -403,15 +403,15 @@ static u32 read_timestamp_frequency(struct drm_i915_private *dev_priv)
 				freq = f24_mhz;
 				break;
 			}
-		}
 
-		/* Now figure out how the command stream's timestamp register
-		 * increments from this frequency (it might increment only
-		 * every few clock cycle).
-		 */
-		freq >>= 3 - ((rpm_config_reg &
-			       GEN10_RPM_CONFIG0_CTC_SHIFT_PARAMETER_MASK) >>
-			      GEN10_RPM_CONFIG0_CTC_SHIFT_PARAMETER_SHIFT);
+			/* Now figure out how the command stream's timestamp
+			 * register increments from this frequency (it might
+			 * increment only every few clock cycle).
+			 */
+			freq >>= 3 - ((rpm_config_reg &
+				       GEN10_RPM_CONFIG0_CTC_SHIFT_PARAMETER_MASK) >>
+				      GEN10_RPM_CONFIG0_CTC_SHIFT_PARAMETER_SHIFT);
+		}
 
 		return freq;
 	}
