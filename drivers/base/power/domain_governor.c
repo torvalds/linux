@@ -33,15 +33,10 @@ static int dev_update_qos_constraint(struct device *dev, void *data)
 		 * known at this point anyway).
 		 */
 		constraint_ns = dev_pm_qos_read_value(dev);
-		if (constraint_ns > 0)
-			constraint_ns *= NSEC_PER_USEC;
+		constraint_ns *= NSEC_PER_USEC;
 	}
 
-	/* 0 means "no constraint" */
-	if (constraint_ns == 0)
-		return 0;
-
-	if (constraint_ns < *constraint_ns_p || *constraint_ns_p == 0)
+	if (constraint_ns < *constraint_ns_p)
 		*constraint_ns_p = constraint_ns;
 
 	return 0;
@@ -69,12 +64,12 @@ static bool default_suspend_ok(struct device *dev)
 	}
 	td->constraint_changed = false;
 	td->cached_suspend_ok = false;
-	td->effective_constraint_ns = -1;
+	td->effective_constraint_ns = 0;
 	constraint_ns = __dev_pm_qos_read_value(dev);
 
 	spin_unlock_irqrestore(&dev->power.lock, flags);
 
-	if (constraint_ns < 0)
+	if (constraint_ns == 0)
 		return false;
 
 	constraint_ns *= NSEC_PER_USEC;
@@ -87,25 +82,25 @@ static bool default_suspend_ok(struct device *dev)
 		device_for_each_child(dev, &constraint_ns,
 				      dev_update_qos_constraint);
 
-	if (constraint_ns == 0) {
+	if (constraint_ns == PM_QOS_RESUME_LATENCY_NO_CONSTRAINT_NS) {
 		/* "No restriction", so the device is allowed to suspend. */
-		td->effective_constraint_ns = 0;
+		td->effective_constraint_ns = PM_QOS_RESUME_LATENCY_NO_CONSTRAINT_NS;
 		td->cached_suspend_ok = true;
-	} else if (constraint_ns < 0) {
+	} else if (constraint_ns == 0) {
 		/*
 		 * This triggers if one of the children that don't belong to a
-		 * domain has a negative PM QoS constraint and it's better not
-		 * to suspend then.  effective_constraint_ns is negative already
-		 * and cached_suspend_ok is false, so bail out.
+		 * domain has a zero PM QoS constraint and it's better not to
+		 * suspend then.  effective_constraint_ns is zero already and
+		 * cached_suspend_ok is false, so bail out.
 		 */
 		return false;
 	} else {
 		constraint_ns -= td->suspend_latency_ns +
 				td->resume_latency_ns;
 		/*
-		 * effective_constraint_ns is negative already and
-		 * cached_suspend_ok is false, so if the computed value is not
-		 * positive, return right away.
+		 * effective_constraint_ns is zero already and cached_suspend_ok
+		 * is false, so if the computed value is not positive, return
+		 * right away.
 		 */
 		if (constraint_ns <= 0)
 			return false;
@@ -174,13 +169,10 @@ static bool __default_power_down_ok(struct dev_pm_domain *pd,
 		td = &to_gpd_data(pdd)->td;
 		constraint_ns = td->effective_constraint_ns;
 		/*
-		 * Negative values mean "no suspend at all" and this runs only
-		 * when all devices in the domain are suspended, so it must be
-		 * 0 at least.
-		 *
-		 * 0 means "no constraint"
+		 * Zero means "no suspend at all" and this runs only when all
+		 * devices in the domain are suspended, so it must be positive.
 		 */
-		if (constraint_ns == 0)
+		if (constraint_ns == PM_QOS_RESUME_LATENCY_NO_CONSTRAINT_NS)
 			continue;
 
 		if (constraint_ns <= off_on_time_ns)

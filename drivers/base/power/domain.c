@@ -445,9 +445,7 @@ static int genpd_power_off(struct generic_pm_domain *genpd, bool one_dev_on,
 	list_for_each_entry(pdd, &genpd->dev_list, list_node) {
 		enum pm_qos_flags_status stat;
 
-		stat = dev_pm_qos_flags(pdd->dev,
-					PM_QOS_FLAG_NO_POWER_OFF
-						| PM_QOS_FLAG_REMOTE_WAKEUP);
+		stat = dev_pm_qos_flags(pdd->dev, PM_QOS_FLAG_NO_POWER_OFF);
 		if (stat > PM_QOS_FLAGS_NONE)
 			return -EBUSY;
 
@@ -1329,7 +1327,7 @@ static struct generic_pm_domain_data *genpd_alloc_dev_data(struct device *dev,
 
 	gpd_data->base.dev = dev;
 	gpd_data->td.constraint_changed = true;
-	gpd_data->td.effective_constraint_ns = 0;
+	gpd_data->td.effective_constraint_ns = PM_QOS_RESUME_LATENCY_NO_CONSTRAINT_NS;
 	gpd_data->nb.notifier_call = genpd_dev_pm_qos_notifier;
 
 	spin_lock_irq(&dev->power.lock);
