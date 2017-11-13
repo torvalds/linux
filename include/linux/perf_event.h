@@ -553,6 +553,7 @@ struct perf_event {
 	 * either sufficies for read.
 	 */
 	struct list_head		sibling_list;
+	struct list_head		active_list;
 	/*
 	 * Node on the pinned or flexible tree located at the event context;
 	 */
@@ -718,6 +719,10 @@ struct perf_event_context {
 	struct perf_event_groups	pinned_groups;
 	struct perf_event_groups	flexible_groups;
 	struct list_head		event_list;
+
+	struct list_head		pinned_active;
+	struct list_head		flexible_active;
+
 	int				nr_events;
 	int				nr_active;
 	int				is_active;

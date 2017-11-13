@@ -1647,14 +1647,6 @@ perf_event_groups_rotate(struct perf_event_groups *groups, int cpu)
 				typeof(*event), node); event;	\
 		event = rb_entry_safe(rb_next(&event->node),	\
 				typeof(*event), node))
-/*
- * Iterate event groups with cpu == key.
- */
-#define perf_event_groups_for_each_cpu(event, key, groups, node) \
-	for (event = perf_event_groups_first(groups, key);	 \
-		event && event->cpu == key;			 \
-		event = rb_entry_safe(rb_next(&event->node),	 \
-				typeof(*event), node))
 
 /*
  * Add a event from the lists for its context.
@@ -1889,8 +1881,9 @@ list_del_event(struct perf_event *event, struct perf_event_context *ctx)
 static void perf_group_detach(struct perf_event *event)
 {
 	struct perf_event *sibling, *tmp;
+	struct perf_event_context *ctx = event->ctx;
 
-	lockdep_assert_held(&event->ctx->lock);
+	lockdep_assert_held(&ctx->lock);
 
 	/*
 	 * We can have double detach due to exit/hot-unplug + close.
@@ -1924,6 +1917,13 @@ static void perf_group_detach(struct perf_event *event)
 		if (!RB_EMPTY_NODE(&event->group_node)) {
 			list_del_init(&sibling->sibling_list);
 			add_event_to_groups(sibling, event->ctx);
+
+			if (sibling->state == PERF_EVENT_STATE_ACTIVE) {
+				struct list_head *list = sibling->attr.pinned ?
+					&ctx->pinned_active : &ctx->flexible_active;
+
+				list_add_tail(&sibling->active_list, list);
+			}
 		}
 
 		WARN_ON_ONCE(sibling->ctx != event->ctx);
@@ -1987,6 +1987,13 @@ event_sched_out(struct perf_event *event,
 
 	if (event->state != PERF_EVENT_STATE_ACTIVE)
 		return;
+
+	/*
+	 * Asymmetry; we only schedule events _IN_ through ctx_sched_in(), but
+	 * we can schedule events _OUT_ individually through things like
+	 * __perf_remove_from_context().
+	 */
+	list_del_init(&event->active_list);
 
 	perf_pmu_disable(event->pmu);
 
@@ -2835,9 +2842,8 @@ static void ctx_sched_out(struct perf_event_context *ctx,
 			  struct perf_cpu_context *cpuctx,
 			  enum event_type_t event_type)
 {
-	int sw = -1, cpu = smp_processor_id();
+	struct perf_event *event, *tmp;
 	int is_active = ctx->is_active;
-	struct perf_event *event;
 
 	lockdep_assert_held(&ctx->lock);
 
@@ -2884,20 +2890,12 @@ static void ctx_sched_out(struct perf_event_context *ctx,
 
 	perf_pmu_disable(ctx->pmu);
 	if (is_active & EVENT_PINNED) {
-		perf_event_groups_for_each_cpu(event, cpu,
-				&ctx->pinned_groups, group_node)
-			group_sched_out(event, cpuctx, ctx);
-		perf_event_groups_for_each_cpu(event, sw,
-				&ctx->pinned_groups, group_node)
+		list_for_each_entry_safe(event, tmp, &ctx->pinned_active, active_list)
 			group_sched_out(event, cpuctx, ctx);
 	}
 
 	if (is_active & EVENT_FLEXIBLE) {
-		perf_event_groups_for_each_cpu(event, cpu,
-				&ctx->flexible_groups, group_node)
-			group_sched_out(event, cpuctx, ctx);
-		perf_event_groups_for_each_cpu(event, sw,
-				&ctx->flexible_groups, group_node)
+		list_for_each_entry_safe(event, tmp, &ctx->flexible_active, active_list)
 			group_sched_out(event, cpuctx, ctx);
 	}
 	perf_pmu_enable(ctx->pmu);
@@ -3231,8 +3229,10 @@ static int pinned_sched_in(struct perf_event *event, void *data)
 	if (!event_filter_match(event))
 		return 0;
 
-	if (group_can_go_on(event, sid->cpuctx, sid->can_add_hw))
-		group_sched_in(event, sid->cpuctx, sid->ctx);
+	if (group_can_go_on(event, sid->cpuctx, sid->can_add_hw)) {
+		if (!group_sched_in(event, sid->cpuctx, sid->ctx))
+			list_add_tail(&event->active_list, &sid->ctx->pinned_active);
+	}
 
 	/*
 	 * If this pinned group hasn't been scheduled,
@@ -3255,7 +3255,9 @@ static int flexible_sched_in(struct perf_event *event, void *data)
 		return 0;
 
 	if (group_can_go_on(event, sid->cpuctx, sid->can_add_hw)) {
-		if (group_sched_in(event, sid->cpuctx, sid->ctx))
+		if (!group_sched_in(event, sid->cpuctx, sid->ctx))
+			list_add_tail(&event->active_list, &sid->ctx->flexible_active);
+		else
 			sid->can_add_hw = 0;
 	}
 
@@ -3973,6 +3975,8 @@ static void __perf_event_init_context(struct perf_event_context *ctx)
 	perf_event_groups_init(&ctx->pinned_groups);
 	perf_event_groups_init(&ctx->flexible_groups);
 	INIT_LIST_HEAD(&ctx->event_list);
+	INIT_LIST_HEAD(&ctx->pinned_active);
+	INIT_LIST_HEAD(&ctx->flexible_active);
 	atomic_set(&ctx->refcount, 1);
 }
 
@@ -9815,6 +9819,7 @@ perf_event_alloc(struct perf_event_attr *attr, int cpu,
 
 	INIT_LIST_HEAD(&event->event_entry);
 	INIT_LIST_HEAD(&event->sibling_list);
+	INIT_LIST_HEAD(&event->active_list);
 	init_event_group(event);
 	INIT_LIST_HEAD(&event->rb_entry);
 	INIT_LIST_HEAD(&event->active_entry);
