@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2017 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -11,12 +11,7 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
- ******************************************************************************/
+ *****************************************************************************/
 
 #ifdef CONFIG_GPIO_WAKEUP
 #include <linux/gpio.h>
@@ -310,7 +305,10 @@ int rtw_android_cfg80211_pno_setup(struct net_device *net,
 		memcpy(pno_ssids_local[index].SSID, ssids[index].ssid,
 		       ssids[index].ssid_len);
 	}
-
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 2, 0)
+	if(ssids)
+		rtw_mfree((u8 *)ssids, (n_ssids * sizeof(struct cfg80211_ssid)));
+#endif
 	pno_time = (interval / 1000);
 
 	RTW_INFO("%s: nssids: %d, pno_time=%d\n", __func__, nssid, pno_time);
@@ -593,7 +591,11 @@ int rtw_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
 		goto exit;
 	}
 #ifdef CONFIG_COMPAT
+#if (KERNEL_VERSION(4, 6, 0) > LINUX_VERSION_CODE)
 	if (is_compat_task()) {
+#else
+	if (in_compat_syscall()) {
+#endif
 		/* User space is 32-bit, use compat ioctl */
 		compat_android_wifi_priv_cmd compat_priv_cmd;
 
@@ -1052,8 +1054,8 @@ static int wifi_probe(struct platform_device *pdev)
 		wifi_wake_gpio = wifi_irqres->start;
 
 #ifdef CONFIG_GPIO_WAKEUP
-	printk("%s: gpio:%d wifi_wake_gpio:%d\n", __func__,
-	       wifi_irqres->start, wifi_wake_gpio);
+	RTW_INFO("%s: gpio:%d wifi_wake_gpio:%d\n", __func__,
+	       (int)wifi_irqres->start, wifi_wake_gpio);
 
 	if (wifi_wake_gpio > 0) {
 #ifdef CONFIG_PLATFORM_INTEL_BYT
@@ -1063,90 +1065,20 @@ static int wifi_probe(struct platform_device *pdev)
 		gpio_direction_input(wifi_wake_gpio);
 		oob_irq = gpio_to_irq(wifi_wake_gpio);
 #endif /* CONFIG_PLATFORM_INTEL_BYT */
-		printk("%s oob_irq:%d\n", __func__, oob_irq);
+		RTW_INFO("%s oob_irq:%d\n", __func__, oob_irq);
 	} else if (wifi_irqres) {
 		oob_irq = wifi_irqres->start;
-		printk("%s oob_irq:%d\n", __func__, oob_irq);
+		RTW_INFO("%s oob_irq:%d\n", __func__, oob_irq);
 	}
 #endif
 	wifi_control_data = wifi_ctrl;
 
 	wifi_set_power(1, 0);	/* Power On */
 	wifi_set_carddetect(1);	/* CardDetect (0->1) */
-	
-	if (oob_irq != 0)
-		enable_irq_wake(oob_irq);
 
 	up(&wifi_control_sem);
 	return 0;
 }
-
-#ifdef RTW_SUPPORT_PLATFORM_SHUTDOWN
-extern PADAPTER g_test_adapter;
-
-static void shutdown_card(void)
-{
-	u32 addr;
-	u8 tmp8, cnt = 0;
-
-	if (NULL == g_test_adapter) {
-		RTW_INFO("%s: padapter==NULL\n", __FUNCTION__);
-		return;
-	}
-
-#ifdef CONFIG_FWLPS_IN_IPS
-	LeaveAllPowerSaveMode(g_test_adapter);
-#endif /* CONFIG_FWLPS_IN_IPS */
-
-	/* Leave SDIO HCI Suspend */
-	addr = 0x10250086;
-	rtw_write8(g_test_adapter, addr, 0);
-	do {
-		tmp8 = rtw_read8(g_test_adapter, addr);
-		cnt++;
-		RTW_INFO(FUNC_ADPT_FMT ": polling SDIO_HSUS_CTRL(0x%x)=0x%x, cnt=%d\n",
-			 FUNC_ADPT_ARG(g_test_adapter), addr, tmp8, cnt);
-
-		if (tmp8 & BIT(1))
-			break;
-
-		if (cnt >= 100) {
-			RTW_INFO(FUNC_ADPT_FMT ": polling 0x%x[1]==1 FAIL!!\n",
-				 FUNC_ADPT_ARG(g_test_adapter), addr);
-			break;
-		}
-
-		rtw_mdelay_os(10);
-	} while (1);
-
-	/* unlock register I/O */
-	rtw_write8(g_test_adapter, 0x1C, 0);
-
-	/* enable power down function */
-	/* 0x04[4] = 1 */
-	/* 0x05[7] = 1 */
-	addr = 0x04;
-	tmp8 = rtw_read8(g_test_adapter, addr);
-	tmp8 |= BIT(4);
-	rtw_write8(g_test_adapter, addr, tmp8);
-	RTW_INFO(FUNC_ADPT_FMT ": read after write 0x%x=0x%x\n",
-		FUNC_ADPT_ARG(g_test_adapter), addr, rtw_read8(g_test_adapter, addr));
-
-	addr = 0x05;
-	tmp8 = rtw_read8(g_test_adapter, addr);
-	tmp8 |= BIT(7);
-	rtw_write8(g_test_adapter, addr, tmp8);
-	RTW_INFO(FUNC_ADPT_FMT ": read after write 0x%x=0x%x\n",
-		FUNC_ADPT_ARG(g_test_adapter), addr, rtw_read8(g_test_adapter, addr));
-
-	/* lock register page0 0x0~0xB read/write */
-	rtw_write8(g_test_adapter, 0x1C, 0x0E);
-
-	rtw_set_surprise_removed(g_test_adapter);
-	RTW_INFO(FUNC_ADPT_FMT ": bSurpriseRemoved=%s\n",
-		FUNC_ADPT_ARG(g_test_adapter), rtw_is_surprise_removed(g_test_adapter) ? "True" : "False");
-}
-#endif /* RTW_SUPPORT_PLATFORM_SHUTDOWN */
 
 static int wifi_remove(struct platform_device *pdev)
 {
@@ -1156,32 +1088,12 @@ static int wifi_remove(struct platform_device *pdev)
 	RTW_INFO("## %s\n", __FUNCTION__);
 	wifi_control_data = wifi_ctrl;
 
-	if (oob_irq != 0)
-		disable_irq_wake(oob_irq);
-
 	wifi_set_power(0, 0);	/* Power Off */
 	wifi_set_carddetect(0);	/* CardDetect (1->0) */
 
 	up(&wifi_control_sem);
 	return 0;
 }
-
-#ifdef RTW_SUPPORT_PLATFORM_SHUTDOWN
-static void wifi_shutdown(struct platform_device *pdev)
-{
-	struct wifi_platform_data *wifi_ctrl =
-		(struct wifi_platform_data *)(pdev->dev.platform_data);
-
-
-	RTW_INFO("## %s\n", __FUNCTION__);
-
-	wifi_control_data = wifi_ctrl;
-
-	shutdown_card();
-	wifi_set_power(0, 0);	/* Power Off */
-	wifi_set_carddetect(0);	/* CardDetect (1->0) */
-}
-#endif /* RTW_SUPPORT_PLATFORM_SHUTDOWN */
 
 static int wifi_suspend(struct platform_device *pdev, pm_message_t state)
 {
@@ -1208,9 +1120,6 @@ static struct platform_driver wifi_device = {
 	.remove         = wifi_remove,
 	.suspend        = wifi_suspend,
 	.resume         = wifi_resume,
-#ifdef RTW_SUPPORT_PLATFORM_SHUTDOWN
-	.shutdown       = wifi_shutdown,
-#endif /* RTW_SUPPORT_PLATFORM_SHUTDOWN */
 	.driver         = {
 		.name   = "bcmdhd_wlan",
 	}

@@ -1,3 +1,18 @@
+/******************************************************************************
+ *
+ * Copyright(c) 2016 - 2017 Realtek Corporation.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of version 2 of the GNU General Public License as
+ * published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
+ * more details.
+ *
+ *****************************************************************************/
+
 
 #if (BT_SUPPORT == 1 && COEX_SUPPORT == 1)
 
@@ -6,6 +21,7 @@
 /* *******************************************
  * The following is for 8821C 1ANT BT Co-exist definition
  * ******************************************* */
+#define	BT_8821C_1ANT_COEX_DBG					0
 #define	BT_AUTO_REPORT_ONLY_8821C_1ANT				1
 
 #define	BT_INFO_8821C_1ANT_B_FTP						BIT(7)
@@ -18,11 +34,13 @@
 #define	BT_INFO_8821C_1ANT_B_CONNECTION				BIT(0)
 
 #define	BT_INFO_8821C_1ANT_A2DP_BASIC_RATE(_BT_INFO_EXT_)	\
-	(((_BT_INFO_EXT_&BIT(0))) ? true : false)
+	(((_BT_INFO_EXT_&BIT(0))) ? TRUE : FALSE)
 
 #define	BTC_RSSI_COEX_THRESH_TOL_8821C_1ANT		2
 
 #define  BT_8821C_1ANT_WIFI_NOISY_THRESH							30   /* max: 255 */
+#define  BT_8821C_1ANT_DEFAULT_ISOLATION						15	 /*  unit: dB */
+
 
 /* for Antenna detection */
 #define	BT_8821C_1ANT_ANTDET_PSDTHRES_BACKGROUND					50
@@ -30,11 +48,11 @@
 #define	BT_8821C_1ANT_ANTDET_PSDTHRES_2ANT_GOODISOLATION			55
 #define	BT_8821C_1ANT_ANTDET_PSDTHRES_1ANT							35
 #define	BT_8821C_1ANT_ANTDET_RETRY_INTERVAL							10	/* retry timer if ant det is fail, unit: second */
-#define	BT_8821C_1ANT_ANTDET_SWEEPPOINT_DELAY							40000
+#define	BT_8821C_1ANT_ANTDET_SWEEPPOINT_DELAY							60000
 #define	BT_8821C_1ANT_ANTDET_ENABLE									0
-#define	BT_8821C_1ANT_ANTDET_COEXMECHANISMSWITCH_ENABLE				0
 #define	BT_8821C_1ANT_ANTDET_BTTXTIME									100
 #define	BT_8821C_1ANT_ANTDET_BTTXCHANNEL								39
+#define	BT_8821C_1ANT_ANTDET_PSD_SWWEEPCOUNT						50
 
 #define	BT_8821C_1ANT_LTECOEX_INDIRECTREG_ACCESS_TIMEOUT		30000
 
@@ -123,6 +141,7 @@ enum bt_8821c_1ant_coex_algo {
 enum bt_8821c_1ant_ext_ant_switch_type {
 	BT_8821C_1ANT_EXT_ANT_SWITCH_USE_DPDT		= 0x0,
 	BT_8821C_1ANT_EXT_ANT_SWITCH_USE_SPDT		= 0x1,
+	BT_8821C_1ANT_EXT_ANT_SWITCH_NONE			= 0x2,
 	BT_8821C_1ANT_EXT_ANT_SWITCH_MAX
 };
 
@@ -150,23 +169,32 @@ enum bt_8821c_1ant_ext_band_switch_pos_type {
 	BT_8821C_1ANT_EXT_BAND_SWITCH_TO_MAX
 };
 
-enum bt_8821c_1ant_int_block{
+enum bt_8821c_1ant_int_block {
 	BT_8821C_1ANT_INT_BLOCK_SWITCH_TO_WLG_OF_BTG			= 0x0,
 	BT_8821C_1ANT_INT_BLOCK_SWITCH_TO_WLG_OF_WLAG		= 0x1,
 	BT_8821C_1ANT_INT_BLOCK_SWITCH_TO_WLA_OF_WLAG		= 0x2,
 	BT_8821C_1ANT_INT_BLOCK_SWITCH_TO_MAX
 };
 
-enum bt_8821c_1ant_phase{
+enum bt_8821c_1ant_phase {
 	BT_8821C_1ANT_PHASE_COEX_INIT								= 0x0,
-	BT_8821C_1ANT_PHASE_WLANONLY_INIT							= 0x1,	
+	BT_8821C_1ANT_PHASE_WLANONLY_INIT							= 0x1,
 	BT_8821C_1ANT_PHASE_WLAN_OFF								= 0x2,
 	BT_8821C_1ANT_PHASE_2G_RUNTIME								= 0x3,
 	BT_8821C_1ANT_PHASE_5G_RUNTIME								= 0x4,
 	BT_8821C_1ANT_PHASE_BTMPMODE									= 0x5,
+	BT_8821C_1ANT_PHASE_ANTENNA_DET								= 0x6,
+	BT_8821C_1ANT_PHASE_COEX_POWERON							= 0x7,
 	BT_8821C_1ANT_PHASE_MAX
 };
 
+enum bt_8821c_1ant_Scoreboard {
+	BT_8821C_1ANT_SCOREBOARD_ACTIVE								= BIT(0),
+	BT_8821C_1ANT_SCOREBOARD_ONOFF								= BIT(1),
+	BT_8821C_1ANT_SCOREBOARD_SCAN								= BIT(2),
+	BT_8821C_1ANT_SCOREBOARD_UNDERTEST							= BIT(3),
+	BT_8821C_1ANT_SCOREBOARD_WLBUSY								= BIT(6)
+};
 
 struct coex_dm_8821c_1ant {
 	/* hw setting */
@@ -179,7 +207,6 @@ struct coex_dm_8821c_1ant {
 	u8		cur_ps_tdma;
 	u8		ps_tdma_para[5];
 	u8		ps_tdma_du_adj_type;
-	boolean		auto_tdma_adjust;
 	boolean		pre_ps_tdma_on;
 	boolean		cur_ps_tdma_on;
 	boolean		pre_bt_auto_report;
@@ -225,7 +252,7 @@ struct coex_dm_8821c_1ant {
 
 	u32		pre_ext_ant_switch_status;
 	u32		cur_ext_ant_switch_status;
-	
+
 	u8		pre_ext_band_switch_status;
 	u8		cur_ext_band_switch_status;
 
@@ -236,90 +263,138 @@ struct coex_dm_8821c_1ant {
 };
 
 struct coex_sta_8821c_1ant {
-	boolean					bt_disabled;
-	boolean					bt_link_exist;
-	boolean					sco_exist;
-	boolean					a2dp_exist;
-	boolean					hid_exist;
-	boolean					pan_exist;
-	boolean					bt_hi_pri_link_exist;
+	boolean				bt_disabled;
+	boolean				bt_link_exist;
+	boolean				sco_exist;
+	boolean				a2dp_exist;
+	boolean				hid_exist;
+	boolean				pan_exist;
 	u8					num_of_profile;
 
-	boolean					under_lps;
-	boolean					under_ips;
+	boolean				under_lps;
+	boolean				under_ips;
 	u32					specific_pkt_period_cnt;
 	u32					high_priority_tx;
 	u32					high_priority_rx;
 	u32					low_priority_tx;
 	u32					low_priority_rx;
+	boolean             is_hiPri_rx_overhead;
 	s8					bt_rssi;
-	boolean					bt_tx_rx_mask;
 	u8					pre_bt_rssi_state;
 	u8					pre_wifi_rssi_state[4];
-	boolean					c2h_bt_info_req_sent;
 	u8					bt_info_c2h[BT_INFO_SRC_8821C_1ANT_MAX][10];
 	u32					bt_info_c2h_cnt[BT_INFO_SRC_8821C_1ANT_MAX];
-	boolean					bt_whck_test;
-	boolean					c2h_bt_inquiry_page;
-	boolean					c2h_bt_page;				/* Add for win8.1 page out issue */
-	boolean					wifi_is_high_pri_task;		/* Add for win8.1 page out issue */
-	u8					bt_retry_cnt;
+	boolean				bt_whck_test;
+	boolean				c2h_bt_inquiry_page;
+	boolean				c2h_bt_remote_name_req;
+	boolean				c2h_bt_page;				/* Add for win8.1 page out issue */
+	boolean				wifi_is_high_pri_task;		/* Add for win8.1 page out issue */
+
 	u8					bt_info_ext;
+	u8					bt_info_ext2;
 	u32					pop_event_cnt;
 	u8					scan_ap_num;
+	u8					bt_retry_cnt;
 
 	u32					crc_ok_cck;
 	u32					crc_ok_11g;
 	u32					crc_ok_11n;
-	u32					crc_ok_11n_agg;
+	u32					crc_ok_11n_vht;
 
 	u32					crc_err_cck;
 	u32					crc_err_11g;
 	u32					crc_err_11n;
-	u32					crc_err_11n_agg;
+	u32					crc_err_11n_vht;
 
-	boolean					cck_lock;
-	boolean					pre_ccklock;
-	boolean					cck_ever_lock;
+	boolean				cck_lock;
+	boolean				cck_lock_ever;
+	boolean				cck_lock_warn;
+
 	u8					coex_table_type;
-
-	boolean					force_lps_on;
-	u32					wrong_profile_notification;
-
-	boolean					concurrent_rx_mode_on;
-
+	boolean				force_lps_ctrl;
+	boolean				concurrent_rx_mode_on;
 	u16					score_board;
+	u8					isolation_btween_wb;   /* 0~ 50 */
 
 	u8					a2dp_bit_pool;
 	u8					cut_version;
 	boolean				acl_busy;
-	boolean				wl_rf_off_on_event;
 	boolean				bt_create_connection;
-	boolean				run_time_state;
 
 	u32					bt_coex_supported_feature;
 	u32					bt_coex_supported_version;
+
+	u8					bt_ble_scan_type;
+	u32					bt_ble_scan_para[3];
+
+	boolean				run_time_state;
+	boolean				freeze_coexrun_by_btinfo;
+
+	boolean				is_A2DP_3M;
+	boolean				voice_over_HOGP;
+	u8                  bt_info;
+	boolean				is_autoslot;
+	u8					forbidden_slot;
+	u8					hid_busy_num;
+	u8					hid_pair_cnt;
+
+	u32					cnt_RemoteNameReq;
+	u32					cnt_setupLink;
+	u32					cnt_ReInit;
+	u32					cnt_IgnWlanAct;
+	u32					cnt_Page;
+	u32					cnt_RoleSwitch;
+
+	u16					bt_reg_vendor_ac;
+	u16					bt_reg_vendor_ae;
+
+	boolean				is_setupLink;
+	u8					wl_noisy_level;
+	u32                 gnt_error_cnt;
+
+	u8					bt_afh_map[10];
+	u8					bt_relink_downcount;
+	boolean				is_tdma_btautoslot;
+	boolean				is_tdma_btautoslot_hang;
+
+	u8					switch_band_notify_to;
+	boolean				is_rf_state_off;
+
+	boolean				is_hid_low_pri_tx_overhead;
+	boolean				is_bt_multi_link;
+	boolean				is_bt_a2dp_sink;
+	boolean				is_set_ps_state_fail;
+	u8					cnt_set_ps_state_fail;
+
+	u8					wl_fw_dbg_info[10];
+	u8					wl_rx_rate;
+	u8					wl_rts_rx_rate;
+	u8					wl_center_channel;
+
+	u16					score_board_WB;
 };
 
 
-#define  BT_8821C_1ANT_EXT_BAND_SWITCH_USE_DPDT 	0
-#define  BT_8821C_1ANT_EXT_BAND_SWITCH_USE_SPDT 	1
+#define  BT_8821C_1ANT_EXT_BAND_SWITCH_USE_DPDT	0
+#define  BT_8821C_1ANT_EXT_BAND_SWITCH_USE_SPDT	1
 
 
-struct rfe_type_8821c_1ant{
+struct rfe_type_8821c_1ant {
 
-	u8			rfe_module_type;	
+	u8			rfe_module_type;
 	boolean		ext_ant_switch_exist;
 	u8			ext_ant_switch_type;			/* 0:DPDT, 1:SPDT */
 	u8			ext_ant_switch_ctrl_polarity;		/*  iF 0: DPDT_P=0, DPDT_N=1 => BTG to Main, WL_A+G to Aux */
-	
+
 	boolean		ext_band_switch_exist;
 	u8			ext_band_switch_type;			/* 0:DPDT, 1:SPDT */
 	u8			ext_band_switch_ctrl_polarity;
 
-	boolean		wlg_Locate_at_btg;				/*  If true:  WLG at BTG, If false: WLG at WLAG  */			
+	boolean		ant_at_main_port;
 
-	boolean		ext_ant_switch_diversity;		/* If diversity on  */
+	boolean		wlg_Locate_at_btg;				/*  If TRUE:  WLG at BTG, If FALSE: WLG at WLAG */
+
+	boolean		ext_ant_switch_diversity;		/* If diversity on */
 };
 
 #define  BT_8821C_1ANT_ANTDET_PSD_POINTS			256	/* MAX:1024 */
@@ -356,10 +431,13 @@ struct psdscan_sta_8821c_1ant {
 	u32			psd_stop_point;
 	u32			psd_max_value_point;
 	u32			psd_max_value;
+	u32			psd_max_value2;
+	u32			psd_avg_value;   /* filter loop_max_value that below BT_8821C_1ANT_ANTDET_PSDTHRES_1ANT, and average the rest*/
+	u32			psd_loop_max_value[BT_8821C_1ANT_ANTDET_PSD_SWWEEPCOUNT];  /*max value in each loop */
 	u32			psd_start_base;
 	u32			psd_avg_num;	/* 1/8/16/32 */
 	u32			psd_gen_count;
-	boolean			is_psd_running;
+	boolean			is_AntDet_running;
 	boolean			is_psd_show_max_only;
 };
 
@@ -378,7 +456,7 @@ void ex_halbtc8821c1ant_lps_notify(IN struct btc_coexist *btcoexist,
 void ex_halbtc8821c1ant_scan_notify(IN struct btc_coexist *btcoexist,
 				    IN u8 type);
 void ex_halbtc8821c1ant_switchband_notify(IN struct btc_coexist *btcoexist,
-				    IN u8 type);
+		IN u8 type);
 void ex_halbtc8821c1ant_connect_notify(IN struct btc_coexist *btcoexist,
 				       IN u8 type);
 void ex_halbtc8821c1ant_media_status_notify(IN struct btc_coexist *btcoexist,
@@ -387,6 +465,10 @@ void ex_halbtc8821c1ant_specific_packet_notify(IN struct btc_coexist *btcoexist,
 		IN u8 type);
 void ex_halbtc8821c1ant_bt_info_notify(IN struct btc_coexist *btcoexist,
 				       IN u8 *tmp_buf, IN u8 length);
+void ex_halbtc8821c1ant_wl_fwdbginfo_notify(IN struct btc_coexist *btcoexist,
+				       IN u8 *tmp_buf, IN u8 length);
+void ex_halbtc8821c1ant_rx_rate_change_notify(IN struct btc_coexist *btcoexist,
+		IN BOOLEAN is_data_frame, IN u8 btc_rate_id);
 void ex_halbtc8821c1ant_rf_status_notify(IN struct btc_coexist *btcoexist,
 		IN u8 type);
 void ex_halbtc8821c1ant_halt_notify(IN struct btc_coexist *btcoexist);
@@ -394,6 +476,7 @@ void ex_halbtc8821c1ant_pnp_notify(IN struct btc_coexist *btcoexist,
 				   IN u8 pnp_state);
 void ex_halbtc8821c1ant_coex_dm_reset(IN struct btc_coexist *btcoexist);
 void ex_halbtc8821c1ant_periodical(IN struct btc_coexist *btcoexist);
+void ex_halbtc8821c1ant_display_simple_coex_info(IN struct btc_coexist *btcoexist);
 void ex_halbtc8821c1ant_display_coex_info(IN struct btc_coexist *btcoexist);
 void ex_halbtc8821c1ant_antenna_detection(IN struct btc_coexist *btcoexist,
 		IN u32 cent_freq, IN u32 offset, IN u32 span, IN u32 seconds);
@@ -412,16 +495,19 @@ void ex_halbtc8821c1ant_display_ant_detection(IN struct btc_coexist *btcoexist);
 #define	ex_halbtc8821c1ant_ips_notify(btcoexist, type)
 #define	ex_halbtc8821c1ant_lps_notify(btcoexist, type)
 #define	ex_halbtc8821c1ant_scan_notify(btcoexist, type)
-#define   ex_halbtc8821c1ant_switchband_notify(btcoexist,type)
+#define	ex_halbtc8821c1ant_switchband_notify(btcoexist, type)
 #define	ex_halbtc8821c1ant_connect_notify(btcoexist, type)
 #define	ex_halbtc8821c1ant_media_status_notify(btcoexist, type)
 #define	ex_halbtc8821c1ant_specific_packet_notify(btcoexist, type)
 #define	ex_halbtc8821c1ant_bt_info_notify(btcoexist, tmp_buf, length)
+#define	ex_halbtc8821c1ant_wl_fwdbginfo_notify(btcoexist, tmp_buf, length)
+#define	ex_halbtc8821c1ant_rx_rate_change_notify(btcoexist, is_data_frame, btc_rate_id)
 #define	ex_halbtc8821c1ant_rf_status_notify(btcoexist, type)
 #define	ex_halbtc8821c1ant_halt_notify(btcoexist)
 #define	ex_halbtc8821c1ant_pnp_notify(btcoexist, pnp_state)
 #define	ex_halbtc8821c1ant_coex_dm_reset(btcoexist)
 #define	ex_halbtc8821c1ant_periodical(btcoexist)
+#define	ex_halbtc8821c1ant_display_simple_coex_info(btcoexist)
 #define	ex_halbtc8821c1ant_display_coex_info(btcoexist)
 #define	ex_halbtc8821c1ant_antenna_detection(btcoexist, cent_freq, offset, span, seconds)
 #define	ex_halbtc8821c1ant_antenna_isolation(btcoexist, cent_freq, offset, span, seconds)
@@ -430,3 +516,5 @@ void ex_halbtc8821c1ant_display_ant_detection(IN struct btc_coexist *btcoexist);
 #endif
 
 #endif
+
+

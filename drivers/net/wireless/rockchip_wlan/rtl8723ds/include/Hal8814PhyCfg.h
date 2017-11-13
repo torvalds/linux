@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2017 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -11,12 +11,7 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
- ******************************************************************************/
+ *****************************************************************************/
 #ifndef __INC_HAL8814PHYCFG_H__
 #define __INC_HAL8814PHYCFG_H__
 
@@ -74,14 +69,14 @@ PHY_SetBBReg8814A(IN	PADAPTER	Adapter,
 
 extern	u32
 PHY_QueryRFReg8814A(IN	PADAPTER			Adapter,
-		    IN	u8			eRFPath,
+		    IN	enum rf_path	eRFPath,
 		    IN	u32			RegAddr,
 		    IN	u32			BitMask);
 
 
 void
 PHY_SetRFReg8814A(IN	PADAPTER			Adapter,
-		  IN	u8			eRFPath,
+		  IN	enum rf_path		eRFPath,
 		  IN	u32				RegAddr,
 		  IN	u32				BitMask,
 		  IN	u32				Data);
@@ -128,18 +123,18 @@ PHY_SetTxPowerLevel8814(
 );
 
 u8
-PHY_GetTxPowerIndex_8814A(
-	IN	PADAPTER			Adapter,
-	IN  u8				RFPath,
+phy_get_tx_power_index_8814a(
+	IN	PADAPTER		Adapter,
+	IN	enum rf_path		RFPath,
 	IN	u8				Rate,
-	IN	CHANNEL_WIDTH		BandWidth,
+	IN	enum channel_width BandWidth,
 	IN	u8				Channel
 );
 
 u8
 PHY_GetTxPowerIndex8814A(
-	IN	PADAPTER			Adapter,
-	IN  u8				RFPath,
+	IN	PADAPTER		Adapter,
+	IN	enum rf_path		RFPath,
 	IN	u8				Rate,
 	IN	u8				BandWidth,
 	IN	u8				Channel,
@@ -148,9 +143,9 @@ PHY_GetTxPowerIndex8814A(
 
 VOID
 PHY_SetTxPowerIndex_8814A(
-	IN	PADAPTER			Adapter,
+	IN	PADAPTER		Adapter,
 	IN	u32				PowerIndex,
-	IN	u8				RFPath,
+	IN	enum rf_path		RFPath,
 	IN	u8				Rate
 );
 
@@ -166,7 +161,7 @@ u32
 PHY_GetTxBBSwing_8814A(
 	IN	PADAPTER	Adapter,
 	IN	BAND_TYPE	Band,
-	IN	u8		RFPath
+	IN	enum rf_path	RFPath
 );
 
 
@@ -175,7 +170,7 @@ PHY_GetTxBBSwing_8814A(
 
 VOID
 PHY_SwChnlTimerCallback8814A(
-	IN	PRT_TIMER		pTimer
+	IN	struct timer_list		*p_timer
 );
 
 VOID
@@ -204,7 +199,7 @@ PHY_HandleSwChnlAndSetBW8814A(
 	IN	BOOLEAN				bSwitchChannel,
 	IN	BOOLEAN				bSetBandWidth,
 	IN	u8					ChannelNum,
-	IN	CHANNEL_WIDTH		ChnlWidth,
+	IN	enum channel_width	ChnlWidth,
 	IN	u8					ChnlOffsetOf40MHz,
 	IN	u8					ChnlOffsetOf80MHz,
 	IN	u8					CenterFrequencyIndex1
@@ -252,7 +247,7 @@ VOID
 PHY_SetSwChnlBWMode8814(
 	IN	PADAPTER			Adapter,
 	IN	u8					channel,
-	IN	CHANNEL_WIDTH		Bandwidth,
+	IN	enum channel_width	Bandwidth,
 	IN	u8					Offset40,
 	IN	u8					Offset80
 );

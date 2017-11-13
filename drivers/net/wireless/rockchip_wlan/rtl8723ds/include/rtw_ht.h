@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2017 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -11,12 +11,7 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
- ******************************************************************************/
+ *****************************************************************************/
 #ifndef _RTW_HT_H_
 #define _RTW_HT_H_
 
@@ -88,12 +83,6 @@ typedef enum _RT_HT_INF1_CAP {
 #define	STBC_HT_ENABLE_TX			BIT1
 #define	STBC_HT_TEST_TX_ENABLE		BIT2
 #define	STBC_HT_CAP_TX				BIT3
-
-#define	BEAMFORMING_HT_BEAMFORMER_ENABLE	BIT0	/* Declare our NIC supports beamformer */
-#define	BEAMFORMING_HT_BEAMFORMEE_ENABLE	BIT1	/* Declare our NIC supports beamformee */
-#define	BEAMFORMING_HT_BEAMFORMER_TEST		BIT2	/* Transmiting Beamforming no matter the target supports it or not */
-#define	BEAMFORMING_HT_BEAMFORMER_STEER_NUM		(BIT4 | BIT5)
-#define	BEAMFORMING_HT_BEAMFORMEE_CHNL_EST_CAP	(BIT6 | BIT7)
 
 /* ------------------------------------------------------------
  * The HT Control field

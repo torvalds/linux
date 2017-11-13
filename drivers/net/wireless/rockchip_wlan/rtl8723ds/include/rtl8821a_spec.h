@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2013 Realtek Corporation. All rights reserved.
+ * Copyright(c) 2013 - 2017 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -11,11 +11,7 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *******************************************************************************/
+ *****************************************************************************/
 #ifndef __RTL8821A_SPEC_H__
 #define __RTL8821A_SPEC_H__
 
@@ -84,25 +80,11 @@
 /* -----------------------------------------------------
  * SDIO register
  * ----------------------------------------------------- */
-#undef SDIO_REG_HCPWM1
 #define SDIO_REG_FREE_TXPG2		0x024
-#define SDIO_REG_HCPWM1			0x025
-
+#define SDIO_REG_HCPWM1_8821A	0x025
 
 /* ************************************************************
  * Regsiter Bit and Content definition
  * ************************************************************ */
-
-/* ********************************************************
- * General definitions
- * ******************************************************** */
-
-#define MACID_NUM_8821A 128
-#define SEC_CAM_ENT_NUM_8821A 64
-#define HW_PORT_NUM_8821A	2
-#define NSS_NUM_8821A 1
-#define BAND_CAP_8821A (BAND_CAP_2G | BAND_CAP_5G)
-#define BW_CAP_8821A (BW_CAP_20M | BW_CAP_40M | BW_CAP_80M)
-#define PROTO_CAP_8821A (PROTO_CAP_11B | PROTO_CAP_11G | PROTO_CAP_11N | PROTO_CAP_11AC)
 
 #endif /* __RTL8821A_SPEC_H__ */

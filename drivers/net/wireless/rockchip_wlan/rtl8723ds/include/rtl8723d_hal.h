@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2017 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -11,12 +11,7 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
- ******************************************************************************/
+ *****************************************************************************/
 #ifndef __RTL8723D_HAL_H__
 #define __RTL8723D_HAL_H__
 
@@ -99,7 +94,7 @@ typedef struct _RT_8723D_FIRMWARE_HDR {
 #define RX_DMA_SIZE_8723D			0x4000	/* 16K(RX) */
 
 #ifdef CONFIG_WOWLAN
-	#define RESV_FMWF	(WKFMCAM_SIZE * MAX_WKFM_NUM) /* 16 entries, for each is 24 bytes*/
+	#define RESV_FMWF	(WKFMCAM_SIZE * MAX_WKFM_CAM_NUM) /* 16 entries, for each is 24 bytes*/
 #else
 	#define RESV_FMWF	0
 #endif
@@ -130,9 +125,11 @@ typedef struct _RT_8723D_FIRMWARE_HDR {
 #endif
 
 /* For WoWLan , more reserved page
- * ARP Rsp:1, RWC:1, GTK Info:1,GTK RSP:2,GTK EXT MEM:2, PNO: 6 */
+ * ARP Rsp:1, RWC:1, GTK Info:1,GTK RSP:2,GTK EXT MEM:2, AOAC rpt 1, PNO: 6
+ * NS offload: 2 NDP info: 1
+ */
 #ifdef CONFIG_WOWLAN
-	#define WOWLAN_PAGE_NUM_8723D	0x07
+	#define WOWLAN_PAGE_NUM_8723D	0x0b
 #else
 	#define WOWLAN_PAGE_NUM_8723D	0x00
 #endif
@@ -159,11 +156,13 @@ typedef struct _RT_8723D_FIRMWARE_HDR {
 #define NORMAL_PAGE_NUM_HPQ_8723D		0x0C
 #define NORMAL_PAGE_NUM_LPQ_8723D		0x02
 #define NORMAL_PAGE_NUM_NPQ_8723D		0x02
+#define NORMAL_PAGE_NUM_EPQ_8723D		0x04
 
 /* Note: For Normal Chip Setting, modify later */
 #define WMM_NORMAL_PAGE_NUM_HPQ_8723D		0x30
 #define WMM_NORMAL_PAGE_NUM_LPQ_8723D		0x20
 #define WMM_NORMAL_PAGE_NUM_NPQ_8723D		0x20
+#define WMM_NORMAL_PAGE_NUM_EPQ_8723D		0x00
 
 
 #include "HalVerDef.h"
@@ -260,7 +259,7 @@ VOID Hal_EfuseParseBoardType_8723D(PADAPTER Adapter,
 
 void rtl8723d_set_hal_ops(struct hal_ops *pHalFunc);
 void init_hal_spec_8723d(_adapter *adapter);
-void SetHwReg8723D(PADAPTER padapter, u8 variable, u8 *val);
+u8 SetHwReg8723D(PADAPTER padapter, u8 variable, u8 *val);
 void GetHwReg8723D(PADAPTER padapter, u8 variable, u8 *val);
 u8 SetHalDefVar8723D(PADAPTER padapter, HAL_DEF_VARIABLE variable, void *pval);
 u8 GetHalDefVar8723D(PADAPTER padapter, HAL_DEF_VARIABLE variable, void *pval);
@@ -310,7 +309,7 @@ void Hal_ReadRFGainOffset(PADAPTER pAdapter, u8 *hwinfo, BOOLEAN AutoLoadFail);
 #ifdef CONFIG_PCI_HCI
 	BOOLEAN	InterruptRecognized8723DE(PADAPTER Adapter);
 	VOID	UpdateInterruptMask8723DE(PADAPTER Adapter, u32 AddMSR, u32 AddMSR1, u32 RemoveMSR, u32 RemoveMSR1);
-	u16 get_txbufdesc_idx_hwaddr(u16 ff_hwaddr);
+	u16 get_txbd_rw_reg(u16 ff_hwaddr);
 #endif
 
 #endif

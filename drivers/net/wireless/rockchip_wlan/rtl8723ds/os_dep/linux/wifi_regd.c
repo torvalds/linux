@@ -1,6 +1,15 @@
 /******************************************************************************
  *
- * Copyright(c) 2009-2010  Realtek Corporation.
+ * Copyright(c) 2009-2010 - 2017 Realtek Corporation.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of version 2 of the GNU General Public License as
+ * published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
+ * more details.
  *
  *****************************************************************************/
 
@@ -134,16 +143,11 @@ static const struct ieee80211_regdomain rtw_regdom_14 = {
 static struct rtw_regulatory *rtw_regd;
 #endif
 
-static bool _rtw_is_radar_freq(u16 center_freq)
-{
-	return center_freq >= 5260 && center_freq <= 5700;
-}
-
 #if 0 /* not_yet */
 static void _rtw_reg_apply_beaconing_flags(struct wiphy *wiphy,
 		enum nl80211_reg_initiator initiator)
 {
-	enum ieee80211_band band;
+	enum nl80211_band band;
 	struct ieee80211_supported_band *sband;
 	const struct ieee80211_reg_rule *reg_rule;
 	struct ieee80211_channel *ch;
@@ -151,7 +155,7 @@ static void _rtw_reg_apply_beaconing_flags(struct wiphy *wiphy,
 	u32 bandwidth = 0;
 	int r;
 
-	for (band = 0; band < IEEE80211_NUM_BANDS; band++) {
+	for (band = 0; band < NUM_NL80211_BANDS; band++) {
 
 		if (!wiphy->bands[band])
 			continue;
@@ -160,7 +164,7 @@ static void _rtw_reg_apply_beaconing_flags(struct wiphy *wiphy,
 
 		for (i = 0; i < sband->n_channels; i++) {
 			ch = &sband->channels[i];
-			if (_rtw_is_radar_freq(ch->center_freq) ||
+			if (rtw_is_dfs_ch(ch->hw_value) ||
 			    (ch->flags & IEEE80211_CHAN_RADAR))
 				continue;
 			if (initiator == NL80211_REGDOM_SET_BY_COUNTRY_IE) {
@@ -205,9 +209,9 @@ static void _rtw_reg_apply_active_scan_flags(struct wiphy *wiphy,
 	u32 bandwidth = 0;
 	int r;
 
-	if (!wiphy->bands[IEEE80211_BAND_2GHZ])
+	if (!wiphy->bands[NL80211_BAND_2GHZ])
 		return;
-	sband = wiphy->bands[IEEE80211_BAND_2GHZ];
+	sband = wiphy->bands[NL80211_BAND_2GHZ];
 
 	/*
 	 * If no country IE has been received always enable active scan
@@ -258,18 +262,21 @@ static void _rtw_reg_apply_radar_flags(struct wiphy *wiphy)
 	struct ieee80211_channel *ch;
 	unsigned int i;
 
-	if (!wiphy->bands[IEEE80211_BAND_5GHZ])
+	if (!wiphy->bands[NL80211_BAND_5GHZ])
 		return;
 
-	sband = wiphy->bands[IEEE80211_BAND_5GHZ];
+	sband = wiphy->bands[NL80211_BAND_5GHZ];
 
 	for (i = 0; i < sband->n_channels; i++) {
 		ch = &sband->channels[i];
-		if (!_rtw_is_radar_freq(ch->center_freq))
+		if (!rtw_is_dfs_ch(ch->hw_value))
 			continue;
 #ifdef CONFIG_DFS
-		#if !defined(CONFIG_DFS_MASTER)
-		if (!(ch->flags & IEEE80211_CHAN_DISABLED)) {
+		if (!(ch->flags & IEEE80211_CHAN_DISABLED)
+			#if defined(CONFIG_DFS_MASTER)
+			&& rtw_odm_dfs_domain_unknown(wiphy_to_adapter(wiphy))
+			#endif
+		) {
 			ch->flags |= IEEE80211_CHAN_RADAR;
 			#if (LINUX_VERSION_CODE < KERNEL_VERSION(3, 14, 0))
 			ch->flags |= (IEEE80211_CHAN_NO_IBSS | IEEE80211_CHAN_PASSIVE_SCAN);
@@ -277,7 +284,6 @@ static void _rtw_reg_apply_radar_flags(struct wiphy *wiphy)
 			ch->flags |= IEEE80211_CHAN_NO_IR;
 			#endif
 		}
-		#endif
 #endif /* CONFIG_DFS */
 
 #if 0
@@ -304,10 +310,10 @@ static void _rtw_reg_apply_flags(struct wiphy *wiphy)
 {
 #if 1				/* by channel plan */
 	_adapter *padapter = wiphy_to_adapter(wiphy);
-	u8 channel_plan = padapter->mlmepriv.ChannelPlan;
-	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
-	RT_CHANNEL_INFO *channel_set = pmlmeext->channel_set;
-	u8 max_chan_nums = pmlmeext->max_chan_nums;
+	struct rf_ctl_t *rfctl = adapter_to_rfctl(padapter);
+	u8 channel_plan = rfctl->ChannelPlan;
+	RT_CHANNEL_INFO *channel_set = rfctl->channel_set;
+	u8 max_chan_nums = rfctl->max_chan_nums;
 
 	struct ieee80211_supported_band *sband;
 	struct ieee80211_channel *ch;
@@ -316,7 +322,7 @@ static void _rtw_reg_apply_flags(struct wiphy *wiphy)
 	u32 freq;
 
 	/* all channels disable */
-	for (i = 0; i < IEEE80211_NUM_BANDS; i++) {
+	for (i = 0; i < NUM_NL80211_BANDS; i++) {
 		sband = wiphy->bands[i];
 
 		if (sband) {
@@ -336,10 +342,12 @@ static void _rtw_reg_apply_flags(struct wiphy *wiphy)
 
 		ch = ieee80211_get_channel(wiphy, freq);
 		if (ch) {
-			if (channel_set[i].ScanType == SCAN_PASSIVE) {
+			if (channel_set[i].ScanType == SCAN_PASSIVE
 				#if defined(CONFIG_DFS_MASTER)
-				ch->flags = 0;
-				#elif (LINUX_VERSION_CODE < KERNEL_VERSION(3, 14, 0))
+				&& rtw_odm_dfs_domain_unknown(wiphy_to_adapter(wiphy))
+				#endif
+			) {
+				#if (LINUX_VERSION_CODE < KERNEL_VERSION(3, 14, 0))
 				ch->flags = (IEEE80211_CHAN_NO_IBSS | IEEE80211_CHAN_PASSIVE_SCAN);
 				#else
 				ch->flags = IEEE80211_CHAN_NO_IR;
@@ -362,7 +370,7 @@ static void _rtw_reg_apply_flags(struct wiphy *wiphy)
 	u16 channel;
 	u32 freq;
 
-	for (i = 0; i < IEEE80211_NUM_BANDS; i++) {
+	for (i = 0; i < NUM_NL80211_BANDS; i++) {
 		sband = wiphy->bands[i];
 
 		if (sband)

@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2012 Realtek Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2017 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -11,12 +11,7 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
- ******************************************************************************/
+ *****************************************************************************/
 
 
 #define _OSDEP_SERVICE_C_
@@ -483,7 +478,7 @@ void rtw_mstat_dump(void *sel)
 
 void rtw_mstat_update(const enum mstat_f flags, const MSTAT_STATUS status, u32 sz)
 {
-	static u32 update_time = 0;
+	static systime update_time = 0;
 	int peak, alloc;
 	int i;
 
@@ -729,7 +724,7 @@ inline struct sk_buff *dbg_rtw_skb_copy(const struct sk_buff *skb, const enum ms
 	rtw_mstat_update(
 		flags
 		, skb_cp ? MSTAT_ALLOC_SUCCESS : MSTAT_ALLOC_FAIL
-		, truesize
+		, cp_truesize
 	);
 
 	return skb_cp;
@@ -751,7 +746,7 @@ inline struct sk_buff *dbg_rtw_skb_clone(struct sk_buff *skb, const enum mstat_f
 	rtw_mstat_update(
 		flags
 		, skb_cl ? MSTAT_ALLOC_SUCCESS : MSTAT_ALLOC_FAIL
-		, truesize
+		, cl_truesize
 	);
 
 	return skb_cl;
@@ -882,6 +877,39 @@ void *rtw_malloc2d(int h, int w, size_t size)
 void rtw_mfree2d(void *pbuf, int h, int w, int size)
 {
 	rtw_mfree((u8 *)pbuf, h * sizeof(void *) + w * h * size);
+}
+
+inline void rtw_os_pkt_free(_pkt *pkt)
+{
+#if defined(PLATFORM_LINUX)
+	rtw_skb_free(pkt);
+#elif defined(PLATFORM_FREEBSD)
+	m_freem(pkt);
+#else
+	#error "TBD\n"
+#endif
+}
+
+inline void *rtw_os_pkt_data(_pkt *pkt)
+{
+#if defined(PLATFORM_LINUX)
+	return pkt->data;
+#elif defined(PLATFORM_FREEBSD)
+	return pkt->m_data;
+#else
+	#error "TBD\n"
+#endif
+}
+
+inline u32 rtw_os_pkt_len(_pkt *pkt)
+{
+#if defined(PLATFORM_LINUX)
+	return pkt->len;
+#elif defined(PLATFORM_FREEBSD)
+	return pkt->m_pkthdr.len;
+#else
+	#error "TBD\n"
+#endif
 }
 
 void _rtw_memcpy(void *dst, const void *src, u32 sz)
@@ -1066,18 +1094,18 @@ void rtw_list_insert_tail(_list *plist, _list *phead)
 
 }
 
-void rtw_init_timer(_timer *ptimer, void *padapter, void *pfunc)
+void rtw_init_timer(_timer *ptimer, void *padapter, void *pfunc, void *ctx)
 {
 	_adapter *adapter = (_adapter *)padapter;
 
 #ifdef PLATFORM_LINUX
-	_init_timer(ptimer, adapter->pnetdev, pfunc, adapter);
+	_init_timer(ptimer, adapter->pnetdev, pfunc, ctx);
 #endif
 #ifdef PLATFORM_FREEBSD
-	_init_timer(ptimer, adapter->pifp, pfunc, adapter->mlmepriv.nic_hdl);
+	_init_timer(ptimer, adapter->pifp, pfunc, ctx);
 #endif
 #ifdef PLATFORM_WINDOWS
-	_init_timer(ptimer, adapter->hndis_adapter, pfunc, adapter->mlmepriv.nic_hdl);
+	_init_timer(ptimer, adapter->hndis_adapter, pfunc, ctx);
 #endif
 }
 
@@ -1176,7 +1204,43 @@ u32 _rtw_down_sema(_sema *sema)
 #endif
 }
 
+inline void thread_exit(_completion *comp)
+{
+#ifdef PLATFORM_LINUX
+	complete_and_exit(comp, 0);
+#endif
 
+#ifdef PLATFORM_FREEBSD
+	printf("%s", "RTKTHREAD_exit");
+#endif
+
+#ifdef PLATFORM_OS_CE
+	ExitThread(STATUS_SUCCESS);
+#endif
+
+#ifdef PLATFORM_OS_XP
+	PsTerminateSystemThread(STATUS_SUCCESS);
+#endif
+}
+
+inline void _rtw_init_completion(_completion *comp)
+{
+#ifdef PLATFORM_LINUX
+	init_completion(comp);
+#endif
+}
+inline void _rtw_wait_for_comp_timeout(_completion *comp)
+{
+#ifdef PLATFORM_LINUX
+	wait_for_completion_timeout(comp, msecs_to_jiffies(3000));
+#endif
+}
+inline void _rtw_wait_for_comp(_completion *comp)
+{
+#ifdef PLATFORM_LINUX
+	wait_for_completion(comp);
+#endif
+}
 
 void	_rtw_mutex_init(_mutex *pmutex)
 {
@@ -1384,7 +1448,7 @@ u32 rtw_end_of_queue_search(_list *head, _list *plist)
 }
 
 
-u32	rtw_get_current_time(void)
+systime _rtw_get_current_time(void)
 {
 
 #ifdef PLATFORM_LINUX
@@ -1398,27 +1462,27 @@ u32	rtw_get_current_time(void)
 #ifdef PLATFORM_WINDOWS
 	LARGE_INTEGER	SystemTime;
 	NdisGetCurrentSystemTime(&SystemTime);
-	return (u32)(SystemTime.LowPart);/* count of 100-nanosecond intervals */
+	return SystemTime.LowPart;/* count of 100-nanosecond intervals */
 #endif
 }
 
-inline u32 rtw_systime_to_ms(u32 systime)
+inline u32 _rtw_systime_to_ms(systime stime)
 {
 #ifdef PLATFORM_LINUX
-	return systime * 1000 / HZ;
+	return jiffies_to_msecs(stime);
 #endif
 #ifdef PLATFORM_FREEBSD
-	return systime * 1000;
+	return stime * 1000;
 #endif
 #ifdef PLATFORM_WINDOWS
-	return systime / 10000 ;
+	return stime / 10000 ;
 #endif
 }
 
-inline u32 rtw_ms_to_systime(u32 ms)
+inline systime _rtw_ms_to_systime(u32 ms)
 {
 #ifdef PLATFORM_LINUX
-	return ms * HZ / 1000;
+	return msecs_to_jiffies(ms);
 #endif
 #ifdef PLATFORM_FREEBSD
 	return ms / 1000;
@@ -1429,34 +1493,15 @@ inline u32 rtw_ms_to_systime(u32 ms)
 }
 
 /* the input parameter start use the same unit as returned by rtw_get_current_time */
-inline s32 rtw_get_passing_time_ms(u32 start)
+inline s32 _rtw_get_passing_time_ms(systime start)
 {
-#ifdef PLATFORM_LINUX
-	return rtw_systime_to_ms(jiffies - start);
-#endif
-#ifdef PLATFORM_FREEBSD
-	return rtw_systime_to_ms(rtw_get_current_time());
-#endif
-#ifdef PLATFORM_WINDOWS
-	LARGE_INTEGER	SystemTime;
-	NdisGetCurrentSystemTime(&SystemTime);
-	return rtw_systime_to_ms((u32)(SystemTime.LowPart) - start) ;
-#endif
+	return _rtw_systime_to_ms(_rtw_get_current_time() - start);
 }
 
-inline s32 rtw_get_time_interval_ms(u32 start, u32 end)
+inline s32 _rtw_get_time_interval_ms(systime start, systime end)
 {
-#ifdef PLATFORM_LINUX
-	return rtw_systime_to_ms(end - start);
-#endif
-#ifdef PLATFORM_FREEBSD
-	return rtw_systime_to_ms(rtw_get_current_time());
-#endif
-#ifdef PLATFORM_WINDOWS
-	return rtw_systime_to_ms(end - start);
-#endif
+	return _rtw_systime_to_ms(end - start);
 }
-
 
 void rtw_sleep_schedulable(int ms)
 {
@@ -2273,20 +2318,19 @@ RETURN:
 	return;
 }
 
-/*
-* Jeff: this function should be called under ioctl (rtnl_lock is accquired) while
-* LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 26)
-*/
 int rtw_change_ifname(_adapter *padapter, const char *ifname)
 {
+	struct dvobj_priv *dvobj;
 	struct net_device *pnetdev;
 	struct net_device *cur_pnetdev;
 	struct rereg_nd_name_data *rereg_priv;
 	int ret;
+	u8 rtnl_lock_needed;
 
 	if (!padapter)
 		goto error;
 
+	dvobj = adapter_to_dvobj(padapter);
 	cur_pnetdev = padapter->pnetdev;
 	rereg_priv = &padapter->rereg_nd_name_priv;
 
@@ -2296,11 +2340,11 @@ int rtw_change_ifname(_adapter *padapter, const char *ifname)
 		rereg_priv->old_pnetdev = NULL;
 	}
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 26))
-	if (!rtnl_is_locked())
+	rtnl_lock_needed = rtw_rtnl_lock_needed(dvobj);
+
+	if (rtnl_lock_needed)
 		unregister_netdev(cur_pnetdev);
 	else
-#endif
 		unregister_netdevice(cur_pnetdev);
 
 	rereg_priv->old_pnetdev = cur_pnetdev;
@@ -2317,11 +2361,9 @@ int rtw_change_ifname(_adapter *padapter, const char *ifname)
 
 	_rtw_memcpy(pnetdev->dev_addr, adapter_mac_addr(padapter), ETH_ALEN);
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 26))
-	if (!rtnl_is_locked())
+	if (rtnl_lock_needed)
 		ret = register_netdev(pnetdev);
 	else
-#endif
 		ret = register_netdevice(pnetdev);
 
 	if (ret != 0) {
@@ -2701,6 +2743,15 @@ inline BOOLEAN is_null(char c)
 		return _TRUE;
 	else
 		return _FALSE;
+}
+
+inline BOOLEAN is_all_null(char *c, int len)
+{
+	for (; len > 0; len--)
+		if (c[len - 1] != '\0')
+			return _FALSE;
+
+	return _TRUE;
 }
 
 /**

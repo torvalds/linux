@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
+ * Copyright(c) 2012 - 2017 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -11,12 +11,7 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
- ******************************************************************************/
+ *****************************************************************************/
 #ifndef __INC_HAL8192EPHYCFG_H__
 #define __INC_HAL8192EPHYCFG_H__
 
@@ -64,11 +59,11 @@ void	PHY_SetBBReg8192E(IN	PADAPTER		Adapter,
 			  IN	u32			BitMask,
 			  IN	u32			Data);
 u32	PHY_QueryRFReg8192E(IN	PADAPTER	Adapter,
-			    IN	u8			eRFPath,
+			    IN	enum rf_path	eRFPath,
 			    IN	u32			RegAddr,
 			    IN	u32			BitMask);
 void	PHY_SetRFReg8192E(IN	PADAPTER		Adapter,
-			  IN	u8			eRFPath,
+			  IN	enum rf_path	eRFPath,
 			  IN	u32			RegAddr,
 			  IN	u32			BitMask,
 			  IN	u32			Data);
@@ -95,14 +90,14 @@ VOID
 PHY_SetTxPowerIndex_8192E(
 	IN	PADAPTER			Adapter,
 	IN	u32					PowerIndex,
-	IN	u8					RFPath,
+	IN	enum rf_path			RFPath,
 	IN	u8					Rate
 );
 
 u8
 PHY_GetTxPowerIndex_8192E(
 	IN	PADAPTER			pAdapter,
-	IN	u8					RFPath,
+	IN	enum rf_path			RFPath,
 	IN	u8					Rate,
 	IN	u8					BandWidth,
 	IN	u8					Channel,
@@ -116,7 +111,7 @@ VOID
 PHY_SetSwChnlBWMode8192E(
 	IN	PADAPTER			Adapter,
 	IN	u8					channel,
-	IN	CHANNEL_WIDTH	Bandwidth,
+	IN	enum channel_width	Bandwidth,
 	IN	u8					Offset40,
 	IN	u8					Offset80
 );
@@ -129,7 +124,7 @@ PHY_SetRFEReg_8192E(
 void
 phy_SpurCalibration_8192E(
 	IN	PADAPTER			Adapter,
-	IN	SPUR_CAL_METHOD	Method
+	IN	enum spur_cal_method	method
 );
 void PHY_SpurCalibration_8192E(IN PADAPTER Adapter);
 
@@ -144,9 +139,9 @@ phy_SpurCalibration_8192E_NBI(
  *   */
 
 VOID
-PHY_SetRFPathSwitch_8192E(
+phy_set_rf_path_switch_8192e(
 	IN	PADAPTER	pAdapter,
-	IN	BOOLEAN		bMain
+	IN	bool		bMain
 );
 
 /*--------------------------Exported Function prototype---------------------*/

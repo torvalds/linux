@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2017 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -11,72 +11,13 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
- ******************************************************************************/
+ *****************************************************************************/
 #define _HAL_SDIO_C_
 
 #include <drv_types.h>
 #include <hal_data.h>
 
 #ifndef RTW_HALMAC
-static void dump_sdio_f0(PADAPTER padapter)
-{
-	char str_out[128];
-	char str_val[8];
-	char *p = NULL;
-	int index = 0, i = 0;
-	u8 val8 = 0, len = 0;
-
-	RTW_ERR("Dump SDIO function_0 register:\n");
-	for (index = 0 ; index < 0x100 ; index += 16) {
-		p = &str_out[0];
-		len = snprintf(str_val, sizeof(str_val),
-			       "0x%02x: ", index);
-		strncpy(str_out, str_val, len);
-		p += len;
-
-		for (i = 0 ; i < 16 ; i++) {
-			len = snprintf(str_val, sizeof(str_val), "%02x ",
-				       rtw_sd_f0_read8(padapter, index + i));
-			strncpy(p, str_val, len);
-			p += len;
-		}
-		RTW_INFO("%s\n", str_out);
-		_rtw_memset(&str_out, '\0', sizeof(str_out));
-	}
-}
-
-static void dump_sdio_local(PADAPTER padapter)
-{
-	char str_out[128];
-	char str_val[8];
-	char *p = NULL;
-	int index = 0, i = 0;
-	u8 val8 = 0, len = 0;
-
-	RTW_ERR("Dump SDIO local register:\n");
-	for (index = 0 ; index < 0x100 ; index += 16) {
-		p = &str_out[0];
-		len = snprintf(str_val, sizeof(str_val),
-			       "0x%02x: ", index);
-		strncpy(str_out, str_val, len);
-		p += len;
-
-		for (i = 0 ; i < 16 ; i++) {
-			len = snprintf(str_val, sizeof(str_val), "%02x ",
-				       rtw_read8(padapter, (0x1025 << 16) | (index + i)));
-			strncpy(p, str_val, len);
-			p += len;
-		}
-		RTW_INFO("%s\n", str_out);
-		_rtw_memset(&str_out, '\0', sizeof(str_out));
-	}
-}
-
 static void dump_mac_page0(PADAPTER padapter)
 {
 	char str_out[128];
@@ -127,7 +68,7 @@ bool sdio_power_on_check(PADAPTER padapter) {
 	if (val_offset0 == 0xEA || val_offset1 == 0xEA ||
 	    val_offset2 == 0xEA || val_offset3 == 0xEA) {
 		RTW_INFO("%s: power on fail, do Power on again\n", __func__);
-		goto _exit;
+		return ret;
 	}
 
 	val_mix = val_offset3 << 24 | val_mix;
@@ -170,12 +111,8 @@ bool sdio_power_on_check(PADAPTER padapter) {
 	} else
 		RTW_INFO("%s: fail at cmd52, cmd53.\n", __func__);
 
-_exit:
-	if (ret == _FAIL) {
-		dump_sdio_f0(padapter);
-		dump_sdio_local(padapter);
+	if (ret == _FAIL)
 		dump_mac_page0(padapter);
-	}
 
 	return ret;
 }

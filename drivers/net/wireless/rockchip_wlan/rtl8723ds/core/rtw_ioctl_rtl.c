@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2017 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -11,12 +11,7 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
- ******************************************************************************/
+ *****************************************************************************/
 #define  _RTW_IOCTL_RTL_C_
 
 #include <drv_types.h>
@@ -432,13 +427,14 @@ NDIS_STATUS oid_rt_get_channelplan_hdl(struct oid_par_priv *poid_par_priv)
 {
 	NDIS_STATUS		status = NDIS_STATUS_SUCCESS;
 	PADAPTER		padapter = (PADAPTER)(poid_par_priv->adapter_context);
+	struct rf_ctl_t *rfctl = adapter_to_rfctl(padapter);
 
 	if (poid_par_priv->type_of_oid != QUERY_OID) {
 		status = NDIS_STATUS_NOT_ACCEPTED;
 		return status;
 	}
 	*poid_par_priv->bytes_rw = poid_par_priv->information_buf_len;
-	*(u16 *)poid_par_priv->information_buf = padapter->mlmepriv.ChannelPlan ;
+	*(u16 *)poid_par_priv->information_buf = rfctl->ChannelPlan;
 
 	return status;
 }
@@ -446,13 +442,14 @@ NDIS_STATUS oid_rt_set_channelplan_hdl(struct oid_par_priv *poid_par_priv)
 {
 	NDIS_STATUS		status = NDIS_STATUS_SUCCESS;
 	PADAPTER		padapter = (PADAPTER)(poid_par_priv->adapter_context);
+	struct rf_ctl_t *rfctl = adapter_to_rfctl(padapter);
 
 	if (poid_par_priv->type_of_oid != SET_OID) {
 		status = NDIS_STATUS_NOT_ACCEPTED;
 		return status;
 	}
 
-	padapter->mlmepriv.ChannelPlan  = *(u16 *)poid_par_priv->information_buf ;
+	rfctl->ChannelPlan  = *(u16 *)poid_par_priv->information_buf;
 
 	return status;
 }

@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2013 Realtek Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2017 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -11,12 +11,7 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
- ******************************************************************************/
+ *****************************************************************************/
 #ifndef __OSDEP_LINUX_SERVICE_H_
 #define __OSDEP_LINUX_SERVICE_H_
 
@@ -33,6 +28,7 @@
 #endif
 /* #include <linux/smp_lock.h> */
 #include <linux/netdevice.h>
+#include <linux/inetdevice.h>
 #include <linux/skbuff.h>
 #include <linux/circ_buf.h>
 #include <asm/uaccess.h>
@@ -49,6 +45,7 @@
 #include <linux/etherdevice.h>
 #include <linux/wireless.h>
 #include <net/iw_handler.h>
+#include <net/addrconf.h>
 #include <linux/if_arp.h>
 #include <linux/rtnetlink.h>
 #include <linux/delay.h>
@@ -84,6 +81,11 @@
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 24))
 	#include <linux/ieee80211.h>
+#endif
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 25) && \
+	 LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 29))
+	#define CONFIG_IEEE80211_HT_ADDT_INFO
 #endif
 
 #ifdef CONFIG_IOCTL_CFG80211
@@ -134,12 +136,22 @@
 
 	#error "Enable NAPI before enable GRO\n"
 
-#elif (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,29) && defined(CONFIG_RTW_NAPI))
+#endif
 
-	#error "Linux Kernel version too old (should newer than 2.6.29)\n"
+
+#if (KERNEL_VERSION(2, 6, 29) > LINUX_VERSION_CODE && defined(CONFIG_RTW_NAPI))
+
+	#undef CONFIG_RTW_NAPI
+	/*#warning "Linux Kernel version too old to support NAPI (should newer than 2.6.29)\n"*/
 
 #endif
 
+#if (KERNEL_VERSION(2, 6, 33) > LINUX_VERSION_CODE && defined(CONFIG_RTW_GRO))
+
+	#undef CONFIG_RTW_GRO
+	/*#warning "Linux Kernel version too old to support GRO(should newer than 2.6.33)\n"*/
+
+#endif
 
 typedef struct	semaphore _sema;
 typedef	spinlock_t	_lock;
@@ -149,6 +161,7 @@ typedef	spinlock_t	_lock;
 	typedef struct semaphore	_mutex;
 #endif
 typedef struct timer_list _timer;
+typedef struct completion _completion;
 
 struct	__queue	{
 	struct	list_head	queue;
@@ -169,8 +182,6 @@ typedef void		*_thread_hdl_;
 typedef int		thread_return;
 typedef void	*thread_context;
 
-#define thread_exit() complete_and_exit(NULL, 0)
-
 typedef void timer_hdl_return;
 typedef void *timer_hdl_context;
 
@@ -183,6 +194,8 @@ typedef void *timer_hdl_context;
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 24))
 	#define DMA_BIT_MASK(n) (((n) == 64) ? ~0ULL : ((1ULL<<(n))-1))
 #endif
+
+typedef unsigned long systime;
 
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 22))
 /* Porting from linux kernel, for compatible with old kernel. */
@@ -279,8 +292,6 @@ __inline static void rtw_list_delete(_list *plist)
 	list_del_init(plist);
 }
 
-#define RTW_TIMER_HDL_ARGS void *FunctionContext
-
 __inline static void _init_timer(_timer *ptimer, _nic_hdl nic_hdl, void *pfunc, void *cntx)
 {
 	/* setup_timer(ptimer, pfunc,(u32)cntx);	 */
@@ -296,10 +307,8 @@ __inline static void _set_timer(_timer *ptimer, u32 delay_time)
 
 __inline static void _cancel_timer(_timer *ptimer, u8 *bcancelled)
 {
-	del_timer_sync(ptimer);
-	*bcancelled = 1;
+	*bcancelled = del_timer_sync(ptimer) == 1 ? 1 : 0;
 }
-
 
 static inline void _init_workitem(_workitem *pwork, void *pfunc, void *cntx)
 {
@@ -386,11 +395,23 @@ static inline void rtw_netif_stop_queue(struct net_device *pnetdev)
 	netif_stop_queue(pnetdev);
 #endif
 }
-static inline void rtw_netif_carrier_on(struct net_device *pnetdev)
+static inline void rtw_netif_device_attach(struct net_device *pnetdev)
 {
 	netif_device_attach(pnetdev);
+}
+static inline void rtw_netif_device_detach(struct net_device *pnetdev)
+{
+	netif_device_detach(pnetdev);
+}
+static inline void rtw_netif_carrier_on(struct net_device *pnetdev)
+{
 	netif_carrier_on(pnetdev);
 }
+static inline void rtw_netif_carrier_off(struct net_device *pnetdev)
+{
+	netif_carrier_off(pnetdev);
+}
+
 static inline int rtw_merge_string(char *dst, int dst_len, const char *src1, const char *src2)
 {
 	int	len = 0;

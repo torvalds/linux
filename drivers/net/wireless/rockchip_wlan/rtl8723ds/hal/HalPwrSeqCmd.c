@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2017 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -11,12 +11,7 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
- ******************************************************************************/
+ *****************************************************************************/
 /*++
 Copyright (c) Realtek Semiconductor Corp. All rights reserved.
 
@@ -54,9 +49,11 @@ u8 HalPwrSeqCmdParsing(
 {
 	WLAN_PWR_CFG	PwrCfgCmd = {0};
 	u8				bPollingBit = _FALSE;
+	u8				bHWICSupport = _FALSE;
 	u32				AryIdx = 0;
 	u8				value = 0;
 	u32				offset = 0;
+	u8				flag = 0;
 	u32				pollingCount = 0; /* polling autoload done. */
 	u32				maxPollingCnt = 5000;
 
@@ -111,6 +108,14 @@ u8 HalPwrSeqCmdParsing(
 
 				bPollingBit = _FALSE;
 				offset = GET_PWR_CFG_OFFSET(PwrCfgCmd);
+
+				rtw_hal_get_hwreg(padapter, HW_VAR_PWR_CMD, &bHWICSupport);
+				if (bHWICSupport && offset == 0x06) {
+					flag = 0;
+					maxPollingCnt = 100000;
+				} else
+					maxPollingCnt = 5000;
+
 #ifdef CONFIG_GSPI_HCI
 				if (GET_PWR_CFG_BASE(PwrCfgCmd) == PWR_BASEADDR_SDIO)
 					offset = SPI_LOCAL_OFFSET | offset;
@@ -131,7 +136,26 @@ u8 HalPwrSeqCmdParsing(
 
 					if (pollingCount++ > maxPollingCnt) {
 						RTW_ERR("HalPwrSeqCmdParsing: Fail to polling Offset[%#x]=%02x\n", offset, value);
-						return _FALSE;
+
+						/* For PCIE + USB package poll power bit timeout issue only modify 8821AE and 8723BE */
+						if (bHWICSupport && offset == 0x06  && flag == 0) {
+
+							RTW_ERR("[WARNING] PCIE polling(0x%X) timeout(%d), Toggle 0x04[3] and try again.\n", offset, maxPollingCnt);
+							if (IS_HARDWARE_TYPE_8723DE(padapter))
+								PlatformEFIOWrite1Byte(padapter, 0x40, (PlatformEFIORead1Byte(padapter, 0x40)) & (~BIT3));
+
+							PlatformEFIOWrite1Byte(padapter, 0x04, PlatformEFIORead1Byte(padapter, 0x04) | BIT3);
+							PlatformEFIOWrite1Byte(padapter, 0x04, PlatformEFIORead1Byte(padapter, 0x04) & ~BIT3);
+
+							if (IS_HARDWARE_TYPE_8723DE(padapter))
+								PlatformEFIOWrite1Byte(padapter, 0x40, PlatformEFIORead1Byte(padapter, 0x40)|BIT3);
+
+							/* Retry Polling Process one more time */
+							pollingCount = 0;
+							flag = 1;
+						} else {
+							return _FALSE;
+						}
 					}
 				} while (!bPollingBit);
 

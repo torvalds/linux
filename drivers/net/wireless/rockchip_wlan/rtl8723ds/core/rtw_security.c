@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2017 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -11,12 +11,7 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
- ******************************************************************************/
+ *****************************************************************************/
 #define  _RTW_SECURITY_C_
 
 #include <drv_types.h>
@@ -826,7 +821,7 @@ u32 rtw_tkip_decrypt(_adapter *padapter, u8 *precvframe)
 		if (stainfo != NULL) {
 
 			if (IS_MCAST(prxattrib->ra)) {
-				static u32 start = 0;
+				static systime start = 0;
 				static u32 no_gkey_bc_cnt = 0;
 				static u32 no_gkey_mc_cnt = 0;
 
@@ -1376,7 +1371,7 @@ static sint aes_cipher(u8 *key, uint	hdrlen,
 	u8 mic[8];
 	/*	uint	offset = 0; */
 	uint	frtype  = GetFrameType(pframe);
-	uint	frsubtype  = GetFrameSubType(pframe);
+	uint	frsubtype  = get_frame_sub_type(pframe);
 
 	frsubtype = frsubtype >> 4;
 
@@ -1685,7 +1680,7 @@ static sint aes_decipher(u8 *key, uint	hdrlen,
 
 	/*	uint	offset = 0; */
 	uint	frtype  = GetFrameType(pframe);
-	uint	frsubtype  = GetFrameSubType(pframe);
+	uint	frsubtype  = get_frame_sub_type(pframe);
 	frsubtype = frsubtype >> 4;
 
 
@@ -1953,7 +1948,7 @@ u32	rtw_aes_decrypt(_adapter *padapter, u8 *precvframe)
 		if (stainfo != NULL) {
 
 			if (IS_MCAST(prxattrib->ra)) {
-				static u32 start = 0;
+				static systime start = 0;
 				static u32 no_gkey_bc_cnt = 0;
 				static u32 no_gkey_mc_cnt = 0;
 
@@ -1993,7 +1988,7 @@ u32	rtw_aes_decrypt(_adapter *padapter, u8 *precvframe)
 
 				prwskey = psecuritypriv->dot118021XGrpKey[prxattrib->key_index].skey;
 				if (psecuritypriv->dot118021XGrpKeyid != prxattrib->key_index) {
-					RTW_INFO("not match packet_index=%d, install_index=%d\n"
+					RTW_DBG("not match packet_index=%d, install_index=%d\n"
 						, prxattrib->key_index, psecuritypriv->dot118021XGrpKeyid);
 					res = _FAIL;
 					goto exit;
@@ -2210,7 +2205,7 @@ static int sha256_process(struct sha256_state *md, unsigned char *in,
 	unsigned long n;
 #define block_size 64
 
-	if (md->curlen > sizeof(md->buf))
+	if (md->curlen >= sizeof(md->buf))
 		return -1;
 
 	while (inlen > 0) {
@@ -2888,11 +2883,11 @@ void wpa_tdls_generate_tpk(_adapter *padapter, PVOID sta)
 	 * added by the KDF anyway..
 	 */
 
-	if (os_memcmp(adapter_mac_addr(padapter), psta->hwaddr, ETH_ALEN) < 0) {
+	if (os_memcmp(adapter_mac_addr(padapter), psta->cmn.mac_addr, ETH_ALEN) < 0) {
 		_rtw_memcpy(data, adapter_mac_addr(padapter), ETH_ALEN);
-		_rtw_memcpy(data + ETH_ALEN, psta->hwaddr, ETH_ALEN);
+		_rtw_memcpy(data + ETH_ALEN, psta->cmn.mac_addr, ETH_ALEN);
 	} else {
-		_rtw_memcpy(data, psta->hwaddr, ETH_ALEN);
+		_rtw_memcpy(data, psta->cmn.mac_addr, ETH_ALEN);
 		_rtw_memcpy(data + ETH_ALEN, adapter_mac_addr(padapter), ETH_ALEN);
 	}
 	_rtw_memcpy(data + 2 * ETH_ALEN, get_bssid(pmlmepriv), ETH_ALEN);
@@ -3070,25 +3065,6 @@ int tdls_verify_mic(u8 *kck, u8 trans_seq,
 
 }
 #endif /* CONFIG_TDLS */
-
-void rtw_use_tkipkey_handler(RTW_TIMER_HDL_ARGS)
-{
-	_adapter *padapter = (_adapter *)FunctionContext;
-
-
-
-	/*
-		if (RTW_CANNOT_RUN(padapter)) {
-
-			return;
-		}
-		*/
-
-	padapter->securitypriv.busetkipkey = _TRUE;
-
-
-
-}
 
 /* Restore HW wep key setting according to key_mask */
 void rtw_sec_restore_wep_key(_adapter *adapter)

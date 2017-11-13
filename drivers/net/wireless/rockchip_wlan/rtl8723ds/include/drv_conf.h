@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2017 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -11,12 +11,7 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
- ******************************************************************************/
+ *****************************************************************************/
 #ifndef __DRV_CONF_H__
 #define __DRV_CONF_H__
 #include "autoconf.h"
@@ -26,6 +21,26 @@
 
 	#error "Shall be Linux or Windows, but not both!\n"
 
+#endif
+
+#ifdef CONFIG_RTW_REPEATER_SON
+	#ifndef CONFIG_AP
+		#define CONFIG_AP
+	#endif
+	#ifndef CONFIG_CONCURRENT_MODE
+		#define CONFIG_CONCURRENT_MODE
+	#endif
+	#ifndef CONFIG_BR_EXT
+		#define CONFIG_BR_EXT
+	#endif
+	#ifndef CONFIG_RTW_REPEATER_SON_ID
+		#define CONFIG_RTW_REPEATER_SON_ID			0x02040608
+	#endif
+	//#define CONFIG_RTW_REPEATER_SON_ROOT
+	#ifndef CONFIG_RTW_REPEATER_SON_ROOT
+		#define CONFIG_LAYER2_ROAMING_ACTIVE
+	#endif
+	#undef CONFIG_POWER_SAVING
 #endif
 
 #if defined(CONFIG_MCC_MODE) && (!defined(CONFIG_CONCURRENT_MODE))
@@ -105,16 +120,16 @@
 	#undef CONFIG_DFS_MASTER
 #endif
 
+#if !defined(CONFIG_SCAN_BACKOP) && defined(CONFIG_AP_MODE)
+#define CONFIG_SCAN_BACKOP
+#endif
+
 #define RTW_SCAN_SPARSE_MIRACAST 1
 #define RTW_SCAN_SPARSE_BG 0
 #define RTW_SCAN_SPARSE_ROAMING_ACTIVE 1
 
 #ifndef CONFIG_RTW_HIQ_FILTER
 	#define CONFIG_RTW_HIQ_FILTER 1
-#endif
-
-#ifndef CONFIG_RTW_FORCE_IGI_LB
-	#define CONFIG_RTW_FORCE_IGI_LB 0
 #endif
 
 #ifndef CONFIG_RTW_ADAPTIVITY_EN
@@ -156,6 +171,10 @@
 #define CONFIG_TXPWR_LIMIT_EN 2 /* by efuse */
 #endif
 
+#ifndef CONFIG_RTW_CHPLAN
+#define CONFIG_RTW_CHPLAN 0xFF /* RTW_CHPLAN_UNSPECIFIED */
+#endif
+
 /* compatible with old fashion configuration */
 #if defined(CONFIG_CALIBRATE_TX_POWER_BY_REGULATORY)
 	#undef CONFIG_TXPWR_BY_RATE_EN
@@ -179,6 +198,32 @@
 	#undef CONFIG_TXPWR_LIMIT_EN
 	#define CONFIG_TXPWR_BY_RATE_EN 1
 	#define CONFIG_TXPWR_LIMIT_EN 1
+#endif
+
+#if !defined(CONFIG_TXPWR_LIMIT) && CONFIG_TXPWR_LIMIT_EN
+	#define CONFIG_TXPWR_LIMIT
+#endif
+
+#ifdef CONFIG_RTW_IPCAM_APPLICATION
+	#undef CONFIG_TXPWR_BY_RATE_EN
+	#define CONFIG_TXPWR_BY_RATE_EN 1
+	#define CONFIG_RTW_CUSTOMIZE_BEEDCA		0x0000431C
+	#define CONFIG_RTW_CUSTOMIZE_BWMODE		0x00
+	#define CONFIG_RTW_CUSTOMIZE_RLSTA		0x7
+#endif
+
+
+#ifndef CONFIG_RTW_RX_AMPDU_SZ_LIMIT_1SS
+	#define CONFIG_RTW_RX_AMPDU_SZ_LIMIT_1SS {0xFF, 0xFF, 0xFF, 0xFF}
+#endif
+#ifndef CONFIG_RTW_RX_AMPDU_SZ_LIMIT_2SS
+	#define CONFIG_RTW_RX_AMPDU_SZ_LIMIT_2SS {0xFF, 0xFF, 0xFF, 0xFF}
+#endif
+#ifndef CONFIG_RTW_RX_AMPDU_SZ_LIMIT_3SS
+	#define CONFIG_RTW_RX_AMPDU_SZ_LIMIT_3SS {0xFF, 0xFF, 0xFF, 0xFF}
+#endif
+#ifndef CONFIG_RTW_RX_AMPDU_SZ_LIMIT_4SS
+	#define CONFIG_RTW_RX_AMPDU_SZ_LIMIT_4SS {0xFF, 0xFF, 0xFF, 0xFF}
 #endif
 
 #ifndef CONFIG_RTW_TARGET_TX_PWR_2G_A
@@ -282,15 +327,8 @@
 	#define CONFIG_IEEE80211_BAND_5GHZ
 #endif
 
-#ifndef RTW_DEF_MODULE_REGULATORY_CERT
-	#define RTW_DEF_MODULE_REGULATORY_CERT 0
-#endif
-
-#if RTW_DEF_MODULE_REGULATORY_CERT
-	/* force enable TX power by rate and TX power limit */
-	#ifndef CONFIG_CALIBRATE_TX_POWER_BY_REGULATORY
-		#define CONFIG_CALIBRATE_TX_POWER_BY_REGULATORY
-	#endif
+#if defined(CONFIG_WOWLAN) && (defined(CONFIG_RTL8822B) || defined(CONFIG_RTL8821C))
+	#define CONFIG_WOW_PATTERN_HW_CAM
 #endif
 
 /*
@@ -307,9 +345,7 @@
 /*#define CONFIG_DOSCAN_IN_BUSYTRAFFIC	*/
 
 /*Don't release SDIO irq in suspend/resume procedure*/
-#ifdef CONFIG_SDIO_HCI
-#define CONFIG_RTW_SDIO_KEEP_IRQ
-#endif
+#define CONFIG_RTW_SDIO_KEEP_IRQ	0
 
 /*
  * Add by Lucas@2016/02/15
@@ -319,4 +355,33 @@
 	#define RTW_RX_AGGREGATION
 #endif /* CONFIG_SDIO_HCI || CONFIG_USB_RX_AGGREGATION */
 
+#ifdef CONFIG_RTW_HOSTAPD_ACS
+	#if defined(CONFIG_RTL8812A) || defined(CONFIG_RTL8821A) || defined(CONFIG_RTL8814A)
+		#ifndef CONFIG_FIND_BEST_CHANNEL
+			#define CONFIG_FIND_BEST_CHANNEL
+		#endif
+	#else
+		#ifdef CONFIG_FIND_BEST_CHANNEL
+			#undef CONFIG_FIND_BEST_CHANNEL
+		#endif
+		#ifndef CONFIG_RTW_ACS
+			#define CONFIG_RTW_ACS
+		#endif
+		#ifndef CONFIG_BACKGROUND_NOISE_MONITOR
+			#define CONFIG_BACKGROUND_NOISE_MONITOR
+		#endif
+	#endif
+#endif
+
+#ifdef CONFIG_RTW_80211K
+	#ifndef CONFIG_RTW_ACS
+		#define CONFIG_RTW_ACS
+	#endif
+#endif /*CONFIG_RTW_80211K*/
+
+#ifdef DBG_CONFIG_ERROR_RESET
+#ifndef CONFIG_IPS
+#define CONFIG_IPS
+#endif
+#endif
 #endif /* __DRV_CONF_H__ */

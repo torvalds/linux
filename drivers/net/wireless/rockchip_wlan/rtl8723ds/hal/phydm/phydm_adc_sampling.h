@@ -1,91 +1,162 @@
+/******************************************************************************
+ *
+ * Copyright(c) 2007 - 2017 Realtek Corporation.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of version 2 of the GNU General Public License as
+ * published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
+ * more details.
+ *
+ *****************************************************************************/
+
 #ifndef __INC_ADCSMP_H
 #define __INC_ADCSMP_H
 
-typedef struct _RT_ADCSMP_STRING {
-	pu4Byte		Octet;
-	u4Byte		Length;
-	u4Byte		buffer_size;
-	u4Byte		start_pos;
-} RT_ADCSMP_STRING, *PRT_ADCSMP_STRING;
+#define DYNAMIC_LA_MODE	"2.0"  /*2017.02.06  Dino */
+
+#if (PHYDM_LA_MODE_SUPPORT == 1)
+
+struct _RT_ADCSMP_STRING {
+	u32		*octet;
+	u32		length;
+	u32		buffer_size;
+	u32		start_pos;
+};
 
 
-typedef enum _RT_ADCSMP_TRIG_SEL {
-	ADCSMP_BB_TRIG, 
-	ADCSMP_MAC_TRIG, 
-} RT_ADCSMP_TRIG_SEL, *PRT_ADCSMP_TRIG_SEL;
+enum rt_adcsmp_trig_sel {
+	PHYDM_ADC_BB_TRIG	= 0,
+	PHYDM_ADC_MAC_TRIG	= 1,
+	PHYDM_ADC_RF0_TRIG	= 2,
+	PHYDM_ADC_RF1_TRIG	= 3,
+	PHYDM_MAC_TRIG		= 4
+};
 
 
-typedef enum _RT_ADCSMP_TRIG_SIG_SEL {
-	ADCSMP_TRIG_CRCOK, 
-	ADCSMP_TRIG_CRCFAIL, 
-	ADCSMP_TRIG_CCA,
-	ADCSMP_TRIG_REG,
-} RT_ADCSMP_TRIG_SIG_SEL, *PRT_ADCSMP_TRIG_SIG_SEL;
+enum rt_adcsmp_trig_sig_sel {
+	ADCSMP_TRIG_CRCOK	= 0,
+	ADCSMP_TRIG_CRCFAIL	= 1,
+	ADCSMP_TRIG_CCA		= 2,
+	ADCSMP_TRIG_REG		= 3
+};
 
 
-typedef enum _RT_ADCSMP_STATE {
-	ADCSMP_STATE_IDLE, 
-	ADCSMP_STATE_SET, 
-	ADCSMP_STATE_QUERY,
-} RT_ADCSMP_STATE, *PRT_ADCSMP_STATE;
+enum rt_adcsmp_state {
+	ADCSMP_STATE_IDLE		= 0,
+	ADCSMP_STATE_SET		= 1,
+	ADCSMP_STATE_QUERY	=	2
+};
 
 
-typedef struct _RT_ADCSMP {
-	RT_ADCSMP_STRING		ADCSmpBuf;
-	RT_ADCSMP_STATE			ADCSmpState;
-	RT_ADCSMP_TRIG_SEL		ADCSmpTrigSel;
-	RT_ADCSMP_TRIG_SIG_SEL	ADCSmpTrigSigSel;
-	u1Byte					ADCSmpDmaDataSigSel;
-	u1Byte					ADCSmpTriggerTime;
-	u2Byte					ADCSmpPollingTime;
+struct _RT_ADCSMP {
+	struct _RT_ADCSMP_STRING		adc_smp_buf;
+	enum rt_adcsmp_state		adc_smp_state;
+	u8					la_trig_mode;
+	u32					la_trig_sig_sel;
+	u8					la_dma_type;
+	u32					la_trigger_time;
+	u32					la_mac_mask_or_hdr_sel; /*1.BB mode: for debug port header sel; 2.MAC mode: for reference mask*/
+	u32					la_dbg_port;
+	u8					la_trigger_edge;
+	u8					la_smp_rate;
+	u32					la_count;
+	u8					is_bb_trigger;
+	u8					la_work_item_index;
 
-	#if (DM_ODM_SUPPORT_TYPE == ODM_WIN)	
-	RT_WORK_ITEM	ADCSmpWorkItem;
-	#endif	
-} RT_ADCSMP, *PRT_ADCSMP;
+#if (DM_ODM_SUPPORT_TYPE == ODM_WIN)
+	RT_WORK_ITEM	adc_smp_work_item;
+	RT_WORK_ITEM	adc_smp_work_item_1;
+#endif
+};
 
 #if (DM_ODM_SUPPORT_TYPE & ODM_WIN)
-VOID
-ADCSmpWorkItemCallback(
-	IN	PVOID	pContext
+void
+adc_smp_work_item_callback(
+	void	*p_context
 );
 #endif
 
-VOID
-ADCSmp_Set(
-	IN	PVOID					pDM_VOID,
-	IN	RT_ADCSMP_TRIG_SEL		TrigSel,
-	IN	RT_ADCSMP_TRIG_SIG_SEL	TrigSigSel,
-	IN	u1Byte					DmaDataSigSel,
-	IN	u1Byte					TriggerTime,
-	IN	u2Byte					PollingTime
-);
-
-#if (DM_ODM_SUPPORT_TYPE & ODM_WIN)
-RT_STATUS
-ADCSmp_Query(
-	IN	PVOID	pDM_VOID,
-	IN	ULONG	InformationBufferLength, 
-	OUT	PVOID	InformationBuffer, 
-	OUT	PULONG	BytesWritten
-);
-#endif
-VOID
-ADCSmp_Stop(
-	IN	PVOID	pDM_VOID
-);
-
-VOID
-ADCSmp_Init(
-	IN	PVOID	pDM_VOID
+void
+adc_smp_set(
+	void	*p_dm_void,
+	u8	trig_mode,
+	u32	trig_sig_sel,
+	u8	dma_data_sig_sel,
+	u32	trigger_time,
+	u16	polling_time
 );
 
 #if (DM_ODM_SUPPORT_TYPE & ODM_WIN)
-VOID
-ADCSmp_DeInit(
-	IN		PVOID			pDM_VOID
+enum rt_status
+adc_smp_query(
+	void	*p_dm_void,
+	ULONG	information_buffer_length,
+	void	*information_buffer,
+	PULONG	bytes_written
+);
+#elif (DM_ODM_SUPPORT_TYPE & ODM_CE)
+void
+adc_smp_query(
+	void		*p_dm_void,
+	void		*output,
+	u32		out_len,
+	u32		*pused
+);
+
+s32
+adc_smp_get_sample_counts(
+	void		*p_dm_void
+);
+
+s32
+adc_smp_query_single_data(
+	void		*p_dm_void,
+	void		*output,
+	u32		out_len,
+	u32		index
 );
 
 #endif
+void
+adc_smp_stop(
+	void	*p_dm_void
+);
+
+void
+adc_smp_init(
+	void	*p_dm_void
+);
+
+#if (DM_ODM_SUPPORT_TYPE & (ODM_WIN | ODM_CE))
+void
+adc_smp_de_init(
+	void			*p_dm_void
+);
 #endif
 
+void
+phydm_la_mode_bb_setting(
+	void		*p_dm_void
+);
+
+void
+phydm_la_mode_set_trigger_time(
+	void		*p_dm_void,
+	u32		trigger_time_mu_sec
+);
+
+void
+phydm_lamode_trigger_setting(
+	void		*p_dm_void,
+	char			input[][16],
+	u32		*_used,
+	char			*output,
+	u32		*_out_len,
+	u32		input_num
+);
+#endif
+#endif

@@ -1,3 +1,17 @@
+/******************************************************************************
+ *
+ * Copyright(c) 2016 - 2017 Realtek Corporation.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of version 2 of the GNU General Public License as
+ * published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
+ * more details.
+ *
+ *****************************************************************************/
 #ifdef CONFIG_WAPI_SUPPORT
 
 #include <linux/unistd.h>
@@ -368,7 +382,7 @@ u8 rtw_wapi_is_wai_packet(_adapter *padapter, u8 *pkt_data)
 		return 0;
 	}
 
-	pTaddr = GetAddr2Ptr(pkt_data);
+	pTaddr = get_addr2_ptr(pkt_data);
 	if (list_empty(&pWapiInfo->wapiSTAUsedList))
 		bFind = false;
 	else {
@@ -423,7 +437,7 @@ void rtw_wapi_update_info(_adapter *padapter, union recv_frame *precv_frame)
 	else
 		precv_hdr->UserPriority = 0;
 
-	pTA = GetAddr2Ptr(ptr);
+	pTA = get_addr2_ptr(ptr);
 	_rtw_memcpy((u8 *)precv_hdr->WapiSrcAddr, pTA, 6);
 	pRecvPN = ptr + precv_hdr->attrib.hdrlen + 2;
 	_rtw_memcpy((u8 *)precv_hdr->WapiTempPN, pRecvPN, 16);
@@ -438,7 +452,8 @@ add to support WAPI to N-mode
 *****************************************************************************/
 u8 rtw_wapi_check_for_drop(
 	_adapter *padapter,
-	union recv_frame *precv_frame
+	union recv_frame *precv_frame,
+	u8 *ehdr_ops
 )
 {
 	PRT_WAPI_T     pWapiInfo = &(padapter->wapiInfo);
@@ -449,7 +464,7 @@ u8 rtw_wapi_check_for_drop(
 	struct recv_frame_hdr *precv_hdr = &precv_frame->u.hdr;
 	u8					WapiAEPNInitialValueSrc[16] = {0x37, 0x5C, 0x36, 0x5C, 0x36, 0x5C, 0x36, 0x5C, 0x36, 0x5C, 0x36, 0x5C, 0x36, 0x5C, 0x36, 0x5C} ;
 	u8					WapiAEMultiCastPNInitialValueSrc[16] = {0x36, 0x5C, 0x36, 0x5C, 0x36, 0x5C, 0x36, 0x5C, 0x36, 0x5C, 0x36, 0x5C, 0x36, 0x5C, 0x36, 0x5C} ;
-	u8					*ptr = precv_frame->u.hdr.rx_data;
+	u8					*ptr = ehdr_ops;
 	int					i;
 
 	WAPI_TRACE(WAPI_RX, "===========> %s\n", __FUNCTION__);

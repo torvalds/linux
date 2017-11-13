@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2017 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -11,15 +11,11 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
- ******************************************************************************/
+ *****************************************************************************/
 #define _RTW_VHT_C
 
 #include <drv_types.h>
+#include <hal_data.h>
 
 #ifdef CONFIG_80211AC_VHT
 /*				20/40/80,	ShortGI,	MCS Rate  */
@@ -101,7 +97,7 @@ u8	rtw_vht_mcsmap_to_nss(u8 *pvht_mcs_map)
 	return nss;
 }
 
-void	rtw_vht_nss_to_mcsmap(u8 nss, u8 *target_mcs_map, u8 *cur_mcs_map)
+void rtw_vht_nss_to_mcsmap(u8 nss, u8 *target_mcs_map, u8 *cur_mcs_map)
 {
 	u8	i, j;
 	u8	cur_rate, target_rate;
@@ -143,6 +139,8 @@ void	rtw_vht_use_default_setting(_adapter *padapter)
 	u8	mu_bfer, mu_bfee;
 #endif /* CONFIG_BEAMFORMING */
 	u8	rf_type = 0;
+	u8 tx_nss, rx_nss;
+	struct hal_spec_t *hal_spec = GET_HAL_SPEC(padapter);
 	struct mlme_ext_priv	*pmlmeext = &(padapter->mlmeextpriv);
 	struct mlme_ext_info	*pmlmeinfo = &(pmlmeext->mlmext_info);
 	pvhtpriv->sgi_80m = TEST_FLAG(pregistrypriv->short_gi, BIT2) ? _TRUE : _FALSE;
@@ -224,119 +222,53 @@ void	rtw_vht_use_default_setting(_adapter *padapter)
 	pvhtpriv->ampdu_len = pregistrypriv->ampdu_factor;
 
 	rtw_hal_get_hwreg(padapter, HW_VAR_RF_TYPE, (u8 *)(&rf_type));
+	tx_nss = rtw_min(rf_type_to_rf_tx_cnt(rf_type), hal_spec->tx_nss_num);
+	rx_nss = rtw_min(rf_type_to_rf_rx_cnt(rf_type), hal_spec->rx_nss_num);
 
-	if (rf_type == RF_3T3R)
-		pvhtpriv->vht_mcs_map[0] = 0xea;	/* support 1SS MCS 0~9 2SS MCS 0~9 3SS MCS 0~9 */
-	else if (rf_type == RF_2T2R)
-		pvhtpriv->vht_mcs_map[0] = 0xfa;	/* support 1SS MCS 0~9 2SS MCS 0~9 */
-	else
-		pvhtpriv->vht_mcs_map[0] = 0xfe;	/* Only support 1SS MCS 0~9; */
-	pvhtpriv->vht_mcs_map[1] = 0xff;
-
-	if (pregistrypriv->vht_rate_sel == 1) {
-		pvhtpriv->vht_mcs_map[0] = 0xfc;	/* support 1SS MCS 0~7 */
-	} else if (pregistrypriv->vht_rate_sel == 2) {
-		pvhtpriv->vht_mcs_map[0] = 0xfd;	/* Support 1SS MCS 0~8 */
-	} else if (pregistrypriv->vht_rate_sel == 3) {
-		pvhtpriv->vht_mcs_map[0] = 0xfe;	/* Support 1SS MCS 0~9 */
-	} else if (pregistrypriv->vht_rate_sel == 4) {
-		pvhtpriv->vht_mcs_map[0] = 0xf0;	/* support 1SS MCS 0~7 2SS MCS 0~7 */
-	} else if (pregistrypriv->vht_rate_sel == 5) {
-		pvhtpriv->vht_mcs_map[0] = 0xf5;	/* support 1SS MCS 0~8 2SS MCS 0~8 */
-	} else if (pregistrypriv->vht_rate_sel == 6) {
-		pvhtpriv->vht_mcs_map[0] = 0xfa;	/* support 1SS MCS 0~9 2SS MCS 0~9 */
-	} else if (pregistrypriv->vht_rate_sel == 7) {
-		pvhtpriv->vht_mcs_map[0] = 0xf8;	/* support 1SS MCS 0-7 2SS MCS 0~9 */
-	} else if (pregistrypriv->vht_rate_sel == 8) {
-		pvhtpriv->vht_mcs_map[0] = 0xf9;	/* support 1SS MCS 0-8 2SS MCS 0~9 */
-	} else if (pregistrypriv->vht_rate_sel == 9) {
-		pvhtpriv->vht_mcs_map[0] = 0xf4;	/* support 1SS MCS 0-7 2SS MCS 0~8 */
-	}
-
+	/* for now, vhtpriv.vht_mcs_map comes from RX NSS */
+	rtw_vht_nss_to_mcsmap(rx_nss, pvhtpriv->vht_mcs_map, pregistrypriv->vht_rx_mcs_map);
 	pvhtpriv->vht_highest_rate = rtw_get_vht_highest_rate(pvhtpriv->vht_mcs_map);
 }
 
-u64	rtw_vht_rate_to_bitmap(u8 *pVHTRate)
+u64	rtw_vht_mcs_map_to_bitmap(u8 *mcs_map, u8 nss)
 {
+	u8 i, j, tmp;
+	u64 bitmap = 0;
+	u8 bits_nss = nss * 2;
 
-	u8	i, j , tmpRate;
-	u64	RateBitmap = 0;
-	u8 Bits_3ss = 6;
-
-	for (i = j = 0; i < Bits_3ss; i += 2, j += 10) {
+	for (i = j = 0; i < bits_nss; i += 2, j += 10) {
 		/* every two bits means single sptial stream */
-		tmpRate = (pVHTRate[0] >> i) & 3;
+		tmp = (mcs_map[i / 8] >> i) & 3;
 
-		switch (tmpRate) {
+		switch (tmp) {
 		case 2:
-			RateBitmap = RateBitmap | (0x03ff << j);
+			bitmap = bitmap | (0x03ff << j);
 			break;
 		case 1:
-			RateBitmap = RateBitmap | (0x01ff << j);
+			bitmap = bitmap | (0x01ff << j);
 			break;
-
 		case 0:
-			RateBitmap = RateBitmap | (0x00ff << j);
+			bitmap = bitmap | (0x00ff << j);
 			break;
-
 		default:
 			break;
 		}
 	}
-	RTW_INFO("RateBitmap=%016llx , pVHTRate[0]=%02x, pVHTRate[1]=%02x\n", RateBitmap, pVHTRate[0], pVHTRate[1]);
-	return RateBitmap;
+
+	RTW_INFO("vht_mcs_map=%02x %02x, nss=%u => bitmap=%016llx\n"
+		, mcs_map[0], mcs_map[1], nss, bitmap);
+
+	return bitmap;
 }
 
-void	update_sta_vht_info_apmode(_adapter *padapter, PVOID sta)
+#ifdef CONFIG_BEAMFORMING
+void update_sta_vht_info_apmode_bf_cap(_adapter *padapter, struct sta_info *psta)
 {
-	struct sta_info	*psta = (struct sta_info *)sta;
 	struct mlme_priv	*pmlmepriv = &(padapter->mlmepriv);
-	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
 	struct vht_priv	*pvhtpriv_ap = &pmlmepriv->vhtpriv;
 	struct vht_priv	*pvhtpriv_sta = &psta->vhtpriv;
-	struct ht_priv		*phtpriv_sta = &psta->htpriv;
-	u8	cur_ldpc_cap = 0, cur_stbc_cap = 0, bw_mode = 0;
 	u16	cur_beamform_cap = 0;
-	u8	*pcap_mcs;
 
-	if (pvhtpriv_sta->vht_option == _FALSE)
-		return;
-
-	bw_mode = GET_VHT_OPERATING_MODE_FIELD_CHNL_WIDTH(&pvhtpriv_sta->vht_op_mode_notify);
-
-	/* if (bw_mode > psta->bw_mode) */
-	psta->bw_mode = bw_mode;
-
-	/* B4 Rx LDPC */
-	if (TEST_FLAG(pvhtpriv_ap->ldpc_cap, LDPC_VHT_ENABLE_TX) &&
-	    GET_VHT_CAPABILITY_ELE_RX_LDPC(pvhtpriv_sta->vht_cap)) {
-		SET_FLAG(cur_ldpc_cap, (LDPC_VHT_ENABLE_TX | LDPC_VHT_CAP_TX));
-		RTW_INFO("Current STA(%d) VHT LDPC = %02X\n", psta->aid, cur_ldpc_cap);
-	}
-	pvhtpriv_sta->ldpc_cap = cur_ldpc_cap;
-
-	if (psta->bw_mode > pmlmeext->cur_bwmode)
-		psta->bw_mode = pmlmeext->cur_bwmode;
-
-	if (psta->bw_mode == CHANNEL_WIDTH_80) {
-		/* B5 Short GI for 80 MHz */
-		pvhtpriv_sta->sgi_80m = (GET_VHT_CAPABILITY_ELE_SHORT_GI80M(pvhtpriv_sta->vht_cap) & pvhtpriv_ap->sgi_80m) ? _TRUE : _FALSE;
-		/* RTW_INFO("Current STA ShortGI80MHz = %d\n", pvhtpriv_sta->sgi_80m); */
-	} else if (psta->bw_mode >= CHANNEL_WIDTH_160) {
-		/* B5 Short GI for 80 MHz */
-		pvhtpriv_sta->sgi_80m = (GET_VHT_CAPABILITY_ELE_SHORT_GI160M(pvhtpriv_sta->vht_cap) & pvhtpriv_ap->sgi_80m) ? _TRUE : _FALSE;
-		/* RTW_INFO("Current STA ShortGI160MHz = %d\n", pvhtpriv_sta->sgi_80m); */
-	}
-
-	/* B8 B9 B10 Rx STBC */
-	if (TEST_FLAG(pvhtpriv_ap->stbc_cap, STBC_VHT_ENABLE_TX) &&
-	    GET_VHT_CAPABILITY_ELE_RX_STBC(pvhtpriv_sta->vht_cap)) {
-		SET_FLAG(cur_stbc_cap, (STBC_VHT_ENABLE_TX | STBC_VHT_CAP_TX));
-		RTW_INFO("Current STA(%d) VHT STBC = %02X\n", psta->aid, cur_stbc_cap);
-	}
-	pvhtpriv_sta->stbc_cap = cur_stbc_cap;
-
-#ifdef CONFIG_BEAMFORMING
 	/* B11 SU Beamformer Capable, the target supports Beamformer and we are Beamformee */
 	if (TEST_FLAG(pvhtpriv_ap->beamform_cap, BEAMFORMING_VHT_BEAMFORMER_ENABLE) &&
 	    GET_VHT_CAPABILITY_ELE_SU_BFEE(pvhtpriv_sta->vht_cap)) {
@@ -352,9 +284,65 @@ void	update_sta_vht_info_apmode(_adapter *padapter, PVOID sta)
 		/*Shit to BEAMFORMING_VHT_BEAMFORMEE_SOUND_DIM*/
 		SET_FLAG(cur_beamform_cap, GET_VHT_CAPABILITY_ELE_SU_BFER_SOUND_DIM_NUM(pvhtpriv_sta->vht_cap) << 12);
 	}
-	pvhtpriv_sta->beamform_cap = cur_beamform_cap;
+
 	if (cur_beamform_cap)
-		RTW_INFO("Current STA(%d) VHT Beamforming Setting = %02X\n", psta->aid, cur_beamform_cap);
+		RTW_INFO("Current STA(%d) VHT Beamforming Setting = %02X\n", psta->cmn.aid, cur_beamform_cap);
+
+	pvhtpriv_sta->beamform_cap = cur_beamform_cap;
+	psta->cmn.bf_info.vht_beamform_cap = cur_beamform_cap;
+}
+#endif
+
+void	update_sta_vht_info_apmode(_adapter *padapter, PVOID sta)
+{
+	struct sta_info	*psta = (struct sta_info *)sta;
+	struct mlme_priv	*pmlmepriv = &(padapter->mlmepriv);
+	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
+	struct vht_priv	*pvhtpriv_ap = &pmlmepriv->vhtpriv;
+	struct vht_priv	*pvhtpriv_sta = &psta->vhtpriv;
+	u8	cur_ldpc_cap = 0, cur_stbc_cap = 0, bw_mode = 0;
+	u8	*pcap_mcs;
+
+	if (pvhtpriv_sta->vht_option == _FALSE)
+		return;
+
+	bw_mode = GET_VHT_OPERATING_MODE_FIELD_CHNL_WIDTH(&pvhtpriv_sta->vht_op_mode_notify);
+
+	/* if (bw_mode > psta->cmn.bw_mode) */
+	psta->cmn.bw_mode = bw_mode;
+	psta->cmn.ra_info.is_vht_enable = _TRUE;
+
+	/* B4 Rx LDPC */
+	if (TEST_FLAG(pvhtpriv_ap->ldpc_cap, LDPC_VHT_ENABLE_TX) &&
+	    GET_VHT_CAPABILITY_ELE_RX_LDPC(pvhtpriv_sta->vht_cap)) {
+		SET_FLAG(cur_ldpc_cap, (LDPC_VHT_ENABLE_TX | LDPC_VHT_CAP_TX));
+		RTW_INFO("Current STA(%d) VHT LDPC = %02X\n", psta->cmn.aid, cur_ldpc_cap);
+	}
+	pvhtpriv_sta->ldpc_cap = cur_ldpc_cap;
+
+	if (psta->cmn.bw_mode > pmlmeext->cur_bwmode)
+		psta->cmn.bw_mode = pmlmeext->cur_bwmode;
+
+	if (psta->cmn.bw_mode == CHANNEL_WIDTH_80) {
+		/* B5 Short GI for 80 MHz */
+		pvhtpriv_sta->sgi_80m = (GET_VHT_CAPABILITY_ELE_SHORT_GI80M(pvhtpriv_sta->vht_cap) & pvhtpriv_ap->sgi_80m) ? _TRUE : _FALSE;
+		/* RTW_INFO("Current STA ShortGI80MHz = %d\n", pvhtpriv_sta->sgi_80m); */
+	} else if (psta->cmn.bw_mode >= CHANNEL_WIDTH_160) {
+		/* B5 Short GI for 80 MHz */
+		pvhtpriv_sta->sgi_80m = (GET_VHT_CAPABILITY_ELE_SHORT_GI160M(pvhtpriv_sta->vht_cap) & pvhtpriv_ap->sgi_80m) ? _TRUE : _FALSE;
+		/* RTW_INFO("Current STA ShortGI160MHz = %d\n", pvhtpriv_sta->sgi_80m); */
+	}
+
+	/* B8 B9 B10 Rx STBC */
+	if (TEST_FLAG(pvhtpriv_ap->stbc_cap, STBC_VHT_ENABLE_TX) &&
+	    GET_VHT_CAPABILITY_ELE_RX_STBC(pvhtpriv_sta->vht_cap)) {
+		SET_FLAG(cur_stbc_cap, (STBC_VHT_ENABLE_TX | STBC_VHT_CAP_TX));
+		RTW_INFO("Current STA(%d) VHT STBC = %02X\n", psta->cmn.aid, cur_stbc_cap);
+	}
+	pvhtpriv_sta->stbc_cap = cur_stbc_cap;
+
+#ifdef CONFIG_BEAMFORMING
+	update_sta_vht_info_apmode_bf_cap(padapter, psta);
 #endif
 
 	/* B23 B24 B25 Maximum A-MPDU Length Exponent */
@@ -362,9 +350,7 @@ void	update_sta_vht_info_apmode(_adapter *padapter, PVOID sta)
 
 	pcap_mcs = GET_VHT_CAPABILITY_ELE_RX_MCS(pvhtpriv_sta->vht_cap);
 	_rtw_memcpy(pvhtpriv_sta->vht_mcs_map, pcap_mcs, 2);
-
 	pvhtpriv_sta->vht_highest_rate = rtw_get_vht_highest_rate(pvhtpriv_sta->vht_mcs_map);
-
 }
 
 void	update_hw_vht_param(_adapter *padapter)
@@ -383,14 +369,14 @@ void	update_hw_vht_param(_adapter *padapter)
 
 void VHT_caps_handler(_adapter *padapter, PNDIS_802_11_VARIABLE_IEs pIE)
 {
+	struct hal_spec_t *hal_spec = GET_HAL_SPEC(padapter);
 	struct mlme_priv		*pmlmepriv = &padapter->mlmepriv;
 	struct vht_priv		*pvhtpriv = &pmlmepriv->vhtpriv;
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info	*pmlmeinfo = &(pmlmeext->mlmext_info);
-	u8	cur_ldpc_cap = 0, cur_stbc_cap = 0, rf_type = RF_1T1R;
+	u8	cur_ldpc_cap = 0, cur_stbc_cap = 0, rf_type = RF_1T1R, tx_nss = 0;
 	u16	cur_beamform_cap = 0;
 	u8	*pcap_mcs;
-	u8	vht_mcs[2];
 
 	if (pIE == NULL)
 		return;
@@ -489,18 +475,9 @@ void VHT_caps_handler(_adapter *padapter, PNDIS_802_11_VARIABLE_IEs pIE)
 	pvhtpriv->ampdu_len = GET_VHT_CAPABILITY_ELE_MAX_RXAMPDU_FACTOR(pIE->data);
 
 	pcap_mcs = GET_VHT_CAPABILITY_ELE_RX_MCS(pIE->data);
-	_rtw_memcpy(vht_mcs, pcap_mcs, 2);
-
 	rtw_hal_get_hwreg(padapter, HW_VAR_RF_TYPE, (u8 *)(&rf_type));
-	if ((rf_type == RF_1T1R) || (rf_type == RF_1T2R))
-		vht_mcs[0] |= 0xfc;
-	else if (rf_type == RF_2T2R)
-		vht_mcs[0] |= 0xf0;
-	else if (rf_type == RF_3T3R)
-		vht_mcs[0] |= 0xc0;
-
-	_rtw_memcpy(pvhtpriv->vht_mcs_map, vht_mcs, 2);
-
+	tx_nss = rtw_min(rf_type_to_rf_tx_cnt(rf_type), hal_spec->tx_nss_num);
+	rtw_vht_nss_to_mcsmap(tx_nss, pvhtpriv->vht_mcs_map, pcap_mcs);
 	pvhtpriv->vht_highest_rate = rtw_get_vht_highest_rate(pvhtpriv->vht_mcs_map);
 }
 
@@ -526,7 +503,6 @@ void rtw_process_vht_op_mode_notify(_adapter *padapter, u8 *pframe, PVOID sta)
 	u8	target_bw;
 	u8	target_rxss, current_rxss;
 	u8	update_ra = _FALSE;
-	u8	vht_mcs_map[2] = {};
 
 	if (pvhtpriv->vht_option == _FALSE)
 		return;
@@ -534,23 +510,25 @@ void rtw_process_vht_op_mode_notify(_adapter *padapter, u8 *pframe, PVOID sta)
 	target_bw = GET_VHT_OPERATING_MODE_FIELD_CHNL_WIDTH(pframe);
 	target_rxss = (GET_VHT_OPERATING_MODE_FIELD_RX_NSS(pframe) + 1);
 
-	if (target_bw != psta->bw_mode) {
+	if (target_bw != psta->cmn.bw_mode) {
 		if (hal_is_bw_support(padapter, target_bw)
 		    && REGSTY_IS_BW_5G_SUPPORT(regsty, target_bw)
 		   ) {
 			update_ra = _TRUE;
-			psta->bw_mode = target_bw;
+			psta->cmn.bw_mode = target_bw;
 		}
 	}
 
 	current_rxss = rtw_vht_mcsmap_to_nss(psta->vhtpriv.vht_mcs_map);
 	if (target_rxss != current_rxss) {
+		u8	vht_mcs_map[2] = {};
+
 		update_ra = _TRUE;
 
 		rtw_vht_nss_to_mcsmap(target_rxss, vht_mcs_map, psta->vhtpriv.vht_mcs_map);
 		_rtw_memcpy(psta->vhtpriv.vht_mcs_map, vht_mcs_map, 2);
 
-		rtw_hal_update_sta_rate_mask(padapter, psta);
+		rtw_hal_update_sta_ra_info(padapter, psta);
 	}
 
 	if (update_ra)
@@ -563,11 +541,9 @@ u32	rtw_build_vht_operation_ie(_adapter *padapter, u8 *pbuf, u8 channel)
 	struct mlme_priv		*pmlmepriv = &padapter->mlmepriv;
 	struct vht_priv		*pvhtpriv = &pmlmepriv->vhtpriv;
 	/* struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv; */
-	u8	ChnlWidth, center_freq, bw_mode, rf_type = 0;
+	u8	ChnlWidth, center_freq, bw_mode;
 	u32	len = 0;
 	u8	operation[5];
-
-	rtw_hal_get_hwreg(padapter, HW_VAR_RF_TYPE, (u8 *)(&rf_type));
 
 	_rtw_memset(operation, 0, 5);
 
@@ -589,34 +565,7 @@ u32	rtw_build_vht_operation_ie(_adapter *padapter, u8 *pbuf, u8 channel)
 	SET_VHT_OPERATION_ELE_CHL_CENTER_FREQ1(operation, center_freq);/* Todo: need to set correct center channel */
 	SET_VHT_OPERATION_ELE_CHL_CENTER_FREQ2(operation, 0);
 
-	if (padapter->registrypriv.rf_config != RF_MAX_TYPE)
-		rf_type = padapter->registrypriv.rf_config;
-
-	switch (rf_type) {
-	case RF_1T1R:
-		operation[3] = 0xfe;
-		operation[4] = 0xff;
-		break;
-	case RF_1T2R:
-	case RF_2T2R:
-	case RF_2T2R_GREEN:
-		operation[3] = 0xfa;
-		operation[4] = 0xff;
-		break;
-	case RF_2T3R:
-	case RF_2T4R:
-	case RF_3T3R:
-	case RF_3T4R:
-		operation[3] = 0xea;
-		operation[4] = 0xff;
-		break;
-	case RF_4T4R:
-		operation[3] = 0xaa;
-		operation[4] = 0xff;
-		break;
-	default:
-		RTW_INFO("%s, %d, unknown rf type\n", __func__, __LINE__);
-	}
+	_rtw_memcpy(operation + 3, pvhtpriv->vht_mcs_map, 2);
 
 	rtw_set_ie(pbuf, EID_VHTOperation, 5, operation, &len);
 
@@ -629,18 +578,11 @@ u32	rtw_build_vht_op_mode_notify_ie(_adapter *padapter, u8 *pbuf, u8 bw)
 	struct mlme_priv	*pmlmepriv = &padapter->mlmepriv;
 	struct vht_priv	*pvhtpriv = &pmlmepriv->vhtpriv;
 	u32	len = 0;
-	u8	opmode = 0, rf_type = 0;
+	u8	opmode = 0;
 	u8	chnl_width, rx_nss;
 
 	chnl_width = bw;
-
-	rtw_hal_get_hwreg(padapter, HW_VAR_RF_TYPE, (u8 *)(&rf_type));
-	if (rf_type == RF_3T3R)
-		rx_nss = 3;
-	else if (rf_type == RF_2T2R)
-		rx_nss = 2;
-	else
-		rx_nss = 1;
+	rx_nss = rtw_vht_mcsmap_to_nss(pvhtpriv->vht_mcs_map);
 
 	SET_VHT_OPERATING_MODE_FIELD_CHNL_WIDTH(&opmode, chnl_width);
 	SET_VHT_OPERATING_MODE_FIELD_RX_NSS(&opmode, (rx_nss - 1));
@@ -663,6 +605,8 @@ u32	rtw_build_vht_cap_ie(_adapter *padapter, u8 *pbuf)
 	struct registry_priv *pregistrypriv = &padapter->registrypriv;
 	struct mlme_priv	*pmlmepriv = &padapter->mlmepriv;
 	struct vht_priv	*pvhtpriv = &pmlmepriv->vhtpriv;
+	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
+	struct mlme_ext_info	*pmlmeinfo = &(pmlmeext->mlmext_info);
 
 	pcap = pvhtpriv->vht_cap;
 	_rtw_memset(pcap, 0, 32);
@@ -695,47 +639,68 @@ u32	rtw_build_vht_cap_ie(_adapter *padapter, u8 *pbuf)
 		SET_VHT_CAPABILITY_ELE_CHL_WIDTH(pcap, 0);
 
 	/* B4 Rx LDPC */
-	if (TEST_FLAG(pvhtpriv->ldpc_cap, LDPC_VHT_ENABLE_RX))
+	if (TEST_FLAG(pvhtpriv->ldpc_cap, LDPC_VHT_ENABLE_RX)) {
 		SET_VHT_CAPABILITY_ELE_RX_LDPC(pcap, 1);
+		RTW_INFO("[VHT] Declare supporting RX LDPC\n");
+	}
 
 	/* B5 ShortGI for 80MHz */
 	SET_VHT_CAPABILITY_ELE_SHORT_GI80M(pcap, pvhtpriv->sgi_80m ? 1 : 0); /* We can receive Short GI of 80M */
+	if (pvhtpriv->sgi_80m)
+		RTW_INFO("[VHT] Declare supporting SGI 80MHz\n");
 
 	/* B6 ShortGI for 160MHz */
 	/* SET_VHT_CAPABILITY_ELE_SHORT_GI160M(pcap, pvhtpriv->sgi_80m? 1 : 0); */
 
 	/* B7 Tx STBC */
-	if (TEST_FLAG(pvhtpriv->stbc_cap, STBC_VHT_ENABLE_TX))
+	if (TEST_FLAG(pvhtpriv->stbc_cap, STBC_VHT_ENABLE_TX)) {
 		SET_VHT_CAPABILITY_ELE_TX_STBC(pcap, 1);
+		RTW_INFO("[VHT] Declare supporting TX STBC\n");
+	}
 
 	/* B8 B9 B10 Rx STBC */
 	if (TEST_FLAG(pvhtpriv->stbc_cap, STBC_VHT_ENABLE_RX)) {
 		rtw_hal_get_def_var(padapter, HAL_DEF_RX_STBC, (u8 *)(&rx_stbc_nss));
 
 		SET_VHT_CAPABILITY_ELE_RX_STBC(pcap, rx_stbc_nss);
+		RTW_INFO("[VHT] Declare supporting RX STBC = %d\n", rx_stbc_nss);
 	}
-
+	#ifdef CONFIG_BEAMFORMING
 	/* B11 SU Beamformer Capable */
 	if (TEST_FLAG(pvhtpriv->beamform_cap, BEAMFORMING_VHT_BEAMFORMER_ENABLE)) {
 		SET_VHT_CAPABILITY_ELE_SU_BFER(pcap, 1);
+		RTW_INFO("[VHT] Declare supporting SU Bfer\n");
 		/* B16 17 18 Number of Sounding Dimensions */
 		rtw_hal_get_def_var(padapter, HAL_DEF_BEAMFORMER_CAP, (u8 *)&rf_num);
 		SET_VHT_CAPABILITY_ELE_SOUNDING_DIMENSIONS(pcap, rf_num);
 		/* B19 MU Beamformer Capable */
-		if (TEST_FLAG(pvhtpriv->beamform_cap, BEAMFORMING_VHT_MU_MIMO_AP_ENABLE))
+		if (TEST_FLAG(pvhtpriv->beamform_cap, BEAMFORMING_VHT_MU_MIMO_AP_ENABLE)) {
 			SET_VHT_CAPABILITY_ELE_MU_BFER(pcap, 1);
+			RTW_INFO("[VHT] Declare supporting MU Bfer\n");
+		}
 	}
 
 	/* B12 SU Beamformee Capable */
 	if (TEST_FLAG(pvhtpriv->beamform_cap, BEAMFORMING_VHT_BEAMFORMEE_ENABLE)) {
 		SET_VHT_CAPABILITY_ELE_SU_BFEE(pcap, 1);
-		/* B13 14 15 Compressed Steering Number of Beamformer Antennas Supported */
+		RTW_INFO("[VHT] Declare supporting SU Bfee\n");
+
 		rtw_hal_get_def_var(padapter, HAL_DEF_BEAMFORMEE_CAP, (u8 *)&rf_num);
+
+		/* IOT action suggested by Yu Chen 2017/3/3 */
+		if ((pmlmeinfo->assoc_AP_vendor == HT_IOT_PEER_BROADCOM) &&
+			!GET_VHT_CAPABILITY_ELE_MU_BFER(&pvhtpriv->beamform_cap))
+			rf_num = (rf_num >= 2 ? 2 : rf_num);
+
+		/* B13 14 15 Compressed Steering Number of Beamformer Antennas Supported */
 		SET_VHT_CAPABILITY_ELE_BFER_ANT_SUPP(pcap, rf_num);
 		/* B20 SU Beamformee Capable */
-		if (TEST_FLAG(pvhtpriv->beamform_cap, BEAMFORMING_VHT_MU_MIMO_STA_ENABLE))
+		if (TEST_FLAG(pvhtpriv->beamform_cap, BEAMFORMING_VHT_MU_MIMO_STA_ENABLE)) {
 			SET_VHT_CAPABILITY_ELE_MU_BFEE(pcap, 1);
+			RTW_INFO("[VHT] Declare supporting MU Bfee\n");
+		}
 	}
+	#endif/*CONFIG_BEAMFORMING*/
 
 	/* B21 VHT TXOP PS */
 	SET_VHT_CAPABILITY_ELE_TXOP_PS(pcap, 0);
@@ -852,6 +817,50 @@ void VHTOnAssocRsp(_adapter *padapter)
 		rtw_hal_set_hwreg(padapter, HW_VAR_AMPDU_FACTOR, (u8 *)(&pvhtpriv->ampdu_len));
 
 	rtw_hal_set_hwreg(padapter, HW_VAR_AMPDU_MAX_TIME, (u8 *)(&pvhtpriv->vht_highest_rate));
+}
+
+void rtw_vht_ies_attach(_adapter *padapter, WLAN_BSSID_EX *pnetwork)
+{
+	struct mlme_priv *pmlmepriv = &(padapter->mlmepriv);
+	u8 cap_len, operation_len;
+	uint len = 0;
+	sint ie_len = 0;
+	u8 *p = NULL;
+
+	p = rtw_get_ie(pnetwork->IEs + _BEACON_IE_OFFSET_, EID_VHTCapability, &ie_len,
+			(pnetwork->IELength - _BEACON_IE_OFFSET_));
+	if (p && ie_len > 0)
+		return;
+
+	rtw_vht_use_default_setting(padapter);
+
+	/* VHT Operation mode notifiy bit in Extended IE (127) */
+	SET_EXT_CAPABILITY_ELE_OP_MODE_NOTIF(pmlmepriv->ext_capab_ie_data, 1);
+	pmlmepriv->ext_capab_ie_len = 10;
+	rtw_set_ie(pnetwork->IEs + pnetwork->IELength, EID_EXTCapability, 8, pmlmepriv->ext_capab_ie_data, &len);
+	pnetwork->IELength += pmlmepriv->ext_capab_ie_len;
+
+	/* VHT Capabilities element */
+	cap_len = rtw_build_vht_cap_ie(padapter, pnetwork->IEs + pnetwork->IELength);
+	pnetwork->IELength += cap_len;
+
+	/* VHT Operation element */
+	operation_len = rtw_build_vht_operation_ie(padapter, pnetwork->IEs + pnetwork->IELength,
+										pnetwork->Configuration.DSConfig);
+	pnetwork->IELength += operation_len;
+
+	pmlmepriv->vhtpriv.vht_option = _TRUE;
+}
+
+void rtw_vht_ies_detach(_adapter *padapter, WLAN_BSSID_EX *pnetwork)
+{
+	struct mlme_priv *pmlmepriv = &(padapter->mlmepriv);
+
+	rtw_remove_bcn_ie(padapter, pnetwork, EID_EXTCapability);
+	rtw_remove_bcn_ie(padapter, pnetwork, EID_VHTCapability);
+	rtw_remove_bcn_ie(padapter, pnetwork, EID_VHTOperation);
+
+	pmlmepriv->vhtpriv.vht_option = _FALSE;
 }
 
 #endif /* CONFIG_80211AC_VHT */

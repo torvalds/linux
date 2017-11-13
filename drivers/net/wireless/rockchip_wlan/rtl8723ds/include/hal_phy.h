@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2017 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -11,12 +11,7 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
- ******************************************************************************/
+ *****************************************************************************/
 #ifndef __HAL_PHY_H__
 #define __HAL_PHY_H__
 
@@ -56,20 +51,15 @@
 
 
 /*--------------------------Define Parameters-------------------------------*/
-typedef	enum _RF_TYPE {
-	RF_TYPE_MIN = 0,	/* 0 */
+typedef	enum _RF_CHIP {
+	RF_CHIP_MIN = 0,	/* 0 */
 	RF_8225 = 1,			/* 1 11b/g RF for verification only */
 	RF_8256 = 2,			/* 2 11b/g/n */
 	RF_8258 = 3,			/* 3 11a/b/g/n RF */
 	RF_6052 = 4,			/* 4 11b/g/n RF */
 	RF_PSEUDO_11N = 5,	/* 5, It is a temporality RF. */
-	RF_TYPE_MAX
-} RF_TYPE_E, *PRF_TYPE_E;
-
-#define	TX_1S			0
-#define	TX_2S			1
-#define	TX_3S			2
-#define	TX_4S			3
+	RF_CHIP_MAX
+} RF_CHIP_E, *PRF_CHIP_E;
 
 typedef enum _ANTENNA_PATH {
 	ANTENNA_NONE	= 0,
@@ -184,26 +174,26 @@ PHY_CalculateBitShift(
 u32
 PHY_RFShadowRead(
 	IN	PADAPTER		Adapter,
-	IN	u8				eRFPath,
+	IN	enum rf_path		eRFPath,
 	IN	u32				Offset);
 
 VOID
 PHY_RFShadowWrite(
 	IN	PADAPTER		Adapter,
-	IN	u8				eRFPath,
+	IN	enum rf_path		eRFPath,
 	IN	u32				Offset,
 	IN	u32				Data);
 
 BOOLEAN
 PHY_RFShadowCompare(
 	IN	PADAPTER		Adapter,
-	IN	u8				eRFPath,
+	IN	enum rf_path		eRFPath,
 	IN	u32				Offset);
 
 VOID
 PHY_RFShadowRecorver(
 	IN	PADAPTER		Adapter,
-	IN	u8				eRFPath,
+	IN	enum rf_path		eRFPath,
 	IN	u32				Offset);
 
 VOID
@@ -217,14 +207,14 @@ PHY_RFShadowRecorverAll(
 VOID
 PHY_RFShadowCompareFlagSet(
 	IN	PADAPTER		Adapter,
-	IN	u8				eRFPath,
+	IN	enum rf_path		eRFPath,
 	IN	u32				Offset,
 	IN	u8				Type);
 
 VOID
 PHY_RFShadowRecorverFlagSet(
 	IN	PADAPTER		Adapter,
-	IN	u8				eRFPath,
+	IN	enum rf_path		eRFPath,
 	IN	u32				Offset,
 	IN	u8				Type);
 

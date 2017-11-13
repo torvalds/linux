@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2017 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -11,12 +11,7 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
- ******************************************************************************/
+ *****************************************************************************/
 
 #ifndef __OSDEP_INTF_H_
 #define __OSDEP_INTF_H_
@@ -127,12 +122,17 @@ u16 rtw_recv_select_queue(struct sk_buff *skb);
 
 int rtw_ndev_notifier_register(void);
 void rtw_ndev_notifier_unregister(void);
+void rtw_inetaddr_notifier_register(void);
+void rtw_inetaddr_notifier_unregister(void);
 
 #include "../os_dep/linux/rtw_proc.h"
 
 #ifdef CONFIG_IOCTL_CFG80211
 	#include "../os_dep/linux/ioctl_cfg80211.h"
 #endif /* CONFIG_IOCTL_CFG80211 */
+
+u8 rtw_rtnl_lock_needed(struct dvobj_priv *dvobj);
+void rtw_set_rtnl_lock_holder(struct dvobj_priv *dvobj, _thread_hdl_ thd_hdl);
 
 #endif /* PLATFORM_LINUX */
 
@@ -157,9 +157,8 @@ void rtw_drv_free_vir_ifaces(struct dvobj_priv *dvobj);
 #endif
 
 void rtw_ndev_destructor(_nic_hdl ndev);
-
 #ifdef CONFIG_ARP_KEEP_ALIVE
-int	rtw_gw_addr_query(_adapter *padapter);
+int rtw_gw_addr_query(_adapter *padapter);
 #endif
 
 int rtw_suspend_common(_adapter *padapter);

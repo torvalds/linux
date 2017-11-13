@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2013 Realtek Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2017 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -11,19 +11,20 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
- ******************************************************************************/
+ *****************************************************************************/
 #ifndef __OSDEP_SERVICE_H_
 #define __OSDEP_SERVICE_H_
 
 
-#define _FAIL		0
-#define _SUCCESS	1
-#define RTW_RX_HANDLED 2
+#define _FAIL					0
+#define _SUCCESS				1
+#define RTW_RX_HANDLED			2
+#define RTW_RFRAME_UNAVAIL		3
+#define RTW_RFRAME_PKT_UNAVAIL	4
+#define RTW_RBUF_UNAVAIL		5
+#define RTW_RBUF_PKT_UNAVAIL	6
+#define RTW_SDIO_READ_PORT_FAIL	7
+
 /* #define RTW_STATUS_TIMEDOUT -110 */
 
 #undef _TRUE
@@ -38,6 +39,11 @@
 #endif
 
 #ifdef PLATFORM_LINUX
+	#include <linux/version.h>
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 11, 0))
+	#include <linux/sched/signal.h>
+	#include <linux/sched/types.h>
+#endif
 	#include <osdep_service_linux.h>
 #endif
 
@@ -48,9 +54,6 @@
 #ifdef PLATFORM_OS_CE
 	#include <osdep_service_ce.h>
 #endif
-
-#define RTW_TIMER_HDL_NAME(name) rtw_##name##_timer_hdl
-#define RTW_DECLARE_TIMER_HDL(name) void RTW_TIMER_HDL_NAME(name)(RTW_TIMER_HDL_ARGS)
 
 /* #include <rtw_byteorder.h> */
 
@@ -280,6 +283,10 @@ void _rtw_usb_buffer_free(struct usb_device *dev, size_t size, void *addr, dma_a
 extern void	*rtw_malloc2d(int h, int w, size_t size);
 extern void	rtw_mfree2d(void *pbuf, int h, int w, int size);
 
+void rtw_os_pkt_free(_pkt *pkt);
+void *rtw_os_pkt_data(_pkt *pkt);
+u32 rtw_os_pkt_len(_pkt *pkt);
+
 extern void	_rtw_memcpy(void *dec, const void *sour, u32 sz);
 extern void _rtw_memmove(void *dst, const void *src, u32 sz);
 extern int	_rtw_memcmp(const void *dst, const void *src, u32 sz);
@@ -313,11 +320,25 @@ extern void _rtw_deinit_queue(_queue *pqueue);
 extern u32	_rtw_queue_empty(_queue	*pqueue);
 extern u32	rtw_end_of_queue_search(_list *queue, _list *pelement);
 
-extern u32	rtw_get_current_time(void);
-extern u32	rtw_systime_to_ms(u32 systime);
-extern u32	rtw_ms_to_systime(u32 ms);
-extern s32	rtw_get_passing_time_ms(u32 start);
-extern s32	rtw_get_time_interval_ms(u32 start, u32 end);
+extern systime _rtw_get_current_time(void);
+extern u32	_rtw_systime_to_ms(systime stime);
+extern systime _rtw_ms_to_systime(u32 ms);
+extern s32	_rtw_get_passing_time_ms(systime start);
+extern s32	_rtw_get_time_interval_ms(systime start, systime end);
+
+#ifdef DBG_SYSTIME
+#define rtw_get_current_time() ({systime __stime = _rtw_get_current_time(); __stime;})
+#define rtw_systime_to_ms(stime) ({u32 __ms = _rtw_systime_to_ms(stime); typecheck(systime, stime); __ms;})
+#define rtw_ms_to_systime(ms) ({systime __stime = _rtw_ms_to_systime(ms); __stime;})
+#define rtw_get_passing_time_ms(start) ({u32 __ms = _rtw_get_passing_time_ms(start); typecheck(systime, start); __ms;})
+#define rtw_get_time_interval_ms(start, end) ({u32 __ms = _rtw_get_time_interval_ms(start, end); typecheck(systime, start); typecheck(systime, end); __ms;})
+#else
+#define rtw_get_current_time() _rtw_get_current_time()
+#define rtw_systime_to_ms(stime) _rtw_systime_to_ms(stime)
+#define rtw_ms_to_systime(ms) _rtw_ms_to_systime(ms)
+#define rtw_get_passing_time_ms(start) _rtw_get_passing_time_ms(start)
+#define rtw_get_time_interval_ms(start, end) _rtw_get_time_interval_ms(start, end)
+#endif
 
 extern void	rtw_sleep_schedulable(int ms);
 
@@ -339,37 +360,52 @@ extern void	rtw_udelay_os(int us);
 extern void rtw_yield_os(void);
 
 
-extern void rtw_init_timer(_timer *ptimer, void *padapter, void *pfunc);
+extern void rtw_init_timer(_timer *ptimer, void *padapter, void *pfunc, void *ctx);
 
 
 __inline static unsigned char _cancel_timer_ex(_timer *ptimer)
 {
-#ifdef PLATFORM_LINUX
-	return del_timer_sync(ptimer);
-#endif
-#ifdef PLATFORM_FREEBSD
-	_cancel_timer(ptimer, 0);
-	return 0;
-#endif
-#ifdef PLATFORM_WINDOWS
 	u8 bcancelled;
 
 	_cancel_timer(ptimer, &bcancelled);
 
 	return bcancelled;
-#endif
 }
 
 static __inline void thread_enter(char *name)
 {
 #ifdef PLATFORM_LINUX
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(3, 8, 0))
-	daemonize("%s", name);
-#endif
 	allow_signal(SIGTERM);
 #endif
 #ifdef PLATFORM_FREEBSD
 	printf("%s", "RTKTHREAD_enter");
+#endif
+}
+void thread_exit(_completion *comp);
+void _rtw_init_completion(_completion *comp);
+void _rtw_wait_for_comp_timeout(_completion *comp);
+void _rtw_wait_for_comp(_completion *comp);
+
+static inline bool rtw_thread_stop(_thread_hdl_ th)
+{
+#ifdef PLATFORM_LINUX
+	return kthread_stop(th);
+#endif
+}
+static inline void rtw_thread_wait_stop(void)
+{
+#ifdef PLATFORM_LINUX
+	#if 0
+	while (!kthread_should_stop())
+		rtw_msleep_os(10);
+	#else
+	set_current_state(TASK_INTERRUPTIBLE);
+	while (!kthread_should_stop()) {
+		schedule();
+		set_current_state(TASK_INTERRUPTIBLE);
+	}
+	__set_current_state(TASK_RUNNING);
+	#endif
 #endif
 }
 
@@ -429,6 +465,11 @@ __inline static int rtw_bug_check(void *parg1, void *parg2, void *parg3, void *p
 	return ret;
 
 }
+#ifdef PLATFORM_LINUX
+#define RTW_DIV_ROUND_UP(n, d)	DIV_ROUND_UP(n, d)
+#else /* !PLATFORM_LINUX */
+#define RTW_DIV_ROUND_UP(n, d)	(((n) + (d - 1)) / d)
+#endif /* !PLATFORM_LINUX */
 
 #define _RND(sz, r) ((((sz)+((r)-1))/(r))*(r))
 #define RND4(x)	(((x >> 2) + (((x & 3) == 0) ? 0 : 1)) << 2)
@@ -676,6 +717,7 @@ u8 map_read8(const struct map_t *map, u16 offset);
 /* String handler */
 
 BOOLEAN is_null(char c);
+BOOLEAN is_all_null(char *c, int len);
 BOOLEAN is_eol(char c);
 BOOLEAN is_space(char c);
 BOOLEAN IsHexDigit(char chTmp);

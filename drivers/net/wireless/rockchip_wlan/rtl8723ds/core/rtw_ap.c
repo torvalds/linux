@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2012 Realtek Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2017 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -11,16 +11,11 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
- ******************************************************************************/
+ *****************************************************************************/
 #define _RTW_AP_C_
 
 #include <drv_types.h>
-
+#include <hal_data.h>
 
 #ifdef CONFIG_AP_MODE
 
@@ -274,8 +269,8 @@ u8 chk_sta_is_alive(struct sta_info *psta)
 	u8 ret = _FALSE;
 #ifdef DBG_EXPIRATION_CHK
 	RTW_INFO("sta:"MAC_FMT", rssi:%d, rx:"STA_PKTS_FMT", expire_to:%u, %s%ssq_len:%u\n"
-		 , MAC_ARG(psta->hwaddr)
-		 , psta->rssi_stat.UndecoratedSmoothedPWDB
+		 , MAC_ARG(psta->cmn.mac_addr)
+		 , psta->cmn.rssi_stat.rssi
 		 /* , STA_RX_PKTS_ARG(psta) */
 		 , STA_RX_PKTS_DIFF_ARG(psta)
 		 , psta->expire_to
@@ -338,7 +333,7 @@ void	expire_timeout_chk(_adapter *padapter)
 
 
 #ifdef CONFIG_ATMEL_RC_PATCH
-		if (_TRUE == _rtw_memcmp((void *)(pstapriv->atmel_rc_pattern), (void *)(psta->hwaddr), ETH_ALEN))
+		if (_rtw_memcmp((void *)(pstapriv->atmel_rc_pattern), (void *)(psta->cmn.mac_addr), ETH_ALEN) == _TRUE)
 			continue;
 		if (psta->flag_atmel_rc)
 			continue;
@@ -350,7 +345,8 @@ void	expire_timeout_chk(_adapter *padapter)
 				pstapriv->auth_list_cnt--;
 
 				RTW_INFO("auth expire %02X%02X%02X%02X%02X%02X\n",
-					psta->hwaddr[0], psta->hwaddr[1], psta->hwaddr[2], psta->hwaddr[3], psta->hwaddr[4], psta->hwaddr[5]);
+					psta->cmn.mac_addr[0], psta->cmn.mac_addr[1], psta->cmn.mac_addr[2],
+					psta->cmn.mac_addr[3], psta->cmn.mac_addr[4], psta->cmn.mac_addr[5]);
 
 				_exit_critical_bh(&pstapriv->auth_list_lock, &irqL);
 
@@ -385,8 +381,8 @@ void	expire_timeout_chk(_adapter *padapter)
 		plist = get_next(plist);
 #ifdef CONFIG_ATMEL_RC_PATCH
 		RTW_INFO("%s:%d  psta=%p, %02x,%02x||%02x,%02x  \n\n", __func__,  __LINE__,
-			psta, pstapriv->atmel_rc_pattern[0], pstapriv->atmel_rc_pattern[5], psta->hwaddr[0], psta->hwaddr[5]);
-		if (_TRUE == _rtw_memcmp((void *)pstapriv->atmel_rc_pattern, (void *)(psta->hwaddr), ETH_ALEN))
+			psta, pstapriv->atmel_rc_pattern[0], pstapriv->atmel_rc_pattern[5], psta->cmn.mac_addr[0], psta->cmn.mac_addr[5]);
+		if (_rtw_memcmp((void *)pstapriv->atmel_rc_pattern, (void *)(psta->cmn.mac_addr), ETH_ALEN) == _TRUE)
 			continue;
 		if (psta->flag_atmel_rc)
 			continue;
@@ -421,7 +417,7 @@ void	expire_timeout_chk(_adapter *padapter)
 				RTW_INFO("asoc check by DELBA/ADDBA! (%d s)\n", (pstapriv->expire_to - psta->expire_to) * 2);
 				psta->under_exist_checking = 1;
 				/* tear down TX AMPDU */
-				send_delba(padapter, 1, psta->hwaddr);/*  */ /* originator */
+				send_delba(padapter, 1, psta->cmn.mac_addr);/*  */ /* originator */
 				psta->htpriv.agg_enable_bitmap = 0x0;/* reset */
 				psta->htpriv.candidate_tid_bitmap = 0x0;/* reset */
 			}
@@ -473,7 +469,7 @@ void	expire_timeout_chk(_adapter *padapter)
 
 						RTW_INFO("issue addba_req to check if sta alive, keep_alive_trycnt=%d\n", psta->keep_alive_trycnt);
 
-						issue_addba_req(padapter, psta->hwaddr, (u8)priority);
+						issue_addba_req(padapter, psta->cmn.mac_addr, (u8)priority);
 
 						_set_timer(&psta->addba_retry_timer, ADDBA_TO);
 
@@ -497,10 +493,10 @@ void	expire_timeout_chk(_adapter *padapter)
 					psta->expire_to = pstapriv->expire_to;
 					psta->state |= WIFI_STA_ALIVE_CHK_STATE;
 
-					/* RTW_INFO("alive chk, sta:" MAC_FMT " is at ps mode!\n", MAC_ARG(psta->hwaddr)); */
+					/* RTW_INFO("alive chk, sta:" MAC_FMT " is at ps mode!\n", MAC_ARG(psta->cmn.mac_addr)); */
 
 					/* to update bcn with tim_bitmap for this station */
-					pstapriv->tim_bitmap |= BIT(psta->aid);
+					pstapriv->tim_bitmap |= BIT(psta->cmn.aid);
 					update_beacon(padapter, _TIM_IE_, NULL, _TRUE);
 
 					if (!pmlmeext->active_keep_alive_check)
@@ -520,7 +516,7 @@ void	expire_timeout_chk(_adapter *padapter)
 #endif /* CONFIG_ACTIVE_KEEP_ALIVE_CHECK */
 			rtw_list_delete(&psta->asoc_list);
 			pstapriv->asoc_list_cnt--;
-			RTW_INFO("asoc expire "MAC_FMT", state=0x%x\n", MAC_ARG(psta->hwaddr), psta->state);
+			RTW_INFO("asoc expire "MAC_FMT", state=0x%x\n", MAC_ARG(psta->cmn.mac_addr), psta->state);
 			updated = ap_free_sta(padapter, psta, _FALSE, WLAN_REASON_DEAUTH_LEAVING, _TRUE);
 		} else {
 			/* TODO: Aging mechanism to digest frames in sleep_q to avoid running out of xmitframe */
@@ -528,7 +524,7 @@ void	expire_timeout_chk(_adapter *padapter)
 			    && padapter->xmitpriv.free_xmitframe_cnt < ((NR_XMITFRAME / pstapriv->asoc_list_cnt) / 2)
 			   ) {
 				RTW_INFO("%s sta:"MAC_FMT", sleepq_len:%u, free_xmitframe_cnt:%u, asoc_list_cnt:%u, clear sleep_q\n", __func__
-					 , MAC_ARG(psta->hwaddr)
+					 , MAC_ARG(psta->cmn.mac_addr)
 					, psta->sleepq_len, padapter->xmitpriv.free_xmitframe_cnt, pstapriv->asoc_list_cnt);
 				wakeup_sta_to_xmit(padapter, psta);
 			}
@@ -540,7 +536,7 @@ void	expire_timeout_chk(_adapter *padapter)
 #ifdef CONFIG_ACTIVE_KEEP_ALIVE_CHECK
 	if (chk_alive_num) {
 
-		u8 backup_ch = 0, backup_bw, backup_offset;
+		u8 backup_ch = 0, backup_bw = 0, backup_offset = 0;
 		u8 union_ch = 0, union_bw, union_offset;
 		u8 switch_channel = _TRUE;
 		struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
@@ -570,7 +566,7 @@ void	expire_timeout_chk(_adapter *padapter)
 
 			psta = rtw_get_stainfo_by_offset(pstapriv, chk_alive_list[i]);
 #ifdef CONFIG_ATMEL_RC_PATCH
-			if (_TRUE == _rtw_memcmp(pstapriv->atmel_rc_pattern, psta->hwaddr, ETH_ALEN))
+			if (_rtw_memcmp(pstapriv->atmel_rc_pattern, psta->cmn.mac_addr, ETH_ALEN) == _TRUE)
 				continue;
 			if (psta->flag_atmel_rc)
 				continue;
@@ -579,13 +575,13 @@ void	expire_timeout_chk(_adapter *padapter)
 				continue;
 
 			if (psta->state & WIFI_SLEEP_STATE)
-				ret = issue_nulldata(padapter, psta->hwaddr, 0, 1, 50);
+				ret = issue_nulldata(padapter, psta->cmn.mac_addr, 0, 1, 50);
 			else
-				ret = issue_nulldata(padapter, psta->hwaddr, 0, 3, 50);
+				ret = issue_nulldata(padapter, psta->cmn.mac_addr, 0, 3, 50);
 
 			psta->keep_alive_trycnt++;
 			if (ret == _SUCCESS) {
-				RTW_INFO("asoc check, sta(" MAC_FMT ") is alive\n", MAC_ARG(psta->hwaddr));
+				RTW_INFO("asoc check, sta(" MAC_FMT ") is alive\n", MAC_ARG(psta->cmn.mac_addr));
 				psta->expire_to = pstapriv->expire_to;
 				psta->keep_alive_trycnt = 0;
 				continue;
@@ -596,7 +592,7 @@ void	expire_timeout_chk(_adapter *padapter)
 			}
 
 			psta->keep_alive_trycnt = 0;
-			RTW_INFO("asoc expire "MAC_FMT", state=0x%x\n", MAC_ARG(psta->hwaddr), psta->state);
+			RTW_INFO("asoc expire "MAC_FMT", state=0x%x\n", MAC_ARG(psta->cmn.mac_addr), psta->state);
 			_enter_critical_bh(&pstapriv->asoc_list_lock, &irqL);
 			if (rtw_is_list_empty(&psta->asoc_list) == _FALSE) {
 				rtw_list_delete(&psta->asoc_list);
@@ -619,33 +615,28 @@ bypass_active_keep_alive:
 	associated_clients_update(padapter, updated, STA_INFO_UPDATE_ALL);
 }
 
-void add_RATid(_adapter *padapter, struct sta_info *psta, u8 rssi_level)
+void rtw_ap_update_sta_ra_info(_adapter *padapter, struct sta_info *psta)
 {
 	int i;
 	u8 rf_type;
 	unsigned char sta_band = 0;
 	u64 tx_ra_bitmap = 0;
-	struct ht_priv	*psta_ht = NULL;
 	struct mlme_priv *pmlmepriv = &(padapter->mlmepriv);
 	WLAN_BSSID_EX *pcur_network = (WLAN_BSSID_EX *)&pmlmepriv->cur_network.network;
 
-#ifdef CONFIG_80211N_HT
-	if (psta)
-		psta_ht = &psta->htpriv;
-	else
+	if (!psta)
 		return;
-#endif /* CONFIG_80211N_HT */
 
 	if (!(psta->state & _FW_LINKED))
 		return;
 
-	rtw_hal_update_sta_rate_mask(padapter, psta);
-	tx_ra_bitmap = psta->ra_mask;
+	rtw_hal_update_sta_ra_info(padapter, psta);
+	tx_ra_bitmap = psta->cmn.ra_info.ramask;
 
 	if (pcur_network->Configuration.DSConfig > 14) {
 
 		if (tx_ra_bitmap & 0xffff000)
-			sta_band |= WIRELESS_11_5N ;
+			sta_band |= WIRELESS_11_5N;
 
 		if (tx_ra_bitmap & 0xff0)
 			sta_band |= WIRELESS_11A;
@@ -655,7 +646,6 @@ void add_RATid(_adapter *padapter, struct sta_info *psta, u8 rssi_level)
 		if (psta->vhtpriv.vht_option)
 			sta_band = WIRELESS_11_5AC;
 #endif
-
 	} else {
 		if (tx_ra_bitmap & 0xffff000)
 			sta_band |= WIRELESS_11_24N;
@@ -668,16 +658,180 @@ void add_RATid(_adapter *padapter, struct sta_info *psta, u8 rssi_level)
 	}
 
 	psta->wireless_mode = sta_band;
-	psta->raid = rtw_hal_networktype_to_raid(padapter, psta);
+	rtw_hal_update_sta_wset(padapter, psta);
+	RTW_INFO("%s=> mac_id:%d , tx_ra_bitmap:0x%016llx, networkType:0x%02x\n",
+			__FUNCTION__, psta->cmn.mac_id, tx_ra_bitmap, psta->wireless_mode);
+}
 
-	if (psta->aid < NUM_STA) {
-		RTW_INFO("%s=> mac_id:%d , raid:%d, tx_ra_bitmap:0x%016llx, networkType:0x%02x\n",
-			__FUNCTION__, psta->mac_id, psta->raid, tx_ra_bitmap, psta->wireless_mode);
+#ifdef CONFIG_BMC_TX_RATE_SELECT
+u8 rtw_ap_find_mini_tx_rate(_adapter *adapter)
+{
+	_irqL irqL;
+	_list	*phead, *plist;
+	u8 miini_tx_rate = ODM_RATEVHTSS4MCS9, sta_tx_rate;
+	struct sta_info *psta = NULL;
+	struct sta_priv *pstapriv = &adapter->stapriv;
 
-		rtw_update_ramask(padapter, psta, psta->mac_id, rssi_level);
-	} else
-		RTW_INFO("station aid %d exceed the max number\n", psta->aid);
+	_enter_critical_bh(&pstapriv->asoc_list_lock, &irqL);
+	phead = &pstapriv->asoc_list;
+	plist = get_next(phead);
+	while ((rtw_end_of_queue_search(phead, plist)) == _FALSE) {
+		psta = LIST_CONTAINOR(plist, struct sta_info, asoc_list);
+		plist = get_next(plist);
 
+		sta_tx_rate = psta->cmn.ra_info.curr_tx_rate & 0x7F;
+		if (sta_tx_rate < miini_tx_rate)
+			miini_tx_rate = sta_tx_rate;
+	}
+	_exit_critical_bh(&pstapriv->asoc_list_lock, &irqL);
+
+	return miini_tx_rate;
+}
+
+u8 rtw_ap_find_bmc_rate(_adapter *adapter, u8 tx_rate)
+{
+	PHAL_DATA_TYPE	hal_data = GET_HAL_DATA(adapter);
+	u8 tx_ini_rate = ODM_RATE6M;
+
+	switch (tx_rate) {
+	case ODM_RATEVHTSS3MCS9:
+	case ODM_RATEVHTSS3MCS8:
+	case ODM_RATEVHTSS3MCS7:
+	case ODM_RATEVHTSS3MCS6:
+	case ODM_RATEVHTSS3MCS5:
+	case ODM_RATEVHTSS3MCS4:
+	case ODM_RATEVHTSS3MCS3:
+	case ODM_RATEVHTSS2MCS9:
+	case ODM_RATEVHTSS2MCS8:
+	case ODM_RATEVHTSS2MCS7:
+	case ODM_RATEVHTSS2MCS6:
+	case ODM_RATEVHTSS2MCS5:
+	case ODM_RATEVHTSS2MCS4:
+	case ODM_RATEVHTSS2MCS3:
+	case ODM_RATEVHTSS1MCS9:
+	case ODM_RATEVHTSS1MCS8:
+	case ODM_RATEVHTSS1MCS7:
+	case ODM_RATEVHTSS1MCS6:
+	case ODM_RATEVHTSS1MCS5:
+	case ODM_RATEVHTSS1MCS4:
+	case ODM_RATEVHTSS1MCS3:
+	case ODM_RATEMCS15:
+	case ODM_RATEMCS14:
+	case ODM_RATEMCS13:
+	case ODM_RATEMCS12:
+	case ODM_RATEMCS11:
+	case ODM_RATEMCS7:
+	case ODM_RATEMCS6:
+	case ODM_RATEMCS5:
+	case ODM_RATEMCS4:
+	case ODM_RATEMCS3:
+	case ODM_RATE54M:
+	case ODM_RATE48M:
+	case ODM_RATE36M:
+	case ODM_RATE24M:
+		tx_ini_rate = ODM_RATE24M;
+		break;
+	case ODM_RATEVHTSS3MCS2:
+	case ODM_RATEVHTSS3MCS1:
+	case ODM_RATEVHTSS2MCS2:
+	case ODM_RATEVHTSS2MCS1:
+	case ODM_RATEVHTSS1MCS2:
+	case ODM_RATEVHTSS1MCS1:
+	case ODM_RATEMCS10:
+	case ODM_RATEMCS9:
+	case ODM_RATEMCS2:
+	case ODM_RATEMCS1:
+	case ODM_RATE18M:
+	case ODM_RATE12M:
+		tx_ini_rate = ODM_RATE12M;
+		break;
+	case ODM_RATEVHTSS3MCS0:
+	case ODM_RATEVHTSS2MCS0:
+	case ODM_RATEVHTSS1MCS0:
+	case ODM_RATEMCS8:
+	case ODM_RATEMCS0:
+	case ODM_RATE9M:
+	case ODM_RATE6M:
+		tx_ini_rate = ODM_RATE6M;
+		break;
+	case ODM_RATE11M:
+	case ODM_RATE5_5M:
+	case ODM_RATE2M:
+	case ODM_RATE1M:
+		tx_ini_rate = ODM_RATE1M;
+		break;
+	default:
+		tx_ini_rate = ODM_RATE6M;
+		break;
+	}
+
+	if (hal_data->current_band_type == BAND_ON_5G)
+		if (tx_ini_rate < ODM_RATE6M)
+			tx_ini_rate = ODM_RATE6M;
+
+	return tx_ini_rate;
+}
+
+void rtw_update_bmc_sta_tx_rate(_adapter *adapter)
+{
+	struct sta_info *psta = NULL;
+	u8 tx_rate;
+
+	psta = rtw_get_bcmc_stainfo(adapter);
+	if (psta == NULL) {
+		RTW_ERR(ADPT_FMT "could not get bmc_sta !!\n", ADPT_ARG(adapter));
+		return;
+	}
+
+	if (adapter->bmc_tx_rate != MGN_UNKNOWN) {
+		psta->init_rate = adapter->bmc_tx_rate;
+		goto _exit;
+	}
+
+	if (adapter->stapriv.asoc_sta_count <= 2)
+		goto _exit;
+
+	tx_rate = rtw_ap_find_mini_tx_rate(adapter);
+	#ifdef CONFIG_BMC_TX_LOW_RATE
+	tx_rate = rtw_ap_find_bmc_rate(adapter, tx_rate);
+	#endif
+
+	psta->init_rate = hw_rate_to_m_rate(tx_rate);
+
+_exit:
+	RTW_INFO(ADPT_FMT" BMC Tx rate - %s\n", ADPT_ARG(adapter), MGN_RATE_STR(psta->init_rate));
+}
+#endif
+
+void rtw_init_bmc_sta_tx_rate(_adapter *padapter, struct sta_info *psta)
+{
+	struct mlme_priv *pmlmepriv = &(padapter->mlmepriv);
+	struct mlme_ext_priv *pmlmeext = &(padapter->mlmeextpriv);
+	u8 rate_idx = 0;
+	u8 brate_table[] = {MGN_1M, MGN_2M, MGN_5_5M, MGN_11M,
+		MGN_6M, MGN_9M, MGN_12M, MGN_18M, MGN_24M, MGN_36M, MGN_48M, MGN_54M};
+
+	if (!MLME_IS_AP(padapter) && !MLME_IS_MESH(padapter))
+		return;
+
+	if (padapter->bmc_tx_rate != MGN_UNKNOWN)
+		psta->init_rate = padapter->bmc_tx_rate;
+	else {
+		#ifdef CONFIG_BMC_TX_LOW_RATE
+		if (IsEnableHWOFDM(pmlmeext->cur_wireless_mode) && (psta->cmn.ra_info.ramask && 0xFF0))
+			rate_idx = get_lowest_rate_idx_ex(psta->cmn.ra_info.ramask, 4); /*from basic rate*/
+		else
+			rate_idx = get_lowest_rate_idx(psta->cmn.ra_info.ramask); /*from basic rate*/
+		#else
+		rate_idx = get_highest_rate_idx(psta->cmn.ra_info.ramask); /*from basic rate*/
+		#endif
+		if (rate_idx < 12)
+			psta->init_rate = brate_table[rate_idx];
+		else
+			psta->init_rate = MGN_1M;
+	}
+
+	RTW_INFO(ADPT_FMT" BMC Init Tx rate - %s\n", ADPT_ARG(padapter), MGN_RATE_STR(psta->init_rate));
 }
 
 void update_bmc_sta(_adapter *padapter)
@@ -690,7 +844,7 @@ void update_bmc_sta(_adapter *padapter)
 	struct sta_info *psta = rtw_get_bcmc_stainfo(padapter);
 
 	if (psta) {
-		psta->aid = 0;/* default set to 0 */
+		psta->cmn.aid = 0;/* default set to 0 */
 		psta->qos_option = 0;
 #ifdef CONFIG_80211N_HT
 		psta->htpriv.ht_option = _FALSE;
@@ -702,7 +856,6 @@ void update_bmc_sta(_adapter *padapter)
 
 		/* psta->dot118021XPrivacy = _NO_PRIVACY_; */ /* !!! remove it, because it has been set before this. */
 
-		/* prepare for add_RATid		 */
 		supportRateNum = rtw_get_rateset_len((u8 *)&pcur_network->SupportedRates);
 		network_type = rtw_check_network_type((u8 *)&pcur_network->SupportedRates, supportRateNum, pcur_network->Configuration.DSConfig);
 		if (IsSupportedTxCCK(network_type))
@@ -716,20 +869,51 @@ void update_bmc_sta(_adapter *padapter)
 		update_sta_basic_rate(psta, network_type);
 		psta->wireless_mode = network_type;
 
-		rtw_hal_update_sta_rate_mask(padapter, psta);
-
-		psta->raid = rtw_hal_networktype_to_raid(padapter, psta);
+		rtw_hal_update_sta_ra_info(padapter, psta);
 
 		_enter_critical_bh(&psta->lock, &irqL);
 		psta->state = _FW_LINKED;
 		_exit_critical_bh(&psta->lock, &irqL);
 
 		rtw_sta_media_status_rpt(padapter, psta, 1);
-		rtw_hal_update_ra_mask(psta, 0);
+		rtw_init_bmc_sta_tx_rate(padapter, psta);
+
 	} else
 		RTW_INFO("add_RATid_bmc_sta error!\n");
 
 }
+
+#if defined(CONFIG_80211N_HT) && defined(CONFIG_BEAMFORMING)
+void update_sta_info_apmode_ht_bf_cap(_adapter *padapter, struct sta_info *psta)
+{
+	struct mlme_priv *pmlmepriv = &(padapter->mlmepriv);
+	struct ht_priv	*phtpriv_ap = &pmlmepriv->htpriv;
+	struct ht_priv	*phtpriv_sta = &psta->htpriv;
+
+	u8 cur_beamform_cap = 0;
+
+	/*Config Tx beamforming setting*/
+	if (TEST_FLAG(phtpriv_ap->beamform_cap, BEAMFORMING_HT_BEAMFORMEE_ENABLE) &&
+		GET_HT_CAP_TXBF_EXPLICIT_COMP_STEERING_CAP((u8 *)(&phtpriv_sta->ht_cap))) {
+		SET_FLAG(cur_beamform_cap, BEAMFORMING_HT_BEAMFORMER_ENABLE);
+		/*Shift to BEAMFORMING_HT_BEAMFORMEE_CHNL_EST_CAP*/
+		SET_FLAG(cur_beamform_cap, GET_HT_CAP_TXBF_CHNL_ESTIMATION_NUM_ANTENNAS((u8 *)(&phtpriv_sta->ht_cap)) << 6);
+	}
+
+	if (TEST_FLAG(phtpriv_ap->beamform_cap, BEAMFORMING_HT_BEAMFORMER_ENABLE) &&
+		GET_HT_CAP_TXBF_EXPLICIT_COMP_FEEDBACK_CAP((u8 *)(&phtpriv_sta->ht_cap))) {
+		SET_FLAG(cur_beamform_cap, BEAMFORMING_HT_BEAMFORMEE_ENABLE);
+		/*Shift to BEAMFORMING_HT_BEAMFORMER_STEER_NUM*/
+		SET_FLAG(cur_beamform_cap, GET_HT_CAP_TXBF_COMP_STEERING_NUM_ANTENNAS((u8 *)(&phtpriv_sta->ht_cap)) << 4);
+	}
+	if (cur_beamform_cap)
+		RTW_INFO("Client STA(%d) HT Beamforming Cap = 0x%02X\n", psta->cmn.aid, cur_beamform_cap);
+
+	phtpriv_sta->beamform_cap = cur_beamform_cap;
+	psta->cmn.bf_info.ht_beamform_cap = cur_beamform_cap;
+
+}
+#endif /*CONFIG_80211N_HT && CONFIG_BEAMFORMING*/
 
 /* notes:
  * AID: 1~MAX for sta and 0 for bc/mc in ap/adhoc mode  */
@@ -743,16 +927,13 @@ void update_sta_info_apmode(_adapter *padapter, struct sta_info *psta)
 	struct ht_priv	*phtpriv_ap = &pmlmepriv->htpriv;
 	struct ht_priv	*phtpriv_sta = &psta->htpriv;
 #endif /* CONFIG_80211N_HT */
-	u8	cur_ldpc_cap = 0, cur_stbc_cap = 0, cur_beamform_cap = 0;
+	u8	cur_ldpc_cap = 0, cur_stbc_cap = 0;
 	/* set intf_tag to if1 */
 	/* psta->intf_tag = 0; */
 
 	RTW_INFO("%s\n", __FUNCTION__);
 
 	/*alloc macid when call rtw_alloc_stainfo(),release macid when call rtw_free_stainfo()*/
-
-	/* ap mode */
-	rtw_hal_set_odm_var(padapter, HAL_ODM_STA_INFO, psta, _TRUE);
 
 	if (psecuritypriv->dot11AuthAlgrthm == dot11AuthAlgrthm_8021X)
 		psta->ieee8021x_blocked = _TRUE;
@@ -774,15 +955,15 @@ void update_sta_info_apmode(_adapter *padapter, struct sta_info *psta)
 
 		/* bwmode */
 		if ((phtpriv_sta->ht_cap.cap_info & phtpriv_ap->ht_cap.cap_info) & cpu_to_le16(IEEE80211_HT_CAP_SUP_WIDTH))
-			psta->bw_mode = CHANNEL_WIDTH_40;
+			psta->cmn.bw_mode = CHANNEL_WIDTH_40;
 		else
-			psta->bw_mode = CHANNEL_WIDTH_20;
+			psta->cmn.bw_mode = CHANNEL_WIDTH_20;
 
 		if (psta->ht_40mhz_intolerant)
-			psta->bw_mode = CHANNEL_WIDTH_20;
+			psta->cmn.bw_mode = CHANNEL_WIDTH_20;
 
-		if (pmlmeext->cur_bwmode < psta->bw_mode)
-			psta->bw_mode = pmlmeext->cur_bwmode;
+		if (pmlmeext->cur_bwmode < psta->cmn.bw_mode)
+			psta->cmn.bw_mode = pmlmeext->cur_bwmode;
 
 		phtpriv_sta->ch_offset = pmlmeext->cur_ch_offset;
 
@@ -793,7 +974,7 @@ void update_sta_info_apmode(_adapter *padapter, struct sta_info *psta)
 
 		/* check if sta support s Short GI 40M */
 		if ((phtpriv_sta->ht_cap.cap_info & phtpriv_ap->ht_cap.cap_info) & cpu_to_le16(IEEE80211_HT_CAP_SGI_40)) {
-			if (psta->bw_mode == CHANNEL_WIDTH_40) /* according to psta->bw_mode */
+			if (psta->cmn.bw_mode == CHANNEL_WIDTH_40) /* according to psta->bw_mode */
 				phtpriv_sta->sgi_40m = _TRUE;
 			else
 				phtpriv_sta->sgi_40m = _FALSE;
@@ -805,52 +986,36 @@ void update_sta_info_apmode(_adapter *padapter, struct sta_info *psta)
 		if (TEST_FLAG(phtpriv_ap->ldpc_cap, LDPC_HT_ENABLE_TX) &&
 		    GET_HT_CAP_ELE_LDPC_CAP((u8 *)(&phtpriv_sta->ht_cap))) {
 			SET_FLAG(cur_ldpc_cap, (LDPC_HT_ENABLE_TX | LDPC_HT_CAP_TX));
-			RTW_INFO("Enable HT Tx LDPC for STA(%d)\n", psta->aid);
+			RTW_INFO("Enable HT Tx LDPC for STA(%d)\n", psta->cmn.aid);
 		}
 
 		/* B7 B8 B9 Config STBC setting */
 		if (TEST_FLAG(phtpriv_ap->stbc_cap, STBC_HT_ENABLE_TX) &&
 		    GET_HT_CAP_ELE_RX_STBC((u8 *)(&phtpriv_sta->ht_cap))) {
 			SET_FLAG(cur_stbc_cap, (STBC_HT_ENABLE_TX | STBC_HT_CAP_TX));
-			RTW_INFO("Enable HT Tx STBC for STA(%d)\n", psta->aid);
+			RTW_INFO("Enable HT Tx STBC for STA(%d)\n", psta->cmn.aid);
 		}
 
-#ifdef CONFIG_BEAMFORMING
-		/*Config Tx beamforming setting*/
-		if (TEST_FLAG(phtpriv_ap->beamform_cap, BEAMFORMING_HT_BEAMFORMEE_ENABLE) &&
-		    GET_HT_CAP_TXBF_EXPLICIT_COMP_STEERING_CAP((u8 *)(&phtpriv_sta->ht_cap))) {
-			SET_FLAG(cur_beamform_cap, BEAMFORMING_HT_BEAMFORMER_ENABLE);
-			/*Shift to BEAMFORMING_HT_BEAMFORMEE_CHNL_EST_CAP*/
-			SET_FLAG(cur_beamform_cap, GET_HT_CAP_TXBF_CHNL_ESTIMATION_NUM_ANTENNAS((u8 *)(&phtpriv_sta->ht_cap)) << 6);
-		}
-
-		if (TEST_FLAG(phtpriv_ap->beamform_cap, BEAMFORMING_HT_BEAMFORMER_ENABLE) &&
-		    GET_HT_CAP_TXBF_EXPLICIT_COMP_FEEDBACK_CAP((u8 *)(&phtpriv_sta->ht_cap))) {
-			SET_FLAG(cur_beamform_cap, BEAMFORMING_HT_BEAMFORMEE_ENABLE);
-			/*Shift to BEAMFORMING_HT_BEAMFORMER_STEER_NUM*/
-			SET_FLAG(cur_beamform_cap, GET_HT_CAP_TXBF_COMP_STEERING_NUM_ANTENNAS((u8 *)(&phtpriv_sta->ht_cap)) << 4);
-		}
-		if (cur_beamform_cap)
-			RTW_INFO("Client STA(%d) HT Beamforming Cap = 0x%02X\n", psta->aid, cur_beamform_cap);
-#endif /*CONFIG_BEAMFORMING*/
+		#ifdef CONFIG_BEAMFORMING
+		update_sta_info_apmode_ht_bf_cap(padapter, psta);
+		#endif
 	} else {
 		phtpriv_sta->ampdu_enable = _FALSE;
 
 		phtpriv_sta->sgi_20m = _FALSE;
 		phtpriv_sta->sgi_40m = _FALSE;
-		psta->bw_mode = CHANNEL_WIDTH_20;
+		psta->cmn.bw_mode = CHANNEL_WIDTH_20;
 		phtpriv_sta->ch_offset = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
 	}
 
 	phtpriv_sta->ldpc_cap = cur_ldpc_cap;
 	phtpriv_sta->stbc_cap = cur_stbc_cap;
-	phtpriv_sta->beamform_cap = cur_beamform_cap;
 
 	/* Rx AMPDU */
-	send_delba(padapter, 0, psta->hwaddr);/* recipient */
+	send_delba(padapter, 0, psta->cmn.mac_addr);/* recipient */
 
 	/* TX AMPDU */
-	send_delba(padapter, 1, psta->hwaddr);/*  */ /* originator */
+	send_delba(padapter, 1, psta->cmn.mac_addr);/*  */ /* originator */
 	phtpriv_sta->agg_enable_bitmap = 0x0;/* reset */
 	phtpriv_sta->candidate_tid_bitmap = 0x0;/* reset */
 #endif /* CONFIG_80211N_HT */
@@ -858,7 +1023,7 @@ void update_sta_info_apmode(_adapter *padapter, struct sta_info *psta)
 #ifdef CONFIG_80211AC_VHT
 	update_sta_vht_info_apmode(padapter, psta);
 #endif
-
+	psta->cmn.ra_info.is_support_sgi = query_ra_short_GI(psta, rtw_get_tx_bw_mode(padapter, psta));
 	update_ldpc_stbc_cap(psta);
 
 	/* todo: init other variables */
@@ -869,6 +1034,8 @@ void update_sta_info_apmode(_adapter *padapter, struct sta_info *psta)
 	/* add ratid */
 	/* add_RATid(padapter, psta); */ /* move to ap_sta_info_defer_update() */
 
+	/* ap mode */
+	rtw_hal_set_odm_var(padapter, HAL_ODM_STA_INFO, psta, _TRUE);
 
 	_enter_critical_bh(&psta->lock, &irqL);
 	psta->state |= _FW_LINKED;
@@ -913,7 +1080,7 @@ static void update_ap_info(_adapter *padapter, struct sta_info *psta)
 		phtpriv_ap->sgi_40m = _FALSE;
 	}
 
-	psta->bw_mode = pmlmeext->cur_bwmode;
+	psta->cmn.bw_mode = pmlmeext->cur_bwmode;
 	phtpriv_ap->ch_offset = pmlmeext->cur_ch_offset;
 
 	phtpriv_ap->agg_enable_bitmap = 0x0;/* reset */
@@ -944,7 +1111,7 @@ static void rtw_set_hw_wmm_param(_adapter *padapter)
 
 	acm_mask = 0;
 
-	if (IsSupported5G(pmlmeext->cur_wireless_mode) ||
+	if (is_supported_5g(pmlmeext->cur_wireless_mode) ||
 	    (pmlmeext->cur_wireless_mode & WIRELESS_11_24N))
 		aSifsTime = 16;
 	else
@@ -1146,13 +1313,13 @@ static void rtw_ap_check_scan(_adapter *padapter)
 		}
 	_exit_critical_bh(&(pmlmepriv->scanned_queue.lock), &irqL);
 
-#ifdef CONFIG_AUTO_CHNL_SEL_NHM
+#ifdef CONFIG_RTW_ACS
 	if (padapter->registrypriv.acs_auto_scan) {
 		do_scan = _TRUE;
 		reason |= RTW_AUTO_SCAN_REASON_ACS;
-		rtw_acs_start(padapter, _TRUE);
+		rtw_acs_start(padapter);
 	}
-#endif
+#endif/*CONFIG_RTW_ACS*/
 
 	if (_TRUE == do_scan) {
 		RTW_INFO("%s : drv scans by itself and wait_completed\n", __func__);
@@ -1160,10 +1327,11 @@ static void rtw_ap_check_scan(_adapter *padapter)
 		rtw_scan_wait_completed(padapter);
 	}
 
-#ifdef CONFIG_AUTO_CHNL_SEL_NHM
+#ifdef CONFIG_RTW_ACS
 	if (padapter->registrypriv.acs_auto_scan)
-		rtw_acs_start(padapter, _FALSE);
+		rtw_acs_stop(padapter);
 #endif
+
 	_enter_critical_bh(&(pmlmepriv->scanned_queue.lock), &irqL);
 
 	phead = get_list_head(queue);
@@ -1176,7 +1344,7 @@ static void rtw_ap_check_scan(_adapter *padapter)
 
 		pnetwork = LIST_CONTAINOR(plist, struct wlan_network, list);
 
-		if (rtw_ch_set_search_ch(padapter->mlmeextpriv.channel_set, pnetwork->network.Configuration.DSConfig) >= 0
+		if (rtw_chset_search_ch(adapter_to_chset(padapter), pnetwork->network.Configuration.DSConfig) >= 0
 		    && rtw_mlme_band_check(padapter, pnetwork->network.Configuration.DSConfig) == _TRUE
 		    && _TRUE == rtw_validate_ssid(&(pnetwork->network.Ssid))) {
 			delta_time = (u32) rtw_get_passing_time_ms(pnetwork->last_scanned);
@@ -1213,9 +1381,7 @@ static void rtw_ap_check_scan(_adapter *padapter)
 
 	_exit_critical_bh(&(pmlmepriv->scanned_queue.lock), &irqL);
 
-#ifdef CONFIG_80211N_HT
 	pmlmepriv->num_sta_no_ht = 0; /* reset to 0 after ap do scanning*/
-#endif
 
 }
 
@@ -1251,7 +1417,7 @@ void rtw_start_bss_hdl_after_chbw_decided(_adapter *adapter)
 void start_bss_network(_adapter *padapter, struct createbss_parm *parm)
 {
 #define DUMP_ADAPTERS_STATUS 0
-
+	u8 self_action = MLME_ACTION_UNKNOWN;
 	u8 val8;
 	u16 bcn_interval;
 	u32	acparm;
@@ -1270,12 +1436,23 @@ void start_bss_network(_adapter *padapter, struct createbss_parm *parm)
 	/* use for check ch bw offset can be allowed or not */
 	u8 chbw_allow = _TRUE;
 
+	if (MLME_IS_AP(padapter))
+		self_action = MLME_AP_STARTED;
+	else if (MLME_IS_MESH(padapter))
+		self_action = MLME_MESH_STARTED;
+	else
+		rtw_warn_on(1);
+
 	if (parm->req_ch != 0) {
 		/* bypass other setting, go checking ch, bw, offset */
 		req_ch = parm->req_ch;
 		req_bw = parm->req_bw;
 		req_offset = parm->req_offset;
 		goto chbw_decision;
+	} else {
+		/* inform this request comes from upper layer */
+		req_ch = 0;
+		_rtw_memcpy(pnetwork_mlmeext, pnetwork, pnetwork->Length);
 	}
 
 	bcn_interval = (u16)pnetwork->Configuration.BeaconPeriod;
@@ -1347,16 +1524,32 @@ chbw_decision:
 	ch_setting_changed = rtw_ap_chbw_decision(padapter, req_ch, req_bw, req_offset
 		     , &ch_to_set, &bw_to_set, &offset_to_set, &chbw_allow);
 
-	/* let pnetwork_mlmeext == pnetwork_mlme. */
-	_rtw_memcpy(pnetwork_mlmeext, pnetwork, pnetwork->Length);
+	/* let pnetwork_mlme == pnetwork_mlmeext */
+	_rtw_memcpy(pnetwork, pnetwork_mlmeext, pnetwork_mlmeext->Length);
 
 	rtw_start_bss_hdl_after_chbw_decided(padapter);
 
 #if defined(CONFIG_DFS_MASTER)
-	rtw_dfs_master_status_apply(padapter, MLME_AP_STARTED);
+	rtw_dfs_master_status_apply(padapter, self_action);
 #endif
+	rtw_hal_rcr_set_chk_bssid(padapter, self_action);
 
 #ifdef CONFIG_MCC_MODE
+	if (MCC_EN(padapter)) {
+		/* 
+		* due to check under rtw_ap_chbw_decision
+		* if under MCC mode, means req channel setting is the same as current channel setting
+		* if not under MCC mode, mean req channel setting is not the same as current channel setting
+		*/
+		if (rtw_hal_check_mcc_status(padapter, MCC_STATUS_DOING_MCC)) {
+				RTW_INFO(FUNC_ADPT_FMT": req channel setting is the same as current channel setting, go to update BCN\n"
+				, FUNC_ADPT_ARG(padapter));
+
+				goto update_beacon;
+
+		}
+	}
+
 	/* issue null data to AP for all interface connecting to AP before switch channel setting for softap */
 	rtw_hal_mcc_issue_null_data(padapter, chbw_allow, 1);
 #endif /* CONFIG_MCC_MODE */
@@ -1377,26 +1570,35 @@ chbw_decision:
 	rtw_hal_set_mcc_setting_start_bss_network(padapter, chbw_allow);
 #endif
 
+	if (ch_setting_changed == _TRUE
+		&& (MLME_IS_GO(padapter) || MLME_IS_MESH(padapter)) /* pure AP is not needed*/
+		&& check_fwstate(pmlmepriv, WIFI_ASOC_STATE)
+	) {
+		#if defined(CONFIG_IOCTL_CFG80211) && (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 5, 0))
+		rtw_cfg80211_ch_switch_notify(padapter
+			, pmlmeext->cur_channel, pmlmeext->cur_bwmode, pmlmeext->cur_ch_offset
+			, pmlmepriv->htpriv.ht_option);
+		#endif
+	}
+
 	if (DUMP_ADAPTERS_STATUS) {
 		RTW_INFO(FUNC_ADPT_FMT" done\n", FUNC_ADPT_ARG(padapter));
 		dump_adapters_status(RTW_DBGDUMP , adapter_to_dvobj(padapter));
 	}
 
+update_beacon:
 	/* update beacon content only if bstart_bss is _TRUE */
 	if (_TRUE == pmlmeext->bstart_bss) {
 
 		_irqL irqL;
 
-#ifdef CONFIG_80211N_HT
-		if ((ATOMIC_READ(&pmlmepriv->olbc) == _TRUE) ||
-		    (ATOMIC_READ(&pmlmepriv->olbc_ht) == _TRUE)) {
+		if ((ATOMIC_READ(&pmlmepriv->olbc) == _TRUE) || (ATOMIC_READ(&pmlmepriv->olbc_ht) == _TRUE)) {
 			/* AP is not starting a 40 MHz BSS in presence of an 802.11g BSS. */
 
 			pmlmepriv->ht_op_mode &= (~HT_INFO_OPERATION_MODE_OP_MODE_MASK);
 			pmlmepriv->ht_op_mode |= OP_MODE_MAY_BE_LEGACY_STAS;
 			update_beacon(padapter, _HT_ADD_INFO_IE_, NULL, _FALSE);
 		}
-#endif /* CONFIG_80211N_HT */
 
 		update_beacon(padapter, _TIM_IE_, NULL, _FALSE);
 
@@ -1418,9 +1620,7 @@ chbw_decision:
 	rtw_scan_wait_completed(padapter);
 
 	/* send beacon */
-	if ((0 == rtw_mi_check_fwstate(padapter, _FW_UNDER_SURVEY))
-		&& (0 == rtw_mi_check_fwstate(padapter, WIFI_OP_CH_SWITCHING))
-	) {
+	if (!rtw_mi_check_fwstate(padapter, _FW_UNDER_SURVEY)) {
 
 		/*update_beacon(padapter, _TIM_IE_, NULL, _TRUE);*/
 
@@ -1470,6 +1670,7 @@ int rtw_check_beacon_data(_adapter *padapter, u8 *pbuf,  int len)
 	u8 vht_cap = _FALSE;
 	struct mlme_ext_priv	*pmlmeext = &(padapter->mlmeextpriv);
 	struct mlme_ext_info	*pmlmeinfo = &(pmlmeext->mlmext_info);
+	struct rf_ctl_t *rfctl = adapter_to_rfctl(padapter);
 	u8 rf_num = 0;
 
 	/* SSID */
@@ -1485,7 +1686,7 @@ int rtw_check_beacon_data(_adapter *padapter, u8 *pbuf,  int len)
 
 	RTW_INFO("%s, len=%d\n", __FUNCTION__, len);
 
-	if (check_fwstate(pmlmepriv, WIFI_AP_STATE) != _TRUE)
+	if (!MLME_IS_AP(padapter) && !MLME_IS_MESH(padapter))
 		return _FAIL;
 
 
@@ -1499,8 +1700,10 @@ int rtw_check_beacon_data(_adapter *padapter, u8 *pbuf,  int len)
 	_rtw_memcpy(ie, pbuf, pbss_network->IELength);
 
 
-	if (pbss_network->InfrastructureMode != Ndis802_11APMode)
+	if (pbss_network->InfrastructureMode != Ndis802_11APMode) {
+		rtw_warn_on(1);
 		return _FAIL;
+	}
 
 
 	rtw_ap_check_scan(padapter);
@@ -1775,24 +1978,29 @@ int rtw_check_beacon_data(_adapter *padapter, u8 *pbuf,  int len)
 
 		/* Update Supported MCS Set field */
 		{
+			struct hal_spec_t *hal_spec = GET_HAL_SPEC(padapter);
+			u8 rx_nss = 0;
 			int i;
 
 			rtw_hal_get_hwreg(padapter, HW_VAR_RF_TYPE, (u8 *)(&rf_type));
+			rx_nss = rtw_min(rf_type_to_rf_rx_cnt(rf_type), hal_spec->rx_nss_num);
 
 			/* RX MCS Bitmask */
-			switch (rf_type) {
-			case RF_1T1R:
-			case RF_1T2R: /* ? */
+			switch (rx_nss) {
+			case 1:
 				set_mcs_rate_by_mask(HT_CAP_ELE_RX_MCS_MAP(pht_cap), MCS_RATE_1R);
 				break;
-			case RF_2T2R:
+			case 2:
 				set_mcs_rate_by_mask(HT_CAP_ELE_RX_MCS_MAP(pht_cap), MCS_RATE_2R);
 				break;
-			case RF_3T3R:
+			case 3:
 				set_mcs_rate_by_mask(HT_CAP_ELE_RX_MCS_MAP(pht_cap), MCS_RATE_3R);
 				break;
+			case 4:
+				set_mcs_rate_by_mask(HT_CAP_ELE_RX_MCS_MAP(pht_cap), MCS_RATE_4R);
+				break;
 			default:
-				RTW_INFO("[warning] rf_type %d is not expected\n", rf_type);
+				RTW_WARN("rf_type:%d or rx_nss:%u is not expected\n", rf_type, hal_spec->rx_nss_num);
 			}
 			for (i = 0; i < 10; i++)
 				*(HT_CAP_ELE_RX_MCS_MAP(pht_cap) + i) &= padapter->mlmeextpriv.default_supported_mcs_set[i];
@@ -1896,43 +2104,19 @@ int rtw_check_beacon_data(_adapter *padapter, u8 *pbuf,  int len)
 	    && (pmlmepriv->htpriv.ht_option == _TRUE)
 	    && REGSTY_IS_11AC_ENABLE(pregistrypriv)
 	    && hal_chk_proto_cap(padapter, PROTO_CAP_11AC)
-	    && (!pmlmepriv->country_ent || COUNTRY_CHPLAN_EN_11AC(pmlmepriv->country_ent))
+	    && (!rfctl->country_ent || COUNTRY_CHPLAN_EN_11AC(rfctl->country_ent))
 	   ) {
 		if (vht_cap == _TRUE)
 			pmlmepriv->vhtpriv.vht_option = _TRUE;
-		else if (REGSTY_IS_11AC_AUTO(pregistrypriv)) {
-			u8	cap_len, operation_len;
-
-			rtw_vht_use_default_setting(padapter);
-
-			{
-				/* VHT Operation mode notifiy bit in Extended IE (127) */
-				uint len = 0;
-
-				SET_EXT_CAPABILITY_ELE_OP_MODE_NOTIF(pmlmepriv->ext_capab_ie_data, 1);
-				pmlmepriv->ext_capab_ie_len = 10;
-				rtw_set_ie(pbss_network->IEs + pbss_network->IELength, EID_EXTCapability, 8, pmlmepriv->ext_capab_ie_data, &len);
-				pbss_network->IELength += pmlmepriv->ext_capab_ie_len;
-			}
-
-			/* VHT Capabilities element */
-			cap_len = rtw_build_vht_cap_ie(padapter, pbss_network->IEs + pbss_network->IELength);
-			pbss_network->IELength += cap_len;
-
-			/* VHT Operation element */
-			operation_len = rtw_build_vht_operation_ie(padapter, pbss_network->IEs + pbss_network->IELength, pbss_network->Configuration.DSConfig);
-			pbss_network->IELength += operation_len;
-
-			pmlmepriv->vhtpriv.vht_option = _TRUE;
-		}
+		else if (REGSTY_IS_11AC_AUTO(pregistrypriv))
+			rtw_vht_ies_attach(padapter, pbss_network);
 	}
 #endif /* CONFIG_80211AC_VHT */
 
 	if(pbss_network->Configuration.DSConfig <= 14 && padapter->registrypriv.wifi_spec == 1) {
 		uint len = 0;
-#ifdef CONFIG_80211N_HT
+
 		SET_EXT_CAPABILITY_ELE_BSS_COEXIST(pmlmepriv->ext_capab_ie_data, 1);
-#endif /* CONFIG_80211N_HT */
 		pmlmepriv->ext_capab_ie_len = 10;
 		rtw_set_ie(pbss_network->IEs + pbss_network->IELength, EID_EXTCapability, 8, pmlmepriv->ext_capab_ie_data, &len);
 		pbss_network->IELength += pmlmepriv->ext_capab_ie_len;
@@ -2168,7 +2352,7 @@ u8 rtw_ap_set_pairwise_key(_adapter *padapter, struct sta_info *psta)
 
 	psetstakey_para->algorithm = (u8)psta->dot118021XPrivacy;
 
-	_rtw_memcpy(psetstakey_para->addr, psta->hwaddr, ETH_ALEN);
+	_rtw_memcpy(psetstakey_para->addr, psta->cmn.mac_addr, ETH_ALEN);
 
 	_rtw_memcpy(psetstakey_para->key, &psta->dot118021x_UncstKey, 16);
 
@@ -2377,20 +2561,19 @@ static void associated_stainfo_update(_adapter *padapter, struct sta_info *psta,
 {
 	struct mlme_priv *pmlmepriv = &(padapter->mlmepriv);
 
-	RTW_INFO("%s: "MAC_FMT", updated_type=0x%x\n", __func__, MAC_ARG(psta->hwaddr), sta_info_type);
+	RTW_INFO("%s: "MAC_FMT", updated_type=0x%x\n", __func__, MAC_ARG(psta->cmn.mac_addr), sta_info_type);
 
 	if (sta_info_type & STA_INFO_UPDATE_BW) {
-#ifdef CONFIG_80211N_HT
+
 		if ((psta->flags & WLAN_STA_HT) && !psta->ht_20mhz_set) {
 			if (pmlmepriv->sw_to_20mhz) {
-				psta->bw_mode = CHANNEL_WIDTH_20;
+				psta->cmn.bw_mode = CHANNEL_WIDTH_20;
 				/*psta->htpriv.ch_offset = HAL_PRIME_CHNL_OFFSET_DONT_CARE;*/
 				psta->htpriv.sgi_40m = _FALSE;
 			} else {
 				/*TODO: Switch back to 40MHZ?80MHZ*/
 			}
 		}
-#endif /* CONFIG_80211N_HT */
 	}
 
 	/*
@@ -2439,12 +2622,6 @@ static void update_bcn_ext_capab_ie(_adapter *padapter)
 
 }
 
-static void update_bcn_fixed_ie(_adapter *padapter)
-{
-	RTW_INFO("%s\n", __FUNCTION__);
-
-}
-
 static void update_bcn_erpinfo_ie(_adapter *padapter)
 {
 	struct mlme_priv *pmlmepriv = &(padapter->mlmepriv);
@@ -2479,7 +2656,6 @@ static void update_bcn_erpinfo_ie(_adapter *padapter)
 
 }
 
-#ifdef CONFIG_80211N_HT
 static void update_bcn_htcap_ie(_adapter *padapter)
 {
 	RTW_INFO("%s\n", __FUNCTION__);
@@ -2568,7 +2744,6 @@ static void update_bcn_htinfo_ie(_adapter *padapter)
 	/*associated_clients_update(padapter, beacon_updated, sta_info_update_type);*/
 
 }
-#endif /* CONFIG_80211N_HT */
 
 static void update_bcn_rsn_ie(_adapter *padapter)
 {
@@ -2647,6 +2822,9 @@ static void update_bcn_wps_ie(_adapter *padapter)
 		if (sr) {
 			set_fwstate(pmlmepriv, WIFI_UNDER_WPS);
 			RTW_INFO("%s, set WIFI_UNDER_WPS\n", __func__);
+		} else {
+			clr_fwstate(pmlmepriv, WIFI_UNDER_WPS);
+			RTW_INFO("%s, clr WIFI_UNDER_WPS\n", __func__);
 		}
 	}
 #endif
@@ -2679,71 +2857,49 @@ void _update_beacon(_adapter *padapter, u8 ie_id, u8 *oui, u8 tx, const char *ta
 {
 	_irqL irqL;
 	struct mlme_priv *pmlmepriv;
-	struct mlme_ext_priv	*pmlmeext;
-	/* struct mlme_ext_info	*pmlmeinfo; */
-
-	/* RTW_INFO("%s\n", __FUNCTION__); */
+	struct mlme_ext_priv *pmlmeext;
 
 	if (!padapter)
 		return;
 
 	pmlmepriv = &(padapter->mlmepriv);
 	pmlmeext = &(padapter->mlmeextpriv);
-	/* pmlmeinfo = &(pmlmeext->mlmext_info); */
 
-	if (_FALSE == pmlmeext->bstart_bss)
+	if (pmlmeext->bstart_bss == _FALSE)
 		return;
 
 	_enter_critical_bh(&pmlmepriv->bcn_update_lock, &irqL);
 
 	switch (ie_id) {
-	case 0xFF:
-
-		update_bcn_fixed_ie(padapter);/* 8: TimeStamp, 2: Beacon Interval 2:Capability */
-
-		break;
-
 	case _TIM_IE_:
-
 		update_BCNTIM(padapter);
-
 		break;
 
 	case _ERPINFO_IE_:
-
 		update_bcn_erpinfo_ie(padapter);
-
 		break;
 
 	case _HT_CAPABILITY_IE_:
-#ifdef CONFIG_80211N_HT
 		update_bcn_htcap_ie(padapter);
-#endif /*CONFIG_80211N_HT */
 		break;
+
 	case _RSN_IE_2_:
-
 		update_bcn_rsn_ie(padapter);
-
 		break;
 
 	case _HT_ADD_INFO_IE_:
-#ifdef CONFIG_80211N_HT
 		update_bcn_htinfo_ie(padapter);
-#endif /*CONFIG_80211N_HT */
 		break;
 
 	case _EXT_CAP_IE_:
-
 		update_bcn_ext_capab_ie(padapter);
-
 		break;
 
 	case _VENDOR_SPECIFIC_IE_:
-
 		update_bcn_vendor_spec_ie(padapter, oui);
-
 		break;
 
+	case 0xFF:
 	default:
 		break;
 	}
@@ -2766,7 +2922,6 @@ void _update_beacon(_adapter *padapter, u8 ie_id, u8 *oui, u8 tx, const char *ta
 	}
 #endif
 #endif /* !CONFIG_INTERRUPT_BASED_TXBCN */
-
 }
 
 #ifdef CONFIG_80211N_HT
@@ -2781,7 +2936,7 @@ void rtw_process_public_act_bsscoex(_adapter *padapter, u8 *pframe, uint frame_l
 	uint frame_body_len = frame_len - sizeof(struct rtw_ieee80211_hdr_3addr);
 	u8 category, action;
 
-	psta = rtw_get_stainfo(pstapriv, GetAddr2Ptr(pframe));
+	psta = rtw_get_stainfo(pstapriv, get_addr2_ptr(pframe));
 	if (psta == NULL)
 		return;
 
@@ -3003,11 +3158,8 @@ void bss_cap_update_on_sta_join(_adapter *padapter, struct sta_info *psta)
 			pmlmepriv->num_sta_no_short_preamble++;
 
 			if ((pmlmeext->cur_wireless_mode > WIRELESS_11B) &&
-			    (pmlmepriv->num_sta_no_short_preamble == 1)) {
+			    (pmlmepriv->num_sta_no_short_preamble == 1))
 				beacon_updated = _TRUE;
-				update_beacon(padapter, 0xFF, NULL, _TRUE);
-			}
-
 		}
 	} else {
 		if (psta->no_short_preamble_set) {
@@ -3016,11 +3168,8 @@ void bss_cap_update_on_sta_join(_adapter *padapter, struct sta_info *psta)
 			pmlmepriv->num_sta_no_short_preamble--;
 
 			if ((pmlmeext->cur_wireless_mode > WIRELESS_11B) &&
-			    (pmlmepriv->num_sta_no_short_preamble == 0)) {
+			    (pmlmepriv->num_sta_no_short_preamble == 0))
 				beacon_updated = _TRUE;
-				update_beacon(padapter, 0xFF, NULL, _TRUE);
-			}
-
 		}
 	}
 
@@ -3041,7 +3190,7 @@ void bss_cap_update_on_sta_join(_adapter *padapter, struct sta_info *psta)
 
 			if (pmlmepriv->num_sta_non_erp == 1) {
 				beacon_updated = _TRUE;
-				update_beacon(padapter, _ERPINFO_IE_, NULL, _TRUE);
+				update_beacon(padapter, _ERPINFO_IE_, NULL, _FALSE);
 			}
 		}
 
@@ -3053,7 +3202,7 @@ void bss_cap_update_on_sta_join(_adapter *padapter, struct sta_info *psta)
 
 			if (pmlmepriv->num_sta_non_erp == 0) {
 				beacon_updated = _TRUE;
-				update_beacon(padapter, _ERPINFO_IE_, NULL, _TRUE);
+				update_beacon(padapter, _ERPINFO_IE_, NULL, _FALSE);
 			}
 		}
 
@@ -3078,11 +3227,8 @@ void bss_cap_update_on_sta_join(_adapter *padapter, struct sta_info *psta)
 			pmlmepriv->num_sta_no_short_slot_time++;
 
 			if ((pmlmeext->cur_wireless_mode > WIRELESS_11B) &&
-			    (pmlmepriv->num_sta_no_short_slot_time == 1)) {
+			    (pmlmepriv->num_sta_no_short_slot_time == 1))
 				beacon_updated = _TRUE;
-				update_beacon(padapter, 0xFF, NULL, _TRUE);
-			}
-
 		}
 	} else {
 		if (psta->no_short_slot_time_set) {
@@ -3091,20 +3237,17 @@ void bss_cap_update_on_sta_join(_adapter *padapter, struct sta_info *psta)
 			pmlmepriv->num_sta_no_short_slot_time--;
 
 			if ((pmlmeext->cur_wireless_mode > WIRELESS_11B) &&
-			    (pmlmepriv->num_sta_no_short_slot_time == 0)) {
+			    (pmlmepriv->num_sta_no_short_slot_time == 0))
 				beacon_updated = _TRUE;
-				update_beacon(padapter, 0xFF, NULL, _TRUE);
-			}
 		}
 	}
 
 #ifdef CONFIG_80211N_HT
-
 	if (psta->flags & WLAN_STA_HT) {
 		u16 ht_capab = le16_to_cpu(psta->htpriv.ht_cap.cap_info);
 
-		RTW_INFO("HT: STA " MAC_FMT " HT Capabilities "
-			 "Info: 0x%04x\n", MAC_ARG(psta->hwaddr), ht_capab);
+		RTW_INFO("HT: STA " MAC_FMT " HT Capabilities Info: 0x%04x\n",
+			MAC_ARG(psta->cmn.mac_addr), ht_capab);
 
 		if (psta->no_ht_set) {
 			psta->no_ht_set = 0;
@@ -3118,7 +3261,7 @@ void bss_cap_update_on_sta_join(_adapter *padapter, struct sta_info *psta)
 			}
 			RTW_INFO("%s STA " MAC_FMT " - no "
 				 "greenfield, num of non-gf stations %d\n",
-				 __FUNCTION__, MAC_ARG(psta->hwaddr),
+				 __FUNCTION__, MAC_ARG(psta->cmn.mac_addr),
 				 pmlmepriv->num_sta_ht_no_gf);
 		}
 
@@ -3129,7 +3272,7 @@ void bss_cap_update_on_sta_join(_adapter *padapter, struct sta_info *psta)
 			}
 			RTW_INFO("%s STA " MAC_FMT " - 20 MHz HT, "
 				 "num of 20MHz HT STAs %d\n",
-				 __FUNCTION__, MAC_ARG(psta->hwaddr),
+				 __FUNCTION__, MAC_ARG(psta->cmn.mac_addr),
 				 pmlmepriv->num_sta_ht_20mhz);
 		}
 
@@ -3141,18 +3284,20 @@ void bss_cap_update_on_sta_join(_adapter *padapter, struct sta_info *psta)
 		if (pmlmepriv->htpriv.ht_option == _TRUE) {
 			RTW_INFO("%s STA " MAC_FMT
 				 " - no HT, num of non-HT stations %d\n",
-				 __FUNCTION__, MAC_ARG(psta->hwaddr),
+				 __FUNCTION__, MAC_ARG(psta->cmn.mac_addr),
 				 pmlmepriv->num_sta_no_ht);
 		}
 	}
 
 	if (rtw_ht_operation_update(padapter) > 0) {
 		update_beacon(padapter, _HT_CAPABILITY_IE_, NULL, _FALSE);
-		update_beacon(padapter, _HT_ADD_INFO_IE_, NULL, _TRUE);
-		/*beacon_updated = _TRUE;*/
+		update_beacon(padapter, _HT_ADD_INFO_IE_, NULL, _FALSE);
+		beacon_updated = _TRUE;
 	}
-
 #endif /* CONFIG_80211N_HT */
+
+	if (beacon_updated)
+		update_beacon(padapter, 0xFF, NULL, _TRUE);
 
 	/* update associcated stations cap. */
 	associated_clients_update(padapter,  beacon_updated, STA_INFO_UPDATE_ALL);
@@ -3164,20 +3309,25 @@ void bss_cap_update_on_sta_join(_adapter *padapter, struct sta_info *psta)
 u8 bss_cap_update_on_sta_leave(_adapter *padapter, struct sta_info *psta)
 {
 	u8 beacon_updated = _FALSE;
+	struct sta_priv *pstapriv = &padapter->stapriv;
 	struct mlme_priv *pmlmepriv = &(padapter->mlmepriv);
 	struct mlme_ext_priv *pmlmeext = &(padapter->mlmeextpriv);
 
 	if (!psta)
 		return beacon_updated;
 
+	if (pstapriv->tim_bitmap & BIT(psta->cmn.aid)) {
+		pstapriv->tim_bitmap &= (~ BIT(psta->cmn.aid));
+		beacon_updated = _TRUE;
+		update_beacon(padapter, _TIM_IE_, NULL, _FALSE);
+	}
+
 	if (psta->no_short_preamble_set) {
 		psta->no_short_preamble_set = 0;
 		pmlmepriv->num_sta_no_short_preamble--;
 		if (pmlmeext->cur_wireless_mode > WIRELESS_11B
-		    && pmlmepriv->num_sta_no_short_preamble == 0) {
+		    && pmlmepriv->num_sta_no_short_preamble == 0)
 			beacon_updated = _TRUE;
-			update_beacon(padapter, 0xFF, NULL, _TRUE);
-		}
 	}
 
 	if (psta->nonerp_set) {
@@ -3185,7 +3335,7 @@ u8 bss_cap_update_on_sta_leave(_adapter *padapter, struct sta_info *psta)
 		pmlmepriv->num_sta_non_erp--;
 		if (pmlmepriv->num_sta_non_erp == 0) {
 			beacon_updated = _TRUE;
-			update_beacon(padapter, _ERPINFO_IE_, NULL, _TRUE);
+			update_beacon(padapter, _ERPINFO_IE_, NULL, _FALSE);
 		}
 	}
 
@@ -3193,14 +3343,11 @@ u8 bss_cap_update_on_sta_leave(_adapter *padapter, struct sta_info *psta)
 		psta->no_short_slot_time_set = 0;
 		pmlmepriv->num_sta_no_short_slot_time--;
 		if (pmlmeext->cur_wireless_mode > WIRELESS_11B
-		    && pmlmepriv->num_sta_no_short_slot_time == 0) {
+		    && pmlmepriv->num_sta_no_short_slot_time == 0)
 			beacon_updated = _TRUE;
-			update_beacon(padapter, 0xFF, NULL, _TRUE);
-		}
 	}
 
 #ifdef CONFIG_80211N_HT
-
 	if (psta->no_ht_gf_set) {
 		psta->no_ht_gf_set = 0;
 		pmlmepriv->num_sta_ht_no_gf--;
@@ -3216,14 +3363,14 @@ u8 bss_cap_update_on_sta_leave(_adapter *padapter, struct sta_info *psta)
 		pmlmepriv->num_sta_ht_20mhz--;
 	}
 
-
-
 	if (rtw_ht_operation_update(padapter) > 0) {
 		update_beacon(padapter, _HT_CAPABILITY_IE_, NULL, _FALSE);
-		update_beacon(padapter, _HT_ADD_INFO_IE_, NULL, _TRUE);
+		update_beacon(padapter, _HT_ADD_INFO_IE_, NULL, _FALSE);
 	}
-
 #endif /* CONFIG_80211N_HT */
+
+	if (beacon_updated == _TRUE)
+		update_beacon(padapter, 0xFF, NULL, _TRUE);
 
 #if 0
 	/* update associated stations cap. */
@@ -3250,24 +3397,22 @@ u8 ap_free_sta(_adapter *padapter, struct sta_info *psta, bool active, u16 reaso
 	if (active == _TRUE) {
 #ifdef CONFIG_80211N_HT
 		/* tear down Rx AMPDU */
-		send_delba(padapter, 0, psta->hwaddr);/* recipient */
+		send_delba(padapter, 0, psta->cmn.mac_addr);/* recipient */
 
 		/* tear down TX AMPDU */
-		send_delba(padapter, 1, psta->hwaddr);/*  */ /* originator */
+		send_delba(padapter, 1, psta->cmn.mac_addr);/*  */ /* originator */
 
 #endif /* CONFIG_80211N_HT */
 
-		issue_deauth(padapter, psta->hwaddr, reason);
+		issue_deauth(padapter, psta->cmn.mac_addr, reason);
 	}
 
 #ifdef CONFIG_BEAMFORMING
-	beamforming_wk_cmd(padapter, BEAMFORMING_CTRL_LEAVE, psta->hwaddr, ETH_ALEN, 1);
+	beamforming_wk_cmd(padapter, BEAMFORMING_CTRL_LEAVE, psta->cmn.mac_addr, ETH_ALEN, 1);
 #endif
 
-#ifdef CONFIG_80211N_HT
 	psta->htpriv.agg_enable_bitmap = 0x0;/* reset */
 	psta->htpriv.candidate_tid_bitmap = 0x0;/* reset */
-#endif /* CONFIG_80211N_HT */
 
 	/* clear cam entry / key */
 	rtw_clearstakey_cmd(padapter, psta, enqueue);
@@ -3277,22 +3422,21 @@ u8 ap_free_sta(_adapter *padapter, struct sta_info *psta, bool active, u16 reaso
 	psta->state &= ~_FW_LINKED;
 	_exit_critical_bh(&psta->lock, &irqL);
 
-#ifdef CONFIG_IOCTL_CFG80211
-	if (1) {
-#ifdef COMPAT_KERNEL_RELEASE
-		rtw_cfg80211_indicate_sta_disassoc(padapter, psta->hwaddr, reason);
-#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37)) && !defined(CONFIG_CFG80211_FORCE_COMPATIBLE_2_6_37_UNDER)
-		rtw_cfg80211_indicate_sta_disassoc(padapter, psta->hwaddr, reason);
-#else /* (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37)) && !defined(CONFIG_CFG80211_FORCE_COMPATIBLE_2_6_37_UNDER) */
-		/* will call rtw_cfg80211_indicate_sta_disassoc() in cmd_thread for old API context */
-#endif /* (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37)) && !defined(CONFIG_CFG80211_FORCE_COMPATIBLE_2_6_37_UNDER) */
-	} else
-#endif /* CONFIG_IOCTL_CFG80211 */
 	{
+#ifdef CONFIG_IOCTL_CFG80211
+		#ifdef COMPAT_KERNEL_RELEASE
+		rtw_cfg80211_indicate_sta_disassoc(padapter, psta->cmn.mac_addr, reason);
+		#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37)) && !defined(CONFIG_CFG80211_FORCE_COMPATIBLE_2_6_37_UNDER)
+		rtw_cfg80211_indicate_sta_disassoc(padapter, psta->cmn.mac_addr, reason);
+		#else /* (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37)) && !defined(CONFIG_CFG80211_FORCE_COMPATIBLE_2_6_37_UNDER) */
+		/* will call rtw_cfg80211_indicate_sta_disassoc() in cmd_thread for old API context */
+		#endif /* (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37)) && !defined(CONFIG_CFG80211_FORCE_COMPATIBLE_2_6_37_UNDER) */
+#else
 		rtw_indicate_sta_disassoc_event(padapter, psta);
+#endif
 	}
 
-	report_del_sta_event(padapter, psta->hwaddr, reason, enqueue, _FALSE);
+	report_del_sta_event(padapter, psta->cmn.mac_addr, reason, enqueue, _FALSE);
 
 	beacon_updated = bss_cap_update_on_sta_leave(padapter, psta);
 
@@ -3331,7 +3475,7 @@ int rtw_ap_inform_ch_switch(_adapter *padapter, u8 new_ch, u8 ch_offset)
 		psta = LIST_CONTAINOR(plist, struct sta_info, asoc_list);
 		plist = get_next(plist);
 
-		issue_action_spct_ch_switch(padapter, psta->hwaddr, new_ch, ch_offset);
+		issue_action_spct_ch_switch(padapter, psta->cmn.mac_addr, new_ch, ch_offset);
 		psta->expire_to = ((pstapriv->expire_to * 2) > 5) ? 5 : (pstapriv->expire_to * 2);
 	}
 	_exit_critical_bh(&pstapriv->asoc_list_lock, &irqL);
@@ -3355,7 +3499,7 @@ int rtw_sta_flush(_adapter *padapter, bool enqueue)
 	char flush_list[NUM_STA];
 	int i;
 
-	if ((pmlmeinfo->state & 0x03) != WIFI_FW_AP_STATE)
+	if (!MLME_IS_AP(padapter) && !MLME_IS_MESH(padapter))
 		return ret;
 
 	RTW_INFO(FUNC_NDEV_FMT"\n", FUNC_NDEV_ARG(padapter->pnetdev));
@@ -3443,7 +3587,7 @@ void sta_info_update(_adapter *padapter, struct sta_info *psta)
 void ap_sta_info_defer_update(_adapter *padapter, struct sta_info *psta)
 {
 	if (psta->state & _FW_LINKED)
-		rtw_hal_update_ra_mask(psta, 0); /* DM_RATR_STA_INIT */
+		rtw_hal_update_ra_mask(psta); /* DM_RATR_STA_INIT */
 }
 /* restore hw setting from sw data structures */
 void rtw_ap_restore_network(_adapter *padapter)
@@ -3577,8 +3721,28 @@ void start_ap_mode(_adapter *padapter)
 
 }
 
+void rtw_ap_bcmc_sta_flush(_adapter *padapter)
+{
+#ifdef CONFIG_CONCURRENT_MODE
+	int cam_id = -1;
+	u8 *addr = adapter_mac_addr(padapter);
+
+	cam_id = rtw_iface_bcmc_id_get(padapter);
+	if (cam_id != INVALID_SEC_MAC_CAM_ID) {
+		RTW_PRINT("clear group key for "ADPT_FMT" addr:"MAC_FMT", camid:%d\n",
+			ADPT_ARG(padapter), MAC_ARG(addr), cam_id);
+		clear_cam_entry(padapter, cam_id);
+		rtw_camid_free(padapter, cam_id);
+		rtw_iface_bcmc_id_set(padapter, INVALID_SEC_MAC_CAM_ID);	/*init default value*/
+	}
+#else
+	invalidate_cam_all(padapter);
+#endif
+}
+
 void stop_ap_mode(_adapter *padapter)
 {
+	u8 self_action = MLME_ACTION_UNKNOWN;
 	_irqL irqL;
 	struct sta_info *psta = NULL;
 	struct mlme_priv *pmlmepriv = &(padapter->mlmepriv);
@@ -3586,6 +3750,13 @@ void stop_ap_mode(_adapter *padapter)
 	struct dvobj_priv *pdvobj = padapter->dvobj;
 
 	RTW_INFO("%s -"ADPT_FMT"\n", __func__, ADPT_ARG(padapter));
+
+	if (MLME_IS_AP(padapter))
+		self_action = MLME_AP_STOPPED;
+	else if (MLME_IS_MESH(padapter))
+		self_action = MLME_MESH_STOPPED;
+	else
+		rtw_warn_on(1);
 
 	pmlmepriv->update_bcn = _FALSE;
 	/*pmlmeext->bstart_bss = _FALSE;*/
@@ -3598,7 +3769,7 @@ void stop_ap_mode(_adapter *padapter)
 	padapter->securitypriv.ndisencryptstatus = Ndis802_11WEPDisabled;
 
 #ifdef CONFIG_DFS_MASTER
-	rtw_dfs_master_status_apply(padapter, MLME_AP_STOPPED);
+	rtw_dfs_master_status_apply(padapter, self_action);
 #endif
 
 	/* free scan queue */
@@ -3609,14 +3780,18 @@ void stop_ap_mode(_adapter *padapter)
 #endif
 
 	rtw_sta_flush(padapter, _TRUE);
+	rtw_ap_bcmc_sta_flush(padapter);
 
 	/* free_assoc_sta_resources	 */
 	rtw_free_all_stainfo(padapter);
 
 	psta = rtw_get_bcmc_stainfo(padapter);
-	/* _enter_critical_bh(&(pstapriv->sta_hash_lock), &irqL);		 */
-	rtw_free_stainfo(padapter, psta);
-	/*_exit_critical_bh(&(pstapriv->sta_hash_lock), &irqL);*/
+	if (psta) {
+		rtw_sta_mstatus_disc_rpt(padapter, psta->cmn.mac_id);
+		/* _enter_critical_bh(&(pstapriv->sta_hash_lock), &irqL);		 */
+		rtw_free_stainfo(padapter, psta);
+		/*_exit_critical_bh(&(pstapriv->sta_hash_lock), &irqL);*/
+	}
 
 	rtw_free_mlme_priv_ie_data(pmlmepriv);
 
@@ -3641,6 +3816,8 @@ void stop_ap_mode(_adapter *padapter)
 
 	pmlmeext->bstart_bss = _FALSE;
 
+	rtw_hal_rcr_set_chk_bssid(padapter, self_action);
+
 #ifdef CONFIG_BT_COEXIST
 	rtw_btcoex_MediaStatusNotify(padapter, 0); /* disconnect */
 #endif
@@ -3653,10 +3830,32 @@ void rtw_ap_update_bss_chbw(_adapter *adapter, WLAN_BSSID_EX *bss, u8 ch, u8 bw,
 {
 #define UPDATE_VHT_CAP 1
 #define UPDATE_HT_CAP 1
+#ifdef CONFIG_80211AC_VHT
+	struct vht_priv *vhtpriv = &adapter->mlmepriv.vhtpriv;
+#endif
+	{
+		u8 *p;
+		int ie_len;
+		u8 old_ch = bss->Configuration.DSConfig;
+		bool change_band = _FALSE;
+
+		if ((ch <= 14 && old_ch >= 36) || (ch >= 36 && old_ch <= 14))
+			change_band = _TRUE;
+
+		/* update channel in IE */
+		p = rtw_get_ie((bss->IEs + sizeof(NDIS_802_11_FIXED_IEs)), _DSSET_IE_, &ie_len, (bss->IELength - sizeof(NDIS_802_11_FIXED_IEs)));
+		if (p && ie_len > 0)
+			*(p + 2) = ch;
+
+		bss->Configuration.DSConfig = ch;
+
+		/* band is changed, update ERP, support rate, ext support rate IE */
+		if (change_band == _TRUE)
+			change_band_update_ie(adapter, bss, ch);
+	}
 
 #ifdef CONFIG_80211AC_VHT
-	{
-		struct vht_priv	*vhtpriv = &adapter->mlmepriv.vhtpriv;
+	if (vhtpriv->vht_option == _TRUE) {
 		u8 *vht_cap_ie, *vht_op_ie;
 		int vht_cap_ielen, vht_op_ielen;
 		u8	center_freq;
@@ -3749,28 +3948,6 @@ void rtw_ap_update_bss_chbw(_adapter *adapter, WLAN_BSSID_EX *bss, u8 ch, u8 bw,
 		}
 	}
 #endif /* CONFIG_80211N_HT */
-
-	{
-		u8 *p;
-		int ie_len;
-		u8 old_ch = bss->Configuration.DSConfig;
-		bool change_band = _FALSE;
-
-		if ((ch <= 14 && old_ch >= 36) || (ch >= 36 && old_ch <= 14))
-			change_band = _TRUE;
-
-		/* update channel in IE */
-		p = rtw_get_ie((bss->IEs + sizeof(NDIS_802_11_FIXED_IEs)), _DSSET_IE_, &ie_len, (bss->IELength - sizeof(NDIS_802_11_FIXED_IEs)));
-		if (p && ie_len > 0)
-			*(p + 2) = ch;
-
-		bss->Configuration.DSConfig = ch;
-
-		/* band is changed, update ERP, support rate, ext support rate IE */
-		if (change_band == _TRUE)
-			change_band_update_ie(adapter, bss, ch);
-	}
-
 }
 
 bool rtw_ap_chbw_decision(_adapter *adapter, s16 req_ch, s8 req_bw, s8 req_offset
@@ -3781,13 +3958,38 @@ bool rtw_ap_chbw_decision(_adapter *adapter, s16 req_ch, s8 req_bw, s8 req_offse
 	u8 u_ch = 0, u_offset, u_bw;
 	bool changed = _FALSE;
 	struct mlme_ext_priv *mlmeext = &(adapter->mlmeextpriv);
-	WLAN_BSSID_EX *network = &(adapter->mlmepriv.cur_network.network);
+	WLAN_BSSID_EX *network = &(mlmeext->mlmext_info.network);
 	struct mi_state mstate;
 	bool set_u_ch = _FALSE, set_dec_ch = _FALSE;
 
-	rtw_ies_get_chbw(network->IEs + sizeof(NDIS_802_11_FIXED_IEs)
-			 , network->IELength - sizeof(NDIS_802_11_FIXED_IEs)
-			 , &cur_ie_ch, &cur_ie_bw, &cur_ie_offset);
+	rtw_ies_get_chbw(BSS_EX_TLV_IES(network), BSS_EX_TLV_IES_LEN(network)
+		, &cur_ie_ch, &cur_ie_bw, &cur_ie_offset);
+
+#ifdef CONFIG_MCC_MODE
+	if (MCC_EN(adapter)) {
+		if (rtw_hal_check_mcc_status(adapter, MCC_STATUS_DOING_MCC)) {
+			/* check channel settings are the same */
+			if (cur_ie_ch == mlmeext->cur_channel
+				&& cur_ie_bw == mlmeext->cur_bwmode
+					&& cur_ie_offset == mlmeext->cur_ch_offset) {
+
+
+					RTW_INFO(FUNC_ADPT_FMT"req ch settings are the same as current ch setting, go to exit\n"
+						, FUNC_ADPT_ARG(adapter));
+
+					*chbw_allow = _FALSE;
+					goto exit;
+			} else {
+					RTW_INFO(FUNC_ADPT_FMT"request channel settings are not the same as current channel setting(%d,%d,%d,%d,%d,%d), restart MCC\n"
+						, FUNC_ADPT_ARG(adapter)
+						, cur_ie_ch, cur_ie_bw, cur_ie_bw
+						, mlmeext->cur_channel, mlmeext->cur_bwmode, mlmeext->cur_ch_offset);
+
+				rtw_hal_set_mcc_setting_disconnect(adapter);
+			}
+		}	
+	}
+#endif /* CONFIG_MCC_MODE */
 
 	/* use chbw of cur_ie updated with specifying req as temporary decision */
 	dec_ch = (req_ch <= 0) ? cur_ie_ch : req_ch;
@@ -3795,20 +3997,19 @@ bool rtw_ap_chbw_decision(_adapter *adapter, s16 req_ch, s8 req_bw, s8 req_offse
 	dec_offset = (req_offset < 0) ? cur_ie_offset : req_offset;
 
 	rtw_mi_status_no_self(adapter, &mstate);
-	RTW_INFO(FUNC_ADPT_FMT" ld_sta_num:%u, lg_sta_num%u, ap_num:%u\n"
-		, FUNC_ADPT_ARG(adapter), MSTATE_STA_LD_NUM(&mstate), MSTATE_STA_LG_NUM(&mstate), MSTATE_AP_NUM(&mstate));
+	RTW_INFO(FUNC_ADPT_FMT" ld_sta_num:%u, lg_sta_num%u, ap_num:%u, mesh_num:%u\n"
+		, FUNC_ADPT_ARG(adapter), MSTATE_STA_LD_NUM(&mstate), MSTATE_STA_LG_NUM(&mstate)
+		, MSTATE_AP_NUM(&mstate), MSTATE_MESH_NUM(&mstate));
 
-	if (MSTATE_STA_LD_NUM(&mstate) || MSTATE_AP_NUM(&mstate)) {
-		/* has linked STA or AP mode, follow */
+	if (MSTATE_STA_LD_NUM(&mstate) || MSTATE_AP_NUM(&mstate) || MSTATE_MESH_NUM(&mstate)) {
+		/* has linked STA or AP/Mesh mode, follow */
 
 		rtw_warn_on(!rtw_mi_get_ch_setting_union_no_self(adapter, &u_ch, &u_bw, &u_offset));
 
 		RTW_INFO(FUNC_ADPT_FMT" union no self: %u,%u,%u\n", FUNC_ADPT_ARG(adapter), u_ch, u_bw, u_offset);
 		RTW_INFO(FUNC_ADPT_FMT" req: %d,%d,%d\n", FUNC_ADPT_ARG(adapter), req_ch, req_bw, req_offset);
 
-#ifdef CONFIG_80211N_HT
 		rtw_adjust_chbw(adapter, u_ch, &dec_bw, &dec_offset);
-#endif /* CONFIG_80211N_HT */
 #ifdef CONFIG_MCC_MODE
 		if (MCC_EN(adapter)) {
 			if (!rtw_is_chbw_grouped(u_ch, u_bw, u_offset, dec_ch, dec_bw, dec_offset)) {
@@ -3828,8 +4029,7 @@ bool rtw_ap_chbw_decision(_adapter *adapter, s16 req_ch, s8 req_bw, s8 req_offse
 		rtw_sync_chbw(&dec_ch, &dec_bw, &dec_offset
 			      , &u_ch, &u_bw, &u_offset);
 
-		rtw_ap_update_bss_chbw(adapter, &(adapter->mlmepriv.cur_network.network)
-				       , dec_ch, dec_bw, dec_offset);
+		rtw_ap_update_bss_chbw(adapter, network, dec_ch, dec_bw, dec_offset);
 
 		set_u_ch = _TRUE;
 	} else if (MSTATE_STA_LG_NUM(&mstate)) {
@@ -3840,16 +4040,14 @@ bool rtw_ap_chbw_decision(_adapter *adapter, s16 req_ch, s8 req_bw, s8 req_offse
 		RTW_INFO(FUNC_ADPT_FMT" union no self: %u,%u,%u\n", FUNC_ADPT_ARG(adapter), u_ch, u_bw, u_offset);
 		RTW_INFO(FUNC_ADPT_FMT" req: %d,%d,%d\n", FUNC_ADPT_ARG(adapter), req_ch, req_bw, req_offset);
 
-#ifdef CONFIG_80211N_HT
 		rtw_adjust_chbw(adapter, dec_ch, &dec_bw, &dec_offset);
-#endif
+
 		if (rtw_is_chbw_grouped(u_ch, u_bw, u_offset, dec_ch, dec_bw, dec_offset)) {
 
 			rtw_sync_chbw(&dec_ch, &dec_bw, &dec_offset
 				      , &u_ch, &u_bw, &u_offset);
 
-			rtw_ap_update_bss_chbw(adapter, &(adapter->mlmepriv.cur_network.network)
-					       , dec_ch, dec_bw, dec_offset);
+			rtw_ap_update_bss_chbw(adapter, network, dec_ch, dec_bw, dec_offset);
 
 			set_u_ch = _TRUE;
 
@@ -3873,35 +4071,40 @@ bool rtw_ap_chbw_decision(_adapter *adapter, s16 req_ch, s8 req_bw, s8 req_offse
 			set_fwstate(&adapter->mlmepriv, WIFI_OP_CH_SWITCHING);
 		}
 	} else {
-		/* single AP mode */
+		/* single AP/Mesh mode */
 
 		RTW_INFO(FUNC_ADPT_FMT" req: %d,%d,%d\n", FUNC_ADPT_ARG(adapter), req_ch, req_bw, req_offset);
 
 		/* check temporary decision first */
-#ifdef CONFIG_80211N_HT
 		rtw_adjust_chbw(adapter, dec_ch, &dec_bw, &dec_offset);
-#endif
 		if (!rtw_get_offset_by_chbw(dec_ch, dec_bw, &dec_offset)) {
-#if defined(CONFIG_DFS_MASTER)
 			if (req_ch == -1 || req_bw == -1)
 				goto choose_chbw;
-#endif
 			RTW_WARN(FUNC_ADPT_FMT" req: %u,%u has no valid offset\n", FUNC_ADPT_ARG(adapter), dec_ch, dec_bw);
 			*chbw_allow = _FALSE;
 			goto exit;
 		}
 
-		if (!rtw_chset_is_chbw_valid(mlmeext->channel_set, dec_ch, dec_bw, dec_offset)) {
-#if defined(CONFIG_DFS_MASTER)
+		if (!rtw_chset_is_chbw_valid(adapter_to_chset(adapter), dec_ch, dec_bw, dec_offset)) {
 			if (req_ch == -1 || req_bw == -1)
 				goto choose_chbw;
-#endif
 			RTW_WARN(FUNC_ADPT_FMT" req: %u,%u,%u doesn't fit in chplan\n", FUNC_ADPT_ARG(adapter), dec_ch, dec_bw, dec_offset);
 			*chbw_allow = _FALSE;
 			goto exit;
 		}
 
-		if (rtw_chset_is_ch_non_ocp(mlmeext->channel_set, dec_ch, dec_bw, dec_offset) == _FALSE)
+		if (rtw_odm_dfs_domain_unknown(adapter) && rtw_is_dfs_chbw(dec_ch, dec_bw, dec_offset)) {
+			if (req_ch >= 0)
+				RTW_WARN(FUNC_ADPT_FMT" DFS channel %u,%u,%u can't be used\n", FUNC_ADPT_ARG(adapter), dec_ch, dec_bw, dec_offset);
+			if (req_ch > 0) {
+				/* specific channel and not from IE => don't change channel setting */
+				*chbw_allow = _FALSE;
+				goto exit;
+			}
+			goto choose_chbw;
+		}
+
+		if (rtw_chset_is_ch_non_ocp(adapter_to_chset(adapter), dec_ch, dec_bw, dec_offset) == _FALSE)
 			goto update_bss_chbw;
 
 choose_chbw:
@@ -3909,23 +4112,29 @@ choose_chbw:
 			req_bw = cur_ie_bw;
 
 #if defined(CONFIG_DFS_MASTER)
-		/* choose 5G DFS channel for debug */
-		if (adapter_to_rfctl(adapter)->dbg_dfs_master_choose_dfs_ch_first
-		    && rtw_choose_shortest_waiting_ch(adapter, req_bw, &dec_ch, &dec_bw, &dec_offset, RTW_CHF_2G | RTW_CHF_NON_DFS) == _TRUE)
-			RTW_INFO(FUNC_ADPT_FMT" choose 5G DFS channel for debug\n", FUNC_ADPT_ARG(adapter));
-		else if (adapter_to_rfctl(adapter)->dfs_ch_sel_d_flags
-			&& rtw_choose_shortest_waiting_ch(adapter, req_bw, &dec_ch, &dec_bw, &dec_offset, adapter_to_rfctl(adapter)->dfs_ch_sel_d_flags) == _TRUE)
-			RTW_INFO(FUNC_ADPT_FMT" choose with dfs_ch_sel_d_flags:0x%02x for debug\n", FUNC_ADPT_ARG(adapter), adapter_to_rfctl(adapter)->dfs_ch_sel_d_flags);
-		else if (rtw_choose_shortest_waiting_ch(adapter, req_bw, &dec_ch, &dec_bw, &dec_offset, 0) == _FALSE) {
+		if (!rtw_odm_dfs_domain_unknown(adapter)) {
+			/* choose 5G DFS channel for debug */
+			if (adapter_to_rfctl(adapter)->dbg_dfs_master_choose_dfs_ch_first
+				&& rtw_choose_shortest_waiting_ch(adapter, req_bw, &dec_ch, &dec_bw, &dec_offset, RTW_CHF_2G | RTW_CHF_NON_DFS) == _TRUE)
+				RTW_INFO(FUNC_ADPT_FMT" choose 5G DFS channel for debug\n", FUNC_ADPT_ARG(adapter));
+			else if (adapter_to_rfctl(adapter)->dfs_ch_sel_d_flags
+				&& rtw_choose_shortest_waiting_ch(adapter, req_bw, &dec_ch, &dec_bw, &dec_offset, adapter_to_rfctl(adapter)->dfs_ch_sel_d_flags) == _TRUE)
+				RTW_INFO(FUNC_ADPT_FMT" choose with dfs_ch_sel_d_flags:0x%02x for debug\n", FUNC_ADPT_ARG(adapter), adapter_to_rfctl(adapter)->dfs_ch_sel_d_flags);
+			else if (rtw_choose_shortest_waiting_ch(adapter, req_bw, &dec_ch, &dec_bw, &dec_offset, 0) == _FALSE) {
+				RTW_WARN(FUNC_ADPT_FMT" no available channel\n", FUNC_ADPT_ARG(adapter));
+				*chbw_allow = _FALSE;
+				goto exit;
+			}
+		} else
+#endif /* defined(CONFIG_DFS_MASTER) */
+		if (rtw_choose_shortest_waiting_ch(adapter, req_bw, &dec_ch, &dec_bw, &dec_offset, RTW_CHF_DFS) == _FALSE) {
 			RTW_WARN(FUNC_ADPT_FMT" no available channel\n", FUNC_ADPT_ARG(adapter));
 			*chbw_allow = _FALSE;
 			goto exit;
 		}
-#endif /* defined(CONFIG_DFS_MASTER) */
 
 update_bss_chbw:
-		rtw_ap_update_bss_chbw(adapter, &(adapter->mlmepriv.cur_network.network)
-				       , dec_ch, dec_bw, dec_offset);
+		rtw_ap_update_bss_chbw(adapter, network, dec_ch, dec_bw, dec_offset);
 
 		/* channel bw offset can be allowed for single AP, not need MCC */
 		*chbw_allow = _TRUE;
@@ -3973,8 +4182,38 @@ exit:
 	return changed;
 }
 
-/*#define DBG_SWTIMER_BASED_TXBCN*/
+u8 rtw_ap_sta_linking_state_check(_adapter *adapter)
+{
+	struct sta_info *psta;
+	struct mlme_priv *pmlmepriv = &adapter->mlmepriv;
+	struct sta_priv *pstapriv = &adapter->stapriv;
+	int i;
+	_list *plist, *phead;
+	_irqL irqL;
+	u8 rst = _FALSE;
 
+	if (!MLME_IS_AP(adapter) && !MLME_IS_MESH(adapter))
+		return _FALSE;
+
+	if (pstapriv->auth_list_cnt !=0)
+		return _TRUE;
+
+	_enter_critical_bh(&pstapriv->asoc_list_lock, &irqL);
+	phead = &pstapriv->asoc_list;
+	plist = get_next(phead);
+	while ((rtw_end_of_queue_search(phead, plist)) == _FALSE) {
+		psta = LIST_CONTAINOR(plist, struct sta_info, asoc_list);
+		plist = get_next(plist);
+		if (!(psta->state &_FW_LINKED)) {
+			rst = _TRUE;
+			break;
+		}
+	}
+	_exit_critical_bh(&pstapriv->asoc_list_lock, &irqL);
+	return rst;
+}
+
+/*#define DBG_SWTIMER_BASED_TXBCN*/
 #ifdef CONFIG_SWTIMER_BASED_TXBCN
 void tx_beacon_handlder(struct dvobj_priv *pdvobj)
 {
@@ -3986,6 +4225,7 @@ void tx_beacon_handlder(struct dvobj_priv *pdvobj)
 	u64 time;
 	u32 cur_tick, time_offset; /* unit : usec */
 	u32 inter_bcn_space_us; /* unit : usec */
+	u32 txbcn_timer_ms; /* unit : ms */
 	int nr_vap, idx, bcn_idx;
 	int i;
 	u8 val8, late = 0;
@@ -4085,14 +4325,31 @@ void tx_beacon_handlder(struct dvobj_priv *pdvobj)
 #ifdef DBG_SWTIMER_BASED_TXBCN
 	RTW_INFO("set sw bcn timer %d us\n", time_offset);
 #endif
-	_set_timer(&pdvobj->txbcn_timer, time_offset / NET80211_TU_TO_US);
+	txbcn_timer_ms = time_offset / NET80211_TU_TO_US;
+	_set_timer(&pdvobj->txbcn_timer, txbcn_timer_ms);
 
 	if (padapter) {
+#ifdef CONFIG_BCN_RECOVERY
+		rtw_ap_bcn_recovery(padapter);
+#endif /*CONFIG_BCN_RECOVERY*/
+
+#ifdef CONFIG_BCN_XMIT_PROTECT
+		rtw_ap_bcn_queue_empty_check(padapter, txbcn_timer_ms);
+#endif /*CONFIG_BCN_XMIT_PROTECT*/
+
 #ifdef DBG_SWTIMER_BASED_TXBCN
 		RTW_INFO("padapter=%p, PORT=%d\n", padapter, padapter->hw_port);
 #endif
-		/*update_beacon(padapter, _TIM_IE_, NULL, _FALSE);*/
-		issue_beacon(padapter, 0);
+		/* bypass TX BCN queue if op ch is switching/waiting */
+		if (!check_fwstate(&padapter->mlmepriv, WIFI_OP_CH_SWITCHING)
+			#ifdef CONFIG_DFS_MASTER
+			&& !IS_CH_WAITING(adapter_to_rfctl(padapter))
+			#endif
+		) {
+			/*update_beacon(padapter, _TIM_IE_, NULL, _FALSE);*/
+			/*issue_beacon(padapter, 0);*/
+			send_beacon(padapter);
+		}
 	}
 
 #if 0
@@ -4107,8 +4364,9 @@ void tx_beacon_handlder(struct dvobj_priv *pdvobj)
 
 }
 
-void tx_beacon_timer_handlder(struct dvobj_priv *pdvobj)
+void tx_beacon_timer_handlder(void *ctx)
 {
+	struct dvobj_priv *pdvobj = (struct dvobj_priv *)ctx;
 	_adapter *padapter = pdvobj->padapters[0];
 
 	if (padapter)
@@ -4116,4 +4374,288 @@ void tx_beacon_timer_handlder(struct dvobj_priv *pdvobj)
 }
 #endif
 
+void rtw_ap_parse_sta_capability(_adapter *adapter, struct sta_info *sta, u8 *cap)
+{
+	sta->capability = RTW_GET_LE16(cap);
+	if (sta->capability & WLAN_CAPABILITY_SHORT_PREAMBLE)
+		sta->flags |= WLAN_STA_SHORT_PREAMBLE;
+	else
+		sta->flags &= ~WLAN_STA_SHORT_PREAMBLE;
+}
+
+u16 rtw_ap_parse_sta_supported_rates(_adapter *adapter, struct sta_info *sta, u8 *tlv_ies, u16 tlv_ies_len)
+{
+	u8 rate_set[16];
+	u8 rate_num;
+	int i;
+	u16 status = _STATS_SUCCESSFUL_;
+
+	rtw_ies_get_supported_rate(tlv_ies, tlv_ies_len, rate_set, &rate_num);
+	if (rate_num == 0) {
+		RTW_INFO(FUNC_ADPT_FMT" sta "MAC_FMT" with no supported rate\n"
+			, FUNC_ADPT_ARG(adapter), MAC_ARG(sta->cmn.mac_addr));
+		status = _STATS_FAILURE_;
+		goto exit;
+	}
+
+	_rtw_memcpy(sta->bssrateset, rate_set, rate_num);
+	sta->bssratelen = rate_num;
+
+	if (MLME_IS_AP(adapter)) {
+		/* this function force only CCK rates to be bassic rate... */
+		UpdateBrateTblForSoftAP(sta->bssrateset, sta->bssratelen);
+	}
+
+	/* if (hapd->iface->current_mode->mode == HOSTAPD_MODE_IEEE80211G) */ /* ? */
+	sta->flags |= WLAN_STA_NONERP;
+	for (i = 0; i < sta->bssratelen; i++) {
+		if ((sta->bssrateset[i] & 0x7f) > 22) {
+			sta->flags &= ~WLAN_STA_NONERP;
+			break;
+		}
+	}
+
+exit:
+	return status;
+}
+
+u16 rtw_ap_parse_sta_security_ie(_adapter *adapter, struct sta_info *sta, struct rtw_ieee802_11_elems *elems)
+{
+	struct security_priv *sec = &adapter->securitypriv;
+	u8 *wpa_ie;
+	int wpa_ie_len;
+	int group_cipher = 0, pairwise_cipher = 0;
+	u16 status = _STATS_SUCCESSFUL_;
+
+	sta->dot8021xalg = 0;
+	sta->wpa_psk = 0;
+	sta->wpa_group_cipher = 0;
+	sta->wpa2_group_cipher = 0;
+	sta->wpa_pairwise_cipher = 0;
+	sta->wpa2_pairwise_cipher = 0;
+	_rtw_memset(sta->wpa_ie, 0, sizeof(sta->wpa_ie));
+
+	if ((sec->wpa_psk & BIT(1)) && elems->rsn_ie) {
+		wpa_ie = elems->rsn_ie;
+		wpa_ie_len = elems->rsn_ie_len;
+
+		if (rtw_parse_wpa2_ie(wpa_ie - 2, wpa_ie_len + 2, &group_cipher, &pairwise_cipher, NULL) == _SUCCESS) {
+			sta->dot8021xalg = 1;/* psk, todo:802.1x */
+			sta->wpa_psk |= BIT(1);
+
+			sta->wpa2_group_cipher = group_cipher & sec->wpa2_group_cipher;
+			sta->wpa2_pairwise_cipher = pairwise_cipher & sec->wpa2_pairwise_cipher;
+
+			if (!sta->wpa2_group_cipher)
+				status = WLAN_STATUS_GROUP_CIPHER_NOT_VALID;
+
+			if (!sta->wpa2_pairwise_cipher)
+				status = WLAN_STATUS_PAIRWISE_CIPHER_NOT_VALID;
+		} else
+			status = WLAN_STATUS_INVALID_IE;
+
+	}
+	else if ((sec->wpa_psk & BIT(0)) && elems->wpa_ie) {
+		wpa_ie = elems->wpa_ie;
+		wpa_ie_len = elems->wpa_ie_len;
+
+		if (rtw_parse_wpa_ie(wpa_ie - 2, wpa_ie_len + 2, &group_cipher, &pairwise_cipher, NULL) == _SUCCESS) {
+			sta->dot8021xalg = 1;/* psk, todo:802.1x */
+			sta->wpa_psk |= BIT(0);
+
+			sta->wpa_group_cipher = group_cipher & sec->wpa_group_cipher;
+			sta->wpa_pairwise_cipher = pairwise_cipher & sec->wpa_pairwise_cipher;
+
+			if (!sta->wpa_group_cipher)
+				status = WLAN_STATUS_GROUP_CIPHER_NOT_VALID;
+
+			if (!sta->wpa_pairwise_cipher)
+				status = WLAN_STATUS_PAIRWISE_CIPHER_NOT_VALID;
+		} else
+			status = WLAN_STATUS_INVALID_IE;
+
+	} else {
+		wpa_ie = NULL;
+		wpa_ie_len = 0;
+	}
+
+	if (status != _STATS_SUCCESSFUL_)
+		goto exit;
+
+	if (!MLME_IS_AP(adapter))
+		goto exit;
+
+	sta->flags &= ~(WLAN_STA_WPS | WLAN_STA_MAYBE_WPS);
+	/* if (hapd->conf->wps_state && wpa_ie == NULL) { */ /* todo: to check ap if supporting WPS */
+	if (wpa_ie == NULL) {
+		if (elems->wps_ie) {
+			RTW_INFO("STA included WPS IE in "
+				 "(Re)Association Request - assume WPS is "
+				 "used\n");
+			sta->flags |= WLAN_STA_WPS;
+			/* wpabuf_free(sta->wps_ie); */
+			/* sta->wps_ie = wpabuf_alloc_copy(elems.wps_ie + 4, */
+			/*				elems.wps_ie_len - 4); */
+		} else {
+			RTW_INFO("STA did not include WPA/RSN IE "
+				 "in (Re)Association Request - possible WPS "
+				 "use\n");
+			sta->flags |= WLAN_STA_MAYBE_WPS;
+		}
+
+		/* AP support WPA/RSN, and sta is going to do WPS, but AP is not ready */
+		/* that the selected registrar of AP is _FLASE */
+		if ((sec->wpa_psk > 0)
+			&& (sta->flags & (WLAN_STA_WPS | WLAN_STA_MAYBE_WPS))
+		) {
+			struct mlme_priv *mlme = &adapter->mlmepriv;
+
+			if (mlme->wps_beacon_ie) {
+				u8 selected_registrar = 0;
+
+				rtw_get_wps_attr_content(mlme->wps_beacon_ie, mlme->wps_beacon_ie_len, WPS_ATTR_SELECTED_REGISTRAR, &selected_registrar, NULL);
+
+				if (!selected_registrar) {
+					RTW_INFO("selected_registrar is _FALSE , or AP is not ready to do WPS\n");
+					status = _STATS_UNABLE_HANDLE_STA_;
+					goto exit;
+				}
+			}
+		}
+
+	} else {
+		int copy_len;
+
+		if (sec->wpa_psk == 0) {
+			RTW_INFO("STA " MAC_FMT
+				": WPA/RSN IE in association request, but AP don't support WPA/RSN\n",
+				MAC_ARG(sta->cmn.mac_addr));
+			status = WLAN_STATUS_INVALID_IE;
+			goto exit;
+		}
+
+		if (elems->wps_ie) {
+			RTW_INFO("STA included WPS IE in "
+				 "(Re)Association Request - WPS is "
+				 "used\n");
+			sta->flags |= WLAN_STA_WPS;
+			copy_len = 0;
+		} else
+			copy_len = ((wpa_ie_len + 2) > sizeof(sta->wpa_ie)) ? (sizeof(sta->wpa_ie)) : (wpa_ie_len + 2);
+
+		if (copy_len > 0)
+			_rtw_memcpy(sta->wpa_ie, wpa_ie - 2, copy_len);
+	}
+
+exit:
+	return status;
+}
+
+void rtw_ap_parse_sta_wmm_ie(_adapter *adapter, struct sta_info *sta, u8 *tlv_ies, u16 tlv_ies_len)
+{
+	struct mlme_priv *mlme = &adapter->mlmepriv;
+	unsigned char WMM_IE[] = {0x00, 0x50, 0xf2, 0x02, 0x00, 0x01};
+	u8 *p;
+
+	sta->flags &= ~WLAN_STA_WME;
+	sta->qos_option = 0;
+	sta->qos_info = 0;
+	sta->has_legacy_ac = _TRUE;
+	sta->uapsd_vo = 0;
+	sta->uapsd_vi = 0;
+	sta->uapsd_be = 0;
+	sta->uapsd_bk = 0;
+
+	if (!mlme->qospriv.qos_option)
+		goto exit;
+
+	p = rtw_get_ie_ex(tlv_ies, tlv_ies_len, WLAN_EID_VENDOR_SPECIFIC, WMM_IE, 6, NULL, NULL);
+	if (!p)
+		goto exit;
+
+	sta->flags |= WLAN_STA_WME;
+	sta->qos_option = 1;
+	sta->qos_info = *(p + 8);
+	sta->max_sp_len = (sta->qos_info >> 5) & 0x3;
+
+	if ((sta->qos_info & 0xf) != 0xf)
+		sta->has_legacy_ac = _TRUE;
+	else
+		sta->has_legacy_ac = _FALSE;
+
+	if (sta->qos_info & 0xf) {
+		if (sta->qos_info & BIT(0))
+			sta->uapsd_vo = BIT(0) | BIT(1);
+		else
+			sta->uapsd_vo = 0;
+
+		if (sta->qos_info & BIT(1))
+			sta->uapsd_vi = BIT(0) | BIT(1);
+		else
+			sta->uapsd_vi = 0;
+
+		if (sta->qos_info & BIT(2))
+			sta->uapsd_bk = BIT(0) | BIT(1);
+		else
+			sta->uapsd_bk = 0;
+
+		if (sta->qos_info & BIT(3))
+			sta->uapsd_be = BIT(0) | BIT(1);
+		else
+			sta->uapsd_be = 0;
+	}
+
+exit:
+	return;
+}
+
+void rtw_ap_parse_sta_ht_ie(_adapter *adapter, struct sta_info *sta, struct rtw_ieee802_11_elems *elems)
+{
+	struct mlme_priv *mlme = &adapter->mlmepriv;
+
+	sta->flags &= ~WLAN_STA_HT;
+
+#ifdef CONFIG_80211N_HT
+	if (mlme->htpriv.ht_option == _FALSE)
+		goto exit;
+
+	/* save HT capabilities in the sta object */
+	_rtw_memset(&sta->htpriv.ht_cap, 0, sizeof(struct rtw_ieee80211_ht_cap));
+	if (elems->ht_capabilities && elems->ht_capabilities_len >= sizeof(struct rtw_ieee80211_ht_cap)) {
+		sta->flags |= WLAN_STA_HT;
+		sta->flags |= WLAN_STA_WME;
+		_rtw_memcpy(&sta->htpriv.ht_cap, elems->ht_capabilities, sizeof(struct rtw_ieee80211_ht_cap));
+	}
+exit:
+#endif
+
+	return;
+}
+
+void rtw_ap_parse_sta_vht_ie(_adapter *adapter, struct sta_info *sta, struct rtw_ieee802_11_elems *elems)
+{
+	struct mlme_priv *mlme = &adapter->mlmepriv;
+
+	sta->flags &= ~WLAN_STA_VHT;
+
+#ifdef CONFIG_80211AC_VHT
+	if (mlme->vhtpriv.vht_option == _FALSE)
+		goto exit;
+
+	_rtw_memset(&sta->vhtpriv, 0, sizeof(struct vht_priv));
+	if (elems->vht_capabilities && elems->vht_capabilities_len == 12) {
+		sta->flags |= WLAN_STA_VHT;
+		_rtw_memcpy(sta->vhtpriv.vht_cap, elems->vht_capabilities, 12);
+
+		if (elems->vht_op_mode_notify && elems->vht_op_mode_notify_len == 1)
+			_rtw_memcpy(&sta->vhtpriv.vht_op_mode_notify, elems->vht_op_mode_notify, 1);
+		else /* for Frame without Operating Mode notify ie; default: 80M */
+			sta->vhtpriv.vht_op_mode_notify = CHANNEL_WIDTH_80;
+	}
+exit:
+#endif
+
+	return;
+}
 #endif /* CONFIG_AP_MODE */
+

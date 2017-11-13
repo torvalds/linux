@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2017 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -11,12 +11,7 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
- ******************************************************************************/
+ *****************************************************************************/
 #define _RTW_MP_IOCTL_C_
 
 #include <drv_types.h>
@@ -2439,7 +2434,7 @@ unsigned int mp_ioctl_xmit_packet_hdl(struct oid_par_priv *poid_par_priv)
 
 	fctrl = &(pwlanhdr->frame_ctl);
 	*(fctrl) = 0;
-	SetFrameSubType(pframe, WIFI_DATA);
+	set_frame_sub_type(pframe, WIFI_DATA);
 
 	_rtw_memcpy(pwlanhdr->addr1, pethhdr->h_dest, ETH_ALEN);
 	_rtw_memcpy(pwlanhdr->addr2, pethhdr->h_source, ETH_ALEN);

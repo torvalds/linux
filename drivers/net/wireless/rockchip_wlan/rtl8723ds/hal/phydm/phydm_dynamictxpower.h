@@ -1,7 +1,7 @@
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
- *                                        
+ * Copyright(c) 2007 - 2017 Realtek Corporation.
+ *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
  * published by the Free Software Foundation.
@@ -11,13 +11,8 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
- ******************************************************************************/
- 
+ *****************************************************************************/
+
 #ifndef	__PHYDMDYNAMICTXPOWER_H__
 #define    __PHYDMDYNAMICTXPOWER_H__
 
@@ -37,74 +32,69 @@
 	#define		TX_POWER_NEAR_FIELD_THRESH_LVL1	60
 #endif
 
-#define		TxHighPwrLevel_Normal		0	
-#define		TxHighPwrLevel_Level1		1
-#define		TxHighPwrLevel_Level2		2
+#define		tx_high_pwr_level_normal		0
+#define		tx_high_pwr_level_level1		1
+#define		tx_high_pwr_level_level2		2
 
-#define		TxHighPwrLevel_BT1			3
-#define		TxHighPwrLevel_BT2			4
-#define		TxHighPwrLevel_15			5
-#define		TxHighPwrLevel_35			6
-#define		TxHighPwrLevel_50			7
-#define		TxHighPwrLevel_70			8
-#define		TxHighPwrLevel_100			9
+#define		tx_high_pwr_level_bt1			3
+#define		tx_high_pwr_level_bt2			4
+#define		tx_high_pwr_level_15			5
+#define		tx_high_pwr_level_35			6
+#define		tx_high_pwr_level_50			7
+#define		tx_high_pwr_level_70			8
+#define		tx_high_pwr_level_100			9
 
-VOID 
-odm_DynamicTxPowerInit(
-	IN		PVOID					pDM_VOID
-	);
+void
+phydm_dynamic_tx_power_init(
+	void					*p_dm_void
+);
 
-VOID
-odm_DynamicTxPowerRestorePowerIndex(
-	IN		PVOID					pDM_VOID
-	);
+void
+odm_dynamic_tx_power_restore_power_index(
+	void					*p_dm_void
+);
 
-VOID 
-odm_DynamicTxPowerNIC(
-	IN		PVOID					pDM_VOID
-	);
+void
+odm_dynamic_tx_power_nic(
+	void					*p_dm_void
+);
 
-#if(DM_ODM_SUPPORT_TYPE & (ODM_WIN|ODM_CE))
-VOID
-odm_DynamicTxPowerSavePowerIndex(
-	IN		PVOID					pDM_VOID
-	);
+#if (DM_ODM_SUPPORT_TYPE & (ODM_WIN | ODM_CE))
+void
+odm_dynamic_tx_power_save_power_index(
+	void					*p_dm_void
+);
 
-VOID
-odm_DynamicTxPowerWritePowerIndex(
-	IN		PVOID					pDM_VOID, 
-	IN 	u1Byte		Value);
+void
+odm_dynamic_tx_power_write_power_index(
+	void					*p_dm_void,
+	u8		value);
 
-VOID 
-odm_DynamicTxPower_8821(
-	IN		PVOID					pDM_VOID,	
-	IN		pu1Byte					pDesc,
-	IN		u1Byte					macId
-	);
+void
+odm_dynamic_tx_power_8821(
+	void					*p_dm_void,
+	u8					*p_desc,
+	u8					mac_id
+);
 #if (DM_ODM_SUPPORT_TYPE == ODM_WIN)
-VOID 
-odm_DynamicTxPower_8814A(
-	IN		PVOID					pDM_VOID
-	);
+void
+odm_dynamic_tx_power_8814a(
+	void					*p_dm_void
+);
 
-	
-VOID
-odm_SetTxPowerLevel8814(
-	IN	PADAPTER		Adapter,
-	IN	u1Byte			Channel,
-	IN	u1Byte			PwrLvl
-	);
+
+void
+odm_set_tx_power_level8814(
+	struct _ADAPTER		*adapter,
+	u8			channel,
+	u8			pwr_lvl
+);
 #endif
 #endif
 
-VOID 
-odm_DynamicTxPower(
-	IN		PVOID					pDM_VOID
-	);
-
-VOID 
-odm_DynamicTxPowerAP(
-	IN		PVOID					pDM_VOID
-	);
+void
+odm_dynamic_tx_power(
+	void					*p_dm_void
+);
 
 #endif

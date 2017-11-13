@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2017 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -11,12 +11,7 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
- ******************************************************************************/
+ *****************************************************************************/
 #define _IEEE80211_C
 
 #ifdef CONFIG_PLATFORM_INTEL_BYT
@@ -853,23 +848,26 @@ u8 rtw_is_wps_ie(u8 *ie_ptr, uint *wps_ielen)
 	return match;
 }
 
-u8 *rtw_get_wps_ie_from_scan_queue(u8 *in_ie, uint in_len, u8 *wps_ie, uint *wps_ielen, u8 frame_type)
+u8 *rtw_get_wps_ie_from_scan_queue(u8 *in_ie, uint in_len, u8 *wps_ie, uint *wps_ielen, enum bss_type frame_type)
 {
 	u8	*wps = NULL;
 
 	RTW_INFO("[%s] frame_type = %d\n", __FUNCTION__, frame_type);
 	switch (frame_type) {
-	case 1:
-	case 3: {
+	case BSS_TYPE_BCN:
+	case BSS_TYPE_PROB_RSP: {
 		/*	Beacon or Probe Response */
 		wps = rtw_get_wps_ie(in_ie + _PROBERSP_IE_OFFSET_, in_len - _PROBERSP_IE_OFFSET_, wps_ie, wps_ielen);
 		break;
 	}
-	case 2: {
+	case BSS_TYPE_PROB_REQ: {
 		/*	Probe Request */
 		wps = rtw_get_wps_ie(in_ie + _PROBEREQ_IE_OFFSET_ , in_len - _PROBEREQ_IE_OFFSET_ , wps_ie, wps_ielen);
 		break;
 	}
+	default:
+	case BSS_TYPE_UNDEF:
+		break;
 	}
 	return wps;
 }
@@ -1235,6 +1233,10 @@ ParseRes rtw_ieee802_11_parse_elems(u8 *start, uint len,
 		case WLAN_EID_VHT_OP_MODE_NOTIFY:
 			elems->vht_op_mode_notify = pos;
 			elems->vht_op_mode_notify_len = elen;
+			break;
+		case _EID_RRM_EN_CAP_IE_:
+			elems->rm_en_cap = pos;
+			elems->rm_en_cap_len = elen;
 			break;
 		default:
 			unknown++;
@@ -2589,13 +2591,43 @@ u8	rtw_ht_mcsset_to_nss(u8 *supp_mcs_set)
 	return nss;
 }
 
+u32	rtw_ht_mcs_set_to_bitmap(u8 *mcs_set, u8 nss)
+{
+	u8 i;
+	u32 bitmap = 0;
+
+	for (i = 0; i < nss; i++)
+		bitmap |= mcs_set[i] << (i * 8);
+
+	RTW_INFO("ht_mcs_set=%02x %02x %02x %02x, nss=%u, bitmap=%08x\n"
+		, mcs_set[0], mcs_set[1], mcs_set[2], mcs_set[3], nss, bitmap);
+
+	return bitmap;
+}
+
 /* show MCS rate, unit: 100Kbps */
 u16 rtw_mcs_rate(u8 rf_type, u8 bw_40MHz, u8 short_GI, unsigned char *MCS_rate)
 {
 	u16 max_rate = 0;
 
-	/*MCS_rate[2] = 3T3R , MCS_rate[1] = 2T2R , MCS_rate[0] = 1T1R*/
-	if (MCS_rate[2]) {
+	if (MCS_rate[3]) {
+		if (MCS_rate[3] & BIT(7))
+			max_rate = (bw_40MHz) ? ((short_GI) ? 6000 : 5400) : ((short_GI) ? 2889 : 2600);
+		else if (MCS_rate[3] & BIT(6))
+			max_rate = (bw_40MHz) ? ((short_GI) ? 5400 : 4860) : ((short_GI) ? 2600 : 2340);
+		else if (MCS_rate[3] & BIT(5))
+			max_rate = (bw_40MHz) ? ((short_GI) ? 4800 : 4320) : ((short_GI) ? 2311 : 2080);
+		else if (MCS_rate[3] & BIT(4))
+			max_rate = (bw_40MHz) ? ((short_GI) ? 3600 : 3240) : ((short_GI) ? 1733 : 1560);
+		else if (MCS_rate[3] & BIT(3))
+			max_rate = (bw_40MHz) ? ((short_GI) ? 2400 : 2160) : ((short_GI) ? 1156 : 1040);
+		else if (MCS_rate[3] & BIT(2))
+			max_rate = (bw_40MHz) ? ((short_GI) ? 1800 : 1620) : ((short_GI) ? 867 : 780);
+		else if (MCS_rate[3] & BIT(1))
+			max_rate = (bw_40MHz) ? ((short_GI) ? 1200 : 1080) : ((short_GI) ? 578 : 520);
+		else if (MCS_rate[3] & BIT(0))
+			max_rate = (bw_40MHz) ? ((short_GI) ? 600 : 540) : ((short_GI) ? 289 : 260);
+	} else if (MCS_rate[2]) {
 		if (MCS_rate[2] & BIT(7))
 			max_rate = (bw_40MHz) ? ((short_GI) ? 4500 : 4050) : ((short_GI) ? 2167 : 1950);
 		else if (MCS_rate[2] & BIT(6))
@@ -2707,3 +2739,4 @@ const char *action_public_str(u8 action)
 	action = (action >= ACT_PUBLIC_MAX) ? ACT_PUBLIC_MAX : action;
 	return _action_public_str[action];
 }
+

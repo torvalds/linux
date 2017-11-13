@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2017 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -11,12 +11,7 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
- ******************************************************************************/
+ *****************************************************************************/
 #ifndef __BASIC_TYPES_H__
 #define __BASIC_TYPES_H__
 
@@ -100,15 +95,50 @@
 	#define UINT u32
 	#define ULONG u32
 
-	#if (LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 19))
-		typedef _Bool bool;
-	#endif
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 19))
+typedef _Bool bool;
+
+enum {
+	false	= 0,
+	true	= 1
+};
+#endif
 
 	typedef void (*proc_t)(void *);
 
 	typedef	__kernel_size_t	SIZE_T;
 	typedef	__kernel_ssize_t	SSIZE_T;
 	#define FIELD_OFFSET(s, field)	((SSIZE_T)&((s *)(0))->field)
+
+#define u1Byte		u8
+#define pu1Byte		u8*
+
+#define u2Byte		u16
+#define pu2Byte		u16*
+
+#define u4Byte		u32
+#define pu4Byte		u32*
+
+#define u8Byte		u64
+#define pu8Byte		u64*
+
+#define s1Byte		s8
+#define ps1Byte		s8*
+
+#define s2Byte		s16
+#define ps2Byte		s16*
+
+#define s4Byte		s32
+#define ps4Byte		s32*
+
+#define s8Byte		s64
+#define ps8Byte		s64*
+
+#define UCHAR u8
+#define USHORT u16
+#define UINT u32
+#define ULONG u32
+#define PULONG u32*
 
 #endif
 

@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2012 Realtek Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2017 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -11,14 +11,18 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *******************************************************************************/
+ *****************************************************************************/
 #define _SDIO_OPS_LINUX_C_
 
 #include <drv_types.h>
+
+inline bool rtw_is_sdio30(_adapter *adapter)
+{
+	struct dvobj_priv *dvobj = adapter_to_dvobj(adapter);
+	PSDIO_DATA psdio_data = &dvobj->intf_data;
+
+	return (psdio_data->sd3_bus_mode) ? _TRUE : _FALSE;
+}
 
 static bool rtw_sdio_claim_host_needed(struct sdio_func *func)
 {
@@ -861,72 +865,104 @@ s32 sd_write(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, void *pdata)
 #if 1
 /*#define RTW_SDIO_DUMP*/
 
-int __must_check rtw_sdio_raw_read(struct dvobj_priv *d, int addr,
+/**
+ *	Returns driver error code,
+ *	0	no error
+ *	-1	Level 1 error, critical error and can't be recovered
+ *	-2	Level 2 error, normal error, retry to recover is possible
+ */
+static int linux_io_err_to_drv_err(int err)
+{
+	if (!err)
+		return 0;
+
+	/* critical error */
+	if ((err == -ESHUTDOWN) ||
+	    (err == -ENODEV) ||
+	    (err == -ENOMEDIUM))
+		return -1;
+
+	/* other error */
+	return -2;
+}
+
+/**
+ *	rtw_sdio_raw_read - Read from SDIO device
+ *	@d: driver object private data
+ *	@addr: address to read
+ *	@buf: buffer to store the data
+ *	@len: number of bytes to read
+ *	@fixed:
+ *
+ *	Reads from the address space of a SDIO device.
+ *	Return value indicates if the transfer succeeded or not.
+ */
+int __must_check rtw_sdio_raw_read(struct dvobj_priv *d, unsigned int addr,
 				   void *buf, size_t len, bool fixed)
 {
 	int error = -EPERM;
 	bool f0, cmd52;
 	struct sdio_func *func;
 	bool claim_needed;
+	u32 offset, i;
 
-	if (rtw_is_surprise_removed(dvobj_get_primary_adapter(d))) {
-		/*RTW_ERR(" %s (padapter->bSurpriseRemoved ||adapter->pwrctrlpriv.pnp_bstop_trx)!!!\n", __func__);*/
-		return error;
-	}
 
 	func = dvobj_to_sdio_func(d);
 	claim_needed = rtw_sdio_claim_host_needed(func);
 	f0 = RTW_SDIO_ADDR_F0_CHK(addr);
 	cmd52 = RTW_SDIO_ADDR_CMD52_CHK(addr);
 
+	/*
+	 * Mask addr to remove driver defined bit and
+	 * make sure addr is in valid range
+	 */
+	if (f0)
+		addr &= 0xFFF;
+	else
+		addr &= 0x1FFFF;
+
 #ifdef RTW_SDIO_DUMP
 	if (f0)
 		dev_dbg(&func->dev, "rtw_sdio: READ F0\n");
-	if (cmd52)
+	else if (cmd52)
 		dev_dbg(&func->dev, "rtw_sdio: READ use CMD52\n");
 	else
 		dev_dbg(&func->dev, "rtw_sdio: READ use CMD53\n");
 
 	dev_dbg(&func->dev, "rtw_sdio: READ from 0x%05x\n", addr);
-	print_hex_dump(KERN_DEBUG, "rtw_sdio: READ ",
-		       DUMP_PREFIX_OFFSET, 16, 1,
-		       buf, len, false);
 #endif /* RTW_SDIO_DUMP */
 
 	if (claim_needed)
 		sdio_claim_host(func);
 
 	if (f0) {
-		int i;
-
-		addr &= 0xFF;
-		for (i = 0; i < len; i++, addr++) {
-			((u8 *)buf)[i] = sdio_f0_readb(func, addr, &error);
+		offset = addr;
+		for (i = 0; i < len; i++, offset++) {
+			((u8 *)buf)[i] = sdio_f0_readb(func, offset, &error);
 			if (error)
 				break;
 #if 0
 			dev_info(&func->dev, "%s: sdio f0 read 52 addr 0x%x, byte 0x%02x\n",
-				 __func__, addr + i, ((u8 *)buf)[i]);
+				 __func__, offset, ((u8 *)buf)[i]);
 #endif
 		}
 	} else {
-		addr &= 0x1FFFF;
 		if (cmd52) {
-			int i;
 #ifdef RTW_SDIO_IO_DBG
 			dev_info(&func->dev, "%s: sdio read 52 addr 0x%x, %zu bytes\n",
 				 __func__, addr, len);
 #endif
+			offset = addr;
 			for (i = 0; i < len; i++) {
-				((u8 *)buf)[i] = sdio_readb(func, addr, &error);
+				((u8 *)buf)[i] = sdio_readb(func, offset, &error);
 				if (error)
 					break;
 #if 0
 				dev_info(&func->dev, "%s: sdio read 52 addr 0x%x, byte 0x%02x\n",
-					 __func__, addr + i, ((u8 *)buf)[i]);
+					 __func__, offset, ((u8 *)buf)[i]);
 #endif
 				if (!fixed)
-					addr++;
+					offset++;
 			}
 		} else {
 #ifdef RTW_SDIO_IO_DBG
@@ -943,6 +979,12 @@ int __must_check rtw_sdio_raw_read(struct dvobj_priv *d, int addr,
 	if (claim_needed)
 		sdio_release_host(func);
 
+#ifdef RTW_SDIO_DUMP
+	print_hex_dump(KERN_DEBUG, "rtw_sdio: READ ",
+		       DUMP_PREFIX_OFFSET, 16, 1,
+		       buf, len, false);
+#endif /* RTW_SDIO_DUMP */
+
 	if (WARN_ON(error)) {
 		dev_err(&func->dev, "%s: sdio read failed (%d)\n", __func__, error);
 #ifndef RTW_SDIO_DUMP
@@ -952,41 +994,55 @@ int __must_check rtw_sdio_raw_read(struct dvobj_priv *d, int addr,
 			dev_err(&func->dev, "rtw_sdio: READ use CMD52\n");
 		else
 			dev_err(&func->dev, "rtw_sdio: READ use CMD53\n");
-		dev_err(&func->dev, "rtw_sdio: READ from 0x%04x\n", addr);
+		dev_err(&func->dev, "rtw_sdio: READ from 0x%05x, %zu bytes\n", addr, len);
 		print_hex_dump(KERN_ERR, "rtw_sdio: READ ",
 			       DUMP_PREFIX_OFFSET, 16, 1,
 			       buf, len, false);
 #endif /* !RTW_SDIO_DUMP */
 	}
 
-	if (error == (-ESHUTDOWN) || error == (-ENODEV) || error == (-ENOMEDIUM) || error == (-ETIMEDOUT))
-		rtw_set_surprise_removed(dvobj_get_primary_adapter(d));
-
-	return error;
+	return linux_io_err_to_drv_err(error);
 }
 
-int __must_check rtw_sdio_raw_write(struct dvobj_priv *d, int addr,
+/**
+ *	rtw_sdio_raw_write - Write to SDIO device
+ *	@d: driver object private data
+ *	@addr: address to write
+ *	@buf: buffer that contains the data to write
+ *	@len: number of bytes to write
+ *	@fixed: address is fixed(FIFO) or incremented
+ *
+ *	Writes to the address space of a SDIO device.
+ *	Return value indicates if the transfer succeeded or not.
+ */
+int __must_check rtw_sdio_raw_write(struct dvobj_priv *d, unsigned int addr,
 				    void *buf, size_t len, bool fixed)
 {
 	int error = -EPERM;
 	bool f0, cmd52;
 	struct sdio_func *func;
 	bool claim_needed;
+	u32 offset, i;
 
-	if (rtw_is_surprise_removed(dvobj_get_primary_adapter(d))) {
-		/*RTW_ERR(" %s (padapter->bSurpriseRemoved ||adapter->pwrctrlpriv.pnp_bstop_trx)!!!\n", __func__);*/
-		return error;
-	}
 
 	func = dvobj_to_sdio_func(d);
 	claim_needed = rtw_sdio_claim_host_needed(func);
 	f0 = RTW_SDIO_ADDR_F0_CHK(addr);
 	cmd52 = RTW_SDIO_ADDR_CMD52_CHK(addr);
 
+	/*
+	 * Mask addr to remove driver defined bit and
+	 * make sure addr is in valid range
+	 */
+	if (f0)
+		addr &= 0xFFF;
+	else
+		addr &= 0x1FFFF;
+
 #ifdef RTW_SDIO_DUMP
 	if (f0)
 		dev_dbg(&func->dev, "rtw_sdio: WRITE F0\n");
-	if (cmd52)
+	else if (cmd52)
 		dev_dbg(&func->dev, "rtw_sdio: WRITE use CMD52\n");
 	else
 		dev_dbg(&func->dev, "rtw_sdio: WRITE use CMD53\n");
@@ -1000,36 +1056,33 @@ int __must_check rtw_sdio_raw_write(struct dvobj_priv *d, int addr,
 		sdio_claim_host(func);
 
 	if (f0) {
-		int i;
-
-		addr &= 0xFF;
-		for (i = 0; i < len; i++, addr++) {
-			sdio_f0_writeb(func, ((u8 *)buf)[i], addr, &error);
+		offset = addr;
+		for (i = 0; i < len; i++, offset++) {
+			sdio_f0_writeb(func, ((u8 *)buf)[i], offset, &error);
 			if (error)
 				break;
 #if 0
 			dev_info(&func->dev, "%s: sdio f0 write 52 addr 0x%x, byte 0x%02x\n",
-				 __func__, addr, ((u8 *)buf)[i]);
+				 __func__, offset, ((u8 *)buf)[i]);
 #endif
 		}
 	} else {
-		addr &= 0x1FFFF;
 		if (cmd52) {
-			int i;
 #ifdef RTW_SDIO_IO_DBG
 			dev_info(&func->dev, "%s: sdio write 52 addr 0x%x, %zu bytes\n",
 				 __func__, addr, len);
 #endif
+			offset = addr;
 			for (i = 0; i < len; i++) {
-				sdio_writeb(func, ((u8 *)buf)[i], addr, &error);
+				sdio_writeb(func, ((u8 *)buf)[i], offset, &error);
 				if (error)
 					break;
 #if 0
 				dev_info(&func->dev, "%s: sdio write 52 addr 0x%x, byte 0x%02x\n",
-					 __func__, addr + i, ((u8 *)buf)[i]);
+					 __func__, offset, ((u8 *)buf)[i]);
 #endif
 				if (!fixed)
-					addr++;
+					offset++;
 			}
 		} else {
 #ifdef RTW_SDIO_IO_DBG
@@ -1055,16 +1108,13 @@ int __must_check rtw_sdio_raw_write(struct dvobj_priv *d, int addr,
 			dev_err(&func->dev, "rtw_sdio: WRITE use CMD52\n");
 		else
 			dev_err(&func->dev, "rtw_sdio: WRITE use CMD53\n");
-		dev_err(&func->dev, "rtw_sdio: WRITE to 0x%05x\n", addr);
+		dev_err(&func->dev, "rtw_sdio: WRITE to 0x%05x, %zu bytes\n", addr, len);
 		print_hex_dump(KERN_ERR, "rtw_sdio: WRITE ",
 			       DUMP_PREFIX_OFFSET, 16, 1,
 			       buf, len, false);
 #endif /* !RTW_SDIO_DUMP */
 	}
 
-	if (error == (-ESHUTDOWN) || error == (-ENODEV) || error == (-ENOMEDIUM) || error == (-ETIMEDOUT))
-		rtw_set_surprise_removed(dvobj_get_primary_adapter(d));
-
-	return error;
+	return linux_io_err_to_drv_err(error);
 }
 #endif

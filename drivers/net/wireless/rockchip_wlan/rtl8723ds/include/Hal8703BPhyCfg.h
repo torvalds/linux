@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2017 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -11,12 +11,7 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
- ******************************************************************************/
+ *****************************************************************************/
 #ifndef __INC_HAL8703BPHYCFG_H__
 #define __INC_HAL8703BPHYCFG_H__
 
@@ -59,16 +54,16 @@ PHY_SetBBReg_8703B(
 
 u32
 PHY_QueryRFReg_8703B(
-	IN	PADAPTER			Adapter,
-	IN	u8				eRFPath,
+	IN	PADAPTER		Adapter,
+	IN	enum rf_path		eRFPath,
 	IN	u32				RegAddr,
 	IN	u32				BitMask
 );
 
 VOID
 PHY_SetRFReg_8703B(
-	IN	PADAPTER			Adapter,
-	IN	u8				eRFPath,
+	IN	PADAPTER		Adapter,
+	IN	enum rf_path		eRFPath,
 	IN	u32				RegAddr,
 	IN	u32				BitMask,
 	IN	u32				Data
@@ -84,22 +79,22 @@ s32 PHY_MACConfig8703B(PADAPTER padapter);
 int
 PHY_ConfigRFWithParaFile_8703B(
 	IN	PADAPTER			Adapter,
-	IN	u8				*pFileName,
-	RF_PATH				eRFPath
+	IN	u8					*pFileName,
+	enum rf_path				eRFPath
 );
 
 VOID
 PHY_SetTxPowerIndex_8703B(
 	IN	PADAPTER			Adapter,
 	IN	u32					PowerIndex,
-	IN	u8					RFPath,
+	IN	enum rf_path			RFPath,
 	IN	u8					Rate
 );
 
 u8
 PHY_GetTxPowerIndex_8703B(
 	IN	PADAPTER			pAdapter,
-	IN	u8					RFPath,
+	IN	enum rf_path			RFPath,
 	IN	u8					Rate,
 	IN	u8					BandWidth,
 	IN	u8					Channel,
@@ -122,14 +117,14 @@ VOID
 PHY_SetSwChnlBWMode8703B(
 	IN	PADAPTER			Adapter,
 	IN	u8					channel,
-	IN	CHANNEL_WIDTH		Bandwidth,
+	IN	enum channel_width	Bandwidth,
 	IN	u8					Offset40,
 	IN	u8					Offset80
 );
 
-VOID PHY_SetRFPathSwitch_8703B(
+VOID phy_set_rf_path_switch_8703b(
 	IN	PADAPTER	pAdapter,
-	IN	BOOLEAN		bMain
+	IN	bool		bMain
 );
 
 /*--------------------------Exported Function prototype End---------------------*/

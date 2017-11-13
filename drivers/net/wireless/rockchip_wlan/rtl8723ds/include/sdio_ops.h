@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2017 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -11,12 +11,7 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
- ******************************************************************************/
+ *****************************************************************************/
 #ifndef __SDIO_OPS_H__
 #define __SDIO_OPS_H__
 
@@ -50,6 +45,12 @@ struct async_context {
 
 
 extern void sdio_set_intf_ops(_adapter *padapter, struct _io_ops *pops);
+void dump_sdio_card_info(void *sel, struct dvobj_priv *dvobj);
+
+u32 sdio_init(struct dvobj_priv *dvobj);
+void sdio_deinit(struct dvobj_priv *dvobj);
+int sdio_alloc_irq(struct dvobj_priv *dvobj);
+void sdio_free_irq(struct dvobj_priv *dvobj);
 
 #if 0
 extern void sdio_func1cmd52_read(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, u8 *rmem);
@@ -90,10 +91,10 @@ void ClearInterrupt8821AS(PADAPTER padapter);
 #endif /* CONFIG_RTL8821A */
 
 #if defined(CONFIG_WOWLAN) || defined(CONFIG_AP_WOWLAN)
-#ifdef CONFIG_RTL8821C
+#if defined(CONFIG_RTL8821C) || defined(CONFIG_RTL8822B)
 u8 rtw_hal_enable_cpwm2(_adapter *adapter);
 #endif
-extern u8 RecvOnePkt(PADAPTER padapter, u32 size);
+extern u8 RecvOnePkt(PADAPTER padapter);
 #endif /* CONFIG_WOWLAN */
 #ifdef CONFIG_RTL8723B
 extern void InitInterrupt8723BSdio(PADAPTER padapter);

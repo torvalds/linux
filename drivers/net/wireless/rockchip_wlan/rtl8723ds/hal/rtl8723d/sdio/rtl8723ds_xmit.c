@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2012 Realtek Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2017 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -11,12 +11,7 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
- ******************************************************************************/
+ *****************************************************************************/
 #define _RTL8723DS_XMIT_C_
 
 #include <rtl8723d_hal.h>
@@ -206,6 +201,10 @@ s32 rtl8723ds_xmit_buf_handler(PADAPTER padapter)
 	}
 
 	if (RTW_CANNOT_RUN(padapter)) {
+		RTW_DBG(FUNC_ADPT_FMT "- bDriverStopped(%s) bSurpriseRemoved(%s)\n",
+			FUNC_ADPT_ARG(padapter),
+			rtw_is_drv_stopped(padapter) ? "True" : "False",
+			rtw_is_surprise_removed(padapter) ? "True" : "False");
 		return _FAIL;
 	}
 
@@ -364,7 +363,7 @@ static s32 xmit_xmitframes(PADAPTER padapter, struct xmit_priv *pxmitpriv)
 
 				/* ok to send, remove frame from queue */
 #ifdef CONFIG_AP_MODE
-				if (check_fwstate(&padapter->mlmepriv, WIFI_AP_STATE) == _TRUE) {
+				if (MLME_IS_AP(padapter) || MLME_IS_MESH(padapter)) {
 					if ((pxmitframe->attrib.psta->state & WIFI_SLEEP_STATE) &&
 					    (pxmitframe->attrib.triggered == 0)) {
 						RTW_INFO("%s: one not triggered pkt in queue when this STA sleep, break and goto next sta\n", __func__);
@@ -474,6 +473,10 @@ wait:
 
 next:
 	if (RTW_CANNOT_RUN(padapter)) {
+		RTW_DBG(FUNC_ADPT_FMT "- bDriverStopped(%s) bSurpriseRemoved(%s)\n",
+			FUNC_ADPT_ARG(padapter),
+			rtw_is_drv_stopped(padapter) ? "True" : "False",
+			rtw_is_surprise_removed(padapter) ? "True" : "False");
 		return _FAIL;
 	}
 
@@ -530,20 +533,16 @@ thread_return rtl8723ds_xmit_thread(thread_context context)
 
 	RTW_INFO("start "FUNC_ADPT_FMT"\n", FUNC_ADPT_ARG(padapter));
 
-	/* For now, no one would down sema to check thread is running, */
-	/* so mark this temporary, Lucas@20130820
-	*	_rtw_up_sema(&pxmitpriv->SdioXmitTerminateSema); */
-
 	do {
 		ret = rtl8723ds_xmit_handler(padapter);
-		if (signal_pending(current))
-			flush_signals(current);
+		flush_signals_thread();
 	} while (_SUCCESS == ret);
 
-	_rtw_up_sema(&pxmitpriv->SdioXmitTerminateSema);
+	RTW_INFO(FUNC_ADPT_FMT " Exit\n", FUNC_ADPT_ARG(padapter));
 
+	rtw_thread_wait_stop();
 
-	thread_exit();
+	return 0;
 }
 
 s32 rtl8723ds_mgnt_xmit(PADAPTER padapter, struct xmit_frame *pmgntframe)
@@ -574,7 +573,7 @@ s32 rtl8723ds_mgnt_xmit(PADAPTER padapter, struct xmit_frame *pmgntframe)
 
 	pxmitbuf->priv_data = NULL;
 
-	if (GetFrameSubType(pframe) == WIFI_BEACON ||
+	if (get_frame_sub_type(pframe) == WIFI_BEACON ||
 	    pxmitbuf->buf_tag == XMITBUF_CMD) {
 
 #ifdef CONFIG_LPS_POFF
@@ -677,8 +676,6 @@ s32 rtl8723ds_init_xmit_priv(PADAPTER padapter)
 
 	_rtw_spinlock_init(&phal->SdioTxFIFOFreePageLock);
 	_rtw_init_sema(&xmitpriv->SdioXmitSema, 0);
-	_rtw_init_sema(&xmitpriv->SdioXmitTerminateSema, 0);
-
 	return _SUCCESS;
 }
 

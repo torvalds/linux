@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2017 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -11,12 +11,7 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
- ******************************************************************************/
+ *****************************************************************************/
 #ifndef __RTW_SECURITY_H_
 #define __RTW_SECURITY_H_
 
@@ -141,6 +136,7 @@ struct security_priv {
 	union Keytype	dot118021XGrprxmickey[4];
 	union pn48		dot11Grptxpn;			/* PN48 used for Grp Key xmit. */
 	union pn48		dot11Grprxpn;			/* PN48 used for Grp Key recv. */
+	u8				iv_seq[4][8];
 #ifdef CONFIG_IEEE80211W
 	u32	dot11wBIPKeyid;						/* key id used for BIP Key ( tx key index) */
 	union Keytype	dot11wBIPKey[6];		/* BIP Key, for index4 and index5 */
@@ -174,7 +170,6 @@ struct security_priv {
 	u8	binstallBIPkey;
 #endif /* CONFIG_IEEE80211W */
 	u8	busetkipkey;
-	/* _timer tkip_timer; */
 	u8	bcheck_grpkey;
 	u8	bgrpkey_handshake;
 
@@ -203,10 +198,10 @@ struct security_priv {
 
 
 	/* for tkip countermeasure */
-	u32 last_mic_err_time;
+	systime last_mic_err_time;
 	u8	btkip_countermeasure;
 	u8	btkip_wait_report;
-	u32 btkip_countermeasure_time;
+	systime btkip_countermeasure_time;
 
 	/* --------------------------------------------------------------------------- */
 	/* For WPA2 Pre-Authentication. */
@@ -406,11 +401,6 @@ static inline u32 rotr(u32 val, int bits)
 		(a)[7] = (u8) (((u64) (val)) & 0xff);	\
 	} while (0)
 
-/* ===== start - public domain SHA256 implementation ===== */
-
-/* This is based on SHA256 implementation in LibTomCrypt that was released into
- * public domain by Tom St Denis. */
-
 /* the K array */
 static const unsigned long K[64] = {
 	0x428a2f98UL, 0x71374491UL, 0xb5c0fbcfUL, 0xe9b5dba5UL, 0x3956c25bUL,
@@ -480,8 +470,6 @@ int wpa_tdls_teardown_ftie_mic(u8 *kck, u8 *lnkid, u16 reason,
 int tdls_verify_mic(u8 *kck, u8 trans_seq,
 			u8 *lnkid, u8 *rsnie, u8 *timeoutie, u8 *ftie);
 #endif /* CONFIG_TDLS */
-
-void rtw_use_tkipkey_handler(RTW_TIMER_HDL_ARGS);
 
 void rtw_sec_restore_wep_key(_adapter *adapter);
 u8 rtw_handle_tkip_countermeasure(_adapter *adapter, const char *caller);

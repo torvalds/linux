@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2017 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -11,11 +11,7 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *******************************************************************************/
+ *****************************************************************************/
 #ifndef __RTL8814A_SPEC_H__
 #define __RTL8814A_SPEC_H__
 
@@ -450,6 +446,8 @@
 #define REG_SND_PTCL_CTRL_8814A			0x0718
 #define REG_IQ_DUMP_8814A					0x07C0
 
+#define REG_CPU_DMEM_CON_8814A			0x1080
+
 /**** page 19 ****/
 /* TX BeamForming */
 #define	REG_BB_TXBF_ANT_SET_BF1				0x19ac
@@ -480,6 +478,13 @@
 #define REG_DDMA_CHSTATUS              0x12E8
 #define REG_DDMA_CHKSUM                 0x12F0
 #define REG_DDMA_MONITER                0x12FC
+
+#define REG_Q0_Q1_INFO_8814A		0x1400
+#define REG_Q2_Q3_INFO_8814A		0x1404
+#define REG_Q4_Q5_INFO_8814A		0x1408
+#define REG_Q6_Q7_INFO_8814A		0x140C
+#define REG_MGQ_HIQ_INFO_8814A	0x1410
+#define REG_CMDQ_BCNQ_INFO_8814A	0x1414
 
 #define DDMA_LEN_MASK		0x0001FFFF
 #define FW_CHKSUM_DUMMY_SZ		8
@@ -639,13 +644,5 @@ So the following defines for 92C is not entire!!!!!!
 #define REG_USB_HRPWM_U3			0xF052
 
 #define LAST_ENTRY_OF_TX_PKT_BUFFER_8814A       (2048-1)	/* 20130415 KaiYuan add for 8814 */
-
-#define MACID_NUM_8814A 128
-#define SEC_CAM_ENT_NUM_8814A 64
-#define HW_PORT_NUM_8814A	5
-#define NSS_NUM_8814A 3
-#define BAND_CAP_8814A (BAND_CAP_2G | BAND_CAP_5G)
-#define BW_CAP_8814A (BW_CAP_20M | BW_CAP_40M | BW_CAP_80M)
-#define PROTO_CAP_8814A (PROTO_CAP_11B | PROTO_CAP_11G | PROTO_CAP_11N | PROTO_CAP_11AC)
 
 #endif /* __RTL8814A_SPEC_H__ */

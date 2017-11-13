@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2017 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -11,41 +11,15 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
- ******************************************************************************/
+ *****************************************************************************/
 #ifndef	__RTW_RF_H_
 #define __RTW_RF_H_
 
-
-#define OFDM_PHY		1
-#define MIXED_PHY		2
-#define CCK_PHY		3
-
-#define b_mode_rate_num 4
-#define g_mode_rate_num 8
 #define NumRates	(13)
 
 /* slot time for 11g */
 #define SHORT_SLOT_TIME					9
 #define NON_SHORT_SLOT_TIME				20
-
-#define RTL8711_RF_MAX_SENS 6
-#define RTL8711_RF_DEF_SENS 4
-
-/*
- * We now define the following channels as the max channels in each channel plan.
- * 2G, total 14 chnls
- * {1,2,3,4,5,6,7,8,9,10,11,12,13,14}
- * 5G, total 25 chnls
- * {36,40,44,48,52,56,60,64,100,104,108,112,116,120,124,128,132,136,140,144,149,153,157,161,165}
- */
-#define	MAX_CHANNEL_NUM_2G	14
-#define	MAX_CHANNEL_NUM_5G	25
-#define	MAX_CHANNEL_NUM		(MAX_CHANNEL_NUM_2G + MAX_CHANNEL_NUM_5G)
 
 #define CENTER_CH_2G_40M_NUM	9
 #define CENTER_CH_2G_NUM		14
@@ -54,6 +28,10 @@
 #define CENTER_CH_5G_80M_NUM	7	/* 80M center channels */
 #define CENTER_CH_5G_160M_NUM	3	/* 160M center channels */
 #define CENTER_CH_5G_ALL_NUM	(CENTER_CH_5G_20M_NUM + CENTER_CH_5G_40M_NUM + CENTER_CH_5G_80M_NUM)
+
+#define	MAX_CHANNEL_NUM_2G	CENTER_CH_2G_NUM
+#define	MAX_CHANNEL_NUM_5G	CENTER_CH_5G_20M_NUM
+#define	MAX_CHANNEL_NUM		(MAX_CHANNEL_NUM_2G + MAX_CHANNEL_NUM_5G)
 
 extern u8 center_ch_2g[CENTER_CH_2G_NUM];
 extern u8 center_ch_2g_40m[CENTER_CH_2G_40M_NUM];
@@ -75,24 +53,6 @@ u8 rtw_get_scch_by_cch_offset(u8 cch, u8 bw, u8 offset);
 u8 rtw_get_op_chs_by_cch_bw(u8 cch, u8 bw, u8 **op_chs, u8 *op_ch_num);
 
 u8 rtw_get_ch_group(u8 ch, u8 *group, u8 *cck_group);
-
-/* #define NUM_REGULATORYS	21 */
-#define NUM_REGULATORYS	1
-
-/* Country codes */
-#define USA							0x555320
-#define EUROPE						0x1 /* temp, should be provided later	 */
-#define JAPAN						0x2 /* temp, should be provided later	 */
-
-struct	regulatory_class {
-	u32	starting_freq;					/* MHz, */
-	u8	channel_set[MAX_CHANNEL_NUM];
-	u8	channel_cck_power[MAX_CHANNEL_NUM];/* dbm */
-	u8	channel_ofdm_power[MAX_CHANNEL_NUM];/* dbm */
-	u8	txpower_limit;  				/* dbm */
-	u8	channel_spacing;				/* MHz */
-	u8	modem;
-};
 
 typedef enum _CAPABILITY {
 	cESS			= 0x0001,
@@ -119,25 +79,6 @@ enum	_REG_PREAMBLE_MODE {
 	PREAMBLE_SHORT	= 3,
 };
 
-
-enum _RTL8712_RF_MIMO_CONFIG_ {
-	RTL8712_RFCONFIG_1T = 0x10,
-	RTL8712_RFCONFIG_2T = 0x20,
-	RTL8712_RFCONFIG_1R = 0x01,
-	RTL8712_RFCONFIG_2R = 0x02,
-	RTL8712_RFCONFIG_1T1R = 0x11,
-	RTL8712_RFCONFIG_1T2R = 0x12,
-	RTL8712_RFCONFIG_TURBO = 0x92,
-	RTL8712_RFCONFIG_2T2R = 0x22
-};
-
-typedef enum _RF_PATH {
-	RF_PATH_A = 0,
-	RF_PATH_B = 1,
-	RF_PATH_C = 2,
-	RF_PATH_D = 3,
-} RF_PATH, *PRF_PATH;
-
 #define rf_path_char(path) (((path) >= RF_PATH_MAX) ? 'X' : 'A' + (path))
 
 /* Bandwidth Offset */
@@ -158,16 +99,6 @@ extern const char *const _band_str[];
 extern const u8 _band_to_band_cap[];
 #define band_to_band_cap(band) (((band) >= BAND_MAX) ? _band_to_band_cap[BAND_MAX] : _band_to_band_cap[(band)])
 
-/* Represent Channel Width in HT Capabilities
- *   */
-typedef enum _CHANNEL_WIDTH {
-	CHANNEL_WIDTH_20 = 0,
-	CHANNEL_WIDTH_40 = 1,
-	CHANNEL_WIDTH_80 = 2,
-	CHANNEL_WIDTH_160 = 3,
-	CHANNEL_WIDTH_80_80 = 4,
-	CHANNEL_WIDTH_MAX = 5,
-} CHANNEL_WIDTH, *PCHANNEL_WIDTH;
 
 extern const char *const _ch_width_str[];
 #define ch_width_str(bw) (((bw) >= CHANNEL_WIDTH_MAX) ? _ch_width_str[CHANNEL_WIDTH_MAX] : _ch_width_str[(bw)])
@@ -206,19 +137,13 @@ typedef enum _PROTECTION_MODE {
 	PROTECTION_MODE_FORCE_DISABLE = 2,
 } PROTECTION_MODE, *PPROTECTION_MODE;
 
-typedef	enum _RT_RF_TYPE_DEFINITION {
-	RF_1T2R = 0,
-	RF_2T4R = 1,
-	RF_2T2R = 2,
-	RF_1T1R = 3,
-	RF_2T2R_GREEN = 4,
-	RF_2T3R = 5,
-	RF_3T3R = 6,
-	RF_3T4R	= 7,
-	RF_4T4R	= 8,
+#define RF_TYPE_VALID(rf_type) (rf_type < RF_TYPE_MAX)
 
-	RF_MAX_TYPE = 0xF, /* u1Byte */
-} RT_RF_TYPE_DEF_E;
+extern const u8 _rf_type_to_rf_tx_cnt[];
+#define rf_type_to_rf_tx_cnt(rf_type) (RF_TYPE_VALID(rf_type) ? _rf_type_to_rf_tx_cnt[rf_type] : 0)
+
+extern const u8 _rf_type_to_rf_rx_cnt[];
+#define rf_type_to_rf_rx_cnt(rf_type) (RF_TYPE_VALID(rf_type) ? _rf_type_to_rf_rx_cnt[rf_type] : 0)
 
 int rtw_ch2freq(int chan);
 int rtw_freq2ch(int freq);
@@ -232,6 +157,8 @@ bool rtw_chbw_to_freq_range(u8 ch, u8 bw, u8 offset, u32 *hi, u32 *lo);
 #define RTW_MODULE_RTL8723BE_HMC_M2		BIT5 /* RTL8723BE(HMC + M.2) */
 #define RTW_MODULE_RTL8723BS_NGFF1216	BIT6 /* RTL8723BS(NGFF1216) */
 #define RTW_MODULE_RTL8192EEBT_HMC_M2	BIT7 /* RTL8192EEBT(8192EE+8761AU)_(HMC + M.2) */
+#define RTW_MODULE_RTL8723DE_NGFF1630	BIT8 /* RTL8723DE(NGFF1630) */
+#define RTW_MODULE_RTL8822BE			BIT9 /* RTL8822BE */
 
 #define IS_ALPHA2_NO_SPECIFIED(_alpha2) ((*((u16 *)(_alpha2))) == 0xFFFF)
 
@@ -242,7 +169,7 @@ struct country_chplan {
 	u8 en_11ac;
 #endif
 #if RTW_DEF_MODULE_REGULATORY_CERT
-	u8 def_module_flags; /* RTW_MODULE_RTLXXX */
+	u16 def_module_flags; /* RTW_MODULE_RTLXXX */
 #endif
 };
 
@@ -259,6 +186,46 @@ struct country_chplan {
 #endif
 
 const struct country_chplan *rtw_get_chplan_from_country(const char *country_code);
+
+struct rf_ctl_t;
+
+typedef enum _REGULATION_TXPWR_LMT {
+	TXPWR_LMT_NONE = 0, /* no limit */
+	TXPWR_LMT_FCC = 1,
+	TXPWR_LMT_MKK = 2,
+	TXPWR_LMT_ETSI = 3,
+	TXPWR_LMT_IC = 4,
+	TXPWR_LMT_KCC = 5,
+	TXPWR_LMT_WW = 6, /* smallest of all available limit, keep last */
+} REGULATION_TXPWR_LMT;
+
+extern const char *const _regd_str[];
+#define regd_str(regd) (((regd) > TXPWR_LMT_WW) ? _regd_str[TXPWR_LMT_WW] : _regd_str[(regd)])
+
+#ifdef CONFIG_TXPWR_LIMIT
+struct regd_exc_ent {
+	_list list;
+	char country[2];
+	u8 domain;
+	char regd_name[0];
+};
+
+void dump_regd_exc_list(void *sel, struct rf_ctl_t *rfctl);
+void rtw_regd_exc_add_with_nlen(struct rf_ctl_t *rfctl, const char *country, u8 domain, const char *regd_name, u32 nlen);
+void rtw_regd_exc_add(struct rf_ctl_t *rfctl, const char *country, u8 domain, const char *regd_name);
+struct regd_exc_ent *_rtw_regd_exc_search(struct rf_ctl_t *rfctl, const char *country, u8 domain);
+struct regd_exc_ent *rtw_regd_exc_search(struct rf_ctl_t *rfctl, const char *country, u8 domain);
+void rtw_regd_exc_list_free(struct rf_ctl_t *rfctl);
+
+void dump_txpwr_lmt(void *sel, _adapter *adapter);
+void rtw_txpwr_lmt_add_with_nlen(struct rf_ctl_t *rfctl, const char *regd_name, u32 nlen
+	, u8 band, u8 bw, u8 tlrs, u8 ntx_idx, u8 ch_idx, s8 lmt);
+void rtw_txpwr_lmt_add(struct rf_ctl_t *rfctl, const char *regd_name
+	, u8 band, u8 bw, u8 tlrs, u8 ntx_idx, u8 ch_idx, s8 lmt);
+struct txpwr_lmt_ent *_rtw_txpwr_lmt_get_by_name(struct rf_ctl_t *rfctl, const char *regd_name);
+struct txpwr_lmt_ent *rtw_txpwr_lmt_get_by_name(struct rf_ctl_t *rfctl, const char *regd_name);
+void rtw_txpwr_lmt_list_free(struct rf_ctl_t *rfctl);
+#endif /* CONFIG_TXPWR_LIMIT */
 
 #define BB_GAIN_2G 0
 #ifdef CONFIG_IEEE80211_BAND_5GHZ
@@ -279,8 +246,14 @@ int rtw_ch_to_bb_gain_sel(int ch);
 void rtw_rf_set_tx_gain_offset(_adapter *adapter, u8 path, s8 offset);
 void rtw_rf_apply_tx_gain_offset(_adapter *adapter, u8 ch);
 
-bool rtw_is_dfs_range(u32 hi, u32 lo);
-bool rtw_is_dfs_ch(u8 ch, u8 bw, u8 offset);
+u8 rtw_is_5g_band1(u8 ch);
+u8 rtw_is_5g_band2(u8 ch);
+u8 rtw_is_5g_band3(u8 ch);
+u8 rtw_is_5g_band4(u8 ch);
+
+u8 rtw_is_dfs_range(u32 hi, u32 lo);
+u8 rtw_is_dfs_ch(u8 ch);
+u8 rtw_is_dfs_chbw(u8 ch, u8 bw, u8 offset);
 bool rtw_is_long_cac_range(u32 hi, u32 lo, u8 dfs_region);
 bool rtw_is_long_cac_ch(u8 ch, u8 bw, u8 offset, u8 dfs_region);
 

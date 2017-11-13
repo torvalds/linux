@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2017 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -11,11 +11,7 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *******************************************************************************/
+ *****************************************************************************/
 #ifndef __RTL8703B_SPEC_H__
 #define __RTL8703B_SPEC_H__
 
@@ -393,7 +389,7 @@
 /* ----------------------------------------------------------------------------
  * 8703B REG_CCK_CHECK						(offset 0x454)
  * ---------------------------------------------------------------------------- */
-#define BIT_BCN_PORT_SEL		BIT5
+#define BIT_BCN_PORT_SEL		BIT(5)
 
 #ifdef CONFIG_RF_POWER_TRIM
 
@@ -410,51 +406,51 @@
  * ---------------------------------------------------------------------------- */
 #define	IMR_DISABLED_8703B					0
 /* IMR DW0(0x00B0-00B3) Bit 0-31 */
-#define	IMR_TIMER2_8703B					BIT31		/* Timeout interrupt 2 */
-#define	IMR_TIMER1_8703B					BIT30		/* Timeout interrupt 1	 */
-#define	IMR_PSTIMEOUT_8703B				BIT29		/* Power Save Time Out Interrupt */
-#define	IMR_GTINT4_8703B					BIT28		/* When GTIMER4 expires, this bit is set to 1	 */
-#define	IMR_GTINT3_8703B					BIT27		/* When GTIMER3 expires, this bit is set to 1	 */
-#define	IMR_TXBCN0ERR_8703B				BIT26		/* Transmit Beacon0 Error			 */
-#define	IMR_TXBCN0OK_8703B				BIT25		/* Transmit Beacon0 OK			 */
-#define	IMR_TSF_BIT32_TOGGLE_8703B		BIT24		/* TSF Timer BIT32 toggle indication interrupt			 */
-#define	IMR_BCNDMAINT0_8703B				BIT20		/* Beacon DMA Interrupt 0			 */
-#define	IMR_BCNDERR0_8703B				BIT16		/* Beacon Queue DMA OK0			 */
-#define	IMR_HSISR_IND_ON_INT_8703B		BIT15		/* HSISR Indicator (HSIMR & HSISR is true, this bit is set to 1) */
-#define	IMR_BCNDMAINT_E_8703B			BIT14		/* Beacon DMA Interrupt Extension for Win7			 */
-#define	IMR_ATIMEND_8703B				BIT12		/* CTWidnow End or ATIM Window End */
-#define	IMR_C2HCMD_8703B					BIT10		/* CPU to Host Command INT Status, Write 1 clear	 */
-#define	IMR_CPWM2_8703B					BIT9			/* CPU power Mode exchange INT Status, Write 1 clear	 */
-#define	IMR_CPWM_8703B					BIT8			/* CPU power Mode exchange INT Status, Write 1 clear	 */
-#define	IMR_HIGHDOK_8703B				BIT7			/* High Queue DMA OK	 */
-#define	IMR_MGNTDOK_8703B				BIT6			/* Management Queue DMA OK	 */
-#define	IMR_BKDOK_8703B					BIT5			/* AC_BK DMA OK		 */
-#define	IMR_BEDOK_8703B					BIT4			/* AC_BE DMA OK	 */
-#define	IMR_VIDOK_8703B					BIT3			/* AC_VI DMA OK		 */
-#define	IMR_VODOK_8703B					BIT2			/* AC_VO DMA OK	 */
-#define	IMR_RDU_8703B					BIT1			/* Rx Descriptor Unavailable	 */
-#define	IMR_ROK_8703B					BIT0			/* Receive DMA OK */
+#define	IMR_TIMER2_8703B					BIT(31)		/* Timeout interrupt 2 */
+#define	IMR_TIMER1_8703B					BIT(30)		/* Timeout interrupt 1	 */
+#define	IMR_PSTIMEOUT_8703B				BIT(29)		/* Power Save Time Out Interrupt */
+#define	IMR_GTINT4_8703B					BIT(28)		/* When GTIMER4 expires, this bit is set to 1	 */
+#define	IMR_GTINT3_8703B					BIT(27)		/* When GTIMER3 expires, this bit is set to 1	 */
+#define	IMR_TXBCN0ERR_8703B				BIT(26)		/* Transmit Beacon0 Error			 */
+#define	IMR_TXBCN0OK_8703B				BIT(25)		/* Transmit Beacon0 OK			 */
+#define	IMR_TSF_BIT32_TOGGLE_8703B		BIT(24)		/* TSF Timer BIT32 toggle indication interrupt			 */
+#define	IMR_BCNDMAINT0_8703B				BIT(20)		/* Beacon DMA Interrupt 0			 */
+#define	IMR_BCNDERR0_8703B				BIT(16)		/* Beacon Queue DMA OK0			 */
+#define	IMR_HSISR_IND_ON_INT_8703B		BIT(15)		/* HSISR Indicator (HSIMR & HSISR is true, this bit is set to 1) */
+#define	IMR_BCNDMAINT_E_8703B			BIT(14)		/* Beacon DMA Interrupt Extension for Win7			 */
+#define	IMR_ATIMEND_8703B				BIT(12)		/* CTWidnow End or ATIM Window End */
+#define	IMR_C2HCMD_8703B					BIT(10)		/* CPU to Host Command INT Status, Write 1 clear	 */
+#define	IMR_CPWM2_8703B					BIT(9)			/* CPU power Mode exchange INT Status, Write 1 clear	 */
+#define	IMR_CPWM_8703B					BIT(8)			/* CPU power Mode exchange INT Status, Write 1 clear	 */
+#define	IMR_HIGHDOK_8703B				BIT(7)			/* High Queue DMA OK	 */
+#define	IMR_MGNTDOK_8703B				BIT(6)			/* Management Queue DMA OK	 */
+#define	IMR_BKDOK_8703B					BIT(5)			/* AC_BK DMA OK		 */
+#define	IMR_BEDOK_8703B					BIT(4)			/* AC_BE DMA OK	 */
+#define	IMR_VIDOK_8703B					BIT(3)			/* AC_VI DMA OK		 */
+#define	IMR_VODOK_8703B					BIT(2)			/* AC_VO DMA OK	 */
+#define	IMR_RDU_8703B					BIT(1)			/* Rx Descriptor Unavailable	 */
+#define	IMR_ROK_8703B					BIT(0)			/* Receive DMA OK */
 
 /* IMR DW1(0x00B4-00B7) Bit 0-31 */
-#define	IMR_BCNDMAINT7_8703B				BIT27		/* Beacon DMA Interrupt 7 */
-#define	IMR_BCNDMAINT6_8703B				BIT26		/* Beacon DMA Interrupt 6 */
-#define	IMR_BCNDMAINT5_8703B				BIT25		/* Beacon DMA Interrupt 5 */
-#define	IMR_BCNDMAINT4_8703B				BIT24		/* Beacon DMA Interrupt 4 */
-#define	IMR_BCNDMAINT3_8703B				BIT23		/* Beacon DMA Interrupt 3 */
-#define	IMR_BCNDMAINT2_8703B				BIT22		/* Beacon DMA Interrupt 2 */
-#define	IMR_BCNDMAINT1_8703B				BIT21		/* Beacon DMA Interrupt 1 */
-#define	IMR_BCNDOK7_8703B					BIT20		/* Beacon Queue DMA OK Interrup 7 */
-#define	IMR_BCNDOK6_8703B					BIT19		/* Beacon Queue DMA OK Interrup 6 */
-#define	IMR_BCNDOK5_8703B					BIT18		/* Beacon Queue DMA OK Interrup 5 */
-#define	IMR_BCNDOK4_8703B					BIT17		/* Beacon Queue DMA OK Interrup 4 */
-#define	IMR_BCNDOK3_8703B					BIT16		/* Beacon Queue DMA OK Interrup 3 */
-#define	IMR_BCNDOK2_8703B					BIT15		/* Beacon Queue DMA OK Interrup 2 */
-#define	IMR_BCNDOK1_8703B					BIT14		/* Beacon Queue DMA OK Interrup 1 */
-#define	IMR_ATIMEND_E_8703B				BIT13		/* ATIM Window End Extension for Win7 */
-#define	IMR_TXERR_8703B					BIT11		/* Tx Error Flag Interrupt Status, write 1 clear. */
-#define	IMR_RXERR_8703B					BIT10		/* Rx Error Flag INT Status, Write 1 clear */
-#define	IMR_TXFOVW_8703B					BIT9			/* Transmit FIFO Overflow */
-#define	IMR_RXFOVW_8703B					BIT8			/* Receive FIFO Overflow */
+#define	IMR_BCNDMAINT7_8703B				BIT(27)		/* Beacon DMA Interrupt 7 */
+#define	IMR_BCNDMAINT6_8703B				BIT(26)		/* Beacon DMA Interrupt 6 */
+#define	IMR_BCNDMAINT5_8703B				BIT(25)		/* Beacon DMA Interrupt 5 */
+#define	IMR_BCNDMAINT4_8703B				BIT(24)		/* Beacon DMA Interrupt 4 */
+#define	IMR_BCNDMAINT3_8703B				BIT(23)		/* Beacon DMA Interrupt 3 */
+#define	IMR_BCNDMAINT2_8703B				BIT(22)		/* Beacon DMA Interrupt 2 */
+#define	IMR_BCNDMAINT1_8703B				BIT(21)		/* Beacon DMA Interrupt 1 */
+#define	IMR_BCNDOK7_8703B					BIT(20)		/* Beacon Queue DMA OK Interrupt 7 */
+#define	IMR_BCNDOK6_8703B					BIT(19)		/* Beacon Queue DMA OK Interrupt 6 */
+#define	IMR_BCNDOK5_8703B					BIT(18)		/* Beacon Queue DMA OK Interrupt 5 */
+#define	IMR_BCNDOK4_8703B					BIT(17)		/* Beacon Queue DMA OK Interrupt 4 */
+#define	IMR_BCNDOK3_8703B					BIT(16)		/* Beacon Queue DMA OK Interrupt 3 */
+#define	IMR_BCNDOK2_8703B					BIT(15)		/* Beacon Queue DMA OK Interrupt 2 */
+#define	IMR_BCNDOK1_8703B					BIT(14)		/* Beacon Queue DMA OK Interrupt 1 */
+#define	IMR_ATIMEND_E_8703B				BIT(13)		/* ATIM Window End Extension for Win7 */
+#define	IMR_TXERR_8703B					BIT(11)		/* Tx Error Flag Interrupt Status, write 1 clear. */
+#define	IMR_RXERR_8703B					BIT(10)		/* Rx Error Flag INT Status, Write 1 clear */
+#define	IMR_TXFOVW_8703B					BIT(9)			/* Transmit FIFO Overflow */
+#define	IMR_RXFOVW_8703B					BIT(8)			/* Receive FIFO Overflow */
 
 #ifdef CONFIG_PCI_HCI
 	/* #define IMR_RX_MASK		(IMR_ROK_8703B|IMR_RDU_8703B|IMR_RXFOVW_8703B) */
@@ -464,17 +460,5 @@
 
 	#define RT_AC_INT_MASKS	(IMR_VIDOK_8703B | IMR_VODOK_8703B | IMR_BEDOK_8703B | IMR_BKDOK_8703B)
 #endif
-
-/* ********************************************************
- * General definitions
- * ******************************************************** */
-
-#define MACID_NUM_8703B 16
-#define SEC_CAM_ENT_NUM_8703B 16
-#define HW_PORT_NUM_8703B	2
-#define NSS_NUM_8703B 1
-#define BAND_CAP_8703B (BAND_CAP_2G)
-#define BW_CAP_8703B (BW_CAP_20M | BW_CAP_40M)
-#define PROTO_CAP_8703B (PROTO_CAP_11B | PROTO_CAP_11G | PROTO_CAP_11N)
 
 #endif /* __RTL8703B_SPEC_H__ */

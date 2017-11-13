@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2017 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -11,12 +11,7 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
- ******************************************************************************/
+ *****************************************************************************/
 #ifndef __RTW_EEPROM_H__
 #define __RTW_EEPROM_H__
 
@@ -73,13 +68,13 @@ typedef enum _RT_CUSTOMER_ID {
 	RT_CID_819x_ALPHA = 16,
 	RT_CID_819x_Sitecom = 17,
 	RT_CID_CCX = 18, /* It's set under CCX logo test and isn't demanded for CCX functions, but for test behavior like retry limit and tx report. By Bruce, 2009-02-17. */
-	RT_CID_819x_Lenovo = 19,
+	RT_CID_819X_LENOVO = 19,
 	RT_CID_819x_QMI = 20,
 	RT_CID_819x_Edimax_Belkin = 21,
 	RT_CID_819x_Sercomm_Belkin = 22,
 	RT_CID_819x_CAMEO1 = 23,
 	RT_CID_819x_MSI = 24,
-	RT_CID_819x_Acer = 25,
+	RT_CID_819X_ACER = 25,
 	RT_CID_819x_AzWave_ASUS = 26,
 	RT_CID_819x_AzWave = 27, /* For AzWave in PCIe, The ID is AzWave use and not only Asus */
 	RT_CID_819x_HP = 28,

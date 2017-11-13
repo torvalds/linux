@@ -1,7 +1,7 @@
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
- *                                        
+ * Copyright(c) 2007 - 2017 Realtek Corporation.
+ *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
  * published by the Free Software Foundation.
@@ -11,18 +11,13 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
- ******************************************************************************/
- 
+ *****************************************************************************/
+
 #ifndef	__ODM_REGDEFINE11N_H__
 #define __ODM_REGDEFINE11N_H__
 
 
-//2 RF REG LIST
+/* 2 RF REG LIST */
 #define	ODM_REG_RF_MODE_11N				0x00
 #define	ODM_REG_RF_0B_11N				0x0B
 #define	ODM_REG_CHNBW_11N				0x18
@@ -38,8 +33,8 @@
 
 
 
-//2 BB REG LIST
-//PAGE 8
+/* 2 BB REG LIST
+ * PAGE 8 */
 #define	ODM_REG_BB_CTRL_11N				0x800
 #define	ODM_REG_RF_PIN_11N				0x804
 #define	ODM_REG_PSD_CTRL_11N				0x808
@@ -68,12 +63,12 @@
 #define	ODM_REG_CLM_RESULT_11N			0x8d0
 #define	ODM_REG_NHM_CNT_11N				0x8d8
 
-// For ACS, Jeffery, 2014-12-26
-#define	ODM_REG_NHM_CNT7_TO_CNT4_11N    		0x8dc
-#define	ODM_REG_NHM_CNT9_TO_CNT8_11N    		0x8d0
-#define	ODM_REG_NHM_CNT10_TO_CNT11_11N           	0x8d4
+/* For struct _ACS_, Jeffery, 2014-12-26 */
+#define	ODM_REG_NHM_CNT7_TO_CNT4_11N		0x8dc
+#define	ODM_REG_NHM_CNT9_TO_CNT8_11N		0x8d0
+#define	ODM_REG_NHM_CNT10_TO_CNT11_11N	0x8d4
 
-//PAGE 9
+/* PAGE 9 */
 #define	ODM_REG_BB_CTRL_PAGE9_11N		0x900
 #define	ODM_REG_DBG_RPT_11N				0x908
 #define	ODM_REG_BB_TX_PATH_11N			0x90c
@@ -81,8 +76,9 @@
 #define	ODM_REG_ANT_MAPPING2_11N		0x918
 #define	ODM_REG_EDCCA_DOWN_OPT_11N	0x948
 #define	ODM_REG_RX_DFIR_MOD_97F			0x948
+#define	ODM_REG_SOML_97F					0x998
 
-//PAGE A
+/* PAGE A */
 #define	ODM_REG_CCK_ANTDIV_PARA1_11N	0xA00
 #define	ODM_REG_CCK_ANT_SEL_11N			0xA04
 #define	ODM_REG_CCK_CCA_11N				0xA0A
@@ -102,7 +98,7 @@
 #define	ODM_REG_CCK_FA_LSB_11N			0xA5C
 #define	ODM_REG_CCK_CCA_CNT_11N			0xA60
 #define	ODM_REG_BB_PWR_SAV4_11N			0xA74
-//PAGE B
+/* PAGE B */
 #define	ODM_REG_LNA_SWITCH_11N			0xB2C
 #define	ODM_REG_PATH_SWITCH_11N			0xB30
 #define	ODM_REG_RSSI_CTRL_11N			0xB38
@@ -111,7 +107,7 @@
 #define	ODM_REG_RXCK_RFMOD				0xBB0
 #define	ODM_REG_EDCCA_DCNF_97F			0xBC0
 
-//PAGE C
+/* PAGE C */
 #define	ODM_REG_OFDM_FA_HOLDC_11N		0xC00
 #define	ODM_REG_BB_RX_PATH_11N			0xC04
 #define	ODM_REG_TRMUX_11N				0xC08
@@ -135,7 +131,7 @@
 #define	ODM_REG_ANTDIV_PARA1_11N		0xCA4
 #define	ODM_REG_SMALL_BANDWIDTH_11N	0xCE4
 #define	ODM_REG_OFDM_FA_TYPE1_11N		0xCF0
-//PAGE D
+/* PAGE D */
 #define	ODM_REG_OFDM_FA_RSTD_11N		0xD00
 #define	ODM_REG_BB_RX_ANT_11N			0xD04
 #define	ODM_REG_BB_ATC_11N				0xD2C
@@ -143,7 +139,7 @@
 #define	ODM_REG_OFDM_FA_TYPE3_11N		0xDA4
 #define	ODM_REG_OFDM_FA_TYPE4_11N		0xDA8
 #define	ODM_REG_RPT_11N					0xDF4
-//PAGE E
+/* PAGE E */
 #define	ODM_REG_TXAGC_A_6_18_11N		0xE00
 #define	ODM_REG_TXAGC_A_24_54_11N		0xE04
 #define	ODM_REG_TXAGC_A_1_MCS32_11N	0xE08
@@ -169,7 +165,7 @@
 #define	ODM_REG_TX_CCK_BBON_11N			0xE78
 #define	ODM_REG_OFDM_RFON_11N			0xE7C
 #define	ODM_REG_OFDM_BBON_11N			0xE80
-#define 	ODM_REG_TX2RX_11N				0xE84
+#define	ODM_REG_TX2RX_11N				0xE84
 #define	ODM_REG_TX2TX_11N				0xE88
 #define	ODM_REG_RX_CCK_11N				0xE8C
 #define	ODM_REG_RX_OFDM_11N				0xED0
@@ -186,8 +182,9 @@
 #define	ODM_REG_CCK_CRC32_OK_CNT_11N		0xF88
 #define	ODM_REG_HT_CRC32_CNT_11N		0xF90
 #define	ODM_REG_OFDM_CRC32_CNT_11N		0xF94
+#define	ODM_REG_HT_CRC32_CNT_11N_AGG	0xFB8
 
-//2 MAC REG LIST
+/* 2 MAC REG LIST */
 #define	ODM_REG_BB_RST_11N				0x02
 #define	ODM_REG_ANTSEL_PIN_11N			0x4C
 #define	ODM_REG_EARLY_MODE_11N			0x4D0
@@ -202,12 +199,11 @@
 #define	ODM_REG_ANT_TRAIN_PARA2_11N	0x7b4
 
 
-//DIG Related
+/* DIG Related */
 #define	ODM_BIT_IGI_11N					0x0000007F
-#define	ODM_BIT_CCK_RPT_FORMAT_11N		BIT9
+#define	ODM_BIT_CCK_RPT_FORMAT_11N		BIT(9)
 #define	ODM_BIT_BB_RX_PATH_11N			0xF
 #define	ODM_BIT_BB_TX_PATH_11N			0xF
-#define	ODM_BIT_BB_ATC_11N				BIT11
+#define	ODM_BIT_BB_ATC_11N				BIT(11)
 
 #endif
-

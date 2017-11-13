@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2017 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -11,16 +11,14 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
- ******************************************************************************/
+ *****************************************************************************/
 #ifndef __HAL_COMMON_LED_H_
 #define __HAL_COMMON_LED_H_
 
+#define NO_LED 0
+#define HW_LED 1
 
+#ifdef CONFIG_RTW_LED
 #define MSECS(t)        (HZ * ((t) / 1000) + (HZ * ((t) % 1000)) / 1000)
 
 /* ********************************************************************************
@@ -159,7 +157,8 @@ typedef enum _LED_PIN {
  * ******************************************************************************** */
 #ifdef CONFIG_PCI_HCI
 typedef	enum _LED_STRATEGY_PCIE {
-	SW_LED_MODE0, /* SW control 1 LED via GPIO0. It is default option. */
+	/* start from 2 */
+	SW_LED_MODE0 = 2, /* SW control 1 LED via GPIO0. It is default option. */
 	SW_LED_MODE1, /* SW control for PCI Express */
 	SW_LED_MODE2, /* SW control for Cameo. */
 	SW_LED_MODE3, /* SW contorl for RunTop. */
@@ -172,7 +171,6 @@ typedef	enum _LED_STRATEGY_PCIE {
 	SW_LED_MODE10, /* added by chiyokolin, for Edimax-ASUS */
 	SW_LED_MODE11,	/* added by hpfan, for Xavi */
 	SW_LED_MODE12,	/* added by chiyokolin, for Azurewave */
-	HW_LED, /* HW control 2 LEDs, LED0 and LED1 (there are 4 different control modes) */
 } LED_STRATEGY_PCIE, *PLED_STRATEGY_PCIE;
 
 typedef struct _LED_PCIE {
@@ -220,7 +218,8 @@ gen_RefreshLedState(
 
 
 typedef	enum _LED_STRATEGY_USB {
-	SW_LED_MODE0, /* SW control 1 LED via GPIO0. It is default option. */
+	/* start from 2 */
+	SW_LED_MODE0 = 2, /* SW control 1 LED via GPIO0. It is default option. */
 	SW_LED_MODE1, /* 2 LEDs, through LED0 and LED1. For ALPHA. */
 	SW_LED_MODE2, /* SW control 1 LED via GPIO0, customized for AzWave 8187 minicard. */
 	SW_LED_MODE3, /* SW control 1 LED via GPIO0, customized for Sercomm Printer Server case. */
@@ -236,7 +235,6 @@ typedef	enum _LED_STRATEGY_USB {
 	SW_LED_MODE13, /* for Netgear A6100, 8811Au */
 	SW_LED_MODE14, /* for Buffalo, DNI, 8811Au */
 	SW_LED_MODE15, /* for DLINK,  8811Au/8812AU	 */
-	HW_LED, /* HW control 2 LEDs, LED0 and LED1 (there are 4 different control modes, see MAC.CONFIG1 for details.) */
 } LED_STRATEGY_USB, *PLED_STRATEGY_USB;
 
 
@@ -269,12 +267,13 @@ typedef struct _LED_USB {
 
 typedef struct _LED_USB	LED_DATA, *PLED_DATA;
 typedef enum _LED_STRATEGY_USB	LED_STRATEGY, *PLED_STRATEGY;
-
+#ifdef CONFIG_RTW_SW_LED
 VOID
 LedControlUSB(
 	IN	PADAPTER		Adapter,
 	IN	LED_CTL_MODE		LedAction
 );
+#endif
 
 
 /* ********************************************************************************
@@ -291,14 +290,14 @@ LedControlUSB(
 
 
 typedef	enum _LED_STRATEGY_SDIO {
-	SW_LED_MODE0, /* SW control 1 LED via GPIO0. It is default option. */
+	/* start from 2 */
+	SW_LED_MODE0 = 2, /* SW control 1 LED via GPIO0. It is default option. */
 	SW_LED_MODE1, /* 2 LEDs, through LED0 and LED1. For ALPHA. */
 	SW_LED_MODE2, /* SW control 1 LED via GPIO0, customized for AzWave 8187 minicard. */
 	SW_LED_MODE3, /* SW control 1 LED via GPIO0, customized for Sercomm Printer Server case. */
 	SW_LED_MODE4, /* for Edimax / Belkin */
 	SW_LED_MODE5, /* for Sercomm / Belkin	 */
 	SW_LED_MODE6,	/* for 88CU minicard, porting from ce SW_LED_MODE7 */
-	HW_LED, /* HW control 2 LEDs, LED0 and LED1 (there are 4 different control modes, see MAC.CONFIG1 for details.) */
 } LED_STRATEGY_SDIO, *PLED_STRATEGY_SDIO;
 
 typedef struct _LED_SDIO {
@@ -339,27 +338,19 @@ LedControlSDIO(
 #endif
 
 struct led_priv {
+	LED_STRATEGY		LedStrategy;
+#ifdef CONFIG_RTW_SW_LED
 	/* add for led controll */
 	LED_DATA			SwLed0;
 	LED_DATA			SwLed1;
 	LED_DATA			SwLed2;
-	LED_STRATEGY		LedStrategy;
 	u8					bRegUseLed;
 	void (*LedControlHandler)(_adapter *padapter, LED_CTL_MODE LedAction);
 	void (*SwLedOn)(_adapter *padapter, PLED_DATA pLed);
 	void (*SwLedOff)(_adapter *padapter, PLED_DATA pLed);
 	/* add for led controll */
+#endif
 };
-
-#ifdef CONFIG_SW_LED
-#define rtw_led_control(adapter, LedAction) \
-	do { \
-		if ((adapter)->ledpriv.LedControlHandler) \
-			(adapter)->ledpriv.LedControlHandler((adapter), (LedAction)); \
-	} while (0)
-#else /* CONFIG_SW_LED */
-#define rtw_led_control(adapter, LedAction)
-#endif /* CONFIG_SW_LED */
 
 #define SwLedOn(adapter, pLed) \
 	do { \
@@ -392,5 +383,27 @@ DeInitLed(
 
 /* hal... */
 extern void BlinkHandler(PLED_DATA	pLed);
+#endif /* CONFIG_RTW_LED */
 
-#endif /* __RTW_LED_H_ */
+#if defined(CONFIG_RTW_LED) && defined(CONFIG_RTW_SW_LED)
+#define rtw_led_control(adapter, LedAction) \
+	do { \
+		if ((adapter)->ledpriv.LedControlHandler) \
+			(adapter)->ledpriv.LedControlHandler((adapter), (LedAction)); \
+	} while (0)
+#else
+#define rtw_led_control(adapter, LedAction) do {} while (0)
+#endif
+
+#if defined(CONFIG_RTW_LED)
+#define rtw_led_get_strategy(adapter) ((adapter)->ledpriv.LedStrategy)
+#else
+#define rtw_led_get_strategy(adapter) NO_LED
+#endif
+
+#define IS_NO_LED_STRATEGY(s) ((s) == NO_LED)
+#define IS_HW_LED_STRATEGY(s) ((s) == HW_LED)
+#define IS_SW_LED_STRATEGY(s) ((s) != NO_LED && (s) != HW_LED)
+
+#endif /*__HAL_COMMON_LED_H_*/
+

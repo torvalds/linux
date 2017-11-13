@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2017 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -11,12 +11,7 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
- ******************************************************************************/
+ *****************************************************************************/
 #ifndef _RTW_MP_H_
 #define _RTW_MP_H_
 
@@ -102,39 +97,7 @@ struct mp_tx {
 
 #define MP_MAX_LINES		1000
 #define MP_MAX_LINES_BYTES	256
-#define u1Byte u8
-#define s1Byte s8
-#define u4Byte u32
-#define s4Byte s32
-#define u1Byte		u8
-#define pu1Byte		u8*
 
-#define u2Byte		u16
-#define pu2Byte		u16*
-
-#define u4Byte		u32
-#define pu4Byte		u32*
-
-#define u8Byte		u64
-#define pu8Byte		u64*
-
-#define s1Byte		s8
-#define ps1Byte		s8*
-
-#define s2Byte		s16
-#define ps2Byte		s16*
-
-#define s4Byte		s32
-#define ps4Byte		s32*
-
-#define s8Byte		s64
-#define ps8Byte		s64*
-
-#define UCHAR u8
-#define USHORT u16
-#define UINT u32
-#define ULONG u32
-#define PULONG u32*
 
 typedef struct _RT_PMAC_PKT_INFO {
 	UCHAR			MCS;
@@ -217,14 +180,18 @@ typedef struct _MPT_CONTEXT {
 	/* The Value of IO operation is depend of MptActType. */
 	ULONG			MptIoValue;
 	/* The RfPath of IO operation is depend of MptActType. */
-	ULONG			MptRfPath;
+
+	ULONG			mpt_rf_path;
+
 
 	WIRELESS_MODE		MptWirelessModeToSw;	/* Wireless mode to switch. */
 	u8			MptChannelToSw;	/* Channel to switch. */
 	u8			MptInitGainToSet;	/* Initial gain to set. */
 	/* ULONG			bMptAntennaA;		 */ /* TRUE if we want to use antenna A. */
 	ULONG			MptBandWidth;		/* bandwidth to switch. */
-	ULONG			MptRateIndex;		/* rate index. */
+
+	ULONG			mpt_rate_index;/* rate index. */
+
 	/* Register value kept for Single Carrier Tx test. */
 	u8			btMpCckTxPower;
 	/* Register value kept for Single Carrier Tx test. */
@@ -243,13 +210,19 @@ typedef struct _MPT_CONTEXT {
 
 	BOOLEAN			bCckContTx;	/* TRUE if we are in CCK Continuous Tx test. */
 	BOOLEAN			bOfdmContTx;	/* TRUE if we are in OFDM Continuous Tx test. */
-	BOOLEAN			bStartContTx;	/* TRUE if we have start Continuous Tx test. */
+		/* TRUE if we have start Continuous Tx test. */
+	BOOLEAN			is_start_cont_tx;
+
 	/* TRUE if we are in Single Carrier Tx test. */
 	BOOLEAN			bSingleCarrier;
 	/* TRUE if we are in Carrier Suppression Tx Test. */
-	BOOLEAN			bCarrierSuppression;
+
+	BOOLEAN			is_carrier_suppression;
+
 	/* TRUE if we are in Single Tone Tx test. */
-	BOOLEAN			bSingleTone;
+
+	BOOLEAN			is_single_tone;
+
 
 	/* ACK counter asked by K.Y.. */
 	BOOLEAN			bMptEnableAckCounter;
@@ -330,8 +303,11 @@ enum {
 	MP_HW_TX_MODE,
 	MP_GET_TXPOWER_INX,
 	MP_CUSTOMER_STR,
-	MP_NULL,
+	MP_PWRLMT,
+	MP_PWRBYRATE,
+	BT_EFUSE_FILE,
 	MP_SetBT,
+	MP_NULL,
 #ifdef CONFIG_APPEND_VENDOR_IE_ENABLE
 	VENDOR_IE_SET ,
 	VENDOR_IE_GET ,
@@ -434,8 +410,11 @@ struct mp_priv {
 	BOOLEAN bTxBufCkFail;
 	BOOLEAN bRTWSmbCfg;
 	BOOLEAN bloopback;
-	MPT_CONTEXT MptCtx;
 	BOOLEAN bloadefusemap;
+	BOOLEAN bloadBTefusemap;
+
+	MPT_CONTEXT	mpt_ctx;
+
 
 	u8		*TXradomBuffer;
 };
@@ -720,7 +699,9 @@ extern u32 read_bbreg(_adapter *padapter, u32 addr, u32 bitmask);
 extern void write_bbreg(_adapter *padapter, u32 addr, u32 bitmask, u32 val);
 extern u32 read_rfreg(PADAPTER padapter, u8 rfpath, u32 addr);
 extern void write_rfreg(PADAPTER padapter, u8 rfpath, u32 addr, u32 val);
-
+#ifdef CONFIG_ANTENNA_DIVERSITY
+u8 rtw_mp_set_antdiv(PADAPTER padapter, BOOLEAN bMain);
+#endif
 void	SetChannel(PADAPTER pAdapter);
 void	SetBandwidth(PADAPTER pAdapter);
 int	SetTxPower(PADAPTER pAdapter);
@@ -745,7 +726,7 @@ void	GetPowerTracking(PADAPTER padapter, u8 *enable);
 u32	mp_query_psd(PADAPTER pAdapter, u8 *data);
 void	rtw_mp_trigger_iqk(PADAPTER padapter);
 void	rtw_mp_trigger_lck(PADAPTER padapter);
-
+u8 rtw_mp_mode_check(PADAPTER padapter);
 
 
 void hal_mpt_SwitchRfSetting(PADAPTER pAdapter);
@@ -765,14 +746,12 @@ void hal_mpt_SetContinuousTx(PADAPTER pAdapter, u8 bStart);
 void hal_mpt_SetSingleCarrierTx(PADAPTER pAdapter, u8 bStart);
 void hal_mpt_SetSingleToneTx(PADAPTER pAdapter, u8 bStart);
 void hal_mpt_SetCarrierSuppressionTx(PADAPTER pAdapter, u8 bStart);
-void hal_mpt_SetCCKContinuousTx(PADAPTER pAdapter, u8 bStart);
-void hal_mpt_SetOFDMContinuousTx(PADAPTER pAdapter, u8 bStart);
 void mpt_ProSetPMacTx(PADAPTER	Adapter);
-
 void MP_PHY_SetRFPathSwitch(PADAPTER pAdapter , BOOLEAN bMain);
+u8 MP_PHY_QueryRFPathSwitch(PADAPTER pAdapter);
 ULONG mpt_ProQueryCalTxPower(PADAPTER	pAdapter, u8 RfPath);
 void MPT_PwrCtlDM(PADAPTER padapter, u32 bstart);
-u8 MptToMgntRate(u32	MptRateIdx);
+u8 mpt_to_mgnt_rate(u32	MptRateIdx);
 u8 rtw_mpRateParseFunc(PADAPTER pAdapter, u8 *targetStr);
 u32 mp_join(PADAPTER padapter, u8 mode);
 u32 hal_mpt_query_phytxok(PADAPTER	pAdapter);
@@ -907,10 +886,19 @@ int rtw_mp_getver(struct net_device *dev,
 int rtw_mp_mon(struct net_device *dev,
 		struct iw_request_info *info,
 		union iwreq_data *wrqu, char *extra);
+int rtw_mp_pwrlmt(struct net_device *dev,
+		struct iw_request_info *info,
+		union iwreq_data *wrqu, char *extra);
+int rtw_mp_pwrbyrate(struct net_device *dev,
+		struct iw_request_info *info,
+		union iwreq_data *wrqu, char *extra);
 int rtw_efuse_mask_file(struct net_device *dev,
 		struct iw_request_info *info,
 		union iwreq_data *wrqu, char *extra);
 int rtw_efuse_file_map(struct net_device *dev,
+		struct iw_request_info *info,
+		union iwreq_data *wrqu, char *extra);
+int rtw_bt_efuse_file_map(struct net_device *dev,
 		struct iw_request_info *info,
 		union iwreq_data *wrqu, char *extra);
 int rtw_mp_SetBT(struct net_device *dev,

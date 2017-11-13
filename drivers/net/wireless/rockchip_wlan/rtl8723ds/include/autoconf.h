@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2014 Realtek Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2017 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -11,12 +11,7 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
- ******************************************************************************/
+ *****************************************************************************/
 /*
  * Public General Config
  */
@@ -53,7 +48,6 @@
 	#endif /* !CONFIG_PLATFORM_INTEL_BYT */
 	/* #define CONFIG_DEBUG_CFG80211 */
 	#define CONFIG_SET_SCAN_DENY_TIMER
-	/*#define SUPPLICANT_RTK_VERSION_LOWER_THAN_JB42*/ /* wpa_supplicant realtek version <= jb42 will be defined this */
 #endif
 
 #define CONFIG_AP_MODE
@@ -99,7 +93,6 @@
 		#define CONFIG_TSF_RESET_OFFLOAD			/* For 2 PORT TSF SYNC. */
 	#endif
 	/* #define DBG_RUNTIME_PORT_SWITCH */
-	#define CONFIG_SCAN_BACKOP
 #endif /* CONFIG_CONCURRENT_MODE */
 
 #define CONFIG_LAYER2_ROAMING
@@ -115,7 +108,10 @@
 /* #define CONFIG_ANTENNA_DIVERSITY */	/* Set from Makefile */
 /* #define SUPPORT_HW_RFOFF_DETECTED */
 
-/* #define CONFIG_SW_LED */
+/*#define CONFIG_RTW_LED*/
+#ifdef CONFIG_RTW_LED
+	/*#define CONFIG_RTW_SW_LED*/
+#endif /* CONFIG_RTW_LED */
 
 #define CONFIG_XMIT_ACK
 #ifdef CONFIG_XMIT_ACK
@@ -136,7 +132,7 @@
 #define CONFIG_SDIO_RX_COPY
 #define CONFIG_XMIT_THREAD_MODE
 /* #define CONFIG_SDIO_TX_ENABLE_AVAL_INT */
-
+/* #define CONFIG_RECV_THREAD_MODE */
 
 /*
  * Others
@@ -148,6 +144,7 @@
 #define CONFIG_NEW_SIGNAL_STAT_PROCESS
 
 #define CONFIG_EMBEDDED_FWIMG
+
 #ifdef CONFIG_EMBEDDED_FWIMG
 	#define	LOAD_FW_HEADER_FROM_DRIVER
 #endif
@@ -226,10 +223,7 @@
 
 #ifdef CONFIG_WOWLAN
 	#define CONFIG_GTK_OL
-	#define CONFIG_ARP_KEEP_ALIVE
-	#ifndef CONFIG_DEFAULT_PATTERNS_EN
-		#define CONFIG_DEFAULT_PATTERNS_EN 1
-	#endif
+	/* #define CONFIG_ARP_KEEP_ALIVE */
 #endif /* CONFIG_WOWLAN */
 
 #ifdef CONFIG_GPIO_WAKEUP
@@ -240,6 +234,15 @@
 
 #ifdef CONFIG_ANTENNA_DIVERSITY
 #define CONFIG_HW_ANTENNA_DIVERSITY
+#endif
+
+#if (CONFIG_RTW_ADAPTIVITY_EN == 1)
+	#define CONFIG_RTW_ADAPTIVITY_TH_L2H_INI 0xf3
+#endif
+
+#ifdef CONFIG_RTW_NAPI
+/*#define CONFIG_RTW_NAPI_DYNAMIC*/
+#define CONFIG_RTW_NAPI_V2
 #endif
 
 /*

@@ -1,3 +1,18 @@
+/******************************************************************************
+ *
+ * Copyright(c) 2016 - 2017 Realtek Corporation.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of version 2 of the GNU General Public License as
+ * published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
+ * more details.
+ *
+ *****************************************************************************/
+
 
 #if (BT_SUPPORT == 1 && COEX_SUPPORT == 1)
 
@@ -19,7 +34,7 @@
 #define	BT_INFO_8723D_1ANT_B_CONNECTION				BIT(0)
 
 #define	BT_INFO_8723D_1ANT_A2DP_BASIC_RATE(_BT_INFO_EXT_)	\
-	(((_BT_INFO_EXT_&BIT(0))) ? true : false)
+	(((_BT_INFO_EXT_&BIT(0))) ? TRUE : FALSE)
 
 #define	BTC_RSSI_COEX_THRESH_TOL_8723D_1ANT		2
 
@@ -140,6 +155,8 @@ enum bt_8723d_1ant_Scoreboard {
 	BT_8723D_1ANT_SCOREBOARD_ONOFF								= BIT(1),
 	BT_8723D_1ANT_SCOREBOARD_SCAN								= BIT(2),
 	BT_8723D_1ANT_SCOREBOARD_UNDERTEST							= BIT(3),
+	BT_8723D_1ANT_SCOREBOARD_RXGAIN								= BIT(4),
+	BT_8723D_1ANT_SCOREBOARD_DKTOPP2M							= BIT(5),
 	BT_8723D_1ANT_SCOREBOARD_WLBUSY								= BIT(6)
 };
 
@@ -246,12 +263,11 @@ struct coex_sta_8723d_1ant {
 	u32					crc_err_11n_vht;
 
 	boolean				cck_lock;
-	boolean				pre_ccklock;
-	boolean				cck_ever_lock;
+	boolean				cck_lock_ever;
+	boolean				cck_lock_warn;
+
 	u8					coex_table_type;
-
-	boolean				force_lps_on;
-
+	boolean				force_lps_ctrl;
 	boolean				concurrent_rx_mode_on;
 
 	u16					score_board;
@@ -297,6 +313,27 @@ struct coex_sta_8723d_1ant {
 	u8					bt_relink_downcount;
 	boolean				is_tdma_btautoslot;
 	boolean				is_tdma_btautoslot_hang;
+
+	boolean				is_rf_state_off;
+
+	boolean				is_hid_low_pri_tx_overhead;
+	boolean				is_bt_multi_link;
+	boolean				is_bt_a2dp_sink;
+
+	u8					wl_fw_dbg_info[10];
+	u8					wl_rx_rate;
+	u8					wl_rts_rx_rate;
+
+	u16					score_board_WB;
+
+	boolean				is_hid_rcu;
+	boolean				is_ble_scan_toggle;
+
+	u16					legacy_forbidden_slot;
+	u16					le_forbidden_slot;
+	u8					bt_a2dp_vendor_id;
+	u32					bt_a2dp_device_name;
+	boolean				is_bt_opp_exist;
 };
 
 #define  BT_8723D_1ANT_ANTDET_PSD_POINTS			256	/* MAX:1024 */
@@ -365,6 +402,10 @@ void ex_halbtc8723d1ant_specific_packet_notify(IN struct btc_coexist *btcoexist,
 		IN u8 type);
 void ex_halbtc8723d1ant_bt_info_notify(IN struct btc_coexist *btcoexist,
 				       IN u8 *tmp_buf, IN u8 length);
+void ex_halbtc8723d1ant_wl_fwdbginfo_notify(IN struct btc_coexist *btcoexist,
+				       IN u8 *tmp_buf, IN u8 length);
+void ex_halbtc8723d1ant_rx_rate_change_notify(IN struct btc_coexist *btcoexist,
+		IN BOOLEAN is_data_frame, IN u8 btc_rate_id);
 void ex_halbtc8723d1ant_rf_status_notify(IN struct btc_coexist *btcoexist,
 		IN u8 type);
 void ex_halbtc8723d1ant_halt_notify(IN struct btc_coexist *btcoexist);
@@ -396,6 +437,8 @@ void ex_halbtc8723d1ant_display_ant_detection(IN struct btc_coexist *btcoexist);
 #define	ex_halbtc8723d1ant_media_status_notify(btcoexist, type)
 #define	ex_halbtc8723d1ant_specific_packet_notify(btcoexist, type)
 #define	ex_halbtc8723d1ant_bt_info_notify(btcoexist, tmp_buf, length)
+#define ex_halbtc8723d1ant_wl_fwdbginfo_notify(btcoexist, tmp_buf, length)
+#define	ex_halbtc8723d1ant_rx_rate_change_notify(btcoexist, is_data_frame, btc_rate_id)
 #define	ex_halbtc8723d1ant_rf_status_notify(btcoexist, type)
 #define	ex_halbtc8723d1ant_halt_notify(btcoexist)
 #define	ex_halbtc8723d1ant_pnp_notify(btcoexist, pnp_state)
