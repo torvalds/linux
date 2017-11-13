@@ -494,6 +494,7 @@ EXPORT_SYMBOL_GPL(do_trace_rcu_torture_read);
 #endif
 
 int rcu_cpu_stall_suppress __read_mostly; /* 1 = suppress stall warnings. */
+EXPORT_SYMBOL_GPL(rcu_cpu_stall_suppress);
 static int rcu_cpu_stall_timeout __read_mostly = CONFIG_RCU_CPU_STALL_TIMEOUT;
 
 module_param(rcu_cpu_stall_suppress, int, 0644);
@@ -575,7 +576,6 @@ DEFINE_STATIC_SRCU(tasks_rcu_exit_srcu);
 static int rcu_task_stall_timeout __read_mostly = RCU_TASK_STALL_TIMEOUT;
 module_param(rcu_task_stall_timeout, int, 0644);
 
-static void rcu_spawn_tasks_kthread(void);
 static struct task_struct *rcu_tasks_kthread_ptr;
 
 /**
@@ -600,7 +600,6 @@ void call_rcu_tasks(struct rcu_head *rhp, rcu_callback_t func)
 {
 	unsigned long flags;
 	bool needwake;
-	bool havetask = READ_ONCE(rcu_tasks_kthread_ptr);
 
 	rhp->next = NULL;
 	rhp->func = func;
@@ -610,11 +609,8 @@ void call_rcu_tasks(struct rcu_head *rhp, rcu_callback_t func)
 	rcu_tasks_cbs_tail = &rhp->next;
 	raw_spin_unlock_irqrestore(&rcu_tasks_cbs_lock, flags);
 	/* We can't create the thread unless interrupts are enabled. */
-	if ((needwake && havetask) ||
-	    (!havetask && !irqs_disabled_flags(flags))) {
-		rcu_spawn_tasks_kthread();
+	if (needwake && READ_ONCE(rcu_tasks_kthread_ptr))
 		wake_up(&rcu_tasks_cbs_wq);
-	}
 }
 EXPORT_SYMBOL_GPL(call_rcu_tasks);
 
@@ -853,27 +849,18 @@ static int __noreturn rcu_tasks_kthread(void *arg)
 	}
 }
 
-/* Spawn rcu_tasks_kthread() at first call to call_rcu_tasks(). */
-static void rcu_spawn_tasks_kthread(void)
+/* Spawn rcu_tasks_kthread() at core_initcall() time. */
+static int __init rcu_spawn_tasks_kthread(void)
 {
-	static DEFINE_MUTEX(rcu_tasks_kthread_mutex);
 	struct task_struct *t;
 
-	if (READ_ONCE(rcu_tasks_kthread_ptr)) {
-		smp_mb(); /* Ensure caller sees full kthread. */
-		return;
-	}
-	mutex_lock(&rcu_tasks_kthread_mutex);
-	if (rcu_tasks_kthread_ptr) {
-		mutex_unlock(&rcu_tasks_kthread_mutex);
-		return;
-	}
 	t = kthread_run(rcu_tasks_kthread, NULL, "rcu_tasks_kthread");
 	BUG_ON(IS_ERR(t));
 	smp_mb(); /* Ensure others see full kthread. */
 	WRITE_ONCE(rcu_tasks_kthread_ptr, t);
-	mutex_unlock(&rcu_tasks_kthread_mutex);
+	return 0;
 }
+core_initcall(rcu_spawn_tasks_kthread);
 
 /* Do the srcu_read_lock() for the above synchronize_srcu().  */
 void exit_tasks_rcu_start(void)

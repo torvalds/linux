@@ -3542,6 +3542,9 @@
 	rcutorture.stall_cpu_holdoff= [KNL]
 			Time to wait (s) after boot before inducing stall.
 
+	rcutorture.stall_cpu_irqsoff= [KNL]
+			Disable interrupts while stalling if set.
+
 	rcutorture.stat_interval= [KNL]
 			Time (s) between statistics printk()s.
 
