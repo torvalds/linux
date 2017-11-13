@@ -1178,9 +1178,7 @@ static void commit_planes_for_stream(struct dc *dc,
 	if (update_type == UPDATE_TYPE_FULL) {
 		dc->hwss.set_bandwidth(dc, context, false);
 		context_clock_trace(dc, context);
-	}
 
-	if (update_type > UPDATE_TYPE_FAST) {
 		for (j = 0; j < dc->res_pool->pipe_count; j++) {
 			struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[j];
 
@@ -1215,7 +1213,7 @@ static void commit_planes_for_stream(struct dc *dc,
 		}
 	}
 
-	if (update_type > UPDATE_TYPE_FAST)
+	if (update_type == UPDATE_TYPE_FULL)
 		context_timing_trace(dc, &context->res_ctx);
 
 	/* Perform requested Updates */

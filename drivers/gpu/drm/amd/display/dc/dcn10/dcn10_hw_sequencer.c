@@ -2056,11 +2056,6 @@ static void program_all_pipe_in_tree(
 {
 	if (pipe_ctx->top_pipe == NULL) {
 
-		if (dc->debug.sanity_checks) {
-			/* pstate stuck check after watermark update */
-			dcn10_verify_allow_pstate_change_high(dc);
-		}
-
 		pipe_ctx->stream_res.tg->dlg_otg_param.vready_offset = pipe_ctx->pipe_dlg_param.vready_offset;
 		pipe_ctx->stream_res.tg->dlg_otg_param.vstartup_start = pipe_ctx->pipe_dlg_param.vstartup_start;
 		pipe_ctx->stream_res.tg->dlg_otg_param.vupdate_offset = pipe_ctx->pipe_dlg_param.vupdate_offset;
@@ -2092,11 +2087,6 @@ static void program_all_pipe_in_tree(
 		 */
 		if (pipe_ctx->plane_state->update_flags.bits.full_update)
 			dc->hwss.set_output_transfer_func(pipe_ctx, pipe_ctx->stream);
-	}
-
-	if (dc->debug.sanity_checks) {
-		/* pstate stuck check after each pipe is programmed */
-		dcn10_verify_allow_pstate_change_high(dc);
 	}
 
 	if (pipe_ctx->bottom_pipe != NULL && pipe_ctx->bottom_pipe != pipe_ctx)
@@ -2183,6 +2173,7 @@ static void dcn10_apply_ctx_for_surface(
 	struct timing_generator *tg;
 	bool removed_pipe[4] = { false };
 	unsigned int ref_clk_mhz = dc->res_pool->ref_clock_inKhz/1000;
+	bool program_water_mark = false;
 
 	struct pipe_ctx *top_pipe_to_program =
 			find_top_pipe_for_stream(dc, context, stream);
@@ -2191,9 +2182,6 @@ static void dcn10_apply_ctx_for_surface(
 		return;
 
 	tg = top_pipe_to_program->stream_res.tg;
-
-	if (dc->debug.sanity_checks)
-		dcn10_verify_allow_pstate_change_high(dc);
 
 	tg->funcs->lock(tg);
 
@@ -2261,24 +2249,31 @@ static void dcn10_apply_ctx_for_surface(
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *old_pipe_ctx =
 				&dc->current_state->res_ctx.pipe_ctx[i];
+		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
+
+		if (pipe_ctx->stream == stream &&
+				pipe_ctx->plane_state &&
+			pipe_ctx->plane_state->update_flags.bits.full_update)
+			program_water_mark = true;
 
 		if (removed_pipe[i] && num_planes == 0)
 			dcn10_disable_plane(dc, old_pipe_ctx);
 	}
 
-	if (dc->debug.sanity_checks) {
-		/* pstate stuck check after watermark update */
-		dcn10_verify_allow_pstate_change_high(dc);
-	}
-	/* watermark is for all pipes */
-	hubbub1_program_watermarks(dc->res_pool->hubbub,
-			&context->bw.dcn.watermarks, ref_clk_mhz);
+	if (program_water_mark) {
+		if (dc->debug.sanity_checks) {
+			/* pstate stuck check after watermark update */
+			dcn10_verify_allow_pstate_change_high(dc);
+		}
+		/* watermark is for all pipes */
+		hubbub1_program_watermarks(dc->res_pool->hubbub,
+				&context->bw.dcn.watermarks, ref_clk_mhz);
 
-	if (dc->debug.sanity_checks) {
-		/* pstate stuck check after watermark update */
-		dcn10_verify_allow_pstate_change_high(dc);
+		if (dc->debug.sanity_checks) {
+			/* pstate stuck check after watermark update */
+			dcn10_verify_allow_pstate_change_high(dc);
+		}
 	}
-
 /*	dm_logger_write(dc->ctx->logger, LOG_BANDWIDTH_CALCS,
 			"\n============== Watermark parameters ==============\n"
 			"a.urgent_ns: %d \n"
@@ -2326,9 +2321,6 @@ static void dcn10_apply_ctx_for_surface(
 			context->bw.dcn.watermarks.d.pte_meta_urgent_ns
 			);
 */
-
-	if (dc->debug.sanity_checks)
-		dcn10_verify_allow_pstate_change_high(dc);
 }
 
 static void dcn10_set_bandwidth(
