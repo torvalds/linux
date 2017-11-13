@@ -891,14 +891,14 @@ static int hclge_query_pf_resource(struct hclge_dev *hdev)
 	hdev->pkt_buf_size = __le16_to_cpu(req->buf_size) << HCLGE_BUF_UNIT_S;
 
 	if (hnae3_dev_roce_supported(hdev)) {
-		hdev->num_roce_msix =
+		hdev->num_roce_msi =
 		hnae_get_field(__le16_to_cpu(req->pf_intr_vector_number),
 			       HCLGE_PF_VEC_NUM_M, HCLGE_PF_VEC_NUM_S);
 
 		/* PF should have NIC vectors and Roce vectors,
 		 * NIC vectors are queued before Roce vectors.
 		 */
-		hdev->num_msi = hdev->num_roce_msix  + HCLGE_ROCE_VECTOR_OFFSET;
+		hdev->num_msi = hdev->num_roce_msi  + HCLGE_ROCE_VECTOR_OFFSET;
 	} else {
 		hdev->num_msi =
 		hnae_get_field(__le16_to_cpu(req->pf_intr_vector_number),
@@ -1950,7 +1950,7 @@ static int hclge_init_roce_base_info(struct hclge_vport *vport)
 	struct hnae3_handle *roce = &vport->roce;
 	struct hnae3_handle *nic = &vport->nic;
 
-	roce->rinfo.num_vectors = vport->back->num_roce_msix;
+	roce->rinfo.num_vectors = vport->back->num_roce_msi;
 
 	if (vport->back->num_msi_left < vport->roce.rinfo.num_vectors ||
 	    vport->back->num_msi_left == 0)
@@ -1968,67 +1968,47 @@ static int hclge_init_roce_base_info(struct hclge_vport *vport)
 	return 0;
 }
 
-static int hclge_init_msix(struct hclge_dev *hdev)
-{
-	struct pci_dev *pdev = hdev->pdev;
-	int ret, i;
-
-	hdev->msix_entries = devm_kcalloc(&pdev->dev, hdev->num_msi,
-					  sizeof(struct msix_entry),
-					  GFP_KERNEL);
-	if (!hdev->msix_entries)
-		return -ENOMEM;
-
-	hdev->vector_status = devm_kcalloc(&pdev->dev, hdev->num_msi,
-					   sizeof(u16), GFP_KERNEL);
-	if (!hdev->vector_status)
-		return -ENOMEM;
-
-	for (i = 0; i < hdev->num_msi; i++) {
-		hdev->msix_entries[i].entry = i;
-		hdev->vector_status[i] = HCLGE_INVALID_VPORT;
-	}
-
-	hdev->num_msi_left = hdev->num_msi;
-	hdev->base_msi_vector = hdev->pdev->irq;
-	hdev->roce_base_vector = hdev->base_msi_vector +
-				HCLGE_ROCE_VECTOR_OFFSET;
-
-	ret = pci_enable_msix_range(hdev->pdev, hdev->msix_entries,
-				    hdev->num_msi, hdev->num_msi);
-	if (ret < 0) {
-		dev_info(&hdev->pdev->dev,
-			 "MSI-X vector alloc failed: %d\n", ret);
-		return ret;
-	}
-
-	return 0;
-}
-
 static int hclge_init_msi(struct hclge_dev *hdev)
 {
 	struct pci_dev *pdev = hdev->pdev;
 	int vectors;
 	int i;
 
-	hdev->vector_status = devm_kcalloc(&pdev->dev, hdev->num_msi,
-					   sizeof(u16), GFP_KERNEL);
-	if (!hdev->vector_status)
-		return -ENOMEM;
-
-	for (i = 0; i < hdev->num_msi; i++)
-		hdev->vector_status[i] = HCLGE_INVALID_VPORT;
-
-	vectors = pci_alloc_irq_vectors(pdev, 1, hdev->num_msi, PCI_IRQ_MSI);
+	vectors = pci_alloc_irq_vectors(pdev, 1, hdev->num_msi,
+					PCI_IRQ_MSI | PCI_IRQ_MSIX);
 	if (vectors < 0) {
-		dev_err(&pdev->dev, "MSI vectors enable failed %d\n", vectors);
-		return -EINVAL;
+		dev_err(&pdev->dev,
+			"failed(%d) to allocate MSI/MSI-X vectors\n",
+			vectors);
+		return vectors;
 	}
+	if (vectors < hdev->num_msi)
+		dev_warn(&hdev->pdev->dev,
+			 "requested %d MSI/MSI-X, but allocated %d MSI/MSI-X\n",
+			 hdev->num_msi, vectors);
+
 	hdev->num_msi = vectors;
 	hdev->num_msi_left = vectors;
 	hdev->base_msi_vector = pdev->irq;
 	hdev->roce_base_vector = hdev->base_msi_vector +
 				HCLGE_ROCE_VECTOR_OFFSET;
+
+	hdev->vector_status = devm_kcalloc(&pdev->dev, hdev->num_msi,
+					   sizeof(u16), GFP_KERNEL);
+	if (!hdev->vector_status) {
+		pci_free_irq_vectors(pdev);
+		return -ENOMEM;
+	}
+
+	for (i = 0; i < hdev->num_msi; i++)
+		hdev->vector_status[i] = HCLGE_INVALID_VPORT;
+
+	hdev->vector_irq = devm_kcalloc(&pdev->dev, hdev->num_msi,
+					sizeof(int), GFP_KERNEL);
+	if (!hdev->vector_irq) {
+		pci_free_irq_vectors(pdev);
+		return -ENOMEM;
+	}
 
 	return 0;
 }
@@ -2704,6 +2684,7 @@ static int hclge_get_vector(struct hnae3_handle *handle, u16 vector_num,
 					vport->vport_id *
 					HCLGE_VECTOR_VF_OFFSET;
 				hdev->vector_status[i] = vport->vport_id;
+				hdev->vector_irq[i] = vector->vector;
 
 				vector++;
 				alloc++;
@@ -2722,15 +2703,10 @@ static int hclge_get_vector_index(struct hclge_dev *hdev, int vector)
 {
 	int i;
 
-	for (i = 0; i < hdev->num_msi; i++) {
-		if (hdev->msix_entries) {
-			if (vector == hdev->msix_entries[i].vector)
-				return i;
-		} else {
-			if (vector == (hdev->base_msi_vector + i))
-				return i;
-		}
-	}
+	for (i = 0; i < hdev->num_msi; i++)
+		if (vector == hdev->vector_irq[i])
+			return i;
+
 	return -EINVAL;
 }
 
@@ -4664,14 +4640,7 @@ static void hclge_pci_uninit(struct hclge_dev *hdev)
 {
 	struct pci_dev *pdev = hdev->pdev;
 
-	if (hdev->flag & HCLGE_FLAG_USE_MSIX) {
-		pci_disable_msix(pdev);
-		devm_kfree(&pdev->dev, hdev->msix_entries);
-		hdev->msix_entries = NULL;
-	} else {
-		pci_disable_msi(pdev);
-	}
-
+	pci_free_irq_vectors(pdev);
 	pci_clear_master(pdev);
 	pci_release_mem_regions(pdev);
 	pci_disable_device(pdev);
@@ -4689,7 +4658,6 @@ static int hclge_init_ae_dev(struct hnae3_ae_dev *ae_dev)
 		goto err_hclge_dev;
 	}
 
-	hdev->flag |= HCLGE_FLAG_USE_MSIX;
 	hdev->pdev = pdev;
 	hdev->ae_dev = ae_dev;
 	hdev->reset_type = HNAE3_NONE_RESET;
@@ -4726,12 +4694,9 @@ static int hclge_init_ae_dev(struct hnae3_ae_dev *ae_dev)
 		return ret;
 	}
 
-	if (hdev->flag & HCLGE_FLAG_USE_MSIX)
-		ret = hclge_init_msix(hdev);
-	else
-		ret = hclge_init_msi(hdev);
+	ret = hclge_init_msi(hdev);
 	if (ret) {
-		dev_err(&pdev->dev, "Init msix/msi error, ret = %d.\n", ret);
+		dev_err(&pdev->dev, "Init MSI/MSI-X error, ret = %d.\n", ret);
 		return ret;
 	}
 

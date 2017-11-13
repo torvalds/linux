@@ -425,9 +425,6 @@ struct hclge_dev {
 	u16 num_tqps;			/* Num task queue pairs of this PF */
 	u16 num_req_vfs;		/* Num VFs requested for this PF */
 
-	u16 num_roce_msix;		/* Num of roce vectors for this PF */
-	int roce_base_vector;
-
 	/* Base task tqp physical id of this PF */
 	u16 base_tqp_pid;
 	u16 alloc_rss_size;		/* Allocated RSS task queue */
@@ -457,8 +454,10 @@ struct hclge_dev {
 	u16 num_msi_left;
 	u16 num_msi_used;
 	u32 base_msi_vector;
-	struct msix_entry *msix_entries;
 	u16 *vector_status;
+	int *vector_irq;
+	u16 num_roce_msi;	/* Num of roce vectors for this PF */
+	int roce_base_vector;
 
 	u16 pending_udp_bitmap;
 
@@ -482,12 +481,10 @@ struct hclge_dev {
 	struct hnae3_client *nic_client;
 	struct hnae3_client *roce_client;
 
-#define HCLGE_FLAG_USE_MSI	0x00000001
-#define HCLGE_FLAG_USE_MSIX	0x00000002
-#define HCLGE_FLAG_MAIN		0x00000004
-#define HCLGE_FLAG_DCB_CAPABLE	0x00000008
-#define HCLGE_FLAG_DCB_ENABLE	0x00000010
-#define HCLGE_FLAG_MQPRIO_ENABLE	0x00000020
+#define HCLGE_FLAG_MAIN			BIT(0)
+#define HCLGE_FLAG_DCB_CAPABLE		BIT(1)
+#define HCLGE_FLAG_DCB_ENABLE		BIT(2)
+#define HCLGE_FLAG_MQPRIO_ENABLE	BIT(3)
 	u32 flag;
 
 	u32 pkt_buf_size; /* Total pf buf size for tx/rx */
