@@ -15,7 +15,9 @@ struct tegra_bo;
 
 struct tegra_plane {
 	struct drm_plane base;
+	unsigned int offset;
 	unsigned int index;
+	unsigned int depth;
 };
 
 struct tegra_cursor {

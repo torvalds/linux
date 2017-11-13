@@ -447,6 +447,15 @@ static struct drm_plane *tegra_dc_primary_plane_create(struct drm_device *drm,
 	num_formats = ARRAY_SIZE(tegra_primary_plane_formats);
 	formats = tegra_primary_plane_formats;
 
+	/*
+	 * XXX compute offset so that we can directly access windows.
+	 *
+	 * Always use window A as primary window.
+	 */
+	plane->offset = 0;
+	plane->index = 0;
+	plane->depth = 255;
+
 	err = drm_universal_plane_init(drm, &plane->base, possible_crtcs,
 				       &tegra_plane_funcs, formats,
 				       num_formats, NULL,
@@ -641,7 +650,10 @@ static struct drm_plane *tegra_dc_overlay_plane_create(struct drm_device *drm,
 	if (!plane)
 		return ERR_PTR(-ENOMEM);
 
+	/* XXX compute offset so that we can directly access windows */
+	plane->offset = 0;
 	plane->index = index;
+	plane->depth = 0;
 
 	num_formats = ARRAY_SIZE(tegra_overlay_plane_formats);
 	formats = tegra_overlay_plane_formats;
@@ -1382,6 +1394,25 @@ static void tegra_crtc_atomic_enable(struct drm_crtc *crtc,
 static int tegra_crtc_atomic_check(struct drm_crtc *crtc,
 				   struct drm_crtc_state *state)
 {
+	struct tegra_atomic_state *s = to_tegra_atomic_state(state->state);
+	struct tegra_dc_state *tegra = to_dc_state(state);
+
+	/*
+	 * The display hub display clock needs to be fed by the display clock
+	 * with the highest frequency to ensure proper functioning of all the
+	 * displays.
+	 *
+	 * Note that this isn't used before Tegra186, but it doesn't hurt and
+	 * conditionalizing it would make the code less clean.
+	 */
+	if (state->active) {
+		if (!s->clk_disp || tegra->pclk > s->rate) {
+			s->dc = to_tegra_dc(crtc);
+			s->clk_disp = s->dc->clk;
+			s->rate = tegra->pclk;
+		}
+	}
+
 	return 0;
 }
 

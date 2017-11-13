@@ -209,6 +209,8 @@ int tegra_dc_rgb_exit(struct tegra_dc *dc);
 #define WIN_B_UPDATE    (1 << 10)
 #define WIN_C_UPDATE    (1 << 11)
 #define CURSOR_UPDATE   (1 << 15)
+#define COMMON_ACTREQ   (1 << 16)
+#define COMMON_UPDATE   (1 << 17)
 #define NC_HOST_TRIG    (1 << 24)
 
 #define DC_CMD_DISPLAY_WINDOW_HEADER		0x042
@@ -486,6 +488,35 @@ int tegra_dc_rgb_exit(struct tegra_dc *dc);
 #define CURSOR_SRC_BLEND_MASK			(3 << 8)
 #define CURSOR_ALPHA				0xff
 
+#define DC_WIN_CORE_ACT_CONTROL 0x50e
+#define  VCOUNTER (0 << 0)
+#define  HCOUNTER (1 << 0)
+
+#define DC_WIN_CORE_IHUB_WGRP_LATENCY_CTLA 0x543
+#define  LATENCY_CTL_MODE_ENABLE (1 << 2)
+
+#define DC_WIN_CORE_IHUB_WGRP_LATENCY_CTLB 0x544
+#define  WATERMARK_MASK 0x1fffffff
+
+#define DC_WIN_CORE_PRECOMP_WGRP_PIPE_METER 0x560
+#define  PIPE_METER_INT(x)  (((x) & 0xff) << 8)
+#define  PIPE_METER_FRAC(x) (((x) & 0xff) << 0)
+
+#define DC_WIN_CORE_IHUB_WGRP_POOL_CONFIG 0x561
+#define  MEMPOOL_ENTRIES(x) (((x) & 0xffff) << 0)
+
+#define DC_WIN_CORE_IHUB_WGRP_FETCH_METER 0x562
+#define  SLOTS(x) (((x) & 0xff) << 0)
+
+#define DC_WIN_CORE_IHUB_LINEBUF_CONFIG 0x563
+#define  MODE_TWO_LINES  (0 << 14)
+#define  MODE_FOUR_LINES (1 << 14)
+
+#define DC_WIN_CORE_IHUB_THREAD_GROUP 0x568
+#define  THREAD_NUM_MASK (0x1f << 1)
+#define  THREAD_NUM(x) (((x) & 0x1f) << 1)
+#define  THREAD_GROUP_ENABLE (1 << 0)
+
 #define DC_WIN_CSC_YOF				0x611
 #define DC_WIN_CSC_KYRGB			0x612
 #define DC_WIN_CSC_KUR				0x613
@@ -596,8 +627,91 @@ int tegra_dc_rgb_exit(struct tegra_dc *dc);
 
 #define DC_WINBUF_START_ADDR_HI			0x80d
 
+#define DC_WINBUF_CDE_CONTROL			0x82f
+#define  ENABLE_SURFACE (1 << 0)
+
 #define DC_WINBUF_AD_UFLOW_STATUS		0xbca
 #define DC_WINBUF_BD_UFLOW_STATUS		0xdca
 #define DC_WINBUF_CD_UFLOW_STATUS		0xfca
+
+/* Tegra186 and later */
+#define DC_WIN_CORE_WINDOWGROUP_SET_CONTROL	0x702
+#define OWNER_MASK (0xf << 0)
+#define OWNER(x) (((x) & 0xf) << 0)
+
+#define DC_WIN_CROPPED_SIZE			0x706
+
+#define DC_WIN_PLANAR_STORAGE			0x709
+#define PITCH(x) (((x) >> 6) & 0x1fff)
+
+#define DC_WIN_SET_PARAMS			0x70d
+#define  CLAMP_BEFORE_BLEND (1 << 15)
+#define  DEGAMMA_NONE (0 << 13)
+#define  DEGAMMA_SRGB (1 << 13)
+#define  DEGAMMA_YUV8_10 (2 << 13)
+#define  DEGAMMA_YUV12 (3 << 13)
+#define  INPUT_RANGE_BYPASS (0 << 10)
+#define  INPUT_RANGE_LIMITED (1 << 10)
+#define  INPUT_RANGE_FULL (2 << 10)
+#define  COLOR_SPACE_RGB (0 << 8)
+#define  COLOR_SPACE_YUV_601 (1 << 8)
+#define  COLOR_SPACE_YUV_709 (2 << 8)
+#define  COLOR_SPACE_YUV_2020 (3 << 8)
+
+#define DC_WIN_WINDOWGROUP_SET_CONTROL_INPUT_SCALER	0x70e
+#define  HORIZONTAL_TAPS_2 (1 << 3)
+#define  HORIZONTAL_TAPS_5 (4 << 3)
+#define  VERTICAL_TAPS_2 (1 << 0)
+#define  VERTICAL_TAPS_5 (4 << 0)
+
+#define DC_WIN_WINDOWGROUP_SET_INPUT_SCALER_USAGE	0x711
+#define  INPUT_SCALER_USE422  (1 << 2)
+#define  INPUT_SCALER_VBYPASS (1 << 1)
+#define  INPUT_SCALER_HBYPASS (1 << 0)
+
+#define DC_WIN_BLEND_LAYER_CONTROL		0x716
+#define  COLOR_KEY_NONE (0 << 25)
+#define  COLOR_KEY_SRC (1 << 25)
+#define  COLOR_KEY_DST (2 << 25)
+#define  BLEND_BYPASS (1 << 24)
+#define  K2(x) (((x) & 0xff) << 16)
+#define  K1(x) (((x) & 0xff) << 8)
+#define  WINDOW_LAYER_DEPTH(x) (((x) & 0xff) << 0)
+
+#define DC_WIN_BLEND_MATCH_SELECT		0x717
+#define  BLEND_FACTOR_DST_ALPHA_ZERO			(0 << 12)
+#define  BLEND_FACTOR_DST_ALPHA_ONE			(1 << 12)
+#define  BLEND_FACTOR_DST_ALPHA_NEG_K1_TIMES_SRC	(2 << 12)
+#define  BLEND_FACTOR_DST_ALPHA_K2			(3 << 12)
+#define  BLEND_FACTOR_SRC_ALPHA_ZERO			(0 << 8)
+#define  BLEND_FACTOR_SRC_ALPHA_K1			(1 << 8)
+#define  BLEND_FACTOR_SRC_ALPHA_K2			(2 << 8)
+#define  BLEND_FACTOR_SRC_ALPHA_NEG_K1_TIMES_DST	(3 << 8)
+#define  BLEND_FACTOR_DST_COLOR_ZERO			(0 << 4)
+#define  BLEND_FACTOR_DST_COLOR_ONE			(1 << 4)
+#define  BLEND_FACTOR_DST_COLOR_K1			(2 << 4)
+#define  BLEND_FACTOR_DST_COLOR_K2			(3 << 4)
+#define  BLEND_FACTOR_DST_COLOR_K1_TIMES_DST		(4 << 4)
+#define  BLEND_FACTOR_DST_COLOR_NEG_K1_TIMES_DST	(5 << 4)
+#define  BLEND_FACTOR_DST_COLOR_NEG_K1_TIMES_SRC	(6 << 4)
+#define  BLEND_FACTOR_DST_COLOR_NEG_K1			(7 << 4)
+#define  BLEND_FACTOR_SRC_COLOR_ZERO			(0 << 0)
+#define  BLEND_FACTOR_SRC_COLOR_ONE			(1 << 0)
+#define  BLEND_FACTOR_SRC_COLOR_K1			(2 << 0)
+#define  BLEND_FACTOR_SRC_COLOR_K1_TIMES_DST		(3 << 0)
+#define  BLEND_FACTOR_SRC_COLOR_NEG_K1_TIMES_DST	(4 << 0)
+#define  BLEND_FACTOR_SRC_COLOR_K1_TIMES_SRC		(5 << 0)
+
+#define DC_WIN_BLEND_NOMATCH_SELECT		0x718
+
+#define DC_WIN_PRECOMP_WGRP_PARAMS		0x724
+#define  SWAP_UV (1 << 0)
+
+#define DC_WIN_WINDOW_SET_CONTROL		0x730
+#define  CONTROL_CSC_ENABLE (1 << 5)
+
+#define DC_WINBUF_CROPPED_POINT			0x806
+#define OFFSET_Y(x) (((x) & 0xffff) << 16)
+#define OFFSET_X(x) (((x) & 0xffff) << 0)
 
 #endif /* TEGRA_DC_H */

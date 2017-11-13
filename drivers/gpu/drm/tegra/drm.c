@@ -33,6 +33,35 @@ struct tegra_drm_file {
 	struct mutex lock;
 };
 
+static struct drm_atomic_state *
+tegra_atomic_state_alloc(struct drm_device *drm)
+{
+	struct tegra_atomic_state *state = kzalloc(sizeof(*state), GFP_KERNEL);
+
+	if (!state || drm_atomic_state_init(drm, &state->base) < 0) {
+		kfree(state);
+		return NULL;
+	}
+
+	return &state->base;
+}
+
+static void tegra_atomic_state_clear(struct drm_atomic_state *state)
+{
+	struct tegra_atomic_state *tegra = to_tegra_atomic_state(state);
+
+	drm_atomic_state_default_clear(state);
+	tegra->clk_disp = NULL;
+	tegra->dc = NULL;
+	tegra->rate = 0;
+}
+
+static void tegra_atomic_state_free(struct drm_atomic_state *state)
+{
+	drm_atomic_state_default_release(state);
+	kfree(state);
+}
+
 static const struct drm_mode_config_funcs tegra_drm_mode_config_funcs = {
 	.fb_create = tegra_fb_create,
 #ifdef CONFIG_DRM_FBDEV_EMULATION
@@ -40,11 +69,32 @@ static const struct drm_mode_config_funcs tegra_drm_mode_config_funcs = {
 #endif
 	.atomic_check = drm_atomic_helper_check,
 	.atomic_commit = drm_atomic_helper_commit,
+	.atomic_state_alloc = tegra_atomic_state_alloc,
+	.atomic_state_clear = tegra_atomic_state_clear,
+	.atomic_state_free = tegra_atomic_state_free,
 };
+
+static void tegra_atomic_commit_tail(struct drm_atomic_state *old_state)
+{
+	struct drm_device *drm = old_state->dev;
+	struct tegra_drm *tegra = drm->dev_private;
+
+	if (tegra->hub) {
+		drm_atomic_helper_commit_modeset_disables(drm, old_state);
+		tegra_display_hub_atomic_commit(drm, old_state);
+		drm_atomic_helper_commit_planes(drm, old_state, 0);
+		drm_atomic_helper_commit_modeset_enables(drm, old_state);
+		drm_atomic_helper_commit_hw_done(old_state);
+		drm_atomic_helper_wait_for_vblanks(drm, old_state);
+		drm_atomic_helper_cleanup_planes(drm, old_state);
+	} else {
+		drm_atomic_helper_commit_tail_rpm(old_state);
+	}
+}
 
 static const struct drm_mode_config_helper_funcs
 tegra_drm_mode_config_helpers = {
-	.atomic_commit_tail = drm_atomic_helper_commit_tail_rpm,
+	.atomic_commit_tail = tegra_atomic_commit_tail,
 };
 
 static int tegra_drm_load(struct drm_device *drm, unsigned long flags)
@@ -119,6 +169,12 @@ static int tegra_drm_load(struct drm_device *drm, unsigned long flags)
 	if (err < 0)
 		goto fbdev;
 
+	if (tegra->hub) {
+		err = tegra_display_hub_prepare(tegra->hub);
+		if (err < 0)
+			goto device;
+	}
+
 	/*
 	 * We don't use the drm_irq_install() helpers provided by the DRM
 	 * core, so we need to set this manually in order to allow the
@@ -131,16 +187,19 @@ static int tegra_drm_load(struct drm_device *drm, unsigned long flags)
 
 	err = drm_vblank_init(drm, drm->mode_config.num_crtc);
 	if (err < 0)
-		goto device;
+		goto hub;
 
 	drm_mode_config_reset(drm);
 
 	err = tegra_drm_fb_init(drm);
 	if (err < 0)
-		goto device;
+		goto hub;
 
 	return 0;
 
+hub:
+	if (tegra->hub)
+		tegra_display_hub_cleanup(tegra->hub);
 device:
 	host1x_device_exit(device);
 fbdev:
@@ -1235,6 +1294,7 @@ static const struct of_device_id host1x_drm_subdevs[] = {
 	{ .compatible = "nvidia,tegra210-sor", },
 	{ .compatible = "nvidia,tegra210-sor1", },
 	{ .compatible = "nvidia,tegra210-vic", },
+	{ .compatible = "nvidia,tegra186-display", },
 	{ .compatible = "nvidia,tegra186-vic", },
 	{ /* sentinel */ }
 };
@@ -1250,6 +1310,7 @@ static struct host1x_driver host1x_drm_driver = {
 };
 
 static struct platform_driver * const drivers[] = {
+	&tegra_display_hub_driver,
 	&tegra_dc_driver,
 	&tegra_hdmi_driver,
 	&tegra_dsi_driver,
