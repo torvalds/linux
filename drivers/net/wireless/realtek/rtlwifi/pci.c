@@ -747,7 +747,7 @@ static void _rtl_pci_rx_interrupt(struct ieee80211_hw *hw)
 	u8 tmp_one;
 	bool unicast = false;
 	u8 hw_queue = 0;
-	unsigned int rx_remained_cnt;
+	unsigned int rx_remained_cnt = 0;
 	struct rtl_stats stats = {
 		.signal = 0,
 		.rate = 0,
@@ -768,7 +768,8 @@ static void _rtl_pci_rx_interrupt(struct ieee80211_hw *hw)
 		struct sk_buff *new_skb;
 
 		if (rtlpriv->use_new_trx_flow) {
-			rx_remained_cnt =
+			if (rx_remained_cnt == 0)
+				rx_remained_cnt =
 				rtlpriv->cfg->ops->rx_desc_buff_remained_cnt(hw,
 								      hw_queue);
 			if (rx_remained_cnt == 0)
