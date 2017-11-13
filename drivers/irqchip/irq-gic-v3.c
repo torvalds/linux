@@ -1524,7 +1524,7 @@ gic_acpi_init(struct acpi_subtable_header *header, const unsigned long end)
 
 	err = gic_validate_dist_version(acpi_data.dist_base);
 	if (err) {
-		pr_err("No distributor detected at @%p, giving up",
+		pr_err("No distributor detected at @%p, giving up\n",
 		       acpi_data.dist_base);
 		goto out_dist_unmap;
 	}
