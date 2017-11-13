@@ -51,7 +51,7 @@ void ssi_sram_mgr_fini(struct ssi_drvdata *drvdata)
 int ssi_sram_mgr_init(struct ssi_drvdata *drvdata)
 {
 	/* Allocate "this" context */
-	drvdata->sram_mgr_handle = kzalloc(sizeof(struct ssi_sram_mgr_ctx),
+	drvdata->sram_mgr_handle = kzalloc(sizeof(*drvdata->sram_mgr_handle),
 					   GFP_KERNEL);
 
 	if (!drvdata->sram_mgr_handle)
