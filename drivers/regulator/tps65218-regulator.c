@@ -326,6 +326,8 @@ static int tps65218_regulator_probe(struct platform_device *pdev)
 	/* Allocate memory for strobes */
 	tps->strobes = devm_kzalloc(&pdev->dev, sizeof(u8) *
 				    TPS65218_NUM_REGULATOR, GFP_KERNEL);
+	if (!tps->strobes)
+		return -ENOMEM;
 
 	for (i = 0; i < ARRAY_SIZE(regulators); i++) {
 		rdev = devm_regulator_register(&pdev->dev, &regulators[i],
