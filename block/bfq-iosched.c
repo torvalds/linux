@@ -2228,7 +2228,6 @@ static void __bfq_set_in_service_queue(struct bfq_data *bfqd,
 				       struct bfq_queue *bfqq)
 {
 	if (bfqq) {
-		bfqg_stats_update_avg_queue_size(bfqq_group(bfqq));
 		bfq_clear_bfqq_fifo_expire(bfqq);
 
 		bfqd->budgets_assigned = (bfqd->budgets_assigned * 7 + 256) / 8;
@@ -3469,7 +3468,6 @@ check_queue:
 				 */
 				bfq_clear_bfqq_wait_request(bfqq);
 				hrtimer_try_to_cancel(&bfqd->idle_slice_timer);
-				bfqg_stats_update_idle_time(bfqq_group(bfqq));
 			}
 			goto keep_queue;
 		}
@@ -3695,14 +3693,66 @@ static struct request *bfq_dispatch_request(struct blk_mq_hw_ctx *hctx)
 {
 	struct bfq_data *bfqd = hctx->queue->elevator->elevator_data;
 	struct request *rq;
+#ifdef CONFIG_BFQ_GROUP_IOSCHED
+	struct bfq_queue *in_serv_queue, *bfqq;
+	bool waiting_rq, idle_timer_disabled;
+#endif
 
 	spin_lock_irq(&bfqd->lock);
 
+#ifdef CONFIG_BFQ_GROUP_IOSCHED
+	in_serv_queue = bfqd->in_service_queue;
+	waiting_rq = in_serv_queue && bfq_bfqq_wait_request(in_serv_queue);
+
 	rq = __bfq_dispatch_request(hctx);
-	if (rq && RQ_BFQQ(rq))
-		bfqg_stats_update_io_remove(bfqq_group(RQ_BFQQ(rq)),
-					    rq->cmd_flags);
+
+	idle_timer_disabled =
+		waiting_rq && !bfq_bfqq_wait_request(in_serv_queue);
+
+#else
+	rq = __bfq_dispatch_request(hctx);
+#endif
 	spin_unlock_irq(&bfqd->lock);
+
+#ifdef CONFIG_BFQ_GROUP_IOSCHED
+	bfqq = rq ? RQ_BFQQ(rq) : NULL;
+	if (!idle_timer_disabled && !bfqq)
+		return rq;
+
+	/*
+	 * rq and bfqq are guaranteed to exist until this function
+	 * ends, for the following reasons. First, rq can be
+	 * dispatched to the device, and then can be completed and
+	 * freed, only after this function ends. Second, rq cannot be
+	 * merged (and thus freed because of a merge) any longer,
+	 * because it has already started. Thus rq cannot be freed
+	 * before this function ends, and, since rq has a reference to
+	 * bfqq, the same guarantee holds for bfqq too.
+	 *
+	 * In addition, the following queue lock guarantees that
+	 * bfqq_group(bfqq) exists as well.
+	 */
+	spin_lock_irq(hctx->queue->queue_lock);
+	if (idle_timer_disabled)
+		/*
+		 * Since the idle timer has been disabled,
+		 * in_serv_queue contained some request when
+		 * __bfq_dispatch_request was invoked above, which
+		 * implies that rq was picked exactly from
+		 * in_serv_queue. Thus in_serv_queue == bfqq, and is
+		 * therefore guaranteed to exist because of the above
+		 * arguments.
+		 */
+		bfqg_stats_update_idle_time(bfqq_group(in_serv_queue));
+	if (bfqq) {
+		struct bfq_group *bfqg = bfqq_group(bfqq);
+
+		bfqg_stats_update_avg_queue_size(bfqg);
+		bfqg_stats_set_start_empty_time(bfqg);
+		bfqg_stats_update_io_remove(bfqg, rq->cmd_flags);
+	}
+	spin_unlock_irq(hctx->queue->queue_lock);
+#endif
 
 	return rq;
 }
@@ -4161,7 +4211,6 @@ static void bfq_rq_enqueued(struct bfq_data *bfqd, struct bfq_queue *bfqq,
 		 */
 		bfq_clear_bfqq_wait_request(bfqq);
 		hrtimer_try_to_cancel(&bfqd->idle_slice_timer);
-		bfqg_stats_update_idle_time(bfqq_group(bfqq));
 
 		/*
 		 * The queue is not empty, because a new request just
@@ -4176,10 +4225,12 @@ static void bfq_rq_enqueued(struct bfq_data *bfqd, struct bfq_queue *bfqq,
 	}
 }
 
-static void __bfq_insert_request(struct bfq_data *bfqd, struct request *rq)
+/* returns true if it causes the idle timer to be disabled */
+static bool __bfq_insert_request(struct bfq_data *bfqd, struct request *rq)
 {
 	struct bfq_queue *bfqq = RQ_BFQQ(rq),
 		*new_bfqq = bfq_setup_cooperator(bfqd, bfqq, rq, true);
+	bool waiting, idle_timer_disabled = false;
 
 	if (new_bfqq) {
 		if (bic_to_bfqq(RQ_BIC(rq), 1) != bfqq)
@@ -4213,12 +4264,16 @@ static void __bfq_insert_request(struct bfq_data *bfqd, struct request *rq)
 		bfqq = new_bfqq;
 	}
 
+	waiting = bfqq && bfq_bfqq_wait_request(bfqq);
 	bfq_add_request(rq);
+	idle_timer_disabled = waiting && !bfq_bfqq_wait_request(bfqq);
 
 	rq->fifo_time = ktime_get_ns() + bfqd->bfq_fifo_expire[rq_is_sync(rq)];
 	list_add_tail(&rq->queuelist, &bfqq->fifo);
 
 	bfq_rq_enqueued(bfqd, bfqq, rq);
+
+	return idle_timer_disabled;
 }
 
 static void bfq_insert_request(struct blk_mq_hw_ctx *hctx, struct request *rq,
@@ -4226,7 +4281,11 @@ static void bfq_insert_request(struct blk_mq_hw_ctx *hctx, struct request *rq,
 {
 	struct request_queue *q = hctx->queue;
 	struct bfq_data *bfqd = q->elevator->elevator_data;
+#ifdef CONFIG_BFQ_GROUP_IOSCHED
 	struct bfq_queue *bfqq = RQ_BFQQ(rq);
+	bool idle_timer_disabled = false;
+	unsigned int cmd_flags;
+#endif
 
 	spin_lock_irq(&bfqd->lock);
 	if (blk_mq_sched_try_insert_merge(q, rq)) {
@@ -4245,13 +4304,17 @@ static void bfq_insert_request(struct blk_mq_hw_ctx *hctx, struct request *rq,
 		else
 			list_add_tail(&rq->queuelist, &bfqd->dispatch);
 	} else {
-		__bfq_insert_request(bfqd, rq);
+#ifdef CONFIG_BFQ_GROUP_IOSCHED
+		idle_timer_disabled = __bfq_insert_request(bfqd, rq);
 		/*
 		 * Update bfqq, because, if a queue merge has occurred
 		 * in __bfq_insert_request, then rq has been
 		 * redirected into a new queue.
 		 */
 		bfqq = RQ_BFQQ(rq);
+#else
+		__bfq_insert_request(bfqd, rq);
+#endif
 
 		if (rq_mergeable(rq)) {
 			elv_rqhash_add(q, rq);
@@ -4260,10 +4323,35 @@ static void bfq_insert_request(struct blk_mq_hw_ctx *hctx, struct request *rq,
 		}
 	}
 
-	if (bfqq)
-		bfqg_stats_update_io_add(bfqq_group(bfqq), bfqq, rq->cmd_flags);
-
+#ifdef CONFIG_BFQ_GROUP_IOSCHED
+	/*
+	 * Cache cmd_flags before releasing scheduler lock, because rq
+	 * may disappear afterwards (for example, because of a request
+	 * merge).
+	 */
+	cmd_flags = rq->cmd_flags;
+#endif
 	spin_unlock_irq(&bfqd->lock);
+
+#ifdef CONFIG_BFQ_GROUP_IOSCHED
+	if (!bfqq)
+		return;
+	/*
+	 * bfqq still exists, because it can disappear only after
+	 * either it is merged with another queue, or the process it
+	 * is associated with exits. But both actions must be taken by
+	 * the same process currently executing this flow of
+	 * instruction.
+	 *
+	 * In addition, the following queue lock guarantees that
+	 * bfqq_group(bfqq) exists as well.
+	 */
+	spin_lock_irq(q->queue_lock);
+	bfqg_stats_update_io_add(bfqq_group(bfqq), bfqq, cmd_flags);
+	if (idle_timer_disabled)
+		bfqg_stats_update_idle_time(bfqq_group(bfqq));
+	spin_unlock_irq(q->queue_lock);
+#endif
 }
 
 static void bfq_insert_requests(struct blk_mq_hw_ctx *hctx,

@@ -26,9 +26,9 @@ the limits on slow or average CPUs, here are BFQ limits for three
 different CPUs, on, respectively, an average laptop, an old desktop,
 and a cheap embedded system, in case full hierarchical support is
 enabled (i.e., CONFIG_BFQ_GROUP_IOSCHED is set):
-- Intel i7-4850HQ: 250 KIOPS
-- AMD A8-3850: 170 KIOPS
-- ARM CortexTM-A53 Octa-core: 45 KIOPS
+- Intel i7-4850HQ: 310 KIOPS
+- AMD A8-3850: 200 KIOPS
+- ARM CortexTM-A53 Octa-core: 56 KIOPS
 
 BFQ works for multi-queue devices too.
 
