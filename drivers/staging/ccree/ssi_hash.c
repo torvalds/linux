@@ -116,9 +116,9 @@ static void ssi_hash_create_data_desc(
 
 static inline void ssi_set_hash_endianity(u32 mode, struct cc_hw_desc *desc)
 {
-	if (unlikely((mode == DRV_HASH_MD5) ||
-		     (mode == DRV_HASH_SHA384) ||
-		     (mode == DRV_HASH_SHA512))) {
+	if (unlikely(mode == DRV_HASH_MD5 ||
+		     mode == DRV_HASH_SHA384 ||
+		     mode == DRV_HASH_SHA512)) {
 		set_bytes_swap(desc, 1);
 	} else {
 		set_cipher_config0(desc, HASH_DIGEST_RESULT_LITTLE_ENDIAN);
@@ -204,12 +204,12 @@ static int ssi_hash_map_request(struct device *dev,
 
 	if (is_hmac) {
 		dma_sync_single_for_cpu(dev, ctx->digest_buff_dma_addr, ctx->inter_digestsize, DMA_BIDIRECTIONAL);
-		if ((ctx->hw_mode == DRV_CIPHER_XCBC_MAC) || (ctx->hw_mode == DRV_CIPHER_CMAC)) {
+		if (ctx->hw_mode == DRV_CIPHER_XCBC_MAC || ctx->hw_mode == DRV_CIPHER_CMAC) {
 			memset(state->digest_buff, 0, ctx->inter_digestsize);
 		} else { /*sha*/
 			memcpy(state->digest_buff, ctx->digest_buff, ctx->inter_digestsize);
 #if (DX_DEV_SHA_MAX > 256)
-			if (unlikely((ctx->hash_mode == DRV_HASH_SHA512) || (ctx->hash_mode == DRV_HASH_SHA384)))
+			if (unlikely(ctx->hash_mode == DRV_HASH_SHA512 || ctx->hash_mode == DRV_HASH_SHA384))
 				memcpy(state->digest_bytes_len, digest_len_sha512_init, HASH_LEN_SIZE);
 			else
 				memcpy(state->digest_bytes_len, digest_len_init, HASH_LEN_SIZE);
@@ -1460,7 +1460,7 @@ static int ssi_mac_final(struct ahash_request *req)
 	ssi_req.user_cb = (void *)ssi_hash_complete;
 	ssi_req.user_arg = (void *)req;
 
-	if (state->xcbc_count && (rem_cnt == 0)) {
+	if (state->xcbc_count && rem_cnt == 0) {
 		/* Load key for ECB decryption */
 		hw_desc_init(&desc[idx]);
 		set_cipher_mode(&desc[idx], DRV_CIPHER_ECB);
@@ -2285,8 +2285,8 @@ int ssi_hash_alloc(struct ssi_drvdata *drvdata)
 				      &hash_handle->hash_list);
 		}
 
-		if ((hw_mode == DRV_CIPHER_XCBC_MAC) ||
-		    (hw_mode == DRV_CIPHER_CMAC))
+		if (hw_mode == DRV_CIPHER_XCBC_MAC ||
+		    hw_mode == DRV_CIPHER_CMAC)
 			continue;
 
 		/* register hash version */

@@ -576,7 +576,7 @@ int cc_map_blkcipher_request(
 		if (mapped_nents > 1)
 			req_ctx->dma_buf_type = SSI_DMA_BUF_MLLI;
 
-		if (unlikely((req_ctx->dma_buf_type == SSI_DMA_BUF_MLLI))) {
+		if (unlikely(req_ctx->dma_buf_type == SSI_DMA_BUF_MLLI)) {
 			cc_add_sg_entry(dev, &sg_data, req_ctx->in_nents, src,
 					nbytes, 0, true,
 					&req_ctx->in_mlli_nents);
@@ -689,7 +689,7 @@ void cc_unmap_aead_request(struct device *dev, struct aead_request *req)
 			     DMA_BIDIRECTIONAL);
 	}
 	if (drvdata->coherent &&
-	    (areq_ctx->gen_ctx.op_type == DRV_CRYPTO_DIRECTION_DECRYPT) &&
+	    areq_ctx->gen_ctx.op_type == DRV_CRYPTO_DIRECTION_DECRYPT &&
 	    likely(req->src == req->dst)) {
 
 		/* copy back mac from temporary location to deal with possible
@@ -864,13 +864,13 @@ static inline int cc_aead_chain_assoc(
 	}
 
 	if (likely(mapped_nents == 1) &&
-	    (areq_ctx->ccm_hdr_size == ccm_header_size_null))
+	    areq_ctx->ccm_hdr_size == ccm_header_size_null)
 		areq_ctx->assoc_buff_type = SSI_DMA_BUF_DLLI;
 	else
 		areq_ctx->assoc_buff_type = SSI_DMA_BUF_MLLI;
 
 	if (unlikely((do_chain) ||
-		     (areq_ctx->assoc_buff_type == SSI_DMA_BUF_MLLI))) {
+		     areq_ctx->assoc_buff_type == SSI_DMA_BUF_MLLI)) {
 		dev_dbg(dev, "Chain assoc: buff_type=%s nents=%u\n",
 			GET_DMA_BUFFER_TYPE(areq_ctx->assoc_buff_type),
 			areq_ctx->assoc.nents);
@@ -1155,8 +1155,8 @@ static inline int cc_aead_chain_data(
 	}
 	areq_ctx->dst.nents = dst_mapped_nents;
 	areq_ctx->dst_offset = offset;
-	if ((src_mapped_nents > 1) ||
-	    (dst_mapped_nents  > 1) ||
+	if (src_mapped_nents > 1 ||
+	    dst_mapped_nents  > 1 ||
 	    do_chain) {
 		areq_ctx->data_buff_type = SSI_DMA_BUF_MLLI;
 		rc = cc_prepare_aead_data_mlli(drvdata, req, sg_data,
@@ -1247,7 +1247,7 @@ int cc_map_aead_request(
 	 * data memory overriding that caused by cache coherence problem.
 	 */
 	if (drvdata->coherent &&
-	    (areq_ctx->gen_ctx.op_type == DRV_CRYPTO_DIRECTION_DECRYPT) &&
+	    areq_ctx->gen_ctx.op_type == DRV_CRYPTO_DIRECTION_DECRYPT &&
 	    likely(req->src == req->dst))
 		cc_copy_mac(dev, req, SSI_SG_TO_BUF);
 
@@ -1408,8 +1408,8 @@ int cc_map_aead_request(
 
 	/* Mlli support -start building the MLLI according to the above results */
 	if (unlikely(
-		(areq_ctx->assoc_buff_type == SSI_DMA_BUF_MLLI) ||
-		(areq_ctx->data_buff_type == SSI_DMA_BUF_MLLI))) {
+		areq_ctx->assoc_buff_type == SSI_DMA_BUF_MLLI ||
+		areq_ctx->data_buff_type == SSI_DMA_BUF_MLLI)) {
 		mlli_params->curr_pool = buff_mgr->mlli_buffs_pool;
 		rc = cc_generate_mlli(dev, &sg_data, mlli_params);
 		if (unlikely(rc))
@@ -1466,15 +1466,15 @@ int cc_map_hash_request_final(struct ssi_drvdata *drvdata, void *ctx,
 		}
 	}
 
-	if (src && (nbytes > 0) && do_update) {
+	if (src && nbytes > 0 && do_update) {
 		if (unlikely(cc_map_sg(dev, src, nbytes, DMA_TO_DEVICE,
 				       &areq_ctx->in_nents,
 				       LLI_MAX_NUM_OF_DATA_ENTRIES,
 				       &dummy, &mapped_nents))) {
 			goto unmap_curr_buff;
 		}
-		if (src && (mapped_nents == 1)
-		     && (areq_ctx->data_dma_buf_type == SSI_DMA_BUF_NULL)) {
+		if (src && mapped_nents == 1
+		     && areq_ctx->data_dma_buf_type == SSI_DMA_BUF_NULL) {
 			memcpy(areq_ctx->buff_sg, src,
 			       sizeof(struct scatterlist));
 			areq_ctx->buff_sg->length = nbytes;
@@ -1590,8 +1590,8 @@ int cc_map_hash_request_update(struct ssi_drvdata *drvdata, void *ctx,
 				       &mapped_nents))) {
 			goto unmap_curr_buff;
 		}
-		if ((mapped_nents == 1)
-		     && (areq_ctx->data_dma_buf_type == SSI_DMA_BUF_NULL)) {
+		if (mapped_nents == 1
+		     && areq_ctx->data_dma_buf_type == SSI_DMA_BUF_NULL) {
 			/* only one entry in the SG and no previous data */
 			memcpy(areq_ctx->buff_sg, src,
 			       sizeof(struct scatterlist));

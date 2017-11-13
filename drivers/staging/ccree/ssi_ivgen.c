@@ -248,8 +248,8 @@ int ssi_ivgen_getiv(
 	struct device *dev = drvdata_to_dev(drvdata);
 	unsigned int t;
 
-	if ((iv_out_size != CC_AES_IV_SIZE) &&
-	    (iv_out_size != CTR_RFC3686_IV_SIZE)) {
+	if (iv_out_size != CC_AES_IV_SIZE &&
+	    iv_out_size != CTR_RFC3686_IV_SIZE) {
 		return -EINVAL;
 	}
 	if ((iv_out_dma_len + 1) > SSI_IVPOOL_SEQ_LEN) {

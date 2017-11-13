@@ -391,9 +391,9 @@ static int validate_keys_sizes(struct ssi_aead_ctx *ctx)
 	case DRV_HASH_SHA256:
 		break;
 	case DRV_HASH_XCBC_MAC:
-		if ((ctx->auth_keylen != AES_KEYSIZE_128) &&
-		    (ctx->auth_keylen != AES_KEYSIZE_192) &&
-		    (ctx->auth_keylen != AES_KEYSIZE_256))
+		if (ctx->auth_keylen != AES_KEYSIZE_128 &&
+		    ctx->auth_keylen != AES_KEYSIZE_192 &&
+		    ctx->auth_keylen != AES_KEYSIZE_256)
 			return -ENOTSUPP;
 		break;
 	case DRV_HASH_NULL: /* Not authenc (e.g., CCM) - no auth_key) */
@@ -412,9 +412,9 @@ static int validate_keys_sizes(struct ssi_aead_ctx *ctx)
 			return -EINVAL;
 		}
 	} else { /* Default assumed to be AES ciphers */
-		if ((ctx->enc_keylen != AES_KEYSIZE_128) &&
-		    (ctx->enc_keylen != AES_KEYSIZE_192) &&
-		    (ctx->enc_keylen != AES_KEYSIZE_256)) {
+		if (ctx->enc_keylen != AES_KEYSIZE_128 &&
+		    ctx->enc_keylen != AES_KEYSIZE_192 &&
+		    ctx->enc_keylen != AES_KEYSIZE_256) {
 			dev_err(dev, "Invalid cipher(AES) key size: %u\n",
 				ctx->enc_keylen);
 			return -EINVAL;
@@ -676,8 +676,8 @@ static int ssi_aead_setauthsize(
 	struct device *dev = drvdata_to_dev(ctx->drvdata);
 
 	/* Unsupported auth. sizes */
-	if ((authsize == 0) ||
-	    (authsize > crypto_aead_maxauthsize(authenc))) {
+	if (authsize == 0 ||
+	    authsize > crypto_aead_maxauthsize(authenc)) {
 		return -ENOTSUPP;
 	}
 
@@ -744,8 +744,8 @@ ssi_aead_create_assoc_desc(
 		set_din_type(&desc[idx], DMA_DLLI, sg_dma_address(areq->src),
 			     areq->assoclen, NS_BIT); set_flow_mode(&desc[idx],
 			     flow_mode);
-		if ((ctx->auth_mode == DRV_HASH_XCBC_MAC) &&
-		    (areq_ctx->cryptlen > 0))
+		if (ctx->auth_mode == DRV_HASH_XCBC_MAC &&
+		    areq_ctx->cryptlen > 0)
 			set_din_not_last_indication(&desc[idx]);
 		break;
 	case SSI_DMA_BUF_MLLI:
@@ -754,8 +754,8 @@ ssi_aead_create_assoc_desc(
 		set_din_type(&desc[idx], DMA_MLLI, areq_ctx->assoc.sram_addr,
 			     areq_ctx->assoc.mlli_nents, NS_BIT);
 		set_flow_mode(&desc[idx], flow_mode);
-		if ((ctx->auth_mode == DRV_HASH_XCBC_MAC) &&
-		    (areq_ctx->cryptlen > 0))
+		if (ctx->auth_mode == DRV_HASH_XCBC_MAC &&
+		    areq_ctx->cryptlen > 0)
 			set_din_not_last_indication(&desc[idx]);
 		break;
 	case SSI_DMA_BUF_NULL:
@@ -1192,8 +1192,8 @@ static inline void ssi_aead_load_mlli_to_sram(
 	struct device *dev = drvdata_to_dev(ctx->drvdata);
 
 	if (unlikely(
-		(req_ctx->assoc_buff_type == SSI_DMA_BUF_MLLI) ||
-		(req_ctx->data_buff_type == SSI_DMA_BUF_MLLI) ||
+		req_ctx->assoc_buff_type == SSI_DMA_BUF_MLLI ||
+		req_ctx->data_buff_type == SSI_DMA_BUF_MLLI ||
 		!req_ctx->is_single_pass)) {
 		dev_dbg(dev, "Copy-to-sram: mlli_dma=%08x, mlli_size=%u\n",
 			(unsigned int)ctx->drvdata->mlli_sram_addr,
@@ -1350,15 +1350,15 @@ static int validate_data_size(struct ssi_aead_ctx *ctx,
 	unsigned int cipherlen = (direct == DRV_CRYPTO_DIRECTION_DECRYPT) ?
 			(req->cryptlen - ctx->authsize) : req->cryptlen;
 
-	if (unlikely((direct == DRV_CRYPTO_DIRECTION_DECRYPT) &&
-		     (req->cryptlen < ctx->authsize)))
+	if (unlikely(direct == DRV_CRYPTO_DIRECTION_DECRYPT &&
+		     req->cryptlen < ctx->authsize))
 		goto data_size_err;
 
 	areq_ctx->is_single_pass = true; /*defaulted to fast flow*/
 
 	switch (ctx->flow_mode) {
 	case S_DIN_to_AES:
-		if (unlikely((ctx->cipher_mode == DRV_CIPHER_CBC) &&
+		if (unlikely(ctx->cipher_mode == DRV_CIPHER_CBC &&
 			     !IS_ALIGNED(cipherlen, AES_BLOCK_SIZE)))
 			goto data_size_err;
 		if (ctx->cipher_mode == DRV_CIPHER_CCM)
@@ -1372,7 +1372,7 @@ static int validate_data_size(struct ssi_aead_ctx *ctx,
 		if (!IS_ALIGNED(assoclen, sizeof(u32)))
 			areq_ctx->is_single_pass = false;
 
-		if ((ctx->cipher_mode == DRV_CIPHER_CTR) &&
+		if (ctx->cipher_mode == DRV_CIPHER_CTR &&
 		    !IS_ALIGNED(cipherlen, sizeof(u32)))
 			areq_ctx->is_single_pass = false;
 

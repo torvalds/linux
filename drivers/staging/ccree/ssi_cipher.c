@@ -76,18 +76,18 @@ static int validate_keys_sizes(struct ssi_ablkcipher_ctx *ctx_p, u32 size)
 		switch (size) {
 		case CC_AES_128_BIT_KEY_SIZE:
 		case CC_AES_192_BIT_KEY_SIZE:
-			if (likely((ctx_p->cipher_mode != DRV_CIPHER_XTS) &&
-				   (ctx_p->cipher_mode != DRV_CIPHER_ESSIV) &&
-				   (ctx_p->cipher_mode != DRV_CIPHER_BITLOCKER)))
+			if (likely(ctx_p->cipher_mode != DRV_CIPHER_XTS &&
+				   ctx_p->cipher_mode != DRV_CIPHER_ESSIV &&
+				   ctx_p->cipher_mode != DRV_CIPHER_BITLOCKER))
 				return 0;
 			break;
 		case CC_AES_256_BIT_KEY_SIZE:
 			return 0;
 		case (CC_AES_192_BIT_KEY_SIZE * 2):
 		case (CC_AES_256_BIT_KEY_SIZE * 2):
-			if (likely((ctx_p->cipher_mode == DRV_CIPHER_XTS) ||
-				   (ctx_p->cipher_mode == DRV_CIPHER_ESSIV) ||
-				   (ctx_p->cipher_mode == DRV_CIPHER_BITLOCKER)))
+			if (likely(ctx_p->cipher_mode == DRV_CIPHER_XTS ||
+				   ctx_p->cipher_mode == DRV_CIPHER_ESSIV ||
+				   ctx_p->cipher_mode == DRV_CIPHER_BITLOCKER))
 				return 0;
 			break;
 		default:
@@ -115,8 +115,8 @@ static int validate_data_size(struct ssi_ablkcipher_ctx *ctx_p, unsigned int siz
 	case S_DIN_to_AES:
 		switch (ctx_p->cipher_mode) {
 		case DRV_CIPHER_XTS:
-			if ((size >= SSI_MIN_AES_XTS_SIZE) &&
-			    (size <= SSI_MAX_AES_XTS_SIZE) &&
+			if (size >= SSI_MIN_AES_XTS_SIZE &&
+			    size <= SSI_MAX_AES_XTS_SIZE &&
 			    IS_ALIGNED(size, AES_BLOCK_SIZE))
 				return 0;
 			break;
@@ -333,9 +333,9 @@ static int ssi_blkcipher_setkey(struct crypto_tfm *tfm,
 			return -EINVAL;
 		}
 
-		if ((ctx_p->cipher_mode == DRV_CIPHER_XTS) ||
-		    (ctx_p->cipher_mode == DRV_CIPHER_ESSIV) ||
-		    (ctx_p->cipher_mode == DRV_CIPHER_BITLOCKER)) {
+		if (ctx_p->cipher_mode == DRV_CIPHER_XTS ||
+		    ctx_p->cipher_mode == DRV_CIPHER_ESSIV ||
+		    ctx_p->cipher_mode == DRV_CIPHER_BITLOCKER) {
 			if (unlikely(hki->hw_key1 == hki->hw_key2)) {
 				dev_err(dev, "Illegal hw key numbers (%d,%d)\n",
 					hki->hw_key1, hki->hw_key2);
@@ -364,13 +364,13 @@ static int ssi_blkcipher_setkey(struct crypto_tfm *tfm,
 			return -EINVAL;
 		}
 	}
-	if ((ctx_p->cipher_mode == DRV_CIPHER_XTS) &&
+	if (ctx_p->cipher_mode == DRV_CIPHER_XTS &&
 	    xts_check_key(tfm, key, keylen)) {
 		dev_dbg(dev, "weak XTS key");
 		return -EINVAL;
 	}
-	if ((ctx_p->flow_mode == S_DIN_to_DES) &&
-	    (keylen == DES3_EDE_KEY_SIZE) &&
+	if (ctx_p->flow_mode == S_DIN_to_DES &&
+	    keylen == DES3_EDE_KEY_SIZE &&
 	    ssi_verify_3des_keys(key, keylen)) {
 		dev_dbg(dev, "weak 3DES key");
 		return -EINVAL;
@@ -456,8 +456,8 @@ ssi_blkcipher_create_setup_desc(
 		set_cipher_config0(&desc[*seq_size], direction);
 		set_flow_mode(&desc[*seq_size], flow_mode);
 		set_cipher_mode(&desc[*seq_size], cipher_mode);
-		if ((cipher_mode == DRV_CIPHER_CTR) ||
-		    (cipher_mode == DRV_CIPHER_OFB)) {
+		if (cipher_mode == DRV_CIPHER_CTR ||
+		    cipher_mode == DRV_CIPHER_OFB) {
 			set_setup_mode(&desc[*seq_size], SETUP_LOAD_STATE1);
 		} else {
 			set_setup_mode(&desc[*seq_size], SETUP_LOAD_STATE0);
@@ -765,7 +765,7 @@ static int ssi_blkcipher_process(
 	memcpy(req_ctx->iv, info, ivsize);
 
 	/*For CTS in case of data size aligned to 16 use CBC mode*/
-	if (((nbytes % AES_BLOCK_SIZE) == 0) && (ctx_p->cipher_mode == DRV_CIPHER_CBC_CTS)) {
+	if (((nbytes % AES_BLOCK_SIZE) == 0) && ctx_p->cipher_mode == DRV_CIPHER_CBC_CTS) {
 		ctx_p->cipher_mode = DRV_CIPHER_CBC;
 		cts_restore_flag = 1;
 	}
