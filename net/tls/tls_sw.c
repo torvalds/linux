@@ -39,22 +39,6 @@
 
 #include <net/tls.h>
 
-static inline void tls_make_aad(int recv,
-				char *buf,
-				size_t size,
-				char *record_sequence,
-				int record_sequence_size,
-				unsigned char record_type)
-{
-	memcpy(buf, record_sequence, record_sequence_size);
-
-	buf[8] = record_type;
-	buf[9] = TLS_1_2_VERSION_MAJOR;
-	buf[10] = TLS_1_2_VERSION_MINOR;
-	buf[11] = size >> 8;
-	buf[12] = size & 0xFF;
-}
-
 static void trim_sg(struct sock *sk, struct scatterlist *sg,
 		    int *sg_num_elem, unsigned int *sg_size, int target_size)
 {
@@ -249,7 +233,7 @@ static int tls_push_record(struct sock *sk, int flags,
 	sg_mark_end(ctx->sg_plaintext_data + ctx->sg_plaintext_num_elem - 1);
 	sg_mark_end(ctx->sg_encrypted_data + ctx->sg_encrypted_num_elem - 1);
 
-	tls_make_aad(0, ctx->aad_space, ctx->sg_plaintext_size,
+	tls_make_aad(ctx->aad_space, ctx->sg_plaintext_size,
 		     tls_ctx->rec_seq, tls_ctx->rec_seq_size,
 		     record_type);
 

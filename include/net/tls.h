@@ -214,6 +214,21 @@ static inline void tls_fill_prepend(struct tls_context *ctx,
 	       ctx->iv + TLS_CIPHER_AES_GCM_128_SALT_SIZE, iv_size);
 }
 
+static inline void tls_make_aad(char *buf,
+				size_t size,
+				char *record_sequence,
+				int record_sequence_size,
+				unsigned char record_type)
+{
+	memcpy(buf, record_sequence, record_sequence_size);
+
+	buf[8] = record_type;
+	buf[9] = TLS_1_2_VERSION_MAJOR;
+	buf[10] = TLS_1_2_VERSION_MINOR;
+	buf[11] = size >> 8;
+	buf[12] = size & 0xFF;
+}
+
 static inline struct tls_context *tls_get_ctx(const struct sock *sk)
 {
 	struct inet_connection_sock *icsk = inet_csk(sk);
