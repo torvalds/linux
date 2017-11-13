@@ -99,17 +99,18 @@ cc-cross-prefix =  \
 
 # Include values from last time
 make-cache := $(if $(KBUILD_EXTMOD),$(KBUILD_EXTMOD)/,$(if $(obj),$(obj)/)).cache.mk
-ifeq ($(wildcard $(dir $(make-cache))),)
-$(shell mkdir -p '$(dir $(make-cache))')
-endif
 $(make-cache): ;
 -include $(make-cache)
 
+cached-data := $(filter __cached_%, $(.VARIABLES))
+
 # If cache exceeds 1000 lines, shrink it down to 500.
-ifneq ($(word 1000,$(filter __cached_%, $(.VARIABLES))),)
+ifneq ($(word 1000,$(cached-data)),)
 $(shell tail -n 500 $(make-cache) > $(make-cache).tmp; \
 	mv $(make-cache).tmp $(make-cache))
 endif
+
+create-cache-dir := $(if $(KBUILD_SRC),$(if $(cache-data),,1))
 
 # Usage: $(call __sanitize-opt,Hello=Hola$(comma)Goodbye Adios)
 #
@@ -136,6 +137,10 @@ __sanitize-opt = $(subst $$,_,$(subst $(right_paren),_,$(subst $(left_paren),_,$
 define __run-and-store
 ifeq ($(origin $(1)),undefined)
   $$(eval $(1) := $$(shell $$(2)))
+ifeq ($(create-cache-dir),1)
+  $$(shell mkdir -p $(dir $(make-cache)))
+  $$(eval create-cache-dir :=)
+endif
   $$(shell echo '$(1) := $$($(1))' >> $(make-cache))
 endif
 endef
