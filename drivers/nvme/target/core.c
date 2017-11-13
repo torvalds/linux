@@ -830,7 +830,7 @@ u16 nvmet_alloc_ctrl(const char *subsysnqn, const char *hostnqn,
 		/* Don't accept keep-alive timeout for discovery controllers */
 		if (kato) {
 			status = NVME_SC_INVALID_FIELD | NVME_SC_DNR;
-			goto out_free_sqs;
+			goto out_remove_ida;
 		}
 
 		/*
@@ -860,6 +860,8 @@ u16 nvmet_alloc_ctrl(const char *subsysnqn, const char *hostnqn,
 	*ctrlp = ctrl;
 	return 0;
 
+out_remove_ida:
+	ida_simple_remove(&cntlid_ida, ctrl->cntlid);
 out_free_sqs:
 	kfree(ctrl->sqs);
 out_free_cqs:
