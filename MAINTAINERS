@@ -5140,6 +5140,12 @@ L:	linux-edac@vger.kernel.org
 S:	Maintained
 F:	drivers/edac/skx_edac.c
 
+EDAC-TI
+M:	Tero Kristo <t-kristo@ti.com>
+L:	linux-edac@vger.kernel.org
+S:	Maintained
+F:	drivers/edac/ti_edac.c
+
 EDIROL UA-101/UA-1000 DRIVER
 M:	Clemens Ladisch <clemens@ladisch.de>
 L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
