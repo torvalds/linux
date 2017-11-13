@@ -53,7 +53,7 @@ static int scpi_init_opp_table(const struct cpumask *cpumask)
 	return ret;
 }
 
-static struct cpufreq_arm_bL_ops scpi_cpufreq_ops = {
+static const struct cpufreq_arm_bL_ops scpi_cpufreq_ops = {
 	.name	= "scpi",
 	.get_transition_latency = scpi_get_transition_latency,
 	.init_opp_table = scpi_init_opp_table,
