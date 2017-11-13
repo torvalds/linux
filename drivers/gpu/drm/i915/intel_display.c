@@ -1872,8 +1872,6 @@ enum pipe intel_crtc_pch_transcoder(struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 
-	WARN_ON(!crtc->config->has_pch_encoder);
-
 	if (HAS_PCH_LPT(dev_priv))
 		return PIPE_A;
 	else
@@ -12940,6 +12938,7 @@ out:
 static void intel_finish_crtc_commit(struct drm_crtc *crtc,
 				     struct drm_crtc_state *old_crtc_state)
 {
+	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct intel_atomic_state *old_intel_state =
 		to_intel_atomic_state(old_crtc_state->state);
@@ -12947,6 +12946,20 @@ static void intel_finish_crtc_commit(struct drm_crtc *crtc,
 		intel_atomic_get_new_crtc_state(old_intel_state, intel_crtc);
 
 	intel_pipe_update_end(new_crtc_state);
+
+	if (new_crtc_state->update_pipe &&
+	    !needs_modeset(&new_crtc_state->base) &&
+	    old_crtc_state->mode.private_flags & I915_MODE_FLAG_INHERITED) {
+		if (!IS_GEN2(dev_priv))
+			intel_set_cpu_fifo_underrun_reporting(dev_priv, intel_crtc->pipe, true);
+
+		if (new_crtc_state->has_pch_encoder) {
+			enum pipe pch_transcoder =
+				intel_crtc_pch_transcoder(intel_crtc);
+
+			intel_set_pch_fifo_underrun_reporting(dev_priv, pch_transcoder, true);
+		}
+	}
 }
 
 /**
