@@ -83,7 +83,6 @@ static int hynix_nand_setup_read_retry(struct mtd_info *mtd, int retry_mode)
 	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct hynix_nand *hynix = nand_get_manufacturer_data(chip);
 	const u8 *values;
-	int status;
 	int i;
 
 	values = hynix->read_retry->values +
@@ -111,10 +110,6 @@ static int hynix_nand_setup_read_retry(struct mtd_info *mtd, int retry_mode)
 
 	/* Apply the new settings. */
 	chip->cmdfunc(mtd, NAND_HYNIX_CMD_APPLY_PARAMS, -1, -1);
-
-	status = chip->waitfunc(mtd, chip);
-	if (status & NAND_STATUS_FAIL)
-		return -EIO;
 
 	return 0;
 }
