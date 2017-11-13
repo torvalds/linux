@@ -1503,25 +1503,9 @@ err_ib_client:
 
 static void __exit nvmet_rdma_exit(void)
 {
-	struct nvmet_rdma_queue *queue;
-
 	nvmet_unregister_transport(&nvmet_rdma_ops);
-
-	flush_scheduled_work();
-
-	mutex_lock(&nvmet_rdma_queue_mutex);
-	while ((queue = list_first_entry_or_null(&nvmet_rdma_queue_list,
-			struct nvmet_rdma_queue, queue_list))) {
-		list_del_init(&queue->queue_list);
-
-		mutex_unlock(&nvmet_rdma_queue_mutex);
-		__nvmet_rdma_queue_disconnect(queue);
-		mutex_lock(&nvmet_rdma_queue_mutex);
-	}
-	mutex_unlock(&nvmet_rdma_queue_mutex);
-
-	flush_scheduled_work();
 	ib_unregister_client(&nvmet_rdma_ib_client);
+	WARN_ON_ONCE(!list_empty(&nvmet_rdma_queue_list));
 	ida_destroy(&nvmet_rdma_queue_ida);
 }
 
