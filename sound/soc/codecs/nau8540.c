@@ -615,7 +615,8 @@ static void nau8540_fll_apply(struct regmap *regmap,
 		NAU8540_CLK_SRC_MASK | NAU8540_CLK_MCLK_SRC_MASK,
 		NAU8540_CLK_SRC_MCLK | fll_param->mclk_src);
 	regmap_update_bits(regmap, NAU8540_REG_FLL1,
-		NAU8540_FLL_RATIO_MASK, fll_param->ratio);
+		NAU8540_FLL_RATIO_MASK | NAU8540_ICTRL_LATCH_MASK,
+		fll_param->ratio | (0x6 << NAU8540_ICTRL_LATCH_SFT));
 	/* FLL 16-bit fractional input */
 	regmap_write(regmap, NAU8540_REG_FLL2, fll_param->fll_frac);
 	/* FLL 10-bit integer input */
@@ -636,13 +637,14 @@ static void nau8540_fll_apply(struct regmap *regmap,
 			NAU8540_FLL_PDB_DAC_EN | NAU8540_FLL_LOOP_FTR_EN |
 			NAU8540_FLL_FTR_SW_FILTER);
 		regmap_update_bits(regmap, NAU8540_REG_FLL6,
-			NAU8540_SDM_EN, NAU8540_SDM_EN);
+			NAU8540_SDM_EN | NAU8540_CUTOFF500,
+			NAU8540_SDM_EN | NAU8540_CUTOFF500);
 	} else {
 		regmap_update_bits(regmap, NAU8540_REG_FLL5,
 			NAU8540_FLL_PDB_DAC_EN | NAU8540_FLL_LOOP_FTR_EN |
 			NAU8540_FLL_FTR_SW_MASK, NAU8540_FLL_FTR_SW_ACCU);
-		regmap_update_bits(regmap,
-			NAU8540_REG_FLL6, NAU8540_SDM_EN, 0);
+		regmap_update_bits(regmap, NAU8540_REG_FLL6,
+			NAU8540_SDM_EN | NAU8540_CUTOFF500, 0);
 	}
 }
 
@@ -657,17 +659,22 @@ static int nau8540_set_pll(struct snd_soc_codec *codec, int pll_id, int source,
 	switch (pll_id) {
 	case NAU8540_CLK_FLL_MCLK:
 		regmap_update_bits(nau8540->regmap, NAU8540_REG_FLL3,
-			NAU8540_FLL_CLK_SRC_MASK, NAU8540_FLL_CLK_SRC_MCLK);
+			NAU8540_FLL_CLK_SRC_MASK | NAU8540_GAIN_ERR_MASK,
+			NAU8540_FLL_CLK_SRC_MCLK | 0);
 		break;
 
 	case NAU8540_CLK_FLL_BLK:
 		regmap_update_bits(nau8540->regmap, NAU8540_REG_FLL3,
-			NAU8540_FLL_CLK_SRC_MASK, NAU8540_FLL_CLK_SRC_BLK);
+			NAU8540_FLL_CLK_SRC_MASK | NAU8540_GAIN_ERR_MASK,
+			NAU8540_FLL_CLK_SRC_BLK |
+			(0xf << NAU8540_GAIN_ERR_SFT));
 		break;
 
 	case NAU8540_CLK_FLL_FS:
 		regmap_update_bits(nau8540->regmap, NAU8540_REG_FLL3,
-			NAU8540_FLL_CLK_SRC_MASK, NAU8540_FLL_CLK_SRC_FS);
+			NAU8540_FLL_CLK_SRC_MASK | NAU8540_GAIN_ERR_MASK,
+			NAU8540_FLL_CLK_SRC_FS |
+			(0xf << NAU8540_GAIN_ERR_SFT));
 		break;
 
 	default:
