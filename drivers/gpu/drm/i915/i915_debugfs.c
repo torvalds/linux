@@ -3269,8 +3269,8 @@ static int i915_engine_info(struct seq_file *m, void *unused)
 		   yesno(dev_priv->gt.awake));
 	seq_printf(m, "Global active requests: %d\n",
 		   dev_priv->gt.active_requests);
-	seq_printf(m, "CS timestamp frequency: %llu Hz\n",
-		   dev_priv->info.cs_timestamp_frequency);
+	seq_printf(m, "CS timestamp frequency: %u kHz\n",
+		   dev_priv->info.cs_timestamp_frequency_khz);
 
 	p = drm_seq_file_printer(m);
 	for_each_engine(engine, dev_priv, id)

@@ -329,29 +329,28 @@ static void broadwell_sseu_info_init(struct drm_i915_private *dev_priv)
 	sseu->has_eu_pg = 0;
 }
 
-static u64 read_reference_ts_freq(struct drm_i915_private *dev_priv)
+static u32 read_reference_ts_freq(struct drm_i915_private *dev_priv)
 {
 	u32 ts_override = I915_READ(GEN9_TIMESTAMP_OVERRIDE);
-	u64 base_freq, frac_freq;
+	u32 base_freq, frac_freq;
 
 	base_freq = ((ts_override & GEN9_TIMESTAMP_OVERRIDE_US_COUNTER_DIVIDER_MASK) >>
 		     GEN9_TIMESTAMP_OVERRIDE_US_COUNTER_DIVIDER_SHIFT) + 1;
-	base_freq *= 1000000;
+	base_freq *= 1000;
 
 	frac_freq = ((ts_override &
 		      GEN9_TIMESTAMP_OVERRIDE_US_COUNTER_DENOMINATOR_MASK) >>
 		     GEN9_TIMESTAMP_OVERRIDE_US_COUNTER_DENOMINATOR_SHIFT);
-	if (frac_freq != 0)
-		frac_freq = 1000000 / (frac_freq + 1);
+	frac_freq = 1000 / (frac_freq + 1);
 
 	return base_freq + frac_freq;
 }
 
-static u64 read_timestamp_frequency(struct drm_i915_private *dev_priv)
+static u32 read_timestamp_frequency(struct drm_i915_private *dev_priv)
 {
-	u64 f12_5_mhz = 12500000;
-	u64 f19_2_mhz = 19200000;
-	u64 f24_mhz = 24000000;
+	u32 f12_5_mhz = 12500;
+	u32 f19_2_mhz = 19200;
+	u32 f24_mhz = 24000;
 
 	if (INTEL_GEN(dev_priv) <= 4) {
 		/* PRMs say:
@@ -360,7 +359,7 @@ static u64 read_timestamp_frequency(struct drm_i915_private *dev_priv)
 		 *      hclks." (through the “Clocking Configuration”
 		 *      (“CLKCFG”) MCHBAR register)
 		 */
-		return (dev_priv->rawclk_freq * 1000) / 16;
+		return dev_priv->rawclk_freq / 16;
 	} else if (INTEL_GEN(dev_priv) <= 8) {
 		/* PRMs say:
 		 *
@@ -371,7 +370,7 @@ static u64 read_timestamp_frequency(struct drm_i915_private *dev_priv)
 		return f12_5_mhz;
 	} else if (INTEL_GEN(dev_priv) <= 9) {
 		u32 ctc_reg = I915_READ(CTC_MODE);
-		u64 freq = 0;
+		u32 freq = 0;
 
 		if ((ctc_reg & CTC_SOURCE_PARAMETER_MASK) == CTC_SOURCE_DIVIDE_LOGIC) {
 			freq = read_reference_ts_freq(dev_priv);
@@ -389,7 +388,7 @@ static u64 read_timestamp_frequency(struct drm_i915_private *dev_priv)
 		return freq;
 	} else if (INTEL_GEN(dev_priv) <= 10) {
 		u32 ctc_reg = I915_READ(CTC_MODE);
-		u64 freq = 0;
+		u32 freq = 0;
 		u32 rpm_config_reg = 0;
 
 		/* First figure out the reference frequency. There are 2 ways
@@ -553,7 +552,7 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 		gen10_sseu_info_init(dev_priv);
 
 	/* Initialize command stream timestamp frequency */
-	info->cs_timestamp_frequency = read_timestamp_frequency(dev_priv);
+	info->cs_timestamp_frequency_khz = read_timestamp_frequency(dev_priv);
 
 	DRM_DEBUG_DRIVER("slice mask: %04x\n", info->sseu.slice_mask);
 	DRM_DEBUG_DRIVER("slice total: %u\n", hweight8(info->sseu.slice_mask));
@@ -570,6 +569,6 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 			 info->sseu.has_subslice_pg ? "y" : "n");
 	DRM_DEBUG_DRIVER("has EU power gating: %s\n",
 			 info->sseu.has_eu_pg ? "y" : "n");
-	DRM_DEBUG_DRIVER("CS timestamp frequency: %llu\n",
-			 info->cs_timestamp_frequency);
+	DRM_DEBUG_DRIVER("CS timestamp frequency: %u kHz\n",
+			 info->cs_timestamp_frequency_khz);
 }
