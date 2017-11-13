@@ -150,8 +150,8 @@ static int ssi_hash_map_request(struct device *dev,
 				struct ssi_hash_ctx *ctx)
 {
 	bool is_hmac = ctx->is_hmac;
-	ssi_sram_addr_t larval_digest_addr = ssi_ahash_get_larval_digest_sram_addr(
-					ctx->drvdata, ctx->hash_mode);
+	ssi_sram_addr_t larval_digest_addr =
+		cc_larval_digest_addr(ctx->drvdata, ctx->hash_mode);
 	struct ssi_crypto_req ssi_req = {};
 	struct cc_hw_desc desc;
 	int rc = -ENOMEM;
@@ -438,8 +438,8 @@ static int ssi_hash_digest(struct ahash_req_ctx *state,
 	bool is_hmac = ctx->is_hmac;
 	struct ssi_crypto_req ssi_req = {};
 	struct cc_hw_desc desc[SSI_MAX_AHASH_SEQ_LEN];
-	ssi_sram_addr_t larval_digest_addr = ssi_ahash_get_larval_digest_sram_addr(
-					ctx->drvdata, ctx->hash_mode);
+	ssi_sram_addr_t larval_digest_addr =
+		cc_larval_digest_addr(ctx->drvdata, ctx->hash_mode);
 	int idx = 0;
 	int rc = 0;
 
@@ -1008,8 +1008,7 @@ static int ssi_hash_setkey(void *hash,
 	blocksize = crypto_tfm_alg_blocksize(&((struct crypto_ahash *)hash)->base);
 	digestsize = crypto_ahash_digestsize(((struct crypto_ahash *)hash));
 
-	larval_addr = ssi_ahash_get_larval_digest_sram_addr(
-					ctx->drvdata, ctx->hash_mode);
+	larval_addr = cc_larval_digest_addr(ctx->drvdata, ctx->hash_mode);
 
 	/* The keylen value distinguishes HASH in case keylen is ZERO bytes,
 	 * any NON-ZERO value utilizes HMAC flow
@@ -2535,7 +2534,7 @@ static void ssi_hash_create_data_desc(struct ahash_req_ctx *areq_ctx,
  *
  * \return u32 The address of the initial digest in SRAM
  */
-ssi_sram_addr_t ssi_ahash_get_larval_digest_sram_addr(void *drvdata, u32 mode)
+ssi_sram_addr_t cc_larval_digest_addr(void *drvdata, u32 mode)
 {
 	struct ssi_drvdata *_drvdata = (struct ssi_drvdata *)drvdata;
 	struct ssi_hash_handle *hash_handle = _drvdata->hash_handle;

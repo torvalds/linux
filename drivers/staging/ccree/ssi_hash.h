@@ -101,7 +101,7 @@ ssi_ahash_get_initial_digest_len_sram_addr(void *drvdata, u32 mode);
  *
  * \return u32 The address of the initial digest in SRAM
  */
-ssi_sram_addr_t ssi_ahash_get_larval_digest_sram_addr(void *drvdata, u32 mode);
+ssi_sram_addr_t cc_larval_digest_addr(void *drvdata, u32 mode);
 
 #endif /*__SSI_HASH_H__*/
 

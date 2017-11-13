@@ -336,8 +336,8 @@ static int hmac_setkey(struct cc_hw_desc *desc, struct ssi_aead_ctx *ctx)
 		hw_desc_init(&desc[idx]);
 		set_cipher_mode(&desc[idx], hash_mode);
 		set_din_sram(&desc[idx],
-			     ssi_ahash_get_larval_digest_sram_addr(
-				ctx->drvdata, ctx->auth_mode),
+			     cc_larval_digest_addr(ctx->drvdata,
+						   ctx->auth_mode),
 			     digest_size);
 		set_flow_mode(&desc[idx], S_DIN_to_HASH);
 		set_setup_mode(&desc[idx], SETUP_LOAD_STATE0);
@@ -441,8 +441,7 @@ ssi_get_plain_hmac_key(struct crypto_aead *tfm, const u8 *key,
 	dma_addr_t key_dma_addr = 0;
 	struct ssi_aead_ctx *ctx = crypto_aead_ctx(tfm);
 	struct device *dev = drvdata_to_dev(ctx->drvdata);
-	u32 larval_addr = ssi_ahash_get_larval_digest_sram_addr(
-					ctx->drvdata, ctx->auth_mode);
+	u32 larval_addr = cc_larval_digest_addr(ctx->drvdata, ctx->auth_mode);
 	struct ssi_crypto_req ssi_req = {};
 	unsigned int blocksize;
 	unsigned int digestsize;
