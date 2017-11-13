@@ -321,6 +321,17 @@ int hdmi_vendor_infoframe_init(struct hdmi_vendor_infoframe *frame)
 }
 EXPORT_SYMBOL(hdmi_vendor_infoframe_init);
 
+static int hdmi_vendor_infoframe_length(const struct hdmi_vendor_infoframe *frame)
+{
+	/* for side by side (half) we also need to provide 3D_Ext_Data */
+	if (frame->s3d_struct >= HDMI_3D_STRUCTURE_SIDE_BY_SIDE_HALF)
+		return 6;
+	else if (frame->vic != 0 || frame->s3d_struct != HDMI_3D_STRUCTURE_INVALID)
+		return 5;
+	else
+		return 4;
+}
+
 /**
  * hdmi_vendor_infoframe_pack() - write a HDMI vendor infoframe to binary buffer
  * @frame: HDMI infoframe
@@ -341,19 +352,11 @@ ssize_t hdmi_vendor_infoframe_pack(struct hdmi_vendor_infoframe *frame,
 	u8 *ptr = buffer;
 	size_t length;
 
-	/* empty info frame */
-	if (frame->vic == 0 && frame->s3d_struct == HDMI_3D_STRUCTURE_INVALID)
-		return -EINVAL;
-
 	/* only one of those can be supplied */
 	if (frame->vic != 0 && frame->s3d_struct != HDMI_3D_STRUCTURE_INVALID)
 		return -EINVAL;
 
-	/* for side by side (half) we also need to provide 3D_Ext_Data */
-	if (frame->s3d_struct >= HDMI_3D_STRUCTURE_SIDE_BY_SIDE_HALF)
-		frame->length = 6;
-	else
-		frame->length = 5;
+	frame->length = hdmi_vendor_infoframe_length(frame);
 
 	length = HDMI_INFOFRAME_HEADER_SIZE + frame->length;
 
@@ -372,14 +375,16 @@ ssize_t hdmi_vendor_infoframe_pack(struct hdmi_vendor_infoframe *frame,
 	ptr[5] = 0x0c;
 	ptr[6] = 0x00;
 
-	if (frame->vic) {
-		ptr[7] = 0x1 << 5;	/* video format */
-		ptr[8] = frame->vic;
-	} else {
+	if (frame->s3d_struct != HDMI_3D_STRUCTURE_INVALID) {
 		ptr[7] = 0x2 << 5;	/* video format */
 		ptr[8] = (frame->s3d_struct & 0xf) << 4;
 		if (frame->s3d_struct >= HDMI_3D_STRUCTURE_SIDE_BY_SIDE_HALF)
 			ptr[9] = (frame->s3d_ext_data & 0xf) << 4;
+	} else if (frame->vic) {
+		ptr[7] = 0x1 << 5;	/* video format */
+		ptr[8] = frame->vic;
+	} else {
+		ptr[7] = 0x0 << 5;	/* video format */
 	}
 
 	hdmi_infoframe_set_checksum(buffer, length);
@@ -1165,7 +1170,7 @@ hdmi_vendor_any_infoframe_unpack(union hdmi_vendor_any_infoframe *frame,
 
 	if (ptr[0] != HDMI_INFOFRAME_TYPE_VENDOR ||
 	    ptr[1] != 1 ||
-	    (ptr[2] != 5 && ptr[2] != 6))
+	    (ptr[2] != 4 && ptr[2] != 5 && ptr[2] != 6))
 		return -EINVAL;
 
 	length = ptr[2];
@@ -1193,16 +1198,22 @@ hdmi_vendor_any_infoframe_unpack(union hdmi_vendor_any_infoframe *frame,
 
 	hvf->length = length;
 
-	if (hdmi_video_format == 0x1) {
-		hvf->vic = ptr[4];
-	} else if (hdmi_video_format == 0x2) {
+	if (hdmi_video_format == 0x2) {
+		if (length != 5 && length != 6)
+			return -EINVAL;
 		hvf->s3d_struct = ptr[4] >> 4;
 		if (hvf->s3d_struct >= HDMI_3D_STRUCTURE_SIDE_BY_SIDE_HALF) {
-			if (length == 6)
-				hvf->s3d_ext_data = ptr[5] >> 4;
-			else
+			if (length != 6)
 				return -EINVAL;
+			hvf->s3d_ext_data = ptr[5] >> 4;
 		}
+	} else if (hdmi_video_format == 0x1) {
+		if (length != 5)
+			return -EINVAL;
+		hvf->vic = ptr[4];
+	} else {
+		if (length != 4)
+			return -EINVAL;
 	}
 
 	return 0;
