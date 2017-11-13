@@ -293,7 +293,7 @@ static int jz4740_codec_dev_probe(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static struct snd_soc_codec_driver soc_codec_dev_jz4740_codec = {
+static const struct snd_soc_codec_driver soc_codec_dev_jz4740_codec = {
 	.probe = jz4740_codec_dev_probe,
 	.set_bias_level = jz4740_codec_set_bias_level,
 	.suspend_bias_off = true,

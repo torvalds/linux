@@ -130,7 +130,7 @@ struct sctp_ulpevent *sctp_ulpevent_make_sender_dry_event(
 
 struct sctp_ulpevent *sctp_ulpevent_make_stream_reset_event(
 	const struct sctp_association *asoc, __u16 flags,
-	__u16 stream_num, __u16 *stream_list, gfp_t gfp);
+	__u16 stream_num, __be16 *stream_list, gfp_t gfp);
 
 struct sctp_ulpevent *sctp_ulpevent_make_assoc_reset_event(
 	const struct sctp_association *asoc, __u16 flags,
@@ -153,8 +153,12 @@ __u16 sctp_ulpevent_get_notification_type(const struct sctp_ulpevent *event);
 static inline int sctp_ulpevent_type_enabled(__u16 sn_type,
 					     struct sctp_event_subscribe *mask)
 {
+	int offset = sn_type - SCTP_SN_TYPE_BASE;
 	char *amask = (char *) mask;
-	return amask[sn_type - SCTP_SN_TYPE_BASE];
+
+	if (offset >= sizeof(struct sctp_event_subscribe))
+		return 0;
+	return amask[offset];
 }
 
 /* Given an event subscription, is this event enabled? */

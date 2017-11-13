@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 config BF51x
 	def_bool y
 	depends on (BF512 || BF514 || BF516 || BF518)

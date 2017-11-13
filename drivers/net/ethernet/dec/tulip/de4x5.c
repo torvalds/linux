@@ -2094,7 +2094,7 @@ static int de4x5_eisa_remove(struct device *device)
 	return 0;
 }
 
-static struct eisa_device_id de4x5_eisa_ids[] = {
+static const struct eisa_device_id de4x5_eisa_ids[] = {
         { "DEC4250", 0 },	/* 0 is the board name index... */
         { "" }
 };

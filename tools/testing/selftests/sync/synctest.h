@@ -29,10 +29,11 @@
 #define SELFTESTS_SYNCTEST_H
 
 #include <stdio.h>
+#include "../kselftest.h"
 
 #define ASSERT(cond, msg) do { \
 	if (!(cond)) { \
-		printf("[ERROR]\t%s", (msg)); \
+		ksft_print_msg("[ERROR]\t%s", (msg)); \
 		return 1; \
 	} \
 } while (0)

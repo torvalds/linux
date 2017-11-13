@@ -146,5 +146,5 @@
 };
 
 &mmc1 {
-	vmmc_aux-supply = <&ldo1_reg>;
+	vqmmc-supply = <&ldo1_reg>;
 };

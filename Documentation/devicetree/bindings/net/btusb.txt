@@ -29,7 +29,6 @@ Example:
 Following example uses irq pin number 3 of gpio0 for out of band wake-on-bt:
 
 &usb_host1_ehci {
-    status = "okay";
     #address-cells = <1>;
     #size-cells = <0>;
 

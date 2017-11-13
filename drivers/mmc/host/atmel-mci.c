@@ -665,14 +665,15 @@ atmci_of_init(struct platform_device *pdev)
 
 	for_each_child_of_node(np, cnp) {
 		if (of_property_read_u32(cnp, "reg", &slot_id)) {
-			dev_warn(&pdev->dev, "reg property is missing for %s\n",
-				 cnp->full_name);
+			dev_warn(&pdev->dev, "reg property is missing for %pOF\n",
+				 cnp);
 			continue;
 		}
 
 		if (slot_id >= ATMCI_MAX_NR_SLOTS) {
 			dev_warn(&pdev->dev, "can't have more than %d slots\n",
 			         ATMCI_MAX_NR_SLOTS);
+			of_node_put(cnp);
 			break;
 		}
 
@@ -1083,7 +1084,6 @@ static u32
 atmci_prepare_data_pdc(struct atmel_mci *host, struct mmc_data *data)
 {
 	u32 iflags, tmp;
-	unsigned int sg_len;
 	int i;
 
 	data->error = -EINPROGRESS;
@@ -1108,8 +1108,8 @@ atmci_prepare_data_pdc(struct atmel_mci *host, struct mmc_data *data)
 
 	/* Configure PDC */
 	host->data_size = data->blocks * data->blksz;
-	sg_len = dma_map_sg(&host->pdev->dev, data->sg, data->sg_len,
-			    mmc_get_dma_dir(data));
+	dma_map_sg(&host->pdev->dev, data->sg, data->sg_len,
+		   mmc_get_dma_dir(data));
 
 	if ((!host->caps.has_rwproof)
 	    && (host->data->flags & MMC_DATA_WRITE)) {

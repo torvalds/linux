@@ -309,11 +309,11 @@ static int ttusbir_probe(struct usb_interface *intf,
 
 	usb_make_path(tt->udev, tt->phys, sizeof(tt->phys));
 
-	rc->input_name = DRIVER_DESC;
+	rc->device_name = DRIVER_DESC;
 	rc->input_phys = tt->phys;
 	usb_to_input_id(tt->udev, &rc->input_id);
 	rc->dev.parent = &intf->dev;
-	rc->allowed_protocols = RC_BIT_ALL_IR_DECODER;
+	rc->allowed_protocols = RC_PROTO_BIT_ALL_IR_DECODER;
 	rc->priv = tt;
 	rc->driver_name = DRIVER_NAME;
 	rc->map_name = RC_MAP_TT_1500;

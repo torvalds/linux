@@ -1,10 +1,11 @@
+# SPDX-License-Identifier: GPL-2.0
 obj-$(CONFIG_WIL6210) += wil6210.o
 
 wil6210-y := main.o
 wil6210-y += netdev.o
 wil6210-y += cfg80211.o
 wil6210-y += pcie_bus.o
-wil6210-y += debugfs.o
+wil6210-$(CONFIG_WIL6210_DEBUGFS) += debugfs.o
 wil6210-y += wmi.o
 wil6210-y += interrupt.o
 wil6210-y += txrx.o

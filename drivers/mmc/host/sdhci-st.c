@@ -371,7 +371,7 @@ static int sdhci_st_probe(struct platform_device *pdev)
 	if (IS_ERR(icnclk))
 		icnclk = NULL;
 
-	rstc = devm_reset_control_get(&pdev->dev, NULL);
+	rstc = devm_reset_control_get_exclusive(&pdev->dev, NULL);
 	if (IS_ERR(rstc))
 		rstc = NULL;
 	else
@@ -394,8 +394,17 @@ static int sdhci_st_probe(struct platform_device *pdev)
 		goto err_of;
 	}
 
-	clk_prepare_enable(clk);
-	clk_prepare_enable(icnclk);
+	ret = clk_prepare_enable(clk);
+	if (ret) {
+		dev_err(&pdev->dev, "Failed to prepare clock\n");
+		goto err_of;
+	}
+
+	ret = clk_prepare_enable(icnclk);
+	if (ret) {
+		dev_err(&pdev->dev, "Failed to prepare icn clock\n");
+		goto err_icnclk;
+	}
 
 	/* Configure the FlashSS Top registers for setting eMMC TX/RX delay */
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
@@ -429,6 +438,7 @@ static int sdhci_st_probe(struct platform_device *pdev)
 
 err_out:
 	clk_disable_unprepare(icnclk);
+err_icnclk:
 	clk_disable_unprepare(clk);
 err_of:
 	sdhci_pltfm_free(pdev);
@@ -487,9 +497,17 @@ static int sdhci_st_resume(struct device *dev)
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
 	struct st_mmc_platform_data *pdata = sdhci_pltfm_priv(pltfm_host);
 	struct device_node *np = dev->of_node;
+	int ret;
 
-	clk_prepare_enable(pltfm_host->clk);
-	clk_prepare_enable(pdata->icnclk);
+	ret = clk_prepare_enable(pltfm_host->clk);
+	if (ret)
+		return ret;
+
+	ret = clk_prepare_enable(pdata->icnclk);
+	if (ret) {
+		clk_disable_unprepare(pltfm_host->clk);
+		return ret;
+	}
 
 	if (pdata->rstc)
 		reset_control_deassert(pdata->rstc);

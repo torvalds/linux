@@ -136,7 +136,9 @@ static int bcm7038_wdt_probe(struct platform_device *pdev)
 	wdt->clk = devm_clk_get(dev, NULL);
 	/* If unable to get clock, use default frequency */
 	if (!IS_ERR(wdt->clk)) {
-		clk_prepare_enable(wdt->clk);
+		err = clk_prepare_enable(wdt->clk);
+		if (err)
+			return err;
 		wdt->rate = clk_get_rate(wdt->clk);
 		/* Prevent divide-by-zero exception */
 		if (!wdt->rate)

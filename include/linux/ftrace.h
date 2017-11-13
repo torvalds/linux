@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Ftrace header.  For implementation details beyond the random comments
  * scattered below, see: Documentation/trace/ftrace-design.txt
@@ -307,7 +308,7 @@ DECLARE_PER_CPU(int, disable_stack_tracer);
 static inline void stack_tracer_disable(void)
 {
 	/* Preemption or interupts must be disabled */
-	if (IS_ENABLED(CONFIG_PREEMPT_DEBUG))
+	if (IS_ENABLED(CONFIG_DEBUG_PREEMPT))
 		WARN_ON_ONCE(!preempt_count() || !irqs_disabled());
 	this_cpu_inc(disable_stack_tracer);
 }
@@ -320,7 +321,7 @@ static inline void stack_tracer_disable(void)
  */
 static inline void stack_tracer_enable(void)
 {
-	if (IS_ENABLED(CONFIG_PREEMPT_DEBUG))
+	if (IS_ENABLED(CONFIG_DEBUG_PREEMPT))
 		WARN_ON_ONCE(!preempt_count() || !irqs_disabled());
 	this_cpu_dec(disable_stack_tracer);
 }

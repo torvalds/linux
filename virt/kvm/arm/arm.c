@@ -416,6 +416,11 @@ int kvm_arch_vcpu_runnable(struct kvm_vcpu *v)
 		&& !v->arch.power_off && !v->arch.pause);
 }
 
+bool kvm_arch_vcpu_in_kernel(struct kvm_vcpu *vcpu)
+{
+	return vcpu_mode_priv(vcpu);
+}
+
 /* Just ensure a guest exit from a particular CPU */
 static void exit_vm_noop(void *info)
 {
@@ -1321,19 +1326,10 @@ static void teardown_hyp_mode(void)
 {
 	int cpu;
 
-	if (is_kernel_in_hyp_mode())
-		return;
-
 	free_hyp_pgds();
 	for_each_possible_cpu(cpu)
 		free_page(per_cpu(kvm_arm_hyp_stack_page, cpu));
 	hyp_cpu_pm_exit();
-}
-
-static int init_vhe_mode(void)
-{
-	kvm_info("VHE mode initialized successfully\n");
-	return 0;
 }
 
 /**
@@ -1416,8 +1412,6 @@ static int init_hyp_mode(void)
 		}
 	}
 
-	kvm_info("Hyp mode initialized successfully\n");
-
 	return 0;
 
 out_err:
@@ -1451,6 +1445,7 @@ int kvm_arch_init(void *opaque)
 {
 	int err;
 	int ret, cpu;
+	bool in_hyp_mode;
 
 	if (!is_hyp_mode_available()) {
 		kvm_err("HYP mode not available\n");
@@ -1469,21 +1464,28 @@ int kvm_arch_init(void *opaque)
 	if (err)
 		return err;
 
-	if (is_kernel_in_hyp_mode())
-		err = init_vhe_mode();
-	else
+	in_hyp_mode = is_kernel_in_hyp_mode();
+
+	if (!in_hyp_mode) {
 		err = init_hyp_mode();
-	if (err)
-		goto out_err;
+		if (err)
+			goto out_err;
+	}
 
 	err = init_subsystems();
 	if (err)
 		goto out_hyp;
 
+	if (in_hyp_mode)
+		kvm_info("VHE mode initialized successfully\n");
+	else
+		kvm_info("Hyp mode initialized successfully\n");
+
 	return 0;
 
 out_hyp:
-	teardown_hyp_mode();
+	if (!in_hyp_mode)
+		teardown_hyp_mode();
 out_err:
 	teardown_common_resources();
 	return err;

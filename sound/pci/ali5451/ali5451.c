@@ -1540,7 +1540,7 @@ static int snd_ali_close(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static struct snd_pcm_ops snd_ali_playback_ops = {
+static const struct snd_pcm_ops snd_ali_playback_ops = {
 	.open =		snd_ali_playback_open,
 	.close =	snd_ali_playback_close,
 	.ioctl =	snd_pcm_lib_ioctl,
@@ -1551,7 +1551,7 @@ static struct snd_pcm_ops snd_ali_playback_ops = {
 	.pointer =	snd_ali_playback_pointer,
 };
 
-static struct snd_pcm_ops snd_ali_capture_ops = {
+static const struct snd_pcm_ops snd_ali_capture_ops = {
 	.open =		snd_ali_capture_open,
 	.close =	snd_ali_close,
 	.ioctl =	snd_pcm_lib_ioctl,
@@ -1626,7 +1626,7 @@ static int snd_ali_modem_capture_open(struct snd_pcm_substream *substream)
 	return snd_ali_modem_open(substream, 1, ALI_MODEM_IN_CHANNEL);
 }
 
-static struct snd_pcm_ops snd_ali_modem_playback_ops = {
+static const struct snd_pcm_ops snd_ali_modem_playback_ops = {
 	.open =		snd_ali_modem_playback_open,
 	.close =	snd_ali_close,
 	.ioctl =	snd_pcm_lib_ioctl,
@@ -1637,7 +1637,7 @@ static struct snd_pcm_ops snd_ali_modem_playback_ops = {
 	.pointer =	snd_ali_pointer,
 };
 
-static struct snd_pcm_ops snd_ali_modem_capture_ops = {
+static const struct snd_pcm_ops snd_ali_modem_capture_ops = {
 	.open =		snd_ali_modem_capture_open,
 	.close =	snd_ali_close,
 	.ioctl =	snd_pcm_lib_ioctl,
@@ -1653,8 +1653,8 @@ struct ali_pcm_description {
 	char *name;
 	unsigned int playback_num;
 	unsigned int capture_num;
-	struct snd_pcm_ops *playback_ops;
-	struct snd_pcm_ops *capture_ops;
+	const struct snd_pcm_ops *playback_ops;
+	const struct snd_pcm_ops *capture_ops;
 	unsigned short class;
 };
 

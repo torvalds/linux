@@ -129,15 +129,15 @@ static noinline void key_gc_unused_keys(struct list_head *keys)
 	while (!list_empty(keys)) {
 		struct key *key =
 			list_entry(keys->next, struct key, graveyard_link);
+		short state = key->state;
+
 		list_del(&key->graveyard_link);
 
 		kdebug("- %u", key->serial);
 		key_check(key);
 
 		/* Throw away the key data if the key is instantiated */
-		if (test_bit(KEY_FLAG_INSTANTIATED, &key->flags) &&
-		    !test_bit(KEY_FLAG_NEGATIVE, &key->flags) &&
-		    key->type->destroy)
+		if (state == KEY_IS_POSITIVE && key->type->destroy)
 			key->type->destroy(key);
 
 		security_key_free(key);
@@ -151,7 +151,7 @@ static noinline void key_gc_unused_keys(struct list_head *keys)
 		}
 
 		atomic_dec(&key->user->nkeys);
-		if (test_bit(KEY_FLAG_INSTANTIATED, &key->flags))
+		if (state != KEY_IS_UNINSTANTIATED)
 			atomic_dec(&key->user->nikeys);
 
 		key_user_put(key->user);

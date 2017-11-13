@@ -33,12 +33,15 @@
 #ifndef __MLX5_EN_TC_H__
 #define __MLX5_EN_TC_H__
 
+#include <net/pkt_cls.h>
+
 #define MLX5E_TC_FLOW_ID_MASK 0x0000ffff
 
+#ifdef CONFIG_MLX5_ESWITCH
 int mlx5e_tc_init(struct mlx5e_priv *priv);
 void mlx5e_tc_cleanup(struct mlx5e_priv *priv);
 
-int mlx5e_configure_flower(struct mlx5e_priv *priv, __be16 protocol,
+int mlx5e_configure_flower(struct mlx5e_priv *priv,
 			   struct tc_cls_flower_offload *f);
 int mlx5e_delete_flower(struct mlx5e_priv *priv,
 			struct tc_cls_flower_offload *f);
@@ -59,5 +62,11 @@ static inline int mlx5e_tc_num_filters(struct mlx5e_priv *priv)
 {
 	return atomic_read(&priv->fs.tc.ht.nelems);
 }
+
+#else /* CONFIG_MLX5_ESWITCH */
+static inline int  mlx5e_tc_init(struct mlx5e_priv *priv) { return 0; }
+static inline void mlx5e_tc_cleanup(struct mlx5e_priv *priv) {}
+static inline int  mlx5e_tc_num_filters(struct mlx5e_priv *priv) { return 0; }
+#endif
 
 #endif /* __MLX5_EN_TC_H__ */

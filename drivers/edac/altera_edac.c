@@ -38,7 +38,6 @@
 #include "edac_module.h"
 
 #define EDAC_MOD_STR		"altera_edac"
-#define EDAC_VERSION		"1"
 #define EDAC_DEVICE		"Altera"
 
 static const struct altr_sdram_prv_data c5_data = {
@@ -392,7 +391,6 @@ static int altr_sdram_probe(struct platform_device *pdev)
 	mci->edac_ctl_cap = EDAC_FLAG_NONE | EDAC_FLAG_SECDED;
 	mci->edac_cap = EDAC_FLAG_SECDED;
 	mci->mod_name = EDAC_MOD_STR;
-	mci->mod_ver = EDAC_VERSION;
 	mci->ctl_name = dev_name(&pdev->dev);
 	mci->scrub_mode = SCRUB_SW_SRC;
 	mci->dev_name = dev_name(&pdev->dev);
@@ -749,8 +747,10 @@ static int altr_edac_device_probe(struct platform_device *pdev)
 	drvdata->edac_dev_name = ecc_name;
 
 	drvdata->base = devm_ioremap(&pdev->dev, r->start, resource_size(r));
-	if (!drvdata->base)
+	if (!drvdata->base) {
+		res = -ENOMEM;
 		goto fail1;
+	}
 
 	/* Get driver specific data for this EDAC device */
 	drvdata->data = of_match_node(altr_edac_device_of_match, np)->data;

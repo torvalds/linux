@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *	drivers/pci/setup-res.c
  *
@@ -232,6 +233,19 @@ static int pci_revert_fw_address(struct resource *res, struct pci_dev *dev,
 		return -EBUSY;
 	}
 	return 0;
+}
+
+/*
+ * We don't have to worry about legacy ISA devices, so nothing to do here.
+ * This is marked as __weak because multiple architectures define it; it should
+ * eventually go away.
+ */
+resource_size_t __weak pcibios_align_resource(void *data,
+					      const struct resource *res,
+					      resource_size_t size,
+					      resource_size_t align)
+{
+       return res->start;
 }
 
 static int __pci_assign_resource(struct pci_bus *bus, struct pci_dev *dev,

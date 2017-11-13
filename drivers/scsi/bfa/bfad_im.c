@@ -373,32 +373,28 @@ out:
 }
 
 /*
- * Scsi_Host template entry, resets the bus and abort all commands.
+ * Scsi_Host template entry, resets the target and abort all commands.
  */
 static int
-bfad_im_reset_bus_handler(struct scsi_cmnd *cmnd)
+bfad_im_reset_target_handler(struct scsi_cmnd *cmnd)
 {
 	struct Scsi_Host *shost = cmnd->device->host;
+	struct scsi_target *starget = scsi_target(cmnd->device);
 	struct bfad_im_port_s *im_port =
 				(struct bfad_im_port_s *) shost->hostdata[0];
 	struct bfad_s         *bfad = im_port->bfad;
 	struct bfad_itnim_s   *itnim;
 	unsigned long   flags;
-	u32        i, rc, err_cnt = 0;
+	u32        rc, rtn = FAILED;
 	DECLARE_WAIT_QUEUE_HEAD_ONSTACK(wq);
 	enum bfi_tskim_status task_status;
 
 	spin_lock_irqsave(&bfad->bfad_lock, flags);
-	for (i = 0; i < MAX_FCP_TARGET; i++) {
-		itnim = bfad_get_itnim(im_port, i);
-		if (itnim) {
-			cmnd->SCp.ptr = (char *)&wq;
-			rc = bfad_im_target_reset_send(bfad, cmnd, itnim);
-			if (rc != BFA_STATUS_OK) {
-				err_cnt++;
-				continue;
-			}
-
+	itnim = bfad_get_itnim(im_port, starget->id);
+	if (itnim) {
+		cmnd->SCp.ptr = (char *)&wq;
+		rc = bfad_im_target_reset_send(bfad, cmnd, itnim);
+		if (rc == BFA_STATUS_OK) {
 			/* wait target reset to complete */
 			spin_unlock_irqrestore(&bfad->bfad_lock, flags);
 			wait_event(wq, test_bit(IO_DONE_BIT,
@@ -406,20 +402,17 @@ bfad_im_reset_bus_handler(struct scsi_cmnd *cmnd)
 			spin_lock_irqsave(&bfad->bfad_lock, flags);
 
 			task_status = cmnd->SCp.Status >> 1;
-			if (task_status != BFI_TSKIM_STS_OK) {
+			if (task_status != BFI_TSKIM_STS_OK)
 				BFA_LOG(KERN_ERR, bfad, bfa_log_level,
 					"target reset failure,"
 					" status: %d\n", task_status);
-				err_cnt++;
-			}
+			else
+				rtn = SUCCESS;
 		}
 	}
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
 
-	if (err_cnt)
-		return FAILED;
-
-	return SUCCESS;
+	return rtn;
 }
 
 /*
@@ -816,7 +809,7 @@ struct scsi_host_template bfad_im_scsi_host_template = {
 	.eh_timed_out = fc_eh_timed_out,
 	.eh_abort_handler = bfad_im_abort_handler,
 	.eh_device_reset_handler = bfad_im_reset_lun_handler,
-	.eh_bus_reset_handler = bfad_im_reset_bus_handler,
+	.eh_target_reset_handler = bfad_im_reset_target_handler,
 
 	.slave_alloc = bfad_im_slave_alloc,
 	.slave_configure = bfad_im_slave_configure,
@@ -839,7 +832,7 @@ struct scsi_host_template bfad_im_vport_template = {
 	.eh_timed_out = fc_eh_timed_out,
 	.eh_abort_handler = bfad_im_abort_handler,
 	.eh_device_reset_handler = bfad_im_reset_lun_handler,
-	.eh_bus_reset_handler = bfad_im_reset_bus_handler,
+	.eh_target_reset_handler = bfad_im_reset_target_handler,
 
 	.slave_alloc = bfad_im_slave_alloc,
 	.slave_configure = bfad_im_slave_configure,

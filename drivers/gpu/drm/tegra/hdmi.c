@@ -24,6 +24,7 @@
 #include "hdmi.h"
 #include "drm.h"
 #include "dc.h"
+#include "trace.h"
 
 #define HDMI_ELD_BUFFER_SIZE 96
 
@@ -100,14 +101,19 @@ enum {
 };
 
 static inline u32 tegra_hdmi_readl(struct tegra_hdmi *hdmi,
-				   unsigned long offset)
+				   unsigned int offset)
 {
-	return readl(hdmi->regs + (offset << 2));
+	u32 value = readl(hdmi->regs + (offset << 2));
+
+	trace_hdmi_readl(hdmi->dev, offset, value);
+
+	return value;
 }
 
 static inline void tegra_hdmi_writel(struct tegra_hdmi *hdmi, u32 value,
-				     unsigned long offset)
+				     unsigned int offset)
 {
+	trace_hdmi_writel(hdmi->dev, offset, value);
 	writel(value, hdmi->regs + (offset << 2));
 }
 
@@ -734,7 +740,7 @@ static void tegra_hdmi_setup_avi_infoframe(struct tegra_hdmi *hdmi,
 	u8 buffer[17];
 	ssize_t err;
 
-	err = drm_hdmi_avi_infoframe_from_display_mode(&frame, mode);
+	err = drm_hdmi_avi_infoframe_from_display_mode(&frame, mode, false);
 	if (err < 0) {
 		dev_err(hdmi->dev, "failed to setup AVI infoframe: %zd\n", err);
 		return;
@@ -902,7 +908,6 @@ tegra_hdmi_connector_detect(struct drm_connector *connector, bool force)
 }
 
 static const struct drm_connector_funcs tegra_hdmi_connector_funcs = {
-	.dpms = drm_atomic_helper_connector_dpms,
 	.reset = drm_atomic_helper_connector_reset,
 	.detect = tegra_hdmi_connector_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,

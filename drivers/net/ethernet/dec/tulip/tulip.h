@@ -515,7 +515,7 @@ void comet_timer(unsigned long data);
 extern int tulip_debug;
 extern const char * const medianame[];
 extern const char tulip_media_cap[];
-extern struct tulip_chip_table tulip_tbl[];
+extern const struct tulip_chip_table tulip_tbl[];
 void oom_timer(unsigned long data);
 extern u8 t21040_csr13[];
 

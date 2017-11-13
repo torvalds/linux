@@ -740,10 +740,10 @@ int __init acpi_table_init(void)
 
 	if (acpi_verify_table_checksum) {
 		pr_info("Early table checksum verification enabled\n");
-		acpi_gbl_verify_table_checksum = TRUE;
+		acpi_gbl_enable_table_validation = TRUE;
 	} else {
 		pr_info("Early table checksum verification disabled\n");
-		acpi_gbl_verify_table_checksum = FALSE;
+		acpi_gbl_enable_table_validation = FALSE;
 	}
 
 	status = acpi_initialize_tables(initial_tables, ACPI_MAX_TABLES, 0);

@@ -831,7 +831,7 @@ static int tegra_nvec_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	nvec->rst = devm_reset_control_get(&pdev->dev, "i2c");
+	nvec->rst = devm_reset_control_get_exclusive(&pdev->dev, "i2c");
 	if (IS_ERR(nvec->rst)) {
 		dev_err(nvec->dev, "failed to get controller reset\n");
 		return PTR_ERR(nvec->rst);

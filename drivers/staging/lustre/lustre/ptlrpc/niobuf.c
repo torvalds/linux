@@ -31,11 +31,11 @@
  */
 
 #define DEBUG_SUBSYSTEM S_RPC
-#include "../include/obd_support.h"
-#include "../include/lustre_net.h"
-#include "../include/lustre_lib.h"
-#include "../include/obd.h"
-#include "../include/obd_class.h"
+#include <obd_support.h>
+#include <lustre_net.h>
+#include <lustre_lib.h>
+#include <obd.h>
+#include <obd_class.h>
 #include "ptlrpc_internal.h"
 
 /**

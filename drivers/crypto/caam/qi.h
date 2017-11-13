@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Public definitions for the CAAM/QI (Queue Interface) backend.
  *
@@ -38,6 +39,9 @@
  * storing shared descriptor.
  */
 #define MAX_SDLEN	((CAAM_DESC_BYTES_MAX - DESC_JOB_IO_LEN) / CAAM_CMD_SZ)
+
+/* Length of a single buffer in the QI driver memory cache */
+#define CAAM_QI_MEMCACHE_SIZE	768
 
 extern bool caam_congested __read_mostly;
 

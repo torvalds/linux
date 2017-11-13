@@ -295,15 +295,13 @@ int mtk_ddp_comp_init(struct device *dev, struct device_node *node,
 	larb_node = of_parse_phandle(node, "mediatek,larb", 0);
 	if (!larb_node) {
 		dev_err(dev,
-			"Missing mediadek,larb phandle in %s node\n",
-			node->full_name);
+			"Missing mediadek,larb phandle in %pOF node\n", node);
 		return -EINVAL;
 	}
 
 	larb_pdev = of_find_device_by_node(larb_node);
 	if (!larb_pdev) {
-		dev_warn(dev, "Waiting for larb device %s\n",
-			 larb_node->full_name);
+		dev_warn(dev, "Waiting for larb device %pOF\n", larb_node);
 		of_node_put(larb_node);
 		return -EPROBE_DEFER;
 	}

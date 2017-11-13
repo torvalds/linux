@@ -222,8 +222,8 @@ static int rvin_digital_graph_init(struct rvin_dev *vin)
 
 	subdevs[0] = &vin->digital.asd;
 
-	vin_dbg(vin, "Found digital subdevice %s\n",
-		of_node_full_name(to_of_node(subdevs[0]->match.fwnode.fwnode)));
+	vin_dbg(vin, "Found digital subdevice %pOF\n",
+		to_of_node(subdevs[0]->match.fwnode.fwnode));
 
 	vin->notifier.num_subdevs = 1;
 	vin->notifier.subdevs = subdevs;

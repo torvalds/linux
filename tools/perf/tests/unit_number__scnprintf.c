@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <inttypes.h>
 #include <linux/compiler.h>
 #include <linux/types.h>
@@ -5,7 +6,7 @@
 #include "units.h"
 #include "debug.h"
 
-int test__unit_number__scnprint(int subtest __maybe_unused)
+int test__unit_number__scnprint(struct test *t __maybe_unused, int subtest __maybe_unused)
 {
 	struct {
 		u64		 n;

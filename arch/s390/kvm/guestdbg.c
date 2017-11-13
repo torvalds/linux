@@ -308,7 +308,7 @@ static inline int in_addr_range(u64 addr, u64 a, u64 b)
 		return (addr >= a) && (addr <= b);
 	else
 		/* "overflowing" interval */
-		return (addr <= a) && (addr >= b);
+		return (addr >= a) || (addr <= b);
 }
 
 #define end_of_range(bp_info) (bp_info->addr + bp_info->len - 1)

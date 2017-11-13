@@ -79,29 +79,7 @@ int static_key_count(struct static_key *key)
 }
 EXPORT_SYMBOL_GPL(static_key_count);
 
-void static_key_enable(struct static_key *key)
-{
-	int count = static_key_count(key);
-
-	WARN_ON_ONCE(count < 0 || count > 1);
-
-	if (!count)
-		static_key_slow_inc(key);
-}
-EXPORT_SYMBOL_GPL(static_key_enable);
-
-void static_key_disable(struct static_key *key)
-{
-	int count = static_key_count(key);
-
-	WARN_ON_ONCE(count < 0 || count > 1);
-
-	if (count)
-		static_key_slow_dec(key);
-}
-EXPORT_SYMBOL_GPL(static_key_disable);
-
-void static_key_slow_inc(struct static_key *key)
+static void static_key_slow_inc_cpuslocked(struct static_key *key)
 {
 	int v, v1;
 
@@ -125,24 +103,87 @@ void static_key_slow_inc(struct static_key *key)
 			return;
 	}
 
-	cpus_read_lock();
 	jump_label_lock();
 	if (atomic_read(&key->enabled) == 0) {
 		atomic_set(&key->enabled, -1);
 		jump_label_update(key);
-		atomic_set(&key->enabled, 1);
+		/*
+		 * Ensure that if the above cmpxchg loop observes our positive
+		 * value, it must also observe all the text changes.
+		 */
+		atomic_set_release(&key->enabled, 1);
 	} else {
 		atomic_inc(&key->enabled);
 	}
 	jump_label_unlock();
+}
+
+void static_key_slow_inc(struct static_key *key)
+{
+	cpus_read_lock();
+	static_key_slow_inc_cpuslocked(key);
 	cpus_read_unlock();
 }
 EXPORT_SYMBOL_GPL(static_key_slow_inc);
 
-static void __static_key_slow_dec(struct static_key *key,
-		unsigned long rate_limit, struct delayed_work *work)
+void static_key_enable_cpuslocked(struct static_key *key)
+{
+	STATIC_KEY_CHECK_USE();
+
+	if (atomic_read(&key->enabled) > 0) {
+		WARN_ON_ONCE(atomic_read(&key->enabled) != 1);
+		return;
+	}
+
+	jump_label_lock();
+	if (atomic_read(&key->enabled) == 0) {
+		atomic_set(&key->enabled, -1);
+		jump_label_update(key);
+		/*
+		 * See static_key_slow_inc().
+		 */
+		atomic_set_release(&key->enabled, 1);
+	}
+	jump_label_unlock();
+}
+EXPORT_SYMBOL_GPL(static_key_enable_cpuslocked);
+
+void static_key_enable(struct static_key *key)
 {
 	cpus_read_lock();
+	static_key_enable_cpuslocked(key);
+	cpus_read_unlock();
+}
+EXPORT_SYMBOL_GPL(static_key_enable);
+
+void static_key_disable_cpuslocked(struct static_key *key)
+{
+	STATIC_KEY_CHECK_USE();
+
+	if (atomic_read(&key->enabled) != 1) {
+		WARN_ON_ONCE(atomic_read(&key->enabled) != 0);
+		return;
+	}
+
+	jump_label_lock();
+	if (atomic_cmpxchg(&key->enabled, 1, 0))
+		jump_label_update(key);
+	jump_label_unlock();
+}
+EXPORT_SYMBOL_GPL(static_key_disable_cpuslocked);
+
+void static_key_disable(struct static_key *key)
+{
+	cpus_read_lock();
+	static_key_disable_cpuslocked(key);
+	cpus_read_unlock();
+}
+EXPORT_SYMBOL_GPL(static_key_disable);
+
+static void static_key_slow_dec_cpuslocked(struct static_key *key,
+					   unsigned long rate_limit,
+					   struct delayed_work *work)
+{
 	/*
 	 * The negative count check is valid even when a negative
 	 * key->enabled is in use by static_key_slow_inc(); a
@@ -153,7 +194,6 @@ static void __static_key_slow_dec(struct static_key *key,
 	if (!atomic_dec_and_mutex_lock(&key->enabled, &jump_label_mutex)) {
 		WARN(atomic_read(&key->enabled) < 0,
 		     "jump label: negative count!\n");
-		cpus_read_unlock();
 		return;
 	}
 
@@ -164,6 +204,14 @@ static void __static_key_slow_dec(struct static_key *key,
 		jump_label_update(key);
 	}
 	jump_label_unlock();
+}
+
+static void __static_key_slow_dec(struct static_key *key,
+				  unsigned long rate_limit,
+				  struct delayed_work *work)
+{
+	cpus_read_lock();
+	static_key_slow_dec_cpuslocked(key, rate_limit, work);
 	cpus_read_unlock();
 }
 

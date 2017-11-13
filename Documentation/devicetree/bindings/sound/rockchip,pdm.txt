@@ -29,11 +29,13 @@ pdm: pdm@ff040000 {
 	dma-names = "rx";
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&pdmm0_clk
-		     &pdmm0_fsync
 		     &pdmm0_sdi0
 		     &pdmm0_sdi1
 		     &pdmm0_sdi2
 		     &pdmm0_sdi3>;
-	pinctrl-1 = <&pdmm0_sleep>;
-	status = "disabled";
+	pinctrl-1 = <&pdmm0_clk_sleep
+		     &pdmm0_sdi0_sleep
+		     &pdmm0_sdi1_sleep
+		     &pdmm0_sdi2_sleep
+		     &pdmm0_sdi3_sleep>;
 };

@@ -242,8 +242,7 @@ static void hib_end_io(struct bio *bio)
 
 	if (bio->bi_status) {
 		printk(KERN_ALERT "Read-error on swap-device (%u:%u:%Lu)\n",
-				imajor(bio->bi_bdev->bd_inode),
-				iminor(bio->bi_bdev->bd_inode),
+				MAJOR(bio_dev(bio)), MINOR(bio_dev(bio)),
 				(unsigned long long)bio->bi_iter.bi_sector);
 	}
 
@@ -270,7 +269,7 @@ static int hib_submit_io(int op, int op_flags, pgoff_t page_off, void *addr,
 
 	bio = bio_alloc(__GFP_RECLAIM | __GFP_HIGH, 1);
 	bio->bi_iter.bi_sector = page_off * (PAGE_SIZE >> 9);
-	bio->bi_bdev = hib_resume_bdev;
+	bio_set_dev(bio, hib_resume_bdev);
 	bio_set_op_attrs(bio, op, op_flags);
 
 	if (bio_add_page(bio, page, PAGE_SIZE, 0) < PAGE_SIZE) {

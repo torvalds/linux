@@ -51,7 +51,7 @@
 
 #define DEBUG_SUBSYSTEM S_LLITE
 
-#include "../include/obd_cksum.h"
+#include <obd_cksum.h>
 #include "llite_internal.h"
 
 static void ll_ra_stats_inc_sbi(struct ll_sb_info *sbi, enum ra_stat which);
@@ -115,7 +115,7 @@ void ll_ra_count_put(struct ll_sb_info *sbi, unsigned long len)
 
 static void ll_ra_stats_inc_sbi(struct ll_sb_info *sbi, enum ra_stat which)
 {
-	LASSERTF(which >= 0 && which < _NR_RA_STAT, "which: %u\n", which);
+	LASSERTF(which < _NR_RA_STAT, "which: %u\n", which);
 	lprocfs_counter_incr(sbi->ll_ra_stats, which);
 }
 

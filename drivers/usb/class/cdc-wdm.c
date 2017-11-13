@@ -26,10 +26,6 @@
 #include <asm/unaligned.h>
 #include <linux/usb/cdc-wdm.h>
 
-/*
- * Version Information
- */
-#define DRIVER_VERSION "v0.03"
 #define DRIVER_AUTHOR "Oliver Neukum"
 #define DRIVER_DESC "USB Abstract Control Model driver for USB WCM Device Management"
 
@@ -194,8 +190,10 @@ static void wdm_in_callback(struct urb *urb)
 	/*
 	 * only set a new error if there is no previous error.
 	 * Errors are only cleared during read/open
+	 * Avoid propagating -EPIPE (stall) to userspace since it is
+	 * better handled as an empty read
 	 */
-	if (desc->rerr  == 0)
+	if (desc->rerr == 0 && status != -EPIPE)
 		desc->rerr = status;
 
 	if (length + desc->length > desc->wMaxCommand) {

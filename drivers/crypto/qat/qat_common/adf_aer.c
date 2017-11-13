@@ -208,7 +208,7 @@ static pci_ers_result_t adf_slot_reset(struct pci_dev *pdev)
 static void adf_resume(struct pci_dev *pdev)
 {
 	dev_info(&pdev->dev, "Acceleration driver reset completed\n");
-	dev_info(&pdev->dev, "Device is up and runnig\n");
+	dev_info(&pdev->dev, "Device is up and running\n");
 }
 
 static const struct pci_error_handlers adf_err_handler = {

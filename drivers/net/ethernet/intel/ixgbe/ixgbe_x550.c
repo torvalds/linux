@@ -1555,8 +1555,13 @@ static s32 ixgbe_restart_an_internal_phy_x550em(struct ixgbe_hw *hw)
  **/
 static s32 ixgbe_setup_ixfi_x550em(struct ixgbe_hw *hw, ixgbe_link_speed *speed)
 {
+	struct ixgbe_mac_info *mac = &hw->mac;
 	s32 status;
 	u32 reg_val;
+
+	/* iXFI is only supported with X552 */
+	if (mac->type != ixgbe_mac_X550EM_x)
+		return IXGBE_ERR_LINK_SETUP;
 
 	/* Disable AN and force speed to 10G Serial. */
 	status = ixgbe_read_iosf_sb_reg_x550(hw,
@@ -1874,8 +1879,10 @@ static s32 ixgbe_setup_mac_link_t_X550em(struct ixgbe_hw *hw,
 	else
 		force_speed = IXGBE_LINK_SPEED_1GB_FULL;
 
-	/* If internal link mode is XFI, then setup XFI internal link. */
-	if (!(hw->phy.nw_mng_if_sel & IXGBE_NW_MNG_IF_SEL_INT_PHY_MODE)) {
+	/* If X552 and internal link mode is XFI, then setup XFI internal link.
+	 */
+	if (hw->mac.type == ixgbe_mac_X550EM_x &&
+	    !(hw->phy.nw_mng_if_sel & IXGBE_NW_MNG_IF_SEL_INT_PHY_MODE)) {
 		status = ixgbe_setup_ixfi_x550em(hw, &force_speed);
 
 		if (status)
@@ -2404,17 +2411,30 @@ static s32 ixgbe_enable_lasi_ext_t_x550em(struct ixgbe_hw *hw)
 	status = ixgbe_get_lasi_ext_t_x550em(hw, &lsc);
 
 	/* Enable link status change alarm */
-	status = hw->phy.ops.read_reg(hw, IXGBE_MDIO_PMA_TX_VEN_LASI_INT_MASK,
-				      MDIO_MMD_AN, &reg);
-	if (status)
-		return status;
 
-	reg |= IXGBE_MDIO_PMA_TX_VEN_LASI_INT_EN;
+	/* Enable the LASI interrupts on X552 devices to receive notifications
+	 * of the link configurations of the external PHY and correspondingly
+	 * support the configuration of the internal iXFI link, since iXFI does
+	 * not support auto-negotiation. This is not required for X553 devices
+	 * having KR support, which performs auto-negotiations and which is used
+	 * as the internal link to the external PHY. Hence adding a check here
+	 * to avoid enabling LASI interrupts for X553 devices.
+	 */
+	if (hw->mac.type != ixgbe_mac_x550em_a) {
+		status = hw->phy.ops.read_reg(hw,
+					    IXGBE_MDIO_PMA_TX_VEN_LASI_INT_MASK,
+					    MDIO_MMD_AN, &reg);
+		if (status)
+			return status;
 
-	status = hw->phy.ops.write_reg(hw, IXGBE_MDIO_PMA_TX_VEN_LASI_INT_MASK,
-				       MDIO_MMD_AN, reg);
-	if (status)
-		return status;
+		reg |= IXGBE_MDIO_PMA_TX_VEN_LASI_INT_EN;
+
+		status = hw->phy.ops.write_reg(hw,
+					    IXGBE_MDIO_PMA_TX_VEN_LASI_INT_MASK,
+					    MDIO_MMD_AN, reg);
+		if (status)
+			return status;
+	}
 
 	/* Enable high temperature failure and global fault alarms */
 	status = hw->phy.ops.read_reg(hw, IXGBE_MDIO_GLOBAL_INT_MASK,
@@ -2615,7 +2635,8 @@ static s32 ixgbe_setup_internal_phy_t_x550em(struct ixgbe_hw *hw)
 	if (hw->mac.ops.get_media_type(hw) != ixgbe_media_type_copper)
 		return IXGBE_ERR_CONFIG;
 
-	if (hw->phy.nw_mng_if_sel & IXGBE_NW_MNG_IF_SEL_INT_PHY_MODE) {
+	if (!(hw->mac.type == ixgbe_mac_X550EM_x &&
+	      !(hw->phy.nw_mng_if_sel & IXGBE_NW_MNG_IF_SEL_INT_PHY_MODE))) {
 		speed = IXGBE_LINK_SPEED_10GB_FULL |
 			IXGBE_LINK_SPEED_1GB_FULL;
 		return ixgbe_setup_kr_speed_x550em(hw, speed);
@@ -2822,7 +2843,7 @@ static s32 ixgbe_setup_fc_x550em(struct ixgbe_hw *hw)
 {
 	bool pause, asm_dir;
 	u32 reg_val;
-	s32 rc;
+	s32 rc = 0;
 
 	/* Validate the requested mode */
 	if (hw->fc.strict_ieee && hw->fc.requested_mode == ixgbe_fc_rx_pause) {
@@ -2865,32 +2886,37 @@ static s32 ixgbe_setup_fc_x550em(struct ixgbe_hw *hw)
 		return IXGBE_ERR_CONFIG;
 	}
 
-	if (hw->device_id != IXGBE_DEV_ID_X550EM_X_KR &&
-	    hw->device_id != IXGBE_DEV_ID_X550EM_A_KR &&
-	    hw->device_id != IXGBE_DEV_ID_X550EM_A_KR_L)
-		return 0;
+	switch (hw->device_id) {
+	case IXGBE_DEV_ID_X550EM_X_KR:
+	case IXGBE_DEV_ID_X550EM_A_KR:
+	case IXGBE_DEV_ID_X550EM_A_KR_L:
+		rc = hw->mac.ops.read_iosf_sb_reg(hw,
+					    IXGBE_KRM_AN_CNTL_1(hw->bus.lan_id),
+					    IXGBE_SB_IOSF_TARGET_KR_PHY,
+					    &reg_val);
+		if (rc)
+			return rc;
 
-	rc = hw->mac.ops.read_iosf_sb_reg(hw,
-					  IXGBE_KRM_AN_CNTL_1(hw->bus.lan_id),
-					  IXGBE_SB_IOSF_TARGET_KR_PHY,
-					  &reg_val);
-	if (rc)
-		return rc;
+		reg_val &= ~(IXGBE_KRM_AN_CNTL_1_SYM_PAUSE |
+			     IXGBE_KRM_AN_CNTL_1_ASM_PAUSE);
+		if (pause)
+			reg_val |= IXGBE_KRM_AN_CNTL_1_SYM_PAUSE;
+		if (asm_dir)
+			reg_val |= IXGBE_KRM_AN_CNTL_1_ASM_PAUSE;
+		rc = hw->mac.ops.write_iosf_sb_reg(hw,
+					    IXGBE_KRM_AN_CNTL_1(hw->bus.lan_id),
+					    IXGBE_SB_IOSF_TARGET_KR_PHY,
+					    reg_val);
 
-	reg_val &= ~(IXGBE_KRM_AN_CNTL_1_SYM_PAUSE |
-		     IXGBE_KRM_AN_CNTL_1_ASM_PAUSE);
-	if (pause)
-		reg_val |= IXGBE_KRM_AN_CNTL_1_SYM_PAUSE;
-	if (asm_dir)
-		reg_val |= IXGBE_KRM_AN_CNTL_1_ASM_PAUSE;
-	rc = hw->mac.ops.write_iosf_sb_reg(hw,
-					   IXGBE_KRM_AN_CNTL_1(hw->bus.lan_id),
-					   IXGBE_SB_IOSF_TARGET_KR_PHY,
-					   reg_val);
-
-	/* This device does not fully support AN. */
-	hw->fc.disable_fc_autoneg = true;
-
+		/* This device does not fully support AN. */
+		hw->fc.disable_fc_autoneg = true;
+		break;
+	case IXGBE_DEV_ID_X550EM_X_XFI:
+		hw->fc.disable_fc_autoneg = true;
+		break;
+	default:
+		break;
+	}
 	return rc;
 }
 

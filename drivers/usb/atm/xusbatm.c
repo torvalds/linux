@@ -228,4 +228,3 @@ module_exit(xusbatm_exit);
 MODULE_AUTHOR("Roman Kagan, Duncan Sands");
 MODULE_DESCRIPTION("Driver for USB ADSL modems initialized in userspace");
 MODULE_LICENSE("GPL");
-MODULE_VERSION("0.1");

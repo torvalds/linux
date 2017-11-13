@@ -459,15 +459,23 @@ static void intel_hdmi_set_avi_infoframe(struct drm_encoder *encoder,
 	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(encoder);
 	const struct drm_display_mode *adjusted_mode =
 		&crtc_state->base.adjusted_mode;
+	struct drm_connector *connector = &intel_hdmi->attached_connector->base;
+	bool is_hdmi2_sink = connector->display_info.hdmi.scdc.supported;
 	union hdmi_infoframe frame;
 	int ret;
 
 	ret = drm_hdmi_avi_infoframe_from_display_mode(&frame.avi,
-						       adjusted_mode);
+						       adjusted_mode,
+						       is_hdmi2_sink);
 	if (ret < 0) {
 		DRM_ERROR("couldn't fill AVI infoframe\n");
 		return;
 	}
+
+	if (crtc_state->ycbcr420)
+		frame.avi.colorspace = HDMI_COLORSPACE_YUV420;
+	else
+		frame.avi.colorspace = HDMI_COLORSPACE_RGB;
 
 	drm_hdmi_avi_infoframe_quant_range(&frame.avi, adjusted_mode,
 					   crtc_state->limited_color_range ?
@@ -475,6 +483,7 @@ static void intel_hdmi_set_avi_infoframe(struct drm_encoder *encoder,
 					   HDMI_QUANTIZATION_RANGE_FULL,
 					   intel_hdmi->rgb_quant_range_selectable);
 
+	/* TODO: handle pixel repetition for YCBCR420 outputs */
 	intel_write_infoframe(encoder, crtc_state, &frame);
 }
 
@@ -1292,6 +1301,9 @@ intel_hdmi_mode_valid(struct drm_connector *connector,
 	if (mode->flags & DRM_MODE_FLAG_DBLCLK)
 		clock *= 2;
 
+	if (drm_mode_is_420_only(&connector->display_info, mode))
+		clock /= 2;
+
 	/* check if we can do 8bpc */
 	status = hdmi_port_clock_valid(hdmi, clock, true, force_dvi);
 
@@ -1321,20 +1333,57 @@ static bool hdmi_12bpc_possible(struct intel_crtc_state *crtc_state)
 	if (crtc_state->output_types != 1 << INTEL_OUTPUT_HDMI)
 		return false;
 
-	for_each_connector_in_state(state, connector, connector_state, i) {
+	for_each_new_connector_in_state(state, connector, connector_state, i) {
 		const struct drm_display_info *info = &connector->display_info;
 
 		if (connector_state->crtc != crtc_state->base.crtc)
 			continue;
 
-		if ((info->edid_hdmi_dc_modes & DRM_EDID_HDMI_DC_36) == 0)
-			return false;
+		if (crtc_state->ycbcr420) {
+			const struct drm_hdmi_info *hdmi = &info->hdmi;
+
+			if (!(hdmi->y420_dc_modes & DRM_EDID_YCBCR420_DC_36))
+				return false;
+		} else {
+			if (!(info->edid_hdmi_dc_modes & DRM_EDID_HDMI_DC_36))
+				return false;
+		}
 	}
 
 	/* Display Wa #1139 */
 	if (IS_GLK_REVID(dev_priv, 0, GLK_REVID_A1) &&
 	    crtc_state->base.adjusted_mode.htotal > 5460)
 		return false;
+
+	return true;
+}
+
+static bool
+intel_hdmi_ycbcr420_config(struct drm_connector *connector,
+			   struct intel_crtc_state *config,
+			   int *clock_12bpc, int *clock_8bpc)
+{
+	struct intel_crtc *intel_crtc = to_intel_crtc(config->base.crtc);
+
+	if (!connector->ycbcr_420_allowed) {
+		DRM_ERROR("Platform doesn't support YCBCR420 output\n");
+		return false;
+	}
+
+	/* YCBCR420 TMDS rate requirement is half the pixel clock */
+	config->port_clock /= 2;
+	*clock_12bpc /= 2;
+	*clock_8bpc /= 2;
+	config->ycbcr420 = true;
+
+	/* YCBCR 420 output conversion needs a scaler */
+	if (skl_update_scaler_crtc(config)) {
+		DRM_DEBUG_KMS("Scaler allocation for output failed\n");
+		return false;
+	}
+
+	intel_pch_panel_fitting(intel_crtc, config,
+				DRM_MODE_SCALE_FULLSCREEN);
 
 	return true;
 }
@@ -1346,7 +1395,8 @@ bool intel_hdmi_compute_config(struct intel_encoder *encoder,
 	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(&encoder->base);
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct drm_display_mode *adjusted_mode = &pipe_config->base.adjusted_mode;
-	struct drm_scdc *scdc = &conn_state->connector->display_info.hdmi.scdc;
+	struct drm_connector *connector = conn_state->connector;
+	struct drm_scdc *scdc = &connector->display_info.hdmi.scdc;
 	struct intel_digital_connector_state *intel_conn_state =
 		to_intel_digital_connector_state(conn_state);
 	int clock_8bpc = pipe_config->base.adjusted_mode.crtc_clock;
@@ -1374,6 +1424,14 @@ bool intel_hdmi_compute_config(struct intel_encoder *encoder,
 		pipe_config->pixel_multiplier = 2;
 		clock_8bpc *= 2;
 		clock_12bpc *= 2;
+	}
+
+	if (drm_mode_is_420_only(&connector->display_info, adjusted_mode)) {
+		if (!intel_hdmi_ycbcr420_config(connector, pipe_config,
+						&clock_12bpc, &clock_8bpc)) {
+			DRM_ERROR("Can't support YCBCR420 output\n");
+			return false;
+		}
 	}
 
 	if (HAS_PCH_SPLIT(dev_priv) && !HAS_DDI(dev_priv))
@@ -1703,11 +1761,9 @@ static void intel_hdmi_destroy(struct drm_connector *connector)
 }
 
 static const struct drm_connector_funcs intel_hdmi_connector_funcs = {
-	.dpms = drm_atomic_helper_connector_dpms,
 	.detect = intel_hdmi_detect,
 	.force = intel_hdmi_force,
 	.fill_modes = drm_helper_probe_single_connector_modes,
-	.set_property = drm_atomic_helper_connector_set_property,
 	.atomic_get_property = intel_digital_connector_atomic_get_property,
 	.atomic_set_property = intel_digital_connector_atomic_set_property,
 	.late_register = intel_connector_register,
@@ -1787,6 +1843,93 @@ void intel_hdmi_handle_sink_scrambling(struct intel_encoder *encoder,
 	DRM_DEBUG_KMS("sink scrambling handled\n");
 }
 
+static u8 chv_port_to_ddc_pin(struct drm_i915_private *dev_priv, enum port port)
+{
+	u8 ddc_pin;
+
+	switch (port) {
+	case PORT_B:
+		ddc_pin = GMBUS_PIN_DPB;
+		break;
+	case PORT_C:
+		ddc_pin = GMBUS_PIN_DPC;
+		break;
+	case PORT_D:
+		ddc_pin = GMBUS_PIN_DPD_CHV;
+		break;
+	default:
+		MISSING_CASE(port);
+		ddc_pin = GMBUS_PIN_DPB;
+		break;
+	}
+	return ddc_pin;
+}
+
+static u8 bxt_port_to_ddc_pin(struct drm_i915_private *dev_priv, enum port port)
+{
+	u8 ddc_pin;
+
+	switch (port) {
+	case PORT_B:
+		ddc_pin = GMBUS_PIN_1_BXT;
+		break;
+	case PORT_C:
+		ddc_pin = GMBUS_PIN_2_BXT;
+		break;
+	default:
+		MISSING_CASE(port);
+		ddc_pin = GMBUS_PIN_1_BXT;
+		break;
+	}
+	return ddc_pin;
+}
+
+static u8 cnp_port_to_ddc_pin(struct drm_i915_private *dev_priv,
+			      enum port port)
+{
+	u8 ddc_pin;
+
+	switch (port) {
+	case PORT_B:
+		ddc_pin = GMBUS_PIN_1_BXT;
+		break;
+	case PORT_C:
+		ddc_pin = GMBUS_PIN_2_BXT;
+		break;
+	case PORT_D:
+		ddc_pin = GMBUS_PIN_4_CNP;
+		break;
+	default:
+		MISSING_CASE(port);
+		ddc_pin = GMBUS_PIN_1_BXT;
+		break;
+	}
+	return ddc_pin;
+}
+
+static u8 g4x_port_to_ddc_pin(struct drm_i915_private *dev_priv,
+			      enum port port)
+{
+	u8 ddc_pin;
+
+	switch (port) {
+	case PORT_B:
+		ddc_pin = GMBUS_PIN_DPB;
+		break;
+	case PORT_C:
+		ddc_pin = GMBUS_PIN_DPC;
+		break;
+	case PORT_D:
+		ddc_pin = GMBUS_PIN_DPD;
+		break;
+	default:
+		MISSING_CASE(port);
+		ddc_pin = GMBUS_PIN_DPB;
+		break;
+	}
+	return ddc_pin;
+}
+
 static u8 intel_hdmi_ddc_pin(struct drm_i915_private *dev_priv,
 			     enum port port)
 {
@@ -1800,32 +1943,14 @@ static u8 intel_hdmi_ddc_pin(struct drm_i915_private *dev_priv,
 		return info->alternate_ddc_pin;
 	}
 
-	switch (port) {
-	case PORT_B:
-		if (IS_GEN9_LP(dev_priv) || HAS_PCH_CNP(dev_priv))
-			ddc_pin = GMBUS_PIN_1_BXT;
-		else
-			ddc_pin = GMBUS_PIN_DPB;
-		break;
-	case PORT_C:
-		if (IS_GEN9_LP(dev_priv) || HAS_PCH_CNP(dev_priv))
-			ddc_pin = GMBUS_PIN_2_BXT;
-		else
-			ddc_pin = GMBUS_PIN_DPC;
-		break;
-	case PORT_D:
-		if (HAS_PCH_CNP(dev_priv))
-			ddc_pin = GMBUS_PIN_4_CNP;
-		else if (IS_CHERRYVIEW(dev_priv))
-			ddc_pin = GMBUS_PIN_DPD_CHV;
-		else
-			ddc_pin = GMBUS_PIN_DPD;
-		break;
-	default:
-		MISSING_CASE(port);
-		ddc_pin = GMBUS_PIN_DPB;
-		break;
-	}
+	if (IS_CHERRYVIEW(dev_priv))
+		ddc_pin = chv_port_to_ddc_pin(dev_priv, port);
+	else if (IS_GEN9_LP(dev_priv))
+		ddc_pin = bxt_port_to_ddc_pin(dev_priv, port);
+	else if (HAS_PCH_CNP(dev_priv))
+		ddc_pin = cnp_port_to_ddc_pin(dev_priv, port);
+	else
+		ddc_pin = g4x_port_to_ddc_pin(dev_priv, port);
 
 	DRM_DEBUG_KMS("Using DDC pin 0x%x for port %c (platform default)\n",
 		      ddc_pin, port_name(port));
@@ -1859,25 +1984,14 @@ void intel_hdmi_init_connector(struct intel_digital_port *intel_dig_port,
 	connector->doublescan_allowed = 0;
 	connector->stereo_allowed = 1;
 
+	if (IS_GEMINILAKE(dev_priv))
+		connector->ycbcr_420_allowed = true;
+
 	intel_hdmi->ddc_bus = intel_hdmi_ddc_pin(dev_priv, port);
 
-	switch (port) {
-	case PORT_B:
-		intel_encoder->hpd_pin = HPD_PORT_B;
-		break;
-	case PORT_C:
-		intel_encoder->hpd_pin = HPD_PORT_C;
-		break;
-	case PORT_D:
-		intel_encoder->hpd_pin = HPD_PORT_D;
-		break;
-	case PORT_E:
-		intel_encoder->hpd_pin = HPD_PORT_E;
-		break;
-	default:
-		MISSING_CASE(port);
+	if (WARN_ON(port == PORT_A))
 		return;
-	}
+	intel_encoder->hpd_pin = intel_hpd_pin(port);
 
 	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
 		intel_hdmi->write_infoframe = vlv_write_infoframe;

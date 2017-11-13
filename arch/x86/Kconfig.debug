@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 menu "Kernel hacking"
 
 config TRACE_IRQFLAGS_SUPPORT
@@ -305,8 +306,6 @@ config DEBUG_ENTRY
 	  Some of these sanity checks may slow down kernel entries and
 	  exits or otherwise impact performance.
 
-	  This is currently used to help test NMI code.
-
 	  If unsure, say N.
 
 config DEBUG_NMI_SELFTEST
@@ -357,5 +356,62 @@ config PUNIT_ATOM_DEBUG
 	  each device is exposed as part of the debugfs interface.
 	  The current power state can be read from
 	  /sys/kernel/debug/punit_atom/dev_power_state
+
+choice
+	prompt "Choose kernel unwinder"
+	default FRAME_POINTER_UNWINDER
+	---help---
+	  This determines which method will be used for unwinding kernel stack
+	  traces for panics, oopses, bugs, warnings, perf, /proc/<pid>/stack,
+	  livepatch, lockdep, and more.
+
+config FRAME_POINTER_UNWINDER
+	bool "Frame pointer unwinder"
+	select FRAME_POINTER
+	---help---
+	  This option enables the frame pointer unwinder for unwinding kernel
+	  stack traces.
+
+	  The unwinder itself is fast and it uses less RAM than the ORC
+	  unwinder, but the kernel text size will grow by ~3% and the kernel's
+	  overall performance will degrade by roughly 5-10%.
+
+	  This option is recommended if you want to use the livepatch
+	  consistency model, as this is currently the only way to get a
+	  reliable stack trace (CONFIG_HAVE_RELIABLE_STACKTRACE).
+
+config ORC_UNWINDER
+	bool "ORC unwinder"
+	depends on X86_64
+	select STACK_VALIDATION
+	---help---
+	  This option enables the ORC (Oops Rewind Capability) unwinder for
+	  unwinding kernel stack traces.  It uses a custom data format which is
+	  a simplified version of the DWARF Call Frame Information standard.
+
+	  This unwinder is more accurate across interrupt entry frames than the
+	  frame pointer unwinder.  It also enables a 5-10% performance
+	  improvement across the entire kernel compared to frame pointers.
+
+	  Enabling this option will increase the kernel's runtime memory usage
+	  by roughly 2-4MB, depending on your kernel config.
+
+config GUESS_UNWINDER
+	bool "Guess unwinder"
+	depends on EXPERT
+	---help---
+	  This option enables the "guess" unwinder for unwinding kernel stack
+	  traces.  It scans the stack and reports every kernel text address it
+	  finds.  Some of the addresses it reports may be incorrect.
+
+	  While this option often produces false positives, it can still be
+	  useful in many cases.  Unlike the other unwinders, it has no runtime
+	  overhead.
+
+endchoice
+
+config FRAME_POINTER
+	depends on !ORC_UNWINDER && !GUESS_UNWINDER
+	bool
 
 endmenu

@@ -181,7 +181,7 @@ static void kvmppc_fast_vcpu_kick_hv(struct kvm_vcpu *vcpu)
 	struct swait_queue_head *wqp;
 
 	wqp = kvm_arch_vcpu_wq(vcpu);
-	if (swait_active(wqp)) {
+	if (swq_has_sleeper(wqp)) {
 		swake_up(wqp);
 		++vcpu->stat.halt_wakeup;
 	}
@@ -485,7 +485,13 @@ static unsigned long do_h_register_vpa(struct kvm_vcpu *vcpu,
 
 	switch (subfunc) {
 	case H_VPA_REG_VPA:		/* register VPA */
-		if (len < sizeof(struct lppaca))
+		/*
+		 * The size of our lppaca is 1kB because of the way we align
+		 * it for the guest to avoid crossing a 4kB boundary. We only
+		 * use 640 bytes of the structure though, so we should accept
+		 * clients that set a size of 640.
+		 */
+		if (len < 640)
 			break;
 		vpap = &tvcpu->arch.vpa;
 		err = 0;
@@ -2111,6 +2117,15 @@ static int kvmppc_grab_hwthread(int cpu)
 	struct paca_struct *tpaca;
 	long timeout = 10000;
 
+	/*
+	 * ISA v3.0 idle routines do not set hwthread_state or test
+	 * hwthread_req, so they can not grab idle threads.
+	 */
+	if (cpu_has_feature(CPU_FTR_ARCH_300)) {
+		WARN(1, "KVM: can not control sibling threads\n");
+		return -EBUSY;
+	}
+
 	tpaca = &paca[cpu];
 
 	/* Ensure the thread won't go into the kernel if it wakes */
@@ -2145,10 +2160,12 @@ static void kvmppc_release_hwthread(int cpu)
 	struct paca_struct *tpaca;
 
 	tpaca = &paca[cpu];
-	tpaca->kvm_hstate.hwthread_req = 0;
 	tpaca->kvm_hstate.kvm_vcpu = NULL;
 	tpaca->kvm_hstate.kvm_vcore = NULL;
 	tpaca->kvm_hstate.kvm_split_mode = NULL;
+	if (!cpu_has_feature(CPU_FTR_ARCH_300))
+		tpaca->kvm_hstate.hwthread_req = 0;
+
 }
 
 static void radix_flush_cpu(struct kvm *kvm, int cpu, struct kvm_vcpu *vcpu)
@@ -2688,11 +2705,14 @@ static noinline void kvmppc_run_core(struct kvmppc_vcore *vc)
 	 * Hard-disable interrupts, and check resched flag and signals.
 	 * If we need to reschedule or deliver a signal, clean up
 	 * and return without going into the guest(s).
+	 * If the hpte_setup_done flag has been cleared, don't go into the
+	 * guest because that means a HPT resize operation is in progress.
 	 */
 	local_irq_disable();
 	hard_irq_disable();
 	if (lazy_irq_pending() || need_resched() ||
-	    recheck_signals(&core_info)) {
+	    recheck_signals(&core_info) ||
+	    (!kvm_is_radix(vc->kvm) && !vc->kvm->arch.hpte_setup_done)) {
 		local_irq_enable();
 		vc->vcore_state = VCORE_INACTIVE;
 		/* Unlock all except the primary vcore */
@@ -3061,7 +3081,7 @@ out:
 
 static int kvmppc_run_vcpu(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 {
-	int n_ceded, i;
+	int n_ceded, i, r;
 	struct kvmppc_vcore *vc;
 	struct kvm_vcpu *v;
 
@@ -3115,6 +3135,20 @@ static int kvmppc_run_vcpu(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 
 	while (vcpu->arch.state == KVMPPC_VCPU_RUNNABLE &&
 	       !signal_pending(current)) {
+		/* See if the HPT and VRMA are ready to go */
+		if (!kvm_is_radix(vcpu->kvm) &&
+		    !vcpu->kvm->arch.hpte_setup_done) {
+			spin_unlock(&vc->lock);
+			r = kvmppc_hv_setup_htab_rma(vcpu);
+			spin_lock(&vc->lock);
+			if (r) {
+				kvm_run->exit_reason = KVM_EXIT_FAIL_ENTRY;
+				kvm_run->fail_entry.hardware_entry_failure_reason = 0;
+				vcpu->arch.ret = r;
+				break;
+			}
+		}
+
 		if (vc->vcore_state == VCORE_PREEMPT && vc->runner == NULL)
 			kvmppc_vcore_end_preempt(vc);
 
@@ -3232,13 +3266,6 @@ static int kvmppc_vcpu_run_hv(struct kvm_run *run, struct kvm_vcpu *vcpu)
 	/* Order vcpus_running vs. hpte_setup_done, see kvmppc_alloc_reset_hpt */
 	smp_mb();
 
-	/* On the first time here, set up HTAB and VRMA */
-	if (!kvm_is_radix(vcpu->kvm) && !vcpu->kvm->arch.hpte_setup_done) {
-		r = kvmppc_hv_setup_htab_rma(vcpu);
-		if (r)
-			goto out;
-	}
-
 	flush_all_to_thread(current);
 
 	/* Save userspace EBB and other register values */
@@ -3286,7 +3313,6 @@ static int kvmppc_vcpu_run_hv(struct kvm_run *run, struct kvm_vcpu *vcpu)
 	}
 	mtspr(SPRN_VRSAVE, user_vrsave);
 
- out:
 	vcpu->arch.state = KVMPPC_VCPU_NOTREADY;
 	atomic_dec(&vcpu->kvm->arch.vcpus_running);
 	return r;
@@ -3324,6 +3350,14 @@ static int kvm_vm_ioctl_get_smmu_info_hv(struct kvm *kvm,
 	 */
 	if (radix_enabled())
 		return -EINVAL;
+
+	/*
+	 * POWER7, POWER8 and POWER9 all support 32 storage keys for data.
+	 * POWER7 doesn't support keys for instruction accesses,
+	 * POWER8 and POWER9 do.
+	 */
+	info->data_keys = 32;
+	info->instr_keys = cpu_has_feature(CPU_FTR_ARCH_207S) ? 32 : 0;
 
 	info->flags = KVM_PPC_PAGE_SIZES_REAL;
 	if (mmu_has_feature(MMU_FTR_1T_SEGMENT))
@@ -4187,11 +4221,13 @@ static int kvmhv_configure_mmu(struct kvm *kvm, struct kvm_ppc_mmuv3_cfg *cfg)
 	if ((cfg->process_table & PRTS_MASK) > 24)
 		return -EINVAL;
 
+	mutex_lock(&kvm->lock);
 	kvm->arch.process_table = cfg->process_table;
 	kvmppc_setup_partition_table(kvm);
 
 	lpcr = (cfg->flags & KVM_PPC_MMUV3_GTSE) ? LPCR_GTSE : 0;
 	kvmppc_update_lpcr(kvm, lpcr, LPCR_GTSE);
+	mutex_unlock(&kvm->lock);
 
 	return 0;
 }

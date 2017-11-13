@@ -64,7 +64,7 @@ static void toshiba_wmi_notify(u32 value, void *context)
 	kfree(response.pointer);
 }
 
-static struct dmi_system_id toshiba_wmi_dmi_table[] __initdata = {
+static const struct dmi_system_id toshiba_wmi_dmi_table[] __initconst = {
 	{
 		.ident = "Toshiba laptop",
 		.matches = {

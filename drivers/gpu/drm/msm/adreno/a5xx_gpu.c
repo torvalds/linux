@@ -284,28 +284,14 @@ static int a5xx_me_init(struct msm_gpu *gpu)
 static struct drm_gem_object *a5xx_ucode_load_bo(struct msm_gpu *gpu,
 		const struct firmware *fw, u64 *iova)
 {
-	struct drm_device *drm = gpu->dev;
 	struct drm_gem_object *bo;
 	void *ptr;
 
-	bo = msm_gem_new_locked(drm, fw->size - 4, MSM_BO_UNCACHED);
-	if (IS_ERR(bo))
-		return bo;
+	ptr = msm_gem_kernel_new_locked(gpu->dev, fw->size - 4,
+		MSM_BO_UNCACHED | MSM_BO_GPU_READONLY, gpu->aspace, &bo, iova);
 
-	ptr = msm_gem_get_vaddr(bo);
-	if (!ptr) {
-		drm_gem_object_unreference(bo);
-		return ERR_PTR(-ENOMEM);
-	}
-
-	if (iova) {
-		int ret = msm_gem_get_iova(bo, gpu->aspace, iova);
-
-		if (ret) {
-			drm_gem_object_unreference(bo);
-			return ERR_PTR(ret);
-		}
-	}
+	if (IS_ERR(ptr))
+		return ERR_CAST(ptr);
 
 	memcpy(ptr, &fw->data[4], fw->size - 4);
 
@@ -372,8 +358,7 @@ static int a5xx_zap_shader_init(struct msm_gpu *gpu)
 {
 	static bool loaded;
 	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
-	struct a5xx_gpu *a5xx_gpu = to_a5xx_gpu(adreno_gpu);
-	struct platform_device *pdev = a5xx_gpu->pdev;
+	struct platform_device *pdev = gpu->pdev;
 	int ret;
 
 	/*
@@ -410,6 +395,7 @@ static int a5xx_zap_shader_init(struct msm_gpu *gpu)
 	  A5XX_RBBM_INT_0_MASK_RBBM_ETS_MS_TIMEOUT | \
 	  A5XX_RBBM_INT_0_MASK_RBBM_ATB_ASYNC_OVERFLOW | \
 	  A5XX_RBBM_INT_0_MASK_CP_HW_ERROR | \
+	  A5XX_RBBM_INT_0_MASK_MISC_HANG_DETECT | \
 	  A5XX_RBBM_INT_0_MASK_CP_CACHE_FLUSH_TS | \
 	  A5XX_RBBM_INT_0_MASK_UCHE_OOB_ACCESS | \
 	  A5XX_RBBM_INT_0_MASK_GPMU_VOLTAGE_DROOP)
@@ -812,6 +798,27 @@ static void a5xx_gpmu_err_irq(struct msm_gpu *gpu)
 	dev_err_ratelimited(gpu->dev->dev, "GPMU | voltage droop\n");
 }
 
+static void a5xx_fault_detect_irq(struct msm_gpu *gpu)
+{
+	struct drm_device *dev = gpu->dev;
+	struct msm_drm_private *priv = dev->dev_private;
+
+	dev_err(dev->dev, "gpu fault fence %x status %8.8X rb %4.4x/%4.4x ib1 %16.16llX/%4.4x ib2 %16.16llX/%4.4x\n",
+		gpu->funcs->last_fence(gpu),
+		gpu_read(gpu, REG_A5XX_RBBM_STATUS),
+		gpu_read(gpu, REG_A5XX_CP_RB_RPTR),
+		gpu_read(gpu, REG_A5XX_CP_RB_WPTR),
+		gpu_read64(gpu, REG_A5XX_CP_IB1_BASE, REG_A5XX_CP_IB1_BASE_HI),
+		gpu_read(gpu, REG_A5XX_CP_IB1_BUFSZ),
+		gpu_read64(gpu, REG_A5XX_CP_IB2_BASE, REG_A5XX_CP_IB2_BASE_HI),
+		gpu_read(gpu, REG_A5XX_CP_IB2_BUFSZ));
+
+	/* Turn off the hangcheck timer to keep it from bothering us */
+	del_timer(&gpu->hangcheck_timer);
+
+	queue_work(priv->wq, &gpu->recover_work);
+}
+
 #define RBBM_ERROR_MASK \
 	(A5XX_RBBM_INT_0_MASK_RBBM_AHB_ERROR | \
 	A5XX_RBBM_INT_0_MASK_RBBM_TRANSFER_TIMEOUT | \
@@ -837,6 +844,9 @@ static irqreturn_t a5xx_irq(struct msm_gpu *gpu)
 
 	if (status & A5XX_RBBM_INT_0_MASK_CP_HW_ERROR)
 		a5xx_cp_err_irq(gpu);
+
+	if (status & A5XX_RBBM_INT_0_MASK_MISC_HANG_DETECT)
+		a5xx_fault_detect_irq(gpu);
 
 	if (status & A5XX_RBBM_INT_0_MASK_UCHE_OOB_ACCESS)
 		a5xx_uche_err_irq(gpu);
@@ -1015,7 +1025,6 @@ struct msm_gpu *a5xx_gpu_init(struct drm_device *dev)
 	adreno_gpu = &a5xx_gpu->base;
 	gpu = &adreno_gpu->base;
 
-	a5xx_gpu->pdev = pdev;
 	adreno_gpu->registers = a5xx_registers;
 	adreno_gpu->reg_offsets = a5xx_register_offsets;
 

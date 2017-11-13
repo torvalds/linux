@@ -262,13 +262,14 @@ static void *ti_dra7_xbar_route_allocate(struct of_phandle_args *dma_spec,
 	mutex_lock(&xbar->mutex);
 	map->xbar_out = find_first_zero_bit(xbar->dma_inuse,
 					    xbar->dma_requests);
-	mutex_unlock(&xbar->mutex);
 	if (map->xbar_out == xbar->dma_requests) {
+		mutex_unlock(&xbar->mutex);
 		dev_err(&pdev->dev, "Run out of free DMA requests\n");
 		kfree(map);
 		return ERR_PTR(-ENOMEM);
 	}
 	set_bit(map->xbar_out, xbar->dma_inuse);
+	mutex_unlock(&xbar->mutex);
 
 	map->xbar_in = (u16)dma_spec->args[0];
 
@@ -308,7 +309,7 @@ static const struct of_device_id ti_dra7_master_match[] = {
 static inline void ti_dra7_xbar_reserve(int offset, int len, unsigned long *p)
 {
 	for (; len > 0; len--)
-		clear_bit(offset + (len - 1), p);
+		set_bit(offset + (len - 1), p);
 }
 
 static int ti_dra7_xbar_probe(struct platform_device *pdev)

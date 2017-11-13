@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* dvb-usb.h is part of the DVB USB library.
  *
  * Copyright (C) 2004-6 Patrick Boettcher (patrick.boettcher@posteo.de)
@@ -202,7 +203,7 @@ struct dvb_rc {
 	u64 protocol;
 	u64 allowed_protos;
 	enum rc_driver_type driver_type;
-	int (*change_protocol)(struct rc_dev *dev, u64 *rc_type);
+	int (*change_protocol)(struct rc_dev *dev, u64 *rc_proto);
 	char *module_name;
 	int (*rc_query) (struct dvb_usb_device *d);
 	int rc_interval;

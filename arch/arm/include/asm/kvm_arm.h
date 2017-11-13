@@ -227,7 +227,6 @@
 
 #define HSR_DABT_S1PTW		(_AC(1, UL) << 7)
 #define HSR_DABT_CM		(_AC(1, UL) << 8)
-#define HSR_DABT_EA		(_AC(1, UL) << 9)
 
 #define kvm_arm_exception_type	\
 	{0, "RESET" }, 		\

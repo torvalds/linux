@@ -358,6 +358,9 @@ static int ir_mce_kbd_register(struct rc_dev *dev)
 	struct input_dev *idev;
 	int i, ret;
 
+	if (dev->driver_type == RC_DRIVER_IR_RAW_TX)
+		return 0;
+
 	idev = input_allocate_device();
 	if (!idev)
 		return -ENOMEM;
@@ -413,6 +416,9 @@ static int ir_mce_kbd_unregister(struct rc_dev *dev)
 	struct mce_kbd_dec *mce_kbd = &dev->raw->mce_kbd;
 	struct input_dev *idev = mce_kbd->idev;
 
+	if (dev->driver_type == RC_DRIVER_IR_RAW_TX)
+		return 0;
+
 	del_timer_sync(&mce_kbd->rx_timeout);
 	input_unregister_device(idev);
 
@@ -438,14 +444,14 @@ static const struct ir_raw_timings_manchester ir_mce_kbd_timings = {
  *              -ENOBUFS if there isn't enough space in the array to fit the
  *              encoding. In this case all @max events will have been written.
  */
-static int ir_mce_kbd_encode(enum rc_type protocol, u32 scancode,
+static int ir_mce_kbd_encode(enum rc_proto protocol, u32 scancode,
 			     struct ir_raw_event *events, unsigned int max)
 {
 	struct ir_raw_event *e = events;
 	int len, ret;
 	u64 raw;
 
-	if (protocol == RC_TYPE_MCIR2_KBD) {
+	if (protocol == RC_PROTO_MCIR2_KBD) {
 		raw = scancode |
 		      ((u64)MCIR2_KEYBOARD_HEADER << MCIR2_KEYBOARD_NBITS);
 		len = MCIR2_KEYBOARD_NBITS + MCIR2_HEADER_NBITS + 1;
@@ -463,7 +469,7 @@ static int ir_mce_kbd_encode(enum rc_type protocol, u32 scancode,
 }
 
 static struct ir_raw_handler mce_kbd_handler = {
-	.protocols	= RC_BIT_MCIR2_KBD | RC_BIT_MCIR2_MSE,
+	.protocols	= RC_PROTO_BIT_MCIR2_KBD | RC_PROTO_BIT_MCIR2_MSE,
 	.decode		= ir_mce_kbd_decode,
 	.encode		= ir_mce_kbd_encode,
 	.raw_register	= ir_mce_kbd_register,

@@ -152,6 +152,12 @@
 		#size-cells = <1>;
 		ranges = <0x0 0x0 0x61000000 0x05000000>;
 
+		ccn: ccn@00000000 {
+			compatible = "arm,ccn-502";
+			reg = <0x00000000 0x900000>;
+			interrupts = <GIC_SPI 799 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
 		gic: interrupt-controller@02c00000 {
 			compatible = "arm,gic-v3";
 			#interrupt-cells = <3>;
@@ -261,6 +267,9 @@
 		};
 	};
 
+	#include "stingray-fs4.dtsi"
+	#include "stingray-sata.dtsi"
+
 	hsls {
 		compatible = "simple-bus";
 		#address-cells = <1>;
@@ -269,11 +278,129 @@
 
 		#include "stingray-pinctrl.dtsi"
 
+		mdio_mux_iproc: mdio-mux@0002023c {
+			compatible = "brcm,mdio-mux-iproc";
+			reg = <0x0002023c 0x14>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mdio@0 { /* PCIe serdes */
+				reg = <0x0>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
+
+			mdio@2 { /* SATA */
+				reg = <0x2>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
+
+			mdio@3 { /* USB */
+				reg = <0x3>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
+
+			mdio@10 { /* RGMII */
+				reg = <0x10>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
+		};
+
 		pwm: pwm@00010000 {
 			compatible = "brcm,iproc-pwm";
 			reg = <0x00010000 0x1000>;
 			clocks = <&crmu_ref25m>;
 			#pwm-cells = <3>;
+			status = "disabled";
+		};
+
+		timer0: timer@00030000 {
+			compatible = "arm,sp804", "arm,primecell";
+			reg = <0x00030000 0x1000>;
+			interrupts = <GIC_SPI 179 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&hsls_25m_div2_clk>,
+				 <&hsls_25m_div2_clk>,
+				 <&hsls_div4_clk>;
+			clock-names = "timer1", "timer2", "apb_pclk";
+			status = "disabled";
+		};
+
+		timer1: timer@00040000 {
+			compatible = "arm,sp804", "arm,primecell";
+			reg = <0x00040000 0x1000>;
+			interrupts = <GIC_SPI 180 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&hsls_25m_div2_clk>,
+				 <&hsls_25m_div2_clk>,
+				 <&hsls_div4_clk>;
+			clock-names = "timer1", "timer2", "apb_pclk";
+		};
+
+		timer2: timer@00050000 {
+			compatible = "arm,sp804", "arm,primecell";
+			reg = <0x00050000 0x1000>;
+			interrupts = <GIC_SPI 181 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&hsls_25m_div2_clk>,
+				 <&hsls_25m_div2_clk>,
+				 <&hsls_div4_clk>;
+			clock-names = "timer1", "timer2", "apb_pclk";
+			status = "disabled";
+		};
+
+		timer3: timer@00060000 {
+			compatible = "arm,sp804", "arm,primecell";
+			reg = <0x00060000 0x1000>;
+			interrupts = <GIC_SPI 182 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&hsls_25m_div2_clk>,
+				 <&hsls_25m_div2_clk>,
+				 <&hsls_div4_clk>;
+			clock-names = "timer1", "timer2", "apb_pclk";
+			status = "disabled";
+		};
+
+		timer4: timer@00070000 {
+			compatible = "arm,sp804", "arm,primecell";
+			reg = <0x00070000 0x1000>;
+			interrupts = <GIC_SPI 207 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&hsls_25m_div2_clk>,
+				 <&hsls_25m_div2_clk>,
+				 <&hsls_div4_clk>;
+			clock-names = "timer1", "timer2", "apb_pclk";
+			status = "disabled";
+		};
+
+		timer5: timer@00080000 {
+			compatible = "arm,sp804", "arm,primecell";
+			reg = <0x00080000 0x1000>;
+			interrupts = <GIC_SPI 208 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&hsls_25m_div2_clk>,
+				 <&hsls_25m_div2_clk>,
+				 <&hsls_div4_clk>;
+			clock-names = "timer1", "timer2", "apb_pclk";
+			status = "disabled";
+		};
+
+		timer6: timer@00090000 {
+			compatible = "arm,sp804", "arm,primecell";
+			reg = <0x00090000 0x1000>;
+			interrupts = <GIC_SPI 209 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&hsls_25m_div2_clk>,
+				 <&hsls_25m_div2_clk>,
+				 <&hsls_div4_clk>;
+			clock-names = "timer1", "timer2", "apb_pclk";
+			status = "disabled";
+		};
+
+		timer7: timer@000a0000 {
+			compatible = "arm,sp804", "arm,primecell";
+			reg = <0x000a0000 0x1000>;
+			interrupts = <GIC_SPI 210 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&hsls_25m_div2_clk>,
+				 <&hsls_25m_div2_clk>,
+				 <&hsls_div4_clk>;
+			clock-names = "timer1", "timer2", "apb_pclk";
 			status = "disabled";
 		};
 
@@ -422,6 +549,15 @@
 			clocks = <&hsls_div2_clk>;
 			clock-names = "apb_pclk";
 			iommus = <&smmu 0x6000 0x0000>;
+		};
+
+		enet: ethernet@00340000{
+			compatible = "brcm,amac";
+			reg = <0x00340000 0x1000>;
+			reg-names = "amac_base";
+			dma-coherent;
+			interrupts = <GIC_SPI 213 IRQ_TYPE_LEVEL_HIGH>;
+			status= "disabled";
 		};
 
 		nand: nand@00360000 {

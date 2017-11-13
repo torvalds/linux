@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2013 Imagination Technologies
- * Author: Paul Burton <paul.burton@imgtec.com>
+ * Author: Paul Burton <paul.burton@mips.com>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -8,11 +8,15 @@
  * option) any later version.
  */
 
+#ifndef __MIPS_ASM_MIPS_CPS_H__
+# error Please include asm/mips-cps.h rather than asm/mips-cpc.h
+#endif
+
 #ifndef __MIPS_ASM_MIPS_CPC_H__
 #define __MIPS_ASM_MIPS_CPC_H__
 
-#include <linux/io.h>
-#include <linux/types.h>
+#include <linux/bitops.h>
+#include <linux/errno.h>
 
 /* The base address of the CPC registers */
 extern void __iomem *mips_cpc_base;
@@ -61,89 +65,92 @@ static inline bool mips_cpc_present(void)
 #define MIPS_CPC_CLCB_OFS	0x2000
 #define MIPS_CPC_COCB_OFS	0x4000
 
-/* Macros to ease the creation of register access functions */
-#define BUILD_CPC_R_(name, off)					\
-static inline u32 *addr_cpc_##name(void)			\
-{								\
-	return (u32 *)(mips_cpc_base + (off));			\
-}								\
-								\
-static inline u32 read_cpc_##name(void)				\
-{								\
-	return __raw_readl(mips_cpc_base + (off));		\
-}
+#define CPC_ACCESSOR_RO(sz, off, name)					\
+	CPS_ACCESSOR_RO(cpc, sz, MIPS_CPC_GCB_OFS + off, name)		\
+	CPS_ACCESSOR_RO(cpc, sz, MIPS_CPC_COCB_OFS + off, redir_##name)
 
-#define BUILD_CPC__W(name, off) \
-static inline void write_cpc_##name(u32 value)			\
-{								\
-	__raw_writel(value, mips_cpc_base + (off));		\
-}
+#define CPC_ACCESSOR_RW(sz, off, name)					\
+	CPS_ACCESSOR_RW(cpc, sz, MIPS_CPC_GCB_OFS + off, name)		\
+	CPS_ACCESSOR_RW(cpc, sz, MIPS_CPC_COCB_OFS + off, redir_##name)
 
-#define BUILD_CPC_RW(name, off)					\
-	BUILD_CPC_R_(name, off)					\
-	BUILD_CPC__W(name, off)
+#define CPC_CX_ACCESSOR_RO(sz, off, name)				\
+	CPS_ACCESSOR_RO(cpc, sz, MIPS_CPC_CLCB_OFS + off, cl_##name)	\
+	CPS_ACCESSOR_RO(cpc, sz, MIPS_CPC_COCB_OFS + off, co_##name)
 
-#define BUILD_CPC_Cx_R_(name, off)				\
-	BUILD_CPC_R_(cl_##name, MIPS_CPC_CLCB_OFS + (off))	\
-	BUILD_CPC_R_(co_##name, MIPS_CPC_COCB_OFS + (off))
+#define CPC_CX_ACCESSOR_RW(sz, off, name)				\
+	CPS_ACCESSOR_RW(cpc, sz, MIPS_CPC_CLCB_OFS + off, cl_##name)	\
+	CPS_ACCESSOR_RW(cpc, sz, MIPS_CPC_COCB_OFS + off, co_##name)
 
-#define BUILD_CPC_Cx__W(name, off)				\
-	BUILD_CPC__W(cl_##name, MIPS_CPC_CLCB_OFS + (off))	\
-	BUILD_CPC__W(co_##name, MIPS_CPC_COCB_OFS + (off))
+/* CPC_ACCESS - Control core/IOCU access to CPC registers prior to CM 3 */
+CPC_ACCESSOR_RW(32, 0x000, access)
 
-#define BUILD_CPC_Cx_RW(name, off)				\
-	BUILD_CPC_Cx_R_(name, off)				\
-	BUILD_CPC_Cx__W(name, off)
+/* CPC_SEQDEL - Configure delays between command sequencer steps */
+CPC_ACCESSOR_RW(32, 0x008, seqdel)
 
-/* GCB register accessor functions */
-BUILD_CPC_RW(access,		MIPS_CPC_GCB_OFS + 0x00)
-BUILD_CPC_RW(seqdel,		MIPS_CPC_GCB_OFS + 0x08)
-BUILD_CPC_RW(rail,		MIPS_CPC_GCB_OFS + 0x10)
-BUILD_CPC_RW(resetlen,		MIPS_CPC_GCB_OFS + 0x18)
-BUILD_CPC_R_(revision,		MIPS_CPC_GCB_OFS + 0x20)
+/* CPC_RAIL - Configure the delay from rail power-up to stability */
+CPC_ACCESSOR_RW(32, 0x010, rail)
 
-/* Core Local & Core Other accessor functions */
-BUILD_CPC_Cx_RW(cmd,		0x00)
-BUILD_CPC_Cx_RW(stat_conf,	0x08)
-BUILD_CPC_Cx_RW(other,		0x10)
-BUILD_CPC_Cx_RW(vp_stop,	0x20)
-BUILD_CPC_Cx_RW(vp_run,		0x28)
-BUILD_CPC_Cx_RW(vp_running,	0x30)
+/* CPC_RESETLEN - Configure the length of reset sequences */
+CPC_ACCESSOR_RW(32, 0x018, resetlen)
 
-/* CPC_Cx_CMD register fields */
-#define CPC_Cx_CMD_SHF				0
-#define CPC_Cx_CMD_MSK				(_ULCAST_(0xf) << 0)
-#define  CPC_Cx_CMD_CLOCKOFF			(_ULCAST_(0x1) << 0)
-#define  CPC_Cx_CMD_PWRDOWN			(_ULCAST_(0x2) << 0)
-#define  CPC_Cx_CMD_PWRUP			(_ULCAST_(0x3) << 0)
-#define  CPC_Cx_CMD_RESET			(_ULCAST_(0x4) << 0)
+/* CPC_REVISION - Indicates the revisison of the CPC */
+CPC_ACCESSOR_RO(32, 0x020, revision)
 
-/* CPC_Cx_STAT_CONF register fields */
-#define CPC_Cx_STAT_CONF_PWRUPE_SHF		23
-#define CPC_Cx_STAT_CONF_PWRUPE_MSK		(_ULCAST_(0x1) << 23)
-#define CPC_Cx_STAT_CONF_SEQSTATE_SHF		19
-#define CPC_Cx_STAT_CONF_SEQSTATE_MSK		(_ULCAST_(0xf) << 19)
-#define  CPC_Cx_STAT_CONF_SEQSTATE_D0		(_ULCAST_(0x0) << 19)
-#define  CPC_Cx_STAT_CONF_SEQSTATE_U0		(_ULCAST_(0x1) << 19)
-#define  CPC_Cx_STAT_CONF_SEQSTATE_U1		(_ULCAST_(0x2) << 19)
-#define  CPC_Cx_STAT_CONF_SEQSTATE_U2		(_ULCAST_(0x3) << 19)
-#define  CPC_Cx_STAT_CONF_SEQSTATE_U3		(_ULCAST_(0x4) << 19)
-#define  CPC_Cx_STAT_CONF_SEQSTATE_U4		(_ULCAST_(0x5) << 19)
-#define  CPC_Cx_STAT_CONF_SEQSTATE_U5		(_ULCAST_(0x6) << 19)
-#define  CPC_Cx_STAT_CONF_SEQSTATE_U6		(_ULCAST_(0x7) << 19)
-#define  CPC_Cx_STAT_CONF_SEQSTATE_D1		(_ULCAST_(0x8) << 19)
-#define  CPC_Cx_STAT_CONF_SEQSTATE_D3		(_ULCAST_(0x9) << 19)
-#define  CPC_Cx_STAT_CONF_SEQSTATE_D2		(_ULCAST_(0xa) << 19)
-#define CPC_Cx_STAT_CONF_CLKGAT_IMPL_SHF	17
-#define CPC_Cx_STAT_CONF_CLKGAT_IMPL_MSK	(_ULCAST_(0x1) << 17)
-#define CPC_Cx_STAT_CONF_PWRDN_IMPL_SHF		16
-#define CPC_Cx_STAT_CONF_PWRDN_IMPL_MSK		(_ULCAST_(0x1) << 16)
-#define CPC_Cx_STAT_CONF_EJTAG_PROBE_SHF	15
-#define CPC_Cx_STAT_CONF_EJTAG_PROBE_MSK	(_ULCAST_(0x1) << 15)
+/* CPC_PWRUP_CTL - Control power to the Coherence Manager (CM) */
+CPC_ACCESSOR_RW(32, 0x030, pwrup_ctl)
+#define CPC_PWRUP_CTL_CM_PWRUP			BIT(0)
 
-/* CPC_Cx_OTHER register fields */
-#define CPC_Cx_OTHER_CORENUM_SHF		16
-#define CPC_Cx_OTHER_CORENUM_MSK		(_ULCAST_(0xff) << 16)
+/* CPC_CONFIG - Mirrors GCR_CONFIG */
+CPC_ACCESSOR_RW(64, 0x138, config)
+
+/* CPC_SYS_CONFIG - Control cluster endianness */
+CPC_ACCESSOR_RW(32, 0x140, sys_config)
+#define CPC_SYS_CONFIG_BE_IMMEDIATE		BIT(2)
+#define CPC_SYS_CONFIG_BE_STATUS		BIT(1)
+#define CPC_SYS_CONFIG_BE			BIT(0)
+
+/* CPC_Cx_CMD - Instruct the CPC to take action on a core */
+CPC_CX_ACCESSOR_RW(32, 0x000, cmd)
+#define CPC_Cx_CMD				GENMASK(3, 0)
+#define  CPC_Cx_CMD_CLOCKOFF			0x1
+#define  CPC_Cx_CMD_PWRDOWN			0x2
+#define  CPC_Cx_CMD_PWRUP			0x3
+#define  CPC_Cx_CMD_RESET			0x4
+
+/* CPC_Cx_STAT_CONF - Indicates core configuration & state */
+CPC_CX_ACCESSOR_RW(32, 0x008, stat_conf)
+#define CPC_Cx_STAT_CONF_PWRUPE			BIT(23)
+#define CPC_Cx_STAT_CONF_SEQSTATE		GENMASK(22, 19)
+#define  CPC_Cx_STAT_CONF_SEQSTATE_D0		0x0
+#define  CPC_Cx_STAT_CONF_SEQSTATE_U0		0x1
+#define  CPC_Cx_STAT_CONF_SEQSTATE_U1		0x2
+#define  CPC_Cx_STAT_CONF_SEQSTATE_U2		0x3
+#define  CPC_Cx_STAT_CONF_SEQSTATE_U3		0x4
+#define  CPC_Cx_STAT_CONF_SEQSTATE_U4		0x5
+#define  CPC_Cx_STAT_CONF_SEQSTATE_U5		0x6
+#define  CPC_Cx_STAT_CONF_SEQSTATE_U6		0x7
+#define  CPC_Cx_STAT_CONF_SEQSTATE_D1		0x8
+#define  CPC_Cx_STAT_CONF_SEQSTATE_D3		0x9
+#define  CPC_Cx_STAT_CONF_SEQSTATE_D2		0xa
+#define CPC_Cx_STAT_CONF_CLKGAT_IMPL		BIT(17)
+#define CPC_Cx_STAT_CONF_PWRDN_IMPL		BIT(16)
+#define CPC_Cx_STAT_CONF_EJTAG_PROBE		BIT(15)
+
+/* CPC_Cx_OTHER - Configure the core-other register block prior to CM 3 */
+CPC_CX_ACCESSOR_RW(32, 0x010, other)
+#define CPC_Cx_OTHER_CORENUM			GENMASK(23, 16)
+
+/* CPC_Cx_VP_STOP - Stop Virtual Processors (VPs) within a core from running */
+CPC_CX_ACCESSOR_RW(32, 0x020, vp_stop)
+
+/* CPC_Cx_VP_START - Start Virtual Processors (VPs) within a core running */
+CPC_CX_ACCESSOR_RW(32, 0x028, vp_run)
+
+/* CPC_Cx_VP_RUNNING - Indicate which Virtual Processors (VPs) are running */
+CPC_CX_ACCESSOR_RW(32, 0x030, vp_running)
+
+/* CPC_Cx_CONFIG - Mirrors GCR_Cx_CONFIG */
+CPC_CX_ACCESSOR_RW(32, 0x090, config)
 
 #ifdef CONFIG_MIPS_CPC
 

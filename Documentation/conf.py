@@ -29,7 +29,7 @@ from load_config import loadConfig
 # -- General configuration ------------------------------------------------
 
 # If your documentation needs a minimal Sphinx version, state it here.
-needs_sphinx = '1.2'
+needs_sphinx = '1.3'
 
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
@@ -271,10 +271,29 @@ latex_elements = {
 
 # Additional stuff for the LaTeX preamble.
     'preamble': '''
-        \\usepackage{ifthen}
+	% Use some font with UTF-8 support with XeLaTeX
+        \\usepackage{fontspec}
+        \\setsansfont{DejaVu Serif}
+        \\setromanfont{DejaVu Sans}
+        \\setmonofont{DejaVu Sans Mono}
 
-        % Allow generate some pages in landscape
-        \\usepackage{lscape}
+     '''
+}
+
+# Fix reference escape troubles with Sphinx 1.4.x
+if major == 1 and minor > 3:
+    latex_elements['preamble']  += '\\renewcommand*{\\DUrole}[2]{ #2 }\n'
+
+if major == 1 and minor <= 4:
+    latex_elements['preamble']  += '\\usepackage[margin=0.5in, top=1in, bottom=1in]{geometry}'
+elif major == 1 and (minor > 5 or (minor == 5 and patch >= 3)):
+    latex_elements['sphinxsetup'] = 'hmargin=0.5in, vmargin=1in'
+    latex_elements['preamble']  += '\\fvset{fontsize=auto}\n'
+
+# Customize notice background colors on Sphinx < 1.6:
+if major == 1 and minor < 6:
+   latex_elements['preamble']  += '''
+        \\usepackage{ifthen}
 
         % Put notes in color and let them be inside a table
 	\\definecolor{NoteColor}{RGB}{204,255,255}
@@ -325,27 +344,26 @@ latex_elements = {
         }
 	\\makeatother
 
-	% Use some font with UTF-8 support with XeLaTeX
-        \\usepackage{fontspec}
-        \\setsansfont{DejaVu Serif}
-        \\setromanfont{DejaVu Sans}
-        \\setmonofont{DejaVu Sans Mono}
-
-	% To allow adjusting table sizes
-	\\usepackage{adjustbox}
-
      '''
-}
 
-# Fix reference escape troubles with Sphinx 1.4.x
-if major == 1 and minor > 3:
-    latex_elements['preamble']  += '\\renewcommand*{\\DUrole}[2]{ #2 }\n'
-
-if major == 1 and minor <= 4:
-    latex_elements['preamble']  += '\\usepackage[margin=0.5in, top=1in, bottom=1in]{geometry}'
-elif major == 1 and (minor > 5 or (minor == 5 and patch >= 3)):
-    latex_elements['sphinxsetup'] = 'hmargin=0.5in, vmargin=0.5in'
-
+# With Sphinx 1.6, it is possible to change the Bg color directly
+# by using:
+#	\definecolor{sphinxnoteBgColor}{RGB}{204,255,255}
+#	\definecolor{sphinxwarningBgColor}{RGB}{255,204,204}
+#	\definecolor{sphinxattentionBgColor}{RGB}{255,255,204}
+#	\definecolor{sphinximportantBgColor}{RGB}{192,255,204}
+#
+# However, it require to use sphinx heavy box with:
+#
+#	\renewenvironment{sphinxlightbox} {%
+#		\\begin{sphinxheavybox}
+#	}
+#		\\end{sphinxheavybox}
+#	}
+#
+# Unfortunately, the implementation is buggy: if a note is inside a
+# table, it isn't displayed well. So, for now, let's use boring
+# black and white notes.
 
 # Grouping the document tree into LaTeX files. List of tuples
 # (source start file, target name, title,

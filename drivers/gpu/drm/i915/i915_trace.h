@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #if !defined(_I915_TRACE_H_) || defined(TRACE_HEADER_MULTI_READ)
 #define _I915_TRACE_H_
 
@@ -38,7 +39,7 @@ TRACE_EVENT(intel_cpu_fifo_underrun,
 );
 
 TRACE_EVENT(intel_pch_fifo_underrun,
-	    TP_PROTO(struct drm_i915_private *dev_priv, enum transcoder pch_transcoder),
+	    TP_PROTO(struct drm_i915_private *dev_priv, enum pipe pch_transcoder),
 	    TP_ARGS(dev_priv, pch_transcoder),
 
 	    TP_STRUCT__entry(
@@ -48,7 +49,7 @@ TRACE_EVENT(intel_pch_fifo_underrun,
 			     ),
 
 	    TP_fast_assign(
-			   enum pipe pipe = (enum pipe)pch_transcoder;
+			   enum pipe pipe = pch_transcoder;
 			   __entry->pipe = pipe;
 			   __entry->frame = dev_priv->drm.driver->get_vblank_counter(&dev_priv->drm, pipe);
 			   __entry->scanline = intel_get_crtc_scanline(intel_get_crtc_for_pipe(dev_priv, pipe));

@@ -1,9 +1,11 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_SEM_H
 #define _LINUX_SEM_H
 
 #include <linux/atomic.h>
 #include <linux/rcupdate.h>
 #include <linux/cache.h>
+#include <linux/time64.h>
 #include <uapi/linux/sem.h>
 
 struct task_struct;
@@ -30,7 +32,7 @@ struct sem {
 /* One sem_array data structure for each set of semaphores in the system. */
 struct sem_array {
 	struct kern_ipc_perm	sem_perm;	/* permissions .. see ipc.h */
-	time_t			sem_ctime;	/* create/last semctl() time */
+	time64_t		sem_ctime;	/* create/last semctl() time */
 	struct list_head	pending_alter;	/* pending operations */
 						/* that alter the array */
 	struct list_head	pending_const;	/* pending complex operations */

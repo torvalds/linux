@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  This file contains work-arounds for many known PCI hardware
  *  bugs.  Devices present only on certain architectures (host
@@ -25,6 +26,7 @@
 #include <linux/sched.h>
 #include <linux/ktime.h>
 #include <linux/mm.h>
+#include <linux/platform_data/x86/apple.h>
 #include <asm/dma.h>	/* isa_dma_bridge_buggy */
 #include "pci.h"
 
@@ -1706,7 +1708,7 @@ static int dmi_disable_ioapicreroute(const struct dmi_system_id *d)
 	return 0;
 }
 
-static struct dmi_system_id boot_interrupt_dmi_table[] = {
+static const struct dmi_system_id boot_interrupt_dmi_table[] = {
 	/*
 	 * Systems to exclude from boot interrupt reroute quirks
 	 */
@@ -2061,7 +2063,7 @@ DECLARE_PCI_FIXUP_CLASS_FINAL(PCI_VENDOR_ID_INTEL, PCI_ANY_ID,
 
 /*
  * The 82575 and 82598 may experience data corruption issues when transitioning
- * out of L0S.  To prevent this we need to disable L0S on the pci-e link
+ * out of L0S.  To prevent this we need to disable L0S on the PCIe link.
  */
 static void quirk_disable_aspm_l0s(struct pci_dev *dev)
 {
@@ -3447,7 +3449,7 @@ static void quirk_apple_poweroff_thunderbolt(struct pci_dev *dev)
 {
 	acpi_handle bridge, SXIO, SXFP, SXLV;
 
-	if (!dmi_match(DMI_BOARD_VENDOR, "Apple Inc."))
+	if (!x86_apple_machine)
 		return;
 	if (pci_pcie_type(dev) != PCI_EXP_TYPE_UPSTREAM)
 		return;
@@ -3492,7 +3494,7 @@ static void quirk_apple_wait_for_thunderbolt(struct pci_dev *dev)
 	struct pci_dev *sibling = NULL;
 	struct pci_dev *nhi = NULL;
 
-	if (!dmi_match(DMI_BOARD_VENDOR, "Apple Inc."))
+	if (!x86_apple_machine)
 		return;
 	if (pci_pcie_type(dev) != PCI_EXP_TYPE_DOWNSTREAM)
 		return;
@@ -4226,6 +4228,18 @@ static int pci_quirk_cavium_acs(struct pci_dev *dev, u16 acs_flags)
 	return acs_flags ? 0 : 1;
 }
 
+static int pci_quirk_xgene_acs(struct pci_dev *dev, u16 acs_flags)
+{
+	/*
+	 * X-Gene root matching this quirk do not allow peer-to-peer
+	 * transactions with others, allowing masking out these bits as if they
+	 * were unimplemented in the ACS capability.
+	 */
+	acs_flags &= ~(PCI_ACS_SV | PCI_ACS_RR | PCI_ACS_CR | PCI_ACS_UF);
+
+	return acs_flags ? 0 : 1;
+}
+
 /*
  * Many Intel PCH root ports do provide ACS-like features to disable peer
  * transactions and validate bus numbers in requests, but do not provide an
@@ -4474,6 +4488,8 @@ static const struct pci_dev_acs_enabled {
 	{ 0x10df, 0x720, pci_quirk_mf_endpoint_acs }, /* Emulex Skyhawk-R */
 	/* Cavium ThunderX */
 	{ PCI_VENDOR_ID_CAVIUM, PCI_ANY_ID, pci_quirk_cavium_acs },
+	/* APM X-Gene */
+	{ PCI_VENDOR_ID_AMCC, 0xE004, pci_quirk_xgene_acs },
 	{ 0 }
 };
 
@@ -4746,23 +4762,6 @@ static void quirk_intel_qat_vf_cap(struct pci_dev *pdev)
 }
 DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_INTEL, 0x443, quirk_intel_qat_vf_cap);
 
-/*
- * VMD-enabled root ports will change the source ID for all messages
- * to the VMD device. Rather than doing device matching with the source
- * ID, the AER driver should traverse the child device tree, reading
- * AER registers to find the faulting device.
- */
-static void quirk_no_aersid(struct pci_dev *pdev)
-{
-	/* VMD Domain */
-	if (pdev->bus->sysdata && pci_domain_nr(pdev->bus) >= 0x10000)
-		pdev->bus->bus_flags |= PCI_BUS_FLAGS_NO_AERSID;
-}
-DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_INTEL, 0x2030, quirk_no_aersid);
-DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_INTEL, 0x2031, quirk_no_aersid);
-DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_INTEL, 0x2032, quirk_no_aersid);
-DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_INTEL, 0x2033, quirk_no_aersid);
-
 /* FLR may cause some 82579 devices to hang. */
 static void quirk_intel_no_flr(struct pci_dev *dev)
 {
@@ -4770,3 +4769,34 @@ static void quirk_intel_no_flr(struct pci_dev *dev)
 }
 DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_INTEL, 0x1502, quirk_intel_no_flr);
 DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_INTEL, 0x1503, quirk_intel_no_flr);
+
+static void quirk_no_ext_tags(struct pci_dev *pdev)
+{
+	struct pci_host_bridge *bridge = pci_find_host_bridge(pdev->bus);
+
+	if (!bridge)
+		return;
+
+	bridge->no_ext_tags = 1;
+	dev_info(&pdev->dev, "disabling Extended Tags (this device can't handle them)\n");
+
+	pci_walk_bus(bridge->bus, pci_configure_extended_tags, NULL);
+}
+DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_SERVERWORKS, 0x0140, quirk_no_ext_tags);
+DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_SERVERWORKS, 0x0142, quirk_no_ext_tags);
+DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_SERVERWORKS, 0x0144, quirk_no_ext_tags);
+
+#ifdef CONFIG_PCI_ATS
+/*
+ * Some devices have a broken ATS implementation causing IOMMU stalls.
+ * Don't use ATS for those devices.
+ */
+static void quirk_no_ats(struct pci_dev *pdev)
+{
+	dev_info(&pdev->dev, "disabling ATS (broken on this device)\n");
+	pdev->ats_cap = 0;
+}
+
+/* AMD Stoney platform GPU */
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_ATI, 0x98e4, quirk_no_ats);
+#endif /* CONFIG_PCI_ATS */

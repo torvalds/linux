@@ -75,7 +75,7 @@ static const struct i2c_algorithm thunderx_i2c_algo = {
 	.functionality = thunderx_i2c_functionality,
 };
 
-static struct i2c_adapter thunderx_i2c_ops = {
+static const struct i2c_adapter thunderx_i2c_ops = {
 	.owner	= THIS_MODULE,
 	.name	= "ThunderX adapter",
 	.algo	= &thunderx_i2c_algo,

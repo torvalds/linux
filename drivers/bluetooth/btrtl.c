@@ -279,6 +279,8 @@ static int rtl_load_config(struct hci_dev *hdev, const char *name, u8 **buff)
 		return ret;
 	ret = fw->size;
 	*buff = kmemdup(fw->data, ret, GFP_KERNEL);
+	if (!*buff)
+		ret = -ENOMEM;
 
 	release_firmware(fw);
 

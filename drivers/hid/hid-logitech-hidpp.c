@@ -2926,7 +2926,7 @@ static struct attribute *sysfs_attrs[] = {
 	NULL
 };
 
-static struct attribute_group ps_attribute_group = {
+static const struct attribute_group ps_attribute_group = {
 	.attrs = sysfs_attrs
 };
 

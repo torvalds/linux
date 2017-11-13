@@ -602,6 +602,7 @@ static int s5pv210_cpufreq_probe(struct platform_device *pdev)
 	}
 
 	clk_base = of_iomap(np, 0);
+	of_node_put(np);
 	if (!clk_base) {
 		pr_err("%s: failed to map clock registers\n", __func__);
 		return -EFAULT;
@@ -612,6 +613,7 @@ static int s5pv210_cpufreq_probe(struct platform_device *pdev)
 		if (id < 0 || id >= ARRAY_SIZE(dmc_base)) {
 			pr_err("%s: failed to get alias of dmc node '%s'\n",
 				__func__, np->name);
+			of_node_put(np);
 			return id;
 		}
 
@@ -619,6 +621,7 @@ static int s5pv210_cpufreq_probe(struct platform_device *pdev)
 		if (!dmc_base[id]) {
 			pr_err("%s: failed to map dmc%d registers\n",
 				__func__, id);
+			of_node_put(np);
 			return -EFAULT;
 		}
 	}

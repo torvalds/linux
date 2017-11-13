@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 obj-$(CONFIG_SH_7619_SOLUTION_ENGINE)	+= board-se7619.o
 
 obj-$(CONFIG_SH_SOLUTION_ENGINE)	+= 770x/

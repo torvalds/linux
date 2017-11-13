@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/err.h>
 #include <traceevent/event-parse.h>
 #include "evsel.h"
@@ -32,7 +33,7 @@ static int perf_evsel__test_field(struct perf_evsel *evsel, const char *name,
 	return ret;
 }
 
-int test__perf_evsel__tp_sched_test(int subtest __maybe_unused)
+int test__perf_evsel__tp_sched_test(struct test *test __maybe_unused, int subtest __maybe_unused)
 {
 	struct perf_evsel *evsel = perf_evsel__newtp("sched", "sched_switch");
 	int ret = 0;

@@ -539,7 +539,7 @@ static int ltc3589_probe(struct i2c_client *client,
 	return 0;
 }
 
-static struct i2c_device_id ltc3589_i2c_id[] = {
+static const struct i2c_device_id ltc3589_i2c_id[] = {
 	{ "ltc3589",   LTC3589   },
 	{ "ltc3589-1", LTC3589_1 },
 	{ "ltc3589-2", LTC3589_2 },

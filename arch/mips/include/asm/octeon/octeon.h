@@ -362,4 +362,6 @@ extern void octeon_fixup_irqs(void);
 
 extern struct semaphore octeon_bootbus_sem;
 
+struct irq_domain *octeon_irq_get_block_domain(int node, uint8_t block);
+
 #endif /* __ASM_OCTEON_OCTEON_H */

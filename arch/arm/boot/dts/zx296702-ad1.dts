@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 
 /dts-v1/;
 
@@ -18,7 +19,6 @@
 };
 
 &mmc0 {
-	num-slots = <1>;
 	supports-highspeed;
 	non-removable;
 	disable-wp;
@@ -31,7 +31,6 @@
 };
 
 &mmc1 {
-	num-slots = <1>;
 	supports-highspeed;
 	non-removable;
 	disable-wp;

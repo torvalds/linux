@@ -45,8 +45,10 @@
 #define XPS2_STATUS_RX_FULL	0x00000001 /* Receive Full  */
 #define XPS2_STATUS_TX_FULL	0x00000002 /* Transmit Full  */
 
-/* Bit definitions for ISR/IER registers. Both the registers have the same bit
- * definitions and are only defined once. */
+/*
+ * Bit definitions for ISR/IER registers. Both the registers have the same bit
+ * definitions and are only defined once.
+ */
 #define XPS2_IPIXR_WDT_TOUT	0x00000001 /* Watchdog Timeout Interrupt */
 #define XPS2_IPIXR_TX_NOACK	0x00000002 /* Transmit No ACK Interrupt */
 #define XPS2_IPIXR_TX_ACK	0x00000004 /* Transmit ACK (Data) Interrupt */
@@ -292,8 +294,10 @@ static int xps2_of_probe(struct platform_device *ofdev)
 	/* Disable all the interrupts, just in case */
 	out_be32(drvdata->base_address + XPS2_IPIER_OFFSET, 0);
 
-	/* Reset the PS2 device and abort any current transaction, to make sure
-	 * we have the PS2 in a good state */
+	/*
+	 * Reset the PS2 device and abort any current transaction,
+	 * to make sure we have the PS2 in a good state.
+	 */
 	out_be32(drvdata->base_address + XPS2_SRST_OFFSET, XPS2_SRST_RESET);
 
 	dev_info(dev, "Xilinx PS2 at 0x%08llX mapped to 0x%p, irq=%d\n",

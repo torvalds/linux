@@ -37,10 +37,10 @@
 #define DEBUG_SUBSYSTEM S_LOV
 
 #include <asm/div64.h>
-#include "../../include/linux/libcfs/libcfs.h"
+#include <linux/libcfs/libcfs.h>
 
-#include "../include/obd_class.h"
-#include "../include/lustre/lustre_idl.h"
+#include <obd_class.h>
+#include <uapi/linux/lustre/lustre_idl.h>
 
 #include "lov_internal.h"
 
@@ -150,9 +150,10 @@ static int lsm_unpackmd_common(struct lov_obd *lov,
 			       struct lov_mds_md *lmm,
 			       struct lov_ost_data_v1 *objects)
 {
-	loff_t stripe_maxbytes = LLONG_MAX;
+	loff_t min_stripe_maxbytes = 0;
 	unsigned int stripe_count;
 	struct lov_oinfo *loi;
+	loff_t lov_bytes;
 	unsigned int i;
 
 	/*
@@ -168,8 +169,6 @@ static int lsm_unpackmd_common(struct lov_obd *lov,
 	stripe_count = lsm_is_released(lsm) ? 0 : lsm->lsm_stripe_count;
 
 	for (i = 0; i < stripe_count; i++) {
-		loff_t tgt_bytes;
-
 		loi = lsm->lsm_oinfo[i];
 		ostid_le_to_cpu(&objects[i].l_ost_oi, &loi->loi_oi);
 		loi->loi_ost_idx = le32_to_cpu(objects[i].l_ost_idx);
@@ -194,17 +193,21 @@ static int lsm_unpackmd_common(struct lov_obd *lov,
 			continue;
 		}
 
-		tgt_bytes = lov_tgt_maxbytes(lov->lov_tgts[loi->loi_ost_idx]);
-		stripe_maxbytes = min_t(loff_t, stripe_maxbytes, tgt_bytes);
+		lov_bytes = lov_tgt_maxbytes(lov->lov_tgts[loi->loi_ost_idx]);
+		if (min_stripe_maxbytes == 0 || lov_bytes < min_stripe_maxbytes)
+			min_stripe_maxbytes = lov_bytes;
 	}
 
-	if (stripe_maxbytes == LLONG_MAX)
-		stripe_maxbytes = LUSTRE_EXT3_STRIPE_MAXBYTES;
+	if (min_stripe_maxbytes == 0)
+		min_stripe_maxbytes = LUSTRE_EXT3_STRIPE_MAXBYTES;
 
-	if (!lsm->lsm_stripe_count)
-		lsm->lsm_maxbytes = stripe_maxbytes * lov->desc.ld_tgt_count;
+	stripe_count = lsm->lsm_stripe_count ?: lov->desc.ld_tgt_count;
+	lov_bytes = min_stripe_maxbytes * stripe_count;
+
+	if (lov_bytes < min_stripe_maxbytes) /* handle overflow */
+		lsm->lsm_maxbytes = MAX_LFS_FILESIZE;
 	else
-		lsm->lsm_maxbytes = stripe_maxbytes * lsm->lsm_stripe_count;
+		lsm->lsm_maxbytes = lov_bytes;
 
 	return 0;
 }

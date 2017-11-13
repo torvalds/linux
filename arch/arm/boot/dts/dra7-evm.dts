@@ -8,9 +8,8 @@
 /dts-v1/;
 
 #include "dra74x.dtsi"
-#include <dt-bindings/gpio/gpio.h>
-#include <dt-bindings/clk/ti-dra7-atl.h>
-#include <dt-bindings/input/input.h>
+#include "dra7-evm-common.dtsi"
+#include "dra74x-mmc-iodelay.dtsi"
 
 / {
 	model = "TI DRA742";
@@ -21,8 +20,12 @@
 		reg = <0x0 0x80000000 0x0 0x60000000>; /* 1536 MB */
 	};
 
-	chosen {
-		stdout-path = &uart1;
+	evm_1v8_sw: fixedregulator-evm_1v8 {
+		compatible = "regulator-fixed";
+		regulator-name = "evm_1v8";
+		vin-supply = <&smps9_reg>;
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
 	};
 
 	evm_3v3_sd: fixedregulator-sd {
@@ -51,11 +54,6 @@
 		regulator-max-microvolt = <1800000>;
 	};
 
-	extcon_usb1: extcon_usb1 {
-		compatible = "linux,extcon-usb-gpio";
-		id-gpio = <&pcf_gpio_21 1 GPIO_ACTIVE_HIGH>;
-	};
-
 	extcon_usb2: extcon_usb2 {
 		compatible = "linux,extcon-usb-gpio";
 		id-gpio = <&pcf_gpio_21 2 GPIO_ACTIVE_HIGH>;
@@ -73,85 +71,6 @@
 		gpio = <&gpio7 11 GPIO_ACTIVE_HIGH>;
 	};
 
-	sound0: sound0 {
-		compatible = "simple-audio-card";
-		simple-audio-card,name = "DRA7xx-EVM";
-		simple-audio-card,widgets =
-			"Headphone", "Headphone Jack",
-			"Line", "Line Out",
-			"Microphone", "Mic Jack",
-			"Line", "Line In";
-		simple-audio-card,routing =
-			"Headphone Jack",	"HPLOUT",
-			"Headphone Jack",	"HPROUT",
-			"Line Out",		"LLOUT",
-			"Line Out",		"RLOUT",
-			"MIC3L",		"Mic Jack",
-			"MIC3R",		"Mic Jack",
-			"Mic Jack",		"Mic Bias",
-			"LINE1L",		"Line In",
-			"LINE1R",		"Line In";
-		simple-audio-card,format = "dsp_b";
-		simple-audio-card,bitclock-master = <&sound0_master>;
-		simple-audio-card,frame-master = <&sound0_master>;
-		simple-audio-card,bitclock-inversion;
-
-		sound0_master: simple-audio-card,cpu {
-			sound-dai = <&mcasp3>;
-			system-clock-frequency = <5644800>;
-		};
-
-		simple-audio-card,codec {
-			sound-dai = <&tlv320aic3106>;
-			clocks = <&atl_clkin2_ck>;
-		};
-	};
-
-	leds {
-		compatible = "gpio-leds";
-		led0 {
-			label = "dra7:usr1";
-			gpios = <&pcf_lcd 4 GPIO_ACTIVE_LOW>;
-			default-state = "off";
-		};
-
-		led1 {
-			label = "dra7:usr2";
-			gpios = <&pcf_lcd 5 GPIO_ACTIVE_LOW>;
-			default-state = "off";
-		};
-
-		led2 {
-			label = "dra7:usr3";
-			gpios = <&pcf_lcd 6 GPIO_ACTIVE_LOW>;
-			default-state = "off";
-		};
-
-		led3 {
-			label = "dra7:usr4";
-			gpios = <&pcf_lcd 7 GPIO_ACTIVE_LOW>;
-			default-state = "off";
-		};
-	};
-
-	gpio_keys {
-		compatible = "gpio-keys";
-		#address-cells = <1>;
-		#size-cells = <0>;
-		autorepeat;
-
-		USER1 {
-			label = "btnUser1";
-			linux,code = <BTN_0>;
-			gpios = <&pcf_lcd 2 GPIO_ACTIVE_LOW>;
-		};
-
-		USER2 {
-			label = "btnUser2";
-			linux,code = <BTN_1>;
-			gpios = <&pcf_lcd 3 GPIO_ACTIVE_LOW>;
-		};
-	};
 };
 
 &dra7_pmx_core {
@@ -406,135 +325,47 @@
 	};
 };
 
-&i2c3 {
-	status = "okay";
-	clock-frequency = <400000>;
-};
-
-&mcspi1 {
-	status = "okay";
-};
-
-&mcspi2 {
-	status = "okay";
-};
-
-&uart1 {
-	status = "okay";
-	interrupts-extended = <&crossbar_mpu GIC_SPI 67 IRQ_TYPE_LEVEL_HIGH>,
-			      <&dra7_pmx_core 0x3e0>;
-};
-
-&uart2 {
-	status = "okay";
-};
-
-&uart3 {
-	status = "okay";
-};
-
 &mmc1 {
 	status = "okay";
-	pinctrl-names = "default";
-	pinctrl-0 = <&mmc1_pins_default>;
 	vmmc-supply = <&evm_3v3_sd>;
-	vmmc_aux-supply = <&ldo1_reg>;
+	vqmmc-supply = <&ldo1_reg>;
 	bus-width = <4>;
 	/*
 	 * SDCD signal is not being used here - using the fact that GPIO mode
 	 * is always hardwired.
 	 */
 	cd-gpios = <&gpio6 27 GPIO_ACTIVE_LOW>;
+	pinctrl-names = "default", "hs", "sdr12", "sdr25", "sdr50", "ddr50-rev11", "sdr104-rev11", "ddr50", "sdr104";
+	pinctrl-0 = <&mmc1_pins_default>;
+	pinctrl-1 = <&mmc1_pins_hs>;
+	pinctrl-2 = <&mmc1_pins_sdr12>;
+	pinctrl-3 = <&mmc1_pins_sdr25>;
+	pinctrl-4 = <&mmc1_pins_sdr50>;
+	pinctrl-5 = <&mmc1_pins_ddr50 &mmc1_iodelay_ddr_rev11_conf>;
+	pinctrl-6 = <&mmc1_pins_sdr104 &mmc1_iodelay_sdr104_rev11_conf>;
+	pinctrl-7 = <&mmc1_pins_ddr50 &mmc1_iodelay_ddr_rev20_conf>;
+	pinctrl-8 = <&mmc1_pins_sdr104 &mmc1_iodelay_sdr104_rev20_conf>;
 };
 
 &mmc2 {
 	status = "okay";
-	pinctrl-names = "default";
-	pinctrl-0 = <&mmc2_pins_default>;
-	vmmc-supply = <&evm_3v3_sw>;
+	vmmc-supply = <&evm_1v8_sw>;
 	bus-width = <8>;
+	pinctrl-names = "default", "hs", "ddr_1_8v-rev11", "ddr_1_8v", "hs200_1_8v-rev11", "hs200_1_8v";
+	pinctrl-0 = <&mmc2_pins_default>;
+	pinctrl-1 = <&mmc2_pins_hs>;
+	pinctrl-2 = <&mmc2_pins_ddr_1_8v_rev11 &mmc2_iodelay_ddr_1_8v_rev11_conf>;
+	pinctrl-3 = <&mmc2_pins_ddr_rev20>;
+	pinctrl-4 = <&mmc2_pins_hs200 &mmc2_iodelay_hs200_rev11_conf>;
+	pinctrl-5 = <&mmc2_pins_hs200 &mmc2_iodelay_hs200_rev20_conf>;
 };
 
 &cpu0 {
 	cpu0-supply = <&smps123_reg>;
 };
 
-&qspi {
-	status = "okay";
-
-	spi-max-frequency = <76800000>;
-	m25p80@0 {
-		compatible = "s25fl256s1";
-		spi-max-frequency = <76800000>;
-		reg = <0>;
-		spi-tx-bus-width = <1>;
-		spi-rx-bus-width = <4>;
-		#address-cells = <1>;
-		#size-cells = <1>;
-
-		/* MTD partition table.
-		 * The ROM checks the first four physical blocks
-		 * for a valid file to boot and the flash here is
-		 * 64KiB block size.
-		 */
-		partition@0 {
-			label = "QSPI.SPL";
-			reg = <0x00000000 0x000010000>;
-		};
-		partition@1 {
-			label = "QSPI.SPL.backup1";
-			reg = <0x00010000 0x00010000>;
-		};
-		partition@2 {
-			label = "QSPI.SPL.backup2";
-			reg = <0x00020000 0x00010000>;
-		};
-		partition@3 {
-			label = "QSPI.SPL.backup3";
-			reg = <0x00030000 0x00010000>;
-		};
-		partition@4 {
-			label = "QSPI.u-boot";
-			reg = <0x00040000 0x00100000>;
-		};
-		partition@5 {
-			label = "QSPI.u-boot-spl-os";
-			reg = <0x00140000 0x00080000>;
-		};
-		partition@6 {
-			label = "QSPI.u-boot-env";
-			reg = <0x001c0000 0x00010000>;
-		};
-		partition@7 {
-			label = "QSPI.u-boot-env.backup1";
-			reg = <0x001d0000 0x0010000>;
-		};
-		partition@8 {
-			label = "QSPI.kernel";
-			reg = <0x001e0000 0x0800000>;
-		};
-		partition@9 {
-			label = "QSPI.file-system";
-			reg = <0x009e0000 0x01620000>;
-		};
-	};
-};
-
-&omap_dwc3_1 {
-	extcon = <&extcon_usb1>;
-};
-
 &omap_dwc3_2 {
 	extcon = <&extcon_usb2>;
-};
-
-&usb1 {
-	dr_mode = "otg";
-	extcon = <&extcon_usb1>;
-};
-
-&usb2 {
-	dr_mode = "host";
 };
 
 &elm {
@@ -556,6 +387,7 @@
 		interrupts = <0 IRQ_TYPE_NONE>, /* fifoevent */
 			     <1 IRQ_TYPE_NONE>; /* termcount */
 		rb-gpios = <&gpmc 0 GPIO_ACTIVE_HIGH>; /* gpmc_wait0 pin */
+		ti,nand-xfer-type = "prefetch-dma";
 		ti,nand-ecc-opt = "bch8";
 		ti,elm-id = <&elm>;
 		nand-bus-width = <16>;
@@ -666,57 +498,6 @@
 	pinctrl-2 = <&dcan1_pins_default>;
 };
 
-&atl {
-	assigned-clocks = <&abe_dpll_sys_clk_mux>,
-			  <&atl_gfclk_mux>,
-			  <&dpll_abe_ck>,
-			  <&dpll_abe_m2x2_ck>,
-			  <&atl_clkin2_ck>;
-	assigned-clock-parents = <&sys_clkin2>, <&dpll_abe_m2_ck>;
-	assigned-clock-rates = <0>, <0>, <180633600>, <361267200>, <5644800>;
-
+&pcie1_rc {
 	status = "okay";
-
-	atl2 {
-		bws = <DRA7_ATL_WS_MCASP2_FSX>;
-		aws = <DRA7_ATL_WS_MCASP3_FSX>;
-	};
-};
-
-&mcasp3 {
-	#sound-dai-cells = <0>;
-
-	assigned-clocks = <&mcasp3_ahclkx_mux>;
-	assigned-clock-parents = <&atl_clkin2_ck>;
-
-	status = "okay";
-
-	op-mode = <0>;          /* MCASP_IIS_MODE */
-	tdm-slots = <2>;
-	/* 4 serializer */
-	serial-dir = <  /* 0: INACTIVE, 1: TX, 2: RX */
-		1 2 0 0
-	>;
-	tx-num-evt = <32>;
-	rx-num-evt = <32>;
-};
-
-&mailbox5 {
-	status = "okay";
-	mbox_ipu1_ipc3x: mbox_ipu1_ipc3x {
-		status = "okay";
-	};
-	mbox_dsp1_ipc3x: mbox_dsp1_ipc3x {
-		status = "okay";
-	};
-};
-
-&mailbox6 {
-	status = "okay";
-	mbox_ipu2_ipc3x: mbox_ipu2_ipc3x {
-		status = "okay";
-	};
-	mbox_dsp2_ipc3x: mbox_dsp2_ipc3x {
-		status = "okay";
-	};
 };

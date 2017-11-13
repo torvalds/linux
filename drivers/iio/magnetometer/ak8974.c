@@ -20,6 +20,7 @@
 #include <linux/mutex.h>
 #include <linux/delay.h>
 #include <linux/bitops.h>
+#include <linux/random.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <linux/pm_runtime.h>
@@ -36,7 +37,7 @@
  * and MSB is at the next higher address.
  */
 
-/* These registers are common for AK8974 and AMI305 */
+/* These registers are common for AK8974 and AMI30x */
 #define AK8974_SELFTEST		0x0C
 #define AK8974_SELFTEST_IDLE	0x55
 #define AK8974_SELFTEST_OK	0xAA
@@ -44,6 +45,7 @@
 #define AK8974_INFO		0x0D
 
 #define AK8974_WHOAMI		0x0F
+#define AK8974_WHOAMI_VALUE_AMI306 0x46
 #define AK8974_WHOAMI_VALUE_AMI305 0x47
 #define AK8974_WHOAMI_VALUE_AK8974 0x48
 
@@ -72,6 +74,35 @@
 /* Different temperature registers */
 #define AK8974_TEMP		0x31
 #define AMI305_TEMP		0x60
+
+/* AMI306-specific control register */
+#define AMI306_CTRL4		0x5C
+
+/* AMI306 factory calibration data */
+
+/* fine axis sensitivity */
+#define AMI306_FINEOUTPUT_X	0x90
+#define AMI306_FINEOUTPUT_Y	0x92
+#define AMI306_FINEOUTPUT_Z	0x94
+
+/* axis sensitivity */
+#define AMI306_SENS_X		0x96
+#define AMI306_SENS_Y		0x98
+#define AMI306_SENS_Z		0x9A
+
+/* axis cross-interference */
+#define AMI306_GAIN_PARA_XZ	0x9C
+#define AMI306_GAIN_PARA_XY	0x9D
+#define AMI306_GAIN_PARA_YZ	0x9E
+#define AMI306_GAIN_PARA_YX	0x9F
+#define AMI306_GAIN_PARA_ZY	0xA0
+#define AMI306_GAIN_PARA_ZX	0xA1
+
+/* offset at ZERO magnetic field */
+#define AMI306_OFFZERO_X	0xF8
+#define AMI306_OFFZERO_Y	0xFA
+#define AMI306_OFFZERO_Z	0xFC
+
 
 #define AK8974_INT_X_HIGH	BIT(7) /* Axis over +threshold  */
 #define AK8974_INT_Y_HIGH	BIT(6)
@@ -158,6 +189,26 @@ struct ak8974 {
 static const char ak8974_reg_avdd[] = "avdd";
 static const char ak8974_reg_dvdd[] = "dvdd";
 
+static int ak8974_get_u16_val(struct ak8974 *ak8974, u8 reg, u16 *val)
+{
+	int ret;
+	__le16 bulk;
+
+	ret = regmap_bulk_read(ak8974->map, reg, &bulk, 2);
+	if (ret)
+		return ret;
+	*val = le16_to_cpu(bulk);
+
+	return 0;
+}
+
+static int ak8974_set_u16_val(struct ak8974 *ak8974, u8 reg, u16 val)
+{
+	__le16 bulk = cpu_to_le16(val);
+
+	return regmap_bulk_write(ak8974->map, reg, &bulk, 2);
+}
+
 static int ak8974_set_power(struct ak8974 *ak8974, bool mode)
 {
 	int ret;
@@ -209,6 +260,12 @@ static int ak8974_configure(struct ak8974 *ak8974)
 	ret = regmap_write(ak8974->map, AK8974_CTRL3, 0);
 	if (ret)
 		return ret;
+	if (ak8974->variant == AK8974_WHOAMI_VALUE_AMI306) {
+		/* magic from datasheet: set high-speed measurement mode */
+		ret = ak8974_set_u16_val(ak8974, AMI306_CTRL4, 0xA07E);
+		if (ret)
+			return ret;
+	}
 	ret = regmap_write(ak8974->map, AK8974_INT_CTRL, AK8974_INT_CTRL_POL);
 	if (ret)
 		return ret;
@@ -388,17 +445,18 @@ static int ak8974_selftest(struct ak8974 *ak8974)
 	return 0;
 }
 
-static int ak8974_get_u16_val(struct ak8974 *ak8974, u8 reg, u16 *val)
+static void ak8974_read_calib_data(struct ak8974 *ak8974, unsigned int reg,
+				   __le16 *tab, size_t tab_size)
 {
-	int ret;
-	__le16 bulk;
-
-	ret = regmap_bulk_read(ak8974->map, reg, &bulk, 2);
-	if (ret)
-		return ret;
-	*val = le16_to_cpu(bulk);
-
-	return 0;
+	int ret = regmap_bulk_read(ak8974->map, reg, tab, tab_size);
+	if (ret) {
+		memset(tab, 0xFF, tab_size);
+		dev_warn(&ak8974->i2c->dev,
+			 "can't read calibration data (regs %u..%zu): %d\n",
+			 reg, reg + tab_size - 1, ret);
+	} else {
+		add_device_randomness(tab, tab_size);
+	}
 }
 
 static int ak8974_detect(struct ak8974 *ak8974)
@@ -413,9 +471,13 @@ static int ak8974_detect(struct ak8974 *ak8974)
 	if (ret)
 		return ret;
 
+	name = "ami305";
+
 	switch (whoami) {
+	case AK8974_WHOAMI_VALUE_AMI306:
+		name = "ami306";
+		/* fall-through */
 	case AK8974_WHOAMI_VALUE_AMI305:
-		name = "ami305";
 		ret = regmap_read(ak8974->map, AMI305_VER, &fw);
 		if (ret)
 			return ret;
@@ -423,6 +485,7 @@ static int ak8974_detect(struct ak8974 *ak8974)
 		ret = ak8974_get_u16_val(ak8974, AMI305_SN, &sn);
 		if (ret)
 			return ret;
+		add_device_randomness(&sn, sizeof(sn));
 		dev_info(&ak8974->i2c->dev,
 			 "detected %s, FW ver %02x, S/N: %04x\n",
 			 name, fw, sn);
@@ -439,6 +502,33 @@ static int ak8974_detect(struct ak8974 *ak8974)
 
 	ak8974->name = name;
 	ak8974->variant = whoami;
+
+	if (whoami == AK8974_WHOAMI_VALUE_AMI306) {
+		__le16 fab_data1[9], fab_data2[3];
+		int i;
+
+		ak8974_read_calib_data(ak8974, AMI306_FINEOUTPUT_X,
+				       fab_data1, sizeof(fab_data1));
+		ak8974_read_calib_data(ak8974, AMI306_OFFZERO_X,
+				       fab_data2, sizeof(fab_data2));
+
+		for (i = 0; i < 3; ++i) {
+			static const char axis[3] = "XYZ";
+			static const char pgaxis[6] = "ZYZXYX";
+			unsigned offz = le16_to_cpu(fab_data2[i]) & 0x7F;
+			unsigned fine = le16_to_cpu(fab_data1[i]);
+			unsigned sens = le16_to_cpu(fab_data1[i + 3]);
+			unsigned pgain1 = le16_to_cpu(fab_data1[i + 6]);
+			unsigned pgain2 = pgain1 >> 8;
+
+			pgain1 &= 0xFF;
+
+			dev_info(&ak8974->i2c->dev,
+				 "factory calibration for axis %c: offz=%u sens=%u fine=%u pga%c=%u pga%c=%u\n",
+				 axis[i], offz, sens, fine, pgaxis[i * 2],
+				 pgain1, pgaxis[i * 2 + 1], pgain2);
+		}
+	}
 
 	return 0;
 }
@@ -602,12 +692,19 @@ static bool ak8974_writeable_reg(struct device *dev, unsigned int reg)
 	case AMI305_OFFSET_Y + 1:
 	case AMI305_OFFSET_Z:
 	case AMI305_OFFSET_Z + 1:
-		if (ak8974->variant == AK8974_WHOAMI_VALUE_AMI305)
-			return true;
-		return false;
+		return ak8974->variant == AK8974_WHOAMI_VALUE_AMI305 ||
+		       ak8974->variant == AK8974_WHOAMI_VALUE_AMI306;
+	case AMI306_CTRL4:
+	case AMI306_CTRL4 + 1:
+		return ak8974->variant == AK8974_WHOAMI_VALUE_AMI306;
 	default:
 		return false;
 	}
+}
+
+static bool ak8974_precious_reg(struct device *dev, unsigned int reg)
+{
+	return reg == AK8974_INT_CLEAR;
 }
 
 static const struct regmap_config ak8974_regmap_config = {
@@ -615,6 +712,7 @@ static const struct regmap_config ak8974_regmap_config = {
 	.val_bits = 8,
 	.max_register = 0xff,
 	.writeable_reg = ak8974_writeable_reg,
+	.precious_reg = ak8974_precious_reg,
 };
 
 static int ak8974_probe(struct i2c_client *i2c,
@@ -678,7 +776,7 @@ static int ak8974_probe(struct i2c_client *i2c,
 
 	ret = ak8974_detect(ak8974);
 	if (ret) {
-		dev_err(&i2c->dev, "neither AK8974 nor AMI305 found\n");
+		dev_err(&i2c->dev, "neither AK8974 nor AMI30x found\n");
 		goto power_off;
 	}
 
@@ -827,6 +925,7 @@ static const struct dev_pm_ops ak8974_dev_pm_ops = {
 
 static const struct i2c_device_id ak8974_id[] = {
 	{"ami305", 0 },
+	{"ami306", 0 },
 	{"ak8974", 0 },
 	{}
 };
@@ -850,7 +949,7 @@ static struct i2c_driver ak8974_driver = {
 };
 module_i2c_driver(ak8974_driver);
 
-MODULE_DESCRIPTION("AK8974 and AMI305 3-axis magnetometer driver");
+MODULE_DESCRIPTION("AK8974 and AMI30x 3-axis magnetometer driver");
 MODULE_AUTHOR("Samu Onkalo");
 MODULE_AUTHOR("Linus Walleij");
 MODULE_LICENSE("GPL v2");

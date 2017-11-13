@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __ASM_TCM_H__
 #define __ASM_TCM_H__
 

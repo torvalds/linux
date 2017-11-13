@@ -194,6 +194,7 @@ struct pvrdma_dev {
 	void *resp_slot;
 	unsigned long flags;
 	struct list_head device_link;
+	unsigned int dsr_version;
 
 	/* Locking and interrupt information. */
 	spinlock_t cmd_lock; /* Command lock. */
@@ -415,9 +416,34 @@ static inline enum ib_wc_status pvrdma_wc_status_to_ib(
 	return (enum ib_wc_status)status;
 }
 
-static inline int pvrdma_wc_opcode_to_ib(int opcode)
+static inline int pvrdma_wc_opcode_to_ib(unsigned int opcode)
 {
-	return opcode;
+	switch (opcode) {
+	case PVRDMA_WC_SEND:
+		return IB_WC_SEND;
+	case PVRDMA_WC_RDMA_WRITE:
+		return IB_WC_RDMA_WRITE;
+	case PVRDMA_WC_RDMA_READ:
+		return IB_WC_RDMA_READ;
+	case PVRDMA_WC_COMP_SWAP:
+		return IB_WC_COMP_SWAP;
+	case PVRDMA_WC_FETCH_ADD:
+		return IB_WC_FETCH_ADD;
+	case PVRDMA_WC_LOCAL_INV:
+		return IB_WC_LOCAL_INV;
+	case PVRDMA_WC_FAST_REG_MR:
+		return IB_WC_REG_MR;
+	case PVRDMA_WC_MASKED_COMP_SWAP:
+		return IB_WC_MASKED_COMP_SWAP;
+	case PVRDMA_WC_MASKED_FETCH_ADD:
+		return IB_WC_MASKED_FETCH_ADD;
+	case PVRDMA_WC_RECV:
+		return IB_WC_RECV;
+	case PVRDMA_WC_RECV_RDMA_WITH_IMM:
+		return IB_WC_RECV_RDMA_WITH_IMM;
+	default:
+		return IB_WC_SEND;
+	}
 }
 
 static inline int pvrdma_wc_flags_to_ib(int flags)
@@ -444,6 +470,7 @@ void pvrdma_ah_attr_to_rdma(struct rdma_ah_attr *dst,
 			    const struct pvrdma_ah_attr *src);
 void rdma_ah_attr_to_pvrdma(struct pvrdma_ah_attr *dst,
 			    const struct rdma_ah_attr *src);
+u8 ib_gid_type_to_pvrdma(enum ib_gid_type gid_type);
 
 int pvrdma_uar_table_init(struct pvrdma_dev *dev);
 void pvrdma_uar_table_cleanup(struct pvrdma_dev *dev);

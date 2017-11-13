@@ -36,14 +36,18 @@ static bool drbd_may_do_local_read(struct drbd_device *device, sector_t sector, 
 /* Update disk stats at start of I/O request */
 static void _drbd_start_io_acct(struct drbd_device *device, struct drbd_request *req)
 {
-	generic_start_io_acct(bio_data_dir(req->master_bio), req->i.size >> 9,
-			      &device->vdisk->part0);
+	struct request_queue *q = device->rq_queue;
+
+	generic_start_io_acct(q, bio_data_dir(req->master_bio),
+				req->i.size >> 9, &device->vdisk->part0);
 }
 
 /* Update disk stats when completing request upwards */
 static void _drbd_end_io_acct(struct drbd_device *device, struct drbd_request *req)
 {
-	generic_end_io_acct(bio_data_dir(req->master_bio),
+	struct request_queue *q = device->rq_queue;
+
+	generic_end_io_acct(q, bio_data_dir(req->master_bio),
 			    &device->vdisk->part0, req->start_jif);
 }
 
@@ -1175,7 +1179,7 @@ drbd_submit_req_private_bio(struct drbd_request *req)
 	else
 		type = DRBD_FAULT_DT_RD;
 
-	bio->bi_bdev = device->ldev->backing_bdev;
+	bio_set_dev(bio, device->ldev->backing_bdev);
 
 	/* State may have changed since we grabbed our reference on the
 	 * ->ldev member. Double check, and short-circuit to endio.
@@ -1275,6 +1279,57 @@ static bool may_do_writes(struct drbd_device *device)
 	return s.disk == D_UP_TO_DATE || s.pdsk == D_UP_TO_DATE;
 }
 
+struct drbd_plug_cb {
+	struct blk_plug_cb cb;
+	struct drbd_request *most_recent_req;
+	/* do we need more? */
+};
+
+static void drbd_unplug(struct blk_plug_cb *cb, bool from_schedule)
+{
+	struct drbd_plug_cb *plug = container_of(cb, struct drbd_plug_cb, cb);
+	struct drbd_resource *resource = plug->cb.data;
+	struct drbd_request *req = plug->most_recent_req;
+
+	kfree(cb);
+	if (!req)
+		return;
+
+	spin_lock_irq(&resource->req_lock);
+	/* In case the sender did not process it yet, raise the flag to
+	 * have it followed with P_UNPLUG_REMOTE just after. */
+	req->rq_state |= RQ_UNPLUG;
+	/* but also queue a generic unplug */
+	drbd_queue_unplug(req->device);
+	kref_put(&req->kref, drbd_req_destroy);
+	spin_unlock_irq(&resource->req_lock);
+}
+
+static struct drbd_plug_cb* drbd_check_plugged(struct drbd_resource *resource)
+{
+	/* A lot of text to say
+	 * return (struct drbd_plug_cb*)blk_check_plugged(); */
+	struct drbd_plug_cb *plug;
+	struct blk_plug_cb *cb = blk_check_plugged(drbd_unplug, resource, sizeof(*plug));
+
+	if (cb)
+		plug = container_of(cb, struct drbd_plug_cb, cb);
+	else
+		plug = NULL;
+	return plug;
+}
+
+static void drbd_update_plug(struct drbd_plug_cb *plug, struct drbd_request *req)
+{
+	struct drbd_request *tmp = plug->most_recent_req;
+	/* Will be sent to some peer.
+	 * Remember to tag it with UNPLUG_REMOTE on unplug */
+	kref_get(&req->kref);
+	plug->most_recent_req = req;
+	if (tmp)
+		kref_put(&tmp->kref, drbd_req_destroy);
+}
+
 static void drbd_send_and_submit(struct drbd_device *device, struct drbd_request *req)
 {
 	struct drbd_resource *resource = device->resource;
@@ -1347,6 +1402,12 @@ static void drbd_send_and_submit(struct drbd_device *device, struct drbd_request
 			no_remote = true;
 	}
 
+	if (no_remote == false) {
+		struct drbd_plug_cb *plug = drbd_check_plugged(resource);
+		if (plug)
+			drbd_update_plug(plug, req);
+	}
+
 	/* If it took the fast path in drbd_request_prepare, add it here.
 	 * The slow path has added it already. */
 	if (list_empty(&req->req_pending_master_completion))
@@ -1395,7 +1456,10 @@ void __drbd_make_request(struct drbd_device *device, struct bio *bio, unsigned l
 
 static void submit_fast_path(struct drbd_device *device, struct list_head *incoming)
 {
+	struct blk_plug plug;
 	struct drbd_request *req, *tmp;
+
+	blk_start_plug(&plug);
 	list_for_each_entry_safe(req, tmp, incoming, tl_requests) {
 		const int rw = bio_data_dir(req->master_bio);
 
@@ -1413,6 +1477,7 @@ static void submit_fast_path(struct drbd_device *device, struct list_head *incom
 		list_del_init(&req->tl_requests);
 		drbd_send_and_submit(device, req);
 	}
+	blk_finish_plug(&plug);
 }
 
 static bool prepare_al_transaction_nonblock(struct drbd_device *device,
@@ -1420,12 +1485,12 @@ static bool prepare_al_transaction_nonblock(struct drbd_device *device,
 					    struct list_head *pending,
 					    struct list_head *later)
 {
-	struct drbd_request *req, *tmp;
+	struct drbd_request *req;
 	int wake = 0;
 	int err;
 
 	spin_lock_irq(&device->al_lock);
-	list_for_each_entry_safe(req, tmp, incoming, tl_requests) {
+	while ((req = list_first_entry_or_null(incoming, struct drbd_request, tl_requests))) {
 		err = drbd_al_begin_io_nonblock(device, &req->i);
 		if (err == -ENOBUFS)
 			break;
@@ -1442,17 +1507,20 @@ static bool prepare_al_transaction_nonblock(struct drbd_device *device,
 	return !list_empty(pending);
 }
 
-void send_and_submit_pending(struct drbd_device *device, struct list_head *pending)
+static void send_and_submit_pending(struct drbd_device *device, struct list_head *pending)
 {
-	struct drbd_request *req, *tmp;
+	struct blk_plug plug;
+	struct drbd_request *req;
 
-	list_for_each_entry_safe(req, tmp, pending, tl_requests) {
+	blk_start_plug(&plug);
+	while ((req = list_first_entry_or_null(pending, struct drbd_request, tl_requests))) {
 		req->rq_state |= RQ_IN_ACT_LOG;
 		req->in_actlog_jif = jiffies;
 		atomic_dec(&device->ap_actlog_cnt);
 		list_del_init(&req->tl_requests);
 		drbd_send_and_submit(device, req);
 	}
+	blk_finish_plug(&plug);
 }
 
 void do_submit(struct work_struct *ws)

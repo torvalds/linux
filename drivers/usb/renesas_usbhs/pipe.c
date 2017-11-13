@@ -401,7 +401,7 @@ static int usbhsp_setup_pipecfg(struct usbhs_pipe *pipe, int is_host,
 	u16 dir = 0;
 	u16 epnum = 0;
 	u16 shtnak = 0;
-	u16 type_array[] = {
+	static const u16 type_array[] = {
 		[USB_ENDPOINT_XFER_BULK] = TYPE_BULK,
 		[USB_ENDPOINT_XFER_INT]  = TYPE_INT,
 		[USB_ENDPOINT_XFER_ISOC] = TYPE_ISO,

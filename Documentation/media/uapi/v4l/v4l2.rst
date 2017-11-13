@@ -11,7 +11,9 @@ This part describes the Video for Linux API version 2 (V4L2 API) specification.
 
 **Revision 4.5**
 
-.. class:: toc-title
+.. only:: html
+
+   .. class:: toc-title
 
         Table of Contents
 
@@ -23,7 +25,6 @@ This part describes the Video for Linux API version 2 (V4L2 API) specification.
     pixfmt
     io
     devices
-    driver
     libv4l
     compat
     user-func

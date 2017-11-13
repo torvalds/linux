@@ -33,16 +33,14 @@
 #ifndef _LMV_INTERNAL_H_
 #define _LMV_INTERNAL_H_
 
-#include "../include/lustre/lustre_idl.h"
-#include "../include/obd.h"
-#include "../include/lustre_lmv.h"
+#include <uapi/linux/lustre/lustre_idl.h>
+#include <obd.h>
+#include <lustre_lmv.h>
 
 #define LMV_MAX_TGT_COUNT 128
 
 #define LL_IT2STR(it)					\
 	((it) ? ldlm_it2str((it)->it_op) : "0")
-
-int lmv_check_connect(struct obd_device *obd);
 
 int lmv_intent_lock(struct obd_export *exp, struct md_op_data *op_data,
 		    struct lookup_intent *it, struct ptlrpc_request **reqp,

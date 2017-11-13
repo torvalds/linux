@@ -75,39 +75,6 @@ static struct {
 	__ret;								\
 })
 
-static int bpf_prog_load(const char *file, enum bpf_prog_type type,
-			 struct bpf_object **pobj, int *prog_fd)
-{
-	struct bpf_program *prog;
-	struct bpf_object *obj;
-	int err;
-
-	obj = bpf_object__open(file);
-	if (IS_ERR(obj)) {
-		error_cnt++;
-		return -ENOENT;
-	}
-
-	prog = bpf_program__next(NULL, obj);
-	if (!prog) {
-		bpf_object__close(obj);
-		error_cnt++;
-		return -ENOENT;
-	}
-
-	bpf_program__set_type(prog, type);
-	err = bpf_object__load(obj);
-	if (err) {
-		bpf_object__close(obj);
-		error_cnt++;
-		return -EINVAL;
-	}
-
-	*pobj = obj;
-	*prog_fd = bpf_program__fd(prog);
-	return 0;
-}
-
 static int bpf_find_map(const char *test, struct bpf_object *obj,
 			const char *name)
 {
@@ -130,8 +97,10 @@ static void test_pkt_access(void)
 	int err, prog_fd;
 
 	err = bpf_prog_load(file, BPF_PROG_TYPE_SCHED_CLS, &obj, &prog_fd);
-	if (err)
+	if (err) {
+		error_cnt++;
 		return;
+	}
 
 	err = bpf_prog_test_run(prog_fd, 100000, &pkt_v4, sizeof(pkt_v4),
 				NULL, NULL, &retval, &duration);
@@ -162,8 +131,10 @@ static void test_xdp(void)
 	int err, prog_fd, map_fd;
 
 	err = bpf_prog_load(file, BPF_PROG_TYPE_XDP, &obj, &prog_fd);
-	if (err)
+	if (err) {
+		error_cnt++;
 		return;
+	}
 
 	map_fd = bpf_find_map(__func__, obj, "vip2tnl");
 	if (map_fd < 0)
@@ -223,8 +194,10 @@ static void test_l4lb(void)
 	u32 *magic = (u32 *)buf;
 
 	err = bpf_prog_load(file, BPF_PROG_TYPE_SCHED_CLS, &obj, &prog_fd);
-	if (err)
+	if (err) {
+		error_cnt++;
 		return;
+	}
 
 	map_fd = bpf_find_map(__func__, obj, "vip_map");
 	if (map_fd < 0)
@@ -280,8 +253,10 @@ static void test_tcp_estats(void)
 
 	err = bpf_prog_load(file, BPF_PROG_TYPE_TRACEPOINT, &obj, &prog_fd);
 	CHECK(err, "", "err %d errno %d\n", err, errno);
-	if (err)
+	if (err) {
+		error_cnt++;
 		return;
+	}
 
 	bpf_object__close(obj);
 }
@@ -304,7 +279,7 @@ static void test_bpf_obj_id(void)
 	/* +1 to test for the info_len returned by kernel */
 	struct bpf_prog_info prog_infos[nr_iters + 1];
 	struct bpf_map_info map_infos[nr_iters + 1];
-	char jited_insns[128], xlated_insns[128];
+	char jited_insns[128], xlated_insns[128], zeros[128];
 	__u32 i, next_id, info_len, nr_id_found, duration = 0;
 	int sysctl_fd, jit_enabled = 0, err = 0;
 	__u64 array_value;
@@ -330,17 +305,22 @@ static void test_bpf_obj_id(void)
 		objs[i] = NULL;
 
 	/* Check bpf_obj_get_info_by_fd() */
+	bzero(zeros, sizeof(zeros));
 	for (i = 0; i < nr_iters; i++) {
 		err = bpf_prog_load(file, BPF_PROG_TYPE_SOCKET_FILTER,
 				    &objs[i], &prog_fds[i]);
 		/* test_obj_id.o is a dumb prog. It should never fail
 		 * to load.
 		 */
+		if (err)
+			error_cnt++;
 		assert(!err);
 
 		/* Check getting prog info */
 		info_len = sizeof(struct bpf_prog_info) * 2;
 		bzero(&prog_infos[i], info_len);
+		bzero(jited_insns, sizeof(jited_insns));
+		bzero(xlated_insns, sizeof(xlated_insns));
 		prog_infos[i].jited_prog_insns = ptr_to_u64(jited_insns);
 		prog_infos[i].jited_prog_len = sizeof(jited_insns);
 		prog_infos[i].xlated_prog_insns = ptr_to_u64(xlated_insns);
@@ -351,15 +331,20 @@ static void test_bpf_obj_id(void)
 			  prog_infos[i].type != BPF_PROG_TYPE_SOCKET_FILTER ||
 			  info_len != sizeof(struct bpf_prog_info) ||
 			  (jit_enabled && !prog_infos[i].jited_prog_len) ||
-			  !prog_infos[i].xlated_prog_len,
+			  (jit_enabled &&
+			   !memcmp(jited_insns, zeros, sizeof(zeros))) ||
+			  !prog_infos[i].xlated_prog_len ||
+			  !memcmp(xlated_insns, zeros, sizeof(zeros)),
 			  "get-prog-info(fd)",
-			  "err %d errno %d i %d type %d(%d) info_len %u(%lu) jit_enabled %d jited_prog_len %u xlated_prog_len %u\n",
+			  "err %d errno %d i %d type %d(%d) info_len %u(%lu) jit_enabled %d jited_prog_len %u xlated_prog_len %u jited_prog %d xlated_prog %d\n",
 			  err, errno, i,
 			  prog_infos[i].type, BPF_PROG_TYPE_SOCKET_FILTER,
 			  info_len, sizeof(struct bpf_prog_info),
 			  jit_enabled,
 			  prog_infos[i].jited_prog_len,
-			  prog_infos[i].xlated_prog_len))
+			  prog_infos[i].xlated_prog_len,
+			  !!memcmp(jited_insns, zeros, sizeof(zeros)),
+			  !!memcmp(xlated_insns, zeros, sizeof(zeros))))
 			goto done;
 
 		map_fds[i] = bpf_find_map(__func__, objs[i], "test_map_id");
@@ -496,8 +481,10 @@ static void test_pkt_md_access(void)
 	int err, prog_fd;
 
 	err = bpf_prog_load(file, BPF_PROG_TYPE_SCHED_CLS, &obj, &prog_fd);
-	if (err)
+	if (err) {
+		error_cnt++;
 		return;
+	}
 
 	err = bpf_prog_test_run(prog_fd, 10, &pkt_v4, sizeof(pkt_v4),
 				NULL, NULL, &retval, &duration);

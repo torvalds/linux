@@ -1,6 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __ASM_SMP_H
 #define __ASM_SMP_H
 
+extern int init_per_cpu(int cpuid);
 
 #if defined(CONFIG_SMP)
 

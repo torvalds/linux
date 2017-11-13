@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Generic RTC interface.
  * This version contains the part of the user interface to the Real Time Clock
@@ -72,8 +73,6 @@ extern struct class *rtc_class;
  * issued through ioctl() ...
  */
 struct rtc_class_ops {
-	int (*open)(struct device *);
-	void (*release)(struct device *);
 	int (*ioctl)(struct device *, unsigned int, unsigned long);
 	int (*read_time)(struct device *, struct rtc_time *);
 	int (*set_time)(struct device *, struct rtc_time *);

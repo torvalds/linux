@@ -15,7 +15,6 @@ arcuart0: serial@c0fc1000 {
 	interrupts = <5>;
 	clock-frequency = <80000000>;
 	current-speed = <115200>;
-	status = "okay";
 };
 
 Note: Each port should have an alias correctly numbered in "aliases" node.

@@ -23,5 +23,4 @@ Example:
 		interrupt-names = "mem", "ring0", "ring1", "ring2", "ring3",
 				  "eip";
 		clocks = <&cpm_syscon0 1 26>;
-		status = "disabled";
 	};

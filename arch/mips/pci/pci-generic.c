@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2016 Imagination Technologies
- * Author: Paul Burton <paul.burton@imgtec.com>
+ * Author: Paul Burton <paul.burton@mips.com>
  *
  * pcibios_align_resource taken from arch/arm/kernel/bios32.c.
  *

@@ -186,7 +186,7 @@ int mthca_create_ah(struct mthca_dev *dev,
 
 on_hca_fail:
 	if (ah->type == MTHCA_AH_PCI_POOL) {
-		ah->av = pci_pool_zalloc(dev->av_table.pool,
+		ah->av = dma_pool_zalloc(dev->av_table.pool,
 					 GFP_ATOMIC, &ah->avdma);
 		if (!ah->av)
 			return -ENOMEM;
@@ -250,7 +250,7 @@ int mthca_destroy_ah(struct mthca_dev *dev, struct mthca_ah *ah)
 		break;
 
 	case MTHCA_AH_PCI_POOL:
-		pci_pool_free(dev->av_table.pool, ah->av, ah->avdma);
+		dma_pool_free(dev->av_table.pool, ah->av, ah->avdma);
 		break;
 
 	case MTHCA_AH_KMALLOC:
@@ -340,7 +340,7 @@ int mthca_init_av_table(struct mthca_dev *dev)
 	if (err)
 		return err;
 
-	dev->av_table.pool = pci_pool_create("mthca_av", dev->pdev,
+	dev->av_table.pool = dma_pool_create("mthca_av", &dev->pdev->dev,
 					     MTHCA_AV_SIZE,
 					     MTHCA_AV_SIZE, 0);
 	if (!dev->av_table.pool)
@@ -360,7 +360,7 @@ int mthca_init_av_table(struct mthca_dev *dev)
 	return 0;
 
  out_free_pool:
-	pci_pool_destroy(dev->av_table.pool);
+	dma_pool_destroy(dev->av_table.pool);
 
  out_free_alloc:
 	mthca_alloc_cleanup(&dev->av_table.alloc);
@@ -374,6 +374,6 @@ void mthca_cleanup_av_table(struct mthca_dev *dev)
 
 	if (dev->av_table.av_map)
 		iounmap(dev->av_table.av_map);
-	pci_pool_destroy(dev->av_table.pool);
+	dma_pool_destroy(dev->av_table.pool);
 	mthca_alloc_cleanup(&dev->av_table.alloc);
 }

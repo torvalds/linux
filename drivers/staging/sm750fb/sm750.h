@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef LYNXDRV_H_
 #define LYNXDRV_H_
 

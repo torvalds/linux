@@ -1066,7 +1066,7 @@ static int trusted_update(struct key *key, struct key_preparsed_payload *prep)
 	char *datablob;
 	int ret = 0;
 
-	if (test_bit(KEY_FLAG_NEGATIVE, &key->flags))
+	if (key_is_negative(key))
 		return -ENOKEY;
 	p = key->payload.data[0];
 	if (!p->migratable)
@@ -1147,20 +1147,21 @@ static long trusted_read(const struct key *key, char __user *buffer,
 	p = dereference_key_locked(key);
 	if (!p)
 		return -EINVAL;
-	if (!buffer || buflen <= 0)
-		return 2 * p->blob_len;
-	ascii_buf = kmalloc(2 * p->blob_len, GFP_KERNEL);
-	if (!ascii_buf)
-		return -ENOMEM;
 
-	bufp = ascii_buf;
-	for (i = 0; i < p->blob_len; i++)
-		bufp = hex_byte_pack(bufp, p->blob[i]);
-	if ((copy_to_user(buffer, ascii_buf, 2 * p->blob_len)) != 0) {
+	if (buffer && buflen >= 2 * p->blob_len) {
+		ascii_buf = kmalloc(2 * p->blob_len, GFP_KERNEL);
+		if (!ascii_buf)
+			return -ENOMEM;
+
+		bufp = ascii_buf;
+		for (i = 0; i < p->blob_len; i++)
+			bufp = hex_byte_pack(bufp, p->blob[i]);
+		if (copy_to_user(buffer, ascii_buf, 2 * p->blob_len) != 0) {
+			kzfree(ascii_buf);
+			return -EFAULT;
+		}
 		kzfree(ascii_buf);
-		return -EFAULT;
 	}
-	kzfree(ascii_buf);
 	return 2 * p->blob_len;
 }
 

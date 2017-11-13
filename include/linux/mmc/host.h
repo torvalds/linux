@@ -162,6 +162,50 @@ struct mmc_host_ops {
 				  unsigned int direction, int blk_size);
 };
 
+struct mmc_cqe_ops {
+	/* Allocate resources, and make the CQE operational */
+	int	(*cqe_enable)(struct mmc_host *host, struct mmc_card *card);
+	/* Free resources, and make the CQE non-operational */
+	void	(*cqe_disable)(struct mmc_host *host);
+	/*
+	 * Issue a read, write or DCMD request to the CQE. Also deal with the
+	 * effect of ->cqe_off().
+	 */
+	int	(*cqe_request)(struct mmc_host *host, struct mmc_request *mrq);
+	/* Free resources (e.g. DMA mapping) associated with the request */
+	void	(*cqe_post_req)(struct mmc_host *host, struct mmc_request *mrq);
+	/*
+	 * Prepare the CQE and host controller to accept non-CQ commands. There
+	 * is no corresponding ->cqe_on(), instead ->cqe_request() is required
+	 * to deal with that.
+	 */
+	void	(*cqe_off)(struct mmc_host *host);
+	/*
+	 * Wait for all CQE tasks to complete. Return an error if recovery
+	 * becomes necessary.
+	 */
+	int	(*cqe_wait_for_idle)(struct mmc_host *host);
+	/*
+	 * Notify CQE that a request has timed out. Return false if the request
+	 * completed or true if a timeout happened in which case indicate if
+	 * recovery is needed.
+	 */
+	bool	(*cqe_timeout)(struct mmc_host *host, struct mmc_request *mrq,
+			       bool *recovery_needed);
+	/*
+	 * Stop all CQE activity and prepare the CQE and host controller to
+	 * accept recovery commands.
+	 */
+	void	(*cqe_recovery_start)(struct mmc_host *host);
+	/*
+	 * Clear the queue and call mmc_cqe_request_done() on all requests.
+	 * Requests that errored will have the error set on the mmc_request
+	 * (data->error or cmd->error for DCMD).  Requests that did not error
+	 * will have zero data bytes transferred.
+	 */
+	void	(*cqe_recovery_finish)(struct mmc_host *host);
+};
+
 struct mmc_async_req {
 	/* active mmc request */
 	struct mmc_request	*mrq;
@@ -272,7 +316,7 @@ struct mmc_host {
 #define MMC_CAP_UHS_SDR50	(1 << 18)	/* Host supports UHS SDR50 mode */
 #define MMC_CAP_UHS_SDR104	(1 << 19)	/* Host supports UHS SDR104 mode */
 #define MMC_CAP_UHS_DDR50	(1 << 20)	/* Host supports UHS DDR50 mode */
-#define MMC_CAP_NO_BOUNCE_BUFF	(1 << 21)	/* Disable bounce buffers on host */
+/* (1 << 21) is free for reuse */
 #define MMC_CAP_DRIVER_TYPE_A	(1 << 23)	/* Host supports Driver Type A */
 #define MMC_CAP_DRIVER_TYPE_C	(1 << 24)	/* Host supports Driver Type C */
 #define MMC_CAP_DRIVER_TYPE_D	(1 << 25)	/* Host supports Driver Type D */
@@ -291,10 +335,6 @@ struct mmc_host {
 				 MMC_CAP2_HS200_1_2V_SDR)
 #define MMC_CAP2_CD_ACTIVE_HIGH	(1 << 10)	/* Card-detect signal active high */
 #define MMC_CAP2_RO_ACTIVE_HIGH	(1 << 11)	/* Write-protect signal active high */
-#define MMC_CAP2_PACKED_RD	(1 << 12)	/* Allow packed read */
-#define MMC_CAP2_PACKED_WR	(1 << 13)	/* Allow packed write */
-#define MMC_CAP2_PACKED_CMD	(MMC_CAP2_PACKED_RD | \
-				 MMC_CAP2_PACKED_WR)
 #define MMC_CAP2_NO_PRESCAN_POWERUP (1 << 14)	/* Don't power up before scan */
 #define MMC_CAP2_HS400_1_8V	(1 << 15)	/* Can support HS400 1.8V */
 #define MMC_CAP2_HS400_1_2V	(1 << 16)	/* Can support HS400 1.2V */
@@ -307,6 +347,8 @@ struct mmc_host {
 #define MMC_CAP2_HS400_ES	(1 << 20)	/* Host supports enhanced strobe */
 #define MMC_CAP2_NO_SD		(1 << 21)	/* Do not send SD commands during initialization */
 #define MMC_CAP2_NO_MMC		(1 << 22)	/* Do not send (e)MMC commands during initialization */
+#define MMC_CAP2_CQE		(1 << 23)	/* Has eMMC command queue engine */
+#define MMC_CAP2_CQE_DCMD	(1 << 24)	/* CQE can issue a direct command */
 
 	mmc_pm_flag_t		pm_caps;	/* supported pm features */
 
@@ -328,9 +370,6 @@ struct mmc_host {
 	unsigned int		use_spi_crc:1;
 	unsigned int		claimed:1;	/* host exclusively claimed */
 	unsigned int		bus_dead:1;	/* bus has been released */
-#ifdef CONFIG_MMC_DEBUG
-	unsigned int		removed:1;	/* host is being removed */
-#endif
 	unsigned int		can_retune:1;	/* re-tuning can be used */
 	unsigned int		doing_retune:1;	/* re-tuning in progress */
 	unsigned int		retune_now:1;	/* do re-tuning at next req */
@@ -392,6 +431,13 @@ struct mmc_host {
 
 	int			dsr_req;	/* DSR value is valid */
 	u32			dsr;	/* optional driver stage (DSR) value */
+
+	/* Command Queue Engine (CQE) support */
+	const struct mmc_cqe_ops *cqe_ops;
+	void			*cqe_private;
+	int			cqe_qdepth;
+	bool			cqe_enabled;
+	bool			cqe_on;
 
 	unsigned long		private[0] ____cacheline_aligned;
 };

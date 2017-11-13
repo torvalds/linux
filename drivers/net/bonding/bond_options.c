@@ -754,6 +754,9 @@ static int bond_option_mode_set(struct bonding *bond,
 			   bond->params.miimon);
 	}
 
+	if (newval->value == BOND_MODE_ALB)
+		bond->params.tlb_dynamic_lb = 1;
+
 	/* don't cache arp_validate between modes */
 	bond->params.arp_validate = BOND_ARP_VALIDATE_NONE;
 	bond->params.mode = newval->value;

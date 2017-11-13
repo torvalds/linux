@@ -160,6 +160,8 @@ other hand, a driver requires shared state between clients which is
 visible to user-space and accessible beyond open-file boundaries, they
 cannot support render nodes.
 
+.. _drm_driver_ioctl:
+
 IOCTL Support on Device Nodes
 =============================
 

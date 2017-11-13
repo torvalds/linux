@@ -400,4 +400,20 @@ qed_eth_txq_start_ramrod(struct qed_hwfn *p_hwfn,
 
 u8 qed_mcast_bin_from_mac(u8 *mac);
 
-#endif /* _QED_L2_H */
+int qed_set_rxq_coalesce(struct qed_hwfn *p_hwfn,
+			 struct qed_ptt *p_ptt,
+			 u16 coalesce, struct qed_queue_cid *p_cid);
+
+int qed_set_txq_coalesce(struct qed_hwfn *p_hwfn,
+			 struct qed_ptt *p_ptt,
+			 u16 coalesce, struct qed_queue_cid *p_cid);
+
+int qed_get_rxq_coalesce(struct qed_hwfn *p_hwfn,
+			 struct qed_ptt *p_ptt,
+			 struct qed_queue_cid *p_cid, u16 *p_hw_coal);
+
+int qed_get_txq_coalesce(struct qed_hwfn *p_hwfn,
+			 struct qed_ptt *p_ptt,
+			 struct qed_queue_cid *p_cid, u16 *p_hw_coal);
+
+#endif

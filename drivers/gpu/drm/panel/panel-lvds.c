@@ -143,14 +143,14 @@ static int panel_lvds_parse_dt(struct panel_lvds *lvds)
 
 	ret = of_property_read_u32(np, "width-mm", &lvds->width);
 	if (ret < 0) {
-		dev_err(lvds->dev, "%s: invalid or missing %s DT property\n",
-			of_node_full_name(np), "width-mm");
+		dev_err(lvds->dev, "%pOF: invalid or missing %s DT property\n",
+			np, "width-mm");
 		return -ENODEV;
 	}
 	ret = of_property_read_u32(np, "height-mm", &lvds->height);
 	if (ret < 0) {
-		dev_err(lvds->dev, "%s: invalid or missing %s DT property\n",
-			of_node_full_name(np), "height-mm");
+		dev_err(lvds->dev, "%pOF: invalid or missing %s DT property\n",
+			np, "height-mm");
 		return -ENODEV;
 	}
 
@@ -158,8 +158,8 @@ static int panel_lvds_parse_dt(struct panel_lvds *lvds)
 
 	ret = of_property_read_string(np, "data-mapping", &mapping);
 	if (ret < 0) {
-		dev_err(lvds->dev, "%s: invalid or missing %s DT property\n",
-			of_node_full_name(np), "data-mapping");
+		dev_err(lvds->dev, "%pOF: invalid or missing %s DT property\n",
+			np, "data-mapping");
 		return -ENODEV;
 	}
 
@@ -170,8 +170,8 @@ static int panel_lvds_parse_dt(struct panel_lvds *lvds)
 	} else if (!strcmp(mapping, "vesa-24")) {
 		lvds->bus_format = MEDIA_BUS_FMT_RGB888_1X7X4_SPWG;
 	} else {
-		dev_err(lvds->dev, "%s: invalid or missing %s DT property\n",
-			of_node_full_name(np), "data-mapping");
+		dev_err(lvds->dev, "%pOF: invalid or missing %s DT property\n",
+			np, "data-mapping");
 		return -EINVAL;
 	}
 

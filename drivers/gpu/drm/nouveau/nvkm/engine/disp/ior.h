@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NVKM_DISP_IOR_H__
 #define __NVKM_DISP_IOR_H__
 #include "priv.h"

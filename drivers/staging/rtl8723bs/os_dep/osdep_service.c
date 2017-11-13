@@ -73,7 +73,7 @@ inline int _rtw_netif_rx(_nic_hdl ndev, struct sk_buff *skb)
 
 void rtw_init_timer(_timer *ptimer, void *padapter, void *pfunc)
 {
-	struct adapter *adapter = (struct adapter *)padapter;
+	struct adapter *adapter = padapter;
 
 	_init_timer(ptimer, adapter->pnetdev, pfunc, adapter);
 }

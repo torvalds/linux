@@ -25,6 +25,7 @@
 #include "iostat.h"
 #include "fscache.h"
 #include "pnfs.h"
+#include "nfstrace.h"
 
 #define NFSDBG_FACILITY		NFSDBG_PAGECACHE
 
@@ -68,7 +69,7 @@ void nfs_pageio_init_read(struct nfs_pageio_descriptor *pgio,
 		pg_ops = server->pnfs_curr_ld->pg_read_ops;
 #endif
 	nfs_pageio_init(pgio, inode, pg_ops, compl_ops, &nfs_rw_read_ops,
-			server->rsize, 0, GFP_KERNEL);
+			server->rsize, 0);
 }
 EXPORT_SYMBOL_GPL(nfs_pageio_init_read);
 
@@ -200,6 +201,7 @@ static void nfs_initiate_read(struct nfs_pgio_header *hdr,
 
 	task_setup_data->flags |= swap_flags;
 	rpc_ops->read_setup(hdr, msg);
+	trace_nfs_initiate_read(inode, hdr->io_start, hdr->good_bytes);
 }
 
 static void
@@ -232,6 +234,8 @@ static int nfs_readpage_done(struct rpc_task *task,
 		return status;
 
 	nfs_add_stats(inode, NFSIOS_SERVERREADBYTES, hdr->res.count);
+	trace_nfs_readpage_done(inode, task->tk_status,
+				hdr->args.offset, hdr->res.eof);
 
 	if (task->tk_status == -ESTALE) {
 		set_bit(NFS_INO_STALE, &NFS_I(inode)->flags);

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _FB_DRAW_H
 #define _FB_DRAW_H
 

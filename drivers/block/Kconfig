@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # Block device driver configuration
 #
@@ -17,6 +18,7 @@ if BLK_DEV
 
 config BLK_DEV_NULL_BLK
 	tristate "Null test block driver"
+	select CONFIGFS_FS
 
 config BLK_DEV_FD
 	tristate "Normal floppy disk support"
@@ -110,33 +112,6 @@ source "drivers/block/paride/Kconfig"
 source "drivers/block/mtip32xx/Kconfig"
 
 source "drivers/block/zram/Kconfig"
-
-config BLK_CPQ_CISS_DA
-	tristate "Compaq Smart Array 5xxx support"
-	depends on PCI
-	select CHECK_SIGNATURE
-	select BLK_SCSI_REQUEST
-	help
-	  This is the driver for Compaq Smart Array 5xxx controllers.
-	  Everyone using these boards should say Y here.
-	  See <file:Documentation/blockdev/cciss.txt> for the current list of
-	  boards supported by this driver, and for further information
-	  on the use of this driver.
-
-config CISS_SCSI_TAPE
-	bool "SCSI tape drive support for Smart Array 5xxx"
-	depends on BLK_CPQ_CISS_DA && PROC_FS
-	depends on SCSI=y || SCSI=BLK_CPQ_CISS_DA
-	help
-	  When enabled (Y), this option allows SCSI tape drives and SCSI medium
-	  changers (tape robots) to be accessed via a Compaq 5xxx array 
-	  controller.  (See <file:Documentation/blockdev/cciss.txt> for more details.)
-
-	  "SCSI support" and "SCSI tape support" must also be enabled for this 
-	  option to work.
-
-	  When this option is disabled (N), the SCSI portion of the driver 
-	  is not compiled.
 
 config BLK_DEV_DAC960
 	tristate "Mylex DAC960/DAC1100 PCI RAID Controller support"
@@ -470,7 +445,7 @@ config VIRTIO_BLK
 	depends on VIRTIO
 	---help---
 	  This is the virtual block driver for virtio.  It can be used with
-          lguest or QEMU based VMMs (like KVM or Xen).  Say Y or M.
+          QEMU based VMMs (like KVM or Xen).  Say Y or M.
 
 config VIRTIO_BLK_SCSI
 	bool "SCSI passthrough request for the Virtio block driver"

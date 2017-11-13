@@ -1,6 +1,6 @@
 TI PCI Controllers
 
-PCIe Designware Controller
+PCIe DesignWare Controller
  - compatible: Should be "ti,dra7-pcie" for RC
 	       Should be "ti,dra7-pcie-ep" for EP
  - phys : list of PHY specifiers (used by generic PHY framework)
@@ -13,7 +13,7 @@ PCIe Designware Controller
 HOST MODE
 =========
  - reg : Two register ranges as listed in the reg-names property
- - reg-names : The first entry must be "ti-conf" for the TI specific registers
+ - reg-names : The first entry must be "ti-conf" for the TI-specific registers
 	       The second entry must be "rc-dbics" for the DesignWare PCIe
 	       registers
 	       The third entry must be "config" for the PCIe configuration space
@@ -30,7 +30,7 @@ HOST MODE
 DEVICE MODE
 ===========
  - reg : Four register ranges as listed in the reg-names property
- - reg-names : "ti-conf" for the TI specific registers
+ - reg-names : "ti-conf" for the TI-specific registers
 	       "ep_dbics" for the standard configuration registers as
 		they are locally accessed within the DIF CS space
 	       "ep_dbics2" for the standard configuration registers as
@@ -46,7 +46,7 @@ DEVICE MODE
 			       access.
 
 Optional Property:
- - gpios : Should be added if a gpio line is required to drive PERST# line
+ - gpios : Should be added if a GPIO line is required to drive PERST# line
 
 NOTE: Two DT nodes may be added for each PCI controller; one for host
 mode and another for device mode. So in order for PCI to

@@ -54,14 +54,12 @@ static void vbox_do_modeset(struct drm_crtc *crtc,
 	struct vbox_crtc *vbox_crtc = to_vbox_crtc(crtc);
 	struct vbox_private *vbox;
 	int width, height, bpp, pitch;
-	unsigned int crtc_id;
 	u16 flags;
 	s32 x_offset, y_offset;
 
 	vbox = crtc->dev->dev_private;
 	width = mode->hdisplay ? mode->hdisplay : 640;
 	height = mode->vdisplay ? mode->vdisplay : 480;
-	crtc_id = vbox_crtc->crtc_id;
 	bpp = crtc->enabled ? CRTC_FB(crtc)->format->cpp[0] * 8 : 32;
 	pitch = crtc->enabled ? CRTC_FB(crtc)->pitches[0] : width * bpp / 8;
 	x_offset = vbox->single_framebuffer ? crtc->x : vbox_crtc->x_hint;
@@ -132,10 +130,6 @@ static int vbox_set_view(struct drm_crtc *crtc)
 	hgsmi_buffer_free(vbox->guest_pool, p);
 
 	return 0;
-}
-
-static void vbox_crtc_load_lut(struct drm_crtc *crtc)
-{
 }
 
 static void vbox_crtc_dpms(struct drm_crtc *crtc, int mode)
@@ -330,7 +324,6 @@ static const struct drm_crtc_helper_funcs vbox_crtc_helper_funcs = {
 	.mode_set = vbox_crtc_mode_set,
 	/* .mode_set_base = vbox_crtc_mode_set_base, */
 	.disable = vbox_crtc_disable,
-	.load_lut = vbox_crtc_load_lut,
 	.prepare = vbox_crtc_prepare,
 	.commit = vbox_crtc_commit,
 };
@@ -578,9 +571,6 @@ static int vbox_mode_valid(struct drm_connector *connector,
 
 static void vbox_connector_destroy(struct drm_connector *connector)
 {
-	struct vbox_connector *vbox_connector;
-
-	vbox_connector = to_vbox_connector(connector);
 	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
 	kfree(connector);
@@ -817,7 +807,7 @@ out_unmap_bo:
 out_unreserve_bo:
 	vbox_bo_unreserve(bo);
 out_unref_obj:
-	drm_gem_object_unreference_unlocked(obj);
+	drm_gem_object_put_unlocked(obj);
 
 	return ret;
 }

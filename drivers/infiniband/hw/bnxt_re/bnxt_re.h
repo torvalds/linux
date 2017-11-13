@@ -85,7 +85,7 @@ struct bnxt_re_sqp_entries {
 };
 
 #define BNXT_RE_MIN_MSIX		2
-#define BNXT_RE_MAX_MSIX		16
+#define BNXT_RE_MAX_MSIX		9
 #define BNXT_RE_AEQ_IDX			0
 #define BNXT_RE_NQ_IDX			1
 
@@ -93,11 +93,13 @@ struct bnxt_re_dev {
 	struct ib_device		ibdev;
 	struct list_head		list;
 	unsigned long			flags;
-#define BNXT_RE_FLAG_NETDEV_REGISTERED	0
-#define BNXT_RE_FLAG_IBDEV_REGISTERED	1
-#define BNXT_RE_FLAG_GOT_MSIX		2
-#define BNXT_RE_FLAG_RCFW_CHANNEL_EN	8
-#define BNXT_RE_FLAG_QOS_WORK_REG	16
+#define BNXT_RE_FLAG_NETDEV_REGISTERED		0
+#define BNXT_RE_FLAG_IBDEV_REGISTERED		1
+#define BNXT_RE_FLAG_GOT_MSIX			2
+#define BNXT_RE_FLAG_HAVE_L2_REF		3
+#define BNXT_RE_FLAG_RCFW_CHANNEL_EN		4
+#define BNXT_RE_FLAG_QOS_WORK_REG		5
+#define BNXT_RE_FLAG_TASK_IN_PROG		6
 	struct net_device		*netdev;
 	unsigned int			version, major, minor;
 	struct bnxt_en_dev		*en_dev;
@@ -108,6 +110,8 @@ struct bnxt_re_dev {
 
 	struct delayed_work		worker;
 	u8				cur_prio_map;
+	u8				active_speed;
+	u8				active_width;
 
 	/* FP Notification Queue (CQ & SRQ) */
 	struct tasklet_struct		nq_task;
@@ -116,7 +120,7 @@ struct bnxt_re_dev {
 	struct bnxt_qplib_rcfw		rcfw;
 
 	/* NQ */
-	struct bnxt_qplib_nq		nq;
+	struct bnxt_qplib_nq		nq[BNXT_RE_MAX_MSIX];
 
 	/* Device Resources */
 	struct bnxt_qplib_dev_attr	dev_attr;
@@ -140,6 +144,7 @@ struct bnxt_re_dev {
 	struct bnxt_re_qp		*qp1_sqp;
 	struct bnxt_re_ah		*sqp_ah;
 	struct bnxt_re_sqp_entries sqp_tbl[1024];
+	atomic_t nq_alloc_cnt;
 };
 
 #define to_bnxt_re_dev(ptr, member)	\

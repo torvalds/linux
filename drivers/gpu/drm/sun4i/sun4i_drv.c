@@ -48,8 +48,6 @@ static struct drm_driver sun4i_drv_driver = {
 
 	/* GEM Operations */
 	.dumb_create		= drm_gem_cma_dumb_create,
-	.dumb_destroy		= drm_gem_dumb_destroy,
-	.dumb_map_offset	= drm_gem_cma_dumb_map_offset,
 	.gem_free_object_unlocked = drm_gem_cma_free_object,
 	.gem_vm_ops		= &drm_gem_cma_vm_ops,
 
@@ -195,9 +193,9 @@ static bool sun4i_drv_node_is_tcon(struct device_node *node)
 
 static int compare_of(struct device *dev, void *data)
 {
-	DRM_DEBUG_DRIVER("Comparing of node %s with %s\n",
-			 of_node_full_name(dev->of_node),
-			 of_node_full_name(data));
+	DRM_DEBUG_DRIVER("Comparing of node %pOF with %pOF\n",
+			 dev->of_node,
+			 data);
 
 	return dev->of_node == data;
 }
@@ -227,8 +225,7 @@ static int sun4i_drv_add_endpoints(struct device *dev,
 
 	if (!sun4i_drv_node_is_frontend(node)) {
 		/* Add current component */
-		DRM_DEBUG_DRIVER("Adding component %s\n",
-				 of_node_full_name(node));
+		DRM_DEBUG_DRIVER("Adding component %pOF\n", node);
 		drm_of_component_match_add(dev, match, compare_of, node);
 		count++;
 	}

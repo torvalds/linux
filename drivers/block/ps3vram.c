@@ -409,10 +409,8 @@ static int ps3vram_cache_init(struct ps3_system_bus_device *dev)
 	priv->cache.page_size = CACHE_PAGE_SIZE;
 	priv->cache.tags = kzalloc(sizeof(struct ps3vram_tag) *
 				   CACHE_PAGE_COUNT, GFP_KERNEL);
-	if (priv->cache.tags == NULL) {
-		dev_err(&dev->core, "Could not allocate cache tags\n");
+	if (!priv->cache.tags)
 		return -ENOMEM;
-	}
 
 	dev_info(&dev->core, "Created ram cache: %d entries, %d KiB each\n",
 		CACHE_PAGE_COUNT, CACHE_PAGE_SIZE / 1024);
@@ -743,7 +741,11 @@ static int ps3vram_probe(struct ps3_system_bus_device *dev)
 		goto out_unmap_reports;
 	}
 
-	ps3vram_cache_init(dev);
+	error = ps3vram_cache_init(dev);
+	if (error < 0) {
+		goto out_unmap_reports;
+	}
+
 	ps3vram_proc_init(dev);
 
 	queue = blk_alloc_queue(GFP_KERNEL);

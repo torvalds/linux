@@ -1,0 +1,21 @@
+Device-tree bindings for IBM Common Form Factor Power Supply Version 1
+----------------------------------------------------------------------
+
+Required properties:
+ - compatible = "ibm,cffps1";
+ - reg = < I2C bus address >;		: Address of the power supply on the
+					  I2C bus.
+
+Example:
+
+    i2c-bus@100 {
+        #address-cells = <1>;
+        #size-cells = <0>;
+        #interrupt-cells = <1>;
+        < more properties >
+
+        power-supply@68 {
+            compatible = "ibm,cffps1";
+            reg = <0x68>;
+        };
+    };

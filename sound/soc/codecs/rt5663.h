@@ -12,6 +12,8 @@
 #ifndef __RT5663_H__
 #define __RT5663_H__
 
+#include <sound/rt5663.h>
+
 /* Info */
 #define RT5663_RESET				0x0000
 #define RT5663_VENDOR_ID			0x00fd

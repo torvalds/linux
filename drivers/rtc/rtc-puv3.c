@@ -157,49 +157,7 @@ static int puv3_rtc_proc(struct device *dev, struct seq_file *seq)
 	return 0;
 }
 
-static int puv3_rtc_open(struct device *dev)
-{
-	struct platform_device *pdev = to_platform_device(dev);
-	struct rtc_device *rtc_dev = platform_get_drvdata(pdev);
-	int ret;
-
-	ret = request_irq(puv3_rtc_alarmno, puv3_rtc_alarmirq,
-			0, "pkunity-rtc alarm", rtc_dev);
-
-	if (ret) {
-		dev_err(dev, "IRQ%d error %d\n", puv3_rtc_alarmno, ret);
-		return ret;
-	}
-
-	ret = request_irq(puv3_rtc_tickno, puv3_rtc_tickirq,
-			0, "pkunity-rtc tick", rtc_dev);
-
-	if (ret) {
-		dev_err(dev, "IRQ%d error %d\n", puv3_rtc_tickno, ret);
-		goto tick_err;
-	}
-
-	return ret;
-
- tick_err:
-	free_irq(puv3_rtc_alarmno, rtc_dev);
-	return ret;
-}
-
-static void puv3_rtc_release(struct device *dev)
-{
-	struct platform_device *pdev = to_platform_device(dev);
-	struct rtc_device *rtc_dev = platform_get_drvdata(pdev);
-
-	/* do not clear AIE here, it may be needed for wake */
-	puv3_rtc_setpie(dev, 0);
-	free_irq(puv3_rtc_alarmno, rtc_dev);
-	free_irq(puv3_rtc_tickno, rtc_dev);
-}
-
 static const struct rtc_class_ops puv3_rtcops = {
-	.open		= puv3_rtc_open,
-	.release	= puv3_rtc_release,
 	.read_time	= puv3_rtc_gettime,
 	.set_time	= puv3_rtc_settime,
 	.read_alarm	= puv3_rtc_getalarm,
@@ -222,10 +180,6 @@ static void puv3_rtc_enable(struct device *dev, int en)
 
 static int puv3_rtc_remove(struct platform_device *dev)
 {
-	struct rtc_device *rtc = platform_get_drvdata(dev);
-
-	rtc_device_unregister(rtc);
-
 	puv3_rtc_setpie(&dev->dev, 0);
 	puv3_rtc_setaie(&dev->dev, 0);
 
@@ -259,6 +213,24 @@ static int puv3_rtc_probe(struct platform_device *pdev)
 	dev_dbg(&pdev->dev, "PKUnity_rtc: tick irq %d, alarm irq %d\n",
 		 puv3_rtc_tickno, puv3_rtc_alarmno);
 
+	rtc = devm_rtc_allocate_device(&pdev->dev);
+	if (IS_ERR(rtc))
+		return PTR_ERR(rtc);
+
+	ret = devm_request_irq(&pdev->dev, puv3_rtc_alarmno, puv3_rtc_alarmirq,
+			       0, "pkunity-rtc alarm", rtc);
+	if (ret) {
+		dev_err(&pdev->dev, "IRQ%d error %d\n", puv3_rtc_alarmno, ret);
+		return ret;
+	}
+
+	ret = devm_request_irq(&pdev->dev, puv3_rtc_tickno, puv3_rtc_tickirq,
+			       0, "pkunity-rtc tick", rtc);
+	if (ret) {
+		dev_err(&pdev->dev, "IRQ%d error %d\n", puv3_rtc_tickno, ret);
+		return ret;
+	}
+
 	/* get the memory region */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (res == NULL) {
@@ -278,12 +250,10 @@ static int puv3_rtc_probe(struct platform_device *pdev)
 	puv3_rtc_enable(&pdev->dev, 1);
 
 	/* register RTC and exit */
-	rtc = rtc_device_register("pkunity", &pdev->dev, &puv3_rtcops,
-				  THIS_MODULE);
-
-	if (IS_ERR(rtc)) {
+	rtc->ops = &puv3_rtcops;
+	ret = rtc_register_device(rtc);
+	if (ret) {
 		dev_err(&pdev->dev, "cannot attach rtc\n");
-		ret = PTR_ERR(rtc);
 		goto err_nortc;
 	}
 

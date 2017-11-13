@@ -46,14 +46,6 @@ static int debug;
 			KBUILD_MODNAME ": " text "\n" , ## __VA_ARGS__)
 
 
-/*
- * Original lirc driver said min value of 76, and recommended value of 256
- * for the buffer length, but then used 2048. Never mind that the size of the
- * RX FIFO is 32 bytes... So I'm using 32 for RX and 256 for TX atm, but I'm
- * not sure if maybe that TX value is off by a factor of 8 (bits vs. bytes),
- * and I don't have TX-capable hardware to test/debug on...
- */
-#define TX_BUF_LEN 256
 #define RX_BUF_LEN 32
 
 #define SIO_ID_MASK 0xfff0
@@ -81,14 +73,6 @@ struct nvt_dev {
 	u8 buf[RX_BUF_LEN];
 	unsigned int pkts;
 
-	struct {
-		u8 buf[TX_BUF_LEN];
-		unsigned int buf_count;
-		unsigned int cur_buf_num;
-		wait_queue_head_t queue;
-		u8 tx_state;
-	} tx;
-
 	/* EFER Config register index/data pair */
 	u32 cr_efir;
 	u32 cr_efdr;
@@ -103,17 +87,9 @@ struct nvt_dev {
 	u8 chip_major;
 	u8 chip_minor;
 
-	/* hardware features */
-	bool hw_tx_capable;
-
 	/* carrier period = 1 / frequency */
 	u32 carrier;
 };
-
-/* send states */
-#define ST_TX_NONE	0x0
-#define ST_TX_REQUEST	0x2
-#define ST_TX_REPLY	0x4
 
 /* buffer packet constants */
 #define BUF_PULSE_BIT	0x80

@@ -415,7 +415,7 @@ static void flexcop_pci_remove(struct pci_dev *pdev)
 	flexcop_device_kfree(fc_pci->fc_dev);
 }
 
-static struct pci_device_id flexcop_pci_tbl[] = {
+static const struct pci_device_id flexcop_pci_tbl[] = {
 	{ PCI_DEVICE(0x13d0, 0x2103) },
 	{ },
 };

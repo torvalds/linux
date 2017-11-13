@@ -299,7 +299,7 @@ static inline struct pvrdma_cqe *get_cqe(struct pvrdma_cq *cq, int i)
 
 void _pvrdma_flush_cqe(struct pvrdma_qp *qp, struct pvrdma_cq *cq)
 {
-	int head;
+	unsigned int head;
 	int has_data;
 
 	if (!cq->is_kernel)
@@ -389,6 +389,7 @@ retry:
 	wc->dlid_path_bits = cqe->dlid_path_bits;
 	wc->port_num = cqe->port_num;
 	wc->vendor_err = cqe->vendor_err;
+	wc->network_hdr_type = cqe->network_hdr_type;
 
 	/* Update shared ring state */
 	pvrdma_idx_ring_inc(&cq->ring_state->rx.cons_head, cq->ibcq.cqe);

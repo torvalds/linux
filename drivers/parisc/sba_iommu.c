@@ -1905,7 +1905,7 @@ static const struct file_operations sba_proc_bitmap_fops = {
 };
 #endif /* CONFIG_PROC_FS */
 
-static struct parisc_device_id sba_tbl[] = {
+static const struct parisc_device_id sba_tbl[] __initconst = {
 	{ HPHW_IOA, HVERSION_REV_ANY_ID, ASTRO_RUNWAY_PORT, 0xb },
 	{ HPHW_BCPORT, HVERSION_REV_ANY_ID, IKE_MERCED_PORT, 0xc },
 	{ HPHW_BCPORT, HVERSION_REV_ANY_ID, REO_MERCED_PORT, 0xc },
@@ -1916,7 +1916,7 @@ static struct parisc_device_id sba_tbl[] = {
 
 static int sba_driver_callback(struct parisc_device *);
 
-static struct parisc_driver sba_driver = {
+static struct parisc_driver sba_driver __refdata = {
 	.name =		MODULE_NAME,
 	.id_table =	sba_tbl,
 	.probe =	sba_driver_callback,
@@ -1927,7 +1927,7 @@ static struct parisc_driver sba_driver = {
 ** If so, initialize the chip and tell other partners in crime they
 ** have work to do.
 */
-static int sba_driver_callback(struct parisc_device *dev)
+static int __init sba_driver_callback(struct parisc_device *dev)
 {
 	struct sba_device *sba_dev;
 	u32 func_class;

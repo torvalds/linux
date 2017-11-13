@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # General architecture dependent options
 #
@@ -458,6 +459,13 @@ config GCC_PLUGIN_STRUCTLEAK
 	   * https://grsecurity.net/
 	   * https://pax.grsecurity.net/
 
+config GCC_PLUGIN_STRUCTLEAK_BYREF_ALL
+	bool "Force initialize all struct type variables passed by reference"
+	depends on GCC_PLUGIN_STRUCTLEAK
+	help
+	  Zero initialize any struct type local variable that may be passed by
+	  reference without having been initialized.
+
 config GCC_PLUGIN_STRUCTLEAK_VERBOSE
 	bool "Report forcefully initialized variables"
 	depends on GCC_PLUGIN_STRUCTLEAK
@@ -473,11 +481,13 @@ config GCC_PLUGIN_RANDSTRUCT
 	depends on GCC_PLUGINS
 	select MODVERSIONS if MODULES
 	help
-	  If you say Y here, the layouts of structures explicitly
-	  marked by __randomize_layout will be randomized at
-	  compile-time.  This can introduce the requirement of an
-	  additional information exposure vulnerability for exploits
-	  targeting these structure types.
+	  If you say Y here, the layouts of structures that are entirely
+	  function pointers (and have not been manually annotated with
+	  __no_randomize_layout), or structures that have been explicitly
+	  marked with __randomize_layout, will be randomized at compile-time.
+	  This can introduce the requirement of an additional information
+	  exposure vulnerability for exploits targeting these structure
+	  types.
 
 	  Enabling this feature will introduce some performance impact,
 	  slightly increase memory usage, and prevent the use of forensic
@@ -928,8 +938,17 @@ config STRICT_MODULE_RWX
 	  and non-text memory will be made non-executable. This provides
 	  protection against certain security exploits (e.g. writing to text)
 
-config ARCH_WANT_RELAX_ORDER
+config ARCH_HAS_REFCOUNT
 	bool
+	help
+	  An architecture selects this when it has implemented refcount_t
+	  using open coded assembly primitives that provide an optimized
+	  refcount_t implementation, possibly at the expense of some full
+	  refcount state checks of CONFIG_REFCOUNT_FULL=y.
+
+	  The refcount overflow check behavior, however, must be retained.
+	  Catching overflows is the primary security concern for protecting
+	  against bugs in reference counts.
 
 config REFCOUNT_FULL
 	bool "Perform full reference count validation at the expense of speed"

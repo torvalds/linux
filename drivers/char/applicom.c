@@ -67,7 +67,7 @@ static char *applicom_pci_devnames[] = {
 	"PCI2000PFB"
 };
 
-static struct pci_device_id applicom_pci_tbl[] = {
+static const struct pci_device_id applicom_pci_tbl[] = {
 	{ PCI_VDEVICE(APPLICOM, PCI_DEVICE_ID_APPLICOM_PCIGENERIC) },
 	{ PCI_VDEVICE(APPLICOM, PCI_DEVICE_ID_APPLICOM_PCI2000IBS_CAN) },
 	{ PCI_VDEVICE(APPLICOM, PCI_DEVICE_ID_APPLICOM_PCI2000PFB) },

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  * System Trace Module (STM) userspace interfaces
  * Copyright (c) 2014, Intel Corporation.

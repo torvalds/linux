@@ -98,7 +98,7 @@ static const struct reg_default rt5616_reg[] = {
 	{ 0x8e, 0x0004 },
 	{ 0x8f, 0x1100 },
 	{ 0x90, 0x0000 },
-	{ 0x91, 0x0000 },
+	{ 0x91, 0x0c00 },
 	{ 0x92, 0x0000 },
 	{ 0x93, 0x2000 },
 	{ 0x94, 0x0200 },
@@ -1265,7 +1265,7 @@ static int rt5616_resume(struct snd_soc_codec *codec)
 #define RT5616_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE | \
 			SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S8)
 
-static struct snd_soc_dai_ops rt5616_aif_dai_ops = {
+static const struct snd_soc_dai_ops rt5616_aif_dai_ops = {
 	.hw_params = rt5616_hw_params,
 	.set_fmt = rt5616_set_dai_fmt,
 	.set_sysclk = rt5616_set_dai_sysclk,
@@ -1294,7 +1294,7 @@ static struct snd_soc_dai_driver rt5616_dai[] = {
 	},
 };
 
-static struct snd_soc_codec_driver soc_codec_dev_rt5616 = {
+static const struct snd_soc_codec_driver soc_codec_dev_rt5616 = {
 	.probe = rt5616_probe,
 	.suspend = rt5616_suspend,
 	.resume = rt5616_resume,

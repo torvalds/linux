@@ -277,7 +277,7 @@ static int cx25821_get_audio_data(struct cx25821_dev *dev,
 		p = (char *)dev->_audiodata_buf_virt_addr + frame_offset;
 
 	for (i = 0; i < dev->_audio_lines_count; i++) {
-		int n = kernel_read(file, file_offset, mybuf, AUDIO_LINE_SIZE);
+		int n = kernel_read(file, mybuf, AUDIO_LINE_SIZE, &file_offset);
 		if (n < AUDIO_LINE_SIZE) {
 			pr_info("Done: exit %s() since no more bytes to read from Audio file\n",
 				__func__);
@@ -290,7 +290,6 @@ static int cx25821_get_audio_data(struct cx25821_dev *dev,
 			memcpy(p, mybuf, n);
 			p += n;
 		}
-		file_offset += n;
 	}
 	dev->_audioframe_count++;
 	fput(file);
@@ -318,7 +317,7 @@ static int cx25821_openfile_audio(struct cx25821_dev *dev,
 {
 	char *p = (void *)dev->_audiodata_buf_virt_addr;
 	struct file *file;
-	loff_t offset;
+	loff_t file_offset = 0;
 	int i, j;
 
 	file = filp_open(dev->_audiofilename, O_RDONLY | O_LARGEFILE, 0);
@@ -328,11 +327,11 @@ static int cx25821_openfile_audio(struct cx25821_dev *dev,
 		return PTR_ERR(file);
 	}
 
-	for (j = 0, offset = 0; j < NUM_AUDIO_FRAMES; j++) {
+	for (j = 0; j < NUM_AUDIO_FRAMES; j++) {
 		for (i = 0; i < dev->_audio_lines_count; i++) {
 			char buf[AUDIO_LINE_SIZE];
-			int n = kernel_read(file, offset, buf,
-						AUDIO_LINE_SIZE);
+			loff_t offset = file_offset;
+			int n = kernel_read(file, buf, AUDIO_LINE_SIZE, &file_offset);
 
 			if (n < AUDIO_LINE_SIZE) {
 				pr_info("Done: exit %s() since no more bytes to read from Audio file\n",
@@ -344,8 +343,6 @@ static int cx25821_openfile_audio(struct cx25821_dev *dev,
 
 			if (p)
 				memcpy(p + offset, buf, n);
-
-			offset += n;
 		}
 		dev->_audioframe_count++;
 	}

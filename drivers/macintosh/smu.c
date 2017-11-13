@@ -589,14 +589,14 @@ static int smu_late_init(void)
 	if (smu->db_node) {
 		smu->db_irq = irq_of_parse_and_map(smu->db_node, 0);
 		if (!smu->db_irq)
-			printk(KERN_ERR "smu: failed to map irq for node %s\n",
-			       smu->db_node->full_name);
+			printk(KERN_ERR "smu: failed to map irq for node %pOF\n",
+			       smu->db_node);
 	}
 	if (smu->msg_node) {
 		smu->msg_irq = irq_of_parse_and_map(smu->msg_node, 0);
 		if (!smu->msg_irq)
-			printk(KERN_ERR "smu: failed to map irq for node %s\n",
-			       smu->msg_node->full_name);
+			printk(KERN_ERR "smu: failed to map irq for node %pOF\n",
+			       smu->msg_node);
 	}
 
 	/*

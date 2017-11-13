@@ -72,6 +72,9 @@ struct goodix_ts_data {
 #define GOODIX_REG_CONFIG_DATA		0x8047
 #define GOODIX_REG_ID			0x8140
 
+#define GOODIX_BUFFER_STATUS_READY	BIT(7)
+#define GOODIX_BUFFER_STATUS_TIMEOUT	20
+
 #define RESOLUTION_LOC		1
 #define MAX_CONTACTS_LOC	5
 #define TRIGGER_LOC		6
@@ -195,35 +198,53 @@ static int goodix_get_cfg_len(u16 id)
 
 static int goodix_ts_read_input_report(struct goodix_ts_data *ts, u8 *data)
 {
+	unsigned long max_timeout;
 	int touch_num;
 	int error;
 
-	error = goodix_i2c_read(ts->client, GOODIX_READ_COOR_ADDR, data,
-				GOODIX_CONTACT_SIZE + 1);
-	if (error) {
-		dev_err(&ts->client->dev, "I2C transfer error: %d\n", error);
-		return error;
-	}
-
-	if (!(data[0] & 0x80))
-		return -EAGAIN;
-
-	touch_num = data[0] & 0x0f;
-	if (touch_num > ts->max_touch_num)
-		return -EPROTO;
-
-	if (touch_num > 1) {
-		data += 1 + GOODIX_CONTACT_SIZE;
-		error = goodix_i2c_read(ts->client,
-					GOODIX_READ_COOR_ADDR +
-						1 + GOODIX_CONTACT_SIZE,
-					data,
-					GOODIX_CONTACT_SIZE * (touch_num - 1));
-		if (error)
+	/*
+	 * The 'buffer status' bit, which indicates that the data is valid, is
+	 * not set as soon as the interrupt is raised, but slightly after.
+	 * This takes around 10 ms to happen, so we poll for 20 ms.
+	 */
+	max_timeout = jiffies + msecs_to_jiffies(GOODIX_BUFFER_STATUS_TIMEOUT);
+	do {
+		error = goodix_i2c_read(ts->client, GOODIX_READ_COOR_ADDR,
+					data, GOODIX_CONTACT_SIZE + 1);
+		if (error) {
+			dev_err(&ts->client->dev, "I2C transfer error: %d\n",
+					error);
 			return error;
-	}
+		}
 
-	return touch_num;
+		if (data[0] & GOODIX_BUFFER_STATUS_READY) {
+			touch_num = data[0] & 0x0f;
+			if (touch_num > ts->max_touch_num)
+				return -EPROTO;
+
+			if (touch_num > 1) {
+				data += 1 + GOODIX_CONTACT_SIZE;
+				error = goodix_i2c_read(ts->client,
+						GOODIX_READ_COOR_ADDR +
+							1 + GOODIX_CONTACT_SIZE,
+						data,
+						GOODIX_CONTACT_SIZE *
+							(touch_num - 1));
+				if (error)
+					return error;
+			}
+
+			return touch_num;
+		}
+
+		usleep_range(1000, 2000); /* Poll every 1 - 2 ms */
+	} while (time_before(jiffies, max_timeout));
+
+	/*
+	 * The Goodix panel will send spurious interrupts after a
+	 * 'finger up' event, which will always cause a timeout.
+	 */
+	return 0;
 }
 
 static void goodix_ts_report_touch(struct goodix_ts_data *ts, u8 *coor_data)
@@ -266,6 +287,12 @@ static void goodix_process_events(struct goodix_ts_data *ts)
 	touch_num = goodix_ts_read_input_report(ts, point_data);
 	if (touch_num < 0)
 		return;
+
+	/*
+	 * Bit 4 of the first byte reports the status of the capacitive
+	 * Windows/Home button.
+	 */
+	input_report_key(ts->input_dev, KEY_LEFTMETA, point_data[0] & BIT(4));
 
 	for (i = 0; i < touch_num; i++)
 		goodix_ts_report_touch(ts,
@@ -611,6 +638,9 @@ static int goodix_request_input_dev(struct goodix_ts_data *ts)
 	ts->input_dev->id.vendor = 0x0416;
 	ts->input_dev->id.product = ts->id;
 	ts->input_dev->id.version = ts->version;
+
+	/* Capacitive Windows/Home button on some devices */
+	input_set_capability(ts->input_dev, EV_KEY, KEY_LEFTMETA);
 
 	error = input_register_device(ts->input_dev);
 	if (error) {

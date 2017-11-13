@@ -36,14 +36,14 @@
 
 #define DEBUG_SUBSYSTEM S_RPC
 
-#include "../include/obd_support.h"
-#include "../include/lustre_ha.h"
-#include "../include/lustre_net.h"
-#include "../include/lustre_import.h"
-#include "../include/lustre_export.h"
-#include "../include/obd.h"
-#include "../include/obd_cksum.h"
-#include "../include/obd_class.h"
+#include <obd_support.h>
+#include <lustre_ha.h>
+#include <lustre_net.h>
+#include <lustre_import.h>
+#include <lustre_export.h>
+#include <obd.h>
+#include <obd_cksum.h>
+#include <obd_class.h>
 
 #include "ptlrpc_internal.h"
 
@@ -1026,7 +1026,7 @@ static int ptlrpc_connect_interpret(const struct lu_env *env,
 	/* check that server granted subset of flags we asked for. */
 	if ((ocd->ocd_connect_flags & imp->imp_connect_flags_orig) !=
 	    ocd->ocd_connect_flags) {
-		CERROR("%s: Server didn't granted asked subset of flags: asked=%#llx grranted=%#llx\n",
+		CERROR("%s: Server didn't grant the asked for subset of flags: asked=%#llx granted=%#llx\n",
 		       imp->imp_obd->obd_name, imp->imp_connect_flags_orig,
 		       ocd->ocd_connect_flags);
 		rc = -EPROTO;

@@ -18,7 +18,6 @@ spi1: spi@01c06000 {
 	interrupts = <11>;
 	clocks = <&ahb_gates 21>, <&spi1_clk>;
 	clock-names = "ahb", "mod";
-	status = "disabled";
 	#address-cells = <1>;
 	#size-cells = <0>;
 };

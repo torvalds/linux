@@ -529,7 +529,7 @@ static int dw8250_probe(struct platform_device *pdev)
 		}
 	}
 
-	data->rst = devm_reset_control_get_optional(dev, NULL);
+	data->rst = devm_reset_control_get_optional_exclusive(dev, NULL);
 	if (IS_ERR(data->rst)) {
 		err = PTR_ERR(data->rst);
 		goto err_pclk;

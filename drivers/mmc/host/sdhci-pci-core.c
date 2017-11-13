@@ -35,7 +35,6 @@
 #include "sdhci-pci-o2micro.h"
 
 static int sdhci_pci_enable_dma(struct sdhci_host *host);
-static void sdhci_pci_set_bus_width(struct sdhci_host *host, int width);
 static void sdhci_pci_hw_reset(struct sdhci_host *host);
 
 #ifdef CONFIG_PM_SLEEP
@@ -393,6 +392,7 @@ static const struct sdhci_pci_fixes sdhci_intel_pch_sdio = {
 
 enum {
 	INTEL_DSM_FNS		=  0,
+	INTEL_DSM_V18_SWITCH	=  3,
 	INTEL_DSM_DRV_STRENGTH	=  9,
 	INTEL_DSM_D3_RETUNE	= 10,
 };
@@ -447,6 +447,8 @@ static void intel_dsm_init(struct intel_host *intel_host, struct device *dev,
 {
 	int err;
 	u32 val;
+
+	intel_host->d3_retune = true;
 
 	err = __intel_dsm(intel_host, dev, INTEL_DSM_FNS, &intel_host->dsm_fns);
 	if (err) {
@@ -558,14 +560,28 @@ static void intel_hs400_enhanced_strobe(struct mmc_host *mmc,
 	sdhci_writel(host, val, INTEL_HS400_ES_REG);
 }
 
+static void sdhci_intel_voltage_switch(struct sdhci_host *host)
+{
+	struct sdhci_pci_slot *slot = sdhci_priv(host);
+	struct intel_host *intel_host = sdhci_pci_priv(slot);
+	struct device *dev = &slot->chip->pdev->dev;
+	u32 result = 0;
+	int err;
+
+	err = intel_dsm(intel_host, dev, INTEL_DSM_V18_SWITCH, &result);
+	pr_debug("%s: %s DSM error %d result %u\n",
+		 mmc_hostname(host->mmc), __func__, err, result);
+}
+
 static const struct sdhci_ops sdhci_intel_byt_ops = {
 	.set_clock		= sdhci_set_clock,
 	.set_power		= sdhci_intel_set_power,
 	.enable_dma		= sdhci_pci_enable_dma,
-	.set_bus_width		= sdhci_pci_set_bus_width,
+	.set_bus_width		= sdhci_set_bus_width,
 	.reset			= sdhci_reset,
 	.set_uhs_signaling	= sdhci_set_uhs_signaling,
 	.hw_reset		= sdhci_pci_hw_reset,
+	.voltage_switch		= sdhci_intel_voltage_switch,
 };
 
 static void byt_read_dsm(struct sdhci_pci_slot *slot)
@@ -730,6 +746,24 @@ static const struct sdhci_pci_fixes sdhci_intel_byt_sd = {
 #define INTEL_MRFLD_SD		2
 #define INTEL_MRFLD_SDIO	3
 
+#ifdef CONFIG_ACPI
+static void intel_mrfld_mmc_fix_up_power_slot(struct sdhci_pci_slot *slot)
+{
+	struct acpi_device *device, *child;
+
+	device = ACPI_COMPANION(&slot->chip->pdev->dev);
+	if (!device)
+		return;
+
+	acpi_device_fix_up_power(device);
+	list_for_each_entry(child, &device->children, node)
+		if (child->status.present && child->status.enabled)
+			acpi_device_fix_up_power(child);
+}
+#else
+static inline void intel_mrfld_mmc_fix_up_power_slot(struct sdhci_pci_slot *slot) {}
+#endif
+
 static int intel_mrfld_mmc_probe_slot(struct sdhci_pci_slot *slot)
 {
 	unsigned int func = PCI_FUNC(slot->chip->pdev->devfn);
@@ -751,6 +785,8 @@ static int intel_mrfld_mmc_probe_slot(struct sdhci_pci_slot *slot)
 	default:
 		return -ENODEV;
 	}
+
+	intel_mrfld_mmc_fix_up_power_slot(slot);
 	return 0;
 }
 
@@ -1197,7 +1233,7 @@ static int amd_probe(struct sdhci_pci_chip *chip)
 static const struct sdhci_ops amd_sdhci_pci_ops = {
 	.set_clock			= sdhci_set_clock,
 	.enable_dma			= sdhci_pci_enable_dma,
-	.set_bus_width			= sdhci_pci_set_bus_width,
+	.set_bus_width			= sdhci_set_bus_width,
 	.reset				= sdhci_reset,
 	.set_uhs_signaling		= sdhci_set_uhs_signaling,
 	.platform_execute_tuning	= amd_execute_tuning,
@@ -1313,29 +1349,6 @@ static int sdhci_pci_enable_dma(struct sdhci_host *host)
 	return 0;
 }
 
-static void sdhci_pci_set_bus_width(struct sdhci_host *host, int width)
-{
-	u8 ctrl;
-
-	ctrl = sdhci_readb(host, SDHCI_HOST_CONTROL);
-
-	switch (width) {
-	case MMC_BUS_WIDTH_8:
-		ctrl |= SDHCI_CTRL_8BITBUS;
-		ctrl &= ~SDHCI_CTRL_4BITBUS;
-		break;
-	case MMC_BUS_WIDTH_4:
-		ctrl |= SDHCI_CTRL_4BITBUS;
-		ctrl &= ~SDHCI_CTRL_8BITBUS;
-		break;
-	default:
-		ctrl &= ~(SDHCI_CTRL_8BITBUS | SDHCI_CTRL_4BITBUS);
-		break;
-	}
-
-	sdhci_writeb(host, ctrl, SDHCI_HOST_CONTROL);
-}
-
 static void sdhci_pci_gpio_hw_reset(struct sdhci_host *host)
 {
 	struct sdhci_pci_slot *slot = sdhci_priv(host);
@@ -1362,7 +1375,7 @@ static void sdhci_pci_hw_reset(struct sdhci_host *host)
 static const struct sdhci_ops sdhci_pci_ops = {
 	.set_clock	= sdhci_set_clock,
 	.enable_dma	= sdhci_pci_enable_dma,
-	.set_bus_width	= sdhci_pci_set_bus_width,
+	.set_bus_width	= sdhci_set_bus_width,
 	.reset		= sdhci_reset,
 	.set_uhs_signaling = sdhci_set_uhs_signaling,
 	.hw_reset		= sdhci_pci_hw_reset,

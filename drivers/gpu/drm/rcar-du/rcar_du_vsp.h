@@ -64,13 +64,19 @@ to_rcar_vsp_plane_state(struct drm_plane_state *state)
 }
 
 #ifdef CONFIG_DRM_RCAR_VSP
-int rcar_du_vsp_init(struct rcar_du_vsp *vsp);
+int rcar_du_vsp_init(struct rcar_du_vsp *vsp, struct device_node *np,
+		     unsigned int crtcs);
 void rcar_du_vsp_enable(struct rcar_du_crtc *crtc);
 void rcar_du_vsp_disable(struct rcar_du_crtc *crtc);
 void rcar_du_vsp_atomic_begin(struct rcar_du_crtc *crtc);
 void rcar_du_vsp_atomic_flush(struct rcar_du_crtc *crtc);
 #else
-static inline int rcar_du_vsp_init(struct rcar_du_vsp *vsp) { return -ENXIO; };
+static inline int rcar_du_vsp_init(struct rcar_du_vsp *vsp,
+				   struct device_node *np,
+				   unsigned int crtcs)
+{
+	return -ENXIO;
+}
 static inline void rcar_du_vsp_enable(struct rcar_du_crtc *crtc) { };
 static inline void rcar_du_vsp_disable(struct rcar_du_crtc *crtc) { };
 static inline void rcar_du_vsp_atomic_begin(struct rcar_du_crtc *crtc) { };

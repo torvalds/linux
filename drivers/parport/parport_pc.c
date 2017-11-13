@@ -1083,9 +1083,9 @@ static void show_parconfig_winbond(int io, int key)
 		printk(KERN_INFO "Winbond LPT Config: active=%s, io=0x%02x%02x irq=%d, ",
 		       (cr30 & 0x01) ? "yes" : "no", cr60, cr61, cr70 & 0x0f);
 		if ((cr74 & 0x07) > 3)
-			printk("dma=none\n");
+			pr_cont("dma=none\n");
 		else
-			printk("dma=%d\n", cr74 & 0x07);
+			pr_cont("dma=%d\n", cr74 & 0x07);
 		printk(KERN_INFO
 		    "Winbond LPT Config: irqtype=%s, ECP fifo threshold=%d\n",
 					irqtypes[crf0>>7], (crf0>>3)&0x0f);
@@ -1685,14 +1685,14 @@ static int parport_ECP_supported(struct parport *pb)
 			pb->base, config, configb);
 		printk(KERN_DEBUG "0x%lx: ECP settings irq=", pb->base);
 		if ((configb >> 3) & 0x07)
-			printk("%d", intrline[(configb >> 3) & 0x07]);
+			pr_cont("%d", intrline[(configb >> 3) & 0x07]);
 		else
-			printk("<none or set by other means>");
-		printk(" dma=");
+			pr_cont("<none or set by other means>");
+		pr_cont(" dma=");
 		if ((configb & 0x03) == 0x00)
-			printk("<none or set by other means>\n");
+			pr_cont("<none or set by other means>\n");
 		else
-			printk("%d\n", configb & 0x07);
+			pr_cont("%d\n", configb & 0x07);
 	}
 
 	/* Go back to mode 000 */
@@ -2399,8 +2399,8 @@ static int sio_ite_8872_probe(struct pci_dev *pdev, int autoirq, int autodma,
 			"parport_pc: ITE 8872 parallel port: io=0x%X",
 								ite8872_lpt);
 		if (irq != PARPORT_IRQ_NONE)
-			printk(", irq=%d", irq);
-		printk("\n");
+			pr_cont(", irq=%d", irq);
+		pr_cont("\n");
 		return 1;
 	}
 
@@ -2581,10 +2581,10 @@ static int sio_via_probe(struct pci_dev *pdev, int autoirq, int autodma,
 		printk(KERN_INFO
 			"parport_pc: VIA parallel port: io=0x%X", port1);
 		if (irq != PARPORT_IRQ_NONE)
-			printk(", irq=%d", irq);
+			pr_cont(", irq=%d", irq);
 		if (dma != PARPORT_DMA_NONE)
-			printk(", dma=%d", dma);
-		printk("\n");
+			pr_cont(", dma=%d", dma);
+		pr_cont("\n");
 		return 1;
 	}
 

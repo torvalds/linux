@@ -24,7 +24,6 @@ mmc0: mmc@1c40000 {
 	compatible = "ti,da830-mmc",
 	reg = <0x40000 0x1000>;
 	interrupts = <16>;
-	status = "okay";
 	bus-width = <4>;
 	max-frequency = <50000000>;
 	dmas = <&edma 16

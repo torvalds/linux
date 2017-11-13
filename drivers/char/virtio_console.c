@@ -451,9 +451,6 @@ static struct port_buffer *alloc_buf(struct virtqueue *vq, size_t buf_size,
 		 * device is created by remoteproc, the DMA memory is
 		 * associated with the grandparent device:
 		 * vdev => rproc => platform-dev.
-		 * The code here would have been less quirky if
-		 * DMA_MEMORY_INCLUDES_CHILDREN had been supported
-		 * in dma-coherent.c
 		 */
 		if (!vq->vdev->dev.parent || !vq->vdev->dev.parent->parent)
 			goto free_buf;
@@ -1130,7 +1127,7 @@ static const struct file_operations port_fops = {
  * We turn the characters into a scatter-gather list, add it to the
  * output queue and then kick the Host.  Then we sit here waiting for
  * it to finish: inefficient in theory, but in practice
- * implementations will do it immediately (lguest's Launcher does).
+ * implementations will do it immediately.
  */
 static int put_chars(u32 vtermno, const char *buf, int count)
 {
@@ -1308,7 +1305,7 @@ static struct attribute *port_sysfs_entries[] = {
 	NULL
 };
 
-static struct attribute_group port_attribute_group = {
+static const struct attribute_group port_attribute_group = {
 	.name = NULL,		/* put in device directory */
 	.attrs = port_sysfs_entries,
 };

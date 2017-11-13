@@ -92,7 +92,6 @@ unsigned int do_ring_perf_limit_reasons;
 unsigned int crystal_hz;
 unsigned long long tsc_hz;
 int base_cpu;
-int do_migrate;
 double discover_bclk(unsigned int family, unsigned int model);
 unsigned int has_hwp;	/* IA32_PM_ENABLE, IA32_HWP_CAPABILITIES */
 			/* IA32_HWP_REQUEST, IA32_HWP_STATUS */
@@ -303,9 +302,6 @@ int for_all_cpus(int (func)(struct thread_data *, struct core_data *, struct pkg
 
 int cpu_migrate(int cpu)
 {
-	if (!do_migrate)
-		return 0;
-
 	CPU_ZERO_S(cpu_affinity_setsize, cpu_affinity_set);
 	CPU_SET_S(cpu, cpu_affinity_setsize, cpu_affinity_set);
 	if (sched_setaffinity(0, cpu_affinity_setsize, cpu_affinity_set) == -1)
@@ -5007,7 +5003,6 @@ void cmdline(int argc, char **argv)
 		{"hide",	required_argument,	0, 'H'},	// meh, -h taken by --help
 		{"Joules",	no_argument,		0, 'J'},
 		{"list",	no_argument,		0, 'l'},
-		{"migrate",	no_argument,		0, 'm'},
 		{"out",		required_argument,	0, 'o'},
 		{"quiet",	no_argument,		0, 'q'},
 		{"show",	required_argument,	0, 's'},
@@ -5019,7 +5014,7 @@ void cmdline(int argc, char **argv)
 
 	progname = argv[0];
 
-	while ((opt = getopt_long_only(argc, argv, "+C:c:Ddhi:Jmo:qST:v",
+	while ((opt = getopt_long_only(argc, argv, "+C:c:Ddhi:JM:m:o:qST:v",
 				long_options, &option_index)) != -1) {
 		switch (opt) {
 		case 'a':
@@ -5061,9 +5056,6 @@ void cmdline(int argc, char **argv)
 		case 'l':
 			list_header_only++;
 			quiet++;
-			break;
-		case 'm':
-			do_migrate = 1;
 			break;
 		case 'o':
 			outf = fopen_or_die(optarg, "w");

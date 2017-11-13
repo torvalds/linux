@@ -709,6 +709,29 @@ err_created:
 }
 EXPORT_SYMBOL(drm_property_replace_global_blob);
 
+/**
+ * drm_property_replace_blob - replace a blob property
+ * @blob: a pointer to the member blob to be replaced
+ * @new_blob: the new blob to replace with
+ *
+ * Return: true if the blob was in fact replaced.
+ */
+bool drm_property_replace_blob(struct drm_property_blob **blob,
+			       struct drm_property_blob *new_blob)
+{
+	struct drm_property_blob *old_blob = *blob;
+
+	if (old_blob == new_blob)
+		return false;
+
+	drm_property_blob_put(old_blob);
+	if (new_blob)
+		drm_property_blob_get(new_blob);
+	*blob = new_blob;
+	return true;
+}
+EXPORT_SYMBOL(drm_property_replace_blob);
+
 int drm_mode_getblob_ioctl(struct drm_device *dev,
 			   void *data, struct drm_file *file_priv)
 {

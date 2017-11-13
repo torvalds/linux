@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _PSMOUSE_H
 #define _PSMOUSE_H
 

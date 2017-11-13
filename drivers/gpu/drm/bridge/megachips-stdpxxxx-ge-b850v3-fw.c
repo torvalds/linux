@@ -193,7 +193,6 @@ static enum drm_connector_status ge_b850v3_lvds_detect(
 }
 
 static const struct drm_connector_funcs ge_b850v3_lvds_connector_funcs = {
-	.dpms = drm_atomic_helper_connector_dpms,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.detect = ge_b850v3_lvds_detect,
 	.destroy = drm_connector_cleanup,

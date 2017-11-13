@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_POWERPC_BOOK3S_64_PGTABLE_H_
 #define _ASM_POWERPC_BOOK3S_64_PGTABLE_H_
 
@@ -272,8 +273,10 @@ extern unsigned long __vmalloc_end;
 
 extern unsigned long __kernel_virt_start;
 extern unsigned long __kernel_virt_size;
+extern unsigned long __kernel_io_start;
 #define KERN_VIRT_START __kernel_virt_start
 #define KERN_VIRT_SIZE  __kernel_virt_size
+#define KERN_IO_START  __kernel_io_start
 extern struct page *vmemmap;
 extern unsigned long ioremap_bot;
 extern unsigned long pci_io_base;
@@ -298,7 +301,6 @@ extern unsigned long pci_io_base;
  *  PHB_IO_BASE = ISA_IO_BASE + 64K to ISA_IO_BASE + 2G, PHB IO spaces
  * IOREMAP_BASE = ISA_IO_BASE + 2G to VMALLOC_START + PGTABLE_RANGE
  */
-#define KERN_IO_START	(KERN_VIRT_START + (KERN_VIRT_SIZE >> 1))
 #define FULL_IO_SIZE	0x80000000ul
 #define  ISA_IO_BASE	(KERN_IO_START)
 #define  ISA_IO_END	(KERN_IO_START + 0x10000ul)
@@ -407,6 +409,11 @@ static inline bool pte_savedwrite(pte_t pte)
 static inline int pte_write(pte_t pte)
 {
 	return __pte_write(pte) || pte_savedwrite(pte);
+}
+
+static inline int pte_read(pte_t pte)
+{
+	return !!(pte_raw(pte) & cpu_to_be64(_PAGE_READ));
 }
 
 #define __HAVE_ARCH_PTEP_SET_WRPROTECT
@@ -1167,6 +1174,7 @@ static inline bool arch_needs_pgtable_deposit(void)
 		return false;
 	return true;
 }
+extern void serialize_against_pte_lookup(struct mm_struct *mm);
 
 
 static inline pmd_t pmd_mkdevmap(pmd_t pmd)

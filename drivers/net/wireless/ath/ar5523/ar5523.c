@@ -1749,7 +1749,7 @@ static void ar5523_disconnect(struct usb_interface *intf)
 	{ USB_DEVICE((vendor), (device) + 1), \
 		.driver_info = AR5523_FLAG_ABG|AR5523_FLAG_PRE_FIRMWARE }
 
-static struct usb_device_id ar5523_id_table[] = {
+static const struct usb_device_id ar5523_id_table[] = {
 	AR5523_DEVICE_UG(0x168c, 0x0001),	/* Atheros / AR5523 */
 	AR5523_DEVICE_UG(0x0cf3, 0x0001),	/* Atheros2 / AR5523_1 */
 	AR5523_DEVICE_UG(0x0cf3, 0x0003),	/* Atheros2 / AR5523_2 */

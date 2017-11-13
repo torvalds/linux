@@ -1378,7 +1378,7 @@ sigill:
 const int reg16to32[] = { 16, 17, 2, 3, 4, 5, 6, 7 };
 
 /* Recode table from 16-bit STORE register notation to 32-bit GPR. */
-const int reg16to32st[] = { 0, 17, 2, 3, 4, 5, 6, 7 };
+static const int reg16to32st[] = { 0, 17, 2, 3, 4, 5, 6, 7 };
 
 static void emulate_load_store_microMIPS(struct pt_regs *regs,
 					 void __user *addr)

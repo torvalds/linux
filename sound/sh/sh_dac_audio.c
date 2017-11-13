@@ -93,7 +93,7 @@ static void dac_audio_set_rate(struct snd_sh_dac *chip)
 
 /* PCM INTERFACE */
 
-static struct snd_pcm_hardware snd_sh_dac_pcm_hw = {
+static const struct snd_pcm_hardware snd_sh_dac_pcm_hw = {
 	.info			= (SNDRV_PCM_INFO_MMAP |
 					SNDRV_PCM_INFO_MMAP_VALID |
 					SNDRV_PCM_INFO_INTERLEAVED |
@@ -252,7 +252,7 @@ snd_pcm_uframes_t snd_sh_dac_pcm_pointer(struct snd_pcm_substream *substream)
 }
 
 /* pcm ops */
-static struct snd_pcm_ops snd_sh_dac_pcm_ops = {
+static const struct snd_pcm_ops snd_sh_dac_pcm_ops = {
 	.open		= snd_sh_dac_pcm_open,
 	.close		= snd_sh_dac_pcm_close,
 	.ioctl		= snd_pcm_lib_ioctl,
@@ -424,7 +424,7 @@ static int snd_sh_dac_probe(struct platform_device *devptr)
 	if (err < 0)
 		goto probe_error;
 
-	snd_printk("ALSA driver for SuperH DAC audio");
+	snd_printk(KERN_INFO "ALSA driver for SuperH DAC audio");
 
 	platform_set_drvdata(devptr, card);
 	return 0;

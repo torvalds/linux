@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_POWERPC_HARDIRQ_H
 #define _ASM_POWERPC_HARDIRQ_H
 
@@ -12,6 +13,10 @@ typedef struct {
 	unsigned int mce_exceptions;
 	unsigned int spurious_irqs;
 	unsigned int hmi_exceptions;
+	unsigned int sreset_irqs;
+#ifdef CONFIG_PPC_WATCHDOG
+	unsigned int soft_nmi_irqs;
+#endif
 #ifdef CONFIG_PPC_DOORBELL
 	unsigned int doorbell_irqs;
 #endif

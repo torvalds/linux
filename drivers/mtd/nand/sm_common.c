@@ -7,7 +7,7 @@
  * published by the Free Software Foundation.
  */
 #include <linux/kernel.h>
-#include <linux/mtd/nand.h>
+#include <linux/mtd/rawnand.h>
 #include <linux/module.h>
 #include <linux/sizes.h>
 #include "sm_common.h"

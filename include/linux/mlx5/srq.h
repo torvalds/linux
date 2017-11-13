@@ -38,6 +38,7 @@
 enum {
 	MLX5_SRQ_FLAG_ERR    = (1 << 0),
 	MLX5_SRQ_FLAG_WQ_SIG = (1 << 1),
+	MLX5_SRQ_FLAG_RNDV   = (1 << 2),
 };
 
 struct mlx5_srq_attr {
@@ -56,6 +57,10 @@ struct mlx5_srq_attr {
 	u32 user_index;
 	u64 db_record;
 	__be64 *pas;
+	u32 tm_log_list_size;
+	u32 tm_next_tag;
+	u32 tm_hw_phase_cnt;
+	u32 tm_sw_phase_cnt;
 };
 
 struct mlx5_core_dev;

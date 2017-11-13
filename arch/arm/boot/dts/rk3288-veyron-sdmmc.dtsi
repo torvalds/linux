@@ -117,7 +117,6 @@
 	card-detect-delay = <200>;
 	cd-gpios = <&gpio7 RK_PA5 GPIO_ACTIVE_LOW>;
 	rockchip,default-sample-phase = <90>;
-	num-slots = <1>;
 	sd-uhs-sdr12;
 	sd-uhs-sdr25;
 	sd-uhs-sdr50;

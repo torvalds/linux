@@ -498,6 +498,9 @@ static int ovl_set_nlink_common(struct dentry *dentry,
 	len = snprintf(buf, sizeof(buf), format,
 		       (int) (inode->i_nlink - realinode->i_nlink));
 
+	if (WARN_ON(len >= sizeof(buf)))
+		return -EIO;
+
 	return ovl_do_setxattr(ovl_dentry_upper(dentry),
 			       OVL_XATTR_NLINK, buf, len, 0);
 }
@@ -576,10 +579,13 @@ static int ovl_inode_set(struct inode *inode, void *data)
 static bool ovl_verify_inode(struct inode *inode, struct dentry *lowerdentry,
 			     struct dentry *upperdentry)
 {
-	struct inode *lowerinode = lowerdentry ? d_inode(lowerdentry) : NULL;
-
-	/* Lower (origin) inode must match, even if NULL */
-	if (ovl_inode_lower(inode) != lowerinode)
+	/*
+	 * Allow non-NULL lower inode in ovl_inode even if lowerdentry is NULL.
+	 * This happens when finding a copied up overlay inode for a renamed
+	 * or hardlinked overlay dentry and lower dentry cannot be followed
+	 * by origin because lower fs does not support file handles.
+	 */
+	if (lowerdentry && ovl_inode_lower(inode) != d_inode(lowerdentry))
 		return false;
 
 	/*
@@ -592,18 +598,30 @@ static bool ovl_verify_inode(struct inode *inode, struct dentry *lowerdentry,
 	return true;
 }
 
-struct inode *ovl_get_inode(struct dentry *dentry, struct dentry *upperdentry)
+struct inode *ovl_get_inode(struct dentry *dentry, struct dentry *upperdentry,
+			    struct dentry *index)
 {
 	struct dentry *lowerdentry = ovl_dentry_lower(dentry);
 	struct inode *realinode = upperdentry ? d_inode(upperdentry) : NULL;
 	struct inode *inode;
+	/* Already indexed or could be indexed on copy up? */
+	bool indexed = (index || (ovl_indexdir(dentry->d_sb) && !upperdentry));
+
+	if (WARN_ON(upperdentry && indexed && !lowerdentry))
+		return ERR_PTR(-EIO);
 
 	if (!realinode)
 		realinode = d_inode(lowerdentry);
 
-	if (!S_ISDIR(realinode->i_mode) &&
-	    (upperdentry || (lowerdentry && ovl_indexdir(dentry->d_sb)))) {
-		struct inode *key = d_inode(lowerdentry ?: upperdentry);
+	/*
+	 * Copy up origin (lower) may exist for non-indexed upper, but we must
+	 * not use lower as hash key in that case.
+	 * Hash inodes that are or could be indexed by origin inode and
+	 * non-indexed upper inodes that could be hard linked by upper inode.
+	 */
+	if (!S_ISDIR(realinode->i_mode) && (upperdentry || indexed)) {
+		struct inode *key = d_inode(indexed ? lowerdentry :
+						      upperdentry);
 		unsigned int nlink;
 
 		inode = iget5_locked(dentry->d_sb, (unsigned long) key,

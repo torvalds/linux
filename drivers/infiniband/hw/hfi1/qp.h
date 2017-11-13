@@ -1,7 +1,7 @@
 #ifndef _QP_H
 #define _QP_H
 /*
- * Copyright(c) 2015, 2016 Intel Corporation.
+ * Copyright(c) 2015 - 2017 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -94,26 +94,7 @@ void hfi1_qp_wakeup(struct rvt_qp *qp, u32 flag);
 struct sdma_engine *qp_to_sdma_engine(struct rvt_qp *qp, u8 sc5);
 struct send_context *qp_to_send_context(struct rvt_qp *qp, u8 sc5);
 
-struct qp_iter;
-
-/**
- * qp_iter_init - initialize the iterator for the qp hash list
- * @dev: the hfi1_ibdev
- */
-struct qp_iter *qp_iter_init(struct hfi1_ibdev *dev);
-
-/**
- * qp_iter_next - Find the next qp in the hash list
- * @iter: the iterator for the qp hash list
- */
-int qp_iter_next(struct qp_iter *iter);
-
-/**
- * qp_iter_print - print the qp information to seq_file
- * @s: the seq_file to emit the qp information on
- * @iter: the iterator for the qp hash list
- */
-void qp_iter_print(struct seq_file *s, struct qp_iter *iter);
+void qp_iter_print(struct seq_file *s, struct rvt_qp_iter *iter);
 
 void _hfi1_schedule_send(struct rvt_qp *qp);
 void hfi1_schedule_send(struct rvt_qp *qp);

@@ -275,7 +275,7 @@ static bool i40e_clean_tx_irq(struct i40e_vsi *vsi,
 	netdev_tx_completed_queue(txring_txq(tx_ring),
 				  total_packets, total_bytes);
 
-#define TX_WAKE_THRESHOLD (DESC_NEEDED * 2)
+#define TX_WAKE_THRESHOLD ((s16)(DESC_NEEDED * 2))
 	if (unlikely(total_packets && netif_carrier_ok(tx_ring->netdev) &&
 		     (I40E_DESC_UNUSED(tx_ring) >= TX_WAKE_THRESHOLD))) {
 		/* Make sure that anybody stopping the queue after this
@@ -357,19 +357,31 @@ void i40evf_force_wb(struct i40e_vsi *vsi, struct i40e_q_vector *q_vector)
 static bool i40e_set_new_dynamic_itr(struct i40e_ring_container *rc)
 {
 	enum i40e_latency_range new_latency_range = rc->latency_range;
-	struct i40e_q_vector *qv = rc->ring->q_vector;
 	u32 new_itr = rc->itr;
 	int bytes_per_int;
-	int usecs;
+	unsigned int usecs, estimated_usecs;
 
 	if (rc->total_packets == 0 || !rc->itr)
 		return false;
+
+	usecs = (rc->itr << 1) * ITR_COUNTDOWN_START;
+	bytes_per_int = rc->total_bytes / usecs;
+
+	/* The calculations in this algorithm depend on interrupts actually
+	 * firing at the ITR rate. This may not happen if the packet rate is
+	 * really low, or if we've been napi polling. Check to make sure
+	 * that's not the case before we continue.
+	 */
+	estimated_usecs = jiffies_to_usecs(jiffies - rc->last_itr_update);
+	if (estimated_usecs > usecs) {
+		new_latency_range = I40E_LOW_LATENCY;
+		goto reset_latency;
+	}
 
 	/* simple throttlerate management
 	 *   0-10MB/s   lowest (50000 ints/s)
 	 *  10-20MB/s   low    (20000 ints/s)
 	 *  20-1249MB/s bulk   (18000 ints/s)
-	 *  > 40000 Rx packets per second (8000 ints/s)
 	 *
 	 * The math works out because the divisor is in 10^(-6) which
 	 * turns the bytes/us input value into MB/s values, but
@@ -377,9 +389,6 @@ static bool i40e_set_new_dynamic_itr(struct i40e_ring_container *rc)
 	 * are in 2 usec increments in the ITR registers, and make sure
 	 * to use the smoothed values that the countdown timer gives us.
 	 */
-	usecs = (rc->itr << 1) * ITR_COUNTDOWN_START;
-	bytes_per_int = rc->total_bytes / usecs;
-
 	switch (new_latency_range) {
 	case I40E_LOWEST_LATENCY:
 		if (bytes_per_int > 10)
@@ -392,24 +401,13 @@ static bool i40e_set_new_dynamic_itr(struct i40e_ring_container *rc)
 			new_latency_range = I40E_LOWEST_LATENCY;
 		break;
 	case I40E_BULK_LATENCY:
-	case I40E_ULTRA_LATENCY:
 	default:
 		if (bytes_per_int <= 20)
 			new_latency_range = I40E_LOW_LATENCY;
 		break;
 	}
 
-	/* this is to adjust RX more aggressively when streaming small
-	 * packets.  The value of 40000 was picked as it is just beyond
-	 * what the hardware can receive per second if in low latency
-	 * mode.
-	 */
-#define RX_ULTRA_PACKET_RATE 40000
-
-	if ((((rc->total_packets * 1000000) / usecs) > RX_ULTRA_PACKET_RATE) &&
-	    (&qv->rx == rc))
-		new_latency_range = I40E_ULTRA_LATENCY;
-
+reset_latency:
 	rc->latency_range = new_latency_range;
 
 	switch (new_latency_range) {
@@ -422,21 +420,18 @@ static bool i40e_set_new_dynamic_itr(struct i40e_ring_container *rc)
 	case I40E_BULK_LATENCY:
 		new_itr = I40E_ITR_18K;
 		break;
-	case I40E_ULTRA_LATENCY:
-		new_itr = I40E_ITR_8K;
-		break;
 	default:
 		break;
 	}
 
 	rc->total_bytes = 0;
 	rc->total_packets = 0;
+	rc->last_itr_update = jiffies;
 
 	if (new_itr != rc->itr) {
 		rc->itr = new_itr;
 		return true;
 	}
-
 	return false;
 }
 
@@ -1299,7 +1294,7 @@ static int i40e_clean_rx_irq(struct i40e_ring *rx_ring, int budget)
 	u16 cleaned_count = I40E_DESC_UNUSED(rx_ring);
 	bool failure = false;
 
-	while (likely(total_rx_packets < budget)) {
+	while (likely(total_rx_packets < (unsigned int)budget)) {
 		struct i40e_rx_buffer *rx_buffer;
 		union i40e_rx_desc *rx_desc;
 		unsigned int size;
@@ -1406,7 +1401,7 @@ static int i40e_clean_rx_irq(struct i40e_ring *rx_ring, int budget)
 	rx_ring->q_vector->rx.total_bytes += total_rx_bytes;
 
 	/* guarantee a trip back through this routine if there was a failure */
-	return failure ? budget : total_rx_packets;
+	return failure ? budget : (int)total_rx_packets;
 }
 
 static u32 i40e_buildreg_itr(const int type, const u16 itr)
@@ -1575,7 +1570,6 @@ int i40evf_napi_poll(struct napi_struct *napi, int budget)
 
 	/* If work not completed, return budget and polling will return */
 	if (!clean_complete) {
-		const cpumask_t *aff_mask = &q_vector->affinity_mask;
 		int cpu_id = smp_processor_id();
 
 		/* It is possible that the interrupt affinity has changed but,
@@ -1585,14 +1579,22 @@ int i40evf_napi_poll(struct napi_struct *napi, int budget)
 		 * continue to poll, otherwise we must stop polling so the
 		 * interrupt can move to the correct cpu.
 		 */
-		if (likely(cpumask_test_cpu(cpu_id, aff_mask))) {
-tx_only:
-			if (arm_wb) {
-				q_vector->tx.ring[0].tx_stats.tx_force_wb++;
-				i40e_enable_wb_on_itr(vsi, q_vector);
-			}
-			return budget;
+		if (!cpumask_test_cpu(cpu_id, &q_vector->affinity_mask)) {
+			/* Tell napi that we are done polling */
+			napi_complete_done(napi, work_done);
+
+			/* Force an interrupt */
+			i40evf_force_wb(vsi, q_vector);
+
+			/* Return budget-1 so that polling stops */
+			return budget - 1;
 		}
+tx_only:
+		if (arm_wb) {
+			q_vector->tx.ring[0].tx_stats.tx_force_wb++;
+			i40e_enable_wb_on_itr(vsi, q_vector);
+		}
+		return budget;
 	}
 
 	if (vsi->back->flags & I40E_TXR_FLAGS_WB_ON_ITR)
@@ -1601,14 +1603,7 @@ tx_only:
 	/* Work is done so exit the polling mode and re-enable the interrupt */
 	napi_complete_done(napi, work_done);
 
-	/* If we're prematurely stopping polling to fix the interrupt
-	 * affinity we want to make sure polling starts back up so we
-	 * issue a call to i40evf_force_wb which triggers a SW interrupt.
-	 */
-	if (!clean_complete)
-		i40evf_force_wb(vsi, q_vector);
-	else
-		i40e_update_enable_itr(vsi, q_vector);
+	i40e_update_enable_itr(vsi, q_vector);
 
 	return min(work_done, budget - 1);
 }

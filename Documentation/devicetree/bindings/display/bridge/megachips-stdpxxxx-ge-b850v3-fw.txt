@@ -33,7 +33,6 @@ stdp2690-ge-b850v3-fw required properties:
 Example:
 
 &mux2_i2c2 {
-	status = "okay";
 	clock-frequency = <100000>;
 
 	stdp4028@73 {

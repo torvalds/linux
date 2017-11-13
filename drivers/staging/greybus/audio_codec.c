@@ -674,7 +674,7 @@ static int gbcodec_mute_stream(struct snd_soc_dai *dai, int mute, int stream)
 	return ret;
 }
 
-static struct snd_soc_dai_ops gbcodec_dai_ops = {
+static const struct snd_soc_dai_ops gbcodec_dai_ops = {
 	.startup = gbcodec_startup,
 	.shutdown = gbcodec_shutdown,
 	.hw_params = gbcodec_hw_params,

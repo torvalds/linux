@@ -38,6 +38,7 @@
 #include "include/policy.h"
 #include "include/policy_ns.h"
 #include "include/procattr.h"
+#include "include/mount.h"
 
 /* Flag indicating whether initialization completed */
 int apparmor_initialized;
@@ -511,6 +512,65 @@ static int apparmor_file_mprotect(struct vm_area_struct *vma,
 			   !(vma->vm_flags & VM_SHARED) ? MAP_PRIVATE : 0);
 }
 
+static int apparmor_sb_mount(const char *dev_name, const struct path *path,
+			     const char *type, unsigned long flags, void *data)
+{
+	struct aa_label *label;
+	int error = 0;
+
+	/* Discard magic */
+	if ((flags & MS_MGC_MSK) == MS_MGC_VAL)
+		flags &= ~MS_MGC_MSK;
+
+	flags &= ~AA_MS_IGNORE_MASK;
+
+	label = __begin_current_label_crit_section();
+	if (!unconfined(label)) {
+		if (flags & MS_REMOUNT)
+			error = aa_remount(label, path, flags, data);
+		else if (flags & MS_BIND)
+			error = aa_bind_mount(label, path, dev_name, flags);
+		else if (flags & (MS_SHARED | MS_PRIVATE | MS_SLAVE |
+				  MS_UNBINDABLE))
+			error = aa_mount_change_type(label, path, flags);
+		else if (flags & MS_MOVE)
+			error = aa_move_mount(label, path, dev_name);
+		else
+			error = aa_new_mount(label, dev_name, path, type,
+					     flags, data);
+	}
+	__end_current_label_crit_section(label);
+
+	return error;
+}
+
+static int apparmor_sb_umount(struct vfsmount *mnt, int flags)
+{
+	struct aa_label *label;
+	int error = 0;
+
+	label = __begin_current_label_crit_section();
+	if (!unconfined(label))
+		error = aa_umount(label, mnt, flags);
+	__end_current_label_crit_section(label);
+
+	return error;
+}
+
+static int apparmor_sb_pivotroot(const struct path *old_path,
+				 const struct path *new_path)
+{
+	struct aa_label *label;
+	int error = 0;
+
+	label = aa_get_current_label();
+	if (!unconfined(label))
+		error = aa_pivotroot(label, old_path, new_path);
+	aa_put_label(label);
+
+	return error;
+}
+
 static int apparmor_getprocattr(struct task_struct *task, char *name,
 				char **value)
 {
@@ -656,11 +716,35 @@ static int apparmor_task_setrlimit(struct task_struct *task,
 	return error;
 }
 
+static int apparmor_task_kill(struct task_struct *target, struct siginfo *info,
+			      int sig, u32 secid)
+{
+	struct aa_label *cl, *tl;
+	int error;
+
+	if (secid)
+		/* TODO: after secid to label mapping is done.
+		 *  Dealing with USB IO specific behavior
+		 */
+		return 0;
+	cl = __begin_current_label_crit_section();
+	tl = aa_get_task_label(target);
+	error = aa_may_signal(cl, tl, sig);
+	aa_put_label(tl);
+	__end_current_label_crit_section(cl);
+
+	return error;
+}
+
 static struct security_hook_list apparmor_hooks[] __lsm_ro_after_init = {
 	LSM_HOOK_INIT(ptrace_access_check, apparmor_ptrace_access_check),
 	LSM_HOOK_INIT(ptrace_traceme, apparmor_ptrace_traceme),
 	LSM_HOOK_INIT(capget, apparmor_capget),
 	LSM_HOOK_INIT(capable, apparmor_capable),
+
+	LSM_HOOK_INIT(sb_mount, apparmor_sb_mount),
+	LSM_HOOK_INIT(sb_umount, apparmor_sb_umount),
+	LSM_HOOK_INIT(sb_pivotroot, apparmor_sb_pivotroot),
 
 	LSM_HOOK_INIT(path_link, apparmor_path_link),
 	LSM_HOOK_INIT(path_unlink, apparmor_path_unlink),
@@ -694,9 +778,9 @@ static struct security_hook_list apparmor_hooks[] __lsm_ro_after_init = {
 	LSM_HOOK_INIT(bprm_set_creds, apparmor_bprm_set_creds),
 	LSM_HOOK_INIT(bprm_committing_creds, apparmor_bprm_committing_creds),
 	LSM_HOOK_INIT(bprm_committed_creds, apparmor_bprm_committed_creds),
-	LSM_HOOK_INIT(bprm_secureexec, apparmor_bprm_secureexec),
 
 	LSM_HOOK_INIT(task_setrlimit, apparmor_task_setrlimit),
+	LSM_HOOK_INIT(task_kill, apparmor_task_kill),
 };
 
 /*

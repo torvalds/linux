@@ -39,6 +39,18 @@
 #include <linux/tcp.h>
 #include <linux/sctp.h>
 #include <linux/ipv6.h>
+#include <linux/kernel.h>
+#include <linux/bitops.h>
+#include <linux/timer.h>
+#include <linux/workqueue.h>
+#include <linux/wait.h>
+#include <linux/delay.h>
+#include <linux/gfp.h>
+#include <linux/skbuff.h>
+#include <linux/dma-mapping.h>
+#include <linux/etherdevice.h>
+#include <linux/socket.h>
+#include <linux/jiffies.h>
 #include <net/ip6_checksum.h>
 #include <net/udp.h>
 
@@ -109,7 +121,7 @@ struct i40e_q_vector {
 #define ITR_COUNTDOWN_START 100
 	u8 itr_countdown;	/* when 0 or 1 update ITR */
 	int v_idx;	/* vector index in list */
-	char name[IFNAMSIZ + 9];
+	char name[IFNAMSIZ + 15];
 	bool arm_wb_state;
 	cpumask_t affinity_mask;
 	struct irq_affinity_notify affinity_notify;
@@ -183,6 +195,7 @@ struct i40evf_adapter {
 	struct work_struct adminq_task;
 	struct delayed_work client_task;
 	struct delayed_work init_task;
+	wait_queue_head_t down_waitqueue;
 	struct i40e_q_vector *q_vectors;
 	struct list_head vlan_filter_list;
 	char misc_vector_name[IFNAMSIZ + 9];
@@ -225,8 +238,6 @@ struct i40evf_adapter {
 /* duplicates for common code */
 #define I40E_FLAG_DCB_ENABLED			0
 #define I40E_FLAG_RX_CSUM_ENABLED		I40EVF_FLAG_RX_CSUM_ENABLED
-#define I40E_FLAG_WB_ON_ITR_CAPABLE		I40EVF_FLAG_WB_ON_ITR_CAPABLE
-#define I40E_FLAG_OUTER_UDP_CSUM_CAPABLE	I40EVF_FLAG_OUTER_UDP_CSUM_CAPABLE
 #define I40E_FLAG_LEGACY_RX			I40EVF_FLAG_LEGACY_RX
 	/* flags for admin queue service task */
 	u32 aq_required;
@@ -250,6 +261,8 @@ struct i40evf_adapter {
 #define I40EVF_FLAG_AQ_RELEASE_PROMISC		BIT(16)
 #define I40EVF_FLAG_AQ_REQUEST_ALLMULTI		BIT(17)
 #define I40EVF_FLAG_AQ_RELEASE_ALLMULTI		BIT(18)
+#define I40EVF_FLAG_AQ_ENABLE_VLAN_STRIPPING	BIT(19)
+#define I40EVF_FLAG_AQ_DISABLE_VLAN_STRIPPING	BIT(20)
 
 	/* OS defined structs */
 	struct net_device *netdev;
@@ -266,19 +279,19 @@ struct i40evf_adapter {
 	enum virtchnl_link_speed link_speed;
 	enum virtchnl_ops current_op;
 #define CLIENT_ALLOWED(_a) ((_a)->vf_res ? \
-			    (_a)->vf_res->vf_offload_flags & \
+			    (_a)->vf_res->vf_cap_flags & \
 				VIRTCHNL_VF_OFFLOAD_IWARP : \
 			    0)
 #define CLIENT_ENABLED(_a) ((_a)->cinst)
 /* RSS by the PF should be preferred over RSS via other methods. */
-#define RSS_PF(_a) ((_a)->vf_res->vf_offload_flags & \
+#define RSS_PF(_a) ((_a)->vf_res->vf_cap_flags & \
 		    VIRTCHNL_VF_OFFLOAD_RSS_PF)
-#define RSS_AQ(_a) ((_a)->vf_res->vf_offload_flags & \
+#define RSS_AQ(_a) ((_a)->vf_res->vf_cap_flags & \
 		    VIRTCHNL_VF_OFFLOAD_RSS_AQ)
-#define RSS_REG(_a) (!((_a)->vf_res->vf_offload_flags & \
+#define RSS_REG(_a) (!((_a)->vf_res->vf_cap_flags & \
 		       (VIRTCHNL_VF_OFFLOAD_RSS_AQ | \
 			VIRTCHNL_VF_OFFLOAD_RSS_PF)))
-#define VLAN_ALLOWED(_a) ((_a)->vf_res->vf_offload_flags & \
+#define VLAN_ALLOWED(_a) ((_a)->vf_res->vf_cap_flags & \
 			  VIRTCHNL_VF_OFFLOAD_VLAN)
 	struct virtchnl_vf_resource *vf_res; /* incl. all VSIs */
 	struct virtchnl_vsi_resource *vsi_res; /* our LAN VSI */
@@ -347,6 +360,8 @@ void i40evf_get_hena(struct i40evf_adapter *adapter);
 void i40evf_set_hena(struct i40evf_adapter *adapter);
 void i40evf_set_rss_key(struct i40evf_adapter *adapter);
 void i40evf_set_rss_lut(struct i40evf_adapter *adapter);
+void i40evf_enable_vlan_stripping(struct i40evf_adapter *adapter);
+void i40evf_disable_vlan_stripping(struct i40evf_adapter *adapter);
 void i40evf_virtchnl_completion(struct i40evf_adapter *adapter,
 				enum virtchnl_ops v_opcode,
 				i40e_status v_retval, u8 *msg, u16 msglen);

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __ASM_METAG_ATOMIC_LOCK1_H
 #define __ASM_METAG_ATOMIC_LOCK1_H
 
@@ -36,6 +37,8 @@ static inline int atomic_set(atomic_t *v, int i)
 	__global_unlock1(flags);
 	return i;
 }
+
+#define atomic_set_release(v, i) atomic_set((v), (i))
 
 #define ATOMIC_OP(op, c_op)						\
 static inline void atomic_##op(int i, atomic_t *v)			\

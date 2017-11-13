@@ -38,7 +38,7 @@
 #include <linux/string.h>
 
 #include <linux/mtd/mtd.h>
-#include <linux/mtd/nand.h>
+#include <linux/mtd/rawnand.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/sh_flctl.h>
 
@@ -411,7 +411,7 @@ static int flctl_dma_fifo0_transfer(struct sh_flctl *flctl, unsigned long *buf,
 
 	dma_addr = dma_map_single(chan->device->dev, buf, len, dir);
 
-	if (dma_addr)
+	if (!dma_mapping_error(chan->device->dev, dma_addr))
 		desc = dmaengine_prep_slave_single(chan, dma_addr, len,
 			tr_dir, DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 
@@ -1141,8 +1141,8 @@ static int flctl_probe(struct platform_device *pdev)
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
-		dev_err(&pdev->dev, "failed to get flste irq data\n");
-		return -ENXIO;
+		dev_err(&pdev->dev, "failed to get flste irq data: %d\n", irq);
+		return irq;
 	}
 
 	ret = devm_request_irq(&pdev->dev, irq, flctl_handle_flste, IRQF_SHARED,

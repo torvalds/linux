@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 config ARCH_AXXIA
 	bool "LSI Axxia platforms"
 	depends on ARCH_MULTI_V7 && ARM_LPAE

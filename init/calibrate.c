@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* calibrate.c: default delay calibration
  *
  * Excised from init/main.c

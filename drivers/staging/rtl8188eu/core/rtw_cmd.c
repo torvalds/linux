@@ -186,7 +186,7 @@ _next:
 			pcmd->res = H2C_DROPPED;
 		} else {
 			if (pcmd->cmdcode < ARRAY_SIZE(wlancmds)) {
-			    cmd_hdl = wlancmds[pcmd->cmdcode].h2cfuns;
+				cmd_hdl = wlancmds[pcmd->cmdcode].h2cfuns;
 
 				if (cmd_hdl) {
 					ret = cmd_hdl(pcmd->padapter, pcmd->parmbuf);

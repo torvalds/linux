@@ -305,7 +305,7 @@ static void __init setup_lowcore(void)
 	/*
 	 * Setup lowcore for boot cpu
 	 */
-	BUILD_BUG_ON(sizeof(struct lowcore) != LC_PAGES * 4096);
+	BUILD_BUG_ON(sizeof(struct lowcore) != LC_PAGES * PAGE_SIZE);
 	lc = memblock_virt_alloc_low(sizeof(*lc), sizeof(*lc));
 	lc->restart_psw.mask = PSW_KERNEL_BITS;
 	lc->restart_psw.addr = (unsigned long) restart_int_handler;
@@ -323,7 +323,7 @@ static void __init setup_lowcore(void)
 	lc->io_new_psw.mask = PSW_KERNEL_BITS |
 		PSW_MASK_DAT | PSW_MASK_MCHECK;
 	lc->io_new_psw.addr = (unsigned long) io_int_handler;
-	lc->clock_comparator = -1ULL;
+	lc->clock_comparator = clock_comparator_max;
 	lc->kernel_stack = ((unsigned long) &init_thread_union)
 		+ THREAD_SIZE - STACK_FRAME_OVERHEAD - sizeof(struct pt_regs);
 	lc->async_stack = (unsigned long)
@@ -469,10 +469,10 @@ static void __init setup_memory_end(void)
 	vmalloc_size = VMALLOC_END ?: (128UL << 30) - MODULES_LEN;
 	tmp = (memory_end ?: max_physmem_end) / PAGE_SIZE;
 	tmp = tmp * (sizeof(struct page) + PAGE_SIZE);
-	if (tmp + vmalloc_size + MODULES_LEN <= (1UL << 42))
-		vmax = 1UL << 42;	/* 3-level kernel page table */
+	if (tmp + vmalloc_size + MODULES_LEN <= _REGION2_SIZE)
+		vmax = _REGION2_SIZE; /* 3-level kernel page table */
 	else
-		vmax = 1UL << 53;	/* 4-level kernel page table */
+		vmax = _REGION1_SIZE; /* 4-level kernel page table */
 	/* module area is at the end of the kernel address space. */
 	MODULES_END = vmax;
 	MODULES_VADDR = MODULES_END - MODULES_LEN;
@@ -818,6 +818,9 @@ static int __init setup_hwcaps(void)
 	case 0x2965:
 		strcpy(elf_platform, "z13");
 		break;
+	case 0x3906:
+		strcpy(elf_platform, "z14");
+		break;
 	}
 
 	/*
@@ -922,6 +925,7 @@ void __init setup_arch(char **cmdline_p)
 	setup_memory_end();
 	setup_memory();
 	dma_contiguous_reserve(memory_end);
+	vmcp_cma_reserve();
 
 	check_initrd();
 	reserve_crashkernel();

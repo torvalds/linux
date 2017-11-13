@@ -106,9 +106,6 @@ int ldlm_cancel_lru_local(struct ldlm_namespace *ns,
 extern unsigned int ldlm_enqueue_min;
 extern unsigned int ldlm_cancel_unused_locks_before_replay;
 
-/* ldlm_resource.c */
-int ldlm_resource_putref_locked(struct ldlm_resource *res);
-
 /* ldlm_lock.c */
 
 struct ldlm_cb_set_arg {
@@ -336,3 +333,9 @@ void ldlm_flock_policy_wire_to_local(const union ldlm_wire_policy_data *wpolicy,
 				     union ldlm_policy_data *lpolicy);
 void ldlm_flock_policy_local_to_wire(const union ldlm_policy_data *lpolicy,
 				     union ldlm_wire_policy_data *wpolicy);
+
+static inline bool ldlm_res_eq(const struct ldlm_res_id *res0,
+			       const struct ldlm_res_id *res1)
+{
+	return memcmp(res0, res1, sizeof(*res0)) == 0;
+}

@@ -612,7 +612,7 @@ static struct attribute *io_subchannel_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group io_subchannel_attr_group = {
+static const struct attribute_group io_subchannel_attr_group = {
 	.attrs = io_subchannel_attrs,
 };
 
@@ -626,7 +626,7 @@ static struct attribute * ccwdev_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group ccwdev_attr_group = {
+static const struct attribute_group ccwdev_attr_group = {
 	.attrs = ccwdev_attrs,
 };
 
@@ -1225,10 +1225,16 @@ static int device_is_disconnected(struct ccw_device *cdev)
 static int recovery_check(struct device *dev, void *data)
 {
 	struct ccw_device *cdev = to_ccwdev(dev);
+	struct subchannel *sch;
 	int *redo = data;
 
 	spin_lock_irq(cdev->ccwlock);
 	switch (cdev->private->state) {
+	case DEV_STATE_ONLINE:
+		sch = to_subchannel(cdev->dev.parent);
+		if ((sch->schib.pmcw.pam & sch->opm) == sch->vpm)
+			break;
+		/* fall through */
 	case DEV_STATE_DISCONNECTED:
 		CIO_MSG_EVENT(3, "recovery: trigger 0.%x.%04x\n",
 			      cdev->private->dev_id.ssid,
@@ -1260,7 +1266,7 @@ static void recovery_work_func(struct work_struct *unused)
 		}
 		spin_unlock_irq(&recovery_lock);
 	} else
-		CIO_MSG_EVENT(4, "recovery: end\n");
+		CIO_MSG_EVENT(3, "recovery: end\n");
 }
 
 static DECLARE_WORK(recovery_work, recovery_work_func);
@@ -1274,11 +1280,11 @@ static void recovery_func(unsigned long data)
 	schedule_work(&recovery_work);
 }
 
-static void ccw_device_schedule_recovery(void)
+void ccw_device_schedule_recovery(void)
 {
 	unsigned long flags;
 
-	CIO_MSG_EVENT(4, "recovery: schedule\n");
+	CIO_MSG_EVENT(3, "recovery: schedule\n");
 	spin_lock_irqsave(&recovery_lock, flags);
 	if (!timer_pending(&recovery_timer) || (recovery_phase != 0)) {
 		recovery_phase = 0;

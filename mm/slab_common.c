@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Slab allocator functions that are independent of the allocator strategy
  *
@@ -165,9 +166,9 @@ static int init_memcg_params(struct kmem_cache *s,
 	if (!memcg_nr_cache_ids)
 		return 0;
 
-	arr = kzalloc(sizeof(struct memcg_cache_array) +
-		      memcg_nr_cache_ids * sizeof(void *),
-		      GFP_KERNEL);
+	arr = kvzalloc(sizeof(struct memcg_cache_array) +
+		       memcg_nr_cache_ids * sizeof(void *),
+		       GFP_KERNEL);
 	if (!arr)
 		return -ENOMEM;
 
@@ -178,15 +179,23 @@ static int init_memcg_params(struct kmem_cache *s,
 static void destroy_memcg_params(struct kmem_cache *s)
 {
 	if (is_root_cache(s))
-		kfree(rcu_access_pointer(s->memcg_params.memcg_caches));
+		kvfree(rcu_access_pointer(s->memcg_params.memcg_caches));
+}
+
+static void free_memcg_params(struct rcu_head *rcu)
+{
+	struct memcg_cache_array *old;
+
+	old = container_of(rcu, struct memcg_cache_array, rcu);
+	kvfree(old);
 }
 
 static int update_memcg_params(struct kmem_cache *s, int new_array_size)
 {
 	struct memcg_cache_array *old, *new;
 
-	new = kzalloc(sizeof(struct memcg_cache_array) +
-		      new_array_size * sizeof(void *), GFP_KERNEL);
+	new = kvzalloc(sizeof(struct memcg_cache_array) +
+		       new_array_size * sizeof(void *), GFP_KERNEL);
 	if (!new)
 		return -ENOMEM;
 
@@ -198,7 +207,7 @@ static int update_memcg_params(struct kmem_cache *s, int new_array_size)
 
 	rcu_assign_pointer(s->memcg_params.memcg_caches, new);
 	if (old)
-		kfree_rcu(old, rcu);
+		call_rcu(&old->rcu, free_memcg_params);
 	return 0;
 }
 

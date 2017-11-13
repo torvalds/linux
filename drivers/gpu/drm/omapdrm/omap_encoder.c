@@ -85,7 +85,8 @@ static void omap_encoder_mode_set(struct drm_encoder *encoder,
 	if (hdmi_mode && dssdev->driver->set_hdmi_infoframe) {
 		struct hdmi_avi_infoframe avi;
 
-		r = drm_hdmi_avi_infoframe_from_display_mode(&avi, adjusted_mode);
+		r = drm_hdmi_avi_infoframe_from_display_mode(&avi, adjusted_mode,
+							     false);
 		if (r == 0)
 			dssdev->driver->set_hdmi_infoframe(dssdev, &avi);
 	}

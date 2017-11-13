@@ -179,7 +179,7 @@ static void bmips_prepare_cpus(unsigned int max_cpus)
 /*
  * Tell the hardware to boot CPUx - runs on CPU0
  */
-static void bmips_boot_secondary(int cpu, struct task_struct *idle)
+static int bmips_boot_secondary(int cpu, struct task_struct *idle)
 {
 	bmips_smp_boot_sp = __KSTK_TOS(idle);
 	bmips_smp_boot_gp = (unsigned long)task_thread_info(idle);
@@ -231,6 +231,8 @@ static void bmips_boot_secondary(int cpu, struct task_struct *idle)
 		}
 		cpumask_set_cpu(cpu, &bmips_booted_mask);
 	}
+
+	return 0;
 }
 
 /*
@@ -245,7 +247,7 @@ static void bmips_init_secondary(void)
 		break;
 	case CPU_BMIPS5000:
 		write_c0_brcm_action(ACTION_CLR_IPI(smp_processor_id(), 0));
-		current_cpu_data.core = (read_c0_brcm_config() >> 25) & 3;
+		cpu_set_core(&current_cpu_data, (read_c0_brcm_config() >> 25) & 3);
 		break;
 	}
 }
@@ -409,7 +411,7 @@ void __ref play_dead(void)
 
 #endif /* CONFIG_HOTPLUG_CPU */
 
-struct plat_smp_ops bmips43xx_smp_ops = {
+const struct plat_smp_ops bmips43xx_smp_ops = {
 	.smp_setup		= bmips_smp_setup,
 	.prepare_cpus		= bmips_prepare_cpus,
 	.boot_secondary		= bmips_boot_secondary,
@@ -423,7 +425,7 @@ struct plat_smp_ops bmips43xx_smp_ops = {
 #endif
 };
 
-struct plat_smp_ops bmips5000_smp_ops = {
+const struct plat_smp_ops bmips5000_smp_ops = {
 	.smp_setup		= bmips_smp_setup,
 	.prepare_cpus		= bmips_prepare_cpus,
 	.boot_secondary		= bmips_boot_secondary,
@@ -589,11 +591,11 @@ void __init bmips_cpu_setup(void)
 
 		/* Flush and enable RAC */
 		cfg = __raw_readl(cbr + BMIPS_RAC_CONFIG);
-		__raw_writel(cfg | 0x100, BMIPS_RAC_CONFIG);
+		__raw_writel(cfg | 0x100, cbr + BMIPS_RAC_CONFIG);
 		__raw_readl(cbr + BMIPS_RAC_CONFIG);
 
 		cfg = __raw_readl(cbr + BMIPS_RAC_CONFIG);
-		__raw_writel(cfg | 0xf, BMIPS_RAC_CONFIG);
+		__raw_writel(cfg | 0xf, cbr + BMIPS_RAC_CONFIG);
 		__raw_readl(cbr + BMIPS_RAC_CONFIG);
 
 		cfg = __raw_readl(cbr + BMIPS_RAC_ADDRESS_RANGE);

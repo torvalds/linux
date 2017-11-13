@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef REBOOT_H
 #define REBOOT_H
 

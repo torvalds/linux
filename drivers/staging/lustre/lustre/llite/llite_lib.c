@@ -41,15 +41,15 @@
 #include <linux/types.h>
 #include <linux/mm.h>
 
-#include "../include/lustre/lustre_ioctl.h"
-#include "../include/lustre_ha.h"
-#include "../include/lustre_dlm.h"
-#include "../include/lprocfs_status.h"
-#include "../include/lustre_disk.h"
-#include "../include/lustre_param.h"
-#include "../include/lustre_log.h"
-#include "../include/cl_object.h"
-#include "../include/obd_cksum.h"
+#include <uapi/linux/lustre/lustre_ioctl.h>
+#include <lustre_ha.h>
+#include <lustre_dlm.h>
+#include <lprocfs_status.h>
+#include <lustre_disk.h>
+#include <uapi/linux/lustre/lustre_param.h>
+#include <lustre_log.h>
+#include <cl_object.h>
+#include <obd_cksum.h>
 #include "llite_internal.h"
 
 struct kmem_cache *ll_file_data_slab;
@@ -210,7 +210,7 @@ static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
 	data->ocd_ibits_known = MDS_INODELOCK_FULL;
 	data->ocd_version = LUSTRE_VERSION_CODE;
 
-	if (sb->s_flags & MS_RDONLY)
+	if (sb_rdonly(sb))
 		data->ocd_connect_flags |= OBD_CONNECT_RDONLY;
 	if (sbi->ll_flags & LL_SBI_USER_XATTR)
 		data->ocd_connect_flags |= OBD_CONNECT_XATTR;
@@ -221,9 +221,6 @@ static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
 		sbi->ll_fop = &ll_file_operations;
 	else
 		sbi->ll_fop = &ll_file_operations_noflock;
-
-	/* real client */
-	data->ocd_connect_flags |= OBD_CONNECT_REAL;
 
 	/* always ping even if server suppress_pings */
 	if (sbi->ll_flags & LL_SBI_ALWAYS_PING)
@@ -1319,6 +1316,7 @@ void ll_clear_inode(struct inode *inode)
 	ll_xattr_cache_destroy(inode);
 
 #ifdef CONFIG_FS_POSIX_ACL
+	forget_all_cached_acls(inode);
 	if (lli->lli_posix_acl) {
 		posix_acl_release(lli->lli_posix_acl);
 		lli->lli_posix_acl = NULL;
@@ -2033,7 +2031,7 @@ int ll_remount_fs(struct super_block *sb, int *flags, char *data)
 	int err;
 	__u32 read_only;
 
-	if ((*flags & MS_RDONLY) != (sb->s_flags & MS_RDONLY)) {
+	if ((bool)(*flags & MS_RDONLY) != sb_rdonly(sb)) {
 		read_only = *flags & MS_RDONLY;
 		err = obd_set_info_async(NULL, sbi->ll_md_exp,
 					 sizeof(KEY_READ_ONLY),
@@ -2233,8 +2231,7 @@ int ll_obd_statfs(struct inode *inode, void __user *arg)
 	if (rc)
 		goto out_statfs;
 out_statfs:
-	if (buf)
-		obd_ioctl_freedata(buf, len);
+	kvfree(buf);
 	return rc;
 }
 
@@ -2543,7 +2540,7 @@ static int ll_linkea_decode(struct linkea_data *ldata, unsigned int linkno,
 	unsigned int idx;
 	int rc;
 
-	rc = linkea_init(ldata);
+	rc = linkea_init_with_rec(ldata);
 	if (rc < 0)
 		return rc;
 
