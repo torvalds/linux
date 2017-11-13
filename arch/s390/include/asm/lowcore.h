@@ -188,14 +188,14 @@ extern struct lowcore *lowcore_ptr[];
 
 static inline void set_prefix(__u32 address)
 {
-	asm volatile("spx %0" : : "m" (address) : "memory");
+	asm volatile("spx %0" : : "Q" (address) : "memory");
 }
 
 static inline __u32 store_prefix(void)
 {
 	__u32 address;
 
-	asm volatile("stpx %0" : "=m" (address));
+	asm volatile("stpx %0" : "=Q" (address));
 	return address;
 }
 

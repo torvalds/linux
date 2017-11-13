@@ -167,7 +167,7 @@ static inline int lcctl(u64 ctl)
 		"	.insn	s,0xb2840000,%1\n"
 		"	ipm	%0\n"
 		"	srl	%0,28\n"
-		: "=d" (cc) : "m" (ctl) : "cc");
+		: "=d" (cc) : "Q" (ctl) : "cc");
 	return cc;
 }
 

@@ -245,7 +245,7 @@ static inline unsigned short stap(void)
 {
 	unsigned short cpu_address;
 
-	asm volatile("stap %0" : "=m" (cpu_address));
+	asm volatile("stap %0" : "=Q" (cpu_address));
 	return cpu_address;
 }
 
