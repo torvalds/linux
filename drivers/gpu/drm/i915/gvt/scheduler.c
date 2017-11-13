@@ -140,9 +140,10 @@ static int shadow_context_status_change(struct notifier_block *nb,
 	struct intel_gvt_workload_scheduler *scheduler = &gvt->scheduler;
 	enum intel_engine_id ring_id = req->engine->id;
 	struct intel_vgpu_workload *workload;
+	unsigned long flags;
 
 	if (!is_gvt_request(req)) {
-		spin_lock_bh(&scheduler->mmio_context_lock);
+		spin_lock_irqsave(&scheduler->mmio_context_lock, flags);
 		if (action == INTEL_CONTEXT_SCHEDULE_IN &&
 		    scheduler->engine_owner[ring_id]) {
 			/* Switch ring from vGPU to host. */
@@ -150,7 +151,7 @@ static int shadow_context_status_change(struct notifier_block *nb,
 					      NULL, ring_id);
 			scheduler->engine_owner[ring_id] = NULL;
 		}
-		spin_unlock_bh(&scheduler->mmio_context_lock);
+		spin_unlock_irqrestore(&scheduler->mmio_context_lock, flags);
 
 		return NOTIFY_OK;
 	}
@@ -161,7 +162,7 @@ static int shadow_context_status_change(struct notifier_block *nb,
 
 	switch (action) {
 	case INTEL_CONTEXT_SCHEDULE_IN:
-		spin_lock_bh(&scheduler->mmio_context_lock);
+		spin_lock_irqsave(&scheduler->mmio_context_lock, flags);
 		if (workload->vgpu != scheduler->engine_owner[ring_id]) {
 			/* Switch ring from host to vGPU or vGPU to vGPU. */
 			intel_gvt_switch_mmio(scheduler->engine_owner[ring_id],
@@ -170,7 +171,7 @@ static int shadow_context_status_change(struct notifier_block *nb,
 		} else
 			gvt_dbg_sched("skip ring %d mmio switch for vgpu%d\n",
 				      ring_id, workload->vgpu->id);
-		spin_unlock_bh(&scheduler->mmio_context_lock);
+		spin_unlock_irqrestore(&scheduler->mmio_context_lock, flags);
 		atomic_set(&workload->shadow_ctx_active, 1);
 		break;
 	case INTEL_CONTEXT_SCHEDULE_OUT:
