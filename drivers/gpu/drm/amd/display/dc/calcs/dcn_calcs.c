@@ -1013,6 +1013,8 @@ bool dcn_validate_bandwidth(
 			if (pipe->plane_state) {
 				struct pipe_ctx *hsplit_pipe = pipe->bottom_pipe;
 
+				pipe->plane_state->update_flags.bits.full_update = 1;
+
 				if (v->dpp_per_plane[input_idx] == 2 ||
 					((pipe->stream->view_format ==
 					  VIEW_3D_FORMAT_SIDE_BY_SIDE ||
