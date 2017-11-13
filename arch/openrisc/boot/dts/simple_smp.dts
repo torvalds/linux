@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
 /dts-v1/;
 / {
 	compatible = "opencores,or1ksim";
@@ -28,6 +27,19 @@
 			reg = <0>;
 			clock-frequency = <20000000>;
 		};
+		cpu@1 {
+			compatible = "opencores,or1200-rtlsvn481";
+			reg = <1>;
+			clock-frequency = <20000000>;
+		};
+	};
+
+	ompic: ompic@98000000 {
+		compatible = "openrisc,ompic";
+		reg = <0x98000000 16>;
+		interrupt-controller;
+		#interrupt-cells = <0>;
+		interrupts = <1>;
 	};
 
 	/*
@@ -36,7 +48,7 @@
 	 * property.
 	 */
 	pic: pic {
-		compatible = "opencores,or1k-pic";
+		compatible = "opencores,or1k-pic-level";
 		#interrupt-cells = <1>;
 		interrupt-controller;
 	};
@@ -48,9 +60,4 @@
 		clock-frequency = <20000000>;
 	};
 
-	enet0: ethoc@92000000 {
-		compatible = "opencores,ethmac-rtlsvn338";
-		reg = <0x92000000 0x100>;
-		interrupts = <4>;
-	};
 };

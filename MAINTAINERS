@@ -10037,7 +10037,11 @@ T:	git git://github.com/openrisc/linux.git
 L:	openrisc@lists.librecores.org
 W:	http://openrisc.io
 S:	Maintained
+F:	Documentation/devicetree/bindings/openrisc/
+F:	Documentation/openrisc/
 F:	arch/openrisc/
+F:	drivers/irqchip/irq-ompic.c
+F:	drivers/irqchip/irq-or1k-*
 
 OPENVSWITCH
 M:	Pravin Shelar <pshelar@nicira.com>
