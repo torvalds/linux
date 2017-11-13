@@ -43,7 +43,7 @@ static bool nau8824_is_jack_inserted(struct nau8824 *nau8824);
 
 /* the parameter threshold of FLL */
 #define NAU_FREF_MAX 13500000
-#define NAU_FVCO_MAX 124000000
+#define NAU_FVCO_MAX 100000000
 #define NAU_FVCO_MIN 90000000
 
 /* scaling for mclk from sysclk_src output */
