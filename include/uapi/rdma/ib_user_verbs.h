@@ -125,6 +125,12 @@ struct ib_uverbs_comp_event_desc {
 	__u64 cq_handle;
 };
 
+struct ib_uverbs_cq_moderation_caps {
+	__u16     max_cq_moderation_count;
+	__u16     max_cq_moderation_period;
+	__u32     reserved;
+};
+
 /*
  * All commands from userspace should start with a __u32 command field
  * followed by __u16 in_words and out_words fields (which give the
@@ -263,6 +269,7 @@ struct ib_uverbs_ex_query_device_resp {
 	__u32  max_wq_type_rq;
 	__u32 raw_packet_caps;
 	struct ib_uverbs_tm_caps tm_caps;
+	struct ib_uverbs_cq_moderation_caps cq_moderation_caps;
 };
 
 struct ib_uverbs_query_port {

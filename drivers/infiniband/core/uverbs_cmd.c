@@ -3852,6 +3852,15 @@ int ib_uverbs_ex_query_device(struct ib_uverbs_file *file,
 	resp.tm_caps.max_sge		= attr.tm_caps.max_sge;
 	resp.tm_caps.flags		= attr.tm_caps.flags;
 	resp.response_length += sizeof(resp.tm_caps);
+
+	if (ucore->outlen < resp.response_length + sizeof(resp.cq_moderation_caps))
+		goto end;
+
+	resp.cq_moderation_caps.max_cq_moderation_count  =
+		attr.cq_caps.max_cq_moderation_count;
+	resp.cq_moderation_caps.max_cq_moderation_period =
+		attr.cq_caps.max_cq_moderation_period;
+	resp.response_length += sizeof(resp.cq_moderation_caps);
 end:
 	err = ib_copy_to_udata(ucore, &resp, resp.response_length);
 	return err;
