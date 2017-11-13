@@ -314,7 +314,7 @@
 	amijoy.map=	[HW,JOY] Amiga joystick support
 			Map of devices attached to JOY0DAT and JOY1DAT
 			Format: <a>,<b>
-			See also Documentation/input/joystick.txt
+			See also Documentation/input/joydev/joystick.rst
 
 	analog.map=	[HW,JOY] Analog joystick and gamepad support
 			Specifies type or capabilities of an analog joystick
@@ -439,7 +439,7 @@
 	bttv.card=	[HW,V4L] bttv (bt848 + bt878 based grabber cards)
 	bttv.radio=	Most important insmod options are available as
 			kernel args too.
-	bttv.pll=	See Documentation/video4linux/bttv/Insmod-options
+	bttv.pll=	See Documentation/media/v4l-drivers/bttv.rst
 	bttv.tuner=
 
 	bulk_remove=off	[PPC]  This parameter disables the use of the pSeries
@@ -641,8 +641,8 @@
 		For now, only VisioBraille is supported.
 
 	consoleblank=	[KNL] The console blank (screen saver) timeout in
-			seconds. Defaults to 10*60 = 10mins. A value of 0
-			disables the blank timer.
+			seconds. A value of 0 disables the blank timer.
+                       Defaults to 0.
 
 	coredump_filter=
 			[KNL] Change the default value for
@@ -724,7 +724,7 @@
 	db9.dev[2|3]=	[HW,JOY] Multisystem joystick support via parallel port
 			(one device per port)
 			Format: <port#>,<type>
-			See also Documentation/input/joystick-parport.txt
+			See also Documentation/input/devices/joystick-parport.rst
 
 	ddebug_query=   [KNL,DYNAMIC_DEBUG] Enable debug messages at early boot
 			time. See
@@ -1220,7 +1220,7 @@
 			[HW,JOY] Multisystem joystick and NES/SNES/PSX pad
 			support via parallel port (up to 5 devices per port)
 			Format: <port#>,<pad1>,<pad2>,<pad3>,<pad4>,<pad5>
-			See also Documentation/input/joystick-parport.txt
+			See also Documentation/input/devices/joystick-parport.rst
 
 	gamma=		[HW,DRM]
 
@@ -1766,7 +1766,7 @@
 				ivrs_acpihid[00:14.5]=AMD0020:0
 
 	js=		[HW,JOY] Analog joystick
-			See Documentation/input/joystick.txt.
+			See Documentation/input/joydev/joystick.rst.
 
 	nokaslr		[KNL]
 			When CONFIG_RANDOMIZE_BASE is set, this disables
@@ -2248,10 +2248,10 @@
 			s2idle  - Suspend-To-Idle
 			shallow - Power-On Suspend or equivalent (if supported)
 			deep    - Suspend-To-RAM or equivalent (if supported)
-			See Documentation/power/states.txt.
+			See Documentation/admin-guide/pm/sleep-states.rst.
 
 	meye.*=		[HW] Set MotionEye Camera parameters
-			See Documentation/video4linux/meye.txt.
+			See Documentation/media/v4l-drivers/meye.rst.
 
 	mfgpt_irq=	[IA-32] Specify the IRQ to use for the
 			Multi-Function General Purpose Timers on AMD Geode
@@ -3134,7 +3134,7 @@
 
 	plip=		[PPT,NET] Parallel port network link
 			Format: { parport<nr> | timid | 0 }
-			See also Documentation/parport.txt.
+			See also Documentation/admin-guide/parport.rst.
 
 	pmtmr=		[X86] Manual setup of pmtmr I/O Port.
 			Override pmtimer IOPort with a hex value.
@@ -3885,6 +3885,12 @@
 			[KNL] Should the soft-lockup detector generate panics.
 			Format: <integer>
 
+			A nonzero value instructs the soft-lockup detector
+			to panic the machine when a soft-lockup occurs. This
+			is also controlled by CONFIG_BOOTPARAM_SOFTLOCKUP_PANIC
+			which is the respective build-time switch to that
+			functionality.
+
 	softlockup_all_cpu_backtrace=
 			[KNL] Should the soft-lockup detector generate
 			backtraces on all cpus.
@@ -4199,7 +4205,7 @@
 			TurboGraFX parallel port interface
 			Format:
 			<port#>,<js1>,<js2>,<js3>,<js4>,<js5>,<js6>,<js7>
-			See also Documentation/input/joystick-parport.txt
+			See also Documentation/input/devices/joystick-parport.rst
 
 	udbg-immortal	[PPC] When debugging early kernel crashes that
 			happen after console_init() and before a proper

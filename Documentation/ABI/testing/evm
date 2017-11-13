@@ -18,6 +18,6 @@ Description:
 		in the initramfs, which has already been measured as part
 		of the trusted boot.  For more information on creating and
 		loading existing trusted/encrypted keys, refer to:
-		Documentation/keys-trusted-encrypted.txt.  (A sample dracut
-		patch, which loads the trusted/encrypted key and enables
+		Documentation/security/keys/trusted-encrypted.rst.  (A sample
+		dracut patch, which loads the trusted/encrypted key and enables
 		EVM, is available from http://linux-ima.sourceforge.net/#EVM.)

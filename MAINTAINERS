@@ -4234,7 +4234,7 @@ S:	Maintained
 F:	drivers/dma/
 F:	include/linux/dmaengine.h
 F:	Documentation/devicetree/bindings/dma/
-F:	Documentation/dmaengine/
+F:	Documentation/driver-api/dmaengine/
 T:	git git://git.infradead.org/users/vkoul/slave-dma.git
 
 DMA MAPPING HELPERS
