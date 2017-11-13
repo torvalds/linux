@@ -471,15 +471,16 @@ static int
 ip6_tnl_err(struct sk_buff *skb, __u8 ipproto, struct inet6_skb_parm *opt,
 	    u8 *type, u8 *code, int *msg, __u32 *info, int offset)
 {
-	const struct ipv6hdr *ipv6h = (const struct ipv6hdr *) skb->data;
-	struct ip6_tnl *t;
-	int rel_msg = 0;
+	const struct ipv6hdr *ipv6h = (const struct ipv6hdr *)skb->data;
+	struct net *net = dev_net(skb->dev);
 	u8 rel_type = ICMPV6_DEST_UNREACH;
 	u8 rel_code = ICMPV6_ADDR_UNREACH;
-	u8 tproto;
 	__u32 rel_info = 0;
-	__u16 len;
+	struct ip6_tnl *t;
 	int err = -ENOENT;
+	int rel_msg = 0;
+	u8 tproto;
+	__u16 len;
 
 	/* If the packet doesn't contain the original IPv6 header we are
 	   in trouble since we might need the source address for further
@@ -497,9 +498,8 @@ ip6_tnl_err(struct sk_buff *skb, __u8 ipproto, struct inet6_skb_parm *opt,
 	err = 0;
 
 	switch (*type) {
-		__u32 teli;
 		struct ipv6_tlv_tnl_enc_lim *tel;
-		__u32 mtu;
+		__u32 mtu, teli;
 	case ICMPV6_DEST_UNREACH:
 		net_dbg_ratelimited("%s: Path to destination invalid or inactive!\n",
 				    t->parms.name);
@@ -530,11 +530,11 @@ ip6_tnl_err(struct sk_buff *skb, __u8 ipproto, struct inet6_skb_parm *opt,
 		}
 		break;
 	case ICMPV6_PKT_TOOBIG:
+		ip6_update_pmtu(skb, net, htonl(*info), 0, 0,
+				sock_net_uid(net, NULL));
 		mtu = *info - offset;
 		if (mtu < IPV6_MIN_MTU)
 			mtu = IPV6_MIN_MTU;
-		t->dev->mtu = mtu;
-
 		len = sizeof(*ipv6h) + ntohs(ipv6h->payload_len);
 		if (len > mtu) {
 			rel_type = ICMPV6_PKT_TOOBIG;
@@ -542,6 +542,10 @@ ip6_tnl_err(struct sk_buff *skb, __u8 ipproto, struct inet6_skb_parm *opt,
 			rel_info = mtu;
 			rel_msg = 1;
 		}
+		break;
+	case NDISC_REDIRECT:
+		ip6_redirect(skb, net, skb->dev->ifindex, 0,
+			     sock_net_uid(net, NULL));
 		break;
 	}
 
@@ -559,13 +563,12 @@ static int
 ip4ip6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	   u8 type, u8 code, int offset, __be32 info)
 {
-	int rel_msg = 0;
+	__u32 rel_info = ntohl(info);
+	const struct iphdr *eiph;
+	struct sk_buff *skb2;
+	int err, rel_msg = 0;
 	u8 rel_type = type;
 	u8 rel_code = code;
-	__u32 rel_info = ntohl(info);
-	int err;
-	struct sk_buff *skb2;
-	const struct iphdr *eiph;
 	struct rtable *rt;
 	struct flowi4 fl4;
 
@@ -590,10 +593,6 @@ ip4ip6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 		rel_type = ICMP_DEST_UNREACH;
 		rel_code = ICMP_FRAG_NEEDED;
 		break;
-	case NDISC_REDIRECT:
-		rel_type = ICMP_REDIRECT;
-		rel_code = ICMP_REDIR_HOST;
-		/* fall through */
 	default:
 		return 0;
 	}
@@ -612,33 +611,26 @@ ip4ip6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	eiph = ip_hdr(skb2);
 
 	/* Try to guess incoming interface */
-	rt = ip_route_output_ports(dev_net(skb->dev), &fl4, NULL,
-				   eiph->saddr, 0,
-				   0, 0,
-				   IPPROTO_IPIP, RT_TOS(eiph->tos), 0);
+	rt = ip_route_output_ports(dev_net(skb->dev), &fl4, NULL, eiph->saddr,
+				   0, 0, 0, IPPROTO_IPIP, RT_TOS(eiph->tos), 0);
 	if (IS_ERR(rt))
 		goto out;
 
 	skb2->dev = rt->dst.dev;
+	ip_rt_put(rt);
 
 	/* route "incoming" packet */
 	if (rt->rt_flags & RTCF_LOCAL) {
-		ip_rt_put(rt);
-		rt = NULL;
 		rt = ip_route_output_ports(dev_net(skb->dev), &fl4, NULL,
-					   eiph->daddr, eiph->saddr,
-					   0, 0,
-					   IPPROTO_IPIP,
-					   RT_TOS(eiph->tos), 0);
-		if (IS_ERR(rt) ||
-		    rt->dst.dev->type != ARPHRD_TUNNEL) {
+					   eiph->daddr, eiph->saddr, 0, 0,
+					   IPPROTO_IPIP, RT_TOS(eiph->tos), 0);
+		if (IS_ERR(rt) || rt->dst.dev->type != ARPHRD_TUNNEL) {
 			if (!IS_ERR(rt))
 				ip_rt_put(rt);
 			goto out;
 		}
 		skb_dst_set(skb2, &rt->dst);
 	} else {
-		ip_rt_put(rt);
 		if (ip_route_input(skb2, eiph->daddr, eiph->saddr, eiph->tos,
 				   skb2->dev) ||
 		    skb_dst(skb2)->dev->type != ARPHRD_TUNNEL)
@@ -650,10 +642,9 @@ ip4ip6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 		if (rel_info > dst_mtu(skb_dst(skb2)))
 			goto out;
 
-		skb_dst(skb2)->ops->update_pmtu(skb_dst(skb2), NULL, skb2, rel_info);
+		skb_dst(skb2)->ops->update_pmtu(skb_dst(skb2), NULL, skb2,
+						rel_info);
 	}
-	if (rel_type == ICMP_REDIRECT)
-		skb_dst(skb2)->ops->redirect(skb_dst(skb2), NULL, skb2);
 
 	icmp_send(skb2, rel_type, rel_code, htonl(rel_info));
 
@@ -666,11 +657,10 @@ static int
 ip6ip6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	   u8 type, u8 code, int offset, __be32 info)
 {
-	int rel_msg = 0;
+	__u32 rel_info = ntohl(info);
+	int err, rel_msg = 0;
 	u8 rel_type = type;
 	u8 rel_code = code;
-	__u32 rel_info = ntohl(info);
-	int err;
 
 	err = ip6_tnl_err(skb, IPPROTO_IPV6, opt, &rel_type, &rel_code,
 			  &rel_msg, &rel_info, offset);
