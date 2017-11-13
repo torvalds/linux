@@ -476,6 +476,8 @@ static void proc_completions(struct ssi_drvdata *drvdata)
 	struct device *dev = drvdata_to_dev(drvdata);
 	struct ssi_request_mgr_handle *request_mgr_handle =
 						drvdata->request_mgr_handle;
+	unsigned int *tail = &request_mgr_handle->req_queue_tail;
+	unsigned int *head = &request_mgr_handle->req_queue_head;
 #if defined(CONFIG_PM)
 	int rc = 0;
 #endif
@@ -484,18 +486,17 @@ static void proc_completions(struct ssi_drvdata *drvdata)
 		request_mgr_handle->axi_completed--;
 
 		/* Dequeue request */
-		if (unlikely(request_mgr_handle->req_queue_head ==
-			     request_mgr_handle->req_queue_tail)) {
+		if (unlikely(*head == *tail)) {
 			/* We are supposed to handle a completion but our
 			 * queue is empty. This is not normal. Return and
 			 * hope for the best.
 			 */
 			dev_err(dev, "Request queue is empty head == tail %u\n",
-				request_mgr_handle->req_queue_head);
+				*head);
 			break;
 		}
 
-		ssi_req = &request_mgr_handle->req_queue[request_mgr_handle->req_queue_tail];
+		ssi_req = &request_mgr_handle->req_queue[*tail];
 
 #ifdef FLUSH_CACHE_ALL
 		flush_cache_all();
@@ -516,11 +517,8 @@ static void proc_completions(struct ssi_drvdata *drvdata)
 
 		if (likely(ssi_req->user_cb))
 			ssi_req->user_cb(dev, ssi_req->user_arg);
-		request_mgr_handle->req_queue_tail =
-			(request_mgr_handle->req_queue_tail + 1) &
-			(MAX_REQUEST_QUEUE_SIZE - 1);
-		dev_dbg(dev, "Dequeue request tail=%u\n",
-			request_mgr_handle->req_queue_tail);
+		*tail = (*tail + 1) & (MAX_REQUEST_QUEUE_SIZE - 1);
+		dev_dbg(dev, "Dequeue request tail=%u\n", *tail);
 		dev_dbg(dev, "Request completed. axi_completed=%d\n",
 			request_mgr_handle->axi_completed);
 #if defined(CONFIG_PM)
