@@ -123,7 +123,8 @@ int request_mgr_init(struct ssi_drvdata *drvdata)
 	INIT_DELAYED_WORK(&req_mgr_h->compwork, comp_work_handler);
 #else
 	dev_dbg(dev, "Initializing completion tasklet\n");
-	tasklet_init(&req_mgr_h->comptask, comp_handler, (unsigned long)drvdata);
+	tasklet_init(&req_mgr_h->comptask, comp_handler,
+		     (unsigned long)drvdata);
 #endif
 	req_mgr_h->hw_queue_size = cc_ioread(drvdata,
 					     CC_REG(DSCRPTR_QUEUE_SRAM_SIZE));
@@ -138,9 +139,10 @@ int request_mgr_init(struct ssi_drvdata *drvdata)
 	req_mgr_h->max_used_sw_slots = 0;
 
 	/* Allocate DMA word for "dummy" completion descriptor use */
-	req_mgr_h->dummy_comp_buff = dma_alloc_coherent(dev, sizeof(u32),
-							&req_mgr_h->dummy_comp_buff_dma,
-							GFP_KERNEL);
+	req_mgr_h->dummy_comp_buff =
+		dma_alloc_coherent(dev, sizeof(u32),
+				   &req_mgr_h->dummy_comp_buff_dma,
+				   GFP_KERNEL);
 	if (!req_mgr_h->dummy_comp_buff) {
 		dev_err(dev, "Not enough memory to allocate DMA (%zu) dropped buffer\n",
 			sizeof(u32));
@@ -272,10 +274,10 @@ int send_request(
 	struct cc_hw_desc iv_seq[SSI_IVPOOL_SEQ_LEN];
 	struct device *dev = drvdata_to_dev(drvdata);
 	int rc;
-	unsigned int max_required_seq_len = (total_seq_len +
-					((ssi_req->ivgen_dma_addr_len == 0) ? 0 :
-					SSI_IVPOOL_SEQ_LEN) +
-					(!is_dout ? 1 : 0));
+	unsigned int max_required_seq_len =
+		(total_seq_len +
+		 ((ssi_req->ivgen_dma_addr_len == 0) ? 0 :
+		  SSI_IVPOOL_SEQ_LEN) + (!is_dout ? 1 : 0));
 
 #if defined(CONFIG_PM)
 	rc = cc_pm_get(dev);
@@ -349,13 +351,16 @@ int send_request(
 		total_seq_len += iv_seq_len;
 	}
 
-	used_sw_slots = ((req_mgr_h->req_queue_head - req_mgr_h->req_queue_tail) & (MAX_REQUEST_QUEUE_SIZE - 1));
+	used_sw_slots = ((req_mgr_h->req_queue_head -
+			  req_mgr_h->req_queue_tail) &
+			 (MAX_REQUEST_QUEUE_SIZE - 1));
 	if (unlikely(used_sw_slots > req_mgr_h->max_used_sw_slots))
 		req_mgr_h->max_used_sw_slots = used_sw_slots;
 
 	/* Enqueue request - must be locked with HW lock*/
 	req_mgr_h->req_queue[req_mgr_h->req_queue_head] = *ssi_req;
-	req_mgr_h->req_queue_head = (req_mgr_h->req_queue_head + 1) & (MAX_REQUEST_QUEUE_SIZE - 1);
+	req_mgr_h->req_queue_head = (req_mgr_h->req_queue_head + 1) &
+				    (MAX_REQUEST_QUEUE_SIZE - 1);
 	/* TODO: Use circ_buf.h ? */
 
 	dev_dbg(dev, "Enqueue request head=%u\n", req_mgr_h->req_queue_head);
@@ -419,7 +424,8 @@ int send_request_init(
 	unsigned int total_seq_len = len; /*initial sequence length*/
 	int rc = 0;
 
-	/* Wait for space in HW and SW FIFO. Poll for as much as FIFO_TIMEOUT. */
+	/* Wait for space in HW and SW FIFO. Poll for as much as FIFO_TIMEOUT.
+	 */
 	rc = request_mgr_queues_status_check(drvdata, req_mgr_h,
 					     total_seq_len);
 	if (unlikely(rc))
@@ -447,7 +453,8 @@ void complete_request(struct ssi_drvdata *drvdata)
 	struct ssi_request_mgr_handle *request_mgr_handle =
 						drvdata->request_mgr_handle;
 #ifdef COMP_IN_WQ
-	queue_delayed_work(request_mgr_handle->workq, &request_mgr_handle->compwork, 0);
+	queue_delayed_work(request_mgr_handle->workq,
+			   &request_mgr_handle->compwork, 0);
 #else
 	tasklet_schedule(&request_mgr_handle->comptask);
 #endif
@@ -477,7 +484,8 @@ static void proc_completions(struct ssi_drvdata *drvdata)
 		request_mgr_handle->axi_completed--;
 
 		/* Dequeue request */
-		if (unlikely(request_mgr_handle->req_queue_head == request_mgr_handle->req_queue_tail)) {
+		if (unlikely(request_mgr_handle->req_queue_head ==
+			     request_mgr_handle->req_queue_tail)) {
 			/* We are supposed to handle a completion but our
 			 * queue is empty. This is not normal. Return and
 			 * hope for the best.
@@ -508,7 +516,9 @@ static void proc_completions(struct ssi_drvdata *drvdata)
 
 		if (likely(ssi_req->user_cb))
 			ssi_req->user_cb(dev, ssi_req->user_arg);
-		request_mgr_handle->req_queue_tail = (request_mgr_handle->req_queue_tail + 1) & (MAX_REQUEST_QUEUE_SIZE - 1);
+		request_mgr_handle->req_queue_tail =
+			(request_mgr_handle->req_queue_tail + 1) &
+			(MAX_REQUEST_QUEUE_SIZE - 1);
 		dev_dbg(dev, "Dequeue request tail=%u\n",
 			request_mgr_handle->req_queue_tail);
 		dev_dbg(dev, "Request completed. axi_completed=%d\n",
@@ -576,13 +586,14 @@ static void comp_handler(unsigned long devarg)
 }
 
 /*
- * resume the queue configuration - no need to take the lock as this happens inside
- * the spin lock protection
+ * resume the queue configuration - no need to take the lock as this happens
+ * inside the spin lock protection
  */
 #if defined(CONFIG_PM)
 int cc_resume_req_queue(struct ssi_drvdata *drvdata)
 {
-	struct ssi_request_mgr_handle *request_mgr_handle = drvdata->request_mgr_handle;
+	struct ssi_request_mgr_handle *request_mgr_handle =
+		drvdata->request_mgr_handle;
 
 	spin_lock_bh(&request_mgr_handle->hw_lock);
 	request_mgr_handle->is_runtime_suspended = false;

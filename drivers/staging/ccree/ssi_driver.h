@@ -63,8 +63,10 @@
 #define SSI_CC_HAS_MULTI2 0
 #define SSI_CC_HAS_CMAC 1
 
-#define SSI_AXI_IRQ_MASK ((1 << DX_AXIM_CFG_BRESPMASK_BIT_SHIFT) | (1 << DX_AXIM_CFG_RRESPMASK_BIT_SHIFT) |	\
-			(1 << DX_AXIM_CFG_INFLTMASK_BIT_SHIFT) | (1 << DX_AXIM_CFG_COMPMASK_BIT_SHIFT))
+#define SSI_AXI_IRQ_MASK ((1 << DX_AXIM_CFG_BRESPMASK_BIT_SHIFT) | \
+			  (1 << DX_AXIM_CFG_RRESPMASK_BIT_SHIFT) | \
+			  (1 << DX_AXIM_CFG_INFLTMASK_BIT_SHIFT) | \
+			  (1 << DX_AXIM_CFG_COMPMASK_BIT_SHIFT))
 
 #define SSI_AXI_ERR_IRQ_MASK BIT(DX_HOST_IRR_AXI_ERR_INT_BIT_SHIFT)
 
@@ -104,8 +106,10 @@ struct ssi_crypto_req {
 	 * generated IV would be placed in it by send_request().
 	 * Same generated IV for all addresses!
 	 */
-	unsigned int ivgen_dma_addr_len; /* Amount of 'ivgen_dma_addr' elements to be filled. */
-	unsigned int ivgen_size; /* The generated IV size required, 8/16 B allowed. */
+	/* Amount of 'ivgen_dma_addr' elements to be filled. */
+	unsigned int ivgen_dma_addr_len;
+	/* The generated IV size required, 8/16 B allowed. */
+	unsigned int ivgen_size;
 	struct completion seq_compl; /* request completion */
 };
 
@@ -178,7 +182,8 @@ static inline struct device *drvdata_to_dev(struct ssi_drvdata *drvdata)
 }
 
 #ifdef DX_DUMP_BYTES
-void dump_byte_array(const char *name, const u8 *the_array, unsigned long size);
+void dump_byte_array(const char *name, const u8 *the_array,
+		     unsigned long size);
 #else
 static inline void dump_byte_array(const char *name, const u8 *the_array,
 				   unsigned long size) {};

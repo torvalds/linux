@@ -228,7 +228,8 @@ out:
  *
  * \param drvdata Driver private context
  * \param iv_out_dma Array of physical IV out addresses
- * \param iv_out_dma_len Length of iv_out_dma array (additional elements of iv_out_dma array are ignore)
+ * \param iv_out_dma_len Length of iv_out_dma array (additional elements
+ *                       of iv_out_dma array are ignore)
  * \param iv_out_size May be 8 or 16 bytes long
  * \param iv_seq IN/OUT array to the descriptors sequence
  * \param iv_seq_len IN/OUT pointer to the sequence length
@@ -257,7 +258,9 @@ int ssi_ivgen_getiv(
 		return -EINVAL;
 	}
 
-	//check that number of generated IV is limited to max dma address iv buffer size
+	/* check that number of generated IV is limited to max dma address
+	 * iv buffer size
+	 */
 	if (iv_out_dma_len > SSI_MAX_IVGEN_DMA_ADDRESSES) {
 		/* The sequence will be longer than allowed */
 		return -EINVAL;

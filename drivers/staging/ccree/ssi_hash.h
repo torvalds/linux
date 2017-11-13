@@ -41,7 +41,9 @@
 
 #define CC_EXPORT_MAGIC 0xC2EE1070U
 
-// this struct was taken from drivers/crypto/nx/nx-aes-xcbc.c and it is used for xcbc/cmac statesize
+/* this struct was taken from drivers/crypto/nx/nx-aes-xcbc.c and it is used
+ * for xcbc/cmac statesize
+ */
 struct aeshash_state {
 	u8 state[AES_BLOCK_SIZE];
 	unsigned int count;
@@ -81,7 +83,8 @@ int ssi_hash_free(struct ssi_drvdata *drvdata);
  * Gets the initial digest length
  *
  * \param drvdata
- * \param mode The Hash mode. Supported modes: MD5/SHA1/SHA224/SHA256/SHA384/SHA512
+ * \param mode The Hash mode. Supported modes:
+ *             MD5/SHA1/SHA224/SHA256/SHA384/SHA512
  *
  * \return u32 returns the address of the initial digest length in SRAM
  */
@@ -93,7 +96,8 @@ ssi_ahash_get_initial_digest_len_sram_addr(void *drvdata, u32 mode);
  * according to the given hash mode
  *
  * \param drvdata
- * \param mode The Hash mode. Supported modes: MD5/SHA1/SHA224/SHA256/SHA384/SHA512
+ * \param mode The Hash mode. Supported modes:
+ *             MD5/SHA1/SHA224/SHA256/SHA384/SHA512
  *
  * \return u32 The address of the initial digest in SRAM
  */

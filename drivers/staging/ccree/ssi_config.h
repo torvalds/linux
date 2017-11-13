@@ -28,9 +28,11 @@
 //#define DX_DUMP_DESCS
 // #define DX_DUMP_BYTES
 // #define CC_DEBUG
-#define ENABLE_CC_SYSFS		/* Enable sysfs interface for debugging REE driver */
+/* Enable sysfs interface for debugging REE driver */
+#define ENABLE_CC_SYSFS
 //#define DX_IRQ_DELAY 100000
-#define DMA_BIT_MASK_LEN	48	/* was 32 bit, but for juno's sake it was enlarged to 48 bit */
+/* was 32 bit, but for juno's sake it was enlarged to 48 bit */
+#define DMA_BIT_MASK_LEN	48
 
 #endif /*__DX_CONFIG_H__*/
 

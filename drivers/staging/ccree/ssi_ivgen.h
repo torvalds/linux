@@ -53,7 +53,8 @@ int ssi_ivgen_init_sram_pool(struct ssi_drvdata *drvdata);
  *
  * \param drvdata Driver private context
  * \param iv_out_dma Array of physical IV out addresses
- * \param iv_out_dma_len Length of iv_out_dma array (additional elements of iv_out_dma array are ignore)
+ * \param iv_out_dma_len Length of iv_out_dma array (additional elements of
+ *                       iv_out_dma array are ignore)
  * \param iv_out_size May be 8 or 16 bytes long
  * \param iv_seq IN/OUT array to the descriptors sequence
  * \param iv_seq_len IN/OUT pointer to the sequence length

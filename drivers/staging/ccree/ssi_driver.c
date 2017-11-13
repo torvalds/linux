@@ -112,7 +112,9 @@ static irqreturn_t cc_isr(int irq, void *dev_id)
 	drvdata->irq = irr;
 	/* Completion interrupt - most probable */
 	if (likely((irr & SSI_COMP_IRQ_MASK))) {
-		/* Mask AXI completion interrupt - will be unmasked in Deferred service handler */
+		/* Mask AXI completion interrupt - will be unmasked in
+		 * Deferred service handler
+		 */
 		cc_iowrite(drvdata, CC_REG(HOST_IMR), imr | SSI_COMP_IRQ_MASK);
 		irr &= ~SSI_COMP_IRQ_MASK;
 		complete_request(drvdata);
@@ -120,7 +122,9 @@ static irqreturn_t cc_isr(int irq, void *dev_id)
 #ifdef CC_SUPPORT_FIPS
 	/* TEE FIPS interrupt */
 	if (likely((irr & SSI_GPR0_IRQ_MASK))) {
-		/* Mask interrupt - will be unmasked in Deferred service handler */
+		/* Mask interrupt - will be unmasked in Deferred service
+		 * handler
+		 */
 		cc_iowrite(drvdata, CC_REG(HOST_IMR), imr | SSI_GPR0_IRQ_MASK);
 		irr &= ~SSI_GPR0_IRQ_MASK;
 		fips_handler(drvdata);

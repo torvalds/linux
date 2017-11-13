@@ -112,7 +112,8 @@ static unsigned int cc_get_sgl_nents(
 			nents++;
 			/* get the number of bytes in the last entry */
 			*lbytes = nbytes;
-			nbytes -= (sg_list->length > nbytes) ? nbytes : sg_list->length;
+			nbytes -= (sg_list->length > nbytes) ?
+					nbytes : sg_list->length;
 			sg_list = sg_next(sg_list);
 		} else {
 			sg_list = (struct scatterlist *)sg_page(sg_list);
@@ -433,7 +434,8 @@ ssi_aead_handle_config_buf(struct device *dev,
 {
 	dev_dbg(dev, " handle additional data config set to DLLI\n");
 	/* create sg for the current buffer */
-	sg_init_one(&areq_ctx->ccm_adata_sg, config_data, AES_BLOCK_SIZE + areq_ctx->ccm_hdr_size);
+	sg_init_one(&areq_ctx->ccm_adata_sg, config_data,
+		    AES_BLOCK_SIZE + areq_ctx->ccm_hdr_size);
 	if (unlikely(dma_map_sg(dev, &areq_ctx->ccm_adata_sg, 1,
 				DMA_TO_DEVICE) != 1)) {
 		dev_err(dev, "dma_map_sg() config buffer failed\n");
@@ -701,7 +703,8 @@ void cc_unmap_aead_request(struct device *dev, struct aead_request *req)
 	    areq_ctx->gen_ctx.op_type == DRV_CRYPTO_DIRECTION_DECRYPT &&
 	    likely(req->src == req->dst)) {
 		/* copy back mac from temporary location to deal with possible
-		 * data memory overriding that caused by cache coherence problem.
+		 * data memory overriding that caused by cache coherence
+		 * problem.
 		 */
 		cc_copy_mac(dev, req, SSI_SG_FROM_BUF);
 	}
@@ -716,7 +719,9 @@ static inline int cc_get_aead_icv_nents(
 	bool *is_icv_fragmented)
 {
 	unsigned int icv_max_size = 0;
-	unsigned int icv_required_size = authsize > last_entry_data_size ? (authsize - last_entry_data_size) : authsize;
+	unsigned int icv_required_size = authsize > last_entry_data_size ?
+					(authsize - last_entry_data_size) :
+					authsize;
 	unsigned int nents;
 	unsigned int i;
 
@@ -735,10 +740,12 @@ static inline int cc_get_aead_icv_nents(
 		icv_max_size = sgl->length;
 
 	if (last_entry_data_size > authsize) {
-		nents = 0; /* ICV attached to data in last entry (not fragmented!) */
+		/* ICV attached to data in last entry (not fragmented!) */
+		nents = 0;
 		*is_icv_fragmented = false;
 	} else if (last_entry_data_size == authsize) {
-		nents = 1; /* ICV placed in whole last entry (not fragmented!) */
+		/* ICV placed in whole last entry (not fragmented!) */
+		nents = 1;
 		*is_icv_fragmented = false;
 	} else if (icv_max_size > icv_required_size) {
 		nents = 1;
@@ -773,7 +780,8 @@ static inline int cc_aead_chain_iv(
 		goto chain_iv_exit;
 	}
 
-	areq_ctx->gen_ctx.iv_dma_addr = dma_map_single(dev, req->iv, hw_iv_size,
+	areq_ctx->gen_ctx.iv_dma_addr = dma_map_single(dev, req->iv,
+						       hw_iv_size,
 						       DMA_BIDIRECTIONAL);
 	if (unlikely(dma_mapping_error(dev, areq_ctx->gen_ctx.iv_dma_addr))) {
 		dev_err(dev, "Mapping iv %u B at va=%pK for DMA failed\n",
@@ -784,7 +792,8 @@ static inline int cc_aead_chain_iv(
 
 	dev_dbg(dev, "Mapped iv %u B at va=%pK to dma=%pad\n",
 		hw_iv_size, req->iv, &areq_ctx->gen_ctx.iv_dma_addr);
-	if (do_chain && areq_ctx->plaintext_authenticate_only) {  // TODO: what about CTR?? ask Ron
+	// TODO: what about CTR?? ask Ron
+	if (do_chain && areq_ctx->plaintext_authenticate_only) {
 		struct crypto_aead *tfm = crypto_aead_reqtfm(req);
 		unsigned int iv_size_to_authenc = crypto_aead_ivsize(tfm);
 		unsigned int iv_ofs = GCM_BLOCK_RFC4_IV_OFFSET;
@@ -836,12 +845,15 @@ static inline int cc_aead_chain_assoc(
 	//iterate over the sgl to see how many entries are for associated data
 	//it is assumed that if we reach here , the sgl is already mapped
 	sg_index = current_sg->length;
-	if (sg_index > size_of_assoc) { //the first entry in the scatter list contains all the associated data
+	//the first entry in the scatter list contains all the associated data
+	if (sg_index > size_of_assoc) {
 		mapped_nents++;
 	} else {
 		while (sg_index <= size_of_assoc) {
 			current_sg = sg_next(current_sg);
-			//if have reached the end of the sgl, then this is unexpected
+			/* if have reached the end of the sgl, then this is
+			 * unexpected
+			 */
 			if (!current_sg) {
 				dev_err(dev, "reached end of sg list. unexpected\n");
 				return -EINVAL;
@@ -959,8 +971,8 @@ static inline int cc_prepare_aead_data_mlli(
 
 		if (unlikely(areq_ctx->is_icv_fragmented)) {
 			/* Backup happens only when ICV is fragmented, ICV
-			 * verification is made by CPU compare in order to simplify
-			 * MAC verification upon request completion
+			 * verification is made by CPU compare in order to
+			 * simplify MAC verification upon request completion
 			 */
 			if (direct == DRV_CRYPTO_DIRECTION_DECRYPT) {
 				/* In coherent platforms (e.g. ACP)
@@ -974,7 +986,8 @@ static inline int cc_prepare_aead_data_mlli(
 				areq_ctx->icv_virt_addr = areq_ctx->backup_mac;
 			} else {
 				areq_ctx->icv_virt_addr = areq_ctx->mac_buf;
-				areq_ctx->icv_dma_addr = areq_ctx->mac_buf_dma_addr;
+				areq_ctx->icv_dma_addr =
+					areq_ctx->mac_buf_dma_addr;
 			}
 		} else { /* Contig. ICV */
 			/*Should hanlde if the sg is not contig.*/
@@ -1076,7 +1089,8 @@ static inline int cc_aead_chain_data(
 	int rc = 0;
 	u32 src_mapped_nents = 0, dst_mapped_nents = 0;
 	u32 offset = 0;
-	unsigned int size_for_map = req->assoclen + req->cryptlen; /*non-inplace mode*/
+	/* non-inplace mode */
+	unsigned int size_for_map = req->assoclen + req->cryptlen;
 	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
 	u32 sg_index = 0;
 	bool chained = false;
@@ -1097,7 +1111,8 @@ static inline int cc_aead_chain_data(
 	if (is_gcm4543)
 		size_for_map += crypto_aead_ivsize(tfm);
 
-	size_for_map += (direct == DRV_CRYPTO_DIRECTION_ENCRYPT) ? authsize : 0;
+	size_for_map += (direct == DRV_CRYPTO_DIRECTION_ENCRYPT) ?
+			authsize : 0;
 	src_mapped_nents = cc_get_sgl_nents(dev, req->src, size_for_map,
 					    &src_last_bytes, &chained);
 	sg_index = areq_ctx->src_sgl->length;
@@ -1125,7 +1140,8 @@ static inline int cc_aead_chain_data(
 
 	if (req->src != req->dst) {
 		size_for_map = req->assoclen + req->cryptlen;
-		size_for_map += (direct == DRV_CRYPTO_DIRECTION_ENCRYPT) ? authsize : 0;
+		size_for_map += (direct == DRV_CRYPTO_DIRECTION_ENCRYPT) ?
+				authsize : 0;
 		if (is_gcm4543)
 			size_for_map += crypto_aead_ivsize(tfm);
 
@@ -1276,12 +1292,13 @@ int cc_map_aead_request(
 	}
 
 	if (areq_ctx->ccm_hdr_size != ccm_header_size_null) {
-		areq_ctx->ccm_iv0_dma_addr = dma_map_single(dev,
-							    (areq_ctx->ccm_config + CCM_CTR_COUNT_0_OFFSET),
-							    AES_BLOCK_SIZE,
-							    DMA_TO_DEVICE);
+		areq_ctx->ccm_iv0_dma_addr =
+			dma_map_single(dev, (areq_ctx->ccm_config +
+					     CCM_CTR_COUNT_0_OFFSET),
+				       AES_BLOCK_SIZE, DMA_TO_DEVICE);
 
-		if (unlikely(dma_mapping_error(dev, areq_ctx->ccm_iv0_dma_addr))) {
+		if (unlikely(dma_mapping_error(dev,
+					       areq_ctx->ccm_iv0_dma_addr))) {
 			dev_err(dev, "Mapping mac_buf %u B at va=%pK for DMA failed\n",
 				AES_BLOCK_SIZE,
 				(areq_ctx->ccm_config +
@@ -1304,30 +1321,31 @@ int cc_map_aead_request(
 							 areq_ctx->hkey,
 							 AES_BLOCK_SIZE,
 							 DMA_BIDIRECTIONAL);
-		if (unlikely(dma_mapping_error(dev, areq_ctx->hkey_dma_addr))) {
+		if (unlikely(dma_mapping_error(dev,
+					       areq_ctx->hkey_dma_addr))) {
 			dev_err(dev, "Mapping hkey %u B at va=%pK for DMA failed\n",
 				AES_BLOCK_SIZE, areq_ctx->hkey);
 			rc = -ENOMEM;
 			goto aead_map_failure;
 		}
 
-		areq_ctx->gcm_block_len_dma_addr = dma_map_single(dev,
-								  &areq_ctx->gcm_len_block,
-								  AES_BLOCK_SIZE,
-								  DMA_TO_DEVICE);
-		if (unlikely(dma_mapping_error(dev, areq_ctx->gcm_block_len_dma_addr))) {
+		areq_ctx->gcm_block_len_dma_addr =
+			dma_map_single(dev, &areq_ctx->gcm_len_block,
+				       AES_BLOCK_SIZE, DMA_TO_DEVICE);
+		if (unlikely(dma_mapping_error(dev,
+					       areq_ctx->gcm_block_len_dma_addr))) {
 			dev_err(dev, "Mapping gcm_len_block %u B at va=%pK for DMA failed\n",
 				AES_BLOCK_SIZE, &areq_ctx->gcm_len_block);
 			rc = -ENOMEM;
 			goto aead_map_failure;
 		}
 
-		areq_ctx->gcm_iv_inc1_dma_addr = dma_map_single(dev,
-								areq_ctx->gcm_iv_inc1,
-								AES_BLOCK_SIZE,
-								DMA_TO_DEVICE);
+		areq_ctx->gcm_iv_inc1_dma_addr =
+			dma_map_single(dev, areq_ctx->gcm_iv_inc1,
+				       AES_BLOCK_SIZE, DMA_TO_DEVICE);
 
-		if (unlikely(dma_mapping_error(dev, areq_ctx->gcm_iv_inc1_dma_addr))) {
+		if (unlikely(dma_mapping_error(dev,
+					       areq_ctx->gcm_iv_inc1_dma_addr))) {
 			dev_err(dev, "Mapping gcm_iv_inc1 %u B at va=%pK for DMA failed\n",
 				AES_BLOCK_SIZE, (areq_ctx->gcm_iv_inc1));
 			areq_ctx->gcm_iv_inc1_dma_addr = 0;
@@ -1335,12 +1353,12 @@ int cc_map_aead_request(
 			goto aead_map_failure;
 		}
 
-		areq_ctx->gcm_iv_inc2_dma_addr = dma_map_single(dev,
-								areq_ctx->gcm_iv_inc2,
-								AES_BLOCK_SIZE,
-								DMA_TO_DEVICE);
+		areq_ctx->gcm_iv_inc2_dma_addr =
+			dma_map_single(dev, areq_ctx->gcm_iv_inc2,
+				       AES_BLOCK_SIZE, DMA_TO_DEVICE);
 
-		if (unlikely(dma_mapping_error(dev, areq_ctx->gcm_iv_inc2_dma_addr))) {
+		if (unlikely(dma_mapping_error(dev,
+					       areq_ctx->gcm_iv_inc2_dma_addr))) {
 			dev_err(dev, "Mapping gcm_iv_inc2 %u B at va=%pK for DMA failed\n",
 				AES_BLOCK_SIZE, (areq_ctx->gcm_iv_inc2));
 			areq_ctx->gcm_iv_inc2_dma_addr = 0;
@@ -1414,7 +1432,9 @@ int cc_map_aead_request(
 			goto aead_map_failure;
 	}
 
-	/* Mlli support -start building the MLLI according to the above results */
+	/* Mlli support -start building the MLLI according to the above
+	 * results
+	 */
 	if (unlikely(
 		areq_ctx->assoc_buff_type == SSI_DMA_BUF_MLLI ||
 		areq_ctx->data_buff_type == SSI_DMA_BUF_MLLI)) {
@@ -1667,7 +1687,9 @@ void cc_unmap_hash_request(struct device *dev, void *ctx,
 			sg_dma_len(areq_ctx->buff_sg));
 		dma_unmap_sg(dev, areq_ctx->buff_sg, 1, DMA_TO_DEVICE);
 		if (!do_revert) {
-			/* clean the previous data length for update operation */
+			/* clean the previous data length for update
+			 * operation
+			 */
 			*prev_len = 0;
 		} else {
 			areq_ctx->buff_index ^= 1;

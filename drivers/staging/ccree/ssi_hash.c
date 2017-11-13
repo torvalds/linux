@@ -164,18 +164,21 @@ static int ssi_hash_map_request(struct device *dev,
 	if (!state->buff1)
 		goto fail_buff0;
 
-	state->digest_result_buff = kzalloc(SSI_MAX_HASH_DIGEST_SIZE, GFP_KERNEL | GFP_DMA);
+	state->digest_result_buff = kzalloc(SSI_MAX_HASH_DIGEST_SIZE,
+					    GFP_KERNEL | GFP_DMA);
 	if (!state->digest_result_buff)
 		goto fail_buff1;
 
-	state->digest_buff = kzalloc(ctx->inter_digestsize, GFP_KERNEL | GFP_DMA);
+	state->digest_buff = kzalloc(ctx->inter_digestsize,
+				     GFP_KERNEL | GFP_DMA);
 	if (!state->digest_buff)
 		goto fail_digest_result_buff;
 
 	dev_dbg(dev, "Allocated digest-buffer in context ctx->digest_buff=@%p\n",
 		state->digest_buff);
 	if (ctx->hw_mode != DRV_CIPHER_XCBC_MAC) {
-		state->digest_bytes_len = kzalloc(HASH_LEN_SIZE, GFP_KERNEL | GFP_DMA);
+		state->digest_bytes_len = kzalloc(HASH_LEN_SIZE,
+						  GFP_KERNEL | GFP_DMA);
 		if (!state->digest_bytes_len)
 			goto fail1;
 
@@ -185,14 +188,17 @@ static int ssi_hash_map_request(struct device *dev,
 		state->digest_bytes_len = NULL;
 	}
 
-	state->opad_digest_buff = kzalloc(ctx->inter_digestsize, GFP_KERNEL | GFP_DMA);
+	state->opad_digest_buff = kzalloc(ctx->inter_digestsize,
+					  GFP_KERNEL | GFP_DMA);
 	if (!state->opad_digest_buff)
 		goto fail2;
 
 	dev_dbg(dev, "Allocated opad-digest-buffer in context state->digest_bytes_len=@%p\n",
 		state->opad_digest_buff);
 
-	state->digest_buff_dma_addr = dma_map_single(dev, (void *)state->digest_buff, ctx->inter_digestsize, DMA_BIDIRECTIONAL);
+	state->digest_buff_dma_addr =
+		dma_map_single(dev, (void *)state->digest_buff,
+			       ctx->inter_digestsize, DMA_BIDIRECTIONAL);
 	if (dma_mapping_error(dev, state->digest_buff_dma_addr)) {
 		dev_err(dev, "Mapping digest len %d B at va=%pK for DMA failed\n",
 			ctx->inter_digestsize, state->digest_buff);
@@ -203,25 +209,39 @@ static int ssi_hash_map_request(struct device *dev,
 		&state->digest_buff_dma_addr);
 
 	if (is_hmac) {
-		dma_sync_single_for_cpu(dev, ctx->digest_buff_dma_addr, ctx->inter_digestsize, DMA_BIDIRECTIONAL);
-		if (ctx->hw_mode == DRV_CIPHER_XCBC_MAC || ctx->hw_mode == DRV_CIPHER_CMAC) {
+		dma_sync_single_for_cpu(dev, ctx->digest_buff_dma_addr,
+					ctx->inter_digestsize,
+					DMA_BIDIRECTIONAL);
+		if (ctx->hw_mode == DRV_CIPHER_XCBC_MAC ||
+		    ctx->hw_mode == DRV_CIPHER_CMAC) {
 			memset(state->digest_buff, 0, ctx->inter_digestsize);
 		} else { /*sha*/
-			memcpy(state->digest_buff, ctx->digest_buff, ctx->inter_digestsize);
+			memcpy(state->digest_buff, ctx->digest_buff,
+			       ctx->inter_digestsize);
 #if (DX_DEV_SHA_MAX > 256)
-			if (unlikely(ctx->hash_mode == DRV_HASH_SHA512 || ctx->hash_mode == DRV_HASH_SHA384))
-				memcpy(state->digest_bytes_len, digest_len_sha512_init, HASH_LEN_SIZE);
+			if (unlikely(ctx->hash_mode == DRV_HASH_SHA512 ||
+				     ctx->hash_mode == DRV_HASH_SHA384))
+				memcpy(state->digest_bytes_len,
+				       digest_len_sha512_init, HASH_LEN_SIZE);
 			else
-				memcpy(state->digest_bytes_len, digest_len_init, HASH_LEN_SIZE);
+				memcpy(state->digest_bytes_len,
+				       digest_len_init, HASH_LEN_SIZE);
 #else
-			memcpy(state->digest_bytes_len, digest_len_init, HASH_LEN_SIZE);
+			memcpy(state->digest_bytes_len, digest_len_init,
+			       HASH_LEN_SIZE);
 #endif
 		}
-		dma_sync_single_for_device(dev, state->digest_buff_dma_addr, ctx->inter_digestsize, DMA_BIDIRECTIONAL);
+		dma_sync_single_for_device(dev, state->digest_buff_dma_addr,
+					   ctx->inter_digestsize,
+					   DMA_BIDIRECTIONAL);
 
 		if (ctx->hash_mode != DRV_HASH_NULL) {
-			dma_sync_single_for_cpu(dev, ctx->opad_tmp_keys_dma_addr, ctx->inter_digestsize, DMA_BIDIRECTIONAL);
-			memcpy(state->opad_digest_buff, ctx->opad_tmp_keys_buff, ctx->inter_digestsize);
+			dma_sync_single_for_cpu(dev,
+						ctx->opad_tmp_keys_dma_addr,
+						ctx->inter_digestsize,
+						DMA_BIDIRECTIONAL);
+			memcpy(state->opad_digest_buff,
+			       ctx->opad_tmp_keys_buff, ctx->inter_digestsize);
 		}
 	} else { /*hash*/
 		/* Copy the initial digests if hash flow. The SRAM contains the
@@ -241,7 +261,9 @@ static int ssi_hash_map_request(struct device *dev,
 	}
 
 	if (ctx->hw_mode != DRV_CIPHER_XCBC_MAC) {
-		state->digest_bytes_len_dma_addr = dma_map_single(dev, (void *)state->digest_bytes_len, HASH_LEN_SIZE, DMA_BIDIRECTIONAL);
+		state->digest_bytes_len_dma_addr =
+			dma_map_single(dev, (void *)state->digest_bytes_len,
+				       HASH_LEN_SIZE, DMA_BIDIRECTIONAL);
 		if (dma_mapping_error(dev, state->digest_bytes_len_dma_addr)) {
 			dev_err(dev, "Mapping digest len %u B at va=%pK for DMA failed\n",
 				HASH_LEN_SIZE, state->digest_bytes_len);
@@ -255,7 +277,10 @@ static int ssi_hash_map_request(struct device *dev,
 	}
 
 	if (is_hmac && ctx->hash_mode != DRV_HASH_NULL) {
-		state->opad_digest_dma_addr = dma_map_single(dev, (void *)state->opad_digest_buff, ctx->inter_digestsize, DMA_BIDIRECTIONAL);
+		state->opad_digest_dma_addr =
+			dma_map_single(dev, (void *)state->opad_digest_buff,
+				       ctx->inter_digestsize,
+				       DMA_BIDIRECTIONAL);
 		if (dma_mapping_error(dev, state->opad_digest_dma_addr)) {
 			dev_err(dev, "Mapping opad digest %d B at va=%pK for DMA failed\n",
 				ctx->inter_digestsize,
@@ -277,12 +302,14 @@ static int ssi_hash_map_request(struct device *dev,
 
 fail5:
 	if (state->digest_bytes_len_dma_addr) {
-		dma_unmap_single(dev, state->digest_bytes_len_dma_addr, HASH_LEN_SIZE, DMA_BIDIRECTIONAL);
+		dma_unmap_single(dev, state->digest_bytes_len_dma_addr,
+				 HASH_LEN_SIZE, DMA_BIDIRECTIONAL);
 		state->digest_bytes_len_dma_addr = 0;
 	}
 fail4:
 	if (state->digest_buff_dma_addr) {
-		dma_unmap_single(dev, state->digest_buff_dma_addr, ctx->inter_digestsize, DMA_BIDIRECTIONAL);
+		dma_unmap_single(dev, state->digest_buff_dma_addr,
+				 ctx->inter_digestsize, DMA_BIDIRECTIONAL);
 		state->digest_buff_dma_addr = 0;
 	}
 fail3:
@@ -441,7 +468,9 @@ static int ssi_hash_digest(struct ahash_req_ctx *state,
 		ssi_req.user_arg = (void *)async_req;
 	}
 
-	/* If HMAC then load hash IPAD xor key, if HASH then load initial digest */
+	/* If HMAC then load hash IPAD xor key, if HASH then load initial
+	 * digest
+	 */
 	hw_desc_init(&desc[idx]);
 	set_cipher_mode(&desc[idx], ctx->hw_mode);
 	if (is_hmac) {
@@ -1042,8 +1071,9 @@ static int ssi_hash_setkey(void *hash,
 			hw_desc_init(&desc[idx]);
 			set_din_const(&desc[idx], 0, (blocksize - digestsize));
 			set_flow_mode(&desc[idx], BYPASS);
-			set_dout_dlli(&desc[idx], (ctx->opad_tmp_keys_dma_addr +
-						   digestsize),
+			set_dout_dlli(&desc[idx],
+				      (ctx->opad_tmp_keys_dma_addr +
+				       digestsize),
 				      (blocksize - digestsize), NS_BIT, 0);
 			idx++;
 		} else {
@@ -1118,7 +1148,9 @@ static int ssi_hash_setkey(void *hash,
 		set_flow_mode(&desc[idx], DIN_HASH);
 		idx++;
 
-		/* Get the IPAD/OPAD xor key (Note, IPAD is the initial digest of the first HASH "update" state) */
+		/* Get the IPAD/OPAD xor key (Note, IPAD is the initial digest
+		 * of the first HASH "update" state)
+		 */
 		hw_desc_init(&desc[idx]);
 		set_cipher_mode(&desc[idx], ctx->hw_mode);
 		if (i > 0) /* Not first iteration */
@@ -1136,7 +1168,8 @@ static int ssi_hash_setkey(void *hash,
 
 out:
 	if (rc)
-		crypto_ahash_set_flags((struct crypto_ahash *)hash, CRYPTO_TFM_RES_BAD_KEY_LEN);
+		crypto_ahash_set_flags((struct crypto_ahash *)hash,
+				       CRYPTO_TFM_RES_BAD_KEY_LEN);
 
 	if (ctx->key_params.key_dma_addr) {
 		dma_unmap_single(dev, ctx->key_params.key_dma_addr,
@@ -1257,8 +1290,10 @@ static int ssi_cmac_setkey(struct crypto_ahash *ahash,
 				keylen, DMA_TO_DEVICE);
 
 	memcpy(ctx->opad_tmp_keys_buff, key, keylen);
-	if (keylen == 24)
-		memset(ctx->opad_tmp_keys_buff + 24, 0, CC_AES_KEY_SIZE_MAX - 24);
+	if (keylen == 24) {
+		memset(ctx->opad_tmp_keys_buff + 24, 0,
+		       CC_AES_KEY_SIZE_MAX - 24);
+	}
 
 	dma_sync_single_for_device(dev, ctx->opad_tmp_keys_dma_addr,
 				   keylen, DMA_TO_DEVICE);
@@ -1298,7 +1333,9 @@ static int ssi_hash_alloc_ctx(struct ssi_hash_ctx *ctx)
 
 	ctx->key_params.keylen = 0;
 
-	ctx->digest_buff_dma_addr = dma_map_single(dev, (void *)ctx->digest_buff, sizeof(ctx->digest_buff), DMA_BIDIRECTIONAL);
+	ctx->digest_buff_dma_addr =
+		dma_map_single(dev, (void *)ctx->digest_buff,
+			       sizeof(ctx->digest_buff), DMA_BIDIRECTIONAL);
 	if (dma_mapping_error(dev, ctx->digest_buff_dma_addr)) {
 		dev_err(dev, "Mapping digest len %zu B at va=%pK for DMA failed\n",
 			sizeof(ctx->digest_buff), ctx->digest_buff);
@@ -1308,7 +1345,10 @@ static int ssi_hash_alloc_ctx(struct ssi_hash_ctx *ctx)
 		sizeof(ctx->digest_buff), ctx->digest_buff,
 		&ctx->digest_buff_dma_addr);
 
-	ctx->opad_tmp_keys_dma_addr = dma_map_single(dev, (void *)ctx->opad_tmp_keys_buff, sizeof(ctx->opad_tmp_keys_buff), DMA_BIDIRECTIONAL);
+	ctx->opad_tmp_keys_dma_addr =
+		dma_map_single(dev, (void *)ctx->opad_tmp_keys_buff,
+			       sizeof(ctx->opad_tmp_keys_buff),
+			       DMA_BIDIRECTIONAL);
 	if (dma_mapping_error(dev, ctx->opad_tmp_keys_dma_addr)) {
 		dev_err(dev, "Mapping opad digest %zu B at va=%pK for DMA failed\n",
 			sizeof(ctx->opad_tmp_keys_buff),
@@ -1335,7 +1375,8 @@ static int ssi_ahash_cra_init(struct crypto_tfm *tfm)
 	struct ahash_alg *ahash_alg =
 		container_of(hash_alg_common, struct ahash_alg, halg);
 	struct ssi_hash_alg *ssi_alg =
-			container_of(ahash_alg, struct ssi_hash_alg, ahash_alg);
+			container_of(ahash_alg, struct ssi_hash_alg,
+				     ahash_alg);
 
 	crypto_ahash_set_reqsize(__crypto_ahash_cast(tfm),
 				 sizeof(struct ahash_req_ctx));
@@ -1473,7 +1514,9 @@ static int ssi_mac_final(struct ahash_request *req)
 		set_setup_mode(&desc[idx], SETUP_LOAD_KEY0);
 		idx++;
 
-		/* Initiate decryption of block state to previous block_state-XOR-M[n] */
+		/* Initiate decryption of block state to previous
+		 * block_state-XOR-M[n]
+		 */
 		hw_desc_init(&desc[idx]);
 		set_din_type(&desc[idx], DMA_DLLI, state->digest_buff_dma_addr,
 			     CC_AES_BLOCK_SIZE, NS_BIT);
@@ -1502,7 +1545,8 @@ static int ssi_mac_final(struct ahash_request *req)
 		set_flow_mode(&desc[idx], S_DIN_to_AES);
 		idx++;
 	} else if (rem_cnt > 0) {
-		ssi_hash_create_data_desc(state, ctx, DIN_AES_DOUT, desc, false, &idx);
+		ssi_hash_create_data_desc(state, ctx, DIN_AES_DOUT, desc,
+					  false, &idx);
 	} else {
 		hw_desc_init(&desc[idx]);
 		set_din_const(&desc[idx], 0x00, CC_AES_BLOCK_SIZE);
@@ -1579,7 +1623,8 @@ static int ssi_mac_finup(struct ahash_request *req)
 		set_flow_mode(&desc[idx], S_DIN_to_AES);
 		idx++;
 	} else {
-		ssi_hash_create_data_desc(state, ctx, DIN_AES_DOUT, desc, false, &idx);
+		ssi_hash_create_data_desc(state, ctx, DIN_AES_DOUT, desc,
+					  false, &idx);
 	}
 
 	/* Get final MAC result */
@@ -1652,7 +1697,8 @@ static int ssi_mac_digest(struct ahash_request *req)
 		set_flow_mode(&desc[idx], S_DIN_to_AES);
 		idx++;
 	} else {
-		ssi_hash_create_data_desc(state, ctx, DIN_AES_DOUT, desc, false, &idx);
+		ssi_hash_create_data_desc(state, ctx, DIN_AES_DOUT, desc,
+					  false, &idx);
 	}
 
 	/* Get final MAC result */
@@ -1684,7 +1730,8 @@ static int ssi_ahash_digest(struct ahash_request *req)
 	struct ssi_hash_ctx *ctx = crypto_ahash_ctx(tfm);
 	u32 digestsize = crypto_ahash_digestsize(tfm);
 
-	return ssi_hash_digest(state, ctx, digestsize, req->src, req->nbytes, req->result, (void *)req);
+	return ssi_hash_digest(state, ctx, digestsize, req->src, req->nbytes,
+			       req->result, (void *)req);
 }
 
 static int ssi_ahash_update(struct ahash_request *req)
@@ -1694,7 +1741,8 @@ static int ssi_ahash_update(struct ahash_request *req)
 	struct ssi_hash_ctx *ctx = crypto_ahash_ctx(tfm);
 	unsigned int block_size = crypto_tfm_alg_blocksize(&tfm->base);
 
-	return ssi_hash_update(state, ctx, block_size, req->src, req->nbytes, (void *)req);
+	return ssi_hash_update(state, ctx, block_size, req->src, req->nbytes,
+			       (void *)req);
 }
 
 static int ssi_ahash_finup(struct ahash_request *req)
@@ -1704,7 +1752,8 @@ static int ssi_ahash_finup(struct ahash_request *req)
 	struct ssi_hash_ctx *ctx = crypto_ahash_ctx(tfm);
 	u32 digestsize = crypto_ahash_digestsize(tfm);
 
-	return ssi_hash_finup(state, ctx, digestsize, req->src, req->nbytes, req->result, (void *)req);
+	return ssi_hash_finup(state, ctx, digestsize, req->src, req->nbytes,
+			      req->result, (void *)req);
 }
 
 static int ssi_ahash_final(struct ahash_request *req)
@@ -1714,7 +1763,8 @@ static int ssi_ahash_final(struct ahash_request *req)
 	struct ssi_hash_ctx *ctx = crypto_ahash_ctx(tfm);
 	u32 digestsize = crypto_ahash_digestsize(tfm);
 
-	return ssi_hash_final(state, ctx, digestsize, req->src, req->nbytes, req->result, (void *)req);
+	return ssi_hash_final(state, ctx, digestsize, req->src, req->nbytes,
+			      req->result, (void *)req);
 }
 
 static int ssi_ahash_init(struct ahash_request *req)
@@ -2173,7 +2223,9 @@ int ssi_hash_init_sram_digest_consts(struct ssi_drvdata *drvdata)
 	larval_seq_len = 0;
 
 #if (DX_DEV_SHA_MAX > 256)
-	/* We are forced to swap each double-word larval before copying to sram */
+	/* We are forced to swap each double-word larval before copying to
+	 * sram
+	 */
 	for (i = 0; i < ARRAY_SIZE(sha384_init); i++) {
 		const u32 const0 = ((u32 *)((u64 *)&sha384_init[i]))[1];
 		const u32 const1 = ((u32 *)((u64 *)&sha384_init[i]))[0];
@@ -2323,7 +2375,8 @@ int ssi_hash_free(struct ssi_drvdata *drvdata)
 	struct ssi_hash_handle *hash_handle = drvdata->hash_handle;
 
 	if (hash_handle) {
-		list_for_each_entry_safe(t_hash_alg, hash_n, &hash_handle->hash_list, entry) {
+		list_for_each_entry_safe(t_hash_alg, hash_n,
+					 &hash_handle->hash_list, entry) {
 			crypto_unregister_ahash(&t_hash_alg->ahash_alg);
 			list_del(&t_hash_alg->entry);
 			kfree(t_hash_alg);
