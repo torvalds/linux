@@ -388,7 +388,6 @@ struct vpu_service_info {
 	u32 *reg_base;
 	u32 ioaddr;
 	struct regmap *grf;
-	u32 *grf_base;
 
 	char *name;
 
@@ -459,7 +458,6 @@ static inline int grf_combo_switch(const struct vpu_subdev_data *data)
 	u32 raw = 0;
 
 	bits = 1 << pservice->mode_bit;
-#ifdef CONFIG_MFD_SYSCON
 	if (pservice->grf) {
 		regmap_read(pservice->grf, pservice->mode_ctrl, &raw);
 
@@ -469,36 +467,11 @@ static inline int grf_combo_switch(const struct vpu_subdev_data *data)
 		else
 			regmap_write(pservice->grf, pservice->mode_ctrl,
 				     (raw & (~bits)) | (bits << 16));
-	} else if (pservice->grf_base) {
-		u32 *grf_base = pservice->grf_base;
-
-		raw = readl_relaxed(grf_base + pservice->mode_ctrl / 4);
-		if (data->mode == VCODEC_RUNNING_MODE_HEVC)
-			writel_relaxed(raw | bits | (bits << 16),
-				       grf_base + pservice->mode_ctrl / 4);
-		else
-			writel_relaxed((raw & (~bits)) | (bits << 16),
-				       grf_base + pservice->mode_ctrl / 4);
 	} else {
 		vpu_err("no grf resource define, switch decoder failed\n");
 		return -EINVAL;
 	}
-#else
-	if (pservice->grf_base) {
-		u32 *grf_base = pservice->grf_base;
 
-		raw = readl_relaxed(grf_base + pservice->mode_ctrl / 4);
-		if (data->mode == VCODEC_RUNNING_MODE_HEVC)
-			writel_relaxed(raw | bits | (bits << 16),
-				       grf_base + pservice->mode_ctrl / 4);
-		else
-			writel_relaxed((raw & (~bits)) | (bits << 16),
-				       grf_base + pservice->mode_ctrl / 4);
-	} else {
-		vpu_err("no grf resource define, switch decoder failed\n");
-		return -EINVAL;
-	}
-#endif
 	return 0;
 }
 
@@ -2430,7 +2403,6 @@ static void vcodec_read_property(struct device_node *np,
 	pservice->mode_bit = 0;
 	pservice->mode_ctrl = 0;
 	pservice->subcnt = 0;
-	pservice->grf_base = NULL;
 
 	of_property_read_u32(np, "subcnt", &pservice->subcnt);
 
@@ -2438,25 +2410,13 @@ static void vcodec_read_property(struct device_node *np,
 		of_property_read_u32(np, "mode_bit", &pservice->mode_bit);
 		of_property_read_u32(np, "mode_ctrl", &pservice->mode_ctrl);
 	}
-#ifdef CONFIG_MFD_SYSCON
+
 	pservice->grf = syscon_regmap_lookup_by_phandle(np, "rockchip,grf");
 	if (IS_ERR_OR_NULL(pservice->grf)) {
 		pservice->grf = NULL;
-#ifdef CONFIG_ARM
-		pservice->grf_base = RK_GRF_VIRT;
-#else
 		vpu_err("can't find vpu grf property\n");
 		return;
-#endif
 	}
-#else
-#ifdef CONFIG_ARM
-	pservice->grf_base = RK_GRF_VIRT;
-#else
-	vpu_err("can't find vpu grf property\n");
-	return;
-#endif
-#endif
 
 #ifdef CONFIG_RESET_CONTROLLER
 	pservice->rst_a = devm_reset_control_get(pservice->dev, "video_a");
