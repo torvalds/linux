@@ -23,36 +23,11 @@
 #ifndef __AMD_SHARED_H__
 #define __AMD_SHARED_H__
 
-#define AMD_MAX_USEC_TIMEOUT		200000  /* 200 ms */
+#include <drm/amd_asic_type.h>
 
 struct seq_file;
 
-/*
- * Supported ASIC types
- */
-enum amd_asic_type {
-	CHIP_TAHITI = 0,
-	CHIP_PITCAIRN,
-	CHIP_VERDE,
-	CHIP_OLAND,
-	CHIP_HAINAN,
-	CHIP_BONAIRE,
-	CHIP_KAVERI,
-	CHIP_KABINI,
-	CHIP_HAWAII,
-	CHIP_MULLINS,
-	CHIP_TOPAZ,
-	CHIP_TONGA,
-	CHIP_FIJI,
-	CHIP_CARRIZO,
-	CHIP_STONEY,
-	CHIP_POLARIS10,
-	CHIP_POLARIS11,
-	CHIP_POLARIS12,
-	CHIP_VEGA10,
-	CHIP_RAVEN,
-	CHIP_LAST,
-};
+#define AMD_MAX_USEC_TIMEOUT		200000  /* 200 ms */
 
 /*
  * Chip flags
