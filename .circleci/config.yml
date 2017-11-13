@@ -46,7 +46,7 @@ do_steps: &do_steps
       name: start android emulator
       command: |
         if [[ $CROSS_COMPILE == *android* ]]; then
-          emulator -avd Nexus5_API24 -no-window;
+          emulator -avd Nexus5_API24 -no-window -no-audio -no-boot-anim;
         fi
       background: true
   - run: cd tools/lkl && make -j8 ${MKARG}
