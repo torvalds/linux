@@ -1725,6 +1725,16 @@ config SENSORS_VT8231
 	  This driver can also be built as a module.  If so, the module
 	  will be called vt8231.
 
+config SENSORS_W83773G
+	tristate "Nuvoton W83773G"
+	depends on I2C
+	help
+	  If you say yes here you get support for the Nuvoton W83773G hardware
+	  monitoring chip.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called w83773g.
+
 config SENSORS_W83781D
 	tristate "Winbond W83781D, W83782D, W83783S, Asus AS99127F"
 	depends on I2C
