@@ -657,7 +657,7 @@ static void pcie_config_aspm_l1ss(struct pcie_link_state *link, u32 state)
 					0xFF00, link->l1ss.ctl1);
 
 		/* Program LTR L1.2 threshold in both ports */
-		pci_clear_and_set_dword(parent,	dw_cap_ptr + PCI_L1SS_CTL1,
+		pci_clear_and_set_dword(parent,	up_cap_ptr + PCI_L1SS_CTL1,
 					0xE3FF0000, link->l1ss.ctl1);
 		pci_clear_and_set_dword(child, dw_cap_ptr + PCI_L1SS_CTL1,
 					0xE3FF0000, link->l1ss.ctl1);
