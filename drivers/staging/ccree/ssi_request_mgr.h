@@ -36,7 +36,7 @@ int request_mgr_init(struct ssi_drvdata *drvdata);
  *	  If "false": this function adds a dummy descriptor completion
  *	  and waits upon completion signal.
  *
- * \return int Returns -EINPROGRESS if "is_dout=ture"; "0" if "is_dout=false"
+ * \return int Returns -EINPROGRESS if "is_dout=true"; "0" if "is_dout=false"
  */
 int send_request(
 	struct ssi_drvdata *drvdata, struct ssi_crypto_req *ssi_req,

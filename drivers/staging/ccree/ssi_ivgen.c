@@ -198,7 +198,7 @@ int ssi_ivgen_init(struct ssi_drvdata *drvdata)
 
 	ivgen_ctx = drvdata->ivgen_handle;
 
-	/* Allocate pool's header for intial enc. key/IV */
+	/* Allocate pool's header for initial enc. key/IV */
 	ivgen_ctx->pool_meta = dma_alloc_coherent(device, SSI_IVPOOL_META_SIZE,
 						  &ivgen_ctx->pool_meta_dma,
 						  GFP_KERNEL);

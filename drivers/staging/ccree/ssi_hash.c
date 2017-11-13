@@ -2481,7 +2481,7 @@ static void ssi_hash_create_data_desc(struct ahash_req_ctx *areq_ctx,
  * \param drvdata
  * \param mode The Hash mode. Supported modes: MD5/SHA1/SHA224/SHA256
  *
- * \return u32 The address of the inital digest in SRAM
+ * \return u32 The address of the initial digest in SRAM
  */
 ssi_sram_addr_t ssi_ahash_get_larval_digest_sram_addr(void *drvdata, u32 mode)
 {
