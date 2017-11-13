@@ -404,10 +404,11 @@ end:
 					  timeout);
 }
 
-void __ieee80211_start_rx_ba_session(struct sta_info *sta,
-				     u8 dialog_token, u16 timeout,
-				     u16 start_seq_num, u16 ba_policy, u16 tid,
-				     u16 buf_size, bool tx, bool auto_seq)
+static void __ieee80211_start_rx_ba_session(struct sta_info *sta,
+					    u8 dialog_token, u16 timeout,
+					    u16 start_seq_num, u16 ba_policy,
+					    u16 tid, u16 buf_size, bool tx,
+					    bool auto_seq)
 {
 	mutex_lock(&sta->ampdu_mlme.mtx);
 	___ieee80211_start_rx_ba_session(sta, dialog_token, timeout,
