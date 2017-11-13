@@ -962,6 +962,7 @@ static const char *fbcon_startup(void)
 	ops->graphics = 1;
 	ops->cur_rotate = -1;
 	ops->cur_blink_jiffies = HZ / 5;
+	ops->info = info;
 	info->fbcon_par = ops;
 	if (initial_rotation != -1)
 		p->con_rotate = initial_rotation;
