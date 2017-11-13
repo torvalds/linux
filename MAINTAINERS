@@ -4906,13 +4906,19 @@ L:	linux-edac@vger.kernel.org
 S:	Maintained
 F:	drivers/edac/highbank*
 
-EDAC-CAVIUM
+EDAC-CAVIUM OCTEON
 M:	Ralf Baechle <ralf@linux-mips.org>
 M:	David Daney <david.daney@cavium.com>
 L:	linux-edac@vger.kernel.org
 L:	linux-mips@linux-mips.org
 S:	Supported
 F:	drivers/edac/octeon_edac*
+
+EDAC-CAVIUM THUNDERX
+M:	David Daney <david.daney@cavium.com>
+M:	Jan Glauber <jglauber@cavium.com>
+L:	linux-edac@vger.kernel.org
+S:	Supported
 F:	drivers/edac/thunderx_edac*
 
 EDAC-CORE

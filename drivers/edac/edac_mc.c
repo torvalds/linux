@@ -53,7 +53,7 @@ static LIST_HEAD(mc_devices);
  * Used to lock EDAC MC to just one module, avoiding two drivers e. g.
  *	apei/ghes and i7core_edac to be used at the same time.
  */
-static void const *edac_mc_owner;
+static const char *edac_mc_owner;
 
 static struct bus_type mc_bus[EDAC_MAX_MCS];
 
@@ -701,6 +701,11 @@ unlock:
 }
 EXPORT_SYMBOL(edac_mc_find);
 
+const char *edac_get_owner(void)
+{
+	return edac_mc_owner;
+}
+EXPORT_SYMBOL_GPL(edac_get_owner);
 
 /* FIXME - should a warning be printed if no error detection? correction? */
 int edac_mc_add_mc_with_groups(struct mem_ctl_info *mci,
