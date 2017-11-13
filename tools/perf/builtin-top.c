@@ -958,8 +958,16 @@ static int __cmd_top(struct perf_top *top)
 	if (perf_session__register_idle_thread(top->session) < 0)
 		goto out_delete;
 
+	if (top->nr_threads_synthesize > 1)
+		perf_set_multithreaded();
+
 	machine__synthesize_threads(&top->session->machines.host, &opts->target,
-				    top->evlist->threads, false, opts->proc_map_timeout);
+				    top->evlist->threads, false,
+				    opts->proc_map_timeout,
+				    top->nr_threads_synthesize);
+
+	if (top->nr_threads_synthesize > 1)
+		perf_set_singlethreaded();
 
 	if (perf_hpp_list.socket) {
 		ret = perf_env__read_cpu_topology_map(&perf_env);
@@ -1112,6 +1120,7 @@ int cmd_top(int argc, const char **argv)
 		},
 		.max_stack	     = sysctl_perf_event_max_stack,
 		.sym_pcnt_filter     = 5,
+		.nr_threads_synthesize = UINT_MAX,
 	};
 	struct record_opts *opts = &top.record_opts;
 	struct target *target = &opts->target;
@@ -1221,6 +1230,8 @@ int cmd_top(int argc, const char **argv)
 	OPT_BOOLEAN(0, "hierarchy", &symbol_conf.report_hierarchy,
 		    "Show entries in a hierarchy"),
 	OPT_BOOLEAN(0, "force", &symbol_conf.force, "don't complain, do it"),
+	OPT_UINTEGER(0, "num-thread-synthesize", &top.nr_threads_synthesize,
+			"number of thread to run event synthesize"),
 	OPT_END()
 	};
 	const char * const top_usage[] = {

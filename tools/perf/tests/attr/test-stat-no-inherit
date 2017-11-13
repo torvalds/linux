@@ -5,3 +5,4 @@ ret     = 1
 
 [event:base-stat]
 inherit=0
+optional=1
