@@ -1572,7 +1572,9 @@ static void tegra_crtc_atomic_enable(struct drm_crtc *crtc,
 		WIN_A_OF_INT | WIN_B_OF_INT | WIN_C_OF_INT;
 	tegra_dc_writel(dc, value, DC_CMD_INT_MASK);
 
-	if (dc->soc->supports_border_color)
+	if (dc->soc->supports_background_color)
+		tegra_dc_writel(dc, 0, DC_DISP_BLEND_BACKGROUND_COLOR);
+	else
 		tegra_dc_writel(dc, 0, DC_DISP_BORDER_COLOR);
 
 	/* apply PLL and pixel clock changes */
@@ -1835,7 +1837,7 @@ static const struct host1x_client_ops dc_client_ops = {
 };
 
 static const struct tegra_dc_soc_info tegra20_dc_soc_info = {
-	.supports_border_color = true,
+	.supports_background_color = false,
 	.supports_interlacing = false,
 	.supports_cursor = false,
 	.supports_block_linear = false,
@@ -1845,7 +1847,7 @@ static const struct tegra_dc_soc_info tegra20_dc_soc_info = {
 };
 
 static const struct tegra_dc_soc_info tegra30_dc_soc_info = {
-	.supports_border_color = true,
+	.supports_background_color = false,
 	.supports_interlacing = false,
 	.supports_cursor = false,
 	.supports_block_linear = false,
@@ -1855,7 +1857,7 @@ static const struct tegra_dc_soc_info tegra30_dc_soc_info = {
 };
 
 static const struct tegra_dc_soc_info tegra114_dc_soc_info = {
-	.supports_border_color = true,
+	.supports_background_color = false,
 	.supports_interlacing = false,
 	.supports_cursor = false,
 	.supports_block_linear = false,
@@ -1865,7 +1867,7 @@ static const struct tegra_dc_soc_info tegra114_dc_soc_info = {
 };
 
 static const struct tegra_dc_soc_info tegra124_dc_soc_info = {
-	.supports_border_color = false,
+	.supports_background_color = true,
 	.supports_interlacing = true,
 	.supports_cursor = true,
 	.supports_block_linear = true,
@@ -1875,7 +1877,7 @@ static const struct tegra_dc_soc_info tegra124_dc_soc_info = {
 };
 
 static const struct tegra_dc_soc_info tegra210_dc_soc_info = {
-	.supports_border_color = false,
+	.supports_background_color = true,
 	.supports_interlacing = true,
 	.supports_cursor = true,
 	.supports_block_linear = true,

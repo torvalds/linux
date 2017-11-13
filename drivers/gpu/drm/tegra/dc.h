@@ -26,7 +26,7 @@ struct tegra_dc_stats {
 };
 
 struct tegra_dc_soc_info {
-	bool supports_border_color;
+	bool supports_background_color;
 	bool supports_interlacing;
 	bool supports_cursor;
 	bool supports_block_linear;
@@ -446,6 +446,12 @@ int tegra_dc_rgb_exit(struct tegra_dc *dc);
 #define DC_DISP_SD_BL_CONTROL			0x4dc
 #define DC_DISP_SD_HW_K_VALUES			0x4dd
 #define DC_DISP_SD_MAN_K_VALUES			0x4de
+
+#define DC_DISP_BLEND_BACKGROUND_COLOR		0x4e4
+#define  BACKGROUND_COLOR_ALPHA(x) (((x) & 0xff) << 24)
+#define  BACKGROUND_COLOR_BLUE(x)  (((x) & 0xff) << 16)
+#define  BACKGROUND_COLOR_GREEN(x) (((x) & 0xff) << 8)
+#define  BACKGROUND_COLOR_RED(x)   (((x) & 0xff) << 0)
 
 #define DC_DISP_INTERLACE_CONTROL		0x4e5
 #define  INTERLACE_STATUS (1 << 2)
