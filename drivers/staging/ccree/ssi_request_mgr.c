@@ -172,7 +172,6 @@ static inline void enqueue_seq(
 		writel_relaxed(seq[i].word[2], (cc_base + CC_REG(DSCRPTR_QUEUE_WORD0)));
 		writel_relaxed(seq[i].word[3], (cc_base + CC_REG(DSCRPTR_QUEUE_WORD0)));
 		writel_relaxed(seq[i].word[4], (cc_base + CC_REG(DSCRPTR_QUEUE_WORD0)));
-		wmb();
 		writel_relaxed(seq[i].word[5], (cc_base + CC_REG(DSCRPTR_QUEUE_WORD0)));
 #ifdef DX_DUMP_DESCS
 		dev_dbg(dev, "desc[%02d]: 0x%08X 0x%08X 0x%08X 0x%08X 0x%08X 0x%08X\n",
@@ -359,6 +358,12 @@ int send_request(
 #ifdef FLUSH_CACHE_ALL
 	flush_cache_all();
 #endif
+	/*
+	 * We are about to push command to the HW via the command registers
+	 * that may refernece hsot memory. We need to issue a memory barrier
+	 * to make sure there are no outstnading memory writes
+	 */
+	wmb();
 
 	/* STAT_PHASE_4: Push sequence */
 	enqueue_seq(cc_base, iv_seq, iv_seq_len);
@@ -417,6 +422,12 @@ int send_request_init(
 
 	set_queue_last_ind(&desc[(len - 1)]);
 
+	/*
+	 * We are about to push command to the HW via the command registers
+	 * that may refernece hsot memory. We need to issue a memory barrier
+	 * to make sure there are no outstnading memory writes
+	 */
+	wmb();
 	enqueue_seq(cc_base, desc, len);
 
 	/* Update the free slots in HW queue */
