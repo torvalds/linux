@@ -30,8 +30,6 @@
 /* Define max. available slots in HW queue */
 #define HW_QUEUE_SLOTS_MAX              15
 
-#define CC_REG_NAME(word, name) DX_DSCRPTR_QUEUE_WORD ## word ## _ ## name
-
 #define CC_REG_LOW(word, name)  \
 	(DX_DSCRPTR_QUEUE_WORD ## word ## _ ## name ## _BIT_SHIFT)
 
