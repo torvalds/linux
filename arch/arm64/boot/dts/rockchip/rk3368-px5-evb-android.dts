@@ -214,6 +214,18 @@
 		status = "okay";
 	};
 
+	wireless-bluetooth {
+		compatible = "bluetooth-platdata";
+
+		keep_bt_power_on;
+		BT,power_gpio = <&gpio3 4 GPIO_ACTIVE_HIGH>; /* GPIO3_A4 */
+		BT,reset_gpio = <&gpio3 2 GPIO_ACTIVE_HIGH>; /* GPIO3_A2 */
+		BT,wake_gpio = <&gpio3 7 GPIO_ACTIVE_HIGH>; /* GPIO3_A7 */
+		BT,wake_host_irq = <&gpio3 3 GPIO_ACTIVE_HIGH>; /* GPIO3_A3 */
+
+		status = "okay";
+	};
+
 	vcc_sys: vcc-sys-regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_sys";
@@ -1128,6 +1140,12 @@
 
 &tsadc {
 	tsadc-supply = <&vdd_cpu>;
+	status = "okay";
+};
+
+&uart1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart1_xfer &uart1_cts>;
 	status = "okay";
 };
 
