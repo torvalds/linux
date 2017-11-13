@@ -498,7 +498,8 @@ u16 rtl92ee_rx_desc_buff_remained_cnt(struct ieee80211_hw *hw, u8 queue_index)
 	if (!start_rx)
 		return 0;
 
-	remind_cnt = calc_fifo_space(read_point, write_point);
+	remind_cnt = calc_fifo_space(read_point, write_point,
+				     RTL_PCI_MAX_RX_COUNT);
 
 	if (remind_cnt == 0)
 		return 0;
@@ -560,7 +561,8 @@ u16 rtl92ee_get_available_desc(struct ieee80211_hw *hw, u8 q_idx)
 	current_tx_write_point = (u16)((tmp_4byte) & 0x0fff);
 
 	point_diff = calc_fifo_space(current_tx_read_point,
-				     current_tx_write_point);
+				     current_tx_write_point,
+				     TX_DESC_NUM_92E);
 
 	rtlpci->tx_ring[q_idx].avl_desc = point_diff;
 	return point_diff;

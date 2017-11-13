@@ -320,10 +320,10 @@ static inline void pci_write32_async(struct rtl_priv *rtlpriv,
 	writel(val, (u8 __iomem *)rtlpriv->io.pci_mem_start + addr);
 }
 
-static inline u16 calc_fifo_space(u16 rp, u16 wp)
+static inline u16 calc_fifo_space(u16 rp, u16 wp, u16 size)
 {
 	if (rp <= wp)
-		return RTL_PCI_MAX_RX_COUNT - 1 + rp - wp;
+		return size - 1 + rp - wp;
 	return rp - wp - 1;
 }
 
