@@ -583,7 +583,12 @@ endif
 ifneq ($(KBUILD_SRC),)
 # Create directories for object files if they do not exist
 obj-dirs := $(sort $(obj) $(patsubst %/,%, $(dir $(targets))))
+# If cmd_files exist, their directories apparently exist.  Skip mkdir.
+exist-dirs := $(sort $(patsubst %/,%, $(dir $(cmd_files))))
+obj-dirs := $(strip $(filter-out $(exist-dirs), $(obj-dirs)))
+ifneq ($(obj-dirs),)
 $(shell mkdir -p $(obj-dirs))
+endif
 endif
 
 # Declare the contents of the .PHONY variable as phony.  We keep that
