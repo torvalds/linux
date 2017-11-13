@@ -125,6 +125,7 @@ struct ssi_drvdata {
 	int irq;
 	u32 irq_mask;
 	u32 fw_ver;
+	struct completion hw_queue_avail; /* wait for HW queue availability */
 	struct platform_device *plat_dev;
 	ssi_sram_addr_t mlli_sram_addr;
 	void *buff_mgr_handle;

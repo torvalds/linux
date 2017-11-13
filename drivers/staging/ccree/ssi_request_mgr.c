@@ -312,8 +312,9 @@ int send_request(
 			return rc;
 		}
 
-		/* HW queue is full - short sleep */
-		msleep(1);
+		/* HW queue is full - wait for it to clear up */
+		wait_for_completion_interruptible(&drvdata->hw_queue_avail);
+		reinit_completion(&drvdata->hw_queue_avail);
 	} while (1);
 
 	/* Additional completion descriptor is needed incase caller did not
@@ -452,6 +453,8 @@ void complete_request(struct ssi_drvdata *drvdata)
 {
 	struct ssi_request_mgr_handle *request_mgr_handle =
 						drvdata->request_mgr_handle;
+
+	complete(&drvdata->hw_queue_avail);
 #ifdef COMP_IN_WQ
 	queue_delayed_work(request_mgr_handle->workq,
 			   &request_mgr_handle->compwork, 0);
