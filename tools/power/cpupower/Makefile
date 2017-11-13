@@ -30,6 +30,8 @@ OUTDIR := $(shell cd $(OUTPUT) && /bin/pwd)
 $(if $(OUTDIR),, $(error output directory "$(OUTPUT)" does not exist))
 endif
 
+include ../../scripts/Makefile.arch
+
 # --- CONFIGURATION BEGIN ---
 
 # Set the following to `true' to make a unstripped, unoptimized
@@ -79,7 +81,11 @@ bindir ?=	/usr/bin
 sbindir ?=	/usr/sbin
 mandir ?=	/usr/man
 includedir ?=	/usr/include
+ifeq ($(IS_64_BIT), 1)
+libdir ?=	/usr/lib64
+else
 libdir ?=	/usr/lib
+endif
 localedir ?=	/usr/share/locale
 docdir ?=       /usr/share/doc/packages/cpupower
 confdir ?=      /etc/
