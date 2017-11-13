@@ -1461,9 +1461,9 @@ static enum event_type_t get_event_type(struct perf_event *event)
 }
 
 /*
- * Helper function to initialize group leader event;
+ * Helper function to initialize event group nodes.
  */
-void init_event_group(struct perf_event *event)
+static void init_event_group(struct perf_event *event)
 {
 	RB_CLEAR_NODE(&event->group_node);
 	event->group_index = 0;
@@ -1471,7 +1471,7 @@ void init_event_group(struct perf_event *event)
 
 /*
  * Extract pinned or flexible groups from the context
- * based on event attrs bits;
+ * based on event attrs bits.
  */
 static struct perf_event_groups *
 get_event_groups(struct perf_event *event, struct perf_event_context *ctx)
@@ -1483,9 +1483,9 @@ get_event_groups(struct perf_event *event, struct perf_event_context *ctx)
 }
 
 /*
- * Helper function to initializes perf event groups object;
+ * Helper function to initializes perf_event_group trees.
  */
-void perf_event_groups_init(struct perf_event_groups *groups)
+static void perf_event_groups_init(struct perf_event_groups *groups)
 {
 	groups->tree = RB_ROOT;
 	groups->index = 0;
@@ -1493,35 +1493,34 @@ void perf_event_groups_init(struct perf_event_groups *groups)
 
 /*
  * Compare function for event groups;
- * Implements complex key that first sorts by CPU and then by
- * virtual index which provides ordering when rotating
- * groups for the same CPU;
+ *
+ * Implements complex key that first sorts by CPU and then by virtual index
+ * which provides ordering when rotating groups for the same CPU.
  */
-int perf_event_groups_less(struct perf_event *left, struct perf_event *right)
+static bool
+perf_event_groups_less(struct perf_event *left, struct perf_event *right)
 {
-	if (left->cpu < right->cpu) {
-		return 1;
-	} else if (left->cpu > right->cpu) {
-		return 0;
-	} else {
-		if (left->group_index < right->group_index) {
-			return 1;
-		} else if(left->group_index > right->group_index) {
-			return 0;
-		} else {
-			return 0;
-		}
-	}
+	if (left->cpu < right->cpu)
+		return true;
+	if (left->cpu > right->cpu)
+		return false;
+
+	if (left->group_index < right->group_index)
+		return true;
+	if (left->group_index > right->group_index)
+		return false;
+
+	return false;
 }
 
 /*
- * Insert a group into a tree using event->cpu as a key. If event->cpu node
- * is already attached to the tree then the event is added to the attached
- * group's group_list list.
+ * Insert @event into @groups' tree; using {@event->cpu, ++@groups->index} for
+ * key (see perf_event_groups_less). This places it last inside the CPU
+ * subtree.
  */
 static void
 perf_event_groups_insert(struct perf_event_groups *groups,
-		struct perf_event *event)
+			 struct perf_event *event)
 {
 	struct perf_event *node_event;
 	struct rb_node *parent;
@@ -1534,8 +1533,7 @@ perf_event_groups_insert(struct perf_event_groups *groups,
 
 	while (*node) {
 		parent = *node;
-		node_event = container_of(*node,
-				struct perf_event, group_node);
+		node_event = container_of(*node, struct perf_event, group_node);
 
 		if (perf_event_groups_less(event, node_event))
 			node = &parent->rb_left;
@@ -1548,8 +1546,7 @@ perf_event_groups_insert(struct perf_event_groups *groups,
 }
 
 /*
- * Helper function to insert event into the pinned or
- * flexible groups;
+ * Helper function to insert event into the pinned or flexible groups.
  */
 static void
 add_event_to_groups(struct perf_event *event, struct perf_event_context *ctx)
@@ -1561,22 +1558,21 @@ add_event_to_groups(struct perf_event *event, struct perf_event_context *ctx)
 }
 
 /*
- * Delete a group from a tree. If the group is directly attached to the tree
- * it also detaches all groups on the group's group_list list.
+ * Delete a group from a tree.
  */
 static void
 perf_event_groups_delete(struct perf_event_groups *groups,
-		struct perf_event *event)
+			 struct perf_event *event)
 {
-	if (!RB_EMPTY_NODE(&event->group_node) &&
-	    !RB_EMPTY_ROOT(&groups->tree))
-		rb_erase(&event->group_node, &groups->tree);
+	WARN_ON_ONCE(RB_EMPTY_NODE(&event->group_node) ||
+		     RB_EMPTY_ROOT(&groups->tree));
 
+	rb_erase(&event->group_node, &groups->tree);
 	init_event_group(event);
 }
 
 /*
- * Helper function to delete event from its groups;
+ * Helper function to delete event from its groups.
  */
 static void
 del_event_from_groups(struct perf_event *event, struct perf_event_context *ctx)
@@ -1588,7 +1584,7 @@ del_event_from_groups(struct perf_event *event, struct perf_event_context *ctx)
 }
 
 /*
- * Get a group by a cpu key from groups tree with the least group_index;
+ * Get the leftmost event in the @cpu subtree.
  */
 static struct perf_event *
 perf_event_groups_first(struct perf_event_groups *groups, int cpu)
@@ -1597,8 +1593,7 @@ perf_event_groups_first(struct perf_event_groups *groups, int cpu)
 	struct rb_node *node = groups->tree.rb_node;
 
 	while (node) {
-		node_event = container_of(node,
-				struct perf_event, group_node);
+		node_event = container_of(node, struct perf_event, group_node);
 
 		if (cpu < node_event->cpu) {
 			node = node->rb_left;
@@ -1614,13 +1609,14 @@ perf_event_groups_first(struct perf_event_groups *groups, int cpu)
 }
 
 /*
- * Find group list by a cpu key and rotate it.
+ * Rotate the @cpu subtree.
+ *
+ * Re-insert the leftmost event at the tail of the subtree.
  */
 static void
 perf_event_groups_rotate(struct perf_event_groups *groups, int cpu)
 {
-	struct perf_event *event =
-			perf_event_groups_first(groups, cpu);
+	struct perf_event *event = perf_event_groups_first(groups, cpu);
 
 	if (event) {
 		perf_event_groups_delete(groups, event);
@@ -1629,7 +1625,7 @@ perf_event_groups_rotate(struct perf_event_groups *groups, int cpu)
 }
 
 /*
- * Iterate event groups thru the whole tree.
+ * Iterate through the whole groups tree.
  */
 #define perf_event_groups_for_each(event, groups, node)		\
 	for (event = rb_entry_safe(rb_first(&((groups)->tree)),	\
