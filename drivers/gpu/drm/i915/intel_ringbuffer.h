@@ -241,9 +241,17 @@ struct intel_engine_execlists {
 	} port[EXECLIST_MAX_PORTS];
 
 	/**
-	 * @preempt: are we currently handling a preempting context switch?
+	 * @active: is the HW active? We consider the HW as active after
+	 * submitting any context for execution and until we have seen the
+	 * last context completion event. After that, we do not expect any
+	 * more events until we submit, and so can park the HW.
+	 *
+	 * As we have a small number of different sources from which we feed
+	 * the HW, we track the state of each inside a single bitfield.
 	 */
-	bool preempt;
+	unsigned int active;
+#define EXECLISTS_ACTIVE_USER 0
+#define EXECLISTS_ACTIVE_PREEMPT 1
 
 	/**
 	 * @port_mask: number of execlist ports - 1
@@ -525,6 +533,27 @@ struct intel_engine_cs {
 	u32 (*get_cmd_length_mask)(u32 cmd_header);
 };
 
+static inline void
+execlists_set_active(struct intel_engine_execlists *execlists,
+		     unsigned int bit)
+{
+	__set_bit(bit, (unsigned long *)&execlists->active);
+}
+
+static inline void
+execlists_clear_active(struct intel_engine_execlists *execlists,
+		       unsigned int bit)
+{
+	__clear_bit(bit, (unsigned long *)&execlists->active);
+}
+
+static inline bool
+execlists_is_active(const struct intel_engine_execlists *execlists,
+		    unsigned int bit)
+{
+	return test_bit(bit, (unsigned long *)&execlists->active);
+}
+
 static inline unsigned int
 execlists_num_ports(const struct intel_engine_execlists * const execlists)
 {
@@ -538,6 +567,7 @@ execlists_port_complete(struct intel_engine_execlists * const execlists,
 	const unsigned int m = execlists->port_mask;
 
 	GEM_BUG_ON(port_index(port, execlists) != 0);
+	GEM_BUG_ON(!execlists_is_active(execlists, EXECLISTS_ACTIVE_USER));
 
 	memmove(port, port + 1, m * sizeof(struct execlist_port));
 	memset(port + m, 0, sizeof(struct execlist_port));

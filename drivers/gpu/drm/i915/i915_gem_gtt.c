@@ -1341,7 +1341,7 @@ static int gen8_ppgtt_alloc_pd(struct i915_address_space *vm,
 			if (IS_ERR(pt))
 				goto unwind;
 
-			if (count < GEN8_PTES)
+			if (count < GEN8_PTES || intel_vgpu_active(vm->i915))
 				gen8_initialize_pt(vm, pt);
 
 			gen8_ppgtt_set_pde(vm, pd, pt, pde);
