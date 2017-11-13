@@ -10049,7 +10049,7 @@ M:	Stephen Boyd <sboyd@codeaurora.org>
 L:	linux-pm@vger.kernel.org
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/vireshk/pm.git
-F:	drivers/base/power/opp/
+F:	drivers/opp/
 F:	include/linux/pm_opp.h
 F:	Documentation/power/opp.txt
 F:	Documentation/devicetree/bindings/opp/

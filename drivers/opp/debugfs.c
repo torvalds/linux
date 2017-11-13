@@ -41,15 +41,14 @@ static bool opp_debug_create_supplies(struct dev_pm_opp *opp,
 {
 	struct dentry *d;
 	int i;
-	char *name;
 
 	for (i = 0; i < opp_table->regulator_count; i++) {
-		name = kasprintf(GFP_KERNEL, "supply-%d", i);
+		char name[15];
+
+		snprintf(name, sizeof(name), "supply-%d", i);
 
 		/* Create per-opp directory */
 		d = debugfs_create_dir(name, pdentry);
-
-		kfree(name);
 
 		if (!d)
 			return false;
@@ -98,6 +97,9 @@ int opp_debug_create_one(struct dev_pm_opp *opp, struct opp_table *opp_table)
 		return -ENOMEM;
 
 	if (!debugfs_create_bool("suspend", S_IRUGO, d, &opp->suspend))
+		return -ENOMEM;
+
+	if (!debugfs_create_u32("performance_state", S_IRUGO, d, &opp->pstate))
 		return -ENOMEM;
 
 	if (!debugfs_create_ulong("rate_hz", S_IRUGO, d, &opp->rate))
