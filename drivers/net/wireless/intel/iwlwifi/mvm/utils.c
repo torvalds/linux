@@ -1134,9 +1134,18 @@ unsigned int iwl_mvm_get_wd_timeout(struct iwl_mvm *mvm,
 	unsigned int default_timeout =
 		cmd_q ? IWL_DEF_WD_TIMEOUT : mvm->cfg->base_params->wd_timeout;
 
-	if (!iwl_fw_dbg_trigger_enabled(mvm->fw, FW_DBG_TRIGGER_TXQ_TIMERS))
+	if (!iwl_fw_dbg_trigger_enabled(mvm->fw, FW_DBG_TRIGGER_TXQ_TIMERS)) {
+		/*
+		 * We can't know when the station is asleep or awake, so we
+		 * must disable the queue hang detection.
+		 */
+		if (fw_has_capa(&mvm->fw->ucode_capa,
+				IWL_UCODE_TLV_CAPA_STA_PM_NOTIF) &&
+		    vif && vif->type == NL80211_IFTYPE_AP)
+			return IWL_WATCHDOG_DISABLED;
 		return iwlmvm_mod_params.tfd_q_hang_detect ?
 			default_timeout : IWL_WATCHDOG_DISABLED;
+	}
 
 	trigger = iwl_fw_dbg_get_trigger(mvm->fw, FW_DBG_TRIGGER_TXQ_TIMERS);
 	txq_timer = (void *)trigger->data;
