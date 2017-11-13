@@ -537,6 +537,9 @@ enum {
 	TCA_NETEM_ECN,
 	TCA_NETEM_RATE64,
 	TCA_NETEM_PAD,
+	TCA_NETEM_LATENCY64,
+	TCA_NETEM_JITTER64,
+	TCA_NETEM_SLOT,
 	__TCA_NETEM_MAX,
 };
 
@@ -572,6 +575,13 @@ struct tc_netem_rate {
 	__s32	packet_overhead;
 	__u32	cell_size;
 	__s32	cell_overhead;
+};
+
+struct tc_netem_slot {
+	__s64   min_delay; /* nsec */
+	__s64   max_delay;
+	__s32   max_packets;
+	__s32   max_bytes;
 };
 
 enum {
