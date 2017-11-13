@@ -3169,13 +3169,13 @@ struct ib_cq *ib_create_cq(struct ib_device *device,
 int ib_resize_cq(struct ib_cq *cq, int cqe);
 
 /**
- * ib_modify_cq - Modifies moderation params of the CQ
+ * rdma_set_cq_moderation - Modifies moderation params of the CQ
  * @cq: The CQ to modify.
  * @cq_count: number of CQEs that will trigger an event
  * @cq_period: max period of time in usec before triggering an event
  *
  */
-int ib_modify_cq(struct ib_cq *cq, u16 cq_count, u16 cq_period);
+int rdma_set_cq_moderation(struct ib_cq *cq, u16 cq_count, u16 cq_period);
 
 /**
  * ib_destroy_cq - Destroys the specified CQ.

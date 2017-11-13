@@ -3901,7 +3901,7 @@ int ib_uverbs_ex_modify_cq(struct ib_uverbs_file *file,
 	if (!cq)
 		return -EINVAL;
 
-	ret = ib_modify_cq(cq, cmd.attr.cq_count, cmd.attr.cq_period);
+	ret = rdma_set_cq_moderation(cq, cmd.attr.cq_count, cmd.attr.cq_period);
 
 	uobj_put_obj_read(cq);
 

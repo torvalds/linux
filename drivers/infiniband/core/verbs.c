@@ -1550,12 +1550,12 @@ struct ib_cq *ib_create_cq(struct ib_device *device,
 }
 EXPORT_SYMBOL(ib_create_cq);
 
-int ib_modify_cq(struct ib_cq *cq, u16 cq_count, u16 cq_period)
+int rdma_set_cq_moderation(struct ib_cq *cq, u16 cq_count, u16 cq_period)
 {
 	return cq->device->modify_cq ?
 		cq->device->modify_cq(cq, cq_count, cq_period) : -ENOSYS;
 }
-EXPORT_SYMBOL(ib_modify_cq);
+EXPORT_SYMBOL(rdma_set_cq_moderation);
 
 int ib_destroy_cq(struct ib_cq *cq)
 {
