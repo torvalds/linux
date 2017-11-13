@@ -77,7 +77,7 @@ do_steps: &do_steps
 jobs:
   x86_64:
    docker:
-     - image: thehajime/lkl-docker:1.1
+     - image: lkldocker/circleci-x86_64:0.1
    environment:
      CROSS_COMPILE: ""
      MKARG: "dpdk=yes"
@@ -86,7 +86,7 @@ jobs:
 
   mingw32:
    docker:
-     - image: thehajime/lkl-docker:1.1
+     - image: lkldocker/circleci-mingw:0.1
    environment:
      CROSS_COMPILE: "i686-w64-mingw32-"
      LKL_TEST_DHCP: 1
@@ -94,7 +94,7 @@ jobs:
 
   android-arm32:
    docker:
-     - image: thehajime/lkl-docker:1.1
+     - image: lkldocker/circleci-android-arm32:0.1
    environment:
      CROSS_COMPILE: "arm-linux-androideabi-"
      LKL_TEST_DHCP: 1
@@ -104,7 +104,7 @@ jobs:
 
   android-aarch64:
    docker:
-     - image: thehajime/lkl-docker:1.1
+     - image: lkldocker/circleci-android-arm64:0.1
    environment:
      CROSS_COMPILE: "aarch64-linux-android-"
      LKL_TEST_DHCP: 1
@@ -114,7 +114,7 @@ jobs:
 
   x86_64_valgrind:
    docker:
-     - image: thehajime/lkl-docker:1.1
+     - image: lkldocker/circleci-x86_64:0.1
    environment:
      CROSS_COMPILE: ""
      MKARG: "dpdk=yes"
@@ -124,7 +124,7 @@ jobs:
 
   checkpatch:
    docker:
-     - image: thehajime/lkl-docker:1.1
+     - image: lkldocker/circleci:0.1
    environment:
    steps:
      - restore_cache:
