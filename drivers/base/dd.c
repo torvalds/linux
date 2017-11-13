@@ -464,6 +464,7 @@ pinctrl_bind_failed:
 	if (dev->pm_domain && dev->pm_domain->dismiss)
 		dev->pm_domain->dismiss(dev);
 	pm_runtime_reinit(dev);
+	dev_pm_set_driver_flags(dev, 0);
 
 	switch (ret) {
 	case -EPROBE_DEFER:
@@ -869,6 +870,7 @@ static void __device_release_driver(struct device *dev, struct device *parent)
 		if (dev->pm_domain && dev->pm_domain->dismiss)
 			dev->pm_domain->dismiss(dev);
 		pm_runtime_reinit(dev);
+		dev_pm_set_driver_flags(dev, 0);
 
 		klist_remove(&dev->p->knode_driver);
 		device_pm_check_callbacks(dev);

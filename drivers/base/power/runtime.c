@@ -894,9 +894,9 @@ static void pm_runtime_work(struct work_struct *work)
  *
  * Check if the time is right and queue a suspend request.
  */
-static void pm_suspend_timer_fn(unsigned long data)
+static void pm_suspend_timer_fn(struct timer_list *t)
 {
-	struct device *dev = (struct device *)data;
+	struct device *dev = from_timer(dev, t, power.suspend_timer);
 	unsigned long flags;
 	unsigned long expires;
 
@@ -1499,8 +1499,7 @@ void pm_runtime_init(struct device *dev)
 	INIT_WORK(&dev->power.work, pm_runtime_work);
 
 	dev->power.timer_expires = 0;
-	setup_timer(&dev->power.suspend_timer, pm_suspend_timer_fn,
-			(unsigned long)dev);
+	timer_setup(&dev->power.suspend_timer, pm_suspend_timer_fn, 0);
 
 	init_waitqueue_head(&dev->power.wait_queue);
 }

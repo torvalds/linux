@@ -849,8 +849,12 @@ static int acpi_lpss_resume(struct device *dev)
 #ifdef CONFIG_PM_SLEEP
 static int acpi_lpss_suspend_late(struct device *dev)
 {
-	int ret = pm_generic_suspend_late(dev);
+	int ret;
 
+	if (dev_pm_smart_suspend_and_suspended(dev))
+		return 0;
+
+	ret = pm_generic_suspend_late(dev);
 	return ret ? ret : acpi_lpss_suspend(dev, device_may_wakeup(dev));
 }
 
@@ -889,10 +893,17 @@ static struct dev_pm_domain acpi_lpss_pm_domain = {
 		.complete = acpi_subsys_complete,
 		.suspend = acpi_subsys_suspend,
 		.suspend_late = acpi_lpss_suspend_late,
+		.suspend_noirq = acpi_subsys_suspend_noirq,
+		.resume_noirq = acpi_subsys_resume_noirq,
 		.resume_early = acpi_lpss_resume_early,
 		.freeze = acpi_subsys_freeze,
+		.freeze_late = acpi_subsys_freeze_late,
+		.freeze_noirq = acpi_subsys_freeze_noirq,
+		.thaw_noirq = acpi_subsys_thaw_noirq,
 		.poweroff = acpi_subsys_suspend,
 		.poweroff_late = acpi_lpss_suspend_late,
+		.poweroff_noirq = acpi_subsys_suspend_noirq,
+		.restore_noirq = acpi_subsys_resume_noirq,
 		.restore_early = acpi_lpss_resume_early,
 #endif
 		.runtime_suspend = acpi_lpss_runtime_suspend,

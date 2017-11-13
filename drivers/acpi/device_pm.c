@@ -939,7 +939,8 @@ static bool acpi_dev_needs_resume(struct device *dev, struct acpi_device *adev)
 	u32 sys_target = acpi_target_system_state();
 	int ret, state;
 
-	if (device_may_wakeup(dev) != !!adev->wakeup.prepare_count)
+	if (!pm_runtime_suspended(dev) || !adev ||
+	    device_may_wakeup(dev) != !!adev->wakeup.prepare_count)
 		return true;
 
 	if (sys_target == ACPI_STATE_S0)
@@ -962,14 +963,16 @@ static bool acpi_dev_needs_resume(struct device *dev, struct acpi_device *adev)
 int acpi_subsys_prepare(struct device *dev)
 {
 	struct acpi_device *adev = ACPI_COMPANION(dev);
-	int ret;
 
-	ret = pm_generic_prepare(dev);
-	if (ret < 0)
-		return ret;
+	if (dev->driver && dev->driver->pm && dev->driver->pm->prepare) {
+		int ret = dev->driver->pm->prepare(dev);
 
-	if (!adev || !pm_runtime_suspended(dev))
-		return 0;
+		if (ret < 0)
+			return ret;
+
+		if (!ret && dev_pm_test_driver_flags(dev, DPM_FLAG_SMART_PREPARE))
+			return 0;
+	}
 
 	return !acpi_dev_needs_resume(dev, adev);
 }
@@ -996,12 +999,17 @@ EXPORT_SYMBOL_GPL(acpi_subsys_complete);
  * acpi_subsys_suspend - Run the device driver's suspend callback.
  * @dev: Device to handle.
  *
- * Follow PCI and resume devices suspended at run time before running their
- * system suspend callbacks.
+ * Follow PCI and resume devices from runtime suspend before running their
+ * system suspend callbacks, unless the driver can cope with runtime-suspended
+ * devices during system suspend and there are no ACPI-specific reasons for
+ * resuming them.
  */
 int acpi_subsys_suspend(struct device *dev)
 {
-	pm_runtime_resume(dev);
+	if (!dev_pm_test_driver_flags(dev, DPM_FLAG_SMART_SUSPEND) ||
+	    acpi_dev_needs_resume(dev, ACPI_COMPANION(dev)))
+		pm_runtime_resume(dev);
+
 	return pm_generic_suspend(dev);
 }
 EXPORT_SYMBOL_GPL(acpi_subsys_suspend);
@@ -1015,10 +1023,46 @@ EXPORT_SYMBOL_GPL(acpi_subsys_suspend);
  */
 int acpi_subsys_suspend_late(struct device *dev)
 {
-	int ret = pm_generic_suspend_late(dev);
+	int ret;
+
+	if (dev_pm_smart_suspend_and_suspended(dev))
+		return 0;
+
+	ret = pm_generic_suspend_late(dev);
 	return ret ? ret : acpi_dev_suspend(dev, device_may_wakeup(dev));
 }
 EXPORT_SYMBOL_GPL(acpi_subsys_suspend_late);
+
+/**
+ * acpi_subsys_suspend_noirq - Run the device driver's "noirq" suspend callback.
+ * @dev: Device to suspend.
+ */
+int acpi_subsys_suspend_noirq(struct device *dev)
+{
+	if (dev_pm_smart_suspend_and_suspended(dev))
+		return 0;
+
+	return pm_generic_suspend_noirq(dev);
+}
+EXPORT_SYMBOL_GPL(acpi_subsys_suspend_noirq);
+
+/**
+ * acpi_subsys_resume_noirq - Run the device driver's "noirq" resume callback.
+ * @dev: Device to handle.
+ */
+int acpi_subsys_resume_noirq(struct device *dev)
+{
+	/*
+	 * Devices with DPM_FLAG_SMART_SUSPEND may be left in runtime suspend
+	 * during system suspend, so update their runtime PM status to "active"
+	 * as they will be put into D0 going forward.
+	 */
+	if (dev_pm_smart_suspend_and_suspended(dev))
+		pm_runtime_set_active(dev);
+
+	return pm_generic_resume_noirq(dev);
+}
+EXPORT_SYMBOL_GPL(acpi_subsys_resume_noirq);
 
 /**
  * acpi_subsys_resume_early - Resume device using ACPI.
@@ -1047,11 +1091,60 @@ int acpi_subsys_freeze(struct device *dev)
 	 * runtime-suspended devices should not be touched during freeze/thaw
 	 * transitions.
 	 */
-	pm_runtime_resume(dev);
+	if (!dev_pm_test_driver_flags(dev, DPM_FLAG_SMART_SUSPEND))
+		pm_runtime_resume(dev);
+
 	return pm_generic_freeze(dev);
 }
 EXPORT_SYMBOL_GPL(acpi_subsys_freeze);
 
+/**
+ * acpi_subsys_freeze_late - Run the device driver's "late" freeze callback.
+ * @dev: Device to handle.
+ */
+int acpi_subsys_freeze_late(struct device *dev)
+{
+
+	if (dev_pm_smart_suspend_and_suspended(dev))
+		return 0;
+
+	return pm_generic_freeze_late(dev);
+}
+EXPORT_SYMBOL_GPL(acpi_subsys_freeze_late);
+
+/**
+ * acpi_subsys_freeze_noirq - Run the device driver's "noirq" freeze callback.
+ * @dev: Device to handle.
+ */
+int acpi_subsys_freeze_noirq(struct device *dev)
+{
+
+	if (dev_pm_smart_suspend_and_suspended(dev))
+		return 0;
+
+	return pm_generic_freeze_noirq(dev);
+}
+EXPORT_SYMBOL_GPL(acpi_subsys_freeze_noirq);
+
+/**
+ * acpi_subsys_thaw_noirq - Run the device driver's "noirq" thaw callback.
+ * @dev: Device to handle.
+ */
+int acpi_subsys_thaw_noirq(struct device *dev)
+{
+	/*
+	 * If the device is in runtime suspend, the "thaw" code may not work
+	 * correctly with it, so skip the driver callback and make the PM core
+	 * skip all of the subsequent "thaw" callbacks for the device.
+	 */
+	if (dev_pm_smart_suspend_and_suspended(dev)) {
+		dev->power.direct_complete = true;
+		return 0;
+	}
+
+	return pm_generic_thaw_noirq(dev);
+}
+EXPORT_SYMBOL_GPL(acpi_subsys_thaw_noirq);
 #endif /* CONFIG_PM_SLEEP */
 
 static struct dev_pm_domain acpi_general_pm_domain = {
@@ -1063,10 +1156,17 @@ static struct dev_pm_domain acpi_general_pm_domain = {
 		.complete = acpi_subsys_complete,
 		.suspend = acpi_subsys_suspend,
 		.suspend_late = acpi_subsys_suspend_late,
+		.suspend_noirq = acpi_subsys_suspend_noirq,
+		.resume_noirq = acpi_subsys_resume_noirq,
 		.resume_early = acpi_subsys_resume_early,
 		.freeze = acpi_subsys_freeze,
+		.freeze_late = acpi_subsys_freeze_late,
+		.freeze_noirq = acpi_subsys_freeze_noirq,
+		.thaw_noirq = acpi_subsys_thaw_noirq,
 		.poweroff = acpi_subsys_suspend,
 		.poweroff_late = acpi_subsys_suspend_late,
+		.poweroff_noirq = acpi_subsys_suspend_noirq,
+		.restore_noirq = acpi_subsys_resume_noirq,
 		.restore_early = acpi_subsys_resume_early,
 #endif
 	},
