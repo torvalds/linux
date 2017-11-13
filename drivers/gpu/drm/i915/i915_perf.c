@@ -3007,7 +3007,7 @@ static bool gen8_is_valid_flex_addr(struct drm_i915_private *dev_priv, u32 addr)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(flex_eu_regs); i++) {
-		if (flex_eu_regs[i].reg == addr)
+		if (i915_mmio_reg_offset(flex_eu_regs[i]) == addr)
 			return true;
 	}
 	return false;
@@ -3015,38 +3015,47 @@ static bool gen8_is_valid_flex_addr(struct drm_i915_private *dev_priv, u32 addr)
 
 static bool gen7_is_valid_b_counter_addr(struct drm_i915_private *dev_priv, u32 addr)
 {
-	return (addr >= OASTARTTRIG1.reg && addr <= OASTARTTRIG8.reg) ||
-		(addr >= OAREPORTTRIG1.reg && addr <= OAREPORTTRIG8.reg) ||
-		(addr >= OACEC0_0.reg && addr <= OACEC7_1.reg);
+	return (addr >= i915_mmio_reg_offset(OASTARTTRIG1) &&
+		addr <= i915_mmio_reg_offset(OASTARTTRIG8)) ||
+		(addr >= i915_mmio_reg_offset(OAREPORTTRIG1) &&
+		 addr <= i915_mmio_reg_offset(OAREPORTTRIG8)) ||
+		(addr >= i915_mmio_reg_offset(OACEC0_0) &&
+		 addr <= i915_mmio_reg_offset(OACEC7_1));
 }
 
 static bool gen7_is_valid_mux_addr(struct drm_i915_private *dev_priv, u32 addr)
 {
-	return addr == HALF_SLICE_CHICKEN2.reg ||
-		(addr >= MICRO_BP0_0.reg && addr <= NOA_WRITE.reg) ||
-		(addr >= OA_PERFCNT1_LO.reg && addr <= OA_PERFCNT2_HI.reg) ||
-		(addr >= OA_PERFMATRIX_LO.reg && addr <= OA_PERFMATRIX_HI.reg);
+	return addr == i915_mmio_reg_offset(HALF_SLICE_CHICKEN2) ||
+		(addr >= i915_mmio_reg_offset(MICRO_BP0_0) &&
+		 addr <= i915_mmio_reg_offset(NOA_WRITE)) ||
+		(addr >= i915_mmio_reg_offset(OA_PERFCNT1_LO) &&
+		 addr <= i915_mmio_reg_offset(OA_PERFCNT2_HI)) ||
+		(addr >= i915_mmio_reg_offset(OA_PERFMATRIX_LO) &&
+		 addr <= i915_mmio_reg_offset(OA_PERFMATRIX_HI));
 }
 
 static bool gen8_is_valid_mux_addr(struct drm_i915_private *dev_priv, u32 addr)
 {
 	return gen7_is_valid_mux_addr(dev_priv, addr) ||
-		addr == WAIT_FOR_RC6_EXIT.reg ||
-		(addr >= RPM_CONFIG0.reg && addr <= NOA_CONFIG(8).reg);
+		addr == i915_mmio_reg_offset(WAIT_FOR_RC6_EXIT) ||
+		(addr >= i915_mmio_reg_offset(RPM_CONFIG0) &&
+		 addr <= i915_mmio_reg_offset(NOA_CONFIG(8)));
 }
 
 static bool gen10_is_valid_mux_addr(struct drm_i915_private *dev_priv, u32 addr)
 {
 	return gen8_is_valid_mux_addr(dev_priv, addr) ||
-		(addr >= OA_PERFCNT3_LO.reg && addr <= OA_PERFCNT4_HI.reg);
+		(addr >= i915_mmio_reg_offset(OA_PERFCNT3_LO) &&
+		 addr <= i915_mmio_reg_offset(OA_PERFCNT4_HI));
 }
 
 static bool hsw_is_valid_mux_addr(struct drm_i915_private *dev_priv, u32 addr)
 {
 	return gen7_is_valid_mux_addr(dev_priv, addr) ||
 		(addr >= 0x25100 && addr <= 0x2FF90) ||
-		(addr >= HSW_MBVID2_NOA0.reg && addr <= HSW_MBVID2_NOA9.reg) ||
-		addr == HSW_MBVID2_MISR0.reg;
+		(addr >= i915_mmio_reg_offset(HSW_MBVID2_NOA0) &&
+		 addr <= i915_mmio_reg_offset(HSW_MBVID2_NOA9)) ||
+		addr == i915_mmio_reg_offset(HSW_MBVID2_MISR0);
 }
 
 static bool chv_is_valid_mux_addr(struct drm_i915_private *dev_priv, u32 addr)
@@ -3061,14 +3070,14 @@ static uint32_t mask_reg_value(u32 reg, u32 val)
 	 * WaDisableSTUnitPowerOptimization workaround. Make sure the value
 	 * programmed by userspace doesn't change this.
 	 */
-	if (HALF_SLICE_CHICKEN2.reg == reg)
+	if (i915_mmio_reg_offset(HALF_SLICE_CHICKEN2) == reg)
 		val = val & ~_MASKED_BIT_ENABLE(GEN8_ST_PO_DISABLE);
 
 	/* WAIT_FOR_RC6_EXIT has only one bit fullfilling the function
 	 * indicated by its name and a bunch of selection fields used by OA
 	 * configs.
 	 */
-	if (WAIT_FOR_RC6_EXIT.reg == reg)
+	if (i915_mmio_reg_offset(WAIT_FOR_RC6_EXIT) == reg)
 		val = val & ~_MASKED_BIT_ENABLE(HSW_WAIT_FOR_RC6_EXIT_ENABLE);
 
 	return val;
