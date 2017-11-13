@@ -32,7 +32,7 @@
 #include "ssi_sram_mgr.h"
 
 #define SSI_MAX_AHASH_SEQ_LEN 12
-#define SSI_MAX_HASH_OPAD_TMP_KEYS_SIZE SSI_MAX_HASH_BLCK_SIZE
+#define SSI_MAX_OPAD_KEYS_SIZE SSI_MAX_HASH_BLCK_SIZE
 
 struct ssi_hash_handle {
 	ssi_sram_addr_t digest_len_sram_addr; /* const value in SRAM*/
@@ -94,7 +94,7 @@ struct ssi_hash_ctx {
 	 * the initial digest if HASH.
 	 */
 	u8 digest_buff[SSI_MAX_HASH_DIGEST_SIZE]  ____cacheline_aligned;
-	u8 opad_tmp_keys_buff[SSI_MAX_HASH_OPAD_TMP_KEYS_SIZE]  ____cacheline_aligned;
+	u8 opad_tmp_keys_buff[SSI_MAX_OPAD_KEYS_SIZE]  ____cacheline_aligned;
 
 	dma_addr_t opad_tmp_keys_dma_addr  ____cacheline_aligned;
 	dma_addr_t digest_buff_dma_addr;
