@@ -100,7 +100,8 @@ enum {
 	IB_USER_VERBS_EX_CMD_MODIFY_WQ,
 	IB_USER_VERBS_EX_CMD_DESTROY_WQ,
 	IB_USER_VERBS_EX_CMD_CREATE_RWQ_IND_TBL,
-	IB_USER_VERBS_EX_CMD_DESTROY_RWQ_IND_TBL
+	IB_USER_VERBS_EX_CMD_DESTROY_RWQ_IND_TBL,
+	IB_USER_VERBS_EX_CMD_MODIFY_CQ
 };
 
 /*
@@ -1148,6 +1149,18 @@ struct ib_uverbs_ex_create_rwq_ind_table_resp {
 struct ib_uverbs_ex_destroy_rwq_ind_table  {
 	__u32 comp_mask;
 	__u32 ind_tbl_handle;
+};
+
+struct ib_uverbs_cq_moderation {
+	__u16 cq_count;
+	__u16 cq_period;
+};
+
+struct ib_uverbs_ex_modify_cq {
+	__u32 cq_handle;
+	__u32 attr_mask;
+	struct ib_uverbs_cq_moderation attr;
+	__u32 reserved;
 };
 
 #define IB_DEVICE_NAME_MAX 64

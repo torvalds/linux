@@ -311,6 +311,10 @@ struct ib_cq_init_attr {
 	u32		flags;
 };
 
+enum ib_cq_attr_mask {
+	IB_CQ_MODERATE = 1 << 0,
+};
+
 struct ib_device_attr {
 	u64			fw_ver;
 	__be64			sys_image_guid;

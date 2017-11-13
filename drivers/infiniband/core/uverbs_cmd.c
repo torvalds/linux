@@ -3856,3 +3856,45 @@ end:
 	err = ib_copy_to_udata(ucore, &resp, resp.response_length);
 	return err;
 }
+
+int ib_uverbs_ex_modify_cq(struct ib_uverbs_file *file,
+			   struct ib_device *ib_dev,
+			   struct ib_udata *ucore,
+			   struct ib_udata *uhw)
+{
+	struct ib_uverbs_ex_modify_cq cmd = {};
+	struct ib_cq *cq;
+	size_t required_cmd_sz;
+	int ret;
+
+	required_cmd_sz = offsetof(typeof(cmd), reserved) +
+				sizeof(cmd.reserved);
+	if (ucore->inlen < required_cmd_sz)
+		return -EINVAL;
+
+	/* sanity checks */
+	if (ucore->inlen > sizeof(cmd) &&
+	    !ib_is_udata_cleared(ucore, sizeof(cmd),
+				 ucore->inlen - sizeof(cmd)))
+		return -EOPNOTSUPP;
+
+	ret = ib_copy_from_udata(&cmd, ucore, min(sizeof(cmd), ucore->inlen));
+	if (ret)
+		return ret;
+
+	if (!cmd.attr_mask || cmd.reserved)
+		return -EINVAL;
+
+	if (cmd.attr_mask > IB_CQ_MODERATE)
+		return -EOPNOTSUPP;
+
+	cq = uobj_get_obj_read(cq, cmd.cq_handle, file->ucontext);
+	if (!cq)
+		return -EINVAL;
+
+	ret = ib_modify_cq(cq, cmd.attr.cq_count, cmd.attr.cq_period);
+
+	uobj_put_obj_read(cq);
+
+	return ret;
+}
