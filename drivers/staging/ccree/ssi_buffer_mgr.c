@@ -1473,8 +1473,8 @@ int cc_map_hash_request_final(struct ssi_drvdata *drvdata, void *ctx,
 				       &dummy, &mapped_nents))) {
 			goto unmap_curr_buff;
 		}
-		if (src && mapped_nents == 1
-		     && areq_ctx->data_dma_buf_type == SSI_DMA_BUF_NULL) {
+		if (src && mapped_nents == 1 &&
+		    areq_ctx->data_dma_buf_type == SSI_DMA_BUF_NULL) {
 			memcpy(areq_ctx->buff_sg, src,
 			       sizeof(struct scatterlist));
 			areq_ctx->buff_sg->length = nbytes;
@@ -1590,8 +1590,8 @@ int cc_map_hash_request_update(struct ssi_drvdata *drvdata, void *ctx,
 				       &mapped_nents))) {
 			goto unmap_curr_buff;
 		}
-		if (mapped_nents == 1
-		     && areq_ctx->data_dma_buf_type == SSI_DMA_BUF_NULL) {
+		if (mapped_nents == 1 &&
+		    areq_ctx->data_dma_buf_type == SSI_DMA_BUF_NULL) {
 			/* only one entry in the SG and no previous data */
 			memcpy(areq_ctx->buff_sg, src,
 			       sizeof(struct scatterlist));
