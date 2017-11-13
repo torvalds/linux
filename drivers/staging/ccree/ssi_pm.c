@@ -29,7 +29,7 @@
 #include "ssi_hash.h"
 #include "ssi_pm.h"
 
-#if defined(CONFIG_PM_RUNTIME) || defined(CONFIG_PM_SLEEP)
+#if defined(CONFIG_PM)
 
 #define POWER_DOWN_ENABLE 0x01
 #define POWER_DOWN_DISABLE 0x00
@@ -119,7 +119,7 @@ int cc_pm_put_suspend(struct device *dev)
 int cc_pm_init(struct ssi_drvdata *drvdata)
 {
 	int rc = 0;
-#if defined(CONFIG_PM_RUNTIME) || defined(CONFIG_PM_SLEEP)
+#if defined(CONFIG_PM)
 	struct device *dev = drvdata_to_dev(drvdata);
 
 	/* must be before the enabling to avoid resdundent suspending */
@@ -137,7 +137,7 @@ int cc_pm_init(struct ssi_drvdata *drvdata)
 
 void cc_pm_fini(struct ssi_drvdata *drvdata)
 {
-#if defined(CONFIG_PM_RUNTIME) || defined(CONFIG_PM_SLEEP)
+#if defined(CONFIG_PM)
 	pm_runtime_disable(drvdata_to_dev(drvdata));
 #endif
 }

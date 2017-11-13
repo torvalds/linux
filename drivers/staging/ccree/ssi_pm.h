@@ -29,7 +29,7 @@ int cc_pm_init(struct ssi_drvdata *drvdata);
 
 void cc_pm_fini(struct ssi_drvdata *drvdata);
 
-#if defined(CONFIG_PM_RUNTIME) || defined(CONFIG_PM_SLEEP)
+#if defined(CONFIG_PM)
 int cc_pm_suspend(struct device *dev);
 
 int cc_pm_resume(struct device *dev);

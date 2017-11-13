@@ -49,7 +49,7 @@ void complete_request(struct ssi_drvdata *drvdata);
 
 void request_mgr_fini(struct ssi_drvdata *drvdata);
 
-#if defined(CONFIG_PM_RUNTIME) || defined(CONFIG_PM_SLEEP)
+#if defined(CONFIG_PM)
 int cc_resume_req_queue(struct ssi_drvdata *drvdata);
 
 int cc_suspend_req_queue(struct ssi_drvdata *drvdata);

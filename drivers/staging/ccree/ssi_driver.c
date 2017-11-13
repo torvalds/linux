@@ -495,13 +495,13 @@ static int cc7x_remove(struct platform_device *plat_dev)
 	return 0;
 }
 
-#if defined(CONFIG_PM_RUNTIME) || defined(CONFIG_PM_SLEEP)
+#if defined(CONFIG_PM)
 static const struct dev_pm_ops arm_cc7x_driver_pm = {
 	SET_RUNTIME_PM_OPS(cc_pm_suspend, cc_pm_resume, NULL)
 };
 #endif
 
-#if defined(CONFIG_PM_RUNTIME) || defined(CONFIG_PM_SLEEP)
+#if defined(CONFIG_PM)
 #define	DX_DRIVER_RUNTIME_PM	(&arm_cc7x_driver_pm)
 #else
 #define	DX_DRIVER_RUNTIME_PM	NULL
