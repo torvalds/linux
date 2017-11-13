@@ -182,6 +182,19 @@
 		regulator-always-on;
 		vin-supply = <&vcc_stdby>;
 	};
+
+	hdmi_sound: hdmi-sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,mclk-fs = <256>;
+		simple-audio-card,name = "rockchip,hdmi";
+		simple-audio-card,cpu {
+			sound-dai = <&i2s0>;
+		};
+		simple-audio-card,codec {
+			sound-dai = <&hdmi>;
+		};
+	};
 };
 
 &cpu0 {
@@ -217,6 +230,11 @@
 };
 
 &gpu {
+	status = "okay";
+};
+
+&hdmi {
+	#sound-dai-cells = <0>;
 	status = "okay";
 };
 
@@ -357,6 +375,11 @@
 };
 
 &i2c4 {
+	status = "okay";
+};
+
+&i2s0 {
+	#sound-dai-cells = <0>;
 	status = "okay";
 };
 
