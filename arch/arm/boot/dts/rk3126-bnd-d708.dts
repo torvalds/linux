@@ -171,12 +171,14 @@
 		compatible = "fc,fy07018dh26d372-d", "simple-panel-dsi";
 		reg = <0>;
 		backlight = <&backlight>;
+		power-supply = <&ldo6>;
+		power-invert;
 		enable-gpios = <&gpio2 RK_PC3 GPIO_ACTIVE_HIGH>;
 		reset-gpios = <&gpio2 RK_PC0 GPIO_ACTIVE_LOW>;
 		prepare-delay-ms = <20>;
 		reset-delay-ms = <20>;
 		init-delay-ms = <20>;
-		enable-delay-ms = <20>;
+		enable-delay-ms = <120>;
 		disable-delay-ms = <20>;
 		unprepare-delay-ms = <20>;
 
