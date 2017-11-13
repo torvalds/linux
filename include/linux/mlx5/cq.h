@@ -128,6 +128,9 @@ enum {
 	CQE_SIZE_128_PAD = 2,
 };
 
+#define MLX5_MAX_CQ_PERIOD (BIT(__mlx5_bit_sz(cqc, cq_period)) - 1)
+#define MLX5_MAX_CQ_COUNT (BIT(__mlx5_bit_sz(cqc, cq_max_count)) - 1)
+
 static inline int cqe_sz_to_mlx_sz(u8 size, int padding_128_en)
 {
 	return padding_128_en ? CQE_SIZE_128_PAD :

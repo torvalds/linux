@@ -1149,6 +1149,9 @@ int mlx5_ib_modify_cq(struct ib_cq *cq, u16 cq_count, u16 cq_period)
 	if (!MLX5_CAP_GEN(dev->mdev, cq_moderation))
 		return -ENOSYS;
 
+	if (cq_period > MLX5_MAX_CQ_PERIOD)
+		return -EINVAL;
+
 	err = mlx5_core_modify_cq_moderation(dev->mdev, &mcq->mcq,
 					     cq_period, cq_count);
 	if (err)
