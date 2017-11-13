@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/hardirq.h>
 
 #include <asm/x86_init.h>

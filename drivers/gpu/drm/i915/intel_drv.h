@@ -496,7 +496,6 @@ struct intel_crtc_scaler_state {
 
 struct intel_pipe_wm {
 	struct intel_wm_level wm[5];
-	struct intel_wm_level raw_wm[5];
 	uint32_t linetime;
 	bool fbc_wm_enabled;
 	bool pipe_enabled;

@@ -584,6 +584,7 @@ static int pppol2tp_connect(struct socket *sock, struct sockaddr *uservaddr,
 	u32 tunnel_id, peer_tunnel_id;
 	u32 session_id, peer_session_id;
 	bool drop_refcnt = false;
+	bool drop_tunnel = false;
 	int ver = 2;
 	int fd;
 
@@ -652,7 +653,9 @@ static int pppol2tp_connect(struct socket *sock, struct sockaddr *uservaddr,
 	if (tunnel_id == 0)
 		goto end;
 
-	tunnel = l2tp_tunnel_find(sock_net(sk), tunnel_id);
+	tunnel = l2tp_tunnel_get(sock_net(sk), tunnel_id);
+	if (tunnel)
+		drop_tunnel = true;
 
 	/* Special case: create tunnel context if session_id and
 	 * peer_session_id is 0. Otherwise look up tunnel using supplied
@@ -781,6 +784,8 @@ out_no_ppp:
 end:
 	if (drop_refcnt)
 		l2tp_session_dec_refcount(session);
+	if (drop_tunnel)
+		l2tp_tunnel_dec_refcount(tunnel);
 	release_sock(sk);
 
 	return error;

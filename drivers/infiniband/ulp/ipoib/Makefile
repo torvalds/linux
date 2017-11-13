@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 obj-$(CONFIG_INFINIBAND_IPOIB)			+= ib_ipoib.o
 
 ib_ipoib-y					:= ipoib_main.o \

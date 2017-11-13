@@ -93,6 +93,10 @@ static int uvd_v6_0_early_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
+	if (!(adev->flags & AMD_IS_APU) &&
+	    (RREG32_SMC(ixCC_HARVEST_FUSES) & CC_HARVEST_FUSES__UVD_DISABLE_MASK))
+		return -ENOENT;
+
 	uvd_v6_0_set_ring_funcs(adev);
 	uvd_v6_0_set_irq_funcs(adev);
 

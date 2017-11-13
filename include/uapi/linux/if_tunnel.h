@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef _UAPI_IF_TUNNEL_H_
 #define _UAPI_IF_TUNNEL_H_
 

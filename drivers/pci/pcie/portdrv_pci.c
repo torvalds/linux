@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * File:	portdrv_pci.c
  * Purpose:	PCI Express Port Bus Driver

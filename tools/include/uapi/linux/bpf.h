@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /* Copyright (c) 2011-2014 PLUMgrid, http://plumgrid.com
  *
  * This program is free software; you can redistribute it and/or
@@ -569,14 +570,13 @@ union bpf_attr {
  *     @flags: reserved for future use
  *     Return: 0 on success or negative error code
  *
- * int bpf_sk_redirect_map(skb, map, key, flags)
+ * int bpf_sk_redirect_map(map, key, flags)
  *     Redirect skb to a sock in map using key as a lookup key for the
  *     sock in map.
- *     @skb: pointer to skb
  *     @map: pointer to sockmap
  *     @key: key to lookup sock in map
  *     @flags: reserved for future use
- *     Return: SK_REDIRECT
+ *     Return: SK_PASS
  *
  * int bpf_sock_map_update(skops, map, key, flags)
  *	@skops: pointer to bpf_sock_ops
@@ -789,7 +789,6 @@ struct xdp_md {
 enum sk_action {
 	SK_DROP = 0,
 	SK_PASS,
-	SK_REDIRECT,
 };
 
 #define BPF_TAG_SIZE	8

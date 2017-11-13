@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* ld script to make M32R Linux kernel
  */
 

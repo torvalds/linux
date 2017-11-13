@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 	/* SunOS's execv() call only specifies the argv argument, the
 	 * environment settings are the same as the calling processes.
 	 */

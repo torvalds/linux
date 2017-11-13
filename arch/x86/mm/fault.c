@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  Copyright (C) 1995  Linus Torvalds
  *  Copyright (C) 2001, 2002 Andi Kleen, SuSE Labs.
@@ -1440,7 +1441,17 @@ good_area:
 	 * make sure we exit gracefully rather than endlessly redo
 	 * the fault.  Since we never set FAULT_FLAG_RETRY_NOWAIT, if
 	 * we get VM_FAULT_RETRY back, the mmap_sem has been unlocked.
+	 *
+	 * Note that handle_userfault() may also release and reacquire mmap_sem
+	 * (and not return with VM_FAULT_RETRY), when returning to userland to
+	 * repeat the page fault later with a VM_FAULT_NOPAGE retval
+	 * (potentially after handling any pending signal during the return to
+	 * userland). The return to userland is identified whenever
+	 * FAULT_FLAG_USER|FAULT_FLAG_KILLABLE are both set in flags.
+	 * Thus we have to be careful about not touching vma after handling the
+	 * fault, so we read the pkey beforehand.
 	 */
+	pkey = vma_pkey(vma);
 	fault = handle_mm_fault(vma, address, flags);
 	major |= fault & VM_FAULT_MAJOR;
 
@@ -1467,7 +1478,6 @@ good_area:
 		return;
 	}
 
-	pkey = vma_pkey(vma);
 	up_read(&mm->mmap_sem);
 	if (unlikely(fault & VM_FAULT_ERROR)) {
 		mm_fault_error(regs, error_code, address, &pkey, fault);

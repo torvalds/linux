@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Manage cache of swap slots to be used for and returned from
  * swap.

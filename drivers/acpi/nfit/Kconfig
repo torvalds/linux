@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 config ACPI_NFIT
 	tristate "ACPI NVDIMM Firmware Interface Table (NFIT)"
 	depends on PHYS_ADDR_T_64BIT

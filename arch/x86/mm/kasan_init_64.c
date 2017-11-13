@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #define DISABLE_BRANCH_PROFILING
 #define pr_fmt(fmt) "kasan: " fmt
 #include <linux/bootmem.h>

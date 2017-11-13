@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_KTHREAD_H
 #define _LINUX_KTHREAD_H
 /* Simple interface for creating and stopping kernel threads without mess. */

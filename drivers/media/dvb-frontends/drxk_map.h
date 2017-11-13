@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #define  AUD_COMM_EXEC__A                                                  0x1000000
 #define    AUD_COMM_EXEC_STOP                                              0x0
 #define  FEC_COMM_EXEC__A                                                  0x1C00000

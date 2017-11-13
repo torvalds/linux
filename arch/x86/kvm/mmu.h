@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __KVM_X86_MMU_H
 #define __KVM_X86_MMU_H
 

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _DT_BINDINGS_STM32H7_PINFUNC_H
 #define _DT_BINDINGS_STM32H7_PINFUNC_H
 

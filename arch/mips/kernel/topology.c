@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/cpu.h>
 #include <linux/cpumask.h>
 #include <linux/init.h>

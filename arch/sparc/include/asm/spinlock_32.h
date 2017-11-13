@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* spinlock.h: 32-bit Sparc spinlock support.
  *
  * Copyright (C) 1997 David S. Miller (davem@caip.rutgers.edu)

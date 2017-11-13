@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 struct btcx_riscmem {
 	unsigned int   size;
 	__le32         *cpu;

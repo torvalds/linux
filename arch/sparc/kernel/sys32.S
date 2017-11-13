@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * sys32.S: I-cache tricks for 32-bit compatibility layer simple
  *          conversions.

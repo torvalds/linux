@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 menuconfig ARCH_CLPS711X
 	bool "Cirrus Logic EP721x/EP731x-based"
 	depends on ARCH_MULTI_V4T

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Write ahead logging implementation copyright Chris Mason 2000
  *

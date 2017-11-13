@@ -383,6 +383,7 @@ static struct snd_soc_dai_link tm2_dai_links[] = {
 	{
 		.name		= "WM5110 AIF1",
 		.stream_name	= "HiFi Primary",
+		.cpu_dai_name   = SAMSUNG_I2S_DAI,
 		.codec_dai_name = "wm5110-aif1",
 		.ops		= &tm2_aif1_ops,
 		.dai_fmt	= SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
@@ -390,6 +391,7 @@ static struct snd_soc_dai_link tm2_dai_links[] = {
 	}, {
 		.name		= "WM5110 Voice",
 		.stream_name	= "Voice call",
+		.cpu_dai_name   = SAMSUNG_I2S_DAI,
 		.codec_dai_name = "wm5110-aif2",
 		.ops		= &tm2_aif2_ops,
 		.dai_fmt	= SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
@@ -398,6 +400,7 @@ static struct snd_soc_dai_link tm2_dai_links[] = {
 	}, {
 		.name		= "WM5110 BT",
 		.stream_name	= "Bluetooth",
+		.cpu_dai_name   = SAMSUNG_I2S_DAI,
 		.codec_dai_name = "wm5110-aif3",
 		.dai_fmt	= SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
 				  SND_SOC_DAIFMT_CBM_CFM,
@@ -436,8 +439,7 @@ static int tm2_probe(struct platform_device *pdev)
 	snd_soc_card_set_drvdata(card, priv);
 	card->dev = dev;
 
-	priv->gpio_mic_bias = devm_gpiod_get(dev, "mic-bias",
-						GPIOF_OUT_INIT_LOW);
+	priv->gpio_mic_bias = devm_gpiod_get(dev, "mic-bias", GPIOD_OUT_HIGH);
 	if (IS_ERR(priv->gpio_mic_bias)) {
 		dev_err(dev, "Failed to get mic bias gpio\n");
 		return PTR_ERR(priv->gpio_mic_bias);
@@ -477,7 +479,6 @@ static int tm2_probe(struct platform_device *pdev)
 	}
 
 	for (i = 0; i < card->num_links; i++) {
-		card->dai_link[i].cpu_dai_name = NULL;
 		card->dai_link[i].cpu_name = NULL;
 		card->dai_link[i].platform_name = NULL;
 		card->dai_link[i].codec_of_node = codec_dai_node;

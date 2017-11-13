@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 config PPC_POWERNV
 	depends on PPC64 && PPC_BOOK3S
 	bool "IBM PowerNV (Non-Virtualized) platform support"

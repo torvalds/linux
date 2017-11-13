@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef _CRIS_STAT_H
 #define _CRIS_STAT_H
 
