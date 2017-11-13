@@ -164,15 +164,17 @@ static inline void enqueue_seq(
 	void __iomem *cc_base,
 	struct cc_hw_desc seq[], unsigned int seq_len)
 {
-	int i;
+	int i, w;
+	void * __iomem reg = cc_base + CC_REG(DSCRPTR_QUEUE_WORD0);
+
+	/*
+	 * We do indeed write all 6 command words to the same
+	 * register. The HW supports this.
+	 */
 
 	for (i = 0; i < seq_len; i++) {
-		writel_relaxed(seq[i].word[0], (cc_base + CC_REG(DSCRPTR_QUEUE_WORD0)));
-		writel_relaxed(seq[i].word[1], (cc_base + CC_REG(DSCRPTR_QUEUE_WORD0)));
-		writel_relaxed(seq[i].word[2], (cc_base + CC_REG(DSCRPTR_QUEUE_WORD0)));
-		writel_relaxed(seq[i].word[3], (cc_base + CC_REG(DSCRPTR_QUEUE_WORD0)));
-		writel_relaxed(seq[i].word[4], (cc_base + CC_REG(DSCRPTR_QUEUE_WORD0)));
-		writel_relaxed(seq[i].word[5], (cc_base + CC_REG(DSCRPTR_QUEUE_WORD0)));
+		for (w = 0; w <= 5; w++)
+			writel_relaxed(seq[i].word[w], reg);
 #ifdef DX_DUMP_DESCS
 		dev_dbg(dev, "desc[%02d]: 0x%08X 0x%08X 0x%08X 0x%08X 0x%08X 0x%08X\n",
 			i, seq[i].word[0], seq[i].word[1], seq[i].word[2],
