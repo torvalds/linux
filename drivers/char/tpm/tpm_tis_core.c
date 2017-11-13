@@ -252,7 +252,7 @@ out:
  * tpm.c can skip polling for the data to be available as the interrupt is
  * waited for here
  */
-static int tpm_tis_send_data(struct tpm_chip *chip, u8 *buf, size_t len)
+static int tpm_tis_send_data(struct tpm_chip *chip, const u8 *buf, size_t len)
 {
 	struct tpm_tis_data *priv = dev_get_drvdata(&chip->dev);
 	int rc, status, burstcnt;
@@ -343,7 +343,7 @@ static void disable_interrupts(struct tpm_chip *chip)
  * tpm.c can skip polling for the data to be available as the interrupt is
  * waited for here
  */
-static int tpm_tis_send_main(struct tpm_chip *chip, u8 *buf, size_t len)
+static int tpm_tis_send_main(struct tpm_chip *chip, const u8 *buf, size_t len)
 {
 	struct tpm_tis_data *priv = dev_get_drvdata(&chip->dev);
 	int rc;
@@ -445,7 +445,7 @@ static int probe_itpm(struct tpm_chip *chip)
 {
 	struct tpm_tis_data *priv = dev_get_drvdata(&chip->dev);
 	int rc = 0;
-	u8 cmd_getticks[] = {
+	static const u8 cmd_getticks[] = {
 		0x00, 0xc1, 0x00, 0x00, 0x00, 0x0a,
 		0x00, 0x00, 0x00, 0xf1
 	};
