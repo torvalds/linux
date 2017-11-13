@@ -401,9 +401,6 @@ static int do_tls_setsockopt_tx(struct sock *sk, char __user *optval,
 		goto out;
 	}
 
-	ctx->sk_write_space = sk->sk_write_space;
-	sk->sk_write_space = tls_write_space;
-
 	/* currently SW is default, we will have ethtool in future */
 	rc = tls_set_sw_offload(sk, ctx);
 	tx_conf = TLS_SW_TX;
@@ -412,6 +409,8 @@ static int do_tls_setsockopt_tx(struct sock *sk, char __user *optval,
 
 	ctx->tx_conf = tx_conf;
 	update_sk_prot(sk, ctx);
+	ctx->sk_write_space = sk->sk_write_space;
+	sk->sk_write_space = tls_write_space;
 	goto out;
 
 err_crypto_info:
