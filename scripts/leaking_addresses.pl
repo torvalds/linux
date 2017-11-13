@@ -228,6 +228,7 @@ sub may_leak_address
 
 	# Signal masks.
 	if ($line =~ '^SigBlk:' or
+	    $line =~ '^SigIgn:' or
 	    $line =~ '^SigCgt:') {
 		return 0;
 	}
