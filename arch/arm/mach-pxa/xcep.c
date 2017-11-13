@@ -32,6 +32,7 @@
 #include <mach/smemc.h>
 
 #include "generic.h"
+#include "devices.h"
 
 #define XCEP_ETH_PHYS		(PXA_CS3_PHYS + 0x00000300)
 #define XCEP_ETH_PHYS_END	(PXA_CS3_PHYS + 0x000fffff)

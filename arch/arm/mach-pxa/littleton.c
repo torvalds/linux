@@ -42,6 +42,7 @@
 #include <asm/mach/irq.h>
 
 #include "pxa300.h"
+#include "devices.h"
 #include <linux/platform_data/video-pxafb.h>
 #include <linux/platform_data/mmc-pxamci.h>
 #include <linux/platform_data/keypad-pxa27x.h>

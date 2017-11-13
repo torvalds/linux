@@ -22,6 +22,7 @@
 #include <linux/gpio.h>
 
 #include "pxa300.h"
+#include "devices.h"
 #include "zylonite.h"
 
 #include "generic.h"

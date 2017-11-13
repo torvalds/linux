@@ -56,3 +56,12 @@ extern struct platform_device pxa93x_device_gpio;
 
 void __init pxa_register_device(struct platform_device *dev, void *data);
 void __init pxa2xx_set_dmac_info(int nb_channels, int nb_requestors);
+
+struct i2c_pxa_platform_data;
+extern void pxa_set_i2c_info(struct i2c_pxa_platform_data *info);
+#ifdef CONFIG_PXA27x
+extern void pxa27x_set_i2c_power_info(struct i2c_pxa_platform_data *info);
+#endif
+#ifdef CONFIG_PXA3xx
+extern void pxa3xx_set_i2c_power_info(struct i2c_pxa_platform_data *info);
+#endif
