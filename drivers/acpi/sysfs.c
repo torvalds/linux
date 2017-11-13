@@ -169,7 +169,8 @@ module_param_cb(debug_level, &param_ops_debug_level, &acpi_dbg_level, 0644);
 
 static char trace_method_name[1024];
 
-int param_set_trace_method_name(const char *val, const struct kernel_param *kp)
+static int param_set_trace_method_name(const char *val,
+				       const struct kernel_param *kp)
 {
 	u32 saved_flags = 0;
 	bool is_abs_path = true;
