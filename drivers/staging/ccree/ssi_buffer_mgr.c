@@ -691,7 +691,6 @@ void cc_unmap_aead_request(struct device *dev, struct aead_request *req)
 	if (drvdata->coherent &&
 	    areq_ctx->gen_ctx.op_type == DRV_CRYPTO_DIRECTION_DECRYPT &&
 	    likely(req->src == req->dst)) {
-
 		/* copy back mac from temporary location to deal with possible
 		 * data memory overriding that caused by cache coherence problem.
 		 */

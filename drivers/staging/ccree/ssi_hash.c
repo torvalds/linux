@@ -2061,7 +2061,6 @@ ssi_hash_create_alg(struct ssi_hash_template *template, struct device *dev,
 	if (!t_crypto_alg)
 		return ERR_PTR(-ENOMEM);
 
-
 	t_crypto_alg->ahash_alg = template->template_ahash;
 	halg = &t_crypto_alg->ahash_alg;
 	alg = &halg->halg.base;
