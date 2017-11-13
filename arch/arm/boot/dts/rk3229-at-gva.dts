@@ -46,7 +46,7 @@
 
 / {
 	model = "RK3229 ANDROID THINGS 3NOD Board";
-	compatible = "rockchip,rk3229-at-3nod", "rockchip,rk3229";
+	compatible = "rockchip,rk3229-at-gva", "rockchip,rk3229";
 
 	sdio_pwrseq: sdio-pwrseq {
 		compatible = "mmc-pwrseq-simple";
