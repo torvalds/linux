@@ -1302,13 +1302,13 @@ int sensor_register_slave(int type, struct i2c_client *client,
 	struct sensor_operate *ops = get_sensor_ops();
 
 	if ((ops->id_i2c >= SENSOR_NUM_ID) || (ops->id_i2c <= ID_INVALID)) {
-		dev_err(&client->dev, "%s:%s id is error %d\n", __func__, ops->name, ops->id_i2c);
+		printk(KERN_ERR "%s:%s id is error %d\n", __func__, ops->name, ops->id_i2c);
 		return -1;
 	}
 	sensor_ops[ops->id_i2c] = ops;
 	sensor_probe_times[ops->id_i2c] = 0;
 
-	dev_info(&client->dev, "%s:%s,id=%d\n", __func__, sensor_ops[ops->id_i2c]->name, ops->id_i2c);
+	printk(KERN_INFO "%s:%s,id=%d\n", __func__, sensor_ops[ops->id_i2c]->name, ops->id_i2c);
 
 	return result;
 }
@@ -1321,10 +1321,10 @@ int sensor_unregister_slave(int type, struct i2c_client *client,
 	struct sensor_operate *ops = get_sensor_ops();
 
 	if ((ops->id_i2c >= SENSOR_NUM_ID) || (ops->id_i2c <= ID_INVALID)) {
-		dev_err(&client->dev, "%s:%s id is error %d\n", __func__, ops->name, ops->id_i2c);
+		printk(KERN_ERR "%s:%s id is error %d\n", __func__, ops->name, ops->id_i2c);
 		return -1;
 	}
-	dev_info(&client->dev, "%s:%s,id=%d\n", __func__, sensor_ops[ops->id_i2c]->name, ops->id_i2c);
+	printk(KERN_INFO "%s:%s,id=%d\n", __func__, sensor_ops[ops->id_i2c]->name, ops->id_i2c);
 	sensor_ops[ops->id_i2c] = NULL;
 
 	return result;
