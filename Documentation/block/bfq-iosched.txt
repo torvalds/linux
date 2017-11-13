@@ -20,12 +20,17 @@ for that device, by setting low_latency to 0. See Section 3 for
 details on how to configure BFQ for the desired tradeoff between
 latency and throughput, or on how to maximize throughput.
 
-On average CPUs, the current version of BFQ can handle devices
-performing at most ~30K IOPS; at most ~50 KIOPS on faster CPUs. As a
-reference, 30-50 KIOPS correspond to very high bandwidths with
-sequential I/O (e.g., 8-12 GB/s if I/O requests are 256 KB large), and
-to 120-200 MB/s with 4KB random I/O. BFQ is currently being tested on
-multi-queue devices too.
+BFQ has a non-null overhead, which limits the maximum IOPS that the
+CPU can process for a device scheduled with BFQ. To give an idea of
+the limits on slow or average CPUs, here are BFQ limits for three
+different CPUs, on, respectively, an average laptop, an old desktop,
+and a cheap embedded system, in case full hierarchical support is
+enabled (i.e., CONFIG_BFQ_GROUP_IOSCHED is set):
+- Intel i7-4850HQ: 250 KIOPS
+- AMD A8-3850: 170 KIOPS
+- ARM CortexTM-A53 Octa-core: 45 KIOPS
+
+BFQ works for multi-queue devices too.
 
 The table of contents follow. Impatients can just jump to Section 3.
 
