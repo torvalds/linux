@@ -136,6 +136,8 @@ static const char * const gemini_padgroups[] = {
 	"PCI CLK",
 	NULL, NULL,
 	"TVC CLK",
+	NULL, NULL, NULL, NULL, NULL,
+	"GMAC1",
 };
 
 static const struct pinctrl_pin_desc gemini_3512_pins[] = {
