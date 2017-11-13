@@ -98,6 +98,7 @@ config PINCTRL_AT91PIO4
 
 config PINCTRL_AMD
 	tristate "AMD GPIO pin control"
+	depends on HAS_IOMEM
 	select GPIOLIB
 	select GPIOLIB_IRQCHIP
 	select PINCONF
@@ -201,6 +202,7 @@ config PINCTRL_RZA1
 config PINCTRL_SINGLE
 	tristate "One-register-per-pin type device tree based pinctrl driver"
 	depends on OF
+	depends on HAS_IOMEM
 	select GENERIC_PINCTRL_GROUPS
 	select GENERIC_PINMUX_FUNCTIONS
 	select GENERIC_PINCONF
