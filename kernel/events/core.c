@@ -1624,22 +1624,6 @@ perf_event_groups_next(struct perf_event *event)
 }
 
 /*
- * Rotate the @cpu subtree.
- *
- * Re-insert the leftmost event at the tail of the subtree.
- */
-static void
-perf_event_groups_rotate(struct perf_event_groups *groups, int cpu)
-{
-	struct perf_event *event = perf_event_groups_first(groups, cpu);
-
-	if (event) {
-		perf_event_groups_delete(groups, event);
-		perf_event_groups_insert(groups, event);
-	}
-}
-
-/*
  * Iterate through the whole groups tree.
  */
 #define perf_event_groups_for_each(event, groups)			\
@@ -3601,24 +3585,24 @@ static void perf_adjust_freq_unthr_context(struct perf_event_context *ctx,
 }
 
 /*
- * Round-robin a context's events:
+ * Move @event to the tail of the @ctx's elegible events.
  */
-static void rotate_ctx(struct perf_event_context *ctx)
+static void rotate_ctx(struct perf_event_context *ctx, struct perf_event *event)
 {
 	/*
 	 * Rotate the first entry last of non-pinned groups. Rotation might be
 	 * disabled by the inheritance code.
 	 */
-	if (!ctx->rotate_disable) {
-		int sw = -1, cpu = smp_processor_id();
+	if (ctx->rotate_disable)
+		return;
 
-		perf_event_groups_rotate(&ctx->flexible_groups, sw);
-		perf_event_groups_rotate(&ctx->flexible_groups, cpu);
-	}
+	perf_event_groups_delete(&ctx->flexible_groups, event);
+	perf_event_groups_insert(&ctx->flexible_groups, event);
 }
 
 static int perf_rotate_context(struct perf_cpu_context *cpuctx)
 {
+	struct perf_event *ctx_event = NULL, *cpuctx_event = NULL;
 	struct perf_event_context *ctx = NULL;
 	int rotate = 0;
 
@@ -3639,13 +3623,21 @@ static int perf_rotate_context(struct perf_cpu_context *cpuctx)
 	perf_ctx_lock(cpuctx, cpuctx->task_ctx);
 	perf_pmu_disable(cpuctx->ctx.pmu);
 
+	cpuctx_event = list_first_entry_or_null(&cpuctx->ctx.flexible_active,
+						struct perf_event, active_list);
+	if (ctx) {
+		ctx_event = list_first_entry_or_null(&ctx->flexible_active,
+						     struct perf_event, active_list);
+	}
+
 	cpu_ctx_sched_out(cpuctx, EVENT_FLEXIBLE);
 	if (ctx)
 		ctx_sched_out(ctx, cpuctx, EVENT_FLEXIBLE);
 
-	rotate_ctx(&cpuctx->ctx);
-	if (ctx)
-		rotate_ctx(ctx);
+	if (cpuctx_event)
+		rotate_ctx(&cpuctx->ctx, cpuctx_event);
+	if (ctx_event)
+		rotate_ctx(ctx, ctx_event);
 
 	perf_event_sched_in(cpuctx, ctx, current);
 
