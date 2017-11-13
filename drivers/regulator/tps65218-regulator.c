@@ -28,9 +28,6 @@
 #include <linux/regulator/machine.h>
 #include <linux/mfd/tps65218.h>
 
-enum tps65218_regulators { DCDC1, DCDC2, DCDC3, DCDC4,
-			   DCDC5, DCDC6, LDO1, LS3 };
-
 #define TPS65218_REGULATOR(_name, _of, _id, _type, _ops, _n, _vr, _vm, _er, \
 			   _em, _cr, _cm, _lr, _nlr, _delay, _fuv, _sr, _sm) \
 	{							\
