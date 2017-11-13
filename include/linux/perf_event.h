@@ -549,14 +549,9 @@ struct perf_event {
 	struct list_head		event_entry;
 
 	/*
-	 * XXX: group_entry and sibling_list should be mutually exclusive;
-	 * either you're a sibling on a group, or you're the group leader.
-	 * Rework the code to always use the same list element.
-	 *
 	 * Locked for modification by both ctx->mutex and ctx->lock; holding
 	 * either sufficies for read.
 	 */
-	struct list_head		group_entry;
 	struct list_head		sibling_list;
 	/*
 	 * Node on the pinned or flexible tree located at the event context;

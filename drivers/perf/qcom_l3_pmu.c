@@ -468,7 +468,7 @@ static bool qcom_l3_cache__validate_event_group(struct perf_event *event)
 	counters = event_num_counters(event);
 	counters += event_num_counters(leader);
 
-	list_for_each_entry(sibling, &leader->sibling_list, group_entry) {
+	list_for_each_entry(sibling, &leader->sibling_list, sibling_list) {
 		if (is_software_event(sibling))
 			continue;
 		if (sibling->pmu != event->pmu)

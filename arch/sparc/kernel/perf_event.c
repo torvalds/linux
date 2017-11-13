@@ -1342,7 +1342,7 @@ static int collect_events(struct perf_event *group, int max_count,
 		events[n] = group->hw.event_base;
 		current_idx[n++] = PIC_NO_INDEX;
 	}
-	list_for_each_entry(event, &group->sibling_list, group_entry) {
+	list_for_each_entry(event, &group->sibling_list, sibling_list) {
 		if (!is_software_event(event) &&
 		    event->state != PERF_EVENT_STATE_OFF) {
 			if (n >= max_count)

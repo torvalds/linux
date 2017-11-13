@@ -82,8 +82,7 @@ static bool hisi_validate_event_group(struct perf_event *event)
 			counters++;
 	}
 
-	list_for_each_entry(sibling, &event->group_leader->sibling_list,
-			    group_entry) {
+	list_for_each_entry(sibling, &event->group_leader->sibling_list, sibling_list) {
 		if (is_software_event(sibling))
 			continue;
 		if (sibling->pmu != event->pmu)

@@ -1311,7 +1311,7 @@ validate_group(struct perf_event *event)
 	if (!validate_event(event->pmu, &fake_pmu, leader))
 		return -EINVAL;
 
-	list_for_each_entry(sibling, &leader->sibling_list, group_entry) {
+	list_for_each_entry(sibling, &leader->sibling_list, sibling_list) {
 		if (!validate_event(event->pmu, &fake_pmu, sibling))
 			return -EINVAL;
 	}

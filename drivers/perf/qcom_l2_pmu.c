@@ -535,7 +535,7 @@ static int l2_cache_event_init(struct perf_event *event)
 	}
 
 	list_for_each_entry(sibling, &event->group_leader->sibling_list,
-			    group_entry)
+			    sibling_list)
 		if (sibling->pmu != event->pmu &&
 		    !is_software_event(sibling)) {
 			dev_dbg_ratelimited(&l2cache_pmu->pdev->dev,
@@ -572,7 +572,7 @@ static int l2_cache_event_init(struct perf_event *event)
 	}
 
 	list_for_each_entry(sibling, &event->group_leader->sibling_list,
-			    group_entry) {
+			    sibling_list) {
 		if ((sibling != event) &&
 		    !is_software_event(sibling) &&
 		    (L2_EVT_GROUP(sibling->attr.config) ==

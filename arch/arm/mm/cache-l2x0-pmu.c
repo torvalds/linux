@@ -293,7 +293,7 @@ static bool l2x0_pmu_group_is_valid(struct perf_event *event)
 	else if (!is_software_event(leader))
 		return false;
 
-	list_for_each_entry(sibling, &leader->sibling_list, group_entry) {
+	list_for_each_entry(sibling, &leader->sibling_list, sibling_list) {
 		if (sibling->pmu == pmu)
 			num_hw++;
 		else if (!is_software_event(sibling))

@@ -990,7 +990,7 @@ static int collect_events(struct cpu_hw_events *cpuc, struct perf_event *leader,
 	if (!dogrp)
 		return n;
 
-	list_for_each_entry(event, &leader->sibling_list, group_entry) {
+	list_for_each_entry(event, &leader->sibling_list, sibling_list) {
 		if (!is_x86_event(event) ||
 		    event->state <= PERF_EVENT_STATE_OFF)
 			continue;

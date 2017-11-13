@@ -643,7 +643,7 @@ static void perf_event_update_sibling_time(struct perf_event *leader)
 {
 	struct perf_event *sibling;
 
-	list_for_each_entry(sibling, &leader->sibling_list, group_entry)
+	list_for_each_entry(sibling, &leader->sibling_list, sibling_list)
 		perf_event_update_time(sibling);
 }
 
@@ -1835,12 +1835,12 @@ static void perf_group_attach(struct perf_event *event)
 
 	group_leader->group_caps &= event->event_caps;
 
-	list_add_tail(&event->group_entry, &group_leader->sibling_list);
+	list_add_tail(&event->sibling_list, &group_leader->sibling_list);
 	group_leader->nr_siblings++;
 
 	perf_event__header_size(group_leader);
 
-	list_for_each_entry(pos, &group_leader->sibling_list, group_entry)
+	list_for_each_entry(pos, &group_leader->sibling_list, sibling_list)
 		perf_event__header_size(pos);
 }
 
@@ -1904,7 +1904,7 @@ static void perf_group_detach(struct perf_event *event)
 	 * If this is a sibling, remove it from its group.
 	 */
 	if (event->group_leader != event) {
-		list_del_init(&event->group_entry);
+		list_del_init(&event->sibling_list);
 		event->group_leader->nr_siblings--;
 		goto out;
 	}
@@ -1914,7 +1914,7 @@ static void perf_group_detach(struct perf_event *event)
 	 * upgrade the siblings to singleton events by adding them
 	 * to whatever list we are on.
 	 */
-	list_for_each_entry_safe(sibling, tmp, &event->sibling_list, group_entry) {
+	list_for_each_entry_safe(sibling, tmp, &event->sibling_list, sibling_list) {
 
 		sibling->group_leader = sibling;
 
@@ -1922,7 +1922,7 @@ static void perf_group_detach(struct perf_event *event)
 		sibling->group_caps = event->group_caps;
 
 		if (!RB_EMPTY_NODE(&event->group_node)) {
-			list_del_init(&sibling->group_entry);
+			list_del_init(&sibling->sibling_list);
 			add_event_to_groups(sibling, event->ctx);
 		}
 
@@ -1932,7 +1932,7 @@ static void perf_group_detach(struct perf_event *event)
 out:
 	perf_event__header_size(event->group_leader);
 
-	list_for_each_entry(tmp, &event->group_leader->sibling_list, group_entry)
+	list_for_each_entry(tmp, &event->group_leader->sibling_list, sibling_list)
 		perf_event__header_size(tmp);
 }
 
@@ -1960,7 +1960,7 @@ static inline int pmu_filter_match(struct perf_event *event)
 	if (!__pmu_filter_match(event))
 		return 0;
 
-	list_for_each_entry(child, &event->sibling_list, group_entry) {
+	list_for_each_entry(child, &event->sibling_list, sibling_list) {
 		if (!__pmu_filter_match(child))
 			return 0;
 	}
@@ -2028,7 +2028,7 @@ group_sched_out(struct perf_event *group_event,
 	/*
 	 * Schedule out siblings (if any):
 	 */
-	list_for_each_entry(event, &group_event->sibling_list, group_entry)
+	list_for_each_entry(event, &group_event->sibling_list, sibling_list)
 		event_sched_out(event, cpuctx, ctx);
 
 	perf_pmu_enable(ctx->pmu);
@@ -2307,7 +2307,7 @@ group_sched_in(struct perf_event *group_event,
 	/*
 	 * Schedule in siblings as one group (if any):
 	 */
-	list_for_each_entry(event, &group_event->sibling_list, group_entry) {
+	list_for_each_entry(event, &group_event->sibling_list, sibling_list) {
 		if (event_sched_in(event, cpuctx, ctx)) {
 			partial_group = event;
 			goto group_error;
@@ -2323,7 +2323,7 @@ group_error:
 	 * partial group before returning:
 	 * The events up to the failed event are scheduled out normally.
 	 */
-	list_for_each_entry(event, &group_event->sibling_list, group_entry) {
+	list_for_each_entry(event, &group_event->sibling_list, sibling_list) {
 		if (event == partial_group)
 			break;
 
@@ -3796,7 +3796,7 @@ static void __perf_event_read(void *info)
 
 	pmu->read(event);
 
-	list_for_each_entry(sub, &event->sibling_list, group_entry) {
+	list_for_each_entry(sub, &event->sibling_list, sibling_list) {
 		if (sub->state == PERF_EVENT_STATE_ACTIVE) {
 			/*
 			 * Use sibling's PMU rather than @event's since
@@ -4642,7 +4642,7 @@ static int __perf_read_group_add(struct perf_event *leader,
 	if (read_format & PERF_FORMAT_ID)
 		values[n++] = primary_event_id(leader);
 
-	list_for_each_entry(sub, &leader->sibling_list, group_entry) {
+	list_for_each_entry(sub, &leader->sibling_list, sibling_list) {
 		values[n++] += perf_event_count(sub);
 		if (read_format & PERF_FORMAT_ID)
 			values[n++] = primary_event_id(sub);
@@ -4836,7 +4836,7 @@ static void perf_event_for_each(struct perf_event *event,
 	event = event->group_leader;
 
 	perf_event_for_each_child(event, func);
-	list_for_each_entry(sibling, &event->sibling_list, group_entry)
+	list_for_each_entry(sibling, &event->sibling_list, sibling_list)
 		perf_event_for_each_child(sibling, func);
 }
 
@@ -5995,7 +5995,7 @@ static void perf_output_read_group(struct perf_output_handle *handle,
 
 	__output_copy(handle, values, n * sizeof(u64));
 
-	list_for_each_entry(sub, &leader->sibling_list, group_entry) {
+	list_for_each_entry(sub, &leader->sibling_list, sibling_list) {
 		n = 0;
 
 		if ((sub != event) &&
@@ -9813,7 +9813,6 @@ perf_event_alloc(struct perf_event_attr *attr, int cpu,
 	mutex_init(&event->child_mutex);
 	INIT_LIST_HEAD(&event->child_list);
 
-	INIT_LIST_HEAD(&event->group_entry);
 	INIT_LIST_HEAD(&event->event_entry);
 	INIT_LIST_HEAD(&event->sibling_list);
 	init_event_group(event);
@@ -10581,7 +10580,7 @@ SYSCALL_DEFINE5(perf_event_open,
 		put_ctx(gctx);
 
 		list_for_each_entry(sibling, &group_leader->sibling_list,
-				    group_entry) {
+				    sibling_list) {
 			perf_remove_from_context(sibling, 0);
 			put_ctx(gctx);
 		}
@@ -10603,7 +10602,7 @@ SYSCALL_DEFINE5(perf_event_open,
 		 * reachable through the group lists.
 		 */
 		list_for_each_entry(sibling, &group_leader->sibling_list,
-				    group_entry) {
+				    sibling_list) {
 			perf_event__state_init(sibling);
 			perf_install_in_context(ctx, sibling, sibling->cpu);
 			get_ctx(ctx);
@@ -11242,7 +11241,7 @@ static int inherit_group(struct perf_event *parent_event,
 	 * case inherit_event() will create individual events, similar to what
 	 * perf_group_detach() would do anyway.
 	 */
-	list_for_each_entry(sub, &parent_event->sibling_list, group_entry) {
+	list_for_each_entry(sub, &parent_event->sibling_list, sibling_list) {
 		child_ctr = inherit_event(sub, parent, parent_ctx,
 					    child, leader, child_ctx);
 		if (IS_ERR(child_ctr))
