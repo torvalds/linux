@@ -1730,20 +1730,33 @@
 	isapnp=		[ISAPNP]
 			Format: <RDP>,<reset>,<pci_scan>,<verbosity>
 
-	isolcpus=	[KNL,SMP] Isolate CPUs from the general scheduler.
-			The argument is a cpu list, as described above.
+	isolcpus=	[KNL,SMP] Isolate a given set of CPUs from disturbance.
+			[Deprecated - use cpusets instead]
+			Format: [flag-list,]<cpu-list>
 
-			This option can be used to specify one or more CPUs
-			to isolate from the general SMP balancing and scheduling
-			algorithms. You can move a process onto or off an
-			"isolated" CPU via the CPU affinity syscalls or cpuset.
-			<cpu number> begins at 0 and the maximum value is
-			"number of CPUs in system - 1".
+			Specify one or more CPUs to isolate from disturbances
+			specified in the flag list (default: domain):
 
-			This option is the preferred way to isolate CPUs. The
-			alternative -- manually setting the CPU mask of all
-			tasks in the system -- can cause problems and
-			suboptimal load balancer performance.
+			nohz
+			  Disable the tick when a single task runs.
+			domain
+			  Isolate from the general SMP balancing and scheduling
+			  algorithms. Note that performing domain isolation this way
+			  is irreversible: it's not possible to bring back a CPU to
+			  the domains once isolated through isolcpus. It's strongly
+			  advised to use cpusets instead to disable scheduler load
+			  balancing through the "cpuset.sched_load_balance" file.
+			  It offers a much more flexible interface where CPUs can
+			  move in and out of an isolated set anytime.
+
+			  You can move a process onto or off an "isolated" CPU via
+			  the CPU affinity syscalls or cpuset.
+			  <cpu number> begins at 0 and the maximum value is
+			  "number of CPUs in system - 1".
+
+			The format of <cpu-list> is described above.
+
+
 
 	iucv=		[HW,NET]
 
@@ -4209,6 +4222,9 @@
 			Used to run time disable IRQ_TIME_ACCOUNTING on any
 			platforms where RDTSC is slow and this accounting
 			can add overhead.
+			[x86] unstable: mark the TSC clocksource as unstable, this
+			marks the TSC unconditionally unstable at bootup and
+			avoids any further wobbles once the TSC watchdog notices.
 
 	turbografx.map[2|3]=	[HW,JOY]
 			TurboGraFX parallel port interface

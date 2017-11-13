@@ -138,7 +138,7 @@ static const char * const task_state_array[] = {
 static inline const char *get_task_state(struct task_struct *tsk)
 {
 	BUILD_BUG_ON(1 + ilog2(TASK_REPORT_MAX) != ARRAY_SIZE(task_state_array));
-	return task_state_array[__get_task_state(tsk)];
+	return task_state_array[task_state_index(tsk)];
 }
 
 static inline int get_task_umask(struct task_struct *tsk)
