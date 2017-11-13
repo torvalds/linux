@@ -136,13 +136,6 @@ struct timekeeper {
 extern void update_vsyscall(struct timekeeper *tk);
 extern void update_vsyscall_tz(void);
 
-#elif defined(CONFIG_GENERIC_TIME_VSYSCALL_OLD)
-
-extern void update_vsyscall_old(struct timespec *ts, struct timespec *wtm,
-				struct clocksource *c, u32 mult,
-				u64 cycle_last);
-extern void update_vsyscall_tz(void);
-
 #else
 
 static inline void update_vsyscall(struct timekeeper *tk)
