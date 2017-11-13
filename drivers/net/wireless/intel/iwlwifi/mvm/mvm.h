@@ -1042,6 +1042,7 @@ struct iwl_mvm {
  * @IWL_MVM_STATUS_ROC_AUX_RUNNING: AUX remain-on-channel is running
  * @IWL_MVM_STATUS_D3_RECONFIG: D3 reconfiguration is being done
  * @IWL_MVM_STATUS_FIRMWARE_RUNNING: firmware is running
+ * @IWL_MVM_STATUS_NEED_FLUSH_P2P: need to flush P2P bcast STA
  */
 enum iwl_mvm_status {
 	IWL_MVM_STATUS_HW_RFKILL,
@@ -1053,6 +1054,7 @@ enum iwl_mvm_status {
 	IWL_MVM_STATUS_ROC_AUX_RUNNING,
 	IWL_MVM_STATUS_D3_RECONFIG,
 	IWL_MVM_STATUS_FIRMWARE_RUNNING,
+	IWL_MVM_STATUS_NEED_FLUSH_P2P,
 };
 
 /* Keep track of completed init configuration */
