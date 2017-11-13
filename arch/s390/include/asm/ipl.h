@@ -13,6 +13,8 @@
 #include <asm/cio.h>
 #include <asm/setup.h>
 
+#define NSS_NAME_SIZE	8
+
 #define IPL_PARMBLOCK_ORIGIN	0x2000
 
 #define IPL_PARM_BLK_FCP_LEN (sizeof(struct ipl_list_hdr) + \
@@ -106,7 +108,6 @@ extern size_t append_ipl_scpdata(char *, size_t);
 enum {
 	IPL_DEVNO_VALID		= 1,
 	IPL_PARMBLOCK_VALID	= 2,
-	IPL_NSS_VALID		= 4,
 };
 
 enum ipl_type {

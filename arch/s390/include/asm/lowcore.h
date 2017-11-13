@@ -134,8 +134,9 @@ struct lowcore {
 	__u8	pad_0x03b4[0x03b8-0x03b4];	/* 0x03b4 */
 	__u64	gmap;				/* 0x03b8 */
 	__u32	spinlock_lockval;		/* 0x03c0 */
-	__u32	fpu_flags;			/* 0x03c4 */
-	__u8	pad_0x03c8[0x0400-0x03c8];	/* 0x03c8 */
+	__u32	spinlock_index;			/* 0x03c4 */
+	__u32	fpu_flags;			/* 0x03c8 */
+	__u8	pad_0x03cc[0x0400-0x03cc];	/* 0x03cc */
 
 	/* Per cpu primary space access list */
 	__u32	paste[16];			/* 0x0400 */

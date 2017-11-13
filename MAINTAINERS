@@ -14335,6 +14335,7 @@ L:	virtualization@lists.linux-foundation.org
 L:	kvm@vger.kernel.org
 S:	Supported
 F:	drivers/s390/virtio/
+F:	arch/s390/include/uapi/asm/virtio-ccw.h
 
 VIRTIO GPU DRIVER
 M:	David Airlie <airlied@linux.ie>
