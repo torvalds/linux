@@ -1636,9 +1636,6 @@ static u8 ReadAdapterInfo8703BS(PADAPTER padapter)
 	}
 #endif /* CONFIG_PLATFORM_INTEL_BYT */
 
-	if (!rtw_is_hw_init_completed(padapter))
-		rtw_write8(padapter, 0x67, 0x00); /* for BT, Switch Ant control to BT */
-
 	return _SUCCESS;
 }
 

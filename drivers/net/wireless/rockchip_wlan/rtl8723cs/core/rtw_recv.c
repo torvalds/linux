@@ -805,6 +805,86 @@ sint recv_decache(union recv_frame *precv_frame, u8 bretry, struct stainfo_rxcac
 
 }
 
+#define PN_LESS_CHK(a, b)	(((a-b) & 0x800000000000) != 0)
+#define PN_EQUAL_CHK(a, b)	(a == b)
+sint recv_ucast_pn_decache(union recv_frame *precv_frame, struct stainfo_rxcache *prxcache);
+sint recv_ucast_pn_decache(union recv_frame *precv_frame, struct stainfo_rxcache *prxcache)
+{
+	_adapter *padapter = precv_frame->u.hdr.adapter;
+	struct rx_pkt_attrib *pattrib = &precv_frame->u.hdr.attrib;
+	u8 *pdata = precv_frame->u.hdr.rx_data;
+	u32 data_len = precv_frame->u.hdr.len;
+	sint tid = precv_frame->u.hdr.attrib.priority;
+	u64 tmp_iv_hdr = 0;
+	u64 curr_pn = 0, pkt_pn = 0;
+
+	if (tid > 15)
+		return _FAIL;
+
+	if (pattrib->encrypt == _AES_) {
+		_rtw_memcpy(&tmp_iv_hdr, (pdata + pattrib->hdrlen), 8);
+		tmp_iv_hdr = le64_to_cpu(tmp_iv_hdr);
+		pkt_pn = (tmp_iv_hdr & 0x000000000000ffff)		|
+			((tmp_iv_hdr & 0xffffffff00000000) >> 16);
+
+		_rtw_memcpy(&tmp_iv_hdr, prxcache->iv[tid], 8);
+		tmp_iv_hdr = le64_to_cpu(tmp_iv_hdr);
+		curr_pn = (tmp_iv_hdr & 0x000000000000ffff)		|
+			((tmp_iv_hdr & 0xffffffff00000000) >> 16);
+
+		if (curr_pn == 0) {
+			_rtw_memcpy(prxcache->iv[tid], (pdata + pattrib->hdrlen), sizeof(prxcache->iv[tid]));
+			goto exit;
+		}
+
+		if (PN_LESS_CHK(pkt_pn, curr_pn) || PN_EQUAL_CHK(pkt_pn, curr_pn)) {
+			/* return _FAIL; */
+		} else 
+			_rtw_memcpy(prxcache->iv[tid], (pdata + pattrib->hdrlen), sizeof(prxcache->iv[tid]));
+	}
+
+exit:
+	return _SUCCESS;
+}
+
+sint recv_bcast_pn_decache(union recv_frame *precv_frame);
+sint recv_bcast_pn_decache(union recv_frame *precv_frame)
+{
+	_adapter *padapter = precv_frame->u.hdr.adapter;
+	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
+	struct security_priv *psecuritypriv = &padapter->securitypriv;
+	struct rx_pkt_attrib *pattrib = &precv_frame->u.hdr.attrib;
+	u8 *pdata = precv_frame->u.hdr.rx_data;
+	u32 data_len = precv_frame->u.hdr.len;
+	u64 tmp_iv_hdr = 0;
+	u64 curr_pn = 0, pkt_pn = 0;
+	u8 key_id;
+
+	if ((pattrib->encrypt == _AES_) &&
+		(check_fwstate(pmlmepriv, WIFI_STATION_STATE) == _TRUE)) {		
+		_rtw_memcpy(&tmp_iv_hdr, (pdata + pattrib->hdrlen), 8);
+		tmp_iv_hdr = le64_to_cpu(tmp_iv_hdr);
+		key_id = ((tmp_iv_hdr & 0x00000000c0000000) >> 30);
+		pkt_pn = (tmp_iv_hdr & 0x000000000000ffff)		|
+			((tmp_iv_hdr & 0xffffffff00000000) >> 16);
+
+		if (key_id >= 4 )
+			return _FAIL;
+
+		_rtw_memcpy(&tmp_iv_hdr,  psecuritypriv->iv_seq[key_id], 8);
+		tmp_iv_hdr = le64_to_cpu(tmp_iv_hdr);
+		curr_pn = (tmp_iv_hdr & 0x000000000000ffff)		|
+			((tmp_iv_hdr & 0xffffffff00000000) >> 16);
+
+		if (PN_LESS_CHK(pkt_pn, curr_pn) || PN_EQUAL_CHK(pkt_pn, curr_pn)) {
+			return _FAIL;
+		} else
+			_rtw_memcpy(psecuritypriv->iv_seq[key_id], (pdata + pattrib->hdrlen), sizeof(psecuritypriv->iv_seq[key_id]));
+	}
+
+	return _SUCCESS;
+}
+
 void process_pwrbit_data(_adapter *padapter, union recv_frame *precv_frame);
 void process_pwrbit_data(_adapter *padapter, union recv_frame *precv_frame)
 {
@@ -1860,6 +1940,25 @@ sint validate_recv_data_frame(_adapter *adapter, union recv_frame *precv_frame)
 #endif
 		ret = _FAIL;
 		goto exit;
+	}
+
+	if (!IS_MCAST(pattrib->ra)) {
+		if (recv_ucast_pn_decache(precv_frame, &psta->sta_recvpriv.rxcache) == _FAIL) {
+#ifdef DBG_RX_DROP_FRAME
+			RTW_INFO("DBG_RX_DROP_FRAME %s recv_ucast_pn_decache return _FAIL\n", __func__);
+#endif
+			ret = _FAIL;
+			goto exit;
+		}		
+	} else {
+		if (recv_bcast_pn_decache(precv_frame) == _FAIL) {
+#ifdef DBG_RX_DROP_FRAME
+			RTW_INFO("DBG_RX_DROP_FRAME "FUNC_ADPT_FMT" recv_bcast_pn_decache _FAIL for invalid PN!\n"
+				, FUNC_ADPT_ARG(adapter));
+#endif
+			ret = _FAIL;
+			goto exit;
+		}
 	}
 
 	if (pattrib->privacy) {

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2012 Realtek Corporation. All rights reserved.
- *                                        
+ *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
  * published by the Free Software Foundation.
@@ -21,7 +21,7 @@
 
 #include <drv_types.h>
 #ifdef CONFIG_IOCTL_CFG80211
-#include <rtw_wifi_regd.h>
+	#include <rtw_wifi_regd.h>
 #endif /* CONFIG_IOCTL_CFG80211 */
 #include <hal_data.h>
 

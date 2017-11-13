@@ -384,6 +384,8 @@ void rtw_btcoex_BtMpRptNotify(PADAPTER, u8 length, u8 *tmpBuf);
 void rtw_btcoex_SuspendNotify(PADAPTER, u8 state);
 void rtw_btcoex_HaltNotify(PADAPTER);
 void rtw_btcoex_switchband_notify(u8 under_scan, u8 band_type);
+void rtw_btcoex_WlFwDbgInfoNotify(PADAPTER padapter, u8* tmpBuf, u8 length);
+void rtw_btcoex_rx_rate_change_notify(PADAPTER padapter, u8 is_data_frame, u8 rate_id);
 void rtw_btcoex_SwitchBtTRxMask(PADAPTER);
 void rtw_btcoex_Switch(PADAPTER, u8 enable);
 u8 rtw_btcoex_IsBtDisabled(PADAPTER);

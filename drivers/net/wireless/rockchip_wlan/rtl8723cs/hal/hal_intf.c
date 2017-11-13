@@ -857,6 +857,9 @@ s32 c2h_handler(_adapter *adapter, u8 id, u8 seq, u8 plen, u8 *payload)
 	case C2H_MAILBOX_STATUS:
 		RTW_INFO_DUMP("C2H_MAILBOX_STATUS: ", payload, plen);
 		break;
+	case C2H_WLAN_INFO:
+		rtw_btcoex_WlFwDbgInfoNotify(adapter, payload, plen);
+		break;
 #endif /* CONFIG_BT_COEXIST */
 
 	case C2H_IQK_FINISH:

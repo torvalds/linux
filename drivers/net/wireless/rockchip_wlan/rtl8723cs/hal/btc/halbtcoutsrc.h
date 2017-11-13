@@ -1,6 +1,106 @@
 #ifndef	__HALBTC_OUT_SRC_H__
 #define __HALBTC_OUT_SRC_H__
 
+enum {
+	BTC_CCK_1,
+	BTC_CCK_2,
+	BTC_CCK_5_5,
+	BTC_CCK_11,
+	BTC_OFDM_6,
+	BTC_OFDM_9,
+	BTC_OFDM_12,
+	BTC_OFDM_18,
+	BTC_OFDM_24,
+	BTC_OFDM_36,
+	BTC_OFDM_48,
+	BTC_OFDM_54,
+	BTC_MCS_0,
+	BTC_MCS_1,
+	BTC_MCS_2,
+	BTC_MCS_3,
+	BTC_MCS_4,
+	BTC_MCS_5,
+	BTC_MCS_6,
+	BTC_MCS_7,
+	BTC_MCS_8,
+	BTC_MCS_9,
+	BTC_MCS_10,
+	BTC_MCS_11,
+	BTC_MCS_12,
+	BTC_MCS_13,
+	BTC_MCS_14,
+	BTC_MCS_15,
+	BTC_MCS_16,
+	BTC_MCS_17,
+	BTC_MCS_18,
+	BTC_MCS_19,
+	BTC_MCS_20,
+	BTC_MCS_21,
+	BTC_MCS_22,
+	BTC_MCS_23,
+	BTC_MCS_24,
+	BTC_MCS_25,
+	BTC_MCS_26,
+	BTC_MCS_27,
+	BTC_MCS_28,
+	BTC_MCS_29,
+	BTC_MCS_30,
+	BTC_MCS_31,
+	BTC_VHT_1SS_MCS_0,
+	BTC_VHT_1SS_MCS_1,
+	BTC_VHT_1SS_MCS_2,
+	BTC_VHT_1SS_MCS_3,
+	BTC_VHT_1SS_MCS_4,
+	BTC_VHT_1SS_MCS_5,
+	BTC_VHT_1SS_MCS_6,
+	BTC_VHT_1SS_MCS_7,
+	BTC_VHT_1SS_MCS_8,
+	BTC_VHT_1SS_MCS_9,
+	BTC_VHT_2SS_MCS_0,
+	BTC_VHT_2SS_MCS_1,
+	BTC_VHT_2SS_MCS_2,
+	BTC_VHT_2SS_MCS_3,
+	BTC_VHT_2SS_MCS_4,
+	BTC_VHT_2SS_MCS_5,
+	BTC_VHT_2SS_MCS_6,
+	BTC_VHT_2SS_MCS_7,
+	BTC_VHT_2SS_MCS_8,
+	BTC_VHT_2SS_MCS_9,
+	BTC_VHT_3SS_MCS_0,
+	BTC_VHT_3SS_MCS_1,
+	BTC_VHT_3SS_MCS_2,
+	BTC_VHT_3SS_MCS_3,
+	BTC_VHT_3SS_MCS_4,
+	BTC_VHT_3SS_MCS_5,
+	BTC_VHT_3SS_MCS_6,
+	BTC_VHT_3SS_MCS_7,
+	BTC_VHT_3SS_MCS_8,
+	BTC_VHT_3SS_MCS_9,
+	BTC_VHT_4SS_MCS_0,
+	BTC_VHT_4SS_MCS_1,
+	BTC_VHT_4SS_MCS_2,
+	BTC_VHT_4SS_MCS_3,
+	BTC_VHT_4SS_MCS_4,
+	BTC_VHT_4SS_MCS_5,
+	BTC_VHT_4SS_MCS_6,
+	BTC_VHT_4SS_MCS_7,
+	BTC_VHT_4SS_MCS_8,
+	BTC_VHT_4SS_MCS_9,
+	BTC_MCS_32,
+	BTC_UNKNOWN,
+	BTC_PKT_MGNT,
+	BTC_PKT_CTRL,
+	BTC_PKT_UNKNOWN,
+	BTC_PKT_NOT_FOR_ME,
+	BTC_RATE_MAX
+};
+
+enum {
+	BTC_MULTIPORT_SCC,
+	BTC_MULTIPORT_MCC_DUAL_CHANNEL,
+	BTC_MULTIPORT_MCC_DUAL_BAND,
+	BTC_MULTIPORT_MAX
+};
 
 #define		BTC_COEX_OFFLOAD			0
 #define		BTC_TMP_BUF_SHORT		20
@@ -119,6 +219,7 @@ struct btc_board_info {
 	u8				ant_det_result;
 	boolean			ant_det_result_five_complete;
 	u32				antdetval;
+	u8				customerID;
 };
 
 typedef enum _BTC_DBG_OPCODE {
@@ -237,6 +338,7 @@ typedef enum _BTC_GET_TYPE {
 	BTC_GET_BL_HS_CONNECTING,
 	BTC_GET_BL_WIFI_FW_READY,
 	BTC_GET_BL_WIFI_CONNECTED,
+	BTC_GET_BL_WIFI_DUAL_BAND_CONNECTED,
 	BTC_GET_BL_WIFI_BUSY,
 	BTC_GET_BL_WIFI_SCAN,
 	BTC_GET_BL_WIFI_LINK,
@@ -263,6 +365,8 @@ typedef enum _BTC_GET_TYPE {
 	BTC_GET_U4_VENDOR,
 	BTC_GET_U4_SUPPORTED_VERSION,
 	BTC_GET_U4_SUPPORTED_FEATURE,
+	BTC_GET_U4_BT_DEVICE_INFO,
+	BTC_GET_U4_BT_FORBIDDEN_SLOT_VAL,
 	BTC_GET_U4_WIFI_IQK_TOTAL,
 	BTC_GET_U4_WIFI_IQK_OK,
 	BTC_GET_U4_WIFI_IQK_FAIL,
@@ -276,6 +380,9 @@ typedef enum _BTC_GET_TYPE {
 	BTC_GET_U1_AP_NUM,
 	BTC_GET_U1_ANT_TYPE,
 	BTC_GET_U1_IOT_PEER,
+
+	/* type u2Byte */
+	BTC_GET_U2_BEACON_PERIOD,
 
 	/*===== for 1Ant ======*/
 	BTC_GET_U1_LPS_MODE,
@@ -316,6 +423,8 @@ typedef enum _BTC_SET_TYPE {
 	BTC_SET_ACT_LEAVE_LPS,
 	BTC_SET_ACT_ENTER_LPS,
 	BTC_SET_ACT_NORMAL_LPS,
+	BTC_SET_ACT_PRE_NORMAL_LPS,
+	BTC_SET_ACT_POST_NORMAL_LPS,
 	BTC_SET_ACT_DISABLE_LOW_POWER,
 	BTC_SET_ACT_UPDATE_RAMASK,
 	BTC_SET_ACT_SEND_MIMO_PS,
@@ -668,6 +777,12 @@ typedef u4Byte
 	IN		u1Byte	info_type
 	);
 
+typedef VOID
+(*BTC_PHYDM_MODIFY_ANTDIV_HWSW)(
+	IN		PVOID	pDM_Odm,
+	IN		u1Byte	type
+	);
+
 typedef u1Byte
 (*BFP_BTC_GET_ANT_DET_VAL_FROM_BT)(
 
@@ -772,6 +887,7 @@ struct btc_statistics {
 	u32					cnt_coex_dm_switch;
 	u32					cnt_stack_operation_notify;
 	u32					cnt_dbg_ctrl;
+	u32					cnt_rate_id_notify;
 };
 
 struct btc_coexist {
@@ -830,6 +946,7 @@ struct btc_coexist {
 	BFP_BTC_GET_PHYDM_VERSION		btc_get_bt_phydm_version;
 	BTC_PHYDM_MODIFY_RA_PCR_THRESHLOD	btc_phydm_modify_RA_PCR_threshold;
 	BTC_PHYDM_CMNINFOQUERY				btc_phydm_query_PHY_counter;
+	BTC_PHYDM_MODIFY_ANTDIV_HWSW		btc_phydm_modify_ANTDIV_HwSw;
 	BFP_BTC_GET_ANT_DET_VAL_FROM_BT		btc_get_ant_det_val_from_bt;
 	BFP_BTC_GET_BLE_SCAN_TYPE_FROM_BT	btc_get_ble_scan_type_from_bt;
 	BFP_BTC_GET_BLE_SCAN_PARA_FROM_BT	btc_get_ble_scan_para_from_bt;
@@ -905,6 +1022,18 @@ VOID
 EXhalbtcoutsrc_RfStatusNotify(
 	IN	PBTC_COEXIST		pBtCoexist,
 	IN	u1Byte				type
+	);
+VOID
+EXhalbtcoutsrc_WlFwDbgInfoNotify(
+	IN	PBTC_COEXIST		pBtCoexist,
+	IN	pu1Byte			tmpBuf,
+	IN	u1Byte			length
+	);
+VOID
+EXhalbtcoutsrc_rx_rate_change_notify(
+	IN	PBTC_COEXIST	pBtCoexist,
+	IN 	BOOLEAN			is_data_frame,
+	IN	u1Byte			btc_rate_id
 	);
 VOID
 EXhalbtcoutsrc_StackOperationNotify(

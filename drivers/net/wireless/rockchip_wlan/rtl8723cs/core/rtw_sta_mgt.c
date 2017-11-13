@@ -505,8 +505,10 @@ struct	sta_info *rtw_alloc_stainfo(struct	sta_priv *pstapriv, u8 *hwaddr)
 		 * In this case, this packet will be dropped by recv_decache function if we use the 0x00 as the default value for tid_rxseq variable.
 		 * So, we initialize the tid_rxseq variable as the 0xffff. */
 
-		for (i = 0; i < 16; i++)
+		for (i = 0; i < 16; i++) {
 			_rtw_memcpy(&psta->sta_recvpriv.rxcache.tid_rxseq[i], &wRxSeqInitialValue, 2);
+			_rtw_memset(&psta->sta_recvpriv.rxcache.iv[i], 0, sizeof(psta->sta_recvpriv.rxcache.iv[i]));
+		}
 
 
 		init_addba_retry_timer(pstapriv->padapter, psta);

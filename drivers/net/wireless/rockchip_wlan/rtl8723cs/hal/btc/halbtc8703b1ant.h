@@ -242,11 +242,11 @@ struct coex_sta_8703b_1ant {
 	u32					crc_err_11n_vht;
 
 	boolean				cck_lock;
-	boolean				pre_ccklock;
-	boolean				cck_ever_lock;
-	u8					coex_table_type;
+	boolean				cck_lock_ever;
+	boolean				cck_lock_warn;
 
-	boolean				force_lps_on;
+	u8					coex_table_type;
+	boolean				force_lps_ctrl;
 
 	boolean				concurrent_rx_mode_on;
 
@@ -280,6 +280,7 @@ struct coex_sta_8703b_1ant {
 	u32					cnt_ReInit;
 	u32					cnt_IgnWlanAct;
 	u32					cnt_Page;
+	u32					cnt_RoleSwitch;
 
 	u16					bt_reg_vendor_ac;
 	u16					bt_reg_vendor_ae;
@@ -288,7 +289,20 @@ struct coex_sta_8703b_1ant {
 	u8					wl_noisy_level;
 	u32                 gnt_error_cnt;
 
+	u8					bt_afh_map[10];
+	u8					bt_relink_downcount;
+	boolean				is_tdma_btautoslot;
+	boolean				is_tdma_btautoslot_hang;
+
 	boolean				is_rf_state_off;
+
+	boolean				is_hid_low_pri_tx_overhead;
+	boolean				is_bt_multi_link;
+	boolean				is_bt_a2dp_sink;
+
+	u8					wl_fw_dbg_info[10];
+	u8					wl_rx_rate;
+	u8					wl_rts_rx_rate;
 };
 
 #define  BT_8703B_1ANT_ANTDET_PSD_POINTS			256	/* MAX:1024 */
@@ -354,6 +368,10 @@ void ex_halbtc8703b1ant_specific_packet_notify(IN struct btc_coexist *btcoexist,
 		IN u8 type);
 void ex_halbtc8703b1ant_bt_info_notify(IN struct btc_coexist *btcoexist,
 				       IN u8 *tmp_buf, IN u8 length);
+void ex_halbtc8703b1ant_wl_fwdbginfo_notify(IN struct btc_coexist *btcoexist,
+				       IN u8 *tmp_buf, IN u8 length);
+void ex_halbtc8703b1ant_rx_rate_change_notify(IN struct btc_coexist *btcoexist,
+		IN BOOLEAN is_data_frame, IN u8 btc_rate_id);
 void ex_halbtc8703b1ant_rf_status_notify(IN struct btc_coexist *btcoexist,
 		IN u8 type);
 void ex_halbtc8703b1ant_halt_notify(IN struct btc_coexist *btcoexist);
@@ -383,6 +401,8 @@ void ex_halbtc8703b1ant_display_ant_detection(IN struct btc_coexist *btcoexist);
 #define	ex_halbtc8703b1ant_media_status_notify(btcoexist, type)
 #define	ex_halbtc8703b1ant_specific_packet_notify(btcoexist, type)
 #define	ex_halbtc8703b1ant_bt_info_notify(btcoexist, tmp_buf, length)
+#define ex_halbtc8703b1ant_wl_fwdbginfo_notify(btcoexist, tmp_buf, length)
+#define	ex_halbtc8703b1ant_rx_rate_change_notify(btcoexist, is_data_frame, btc_rate_id)
 #define	ex_halbtc8703b1ant_rf_status_notify(btcoexist, type)
 #define	ex_halbtc8703b1ant_halt_notify(btcoexist)
 #define	ex_halbtc8703b1ant_pnp_notify(btcoexist, pnp_state)

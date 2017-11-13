@@ -1230,7 +1230,8 @@ int rtw_set_country(_adapter *adapter, const char *country_code)
 #ifdef CONFIG_RTW_IOCTL_SET_COUNTRY
 	return rtw_set_country_cmd(adapter, RTW_CMDF_WAIT_ACK, country_code, 1);
 #else
-	return _FAIL;
+	RTW_INFO("%s(): not applied\n", __func__);
+	return _SUCCESS;
 #endif
 }
 

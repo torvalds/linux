@@ -108,6 +108,7 @@ struct recv_reorder_ctrl {
 
 struct	stainfo_rxcache	{
 	u16	tid_rxseq[16];
+	u8 iv[16][8];
 #if 0
 	unsigned short	tid0_rxseq;
 	unsigned short	tid1_rxseq;
