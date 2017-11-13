@@ -2094,12 +2094,20 @@ get_fence_array(struct drm_i915_gem_execbuffer2 *args,
 			goto err;
 		}
 
+		if (fence.flags & __I915_EXEC_FENCE_UNKNOWN_FLAGS) {
+			err = -EINVAL;
+			goto err;
+		}
+
 		syncobj = drm_syncobj_find(file, fence.handle);
 		if (!syncobj) {
 			DRM_DEBUG("Invalid syncobj handle provided\n");
 			err = -ENOENT;
 			goto err;
 		}
+
+		BUILD_BUG_ON(~(ARCH_KMALLOC_MINALIGN - 1) &
+			     ~__I915_EXEC_FENCE_UNKNOWN_FLAGS);
 
 		fences[n] = ptr_pack_bits(syncobj, fence.flags, 2);
 	}

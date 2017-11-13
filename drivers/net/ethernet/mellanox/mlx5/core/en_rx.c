@@ -215,22 +215,20 @@ static inline bool mlx5e_rx_cache_get(struct mlx5e_rq *rq,
 static inline int mlx5e_page_alloc_mapped(struct mlx5e_rq *rq,
 					  struct mlx5e_dma_info *dma_info)
 {
-	struct page *page;
-
 	if (mlx5e_rx_cache_get(rq, dma_info))
 		return 0;
 
-	page = dev_alloc_pages(rq->buff.page_order);
-	if (unlikely(!page))
+	dma_info->page = dev_alloc_pages(rq->buff.page_order);
+	if (unlikely(!dma_info->page))
 		return -ENOMEM;
 
-	dma_info->addr = dma_map_page(rq->pdev, page, 0,
+	dma_info->addr = dma_map_page(rq->pdev, dma_info->page, 0,
 				      RQ_PAGE_SIZE(rq), rq->buff.map_dir);
 	if (unlikely(dma_mapping_error(rq->pdev, dma_info->addr))) {
-		put_page(page);
+		put_page(dma_info->page);
+		dma_info->page = NULL;
 		return -ENOMEM;
 	}
-	dma_info->page = page;
 
 	return 0;
 }

@@ -1375,6 +1375,7 @@ u64 snd_usb_interface_dsd_format_quirks(struct snd_usb_audio *chip,
 			case 0x199:
 				return SNDRV_PCM_FMTBIT_DSD_U32_LE;
 			case 0x19b:
+			case 0x203:
 				return SNDRV_PCM_FMTBIT_DSD_U32_BE;
 			default:
 				break;
