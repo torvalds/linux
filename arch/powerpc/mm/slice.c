@@ -419,7 +419,7 @@ unsigned long slice_get_unmapped_area(unsigned long addr, unsigned long len,
 	/*
 	 * Check if we need to expland slice area.
 	 */
-	if (unlikely(addr > mm->context.addr_limit &&
+	if (unlikely(addr >= mm->context.addr_limit &&
 		     mm->context.addr_limit != TASK_SIZE)) {
 		mm->context.addr_limit = TASK_SIZE;
 		on_each_cpu(slice_flush_segments, mm, 1);
@@ -427,7 +427,7 @@ unsigned long slice_get_unmapped_area(unsigned long addr, unsigned long len,
 	/*
 	 * This mmap request can allocate upt to 512TB
 	 */
-	if (addr > DEFAULT_MAP_WINDOW)
+	if (addr >= DEFAULT_MAP_WINDOW)
 		high_limit = mm->context.addr_limit;
 	else
 		high_limit = DEFAULT_MAP_WINDOW;
