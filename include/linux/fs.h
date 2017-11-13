@@ -2793,6 +2793,7 @@ extern int do_pipe_flags(int *, int);
 	id(KEXEC_IMAGE, kexec-image)		\
 	id(KEXEC_INITRAMFS, kexec-initramfs)	\
 	id(POLICY, security-policy)		\
+	id(X509_CERTIFICATE, x509-certificate)	\
 	id(MAX_ID, )
 
 #define __fid_enumify(ENUM, dummy) READING_ ## ENUM,

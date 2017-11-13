@@ -112,21 +112,25 @@ int __init integrity_init_keyring(const unsigned int id)
 int __init integrity_load_x509(const unsigned int id, const char *path)
 {
 	key_ref_t key;
-	char *data;
+	void *data;
+	loff_t size;
 	int rc;
 
 	if (!keyring[id])
 		return -EINVAL;
 
-	rc = integrity_read_file(path, &data);
-	if (rc < 0)
+	rc = kernel_read_file_from_path(path, &data, &size, 0,
+					READING_X509_CERTIFICATE);
+	if (rc < 0) {
+		pr_err("Unable to open file: %s (%d)", path, rc);
 		return rc;
+	}
 
 	key = key_create_or_update(make_key_ref(keyring[id], 1),
 				   "asymmetric",
 				   NULL,
 				   data,
-				   rc,
+				   size,
 				   ((KEY_POS_ALL & ~KEY_POS_SETATTR) |
 				    KEY_USR_VIEW | KEY_USR_READ),
 				   KEY_ALLOC_NOT_IN_QUOTA);
@@ -139,6 +143,6 @@ int __init integrity_load_x509(const unsigned int id, const char *path)
 			  key_ref_to_ptr(key)->description, path);
 		key_ref_put(key);
 	}
-	kfree(data);
+	vfree(data);
 	return 0;
 }
