@@ -790,6 +790,13 @@ static int mlx5_ib_query_device(struct ib_device *ibdev,
 		props->tm_caps.max_sge = MLX5_TM_MAX_SGE;
 	}
 
+	if (MLX5_CAP_GEN(dev->mdev, cq_moderation)) {
+		props->cq_caps.max_cq_moderation_count =
+						MLX5_MAX_CQ_COUNT;
+		props->cq_caps.max_cq_moderation_period =
+						MLX5_MAX_CQ_PERIOD;
+	}
+
 	if (field_avail(typeof(resp), cqe_comp_caps, uhw->outlen)) {
 		resp.cqe_comp_caps.max_num =
 			MLX5_CAP_GEN(dev->mdev, cqe_compression) ?
