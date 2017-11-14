@@ -654,7 +654,7 @@ void wbt_set_write_cache(struct rq_wb *rwb, bool write_cache_on)
 }
 
 /*
- * Disable wbt, if enabled by default. Only called from CFQ.
+ * Disable wbt, if enabled by default.
  */
 void wbt_disable_default(struct request_queue *q)
 {

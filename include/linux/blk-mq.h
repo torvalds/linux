@@ -31,10 +31,12 @@ struct blk_mq_hw_ctx {
 
 	struct sbitmap		ctx_map;
 
+	struct blk_mq_ctx	*dispatch_from;
+
 	struct blk_mq_ctx	**ctxs;
 	unsigned int		nr_ctx;
 
-	wait_queue_entry_t		dispatch_wait;
+	wait_queue_entry_t	dispatch_wait;
 	atomic_t		wait_index;
 
 	struct blk_mq_tags	*tags;
@@ -91,6 +93,8 @@ struct blk_mq_queue_data {
 
 typedef blk_status_t (queue_rq_fn)(struct blk_mq_hw_ctx *,
 		const struct blk_mq_queue_data *);
+typedef bool (get_budget_fn)(struct blk_mq_hw_ctx *);
+typedef void (put_budget_fn)(struct blk_mq_hw_ctx *);
 typedef enum blk_eh_timer_return (timeout_fn)(struct request *, bool);
 typedef int (init_hctx_fn)(struct blk_mq_hw_ctx *, void *, unsigned int);
 typedef void (exit_hctx_fn)(struct blk_mq_hw_ctx *, unsigned int);
@@ -111,6 +115,15 @@ struct blk_mq_ops {
 	 * Queue request
 	 */
 	queue_rq_fn		*queue_rq;
+
+	/*
+	 * Reserve budget before queue request, once .queue_rq is
+	 * run, it is driver's responsibility to release the
+	 * reserved budget. Also we have to handle failure case
+	 * of .get_budget for avoiding I/O deadlock.
+	 */
+	get_budget_fn		*get_budget;
+	put_budget_fn		*put_budget;
 
 	/*
 	 * Called on request timeout
@@ -169,8 +182,7 @@ enum {
 	BLK_MQ_S_STOPPED	= 0,
 	BLK_MQ_S_TAG_ACTIVE	= 1,
 	BLK_MQ_S_SCHED_RESTART	= 2,
-	BLK_MQ_S_TAG_WAITING	= 3,
-	BLK_MQ_S_START_ON_RUN	= 4,
+	BLK_MQ_S_START_ON_RUN	= 3,
 
 	BLK_MQ_MAX_DEPTH	= 10240,
 
@@ -198,15 +210,21 @@ void blk_mq_free_request(struct request *rq);
 bool blk_mq_can_queue(struct blk_mq_hw_ctx *);
 
 enum {
-	BLK_MQ_REQ_NOWAIT	= (1 << 0), /* return when out of requests */
-	BLK_MQ_REQ_RESERVED	= (1 << 1), /* allocate from reserved pool */
-	BLK_MQ_REQ_INTERNAL	= (1 << 2), /* allocate internal/sched tag */
+	/* return when out of requests */
+	BLK_MQ_REQ_NOWAIT	= (__force blk_mq_req_flags_t)(1 << 0),
+	/* allocate from reserved pool */
+	BLK_MQ_REQ_RESERVED	= (__force blk_mq_req_flags_t)(1 << 1),
+	/* allocate internal/sched tag */
+	BLK_MQ_REQ_INTERNAL	= (__force blk_mq_req_flags_t)(1 << 2),
+	/* set RQF_PREEMPT */
+	BLK_MQ_REQ_PREEMPT	= (__force blk_mq_req_flags_t)(1 << 3),
 };
 
 struct request *blk_mq_alloc_request(struct request_queue *q, unsigned int op,
-		unsigned int flags);
+		blk_mq_req_flags_t flags);
 struct request *blk_mq_alloc_request_hctx(struct request_queue *q,
-		unsigned int op, unsigned int flags, unsigned int hctx_idx);
+		unsigned int op, blk_mq_req_flags_t flags,
+		unsigned int hctx_idx);
 struct request *blk_mq_tag_to_rq(struct blk_mq_tags *tags, unsigned int tag);
 
 enum {
@@ -249,7 +267,7 @@ void blk_mq_start_stopped_hw_queues(struct request_queue *q, bool async);
 void blk_mq_quiesce_queue(struct request_queue *q);
 void blk_mq_unquiesce_queue(struct request_queue *q);
 void blk_mq_delay_run_hw_queue(struct blk_mq_hw_ctx *hctx, unsigned long msecs);
-void blk_mq_run_hw_queue(struct blk_mq_hw_ctx *hctx, bool async);
+bool blk_mq_run_hw_queue(struct blk_mq_hw_ctx *hctx, bool async);
 void blk_mq_run_hw_queues(struct request_queue *q, bool async);
 void blk_mq_delay_queue(struct blk_mq_hw_ctx *hctx, unsigned long msecs);
 void blk_mq_tagset_busy_iter(struct blk_mq_tag_set *tagset,
@@ -260,8 +278,8 @@ void blk_freeze_queue_start(struct request_queue *q);
 void blk_mq_freeze_queue_wait(struct request_queue *q);
 int blk_mq_freeze_queue_wait_timeout(struct request_queue *q,
 				     unsigned long timeout);
-int blk_mq_reinit_tagset(struct blk_mq_tag_set *set,
-			 int (reinit_request)(void *, struct request *));
+int blk_mq_tagset_iter(struct blk_mq_tag_set *set, void *data,
+		int (reinit_request)(void *, struct request *));
 
 int blk_mq_map_queues(struct blk_mq_tag_set *set);
 void blk_mq_update_nr_hw_queues(struct blk_mq_tag_set *set, int nr_hw_queues);

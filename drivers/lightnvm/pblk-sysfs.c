@@ -253,7 +253,7 @@ static ssize_t pblk_sysfs_lines(struct pblk *pblk, char *page)
 	sz += snprintf(page + sz, PAGE_SIZE - sz,
 		"GC: full:%d, high:%d, mid:%d, low:%d, empty:%d, queue:%d\n",
 			gc_full, gc_high, gc_mid, gc_low, gc_empty,
-			atomic_read(&pblk->gc.inflight_gc));
+			atomic_read(&pblk->gc.read_inflight_gc));
 
 	sz += snprintf(page + sz, PAGE_SIZE - sz,
 		"data (%d) cur:%d, left:%d, vsc:%d, s:%d, map:%d/%d (%d)\n",

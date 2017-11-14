@@ -56,7 +56,7 @@ static unsigned dm_get_blk_mq_queue_depth(void)
 
 int dm_request_based(struct mapped_device *md)
 {
-	return blk_queue_stackable(md->queue);
+	return queue_is_rq_based(md->queue);
 }
 
 static void dm_old_start_queue(struct request_queue *q)

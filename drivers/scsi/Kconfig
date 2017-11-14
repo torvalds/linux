@@ -130,7 +130,8 @@ config CHR_DEV_OSST
 
 config BLK_DEV_SR
 	tristate "SCSI CDROM support"
-	depends on SCSI
+	depends on SCSI && BLK_DEV
+	select CDROM
 	---help---
 	  If you want to use a CD or DVD drive attached to your computer
 	  by SCSI, FireWire, USB or ATAPI, say Y and read the SCSI-HOWTO

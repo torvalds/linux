@@ -13,6 +13,15 @@ config BLK_DEV_NVME
 	  To compile this driver as a module, choose M here: the
 	  module will be called nvme.
 
+config NVME_MULTIPATH
+	bool "NVMe multipath support"
+	depends on NVME_CORE
+	---help---
+	   This option enables support for multipath access to NVMe
+	   subsystems.  If this option is enabled only a single
+	   /dev/nvmeXnY device will show up for each NVMe namespaces,
+	   even if it is accessible through multiple controllers.
+
 config NVME_FABRICS
 	tristate
 

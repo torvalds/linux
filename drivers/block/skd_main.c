@@ -1967,7 +1967,8 @@ static void skd_isr_msg_from_dev(struct skd_device *skdev)
 		break;
 
 	case FIT_MTD_CMD_LOG_HOST_ID:
-		skdev->connect_time_stamp = get_seconds();
+		/* hardware interface overflows in y2106 */
+		skdev->connect_time_stamp = (u32)ktime_get_real_seconds();
 		data = skdev->connect_time_stamp & 0xFFFF;
 		mtd = FIT_MXD_CONS(FIT_MTD_CMD_LOG_TIME_STAMP_LO, 0, data);
 		SKD_WRITEL(skdev, mtd, FIT_MSG_TO_DEVICE);

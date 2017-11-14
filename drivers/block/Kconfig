@@ -68,9 +68,13 @@ config AMIGA_Z2RAM
 	  To compile this driver as a module, choose M here: the
 	  module will be called z2ram.
 
+config CDROM
+	tristate
+
 config GDROM
 	tristate "SEGA Dreamcast GD-ROM drive"
 	depends on SH_DREAMCAST
+	select CDROM
 	select BLK_SCSI_REQUEST # only for the generic cdrom code
 	help
 	  A standard SEGA Dreamcast comes with a modified CD ROM drive called a
@@ -348,6 +352,7 @@ config BLK_DEV_RAM_DAX
 config CDROM_PKTCDVD
 	tristate "Packet writing on CD/DVD media (DEPRECATED)"
 	depends on !UML
+	select CDROM
 	select BLK_SCSI_REQUEST
 	help
 	  Note: This driver is deprecated and will be removed from the

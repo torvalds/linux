@@ -157,7 +157,7 @@ EXPORT_SYMBOL(blk_set_stacking_limits);
  * Caveat:
  *    The driver that does this *must* be able to deal appropriately
  *    with buffers in "highmemory". This can be accomplished by either calling
- *    __bio_kmap_atomic() to get a temporary kernel mapping, or by calling
+ *    kmap_atomic() to get a temporary kernel mapping, or by calling
  *    blk_queue_bounce() to create a buffer in normal memory.
  **/
 void blk_queue_make_request(struct request_queue *q, make_request_fn *mfn)

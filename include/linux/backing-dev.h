@@ -39,8 +39,6 @@ static inline struct backing_dev_info *bdi_alloc(gfp_t gfp_mask)
 	return bdi_alloc_node(gfp_mask, NUMA_NO_NODE);
 }
 
-void wb_start_writeback(struct bdi_writeback *wb, long nr_pages,
-			bool range_cyclic, enum wb_reason reason);
 void wb_start_background_writeback(struct bdi_writeback *wb);
 void wb_workfn(struct work_struct *work);
 void wb_wakeup_delayed(struct bdi_writeback *wb);
@@ -175,8 +173,6 @@ static inline int wb_congested(struct bdi_writeback *wb, int cong_bits)
 
 long congestion_wait(int sync, long timeout);
 long wait_iff_congested(struct pglist_data *pgdat, int sync, long timeout);
-int pdflush_proc_obsolete(struct ctl_table *table, int write,
-		void __user *buffer, size_t *lenp, loff_t *ppos);
 
 static inline bool bdi_cap_stable_pages_required(struct backing_dev_info *bdi)
 {

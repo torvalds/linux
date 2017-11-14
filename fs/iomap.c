@@ -1057,7 +1057,7 @@ iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 
 			if (!(iocb->ki_flags & IOCB_HIPRI) ||
 			    !dio->submit.last_queue ||
-			    !blk_mq_poll(dio->submit.last_queue,
+			    !blk_poll(dio->submit.last_queue,
 					 dio->submit.cookie))
 				io_schedule();
 		}

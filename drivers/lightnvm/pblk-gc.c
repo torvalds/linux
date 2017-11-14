@@ -20,7 +20,8 @@
 
 static void pblk_gc_free_gc_rq(struct pblk_gc_rq *gc_rq)
 {
-	vfree(gc_rq->data);
+	if (gc_rq->data)
+		vfree(gc_rq->data);
 	kfree(gc_rq);
 }
 
@@ -41,10 +42,7 @@ static int pblk_gc_write(struct pblk *pblk)
 	spin_unlock(&gc->w_lock);
 
 	list_for_each_entry_safe(gc_rq, tgc_rq, &w_list, list) {
-		pblk_write_gc_to_cache(pblk, gc_rq->data, gc_rq->lba_list,
-				gc_rq->nr_secs, gc_rq->secs_to_gc,
-				gc_rq->line, PBLK_IOTYPE_GC);
-
+		pblk_write_gc_to_cache(pblk, gc_rq);
 		list_del(&gc_rq->list);
 		kref_put(&gc_rq->line->ref, pblk_line_put);
 		pblk_gc_free_gc_rq(gc_rq);
@@ -56,64 +54,6 @@ static int pblk_gc_write(struct pblk *pblk)
 static void pblk_gc_writer_kick(struct pblk_gc *gc)
 {
 	wake_up_process(gc->gc_writer_ts);
-}
-
-/*
- * Responsible for managing all memory related to a gc request. Also in case of
- * failure
- */
-static int pblk_gc_move_valid_secs(struct pblk *pblk, struct pblk_gc_rq *gc_rq)
-{
-	struct nvm_tgt_dev *dev = pblk->dev;
-	struct nvm_geo *geo = &dev->geo;
-	struct pblk_gc *gc = &pblk->gc;
-	struct pblk_line *line = gc_rq->line;
-	void *data;
-	unsigned int secs_to_gc;
-	int ret = 0;
-
-	data = vmalloc(gc_rq->nr_secs * geo->sec_size);
-	if (!data) {
-		ret = -ENOMEM;
-		goto out;
-	}
-
-	/* Read from GC victim block */
-	if (pblk_submit_read_gc(pblk, gc_rq->lba_list, data, gc_rq->nr_secs,
-							&secs_to_gc, line)) {
-		ret = -EFAULT;
-		goto free_data;
-	}
-
-	if (!secs_to_gc)
-		goto free_rq;
-
-	gc_rq->data = data;
-	gc_rq->secs_to_gc = secs_to_gc;
-
-retry:
-	spin_lock(&gc->w_lock);
-	if (gc->w_entries >= PBLK_GC_W_QD) {
-		spin_unlock(&gc->w_lock);
-		pblk_gc_writer_kick(&pblk->gc);
-		usleep_range(128, 256);
-		goto retry;
-	}
-	gc->w_entries++;
-	list_add_tail(&gc_rq->list, &gc->w_list);
-	spin_unlock(&gc->w_lock);
-
-	pblk_gc_writer_kick(&pblk->gc);
-
-	return 0;
-
-free_rq:
-	kfree(gc_rq);
-free_data:
-	vfree(data);
-out:
-	kref_put(&line->ref, pblk_line_put);
-	return ret;
 }
 
 static void pblk_put_line_back(struct pblk *pblk, struct pblk_line *line)
@@ -136,22 +76,57 @@ static void pblk_put_line_back(struct pblk *pblk, struct pblk_line *line)
 
 static void pblk_gc_line_ws(struct work_struct *work)
 {
-	struct pblk_line_ws *line_rq_ws = container_of(work,
+	struct pblk_line_ws *gc_rq_ws = container_of(work,
 						struct pblk_line_ws, ws);
-	struct pblk *pblk = line_rq_ws->pblk;
+	struct pblk *pblk = gc_rq_ws->pblk;
+	struct nvm_tgt_dev *dev = pblk->dev;
+	struct nvm_geo *geo = &dev->geo;
 	struct pblk_gc *gc = &pblk->gc;
-	struct pblk_line *line = line_rq_ws->line;
-	struct pblk_gc_rq *gc_rq = line_rq_ws->priv;
+	struct pblk_line *line = gc_rq_ws->line;
+	struct pblk_gc_rq *gc_rq = gc_rq_ws->priv;
+	int ret;
 
 	up(&gc->gc_sem);
 
-	if (pblk_gc_move_valid_secs(pblk, gc_rq)) {
-		pr_err("pblk: could not GC all sectors: line:%d (%d/%d)\n",
-						line->id, *line->vsc,
-						gc_rq->nr_secs);
+	gc_rq->data = vmalloc(gc_rq->nr_secs * geo->sec_size);
+	if (!gc_rq->data) {
+		pr_err("pblk: could not GC line:%d (%d/%d)\n",
+					line->id, *line->vsc, gc_rq->nr_secs);
+		goto out;
 	}
 
-	mempool_free(line_rq_ws, pblk->line_ws_pool);
+	/* Read from GC victim block */
+	ret = pblk_submit_read_gc(pblk, gc_rq);
+	if (ret) {
+		pr_err("pblk: failed GC read in line:%d (err:%d)\n",
+								line->id, ret);
+		goto out;
+	}
+
+	if (!gc_rq->secs_to_gc)
+		goto out;
+
+retry:
+	spin_lock(&gc->w_lock);
+	if (gc->w_entries >= PBLK_GC_RQ_QD) {
+		spin_unlock(&gc->w_lock);
+		pblk_gc_writer_kick(&pblk->gc);
+		usleep_range(128, 256);
+		goto retry;
+	}
+	gc->w_entries++;
+	list_add_tail(&gc_rq->list, &gc->w_list);
+	spin_unlock(&gc->w_lock);
+
+	pblk_gc_writer_kick(&pblk->gc);
+
+	kfree(gc_rq_ws);
+	return;
+
+out:
+	pblk_gc_free_gc_rq(gc_rq);
+	kref_put(&line->ref, pblk_line_put);
+	kfree(gc_rq_ws);
 }
 
 static void pblk_gc_line_prepare_ws(struct work_struct *work)
@@ -164,17 +139,24 @@ static void pblk_gc_line_prepare_ws(struct work_struct *work)
 	struct pblk_line_meta *lm = &pblk->lm;
 	struct pblk_gc *gc = &pblk->gc;
 	struct line_emeta *emeta_buf;
-	struct pblk_line_ws *line_rq_ws;
+	struct pblk_line_ws *gc_rq_ws;
 	struct pblk_gc_rq *gc_rq;
 	__le64 *lba_list;
+	unsigned long *invalid_bitmap;
 	int sec_left, nr_secs, bit;
 	int ret;
+
+	invalid_bitmap = kmalloc(lm->sec_bitmap_len, GFP_KERNEL);
+	if (!invalid_bitmap) {
+		pr_err("pblk: could not allocate GC invalid bitmap\n");
+		goto fail_free_ws;
+	}
 
 	emeta_buf = pblk_malloc(lm->emeta_len[0], l_mg->emeta_alloc_type,
 								GFP_KERNEL);
 	if (!emeta_buf) {
 		pr_err("pblk: cannot use GC emeta\n");
-		return;
+		goto fail_free_bitmap;
 	}
 
 	ret = pblk_line_read_emeta(pblk, line, emeta_buf);
@@ -193,7 +175,11 @@ static void pblk_gc_line_prepare_ws(struct work_struct *work)
 		goto fail_free_emeta;
 	}
 
+	spin_lock(&line->lock);
+	bitmap_copy(invalid_bitmap, line->invalid_bitmap, lm->sec_per_line);
 	sec_left = pblk_line_vsc(line);
+	spin_unlock(&line->lock);
+
 	if (sec_left < 0) {
 		pr_err("pblk: corrupted GC line (%d)\n", line->id);
 		goto fail_free_emeta;
@@ -207,11 +193,12 @@ next_rq:
 
 	nr_secs = 0;
 	do {
-		bit = find_next_zero_bit(line->invalid_bitmap, lm->sec_per_line,
+		bit = find_next_zero_bit(invalid_bitmap, lm->sec_per_line,
 								bit + 1);
 		if (bit > line->emeta_ssec)
 			break;
 
+		gc_rq->paddr_list[nr_secs] = bit;
 		gc_rq->lba_list[nr_secs++] = le64_to_cpu(lba_list[bit]);
 	} while (nr_secs < pblk->max_write_pgs);
 
@@ -223,19 +210,25 @@ next_rq:
 	gc_rq->nr_secs = nr_secs;
 	gc_rq->line = line;
 
-	line_rq_ws = mempool_alloc(pblk->line_ws_pool, GFP_KERNEL);
-	if (!line_rq_ws)
+	gc_rq_ws = kmalloc(sizeof(struct pblk_line_ws), GFP_KERNEL);
+	if (!gc_rq_ws)
 		goto fail_free_gc_rq;
 
-	line_rq_ws->pblk = pblk;
-	line_rq_ws->line = line;
-	line_rq_ws->priv = gc_rq;
+	gc_rq_ws->pblk = pblk;
+	gc_rq_ws->line = line;
+	gc_rq_ws->priv = gc_rq;
 
-	down(&gc->gc_sem);
+	/* The write GC path can be much slower than the read GC one due to
+	 * the budget imposed by the rate-limiter. Balance in case that we get
+	 * back pressure from the write GC path.
+	 */
+	while (down_timeout(&gc->gc_sem, msecs_to_jiffies(30000)))
+		io_schedule();
+
 	kref_get(&line->ref);
 
-	INIT_WORK(&line_rq_ws->ws, pblk_gc_line_ws);
-	queue_work(gc->gc_line_reader_wq, &line_rq_ws->ws);
+	INIT_WORK(&gc_rq_ws->ws, pblk_gc_line_ws);
+	queue_work(gc->gc_line_reader_wq, &gc_rq_ws->ws);
 
 	sec_left -= nr_secs;
 	if (sec_left > 0)
@@ -243,10 +236,11 @@ next_rq:
 
 out:
 	pblk_mfree(emeta_buf, l_mg->emeta_alloc_type);
-	mempool_free(line_ws, pblk->line_ws_pool);
+	kfree(line_ws);
+	kfree(invalid_bitmap);
 
 	kref_put(&line->ref, pblk_line_put);
-	atomic_dec(&gc->inflight_gc);
+	atomic_dec(&gc->read_inflight_gc);
 
 	return;
 
@@ -254,10 +248,14 @@ fail_free_gc_rq:
 	kfree(gc_rq);
 fail_free_emeta:
 	pblk_mfree(emeta_buf, l_mg->emeta_alloc_type);
+fail_free_bitmap:
+	kfree(invalid_bitmap);
+fail_free_ws:
+	kfree(line_ws);
+
 	pblk_put_line_back(pblk, line);
 	kref_put(&line->ref, pblk_line_put);
-	mempool_free(line_ws, pblk->line_ws_pool);
-	atomic_dec(&gc->inflight_gc);
+	atomic_dec(&gc->read_inflight_gc);
 
 	pr_err("pblk: Failed to GC line %d\n", line->id);
 }
@@ -269,17 +267,38 @@ static int pblk_gc_line(struct pblk *pblk, struct pblk_line *line)
 
 	pr_debug("pblk: line '%d' being reclaimed for GC\n", line->id);
 
-	line_ws = mempool_alloc(pblk->line_ws_pool, GFP_KERNEL);
+	line_ws = kmalloc(sizeof(struct pblk_line_ws), GFP_KERNEL);
 	if (!line_ws)
 		return -ENOMEM;
 
 	line_ws->pblk = pblk;
 	line_ws->line = line;
 
+	atomic_inc(&gc->pipeline_gc);
 	INIT_WORK(&line_ws->ws, pblk_gc_line_prepare_ws);
 	queue_work(gc->gc_reader_wq, &line_ws->ws);
 
 	return 0;
+}
+
+static void pblk_gc_reader_kick(struct pblk_gc *gc)
+{
+	wake_up_process(gc->gc_reader_ts);
+}
+
+static void pblk_gc_kick(struct pblk *pblk)
+{
+	struct pblk_gc *gc = &pblk->gc;
+
+	pblk_gc_writer_kick(gc);
+	pblk_gc_reader_kick(gc);
+
+	/* If we're shutting down GC, let's not start it up again */
+	if (gc->gc_enabled) {
+		wake_up_process(gc->gc_ts);
+		mod_timer(&gc->gc_timer,
+			  jiffies + msecs_to_jiffies(GC_TIME_MSECS));
+	}
 }
 
 static int pblk_gc_read(struct pblk *pblk)
@@ -303,11 +322,6 @@ static int pblk_gc_read(struct pblk *pblk)
 		pr_err("pblk: failed to GC line %d\n", line->id);
 
 	return 0;
-}
-
-static void pblk_gc_reader_kick(struct pblk_gc *gc)
-{
-	wake_up_process(gc->gc_reader_ts);
 }
 
 static struct pblk_line *pblk_gc_get_victim_line(struct pblk *pblk,
@@ -338,26 +352,17 @@ static bool pblk_gc_should_run(struct pblk_gc *gc, struct pblk_rl *rl)
 	return ((gc->gc_active) && (nr_blocks_need > nr_blocks_free));
 }
 
-/*
- * Lines with no valid sectors will be returned to the free list immediately. If
- * GC is activated - either because the free block count is under the determined
- * threshold, or because it is being forced from user space - only lines with a
- * high count of invalid sectors will be recycled.
- */
-static void pblk_gc_run(struct pblk *pblk)
+void pblk_gc_free_full_lines(struct pblk *pblk)
 {
 	struct pblk_line_mgmt *l_mg = &pblk->l_mg;
 	struct pblk_gc *gc = &pblk->gc;
 	struct pblk_line *line;
-	struct list_head *group_list;
-	bool run_gc;
-	int inflight_gc, gc_group = 0, prev_group = 0;
 
 	do {
 		spin_lock(&l_mg->gc_lock);
 		if (list_empty(&l_mg->gc_full_list)) {
 			spin_unlock(&l_mg->gc_lock);
-			break;
+			return;
 		}
 
 		line = list_first_entry(&l_mg->gc_full_list,
@@ -371,11 +376,30 @@ static void pblk_gc_run(struct pblk *pblk)
 		list_del(&line->list);
 		spin_unlock(&l_mg->gc_lock);
 
+		atomic_inc(&gc->pipeline_gc);
 		kref_put(&line->ref, pblk_line_put);
 	} while (1);
+}
+
+/*
+ * Lines with no valid sectors will be returned to the free list immediately. If
+ * GC is activated - either because the free block count is under the determined
+ * threshold, or because it is being forced from user space - only lines with a
+ * high count of invalid sectors will be recycled.
+ */
+static void pblk_gc_run(struct pblk *pblk)
+{
+	struct pblk_line_mgmt *l_mg = &pblk->l_mg;
+	struct pblk_gc *gc = &pblk->gc;
+	struct pblk_line *line;
+	struct list_head *group_list;
+	bool run_gc;
+	int read_inflight_gc, gc_group = 0, prev_group = 0;
+
+	pblk_gc_free_full_lines(pblk);
 
 	run_gc = pblk_gc_should_run(&pblk->gc, &pblk->rl);
-	if (!run_gc || (atomic_read(&gc->inflight_gc) >= PBLK_GC_L_QD))
+	if (!run_gc || (atomic_read(&gc->read_inflight_gc) >= PBLK_GC_L_QD))
 		return;
 
 next_gc_group:
@@ -402,30 +426,20 @@ next_gc_group:
 		list_add_tail(&line->list, &gc->r_list);
 		spin_unlock(&gc->r_lock);
 
-		inflight_gc = atomic_inc_return(&gc->inflight_gc);
+		read_inflight_gc = atomic_inc_return(&gc->read_inflight_gc);
 		pblk_gc_reader_kick(gc);
 
 		prev_group = 1;
 
 		/* No need to queue up more GC lines than we can handle */
 		run_gc = pblk_gc_should_run(&pblk->gc, &pblk->rl);
-		if (!run_gc || inflight_gc >= PBLK_GC_L_QD)
+		if (!run_gc || read_inflight_gc >= PBLK_GC_L_QD)
 			break;
 	} while (1);
 
 	if (!prev_group && pblk->rl.rb_state > gc_group &&
 						gc_group < PBLK_GC_NR_LISTS)
 		goto next_gc_group;
-}
-
-void pblk_gc_kick(struct pblk *pblk)
-{
-	struct pblk_gc *gc = &pblk->gc;
-
-	wake_up_process(gc->gc_ts);
-	pblk_gc_writer_kick(gc);
-	pblk_gc_reader_kick(gc);
-	mod_timer(&gc->gc_timer, jiffies + msecs_to_jiffies(GC_TIME_MSECS));
 }
 
 static void pblk_gc_timer(unsigned long data)
@@ -465,6 +479,7 @@ static int pblk_gc_writer_ts(void *data)
 static int pblk_gc_reader_ts(void *data)
 {
 	struct pblk *pblk = data;
+	struct pblk_gc *gc = &pblk->gc;
 
 	while (!kthread_should_stop()) {
 		if (!pblk_gc_read(pblk))
@@ -472,6 +487,18 @@ static int pblk_gc_reader_ts(void *data)
 		set_current_state(TASK_INTERRUPTIBLE);
 		io_schedule();
 	}
+
+#ifdef CONFIG_NVM_DEBUG
+	pr_info("pblk: flushing gc pipeline, %d lines left\n",
+		atomic_read(&gc->pipeline_gc));
+#endif
+
+	do {
+		if (!atomic_read(&gc->pipeline_gc))
+			break;
+
+		schedule();
+	} while (1);
 
 	return 0;
 }
@@ -486,10 +513,10 @@ void pblk_gc_should_start(struct pblk *pblk)
 {
 	struct pblk_gc *gc = &pblk->gc;
 
-	if (gc->gc_enabled && !gc->gc_active)
+	if (gc->gc_enabled && !gc->gc_active) {
 		pblk_gc_start(pblk);
-
-	pblk_gc_kick(pblk);
+		pblk_gc_kick(pblk);
+	}
 }
 
 /*
@@ -508,6 +535,11 @@ void pblk_gc_should_stop(struct pblk *pblk)
 
 	if (gc->gc_active && !gc->gc_forced)
 		pblk_gc_stop(pblk, 0);
+}
+
+void pblk_gc_should_kick(struct pblk *pblk)
+{
+	pblk_rl_update_rates(&pblk->rl);
 }
 
 void pblk_gc_sysfs_state_show(struct pblk *pblk, int *gc_enabled,
@@ -576,7 +608,8 @@ int pblk_gc_init(struct pblk *pblk)
 	gc->gc_forced = 0;
 	gc->gc_enabled = 1;
 	gc->w_entries = 0;
-	atomic_set(&gc->inflight_gc, 0);
+	atomic_set(&gc->read_inflight_gc, 0);
+	atomic_set(&gc->pipeline_gc, 0);
 
 	/* Workqueue that reads valid sectors from a line and submit them to the
 	 * GC writer to be recycled.
@@ -602,7 +635,7 @@ int pblk_gc_init(struct pblk *pblk)
 	spin_lock_init(&gc->w_lock);
 	spin_lock_init(&gc->r_lock);
 
-	sema_init(&gc->gc_sem, 128);
+	sema_init(&gc->gc_sem, PBLK_GC_RQ_QD);
 
 	INIT_LIST_HEAD(&gc->w_list);
 	INIT_LIST_HEAD(&gc->r_list);
@@ -625,24 +658,24 @@ void pblk_gc_exit(struct pblk *pblk)
 {
 	struct pblk_gc *gc = &pblk->gc;
 
-	flush_workqueue(gc->gc_reader_wq);
-	flush_workqueue(gc->gc_line_reader_wq);
-
-	del_timer(&gc->gc_timer);
+	gc->gc_enabled = 0;
+	del_timer_sync(&gc->gc_timer);
 	pblk_gc_stop(pblk, 1);
 
 	if (gc->gc_ts)
 		kthread_stop(gc->gc_ts);
 
+	if (gc->gc_reader_ts)
+		kthread_stop(gc->gc_reader_ts);
+
+	flush_workqueue(gc->gc_reader_wq);
 	if (gc->gc_reader_wq)
 		destroy_workqueue(gc->gc_reader_wq);
 
+	flush_workqueue(gc->gc_line_reader_wq);
 	if (gc->gc_line_reader_wq)
 		destroy_workqueue(gc->gc_line_reader_wq);
 
 	if (gc->gc_writer_ts)
 		kthread_stop(gc->gc_writer_ts);
-
-	if (gc->gc_reader_ts)
-		kthread_stop(gc->gc_reader_ts);
 }

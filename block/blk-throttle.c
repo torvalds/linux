@@ -2113,8 +2113,12 @@ static inline void throtl_update_latency_buckets(struct throtl_data *td)
 static void blk_throtl_assoc_bio(struct throtl_grp *tg, struct bio *bio)
 {
 #ifdef CONFIG_BLK_DEV_THROTTLING_LOW
-	if (bio->bi_css)
+	if (bio->bi_css) {
+		if (bio->bi_cg_private)
+			blkg_put(tg_to_blkg(bio->bi_cg_private));
 		bio->bi_cg_private = tg;
+		blkg_get(tg_to_blkg(tg));
+	}
 	blk_stat_set_issue(&bio->bi_issue_stat, bio_sectors(bio));
 #endif
 }
@@ -2284,8 +2288,10 @@ void blk_throtl_bio_endio(struct bio *bio)
 
 	start_time = blk_stat_time(&bio->bi_issue_stat) >> 10;
 	finish_time = __blk_stat_time(finish_time_ns) >> 10;
-	if (!start_time || finish_time <= start_time)
+	if (!start_time || finish_time <= start_time) {
+		blkg_put(tg_to_blkg(tg));
 		return;
+	}
 
 	lat = finish_time - start_time;
 	/* this is only for bio based driver */
@@ -2315,6 +2321,8 @@ void blk_throtl_bio_endio(struct bio *bio)
 		tg->bio_cnt /= 2;
 		tg->bad_bio_cnt /= 2;
 	}
+
+	blkg_put(tg_to_blkg(tg));
 }
 #endif
 

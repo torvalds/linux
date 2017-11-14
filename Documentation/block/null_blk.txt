@@ -38,7 +38,7 @@ gb=[Size in GB]: Default: 250GB
 bs=[Block size (in bytes)]: Default: 512 bytes
   The block size reported to the system.
 
-nr_devices=[Number of devices]: Default: 2
+nr_devices=[Number of devices]: Default: 1
   Number of block devices instantiated. They are instantiated as /dev/nullb0,
   etc.
 
@@ -52,13 +52,13 @@ irqmode=[0-2]: Default: 1-Soft-irq
   2: Timer: Waits a specific period (completion_nsec) for each IO before
      completion.
 
-completion_nsec=[ns]: Default: 10.000ns
+completion_nsec=[ns]: Default: 10,000ns
   Combined with irqmode=2 (timer). The time each completion event must wait.
 
-submit_queues=[0..nr_cpus]:
+submit_queues=[1..nr_cpus]:
   The number of submission queues attached to the device driver. If unset, it
-  defaults to 1 on single-queue and bio-based instances. For multi-queue,
-  it is ignored when use_per_node_hctx module parameter is 1.
+  defaults to 1. For multi-queue, it is ignored when use_per_node_hctx module
+  parameter is 1.
 
 hw_queue_depth=[0..qdepth]: Default: 64
   The hardware queue depth of the device.
@@ -73,3 +73,12 @@ use_per_node_hctx=[0/1]: Default: 0
 
 use_lightnvm=[0/1]: Default: 0
   Register device with LightNVM. Requires blk-mq and CONFIG_NVM to be enabled.
+
+no_sched=[0/1]: Default: 0
+  0: nullb* use default blk-mq io scheduler.
+  1: nullb* doesn't use io scheduler.
+
+shared_tags=[0/1]: Default: 0
+  0: Tag set is not shared.
+  1: Tag set shared between devices for blk-mq. Only makes sense with
+     nr_devices > 1, otherwise there's no tag set to share.

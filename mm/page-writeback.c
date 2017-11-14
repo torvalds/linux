@@ -1972,31 +1972,31 @@ bool wb_over_bg_thresh(struct bdi_writeback *wb)
 int dirty_writeback_centisecs_handler(struct ctl_table *table, int write,
 	void __user *buffer, size_t *length, loff_t *ppos)
 {
-	proc_dointvec(table, write, buffer, length, ppos);
-	return 0;
+	unsigned int old_interval = dirty_writeback_interval;
+	int ret;
+
+	ret = proc_dointvec(table, write, buffer, length, ppos);
+
+	/*
+	 * Writing 0 to dirty_writeback_interval will disable periodic writeback
+	 * and a different non-zero value will wakeup the writeback threads.
+	 * wb_wakeup_delayed() would be more appropriate, but it's a pain to
+	 * iterate over all bdis and wbs.
+	 * The reason we do this is to make the change take effect immediately.
+	 */
+	if (!ret && write && dirty_writeback_interval &&
+		dirty_writeback_interval != old_interval)
+		wakeup_flusher_threads(WB_REASON_PERIODIC);
+
+	return ret;
 }
 
 #ifdef CONFIG_BLOCK
 void laptop_mode_timer_fn(unsigned long data)
 {
 	struct request_queue *q = (struct request_queue *)data;
-	int nr_pages = global_node_page_state(NR_FILE_DIRTY) +
-		global_node_page_state(NR_UNSTABLE_NFS);
-	struct bdi_writeback *wb;
 
-	/*
-	 * We want to write everything out, not just down to the dirty
-	 * threshold
-	 */
-	if (!bdi_has_dirty_io(q->backing_dev_info))
-		return;
-
-	rcu_read_lock();
-	list_for_each_entry_rcu(wb, &q->backing_dev_info->wb_list, bdi_node)
-		if (wb_has_dirty_io(wb))
-			wb_start_writeback(wb, nr_pages, true,
-					   WB_REASON_LAPTOP_TIMER);
-	rcu_read_unlock();
+	wakeup_flusher_threads_bdi(q->backing_dev_info, WB_REASON_LAPTOP_TIMER);
 }
 
 /*
