@@ -421,8 +421,7 @@ static bool find_gid_index(const union ib_gid *gid,
 			   const struct ib_gid_attr *gid_attr,
 			   void *context)
 {
-	struct find_gid_index_context *ctx =
-		(struct find_gid_index_context *)context;
+	struct find_gid_index_context *ctx = context;
 
 	if (ctx->gid_type != gid_attr->gid_type)
 		return false;
