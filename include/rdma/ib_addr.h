@@ -131,7 +131,6 @@ void rdma_copy_addr(struct rdma_dev_addr *dev_addr,
 
 int rdma_addr_size(struct sockaddr *addr);
 
-int rdma_addr_find_smac_by_sgid(union ib_gid *sgid, u8 *smac, u16 *vlan_id);
 int rdma_addr_find_l2_eth_by_grh(const union ib_gid *sgid,
 				 const union ib_gid *dgid,
 				 u8 *dmac, const struct net_device *ndev,

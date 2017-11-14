@@ -793,29 +793,6 @@ int rdma_addr_find_l2_eth_by_grh(const union ib_gid *sgid,
 	return 0;
 }
 
-int rdma_addr_find_smac_by_sgid(union ib_gid *sgid, u8 *smac, u16 *vlan_id)
-{
-	int ret = 0;
-	struct rdma_dev_addr dev_addr;
-	union {
-		struct sockaddr     _sockaddr;
-		struct sockaddr_in  _sockaddr_in;
-		struct sockaddr_in6 _sockaddr_in6;
-	} gid_addr;
-
-	rdma_gid2ip(&gid_addr._sockaddr, sgid);
-
-	memset(&dev_addr, 0, sizeof(dev_addr));
-	dev_addr.net = &init_net;
-	ret = rdma_translate_ip(&gid_addr._sockaddr, &dev_addr, vlan_id);
-	if (ret)
-		return ret;
-
-	memcpy(smac, dev_addr.src_dev_addr, ETH_ALEN);
-	return ret;
-}
-EXPORT_SYMBOL(rdma_addr_find_smac_by_sgid);
-
 static int netevent_callback(struct notifier_block *self, unsigned long event,
 	void *ctx)
 {
