@@ -434,6 +434,12 @@ void intel_uncore_resume_early(struct drm_i915_private *dev_priv)
 	i915_check_and_clear_faults(dev_priv);
 }
 
+void intel_uncore_runtime_resume(struct drm_i915_private *dev_priv)
+{
+	iosf_mbi_register_pmic_bus_access_notifier(
+		&dev_priv->uncore.pmic_bus_access_nb);
+}
+
 void intel_uncore_sanitize(struct drm_i915_private *dev_priv)
 {
 	i915.enable_rc6 = sanitize_rc6_option(dev_priv, i915.enable_rc6);
