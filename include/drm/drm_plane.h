@@ -474,6 +474,8 @@ enum drm_plane_type {
  * @format_types: array of formats supported by this plane
  * @format_count: number of formats supported
  * @format_default: driver hasn't supplied supported formats for the plane
+ * @modifiers: array of modifiers supported by this plane
+ * @modifier_count: number of modifiers supported
  * @old_fb: Temporary tracking of the old fb while a modeset is ongoing. Used by
  * 	drm_mode_set_config_internal() to implement correct refcounting.
  * @funcs: helper functions
