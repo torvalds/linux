@@ -743,13 +743,21 @@ static void dcn10_init_hw(struct dc *dc)
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct timing_generator *tg = dc->res_pool->timing_generators[i];
 		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
+		struct output_pixel_processor *opp = dc->res_pool->opps[i];
+		struct mpc_tree_cfg *mpc_tree = &opp->mpc_tree;
+		struct hubp *hubp = dc->res_pool->hubps[i];
+
+		mpc_tree->dpp[0] = i;
+		mpc_tree->mpcc[0] = i;
+		mpc_tree->num_pipes = 1;
 
 		pipe_ctx->stream_res.tg = tg;
 		pipe_ctx->pipe_idx = i;
-		pipe_ctx->plane_res.hubp = dc->res_pool->hubps[i];
-		pipe_ctx->plane_res.hubp->mpcc_id = i;
-		pipe_ctx->plane_res.hubp->opp_id =
-				dc->res_pool->mpc->funcs->get_opp_id(dc->res_pool->mpc, i);
+
+		pipe_ctx->plane_res.hubp = hubp;
+		hubp->mpcc_id = i;
+		hubp->opp_id = dc->res_pool->mpc->funcs->get_opp_id(dc->res_pool->mpc, i);
+		hubp->power_gated = false;
 
 		plane_atomic_disconnect(dc, pipe_ctx);
 	}
