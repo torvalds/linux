@@ -3394,7 +3394,6 @@ static int ext4_releasepage(struct page *page, gfp_t wait)
 		return try_to_free_buffers(page);
 }
 
-#ifdef CONFIG_FS_DAX
 static int ext4_iomap_begin(struct inode *inode, loff_t offset, loff_t length,
 			    unsigned flags, struct iomap *iomap)
 {
@@ -3403,17 +3402,54 @@ static int ext4_iomap_begin(struct inode *inode, loff_t offset, loff_t length,
 	unsigned long first_block = offset >> blkbits;
 	unsigned long last_block = (offset + length - 1) >> blkbits;
 	struct ext4_map_blocks map;
+	bool delalloc = false;
 	int ret;
 
-	if (WARN_ON_ONCE(ext4_has_inline_data(inode)))
-		return -ERANGE;
+
+	if (flags & IOMAP_REPORT) {
+		if (ext4_has_inline_data(inode)) {
+			ret = ext4_inline_data_iomap(inode, iomap);
+			if (ret != -EAGAIN) {
+				if (ret == 0 && offset >= iomap->length)
+					ret = -ENOENT;
+				return ret;
+			}
+		}
+	} else {
+		if (WARN_ON_ONCE(ext4_has_inline_data(inode)))
+			return -ERANGE;
+	}
 
 	map.m_lblk = first_block;
 	map.m_len = last_block - first_block + 1;
 
-	if (!(flags & IOMAP_WRITE)) {
+	if (flags & IOMAP_REPORT) {
 		ret = ext4_map_blocks(NULL, inode, &map, 0);
-	} else {
+		if (ret < 0)
+			return ret;
+
+		if (ret == 0) {
+			ext4_lblk_t end = map.m_lblk + map.m_len - 1;
+			struct extent_status es;
+
+			ext4_es_find_delayed_extent_range(inode, map.m_lblk, end, &es);
+
+			if (!es.es_len || es.es_lblk > end) {
+				/* entire range is a hole */
+			} else if (es.es_lblk > map.m_lblk) {
+				/* range starts with a hole */
+				map.m_len = es.es_lblk - map.m_lblk;
+			} else {
+				ext4_lblk_t offs = 0;
+
+				if (es.es_lblk < map.m_lblk)
+					offs = map.m_lblk - es.es_lblk;
+				map.m_lblk = es.es_lblk + offs;
+				map.m_len = es.es_len - offs;
+				delalloc = true;
+			}
+		}
+	} else if (flags & IOMAP_WRITE) {
 		int dio_credits;
 		handle_t *handle;
 		int retries = 0;
@@ -3464,17 +3500,21 @@ retry:
 			}
 		}
 		ext4_journal_stop(handle);
+	} else {
+		ret = ext4_map_blocks(NULL, inode, &map, 0);
+		if (ret < 0)
+			return ret;
 	}
 
 	iomap->flags = 0;
 	iomap->bdev = inode->i_sb->s_bdev;
 	iomap->dax_dev = sbi->s_daxdev;
 	iomap->offset = first_block << blkbits;
+	iomap->length = (u64)map.m_len << blkbits;
 
 	if (ret == 0) {
-		iomap->type = IOMAP_HOLE;
-		iomap->blkno = IOMAP_NULL_BLOCK;
-		iomap->length = (u64)map.m_len << blkbits;
+		iomap->type = delalloc ? IOMAP_DELALLOC : IOMAP_HOLE;
+		iomap->addr = IOMAP_NULL_ADDR;
 	} else {
 		if (map.m_flags & EXT4_MAP_MAPPED) {
 			iomap->type = IOMAP_MAPPED;
@@ -3484,12 +3524,12 @@ retry:
 			WARN_ON_ONCE(1);
 			return -EIO;
 		}
-		iomap->blkno = (sector_t)map.m_pblk << (blkbits - 9);
-		iomap->length = (u64)map.m_len << blkbits;
+		iomap->addr = (u64)map.m_pblk << blkbits;
 	}
 
 	if (map.m_flags & EXT4_MAP_NEW)
 		iomap->flags |= IOMAP_F_NEW;
+
 	return 0;
 }
 
@@ -3549,8 +3589,6 @@ const struct iomap_ops ext4_iomap_ops = {
 	.iomap_begin		= ext4_iomap_begin,
 	.iomap_end		= ext4_iomap_end,
 };
-
-#endif
 
 static int ext4_end_io_dio(struct kiocb *iocb, loff_t offset,
 			    ssize_t size, void *private)
@@ -4573,6 +4611,21 @@ int ext4_get_inode_loc(struct inode *inode, struct ext4_iloc *iloc)
 		!ext4_test_inode_state(inode, EXT4_STATE_XATTR));
 }
 
+static bool ext4_should_use_dax(struct inode *inode)
+{
+	if (!test_opt(inode->i_sb, DAX))
+		return false;
+	if (!S_ISREG(inode->i_mode))
+		return false;
+	if (ext4_should_journal_data(inode))
+		return false;
+	if (ext4_has_inline_data(inode))
+		return false;
+	if (ext4_encrypted_inode(inode))
+		return false;
+	return true;
+}
+
 void ext4_set_inode_flags(struct inode *inode)
 {
 	unsigned int flags = EXT4_I(inode)->i_flags;
@@ -4588,9 +4641,7 @@ void ext4_set_inode_flags(struct inode *inode)
 		new_fl |= S_NOATIME;
 	if (flags & EXT4_DIRSYNC_FL)
 		new_fl |= S_DIRSYNC;
-	if (test_opt(inode->i_sb, DAX) && S_ISREG(inode->i_mode) &&
-	    !ext4_should_journal_data(inode) && !ext4_has_inline_data(inode) &&
-	    !(flags & EXT4_ENCRYPT_FL))
+	if (ext4_should_use_dax(inode))
 		new_fl |= S_DAX;
 	if (flags & EXT4_ENCRYPT_FL)
 		new_fl |= S_ENCRYPTED;
@@ -5966,11 +6017,6 @@ int ext4_change_inode_journal_flag(struct inode *inode, int val)
 		ext4_clear_inode_flag(inode, EXT4_INODE_JOURNAL_DATA);
 	}
 	ext4_set_aops(inode);
-	/*
-	 * Update inode->i_flags after EXT4_INODE_JOURNAL_DATA was updated.
-	 * E.g. S_DAX may get cleared / set.
-	 */
-	ext4_set_inode_flags(inode);
 
 	jbd2_journal_unlock_updates(journal);
 	percpu_up_write(&sbi->s_journal_flag_rwsem);
@@ -6105,71 +6151,4 @@ int ext4_filemap_fault(struct vm_fault *vmf)
 	up_read(&EXT4_I(inode)->i_mmap_sem);
 
 	return err;
-}
-
-/*
- * Find the first extent at or after @lblk in an inode that is not a hole.
- * Search for @map_len blocks at most. The extent is returned in @result.
- *
- * The function returns 1 if we found an extent. The function returns 0 in
- * case there is no extent at or after @lblk and in that case also sets
- * @result->es_len to 0. In case of error, the error code is returned.
- */
-int ext4_get_next_extent(struct inode *inode, ext4_lblk_t lblk,
-			 unsigned int map_len, struct extent_status *result)
-{
-	struct ext4_map_blocks map;
-	struct extent_status es = {};
-	int ret;
-
-	map.m_lblk = lblk;
-	map.m_len = map_len;
-
-	/*
-	 * For non-extent based files this loop may iterate several times since
-	 * we do not determine full hole size.
-	 */
-	while (map.m_len > 0) {
-		ret = ext4_map_blocks(NULL, inode, &map, 0);
-		if (ret < 0)
-			return ret;
-		/* There's extent covering m_lblk? Just return it. */
-		if (ret > 0) {
-			int status;
-
-			ext4_es_store_pblock(result, map.m_pblk);
-			result->es_lblk = map.m_lblk;
-			result->es_len = map.m_len;
-			if (map.m_flags & EXT4_MAP_UNWRITTEN)
-				status = EXTENT_STATUS_UNWRITTEN;
-			else
-				status = EXTENT_STATUS_WRITTEN;
-			ext4_es_store_status(result, status);
-			return 1;
-		}
-		ext4_es_find_delayed_extent_range(inode, map.m_lblk,
-						  map.m_lblk + map.m_len - 1,
-						  &es);
-		/* Is delalloc data before next block in extent tree? */
-		if (es.es_len && es.es_lblk < map.m_lblk + map.m_len) {
-			ext4_lblk_t offset = 0;
-
-			if (es.es_lblk < lblk)
-				offset = lblk - es.es_lblk;
-			result->es_lblk = es.es_lblk + offset;
-			ext4_es_store_pblock(result,
-					     ext4_es_pblock(&es) + offset);
-			result->es_len = es.es_len - offset;
-			ext4_es_store_status(result, ext4_es_status(&es));
-
-			return 1;
-		}
-		/* There's a hole at m_lblk, advance us after it */
-		map.m_lblk += map.m_len;
-		map_len -= map.m_len;
-		map.m_len = map_len;
-		cond_resched();
-	}
-	result->es_len = 0;
-	return 0;
 }

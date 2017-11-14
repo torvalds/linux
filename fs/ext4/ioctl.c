@@ -15,6 +15,7 @@
 #include <linux/mount.h>
 #include <linux/file.h>
 #include <linux/quotaops.h>
+#include <linux/random.h>
 #include <linux/uuid.h>
 #include <linux/uaccess.h>
 #include <linux/delay.h>
@@ -99,7 +100,6 @@ static long swap_inode_boot_loader(struct super_block *sb,
 	int err;
 	struct inode *inode_bl;
 	struct ext4_inode_info *ei_bl;
-	struct ext4_sb_info *sbi = EXT4_SB(sb);
 
 	if (inode->i_nlink != 1 || !S_ISREG(inode->i_mode))
 		return -EINVAL;
@@ -158,10 +158,8 @@ static long swap_inode_boot_loader(struct super_block *sb,
 
 	inode->i_ctime = inode_bl->i_ctime = current_time(inode);
 
-	spin_lock(&sbi->s_next_gen_lock);
-	inode->i_generation = sbi->s_next_generation++;
-	inode_bl->i_generation = sbi->s_next_generation++;
-	spin_unlock(&sbi->s_next_gen_lock);
+	inode->i_generation = prandom_u32();
+	inode_bl->i_generation = prandom_u32();
 
 	ext4_discard_preallocations(inode);
 
@@ -291,10 +289,20 @@ flags_err:
 	if (err)
 		goto flags_out;
 
-	if ((jflag ^ oldflags) & (EXT4_JOURNAL_DATA_FL))
+	if ((jflag ^ oldflags) & (EXT4_JOURNAL_DATA_FL)) {
+		/*
+		 * Changes to the journaling mode can cause unsafe changes to
+		 * S_DAX if we are using the DAX mount option.
+		 */
+		if (test_opt(inode->i_sb, DAX)) {
+			err = -EBUSY;
+			goto flags_out;
+		}
+
 		err = ext4_change_inode_journal_flag(inode, jflag);
-	if (err)
-		goto flags_out;
+		if (err)
+			goto flags_out;
+	}
 	if (migrate) {
 		if (flags & EXT4_EXTENTS_FL)
 			err = ext4_ext_migrate(inode);
@@ -861,12 +869,6 @@ group_add_out:
 		ext4_fsblk_t n_blocks_count;
 		int err = 0, err2 = 0;
 		ext4_group_t o_group = EXT4_SB(sb)->s_groups_count;
-
-		if (ext4_has_feature_bigalloc(sb)) {
-			ext4_msg(sb, KERN_ERR,
-				 "Online resizing not (yet) supported with bigalloc");
-			return -EOPNOTSUPP;
-		}
 
 		if (copy_from_user(&n_blocks_count, (__u64 __user *)arg,
 				   sizeof(__u64))) {

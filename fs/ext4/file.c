@@ -21,6 +21,7 @@
 
 #include <linux/time.h>
 #include <linux/fs.h>
+#include <linux/iomap.h>
 #include <linux/mount.h>
 #include <linux/path.h>
 #include <linux/dax.h>
@@ -424,248 +425,6 @@ static int ext4_file_open(struct inode * inode, struct file * filp)
 }
 
 /*
- * Here we use ext4_map_blocks() to get a block mapping for a extent-based
- * file rather than ext4_ext_walk_space() because we can introduce
- * SEEK_DATA/SEEK_HOLE for block-mapped and extent-mapped file at the same
- * function.  When extent status tree has been fully implemented, it will
- * track all extent status for a file and we can directly use it to
- * retrieve the offset for SEEK_DATA/SEEK_HOLE.
- */
-
-/*
- * When we retrieve the offset for SEEK_DATA/SEEK_HOLE, we would need to
- * lookup page cache to check whether or not there has some data between
- * [startoff, endoff] because, if this range contains an unwritten extent,
- * we determine this extent as a data or a hole according to whether the
- * page cache has data or not.
- */
-static int ext4_find_unwritten_pgoff(struct inode *inode,
-				     int whence,
-				     ext4_lblk_t end_blk,
-				     loff_t *offset)
-{
-	struct pagevec pvec;
-	unsigned int blkbits;
-	pgoff_t index;
-	pgoff_t end;
-	loff_t endoff;
-	loff_t startoff;
-	loff_t lastoff;
-	int found = 0;
-
-	blkbits = inode->i_sb->s_blocksize_bits;
-	startoff = *offset;
-	lastoff = startoff;
-	endoff = (loff_t)end_blk << blkbits;
-
-	index = startoff >> PAGE_SHIFT;
-	end = (endoff - 1) >> PAGE_SHIFT;
-
-	pagevec_init(&pvec, 0);
-	do {
-		int i;
-		unsigned long nr_pages;
-
-		nr_pages = pagevec_lookup_range(&pvec, inode->i_mapping,
-					&index, end);
-		if (nr_pages == 0)
-			break;
-
-		for (i = 0; i < nr_pages; i++) {
-			struct page *page = pvec.pages[i];
-			struct buffer_head *bh, *head;
-
-			/*
-			 * If current offset is smaller than the page offset,
-			 * there is a hole at this offset.
-			 */
-			if (whence == SEEK_HOLE && lastoff < endoff &&
-			    lastoff < page_offset(pvec.pages[i])) {
-				found = 1;
-				*offset = lastoff;
-				goto out;
-			}
-
-			lock_page(page);
-
-			if (unlikely(page->mapping != inode->i_mapping)) {
-				unlock_page(page);
-				continue;
-			}
-
-			if (!page_has_buffers(page)) {
-				unlock_page(page);
-				continue;
-			}
-
-			if (page_has_buffers(page)) {
-				lastoff = page_offset(page);
-				bh = head = page_buffers(page);
-				do {
-					if (lastoff + bh->b_size <= startoff)
-						goto next;
-					if (buffer_uptodate(bh) ||
-					    buffer_unwritten(bh)) {
-						if (whence == SEEK_DATA)
-							found = 1;
-					} else {
-						if (whence == SEEK_HOLE)
-							found = 1;
-					}
-					if (found) {
-						*offset = max_t(loff_t,
-							startoff, lastoff);
-						unlock_page(page);
-						goto out;
-					}
-next:
-					lastoff += bh->b_size;
-					bh = bh->b_this_page;
-				} while (bh != head);
-			}
-
-			lastoff = page_offset(page) + PAGE_SIZE;
-			unlock_page(page);
-		}
-
-		pagevec_release(&pvec);
-	} while (index <= end);
-
-	/* There are no pages upto endoff - that would be a hole in there. */
-	if (whence == SEEK_HOLE && lastoff < endoff) {
-		found = 1;
-		*offset = lastoff;
-	}
-out:
-	pagevec_release(&pvec);
-	return found;
-}
-
-/*
- * ext4_seek_data() retrieves the offset for SEEK_DATA.
- */
-static loff_t ext4_seek_data(struct file *file, loff_t offset, loff_t maxsize)
-{
-	struct inode *inode = file->f_mapping->host;
-	struct extent_status es;
-	ext4_lblk_t start, last, end;
-	loff_t dataoff, isize;
-	int blkbits;
-	int ret;
-
-	inode_lock(inode);
-
-	isize = i_size_read(inode);
-	if (offset < 0 || offset >= isize) {
-		inode_unlock(inode);
-		return -ENXIO;
-	}
-
-	blkbits = inode->i_sb->s_blocksize_bits;
-	start = offset >> blkbits;
-	last = start;
-	end = isize >> blkbits;
-	dataoff = offset;
-
-	do {
-		ret = ext4_get_next_extent(inode, last, end - last + 1, &es);
-		if (ret <= 0) {
-			/* No extent found -> no data */
-			if (ret == 0)
-				ret = -ENXIO;
-			inode_unlock(inode);
-			return ret;
-		}
-
-		last = es.es_lblk;
-		if (last != start)
-			dataoff = (loff_t)last << blkbits;
-		if (!ext4_es_is_unwritten(&es))
-			break;
-
-		/*
-		 * If there is a unwritten extent at this offset,
-		 * it will be as a data or a hole according to page
-		 * cache that has data or not.
-		 */
-		if (ext4_find_unwritten_pgoff(inode, SEEK_DATA,
-					      es.es_lblk + es.es_len, &dataoff))
-			break;
-		last += es.es_len;
-		dataoff = (loff_t)last << blkbits;
-		cond_resched();
-	} while (last <= end);
-
-	inode_unlock(inode);
-
-	if (dataoff > isize)
-		return -ENXIO;
-
-	return vfs_setpos(file, dataoff, maxsize);
-}
-
-/*
- * ext4_seek_hole() retrieves the offset for SEEK_HOLE.
- */
-static loff_t ext4_seek_hole(struct file *file, loff_t offset, loff_t maxsize)
-{
-	struct inode *inode = file->f_mapping->host;
-	struct extent_status es;
-	ext4_lblk_t start, last, end;
-	loff_t holeoff, isize;
-	int blkbits;
-	int ret;
-
-	inode_lock(inode);
-
-	isize = i_size_read(inode);
-	if (offset < 0 || offset >= isize) {
-		inode_unlock(inode);
-		return -ENXIO;
-	}
-
-	blkbits = inode->i_sb->s_blocksize_bits;
-	start = offset >> blkbits;
-	last = start;
-	end = isize >> blkbits;
-	holeoff = offset;
-
-	do {
-		ret = ext4_get_next_extent(inode, last, end - last + 1, &es);
-		if (ret < 0) {
-			inode_unlock(inode);
-			return ret;
-		}
-		/* Found a hole? */
-		if (ret == 0 || es.es_lblk > last) {
-			if (last != start)
-				holeoff = (loff_t)last << blkbits;
-			break;
-		}
-		/*
-		 * If there is a unwritten extent at this offset,
-		 * it will be as a data or a hole according to page
-		 * cache that has data or not.
-		 */
-		if (ext4_es_is_unwritten(&es) &&
-		    ext4_find_unwritten_pgoff(inode, SEEK_HOLE,
-					      last + es.es_len, &holeoff))
-			break;
-
-		last += es.es_len;
-		holeoff = (loff_t)last << blkbits;
-		cond_resched();
-	} while (last <= end);
-
-	inode_unlock(inode);
-
-	if (holeoff > isize)
-		holeoff = isize;
-
-	return vfs_setpos(file, holeoff, maxsize);
-}
-
-/*
  * ext4_llseek() handles both block-mapped and extent-mapped maxbytes values
  * by calling generic_file_llseek_size() with the appropriate maxbytes
  * value for each.
@@ -681,18 +440,24 @@ loff_t ext4_llseek(struct file *file, loff_t offset, int whence)
 		maxbytes = inode->i_sb->s_maxbytes;
 
 	switch (whence) {
-	case SEEK_SET:
-	case SEEK_CUR:
-	case SEEK_END:
+	default:
 		return generic_file_llseek_size(file, offset, whence,
 						maxbytes, i_size_read(inode));
-	case SEEK_DATA:
-		return ext4_seek_data(file, offset, maxbytes);
 	case SEEK_HOLE:
-		return ext4_seek_hole(file, offset, maxbytes);
+		inode_lock_shared(inode);
+		offset = iomap_seek_hole(inode, offset, &ext4_iomap_ops);
+		inode_unlock_shared(inode);
+		break;
+	case SEEK_DATA:
+		inode_lock_shared(inode);
+		offset = iomap_seek_data(inode, offset, &ext4_iomap_ops);
+		inode_unlock_shared(inode);
+		break;
 	}
 
-	return -EINVAL;
+	if (offset < 0)
+		return offset;
+	return vfs_setpos(file, offset, maxbytes);
 }
 
 const struct file_operations ext4_file_operations = {

@@ -1159,6 +1159,9 @@ static int ext4_set_context(struct inode *inode, const void *ctx, size_t len,
 	if (inode->i_ino == EXT4_ROOT_INO)
 		return -EPERM;
 
+	if (WARN_ON_ONCE(IS_DAX(inode) && i_size_read(inode)))
+		return -EINVAL;
+
 	res = ext4_convert_inline_data(inode);
 	if (res)
 		return res;
@@ -2790,14 +2793,11 @@ static int ext4_feature_set_ok(struct super_block *sb, int readonly)
  * This function is called once a day if we have errors logged
  * on the file system
  */
-static void print_daily_error_info(unsigned long arg)
+static void print_daily_error_info(struct timer_list *t)
 {
-	struct super_block *sb = (struct super_block *) arg;
-	struct ext4_sb_info *sbi;
-	struct ext4_super_block *es;
-
-	sbi = EXT4_SB(sb);
-	es = sbi->s_es;
+	struct ext4_sb_info *sbi = from_timer(sbi, t, s_err_report);
+	struct super_block *sb = sbi->s_sb;
+	struct ext4_super_block *es = sbi->s_es;
 
 	if (es->s_error_count)
 		/* fsck newer than v1.41.13 is needed to clean this condition. */
@@ -3707,6 +3707,11 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	}
 
 	if (sbi->s_mount_opt & EXT4_MOUNT_DAX) {
+		if (ext4_has_feature_inline_data(sb)) {
+			ext4_msg(sb, KERN_ERR, "Cannot use DAX on a filesystem"
+					" that may contain inline data");
+			goto failed_mount;
+		}
 		err = bdev_dax_supported(sb, blocksize);
 		if (err)
 			goto failed_mount;
@@ -3976,11 +3981,8 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	}
 
 	sbi->s_gdb_count = db_count;
-	get_random_bytes(&sbi->s_next_generation, sizeof(u32));
-	spin_lock_init(&sbi->s_next_gen_lock);
 
-	setup_timer(&sbi->s_err_report, print_daily_error_info,
-		(unsigned long) sb);
+	timer_setup(&sbi->s_err_report, print_daily_error_info, 0);
 
 	/* Register extent status tree shrinker */
 	if (ext4_es_register_shrinker(sbi))
@@ -4613,7 +4615,8 @@ static int ext4_load_journal(struct super_block *sb,
 					"required on readonly filesystem");
 			if (really_read_only) {
 				ext4_msg(sb, KERN_ERR, "write access "
-					"unavailable, cannot proceed");
+					"unavailable, cannot proceed "
+					"(try mounting with noload)");
 				return -EROFS;
 			}
 			ext4_msg(sb, KERN_INFO, "write access will "
