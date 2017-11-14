@@ -2198,11 +2198,11 @@ static void cnl_wrpll_params_populate(struct skl_wrpll_params *params, uint32_t 
 }
 
 static bool
-cnl_ddi_calculate_wrpll(int clock /* in Hz */,
+cnl_ddi_calculate_wrpll(int clock,
 			struct drm_i915_private *dev_priv,
 			struct skl_wrpll_params *wrpll_params)
 {
-	uint64_t afe_clock = clock * 5 / KHz(1); /* clocks in kHz */
+	uint64_t afe_clock = clock * 5;
 	unsigned int dco_min = 7998 * KHz(1);
 	unsigned int dco_max = 10000 * KHz(1);
 	unsigned int dco_mid = (dco_min + dco_max) / 2;
@@ -2255,7 +2255,7 @@ static bool cnl_ddi_hdmi_pll_dividers(struct intel_crtc *crtc,
 
 	cfgcr0 = DPLL_CFGCR0_HDMI_MODE;
 
-	if (!cnl_ddi_calculate_wrpll(clock * 1000, dev_priv, &wrpll_params))
+	if (!cnl_ddi_calculate_wrpll(clock, dev_priv, &wrpll_params))
 		return false;
 
 	cfgcr0 |= DPLL_CFGCR0_DCO_FRACTION(wrpll_params.dco_fraction) |
