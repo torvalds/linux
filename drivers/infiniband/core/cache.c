@@ -573,27 +573,24 @@ static int ib_cache_gid_find_by_filter(struct ib_device *ib_dev,
 		struct ib_gid_attr attr;
 
 		if (table->data_vec[i].props & GID_TABLE_ENTRY_INVALID)
-			goto next;
+			continue;
 
 		if (memcmp(gid, &table->data_vec[i].gid, sizeof(*gid)))
-			goto next;
+			continue;
 
 		memcpy(&attr, &table->data_vec[i].attr, sizeof(attr));
 
-		if (filter(gid, &attr, context))
+		if (filter(gid, &attr, context)) {
 			found = true;
-
-next:
-		if (found)
+			if (index)
+				*index = i;
 			break;
+		}
 	}
 	read_unlock_irqrestore(&table->rwlock, flags);
 
 	if (!found)
 		return -ENOENT;
-
-	if (index)
-		*index = i;
 	return 0;
 }
 
