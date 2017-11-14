@@ -356,6 +356,9 @@ static void __adv7511_power_on(struct adv7511 *adv7511)
 	regmap_update_bits(adv7511->regmap, ADV7511_REG_POWER2,
 			   ADV7511_REG_POWER2_HPD_SRC_MASK,
 			   ADV7511_REG_POWER2_HPD_SRC_NONE);
+
+	/* HACK: If we don't delay here edid probing doesn't work properly */
+	msleep(200);
 }
 
 static void adv7511_power_on(struct adv7511 *adv7511)
