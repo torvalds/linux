@@ -244,6 +244,7 @@ config DMA_SHARED_BUFFER
 	bool
 	default n
 	select ANON_INODES
+	select IRQ_WORK
 	help
 	  This option enables the framework for buffer-sharing between
 	  multiple drivers. A buffer is associated with a file using driver
