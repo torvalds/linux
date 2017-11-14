@@ -187,7 +187,7 @@ static struct configfs_attribute *iscsi_stat_instance_attrs[] = {
 	NULL,
 };
 
-struct config_item_type iscsi_stat_instance_cit = {
+const struct config_item_type iscsi_stat_instance_cit = {
 	.ct_attrs		= iscsi_stat_instance_attrs,
 	.ct_owner		= THIS_MODULE,
 };
@@ -249,7 +249,7 @@ static struct configfs_attribute *iscsi_stat_sess_err_attrs[] = {
 	NULL,
 };
 
-struct config_item_type iscsi_stat_sess_err_cit = {
+const struct config_item_type iscsi_stat_sess_err_cit = {
 	.ct_attrs		= iscsi_stat_sess_err_attrs,
 	.ct_owner		= THIS_MODULE,
 };
@@ -390,7 +390,7 @@ static struct configfs_attribute *iscsi_stat_tgt_attr_attrs[] = {
 	NULL,
 };
 
-struct config_item_type iscsi_stat_tgt_attr_cit = {
+const struct config_item_type iscsi_stat_tgt_attr_cit = {
 	.ct_attrs		= iscsi_stat_tgt_attr_attrs,
 	.ct_owner		= THIS_MODULE,
 };
@@ -522,7 +522,7 @@ static struct configfs_attribute *iscsi_stat_login_stats_attrs[] = {
 	NULL,
 };
 
-struct config_item_type iscsi_stat_login_cit = {
+const struct config_item_type iscsi_stat_login_cit = {
 	.ct_attrs		= iscsi_stat_login_stats_attrs,
 	.ct_owner		= THIS_MODULE,
 };
@@ -579,7 +579,7 @@ static struct configfs_attribute *iscsi_stat_logout_stats_attrs[] = {
 	NULL,
 };
 
-struct config_item_type iscsi_stat_logout_cit = {
+const struct config_item_type iscsi_stat_logout_cit = {
 	.ct_attrs		= iscsi_stat_logout_stats_attrs,
 	.ct_owner		= THIS_MODULE,
 };
@@ -801,7 +801,7 @@ static struct configfs_attribute *iscsi_stat_sess_stats_attrs[] = {
 	NULL,
 };
 
-struct config_item_type iscsi_stat_sess_cit = {
+const struct config_item_type iscsi_stat_sess_cit = {
 	.ct_attrs		= iscsi_stat_sess_stats_attrs,
 	.ct_owner		= THIS_MODULE,
 };
