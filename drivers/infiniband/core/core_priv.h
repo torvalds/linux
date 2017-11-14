@@ -213,11 +213,6 @@ int ib_get_cached_subnet_prefix(struct ib_device *device,
 				u64              *sn_pfx);
 
 #ifdef CONFIG_SECURITY_INFINIBAND
-int ib_security_pkey_access(struct ib_device *dev,
-			    u8 port_num,
-			    u16 pkey_index,
-			    void *sec);
-
 void ib_security_destroy_port_pkey_list(struct ib_device *device);
 
 void ib_security_cache_change(struct ib_device *device,
@@ -240,14 +235,6 @@ int ib_mad_agent_security_setup(struct ib_mad_agent *agent,
 void ib_mad_agent_security_cleanup(struct ib_mad_agent *agent);
 int ib_mad_enforce_security(struct ib_mad_agent_private *map, u16 pkey_index);
 #else
-static inline int ib_security_pkey_access(struct ib_device *dev,
-					  u8 port_num,
-					  u16 pkey_index,
-					  void *sec)
-{
-	return 0;
-}
-
 static inline void ib_security_destroy_port_pkey_list(struct ib_device *device)
 {
 }
