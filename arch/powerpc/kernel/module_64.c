@@ -614,7 +614,8 @@ int apply_relocate_add(Elf64_Shdr *sechdrs,
 
 		case R_PPC_REL24:
 			/* FIXME: Handle weak symbols here --RR */
-			if (sym->st_shndx == SHN_UNDEF) {
+			if (sym->st_shndx == SHN_UNDEF ||
+			    sym->st_shndx == SHN_LIVEPATCH) {
 				/* External: go via stub */
 				value = stub_for_addr(sechdrs, value, me);
 				if (!value)
