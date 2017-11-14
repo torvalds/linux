@@ -254,7 +254,6 @@ int intel_gvt_scan_and_shadow_workload(struct intel_vgpu_workload *workload)
 	struct i915_gem_context *shadow_ctx = workload->vgpu->shadow_ctx;
 	struct drm_i915_private *dev_priv = workload->vgpu->gvt->dev_priv;
 	struct intel_engine_cs *engine = dev_priv->engine[ring_id];
-	struct drm_i915_gem_request *rq;
 	struct intel_vgpu *vgpu = workload->vgpu;
 	struct intel_ring *ring;
 	int ret;
@@ -300,6 +299,26 @@ int intel_gvt_scan_and_shadow_workload(struct intel_vgpu_workload *workload)
 	ret = populate_shadow_context(workload);
 	if (ret)
 		goto err_unpin;
+	workload->shadowed = true;
+	return 0;
+
+err_unpin:
+	engine->context_unpin(engine, shadow_ctx);
+err_shadow:
+	release_shadow_wa_ctx(&workload->wa_ctx);
+err_scan:
+	return ret;
+}
+
+int intel_gvt_generate_request(struct intel_vgpu_workload *workload)
+{
+	int ring_id = workload->ring_id;
+	struct drm_i915_private *dev_priv = workload->vgpu->gvt->dev_priv;
+	struct intel_engine_cs *engine = dev_priv->engine[ring_id];
+	struct drm_i915_gem_request *rq;
+	struct intel_vgpu *vgpu = workload->vgpu;
+	struct i915_gem_context *shadow_ctx = vgpu->shadow_ctx;
+	int ret;
 
 	rq = i915_gem_request_alloc(dev_priv->engine[ring_id], shadow_ctx);
 	if (IS_ERR(rq)) {
@@ -314,14 +333,11 @@ int intel_gvt_scan_and_shadow_workload(struct intel_vgpu_workload *workload)
 	ret = copy_workload_to_ring_buffer(workload);
 	if (ret)
 		goto err_unpin;
-	workload->shadowed = true;
 	return 0;
 
 err_unpin:
 	engine->context_unpin(engine, shadow_ctx);
-err_shadow:
 	release_shadow_wa_ctx(&workload->wa_ctx);
-err_scan:
 	return ret;
 }
 
