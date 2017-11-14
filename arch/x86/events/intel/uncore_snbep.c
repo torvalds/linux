@@ -3035,11 +3035,19 @@ static struct intel_uncore_type *bdx_msr_uncores[] = {
 	NULL,
 };
 
+/* Bit 7 'Use Occupancy' is not available for counter 0 on BDX */
+static struct event_constraint bdx_uncore_pcu_constraints[] = {
+	EVENT_CONSTRAINT(0x80, 0xe, 0x80),
+	EVENT_CONSTRAINT_END
+};
+
 void bdx_uncore_cpu_init(void)
 {
 	if (bdx_uncore_cbox.num_boxes > boot_cpu_data.x86_max_cores)
 		bdx_uncore_cbox.num_boxes = boot_cpu_data.x86_max_cores;
 	uncore_msr_uncores = bdx_msr_uncores;
+
+	hswep_uncore_pcu.constraints = bdx_uncore_pcu_constraints;
 }
 
 static struct intel_uncore_type bdx_uncore_ha = {
