@@ -253,6 +253,7 @@ struct drm_display_mode {
 	 *  - DRM_MODE_TYPE_DRIVER: Mode created by the driver, which is all of
 	 *    them really. Drivers must set this bit for all modes they create
 	 *    and expose to userspace.
+	 *  - DRM_MODE_TYPE_USERDEF: Mode defined via kernel command line
 	 *
 	 * Plus a big list of flags which shouldn't be used at all, but are
 	 * still around since these flags are also used in the userspace ABI:
@@ -262,9 +263,6 @@ struct drm_display_mode {
 	 *  - DRM_MODE_TYPE_CLOCK_C and DRM_MODE_TYPE_CRTC_C: Define leftovers
 	 *    which are stuck around for hysterical raisins only. No one has an
 	 *    idea what they were meant for. Don't use.
-	 *  - DRM_MODE_TYPE_USERDEF: Mode defined by userspace, again a vestige
-	 *    from older kms designs where userspace had to first add a custom
-	 *    mode to the kernel's mode list before it could use it. Don't use.
 	 */
 	unsigned int type;
 
