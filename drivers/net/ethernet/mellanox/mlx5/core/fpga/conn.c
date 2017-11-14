@@ -181,6 +181,7 @@ int mlx5_fpga_conn_send(struct mlx5_fpga_conn *conn,
 	if (!conn->qp.active)
 		return -ENOTCONN;
 
+	buf->dma_dir = DMA_TO_DEVICE;
 	err = mlx5_fpga_conn_map_buf(conn, buf);
 	if (err)
 		return err;
