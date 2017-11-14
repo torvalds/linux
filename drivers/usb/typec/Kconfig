@@ -16,8 +16,6 @@ if TYPEC_TCPM
 
 source "drivers/usb/typec/fusb302/Kconfig"
 
-endif
-
 config TYPEC_WCOVE
 	tristate "Intel WhiskeyCove PMIC USB Type-C PHY driver"
 	depends on ACPI
@@ -33,6 +31,19 @@ config TYPEC_WCOVE
 	  To compile this driver as module, choose M here: the module will be
 	  called typec_wcove
 
+endif
+
 source "drivers/usb/typec/ucsi/Kconfig"
+
+config TYPEC_TPS6598X
+	tristate "TI TPS6598x USB Power Delivery controller driver"
+	depends on I2C
+	select TYPEC
+	help
+	  Say Y or M here if your system has TI TPS65982 or TPS65983 USB Power
+	  Delivery controller.
+
+	  If you choose to build this driver as a dynamically linked module, the
+	  module will be called tps6598x.ko.
 
 endmenu

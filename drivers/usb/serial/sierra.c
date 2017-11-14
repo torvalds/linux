@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
   USB Driver for Sierra Wireless
 
@@ -8,10 +9,6 @@
 
   IMPORTANT DISCLAIMER: This driver is not commercially supported by
   Sierra Wireless. Use at your own risk.
-
-  This driver is free software; you can redistribute it and/or modify
-  it under the terms of Version 2 of the GNU General Public License as
-  published by the Free Software Foundation.
 
   Portions based on the option driver by Matthias Urlichs <smurf@smurf.noris.de>
   Whom based his on the Keyspan driver by Hugh Blemings <hugh@blemings.org>
@@ -1078,7 +1075,7 @@ module_usb_serial_driver(serial_drivers, id_table);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
 
 module_param(nmea, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(nmea, "NMEA streaming");

@@ -2896,6 +2896,13 @@ S:	Supported
 F:	drivers/gpio/gpio-brcmstb.c
 F:	Documentation/devicetree/bindings/gpio/brcm,brcmstb-gpio.txt
 
+BROADCOM BRCMSTB USB2 and USB3 PHY DRIVER
+M:	Al Cooper <alcooperx@gmail.com>
+L:	linux-kernel@vger.kernel.org
+L:	bcm-kernel-feedback-list@broadcom.com
+S:	Maintained
+F:	drivers/phy/broadcom/phy-brcm-usb*
+
 BROADCOM GENET ETHERNET DRIVER
 M:	Florian Fainelli <f.fainelli@gmail.com>
 L:	netdev@vger.kernel.org

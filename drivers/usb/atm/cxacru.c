@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /******************************************************************************
  *  cxacru.c  -  driver for USB ADSL modems based on
  *               Conexant AccessRunner chipset
@@ -6,21 +7,6 @@
  *  Copyright (C) 2005 Duncan Sands, Roman Kagan (rkagan % mail ! ru)
  *  Copyright (C) 2007 Simon Arlott
  *  Copyright (C) 2009 Simon Arlott
- *
- *  This program is free software; you can redistribute it and/or modify it
- *  under the terms of the GNU General Public License as published by the Free
- *  Software Foundation; either version 2 of the License, or (at your option)
- *  any later version.
- *
- *  This program is distributed in the hope that it will be useful, but WITHOUT
- *  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- *  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- *  more details.
- *
- *  You should have received a copy of the GNU General Public License along with
- *  this program; if not, write to the Free Software Foundation, Inc., 59
- *  Temple Place - Suite 330, Boston, MA  02111-1307, USA.
- *
  ******************************************************************************/
 
 /*
@@ -424,6 +410,7 @@ static ssize_t cxacru_sysfs_store_adsl_state(struct device *dev,
 		case CXPOLL_STOPPING:
 			/* abort stop request */
 			instance->poll_state = CXPOLL_POLLING;
+			/* fall through */
 		case CXPOLL_POLLING:
 		case CXPOLL_SHUTDOWN:
 			/* don't start polling */
@@ -570,10 +557,8 @@ static int cxacru_start_wait_urb(struct urb *urb, struct completion *done,
 {
 	struct timer_list timer;
 
-	init_timer(&timer);
+	setup_timer(&timer, cxacru_timeout_kill, (unsigned long)urb);
 	timer.expires = jiffies + msecs_to_jiffies(CMD_TIMEOUT);
-	timer.data = (unsigned long) urb;
-	timer.function = cxacru_timeout_kill;
 	add_timer(&timer);
 	wait_for_completion(done);
 	del_timer_sync(&timer);
@@ -797,6 +782,7 @@ static int cxacru_atm_start(struct usbatm_data *usbatm_instance,
 	case CXPOLL_STOPPING:
 		/* abort stop request */
 		instance->poll_state = CXPOLL_POLLING;
+		/* fall through */
 	case CXPOLL_POLLING:
 	case CXPOLL_SHUTDOWN:
 		/* don't start polling */

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright Linus Torvalds 1999
  * (C) Copyright Johannes Erdfelt 1999-2001
@@ -6,20 +7,6 @@
  * (C) Copyright Deti Fliegl 1999
  * (C) Copyright Randy Dunlap 2000
  * (C) Copyright David Brownell 2000-2002
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/bcd.h>
@@ -2558,9 +2545,7 @@ struct usb_hcd *__usb_create_hcd(const struct hc_driver *driver,
 	hcd->self.bus_name = bus_name;
 	hcd->self.uses_dma = (sysdev->dma_mask != NULL);
 
-	init_timer(&hcd->rh_timer);
-	hcd->rh_timer.function = rh_timer_func;
-	hcd->rh_timer.data = (unsigned long) hcd;
+	setup_timer(&hcd->rh_timer, rh_timer_func, (unsigned long)hcd);
 #ifdef CONFIG_PM
 	INIT_WORK(&hcd->wakeup_work, hcd_resume_work);
 #endif

@@ -24,7 +24,7 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/err.h>
-#include <linux/extcon.h>
+#include <linux/extcon-provider.h>
 #include <linux/io.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
@@ -926,6 +926,7 @@ static const struct sun4i_usb_phy_cfg sun8i_v3s_cfg = {
 	.phyctl_offset = REG_PHYCTL_A33,
 	.dedicated_clocks = true,
 	.enable_pmu_unk1 = true,
+	.phy0_dual_route = true,
 };
 
 static const struct sun4i_usb_phy_cfg sun50i_a64_cfg = {

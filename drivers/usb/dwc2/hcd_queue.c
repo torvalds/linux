@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
 /*
  * hcd_queue.c - DesignWare HS OTG Controller host queuing routines
  *

@@ -1,12 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * gmidi.c -- USB MIDI Gadget Driver
  *
  * Copyright (C) 2006 Thumtronics Pty Ltd.
  * Developed for Thumtronics by Grey Innovation
  * Ben Williamson <ben.williamson@greyinnovation.com>
- *
- * This software is distributed under the terms of the GNU General Public
- * License ("GPL") version 2, as published by the Free Software Foundation.
  *
  * This code is based in part on:
  *
