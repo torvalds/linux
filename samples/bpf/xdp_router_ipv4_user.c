@@ -206,12 +206,13 @@ static void read_route(struct nlmsghdr *nh, int nll)
 			direct_entry.arp.mac = 0;
 			direct_entry.arp.dst = 0;
 			if (route.dst_len == 32) {
-				if (nh->nlmsg_type == RTM_DELROUTE)
+				if (nh->nlmsg_type == RTM_DELROUTE) {
 					assert(bpf_map_delete_elem(map_fd[3], &route.dst) == 0);
-				else
+				} else {
 					if (bpf_map_lookup_elem(map_fd[2], &route.dst, &direct_entry.arp.mac) == 0)
 						direct_entry.arp.dst = route.dst;
 					assert(bpf_map_update_elem(map_fd[3], &route.dst, &direct_entry, 0) == 0);
+				}
 			}
 			for (i = 0; i < 4; i++)
 				prefix_key->data[i] = (route.dst >> i * 8) & 0xff;
