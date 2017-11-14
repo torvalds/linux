@@ -78,7 +78,9 @@
 
 #define	UMIP_INST_SGDT	0	/* 0F 01 /0 */
 #define	UMIP_INST_SIDT	1	/* 0F 01 /1 */
-#define	UMIP_INST_SMSW	3	/* 0F 01 /4 */
+#define	UMIP_INST_SMSW	2	/* 0F 01 /4 */
+#define	UMIP_INST_SLDT  3       /* 0F 00 /0 */
+#define	UMIP_INST_STR   4       /* 0F 00 /1 */
 
 /**
  * identify_insn() - Identify a UMIP-protected instruction
@@ -118,10 +120,16 @@ static int identify_insn(struct insn *insn)
 		default:
 			return -EINVAL;
 		}
+	} else if (insn->opcode.bytes[1] == 0x0) {
+		if (X86_MODRM_REG(insn->modrm.value) == 0)
+			return UMIP_INST_SLDT;
+		else if (X86_MODRM_REG(insn->modrm.value) == 1)
+			return UMIP_INST_STR;
+		else
+			return -EINVAL;
+	} else {
+		return -EINVAL;
 	}
-
-	/* SLDT AND STR are not emulated */
-	return -EINVAL;
 }
 
 /**
@@ -267,10 +275,6 @@ bool fixup_umip_exception(struct pt_regs *regs)
 	if (!regs)
 		return false;
 
-	/* Do not emulate 64-bit processes. */
-	if (user_64bit_mode(regs))
-		return false;
-
 	/*
 	 * If not in user-space long mode, a custom code segment could be in
 	 * use. This is true in protected mode (if the process defined a local
@@ -320,6 +324,10 @@ bool fixup_umip_exception(struct pt_regs *regs)
 
 	umip_inst = identify_insn(&insn);
 	if (umip_inst < 0)
+		return false;
+
+	/* Do not emulate SLDT, STR or user long mode processes. */
+	if (umip_inst == UMIP_INST_STR || umip_inst == UMIP_INST_SLDT || user_64bit_mode(regs))
 		return false;
 
 	if (emulate_umip_insn(&insn, umip_inst, dummy_data, &dummy_data_size))
