@@ -310,12 +310,6 @@ int topology_update_package_map(unsigned int pkg, unsigned int cpu)
 	if (new >= 0)
 		goto found;
 
-	if (logical_packages >= __max_logical_packages) {
-		pr_warn("Package %u of CPU %u exceeds BIOS package data %u.\n",
-			logical_packages, cpu, __max_logical_packages);
-		return -ENOSPC;
-	}
-
 	new = logical_packages++;
 	if (new != pkg) {
 		pr_info("CPU %u Converting physical %u to logical package %u\n",
@@ -326,44 +320,6 @@ found:
 	return 0;
 }
 
-static void __init smp_init_package_map(struct cpuinfo_x86 *c, unsigned int cpu)
-{
-	unsigned int ncpus;
-
-	/*
-	 * Today neither Intel nor AMD support heterogenous systems. That
-	 * might change in the future....
-	 *
-	 * While ideally we'd want '* smp_num_siblings' in the below @ncpus
-	 * computation, this won't actually work since some Intel BIOSes
-	 * report inconsistent HT data when they disable HT.
-	 *
-	 * In particular, they reduce the APIC-IDs to only include the cores,
-	 * but leave the CPUID topology to say there are (2) siblings.
-	 * This means we don't know how many threads there will be until
-	 * after the APIC enumeration.
-	 *
-	 * By not including this we'll sometimes over-estimate the number of
-	 * logical packages by the amount of !present siblings, but this is
-	 * still better than MAX_LOCAL_APIC.
-	 *
-	 * We use total_cpus not nr_cpu_ids because nr_cpu_ids can be limited
-	 * on the command line leading to a similar issue as the HT disable
-	 * problem because the hyperthreads are usually enumerated after the
-	 * primary cores.
-	 */
-	ncpus = boot_cpu_data.x86_max_cores;
-	if (!ncpus) {
-		pr_warn("x86_max_cores == zero !?!?");
-		ncpus = 1;
-	}
-
-	__max_logical_packages = DIV_ROUND_UP(total_cpus, ncpus);
-	pr_info("Max logical packages: %u\n", __max_logical_packages);
-
-	topology_update_package_map(c->phys_proc_id, cpu);
-}
-
 void __init smp_store_boot_cpu_info(void)
 {
 	int id = 0; /* CPU 0 */
@@ -371,7 +327,7 @@ void __init smp_store_boot_cpu_info(void)
 
 	*c = boot_cpu_data;
 	c->cpu_index = id;
-	smp_init_package_map(c, id);
+	topology_update_package_map(c->phys_proc_id, id);
 	c->initialized = true;
 }
 
@@ -1341,7 +1297,16 @@ void __init native_smp_prepare_boot_cpu(void)
 
 void __init native_smp_cpus_done(unsigned int max_cpus)
 {
+	int ncpus;
+
 	pr_debug("Boot done\n");
+	/*
+	 * Today neither Intel nor AMD support heterogenous systems so
+	 * extrapolate the boot cpu's data to all packages.
+	 */
+	ncpus = cpu_data(0).booted_cores * smp_num_siblings;
+	__max_logical_packages = DIV_ROUND_UP(nr_cpu_ids, ncpus);
+	pr_info("Max logical packages: %u\n", __max_logical_packages);
 
 	if (x86_has_numa_in_package)
 		set_sched_topology(x86_numa_in_package_topology);
