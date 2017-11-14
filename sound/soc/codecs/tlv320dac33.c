@@ -106,6 +106,7 @@ struct tlv320dac33_priv {
 	int mode1_latency;		/* latency caused by the i2c writes in
 					 * us */
 	u8 burst_bclkdiv;		/* BCLK divider value in burst mode */
+	u8 *reg_cache;
 	unsigned int burst_rate;	/* Interface speed in Burst modes */
 
 	int keep_bclk;			/* Keep the BCLK continuously running
@@ -173,7 +174,8 @@ static const u8 dac33_reg[DAC33_CACHEREGNUM] = {
 static inline unsigned int dac33_read_reg_cache(struct snd_soc_codec *codec,
 						unsigned reg)
 {
-	u8 *cache = codec->reg_cache;
+	struct tlv320dac33_priv *dac33 = snd_soc_codec_get_drvdata(codec);
+	u8 *cache = dac33->reg_cache;
 	if (reg >= DAC33_CACHEREGNUM)
 		return 0;
 
@@ -183,7 +185,8 @@ static inline unsigned int dac33_read_reg_cache(struct snd_soc_codec *codec,
 static inline void dac33_write_reg_cache(struct snd_soc_codec *codec,
 					 u8 reg, u8 value)
 {
-	u8 *cache = codec->reg_cache;
+	struct tlv320dac33_priv *dac33 = snd_soc_codec_get_drvdata(codec);
+	u8 *cache = dac33->reg_cache;
 	if (reg >= DAC33_CACHEREGNUM)
 		return;
 
@@ -239,19 +242,6 @@ static int dac33_write(struct snd_soc_codec *codec, unsigned int reg,
 		else
 			ret = 0;
 	}
-
-	return ret;
-}
-
-static int dac33_write_locked(struct snd_soc_codec *codec, unsigned int reg,
-		       unsigned int value)
-{
-	struct tlv320dac33_priv *dac33 = snd_soc_codec_get_drvdata(codec);
-	int ret;
-
-	mutex_lock(&dac33->mutex);
-	ret = dac33_write(codec, reg, value);
-	mutex_unlock(&dac33->mutex);
 
 	return ret;
 }
@@ -1432,13 +1422,9 @@ static int dac33_soc_remove(struct snd_soc_codec *codec)
 }
 
 static const struct snd_soc_codec_driver soc_codec_dev_tlv320dac33 = {
-	.read = dac33_read_reg_cache,
-	.write = dac33_write_locked,
 	.set_bias_level = dac33_set_bias_level,
 	.idle_bias_off = true,
-	.reg_cache_size = ARRAY_SIZE(dac33_reg),
-	.reg_word_size = sizeof(u8),
-	.reg_cache_default = dac33_reg,
+
 	.probe = dac33_soc_probe,
 	.remove = dac33_soc_remove,
 
@@ -1495,6 +1481,13 @@ static int dac33_i2c_probe(struct i2c_client *client,
 	dac33 = devm_kzalloc(&client->dev, sizeof(struct tlv320dac33_priv),
 			     GFP_KERNEL);
 	if (dac33 == NULL)
+		return -ENOMEM;
+
+	dac33->reg_cache = devm_kmemdup(&client->dev,
+					dac33_reg,
+					ARRAY_SIZE(dac33_reg) * sizeof(u8),
+					GFP_KERNEL);
+	if (!dac33->reg_cache)
 		return -ENOMEM;
 
 	dac33->i2c = client;
