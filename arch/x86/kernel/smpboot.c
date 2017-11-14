@@ -101,9 +101,6 @@ DEFINE_PER_CPU_READ_MOSTLY(struct cpuinfo_x86, cpu_info);
 EXPORT_PER_CPU_SYMBOL(cpu_info);
 
 /* Logical package management. We might want to allocate that dynamically */
-static int *physical_to_logical_pkg __read_mostly;
-static unsigned long *physical_package_map __read_mostly;;
-static unsigned int max_physical_pkg_id __read_mostly;
 unsigned int __max_logical_packages __read_mostly;
 EXPORT_SYMBOL(__max_logical_packages);
 static unsigned int logical_packages __read_mostly;
@@ -281,23 +278,36 @@ static void notrace start_secondary(void *unused)
 }
 
 /**
+ * topology_phys_to_logical_pkg - Map a physical package id to a logical
+ *
+ * Returns logical package id or -1 if not found
+ */
+int topology_phys_to_logical_pkg(unsigned int phys_pkg)
+{
+	int cpu;
+
+	for_each_possible_cpu(cpu) {
+		struct cpuinfo_x86 *c = &cpu_data(cpu);
+
+		if (c->initialized && c->phys_proc_id == phys_pkg)
+			return c->logical_proc_id;
+	}
+	return -1;
+}
+EXPORT_SYMBOL(topology_phys_to_logical_pkg);
+
+/**
  * topology_update_package_map - Update the physical to logical package map
  * @pkg:	The physical package id as retrieved via CPUID
  * @cpu:	The cpu for which this is updated
  */
 int topology_update_package_map(unsigned int pkg, unsigned int cpu)
 {
-	unsigned int new;
+	int new;
 
-	/* Called from early boot ? */
-	if (!physical_package_map)
-		return 0;
-
-	if (pkg >= max_physical_pkg_id)
-		return -EINVAL;
-
-	/* Set the logical package id */
-	if (test_and_set_bit(pkg, physical_package_map))
+	/* Already available somewhere? */
+	new = topology_phys_to_logical_pkg(pkg);
+	if (new >= 0)
 		goto found;
 
 	if (logical_packages >= __max_logical_packages) {
@@ -311,30 +321,14 @@ int topology_update_package_map(unsigned int pkg, unsigned int cpu)
 		pr_info("CPU %u Converting physical %u to logical package %u\n",
 			cpu, pkg, new);
 	}
-	physical_to_logical_pkg[pkg] = new;
-
 found:
-	cpu_data(cpu).logical_proc_id = physical_to_logical_pkg[pkg];
+	cpu_data(cpu).logical_proc_id = new;
 	return 0;
 }
-
-/**
- * topology_phys_to_logical_pkg - Map a physical package id to a logical
- *
- * Returns logical package id or -1 if not found
- */
-int topology_phys_to_logical_pkg(unsigned int phys_pkg)
-{
-	if (phys_pkg >= max_physical_pkg_id)
-		return -1;
-	return physical_to_logical_pkg[phys_pkg];
-}
-EXPORT_SYMBOL(topology_phys_to_logical_pkg);
 
 static void __init smp_init_package_map(struct cpuinfo_x86 *c, unsigned int cpu)
 {
 	unsigned int ncpus;
-	size_t size;
 
 	/*
 	 * Today neither Intel nor AMD support heterogenous systems. That
@@ -365,19 +359,6 @@ static void __init smp_init_package_map(struct cpuinfo_x86 *c, unsigned int cpu)
 	}
 
 	__max_logical_packages = DIV_ROUND_UP(total_cpus, ncpus);
-	logical_packages = 0;
-
-	/*
-	 * Possibly larger than what we need as the number of apic ids per
-	 * package can be smaller than the actual used apic ids.
-	 */
-	max_physical_pkg_id = DIV_ROUND_UP(MAX_LOCAL_APIC, ncpus);
-	size = max_physical_pkg_id * sizeof(unsigned int);
-	physical_to_logical_pkg = kmalloc(size, GFP_KERNEL);
-	memset(physical_to_logical_pkg, 0xff, size);
-	size = BITS_TO_LONGS(max_physical_pkg_id) * sizeof(unsigned long);
-	physical_package_map = kzalloc(size, GFP_KERNEL);
-
 	pr_info("Max logical packages: %u\n", __max_logical_packages);
 
 	topology_update_package_map(c->phys_proc_id, cpu);
@@ -391,6 +372,7 @@ void __init smp_store_boot_cpu_info(void)
 	*c = boot_cpu_data;
 	c->cpu_index = id;
 	smp_init_package_map(c, id);
+	c->initialized = true;
 }
 
 /*
@@ -401,13 +383,16 @@ void smp_store_cpu_info(int id)
 {
 	struct cpuinfo_x86 *c = &cpu_data(id);
 
-	*c = boot_cpu_data;
+	/* Copy boot_cpu_data only on the first bringup */
+	if (!c->initialized)
+		*c = boot_cpu_data;
 	c->cpu_index = id;
 	/*
 	 * During boot time, CPU0 has this setup already. Save the info when
 	 * bringing up AP or offlined CPU0.
 	 */
 	identify_secondary_cpu(c);
+	c->initialized = true;
 }
 
 static bool
