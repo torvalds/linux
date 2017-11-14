@@ -196,8 +196,8 @@ static int __init exiu_init(struct device_node *node,
 	}
 
 	data->base = of_iomap(node, 0);
-	if (IS_ERR(data->base)) {
-		err = PTR_ERR(data->base);
+	if (!data->base) {
+		err = -ENODEV;
 		goto out_free;
 	}
 
