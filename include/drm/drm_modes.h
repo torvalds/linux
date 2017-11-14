@@ -300,7 +300,7 @@ struct drm_display_mode {
 	 *  - DRM_MODE_FLAG_NCSYNC: composite sync is active low.
 	 *  - DRM_MODE_FLAG_HSKEW: hskew provided (not used?).
 	 *  - DRM_MODE_FLAG_BCAST: not used?
-	 *  - DRM_MODE_FLAG_PIXMUX: not used?
+	 *  - DRM_MODE_FLAG_PIXMUX: <deprecated>
 	 *  - DRM_MODE_FLAG_DBLCLK: double-clocked mode.
 	 *  - DRM_MODE_FLAG_CLKDIV2: half-clocked mode.
 	 *

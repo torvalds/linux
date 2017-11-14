@@ -75,7 +75,7 @@ extern "C" {
 #define DRM_MODE_FLAG_NCSYNC			(1<<8)
 #define DRM_MODE_FLAG_HSKEW			(1<<9) /* hskew provided */
 #define DRM_MODE_FLAG_BCAST			(1<<10)
-#define DRM_MODE_FLAG_PIXMUX			(1<<11)
+#define DRM_MODE_FLAG_PIXMUX			(1<<11) /* deprecated */
 #define DRM_MODE_FLAG_DBLCLK			(1<<12)
 #define DRM_MODE_FLAG_CLKDIV2			(1<<13)
  /*
@@ -118,7 +118,6 @@ extern "C" {
 				 DRM_MODE_FLAG_NCSYNC |		\
 				 DRM_MODE_FLAG_HSKEW |		\
 				 DRM_MODE_FLAG_BCAST |		\
-				 DRM_MODE_FLAG_PIXMUX |		\
 				 DRM_MODE_FLAG_DBLCLK |		\
 				 DRM_MODE_FLAG_CLKDIV2 |	\
 				 DRM_MODE_FLAG_3D_MASK)
