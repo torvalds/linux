@@ -342,7 +342,8 @@ struct dc_hdr_static_metadata {
 enum dc_transfer_func_type {
 	TF_TYPE_PREDEFINED,
 	TF_TYPE_DISTRIBUTED_POINTS,
-	TF_TYPE_BYPASS
+	TF_TYPE_BYPASS,
+	TF_TYPE_UNITY
 };
 
 struct dc_transfer_func_distributed_points {

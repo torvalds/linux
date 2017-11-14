@@ -565,3 +565,15 @@ uint32_t dal_fixed31_32_u0d19(
 {
 	return ux_dy(arg.value, 0, 19);
 }
+
+uint32_t dal_fixed31_32_u0d14(
+	struct fixed31_32 arg)
+{
+	return ux_dy(arg.value, 1, 14);
+}
+
+uint32_t dal_fixed31_32_u0d10(
+	struct fixed31_32 arg)
+{
+	return ux_dy(arg.value, 1, 10);
+}
