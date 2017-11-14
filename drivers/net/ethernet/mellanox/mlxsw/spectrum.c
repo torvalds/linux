@@ -74,8 +74,8 @@
 #include "../mlxfw/mlxfw.h"
 
 #define MLXSW_FWREV_MAJOR 13
-#define MLXSW_FWREV_MINOR 1420
-#define MLXSW_FWREV_SUBMINOR 122
+#define MLXSW_FWREV_MINOR 1530
+#define MLXSW_FWREV_SUBMINOR 152
 
 static const struct mlxsw_fw_rev mlxsw_sp_supported_fw_rev = {
 	.major = MLXSW_FWREV_MAJOR,
