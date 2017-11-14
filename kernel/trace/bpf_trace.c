@@ -78,12 +78,16 @@ EXPORT_SYMBOL_GPL(trace_call_bpf);
 
 BPF_CALL_3(bpf_probe_read, void *, dst, u32, size, const void *, unsafe_ptr)
 {
-	int ret;
+	int ret = 0;
+
+	if (unlikely(size == 0))
+		goto out;
 
 	ret = probe_kernel_read(dst, unsafe_ptr, size);
 	if (unlikely(ret < 0))
 		memset(dst, 0, size);
 
+ out:
 	return ret;
 }
 
@@ -92,7 +96,7 @@ static const struct bpf_func_proto bpf_probe_read_proto = {
 	.gpl_only	= true,
 	.ret_type	= RET_INTEGER,
 	.arg1_type	= ARG_PTR_TO_UNINIT_MEM,
-	.arg2_type	= ARG_CONST_SIZE,
+	.arg2_type	= ARG_CONST_SIZE_OR_ZERO,
 	.arg3_type	= ARG_ANYTHING,
 };
 
