@@ -481,7 +481,7 @@ static int faraday_pci_probe(struct platform_device *pdev)
 	}
 	p->bus_clk = devm_clk_get(dev, "PCICLK");
 	if (IS_ERR(p->bus_clk))
-		return PTR_ERR(clk);
+		return PTR_ERR(p->bus_clk);
 	ret = clk_prepare_enable(p->bus_clk);
 	if (ret) {
 		dev_err(dev, "could not prepare PCICLK\n");
