@@ -62,12 +62,16 @@
 #define HNS_ROCE_CQE_WCMD_EMPTY_BIT		0x2
 #define HNS_ROCE_MIN_CQE_CNT			16
 
-#define HNS_ROCE_MAX_IRQ_NUM			34
+#define HNS_ROCE_MAX_IRQ_NUM			128
 
-#define HNS_ROCE_COMP_VEC_NUM			32
+#define EQ_ENABLE				1
+#define EQ_DISABLE				0
 
-#define HNS_ROCE_AEQE_VEC_NUM			1
-#define HNS_ROCE_AEQE_OF_VEC_NUM		1
+#define HNS_ROCE_CEQ				0
+#define HNS_ROCE_AEQ				1
+
+#define HNS_ROCE_CEQ_ENTRY_SIZE			0x4
+#define HNS_ROCE_AEQ_ENTRY_SIZE			0x10
 
 /* 4G/4K = 1M */
 #define HNS_ROCE_SL_SHIFT			28
@@ -485,6 +489,45 @@ struct hns_roce_ib_iboe {
 	u8			phy_port[HNS_ROCE_MAX_PORTS];
 };
 
+enum {
+	HNS_ROCE_EQ_STAT_INVALID  = 0,
+	HNS_ROCE_EQ_STAT_VALID    = 2,
+};
+
+struct hns_roce_ceqe {
+	u32			comp;
+};
+
+struct hns_roce_aeqe {
+	u32 asyn;
+	union {
+		struct {
+			u32 qp;
+			u32 rsv0;
+			u32 rsv1;
+		} qp_event;
+
+		struct {
+			u32 cq;
+			u32 rsv0;
+			u32 rsv1;
+		} cq_event;
+
+		struct {
+			u32 ceqe;
+			u32 rsv0;
+			u32 rsv1;
+		} ce_event;
+
+		struct {
+			__le64  out_param;
+			__le16  token;
+			u8	status;
+			u8	rsv0;
+		} __packed cmd;
+	 } event;
+};
+
 struct hns_roce_eq {
 	struct hns_roce_dev		*hr_dev;
 	void __iomem			*doorbell;
@@ -502,7 +545,7 @@ struct hns_roce_eq {
 
 struct hns_roce_eq_table {
 	struct hns_roce_eq	*eq;
-	void __iomem		**eqc_base;
+	void __iomem		**eqc_base; /* only for hw v1 */
 };
 
 struct hns_roce_caps {
@@ -550,7 +593,7 @@ struct hns_roce_caps {
 	u32		pbl_buf_pg_sz;
 	u32		pbl_hop_num;
 	int		aeqe_depth;
-	int		ceqe_depth[HNS_ROCE_COMP_VEC_NUM];
+	int		ceqe_depth;
 	enum ib_mtu	max_mtu;
 	u32		qpc_bt_num;
 	u32		srqc_bt_num;
@@ -623,6 +666,8 @@ struct hns_roce_hw {
 	int (*dereg_mr)(struct hns_roce_dev *hr_dev, struct hns_roce_mr *mr);
 	int (*destroy_cq)(struct ib_cq *ibcq);
 	int (*modify_cq)(struct ib_cq *cq, u16 cq_count, u16 cq_period);
+	int (*init_eq)(struct hns_roce_dev *hr_dev);
+	void (*cleanup_eq)(struct hns_roce_dev *hr_dev);
 };
 
 struct hns_roce_dev {
