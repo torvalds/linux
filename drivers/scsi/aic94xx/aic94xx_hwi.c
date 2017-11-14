@@ -1178,8 +1178,7 @@ static void asd_start_scb_timers(struct list_head *list)
 	struct asd_ascb *ascb;
 	list_for_each_entry(ascb, list, list) {
 		if (!ascb->uldd_timer) {
-			ascb->timer.data = (unsigned long) ascb;
-			ascb->timer.function = asd_ascb_timedout;
+			ascb->timer.function = (TIMER_FUNC_TYPE)asd_ascb_timedout;
 			ascb->timer.expires = jiffies + AIC94XX_SCB_TIMEOUT;
 			add_timer(&ascb->timer);
 		}

@@ -545,10 +545,10 @@ static int act_open_rpl_status_to_errno(int status)
 	}
 }
 
-static void act_open_retry_timer(unsigned long data)
+static void act_open_retry_timer(struct timer_list *t)
 {
+	struct cxgbi_sock *csk = from_timer(csk, t, retry_timer);
 	struct sk_buff *skb;
-	struct cxgbi_sock *csk = (struct cxgbi_sock *)data;
 
 	log_debug(1 << CXGBI_DBG_TOE | 1 << CXGBI_DBG_SOCK,
 		"csk 0x%p,%u,0x%lx,%u.\n",
@@ -586,8 +586,8 @@ static int do_act_open_rpl(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 	cxgbi_sock_get(csk);
 	spin_lock_bh(&csk->lock);
 	if (rpl->status == CPL_ERR_CONN_EXIST &&
-	    csk->retry_timer.function != act_open_retry_timer) {
-		csk->retry_timer.function = act_open_retry_timer;
+	    csk->retry_timer.function != (TIMER_FUNC_TYPE)act_open_retry_timer) {
+		csk->retry_timer.function = (TIMER_FUNC_TYPE)act_open_retry_timer;
 		mod_timer(&csk->retry_timer, jiffies + HZ / 2);
 	} else
 		cxgbi_sock_fail_act_open(csk,

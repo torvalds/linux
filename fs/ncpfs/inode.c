@@ -618,7 +618,7 @@ static int ncp_fill_super(struct super_block *sb, void *raw_data, int silent)
 	server->tx.creq		= NULL;
 	server->rcv.creq	= NULL;
 
-	init_timer(&server->timeout_tm);
+	timer_setup(&server->timeout_tm, ncpdgram_timeout_call, 0);
 #undef NCP_PACKET_SIZE
 #define NCP_PACKET_SIZE 131072
 	error = -ENOMEM;
@@ -650,8 +650,6 @@ static int ncp_fill_super(struct super_block *sb, void *raw_data, int silent)
 	} else {
 		INIT_WORK(&server->rcv.tq, ncpdgram_rcv_proc);
 		INIT_WORK(&server->timeout_tq, ncpdgram_timeout_proc);
-		server->timeout_tm.data = (unsigned long)server;
-		server->timeout_tm.function = ncpdgram_timeout_call;
 	}
 	release_sock(sock->sk);
 

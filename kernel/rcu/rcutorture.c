@@ -1078,7 +1078,7 @@ static void rcu_torture_timer_cb(struct rcu_head *rhp)
  * counter in the element should never be greater than 1, otherwise, the
  * RCU implementation is broken.
  */
-static void rcu_torture_timer(unsigned long unused)
+static void rcu_torture_timer(struct timer_list *unused)
 {
 	int idx;
 	unsigned long started;
@@ -1165,7 +1165,7 @@ rcu_torture_reader(void *arg)
 	VERBOSE_TOROUT_STRING("rcu_torture_reader task started");
 	set_user_nice(current, MAX_NICE);
 	if (irqreader && cur_ops->irq_capable)
-		setup_timer_on_stack(&t, rcu_torture_timer, 0);
+		timer_setup_on_stack(&t, rcu_torture_timer, 0);
 
 	do {
 		if (irqreader && cur_ops->irq_capable) {

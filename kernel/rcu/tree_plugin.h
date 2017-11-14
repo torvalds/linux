@@ -2266,9 +2266,11 @@ static void do_nocb_deferred_wakeup_common(struct rcu_data *rdp)
 }
 
 /* Do a deferred wakeup of rcu_nocb_kthread() from a timer handler. */
-static void do_nocb_deferred_wakeup_timer(unsigned long x)
+static void do_nocb_deferred_wakeup_timer(struct timer_list *t)
 {
-	do_nocb_deferred_wakeup_common((struct rcu_data *)x);
+	struct rcu_data *rdp = from_timer(rdp, t, nocb_timer);
+
+	do_nocb_deferred_wakeup_common(rdp);
 }
 
 /*
@@ -2332,8 +2334,7 @@ static void __init rcu_boot_init_nocb_percpu_data(struct rcu_data *rdp)
 	init_swait_queue_head(&rdp->nocb_wq);
 	rdp->nocb_follower_tail = &rdp->nocb_follower_head;
 	raw_spin_lock_init(&rdp->nocb_lock);
-	setup_timer(&rdp->nocb_timer, do_nocb_deferred_wakeup_timer,
-		    (unsigned long)rdp);
+	timer_setup(&rdp->nocb_timer, do_nocb_deferred_wakeup_timer, 0);
 }
 
 /*
