@@ -1632,8 +1632,6 @@ static ssize_t wil_write_suspend_stats(struct file *file,
 	struct wil6210_priv *wil = file->private_data;
 
 	memset(&wil->suspend_stats, 0, sizeof(wil->suspend_stats));
-	wil->suspend_stats.min_suspend_time = ULONG_MAX;
-	wil->suspend_stats.collection_start = ktime_get();
 
 	return len;
 }
@@ -1645,27 +1643,18 @@ static ssize_t wil_read_suspend_stats(struct file *file,
 	struct wil6210_priv *wil = file->private_data;
 	static char text[400];
 	int n;
-	unsigned long long stats_collection_time =
-		ktime_to_us(ktime_sub(ktime_get(),
-				      wil->suspend_stats.collection_start));
 
 	n = snprintf(text, sizeof(text),
 		     "Suspend statistics:\n"
 		     "successful suspends:%ld failed suspends:%ld\n"
 		     "successful resumes:%ld failed resumes:%ld\n"
-		     "rejected by host:%ld rejected by device:%ld\n"
-		     "total suspend time:%lld min suspend time:%lld\n"
-		     "max suspend time:%lld stats collection time: %lld\n",
+		     "rejected by host:%ld rejected by device:%ld\n",
 		     wil->suspend_stats.successful_suspends,
 		     wil->suspend_stats.failed_suspends,
 		     wil->suspend_stats.successful_resumes,
 		     wil->suspend_stats.failed_resumes,
 		     wil->suspend_stats.rejected_by_host,
-		     wil->suspend_stats.rejected_by_device,
-		     wil->suspend_stats.total_suspend_time,
-		     wil->suspend_stats.min_suspend_time,
-		     wil->suspend_stats.max_suspend_time,
-		     stats_collection_time);
+		     wil->suspend_stats.rejected_by_device);
 
 	n = min_t(int, n, sizeof(text));
 
@@ -1835,8 +1824,6 @@ int wil6210_debugfs_init(struct wil6210_priv *wil)
 	wil6210_debugfs_create_pseudo_ISR(wil, dbg);
 
 	wil6210_debugfs_create_ITR_CNT(wil, dbg);
-
-	wil->suspend_stats.collection_start = ktime_get();
 
 	return 0;
 }

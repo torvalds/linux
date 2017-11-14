@@ -89,11 +89,6 @@ struct wil_suspend_stats {
 	unsigned long failed_resumes;
 	unsigned long rejected_by_device;
 	unsigned long rejected_by_host;
-	unsigned long long total_suspend_time;
-	unsigned long long min_suspend_time;
-	unsigned long long max_suspend_time;
-	ktime_t collection_start;
-	ktime_t suspend_start_time;
 };
 
 /* Calculate MAC buffer size for the firmware. It includes all overhead,

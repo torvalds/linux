@@ -323,16 +323,12 @@ int wil_suspend(struct wil6210_priv *wil, bool is_runtime, bool keep_radio_on)
 	wil_dbg_pm(wil, "suspend: %s => %d\n",
 		   is_runtime ? "runtime" : "system", rc);
 
-	if (!rc)
-		wil->suspend_stats.suspend_start_time = ktime_get();
-
 	return rc;
 }
 
 int wil_resume(struct wil6210_priv *wil, bool is_runtime, bool keep_radio_on)
 {
 	int rc = 0;
-	unsigned long long suspend_time_usec = 0;
 
 	wil_dbg_pm(wil, "resume: %s\n", is_runtime ? "runtime" : "system");
 
@@ -350,21 +346,9 @@ int wil_resume(struct wil6210_priv *wil, bool is_runtime, bool keep_radio_on)
 	else
 		rc = wil_resume_radio_off(wil);
 
-	if (rc)
-		goto out;
-
-	suspend_time_usec =
-		ktime_to_us(ktime_sub(ktime_get(),
-				      wil->suspend_stats.suspend_start_time));
-	wil->suspend_stats.total_suspend_time += suspend_time_usec;
-	if (suspend_time_usec < wil->suspend_stats.min_suspend_time)
-		wil->suspend_stats.min_suspend_time = suspend_time_usec;
-	if (suspend_time_usec > wil->suspend_stats.max_suspend_time)
-		wil->suspend_stats.max_suspend_time = suspend_time_usec;
-
 out:
-	wil_dbg_pm(wil, "resume: %s => %d, suspend time %lld usec\n",
-		   is_runtime ? "runtime" : "system", rc, suspend_time_usec);
+	wil_dbg_pm(wil, "resume: %s => %d\n", is_runtime ? "runtime" : "system",
+		   rc);
 	return rc;
 }
 
