@@ -22,7 +22,8 @@ struct vm_fault;
 /*
  * Flags for all iomap mappings:
  */
-#define IOMAP_F_NEW	0x01	/* blocks have been newly allocated */
+#define IOMAP_F_NEW		0x01	/* blocks have been newly allocated */
+#define IOMAP_F_BOUNDARY	0x02	/* mapping ends at metadata boundary */
 
 /*
  * Flags that only need to be reported for IOMAP_REPORT requests:
