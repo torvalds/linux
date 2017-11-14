@@ -2184,8 +2184,7 @@ static void cnl_wrpll_params_populate(struct skl_wrpll_params *params,
 		WARN(1, "Incorrect PDiv\n");
 	}
 
-	if (kdiv != 2)
-		qdiv = 1;
+	WARN_ON(kdiv != 2 && qdiv != 1);
 
 	params->qdiv_ratio = qdiv;
 	params->qdiv_mode = (qdiv == 1) ? 0 : 1;
