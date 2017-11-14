@@ -1188,6 +1188,7 @@ static int skl_init_workarounds(struct intel_engine_cs *engine)
 static int bxt_init_workarounds(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *dev_priv = engine->i915;
+	u32 val;
 	int ret;
 
 	ret = gen9_init_workarounds(engine);
@@ -1199,29 +1200,23 @@ static int bxt_init_workarounds(struct intel_engine_cs *engine)
 			  STALL_DOP_GATING_DISABLE);
 
 	/* WaDisablePooledEuLoadBalancingFix:bxt */
-	if (IS_BXT_REVID(dev_priv, BXT_REVID_B0, REVID_FOREVER)) {
-		I915_WRITE(FF_SLICE_CS_CHICKEN2,
-			   _MASKED_BIT_ENABLE(GEN9_POOLED_EU_LOAD_BALANCING_FIX_DISABLE));
-	}
+	I915_WRITE(FF_SLICE_CS_CHICKEN2,
+		   _MASKED_BIT_ENABLE(GEN9_POOLED_EU_LOAD_BALANCING_FIX_DISABLE));
 
 	/* WaProgramL3SqcReg1DefaultForPerf:bxt */
-	if (IS_BXT_REVID(dev_priv, BXT_REVID_B0, REVID_FOREVER)) {
-		u32 val = I915_READ(GEN8_L3SQCREG1);
-		val &= ~L3_PRIO_CREDITS_MASK;
-		val |= L3_GENERAL_PRIO_CREDITS(62) | L3_HIGH_PRIO_CREDITS(2);
-		I915_WRITE(GEN8_L3SQCREG1, val);
-	}
+	val = I915_READ(GEN8_L3SQCREG1);
+	val &= ~L3_PRIO_CREDITS_MASK;
+	val |= L3_GENERAL_PRIO_CREDITS(62) | L3_HIGH_PRIO_CREDITS(2);
+	I915_WRITE(GEN8_L3SQCREG1, val);
 
 	/* WaToEnableHwFixForPushConstHWBug:bxt */
-	if (IS_BXT_REVID(dev_priv, BXT_REVID_C0, REVID_FOREVER))
-		WA_SET_BIT_MASKED(COMMON_SLICE_CHICKEN2,
-				  GEN8_SBE_DISABLE_REPLAY_BUF_OPTIMIZATION);
+	WA_SET_BIT_MASKED(COMMON_SLICE_CHICKEN2,
+			  GEN8_SBE_DISABLE_REPLAY_BUF_OPTIMIZATION);
 
 	/* WaInPlaceDecompressionHang:bxt */
-	if (IS_BXT_REVID(dev_priv, BXT_REVID_C0, REVID_FOREVER))
-		I915_WRITE(GEN9_GAMT_ECO_REG_RW_IA,
-			   (I915_READ(GEN9_GAMT_ECO_REG_RW_IA) |
-			    GAMT_ECO_ENABLE_IN_PLACE_DECOMPRESS));
+	I915_WRITE(GEN9_GAMT_ECO_REG_RW_IA,
+		   (I915_READ(GEN9_GAMT_ECO_REG_RW_IA) |
+		    GAMT_ECO_ENABLE_IN_PLACE_DECOMPRESS));
 
 	return 0;
 }
