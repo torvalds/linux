@@ -28,6 +28,8 @@
 #include <asm/errno.h>
 #include <asm/esr.h>
 #include <asm/irq.h>
+#include <asm/memory.h>
+#include <asm/mmu.h>
 #include <asm/processor.h>
 #include <asm/ptrace.h>
 #include <asm/thread_info.h>
@@ -942,6 +944,90 @@ __ni_sys_trace:
 	b	__sys_trace_return
 
 	.popsection				// .entry.text
+
+#ifdef CONFIG_UNMAP_KERNEL_AT_EL0
+/*
+ * Exception vectors trampoline.
+ */
+	.pushsection ".entry.tramp.text", "ax"
+
+	.macro tramp_map_kernel, tmp
+	mrs	\tmp, ttbr1_el1
+	sub	\tmp, \tmp, #(SWAPPER_DIR_SIZE + RESERVED_TTBR0_SIZE)
+	bic	\tmp, \tmp, #USER_ASID_FLAG
+	msr	ttbr1_el1, \tmp
+	.endm
+
+	.macro tramp_unmap_kernel, tmp
+	mrs	\tmp, ttbr1_el1
+	add	\tmp, \tmp, #(SWAPPER_DIR_SIZE + RESERVED_TTBR0_SIZE)
+	orr	\tmp, \tmp, #USER_ASID_FLAG
+	msr	ttbr1_el1, \tmp
+	/*
+	 * We avoid running the post_ttbr_update_workaround here because the
+	 * user and kernel ASIDs don't have conflicting mappings, so any
+	 * "blessing" as described in:
+	 *
+	 *   http://lkml.kernel.org/r/56BB848A.6060603@caviumnetworks.com
+	 *
+	 * will not hurt correctness. Whilst this may partially defeat the
+	 * point of using split ASIDs in the first place, it avoids
+	 * the hit of invalidating the entire I-cache on every return to
+	 * userspace.
+	 */
+	.endm
+
+	.macro tramp_ventry, regsize = 64
+	.align	7
+1:
+	.if	\regsize == 64
+	msr	tpidrro_el0, x30	// Restored in kernel_ventry
+	.endif
+	tramp_map_kernel	x30
+	ldr	x30, =vectors
+	prfm	plil1strm, [x30, #(1b - tramp_vectors)]
+	msr	vbar_el1, x30
+	add	x30, x30, #(1b - tramp_vectors)
+	isb
+	br	x30
+	.endm
+
+	.macro tramp_exit, regsize = 64
+	adr	x30, tramp_vectors
+	msr	vbar_el1, x30
+	tramp_unmap_kernel	x30
+	.if	\regsize == 64
+	mrs	x30, far_el1
+	.endif
+	eret
+	.endm
+
+	.align	11
+ENTRY(tramp_vectors)
+	.space	0x400
+
+	tramp_ventry
+	tramp_ventry
+	tramp_ventry
+	tramp_ventry
+
+	tramp_ventry	32
+	tramp_ventry	32
+	tramp_ventry	32
+	tramp_ventry	32
+END(tramp_vectors)
+
+ENTRY(tramp_exit_native)
+	tramp_exit
+END(tramp_exit_native)
+
+ENTRY(tramp_exit_compat)
+	tramp_exit	32
+END(tramp_exit_compat)
+
+	.ltorg
+	.popsection				// .entry.tramp.text
+#endif /* CONFIG_UNMAP_KERNEL_AT_EL0 */
 
 /*
  * Special system call wrappers.
