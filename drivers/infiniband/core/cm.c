@@ -1560,6 +1560,37 @@ static u16 cm_get_bth_pkey(struct cm_work *work)
 	return pkey;
 }
 
+/**
+ * Convert OPA SGID to IB SGID
+ * ULPs (such as IPoIB) do not understand OPA GIDs and will
+ * reject them as the local_gid will not match the sgid. Therefore,
+ * change the pathrec's SGID to an IB SGID.
+ *
+ * @work: Work completion
+ * @path: Path record
+ */
+static void cm_opa_to_ib_sgid(struct cm_work *work,
+			      struct sa_path_rec *path)
+{
+	struct ib_device *dev = work->port->cm_dev->ib_device;
+	struct ib_gid_attr gid_attr;
+	u8 port_num = work->port->port_num;
+
+	if (rdma_cap_opa_ah(dev, port_num) &&
+	    (ib_is_opa_gid(&path->sgid))) {
+		union ib_gid sgid;
+
+		if (ib_get_cached_gid(dev, port_num, 0,
+				      &sgid, &gid_attr)) {
+			dev_warn(&dev->dev,
+				 "Error updating sgid in CM request\n");
+			return;
+		}
+
+		path->sgid = sgid;
+	}
+}
+
 static void cm_format_req_event(struct cm_work *work,
 				struct cm_id_private *cm_id_priv,
 				struct ib_cm_id *listen_id)
@@ -1573,10 +1604,13 @@ static void cm_format_req_event(struct cm_work *work,
 	param->bth_pkey = cm_get_bth_pkey(work);
 	param->port = cm_id_priv->av.port->port_num;
 	param->primary_path = &work->path[0];
-	if (cm_req_has_alt_path(req_msg))
+	cm_opa_to_ib_sgid(work, param->primary_path);
+	if (cm_req_has_alt_path(req_msg)) {
 		param->alternate_path = &work->path[1];
-	else
+		cm_opa_to_ib_sgid(work, param->alternate_path);
+	} else {
 		param->alternate_path = NULL;
+	}
 	param->remote_ca_guid = req_msg->local_ca_guid;
 	param->remote_qkey = be32_to_cpu(req_msg->local_qkey);
 	param->remote_qpn = be32_to_cpu(cm_req_get_local_qpn(req_msg));
