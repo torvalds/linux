@@ -24,6 +24,7 @@
 #include <linux/memblock.h>
 #include <linux/of_fdt.h>
 #include <linux/of_gpio.h>
+#include <linux/of_reserved_mem.h>
 #include <linux/rockchip_ion.h>
 
 #include "../ion_priv.h"
@@ -193,8 +194,8 @@ static int rk_ion_of_heap(struct ion_platform_heap *myheap,
 			if (!of_property_read_u32_array(node, "reg", reg, 2)) {
 				myheap->base = reg[0];
 				myheap->size = reg[1];
-				return 1;
 			}
+			return 1;
 		}
 
 		if (!strcmp("system-heap", node->name)) {
@@ -241,6 +242,10 @@ static int rk_ion_probe(struct platform_device *pdev)
 	int i;
 	struct ion_platform_data *pdata = pdev->dev.platform_data;
 	struct ion_device *idev;
+
+	err = of_reserved_mem_device_init(&pdev->dev);
+	if (err)
+		pr_debug("No reserved memory region assign to ion\n");
 
 	if (!pdata) {
 		pdata = rk_ion_of(pdev->dev.of_node);
