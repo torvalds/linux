@@ -865,6 +865,7 @@ struct f2fs_sm_info {
 enum count_type {
 	F2FS_DIRTY_DENTS,
 	F2FS_DIRTY_DATA,
+	F2FS_DIRTY_QDATA,
 	F2FS_DIRTY_NODES,
 	F2FS_DIRTY_META,
 	F2FS_INMEM_PAGES,
@@ -1642,6 +1643,8 @@ static inline void inode_inc_dirty_pages(struct inode *inode)
 	atomic_inc(&F2FS_I(inode)->dirty_pages);
 	inc_page_count(F2FS_I_SB(inode), S_ISDIR(inode->i_mode) ?
 				F2FS_DIRTY_DENTS : F2FS_DIRTY_DATA);
+	if (IS_NOQUOTA(inode))
+		inc_page_count(F2FS_I_SB(inode), F2FS_DIRTY_QDATA);
 }
 
 static inline void dec_page_count(struct f2fs_sb_info *sbi, int count_type)
@@ -1658,6 +1661,8 @@ static inline void inode_dec_dirty_pages(struct inode *inode)
 	atomic_dec(&F2FS_I(inode)->dirty_pages);
 	dec_page_count(F2FS_I_SB(inode), S_ISDIR(inode->i_mode) ?
 				F2FS_DIRTY_DENTS : F2FS_DIRTY_DATA);
+	if (IS_NOQUOTA(inode))
+		dec_page_count(F2FS_I_SB(inode), F2FS_DIRTY_QDATA);
 }
 
 static inline s64 get_pages(struct f2fs_sb_info *sbi, int count_type)
@@ -2771,9 +2776,10 @@ struct f2fs_stat_info {
 	unsigned long long hit_largest, hit_cached, hit_rbtree;
 	unsigned long long hit_total, total_ext;
 	int ext_tree, zombie_tree, ext_node;
-	int ndirty_node, ndirty_dent, ndirty_meta, ndirty_data, ndirty_imeta;
+	int ndirty_node, ndirty_dent, ndirty_meta, ndirty_imeta;
+	int ndirty_data, ndirty_qdata;
 	int inmem_pages;
-	unsigned int ndirty_dirs, ndirty_files, ndirty_all;
+	unsigned int ndirty_dirs, ndirty_files, nquota_files, ndirty_all;
 	int nats, dirty_nats, sits, dirty_sits;
 	int free_nids, avail_nids, alloc_nids;
 	int total_count, utilization;
