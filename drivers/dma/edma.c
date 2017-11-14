@@ -891,6 +891,10 @@ static int edma_slave_config(struct dma_chan *chan,
 	    cfg->dst_addr_width == DMA_SLAVE_BUSWIDTH_8_BYTES)
 		return -EINVAL;
 
+	if (cfg->src_maxburst > chan->device->max_burst ||
+	    cfg->dst_maxburst > chan->device->max_burst)
+		return -EINVAL;
+
 	memcpy(&echan->cfg, cfg, sizeof(echan->cfg));
 
 	return 0;
@@ -1855,6 +1859,7 @@ static void edma_dma_init(struct edma_cc *ecc, bool legacy_mode)
 	s_ddev->dst_addr_widths = EDMA_DMA_BUSWIDTHS;
 	s_ddev->directions |= (BIT(DMA_DEV_TO_MEM) | BIT(DMA_MEM_TO_DEV));
 	s_ddev->residue_granularity = DMA_RESIDUE_GRANULARITY_BURST;
+	s_ddev->max_burst = SZ_32K - 1; /* CIDX: 16bit signed */
 
 	s_ddev->dev = ecc->dev;
 	INIT_LIST_HEAD(&s_ddev->channels);
