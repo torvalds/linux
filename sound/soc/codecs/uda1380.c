@@ -38,6 +38,7 @@ struct uda1380_priv {
 	unsigned int dac_clk;
 	struct work_struct work;
 	struct i2c_client *i2c;
+	u16 *reg_cache;
 };
 
 /*
@@ -63,7 +64,9 @@ static unsigned long uda1380_cache_dirty;
 static inline unsigned int uda1380_read_reg_cache(struct snd_soc_codec *codec,
 	unsigned int reg)
 {
-	u16 *cache = codec->reg_cache;
+	struct uda1380_priv *uda1380 = snd_soc_codec_get_drvdata(codec);
+	u16 *cache = uda1380->reg_cache;
+
 	if (reg == UDA1380_RESET)
 		return 0;
 	if (reg >= UDA1380_CACHEREGNUM)
@@ -77,7 +80,8 @@ static inline unsigned int uda1380_read_reg_cache(struct snd_soc_codec *codec,
 static inline void uda1380_write_reg_cache(struct snd_soc_codec *codec,
 	u16 reg, unsigned int value)
 {
-	u16 *cache = codec->reg_cache;
+	struct uda1380_priv *uda1380 = snd_soc_codec_get_drvdata(codec);
+	u16 *cache = uda1380->reg_cache;
 
 	if (reg >= UDA1380_CACHEREGNUM)
 		return;
@@ -134,7 +138,7 @@ static void uda1380_sync_cache(struct snd_soc_codec *codec)
 	struct uda1380_priv *uda1380 = snd_soc_codec_get_drvdata(codec);
 	int reg;
 	u8 data[3];
-	u16 *cache = codec->reg_cache;
+	u16 *cache = uda1380->reg_cache;
 
 	/* Sync reg_cache with the hardware */
 	for (reg = 0; reg < UDA1380_MVOL; reg++) {
@@ -722,15 +726,8 @@ static int uda1380_probe(struct snd_soc_codec *codec)
 
 static const struct snd_soc_codec_driver soc_codec_dev_uda1380 = {
 	.probe =	uda1380_probe,
-	.read =		uda1380_read_reg_cache,
-	.write =	uda1380_write,
 	.set_bias_level = uda1380_set_bias_level,
 	.suspend_bias_off = true,
-
-	.reg_cache_size = ARRAY_SIZE(uda1380_reg),
-	.reg_word_size = sizeof(u16),
-	.reg_cache_default = uda1380_reg,
-	.reg_cache_step = 1,
 
 	.component_driver = {
 		.controls		= uda1380_snd_controls,
@@ -770,6 +767,13 @@ static int uda1380_i2c_probe(struct i2c_client *i2c,
 		if (ret)
 			return ret;
 	}
+
+	uda1380->reg_cache = devm_kmemdup(&i2c->dev,
+					uda1380_reg,
+					ARRAY_SIZE(uda1380_reg) * sizeof(u16),
+					GFP_KERNEL);
+	if (!uda1380->reg_cache)
+		return -ENOMEM;
 
 	i2c_set_clientdata(i2c, uda1380);
 	uda1380->i2c = i2c;
