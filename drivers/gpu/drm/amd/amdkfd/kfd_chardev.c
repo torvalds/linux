@@ -432,6 +432,38 @@ out:
 	return err;
 }
 
+static int kfd_ioctl_set_trap_handler(struct file *filep,
+					struct kfd_process *p, void *data)
+{
+	struct kfd_ioctl_set_trap_handler_args *args = data;
+	struct kfd_dev *dev;
+	int err = 0;
+	struct kfd_process_device *pdd;
+
+	dev = kfd_device_by_id(args->gpu_id);
+	if (dev == NULL)
+		return -EINVAL;
+
+	mutex_lock(&p->mutex);
+
+	pdd = kfd_bind_process_to_device(dev, p);
+	if (IS_ERR(pdd)) {
+		err = -ESRCH;
+		goto out;
+	}
+
+	if (dev->dqm->ops.set_trap_handler(dev->dqm,
+					&pdd->qpd,
+					args->tba_addr,
+					args->tma_addr))
+		err = -EINVAL;
+
+out:
+	mutex_unlock(&p->mutex);
+
+	return err;
+}
+
 static int kfd_ioctl_dbg_register(struct file *filep,
 				struct kfd_process *p, void *data)
 {
@@ -980,7 +1012,10 @@ static const struct amdkfd_ioctl_desc amdkfd_ioctls[] = {
 			kfd_ioctl_set_scratch_backing_va, 0),
 
 	AMDKFD_IOCTL_DEF(AMDKFD_IOC_GET_TILE_CONFIG,
-			kfd_ioctl_get_tile_config, 0)
+			kfd_ioctl_get_tile_config, 0),
+
+	AMDKFD_IOCTL_DEF(AMDKFD_IOC_SET_TRAP_HANDLER,
+			kfd_ioctl_set_trap_handler, 0),
 };
 
 #define AMDKFD_CORE_IOCTL_COUNT	ARRAY_SIZE(amdkfd_ioctls)
