@@ -60,17 +60,15 @@ Example SoC configuration:
 				 0x0800 0 0 1 &gic 0 108 IRQ_TYPE_LEVEL_HIGH
 				 0x1000 0 0 2 &gic 0 108 IRQ_TYPE_LEVEL_HIGH>;
 
-		pci@0,1 {
+		usb@1,0 {
 			reg = <0x800 0 0 0 0>;
-			device_type = "pci";
-			phys = <&usbphy 0 0>;
+			phys = <&usb0 0>;
 			phy-names = "usb";
 		};
 
-		pci@0,2 {
+		usb@2,0 {
 			reg = <0x1000 0 0 0 0>;
-			device_type = "pci";
-			phys = <&usbphy 0 0>;
+			phys = <&usb0 0>;
 			phy-names = "usb";
 		};
 	};
