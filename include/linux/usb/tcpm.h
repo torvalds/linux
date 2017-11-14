@@ -54,6 +54,27 @@ enum tcpm_transmit_type {
 	TCPC_TX_BIST_MODE_2 = 7
 };
 
+/**
+ * struct tcpc_config - Port configuration
+ * @src_pdo:	PDO parameters sent to port partner as response to
+ *		PD_CTRL_GET_SOURCE_CAP message
+ * @nr_src_pdo:	Number of entries in @src_pdo
+ * @snk_pdo:	PDO parameters sent to partner as response to
+ *		PD_CTRL_GET_SINK_CAP message
+ * @nr_snk_pdo:	Number of entries in @snk_pdo
+ * @max_snk_mv:	Maximum acceptable sink voltage in mV
+ * @max_snk_ma:	Maximum sink current in mA
+ * @max_snk_mw:	Maximum required sink power in mW
+ * @operating_snk_mw:
+ *		Required operating sink power in mW
+ * @type:	Port type (TYPEC_PORT_DFP, TYPEC_PORT_UFP, or
+ *		TYPEC_PORT_DRP)
+ * @default_role:
+ *		Default port role (TYPEC_SINK or TYPEC_SOURCE).
+ *		Set to TYPEC_NO_PREFERRED_ROLE if no default role.
+ * @try_role_hw:True if try.{Src,Snk} is implemented in hardware
+ * @alt_modes:	List of supported alternate modes
+ */
 struct tcpc_config {
 	const u32 *src_pdo;
 	unsigned int nr_src_pdo;
@@ -79,7 +100,6 @@ struct tcpc_config {
 enum tcpc_usb_switch {
 	TCPC_USB_SWITCH_CONNECT,
 	TCPC_USB_SWITCH_DISCONNECT,
-	TCPC_USB_SWITCH_RESTORE,	/* TODO FIXME */
 };
 
 /* Mux state attributes */
@@ -104,17 +124,40 @@ struct tcpc_mux_dev {
 	void *priv_data;
 };
 
+/**
+ * struct tcpc_dev - Port configuration and callback functions
+ * @config:	Pointer to port configuration
+ * @get_vbus:	Called to read current VBUS state
+ * @get_current_limit:
+ *		Optional; called by the tcpm core when configured as a snk
+ *		and cc=Rp-def. This allows the tcpm to provide a fallback
+ *		current-limit detection method for the cc=Rp-def case.
+ *		For example, some tcpcs may include BC1.2 charger detection
+ *		and use that in this case.
+ * @set_cc:	Called to set value of CC pins
+ * @get_cc:	Called to read current CC pin values
+ * @set_polarity:
+ *		Called to set polarity
+ * @set_vconn:	Called to enable or disable VCONN
+ * @set_vbus:	Called to enable or disable VBUS
+ * @set_current_limit:
+ *		Optional; called to set current limit as negotiated
+ *		with partner.
+ * @set_pd_rx:	Called to enable or disable reception of PD messages
+ * @set_roles:	Called to set power and data roles
+ * @start_drp_toggling:
+ *		Optional; if supported by hardware, called to start DRP
+ *		toggling. DRP toggling is stopped automatically if
+ *		a connection is established.
+ * @try_role:	Optional; called to set a preferred role
+ * @pd_transmit:Called to transmit PD message
+ * @mux:	Pointer to multiplexer data
+ */
 struct tcpc_dev {
 	const struct tcpc_config *config;
 
 	int (*init)(struct tcpc_dev *dev);
 	int (*get_vbus)(struct tcpc_dev *dev);
-	/*
-	 * This optional callback gets called by the tcpm core when configured
-	 * as a snk and cc=Rp-def. This allows the tcpm to provide a fallback
-	 * current-limit detection method for the cc=Rp-def case. E.g. some
-	 * tcpcs may include BC1.2 charger detection and use that in this case.
-	 */
 	int (*get_current_limit)(struct tcpc_dev *dev);
 	int (*set_cc)(struct tcpc_dev *dev, enum typec_cc_status cc);
 	int (*get_cc)(struct tcpc_dev *dev, enum typec_cc_status *cc1,

@@ -229,7 +229,6 @@ static const struct ad7887_chip_info ad7887_chip_info_tbl[] = {
 
 static const struct iio_info ad7887_info = {
 	.read_raw = &ad7887_read_raw,
-	.driver_module = THIS_MODULE,
 };
 
 static int ad7887_probe(struct spi_device *spi)

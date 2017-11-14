@@ -238,6 +238,7 @@ static struct completion hif_driver_comp;
 static struct completion hif_wait_response;
 static struct mutex hif_deinit_lock;
 static struct timer_list periodic_rssi;
+static struct wilc_vif *periodic_rssi_vif;
 
 u8 wilc_multicast_mac_addr_list[WILC_MULTICAST_TABLE_SIZE][ETH_ALEN];
 
@@ -2272,7 +2273,7 @@ static int Handle_RemainOnChan(struct wilc_vif *vif,
 ERRORHANDLER:
 	{
 		P2P_LISTEN_STATE = 1;
-		hif_drv->remain_on_ch_timer.data = (unsigned long)vif;
+		hif_drv->remain_on_ch_timer_vif = vif;
 		mod_timer(&hif_drv->remain_on_ch_timer,
 			  jiffies +
 			  msecs_to_jiffies(pstrHostIfRemainOnChan->duration));
@@ -2360,11 +2361,13 @@ _done_:
 	return result;
 }
 
-static void ListenTimerCB(unsigned long arg)
+static void ListenTimerCB(struct timer_list *t)
 {
+	struct host_if_drv *hif_drv = from_timer(hif_drv, t,
+						      remain_on_ch_timer);
+	struct wilc_vif *vif = hif_drv->remain_on_ch_timer_vif;
 	s32 result = 0;
 	struct host_if_msg msg;
-	struct wilc_vif *vif = (struct wilc_vif *)arg;
 
 	del_timer(&vif->hif_drv->remain_on_ch_timer);
 
@@ -2417,9 +2420,9 @@ static void Handle_SetMulticastFilter(struct wilc_vif *vif,
 
 	pu8CurrByte = wid.val;
 	*pu8CurrByte++ = (strHostIfSetMulti->enabled & 0xFF);
-	*pu8CurrByte++ = ((strHostIfSetMulti->enabled >> 8) & 0xFF);
-	*pu8CurrByte++ = ((strHostIfSetMulti->enabled >> 16) & 0xFF);
-	*pu8CurrByte++ = ((strHostIfSetMulti->enabled >> 24) & 0xFF);
+	*pu8CurrByte++ = 0;
+	*pu8CurrByte++ = 0;
+	*pu8CurrByte++ = 0;
 
 	*pu8CurrByte++ = (strHostIfSetMulti->cnt & 0xFF);
 	*pu8CurrByte++ = ((strHostIfSetMulti->cnt >> 8) & 0xFF);
@@ -2643,9 +2646,10 @@ free_msg:
 	complete(&hif_thread_comp);
 }
 
-static void TimerCB_Scan(unsigned long arg)
+static void TimerCB_Scan(struct timer_list *t)
 {
-	struct wilc_vif *vif = (struct wilc_vif *)arg;
+	struct host_if_drv *hif_drv = from_timer(hif_drv, t, scan_timer);
+	struct wilc_vif *vif = hif_drv->scan_timer_vif;
 	struct host_if_msg msg;
 
 	memset(&msg, 0, sizeof(struct host_if_msg));
@@ -2655,9 +2659,11 @@ static void TimerCB_Scan(unsigned long arg)
 	wilc_enqueue_cmd(&msg);
 }
 
-static void TimerCB_Connect(unsigned long arg)
+static void TimerCB_Connect(struct timer_list *t)
 {
-	struct wilc_vif *vif = (struct wilc_vif *)arg;
+	struct host_if_drv *hif_drv = from_timer(hif_drv, t,
+						      connect_timer);
+	struct wilc_vif *vif = hif_drv->connect_timer_vif;
 	struct host_if_msg msg;
 
 	memset(&msg, 0, sizeof(struct host_if_msg));
@@ -3040,7 +3046,7 @@ int wilc_set_join_req(struct wilc_vif *vif, u8 *bssid, const u8 *ssid,
 		return -EFAULT;
 	}
 
-	hif_drv->connect_timer.data = (unsigned long)vif;
+	hif_drv->connect_timer_vif = vif;
 	mod_timer(&hif_drv->connect_timer,
 		  jiffies + msecs_to_jiffies(HOST_IF_CONNECT_TIMEOUT));
 
@@ -3283,7 +3289,7 @@ int wilc_scan(struct wilc_vif *vif, u8 scan_source, u8 scan_type,
 		return -EINVAL;
 	}
 
-	hif_drv->scan_timer.data = (unsigned long)vif;
+	hif_drv->scan_timer_vif = vif;
 	mod_timer(&hif_drv->scan_timer,
 		  jiffies + msecs_to_jiffies(HOST_IF_SCAN_TIMEOUT));
 
@@ -3309,9 +3315,9 @@ int wilc_hif_set_cfg(struct wilc_vif *vif,
 	return wilc_enqueue_cmd(&msg);
 }
 
-static void GetPeriodicRSSI(unsigned long arg)
+static void GetPeriodicRSSI(struct timer_list *unused)
 {
-	struct wilc_vif *vif = (struct wilc_vif *)arg;
+	struct wilc_vif *vif = periodic_rssi_vif;
 
 	if (!vif->hif_drv) {
 		netdev_err(vif->ndev, "Driver handler is NULL\n");
@@ -3321,7 +3327,6 @@ static void GetPeriodicRSSI(unsigned long arg)
 	if (vif->hif_drv->hif_state == HOST_IF_CONNECTED)
 		wilc_get_statistics(vif, &vif->wilc->dummy_statistics);
 
-	periodic_rssi.data = (unsigned long)vif;
 	mod_timer(&periodic_rssi, jiffies + msecs_to_jiffies(5000));
 }
 
@@ -3374,14 +3379,14 @@ int wilc_init(struct net_device *dev, struct host_if_drv **hif_drv_handler)
 			goto _fail_;
 		}
 
-		setup_timer(&periodic_rssi, GetPeriodicRSSI,
-			    (unsigned long)vif);
+		periodic_rssi_vif = vif;
+		timer_setup(&periodic_rssi, GetPeriodicRSSI, 0);
 		mod_timer(&periodic_rssi, jiffies + msecs_to_jiffies(5000));
 	}
 
-	setup_timer(&hif_drv->scan_timer, TimerCB_Scan, 0);
-	setup_timer(&hif_drv->connect_timer, TimerCB_Connect, 0);
-	setup_timer(&hif_drv->remain_on_ch_timer, ListenTimerCB, 0);
+	timer_setup(&hif_drv->scan_timer, TimerCB_Scan, 0);
+	timer_setup(&hif_drv->connect_timer, TimerCB_Connect, 0);
+	timer_setup(&hif_drv->remain_on_ch_timer, ListenTimerCB, 0);
 
 	mutex_init(&hif_drv->cfg_values_lock);
 	mutex_lock(&hif_drv->cfg_values_lock);

@@ -291,7 +291,7 @@ static void dgnc_free_irq(struct dgnc_board *brd)
   * waiter needs to be woken up, and (b) whether the poller needs to
   * be rescheduled.
   */
-static void dgnc_poll_handler(ulong dummy)
+static void dgnc_poll_handler(struct timer_list *unused)
 {
 	struct dgnc_board *brd;
 	unsigned long flags;
@@ -323,7 +323,7 @@ static void dgnc_poll_handler(ulong dummy)
 	if ((ulong)new_time >= 2 * dgnc_poll_tick)
 		dgnc_poll_time = jiffies + dgnc_jiffies_from_ms(dgnc_poll_tick);
 
-	setup_timer(&dgnc_poll_timer, dgnc_poll_handler, 0);
+	timer_setup(&dgnc_poll_timer, dgnc_poll_handler, 0);
 	dgnc_poll_timer.expires = dgnc_poll_time;
 	spin_unlock_irqrestore(&dgnc_poll_lock, flags);
 
@@ -392,8 +392,6 @@ static int dgnc_start(void)
 	unsigned long flags;
 	struct device *dev;
 
-	init_timer(&dgnc_poll_timer);
-
 	rc = register_chrdev(0, "dgnc", &dgnc_board_fops);
 	if (rc < 0) {
 		pr_err(DRVSTR ": Can't register dgnc driver device (%d)\n", rc);
@@ -419,7 +417,7 @@ static int dgnc_start(void)
 
 	/* Start the poller */
 	spin_lock_irqsave(&dgnc_poll_lock, flags);
-	setup_timer(&dgnc_poll_timer, dgnc_poll_handler, 0);
+	timer_setup(&dgnc_poll_timer, dgnc_poll_handler, 0);
 	dgnc_poll_time = jiffies + dgnc_jiffies_from_ms(dgnc_poll_tick);
 	dgnc_poll_timer.expires = dgnc_poll_time;
 	spin_unlock_irqrestore(&dgnc_poll_lock, flags);

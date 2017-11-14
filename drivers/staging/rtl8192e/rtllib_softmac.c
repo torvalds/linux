@@ -393,10 +393,10 @@ static void rtllib_send_beacon(struct rtllib_device *ieee)
 }
 
 
-static void rtllib_send_beacon_cb(unsigned long _ieee)
+static void rtllib_send_beacon_cb(struct timer_list *t)
 {
 	struct rtllib_device *ieee =
-		(struct rtllib_device *) _ieee;
+		from_timer(ieee, t, beacon_timer);
 	unsigned long flags;
 
 	spin_lock_irqsave(&ieee->beacon_lock, flags);
@@ -1427,9 +1427,11 @@ static void rtllib_associate_abort(struct rtllib_device *ieee)
 	spin_unlock_irqrestore(&ieee->lock, flags);
 }
 
-static void rtllib_associate_abort_cb(unsigned long dev)
+static void rtllib_associate_abort_cb(struct timer_list *t)
 {
-	rtllib_associate_abort((struct rtllib_device *) dev);
+	struct rtllib_device *dev = from_timer(dev, t, associate_timer);
+
+	rtllib_associate_abort(dev);
 }
 
 static void rtllib_associate_step1(struct rtllib_device *ieee, u8 *daddr)
@@ -2811,8 +2813,9 @@ exit:
 
 static struct sk_buff *rtllib_get_beacon_(struct rtllib_device *ieee)
 {
-	const u8 broadcast_addr[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-
+	static const u8 broadcast_addr[] = {
+		0xff, 0xff, 0xff, 0xff, 0xff, 0xff
+	};
 	struct sk_buff *skb;
 	struct rtllib_probe_response *b;
 
@@ -3011,13 +3014,9 @@ void rtllib_softmac_init(struct rtllib_device *ieee)
 
 	ieee->tx_pending.txb = NULL;
 
-	setup_timer(&ieee->associate_timer,
-		    rtllib_associate_abort_cb,
-		    (unsigned long) ieee);
+	timer_setup(&ieee->associate_timer, rtllib_associate_abort_cb, 0);
 
-	setup_timer(&ieee->beacon_timer,
-		    rtllib_send_beacon_cb,
-		    (unsigned long) ieee);
+	timer_setup(&ieee->beacon_timer, rtllib_send_beacon_cb, 0);
 
 	INIT_DELAYED_WORK_RSL(&ieee->link_change_wq,
 			      (void *)rtllib_link_change_wq, ieee);

@@ -137,7 +137,7 @@ static void fsl_mc_msi_update_chip_ops(struct msi_domain_info *info)
 {
 	struct irq_chip *chip = info->chip;
 
-	if (WARN_ON((!chip)))
+	if (WARN_ON(!chip))
 		return;
 
 	/*

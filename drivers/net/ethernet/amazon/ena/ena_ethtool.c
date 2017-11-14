@@ -742,8 +742,8 @@ static void ena_get_channels(struct net_device *netdev,
 {
 	struct ena_adapter *adapter = netdev_priv(netdev);
 
-	channels->max_rx = ENA_MAX_NUM_IO_QUEUES;
-	channels->max_tx = ENA_MAX_NUM_IO_QUEUES;
+	channels->max_rx = adapter->num_queues;
+	channels->max_tx = adapter->num_queues;
 	channels->max_other = 0;
 	channels->max_combined = 0;
 	channels->rx_count = adapter->num_queues;

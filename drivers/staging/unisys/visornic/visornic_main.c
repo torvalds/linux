@@ -20,6 +20,7 @@
 
 #include <linux/debugfs.h>
 #include <linux/etherdevice.h>
+#include <linux/module.h>
 #include <linux/netdevice.h>
 #include <linux/kthread.h>
 #include <linux/skbuff.h>
@@ -48,7 +49,8 @@ static struct visor_channeltype_descriptor visornic_channel_types[] = {
 	/* Note that the only channel type we expect to be reported by the
 	 * bus driver is the VISOR_VNIC channel.
 	 */
-	{ VISOR_VNIC_CHANNEL_GUID, "ultravnic" },
+	{ VISOR_VNIC_CHANNEL_GUID, "ultravnic", sizeof(struct channel_header),
+	  VISOR_VNIC_CHANNEL_VERSIONID },
 	{}
 };
 MODULE_DEVICE_TABLE(visorbus, visornic_channel_types);
@@ -899,7 +901,7 @@ static int visornic_xmit(struct sk_buff *skb, struct net_device *netdev)
 		return NETDEV_TX_OK;
 	}
 
-	if ((len < ETH_MIN_PACKET_SIZE) &&
+	if (len < ETH_MIN_PACKET_SIZE &&
 	    ((skb_end_pointer(skb) - skb->data) >= ETH_MIN_PACKET_SIZE)) {
 		/* pad the packet out to minimum size */
 		padlen = ETH_MIN_PACKET_SIZE - len;
@@ -1450,7 +1452,7 @@ static ssize_t info_debugfs_read(struct file *file, char __user *buf,
 	rcu_read_lock();
 	for_each_netdev_rcu(current->nsproxy->net_ns, dev) {
 		/* Only consider netdevs that are visornic, and are open */
-		if ((dev->netdev_ops != &visornic_dev_ops) ||
+		if (dev->netdev_ops != &visornic_dev_ops ||
 		    (!netif_queue_stopped(dev)))
 			continue;
 
@@ -1680,7 +1682,7 @@ static void service_resp_queue(struct uiscmdrsp *cmdrsp,
 			/* only call queue wake if we stopped it */
 			netdev = ((struct sk_buff *)cmdrsp->net.buf)->dev;
 			/* ASSERT netdev == vnicinfo->netdev; */
-			if ((netdev == devdata->netdev) &&
+			if (netdev == devdata->netdev &&
 			    netif_queue_stopped(netdev)) {
 				/* check if we have crossed the lower watermark
 				 * for netif_wake_queue()

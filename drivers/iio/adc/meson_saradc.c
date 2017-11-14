@@ -840,7 +840,6 @@ out:
 
 static const struct iio_info meson_sar_adc_iio_info = {
 	.read_raw = meson_sar_adc_iio_info_read_raw,
-	.driver_module = THIS_MODULE,
 };
 
 static const struct meson_sar_adc_data meson_sar_adc_meson8_data = {

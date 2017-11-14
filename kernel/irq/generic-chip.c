@@ -135,17 +135,26 @@ void irq_gc_ack_clr_bit(struct irq_data *d)
 }
 
 /**
- * irq_gc_mask_disable_reg_and_ack - Mask and ack pending interrupt
+ * irq_gc_mask_disable_and_ack_set - Mask and ack pending interrupt
  * @d: irq_data
+ *
+ * This generic implementation of the irq_mask_ack method is for chips
+ * with separate enable/disable registers instead of a single mask
+ * register and where a pending interrupt is acknowledged by setting a
+ * bit.
+ *
+ * Note: This is the only permutation currently used.  Similar generic
+ * functions should be added here if other permutations are required.
  */
-void irq_gc_mask_disable_reg_and_ack(struct irq_data *d)
+void irq_gc_mask_disable_and_ack_set(struct irq_data *d)
 {
 	struct irq_chip_generic *gc = irq_data_get_irq_chip_data(d);
 	struct irq_chip_type *ct = irq_data_get_chip_type(d);
 	u32 mask = d->mask;
 
 	irq_gc_lock(gc);
-	irq_reg_writel(gc, mask, ct->regs.mask);
+	irq_reg_writel(gc, mask, ct->regs.disable);
+	*ct->mask_cache &= ~mask;
 	irq_reg_writel(gc, mask, ct->regs.ack);
 	irq_gc_unlock(gc);
 }

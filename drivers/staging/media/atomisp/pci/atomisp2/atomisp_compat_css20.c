@@ -151,7 +151,7 @@ static void atomisp_css2_hw_store(hrt_address addr,
 				  const void *from, uint32_t n)
 {
 	unsigned long flags;
-	unsigned i;
+	unsigned int i;
 	unsigned int _to = (unsigned int)addr;
 	const char *_from = (const char *)from;
 
@@ -164,7 +164,7 @@ static void atomisp_css2_hw_store(hrt_address addr,
 static void atomisp_css2_hw_load(hrt_address addr, void *to, uint32_t n)
 {
 	unsigned long flags;
-	unsigned i;
+	unsigned int i;
 	char *_to = (char *)to;
 	unsigned int _from = (unsigned int)addr;
 
@@ -228,9 +228,11 @@ static void __dump_pipe_config(struct atomisp_sub_device *asd,
 			       unsigned int pipe_id)
 {
 	struct atomisp_device *isp = asd->isp;
+
 	if (stream_env->pipes[pipe_id]) {
 		struct ia_css_pipe_config *p_config;
 		struct ia_css_pipe_extra_config *pe_config;
+
 		p_config = &stream_env->pipe_configs[pipe_id];
 		pe_config = &stream_env->pipe_extra_configs[pipe_id];
 		dev_dbg(isp->dev, "dumping pipe[%d] config:\n", pipe_id);
@@ -503,6 +505,7 @@ static int __destroy_stream(struct atomisp_sub_device *asd,
 static int __destroy_streams(struct atomisp_sub_device *asd, bool force)
 {
 	int ret, i;
+
 	for (i = 0; i < ATOMISP_INPUT_STREAM_NUM; i++) {
 		ret = __destroy_stream(asd, &asd->stream_env[i], force);
 		if (ret)
@@ -569,6 +572,7 @@ static int __destroy_stream_pipes(struct atomisp_sub_device *asd,
 	struct atomisp_device *isp = asd->isp;
 	int ret = 0;
 	int i;
+
 	for (i = 0; i < IA_CSS_PIPE_ID_NUM; i++) {
 		if (!stream_env->pipes[i] ||
 		    !(force || stream_env->update_pipe[i]))
@@ -888,12 +892,12 @@ static inline int __set_css_print_env(struct atomisp_device *isp, int opt)
 {
 	int ret = 0;
 
-	if (0 == opt)
+	if (opt == 0)
 		isp->css_env.isp_css_env.print_env.debug_print = NULL;
-	else if (1 == opt)
+	else if (opt == 1)
 		isp->css_env.isp_css_env.print_env.debug_print =
 			atomisp_css2_dbg_ftrace_print;
-	else if (2 == opt)
+	else if (opt == 2)
 		isp->css_env.isp_css_env.print_env.debug_print =
 			atomisp_css2_dbg_print;
 	else
@@ -1047,6 +1051,7 @@ int atomisp_css_irq_enable(struct atomisp_device *isp,
 void atomisp_css_init_struct(struct atomisp_sub_device *asd)
 {
 	int i, j;
+
 	for (i = 0; i < ATOMISP_INPUT_STREAM_NUM; i++) {
 		asd->stream_env[i].stream = NULL;
 		for (j = 0; j < IA_CSS_PIPE_MODE_NUM; j++) {
@@ -1185,6 +1190,7 @@ int atomisp_css_start(struct atomisp_sub_device *asd,
 	struct atomisp_device *isp = asd->isp;
 	bool sp_is_started = false;
 	int ret = 0, i = 0;
+
 	if (in_reset) {
 		if (__destroy_streams(asd, true))
 			dev_warn(isp->dev, "destroy stream failed.\n");
@@ -1972,6 +1978,7 @@ void atomisp_css_enable_raw_binning(struct atomisp_sub_device *asd,
 void atomisp_css_enable_dz(struct atomisp_sub_device *asd, bool enable)
 {
 	int i;
+
 	for (i = 0; i < IA_CSS_PIPE_ID_NUM; i++)
 		asd->stream_env[ATOMISP_INPUT_STREAM_GENERAL]
 			.pipe_configs[i].enable_dz = enable;
@@ -1998,6 +2005,7 @@ void atomisp_css_input_set_mode(struct atomisp_sub_device *asd,
 	int i;
 	struct atomisp_device *isp = asd->isp;
 	unsigned int size_mem_words;
+
 	for (i = 0; i < ATOMISP_INPUT_STREAM_NUM; i++)
 		asd->stream_env[i].stream_config.mode = mode;
 
@@ -2271,6 +2279,7 @@ int atomisp_css_stop(struct atomisp_sub_device *asd,
 	if (!in_reset) {
 		struct atomisp_stream_env *stream_env;
 		int i, j;
+
 		for (i = 0; i < ATOMISP_INPUT_STREAM_NUM; i++) {
 			stream_env = &asd->stream_env[i];
 			for (j = 0; j < IA_CSS_PIPE_ID_NUM; j++) {
@@ -2797,6 +2806,7 @@ static void __configure_video_vf_output(struct atomisp_sub_device *asd,
 	struct atomisp_stream_env *stream_env =
 		&asd->stream_env[ATOMISP_INPUT_STREAM_GENERAL];
 	struct ia_css_frame_info *css_output_info;
+
 	stream_env->pipe_configs[pipe_id].mode =
 					__pipe_id_to_pipe_mode(asd, pipe_id);
 	stream_env->update_pipe[pipe_id] = true;
@@ -4460,7 +4470,8 @@ int atomisp_css_load_acc_binary(struct atomisp_sub_device *asd,
 static struct atomisp_sub_device *__get_atomisp_subdev(
 					struct ia_css_pipe *css_pipe,
 					struct atomisp_device *isp,
-					enum atomisp_input_stream_id *stream_id) {
+					enum atomisp_input_stream_id *stream_id)
+{
 	int i, j, k;
 	struct atomisp_sub_device *asd;
 	struct atomisp_stream_env *stream_env;
@@ -4655,7 +4666,7 @@ int atomisp_css_dump_sp_raw_copy_linecount(bool reduced)
 int atomisp_css_dump_blob_infor(void)
 {
 	struct ia_css_blob_descr *bd = sh_css_blob_info;
-	unsigned i, nm = sh_css_num_binaries;
+	unsigned int i, nm = sh_css_num_binaries;
 
 	if (nm == 0)
 		return -EPERM;
@@ -4691,7 +4702,7 @@ int atomisp_set_css_dbgfunc(struct atomisp_device *isp, int opt)
 	int ret;
 
 	ret = __set_css_print_env(isp, opt);
-	if (0 == ret)
+	if (ret == 0)
 		dbg_func = opt;
 
 	return ret;

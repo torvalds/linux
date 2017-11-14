@@ -40,8 +40,8 @@ static inline int ssi_fips_init(struct ssi_drvdata *p_drvdata)
 }
 
 static inline void ssi_fips_fini(struct ssi_drvdata *drvdata) {}
-void cc_set_ree_fips_status(struct ssi_drvdata *drvdata, bool ok) {}
-void fips_handler(struct ssi_drvdata *drvdata) {}
+static inline void cc_set_ree_fips_status(struct ssi_drvdata *drvdata, bool ok) {}
+static inline void fips_handler(struct ssi_drvdata *drvdata) {}
 
 #endif /* CONFIG_CRYPTO_FIPS */
 

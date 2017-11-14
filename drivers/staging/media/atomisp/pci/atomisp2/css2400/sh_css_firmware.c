@@ -146,7 +146,7 @@ sh_css_load_blob_info(const char *fw, const struct ia_css_fw_info *bi, struct ia
 		size_t statestruct_size = sizeof(struct ia_css_state_memory_offsets);
 
 		char *parambuf = kmalloc(paramstruct_size + configstruct_size + statestruct_size,
-							GFP_KERNEL);
+					 GFP_KERNEL);
 		if (!parambuf)
 			return IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
 

@@ -60,7 +60,8 @@ config AD5446
 	  Say yes here to build support for Analog Devices AD5300, AD5301, AD5310,
 	  AD5311, AD5320, AD5321, AD5444, AD5446, AD5450, AD5451, AD5452, AD5453,
 	  AD5512A, AD5541A, AD5542A, AD5543, AD5553, AD5601, AD5602, AD5611, AD5612,
-	  AD5620, AD5621, AD5622, AD5640, AD5641, AD5660, AD5662 DACs.
+	  AD5620, AD5621, AD5622, AD5640, AD5641, AD5660, AD5662 DACs
+	  as well as Texas Instruments DAC081S101, DAC101S101, DAC121S101.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ad5446.
@@ -221,6 +222,15 @@ config DPOT_DAC
 	  To compile this driver as a module, choose M here: the module will be
 	  called dpot-dac.
 
+config DS4424
+	tristate "Maxim Integrated DS4422/DS4424 DAC driver"
+	depends on I2C
+	help
+	  If you say yes here you get support for Maxim chips DS4422, DS4424.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called ds4424.
+
 config LPC18XX_DAC
 	tristate "NXP LPC18xx DAC driver"
 	depends on ARCH_LPC18XX || COMPILE_TEST
@@ -299,6 +309,16 @@ config STM32_DAC
 
 config STM32_DAC_CORE
 	tristate
+
+config TI_DAC082S085
+	tristate "Texas Instruments 8/10/12-bit 2/4-channel DAC driver"
+	depends on SPI_MASTER
+	help
+	  Driver for the Texas Instruments (formerly National Semiconductor)
+	  DAC082S085, DAC102S085, DAC122S085, DAC084S085, DAC104S085 and
+	  DAC124S085.
+
+	  If compiled as a module, it will be called ti-dac082s085.
 
 config VF610_DAC
 	tristate "Vybrid vf610 DAC driver"

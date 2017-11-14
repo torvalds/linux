@@ -403,6 +403,7 @@ static const struct platform_device_id axp_pek_id_match[] = {
 	},
 	{ /* sentinel */ }
 };
+MODULE_DEVICE_TABLE(platform, axp_pek_id_match);
 
 static struct platform_driver axp20x_pek_driver = {
 	.probe		= axp20x_pek_probe,
@@ -417,4 +418,3 @@ module_platform_driver(axp20x_pek_driver);
 MODULE_DESCRIPTION("axp20x Power Button");
 MODULE_AUTHOR("Carlo Caione <carlo@caione.org>");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:axp20x-pek");

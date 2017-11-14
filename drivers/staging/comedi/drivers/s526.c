@@ -408,9 +408,8 @@ static int s526_gpct_winsn(struct comedi_device *dev,
 		 */
 		if ((data[1] <= data[0]) || !data[0])
 			return -EINVAL;
-
-		/* Fall thru to write the PULSE_WIDTH */
-
+		/* to write the PULSE_WIDTH */
+		/* fall through */
 	case INSN_CONFIG_GPCT_QUADRATURE_ENCODER:
 	case INSN_CONFIG_GPCT_SINGLE_PULSE_GENERATOR:
 		s526_gpct_write(dev, chan, data[0]);

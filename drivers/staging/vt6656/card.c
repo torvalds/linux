@@ -382,11 +382,13 @@ void vnt_update_ifs(struct vnt_private *priv)
 			priv->difs -= 1;
 			break;
 		}
+		/* fall through */
 	case RF_AIROHA7230:
 	case RF_AL2230:
 	case RF_AL2230S:
 		if (priv->bb_type != BB_TYPE_11B)
 			break;
+		/* fall through */
 	case RF_RFMD2959:
 	case RF_VT3226:
 	case RF_VT3342A0:

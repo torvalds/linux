@@ -266,7 +266,7 @@ static void update_scan_time(void)
 		last_scanned_shadow[i].time_scan = jiffies;
 }
 
-static void remove_network_from_shadow(unsigned long arg)
+static void remove_network_from_shadow(unsigned long unused)
 {
 	unsigned long now = jiffies;
 	int i, j;
@@ -287,7 +287,6 @@ static void remove_network_from_shadow(unsigned long arg)
 	}
 
 	if (last_scanned_cnt != 0) {
-		hAgingTimer.data = arg;
 		mod_timer(&hAgingTimer, jiffies + msecs_to_jiffies(AGING_TIME));
 	}
 }
@@ -304,7 +303,6 @@ static int is_network_in_shadow(struct network_info *pstrNetworkInfo,
 	int i;
 
 	if (last_scanned_cnt == 0) {
-		hAgingTimer.data = (unsigned long)user_void;
 		mod_timer(&hAgingTimer, jiffies + msecs_to_jiffies(AGING_TIME));
 		state = -1;
 	} else {
@@ -1111,7 +1109,6 @@ static int del_key(struct wiphy *wiphy, struct net_device *netdev,
 		g_key_gtk_params.key = NULL;
 		kfree(g_key_gtk_params.seq);
 		g_key_gtk_params.seq = NULL;
-
 	}
 
 	if (key_index >= 0 && key_index <= 3) {
@@ -1617,7 +1614,7 @@ static int mgmt_tx(struct wiphy *wiphy,
 
 	*cookie = (unsigned long)buf;
 	priv->u64tx_cookie = *cookie;
-	mgmt = (const struct ieee80211_mgmt *) buf;
+	mgmt = (const struct ieee80211_mgmt *)buf;
 
 	if (ieee80211_is_mgmt(mgmt->frame_control)) {
 		mgmt_tx = kmalloc(sizeof(struct p2p_mgmt_data), GFP_KERNEL);

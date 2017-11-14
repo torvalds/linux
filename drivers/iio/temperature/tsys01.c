@@ -111,7 +111,6 @@ static const struct iio_chan_spec tsys01_channels[] = {
 
 static const struct iio_info tsys01_info = {
 	.read_raw = tsys01_read_raw,
-	.driver_module = THIS_MODULE,
 };
 
 static bool tsys01_crc_valid(u16 *n_prom)

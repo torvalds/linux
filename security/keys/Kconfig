@@ -45,6 +45,7 @@ config BIG_KEYS
 	bool "Large payload keys"
 	depends on KEYS
 	depends on TMPFS
+	select CRYPTO
 	select CRYPTO_AES
 	select CRYPTO_GCM
 	help

@@ -104,7 +104,6 @@ static int lpc32xx_read_raw(struct iio_dev *indio_dev,
 
 static const struct iio_info lpc32xx_adc_iio_info = {
 	.read_raw = &lpc32xx_read_raw,
-	.driver_module = THIS_MODULE,
 };
 
 #define LPC32XX_ADC_CHANNEL(_index) {			\

@@ -8245,14 +8245,17 @@ static void gen8_set_l3sqc_credits(struct drm_i915_private *dev_priv,
 				   int high_prio_credits)
 {
 	u32 misccpctl;
+	u32 val;
 
 	/* WaTempDisableDOPClkGating:bdw */
 	misccpctl = I915_READ(GEN7_MISCCPCTL);
 	I915_WRITE(GEN7_MISCCPCTL, misccpctl & ~GEN7_DOP_CLOCK_GATE_ENABLE);
 
-	I915_WRITE(GEN8_L3SQCREG1,
-		   L3_GENERAL_PRIO_CREDITS(general_prio_credits) |
-		   L3_HIGH_PRIO_CREDITS(high_prio_credits));
+	val = I915_READ(GEN8_L3SQCREG1);
+	val &= ~L3_PRIO_CREDITS_MASK;
+	val |= L3_GENERAL_PRIO_CREDITS(general_prio_credits);
+	val |= L3_HIGH_PRIO_CREDITS(high_prio_credits);
+	I915_WRITE(GEN8_L3SQCREG1, val);
 
 	/*
 	 * Wait at least 100 clocks before re-enabling clock gating.

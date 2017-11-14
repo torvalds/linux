@@ -721,7 +721,7 @@ static int alloc_private_pages(struct hmm_buffer_object *bo,
 
 	pgnr = bo->pgnr;
 
-	bo->page_obj = kmalloc(sizeof(struct hmm_page_object) * pgnr,
+	bo->page_obj = kmalloc_array(pgnr, sizeof(struct hmm_page_object),
 				GFP_KERNEL);
 	if (unlikely(!bo->page_obj))
 		return -ENOMEM;
@@ -984,11 +984,11 @@ static int alloc_user_pages(struct hmm_buffer_object *bo,
 	struct vm_area_struct *vma;
 	struct page **pages;
 
-	pages = kmalloc(sizeof(struct page *) * bo->pgnr, GFP_KERNEL);
+	pages = kmalloc_array(bo->pgnr, sizeof(struct page *), GFP_KERNEL);
 	if (unlikely(!pages))
 		return -ENOMEM;
 
-	bo->page_obj = kmalloc(sizeof(struct hmm_page_object) * bo->pgnr,
+	bo->page_obj = kmalloc_array(bo->pgnr, sizeof(struct hmm_page_object),
 		GFP_KERNEL);
 	if (unlikely(!bo->page_obj)) {
 		kfree(pages);
@@ -1350,7 +1350,7 @@ void *hmm_bo_vmap(struct hmm_buffer_object *bo, bool cached)
 		bo->status &= ~(HMM_BO_VMAPED | HMM_BO_VMAPED_CACHED);
 	}
 
-	pages = kmalloc(sizeof(*pages) * bo->pgnr, GFP_KERNEL);
+	pages = kmalloc_array(bo->pgnr, sizeof(*pages), GFP_KERNEL);
 	if (unlikely(!pages)) {
 		mutex_unlock(&bo->mutex);
 		return NULL;

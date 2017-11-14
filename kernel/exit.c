@@ -1611,7 +1611,7 @@ SYSCALL_DEFINE5(waitid, int, which, pid_t, upid, struct siginfo __user *,
 		return err;
 
 	if (!access_ok(VERIFY_WRITE, infop, sizeof(*infop)))
-		goto Efault;
+		return -EFAULT;
 
 	user_access_begin();
 	unsafe_put_user(signo, &infop->si_signo, Efault);
@@ -1739,7 +1739,7 @@ COMPAT_SYSCALL_DEFINE5(waitid,
 		return err;
 
 	if (!access_ok(VERIFY_WRITE, infop, sizeof(*infop)))
-		goto Efault;
+		return -EFAULT;
 
 	user_access_begin();
 	unsafe_put_user(signo, &infop->si_signo, Efault);

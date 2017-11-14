@@ -70,25 +70,28 @@ enum rt_scan_type {
 enum SCAN_RESULT_TYPE {
 	SCAN_RESULT_P2P_ONLY = 0,	/* Will return all the P2P devices. */
 	SCAN_RESULT_ALL = 1,		/* Will return all the scanned device,
-					 * include AP. */
+					 * include AP.
+					 */
 	SCAN_RESULT_WFD_TYPE = 2	/* Will just return the correct WFD
-					 * device. */
+					 * device.
+					 */
 					/* If this device is Miracast sink
 					 * device, it will just return all the
-					 * Miracast source devices. */
+					 * Miracast source devices.
+					 */
 };
 
 /*
-there are several "locks" in mlme_priv,
-since mlme_priv is a shared resource between many threads,
-like ISR/Call-Back functions, the OID handlers, and even timer functions.
-
-Each _queue has its own locks, already.
-Other items are protected by mlme_priv.lock.
-
-To avoid possible dead lock, any thread trying to modifiying mlme_priv
-SHALL not lock up more than one lock at a time!
-*/
+ * there are several "locks" in mlme_priv,
+ * since mlme_priv is a shared resource between many threads,
+ * like ISR/Call-Back functions, the OID handlers, and even timer functions.
+ *
+ * Each _queue has its own locks, already.
+ * Other items are protected by mlme_priv.lock.
+ *
+ * To avoid possible dead lock, any thread trying to modifiying mlme_priv
+ * SHALL not lock up more than one lock at a time!
+ */
 
 #define traffic_threshold	10
 #define	traffic_scan_period	500
@@ -102,9 +105,11 @@ struct rt_link_detect {
 	bool	bRxBusyTraffic;
 	bool	bHigherBusyTraffic; /*  For interrupt migration purpose. */
 	bool	bHigherBusyRxTraffic; /* We may disable Tx interrupt according
-				       * to Rx traffic. */
+				       * to Rx traffic.
+				       */
 	bool	bHigherBusyTxTraffic; /* We may disable Tx interrupt according
-				       * to Tx traffic. */
+				       * to Tx traffic.
+				       */
 };
 
 struct mlme_priv {
@@ -164,7 +169,8 @@ struct mlme_priv {
 
 #if defined(CONFIG_88EU_AP_MODE)
 	/* Number of associated Non-ERP stations (i.e., stations using 802.11b
-	 * in 802.11g BSS) */
+	 * in 802.11g BSS)
+	 */
 	int num_sta_non_erp;
 
 	/* Number of associated stations that do not support Short Slot Time */
@@ -325,10 +331,10 @@ void rtw_update_registrypriv_dev_network(struct adapter *adapter);
 
 void rtw_get_encrypt_decrypt_from_registrypriv(struct adapter *adapter);
 
-void _rtw_join_timeout_handler(unsigned long data);
-void rtw_scan_timeout_handler(unsigned long data);
+void _rtw_join_timeout_handler(struct timer_list *t);
+void rtw_scan_timeout_handler(struct timer_list *t);
 
-void rtw_dynamic_check_timer_handlder(unsigned long data);
+void rtw_dynamic_check_timer_handlder(struct timer_list *t);
 #define rtw_is_scan_deny(adapter) false
 #define rtw_clear_scan_deny(adapter) do {} while (0)
 #define rtw_set_scan_deny_timer_hdl(adapter) do {} while (0)

@@ -117,7 +117,6 @@ static int ad8366_write_raw(struct iio_dev *indio_dev,
 static const struct iio_info ad8366_info = {
 	.read_raw = &ad8366_read_raw,
 	.write_raw = &ad8366_write_raw,
-	.driver_module = THIS_MODULE,
 };
 
 #define AD8366_CHAN(_channel) {				\

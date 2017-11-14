@@ -292,7 +292,6 @@ static const struct attribute_group cm32181_attribute_group = {
 };
 
 static const struct iio_info cm32181_info = {
-	.driver_module		= THIS_MODULE,
 	.read_raw		= &cm32181_read_raw,
 	.write_raw		= &cm32181_write_raw,
 	.attrs			= &cm32181_attribute_group,

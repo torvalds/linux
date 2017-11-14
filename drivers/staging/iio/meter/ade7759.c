@@ -60,7 +60,7 @@
 /**
  * struct ade7759_state - device instance specific data
  * @us:			actual spi_device
- * @buf_lock:		mutex to protect tx and rx
+ * @buf_lock:		mutex to protect tx and rx and write frequency
  * @tx:			transmit buffer
  * @rx:			receive buffer
  **/
@@ -89,6 +89,20 @@ static int ade7759_spi_write_reg_8(struct device *dev,
 	return ret;
 }
 
+/*Unlocked version of ade7759_spi_write_reg_16 function */
+static int __ade7759_spi_write_reg_16(struct device *dev,
+		u8 reg_address,
+		u16 value)
+{
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
+	struct ade7759_state *st = iio_priv(indio_dev);
+
+	st->tx[0] = ADE7759_WRITE_REG(reg_address);
+	st->tx[1] = (value >> 8) & 0xFF;
+	st->tx[2] = value & 0xFF;
+	return spi_write(st->us, st->tx, 3);
+}
+
 static int ade7759_spi_write_reg_16(struct device *dev,
 		u8 reg_address,
 		u16 value)
@@ -98,10 +112,7 @@ static int ade7759_spi_write_reg_16(struct device *dev,
 	struct ade7759_state *st = iio_priv(indio_dev);
 
 	mutex_lock(&st->buf_lock);
-	st->tx[0] = ADE7759_WRITE_REG(reg_address);
-	st->tx[1] = (value >> 8) & 0xFF;
-	st->tx[2] = value & 0xFF;
-	ret = spi_write(st->us, st->tx, 3);
+	ret = __ade7759_spi_write_reg_16(dev, reg_address, value);
 	mutex_unlock(&st->buf_lock);
 
 	return ret;
@@ -172,7 +183,7 @@ static int ade7759_spi_read_reg_40(struct device *dev,
 				reg_address);
 		goto error_ret;
 	}
-	*val = ((u64)st->rx[1] << 32) | (st->rx[2] << 24) |
+	*val = ((u64)st->rx[1] << 32) | ((u64)st->rx[2] << 24) |
 		(st->rx[3] << 16) | (st->rx[4] << 8) | st->rx[5];
 
 error_ret:
@@ -429,7 +440,7 @@ static ssize_t ade7759_write_frequency(struct device *dev,
 	if (!val)
 		return -EINVAL;
 
-	mutex_lock(&indio_dev->mlock);
+	mutex_lock(&st->buf_lock);
 
 	t = 27900 / val;
 	if (t > 0)
@@ -447,10 +458,10 @@ static ssize_t ade7759_write_frequency(struct device *dev,
 	reg &= ~(3 << 13);
 	reg |= t << 13;
 
-	ret = ade7759_spi_write_reg_16(dev, ADE7759_MODE, reg);
+	ret = __ade7759_spi_write_reg_16(dev, ADE7759_MODE, reg);
 
 out:
-	mutex_unlock(&indio_dev->mlock);
+	mutex_unlock(&st->buf_lock);
 
 	return ret ? ret : len;
 }
@@ -493,7 +504,6 @@ static const struct attribute_group ade7759_attribute_group = {
 
 static const struct iio_info ade7759_info = {
 	.attrs = &ade7759_attribute_group,
-	.driver_module = THIS_MODULE,
 };
 
 static int ade7759_probe(struct spi_device *spi)

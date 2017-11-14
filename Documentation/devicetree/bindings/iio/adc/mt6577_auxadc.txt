@@ -12,6 +12,7 @@ for the Thermal Controller which holds a phandle to the AUXADC.
 Required properties:
   - compatible: Should be one of:
     - "mediatek,mt2701-auxadc": For MT2701 family of SoCs
+    - "mediatek,mt2712-auxadc": For MT2712 family of SoCs
     - "mediatek,mt7622-auxadc": For MT7622 family of SoCs
     - "mediatek,mt8173-auxadc": For MT8173 family of SoCs
   - reg: Address range of the AUXADC unit.
