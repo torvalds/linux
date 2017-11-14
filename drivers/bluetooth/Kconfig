@@ -32,7 +32,7 @@ config BT_HCIBTUSB
 	  kernel or say M to compile it as module (btusb).
 
 config BT_HCIBTUSB_AUTOSUSPEND
-	bool "Enable USB autosuspend for Bluetooth USB devices by default.
+	bool "Enable USB autosuspend for Bluetooth USB devices by default"
 	depends on BT_HCIBTUSB
 	help
 	  Say Y here to enable USB autosuspend for Bluetooth USB devices by
