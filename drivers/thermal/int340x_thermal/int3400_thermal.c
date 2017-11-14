@@ -211,7 +211,7 @@ static void int3400_notify(acpi_handle handle,
 				thermal_prop);
 		break;
 	default:
-		dev_err(&priv->adev->dev, "Unsupported event [0x%x]\n", event);
+		/* Ignore unknown notification codes sent to INT3400 device */
 		break;
 	}
 }
