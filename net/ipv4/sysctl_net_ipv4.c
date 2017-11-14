@@ -201,6 +201,8 @@ static int ipv4_ping_group_range(struct ctl_table *table, int write,
 static int proc_tcp_congestion_control(struct ctl_table *ctl, int write,
 				       void __user *buffer, size_t *lenp, loff_t *ppos)
 {
+	struct net *net = container_of(ctl->data, struct net,
+				       ipv4.tcp_congestion_control);
 	char val[TCP_CA_NAME_MAX];
 	struct ctl_table tbl = {
 		.data = val,
@@ -208,11 +210,11 @@ static int proc_tcp_congestion_control(struct ctl_table *ctl, int write,
 	};
 	int ret;
 
-	tcp_get_default_congestion_control(val);
+	tcp_get_default_congestion_control(net, val);
 
 	ret = proc_dostring(&tbl, write, buffer, lenp, ppos);
 	if (write && ret == 0)
-		ret = tcp_set_default_congestion_control(val);
+		ret = tcp_set_default_congestion_control(net, val);
 	return ret;
 }
 
@@ -446,12 +448,6 @@ static struct ctl_table ipv4_table[] = {
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec
-	},
-	{
-		.procname	= "tcp_congestion_control",
-		.mode		= 0644,
-		.maxlen		= TCP_CA_NAME_MAX,
-		.proc_handler	= proc_tcp_congestion_control,
 	},
 #ifdef CONFIG_NETLABEL
 	{
@@ -763,6 +759,13 @@ static struct ctl_table ipv4_net_table[] = {
 		.extra1		= &one
 	},
 #endif
+	{
+		.procname	= "tcp_congestion_control",
+		.data		= &init_net.ipv4.tcp_congestion_control,
+		.mode		= 0644,
+		.maxlen		= TCP_CA_NAME_MAX,
+		.proc_handler	= proc_tcp_congestion_control,
+	},
 	{
 		.procname	= "tcp_keepalive_time",
 		.data		= &init_net.ipv4.sysctl_tcp_keepalive_time,

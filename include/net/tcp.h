@@ -1002,8 +1002,8 @@ void tcp_unregister_congestion_control(struct tcp_congestion_ops *type);
 void tcp_assign_congestion_control(struct sock *sk);
 void tcp_init_congestion_control(struct sock *sk);
 void tcp_cleanup_congestion_control(struct sock *sk);
-int tcp_set_default_congestion_control(const char *name);
-void tcp_get_default_congestion_control(char *name);
+int tcp_set_default_congestion_control(struct net *net, const char *name);
+void tcp_get_default_congestion_control(struct net *net, char *name);
 void tcp_get_available_congestion_control(char *buf, size_t len);
 void tcp_get_allowed_congestion_control(char *buf, size_t len);
 int tcp_set_allowed_congestion_control(char *allowed);
@@ -1017,7 +1017,7 @@ void tcp_reno_cong_avoid(struct sock *sk, u32 ack, u32 acked);
 extern struct tcp_congestion_ops tcp_reno;
 
 struct tcp_congestion_ops *tcp_ca_find_key(u32 key);
-u32 tcp_ca_get_key_by_name(const char *name, bool *ecn_ca);
+u32 tcp_ca_get_key_by_name(struct net *net, const char *name, bool *ecn_ca);
 #ifdef CONFIG_INET
 char *tcp_ca_get_name_by_key(u32 key, char *buffer);
 #else

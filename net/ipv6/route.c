@@ -2378,6 +2378,7 @@ out:
 static int ip6_convert_metrics(struct mx6_config *mxc,
 			       const struct fib6_config *cfg)
 {
+	struct net *net = cfg->fc_nlinfo.nl_net;
 	bool ecn_ca = false;
 	struct nlattr *nla;
 	int remaining;
@@ -2403,7 +2404,7 @@ static int ip6_convert_metrics(struct mx6_config *mxc,
 			char tmp[TCP_CA_NAME_MAX];
 
 			nla_strlcpy(tmp, nla, sizeof(tmp));
-			val = tcp_ca_get_key_by_name(tmp, &ecn_ca);
+			val = tcp_ca_get_key_by_name(net, tmp, &ecn_ca);
 			if (val == TCP_CA_UNSPEC)
 				goto err;
 		} else {
