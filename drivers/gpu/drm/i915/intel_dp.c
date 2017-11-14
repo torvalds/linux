@@ -441,7 +441,7 @@ static void pps_lock(struct intel_dp *intel_dp)
 	struct drm_i915_private *dev_priv = to_i915(intel_dp_to_dev(intel_dp));
 
 	/*
-	 * See vlv_power_sequencer_reset() why we need
+	 * See intel_power_sequencer_reset() why we need
 	 * a power domain reference here.
 	 */
 	intel_display_power_get(dev_priv, intel_dp->aux_power_domain);
