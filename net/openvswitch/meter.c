@@ -42,19 +42,12 @@ static const struct nla_policy band_policy[OVS_BAND_ATTR_MAX + 1] = {
 	[OVS_BAND_ATTR_STATS] = { .len = sizeof(struct ovs_flow_stats) },
 };
 
-static void rcu_free_ovs_meter_callback(struct rcu_head *rcu)
-{
-	struct dp_meter *meter = container_of(rcu, struct dp_meter, rcu);
-
-	kfree(meter);
-}
-
 static void ovs_meter_free(struct dp_meter *meter)
 {
 	if (!meter)
 		return;
 
-	call_rcu(&meter->rcu, rcu_free_ovs_meter_callback);
+	kfree_rcu(meter, rcu);
 }
 
 static struct hlist_head *meter_hash_bucket(const struct datapath *dp,
