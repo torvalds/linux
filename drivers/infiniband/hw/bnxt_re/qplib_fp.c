@@ -410,7 +410,6 @@ int bnxt_qplib_enable_nq(struct pci_dev *pdev, struct bnxt_qplib_nq *nq,
 	if (rc) {
 		dev_err(&nq->pdev->dev,
 			"Failed to request IRQ for NQ: %#x", rc);
-		bnxt_qplib_disable_nq(nq);
 		goto fail;
 	}
 
