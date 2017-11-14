@@ -2265,7 +2265,6 @@ static bool cnl_ddi_hdmi_pll_dividers(struct intel_crtc *crtc,
 		DPLL_CFGCR1_QDIV_MODE(wrpll_params.qdiv_mode) |
 		DPLL_CFGCR1_KDIV(wrpll_params.kdiv) |
 		DPLL_CFGCR1_PDIV(wrpll_params.pdiv) |
-		wrpll_params.central_freq |
 		DPLL_CFGCR1_CENTRAL_FREQ;
 
 	memset(&crtc_state->dpll_hw_state, 0,
