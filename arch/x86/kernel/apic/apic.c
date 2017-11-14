@@ -1473,7 +1473,7 @@ void setup_local_APIC(void)
 	/*
 	 * Set up LVT0, LVT1:
 	 *
-	 * set up through-local-APIC on the BP's LINT0. This is not
+	 * set up through-local-APIC on the boot CPU's LINT0. This is not
 	 * strictly necessary in pure symmetric-IO mode, but sometimes
 	 * we delegate interrupts to the 8259A.
 	 */

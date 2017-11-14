@@ -251,7 +251,7 @@ static void notrace start_secondary(void *unused)
 	/* otherwise gcc will move up smp_processor_id before the cpu_init */
 	barrier();
 	/*
-	 * Check TSC synchronization with the BP:
+	 * Check TSC synchronization with the boot CPU:
 	 */
 	check_tsc_sync_target();
 

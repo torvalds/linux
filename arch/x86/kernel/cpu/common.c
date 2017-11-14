@@ -885,8 +885,8 @@ static void identify_cpu_without_cpuid(struct cpuinfo_x86 *c)
  * cache alignment.
  * The others are not touched to avoid unwanted side effects.
  *
- * WARNING: this function is only called on the BP.  Don't add code here
- * that is supposed to run on all CPUs.
+ * WARNING: this function is only called on the boot CPU.  Don't add code
+ * here that is supposed to run on all CPUs.
  */
 static void __init early_identify_cpu(struct cpuinfo_x86 *c)
 {
