@@ -30,7 +30,7 @@
 #include <linux/earlysuspend.h>
 #endif
 #include <linux/sensor-dev.h>
-#include <linux/mpu6880.h>
+#include <linux/mpu6500.h>
 
 static int sensor_active(struct i2c_client *client, int enable, int rate)
 {
@@ -41,18 +41,18 @@ static int sensor_active(struct i2c_client *client, int enable, int rate)
 	u8 pwrm1 = 0;
 
 	sensor->ops->ctrl_data = sensor_read_reg(client, sensor->ops->ctrl_reg);
-	pwrm1 = sensor_read_reg(client, MPU6880_PWR_MGMT_1);
+	pwrm1 = sensor_read_reg(client, MPU6500_PWR_MGMT_1);
 
 	if (!enable) {
 		status = BIT_GYRO_STBY;
 		sensor->ops->ctrl_data |= status;
 		if ((sensor->ops->ctrl_data & BIT_ACCEL_STBY) == BIT_ACCEL_STBY) {
-			pwrm1 |= MPU6880_PWRM1_SLEEP;
+			pwrm1 |= MPU6500_PWRM1_SLEEP;
 		}
 	} else {
 		status = ~BIT_GYRO_STBY;
 		sensor->ops->ctrl_data &= status;
-		pwrm1 &= ~MPU6880_PWRM1_SLEEP;
+		pwrm1 &= ~MPU6500_PWRM1_SLEEP;
 	}
 
 	result = sensor_write_reg(client, sensor->ops->ctrl_reg, sensor->ops->ctrl_data);
@@ -62,7 +62,7 @@ static int sensor_active(struct i2c_client *client, int enable, int rate)
 	}
 	msleep(20);
 
-	result = sensor_write_reg(client, MPU6880_PWR_MGMT_1, pwrm1);
+	result = sensor_write_reg(client, MPU6500_PWR_MGMT_1, pwrm1);
 	if (result) {
 		dev_err(&client->dev, "%s:fail to set pwrm1\n", __func__);
 		return -1;
@@ -149,33 +149,32 @@ static int sensor_report_value(struct i2c_client *client)
 	return ret;
 }
 
-struct sensor_operate gyro_mpu6880_ops = {
-	.name			= "mpu6880_gyro",
-	.type			= SENSOR_TYPE_GYROSCOPE,
-	.id_i2c			= GYRO_ID_MPU6880,
-	.read_reg			= MPU6880_GYRO_XOUT_H,
-	.read_len			= 6,
-	.id_reg			= SENSOR_UNKNOW_DATA,
-	.id_data 			= SENSOR_UNKNOW_DATA,
-	.precision			= MPU6880_PRECISION,
-	.ctrl_reg 			= MPU6880_PWR_MGMT_2,
-	.int_status_reg 	= MPU6880_INT_STATUS,
-	.range			= {-32768, 32768},
-	.trig				= IRQF_TRIGGER_HIGH |IRQF_ONESHOT,
-	.active			= sensor_active,
-	.init				= sensor_init,
-	.report 			= sensor_report_value,
+struct sensor_operate gyro_mpu6500_ops = {
+	.name				= "mpu6500_gyro",
+	.type				= SENSOR_TYPE_GYROSCOPE,
+	.id_i2c				= GYRO_ID_MPU6500,
+	.read_reg				= MPU6500_GYRO_XOUT_H,
+	.read_len				= 6,
+	.id_reg				= SENSOR_UNKNOW_DATA,
+	.id_data 				= SENSOR_UNKNOW_DATA,
+	.precision				= MPU6500_PRECISION,
+	.ctrl_reg 				= MPU6500_PWR_MGMT_2,
+	.int_status_reg 		= MPU6500_INT_STATUS,
+	.range				= {-32768, 32768},
+	.trig					= IRQF_TRIGGER_HIGH |IRQF_ONESHOT,
+	.active				= sensor_active,
+	.init					= sensor_init,
+	.report 				= sensor_report_value,
 };
 
 /****************operate according to sensor chip:end************/
 
 static struct sensor_operate *gyro_get_ops(void)
 {
-	return &gyro_mpu6880_ops;
+	return &gyro_mpu6500_ops;
 }
 
-
-static int __init gyro_mpu6880_init(void)
+static int __init gyro_mpu6500_init(void)
 {
 	struct sensor_operate *ops = gyro_get_ops();
 	int type = ops->type;
@@ -183,7 +182,7 @@ static int __init gyro_mpu6880_init(void)
 	return sensor_register_slave(type, NULL, NULL, gyro_get_ops);
 }
 
-static void __exit gyro_mpu6880_exit(void)
+static void __exit gyro_mpu6500_exit(void)
 {
 	struct sensor_operate *ops = gyro_get_ops();
 	int type = ops->type;
@@ -191,9 +190,6 @@ static void __exit gyro_mpu6880_exit(void)
 	sensor_unregister_slave(type, NULL, NULL, gyro_get_ops);
 }
 
-/* must register after mpu6880_acc */
-device_initcall_sync(gyro_mpu6880_init);
-module_exit(gyro_mpu6880_exit);
-
-
-
+/* must register after mpu6500_acc */
+device_initcall_sync(gyro_mpu6500_init);
+module_exit(gyro_mpu6500_exit);

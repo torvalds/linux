@@ -916,6 +916,8 @@ static long gyro_dev_ioctl(struct file *file,
 	int result = 0;
 	int rate;
 
+	wait_event_interruptible(sensor->is_factory_ok, (atomic_read(&sensor->is_factory) == 0));
+
 	switch (cmd) {
 	case L3G4200D_IOCTL_GET_ENABLE:
 		result = !sensor->status_cur;
@@ -959,7 +961,13 @@ static long gyro_dev_ioctl(struct file *file,
 		}
 		mutex_unlock(&sensor->operation_mutex);
 		break;
-
+	case L3G4200D_IOCTL_GET_CALIBRATION:
+		if (copy_to_user(argp, sensor->pdata->gyro_offset, sizeof(sensor->pdata->gyro_offset))) {
+			dev_err(&client->dev, "failed to copy gyro offset data to user\n");
+			result = -EFAULT;
+			goto error;
+		}
+		break;
 	default:
 		return -ENOTTY;
 	}
@@ -1871,6 +1879,7 @@ static const struct i2c_device_id sensor_id[] = {
 	{"l3g20d_gyro", GYRO_ID_L3G20D},
 	{"ewtsa_gyro", GYRO_ID_EWTSA},
 	{"k3g", GYRO_ID_K3G},
+	{"mpu6500_gyro", GYRO_ID_MPU6500},
 	{"mpu6880_gyro", GYRO_ID_MPU6880},
 	{"lsm330_gyro", GYRO_ID_LSM330},
 	/*light sensor*/
