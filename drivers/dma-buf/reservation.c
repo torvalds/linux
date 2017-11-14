@@ -104,7 +104,8 @@ reservation_object_add_shared_inplace(struct reservation_object *obj,
 				      struct reservation_object_list *fobj,
 				      struct dma_fence *fence)
 {
-	u32 i;
+	struct dma_fence *signaled = NULL;
+	u32 i, signaled_idx;
 
 	dma_fence_get(fence);
 
@@ -126,17 +127,28 @@ reservation_object_add_shared_inplace(struct reservation_object *obj,
 			dma_fence_put(old_fence);
 			return;
 		}
+
+		if (!signaled && dma_fence_is_signaled(old_fence)) {
+			signaled = old_fence;
+			signaled_idx = i;
+		}
 	}
 
 	/*
 	 * memory barrier is added by write_seqcount_begin,
 	 * fobj->shared_count is protected by this lock too
 	 */
-	RCU_INIT_POINTER(fobj->shared[fobj->shared_count], fence);
-	fobj->shared_count++;
+	if (signaled) {
+		RCU_INIT_POINTER(fobj->shared[signaled_idx], fence);
+	} else {
+		RCU_INIT_POINTER(fobj->shared[fobj->shared_count], fence);
+		fobj->shared_count++;
+	}
 
 	write_seqcount_end(&obj->seq);
 	preempt_enable();
+
+	dma_fence_put(signaled);
 }
 
 static void
