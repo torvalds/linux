@@ -57,63 +57,6 @@
  */
 
 /**
- * amdgpu_gart_table_ram_alloc - allocate system ram for gart page table
- *
- * @adev: amdgpu_device pointer
- *
- * Allocate system memory for GART page table
- * (r1xx-r3xx, non-pcie r4xx, rs400).  These asics require the
- * gart table to be in system memory.
- * Returns 0 for success, -ENOMEM for failure.
- */
-int amdgpu_gart_table_ram_alloc(struct amdgpu_device *adev)
-{
-	void *ptr;
-
-	ptr = pci_alloc_consistent(adev->pdev, adev->gart.table_size,
-				   &adev->gart.table_addr);
-	if (ptr == NULL) {
-		return -ENOMEM;
-	}
-#ifdef CONFIG_X86
-	if (0) {
-		set_memory_uc((unsigned long)ptr,
-			      adev->gart.table_size >> PAGE_SHIFT);
-	}
-#endif
-	adev->gart.ptr = ptr;
-	memset((void *)adev->gart.ptr, 0, adev->gart.table_size);
-	return 0;
-}
-
-/**
- * amdgpu_gart_table_ram_free - free system ram for gart page table
- *
- * @adev: amdgpu_device pointer
- *
- * Free system memory for GART page table
- * (r1xx-r3xx, non-pcie r4xx, rs400).  These asics require the
- * gart table to be in system memory.
- */
-void amdgpu_gart_table_ram_free(struct amdgpu_device *adev)
-{
-	if (adev->gart.ptr == NULL) {
-		return;
-	}
-#ifdef CONFIG_X86
-	if (0) {
-		set_memory_wb((unsigned long)adev->gart.ptr,
-			      adev->gart.table_size >> PAGE_SHIFT);
-	}
-#endif
-	pci_free_consistent(adev->pdev, adev->gart.table_size,
-			    (void *)adev->gart.ptr,
-			    adev->gart.table_addr);
-	adev->gart.ptr = NULL;
-	adev->gart.table_addr = 0;
-}
-
-/**
  * amdgpu_gart_table_vram_alloc - allocate vram for gart page table
  *
  * @adev: amdgpu_device pointer
@@ -125,75 +68,9 @@ void amdgpu_gart_table_ram_free(struct amdgpu_device *adev)
  */
 int amdgpu_gart_table_vram_alloc(struct amdgpu_device *adev)
 {
-	int r;
-
-	if (adev->gart.robj == NULL) {
-		r = amdgpu_bo_create(adev, adev->gart.table_size,
-				     PAGE_SIZE, true, AMDGPU_GEM_DOMAIN_VRAM,
-				     AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED |
-				     AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS,
-				     NULL, NULL, 0, &adev->gart.robj);
-		if (r) {
-			return r;
-		}
-	}
-	return 0;
-}
-
-/**
- * amdgpu_gart_table_vram_pin - pin gart page table in vram
- *
- * @adev: amdgpu_device pointer
- *
- * Pin the GART page table in vram so it will not be moved
- * by the memory manager (pcie r4xx, r5xx+).  These asics require the
- * gart table to be in video memory.
- * Returns 0 for success, error for failure.
- */
-int amdgpu_gart_table_vram_pin(struct amdgpu_device *adev)
-{
-	uint64_t gpu_addr;
-	int r;
-
-	r = amdgpu_bo_reserve(adev->gart.robj, false);
-	if (unlikely(r != 0))
-		return r;
-	r = amdgpu_bo_pin(adev->gart.robj,
-				AMDGPU_GEM_DOMAIN_VRAM, &gpu_addr);
-	if (r) {
-		amdgpu_bo_unreserve(adev->gart.robj);
-		return r;
-	}
-	r = amdgpu_bo_kmap(adev->gart.robj, &adev->gart.ptr);
-	if (r)
-		amdgpu_bo_unpin(adev->gart.robj);
-	amdgpu_bo_unreserve(adev->gart.robj);
-	adev->gart.table_addr = gpu_addr;
-	return r;
-}
-
-/**
- * amdgpu_gart_table_vram_unpin - unpin gart page table in vram
- *
- * @adev: amdgpu_device pointer
- *
- * Unpin the GART page table in vram (pcie r4xx, r5xx+).
- * These asics require the gart table to be in video memory.
- */
-void amdgpu_gart_table_vram_unpin(struct amdgpu_device *adev)
-{
-	int r;
-
-	if (adev->gart.robj == NULL) {
-		return;
-	}
-	r = amdgpu_bo_reserve(adev->gart.robj, true);
-	if (likely(r == 0)) {
-		amdgpu_bo_kunmap(adev->gart.robj);
-		amdgpu_bo_unpin(adev->gart.robj);
-		amdgpu_bo_unreserve(adev->gart.robj);
-		adev->gart.ptr = NULL;
-	}
+	return amdgpu_bo_create_kernel(adev, adev->gart.table_size, PAGE_SIZE,
+					AMDGPU_GEM_DOMAIN_VRAM, &adev->gart.robj,
+					&adev->gart.table_addr, &adev->gart.ptr);
 }
 
 /**
@@ -207,10 +84,9 @@ void amdgpu_gart_table_vram_unpin(struct amdgpu_device *adev)
  */
 void amdgpu_gart_table_vram_free(struct amdgpu_device *adev)
 {
-	if (adev->gart.robj == NULL) {
-		return;
-	}
-	amdgpu_bo_unref(&adev->gart.robj);
+	amdgpu_bo_free_kernel(&adev->gart.robj,
+				&adev->gart.table_addr,
+				&adev->gart.ptr);
 }
 
 /*

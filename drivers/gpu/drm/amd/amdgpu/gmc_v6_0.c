@@ -483,16 +483,14 @@ static void gmc_v6_0_set_prt(struct amdgpu_device *adev, bool enable)
 
 static int gmc_v6_0_gart_enable(struct amdgpu_device *adev)
 {
-	int r, i;
+	int i;
 	u32 field;
 
 	if (adev->gart.robj == NULL) {
 		dev_err(adev->dev, "No VRAM object for PCIE GART.\n");
 		return -EINVAL;
 	}
-	r = amdgpu_gart_table_vram_pin(adev);
-	if (r)
-		return r;
+
 	/* Setup TLB control */
 	WREG32(mmMC_VM_MX_L1_TLB_CNTL,
 	       (0xA << 7) |
@@ -619,7 +617,6 @@ static void gmc_v6_0_gart_disable(struct amdgpu_device *adev)
 	WREG32(mmVM_L2_CNTL3,
 	       VM_L2_CNTL3__L2_CACHE_BIGK_ASSOCIATIVITY_MASK |
 	       (0UL << VM_L2_CNTL3__L2_CACHE_BIGK_FRAGMENT_SIZE__SHIFT));
-	amdgpu_gart_table_vram_unpin(adev);
 }
 
 static void gmc_v6_0_gart_fini(struct amdgpu_device *adev)

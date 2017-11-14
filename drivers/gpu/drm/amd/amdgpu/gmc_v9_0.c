@@ -869,7 +869,7 @@ static int gmc_v9_0_sw_init(void *handle)
 }
 
 /**
- * gmc_v8_0_gart_fini - vm fini callback
+ * gmc_v9_0_gart_fini - vm fini callback
  *
  * @adev: amdgpu_device pointer
  *
@@ -933,9 +933,6 @@ static int gmc_v9_0_gart_enable(struct amdgpu_device *adev)
 		dev_err(adev->dev, "No VRAM object for PCIE GART.\n");
 		return -EINVAL;
 	}
-	r = amdgpu_gart_table_vram_pin(adev);
-	if (r)
-		return r;
 
 	switch (adev->asic_type) {
 	case CHIP_RAVEN:
@@ -1013,7 +1010,6 @@ static void gmc_v9_0_gart_disable(struct amdgpu_device *adev)
 {
 	gfxhub_v1_0_gart_disable(adev);
 	mmhub_v1_0_gart_disable(adev);
-	amdgpu_gart_table_vram_unpin(adev);
 }
 
 static int gmc_v9_0_hw_fini(void *handle)
