@@ -401,7 +401,7 @@ EXPORT_SYMBOL_GPL(drm_gem_cma_get_unmapped_area);
  * drm_gem_cma_print_info() - Print &drm_gem_cma_object info for debugfs
  * @p: DRM printer
  * @indent: Tab indentation level
- * @gem: GEM object
+ * @obj: GEM object
  *
  * This function can be used as the &drm_driver->gem_print_info callback.
  * It prints paddr and vaddr for use in e.g. debugfs output.
