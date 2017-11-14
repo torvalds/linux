@@ -208,9 +208,7 @@ static int ap_do_options(int argc, char **argv)
 		case 'r':	/* Dump tables from specified RSDP */
 
 			status =
-			    acpi_ut_strtoul64(acpi_gbl_optarg,
-					      ACPI_STRTOUL_64BIT,
-					      &gbl_rsdp_base);
+			    acpi_ut_strtoul64(acpi_gbl_optarg, &gbl_rsdp_base);
 			if (ACPI_FAILURE(status)) {
 				fprintf(stderr,
 					"%s: Could not convert to a physical address\n",

@@ -541,4 +541,20 @@ if ARM64
 source "drivers/acpi/arm64/Kconfig"
 endif
 
+config TPS68470_PMIC_OPREGION
+	bool "ACPI operation region support for TPS68470 PMIC"
+	depends on MFD_TPS68470
+	help
+	  This config adds ACPI operation region support for TI TPS68470 PMIC.
+	  TPS68470 device is an advanced power management unit that powers
+	  a Compact Camera Module (CCM), generates clocks for image sensors,
+	  drives a dual LED for flash and incorporates two LED drivers for
+	  general purpose indicators.
+	  This driver enables ACPI operation region support control voltage
+	  regulators and clocks.
+
+	  This option is a bool as it provides an ACPI operation
+	  region, which must be available before any of the devices
+	  using this, are probed.
+
 endif	# ACPI

@@ -69,7 +69,6 @@
 
 #include "mailbox.h"
 
-#define MAX_PCC_SUBSPACES	256
 #define MBOX_IRQ_NAME		"pcc-mbox"
 
 static struct mbox_chan *pcc_mbox_channels;

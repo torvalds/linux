@@ -390,6 +390,7 @@ static void acpi_button_notify(struct acpi_device *device, u32 event)
 {
 	struct acpi_button *button = acpi_driver_data(device);
 	struct input_dev *input;
+	int users;
 
 	switch (event) {
 	case ACPI_FIXED_HARDWARE_EVENT:
@@ -398,7 +399,11 @@ static void acpi_button_notify(struct acpi_device *device, u32 event)
 	case ACPI_BUTTON_NOTIFY_STATUS:
 		input = button->input;
 		if (button->type == ACPI_BUTTON_TYPE_LID) {
-			acpi_lid_update_state(device);
+			mutex_lock(&button->input->mutex);
+			users = button->input->users;
+			mutex_unlock(&button->input->mutex);
+			if (users)
+				acpi_lid_update_state(device);
 		} else {
 			int keycode;
 
@@ -442,11 +447,23 @@ static int acpi_button_resume(struct device *dev)
 	struct acpi_button *button = acpi_driver_data(device);
 
 	button->suspended = false;
-	if (button->type == ACPI_BUTTON_TYPE_LID)
+	if (button->type == ACPI_BUTTON_TYPE_LID && button->input->users)
 		acpi_lid_initialize_state(device);
 	return 0;
 }
 #endif
+
+static int acpi_lid_input_open(struct input_dev *input)
+{
+	struct acpi_device *device = input_get_drvdata(input);
+	struct acpi_button *button = acpi_driver_data(device);
+
+	button->last_state = !!acpi_lid_evaluate_state(device);
+	button->last_time = ktime_get();
+	acpi_lid_initialize_state(device);
+
+	return 0;
+}
 
 static int acpi_button_add(struct acpi_device *device)
 {
@@ -488,8 +505,7 @@ static int acpi_button_add(struct acpi_device *device)
 		strcpy(name, ACPI_BUTTON_DEVICE_NAME_LID);
 		sprintf(class, "%s/%s",
 			ACPI_BUTTON_CLASS, ACPI_BUTTON_SUBCLASS_LID);
-		button->last_state = !!acpi_lid_evaluate_state(device);
-		button->last_time = ktime_get();
+		input->open = acpi_lid_input_open;
 	} else {
 		printk(KERN_ERR PREFIX "Unsupported hid [%s]\n", hid);
 		error = -ENODEV;
@@ -522,11 +538,11 @@ static int acpi_button_add(struct acpi_device *device)
 		break;
 	}
 
+	input_set_drvdata(input, device);
 	error = input_register_device(input);
 	if (error)
 		goto err_remove_fs;
 	if (button->type == ACPI_BUTTON_TYPE_LID) {
-		acpi_lid_initialize_state(device);
 		/*
 		 * This assumes there's only one lid device, or if there are
 		 * more we only care about the last one...

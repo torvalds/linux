@@ -390,8 +390,8 @@ u32 acpi_ev_gpe_detect(struct acpi_gpe_xrupt_info *gpe_xrupt_list)
 	struct acpi_gpe_handler_info *gpe_handler_info;
 	u32 int_status = ACPI_INTERRUPT_NOT_HANDLED;
 	u8 enabled_status_byte;
-	u32 status_reg;
-	u32 enable_reg;
+	u64 status_reg;
+	u64 enable_reg;
 	acpi_cpu_flags flags;
 	u32 i;
 	u32 j;
@@ -472,7 +472,7 @@ u32 acpi_ev_gpe_detect(struct acpi_gpe_xrupt_info *gpe_xrupt_list)
 					  gpe_register_info->base_gpe_number,
 					  gpe_register_info->base_gpe_number +
 					  (ACPI_GPE_REGISTER_WIDTH - 1),
-					  status_reg, enable_reg,
+					  (u32)status_reg, (u32)enable_reg,
 					  gpe_register_info->enable_for_run,
 					  gpe_register_info->enable_for_wake));
 
