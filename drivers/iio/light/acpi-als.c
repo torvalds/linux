@@ -171,7 +171,6 @@ static int acpi_als_read_raw(struct iio_dev *indio_dev,
 }
 
 static const struct iio_info acpi_als_info = {
-	.driver_module		= THIS_MODULE,
 	.read_raw		= acpi_als_read_raw,
 };
 

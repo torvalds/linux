@@ -137,8 +137,8 @@ struct vbox_connector {
 	char name[32];
 	struct vbox_crtc *vbox_crtc;
 	struct {
-		u16 width;
-		u16 height;
+		u32 width;
+		u32 height;
 		bool disconnected;
 	} mode_hint;
 };
@@ -150,8 +150,8 @@ struct vbox_crtc {
 	unsigned int crtc_id;
 	u32 fb_offset;
 	bool cursor_enabled;
-	u16 x_hint;
-	u16 y_hint;
+	u32 x_hint;
+	u32 y_hint;
 };
 
 struct vbox_encoder {

@@ -104,6 +104,11 @@ static inline unsigned int pd_header_msgid_le(__le16 header)
 
 #define PD_MAX_PAYLOAD		7
 
+/**
+ * struct pd_message - PD message as seen on wire
+ * @header:	PD message header
+ * @payload:	PD message payload
+ */
 struct pd_message {
 	__le16 header;
 	__le32 payload[PD_MAX_PAYLOAD];

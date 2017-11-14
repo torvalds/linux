@@ -594,7 +594,6 @@ static int at91_adc_configure_trigger(struct iio_trigger *trig, bool state)
 }
 
 static const struct iio_trigger_ops at91_adc_trigger_ops = {
-	.owner = THIS_MODULE,
 	.set_trigger_state = &at91_adc_configure_trigger,
 };
 
@@ -976,7 +975,6 @@ static int at91_adc_probe_pdata(struct at91_adc_state *st,
 }
 
 static const struct iio_info at91_adc_info = {
-	.driver_module = THIS_MODULE,
 	.read_raw = &at91_adc_read_raw,
 };
 

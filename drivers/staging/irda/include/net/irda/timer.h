@@ -72,14 +72,11 @@ struct lap_cb;
 
 #define WATCHDOG_TIMEOUT        (20*HZ)       /* 20 sec */
 
-typedef void (*TIMER_CALLBACK)(void *);
-
-static inline void irda_start_timer(struct timer_list *ptimer, int timeout, 
-				    void* data, TIMER_CALLBACK callback)
+static inline void irda_start_timer(struct timer_list *ptimer, int timeout,
+				    void (*callback)(struct timer_list *))
 {
-	ptimer->function = (void (*)(unsigned long)) callback;
-	ptimer->data = (unsigned long) data;
-	
+	ptimer->function = (TIMER_FUNC_TYPE) callback;
+
 	/* Set new value for timer (update or add timer).
 	 * We use mod_timer() because it's more efficient and also
 	 * safer with respect to race conditions - Jean II */

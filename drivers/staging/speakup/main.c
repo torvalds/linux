@@ -447,7 +447,7 @@ static void speak_char(u16 ch)
 
 	cp = spk_characters[ch];
 	if (!cp) {
-		pr_info("speak_char: cp == NULL!\n");
+		pr_info("%s: cp == NULL!\n", __func__);
 		return;
 	}
 	if (IS_CHAR(ch, B_CAP)) {
@@ -2101,7 +2101,7 @@ speakup_key(struct vc_data *vc, int shift_state, int keycode, u_short keysym,
 	u_char shift_info, offset;
 	int ret = 0;
 
-	if (synth == NULL)
+	if (!synth)
 		return 0;
 
 	spin_lock_irqsave(&speakup_info.spinlock, flags);

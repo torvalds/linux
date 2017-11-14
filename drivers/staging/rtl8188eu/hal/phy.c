@@ -820,9 +820,8 @@ static void save_adda_registers(struct adapter *adapt, u32 *addareg,
 {
 	u32 i;
 
-	for (i = 0; i < register_num; i++) {
+	for (i = 0; i < register_num; i++)
 		backup[i] = phy_query_bb_reg(adapt, addareg[i], bMaskDWord);
-	}
 }
 
 static void save_mac_registers(struct adapter *adapt, u32 *mac_reg,
@@ -830,9 +829,9 @@ static void save_mac_registers(struct adapter *adapt, u32 *mac_reg,
 {
 	u32 i;
 
-	for (i = 0; i < (IQK_MAC_REG_NUM - 1); i++) {
+	for (i = 0; i < (IQK_MAC_REG_NUM - 1); i++)
 		backup[i] = usb_read8(adapt, mac_reg[i]);
-	}
+
 	backup[i] = usb_read32(adapt, mac_reg[i]);
 }
 
@@ -850,9 +849,9 @@ static void reload_mac_registers(struct adapter *adapt,
 {
 	u32 i;
 
-	for (i = 0; i < (IQK_MAC_REG_NUM - 1); i++) {
+	for (i = 0; i < (IQK_MAC_REG_NUM - 1); i++)
 		usb_write8(adapt, mac_reg[i], (u8)backup[i]);
-	}
+
 	usb_write32(adapt, mac_reg[i], backup[i]);
 }
 
@@ -880,9 +879,9 @@ static void mac_setting_calibration(struct adapter *adapt, u32 *mac_reg, u32 *ba
 
 	usb_write8(adapt, mac_reg[i], 0x3F);
 
-	for (i = 1; i < (IQK_MAC_REG_NUM - 1); i++) {
+	for (i = 1; i < (IQK_MAC_REG_NUM - 1); i++)
 		usb_write8(adapt, mac_reg[i], (u8)(backup[i]&(~BIT(3))));
-	}
+
 	usb_write8(adapt, mac_reg[i], (u8)(backup[i]&(~BIT(5))));
 }
 

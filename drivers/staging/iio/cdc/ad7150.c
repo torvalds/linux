@@ -569,7 +569,6 @@ static const struct attribute_group ad7150_event_attribute_group = {
 
 static const struct iio_info ad7150_info = {
 	.event_attrs = &ad7150_event_attribute_group,
-	.driver_module = THIS_MODULE,
 	.read_raw = &ad7150_read_raw,
 	.read_event_config = &ad7150_read_event_config,
 	.write_event_config = &ad7150_write_event_config,

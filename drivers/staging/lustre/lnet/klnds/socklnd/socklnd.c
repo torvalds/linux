@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * GPL HEADER START
  *
@@ -176,12 +177,9 @@ struct ksock_peer *
 ksocknal_find_peer_locked(struct lnet_ni *ni, struct lnet_process_id id)
 {
 	struct list_head *peer_list = ksocknal_nid2peerlist(id.nid);
-	struct list_head *tmp;
 	struct ksock_peer *peer;
 
-	list_for_each(tmp, peer_list) {
-		peer = list_entry(tmp, struct ksock_peer, ksnp_list);
-
+	list_for_each_entry(peer, peer_list, ksnp_list) {
 		LASSERT(!peer->ksnp_closing);
 
 		if (peer->ksnp_ni != ni)
@@ -453,7 +451,6 @@ int
 ksocknal_add_peer(struct lnet_ni *ni, struct lnet_process_id id, __u32 ipaddr,
 		  int port)
 {
-	struct list_head *tmp;
 	struct ksock_peer *peer;
 	struct ksock_peer *peer2;
 	struct ksock_route *route;
@@ -491,9 +488,7 @@ ksocknal_add_peer(struct lnet_ni *ni, struct lnet_process_id id, __u32 ipaddr,
 	}
 
 	route2 = NULL;
-	list_for_each(tmp, &peer->ksnp_routes) {
-		route2 = list_entry(tmp, struct ksock_route, ksnr_list);
-
+	list_for_each_entry(route2, &peer->ksnp_routes, ksnr_list) {
 		if (route2->ksnr_ipaddr == ipaddr)
 			break;
 
@@ -1854,12 +1849,10 @@ ksocknal_query(struct lnet_ni *ni, lnet_nid_t nid, unsigned long *when)
 
 	peer = ksocknal_find_peer_locked(ni, id);
 	if (peer) {
-		struct list_head *tmp;
 		struct ksock_conn *conn;
 		int bufnob;
 
-		list_for_each(tmp, &peer->ksnp_conns) {
-			conn = list_entry(tmp, struct ksock_conn, ksnc_list);
+		list_for_each_entry(conn, &peer->ksnp_conns, ksnc_list) {
 			bufnob = conn->ksnc_sock->sk->sk_wmem_queued;
 
 			if (bufnob < conn->ksnc_tx_bufnob) {
@@ -2316,7 +2309,7 @@ ksocknal_base_shutdown(void)
 	switch (ksocknal_data.ksnd_init) {
 	default:
 		LASSERT(0);
-
+		/* fall through */
 	case SOCKNAL_INIT_ALL:
 	case SOCKNAL_INIT_DATA:
 		LASSERT(ksocknal_data.ksnd_peers);

@@ -364,11 +364,8 @@ int ieee80211_wx_set_encode(struct ieee80211_device *ieee,
 				    GFP_KERNEL);
 		if (!new_crypt)
 			return -ENOMEM;
-		new_crypt->ops = ieee80211_get_crypto_ops("WEP");
-		if (!new_crypt->ops) {
-			request_module("ieee80211_crypt_wep");
-			new_crypt->ops = ieee80211_get_crypto_ops("WEP");
-		}
+		new_crypt->ops = try_then_request_module(ieee80211_get_crypto_ops("WEP"),
+							 "ieee80211_crypt_wep");
 		if (new_crypt->ops && try_module_get(new_crypt->ops->owner))
 			new_crypt->priv = new_crypt->ops->init(key);
 
@@ -591,12 +588,8 @@ int ieee80211_wx_set_encode_ext(struct ieee80211_device *ieee,
 	}
 	printk("alg name:%s\n",alg);
 
-	 ops = ieee80211_get_crypto_ops(alg);
-	if (ops == NULL) {
-		request_module(module);
-		ops = ieee80211_get_crypto_ops(alg);
-	}
-	if (ops == NULL) {
+	ops = try_then_request_module(ieee80211_get_crypto_ops(alg), module);
+	if (!ops) {
 		IEEE80211_DEBUG_WX("%s: unknown crypto alg %d\n",
 				   dev->name, ext->alg);
 		printk("========>unknown crypto alg %d\n", ext->alg);

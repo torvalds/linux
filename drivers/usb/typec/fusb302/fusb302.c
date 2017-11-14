@@ -37,11 +37,11 @@
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/usb/typec.h>
+#include <linux/usb/tcpm.h>
+#include <linux/usb/pd.h>
 #include <linux/workqueue.h>
 
 #include "fusb302_reg.h"
-#include "../tcpm.h"
-#include "../pd.h"
 
 /*
  * When the device is SNK, BC_LVL interrupt is used to monitor cc pins

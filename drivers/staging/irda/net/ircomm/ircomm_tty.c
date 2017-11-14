@@ -395,7 +395,7 @@ static int ircomm_tty_install(struct tty_driver *driver, struct tty_struct *tty)
 		self->max_data_size = IRCOMM_TTY_DATA_UNINITIALISED;
 
 		/* Init some important stuff */
-		init_timer(&self->watchdog_timer);
+		timer_setup(&self->watchdog_timer, NULL, 0);
 		spin_lock_init(&self->spinlock);
 
 		/*

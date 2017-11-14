@@ -44,7 +44,7 @@
 #include <linux/uuid.h>
 #include <linux/skbuff.h>
 
-#include "channel.h"
+#include "visorchannel.h"
 
 /*
  * Must increment these whenever you insert or delete fields within this channel
@@ -348,10 +348,9 @@ struct sense_data {
  *		    the start of the NETWORK LAYER HEADER.
  *
  * NOTE:
- * The full packet is described in frags but the ethernet header is
- * separately kept in ethhdr so that uisnic doesn't have "MAP" the
- * guest memory to get to the header. uisnic needs ethhdr to
- * determine how to route the packet.
+ * The full packet is described in frags but the ethernet header is separately
+ * kept in ethhdr so that uisnic doesn't have "MAP" the guest memory to get to
+ * the header. uisnic needs ethhdr to determine how to route the packet.
  */
 struct net_pkt_xmt {
 	int len;

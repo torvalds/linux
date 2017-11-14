@@ -20,28 +20,28 @@
 #include "pwrseqcmd.h"
 
 /*
-	Check document WM-20110607-Paul-RTL8188E_Power_Architecture-R02.vsd
-	There are 6 HW Power States:
-	0: POFF--Power Off
-	1: PDN--Power Down
-	2: CARDEMU--Card Emulation
-	3: ACT--Active Mode
-	4: LPS--Low Power State
-	5: SUS--Suspend
-
-	The transition from different states are defined below
-	TRANS_CARDEMU_TO_ACT
-	TRANS_ACT_TO_CARDEMU
-	TRANS_CARDEMU_TO_SUS
-	TRANS_SUS_TO_CARDEMU
-	TRANS_CARDEMU_TO_PDN
-	TRANS_ACT_TO_LPS
-	TRANS_LPS_TO_ACT
-
-	TRANS_END
-
-    PWR SEQ Version: rtl8188E_PwrSeq_V09.h
-*/
+ *	Check document WM-20110607-Paul-RTL8188E_Power_Architecture-R02.vsd
+ *	There are 6 HW Power States:
+ *	0: POFF--Power Off
+ *	1: PDN--Power Down
+ *	2: CARDEMU--Card Emulation
+ *	3: ACT--Active Mode
+ *	4: LPS--Low Power State
+ *	5: SUS--Suspend
+ *
+ *	The transition from different states are defined below
+ *	TRANS_CARDEMU_TO_ACT
+ *	TRANS_ACT_TO_CARDEMU
+ *	TRANS_CARDEMU_TO_SUS
+ *	TRANS_SUS_TO_CARDEMU
+ *	TRANS_CARDEMU_TO_PDN
+ *	TRANS_ACT_TO_LPS
+ *	TRANS_LPS_TO_ACT
+ *
+ *	TRANS_END
+ *
+ *   PWR SEQ Version: rtl8188E_PwrSeq_V09.h
+ */
 #define RTL8188E_TRANS_CARDEMU_TO_ACT_STEPS	10
 #define RTL8188E_TRANS_ACT_TO_CARDEMU_STEPS	10
 #define RTL8188E_TRANS_CARDEMU_TO_SUS_STEPS	10

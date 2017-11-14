@@ -17,6 +17,7 @@
 #include <linux/debugfs.h>
 #include <linux/kthread.h>
 #include <linux/idr.h>
+#include <linux/module.h>
 #include <linux/seq_file.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_host.h>
@@ -39,7 +40,8 @@ static struct visor_channeltype_descriptor visorhba_channel_types[] = {
 	/* Note that the only channel type we expect to be reported by the
 	 * bus driver is the VISOR_VHBA channel.
 	 */
-	{ VISOR_VHBA_CHANNEL_GUID, "sparvhba" },
+	{ VISOR_VHBA_CHANNEL_GUID, "sparvhba", sizeof(struct channel_header),
+	  VISOR_VHBA_CHANNEL_VERSIONID },
 	{}
 };
 
@@ -818,9 +820,9 @@ static void do_scsi_linuxstat(struct uiscmdrsp *cmdrsp,
 	memcpy(scsicmd->sense_buffer, cmdrsp->scsi.sensebuf, MAX_SENSE_SIZE);
 
 	/* Do not log errors for disk-not-present inquiries */
-	if ((cmdrsp->scsi.cmnd[0] == INQUIRY) &&
+	if (cmdrsp->scsi.cmnd[0] == INQUIRY &&
 	    (host_byte(cmdrsp->scsi.linuxstat) == DID_NO_CONNECT) &&
-	    (cmdrsp->scsi.addlstat == ADDL_SEL_TIMEOUT))
+	    cmdrsp->scsi.addlstat == ADDL_SEL_TIMEOUT)
 		return;
 	/* Okay see what our error_count is here.... */
 	vdisk = scsidev->hostdata;
@@ -868,8 +870,8 @@ static void do_scsi_nolinuxstat(struct uiscmdrsp *cmdrsp,
 	struct visordisk_info *vdisk;
 
 	scsidev = scsicmd->device;
-	if ((cmdrsp->scsi.cmnd[0] == INQUIRY) &&
-	    (cmdrsp->scsi.bufflen >= MIN_INQUIRY_RESULT_LEN)) {
+	if (cmdrsp->scsi.cmnd[0] == INQUIRY &&
+	    cmdrsp->scsi.bufflen >= MIN_INQUIRY_RESULT_LEN) {
 		if (cmdrsp->scsi.no_disk_result == 0)
 			return;
 

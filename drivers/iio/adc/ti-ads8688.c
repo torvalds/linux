@@ -369,7 +369,6 @@ static const struct iio_info ads8688_info = {
 	.write_raw = &ads8688_write_raw,
 	.write_raw_get_fmt = &ads8688_write_raw_get_fmt,
 	.attrs = &ads8688_attribute_group,
-	.driver_module = THIS_MODULE,
 };
 
 static const struct ads8688_chip_info ads8688_chip_info_tbl[] = {
@@ -474,7 +473,6 @@ MODULE_DEVICE_TABLE(of, ads8688_of_match);
 static struct spi_driver ads8688_driver = {
 	.driver = {
 		.name	= "ads8688",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= ads8688_probe,
 	.remove		= ads8688_remove,
