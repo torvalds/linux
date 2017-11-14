@@ -637,7 +637,7 @@ static int qib_set_part_key(struct qib_ctxtdata *rcd, u16 key)
 		ret = -EBUSY;
 		goto bail;
 	}
-	for (any = i = 0; i < ARRAY_SIZE(ppd->pkeys); i++) {
+	for (i = 0; i < ARRAY_SIZE(ppd->pkeys); i++) {
 		if (!ppd->pkeys[i] &&
 		    atomic_inc_return(&ppd->pkeyrefs[i]) == 1) {
 			rcd->pkeys[pidx] = key;
