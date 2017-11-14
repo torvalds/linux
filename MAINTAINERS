@@ -7311,9 +7311,8 @@ F:	drivers/tty/ipwireless/
 IPX NETWORK LAYER
 L:	netdev@vger.kernel.org
 S:	Odd fixes
-F:	include/net/ipx.h
 F:	include/uapi/linux/ipx.h
-F:	net/ipx/
+F:	drivers/staging/ipx/
 
 IRDA SUBSYSTEM
 M:	Samuel Ortiz <samuel@sortiz.org>
