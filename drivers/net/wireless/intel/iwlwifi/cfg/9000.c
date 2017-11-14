@@ -79,11 +79,11 @@
 #define IWL9000_MODULE_FIRMWARE(api) \
 	IWL9000_FW_PRE "-" __stringify(api) ".ucode"
 #define IWL9000RFB_MODULE_FIRMWARE(api) \
-	IWL9000RFB_FW_PRE "-" __stringify(api) ".ucode"
+	IWL9000RFB_FW_PRE __stringify(api) ".ucode"
 #define IWL9260A_MODULE_FIRMWARE(api) \
-	IWL9260A_FW_PRE "-" __stringify(api) ".ucode"
+	IWL9260A_FW_PRE __stringify(api) ".ucode"
 #define IWL9260B_MODULE_FIRMWARE(api) \
-	IWL9260B_FW_PRE "-" __stringify(api) ".ucode"
+	IWL9260B_FW_PRE __stringify(api) ".ucode"
 
 #define NVM_HW_SECTION_NUM_FAMILY_9000		10
 
