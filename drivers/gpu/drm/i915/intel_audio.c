@@ -655,8 +655,8 @@ void intel_audio_codec_enable(struct intel_encoder *encoder,
 /**
  * intel_audio_codec_disable - Disable the audio codec for HD audio
  * @encoder: encoder on which to disable audio
- * @crtc_state: pointer to the old crtc state.
- * @conn_state: pointer to the old connector state.
+ * @old_crtc_state: pointer to the old crtc state.
+ * @old_conn_state: pointer to the old connector state.
  *
  * The disable sequences must be performed before disabling the transcoder or
  * port.
