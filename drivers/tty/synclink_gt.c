@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-1.0+
 /*
  * Device driver for Microgate SyncLink GT serial adapters.
  *
@@ -5,8 +6,6 @@
  * paulkf@microgate.com
  *
  * Microgate and SyncLink are trademarks of Microgate Corporation
- *
- * This code is released under the GNU General Public License (GPL)
  *
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESS OR IMPLIED
  * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES

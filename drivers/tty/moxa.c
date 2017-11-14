@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*****************************************************************************/
 /*
  *           moxa.c  -- MOXA Intellio family multiport serial driver.
@@ -7,11 +8,6 @@
  *
  *      This code is loosely based on the Linux serial driver, written by
  *      Linus Torvalds, Theodore T'so and others.
- *
- *      This program is free software; you can redistribute it and/or modify
- *      it under the terms of the GNU General Public License as published by
- *      the Free Software Foundation; either version 2 of the License, or
- *      (at your option) any later version.
  */
 
 /*

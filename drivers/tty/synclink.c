@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-1.0+
 /*
  * $Id: synclink.c,v 4.38 2005/11/07 16:30:34 paulkf Exp $
  *
@@ -12,8 +13,6 @@
  * Derived from serial.c written by Theodore Ts'o and Linus Torvalds
  *
  * Original release 01/11/99
- *
- * This code is released under the GNU General Public License (GPL)
  *
  * This driver is primarily intended for use in synchronous
  * HDLC mode. Asynchronous mode is also provided.
@@ -4098,8 +4097,7 @@ static int mgsl_claim_resources(struct mgsl_struct *info)
 		if (request_dma(info->dma_level,info->device_name) < 0){
 			printk( "%s(%d):Can't request DMA channel on device %s DMA=%d\n",
 				__FILE__,__LINE__,info->device_name, info->dma_level );
-			mgsl_release_resources( info );
-			return -ENODEV;
+			goto errout;
 		}
 		info->dma_requested = true;
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* suncore.c
  *
  * Common SUN serial routines.  Based entirely

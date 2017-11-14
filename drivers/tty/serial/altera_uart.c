@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * altera_uart.c -- Altera UART driver
  *
@@ -6,11 +7,6 @@
  * (C) Copyright 2003-2007, Greg Ungerer <gerg@snapgear.com>
  * (C) Copyright 2008, Thomas Chou <thomas@wytron.com.tw>
  * (C) Copyright 2010, Tobias Klauser <tklauser@distanz.ch>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/kernel.h>
@@ -288,10 +284,10 @@ static irqreturn_t altera_uart_interrupt(int irq, void *data)
 	return IRQ_RETVAL(isr);
 }
 
-static void altera_uart_timer(unsigned long data)
+static void altera_uart_timer(struct timer_list *t)
 {
-	struct uart_port *port = (void *)data;
-	struct altera_uart *pp = container_of(port, struct altera_uart, port);
+	struct altera_uart *pp = from_timer(pp, t, tmr);
+	struct uart_port *port = &pp->port;
 
 	altera_uart_interrupt(0, port);
 	mod_timer(&pp->tmr, jiffies + uart_poll_timeout(port));
@@ -314,7 +310,7 @@ static int altera_uart_startup(struct uart_port *port)
 	int ret;
 
 	if (!port->irq) {
-		setup_timer(&pp->tmr, altera_uart_timer, (unsigned long)port);
+		timer_setup(&pp->tmr, altera_uart_timer, 0);
 		mod_timer(&pp->tmr, jiffies + uart_poll_timeout(port));
 		return 0;
 	}

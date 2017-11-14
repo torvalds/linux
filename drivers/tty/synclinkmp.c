@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-1.0+
 /*
  * $Id: synclinkmp.c,v 4.38 2005/07/15 13:29:44 paulkf Exp $
  *
@@ -10,7 +11,6 @@
  * Microgate and SyncLink are trademarks of Microgate Corporation
  *
  * Derived from serial.c written by Theodore Ts'o and Linus Torvalds
- * This code is released under the GNU General Public License (GPL)
  *
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESS OR IMPLIED
  * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
