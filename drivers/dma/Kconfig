@@ -115,7 +115,7 @@ config BCM_SBA_RAID
 	select DMA_ENGINE_RAID
 	select ASYNC_TX_DISABLE_XOR_VAL_DMA
 	select ASYNC_TX_DISABLE_PQ_VAL_DMA
-	default ARCH_BCM_IPROC
+	default m if ARCH_BCM_IPROC
 	help
 	  Enable support for Broadcom SBA RAID Engine. The SBA RAID
 	  engine is available on most of the Broadcom iProc SoCs. It
