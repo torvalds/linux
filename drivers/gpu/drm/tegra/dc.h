@@ -61,6 +61,10 @@ struct tegra_dc_soc_info {
 	bool has_nvdisplay;
 	const struct tegra_windowgroup_soc *wgrps;
 	unsigned int num_wgrps;
+	const u32 *primary_formats;
+	unsigned int num_primary_formats;
+	const u32 *overlay_formats;
+	unsigned int num_overlay_formats;
 };
 
 struct tegra_dc {
@@ -582,9 +586,9 @@ int tegra_dc_rgb_exit(struct tegra_dc *dc);
 #define WIN_COLOR_DEPTH_P4              2
 #define WIN_COLOR_DEPTH_P8              3
 #define WIN_COLOR_DEPTH_B4G4R4A4        4
-#define WIN_COLOR_DEPTH_B5G5R5A         5
+#define WIN_COLOR_DEPTH_B5G5R5A1        5
 #define WIN_COLOR_DEPTH_B5G6R5          6
-#define WIN_COLOR_DEPTH_AB5G5R5         7
+#define WIN_COLOR_DEPTH_A1B5G5R5        7
 #define WIN_COLOR_DEPTH_B8G8R8A8       12
 #define WIN_COLOR_DEPTH_R8G8B8A8       13
 #define WIN_COLOR_DEPTH_B6x2G6x2R6x2A8 14
@@ -599,8 +603,20 @@ int tegra_dc_rgb_exit(struct tegra_dc *dc);
 #define WIN_COLOR_DEPTH_YUV422R        23
 #define WIN_COLOR_DEPTH_YCbCr422RA     24
 #define WIN_COLOR_DEPTH_YUV422RA       25
+#define WIN_COLOR_DEPTH_R4G4B4A4       27
+#define WIN_COLOR_DEPTH_R5G5B5A        28
+#define WIN_COLOR_DEPTH_AR5G5B5        29
+#define WIN_COLOR_DEPTH_B5G5R5X1       30
+#define WIN_COLOR_DEPTH_X1B5G5R5       31
+#define WIN_COLOR_DEPTH_R5G5B5X1       32
+#define WIN_COLOR_DEPTH_X1R5G5B5       33
+#define WIN_COLOR_DEPTH_R5G6B5         34
+#define WIN_COLOR_DEPTH_A8R8G8B8       35
+#define WIN_COLOR_DEPTH_A8B8G8R8       36
 #define WIN_COLOR_DEPTH_B8G8R8X8       37
 #define WIN_COLOR_DEPTH_R8G8B8X8       38
+#define WIN_COLOR_DEPTH_X8B8G8R8       65
+#define WIN_COLOR_DEPTH_X8R8G8B8       66
 
 #define DC_WIN_POSITION				0x704
 #define H_POSITION(x) (((x) & 0x1fff) <<  0) /* XXX 0x7fff on Tegra186 */
