@@ -122,7 +122,7 @@ struct dpp_funcs {
 
 	void (*set_cursor_attributes)(
 			struct dpp *dpp_base,
-			const struct dc_cursor_attributes *attr);
+			enum dc_cursor_color_format color_format);
 
 	void (*set_cursor_position)(
 			struct dpp *dpp_base,
