@@ -1064,7 +1064,10 @@ static int __dev_alloc_name(struct net *net, const char *name, char *buf)
 	unsigned long *inuse;
 	struct net_device *d;
 
-	p = strnchr(name, IFNAMSIZ-1, '%');
+	if (!dev_valid_name(name))
+		return -EINVAL;
+
+	p = strchr(name, '%');
 	if (p) {
 		/*
 		 * Verify the string as this thing may have come from
@@ -1095,8 +1098,7 @@ static int __dev_alloc_name(struct net *net, const char *name, char *buf)
 		free_page((unsigned long) inuse);
 	}
 
-	if (buf != name)
-		snprintf(buf, IFNAMSIZ, name, i);
+	snprintf(buf, IFNAMSIZ, name, i);
 	if (!__dev_get_by_name(net, buf))
 		return i;
 
@@ -1104,7 +1106,21 @@ static int __dev_alloc_name(struct net *net, const char *name, char *buf)
 	 * when the name is long and there isn't enough space left
 	 * for the digits, or if all bits are used.
 	 */
-	return -ENFILE;
+	return p ? -ENFILE : -EEXIST;
+}
+
+static int dev_alloc_name_ns(struct net *net,
+			     struct net_device *dev,
+			     const char *name)
+{
+	char buf[IFNAMSIZ];
+	int ret;
+
+	BUG_ON(!net);
+	ret = __dev_alloc_name(net, name, buf);
+	if (ret >= 0)
+		strlcpy(dev->name, buf, IFNAMSIZ);
+	return ret;
 }
 
 /**
@@ -1123,48 +1139,14 @@ static int __dev_alloc_name(struct net *net, const char *name, char *buf)
 
 int dev_alloc_name(struct net_device *dev, const char *name)
 {
-	char buf[IFNAMSIZ];
-	struct net *net;
-	int ret;
-
-	BUG_ON(!dev_net(dev));
-	net = dev_net(dev);
-	ret = __dev_alloc_name(net, name, buf);
-	if (ret >= 0)
-		strlcpy(dev->name, buf, IFNAMSIZ);
-	return ret;
+	return dev_alloc_name_ns(dev_net(dev), dev, name);
 }
 EXPORT_SYMBOL(dev_alloc_name);
-
-static int dev_alloc_name_ns(struct net *net,
-			     struct net_device *dev,
-			     const char *name)
-{
-	char buf[IFNAMSIZ];
-	int ret;
-
-	ret = __dev_alloc_name(net, name, buf);
-	if (ret >= 0)
-		strlcpy(dev->name, buf, IFNAMSIZ);
-	return ret;
-}
 
 int dev_get_valid_name(struct net *net, struct net_device *dev,
 		       const char *name)
 {
-	BUG_ON(!net);
-
-	if (!dev_valid_name(name))
-		return -EINVAL;
-
-	if (strchr(name, '%'))
-		return dev_alloc_name_ns(net, dev, name);
-	else if (__dev_get_by_name(net, name))
-		return -EEXIST;
-	else if (dev->name != name)
-		strlcpy(dev->name, name, IFNAMSIZ);
-
-	return 0;
+	return dev_alloc_name_ns(net, dev, name);
 }
 EXPORT_SYMBOL(dev_get_valid_name);
 
