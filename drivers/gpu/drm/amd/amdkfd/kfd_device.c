@@ -27,6 +27,7 @@
 #include "kfd_priv.h"
 #include "kfd_device_queue_manager.h"
 #include "kfd_pm4_headers_vi.h"
+#include "cwsr_trap_handler_gfx8.asm"
 
 #define MQD_SIZE_ALIGNED 768
 
@@ -38,7 +39,8 @@ static const struct kfd_device_info kaveri_device_info = {
 	.ih_ring_entry_size = 4 * sizeof(uint32_t),
 	.event_interrupt_class = &event_interrupt_class_cik,
 	.num_of_watch_points = 4,
-	.mqd_size_aligned = MQD_SIZE_ALIGNED
+	.mqd_size_aligned = MQD_SIZE_ALIGNED,
+	.supports_cwsr = false,
 };
 
 static const struct kfd_device_info carrizo_device_info = {
@@ -49,7 +51,8 @@ static const struct kfd_device_info carrizo_device_info = {
 	.ih_ring_entry_size = 4 * sizeof(uint32_t),
 	.event_interrupt_class = &event_interrupt_class_cik,
 	.num_of_watch_points = 4,
-	.mqd_size_aligned = MQD_SIZE_ALIGNED
+	.mqd_size_aligned = MQD_SIZE_ALIGNED,
+	.supports_cwsr = true,
 };
 
 struct kfd_deviceid {
@@ -212,6 +215,17 @@ static int iommu_invalid_ppr_cb(struct pci_dev *pdev, int pasid,
 	return AMD_IOMMU_INV_PRI_RSP_INVALID;
 }
 
+static void kfd_cwsr_init(struct kfd_dev *kfd)
+{
+	if (cwsr_enable && kfd->device_info->supports_cwsr) {
+		BUILD_BUG_ON(sizeof(cwsr_trap_gfx8_hex) > PAGE_SIZE);
+
+		kfd->cwsr_isa = cwsr_trap_gfx8_hex;
+		kfd->cwsr_isa_size = sizeof(cwsr_trap_gfx8_hex);
+		kfd->cwsr_enabled = true;
+	}
+}
+
 bool kgd2kfd_device_init(struct kfd_dev *kfd,
 			 const struct kgd2kfd_shared_resources *gpu_resources)
 {
@@ -285,6 +299,8 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 			kfd->pdev->vendor, kfd->pdev->device);
 		goto device_iommu_pasid_error;
 	}
+
+	kfd_cwsr_init(kfd);
 
 	if (kfd_resume(kfd))
 		goto kfd_resume_error;

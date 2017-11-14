@@ -58,7 +58,8 @@ struct kfd_ioctl_create_queue_args {
 	__u64 eop_buffer_address;	/* to KFD */
 	__u64 eop_buffer_size;	/* to KFD */
 	__u64 ctx_save_restore_address; /* to KFD */
-	__u64 ctx_save_restore_size;	/* to KFD */
+	__u32 ctx_save_restore_size;	/* to KFD */
+	__u32 ctl_stack_size;		/* to KFD */
 };
 
 struct kfd_ioctl_destroy_queue_args {

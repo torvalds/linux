@@ -173,6 +173,9 @@ static int create_queue_nocpsch(struct device_queue_manager *dqm,
 	*allocated_vmid = qpd->vmid;
 	q->properties.vmid = qpd->vmid;
 
+	q->properties.tba_addr = qpd->tba_addr;
+	q->properties.tma_addr = qpd->tma_addr;
+
 	if (q->properties.type == KFD_QUEUE_TYPE_COMPUTE)
 		retval = create_compute_queue_nocpsch(dqm, q, qpd);
 	else if (q->properties.type == KFD_QUEUE_TYPE_SDMA)
@@ -846,6 +849,9 @@ static int create_queue_cpsch(struct device_queue_manager *dqm, struct queue *q,
 	}
 
 	dqm->asic_ops.init_sdma_vm(dqm, q, qpd);
+
+	q->properties.tba_addr = qpd->tba_addr;
+	q->properties.tma_addr = qpd->tma_addr;
 	retval = mqd->init_mqd(mqd, &q->mqd, &q->mqd_mem_obj,
 				&q->gart_mqd_addr, &q->properties);
 	if (retval)

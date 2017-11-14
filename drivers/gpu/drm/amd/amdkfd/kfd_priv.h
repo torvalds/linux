@@ -41,6 +41,7 @@
 
 #define KFD_MMAP_DOORBELL_MASK 0x8000000000000
 #define KFD_MMAP_EVENTS_MASK 0x4000000000000
+#define KFD_MMAP_RESERVED_MEM_MASK 0x2000000000000
 
 /*
  * When working with cp scheduler we should assign the HIQ manually or via
@@ -63,6 +64,15 @@
 #define KFD_MAX_NUM_OF_QUEUES_PER_PROCESS 1024
 
 /*
+ * Size of the per-process TBA+TMA buffer: 2 pages
+ *
+ * The first page is the TBA used for the CWSR ISA code. The second
+ * page is used as TMA for daisy changing a user-mode trap handler.
+ */
+#define KFD_CWSR_TBA_TMA_SIZE (PAGE_SIZE * 2)
+#define KFD_CWSR_TMA_OFFSET PAGE_SIZE
+
+/*
  * Kernel module parameter to specify maximum number of supported queues per
  * device
  */
@@ -77,6 +87,8 @@ extern int max_num_of_queues_per_device;
 
 /* Kernel module parameter to specify the scheduling policy */
 extern int sched_policy;
+
+extern int cwsr_enable;
 
 /*
  * Kernel module parameter to specify whether to send sigterm to HSA process on
@@ -131,6 +143,7 @@ struct kfd_device_info {
 	size_t ih_ring_entry_size;
 	uint8_t num_of_watch_points;
 	uint16_t mqd_size_aligned;
+	bool supports_cwsr;
 };
 
 struct kfd_mem_obj {
@@ -200,6 +213,11 @@ struct kfd_dev {
 
 	/* Debug manager */
 	struct kfd_dbgmgr           *dbgmgr;
+
+	/* CWSR */
+	bool cwsr_enabled;
+	const void *cwsr_isa;
+	unsigned int cwsr_isa_size;
 };
 
 /* KGD2KFD callbacks */
@@ -332,6 +350,9 @@ struct queue_properties {
 	uint32_t eop_ring_buffer_size;
 	uint64_t ctx_save_restore_area_address;
 	uint32_t ctx_save_restore_area_size;
+	uint32_t ctl_stack_size;
+	uint64_t tba_addr;
+	uint64_t tma_addr;
 };
 
 /**
@@ -439,6 +460,11 @@ struct qcm_process_device {
 	uint32_t num_gws;
 	uint32_t num_oac;
 	uint32_t sh_hidden_private_base;
+
+	/* CWSR memory */
+	void *cwsr_kaddr;
+	uint64_t tba_addr;
+	uint64_t tma_addr;
 };
 
 
@@ -563,7 +589,7 @@ struct amdkfd_ioctl_desc {
 
 void kfd_process_create_wq(void);
 void kfd_process_destroy_wq(void);
-struct kfd_process *kfd_create_process(const struct task_struct *);
+struct kfd_process *kfd_create_process(struct file *filep);
 struct kfd_process *kfd_get_process(const struct task_struct *);
 struct kfd_process *kfd_lookup_process_by_pasid(unsigned int pasid);
 
@@ -576,6 +602,9 @@ struct kfd_process_device *kfd_get_process_device_data(struct kfd_dev *dev,
 							struct kfd_process *p);
 struct kfd_process_device *kfd_create_process_device_data(struct kfd_dev *dev,
 							struct kfd_process *p);
+
+int kfd_reserved_mem_mmap(struct kfd_process *process,
+			  struct vm_area_struct *vma);
 
 /* Process device data iterator */
 struct kfd_process_device *kfd_get_first_process_device_data(

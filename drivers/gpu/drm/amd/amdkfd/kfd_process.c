@@ -28,6 +28,7 @@
 #include <linux/amd-iommu.h>
 #include <linux/notifier.h>
 #include <linux/compat.h>
+#include <linux/mman.h>
 
 struct mm_struct;
 
@@ -53,6 +54,8 @@ struct kfd_process_release_work {
 
 static struct kfd_process *find_process(const struct task_struct *thread);
 static struct kfd_process *create_process(const struct task_struct *thread);
+static int kfd_process_init_cwsr(struct kfd_process *p, struct file *filep);
+
 
 void kfd_process_create_wq(void)
 {
@@ -68,9 +71,10 @@ void kfd_process_destroy_wq(void)
 	}
 }
 
-struct kfd_process *kfd_create_process(const struct task_struct *thread)
+struct kfd_process *kfd_create_process(struct file *filep)
 {
 	struct kfd_process *process;
+	struct task_struct *thread = current;
 
 	if (!thread->mm)
 		return ERR_PTR(-EINVAL);
@@ -100,6 +104,8 @@ struct kfd_process *kfd_create_process(const struct task_struct *thread)
 	mutex_unlock(&kfd_processes_mutex);
 
 	up_write(&thread->mm->mmap_sem);
+
+	kfd_process_init_cwsr(process, filep);
 
 	return process;
 }
@@ -168,6 +174,11 @@ static void kfd_process_wq_release(struct work_struct *work)
 			amd_iommu_unbind_pasid(pdd->dev->pdev, p->pasid);
 
 		list_del(&pdd->per_device_list);
+
+		if (pdd->qpd.cwsr_kaddr)
+			free_pages((unsigned long)pdd->qpd.cwsr_kaddr,
+				get_order(KFD_CWSR_TBA_TMA_SIZE));
+
 		kfree(pdd);
 	}
 
@@ -259,6 +270,46 @@ static void kfd_process_notifier_release(struct mmu_notifier *mn,
 static const struct mmu_notifier_ops kfd_process_mmu_notifier_ops = {
 	.release = kfd_process_notifier_release,
 };
+
+static int kfd_process_init_cwsr(struct kfd_process *p, struct file *filep)
+{
+	int err = 0;
+	unsigned long  offset;
+	struct kfd_process_device *temp, *pdd = NULL;
+	struct kfd_dev *dev = NULL;
+	struct qcm_process_device *qpd = NULL;
+
+	mutex_lock(&p->mutex);
+	list_for_each_entry_safe(pdd, temp, &p->per_device_data,
+				per_device_list) {
+		dev = pdd->dev;
+		qpd = &pdd->qpd;
+		if (!dev->cwsr_enabled || qpd->cwsr_kaddr)
+			continue;
+		offset = (dev->id | KFD_MMAP_RESERVED_MEM_MASK) << PAGE_SHIFT;
+		qpd->tba_addr = (int64_t)vm_mmap(filep, 0,
+			KFD_CWSR_TBA_TMA_SIZE, PROT_READ | PROT_EXEC,
+			MAP_SHARED, offset);
+
+		if (IS_ERR_VALUE(qpd->tba_addr)) {
+			pr_err("Failure to set tba address. error -%d.\n",
+				(int)qpd->tba_addr);
+			err = qpd->tba_addr;
+			qpd->tba_addr = 0;
+			qpd->cwsr_kaddr = NULL;
+			goto out;
+		}
+
+		memcpy(qpd->cwsr_kaddr, dev->cwsr_isa, dev->cwsr_isa_size);
+
+		qpd->tma_addr = qpd->tba_addr + KFD_CWSR_TMA_OFFSET;
+		pr_debug("set tba :0x%llx, tma:0x%llx, cwsr_kaddr:%p for pqm.\n",
+			qpd->tba_addr, qpd->tma_addr, qpd->cwsr_kaddr);
+	}
+out:
+	mutex_unlock(&p->mutex);
+	return err;
+}
 
 static struct kfd_process *create_process(const struct task_struct *thread)
 {
@@ -534,4 +585,38 @@ struct kfd_process *kfd_lookup_process_by_pasid(unsigned int pasid)
 	srcu_read_unlock(&kfd_processes_srcu, idx);
 
 	return p;
+}
+
+int kfd_reserved_mem_mmap(struct kfd_process *process,
+			  struct vm_area_struct *vma)
+{
+	struct kfd_dev *dev = kfd_device_by_id(vma->vm_pgoff);
+	struct kfd_process_device *pdd;
+	struct qcm_process_device *qpd;
+
+	if (!dev)
+		return -EINVAL;
+	if ((vma->vm_end - vma->vm_start) != KFD_CWSR_TBA_TMA_SIZE) {
+		pr_err("Incorrect CWSR mapping size.\n");
+		return -EINVAL;
+	}
+
+	pdd = kfd_get_process_device_data(dev, process);
+	if (!pdd)
+		return -EINVAL;
+	qpd = &pdd->qpd;
+
+	qpd->cwsr_kaddr = (void *)__get_free_pages(GFP_KERNEL | __GFP_ZERO,
+					get_order(KFD_CWSR_TBA_TMA_SIZE));
+	if (!qpd->cwsr_kaddr) {
+		pr_err("Error allocating per process CWSR buffer.\n");
+		return -ENOMEM;
+	}
+
+	vma->vm_flags |= VM_IO | VM_DONTCOPY | VM_DONTEXPAND
+		| VM_NORESERVE | VM_DONTDUMP | VM_PFNMAP;
+	/* Mapping pages to user process */
+	return remap_pfn_range(vma, vma->vm_start,
+			       PFN_DOWN(__pa(qpd->cwsr_kaddr)),
+			       KFD_CWSR_TBA_TMA_SIZE, vma->vm_page_prot);
 }
