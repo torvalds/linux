@@ -134,6 +134,7 @@ enum hns_roce_event {
 	HNS_ROCE_EVENT_TYPE_DB_OVERFLOW               = 0x12,
 	HNS_ROCE_EVENT_TYPE_MB                        = 0x13,
 	HNS_ROCE_EVENT_TYPE_CEQ_OVERFLOW              = 0x14,
+	HNS_ROCE_EVENT_TYPE_FLR			      = 0x15,
 };
 
 /* Local Work Queue Catastrophic Error,SUBTYPE 0x5 */
@@ -541,6 +542,26 @@ struct hns_roce_eq {
 	int				log_page_size;
 	int				cons_index;
 	struct hns_roce_buf_list	*buf_list;
+	int				over_ignore;
+	int				coalesce;
+	int				arm_st;
+	u64				eqe_ba;
+	int				eqe_ba_pg_sz;
+	int				eqe_buf_pg_sz;
+	int				hop_num;
+	u64				*bt_l0;	/* Base address table for L0 */
+	u64				**bt_l1; /* Base address table for L1 */
+	u64				**buf;
+	dma_addr_t			l0_dma;
+	dma_addr_t			*l1_dma;
+	dma_addr_t			*buf_dma;
+	u32				l0_last_num; /* L0 last chunk num */
+	u32				l1_last_num; /* L1 last chunk num */
+	int				eq_max_cnt;
+	int				eq_period;
+	int				shift;
+	dma_addr_t			cur_eqe_ba;
+	dma_addr_t			nxt_eqe_ba;
 };
 
 struct hns_roce_eq_table {
@@ -571,7 +592,7 @@ struct hns_roce_caps {
 	u32		min_wqes;
 	int		reserved_cqs;
 	int		num_aeq_vectors;	/* 1 */
-	int		num_comp_vectors;	/* 32 ceq */
+	int		num_comp_vectors;
 	int		num_other_vectors;
 	int		num_mtpts;
 	u32		num_mtt_segs;
@@ -617,6 +638,9 @@ struct hns_roce_caps {
 	u32		cqe_ba_pg_sz;
 	u32		cqe_buf_pg_sz;
 	u32		cqe_hop_num;
+	u32		eqe_ba_pg_sz;
+	u32		eqe_buf_pg_sz;
+	u32		eqe_hop_num;
 	u32		chunk_sz;	/* chunk size in non multihop mode*/
 	u64		flags;
 };
