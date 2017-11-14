@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-1.0+
 /*
  * Copyright IBM Corp. 2002, 2009
  *

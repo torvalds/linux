@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Linux on zSeries Channel Measurement Facility support
  *
