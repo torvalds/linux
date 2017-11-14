@@ -9362,7 +9362,7 @@ F:	drivers/net/ethernet/natsemi/natsemi.c
 NCP FILESYSTEM
 M:	Petr Vandrovec <petr@vandrovec.name>
 S:	Odd Fixes
-F:	fs/ncpfs/
+F:	drivers/staging/ncpfs/
 
 NCR 5380 SCSI DRIVERS
 M:	Finn Thain <fthain@telegraphics.com.au>
