@@ -850,14 +850,14 @@ static int snd_soc_get_volsw_twl4030(struct snd_kcontrol *kcontrol,
 	int mask = (1 << fls(max)) - 1;
 
 	ucontrol->value.integer.value[0] =
-		(snd_soc_read(codec, reg) >> shift) & mask;
+		(twl4030_read(codec, reg) >> shift) & mask;
 	if (ucontrol->value.integer.value[0])
 		ucontrol->value.integer.value[0] =
 			max + 1 - ucontrol->value.integer.value[0];
 
 	if (shift != rshift) {
 		ucontrol->value.integer.value[1] =
-			(snd_soc_read(codec, reg) >> rshift) & mask;
+			(twl4030_read(codec, reg) >> rshift) & mask;
 		if (ucontrol->value.integer.value[1])
 			ucontrol->value.integer.value[1] =
 				max + 1 - ucontrol->value.integer.value[1];
@@ -908,9 +908,9 @@ static int snd_soc_get_volsw_r2_twl4030(struct snd_kcontrol *kcontrol,
 	int mask = (1<<fls(max))-1;
 
 	ucontrol->value.integer.value[0] =
-		(snd_soc_read(codec, reg) >> shift) & mask;
+		(twl4030_read(codec, reg) >> shift) & mask;
 	ucontrol->value.integer.value[1] =
-		(snd_soc_read(codec, reg2) >> shift) & mask;
+		(twl4030_read(codec, reg2) >> shift) & mask;
 
 	if (ucontrol->value.integer.value[0])
 		ucontrol->value.integer.value[0] =
@@ -2195,8 +2195,6 @@ static int twl4030_soc_remove(struct snd_soc_codec *codec)
 static const struct snd_soc_codec_driver soc_codec_dev_twl4030 = {
 	.probe = twl4030_soc_probe,
 	.remove = twl4030_soc_remove,
-	.read = twl4030_read,
-	.write = twl4030_write,
 	.set_bias_level = twl4030_set_bias_level,
 	.idle_bias_off = true,
 
