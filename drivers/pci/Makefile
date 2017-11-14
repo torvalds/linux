@@ -16,9 +16,6 @@ obj-$(CONFIG_PCIEPORTBUS) += pcie/
 
 # Build the PCI Hotplug drivers if we were asked to
 obj-$(CONFIG_HOTPLUG_PCI) += hotplug/
-ifdef CONFIG_HOTPLUG_PCI
-obj-y += hotplug-pci.o
-endif
 
 # Build the PCI MSI interrupt support
 obj-$(CONFIG_PCI_MSI) += msi.o

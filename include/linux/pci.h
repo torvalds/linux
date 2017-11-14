@@ -596,6 +596,10 @@ static inline bool pci_is_bridge(struct pci_dev *dev)
 		dev->hdr_type == PCI_HEADER_TYPE_CARDBUS;
 }
 
+#define for_each_pci_bridge(dev, bus)				\
+	list_for_each_entry(dev, &bus->devices, bus_list)	\
+		if (!pci_is_bridge(dev)) {} else
+
 static inline struct pci_dev *pci_upstream_bridge(struct pci_dev *dev)
 {
 	dev = pci_physfn(dev);
