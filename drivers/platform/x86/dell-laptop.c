@@ -2074,8 +2074,10 @@ static int __init dell_init(void)
 		goto fail_platform_device2;
 
 	buffer = kzalloc(sizeof(struct calling_interface_buffer), GFP_KERNEL);
-	if (!buffer)
+	if (!buffer) {
+		ret = -ENOMEM;
 		goto fail_buffer;
+	}
 
 
 	ret = dell_setup_rfkill();
