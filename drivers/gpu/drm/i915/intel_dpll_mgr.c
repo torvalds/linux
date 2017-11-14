@@ -2110,10 +2110,8 @@ out:
 	return ret;
 }
 
-static void cnl_wrpll_get_multipliers(unsigned int bestdiv,
-				      unsigned int *pdiv,
-				      unsigned int *qdiv,
-				      unsigned int *kdiv)
+static void cnl_wrpll_get_multipliers(int bestdiv, int *pdiv,
+				      int *qdiv, int *kdiv)
 {
 	/* even dividers */
 	if (bestdiv % 2 == 0) {
@@ -2151,9 +2149,9 @@ static void cnl_wrpll_get_multipliers(unsigned int bestdiv,
 	}
 }
 
-static void cnl_wrpll_params_populate(struct skl_wrpll_params *params, uint32_t dco_freq,
-				      uint32_t ref_freq, uint32_t pdiv, uint32_t qdiv,
-				      uint32_t kdiv)
+static void cnl_wrpll_params_populate(struct skl_wrpll_params *params,
+				      u32 dco_freq, u32 ref_freq,
+				      int pdiv, int qdiv, int kdiv)
 {
 	switch (kdiv) {
 	case 1:
@@ -2202,23 +2200,19 @@ cnl_ddi_calculate_wrpll(int clock,
 			struct drm_i915_private *dev_priv,
 			struct skl_wrpll_params *wrpll_params)
 {
-	uint64_t afe_clock = clock * 5;
-	unsigned int dco_min = 7998 * KHz(1);
-	unsigned int dco_max = 10000 * KHz(1);
-	unsigned int dco_mid = (dco_min + dco_max) / 2;
-
+	u32 afe_clock = clock * 5;
+	u32 dco_min = 7998 * KHz(1);
+	u32 dco_max = 10000 * KHz(1);
+	u32 dco_mid = (dco_min + dco_max) / 2;
 	static const int dividers[] = {  2,  4,  6,  8, 10, 12,  14,  16,
 					 18, 20, 24, 28, 30, 32,  36,  40,
 					 42, 44, 48, 50, 52, 54,  56,  60,
 					 64, 66, 68, 70, 72, 76,  78,  80,
 					 84, 88, 90, 92, 96, 98, 100, 102,
 					  3,  5,  7,  9, 15, 21 };
-	unsigned int d, dco;
-	unsigned int dco_centrality = 0;
-	unsigned int best_dco_centrality = 999999;
-	unsigned int best_div = 0;
-	unsigned int best_dco = 0;
-	unsigned int pdiv = 0, qdiv = 0, kdiv = 0;
+	u32 dco, best_dco = 0, dco_centrality = 0;
+	u32 best_dco_centrality = 999999;
+	int d, best_div = 0, pdiv = 0, qdiv = 0, kdiv = 0;
 
 	for (d = 0; d < ARRAY_SIZE(dividers); d++) {
 		dco = afe_clock * dividers[d];
