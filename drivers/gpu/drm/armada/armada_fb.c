@@ -17,7 +17,7 @@ static void armada_fb_destroy(struct drm_framebuffer *fb)
 	struct armada_framebuffer *dfb = drm_fb_to_armada_fb(fb);
 
 	drm_framebuffer_cleanup(&dfb->fb);
-	drm_gem_object_unreference_unlocked(&dfb->obj->obj);
+	drm_gem_object_put_unlocked(&dfb->obj->obj);
 	kfree(dfb);
 }
 
@@ -94,7 +94,7 @@ struct armada_framebuffer *armada_framebuffer_create(struct drm_device *dev,
 	 * the above call, but the caller will drop their reference
 	 * to it.  Hence we need to take our own reference.
 	 */
-	drm_gem_object_reference(&obj->obj);
+	drm_gem_object_get(&obj->obj);
 
 	return dfb;
 }
@@ -143,12 +143,12 @@ static struct drm_framebuffer *armada_fb_create(struct drm_device *dev,
 		goto err;
 	}
 
-	drm_gem_object_unreference_unlocked(&obj->obj);
+	drm_gem_object_put_unlocked(&obj->obj);
 
 	return &dfb->fb;
 
  err_unref:
-	drm_gem_object_unreference_unlocked(&obj->obj);
+	drm_gem_object_put_unlocked(&obj->obj);
  err:
 	DRM_ERROR("failed to initialize framebuffer: %d\n", ret);
 	return ERR_PTR(ret);

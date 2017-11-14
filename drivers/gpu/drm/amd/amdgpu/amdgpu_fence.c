@@ -169,6 +169,32 @@ int amdgpu_fence_emit(struct amdgpu_ring *ring, struct dma_fence **f)
 }
 
 /**
+ * amdgpu_fence_emit_polling - emit a fence on the requeste ring
+ *
+ * @ring: ring the fence is associated with
+ * @s: resulting sequence number
+ *
+ * Emits a fence command on the requested ring (all asics).
+ * Used For polling fence.
+ * Returns 0 on success, -ENOMEM on failure.
+ */
+int amdgpu_fence_emit_polling(struct amdgpu_ring *ring, uint32_t *s)
+{
+	uint32_t seq;
+
+	if (!s)
+		return -EINVAL;
+
+	seq = ++ring->fence_drv.sync_seq;
+	amdgpu_ring_emit_fence(ring, ring->fence_drv.gpu_addr,
+			       seq, AMDGPU_FENCE_FLAG_INT);
+
+	*s = seq;
+
+	return 0;
+}
+
+/**
  * amdgpu_fence_schedule_fallback - schedule fallback check
  *
  * @ring: pointer to struct amdgpu_ring
@@ -281,6 +307,30 @@ int amdgpu_fence_wait_empty(struct amdgpu_ring *ring)
 	return r;
 }
 
+/**
+ * amdgpu_fence_wait_polling - busy wait for givn sequence number
+ *
+ * @ring: ring index the fence is associated with
+ * @wait_seq: sequence number to wait
+ * @timeout: the timeout for waiting in usecs
+ *
+ * Wait for all fences on the requested ring to signal (all asics).
+ * Returns left time if no timeout, 0 or minus if timeout.
+ */
+signed long amdgpu_fence_wait_polling(struct amdgpu_ring *ring,
+				      uint32_t wait_seq,
+				      signed long timeout)
+{
+	uint32_t seq;
+
+	do {
+		seq = amdgpu_fence_read(ring);
+		udelay(5);
+		timeout -= 5;
+	} while ((int32_t)(wait_seq - seq) > 0 && timeout > 0);
+
+	return timeout > 0 ? timeout : 0;
+}
 /**
  * amdgpu_fence_count_emitted - get the count of emitted fences
  *
@@ -641,6 +691,19 @@ static int amdgpu_debugfs_fence_info(struct seq_file *m, void *data)
 			   atomic_read(&ring->fence_drv.last_seq));
 		seq_printf(m, "Last emitted        0x%08x\n",
 			   ring->fence_drv.sync_seq);
+
+		if (ring->funcs->type != AMDGPU_RING_TYPE_GFX)
+			continue;
+
+		/* set in CP_VMID_PREEMPT and preemption occurred */
+		seq_printf(m, "Last preempted      0x%08x\n",
+			   le32_to_cpu(*(ring->fence_drv.cpu_addr + 2)));
+		/* set in CP_VMID_RESET and reset occurred */
+		seq_printf(m, "Last reset          0x%08x\n",
+			   le32_to_cpu(*(ring->fence_drv.cpu_addr + 4)));
+		/* Both preemption and reset occurred */
+		seq_printf(m, "Last both           0x%08x\n",
+			   le32_to_cpu(*(ring->fence_drv.cpu_addr + 6)));
 	}
 	return 0;
 }

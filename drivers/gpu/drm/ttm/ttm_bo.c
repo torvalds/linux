@@ -150,8 +150,7 @@ static void ttm_bo_release_list(struct kref *list_kref)
 	ttm_tt_destroy(bo->ttm);
 	atomic_dec(&bo->glob->bo_count);
 	dma_fence_put(bo->moving);
-	if (bo->resv == &bo->ttm_resv)
-		reservation_object_fini(&bo->ttm_resv);
+	reservation_object_fini(&bo->ttm_resv);
 	mutex_destroy(&bo->wu_mutex);
 	if (bo->destroy)
 		bo->destroy(bo);
@@ -402,14 +401,11 @@ static int ttm_bo_individualize_resv(struct ttm_buffer_object *bo)
 	if (bo->resv == &bo->ttm_resv)
 		return 0;
 
-	reservation_object_init(&bo->ttm_resv);
 	BUG_ON(!reservation_object_trylock(&bo->ttm_resv));
 
 	r = reservation_object_copy_fences(&bo->ttm_resv, bo->resv);
-	if (r) {
+	if (r)
 		reservation_object_unlock(&bo->ttm_resv);
-		reservation_object_fini(&bo->ttm_resv);
-	}
 
 	return r;
 }
@@ -459,6 +455,7 @@ static void ttm_bo_cleanup_refs_or_queue(struct ttm_buffer_object *bo)
 			spin_unlock(&glob->lru_lock);
 			if (bo->resv != &bo->ttm_resv)
 				reservation_object_unlock(&bo->ttm_resv);
+
 			ttm_bo_cleanup_memtype_use(bo);
 			return;
 		}
@@ -557,8 +554,6 @@ static int ttm_bo_cleanup_refs_and_unlock(struct ttm_buffer_object *bo,
 	}
 
 	ttm_bo_del_from_lru(bo);
-	if (!list_empty(&bo->ddestroy) && (bo->resv != &bo->ttm_resv))
-		reservation_object_fini(&bo->ttm_resv);
 	list_del_init(&bo->ddestroy);
 	kref_put(&bo->list_kref, ttm_bo_ref_bug);
 
@@ -1207,8 +1202,8 @@ int ttm_bo_init_reserved(struct ttm_bo_device *bdev,
 		lockdep_assert_held(&bo->resv->lock.base);
 	} else {
 		bo->resv = &bo->ttm_resv;
-		reservation_object_init(&bo->ttm_resv);
 	}
+	reservation_object_init(&bo->ttm_resv);
 	atomic_inc(&bo->glob->bo_count);
 	drm_vma_node_reset(&bo->vma_node);
 	bo->priority = 0;

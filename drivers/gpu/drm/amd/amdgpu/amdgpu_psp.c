@@ -411,6 +411,13 @@ static int psp_hw_init(void *handle)
 		return 0;
 
 	mutex_lock(&adev->firmware.mutex);
+	/*
+	 * This sequence is just used on hw_init only once, no need on
+	 * resume.
+	 */
+	ret = amdgpu_ucode_init_bo(adev);
+	if (ret)
+		goto failed;
 
 	ret = psp_load_fw(adev);
 	if (ret) {
@@ -434,6 +441,8 @@ static int psp_hw_fini(void *handle)
 
 	if (adev->firmware.load_type != AMDGPU_FW_LOAD_PSP)
 		return 0;
+
+	amdgpu_ucode_fini_bo(adev);
 
 	psp_ring_destroy(psp, PSP_RING_TYPE__KM);
 

@@ -1015,6 +1015,9 @@ struct iwl_mvm {
 	bool drop_bcn_ap_mode;
 
 	struct delayed_work cs_tx_unblock_dwork;
+
+	/* does a monitor vif exist (only one can exist hence bool) */
+	bool monitor_on;
 #ifdef CONFIG_ACPI
 	struct iwl_mvm_sar_profile sar_profiles[IWL_MVM_SAR_PROFILE_NUM];
 	struct iwl_mvm_geo_profile geo_profiles[IWL_NUM_GEO_PROFILES];
@@ -1159,7 +1162,7 @@ static inline bool iwl_mvm_is_lar_supported(struct iwl_mvm *mvm)
 	 * Enable LAR only if it is supported by the FW (TLV) &&
 	 * enabled in the NVM
 	 */
-	if (mvm->cfg->ext_nvm)
+	if (mvm->cfg->nvm_type == IWL_NVM_EXT)
 		return nvm_lar && tlv_lar;
 	else
 		return tlv_lar;

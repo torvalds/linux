@@ -44,7 +44,6 @@ config SPARC
 	select ARCH_HAS_SG_CHAIN
 	select CPU_NO_EFFICIENT_FFS
 	select LOCKDEP_SMALL if LOCKDEP
-	select ARCH_WANT_RELAX_ORDER
 
 config SPARC32
 	def_bool !64BIT

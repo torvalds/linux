@@ -367,6 +367,9 @@ int psp_v3_1_cmd_submit(struct psp_context *psp,
 	unsigned int psp_write_ptr_reg = 0;
 	struct psp_gfx_rb_frame * write_frame = psp->km_ring.ring_mem;
 	struct psp_ring *ring = &psp->km_ring;
+	struct psp_gfx_rb_frame *ring_buffer_start = ring->ring_mem;
+	struct psp_gfx_rb_frame *ring_buffer_end = ring_buffer_start +
+		ring->ring_size / sizeof(struct psp_gfx_rb_frame) - 1;
 	struct amdgpu_device *adev = psp->adev;
 	uint32_t ring_size_dw = ring->ring_size / 4;
 	uint32_t rb_frame_size_dw = sizeof(struct psp_gfx_rb_frame) / 4;
@@ -378,9 +381,16 @@ int psp_v3_1_cmd_submit(struct psp_context *psp,
 	/* write_frame ptr increments by size of rb_frame in bytes */
 	/* psp_write_ptr_reg increments by size of rb_frame in DWORDs */
 	if ((psp_write_ptr_reg % ring_size_dw) == 0)
-		write_frame = ring->ring_mem;
+		write_frame = ring_buffer_start;
 	else
-		write_frame = ring->ring_mem + (psp_write_ptr_reg / rb_frame_size_dw);
+		write_frame = ring_buffer_start + (psp_write_ptr_reg / rb_frame_size_dw);
+	/* Check invalid write_frame ptr address */
+	if ((write_frame < ring_buffer_start) || (ring_buffer_end < write_frame)) {
+		DRM_ERROR("ring_buffer_start = %p; ring_buffer_end = %p; write_frame = %p\n",
+			  ring_buffer_start, ring_buffer_end, write_frame);
+		DRM_ERROR("write_frame is pointing to address out of bounds\n");
+		return -EINVAL;
+	}
 
 	/* Initialize KM RB frame */
 	memset(write_frame, 0, sizeof(struct psp_gfx_rb_frame));

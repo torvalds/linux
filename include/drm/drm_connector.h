@@ -933,6 +933,7 @@ static inline unsigned drm_connector_index(struct drm_connector *connector)
 /**
  * drm_connector_lookup - lookup connector object
  * @dev: DRM device
+ * @file_priv: drm file to check for lease against.
  * @id: connector object id
  *
  * This function looks up the connector object specified by id

@@ -199,62 +199,6 @@ nouveau_fence_context_new(struct nouveau_channel *chan, struct nouveau_fence_cha
 	WARN_ON(ret);
 }
 
-struct nouveau_fence_work {
-	struct work_struct work;
-	struct dma_fence_cb cb;
-	void (*func)(void *);
-	void *data;
-};
-
-static void
-nouveau_fence_work_handler(struct work_struct *kwork)
-{
-	struct nouveau_fence_work *work = container_of(kwork, typeof(*work), work);
-	work->func(work->data);
-	kfree(work);
-}
-
-static void nouveau_fence_work_cb(struct dma_fence *fence, struct dma_fence_cb *cb)
-{
-	struct nouveau_fence_work *work = container_of(cb, typeof(*work), cb);
-
-	schedule_work(&work->work);
-}
-
-void
-nouveau_fence_work(struct dma_fence *fence,
-		   void (*func)(void *), void *data)
-{
-	struct nouveau_fence_work *work;
-
-	if (dma_fence_is_signaled(fence))
-		goto err;
-
-	work = kmalloc(sizeof(*work), GFP_KERNEL);
-	if (!work) {
-		/*
-		 * this might not be a nouveau fence any more,
-		 * so force a lazy wait here
-		 */
-		WARN_ON(nouveau_fence_wait((struct nouveau_fence *)fence,
-					   true, false));
-		goto err;
-	}
-
-	INIT_WORK(&work->work, nouveau_fence_work_handler);
-	work->func = func;
-	work->data = data;
-
-	if (dma_fence_add_callback(fence, &work->cb, nouveau_fence_work_cb) < 0)
-		goto err_free;
-	return;
-
-err_free:
-	kfree(work);
-err:
-	func(data);
-}
-
 int
 nouveau_fence_emit(struct nouveau_fence *fence, struct nouveau_channel *chan)
 {
@@ -473,8 +417,6 @@ nouveau_fence_new(struct nouveau_channel *chan, bool sysmem,
 	fence = kzalloc(sizeof(*fence), GFP_KERNEL);
 	if (!fence)
 		return -ENOMEM;
-
-	fence->sysmem = sysmem;
 
 	ret = nouveau_fence_emit(fence, chan);
 	if (ret)

@@ -1797,12 +1797,19 @@ static int cec_receive_notify(struct cec_adapter *adap, struct cec_msg *msg,
 	 */
 	switch (msg->msg[1]) {
 	case CEC_MSG_GET_CEC_VERSION:
-	case CEC_MSG_GIVE_DEVICE_VENDOR_ID:
 	case CEC_MSG_ABORT:
 	case CEC_MSG_GIVE_DEVICE_POWER_STATUS:
-	case CEC_MSG_GIVE_PHYSICAL_ADDR:
 	case CEC_MSG_GIVE_OSD_NAME:
+		/*
+		 * These messages reply with a directed message, so ignore if
+		 * the initiator is Unregistered.
+		 */
+		if (!adap->passthrough && from_unregistered)
+			return 0;
+		/* Fall through */
+	case CEC_MSG_GIVE_DEVICE_VENDOR_ID:
 	case CEC_MSG_GIVE_FEATURES:
+	case CEC_MSG_GIVE_PHYSICAL_ADDR:
 		/*
 		 * Skip processing these messages if the passthrough mode
 		 * is on.
@@ -1810,7 +1817,7 @@ static int cec_receive_notify(struct cec_adapter *adap, struct cec_msg *msg,
 		if (adap->passthrough)
 			goto skip_processing;
 		/* Ignore if addressing is wrong */
-		if (is_broadcast || from_unregistered)
+		if (is_broadcast)
 			return 0;
 		break;
 

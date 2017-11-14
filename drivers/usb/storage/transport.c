@@ -834,13 +834,25 @@ Retry_Sense:
 			if (result == USB_STOR_TRANSPORT_GOOD) {
 				srb->result = SAM_STAT_GOOD;
 				srb->sense_buffer[0] = 0x0;
+			}
+
+			/*
+			 * ATA-passthru commands use sense data to report
+			 * the command completion status, and often devices
+			 * return Check Condition status when nothing is
+			 * wrong.
+			 */
+			else if (srb->cmnd[0] == ATA_16 ||
+					srb->cmnd[0] == ATA_12) {
+				/* leave the data alone */
+			}
 
 			/*
 			 * If there was a problem, report an unspecified
 			 * hardware error to prevent the higher layers from
 			 * entering an infinite retry loop.
 			 */
-			} else {
+			else {
 				srb->result = DID_ERROR << 16;
 				if ((sshdr.response_code & 0x72) == 0x72)
 					srb->sense_buffer[1] = HARDWARE_ERROR;

@@ -248,7 +248,7 @@ disable_clks:
 	clk_disable_unprepare(ahb_clk);
 disable_gdsc:
 	regulator_disable(gdsc_reg);
-	pm_runtime_put_autosuspend(dev);
+	pm_runtime_put_sync(dev);
 put_clk:
 	clk_put(ahb_clk);
 put_gdsc:
@@ -334,46 +334,46 @@ static int dsi_regulator_init(struct msm_dsi_host *msm_host)
 
 static int dsi_clk_init(struct msm_dsi_host *msm_host)
 {
-	struct device *dev = &msm_host->pdev->dev;
+	struct platform_device *pdev = msm_host->pdev;
 	const struct msm_dsi_cfg_handler *cfg_hnd = msm_host->cfg_hnd;
 	const struct msm_dsi_config *cfg = cfg_hnd->cfg;
 	int i, ret = 0;
 
 	/* get bus clocks */
 	for (i = 0; i < cfg->num_bus_clks; i++) {
-		msm_host->bus_clks[i] = devm_clk_get(dev,
+		msm_host->bus_clks[i] = msm_clk_get(pdev,
 						cfg->bus_clk_names[i]);
 		if (IS_ERR(msm_host->bus_clks[i])) {
 			ret = PTR_ERR(msm_host->bus_clks[i]);
-			pr_err("%s: Unable to get %s, ret = %d\n",
+			pr_err("%s: Unable to get %s clock, ret = %d\n",
 				__func__, cfg->bus_clk_names[i], ret);
 			goto exit;
 		}
 	}
 
 	/* get link and source clocks */
-	msm_host->byte_clk = devm_clk_get(dev, "byte_clk");
+	msm_host->byte_clk = msm_clk_get(pdev, "byte");
 	if (IS_ERR(msm_host->byte_clk)) {
 		ret = PTR_ERR(msm_host->byte_clk);
-		pr_err("%s: can't find dsi_byte_clk. ret=%d\n",
+		pr_err("%s: can't find dsi_byte clock. ret=%d\n",
 			__func__, ret);
 		msm_host->byte_clk = NULL;
 		goto exit;
 	}
 
-	msm_host->pixel_clk = devm_clk_get(dev, "pixel_clk");
+	msm_host->pixel_clk = msm_clk_get(pdev, "pixel");
 	if (IS_ERR(msm_host->pixel_clk)) {
 		ret = PTR_ERR(msm_host->pixel_clk);
-		pr_err("%s: can't find dsi_pixel_clk. ret=%d\n",
+		pr_err("%s: can't find dsi_pixel clock. ret=%d\n",
 			__func__, ret);
 		msm_host->pixel_clk = NULL;
 		goto exit;
 	}
 
-	msm_host->esc_clk = devm_clk_get(dev, "core_clk");
+	msm_host->esc_clk = msm_clk_get(pdev, "core");
 	if (IS_ERR(msm_host->esc_clk)) {
 		ret = PTR_ERR(msm_host->esc_clk);
-		pr_err("%s: can't find dsi_esc_clk. ret=%d\n",
+		pr_err("%s: can't find dsi_esc clock. ret=%d\n",
 			__func__, ret);
 		msm_host->esc_clk = NULL;
 		goto exit;
@@ -382,22 +382,22 @@ static int dsi_clk_init(struct msm_dsi_host *msm_host)
 	msm_host->byte_clk_src = clk_get_parent(msm_host->byte_clk);
 	if (!msm_host->byte_clk_src) {
 		ret = -ENODEV;
-		pr_err("%s: can't find byte_clk_src. ret=%d\n", __func__, ret);
+		pr_err("%s: can't find byte_clk clock. ret=%d\n", __func__, ret);
 		goto exit;
 	}
 
 	msm_host->pixel_clk_src = clk_get_parent(msm_host->pixel_clk);
 	if (!msm_host->pixel_clk_src) {
 		ret = -ENODEV;
-		pr_err("%s: can't find pixel_clk_src. ret=%d\n", __func__, ret);
+		pr_err("%s: can't find pixel_clk clock. ret=%d\n", __func__, ret);
 		goto exit;
 	}
 
 	if (cfg_hnd->major == MSM_DSI_VER_MAJOR_V2) {
-		msm_host->src_clk = devm_clk_get(dev, "src_clk");
+		msm_host->src_clk = msm_clk_get(pdev, "src");
 		if (IS_ERR(msm_host->src_clk)) {
 			ret = PTR_ERR(msm_host->src_clk);
-			pr_err("%s: can't find dsi_src_clk. ret=%d\n",
+			pr_err("%s: can't find src clock. ret=%d\n",
 				__func__, ret);
 			msm_host->src_clk = NULL;
 			goto exit;
@@ -406,7 +406,7 @@ static int dsi_clk_init(struct msm_dsi_host *msm_host)
 		msm_host->esc_clk_src = clk_get_parent(msm_host->esc_clk);
 		if (!msm_host->esc_clk_src) {
 			ret = -ENODEV;
-			pr_err("%s: can't get esc_clk_src. ret=%d\n",
+			pr_err("%s: can't get esc clock parent. ret=%d\n",
 				__func__, ret);
 			goto exit;
 		}
@@ -414,7 +414,7 @@ static int dsi_clk_init(struct msm_dsi_host *msm_host)
 		msm_host->dsi_clk_src = clk_get_parent(msm_host->src_clk);
 		if (!msm_host->dsi_clk_src) {
 			ret = -ENODEV;
-			pr_err("%s: can't get dsi_clk_src. ret=%d\n",
+			pr_err("%s: can't get src clock parent. ret=%d\n",
 				__func__, ret);
 		}
 	}

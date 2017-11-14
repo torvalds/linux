@@ -75,6 +75,11 @@ enum SMU_MEMBER {
 	VceBootLevel,
 	SamuBootLevel,
 	LowSclkInterruptThreshold,
+	DRAM_LOG_ADDR_H,
+	DRAM_LOG_ADDR_L,
+	DRAM_LOG_PHY_ADDR_H,
+	DRAM_LOG_PHY_ADDR_L,
+	DRAM_LOG_BUFF_SIZE,
 };
 
 

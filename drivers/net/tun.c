@@ -1286,6 +1286,7 @@ static struct sk_buff *tun_build_skb(struct tun_struct *tun,
 	buflen += SKB_DATA_ALIGN(len + pad);
 	rcu_read_unlock();
 
+	alloc_frag->offset = ALIGN((u64)alloc_frag->offset, SMP_CACHE_BYTES);
 	if (unlikely(!skb_page_frag_refill(buflen, alloc_frag, GFP_KERNEL)))
 		return ERR_PTR(-ENOMEM);
 
@@ -1496,11 +1497,13 @@ static ssize_t tun_get_user(struct tun_struct *tun, struct tun_file *tfile,
 	switch (tun->flags & TUN_TYPE_MASK) {
 	case IFF_TUN:
 		if (tun->flags & IFF_NO_PI) {
-			switch (skb->data[0] & 0xf0) {
-			case 0x40:
+			u8 ip_version = skb->len ? (skb->data[0] >> 4) : 0;
+
+			switch (ip_version) {
+			case 4:
 				pi.proto = htons(ETH_P_IP);
 				break;
-			case 0x60:
+			case 6:
 				pi.proto = htons(ETH_P_IPV6);
 				break;
 			default:
@@ -2025,6 +2028,9 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 
 		if (!dev)
 			return -ENOMEM;
+		err = dev_get_valid_name(net, dev, name);
+		if (err < 0)
+			goto err_free_dev;
 
 		dev_net_set(dev, net);
 		dev->rtnl_link_ops = &tun_link_ops;

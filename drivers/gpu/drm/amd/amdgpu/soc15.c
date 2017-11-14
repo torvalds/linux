@@ -279,10 +279,7 @@ static void soc15_init_golden_registers(struct amdgpu_device *adev)
 }
 static u32 soc15_get_xclk(struct amdgpu_device *adev)
 {
-	if (adev->asic_type == CHIP_VEGA10)
-		return adev->clock.spll.reference_freq/4;
-	else
-		return adev->clock.spll.reference_freq;
+	return adev->clock.spll.reference_freq;
 }
 
 

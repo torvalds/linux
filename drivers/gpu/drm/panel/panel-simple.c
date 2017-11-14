@@ -1008,6 +1008,10 @@ static const struct panel_desc hitachi_tx23d38vm0caa = {
 		.width = 195,
 		.height = 117,
 	},
+	.delay = {
+		.enable = 160,
+		.disable = 160,
+	},
 };
 
 static const struct drm_display_mode innolux_at043tn24_mode = {
@@ -1018,8 +1022,8 @@ static const struct drm_display_mode innolux_at043tn24_mode = {
 	.htotal = 480 + 2 + 41 + 2,
 	.vdisplay = 272,
 	.vsync_start = 272 + 2,
-	.vsync_end = 272 + 2 + 11,
-	.vtotal = 272 + 2 + 11 + 2,
+	.vsync_end = 272 + 2 + 10,
+	.vtotal = 272 + 2 + 10 + 2,
 	.vrefresh = 60,
 	.flags = DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC,
 };
@@ -1033,6 +1037,7 @@ static const struct panel_desc innolux_at043tn24 = {
 		.height = 54,
 	},
 	.bus_format = MEDIA_BUS_FMT_RGB888_1X24,
+	.bus_flags = DRM_BUS_FLAG_DE_HIGH | DRM_BUS_FLAG_PIXDATA_POSEDGE,
 };
 
 static const struct drm_display_mode innolux_at070tn92_mode = {
@@ -1832,6 +1837,30 @@ static const struct panel_desc tianma_tm070jdhg30 = {
 	.bus_format = MEDIA_BUS_FMT_RGB888_1X7X4_SPWG,
 };
 
+static const struct drm_display_mode toshiba_lt089ac29000_mode = {
+	.clock = 79500,
+	.hdisplay = 1280,
+	.hsync_start = 1280 + 192,
+	.hsync_end = 1280 + 192 + 128,
+	.htotal = 1280 + 192 + 128 + 64,
+	.vdisplay = 768,
+	.vsync_start = 768 + 20,
+	.vsync_end = 768 + 20 + 7,
+	.vtotal = 768 + 20 + 7 + 3,
+	.vrefresh = 60,
+};
+
+static const struct panel_desc toshiba_lt089ac29000 = {
+	.modes = &toshiba_lt089ac29000_mode,
+	.num_modes = 1,
+	.size = {
+		.width = 194,
+		.height = 116,
+	},
+	.bus_format = MEDIA_BUS_FMT_RGB888_1X24,
+	.bus_flags = DRM_BUS_FLAG_DE_HIGH | DRM_BUS_FLAG_PIXDATA_POSEDGE,
+};
+
 static const struct drm_display_mode tpk_f07a_0102_mode = {
 	.clock = 33260,
 	.hdisplay = 800,
@@ -2113,6 +2142,9 @@ static const struct of_device_id platform_of_match[] = {
 	}, {
 		.compatible = "tianma,tm070jdhg30",
 		.data = &tianma_tm070jdhg30,
+	}, {
+		.compatible = "toshiba,lt089ac29000",
+		.data = &toshiba_lt089ac29000,
 	}, {
 		.compatible = "tpk,f07a-0102",
 		.data = &tpk_f07a_0102,

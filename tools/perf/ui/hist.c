@@ -532,7 +532,7 @@ void perf_hpp_list__prepend_sort_field(struct perf_hpp_list *list,
 
 void perf_hpp__column_unregister(struct perf_hpp_fmt *format)
 {
-	list_del(&format->list);
+	list_del_init(&format->list);
 }
 
 void perf_hpp__cancel_cumulate(void)
@@ -606,6 +606,13 @@ next:
 
 static void fmt_free(struct perf_hpp_fmt *fmt)
 {
+	/*
+	 * At this point fmt should be completely
+	 * unhooked, if not it's a bug.
+	 */
+	BUG_ON(!list_empty(&fmt->list));
+	BUG_ON(!list_empty(&fmt->sort_list));
+
 	if (fmt->free)
 		fmt->free(fmt);
 }

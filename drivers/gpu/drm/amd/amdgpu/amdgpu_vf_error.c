@@ -31,7 +31,12 @@ void amdgpu_vf_error_put(struct amdgpu_device *adev,
 			 uint64_t error_data)
 {
 	int index;
-	uint16_t error_code = AMDGIM_ERROR_CODE(AMDGIM_ERROR_CATEGORY_VF, sub_error_code);
+	uint16_t error_code;
+
+	if (!amdgpu_sriov_vf(adev))
+		return;
+
+	error_code = AMDGIM_ERROR_CODE(AMDGIM_ERROR_CATEGORY_VF, sub_error_code);
 
 	mutex_lock(&adev->virt.vf_errors.lock);
 	index = adev->virt.vf_errors.write_count % AMDGPU_VF_ERROR_ENTRY_SIZE;

@@ -35,66 +35,61 @@
 #include "sun4i_tcon.h"
 #include "sunxi_engine.h"
 
-void sun4i_tcon_disable(struct sun4i_tcon *tcon)
+static void sun4i_tcon_channel_set_status(struct sun4i_tcon *tcon, int channel,
+					  bool enabled)
 {
-	DRM_DEBUG_DRIVER("Disabling TCON\n");
+	struct clk *clk;
 
-	/* Disable the TCON */
-	regmap_update_bits(tcon->regs, SUN4I_TCON_GCTL_REG,
-			   SUN4I_TCON_GCTL_TCON_ENABLE, 0);
-}
-EXPORT_SYMBOL(sun4i_tcon_disable);
-
-void sun4i_tcon_enable(struct sun4i_tcon *tcon)
-{
-	DRM_DEBUG_DRIVER("Enabling TCON\n");
-
-	/* Enable the TCON */
-	regmap_update_bits(tcon->regs, SUN4I_TCON_GCTL_REG,
-			   SUN4I_TCON_GCTL_TCON_ENABLE,
-			   SUN4I_TCON_GCTL_TCON_ENABLE);
-}
-EXPORT_SYMBOL(sun4i_tcon_enable);
-
-void sun4i_tcon_channel_disable(struct sun4i_tcon *tcon, int channel)
-{
-	DRM_DEBUG_DRIVER("Disabling TCON channel %d\n", channel);
-
-	/* Disable the TCON's channel */
-	if (channel == 0) {
-		regmap_update_bits(tcon->regs, SUN4I_TCON0_CTL_REG,
-				   SUN4I_TCON0_CTL_TCON_ENABLE, 0);
-		clk_disable_unprepare(tcon->dclk);
-		return;
-	}
-
-	WARN_ON(!tcon->quirks->has_channel_1);
-	regmap_update_bits(tcon->regs, SUN4I_TCON1_CTL_REG,
-			   SUN4I_TCON1_CTL_TCON_ENABLE, 0);
-	clk_disable_unprepare(tcon->sclk1);
-}
-EXPORT_SYMBOL(sun4i_tcon_channel_disable);
-
-void sun4i_tcon_channel_enable(struct sun4i_tcon *tcon, int channel)
-{
-	DRM_DEBUG_DRIVER("Enabling TCON channel %d\n", channel);
-
-	/* Enable the TCON's channel */
-	if (channel == 0) {
+	switch (channel) {
+	case 0:
 		regmap_update_bits(tcon->regs, SUN4I_TCON0_CTL_REG,
 				   SUN4I_TCON0_CTL_TCON_ENABLE,
-				   SUN4I_TCON0_CTL_TCON_ENABLE);
-		clk_prepare_enable(tcon->dclk);
+				   enabled ? SUN4I_TCON0_CTL_TCON_ENABLE : 0);
+		clk = tcon->dclk;
+		break;
+	case 1:
+		WARN_ON(!tcon->quirks->has_channel_1);
+		regmap_update_bits(tcon->regs, SUN4I_TCON1_CTL_REG,
+				   SUN4I_TCON1_CTL_TCON_ENABLE,
+				   enabled ? SUN4I_TCON1_CTL_TCON_ENABLE : 0);
+		clk = tcon->sclk1;
+		break;
+	default:
+		DRM_WARN("Unknown channel... doing nothing\n");
 		return;
 	}
 
-	WARN_ON(!tcon->quirks->has_channel_1);
-	regmap_update_bits(tcon->regs, SUN4I_TCON1_CTL_REG,
-			   SUN4I_TCON1_CTL_TCON_ENABLE,
-			   SUN4I_TCON1_CTL_TCON_ENABLE);
-	clk_prepare_enable(tcon->sclk1);
+	if (enabled)
+		clk_prepare_enable(clk);
+	else
+		clk_disable_unprepare(clk);
 }
-EXPORT_SYMBOL(sun4i_tcon_channel_enable);
+
+void sun4i_tcon_set_status(struct sun4i_tcon *tcon,
+			   const struct drm_encoder *encoder,
+			   bool enabled)
+{
+	int channel;
+
+	switch (encoder->encoder_type) {
+	case DRM_MODE_ENCODER_NONE:
+		channel = 0;
+		break;
+	case DRM_MODE_ENCODER_TMDS:
+	case DRM_MODE_ENCODER_TVDAC:
+		channel = 1;
+		break;
+	default:
+		DRM_DEBUG_DRIVER("Unknown encoder type, doing nothing...\n");
+		return;
+	}
+
+	regmap_update_bits(tcon->regs, SUN4I_TCON_GCTL_REG,
+			   SUN4I_TCON_GCTL_TCON_ENABLE,
+			   enabled ? SUN4I_TCON_GCTL_TCON_ENABLE : 0);
+
+	sun4i_tcon_channel_set_status(tcon, channel, enabled);
+}
 
 void sun4i_tcon_enable_vblank(struct sun4i_tcon *tcon, bool enable)
 {
@@ -134,7 +129,7 @@ static struct sun4i_tcon *sun4i_get_tcon0(struct drm_device *drm)
 }
 
 void sun4i_tcon_set_mux(struct sun4i_tcon *tcon, int channel,
-			struct drm_encoder *encoder)
+			const struct drm_encoder *encoder)
 {
 	int ret = -ENOTSUPP;
 
@@ -144,9 +139,8 @@ void sun4i_tcon_set_mux(struct sun4i_tcon *tcon, int channel,
 	DRM_DEBUG_DRIVER("Muxing encoder %s to CRTC %s: %d\n",
 			 encoder->name, encoder->crtc->name, ret);
 }
-EXPORT_SYMBOL(sun4i_tcon_set_mux);
 
-static int sun4i_tcon_get_clk_delay(struct drm_display_mode *mode,
+static int sun4i_tcon_get_clk_delay(const struct drm_display_mode *mode,
 				    int channel)
 {
 	int delay = mode->vtotal - mode->vdisplay;
@@ -164,26 +158,32 @@ static int sun4i_tcon_get_clk_delay(struct drm_display_mode *mode,
 	return delay;
 }
 
-void sun4i_tcon0_mode_set(struct sun4i_tcon *tcon,
-			  struct drm_display_mode *mode)
+static void sun4i_tcon0_mode_set_common(struct sun4i_tcon *tcon,
+					const struct drm_display_mode *mode)
+{
+	/* Configure the dot clock */
+	clk_set_rate(tcon->dclk, mode->crtc_clock * 1000);
+
+	/* Set the resolution */
+	regmap_write(tcon->regs, SUN4I_TCON0_BASIC0_REG,
+		     SUN4I_TCON0_BASIC0_X(mode->crtc_hdisplay) |
+		     SUN4I_TCON0_BASIC0_Y(mode->crtc_vdisplay));
+}
+
+static void sun4i_tcon0_mode_set_rgb(struct sun4i_tcon *tcon,
+				     const struct drm_display_mode *mode)
 {
 	unsigned int bp, hsync, vsync;
 	u8 clk_delay;
 	u32 val = 0;
 
-	/* Configure the dot clock */
-	clk_set_rate(tcon->dclk, mode->crtc_clock * 1000);
+	sun4i_tcon0_mode_set_common(tcon, mode);
 
 	/* Adjust clock delay */
 	clk_delay = sun4i_tcon_get_clk_delay(mode, 0);
 	regmap_update_bits(tcon->regs, SUN4I_TCON0_CTL_REG,
 			   SUN4I_TCON0_CTL_CLK_DELAY_MASK,
 			   SUN4I_TCON0_CTL_CLK_DELAY(clk_delay));
-
-	/* Set the resolution */
-	regmap_write(tcon->regs, SUN4I_TCON0_BASIC0_REG,
-		     SUN4I_TCON0_BASIC0_X(mode->crtc_hdisplay) |
-		     SUN4I_TCON0_BASIC0_Y(mode->crtc_vdisplay));
 
 	/*
 	 * This is called a backporch in the register documentation,
@@ -238,10 +238,9 @@ void sun4i_tcon0_mode_set(struct sun4i_tcon *tcon,
 	/* Enable the output on the pins */
 	regmap_write(tcon->regs, SUN4I_TCON0_IO_TRI_REG, 0);
 }
-EXPORT_SYMBOL(sun4i_tcon0_mode_set);
 
-void sun4i_tcon1_mode_set(struct sun4i_tcon *tcon,
-			  struct drm_display_mode *mode)
+static void sun4i_tcon1_mode_set(struct sun4i_tcon *tcon,
+				 const struct drm_display_mode *mode)
 {
 	unsigned int bp, hsync, vsync, vtotal;
 	u8 clk_delay;
@@ -329,7 +328,26 @@ void sun4i_tcon1_mode_set(struct sun4i_tcon *tcon,
 			   SUN4I_TCON_GCTL_IOMAP_MASK,
 			   SUN4I_TCON_GCTL_IOMAP_TCON1);
 }
-EXPORT_SYMBOL(sun4i_tcon1_mode_set);
+
+void sun4i_tcon_mode_set(struct sun4i_tcon *tcon,
+			 const struct drm_encoder *encoder,
+			 const struct drm_display_mode *mode)
+{
+	switch (encoder->encoder_type) {
+	case DRM_MODE_ENCODER_NONE:
+		sun4i_tcon0_mode_set_rgb(tcon, mode);
+		sun4i_tcon_set_mux(tcon, 0, encoder);
+		break;
+	case DRM_MODE_ENCODER_TVDAC:
+	case DRM_MODE_ENCODER_TMDS:
+		sun4i_tcon1_mode_set(tcon, mode);
+		sun4i_tcon_set_mux(tcon, 1, encoder);
+		break;
+	default:
+		DRM_DEBUG_DRIVER("Unknown encoder type, doing nothing...\n");
+	}
+}
+EXPORT_SYMBOL(sun4i_tcon_mode_set);
 
 static void sun4i_tcon_finish_page_flip(struct drm_device *dev,
 					struct sun4i_crtc *scrtc)
@@ -782,8 +800,32 @@ static int sun4i_tcon_remove(struct platform_device *pdev)
 }
 
 /* platform specific TCON muxing callbacks */
+static int sun4i_a10_tcon_set_mux(struct sun4i_tcon *tcon,
+				  const struct drm_encoder *encoder)
+{
+	struct sun4i_tcon *tcon0 = sun4i_get_tcon0(encoder->dev);
+	u32 shift;
+
+	if (!tcon0)
+		return -EINVAL;
+
+	switch (encoder->encoder_type) {
+	case DRM_MODE_ENCODER_TMDS:
+		/* HDMI */
+		shift = 8;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	regmap_update_bits(tcon0->regs, SUN4I_TCON_MUX_CTRL_REG,
+			   0x3 << shift, tcon->id << shift);
+
+	return 0;
+}
+
 static int sun5i_a13_tcon_set_mux(struct sun4i_tcon *tcon,
-				  struct drm_encoder *encoder)
+				  const struct drm_encoder *encoder)
 {
 	u32 val;
 
@@ -799,7 +841,7 @@ static int sun5i_a13_tcon_set_mux(struct sun4i_tcon *tcon,
 }
 
 static int sun6i_tcon_set_mux(struct sun4i_tcon *tcon,
-			      struct drm_encoder *encoder)
+			      const struct drm_encoder *encoder)
 {
 	struct sun4i_tcon *tcon0 = sun4i_get_tcon0(encoder->dev);
 	u32 shift;
@@ -823,6 +865,11 @@ static int sun6i_tcon_set_mux(struct sun4i_tcon *tcon,
 	return 0;
 }
 
+static const struct sun4i_tcon_quirks sun4i_a10_quirks = {
+	.has_channel_1		= true,
+	.set_mux		= sun4i_a10_tcon_set_mux,
+};
+
 static const struct sun4i_tcon_quirks sun5i_a13_quirks = {
 	.has_channel_1		= true,
 	.set_mux		= sun5i_a13_tcon_set_mux,
@@ -839,6 +886,12 @@ static const struct sun4i_tcon_quirks sun6i_a31s_quirks = {
 	.needs_de_be_mux	= true,
 };
 
+static const struct sun4i_tcon_quirks sun7i_a20_quirks = {
+	.has_channel_1		= true,
+	/* Same display pipeline structure as A10 */
+	.set_mux		= sun4i_a10_tcon_set_mux,
+};
+
 static const struct sun4i_tcon_quirks sun8i_a33_quirks = {
 	/* nothing is supported */
 };
@@ -848,9 +901,11 @@ static const struct sun4i_tcon_quirks sun8i_v3s_quirks = {
 };
 
 static const struct of_device_id sun4i_tcon_of_table[] = {
+	{ .compatible = "allwinner,sun4i-a10-tcon", .data = &sun4i_a10_quirks },
 	{ .compatible = "allwinner,sun5i-a13-tcon", .data = &sun5i_a13_quirks },
 	{ .compatible = "allwinner,sun6i-a31-tcon", .data = &sun6i_a31_quirks },
 	{ .compatible = "allwinner,sun6i-a31s-tcon", .data = &sun6i_a31s_quirks },
+	{ .compatible = "allwinner,sun7i-a20-tcon", .data = &sun7i_a20_quirks },
 	{ .compatible = "allwinner,sun8i-a33-tcon", .data = &sun8i_a33_quirks },
 	{ .compatible = "allwinner,sun8i-v3s-tcon", .data = &sun8i_v3s_quirks },
 	{ }

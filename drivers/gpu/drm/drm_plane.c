@@ -479,10 +479,12 @@ int drm_mode_getplane_res(struct drm_device *dev, void *data,
 		    !file_priv->universal_planes)
 			continue;
 
-		if (count < plane_resp->count_planes &&
-		    put_user(plane->base.id, plane_ptr + count))
-			return -EFAULT;
-		count++;
+		if (drm_lease_held(file_priv, plane->base.id)) {
+			if (count < plane_resp->count_planes &&
+			    put_user(plane->base.id, plane_ptr + count))
+				return -EFAULT;
+			count++;
+		}
 	}
 	plane_resp->count_planes = count;
 
@@ -504,9 +506,9 @@ int drm_mode_getplane(struct drm_device *dev, void *data,
 		return -ENOENT;
 
 	drm_modeset_lock(&plane->mutex, NULL);
-	if (plane->state && plane->state->crtc)
+	if (plane->state && plane->state->crtc && drm_lease_held(file_priv, plane->state->crtc->base.id))
 		plane_resp->crtc_id = plane->state->crtc->base.id;
-	else if (!plane->state && plane->crtc)
+	else if (!plane->state && plane->crtc && drm_lease_held(file_priv, plane->crtc->base.id))
 		plane_resp->crtc_id = plane->crtc->base.id;
 	else
 		plane_resp->crtc_id = 0;
@@ -520,7 +522,9 @@ int drm_mode_getplane(struct drm_device *dev, void *data,
 	drm_modeset_unlock(&plane->mutex);
 
 	plane_resp->plane_id = plane->base.id;
-	plane_resp->possible_crtcs = plane->possible_crtcs;
+	plane_resp->possible_crtcs = drm_lease_filter_crtcs(file_priv,
+							    plane->possible_crtcs);
+
 	plane_resp->gamma_size = 0;
 
 	/*
@@ -1025,7 +1029,7 @@ retry:
 		}
 		e->event.base.type = DRM_EVENT_FLIP_COMPLETE;
 		e->event.base.length = sizeof(e->event);
-		e->event.user_data = page_flip->user_data;
+		e->event.vbl.user_data = page_flip->user_data;
 		ret = drm_event_reserve_init(dev, file_priv, &e->base, &e->event.base);
 		if (ret) {
 			kfree(e);

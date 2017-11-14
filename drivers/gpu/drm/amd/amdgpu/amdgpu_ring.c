@@ -136,7 +136,8 @@ void amdgpu_ring_commit(struct amdgpu_ring *ring)
 	if (ring->funcs->end_use)
 		ring->funcs->end_use(ring);
 
-	amdgpu_ring_lru_touch(ring->adev, ring);
+	if (ring->funcs->type != AMDGPU_RING_TYPE_KIQ)
+		amdgpu_ring_lru_touch(ring->adev, ring);
 }
 
 /**
@@ -155,6 +156,75 @@ void amdgpu_ring_undo(struct amdgpu_ring *ring)
 }
 
 /**
+ * amdgpu_ring_priority_put - restore a ring's priority
+ *
+ * @ring: amdgpu_ring structure holding the information
+ * @priority: target priority
+ *
+ * Release a request for executing at @priority
+ */
+void amdgpu_ring_priority_put(struct amdgpu_ring *ring,
+			      enum amd_sched_priority priority)
+{
+	int i;
+
+	if (!ring->funcs->set_priority)
+		return;
+
+	if (atomic_dec_return(&ring->num_jobs[priority]) > 0)
+		return;
+
+	/* no need to restore if the job is already at the lowest priority */
+	if (priority == AMD_SCHED_PRIORITY_NORMAL)
+		return;
+
+	mutex_lock(&ring->priority_mutex);
+	/* something higher prio is executing, no need to decay */
+	if (ring->priority > priority)
+		goto out_unlock;
+
+	/* decay priority to the next level with a job available */
+	for (i = priority; i >= AMD_SCHED_PRIORITY_MIN; i--) {
+		if (i == AMD_SCHED_PRIORITY_NORMAL
+				|| atomic_read(&ring->num_jobs[i])) {
+			ring->priority = i;
+			ring->funcs->set_priority(ring, i);
+			break;
+		}
+	}
+
+out_unlock:
+	mutex_unlock(&ring->priority_mutex);
+}
+
+/**
+ * amdgpu_ring_priority_get - change the ring's priority
+ *
+ * @ring: amdgpu_ring structure holding the information
+ * @priority: target priority
+ *
+ * Request a ring's priority to be raised to @priority (refcounted).
+ */
+void amdgpu_ring_priority_get(struct amdgpu_ring *ring,
+			      enum amd_sched_priority priority)
+{
+	if (!ring->funcs->set_priority)
+		return;
+
+	atomic_inc(&ring->num_jobs[priority]);
+
+	mutex_lock(&ring->priority_mutex);
+	if (priority <= ring->priority)
+		goto out_unlock;
+
+	ring->priority = priority;
+	ring->funcs->set_priority(ring, priority);
+
+out_unlock:
+	mutex_unlock(&ring->priority_mutex);
+}
+
+/**
  * amdgpu_ring_init - init driver ring struct.
  *
  * @adev: amdgpu_device pointer
@@ -169,7 +239,7 @@ int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 		     unsigned max_dw, struct amdgpu_irq_src *irq_src,
 		     unsigned irq_type)
 {
-	int r;
+	int r, i;
 	int sched_hw_submission = amdgpu_sched_hw_submission;
 
 	/* Set the hw submission limit higher for KIQ because
@@ -247,8 +317,13 @@ int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 	}
 
 	ring->max_dw = max_dw;
+	ring->priority = AMD_SCHED_PRIORITY_NORMAL;
+	mutex_init(&ring->priority_mutex);
 	INIT_LIST_HEAD(&ring->lru_list);
 	amdgpu_ring_lru_touch(adev, ring);
+
+	for (i = 0; i < AMD_SCHED_PRIORITY_MAX; ++i)
+		atomic_set(&ring->num_jobs[i], 0);
 
 	if (amdgpu_debugfs_ring_init(adev, ring)) {
 		DRM_ERROR("Failed to register debugfs file for rings !\n");

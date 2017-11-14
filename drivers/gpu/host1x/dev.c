@@ -39,6 +39,17 @@
 #include "hw/host1x02.h"
 #include "hw/host1x04.h"
 #include "hw/host1x05.h"
+#include "hw/host1x06.h"
+
+void host1x_hypervisor_writel(struct host1x *host1x, u32 v, u32 r)
+{
+	writel(v, host1x->hv_regs + r);
+}
+
+u32 host1x_hypervisor_readl(struct host1x *host1x, u32 r)
+{
+	return readl(host1x->hv_regs + r);
+}
 
 void host1x_sync_writel(struct host1x *host1x, u32 v, u32 r)
 {
@@ -104,7 +115,19 @@ static const struct host1x_info host1x05_info = {
 	.dma_mask = DMA_BIT_MASK(34),
 };
 
+static const struct host1x_info host1x06_info = {
+	.nb_channels = 63,
+	.nb_pts = 576,
+	.nb_mlocks = 24,
+	.nb_bases = 16,
+	.init = host1x06_init,
+	.sync_offset = 0x0,
+	.dma_mask = DMA_BIT_MASK(34),
+	.has_hypervisor = true,
+};
+
 static const struct of_device_id host1x_of_match[] = {
+	{ .compatible = "nvidia,tegra186-host1x", .data = &host1x06_info, },
 	{ .compatible = "nvidia,tegra210-host1x", .data = &host1x05_info, },
 	{ .compatible = "nvidia,tegra124-host1x", .data = &host1x04_info, },
 	{ .compatible = "nvidia,tegra114-host1x", .data = &host1x02_info, },
@@ -116,20 +139,37 @@ MODULE_DEVICE_TABLE(of, host1x_of_match);
 
 static int host1x_probe(struct platform_device *pdev)
 {
-	const struct of_device_id *id;
 	struct host1x *host;
-	struct resource *regs;
+	struct resource *regs, *hv_regs = NULL;
 	int syncpt_irq;
 	int err;
 
-	id = of_match_device(host1x_of_match, &pdev->dev);
-	if (!id)
-		return -EINVAL;
+	host = devm_kzalloc(&pdev->dev, sizeof(*host), GFP_KERNEL);
+	if (!host)
+		return -ENOMEM;
 
-	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!regs) {
-		dev_err(&pdev->dev, "failed to get registers\n");
-		return -ENXIO;
+	host->info = of_device_get_match_data(&pdev->dev);
+
+	if (host->info->has_hypervisor) {
+		regs = platform_get_resource_byname(pdev, IORESOURCE_MEM, "vm");
+		if (!regs) {
+			dev_err(&pdev->dev, "failed to get vm registers\n");
+			return -ENXIO;
+		}
+
+		hv_regs = platform_get_resource_byname(pdev, IORESOURCE_MEM,
+						       "hypervisor");
+		if (!hv_regs) {
+			dev_err(&pdev->dev,
+				"failed to get hypervisor registers\n");
+			return -ENXIO;
+		}
+	} else {
+		regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+		if (!regs) {
+			dev_err(&pdev->dev, "failed to get registers\n");
+			return -ENXIO;
+		}
 	}
 
 	syncpt_irq = platform_get_irq(pdev, 0);
@@ -138,15 +178,10 @@ static int host1x_probe(struct platform_device *pdev)
 		return syncpt_irq;
 	}
 
-	host = devm_kzalloc(&pdev->dev, sizeof(*host), GFP_KERNEL);
-	if (!host)
-		return -ENOMEM;
-
 	mutex_init(&host->devices_lock);
 	INIT_LIST_HEAD(&host->devices);
 	INIT_LIST_HEAD(&host->list);
 	host->dev = &pdev->dev;
-	host->info = id->data;
 
 	/* set common host1x device data */
 	platform_set_drvdata(pdev, host);
@@ -154,6 +189,12 @@ static int host1x_probe(struct platform_device *pdev)
 	host->regs = devm_ioremap_resource(&pdev->dev, regs);
 	if (IS_ERR(host->regs))
 		return PTR_ERR(host->regs);
+
+	if (host->info->has_hypervisor) {
+		host->hv_regs = devm_ioremap_resource(&pdev->dev, hv_regs);
+		if (IS_ERR(host->hv_regs))
+			return PTR_ERR(host->hv_regs);
+	}
 
 	dma_set_mask_and_coherent(host->dev, host->info->dma_mask);
 

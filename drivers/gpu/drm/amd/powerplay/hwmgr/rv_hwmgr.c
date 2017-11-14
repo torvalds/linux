@@ -672,36 +672,20 @@ static int rv_get_performance_level(struct pp_hwmgr *hwmgr, const struct pp_hw_p
 				PHM_PerformanceLevelDesignation designation, uint32_t index,
 				PHM_PerformanceLevel *level)
 {
-	const struct rv_power_state *ps;
 	struct rv_hwmgr *data;
-	uint32_t level_index;
-	uint32_t i;
-	uint32_t vol_dep_record_index = 0;
 
 	if (level == NULL || hwmgr == NULL || state == NULL)
 		return -EINVAL;
 
 	data = (struct rv_hwmgr *)(hwmgr->backend);
-	ps = cast_const_rv_ps(state);
 
-	level_index = index > ps->level - 1 ? ps->level - 1 : index;
-	level->coreClock = 30000;
-
-	if (designation == PHM_PerformanceLevelDesignation_PowerContainment) {
-		for (i = 1; i < ps->level; i++) {
-			if (ps->levels[i].engine_clock > data->dce_slow_sclk_threshold) {
-				level->coreClock = 30000;
-				break;
-			}
-		}
-	}
-
-	if (level_index == 0) {
-		vol_dep_record_index = data->clock_vol_info.vdd_dep_on_fclk->count - 1;
-		level->memory_clock =
-			data->clock_vol_info.vdd_dep_on_fclk->entries[vol_dep_record_index].clk;
-	} else {
+	if (index == 0) {
 		level->memory_clock = data->clock_vol_info.vdd_dep_on_fclk->entries[0].clk;
+		level->coreClock = data->gfx_min_freq_limit;
+	} else {
+		level->memory_clock = data->clock_vol_info.vdd_dep_on_fclk->entries[
+			data->clock_vol_info.vdd_dep_on_fclk->count - 1].clk;
+		level->coreClock = data->gfx_max_freq_limit;
 	}
 
 	level->nonLocalMemoryFreq = 0;

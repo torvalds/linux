@@ -11,6 +11,7 @@
 #include <linux/debugfs.h>
 #include <linux/gpio.h>
 #include <linux/hdmi.h>
+#include <linux/of_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/regulator/consumer.h>
 #include <linux/reset.h>
@@ -20,6 +21,8 @@
 #include <drm/drm_crtc_helper.h>
 
 #include <sound/hda_verbs.h>
+
+#include <media/cec-notifier.h>
 
 #include "hdmi.h"
 #include "drm.h"
@@ -1663,20 +1666,15 @@ static irqreturn_t tegra_hdmi_irq(int irq, void *data)
 
 static int tegra_hdmi_probe(struct platform_device *pdev)
 {
-	const struct of_device_id *match;
 	struct tegra_hdmi *hdmi;
 	struct resource *regs;
 	int err;
-
-	match = of_match_node(tegra_hdmi_of_match, pdev->dev.of_node);
-	if (!match)
-		return -ENODEV;
 
 	hdmi = devm_kzalloc(&pdev->dev, sizeof(*hdmi), GFP_KERNEL);
 	if (!hdmi)
 		return -ENOMEM;
 
-	hdmi->config = match->data;
+	hdmi->config = of_device_get_match_data(&pdev->dev);
 	hdmi->dev = &pdev->dev;
 
 	hdmi->audio_source = AUTO;
@@ -1724,6 +1722,10 @@ static int tegra_hdmi_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to get VDD regulator\n");
 		return PTR_ERR(hdmi->vdd);
 	}
+
+	hdmi->output.notifier = cec_notifier_get(&pdev->dev);
+	if (hdmi->output.notifier == NULL)
+		return -ENOMEM;
 
 	hdmi->output.dev = &pdev->dev;
 
@@ -1782,6 +1784,9 @@ static int tegra_hdmi_remove(struct platform_device *pdev)
 	}
 
 	tegra_output_remove(&hdmi->output);
+
+	if (hdmi->output.notifier)
+		cec_notifier_put(hdmi->output.notifier);
 
 	return 0;
 }

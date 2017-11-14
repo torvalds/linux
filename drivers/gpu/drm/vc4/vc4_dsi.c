@@ -1360,6 +1360,27 @@ static void dsi_handle_error(struct vc4_dsi *dsi,
 	*ret = IRQ_HANDLED;
 }
 
+/*
+ * Initial handler for port 1 where we need the reg_dma workaround.
+ * The register DMA writes sleep, so we can't do it in the top half.
+ * Instead we use IRQF_ONESHOT so that the IRQ gets disabled in the
+ * parent interrupt contrller until our interrupt thread is done.
+ */
+static irqreturn_t vc4_dsi_irq_defer_to_thread_handler(int irq, void *data)
+{
+	struct vc4_dsi *dsi = data;
+	u32 stat = DSI_PORT_READ(INT_STAT);
+
+	if (!stat)
+		return IRQ_NONE;
+
+	return IRQ_WAKE_THREAD;
+}
+
+/*
+ * Normal IRQ handler for port 0, or the threaded IRQ handler for port
+ * 1 where we need the reg_dma workaround.
+ */
 static irqreturn_t vc4_dsi_irq_handler(int irq, void *data)
 {
 	struct vc4_dsi *dsi = data;
@@ -1539,8 +1560,15 @@ static int vc4_dsi_bind(struct device *dev, struct device *master, void *data)
 	/* Clear any existing interrupt state. */
 	DSI_PORT_WRITE(INT_STAT, DSI_PORT_READ(INT_STAT));
 
-	ret = devm_request_irq(dev, platform_get_irq(pdev, 0),
-			       vc4_dsi_irq_handler, 0, "vc4 dsi", dsi);
+	if (dsi->reg_dma_mem)
+		ret = devm_request_threaded_irq(dev, platform_get_irq(pdev, 0),
+						vc4_dsi_irq_defer_to_thread_handler,
+						vc4_dsi_irq_handler,
+						IRQF_ONESHOT,
+						"vc4 dsi", dsi);
+	else
+		ret = devm_request_irq(dev, platform_get_irq(pdev, 0),
+				       vc4_dsi_irq_handler, 0, "vc4 dsi", dsi);
 	if (ret) {
 		if (ret != -EPROBE_DEFER)
 			dev_err(dev, "Failed to get interrupt: %d\n", ret);

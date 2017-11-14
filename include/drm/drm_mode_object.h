@@ -24,6 +24,7 @@
 #define __DRM_MODESET_H__
 
 #include <linux/kref.h>
+#include <drm/drm_lease.h>
 struct drm_object_properties;
 struct drm_property;
 struct drm_device;
@@ -153,4 +154,6 @@ int drm_object_property_get_value(struct drm_mode_object *obj,
 void drm_object_attach_property(struct drm_mode_object *obj,
 				struct drm_property *property,
 				uint64_t init_val);
+
+bool drm_mode_object_lease_required(uint32_t type);
 #endif

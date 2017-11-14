@@ -4954,9 +4954,6 @@ static char ftrace_graph_buf[FTRACE_FILTER_SIZE] __initdata;
 static char ftrace_graph_notrace_buf[FTRACE_FILTER_SIZE] __initdata;
 static int ftrace_graph_set_hash(struct ftrace_hash *hash, char *buffer);
 
-static unsigned long save_global_trampoline;
-static unsigned long save_global_flags;
-
 static int __init set_graph_function(char *str)
 {
 	strlcpy(ftrace_graph_buf, str, FTRACE_FILTER_SIZE);
@@ -6807,17 +6804,6 @@ void unregister_ftrace_graph(void)
 	ftrace_shutdown(&graph_ops, FTRACE_STOP_FUNC_RET);
 	unregister_pm_notifier(&ftrace_suspend_notifier);
 	unregister_trace_sched_switch(ftrace_graph_probe_sched_switch, NULL);
-
-#ifdef CONFIG_DYNAMIC_FTRACE
-	/*
-	 * Function graph does not allocate the trampoline, but
-	 * other global_ops do. We need to reset the ALLOC_TRAMP flag
-	 * if one was used.
-	 */
-	global_ops.trampoline = save_global_trampoline;
-	if (save_global_flags & FTRACE_OPS_FL_ALLOC_TRAMP)
-		global_ops.flags |= FTRACE_OPS_FL_ALLOC_TRAMP;
-#endif
 
  out:
 	mutex_unlock(&ftrace_lock);

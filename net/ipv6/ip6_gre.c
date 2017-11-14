@@ -408,13 +408,16 @@ static void ip6gre_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	case ICMPV6_DEST_UNREACH:
 		net_dbg_ratelimited("%s: Path to destination invalid or inactive!\n",
 				    t->parms.name);
-		break;
+		if (code != ICMPV6_PORT_UNREACH)
+			break;
+		return;
 	case ICMPV6_TIME_EXCEED:
 		if (code == ICMPV6_EXC_HOPLIMIT) {
 			net_dbg_ratelimited("%s: Too small hop limit or routing loop in tunnel!\n",
 					    t->parms.name);
+			break;
 		}
-		break;
+		return;
 	case ICMPV6_PARAMPROB:
 		teli = 0;
 		if (code == ICMPV6_HDR_FIELD)
@@ -430,7 +433,7 @@ static void ip6gre_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 			net_dbg_ratelimited("%s: Recipient unable to parse tunneled packet!\n",
 					    t->parms.name);
 		}
-		break;
+		return;
 	case ICMPV6_PKT_TOOBIG:
 		mtu = be32_to_cpu(info) - offset - t->tun_hlen;
 		if (t->dev->type == ARPHRD_ETHER)
@@ -438,7 +441,7 @@ static void ip6gre_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 		if (mtu < IPV6_MIN_MTU)
 			mtu = IPV6_MIN_MTU;
 		t->dev->mtu = mtu;
-		break;
+		return;
 	}
 
 	if (time_before(jiffies, t->err_time + IP6TUNNEL_ERR_TIMEO))
@@ -500,8 +503,8 @@ static netdev_tx_t __gre6_xmit(struct sk_buff *skb,
 			       __u32 *pmtu, __be16 proto)
 {
 	struct ip6_tnl *tunnel = netdev_priv(dev);
-	__be16 protocol = (dev->type == ARPHRD_ETHER) ?
-			  htons(ETH_P_TEB) : proto;
+	struct dst_entry *dst = skb_dst(skb);
+	__be16 protocol;
 
 	if (dev->type == ARPHRD_ETHER)
 		IPCB(skb)->flags = 0;
@@ -515,8 +518,13 @@ static netdev_tx_t __gre6_xmit(struct sk_buff *skb,
 		tunnel->o_seqno++;
 
 	/* Push GRE header. */
+	protocol = (dev->type == ARPHRD_ETHER) ? htons(ETH_P_TEB) : proto;
 	gre_build_header(skb, tunnel->tun_hlen, tunnel->parms.o_flags,
 			 protocol, tunnel->parms.o_key, htonl(tunnel->o_seqno));
+
+	/* TooBig packet may have updated dst->dev's mtu */
+	if (dst && dst_mtu(dst) > dst->dev->mtu)
+		dst->ops->update_pmtu(dst, NULL, skb, dst->dev->mtu);
 
 	return ip6_tnl_xmit(skb, dev, dsfield, fl6, encap_limit, pmtu,
 			    NEXTHDR_GRE);
@@ -1311,6 +1319,7 @@ static void ip6gre_tap_setup(struct net_device *dev)
 	dev->features |= NETIF_F_NETNS_LOCAL;
 	dev->priv_flags &= ~IFF_TX_SKB_SHARING;
 	dev->priv_flags |= IFF_LIVE_ADDR_CHANGE;
+	netif_keep_dst(dev);
 }
 
 static bool ip6gre_netlink_encap_parms(struct nlattr *data[],

@@ -17,7 +17,7 @@ if BLK_DEV
 
 config BLK_DEV_NULL_BLK
 	tristate "Null test block driver"
-	depends on CONFIGFS_FS
+	select CONFIGFS_FS
 
 config BLK_DEV_FD
 	tristate "Normal floppy disk support"

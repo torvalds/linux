@@ -33,7 +33,6 @@
 #include "cik_blit_shaders.h"
 #include "radeon_ucode.h"
 #include "clearstate_ci.h"
-#include "radeon_kfd.h"
 
 #define SH_MEM_CONFIG_GFX_DEFAULT \
 	ALIGNMENT_MODE(SH_MEM_ALIGNMENT_MODE_UNALIGNED)
@@ -5684,10 +5683,9 @@ int cik_vm_init(struct radeon_device *rdev)
 	/*
 	 * number of VMs
 	 * VMID 0 is reserved for System
-	 * radeon graphics/compute will use VMIDs 1-7
-	 * amdkfd will use VMIDs 8-15
+	 * radeon graphics/compute will use VMIDs 1-15
 	 */
-	rdev->vm_manager.nvm = RADEON_NUM_OF_VMIDS;
+	rdev->vm_manager.nvm = 16;
 	/* base offset of vram pages */
 	if (rdev->flags & RADEON_IS_IGP) {
 		u64 tmp = RREG32(MC_VM_FB_OFFSET);
@@ -7589,9 +7587,6 @@ restart_ih:
 		/* wptr/rptr are in bytes! */
 		ring_index = rptr / 4;
 
-		radeon_kfd_interrupt(rdev,
-				(const void *) &rdev->ih.ring[ring_index]);
-
 		src_id =  le32_to_cpu(rdev->ih.ring[ring_index]) & 0xff;
 		src_data = le32_to_cpu(rdev->ih.ring[ring_index + 1]) & 0xfffffff;
 		ring_id = le32_to_cpu(rdev->ih.ring[ring_index + 2]) & 0xff;
@@ -8486,10 +8481,6 @@ static int cik_startup(struct radeon_device *rdev)
 	if (r)
 		return r;
 
-	r = radeon_kfd_resume(rdev);
-	if (r)
-		return r;
-
 	return 0;
 }
 
@@ -8538,7 +8529,6 @@ int cik_resume(struct radeon_device *rdev)
  */
 int cik_suspend(struct radeon_device *rdev)
 {
-	radeon_kfd_suspend(rdev);
 	radeon_pm_suspend(rdev);
 	radeon_audio_fini(rdev);
 	radeon_vm_manager_fini(rdev);

@@ -759,8 +759,6 @@ F:	drivers/gpu/drm/amd/amdkfd/
 F:	drivers/gpu/drm/amd/include/cik_structs.h
 F:	drivers/gpu/drm/amd/include/kgd_kfd_interface.h
 F:	drivers/gpu/drm/amd/include/vi_structs.h
-F:	drivers/gpu/drm/radeon/radeon_kfd.c
-F:	drivers/gpu/drm/radeon/radeon_kfd.h
 F:	include/uapi/linux/kfd_ioctl.h
 
 AMD SEATTLE DEVICE TREE SUPPORT
@@ -5265,7 +5263,8 @@ S:	Maintained
 F:	drivers/iommu/exynos-iommu.c
 
 EZchip NPS platform support
-M:	Noam Camus <noamc@ezchip.com>
+M:	Elad Kanfi <eladkan@mellanox.com>
+M:	Vineet Gupta <vgupta@synopsys.com>
 S:	Supported
 F:	arch/arc/plat-eznps
 F:	arch/arc/boot/dts/eznps.dts
@@ -5351,9 +5350,7 @@ M:	"J. Bruce Fields" <bfields@fieldses.org>
 L:	linux-fsdevel@vger.kernel.org
 S:	Maintained
 F:	include/linux/fcntl.h
-F:	include/linux/fs.h
 F:	include/uapi/linux/fcntl.h
-F:	include/uapi/linux/fs.h
 F:	fs/fcntl.c
 F:	fs/locks.c
 
@@ -5362,6 +5359,8 @@ M:	Alexander Viro <viro@zeniv.linux.org.uk>
 L:	linux-fsdevel@vger.kernel.org
 S:	Maintained
 F:	fs/*
+F:	include/linux/fs.h
+F:	include/uapi/linux/fs.h
 
 FINTEK F75375S HARDWARE MONITOR AND FAN CONTROLLER DRIVER
 M:	Riku Voipio <riku.voipio@iki.fi>
@@ -6745,7 +6744,7 @@ F:	Documentation/devicetree/bindings/auxdisplay/img-ascii-lcd.txt
 F:	drivers/auxdisplay/img-ascii-lcd.c
 
 IMGTEC IR DECODER DRIVER
-M:	James Hogan <james.hogan@imgtec.com>
+M:	James Hogan <jhogan@kernel.org>
 S:	Maintained
 F:	drivers/media/rc/img-ir/
 
@@ -7569,7 +7568,7 @@ F:	arch/arm64/include/asm/kvm*
 F:	arch/arm64/kvm/
 
 KERNEL VIRTUAL MACHINE FOR MIPS (KVM/mips)
-M:	James Hogan <james.hogan@imgtec.com>
+M:	James Hogan <jhogan@kernel.org>
 L:	linux-mips@linux-mips.org
 S:	Supported
 F:	arch/mips/include/uapi/asm/kvm*
@@ -7577,7 +7576,7 @@ F:	arch/mips/include/asm/kvm*
 F:	arch/mips/kvm/
 
 KERNEL VIRTUAL MACHINE FOR POWERPC (KVM/powerpc)
-M:	Alexander Graf <agraf@suse.com>
+M:	Paul Mackerras <paulus@ozlabs.org>
 L:	kvm-ppc@vger.kernel.org
 W:	http://www.linux-kvm.org/
 T:	git git://github.com/agraf/linux-2.6.git
@@ -8271,6 +8270,12 @@ L:	libertas-dev@lists.infradead.org
 S:	Orphan
 F:	drivers/net/wireless/marvell/libertas/
 
+MARVELL MACCHIATOBIN SUPPORT
+M:	Russell King <rmk@armlinux.org.uk>
+L:	linux-arm-kernel@lists.infradead.org
+S:	Maintained
+F:	arch/arm64/boot/dts/marvell/armada-8040-mcbin.dts
+
 MARVELL MV643XX ETHERNET DRIVER
 M:	Sebastian Hesselbarth <sebastian.hesselbarth@gmail.com>
 L:	netdev@vger.kernel.org
@@ -8892,7 +8897,7 @@ F:	Documentation/devicetree/bindings/media/meson-ao-cec.txt
 T:	git git://linuxtv.org/media_tree.git
 
 METAG ARCHITECTURE
-M:	James Hogan <james.hogan@imgtec.com>
+M:	James Hogan <jhogan@kernel.org>
 L:	linux-metag@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jhogan/metag.git
 S:	Odd Fixes
@@ -9213,7 +9218,6 @@ F:	include/linux/isicom.h
 MUSB MULTIPOINT HIGH SPEED DUAL-ROLE CONTROLLER
 M:	Bin Liu <b-liu@ti.com>
 L:	linux-usb@vger.kernel.org
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/balbi/usb.git
 S:	Maintained
 F:	drivers/usb/musb/
 
@@ -9361,7 +9365,7 @@ NETWORK BLOCK DEVICE (NBD)
 M:	Josef Bacik <jbacik@fb.com>
 S:	Maintained
 L:	linux-block@vger.kernel.org
-L:	nbd-general@lists.sourceforge.net
+L:	nbd@other.debian.org
 F:	Documentation/blockdev/nbd.txt
 F:	drivers/block/nbd.c
 F:	include/uapi/linux/nbd.h
@@ -10180,7 +10184,6 @@ F:	Documentation/parport*.txt
 
 PARAVIRT_OPS INTERFACE
 M:	Juergen Gross <jgross@suse.com>
-M:	Chris Wright <chrisw@sous-sol.org>
 M:	Alok Kataria <akataria@vmware.com>
 M:	Rusty Russell <rusty@rustcorp.com.au>
 L:	virtualization@lists.linux-foundation.org
@@ -10560,6 +10563,8 @@ M:	Peter Zijlstra <peterz@infradead.org>
 M:	Ingo Molnar <mingo@redhat.com>
 M:	Arnaldo Carvalho de Melo <acme@kernel.org>
 R:	Alexander Shishkin <alexander.shishkin@linux.intel.com>
+R:	Jiri Olsa <jolsa@redhat.com>
+R:	Namhyung Kim <namhyung@kernel.org>
 L:	linux-kernel@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git perf/core
 S:	Supported
@@ -12938,9 +12943,9 @@ F:	drivers/mmc/host/dw_mmc*
 SYNOPSYS HSDK RESET CONTROLLER DRIVER
 M:	Eugeniy Paltsev <Eugeniy.Paltsev@synopsys.com>
 S:	Supported
-F:	drivers/reset/reset-hsdk-v1.c
-F:	include/dt-bindings/reset/snps,hsdk-v1-reset.h
-F:	Documentation/devicetree/bindings/reset/snps,hsdk-v1-reset.txt
+F:	drivers/reset/reset-hsdk.c
+F:	include/dt-bindings/reset/snps,hsdk-reset.h
+F:	Documentation/devicetree/bindings/reset/snps,hsdk-reset.txt
 
 SYSTEM CONFIGURATION (SYSCON)
 M:	Lee Jones <lee.jones@linaro.org>

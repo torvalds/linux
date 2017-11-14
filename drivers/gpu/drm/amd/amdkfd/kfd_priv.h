@@ -31,7 +31,11 @@
 #include <linux/workqueue.h>
 #include <linux/spinlock.h>
 #include <linux/kfd_ioctl.h>
+#include <linux/idr.h>
+#include <linux/kfifo.h>
 #include <kgd_kfd_interface.h>
+
+#include "amd_shared.h"
 
 #define KFD_SYSFS_FILE_MODE 0444
 
@@ -112,11 +116,6 @@ enum cache_policy {
 	cache_policy_noncoherent
 };
 
-enum asic_family_type {
-	CHIP_KAVERI = 0,
-	CHIP_CARRIZO
-};
-
 struct kfd_event_interrupt_class {
 	bool (*interrupt_isr)(struct kfd_dev *dev,
 				const uint32_t *ih_ring_entry);
@@ -125,7 +124,7 @@ struct kfd_event_interrupt_class {
 };
 
 struct kfd_device_info {
-	unsigned int asic_family;
+	enum amd_asic_type asic_family;
 	const struct kfd_event_interrupt_class *event_interrupt_class;
 	unsigned int max_pasid_bits;
 	unsigned int max_no_of_hqd;
@@ -139,6 +138,12 @@ struct kfd_mem_obj {
 	uint32_t range_end;
 	uint64_t gpu_addr;
 	uint32_t *cpu_ptr;
+};
+
+struct kfd_vmid_info {
+	uint32_t first_vmid_kfd;
+	uint32_t last_vmid_kfd;
+	uint32_t vmid_num_kfd;
 };
 
 struct kfd_dev {
@@ -162,6 +167,7 @@ struct kfd_dev {
 					   */
 
 	struct kgd2kfd_shared_resources shared_resources;
+	struct kfd_vmid_info vm_info;
 
 	const struct kfd2kgd_calls *kfd2kgd;
 	struct mutex doorbell_mutex;
@@ -177,10 +183,8 @@ struct kfd_dev {
 	unsigned int gtt_sa_num_of_chunks;
 
 	/* Interrupts */
-	void *interrupt_ring;
-	size_t interrupt_ring_size;
-	atomic_t interrupt_ring_rptr;
-	atomic_t interrupt_ring_wptr;
+	struct kfifo ih_fifo;
+	struct workqueue_struct *ih_wq;
 	struct work_struct interrupt_work;
 	spinlock_t interrupt_lock;
 
@@ -218,22 +222,22 @@ void kfd_chardev_exit(void);
 struct device *kfd_chardev(void);
 
 /**
- * enum kfd_preempt_type_filter
+ * enum kfd_unmap_queues_filter
  *
- * @KFD_PREEMPT_TYPE_FILTER_SINGLE_QUEUE: Preempts single queue.
+ * @KFD_UNMAP_QUEUES_FILTER_SINGLE_QUEUE: Preempts single queue.
  *
- * @KFD_PRERMPT_TYPE_FILTER_ALL_QUEUES: Preempts all queues in the
+ * @KFD_UNMAP_QUEUES_FILTER_ALL_QUEUES: Preempts all queues in the
  *						running queues list.
  *
- * @KFD_PRERMPT_TYPE_FILTER_BY_PASID: Preempts queues that belongs to
+ * @KFD_UNMAP_QUEUES_FILTER_BY_PASID: Preempts queues that belongs to
  *						specific process.
  *
  */
-enum kfd_preempt_type_filter {
-	KFD_PREEMPT_TYPE_FILTER_SINGLE_QUEUE,
-	KFD_PREEMPT_TYPE_FILTER_ALL_QUEUES,
-	KFD_PREEMPT_TYPE_FILTER_DYNAMIC_QUEUES,
-	KFD_PREEMPT_TYPE_FILTER_BY_PASID
+enum kfd_unmap_queues_filter {
+	KFD_UNMAP_QUEUES_FILTER_SINGLE_QUEUE,
+	KFD_UNMAP_QUEUES_FILTER_ALL_QUEUES,
+	KFD_UNMAP_QUEUES_FILTER_DYNAMIC_QUEUES,
+	KFD_UNMAP_QUEUES_FILTER_BY_PASID
 };
 
 /**
@@ -401,7 +405,6 @@ struct scheduling_resources {
 struct process_queue_manager {
 	/* data */
 	struct kfd_process	*process;
-	unsigned int		num_concurrent_processes;
 	struct list_head	queues;
 	unsigned long		*queue_slot_bitmap;
 };
@@ -417,6 +420,12 @@ struct qcm_process_device {
 	unsigned int queue_count;
 	unsigned int vmid;
 	bool is_debug;
+
+	/* This flag tells if we should reset all wavefronts on
+	 * process termination
+	 */
+	bool reset_wavefronts;
+
 	/*
 	 * All the memory management data should be here too
 	 */
@@ -432,6 +441,13 @@ struct qcm_process_device {
 	uint32_t sh_hidden_private_base;
 };
 
+
+enum kfd_pdd_bound {
+	PDD_UNBOUND = 0,
+	PDD_BOUND,
+	PDD_BOUND_SUSPENDED,
+};
+
 /* Data that is per-process-per device. */
 struct kfd_process_device {
 	/*
@@ -443,6 +459,8 @@ struct kfd_process_device {
 	/* The device that owns this data. */
 	struct kfd_dev *dev;
 
+	/* The process that owns this kfd_process_device. */
+	struct kfd_process *process;
 
 	/* per-process-per device QCM data structure */
 	struct qcm_process_device qpd;
@@ -456,12 +474,14 @@ struct kfd_process_device {
 	uint64_t scratch_limit;
 
 	/* Is this process/pasid bound to this device? (amd_iommu_bind_pasid) */
-	bool bound;
+	enum kfd_pdd_bound bound;
 
-	/* This flag tells if we should reset all
-	 * wavefronts on process termination
+	/* Flag used to tell the pdd has dequeued from the dqm.
+	 * This is used to prevent dev->dqm->ops.process_termination() from
+	 * being called twice when it is already called in IOMMU callback
+	 * function.
 	 */
-	bool reset_wavefronts;
+	bool already_dequeued;
 };
 
 #define qpd_to_pdd(x) container_of(x, struct kfd_process_device, qpd)
@@ -474,7 +494,12 @@ struct kfd_process {
 	 */
 	struct hlist_node kfd_processes;
 
-	struct mm_struct *mm;
+	/*
+	 * Opaque pointer to mm_struct. We don't hold a reference to
+	 * it so it should never be dereferenced from here. This is
+	 * only used for looking up processes by their mm.
+	 */
+	void *mm;
 
 	struct mutex mutex;
 
@@ -482,6 +507,8 @@ struct kfd_process {
 	 * In any process, the thread that started main() is the lead
 	 * thread and outlives the rest.
 	 * It is here because amd_iommu_bind_pasid wants a task_struct.
+	 * It can also be used for safely getting a reference to the
+	 * mm_struct of the process.
 	 */
 	struct task_struct *lead_thread;
 
@@ -502,22 +529,16 @@ struct kfd_process {
 
 	struct process_queue_manager pqm;
 
-	/* The process's queues. */
-	size_t queue_array_size;
-
-	/* Size is queue_array_size, up to MAX_PROCESS_QUEUES. */
-	struct kfd_queue **queues;
-
 	/*Is the user space process 32 bit?*/
 	bool is_32bit_user_mode;
 
 	/* Event-related data */
 	struct mutex event_mutex;
-	/* All events in process hashed by ID, linked on kfd_event.events. */
-	DECLARE_HASHTABLE(events, 4);
-	/* struct slot_page_header.event_pages */
-	struct list_head signal_event_pages;
-	u32 next_nonsignal_event_id;
+	/* Event ID allocator and lookup */
+	struct idr event_idr;
+	/* Event page */
+	struct kfd_signal_page *signal_page;
+	size_t signal_mapped_size;
 	size_t signal_event_count;
 	bool signal_event_limit_reached;
 };
@@ -547,8 +568,10 @@ struct kfd_process *kfd_get_process(const struct task_struct *);
 struct kfd_process *kfd_lookup_process_by_pasid(unsigned int pasid);
 
 struct kfd_process_device *kfd_bind_process_to_device(struct kfd_dev *dev,
-							struct kfd_process *p);
-void kfd_unbind_process_from_device(struct kfd_dev *dev, unsigned int pasid);
+						struct kfd_process *p);
+int kfd_bind_processes_to_device(struct kfd_dev *dev);
+void kfd_unbind_processes_from_device(struct kfd_dev *dev);
+void kfd_process_iommu_unbind_callback(struct kfd_dev *dev, unsigned int pasid);
 struct kfd_process_device *kfd_get_process_device_data(struct kfd_dev *dev,
 							struct kfd_process *p);
 struct kfd_process_device *kfd_create_process_device_data(struct kfd_dev *dev,
@@ -646,14 +669,14 @@ struct process_queue_node {
 	struct list_head process_queue_list;
 };
 
+void kfd_process_dequeue_from_device(struct kfd_process_device *pdd);
+void kfd_process_dequeue_from_all_devices(struct kfd_process *p);
 int pqm_init(struct process_queue_manager *pqm, struct kfd_process *p);
 void pqm_uninit(struct process_queue_manager *pqm);
 int pqm_create_queue(struct process_queue_manager *pqm,
 			    struct kfd_dev *dev,
 			    struct file *f,
 			    struct queue_properties *properties,
-			    unsigned int flags,
-			    enum kfd_queue_type type,
 			    unsigned int *qid);
 int pqm_destroy_queue(struct process_queue_manager *pqm, unsigned int qid);
 int pqm_update_queue(struct process_queue_manager *pqm, unsigned int qid,
@@ -663,15 +686,12 @@ struct kernel_queue *pqm_get_kernel_queue(struct process_queue_manager *pqm,
 
 int amdkfd_fence_wait_timeout(unsigned int *fence_addr,
 				unsigned int fence_value,
-				unsigned long timeout);
+				unsigned int timeout_ms);
 
 /* Packet Manager */
 
-#define KFD_HIQ_TIMEOUT (500)
-
 #define KFD_FENCE_COMPLETED (100)
 #define KFD_FENCE_INIT   (10)
-#define KFD_UNMAP_LATENCY (150)
 
 struct packet_manager {
 	struct device_queue_manager *dqm;
@@ -690,7 +710,7 @@ int pm_send_query_status(struct packet_manager *pm, uint64_t fence_address,
 				uint32_t fence_value);
 
 int pm_send_unmap_queue(struct packet_manager *pm, enum kfd_queue_type type,
-			enum kfd_preempt_type_filter mode,
+			enum kfd_unmap_queues_filter mode,
 			uint32_t filter_param, bool reset,
 			unsigned int sdma_engine);
 
@@ -702,19 +722,13 @@ uint64_t kfd_get_number_elems(struct kfd_dev *kfd);
 extern const struct kfd_event_interrupt_class event_interrupt_class_cik;
 extern const struct kfd_device_global_init_class device_global_init_class_cik;
 
-enum kfd_event_wait_result {
-	KFD_WAIT_COMPLETE,
-	KFD_WAIT_TIMEOUT,
-	KFD_WAIT_ERROR
-};
-
 void kfd_event_init_process(struct kfd_process *p);
 void kfd_event_free_process(struct kfd_process *p);
 int kfd_event_mmap(struct kfd_process *process, struct vm_area_struct *vma);
 int kfd_wait_on_events(struct kfd_process *p,
 		       uint32_t num_events, void __user *data,
 		       bool all, uint32_t user_timeout_ms,
-		       enum kfd_event_wait_result *wait_result);
+		       uint32_t *wait_result);
 void kfd_signal_event_interrupt(unsigned int pasid, uint32_t partial_id,
 				uint32_t valid_id_bits);
 void kfd_signal_iommu_event(struct kfd_dev *dev,

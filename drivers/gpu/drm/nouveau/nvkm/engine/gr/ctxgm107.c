@@ -867,9 +867,8 @@ gm107_grctx_generate_bundle(struct gf100_grctx *info)
 	const u32 state_limit = min(grctx->bundle_min_gpm_fifo_depth,
 				    grctx->bundle_size / 0x20);
 	const u32 token_limit = grctx->bundle_token_limit;
-	const u32 access = NV_MEM_ACCESS_RW | NV_MEM_ACCESS_SYS;
 	const int s = 8;
-	const int b = mmio_vram(info, grctx->bundle_size, (1 << s), access);
+	const int b = mmio_vram(info, grctx->bundle_size, (1 << s), true);
 	mmio_refn(info, 0x408004, 0x00000000, s, b);
 	mmio_wr32(info, 0x408008, 0x80000000 | (grctx->bundle_size >> s));
 	mmio_refn(info, 0x418e24, 0x00000000, s, b);
@@ -881,9 +880,8 @@ void
 gm107_grctx_generate_pagepool(struct gf100_grctx *info)
 {
 	const struct gf100_grctx_func *grctx = info->gr->func->grctx;
-	const u32 access = NV_MEM_ACCESS_RW | NV_MEM_ACCESS_SYS;
 	const int s = 8;
-	const int b = mmio_vram(info, grctx->pagepool_size, (1 << s), access);
+	const int b = mmio_vram(info, grctx->pagepool_size, (1 << s), true);
 	mmio_refn(info, 0x40800c, 0x00000000, s, b);
 	mmio_wr32(info, 0x408010, 0x80000000);
 	mmio_refn(info, 0x419004, 0x00000000, s, b);
@@ -900,9 +898,8 @@ gm107_grctx_generate_attrib(struct gf100_grctx *info)
 	const u32  alpha = grctx->alpha_nr;
 	const u32 attrib = grctx->attrib_nr;
 	const u32   size = 0x20 * (grctx->attrib_nr_max + grctx->alpha_nr_max);
-	const u32 access = NV_MEM_ACCESS_RW;
 	const int s = 12;
-	const int b = mmio_vram(info, size * gr->tpc_total, (1 << s), access);
+	const int b = mmio_vram(info, size * gr->tpc_total, (1 << s), false);
 	const int max_batches = 0xffff;
 	u32 bo = 0;
 	u32 ao = bo + grctx->attrib_nr_max * gr->tpc_total;

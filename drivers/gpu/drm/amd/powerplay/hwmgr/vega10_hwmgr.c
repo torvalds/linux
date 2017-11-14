@@ -1161,6 +1161,8 @@ static void vega10_setup_default_single_dpm_table(struct pp_hwmgr *hwmgr,
 {
 	int i;
 
+	dpm_table->count = 0;
+
 	for (i = 0; i < dep_table->count; i++) {
 		if (i == 0 || dpm_table->dpm_levels[dpm_table->count - 1].value <=
 				dep_table->entries[i].clk) {
@@ -1269,10 +1271,6 @@ static int vega10_setup_default_dpm_tables(struct pp_hwmgr *hwmgr)
 			return -EINVAL);
 
 	/* Initialize Sclk DPM table based on allow Sclk values */
-	data->dpm_table.soc_table.count = 0;
-	data->dpm_table.gfx_table.count = 0;
-	data->dpm_table.dcef_table.count = 0;
-
 	dpm_table = &(data->dpm_table.soc_table);
 	vega10_setup_default_single_dpm_table(hwmgr,
 			dpm_table,
@@ -1809,6 +1807,10 @@ static int vega10_populate_all_memory_levels(struct pp_hwmgr *hwmgr)
 	mem_channels = (cgs_read_register(hwmgr->device, reg) &
 			DF_CS_AON0_DramBaseAddress0__IntLvNumChan_MASK) >>
 			DF_CS_AON0_DramBaseAddress0__IntLvNumChan__SHIFT;
+	PP_ASSERT_WITH_CODE(mem_channels < ARRAY_SIZE(channel_number),
+			"Mem Channel Index Exceeded maximum!",
+			return -1);
+
 	pp_table->NumMemoryChannels = cpu_to_le16(mem_channels);
 	pp_table->MemoryChannelWidth =
 			cpu_to_le16(HBM_MEMORY_CHANNEL_WIDTH *
@@ -2881,6 +2883,15 @@ static int vega10_enable_dpm_tasks(struct pp_hwmgr *hwmgr)
 			"DPM is already running right , skipping re-enablement!",
 			return 0);
 
+	if ((data->smu_version == 0x001c2c00) ||
+			(data->smu_version == 0x001c2d00)) {
+		tmp_result = smum_send_msg_to_smc_with_parameter(hwmgr,
+				PPSMC_MSG_UpdatePkgPwrPidAlpha, 1);
+		PP_ASSERT_WITH_CODE(!tmp_result,
+				"Failed to set package power PID!",
+				return tmp_result);
+	}
+
 	tmp_result = vega10_construct_voltage_tables(hwmgr);
 	PP_ASSERT_WITH_CODE(!tmp_result,
 			"Failed to contruct voltage tables!",
@@ -3127,6 +3138,8 @@ static int vega10_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 	minimum_clocks.memoryClock = hwmgr->display_config.min_mem_set_clock;
 
 	if (PP_CAP(PHM_PlatformCaps_StablePState)) {
+		stable_pstate_sclk_dpm_percentage =
+			data->registry_data.stable_pstate_sclk_dpm_percentage;
 		PP_ASSERT_WITH_CODE(
 			data->registry_data.stable_pstate_sclk_dpm_percentage >= 1 &&
 			data->registry_data.stable_pstate_sclk_dpm_percentage <= 100,
@@ -4227,7 +4240,7 @@ static void vega10_set_fan_control_mode(struct pp_hwmgr *hwmgr, uint32_t mode)
 			vega10_fan_ctrl_stop_smc_fan_control(hwmgr);
 		break;
 	case AMD_FAN_CTRL_AUTO:
-		if (!vega10_fan_ctrl_set_static_mode(hwmgr, mode))
+		if (PP_CAP(PHM_PlatformCaps_MicrocodeFanControl))
 			vega10_fan_ctrl_start_smc_fan_control(hwmgr);
 		break;
 	default:
@@ -4994,6 +5007,33 @@ static int vega10_set_mclk_od(struct pp_hwmgr *hwmgr, uint32_t value)
 	return 0;
 }
 
+static int vega10_notify_cac_buffer_info(struct pp_hwmgr *hwmgr,
+					uint32_t virtual_addr_low,
+					uint32_t virtual_addr_hi,
+					uint32_t mc_addr_low,
+					uint32_t mc_addr_hi,
+					uint32_t size)
+{
+	smum_send_msg_to_smc_with_parameter(hwmgr,
+					PPSMC_MSG_SetSystemVirtualDramAddrHigh,
+					virtual_addr_hi);
+	smum_send_msg_to_smc_with_parameter(hwmgr,
+					PPSMC_MSG_SetSystemVirtualDramAddrLow,
+					virtual_addr_low);
+	smum_send_msg_to_smc_with_parameter(hwmgr,
+					PPSMC_MSG_DramLogSetDramAddrHigh,
+					mc_addr_hi);
+
+	smum_send_msg_to_smc_with_parameter(hwmgr,
+					PPSMC_MSG_DramLogSetDramAddrLow,
+					mc_addr_low);
+
+	smum_send_msg_to_smc_with_parameter(hwmgr,
+					PPSMC_MSG_DramLogSetDramSize,
+					size);
+	return 0;
+}
+
 static int vega10_register_thermal_interrupt(struct pp_hwmgr *hwmgr,
 		const void *info)
 {
@@ -5079,7 +5119,9 @@ static const struct pp_hwmgr_func vega10_hwmgr_funcs = {
 	.get_mclk_od = vega10_get_mclk_od,
 	.set_mclk_od = vega10_set_mclk_od,
 	.avfs_control = vega10_avfs_enable,
+	.notify_cac_buffer_info = vega10_notify_cac_buffer_info,
 	.register_internal_thermal_interrupt = vega10_register_thermal_interrupt,
+	.start_thermal_controller = vega10_start_thermal_controller,
 };
 
 int vega10_hwmgr_init(struct pp_hwmgr *hwmgr)

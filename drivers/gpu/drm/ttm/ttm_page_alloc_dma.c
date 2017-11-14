@@ -463,7 +463,7 @@ static unsigned ttm_dma_page_pool_free(struct dma_pool *pool, unsigned nr_free,
 					GFP_KERNEL);
 
 	if (!pages_to_free) {
-		pr_err("%s: Failed to allocate memory for pool free operation\n",
+		pr_debug("%s: Failed to allocate memory for pool free operation\n",
 		       pool->dev_name);
 		return 0;
 	}
@@ -755,7 +755,7 @@ static int ttm_dma_pool_alloc_new_pages(struct dma_pool *pool,
 	caching_array = kmalloc(max_cpages*sizeof(struct page *), GFP_KERNEL);
 
 	if (!caching_array) {
-		pr_err("%s: Unable to allocate table for new pages\n",
+		pr_debug("%s: Unable to allocate table for new pages\n",
 		       pool->dev_name);
 		return -ENOMEM;
 	}
@@ -768,8 +768,8 @@ static int ttm_dma_pool_alloc_new_pages(struct dma_pool *pool,
 	for (i = 0, cpages = 0; i < count; ++i) {
 		dma_p = __ttm_dma_alloc_page(pool);
 		if (!dma_p) {
-			pr_err("%s: Unable to get page %u\n",
-			       pool->dev_name, i);
+			pr_debug("%s: Unable to get page %u\n",
+				 pool->dev_name, i);
 
 			/* store already allocated pages in the pool after
 			 * setting the caching state */
@@ -855,8 +855,8 @@ static int ttm_dma_page_pool_fill_locked(struct dma_pool *pool,
 			struct dma_page *d_page;
 			unsigned cpages = 0;
 
-			pr_err("%s: Failed to fill %s pool (r:%d)!\n",
-			       pool->dev_name, pool->name, r);
+			pr_debug("%s: Failed to fill %s pool (r:%d)!\n",
+				 pool->dev_name, pool->name, r);
 
 			list_for_each_entry(d_page, &d_pages, page_list) {
 				cpages++;
@@ -913,6 +913,7 @@ static gfp_t ttm_dma_pool_gfp_flags(struct ttm_dma_tt *ttm_dma, bool huge)
 	if (huge) {
 		gfp_flags |= GFP_TRANSHUGE;
 		gfp_flags &= ~__GFP_MOVABLE;
+		gfp_flags &= ~__GFP_COMP;
 	}
 
 	return gfp_flags;

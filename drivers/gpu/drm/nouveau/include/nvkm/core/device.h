@@ -1,7 +1,7 @@
 #ifndef __NVKM_DEVICE_H__
 #define __NVKM_DEVICE_H__
+#include <core/oclass.h>
 #include <core/event.h>
-#include <core/object.h>
 
 enum nvkm_devidx {
 	NVKM_SUBDEV_PCI,

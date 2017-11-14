@@ -208,6 +208,7 @@ static inline bool drm_encoder_crtc_ok(struct drm_encoder *encoder,
 /**
  * drm_encoder_find - find a &drm_encoder
  * @dev: DRM device
+ * @file_priv: drm file to check for lease against.
  * @id: encoder id
  *
  * Returns the encoder with @id, NULL if it doesn't exist. Simple wrapper around

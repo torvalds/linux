@@ -1250,7 +1250,7 @@ int bcm_qspi_probe(struct platform_device *pdev,
 			goto qspi_probe_err;
 		}
 	} else {
-		goto qspi_probe_err;
+		goto qspi_resource_err;
 	}
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "bspi");
@@ -1272,7 +1272,7 @@ int bcm_qspi_probe(struct platform_device *pdev,
 		qspi->base[CHIP_SELECT]  = devm_ioremap_resource(dev, res);
 		if (IS_ERR(qspi->base[CHIP_SELECT])) {
 			ret = PTR_ERR(qspi->base[CHIP_SELECT]);
-			goto qspi_probe_err;
+			goto qspi_resource_err;
 		}
 	}
 
@@ -1280,7 +1280,7 @@ int bcm_qspi_probe(struct platform_device *pdev,
 				GFP_KERNEL);
 	if (!qspi->dev_ids) {
 		ret = -ENOMEM;
-		goto qspi_probe_err;
+		goto qspi_resource_err;
 	}
 
 	for (val = 0; val < num_irqs; val++) {
@@ -1369,8 +1369,9 @@ qspi_reg_err:
 	bcm_qspi_hw_uninit(qspi);
 	clk_disable_unprepare(qspi->clk);
 qspi_probe_err:
-	spi_master_put(master);
 	kfree(qspi->dev_ids);
+qspi_resource_err:
+	spi_master_put(master);
 	return ret;
 }
 /* probe function to be called by SoC specific platform driver probe */

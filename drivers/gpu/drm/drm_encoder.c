@@ -226,7 +226,7 @@ int drm_mode_getencoder(struct drm_device *dev, void *data,
 
 	drm_modeset_lock(&dev->mode_config.connection_mutex, NULL);
 	crtc = drm_encoder_get_crtc(encoder);
-	if (crtc)
+	if (crtc && drm_lease_held(file_priv, crtc->base.id))
 		enc_resp->crtc_id = crtc->base.id;
 	else
 		enc_resp->crtc_id = 0;
@@ -234,7 +234,8 @@ int drm_mode_getencoder(struct drm_device *dev, void *data,
 
 	enc_resp->encoder_type = encoder->encoder_type;
 	enc_resp->encoder_id = encoder->base.id;
-	enc_resp->possible_crtcs = encoder->possible_crtcs;
+	enc_resp->possible_crtcs = drm_lease_filter_crtcs(file_priv,
+							  encoder->possible_crtcs);
 	enc_resp->possible_clones = encoder->possible_clones;
 
 	return 0;

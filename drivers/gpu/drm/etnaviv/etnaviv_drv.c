@@ -459,6 +459,9 @@ static int etnaviv_ioctl_pm_query_dom(struct drm_device *dev, void *data,
 	struct drm_etnaviv_pm_domain *args = data;
 	struct etnaviv_gpu *gpu;
 
+	/* reject as long as the feature isn't stable */
+	return -EINVAL;
+
 	if (args->pipe >= ETNA_MAX_PIPES)
 		return -EINVAL;
 
@@ -475,6 +478,9 @@ static int etnaviv_ioctl_pm_query_sig(struct drm_device *dev, void *data,
 	struct etnaviv_drm_private *priv = dev->dev_private;
 	struct drm_etnaviv_pm_signal *args = data;
 	struct etnaviv_gpu *gpu;
+
+	/* reject as long as the feature isn't stable */
+	return -EINVAL;
 
 	if (args->pipe >= ETNA_MAX_PIPES)
 		return -EINVAL;
@@ -550,7 +556,7 @@ static struct drm_driver etnaviv_drm_driver = {
 	.desc               = "etnaviv DRM",
 	.date               = "20151214",
 	.major              = 1,
-	.minor              = 2,
+	.minor              = 1,
 };
 
 /*

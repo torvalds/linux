@@ -159,7 +159,7 @@ static void vmbus_rescind_cleanup(struct vmbus_channel *channel)
 
 
 	spin_lock_irqsave(&vmbus_connection.channelmsg_lock, flags);
-
+	channel->rescind = true;
 	list_for_each_entry(msginfo, &vmbus_connection.chn_msg_list,
 				msglistentry) {
 
@@ -381,14 +381,21 @@ static void vmbus_release_relid(u32 relid)
 		       true);
 }
 
-void hv_process_channel_removal(struct vmbus_channel *channel, u32 relid)
+void hv_process_channel_removal(u32 relid)
 {
 	unsigned long flags;
-	struct vmbus_channel *primary_channel;
+	struct vmbus_channel *primary_channel, *channel;
 
-	BUG_ON(!channel->rescind);
 	BUG_ON(!mutex_is_locked(&vmbus_connection.channel_mutex));
 
+	/*
+	 * Make sure channel is valid as we may have raced.
+	 */
+	channel = relid2channel(relid);
+	if (!channel)
+		return;
+
+	BUG_ON(!channel->rescind);
 	if (channel->target_cpu != get_cpu()) {
 		put_cpu();
 		smp_call_function_single(channel->target_cpu,
@@ -515,6 +522,7 @@ static void vmbus_process_offer(struct vmbus_channel *newchannel)
 	if (!fnew) {
 		if (channel->sc_creation_callback != NULL)
 			channel->sc_creation_callback(newchannel);
+		newchannel->probe_done = true;
 		return;
 	}
 
@@ -834,7 +842,6 @@ static void vmbus_onoffer_rescind(struct vmbus_channel_message_header *hdr)
 {
 	struct vmbus_channel_rescind_offer *rescind;
 	struct vmbus_channel *channel;
-	unsigned long flags;
 	struct device *dev;
 
 	rescind = (struct vmbus_channel_rescind_offer *)hdr;
@@ -873,16 +880,6 @@ static void vmbus_onoffer_rescind(struct vmbus_channel_message_header *hdr)
 		return;
 	}
 
-	spin_lock_irqsave(&channel->lock, flags);
-	channel->rescind = true;
-	spin_unlock_irqrestore(&channel->lock, flags);
-
-	/*
-	 * Now that we have posted the rescind state, perform
-	 * rescind related cleanup.
-	 */
-	vmbus_rescind_cleanup(channel);
-
 	/*
 	 * Now wait for offer handling to complete.
 	 */
@@ -901,6 +898,7 @@ static void vmbus_onoffer_rescind(struct vmbus_channel_message_header *hdr)
 	if (channel->device_obj) {
 		if (channel->chn_rescind_callback) {
 			channel->chn_rescind_callback(channel);
+			vmbus_rescind_cleanup(channel);
 			return;
 		}
 		/*
@@ -909,6 +907,7 @@ static void vmbus_onoffer_rescind(struct vmbus_channel_message_header *hdr)
 		 */
 		dev = get_device(&channel->device_obj->device);
 		if (dev) {
+			vmbus_rescind_cleanup(channel);
 			vmbus_device_unregister(channel->device_obj);
 			put_device(dev);
 		}
@@ -921,29 +920,28 @@ static void vmbus_onoffer_rescind(struct vmbus_channel_message_header *hdr)
 		 * 1. Close all sub-channels first
 		 * 2. Then close the primary channel.
 		 */
+		mutex_lock(&vmbus_connection.channel_mutex);
+		vmbus_rescind_cleanup(channel);
 		if (channel->state == CHANNEL_OPEN_STATE) {
 			/*
 			 * The channel is currently not open;
 			 * it is safe for us to cleanup the channel.
 			 */
-			mutex_lock(&vmbus_connection.channel_mutex);
-			hv_process_channel_removal(channel,
-						channel->offermsg.child_relid);
-			mutex_unlock(&vmbus_connection.channel_mutex);
+			hv_process_channel_removal(rescind->child_relid);
 		}
+		mutex_unlock(&vmbus_connection.channel_mutex);
 	}
 }
 
 void vmbus_hvsock_device_unregister(struct vmbus_channel *channel)
 {
-	mutex_lock(&vmbus_connection.channel_mutex);
-
 	BUG_ON(!is_hvsock_channel(channel));
 
-	channel->rescind = true;
-	vmbus_device_unregister(channel->device_obj);
+	/* We always get a rescind msg when a connection is closed. */
+	while (!READ_ONCE(channel->probe_done) || !READ_ONCE(channel->rescind))
+		msleep(1);
 
-	mutex_unlock(&vmbus_connection.channel_mutex);
+	vmbus_device_unregister(channel->device_obj);
 }
 EXPORT_SYMBOL_GPL(vmbus_hvsock_device_unregister);
 

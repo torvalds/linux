@@ -312,7 +312,7 @@ union bpf_attr {
  *     jump into another BPF program
  *     @ctx: context pointer passed to next program
  *     @prog_array_map: pointer to map which type is BPF_MAP_TYPE_PROG_ARRAY
- *     @index: index inside array that selects specific program to run
+ *     @index: 32-bit index inside array that selects specific program to run
  *     Return: 0 on success or negative error
  *
  * int bpf_clone_redirect(skb, ifindex, flags)
@@ -575,7 +575,7 @@ union bpf_attr {
  *     @map: pointer to sockmap
  *     @key: key to lookup sock in map
  *     @flags: reserved for future use
- *     Return: SK_REDIRECT
+ *     Return: SK_PASS
  *
  * int bpf_sock_map_update(skops, map, key, flags)
  *	@skops: pointer to bpf_sock_ops
@@ -786,8 +786,8 @@ struct xdp_md {
 };
 
 enum sk_action {
-	SK_ABORTED = 0,
-	SK_DROP,
+	SK_DROP = 0,
+	SK_PASS,
 	SK_REDIRECT,
 };
 

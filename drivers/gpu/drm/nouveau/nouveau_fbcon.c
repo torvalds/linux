@@ -48,6 +48,7 @@
 #include "nouveau_bo.h"
 #include "nouveau_fbcon.h"
 #include "nouveau_chan.h"
+#include "nouveau_vmm.h"
 
 #include "nouveau_crtc.h"
 
@@ -223,7 +224,7 @@ void
 nouveau_fbcon_accel_save_disable(struct drm_device *dev)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	if (drm->fbcon) {
+	if (drm->fbcon && drm->fbcon->helper.fbdev) {
 		drm->fbcon->saved_flags = drm->fbcon->helper.fbdev->flags;
 		drm->fbcon->helper.fbdev->flags |= FBINFO_HWACCEL_DISABLED;
 	}
@@ -233,7 +234,7 @@ void
 nouveau_fbcon_accel_restore(struct drm_device *dev)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	if (drm->fbcon) {
+	if (drm->fbcon && drm->fbcon->helper.fbdev) {
 		drm->fbcon->helper.fbdev->flags = drm->fbcon->saved_flags;
 	}
 }
@@ -245,7 +246,8 @@ nouveau_fbcon_accel_fini(struct drm_device *dev)
 	struct nouveau_fbdev *fbcon = drm->fbcon;
 	if (fbcon && drm->channel) {
 		console_lock();
-		fbcon->helper.fbdev->flags |= FBINFO_HWACCEL_DISABLED;
+		if (fbcon->helper.fbdev)
+			fbcon->helper.fbdev->flags |= FBINFO_HWACCEL_DISABLED;
 		console_unlock();
 		nouveau_channel_idle(drm->channel);
 		nvif_object_fini(&fbcon->twod);
@@ -347,7 +349,7 @@ nouveau_fbcon_create(struct drm_fb_helper *helper,
 
 	chan = nouveau_nofbaccel ? NULL : drm->channel;
 	if (chan && device->info.family >= NV_DEVICE_INFO_V0_TESLA) {
-		ret = nouveau_bo_vma_add(nvbo, drm->client.vm, &fb->vma);
+		ret = nouveau_vma_new(nvbo, &drm->client.vmm, &fb->vma);
 		if (ret) {
 			NV_ERROR(drm, "failed to map fb into chan: %d\n", ret);
 			chan = NULL;
@@ -401,7 +403,7 @@ nouveau_fbcon_create(struct drm_fb_helper *helper,
 
 out_unlock:
 	if (chan)
-		nouveau_bo_vma_del(fb->nvbo, &fb->vma);
+		nouveau_vma_del(&fb->vma);
 	nouveau_bo_unmap(fb->nvbo);
 out_unpin:
 	nouveau_bo_unpin(fb->nvbo);
@@ -428,7 +430,7 @@ nouveau_fbcon_destroy(struct drm_device *dev, struct nouveau_fbdev *fbcon)
 	drm_fb_helper_fini(&fbcon->helper);
 
 	if (nouveau_fb->nvbo) {
-		nouveau_bo_vma_del(nouveau_fb->nvbo, &nouveau_fb->vma);
+		nouveau_vma_del(&nouveau_fb->vma);
 		nouveau_bo_unmap(nouveau_fb->nvbo);
 		nouveau_bo_unpin(nouveau_fb->nvbo);
 		drm_framebuffer_unreference(&nouveau_fb->base);

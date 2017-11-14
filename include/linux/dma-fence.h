@@ -128,7 +128,7 @@ struct dma_fence_cb {
  * implementation know that there is another driver waiting on
  * the signal (ie. hw->sw case).
  *
- * This function can be called called from atomic context, but not
+ * This function can be called from atomic context, but not
  * from irq context, so normal spinlocks can be used.
  *
  * A return value of false indicates the fence already passed,

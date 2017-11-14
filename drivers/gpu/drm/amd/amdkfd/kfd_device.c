@@ -92,6 +92,8 @@ static int kfd_gtt_sa_init(struct kfd_dev *kfd, unsigned int buf_size,
 				unsigned int chunk_size);
 static void kfd_gtt_sa_fini(struct kfd_dev *kfd);
 
+static int kfd_resume(struct kfd_dev *kfd);
+
 static const struct kfd_device_info *lookup_device_info(unsigned short did)
 {
 	size_t i;
@@ -169,15 +171,8 @@ static bool device_iommu_pasid_init(struct kfd_dev *kfd)
 			(unsigned int)(1 << kfd->device_info->max_pasid_bits),
 			iommu_info.max_pasids);
 
-	err = amd_iommu_init_device(kfd->pdev, pasid_limit);
-	if (err < 0) {
-		dev_err(kfd_device, "error initializing iommu device\n");
-		return false;
-	}
-
 	if (!kfd_set_pasid_limit(pasid_limit)) {
 		dev_err(kfd_device, "error setting pasid limit\n");
-		amd_iommu_free_device(kfd->pdev);
 		return false;
 	}
 
@@ -189,7 +184,7 @@ static void iommu_pasid_shutdown_callback(struct pci_dev *pdev, int pasid)
 	struct kfd_dev *dev = kfd_device_by_pci_dev(pdev);
 
 	if (dev)
-		kfd_unbind_process_from_device(dev, pasid);
+		kfd_process_iommu_unbind_callback(dev, pasid);
 }
 
 /*
@@ -223,6 +218,11 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 	unsigned int size;
 
 	kfd->shared_resources = *gpu_resources;
+
+	kfd->vm_info.first_vmid_kfd = ffs(gpu_resources->compute_vmid_bitmap)-1;
+	kfd->vm_info.last_vmid_kfd = fls(gpu_resources->compute_vmid_bitmap)-1;
+	kfd->vm_info.vmid_num_kfd = kfd->vm_info.last_vmid_kfd
+			- kfd->vm_info.first_vmid_kfd + 1;
 
 	/* calculate max size of mqds needed for queues */
 	size = max_num_of_queues_per_device *
@@ -273,28 +273,21 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 		goto kfd_interrupt_error;
 	}
 
-	if (!device_iommu_pasid_init(kfd)) {
-		dev_err(kfd_device,
-			"Error initializing iommuv2 for device %x:%x\n",
-			kfd->pdev->vendor, kfd->pdev->device);
-		goto device_iommu_pasid_error;
-	}
-	amd_iommu_set_invalidate_ctx_cb(kfd->pdev,
-						iommu_pasid_shutdown_callback);
-	amd_iommu_set_invalid_ppr_cb(kfd->pdev, iommu_invalid_ppr_cb);
-
 	kfd->dqm = device_queue_manager_init(kfd);
 	if (!kfd->dqm) {
 		dev_err(kfd_device, "Error initializing queue manager\n");
 		goto device_queue_manager_error;
 	}
 
-	if (kfd->dqm->ops.start(kfd->dqm)) {
+	if (!device_iommu_pasid_init(kfd)) {
 		dev_err(kfd_device,
-			"Error starting queue manager for device %x:%x\n",
+			"Error initializing iommuv2 for device %x:%x\n",
 			kfd->pdev->vendor, kfd->pdev->device);
-		goto dqm_start_error;
+		goto device_iommu_pasid_error;
 	}
+
+	if (kfd_resume(kfd))
+		goto kfd_resume_error;
 
 	kfd->dbgmgr = NULL;
 
@@ -307,11 +300,10 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 
 	goto out;
 
-dqm_start_error:
+kfd_resume_error:
+device_iommu_pasid_error:
 	device_queue_manager_uninit(kfd->dqm);
 device_queue_manager_error:
-	amd_iommu_free_device(kfd->pdev);
-device_iommu_pasid_error:
 	kfd_interrupt_exit(kfd);
 kfd_interrupt_error:
 	kfd_topology_remove_device(kfd);
@@ -331,8 +323,8 @@ out:
 void kgd2kfd_device_exit(struct kfd_dev *kfd)
 {
 	if (kfd->init_complete) {
+		kgd2kfd_suspend(kfd);
 		device_queue_manager_uninit(kfd->dqm);
-		amd_iommu_free_device(kfd->pdev);
 		kfd_interrupt_exit(kfd);
 		kfd_topology_remove_device(kfd);
 		kfd_doorbell_fini(kfd);
@@ -345,35 +337,59 @@ void kgd2kfd_device_exit(struct kfd_dev *kfd)
 
 void kgd2kfd_suspend(struct kfd_dev *kfd)
 {
-	if (kfd->init_complete) {
-		kfd->dqm->ops.stop(kfd->dqm);
-		amd_iommu_set_invalidate_ctx_cb(kfd->pdev, NULL);
-		amd_iommu_set_invalid_ppr_cb(kfd->pdev, NULL);
-		amd_iommu_free_device(kfd->pdev);
-	}
+	if (!kfd->init_complete)
+		return;
+
+	kfd->dqm->ops.stop(kfd->dqm);
+
+	kfd_unbind_processes_from_device(kfd);
+
+	amd_iommu_set_invalidate_ctx_cb(kfd->pdev, NULL);
+	amd_iommu_set_invalid_ppr_cb(kfd->pdev, NULL);
+	amd_iommu_free_device(kfd->pdev);
 }
 
 int kgd2kfd_resume(struct kfd_dev *kfd)
 {
-	unsigned int pasid_limit;
-	int err;
+	if (!kfd->init_complete)
+		return 0;
 
-	pasid_limit = kfd_get_pasid_limit();
+	return kfd_resume(kfd);
 
-	if (kfd->init_complete) {
-		err = amd_iommu_init_device(kfd->pdev, pasid_limit);
-		if (err < 0) {
-			dev_err(kfd_device, "failed to initialize iommu\n");
-			return -ENXIO;
-		}
+}
 
-		amd_iommu_set_invalidate_ctx_cb(kfd->pdev,
-						iommu_pasid_shutdown_callback);
-		amd_iommu_set_invalid_ppr_cb(kfd->pdev, iommu_invalid_ppr_cb);
-		kfd->dqm->ops.start(kfd->dqm);
+static int kfd_resume(struct kfd_dev *kfd)
+{
+	int err = 0;
+	unsigned int pasid_limit = kfd_get_pasid_limit();
+
+	err = amd_iommu_init_device(kfd->pdev, pasid_limit);
+	if (err)
+		return -ENXIO;
+	amd_iommu_set_invalidate_ctx_cb(kfd->pdev,
+					iommu_pasid_shutdown_callback);
+	amd_iommu_set_invalid_ppr_cb(kfd->pdev,
+				     iommu_invalid_ppr_cb);
+
+	err = kfd_bind_processes_to_device(kfd);
+	if (err)
+		goto processes_bind_error;
+
+	err = kfd->dqm->ops.start(kfd->dqm);
+	if (err) {
+		dev_err(kfd_device,
+			"Error starting queue manager for device %x:%x\n",
+			kfd->pdev->vendor, kfd->pdev->device);
+		goto dqm_start_error;
 	}
 
-	return 0;
+	return err;
+
+dqm_start_error:
+processes_bind_error:
+	amd_iommu_free_device(kfd->pdev);
+
+	return err;
 }
 
 /* This is called directly from KGD at ISR. */
@@ -387,7 +403,7 @@ void kgd2kfd_interrupt(struct kfd_dev *kfd, const void *ih_ring_entry)
 	if (kfd->interrupts_active
 	    && interrupt_is_wanted(kfd, ih_ring_entry)
 	    && enqueue_ih_ring_entry(kfd, ih_ring_entry))
-		schedule_work(&kfd->interrupt_work);
+		queue_work(kfd->ih_wq, &kfd->interrupt_work);
 
 	spin_unlock(&kfd->interrupt_lock);
 }

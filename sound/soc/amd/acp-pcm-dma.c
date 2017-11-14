@@ -73,12 +73,6 @@ static const struct snd_pcm_hardware acp_pcm_hardware_capture = {
 	.periods_max = CAPTURE_MAX_NUM_PERIODS,
 };
 
-struct audio_drv_data {
-	struct snd_pcm_substream *play_stream;
-	struct snd_pcm_substream *capture_stream;
-	void __iomem *acp_mmio;
-};
-
 static u32 acp_reg_read(void __iomem *acp_mmio, u32 reg)
 {
 	return readl(acp_mmio + (reg * 4));
@@ -916,6 +910,7 @@ static int acp_audio_probe(struct platform_device *pdev)
 	int status;
 	struct audio_drv_data *audio_drv_data;
 	struct resource *res;
+	const u32 *pdata = pdev->dev.platform_data;
 
 	audio_drv_data = devm_kzalloc(&pdev->dev, sizeof(struct audio_drv_data),
 					GFP_KERNEL);
@@ -932,6 +927,7 @@ static int acp_audio_probe(struct platform_device *pdev)
 
 	audio_drv_data->play_stream = NULL;
 	audio_drv_data->capture_stream = NULL;
+	audio_drv_data->asic_type =  *pdata;
 
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!res) {

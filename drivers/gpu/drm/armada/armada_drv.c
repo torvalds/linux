@@ -25,7 +25,7 @@ static void armada_drm_unref_work(struct work_struct *work)
 	struct drm_framebuffer *fb;
 
 	while (kfifo_get(&priv->fb_unref, &fb))
-		drm_framebuffer_unreference(fb);
+		drm_framebuffer_put(fb);
 }
 
 /* Must be called with dev->event_lock held */

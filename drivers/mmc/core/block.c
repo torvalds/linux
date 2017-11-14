@@ -1634,8 +1634,6 @@ static void mmc_blk_data_prep(struct mmc_queue *mq, struct mmc_queue_req *mqrq,
 	}
 
 	mqrq->areq.mrq = &brq->mrq;
-
-	mmc_queue_bounce_pre(mqrq);
 }
 
 static void mmc_blk_rw_rq_prep(struct mmc_queue_req *mqrq,
@@ -1829,7 +1827,6 @@ static void mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *new_req)
 		brq = &mq_rq->brq;
 		old_req = mmc_queue_req_to_req(mq_rq);
 		type = rq_data_dir(old_req) == READ ? MMC_BLK_READ : MMC_BLK_WRITE;
-		mmc_queue_bounce_post(mq_rq);
 
 		switch (status) {
 		case MMC_BLK_SUCCESS:

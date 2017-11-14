@@ -180,7 +180,7 @@ nvkm_falcon_v1_read_dmem(struct nvkm_falcon *falcon, u32 start, u32 size,
 }
 
 static void
-nvkm_falcon_v1_bind_context(struct nvkm_falcon *falcon, struct nvkm_gpuobj *ctx)
+nvkm_falcon_v1_bind_context(struct nvkm_falcon *falcon, struct nvkm_memory *ctx)
 {
 	u32 inst_loc;
 	u32 fbif;
@@ -216,7 +216,7 @@ nvkm_falcon_v1_bind_context(struct nvkm_falcon *falcon, struct nvkm_gpuobj *ctx)
 	nvkm_falcon_wr32(falcon, fbif + 4 * FALCON_DMAIDX_PHYS_SYS_NCOH, 0x6);
 
 	/* Set context */
-	switch (nvkm_memory_target(ctx->memory)) {
+	switch (nvkm_memory_target(ctx)) {
 	case NVKM_MEM_TARGET_VRAM: inst_loc = 0; break;
 	case NVKM_MEM_TARGET_HOST: inst_loc = 2; break;
 	case NVKM_MEM_TARGET_NCOH: inst_loc = 3; break;
@@ -228,7 +228,7 @@ nvkm_falcon_v1_bind_context(struct nvkm_falcon *falcon, struct nvkm_gpuobj *ctx)
 	/* Enable context */
 	nvkm_falcon_mask(falcon, 0x048, 0x1, 0x1);
 	nvkm_falcon_wr32(falcon, 0x054,
-			 ((ctx->addr >> 12) & 0xfffffff) |
+			 ((nvkm_memory_addr(ctx) >> 12) & 0xfffffff) |
 			 (inst_loc << 28) | (1 << 30));
 
 	nvkm_falcon_mask(falcon, 0x090, 0x10000, 0x10000);

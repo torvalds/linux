@@ -255,7 +255,7 @@ hash_netiface4_uadt(struct ip_set *set, struct nlattr *tb[],
 
 	if (retried)
 		ip = ntohl(h->next.ip);
-	while (!after(ip, ip_to)) {
+	while (ip <= ip_to) {
 		e.ip = htonl(ip);
 		last = ip_set_range_to_cidr(ip, ip_to, &e.cidr);
 		ret = adtfn(set, &e, &ext, &ext, flags);

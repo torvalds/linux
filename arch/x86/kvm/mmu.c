@@ -3837,7 +3837,7 @@ int kvm_handle_page_fault(struct kvm_vcpu *vcpu, u64 error_code,
 	case KVM_PV_REASON_PAGE_NOT_PRESENT:
 		vcpu->arch.apf.host_apf_reason = 0;
 		local_irq_disable();
-		kvm_async_pf_task_wait(fault_address);
+		kvm_async_pf_task_wait(fault_address, 0);
 		local_irq_enable();
 		break;
 	case KVM_PV_REASON_PAGE_READY:
@@ -3974,18 +3974,18 @@ static inline bool is_last_gpte(struct kvm_mmu *mmu,
 				unsigned level, unsigned gpte)
 {
 	/*
-	 * PT_PAGE_TABLE_LEVEL always terminates.  The RHS has bit 7 set
-	 * iff level <= PT_PAGE_TABLE_LEVEL, which for our purpose means
-	 * level == PT_PAGE_TABLE_LEVEL; set PT_PAGE_SIZE_MASK in gpte then.
-	 */
-	gpte |= level - PT_PAGE_TABLE_LEVEL - 1;
-
-	/*
 	 * The RHS has bit 7 set iff level < mmu->last_nonleaf_level.
 	 * If it is clear, there are no large pages at this level, so clear
 	 * PT_PAGE_SIZE_MASK in gpte if that is the case.
 	 */
 	gpte &= level - mmu->last_nonleaf_level;
+
+	/*
+	 * PT_PAGE_TABLE_LEVEL always terminates.  The RHS has bit 7 set
+	 * iff level <= PT_PAGE_TABLE_LEVEL, which for our purpose means
+	 * level == PT_PAGE_TABLE_LEVEL; set PT_PAGE_SIZE_MASK in gpte then.
+	 */
+	gpte |= level - PT_PAGE_TABLE_LEVEL - 1;
 
 	return gpte & PT_PAGE_SIZE_MASK;
 }
@@ -4555,6 +4555,7 @@ void kvm_init_shadow_ept_mmu(struct kvm_vcpu *vcpu, bool execonly,
 
 	update_permission_bitmask(vcpu, context, true);
 	update_pkru_bitmask(vcpu, context, true);
+	update_last_nonleaf_level(vcpu, context);
 	reset_rsvds_bits_mask_ept(vcpu, context, execonly);
 	reset_ept_shadow_zero_bits_mask(vcpu, context, execonly);
 }

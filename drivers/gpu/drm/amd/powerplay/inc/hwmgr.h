@@ -363,6 +363,12 @@ struct pp_hwmgr_func {
 	int (*set_active_display_count)(struct pp_hwmgr *hwmgr, uint32_t count);
 	int (*set_deep_sleep_dcefclk)(struct pp_hwmgr *hwmgr, uint32_t clock);
 	int (*start_thermal_controller)(struct pp_hwmgr *hwmgr, struct PP_TemperatureRange *range);
+	int (*notify_cac_buffer_info)(struct pp_hwmgr *hwmgr,
+					uint32_t virtual_addr_low,
+					uint32_t virtual_addr_hi,
+					uint32_t mc_addr_low,
+					uint32_t mc_addr_hi,
+					uint32_t size);
 };
 
 struct pp_table_func {

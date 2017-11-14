@@ -177,7 +177,7 @@ armada_ovl_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 		 * Take a reference on the new framebuffer - we want to
 		 * hold on to it while the hardware is displaying it.
 		 */
-		drm_framebuffer_reference(fb);
+		drm_framebuffer_get(fb);
 
 		if (plane->fb)
 			armada_ovl_retire_fb(dplane, plane->fb);
@@ -278,7 +278,7 @@ static int armada_ovl_plane_disable(struct drm_plane *plane,
 
 	fb = xchg(&dplane->old_fb, NULL);
 	if (fb)
-		drm_framebuffer_unreference(fb);
+		drm_framebuffer_put(fb);
 
 	return 0;
 }
