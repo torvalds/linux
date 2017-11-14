@@ -610,7 +610,7 @@ static struct pci_ops xgene_pcie_ops = {
 	.write = pci_generic_config_write32,
 };
 
-static int xgene_pcie_probe_bridge(struct platform_device *pdev)
+static int xgene_pcie_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct device_node *dn = dev->of_node;
@@ -691,7 +691,7 @@ static struct platform_driver xgene_pcie_driver = {
 		.of_match_table = of_match_ptr(xgene_pcie_match_table),
 		.suppress_bind_attrs = true,
 	},
-	.probe = xgene_pcie_probe_bridge,
+	.probe = xgene_pcie_probe,
 };
 builtin_platform_driver(xgene_pcie_driver);
 #endif
