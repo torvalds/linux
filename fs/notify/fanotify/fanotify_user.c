@@ -179,7 +179,7 @@ static int process_access_response(struct fsnotify_group *group,
 	 * userspace can send a valid response or we will clean it up after the
 	 * timeout
 	 */
-	switch (response) {
+	switch (response & ~FAN_AUDIT) {
 	case FAN_ALLOW:
 	case FAN_DENY:
 		break;
@@ -188,6 +188,9 @@ static int process_access_response(struct fsnotify_group *group,
 	}
 
 	if (fd < 0)
+		return -EINVAL;
+
+	if ((response & FAN_AUDIT) && !group->fanotify_data.audit)
 		return -EINVAL;
 
 	event = dequeue_event(group, fd);
@@ -713,7 +716,11 @@ SYSCALL_DEFINE2(fanotify_init, unsigned int, flags, unsigned int, event_f_flags)
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
+#ifdef CONFIG_AUDITSYSCALL
+	if (flags & ~(FAN_ALL_INIT_FLAGS | FAN_ENABLE_AUDIT))
+#else
 	if (flags & ~FAN_ALL_INIT_FLAGS)
+#endif
 		return -EINVAL;
 
 	if (event_f_flags & ~FANOTIFY_INIT_ALL_EVENT_F_BITS)
@@ -793,6 +800,13 @@ SYSCALL_DEFINE2(fanotify_init, unsigned int, flags, unsigned int, event_f_flags)
 		group->fanotify_data.max_marks = UINT_MAX;
 	} else {
 		group->fanotify_data.max_marks = FANOTIFY_DEFAULT_MAX_MARKS;
+	}
+
+	if (flags & FAN_ENABLE_AUDIT) {
+		fd = -EPERM;
+		if (!capable(CAP_AUDIT_WRITE))
+			goto out_destroy_group;
+		group->fanotify_data.audit = true;
 	}
 
 	fd = anon_inode_getfd("[fanotify]", &fanotify_fops, group, f_flags);
