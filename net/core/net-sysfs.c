@@ -382,7 +382,7 @@ static ssize_t ifalias_store(struct device *dev, struct device_attribute *attr,
 	struct net_device *netdev = to_net_dev(dev);
 	struct net *net = dev_net(netdev);
 	size_t count = len;
-	ssize_t ret;
+	ssize_t ret = 0;
 
 	if (!ns_capable(net->user_ns, CAP_NET_ADMIN))
 		return -EPERM;
@@ -391,9 +391,20 @@ static ssize_t ifalias_store(struct device *dev, struct device_attribute *attr,
 	if (len >  0 && buf[len - 1] == '\n')
 		--count;
 
-	ret = dev_set_alias(netdev, buf, count);
+	if (!rtnl_trylock())
+		return restart_syscall();
 
-	return ret < 0 ? ret : len;
+	if (dev_isalive(netdev)) {
+		ret = dev_set_alias(netdev, buf, count);
+		if (ret < 0)
+			goto err;
+		ret = len;
+		netdev_state_change(netdev);
+	}
+err:
+	rtnl_unlock();
+
+	return ret;
 }
 
 static ssize_t ifalias_show(struct device *dev,
