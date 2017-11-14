@@ -77,5 +77,5 @@ static inline struct ovl_inode *OVL_I(struct inode *inode)
 
 static inline struct dentry *ovl_upperdentry_dereference(struct ovl_inode *oi)
 {
-	return lockless_dereference(oi->__upperdentry);
+	return READ_ONCE(oi->__upperdentry);
 }

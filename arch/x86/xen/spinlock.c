@@ -11,6 +11,7 @@
 #include <linux/slab.h>
 
 #include <asm/paravirt.h>
+#include <asm/qspinlock.h>
 
 #include <xen/interface/xen.h>
 #include <xen/events.h>
@@ -81,8 +82,11 @@ void xen_init_lock_cpu(int cpu)
 	int irq;
 	char *name;
 
-	if (!xen_pvspin)
+	if (!xen_pvspin) {
+		if (cpu == 0)
+			static_branch_disable(&virt_spin_lock_key);
 		return;
+	}
 
 	WARN(per_cpu(lock_kicker_irq, cpu) >= 0, "spinlock on CPU%d exists on IRQ%d!\n",
 	     cpu, per_cpu(lock_kicker_irq, cpu));

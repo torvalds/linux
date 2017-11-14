@@ -6,6 +6,7 @@
 config REGMAP
 	default y if (REGMAP_I2C || REGMAP_SPI || REGMAP_SPMI || REGMAP_W1 || REGMAP_AC97 || REGMAP_MMIO || REGMAP_IRQ)
 	select IRQ_DOMAIN if REGMAP_IRQ
+	select REGMAP_HWSPINLOCK if HWSPINLOCK=y
 	bool
 
 config REGCACHE_COMPRESSED
@@ -36,4 +37,7 @@ config REGMAP_MMIO
 	tristate
 
 config REGMAP_IRQ
+	bool
+
+config REGMAP_HWSPINLOCK
 	bool

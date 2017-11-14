@@ -51,7 +51,7 @@ static LIST_HEAD(rmid_free_lru);
  *     may have a occupancy value > intel_cqm_threshold. User can change
  *     the threshold occupancy value.
  */
-unsigned int rmid_limbo_count;
+static unsigned int rmid_limbo_count;
 
 /**
  * @rmid_entry - The entry in the limbo and free lists.

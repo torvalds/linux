@@ -52,7 +52,7 @@ static struct midi_parms parms[MAX_MIDI_DEV];
 static void midi_poll(unsigned long dummy);
 
 
-static DEFINE_TIMER(poll_timer, midi_poll, 0, 0);
+static DEFINE_TIMER(poll_timer, midi_poll);
 
 static volatile int open_devs;
 static DEFINE_SPINLOCK(lock);

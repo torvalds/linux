@@ -209,7 +209,7 @@ err.log will now have the profiling information, while stdout will
 provide some progress information as Coccinelle moves forward with
 work.
 
-DEBUG_FILE support is only supported when using coccinelle >= 1.2.
+DEBUG_FILE support is only supported when using coccinelle >= 1.0.2.
 
 .cocciconfig support
 --------------------

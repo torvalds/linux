@@ -472,6 +472,13 @@ config TASK_IO_ACCOUNTING
 
 endmenu # "CPU/Task time and stats accounting"
 
+config CPU_ISOLATION
+	bool "CPU isolation"
+	help
+	  Make sure that CPUs running critical tasks are not disturbed by
+	  any source of "noise" such as unbound workqueues, timers, kthreads...
+	  Unbound jobs get offloaded to housekeeping CPUs.
+
 source "kernel/rcu/Kconfig"
 
 config BUILD_BIN2C

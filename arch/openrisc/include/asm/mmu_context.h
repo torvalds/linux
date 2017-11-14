@@ -34,7 +34,7 @@ extern void switch_mm(struct mm_struct *prev, struct mm_struct *next,
  * registers like cr3 on the i386
  */
 
-extern volatile pgd_t *current_pgd;   /* defined in arch/openrisc/mm/fault.c */
+extern volatile pgd_t *current_pgd[]; /* defined in arch/openrisc/mm/fault.c */
 
 static inline void enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk)
 {

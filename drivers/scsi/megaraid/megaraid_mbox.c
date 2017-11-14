@@ -3904,19 +3904,19 @@ megaraid_sysfs_get_ldmap_done(uioc_t *uioc)
 	wake_up(&raid_dev->sysfs_wait_q);
 }
 
-
 /**
  * megaraid_sysfs_get_ldmap_timeout - timeout handling for get ldmap
- * @data	: timed out packet
+ * @t	: timed out timer
  *
  * Timeout routine to recover and return to application, in case the adapter
  * has stopped responding. A timeout of 60 seconds for this command seems like
  * a good value.
  */
 static void
-megaraid_sysfs_get_ldmap_timeout(unsigned long data)
+megaraid_sysfs_get_ldmap_timeout(struct timer_list *t)
 {
-	uioc_t		*uioc = (uioc_t *)data;
+	struct uioc_timeout *timeout = from_timer(timeout, t, timer);
+	uioc_t		*uioc = timeout->uioc;
 	adapter_t	*adapter = (adapter_t *)uioc->buf_vaddr;
 	mraid_device_t	*raid_dev = ADAP2RAIDDEV(adapter);
 
@@ -3951,8 +3951,7 @@ megaraid_sysfs_get_ldmap(adapter_t *adapter)
 	mbox64_t		*mbox64;
 	mbox_t			*mbox;
 	char			*raw_mbox;
-	struct timer_list	sysfs_timer;
-	struct timer_list	*timerp;
+	struct uioc_timeout	timeout;
 	caddr_t			ldmap;
 	int			rval = 0;
 
@@ -3988,14 +3987,12 @@ megaraid_sysfs_get_ldmap(adapter_t *adapter)
 	/*
 	 * Setup a timer to recover from a non-responding controller
 	 */
-	timerp	= &sysfs_timer;
-	init_timer(timerp);
+	timeout.uioc = uioc;
+	timer_setup_on_stack(&timeout.timer,
+			     megaraid_sysfs_get_ldmap_timeout, 0);
 
-	timerp->function	= megaraid_sysfs_get_ldmap_timeout;
-	timerp->data		= (unsigned long)uioc;
-	timerp->expires		= jiffies + 60 * HZ;
-
-	add_timer(timerp);
+	timeout.timer.expires		= jiffies + 60 * HZ;
+	add_timer(&timeout.timer);
 
 	/*
 	 * Send the command to the firmware
@@ -4033,7 +4030,8 @@ megaraid_sysfs_get_ldmap(adapter_t *adapter)
 	}
 
 
-	del_timer_sync(timerp);
+	del_timer_sync(&timeout.timer);
+	destroy_timer_on_stack(&timeout.timer);
 
 	mutex_unlock(&raid_dev->sysfs_mtx);
 

@@ -108,7 +108,7 @@ static void bcd2000_midi_handle_input(struct bcd2000 *bcd2k,
 	unsigned int payload_length, tocopy;
 	struct snd_rawmidi_substream *midi_receive_substream;
 
-	midi_receive_substream = ACCESS_ONCE(bcd2k->midi_receive_substream);
+	midi_receive_substream = READ_ONCE(bcd2k->midi_receive_substream);
 	if (!midi_receive_substream)
 		return;
 
@@ -139,7 +139,7 @@ static void bcd2000_midi_send(struct bcd2000 *bcd2k)
 
 	BUILD_BUG_ON(sizeof(device_cmd_prefix) >= BUFSIZE);
 
-	midi_out_substream = ACCESS_ONCE(bcd2k->midi_out_substream);
+	midi_out_substream = READ_ONCE(bcd2k->midi_out_substream);
 	if (!midi_out_substream)
 		return;
 

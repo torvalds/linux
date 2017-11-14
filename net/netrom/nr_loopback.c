@@ -18,7 +18,7 @@
 static void nr_loopback_timer(unsigned long);
 
 static struct sk_buff_head loopback_queue;
-static DEFINE_TIMER(loopback_timer, nr_loopback_timer, 0, 0);
+static DEFINE_TIMER(loopback_timer, nr_loopback_timer);
 
 void __init nr_loopback_init(void)
 {

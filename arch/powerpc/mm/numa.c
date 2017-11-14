@@ -1452,7 +1452,7 @@ static void topology_schedule_update(void)
 	schedule_work(&topology_work);
 }
 
-static void topology_timer_fn(unsigned long ignored)
+static void topology_timer_fn(struct timer_list *unused)
 {
 	if (prrn_enabled && cpumask_weight(&cpu_associativity_changes_mask))
 		topology_schedule_update();
@@ -1462,14 +1462,11 @@ static void topology_timer_fn(unsigned long ignored)
 		reset_topology_timer();
 	}
 }
-static struct timer_list topology_timer =
-	TIMER_INITIALIZER(topology_timer_fn, 0, 0);
+static struct timer_list topology_timer;
 
 static void reset_topology_timer(void)
 {
-	topology_timer.data = 0;
-	topology_timer.expires = jiffies + 60 * HZ;
-	mod_timer(&topology_timer, topology_timer.expires);
+	mod_timer(&topology_timer, jiffies + 60 * HZ);
 }
 
 #ifdef CONFIG_SMP
@@ -1529,7 +1526,8 @@ int start_topology_update(void)
 			prrn_enabled = 0;
 			vphn_enabled = 1;
 			setup_cpu_associativity_change_counters();
-			init_timer_deferrable(&topology_timer);
+			timer_setup(&topology_timer, topology_timer_fn,
+				    TIMER_DEFERRABLE);
 			reset_topology_timer();
 		}
 	}

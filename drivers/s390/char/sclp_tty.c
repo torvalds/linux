@@ -218,11 +218,8 @@ static int sclp_tty_write_string(const unsigned char *str, int count, int may_fa
 	/* Setup timer to output current console buffer after 1/10 second */
 	if (sclp_ttybuf && sclp_chars_in_buffer(sclp_ttybuf) &&
 	    !timer_pending(&sclp_tty_timer)) {
-		init_timer(&sclp_tty_timer);
-		sclp_tty_timer.function = sclp_tty_timeout;
-		sclp_tty_timer.data = 0UL;
-		sclp_tty_timer.expires = jiffies + HZ/10;
-		add_timer(&sclp_tty_timer);
+		setup_timer(&sclp_tty_timer, sclp_tty_timeout, 0UL);
+		mod_timer(&sclp_tty_timer, jiffies + HZ / 10);
 	}
 	spin_unlock_irqrestore(&sclp_tty_lock, flags);
 out:

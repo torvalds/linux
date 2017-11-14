@@ -157,7 +157,7 @@ static struct net_device *yam_devs[NR_PORTS];
 
 static struct yam_mcs *yam_data;
 
-static DEFINE_TIMER(yam_timer, NULL, 0, 0);
+static DEFINE_TIMER(yam_timer, NULL);
 
 /* --------------------------------------------------------------------- */
 
