@@ -235,16 +235,6 @@ static void gen9_sseu_info_init(struct drm_i915_private *dev_priv)
 #define IS_SS_DISABLED(ss)	(!(sseu->subslice_mask & BIT(ss)))
 		info->has_pooled_eu = hweight8(sseu->subslice_mask) == 3;
 
-		/*
-		 * There is a HW issue in 2x6 fused down parts that requires
-		 * Pooled EU to be enabled as a WA. The pool configuration
-		 * changes depending upon which subslice is fused down. This
-		 * doesn't affect if the device has all 3 subslices enabled.
-		 */
-		/* WaEnablePooledEuFor2x6:bxt */
-		info->has_pooled_eu |= (hweight8(sseu->subslice_mask) == 2 &&
-					IS_BXT_REVID(dev_priv, 0, BXT_REVID_B_LAST));
-
 		sseu->min_eu_in_pool = 0;
 		if (info->has_pooled_eu) {
 			if (IS_SS_DISABLED(2) || IS_SS_DISABLED(0))
