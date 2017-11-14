@@ -506,9 +506,20 @@ static int ib_resolve_unicast_gid_dmac(struct ib_device *device,
 		return ret;
 	}
 
+	/* If destination is link local and source GID is RoCEv1,
+	 * IP stack is not used.
+	 */
+	if (rdma_link_local_addr((struct in6_addr *)grh->dgid.raw) &&
+	    sgid_attr.gid_type == IB_GID_TYPE_ROCE) {
+		rdma_get_ll_mac((struct in6_addr *)grh->dgid.raw,
+				ah_attr->roce.dmac);
+		goto done;
+	}
+
 	ret = rdma_addr_find_l2_eth_by_grh(&sgid, &grh->dgid,
 					   ah_attr->roce.dmac,
 					   sgid_attr.ndev, &hop_limit);
+done:
 	dev_put(sgid_attr.ndev);
 
 	grh->hop_limit = hop_limit;
@@ -1280,11 +1291,6 @@ static int ib_resolve_eth_dmac(struct ib_device *device,
 
 	grh = rdma_ah_retrieve_grh(ah_attr);
 
-	if (rdma_link_local_addr((struct in6_addr *)grh->dgid.raw)) {
-		rdma_get_ll_mac((struct in6_addr *)grh->dgid.raw,
-				ah_attr->roce.dmac);
-		return 0;
-	}
 	if (rdma_is_multicast_addr((struct in6_addr *)ah_attr->grh.dgid.raw)) {
 		if (ipv6_addr_v4mapped((struct in6_addr *)ah_attr->grh.dgid.raw)) {
 			__be32 addr = 0;
