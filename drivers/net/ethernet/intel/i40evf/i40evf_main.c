@@ -276,8 +276,7 @@ void i40evf_irq_enable_queues(struct i40evf_adapter *adapter, u32 mask)
 		if (mask & BIT(i - 1)) {
 			wr32(hw, I40E_VFINT_DYN_CTLN1(i - 1),
 			     I40E_VFINT_DYN_CTLN1_INTENA_MASK |
-			     I40E_VFINT_DYN_CTLN1_ITR_INDX_MASK |
-			     I40E_VFINT_DYN_CTLN1_CLEARPBA_MASK);
+			     I40E_VFINT_DYN_CTLN1_ITR_INDX_MASK);
 		}
 	}
 }
@@ -296,16 +295,14 @@ static void i40evf_fire_sw_int(struct i40evf_adapter *adapter, u32 mask)
 	if (mask & 1) {
 		dyn_ctl = rd32(hw, I40E_VFINT_DYN_CTL01);
 		dyn_ctl |= I40E_VFINT_DYN_CTLN1_SWINT_TRIG_MASK |
-			   I40E_VFINT_DYN_CTLN1_ITR_INDX_MASK |
-			   I40E_VFINT_DYN_CTLN1_CLEARPBA_MASK;
+			   I40E_VFINT_DYN_CTLN1_ITR_INDX_MASK;
 		wr32(hw, I40E_VFINT_DYN_CTL01, dyn_ctl);
 	}
 	for (i = 1; i < adapter->num_msix_vectors; i++) {
 		if (mask & BIT(i)) {
 			dyn_ctl = rd32(hw, I40E_VFINT_DYN_CTLN1(i - 1));
 			dyn_ctl |= I40E_VFINT_DYN_CTLN1_SWINT_TRIG_MASK |
-				   I40E_VFINT_DYN_CTLN1_ITR_INDX_MASK |
-				   I40E_VFINT_DYN_CTLN1_CLEARPBA_MASK;
+				   I40E_VFINT_DYN_CTLN1_ITR_INDX_MASK;
 			wr32(hw, I40E_VFINT_DYN_CTLN1(i - 1), dyn_ctl);
 		}
 	}
@@ -337,15 +334,10 @@ static irqreturn_t i40evf_msix_aq(int irq, void *data)
 	struct net_device *netdev = data;
 	struct i40evf_adapter *adapter = netdev_priv(netdev);
 	struct i40e_hw *hw = &adapter->hw;
-	u32 val;
 
 	/* handle non-queue interrupts, these reads clear the registers */
-	val = rd32(hw, I40E_VFINT_ICR01);
-	val = rd32(hw, I40E_VFINT_ICR0_ENA1);
-
-	val = rd32(hw, I40E_VFINT_DYN_CTL01) |
-	      I40E_VFINT_DYN_CTL01_CLEARPBA_MASK;
-	wr32(hw, I40E_VFINT_DYN_CTL01, val);
+	rd32(hw, I40E_VFINT_ICR01);
+	rd32(hw, I40E_VFINT_ICR0_ENA1);
 
 	/* schedule work on the private workqueue */
 	schedule_work(&adapter->adminq_task);
