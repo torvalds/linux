@@ -88,17 +88,6 @@ static const struct snd_soc_dapm_route cx20442_audio_map[] = {
 	{"ADC", NULL, "Input Mixer"},
 };
 
-static unsigned int cx20442_read_reg_cache(struct snd_soc_codec *codec,
-							unsigned int reg)
-{
-	u8 *reg_cache = codec->reg_cache;
-
-	if (reg >= codec->driver->reg_cache_size)
-		return -EINVAL;
-
-	return reg_cache[reg];
-}
-
 enum v253_vls {
 	V253_VLS_NONE = 0,
 	V253_VLS_T,
@@ -123,6 +112,8 @@ enum v253_vls {
 	V253_VLS_TEST,
 };
 
+#if 0
+/* FIXME : these function will be re-used */
 static int cx20442_pm_to_v253_vls(u8 value)
 {
 	switch (value & ~(1 << CX20442_AGC)) {
@@ -199,7 +190,7 @@ static int cx20442_write(struct snd_soc_codec *codec, unsigned int reg,
 
 	return 0;
 }
-
+#endif
 
 /*
  * Line discpline related code
@@ -399,11 +390,7 @@ static const struct snd_soc_codec_driver cx20442_codec_dev = {
 	.probe = 	cx20442_codec_probe,
 	.remove = 	cx20442_codec_remove,
 	.set_bias_level = cx20442_set_bias_level,
-	.reg_cache_default = &cx20442_reg,
-	.reg_cache_size = 1,
-	.reg_word_size = sizeof(u8),
-	.read = cx20442_read_reg_cache,
-	.write = cx20442_write,
+
 	.component_driver = {
 		.dapm_widgets		= cx20442_dapm_widgets,
 		.num_dapm_widgets	= ARRAY_SIZE(cx20442_dapm_widgets),
