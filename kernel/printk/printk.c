@@ -1442,12 +1442,19 @@ static void call_console_drivers(int level,
 
 	trace_console_rcuidle(text, len);
 
+#ifndef CON_PSTORE
 	if (level >= console_loglevel && !ignore_loglevel)
 		return;
+#endif
 	if (!console_drivers)
 		return;
 
 	for_each_console(con) {
+#ifdef CON_PSTORE
+		if (!(con->flags & CON_PSTORE) &&
+		    level >= console_loglevel && !ignore_loglevel)
+			continue;
+#endif
 		if (exclusive_console && con != exclusive_console)
 			continue;
 		if (!(con->flags & CON_ENABLED))

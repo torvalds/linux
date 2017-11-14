@@ -403,7 +403,11 @@ static void pstore_console_write(struct console *con, const char *s, unsigned c)
 static struct console pstore_console = {
 	.name	= "pstore",
 	.write	= pstore_console_write,
+#ifdef CON_PSTORE
+	.flags	= CON_PRINTBUFFER | CON_ENABLED | CON_ANYTIME | CON_PSTORE,
+#else
 	.flags	= CON_PRINTBUFFER | CON_ENABLED | CON_ANYTIME,
+#endif
 	.index	= -1,
 };
 
