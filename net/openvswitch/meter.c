@@ -99,7 +99,7 @@ ovs_meter_cmd_reply_start(struct genl_info *info, u8 cmd,
 	*ovs_reply_header = genlmsg_put(skb, info->snd_portid,
 					info->snd_seq,
 					&dp_meter_genl_family, 0, cmd);
-	if (!ovs_reply_header) {
+	if (!*ovs_reply_header) {
 		nlmsg_free(skb);
 		return ERR_PTR(-EMSGSIZE);
 	}
