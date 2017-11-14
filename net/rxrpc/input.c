@@ -298,8 +298,6 @@ static bool rxrpc_end_tx_phase(struct rxrpc_call *call, bool reply_begun,
 
 	write_unlock(&call->state_lock);
 	if (call->state == RXRPC_CALL_CLIENT_AWAIT_REPLY) {
-		rxrpc_propose_ACK(call, RXRPC_ACK_IDLE, 0, 0, false, true,
-				  rxrpc_propose_ack_client_tx_end);
 		trace_rxrpc_transmit(call, rxrpc_transmit_await_reply);
 	} else {
 		trace_rxrpc_transmit(call, rxrpc_transmit_end);

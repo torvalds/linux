@@ -322,6 +322,14 @@ struct rxrpc_call *rxrpc_kernel_begin_call(struct socket *sock,
 }
 EXPORT_SYMBOL(rxrpc_kernel_begin_call);
 
+/*
+ * Dummy function used to stop the notifier talking to recvmsg().
+ */
+static void rxrpc_dummy_notify_rx(struct sock *sk, struct rxrpc_call *rxcall,
+				  unsigned long call_user_ID)
+{
+}
+
 /**
  * rxrpc_kernel_end_call - Allow a kernel service to end a call it was using
  * @sock: The socket the call is on
@@ -336,6 +344,14 @@ void rxrpc_kernel_end_call(struct socket *sock, struct rxrpc_call *call)
 
 	mutex_lock(&call->user_mutex);
 	rxrpc_release_call(rxrpc_sk(sock->sk), call);
+
+	/* Make sure we're not going to call back into a kernel service */
+	if (call->notify_rx) {
+		spin_lock_bh(&call->notify_lock);
+		call->notify_rx = rxrpc_dummy_notify_rx;
+		spin_unlock_bh(&call->notify_lock);
+	}
+
 	mutex_unlock(&call->user_mutex);
 	rxrpc_put_call(call, rxrpc_call_put_kernel);
 }
