@@ -1466,6 +1466,7 @@ xfs_da3_node_lookup_int(
 	int			max;
 	int			error;
 	int			retval;
+	unsigned int		expected_level = 0;
 	struct xfs_inode	*dp = state->args->dp;
 
 	args = state->args;
@@ -1474,7 +1475,7 @@ xfs_da3_node_lookup_int(
 	 * Descend thru the B-tree searching each level for the right
 	 * node to use, until the right hashval is found.
 	 */
-	blkno = (args->whichfork == XFS_DATA_FORK)? args->geo->leafblk : 0;
+	blkno = args->geo->leafblk;
 	for (blk = &state->path.blk[0], state->path.active = 1;
 			 state->path.active <= XFS_DA_NODE_MAXDEPTH;
 			 blk++, state->path.active++) {
@@ -1516,6 +1517,18 @@ xfs_da3_node_lookup_int(
 		node = blk->bp->b_addr;
 		dp->d_ops->node_hdr_from_disk(&nodehdr, node);
 		btree = dp->d_ops->node_tree_p(node);
+
+		/* Tree taller than we can handle; bail out! */
+		if (nodehdr.level >= XFS_DA_NODE_MAXDEPTH)
+			return -EFSCORRUPTED;
+
+		/* Check the level from the root. */
+		if (blkno == args->geo->leafblk)
+			expected_level = nodehdr.level - 1;
+		else if (expected_level != nodehdr.level)
+			return -EFSCORRUPTED;
+		else
+			expected_level--;
 
 		max = nodehdr.count;
 		blk->hashval = be32_to_cpu(btree[max - 1].hashval);
@@ -1562,7 +1575,14 @@ xfs_da3_node_lookup_int(
 			blk->index = probe;
 			blkno = be32_to_cpu(btree[probe].before);
 		}
+
+		/* We can't point back to the root. */
+		if (blkno == args->geo->leafblk)
+			return -EFSCORRUPTED;
 	}
+
+	if (expected_level != 0)
+		return -EFSCORRUPTED;
 
 	/*
 	 * A leaf block that ends in the hashval that we are interested in

@@ -25,6 +25,7 @@
 #include "xfs_trans.h"
 #include "xfs_trans_priv.h"
 #include "xfs_trace.h"
+#include "xfs_errortag.h"
 #include "xfs_error.h"
 #include "xfs_log.h"
 
@@ -514,11 +515,26 @@ xfsaild(
 	current->flags |= PF_MEMALLOC;
 	set_freezable();
 
-	while (!kthread_should_stop()) {
+	while (1) {
 		if (tout && tout <= 20)
-			__set_current_state(TASK_KILLABLE);
+			set_current_state(TASK_KILLABLE);
 		else
-			__set_current_state(TASK_INTERRUPTIBLE);
+			set_current_state(TASK_INTERRUPTIBLE);
+
+		/*
+		 * Check kthread_should_stop() after we set the task state
+		 * to guarantee that we either see the stop bit and exit or
+		 * the task state is reset to runnable such that it's not
+		 * scheduled out indefinitely and detects the stop bit at
+		 * next iteration.
+		 *
+		 * A memory barrier is included in above task state set to
+		 * serialize again kthread_stop().
+		 */
+		if (kthread_should_stop()) {
+			__set_current_state(TASK_RUNNING);
+			break;
+		}
 
 		spin_lock(&ailp->xa_lock);
 
