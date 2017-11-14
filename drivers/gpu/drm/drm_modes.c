@@ -1036,6 +1036,9 @@ EXPORT_SYMBOL(drm_mode_equal_no_clocks_no_stereo);
 enum drm_mode_status
 drm_mode_validate_basic(const struct drm_display_mode *mode)
 {
+	if ((mode->flags & DRM_MODE_FLAG_3D_MASK) > DRM_MODE_FLAG_3D_MAX)
+		return MODE_BAD;
+
 	if (mode->clock == 0)
 		return MODE_CLOCK_LOW;
 
@@ -1573,9 +1576,6 @@ int drm_mode_convert_umode(struct drm_display_mode *out,
 		ret = -ERANGE;
 		goto out;
 	}
-
-	if ((in->flags & DRM_MODE_FLAG_3D_MASK) > DRM_MODE_FLAG_3D_MAX)
-		goto out;
 
 	out->clock = in->clock;
 	out->hdisplay = in->hdisplay;
