@@ -124,24 +124,19 @@ static int fw_ignore_section(struct wil6210_priv *wil, const void *data,
 	return 0;
 }
 
-static int fw_handle_comment(struct wil6210_priv *wil, const void *data,
-			     size_t size)
-{
-	wil_hex_dump_fw("", DUMP_PREFIX_OFFSET, 16, 1, data, size, true);
-
-	return 0;
-}
-
 static int
-fw_handle_capabilities(struct wil6210_priv *wil, const void *data,
-		       size_t size)
+fw_handle_comment(struct wil6210_priv *wil, const void *data,
+		  size_t size)
 {
 	const struct wil_fw_record_capabilities *rec = data;
 	size_t capa_size;
 
 	if (size < sizeof(*rec) ||
-	    le32_to_cpu(rec->magic) != WIL_FW_CAPABILITIES_MAGIC)
+	    le32_to_cpu(rec->magic) != WIL_FW_CAPABILITIES_MAGIC) {
+		wil_hex_dump_fw("", DUMP_PREFIX_OFFSET, 16, 1,
+				data, size, true);
 		return 0;
+	}
 
 	capa_size = size - offsetof(struct wil_fw_record_capabilities,
 				    capabilities);
@@ -422,7 +417,7 @@ static const struct {
 	int (*parse_handler)(struct wil6210_priv *wil, const void *data,
 			     size_t size);
 } wil_fw_handlers[] = {
-	{wil_fw_type_comment, fw_handle_comment, fw_handle_capabilities},
+	{wil_fw_type_comment, fw_handle_comment, fw_handle_comment},
 	{wil_fw_type_data, fw_handle_data, fw_ignore_section},
 	{wil_fw_type_fill, fw_handle_fill, fw_ignore_section},
 	/* wil_fw_type_action */
@@ -517,7 +512,7 @@ int wil_request_firmware(struct wil6210_priv *wil, const char *name,
 
 	rc = request_firmware(&fw, name, wil_to_dev(wil));
 	if (rc) {
-		wil_err_fw(wil, "Failed to load firmware %s\n", name);
+		wil_err_fw(wil, "Failed to load firmware %s rc %d\n", name, rc);
 		return rc;
 	}
 	wil_dbg_fw(wil, "Loading <%s>, %zu bytes\n", name, fw->size);

@@ -870,6 +870,7 @@ int wil_up(struct wil6210_priv *wil);
 int __wil_up(struct wil6210_priv *wil);
 int wil_down(struct wil6210_priv *wil);
 int __wil_down(struct wil6210_priv *wil);
+void wil_refresh_fw_capabilities(struct wil6210_priv *wil);
 void wil_mbox_ring_le2cpus(struct wil6210_mbox_ring *r);
 int wil_find_cid(struct wil6210_priv *wil, const u8 *mac);
 void wil_set_ethtoolops(struct net_device *ndev);
