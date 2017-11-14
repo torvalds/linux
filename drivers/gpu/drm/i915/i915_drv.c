@@ -2618,6 +2618,8 @@ static int intel_runtime_resume(struct device *kdev)
 		ret = vlv_resume_prepare(dev_priv, true);
 	}
 
+	intel_uncore_runtime_resume(dev_priv);
+
 	/*
 	 * No point of rolling back things in case of an error, as the best
 	 * we can do is to hope that things will still work (and disable RPM).
