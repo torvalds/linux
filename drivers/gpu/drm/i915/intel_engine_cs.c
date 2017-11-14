@@ -1020,22 +1020,6 @@ static int gen9_init_workarounds(struct intel_engine_cs *engine)
 		WA_SET_BIT_MASKED(HALF_SLICE_CHICKEN3,
 				  GEN9_DISABLE_OCL_OOB_SUPPRESS_LOGIC);
 
-	/* WaDisableDgMirrorFixInHalfSliceChicken5:bxt */
-	if (IS_BXT_REVID(dev_priv, 0, BXT_REVID_A1))
-		WA_CLR_BIT_MASKED(GEN9_HALF_SLICE_CHICKEN5,
-				  GEN9_DG_MIRROR_FIX_ENABLE);
-
-	/* WaSetDisablePixMaskCammingAndRhwoInCommonSliceChicken:bxt */
-	if (IS_BXT_REVID(dev_priv, 0, BXT_REVID_A1)) {
-		WA_SET_BIT_MASKED(GEN7_COMMON_SLICE_CHICKEN1,
-				  GEN9_RHWO_OPTIMIZATION_DISABLE);
-		/*
-		 * WA also requires GEN9_SLICE_COMMON_ECO_CHICKEN0[14:14] to be set
-		 * but we do that in per ctx batchbuffer as there is an issue
-		 * with this register not getting restored on ctx restore
-		 */
-	}
-
 	/* WaEnableYV12BugFixInHalfSliceChicken7:skl,bxt,kbl,glk,cfl */
 	/* WaEnableSamplerGPGPUPreemptionSupport:skl,bxt,kbl,cfl */
 	WA_SET_BIT_MASKED(GEN9_HALF_SLICE_CHICKEN7,
@@ -1050,11 +1034,6 @@ static int gen9_init_workarounds(struct intel_engine_cs *engine)
 	/* WaCcsTlbPrefetchDisable:skl,bxt,kbl,glk,cfl */
 	WA_CLR_BIT_MASKED(GEN9_HALF_SLICE_CHICKEN5,
 			  GEN9_CCS_TLB_PREFETCH_ENABLE);
-
-	/* WaDisableMaskBasedCammingInRCC:bxt */
-	if (IS_BXT_REVID(dev_priv, 0, BXT_REVID_A1))
-		WA_SET_BIT_MASKED(SLICE_ECO_CHICKEN0,
-				  PIXEL_MASK_CAMMING_DISABLE);
 
 	/* WaForceContextSaveRestoreNonCoherent:skl,bxt,kbl,cfl */
 	WA_SET_BIT_MASKED(HDC_CHICKEN0,
@@ -1085,8 +1064,7 @@ static int gen9_init_workarounds(struct intel_engine_cs *engine)
 	/* WaDisableSamplerPowerBypassForSOPingPong:skl,bxt,kbl,cfl */
 	if (IS_SKYLAKE(dev_priv) ||
 	    IS_KABYLAKE(dev_priv) ||
-	    IS_COFFEELAKE(dev_priv) ||
-	    IS_BXT_REVID(dev_priv, 0, BXT_REVID_B0))
+	    IS_COFFEELAKE(dev_priv))
 		WA_SET_BIT_MASKED(HALF_SLICE_CHICKEN3,
 				  GEN8_SAMPLER_POWER_BYPASS_DIS);
 
@@ -1216,17 +1194,6 @@ static int bxt_init_workarounds(struct intel_engine_cs *engine)
 	if (ret)
 		return ret;
 
-	/* WaStoreMultiplePTEenable:bxt */
-	/* This is a requirement according to Hardware specification */
-	if (IS_BXT_REVID(dev_priv, 0, BXT_REVID_A1))
-		I915_WRITE(TILECTL, I915_READ(TILECTL) | TILECTL_TLBPF);
-
-	/* WaSetClckGatingDisableMedia:bxt */
-	if (IS_BXT_REVID(dev_priv, 0, BXT_REVID_A1)) {
-		I915_WRITE(GEN7_MISCCPCTL, (I915_READ(GEN7_MISCCPCTL) &
-					    ~GEN8_DOP_CLOCK_GATE_MEDIA_ENABLE));
-	}
-
 	/* WaDisableThreadStallDopClockGating:bxt */
 	WA_SET_BIT_MASKED(GEN8_ROW_CHICKEN,
 			  STALL_DOP_GATING_DISABLE);
@@ -1235,27 +1202,6 @@ static int bxt_init_workarounds(struct intel_engine_cs *engine)
 	if (IS_BXT_REVID(dev_priv, BXT_REVID_B0, REVID_FOREVER)) {
 		I915_WRITE(FF_SLICE_CS_CHICKEN2,
 			   _MASKED_BIT_ENABLE(GEN9_POOLED_EU_LOAD_BALANCING_FIX_DISABLE));
-	}
-
-	/* WaDisableSbeCacheDispatchPortSharing:bxt */
-	if (IS_BXT_REVID(dev_priv, 0, BXT_REVID_B0)) {
-		WA_SET_BIT_MASKED(
-			GEN7_HALF_SLICE_CHICKEN1,
-			GEN7_SBE_SS_CACHE_DISPATCH_PORT_SHARING_DISABLE);
-	}
-
-	/* WaDisableObjectLevelPreemptionForTrifanOrPolygon:bxt */
-	/* WaDisableObjectLevelPreemptionForInstancedDraw:bxt */
-	/* WaDisableObjectLevelPreemtionForInstanceId:bxt */
-	/* WaDisableLSQCROPERFforOCL:bxt */
-	if (IS_BXT_REVID(dev_priv, 0, BXT_REVID_A1)) {
-		ret = wa_ring_whitelist_reg(engine, GEN9_CS_DEBUG_MODE1);
-		if (ret)
-			return ret;
-
-		ret = wa_ring_whitelist_reg(engine, GEN8_L3SQCREG4);
-		if (ret)
-			return ret;
 	}
 
 	/* WaProgramL3SqcReg1DefaultForPerf:bxt */
