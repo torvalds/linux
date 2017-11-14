@@ -94,7 +94,7 @@ struct rdma_dev_addr {
  * The dev_addr->net field must be initialized.
  */
 int rdma_translate_ip(const struct sockaddr *addr,
-		      struct rdma_dev_addr *dev_addr, u16 *vlan_id);
+		      struct rdma_dev_addr *dev_addr);
 
 /**
  * rdma_resolve_ip - Resolve source and destination IP addresses to

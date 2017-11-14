@@ -243,8 +243,7 @@ void rdma_copy_addr(struct rdma_dev_addr *dev_addr,
 EXPORT_SYMBOL(rdma_copy_addr);
 
 int rdma_translate_ip(const struct sockaddr *addr,
-		      struct rdma_dev_addr *dev_addr,
-		      u16 *vlan_id)
+		      struct rdma_dev_addr *dev_addr)
 {
 	struct net_device *dev;
 
@@ -267,8 +266,6 @@ int rdma_translate_ip(const struct sockaddr *addr,
 
 		rdma_copy_addr(dev_addr, dev, NULL);
 		dev_addr->bound_dev_if = dev->ifindex;
-		if (vlan_id)
-			*vlan_id = rdma_vlan_dev_vlan_id(dev);
 		dev_put(dev);
 		break;
 #if IS_ENABLED(CONFIG_IPV6)
@@ -280,8 +277,6 @@ int rdma_translate_ip(const struct sockaddr *addr,
 					  dev, 1)) {
 				rdma_copy_addr(dev_addr, dev, NULL);
 				dev_addr->bound_dev_if = dev->ifindex;
-				if (vlan_id)
-					*vlan_id = rdma_vlan_dev_vlan_id(dev);
 				break;
 			}
 		}
@@ -481,7 +476,7 @@ static int addr_resolve_neigh(struct dst_entry *dst,
 	if (dst->dev->flags & IFF_LOOPBACK) {
 		int ret;
 
-		ret = rdma_translate_ip(dst_in, addr, NULL);
+		ret = rdma_translate_ip(dst_in, addr);
 		if (!ret)
 			memcpy(addr->dst_dev_addr, addr->src_dev_addr,
 			       MAX_ADDR_LEN);
@@ -558,7 +553,7 @@ static int addr_resolve(struct sockaddr *src_in,
 	}
 
 	if (ndev->flags & IFF_LOOPBACK) {
-		ret = rdma_translate_ip(dst_in, addr, NULL);
+		ret = rdma_translate_ip(dst_in, addr);
 		/*
 		 * Put the loopback device and get the translated
 		 * device instead.
