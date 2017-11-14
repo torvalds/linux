@@ -494,8 +494,8 @@ static int cm_init_av_by_path(struct sa_path_rec *path, struct cm_av *av,
 		return ret;
 
 	av->port = port;
-	ret = ib_init_ah_from_path(cm_dev->ib_device, port->port_num, path,
-				   &av->ah_attr);
+	ret = ib_init_ah_attr_from_path(cm_dev->ib_device, port->port_num, path,
+					&av->ah_attr);
 	if (ret)
 		return ret;
 

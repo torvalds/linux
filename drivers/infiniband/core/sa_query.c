@@ -1227,9 +1227,9 @@ static u8 get_src_path_mask(struct ib_device *device, u8 port_num)
 	return src_path_mask;
 }
 
-int ib_init_ah_from_path(struct ib_device *device, u8 port_num,
-			 struct sa_path_rec *rec,
-			 struct rdma_ah_attr *ah_attr)
+int ib_init_ah_attr_from_path(struct ib_device *device, u8 port_num,
+			      struct sa_path_rec *rec,
+			      struct rdma_ah_attr *ah_attr)
 {
 	int ret;
 	u16 gid_index;
@@ -1341,7 +1341,7 @@ int ib_init_ah_from_path(struct ib_device *device, u8 port_num,
 
 	return 0;
 }
-EXPORT_SYMBOL(ib_init_ah_from_path);
+EXPORT_SYMBOL(ib_init_ah_attr_from_path);
 
 static int alloc_mad(struct ib_sa_query *query, gfp_t gfp_mask)
 {
