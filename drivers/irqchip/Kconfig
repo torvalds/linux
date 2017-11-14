@@ -41,8 +41,15 @@ config ARM_GIC_V3
 
 config ARM_GIC_V3_ITS
 	bool
+	select GENERIC_MSI_IRQ_DOMAIN
+	default ARM_GIC_V3
+
+config ARM_GIC_V3_ITS_PCI
+	bool
+	depends on ARM_GIC_V3_ITS
 	depends on PCI
 	depends on PCI_MSI
+	default ARM_GIC_V3_ITS
 
 config ARM_NVIC
 	bool
