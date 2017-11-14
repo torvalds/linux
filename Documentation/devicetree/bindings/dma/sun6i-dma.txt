@@ -27,6 +27,32 @@ Example:
 		#dma-cells = <1>;
 	};
 
+------------------------------------------------------------------------------
+For A64 DMA controller:
+
+Required properties:
+- compatible:	"allwinner,sun50i-a64-dma"
+- dma-channels: Number of DMA channels supported by the controller.
+		Refer to Documentation/devicetree/bindings/dma/dma.txt
+- all properties above, i.e. reg, interrupts, clocks, resets and #dma-cells
+
+Optional properties:
+- dma-requests: Number of DMA request signals supported by the controller.
+		Refer to Documentation/devicetree/bindings/dma/dma.txt
+
+Example:
+	dma: dma-controller@1c02000 {
+		compatible = "allwinner,sun50i-a64-dma";
+		reg = <0x01c02000 0x1000>;
+		interrupts = <GIC_SPI 50 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&ccu CLK_BUS_DMA>;
+		dma-channels = <8>;
+		dma-requests = <27>;
+		resets = <&ccu RST_BUS_DMA>;
+		#dma-cells = <1>;
+	};
+------------------------------------------------------------------------------
+
 Clients:
 
 DMA clients connected to the A31 DMA controller must use the format
