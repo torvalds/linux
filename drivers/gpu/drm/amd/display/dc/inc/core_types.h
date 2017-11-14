@@ -241,6 +241,7 @@ struct dce_bw_output {
 
 struct dcn_bw_clocks {
 	int dispclk_khz;
+	int dppclk_khz;
 	bool dppclk_div;
 	int dcfclk_khz;
 	int dcfclk_deep_sleep_khz;

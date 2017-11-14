@@ -1335,7 +1335,6 @@ static void dcn10_enable_plane(
 	/* make sure OPP_PIPE_CLOCK_EN = 1 */
 	REG_UPDATE(OPP_PIPE_CONTROL[pipe_ctx->stream_res.tg->inst],
 			OPP_PIPE_CLOCK_EN, 1);
-	/*TODO: REG_UPDATE(DENTIST_DISPCLK_CNTL, DENTIST_DPPCLK_WDIVIDER, 0x1f);*/
 
 /* TODO: enable/disable in dm as per update type.
 	if (plane_state) {
