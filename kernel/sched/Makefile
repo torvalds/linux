@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 ifdef CONFIG_FUNCTION_TRACER
 CFLAGS_REMOVE_clock.o = $(CC_FLAGS_FTRACE)
 endif
@@ -16,12 +17,13 @@ CFLAGS_core.o := $(PROFILING) -fno-omit-frame-pointer
 endif
 
 obj-y += core.o loadavg.o clock.o cputime.o
-obj-y += idle_task.o fair.o rt.o deadline.o stop_task.o
-obj-y += wait.o swait.o completion.o idle.o
-obj-$(CONFIG_SMP) += cpupri.o cpudeadline.o topology.o
+obj-y += idle_task.o fair.o rt.o deadline.o
+obj-y += wait.o wait_bit.o swait.o completion.o idle.o
+obj-$(CONFIG_SMP) += cpupri.o cpudeadline.o topology.o stop_task.o
 obj-$(CONFIG_SCHED_AUTOGROUP) += autogroup.o
 obj-$(CONFIG_SCHEDSTATS) += stats.o
 obj-$(CONFIG_SCHED_DEBUG) += debug.o
 obj-$(CONFIG_CGROUP_CPUACCT) += cpuacct.o
 obj-$(CONFIG_CPU_FREQ) += cpufreq.o
 obj-$(CONFIG_CPU_FREQ_GOV_SCHEDUTIL) += cpufreq_schedutil.o
+obj-$(CONFIG_MEMBARRIER) += membarrier.o

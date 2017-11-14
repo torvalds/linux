@@ -606,7 +606,7 @@ il4965_pass_packet_to_mac80211(struct il_priv *il, struct ieee80211_hdr *hdr,
 	}
 
 	if (len <= SMALL_PACKET_SIZE) {
-		memcpy(skb_put(skb, len), hdr, len);
+		skb_put_data(skb, hdr, len);
 	} else {
 		skb_add_rx_frag(skb, 0, rxb->page, (void *)hdr - rxb_addr(rxb),
 				len, PAGE_SIZE << il->hw_params.rx_page_order);
@@ -4654,7 +4654,7 @@ static struct attribute *il_sysfs_entries[] = {
 	NULL
 };
 
-static struct attribute_group il_attribute_group = {
+static const struct attribute_group il_attribute_group = {
 	.name = NULL,		/* put in device directory */
 	.attrs = il_sysfs_entries,
 };

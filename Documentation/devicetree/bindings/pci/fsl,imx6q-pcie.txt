@@ -1,6 +1,6 @@
 * Freescale i.MX6 PCIe interface
 
-This PCIe host controller is based on the Synopsis Designware PCIe IP
+This PCIe host controller is based on the Synopsys DesignWare PCIe IP
 and thus inherits all the common properties defined in designware-pcie.txt.
 
 Required properties:
@@ -33,6 +33,10 @@ Optional properties:
 - reset-gpio-active-high: If present then the reset sequence using the GPIO
   specified in the "reset-gpio" property is reversed (H=reset state,
   L=operation state).
+- vpcie-supply: Should specify the regulator in charge of PCIe port power.
+  The regulator will be enabled when initializing the PCIe host and
+  disabled either as part of the init process or when shutting down the
+  host.
 
 Additional required properties for imx6sx-pcie:
 - clock names: Must include the following additional entries:

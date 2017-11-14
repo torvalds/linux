@@ -141,6 +141,7 @@
 #include <linux/cpu.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
+#include <linux/bootmem.h>
 
 #include <asm/system_misc.h>
 
@@ -182,6 +183,24 @@
 #define MOD_CLK_MAX_NAME_LEN		32
 
 /**
+ * struct clkctrl_provider - clkctrl provider mapping data
+ * @addr: base address for the provider
+ * @offset: base offset for the provider
+ * @clkdm: base clockdomain for provider
+ * @node: device node associated with the provider
+ * @link: list link
+ */
+struct clkctrl_provider {
+	u32			addr;
+	u16			offset;
+	struct clockdomain	*clkdm;
+	struct device_node	*node;
+	struct list_head	link;
+};
+
+static LIST_HEAD(clkctrl_providers);
+
+/**
  * struct omap_hwmod_soc_ops - fn ptrs for some SoC-specific operations
  * @enable_module: function to enable a module (via MODULEMODE)
  * @disable_module: function to disable a module (via MODULEMODE)
@@ -204,6 +223,8 @@ struct omap_hwmod_soc_ops {
 	void (*update_context_lost)(struct omap_hwmod *oh);
 	int (*get_context_lost)(struct omap_hwmod *oh);
 	int (*disable_direct_prcm)(struct omap_hwmod *oh);
+	u32 (*xlate_clkctrl)(struct omap_hwmod *oh,
+			     struct clkctrl_provider *provider);
 };
 
 /* soc_ops: adapts the omap_hwmod code to the currently-booted SoC */
@@ -690,6 +711,103 @@ static int _del_initiator_dep(struct omap_hwmod *oh, struct omap_hwmod *init_oh)
 	return clkdm_del_sleepdep(clkdm, init_clkdm);
 }
 
+static const struct of_device_id ti_clkctrl_match_table[] __initconst = {
+	{ .compatible = "ti,clkctrl" },
+	{ }
+};
+
+static int _match_clkdm(struct clockdomain *clkdm, void *user)
+{
+	struct clkctrl_provider *provider = user;
+
+	if (clkdm_xlate_address(clkdm) == provider->addr) {
+		pr_debug("%s: Matched clkdm %s for addr %x (%s)\n", __func__,
+			 clkdm->name, provider->addr,
+			 provider->node->parent->name);
+		provider->clkdm = clkdm;
+
+		return -1;
+	}
+
+	return 0;
+}
+
+static int _setup_clkctrl_provider(struct device_node *np)
+{
+	const __be32 *addrp;
+	struct clkctrl_provider *provider;
+
+	provider = memblock_virt_alloc(sizeof(*provider), 0);
+	if (!provider)
+		return -ENOMEM;
+
+	addrp = of_get_address(np, 0, NULL, NULL);
+	provider->addr = (u32)of_translate_address(np, addrp);
+	provider->offset = provider->addr & 0xff;
+	provider->addr &= ~0xff;
+	provider->node = np;
+
+	clkdm_for_each(_match_clkdm, provider);
+
+	if (!provider->clkdm) {
+		pr_err("%s: nothing matched for node %s (%x)\n",
+		       __func__, np->parent->name, provider->addr);
+		memblock_free_early(__pa(provider), sizeof(*provider));
+		return -EINVAL;
+	}
+
+	list_add(&provider->link, &clkctrl_providers);
+
+	return 0;
+}
+
+static int _init_clkctrl_providers(void)
+{
+	struct device_node *np;
+	int ret = 0;
+
+	for_each_matching_node(np, ti_clkctrl_match_table) {
+		ret = _setup_clkctrl_provider(np);
+		if (ret)
+			break;
+	}
+
+	return ret;
+}
+
+static u32 _omap4_xlate_clkctrl(struct omap_hwmod *oh,
+				struct clkctrl_provider *provider)
+{
+	return oh->prcm.omap4.clkctrl_offs -
+	       provider->offset - provider->clkdm->clkdm_offs;
+}
+
+static struct clk *_lookup_clkctrl_clk(struct omap_hwmod *oh)
+{
+	struct clkctrl_provider *provider;
+	struct clk *clk;
+
+	if (!soc_ops.xlate_clkctrl)
+		return NULL;
+
+	list_for_each_entry(provider, &clkctrl_providers, link) {
+		if (provider->clkdm == oh->clkdm) {
+			struct of_phandle_args clkspec;
+
+			clkspec.np = provider->node;
+			clkspec.args_count = 2;
+			clkspec.args[0] = soc_ops.xlate_clkctrl(oh, provider);
+			clkspec.args[1] = 0;
+
+			clk = of_clk_get_from_provider(&clkspec);
+
+			return clk;
+		}
+	}
+
+	return NULL;
+}
+
 /**
  * _init_main_clk - get a struct clk * for the the hwmod's main functional clk
  * @oh: struct omap_hwmod *
@@ -701,22 +819,16 @@ static int _del_initiator_dep(struct omap_hwmod *oh, struct omap_hwmod *init_oh)
 static int _init_main_clk(struct omap_hwmod *oh)
 {
 	int ret = 0;
-	char name[MOD_CLK_MAX_NAME_LEN];
-	struct clk *clk;
-	static const char modck[] = "_mod_ck";
+	struct clk *clk = NULL;
 
-	if (strlen(oh->name) >= MOD_CLK_MAX_NAME_LEN - strlen(modck))
-		pr_warn("%s: warning: cropping name for %s\n", __func__,
-			oh->name);
+	clk = _lookup_clkctrl_clk(oh);
 
-	strlcpy(name, oh->name, MOD_CLK_MAX_NAME_LEN - strlen(modck));
-	strlcat(name, modck, MOD_CLK_MAX_NAME_LEN);
-
-	clk = clk_get(NULL, name);
-	if (!IS_ERR(clk)) {
+	if (!IS_ERR_OR_NULL(clk)) {
+		pr_debug("%s: mapped main_clk %s for %s\n", __func__,
+			 __clk_get_name(clk), oh->name);
+		oh->main_clk = __clk_get_name(clk);
 		oh->_clk = clk;
 		soc_ops.disable_direct_prcm(oh);
-		oh->main_clk = kstrdup(name, GFP_KERNEL);
 	} else {
 		if (!oh->main_clk)
 			return 0;
@@ -1482,13 +1594,13 @@ static int _init_clkdm(struct omap_hwmod *oh)
  * _init_clocks - clk_get() all clocks associated with this hwmod. Retrieve as
  * well the clockdomain.
  * @oh: struct omap_hwmod *
- * @data: not used; pass NULL
+ * @np: device_node mapped to this hwmod
  *
  * Called by omap_hwmod_setup_*() (after omap2_clk_init()).
  * Resolves all clock names embedded in the hwmod.  Returns 0 on
  * success, or a negative error code on failure.
  */
-static int _init_clocks(struct omap_hwmod *oh, void *data)
+static int _init_clocks(struct omap_hwmod *oh, struct device_node *np)
 {
 	int ret = 0;
 
@@ -2305,8 +2417,8 @@ static int __init _init_mpu_rt_base(struct omap_hwmod *oh, void *data,
 		if (mem)
 			pr_err("omap_hwmod: %s: Could not ioremap\n", oh->name);
 		else
-			pr_err("omap_hwmod: %s: Missing dt reg%i for %s\n",
-			       oh->name, index, np->full_name);
+			pr_err("omap_hwmod: %s: Missing dt reg%i for %pOF\n",
+			       oh->name, index, np);
 		return -ENXIO;
 	}
 
@@ -2334,24 +2446,21 @@ static int __init _init(struct omap_hwmod *oh, void *data)
 {
 	int r, index;
 	struct device_node *np = NULL;
+	struct device_node *bus;
 
 	if (oh->_state != _HWMOD_STATE_REGISTERED)
 		return 0;
 
-	if (of_have_populated_dt()) {
-		struct device_node *bus;
+	bus = of_find_node_by_name(NULL, "ocp");
+	if (!bus)
+		return -ENODEV;
 
-		bus = of_find_node_by_name(NULL, "ocp");
-		if (!bus)
-			return -ENODEV;
-
-		r = of_dev_hwmod_lookup(bus, oh, &index, &np);
-		if (r)
-			pr_debug("omap_hwmod: %s missing dt data\n", oh->name);
-		else if (np && index)
-			pr_warn("omap_hwmod: %s using broken dt data from %s\n",
-				oh->name, np->name);
-	}
+	r = of_dev_hwmod_lookup(bus, oh, &index, &np);
+	if (r)
+		pr_debug("omap_hwmod: %s missing dt data\n", oh->name);
+	else if (np && index)
+		pr_warn("omap_hwmod: %s using broken dt data from %s\n",
+			oh->name, np->name);
 
 	r = _init_mpu_rt_base(oh, NULL, index, np);
 	if (r < 0) {
@@ -2360,7 +2469,7 @@ static int __init _init(struct omap_hwmod *oh, void *data)
 		return 0;
 	}
 
-	r = _init_clocks(oh, NULL);
+	r = _init_clocks(oh, np);
 	if (r < 0) {
 		WARN(1, "omap_hwmod: %s: couldn't init clocks\n", oh->name);
 		return -EINVAL;
@@ -3722,6 +3831,7 @@ void __init omap_hwmod_init(void)
 		soc_ops.update_context_lost = _omap4_update_context_lost;
 		soc_ops.get_context_lost = _omap4_get_context_lost;
 		soc_ops.disable_direct_prcm = _omap4_disable_direct_prcm;
+		soc_ops.xlate_clkctrl = _omap4_xlate_clkctrl;
 	} else if (cpu_is_ti814x() || cpu_is_ti816x() || soc_is_am33xx() ||
 		   soc_is_am43xx()) {
 		soc_ops.enable_module = _omap4_enable_module;
@@ -3735,6 +3845,8 @@ void __init omap_hwmod_init(void)
 	} else {
 		WARN(1, "omap_hwmod: unknown SoC type\n");
 	}
+
+	_init_clkctrl_providers();
 
 	inited = true;
 }

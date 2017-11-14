@@ -55,10 +55,8 @@
 #include <sound/hwdep.h>
 #include <sound/timer.h>
 #include <sound/seq_midi_emul.h>
-#ifdef CONFIG_SND_SEQUENCER_OSS
 #include <sound/seq_oss.h>
 #include <sound/seq_oss_legacy.h>
-#endif
 #include <sound/seq_device.h>
 #include <sound/asound_fm.h>
 
@@ -321,7 +319,7 @@ struct snd_opl3 {
 	unsigned char fm_mode;		/* OPL mode, see SNDRV_DM_FM_MODE_XXX */
 	unsigned char rhythm;		/* percussion mode flag */
 	unsigned char max_voices;	/* max number of voices */
-#if defined(CONFIG_SND_SEQUENCER) || defined(CONFIG_SND_SEQUENCER_MODULE)
+#if IS_ENABLED(CONFIG_SND_SEQUENCER)
 #define SNDRV_OPL3_MODE_SYNTH 0		/* OSS - voices allocated by application */
 #define SNDRV_OPL3_MODE_SEQ 1		/* ALSA - driver handles voice allocation */
 	int synth_mode;			/* synth mode */
@@ -330,7 +328,7 @@ struct snd_opl3 {
 	struct snd_seq_device *seq_dev;	/* sequencer device */
 	struct snd_midi_channel_set * chset;
 
-#ifdef CONFIG_SND_SEQUENCER_OSS
+#if IS_ENABLED(CONFIG_SND_SEQUENCER_OSS)
 	struct snd_seq_device *oss_seq_dev;	/* OSS sequencer device */
 	struct snd_midi_channel_set * oss_chset;
 #endif
@@ -374,7 +372,7 @@ int snd_opl3_release(struct snd_hwdep * hw, struct file *file);
 
 void snd_opl3_reset(struct snd_opl3 * opl3);
 
-#if defined(CONFIG_SND_SEQUENCER) || defined(CONFIG_SND_SEQUENCER_MODULE)
+#if IS_ENABLED(CONFIG_SND_SEQUENCER)
 long snd_opl3_write(struct snd_hwdep *hw, const char __user *buf, long count,
 		    loff_t *offset);
 int snd_opl3_load_patch(struct snd_opl3 *opl3,

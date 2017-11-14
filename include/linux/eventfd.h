@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *  include/linux/eventfd.h
  *
@@ -37,7 +38,7 @@ struct eventfd_ctx *eventfd_ctx_fdget(int fd);
 struct eventfd_ctx *eventfd_ctx_fileget(struct file *file);
 __u64 eventfd_signal(struct eventfd_ctx *ctx, __u64 n);
 ssize_t eventfd_ctx_read(struct eventfd_ctx *ctx, int no_wait, __u64 *cnt);
-int eventfd_ctx_remove_wait_queue(struct eventfd_ctx *ctx, wait_queue_t *wait,
+int eventfd_ctx_remove_wait_queue(struct eventfd_ctx *ctx, wait_queue_entry_t *wait,
 				  __u64 *cnt);
 
 #else /* CONFIG_EVENTFD */
@@ -73,7 +74,7 @@ static inline ssize_t eventfd_ctx_read(struct eventfd_ctx *ctx, int no_wait,
 }
 
 static inline int eventfd_ctx_remove_wait_queue(struct eventfd_ctx *ctx,
-						wait_queue_t *wait, __u64 *cnt)
+						wait_queue_entry_t *wait, __u64 *cnt)
 {
 	return -ENOSYS;
 }

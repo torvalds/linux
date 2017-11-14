@@ -31,17 +31,17 @@
  */
 #define DEBUG_SUBSYSTEM S_LLITE
 
-#include "../include/lprocfs_status.h"
+#include <lprocfs_status.h>
 #include <linux/seq_file.h>
-#include "../include/obd_support.h"
+#include <obd_support.h>
 
 #include "llite_internal.h"
 #include "vvp_internal.h"
 
 /* debugfs llite mount point registration */
-static struct file_operations ll_rw_extents_stats_fops;
-static struct file_operations ll_rw_extents_stats_pp_fops;
-static struct file_operations ll_rw_offset_stats_fops;
+static const struct file_operations ll_rw_extents_stats_fops;
+static const struct file_operations ll_rw_extents_stats_pp_fops;
+static const struct file_operations ll_rw_offset_stats_fops;
 
 static ssize_t blocksize_show(struct kobject *kobj, struct attribute *attr,
 			      char *buf)

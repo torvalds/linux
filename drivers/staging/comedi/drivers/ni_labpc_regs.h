@@ -1,6 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * ni_labpc register definitions.
-*/
+ */
 
 #ifndef _NI_LABPC_REGS_H
 #define _NI_LABPC_REGS_H

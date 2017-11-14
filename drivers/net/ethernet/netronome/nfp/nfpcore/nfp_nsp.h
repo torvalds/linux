@@ -76,6 +76,7 @@ enum nfp_eth_aneg {
 /**
  * struct nfp_eth_table - ETH table information
  * @count:	number of table entries
+ * @max_index:	max of @index fields of all @ports
  * @ports:	table of ports
  *
  * @eth_index:	port index according to legacy ethX numbering
@@ -96,10 +97,12 @@ enum nfp_eth_aneg {
  * @override_changed: is media reconfig pending?
  *
  * @port_type:	one of %PORT_* defines for ethtool
+ * @port_lanes:	total number of lanes on the port (sum of lanes of all subports)
  * @is_split:	is interface part of a split port
  */
 struct nfp_eth_table {
 	unsigned int count;
+	unsigned int max_index;
 	struct nfp_eth_table_port {
 		unsigned int eth_index;
 		unsigned int index;
@@ -126,6 +129,8 @@ struct nfp_eth_table {
 
 		/* Computed fields */
 		u8 port_type;
+
+		unsigned int port_lanes;
 
 		bool is_split;
 	} ports[0];
@@ -157,6 +162,7 @@ int __nfp_eth_set_split(struct nfp_nsp *nsp, unsigned int lanes);
  * @primary:      version of primarary bootloader
  * @secondary:    version id of secondary bootloader
  * @nsp:          version id of NSP
+ * @sensor_mask:  mask of present sensors available on NIC
  */
 struct nfp_nsp_identify {
 	char version[40];
@@ -167,8 +173,19 @@ struct nfp_nsp_identify {
 	u16 primary;
 	u16 secondary;
 	u16 nsp;
+	u64 sensor_mask;
 };
 
 struct nfp_nsp_identify *__nfp_nsp_identify(struct nfp_nsp *nsp);
+
+enum nfp_nsp_sensor_id {
+	NFP_SENSOR_CHIP_TEMPERATURE,
+	NFP_SENSOR_ASSEMBLY_POWER,
+	NFP_SENSOR_ASSEMBLY_12V_POWER,
+	NFP_SENSOR_ASSEMBLY_3V3_POWER,
+};
+
+int nfp_hwmon_read_sensor(struct nfp_cpp *cpp, enum nfp_nsp_sensor_id id,
+			  long *val);
 
 #endif

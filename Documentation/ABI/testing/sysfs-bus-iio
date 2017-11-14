@@ -119,6 +119,15 @@ Description:
 		unique to allow association with event codes. Units after
 		application of scale and offset are milliamps.
 
+What:		/sys/bus/iio/devices/iio:deviceX/in_powerY_raw
+KernelVersion:	4.5
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Raw (unscaled no bias removal etc.) power measurement from
+		channel Y. The number must always be specified and
+		unique to allow association with event codes. Units after
+		application of scale and offset are milliwatts.
+
 What:		/sys/bus/iio/devices/iio:deviceX/in_capacitanceY_raw
 KernelVersion:	3.2
 Contact:	linux-iio@vger.kernel.org
@@ -1424,6 +1433,17 @@ Description:
 		trigger to use buffer mode since the watermark settings
 		guarantees that the hardware fifo is flushed to the device
 		buffer.
+
+What:		/sys/bus/iio/devices/iio:device*/buffer/hwfifo_timeout
+KernelVersion:	4.12
+Contact:	linux-iio@vger.kernel.org
+Description:
+		A read/write property to provide capability to delay reporting of
+		samples till a timeout is reached. This allows host processors to
+		sleep, while the sensor is storing samples in its internal fifo.
+		The maximum timeout in seconds can be specified by setting
+		hwfifo_timeout.The current delay can be read by reading
+		hwfifo_timeout. A value of 0 means that there is no timeout.
 
 What:		/sys/bus/iio/devices/iio:deviceX/buffer/hwfifo_watermark
 KernelVersion: 4.2

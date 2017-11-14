@@ -307,7 +307,7 @@ void kvmhv_commence_exit(int trap)
 		return;
 
 	for (i = 0; i < MAX_SUBCORES; ++i) {
-		vc = sip->master_vcs[i];
+		vc = sip->vc[i];
 		if (!vc)
 			break;
 		do {

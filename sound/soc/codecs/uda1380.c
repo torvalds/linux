@@ -720,7 +720,7 @@ static int uda1380_probe(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static struct snd_soc_codec_driver soc_codec_dev_uda1380 = {
+static const struct snd_soc_codec_driver soc_codec_dev_uda1380 = {
 	.probe =	uda1380_probe,
 	.read =		uda1380_read_reg_cache,
 	.write =	uda1380_write,

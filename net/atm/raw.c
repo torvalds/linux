@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* net/atm/raw.c - Raw AAL0 and AAL5 transports */
 
 /* Written 1995-2000 by Werner Almesberger, EPFL LRC/ICA */
@@ -35,7 +36,7 @@ static void atm_pop_raw(struct atm_vcc *vcc, struct sk_buff *skb)
 
 	pr_debug("(%d) %d -= %d\n",
 		 vcc->vci, sk_wmem_alloc_get(sk), skb->truesize);
-	atomic_sub(skb->truesize, &sk->sk_wmem_alloc);
+	WARN_ON(refcount_sub_and_test(skb->truesize, &sk->sk_wmem_alloc));
 	dev_kfree_skb_any(skb);
 	sk->sk_write_space(sk);
 }

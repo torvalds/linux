@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  Copyright (C) 2005,2006,2007,2008,2009,2010 Imagination Technologies
  *

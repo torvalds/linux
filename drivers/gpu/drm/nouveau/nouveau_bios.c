@@ -351,11 +351,8 @@ static int parse_fp_mode_table(struct drm_device *dev, struct nvbios *bios)
 	struct lvdstableheader lth;
 
 	if (bios->fp.fptablepointer == 0x0) {
-		/* Apple cards don't have the fp table; the laptops use DDC */
-		/* The table is also missing on some x86 IGPs */
-#ifndef __powerpc__
-		NV_ERROR(drm, "Pointer to flat panel table invalid\n");
-#endif
+		/* Most laptop cards lack an fp table. They use DDC. */
+		NV_DEBUG(drm, "Pointer to flat panel table invalid\n");
 		bios->digital_min_front_porch = 0x4b;
 		return 0;
 	}
@@ -1533,7 +1530,8 @@ parse_dcb20_entry(struct drm_device *dev, struct dcb_table *dcb,
 	if (conf & 0x100000)
 		entry->i2c_upper_default = true;
 
-	entry->hasht = (entry->location << 4) | entry->type;
+	entry->hasht = (entry->extdev << 8) | (entry->location << 4) |
+			entry->type;
 	entry->hashm = (entry->heads << 8) | (link << 6) | entry->or;
 	return true;
 }

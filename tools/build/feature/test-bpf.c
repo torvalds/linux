@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <asm/unistd.h>
 #include <linux/bpf.h>
 #include <unistd.h>
@@ -11,6 +12,8 @@
 #  define __NR_bpf 280
 # elif defined(__sparc__)
 #  define __NR_bpf 349
+# elif defined(__s390__)
+#  define __NR_bpf 351
 # else
 #  error __NR_bpf not defined. libbpf does not support your arch.
 # endif

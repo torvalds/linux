@@ -100,9 +100,9 @@ static int interval_cmp(void *priv, struct list_head *a, struct list_head *b)
 }
 
 static void
-find_intervals_intersection_sorted(struct rb_root *root, unsigned long start,
-					unsigned long last,
-					struct list_head *list)
+find_intervals_intersection_sorted(struct rb_root_cached *root,
+				   unsigned long start, unsigned long last,
+				   struct list_head *list)
 {
 	struct usnic_uiom_interval_node *node;
 
@@ -118,7 +118,7 @@ find_intervals_intersection_sorted(struct rb_root *root, unsigned long start,
 
 int usnic_uiom_get_intervals_diff(unsigned long start, unsigned long last,
 					int flags, int flag_mask,
-					struct rb_root *root,
+					struct rb_root_cached *root,
 					struct list_head *diff_set)
 {
 	struct usnic_uiom_interval_node *interval, *tmp;
@@ -175,7 +175,7 @@ void usnic_uiom_put_interval_set(struct list_head *intervals)
 		kfree(interval);
 }
 
-int usnic_uiom_insert_interval(struct rb_root *root, unsigned long start,
+int usnic_uiom_insert_interval(struct rb_root_cached *root, unsigned long start,
 				unsigned long last, int flags)
 {
 	struct usnic_uiom_interval_node *interval, *tmp;
@@ -246,8 +246,9 @@ err_out:
 	return err;
 }
 
-void usnic_uiom_remove_interval(struct rb_root *root, unsigned long start,
-				unsigned long last, struct list_head *removed)
+void usnic_uiom_remove_interval(struct rb_root_cached *root,
+				unsigned long start, unsigned long last,
+				struct list_head *removed)
 {
 	struct usnic_uiom_interval_node *interval;
 

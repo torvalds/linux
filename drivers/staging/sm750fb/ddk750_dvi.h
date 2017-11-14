@@ -1,19 +1,19 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef DDK750_DVI_H__
 #define DDK750_DVI_H__
 
 /* dvi chip stuffs structros */
 
-typedef long (*PFN_DVICTRL_INIT)(
-	unsigned char edgeSelect,
-	unsigned char busSelect,
-	unsigned char dualEdgeClkSelect,
-	unsigned char hsyncEnable,
-	unsigned char vsyncEnable,
-	unsigned char deskewEnable,
-	unsigned char deskewSetting,
-	unsigned char continuousSyncEnable,
-	unsigned char pllFilterEnable,
-	unsigned char pllFilterValue);
+typedef long (*PFN_DVICTRL_INIT)(unsigned char edgeSelect,
+				 unsigned char busSelect,
+				 unsigned char dualEdgeClkSelect,
+				 unsigned char hsyncEnable,
+				 unsigned char vsyncEnable,
+				 unsigned char deskewEnable,
+				 unsigned char deskewSetting,
+				 unsigned char continuousSyncEnable,
+				 unsigned char pllFilterEnable,
+				 unsigned char pllFilterValue);
 
 typedef void (*PFN_DVICTRL_RESETCHIP)(void);
 typedef char* (*PFN_DVICTRL_GETCHIPSTRING)(void);
@@ -42,18 +42,16 @@ typedef struct _dvi_ctrl_device_t {
 #define DVI_CTRL_SII164
 
 /* dvi functions prototype */
-int dviInit(
-	unsigned char edgeSelect,
-	unsigned char busSelect,
-	unsigned char dualEdgeClkSelect,
-	unsigned char hsyncEnable,
-	unsigned char vsyncEnable,
-	unsigned char deskewEnable,
-	unsigned char deskewSetting,
-	unsigned char continuousSyncEnable,
-	unsigned char pllFilterEnable,
-	unsigned char pllFilterValue
-);
+int dviInit(unsigned char edgeSelect,
+	    unsigned char busSelect,
+	    unsigned char dualEdgeClkSelect,
+	    unsigned char hsyncEnable,
+	    unsigned char vsyncEnable,
+	    unsigned char deskewEnable,
+	    unsigned char deskewSetting,
+	    unsigned char continuousSyncEnable,
+	    unsigned char pllFilterEnable,
+	    unsigned char pllFilterValue);
 
 #endif
 

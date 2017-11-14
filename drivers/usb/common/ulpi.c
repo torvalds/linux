@@ -135,7 +135,7 @@ static void ulpi_dev_release(struct device *dev)
 	kfree(to_ulpi_dev(dev));
 }
 
-static struct device_type ulpi_dev_type = {
+static const struct device_type ulpi_dev_type = {
 	.name = "ulpi_device",
 	.groups = ulpi_dev_attr_groups,
 	.release = ulpi_dev_release,

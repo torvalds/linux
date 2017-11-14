@@ -1520,10 +1520,10 @@ static int arm_ccn_probe(struct platform_device *pdev)
 	if (err)
 		return err;
 
-	ccn->node = devm_kzalloc(ccn->dev, sizeof(*ccn->node) * ccn->num_nodes,
-		GFP_KERNEL);
-	ccn->xp = devm_kzalloc(ccn->dev, sizeof(*ccn->node) * ccn->num_xps,
-		GFP_KERNEL);
+	ccn->node = devm_kcalloc(ccn->dev, ccn->num_nodes, sizeof(*ccn->node),
+				 GFP_KERNEL);
+	ccn->xp = devm_kcalloc(ccn->dev, ccn->num_xps, sizeof(*ccn->node),
+			       GFP_KERNEL);
 	if (!ccn->node || !ccn->xp)
 		return -ENOMEM;
 
@@ -1544,9 +1544,11 @@ static int arm_ccn_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id arm_ccn_match[] = {
+	{ .compatible = "arm,ccn-502", },
 	{ .compatible = "arm,ccn-504", },
 	{},
 };
+MODULE_DEVICE_TABLE(of, arm_ccn_match);
 
 static struct platform_driver arm_ccn_driver = {
 	.driver = {

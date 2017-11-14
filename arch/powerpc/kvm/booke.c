@@ -687,7 +687,7 @@ int kvmppc_core_prepare_to_enter(struct kvm_vcpu *vcpu)
 
 	kvmppc_core_check_exceptions(vcpu);
 
-	if (vcpu->requests) {
+	if (kvm_request_pending(vcpu)) {
 		/* Exception delivery raised request; start over */
 		return 1;
 	}

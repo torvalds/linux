@@ -70,7 +70,6 @@
 #include <drm/drm_fourcc.h>
 #include <drm/drm_global.h>
 #include <drm/drm_hashtab.h>
-#include <drm/drm_mem_util.h>
 #include <drm/drm_mm.h>
 #include <drm/drm_os_linux.h>
 #include <drm/drm_sarea.h>
@@ -81,17 +80,11 @@
 #include <drm/drm_debugfs.h>
 #include <drm/drm_ioctl.h>
 #include <drm/drm_sysfs.h>
+#include <drm/drm_vblank.h>
+#include <drm/drm_irq.h>
+#include <drm/drm_device.h>
 
 struct module;
-
-struct drm_device;
-struct drm_agp_head;
-struct drm_local_map;
-struct drm_device_dma;
-struct drm_gem_object;
-struct drm_master;
-struct drm_vblank_crtc;
-struct drm_vma_offset_manager;
 
 struct device_node;
 struct videomode;
@@ -293,23 +286,6 @@ struct pci_controller;
 /* Format strings and argument splitters to simplify printing
  * various "complex" objects
  */
-#define DRM_MODE_FMT    "%d:\"%s\" %d %d %d %d %d %d %d %d %d %d 0x%x 0x%x"
-#define DRM_MODE_ARG(m) \
-	(m)->base.id, (m)->name, (m)->vrefresh, (m)->clock, \
-	(m)->hdisplay, (m)->hsync_start, (m)->hsync_end, (m)->htotal, \
-	(m)->vdisplay, (m)->vsync_start, (m)->vsync_end, (m)->vtotal, \
-	(m)->type, (m)->flags
-
-#define DRM_RECT_FMT    "%dx%d%+d%+d"
-#define DRM_RECT_ARG(r) drm_rect_width(r), drm_rect_height(r), (r)->x1, (r)->y1
-
-/* for rect's in fixed-point format: */
-#define DRM_RECT_FP_FMT "%d.%06ux%d.%06u%+d.%06u%+d.%06u"
-#define DRM_RECT_FP_ARG(r) \
-		drm_rect_width(r) >> 16, ((drm_rect_width(r) & 0xffff) * 15625) >> 10, \
-		drm_rect_height(r) >> 16, ((drm_rect_height(r) & 0xffff) * 15625) >> 10, \
-		(r)->x1 >> 16, (((r)->x1 & 0xffff) * 15625) >> 10, \
-		(r)->y1 >> 16, (((r)->y1 & 0xffff) * 15625) >> 10
 
 /*@}*/
 
@@ -319,149 +295,6 @@ struct pci_controller;
 
 #define DRM_IF_VERSION(maj, min) (maj << 16 | min)
 
-
-/* Flags and return codes for get_vblank_timestamp() driver function. */
-#define DRM_CALLED_FROM_VBLIRQ 1
-#define DRM_VBLANKTIME_SCANOUTPOS_METHOD (1 << 0)
-
-/* get_scanout_position() return flags */
-#define DRM_SCANOUTPOS_VALID        (1 << 0)
-#define DRM_SCANOUTPOS_IN_VBLANK    (1 << 1)
-#define DRM_SCANOUTPOS_ACCURATE     (1 << 2)
-
-/**
- * DRM device structure. This structure represent a complete card that
- * may contain multiple heads.
- */
-struct drm_device {
-	struct list_head legacy_dev_list;/**< list of devices per driver for stealth attach cleanup */
-	int if_version;			/**< Highest interface version set */
-
-	/** \name Lifetime Management */
-	/*@{ */
-	struct kref ref;		/**< Object ref-count */
-	struct device *dev;		/**< Device structure of bus-device */
-	struct drm_driver *driver;	/**< DRM driver managing the device */
-	void *dev_private;		/**< DRM driver private data */
-	struct drm_minor *control;		/**< Control node */
-	struct drm_minor *primary;		/**< Primary node */
-	struct drm_minor *render;		/**< Render node */
-	bool registered;
-
-	/* currently active master for this device. Protected by master_mutex */
-	struct drm_master *master;
-
-	atomic_t unplugged;			/**< Flag whether dev is dead */
-	struct inode *anon_inode;		/**< inode for private address-space */
-	char *unique;				/**< unique name of the device */
-	/*@} */
-
-	/** \name Locks */
-	/*@{ */
-	struct mutex struct_mutex;	/**< For others */
-	struct mutex master_mutex;      /**< For drm_minor::master and drm_file::is_master */
-	/*@} */
-
-	/** \name Usage Counters */
-	/*@{ */
-	int open_count;			/**< Outstanding files open, protected by drm_global_mutex. */
-	spinlock_t buf_lock;		/**< For drm_device::buf_use and a few other things. */
-	int buf_use;			/**< Buffers in use -- cannot alloc */
-	atomic_t buf_alloc;		/**< Buffer allocation in progress */
-	/*@} */
-
-	struct mutex filelist_mutex;
-	struct list_head filelist;
-
-	/** \name Memory management */
-	/*@{ */
-	struct list_head maplist;	/**< Linked list of regions */
-	struct drm_open_hash map_hash;	/**< User token hash table for maps */
-
-	/** \name Context handle management */
-	/*@{ */
-	struct list_head ctxlist;	/**< Linked list of context handles */
-	struct mutex ctxlist_mutex;	/**< For ctxlist */
-
-	struct idr ctx_idr;
-
-	struct list_head vmalist;	/**< List of vmas (for debugging) */
-
-	/*@} */
-
-	/** \name DMA support */
-	/*@{ */
-	struct drm_device_dma *dma;		/**< Optional pointer for DMA support */
-	/*@} */
-
-	/** \name Context support */
-	/*@{ */
-
-	__volatile__ long context_flag;	/**< Context swapping flag */
-	int last_context;		/**< Last current context */
-	/*@} */
-
-	/** \name VBLANK IRQ support */
-	/*@{ */
-	bool irq_enabled;
-	int irq;
-
-	/*
-	 * If true, vblank interrupt will be disabled immediately when the
-	 * refcount drops to zero, as opposed to via the vblank disable
-	 * timer.
-	 * This can be set to true it the hardware has a working vblank
-	 * counter and the driver uses drm_vblank_on() and drm_vblank_off()
-	 * appropriately.
-	 */
-	bool vblank_disable_immediate;
-
-	/* array of size num_crtcs */
-	struct drm_vblank_crtc *vblank;
-
-	spinlock_t vblank_time_lock;    /**< Protects vblank count and time updates during vblank enable/disable */
-	spinlock_t vbl_lock;
-
-	u32 max_vblank_count;           /**< size of vblank counter register */
-
-	/**
-	 * List of events
-	 */
-	struct list_head vblank_event_list;
-	spinlock_t event_lock;
-
-	/*@} */
-
-	struct drm_agp_head *agp;	/**< AGP data */
-
-	struct pci_dev *pdev;		/**< PCI device structure */
-#ifdef __alpha__
-	struct pci_controller *hose;
-#endif
-
-	struct virtio_device *virtdev;
-
-	struct drm_sg_mem *sg;	/**< Scatter gather memory */
-	unsigned int num_crtcs;                  /**< Number of CRTCs on this device */
-
-	struct {
-		int context;
-		struct drm_hw_lock *lock;
-	} sigdata;
-
-	struct drm_local_map *agp_buffer_map;
-	unsigned int agp_buffer_token;
-
-	struct drm_mode_config mode_config;	/**< Current mode config */
-
-	/** \name GEM information */
-	/*@{ */
-	struct mutex object_name_lock;
-	struct idr object_name_idr;
-	struct drm_vma_offset_manager *vma_offset_manager;
-	/*@} */
-	int switch_power_state;
-};
 
 /**
  * drm_drv_uses_atomic_modeset - check if the driver implements
@@ -476,8 +309,6 @@ static inline bool drm_drv_uses_atomic_modeset(struct drm_device *dev)
 	return dev->mode_config.funcs->atomic_commit != NULL;
 }
 
-#include <drm/drm_irq.h>
-
 #define DRM_SWITCH_POWER_ON 0
 #define DRM_SWITCH_POWER_OFF 1
 #define DRM_SWITCH_POWER_CHANGING 2
@@ -487,19 +318,6 @@ static __inline__ int drm_core_check_feature(struct drm_device *dev,
 					     int feature)
 {
 	return ((dev->driver->driver_features & feature) ? 1 : 0);
-}
-
-static inline void drm_device_set_unplugged(struct drm_device *dev)
-{
-	smp_wmb();
-	atomic_set(&dev->unplugged, 1);
-}
-
-static inline int drm_device_is_unplugged(struct drm_device *dev)
-{
-	int ret = atomic_read(&dev->unplugged);
-	smp_rmb();
-	return ret;
 }
 
 /******************************************************************/

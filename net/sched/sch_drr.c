@@ -20,7 +20,6 @@
 
 struct drr_class {
 	struct Qdisc_class_common	common;
-	unsigned int			refcnt;
 	unsigned int			filter_cnt;
 
 	struct gnet_stats_basic_packed		bstats;
@@ -36,6 +35,7 @@ struct drr_class {
 struct drr_sched {
 	struct list_head		active;
 	struct tcf_proto __rcu		*filter_list;
+	struct tcf_block		*block;
 	struct Qdisc_class_hash		clhash;
 };
 
@@ -110,7 +110,6 @@ static int drr_change_class(struct Qdisc *sch, u32 classid, u32 parentid,
 	if (cl == NULL)
 		return -ENOBUFS;
 
-	cl->refcnt	   = 1;
 	cl->common.classid = classid;
 	cl->quantum	   = quantum;
 	cl->qdisc	   = qdisc_create_dflt(sch->dev_queue,
@@ -162,43 +161,25 @@ static int drr_delete_class(struct Qdisc *sch, unsigned long arg)
 	drr_purge_queue(cl);
 	qdisc_class_hash_remove(&q->clhash, &cl->common);
 
-	BUG_ON(--cl->refcnt == 0);
-	/*
-	 * This shouldn't happen: we "hold" one cops->get() when called
-	 * from tc_ctl_tclass; the destroy method is done from cops->put().
-	 */
-
 	sch_tree_unlock(sch);
+
+	drr_destroy_class(sch, cl);
 	return 0;
 }
 
-static unsigned long drr_get_class(struct Qdisc *sch, u32 classid)
+static unsigned long drr_search_class(struct Qdisc *sch, u32 classid)
 {
-	struct drr_class *cl = drr_find_class(sch, classid);
-
-	if (cl != NULL)
-		cl->refcnt++;
-
-	return (unsigned long)cl;
+	return (unsigned long)drr_find_class(sch, classid);
 }
 
-static void drr_put_class(struct Qdisc *sch, unsigned long arg)
-{
-	struct drr_class *cl = (struct drr_class *)arg;
-
-	if (--cl->refcnt == 0)
-		drr_destroy_class(sch, cl);
-}
-
-static struct tcf_proto __rcu **drr_tcf_chain(struct Qdisc *sch,
-					      unsigned long cl)
+static struct tcf_block *drr_tcf_block(struct Qdisc *sch, unsigned long cl)
 {
 	struct drr_sched *q = qdisc_priv(sch);
 
 	if (cl)
 		return NULL;
 
-	return &q->filter_list;
+	return q->block;
 }
 
 static unsigned long drr_bind_tcf(struct Qdisc *sch, unsigned long parent,
@@ -246,8 +227,7 @@ static void drr_qlen_notify(struct Qdisc *csh, unsigned long arg)
 {
 	struct drr_class *cl = (struct drr_class *)arg;
 
-	if (cl->qdisc->q.qlen == 0)
-		list_del(&cl->alist);
+	list_del(&cl->alist);
 }
 
 static int drr_dump_class(struct Qdisc *sch, unsigned long arg,
@@ -333,12 +313,13 @@ static struct drr_class *drr_classify(struct sk_buff *skb, struct Qdisc *sch,
 
 	*qerr = NET_XMIT_SUCCESS | __NET_XMIT_BYPASS;
 	fl = rcu_dereference_bh(q->filter_list);
-	result = tc_classify(skb, fl, &res, false);
+	result = tcf_classify(skb, fl, &res, false);
 	if (result >= 0) {
 #ifdef CONFIG_NET_CLS_ACT
 		switch (result) {
 		case TC_ACT_QUEUED:
 		case TC_ACT_STOLEN:
+		case TC_ACT_TRAP:
 			*qerr = NET_XMIT_SUCCESS | __NET_XMIT_STOLEN;
 		case TC_ACT_SHOT:
 			return NULL;
@@ -431,6 +412,9 @@ static int drr_init_qdisc(struct Qdisc *sch, struct nlattr *opt)
 	struct drr_sched *q = qdisc_priv(sch);
 	int err;
 
+	err = tcf_block_get(&q->block, &q->filter_list);
+	if (err)
+		return err;
 	err = qdisc_class_hash_init(&q->clhash);
 	if (err < 0)
 		return err;
@@ -462,7 +446,7 @@ static void drr_destroy_qdisc(struct Qdisc *sch)
 	struct hlist_node *next;
 	unsigned int i;
 
-	tcf_destroy_chain(&q->filter_list);
+	tcf_block_put(q->block);
 
 	for (i = 0; i < q->clhash.hashsize; i++) {
 		hlist_for_each_entry_safe(cl, next, &q->clhash.hash[i],
@@ -475,9 +459,8 @@ static void drr_destroy_qdisc(struct Qdisc *sch)
 static const struct Qdisc_class_ops drr_class_ops = {
 	.change		= drr_change_class,
 	.delete		= drr_delete_class,
-	.get		= drr_get_class,
-	.put		= drr_put_class,
-	.tcf_chain	= drr_tcf_chain,
+	.find		= drr_search_class,
+	.tcf_block	= drr_tcf_block,
 	.bind_tcf	= drr_bind_tcf,
 	.unbind_tcf	= drr_unbind_tcf,
 	.graft		= drr_graft_class,

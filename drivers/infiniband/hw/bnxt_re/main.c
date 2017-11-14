@@ -64,13 +64,14 @@
 #include "ib_verbs.h"
 #include <rdma/bnxt_re-abi.h>
 #include "bnxt.h"
+#include "hw_counters.h"
+
 static char version[] =
 		BNXT_RE_DESC " v" ROCE_DRV_MODULE_VERSION "\n";
 
 MODULE_AUTHOR("Eddie Wai <eddie.wai@broadcom.com>");
 MODULE_DESCRIPTION(BNXT_RE_DESC " Driver");
 MODULE_LICENSE("Dual BSD/GPL");
-MODULE_VERSION(ROCE_DRV_MODULE_VERSION);
 
 /* globals */
 static struct list_head bnxt_re_dev_list = LIST_HEAD_INIT(bnxt_re_dev_list);
@@ -162,13 +163,15 @@ static int bnxt_re_free_msix(struct bnxt_re_dev *rdev, bool lock_wait)
 
 static int bnxt_re_request_msix(struct bnxt_re_dev *rdev)
 {
-	int rc = 0, num_msix_want = BNXT_RE_MIN_MSIX, num_msix_got;
+	int rc = 0, num_msix_want = BNXT_RE_MAX_MSIX, num_msix_got;
 	struct bnxt_en_dev *en_dev;
 
 	if (!rdev)
 		return -EINVAL;
 
 	en_dev = rdev->en_dev;
+
+	num_msix_want = min_t(u32, BNXT_RE_MAX_MSIX, num_online_cpus());
 
 	rtnl_lock();
 	num_msix_got = en_dev->en_ops->bnxt_request_msix(en_dev, BNXT_ROCE_ULP,
@@ -333,6 +336,7 @@ static int bnxt_re_net_stats_ctx_alloc(struct bnxt_re_dev *rdev,
 	bnxt_re_init_hwrm_hdr(rdev, (void *)&req, HWRM_STAT_CTX_ALLOC, -1, -1);
 	req.update_period_ms = cpu_to_le32(1000);
 	req.stats_dma_addr = cpu_to_le64(dma_map);
+	req.stat_ctx_flags = STAT_CTX_ALLOC_REQ_STAT_CTX_FLAGS_ROCE;
 	bnxt_re_fill_fw_msg(&fw_msg, (void *)&req, sizeof(req), (void *)&resp,
 			    sizeof(resp), DFLT_HWRM_CMD_TIMEOUT);
 	rc = en_dev->en_ops->bnxt_send_fw_msg(en_dev, BNXT_ROCE_ULP, &fw_msg);
@@ -473,7 +477,6 @@ static int bnxt_re_register_ib(struct bnxt_re_dev *rdev)
 	ibdev->modify_device		= bnxt_re_modify_device;
 
 	ibdev->query_port		= bnxt_re_query_port;
-	ibdev->modify_port		= bnxt_re_modify_port;
 	ibdev->get_port_immutable	= bnxt_re_get_port_immutable;
 	ibdev->query_pkey		= bnxt_re_query_pkey;
 	ibdev->query_gid		= bnxt_re_query_gid;
@@ -512,6 +515,8 @@ static int bnxt_re_register_ib(struct bnxt_re_dev *rdev)
 	ibdev->alloc_ucontext		= bnxt_re_alloc_ucontext;
 	ibdev->dealloc_ucontext		= bnxt_re_dealloc_ucontext;
 	ibdev->mmap			= bnxt_re_mmap;
+	ibdev->get_hw_stats             = bnxt_re_ib_get_hw_stats;
+	ibdev->alloc_hw_stats           = bnxt_re_ib_alloc_hw_stats;
 
 	return ib_register_device(ibdev, NULL);
 }
@@ -652,8 +657,12 @@ static int bnxt_re_cqn_handler(struct bnxt_qplib_nq *nq,
 
 static void bnxt_re_cleanup_res(struct bnxt_re_dev *rdev)
 {
-	if (rdev->nq.hwq.max_elements)
-		bnxt_qplib_disable_nq(&rdev->nq);
+	int i;
+
+	if (rdev->nq[0].hwq.max_elements) {
+		for (i = 1; i < rdev->num_msix; i++)
+			bnxt_qplib_disable_nq(&rdev->nq[i - 1]);
+	}
 
 	if (rdev->qplib_res.rcfw)
 		bnxt_qplib_cleanup_res(&rdev->qplib_res);
@@ -661,31 +670,41 @@ static void bnxt_re_cleanup_res(struct bnxt_re_dev *rdev)
 
 static int bnxt_re_init_res(struct bnxt_re_dev *rdev)
 {
-	int rc = 0;
+	int rc = 0, i;
 
 	bnxt_qplib_init_res(&rdev->qplib_res);
 
-	if (rdev->msix_entries[BNXT_RE_NQ_IDX].vector <= 0)
-		return -EINVAL;
+	for (i = 1; i < rdev->num_msix ; i++) {
+		rc = bnxt_qplib_enable_nq(rdev->en_dev->pdev, &rdev->nq[i - 1],
+					  i - 1, rdev->msix_entries[i].vector,
+					  rdev->msix_entries[i].db_offset,
+					  &bnxt_re_cqn_handler, NULL);
 
-	rc = bnxt_qplib_enable_nq(rdev->en_dev->pdev, &rdev->nq,
-				  rdev->msix_entries[BNXT_RE_NQ_IDX].vector,
-				  rdev->msix_entries[BNXT_RE_NQ_IDX].db_offset,
-				  &bnxt_re_cqn_handler,
-				  NULL);
-
-	if (rc)
-		dev_err(rdev_to_dev(rdev), "Failed to enable NQ: %#x", rc);
-
+		if (rc) {
+			dev_err(rdev_to_dev(rdev),
+				"Failed to enable NQ with rc = 0x%x", rc);
+			goto fail;
+		}
+	}
+	return 0;
+fail:
 	return rc;
+}
+
+static void bnxt_re_free_nq_res(struct bnxt_re_dev *rdev, bool lock_wait)
+{
+	int i;
+
+	for (i = 0; i < rdev->num_msix - 1; i++) {
+		bnxt_re_net_ring_free(rdev, rdev->nq[i].ring_id, lock_wait);
+		bnxt_qplib_free_nq(&rdev->nq[i]);
+	}
 }
 
 static void bnxt_re_free_res(struct bnxt_re_dev *rdev, bool lock_wait)
 {
-	if (rdev->nq.hwq.max_elements) {
-		bnxt_re_net_ring_free(rdev, rdev->nq.ring_id, lock_wait);
-		bnxt_qplib_free_nq(&rdev->nq);
-	}
+	bnxt_re_free_nq_res(rdev, lock_wait);
+
 	if (rdev->qplib_res.dpi_tbl.max) {
 		bnxt_qplib_dealloc_dpi(&rdev->qplib_res,
 				       &rdev->qplib_res.dpi_tbl,
@@ -699,7 +718,7 @@ static void bnxt_re_free_res(struct bnxt_re_dev *rdev, bool lock_wait)
 
 static int bnxt_re_alloc_res(struct bnxt_re_dev *rdev)
 {
-	int rc = 0;
+	int rc = 0, i;
 
 	/* Configure and allocate resources for qplib */
 	rdev->qplib_res.rcfw = &rdev->rcfw;
@@ -716,30 +735,42 @@ static int bnxt_re_alloc_res(struct bnxt_re_dev *rdev)
 				  &rdev->dpi_privileged,
 				  rdev);
 	if (rc)
-		goto fail;
+		goto dealloc_res;
 
-	rdev->nq.hwq.max_elements = BNXT_RE_MAX_CQ_COUNT +
-				    BNXT_RE_MAX_SRQC_COUNT + 2;
-	rc = bnxt_qplib_alloc_nq(rdev->en_dev->pdev, &rdev->nq);
-	if (rc) {
-		dev_err(rdev_to_dev(rdev),
-			"Failed to allocate NQ memory: %#x", rc);
-		goto fail;
-	}
-	rc = bnxt_re_net_ring_alloc
-			(rdev, rdev->nq.hwq.pbl[PBL_LVL_0].pg_map_arr,
-			 rdev->nq.hwq.pbl[rdev->nq.hwq.level].pg_count,
-			 HWRM_RING_ALLOC_CMPL, BNXT_QPLIB_NQE_MAX_CNT - 1,
-			 rdev->msix_entries[BNXT_RE_NQ_IDX].ring_idx,
-			 &rdev->nq.ring_id);
-	if (rc) {
-		dev_err(rdev_to_dev(rdev),
-			"Failed to allocate NQ ring: %#x", rc);
-		goto free_nq;
+	for (i = 0; i < rdev->num_msix - 1; i++) {
+		rdev->nq[i].hwq.max_elements = BNXT_RE_MAX_CQ_COUNT +
+			BNXT_RE_MAX_SRQC_COUNT + 2;
+		rc = bnxt_qplib_alloc_nq(rdev->en_dev->pdev, &rdev->nq[i]);
+		if (rc) {
+			dev_err(rdev_to_dev(rdev), "Alloc Failed NQ%d rc:%#x",
+				i, rc);
+			goto dealloc_dpi;
+		}
+		rc = bnxt_re_net_ring_alloc
+			(rdev, rdev->nq[i].hwq.pbl[PBL_LVL_0].pg_map_arr,
+			 rdev->nq[i].hwq.pbl[rdev->nq[i].hwq.level].pg_count,
+			 HWRM_RING_ALLOC_CMPL,
+			 BNXT_QPLIB_NQE_MAX_CNT - 1,
+			 rdev->msix_entries[i + 1].ring_idx,
+			 &rdev->nq[i].ring_id);
+		if (rc) {
+			dev_err(rdev_to_dev(rdev),
+				"Failed to allocate NQ fw id with rc = 0x%x",
+				rc);
+			goto free_nq;
+		}
 	}
 	return 0;
 free_nq:
-	bnxt_qplib_free_nq(&rdev->nq);
+	for (i = 0; i < rdev->num_msix - 1; i++)
+		bnxt_qplib_free_nq(&rdev->nq[i]);
+dealloc_dpi:
+	bnxt_qplib_dealloc_dpi(&rdev->qplib_res,
+			       &rdev->qplib_res.dpi_tbl,
+			       &rdev->dpi_privileged);
+dealloc_res:
+	bnxt_qplib_free_res(&rdev->qplib_res);
+
 fail:
 	rdev->qplib_res.rcfw = NULL;
 	return rc;
@@ -834,6 +865,42 @@ static void bnxt_re_dev_stop(struct bnxt_re_dev *rdev)
 	mutex_unlock(&rdev->qp_lock);
 }
 
+static int bnxt_re_update_gid(struct bnxt_re_dev *rdev)
+{
+	struct bnxt_qplib_sgid_tbl *sgid_tbl = &rdev->qplib_res.sgid_tbl;
+	struct bnxt_qplib_gid gid;
+	u16 gid_idx, index;
+	int rc = 0;
+
+	if (!test_bit(BNXT_RE_FLAG_IBDEV_REGISTERED, &rdev->flags))
+		return 0;
+
+	if (!sgid_tbl) {
+		dev_err(rdev_to_dev(rdev), "QPLIB: SGID table not allocated");
+		return -EINVAL;
+	}
+
+	for (index = 0; index < sgid_tbl->active; index++) {
+		gid_idx = sgid_tbl->hw_id[index];
+
+		if (!memcmp(&sgid_tbl->tbl[index], &bnxt_qplib_gid_zero,
+			    sizeof(bnxt_qplib_gid_zero)))
+			continue;
+		/* need to modify the VLAN enable setting of non VLAN GID only
+		 * as setting is done for VLAN GID while adding GID
+		 */
+		if (sgid_tbl->vlan[index])
+			continue;
+
+		memcpy(&gid, &sgid_tbl->tbl[index], sizeof(gid));
+
+		rc = bnxt_qplib_update_sgid(sgid_tbl, &gid, gid_idx,
+					    rdev->qplib_res.netdev->dev_addr);
+	}
+
+	return rc;
+}
+
 static u32 bnxt_re_get_priority_mask(struct bnxt_re_dev *rdev)
 {
 	u32 prio_map = 0, tmp_map = 0;
@@ -853,8 +920,6 @@ static u32 bnxt_re_get_priority_mask(struct bnxt_re_dev *rdev)
 	tmp_map = dcb_ieee_getapp_mask(netdev, &app);
 	prio_map |= tmp_map;
 
-	if (!prio_map)
-		prio_map = -EFAULT;
 	return prio_map;
 }
 
@@ -880,10 +945,7 @@ static int bnxt_re_setup_qos(struct bnxt_re_dev *rdev)
 	int rc;
 
 	/* Get priority for roce */
-	rc = bnxt_re_get_priority_mask(rdev);
-	if (rc < 0)
-		return rc;
-	prio_map = (u8)rc;
+	prio_map = bnxt_re_get_priority_mask(rdev);
 
 	if (prio_map == rdev->cur_prio_map)
 		return 0;
@@ -903,6 +965,16 @@ static int bnxt_re_setup_qos(struct bnxt_re_dev *rdev)
 		dev_warn(rdev_to_dev(rdev), "no tc for cos{%x, %x}\n",
 			 rdev->cosq[0], rdev->cosq[1]);
 		return rc;
+	}
+
+	/* Actual priorities are not programmed as they are already
+	 * done by L2 driver; just enable or disable priority vlan tagging
+	 */
+	if ((prio_map == 0 && rdev->qplib_res.prio) ||
+	    (prio_map != 0 && !rdev->qplib_res.prio)) {
+		rdev->qplib_res.prio = prio_map ? true : false;
+
+		bnxt_re_update_gid(rdev);
 	}
 
 	return 0;
@@ -997,7 +1069,8 @@ static int bnxt_re_ib_reg(struct bnxt_re_dev *rdev)
 	/* Establish RCFW Communication Channel to initialize the context
 	 * memory for the function and all child VFs
 	 */
-	rc = bnxt_qplib_alloc_rcfw_channel(rdev->en_dev->pdev, &rdev->rcfw);
+	rc = bnxt_qplib_alloc_rcfw_channel(rdev->en_dev->pdev, &rdev->rcfw,
+					   BNXT_RE_MAX_QPC_COUNT);
 	if (rc)
 		goto fail;
 
@@ -1088,6 +1161,8 @@ static int bnxt_re_ib_reg(struct bnxt_re_dev *rdev)
 		}
 	}
 	set_bit(BNXT_RE_FLAG_IBDEV_REGISTERED, &rdev->flags);
+	ib_get_eth_speed(&rdev->ibdev, 1, &rdev->active_speed,
+			 &rdev->active_width);
 	bnxt_re_dispatch_event(&rdev->ibdev, NULL, 1, IB_EVENT_PORT_ACTIVE);
 	bnxt_re_dispatch_event(&rdev->ibdev, NULL, 1, IB_EVENT_GID_CHANGE);
 
@@ -1182,10 +1257,14 @@ static void bnxt_re_task(struct work_struct *work)
 		else if (netif_carrier_ok(rdev->netdev))
 			bnxt_re_dispatch_event(&rdev->ibdev, NULL, 1,
 					       IB_EVENT_PORT_ACTIVE);
+		ib_get_eth_speed(&rdev->ibdev, 1, &rdev->active_speed,
+				 &rdev->active_width);
 		break;
 	default:
 		break;
 	}
+	smp_mb__before_atomic();
+	clear_bit(BNXT_RE_FLAG_TASK_IN_PROG, &rdev->flags);
 	kfree(re_work);
 }
 
@@ -1244,6 +1323,11 @@ static int bnxt_re_netdev_event(struct notifier_block *notifier,
 		break;
 
 	case NETDEV_UNREGISTER:
+		/* netdev notifier will call NETDEV_UNREGISTER again later since
+		 * we are still holding the reference to the netdev
+		 */
+		if (test_bit(BNXT_RE_FLAG_TASK_IN_PROG, &rdev->flags))
+			goto exit;
 		bnxt_re_ib_unreg(rdev, false);
 		bnxt_re_remove_one(rdev);
 		bnxt_re_dev_unreg(rdev);
@@ -1262,6 +1346,7 @@ static int bnxt_re_netdev_event(struct notifier_block *notifier,
 			re_work->vlan_dev = (real_dev == netdev ?
 					     NULL : netdev);
 			INIT_WORK(&re_work->work, bnxt_re_task);
+			set_bit(BNXT_RE_FLAG_TASK_IN_PROG, &rdev->flags);
 			queue_work(bnxt_re_wq, &re_work->work);
 		}
 	}
@@ -1302,6 +1387,22 @@ err_netdev:
 
 static void __exit bnxt_re_mod_exit(void)
 {
+	struct bnxt_re_dev *rdev;
+	LIST_HEAD(to_be_deleted);
+
+	mutex_lock(&bnxt_re_dev_lock);
+	/* Free all adapter allocated resources */
+	if (!list_empty(&bnxt_re_dev_list))
+		list_splice_init(&bnxt_re_dev_list, &to_be_deleted);
+	mutex_unlock(&bnxt_re_dev_lock);
+
+	list_for_each_entry(rdev, &to_be_deleted, list) {
+		dev_info(rdev_to_dev(rdev), "Unregistering Device");
+		bnxt_re_dev_stop(rdev);
+		bnxt_re_ib_unreg(rdev, true);
+		bnxt_re_remove_one(rdev);
+		bnxt_re_dev_unreg(rdev);
+	}
 	unregister_netdevice_notifier(&bnxt_re_netdev_notifier);
 	if (bnxt_re_wq)
 		destroy_workqueue(bnxt_re_wq);

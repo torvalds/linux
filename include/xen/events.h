@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _XEN_EVENTS_H
 #define _XEN_EVENTS_H
 
@@ -58,6 +59,7 @@ void evtchn_put(unsigned int evtchn);
 
 void xen_send_IPI_one(unsigned int cpu, enum ipi_vector vector);
 void rebind_evtchn_irq(int evtchn, int irq);
+int xen_rebind_evtchn_to_cpu(int evtchn, unsigned tcpu);
 
 static inline void notify_remote_via_evtchn(int port)
 {

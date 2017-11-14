@@ -51,6 +51,25 @@ unsigned int compat_elf_hwcap2 __read_mostly;
 DECLARE_BITMAP(cpu_hwcaps, ARM64_NCAPS);
 EXPORT_SYMBOL(cpu_hwcaps);
 
+static int dump_cpu_hwcaps(struct notifier_block *self, unsigned long v, void *p)
+{
+	/* file-wide pr_fmt adds "CPU features: " prefix */
+	pr_emerg("0x%*pb\n", ARM64_NCAPS, &cpu_hwcaps);
+	return 0;
+}
+
+static struct notifier_block cpu_hwcaps_notifier = {
+	.notifier_call = dump_cpu_hwcaps
+};
+
+static int __init register_cpu_hwcaps_dumper(void)
+{
+	atomic_notifier_chain_register(&panic_notifier_list,
+				       &cpu_hwcaps_notifier);
+	return 0;
+}
+__initcall(register_cpu_hwcaps_dumper);
+
 DEFINE_STATIC_KEY_ARRAY_FALSE(cpu_hwcap_keys, ARM64_NCAPS);
 EXPORT_SYMBOL(cpu_hwcap_keys);
 
@@ -101,6 +120,7 @@ static const struct arm64_ftr_bits ftr_id_aa64isar1[] = {
 	ARM64_FTR_BITS(FTR_VISIBLE, FTR_STRICT, FTR_EXACT, ID_AA64ISAR1_LRCPC_SHIFT, 4, 0),
 	ARM64_FTR_BITS(FTR_VISIBLE, FTR_STRICT, FTR_EXACT, ID_AA64ISAR1_FCMA_SHIFT, 4, 0),
 	ARM64_FTR_BITS(FTR_VISIBLE, FTR_STRICT, FTR_EXACT, ID_AA64ISAR1_JSCVT_SHIFT, 4, 0),
+	ARM64_FTR_BITS(FTR_VISIBLE, FTR_STRICT, FTR_EXACT, ID_AA64ISAR1_DPB_SHIFT, 4, 0),
 	ARM64_FTR_END,
 };
 
@@ -639,8 +659,10 @@ void update_cpu_features(int cpu,
 	 * Mismatched CPU features are a recipe for disaster. Don't even
 	 * pretend to support them.
 	 */
-	WARN_TAINT_ONCE(taint, TAINT_CPU_OUT_OF_SPEC,
-			"Unsupported CPU feature variation.\n");
+	if (taint) {
+		pr_warn_once("Unsupported CPU feature variation detected.\n");
+		add_taint(TAINT_CPU_OUT_OF_SPEC, LOCKDEP_STILL_OK);
+	}
 }
 
 u64 read_sanitised_ftr_reg(u32 id)
@@ -867,6 +889,17 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 		.min_field_value = 0,
 		.matches = has_no_fpsimd,
 	},
+#ifdef CONFIG_ARM64_PMEM
+	{
+		.desc = "Data cache clean to Point of Persistence",
+		.capability = ARM64_HAS_DCPOP,
+		.def_scope = SCOPE_SYSTEM,
+		.matches = has_cpuid_feature,
+		.sys_reg = SYS_ID_AA64ISAR1_EL1,
+		.field_pos = ID_AA64ISAR1_DPB_SHIFT,
+		.min_field_value = 1,
+	},
+#endif
 	{},
 };
 
@@ -895,6 +928,7 @@ static const struct arm64_cpu_capabilities arm64_elf_hwcaps[] = {
 	HWCAP_CAP(SYS_ID_AA64PFR0_EL1, ID_AA64PFR0_FP_SHIFT, FTR_SIGNED, 1, CAP_HWCAP, HWCAP_FPHP),
 	HWCAP_CAP(SYS_ID_AA64PFR0_EL1, ID_AA64PFR0_ASIMD_SHIFT, FTR_SIGNED, 0, CAP_HWCAP, HWCAP_ASIMD),
 	HWCAP_CAP(SYS_ID_AA64PFR0_EL1, ID_AA64PFR0_ASIMD_SHIFT, FTR_SIGNED, 1, CAP_HWCAP, HWCAP_ASIMDHP),
+	HWCAP_CAP(SYS_ID_AA64ISAR1_EL1, ID_AA64ISAR1_DPB_SHIFT, FTR_UNSIGNED, 1, CAP_HWCAP, HWCAP_DCPOP),
 	HWCAP_CAP(SYS_ID_AA64ISAR1_EL1, ID_AA64ISAR1_JSCVT_SHIFT, FTR_UNSIGNED, 1, CAP_HWCAP, HWCAP_JSCVT),
 	HWCAP_CAP(SYS_ID_AA64ISAR1_EL1, ID_AA64ISAR1_FCMA_SHIFT, FTR_UNSIGNED, 1, CAP_HWCAP, HWCAP_FCMA),
 	HWCAP_CAP(SYS_ID_AA64ISAR1_EL1, ID_AA64ISAR1_LRCPC_SHIFT, FTR_UNSIGNED, 1, CAP_HWCAP, HWCAP_LRCPC),
@@ -1273,4 +1307,4 @@ static int __init enable_mrs_emulation(void)
 	return 0;
 }
 
-late_initcall(enable_mrs_emulation);
+core_initcall(enable_mrs_emulation);

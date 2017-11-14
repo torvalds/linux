@@ -14,8 +14,12 @@
 #define _SUN4I_BACKEND_H_
 
 #include <linux/clk.h>
+#include <linux/list.h>
+#include <linux/of.h>
 #include <linux/regmap.h>
 #include <linux/reset.h>
+
+#include "sunxi_engine.h"
 
 #define SUN4I_BACKEND_MODCTL_REG		0x800
 #define SUN4I_BACKEND_MODCTL_LINE_SEL			BIT(29)
@@ -139,7 +143,7 @@
 #define SUN4I_BACKEND_PIPE_OFF(p)		(0x5000 + (0x400 * (p)))
 
 struct sun4i_backend {
-	struct regmap		*regs;
+	struct sunxi_engine	engine;
 
 	struct reset_control	*reset;
 
@@ -151,10 +155,11 @@ struct sun4i_backend {
 	struct reset_control	*sat_reset;
 };
 
-void sun4i_backend_apply_color_correction(struct sun4i_backend *backend);
-void sun4i_backend_disable_color_correction(struct sun4i_backend *backend);
-
-void sun4i_backend_commit(struct sun4i_backend *backend);
+static inline struct sun4i_backend *
+engine_to_sun4i_backend(struct sunxi_engine *engine)
+{
+	return container_of(engine, struct sun4i_backend, engine);
+}
 
 void sun4i_backend_layer_enable(struct sun4i_backend *backend,
 				int layer, bool enable);

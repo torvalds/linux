@@ -1,9 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/threads.h>
 #include <linux/cpumask.h>
 #include <linux/string.h>
 #include <linux/kernel.h>
 #include <linux/ctype.h>
 #include <linux/dmar.h>
+#include <linux/irq.h>
 #include <linux/cpu.h>
 
 #include <asm/smp.h>
@@ -104,35 +106,30 @@ static void x2apic_send_IPI_all(int vector)
 }
 
 static int
-x2apic_cpu_mask_to_apicid_and(const struct cpumask *cpumask,
-			      const struct cpumask *andmask,
-			      unsigned int *apicid)
+x2apic_cpu_mask_to_apicid(const struct cpumask *mask, struct irq_data *irqdata,
+			  unsigned int *apicid)
 {
+	struct cpumask *effmsk = irq_data_get_effective_affinity_mask(irqdata);
+	unsigned int cpu;
 	u32 dest = 0;
 	u16 cluster;
-	int i;
 
-	for_each_cpu_and(i, cpumask, andmask) {
-		if (!cpumask_test_cpu(i, cpu_online_mask))
-			continue;
-		dest = per_cpu(x86_cpu_to_logical_apicid, i);
-		cluster = x2apic_cluster(i);
-		break;
-	}
-
-	if (!dest)
+	cpu = cpumask_first(mask);
+	if (cpu >= nr_cpu_ids)
 		return -EINVAL;
 
-	for_each_cpu_and(i, cpumask, andmask) {
-		if (!cpumask_test_cpu(i, cpu_online_mask))
+	dest = per_cpu(x86_cpu_to_logical_apicid, cpu);
+	cluster = x2apic_cluster(cpu);
+
+	cpumask_clear(effmsk);
+	for_each_cpu(cpu, mask) {
+		if (cluster != x2apic_cluster(cpu))
 			continue;
-		if (cluster != x2apic_cluster(i))
-			continue;
-		dest |= per_cpu(x86_cpu_to_logical_apicid, i);
+		dest |= per_cpu(x86_cpu_to_logical_apicid, cpu);
+		cpumask_set_cpu(cpu, effmsk);
 	}
 
 	*apicid = dest;
-
 	return 0;
 }
 
@@ -256,7 +253,7 @@ static struct apic apic_x2apic_cluster __ro_after_init = {
 	.get_apic_id			= x2apic_get_apic_id,
 	.set_apic_id			= x2apic_set_apic_id,
 
-	.cpu_mask_to_apicid_and		= x2apic_cpu_mask_to_apicid_and,
+	.cpu_mask_to_apicid		= x2apic_cpu_mask_to_apicid,
 
 	.send_IPI			= x2apic_send_IPI,
 	.send_IPI_mask			= x2apic_send_IPI_mask,

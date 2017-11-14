@@ -228,7 +228,7 @@ static void ide_cd_complete_failed_rq(ide_drive_t *drive, struct request *rq)
 		scsi_req(failed)->sense_len = scsi_req(rq)->sense_len;
 		cdrom_analyze_sense_data(drive, failed);
 
-		if (ide_end_rq(drive, failed, -EIO, blk_rq_bytes(failed)))
+		if (ide_end_rq(drive, failed, BLK_STS_IOERR, blk_rq_bytes(failed)))
 			BUG();
 	} else
 		cdrom_analyze_sense_data(drive, NULL);
@@ -438,7 +438,6 @@ int ide_cd_queue_pc(ide_drive_t *drive, const unsigned char *cmd,
 
 		rq = blk_get_request(drive->queue,
 			write ? REQ_OP_DRV_OUT : REQ_OP_DRV_IN,  __GFP_RECLAIM);
-		scsi_req_init(rq);
 		memcpy(scsi_req(rq)->cmd, cmd, BLK_MAX_CDB);
 		ide_req(rq)->type = ATA_PRIV_PC;
 		rq->rq_flags |= rq_flags;
@@ -508,7 +507,7 @@ static bool ide_cd_error_cmd(ide_drive_t *drive, struct ide_cmd *cmd)
 		nr_bytes -= cmd->last_xfer_len;
 
 	if (nr_bytes > 0) {
-		ide_complete_rq(drive, 0, nr_bytes);
+		ide_complete_rq(drive, BLK_STS_OK, nr_bytes);
 		return true;
 	}
 
@@ -674,7 +673,7 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 out_end:
 	if (blk_rq_is_scsi(rq) && rc == 0) {
 		scsi_req(rq)->resid_len = 0;
-		blk_end_request_all(rq, 0);
+		blk_end_request_all(rq, BLK_STS_OK);
 		hwif->rq = NULL;
 	} else {
 		if (sense && uptodate)
@@ -699,7 +698,7 @@ out_end:
 				scsi_req(rq)->resid_len += cmd->last_xfer_len;
 		}
 
-		ide_complete_rq(drive, uptodate ? 0 : -EIO, blk_rq_bytes(rq));
+		ide_complete_rq(drive, uptodate ? BLK_STS_OK : BLK_STS_IOERR, blk_rq_bytes(rq));
 
 		if (sense && rc == 2)
 			ide_error(drive, "request sense failure", stat);
@@ -844,7 +843,7 @@ out_end:
 	if (nsectors == 0)
 		nsectors = 1;
 
-	ide_complete_rq(drive, uptodate ? 0 : -EIO, nsectors << 9);
+	ide_complete_rq(drive, uptodate ? BLK_STS_OK : BLK_STS_IOERR, nsectors << 9);
 
 	return ide_stopped;
 }
@@ -1329,6 +1328,7 @@ static int ide_cdrom_prep_fs(struct request_queue *q, struct request *rq)
 	unsigned long blocks = blk_rq_sectors(rq) / (hard_sect >> 9);
 	struct scsi_request *req = scsi_req(rq);
 
+	scsi_req_init(req);
 	memset(req->cmd, 0, BLK_MAX_CDB);
 
 	if (rq_data_dir(rq) == READ)

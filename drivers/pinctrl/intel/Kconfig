@@ -1,6 +1,7 @@
 #
 # Intel pin control drivers
 #
+if (X86 || COMPILE_TEST)
 
 config PINCTRL_BAYTRAIL
 	bool "Intel Baytrail GPIO pin control"
@@ -56,6 +57,22 @@ config PINCTRL_BROXTON
 	  Broxton pinctrl driver provides an interface that allows
 	  configuring of SoC pins and using them as GPIOs.
 
+config PINCTRL_CANNONLAKE
+	tristate "Intel Cannon Lake PCH pinctrl and GPIO driver"
+	depends on ACPI
+	select PINCTRL_INTEL
+	help
+	  This pinctrl driver provides an interface that allows configuring
+	  of Intel Cannon Lake PCH pins and using them as GPIOs.
+
+config PINCTRL_DENVERTON
+	tristate "Intel Denverton pinctrl and GPIO driver"
+	depends on ACPI
+	select PINCTRL_INTEL
+	help
+	  This pinctrl driver provides an interface that allows configuring
+	  of Intel Denverton SoC pins and using them as GPIOs.
+
 config PINCTRL_GEMINILAKE
 	tristate "Intel Gemini Lake SoC pinctrl and GPIO driver"
 	depends on ACPI
@@ -63,6 +80,14 @@ config PINCTRL_GEMINILAKE
 	help
 	  This pinctrl driver provides an interface that allows configuring
 	  of Intel Gemini Lake SoC pins and using them as GPIOs.
+
+config PINCTRL_LEWISBURG
+	tristate "Intel Lewisburg pinctrl and GPIO driver"
+	depends on ACPI
+	select PINCTRL_INTEL
+	help
+	  This pinctrl driver provides an interface that allows configuring
+	  of Intel Lewisburg pins and using them as GPIOs.
 
 config PINCTRL_SUNRISEPOINT
 	tristate "Intel Sunrisepoint pinctrl and GPIO driver"
@@ -72,3 +97,5 @@ config PINCTRL_SUNRISEPOINT
 	  Sunrisepoint is the PCH of Intel Skylake. This pinctrl driver
 	  provides an interface that allows configuring of PCH pins and
 	  using them as GPIOs.
+
+endif

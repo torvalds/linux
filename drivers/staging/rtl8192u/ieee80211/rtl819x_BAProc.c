@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /********************************************************************************************************************************
  * This file is created to process BA Action Frame. According to 802.11 spec, there are 3 BA action types at all. And as BA is
  * related to TS, this part need some structure defined in QOS side code. Also TX RX is going to be resturctured, so how to send
@@ -125,7 +126,7 @@ static struct sk_buff *ieee80211_ADDBA(struct ieee80211_device *ieee, u8 *Dst, P
 	memset(skb->data, 0, sizeof( struct rtl_80211_hdr_3addr));	//I wonder whether it's necessary. Apparently kernel will not do it when alloc a skb.
 	skb_reserve(skb, ieee->tx_headroom);
 
-	BAReq = ( struct rtl_80211_hdr_3addr *) skb_put(skb,sizeof( struct rtl_80211_hdr_3addr));
+	BAReq = skb_put(skb, sizeof(struct rtl_80211_hdr_3addr));
 
 	memcpy(BAReq->addr1, Dst, ETH_ALEN);
 	memcpy(BAReq->addr2, ieee->dev->dev_addr, ETH_ALEN);
@@ -135,7 +136,7 @@ static struct sk_buff *ieee80211_ADDBA(struct ieee80211_device *ieee, u8 *Dst, P
 	BAReq->frame_ctl = cpu_to_le16(IEEE80211_STYPE_MANAGE_ACT); //action frame
 
 	//tag += sizeof( struct rtl_80211_hdr_3addr); //move to action field
-	tag = (u8 *)skb_put(skb, 9);
+	tag = skb_put(skb, 9);
 	*tag ++= ACT_CAT_BA;
 	*tag ++= type;
 	// Dialog Token
@@ -209,14 +210,14 @@ static struct sk_buff *ieee80211_DELBA(
 //	memset(skb->data, 0, len+sizeof( struct rtl_80211_hdr_3addr));
 	skb_reserve(skb, ieee->tx_headroom);
 
-	Delba = ( struct rtl_80211_hdr_3addr *) skb_put(skb,sizeof( struct rtl_80211_hdr_3addr));
+	Delba = skb_put(skb, sizeof(struct rtl_80211_hdr_3addr));
 
 	memcpy(Delba->addr1, dst, ETH_ALEN);
 	memcpy(Delba->addr2, ieee->dev->dev_addr, ETH_ALEN);
 	memcpy(Delba->addr3, ieee->current_network.bssid, ETH_ALEN);
 	Delba->frame_ctl = cpu_to_le16(IEEE80211_STYPE_MANAGE_ACT); //action frame
 
-	tag = (u8 *)skb_put(skb, 6);
+	tag = skb_put(skb, 6);
 
 	*tag ++= ACT_CAT_BA;
 	*tag ++= ACT_DELBA;

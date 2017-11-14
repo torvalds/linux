@@ -588,8 +588,6 @@ static void count_tx(struct net_device *dev, int ret, int len)
 		stats->tx_packets++;
 		stats->tx_bytes += len;
 		u64_stats_update_end(&stats->syncp);
-	} else {
-		dev->stats.tx_dropped++;
 	}
 }
 
@@ -699,7 +697,7 @@ static struct sk_buff *macsec_encrypt(struct sk_buff *skb,
 	unprotected_len = skb->len;
 	eth = eth_hdr(skb);
 	sci_present = send_sci(secy);
-	hh = (struct macsec_eth_header *)skb_push(skb, macsec_extra_len(sci_present));
+	hh = skb_push(skb, macsec_extra_len(sci_present));
 	memmove(hh, eth, 2 * ETH_ALEN);
 
 	pn = tx_sa_update_pn(tx_sa, secy);
@@ -742,7 +740,13 @@ static struct sk_buff *macsec_encrypt(struct sk_buff *skb,
 	macsec_fill_iv(iv, secy->sci, pn);
 
 	sg_init_table(sg, ret);
-	skb_to_sgvec(skb, sg, 0, skb->len);
+	ret = skb_to_sgvec(skb, sg, 0, skb->len);
+	if (unlikely(ret < 0)) {
+		aead_request_free(req);
+		macsec_txsa_put(tx_sa);
+		kfree_skb(skb);
+		return ERR_PTR(ret);
+	}
 
 	if (tx_sc->encrypt) {
 		int len = skb->len - macsec_hdr_len(sci_present) -
@@ -883,7 +887,7 @@ static void macsec_decrypt_done(struct crypto_async_request *base, int err)
 	struct macsec_dev *macsec = macsec_priv(dev);
 	struct macsec_rx_sa *rx_sa = macsec_skb_cb(skb)->rx_sa;
 	struct macsec_rx_sc *rx_sc = rx_sa->sc;
-	int len, ret;
+	int len;
 	u32 pn;
 
 	aead_request_free(macsec_skb_cb(skb)->req);
@@ -904,11 +908,8 @@ static void macsec_decrypt_done(struct crypto_async_request *base, int err)
 	macsec_reset_skb(skb, macsec->secy.netdev);
 
 	len = skb->len;
-	ret = gro_cells_receive(&macsec->gro_cells, skb);
-	if (ret == NET_RX_SUCCESS)
+	if (gro_cells_receive(&macsec->gro_cells, skb) == NET_RX_SUCCESS)
 		count_rx(dev, len);
-	else
-		macsec->secy.netdev->stats.rx_dropped++;
 
 	rcu_read_unlock_bh();
 
@@ -952,7 +953,12 @@ static struct sk_buff *macsec_decrypt(struct sk_buff *skb,
 	macsec_fill_iv(iv, sci, ntohl(hdr->packet_number));
 
 	sg_init_table(sg, ret);
-	skb_to_sgvec(skb, sg, 0, skb->len);
+	ret = skb_to_sgvec(skb, sg, 0, skb->len);
+	if (unlikely(ret < 0)) {
+		aead_request_free(req);
+		kfree_skb(skb);
+		return ERR_PTR(ret);
+	}
 
 	if (hdr->tci_an & MACSEC_TCI_E) {
 		/* confidentiality: ethernet + macsec header
@@ -1037,7 +1043,6 @@ static void handle_not_macsec(struct sk_buff *skb)
 	 */
 	list_for_each_entry_rcu(macsec, &rxd->secys, secys) {
 		struct sk_buff *nskb;
-		int ret;
 		struct pcpu_secy_stats *secy_stats = this_cpu_ptr(macsec->stats);
 
 		if (macsec->secy.validate_frames == MACSEC_VALIDATE_STRICT) {
@@ -1054,13 +1059,10 @@ static void handle_not_macsec(struct sk_buff *skb)
 
 		nskb->dev = macsec->secy.netdev;
 
-		ret = netif_rx(nskb);
-		if (ret == NET_RX_SUCCESS) {
+		if (netif_rx(nskb) == NET_RX_SUCCESS) {
 			u64_stats_update_begin(&secy_stats->syncp);
 			secy_stats->stats.InPktsUntagged++;
 			u64_stats_update_end(&secy_stats->syncp);
-		} else {
-			macsec->secy.netdev->stats.rx_dropped++;
 		}
 	}
 
@@ -3056,7 +3058,8 @@ static void macsec_changelink_common(struct net_device *dev,
 }
 
 static int macsec_changelink(struct net_device *dev, struct nlattr *tb[],
-			     struct nlattr *data[])
+			     struct nlattr *data[],
+			     struct netlink_ext_ack *extack)
 {
 	if (!data)
 		return 0;
@@ -3203,7 +3206,8 @@ static int macsec_add_dev(struct net_device *dev, sci_t sci, u8 icv_len)
 }
 
 static int macsec_newlink(struct net *net, struct net_device *dev,
-			  struct nlattr *tb[], struct nlattr *data[])
+			  struct nlattr *tb[], struct nlattr *data[],
+			  struct netlink_ext_ack *extack)
 {
 	struct macsec_dev *macsec = macsec_priv(dev);
 	struct net_device *real_dev;
@@ -3285,7 +3289,8 @@ unregister:
 	return err;
 }
 
-static int macsec_validate_attr(struct nlattr *tb[], struct nlattr *data[])
+static int macsec_validate_attr(struct nlattr *tb[], struct nlattr *data[],
+				struct netlink_ext_ack *extack)
 {
 	u64 csid = MACSEC_DEFAULT_CIPHER_ID;
 	u8 icv_len = DEFAULT_ICV_LEN;
@@ -3518,6 +3523,7 @@ module_init(macsec_init);
 module_exit(macsec_exit);
 
 MODULE_ALIAS_RTNL_LINK("macsec");
+MODULE_ALIAS_GENL_FAMILY("macsec");
 
 MODULE_DESCRIPTION("MACsec IEEE 802.1AE");
 MODULE_LICENSE("GPL v2");

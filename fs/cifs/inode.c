@@ -24,6 +24,7 @@
 #include <linux/pagemap.h>
 #include <linux/freezer.h>
 #include <linux/sched/signal.h>
+#include <linux/wait_bit.h>
 
 #include <asm/div64.h>
 #include "cifsfs.h"
@@ -233,6 +234,8 @@ cifs_unix_basic_to_fattr(struct cifs_fattr *fattr, FILE_UNIX_BASIC_INFO *info,
 	fattr->cf_atime = cifs_NTtimeToUnix(info->LastAccessTime);
 	fattr->cf_mtime = cifs_NTtimeToUnix(info->LastModificationTime);
 	fattr->cf_ctime = cifs_NTtimeToUnix(info->LastStatusChange);
+	/* old POSIX extensions don't get create time */
+
 	fattr->cf_mode = le64_to_cpu(info->Permissions);
 
 	/*
@@ -2022,6 +2025,19 @@ int cifs_getattr(const struct path *path, struct kstat *stat,
 	generic_fillattr(inode, stat);
 	stat->blksize = CIFS_MAX_MSGSIZE;
 	stat->ino = CIFS_I(inode)->uniqueid;
+
+	/* old CIFS Unix Extensions doesn't return create time */
+	if (CIFS_I(inode)->createtime) {
+		stat->result_mask |= STATX_BTIME;
+		stat->btime =
+		      cifs_NTtimeToUnix(cpu_to_le64(CIFS_I(inode)->createtime));
+	}
+
+	stat->attributes_mask |= (STATX_ATTR_COMPRESSED | STATX_ATTR_ENCRYPTED);
+	if (CIFS_I(inode)->cifsAttrs & FILE_ATTRIBUTE_COMPRESSED)
+		stat->attributes |= STATX_ATTR_COMPRESSED;
+	if (CIFS_I(inode)->cifsAttrs & FILE_ATTRIBUTE_ENCRYPTED)
+		stat->attributes |= STATX_ATTR_ENCRYPTED;
 
 	/*
 	 * If on a multiuser mount without unix extensions or cifsacl being

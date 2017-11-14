@@ -29,7 +29,7 @@
 #include <linux/slab.h>
 #include <media/v4l2-async.h>
 #include <media/v4l2-ctrls.h>
-#include <media/v4l2-of.h>
+#include <media/v4l2-fwnode.h>
 #include <media/media-device.h>
 #include <media/drv-intf/exynos-fimc.h>
 
@@ -388,7 +388,7 @@ static int fimc_md_parse_port_node(struct fimc_md *fmd,
 {
 	struct fimc_source_info *pd = &fmd->sensor[index].pdata;
 	struct device_node *rem, *ep, *np;
-	struct v4l2_of_endpoint endpoint;
+	struct v4l2_fwnode_endpoint endpoint;
 	int ret;
 
 	/* Assume here a port node can have only one endpoint node. */
@@ -396,7 +396,7 @@ static int fimc_md_parse_port_node(struct fimc_md *fmd,
 	if (!ep)
 		return 0;
 
-	ret = v4l2_of_parse_endpoint(ep, &endpoint);
+	ret = v4l2_fwnode_endpoint_parse(of_fwnode_handle(ep), &endpoint);
 	if (ret) {
 		of_node_put(ep);
 		return ret;
@@ -412,8 +412,8 @@ static int fimc_md_parse_port_node(struct fimc_md *fmd,
 	rem = of_graph_get_remote_port_parent(ep);
 	of_node_put(ep);
 	if (rem == NULL) {
-		v4l2_info(&fmd->v4l2_dev, "Remote device at %s not found\n",
-							ep->full_name);
+		v4l2_info(&fmd->v4l2_dev, "Remote device at %pOF not found\n",
+							ep);
 		return 0;
 	}
 
@@ -430,8 +430,8 @@ static int fimc_md_parse_port_node(struct fimc_md *fmd,
 		 */
 		pd->sensor_bus_type = FIMC_BUS_TYPE_MIPI_CSI2;
 	} else {
-		v4l2_err(&fmd->v4l2_dev, "Wrong port id (%u) at node %s\n",
-			 endpoint.base.port, rem->full_name);
+		v4l2_err(&fmd->v4l2_dev, "Wrong port id (%u) at node %pOF\n",
+			 endpoint.base.port, rem);
 	}
 	/*
 	 * For FIMC-IS handled sensors, that are placed under i2c-isp device
@@ -453,8 +453,8 @@ static int fimc_md_parse_port_node(struct fimc_md *fmd,
 		return -EINVAL;
 	}
 
-	fmd->sensor[index].asd.match_type = V4L2_ASYNC_MATCH_OF;
-	fmd->sensor[index].asd.match.of.node = rem;
+	fmd->sensor[index].asd.match_type = V4L2_ASYNC_MATCH_FWNODE;
+	fmd->sensor[index].asd.match.fwnode.fwnode = of_fwnode_handle(rem);
 	fmd->async_subdevs[index] = &fmd->sensor[index].asd;
 
 	fmd->num_sensors++;
@@ -1361,7 +1361,8 @@ static int subdev_notifier_bound(struct v4l2_async_notifier *notifier,
 
 	/* Find platform data for this sensor subdev */
 	for (i = 0; i < ARRAY_SIZE(fmd->sensor); i++)
-		if (fmd->sensor[i].asd.match.of.node == subdev->dev->of_node)
+		if (fmd->sensor[i].asd.match.fwnode.fwnode ==
+		    of_fwnode_handle(subdev->dev->of_node))
 			si = &fmd->sensor[i];
 
 	if (si == NULL)

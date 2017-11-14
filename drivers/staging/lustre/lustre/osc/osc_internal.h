@@ -62,7 +62,7 @@ struct osc_async_page {
 	struct list_head	      oap_rpc_item;
 
 	u64		 oap_obj_off;
-	unsigned		oap_page_off;
+	unsigned int		oap_page_off;
 	enum async_flags	oap_async_flags;
 
 	struct brw_page	 oap_brw_page;
@@ -99,7 +99,7 @@ void osc_update_next_shrink(struct client_obd *cli);
 /*
  * cl integration.
  */
-#include "../include/cl_object.h"
+#include <cl_object.h>
 
 extern struct ptlrpc_request_set *PTLRPCD_SET;
 

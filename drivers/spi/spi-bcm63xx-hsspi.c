@@ -108,7 +108,7 @@ struct bcm63xx_hsspi {
 	u8 cs_polarity;
 };
 
-static void bcm63xx_hsspi_set_cs(struct bcm63xx_hsspi *bs, unsigned cs,
+static void bcm63xx_hsspi_set_cs(struct bcm63xx_hsspi *bs, unsigned int cs,
 				 bool active)
 {
 	u32 reg;
@@ -127,7 +127,7 @@ static void bcm63xx_hsspi_set_cs(struct bcm63xx_hsspi *bs, unsigned cs,
 static void bcm63xx_hsspi_set_clk(struct bcm63xx_hsspi *bs,
 				  struct spi_device *spi, int hz)
 {
-	unsigned profile = spi->chip_select;
+	unsigned int profile = spi->chip_select;
 	u32 reg;
 
 	reg = DIV_ROUND_UP(2048, DIV_ROUND_UP(bs->speed_hz, hz));
@@ -154,7 +154,7 @@ static void bcm63xx_hsspi_set_clk(struct bcm63xx_hsspi *bs,
 static int bcm63xx_hsspi_do_txrx(struct spi_device *spi, struct spi_transfer *t)
 {
 	struct bcm63xx_hsspi *bs = spi_master_get_devdata(spi->master);
-	unsigned chip_select = spi->chip_select;
+	unsigned int chip_select = spi->chip_select;
 	u16 opcode = 0;
 	int pending = t->len;
 	int step_size = HSSPI_BUFFER_LEN;
@@ -338,8 +338,8 @@ static int bcm63xx_hsspi_probe(struct platform_device *pdev)
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
-		dev_err(dev, "no irq\n");
-		return -ENXIO;
+		dev_err(dev, "no irq: %d\n", irq);
+		return irq;
 	}
 
 	res_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -484,6 +484,7 @@ static const struct of_device_id bcm63xx_hsspi_of_match[] = {
 	{ .compatible = "brcm,bcm6328-hsspi", },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, bcm63xx_hsspi_of_match);
 
 static struct platform_driver bcm63xx_hsspi_driver = {
 	.driver = {

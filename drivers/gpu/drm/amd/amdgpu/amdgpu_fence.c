@@ -541,6 +541,12 @@ void amdgpu_fence_driver_force_completion(struct amdgpu_device *adev)
 	}
 }
 
+void amdgpu_fence_driver_force_completion_ring(struct amdgpu_ring *ring)
+{
+	if (ring)
+		amdgpu_fence_write(ring, ring->fence_drv.sync_seq);
+}
+
 /*
  * Common fence implementation
  */
@@ -660,11 +666,17 @@ static const struct drm_info_list amdgpu_debugfs_fence_list[] = {
 	{"amdgpu_fence_info", &amdgpu_debugfs_fence_info, 0, NULL},
 	{"amdgpu_gpu_reset", &amdgpu_debugfs_gpu_reset, 0, NULL}
 };
+
+static const struct drm_info_list amdgpu_debugfs_fence_list_sriov[] = {
+	{"amdgpu_fence_info", &amdgpu_debugfs_fence_info, 0, NULL},
+};
 #endif
 
 int amdgpu_debugfs_fence_init(struct amdgpu_device *adev)
 {
 #if defined(CONFIG_DEBUG_FS)
+	if (amdgpu_sriov_vf(adev))
+		return amdgpu_debugfs_add_files(adev, amdgpu_debugfs_fence_list_sriov, 1);
 	return amdgpu_debugfs_add_files(adev, amdgpu_debugfs_fence_list, 2);
 #else
 	return 0;

@@ -73,17 +73,17 @@ MODULE_LICENSE("GPL");
 
 /* Architectures should define their poll value according to the halt latency */
 unsigned int halt_poll_ns = KVM_HALT_POLL_NS_DEFAULT;
-module_param(halt_poll_ns, uint, S_IRUGO | S_IWUSR);
+module_param(halt_poll_ns, uint, 0644);
 EXPORT_SYMBOL_GPL(halt_poll_ns);
 
 /* Default doubles per-vcpu halt_poll_ns. */
 unsigned int halt_poll_ns_grow = 2;
-module_param(halt_poll_ns_grow, uint, S_IRUGO | S_IWUSR);
+module_param(halt_poll_ns_grow, uint, 0644);
 EXPORT_SYMBOL_GPL(halt_poll_ns_grow);
 
 /* Default resets per-vcpu halt_poll_ns . */
 unsigned int halt_poll_ns_shrink;
-module_param(halt_poll_ns_shrink, uint, S_IRUGO | S_IWUSR);
+module_param(halt_poll_ns_shrink, uint, 0644);
 EXPORT_SYMBOL_GPL(halt_poll_ns_shrink);
 
 /*
@@ -129,6 +129,12 @@ __visible bool kvm_rebooting;
 EXPORT_SYMBOL_GPL(kvm_rebooting);
 
 static bool largepages_enabled = true;
+
+#define KVM_EVENT_CREATE_VM 0
+#define KVM_EVENT_DESTROY_VM 1
+static void kvm_uevent_notify_change(unsigned int type, struct kvm *kvm);
+static unsigned long long kvm_createvm_count;
+static unsigned long long kvm_active_vms;
 
 bool kvm_is_reserved_pfn(kvm_pfn_t pfn)
 {
@@ -187,12 +193,23 @@ static void ack_flush(void *_completed)
 {
 }
 
+static inline bool kvm_kick_many_cpus(const struct cpumask *cpus, bool wait)
+{
+	if (unlikely(!cpus))
+		cpus = cpu_online_mask;
+
+	if (cpumask_empty(cpus))
+		return false;
+
+	smp_call_function_many(cpus, ack_flush, NULL, wait);
+	return true;
+}
+
 bool kvm_make_all_cpus_request(struct kvm *kvm, unsigned int req)
 {
 	int i, cpu, me;
 	cpumask_var_t cpus;
-	bool called = true;
-	bool wait = req & KVM_REQUEST_WAIT;
+	bool called;
 	struct kvm_vcpu *vcpu;
 
 	zalloc_cpumask_var(&cpus, GFP_ATOMIC);
@@ -207,14 +224,9 @@ bool kvm_make_all_cpus_request(struct kvm *kvm, unsigned int req)
 
 		if (cpus != NULL && cpu != -1 && cpu != me &&
 		    kvm_request_needs_ipi(vcpu, req))
-			cpumask_set_cpu(cpu, cpus);
+			__cpumask_set_cpu(cpu, cpus);
 	}
-	if (unlikely(cpus == NULL))
-		smp_call_function_many(cpu_online_mask, ack_flush, NULL, wait);
-	else if (!cpumask_empty(cpus))
-		smp_call_function_many(cpus, ack_flush, NULL, wait);
-	else
-		called = false;
+	called = kvm_kick_many_cpus(cpus, !!(req & KVM_REQUEST_WAIT));
 	put_cpu();
 	free_cpumask_var(cpus);
 	return called;
@@ -293,7 +305,12 @@ EXPORT_SYMBOL_GPL(kvm_vcpu_init);
 
 void kvm_vcpu_uninit(struct kvm_vcpu *vcpu)
 {
-	put_pid(vcpu->pid);
+	/*
+	 * no need for rcu_read_lock as VCPU_RUN is the only place that
+	 * will change the vcpu->pid pointer and on uninit all file
+	 * descriptors are already gone.
+	 */
+	put_pid(rcu_dereference_protected(vcpu->pid, 1));
 	kvm_arch_vcpu_uninit(vcpu);
 	free_page((unsigned long)vcpu->run);
 }
@@ -303,47 +320,6 @@ EXPORT_SYMBOL_GPL(kvm_vcpu_uninit);
 static inline struct kvm *mmu_notifier_to_kvm(struct mmu_notifier *mn)
 {
 	return container_of(mn, struct kvm, mmu_notifier);
-}
-
-static void kvm_mmu_notifier_invalidate_page(struct mmu_notifier *mn,
-					     struct mm_struct *mm,
-					     unsigned long address)
-{
-	struct kvm *kvm = mmu_notifier_to_kvm(mn);
-	int need_tlb_flush, idx;
-
-	/*
-	 * When ->invalidate_page runs, the linux pte has been zapped
-	 * already but the page is still allocated until
-	 * ->invalidate_page returns. So if we increase the sequence
-	 * here the kvm page fault will notice if the spte can't be
-	 * established because the page is going to be freed. If
-	 * instead the kvm page fault establishes the spte before
-	 * ->invalidate_page runs, kvm_unmap_hva will release it
-	 * before returning.
-	 *
-	 * The sequence increase only need to be seen at spin_unlock
-	 * time, and not at spin_lock time.
-	 *
-	 * Increasing the sequence after the spin_unlock would be
-	 * unsafe because the kvm page fault could then establish the
-	 * pte after kvm_unmap_hva returned, without noticing the page
-	 * is going to be freed.
-	 */
-	idx = srcu_read_lock(&kvm->srcu);
-	spin_lock(&kvm->mmu_lock);
-
-	kvm->mmu_notifier_seq++;
-	need_tlb_flush = kvm_unmap_hva(kvm, address) | kvm->tlbs_dirty;
-	/* we've to flush the tlb before the pages can be freed */
-	if (need_tlb_flush)
-		kvm_flush_remote_tlbs(kvm);
-
-	spin_unlock(&kvm->mmu_lock);
-
-	kvm_arch_mmu_notifier_invalidate_page(kvm, address);
-
-	srcu_read_unlock(&kvm->srcu, idx);
 }
 
 static void kvm_mmu_notifier_change_pte(struct mmu_notifier *mn,
@@ -493,7 +469,6 @@ static void kvm_mmu_notifier_release(struct mmu_notifier *mn,
 }
 
 static const struct mmu_notifier_ops kvm_mmu_notifier_ops = {
-	.invalidate_page	= kvm_mmu_notifier_invalidate_page,
 	.invalidate_range_start	= kvm_mmu_notifier_invalidate_range_start,
 	.invalidate_range_end	= kvm_mmu_notifier_invalidate_range_end,
 	.clear_flush_young	= kvm_mmu_notifier_clear_flush_young,
@@ -674,8 +649,8 @@ static struct kvm *kvm_create_vm(unsigned long type)
 	if (init_srcu_struct(&kvm->irq_srcu))
 		goto out_err_no_irq_srcu;
 	for (i = 0; i < KVM_NR_BUSES; i++) {
-		kvm->buses[i] = kzalloc(sizeof(struct kvm_io_bus),
-					GFP_KERNEL);
+		rcu_assign_pointer(kvm->buses[i],
+			kzalloc(sizeof(struct kvm_io_bus), GFP_KERNEL));
 		if (!kvm->buses[i])
 			goto out_err;
 	}
@@ -699,10 +674,11 @@ out_err_no_irq_srcu:
 out_err_no_srcu:
 	hardware_disable_all();
 out_err_no_disable:
+	refcount_set(&kvm->users_count, 0);
 	for (i = 0; i < KVM_NR_BUSES; i++)
-		kfree(kvm->buses[i]);
+		kfree(kvm_get_bus(kvm, i));
 	for (i = 0; i < KVM_ADDRESS_SPACE_NUM; i++)
-		kvm_free_memslots(kvm, kvm->memslots[i]);
+		kvm_free_memslots(kvm, __kvm_memslots(kvm, i));
 	kvm_arch_free_vm(kvm);
 	mmdrop(current->mm);
 	return ERR_PTR(r);
@@ -728,6 +704,7 @@ static void kvm_destroy_vm(struct kvm *kvm)
 	int i;
 	struct mm_struct *mm = kvm->mm;
 
+	kvm_uevent_notify_change(KVM_EVENT_DESTROY_VM, kvm);
 	kvm_destroy_vm_debugfs(kvm);
 	kvm_arch_sync_events(kvm);
 	spin_lock(&kvm_lock);
@@ -735,8 +712,10 @@ static void kvm_destroy_vm(struct kvm *kvm)
 	spin_unlock(&kvm_lock);
 	kvm_free_irq_routing(kvm);
 	for (i = 0; i < KVM_NR_BUSES; i++) {
-		if (kvm->buses[i])
-			kvm_io_bus_destroy(kvm->buses[i]);
+		struct kvm_io_bus *bus = kvm_get_bus(kvm, i);
+
+		if (bus)
+			kvm_io_bus_destroy(bus);
 		kvm->buses[i] = NULL;
 	}
 	kvm_coalesced_mmio_free(kvm);
@@ -748,7 +727,7 @@ static void kvm_destroy_vm(struct kvm *kvm)
 	kvm_arch_destroy_vm(kvm);
 	kvm_destroy_devices(kvm);
 	for (i = 0; i < KVM_ADDRESS_SPACE_NUM; i++)
-		kvm_free_memslots(kvm, kvm->memslots[i]);
+		kvm_free_memslots(kvm, __kvm_memslots(kvm, i));
 	cleanup_srcu_struct(&kvm->irq_srcu);
 	cleanup_srcu_struct(&kvm->srcu);
 	kvm_arch_free_vm(kvm);
@@ -1631,7 +1610,7 @@ int gfn_to_page_many_atomic(struct kvm_memory_slot *slot, gfn_t gfn,
 			    struct page **pages, int nr_pages)
 {
 	unsigned long addr;
-	gfn_t entry;
+	gfn_t entry = 0;
 
 	addr = gfn_to_hva_many(slot, gfn, &entry);
 	if (kvm_is_error_hva(addr))
@@ -1950,6 +1929,7 @@ static int __kvm_gfn_to_hva_cache_init(struct kvm_memslots *slots,
 		 * verify that the entire region is valid here.
 		 */
 		while (start_gfn <= end_gfn) {
+			nr_pages_avail = 0;
 			ghc->memslot = __gfn_to_memslot(slots, start_gfn);
 			ghc->hva = gfn_to_hva_many(ghc->memslot, start_gfn,
 						   &nr_pages_avail);
@@ -2207,7 +2187,7 @@ bool kvm_vcpu_wake_up(struct kvm_vcpu *vcpu)
 	struct swait_queue_head *wqp;
 
 	wqp = kvm_arch_vcpu_wq(vcpu);
-	if (swait_active(wqp)) {
+	if (swq_has_sleeper(wqp)) {
 		swake_up(wqp);
 		++vcpu->stat.halt_wakeup;
 		return true;
@@ -2297,7 +2277,7 @@ static bool kvm_vcpu_eligible_for_directed_yield(struct kvm_vcpu *vcpu)
 #endif
 }
 
-void kvm_vcpu_on_spin(struct kvm_vcpu *me)
+void kvm_vcpu_on_spin(struct kvm_vcpu *me, bool yield_to_kernel_mode)
 {
 	struct kvm *kvm = me->kvm;
 	struct kvm_vcpu *vcpu;
@@ -2327,6 +2307,8 @@ void kvm_vcpu_on_spin(struct kvm_vcpu *me)
 			if (vcpu == me)
 				continue;
 			if (swait_active(&vcpu->wq) && !kvm_arch_vcpu_runnable(vcpu))
+				continue;
+			if (yield_to_kernel_mode && !kvm_arch_vcpu_in_kernel(vcpu))
 				continue;
 			if (!kvm_vcpu_eligible_for_directed_yield(vcpu))
 				continue;
@@ -2551,13 +2533,14 @@ static long kvm_vcpu_ioctl(struct file *filp,
 	if (r)
 		return r;
 	switch (ioctl) {
-	case KVM_RUN:
+	case KVM_RUN: {
+		struct pid *oldpid;
 		r = -EINVAL;
 		if (arg)
 			goto out;
-		if (unlikely(vcpu->pid != current->pids[PIDTYPE_PID].pid)) {
+		oldpid = rcu_access_pointer(vcpu->pid);
+		if (unlikely(oldpid != current->pids[PIDTYPE_PID].pid)) {
 			/* The thread running this VCPU changed. */
-			struct pid *oldpid = vcpu->pid;
 			struct pid *newpid = get_task_pid(current, PIDTYPE_PID);
 
 			rcu_assign_pointer(vcpu->pid, newpid);
@@ -2568,6 +2551,7 @@ static long kvm_vcpu_ioctl(struct file *filp,
 		r = kvm_arch_vcpu_ioctl_run(vcpu, vcpu->run);
 		trace_kvm_userspace_exit(vcpu->run->exit_reason, r);
 		break;
+	}
 	case KVM_GET_REGS: {
 		struct kvm_regs *kvm_regs;
 
@@ -3191,11 +3175,18 @@ static int kvm_dev_ioctl_create_vm(unsigned long type)
 		return PTR_ERR(file);
 	}
 
+	/*
+	 * Don't call kvm_put_kvm anymore at this point; file->f_op is
+	 * already set, with ->release() being kvm_vm_release().  In error
+	 * cases it will be called by the final fput(file) and will take
+	 * care of doing kvm_put_kvm(kvm).
+	 */
 	if (kvm_create_vm_debugfs(kvm, r) < 0) {
 		put_unused_fd(r);
 		fput(file);
 		return -ENOMEM;
 	}
+	kvm_uevent_notify_change(KVM_EVENT_CREATE_VM, kvm);
 
 	fd_install(r, file);
 	return r;
@@ -3557,7 +3548,7 @@ int kvm_io_bus_register_dev(struct kvm *kvm, enum kvm_bus bus_idx, gpa_t addr,
 {
 	struct kvm_io_bus *new_bus, *bus;
 
-	bus = kvm->buses[bus_idx];
+	bus = kvm_get_bus(kvm, bus_idx);
 	if (!bus)
 		return -ENOMEM;
 
@@ -3586,7 +3577,7 @@ void kvm_io_bus_unregister_dev(struct kvm *kvm, enum kvm_bus bus_idx,
 	int i;
 	struct kvm_io_bus *new_bus, *bus;
 
-	bus = kvm->buses[bus_idx];
+	bus = kvm_get_bus(kvm, bus_idx);
 	if (!bus)
 		return;
 
@@ -3847,6 +3838,56 @@ static const struct file_operations *stat_fops[] = {
 	[KVM_STAT_VCPU] = &vcpu_stat_fops,
 	[KVM_STAT_VM]   = &vm_stat_fops,
 };
+
+static void kvm_uevent_notify_change(unsigned int type, struct kvm *kvm)
+{
+	struct kobj_uevent_env *env;
+	unsigned long long created, active;
+
+	if (!kvm_dev.this_device || !kvm)
+		return;
+
+	spin_lock(&kvm_lock);
+	if (type == KVM_EVENT_CREATE_VM) {
+		kvm_createvm_count++;
+		kvm_active_vms++;
+	} else if (type == KVM_EVENT_DESTROY_VM) {
+		kvm_active_vms--;
+	}
+	created = kvm_createvm_count;
+	active = kvm_active_vms;
+	spin_unlock(&kvm_lock);
+
+	env = kzalloc(sizeof(*env), GFP_KERNEL);
+	if (!env)
+		return;
+
+	add_uevent_var(env, "CREATED=%llu", created);
+	add_uevent_var(env, "COUNT=%llu", active);
+
+	if (type == KVM_EVENT_CREATE_VM) {
+		add_uevent_var(env, "EVENT=create");
+		kvm->userspace_pid = task_pid_nr(current);
+	} else if (type == KVM_EVENT_DESTROY_VM) {
+		add_uevent_var(env, "EVENT=destroy");
+	}
+	add_uevent_var(env, "PID=%d", kvm->userspace_pid);
+
+	if (kvm->debugfs_dentry) {
+		char *tmp, *p = kmalloc(PATH_MAX, GFP_KERNEL);
+
+		if (p) {
+			tmp = dentry_path_raw(kvm->debugfs_dentry, p, PATH_MAX);
+			if (!IS_ERR(tmp))
+				add_uevent_var(env, "STATS_PATH=%s", tmp);
+			kfree(p);
+		}
+	}
+	/* no need for checks, since we are adding at most only 5 keys */
+	env->envp[env->envp_idx++] = NULL;
+	kobject_uevent_env(&kvm_dev.this_device->kobj, KOBJ_CHANGE, env->envp);
+	kfree(env);
+}
 
 static int kvm_init_debug(void)
 {

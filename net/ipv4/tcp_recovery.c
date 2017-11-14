@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/tcp.h>
 #include <net/tcp.h>
 
@@ -17,12 +18,9 @@ static void tcp_rack_mark_skb_lost(struct sock *sk, struct sk_buff *skb)
 	}
 }
 
-static bool tcp_rack_sent_after(const struct skb_mstamp *t1,
-				const struct skb_mstamp *t2,
-				u32 seq1, u32 seq2)
+static bool tcp_rack_sent_after(u64 t1, u64 t2, u32 seq1, u32 seq2)
 {
-	return skb_mstamp_after(t1, t2) ||
-	       (t1->v64 == t2->v64 && after(seq1, seq2));
+	return t1 > t2 || (t1 == t2 && after(seq1, seq2));
 }
 
 /* RACK loss detection (IETF draft draft-ietf-tcpm-rack-01):
@@ -72,14 +70,14 @@ static void tcp_rack_detect_loss(struct sock *sk, u32 *reo_timeout)
 		    scb->sacked & TCPCB_SACKED_ACKED)
 			continue;
 
-		if (tcp_rack_sent_after(&tp->rack.mstamp, &skb->skb_mstamp,
+		if (tcp_rack_sent_after(tp->rack.mstamp, skb->skb_mstamp,
 					tp->rack.end_seq, scb->end_seq)) {
 			/* Step 3 in draft-cheng-tcpm-rack-00.txt:
 			 * A packet is lost if its elapsed time is beyond
 			 * the recent RTT plus the reordering window.
 			 */
-			u32 elapsed = skb_mstamp_us_delta(&tp->tcp_mstamp,
-							  &skb->skb_mstamp);
+			u32 elapsed = tcp_stamp_us_delta(tp->tcp_mstamp,
+							 skb->skb_mstamp);
 			s32 remaining = tp->rack.rtt_us + reo_wnd - elapsed;
 
 			if (remaining < 0) {
@@ -116,7 +114,7 @@ void tcp_rack_mark_lost(struct sock *sk)
 	tp->rack.advanced = 0;
 	tcp_rack_detect_loss(sk, &timeout);
 	if (timeout) {
-		timeout = usecs_to_jiffies(timeout + TCP_REO_TIMEOUT_MIN);
+		timeout = usecs_to_jiffies(timeout) + TCP_TIMEOUT_MIN;
 		inet_csk_reset_xmit_timer(sk, ICSK_TIME_REO_TIMEOUT,
 					  timeout, inet_csk(sk)->icsk_rto);
 	}
@@ -127,16 +125,16 @@ void tcp_rack_mark_lost(struct sock *sk)
  * draft-cheng-tcpm-rack-00.txt
  */
 void tcp_rack_advance(struct tcp_sock *tp, u8 sacked, u32 end_seq,
-		      const struct skb_mstamp *xmit_time)
+		      u64 xmit_time)
 {
 	u32 rtt_us;
 
-	if (tp->rack.mstamp.v64 &&
-	    !tcp_rack_sent_after(xmit_time, &tp->rack.mstamp,
+	if (tp->rack.mstamp &&
+	    !tcp_rack_sent_after(xmit_time, tp->rack.mstamp,
 				 end_seq, tp->rack.end_seq))
 		return;
 
-	rtt_us = skb_mstamp_us_delta(&tp->tcp_mstamp, xmit_time);
+	rtt_us = tcp_stamp_us_delta(tp->tcp_mstamp, xmit_time);
 	if (sacked & TCPCB_RETRANS) {
 		/* If the sacked packet was retransmitted, it's ambiguous
 		 * whether the retransmission or the original (or the prior
@@ -152,7 +150,7 @@ void tcp_rack_advance(struct tcp_sock *tp, u8 sacked, u32 end_seq,
 			return;
 	}
 	tp->rack.rtt_us = rtt_us;
-	tp->rack.mstamp = *xmit_time;
+	tp->rack.mstamp = xmit_time;
 	tp->rack.end_seq = end_seq;
 	tp->rack.advanced = 1;
 }
@@ -166,7 +164,6 @@ void tcp_rack_reo_timeout(struct sock *sk)
 	u32 timeout, prior_inflight;
 
 	prior_inflight = tcp_packets_in_flight(tp);
-	skb_mstamp_get(&tp->tcp_mstamp);
 	tcp_rack_detect_loss(sk, &timeout);
 	if (prior_inflight != tcp_packets_in_flight(tp)) {
 		if (inet_csk(sk)->icsk_ca_state != TCP_CA_Recovery) {

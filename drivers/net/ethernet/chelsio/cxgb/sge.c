@@ -1801,7 +1801,7 @@ netdev_tx_t t1_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		eth_type = skb_network_offset(skb) == ETH_HLEN ?
 			CPL_ETH_II : CPL_ETH_II_VLAN;
 
-		hdr = (struct cpl_tx_pkt_lso *)skb_push(skb, sizeof(*hdr));
+		hdr = skb_push(skb, sizeof(*hdr));
 		hdr->opcode = CPL_TX_PKT_LSO;
 		hdr->ip_csum_dis = hdr->l4_csum_dis = 0;
 		hdr->ip_hdr_words = ip_hdr(skb)->ihl;
@@ -1849,7 +1849,7 @@ netdev_tx_t t1_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			}
 		}
 
-		cpl = (struct cpl_tx_pkt *)__skb_push(skb, sizeof(*cpl));
+		cpl = __skb_push(skb, sizeof(*cpl));
 		cpl->opcode = CPL_TX_PKT;
 		cpl->ip_csum_dis = 1;    /* SW calculates IP csum */
 		cpl->l4_csum_dis = skb->ip_summed == CHECKSUM_PARTIAL ? 0 : 1;

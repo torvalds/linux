@@ -69,7 +69,7 @@
 #include <net/mac80211.h>
 
 #include "mvm.h"
-#include "fw-api-scan.h"
+#include "fw/api/scan.h"
 #include "iwl-io.h"
 
 #define IWL_DENSE_EBS_SCAN_RATIO 5
@@ -555,7 +555,7 @@ static int iwl_mvm_lmac_scan_abort(struct iwl_mvm *mvm)
 	struct iwl_host_cmd cmd = {
 		.id = SCAN_OFFLOAD_ABORT_CMD,
 	};
-	u32 status;
+	u32 status = CAN_ABORT_STATUS;
 
 	ret = iwl_mvm_send_cmd_status(mvm, &cmd, &status);
 	if (ret)
@@ -743,7 +743,7 @@ static inline bool iwl_mvm_scan_use_ebs(struct iwl_mvm *mvm,
 	 *	4. it's not a p2p find operation.
 	 */
 	return ((capa->flags & IWL_UCODE_TLV_FLAGS_EBS_SUPPORT) &&
-		mvm->last_ebs_successful &&
+		mvm->last_ebs_successful && IWL_MVM_ENABLE_EBS &&
 		vif->type != NL80211_IFTYPE_P2P_DEVICE);
 }
 
@@ -1421,8 +1421,8 @@ int iwl_mvm_reg_scan_start(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	mvm->scan_vif = iwl_mvm_vif_from_mac80211(vif);
 	iwl_mvm_ref(mvm, IWL_MVM_REF_SCAN);
 
-	queue_delayed_work(system_wq, &mvm->scan_timeout_dwork,
-			   msecs_to_jiffies(SCAN_TIMEOUT));
+	schedule_delayed_work(&mvm->scan_timeout_dwork,
+			      msecs_to_jiffies(SCAN_TIMEOUT));
 
 	return 0;
 }
@@ -1695,7 +1695,7 @@ void iwl_mvm_report_scan_aborted(struct iwl_mvm *mvm)
 			mvm->scan_uid_status[uid] = 0;
 		}
 		uid = iwl_mvm_scan_uid_by_status(mvm, IWL_MVM_SCAN_SCHED);
-		if (uid >= 0 && !mvm->restart_fw) {
+		if (uid >= 0 && !mvm->fw_restart) {
 			ieee80211_sched_scan_stopped(mvm->hw);
 			mvm->sched_scan_pass_all = SCHED_SCAN_PASS_ALL_DISABLED;
 			mvm->scan_uid_status[uid] = 0;
@@ -1725,7 +1725,7 @@ void iwl_mvm_report_scan_aborted(struct iwl_mvm *mvm)
 		 * restarted.
 		 */
 		if ((mvm->scan_status & IWL_MVM_SCAN_SCHED) &&
-		    !mvm->restart_fw) {
+		    !mvm->fw_restart) {
 			ieee80211_sched_scan_stopped(mvm->hw);
 			mvm->sched_scan_pass_all = SCHED_SCAN_PASS_ALL_DISABLED;
 		}

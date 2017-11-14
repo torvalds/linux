@@ -259,7 +259,7 @@ void scsi_eh_scmd_add(struct scsi_cmnd *scmd)
  */
 enum blk_eh_timer_return scsi_times_out(struct request *req)
 {
-	struct scsi_cmnd *scmd = req->special;
+	struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(req);
 	enum blk_eh_timer_return rtn = BLK_EH_NOT_HANDLED;
 	struct Scsi_Host *host = scmd->device->host;
 
@@ -552,6 +552,7 @@ int scsi_check_sense(struct scsi_cmnd *scmd)
 			set_host_byte(scmd, DID_ALLOC_FAILURE);
 			return SUCCESS;
 		}
+		/* FALLTHROUGH */
 	case COPY_ABORTED:
 	case VOLUME_OVERFLOW:
 	case MISCOMPARE:
@@ -573,12 +574,14 @@ int scsi_check_sense(struct scsi_cmnd *scmd)
 			return ADD_TO_MLQUEUE;
 		else
 			set_host_byte(scmd, DID_TARGET_FAILURE);
+		/* FALLTHROUGH */
 
 	case ILLEGAL_REQUEST:
 		if (sshdr.asc == 0x20 || /* Invalid command operation code */
 		    sshdr.asc == 0x21 || /* Logical block address out of range */
 		    sshdr.asc == 0x24 || /* Invalid field in cdb */
-		    sshdr.asc == 0x26) { /* Parameter value invalid */
+		    sshdr.asc == 0x26 || /* Parameter value invalid */
+		    sshdr.asc == 0x27) { /* Write protected */
 			set_host_byte(scmd, DID_TARGET_FAILURE);
 		}
 		return SUCCESS;
@@ -683,6 +686,7 @@ static int scsi_eh_completed_normally(struct scsi_cmnd *scmd)
 	switch (status_byte(scmd->result)) {
 	case GOOD:
 		scsi_handle_queue_ramp_up(scmd->device);
+		/* FALLTHROUGH */
 	case COMMAND_TERMINATED:
 		return SUCCESS;
 	case CHECK_CONDITION:
@@ -1628,11 +1632,17 @@ static void scsi_eh_offline_sdevs(struct list_head *work_q,
 				  struct list_head *done_q)
 {
 	struct scsi_cmnd *scmd, *next;
+	struct scsi_device *sdev;
 
 	list_for_each_entry_safe(scmd, next, work_q, eh_entry) {
 		sdev_printk(KERN_INFO, scmd->device, "Device offlined - "
 			    "not ready after error recovery\n");
-		scsi_device_set_state(scmd->device, SDEV_OFFLINE);
+		sdev = scmd->device;
+
+		mutex_lock(&sdev->state_mutex);
+		scsi_device_set_state(sdev, SDEV_OFFLINE);
+		mutex_unlock(&sdev->state_mutex);
+
 		scsi_eh_finish_cmd(scmd, done_q);
 	}
 	return;
@@ -1728,6 +1738,7 @@ int scsi_decide_disposition(struct scsi_cmnd *scmd)
 			set_host_byte(scmd, DID_TIME_OUT);
 			return SUCCESS;
 		}
+		/* FALLTHROUGH */
 	case DID_NO_CONNECT:
 	case DID_BAD_TARGET:
 		/*
@@ -1813,6 +1824,7 @@ int scsi_decide_disposition(struct scsi_cmnd *scmd)
 		 * the case of trying to send too many commands to a
 		 * tagged queueing device.
 		 */
+		/* FALLTHROUGH */
 	case BUSY:
 		/*
 		 * device can't talk to us at the moment.  Should only
@@ -1825,6 +1837,7 @@ int scsi_decide_disposition(struct scsi_cmnd *scmd)
 		if (scmd->cmnd[0] == REPORT_LUNS)
 			scmd->device->sdev_target->expecting_lun_change = 0;
 		scsi_handle_queue_ramp_up(scmd->device);
+		/* FALLTHROUGH */
 	case COMMAND_TERMINATED:
 		return SUCCESS;
 	case TASK_ABORTED:
@@ -1874,7 +1887,7 @@ int scsi_decide_disposition(struct scsi_cmnd *scmd)
 	}
 }
 
-static void eh_lock_door_done(struct request *req, int uptodate)
+static void eh_lock_door_done(struct request *req, blk_status_t status)
 {
 	__blk_put_request(req->q, req);
 }
@@ -1903,7 +1916,6 @@ static void scsi_eh_lock_door(struct scsi_device *sdev)
 	if (IS_ERR(req))
 		return;
 	rq = scsi_req(req);
-	scsi_req_init(req);
 
 	rq->cmd[0] = ALLOW_MEDIUM_REMOVAL;
 	rq->cmd[1] = 0;
@@ -2315,8 +2327,8 @@ scsi_ioctl_reset(struct scsi_device *dev, int __user *arg)
 		rtn = scsi_try_host_reset(scmd);
 		if (rtn == SUCCESS)
 			break;
-	default:
 		/* FALLTHROUGH */
+	default:
 		rtn = FAILED;
 		break;
 	}

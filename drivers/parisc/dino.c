@@ -154,7 +154,10 @@ struct dino_device
 };
 
 /* Looks nice and keeps the compiler happy */
-#define DINO_DEV(d) ((struct dino_device *) d)
+#define DINO_DEV(d) ({				\
+	void *__pdata = d;			\
+	BUG_ON(!__pdata);			\
+	(struct dino_device *)__pdata; })
 
 
 /*
@@ -953,7 +956,7 @@ static int __init dino_probe(struct parisc_device *dev)
 
 	dino_dev->hba.dev = dev;
 	dino_dev->hba.base_addr = ioremap_nocache(hpa, 4096);
-	dino_dev->hba.lmmio_space_offset = 0;	/* CPU addrs == bus addrs */
+	dino_dev->hba.lmmio_space_offset = PCI_F_EXTEND;
 	spin_lock_init(&dino_dev->dinosaur_pen);
 	dino_dev->hba.iommu = ccio_get_iommu(dev);
 
@@ -1019,7 +1022,7 @@ static int __init dino_probe(struct parisc_device *dev)
  * and 725 firmware misreport it as 0x08080 for no adequately explained
  * reason.
  */
-static struct parisc_device_id dino_tbl[] = {
+static const struct parisc_device_id dino_tbl[] __initconst = {
 	{ HPHW_A_DMA, HVERSION_REV_ANY_ID, 0x004, 0x0009D },/* Card-mode Dino */
 	{ HPHW_A_DMA, HVERSION_REV_ANY_ID, HVERSION_ANY_ID, 0x08080 }, /* XXX */
 	{ HPHW_BRIDGE, HVERSION_REV_ANY_ID, 0x680, 0xa }, /* Bridge-mode Dino */
@@ -1028,7 +1031,7 @@ static struct parisc_device_id dino_tbl[] = {
 	{ 0, }
 };
 
-static struct parisc_driver dino_driver = {
+static struct parisc_driver dino_driver __refdata = {
 	.name =		"dino",
 	.id_table =	dino_tbl,
 	.probe =	dino_probe,

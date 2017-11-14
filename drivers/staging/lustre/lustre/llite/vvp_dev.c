@@ -37,7 +37,7 @@
 
 #define DEBUG_SUBSYSTEM S_LLITE
 
-#include "../include/obd.h"
+#include <obd.h>
 #include "llite_internal.h"
 #include "vvp_internal.h"
 
@@ -381,11 +381,11 @@ int cl_sb_fini(struct super_block *sb)
 #define PGC_DEPTH_SHIFT (32)
 
 struct vvp_pgcache_id {
-	unsigned		 vpi_bucket;
-	unsigned		 vpi_depth;
+	unsigned int		 vpi_bucket;
+	unsigned int		 vpi_depth;
 	uint32_t		 vpi_index;
 
-	unsigned		 vpi_curdep;
+	unsigned int		 vpi_curdep;
 	struct lu_object_header *vpi_obj;
 };
 
@@ -591,9 +591,10 @@ static void *vvp_pgcache_start(struct seq_file *f, loff_t *pos)
 	env = cl_env_get(&refcheck);
 	if (!IS_ERR(env)) {
 		sbi = f->private;
-		if (sbi->ll_site->ls_obj_hash->hs_cur_bits > 64 - PGC_OBJ_SHIFT)
+		if (sbi->ll_site->ls_obj_hash->hs_cur_bits >
+		    64 - PGC_OBJ_SHIFT) {
 			pos = ERR_PTR(-EFBIG);
-		else {
+		} else {
 			*pos = vvp_pgcache_find(env, &sbi->ll_cl->cd_lu_dev,
 						*pos);
 			if (*pos == ~0ULL)

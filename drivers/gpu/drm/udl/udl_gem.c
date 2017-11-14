@@ -52,7 +52,7 @@ udl_gem_create(struct drm_file *file,
 		return ret;
 	}
 
-	drm_gem_object_unreference_unlocked(&obj->base);
+	drm_gem_object_put_unlocked(&obj->base);
 	*handle_p = handle;
 	return 0;
 }
@@ -146,7 +146,7 @@ int udl_gem_get_pages(struct udl_gem_object *obj)
 void udl_gem_put_pages(struct udl_gem_object *obj)
 {
 	if (obj->base.import_attach) {
-		drm_free_large(obj->pages);
+		kvfree(obj->pages);
 		obj->pages = NULL;
 		return;
 	}
@@ -234,7 +234,7 @@ int udl_gem_mmap(struct drm_file *file, struct drm_device *dev,
 	*offset = drm_vma_node_offset_addr(&gobj->base.vma_node);
 
 out:
-	drm_gem_object_unreference(&gobj->base);
+	drm_gem_object_put(&gobj->base);
 unlock:
 	mutex_unlock(&dev->struct_mutex);
 	return ret;

@@ -30,7 +30,6 @@
  * SOFTWARE.
  */
 
-
 #include <linux/gfp.h>
 #include <linux/export.h>
 #include <linux/mlx5/cmd.h>
@@ -242,6 +241,20 @@ int mlx5_core_destroy_qp(struct mlx5_core_dev *dev,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(mlx5_core_destroy_qp);
+
+int mlx5_core_set_delay_drop(struct mlx5_core_dev *dev,
+			     u32 timeout_usec)
+{
+	u32 out[MLX5_ST_SZ_DW(set_delay_drop_params_out)] = {0};
+	u32 in[MLX5_ST_SZ_DW(set_delay_drop_params_in)]   = {0};
+
+	MLX5_SET(set_delay_drop_params_in, in, opcode,
+		 MLX5_CMD_OP_SET_DELAY_DROP_PARAMS);
+	MLX5_SET(set_delay_drop_params_in, in, delay_drop_timeout,
+		 timeout_usec / 100);
+	return mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
+}
+EXPORT_SYMBOL_GPL(mlx5_core_set_delay_drop);
 
 struct mbox_info {
 	u32 *in;
@@ -519,23 +532,3 @@ int mlx5_core_query_q_counter(struct mlx5_core_dev *dev, u16 counter_id,
 	return mlx5_cmd_exec(dev, in, sizeof(in), out, out_size);
 }
 EXPORT_SYMBOL_GPL(mlx5_core_query_q_counter);
-
-int mlx5_core_query_out_of_buffer(struct mlx5_core_dev *dev, u16 counter_id,
-				  u32 *out_of_buffer)
-{
-	int outlen = MLX5_ST_SZ_BYTES(query_q_counter_out);
-	void *out;
-	int err;
-
-	out = mlx5_vzalloc(outlen);
-	if (!out)
-		return -ENOMEM;
-
-	err = mlx5_core_query_q_counter(dev, counter_id, 0, out, outlen);
-	if (!err)
-		*out_of_buffer = MLX5_GET(query_q_counter_out, out,
-					  out_of_buffer);
-
-	kfree(out);
-	return err;
-}

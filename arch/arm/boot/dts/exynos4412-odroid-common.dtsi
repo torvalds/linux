@@ -32,7 +32,7 @@
 
 		power_key {
 			interrupt-parent = <&gpx1>;
-			interrupts = <3 0>;
+			interrupts = <3 IRQ_TYPE_NONE>;
 			gpios = <&gpx1 3 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_POWER>;
 			label = "power key";
@@ -266,7 +266,7 @@
 	max77686: pmic@09 {
 		compatible = "maxim,max77686";
 		interrupt-parent = <&gpx3>;
-		interrupts = <2 0>;
+		interrupts = <2 IRQ_TYPE_NONE>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&max77686_irq>;
 		reg = <0x09>;
@@ -484,7 +484,7 @@
 		compatible = "maxim,max98090";
 		reg = <0x10>;
 		interrupt-parent = <&gpx0>;
-		interrupts = <0 0>;
+		interrupts = <0 IRQ_TYPE_NONE>;
 		clocks = <&i2s0 CLK_I2S_CDCLK>;
 		clock-names = "mclk";
 		#sound-dai-cells = <0>;
@@ -516,7 +516,6 @@
 	mmc-pwrseq = <&emmc_pwrseq>;
 	status = "okay";
 
-	num-slots = <1>;
 	broken-cd;
 	card-detect-delay = <200>;
 	samsung,dw-mshc-ciu-div = <3>;

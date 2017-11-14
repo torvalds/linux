@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  Copyright (C) 1991, 1992  Linus Torvalds
  *  Copyright (C) 2000, 2001, 2002 Andi Kleen, SuSE Labs
@@ -37,7 +38,7 @@ static bool in_hardirq_stack(unsigned long *stack, struct stack_info *info)
 	 * This is a software stack, so 'end' can be a valid stack pointer.
 	 * It just means the stack is empty.
 	 */
-	if (stack < begin || stack > end)
+	if (stack <= begin || stack > end)
 		return false;
 
 	info->type	= STACK_TYPE_IRQ;
@@ -62,7 +63,7 @@ static bool in_softirq_stack(unsigned long *stack, struct stack_info *info)
 	 * This is a software stack, so 'end' can be a valid stack pointer.
 	 * It just means the stack is empty.
 	 */
-	if (stack < begin || stack > end)
+	if (stack <= begin || stack > end)
 		return false;
 
 	info->type	= STACK_TYPE_SOFTIRQ;

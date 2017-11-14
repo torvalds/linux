@@ -18,9 +18,11 @@
 #ifndef __HDMI_CODEC_H__
 #define __HDMI_CODEC_H__
 
+#include <linux/of_graph.h>
 #include <linux/hdmi.h>
 #include <drm/drm_edid.h>
 #include <sound/asoundef.h>
+#include <sound/soc.h>
 #include <uapi/sound/asound.h>
 
 /*
@@ -87,6 +89,13 @@ struct hdmi_codec_ops {
 	 */
 	int (*get_eld)(struct device *dev, void *data,
 		       uint8_t *buf, size_t len);
+
+	/*
+	 * Getting DAI ID
+	 * Optional
+	 */
+	int (*get_dai_id)(struct snd_soc_component *comment,
+			  struct device_node *endpoint);
 };
 
 /* HDMI codec initalization data */

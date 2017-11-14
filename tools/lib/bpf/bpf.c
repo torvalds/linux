@@ -39,6 +39,8 @@
 #  define __NR_bpf 280
 # elif defined(__sparc__)
 #  define __NR_bpf 349
+# elif defined(__s390__)
+#  define __NR_bpf 351
 # else
 #  error __NR_bpf not defined. libbpf does not support your arch.
 # endif
@@ -55,8 +57,9 @@ static inline int sys_bpf(enum bpf_cmd cmd, union bpf_attr *attr,
 	return syscall(__NR_bpf, cmd, attr, size);
 }
 
-int bpf_create_map(enum bpf_map_type map_type, int key_size,
-		   int value_size, int max_entries, __u32 map_flags)
+int bpf_create_map_node(enum bpf_map_type map_type, int key_size,
+			int value_size, int max_entries, __u32 map_flags,
+			int node)
 {
 	union bpf_attr attr;
 
@@ -67,12 +70,24 @@ int bpf_create_map(enum bpf_map_type map_type, int key_size,
 	attr.value_size = value_size;
 	attr.max_entries = max_entries;
 	attr.map_flags = map_flags;
+	if (node >= 0) {
+		attr.map_flags |= BPF_F_NUMA_NODE;
+		attr.numa_node = node;
+	}
 
 	return sys_bpf(BPF_MAP_CREATE, &attr, sizeof(attr));
 }
 
-int bpf_create_map_in_map(enum bpf_map_type map_type, int key_size,
-			  int inner_map_fd, int max_entries, __u32 map_flags)
+int bpf_create_map(enum bpf_map_type map_type, int key_size,
+		   int value_size, int max_entries, __u32 map_flags)
+{
+	return bpf_create_map_node(map_type, key_size, value_size,
+				   max_entries, map_flags, -1);
+}
+
+int bpf_create_map_in_map_node(enum bpf_map_type map_type, int key_size,
+			       int inner_map_fd, int max_entries,
+			       __u32 map_flags, int node)
 {
 	union bpf_attr attr;
 
@@ -84,8 +99,19 @@ int bpf_create_map_in_map(enum bpf_map_type map_type, int key_size,
 	attr.inner_map_fd = inner_map_fd;
 	attr.max_entries = max_entries;
 	attr.map_flags = map_flags;
+	if (node >= 0) {
+		attr.map_flags |= BPF_F_NUMA_NODE;
+		attr.numa_node = node;
+	}
 
 	return sys_bpf(BPF_MAP_CREATE, &attr, sizeof(attr));
+}
+
+int bpf_create_map_in_map(enum bpf_map_type map_type, int key_size,
+			  int inner_map_fd, int max_entries, __u32 map_flags)
+{
+	return bpf_create_map_in_map_node(map_type, key_size, inner_map_fd,
+					  max_entries, map_flags, -1);
 }
 
 int bpf_load_program(enum bpf_prog_type type, const struct bpf_insn *insns,
@@ -120,7 +146,7 @@ int bpf_load_program(enum bpf_prog_type type, const struct bpf_insn *insns,
 int bpf_verify_program(enum bpf_prog_type type, const struct bpf_insn *insns,
 		       size_t insns_cnt, int strict_alignment,
 		       const char *license, __u32 kern_version,
-		       char *log_buf, size_t log_buf_sz)
+		       char *log_buf, size_t log_buf_sz, int log_level)
 {
 	union bpf_attr attr;
 
@@ -131,7 +157,7 @@ int bpf_verify_program(enum bpf_prog_type type, const struct bpf_insn *insns,
 	attr.license = ptr_to_u64(license);
 	attr.log_buf = ptr_to_u64(log_buf);
 	attr.log_size = log_buf_sz;
-	attr.log_level = 2;
+	attr.log_level = log_level;
 	log_buf[0] = 0;
 	attr.kern_version = kern_version;
 	attr.prog_flags = strict_alignment ? BPF_F_STRICT_ALIGNMENT : 0;
@@ -256,4 +282,71 @@ int bpf_prog_test_run(int prog_fd, int repeat, void *data, __u32 size,
 	if (duration)
 		*duration = attr.test.duration;
 	return ret;
+}
+
+int bpf_prog_get_next_id(__u32 start_id, __u32 *next_id)
+{
+	union bpf_attr attr;
+	int err;
+
+	bzero(&attr, sizeof(attr));
+	attr.start_id = start_id;
+
+	err = sys_bpf(BPF_PROG_GET_NEXT_ID, &attr, sizeof(attr));
+	if (!err)
+		*next_id = attr.next_id;
+
+	return err;
+}
+
+int bpf_map_get_next_id(__u32 start_id, __u32 *next_id)
+{
+	union bpf_attr attr;
+	int err;
+
+	bzero(&attr, sizeof(attr));
+	attr.start_id = start_id;
+
+	err = sys_bpf(BPF_MAP_GET_NEXT_ID, &attr, sizeof(attr));
+	if (!err)
+		*next_id = attr.next_id;
+
+	return err;
+}
+
+int bpf_prog_get_fd_by_id(__u32 id)
+{
+	union bpf_attr attr;
+
+	bzero(&attr, sizeof(attr));
+	attr.prog_id = id;
+
+	return sys_bpf(BPF_PROG_GET_FD_BY_ID, &attr, sizeof(attr));
+}
+
+int bpf_map_get_fd_by_id(__u32 id)
+{
+	union bpf_attr attr;
+
+	bzero(&attr, sizeof(attr));
+	attr.map_id = id;
+
+	return sys_bpf(BPF_MAP_GET_FD_BY_ID, &attr, sizeof(attr));
+}
+
+int bpf_obj_get_info_by_fd(int prog_fd, void *info, __u32 *info_len)
+{
+	union bpf_attr attr;
+	int err;
+
+	bzero(&attr, sizeof(attr));
+	attr.info.bpf_fd = prog_fd;
+	attr.info.info_len = *info_len;
+	attr.info.info = ptr_to_u64(info);
+
+	err = sys_bpf(BPF_OBJ_GET_INFO_BY_FD, &attr, sizeof(attr));
+	if (!err)
+		*info_len = attr.info.info_len;
+
+	return err;
 }

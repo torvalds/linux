@@ -398,8 +398,8 @@ static int xgpu_vi_poll_ack(struct amdgpu_device *adev)
 			r = -ETIME;
 			break;
 		}
-		msleep(1);
-		timeout -= 1;
+		mdelay(5);
+		timeout -= 5;
 
 		reg = RREG32_NO_KIQ(mmMAILBOX_CONTROL);
 	}
@@ -418,8 +418,8 @@ static int xgpu_vi_poll_msg(struct amdgpu_device *adev, enum idh_event event)
 			r = -ETIME;
 			break;
 		}
-		msleep(1);
-		timeout -= 1;
+		mdelay(5);
+		timeout -= 5;
 
 		r = xgpu_vi_mailbox_rcv_msg(adev, event);
 	}
@@ -447,7 +447,7 @@ static int xgpu_vi_send_access_requests(struct amdgpu_device *adev,
 		request == IDH_REQ_GPU_RESET_ACCESS) {
 		r = xgpu_vi_poll_msg(adev, IDH_READY_TO_ACCESS_GPU);
 		if (r)
-			return r;
+			pr_err("Doesn't get ack from pf, continue\n");
 	}
 
 	return 0;
@@ -514,7 +514,7 @@ static void xgpu_vi_mailbox_flr_work(struct work_struct *work)
 	}
 
 	/* Trigger recovery due to world switch failure */
-	amdgpu_sriov_gpu_reset(adev, false);
+	amdgpu_sriov_gpu_reset(adev, NULL);
 }
 
 static int xgpu_vi_set_mailbox_rcv_irq(struct amdgpu_device *adev,
@@ -537,12 +537,15 @@ static int xgpu_vi_mailbox_rcv_irq(struct amdgpu_device *adev,
 {
 	int r;
 
-	/* see what event we get */
-	r = xgpu_vi_mailbox_rcv_msg(adev, IDH_FLR_NOTIFICATION);
+	/* trigger gpu-reset by hypervisor only if TDR disbaled */
+	if (amdgpu_lockup_timeout == 0) {
+		/* see what event we get */
+		r = xgpu_vi_mailbox_rcv_msg(adev, IDH_FLR_NOTIFICATION);
 
-	/* only handle FLR_NOTIFY now */
-	if (!r)
-		schedule_work(&adev->virt.flr_work);
+		/* only handle FLR_NOTIFY now */
+		if (!r)
+			schedule_work(&adev->virt.flr_work);
+	}
 
 	return 0;
 }
@@ -610,4 +613,5 @@ const struct amdgpu_virt_ops xgpu_vi_virt_ops = {
 	.req_full_gpu		= xgpu_vi_request_full_gpu_access,
 	.rel_full_gpu		= xgpu_vi_release_full_gpu_access,
 	.reset_gpu		= xgpu_vi_request_reset,
+	.trans_msg		= NULL, /* Does not need to trans VF errors to host. */
 };

@@ -1,7 +1,7 @@
-Binding for TI BQ27XXX fuel gauge family
+TI BQ27XXX fuel gauge family
 
 Required properties:
-- compatible: Should contain one of the following:
+- compatible: contains one of the following:
  * "ti,bq27200" - BQ27200
  * "ti,bq27210" - BQ27210
  * "ti,bq27500" - deprecated, use revision specific property below
@@ -26,11 +26,28 @@ Required properties:
  * "ti,bq27425" - BQ27425
  * "ti,bq27441" - BQ27441
  * "ti,bq27621" - BQ27621
-- reg: integer, i2c address of the device.
+- reg: integer, I2C address of the fuel gauge.
+
+Optional properties:
+- monitored-battery: phandle of battery characteristics node
+    The fuel gauge uses the following battery properties:
+    + energy-full-design-microwatt-hours
+    + charge-full-design-microamp-hours
+    + voltage-min-design-microvolt
+  Both or neither of the *-full-design-*-hours properties must be set.
+  See Documentation/devicetree/bindings/power/supply/battery.txt
 
 Example:
 
-bq27510g3 {
-    compatible = "ti,bq27510g3";
-    reg = <0x55>;
-};
+	bat: battery {
+		compatible = "simple-battery";
+		voltage-min-design-microvolt = <3200000>;
+		energy-full-design-microwatt-hours = <5290000>;
+		charge-full-design-microamp-hours = <1430000>;
+	};
+
+	bq27510g3: fuel-gauge@55 {
+		compatible = "ti,bq27510g3";
+		reg = <0x55>;
+		monitored-battery = <&bat>;
+	};

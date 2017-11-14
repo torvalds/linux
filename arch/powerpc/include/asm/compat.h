@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_POWERPC_COMPAT_H
 #define _ASM_POWERPC_COMPAT_H
 #ifdef __KERNEL__
@@ -109,7 +110,6 @@ struct compat_statfs {
 	int		f_spare[4];
 };
 
-#define COMPAT_RLIM_OLD_INFINITY	0x7fffffff
 #define COMPAT_RLIM_INFINITY		0xffffffff
 
 typedef u32		compat_old_sigset_t;

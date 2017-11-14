@@ -864,7 +864,7 @@ static int s5h1420_tuner_i2c_tuner_xfer(struct i2c_adapter *i2c_adap, struct i2c
 	return i2c_transfer(state->i2c, m, 1 + num) == 1 + num ? num : -EIO;
 }
 
-static struct i2c_algorithm s5h1420_tuner_i2c_algo = {
+static const struct i2c_algorithm s5h1420_tuner_i2c_algo = {
 	.master_xfer   = s5h1420_tuner_i2c_tuner_xfer,
 	.functionality = s5h1420_tuner_i2c_func,
 };

@@ -1005,7 +1005,6 @@ analogix_dp_detect(struct drm_connector *connector, bool force)
 }
 
 static const struct drm_connector_funcs analogix_dp_connector_funcs = {
-	.dpms = drm_atomic_helper_connector_dpms,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.detect = analogix_dp_detect,
 	.destroy = drm_connector_cleanup,

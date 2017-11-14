@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_IA64_DMA_MAPPING_H
 #define _ASM_IA64_DMA_MAPPING_H
 
@@ -11,8 +12,6 @@
 #include <linux/dma-debug.h>
 
 #define ARCH_HAS_DMA_GET_REQUIRED_MASK
-
-#define DMA_ERROR_CODE 0
 
 extern const struct dma_map_ops *dma_ops;
 extern struct ia64_machine_vector ia64_mv;

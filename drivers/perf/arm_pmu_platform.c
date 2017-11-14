@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * platform_device probing code for ARM performance counters.
  *
@@ -131,8 +132,8 @@ static int pmu_parse_irqs(struct arm_pmu *pmu)
 	}
 
 	if (!pmu_has_irq_affinity(pdev->dev.of_node)) {
-		pr_warn("no interrupt-affinity property for %s, guessing.\n",
-			of_node_full_name(pdev->dev.of_node));
+		pr_warn("no interrupt-affinity property for %pOF, guessing.\n",
+			pdev->dev.of_node);
 	}
 
 	/*
@@ -211,7 +212,7 @@ int arm_pmu_device_probe(struct platform_device *pdev,
 	}
 
 	if (ret) {
-		pr_info("%s: failed to probe PMU!\n", of_node_full_name(node));
+		pr_info("%pOF: failed to probe PMU!\n", node);
 		goto out_free;
 	}
 
@@ -228,8 +229,7 @@ int arm_pmu_device_probe(struct platform_device *pdev,
 out_free_irqs:
 	armpmu_free_irqs(pmu);
 out_free:
-	pr_info("%s: failed to register PMU devices!\n",
-		of_node_full_name(node));
+	pr_info("%pOF: failed to register PMU devices!\n", node);
 	armpmu_free(pmu);
 	return ret;
 }

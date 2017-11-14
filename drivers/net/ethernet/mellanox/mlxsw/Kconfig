@@ -74,7 +74,10 @@ config MLXSW_SPECTRUM
 	tristate "Mellanox Technologies Spectrum support"
 	depends on MLXSW_CORE && MLXSW_PCI && NET_SWITCHDEV && VLAN_8021Q
 	depends on PSAMPLE || PSAMPLE=n
+	depends on BRIDGE || BRIDGE=n
+	depends on IPV6 || IPV6=n
 	select PARMAN
+	select MLXFW
 	default m
 	---help---
 	  This driver supports Mellanox Technologies Spectrum Ethernet

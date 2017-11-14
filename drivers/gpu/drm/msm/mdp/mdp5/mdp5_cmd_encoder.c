@@ -11,10 +11,10 @@
  * GNU General Public License for more details.
  */
 
-#include "mdp5_kms.h"
+#include <drm/drm_crtc.h>
+#include <drm/drm_crtc_helper.h>
 
-#include "drm_crtc.h"
-#include "drm_crtc_helper.h"
+#include "mdp5_kms.h"
 
 static struct mdp5_kms *get_kms(struct drm_encoder *encoder)
 {
@@ -192,6 +192,7 @@ int mdp5_cmd_encoder_set_split_display(struct drm_encoder *encoder,
 {
 	struct mdp5_encoder *mdp5_cmd_enc = to_mdp5_encoder(encoder);
 	struct mdp5_kms *mdp5_kms;
+	struct device *dev;
 	int intf_num;
 	u32 data = 0;
 
@@ -214,14 +215,16 @@ int mdp5_cmd_encoder_set_split_display(struct drm_encoder *encoder,
 	/* Smart Panel, Sync mode */
 	data |= MDP5_SPLIT_DPL_UPPER_SMART_PANEL;
 
+	dev = &mdp5_kms->pdev->dev;
+
 	/* Make sure clocks are on when connectors calling this function. */
-	mdp5_enable(mdp5_kms);
+	pm_runtime_get_sync(dev);
 	mdp5_write(mdp5_kms, REG_MDP5_SPLIT_DPL_UPPER, data);
 
 	mdp5_write(mdp5_kms, REG_MDP5_SPLIT_DPL_LOWER,
 		   MDP5_SPLIT_DPL_LOWER_SMART_PANEL);
 	mdp5_write(mdp5_kms, REG_MDP5_SPLIT_DPL_EN, 1);
-	mdp5_disable(mdp5_kms);
+	pm_runtime_put_autosuspend(dev);
 
 	return 0;
 }

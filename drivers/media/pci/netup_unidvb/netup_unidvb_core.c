@@ -122,7 +122,8 @@ static void netup_unidvb_queue_cleanup(struct netup_dma *dma);
 
 static struct cxd2841er_config demod_config = {
 	.i2c_addr = 0xc8,
-	.xtal = SONY_XTAL_24000
+	.xtal = SONY_XTAL_24000,
+	.flags = CXD2841ER_USE_GATECTRL | CXD2841ER_ASCOT
 };
 
 static struct horus3a_config horus3a_conf = {
@@ -1013,7 +1014,7 @@ static void netup_unidvb_finidev(struct pci_dev *pci_dev)
 }
 
 
-static struct pci_device_id netup_unidvb_pci_tbl[] = {
+static const struct pci_device_id netup_unidvb_pci_tbl[] = {
 	{ PCI_DEVICE(0x1b55, 0x18f6) }, /* hw rev. 1.3 */
 	{ PCI_DEVICE(0x1b55, 0x18f7) }, /* hw rev. 1.4 */
 	{ 0, }

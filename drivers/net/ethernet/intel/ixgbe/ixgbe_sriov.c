@@ -540,16 +540,15 @@ static s32 ixgbe_set_vf_lpe(struct ixgbe_adapter *adapter, u32 *msgbuf, u32 vf)
 		case ixgbe_mbox_api_11:
 		case ixgbe_mbox_api_12:
 		case ixgbe_mbox_api_13:
-			/*
-			 * Version 1.1 supports jumbo frames on VFs if PF has
+			/* Version 1.1 supports jumbo frames on VFs if PF has
 			 * jumbo frames enabled which means legacy VFs are
 			 * disabled
 			 */
 			if (pf_max_frame > ETH_FRAME_LEN)
 				break;
+			/* fall through */
 		default:
-			/*
-			 * If the PF or VF are running w/ jumbo frames enabled
+			/* If the PF or VF are running w/ jumbo frames enabled
 			 * we need to shut down the VF Rx path as we cannot
 			 * support jumbo frames on legacy VFs
 			 */
@@ -680,8 +679,9 @@ update_vlvfb:
 static int ixgbe_set_vf_macvlan(struct ixgbe_adapter *adapter,
 				int vf, int index, unsigned char *mac_addr)
 {
-	struct list_head *pos;
 	struct vf_macvlans *entry;
+	struct list_head *pos;
+	int retval = 0;
 
 	if (index <= 1) {
 		list_for_each(pos, &adapter->vf_mvs.l) {
@@ -722,12 +722,14 @@ static int ixgbe_set_vf_macvlan(struct ixgbe_adapter *adapter,
 	if (!entry || !entry->free)
 		return -ENOSPC;
 
+	retval = ixgbe_add_mac_filter(adapter, mac_addr, vf);
+	if (retval < 0)
+		return retval;
+
 	entry->free = false;
 	entry->is_macvlan = true;
 	entry->vf = vf;
 	memcpy(entry->vf_macvlan, mac_addr, ETH_ALEN);
-
-	ixgbe_add_mac_filter(adapter, mac_addr, vf);
 
 	return 0;
 }
@@ -778,11 +780,17 @@ static inline void ixgbe_vf_reset_event(struct ixgbe_adapter *adapter, u32 vf)
 static int ixgbe_set_vf_mac(struct ixgbe_adapter *adapter,
 			    int vf, unsigned char *mac_addr)
 {
-	ixgbe_del_mac_filter(adapter, adapter->vfinfo[vf].vf_mac_addresses, vf);
-	memcpy(adapter->vfinfo[vf].vf_mac_addresses, mac_addr, ETH_ALEN);
-	ixgbe_add_mac_filter(adapter, adapter->vfinfo[vf].vf_mac_addresses, vf);
+	s32 retval;
 
-	return 0;
+	ixgbe_del_mac_filter(adapter, adapter->vfinfo[vf].vf_mac_addresses, vf);
+	retval = ixgbe_add_mac_filter(adapter, mac_addr, vf);
+	if (retval >= 0)
+		memcpy(adapter->vfinfo[vf].vf_mac_addresses, mac_addr,
+		       ETH_ALEN);
+	else
+		memset(adapter->vfinfo[vf].vf_mac_addresses, 0, ETH_ALEN);
+
+	return retval;
 }
 
 int ixgbe_vf_configuration(struct pci_dev *pdev, unsigned int event_mask)
@@ -813,7 +821,7 @@ static inline void ixgbe_write_qde(struct ixgbe_adapter *adapter, u32 vf,
 		IXGBE_WRITE_FLUSH(hw);
 
 		/* indicate to hardware that we want to set drop enable */
-		reg = IXGBE_QDE_WRITE | IXGBE_QDE_ENABLE;
+		reg = IXGBE_QDE_WRITE | qde;
 		reg |= i <<  IXGBE_QDE_IDX_SHIFT;
 		IXGBE_WRITE_REG(hw, IXGBE_QDE, reg);
 	}
@@ -1347,27 +1355,49 @@ void ixgbe_ping_all_vfs(struct ixgbe_adapter *adapter)
 int ixgbe_ndo_set_vf_mac(struct net_device *netdev, int vf, u8 *mac)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
+	s32 retval;
 
 	if (vf >= adapter->num_vfs)
 		return -EINVAL;
 
-	if (is_zero_ether_addr(mac)) {
-		adapter->vfinfo[vf].pf_set_mac = false;
-		dev_info(&adapter->pdev->dev, "removing MAC on VF %d\n", vf);
-	} else if (is_valid_ether_addr(mac)) {
-		adapter->vfinfo[vf].pf_set_mac = true;
+	if (is_valid_ether_addr(mac)) {
 		dev_info(&adapter->pdev->dev, "setting MAC %pM on VF %d\n",
 			 mac, vf);
 		dev_info(&adapter->pdev->dev, "Reload the VF driver to make this change effective.");
-		if (test_bit(__IXGBE_DOWN, &adapter->state)) {
-			dev_warn(&adapter->pdev->dev, "The VF MAC address has been set, but the PF device is not up.\n");
-			dev_warn(&adapter->pdev->dev, "Bring the PF device up before attempting to use the VF device.\n");
+
+		retval = ixgbe_set_vf_mac(adapter, vf, mac);
+		if (retval >= 0) {
+			adapter->vfinfo[vf].pf_set_mac = true;
+
+			if (test_bit(__IXGBE_DOWN, &adapter->state)) {
+				dev_warn(&adapter->pdev->dev, "The VF MAC address has been set, but the PF device is not up.\n");
+				dev_warn(&adapter->pdev->dev, "Bring the PF device up before attempting to use the VF device.\n");
+			}
+		} else {
+			dev_warn(&adapter->pdev->dev, "The VF MAC address was NOT set due to invalid or duplicate MAC address.\n");
+		}
+	} else if (is_zero_ether_addr(mac)) {
+		unsigned char *vf_mac_addr =
+					   adapter->vfinfo[vf].vf_mac_addresses;
+
+		/* nothing to do */
+		if (is_zero_ether_addr(vf_mac_addr))
+			return 0;
+
+		dev_info(&adapter->pdev->dev, "removing MAC on VF %d\n", vf);
+
+		retval = ixgbe_del_mac_filter(adapter, vf_mac_addr, vf);
+		if (retval >= 0) {
+			adapter->vfinfo[vf].pf_set_mac = false;
+			memcpy(vf_mac_addr, mac, ETH_ALEN);
+		} else {
+			dev_warn(&adapter->pdev->dev, "Could NOT remove the VF MAC address.\n");
 		}
 	} else {
-		return -EINVAL;
+		retval = -EINVAL;
 	}
 
-	return ixgbe_set_vf_mac(adapter, vf, mac);
+	return retval;
 }
 
 static int ixgbe_enable_port_vlan(struct ixgbe_adapter *adapter, int vf,

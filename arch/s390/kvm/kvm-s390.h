@@ -272,6 +272,8 @@ int kvm_s390_handle_sigp_pei(struct kvm_vcpu *vcpu);
 int handle_sthyi(struct kvm_vcpu *vcpu);
 
 /* implemented in kvm-s390.c */
+void kvm_s390_set_tod_clock_ext(struct kvm *kvm,
+				 const struct kvm_s390_vm_tod_clock *gtod);
 void kvm_s390_set_tod_clock(struct kvm *kvm, u64 tod);
 long kvm_arch_fault_in_page(struct kvm_vcpu *vcpu, gpa_t gpa, int writable);
 int kvm_s390_store_status_unloaded(struct kvm_vcpu *vcpu, unsigned long addr);
@@ -397,4 +399,6 @@ static inline int kvm_s390_use_sca_entries(void)
 	 */
 	return sclp.has_sigpif;
 }
+void kvm_s390_reinject_machine_check(struct kvm_vcpu *vcpu,
+				     struct mcck_volatile_info *mcck_info);
 #endif

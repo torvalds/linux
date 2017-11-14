@@ -72,9 +72,8 @@ static size_t strnlen_s(
 		return 0;
 	}
 
-	for (ix=0;
-		((src_str[ix] != '\0') && (ix< max_len));
-		++ix) /*Nothing else to do*/;
+	for (ix = 0; ix < max_len && src_str[ix] != '\0'; ix++)
+		;
 
 	/* On Error, it will return src_size == max_len*/
 	return ix;
@@ -118,7 +117,7 @@ STORAGE_CLASS_INLINE int strncpy_s(
 
 	/* dest_str is big enough for the len */
 	strncpy(dest_str, src_str, len);
-	dest_str[len+1] = '\0';
+	dest_str[len] = '\0';
 	return 0;
 }
 
@@ -158,7 +157,7 @@ STORAGE_CLASS_INLINE int strcpy_s(
 
 	/* dest_str is big enough for the len */
 	strncpy(dest_str, src_str, len);
-	dest_str[len+1] = '\0';
+	dest_str[len] = '\0';
 	return 0;
 }
 

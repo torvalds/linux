@@ -40,7 +40,7 @@ By default all inputs are exported.
 Platform Data
 -------------
 
-In linux/i2c/ads1015.h platform data is defined, channel_data contains
+In linux/platform_data/ads1015.h platform data is defined, channel_data contains
 configuration data for the used input combinations:
 - pga is the programmable gain amplifier (values are full scale)
   0: +/- 6.144 V

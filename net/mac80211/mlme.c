@@ -674,8 +674,7 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 	if (ifmgd->flags & IEEE80211_STA_ENABLE_RRM)
 		capab |= WLAN_CAPABILITY_RADIO_MEASURE;
 
-	mgmt = (struct ieee80211_mgmt *) skb_put(skb, 24);
-	memset(mgmt, 0, 24);
+	mgmt = skb_put_zero(skb, 24);
 	memcpy(mgmt->da, assoc_data->bss->bssid, ETH_ALEN);
 	memcpy(mgmt->sa, sdata->vif.addr, ETH_ALEN);
 	memcpy(mgmt->bssid, assoc_data->bss->bssid, ETH_ALEN);
@@ -797,8 +796,7 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 						 after_ric,
 						 ARRAY_SIZE(after_ric),
 						 offset);
-		pos = skb_put(skb, noffset - offset);
-		memcpy(pos, assoc_data->ie + offset, noffset - offset);
+		skb_put_data(skb, assoc_data->ie + offset, noffset - offset);
 		offset = noffset;
 	}
 
@@ -835,8 +833,7 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 		noffset = ieee80211_ie_split(assoc_data->ie, assoc_data->ie_len,
 					     before_vht, ARRAY_SIZE(before_vht),
 					     offset);
-		pos = skb_put(skb, noffset - offset);
-		memcpy(pos, assoc_data->ie + offset, noffset - offset);
+		skb_put_data(skb, assoc_data->ie + offset, noffset - offset);
 		offset = noffset;
 	}
 
@@ -849,8 +846,7 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 		noffset = ieee80211_ie_split_vendor(assoc_data->ie,
 						    assoc_data->ie_len,
 						    offset);
-		pos = skb_put(skb, noffset - offset);
-		memcpy(pos, assoc_data->ie + offset, noffset - offset);
+		skb_put_data(skb, assoc_data->ie + offset, noffset - offset);
 		offset = noffset;
 	}
 
@@ -869,8 +865,7 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 	/* add any remaining custom (i.e. vendor specific here) IEs */
 	if (assoc_data->ie_len) {
 		noffset = assoc_data->ie_len;
-		pos = skb_put(skb, noffset - offset);
-		memcpy(pos, assoc_data->ie + offset, noffset - offset);
+		skb_put_data(skb, assoc_data->ie + offset, noffset - offset);
 	}
 
 	if (assoc_data->fils_kek_len &&
@@ -949,8 +944,7 @@ static void ieee80211_send_4addr_nullfunc(struct ieee80211_local *local,
 
 	skb_reserve(skb, local->hw.extra_tx_headroom);
 
-	nullfunc = (struct ieee80211_hdr *) skb_put(skb, 30);
-	memset(nullfunc, 0, 30);
+	nullfunc = skb_put_zero(skb, 30);
 	fc = cpu_to_le16(IEEE80211_FTYPE_DATA | IEEE80211_STYPE_NULLFUNC |
 			 IEEE80211_FCTL_FROMDS | IEEE80211_FCTL_TODS);
 	nullfunc->frame_control = fc;
@@ -1122,7 +1116,6 @@ ieee80211_sta_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 		return;
 
 	current_band = cbss->channel->band;
-	memset(&csa_ie, 0, sizeof(csa_ie));
 	res = ieee80211_parse_ch_switch_ie(sdata, elems, current_band,
 					   ifmgd->flags,
 					   ifmgd->associated->bssid, &csa_ie);
@@ -3162,7 +3155,7 @@ static void ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 	if (len < 24 + 6)
 		return;
 
-	reassoc = ieee80211_is_reassoc_req(mgmt->frame_control);
+	reassoc = ieee80211_is_reassoc_resp(mgmt->frame_control);
 	capab_info = le16_to_cpu(mgmt->u.assoc_resp.capab_info);
 	status_code = le16_to_cpu(mgmt->u.assoc_resp.status_code);
 	aid = le16_to_cpu(mgmt->u.assoc_resp.aid);

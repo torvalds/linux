@@ -20,6 +20,12 @@
  *
  * For each partition, these fields are available:
  * name: string that will be used to label the partition's MTD device.
+ * types: some partitions can be containers using specific format to describe
+ *	embedded subpartitions / volumes. E.g. many home routers use "firmware"
+ *	partition that contains at least kernel and rootfs. In such case an
+ *	extra parser is needed that will detect these dynamic partitions and
+ *	report them to the MTD subsystem. If set this property stores an array
+ *	of parser names to use when looking for subpartitions.
  * size: the partition size; if defined as MTDPART_SIZ_FULL, the partition
  * 	will extend to the end of the master MTD device.
  * offset: absolute starting position within the master MTD device; if
@@ -38,6 +44,7 @@
 
 struct mtd_partition {
 	const char *name;		/* identifier string */
+	const char *const *types;	/* names of parsers to use if any */
 	uint64_t size;			/* partition size */
 	uint64_t offset;		/* offset within the master MTD space */
 	uint32_t mask_flags;		/* master MTD flags to mask out for this partition */

@@ -1,8 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /dts-v1/;
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/clock/qcom,gcc-msm8974.h>
 #include <dt-bindings/clock/qcom,rpmcc.h>
+#include <dt-bindings/reset/qcom,gcc-msm8974.h>
 #include <dt-bindings/gpio/gpio.h>
 #include "skeleton.dtsi"
 
@@ -551,6 +553,11 @@
 			reg = <0xfc400000 0x4000>;
 		};
 
+		tcsr: syscon@fd4a0000 {
+			compatible = "syscon";
+			reg = <0xfd4a0000 0x10000>;
+		};
+
 		tcsr_mutex_block: syscon@fd484000 {
 			compatible = "syscon";
 			reg = <0xfd484000 0x2000>;
@@ -618,6 +625,50 @@
 				 <&xo_board>;
 			clock-names = "core", "iface", "xo";
 			status = "disabled";
+		};
+
+		otg: usb@f9a55000 {
+			compatible = "qcom,ci-hdrc";
+			reg = <0xf9a55000 0x200>,
+			      <0xf9a55200 0x200>;
+			interrupts = <GIC_SPI 134 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&gcc GCC_USB_HS_AHB_CLK>,
+				 <&gcc GCC_USB_HS_SYSTEM_CLK>;
+			clock-names = "iface", "core";
+			assigned-clocks = <&gcc GCC_USB_HS_SYSTEM_CLK>;
+			assigned-clock-rates = <75000000>;
+			resets = <&gcc GCC_USB_HS_BCR>;
+			reset-names = "core";
+			phy_type = "ulpi";
+			dr_mode = "otg";
+			ahb-burst-config = <0>;
+			phy-names = "usb-phy";
+			status = "disabled";
+			#reset-cells = <1>;
+
+			ulpi {
+				usb_hs1_phy: phy@a {
+					compatible = "qcom,usb-hs-phy-msm8974",
+						     "qcom,usb-hs-phy";
+					#phy-cells = <0>;
+					clocks = <&xo_board>, <&gcc GCC_USB2A_PHY_SLEEP_CLK>;
+					clock-names = "ref", "sleep";
+					resets = <&gcc GCC_USB2A_PHY_BCR>, <&otg 0>;
+					reset-names = "phy", "por";
+					status = "disabled";
+				};
+
+				usb_hs2_phy: phy@b {
+					compatible = "qcom,usb-hs-phy-msm8974",
+						     "qcom,usb-hs-phy";
+					#phy-cells = <0>;
+					clocks = <&xo_board>, <&gcc GCC_USB2B_PHY_SLEEP_CLK>;
+					clock-names = "ref", "sleep";
+					resets = <&gcc GCC_USB2B_PHY_BCR>, <&otg 1>;
+					reset-names = "phy", "por";
+					status = "disabled";
+				};
+			};
 		};
 
 		rng@f9bff000 {
@@ -729,7 +780,7 @@
 		};
 
 		replicator@fc31c000 {
-			compatible = "qcom,coresight-replicator1x", "arm,primecell";
+			compatible = "arm,coresight-dynamic-replicator", "arm,primecell";
 			reg = <0xfc31c000 0x1000>;
 
 			clocks = <&rpmcc RPM_SMD_QDSS_CLK>, <&rpmcc RPM_SMD_QDSS_A_CLK>;
@@ -1021,7 +1072,6 @@
 					pm8941_s1: s1 {};
 					pm8941_s2: s2 {};
 					pm8941_s3: s3 {};
-					pm8941_5v: s4 {};
 
 					pm8941_l1: l1 {};
 					pm8941_l2: l2 {};
@@ -1051,9 +1101,6 @@
 					pm8941_lvs1: lvs1 {};
 					pm8941_lvs2: lvs2 {};
 					pm8941_lvs3: lvs3 {};
-
-					pm8941_5vs1: 5vs1 {};
-					pm8941_5vs2: 5vs2 {};
 				};
 			};
 		};

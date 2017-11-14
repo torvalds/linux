@@ -27,10 +27,9 @@
 
 #define ACPI_SIG_TPM2 "TPM2"
 
-static const u8 CRB_ACPI_START_UUID[] = {
-	/* 0000 */ 0xAB, 0x6C, 0xBF, 0x6B, 0x63, 0x54, 0x14, 0x47,
-	/* 0008 */ 0xB7, 0xCD, 0xF0, 0x20, 0x3C, 0x03, 0x68, 0xD4
-};
+static const guid_t crb_acpi_start_guid =
+	GUID_INIT(0x6BBF6CAB, 0x5463, 0x4714,
+		  0xB7, 0xCD, 0xF0, 0x20, 0x3C, 0x03, 0x68, 0xD4);
 
 enum crb_defaults {
 	CRB_ACPI_START_REVISION_ID = 1,
@@ -266,7 +265,7 @@ static int crb_do_acpi_start(struct tpm_chip *chip)
 	int rc;
 
 	obj = acpi_evaluate_dsm(chip->acpi_dev_handle,
-				CRB_ACPI_START_UUID,
+				&crb_acpi_start_guid,
 				CRB_ACPI_START_REVISION_ID,
 				CRB_ACPI_START_INDEX,
 				NULL);
@@ -515,11 +514,12 @@ static int crb_map_io(struct acpi_device *device, struct crb_priv *priv,
 		goto out;
 	}
 
-	priv->cmd_size = cmd_size;
-
 	priv->rsp = priv->cmd;
 
 out:
+	if (!ret)
+		priv->cmd_size = cmd_size;
+
 	crb_go_idle(dev, priv);
 
 	return ret;
@@ -564,12 +564,12 @@ static int crb_acpi_add(struct acpi_device *device)
 	    sm == ACPI_TPM2_COMMAND_BUFFER_WITH_START_METHOD)
 		priv->flags |= CRB_FL_ACPI_START;
 
-	if (sm == ACPI_TPM2_COMMAND_BUFFER_WITH_SMC) {
+	if (sm == ACPI_TPM2_COMMAND_BUFFER_WITH_ARM_SMC) {
 		if (buf->header.length < (sizeof(*buf) + sizeof(*crb_smc))) {
 			dev_err(dev,
 				FW_BUG "TPM2 ACPI table has wrong size %u for start method type %d\n",
 				buf->header.length,
-				ACPI_TPM2_COMMAND_BUFFER_WITH_SMC);
+				ACPI_TPM2_COMMAND_BUFFER_WITH_ARM_SMC);
 			return -EINVAL;
 		}
 		crb_smc = ACPI_ADD_PTR(struct tpm2_crb_smc, buf, sizeof(*buf));
@@ -665,7 +665,7 @@ static const struct dev_pm_ops crb_pm = {
 	SET_RUNTIME_PM_OPS(crb_pm_runtime_suspend, crb_pm_runtime_resume, NULL)
 };
 
-static struct acpi_device_id crb_device_ids[] = {
+static const struct acpi_device_id crb_device_ids[] = {
 	{"MSFT0101", 0},
 	{"", 0},
 };

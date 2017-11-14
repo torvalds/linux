@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _IOP13XX_PCI_H_
 #define _IOP13XX_PCI_H_
 #include <linux/io.h>
@@ -11,9 +12,10 @@ extern size_t iop13xx_atue_mem_size;
 extern size_t iop13xx_atux_mem_size;
 
 struct pci_sys_data;
+struct pci_host_bridge;
 struct hw_pci;
 int iop13xx_pci_setup(int nr, struct pci_sys_data *sys);
-struct pci_bus *iop13xx_scan_bus(int nr, struct pci_sys_data *);
+int iop13xx_scan_bus(int nr, struct pci_host_bridge *bridge);
 void iop13xx_atu_select(struct hw_pci *plat_pci);
 void iop13xx_pci_init(void);
 void iop13xx_map_pci_memory(void);

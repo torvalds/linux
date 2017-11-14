@@ -1,6 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _FS_CEPH_OSD_CLIENT_H
 #define _FS_CEPH_OSD_CLIENT_H
 
+#include <linux/bitrev.h>
 #include <linux/completion.h>
 #include <linux/kref.h>
 #include <linux/mempool.h>
@@ -36,6 +38,8 @@ struct ceph_osd {
 	struct ceph_connection o_con;
 	struct rb_root o_requests;
 	struct rb_root o_linger_requests;
+	struct rb_root o_backoff_mappings;
+	struct rb_root o_backoffs_by_id;
 	struct list_head o_osd_lru;
 	struct ceph_auth_handshake o_auth;
 	unsigned long lru_ttl;
@@ -136,7 +140,8 @@ struct ceph_osd_request_target {
 	struct ceph_object_id target_oid;
 	struct ceph_object_locator target_oloc;
 
-	struct ceph_pg pgid;
+	struct ceph_pg pgid;               /* last raw pg we mapped to */
+	struct ceph_spg spgid;             /* last actual spg we mapped to */
 	u32 pg_num;
 	u32 pg_num_mask;
 	struct ceph_osds acting;
@@ -144,9 +149,13 @@ struct ceph_osd_request_target {
 	int size;
 	int min_size;
 	bool sort_bitwise;
+	bool recovery_deletes;
 
 	unsigned int flags;                /* CEPH_OSD_FLAG_* */
 	bool paused;
+
+	u32 epoch;
+	u32 last_force_resend;
 
 	int osd;
 };
@@ -193,7 +202,6 @@ struct ceph_osd_request {
 	unsigned long r_stamp;                /* jiffies, send or check time */
 	unsigned long r_start_stamp;          /* jiffies */
 	int r_attempts;
-	u32 r_last_force_resend;
 	u32 r_map_dne_bound;
 
 	struct ceph_osd_req_op r_ops[];
@@ -202,6 +210,23 @@ struct ceph_osd_request {
 struct ceph_request_redirect {
 	struct ceph_object_locator oloc;
 };
+
+/*
+ * osd request identifier
+ *
+ * caller name + incarnation# + tid to unique identify this request
+ */
+struct ceph_osd_reqid {
+	struct ceph_entity_name name;
+	__le64 tid;
+	__le32 inc;
+} __packed;
+
+struct ceph_blkin_trace_info {
+	__le64 trace_id;
+	__le64 span_id;
+	__le64 parent_span_id;
+} __packed;
 
 typedef void (*rados_watchcb2_t)(void *arg, u64 notify_id, u64 cookie,
 				 u64 notifier_id, void *data, size_t data_len);
@@ -221,7 +246,6 @@ struct ceph_osd_linger_request {
 	struct list_head pending_lworks;
 
 	struct ceph_osd_request_target t;
-	u32 last_force_resend;
 	u32 map_dne_bound;
 
 	struct timespec mtime;
@@ -254,6 +278,48 @@ struct ceph_watch_item {
 	struct ceph_entity_name name;
 	u64 cookie;
 	struct ceph_entity_addr addr;
+};
+
+struct ceph_spg_mapping {
+	struct rb_node node;
+	struct ceph_spg spgid;
+
+	struct rb_root backoffs;
+};
+
+struct ceph_hobject_id {
+	void *key;
+	size_t key_len;
+	void *oid;
+	size_t oid_len;
+	u64 snapid;
+	u32 hash;
+	u8 is_max;
+	void *nspace;
+	size_t nspace_len;
+	s64 pool;
+
+	/* cache */
+	u32 hash_reverse_bits;
+};
+
+static inline void ceph_hoid_build_hash_cache(struct ceph_hobject_id *hoid)
+{
+	hoid->hash_reverse_bits = bitrev32(hoid->hash);
+}
+
+/*
+ * PG-wide backoff: [begin, end)
+ * per-object backoff: begin == end
+ */
+struct ceph_osd_backoff {
+	struct rb_node spg_node;
+	struct rb_node id_node;
+
+	struct ceph_spg spgid;
+	u64 id;
+	struct ceph_hobject_id *begin;
+	struct ceph_hobject_id *end;
 };
 
 #define CEPH_LINGER_ID_START	0xffff000000000000ULL

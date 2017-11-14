@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* linux/arch/sparc/kernel/time.c
  *
  * Copyright (C) 1995 David S. Miller (davem@davemloft.net)
@@ -298,7 +299,7 @@ static int clock_probe(struct platform_device *op)
 	return 0;
 }
 
-static struct of_device_id clock_match[] = {
+static const struct of_device_id clock_match[] = {
 	{
 		.name = "eeprom",
 	},

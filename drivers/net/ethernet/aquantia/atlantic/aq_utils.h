@@ -17,7 +17,6 @@
 #define AQ_DIMOF(_ARY_)  ARRAY_SIZE(_ARY_)
 
 struct aq_obj_s {
-	spinlock_t lock; /* spinlock for nic/rings processing */
 	atomic_t flags;
 };
 

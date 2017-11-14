@@ -256,9 +256,6 @@ static int sdricoh_blockio(struct sdricoh_host *host, int read,
 		}
 	}
 
-	if (len)
-		return -EIO;
-
 	return 0;
 }
 
@@ -388,7 +385,7 @@ static int sdricoh_get_ro(struct mmc_host *mmc)
 	return (status & STATUS_CARD_LOCKED);
 }
 
-static struct mmc_host_ops sdricoh_ops = {
+static const struct mmc_host_ops sdricoh_ops = {
 	.request = sdricoh_request,
 	.set_ios = sdricoh_set_ios,
 	.get_ro = sdricoh_get_ro,

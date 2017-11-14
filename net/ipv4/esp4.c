@@ -258,7 +258,7 @@ int esp_output_head(struct xfrm_state *x, struct sk_buff *skb, struct esp_info *
 		esp_output_udp_encap(x, skb, esp);
 
 	if (!skb_cloned(skb)) {
-		if (tailen <= skb_availroom(skb)) {
+		if (tailen <= skb_tailroom(skb)) {
 			nfrags = 1;
 			trailer = skb;
 			tail = skb_tail_pointer(trailer);
@@ -292,8 +292,6 @@ int esp_output_head(struct xfrm_state *x, struct sk_buff *skb, struct esp_info *
 
 			kunmap_atomic(vaddr);
 
-			spin_unlock_bh(&x->lock);
-
 			nfrags = skb_shinfo(skb)->nr_frags;
 
 			__skb_fill_page_desc(skb, nfrags, page, pfrag->offset,
@@ -301,13 +299,16 @@ int esp_output_head(struct xfrm_state *x, struct sk_buff *skb, struct esp_info *
 			skb_shinfo(skb)->nr_frags = ++nfrags;
 
 			pfrag->offset = pfrag->offset + allocsize;
+
+			spin_unlock_bh(&x->lock);
+
 			nfrags++;
 
 			skb->len += tailen;
 			skb->data_len += tailen;
 			skb->truesize += tailen;
 			if (sk)
-				atomic_add(tailen, &sk->sk_wmem_alloc);
+				refcount_add(tailen, &sk->sk_wmem_alloc);
 
 			goto out;
 		}
@@ -377,9 +378,11 @@ int esp_output_tail(struct xfrm_state *x, struct sk_buff *skb, struct esp_info *
 	esp->esph = esph;
 
 	sg_init_table(sg, esp->nfrags);
-	skb_to_sgvec(skb, sg,
-		     (unsigned char *)esph - skb->data,
-		     assoclen + ivlen + esp->clen + alen);
+	err = skb_to_sgvec(skb, sg,
+		           (unsigned char *)esph - skb->data,
+		           assoclen + ivlen + esp->clen + alen);
+	if (unlikely(err < 0))
+		goto error_free;
 
 	if (!esp->inplace) {
 		int allocsize;
@@ -390,7 +393,7 @@ int esp_output_tail(struct xfrm_state *x, struct sk_buff *skb, struct esp_info *
 		spin_lock_bh(&x->lock);
 		if (unlikely(!skb_page_frag_refill(allocsize, pfrag, GFP_ATOMIC))) {
 			spin_unlock_bh(&x->lock);
-			goto error;
+			goto error_free;
 		}
 
 		skb_shinfo(skb)->nr_frags = 1;
@@ -403,9 +406,11 @@ int esp_output_tail(struct xfrm_state *x, struct sk_buff *skb, struct esp_info *
 		spin_unlock_bh(&x->lock);
 
 		sg_init_table(dsg, skb_shinfo(skb)->nr_frags + 1);
-		skb_to_sgvec(skb, dsg,
-			     (unsigned char *)esph - skb->data,
-			     assoclen + ivlen + esp->clen + alen);
+		err = skb_to_sgvec(skb, dsg,
+			           (unsigned char *)esph - skb->data,
+			           assoclen + ivlen + esp->clen + alen);
+		if (unlikely(err < 0))
+			goto error_free;
 	}
 
 	if ((x->props.flags & XFRM_STATE_ESN))
@@ -438,8 +443,9 @@ int esp_output_tail(struct xfrm_state *x, struct sk_buff *skb, struct esp_info *
 
 	if (sg != dsg)
 		esp_ssg_unref(x, tmp);
-	kfree(tmp);
 
+error_free:
+	kfree(tmp);
 error:
 	return err;
 }
@@ -495,18 +501,59 @@ static int esp_output(struct xfrm_state *x, struct sk_buff *skb)
 	return esp_output_tail(x, skb, &esp);
 }
 
+static inline int esp_remove_trailer(struct sk_buff *skb)
+{
+	struct xfrm_state *x = xfrm_input_state(skb);
+	struct xfrm_offload *xo = xfrm_offload(skb);
+	struct crypto_aead *aead = x->data;
+	int alen, hlen, elen;
+	int padlen, trimlen;
+	__wsum csumdiff;
+	u8 nexthdr[2];
+	int ret;
+
+	alen = crypto_aead_authsize(aead);
+	hlen = sizeof(struct ip_esp_hdr) + crypto_aead_ivsize(aead);
+	elen = skb->len - hlen;
+
+	if (xo && (xo->flags & XFRM_ESP_NO_TRAILER)) {
+		ret = xo->proto;
+		goto out;
+	}
+
+	if (skb_copy_bits(skb, skb->len - alen - 2, nexthdr, 2))
+		BUG();
+
+	ret = -EINVAL;
+	padlen = nexthdr[0];
+	if (padlen + 2 + alen >= elen) {
+		net_dbg_ratelimited("ipsec esp packet is garbage padlen=%d, elen=%d\n",
+				    padlen + 2, elen - alen);
+		goto out;
+	}
+
+	trimlen = alen + padlen + 2;
+	if (skb->ip_summed == CHECKSUM_COMPLETE) {
+		csumdiff = skb_checksum(skb, skb->len - trimlen, trimlen, 0);
+		skb->csum = csum_block_sub(skb->csum, csumdiff,
+					   skb->len - trimlen);
+	}
+	pskb_trim(skb, skb->len - trimlen);
+
+	ret = nexthdr[1];
+
+out:
+	return ret;
+}
+
 int esp_input_done2(struct sk_buff *skb, int err)
 {
 	const struct iphdr *iph;
 	struct xfrm_state *x = xfrm_input_state(skb);
 	struct xfrm_offload *xo = xfrm_offload(skb);
 	struct crypto_aead *aead = x->data;
-	int alen = crypto_aead_authsize(aead);
 	int hlen = sizeof(struct ip_esp_hdr) + crypto_aead_ivsize(aead);
-	int elen = skb->len - hlen;
 	int ihl;
-	u8 nexthdr[2];
-	int padlen;
 
 	if (!xo || (xo && !(xo->flags & CRYPTO_DONE)))
 		kfree(ESP_SKB_CB(skb)->tmp);
@@ -514,15 +561,9 @@ int esp_input_done2(struct sk_buff *skb, int err)
 	if (unlikely(err))
 		goto out;
 
-	if (skb_copy_bits(skb, skb->len-alen-2, nexthdr, 2))
-		BUG();
-
-	err = -EINVAL;
-	padlen = nexthdr[0];
-	if (padlen + 2 + alen >= elen)
+	err = esp_remove_trailer(skb);
+	if (unlikely(err < 0))
 		goto out;
-
-	/* ... check padding bits here. Silly. :-) */
 
 	iph = ip_hdr(skb);
 	ihl = iph->ihl * 4;
@@ -564,14 +605,11 @@ int esp_input_done2(struct sk_buff *skb, int err)
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
 	}
 
-	pskb_trim(skb, skb->len - alen - padlen - 2);
-	__skb_pull(skb, hlen);
+	skb_pull_rcsum(skb, hlen);
 	if (x->props.mode == XFRM_MODE_TUNNEL)
 		skb_reset_transport_header(skb);
 	else
 		skb_set_transport_header(skb, -ihl);
-
-	err = nexthdr[1];
 
 	/* RFC4303: Drop dummy packets without any error */
 	if (err == IPPROTO_NONE)
@@ -605,7 +643,7 @@ static void esp_input_set_header(struct sk_buff *skb, __be32 *seqhi)
 	 * decryption.
 	 */
 	if ((x->props.flags & XFRM_STATE_ESN)) {
-		esph = (void *)skb_push(skb, 4);
+		esph = skb_push(skb, 4);
 		*seqhi = esph->spi;
 		esph->spi = esph->seq_no;
 		esph->seq_no = XFRM_SKB_CB(skb)->seq.input.hi;
@@ -690,7 +728,11 @@ skip_cow:
 	esp_input_set_header(skb, seqhi);
 
 	sg_init_table(sg, nfrags);
-	skb_to_sgvec(skb, sg, 0, skb->len);
+	err = skb_to_sgvec(skb, sg, 0, skb->len);
+	if (unlikely(err < 0)) {
+		kfree(tmp);
+		goto out;
+	}
 
 	skb->ip_summed = CHECKSUM_NONE;
 

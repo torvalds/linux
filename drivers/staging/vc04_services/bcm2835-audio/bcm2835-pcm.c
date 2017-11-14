@@ -20,7 +20,7 @@
 #include "bcm2835.h"
 
 /* hardware definition */
-static struct snd_pcm_hardware snd_bcm2835_playback_hw = {
+static const struct snd_pcm_hardware snd_bcm2835_playback_hw = {
 	.info = (SNDRV_PCM_INFO_INTERLEAVED | SNDRV_PCM_INFO_BLOCK_TRANSFER |
 	SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_MMAP_VALID),
 	.formats = SNDRV_PCM_FMTBIT_U8 | SNDRV_PCM_FMTBIT_S16_LE,
@@ -36,7 +36,7 @@ static struct snd_pcm_hardware snd_bcm2835_playback_hw = {
 	.periods_max = 128,
 };
 
-static struct snd_pcm_hardware snd_bcm2835_playback_spdif_hw = {
+static const struct snd_pcm_hardware snd_bcm2835_playback_spdif_hw = {
 	.info = (SNDRV_PCM_INFO_INTERLEAVED | SNDRV_PCM_INFO_BLOCK_TRANSFER |
 	SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_MMAP_VALID),
 	.formats = SNDRV_PCM_FMTBIT_S16_LE,
@@ -353,9 +353,8 @@ static int snd_bcm2835_pcm_ack(struct snd_pcm_substream *substream)
 	struct snd_pcm_indirect *pcm_indirect = &alsa_stream->pcm_indirect;
 
 	pcm_indirect->hw_queue_size = runtime->hw.buffer_bytes_max;
-	snd_pcm_indirect_playback_transfer(substream, pcm_indirect,
-					   snd_bcm2835_pcm_transfer);
-	return 0;
+	return snd_pcm_indirect_playback_transfer(substream, pcm_indirect,
+						  snd_bcm2835_pcm_transfer);
 }
 
 /* trigger callback */
@@ -439,7 +438,7 @@ static int snd_bcm2835_pcm_lib_ioctl(struct snd_pcm_substream *substream,
 }
 
 /* operators */
-static struct snd_pcm_ops snd_bcm2835_playback_ops = {
+static const struct snd_pcm_ops snd_bcm2835_playback_ops = {
 	.open = snd_bcm2835_playback_open,
 	.close = snd_bcm2835_playback_close,
 	.ioctl = snd_bcm2835_pcm_lib_ioctl,
@@ -451,7 +450,7 @@ static struct snd_pcm_ops snd_bcm2835_playback_ops = {
 	.ack = snd_bcm2835_pcm_ack,
 };
 
-static struct snd_pcm_ops snd_bcm2835_playback_spdif_ops = {
+static const struct snd_pcm_ops snd_bcm2835_playback_spdif_ops = {
 	.open = snd_bcm2835_playback_spdif_open,
 	.close = snd_bcm2835_playback_close,
 	.ioctl = snd_bcm2835_pcm_lib_ioctl,

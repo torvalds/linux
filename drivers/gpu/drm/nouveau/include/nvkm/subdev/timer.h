@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NVKM_TIMER_H__
 #define __NVKM_TIMER_H__
 #include <core/subdev.h>
@@ -26,7 +27,6 @@ struct nvkm_timer {
 
 u64 nvkm_timer_read(struct nvkm_timer *);
 void nvkm_timer_alarm(struct nvkm_timer *, u32 nsec, struct nvkm_alarm *);
-void nvkm_timer_alarm_cancel(struct nvkm_timer *, struct nvkm_alarm *);
 
 /* Delay based on GPU time (ie. PTIMER).
  *

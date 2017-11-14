@@ -143,6 +143,7 @@ struct inode *ubifs_new_inode(struct ubifs_info *c, struct inode *dir,
 	case S_IFBLK:
 	case S_IFCHR:
 		inode->i_op  = &ubifs_file_inode_operations;
+		encrypted = false;
 		break;
 	default:
 		BUG();
@@ -1061,7 +1062,6 @@ static int ubifs_mknod(struct inode *dir, struct dentry *dentry,
 	int sz_change;
 	int err, devlen = 0;
 	struct ubifs_budget_req req = { .new_ino = 1, .new_dent = 1,
-					.new_ino_d = ALIGN(devlen, 8),
 					.dirtied_ino = 1 };
 	struct fscrypt_name nm;
 
@@ -1079,6 +1079,7 @@ static int ubifs_mknod(struct inode *dir, struct dentry *dentry,
 		devlen = ubifs_encode_dev(dev, rdev);
 	}
 
+	req.new_ino_d = ALIGN(devlen, 8);
 	err = ubifs_budget_space(c, &req);
 	if (err) {
 		kfree(dev);
@@ -1396,17 +1397,14 @@ static int do_rename(struct inode *old_dir, struct dentry *old_dentry,
 
 		dev = kmalloc(sizeof(union ubifs_dev_desc), GFP_NOFS);
 		if (!dev) {
-			ubifs_release_budget(c, &req);
-			ubifs_release_budget(c, &ino_req);
-			return -ENOMEM;
+			err = -ENOMEM;
+			goto out_release;
 		}
 
 		err = do_tmpfile(old_dir, old_dentry, S_IFCHR | WHITEOUT_MODE, &whiteout);
 		if (err) {
-			ubifs_release_budget(c, &req);
-			ubifs_release_budget(c, &ino_req);
 			kfree(dev);
-			return err;
+			goto out_release;
 		}
 
 		whiteout->i_state |= I_LINKABLE;
@@ -1494,12 +1492,10 @@ static int do_rename(struct inode *old_dir, struct dentry *old_dentry,
 
 		err = ubifs_budget_space(c, &wht_req);
 		if (err) {
-			ubifs_release_budget(c, &req);
-			ubifs_release_budget(c, &ino_req);
 			kfree(whiteout_ui->data);
 			whiteout_ui->data_len = 0;
 			iput(whiteout);
-			return err;
+			goto out_release;
 		}
 
 		inc_nlink(whiteout);
@@ -1554,6 +1550,7 @@ out_cancel:
 		iput(whiteout);
 	}
 	unlock_4_inodes(old_dir, new_dir, new_inode, whiteout);
+out_release:
 	ubifs_release_budget(c, &ino_req);
 	ubifs_release_budget(c, &req);
 	fscrypt_free_filename(&old_nm);
@@ -1647,6 +1644,21 @@ int ubifs_getattr(const struct path *path, struct kstat *stat,
 	struct ubifs_inode *ui = ubifs_inode(inode);
 
 	mutex_lock(&ui->ui_mutex);
+
+	if (ui->flags & UBIFS_APPEND_FL)
+		stat->attributes |= STATX_ATTR_APPEND;
+	if (ui->flags & UBIFS_COMPR_FL)
+		stat->attributes |= STATX_ATTR_COMPRESSED;
+	if (ui->flags & UBIFS_CRYPT_FL)
+		stat->attributes |= STATX_ATTR_ENCRYPTED;
+	if (ui->flags & UBIFS_IMMUTABLE_FL)
+		stat->attributes |= STATX_ATTR_IMMUTABLE;
+
+	stat->attributes_mask |= (STATX_ATTR_APPEND |
+				STATX_ATTR_COMPRESSED |
+				STATX_ATTR_ENCRYPTED |
+				STATX_ATTR_IMMUTABLE);
+
 	generic_fillattr(inode, stat);
 	stat->blksize = UBIFS_BLOCK_SIZE;
 	stat->size = ui->ui_size;

@@ -62,7 +62,6 @@ uart1: serial@4806a000 {
 	interrupts-extended = <&gic GIC_SPI 67 IRQ_TYPE_LEVEL_HIGH>;
 	ti,hwmods = "uart1";
 	clock-frequency = <48000000>;
-	status = "disabled";
 	/* Requesting crossbar input 49 and 50 */
 	dmas = <&sdma_xbar 49>, <&sdma_xbar 50>;
 	dma-names = "tx", "rx";

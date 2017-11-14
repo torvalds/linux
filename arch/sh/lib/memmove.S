@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* $Id: memmove.S,v 1.2 2001/07/27 11:51:09 gniibe Exp $
  *
  * "memmove" implementation of SuperH

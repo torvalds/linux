@@ -211,7 +211,7 @@ static int intelfb_create(struct drm_fb_helper *helper,
 	 * This also validates that any existing fb inherited from the
 	 * BIOS is suitable for own access.
 	 */
-	vma = intel_pin_and_fence_fb_obj(&ifbdev->fb->base, DRM_ROTATE_0);
+	vma = intel_pin_and_fence_fb_obj(&ifbdev->fb->base, DRM_MODE_ROTATE_0);
 	if (IS_ERR(vma)) {
 		ret = PTR_ERR(vma);
 		goto out_unlock;
@@ -232,7 +232,6 @@ static int intelfb_create(struct drm_fb_helper *helper,
 
 	strcpy(info->fix.id, "inteldrmfb");
 
-	info->flags = FBINFO_DEFAULT | FBINFO_CAN_FORCE_OUTPUT;
 	info->fbops = &intelfb_ops;
 
 	/* setup aperture base/size for vesafb takeover */
@@ -279,27 +278,6 @@ out_unpin:
 out_unlock:
 	mutex_unlock(&dev->struct_mutex);
 	return ret;
-}
-
-/** Sets the color ramps on behalf of RandR */
-static void intel_crtc_fb_gamma_set(struct drm_crtc *crtc, u16 red, u16 green,
-				    u16 blue, int regno)
-{
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-
-	intel_crtc->lut_r[regno] = red >> 8;
-	intel_crtc->lut_g[regno] = green >> 8;
-	intel_crtc->lut_b[regno] = blue >> 8;
-}
-
-static void intel_crtc_fb_gamma_get(struct drm_crtc *crtc, u16 *red, u16 *green,
-				    u16 *blue, int regno)
-{
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-
-	*red = intel_crtc->lut_r[regno] << 8;
-	*green = intel_crtc->lut_g[regno] << 8;
-	*blue = intel_crtc->lut_b[regno] << 8;
 }
 
 static struct drm_fb_helper_crtc *
@@ -352,13 +330,19 @@ static bool intel_fb_initial_config(struct drm_fb_helper *fb_helper,
 	unsigned int count = min(fb_helper->connector_count, BITS_PER_LONG);
 	int i, j;
 	bool *save_enabled;
-	bool fallback = true;
+	bool fallback = true, ret = true;
 	int num_connectors_enabled = 0;
 	int num_connectors_detected = 0;
+	struct drm_modeset_acquire_ctx ctx;
 
 	save_enabled = kcalloc(count, sizeof(bool), GFP_KERNEL);
 	if (!save_enabled)
 		return false;
+
+	drm_modeset_acquire_init(&ctx, 0);
+
+	while (drm_modeset_lock_all_ctx(fb_helper->dev, &ctx) != 0)
+		drm_modeset_backoff(&ctx);
 
 	memcpy(save_enabled, enabled, count);
 	mask = GENMASK(count - 1, 0);
@@ -370,7 +354,6 @@ retry:
 		struct drm_connector *connector;
 		struct drm_encoder *encoder;
 		struct drm_fb_helper_crtc *new_crtc;
-		struct intel_crtc *intel_crtc;
 
 		fb_conn = fb_helper->connector_info[i];
 		connector = fb_conn->connector;
@@ -411,13 +394,6 @@ retry:
 		}
 
 		num_connectors_enabled++;
-
-		intel_crtc = to_intel_crtc(connector->state->crtc);
-		for (j = 0; j < 256; j++) {
-			intel_crtc->lut_r[j] = j;
-			intel_crtc->lut_g[j] = j;
-			intel_crtc->lut_b[j] = j;
-		}
 
 		new_crtc = intel_fb_helper_crtc(fb_helper,
 						connector->state->crtc);
@@ -509,18 +485,18 @@ retry:
 bail:
 		DRM_DEBUG_KMS("Not using firmware configuration\n");
 		memcpy(enabled, save_enabled, count);
-		kfree(save_enabled);
-		return false;
+		ret = false;
 	}
 
+	drm_modeset_drop_locks(&ctx);
+	drm_modeset_acquire_fini(&ctx);
+
 	kfree(save_enabled);
-	return true;
+	return ret;
 }
 
 static const struct drm_fb_helper_funcs intel_fb_helper_funcs = {
 	.initial_config = intel_fb_initial_config,
-	.gamma_set = intel_crtc_fb_gamma_set,
-	.gamma_get = intel_crtc_fb_gamma_get,
 	.fb_probe = intelfb_create,
 };
 
@@ -531,17 +507,16 @@ static void intel_fbdev_destroy(struct intel_fbdev *ifbdev)
 	 * trying to rectify all the possible error paths leading here.
 	 */
 
-	drm_fb_helper_unregister_fbi(&ifbdev->helper);
-
 	drm_fb_helper_fini(&ifbdev->helper);
 
-	if (ifbdev->fb) {
+	if (ifbdev->vma) {
 		mutex_lock(&ifbdev->helper.dev->struct_mutex);
 		intel_unpin_fb_vma(ifbdev->vma);
 		mutex_unlock(&ifbdev->helper.dev->struct_mutex);
-
-		drm_framebuffer_remove(&ifbdev->fb->base);
 	}
+
+	if (ifbdev->fb)
+		drm_framebuffer_remove(&ifbdev->fb->base);
 
 	kfree(ifbdev);
 }
@@ -719,8 +694,10 @@ static void intel_fbdev_initial_config(void *data, async_cookie_t cookie)
 
 	/* Due to peculiar init order wrt to hpd handling this is separate. */
 	if (drm_fb_helper_initial_config(&ifbdev->helper,
-					 ifbdev->preferred_bpp))
-		intel_fbdev_fini(ifbdev->helper.dev);
+					 ifbdev->preferred_bpp)) {
+		intel_fbdev_unregister(to_i915(ifbdev->helper.dev));
+		intel_fbdev_fini(to_i915(ifbdev->helper.dev));
+	}
 }
 
 void intel_fbdev_initial_config_async(struct drm_device *dev)
@@ -743,9 +720,8 @@ static void intel_fbdev_sync(struct intel_fbdev *ifbdev)
 	ifbdev->cookie = 0;
 }
 
-void intel_fbdev_fini(struct drm_device *dev)
+void intel_fbdev_unregister(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_fbdev *ifbdev = dev_priv->fbdev;
 
 	if (!ifbdev)
@@ -755,8 +731,17 @@ void intel_fbdev_fini(struct drm_device *dev)
 	if (!current_is_async())
 		intel_fbdev_sync(ifbdev);
 
+	drm_fb_helper_unregister_fbi(&ifbdev->helper);
+}
+
+void intel_fbdev_fini(struct drm_i915_private *dev_priv)
+{
+	struct intel_fbdev *ifbdev = fetch_and_zero(&dev_priv->fbdev);
+
+	if (!ifbdev)
+		return;
+
 	intel_fbdev_destroy(ifbdev);
-	dev_priv->fbdev = NULL;
 }
 
 void intel_fbdev_set_suspend(struct drm_device *dev, int state, bool synchronous)
@@ -765,7 +750,7 @@ void intel_fbdev_set_suspend(struct drm_device *dev, int state, bool synchronous
 	struct intel_fbdev *ifbdev = dev_priv->fbdev;
 	struct fb_info *info;
 
-	if (!ifbdev || !ifbdev->fb)
+	if (!ifbdev || !ifbdev->vma)
 		return;
 
 	info = ifbdev->helper.fbdev;
@@ -812,7 +797,7 @@ void intel_fbdev_output_poll_changed(struct drm_device *dev)
 {
 	struct intel_fbdev *ifbdev = to_i915(dev)->fbdev;
 
-	if (ifbdev && ifbdev->fb)
+	if (ifbdev)
 		drm_fb_helper_hotplug_event(&ifbdev->helper);
 }
 
@@ -824,7 +809,7 @@ void intel_fbdev_restore_mode(struct drm_device *dev)
 		return;
 
 	intel_fbdev_sync(ifbdev);
-	if (!ifbdev->fb)
+	if (!ifbdev->vma)
 		return;
 
 	if (drm_fb_helper_restore_fbdev_mode_unlocked(&ifbdev->helper) == 0)

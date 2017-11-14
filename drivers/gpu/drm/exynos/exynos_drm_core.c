@@ -13,6 +13,7 @@
  */
 
 #include <drm/drmP.h>
+
 #include "exynos_drm_drv.h"
 #include "exynos_drm_crtc.h"
 

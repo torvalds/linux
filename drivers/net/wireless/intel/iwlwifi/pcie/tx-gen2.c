@@ -49,12 +49,13 @@
  *
  *****************************************************************************/
 #include <linux/pm_runtime.h>
+#include <net/tso.h>
 
 #include "iwl-debug.h"
 #include "iwl-csr.h"
 #include "iwl-io.h"
 #include "internal.h"
-#include "mvm/fw-api.h"
+#include "fw/api/tx.h"
 
  /*
  * iwl_pcie_gen2_tx_stop - Stop all Tx DMA channels
@@ -87,14 +88,14 @@ static void iwl_pcie_gen2_update_byte_tbl(struct iwl_txq *txq, u16 byte_cnt,
 					  int num_tbs)
 {
 	struct iwlagn_scd_bc_tbl *scd_bc_tbl = txq->bc_tbl.addr;
-	int write_ptr = txq->write_ptr;
+	int idx = iwl_pcie_get_cmd_index(txq, txq->write_ptr);
 	u8 filled_tfd_size, num_fetch_chunks;
 	u16 len = byte_cnt;
 	__le16 bc_ent;
 
 	len = DIV_ROUND_UP(len, 4);
 
-	if (WARN_ON(len > 0xFFF || write_ptr >= TFD_QUEUE_SIZE_MAX))
+	if (WARN_ON(len > 0xFFF || idx >= txq->n_window))
 		return;
 
 	filled_tfd_size = offsetof(struct iwl_tfh_tfd, tbs) +
@@ -110,7 +111,7 @@ static void iwl_pcie_gen2_update_byte_tbl(struct iwl_txq *txq, u16 byte_cnt,
 	num_fetch_chunks = DIV_ROUND_UP(filled_tfd_size, 64) - 1;
 
 	bc_ent = cpu_to_le16(len | (num_fetch_chunks << 12));
-	scd_bc_tbl->tfd_offset[write_ptr] = bc_ent;
+	scd_bc_tbl->tfd_offset[idx] = bc_ent;
 }
 
 /*
@@ -175,16 +176,12 @@ static void iwl_pcie_gen2_free_tfd(struct iwl_trans *trans, struct iwl_txq *txq)
 	/* rd_ptr is bounded by TFD_QUEUE_SIZE_MAX and
 	 * idx is bounded by n_window
 	 */
-	int rd_ptr = txq->read_ptr;
-	int idx = get_cmd_index(txq, rd_ptr);
+	int idx = iwl_pcie_get_cmd_index(txq, txq->read_ptr);
 
 	lockdep_assert_held(&txq->lock);
 
-	/* We have only q->n_window txq->entries, but we use
-	 * TFD_QUEUE_SIZE_MAX tfds
-	 */
 	iwl_pcie_gen2_tfd_unmap(trans, &txq->entries[idx].meta,
-				iwl_pcie_get_tfd(trans_pcie, txq, rd_ptr));
+				iwl_pcie_get_tfd(trans_pcie, txq, idx));
 
 	/* free SKB */
 	if (txq->entries) {
@@ -226,6 +223,143 @@ static int iwl_pcie_gen2_set_tb(struct iwl_trans *trans,
 	return idx;
 }
 
+static int iwl_pcie_gen2_build_amsdu(struct iwl_trans *trans,
+				     struct sk_buff *skb,
+				     struct iwl_tfh_tfd *tfd, int start_len,
+				     u8 hdr_len, struct iwl_device_cmd *dev_cmd)
+{
+#ifdef CONFIG_INET
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+	struct iwl_tx_cmd *tx_cmd = (void *)dev_cmd->payload;
+	struct ieee80211_hdr *hdr = (void *)skb->data;
+	unsigned int snap_ip_tcp_hdrlen, ip_hdrlen, total_len, hdr_room;
+	unsigned int mss = skb_shinfo(skb)->gso_size;
+	u16 length, iv_len, amsdu_pad;
+	u8 *start_hdr;
+	struct iwl_tso_hdr_page *hdr_page;
+	struct page **page_ptr;
+	struct tso_t tso;
+
+	/* if the packet is protected, then it must be CCMP or GCMP */
+	iv_len = ieee80211_has_protected(hdr->frame_control) ?
+		IEEE80211_CCMP_HDR_LEN : 0;
+
+	trace_iwlwifi_dev_tx(trans->dev, skb, tfd, sizeof(*tfd),
+			     &dev_cmd->hdr, start_len, 0);
+
+	ip_hdrlen = skb_transport_header(skb) - skb_network_header(skb);
+	snap_ip_tcp_hdrlen = 8 + ip_hdrlen + tcp_hdrlen(skb);
+	total_len = skb->len - snap_ip_tcp_hdrlen - hdr_len - iv_len;
+	amsdu_pad = 0;
+
+	/* total amount of header we may need for this A-MSDU */
+	hdr_room = DIV_ROUND_UP(total_len, mss) *
+		(3 + snap_ip_tcp_hdrlen + sizeof(struct ethhdr)) + iv_len;
+
+	/* Our device supports 9 segments at most, it will fit in 1 page */
+	hdr_page = get_page_hdr(trans, hdr_room);
+	if (!hdr_page)
+		return -ENOMEM;
+
+	get_page(hdr_page->page);
+	start_hdr = hdr_page->pos;
+	page_ptr = (void *)((u8 *)skb->cb + trans_pcie->page_offs);
+	*page_ptr = hdr_page->page;
+	memcpy(hdr_page->pos, skb->data + hdr_len, iv_len);
+	hdr_page->pos += iv_len;
+
+	/*
+	 * Pull the ieee80211 header + IV to be able to use TSO core,
+	 * we will restore it for the tx_status flow.
+	 */
+	skb_pull(skb, hdr_len + iv_len);
+
+	/*
+	 * Remove the length of all the headers that we don't actually
+	 * have in the MPDU by themselves, but that we duplicate into
+	 * all the different MSDUs inside the A-MSDU.
+	 */
+	le16_add_cpu(&tx_cmd->len, -snap_ip_tcp_hdrlen);
+
+	tso_start(skb, &tso);
+
+	while (total_len) {
+		/* this is the data left for this subframe */
+		unsigned int data_left = min_t(unsigned int, mss, total_len);
+		struct sk_buff *csum_skb = NULL;
+		unsigned int tb_len;
+		dma_addr_t tb_phys;
+		struct tcphdr *tcph;
+		u8 *iph, *subf_hdrs_start = hdr_page->pos;
+
+		total_len -= data_left;
+
+		memset(hdr_page->pos, 0, amsdu_pad);
+		hdr_page->pos += amsdu_pad;
+		amsdu_pad = (4 - (sizeof(struct ethhdr) + snap_ip_tcp_hdrlen +
+				  data_left)) & 0x3;
+		ether_addr_copy(hdr_page->pos, ieee80211_get_DA(hdr));
+		hdr_page->pos += ETH_ALEN;
+		ether_addr_copy(hdr_page->pos, ieee80211_get_SA(hdr));
+		hdr_page->pos += ETH_ALEN;
+
+		length = snap_ip_tcp_hdrlen + data_left;
+		*((__be16 *)hdr_page->pos) = cpu_to_be16(length);
+		hdr_page->pos += sizeof(length);
+
+		/*
+		 * This will copy the SNAP as well which will be considered
+		 * as MAC header.
+		 */
+		tso_build_hdr(skb, hdr_page->pos, &tso, data_left, !total_len);
+		iph = hdr_page->pos + 8;
+		tcph = (void *)(iph + ip_hdrlen);
+
+		hdr_page->pos += snap_ip_tcp_hdrlen;
+
+		tb_len = hdr_page->pos - start_hdr;
+		tb_phys = dma_map_single(trans->dev, start_hdr,
+					 tb_len, DMA_TO_DEVICE);
+		if (unlikely(dma_mapping_error(trans->dev, tb_phys))) {
+			dev_kfree_skb(csum_skb);
+			goto out_err;
+		}
+		iwl_pcie_gen2_set_tb(trans, tfd, tb_phys, tb_len);
+		trace_iwlwifi_dev_tx_tso_chunk(trans->dev, start_hdr, tb_len);
+		/* add this subframe's headers' length to the tx_cmd */
+		le16_add_cpu(&tx_cmd->len, hdr_page->pos - subf_hdrs_start);
+
+		/* prepare the start_hdr for the next subframe */
+		start_hdr = hdr_page->pos;
+
+		/* put the payload */
+		while (data_left) {
+			tb_len = min_t(unsigned int, tso.size, data_left);
+			tb_phys = dma_map_single(trans->dev, tso.data,
+						 tb_len, DMA_TO_DEVICE);
+			if (unlikely(dma_mapping_error(trans->dev, tb_phys))) {
+				dev_kfree_skb(csum_skb);
+				goto out_err;
+			}
+			iwl_pcie_gen2_set_tb(trans, tfd, tb_phys, tb_len);
+			trace_iwlwifi_dev_tx_tso_chunk(trans->dev, tso.data,
+						       tb_len);
+
+			data_left -= tb_len;
+			tso_build_data(skb, &tso, tb_len);
+		}
+	}
+
+	/* re -add the WiFi header and IV */
+	skb_push(skb, hdr_len + iv_len);
+
+	return 0;
+
+out_err:
+#endif
+	return -EINVAL;
+}
+
 static
 struct iwl_tfh_tfd *iwl_pcie_gen2_build_tfd(struct iwl_trans *trans,
 					    struct iwl_txq *txq,
@@ -235,18 +369,25 @@ struct iwl_tfh_tfd *iwl_pcie_gen2_build_tfd(struct iwl_trans *trans,
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
+	int idx = iwl_pcie_get_cmd_index(txq, txq->write_ptr);
 	struct iwl_tfh_tfd *tfd =
-		iwl_pcie_get_tfd(trans_pcie, txq, txq->write_ptr);
+		iwl_pcie_get_tfd(trans_pcie, txq, idx);
 	dma_addr_t tb_phys;
+	bool amsdu;
 	int i, len, tb1_len, tb2_len, hdr_len;
 	void *tb1_addr;
 
 	memset(tfd, 0, sizeof(*tfd));
 
-	tb_phys = iwl_pcie_get_first_tb_dma(txq, txq->write_ptr);
+	amsdu = ieee80211_is_data_qos(hdr->frame_control) &&
+		(*ieee80211_get_qos_ctl(hdr) &
+		 IEEE80211_QOS_CTL_A_MSDU_PRESENT);
+
+	tb_phys = iwl_pcie_get_first_tb_dma(txq, idx);
 	/* The first TB points to bi-directional DMA data */
-	memcpy(&txq->first_tb_bufs[txq->write_ptr], &dev_cmd->hdr,
-	       IWL_FIRST_TB_SIZE);
+	if (!amsdu)
+		memcpy(&txq->first_tb_bufs[idx], &dev_cmd->hdr,
+		       IWL_FIRST_TB_SIZE);
 
 	iwl_pcie_gen2_set_tb(trans, tfd, tb_phys, IWL_FIRST_TB_SIZE);
 
@@ -262,7 +403,11 @@ struct iwl_tfh_tfd *iwl_pcie_gen2_build_tfd(struct iwl_trans *trans,
 	len = sizeof(struct iwl_tx_cmd_gen2) + sizeof(struct iwl_cmd_header) +
 	      ieee80211_hdrlen(hdr->frame_control) - IWL_FIRST_TB_SIZE;
 
-	tb1_len = ALIGN(len, 4);
+	/* do not align A-MSDU to dword as the subframe header aligns it */
+	if (amsdu)
+		tb1_len = len;
+	else
+		tb1_len = ALIGN(len, 4);
 
 	/* map the data for TB1 */
 	tb1_addr = ((u8 *)&dev_cmd->hdr) + IWL_FIRST_TB_SIZE;
@@ -271,8 +416,24 @@ struct iwl_tfh_tfd *iwl_pcie_gen2_build_tfd(struct iwl_trans *trans,
 		goto out_err;
 	iwl_pcie_gen2_set_tb(trans, tfd, tb_phys, tb1_len);
 
-	/* set up TFD's third entry to point to remainder of skb's head */
 	hdr_len = ieee80211_hdrlen(hdr->frame_control);
+
+	if (amsdu) {
+		if (iwl_pcie_gen2_build_amsdu(trans, skb, tfd,
+					      tb1_len + IWL_FIRST_TB_SIZE,
+					      hdr_len, dev_cmd))
+			goto out_err;
+
+		/*
+		 * building the A-MSDU might have changed this data, so memcpy
+		 * it now
+		 */
+		memcpy(&txq->first_tb_bufs[idx], &dev_cmd->hdr,
+		       IWL_FIRST_TB_SIZE);
+		return tfd;
+	}
+
+	/* set up TFD's third entry to point to remainder of skb's head */
 	tb2_len = skb_headlen(skb) - hdr_len;
 
 	if (tb2_len > 0) {
@@ -303,10 +464,8 @@ struct iwl_tfh_tfd *iwl_pcie_gen2_build_tfd(struct iwl_trans *trans,
 	}
 
 	trace_iwlwifi_dev_tx(trans->dev, skb, tfd, sizeof(*tfd), &dev_cmd->hdr,
-			     IWL_FIRST_TB_SIZE + tb1_len,
-			     skb->data + hdr_len, tb2_len);
-	trace_iwlwifi_dev_tx_data(trans->dev, skb, hdr_len,
-				  skb->len - hdr_len);
+			     IWL_FIRST_TB_SIZE + tb1_len, hdr_len);
+	trace_iwlwifi_dev_tx_data(trans->dev, skb, hdr_len);
 
 	return tfd;
 
@@ -322,6 +481,7 @@ int iwl_trans_pcie_gen2_tx(struct iwl_trans *trans, struct sk_buff *skb,
 	struct iwl_tx_cmd_gen2 *tx_cmd = (void *)dev_cmd->payload;
 	struct iwl_cmd_meta *out_meta;
 	struct iwl_txq *txq = trans_pcie->txq[txq_id];
+	int idx;
 	void *tfd;
 
 	if (WARN_ONCE(!test_bit(txq_id, trans_pcie->queue_used),
@@ -335,16 +495,18 @@ int iwl_trans_pcie_gen2_tx(struct iwl_trans *trans, struct sk_buff *skb,
 
 	spin_lock(&txq->lock);
 
+	idx = iwl_pcie_get_cmd_index(txq, txq->write_ptr);
+
 	/* Set up driver data for this TFD */
-	txq->entries[txq->write_ptr].skb = skb;
-	txq->entries[txq->write_ptr].cmd = dev_cmd;
+	txq->entries[idx].skb = skb;
+	txq->entries[idx].cmd = dev_cmd;
 
 	dev_cmd->hdr.sequence =
 		cpu_to_le16((u16)(QUEUE_TO_SEQ(txq_id) |
-			    INDEX_TO_SEQ(txq->write_ptr)));
+			    INDEX_TO_SEQ(idx)));
 
 	/* Set up first empty entry in queue's array of Tx/cmd buffers */
-	out_meta = &txq->entries[txq->write_ptr].meta;
+	out_meta = &txq->entries[idx].meta;
 	out_meta->flags = 0;
 
 	tfd = iwl_pcie_gen2_build_tfd(trans, txq, dev_cmd, skb, out_meta);
@@ -400,7 +562,7 @@ static int iwl_pcie_gen2_enqueue_hcmd(struct iwl_trans *trans,
 	unsigned long flags;
 	void *dup_buf = NULL;
 	dma_addr_t phys_addr;
-	int idx, i, cmd_pos;
+	int i, cmd_pos, idx = iwl_pcie_get_cmd_index(txq, txq->write_ptr);
 	u16 copy_size, cmd_size, tb0_size;
 	bool had_nocopy = false;
 	u8 group_id = iwl_cmd_groupid(cmd->id);
@@ -489,7 +651,6 @@ static int iwl_pcie_gen2_enqueue_hcmd(struct iwl_trans *trans,
 		goto free_dup_buf;
 	}
 
-	idx = get_cmd_index(txq, txq->write_ptr);
 	out_cmd = txq->entries[idx].cmd;
 	out_meta = &txq->entries[idx].meta;
 
@@ -699,7 +860,7 @@ static int iwl_pcie_gen2_send_hcmd_sync(struct iwl_trans *trans,
 	}
 
 	if (!(cmd->flags & CMD_SEND_IN_RFKILL) &&
-	    test_bit(STATUS_RFKILL, &trans->status)) {
+	    test_bit(STATUS_RFKILL_OPMODE, &trans->status)) {
 		IWL_DEBUG_RF_KILL(trans, "RFKILL in SYNC CMD... no rsp\n");
 		ret = -ERFKILL;
 		goto cancel;
@@ -736,7 +897,7 @@ int iwl_trans_pcie_gen2_send_hcmd(struct iwl_trans *trans,
 				  struct iwl_host_cmd *cmd)
 {
 	if (!(cmd->flags & CMD_SEND_IN_RFKILL) &&
-	    test_bit(STATUS_RFKILL, &trans->status)) {
+	    test_bit(STATUS_RFKILL_OPMODE, &trans->status)) {
 		IWL_DEBUG_RF_KILL(trans, "Dropping CMD 0x%x: RF KILL\n",
 				  cmd->id);
 		return -ERFKILL;
@@ -775,6 +936,15 @@ void iwl_pcie_gen2_txq_unmap(struct iwl_trans *trans, int txq_id)
 		IWL_DEBUG_TX_REPLY(trans, "Q %d Free %d\n",
 				   txq_id, txq->read_ptr);
 
+		if (txq_id != trans_pcie->cmd_queue) {
+			int idx = iwl_pcie_get_cmd_index(txq, txq->read_ptr);
+			struct sk_buff *skb = txq->entries[idx].skb;
+
+			if (WARN_ON_ONCE(!skb))
+				continue;
+
+			iwl_pcie_free_tso_page(trans_pcie, skb);
+		}
 		iwl_pcie_gen2_free_tfd(trans, txq);
 		txq->read_ptr = iwl_queue_inc_wrap(txq->read_ptr);
 
@@ -871,6 +1041,7 @@ int iwl_trans_pcie_dyn_txq_alloc(struct iwl_trans *trans,
 		.flags = CMD_WANT_SKB,
 	};
 	int ret, qid;
+	u32 wr_ptr;
 
 	txq = kzalloc(sizeof(*txq), GFP_KERNEL);
 	if (!txq)
@@ -898,7 +1069,7 @@ int iwl_trans_pcie_dyn_txq_alloc(struct iwl_trans *trans,
 
 	cmd->tfdq_addr = cpu_to_le64(txq->dma_addr);
 	cmd->byte_cnt_addr = cpu_to_le64(txq->bc_tbl.dma);
-	cmd->cb_size = cpu_to_le32(TFD_QUEUE_CB_SIZE(TFD_QUEUE_SIZE_MAX));
+	cmd->cb_size = cpu_to_le32(TFD_QUEUE_CB_SIZE(TFD_TX_CMD_SLOTS));
 
 	ret = iwl_trans_send_cmd(trans, &hcmd);
 	if (ret)
@@ -911,8 +1082,9 @@ int iwl_trans_pcie_dyn_txq_alloc(struct iwl_trans *trans,
 
 	rsp = (void *)hcmd.resp_pkt->data;
 	qid = le16_to_cpu(rsp->queue_number);
+	wr_ptr = le16_to_cpu(rsp->write_pointer);
 
-	if (qid > ARRAY_SIZE(trans_pcie->txq)) {
+	if (qid >= ARRAY_SIZE(trans_pcie->txq)) {
 		WARN_ONCE(1, "queue index %d unsupported", qid);
 		ret = -EIO;
 		goto error_free_resp;
@@ -926,10 +1098,11 @@ int iwl_trans_pcie_dyn_txq_alloc(struct iwl_trans *trans,
 
 	txq->id = qid;
 	trans_pcie->txq[qid] = txq;
+	wr_ptr &= (TFD_QUEUE_SIZE_MAX - 1);
 
 	/* Place first TFD at index corresponding to start sequence number */
-	txq->read_ptr = le16_to_cpu(rsp->write_pointer);
-	txq->write_ptr = le16_to_cpu(rsp->write_pointer);
+	txq->read_ptr = wr_ptr;
+	txq->write_ptr = wr_ptr;
 	iwl_write_direct32(trans, HBUS_TARG_WRPTR,
 			   (txq->write_ptr) | (qid << 16));
 	IWL_DEBUG_TX_QUEUES(trans, "Activate queue %d\n", qid);

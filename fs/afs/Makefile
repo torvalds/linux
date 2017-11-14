@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # Makefile for Red Hat Linux AFS client.
 #
@@ -27,6 +28,7 @@ kafs-objs := \
 	vlocation.o \
 	vnode.o \
 	volume.o \
-	write.o
+	write.o \
+	xattr.o
 
 obj-$(CONFIG_AFS_FS)  := kafs.o

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Variant of atomic_t specialized for reference counts.
  *
@@ -36,6 +37,8 @@
 
 #include <linux/refcount.h>
 #include <linux/bug.h>
+
+#ifdef CONFIG_REFCOUNT_FULL
 
 /**
  * refcount_add_not_zero - add a value to a refcount unless it is 0
@@ -225,6 +228,7 @@ void refcount_dec(refcount_t *r)
 	WARN_ONCE(refcount_dec_and_test(r), "refcount_t: decrement hit 0; leaking memory.\n");
 }
 EXPORT_SYMBOL(refcount_dec);
+#endif /* CONFIG_REFCOUNT_FULL */
 
 /**
  * refcount_dec_if_one - decrement a refcount if it is 1

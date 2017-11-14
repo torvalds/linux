@@ -212,6 +212,18 @@ int rcu_jiffies_till_stall_check(void);
  */
 #define TPS(x)  tracepoint_string(x)
 
+/*
+ * Dump the ftrace buffer, but only one time per callsite per boot.
+ */
+#define rcu_ftrace_dump(oops_dump_mode) \
+do { \
+	static atomic_t ___rfd_beenhere = ATOMIC_INIT(0); \
+	\
+	if (!atomic_read(&___rfd_beenhere) && \
+	    !atomic_xchg(&___rfd_beenhere, 1)) \
+		ftrace_dump(oops_dump_mode); \
+} while (0)
+
 void rcu_early_boot_tests(void);
 void rcu_test_sync_prims(void);
 
@@ -291,6 +303,183 @@ static inline void rcu_init_levelspread(int *levelspread, const int *levelcnt)
 	     cpu <= rnp->grphi; \
 	     cpu = cpumask_next((cpu), cpu_possible_mask))
 
+/*
+ * Wrappers for the rcu_node::lock acquire and release.
+ *
+ * Because the rcu_nodes form a tree, the tree traversal locking will observe
+ * different lock values, this in turn means that an UNLOCK of one level
+ * followed by a LOCK of another level does not imply a full memory barrier;
+ * and most importantly transitivity is lost.
+ *
+ * In order to restore full ordering between tree levels, augment the regular
+ * lock acquire functions with smp_mb__after_unlock_lock().
+ *
+ * As ->lock of struct rcu_node is a __private field, therefore one should use
+ * these wrappers rather than directly call raw_spin_{lock,unlock}* on ->lock.
+ */
+#define raw_spin_lock_rcu_node(p)					\
+do {									\
+	raw_spin_lock(&ACCESS_PRIVATE(p, lock));			\
+	smp_mb__after_unlock_lock();					\
+} while (0)
+
+#define raw_spin_unlock_rcu_node(p) raw_spin_unlock(&ACCESS_PRIVATE(p, lock))
+
+#define raw_spin_lock_irq_rcu_node(p)					\
+do {									\
+	raw_spin_lock_irq(&ACCESS_PRIVATE(p, lock));			\
+	smp_mb__after_unlock_lock();					\
+} while (0)
+
+#define raw_spin_unlock_irq_rcu_node(p)					\
+	raw_spin_unlock_irq(&ACCESS_PRIVATE(p, lock))
+
+#define raw_spin_lock_irqsave_rcu_node(p, flags)			\
+do {									\
+	raw_spin_lock_irqsave(&ACCESS_PRIVATE(p, lock), flags);	\
+	smp_mb__after_unlock_lock();					\
+} while (0)
+
+#define raw_spin_unlock_irqrestore_rcu_node(p, flags)			\
+	raw_spin_unlock_irqrestore(&ACCESS_PRIVATE(p, lock), flags)	\
+
+#define raw_spin_trylock_rcu_node(p)					\
+({									\
+	bool ___locked = raw_spin_trylock(&ACCESS_PRIVATE(p, lock));	\
+									\
+	if (___locked)							\
+		smp_mb__after_unlock_lock();				\
+	___locked;							\
+})
+
 #endif /* #if defined(SRCU) || !defined(TINY_RCU) */
+
+#ifdef CONFIG_TINY_RCU
+/* Tiny RCU doesn't expedite, as its purpose in life is instead to be tiny. */
+static inline bool rcu_gp_is_normal(void) { return true; }
+static inline bool rcu_gp_is_expedited(void) { return false; }
+static inline void rcu_expedite_gp(void) { }
+static inline void rcu_unexpedite_gp(void) { }
+#else /* #ifdef CONFIG_TINY_RCU */
+bool rcu_gp_is_normal(void);     /* Internal RCU use. */
+bool rcu_gp_is_expedited(void);  /* Internal RCU use. */
+void rcu_expedite_gp(void);
+void rcu_unexpedite_gp(void);
+void rcupdate_announce_bootup_oddness(void);
+#endif /* #else #ifdef CONFIG_TINY_RCU */
+
+#define RCU_SCHEDULER_INACTIVE	0
+#define RCU_SCHEDULER_INIT	1
+#define RCU_SCHEDULER_RUNNING	2
+
+#ifdef CONFIG_TINY_RCU
+static inline void rcu_request_urgent_qs_task(struct task_struct *t) { }
+#else /* #ifdef CONFIG_TINY_RCU */
+void rcu_request_urgent_qs_task(struct task_struct *t);
+#endif /* #else #ifdef CONFIG_TINY_RCU */
+
+enum rcutorture_type {
+	RCU_FLAVOR,
+	RCU_BH_FLAVOR,
+	RCU_SCHED_FLAVOR,
+	RCU_TASKS_FLAVOR,
+	SRCU_FLAVOR,
+	INVALID_RCU_FLAVOR
+};
+
+#if defined(CONFIG_TREE_RCU) || defined(CONFIG_PREEMPT_RCU)
+void rcutorture_get_gp_data(enum rcutorture_type test_type, int *flags,
+			    unsigned long *gpnum, unsigned long *completed);
+void rcutorture_record_test_transition(void);
+void rcutorture_record_progress(unsigned long vernum);
+void do_trace_rcu_torture_read(const char *rcutorturename,
+			       struct rcu_head *rhp,
+			       unsigned long secs,
+			       unsigned long c_old,
+			       unsigned long c);
+#else
+static inline void rcutorture_get_gp_data(enum rcutorture_type test_type,
+					  int *flags,
+					  unsigned long *gpnum,
+					  unsigned long *completed)
+{
+	*flags = 0;
+	*gpnum = 0;
+	*completed = 0;
+}
+static inline void rcutorture_record_test_transition(void) { }
+static inline void rcutorture_record_progress(unsigned long vernum) { }
+#ifdef CONFIG_RCU_TRACE
+void do_trace_rcu_torture_read(const char *rcutorturename,
+			       struct rcu_head *rhp,
+			       unsigned long secs,
+			       unsigned long c_old,
+			       unsigned long c);
+#else
+#define do_trace_rcu_torture_read(rcutorturename, rhp, secs, c_old, c) \
+	do { } while (0)
+#endif
+#endif
+
+#ifdef CONFIG_TINY_SRCU
+
+static inline void srcutorture_get_gp_data(enum rcutorture_type test_type,
+					   struct srcu_struct *sp, int *flags,
+					   unsigned long *gpnum,
+					   unsigned long *completed)
+{
+	if (test_type != SRCU_FLAVOR)
+		return;
+	*flags = 0;
+	*completed = sp->srcu_idx;
+	*gpnum = *completed;
+}
+
+#elif defined(CONFIG_TREE_SRCU)
+
+void srcutorture_get_gp_data(enum rcutorture_type test_type,
+			     struct srcu_struct *sp, int *flags,
+			     unsigned long *gpnum, unsigned long *completed);
+
+#endif
+
+#ifdef CONFIG_TINY_RCU
+static inline unsigned long rcu_batches_started(void) { return 0; }
+static inline unsigned long rcu_batches_started_bh(void) { return 0; }
+static inline unsigned long rcu_batches_started_sched(void) { return 0; }
+static inline unsigned long rcu_batches_completed(void) { return 0; }
+static inline unsigned long rcu_batches_completed_bh(void) { return 0; }
+static inline unsigned long rcu_batches_completed_sched(void) { return 0; }
+static inline unsigned long rcu_exp_batches_completed(void) { return 0; }
+static inline unsigned long rcu_exp_batches_completed_sched(void) { return 0; }
+static inline unsigned long
+srcu_batches_completed(struct srcu_struct *sp) { return 0; }
+static inline void rcu_force_quiescent_state(void) { }
+static inline void rcu_bh_force_quiescent_state(void) { }
+static inline void rcu_sched_force_quiescent_state(void) { }
+static inline void show_rcu_gp_kthreads(void) { }
+#else /* #ifdef CONFIG_TINY_RCU */
+extern unsigned long rcutorture_testseq;
+extern unsigned long rcutorture_vernum;
+unsigned long rcu_batches_started(void);
+unsigned long rcu_batches_started_bh(void);
+unsigned long rcu_batches_started_sched(void);
+unsigned long rcu_batches_completed(void);
+unsigned long rcu_batches_completed_bh(void);
+unsigned long rcu_batches_completed_sched(void);
+unsigned long rcu_exp_batches_completed(void);
+unsigned long rcu_exp_batches_completed_sched(void);
+unsigned long srcu_batches_completed(struct srcu_struct *sp);
+void show_rcu_gp_kthreads(void);
+void rcu_force_quiescent_state(void);
+void rcu_bh_force_quiescent_state(void);
+void rcu_sched_force_quiescent_state(void);
+#endif /* #else #ifdef CONFIG_TINY_RCU */
+
+#ifdef CONFIG_RCU_NOCB_CPU
+bool rcu_is_nocb_cpu(int cpu);
+#else
+static inline bool rcu_is_nocb_cpu(int cpu) { return false; }
+#endif
 
 #endif /* __LINUX_RCU_H */

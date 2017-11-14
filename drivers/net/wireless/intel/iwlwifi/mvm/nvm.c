@@ -77,7 +77,7 @@
 /* Default NVM size to read */
 #define IWL_NVM_DEFAULT_CHUNK_SIZE (2*1024)
 #define IWL_MAX_NVM_SECTION_SIZE	0x1b58
-#define IWL_MAX_NVM_8000_SECTION_SIZE	0x1ffc
+#define IWL_MAX_EXT_NVM_SECTION_SIZE	0x1ffc
 
 #define NVM_WRITE_OPCODE 1
 #define NVM_READ_OPCODE 0
@@ -118,10 +118,6 @@ static int iwl_nvm_write_chunk(struct iwl_mvm *mvm, u16 section,
 		return ret;
 
 	pkt = cmd.resp_pkt;
-	if (!pkt) {
-		IWL_ERR(mvm, "Error in NVM_ACCESS response\n");
-		return -EINVAL;
-	}
 	/* Extract & check NVM write response */
 	nvm_resp = (void *)pkt->data;
 	if (le16_to_cpu(nvm_resp->status) != READ_NVM_CHUNK_SUCCEED) {
@@ -296,20 +292,27 @@ static struct iwl_nvm_data *
 iwl_parse_nvm_sections(struct iwl_mvm *mvm)
 {
 	struct iwl_nvm_section *sections = mvm->nvm_sections;
-	const __le16 *hw, *sw, *calib, *regulatory, *mac_override, *phy_sku;
+	const __be16 *hw;
+	const __le16 *sw, *calib, *regulatory, *mac_override, *phy_sku;
 	bool lar_enabled;
+	int regulatory_type;
 
 	/* Checking for required sections */
-	if (mvm->trans->cfg->device_family != IWL_DEVICE_FAMILY_8000) {
+	if (mvm->trans->cfg->nvm_type != IWL_NVM_EXT) {
 		if (!mvm->nvm_sections[NVM_SECTION_TYPE_SW].data ||
 		    !mvm->nvm_sections[mvm->cfg->nvm_hw_section_num].data) {
 			IWL_ERR(mvm, "Can't parse empty OTP/NVM sections\n");
 			return NULL;
 		}
 	} else {
+		if (mvm->trans->cfg->nvm_type == IWL_NVM_SDP)
+			regulatory_type = NVM_SECTION_TYPE_REGULATORY_SDP;
+		else
+			regulatory_type = NVM_SECTION_TYPE_REGULATORY;
+
 		/* SW and REGULATORY sections are mandatory */
 		if (!mvm->nvm_sections[NVM_SECTION_TYPE_SW].data ||
-		    !mvm->nvm_sections[NVM_SECTION_TYPE_REGULATORY].data) {
+		    !mvm->nvm_sections[regulatory_type].data) {
 			IWL_ERR(mvm,
 				"Can't parse empty family 8000 OTP/NVM sections\n");
 			return NULL;
@@ -330,16 +333,16 @@ iwl_parse_nvm_sections(struct iwl_mvm *mvm)
 		}
 	}
 
-	if (WARN_ON(!mvm->cfg))
-		return NULL;
-
-	hw = (const __le16 *)sections[mvm->cfg->nvm_hw_section_num].data;
+	hw = (const __be16 *)sections[mvm->cfg->nvm_hw_section_num].data;
 	sw = (const __le16 *)sections[NVM_SECTION_TYPE_SW].data;
 	calib = (const __le16 *)sections[NVM_SECTION_TYPE_CALIBRATION].data;
-	regulatory = (const __le16 *)sections[NVM_SECTION_TYPE_REGULATORY].data;
 	mac_override =
 		(const __le16 *)sections[NVM_SECTION_TYPE_MAC_OVERRIDE].data;
 	phy_sku = (const __le16 *)sections[NVM_SECTION_TYPE_PHY_SKU].data;
+
+	regulatory = mvm->trans->cfg->nvm_type == IWL_NVM_SDP ?
+		(const __le16 *)sections[NVM_SECTION_TYPE_REGULATORY_SDP].data :
+		(const __le16 *)sections[NVM_SECTION_TYPE_REGULATORY].data;
 
 	lar_enabled = !iwlwifi_mod_params.lar_disable &&
 		      fw_has_capa(&mvm->fw->ucode_capa,
@@ -374,7 +377,7 @@ iwl_parse_nvm_sections(struct iwl_mvm *mvm)
  *
  * 4. save as "iNVM_xxx.bin" under /lib/firmware
  */
-static int iwl_mvm_read_external_nvm(struct iwl_mvm *mvm)
+int iwl_mvm_read_external_nvm(struct iwl_mvm *mvm)
 {
 	int ret, section_size;
 	u16 section_id;
@@ -391,19 +394,19 @@ static int iwl_mvm_read_external_nvm(struct iwl_mvm *mvm)
 
 #define NVM_WORD1_LEN(x) (8 * (x & 0x03FF))
 #define NVM_WORD2_ID(x) (x >> 12)
-#define NVM_WORD2_LEN_FAMILY_8000(x) (2 * ((x & 0xFF) << 8 | x >> 8))
-#define NVM_WORD1_ID_FAMILY_8000(x) (x >> 4)
+#define EXT_NVM_WORD2_LEN(x) (2 * (((x) & 0xFF) << 8 | (x) >> 8))
+#define EXT_NVM_WORD1_ID(x) ((x) >> 4)
 #define NVM_HEADER_0	(0x2A504C54)
 #define NVM_HEADER_1	(0x4E564D2A)
 #define NVM_HEADER_SIZE	(4 * sizeof(u32))
 
 	IWL_DEBUG_EEPROM(mvm->trans->dev, "Read from external NVM\n");
 
-	/* Maximal size depends on HW family and step */
-	if (mvm->trans->cfg->device_family != IWL_DEVICE_FAMILY_8000)
+	/* Maximal size depends on NVM version */
+	if (mvm->trans->cfg->nvm_type != IWL_NVM_EXT)
 		max_section_size = IWL_MAX_NVM_SECTION_SIZE;
 	else
-		max_section_size = IWL_MAX_NVM_8000_SECTION_SIZE;
+		max_section_size = IWL_MAX_EXT_NVM_SECTION_SIZE;
 
 	/*
 	 * Obtain NVM image via request_firmware. Since we already used
@@ -447,10 +450,9 @@ static int iwl_mvm_read_external_nvm(struct iwl_mvm *mvm)
 			 le32_to_cpu(dword_buff[3]));
 
 		/* nvm file validation, dword_buff[2] holds the file version */
-		if ((CSR_HW_REV_STEP(mvm->trans->hw_rev) == SILICON_C_STEP &&
-		     le32_to_cpu(dword_buff[2]) < 0xE4A) ||
-		    (CSR_HW_REV_STEP(mvm->trans->hw_rev) == SILICON_B_STEP &&
-		     le32_to_cpu(dword_buff[2]) >= 0xE4A)) {
+		if (mvm->trans->cfg->device_family == IWL_DEVICE_FAMILY_8000 &&
+		    CSR_HW_REV_STEP(mvm->trans->hw_rev) == SILICON_C_STEP &&
+		    le32_to_cpu(dword_buff[2]) < 0xE4A) {
 			ret = -EFAULT;
 			goto out;
 		}
@@ -472,14 +474,14 @@ static int iwl_mvm_read_external_nvm(struct iwl_mvm *mvm)
 			break;
 		}
 
-		if (mvm->trans->cfg->device_family != IWL_DEVICE_FAMILY_8000) {
+		if (mvm->trans->cfg->nvm_type != IWL_NVM_EXT) {
 			section_size =
 				2 * NVM_WORD1_LEN(le16_to_cpu(file_sec->word1));
 			section_id = NVM_WORD2_ID(le16_to_cpu(file_sec->word2));
 		} else {
-			section_size = 2 * NVM_WORD2_LEN_FAMILY_8000(
+			section_size = 2 * EXT_NVM_WORD2_LEN(
 						le16_to_cpu(file_sec->word2));
-			section_id = NVM_WORD1_ID_FAMILY_8000(
+			section_id = EXT_NVM_WORD1_ID(
 						le16_to_cpu(file_sec->word1));
 		}
 
@@ -551,89 +553,79 @@ int iwl_mvm_load_nvm_to_nic(struct iwl_mvm *mvm)
 	return ret;
 }
 
-int iwl_nvm_init(struct iwl_mvm *mvm, bool read_nvm_from_nic)
+int iwl_nvm_init(struct iwl_mvm *mvm)
 {
 	int ret, section;
 	u32 size_read = 0;
 	u8 *nvm_buffer, *temp;
-	const char *nvm_file_B = mvm->cfg->default_nvm_file_B_step;
 	const char *nvm_file_C = mvm->cfg->default_nvm_file_C_step;
 
 	if (WARN_ON_ONCE(mvm->cfg->nvm_hw_section_num >= NVM_MAX_NUM_SECTIONS))
 		return -EINVAL;
 
 	/* load NVM values from nic */
-	if (read_nvm_from_nic) {
-		/* Read From FW NVM */
-		IWL_DEBUG_EEPROM(mvm->trans->dev, "Read from NVM\n");
+	/* Read From FW NVM */
+	IWL_DEBUG_EEPROM(mvm->trans->dev, "Read from NVM\n");
 
-		nvm_buffer = kmalloc(mvm->cfg->base_params->eeprom_size,
-				     GFP_KERNEL);
-		if (!nvm_buffer)
-			return -ENOMEM;
-		for (section = 0; section < NVM_MAX_NUM_SECTIONS; section++) {
-			/* we override the constness for initial read */
-			ret = iwl_nvm_read_section(mvm, section, nvm_buffer,
-						   size_read);
-			if (ret < 0)
-				continue;
-			size_read += ret;
-			temp = kmemdup(nvm_buffer, ret, GFP_KERNEL);
-			if (!temp) {
-				ret = -ENOMEM;
-				break;
-			}
+	nvm_buffer = kmalloc(mvm->cfg->base_params->eeprom_size,
+			     GFP_KERNEL);
+	if (!nvm_buffer)
+		return -ENOMEM;
+	for (section = 0; section < NVM_MAX_NUM_SECTIONS; section++) {
+		/* we override the constness for initial read */
+		ret = iwl_nvm_read_section(mvm, section, nvm_buffer,
+					   size_read);
+		if (ret < 0)
+			continue;
+		size_read += ret;
+		temp = kmemdup(nvm_buffer, ret, GFP_KERNEL);
+		if (!temp) {
+			ret = -ENOMEM;
+			break;
+		}
 
-			iwl_mvm_nvm_fixups(mvm, section, temp, ret);
+		iwl_mvm_nvm_fixups(mvm, section, temp, ret);
 
-			mvm->nvm_sections[section].data = temp;
-			mvm->nvm_sections[section].length = ret;
+		mvm->nvm_sections[section].data = temp;
+		mvm->nvm_sections[section].length = ret;
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
-			switch (section) {
-			case NVM_SECTION_TYPE_SW:
-				mvm->nvm_sw_blob.data = temp;
-				mvm->nvm_sw_blob.size  = ret;
+		switch (section) {
+		case NVM_SECTION_TYPE_SW:
+			mvm->nvm_sw_blob.data = temp;
+			mvm->nvm_sw_blob.size  = ret;
+			break;
+		case NVM_SECTION_TYPE_CALIBRATION:
+			mvm->nvm_calib_blob.data = temp;
+			mvm->nvm_calib_blob.size  = ret;
+			break;
+		case NVM_SECTION_TYPE_PRODUCTION:
+			mvm->nvm_prod_blob.data = temp;
+			mvm->nvm_prod_blob.size  = ret;
+			break;
+		case NVM_SECTION_TYPE_PHY_SKU:
+			mvm->nvm_phy_sku_blob.data = temp;
+			mvm->nvm_phy_sku_blob.size  = ret;
+			break;
+		default:
+			if (section == mvm->cfg->nvm_hw_section_num) {
+				mvm->nvm_hw_blob.data = temp;
+				mvm->nvm_hw_blob.size = ret;
 				break;
-			case NVM_SECTION_TYPE_CALIBRATION:
-				mvm->nvm_calib_blob.data = temp;
-				mvm->nvm_calib_blob.size  = ret;
-				break;
-			case NVM_SECTION_TYPE_PRODUCTION:
-				mvm->nvm_prod_blob.data = temp;
-				mvm->nvm_prod_blob.size  = ret;
-				break;
-			case NVM_SECTION_TYPE_PHY_SKU:
-				mvm->nvm_phy_sku_blob.data = temp;
-				mvm->nvm_phy_sku_blob.size  = ret;
-				break;
-			default:
-				if (section == mvm->cfg->nvm_hw_section_num) {
-					mvm->nvm_hw_blob.data = temp;
-					mvm->nvm_hw_blob.size = ret;
-					break;
-				}
 			}
-#endif
 		}
-		if (!size_read)
-			IWL_ERR(mvm, "OTP is blank\n");
-		kfree(nvm_buffer);
+#endif
 	}
+	if (!size_read)
+		IWL_ERR(mvm, "OTP is blank\n");
+	kfree(nvm_buffer);
 
 	/* Only if PNVM selected in the mod param - load external NVM  */
 	if (mvm->nvm_file_name) {
 		/* read External NVM file from the mod param */
 		ret = iwl_mvm_read_external_nvm(mvm);
 		if (ret) {
-			/* choose the nvm_file name according to the
-			 * HW step
-			 */
-			if (CSR_HW_REV_STEP(mvm->trans->hw_rev) ==
-			    SILICON_B_STEP)
-				mvm->nvm_file_name = nvm_file_B;
-			else
-				mvm->nvm_file_name = nvm_file_C;
+			mvm->nvm_file_name = nvm_file_C;
 
 			if ((ret == -EFAULT || ret == -ENOENT) &&
 			    mvm->nvm_file_name) {
@@ -704,6 +696,10 @@ iwl_mvm_update_mcc(struct iwl_mvm *mvm, const char *alpha2,
 		resp_len = sizeof(struct iwl_mcc_update_resp) +
 			   n_channels * sizeof(__le32);
 		resp_cp = kmemdup(mcc_resp, resp_len, GFP_KERNEL);
+		if (!resp_cp) {
+			resp_cp = ERR_PTR(-ENOMEM);
+			goto exit;
+		}
 	} else {
 		struct iwl_mcc_update_resp_v1 *mcc_resp_v1 = (void *)pkt->data;
 
@@ -711,21 +707,18 @@ iwl_mvm_update_mcc(struct iwl_mvm *mvm, const char *alpha2,
 		resp_len = sizeof(struct iwl_mcc_update_resp) +
 			   n_channels * sizeof(__le32);
 		resp_cp = kzalloc(resp_len, GFP_KERNEL);
-
-		if (resp_cp) {
-			resp_cp->status = mcc_resp_v1->status;
-			resp_cp->mcc = mcc_resp_v1->mcc;
-			resp_cp->cap = mcc_resp_v1->cap;
-			resp_cp->source_id = mcc_resp_v1->source_id;
-			resp_cp->n_channels = mcc_resp_v1->n_channels;
-			memcpy(resp_cp->channels, mcc_resp_v1->channels,
-			       n_channels * sizeof(__le32));
+		if (!resp_cp) {
+			resp_cp = ERR_PTR(-ENOMEM);
+			goto exit;
 		}
-	}
 
-	if (!resp_cp) {
-		ret = -ENOMEM;
-		goto exit;
+		resp_cp->status = mcc_resp_v1->status;
+		resp_cp->mcc = mcc_resp_v1->mcc;
+		resp_cp->cap = mcc_resp_v1->cap;
+		resp_cp->source_id = mcc_resp_v1->source_id;
+		resp_cp->n_channels = mcc_resp_v1->n_channels;
+		memcpy(resp_cp->channels, mcc_resp_v1->channels,
+		       n_channels * sizeof(__le32));
 	}
 
 	status = le32_to_cpu(resp_cp->status);
@@ -745,8 +738,6 @@ iwl_mvm_update_mcc(struct iwl_mvm *mvm, const char *alpha2,
 
 exit:
 	iwl_free_resp(&cmd);
-	if (ret)
-		return ERR_PTR(ret);
 	return resp_cp;
 }
 
@@ -758,7 +749,7 @@ int iwl_mvm_init_mcc(struct iwl_mvm *mvm)
 	struct ieee80211_regdomain *regd;
 	char mcc[3];
 
-	if (mvm->cfg->device_family == IWL_DEVICE_FAMILY_8000) {
+	if (mvm->cfg->nvm_type == IWL_NVM_EXT) {
 		tlv_lar = fw_has_capa(&mvm->fw->ucode_capa,
 				      IWL_UCODE_TLV_CAPA_LAR_SUPPORT);
 		nvm_lar = mvm->nvm_data->lar_enabled;
@@ -825,8 +816,8 @@ void iwl_mvm_rx_chub_update_mcc(struct iwl_mvm *mvm,
 	if (WARN_ON_ONCE(!iwl_mvm_is_lar_supported(mvm)))
 		return;
 
-	mcc[0] = notif->mcc >> 8;
-	mcc[1] = notif->mcc & 0xff;
+	mcc[0] = le16_to_cpu(notif->mcc) >> 8;
+	mcc[1] = le16_to_cpu(notif->mcc) & 0xff;
 	mcc[2] = '\0';
 	src = notif->source_id;
 

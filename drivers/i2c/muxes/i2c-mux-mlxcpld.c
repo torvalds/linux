@@ -38,9 +38,9 @@
 #include <linux/io.h>
 #include <linux/init.h>
 #include <linux/module.h>
+#include <linux/platform_data/x86/mlxcpld.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
-#include <linux/i2c/mlxcpld.h>
 
 #define CPLD_MUX_MAX_NCHANS	8
 

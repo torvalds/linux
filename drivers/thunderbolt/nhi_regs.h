@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Thunderbolt driver - NHI registers
  *
@@ -95,7 +96,34 @@ struct ring_desc {
 #define REG_RING_INTERRUPT_BASE	0x38200
 #define RING_INTERRUPT_REG_COUNT(nhi) ((31 + 2 * nhi->hop_count) / 32)
 
+/* Interrupt Vector Allocation */
+#define REG_INT_VEC_ALLOC_BASE	0x38c40
+#define REG_INT_VEC_ALLOC_BITS	4
+#define REG_INT_VEC_ALLOC_MASK	GENMASK(3, 0)
+#define REG_INT_VEC_ALLOC_REGS	(32 / REG_INT_VEC_ALLOC_BITS)
+
 /* The last 11 bits contain the number of hops supported by the NHI port. */
 #define REG_HOP_COUNT		0x39640
+
+#define REG_DMA_MISC			0x39864
+#define REG_DMA_MISC_INT_AUTO_CLEAR     BIT(2)
+
+#define REG_INMAIL_DATA			0x39900
+
+#define REG_INMAIL_CMD			0x39904
+#define REG_INMAIL_CMD_MASK		GENMASK(7, 0)
+#define REG_INMAIL_ERROR		BIT(30)
+#define REG_INMAIL_OP_REQUEST		BIT(31)
+
+#define REG_OUTMAIL_CMD			0x3990c
+#define REG_OUTMAIL_CMD_OPMODE_SHIFT	8
+#define REG_OUTMAIL_CMD_OPMODE_MASK	GENMASK(11, 8)
+
+#define REG_FW_STS			0x39944
+#define REG_FW_STS_NVM_AUTH_DONE	BIT(31)
+#define REG_FW_STS_CIO_RESET_REQ	BIT(30)
+#define REG_FW_STS_ICM_EN_CPU		BIT(2)
+#define REG_FW_STS_ICM_EN_INVERT	BIT(1)
+#define REG_FW_STS_ICM_EN		BIT(0)
 
 #endif

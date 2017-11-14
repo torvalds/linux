@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *    S390 low-level entry points.
  *
@@ -52,7 +53,7 @@ _TIF_TRACE	= (_TIF_SYSCALL_TRACE | _TIF_SYSCALL_AUDIT | _TIF_SECCOMP | \
 		   _TIF_SYSCALL_TRACEPOINT)
 _CIF_WORK	= (_CIF_MCCK_PENDING | _CIF_ASCE_PRIMARY | \
 		   _CIF_ASCE_SECONDARY | _CIF_FPU)
-_PIF_WORK	= (_PIF_PER_TRAP)
+_PIF_WORK	= (_PIF_PER_TRAP | _PIF_SYSCALL_RESTART)
 
 #define BASED(name) name-cleanup_critical(%r13)
 
@@ -225,6 +226,7 @@ ENTRY(sie64a)
 	jnz	.Lsie_skip
 	TSTMSK	__LC_CPU_FLAGS,_CIF_FPU
 	jo	.Lsie_skip			# exit if fp/vx regs changed
+.Lsie_entry:
 	sie	0(%r14)
 .Lsie_skip:
 	ni	__SIE_PROG0C+3(%r14),0xfe	# no longer in SIE
@@ -334,6 +336,8 @@ ENTRY(system_call)
 	jo	.Lsysc_mcck_pending
 	TSTMSK	__TI_flags(%r12),_TIF_NEED_RESCHED
 	jo	.Lsysc_reschedule
+	TSTMSK	__PT_FLAGS(%r11),_PIF_SYSCALL_RESTART
+	jo	.Lsysc_syscall_restart
 #ifdef CONFIG_UPROBES
 	TSTMSK	__TI_flags(%r12),_TIF_UPROBE
 	jo	.Lsysc_uprobe_notify
@@ -347,6 +351,8 @@ ENTRY(system_call)
 	jo	.Lsysc_patch_pending	# handle live patching just before
 					# signals and possible syscall restart
 #endif
+	TSTMSK	__PT_FLAGS(%r11),_PIF_SYSCALL_RESTART
+	jo	.Lsysc_syscall_restart
 	TSTMSK	__TI_flags(%r12),_TIF_SIGPENDING
 	jo	.Lsysc_sigpending
 	TSTMSK	__TI_flags(%r12),_TIF_NOTIFY_RESUME
@@ -448,6 +454,15 @@ ENTRY(system_call)
 	jg	do_per_trap
 
 #
+# _PIF_SYSCALL_RESTART is set, repeat the current system call
+#
+.Lsysc_syscall_restart:
+	ni	__PT_FLAGS+7(%r11),255-_PIF_SYSCALL_RESTART
+	lmg	%r1,%r7,__PT_R1(%r11)	# load svc arguments
+	lg	%r2,__PT_ORIG_GPR2(%r11)
+	j	.Lsysc_do_svc
+
+#
 # call tracehook_report_syscall_entry/tracehook_report_syscall_exit before
 # and after the system call
 #
@@ -507,12 +522,15 @@ ENTRY(pgm_check_handler)
 	tmhh	%r8,0x0001		# test problem state bit
 	jnz	2f			# -> fault in user space
 #if IS_ENABLED(CONFIG_KVM)
-	# cleanup critical section for sie64a
+	# cleanup critical section for program checks in sie64a
 	lgr	%r14,%r9
 	slg	%r14,BASED(.Lsie_critical_start)
 	clg	%r14,BASED(.Lsie_critical_length)
 	jhe	0f
-	brasl	%r14,.Lcleanup_sie
+	lg	%r14,__SF_EMPTY(%r15)		# get control block pointer
+	ni	__SIE_PROG0C+3(%r14),0xfe	# no longer in SIE
+	lctlg	%c1,%c1,__LC_USER_ASCE		# load primary asce
+	larl	%r9,sie_exit			# skip forward to sie_exit
 #endif
 0:	tmhh	%r8,0x4000		# PER bit set in old PSW ?
 	jnz	1f			# -> enabled, can't be a double fault
@@ -881,9 +899,7 @@ ENTRY(save_fpu_regs)
 	oi	__LC_CPU_FLAGS+7,_CIF_FPU
 	br	%r14
 .Lsave_fpu_regs_end:
-#if IS_ENABLED(CONFIG_KVM)
 EXPORT_SYMBOL(save_fpu_regs)
-#endif
 
 /*
  * Load floating-point controls and floating-point or vector registers.
@@ -1111,7 +1127,13 @@ cleanup_critical:
 	.quad	.Lsie_done
 
 .Lcleanup_sie:
-	lg	%r9,__SF_EMPTY(%r15)		# get control block pointer
+	cghi    %r11,__LC_SAVE_AREA_ASYNC 	#Is this in normal interrupt?
+	je      1f
+	slg     %r9,BASED(.Lsie_crit_mcck_start)
+	clg     %r9,BASED(.Lsie_crit_mcck_length)
+	jh      1f
+	oi      __LC_CPU_FLAGS+7, _CIF_MCCK_GUEST
+1:	lg	%r9,__SF_EMPTY(%r15)		# get control block pointer
 	ni	__SIE_PROG0C+3(%r9),0xfe	# no longer in SIE
 	lctlg	%c1,%c1,__LC_USER_ASCE		# load primary asce
 	larl	%r9,sie_exit			# skip forward to sie_exit
@@ -1296,6 +1318,10 @@ cleanup_critical:
 	.quad	.Lsie_gmap
 .Lsie_critical_length:
 	.quad	.Lsie_done - .Lsie_gmap
+.Lsie_crit_mcck_start:
+	.quad   .Lsie_entry
+.Lsie_crit_mcck_length:
+	.quad   .Lsie_skip - .Lsie_entry
 #endif
 
 	.section .rodata, "a"

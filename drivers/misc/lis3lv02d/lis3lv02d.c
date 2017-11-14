@@ -856,7 +856,7 @@ static struct attribute *lis3lv02d_attributes[] = {
 	NULL
 };
 
-static struct attribute_group lis3lv02d_attribute_group = {
+static const struct attribute_group lis3lv02d_attribute_group = {
 	.attrs = lis3lv02d_attributes
 };
 

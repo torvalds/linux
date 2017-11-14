@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Simulated Serial Driver (fake serial)
  *
@@ -387,19 +388,6 @@ static int activate(struct tty_port *port, struct tty_struct *tty)
 	}
 
 	state->xmit.head = state->xmit.tail = 0;
-
-	/*
-	 * Set up the tty->alt_speed kludge
-	 */
-	if ((port->flags & ASYNC_SPD_MASK) == ASYNC_SPD_HI)
-		tty->alt_speed = 57600;
-	if ((port->flags & ASYNC_SPD_MASK) == ASYNC_SPD_VHI)
-		tty->alt_speed = 115200;
-	if ((port->flags & ASYNC_SPD_MASK) == ASYNC_SPD_SHI)
-		tty->alt_speed = 230400;
-	if ((port->flags & ASYNC_SPD_MASK) == ASYNC_SPD_WARP)
-		tty->alt_speed = 460800;
-
 errout:
 	local_irq_restore(flags);
 	return retval;

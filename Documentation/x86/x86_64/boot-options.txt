@@ -36,7 +36,8 @@ Machine check
 		to broadcast MCEs.
    mce=bootlog
 		Enable logging of machine checks left over from booting.
-		Disabled by default on AMD because some BIOS leave bogus ones.
+		Disabled by default on AMD Fam10h and older because some BIOS
+		leave bogus ones.
 		If your BIOS doesn't do that it's a good idea to enable though
 		to make sure you log even machine check events that result
 		in a reboot. On Intel systems it is enabled by default.

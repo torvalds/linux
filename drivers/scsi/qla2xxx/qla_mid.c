@@ -74,7 +74,7 @@ qla24xx_deallocate_vp_id(scsi_qla_host_t *vha)
 	 * ensures no active vp_list traversal while the vport is removed
 	 * from the queue)
 	 */
-	wait_event_timeout(vha->vref_waitq, atomic_read(&vha->vref_count),
+	wait_event_timeout(vha->vref_waitq, !atomic_read(&vha->vref_count),
 	    10*HZ);
 
 	spin_lock_irqsave(&ha->vport_slock, flags);
@@ -187,6 +187,11 @@ qla24xx_enable_vp(scsi_qla_host_t *vha)
 		!(ha->current_topology & ISP_CFG_F)) {
 		vha->vp_err_state =  VP_ERR_PORTDWN;
 		fc_vport_set_state(vha->fc_vport, FC_VPORT_LINKDOWN);
+		ql_dbg(ql_dbg_taskm, vha, 0x800b,
+		    "%s skip enable. loop_state %x topo %x\n",
+		    __func__, base_vha->loop_state.counter,
+		    ha->current_topology);
+
 		goto enable_failed;
 	}
 
@@ -640,11 +645,12 @@ qla25xx_delete_queues(struct scsi_qla_host *vha)
 
 int
 qla25xx_create_req_que(struct qla_hw_data *ha, uint16_t options,
-	uint8_t vp_idx, uint16_t rid, int rsp_que, uint8_t qos)
+    uint8_t vp_idx, uint16_t rid, int rsp_que, uint8_t qos, bool startqp)
 {
 	int ret = 0;
 	struct req_que *req = NULL;
 	struct scsi_qla_host *base_vha = pci_get_drvdata(ha->pdev);
+	struct scsi_qla_host *vha = pci_get_drvdata(ha->pdev);
 	uint16_t que_id = 0;
 	device_reg_t *reg;
 	uint32_t cnt;
@@ -731,14 +737,17 @@ qla25xx_create_req_que(struct qla_hw_data *ha, uint16_t options,
 	    req->ring_ptr, req->ring_index, req->cnt,
 	    req->id, req->max_q_depth);
 
-	ret = qla25xx_init_req_que(base_vha, req);
-	if (ret != QLA_SUCCESS) {
-		ql_log(ql_log_fatal, base_vha, 0x00df,
-		    "%s failed.\n", __func__);
-		mutex_lock(&ha->mq_lock);
-		clear_bit(que_id, ha->req_qid_map);
-		mutex_unlock(&ha->mq_lock);
-		goto que_failed;
+	if (startqp) {
+		ret = qla25xx_init_req_que(base_vha, req);
+		if (ret != QLA_SUCCESS) {
+			ql_log(ql_log_fatal, base_vha, 0x00df,
+			    "%s failed.\n", __func__);
+			mutex_lock(&ha->mq_lock);
+			clear_bit(que_id, ha->req_qid_map);
+			mutex_unlock(&ha->mq_lock);
+			goto que_failed;
+		}
+		vha->flags.qpairs_req_created = 1;
 	}
 
 	return req->id;
@@ -755,21 +764,29 @@ static void qla_do_work(struct work_struct *work)
 	struct qla_qpair *qpair = container_of(work, struct qla_qpair, q_work);
 	struct scsi_qla_host *vha;
 	struct qla_hw_data *ha = qpair->hw;
+	struct srb_iocb	*nvme, *nxt_nvme;
 
 	spin_lock_irqsave(&qpair->qp_lock, flags);
 	vha = pci_get_drvdata(ha->pdev);
 	qla24xx_process_response_queue(vha, qpair->rsp);
 	spin_unlock_irqrestore(&qpair->qp_lock, flags);
+
+	list_for_each_entry_safe(nvme, nxt_nvme, &qpair->nvme_done_list,
+		    u.nvme.entry) {
+		list_del_init(&nvme->u.nvme.entry);
+		qla_nvme_cmpl_io(nvme);
+	}
 }
 
 /* create response queue */
 int
 qla25xx_create_rsp_que(struct qla_hw_data *ha, uint16_t options,
-	uint8_t vp_idx, uint16_t rid, struct qla_qpair *qpair)
+    uint8_t vp_idx, uint16_t rid, struct qla_qpair *qpair, bool startqp)
 {
 	int ret = 0;
 	struct rsp_que *rsp = NULL;
 	struct scsi_qla_host *base_vha = pci_get_drvdata(ha->pdev);
+	struct scsi_qla_host *vha = pci_get_drvdata(ha->pdev);
 	uint16_t que_id = 0;
 	device_reg_t *reg;
 
@@ -843,14 +860,17 @@ qla25xx_create_rsp_que(struct qla_hw_data *ha, uint16_t options,
 	if (ret)
 		goto que_failed;
 
-	ret = qla25xx_init_rsp_que(base_vha, rsp);
-	if (ret != QLA_SUCCESS) {
-		ql_log(ql_log_fatal, base_vha, 0x00e7,
-		    "%s failed.\n", __func__);
-		mutex_lock(&ha->mq_lock);
-		clear_bit(que_id, ha->rsp_qid_map);
-		mutex_unlock(&ha->mq_lock);
-		goto que_failed;
+	if (startqp) {
+		ret = qla25xx_init_rsp_que(base_vha, rsp);
+		if (ret != QLA_SUCCESS) {
+			ql_log(ql_log_fatal, base_vha, 0x00e7,
+			    "%s failed.\n", __func__);
+			mutex_lock(&ha->mq_lock);
+			clear_bit(que_id, ha->rsp_qid_map);
+			mutex_unlock(&ha->mq_lock);
+			goto que_failed;
+		}
+		vha->flags.qpairs_rsp_created = 1;
 	}
 	rsp->req = NULL;
 

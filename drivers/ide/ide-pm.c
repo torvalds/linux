@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/kernel.h>
 #include <linux/gfp.h>
 #include <linux/ide.h>
@@ -19,7 +20,6 @@ int generic_ide_suspend(struct device *dev, pm_message_t mesg)
 
 	memset(&rqpm, 0, sizeof(rqpm));
 	rq = blk_get_request(drive->queue, REQ_OP_DRV_IN, __GFP_RECLAIM);
-	scsi_req_init(rq);
 	ide_req(rq)->type = ATA_PRIV_PM_SUSPEND;
 	rq->special = &rqpm;
 	rqpm.pm_step = IDE_PM_START_SUSPEND;
@@ -40,7 +40,7 @@ int generic_ide_suspend(struct device *dev, pm_message_t mesg)
 	return ret;
 }
 
-static void ide_end_sync_rq(struct request *rq, int error)
+static void ide_end_sync_rq(struct request *rq, blk_status_t error)
 {
 	complete(rq->end_io_data);
 }
@@ -57,7 +57,7 @@ static int ide_pm_execute_rq(struct request *rq)
 	if (unlikely(blk_queue_dying(q))) {
 		rq->rq_flags |= RQF_QUIET;
 		scsi_req(rq)->result = -ENXIO;
-		__blk_end_request_all(rq, 0);
+		__blk_end_request_all(rq, BLK_STS_OK);
 		spin_unlock_irq(q->queue_lock);
 		return -ENXIO;
 	}
@@ -91,7 +91,6 @@ int generic_ide_resume(struct device *dev)
 
 	memset(&rqpm, 0, sizeof(rqpm));
 	rq = blk_get_request(drive->queue, REQ_OP_DRV_IN, __GFP_RECLAIM);
-	scsi_req_init(rq);
 	ide_req(rq)->type = ATA_PRIV_PM_RESUME;
 	rq->rq_flags |= RQF_PREEMPT;
 	rq->special = &rqpm;
@@ -235,7 +234,7 @@ void ide_complete_pm_rq(ide_drive_t *drive, struct request *rq)
 
 	drive->hwif->rq = NULL;
 
-	if (blk_end_request(rq, 0, 0))
+	if (blk_end_request(rq, BLK_STS_OK, 0))
 		BUG();
 }
 

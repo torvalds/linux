@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /dts-v1/;
 
 /include/ "skeleton.dtsi"
@@ -63,6 +64,22 @@
 		};
 	};
 
+	/*
+	 * These channels from the ADC are simply hardware monitors.
+	 * That is why the ADC is referred to as "HKADC" - HouseKeeping
+	 * ADC.
+	 */
+	iio-hwmon {
+		compatible = "iio-hwmon";
+		io-channels = <&xoadc 0x00 0x01>, /* Battery */
+			    <&xoadc 0x00 0x02>, /* DC in (charger) */
+			    <&xoadc 0x00 0x04>, /* VPH the main system voltage */
+			    <&xoadc 0x00 0x0b>, /* Die temperature */
+			    <&xoadc 0x00 0x0c>, /* Reference voltage 1.25V */
+			    <&xoadc 0x00 0x0d>, /* Reference voltage 0.625V */
+			    <&xoadc 0x00 0x0e>; /* Reference voltage 0.325V */
+	};
+
 	soc: soc {
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -105,6 +122,31 @@
 			#clock-cells = <1>;
 			#reset-cells = <1>;
 			reg = <0x900000 0x4000>;
+		};
+
+
+		gsbi8: gsbi@19800000 {
+			compatible = "qcom,gsbi-v1.0.0";
+			cell-index = <12>;
+			reg = <0x19800000 0x100>;
+			clocks = <&gcc GSBI8_H_CLK>;
+			clock-names = "iface";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+
+			syscon-tcsr = <&tcsr>;
+
+			gsbi8_i2c: i2c@19880000 {
+				compatible = "qcom,i2c-qup-v1.1.1";
+				reg = <0x19880000 0x1000>;
+				interrupts = <GIC_SPI 161 IRQ_TYPE_NONE>;
+				clocks = <&gcc GSBI8_QUP_CLK>, <&gcc GSBI8_H_CLK>;
+				clock-names = "core", "iface";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "disabled";
+			};
 		};
 
 		gsbi12: gsbi@19c00000 {
@@ -265,6 +307,49 @@
 					debounce = <15>;
 					scan-delay = <32>;
 					row-hold = <91500>;
+				};
+
+				xoadc: xoadc@197 {
+					compatible = "qcom,pm8058-adc";
+					reg = <0x197>;
+					interrupts-extended = <&pm8058 76 IRQ_TYPE_EDGE_RISING>;
+					#address-cells = <2>;
+					#size-cells = <0>;
+					#io-channel-cells = <2>;
+
+					vcoin: adc-channel@00 {
+						reg = <0x00 0x00>;
+					};
+					vbat: adc-channel@01 {
+						reg = <0x00 0x01>;
+					};
+					dcin: adc-channel@02 {
+						reg = <0x00 0x02>;
+					};
+					ichg: adc-channel@03 {
+						reg = <0x00 0x03>;
+					};
+					vph_pwr: adc-channel@04 {
+						reg = <0x00 0x04>;
+					};
+					usb_vbus: adc-channel@0a {
+						reg = <0x00 0x0a>;
+					};
+					die_temp: adc-channel@0b {
+						reg = <0x00 0x0b>;
+					};
+					ref_625mv: adc-channel@0c {
+						reg = <0x00 0x0c>;
+					};
+					ref_1250mv: adc-channel@0d {
+						reg = <0x00 0x0d>;
+					};
+					ref_325mv: adc-channel@0e {
+						reg = <0x00 0x0e>;
+					};
+					ref_muxoff: adc-channel@0f {
+						reg = <0x00 0x0f>;
+					};
 				};
 
 				rtc@1e8 {

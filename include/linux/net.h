@@ -37,7 +37,7 @@ struct net;
 
 /* Historically, SOCKWQ_ASYNC_NOSPACE & SOCKWQ_ASYNC_WAITDATA were located
  * in sock->flags, but moved into sk->sk_wq->flags to be RCU protected.
- * Eventually all flags will be in sk->sk_wq_flags.
+ * Eventually all flags will be in sk->sk_wq->flags.
  */
 #define SOCKWQ_ASYNC_NOSPACE	0
 #define SOCKWQ_ASYNC_WAITDATA	1
@@ -190,8 +190,16 @@ struct proto_ops {
 				       struct pipe_inode_info *pipe, size_t len, unsigned int flags);
 	int		(*set_peek_off)(struct sock *sk, int val);
 	int		(*peek_len)(struct socket *sock);
+
+	/* The following functions are called internally by kernel with
+	 * sock lock already held.
+	 */
 	int		(*read_sock)(struct sock *sk, read_descriptor_t *desc,
 				     sk_read_actor_t recv_actor);
+	int		(*sendpage_locked)(struct sock *sk, struct page *page,
+					   int offset, size_t size, int flags);
+	int		(*sendmsg_locked)(struct sock *sk, struct msghdr *msg,
+					  size_t size);
 };
 
 #define DECLARE_SOCKADDR(type, dst, src)	\
@@ -274,9 +282,13 @@ do {									\
 
 #define net_get_random_once(buf, nbytes)			\
 	get_random_once((buf), (nbytes))
+#define net_get_random_once_wait(buf, nbytes)			\
+	get_random_once_wait((buf), (nbytes))
 
 int kernel_sendmsg(struct socket *sock, struct msghdr *msg, struct kvec *vec,
 		   size_t num, size_t len);
+int kernel_sendmsg_locked(struct sock *sk, struct msghdr *msg,
+			  struct kvec *vec, size_t num, size_t len);
 int kernel_recvmsg(struct socket *sock, struct msghdr *msg, struct kvec *vec,
 		   size_t num, size_t len, int flags);
 
@@ -295,6 +307,8 @@ int kernel_setsockopt(struct socket *sock, int level, int optname, char *optval,
 		      unsigned int optlen);
 int kernel_sendpage(struct socket *sock, struct page *page, int offset,
 		    size_t size, int flags);
+int kernel_sendpage_locked(struct sock *sk, struct page *page, int offset,
+			   size_t size, int flags);
 int kernel_sock_ioctl(struct socket *sock, int cmd, unsigned long arg);
 int kernel_sock_shutdown(struct socket *sock, enum sock_shutdown_cmd how);
 

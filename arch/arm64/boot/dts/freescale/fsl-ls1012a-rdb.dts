@@ -1,7 +1,7 @@
 /*
  * Device Tree file for Freescale LS1012A RDB Board.
  *
- * Copyright 2016, Freescale Semiconductor
+ * Copyright 2016 Freescale Semiconductor, Inc.
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPLv2 or the X11 license, at your option. Note that this dual
@@ -51,6 +51,19 @@
 };
 
 &duart0 {
+	status = "okay";
+};
+
+&esdhc0 {
+	sd-uhs-sdr104;
+	sd-uhs-sdr50;
+	sd-uhs-sdr25;
+	sd-uhs-sdr12;
+	status = "okay";
+};
+
+&esdhc1 {
+	mmc-hs200-1_8v;
 	status = "okay";
 };
 

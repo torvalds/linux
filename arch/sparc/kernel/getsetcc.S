@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 	.globl		getcc
 	.type		getcc,#function
 getcc:

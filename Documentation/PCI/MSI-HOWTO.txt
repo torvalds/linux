@@ -186,7 +186,7 @@ must disable interrupts while the lock is held.  If the device sends
 a different interrupt, the driver will deadlock trying to recursively
 acquire the spinlock.  Such deadlocks can be avoided by using
 spin_lock_irqsave() or spin_lock_irq() which disable local interrupts
-and acquire the lock (see Documentation/DocBook/kernel-locking).
+and acquire the lock (see Documentation/kernel-hacking/locking.rst).
 
 4.5 How to tell whether MSI/MSI-X is enabled on a device
 

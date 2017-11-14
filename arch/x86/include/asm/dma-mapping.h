@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_DMA_MAPPING_H
 #define _ASM_X86_DMA_MAPPING_H
 
@@ -12,14 +13,13 @@
 #include <asm/io.h>
 #include <asm/swiotlb.h>
 #include <linux/dma-contiguous.h>
+#include <linux/mem_encrypt.h>
 
 #ifdef CONFIG_ISA
 # define ISA_DMA_BIT_MASK DMA_BIT_MASK(24)
 #else
 # define ISA_DMA_BIT_MASK DMA_BIT_MASK(32)
 #endif
-
-#define DMA_ERROR_CODE	0
 
 extern int iommu_merge;
 extern struct device x86_dma_fallback_dev;
@@ -34,9 +34,6 @@ static inline const struct dma_map_ops *get_arch_dma_ops(struct bus_type *bus)
 
 bool arch_dma_alloc_attrs(struct device **dev, gfp_t *gfp);
 #define arch_dma_alloc_attrs arch_dma_alloc_attrs
-
-#define HAVE_ARCH_DMA_SUPPORTED 1
-extern int dma_supported(struct device *hwdev, u64 mask);
 
 extern void *dma_generic_alloc_coherent(struct device *dev, size_t size,
 					dma_addr_t *dma_addr, gfp_t flag,
@@ -62,12 +59,12 @@ static inline bool dma_capable(struct device *dev, dma_addr_t addr, size_t size)
 
 static inline dma_addr_t phys_to_dma(struct device *dev, phys_addr_t paddr)
 {
-	return paddr;
+	return __sme_set(paddr);
 }
 
 static inline phys_addr_t dma_to_phys(struct device *dev, dma_addr_t daddr)
 {
-	return daddr;
+	return __sme_clr(daddr);
 }
 #endif /* CONFIG_X86_DMA_REMAP */
 

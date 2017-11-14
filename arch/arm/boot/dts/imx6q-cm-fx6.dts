@@ -64,6 +64,14 @@
 		};
 	};
 
+	awnh387_pwrseq: pwrseq {
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_pwrseq>;
+		compatible = "mmc-pwrseq-sd8787";
+		powerdown-gpios = <&gpio7 12 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio6 16 GPIO_ACTIVE_HIGH>;
+	};
+
 	reg_pcie_power_on_gpio: regulator-pcie-power-on-gpio {
 		compatible = "regulator-fixed";
 		regulator-name = "regulator-pcie-power-on-gpio";
@@ -215,7 +223,7 @@
 	clock-frequency = <100000>;
 
 	eeprom@50 {
-		compatible = "at24,24c02";
+		compatible = "atmel,24c02";
 		reg = <0x50>;
 		pagesize = <16>;
 	};
@@ -304,6 +312,13 @@
 		>;
 	};
 
+	pinctrl_pwrseq: pwrseqgrp {
+		fsl,pins = <
+			MX6QDL_PAD_GPIO_17__GPIO7_IO12		0x1b0b0
+			MX6QDL_PAD_NANDF_CS3__GPIO6_IO16	0x1b0b0
+		>;
+	};
+
 	pinctrl_spdif: spdifgrp {
 		fsl,pins = <
 			MX6QDL_PAD_GPIO_16__SPDIF_IN  0x1b0b0
@@ -328,6 +343,17 @@
 		fsl,pins = <
 			MX6QDL_PAD_ENET_RX_ER__USB_OTG_ID	0x17059
 			MX6QDL_PAD_EIM_D22__GPIO3_IO22	0x130b0
+		>;
+	};
+
+	pinctrl_usdhc1: usdhc1grp {
+		fsl,pins = <
+			MX6QDL_PAD_SD1_CMD__SD1_CMD	0x17071
+			MX6QDL_PAD_SD1_CLK__SD1_CLK	0x10071
+			MX6QDL_PAD_SD1_DAT0__SD1_DATA0	0x17071
+			MX6QDL_PAD_SD1_DAT1__SD1_DATA1	0x17071
+			MX6QDL_PAD_SD1_DAT2__SD1_DATA2	0x17071
+			MX6QDL_PAD_SD1_DAT3__SD1_DATA3	0x17071
 		>;
 	};
 };
@@ -381,4 +407,19 @@
 	pinctrl-0 = <&pinctrl_usbotg>;
 	dr_mode = "otg";
 	status = "okay";
+};
+
+&usdhc1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usdhc1>;
+	mmc-pwrseq = <&awnh387_pwrseq>;
+	non-removable;
+	/*
+	 * If the OS probes the Bluetooth AMP function advertised on this bus
+	 * but the firmware in place does not support it, the WiFi/BT module
+	 * gets unresponsive.
+	 * Users who configured their OS properly can enable this node to gain
+	 * WiFi and/or plain Bluetooth support.
+	 */
+	status = "disabled";
 };

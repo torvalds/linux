@@ -17,7 +17,7 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <linux/wait.h>
+#include <linux/sys_soc.h>
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
@@ -54,23 +54,16 @@ static void omap_fb_output_poll_changed(struct drm_device *dev)
 		drm_fb_helper_hotplug_event(priv->fbdev);
 }
 
-struct omap_atomic_state_commit {
-	struct work_struct work;
-	struct drm_device *dev;
-	struct drm_atomic_state *state;
-	u32 crtcs;
-};
-
 static void omap_atomic_wait_for_completion(struct drm_device *dev,
 					    struct drm_atomic_state *old_state)
 {
-	struct drm_crtc_state *old_crtc_state;
+	struct drm_crtc_state *new_crtc_state;
 	struct drm_crtc *crtc;
 	unsigned int i;
 	int ret;
 
-	for_each_crtc_in_state(old_state, crtc, old_crtc_state, i) {
-		if (!crtc->state->enable)
+	for_each_new_crtc_in_state(old_state, crtc, new_crtc_state, i) {
+		if (!new_crtc_state->active)
 			continue;
 
 		ret = omap_crtc_wait_pending(crtc);
@@ -81,128 +74,67 @@ static void omap_atomic_wait_for_completion(struct drm_device *dev,
 	}
 }
 
-static void omap_atomic_complete(struct omap_atomic_state_commit *commit)
+static void omap_atomic_commit_tail(struct drm_atomic_state *old_state)
 {
-	struct drm_device *dev = commit->dev;
+	struct drm_device *dev = old_state->dev;
 	struct omap_drm_private *priv = dev->dev_private;
-	struct drm_atomic_state *old_state = commit->state;
 
-	/* Apply the atomic update. */
 	priv->dispc_ops->runtime_get();
 
+	/* Apply the atomic update. */
 	drm_atomic_helper_commit_modeset_disables(dev, old_state);
 
-	/* With the current dss dispc implementation we have to enable
-	 * the new modeset before we can commit planes. The dispc ovl
-	 * configuration relies on the video mode configuration been
-	 * written into the HW when the ovl configuration is
-	 * calculated.
-	 *
-	 * This approach is not ideal because after a mode change the
-	 * plane update is executed only after the first vblank
-	 * interrupt. The dispc implementation should be fixed so that
-	 * it is able use uncommitted drm state information.
+	if (priv->omaprev != 0x3430) {
+		/* With the current dss dispc implementation we have to enable
+		 * the new modeset before we can commit planes. The dispc ovl
+		 * configuration relies on the video mode configuration been
+		 * written into the HW when the ovl configuration is
+		 * calculated.
+		 *
+		 * This approach is not ideal because after a mode change the
+		 * plane update is executed only after the first vblank
+		 * interrupt. The dispc implementation should be fixed so that
+		 * it is able use uncommitted drm state information.
+		 */
+		drm_atomic_helper_commit_modeset_enables(dev, old_state);
+		omap_atomic_wait_for_completion(dev, old_state);
+
+		drm_atomic_helper_commit_planes(dev, old_state, 0);
+
+		drm_atomic_helper_commit_hw_done(old_state);
+	} else {
+		/*
+		 * OMAP3 DSS seems to have issues with the work-around above,
+		 * resulting in endless sync losts if a crtc is enabled without
+		 * a plane. For now, skip the WA for OMAP3.
+		 */
+		drm_atomic_helper_commit_planes(dev, old_state, 0);
+
+		drm_atomic_helper_commit_modeset_enables(dev, old_state);
+
+		drm_atomic_helper_commit_hw_done(old_state);
+	}
+
+	/*
+	 * Wait for completion of the page flips to ensure that old buffers
+	 * can't be touched by the hardware anymore before cleaning up planes.
 	 */
-	drm_atomic_helper_commit_modeset_enables(dev, old_state);
-	omap_atomic_wait_for_completion(dev, old_state);
-
-	drm_atomic_helper_commit_planes(dev, old_state, 0);
-
 	omap_atomic_wait_for_completion(dev, old_state);
 
 	drm_atomic_helper_cleanup_planes(dev, old_state);
 
 	priv->dispc_ops->runtime_put();
-
-	drm_atomic_state_put(old_state);
-
-	/* Complete the commit, wake up any waiter. */
-	spin_lock(&priv->commit.lock);
-	priv->commit.pending &= ~commit->crtcs;
-	spin_unlock(&priv->commit.lock);
-
-	wake_up_all(&priv->commit.wait);
-
-	kfree(commit);
 }
 
-static void omap_atomic_work(struct work_struct *work)
-{
-	struct omap_atomic_state_commit *commit =
-		container_of(work, struct omap_atomic_state_commit, work);
-
-	omap_atomic_complete(commit);
-}
-
-static bool omap_atomic_is_pending(struct omap_drm_private *priv,
-				   struct omap_atomic_state_commit *commit)
-{
-	bool pending;
-
-	spin_lock(&priv->commit.lock);
-	pending = priv->commit.pending & commit->crtcs;
-	spin_unlock(&priv->commit.lock);
-
-	return pending;
-}
-
-static int omap_atomic_commit(struct drm_device *dev,
-			      struct drm_atomic_state *state, bool nonblock)
-{
-	struct omap_drm_private *priv = dev->dev_private;
-	struct omap_atomic_state_commit *commit;
-	struct drm_crtc *crtc;
-	struct drm_crtc_state *crtc_state;
-	int i, ret;
-
-	ret = drm_atomic_helper_prepare_planes(dev, state);
-	if (ret)
-		return ret;
-
-	/* Allocate the commit object. */
-	commit = kzalloc(sizeof(*commit), GFP_KERNEL);
-	if (commit == NULL) {
-		ret = -ENOMEM;
-		goto error;
-	}
-
-	INIT_WORK(&commit->work, omap_atomic_work);
-	commit->dev = dev;
-	commit->state = state;
-
-	/* Wait until all affected CRTCs have completed previous commits and
-	 * mark them as pending.
-	 */
-	for_each_crtc_in_state(state, crtc, crtc_state, i)
-		commit->crtcs |= drm_crtc_mask(crtc);
-
-	wait_event(priv->commit.wait, !omap_atomic_is_pending(priv, commit));
-
-	spin_lock(&priv->commit.lock);
-	priv->commit.pending |= commit->crtcs;
-	spin_unlock(&priv->commit.lock);
-
-	/* Swap the state, this is the point of no return. */
-	drm_atomic_helper_swap_state(state, true);
-
-	drm_atomic_state_get(state);
-	if (nonblock)
-		schedule_work(&commit->work);
-	else
-		omap_atomic_complete(commit);
-
-	return 0;
-
-error:
-	drm_atomic_helper_cleanup_planes(dev, state);
-	return ret;
-}
+static const struct drm_mode_config_helper_funcs omap_mode_config_helper_funcs = {
+	.atomic_commit_tail = omap_atomic_commit_tail,
+};
 
 static const struct drm_mode_config_funcs omap_mode_config_funcs = {
 	.fb_create = omap_framebuffer_create,
 	.output_poll_changed = omap_fb_output_poll_changed,
 	.atomic_check = drm_atomic_helper_check,
-	.atomic_commit = omap_atomic_commit,
+	.atomic_commit = drm_atomic_helper_commit,
 };
 
 static int get_connector_type(struct omap_dss_device *dssdev)
@@ -214,6 +146,14 @@ static int get_connector_type(struct omap_dss_device *dssdev)
 		return DRM_MODE_CONNECTOR_DVID;
 	case OMAP_DISPLAY_TYPE_DSI:
 		return DRM_MODE_CONNECTOR_DSI;
+	case OMAP_DISPLAY_TYPE_DPI:
+	case OMAP_DISPLAY_TYPE_DBI:
+		return DRM_MODE_CONNECTOR_DPI;
+	case OMAP_DISPLAY_TYPE_VENC:
+		/* TODO: This could also be composite */
+		return DRM_MODE_CONNECTOR_SVIDEO;
+	case OMAP_DISPLAY_TYPE_SDI:
+		return DRM_MODE_CONNECTOR_LVDS;
 	default:
 		return DRM_MODE_CONNECTOR_Unknown;
 	}
@@ -261,8 +201,10 @@ cleanup:
 static int omap_modeset_init_properties(struct drm_device *dev)
 {
 	struct omap_drm_private *priv = dev->dev_private;
+	unsigned int num_planes = priv->dispc_ops->get_num_ovls();
 
-	priv->zorder_prop = drm_property_create_range(dev, 0, "zorder", 0, 3);
+	priv->zorder_prop = drm_property_create_range(dev, 0, "zorder", 0,
+						      num_planes - 1);
 	if (!priv->zorder_prop)
 		return -ENOMEM;
 
@@ -385,12 +327,39 @@ static int omap_modeset_init(struct drm_device *dev)
 	dev->mode_config.max_height = 2048;
 
 	dev->mode_config.funcs = &omap_mode_config_funcs;
+	dev->mode_config.helper_private = &omap_mode_config_helper_funcs;
 
 	drm_mode_config_reset(dev);
 
 	omap_drm_irq_install(dev);
 
 	return 0;
+}
+
+/*
+ * Enable the HPD in external components if supported
+ */
+static void omap_modeset_enable_external_hpd(void)
+{
+	struct omap_dss_device *dssdev = NULL;
+
+	for_each_dss_dev(dssdev) {
+		if (dssdev->driver->enable_hpd)
+			dssdev->driver->enable_hpd(dssdev);
+	}
+}
+
+/*
+ * Disable the HPD in external components if supported
+ */
+static void omap_modeset_disable_external_hpd(void)
+{
+	struct omap_dss_device *dssdev = NULL;
+
+	for_each_dss_dev(dssdev) {
+		if (dssdev->driver->disable_hpd)
+			dssdev->driver->disable_hpd(dssdev);
+	}
 }
 
 /*
@@ -447,53 +416,6 @@ static int ioctl_gem_new(struct drm_device *dev, void *data,
 				   &args->handle);
 }
 
-static int ioctl_gem_cpu_prep(struct drm_device *dev, void *data,
-		struct drm_file *file_priv)
-{
-	struct drm_omap_gem_cpu_prep *args = data;
-	struct drm_gem_object *obj;
-	int ret;
-
-	VERB("%p:%p: handle=%d, op=%x", dev, file_priv, args->handle, args->op);
-
-	obj = drm_gem_object_lookup(file_priv, args->handle);
-	if (!obj)
-		return -ENOENT;
-
-	ret = omap_gem_op_sync(obj, args->op);
-
-	if (!ret)
-		ret = omap_gem_op_start(obj, args->op);
-
-	drm_gem_object_unreference_unlocked(obj);
-
-	return ret;
-}
-
-static int ioctl_gem_cpu_fini(struct drm_device *dev, void *data,
-		struct drm_file *file_priv)
-{
-	struct drm_omap_gem_cpu_fini *args = data;
-	struct drm_gem_object *obj;
-	int ret;
-
-	VERB("%p:%p: handle=%d", dev, file_priv, args->handle);
-
-	obj = drm_gem_object_lookup(file_priv, args->handle);
-	if (!obj)
-		return -ENOENT;
-
-	/* XXX flushy, flushy */
-	ret = 0;
-
-	if (!ret)
-		ret = omap_gem_op_finish(obj, args->op);
-
-	drm_gem_object_unreference_unlocked(obj);
-
-	return ret;
-}
-
 static int ioctl_gem_info(struct drm_device *dev, void *data,
 		struct drm_file *file_priv)
 {
@@ -522,9 +444,11 @@ static const struct drm_ioctl_desc ioctls[DRM_COMMAND_END - DRM_COMMAND_BASE] = 
 			  DRM_AUTH | DRM_MASTER | DRM_ROOT_ONLY),
 	DRM_IOCTL_DEF_DRV(OMAP_GEM_NEW, ioctl_gem_new,
 			  DRM_AUTH | DRM_RENDER_ALLOW),
-	DRM_IOCTL_DEF_DRV(OMAP_GEM_CPU_PREP, ioctl_gem_cpu_prep,
+	/* Deprecated, to be removed. */
+	DRM_IOCTL_DEF_DRV(OMAP_GEM_CPU_PREP, drm_noop,
 			  DRM_AUTH | DRM_RENDER_ALLOW),
-	DRM_IOCTL_DEF_DRV(OMAP_GEM_CPU_FINI, ioctl_gem_cpu_fini,
+	/* Deprecated, to be removed. */
+	DRM_IOCTL_DEF_DRV(OMAP_GEM_CPU_FINI, drm_noop,
 			  DRM_AUTH | DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(OMAP_GEM_INFO, ioctl_gem_info,
 			  DRM_AUTH | DRM_RENDER_ALLOW),
@@ -553,43 +477,10 @@ static int dev_open(struct drm_device *dev, struct drm_file *file)
  */
 static void dev_lastclose(struct drm_device *dev)
 {
-	int i;
-
-	/* we don't support vga_switcheroo.. so just make sure the fbdev
-	 * mode is active
-	 */
 	struct omap_drm_private *priv = dev->dev_private;
 	int ret;
 
 	DBG("lastclose: dev=%p", dev);
-
-	/* need to restore default rotation state.. not sure
-	 * if there is a cleaner way to restore properties to
-	 * default state?  Maybe a flag that properties should
-	 * automatically be restored to default state on
-	 * lastclose?
-	 */
-	for (i = 0; i < priv->num_crtcs; i++) {
-		struct drm_crtc *crtc = priv->crtcs[i];
-
-		if (!crtc->primary->rotation_property)
-			continue;
-
-		drm_object_property_set_value(&crtc->base,
-					      crtc->primary->rotation_property,
-					      DRM_ROTATE_0);
-	}
-
-	for (i = 0; i < priv->num_planes; i++) {
-		struct drm_plane *plane = priv->planes[i];
-
-		if (!plane->rotation_property)
-			continue;
-
-		drm_object_property_set_value(&plane->base,
-					      plane->rotation_property,
-					      DRM_ROTATE_0);
-	}
 
 	if (priv->fbdev) {
 		ret = drm_fb_helper_restore_fbdev_mode_unlocked(priv->fbdev);
@@ -608,6 +499,7 @@ static const struct file_operations omapdriver_fops = {
 	.owner = THIS_MODULE,
 	.open = drm_open,
 	.unlocked_ioctl = drm_ioctl,
+	.compat_ioctl = drm_compat_ioctl,
 	.release = drm_release,
 	.mmap = omap_gem_mmap,
 	.poll = drm_poll,
@@ -631,7 +523,6 @@ static struct drm_driver omap_drm_driver = {
 	.gem_vm_ops = &omap_gem_vm_ops,
 	.dumb_create = omap_gem_dumb_create,
 	.dumb_map_offset = omap_gem_dumb_map_offset,
-	.dumb_destroy = drm_gem_dumb_destroy,
 	.ioctls = ioctls,
 	.num_ioctls = DRM_OMAP_NUM_IOCTLS,
 	.fops = &omapdriver_fops,
@@ -643,9 +534,17 @@ static struct drm_driver omap_drm_driver = {
 	.patchlevel = DRIVER_PATCHLEVEL,
 };
 
+static const struct soc_device_attribute omapdrm_soc_devices[] = {
+	{ .family = "OMAP3", .data = (void *)0x3430 },
+	{ .family = "OMAP4", .data = (void *)0x4430 },
+	{ .family = "OMAP5", .data = (void *)0x5430 },
+	{ .family = "DRA7",  .data = (void *)0x0752 },
+	{ /* sentinel */ }
+};
+
 static int pdev_probe(struct platform_device *pdev)
 {
-	struct omap_drm_platform_data *pdata = pdev->dev.platform_data;
+	const struct soc_device_attribute *soc;
 	struct omap_drm_private *priv;
 	struct drm_device *ddev;
 	unsigned int i;
@@ -655,6 +554,12 @@ static int pdev_probe(struct platform_device *pdev)
 
 	if (omapdss_is_initialized() == false)
 		return -EPROBE_DEFER;
+
+	ret = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(32));
+	if (ret) {
+		dev_err(&pdev->dev, "Failed to set the DMA mask\n");
+		return ret;
+	}
 
 	omap_crtc_pre_init();
 
@@ -671,11 +576,10 @@ static int pdev_probe(struct platform_device *pdev)
 
 	priv->dispc_ops = dispc_get_ops();
 
-	priv->omaprev = pdata->omaprev;
+	soc = soc_device_match(omapdrm_soc_devices);
+	priv->omaprev = soc ? (unsigned int)soc->data : 0;
 	priv->wq = alloc_ordered_workqueue("omapdrm", 0);
 
-	init_waitqueue_head(&priv->commit.wait);
-	spin_lock_init(&priv->commit.lock);
 	spin_lock_init(&priv->list_lock);
 	INIT_LIST_HEAD(&priv->obj_list);
 
@@ -710,6 +614,7 @@ static int pdev_probe(struct platform_device *pdev)
 	priv->fbdev = omap_fbdev_init(ddev);
 
 	drm_kms_helper_poll_init(ddev);
+	omap_modeset_enable_external_hpd();
 
 	/*
 	 * Register the DRM device with the core and the connectors with
@@ -722,6 +627,7 @@ static int pdev_probe(struct platform_device *pdev)
 	return 0;
 
 err_cleanup_helpers:
+	omap_modeset_disable_external_hpd();
 	drm_kms_helper_poll_fini(ddev);
 	if (priv->fbdev)
 		omap_fbdev_free(ddev);
@@ -750,6 +656,7 @@ static int pdev_remove(struct platform_device *pdev)
 
 	drm_dev_unregister(ddev);
 
+	omap_modeset_disable_external_hpd();
 	drm_kms_helper_poll_fini(ddev);
 
 	if (priv->fbdev)
@@ -841,7 +748,7 @@ static SIMPLE_DEV_PM_OPS(omapdrm_pm_ops, omap_drm_suspend, omap_drm_resume);
 
 static struct platform_driver pdev = {
 	.driver = {
-		.name = DRIVER_NAME,
+		.name = "omapdrm",
 		.pm = &omapdrm_pm_ops,
 	},
 	.probe = pdev_probe,

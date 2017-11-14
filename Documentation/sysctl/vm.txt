@@ -240,6 +240,26 @@ fragmentation index is <= extfrag_threshold. The default value is 500.
 
 ==============================================================
 
+highmem_is_dirtyable
+
+Available only for systems with CONFIG_HIGHMEM enabled (32b systems).
+
+This parameter controls whether the high memory is considered for dirty
+writers throttling.  This is not the case by default which means that
+only the amount of memory directly visible/usable by the kernel can
+be dirtied. As a result, on systems with a large amount of memory and
+lowmem basically depleted writers might be throttled too early and
+streaming writes can get very slow.
+
+Changing the value to non zero would allow more memory to be dirtied
+and thus allow writers to write more data which can be flushed to the
+storage more effectively. Note this also comes with a risk of pre-mature
+OOM killer because some writers (e.g. direct block device writes) can
+only use the low memory and they can fill it up with dirty data without
+any throttling.
+
+==============================================================
+
 hugepages_treat_as_movable
 
 This parameter controls whether we can allocate hugepages from ZONE_MOVABLE
@@ -552,7 +572,9 @@ See Documentation/nommu-mmap.txt for more information.
 
 numa_zonelist_order
 
-This sysctl is only for NUMA.
+This sysctl is only for NUMA and it is deprecated. Anything but
+Node order will fail!
+
 'where the memory is allocated from' is controlled by zonelists.
 (This documentation ignores ZONE_HIGHMEM/ZONE_DMA32 for simple explanation.
  you may be able to read ZONE_DMA as ZONE_DMA32...)

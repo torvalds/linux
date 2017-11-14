@@ -73,7 +73,7 @@ static void sync_exp_reset_tree_hotplug(struct rcu_state *rsp)
 	unsigned long flags;
 	unsigned long mask;
 	unsigned long oldmask;
-	int ncpus = READ_ONCE(rsp->ncpus);
+	int ncpus = smp_load_acquire(&rsp->ncpus); /* Order against locking. */
 	struct rcu_node *rnp;
 	struct rcu_node *rnp_up;
 
@@ -147,7 +147,7 @@ static void __maybe_unused sync_exp_reset_tree(struct rcu_state *rsp)
  *
  * Caller must hold the rcu_state's exp_mutex.
  */
-static int sync_rcu_preempt_exp_done(struct rcu_node *rnp)
+static bool sync_rcu_preempt_exp_done(struct rcu_node *rnp)
 {
 	return rnp->exp_tasks == NULL &&
 	       READ_ONCE(rnp->expmask) == 0;

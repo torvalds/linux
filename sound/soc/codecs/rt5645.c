@@ -34,6 +34,17 @@
 #include "rl6231.h"
 #include "rt5645.h"
 
+#define QUIRK_INV_JD1_1(q)	((q) & 1)
+#define QUIRK_LEVEL_IRQ(q)	(((q) >> 1) & 1)
+#define QUIRK_IN2_DIFF(q)	(((q) >> 2) & 1)
+#define QUIRK_JD_MODE(q)	(((q) >> 4) & 7)
+#define QUIRK_DMIC1_DATA_PIN(q)	(((q) >> 8) & 3)
+#define QUIRK_DMIC2_DATA_PIN(q)	(((q) >> 12) & 3)
+
+static unsigned int quirk = -1;
+module_param(quirk, uint, 0444);
+MODULE_PARM_DESC(quirk, "RT5645 pdata quirk override");
+
 #define RT5645_DEVICE_ID 0x6308
 #define RT5650_DEVICE_ID 0x6419
 
@@ -59,7 +70,7 @@ static const struct regmap_range_cfg rt5645_ranges[] = {
 
 static const struct reg_sequence init_list[] = {
 	{RT5645_PR_BASE + 0x3d,	0x3600},
-	{RT5645_PR_BASE + 0x1c,	0xfd20},
+	{RT5645_PR_BASE + 0x1c,	0xfd70},
 	{RT5645_PR_BASE + 0x20,	0x611f},
 	{RT5645_PR_BASE + 0x21,	0x4040},
 	{RT5645_PR_BASE + 0x23,	0x0004},
@@ -3151,7 +3162,7 @@ static int rt5645_jack_detect(struct snd_soc_codec *codec, int jack_insert)
 			snd_soc_dapm_sync(dapm);
 			rt5645->jack_type = SND_JACK_HEADPHONE;
 		}
-		if (rt5645->pdata.jd_invert)
+		if (rt5645->pdata.level_trigger_irq)
 			regmap_update_bits(rt5645->regmap, RT5645_IRQ_CTRL2,
 				RT5645_JD_1_1_MASK, RT5645_JD_1_1_NOR);
 	} else { /* jack out */
@@ -3172,7 +3183,7 @@ static int rt5645_jack_detect(struct snd_soc_codec *codec, int jack_insert)
 			snd_soc_dapm_disable_pin(dapm, "LDO2");
 		snd_soc_dapm_disable_pin(dapm, "Mic Det Power");
 		snd_soc_dapm_sync(dapm);
-		if (rt5645->pdata.jd_invert)
+		if (rt5645->pdata.level_trigger_irq)
 			regmap_update_bits(rt5645->regmap, RT5645_IRQ_CTRL2,
 				RT5645_JD_1_1_MASK, RT5645_JD_1_1_INV);
 	}
@@ -3238,24 +3249,16 @@ static void rt5645_jack_detect_work(struct work_struct *work)
 		snd_soc_jack_report(rt5645->mic_jack,
 				    report, SND_JACK_MICROPHONE);
 		return;
-	case 1: /* 2 port */
-		val = snd_soc_read(rt5645->codec, RT5645_A_JD_CTRL1) & 0x0070;
-		break;
-	default: /* 1 port */
-		val = snd_soc_read(rt5645->codec, RT5645_A_JD_CTRL1) & 0x0020;
+	default: /* read rt5645 jd1_1 status */
+		val = snd_soc_read(rt5645->codec, RT5645_INT_IRQ_ST) & 0x1000;
 		break;
 
 	}
 
-	switch (val) {
-	/* jack in */
-	case 0x30: /* 2 port */
-	case 0x0: /* 1 port or 2 port */
-		if (rt5645->jack_type == 0) {
-			report = rt5645_jack_detect(rt5645->codec, 1);
-			/* for push button and jack out */
-			break;
-		}
+	if (!val && (rt5645->jack_type == 0)) { /* jack in */
+		report = rt5645_jack_detect(rt5645->codec, 1);
+	} else if (!val && rt5645->jack_type != 0) {
+		/* for push button and jack out */
 		btn_type = 0;
 		if (snd_soc_read(rt5645->codec, RT5645_INT_IRQ_ST) & 0x4) {
 			/* button pressed */
@@ -3302,19 +3305,12 @@ static void rt5645_jack_detect_work(struct work_struct *work)
 			mod_timer(&rt5645->btn_check_timer,
 				msecs_to_jiffies(100));
 		}
-
-		break;
-	/* jack out */
-	case 0x70: /* 2 port */
-	case 0x10: /* 2 port */
-	case 0x20: /* 1 port */
+	} else {
+		/* jack out */
 		report = 0;
 		snd_soc_update_bits(rt5645->codec,
 				    RT5645_INT_IRQ_ST, 0x1, 0x0);
 		rt5645_jack_detect(rt5645->codec, 0);
-		break;
-	default:
-		break;
 	}
 
 	snd_soc_jack_report(rt5645->hp_jack, report, SND_JACK_HEADPHONE);
@@ -3477,7 +3473,7 @@ static struct snd_soc_dai_driver rt5645_dai[] = {
 	},
 };
 
-static struct snd_soc_codec_driver soc_codec_dev_rt5645 = {
+static const struct snd_soc_codec_driver soc_codec_dev_rt5645 = {
 	.probe = rt5645_probe,
 	.remove = rt5645_remove,
 	.suspend = rt5645_suspend,
@@ -3563,7 +3559,7 @@ static const struct acpi_device_id rt5645_acpi_match[] = {
 MODULE_DEVICE_TABLE(acpi, rt5645_acpi_match);
 #endif
 
-static struct rt5645_platform_data general_platform_data = {
+static const struct rt5645_platform_data general_platform_data = {
 	.dmic1_data_pin = RT5645_DMIC1_DISABLE,
 	.dmic2_data_pin = RT5645_DMIC_DATA_IN2P,
 	.jd_mode = 3,
@@ -3597,18 +3593,78 @@ static const struct dmi_system_id dmi_platform_intel_braswell[] = {
 	{ }
 };
 
-static struct rt5645_platform_data buddy_platform_data = {
+static const struct rt5645_platform_data buddy_platform_data = {
 	.dmic1_data_pin = RT5645_DMIC_DATA_GPIO5,
 	.dmic2_data_pin = RT5645_DMIC_DATA_IN2P,
 	.jd_mode = 3,
-	.jd_invert = true,
+	.level_trigger_irq = true,
 };
 
-static struct dmi_system_id dmi_platform_intel_broadwell[] = {
+static const struct dmi_system_id dmi_platform_intel_broadwell[] = {
 	{
 		.ident = "Chrome Buddy",
 		.matches = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "Buddy"),
+		},
+	},
+	{ }
+};
+
+static const struct rt5645_platform_data gpd_win_platform_data = {
+	.jd_mode = 3,
+	.inv_jd1_1 = true,
+};
+
+static const struct dmi_system_id dmi_platform_gpd_win[] = {
+	{
+		/*
+		 * Match for the GPDwin which unfortunately uses somewhat
+		 * generic dmi strings, which is why we test for 4 strings.
+		 * Comparing against 23 other byt/cht boards, board_vendor
+		 * and board_name are unique to the GPDwin, where as only one
+		 * other board has the same board_serial and 3 others have
+		 * the same default product_name. Also the GPDwin is the
+		 * only device to have both board_ and product_name not set.
+		 */
+		.ident = "GPD Win",
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "AMI Corporation"),
+			DMI_MATCH(DMI_BOARD_NAME, "Default string"),
+			DMI_MATCH(DMI_BOARD_SERIAL, "Default string"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Default string"),
+		},
+	},
+	{}
+};
+
+static struct rt5645_platform_data general_platform_data2 = {
+	.dmic1_data_pin = RT5645_DMIC_DATA_IN2N,
+	.dmic2_data_pin = RT5645_DMIC2_DISABLE,
+	.jd_mode = 3,
+	.inv_jd1_1 = true,
+};
+
+static struct dmi_system_id dmi_platform_asus_t100ha[] = {
+	{
+		.ident = "ASUS T100HAN",
+		.matches = {
+			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "T100HAN"),
+		},
+	},
+	{ }
+};
+
+static struct rt5645_platform_data minix_z83_4_platform_data = {
+	.jd_mode = 3,
+};
+
+static struct dmi_system_id dmi_platform_minix_z83_4[] = {
+	{
+		.ident = "MINIX Z83-4",
+		.matches = {
+			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "MINIX"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Z83-4"),
 		},
 	},
 	{ }
@@ -3664,6 +3720,21 @@ static int rt5645_i2c_probe(struct i2c_client *i2c,
 		rt5645_parse_dt(rt5645, &i2c->dev);
 	else if (dmi_check_system(dmi_platform_intel_braswell))
 		rt5645->pdata = general_platform_data;
+	else if (dmi_check_system(dmi_platform_gpd_win))
+		rt5645->pdata = gpd_win_platform_data;
+	else if (dmi_check_system(dmi_platform_asus_t100ha))
+		rt5645->pdata = general_platform_data2;
+	else if (dmi_check_system(dmi_platform_minix_z83_4))
+		rt5645->pdata = minix_z83_4_platform_data;
+
+	if (quirk != -1) {
+		rt5645->pdata.in2_diff = QUIRK_IN2_DIFF(quirk);
+		rt5645->pdata.level_trigger_irq = QUIRK_LEVEL_IRQ(quirk);
+		rt5645->pdata.inv_jd1_1 = QUIRK_INV_JD1_1(quirk);
+		rt5645->pdata.jd_mode = QUIRK_JD_MODE(quirk);
+		rt5645->pdata.dmic1_data_pin = QUIRK_DMIC1_DATA_PIN(quirk);
+		rt5645->pdata.dmic2_data_pin = QUIRK_DMIC2_DATA_PIN(quirk);
+	}
 
 	rt5645->gpiod_hp_det = devm_gpiod_get_optional(&i2c->dev, "hp-detect",
 						       GPIOD_IN);
@@ -3744,6 +3815,8 @@ static int rt5645_i2c_probe(struct i2c_client *i2c,
 			dev_warn(&i2c->dev, "Apply rt5650 patch failed: %d\n",
 					   ret);
 	}
+
+	regmap_update_bits(rt5645->regmap, RT5645_CLSD_OUT_CTRL, 0xc0, 0xc0);
 
 	if (rt5645->pdata.in2_diff)
 		regmap_update_bits(rt5645->regmap, RT5645_IN2_CTRL,
@@ -3848,12 +3921,16 @@ static int rt5645_i2c_probe(struct i2c_client *i2c,
 		default:
 			break;
 		}
+		if (rt5645->pdata.inv_jd1_1) {
+			regmap_update_bits(rt5645->regmap, RT5645_IRQ_CTRL2,
+				RT5645_JD_1_1_MASK, RT5645_JD_1_1_INV);
+		}
 	}
 
 	regmap_update_bits(rt5645->regmap, RT5645_ADDA_CLK1,
 		RT5645_I2S_PD1_MASK, RT5645_I2S_PD1_2);
 
-	if (rt5645->pdata.jd_invert) {
+	if (rt5645->pdata.level_trigger_irq) {
 		regmap_update_bits(rt5645->regmap, RT5645_IRQ_CTRL2,
 			RT5645_JD_1_1_MASK, RT5645_JD_1_1_INV);
 	}
@@ -3897,6 +3974,7 @@ static int rt5645_i2c_remove(struct i2c_client *i2c)
 
 	cancel_delayed_work_sync(&rt5645->jack_detect_work);
 	cancel_delayed_work_sync(&rt5645->rcclock_work);
+	del_timer_sync(&rt5645->btn_check_timer);
 
 	snd_soc_unregister_codec(&i2c->dev);
 	regulator_bulk_disable(ARRAY_SIZE(rt5645->supplies), rt5645->supplies);

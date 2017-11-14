@@ -69,7 +69,7 @@ static int ak5386_soc_resume(struct snd_soc_codec *codec)
 #define ak5386_soc_resume	NULL
 #endif /* CONFIG_PM */
 
-static struct snd_soc_codec_driver soc_codec_ak5386 = {
+static const struct snd_soc_codec_driver soc_codec_ak5386 = {
 	.probe = ak5386_soc_probe,
 	.remove = ak5386_soc_remove,
 	.suspend = ak5386_soc_suspend,

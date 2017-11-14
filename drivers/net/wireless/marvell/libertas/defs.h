@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * This header file contains global constant/enum definitions,
  * global variable declaration.
@@ -55,15 +56,6 @@ do { if ((lbs_debug & (grp)) == (grp)) \
 #define LBS_DEB_LL(grp, grpnam, fmt, args...) do {} while (0)
 #endif
 
-#define lbs_deb_enter(grp) \
-  LBS_DEB_LL(grp | LBS_DEB_ENTER, " enter", "%s()\n", __func__);
-#define lbs_deb_enter_args(grp, fmt, args...) \
-  LBS_DEB_LL(grp | LBS_DEB_ENTER, " enter", "%s(" fmt ")\n", __func__, ## args);
-#define lbs_deb_leave(grp) \
-  LBS_DEB_LL(grp | LBS_DEB_LEAVE, " leave", "%s()\n", __func__);
-#define lbs_deb_leave_args(grp, fmt, args...) \
-  LBS_DEB_LL(grp | LBS_DEB_LEAVE, " leave", "%s(), " fmt "\n", \
-  __func__, ##args);
 #define lbs_deb_main(fmt, args...)      LBS_DEB_LL(LBS_DEB_MAIN, " main", fmt, ##args)
 #define lbs_deb_net(fmt, args...)       LBS_DEB_LL(LBS_DEB_NET, " net", fmt, ##args)
 #define lbs_deb_mesh(fmt, args...)      LBS_DEB_LL(LBS_DEB_MESH, " mesh", fmt, ##args)

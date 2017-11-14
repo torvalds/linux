@@ -45,7 +45,7 @@
 #include "core_acl_flex_keys.h"
 
 static int mlxsw_sp_flower_parse_actions(struct mlxsw_sp *mlxsw_sp,
-					 struct net_device *dev,
+					 struct net_device *dev, bool ingress,
 					 struct mlxsw_sp_acl_rule_info *rulei,
 					 struct tcf_exts *exts)
 {
@@ -53,7 +53,7 @@ static int mlxsw_sp_flower_parse_actions(struct mlxsw_sp *mlxsw_sp,
 	LIST_HEAD(actions);
 	int err;
 
-	if (tc_no_actions(exts))
+	if (!tcf_exts_has_actions(exts))
 		return 0;
 
 	/* Count action is inserted first */
@@ -67,12 +67,34 @@ static int mlxsw_sp_flower_parse_actions(struct mlxsw_sp *mlxsw_sp,
 			err = mlxsw_sp_acl_rulei_act_drop(rulei);
 			if (err)
 				return err;
+		} else if (is_tcf_gact_trap(a)) {
+			err = mlxsw_sp_acl_rulei_act_trap(rulei);
+			if (err)
+				return err;
+		} else if (is_tcf_gact_goto_chain(a)) {
+			u32 chain_index = tcf_gact_goto_chain_index(a);
+			struct mlxsw_sp_acl_ruleset *ruleset;
+			u16 group_id;
+
+			ruleset = mlxsw_sp_acl_ruleset_lookup(mlxsw_sp, dev,
+							      ingress,
+							      chain_index,
+							      MLXSW_SP_ACL_PROFILE_FLOWER);
+			if (IS_ERR(ruleset))
+				return PTR_ERR(ruleset);
+
+			group_id = mlxsw_sp_acl_ruleset_group_id(ruleset);
+			mlxsw_sp_acl_rulei_act_jump(rulei, group_id);
 		} else if (is_tcf_mirred_egress_redirect(a)) {
 			int ifindex = tcf_mirred_ifindex(a);
 			struct net_device *out_dev;
+			struct mlxsw_sp_fid *fid;
+			u16 fid_index;
 
+			fid = mlxsw_sp_acl_dummy_fid(mlxsw_sp);
+			fid_index = mlxsw_sp_fid_index(fid);
 			err = mlxsw_sp_acl_rulei_act_fid_set(mlxsw_sp, rulei,
-							     MLXSW_SP_DUMMY_FID);
+							     fid_index);
 			if (err)
 				return err;
 
@@ -178,11 +200,72 @@ static int mlxsw_sp_flower_parse_ports(struct mlxsw_sp *mlxsw_sp,
 	return 0;
 }
 
+static int mlxsw_sp_flower_parse_tcp(struct mlxsw_sp *mlxsw_sp,
+				     struct mlxsw_sp_acl_rule_info *rulei,
+				     struct tc_cls_flower_offload *f,
+				     u8 ip_proto)
+{
+	struct flow_dissector_key_tcp *key, *mask;
+
+	if (!dissector_uses_key(f->dissector, FLOW_DISSECTOR_KEY_TCP))
+		return 0;
+
+	if (ip_proto != IPPROTO_TCP) {
+		dev_err(mlxsw_sp->bus_info->dev, "TCP keys supported only for TCP\n");
+		return -EINVAL;
+	}
+
+	key = skb_flow_dissector_target(f->dissector,
+					FLOW_DISSECTOR_KEY_TCP,
+					f->key);
+	mask = skb_flow_dissector_target(f->dissector,
+					 FLOW_DISSECTOR_KEY_TCP,
+					 f->mask);
+	mlxsw_sp_acl_rulei_keymask_u32(rulei, MLXSW_AFK_ELEMENT_TCP_FLAGS,
+				       ntohs(key->flags), ntohs(mask->flags));
+	return 0;
+}
+
+static int mlxsw_sp_flower_parse_ip(struct mlxsw_sp *mlxsw_sp,
+				    struct mlxsw_sp_acl_rule_info *rulei,
+				    struct tc_cls_flower_offload *f,
+				    u16 n_proto)
+{
+	struct flow_dissector_key_ip *key, *mask;
+
+	if (!dissector_uses_key(f->dissector, FLOW_DISSECTOR_KEY_IP))
+		return 0;
+
+	if (n_proto != ETH_P_IP && n_proto != ETH_P_IPV6) {
+		dev_err(mlxsw_sp->bus_info->dev, "IP keys supported only for IPv4/6\n");
+		return -EINVAL;
+	}
+
+	key = skb_flow_dissector_target(f->dissector,
+					FLOW_DISSECTOR_KEY_IP,
+					f->key);
+	mask = skb_flow_dissector_target(f->dissector,
+					 FLOW_DISSECTOR_KEY_IP,
+					 f->mask);
+	mlxsw_sp_acl_rulei_keymask_u32(rulei, MLXSW_AFK_ELEMENT_IP_TTL_,
+				       key->ttl, mask->ttl);
+
+	mlxsw_sp_acl_rulei_keymask_u32(rulei, MLXSW_AFK_ELEMENT_IP_ECN,
+				       key->tos & 0x3, mask->tos & 0x3);
+
+	mlxsw_sp_acl_rulei_keymask_u32(rulei, MLXSW_AFK_ELEMENT_IP_DSCP,
+				       key->tos >> 6, mask->tos >> 6);
+
+	return 0;
+}
+
 static int mlxsw_sp_flower_parse(struct mlxsw_sp *mlxsw_sp,
-				 struct net_device *dev,
+				 struct net_device *dev, bool ingress,
 				 struct mlxsw_sp_acl_rule_info *rulei,
 				 struct tc_cls_flower_offload *f)
 {
+	u16 n_proto_mask = 0;
+	u16 n_proto_key = 0;
 	u16 addr_type = 0;
 	u8 ip_proto = 0;
 	int err;
@@ -194,12 +277,14 @@ static int mlxsw_sp_flower_parse(struct mlxsw_sp *mlxsw_sp,
 	      BIT(FLOW_DISSECTOR_KEY_IPV4_ADDRS) |
 	      BIT(FLOW_DISSECTOR_KEY_IPV6_ADDRS) |
 	      BIT(FLOW_DISSECTOR_KEY_PORTS) |
+	      BIT(FLOW_DISSECTOR_KEY_TCP) |
+	      BIT(FLOW_DISSECTOR_KEY_IP) |
 	      BIT(FLOW_DISSECTOR_KEY_VLAN))) {
 		dev_err(mlxsw_sp->bus_info->dev, "Unsupported key\n");
 		return -EOPNOTSUPP;
 	}
 
-	mlxsw_sp_acl_rulei_priority(rulei, f->prio);
+	mlxsw_sp_acl_rulei_priority(rulei, f->common.prio);
 
 	if (dissector_uses_key(f->dissector, FLOW_DISSECTOR_KEY_CONTROL)) {
 		struct flow_dissector_key_control *key =
@@ -218,8 +303,8 @@ static int mlxsw_sp_flower_parse(struct mlxsw_sp *mlxsw_sp,
 			skb_flow_dissector_target(f->dissector,
 						  FLOW_DISSECTOR_KEY_BASIC,
 						  f->mask);
-		u16 n_proto_key = ntohs(key->n_proto);
-		u16 n_proto_mask = ntohs(mask->n_proto);
+		n_proto_key = ntohs(key->n_proto);
+		n_proto_mask = ntohs(mask->n_proto);
 
 		if (n_proto_key == ETH_P_ALL) {
 			n_proto_key = 0;
@@ -285,12 +370,20 @@ static int mlxsw_sp_flower_parse(struct mlxsw_sp *mlxsw_sp,
 	err = mlxsw_sp_flower_parse_ports(mlxsw_sp, rulei, f, ip_proto);
 	if (err)
 		return err;
+	err = mlxsw_sp_flower_parse_tcp(mlxsw_sp, rulei, f, ip_proto);
+	if (err)
+		return err;
 
-	return mlxsw_sp_flower_parse_actions(mlxsw_sp, dev, rulei, f->exts);
+	err = mlxsw_sp_flower_parse_ip(mlxsw_sp, rulei, f, n_proto_key & n_proto_mask);
+	if (err)
+		return err;
+
+	return mlxsw_sp_flower_parse_actions(mlxsw_sp, dev, ingress,
+					     rulei, f->exts);
 }
 
 int mlxsw_sp_flower_replace(struct mlxsw_sp_port *mlxsw_sp_port, bool ingress,
-			    __be16 protocol, struct tc_cls_flower_offload *f)
+			    struct tc_cls_flower_offload *f)
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
 	struct net_device *dev = mlxsw_sp_port->dev;
@@ -300,6 +393,7 @@ int mlxsw_sp_flower_replace(struct mlxsw_sp_port *mlxsw_sp_port, bool ingress,
 	int err;
 
 	ruleset = mlxsw_sp_acl_ruleset_get(mlxsw_sp, dev, ingress,
+					   f->common.chain_index,
 					   MLXSW_SP_ACL_PROFILE_FLOWER);
 	if (IS_ERR(ruleset))
 		return PTR_ERR(ruleset);
@@ -311,7 +405,7 @@ int mlxsw_sp_flower_replace(struct mlxsw_sp_port *mlxsw_sp_port, bool ingress,
 	}
 
 	rulei = mlxsw_sp_acl_rule_rulei(rule);
-	err = mlxsw_sp_flower_parse(mlxsw_sp, dev, rulei, f);
+	err = mlxsw_sp_flower_parse(mlxsw_sp, dev, ingress, rulei, f);
 	if (err)
 		goto err_flower_parse;
 
@@ -343,7 +437,7 @@ void mlxsw_sp_flower_destroy(struct mlxsw_sp_port *mlxsw_sp_port, bool ingress,
 	struct mlxsw_sp_acl_rule *rule;
 
 	ruleset = mlxsw_sp_acl_ruleset_get(mlxsw_sp, mlxsw_sp_port->dev,
-					   ingress,
+					   ingress, f->common.chain_index,
 					   MLXSW_SP_ACL_PROFILE_FLOWER);
 	if (IS_ERR(ruleset))
 		return;
@@ -363,15 +457,13 @@ int mlxsw_sp_flower_stats(struct mlxsw_sp_port *mlxsw_sp_port, bool ingress,
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
 	struct mlxsw_sp_acl_ruleset *ruleset;
 	struct mlxsw_sp_acl_rule *rule;
-	struct tc_action *a;
-	LIST_HEAD(actions);
 	u64 packets;
 	u64 lastuse;
 	u64 bytes;
 	int err;
 
 	ruleset = mlxsw_sp_acl_ruleset_get(mlxsw_sp, mlxsw_sp_port->dev,
-					   ingress,
+					   ingress, f->common.chain_index,
 					   MLXSW_SP_ACL_PROFILE_FLOWER);
 	if (WARN_ON(IS_ERR(ruleset)))
 		return -EINVAL;
@@ -385,13 +477,7 @@ int mlxsw_sp_flower_stats(struct mlxsw_sp_port *mlxsw_sp_port, bool ingress,
 	if (err)
 		goto err_rule_get_stats;
 
-	preempt_disable();
-
-	tcf_exts_to_list(f->exts, &actions);
-	list_for_each_entry(a, &actions, list)
-		tcf_action_stats_update(a, bytes, packets, lastuse);
-
-	preempt_enable();
+	tcf_exts_stats_update(f->exts, bytes, packets, lastuse);
 
 	mlxsw_sp_acl_ruleset_put(mlxsw_sp, ruleset);
 	return 0;

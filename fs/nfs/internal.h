@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * NFS internal definitions
  */
@@ -7,8 +8,11 @@
 #include <linux/security.h>
 #include <linux/crc32.h>
 #include <linux/nfs_page.h>
+#include <linux/wait_bit.h>
 
 #define NFS_MS_MASK (MS_RDONLY|MS_NOSUID|MS_NODEV|MS_NOEXEC|MS_SYNCHRONOUS)
+
+extern const struct export_operations nfs_export_ops;
 
 struct nfs_string;
 
@@ -225,8 +229,8 @@ static inline void nfs_fs_proc_exit(void)
 #endif
 
 /* callback_xdr.c */
-extern struct svc_version nfs4_callback_version1;
-extern struct svc_version nfs4_callback_version4;
+extern const struct svc_version nfs4_callback_version1;
+extern const struct svc_version nfs4_callback_version4;
 
 struct nfs_pageio_descriptor;
 /* pagelist.c */
@@ -248,7 +252,6 @@ int nfs_iocounter_wait(struct nfs_lock_context *l_ctx);
 extern const struct nfs_pageio_ops nfs_pgio_rw_ops;
 struct nfs_pgio_header *nfs_pgio_header_alloc(const struct nfs_rw_ops *);
 void nfs_pgio_header_free(struct nfs_pgio_header *);
-void nfs_pgio_data_destroy(struct nfs_pgio_header *);
 int nfs_generic_pgio(struct nfs_pageio_descriptor *, struct nfs_pgio_header *);
 int nfs_initiate_pgio(struct rpc_clnt *clnt, struct nfs_pgio_header *hdr,
 		      struct rpc_cred *cred, const struct nfs_rpc_ops *rpc_ops,
@@ -270,19 +273,19 @@ static inline bool nfs_match_open_context(const struct nfs_open_context *ctx1,
 }
 
 /* nfs2xdr.c */
-extern struct rpc_procinfo nfs_procedures[];
+extern const struct rpc_procinfo nfs_procedures[];
 extern int nfs2_decode_dirent(struct xdr_stream *,
-				struct nfs_entry *, int);
+				struct nfs_entry *, bool);
 
 /* nfs3xdr.c */
-extern struct rpc_procinfo nfs3_procedures[];
+extern const struct rpc_procinfo nfs3_procedures[];
 extern int nfs3_decode_dirent(struct xdr_stream *,
-				struct nfs_entry *, int);
+				struct nfs_entry *, bool);
 
 /* nfs4xdr.c */
 #if IS_ENABLED(CONFIG_NFS_V4)
 extern int nfs4_decode_dirent(struct xdr_stream *,
-				struct nfs_entry *, int);
+				struct nfs_entry *, bool);
 #endif
 #ifdef CONFIG_NFS_V4_1
 extern const u32 nfs41_maxread_overhead;
@@ -292,7 +295,7 @@ extern const u32 nfs41_maxgetdevinfo_overhead;
 
 /* nfs4proc.c */
 #if IS_ENABLED(CONFIG_NFS_V4)
-extern struct rpc_procinfo nfs4_procedures[];
+extern const struct rpc_procinfo nfs4_procedures[];
 #endif
 
 #ifdef CONFIG_NFS_V4_SECURITY_LABEL
@@ -765,4 +768,11 @@ static inline bool nfs_error_is_fatal(int err)
 	default:
 		return false;
 	}
+}
+
+static inline void nfs_context_set_write_error(struct nfs_open_context *ctx, int error)
+{
+	ctx->error = error;
+	smp_wmb();
+	set_bit(NFS_CONTEXT_ERROR_WRITE, &ctx->flags);
 }

@@ -310,8 +310,10 @@ static ssize_t iio_debugfs_read_reg(struct file *file, char __user *userbuf,
 	ret = indio_dev->info->debugfs_reg_access(indio_dev,
 						  indio_dev->cached_reg_addr,
 						  0, &val);
-	if (ret)
+	if (ret) {
 		dev_err(indio_dev->dev.parent, "%s: read failed\n", __func__);
+		return ret;
+	}
 
 	len = snprintf(buf, sizeof(buf), "0x%X\n", val);
 
@@ -478,21 +480,16 @@ ssize_t iio_enum_write(struct iio_dev *indio_dev,
 	size_t len)
 {
 	const struct iio_enum *e = (const struct iio_enum *)priv;
-	unsigned int i;
 	int ret;
 
 	if (!e->set)
 		return -EINVAL;
 
-	for (i = 0; i < e->num_items; i++) {
-		if (sysfs_streq(buf, e->items[i]))
-			break;
-	}
+	ret = __sysfs_match_string(e->items, e->num_items, buf);
+	if (ret < 0)
+		return ret;
 
-	if (i == e->num_items)
-		return -EINVAL;
-
-	ret = e->set(indio_dev, chan, i);
+	ret = e->set(indio_dev, chan, ret);
 	return ret ? ret : len;
 }
 EXPORT_SYMBOL_GPL(iio_enum_write);
@@ -1089,7 +1086,7 @@ static int iio_device_add_info_mask_type(struct iio_dev *indio_dev,
 {
 	int i, ret, attrcount = 0;
 
-	for_each_set_bit(i, infomask, sizeof(infomask)*8) {
+	for_each_set_bit(i, infomask, sizeof(*infomask)*8) {
 		if (i >= ARRAY_SIZE(iio_chan_info_postfix))
 			return -EINVAL;
 		ret = __iio_add_chan_devattr(iio_chan_info_postfix[i],
@@ -1118,7 +1115,7 @@ static int iio_device_add_info_mask_type_avail(struct iio_dev *indio_dev,
 	int i, ret, attrcount = 0;
 	char *avail_postfix;
 
-	for_each_set_bit(i, infomask, sizeof(infomask) * 8) {
+	for_each_set_bit(i, infomask, sizeof(*infomask) * 8) {
 		avail_postfix = kasprintf(GFP_KERNEL,
 					  "%s_available",
 					  iio_chan_info_postfix[i]);
@@ -1428,7 +1425,7 @@ static void iio_device_unregister_sysfs(struct iio_dev *indio_dev)
 static void iio_dev_release(struct device *device)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(device);
-	if (indio_dev->modes & (INDIO_BUFFER_TRIGGERED | INDIO_EVENT_TRIGGERED))
+	if (indio_dev->modes & INDIO_ALL_TRIGGERED_MODES)
 		iio_device_unregister_trigger_consumer(indio_dev);
 	iio_device_unregister_eventset(indio_dev);
 	iio_device_unregister_sysfs(indio_dev);
@@ -1710,7 +1707,7 @@ int iio_device_register(struct iio_dev *indio_dev)
 			"Failed to register event set\n");
 		goto error_free_sysfs;
 	}
-	if (indio_dev->modes & (INDIO_BUFFER_TRIGGERED | INDIO_EVENT_TRIGGERED))
+	if (indio_dev->modes & INDIO_ALL_TRIGGERED_MODES)
 		iio_device_register_trigger_consumer(indio_dev);
 
 	if ((indio_dev->modes & INDIO_ALL_BUFFER_MODES) &&

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Hodge-podge collection of knfsd-related stuff.
  * I will sort this out later.
@@ -60,7 +61,7 @@ struct readdir_cd {
 
 
 extern struct svc_program	nfsd_program;
-extern struct svc_version	nfsd_version2, nfsd_version3,
+extern const struct svc_version	nfsd_version2, nfsd_version3,
 				nfsd_version4;
 extern struct mutex		nfsd_mutex;
 extern spinlock_t		nfsd_drc_lock;
@@ -86,12 +87,12 @@ void		nfsd_destroy(struct net *net);
 
 #if defined(CONFIG_NFSD_V2_ACL) || defined(CONFIG_NFSD_V3_ACL)
 #ifdef CONFIG_NFSD_V2_ACL
-extern struct svc_version nfsd_acl_version2;
+extern const struct svc_version nfsd_acl_version2;
 #else
 #define nfsd_acl_version2 NULL
 #endif
 #ifdef CONFIG_NFSD_V3_ACL
-extern struct svc_version nfsd_acl_version3;
+extern const struct svc_version nfsd_acl_version3;
 #else
 #define nfsd_acl_version3 NULL
 #endif

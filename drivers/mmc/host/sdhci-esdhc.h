@@ -19,6 +19,7 @@
  */
 
 #define ESDHC_DEFAULT_QUIRKS	(SDHCI_QUIRK_FORCE_BLK_SZ_2048 | \
+				SDHCI_QUIRK_32BIT_DMA_ADDR | \
 				SDHCI_QUIRK_NO_BUSY_IRQ | \
 				SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK | \
 				SDHCI_QUIRK_PIO_NEEDS_DELAY | \
@@ -52,6 +53,9 @@
 #define ESDHC_CLOCK_PEREN		0x00000004
 #define ESDHC_CLOCK_HCKEN		0x00000002
 #define ESDHC_CLOCK_IPGEN		0x00000001
+
+/* Host Controller Capabilities Register 2 */
+#define ESDHC_CAPABILITIES_1		0x114
 
 /* Tuning Block Control Register */
 #define ESDHC_TBCTL			0x120

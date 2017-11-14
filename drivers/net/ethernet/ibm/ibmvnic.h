@@ -166,6 +166,20 @@ struct ibmvnic_statistics {
 	u8 reserved[72];
 } __packed __aligned(8);
 
+#define NUM_TX_STATS 3
+struct ibmvnic_tx_queue_stats {
+	u64 packets;
+	u64 bytes;
+	u64 dropped_packets;
+};
+
+#define NUM_RX_STATS 3
+struct ibmvnic_rx_queue_stats {
+	u64 packets;
+	u64 bytes;
+	u64 interrupts;
+};
+
 struct ibmvnic_acl_buffer {
 	__be32 len;
 	__be32 version;
@@ -595,7 +609,7 @@ struct ibmvnic_request_map_rsp {
 	u8 cmd;
 	u8 reserved1;
 	u8 map_id;
-	u8 reserved2[4];
+	u8 reserved2[8];
 	struct ibmvnic_rc rc;
 } __packed __aligned(8);
 
@@ -925,6 +939,7 @@ enum vnic_state {VNIC_PROBING = 1,
 enum ibmvnic_reset_reason {VNIC_RESET_FAILOVER = 1,
 			   VNIC_RESET_MOBILITY,
 			   VNIC_RESET_FATAL,
+			   VNIC_RESET_NON_FATAL,
 			   VNIC_RESET_TIMEOUT};
 
 struct ibmvnic_rwi {
@@ -954,6 +969,9 @@ struct ibmvnic_adapter {
 	int replenish_task_cycles;
 	int tx_send_failed;
 	int tx_map_failed;
+
+	struct ibmvnic_tx_queue_stats *tx_stats_buffers;
+	struct ibmvnic_rx_queue_stats *rx_stats_buffers;
 
 	int phys_link_state;
 	int logical_link_state;
@@ -987,6 +1005,7 @@ struct ibmvnic_adapter {
 	spinlock_t error_list_lock;
 
 	struct completion fw_done;
+	int fw_done_rc;
 
 	/* partner capabilities */
 	u64 min_tx_queues;
@@ -1031,4 +1050,5 @@ struct ibmvnic_adapter {
 	struct list_head rwi_list;
 	struct work_struct ibmvnic_reset;
 	bool resetting;
+	bool napi_enabled, from_passive_init;
 };

@@ -497,7 +497,7 @@ static const struct v4l2_ctrl_ops ctrl_ops = {
 	.g_volatile_ctrl = lm3554_g_volatile_ctrl
 };
 
-struct v4l2_ctrl_config lm3554_controls[] = {
+static const struct v4l2_ctrl_config lm3554_controls[] = {
 	{
 	 .ops = &ctrl_ops,
 	 .id = V4L2_CID_FLASH_TIMEOUT,
@@ -825,7 +825,7 @@ static int lm3554_gpio_uninit(struct i2c_client *client)
 	return 0;
 }
 
-void *lm3554_platform_data_func(struct i2c_client *client)
+static void *lm3554_platform_data_func(struct i2c_client *client)
 {
 	static struct lm3554_platform_data platform_data;
 
@@ -974,7 +974,7 @@ static const struct dev_pm_ops lm3554_pm_ops = {
 	.resume = lm3554_resume,
 };
 
-static struct acpi_device_id lm3554_acpi_match[] = {
+static const struct acpi_device_id lm3554_acpi_match[] = {
 	{ "INTCF1C" },
 	{},
 };

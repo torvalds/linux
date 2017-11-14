@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Cortina Systems Gemini OF physmap add-on
  * Copyright (C) 2017 Linus Walleij <linus.walleij@linaro.org>
@@ -43,13 +44,6 @@
 
 #define FLASH_PARALLEL_HIGH_PIN_CNT	(1 << 20)	/* else low pin cnt */
 
-/* Miscellaneous Control Register */
-#define GLOBAL_MISC_CTRL		0x30
-#define FLASH_PADS_MASK			0x07
-#define NAND_PADS_DISABLE		BIT(2)
-#define PFLASH_PADS_DISABLE		BIT(1)
-#define SFLASH_PADS_DISABLE		BIT(0)
-
 static const struct of_device_id syscon_match[] = {
 	{ .compatible = "cortina,gemini-syscon" },
 	{ },
@@ -59,7 +53,7 @@ int of_flash_probe_gemini(struct platform_device *pdev,
 			  struct device_node *np,
 			  struct map_info *map)
 {
-	static struct regmap *rmap;
+	struct regmap *rmap;
 	struct device *dev = &pdev->dev;
 	u32 val;
 	int ret;
@@ -100,15 +94,6 @@ int of_flash_probe_gemini(struct platform_device *pdev,
 		if (map->bankwidth != 1)
 			dev_warn(dev, "flash hardware say flash is 8 bit wide but DT says it is %d bits wide\n",
 				 map->bankwidth * 8);
-	}
-
-	/* Activate parallel (NOR flash) mode */
-	ret = regmap_update_bits(rmap, GLOBAL_MISC_CTRL,
-				 FLASH_PADS_MASK,
-				 SFLASH_PADS_DISABLE | NAND_PADS_DISABLE);
-	if (ret) {
-		dev_err(dev, "unable to set up physmap pads\n");
-		return -ENODEV;
 	}
 
 	dev_info(&pdev->dev, "initialized Gemini-specific physmap control\n");

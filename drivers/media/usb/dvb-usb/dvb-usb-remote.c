@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* dvb-usb-remote.c is part of the DVB USB library.
  *
  * Copyright (C) 2004-6 Patrick Boettcher (patrick.boettcher@posteo.de)
@@ -131,6 +132,11 @@ static void legacy_dvb_usb_read_remote_control(struct work_struct *work)
 		case REMOTE_KEY_PRESSED:
 			deb_rc("key pressed\n");
 			d->last_event = event;
+			input_event(d->input_dev, EV_KEY, event, 1);
+			input_sync(d->input_dev);
+			input_event(d->input_dev, EV_KEY, d->last_event, 0);
+			input_sync(d->input_dev);
+			break;
 		case REMOTE_KEY_REPEAT:
 			deb_rc("key repeated\n");
 			input_event(d->input_dev, EV_KEY, event, 1);
@@ -274,7 +280,7 @@ static int rc_core_dvb_usb_remote_init(struct dvb_usb_device *d)
 	dev->change_protocol = d->props.rc.core.change_protocol;
 	dev->allowed_protocols = d->props.rc.core.allowed_protos;
 	usb_to_input_id(d->udev, &dev->input_id);
-	dev->input_name = "IR-receiver inside an USB DVB receiver";
+	dev->device_name = "IR-receiver inside an USB DVB receiver";
 	dev->input_phys = d->rc_phys;
 	dev->dev.parent = &d->udev->dev;
 	dev->priv = d;

@@ -281,9 +281,6 @@
  */
 #define MVNETA_RSS_LU_TABLE_SIZE	1
 
-/* TSO header size */
-#define TSO_HEADER_SIZE 128
-
 /* Max number of Rx descriptors */
 #define MVNETA_MAX_RXD 128
 
@@ -1976,9 +1973,8 @@ err_drop_frame:
 						      MVNETA_MH_SIZE + NET_SKB_PAD,
 						      rx_bytes,
 						      DMA_FROM_DEVICE);
-			memcpy(skb_put(skb, rx_bytes),
-			       data + MVNETA_MH_SIZE + NET_SKB_PAD,
-			       rx_bytes);
+			skb_put_data(skb, data + MVNETA_MH_SIZE + NET_SKB_PAD,
+				     rx_bytes);
 
 			skb->protocol = eth_type_trans(skb, dev);
 			mvneta_rx_csum(pp, rx_status, skb);
@@ -2103,9 +2099,8 @@ err_drop_frame:
 			                              MVNETA_MH_SIZE + NET_SKB_PAD,
 			                              rx_bytes,
 			                              DMA_FROM_DEVICE);
-			memcpy(skb_put(skb, rx_bytes),
-			       data + MVNETA_MH_SIZE + NET_SKB_PAD,
-			       rx_bytes);
+			skb_put_data(skb, data + MVNETA_MH_SIZE + NET_SKB_PAD,
+				     rx_bytes);
 
 			skb->protocol = eth_type_trans(skb, dev);
 			mvneta_rx_csum(pp, rx_status, skb);
@@ -4334,7 +4329,7 @@ static int mvneta_probe(struct platform_device *pdev)
 		}
 	}
 
-	dev->features = NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_TSO;
+	dev->features = NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM | NETIF_F_TSO;
 	dev->hw_features |= dev->features;
 	dev->vlan_features |= dev->features;
 	dev->priv_flags |= IFF_LIVE_ADDR_CHANGE;

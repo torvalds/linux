@@ -18,6 +18,7 @@
 #include <linux/cdev.h>
 #include <linux/hash.h>
 #include <linux/slab.h>
+#include <linux/uio.h>
 #include <linux/dax.h>
 #include <linux/fs.h>
 
@@ -45,6 +46,8 @@ void dax_read_unlock(int id)
 EXPORT_SYMBOL_GPL(dax_read_unlock);
 
 #ifdef CONFIG_BLOCK
+#include <linux/blkdev.h>
+
 int bdev_dax_pgoff(struct block_device *bdev, sector_t sector, size_t size,
 		pgoff_t *pgoff)
 {
@@ -57,6 +60,16 @@ int bdev_dax_pgoff(struct block_device *bdev, sector_t sector, size_t size,
 	return 0;
 }
 EXPORT_SYMBOL(bdev_dax_pgoff);
+
+#if IS_ENABLED(CONFIG_FS_DAX)
+struct dax_device *fs_dax_get_by_bdev(struct block_device *bdev)
+{
+	if (!blk_queue_dax(bdev->bd_queue))
+		return NULL;
+	return fs_dax_get_by_host(bdev->bd_disk->disk_name);
+}
+EXPORT_SYMBOL_GPL(fs_dax_get_by_bdev);
+#endif
 
 /**
  * __bdev_dax_supported() - Check if the device supports dax for filesystem
@@ -115,13 +128,20 @@ int __bdev_dax_supported(struct super_block *sb, int blocksize)
 EXPORT_SYMBOL_GPL(__bdev_dax_supported);
 #endif
 
+enum dax_device_flags {
+	/* !alive + rcu grace period == no new operations / mappings */
+	DAXDEV_ALIVE,
+	/* gate whether dax_flush() calls the low level flush routine */
+	DAXDEV_WRITE_CACHE,
+};
+
 /**
  * struct dax_device - anchor object for dax services
  * @inode: core vfs
  * @cdev: optional character interface for "device dax"
  * @host: optional name for lookups where the device path is not available
  * @private: dax driver private data
- * @alive: !alive + rcu grace period == no new operations / mappings
+ * @flags: state and boolean properties
  */
 struct dax_device {
 	struct hlist_node list;
@@ -129,9 +149,76 @@ struct dax_device {
 	struct cdev cdev;
 	const char *host;
 	void *private;
-	bool alive;
+	unsigned long flags;
 	const struct dax_operations *ops;
 };
+
+static ssize_t write_cache_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct dax_device *dax_dev = dax_get_by_host(dev_name(dev));
+	ssize_t rc;
+
+	WARN_ON_ONCE(!dax_dev);
+	if (!dax_dev)
+		return -ENXIO;
+
+	rc = sprintf(buf, "%d\n", !!test_bit(DAXDEV_WRITE_CACHE,
+				&dax_dev->flags));
+	put_dax(dax_dev);
+	return rc;
+}
+
+static ssize_t write_cache_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t len)
+{
+	bool write_cache;
+	int rc = strtobool(buf, &write_cache);
+	struct dax_device *dax_dev = dax_get_by_host(dev_name(dev));
+
+	WARN_ON_ONCE(!dax_dev);
+	if (!dax_dev)
+		return -ENXIO;
+
+	if (rc)
+		len = rc;
+	else if (write_cache)
+		set_bit(DAXDEV_WRITE_CACHE, &dax_dev->flags);
+	else
+		clear_bit(DAXDEV_WRITE_CACHE, &dax_dev->flags);
+
+	put_dax(dax_dev);
+	return len;
+}
+static DEVICE_ATTR_RW(write_cache);
+
+static umode_t dax_visible(struct kobject *kobj, struct attribute *a, int n)
+{
+	struct device *dev = container_of(kobj, typeof(*dev), kobj);
+	struct dax_device *dax_dev = dax_get_by_host(dev_name(dev));
+
+	WARN_ON_ONCE(!dax_dev);
+	if (!dax_dev)
+		return 0;
+
+#ifndef CONFIG_ARCH_HAS_PMEM_API
+	if (a == &dev_attr_write_cache.attr)
+		return 0;
+#endif
+	return a->mode;
+}
+
+static struct attribute *dax_attributes[] = {
+	&dev_attr_write_cache.attr,
+	NULL,
+};
+
+struct attribute_group dax_attribute_group = {
+	.name = "dax",
+	.attrs = dax_attributes,
+	.is_visible = dax_visible,
+};
+EXPORT_SYMBOL_GPL(dax_attribute_group);
 
 /**
  * dax_direct_access() - translate a device pgoff to an absolute pfn
@@ -172,10 +259,54 @@ long dax_direct_access(struct dax_device *dax_dev, pgoff_t pgoff, long nr_pages,
 }
 EXPORT_SYMBOL_GPL(dax_direct_access);
 
+size_t dax_copy_from_iter(struct dax_device *dax_dev, pgoff_t pgoff, void *addr,
+		size_t bytes, struct iov_iter *i)
+{
+	if (!dax_alive(dax_dev))
+		return 0;
+
+	return dax_dev->ops->copy_from_iter(dax_dev, pgoff, addr, bytes, i);
+}
+EXPORT_SYMBOL_GPL(dax_copy_from_iter);
+
+#ifdef CONFIG_ARCH_HAS_PMEM_API
+void arch_wb_cache_pmem(void *addr, size_t size);
+void dax_flush(struct dax_device *dax_dev, void *addr, size_t size)
+{
+	if (unlikely(!dax_alive(dax_dev)))
+		return;
+
+	if (unlikely(!test_bit(DAXDEV_WRITE_CACHE, &dax_dev->flags)))
+		return;
+
+	arch_wb_cache_pmem(addr, size);
+}
+#else
+void dax_flush(struct dax_device *dax_dev, void *addr, size_t size)
+{
+}
+#endif
+EXPORT_SYMBOL_GPL(dax_flush);
+
+void dax_write_cache(struct dax_device *dax_dev, bool wc)
+{
+	if (wc)
+		set_bit(DAXDEV_WRITE_CACHE, &dax_dev->flags);
+	else
+		clear_bit(DAXDEV_WRITE_CACHE, &dax_dev->flags);
+}
+EXPORT_SYMBOL_GPL(dax_write_cache);
+
+bool dax_write_cache_enabled(struct dax_device *dax_dev)
+{
+	return test_bit(DAXDEV_WRITE_CACHE, &dax_dev->flags);
+}
+EXPORT_SYMBOL_GPL(dax_write_cache_enabled);
+
 bool dax_alive(struct dax_device *dax_dev)
 {
 	lockdep_assert_held(&dax_srcu);
-	return dax_dev->alive;
+	return test_bit(DAXDEV_ALIVE, &dax_dev->flags);
 }
 EXPORT_SYMBOL_GPL(dax_alive);
 
@@ -195,7 +326,7 @@ void kill_dax(struct dax_device *dax_dev)
 	if (!dax_dev)
 		return;
 
-	dax_dev->alive = false;
+	clear_bit(DAXDEV_ALIVE, &dax_dev->flags);
 
 	synchronize_srcu(&dax_srcu);
 
@@ -239,7 +370,7 @@ static void dax_destroy_inode(struct inode *inode)
 {
 	struct dax_device *dax_dev = to_dax_dev(inode);
 
-	WARN_ONCE(dax_dev->alive,
+	WARN_ONCE(test_bit(DAXDEV_ALIVE, &dax_dev->flags),
 			"kill_dax() must be called before final iput()\n");
 	call_rcu(&inode->i_rcu, dax_i_callback);
 }
@@ -291,7 +422,7 @@ static struct dax_device *dax_dev_get(dev_t devt)
 
 	dax_dev = to_dax_dev(inode);
 	if (inode->i_state & I_NEW) {
-		dax_dev->alive = true;
+		set_bit(DAXDEV_ALIVE, &dax_dev->flags);
 		inode->i_cdev = &dax_dev->cdev;
 		inode->i_mode = S_IFCHR;
 		inode->i_flags = S_DAX;

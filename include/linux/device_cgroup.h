@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #include <linux/fs.h>
 
 #ifdef CONFIG_CGROUP_DEVICE

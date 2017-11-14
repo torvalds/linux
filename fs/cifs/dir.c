@@ -194,14 +194,20 @@ cifs_bp_rename_retry:
 }
 
 /*
+ * Don't allow path components longer than the server max.
  * Don't allow the separator character in a path component.
  * The VFS will not allow "/", but "\" is allowed by posix.
  */
 static int
-check_name(struct dentry *direntry)
+check_name(struct dentry *direntry, struct cifs_tcon *tcon)
 {
 	struct cifs_sb_info *cifs_sb = CIFS_SB(direntry->d_sb);
 	int i;
+
+	if (unlikely(tcon->fsAttrInfo.MaxPathNameComponentLength &&
+		     direntry->d_name.len >
+		     le32_to_cpu(tcon->fsAttrInfo.MaxPathNameComponentLength)))
+		return -ENAMETOOLONG;
 
 	if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_POSIX_PATHS)) {
 		for (i = 0; i < direntry->d_name.len; i++) {
@@ -500,10 +506,6 @@ cifs_atomic_open(struct inode *inode, struct dentry *direntry,
 		return finish_no_open(file, res);
 	}
 
-	rc = check_name(direntry);
-	if (rc)
-		return rc;
-
 	xid = get_xid();
 
 	cifs_dbg(FYI, "parent inode = 0x%p name is: %pd and dentry = 0x%p\n",
@@ -516,6 +518,11 @@ cifs_atomic_open(struct inode *inode, struct dentry *direntry,
 	}
 
 	tcon = tlink_tcon(tlink);
+
+	rc = check_name(direntry, tcon);
+	if (rc)
+		goto out;
+
 	server = tcon->ses->server;
 
 	if (server->ops->new_lease_key)
@@ -776,7 +783,7 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry,
 	}
 	pTcon = tlink_tcon(tlink);
 
-	rc = check_name(direntry);
+	rc = check_name(direntry, pTcon);
 	if (rc)
 		goto lookup_out;
 

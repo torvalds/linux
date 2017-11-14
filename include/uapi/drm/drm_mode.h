@@ -75,7 +75,7 @@ extern "C" {
   * (define not exposed to user space).
   */
 #define DRM_MODE_FLAG_3D_MASK			(0x1f<<14)
-#define  DRM_MODE_FLAG_3D_NONE			(0<<14)
+#define  DRM_MODE_FLAG_3D_NONE		(0<<14)
 #define  DRM_MODE_FLAG_3D_FRAME_PACKING		(1<<14)
 #define  DRM_MODE_FLAG_3D_FIELD_ALTERNATIVE	(2<<14)
 #define  DRM_MODE_FLAG_3D_LINE_ALTERNATIVE	(3<<14)
@@ -126,6 +126,53 @@ extern "C" {
 /* Link Status options */
 #define DRM_MODE_LINK_STATUS_GOOD	0
 #define DRM_MODE_LINK_STATUS_BAD	1
+
+/*
+ * DRM_MODE_ROTATE_<degrees>
+ *
+ * Signals that a drm plane is been rotated <degrees> degrees in counter
+ * clockwise direction.
+ *
+ * This define is provided as a convenience, looking up the property id
+ * using the name->prop id lookup is the preferred method.
+ */
+#define DRM_MODE_ROTATE_0       (1<<0)
+#define DRM_MODE_ROTATE_90      (1<<1)
+#define DRM_MODE_ROTATE_180     (1<<2)
+#define DRM_MODE_ROTATE_270     (1<<3)
+
+/*
+ * DRM_MODE_ROTATE_MASK
+ *
+ * Bitmask used to look for drm plane rotations.
+ */
+#define DRM_MODE_ROTATE_MASK (\
+		DRM_MODE_ROTATE_0  | \
+		DRM_MODE_ROTATE_90  | \
+		DRM_MODE_ROTATE_180 | \
+		DRM_MODE_ROTATE_270)
+
+/*
+ * DRM_MODE_REFLECT_<axis>
+ *
+ * Signals that the contents of a drm plane is reflected in the <axis> axis,
+ * in the same way as mirroring.
+ *
+ * This define is provided as a convenience, looking up the property id
+ * using the name->prop id lookup is the preferred method.
+ */
+#define DRM_MODE_REFLECT_X      (1<<4)
+#define DRM_MODE_REFLECT_Y      (1<<5)
+
+/*
+ * DRM_MODE_REFLECT_MASK
+ *
+ * Bitmask used to look for drm plane reflections.
+ */
+#define DRM_MODE_REFLECT_MASK (\
+		DRM_MODE_REFLECT_X | \
+		DRM_MODE_REFLECT_Y)
+
 
 struct drm_mode_modeinfo {
 	__u32 clock;
@@ -663,6 +710,56 @@ struct drm_mode_atomic {
 	__u64 prop_values_ptr;
 	__u64 reserved;
 	__u64 user_data;
+};
+
+struct drm_format_modifier_blob {
+#define FORMAT_BLOB_CURRENT 1
+	/* Version of this blob format */
+	__u32 version;
+
+	/* Flags */
+	__u32 flags;
+
+	/* Number of fourcc formats supported */
+	__u32 count_formats;
+
+	/* Where in this blob the formats exist (in bytes) */
+	__u32 formats_offset;
+
+	/* Number of drm_format_modifiers */
+	__u32 count_modifiers;
+
+	/* Where in this blob the modifiers exist (in bytes) */
+	__u32 modifiers_offset;
+
+	/* __u32 formats[] */
+	/* struct drm_format_modifier modifiers[] */
+};
+
+struct drm_format_modifier {
+	/* Bitmask of formats in get_plane format list this info applies to. The
+	 * offset allows a sliding window of which 64 formats (bits).
+	 *
+	 * Some examples:
+	 * In today's world with < 65 formats, and formats 0, and 2 are
+	 * supported
+	 * 0x0000000000000005
+	 *		  ^-offset = 0, formats = 5
+	 *
+	 * If the number formats grew to 128, and formats 98-102 are
+	 * supported with the modifier:
+	 *
+	 * 0x0000003c00000000 0000000000000000
+	 *		  ^
+	 *		  |__offset = 64, formats = 0x3c00000000
+	 *
+	 */
+	__u64 formats;
+	__u32 offset;
+	__u32 pad;
+
+	/* The modifier that applies to the >get_plane format list bitmask. */
+	__u64 modifier;
 };
 
 /**

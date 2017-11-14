@@ -352,9 +352,15 @@ unsigned int iio_get_time_res(const struct iio_dev *indio_dev);
 #define INDIO_BUFFER_SOFTWARE		0x04
 #define INDIO_BUFFER_HARDWARE		0x08
 #define INDIO_EVENT_TRIGGERED		0x10
+#define INDIO_HARDWARE_TRIGGERED	0x20
 
 #define INDIO_ALL_BUFFER_MODES					\
 	(INDIO_BUFFER_TRIGGERED | INDIO_BUFFER_HARDWARE | INDIO_BUFFER_SOFTWARE)
+
+#define INDIO_ALL_TRIGGERED_MODES	\
+	(INDIO_BUFFER_TRIGGERED		\
+	 | INDIO_EVENT_TRIGGERED	\
+	 | INDIO_HARDWARE_TRIGGERED)
 
 #define INDIO_MAX_RAW_ELEMENTS		4
 
@@ -529,7 +535,7 @@ struct iio_buffer_setup_ops {
  * @scan_timestamp:	[INTERN] set if any buffers have requested timestamp
  * @scan_index_timestamp:[INTERN] cache of the index to the timestamp
  * @trig:		[INTERN] current device trigger (buffer modes)
- * @trig_readonly	[INTERN] mark the current trigger immutable
+ * @trig_readonly:	[INTERN] mark the current trigger immutable
  * @pollfunc:		[DRIVER] function run on trigger being received
  * @pollfunc_event:	[DRIVER] function run on events trigger being received
  * @channels:		[DRIVER] channel specification structure table

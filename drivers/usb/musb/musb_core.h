@@ -172,6 +172,7 @@ struct musb_io;
  */
 struct musb_platform_ops {
 
+#define MUSB_G_NO_SKB_RESERVE	BIT(9)
 #define MUSB_DA8XX		BIT(8)
 #define MUSB_PRESERVE_SESSION	BIT(7)
 #define MUSB_DMA_UX500		BIT(6)
@@ -427,6 +428,8 @@ struct musb {
 	unsigned		test_mode:1;
 	unsigned		softconnect:1;
 
+	unsigned		flush_irq_work:1;
+
 	u8			address;
 	u8			test_mode_nr;
 	u16			ackpend;		/* ep0 */
@@ -462,6 +465,30 @@ struct musb {
 static inline struct musb *gadget_to_musb(struct usb_gadget *g)
 {
 	return container_of(g, struct musb, g);
+}
+
+static inline char *musb_ep_xfertype_string(u8 type)
+{
+	char *s;
+
+	switch (type) {
+	case USB_ENDPOINT_XFER_CONTROL:
+		s = "ctrl";
+		break;
+	case USB_ENDPOINT_XFER_ISOC:
+		s = "iso";
+		break;
+	case USB_ENDPOINT_XFER_BULK:
+		s = "bulk";
+		break;
+	case USB_ENDPOINT_XFER_INT:
+		s = "int";
+		break;
+	default:
+		s = "";
+		break;
+	}
+	return s;
 }
 
 #ifdef CONFIG_BLACKFIN

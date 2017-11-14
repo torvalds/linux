@@ -75,7 +75,7 @@
 			compatible = "arm,cortex-a7";
 			device_type = "cpu";
 			reg = <0xf00>;
-			clocks = <&cluster1_clk>;
+			clocks = <&clockgen 1 0>;
 			#cooling-cells = <2>;
 		};
 
@@ -83,8 +83,15 @@
 			compatible = "arm,cortex-a7";
 			device_type = "cpu";
 			reg = <0xf01>;
-			clocks = <&cluster1_clk>;
+			clocks = <&clockgen 1 0>;
 		};
+	};
+
+	sysclk: sysclk {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <100000000>;
+		clock-output-names = "sysclk";
 	};
 
 	timer {
@@ -122,14 +129,14 @@
 		};
 
 		msi1: msi-controller@1570e00 {
-			compatible = "fsl,1s1021a-msi";
+			compatible = "fsl,ls1021a-msi";
 			reg = <0x0 0x1570e00 0x0 0x8>;
 			msi-controller;
 			interrupts =  <GIC_SPI 179 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
 		msi2: msi-controller@1570e08 {
-			compatible = "fsl,1s1021a-msi";
+			compatible = "fsl,ls1021a-msi";
 			reg = <0x0 0x1570e08 0x0 0x8>;
 			msi-controller;
 			interrupts = <GIC_SPI 180 IRQ_TYPE_LEVEL_HIGH>;
@@ -165,7 +172,7 @@
 			      <0x0 0x20220520 0x0 0x4>;
 			reg-names = "ahci", "sata-ecc";
 			interrupts = <GIC_SPI 101 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&platform_clk 1>;
+			clocks = <&clockgen 4 1>;
 			dma-coherent;
 			status = "disabled";
 		};
@@ -216,41 +223,10 @@
 		};
 
 		clockgen: clocking@1ee1000 {
-			#address-cells = <1>;
-			#size-cells = <1>;
-			ranges = <0x0 0x0 0x1ee1000 0x10000>;
-
-			sysclk: sysclk {
-				compatible = "fixed-clock";
-				#clock-cells = <0>;
-				clock-output-names = "sysclk";
-			};
-
-			cga_pll1: pll@800 {
-				compatible = "fsl,qoriq-core-pll-2.0";
-				#clock-cells = <1>;
-				reg = <0x800 0x10>;
-				clocks = <&sysclk>;
-				clock-output-names = "cga-pll1", "cga-pll1-div2",
-						     "cga-pll1-div4";
-			};
-
-			platform_clk: pll@c00 {
-				compatible = "fsl,qoriq-core-pll-2.0";
-				#clock-cells = <1>;
-				reg = <0xc00 0x10>;
-				clocks = <&sysclk>;
-				clock-output-names = "platform-clk", "platform-clk-div2";
-			};
-
-			cluster1_clk: clk0c0@0 {
-				compatible = "fsl,qoriq-core-mux-2.0";
-				#clock-cells = <0>;
-				reg = <0x0 0x10>;
-				clock-names = "pll1cga", "pll1cga-div2", "pll1cga-div4";
-				clocks = <&cga_pll1 0>, <&cga_pll1 1>, <&cga_pll1 2>;
-				clock-output-names = "cluster1-clk";
-			};
+			compatible = "fsl,ls1021a-clockgen";
+			reg = <0x0 0x1ee1000 0x0 0x1000>;
+			#clock-cells = <2>;
+			clocks = <&sysclk>;
 		};
 
 		tmu: tmu@1f00000 {
@@ -338,7 +314,7 @@
 			reg = <0x0 0x2100000 0x0 0x10000>;
 			interrupts = <GIC_SPI 96 IRQ_TYPE_LEVEL_HIGH>;
 			clock-names = "dspi";
-			clocks = <&platform_clk 1>;
+			clocks = <&clockgen 4 1>;
 			spi-num-chipselects = <6>;
 			big-endian;
 			status = "disabled";
@@ -351,7 +327,7 @@
 			reg = <0x0 0x2110000 0x0 0x10000>;
 			interrupts = <GIC_SPI 97 IRQ_TYPE_LEVEL_HIGH>;
 			clock-names = "dspi";
-			clocks = <&platform_clk 1>;
+			clocks = <&clockgen 4 1>;
 			spi-num-chipselects = <6>;
 			big-endian;
 			status = "disabled";
@@ -364,7 +340,7 @@
 			reg = <0x0 0x2180000 0x0 0x10000>;
 			interrupts = <GIC_SPI 88 IRQ_TYPE_LEVEL_HIGH>;
 			clock-names = "i2c";
-			clocks = <&platform_clk 1>;
+			clocks = <&clockgen 4 1>;
 			status = "disabled";
 		};
 
@@ -375,7 +351,7 @@
 			reg = <0x0 0x2190000 0x0 0x10000>;
 			interrupts = <GIC_SPI 89 IRQ_TYPE_LEVEL_HIGH>;
 			clock-names = "i2c";
-			clocks = <&platform_clk 1>;
+			clocks = <&clockgen 4 1>;
 			status = "disabled";
 		};
 
@@ -386,7 +362,7 @@
 			reg = <0x0 0x21a0000 0x0 0x10000>;
 			interrupts = <GIC_SPI 90 IRQ_TYPE_LEVEL_HIGH>;
 			clock-names = "i2c";
-			clocks = <&platform_clk 1>;
+			clocks = <&clockgen 4 1>;
 			status = "disabled";
 		};
 
@@ -479,7 +455,7 @@
 			compatible = "fsl,ls1021a-lpuart";
 			reg = <0x0 0x2960000 0x0 0x1000>;
 			interrupts = <GIC_SPI 81 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&platform_clk 1>;
+			clocks = <&clockgen 4 1>;
 			clock-names = "ipg";
 			status = "disabled";
 		};
@@ -488,7 +464,7 @@
 			compatible = "fsl,ls1021a-lpuart";
 			reg = <0x0 0x2970000 0x0 0x1000>;
 			interrupts = <GIC_SPI 82 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&platform_clk 1>;
+			clocks = <&clockgen 4 1>;
 			clock-names = "ipg";
 			status = "disabled";
 		};
@@ -497,7 +473,7 @@
 			compatible = "fsl,ls1021a-lpuart";
 			reg = <0x0 0x2980000 0x0 0x1000>;
 			interrupts = <GIC_SPI 83 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&platform_clk 1>;
+			clocks = <&clockgen 4 1>;
 			clock-names = "ipg";
 			status = "disabled";
 		};
@@ -506,7 +482,7 @@
 			compatible = "fsl,ls1021a-lpuart";
 			reg = <0x0 0x2990000 0x0 0x1000>;
 			interrupts = <GIC_SPI 84 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&platform_clk 1>;
+			clocks = <&clockgen 4 1>;
 			clock-names = "ipg";
 			status = "disabled";
 		};
@@ -515,7 +491,7 @@
 			compatible = "fsl,ls1021a-lpuart";
 			reg = <0x0 0x29a0000 0x0 0x1000>;
 			interrupts = <GIC_SPI 85 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&platform_clk 1>;
+			clocks = <&clockgen 4 1>;
 			clock-names = "ipg";
 			status = "disabled";
 		};
@@ -524,7 +500,7 @@
 			compatible = "fsl,imx21-wdt";
 			reg = <0x0 0x2ad0000 0x0 0x10000>;
 			interrupts = <GIC_SPI 115 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&platform_clk 1>;
+			clocks = <&clockgen 4 1>;
 			clock-names = "wdog-en";
 			big-endian;
 		};
@@ -534,8 +510,8 @@
 			compatible = "fsl,vf610-sai";
 			reg = <0x0 0x2b50000 0x0 0x10000>;
 			interrupts = <GIC_SPI 132 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&platform_clk 1>, <&platform_clk 1>,
-				 <&platform_clk 1>, <&platform_clk 1>;
+			clocks = <&clockgen 4 1>, <&clockgen 4 1>,
+				 <&clockgen 4 1>, <&clockgen 4 1>;
 			clock-names = "bus", "mclk1", "mclk2", "mclk3";
 			dma-names = "tx", "rx";
 			dmas = <&edma0 1 47>,
@@ -548,8 +524,8 @@
 			compatible = "fsl,vf610-sai";
 			reg = <0x0 0x2b60000 0x0 0x10000>;
 			interrupts = <GIC_SPI 133 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&platform_clk 1>, <&platform_clk 1>,
-				 <&platform_clk 1>, <&platform_clk 1>;
+			clocks = <&clockgen 4 1>, <&clockgen 4 1>,
+				 <&clockgen 4 1>, <&clockgen 4 1>;
 			clock-names = "bus", "mclk1", "mclk2", "mclk3";
 			dma-names = "tx", "rx";
 			dmas = <&edma0 1 45>,
@@ -569,16 +545,16 @@
 			dma-channels = <32>;
 			big-endian;
 			clock-names = "dmamux0", "dmamux1";
-			clocks = <&platform_clk 1>,
-				 <&platform_clk 1>;
+			clocks = <&clockgen 4 1>,
+				 <&clockgen 4 1>;
 		};
 
 		dcu: dcu@2ce0000 {
 			compatible = "fsl,ls1021a-dcu";
 			reg = <0x0 0x2ce0000 0x0 0x10000>;
 			interrupts = <GIC_SPI 172 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&platform_clk 0>,
-				<&platform_clk 0>;
+			clocks = <&clockgen 4 0>,
+				<&clockgen 4 0>;
 			clock-names = "dcu", "pix";
 			big-endian;
 			status = "disabled";
@@ -723,7 +699,7 @@
 			bus-range = <0x0 0xff>;
 			ranges = <0x81000000 0x0 0x00000000 0x40 0x00010000 0x0 0x00010000   /* downstream I/O */
 				  0x82000000 0x0 0x40000000 0x40 0x40000000 0x0 0x40000000>; /* non-prefetchable memory */
-			msi-parent = <&msi1>;
+			msi-parent = <&msi1>, <&msi2>;
 			#interrupt-cells = <1>;
 			interrupt-map-mask = <0 0 0 7>;
 			interrupt-map = <0000 0 0 1 &gic GIC_SPI 91  IRQ_TYPE_LEVEL_HIGH>,
@@ -746,7 +722,7 @@
 			bus-range = <0x0 0xff>;
 			ranges = <0x81000000 0x0 0x00000000 0x48 0x00010000 0x0 0x00010000   /* downstream I/O */
 				  0x82000000 0x0 0x40000000 0x48 0x40000000 0x0 0x40000000>; /* non-prefetchable memory */
-			msi-parent = <&msi2>;
+			msi-parent = <&msi1>, <&msi2>;
 			#interrupt-cells = <1>;
 			interrupt-map-mask = <0 0 0 7>;
 			interrupt-map = <0000 0 0 1 &gic GIC_SPI 92  IRQ_TYPE_LEVEL_HIGH>,

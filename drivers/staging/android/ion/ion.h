@@ -68,14 +68,6 @@ struct ion_platform_heap {
  * @kmap_cnt:		number of times the buffer is mapped to the kernel
  * @vaddr:		the kernel mapping if kmap_cnt is not zero
  * @sg_table:		the sg table for the buffer if dmap_cnt is not zero
- * @pages:		flat array of pages in the buffer -- used by fault
- *			handler and only valid for buffers that are faulted in
- * @vmas:		list of vma's mapping this buffer
- * @handle_count:	count of handles referencing this buffer
- * @task_comm:		taskcomm of last client to reference this buffer in a
- *			handle, used for debugging
- * @pid:		pid of last client to reference this buffer in a
- *			handle, used for debugging
  */
 struct ion_buffer {
 	union {
@@ -92,13 +84,7 @@ struct ion_buffer {
 	int kmap_cnt;
 	void *vaddr;
 	struct sg_table *sg_table;
-	struct page **pages;
-	struct list_head vmas;
 	struct list_head attachments;
-	/* used to track orphaned buffers */
-	int handle_count;
-	char task_comm[TASK_COMM_LEN];
-	pid_t pid;
 };
 void ion_buffer_destroy(struct ion_buffer *buffer);
 
@@ -149,7 +135,7 @@ struct ion_heap_ops {
 /**
  * heap flags - flags between the heaps and core ion code
  */
-#define ION_HEAP_FLAG_DEFER_FREE (1 << 0)
+#define ION_HEAP_FLAG_DEFER_FREE BIT(0)
 
 /**
  * private flags - flags internal to ion
@@ -160,7 +146,7 @@ struct ion_heap_ops {
  * any buffer storage that came from the system allocator will be
  * returned to the system allocator.
  */
-#define ION_PRIV_FLAG_SHRINKER_FREE (1 << 0)
+#define ION_PRIV_FLAG_SHRINKER_FREE BIT(0)
 
 /**
  * struct ion_heap - represents a heap in the system
@@ -240,8 +226,8 @@ int ion_heap_buffer_zero(struct ion_buffer *buffer);
 int ion_heap_pages_zero(struct page *page, size_t size, pgprot_t pgprot);
 
 int ion_alloc(size_t len,
-				unsigned int heap_id_mask,
-				unsigned int flags);
+	      unsigned int heap_id_mask,
+	      unsigned int flags);
 
 /**
  * ion_heap_init_shrinker
@@ -305,7 +291,7 @@ size_t ion_heap_freelist_drain(struct ion_heap *heap, size_t size);
  * flag.
  */
 size_t ion_heap_freelist_shrink(struct ion_heap *heap,
-					size_t size);
+				size_t size);
 
 /**
  * ion_heap_freelist_size - returns the size of the freelist in bytes
@@ -366,7 +352,7 @@ void ion_page_pool_free(struct ion_page_pool *pool, struct page *page);
  * returns the number of items freed in pages
  */
 int ion_page_pool_shrink(struct ion_page_pool *pool, gfp_t gfp_mask,
-			  int nr_to_scan);
+			 int nr_to_scan);
 
 long ion_ioctl(struct file *filp, unsigned int cmd, unsigned long arg);
 

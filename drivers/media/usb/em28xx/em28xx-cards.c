@@ -1193,6 +1193,22 @@ struct em28xx_board em28xx_boards[] = {
 		.i2c_speed    = EM28XX_I2C_CLK_WAIT_ENABLE |
 				EM28XX_I2C_FREQ_400_KHZ,
 	},
+	[EM2884_BOARD_TERRATEC_H6] = {
+		.name         = "Terratec Cinergy H6 rev. 2",
+		.has_dvb      = 1,
+		.ir_codes     = RC_MAP_NEC_TERRATEC_CINERGY_XS,
+#if 0
+		.tuner_type   = TUNER_PHILIPS_TDA8290,
+		.tuner_addr   = 0x41,
+		.dvb_gpio     = terratec_h5_digital, /* FIXME: probably wrong */
+		.tuner_gpio   = terratec_h5_gpio,
+#else
+		.tuner_type   = TUNER_ABSENT,
+#endif
+		.def_i2c_bus  = 1,
+		.i2c_speed    = EM28XX_I2C_CLK_WAIT_ENABLE |
+				EM28XX_I2C_FREQ_400_KHZ,
+	},
 	[EM2884_BOARD_HAUPPAUGE_WINTV_HVR_930C] = {
 		.name         = "Hauppauge WinTV HVR 930C",
 		.has_dvb      = 1,
@@ -2496,6 +2512,8 @@ struct usb_device_id em28xx_id_table[] = {
 			.driver_info = EM2884_BOARD_TERRATEC_H5 },
 	{ USB_DEVICE(0x0ccd, 0x10b6),	/* H5 Rev. 3 */
 			.driver_info = EM2884_BOARD_TERRATEC_H5 },
+	{ USB_DEVICE(0x0ccd, 0x10b2),	/* H6 */
+			.driver_info = EM2884_BOARD_TERRATEC_H6 },
 	{ USB_DEVICE(0x0ccd, 0x0084),
 			.driver_info = EM2860_BOARD_TERRATEC_AV350 },
 	{ USB_DEVICE(0x0ccd, 0x0096),
@@ -2855,7 +2873,7 @@ static int em28xx_hint_board(struct em28xx *dev)
 				"Your board has no unique USB ID.\n"
 				"A hint were successfully done, based on eeprom hash.\n"
 				"This method is not 100%% failproof.\n"
-				"If the board were missdetected, please email this log to:\n"
+				"If the board were misdetected, please email this log to:\n"
 				"\tV4L Mailing List  <linux-media@vger.kernel.org>\n"
 				"Board detected as %s\n",
 			       em28xx_boards[dev->model].name);
@@ -2885,7 +2903,7 @@ static int em28xx_hint_board(struct em28xx *dev)
 				"Your board has no unique USB ID.\n"
 				"A hint were successfully done, based on i2c devicelist hash.\n"
 				"This method is not 100%% failproof.\n"
-				"If the board were missdetected, please email this log to:\n"
+				"If the board were misdetected, please email this log to:\n"
 				"\tV4L Mailing List  <linux-media@vger.kernel.org>\n"
 				"Board detected as %s\n",
 				em28xx_boards[dev->model].name);

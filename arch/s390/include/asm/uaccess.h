@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *  S390 version
  *    Copyright IBM Corp. 1999, 2000
@@ -249,9 +250,6 @@ int __put_user_bad(void) __attribute__((noreturn));
 
 int __get_user_bad(void) __attribute__((noreturn));
 
-#define __put_user_unaligned __put_user
-#define __get_user_unaligned __get_user
-
 unsigned long __must_check
 raw_copy_in_user(void __user *to, const void __user *from, unsigned long n);
 
@@ -275,23 +273,6 @@ static inline unsigned long strnlen_user(const char __user *src, unsigned long n
 	might_fault();
 	return __strnlen_user(src, n);
 }
-
-/**
- * strlen_user: - Get the size of a string in user space.
- * @str: The string to measure.
- *
- * Context: User context only. This function may sleep if pagefaults are
- *          enabled.
- *
- * Get the size of a NUL-terminated string in user space.
- *
- * Returns the size of the string INCLUDING the terminating NUL.
- * On exception, returns 0.
- *
- * If there is a limit on the length of a valid string, you may wish to
- * consider using strnlen_user() instead.
- */
-#define strlen_user(str) strnlen_user(str, ~0UL)
 
 /*
  * Zero Userspace

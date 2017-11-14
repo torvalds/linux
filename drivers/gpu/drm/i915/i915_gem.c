@@ -46,15 +46,13 @@
 #include <linux/dma-buf.h>
 
 static void i915_gem_flush_free_objects(struct drm_i915_private *i915);
-static void i915_gem_object_flush_gtt_write_domain(struct drm_i915_gem_object *obj);
-static void i915_gem_object_flush_cpu_write_domain(struct drm_i915_gem_object *obj);
 
 static bool cpu_write_needs_clflush(struct drm_i915_gem_object *obj)
 {
-	if (obj->base.write_domain == I915_GEM_DOMAIN_CPU)
+	if (obj->cache_dirty)
 		return false;
 
-	if (!i915_gem_object_is_coherent(obj))
+	if (!(obj->cache_coherent & I915_BO_CACHE_COHERENT_FOR_WRITE))
 		return true;
 
 	return obj->pin_display;
@@ -145,9 +143,9 @@ i915_gem_get_aperture_ioctl(struct drm_device *dev, void *data,
 	struct i915_ggtt *ggtt = &dev_priv->ggtt;
 	struct drm_i915_gem_get_aperture *args = data;
 	struct i915_vma *vma;
-	size_t pinned;
+	u64 pinned;
 
-	pinned = 0;
+	pinned = ggtt->base.reserved;
 	mutex_lock(&dev->struct_mutex);
 	list_for_each_entry(vma, &ggtt->base.active_list, vm_link)
 		if (i915_vma_is_pinned(vma))
@@ -235,6 +233,14 @@ err_phys:
 	return st;
 }
 
+static void __start_cpu_write(struct drm_i915_gem_object *obj)
+{
+	obj->base.read_domains = I915_GEM_DOMAIN_CPU;
+	obj->base.write_domain = I915_GEM_DOMAIN_CPU;
+	if (cpu_write_needs_clflush(obj))
+		obj->cache_dirty = true;
+}
+
 static void
 __i915_gem_object_release_shmem(struct drm_i915_gem_object *obj,
 				struct sg_table *pages,
@@ -247,11 +253,10 @@ __i915_gem_object_release_shmem(struct drm_i915_gem_object *obj,
 
 	if (needs_clflush &&
 	    (obj->base.read_domains & I915_GEM_DOMAIN_CPU) == 0 &&
-	    !i915_gem_object_is_coherent(obj))
+	    !(obj->cache_coherent & I915_BO_CACHE_COHERENT_FOR_READ))
 		drm_clflush_sg(pages);
 
-	obj->base.read_domains = I915_GEM_DOMAIN_CPU;
-	obj->base.write_domain = I915_GEM_DOMAIN_CPU;
+	__start_cpu_write(obj);
 }
 
 static void
@@ -383,7 +388,7 @@ i915_gem_object_wait_fence(struct dma_fence *fence,
 	 */
 	if (rps) {
 		if (INTEL_GEN(rq->i915) >= 6)
-			gen6_rps_boost(rq->i915, rps, rq->emitted_jiffies);
+			gen6_rps_boost(rq, rps);
 		else
 			rps = NULL;
 	}
@@ -393,22 +398,6 @@ i915_gem_object_wait_fence(struct dma_fence *fence,
 out:
 	if (flags & I915_WAIT_LOCKED && i915_gem_request_completed(rq))
 		i915_gem_request_retire_upto(rq);
-
-	if (rps && i915_gem_request_global_seqno(rq) == intel_engine_last_submit(rq->engine)) {
-		/* The GPU is now idle and this client has stalled.
-		 * Since no other client has submitted a request in the
-		 * meantime, assume that this client is the only one
-		 * supplying work to the GPU but is unable to keep that
-		 * work supplied because it is waiting. Since the GPU is
-		 * then never kept fully busy, RPS autoclocking will
-		 * keep the clocks relatively low, causing further delays.
-		 * Compensate by giving the synchronous client credit for
-		 * a waitboost next time.
-		 */
-		spin_lock(&rq->i915->rps.client_lock);
-		list_del_init(&rps->link);
-		spin_unlock(&rq->i915->rps.client_lock);
-	}
 
 	return timeout;
 }
@@ -572,46 +561,6 @@ static struct intel_rps_client *to_rps_client(struct drm_file *file)
 	return &fpriv->rps;
 }
 
-int
-i915_gem_object_attach_phys(struct drm_i915_gem_object *obj,
-			    int align)
-{
-	int ret;
-
-	if (align > obj->base.size)
-		return -EINVAL;
-
-	if (obj->ops == &i915_gem_phys_ops)
-		return 0;
-
-	if (obj->mm.madv != I915_MADV_WILLNEED)
-		return -EFAULT;
-
-	if (obj->base.filp == NULL)
-		return -EINVAL;
-
-	ret = i915_gem_object_unbind(obj);
-	if (ret)
-		return ret;
-
-	__i915_gem_object_put_pages(obj, I915_MM_NORMAL);
-	if (obj->mm.pages)
-		return -EBUSY;
-
-	GEM_BUG_ON(obj->ops != &i915_gem_object_ops);
-	obj->ops = &i915_gem_phys_ops;
-
-	ret = i915_gem_object_pin_pages(obj);
-	if (ret)
-		goto err_xfer;
-
-	return 0;
-
-err_xfer:
-	obj->ops = &i915_gem_object_ops;
-	return ret;
-}
-
 static int
 i915_gem_phys_pwrite(struct drm_i915_gem_object *obj,
 		     struct drm_i915_gem_pwrite *args,
@@ -686,6 +635,12 @@ i915_gem_dumb_create(struct drm_file *file,
 			       args->size, &args->handle);
 }
 
+static bool gpu_write_needs_clflush(struct drm_i915_gem_object *obj)
+{
+	return !(obj->cache_level == I915_CACHE_NONE ||
+		 obj->cache_level == I915_CACHE_WT);
+}
+
 /**
  * Creates a new mm object and returns a handle to it.
  * @dev: drm device pointer
@@ -703,6 +658,65 @@ i915_gem_create_ioctl(struct drm_device *dev, void *data,
 
 	return i915_gem_create(file, dev_priv,
 			       args->size, &args->handle);
+}
+
+static inline enum fb_op_origin
+fb_write_origin(struct drm_i915_gem_object *obj, unsigned int domain)
+{
+	return (domain == I915_GEM_DOMAIN_GTT ?
+		obj->frontbuffer_ggtt_origin : ORIGIN_CPU);
+}
+
+static void
+flush_write_domain(struct drm_i915_gem_object *obj, unsigned int flush_domains)
+{
+	struct drm_i915_private *dev_priv = to_i915(obj->base.dev);
+
+	if (!(obj->base.write_domain & flush_domains))
+		return;
+
+	/* No actual flushing is required for the GTT write domain.  Writes
+	 * to it "immediately" go to main memory as far as we know, so there's
+	 * no chipset flush.  It also doesn't land in render cache.
+	 *
+	 * However, we do have to enforce the order so that all writes through
+	 * the GTT land before any writes to the device, such as updates to
+	 * the GATT itself.
+	 *
+	 * We also have to wait a bit for the writes to land from the GTT.
+	 * An uncached read (i.e. mmio) seems to be ideal for the round-trip
+	 * timing. This issue has only been observed when switching quickly
+	 * between GTT writes and CPU reads from inside the kernel on recent hw,
+	 * and it appears to only affect discrete GTT blocks (i.e. on LLC
+	 * system agents we cannot reproduce this behaviour).
+	 */
+	wmb();
+
+	switch (obj->base.write_domain) {
+	case I915_GEM_DOMAIN_GTT:
+		if (INTEL_GEN(dev_priv) >= 6 && !HAS_LLC(dev_priv)) {
+			intel_runtime_pm_get(dev_priv);
+			spin_lock_irq(&dev_priv->uncore.lock);
+			POSTING_READ_FW(RING_ACTHD(dev_priv->engine[RCS]->mmio_base));
+			spin_unlock_irq(&dev_priv->uncore.lock);
+			intel_runtime_pm_put(dev_priv);
+		}
+
+		intel_fb_obj_flush(obj,
+				   fb_write_origin(obj, I915_GEM_DOMAIN_GTT));
+		break;
+
+	case I915_GEM_DOMAIN_CPU:
+		i915_gem_clflush_object(obj, I915_CLFLUSH_SYNC);
+		break;
+
+	case I915_GEM_DOMAIN_RENDER:
+		if (gpu_write_needs_clflush(obj))
+			obj->cache_dirty = true;
+		break;
+	}
+
+	obj->base.write_domain = 0;
 }
 
 static inline int
@@ -785,7 +799,7 @@ int i915_gem_obj_prepare_shmem_read(struct drm_i915_gem_object *obj,
 	if (ret)
 		return ret;
 
-	if (i915_gem_object_is_coherent(obj) ||
+	if (obj->cache_coherent & I915_BO_CACHE_COHERENT_FOR_READ ||
 	    !static_cpu_has(X86_FEATURE_CLFLUSH)) {
 		ret = i915_gem_object_set_to_cpu_domain(obj, false);
 		if (ret)
@@ -794,14 +808,15 @@ int i915_gem_obj_prepare_shmem_read(struct drm_i915_gem_object *obj,
 			goto out;
 	}
 
-	i915_gem_object_flush_gtt_write_domain(obj);
+	flush_write_domain(obj, ~I915_GEM_DOMAIN_CPU);
 
 	/* If we're not in the cpu read domain, set ourself into the gtt
 	 * read domain and manually flush cachelines (if required). This
 	 * optimizes for the case when the gpu will dirty the data
 	 * anyway again before the next pread happens.
 	 */
-	if (!(obj->base.read_domains & I915_GEM_DOMAIN_CPU))
+	if (!obj->cache_dirty &&
+	    !(obj->base.read_domains & I915_GEM_DOMAIN_CPU))
 		*needs_clflush = CLFLUSH_BEFORE;
 
 out:
@@ -837,7 +852,7 @@ int i915_gem_obj_prepare_shmem_write(struct drm_i915_gem_object *obj,
 	if (ret)
 		return ret;
 
-	if (i915_gem_object_is_coherent(obj) ||
+	if (obj->cache_coherent & I915_BO_CACHE_COHERENT_FOR_WRITE ||
 	    !static_cpu_has(X86_FEATURE_CLFLUSH)) {
 		ret = i915_gem_object_set_to_cpu_domain(obj, true);
 		if (ret)
@@ -846,21 +861,23 @@ int i915_gem_obj_prepare_shmem_write(struct drm_i915_gem_object *obj,
 			goto out;
 	}
 
-	i915_gem_object_flush_gtt_write_domain(obj);
+	flush_write_domain(obj, ~I915_GEM_DOMAIN_CPU);
 
 	/* If we're not in the cpu write domain, set ourself into the
 	 * gtt write domain and manually flush cachelines (as required).
 	 * This optimizes for the case when the gpu will use the data
 	 * right away and we therefore have to clflush anyway.
 	 */
-	if (obj->base.write_domain != I915_GEM_DOMAIN_CPU)
+	if (!obj->cache_dirty) {
 		*needs_clflush |= CLFLUSH_AFTER;
 
-	/* Same trick applies to invalidate partially written cachelines read
-	 * before writing.
-	 */
-	if (!(obj->base.read_domains & I915_GEM_DOMAIN_CPU))
-		*needs_clflush |= CLFLUSH_BEFORE;
+		/*
+		 * Same trick applies to invalidate partially written
+		 * cachelines read before writing.
+		 */
+		if (!(obj->base.read_domains & I915_GEM_DOMAIN_CPU))
+			*needs_clflush |= CLFLUSH_BEFORE;
+	}
 
 out:
 	intel_fb_obj_invalidate(obj, ORIGIN_CPU);
@@ -1501,13 +1518,6 @@ err:
 	return ret;
 }
 
-static inline enum fb_op_origin
-write_origin(struct drm_i915_gem_object *obj, unsigned domain)
-{
-	return (domain == I915_GEM_DOMAIN_GTT ?
-		obj->frontbuffer_ggtt_origin : ORIGIN_CPU);
-}
-
 static void i915_gem_object_bump_inactive_ggtt(struct drm_i915_gem_object *obj)
 {
 	struct drm_i915_private *i915;
@@ -1591,10 +1601,12 @@ i915_gem_set_domain_ioctl(struct drm_device *dev, void *data,
 	if (err)
 		goto out_unpin;
 
-	if (read_domains & I915_GEM_DOMAIN_GTT)
-		err = i915_gem_object_set_to_gtt_domain(obj, write_domain != 0);
+	if (read_domains & I915_GEM_DOMAIN_WC)
+		err = i915_gem_object_set_to_wc_domain(obj, write_domain);
+	else if (read_domains & I915_GEM_DOMAIN_GTT)
+		err = i915_gem_object_set_to_gtt_domain(obj, write_domain);
 	else
-		err = i915_gem_object_set_to_cpu_domain(obj, write_domain != 0);
+		err = i915_gem_object_set_to_cpu_domain(obj, write_domain);
 
 	/* And bump the LRU for this access */
 	i915_gem_object_bump_inactive_ggtt(obj);
@@ -1602,7 +1614,8 @@ i915_gem_set_domain_ioctl(struct drm_device *dev, void *data,
 	mutex_unlock(&dev->struct_mutex);
 
 	if (write_domain != 0)
-		intel_fb_obj_invalidate(obj, write_origin(obj, write_domain));
+		intel_fb_obj_invalidate(obj,
+					fb_write_origin(obj, write_domain));
 
 out_unpin:
 	i915_gem_object_unpin_pages(obj);
@@ -1737,6 +1750,9 @@ static unsigned int tile_row_pages(struct drm_i915_gem_object *obj)
  *     into userspace. (This view is aligned and sized appropriately for
  *     fenced access.)
  *
+ * 2 - Recognise WC as a separate cache domain so that we can flush the
+ *     delayed writes via GTT before performing direct access via WC.
+ *
  * Restrictions:
  *
  *  * snoopable objects cannot be accessed via the GTT. It can cause machine
@@ -1764,7 +1780,7 @@ static unsigned int tile_row_pages(struct drm_i915_gem_object *obj)
  */
 int i915_gem_mmap_gtt_version(void)
 {
-	return 1;
+	return 2;
 }
 
 static inline struct i915_ggtt_view
@@ -2196,10 +2212,12 @@ i915_gem_object_put_pages_gtt(struct drm_i915_gem_object *obj,
 static void __i915_gem_object_reset_page_iter(struct drm_i915_gem_object *obj)
 {
 	struct radix_tree_iter iter;
-	void **slot;
+	void __rcu **slot;
 
+	rcu_read_lock();
 	radix_tree_for_each_slot(slot, &obj->mm.get_page.radix, &iter, 0)
 		radix_tree_delete(&obj->mm.get_page.radix, iter.index);
+	rcu_read_unlock();
 }
 
 void __i915_gem_object_put_pages(struct drm_i915_gem_object *obj,
@@ -2228,7 +2246,7 @@ void __i915_gem_object_put_pages(struct drm_i915_gem_object *obj,
 	if (obj->mm.mapping) {
 		void *ptr;
 
-		ptr = ptr_mask_bits(obj->mm.mapping);
+		ptr = page_mask_bits(obj->mm.mapping);
 		if (is_vmalloc_addr(ptr))
 			vunmap(ptr);
 		else
@@ -2315,8 +2333,7 @@ rebuild_st:
 	 * Fail silently without starting the shrinker
 	 */
 	mapping = obj->base.filp->f_mapping;
-	noreclaim = mapping_gfp_constraint(mapping,
-					   ~(__GFP_IO | __GFP_RECLAIM));
+	noreclaim = mapping_gfp_constraint(mapping, ~__GFP_RECLAIM);
 	noreclaim |= __GFP_NORETRY | __GFP_NOWARN;
 
 	sg = st->sgl;
@@ -2338,7 +2355,7 @@ rebuild_st:
 				goto err_sg;
 			}
 
-			i915_gem_shrink(dev_priv, 2 * page_count, *s++);
+			i915_gem_shrink(dev_priv, 2 * page_count, NULL, *s++);
 			cond_resched();
 
 			/* We've tried hard to allocate the memory by reaping
@@ -2364,8 +2381,9 @@ rebuild_st:
 				 * again with !__GFP_NORETRY. However, we still
 				 * want to fail this allocation rather than
 				 * trigger the out-of-memory killer and for
-				 * this we want the future __GFP_MAYFAIL.
+				 * this we want __GFP_RETRY_MAYFAIL.
 				 */
+				gfp |= __GFP_RETRY_MAYFAIL;
 			}
 		} while (1);
 
@@ -2524,7 +2542,7 @@ static void *i915_gem_object_map(const struct drm_i915_gem_object *obj,
 
 	if (n_pages > ARRAY_SIZE(stack_pages)) {
 		/* Too big for stack -- allocate temporary array instead */
-		pages = drm_malloc_gfp(n_pages, sizeof(*pages), GFP_TEMPORARY);
+		pages = kvmalloc_array(n_pages, sizeof(*pages), GFP_KERNEL);
 		if (!pages)
 			return NULL;
 	}
@@ -2536,6 +2554,9 @@ static void *i915_gem_object_map(const struct drm_i915_gem_object *obj,
 	GEM_BUG_ON(i != n_pages);
 
 	switch (type) {
+	default:
+		MISSING_CASE(type);
+		/* fallthrough to use PAGE_KERNEL anyway */
 	case I915_MAP_WB:
 		pgprot = PAGE_KERNEL;
 		break;
@@ -2546,7 +2567,7 @@ static void *i915_gem_object_map(const struct drm_i915_gem_object *obj,
 	addr = vmap(pages, n_pages, 0, pgprot);
 
 	if (pages != stack_pages)
-		drm_free_large(pages);
+		kvfree(pages);
 
 	return addr;
 }
@@ -2566,7 +2587,9 @@ void *i915_gem_object_pin_map(struct drm_i915_gem_object *obj,
 	if (ret)
 		return ERR_PTR(ret);
 
-	pinned = true;
+	pinned = !(type & I915_MAP_OVERRIDE);
+	type &= ~I915_MAP_OVERRIDE;
+
 	if (!atomic_inc_not_zero(&obj->mm.pages_pin_count)) {
 		if (unlikely(IS_ERR_OR_NULL(obj->mm.pages))) {
 			ret = ____i915_gem_object_get_pages(obj);
@@ -2580,7 +2603,7 @@ void *i915_gem_object_pin_map(struct drm_i915_gem_object *obj,
 	}
 	GEM_BUG_ON(!obj->mm.pages);
 
-	ptr = ptr_unpack_bits(obj->mm.mapping, has_type);
+	ptr = page_unpack_bits(obj->mm.mapping, &has_type);
 	if (ptr && has_type != type) {
 		if (pinned) {
 			ret = -EBUSY;
@@ -2602,7 +2625,7 @@ void *i915_gem_object_pin_map(struct drm_i915_gem_object *obj,
 			goto err_unpin;
 		}
 
-		obj->mm.mapping = ptr_pack_bits(ptr, type);
+		obj->mm.mapping = page_pack_bits(ptr, type);
 	}
 
 out_unlock:
@@ -2635,6 +2658,9 @@ i915_gem_object_pwrite_gtt(struct drm_i915_gem_object *obj,
 	 */
 	if (READ_ONCE(obj->mm.pages))
 		return -ENODEV;
+
+	if (obj->mm.madv != I915_MADV_WILLNEED)
+		return -EFAULT;
 
 	/* Before the pages are instantiated the object is treated as being
 	 * in the CPU domain. The pages will be clflushed as required before
@@ -2685,34 +2711,38 @@ i915_gem_object_pwrite_gtt(struct drm_i915_gem_object *obj,
 	return 0;
 }
 
-static bool ban_context(const struct i915_gem_context *ctx)
+static bool ban_context(const struct i915_gem_context *ctx,
+			unsigned int score)
 {
 	return (i915_gem_context_is_bannable(ctx) &&
-		ctx->ban_score >= CONTEXT_SCORE_BAN_THRESHOLD);
+		score >= CONTEXT_SCORE_BAN_THRESHOLD);
 }
 
 static void i915_gem_context_mark_guilty(struct i915_gem_context *ctx)
 {
-	ctx->guilty_count++;
-	ctx->ban_score += CONTEXT_SCORE_GUILTY;
-	if (ban_context(ctx))
-		i915_gem_context_set_banned(ctx);
+	unsigned int score;
+	bool banned;
 
+	atomic_inc(&ctx->guilty_count);
+
+	score = atomic_add_return(CONTEXT_SCORE_GUILTY, &ctx->ban_score);
+	banned = ban_context(ctx, score);
 	DRM_DEBUG_DRIVER("context %s marked guilty (score %d) banned? %s\n",
-			 ctx->name, ctx->ban_score,
-			 yesno(i915_gem_context_is_banned(ctx)));
-
-	if (!i915_gem_context_is_banned(ctx) || IS_ERR_OR_NULL(ctx->file_priv))
+			 ctx->name, score, yesno(banned));
+	if (!banned)
 		return;
 
-	ctx->file_priv->context_bans++;
-	DRM_DEBUG_DRIVER("client %s has had %d context banned\n",
-			 ctx->name, ctx->file_priv->context_bans);
+	i915_gem_context_set_banned(ctx);
+	if (!IS_ERR_OR_NULL(ctx->file_priv)) {
+		atomic_inc(&ctx->file_priv->context_bans);
+		DRM_DEBUG_DRIVER("client %s has had %d context banned\n",
+				 ctx->name, atomic_read(&ctx->file_priv->context_bans));
+	}
 }
 
 static void i915_gem_context_mark_innocent(struct i915_gem_context *ctx)
 {
-	ctx->active_count++;
+	atomic_inc(&ctx->active_count);
 }
 
 struct drm_i915_gem_request *
@@ -2761,46 +2791,62 @@ static bool engine_stalled(struct intel_engine_cs *engine)
 	return true;
 }
 
+/*
+ * Ensure irq handler finishes, and not run again.
+ * Also return the active request so that we only search for it once.
+ */
+struct drm_i915_gem_request *
+i915_gem_reset_prepare_engine(struct intel_engine_cs *engine)
+{
+	struct drm_i915_gem_request *request = NULL;
+
+	/* Prevent the signaler thread from updating the request
+	 * state (by calling dma_fence_signal) as we are processing
+	 * the reset. The write from the GPU of the seqno is
+	 * asynchronous and the signaler thread may see a different
+	 * value to us and declare the request complete, even though
+	 * the reset routine have picked that request as the active
+	 * (incomplete) request. This conflict is not handled
+	 * gracefully!
+	 */
+	kthread_park(engine->breadcrumbs.signaler);
+
+	/* Prevent request submission to the hardware until we have
+	 * completed the reset in i915_gem_reset_finish(). If a request
+	 * is completed by one engine, it may then queue a request
+	 * to a second via its engine->irq_tasklet *just* as we are
+	 * calling engine->init_hw() and also writing the ELSP.
+	 * Turning off the engine->irq_tasklet until the reset is over
+	 * prevents the race.
+	 */
+	tasklet_kill(&engine->irq_tasklet);
+	tasklet_disable(&engine->irq_tasklet);
+
+	if (engine->irq_seqno_barrier)
+		engine->irq_seqno_barrier(engine);
+
+	request = i915_gem_find_active_request(engine);
+	if (request && request->fence.error == -EIO)
+		request = ERR_PTR(-EIO); /* Previous reset failed! */
+
+	return request;
+}
+
 int i915_gem_reset_prepare(struct drm_i915_private *dev_priv)
 {
 	struct intel_engine_cs *engine;
+	struct drm_i915_gem_request *request;
 	enum intel_engine_id id;
 	int err = 0;
 
-	/* Ensure irq handler finishes, and not run again. */
 	for_each_engine(engine, dev_priv, id) {
-		struct drm_i915_gem_request *request;
-
-		/* Prevent the signaler thread from updating the request
-		 * state (by calling dma_fence_signal) as we are processing
-		 * the reset. The write from the GPU of the seqno is
-		 * asynchronous and the signaler thread may see a different
-		 * value to us and declare the request complete, even though
-		 * the reset routine have picked that request as the active
-		 * (incomplete) request. This conflict is not handled
-		 * gracefully!
-		 */
-		kthread_park(engine->breadcrumbs.signaler);
-
-		/* Prevent request submission to the hardware until we have
-		 * completed the reset in i915_gem_reset_finish(). If a request
-		 * is completed by one engine, it may then queue a request
-		 * to a second via its engine->irq_tasklet *just* as we are
-		 * calling engine->init_hw() and also writing the ELSP.
-		 * Turning off the engine->irq_tasklet until the reset is over
-		 * prevents the race.
-		 */
-		tasklet_kill(&engine->irq_tasklet);
-		tasklet_disable(&engine->irq_tasklet);
-
-		if (engine->irq_seqno_barrier)
-			engine->irq_seqno_barrier(engine);
-
-		if (engine_stalled(engine)) {
-			request = i915_gem_find_active_request(engine);
-			if (request && request->fence.error == -EIO)
-				err = -EIO; /* Previous reset failed! */
+		request = i915_gem_reset_prepare_engine(engine);
+		if (IS_ERR(request)) {
+			err = PTR_ERR(request);
+			continue;
 		}
+
+		engine->hangcheck.active_request = request;
 	}
 
 	i915_gem_revoke_fences(dev_priv);
@@ -2850,12 +2896,11 @@ static void engine_skip_context(struct drm_i915_gem_request *request)
 	spin_unlock_irqrestore(&engine->timeline->lock, flags);
 }
 
-/* Returns true if the request was guilty of hang */
-static bool i915_gem_reset_request(struct drm_i915_gem_request *request)
+/* Returns the request if it was guilty of the hang */
+static struct drm_i915_gem_request *
+i915_gem_reset_request(struct intel_engine_cs *engine,
+		       struct drm_i915_gem_request *request)
 {
-	/* Read once and return the resolution */
-	const bool guilty = engine_stalled(request->engine);
-
 	/* The guilty request will get skipped on a hung engine.
 	 *
 	 * Users of client default contexts do not rely on logical
@@ -2877,29 +2922,47 @@ static bool i915_gem_reset_request(struct drm_i915_gem_request *request)
 	 * subsequent hangs.
 	 */
 
-	if (guilty) {
+	if (engine_stalled(engine)) {
 		i915_gem_context_mark_guilty(request->ctx);
 		skip_request(request);
-	} else {
-		i915_gem_context_mark_innocent(request->ctx);
-		dma_fence_set_error(&request->fence, -EAGAIN);
-	}
-
-	return guilty;
-}
-
-static void i915_gem_reset_engine(struct intel_engine_cs *engine)
-{
-	struct drm_i915_gem_request *request;
-
-	request = i915_gem_find_active_request(engine);
-	if (request && i915_gem_reset_request(request)) {
-		DRM_DEBUG_DRIVER("resetting %s to restart from tail of request 0x%x\n",
-				 engine->name, request->global_seqno);
 
 		/* If this context is now banned, skip all pending requests. */
 		if (i915_gem_context_is_banned(request->ctx))
 			engine_skip_context(request);
+	} else {
+		/*
+		 * Since this is not the hung engine, it may have advanced
+		 * since the hang declaration. Double check by refinding
+		 * the active request at the time of the reset.
+		 */
+		request = i915_gem_find_active_request(engine);
+		if (request) {
+			i915_gem_context_mark_innocent(request->ctx);
+			dma_fence_set_error(&request->fence, -EAGAIN);
+
+			/* Rewind the engine to replay the incomplete rq */
+			spin_lock_irq(&engine->timeline->lock);
+			request = list_prev_entry(request, link);
+			if (&request->link == &engine->timeline->requests)
+				request = NULL;
+			spin_unlock_irq(&engine->timeline->lock);
+		}
+	}
+
+	return request;
+}
+
+void i915_gem_reset_engine(struct intel_engine_cs *engine,
+			   struct drm_i915_gem_request *request)
+{
+	engine->irq_posted = 0;
+
+	if (request)
+		request = i915_gem_reset_request(engine, request);
+
+	if (request) {
+		DRM_DEBUG_DRIVER("resetting %s to restart from tail of request 0x%x\n",
+				 engine->name, request->global_seqno);
 	}
 
 	/* Setup the CS to resume from the breadcrumb of the hung request */
@@ -2918,7 +2981,7 @@ void i915_gem_reset(struct drm_i915_private *dev_priv)
 	for_each_engine(engine, dev_priv, id) {
 		struct i915_gem_context *ctx;
 
-		i915_gem_reset_engine(engine);
+		i915_gem_reset_engine(engine, engine->hangcheck.active_request);
 		ctx = fetch_and_zero(&engine->last_retired_context);
 		if (ctx)
 			engine->context_unpin(engine, ctx);
@@ -2934,6 +2997,12 @@ void i915_gem_reset(struct drm_i915_private *dev_priv)
 	}
 }
 
+void i915_gem_reset_finish_engine(struct intel_engine_cs *engine)
+{
+	tasklet_enable(&engine->irq_tasklet);
+	kthread_unpark(engine->breadcrumbs.signaler);
+}
+
 void i915_gem_reset_finish(struct drm_i915_private *dev_priv)
 {
 	struct intel_engine_cs *engine;
@@ -2942,16 +3011,22 @@ void i915_gem_reset_finish(struct drm_i915_private *dev_priv)
 	lockdep_assert_held(&dev_priv->drm.struct_mutex);
 
 	for_each_engine(engine, dev_priv, id) {
-		tasklet_enable(&engine->irq_tasklet);
-		kthread_unpark(engine->breadcrumbs.signaler);
+		engine->hangcheck.active_request = NULL;
+		i915_gem_reset_finish_engine(engine);
 	}
 }
 
 static void nop_submit_request(struct drm_i915_gem_request *request)
 {
+	unsigned long flags;
+
+	GEM_BUG_ON(!i915_terminally_wedged(&request->i915->gpu_error));
 	dma_fence_set_error(&request->fence, -EIO);
-	i915_gem_request_submit(request);
+
+	spin_lock_irqsave(&request->engine->timeline->lock, flags);
+	__i915_gem_request_submit(request);
 	intel_engine_init_global_seqno(request->engine, request->global_seqno);
+	spin_unlock_irqrestore(&request->engine->timeline->lock, flags);
 }
 
 static void engine_set_wedged(struct intel_engine_cs *engine)
@@ -2970,15 +3045,9 @@ static void engine_set_wedged(struct intel_engine_cs *engine)
 	/* Mark all executing requests as skipped */
 	spin_lock_irqsave(&engine->timeline->lock, flags);
 	list_for_each_entry(request, &engine->timeline->requests, link)
-		dma_fence_set_error(&request->fence, -EIO);
+		if (!i915_gem_request_completed(request))
+			dma_fence_set_error(&request->fence, -EIO);
 	spin_unlock_irqrestore(&engine->timeline->lock, flags);
-
-	/* Mark all pending requests as complete so that any concurrent
-	 * (lockless) lookup doesn't try and wait upon the request as we
-	 * reset it.
-	 */
-	intel_engine_init_global_seqno(engine,
-				       intel_engine_last_submit(engine));
 
 	/*
 	 * Clear the execlists queue up before freeing the requests, as those
@@ -2987,18 +3056,34 @@ static void engine_set_wedged(struct intel_engine_cs *engine)
 	 */
 
 	if (i915.enable_execlists) {
+		struct execlist_port *port = engine->execlist_port;
 		unsigned long flags;
+		unsigned int n;
 
 		spin_lock_irqsave(&engine->timeline->lock, flags);
 
-		i915_gem_request_put(engine->execlist_port[0].request);
-		i915_gem_request_put(engine->execlist_port[1].request);
+		for (n = 0; n < ARRAY_SIZE(engine->execlist_port); n++)
+			i915_gem_request_put(port_request(&port[n]));
 		memset(engine->execlist_port, 0, sizeof(engine->execlist_port));
 		engine->execlist_queue = RB_ROOT;
 		engine->execlist_first = NULL;
 
 		spin_unlock_irqrestore(&engine->timeline->lock, flags);
+
+		/* The port is checked prior to scheduling a tasklet, but
+		 * just in case we have suspended the tasklet to do the
+		 * wedging make sure that when it wakes, it decides there
+		 * is no work to do by clearing the irq_posted bit.
+		 */
+		clear_bit(ENGINE_IRQ_EXECLIST, &engine->irq_posted);
 	}
+
+	/* Mark all pending requests as complete so that any concurrent
+	 * (lockless) lookup doesn't try and wait upon the request as we
+	 * reset it.
+	 */
+	intel_engine_init_global_seqno(engine,
+				       intel_engine_last_submit(engine));
 }
 
 static int __i915_gem_set_wedged_BKL(void *data)
@@ -3010,25 +3095,15 @@ static int __i915_gem_set_wedged_BKL(void *data)
 	for_each_engine(engine, i915, id)
 		engine_set_wedged(engine);
 
+	set_bit(I915_WEDGED, &i915->gpu_error.flags);
+	wake_up_all(&i915->gpu_error.reset_queue);
+
 	return 0;
 }
 
 void i915_gem_set_wedged(struct drm_i915_private *dev_priv)
 {
-	lockdep_assert_held(&dev_priv->drm.struct_mutex);
-	set_bit(I915_WEDGED, &dev_priv->gpu_error.flags);
-
-	/* Retire completed requests first so the list of inflight/incomplete
-	 * requests is accurate and we don't try and mark successful requests
-	 * as in error during __i915_gem_set_wedged_BKL().
-	 */
-	i915_gem_retire_requests(dev_priv);
-
 	stop_machine(__i915_gem_set_wedged_BKL, dev_priv, NULL);
-
-	i915_gem_context_lost(dev_priv);
-
-	mod_delayed_work(dev_priv->wq, &dev_priv->gt.idle_work, 0);
 }
 
 bool i915_gem_unset_wedged(struct drm_i915_private *i915)
@@ -3083,6 +3158,7 @@ bool i915_gem_unset_wedged(struct drm_i915_private *i915)
 	 * context and do not require stop_machine().
 	 */
 	intel_engines_reset_default_submission(i915);
+	i915_gem_contexts_lost(i915);
 
 	smp_mb__before_atomic(); /* complete takeover before enabling execbuf */
 	clear_bit(I915_WEDGED, &i915->gpu_error.flags);
@@ -3121,8 +3197,6 @@ i915_gem_idle_work_handler(struct work_struct *work)
 	struct drm_i915_private *dev_priv =
 		container_of(work, typeof(*dev_priv), gt.idle_work.work);
 	struct drm_device *dev = &dev_priv->drm;
-	struct intel_engine_cs *engine;
-	enum intel_engine_id id;
 	bool rearm_hangcheck;
 
 	if (!READ_ONCE(dev_priv->gt.awake))
@@ -3160,10 +3234,8 @@ i915_gem_idle_work_handler(struct work_struct *work)
 	if (wait_for(intel_engines_are_idle(dev_priv), 10))
 		DRM_ERROR("Timeout waiting for engines to idle\n");
 
-	for_each_engine(engine, dev_priv, id) {
-		intel_engine_disarm_breadcrumbs(engine);
-		i915_gem_batch_pool_fini(&engine->batch_pool);
-	}
+	intel_engines_mark_idle(dev_priv);
+	i915_gem_timelines_mark_idle(dev_priv);
 
 	GEM_BUG_ON(!dev_priv->gt.awake);
 	dev_priv->gt.awake = false;
@@ -3184,21 +3256,39 @@ out_rearm:
 
 void i915_gem_close_object(struct drm_gem_object *gem, struct drm_file *file)
 {
+	struct drm_i915_private *i915 = to_i915(gem->dev);
 	struct drm_i915_gem_object *obj = to_intel_bo(gem);
 	struct drm_i915_file_private *fpriv = file->driver_priv;
-	struct i915_vma *vma, *vn;
+	struct i915_lut_handle *lut, *ln;
 
-	mutex_lock(&obj->base.dev->struct_mutex);
-	list_for_each_entry_safe(vma, vn, &obj->vma_list, obj_link)
-		if (vma->vm->file == fpriv)
+	mutex_lock(&i915->drm.struct_mutex);
+
+	list_for_each_entry_safe(lut, ln, &obj->lut_list, obj_link) {
+		struct i915_gem_context *ctx = lut->ctx;
+		struct i915_vma *vma;
+
+		if (ctx->file_priv != fpriv)
+			continue;
+
+		vma = radix_tree_delete(&ctx->handles_vma, lut->handle);
+
+		GEM_BUG_ON(vma->obj != obj);
+
+		/* We allow the process to have multiple handles to the same
+		 * vma, in the same fd namespace, by virtue of flink/open.
+		 */
+		GEM_BUG_ON(!vma->open_count);
+		if (!--vma->open_count && !i915_vma_is_ggtt(vma))
 			i915_vma_close(vma);
 
-	if (i915_gem_object_is_active(obj) &&
-	    !i915_gem_object_has_active_reference(obj)) {
-		i915_gem_object_set_active_reference(obj);
-		i915_gem_object_get(obj);
+		list_del(&lut->obj_link);
+		list_del(&lut->ctx_link);
+
+		kmem_cache_free(i915->luts, lut);
+		__i915_gem_object_release_unless_active(obj);
 	}
-	mutex_unlock(&obj->base.dev->struct_mutex);
+
+	mutex_unlock(&i915->drm.struct_mutex);
 }
 
 static unsigned long to_wait_timeout(s64 timeout_ns)
@@ -3224,7 +3314,7 @@ static unsigned long to_wait_timeout(s64 timeout_ns)
  *  -ERESTARTSYS: signal interrupted the wait
  *  -ENONENT: object doesn't exist
  * Also possible, but rare:
- *  -EAGAIN: GPU wedged
+ *  -EAGAIN: incomplete, restart syscall
  *  -ENOMEM: damn
  *  -ENODEV: Internal IRQ fail
  *  -E?: The add request failed
@@ -3272,6 +3362,10 @@ i915_gem_wait_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 		 */
 		if (ret == -ETIME && !nsecs_to_jiffies(args->timeout_ns))
 			args->timeout_ns = 0;
+
+		/* Asked to wait beyond the jiffie/scheduler precision? */
+		if (ret == -ETIME && args->timeout_ns)
+			ret = -EAGAIN;
 	}
 
 	i915_gem_object_put(obj);
@@ -3344,62 +3438,15 @@ int i915_gem_wait_for_idle(struct drm_i915_private *i915, unsigned int flags)
 	return ret;
 }
 
-/** Flushes the GTT write domain for the object if it's dirty. */
-static void
-i915_gem_object_flush_gtt_write_domain(struct drm_i915_gem_object *obj)
-{
-	struct drm_i915_private *dev_priv = to_i915(obj->base.dev);
-
-	if (obj->base.write_domain != I915_GEM_DOMAIN_GTT)
-		return;
-
-	/* No actual flushing is required for the GTT write domain.  Writes
-	 * to it "immediately" go to main memory as far as we know, so there's
-	 * no chipset flush.  It also doesn't land in render cache.
-	 *
-	 * However, we do have to enforce the order so that all writes through
-	 * the GTT land before any writes to the device, such as updates to
-	 * the GATT itself.
-	 *
-	 * We also have to wait a bit for the writes to land from the GTT.
-	 * An uncached read (i.e. mmio) seems to be ideal for the round-trip
-	 * timing. This issue has only been observed when switching quickly
-	 * between GTT writes and CPU reads from inside the kernel on recent hw,
-	 * and it appears to only affect discrete GTT blocks (i.e. on LLC
-	 * system agents we cannot reproduce this behaviour).
-	 */
-	wmb();
-	if (INTEL_GEN(dev_priv) >= 6 && !HAS_LLC(dev_priv)) {
-		if (intel_runtime_pm_get_if_in_use(dev_priv)) {
-			spin_lock_irq(&dev_priv->uncore.lock);
-			POSTING_READ_FW(RING_ACTHD(dev_priv->engine[RCS]->mmio_base));
-			spin_unlock_irq(&dev_priv->uncore.lock);
-			intel_runtime_pm_put(dev_priv);
-		}
-	}
-
-	intel_fb_obj_flush(obj, write_origin(obj, I915_GEM_DOMAIN_GTT));
-
-	obj->base.write_domain = 0;
-}
-
-/** Flushes the CPU write domain for the object if it's dirty. */
-static void
-i915_gem_object_flush_cpu_write_domain(struct drm_i915_gem_object *obj)
-{
-	if (obj->base.write_domain != I915_GEM_DOMAIN_CPU)
-		return;
-
-	i915_gem_clflush_object(obj, I915_CLFLUSH_SYNC);
-	obj->base.write_domain = 0;
-}
-
 static void __i915_gem_object_flush_for_display(struct drm_i915_gem_object *obj)
 {
-	if (obj->base.write_domain != I915_GEM_DOMAIN_CPU && !obj->cache_dirty)
-		return;
-
-	i915_gem_clflush_object(obj, I915_CLFLUSH_FORCE);
+	/*
+	 * We manually flush the CPU domain so that we can override and
+	 * force the flush for the display, and perform it asyncrhonously.
+	 */
+	flush_write_domain(obj, ~I915_GEM_DOMAIN_CPU);
+	if (obj->cache_dirty)
+		i915_gem_clflush_object(obj, I915_CLFLUSH_FORCE);
 	obj->base.write_domain = 0;
 }
 
@@ -3411,6 +3458,69 @@ void i915_gem_object_flush_if_display(struct drm_i915_gem_object *obj)
 	mutex_lock(&obj->base.dev->struct_mutex);
 	__i915_gem_object_flush_for_display(obj);
 	mutex_unlock(&obj->base.dev->struct_mutex);
+}
+
+/**
+ * Moves a single object to the WC read, and possibly write domain.
+ * @obj: object to act on
+ * @write: ask for write access or read only
+ *
+ * This function returns when the move is complete, including waiting on
+ * flushes to occur.
+ */
+int
+i915_gem_object_set_to_wc_domain(struct drm_i915_gem_object *obj, bool write)
+{
+	int ret;
+
+	lockdep_assert_held(&obj->base.dev->struct_mutex);
+
+	ret = i915_gem_object_wait(obj,
+				   I915_WAIT_INTERRUPTIBLE |
+				   I915_WAIT_LOCKED |
+				   (write ? I915_WAIT_ALL : 0),
+				   MAX_SCHEDULE_TIMEOUT,
+				   NULL);
+	if (ret)
+		return ret;
+
+	if (obj->base.write_domain == I915_GEM_DOMAIN_WC)
+		return 0;
+
+	/* Flush and acquire obj->pages so that we are coherent through
+	 * direct access in memory with previous cached writes through
+	 * shmemfs and that our cache domain tracking remains valid.
+	 * For example, if the obj->filp was moved to swap without us
+	 * being notified and releasing the pages, we would mistakenly
+	 * continue to assume that the obj remained out of the CPU cached
+	 * domain.
+	 */
+	ret = i915_gem_object_pin_pages(obj);
+	if (ret)
+		return ret;
+
+	flush_write_domain(obj, ~I915_GEM_DOMAIN_WC);
+
+	/* Serialise direct access to this object with the barriers for
+	 * coherent writes from the GPU, by effectively invalidating the
+	 * WC domain upon first access.
+	 */
+	if ((obj->base.read_domains & I915_GEM_DOMAIN_WC) == 0)
+		mb();
+
+	/* It should now be out of any other write domains, and we can update
+	 * the domain values for our changes.
+	 */
+	GEM_BUG_ON((obj->base.write_domain & ~I915_GEM_DOMAIN_WC) != 0);
+	obj->base.read_domains |= I915_GEM_DOMAIN_WC;
+	if (write) {
+		obj->base.read_domains = I915_GEM_DOMAIN_WC;
+		obj->base.write_domain = I915_GEM_DOMAIN_WC;
+		obj->mm.dirty = true;
+	}
+
+	i915_gem_object_unpin_pages(obj);
+	return 0;
 }
 
 /**
@@ -3452,7 +3562,7 @@ i915_gem_object_set_to_gtt_domain(struct drm_i915_gem_object *obj, bool write)
 	if (ret)
 		return ret;
 
-	i915_gem_object_flush_cpu_write_domain(obj);
+	flush_write_domain(obj, ~I915_GEM_DOMAIN_GTT);
 
 	/* Serialise direct access to this object with the barriers for
 	 * coherent writes from the GPU, by effectively invalidating the
@@ -3595,13 +3705,10 @@ restart:
 		}
 	}
 
-	if (obj->base.write_domain == I915_GEM_DOMAIN_CPU &&
-	    i915_gem_object_is_coherent(obj))
-		obj->cache_dirty = true;
-
 	list_for_each_entry(vma, &obj->vma_list, obj_link)
 		vma->node.color = cache_level;
-	obj->cache_level = cache_level;
+	i915_gem_object_set_cache_coherency(obj, cache_level);
+	obj->cache_dirty = true; /* Always invalidate stale cachelines */
 
 	return 0;
 }
@@ -3823,10 +3930,7 @@ i915_gem_object_set_to_cpu_domain(struct drm_i915_gem_object *obj, bool write)
 	if (ret)
 		return ret;
 
-	if (obj->base.write_domain == I915_GEM_DOMAIN_CPU)
-		return 0;
-
-	i915_gem_object_flush_gtt_write_domain(obj);
+	flush_write_domain(obj, ~I915_GEM_DOMAIN_CPU);
 
 	/* Flush the CPU cache if it's still invalid. */
 	if ((obj->base.read_domains & I915_GEM_DOMAIN_CPU) == 0) {
@@ -3837,15 +3941,13 @@ i915_gem_object_set_to_cpu_domain(struct drm_i915_gem_object *obj, bool write)
 	/* It should now be out of any other write domains, and we can update
 	 * the domain values for our changes.
 	 */
-	GEM_BUG_ON((obj->base.write_domain & ~I915_GEM_DOMAIN_CPU) != 0);
+	GEM_BUG_ON(obj->base.write_domain & ~I915_GEM_DOMAIN_CPU);
 
 	/* If we're writing through the CPU, then the GPU read domains will
 	 * need to be invalidated at next use.
 	 */
-	if (write) {
-		obj->base.read_domains = I915_GEM_DOMAIN_CPU;
-		obj->base.write_domain = I915_GEM_DOMAIN_CPU;
-	}
+	if (write)
+		__start_cpu_write(obj);
 
 	return 0;
 }
@@ -4020,7 +4122,7 @@ __busy_set_if_active(const struct dma_fence *fence,
 	if (i915_gem_request_completed(rq))
 		return 0;
 
-	return flag(rq->engine->exec_id);
+	return flag(rq->engine->uabi_id);
 }
 
 static __always_inline unsigned int
@@ -4177,8 +4279,8 @@ void i915_gem_object_init(struct drm_i915_gem_object *obj,
 
 	INIT_LIST_HEAD(&obj->global_link);
 	INIT_LIST_HEAD(&obj->userfault_link);
-	INIT_LIST_HEAD(&obj->obj_exec_link);
 	INIT_LIST_HEAD(&obj->vma_list);
+	INIT_LIST_HEAD(&obj->lut_list);
 	INIT_LIST_HEAD(&obj->batch_pool_link);
 
 	obj->ops = ops;
@@ -4211,6 +4313,7 @@ i915_gem_object_create(struct drm_i915_private *dev_priv, u64 size)
 {
 	struct drm_i915_gem_object *obj;
 	struct address_space *mapping;
+	unsigned int cache_level;
 	gfp_t mask;
 	int ret;
 
@@ -4219,7 +4322,7 @@ i915_gem_object_create(struct drm_i915_private *dev_priv, u64 size)
 	 * catch if we ever need to fix it. In the meantime, if you do spot
 	 * such a local variable, please consider fixing!
 	 */
-	if (WARN_ON(size >> PAGE_SHIFT > INT_MAX))
+	if (size >> PAGE_SHIFT > INT_MAX)
 		return ERR_PTR(-E2BIG);
 
 	if (overflows_type(size, obj->base.size))
@@ -4249,7 +4352,7 @@ i915_gem_object_create(struct drm_i915_private *dev_priv, u64 size)
 	obj->base.write_domain = I915_GEM_DOMAIN_CPU;
 	obj->base.read_domains = I915_GEM_DOMAIN_CPU;
 
-	if (HAS_LLC(dev_priv)) {
+	if (HAS_LLC(dev_priv))
 		/* On some devices, we can have the GPU use the LLC (the CPU
 		 * cache) for about a 10% performance improvement
 		 * compared to uncached.  Graphics requests other than
@@ -4262,9 +4365,11 @@ i915_gem_object_create(struct drm_i915_private *dev_priv, u64 size)
 		 * However, we maintain the display planes as UC, and so
 		 * need to rebind when first used as such.
 		 */
-		obj->cache_level = I915_CACHE_LLC;
-	} else
-		obj->cache_level = I915_CACHE_NONE;
+		cache_level = I915_CACHE_LLC;
+	else
+		cache_level = I915_CACHE_NONE;
+
+	i915_gem_object_set_cache_coherency(obj, cache_level);
 
 	trace_i915_gem_object_create(obj);
 
@@ -4314,7 +4419,6 @@ static void __i915_gem_free_objects(struct drm_i915_private *i915,
 		GEM_BUG_ON(i915_gem_object_is_active(obj));
 		list_for_each_entry_safe(vma, vn,
 					 &obj->vma_list, obj_link) {
-			GEM_BUG_ON(!i915_vma_is_ggtt(vma));
 			GEM_BUG_ON(i915_vma_is_active(vma));
 			vma->flags &= ~I915_VMA_PIN_MASK;
 			i915_vma_close(vma);
@@ -4326,6 +4430,8 @@ static void __i915_gem_free_objects(struct drm_i915_private *i915,
 	}
 	intel_runtime_pm_put(i915);
 	mutex_unlock(&i915->drm.struct_mutex);
+
+	cond_resched();
 
 	llist_for_each_entry_safe(obj, on, freed, freed) {
 		GEM_BUG_ON(obj->bind_count);
@@ -4374,8 +4480,11 @@ static void __i915_gem_free_work(struct work_struct *work)
 	 * unbound now.
 	 */
 
-	while ((freed = llist_del_all(&i915->mm.free_list)))
+	while ((freed = llist_del_all(&i915->mm.free_list))) {
 		__i915_gem_free_objects(i915, freed);
+		if (need_resched())
+			break;
+	}
 }
 
 static void __i915_gem_free_object_rcu(struct rcu_head *head)
@@ -4415,8 +4524,8 @@ void __i915_gem_object_release_unless_active(struct drm_i915_gem_object *obj)
 {
 	lockdep_assert_held(&obj->base.dev->struct_mutex);
 
-	GEM_BUG_ON(i915_gem_object_has_active_reference(obj));
-	if (i915_gem_object_is_active(obj))
+	if (!i915_gem_object_has_active_reference(obj) &&
+	    i915_gem_object_is_active(obj))
 		i915_gem_object_set_active_reference(obj);
 	else
 		i915_gem_object_put(obj);
@@ -4440,10 +4549,9 @@ void i915_gem_sanitize(struct drm_i915_private *i915)
 	 * try to take over. The only way to remove the earlier state
 	 * is by resetting. However, resetting on earlier gen is tricky as
 	 * it may impact the display and we are uncertain about the stability
-	 * of the reset, so we only reset recent machines with logical
-	 * context support (that must be reset to remove any stray contexts).
+	 * of the reset, so this could be applied to even earlier gen.
 	 */
-	if (HAS_HW_CONTEXTS(i915)) {
+	if (INTEL_GEN(i915) >= 5) {
 		int reset = intel_gpu_reset(i915, ALL_ENGINES);
 		WARN_ON(reset && reset != -ENODEV);
 	}
@@ -4478,7 +4586,7 @@ int i915_gem_suspend(struct drm_i915_private *dev_priv)
 		goto err_unlock;
 
 	assert_kernel_context_is_current(dev_priv);
-	i915_gem_context_lost(dev_priv);
+	i915_gem_contexts_lost(dev_priv);
 	mutex_unlock(&dev->struct_mutex);
 
 	intel_guc_suspend(dev_priv);
@@ -4491,8 +4599,6 @@ int i915_gem_suspend(struct drm_i915_private *dev_priv)
 	 */
 	while (flush_delayed_work(&dev_priv->gt.idle_work))
 		;
-
-	i915_gem_drain_freed_objects(dev_priv);
 
 	/* Assert that we sucessfully flushed all the work and
 	 * reset the GPU back to its idle, low power state.
@@ -4686,11 +4792,9 @@ bool intel_sanitize_semaphores(struct drm_i915_private *dev_priv, int value)
 	if (value >= 0)
 		return value;
 
-#ifdef CONFIG_INTEL_IOMMU
 	/* Enable semaphores on SNB when IO remapping is off */
-	if (INTEL_INFO(dev_priv)->gen == 6 && intel_iommu_gfx_mapped)
+	if (IS_GEN6(dev_priv) && intel_vtd_active())
 		return false;
-#endif
 
 	return true;
 }
@@ -4701,7 +4805,7 @@ int i915_gem_init(struct drm_i915_private *dev_priv)
 
 	mutex_lock(&dev_priv->drm.struct_mutex);
 
-	i915_gem_clflush_init(dev_priv);
+	dev_priv->mm.unordered_timeline = dma_fence_context_alloc(1);
 
 	if (!i915.enable_execlists) {
 		dev_priv->gt.resume = intel_legacy_submission_resume;
@@ -4719,13 +4823,15 @@ int i915_gem_init(struct drm_i915_private *dev_priv)
 	 */
 	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
 
-	i915_gem_init_userptr(dev_priv);
+	ret = i915_gem_init_userptr(dev_priv);
+	if (ret)
+		goto out_unlock;
 
 	ret = i915_gem_init_ggtt(dev_priv);
 	if (ret)
 		goto out_unlock;
 
-	ret = i915_gem_context_init(dev_priv);
+	ret = i915_gem_contexts_init(dev_priv);
 	if (ret)
 		goto out_unlock;
 
@@ -4811,12 +4917,16 @@ i915_gem_load_init(struct drm_i915_private *dev_priv)
 	if (!dev_priv->vmas)
 		goto err_objects;
 
+	dev_priv->luts = KMEM_CACHE(i915_lut_handle, 0);
+	if (!dev_priv->luts)
+		goto err_vmas;
+
 	dev_priv->requests = KMEM_CACHE(drm_i915_gem_request,
 					SLAB_HWCACHE_ALIGN |
 					SLAB_RECLAIM_ACCOUNT |
 					SLAB_TYPESAFE_BY_RCU);
 	if (!dev_priv->requests)
-		goto err_vmas;
+		goto err_luts;
 
 	dev_priv->dependencies = KMEM_CACHE(i915_dependency,
 					    SLAB_HWCACHE_ALIGN |
@@ -4824,14 +4934,17 @@ i915_gem_load_init(struct drm_i915_private *dev_priv)
 	if (!dev_priv->dependencies)
 		goto err_requests;
 
+	dev_priv->priorities = KMEM_CACHE(i915_priolist, SLAB_HWCACHE_ALIGN);
+	if (!dev_priv->priorities)
+		goto err_dependencies;
+
 	mutex_lock(&dev_priv->drm.struct_mutex);
 	INIT_LIST_HEAD(&dev_priv->gt.timelines);
 	err = i915_gem_timeline_init__global(dev_priv);
 	mutex_unlock(&dev_priv->drm.struct_mutex);
 	if (err)
-		goto err_dependencies;
+		goto err_priorities;
 
-	INIT_LIST_HEAD(&dev_priv->context_list);
 	INIT_WORK(&dev_priv->mm.free_work, __i915_gem_free_work);
 	init_llist_head(&dev_priv->mm.free_list);
 	INIT_LIST_HEAD(&dev_priv->mm.unbound_list);
@@ -4845,20 +4958,20 @@ i915_gem_load_init(struct drm_i915_private *dev_priv)
 	init_waitqueue_head(&dev_priv->gpu_error.wait_queue);
 	init_waitqueue_head(&dev_priv->gpu_error.reset_queue);
 
-	init_waitqueue_head(&dev_priv->pending_flip_queue);
-
-	dev_priv->mm.interruptible = true;
-
 	atomic_set(&dev_priv->mm.bsd_engine_dispatch_index, 0);
 
 	spin_lock_init(&dev_priv->fb_tracking.lock);
 
 	return 0;
 
+err_priorities:
+	kmem_cache_destroy(dev_priv->priorities);
 err_dependencies:
 	kmem_cache_destroy(dev_priv->dependencies);
 err_requests:
 	kmem_cache_destroy(dev_priv->requests);
+err_luts:
+	kmem_cache_destroy(dev_priv->luts);
 err_vmas:
 	kmem_cache_destroy(dev_priv->vmas);
 err_objects:
@@ -4878,8 +4991,10 @@ void i915_gem_load_cleanup(struct drm_i915_private *dev_priv)
 	WARN_ON(!list_empty(&dev_priv->gt.timelines));
 	mutex_unlock(&dev_priv->drm.struct_mutex);
 
+	kmem_cache_destroy(dev_priv->priorities);
 	kmem_cache_destroy(dev_priv->dependencies);
 	kmem_cache_destroy(dev_priv->requests);
+	kmem_cache_destroy(dev_priv->luts);
 	kmem_cache_destroy(dev_priv->vmas);
 	kmem_cache_destroy(dev_priv->objects);
 
@@ -4889,9 +5004,10 @@ void i915_gem_load_cleanup(struct drm_i915_private *dev_priv)
 
 int i915_gem_freeze(struct drm_i915_private *dev_priv)
 {
-	mutex_lock(&dev_priv->drm.struct_mutex);
+	/* Discard all purgeable objects, let userspace recover those as
+	 * required after resuming.
+	 */
 	i915_gem_shrink_all(dev_priv);
-	mutex_unlock(&dev_priv->drm.struct_mutex);
 
 	return 0;
 }
@@ -4916,17 +5032,16 @@ int i915_gem_freeze_late(struct drm_i915_private *dev_priv)
 	 * we update that state just before writing out the image.
 	 *
 	 * To try and reduce the hibernation image, we manually shrink
-	 * the objects as well.
+	 * the objects as well, see i915_gem_freeze()
 	 */
 
-	mutex_lock(&dev_priv->drm.struct_mutex);
-	i915_gem_shrink(dev_priv, -1UL, I915_SHRINK_UNBOUND);
+	i915_gem_shrink(dev_priv, -1UL, NULL, I915_SHRINK_UNBOUND);
+	i915_gem_drain_freed_objects(dev_priv);
 
+	mutex_lock(&dev_priv->drm.struct_mutex);
 	for (p = phases; *p; p++) {
-		list_for_each_entry(obj, *p, global_link) {
-			obj->base.read_domains = I915_GEM_DOMAIN_CPU;
-			obj->base.write_domain = I915_GEM_DOMAIN_CPU;
-		}
+		list_for_each_entry(obj, *p, global_link)
+			__start_cpu_write(obj);
 	}
 	mutex_unlock(&dev_priv->drm.struct_mutex);
 
@@ -4946,15 +5061,9 @@ void i915_gem_release(struct drm_device *dev, struct drm_file *file)
 	list_for_each_entry(request, &file_priv->mm.request_list, client_link)
 		request->file_priv = NULL;
 	spin_unlock(&file_priv->mm.lock);
-
-	if (!list_empty(&file_priv->rps.link)) {
-		spin_lock(&to_i915(dev)->rps.client_lock);
-		list_del(&file_priv->rps.link);
-		spin_unlock(&to_i915(dev)->rps.client_lock);
-	}
 }
 
-int i915_gem_open(struct drm_device *dev, struct drm_file *file)
+int i915_gem_open(struct drm_i915_private *i915, struct drm_file *file)
 {
 	struct drm_i915_file_private *file_priv;
 	int ret;
@@ -4966,16 +5075,15 @@ int i915_gem_open(struct drm_device *dev, struct drm_file *file)
 		return -ENOMEM;
 
 	file->driver_priv = file_priv;
-	file_priv->dev_priv = to_i915(dev);
+	file_priv->dev_priv = i915;
 	file_priv->file = file;
-	INIT_LIST_HEAD(&file_priv->rps.link);
 
 	spin_lock_init(&file_priv->mm.lock);
 	INIT_LIST_HEAD(&file_priv->mm.request_list);
 
 	file_priv->bsd_engine = -1;
 
-	ret = i915_gem_context_open(dev, file);
+	ret = i915_gem_context_open(i915, file);
 	if (ret)
 		kfree(file_priv);
 
@@ -5217,6 +5325,64 @@ i915_gem_object_get_dma_address(struct drm_i915_gem_object *obj,
 
 	sg = i915_gem_object_get_sg(obj, n, &offset);
 	return sg_dma_address(sg) + (offset << PAGE_SHIFT);
+}
+
+int i915_gem_object_attach_phys(struct drm_i915_gem_object *obj, int align)
+{
+	struct sg_table *pages;
+	int err;
+
+	if (align > obj->base.size)
+		return -EINVAL;
+
+	if (obj->ops == &i915_gem_phys_ops)
+		return 0;
+
+	if (obj->ops != &i915_gem_object_ops)
+		return -EINVAL;
+
+	err = i915_gem_object_unbind(obj);
+	if (err)
+		return err;
+
+	mutex_lock(&obj->mm.lock);
+
+	if (obj->mm.madv != I915_MADV_WILLNEED) {
+		err = -EFAULT;
+		goto err_unlock;
+	}
+
+	if (obj->mm.quirked) {
+		err = -EFAULT;
+		goto err_unlock;
+	}
+
+	if (obj->mm.mapping) {
+		err = -EBUSY;
+		goto err_unlock;
+	}
+
+	pages = obj->mm.pages;
+	obj->ops = &i915_gem_phys_ops;
+
+	err = ____i915_gem_object_get_pages(obj);
+	if (err)
+		goto err_xfer;
+
+	/* Perma-pin (until release) the physical set of pages */
+	__i915_gem_object_pin_pages(obj);
+
+	if (!IS_ERR_OR_NULL(pages))
+		i915_gem_object_ops.put_pages(obj, pages);
+	mutex_unlock(&obj->mm.lock);
+	return 0;
+
+err_xfer:
+	obj->ops = &i915_gem_object_ops;
+	obj->mm.pages = pages;
+err_unlock:
+	mutex_unlock(&obj->mm.lock);
+	return err;
 }
 
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)

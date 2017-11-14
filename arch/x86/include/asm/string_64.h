@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_STRING_64_H
 #define _ASM_X86_STRING_64_H
 
@@ -31,6 +32,7 @@ static __always_inline void *__inline_memcpy(void *to, const void *from, size_t 
 extern void *memcpy(void *to, const void *from, size_t len);
 extern void *__memcpy(void *to, const void *from, size_t len);
 
+#ifndef CONFIG_FORTIFY_SOURCE
 #ifndef CONFIG_KMEMCHECK
 #if (__GNUC__ == 4 && __GNUC_MINOR__ < 3) || __GNUC__ < 4
 #define memcpy(dst, src, len)					\
@@ -51,10 +53,47 @@ extern void *__memcpy(void *to, const void *from, size_t len);
  */
 #define memcpy(dst, src, len) __inline_memcpy((dst), (src), (len))
 #endif
+#endif /* !CONFIG_FORTIFY_SOURCE */
 
 #define __HAVE_ARCH_MEMSET
 void *memset(void *s, int c, size_t n);
 void *__memset(void *s, int c, size_t n);
+
+#define __HAVE_ARCH_MEMSET16
+static inline void *memset16(uint16_t *s, uint16_t v, size_t n)
+{
+	long d0, d1;
+	asm volatile("rep\n\t"
+		     "stosw"
+		     : "=&c" (d0), "=&D" (d1)
+		     : "a" (v), "1" (s), "0" (n)
+		     : "memory");
+	return s;
+}
+
+#define __HAVE_ARCH_MEMSET32
+static inline void *memset32(uint32_t *s, uint32_t v, size_t n)
+{
+	long d0, d1;
+	asm volatile("rep\n\t"
+		     "stosl"
+		     : "=&c" (d0), "=&D" (d1)
+		     : "a" (v), "1" (s), "0" (n)
+		     : "memory");
+	return s;
+}
+
+#define __HAVE_ARCH_MEMSET64
+static inline void *memset64(uint64_t *s, uint64_t v, size_t n)
+{
+	long d0, d1;
+	asm volatile("rep\n\t"
+		     "stosq"
+		     : "=&c" (d0), "=&D" (d1)
+		     : "a" (v), "1" (s), "0" (n)
+		     : "memory");
+	return s;
+}
 
 #define __HAVE_ARCH_MEMMOVE
 void *memmove(void *dest, const void *src, size_t count);
@@ -77,6 +116,11 @@ int strcmp(const char *cs, const char *ct);
 #define memcpy(dst, src, len) __memcpy(dst, src, len)
 #define memmove(dst, src, len) __memmove(dst, src, len)
 #define memset(s, c, n) __memset(s, c, n)
+
+#ifndef __NO_FORTIFY
+#define __NO_FORTIFY /* FORTIFY_SOURCE uses __builtin_memcpy, etc. */
+#endif
+
 #endif
 
 #define __HAVE_ARCH_MEMCPY_MCSAFE 1
@@ -108,6 +152,11 @@ memcpy_mcsafe(void *dst, const void *src, size_t cnt)
 		memcpy(dst, src, cnt);
 	return 0;
 }
+
+#ifdef CONFIG_ARCH_HAS_UACCESS_FLUSHCACHE
+#define __HAVE_ARCH_MEMCPY_FLUSHCACHE 1
+void memcpy_flushcache(void *dst, const void *src, size_t cnt);
+#endif
 
 #endif /* __KERNEL__ */
 

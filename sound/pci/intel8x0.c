@@ -1115,7 +1115,7 @@ static snd_pcm_uframes_t snd_intel8x0_pcm_pointer(struct snd_pcm_substream *subs
 	return bytes_to_frames(substream->runtime, ptr);
 }
 
-static struct snd_pcm_hardware snd_intel8x0_stream =
+static const struct snd_pcm_hardware snd_intel8x0_stream =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER |
@@ -1136,31 +1136,31 @@ static struct snd_pcm_hardware snd_intel8x0_stream =
 	.fifo_size =		0,
 };
 
-static unsigned int channels4[] = {
+static const unsigned int channels4[] = {
 	2, 4,
 };
 
-static struct snd_pcm_hw_constraint_list hw_constraints_channels4 = {
+static const struct snd_pcm_hw_constraint_list hw_constraints_channels4 = {
 	.count = ARRAY_SIZE(channels4),
 	.list = channels4,
 	.mask = 0,
 };
 
-static unsigned int channels6[] = {
+static const unsigned int channels6[] = {
 	2, 4, 6,
 };
 
-static struct snd_pcm_hw_constraint_list hw_constraints_channels6 = {
+static const struct snd_pcm_hw_constraint_list hw_constraints_channels6 = {
 	.count = ARRAY_SIZE(channels6),
 	.list = channels6,
 	.mask = 0,
 };
 
-static unsigned int channels8[] = {
+static const unsigned int channels8[] = {
 	2, 4, 6, 8,
 };
 
-static struct snd_pcm_hw_constraint_list hw_constraints_channels8 = {
+static const struct snd_pcm_hw_constraint_list hw_constraints_channels8 = {
 	.count = ARRAY_SIZE(channels8),
 	.list = channels8,
 	.mask = 0,
@@ -1367,7 +1367,7 @@ static int snd_intel8x0_ali_spdifout_close(struct snd_pcm_substream *substream)
 }
 #endif
 
-static struct snd_pcm_ops snd_intel8x0_playback_ops = {
+static const struct snd_pcm_ops snd_intel8x0_playback_ops = {
 	.open =		snd_intel8x0_playback_open,
 	.close =	snd_intel8x0_playback_close,
 	.ioctl =	snd_pcm_lib_ioctl,
@@ -1378,7 +1378,7 @@ static struct snd_pcm_ops snd_intel8x0_playback_ops = {
 	.pointer =	snd_intel8x0_pcm_pointer,
 };
 
-static struct snd_pcm_ops snd_intel8x0_capture_ops = {
+static const struct snd_pcm_ops snd_intel8x0_capture_ops = {
 	.open =		snd_intel8x0_capture_open,
 	.close =	snd_intel8x0_capture_close,
 	.ioctl =	snd_pcm_lib_ioctl,
@@ -1389,7 +1389,7 @@ static struct snd_pcm_ops snd_intel8x0_capture_ops = {
 	.pointer =	snd_intel8x0_pcm_pointer,
 };
 
-static struct snd_pcm_ops snd_intel8x0_capture_mic_ops = {
+static const struct snd_pcm_ops snd_intel8x0_capture_mic_ops = {
 	.open =		snd_intel8x0_mic_open,
 	.close =	snd_intel8x0_mic_close,
 	.ioctl =	snd_pcm_lib_ioctl,
@@ -1400,7 +1400,7 @@ static struct snd_pcm_ops snd_intel8x0_capture_mic_ops = {
 	.pointer =	snd_intel8x0_pcm_pointer,
 };
 
-static struct snd_pcm_ops snd_intel8x0_capture_mic2_ops = {
+static const struct snd_pcm_ops snd_intel8x0_capture_mic2_ops = {
 	.open =		snd_intel8x0_mic2_open,
 	.close =	snd_intel8x0_mic2_close,
 	.ioctl =	snd_pcm_lib_ioctl,
@@ -1411,7 +1411,7 @@ static struct snd_pcm_ops snd_intel8x0_capture_mic2_ops = {
 	.pointer =	snd_intel8x0_pcm_pointer,
 };
 
-static struct snd_pcm_ops snd_intel8x0_capture2_ops = {
+static const struct snd_pcm_ops snd_intel8x0_capture2_ops = {
 	.open =		snd_intel8x0_capture2_open,
 	.close =	snd_intel8x0_capture2_close,
 	.ioctl =	snd_pcm_lib_ioctl,
@@ -1422,7 +1422,7 @@ static struct snd_pcm_ops snd_intel8x0_capture2_ops = {
 	.pointer =	snd_intel8x0_pcm_pointer,
 };
 
-static struct snd_pcm_ops snd_intel8x0_spdif_ops = {
+static const struct snd_pcm_ops snd_intel8x0_spdif_ops = {
 	.open =		snd_intel8x0_spdif_open,
 	.close =	snd_intel8x0_spdif_close,
 	.ioctl =	snd_pcm_lib_ioctl,
@@ -1433,7 +1433,7 @@ static struct snd_pcm_ops snd_intel8x0_spdif_ops = {
 	.pointer =	snd_intel8x0_pcm_pointer,
 };
 
-static struct snd_pcm_ops snd_intel8x0_ali_playback_ops = {
+static const struct snd_pcm_ops snd_intel8x0_ali_playback_ops = {
 	.open =		snd_intel8x0_playback_open,
 	.close =	snd_intel8x0_playback_close,
 	.ioctl =	snd_pcm_lib_ioctl,
@@ -1444,7 +1444,7 @@ static struct snd_pcm_ops snd_intel8x0_ali_playback_ops = {
 	.pointer =	snd_intel8x0_pcm_pointer,
 };
 
-static struct snd_pcm_ops snd_intel8x0_ali_capture_ops = {
+static const struct snd_pcm_ops snd_intel8x0_ali_capture_ops = {
 	.open =		snd_intel8x0_capture_open,
 	.close =	snd_intel8x0_capture_close,
 	.ioctl =	snd_pcm_lib_ioctl,
@@ -1455,7 +1455,7 @@ static struct snd_pcm_ops snd_intel8x0_ali_capture_ops = {
 	.pointer =	snd_intel8x0_pcm_pointer,
 };
 
-static struct snd_pcm_ops snd_intel8x0_ali_capture_mic_ops = {
+static const struct snd_pcm_ops snd_intel8x0_ali_capture_mic_ops = {
 	.open =		snd_intel8x0_mic_open,
 	.close =	snd_intel8x0_mic_close,
 	.ioctl =	snd_pcm_lib_ioctl,
@@ -1466,7 +1466,7 @@ static struct snd_pcm_ops snd_intel8x0_ali_capture_mic_ops = {
 	.pointer =	snd_intel8x0_pcm_pointer,
 };
 
-static struct snd_pcm_ops snd_intel8x0_ali_ac97spdifout_ops = {
+static const struct snd_pcm_ops snd_intel8x0_ali_ac97spdifout_ops = {
 	.open =		snd_intel8x0_ali_ac97spdifout_open,
 	.close =	snd_intel8x0_ali_ac97spdifout_close,
 	.ioctl =	snd_pcm_lib_ioctl,
@@ -1503,8 +1503,8 @@ static struct snd_pcm_ops snd_intel8x0_ali_spdifout_ops = {
 
 struct ich_pcm_table {
 	char *suffix;
-	struct snd_pcm_ops *playback_ops;
-	struct snd_pcm_ops *capture_ops;
+	const struct snd_pcm_ops *playback_ops;
+	const struct snd_pcm_ops *capture_ops;
 	size_t prealloc_size;
 	size_t prealloc_max_size;
 	int ac97_idx;
@@ -1721,7 +1721,7 @@ static void snd_intel8x0_mixer_free_ac97(struct snd_ac97 *ac97)
 	chip->ac97[ac97->num] = NULL;
 }
 
-static struct ac97_pcm ac97_pcm_defs[] = {
+static const struct ac97_pcm ac97_pcm_defs[] = {
 	/* front PCM */
 	{
 		.exclusive = 1,

@@ -180,7 +180,7 @@ unsigned long dev_pm_opp_get_max_volt_latency(struct device *dev)
 {
 	struct opp_table *opp_table;
 	struct dev_pm_opp *opp;
-	struct regulator *reg, **regulators;
+	struct regulator *reg;
 	unsigned long latency_ns = 0;
 	int ret, i, count;
 	struct {
@@ -198,15 +198,9 @@ unsigned long dev_pm_opp_get_max_volt_latency(struct device *dev)
 	if (!count)
 		goto put_opp_table;
 
-	regulators = kmalloc_array(count, sizeof(*regulators), GFP_KERNEL);
-	if (!regulators)
-		goto put_opp_table;
-
 	uV = kmalloc_array(count, sizeof(*uV), GFP_KERNEL);
 	if (!uV)
-		goto free_regulators;
-
-	memcpy(regulators, opp_table->regulators, count * sizeof(*regulators));
+		goto put_opp_table;
 
 	mutex_lock(&opp_table->lock);
 
@@ -232,15 +226,13 @@ unsigned long dev_pm_opp_get_max_volt_latency(struct device *dev)
 	 * isn't freed, while we are executing this routine.
 	 */
 	for (i = 0; i < count; i++) {
-		reg = regulators[i];
+		reg = opp_table->regulators[i];
 		ret = regulator_set_voltage_time(reg, uV[i].min, uV[i].max);
 		if (ret > 0)
 			latency_ns += ret * 1000;
 	}
 
 	kfree(uV);
-free_regulators:
-	kfree(regulators);
 put_opp_table:
 	dev_pm_opp_put_opp_table(opp_table);
 
@@ -543,17 +535,18 @@ _generic_set_opp_clk_only(struct device *dev, struct clk *clk,
 	return ret;
 }
 
-static int _generic_set_opp(struct dev_pm_set_opp_data *data)
+static int _generic_set_opp_regulator(const struct opp_table *opp_table,
+				      struct device *dev,
+				      unsigned long old_freq,
+				      unsigned long freq,
+				      struct dev_pm_opp_supply *old_supply,
+				      struct dev_pm_opp_supply *new_supply)
 {
-	struct dev_pm_opp_supply *old_supply = data->old_opp.supplies;
-	struct dev_pm_opp_supply *new_supply = data->new_opp.supplies;
-	unsigned long old_freq = data->old_opp.rate, freq = data->new_opp.rate;
-	struct regulator *reg = data->regulators[0];
-	struct device *dev= data->dev;
+	struct regulator *reg = opp_table->regulators[0];
 	int ret;
 
 	/* This function only supports single regulator per device */
-	if (WARN_ON(data->regulator_count > 1)) {
+	if (WARN_ON(opp_table->regulator_count > 1)) {
 		dev_err(dev, "multiple regulators are not supported\n");
 		return -EINVAL;
 	}
@@ -566,7 +559,7 @@ static int _generic_set_opp(struct dev_pm_set_opp_data *data)
 	}
 
 	/* Change frequency */
-	ret = _generic_set_opp_clk_only(dev, data->clk, old_freq, freq);
+	ret = _generic_set_opp_clk_only(dev, opp_table->clk, old_freq, freq);
 	if (ret)
 		goto restore_voltage;
 
@@ -580,12 +573,12 @@ static int _generic_set_opp(struct dev_pm_set_opp_data *data)
 	return 0;
 
 restore_freq:
-	if (_generic_set_opp_clk_only(dev, data->clk, freq, old_freq))
+	if (_generic_set_opp_clk_only(dev, opp_table->clk, freq, old_freq))
 		dev_err(dev, "%s: failed to restore old-freq (%lu Hz)\n",
 			__func__, old_freq);
 restore_voltage:
 	/* This shouldn't harm even if the voltages weren't updated earlier */
-	if (old_supply->u_volt)
+	if (old_supply)
 		_set_opp_voltage(dev, reg, old_supply);
 
 	return ret;
@@ -603,10 +596,7 @@ int dev_pm_opp_set_rate(struct device *dev, unsigned long target_freq)
 {
 	struct opp_table *opp_table;
 	unsigned long freq, old_freq;
-	int (*set_opp)(struct dev_pm_set_opp_data *data);
 	struct dev_pm_opp *old_opp, *opp;
-	struct regulator **regulators;
-	struct dev_pm_set_opp_data *data;
 	struct clk *clk;
 	int ret, size;
 
@@ -661,38 +651,35 @@ int dev_pm_opp_set_rate(struct device *dev, unsigned long target_freq)
 	dev_dbg(dev, "%s: switching OPP: %lu Hz --> %lu Hz\n", __func__,
 		old_freq, freq);
 
-	regulators = opp_table->regulators;
-
 	/* Only frequency scaling */
-	if (!regulators) {
+	if (!opp_table->regulators) {
 		ret = _generic_set_opp_clk_only(dev, clk, old_freq, freq);
-		goto put_opps;
+	} else if (!opp_table->set_opp) {
+		ret = _generic_set_opp_regulator(opp_table, dev, old_freq, freq,
+						 IS_ERR(old_opp) ? NULL : old_opp->supplies,
+						 opp->supplies);
+	} else {
+		struct dev_pm_set_opp_data *data;
+
+		data = opp_table->set_opp_data;
+		data->regulators = opp_table->regulators;
+		data->regulator_count = opp_table->regulator_count;
+		data->clk = clk;
+		data->dev = dev;
+
+		data->old_opp.rate = old_freq;
+		size = sizeof(*opp->supplies) * opp_table->regulator_count;
+		if (IS_ERR(old_opp))
+			memset(data->old_opp.supplies, 0, size);
+		else
+			memcpy(data->old_opp.supplies, old_opp->supplies, size);
+
+		data->new_opp.rate = freq;
+		memcpy(data->new_opp.supplies, opp->supplies, size);
+
+		ret = opp_table->set_opp(data);
 	}
 
-	if (opp_table->set_opp)
-		set_opp = opp_table->set_opp;
-	else
-		set_opp = _generic_set_opp;
-
-	data = opp_table->set_opp_data;
-	data->regulators = regulators;
-	data->regulator_count = opp_table->regulator_count;
-	data->clk = clk;
-	data->dev = dev;
-
-	data->old_opp.rate = old_freq;
-	size = sizeof(*opp->supplies) * opp_table->regulator_count;
-	if (IS_ERR(old_opp))
-		memset(data->old_opp.supplies, 0, size);
-	else
-		memcpy(data->old_opp.supplies, old_opp->supplies, size);
-
-	data->new_opp.rate = freq;
-	memcpy(data->new_opp.supplies, opp->supplies, size);
-
-	ret = set_opp(data);
-
-put_opps:
 	dev_pm_opp_put(opp);
 put_old_opp:
 	if (!IS_ERR(old_opp))
@@ -1376,6 +1363,73 @@ void dev_pm_opp_put_regulators(struct opp_table *opp_table)
 EXPORT_SYMBOL_GPL(dev_pm_opp_put_regulators);
 
 /**
+ * dev_pm_opp_set_clkname() - Set clk name for the device
+ * @dev: Device for which clk name is being set.
+ * @name: Clk name.
+ *
+ * In order to support OPP switching, OPP layer needs to get pointer to the
+ * clock for the device. Simple cases work fine without using this routine (i.e.
+ * by passing connection-id as NULL), but for a device with multiple clocks
+ * available, the OPP core needs to know the exact name of the clk to use.
+ *
+ * This must be called before any OPPs are initialized for the device.
+ */
+struct opp_table *dev_pm_opp_set_clkname(struct device *dev, const char *name)
+{
+	struct opp_table *opp_table;
+	int ret;
+
+	opp_table = dev_pm_opp_get_opp_table(dev);
+	if (!opp_table)
+		return ERR_PTR(-ENOMEM);
+
+	/* This should be called before OPPs are initialized */
+	if (WARN_ON(!list_empty(&opp_table->opp_list))) {
+		ret = -EBUSY;
+		goto err;
+	}
+
+	/* Already have default clk set, free it */
+	if (!IS_ERR(opp_table->clk))
+		clk_put(opp_table->clk);
+
+	/* Find clk for the device */
+	opp_table->clk = clk_get(dev, name);
+	if (IS_ERR(opp_table->clk)) {
+		ret = PTR_ERR(opp_table->clk);
+		if (ret != -EPROBE_DEFER) {
+			dev_err(dev, "%s: Couldn't find clock: %d\n", __func__,
+				ret);
+		}
+		goto err;
+	}
+
+	return opp_table;
+
+err:
+	dev_pm_opp_put_opp_table(opp_table);
+
+	return ERR_PTR(ret);
+}
+EXPORT_SYMBOL_GPL(dev_pm_opp_set_clkname);
+
+/**
+ * dev_pm_opp_put_clkname() - Releases resources blocked for clk.
+ * @opp_table: OPP table returned from dev_pm_opp_set_clkname().
+ */
+void dev_pm_opp_put_clkname(struct opp_table *opp_table)
+{
+	/* Make sure there are no concurrent readers while updating opp_table */
+	WARN_ON(!list_empty(&opp_table->opp_list));
+
+	clk_put(opp_table->clk);
+	opp_table->clk = ERR_PTR(-EINVAL);
+
+	dev_pm_opp_put_opp_table(opp_table);
+}
+EXPORT_SYMBOL_GPL(dev_pm_opp_put_clkname);
+
+/**
  * dev_pm_opp_register_set_opp_helper() - Register custom set OPP helper
  * @dev: Device for which the helper is getting registered.
  * @set_opp: Custom set OPP helper.
@@ -1527,6 +1581,9 @@ static int _opp_set_availability(struct device *dev, unsigned long freq,
 
 	opp->available = availability_req;
 
+	dev_pm_opp_get(opp);
+	mutex_unlock(&opp_table->lock);
+
 	/* Notify the change of the OPP availability */
 	if (availability_req)
 		blocking_notifier_call_chain(&opp_table->head, OPP_EVENT_ENABLE,
@@ -1535,8 +1592,12 @@ static int _opp_set_availability(struct device *dev, unsigned long freq,
 		blocking_notifier_call_chain(&opp_table->head,
 					     OPP_EVENT_DISABLE, opp);
 
+	dev_pm_opp_put(opp);
+	goto put_table;
+
 unlock:
 	mutex_unlock(&opp_table->lock);
+put_table:
 	dev_pm_opp_put_opp_table(opp_table);
 	return r;
 }

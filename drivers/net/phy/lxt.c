@@ -152,7 +152,6 @@ static int lxt973a2_read_status(struct phy_device *phydev)
 	int adv;
 	int err;
 	int lpa;
-	int lpagb = 0;
 
 	/* Update the link, but return if there was an error */
 	err = lxt973a2_update_link(phydev);
@@ -178,18 +177,15 @@ static int lxt973a2_read_status(struct phy_device *phydev)
 			*/
 		} while (lpa == adv && retry--);
 
+		phydev->lp_advertising = mii_lpa_to_ethtool_lpa_t(lpa);
+
 		lpa &= adv;
 
 		phydev->speed = SPEED_10;
 		phydev->duplex = DUPLEX_HALF;
 		phydev->pause = phydev->asym_pause = 0;
 
-		if (lpagb & (LPA_1000FULL | LPA_1000HALF)) {
-			phydev->speed = SPEED_1000;
-
-			if (lpagb & LPA_1000FULL)
-				phydev->duplex = DUPLEX_FULL;
-		} else if (lpa & (LPA_100FULL | LPA_100HALF)) {
+		if (lpa & (LPA_100FULL | LPA_100HALF)) {
 			phydev->speed = SPEED_100;
 
 			if (lpa & LPA_100FULL)
@@ -222,6 +218,7 @@ static int lxt973a2_read_status(struct phy_device *phydev)
 			phydev->speed = SPEED_10;
 
 		phydev->pause = phydev->asym_pause = 0;
+		phydev->lp_advertising = 0;
 	}
 
 	return 0;

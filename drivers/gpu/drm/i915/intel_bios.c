@@ -1120,8 +1120,8 @@ static void parse_ddi_port(struct drm_i915_private *dev_priv, enum port port,
 	bool is_dvi, is_hdmi, is_dp, is_edp, is_crt;
 	uint8_t aux_channel, ddc_pin;
 	/* Each DDI port can have more than one value on the "DVO Port" field,
-	 * so look for all the possible values for each port and abort if more
-	 * than one is found. */
+	 * so look for all the possible values for each port.
+	 */
 	int dvo_ports[][3] = {
 		{DVO_PORT_HDMIA, DVO_PORT_DPA, -1},
 		{DVO_PORT_HDMIB, DVO_PORT_DPB, -1},
@@ -1130,7 +1130,10 @@ static void parse_ddi_port(struct drm_i915_private *dev_priv, enum port port,
 		{DVO_PORT_CRT, DVO_PORT_HDMIE, DVO_PORT_DPE},
 	};
 
-	/* Find the child device to use, abort if more than one found. */
+	/*
+	 * Find the first child device to reference the port, report if more
+	 * than one found.
+	 */
 	for (i = 0; i < dev_priv->vbt.child_dev_num; i++) {
 		it = dev_priv->vbt.child_dev + i;
 
@@ -1140,11 +1143,11 @@ static void parse_ddi_port(struct drm_i915_private *dev_priv, enum port port,
 
 			if (it->common.dvo_port == dvo_ports[port][j]) {
 				if (child) {
-					DRM_DEBUG_KMS("More than one child device for port %c in VBT.\n",
+					DRM_DEBUG_KMS("More than one child device for port %c in VBT, using the first.\n",
 						      port_name(port));
-					return;
+				} else {
+					child = it;
 				}
-				child = it;
 			}
 		}
 	}
@@ -1159,6 +1162,13 @@ static void parse_ddi_port(struct drm_i915_private *dev_priv, enum port port,
 	is_crt = child->common.device_type & DEVICE_TYPE_ANALOG_OUTPUT;
 	is_hdmi = is_dvi && (child->common.device_type & DEVICE_TYPE_NOT_HDMI_OUTPUT) == 0;
 	is_edp = is_dp && (child->common.device_type & DEVICE_TYPE_INTERNAL_CONNECTOR);
+
+	if (port == PORT_A && is_dvi) {
+		DRM_DEBUG_KMS("VBT claims port A supports DVI%s, ignoring\n",
+			      is_hdmi ? "/HDMI" : "");
+		is_dvi = false;
+		is_hdmi = false;
+	}
 
 	info->supports_dvi = is_dvi;
 	info->supports_hdmi = is_hdmi;
@@ -1186,6 +1196,15 @@ static void parse_ddi_port(struct drm_i915_private *dev_priv, enum port port,
 
 	if (is_dvi) {
 		info->alternate_ddc_pin = ddc_pin;
+
+		/*
+		 * All VBTs that we got so far for B Stepping has this
+		 * information wrong for Port D. So, let's just ignore for now.
+		 */
+		if (IS_CNL_REVID(dev_priv, CNL_REVID_B0, CNL_REVID_B0) &&
+		    port == PORT_D) {
+			info->alternate_ddc_pin = 0;
+		}
 
 		sanitize_ddc_pin(dev_priv, port);
 	}
@@ -1221,7 +1240,7 @@ static void parse_ddi_ports(struct drm_i915_private *dev_priv,
 {
 	enum port port;
 
-	if (!HAS_DDI(dev_priv))
+	if (!HAS_DDI(dev_priv) && !IS_CHERRYVIEW(dev_priv))
 		return;
 
 	if (!dev_priv->vbt.child_dev_num)

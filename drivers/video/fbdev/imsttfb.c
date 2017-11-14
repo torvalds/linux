@@ -1318,7 +1318,7 @@ imsttfb_ioctl(struct fb_info *info, u_int cmd, u_long arg)
 	}
 }
 
-static struct pci_device_id imsttfb_pci_tbl[] = {
+static const struct pci_device_id imsttfb_pci_tbl[] = {
 	{ PCI_VENDOR_ID_IMS, PCI_DEVICE_ID_IMS_TT128,
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, IBM },
 	{ PCI_VENDOR_ID_IMS, PCI_DEVICE_ID_IMS_TT3D,

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  linux/lib/string.c
  *
@@ -723,6 +724,72 @@ void memzero_explicit(void *s, size_t count)
 }
 EXPORT_SYMBOL(memzero_explicit);
 
+#ifndef __HAVE_ARCH_MEMSET16
+/**
+ * memset16() - Fill a memory area with a uint16_t
+ * @s: Pointer to the start of the area.
+ * @v: The value to fill the area with
+ * @count: The number of values to store
+ *
+ * Differs from memset() in that it fills with a uint16_t instead
+ * of a byte.  Remember that @count is the number of uint16_ts to
+ * store, not the number of bytes.
+ */
+void *memset16(uint16_t *s, uint16_t v, size_t count)
+{
+	uint16_t *xs = s;
+
+	while (count--)
+		*xs++ = v;
+	return s;
+}
+EXPORT_SYMBOL(memset16);
+#endif
+
+#ifndef __HAVE_ARCH_MEMSET32
+/**
+ * memset32() - Fill a memory area with a uint32_t
+ * @s: Pointer to the start of the area.
+ * @v: The value to fill the area with
+ * @count: The number of values to store
+ *
+ * Differs from memset() in that it fills with a uint32_t instead
+ * of a byte.  Remember that @count is the number of uint32_ts to
+ * store, not the number of bytes.
+ */
+void *memset32(uint32_t *s, uint32_t v, size_t count)
+{
+	uint32_t *xs = s;
+
+	while (count--)
+		*xs++ = v;
+	return s;
+}
+EXPORT_SYMBOL(memset32);
+#endif
+
+#ifndef __HAVE_ARCH_MEMSET64
+/**
+ * memset64() - Fill a memory area with a uint64_t
+ * @s: Pointer to the start of the area.
+ * @v: The value to fill the area with
+ * @count: The number of values to store
+ *
+ * Differs from memset() in that it fills with a uint64_t instead
+ * of a byte.  Remember that @count is the number of uint64_ts to
+ * store, not the number of bytes.
+ */
+void *memset64(uint64_t *s, uint64_t v, size_t count)
+{
+	uint64_t *xs = s;
+
+	while (count--)
+		*xs++ = v;
+	return s;
+}
+EXPORT_SYMBOL(memset64);
+#endif
+
 #ifndef __HAVE_ARCH_MEMCPY
 /**
  * memcpy - Copy one area of memory to another
@@ -978,3 +1045,151 @@ char *strreplace(char *s, char old, char new)
 	return s;
 }
 EXPORT_SYMBOL(strreplace);
+
+void fortify_panic(const char *name)
+{
+	pr_emerg("detected buffer overflow in %s\n", name);
+	BUG();
+}
+EXPORT_SYMBOL(fortify_panic);
+
+#ifdef CONFIG_STRING_SELFTEST
+#include <linux/slab.h>
+#include <linux/module.h>
+
+static __init int memset16_selftest(void)
+{
+	unsigned i, j, k;
+	u16 v, *p;
+
+	p = kmalloc(256 * 2 * 2, GFP_KERNEL);
+	if (!p)
+		return -1;
+
+	for (i = 0; i < 256; i++) {
+		for (j = 0; j < 256; j++) {
+			memset(p, 0xa1, 256 * 2 * sizeof(v));
+			memset16(p + i, 0xb1b2, j);
+			for (k = 0; k < 512; k++) {
+				v = p[k];
+				if (k < i) {
+					if (v != 0xa1a1)
+						goto fail;
+				} else if (k < i + j) {
+					if (v != 0xb1b2)
+						goto fail;
+				} else {
+					if (v != 0xa1a1)
+						goto fail;
+				}
+			}
+		}
+	}
+
+fail:
+	kfree(p);
+	if (i < 256)
+		return (i << 24) | (j << 16) | k;
+	return 0;
+}
+
+static __init int memset32_selftest(void)
+{
+	unsigned i, j, k;
+	u32 v, *p;
+
+	p = kmalloc(256 * 2 * 4, GFP_KERNEL);
+	if (!p)
+		return -1;
+
+	for (i = 0; i < 256; i++) {
+		for (j = 0; j < 256; j++) {
+			memset(p, 0xa1, 256 * 2 * sizeof(v));
+			memset32(p + i, 0xb1b2b3b4, j);
+			for (k = 0; k < 512; k++) {
+				v = p[k];
+				if (k < i) {
+					if (v != 0xa1a1a1a1)
+						goto fail;
+				} else if (k < i + j) {
+					if (v != 0xb1b2b3b4)
+						goto fail;
+				} else {
+					if (v != 0xa1a1a1a1)
+						goto fail;
+				}
+			}
+		}
+	}
+
+fail:
+	kfree(p);
+	if (i < 256)
+		return (i << 24) | (j << 16) | k;
+	return 0;
+}
+
+static __init int memset64_selftest(void)
+{
+	unsigned i, j, k;
+	u64 v, *p;
+
+	p = kmalloc(256 * 2 * 8, GFP_KERNEL);
+	if (!p)
+		return -1;
+
+	for (i = 0; i < 256; i++) {
+		for (j = 0; j < 256; j++) {
+			memset(p, 0xa1, 256 * 2 * sizeof(v));
+			memset64(p + i, 0xb1b2b3b4b5b6b7b8ULL, j);
+			for (k = 0; k < 512; k++) {
+				v = p[k];
+				if (k < i) {
+					if (v != 0xa1a1a1a1a1a1a1a1ULL)
+						goto fail;
+				} else if (k < i + j) {
+					if (v != 0xb1b2b3b4b5b6b7b8ULL)
+						goto fail;
+				} else {
+					if (v != 0xa1a1a1a1a1a1a1a1ULL)
+						goto fail;
+				}
+			}
+		}
+	}
+
+fail:
+	kfree(p);
+	if (i < 256)
+		return (i << 24) | (j << 16) | k;
+	return 0;
+}
+
+static __init int string_selftest_init(void)
+{
+	int test, subtest;
+
+	test = 1;
+	subtest = memset16_selftest();
+	if (subtest)
+		goto fail;
+
+	test = 2;
+	subtest = memset32_selftest();
+	if (subtest)
+		goto fail;
+
+	test = 3;
+	subtest = memset64_selftest();
+	if (subtest)
+		goto fail;
+
+	pr_info("String selftests succeeded\n");
+	return 0;
+fail:
+	pr_crit("String selftest failure %d.%08x\n", test, subtest);
+	return 0;
+}
+
+module_init(string_selftest_init);
+#endif	/* CONFIG_STRING_SELFTEST */

@@ -94,8 +94,8 @@
 /*
  * sctp/protocol.c
  */
-int sctp_copy_local_addr_list(struct net *, struct sctp_bind_addr *,
-			      sctp_scope_t, gfp_t gfp, int flags);
+int sctp_copy_local_addr_list(struct net *net, struct sctp_bind_addr *addr,
+			      enum sctp_scope, gfp_t gfp, int flags);
 struct sctp_pf *sctp_get_pf_specific(sa_family_t family);
 int sctp_register_pf(struct sctp_pf *, sa_family_t);
 void sctp_addr_wq_mgmt(struct net *, struct sctp_sockaddr_entry *, int);
@@ -127,7 +127,8 @@ int sctp_transport_lookup_process(int (*cb)(struct sctp_transport *, void *),
 				  const union sctp_addr *laddr,
 				  const union sctp_addr *paddr, void *p);
 int sctp_for_each_transport(int (*cb)(struct sctp_transport *, void *),
-			    struct net *net, int pos, void *p);
+			    int (*cb_done)(struct sctp_transport *, void *),
+			    struct net *net, int *pos, void *p);
 int sctp_for_each_endpoint(int (*cb)(struct sctp_endpoint *, void *), void *p);
 int sctp_get_sctp_info(struct sock *sk, struct sctp_association *asoc,
 		       struct sctp_info *info);
@@ -469,19 +470,23 @@ _sctp_walk_params((pos), (chunk), ntohs((chunk)->chunk_hdr.length), member)
 
 #define _sctp_walk_params(pos, chunk, end, member)\
 for (pos.v = chunk->member;\
+     (pos.v + offsetof(struct sctp_paramhdr, length) + sizeof(pos.p->length) <=\
+      (void *)chunk + end) &&\
      pos.v <= (void *)chunk + end - ntohs(pos.p->length) &&\
-     ntohs(pos.p->length) >= sizeof(sctp_paramhdr_t);\
+     ntohs(pos.p->length) >= sizeof(struct sctp_paramhdr);\
      pos.v += SCTP_PAD4(ntohs(pos.p->length)))
 
 #define sctp_walk_errors(err, chunk_hdr)\
 _sctp_walk_errors((err), (chunk_hdr), ntohs((chunk_hdr)->length))
 
 #define _sctp_walk_errors(err, chunk_hdr, end)\
-for (err = (sctp_errhdr_t *)((void *)chunk_hdr + \
-	    sizeof(sctp_chunkhdr_t));\
+for (err = (struct sctp_errhdr *)((void *)chunk_hdr + \
+	    sizeof(struct sctp_chunkhdr));\
+     ((void *)err + offsetof(struct sctp_errhdr, length) + sizeof(err->length) <=\
+      (void *)chunk_hdr + end) &&\
      (void *)err <= (void *)chunk_hdr + end - ntohs(err->length) &&\
-     ntohs(err->length) >= sizeof(sctp_errhdr_t); \
-     err = (sctp_errhdr_t *)((void *)err + SCTP_PAD4(ntohs(err->length))))
+     ntohs(err->length) >= sizeof(struct sctp_errhdr); \
+     err = (struct sctp_errhdr *)((void *)err + SCTP_PAD4(ntohs(err->length))))
 
 #define sctp_walk_fwdtsn(pos, chunk)\
 _sctp_walk_fwdtsn((pos), (chunk), ntohs((chunk)->chunk_hdr->length) - sizeof(struct sctp_fwdtsn_chunk))
@@ -546,7 +551,8 @@ static inline int sctp_ep_hashfn(struct net *net, __u16 lport)
 
 /* Is a socket of this style? */
 #define sctp_style(sk, style) __sctp_style((sk), (SCTP_SOCKET_##style))
-static inline int __sctp_style(const struct sock *sk, sctp_socket_type_t style)
+static inline int __sctp_style(const struct sock *sk,
+			       enum sctp_socket_type style)
 {
 	return sctp_sk(sk)->type == style;
 }
@@ -554,14 +560,15 @@ static inline int __sctp_style(const struct sock *sk, sctp_socket_type_t style)
 /* Is the association in this state? */
 #define sctp_state(asoc, state) __sctp_state((asoc), (SCTP_STATE_##state))
 static inline int __sctp_state(const struct sctp_association *asoc,
-			       sctp_state_t state)
+			       enum sctp_state state)
 {
 	return asoc->state == state;
 }
 
 /* Is the socket in this state? */
 #define sctp_sstate(sk, state) __sctp_sstate((sk), (SCTP_SS_##state))
-static inline int __sctp_sstate(const struct sock *sk, sctp_sock_state_t state)
+static inline int __sctp_sstate(const struct sock *sk,
+				enum sctp_sock_state state)
 {
 	return sk->sk_state == state;
 }

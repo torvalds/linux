@@ -34,41 +34,41 @@
 #include "dpaa2-eth.h"
 
 /* To be kept in sync with DPNI statistics */
-char dpaa2_ethtool_stats[][ETH_GSTRING_LEN] = {
-	"rx frames",
-	"rx bytes",
-	"rx mcast frames",
-	"rx mcast bytes",
-	"rx bcast frames",
-	"rx bcast bytes",
-	"tx frames",
-	"tx bytes",
-	"tx mcast frames",
-	"tx mcast bytes",
-	"tx bcast frames",
-	"tx bcast bytes",
-	"rx filtered frames",
-	"rx discarded frames",
-	"rx nobuffer discards",
-	"tx discarded frames",
-	"tx confirmed frames",
+static char dpaa2_ethtool_stats[][ETH_GSTRING_LEN] = {
+	"[hw] rx frames",
+	"[hw] rx bytes",
+	"[hw] rx mcast frames",
+	"[hw] rx mcast bytes",
+	"[hw] rx bcast frames",
+	"[hw] rx bcast bytes",
+	"[hw] tx frames",
+	"[hw] tx bytes",
+	"[hw] tx mcast frames",
+	"[hw] tx mcast bytes",
+	"[hw] tx bcast frames",
+	"[hw] tx bcast bytes",
+	"[hw] rx filtered frames",
+	"[hw] rx discarded frames",
+	"[hw] rx nobuffer discards",
+	"[hw] tx discarded frames",
+	"[hw] tx confirmed frames",
 };
 
 #define DPAA2_ETH_NUM_STATS	ARRAY_SIZE(dpaa2_ethtool_stats)
 
-char dpaa2_ethtool_extras[][ETH_GSTRING_LEN] = {
+static char dpaa2_ethtool_extras[][ETH_GSTRING_LEN] = {
 	/* per-cpu stats */
-	"tx conf frames",
-	"tx conf bytes",
-	"tx sg frames",
-	"tx sg bytes",
-	"rx sg frames",
-	"rx sg bytes",
-	"enqueue portal busy",
+	"[drv] tx conf frames",
+	"[drv] tx conf bytes",
+	"[drv] tx sg frames",
+	"[drv] tx sg bytes",
+	"[drv] rx sg frames",
+	"[drv] rx sg bytes",
+	"[drv] enqueue portal busy",
 	/* Channel stats */
-	"dequeue portal busy",
-	"channel pull errors",
-	"cdan",
+	"[drv] dequeue portal busy",
+	"[drv] channel pull errors",
+	"[drv] cdan",
 };
 
 #define DPAA2_ETH_NUM_EXTRA_STATS	ARRAY_SIZE(dpaa2_ethtool_extras)
@@ -94,7 +94,7 @@ dpaa2_eth_get_link_ksettings(struct net_device *net_dev,
 
 	err = dpni_get_link_state(priv->mc_io, 0, priv->mc_token, &state);
 	if (err) {
-		netdev_err(net_dev, "ERROR %d getting link state", err);
+		netdev_err(net_dev, "ERROR %d getting link state\n", err);
 		goto out;
 	}
 
@@ -147,7 +147,7 @@ dpaa2_eth_set_link_ksettings(struct net_device *net_dev,
 		/* ethtool will be loud enough if we return an error; no point
 		 * in putting our own error message on the console by default
 		 */
-		netdev_dbg(net_dev, "ERROR %d setting link cfg", err);
+		netdev_dbg(net_dev, "ERROR %d setting link cfg\n", err);
 
 	return err;
 }
@@ -206,7 +206,7 @@ static void dpaa2_eth_get_ethtool_stats(struct net_device *net_dev,
 		err = dpni_get_statistics(priv->mc_io, 0, priv->mc_token,
 					  j, &dpni_stats);
 		if (err != 0)
-			netdev_warn(net_dev, "dpni_get_stats(%d) failed", j);
+			netdev_warn(net_dev, "dpni_get_stats(%d) failed\n", j);
 		switch (j) {
 		case 0:
 			num_cnt = sizeof(dpni_stats.page_0) / sizeof(u64);
@@ -216,8 +216,6 @@ static void dpaa2_eth_get_ethtool_stats(struct net_device *net_dev,
 			break;
 		case 2:
 			num_cnt = sizeof(dpni_stats.page_2) / sizeof(u64);
-			break;
-		default:
 			break;
 		}
 		for (k = 0; k < num_cnt; k++)

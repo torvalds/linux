@@ -48,6 +48,15 @@ struct biosmemcon_ebda {
 	};
 } __packed;
 
+static char *memconsole_baseaddr;
+static size_t memconsole_length;
+
+static ssize_t memconsole_read(char *buf, loff_t pos, size_t count)
+{
+	return memory_read_from_buffer(buf, count, &pos, memconsole_baseaddr,
+				       memconsole_length);
+}
+
 static void found_v1_header(struct biosmemcon_ebda *hdr)
 {
 	pr_info("memconsole: BIOS console v1 EBDA structure found at %p\n",
@@ -56,7 +65,9 @@ static void found_v1_header(struct biosmemcon_ebda *hdr)
 		hdr->v1.buffer_addr, hdr->v1.start,
 		hdr->v1.end, hdr->v1.num_chars);
 
-	memconsole_setup(phys_to_virt(hdr->v1.buffer_addr), hdr->v1.num_chars);
+	memconsole_baseaddr = phys_to_virt(hdr->v1.buffer_addr);
+	memconsole_length = hdr->v1.num_chars;
+	memconsole_setup(memconsole_read);
 }
 
 static void found_v2_header(struct biosmemcon_ebda *hdr)
@@ -67,8 +78,9 @@ static void found_v2_header(struct biosmemcon_ebda *hdr)
 		hdr->v2.buffer_addr, hdr->v2.start,
 		hdr->v2.end, hdr->v2.num_bytes);
 
-	memconsole_setup(phys_to_virt(hdr->v2.buffer_addr + hdr->v2.start),
-			 hdr->v2.end - hdr->v2.start);
+	memconsole_baseaddr = phys_to_virt(hdr->v2.buffer_addr + hdr->v2.start);
+	memconsole_length = hdr->v2.end - hdr->v2.start;
+	memconsole_setup(memconsole_read);
 }
 
 /*
@@ -114,7 +126,7 @@ static bool memconsole_ebda_init(void)
 	return false;
 }
 
-static struct dmi_system_id memconsole_dmi_table[] __initdata = {
+static const struct dmi_system_id memconsole_dmi_table[] __initconst = {
 	{
 		.ident = "Google Board",
 		.matches = {

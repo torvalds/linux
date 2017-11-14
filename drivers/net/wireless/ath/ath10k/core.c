@@ -72,6 +72,8 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.hw_ops = &qca988x_ops,
 		.decap_align_bytes = 4,
 		.spectral_bin_discard = 0,
+		.vht160_mcs_rx_highest = 0,
+		.vht160_mcs_tx_highest = 0,
 	},
 	{
 		.id = QCA9887_HW_1_0_VERSION,
@@ -93,6 +95,8 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.hw_ops = &qca988x_ops,
 		.decap_align_bytes = 4,
 		.spectral_bin_discard = 0,
+		.vht160_mcs_rx_highest = 0,
+		.vht160_mcs_tx_highest = 0,
 	},
 	{
 		.id = QCA6174_HW_2_1_VERSION,
@@ -113,6 +117,8 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.hw_ops = &qca988x_ops,
 		.decap_align_bytes = 4,
 		.spectral_bin_discard = 0,
+		.vht160_mcs_rx_highest = 0,
+		.vht160_mcs_tx_highest = 0,
 	},
 	{
 		.id = QCA6174_HW_2_1_VERSION,
@@ -133,6 +139,8 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.hw_ops = &qca988x_ops,
 		.decap_align_bytes = 4,
 		.spectral_bin_discard = 0,
+		.vht160_mcs_rx_highest = 0,
+		.vht160_mcs_tx_highest = 0,
 	},
 	{
 		.id = QCA6174_HW_3_0_VERSION,
@@ -153,6 +161,8 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.hw_ops = &qca988x_ops,
 		.decap_align_bytes = 4,
 		.spectral_bin_discard = 0,
+		.vht160_mcs_rx_highest = 0,
+		.vht160_mcs_tx_highest = 0,
 	},
 	{
 		.id = QCA6174_HW_3_2_VERSION,
@@ -176,6 +186,8 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.target_cpu_freq = 176000000,
 		.decap_align_bytes = 4,
 		.spectral_bin_discard = 0,
+		.vht160_mcs_rx_highest = 0,
+		.vht160_mcs_tx_highest = 0,
 	},
 	{
 		.id = QCA99X0_HW_2_0_DEV_VERSION,
@@ -202,6 +214,8 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.hw_ops = &qca99x0_ops,
 		.decap_align_bytes = 1,
 		.spectral_bin_discard = 4,
+		.vht160_mcs_rx_highest = 0,
+		.vht160_mcs_tx_highest = 0,
 	},
 	{
 		.id = QCA9984_HW_1_0_DEV_VERSION,
@@ -229,6 +243,12 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.hw_ops = &qca99x0_ops,
 		.decap_align_bytes = 1,
 		.spectral_bin_discard = 12,
+
+		/* Can do only 2x2 VHT160 or 80+80. 1560Mbps is 4x4 80Mhz
+		 * or 2x2 160Mhz, long-guard-interval.
+		 */
+		.vht160_mcs_rx_highest = 1560,
+		.vht160_mcs_tx_highest = 1560,
 	},
 	{
 		.id = QCA9888_HW_2_0_DEV_VERSION,
@@ -255,6 +275,12 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.hw_ops = &qca99x0_ops,
 		.decap_align_bytes = 1,
 		.spectral_bin_discard = 12,
+
+		/* Can do only 1x1 VHT160 or 80+80. 780Mbps is 2x2 80Mhz or
+		 * 1x1 160Mhz, long-guard-interval.
+		 */
+		.vht160_mcs_rx_highest = 780,
+		.vht160_mcs_tx_highest = 780,
 	},
 	{
 		.id = QCA9377_HW_1_0_DEV_VERSION,
@@ -275,6 +301,8 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.hw_ops = &qca988x_ops,
 		.decap_align_bytes = 4,
 		.spectral_bin_discard = 0,
+		.vht160_mcs_rx_highest = 0,
+		.vht160_mcs_tx_highest = 0,
 	},
 	{
 		.id = QCA9377_HW_1_1_DEV_VERSION,
@@ -297,6 +325,8 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.target_cpu_freq = 176000000,
 		.decap_align_bytes = 4,
 		.spectral_bin_discard = 0,
+		.vht160_mcs_rx_highest = 0,
+		.vht160_mcs_tx_highest = 0,
 	},
 	{
 		.id = QCA4019_HW_1_0_DEV_VERSION,
@@ -324,6 +354,8 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.hw_ops = &qca99x0_ops,
 		.decap_align_bytes = 1,
 		.spectral_bin_discard = 4,
+		.vht160_mcs_rx_highest = 0,
+		.vht160_mcs_tx_highest = 0,
 	},
 };
 
@@ -387,6 +419,21 @@ static void ath10k_send_suspend_complete(struct ath10k *ar)
 	ath10k_dbg(ar, ATH10K_DBG_BOOT, "boot suspend complete\n");
 
 	complete(&ar->target_suspend);
+}
+
+static void ath10k_init_sdio(struct ath10k *ar)
+{
+	u32 param = 0;
+
+	ath10k_bmi_write32(ar, hi_mbox_io_block_sz, 256);
+	ath10k_bmi_write32(ar, hi_mbox_isr_yield_limit, 99);
+	ath10k_bmi_read32(ar, hi_acs_flags, &param);
+
+	param |= (HI_ACS_FLAGS_SDIO_SWAP_MAILBOX_SET |
+		  HI_ACS_FLAGS_SDIO_REDUCE_TX_COMPL_SET |
+		  HI_ACS_FLAGS_ALT_DATA_CREDIT_SIZE);
+
+	ath10k_bmi_write32(ar, hi_acs_flags, param);
 }
 
 static int ath10k_init_configure_target(struct ath10k *ar)
@@ -472,7 +519,7 @@ static const struct firmware *ath10k_fetch_fw_file(struct ath10k *ar,
 		dir = ".";
 
 	snprintf(filename, sizeof(filename), "%s/%s", dir, file);
-	ret = request_firmware_direct(&fw, filename, ar->dev);
+	ret = request_firmware(&fw, filename, ar->dev);
 	ath10k_dbg(ar, ATH10K_DBG_BOOT, "boot fw request '%s': %d\n",
 		   filename, ret);
 
@@ -676,7 +723,7 @@ static int ath10k_core_get_board_id_from_otp(struct ath10k *ar)
 {
 	u32 result, address;
 	u8 board_id, chip_id;
-	int ret;
+	int ret, bmi_board_id_param;
 
 	address = ar->hw_params.patch_load_addr;
 
@@ -700,8 +747,13 @@ static int ath10k_core_get_board_id_from_otp(struct ath10k *ar)
 		return ret;
 	}
 
-	ret = ath10k_bmi_execute(ar, address, BMI_PARAM_GET_EEPROM_BOARD_ID,
-				 &result);
+	if (ar->cal_mode == ATH10K_PRE_CAL_MODE_DT ||
+	    ar->cal_mode == ATH10K_PRE_CAL_MODE_FILE)
+		bmi_board_id_param = BMI_PARAM_GET_FLASH_BOARD_ID;
+	else
+		bmi_board_id_param = BMI_PARAM_GET_EEPROM_BOARD_ID;
+
+	ret = ath10k_bmi_execute(ar, address, bmi_board_id_param, &result);
 	if (ret) {
 		ath10k_err(ar, "could not execute otp for board id check: %d\n",
 			   ret);
@@ -829,6 +881,11 @@ static int ath10k_download_and_run_otp(struct ath10k *ar)
 		ath10k_err(ar, "could not write otp (%d)\n", ret);
 		return ret;
 	}
+
+	/* As of now pre-cal is valid for 10_4 variants */
+	if (ar->cal_mode == ATH10K_PRE_CAL_MODE_DT ||
+	    ar->cal_mode == ATH10K_PRE_CAL_MODE_FILE)
+		bmi_otp_exe_param = BMI_PARAM_FLASH_SECTION_ALL;
 
 	ret = ath10k_bmi_execute(ar, address, bmi_otp_exe_param, &result);
 	if (ret) {
@@ -1395,7 +1452,19 @@ err:
 static void ath10k_core_get_fw_name(struct ath10k *ar, char *fw_name,
 				    size_t fw_name_len, int fw_api)
 {
-	scnprintf(fw_name, fw_name_len, "%s-%d.bin", ATH10K_FW_FILE_BASE, fw_api);
+	switch (ar->hif.bus) {
+	case ATH10K_BUS_SDIO:
+	case ATH10K_BUS_USB:
+		scnprintf(fw_name, fw_name_len, "%s-%s-%d.bin",
+			  ATH10K_FW_FILE_BASE, ath10k_bus_str(ar->hif.bus),
+			  fw_api);
+		break;
+	case ATH10K_BUS_PCI:
+	case ATH10K_BUS_AHB:
+		scnprintf(fw_name, fw_name_len, "%s-%d.bin",
+			  ATH10K_FW_FILE_BASE, fw_api);
+		break;
+	}
 }
 
 static int ath10k_core_fetch_firmware_files(struct ath10k *ar)
@@ -1817,6 +1886,7 @@ static int ath10k_core_init_firmware_features(struct ath10k *ar)
 		ar->fw_stats_req_mask = WMI_10_4_STAT_PEER |
 					WMI_10_4_STAT_PEER_EXTD;
 		ar->max_spatial_stream = ar->hw_params.max_spatial_stream;
+		ar->max_num_tdls_vdevs = TARGET_10_4_NUM_TDLS_VDEVS;
 
 		if (test_bit(ATH10K_FW_FEATURE_PEER_FLOW_CONTROL,
 			     fw_file->fw_features))
@@ -1953,6 +2023,9 @@ int ath10k_core_start(struct ath10k *ar, enum ath10k_firmware_mode mode,
 	if (status)
 		goto err;
 
+	if (ar->hif.bus == ATH10K_BUS_SDIO)
+		ath10k_init_sdio(ar);
+
 	ar->htc.htc_ops.target_send_suspend_complete =
 		ath10k_send_suspend_complete;
 
@@ -1983,6 +2056,12 @@ int ath10k_core_start(struct ath10k *ar, enum ath10k_firmware_mode mode,
 		ath10k_err(ar, "failed to alloc htt tx: %d\n", status);
 		goto err_wmi_detach;
 	}
+
+	/* If firmware indicates Full Rx Reorder support it must be used in a
+	 * slightly different manner. Let HTT code know.
+	 */
+	ar->htt.rx_ring.in_ord_rx = !!(test_bit(WMI_SERVICE_RX_FULL_REORDER,
+						ar->wmi.svc_map));
 
 	status = ath10k_htt_rx_alloc(&ar->htt);
 	if (status) {
@@ -2052,6 +2131,14 @@ int ath10k_core_start(struct ath10k *ar, enum ath10k_firmware_mode mode,
 			     ar->running_fw->fw_file.fw_features))
 			val |= WMI_10_4_COEX_GPIO_SUPPORT;
 
+		if (test_bit(WMI_SERVICE_TDLS_EXPLICIT_MODE_ONLY,
+			     ar->wmi.svc_map))
+			val |= WMI_10_4_TDLS_EXPLICIT_MODE_ONLY;
+
+		if (test_bit(WMI_SERVICE_TDLS_UAPSD_BUFFER_STA,
+			     ar->wmi.svc_map))
+			val |= WMI_10_4_TDLS_UAPSD_BUFFER_STA;
+
 		status = ath10k_mac_ext_resource_config(ar, val);
 		if (status) {
 			ath10k_err(ar,
@@ -2095,12 +2182,6 @@ int ath10k_core_start(struct ath10k *ar, enum ath10k_firmware_mode mode,
 			goto err_hif_stop;
 		}
 	}
-
-	/* If firmware indicates Full Rx Reorder support it must be used in a
-	 * slightly different manner. Let HTT code know.
-	 */
-	ar->htt.rx_ring.in_ord_rx = !!(test_bit(WMI_SERVICE_RX_FULL_REORDER,
-						ar->wmi.svc_map));
 
 	status = ath10k_htt_rx_ring_refill(ar);
 	if (status) {
@@ -2200,7 +2281,10 @@ static int ath10k_core_probe_fw(struct ath10k *ar)
 	}
 
 	memset(&target_info, 0, sizeof(target_info));
-	ret = ath10k_bmi_get_target_info(ar, &target_info);
+	if (ar->hif.bus == ATH10K_BUS_SDIO)
+		ret = ath10k_bmi_get_target_info_sdio(ar, &target_info);
+	else
+		ret = ath10k_bmi_get_target_info(ar, &target_info);
 	if (ret) {
 		ath10k_err(ar, "could not get target info (%d)\n", ret);
 		goto err_power_down;
@@ -2417,25 +2501,35 @@ struct ath10k *ath10k_core_create(size_t priv_size, struct device *dev,
 	case ATH10K_HW_QCA988X:
 	case ATH10K_HW_QCA9887:
 		ar->regs = &qca988x_regs;
+		ar->hw_ce_regs = &qcax_ce_regs;
 		ar->hw_values = &qca988x_values;
 		break;
 	case ATH10K_HW_QCA6174:
 	case ATH10K_HW_QCA9377:
 		ar->regs = &qca6174_regs;
+		ar->hw_ce_regs = &qcax_ce_regs;
 		ar->hw_values = &qca6174_values;
 		break;
 	case ATH10K_HW_QCA99X0:
 	case ATH10K_HW_QCA9984:
 		ar->regs = &qca99x0_regs;
+		ar->hw_ce_regs = &qcax_ce_regs;
 		ar->hw_values = &qca99x0_values;
 		break;
 	case ATH10K_HW_QCA9888:
 		ar->regs = &qca99x0_regs;
+		ar->hw_ce_regs = &qcax_ce_regs;
 		ar->hw_values = &qca9888_values;
 		break;
 	case ATH10K_HW_QCA4019:
 		ar->regs = &qca4019_regs;
+		ar->hw_ce_regs = &qcax_ce_regs;
 		ar->hw_values = &qca4019_values;
+		break;
+	case ATH10K_HW_WCN3990:
+		ar->regs = &wcn3990_regs;
+		ar->hw_ce_regs = &wcn3990_ce_regs;
+		ar->hw_values = &wcn3990_values;
 		break;
 	default:
 		ath10k_err(ar, "unsupported core hardware revision %d\n",

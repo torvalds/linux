@@ -19,10 +19,12 @@
 #include <net/flow.h>
 #include <linux/seq_file.h>
 #include <linux/rcupdate.h>
+#include <net/fib_notifier.h>
 #include <net/fib_rules.h>
 #include <net/inetpeer.h>
 #include <linux/percpu.h>
 #include <linux/notifier.h>
+#include <linux/refcount.h>
 
 struct fib_config {
 	u8			fc_dst_len;
@@ -105,7 +107,7 @@ struct fib_info {
 	struct hlist_node	fib_lhash;
 	struct net		*fib_net;
 	int			fib_treeref;
-	atomic_t		fib_clntref;
+	refcount_t		fib_clntref;
 	unsigned int		fib_flags;
 	unsigned char		fib_dead;
 	unsigned char		fib_protocol;
@@ -123,7 +125,6 @@ struct fib_info {
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
 	int			fib_weight;
 #endif
-	unsigned int		fib_offload_cnt;
 	struct rcu_head		rcu;
 	struct fib_nh		fib_nh[0];
 #define fib_dev		fib_nh[0].nh_dev
@@ -136,6 +137,7 @@ struct fib_rule;
 
 struct fib_table;
 struct fib_result {
+	__be32		prefix;
 	unsigned char	prefixlen;
 	unsigned char	nh_sel;
 	unsigned char	type;
@@ -175,18 +177,6 @@ struct fib_result_nl {
 
 __be32 fib_info_update_nh_saddr(struct net *net, struct fib_nh *nh);
 
-static inline void fib_info_offload_inc(struct fib_info *fi)
-{
-	fi->fib_offload_cnt++;
-	fi->fib_flags |= RTNH_F_OFFLOAD;
-}
-
-static inline void fib_info_offload_dec(struct fib_info *fi)
-{
-	if (--fi->fib_offload_cnt == 0)
-		fi->fib_flags &= ~RTNH_F_OFFLOAD;
-}
-
 #define FIB_RES_SADDR(net, res)				\
 	((FIB_RES_NH(res).nh_saddr_genid ==		\
 	  atomic_read(&(net)->ipv4.dev_addr_genid)) ?	\
@@ -199,10 +189,6 @@ static inline void fib_info_offload_dec(struct fib_info *fi)
 #define FIB_RES_PREFSRC(net, res)	((res).fi->fib_prefsrc ? : \
 					 FIB_RES_SADDR(net, res))
 
-struct fib_notifier_info {
-	struct net *net;
-};
-
 struct fib_entry_notifier_info {
 	struct fib_notifier_info info; /* must be first */
 	u32 dst;
@@ -213,44 +199,21 @@ struct fib_entry_notifier_info {
 	u32 tb_id;
 };
 
-struct fib_rule_notifier_info {
-	struct fib_notifier_info info; /* must be first */
-	struct fib_rule *rule;
-};
-
 struct fib_nh_notifier_info {
 	struct fib_notifier_info info; /* must be first */
 	struct fib_nh *fib_nh;
 };
 
-enum fib_event_type {
-	FIB_EVENT_ENTRY_REPLACE,
-	FIB_EVENT_ENTRY_APPEND,
-	FIB_EVENT_ENTRY_ADD,
-	FIB_EVENT_ENTRY_DEL,
-	FIB_EVENT_RULE_ADD,
-	FIB_EVENT_RULE_DEL,
-	FIB_EVENT_NH_ADD,
-	FIB_EVENT_NH_DEL,
-};
-
-int register_fib_notifier(struct notifier_block *nb,
-			  void (*cb)(struct notifier_block *nb));
-int unregister_fib_notifier(struct notifier_block *nb);
-int call_fib_notifier(struct notifier_block *nb, struct net *net,
-		      enum fib_event_type event_type,
-		      struct fib_notifier_info *info);
-int call_fib_notifiers(struct net *net, enum fib_event_type event_type,
+int call_fib4_notifier(struct notifier_block *nb, struct net *net,
+		       enum fib_event_type event_type,
 		       struct fib_notifier_info *info);
+int call_fib4_notifiers(struct net *net, enum fib_event_type event_type,
+			struct fib_notifier_info *info);
+
+int __net_init fib4_notifier_init(struct net *net);
+void __net_exit fib4_notifier_exit(struct net *net);
 
 void fib_notify(struct net *net, struct notifier_block *nb);
-#ifdef CONFIG_IP_MULTIPLE_TABLES
-void fib_rules_notify(struct net *net, struct notifier_block *nb);
-#else
-static inline void fib_rules_notify(struct net *net, struct notifier_block *nb)
-{
-}
-#endif
 
 struct fib_table {
 	struct hlist_node	tb_hlist;
@@ -263,8 +226,10 @@ struct fib_table {
 
 int fib_table_lookup(struct fib_table *tb, const struct flowi4 *flp,
 		     struct fib_result *res, int fib_flags);
-int fib_table_insert(struct net *, struct fib_table *, struct fib_config *);
-int fib_table_delete(struct net *, struct fib_table *, struct fib_config *);
+int fib_table_insert(struct net *, struct fib_table *, struct fib_config *,
+		     struct netlink_ext_ack *extack);
+int fib_table_delete(struct net *, struct fib_table *, struct fib_config *,
+		     struct netlink_ext_ack *extack);
 int fib_table_dump(struct fib_table *table, struct sk_buff *skb,
 		   struct netlink_callback *cb);
 int fib_table_flush(struct net *net, struct fib_table *table);
@@ -321,6 +286,16 @@ static inline bool fib4_rule_default(const struct fib_rule *rule)
 	return true;
 }
 
+static inline int fib4_rules_dump(struct net *net, struct notifier_block *nb)
+{
+	return 0;
+}
+
+static inline unsigned int fib4_rules_seq_read(struct net *net)
+{
+	return 0;
+}
+
 #else /* CONFIG_IP_MULTIPLE_TABLES */
 int __net_init fib4_rules_init(struct net *net);
 void __net_exit fib4_rules_exit(struct net *net);
@@ -366,6 +341,8 @@ out:
 }
 
 bool fib4_rule_default(const struct fib_rule *rule);
+int fib4_rules_dump(struct net *net, struct notifier_block *nb);
+unsigned int fib4_rules_seq_read(struct net *net);
 
 #endif /* CONFIG_IP_MULTIPLE_TABLES */
 
@@ -427,12 +404,12 @@ void free_fib_info(struct fib_info *fi);
 
 static inline void fib_info_hold(struct fib_info *fi)
 {
-	atomic_inc(&fi->fib_clntref);
+	refcount_inc(&fi->fib_clntref);
 }
 
 static inline void fib_info_put(struct fib_info *fi)
 {
-	if (atomic_dec_and_test(&fi->fib_clntref))
+	if (refcount_dec_and_test(&fi->fib_clntref))
 		free_fib_info(fi);
 }
 

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __ASM_SH_TLB_H
 #define __ASM_SH_TLB_H
 
@@ -36,7 +37,8 @@ static inline void init_tlb_gather(struct mmu_gather *tlb)
 }
 
 static inline void
-tlb_gather_mmu(struct mmu_gather *tlb, struct mm_struct *mm, unsigned long start, unsigned long end)
+arch_tlb_gather_mmu(struct mmu_gather *tlb, struct mm_struct *mm,
+		unsigned long start, unsigned long end)
 {
 	tlb->mm = mm;
 	tlb->start = start;
@@ -47,9 +49,10 @@ tlb_gather_mmu(struct mmu_gather *tlb, struct mm_struct *mm, unsigned long start
 }
 
 static inline void
-tlb_finish_mmu(struct mmu_gather *tlb, unsigned long start, unsigned long end)
+arch_tlb_finish_mmu(struct mmu_gather *tlb,
+		unsigned long start, unsigned long end, bool force)
 {
-	if (tlb->fullmm)
+	if (tlb->fullmm || force)
 		flush_tlb_mm(tlb->mm);
 
 	/* keep the page table cache within bounds */

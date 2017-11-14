@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_PID_H
 #define _LINUX_PID_H
 
@@ -8,7 +9,9 @@ enum pid_type
 	PIDTYPE_PID,
 	PIDTYPE_PGID,
 	PIDTYPE_SID,
-	PIDTYPE_MAX
+	PIDTYPE_MAX,
+	/* only valid to __task_pid_nr_ns() */
+	__PIDTYPE_TGID
 };
 
 /*

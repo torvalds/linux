@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * linux/fs/ext4/ioctl.c
  *
@@ -64,18 +65,16 @@ static void swap_inode_data(struct inode *inode1, struct inode *inode2)
 	ei1 = EXT4_I(inode1);
 	ei2 = EXT4_I(inode2);
 
-	memswap(&inode1->i_flags, &inode2->i_flags, sizeof(inode1->i_flags));
-	memswap(&inode1->i_version, &inode2->i_version,
-		  sizeof(inode1->i_version));
-	memswap(&inode1->i_blocks, &inode2->i_blocks,
-		  sizeof(inode1->i_blocks));
-	memswap(&inode1->i_bytes, &inode2->i_bytes, sizeof(inode1->i_bytes));
-	memswap(&inode1->i_atime, &inode2->i_atime, sizeof(inode1->i_atime));
-	memswap(&inode1->i_mtime, &inode2->i_mtime, sizeof(inode1->i_mtime));
+	swap(inode1->i_flags, inode2->i_flags);
+	swap(inode1->i_version, inode2->i_version);
+	swap(inode1->i_blocks, inode2->i_blocks);
+	swap(inode1->i_bytes, inode2->i_bytes);
+	swap(inode1->i_atime, inode2->i_atime);
+	swap(inode1->i_mtime, inode2->i_mtime);
 
 	memswap(ei1->i_data, ei2->i_data, sizeof(ei1->i_data));
-	memswap(&ei1->i_flags, &ei2->i_flags, sizeof(ei1->i_flags));
-	memswap(&ei1->i_disksize, &ei2->i_disksize, sizeof(ei1->i_disksize));
+	swap(ei1->i_flags, ei2->i_flags);
+	swap(ei1->i_disksize, ei2->i_disksize);
 	ext4_es_remove_extent(inode1, 0, EXT_MAX_BLOCKS);
 	ext4_es_remove_extent(inode2, 0, EXT_MAX_BLOCKS);
 
@@ -218,7 +217,7 @@ static int ext4_ioctl_setflags(struct inode *inode,
 	unsigned int jflag;
 
 	/* Is it quota file? Do not allow user to mess with it */
-	if (IS_NOQUOTA(inode))
+	if (ext4_is_quota_file(inode))
 		goto flags_out;
 
 	oldflags = ei->i_flags;
@@ -342,7 +341,7 @@ static int ext4_ioctl_setproject(struct file *filp, __u32 projid)
 	err = -EPERM;
 	inode_lock(inode);
 	/* Is it quota file? Do not allow user to mess with it */
-	if (IS_NOQUOTA(inode))
+	if (ext4_is_quota_file(inode))
 		goto out_unlock;
 
 	err = ext4_get_inode_loc(inode, &iloc);
@@ -351,11 +350,14 @@ static int ext4_ioctl_setproject(struct file *filp, __u32 projid)
 
 	raw_inode = ext4_raw_inode(&iloc);
 	if (!EXT4_FITS_IN_INODE(raw_inode, ei, i_projid)) {
-		err = -EOVERFLOW;
+		err = ext4_expand_extra_isize(inode,
+					      EXT4_SB(sb)->s_want_extra_isize,
+					      &iloc);
+		if (err)
+			goto out_unlock;
+	} else {
 		brelse(iloc.bh);
-		goto out_unlock;
 	}
-	brelse(iloc.bh);
 
 	dquot_initialize(inode);
 
@@ -373,7 +375,13 @@ static int ext4_ioctl_setproject(struct file *filp, __u32 projid)
 
 	transfer_to[PRJQUOTA] = dqget(sb, make_kqid_projid(kprojid));
 	if (!IS_ERR(transfer_to[PRJQUOTA])) {
+
+		/* __dquot_transfer() calls back ext4_get_inode_usage() which
+		 * counts xattr inode references.
+		 */
+		down_read(&EXT4_I(inode)->xattr_sem);
 		err = __dquot_transfer(inode, transfer_to);
+		up_read(&EXT4_I(inode)->xattr_sem);
 		dqput(transfer_to[PRJQUOTA]);
 		if (err)
 			goto out_dirty;

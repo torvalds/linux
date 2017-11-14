@@ -63,7 +63,6 @@
 #include "iwl-trans.h"
 #include "mvm.h"
 #include "fw-api.h"
-#include "fw-dbg.h"
 
 static inline int iwl_mvm_check_pn(struct iwl_mvm *mvm, struct sk_buff *skb,
 				   int queue, struct ieee80211_sta *sta)
@@ -183,9 +182,8 @@ static void iwl_mvm_create_skb(struct sk_buff *skb, struct ieee80211_hdr *hdr,
 	 * present before copying packet data.
 	 */
 	hdrlen += crypt_len;
-	memcpy(skb_put(skb, hdrlen), hdr, hdrlen);
-	memcpy(skb_put(skb, headlen - hdrlen), (u8 *)hdr + hdrlen + pad_len,
-	       headlen - hdrlen);
+	skb_put_data(skb, hdr, hdrlen);
+	skb_put_data(skb, (u8 *)hdr + hdrlen + pad_len, headlen - hdrlen);
 
 	fraglen = len - headlen;
 
@@ -279,7 +277,9 @@ static int iwl_mvm_rx_crypto(struct iwl_mvm *mvm, struct ieee80211_hdr *hdr,
 		stats->flag |= RX_FLAG_DECRYPTED;
 		return 0;
 	default:
-		IWL_ERR(mvm, "Unhandled alg: 0x%x\n", status);
+		/* Expected in monitor (not having the keys) */
+		if (!mvm->monitor_on)
+			IWL_ERR(mvm, "Unhandled alg: 0x%x\n", status);
 	}
 
 	return 0;
@@ -503,7 +503,7 @@ void iwl_mvm_reorder_timer_expired(unsigned long data)
 			     buf->sta_id, sn);
 		iwl_mvm_release_frames(buf->mvm, sta, NULL, buf, sn);
 		rcu_read_unlock();
-	} else if (buf->num_stored) {
+	} else {
 		/*
 		 * If no frame expired and there are stored frames, index is now
 		 * pointing to the first unexpired frame - modify timer
@@ -637,9 +637,9 @@ static bool iwl_mvm_reorder(struct iwl_mvm *mvm,
 
 	baid_data = rcu_dereference(mvm->baid_map[baid]);
 	if (!baid_data) {
-		WARN(!(reorder & IWL_RX_MPDU_REORDER_BA_OLD_SN),
-		     "Received baid %d, but no data exists for this BAID\n",
-		     baid);
+		IWL_DEBUG_RX(mvm,
+			     "Got valid BAID but no baid allocated, bypass the re-ordering buffer. Baid %d reorder 0x%x\n",
+			      baid, reorder);
 		return false;
 	}
 
@@ -674,11 +674,12 @@ static bool iwl_mvm_reorder(struct iwl_mvm *mvm,
 	 * If there was a significant jump in the nssn - adjust.
 	 * If the SN is smaller than the NSSN it might need to first go into
 	 * the reorder buffer, in which case we just release up to it and the
-	 * rest of the function will take of storing it and releasing up to the
-	 * nssn
+	 * rest of the function will take care of storing it and releasing up to
+	 * the nssn
 	 */
 	if (!iwl_mvm_is_sn_less(nssn, buffer->head_sn + buffer->buf_size,
-				buffer->buf_size)) {
+				buffer->buf_size) ||
+	    !ieee80211_sn_less(sn, buffer->head_sn + buffer->buf_size)) {
 		u16 min_sn = ieee80211_sn_less(sn, nssn) ? sn : nssn;
 
 		iwl_mvm_release_frames(mvm, sta, napi, buffer, min_sn);
@@ -760,7 +761,9 @@ static void iwl_mvm_agg_rx_received(struct iwl_mvm *mvm,
 
 	data = rcu_dereference(mvm->baid_map[baid]);
 	if (!data) {
-		WARN_ON(!(reorder_data & IWL_RX_MPDU_REORDER_BA_OLD_SN));
+		IWL_DEBUG_RX(mvm,
+			     "Got valid BAID but no baid allocated, bypass the re-ordering buffer. Baid %d reorder 0x%x\n",
+			      baid, reorder_data);
 		goto out;
 	}
 
@@ -853,7 +856,7 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 
 	rcu_read_lock();
 
-	if (le16_to_cpu(desc->status) & IWL_RX_MPDU_STATUS_SRC_STA_FOUND) {
+	if (desc->status & cpu_to_le16(IWL_RX_MPDU_STATUS_SRC_STA_FOUND)) {
 		u8 id = desc->sta_id_flags & IWL_RX_MPDU_SIF_STA_ID_MASK;
 
 		if (!WARN_ON_ONCE(id >= ARRAY_SIZE(mvm->fw_id_to_mac_id))) {
@@ -907,10 +910,12 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 			rssi = le32_to_cpu(rssi_trig->rssi);
 
 			trig_check =
-				iwl_fw_dbg_trigger_check_stop(mvm, mvmsta->vif,
+				iwl_fw_dbg_trigger_check_stop(&mvm->fwrt,
+							      ieee80211_vif_to_wdev(mvmsta->vif),
 							      trig);
 			if (trig_check && rx_status->signal < rssi)
-				iwl_mvm_fw_dbg_collect_trig(mvm, trig, NULL);
+				iwl_fw_dbg_collect_trig(&mvm->fwrt, trig,
+							NULL);
 		}
 
 		if (ieee80211_is_data(hdr->frame_control))

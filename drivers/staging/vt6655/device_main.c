@@ -157,7 +157,7 @@ static void vt6655_remove(struct pci_dev *pcid)
 {
 	struct vnt_private *priv = pci_get_drvdata(pcid);
 
-	if (priv == NULL)
+	if (!priv)
 		return;
 	device_free_info(priv);
 }
@@ -453,7 +453,7 @@ static bool device_init_rings(struct vnt_private *priv)
 				       priv->opts.tx_descs[0] * sizeof(struct vnt_tx_desc) +
 				       priv->opts.tx_descs[1] * sizeof(struct vnt_tx_desc),
 				       &priv->pool_dma, GFP_ATOMIC);
-	if (vir_pool == NULL) {
+	if (!vir_pool) {
 		dev_err(&priv->pcid->dev, "allocate desc dma memory failed\n");
 		return false;
 	}
@@ -1018,7 +1018,6 @@ static void vnt_interrupt_process(struct vnt_private *priv)
 			}
 
 			/* TODO: adhoc PS mode */
-
 		}
 
 		if (isr & ISR_BNTX) {
@@ -1311,8 +1310,8 @@ static int vnt_config(struct ieee80211_hw *hw, u32 changed)
 }
 
 static void vnt_bss_info_changed(struct ieee80211_hw *hw,
-		struct ieee80211_vif *vif, struct ieee80211_bss_conf *conf,
-		u32 changed)
+				 struct ieee80211_vif *vif,
+				 struct ieee80211_bss_conf *conf, u32 changed)
 {
 	struct vnt_private *priv = hw->priv;
 
@@ -1402,7 +1401,7 @@ static void vnt_bss_info_changed(struct ieee80211_hw *hw,
 }
 
 static u64 vnt_prepare_multicast(struct ieee80211_hw *hw,
-	struct netdev_hw_addr_list *mc_list)
+				 struct netdev_hw_addr_list *mc_list)
 {
 	struct vnt_private *priv = hw->priv;
 	struct netdev_hw_addr *ha;
@@ -1421,7 +1420,8 @@ static u64 vnt_prepare_multicast(struct ieee80211_hw *hw,
 }
 
 static void vnt_configure(struct ieee80211_hw *hw,
-	unsigned int changed_flags, unsigned int *total_flags, u64 multicast)
+			  unsigned int changed_flags,
+			  unsigned int *total_flags, u64 multicast)
 {
 	struct vnt_private *priv = hw->priv;
 	u8 rx_mode = 0;
@@ -1482,8 +1482,8 @@ static void vnt_configure(struct ieee80211_hw *hw,
 }
 
 static int vnt_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
-	struct ieee80211_vif *vif, struct ieee80211_sta *sta,
-		struct ieee80211_key_conf *key)
+		       struct ieee80211_vif *vif, struct ieee80211_sta *sta,
+		       struct ieee80211_key_conf *key)
 {
 	struct vnt_private *priv = hw->priv;
 
@@ -1702,7 +1702,6 @@ static int vt6655_suspend(struct pci_dev *pcid, pm_message_t state)
 
 static int vt6655_resume(struct pci_dev *pcid)
 {
-
 	pci_set_power_state(pcid, PCI_D0);
 	pci_enable_wake(pcid, PCI_D0, 0);
 	pci_restore_state(pcid);

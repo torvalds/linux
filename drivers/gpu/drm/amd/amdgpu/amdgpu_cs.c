@@ -27,80 +27,9 @@
 #include <linux/pagemap.h>
 #include <drm/drmP.h>
 #include <drm/amdgpu_drm.h>
+#include <drm/drm_syncobj.h>
 #include "amdgpu.h"
 #include "amdgpu_trace.h"
-
-int amdgpu_cs_get_ring(struct amdgpu_device *adev, u32 ip_type,
-		       u32 ip_instance, u32 ring,
-		       struct amdgpu_ring **out_ring)
-{
-	/* Right now all IPs have only one instance - multiple rings. */
-	if (ip_instance != 0) {
-		DRM_ERROR("invalid ip instance: %d\n", ip_instance);
-		return -EINVAL;
-	}
-
-	switch (ip_type) {
-	default:
-		DRM_ERROR("unknown ip type: %d\n", ip_type);
-		return -EINVAL;
-	case AMDGPU_HW_IP_GFX:
-		if (ring < adev->gfx.num_gfx_rings) {
-			*out_ring = &adev->gfx.gfx_ring[ring];
-		} else {
-			DRM_ERROR("only %d gfx rings are supported now\n",
-				  adev->gfx.num_gfx_rings);
-			return -EINVAL;
-		}
-		break;
-	case AMDGPU_HW_IP_COMPUTE:
-		if (ring < adev->gfx.num_compute_rings) {
-			*out_ring = &adev->gfx.compute_ring[ring];
-		} else {
-			DRM_ERROR("only %d compute rings are supported now\n",
-				  adev->gfx.num_compute_rings);
-			return -EINVAL;
-		}
-		break;
-	case AMDGPU_HW_IP_DMA:
-		if (ring < adev->sdma.num_instances) {
-			*out_ring = &adev->sdma.instance[ring].ring;
-		} else {
-			DRM_ERROR("only %d SDMA rings are supported\n",
-				  adev->sdma.num_instances);
-			return -EINVAL;
-		}
-		break;
-	case AMDGPU_HW_IP_UVD:
-		*out_ring = &adev->uvd.ring;
-		break;
-	case AMDGPU_HW_IP_VCE:
-		if (ring < adev->vce.num_rings){
-			*out_ring = &adev->vce.ring[ring];
-		} else {
-			DRM_ERROR("only %d VCE rings are supported\n", adev->vce.num_rings);
-			return -EINVAL;
-		}
-		break;
-	case AMDGPU_HW_IP_UVD_ENC:
-		if (ring < adev->uvd.num_enc_rings){
-			*out_ring = &adev->uvd.ring_enc[ring];
-		} else {
-			DRM_ERROR("only %d UVD ENC rings are supported\n",
-				adev->uvd.num_enc_rings);
-			return -EINVAL;
-		}
-		break;
-	}
-
-	if (!(*out_ring && (*out_ring)->adev)) {
-		DRM_ERROR("Ring %d is not initialized on IP %d\n",
-			  ring, ip_type);
-		return -EINVAL;
-	}
-
-	return 0;
-}
 
 static int amdgpu_cs_user_fence_chunk(struct amdgpu_cs_parser *p,
 				      struct drm_amdgpu_cs_chunk_fence *data,
@@ -125,7 +54,7 @@ static int amdgpu_cs_user_fence_chunk(struct amdgpu_cs_parser *p,
 
 	*offset = data->offset;
 
-	drm_gem_object_unreference_unlocked(gobj);
+	drm_gem_object_put_unlocked(gobj);
 
 	if (amdgpu_ttm_tt_get_usermm(p->uf_entry.robj->tbo.ttm)) {
 		amdgpu_bo_unref(&p->uf_entry.robj);
@@ -135,7 +64,7 @@ static int amdgpu_cs_user_fence_chunk(struct amdgpu_cs_parser *p,
 	return 0;
 }
 
-int amdgpu_cs_parser_init(struct amdgpu_cs_parser *p, void *data)
+static int amdgpu_cs_parser_init(struct amdgpu_cs_parser *p, void *data)
 {
 	struct amdgpu_fpriv *fpriv = p->filp->driver_priv;
 	struct amdgpu_vm *vm = &fpriv->vm;
@@ -161,7 +90,7 @@ int amdgpu_cs_parser_init(struct amdgpu_cs_parser *p, void *data)
 	}
 
 	/* get chunks */
-	chunk_array_user = (uint64_t __user *)(uintptr_t)(cs->in.chunks);
+	chunk_array_user = u64_to_user_ptr(cs->in.chunks);
 	if (copy_from_user(chunk_array, chunk_array_user,
 			   sizeof(uint64_t)*cs->in.num_chunks)) {
 		ret = -EFAULT;
@@ -181,7 +110,7 @@ int amdgpu_cs_parser_init(struct amdgpu_cs_parser *p, void *data)
 		struct drm_amdgpu_cs_chunk user_chunk;
 		uint32_t __user *cdata;
 
-		chunk_ptr = (void __user *)(uintptr_t)chunk_array[i];
+		chunk_ptr = u64_to_user_ptr(chunk_array[i]);
 		if (copy_from_user(&user_chunk, chunk_ptr,
 				       sizeof(struct drm_amdgpu_cs_chunk))) {
 			ret = -EFAULT;
@@ -192,9 +121,9 @@ int amdgpu_cs_parser_init(struct amdgpu_cs_parser *p, void *data)
 		p->chunks[i].length_dw = user_chunk.length_dw;
 
 		size = p->chunks[i].length_dw;
-		cdata = (void __user *)(uintptr_t)user_chunk.chunk_data;
+		cdata = u64_to_user_ptr(user_chunk.chunk_data);
 
-		p->chunks[i].kdata = drm_malloc_ab(size, sizeof(uint32_t));
+		p->chunks[i].kdata = kvmalloc_array(size, sizeof(uint32_t), GFP_KERNEL);
 		if (p->chunks[i].kdata == NULL) {
 			ret = -ENOMEM;
 			i--;
@@ -226,6 +155,8 @@ int amdgpu_cs_parser_init(struct amdgpu_cs_parser *p, void *data)
 			break;
 
 		case AMDGPU_CHUNK_ID_DEPENDENCIES:
+		case AMDGPU_CHUNK_ID_SYNCOBJ_IN:
+		case AMDGPU_CHUNK_ID_SYNCOBJ_OUT:
 			break;
 
 		default:
@@ -247,7 +178,7 @@ free_all_kdata:
 	i = p->nchunks - 1;
 free_partial_kdata:
 	for (; i >= 0; i--)
-		drm_free_large(p->chunks[i].kdata);
+		kvfree(p->chunks[i].kdata);
 	kfree(p->chunks);
 	p->chunks = NULL;
 	p->nchunks = 0;
@@ -292,10 +223,11 @@ static s64 bytes_to_us(struct amdgpu_device *adev, u64 bytes)
  * ticks. The accumulated microseconds (us) are converted to bytes and
  * returned.
  */
-static u64 amdgpu_cs_get_threshold_for_moves(struct amdgpu_device *adev)
+static void amdgpu_cs_get_threshold_for_moves(struct amdgpu_device *adev,
+					      u64 *max_bytes,
+					      u64 *max_vis_bytes)
 {
 	s64 time_us, increment_us;
-	u64 max_bytes;
 	u64 free_vram, total_vram, used_vram;
 
 	/* Allow a maximum of 200 accumulated ms. This is basically per-IB
@@ -307,11 +239,14 @@ static u64 amdgpu_cs_get_threshold_for_moves(struct amdgpu_device *adev)
 	 */
 	const s64 us_upper_bound = 200000;
 
-	if (!adev->mm_stats.log2_max_MBps)
-		return 0;
+	if (!adev->mm_stats.log2_max_MBps) {
+		*max_bytes = 0;
+		*max_vis_bytes = 0;
+		return;
+	}
 
 	total_vram = adev->mc.real_vram_size - adev->vram_pin_size;
-	used_vram = atomic64_read(&adev->vram_usage);
+	used_vram = amdgpu_vram_mgr_usage(&adev->mman.bdev.man[TTM_PL_VRAM]);
 	free_vram = used_vram >= total_vram ? 0 : total_vram - used_vram;
 
 	spin_lock(&adev->mm_stats.lock);
@@ -349,23 +284,46 @@ static u64 amdgpu_cs_get_threshold_for_moves(struct amdgpu_device *adev)
 		adev->mm_stats.accum_us = max(min_us, adev->mm_stats.accum_us);
 	}
 
-	/* This returns 0 if the driver is in debt to disallow (optional)
+	/* This is set to 0 if the driver is in debt to disallow (optional)
 	 * buffer moves.
 	 */
-	max_bytes = us_to_bytes(adev, adev->mm_stats.accum_us);
+	*max_bytes = us_to_bytes(adev, adev->mm_stats.accum_us);
+
+	/* Do the same for visible VRAM if half of it is free */
+	if (adev->mc.visible_vram_size < adev->mc.real_vram_size) {
+		u64 total_vis_vram = adev->mc.visible_vram_size;
+		u64 used_vis_vram =
+			amdgpu_vram_mgr_vis_usage(&adev->mman.bdev.man[TTM_PL_VRAM]);
+
+		if (used_vis_vram < total_vis_vram) {
+			u64 free_vis_vram = total_vis_vram - used_vis_vram;
+			adev->mm_stats.accum_us_vis = min(adev->mm_stats.accum_us_vis +
+							  increment_us, us_upper_bound);
+
+			if (free_vis_vram >= total_vis_vram / 2)
+				adev->mm_stats.accum_us_vis =
+					max(bytes_to_us(adev, free_vis_vram / 2),
+					    adev->mm_stats.accum_us_vis);
+		}
+
+		*max_vis_bytes = us_to_bytes(adev, adev->mm_stats.accum_us_vis);
+	} else {
+		*max_vis_bytes = 0;
+	}
 
 	spin_unlock(&adev->mm_stats.lock);
-	return max_bytes;
 }
 
 /* Report how many bytes have really been moved for the last command
  * submission. This can result in a debt that can stop buffer migrations
  * temporarily.
  */
-void amdgpu_cs_report_moved_bytes(struct amdgpu_device *adev, u64 num_bytes)
+void amdgpu_cs_report_moved_bytes(struct amdgpu_device *adev, u64 num_bytes,
+				  u64 num_vis_bytes)
 {
 	spin_lock(&adev->mm_stats.lock);
 	adev->mm_stats.accum_us -= bytes_to_us(adev, num_bytes);
+	adev->mm_stats.accum_us_vis -= bytes_to_us(adev, num_vis_bytes);
 	spin_unlock(&adev->mm_stats.lock);
 }
 
@@ -373,7 +331,7 @@ static int amdgpu_cs_bo_validate(struct amdgpu_cs_parser *p,
 				 struct amdgpu_bo *bo)
 {
 	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->tbo.bdev);
-	u64 initial_bytes_moved;
+	u64 initial_bytes_moved, bytes_moved;
 	uint32_t domain;
 	int r;
 
@@ -383,17 +341,35 @@ static int amdgpu_cs_bo_validate(struct amdgpu_cs_parser *p,
 	/* Don't move this buffer if we have depleted our allowance
 	 * to move it. Don't move anything if the threshold is zero.
 	 */
-	if (p->bytes_moved < p->bytes_moved_threshold)
-		domain = bo->prefered_domains;
-	else
+	if (p->bytes_moved < p->bytes_moved_threshold) {
+		if (adev->mc.visible_vram_size < adev->mc.real_vram_size &&
+		    (bo->flags & AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED)) {
+			/* And don't move a CPU_ACCESS_REQUIRED BO to limited
+			 * visible VRAM if we've depleted our allowance to do
+			 * that.
+			 */
+			if (p->bytes_moved_vis < p->bytes_moved_vis_threshold)
+				domain = bo->preferred_domains;
+			else
+				domain = bo->allowed_domains;
+		} else {
+			domain = bo->preferred_domains;
+		}
+	} else {
 		domain = bo->allowed_domains;
+	}
 
 retry:
 	amdgpu_ttm_placement_from_domain(bo, domain);
 	initial_bytes_moved = atomic64_read(&adev->num_bytes_moved);
 	r = ttm_bo_validate(&bo->tbo, &bo->placement, true, false);
-	p->bytes_moved += atomic64_read(&adev->num_bytes_moved) -
-		initial_bytes_moved;
+	bytes_moved = atomic64_read(&adev->num_bytes_moved) -
+		      initial_bytes_moved;
+	p->bytes_moved += bytes_moved;
+	if (adev->mc.visible_vram_size < adev->mc.real_vram_size &&
+	    bo->tbo.mem.mem_type == TTM_PL_VRAM &&
+	    bo->tbo.mem.start < adev->mc.visible_vram_size >> PAGE_SHIFT)
+		p->bytes_moved_vis += bytes_moved;
 
 	if (unlikely(r == -ENOMEM) && domain != bo->allowed_domains) {
 		domain = bo->allowed_domains;
@@ -419,7 +395,8 @@ static bool amdgpu_cs_try_evict(struct amdgpu_cs_parser *p,
 		struct amdgpu_bo_list_entry *candidate = p->evictable;
 		struct amdgpu_bo *bo = candidate->robj;
 		struct amdgpu_device *adev = amdgpu_ttm_adev(bo->tbo.bdev);
-		u64 initial_bytes_moved;
+		u64 initial_bytes_moved, bytes_moved;
+		bool update_bytes_moved_vis;
 		uint32_t other;
 
 		/* If we reached our current BO we can forget it */
@@ -439,10 +416,17 @@ static bool amdgpu_cs_try_evict(struct amdgpu_cs_parser *p,
 
 		/* Good we can try to move this BO somewhere else */
 		amdgpu_ttm_placement_from_domain(bo, other);
+		update_bytes_moved_vis =
+			adev->mc.visible_vram_size < adev->mc.real_vram_size &&
+			bo->tbo.mem.mem_type == TTM_PL_VRAM &&
+			bo->tbo.mem.start < adev->mc.visible_vram_size >> PAGE_SHIFT;
 		initial_bytes_moved = atomic64_read(&adev->num_bytes_moved);
 		r = ttm_bo_validate(&bo->tbo, &bo->placement, true, false);
-		p->bytes_moved += atomic64_read(&adev->num_bytes_moved) -
+		bytes_moved = atomic64_read(&adev->num_bytes_moved) -
 			initial_bytes_moved;
+		p->bytes_moved += bytes_moved;
+		if (update_bytes_moved_vis)
+			p->bytes_moved_vis += bytes_moved;
 
 		if (unlikely(r))
 			break;
@@ -505,7 +489,7 @@ static int amdgpu_cs_list_validate(struct amdgpu_cs_parser *p,
 			return r;
 
 		if (binding_userptr) {
-			drm_free_large(lobj->user_pages);
+			kvfree(lobj->user_pages);
 			lobj->user_pages = NULL;
 		}
 	}
@@ -566,12 +550,12 @@ static int amdgpu_cs_parser_bos(struct amdgpu_cs_parser *p,
 				 &e->user_invalidated) && e->user_pages) {
 
 				/* We acquired a page array, but somebody
-				 * invalidated it. Free it an try again
+				 * invalidated it. Free it and try again
 				 */
 				release_pages(e->user_pages,
 					      e->robj->tbo.ttm->num_pages,
 					      false);
-				drm_free_large(e->user_pages);
+				kvfree(e->user_pages);
 				e->user_pages = NULL;
 			}
 
@@ -597,12 +581,13 @@ static int amdgpu_cs_parser_bos(struct amdgpu_cs_parser *p,
 			goto error_free_pages;
 		}
 
-		/* Fill the page arrays for all useptrs. */
+		/* Fill the page arrays for all userptrs. */
 		list_for_each_entry(e, &need_pages, tv.head) {
 			struct ttm_tt *ttm = e->robj->tbo.ttm;
 
-			e->user_pages = drm_calloc_large(ttm->num_pages,
-							 sizeof(struct page*));
+			e->user_pages = kvmalloc_array(ttm->num_pages,
+							 sizeof(struct page*),
+							 GFP_KERNEL | __GFP_ZERO);
 			if (!e->user_pages) {
 				r = -ENOMEM;
 				DRM_ERROR("calloc failure in %s\n", __func__);
@@ -612,7 +597,7 @@ static int amdgpu_cs_parser_bos(struct amdgpu_cs_parser *p,
 			r = amdgpu_ttm_tt_get_user_pages(ttm, e->user_pages);
 			if (r) {
 				DRM_ERROR("amdgpu_ttm_tt_get_user_pages failed.\n");
-				drm_free_large(e->user_pages);
+				kvfree(e->user_pages);
 				e->user_pages = NULL;
 				goto error_free_pages;
 			}
@@ -622,8 +607,10 @@ static int amdgpu_cs_parser_bos(struct amdgpu_cs_parser *p,
 		list_splice(&need_pages, &p->validated);
 	}
 
-	p->bytes_moved_threshold = amdgpu_cs_get_threshold_for_moves(p->adev);
+	amdgpu_cs_get_threshold_for_moves(p->adev, &p->bytes_moved_threshold,
+					  &p->bytes_moved_vis_threshold);
 	p->bytes_moved = 0;
+	p->bytes_moved_vis = 0;
 	p->evictable = list_last_entry(&p->validated,
 				       struct amdgpu_bo_list_entry,
 				       tv.head);
@@ -647,8 +634,8 @@ static int amdgpu_cs_parser_bos(struct amdgpu_cs_parser *p,
 		goto error_validate;
 	}
 
-	amdgpu_cs_report_moved_bytes(p->adev, p->bytes_moved);
-
+	amdgpu_cs_report_moved_bytes(p->adev, p->bytes_moved,
+				     p->bytes_moved_vis);
 	fpriv->vm.last_eviction_counter =
 		atomic64_read(&p->adev->num_evictions);
 
@@ -687,10 +674,8 @@ static int amdgpu_cs_parser_bos(struct amdgpu_cs_parser *p,
 	}
 
 error_validate:
-	if (r) {
-		amdgpu_vm_move_pt_bos_in_lru(p->adev, &fpriv->vm);
+	if (r)
 		ttm_eu_backoff_reservation(&p->ticket, &p->validated);
-	}
 
 error_free_pages:
 
@@ -708,7 +693,7 @@ error_free_pages:
 			release_pages(e->user_pages,
 				      e->robj->tbo.ttm->num_pages,
 				      false);
-			drm_free_large(e->user_pages);
+			kvfree(e->user_pages);
 		}
 	}
 
@@ -738,21 +723,23 @@ static int amdgpu_cs_sync_rings(struct amdgpu_cs_parser *p)
  * If error is set than unvalidate buffer, otherwise just free memory
  * used by parsing context.
  **/
-static void amdgpu_cs_parser_fini(struct amdgpu_cs_parser *parser, int error, bool backoff)
+static void amdgpu_cs_parser_fini(struct amdgpu_cs_parser *parser, int error,
+				  bool backoff)
 {
-	struct amdgpu_fpriv *fpriv = parser->filp->driver_priv;
 	unsigned i;
 
-	if (!error) {
-		amdgpu_vm_move_pt_bos_in_lru(parser->adev, &fpriv->vm);
-
+	if (!error)
 		ttm_eu_fence_buffer_objects(&parser->ticket,
 					    &parser->validated,
 					    parser->fence);
-	} else if (backoff) {
+	else if (backoff)
 		ttm_eu_backoff_reservation(&parser->ticket,
 					   &parser->validated);
-	}
+
+	for (i = 0; i < parser->num_post_dep_syncobjs; i++)
+		drm_syncobj_put(parser->post_dep_syncobjs[i]);
+	kfree(parser->post_dep_syncobjs);
+
 	dma_fence_put(parser->fence);
 
 	if (parser->ctx)
@@ -761,7 +748,7 @@ static void amdgpu_cs_parser_fini(struct amdgpu_cs_parser *parser, int error, bo
 		amdgpu_bo_list_put(parser->bo_list);
 
 	for (i = 0; i < parser->nchunks; i++)
-		drm_free_large(parser->chunks[i].kdata);
+		kvfree(parser->chunks[i].kdata);
 	kfree(parser->chunks);
 	if (parser->job)
 		amdgpu_job_free(parser->job);
@@ -800,7 +787,8 @@ static int amdgpu_bo_vm_update_pte(struct amdgpu_cs_parser *p)
 
 	if (amdgpu_sriov_vf(adev)) {
 		struct dma_fence *f;
-		bo_va = vm->csa_bo_va;
+
+		bo_va = fpriv->csa_va;
 		BUG_ON(!bo_va);
 		r = amdgpu_vm_bo_update(adev, bo_va, false);
 		if (r)
@@ -837,7 +825,7 @@ static int amdgpu_bo_vm_update_pte(struct amdgpu_cs_parser *p)
 
 	}
 
-	r = amdgpu_vm_clear_invalids(adev, vm, &p->job->sync);
+	r = amdgpu_vm_clear_moved(adev, vm, &p->job->sync);
 
 	if (amdgpu_vm_debug && p->bo_list) {
 		/* Invalidate all BOs to test for userspace bugs */
@@ -916,9 +904,8 @@ static int amdgpu_cs_ib_fill(struct amdgpu_device *adev,
 				return -EINVAL;
 		}
 
-		r = amdgpu_cs_get_ring(adev, chunk_ib->ip_type,
-				       chunk_ib->ip_instance, chunk_ib->ring,
-				       &ring);
+		r = amdgpu_queue_mgr_map(adev, &parser->ctx->queue_mgr, chunk_ib->ip_type,
+					 chunk_ib->ip_instance, chunk_ib->ring, &ring);
 		if (r)
 			return r;
 
@@ -995,60 +982,149 @@ static int amdgpu_cs_ib_fill(struct amdgpu_device *adev,
 	return 0;
 }
 
+static int amdgpu_cs_process_fence_dep(struct amdgpu_cs_parser *p,
+				       struct amdgpu_cs_chunk *chunk)
+{
+	struct amdgpu_fpriv *fpriv = p->filp->driver_priv;
+	unsigned num_deps;
+	int i, r;
+	struct drm_amdgpu_cs_chunk_dep *deps;
+
+	deps = (struct drm_amdgpu_cs_chunk_dep *)chunk->kdata;
+	num_deps = chunk->length_dw * 4 /
+		sizeof(struct drm_amdgpu_cs_chunk_dep);
+
+	for (i = 0; i < num_deps; ++i) {
+		struct amdgpu_ring *ring;
+		struct amdgpu_ctx *ctx;
+		struct dma_fence *fence;
+
+		ctx = amdgpu_ctx_get(fpriv, deps[i].ctx_id);
+		if (ctx == NULL)
+			return -EINVAL;
+
+		r = amdgpu_queue_mgr_map(p->adev, &ctx->queue_mgr,
+					 deps[i].ip_type,
+					 deps[i].ip_instance,
+					 deps[i].ring, &ring);
+		if (r) {
+			amdgpu_ctx_put(ctx);
+			return r;
+		}
+
+		fence = amdgpu_ctx_get_fence(ctx, ring,
+					     deps[i].handle);
+		if (IS_ERR(fence)) {
+			r = PTR_ERR(fence);
+			amdgpu_ctx_put(ctx);
+			return r;
+		} else if (fence) {
+			r = amdgpu_sync_fence(p->adev, &p->job->sync,
+					      fence);
+			dma_fence_put(fence);
+			amdgpu_ctx_put(ctx);
+			if (r)
+				return r;
+		}
+	}
+	return 0;
+}
+
+static int amdgpu_syncobj_lookup_and_add_to_sync(struct amdgpu_cs_parser *p,
+						 uint32_t handle)
+{
+	int r;
+	struct dma_fence *fence;
+	r = drm_syncobj_find_fence(p->filp, handle, &fence);
+	if (r)
+		return r;
+
+	r = amdgpu_sync_fence(p->adev, &p->job->sync, fence);
+	dma_fence_put(fence);
+
+	return r;
+}
+
+static int amdgpu_cs_process_syncobj_in_dep(struct amdgpu_cs_parser *p,
+					    struct amdgpu_cs_chunk *chunk)
+{
+	unsigned num_deps;
+	int i, r;
+	struct drm_amdgpu_cs_chunk_sem *deps;
+
+	deps = (struct drm_amdgpu_cs_chunk_sem *)chunk->kdata;
+	num_deps = chunk->length_dw * 4 /
+		sizeof(struct drm_amdgpu_cs_chunk_sem);
+
+	for (i = 0; i < num_deps; ++i) {
+		r = amdgpu_syncobj_lookup_and_add_to_sync(p, deps[i].handle);
+		if (r)
+			return r;
+	}
+	return 0;
+}
+
+static int amdgpu_cs_process_syncobj_out_dep(struct amdgpu_cs_parser *p,
+					     struct amdgpu_cs_chunk *chunk)
+{
+	unsigned num_deps;
+	int i;
+	struct drm_amdgpu_cs_chunk_sem *deps;
+	deps = (struct drm_amdgpu_cs_chunk_sem *)chunk->kdata;
+	num_deps = chunk->length_dw * 4 /
+		sizeof(struct drm_amdgpu_cs_chunk_sem);
+
+	p->post_dep_syncobjs = kmalloc_array(num_deps,
+					     sizeof(struct drm_syncobj *),
+					     GFP_KERNEL);
+	p->num_post_dep_syncobjs = 0;
+
+	if (!p->post_dep_syncobjs)
+		return -ENOMEM;
+
+	for (i = 0; i < num_deps; ++i) {
+		p->post_dep_syncobjs[i] = drm_syncobj_find(p->filp, deps[i].handle);
+		if (!p->post_dep_syncobjs[i])
+			return -EINVAL;
+		p->num_post_dep_syncobjs++;
+	}
+	return 0;
+}
+
 static int amdgpu_cs_dependencies(struct amdgpu_device *adev,
 				  struct amdgpu_cs_parser *p)
 {
-	struct amdgpu_fpriv *fpriv = p->filp->driver_priv;
-	int i, j, r;
+	int i, r;
 
 	for (i = 0; i < p->nchunks; ++i) {
-		struct drm_amdgpu_cs_chunk_dep *deps;
 		struct amdgpu_cs_chunk *chunk;
-		unsigned num_deps;
 
 		chunk = &p->chunks[i];
 
-		if (chunk->chunk_id != AMDGPU_CHUNK_ID_DEPENDENCIES)
-			continue;
-
-		deps = (struct drm_amdgpu_cs_chunk_dep *)chunk->kdata;
-		num_deps = chunk->length_dw * 4 /
-			sizeof(struct drm_amdgpu_cs_chunk_dep);
-
-		for (j = 0; j < num_deps; ++j) {
-			struct amdgpu_ring *ring;
-			struct amdgpu_ctx *ctx;
-			struct dma_fence *fence;
-
-			r = amdgpu_cs_get_ring(adev, deps[j].ip_type,
-					       deps[j].ip_instance,
-					       deps[j].ring, &ring);
+		if (chunk->chunk_id == AMDGPU_CHUNK_ID_DEPENDENCIES) {
+			r = amdgpu_cs_process_fence_dep(p, chunk);
 			if (r)
 				return r;
-
-			ctx = amdgpu_ctx_get(fpriv, deps[j].ctx_id);
-			if (ctx == NULL)
-				return -EINVAL;
-
-			fence = amdgpu_ctx_get_fence(ctx, ring,
-						     deps[j].handle);
-			if (IS_ERR(fence)) {
-				r = PTR_ERR(fence);
-				amdgpu_ctx_put(ctx);
+		} else if (chunk->chunk_id == AMDGPU_CHUNK_ID_SYNCOBJ_IN) {
+			r = amdgpu_cs_process_syncobj_in_dep(p, chunk);
+			if (r)
 				return r;
-
-			} else if (fence) {
-				r = amdgpu_sync_fence(adev, &p->job->sync,
-						      fence);
-				dma_fence_put(fence);
-				amdgpu_ctx_put(ctx);
-				if (r)
-					return r;
-			}
+		} else if (chunk->chunk_id == AMDGPU_CHUNK_ID_SYNCOBJ_OUT) {
+			r = amdgpu_cs_process_syncobj_out_dep(p, chunk);
+			if (r)
+				return r;
 		}
 	}
 
 	return 0;
+}
+
+static void amdgpu_cs_post_dependencies(struct amdgpu_cs_parser *p)
+{
+	int i;
+
+	for (i = 0; i < p->num_post_dep_syncobjs; ++i)
+		drm_syncobj_replace_fence(p->post_dep_syncobjs[i], p->fence);
 }
 
 static int amdgpu_cs_submit(struct amdgpu_cs_parser *p,
@@ -1071,20 +1147,22 @@ static int amdgpu_cs_submit(struct amdgpu_cs_parser *p,
 	job->owner = p->filp;
 	job->fence_ctx = entity->fence_context;
 	p->fence = dma_fence_get(&job->base.s_fence->finished);
+
+	amdgpu_cs_post_dependencies(p);
+
 	cs->out.handle = amdgpu_ctx_add_fence(p->ctx, ring, p->fence);
 	job->uf_sequence = cs->out.handle;
 	amdgpu_job_free_resources(job);
-	amdgpu_cs_parser_fini(p, 0, true);
 
 	trace_amdgpu_cs_ioctl(job);
 	amd_sched_entity_push_job(&job->base);
-
 	return 0;
 }
 
 int amdgpu_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 {
 	struct amdgpu_device *adev = dev->dev_private;
+	struct amdgpu_fpriv *fpriv = filp->driver_priv;
 	union drm_amdgpu_cs *cs = data;
 	struct amdgpu_cs_parser parser = {};
 	bool reserved_buffers = false;
@@ -1092,6 +1170,8 @@ int amdgpu_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 
 	if (!adev->accel_working)
 		return -EBUSY;
+	if (amdgpu_kms_vram_lost(adev, fpriv))
+		return -ENODEV;
 
 	parser.adev = adev;
 	parser.filp = filp;
@@ -1130,10 +1210,7 @@ int amdgpu_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		goto out;
 
 	r = amdgpu_cs_submit(&parser, cs);
-	if (r)
-		goto out;
 
-	return 0;
 out:
 	amdgpu_cs_parser_fini(&parser, r, reserved_buffers);
 	return r;
@@ -1153,20 +1230,27 @@ int amdgpu_cs_wait_ioctl(struct drm_device *dev, void *data,
 {
 	union drm_amdgpu_wait_cs *wait = data;
 	struct amdgpu_device *adev = dev->dev_private;
+	struct amdgpu_fpriv *fpriv = filp->driver_priv;
 	unsigned long timeout = amdgpu_gem_timeout(wait->in.timeout);
 	struct amdgpu_ring *ring = NULL;
 	struct amdgpu_ctx *ctx;
 	struct dma_fence *fence;
 	long r;
 
-	r = amdgpu_cs_get_ring(adev, wait->in.ip_type, wait->in.ip_instance,
-			       wait->in.ring, &ring);
-	if (r)
-		return r;
+	if (amdgpu_kms_vram_lost(adev, fpriv))
+		return -ENODEV;
 
 	ctx = amdgpu_ctx_get(filp->driver_priv, wait->in.ctx_id);
 	if (ctx == NULL)
 		return -EINVAL;
+
+	r = amdgpu_queue_mgr_map(adev, &ctx->queue_mgr,
+				 wait->in.ip_type, wait->in.ip_instance,
+				 wait->in.ring, &ring);
+	if (r) {
+		amdgpu_ctx_put(ctx);
+		return r;
+	}
 
 	fence = amdgpu_ctx_get_fence(ctx, ring, wait->in.handle);
 	if (IS_ERR(fence))
@@ -1203,14 +1287,16 @@ static struct dma_fence *amdgpu_cs_get_fence(struct amdgpu_device *adev,
 	struct dma_fence *fence;
 	int r;
 
-	r = amdgpu_cs_get_ring(adev, user->ip_type, user->ip_instance,
-			       user->ring, &ring);
-	if (r)
-		return ERR_PTR(r);
-
 	ctx = amdgpu_ctx_get(filp->driver_priv, user->ctx_id);
 	if (ctx == NULL)
 		return ERR_PTR(-EINVAL);
+
+	r = amdgpu_queue_mgr_map(adev, &ctx->queue_mgr, user->ip_type,
+				 user->ip_instance, user->ring, &ring);
+	if (r) {
+		amdgpu_ctx_put(ctx);
+		return ERR_PTR(r);
+	}
 
 	fence = amdgpu_ctx_get_fence(ctx, ring, user->seq_no);
 	amdgpu_ctx_put(ctx);
@@ -1332,19 +1418,22 @@ int amdgpu_cs_wait_fences_ioctl(struct drm_device *dev, void *data,
 				struct drm_file *filp)
 {
 	struct amdgpu_device *adev = dev->dev_private;
+	struct amdgpu_fpriv *fpriv = filp->driver_priv;
 	union drm_amdgpu_wait_fences *wait = data;
 	uint32_t fence_count = wait->in.fence_count;
 	struct drm_amdgpu_fence *fences_user;
 	struct drm_amdgpu_fence *fences;
 	int r;
 
+	if (amdgpu_kms_vram_lost(adev, fpriv))
+		return -ENODEV;
 	/* Get the fences from userspace */
 	fences = kmalloc_array(fence_count, sizeof(struct drm_amdgpu_fence),
 			GFP_KERNEL);
 	if (fences == NULL)
 		return -ENOMEM;
 
-	fences_user = (void __user *)(uintptr_t)(wait->in.fences);
+	fences_user = u64_to_user_ptr(wait->in.fences);
 	if (copy_from_user(fences, fences_user,
 		sizeof(struct drm_amdgpu_fence) * fence_count)) {
 		r = -EFAULT;
@@ -1397,7 +1486,7 @@ amdgpu_cs_find_mapping(struct amdgpu_cs_parser *parser,
 			    addr > mapping->last)
 				continue;
 
-			*bo = lobj->bo_va->bo;
+			*bo = lobj->bo_va->base.bo;
 			return mapping;
 		}
 
@@ -1406,7 +1495,7 @@ amdgpu_cs_find_mapping(struct amdgpu_cs_parser *parser,
 			    addr > mapping->last)
 				continue;
 
-			*bo = lobj->bo_va->bo;
+			*bo = lobj->bo_va->base.bo;
 			return mapping;
 		}
 	}

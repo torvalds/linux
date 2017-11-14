@@ -62,7 +62,7 @@ MODULE_SUPPORTED_DEVICE("{{Creative Labs,SB AWE 32},"
 #define SNDRV_DEBUG_IRQ
 #endif
 
-#if defined(SNDRV_SBAWE) && (defined(CONFIG_SND_SEQUENCER) || (defined(MODULE) && defined(CONFIG_SND_SEQUENCER_MODULE)))
+#if defined(SNDRV_SBAWE) && IS_ENABLED(CONFIG_SND_SEQUENCER)
 #define SNDRV_SBAWE_EMU8000
 #endif
 
@@ -145,7 +145,7 @@ struct snd_card_sb16 {
 
 #ifdef CONFIG_PNP
 
-static struct pnp_card_device_id snd_sb16_pnpids[] = {
+static const struct pnp_card_device_id snd_sb16_pnpids[] = {
 #ifndef SNDRV_SBAWE
 	/* Sound Blaster 16 PnP */
 	{ .id = "CTL0024", .devs = { { "CTL0031" } } },

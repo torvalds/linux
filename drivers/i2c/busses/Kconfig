@@ -129,6 +129,9 @@ config I2C_I801
 	    Broxton (SOC)
 	    Lewisburg (PCH)
 	    Gemini Lake (SOC)
+	    Cannon Lake-H (PCH)
+	    Cannon Lake-LP (PCH)
+	    Cedar Fork (PCH)
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-i801.
@@ -186,6 +189,14 @@ config I2C_PIIX4
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-piix4.
+
+config I2C_CHT_WC
+	tristate "Intel Cherry Trail Whiskey Cove PMIC smbus controller"
+	depends on INTEL_SOC_PMIC_CHTWC
+	help
+	  If you say yes to this option, support will be included for the
+	  SMBus controller found in the Intel Cherry Trail Whiskey Cove PMIC
+	  found on some Intel Cherry Trail systems.
 
 config I2C_NFORCE2
 	tristate "Nvidia nForce2, nForce3 and nForce4"
@@ -325,6 +336,26 @@ config I2C_POWERMAC
 	  will be called i2c-powermac.
 
 comment "I2C system bus drivers (mostly embedded / system-on-chip)"
+
+config I2C_ALTERA
+	tristate "Altera Soft IP I2C"
+	depends on (ARCH_SOCFPGA || NIOS2) && OF
+	help
+	  If you say yes to this option, support will be included for the
+	  Altera Soft IP I2C interfaces on SoCFPGA and Nios2 architectures.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-altera.
+
+config I2C_ASPEED
+	tristate "Aspeed I2C Controller"
+	depends on ARCH_ASPEED || COMPILE_TEST
+	help
+	  If you say yes to this option, support will be included for the
+	  Aspeed I2C controller.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-aspeed.
 
 config I2C_AT91
 	tristate "Atmel AT91 I2C Two-Wire interface (TWI)"
@@ -474,10 +505,21 @@ config I2C_DESIGNWARE_PLATFORM
 	depends on (ACPI && COMMON_CLK) || !ACPI
 	help
 	  If you say yes to this option, support will be included for the
-	  Synopsys DesignWare I2C adapter. Only master mode is supported.
+	  Synopsys DesignWare I2C adapter.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-designware-platform.
+
+config I2C_DESIGNWARE_SLAVE
+	bool "Synopsys DesignWare Slave"
+	select I2C_SLAVE
+	depends on I2C_DESIGNWARE_PLATFORM
+	help
+	  If you say yes to this option, support will be included for the
+	  Synopsys DesignWare I2C slave adapter.
+
+	  This is not a standalone module, this module compiles together with
+	  i2c-designware-core.
 
 config I2C_DESIGNWARE_PCI
 	tristate "Synopsys DesignWare PCI"
@@ -877,6 +919,13 @@ config I2C_SIRF
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-sirf.
 
+config I2C_SPRD
+	bool "Spreadtrum I2C interface"
+	depends on I2C=y && ARCH_SPRD
+	help
+	  If you say yes to this option, support will be included for the
+	  Spreadtrum I2C interface.
+
 config I2C_ST
 	tristate "STMicroelectronics SSC I2C support"
 	depends on ARCH_STI
@@ -896,6 +945,16 @@ config I2C_STM32F4
 
 	  This driver can also be built as module. If so, the module
 	  will be called i2c-stm32f4.
+
+config I2C_STM32F7
+	tristate "STMicroelectronics STM32F7 I2C support"
+	depends on ARCH_STM32 || COMPILE_TEST
+	help
+	  Enable this option to add support for STM32 I2C controller embedded
+	  in STM32F7 SoCs.
+
+	  This driver can also be built as module. If so, the module
+	  will be called i2c-stm32f7.
 
 config I2C_STU300
 	tristate "ST Microelectronics DDC I2C interface"
@@ -960,7 +1019,7 @@ config I2C_UNIPHIER_F
 
 config I2C_VERSATILE
 	tristate "ARM Versatile/Realview I2C bus support"
-	depends on ARCH_VERSATILE || ARCH_REALVIEW || ARCH_VEXPRESS || COMPILE_TEST
+	depends on ARCH_MPS2 || ARCH_VERSATILE || ARCH_REALVIEW || ARCH_VEXPRESS || COMPILE_TEST
 	select I2C_ALGOBIT
 	help
 	  Say yes if you want to support the I2C serial bus on ARMs Versatile
@@ -1257,5 +1316,14 @@ config I2C_OPAL
 
 	  This driver can also be built as a module. If so, the module will be
 	  called as i2c-opal.
+
+config I2C_ZX2967
+	tristate "ZTE ZX2967 I2C support"
+	depends on ARCH_ZX
+	default y
+	help
+	  Selecting this option will add ZX2967 I2C driver.
+	  This driver can also be built as a module. If so, the module will be
+	  called i2c-zx2967.
 
 endmenu

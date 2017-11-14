@@ -219,7 +219,8 @@ config FRAME_WARN
 	range 0 8192
 	default 0 if KASAN
 	default 2048 if GCC_PLUGIN_LATENT_ENTROPY
-	default 1024 if !64BIT
+	default 1280 if (!64BIT && PARISC)
+	default 1024 if (!64BIT && !PARISC)
 	default 2048 if 64BIT
 	help
 	  Tell gcc to warn at build time for stack frames larger than this.
@@ -286,7 +287,7 @@ config DEBUG_FS
 	  write to these files.
 
 	  For detailed documentation on the debugfs API, see
-	  Documentation/DocBook/filesystems.
+	  Documentation/filesystems/.
 
 	  If unsure, say N.
 
@@ -373,6 +374,9 @@ config STACK_VALIDATION
 	  Add compile-time checks to validate stack metadata, including frame
 	  pointers (if CONFIG_FRAME_POINTER is enabled).  This helps ensure
 	  that runtime stack traces are more reliable.
+
+	  This is also a prerequisite for generation of ORC unwind data, which
+	  is needed for CONFIG_ORC_UNWINDER.
 
 	  For more information, see
 	  tools/objtool/Documentation/stack-validation.txt.
@@ -778,33 +782,51 @@ config DEBUG_SHIRQ
 menu "Debug Lockups and Hangs"
 
 config LOCKUP_DETECTOR
-	bool "Detect Hard and Soft Lockups"
+	bool
+
+config SOFTLOCKUP_DETECTOR
+	bool "Detect Soft Lockups"
 	depends on DEBUG_KERNEL && !S390
+	select LOCKUP_DETECTOR
 	help
 	  Say Y here to enable the kernel to act as a watchdog to detect
-	  hard and soft lockups.
+	  soft lockups.
 
 	  Softlockups are bugs that cause the kernel to loop in kernel
 	  mode for more than 20 seconds, without giving other tasks a
 	  chance to run.  The current stack trace is displayed upon
 	  detection and the system will stay locked up.
 
+config HARDLOCKUP_DETECTOR_PERF
+	bool
+	select SOFTLOCKUP_DETECTOR
+
+#
+# Enables a timestamp based low pass filter to compensate for perf based
+# hard lockup detection which runs too fast due to turbo modes.
+#
+config HARDLOCKUP_CHECK_TIMESTAMP
+	bool
+
+#
+# arch/ can define HAVE_HARDLOCKUP_DETECTOR_ARCH to provide their own hard
+# lockup detector rather than the perf based detector.
+#
+config HARDLOCKUP_DETECTOR
+	bool "Detect Hard Lockups"
+	depends on DEBUG_KERNEL && !S390
+	depends on HAVE_HARDLOCKUP_DETECTOR_PERF || HAVE_HARDLOCKUP_DETECTOR_ARCH
+	select LOCKUP_DETECTOR
+	select HARDLOCKUP_DETECTOR_PERF if HAVE_HARDLOCKUP_DETECTOR_PERF
+	select HARDLOCKUP_DETECTOR_ARCH if HAVE_HARDLOCKUP_DETECTOR_ARCH
+	help
+	  Say Y here to enable the kernel to act as a watchdog to detect
+	  hard lockups.
+
 	  Hardlockups are bugs that cause the CPU to loop in kernel mode
 	  for more than 10 seconds, without letting other interrupts have a
 	  chance to run.  The current stack trace is displayed upon detection
 	  and the system will stay locked up.
-
-	  The overhead should be minimal.  A periodic hrtimer runs to
-	  generate interrupts and kick the watchdog task every 4 seconds.
-	  An NMI is generated every 10 seconds or so to check for hardlockups.
-
-	  The frequency of hrtimer and NMI events and the soft and hard lockup
-	  thresholds can be controlled through the sysctl watchdog_thresh.
-
-config HARDLOCKUP_DETECTOR
-	def_bool y
-	depends on LOCKUP_DETECTOR && !HAVE_NMI_WATCHDOG
-	depends on PERF_EVENTS && HAVE_PERF_EVENTS_NMI
 
 config BOOTPARAM_HARDLOCKUP_PANIC
 	bool "Panic (Reboot) On Hard Lockups"
@@ -826,7 +848,7 @@ config BOOTPARAM_HARDLOCKUP_PANIC_VALUE
 
 config BOOTPARAM_SOFTLOCKUP_PANIC
 	bool "Panic (Reboot) On Soft Lockups"
-	depends on LOCKUP_DETECTOR
+	depends on SOFTLOCKUP_DETECTOR
 	help
 	  Say Y here to enable the kernel to panic on "soft lockups",
 	  which are bugs that cause the kernel to loop in kernel
@@ -843,7 +865,7 @@ config BOOTPARAM_SOFTLOCKUP_PANIC
 
 config BOOTPARAM_SOFTLOCKUP_PANIC_VALUE
 	int
-	depends on LOCKUP_DETECTOR
+	depends on SOFTLOCKUP_DETECTOR
 	range 0 1
 	default 0 if !BOOTPARAM_SOFTLOCKUP_PANIC
 	default 1 if BOOTPARAM_SOFTLOCKUP_PANIC
@@ -851,7 +873,7 @@ config BOOTPARAM_SOFTLOCKUP_PANIC_VALUE
 config DETECT_HUNG_TASK
 	bool "Detect Hung Tasks"
 	depends on DEBUG_KERNEL
-	default LOCKUP_DETECTOR
+	default SOFTLOCKUP_DETECTOR
 	help
 	  Say Y here to enable the kernel to detect "hung tasks",
 	  which are bugs that cause the task to be stuck in
@@ -1052,6 +1074,7 @@ config DEBUG_LOCK_ALLOC
 	depends on DEBUG_KERNEL && TRACE_IRQFLAGS_SUPPORT && STACKTRACE_SUPPORT && LOCKDEP_SUPPORT
 	select DEBUG_SPINLOCK
 	select DEBUG_MUTEXES
+	select DEBUG_RT_MUTEXES if RT_MUTEXES
 	select LOCKDEP
 	help
 	 This feature will check whether any held lock (spinlock, rwlock,
@@ -1067,7 +1090,10 @@ config PROVE_LOCKING
 	select LOCKDEP
 	select DEBUG_SPINLOCK
 	select DEBUG_MUTEXES
+	select DEBUG_RT_MUTEXES if RT_MUTEXES
 	select DEBUG_LOCK_ALLOC
+	select LOCKDEP_CROSSRELEASE if BROKEN
+	select LOCKDEP_COMPLETIONS if BROKEN
 	select TRACE_IRQFLAGS
 	default n
 	help
@@ -1108,7 +1134,7 @@ config LOCKDEP
 	bool
 	depends on DEBUG_KERNEL && TRACE_IRQFLAGS_SUPPORT && STACKTRACE_SUPPORT && LOCKDEP_SUPPORT
 	select STACKTRACE
-	select FRAME_POINTER if !MIPS && !PPC && !ARM_UNWIND && !S390 && !MICROBLAZE && !ARC && !SCORE
+	select FRAME_POINTER if !MIPS && !PPC && !ARM_UNWIND && !S390 && !MICROBLAZE && !ARC && !SCORE && !X86
 	select KALLSYMS
 	select KALLSYMS_ALL
 
@@ -1121,6 +1147,7 @@ config LOCK_STAT
 	select LOCKDEP
 	select DEBUG_SPINLOCK
 	select DEBUG_MUTEXES
+	select DEBUG_RT_MUTEXES if RT_MUTEXES
 	select DEBUG_LOCK_ALLOC
 	default n
 	help
@@ -1135,6 +1162,22 @@ config LOCK_STAT
 
 	 CONFIG_LOCK_STAT defines "contended" and "acquired" lock events.
 	 (CONFIG_LOCKDEP defines "acquire" and "release" events.)
+
+config LOCKDEP_CROSSRELEASE
+	bool
+	help
+	 This makes lockdep work for crosslock which is a lock allowed to
+	 be released in a different context from the acquisition context.
+	 Normally a lock must be released in the context acquiring the lock.
+	 However, relexing this constraint helps synchronization primitives
+	 such as page locks or completions can use the lock correctness
+	 detector, lockdep.
+
+config LOCKDEP_COMPLETIONS
+	bool
+	help
+	 A deadlock caused by wait_for_completion() and complete() can be
+	 detected by lockdep using crossrelease feature.
 
 config DEBUG_LOCKDEP
 	bool "Lock dependency engine debugging"
@@ -1208,6 +1251,34 @@ config STACKTRACE
 	  every process, showing its current stack trace.
 	  It is also used by various kernel debugging features that require
 	  stack trace generation.
+
+config WARN_ALL_UNSEEDED_RANDOM
+	bool "Warn for all uses of unseeded randomness"
+	default n
+	help
+	  Some parts of the kernel contain bugs relating to their use of
+	  cryptographically secure random numbers before it's actually possible
+	  to generate those numbers securely. This setting ensures that these
+	  flaws don't go unnoticed, by enabling a message, should this ever
+	  occur. This will allow people with obscure setups to know when things
+	  are going wrong, so that they might contact developers about fixing
+	  it.
+
+	  Unfortunately, on some models of some architectures getting
+	  a fully seeded CRNG is extremely difficult, and so this can
+	  result in dmesg getting spammed for a surprisingly long
+	  time.  This is really bad from a security perspective, and
+	  so architecture maintainers really need to do what they can
+	  to get the CRNG seeded sooner after the system is booted.
+	  However, since users can not do anything actionble to
+	  address this, by default the kernel will issue only a single
+	  warning for the first use of unseeded randomness.
+
+	  Say Y here if you want to receive warnings for all uses of
+	  unseeded randomness.  This will be of use primarily for
+	  those developers interersted in improving the security of
+	  Linux kernels running on their architecture (or
+	  subarchitecture).
 
 config DEBUG_KOBJECT
 	bool "kobject debugging"
@@ -1301,189 +1372,7 @@ config DEBUG_CREDENTIALS
 
 	  If unsure, say N.
 
-menu "RCU Debugging"
-
-config PROVE_RCU
-	def_bool PROVE_LOCKING
-
-config PROVE_RCU_REPEATEDLY
-	bool "RCU debugging: don't disable PROVE_RCU on first splat"
-	depends on PROVE_RCU
-	default n
-	help
-	 By itself, PROVE_RCU will disable checking upon issuing the
-	 first warning (or "splat").  This feature prevents such
-	 disabling, allowing multiple RCU-lockdep warnings to be printed
-	 on a single reboot.
-
-	 Say Y to allow multiple RCU-lockdep warnings per boot.
-
-	 Say N if you are unsure.
-
-config SPARSE_RCU_POINTER
-	bool "RCU debugging: sparse-based checks for pointer usage"
-	default n
-	help
-	 This feature enables the __rcu sparse annotation for
-	 RCU-protected pointers.  This annotation will cause sparse
-	 to flag any non-RCU used of annotated pointers.  This can be
-	 helpful when debugging RCU usage.  Please note that this feature
-	 is not intended to enforce code cleanliness; it is instead merely
-	 a debugging aid.
-
-	 Say Y to make sparse flag questionable use of RCU-protected pointers
-
-	 Say N if you are unsure.
-
-config TORTURE_TEST
-	tristate
-	default n
-
-config RCU_PERF_TEST
-	tristate "performance tests for RCU"
-	depends on DEBUG_KERNEL
-	select TORTURE_TEST
-	select SRCU
-	select TASKS_RCU
-	default n
-	help
-	  This option provides a kernel module that runs performance
-	  tests on the RCU infrastructure.  The kernel module may be built
-	  after the fact on the running kernel to be tested, if desired.
-
-	  Say Y here if you want RCU performance tests to be built into
-	  the kernel.
-	  Say M if you want the RCU performance tests to build as a module.
-	  Say N if you are unsure.
-
-config RCU_TORTURE_TEST
-	tristate "torture tests for RCU"
-	depends on DEBUG_KERNEL
-	select TORTURE_TEST
-	select SRCU
-	select TASKS_RCU
-	default n
-	help
-	  This option provides a kernel module that runs torture tests
-	  on the RCU infrastructure.  The kernel module may be built
-	  after the fact on the running kernel to be tested, if desired.
-
-	  Say Y here if you want RCU torture tests to be built into
-	  the kernel.
-	  Say M if you want the RCU torture tests to build as a module.
-	  Say N if you are unsure.
-
-config RCU_TORTURE_TEST_SLOW_PREINIT
-	bool "Slow down RCU grace-period pre-initialization to expose races"
-	depends on RCU_TORTURE_TEST
-	help
-	  This option delays grace-period pre-initialization (the
-	  propagation of CPU-hotplug changes up the rcu_node combining
-	  tree) for a few jiffies between initializing each pair of
-	  consecutive rcu_node structures.  This helps to expose races
-	  involving grace-period pre-initialization, in other words, it
-	  makes your kernel less stable.  It can also greatly increase
-	  grace-period latency, especially on systems with large numbers
-	  of CPUs.  This is useful when torture-testing RCU, but in
-	  almost no other circumstance.
-
-	  Say Y here if you want your system to crash and hang more often.
-	  Say N if you want a sane system.
-
-config RCU_TORTURE_TEST_SLOW_PREINIT_DELAY
-	int "How much to slow down RCU grace-period pre-initialization"
-	range 0 5
-	default 3
-	depends on RCU_TORTURE_TEST_SLOW_PREINIT
-	help
-	  This option specifies the number of jiffies to wait between
-	  each rcu_node structure pre-initialization step.
-
-config RCU_TORTURE_TEST_SLOW_INIT
-	bool "Slow down RCU grace-period initialization to expose races"
-	depends on RCU_TORTURE_TEST
-	help
-	  This option delays grace-period initialization for a few
-	  jiffies between initializing each pair of consecutive
-	  rcu_node structures.	This helps to expose races involving
-	  grace-period initialization, in other words, it makes your
-	  kernel less stable.  It can also greatly increase grace-period
-	  latency, especially on systems with large numbers of CPUs.
-	  This is useful when torture-testing RCU, but in almost no
-	  other circumstance.
-
-	  Say Y here if you want your system to crash and hang more often.
-	  Say N if you want a sane system.
-
-config RCU_TORTURE_TEST_SLOW_INIT_DELAY
-	int "How much to slow down RCU grace-period initialization"
-	range 0 5
-	default 3
-	depends on RCU_TORTURE_TEST_SLOW_INIT
-	help
-	  This option specifies the number of jiffies to wait between
-	  each rcu_node structure initialization.
-
-config RCU_TORTURE_TEST_SLOW_CLEANUP
-	bool "Slow down RCU grace-period cleanup to expose races"
-	depends on RCU_TORTURE_TEST
-	help
-	  This option delays grace-period cleanup for a few jiffies
-	  between cleaning up each pair of consecutive rcu_node
-	  structures.  This helps to expose races involving grace-period
-	  cleanup, in other words, it makes your kernel less stable.
-	  It can also greatly increase grace-period latency, especially
-	  on systems with large numbers of CPUs.  This is useful when
-	  torture-testing RCU, but in almost no other circumstance.
-
-	  Say Y here if you want your system to crash and hang more often.
-	  Say N if you want a sane system.
-
-config RCU_TORTURE_TEST_SLOW_CLEANUP_DELAY
-	int "How much to slow down RCU grace-period cleanup"
-	range 0 5
-	default 3
-	depends on RCU_TORTURE_TEST_SLOW_CLEANUP
-	help
-	  This option specifies the number of jiffies to wait between
-	  each rcu_node structure cleanup operation.
-
-config RCU_CPU_STALL_TIMEOUT
-	int "RCU CPU stall timeout in seconds"
-	depends on RCU_STALL_COMMON
-	range 3 300
-	default 21
-	help
-	  If a given RCU grace period extends more than the specified
-	  number of seconds, a CPU stall warning is printed.  If the
-	  RCU grace period persists, additional CPU stall warnings are
-	  printed at more widely spaced intervals.
-
-config RCU_TRACE
-	bool "Enable tracing for RCU"
-	depends on DEBUG_KERNEL
-	default y if TREE_RCU
-	select TRACE_CLOCK
-	help
-	  This option provides tracing in RCU which presents stats
-	  in debugfs for debugging RCU implementation.  It also enables
-	  additional tracepoints for ftrace-style event tracing.
-
-	  Say Y here if you want to enable RCU tracing
-	  Say N if you are unsure.
-
-config RCU_EQS_DEBUG
-	bool "Provide debugging asserts for adding NO_HZ support to an arch"
-	depends on DEBUG_KERNEL
-	help
-	  This option provides consistency checks in RCU's handling of
-	  NO_HZ.  These checks have proven quite helpful in detecting
-	  bugs in arch-specific NO_HZ code.
-
-	  Say N here if you need ultimate kernel/user switch latencies
-	  Say Y if you are unsure
-
-endmenu # "RCU Debugging"
+source "kernel/rcu/Kconfig.debug"
 
 config DEBUG_WQ_FORCE_RR_CPU
 	bool "Force round-robin CPU selection for unbound work items"
@@ -1680,7 +1569,7 @@ config FAULT_INJECTION_STACKTRACE_FILTER
 	depends on FAULT_INJECTION_DEBUG_FS && STACKTRACE_SUPPORT
 	depends on !X86_64
 	select STACKTRACE
-	select FRAME_POINTER if !MIPS && !PPC && !S390 && !MICROBLAZE && !ARM_UNWIND && !ARC && !SCORE
+	select FRAME_POINTER if !MIPS && !PPC && !S390 && !MICROBLAZE && !ARM_UNWIND && !ARC && !SCORE && !X86
 	help
 	  Provide stacktrace filter for fault-injection capabilities
 
@@ -1689,7 +1578,7 @@ config LATENCYTOP
 	depends on DEBUG_KERNEL
 	depends on STACKTRACE_SUPPORT
 	depends on PROC_FS
-	select FRAME_POINTER if !MIPS && !PPC && !S390 && !MICROBLAZE && !ARM_UNWIND && !ARC
+	select FRAME_POINTER if !MIPS && !PPC && !S390 && !MICROBLAZE && !ARM_UNWIND && !ARC && !X86
 	select KALLSYMS
 	select KALLSYMS_ALL
 	select STACKTRACE
@@ -1700,6 +1589,54 @@ config LATENCYTOP
 	  to find out which userspace is blocking on what kernel operations.
 
 source kernel/trace/Kconfig
+
+config PROVIDE_OHCI1394_DMA_INIT
+	bool "Remote debugging over FireWire early on boot"
+	depends on PCI && X86
+	help
+	  If you want to debug problems which hang or crash the kernel early
+	  on boot and the crashing machine has a FireWire port, you can use
+	  this feature to remotely access the memory of the crashed machine
+	  over FireWire. This employs remote DMA as part of the OHCI1394
+	  specification which is now the standard for FireWire controllers.
+
+	  With remote DMA, you can monitor the printk buffer remotely using
+	  firescope and access all memory below 4GB using fireproxy from gdb.
+	  Even controlling a kernel debugger is possible using remote DMA.
+
+	  Usage:
+
+	  If ohci1394_dma=early is used as boot parameter, it will initialize
+	  all OHCI1394 controllers which are found in the PCI config space.
+
+	  As all changes to the FireWire bus such as enabling and disabling
+	  devices cause a bus reset and thereby disable remote DMA for all
+	  devices, be sure to have the cable plugged and FireWire enabled on
+	  the debugging host before booting the debug target for debugging.
+
+	  This code (~1k) is freed after boot. By then, the firewire stack
+	  in charge of the OHCI-1394 controllers should be used instead.
+
+	  See Documentation/debugging-via-ohci1394.txt for more information.
+
+config DMA_API_DEBUG
+	bool "Enable debugging of DMA-API usage"
+	depends on HAVE_DMA_API_DEBUG
+	help
+	  Enable this option to debug the use of the DMA API by device drivers.
+	  With this option you will be able to detect common bugs in device
+	  drivers like double-freeing of DMA mappings or freeing mappings that
+	  were never allocated.
+
+	  This also attempts to catch cases where a page owned by DMA is
+	  accessed by the cpu in a way that could cause data corruption.  For
+	  example, this enables cow_user_page() to check that the source page is
+	  not undergoing DMA.
+
+	  This option causes a performance degradation.  Use only if you want to
+	  debug device drivers and dma interactions.
+
+	  If unsure, say N.
 
 menu "Runtime Testing"
 
@@ -1773,7 +1710,7 @@ config RBTREE_TEST
 
 config INTERVAL_TREE_TEST
 	tristate "Interval tree test"
-	depends on m && DEBUG_KERNEL
+	depends on DEBUG_KERNEL
 	select INTERVAL_TREE
 	help
 	  A benchmark measuring the performance of the interval tree library
@@ -1860,56 +1797,6 @@ config TEST_PARMAN
 
 	  If unsure, say N.
 
-endmenu # runtime tests
-
-config PROVIDE_OHCI1394_DMA_INIT
-	bool "Remote debugging over FireWire early on boot"
-	depends on PCI && X86
-	help
-	  If you want to debug problems which hang or crash the kernel early
-	  on boot and the crashing machine has a FireWire port, you can use
-	  this feature to remotely access the memory of the crashed machine
-	  over FireWire. This employs remote DMA as part of the OHCI1394
-	  specification which is now the standard for FireWire controllers.
-
-	  With remote DMA, you can monitor the printk buffer remotely using
-	  firescope and access all memory below 4GB using fireproxy from gdb.
-	  Even controlling a kernel debugger is possible using remote DMA.
-
-	  Usage:
-
-	  If ohci1394_dma=early is used as boot parameter, it will initialize
-	  all OHCI1394 controllers which are found in the PCI config space.
-
-	  As all changes to the FireWire bus such as enabling and disabling
-	  devices cause a bus reset and thereby disable remote DMA for all
-	  devices, be sure to have the cable plugged and FireWire enabled on
-	  the debugging host before booting the debug target for debugging.
-
-	  This code (~1k) is freed after boot. By then, the firewire stack
-	  in charge of the OHCI-1394 controllers should be used instead.
-
-	  See Documentation/debugging-via-ohci1394.txt for more information.
-
-config DMA_API_DEBUG
-	bool "Enable debugging of DMA-API usage"
-	depends on HAVE_DMA_API_DEBUG
-	help
-	  Enable this option to debug the use of the DMA API by device drivers.
-	  With this option you will be able to detect common bugs in device
-	  drivers like double-freeing of DMA mappings or freeing mappings that
-	  were never allocated.
-
-	  This also attempts to catch cases where a page owned by DMA is
-	  accessed by the cpu in a way that could cause data corruption.  For
-	  example, this enables cow_user_page() to check that the source page is
-	  not undergoing DMA.
-
-	  This option causes a performance degradation.  Use only if you want to
-	  debug device drivers and dma interactions.
-
-	  If unsure, say N.
-
 config TEST_LKM
 	tristate "Test module loading with 'hello world' module"
 	default n
@@ -1964,6 +1851,17 @@ config TEST_FIRMWARE
 
 	  If unsure, say N.
 
+config TEST_SYSCTL
+	tristate "sysctl test driver"
+	default n
+	depends on PROC_SYSCTL
+	help
+	  This builds the "test_sysctl" module. This driver enables to test the
+	  proc sysctl interfaces available to drivers safely without affecting
+	  production knobs which might alter system functionality.
+
+	  If unsure, say N.
+
 config TEST_UDELAY
 	tristate "udelay test driver"
 	default n
@@ -1972,6 +1870,54 @@ config TEST_UDELAY
 	  that udelay() is working properly.
 
 	  If unsure, say N.
+
+config TEST_STATIC_KEYS
+	tristate "Test static keys"
+	default n
+	depends on m
+	help
+	  Test the static key interfaces.
+
+	  If unsure, say N.
+
+config TEST_KMOD
+	tristate "kmod stress tester"
+	default n
+	depends on m
+	depends on BLOCK && (64BIT || LBDAF)	  # for XFS, BTRFS
+	depends on NETDEVICES && NET_CORE && INET # for TUN
+	select TEST_LKM
+	select XFS_FS
+	select TUN
+	select BTRFS_FS
+	help
+	  Test the kernel's module loading mechanism: kmod. kmod implements
+	  support to load modules using the Linux kernel's usermode helper.
+	  This test provides a series of tests against kmod.
+
+	  Although technically you can either build test_kmod as a module or
+	  into the kernel we disallow building it into the kernel since
+	  it stress tests request_module() and this will very likely cause
+	  some issues by taking over precious threads available from other
+	  module load requests, ultimately this could be fatal.
+
+	  To run tests run:
+
+	  tools/testing/selftests/kmod/kmod.sh --help
+
+	  If unsure, say N.
+
+config TEST_DEBUG_VIRTUAL
+	tristate "Test CONFIG_DEBUG_VIRTUAL feature"
+	depends on DEBUG_VIRTUAL
+	help
+	  Test the kernel's ability to detect incorrect calls to
+	  virt_to_phys() done against the non-linear part of the
+	  kernel's virtual address map.
+
+	  If unsure, say N.
+
+endmenu # runtime tests
 
 config MEMTEST
 	bool "Memtest"
@@ -1984,15 +1930,6 @@ config MEMTEST
 	        ...
 	        memtest=17, mean do 17 test patterns.
 	  If you are unsure how to answer this question, answer N.
-
-config TEST_STATIC_KEYS
-	tristate "Test static keys"
-	default n
-	depends on m
-	help
-	  Test the static key interfaces.
-
-	  If unsure, say N.
 
 config BUG_ON_DATA_CORRUPTION
 	bool "Trigger a BUG when data corruption is detected"

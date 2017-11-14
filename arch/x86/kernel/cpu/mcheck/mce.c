@@ -51,6 +51,7 @@
 #include <asm/mce.h>
 #include <asm/msr.h>
 #include <asm/reboot.h>
+#include <asm/set_memory.h>
 
 #include "mce-internal.h"
 
@@ -673,7 +674,6 @@ bool machine_check_poll(enum mcp_flags flags, mce_banks_t *b)
 {
 	bool error_seen = false;
 	struct mce m;
-	int severity;
 	int i;
 
 	this_cpu_inc(mce_poll_count);
@@ -710,11 +710,7 @@ bool machine_check_poll(enum mcp_flags flags, mce_banks_t *b)
 
 		mce_read_aux(&m, i);
 
-		severity = mce_severity(&m, mca_cfg.tolerant, NULL, false);
-
-		if (severity == MCE_DEFERRED_SEVERITY && mce_is_memory_error(&m))
-			if (m.status & MCI_STATUS_ADDRV)
-				m.severity = severity;
+		m.severity = mce_severity(&m, mca_cfg.tolerant, NULL, false);
 
 		/*
 		 * Don't get the IP here because it's unlikely to
@@ -1055,6 +1051,48 @@ static int do_memory_failure(struct mce *m)
 		pr_err("Memory error not recovered");
 	return ret;
 }
+
+#if defined(arch_unmap_kpfn) && defined(CONFIG_MEMORY_FAILURE)
+
+void arch_unmap_kpfn(unsigned long pfn)
+{
+	unsigned long decoy_addr;
+
+	/*
+	 * Unmap this page from the kernel 1:1 mappings to make sure
+	 * we don't log more errors because of speculative access to
+	 * the page.
+	 * We would like to just call:
+	 *	set_memory_np((unsigned long)pfn_to_kaddr(pfn), 1);
+	 * but doing that would radically increase the odds of a
+	 * speculative access to the posion page because we'd have
+	 * the virtual address of the kernel 1:1 mapping sitting
+	 * around in registers.
+	 * Instead we get tricky.  We create a non-canonical address
+	 * that looks just like the one we want, but has bit 63 flipped.
+	 * This relies on set_memory_np() not checking whether we passed
+	 * a legal address.
+	 */
+
+/*
+ * Build time check to see if we have a spare virtual bit. Don't want
+ * to leave this until run time because most developers don't have a
+ * system that can exercise this code path. This will only become a
+ * problem if/when we move beyond 5-level page tables.
+ *
+ * Hard code "9" here because cpp doesn't grok ilog2(PTRS_PER_PGD)
+ */
+#if PGDIR_SHIFT + 9 < 63
+	decoy_addr = (pfn << PAGE_SHIFT) + (PAGE_OFFSET ^ BIT(63));
+#else
+#error "no unused virtual bit available"
+#endif
+
+	if (set_memory_np(decoy_addr, 1))
+		pr_warn("Could not invalidate pfn=0x%lx from 1:1 map\n", pfn);
+
+}
+#endif
 
 /*
  * The actual machine check handler. This only handles real
@@ -1550,7 +1588,7 @@ static int __mcheck_cpu_apply_quirks(struct cpuinfo_x86 *c)
 			 */
 			clear_bit(10, (unsigned long *)&mce_banks[4].ctl);
 		}
-		if (c->x86 < 17 && cfg->bootlog < 0) {
+		if (c->x86 < 0x11 && cfg->bootlog < 0) {
 			/*
 			 * Lots of broken BIOS around that don't clear them
 			 * by default and leave crap in there. Don't log:
@@ -1832,7 +1870,8 @@ void mce_disable_bank(int bank)
  * mce=TOLERANCELEVEL[,monarchtimeout] (number, see above)
  *	monarchtimeout is how long to wait for other CPUs on machine
  *	check, or 0 to not wait
- * mce=bootlog Log MCEs from before booting. Disabled by default on AMD.
+ * mce=bootlog Log MCEs from before booting. Disabled by default on AMD Fam10h
+	and older.
  * mce=nobootlog Don't log MCEs from before booting.
  * mce=bios_cmci_threshold Don't program the CMCI threshold
  * mce=recovery force enable memcpy_mcsafe()
@@ -1912,12 +1951,13 @@ static void mce_disable_error_reporting(void)
 static void vendor_disable_error_reporting(void)
 {
 	/*
-	 * Don't clear on Intel CPUs. Some of these MSRs are socket-wide.
+	 * Don't clear on Intel or AMD CPUs. Some of these MSRs are socket-wide.
 	 * Disabling them for just a single offlined CPU is bad, since it will
 	 * inhibit reporting for all shared resources on the socket like the
 	 * last level cache (LLC), the integrated memory controller (iMC), etc.
 	 */
-	if (boot_cpu_data.x86_vendor == X86_VENDOR_INTEL)
+	if (boot_cpu_data.x86_vendor == X86_VENDOR_INTEL ||
+	    boot_cpu_data.x86_vendor == X86_VENDOR_AMD)
 		return;
 
 	mce_disable_error_reporting();

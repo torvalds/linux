@@ -437,11 +437,11 @@ static void pppol2tp_session_close(struct l2tp_session *session)
 
 	BUG_ON(session->magic != L2TP_SESSION_MAGIC);
 
-	if (sock) {
+	if (sock)
 		inet_shutdown(sock, SEND_SHUTDOWN);
-		/* Don't let the session go away before our socket does */
-		l2tp_session_inc_refcount(session);
-	}
+
+	/* Don't let the session go away before our socket does */
+	l2tp_session_inc_refcount(session);
 }
 
 /* Really kill the session socket. (Called from sock_put() if
@@ -584,6 +584,7 @@ static int pppol2tp_connect(struct socket *sock, struct sockaddr *uservaddr,
 	u32 tunnel_id, peer_tunnel_id;
 	u32 session_id, peer_session_id;
 	bool drop_refcnt = false;
+	bool drop_tunnel = false;
 	int ver = 2;
 	int fd;
 
@@ -652,7 +653,9 @@ static int pppol2tp_connect(struct socket *sock, struct sockaddr *uservaddr,
 	if (tunnel_id == 0)
 		goto end;
 
-	tunnel = l2tp_tunnel_find(sock_net(sk), tunnel_id);
+	tunnel = l2tp_tunnel_get(sock_net(sk), tunnel_id);
+	if (tunnel)
+		drop_tunnel = true;
 
 	/* Special case: create tunnel context if session_id and
 	 * peer_session_id is 0. Otherwise look up tunnel using supplied
@@ -781,6 +784,8 @@ out_no_ppp:
 end:
 	if (drop_refcnt)
 		l2tp_session_dec_refcount(session);
+	if (drop_tunnel)
+		l2tp_tunnel_dec_refcount(tunnel);
 	release_sock(sk);
 
 	return error;
@@ -788,25 +793,20 @@ end:
 
 #ifdef CONFIG_L2TP_V3
 
-/* Called when creating sessions via the netlink interface.
- */
-static int pppol2tp_session_create(struct net *net, u32 tunnel_id, u32 session_id, u32 peer_session_id, struct l2tp_session_cfg *cfg)
+/* Called when creating sessions via the netlink interface. */
+static int pppol2tp_session_create(struct net *net, struct l2tp_tunnel *tunnel,
+				   u32 session_id, u32 peer_session_id,
+				   struct l2tp_session_cfg *cfg)
 {
 	int error;
-	struct l2tp_tunnel *tunnel;
 	struct l2tp_session *session;
 	struct pppol2tp_session *ps;
 
-	tunnel = l2tp_tunnel_find(net, tunnel_id);
-
-	/* Error if we can't find the tunnel */
-	error = -ENOENT;
-	if (tunnel == NULL)
-		goto out;
-
 	/* Error if tunnel socket is not prepped */
-	if (tunnel->sock == NULL)
+	if (!tunnel->sock) {
+		error = -ENOENT;
 		goto out;
+	}
 
 	/* Default MTU values. */
 	if (cfg->mtu == 0)
@@ -993,6 +993,9 @@ static int pppol2tp_session_ioctl(struct l2tp_session *session,
 		 session->name, cmd, arg);
 
 	sk = ps->sock;
+	if (!sk)
+		return -EBADR;
+
 	sock_hold(sk);
 
 	switch (cmd) {
@@ -1616,7 +1619,7 @@ static void pppol2tp_seq_tunnel_show(struct seq_file *m, void *v)
 	seq_printf(m, "\nTUNNEL '%s', %c %d\n",
 		   tunnel->name,
 		   (tunnel == tunnel->sock->sk_user_data) ? 'Y' : 'N',
-		   atomic_read(&tunnel->ref_count) - 1);
+		   refcount_read(&tunnel->ref_count) - 1);
 	seq_printf(m, " %08x %ld/%ld/%ld %ld/%ld/%ld\n",
 		   tunnel->debug,
 		   atomic_long_read(&tunnel->stats.tx_packets),

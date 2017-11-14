@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * The struct perf_event_attr test support.
  *
@@ -18,6 +19,7 @@
  * permissions. All the event text files are stored there.
  */
 
+#include <debug.h>
 #include <errno.h>
 #include <inttypes.h>
 #include <stdlib.h>
@@ -29,15 +31,13 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include "../perf.h"
-#include "util.h"
 #include <subcmd/exec-cmd.h>
 #include "tests.h"
 
 #define ENV "PERF_TEST_ATTR"
 
-extern int verbose;
-
 static char *dir;
+static bool ready;
 
 void test_attr__init(void)
 {
@@ -68,6 +68,9 @@ static int store_event(struct perf_event_attr *attr, pid_t pid, int cpu,
 {
 	FILE *file;
 	char path[PATH_MAX];
+
+	if (!ready)
+		return 0;
 
 	snprintf(path, PATH_MAX, "%s/event-%d-%llu-%d", dir,
 		 attr->type, attr->config, fd);
@@ -138,10 +141,18 @@ void test_attr__open(struct perf_event_attr *attr, pid_t pid, int cpu,
 {
 	int errno_saved = errno;
 
-	if (store_event(attr, pid, cpu, fd, group_fd, flags))
-		die("test attr FAILED");
+	if ((fd != -1) && store_event(attr, pid, cpu, fd, group_fd, flags)) {
+		pr_err("test attr FAILED");
+		exit(128);
+	}
 
 	errno = errno_saved;
+}
+
+void test_attr__ready(void)
+{
+	if (unlikely(test_attr__enabled) && !ready)
+		ready = true;
 }
 
 static int run_dir(const char *d, const char *perf)
@@ -159,7 +170,7 @@ static int run_dir(const char *d, const char *perf)
 	return system(cmd);
 }
 
-int test__attr(int subtest __maybe_unused)
+int test__attr(struct test *test __maybe_unused, int subtest __maybe_unused)
 {
 	struct stat st;
 	char path_perf[PATH_MAX];

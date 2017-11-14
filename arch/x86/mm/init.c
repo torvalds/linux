@@ -18,6 +18,8 @@
 #include <asm/dma.h>		/* for MAX_DMA_PFN */
 #include <asm/microcode.h>
 #include <asm/kaslr.h>
+#include <asm/hypervisor.h>
+#include <asm/cpufeature.h>
 
 /*
  * We need to define the tracepoints somewhere, and tlb.c
@@ -190,6 +192,38 @@ static void __init probe_page_size_mask(void)
 	} else {
 		direct_gbpages = 0;
 	}
+}
+
+static void setup_pcid(void)
+{
+#ifdef CONFIG_X86_64
+	if (boot_cpu_has(X86_FEATURE_PCID)) {
+		if (boot_cpu_has(X86_FEATURE_PGE)) {
+			/*
+			 * This can't be cr4_set_bits_and_update_boot() --
+			 * the trampoline code can't handle CR4.PCIDE and
+			 * it wouldn't do any good anyway.  Despite the name,
+			 * cr4_set_bits_and_update_boot() doesn't actually
+			 * cause the bits in question to remain set all the
+			 * way through the secondary boot asm.
+			 *
+			 * Instead, we brute-force it and set CR4.PCIDE
+			 * manually in start_secondary().
+			 */
+			cr4_set_bits(X86_CR4_PCIDE);
+		} else {
+			/*
+			 * flush_tlb_all(), as currently implemented, won't
+			 * work if PCID is on but PGE is not.  Since that
+			 * combination doesn't exist on real hardware, there's
+			 * no reason to try to fully support it, but it's
+			 * polite to avoid corrupting data if we're on
+			 * an improperly configured VM.
+			 */
+			setup_clear_cpu_cap(X86_FEATURE_PCID);
+		}
+	}
+#endif
 }
 
 #ifdef CONFIG_X86_32
@@ -591,6 +625,7 @@ void __init init_mem_mapping(void)
 	unsigned long end;
 
 	probe_page_size_mask();
+	setup_pcid();
 
 #ifdef CONFIG_X86_64
 	end = max_pfn << PAGE_SHIFT;
@@ -635,6 +670,8 @@ void __init init_mem_mapping(void)
 
 	load_cr3(swapper_pg_dir);
 	__flush_tlb_all();
+
+	hypervisor_init_mem_mapping();
 
 	early_memtest(0, max_pfn_mapped << PAGE_SHIFT);
 }
@@ -811,10 +848,8 @@ void __init zone_sizes_init(void)
 }
 
 DEFINE_PER_CPU_SHARED_ALIGNED(struct tlb_state, cpu_tlbstate) = {
-#ifdef CONFIG_SMP
-	.active_mm = &init_mm,
-	.state = 0,
-#endif
+	.loaded_mm = &init_mm,
+	.next_asid = 1,
 	.cr4 = ~0UL,	/* fail hard if we screw up cr4 shadow initialization */
 };
 EXPORT_SYMBOL_GPL(cpu_tlbstate);

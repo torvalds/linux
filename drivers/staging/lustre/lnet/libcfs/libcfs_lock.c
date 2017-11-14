@@ -27,7 +27,7 @@
 
 #define DEBUG_SUBSYSTEM S_LNET
 
-#include "../../include/linux/libcfs/libcfs.h"
+#include <linux/libcfs/libcfs.h>
 
 /** destroy cpu-partition lock, see libcfs_private.h for more detail */
 void

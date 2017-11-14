@@ -590,7 +590,7 @@ __build_packet_message(struct nfnl_log_net *log,
 		if (skb_tailroom(inst->skb) < nla_total_size(data_len))
 			goto nla_put_failure;
 
-		nla = (struct nlattr *)skb_put(inst->skb, nla_total_size(data_len));
+		nla = skb_put(inst->skb, nla_total_size(data_len));
 		nla->nla_type = NFULA_PAYLOAD;
 		nla->nla_len = size;
 
@@ -606,7 +606,7 @@ nla_put_failure:
 	return -1;
 }
 
-static struct nf_loginfo default_loginfo = {
+static const struct nf_loginfo default_loginfo = {
 	.type =		NF_LOG_TYPE_ULOG,
 	.u = {
 		.ulog = {
@@ -795,7 +795,8 @@ static struct notifier_block nfulnl_rtnl_notifier = {
 
 static int nfulnl_recv_unsupp(struct net *net, struct sock *ctnl,
 			      struct sk_buff *skb, const struct nlmsghdr *nlh,
-			      const struct nlattr * const nfqa[])
+			      const struct nlattr * const nfqa[],
+			      struct netlink_ext_ack *extack)
 {
 	return -ENOTSUPP;
 }
@@ -818,7 +819,8 @@ static const struct nla_policy nfula_cfg_policy[NFULA_CFG_MAX+1] = {
 
 static int nfulnl_recv_config(struct net *net, struct sock *ctnl,
 			      struct sk_buff *skb, const struct nlmsghdr *nlh,
-			      const struct nlattr * const nfula[])
+			      const struct nlattr * const nfula[],
+			      struct netlink_ext_ack *extack)
 {
 	struct nfgenmsg *nfmsg = nlmsg_data(nlh);
 	u_int16_t group_num = ntohs(nfmsg->res_id);

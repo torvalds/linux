@@ -873,9 +873,8 @@ static int spi_davinci_get_pdata(struct platform_device *pdev,
 	return 0;
 }
 #else
-static struct davinci_spi_platform_data
-	*spi_davinci_get_pdata(struct platform_device *pdev,
-		struct davinci_spi *dspi)
+static int spi_davinci_get_pdata(struct platform_device *pdev,
+			struct davinci_spi *dspi)
 {
 	return -ENODEV;
 }
@@ -965,7 +964,9 @@ static int davinci_spi_probe(struct platform_device *pdev)
 		ret = -ENODEV;
 		goto free_master;
 	}
-	clk_prepare_enable(dspi->clk);
+	ret = clk_prepare_enable(dspi->clk);
+	if (ret)
+		goto free_master;
 
 	master->dev.of_node = pdev->dev.of_node;
 	master->bus_num = pdev->id;

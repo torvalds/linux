@@ -863,8 +863,7 @@ static int drm_helper_choose_crtc_dpms(struct drm_crtc *crtc)
  * provided by the driver.
  *
  * This function is deprecated.  New drivers must implement atomic modeset
- * support, for which this function is unsuitable. Instead drivers should use
- * drm_atomic_helper_connector_dpms().
+ * support, where DPMS is handled in the DRM core.
  *
  * Returns:
  * Always returns 0.

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __PERF_DEMANGLE_RUST
 #define __PERF_DEMANGLE_RUST 1
 

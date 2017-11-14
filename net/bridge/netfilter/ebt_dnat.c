@@ -61,7 +61,7 @@ static int ebt_dnat_tg_check(const struct xt_tgchk_param *par)
 	    (strcmp(par->table, "broute") != 0 ||
 	    hook_mask & ~(1 << NF_BR_BROUTING)))
 		return -EINVAL;
-	if (INVALID_TARGET)
+	if (ebt_invalid_target(info->target))
 		return -EINVAL;
 	return 0;
 }

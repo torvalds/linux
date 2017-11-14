@@ -714,7 +714,7 @@ static int snd_via82xx_pcm_prepare(struct snd_pcm_substream *substream)
 /*
  * pcm hardware definition, identical for both playback and capture
  */
-static struct snd_pcm_hardware snd_via82xx_hw =
+static const struct snd_pcm_hardware snd_via82xx_hw =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER |
@@ -744,8 +744,8 @@ static int snd_via82xx_modem_pcm_open(struct via82xx_modem *chip, struct viadev 
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	int err;
-        static unsigned int rates[] = { 8000,  9600, 12000, 16000 };
-        static struct snd_pcm_hw_constraint_list hw_constraints_rates = {
+	static const unsigned int rates[] = { 8000,  9600, 12000, 16000 };
+	static const struct snd_pcm_hw_constraint_list hw_constraints_rates = {
                 .count = ARRAY_SIZE(rates),
                 .list = rates,
                 .mask = 0,

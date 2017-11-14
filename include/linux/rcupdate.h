@@ -34,104 +34,15 @@
 #define __LINUX_RCUPDATE_H
 
 #include <linux/types.h>
-#include <linux/cache.h>
-#include <linux/spinlock.h>
-#include <linux/threads.h>
-#include <linux/cpumask.h>
-#include <linux/seqlock.h>
-#include <linux/lockdep.h>
-#include <linux/debugobjects.h>
-#include <linux/bug.h>
 #include <linux/compiler.h>
-#include <linux/ktime.h>
+#include <linux/atomic.h>
 #include <linux/irqflags.h>
+#include <linux/preempt.h>
+#include <linux/bottom_half.h>
+#include <linux/lockdep.h>
+#include <asm/processor.h>
+#include <linux/cpumask.h>
 
-#include <asm/barrier.h>
-
-#ifndef CONFIG_TINY_RCU
-extern int rcu_expedited; /* for sysctl */
-extern int rcu_normal;    /* also for sysctl */
-#endif /* #ifndef CONFIG_TINY_RCU */
-
-#ifdef CONFIG_TINY_RCU
-/* Tiny RCU doesn't expedite, as its purpose in life is instead to be tiny. */
-static inline bool rcu_gp_is_normal(void)  /* Internal RCU use. */
-{
-	return true;
-}
-static inline bool rcu_gp_is_expedited(void)  /* Internal RCU use. */
-{
-	return false;
-}
-
-static inline void rcu_expedite_gp(void)
-{
-}
-
-static inline void rcu_unexpedite_gp(void)
-{
-}
-#else /* #ifdef CONFIG_TINY_RCU */
-bool rcu_gp_is_normal(void);     /* Internal RCU use. */
-bool rcu_gp_is_expedited(void);  /* Internal RCU use. */
-void rcu_expedite_gp(void);
-void rcu_unexpedite_gp(void);
-#endif /* #else #ifdef CONFIG_TINY_RCU */
-
-enum rcutorture_type {
-	RCU_FLAVOR,
-	RCU_BH_FLAVOR,
-	RCU_SCHED_FLAVOR,
-	RCU_TASKS_FLAVOR,
-	SRCU_FLAVOR,
-	INVALID_RCU_FLAVOR
-};
-
-#if defined(CONFIG_TREE_RCU) || defined(CONFIG_PREEMPT_RCU)
-void rcutorture_get_gp_data(enum rcutorture_type test_type, int *flags,
-			    unsigned long *gpnum, unsigned long *completed);
-void rcutorture_record_test_transition(void);
-void rcutorture_record_progress(unsigned long vernum);
-void do_trace_rcu_torture_read(const char *rcutorturename,
-			       struct rcu_head *rhp,
-			       unsigned long secs,
-			       unsigned long c_old,
-			       unsigned long c);
-bool rcu_irq_enter_disabled(void);
-#else
-static inline void rcutorture_get_gp_data(enum rcutorture_type test_type,
-					  int *flags,
-					  unsigned long *gpnum,
-					  unsigned long *completed)
-{
-	*flags = 0;
-	*gpnum = 0;
-	*completed = 0;
-}
-static inline void rcutorture_record_test_transition(void)
-{
-}
-static inline void rcutorture_record_progress(unsigned long vernum)
-{
-}
-static inline bool rcu_irq_enter_disabled(void)
-{
-	return false;
-}
-#ifdef CONFIG_RCU_TRACE
-void do_trace_rcu_torture_read(const char *rcutorturename,
-			       struct rcu_head *rhp,
-			       unsigned long secs,
-			       unsigned long c_old,
-			       unsigned long c);
-#else
-#define do_trace_rcu_torture_read(rcutorturename, rhp, secs, c_old, c) \
-	do { } while (0)
-#endif
-#endif
-
-#define UINT_CMP_GE(a, b)	(UINT_MAX / 2 >= (a) - (b))
-#define UINT_CMP_LT(a, b)	(UINT_MAX / 2 < (a) - (b))
 #define ULONG_CMP_GE(a, b)	(ULONG_MAX / 2 >= (a) - (b))
 #define ULONG_CMP_LT(a, b)	(ULONG_MAX / 2 < (a) - (b))
 #define ulong2long(a)		(*(long *)(&(a)))
@@ -139,117 +50,14 @@ void do_trace_rcu_torture_read(const char *rcutorturename,
 /* Exported common interfaces */
 
 #ifdef CONFIG_PREEMPT_RCU
-
-/**
- * call_rcu() - Queue an RCU callback for invocation after a grace period.
- * @head: structure to be used for queueing the RCU updates.
- * @func: actual callback function to be invoked after the grace period
- *
- * The callback function will be invoked some time after a full grace
- * period elapses, in other words after all pre-existing RCU read-side
- * critical sections have completed.  However, the callback function
- * might well execute concurrently with RCU read-side critical sections
- * that started after call_rcu() was invoked.  RCU read-side critical
- * sections are delimited by rcu_read_lock() and rcu_read_unlock(),
- * and may be nested.
- *
- * Note that all CPUs must agree that the grace period extended beyond
- * all pre-existing RCU read-side critical section.  On systems with more
- * than one CPU, this means that when "func()" is invoked, each CPU is
- * guaranteed to have executed a full memory barrier since the end of its
- * last RCU read-side critical section whose beginning preceded the call
- * to call_rcu().  It also means that each CPU executing an RCU read-side
- * critical section that continues beyond the start of "func()" must have
- * executed a memory barrier after the call_rcu() but before the beginning
- * of that RCU read-side critical section.  Note that these guarantees
- * include CPUs that are offline, idle, or executing in user mode, as
- * well as CPUs that are executing in the kernel.
- *
- * Furthermore, if CPU A invoked call_rcu() and CPU B invoked the
- * resulting RCU callback function "func()", then both CPU A and CPU B are
- * guaranteed to execute a full memory barrier during the time interval
- * between the call to call_rcu() and the invocation of "func()" -- even
- * if CPU A and CPU B are the same CPU (but again only if the system has
- * more than one CPU).
- */
-void call_rcu(struct rcu_head *head,
-	      rcu_callback_t func);
-
+void call_rcu(struct rcu_head *head, rcu_callback_t func);
 #else /* #ifdef CONFIG_PREEMPT_RCU */
-
-/* In classic RCU, call_rcu() is just call_rcu_sched(). */
 #define	call_rcu	call_rcu_sched
-
 #endif /* #else #ifdef CONFIG_PREEMPT_RCU */
 
-/**
- * call_rcu_bh() - Queue an RCU for invocation after a quicker grace period.
- * @head: structure to be used for queueing the RCU updates.
- * @func: actual callback function to be invoked after the grace period
- *
- * The callback function will be invoked some time after a full grace
- * period elapses, in other words after all currently executing RCU
- * read-side critical sections have completed. call_rcu_bh() assumes
- * that the read-side critical sections end on completion of a softirq
- * handler. This means that read-side critical sections in process
- * context must not be interrupted by softirqs. This interface is to be
- * used when most of the read-side critical sections are in softirq context.
- * RCU read-side critical sections are delimited by :
- *  - rcu_read_lock() and  rcu_read_unlock(), if in interrupt context.
- *  OR
- *  - rcu_read_lock_bh() and rcu_read_unlock_bh(), if in process context.
- *  These may be nested.
- *
- * See the description of call_rcu() for more detailed information on
- * memory ordering guarantees.
- */
-void call_rcu_bh(struct rcu_head *head,
-		 rcu_callback_t func);
-
-/**
- * call_rcu_sched() - Queue an RCU for invocation after sched grace period.
- * @head: structure to be used for queueing the RCU updates.
- * @func: actual callback function to be invoked after the grace period
- *
- * The callback function will be invoked some time after a full grace
- * period elapses, in other words after all currently executing RCU
- * read-side critical sections have completed. call_rcu_sched() assumes
- * that the read-side critical sections end on enabling of preemption
- * or on voluntary preemption.
- * RCU read-side critical sections are delimited by :
- *  - rcu_read_lock_sched() and  rcu_read_unlock_sched(),
- *  OR
- *  anything that disables preemption.
- *  These may be nested.
- *
- * See the description of call_rcu() for more detailed information on
- * memory ordering guarantees.
- */
-void call_rcu_sched(struct rcu_head *head,
-		    rcu_callback_t func);
-
+void call_rcu_bh(struct rcu_head *head, rcu_callback_t func);
+void call_rcu_sched(struct rcu_head *head, rcu_callback_t func);
 void synchronize_sched(void);
-
-/**
- * call_rcu_tasks() - Queue an RCU for invocation task-based grace period
- * @head: structure to be used for queueing the RCU updates.
- * @func: actual callback function to be invoked after the grace period
- *
- * The callback function will be invoked some time after a full grace
- * period elapses, in other words after all currently executing RCU
- * read-side critical sections have completed. call_rcu_tasks() assumes
- * that the read-side critical sections end at a voluntary context
- * switch (not a preemption!), entry into idle, or transition to usermode
- * execution.  As such, there are no read-side primitives analogous to
- * rcu_read_lock() and rcu_read_unlock() because this primitive is intended
- * to determine that all tasks have passed through a safe state, not so
- * much for data-strcuture synchronization.
- *
- * See the description of call_rcu() for more detailed information on
- * memory ordering guarantees.
- */
-void call_rcu_tasks(struct rcu_head *head, rcu_callback_t func);
-void synchronize_rcu_tasks(void);
 void rcu_barrier_tasks(void);
 
 #ifdef CONFIG_PREEMPT_RCU
@@ -295,28 +103,20 @@ static inline int rcu_preempt_depth(void)
 
 /* Internal to kernel */
 void rcu_init(void);
+extern int rcu_scheduler_active __read_mostly;
 void rcu_sched_qs(void);
 void rcu_bh_qs(void);
 void rcu_check_callbacks(int user);
 void rcu_report_dead(unsigned int cpu);
 void rcu_cpu_starting(unsigned int cpu);
-
-#ifndef CONFIG_TINY_RCU
-void rcu_end_inkernel_boot(void);
-#else /* #ifndef CONFIG_TINY_RCU */
-static inline void rcu_end_inkernel_boot(void) { }
-#endif /* #ifndef CONFIG_TINY_RCU */
+void rcutree_migrate_callbacks(int cpu);
 
 #ifdef CONFIG_RCU_STALL_COMMON
 void rcu_sysrq_start(void);
 void rcu_sysrq_end(void);
 #else /* #ifdef CONFIG_RCU_STALL_COMMON */
-static inline void rcu_sysrq_start(void)
-{
-}
-static inline void rcu_sysrq_end(void)
-{
-}
+static inline void rcu_sysrq_start(void) { }
+static inline void rcu_sysrq_end(void) { }
 #endif /* #else #ifdef CONFIG_RCU_STALL_COMMON */
 
 #ifdef CONFIG_NO_HZ_FULL
@@ -330,9 +130,7 @@ static inline void rcu_user_exit(void) { }
 #ifdef CONFIG_RCU_NOCB_CPU
 void rcu_init_nohz(void);
 #else /* #ifdef CONFIG_RCU_NOCB_CPU */
-static inline void rcu_init_nohz(void)
-{
-}
+static inline void rcu_init_nohz(void) { }
 #endif /* #else #ifdef CONFIG_RCU_NOCB_CPU */
 
 /**
@@ -366,8 +164,6 @@ static inline void rcu_init_nohz(void)
  * macro rather than an inline function to avoid #include hell.
  */
 #ifdef CONFIG_TASKS_RCU
-#define TASKS_RCU(x) x
-extern struct srcu_struct tasks_rcu_exit_srcu;
 #define rcu_note_voluntary_context_switch_lite(t) \
 	do { \
 		if (READ_ONCE((t)->rcu_tasks_holdout)) \
@@ -378,10 +174,17 @@ extern struct srcu_struct tasks_rcu_exit_srcu;
 		rcu_all_qs(); \
 		rcu_note_voluntary_context_switch_lite(t); \
 	} while (0)
+void call_rcu_tasks(struct rcu_head *head, rcu_callback_t func);
+void synchronize_rcu_tasks(void);
+void exit_tasks_rcu_start(void);
+void exit_tasks_rcu_finish(void);
 #else /* #ifdef CONFIG_TASKS_RCU */
-#define TASKS_RCU(x) do { } while (0)
 #define rcu_note_voluntary_context_switch_lite(t)	do { } while (0)
 #define rcu_note_voluntary_context_switch(t)		rcu_all_qs()
+#define call_rcu_tasks call_rcu_sched
+#define synchronize_rcu_tasks synchronize_sched
+static inline void exit_tasks_rcu_start(void) { }
+static inline void exit_tasks_rcu_finish(void) { }
 #endif /* #else #ifdef CONFIG_TASKS_RCU */
 
 /**
@@ -397,10 +200,6 @@ do { \
 		rcu_note_voluntary_context_switch(current); \
 } while (0)
 
-#if defined(CONFIG_DEBUG_LOCK_ALLOC) || defined(CONFIG_RCU_TRACE) || defined(CONFIG_SMP)
-bool __rcu_is_watching(void);
-#endif /* #if defined(CONFIG_DEBUG_LOCK_ALLOC) || defined(CONFIG_RCU_TRACE) || defined(CONFIG_SMP) */
-
 /*
  * Infrastructure to implement the synchronize_() primitives in
  * TREE_RCU and rcu_barrier_() primitives in TINY_RCU.
@@ -414,10 +213,6 @@ bool __rcu_is_watching(void);
 #error "Unknown RCU implementation specified to kernel configuration"
 #endif
 
-#define RCU_SCHEDULER_INACTIVE	0
-#define RCU_SCHEDULER_INIT	1
-#define RCU_SCHEDULER_RUNNING	2
-
 /*
  * init_rcu_head_on_stack()/destroy_rcu_head_on_stack() are needed for dynamic
  * initialization and destruction of rcu_head on the stack. rcu_head structures
@@ -430,30 +225,16 @@ void destroy_rcu_head(struct rcu_head *head);
 void init_rcu_head_on_stack(struct rcu_head *head);
 void destroy_rcu_head_on_stack(struct rcu_head *head);
 #else /* !CONFIG_DEBUG_OBJECTS_RCU_HEAD */
-static inline void init_rcu_head(struct rcu_head *head)
-{
-}
-
-static inline void destroy_rcu_head(struct rcu_head *head)
-{
-}
-
-static inline void init_rcu_head_on_stack(struct rcu_head *head)
-{
-}
-
-static inline void destroy_rcu_head_on_stack(struct rcu_head *head)
-{
-}
+static inline void init_rcu_head(struct rcu_head *head) { }
+static inline void destroy_rcu_head(struct rcu_head *head) { }
+static inline void init_rcu_head_on_stack(struct rcu_head *head) { }
+static inline void destroy_rcu_head_on_stack(struct rcu_head *head) { }
 #endif	/* #else !CONFIG_DEBUG_OBJECTS_RCU_HEAD */
 
 #if defined(CONFIG_HOTPLUG_CPU) && defined(CONFIG_PROVE_RCU)
 bool rcu_lockdep_current_cpu_online(void);
 #else /* #if defined(CONFIG_HOTPLUG_CPU) && defined(CONFIG_PROVE_RCU) */
-static inline bool rcu_lockdep_current_cpu_online(void)
-{
-	return true;
-}
+static inline bool rcu_lockdep_current_cpu_online(void) { return true; }
 #endif /* #else #if defined(CONFIG_HOTPLUG_CPU) && defined(CONFIG_PROVE_RCU) */
 
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
@@ -473,18 +254,8 @@ extern struct lockdep_map rcu_bh_lock_map;
 extern struct lockdep_map rcu_sched_lock_map;
 extern struct lockdep_map rcu_callback_map;
 int debug_lockdep_rcu_enabled(void);
-
 int rcu_read_lock_held(void);
 int rcu_read_lock_bh_held(void);
-
-/**
- * rcu_read_lock_sched_held() - might we be in RCU-sched read-side critical section?
- *
- * If CONFIG_DEBUG_LOCK_ALLOC is selected, returns nonzero iff in an
- * RCU-sched read-side critical section.  In absence of
- * CONFIG_DEBUG_LOCK_ALLOC, this assumes we are in an RCU-sched read-side
- * critical section unless it can prove otherwise.
- */
 int rcu_read_lock_sched_held(void);
 
 #else /* #ifdef CONFIG_DEBUG_LOCK_ALLOC */
@@ -531,9 +302,7 @@ static inline void rcu_preempt_sleep_check(void)
 			 "Illegal context switch in RCU read-side critical section");
 }
 #else /* #ifdef CONFIG_PROVE_RCU */
-static inline void rcu_preempt_sleep_check(void)
-{
-}
+static inline void rcu_preempt_sleep_check(void) { }
 #endif /* #else #ifdef CONFIG_PROVE_RCU */
 
 #define rcu_sleep_check()						\
@@ -644,6 +413,22 @@ static inline void rcu_preempt_sleep_check(void)
 })
 
 /**
+ * rcu_swap_protected() - swap an RCU and a regular pointer
+ * @rcu_ptr: RCU pointer
+ * @ptr: regular pointer
+ * @c: the conditions under which the dereference will take place
+ *
+ * Perform swap(@rcu_ptr, @ptr) where @rcu_ptr is an RCU-annotated pointer and
+ * @c is the argument that is passed to the rcu_dereference_protected() call
+ * used to read that pointer.
+ */
+#define rcu_swap_protected(rcu_ptr, ptr, c) do {			\
+	typeof(ptr) __tmp = rcu_dereference_protected((rcu_ptr), (c));	\
+	rcu_assign_pointer((rcu_ptr), (ptr));				\
+	(ptr) = __tmp;							\
+} while (0)
+
+/**
  * rcu_access_pointer() - fetch RCU pointer with no dereferencing
  * @p: The pointer to read
  *
@@ -738,7 +523,7 @@ static inline void rcu_preempt_sleep_check(void)
  * Return the value of the specified RCU-protected pointer, but omit
  * both the smp_read_barrier_depends() and the READ_ONCE().  This
  * is useful in cases where update-side locks prevent the value of the
- * pointer from changing.  Please note that this primitive does -not-
+ * pointer from changing.  Please note that this primitive does *not*
  * prevent the compiler from repeating this reference or combining it
  * with other references, so it should not be used without protection
  * of appropriate locks.
@@ -783,7 +568,7 @@ static inline void rcu_preempt_sleep_check(void)
  * is handed off from RCU to some other synchronization mechanism, for
  * example, reference counting or locking.  In C11, it would map to
  * kill_dependency().  It could be used as follows:
- *
+ * ``
  *	rcu_read_lock();
  *	p = rcu_dereference(gp);
  *	long_lived = is_long_lived(p);
@@ -794,6 +579,7 @@ static inline void rcu_preempt_sleep_check(void)
  *			p = rcu_pointer_handoff(p);
  *	}
  *	rcu_read_unlock();
+ *``
  */
 #define rcu_pointer_handoff(p) (p)
 
@@ -993,18 +779,21 @@ static inline notrace void rcu_read_unlock_sched_notrace(void)
 
 /**
  * RCU_INIT_POINTER() - initialize an RCU protected pointer
+ * @p: The pointer to be initialized.
+ * @v: The value to initialized the pointer to.
  *
  * Initialize an RCU-protected pointer in special cases where readers
  * do not need ordering constraints on the CPU or the compiler.  These
  * special cases are:
  *
- * 1.	This use of RCU_INIT_POINTER() is NULLing out the pointer -or-
+ * 1.	This use of RCU_INIT_POINTER() is NULLing out the pointer *or*
  * 2.	The caller has taken whatever steps are required to prevent
- *	RCU readers from concurrently accessing this pointer -or-
+ *	RCU readers from concurrently accessing this pointer *or*
  * 3.	The referenced data structure has already been exposed to
- *	readers either at compile time or via rcu_assign_pointer() -and-
- *	a.	You have not made -any- reader-visible changes to
- *		this structure since then -or-
+ *	readers either at compile time or via rcu_assign_pointer() *and*
+ *
+ *	a.	You have not made *any* reader-visible changes to
+ *		this structure since then *or*
  *	b.	It is OK for readers accessing this structure from its
  *		new location to see the old state of the structure.  (For
  *		example, the changes were to statistical counters or to
@@ -1020,7 +809,7 @@ static inline notrace void rcu_read_unlock_sched_notrace(void)
  * by a single external-to-structure RCU-protected pointer, then you may
  * use RCU_INIT_POINTER() to initialize the internal RCU-protected
  * pointers, but you must use rcu_assign_pointer() to initialize the
- * external-to-structure pointer -after- you have completely initialized
+ * external-to-structure pointer *after* you have completely initialized
  * the reader-accessible portions of the linked structure.
  *
  * Note that unlike rcu_assign_pointer(), RCU_INIT_POINTER() provides no
@@ -1034,6 +823,8 @@ static inline notrace void rcu_read_unlock_sched_notrace(void)
 
 /**
  * RCU_POINTER_INITIALIZER() - statically initialize an RCU protected pointer
+ * @p: The pointer to be initialized.
+ * @v: The value to initialized the pointer to.
  *
  * GCC-style initialization for an RCU-protected pointer in a structure field.
  */
@@ -1084,52 +875,6 @@ static inline notrace void rcu_read_unlock_sched_notrace(void)
 #define kfree_rcu(ptr, rcu_head)					\
 	__kfree_rcu(&((ptr)->rcu_head), offsetof(typeof(*(ptr)), rcu_head))
 
-#ifdef CONFIG_TINY_RCU
-static inline int rcu_needs_cpu(u64 basemono, u64 *nextevt)
-{
-	*nextevt = KTIME_MAX;
-	return 0;
-}
-#endif /* #ifdef CONFIG_TINY_RCU */
-
-#if defined(CONFIG_RCU_NOCB_CPU_ALL)
-static inline bool rcu_is_nocb_cpu(int cpu) { return true; }
-#elif defined(CONFIG_RCU_NOCB_CPU)
-bool rcu_is_nocb_cpu(int cpu);
-#else
-static inline bool rcu_is_nocb_cpu(int cpu) { return false; }
-#endif
-
-
-/* Only for use by adaptive-ticks code. */
-#ifdef CONFIG_NO_HZ_FULL_SYSIDLE
-bool rcu_sys_is_idle(void);
-void rcu_sysidle_force_exit(void);
-#else /* #ifdef CONFIG_NO_HZ_FULL_SYSIDLE */
-
-static inline bool rcu_sys_is_idle(void)
-{
-	return false;
-}
-
-static inline void rcu_sysidle_force_exit(void)
-{
-}
-
-#endif /* #else #ifdef CONFIG_NO_HZ_FULL_SYSIDLE */
-
-
-/*
- * Dump the ftrace buffer, but only one time per callsite per boot.
- */
-#define rcu_ftrace_dump(oops_dump_mode) \
-do { \
-	static atomic_t ___rfd_beenhere = ATOMIC_INIT(0); \
-	\
-	if (!atomic_read(&___rfd_beenhere) && \
-	    !atomic_xchg(&___rfd_beenhere, 1)) \
-		ftrace_dump(oops_dump_mode); \
-} while (0)
 
 /*
  * Place this after a lock-acquisition primitive to guarantee that

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * sysfs.h - definitions for the device driver filesystem
  *
@@ -512,7 +513,7 @@ static inline void sysfs_notify_dirent(struct kernfs_node *kn)
 }
 
 static inline struct kernfs_node *sysfs_get_dirent(struct kernfs_node *parent,
-						   const unsigned char *name)
+						   const char *name)
 {
 	return kernfs_find_and_get(parent, name);
 }

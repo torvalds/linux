@@ -9,7 +9,7 @@
  *	2 as published by the Free Software Foundation.
  *
  *  debugfs is for people to use instead of /proc or /sys.
- *  See Documentation/DocBook/filesystems for more details.
+ *  See Documentation/filesystems/ for more details.
  */
 
 #ifndef _DEBUGFS_H_
@@ -196,6 +196,14 @@ static inline struct dentry *debugfs_create_file(const char *name, umode_t mode,
 	return ERR_PTR(-ENODEV);
 }
 
+static inline struct dentry *debugfs_create_file_unsafe(const char *name,
+					umode_t mode, struct dentry *parent,
+					void *data,
+					const struct file_operations *fops)
+{
+	return ERR_PTR(-ENODEV);
+}
+
 static inline struct dentry *debugfs_create_file_size(const char *name, umode_t mode,
 					struct dentry *parent, void *data,
 					const struct file_operations *fops,
@@ -285,6 +293,14 @@ static inline struct dentry *debugfs_create_u32(const char *name, umode_t mode,
 static inline struct dentry *debugfs_create_u64(const char *name, umode_t mode,
 						struct dentry *parent,
 						u64 *value)
+{
+	return ERR_PTR(-ENODEV);
+}
+
+static inline struct dentry *debugfs_create_ulong(const char *name,
+						umode_t mode,
+						struct dentry *parent,
+						unsigned long *value)
 {
 	return ERR_PTR(-ENODEV);
 }

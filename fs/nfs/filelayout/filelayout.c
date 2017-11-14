@@ -126,32 +126,13 @@ static int filelayout_async_handle_error(struct rpc_task *task,
 {
 	struct pnfs_layout_hdr *lo = lseg->pls_layout;
 	struct inode *inode = lo->plh_inode;
-	struct nfs_server *mds_server = NFS_SERVER(inode);
 	struct nfs4_deviceid_node *devid = FILELAYOUT_DEVID_NODE(lseg);
-	struct nfs_client *mds_client = mds_server->nfs_client;
 	struct nfs4_slot_table *tbl = &clp->cl_session->fc_slot_table;
 
 	if (task->tk_status >= 0)
 		return 0;
 
 	switch (task->tk_status) {
-	/* MDS state errors */
-	case -NFS4ERR_DELEG_REVOKED:
-	case -NFS4ERR_ADMIN_REVOKED:
-	case -NFS4ERR_BAD_STATEID:
-	case -NFS4ERR_OPENMODE:
-		if (state == NULL)
-			break;
-		if (nfs4_schedule_stateid_recovery(mds_server, state) < 0)
-			goto out_bad_stateid;
-		goto wait_on_recovery;
-	case -NFS4ERR_EXPIRED:
-		if (state != NULL) {
-			if (nfs4_schedule_stateid_recovery(mds_server, state) < 0)
-				goto out_bad_stateid;
-		}
-		nfs4_schedule_lease_recovery(mds_client);
-		goto wait_on_recovery;
 	/* DS session errors */
 	case -NFS4ERR_BADSESSION:
 	case -NFS4ERR_BADSLOT:
@@ -172,6 +153,7 @@ static int filelayout_async_handle_error(struct rpc_task *task,
 	case -NFS4ERR_RETRY_UNCACHED_REP:
 		break;
 	/* Invalidate Layout errors */
+	case -NFS4ERR_ACCESS:
 	case -NFS4ERR_PNFS_NO_LAYOUT:
 	case -ESTALE:           /* mapped NFS4ERR_STALE */
 	case -EBADHANDLE:       /* mapped NFS4ERR_BADHANDLE */
@@ -202,26 +184,17 @@ static int filelayout_async_handle_error(struct rpc_task *task,
 			task->tk_status);
 		nfs4_mark_deviceid_unavailable(devid);
 		pnfs_error_mark_layout_for_return(inode, lseg);
+		pnfs_set_lo_fail(lseg);
 		rpc_wake_up(&tbl->slot_tbl_waitq);
 		/* fall through */
 	default:
-		pnfs_set_lo_fail(lseg);
 reset:
 		dprintk("%s Retry through MDS. Error %d\n", __func__,
 			task->tk_status);
 		return -NFS4ERR_RESET_TO_MDS;
 	}
-out:
 	task->tk_status = 0;
 	return -EAGAIN;
-out_bad_stateid:
-	task->tk_status = -EIO;
-	return 0;
-wait_on_recovery:
-	rpc_sleep_on(&mds_client->cl_rpcwaitq, task, NULL);
-	if (test_bit(NFS4CLNT_MANAGER_RUNNING, &mds_client->cl_state) == 0)
-		rpc_wake_up_queued_task(&mds_client->cl_rpcwaitq, task);
-	goto out;
 }
 
 /* NFS_PROTO call done callback routines */
@@ -569,6 +542,10 @@ filelayout_check_deviceid(struct pnfs_layout_hdr *lo,
 	struct nfs4_file_layout_dsaddr *dsaddr;
 	int status = -EINVAL;
 
+	/* Is the deviceid already set? If so, we're good. */
+	if (fl->dsaddr != NULL)
+		return 0;
+
 	/* find and reference the deviceid */
 	d = nfs4_find_get_deviceid(NFS_SERVER(lo->plh_inode), &fl->deviceid,
 			lo->plh_lc_cred, gfp_flags);
@@ -579,8 +556,6 @@ filelayout_check_deviceid(struct pnfs_layout_hdr *lo,
 	/* Found deviceid is unavailable */
 	if (filelayout_test_devid_unavailable(&dsaddr->id_node))
 		goto out_put;
-
-	fl->dsaddr = dsaddr;
 
 	if (fl->first_stripe_index >= dsaddr->stripe_count) {
 		dprintk("%s Bad first_stripe_index %u\n",
@@ -597,6 +572,13 @@ filelayout_check_deviceid(struct pnfs_layout_hdr *lo,
 		goto out_put;
 	}
 	status = 0;
+
+	/*
+	 * Atomic compare and xchange to ensure we don't scribble
+	 * over a non-NULL pointer.
+	 */
+	if (cmpxchg(&fl->dsaddr, NULL, dsaddr) != NULL)
+		goto out_put;
 out:
 	return status;
 out_put:
@@ -763,7 +745,8 @@ filelayout_free_lseg(struct pnfs_layout_segment *lseg)
 	struct nfs4_filelayout_segment *fl = FILELAYOUT_LSEG(lseg);
 
 	dprintk("--> %s\n", __func__);
-	nfs4_fl_put_deviceid(fl->dsaddr);
+	if (fl->dsaddr != NULL)
+		nfs4_fl_put_deviceid(fl->dsaddr);
 	/* This assumes a single RW lseg */
 	if (lseg->pls_range.iomode == IOMODE_RW) {
 		struct nfs4_filelayout *flo;

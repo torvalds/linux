@@ -483,6 +483,11 @@ acpi_ut_get_simple_object_size(union acpi_operand_object *internal_object,
 
 		/* A namespace node should never get here */
 
+		ACPI_ERROR((AE_INFO,
+			    "Received a namespace node [%4.4s] "
+			    "where an operand object is required",
+			    ACPI_CAST_PTR(struct acpi_namespace_node,
+					  internal_object)->name.ascii));
 		return_ACPI_STATUS(AE_AML_INTERNAL);
 	}
 

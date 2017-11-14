@@ -141,8 +141,10 @@ static struct mssr_mod_clk r8a7795_mod_clks[] __initdata = {
 	DEF_MOD("sdif0",		 314,	R8A7795_CLK_SD0),
 	DEF_MOD("pcie1",		 318,	R8A7795_CLK_S3D1),
 	DEF_MOD("pcie0",		 319,	R8A7795_CLK_S3D1),
+	DEF_MOD("usb-dmac30",		 326,	R8A7795_CLK_S3D1),
 	DEF_MOD("usb3-if1",		 327,	R8A7795_CLK_S3D1), /* ES1.x */
 	DEF_MOD("usb3-if0",		 328,	R8A7795_CLK_S3D1),
+	DEF_MOD("usb-dmac31",		 329,	R8A7795_CLK_S3D1),
 	DEF_MOD("usb-dmac0",		 330,	R8A7795_CLK_S3D1),
 	DEF_MOD("usb-dmac1",		 331,	R8A7795_CLK_S3D1),
 	DEF_MOD("rwdt",			 402,	R8A7795_CLK_R),
@@ -164,7 +166,7 @@ static struct mssr_mod_clk r8a7795_mod_clks[] __initdata = {
 	DEF_MOD("hscif1",		 519,	R8A7795_CLK_S3D1),
 	DEF_MOD("hscif0",		 520,	R8A7795_CLK_S3D1),
 	DEF_MOD("thermal",		 522,	R8A7795_CLK_CP),
-	DEF_MOD("pwm",			 523,	R8A7795_CLK_S3D4),
+	DEF_MOD("pwm",			 523,	R8A7795_CLK_S0D12),
 	DEF_MOD("fcpvd3",		 600,	R8A7795_CLK_S2D1), /* ES1.x */
 	DEF_MOD("fcpvd2",		 601,	R8A7795_CLK_S0D2),
 	DEF_MOD("fcpvd1",		 602,	R8A7795_CLK_S0D2),
@@ -189,10 +191,12 @@ static struct mssr_mod_clk r8a7795_mod_clks[] __initdata = {
 	DEF_MOD("vspi2",		 629,	R8A7795_CLK_S2D1), /* ES1.x */
 	DEF_MOD("vspi1",		 630,	R8A7795_CLK_S0D1),
 	DEF_MOD("vspi0",		 631,	R8A7795_CLK_S0D1),
+	DEF_MOD("ehci3",		 700,	R8A7795_CLK_S3D4),
 	DEF_MOD("ehci2",		 701,	R8A7795_CLK_S3D4),
 	DEF_MOD("ehci1",		 702,	R8A7795_CLK_S3D4),
 	DEF_MOD("ehci0",		 703,	R8A7795_CLK_S3D4),
 	DEF_MOD("hsusb",		 704,	R8A7795_CLK_S3D4),
+	DEF_MOD("hsusb3",		 705,	R8A7795_CLK_S3D4),
 	DEF_MOD("csi21",		 713,	R8A7795_CLK_CSI0), /* ES1.x */
 	DEF_MOD("csi20",		 714,	R8A7795_CLK_CSI0),
 	DEF_MOD("csi41",		 715,	R8A7795_CLK_CSI0),
@@ -218,22 +222,22 @@ static struct mssr_mod_clk r8a7795_mod_clks[] __initdata = {
 	DEF_MOD("imr2",			 821,	R8A7795_CLK_S0D2),
 	DEF_MOD("imr1",			 822,	R8A7795_CLK_S0D2),
 	DEF_MOD("imr0",			 823,	R8A7795_CLK_S0D2),
-	DEF_MOD("gpio7",		 905,	R8A7795_CLK_CP),
-	DEF_MOD("gpio6",		 906,	R8A7795_CLK_CP),
-	DEF_MOD("gpio5",		 907,	R8A7795_CLK_CP),
-	DEF_MOD("gpio4",		 908,	R8A7795_CLK_CP),
-	DEF_MOD("gpio3",		 909,	R8A7795_CLK_CP),
-	DEF_MOD("gpio2",		 910,	R8A7795_CLK_CP),
-	DEF_MOD("gpio1",		 911,	R8A7795_CLK_CP),
-	DEF_MOD("gpio0",		 912,	R8A7795_CLK_CP),
+	DEF_MOD("gpio7",		 905,	R8A7795_CLK_S3D4),
+	DEF_MOD("gpio6",		 906,	R8A7795_CLK_S3D4),
+	DEF_MOD("gpio5",		 907,	R8A7795_CLK_S3D4),
+	DEF_MOD("gpio4",		 908,	R8A7795_CLK_S3D4),
+	DEF_MOD("gpio3",		 909,	R8A7795_CLK_S3D4),
+	DEF_MOD("gpio2",		 910,	R8A7795_CLK_S3D4),
+	DEF_MOD("gpio1",		 911,	R8A7795_CLK_S3D4),
+	DEF_MOD("gpio0",		 912,	R8A7795_CLK_S3D4),
 	DEF_MOD("can-fd",		 914,	R8A7795_CLK_S3D2),
 	DEF_MOD("can-if1",		 915,	R8A7795_CLK_S3D4),
 	DEF_MOD("can-if0",		 916,	R8A7795_CLK_S3D4),
-	DEF_MOD("i2c6",			 918,	R8A7795_CLK_S3D2),
-	DEF_MOD("i2c5",			 919,	R8A7795_CLK_S3D2),
+	DEF_MOD("i2c6",			 918,	R8A7795_CLK_S0D6),
+	DEF_MOD("i2c5",			 919,	R8A7795_CLK_S0D6),
 	DEF_MOD("i2c-dvfs",		 926,	R8A7795_CLK_CP),
-	DEF_MOD("i2c4",			 927,	R8A7795_CLK_S3D2),
-	DEF_MOD("i2c3",			 928,	R8A7795_CLK_S3D2),
+	DEF_MOD("i2c4",			 927,	R8A7795_CLK_S0D6),
+	DEF_MOD("i2c3",			 928,	R8A7795_CLK_S0D6),
 	DEF_MOD("i2c2",			 929,	R8A7795_CLK_S3D2),
 	DEF_MOD("i2c1",			 930,	R8A7795_CLK_S3D2),
 	DEF_MOD("i2c0",			 931,	R8A7795_CLK_S3D2),
@@ -301,23 +305,23 @@ static const unsigned int r8a7795_crit_mod_clks[] __initconst = {
 					 (((md) & BIT(17)) >> 17))
 
 static const struct rcar_gen3_cpg_pll_config cpg_pll_configs[16] __initconst = {
-	/* EXTAL div	PLL1 mult	PLL3 mult */
-	{ 1,		192,		192,	},
-	{ 1,		192,		128,	},
-	{ 0, /* Prohibited setting */		},
-	{ 1,		192,		192,	},
-	{ 1,		160,		160,	},
-	{ 1,		160,		106,	},
-	{ 0, /* Prohibited setting */		},
-	{ 1,		160,		160,	},
-	{ 1,		128,		128,	},
-	{ 1,		128,		84,	},
-	{ 0, /* Prohibited setting */		},
-	{ 1,		128,		128,	},
-	{ 2,		192,		192,	},
-	{ 2,		192,		128,	},
-	{ 0, /* Prohibited setting */		},
-	{ 2,		192,		192,	},
+	/* EXTAL div	PLL1 mult/div	PLL3 mult/div */
+	{ 1,		192,	1,	192,	1,	},
+	{ 1,		192,	1,	128,	1,	},
+	{ 0, /* Prohibited setting */			},
+	{ 1,		192,	1,	192,	1,	},
+	{ 1,		160,	1,	160,	1,	},
+	{ 1,		160,	1,	106,	1,	},
+	{ 0, /* Prohibited setting */			},
+	{ 1,		160,	1,	160,	1,	},
+	{ 1,		128,	1,	128,	1,	},
+	{ 1,		128,	1,	84,	1,	},
+	{ 0, /* Prohibited setting */			},
+	{ 1,		128,	1,	128,	1,	},
+	{ 2,		192,	1,	192,	1,	},
+	{ 2,		192,	1,	128,	1,	},
+	{ 0, /* Prohibited setting */			},
+	{ 2,		192,	1,	192,	1,	},
 };
 
 static const struct soc_device_attribute r8a7795es1[] __initconst = {
@@ -346,6 +350,7 @@ static const struct mssr_mod_reparent r8a7795es1_mod_reparent[] __initconst = {
 	{ MOD_CLK_ID(219), R8A7795_CLK_S3D1 },	/* SYS-DMAC0 */
 	{ MOD_CLK_ID(501), R8A7795_CLK_S3D1 },	/* AUDMAC1 */
 	{ MOD_CLK_ID(502), R8A7795_CLK_S3D1 },	/* AUDMAC0 */
+	{ MOD_CLK_ID(523), R8A7795_CLK_S3D4 },	/* PWM */
 	{ MOD_CLK_ID(601), R8A7795_CLK_S2D1 },	/* FCPVD2 */
 	{ MOD_CLK_ID(602), R8A7795_CLK_S2D1 },	/* FCPVD1 */
 	{ MOD_CLK_ID(603), R8A7795_CLK_S2D1 },	/* FCPVD0 */
@@ -376,6 +381,18 @@ static const struct mssr_mod_reparent r8a7795es1_mod_reparent[] __initconst = {
 	{ MOD_CLK_ID(821), R8A7795_CLK_S2D1 },	/* IMR2 */
 	{ MOD_CLK_ID(822), R8A7795_CLK_S2D1 },	/* IMR1 */
 	{ MOD_CLK_ID(823), R8A7795_CLK_S2D1 },	/* IMR0 */
+	{ MOD_CLK_ID(905), R8A7795_CLK_CP },	/* GPIO7 */
+	{ MOD_CLK_ID(906), R8A7795_CLK_CP },	/* GPIO6 */
+	{ MOD_CLK_ID(907), R8A7795_CLK_CP },	/* GPIO5 */
+	{ MOD_CLK_ID(908), R8A7795_CLK_CP },	/* GPIO4 */
+	{ MOD_CLK_ID(909), R8A7795_CLK_CP },	/* GPIO3 */
+	{ MOD_CLK_ID(910), R8A7795_CLK_CP },	/* GPIO2 */
+	{ MOD_CLK_ID(911), R8A7795_CLK_CP },	/* GPIO1 */
+	{ MOD_CLK_ID(912), R8A7795_CLK_CP },	/* GPIO0 */
+	{ MOD_CLK_ID(918), R8A7795_CLK_S3D2 },	/* I2C6 */
+	{ MOD_CLK_ID(919), R8A7795_CLK_S3D2 },	/* I2C5 */
+	{ MOD_CLK_ID(927), R8A7795_CLK_S3D2 },	/* I2C4 */
+	{ MOD_CLK_ID(928), R8A7795_CLK_S3D2 },	/* I2C3 */
 };
 
 

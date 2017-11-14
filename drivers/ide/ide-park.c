@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/kernel.h>
 #include <linux/gfp.h>
 #include <linux/ide.h>
@@ -32,7 +33,6 @@ static void issue_park_cmd(ide_drive_t *drive, unsigned long timeout)
 	spin_unlock_irq(&hwif->lock);
 
 	rq = blk_get_request(q, REQ_OP_DRV_IN, __GFP_RECLAIM);
-	scsi_req_init(rq);
 	scsi_req(rq)->cmd[0] = REQ_PARK_HEADS;
 	scsi_req(rq)->cmd_len = 1;
 	ide_req(rq)->type = ATA_PRIV_MISC;
@@ -48,7 +48,6 @@ static void issue_park_cmd(ide_drive_t *drive, unsigned long timeout)
 	 * timeout has expired, so power management will be reenabled.
 	 */
 	rq = blk_get_request(q, REQ_OP_DRV_IN, GFP_NOWAIT);
-	scsi_req_init(rq);
 	if (IS_ERR(rq))
 		goto out;
 

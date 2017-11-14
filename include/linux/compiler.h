@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __LINUX_COMPILER_H
 #define __LINUX_COMPILER_H
 
@@ -17,11 +18,7 @@
 # define __release(x)	__context__(x,-1)
 # define __cond_lock(x,c)	((c) ? ({ __acquire(x); 1; }) : 0)
 # define __percpu	__attribute__((noderef, address_space(3)))
-#ifdef CONFIG_SPARSE_RCU_POINTER
 # define __rcu		__attribute__((noderef, address_space(4)))
-#else /* CONFIG_SPARSE_RCU_POINTER */
-# define __rcu
-#endif /* CONFIG_SPARSE_RCU_POINTER */
 # define __private	__attribute__((noderef))
 extern void __chk_user_ptr(const volatile void __user *);
 extern void __chk_io_ptr(const volatile void __iomem *);
@@ -189,8 +186,34 @@ void ftrace_likely_update(struct ftrace_likely_data *f, int val,
 #endif
 
 /* Unreachable code */
+#ifdef CONFIG_STACK_VALIDATION
+#define annotate_reachable() ({						\
+	asm("%c0:\n\t"							\
+	    ".pushsection .discard.reachable\n\t"			\
+	    ".long %c0b - .\n\t"					\
+	    ".popsection\n\t" : : "i" (__COUNTER__));			\
+})
+#define annotate_unreachable() ({					\
+	asm("%c0:\n\t"							\
+	    ".pushsection .discard.unreachable\n\t"			\
+	    ".long %c0b - .\n\t"					\
+	    ".popsection\n\t" : : "i" (__COUNTER__));			\
+})
+#define ASM_UNREACHABLE							\
+	"999:\n\t"							\
+	".pushsection .discard.unreachable\n\t"				\
+	".long 999b - .\n\t"						\
+	".popsection\n\t"
+#else
+#define annotate_reachable()
+#define annotate_unreachable()
+#endif
+
+#ifndef ASM_UNREACHABLE
+# define ASM_UNREACHABLE
+#endif
 #ifndef unreachable
-# define unreachable() do { } while (1)
+# define unreachable() do { annotate_reachable(); do { } while (1); } while (0)
 #endif
 
 /*
@@ -440,8 +463,25 @@ static __always_inline void __write_once_size(volatile void *p, void *res, int s
 # define __attribute_const__	/* unimplemented */
 #endif
 
+#ifndef __designated_init
+# define __designated_init
+#endif
+
 #ifndef __latent_entropy
 # define __latent_entropy
+#endif
+
+#ifndef __randomize_layout
+# define __randomize_layout __designated_init
+#endif
+
+#ifndef __no_randomize_layout
+# define __no_randomize_layout
+#endif
+
+#ifndef randomized_struct_fields_start
+# define randomized_struct_fields_start
+# define randomized_struct_fields_end
 #endif
 
 /*
@@ -460,6 +500,10 @@ static __always_inline void __write_once_size(volatile void *p, void *res, int s
 
 #ifndef __visible
 #define __visible
+#endif
+
+#ifndef __nostackprotector
+# define __nostackprotector
 #endif
 
 /*
@@ -504,7 +548,8 @@ static __always_inline void __write_once_size(volatile void *p, void *res, int s
 # define __compiletime_error_fallback(condition) do { } while (0)
 #endif
 
-#define __compiletime_assert(condition, msg, prefix, suffix)		\
+#ifdef __OPTIMIZE__
+# define __compiletime_assert(condition, msg, prefix, suffix)		\
 	do {								\
 		bool __cond = !(condition);				\
 		extern void prefix ## suffix(void) __compiletime_error(msg); \
@@ -512,6 +557,9 @@ static __always_inline void __write_once_size(volatile void *p, void *res, int s
 			prefix ## suffix();				\
 		__compiletime_error_fallback(__cond);			\
 	} while (0)
+#else
+# define __compiletime_assert(condition, msg, prefix, suffix) do { } while (0)
+#endif
 
 #define _compiletime_assert(condition, msg, prefix, suffix) \
 	__compiletime_assert(condition, msg, prefix, suffix)

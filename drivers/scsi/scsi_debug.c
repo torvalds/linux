@@ -245,7 +245,7 @@ struct sdebug_dev_info {
 	unsigned int channel;
 	unsigned int target;
 	u64 lun;
-	uuid_be lu_name;
+	uuid_t lu_name;
 	struct sdebug_host_info *sdbg_host;
 	unsigned long uas_bm[1];
 	atomic_t num_in_q;
@@ -965,7 +965,7 @@ static const u64 naa3_comp_c = 0x3111111000000000ULL;
 static int inquiry_vpd_83(unsigned char *arr, int port_group_id,
 			  int target_dev_id, int dev_id_num,
 			  const char *dev_id_str, int dev_id_str_len,
-			  const uuid_be *lu_name)
+			  const uuid_t *lu_name)
 {
 	int num, port_a;
 	char b[32];
@@ -2261,7 +2261,7 @@ static int resp_ie_l_pg(unsigned char * arr)
 static int resp_log_sense(struct scsi_cmnd * scp,
                           struct sdebug_dev_info * devip)
 {
-	int ppc, sp, pcontrol, pcode, subpcode, alloc_len, len, n;
+	int ppc, sp, pcode, subpcode, alloc_len, len, n;
 	unsigned char arr[SDEBUG_MAX_LSENSE_SZ];
 	unsigned char *cmd = scp->cmnd;
 
@@ -2272,7 +2272,6 @@ static int resp_log_sense(struct scsi_cmnd * scp,
 		mk_sense_invalid_fld(scp, SDEB_IN_CDB, 1, ppc ? 1 : 0);
 		return check_condition_result;
 	}
-	pcontrol = (cmd[2] & 0xc0) >> 6;
 	pcode = cmd[2] & 0x3f;
 	subpcode = cmd[3] & 0xff;
 	alloc_len = get_unaligned_be16(cmd + 7);
@@ -3568,7 +3567,7 @@ static void sdebug_q_cmd_wq_complete(struct work_struct *work)
 }
 
 static bool got_shared_uuid;
-static uuid_be shared_uuid;
+static uuid_t shared_uuid;
 
 static struct sdebug_dev_info *sdebug_device_create(
 			struct sdebug_host_info *sdbg_host, gfp_t flags)
@@ -3578,12 +3577,12 @@ static struct sdebug_dev_info *sdebug_device_create(
 	devip = kzalloc(sizeof(*devip), flags);
 	if (devip) {
 		if (sdebug_uuid_ctl == 1)
-			uuid_be_gen(&devip->lu_name);
+			uuid_gen(&devip->lu_name);
 		else if (sdebug_uuid_ctl == 2) {
 			if (got_shared_uuid)
 				devip->lu_name = shared_uuid;
 			else {
-				uuid_be_gen(&shared_uuid);
+				uuid_gen(&shared_uuid);
 				got_shared_uuid = true;
 				devip->lu_name = shared_uuid;
 			}
@@ -5466,7 +5465,7 @@ static int sdebug_driver_probe(struct device * dev)
 		return error;
 	}
 	if (submit_queues > nr_cpu_ids) {
-		pr_warn("%s: trim submit_queues (was %d) to nr_cpu_ids=%d\n",
+		pr_warn("%s: trim submit_queues (was %d) to nr_cpu_ids=%u\n",
 			my_name, submit_queues, nr_cpu_ids);
 		submit_queues = nr_cpu_ids;
 	}

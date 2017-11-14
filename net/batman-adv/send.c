@@ -911,7 +911,7 @@ static void batadv_send_outstanding_bcast_packet(struct work_struct *work)
 				type = "unknown";
 			}
 
-			batadv_dbg(BATADV_DBG_BATMAN, bat_priv, "BCAST packet from orig %pM on %s surpressed: %s\n",
+			batadv_dbg(BATADV_DBG_BATMAN, bat_priv, "BCAST packet from orig %pM on %s suppressed: %s\n",
 				   bcast_packet->orig,
 				   hard_iface->net_dev->name, type);
 
@@ -971,11 +971,11 @@ batadv_purge_outstanding_packets(struct batadv_priv *bat_priv,
 
 	if (hard_iface)
 		batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
-			   "purge_outstanding_packets(): %s\n",
-			   hard_iface->net_dev->name);
+			   "%s(): %s\n",
+			   __func__, hard_iface->net_dev->name);
 	else
 		batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
-			   "purge_outstanding_packets()\n");
+			   "%s()\n", __func__);
 
 	/* claim bcast list for free() */
 	spin_lock_bh(&bat_priv->forw_bcast_list_lock);

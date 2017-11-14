@@ -43,13 +43,13 @@
 #include <linux/spinlock.h>
 #include <linux/types.h>
 
-#include "../../include/linux/libcfs/libcfs.h"
-#include "lustre_cfg.h"
-#include "lustre/lustre_idl.h"
+#include <linux/libcfs/libcfs.h>
+#include <uapi/linux/lustre/lustre_cfg.h>
+#include <uapi/linux/lustre/lustre_idl.h>
 
 struct lprocfs_vars {
 	const char		*name;
-	struct file_operations	*fops;
+	const struct file_operations	*fops;
 	void			*data;
 	/**
 	 * sysfs file mode.
@@ -59,7 +59,7 @@ struct lprocfs_vars {
 
 struct lprocfs_static_vars {
 	struct lprocfs_vars *obd_vars;
-	struct attribute_group *sysfs_vars;
+	const struct attribute_group *sysfs_vars;
 };
 
 /* if we find more consumers this could be generalized */
@@ -449,7 +449,7 @@ int lprocfs_exp_cleanup(struct obd_export *exp);
 struct dentry *ldebugfs_add_simple(struct dentry *root,
 				   char *name,
 				   void *data,
-				   struct file_operations *fops);
+				   const struct file_operations *fops);
 
 int ldebugfs_register_stats(struct dentry *parent,
 			    const char *name,
@@ -468,7 +468,7 @@ struct dentry *ldebugfs_register(const char *name,
 void ldebugfs_remove(struct dentry **entryp);
 
 int lprocfs_obd_setup(struct obd_device *obd, struct lprocfs_vars *list,
-		      struct attribute_group *attrs);
+		      const struct attribute_group *attrs);
 int lprocfs_obd_cleanup(struct obd_device *obd);
 
 int ldebugfs_seq_create(struct dentry *parent,
@@ -523,8 +523,8 @@ unsigned long lprocfs_oh_sum(struct obd_histogram *oh);
 void lprocfs_stats_collect(struct lprocfs_stats *stats, int idx,
 			   struct lprocfs_counter *cnt);
 
-int lprocfs_single_release(struct inode *, struct file *);
-int lprocfs_seq_release(struct inode *, struct file *);
+int lprocfs_single_release(struct inode *inode, struct file *file);
+int lprocfs_seq_release(struct inode *inode, struct file *file);
 
 /* write the name##_seq_show function, call LPROC_SEQ_FOPS_RO for read-only
  * proc entries; otherwise, you will define name##_seq_write function also for
@@ -536,7 +536,7 @@ static int name##_single_open(struct inode *inode, struct file *file)	\
 {									\
 	return single_open(file, name##_seq_show, inode->i_private);	\
 }									\
-static struct file_operations name##_fops = {				\
+static const struct file_operations name##_fops = {			\
 	.owner   = THIS_MODULE,					    \
 	.open    = name##_single_open,				     \
 	.read    = seq_read,					       \
@@ -581,7 +581,7 @@ static struct file_operations name##_fops = {				\
 	{								\
 		return single_open(file, NULL, inode->i_private);	\
 	}								\
-	static struct file_operations name##_##type##_fops = {	\
+	static const struct file_operations name##_##type##_fops = {	\
 		.open	= name##_##type##_open,				\
 		.write	= name##_##type##_write,			\
 		.release = lprocfs_single_release,			\

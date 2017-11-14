@@ -263,6 +263,7 @@ enum {
 	AZX_DRIVER_ICH,
 	AZX_DRIVER_PCH,
 	AZX_DRIVER_SCH,
+	AZX_DRIVER_SKL,
 	AZX_DRIVER_HDMI,
 	AZX_DRIVER_ATI,
 	AZX_DRIVER_ATIHDMI,
@@ -292,38 +293,43 @@ enum {
 	(AZX_DCAPS_NO_ALIGN_BUFSIZE | AZX_DCAPS_COUNT_LPIB_DELAY |\
 	 AZX_DCAPS_SNOOP_TYPE(SCH))
 
-/* PCH up to IVB; no runtime PM */
+/* PCH up to IVB; no runtime PM; bind with i915 gfx */
 #define AZX_DCAPS_INTEL_PCH_NOPM \
-	(AZX_DCAPS_INTEL_PCH_BASE)
+	(AZX_DCAPS_INTEL_PCH_BASE | AZX_DCAPS_I915_COMPONENT)
 
 /* PCH for HSW/BDW; with runtime PM */
+/* no i915 binding for this as HSW/BDW has another controller for HDMI */
 #define AZX_DCAPS_INTEL_PCH \
 	(AZX_DCAPS_INTEL_PCH_BASE | AZX_DCAPS_PM_RUNTIME)
 
 /* HSW HDMI */
 #define AZX_DCAPS_INTEL_HASWELL \
 	(/*AZX_DCAPS_ALIGN_BUFSIZE |*/ AZX_DCAPS_COUNT_LPIB_DELAY |\
-	 AZX_DCAPS_PM_RUNTIME | AZX_DCAPS_I915_POWERWELL |\
-	 AZX_DCAPS_SNOOP_TYPE(SCH))
+	 AZX_DCAPS_PM_RUNTIME | AZX_DCAPS_I915_COMPONENT |\
+	 AZX_DCAPS_I915_POWERWELL | AZX_DCAPS_SNOOP_TYPE(SCH))
 
 /* Broadwell HDMI can't use position buffer reliably, force to use LPIB */
 #define AZX_DCAPS_INTEL_BROADWELL \
 	(/*AZX_DCAPS_ALIGN_BUFSIZE |*/ AZX_DCAPS_POSFIX_LPIB |\
-	 AZX_DCAPS_PM_RUNTIME | AZX_DCAPS_I915_POWERWELL |\
-	 AZX_DCAPS_SNOOP_TYPE(SCH))
+	 AZX_DCAPS_PM_RUNTIME | AZX_DCAPS_I915_COMPONENT |\
+	 AZX_DCAPS_I915_POWERWELL | AZX_DCAPS_SNOOP_TYPE(SCH))
 
 #define AZX_DCAPS_INTEL_BAYTRAIL \
-	(AZX_DCAPS_INTEL_PCH_NOPM | AZX_DCAPS_I915_POWERWELL)
+	(AZX_DCAPS_INTEL_PCH_BASE | AZX_DCAPS_I915_COMPONENT |\
+	 AZX_DCAPS_I915_POWERWELL)
 
 #define AZX_DCAPS_INTEL_BRASWELL \
-	(AZX_DCAPS_INTEL_PCH | AZX_DCAPS_I915_POWERWELL)
+	(AZX_DCAPS_INTEL_PCH_BASE | AZX_DCAPS_PM_RUNTIME |\
+	 AZX_DCAPS_I915_COMPONENT | AZX_DCAPS_I915_POWERWELL)
 
 #define AZX_DCAPS_INTEL_SKYLAKE \
-	(AZX_DCAPS_INTEL_PCH | AZX_DCAPS_SEPARATE_STREAM_TAG |\
+	(AZX_DCAPS_INTEL_PCH_BASE | AZX_DCAPS_PM_RUNTIME |\
+	 AZX_DCAPS_SEPARATE_STREAM_TAG | AZX_DCAPS_I915_COMPONENT |\
 	 AZX_DCAPS_I915_POWERWELL)
 
 #define AZX_DCAPS_INTEL_BROXTON \
-	(AZX_DCAPS_INTEL_PCH | AZX_DCAPS_SEPARATE_STREAM_TAG |\
+	(AZX_DCAPS_INTEL_PCH_BASE | AZX_DCAPS_PM_RUNTIME |\
+	 AZX_DCAPS_SEPARATE_STREAM_TAG | AZX_DCAPS_I915_COMPONENT |\
 	 AZX_DCAPS_I915_POWERWELL)
 
 /* quirks for ATI SB / AMD Hudson */
@@ -364,23 +370,13 @@ enum {
 					((pci)->device == 0x0d0c) || \
 					((pci)->device == 0x160c))
 
-#define IS_SKL(pci) ((pci)->vendor == 0x8086 && (pci)->device == 0xa170)
-#define IS_SKL_LP(pci) ((pci)->vendor == 0x8086 && (pci)->device == 0x9d70)
-#define IS_KBL(pci) ((pci)->vendor == 0x8086 && (pci)->device == 0xa171)
-#define IS_KBL_LP(pci) ((pci)->vendor == 0x8086 && (pci)->device == 0x9d71)
-#define IS_KBL_H(pci) ((pci)->vendor == 0x8086 && (pci)->device == 0xa2f0)
 #define IS_BXT(pci) ((pci)->vendor == 0x8086 && (pci)->device == 0x5a98)
-#define IS_BXT_T(pci) ((pci)->vendor == 0x8086 && (pci)->device == 0x1a98)
-#define IS_GLK(pci) ((pci)->vendor == 0x8086 && (pci)->device == 0x3198)
-#define IS_CFL(pci) ((pci)->vendor == 0x8086 && (pci)->device == 0xa348)
-#define IS_SKL_PLUS(pci) (IS_SKL(pci) || IS_SKL_LP(pci) || IS_BXT(pci) || \
-			  IS_BXT_T(pci) || IS_KBL(pci) || IS_KBL_LP(pci) || \
-			  IS_KBL_H(pci)	|| IS_GLK(pci) || IS_CFL(pci))
 
 static char *driver_short_names[] = {
 	[AZX_DRIVER_ICH] = "HDA Intel",
 	[AZX_DRIVER_PCH] = "HDA Intel PCH",
 	[AZX_DRIVER_SCH] = "HDA Intel MID",
+	[AZX_DRIVER_SKL] = "HDA Intel PCH", /* kept old name for compatibility */
 	[AZX_DRIVER_HDMI] = "HDA Intel HDMI",
 	[AZX_DRIVER_ATI] = "HDA ATI SB",
 	[AZX_DRIVER_ATIHDMI] = "HDA ATI HDMI",
@@ -644,13 +640,13 @@ static void hda_intel_init_chip(struct azx *chip, bool full_reset)
 
 	if (chip->driver_caps & AZX_DCAPS_I915_POWERWELL)
 		snd_hdac_set_codec_wakeup(bus, true);
-	if (IS_SKL_PLUS(pci)) {
+	if (chip->driver_type == AZX_DRIVER_SKL) {
 		pci_read_config_dword(pci, INTEL_HDA_CGCTL, &val);
 		val = val & ~INTEL_HDA_CGCTL_MISCBDCGE;
 		pci_write_config_dword(pci, INTEL_HDA_CGCTL, val);
 	}
 	azx_init_chip(chip, full_reset);
-	if (IS_SKL_PLUS(pci)) {
+	if (chip->driver_type == AZX_DRIVER_SKL) {
 		pci_read_config_dword(pci, INTEL_HDA_CGCTL, &val);
 		val = val | INTEL_HDA_CGCTL_MISCBDCGE;
 		pci_write_config_dword(pci, INTEL_HDA_CGCTL, val);
@@ -1017,7 +1013,7 @@ static int azx_suspend(struct device *dev)
 
 	if (chip->msi)
 		pci_disable_msi(chip->pci);
-	if (chip->driver_caps & AZX_DCAPS_I915_POWERWELL
+	if ((chip->driver_caps & AZX_DCAPS_I915_POWERWELL)
 		&& hda->need_i915_power)
 		snd_hdac_display_power(bus, false);
 
@@ -1075,9 +1071,11 @@ static int azx_resume(struct device *dev)
  */
 static int azx_freeze_noirq(struct device *dev)
 {
+	struct snd_card *card = dev_get_drvdata(dev);
+	struct azx *chip = card->private_data;
 	struct pci_dev *pci = to_pci_dev(dev);
 
-	if (IS_SKL_PLUS(pci))
+	if (chip->driver_type == AZX_DRIVER_SKL)
 		pci_set_power_state(pci, PCI_D3hot);
 
 	return 0;
@@ -1085,9 +1083,11 @@ static int azx_freeze_noirq(struct device *dev)
 
 static int azx_thaw_noirq(struct device *dev)
 {
+	struct snd_card *card = dev_get_drvdata(dev);
+	struct azx *chip = card->private_data;
 	struct pci_dev *pci = to_pci_dev(dev);
 
-	if (IS_SKL_PLUS(pci))
+	if (chip->driver_type == AZX_DRIVER_SKL)
 		pci_set_power_state(pci, PCI_D0);
 
 	return 0;
@@ -1119,7 +1119,7 @@ static int azx_runtime_suspend(struct device *dev)
 	azx_stop_chip(chip);
 	azx_enter_link_reset(chip);
 	azx_clear_irq_pending(chip);
-	if (chip->driver_caps & AZX_DCAPS_I915_POWERWELL
+	if ((chip->driver_caps & AZX_DCAPS_I915_POWERWELL)
 		&& hda->need_i915_power)
 		snd_hdac_display_power(azx_bus(chip), false);
 
@@ -1384,8 +1384,9 @@ static int azx_free(struct azx *chip)
 	if (chip->driver_caps & AZX_DCAPS_I915_POWERWELL) {
 		if (hda->need_i915_power)
 			snd_hdac_display_power(bus, false);
-		snd_hdac_i915_exit(bus);
 	}
+	if (chip->driver_caps & AZX_DCAPS_I915_COMPONENT)
+		snd_hdac_i915_exit(bus);
 	kfree(hda);
 
 	return 0;
@@ -1497,7 +1498,7 @@ static int check_position_fix(struct azx *chip, int fix)
 		dev_dbg(chip->card->dev, "Using LPIB position fix\n");
 		return POS_FIX_LPIB;
 	}
-	if (IS_SKL_PLUS(chip->pci)) {
+	if (chip->driver_type == AZX_DRIVER_SKL) {
 		dev_dbg(chip->card->dev, "Using SKL position fix\n");
 		return POS_FIX_SKL;
 	}
@@ -1798,7 +1799,7 @@ static int azx_first_init(struct azx *chip)
 		return -ENXIO;
 	}
 
-	if (IS_SKL_PLUS(pci))
+	if (chip->driver_type == AZX_DRIVER_SKL)
 		snd_hdac_bus_parse_capabilities(bus);
 
 	/*
@@ -2201,16 +2202,8 @@ static int azx_probe_continue(struct azx *chip)
 
 	hda->probe_continued = 1;
 
-	/* Request display power well for the HDA controller or codec. For
-	 * Haswell/Broadwell, both the display HDA controller and codec need
-	 * this power. For other platforms, like Baytrail/Braswell, only the
-	 * display codec needs the power and it can be released after probe.
-	 */
-	if (chip->driver_caps & AZX_DCAPS_I915_POWERWELL) {
-		/* HSW/BDW controllers need this power */
-		if (CONTROLLER_IN_GPU(pci))
-			hda->need_i915_power = 1;
-
+	/* bind with i915 if needed */
+	if (chip->driver_caps & AZX_DCAPS_I915_COMPONENT) {
 		err = snd_hdac_i915_init(bus);
 		if (err < 0) {
 			/* if the controller is bound only with HDMI/DP
@@ -2222,9 +2215,23 @@ static int azx_probe_continue(struct azx *chip)
 				dev_err(chip->card->dev,
 					"HSW/BDW HD-audio HDMI/DP requires binding with gfx driver\n");
 				goto out_free;
-			} else
-				goto skip_i915;
+			} else {
+				/* don't bother any longer */
+				chip->driver_caps &=
+					~(AZX_DCAPS_I915_COMPONENT | AZX_DCAPS_I915_POWERWELL);
+			}
 		}
+	}
+
+	/* Request display power well for the HDA controller or codec. For
+	 * Haswell/Broadwell, both the display HDA controller and codec need
+	 * this power. For other platforms, like Baytrail/Braswell, only the
+	 * display codec needs the power and it can be released after probe.
+	 */
+	if (chip->driver_caps & AZX_DCAPS_I915_POWERWELL) {
+		/* HSW/BDW controllers need this power */
+		if (CONTROLLER_IN_GPU(pci))
+			hda->need_i915_power = 1;
 
 		err = snd_hdac_display_power(bus, true);
 		if (err < 0) {
@@ -2234,7 +2241,6 @@ static int azx_probe_continue(struct azx *chip)
 		}
 	}
 
- skip_i915:
 	err = azx_first_init(chip);
 	if (err < 0)
 		goto out_free;
@@ -2277,7 +2283,7 @@ static int azx_probe_continue(struct azx *chip)
 		pm_runtime_put_autosuspend(&pci->dev);
 
 out_free:
-	if (chip->driver_caps & AZX_DCAPS_I915_POWERWELL
+	if ((chip->driver_caps & AZX_DCAPS_I915_POWERWELL)
 		&& !hda->need_i915_power)
 		snd_hdac_display_power(bus, false);
 
@@ -2367,31 +2373,34 @@ static const struct pci_device_id azx_ids[] = {
 	  .driver_data = AZX_DRIVER_PCH | AZX_DCAPS_INTEL_PCH },
 	/* Sunrise Point */
 	{ PCI_DEVICE(0x8086, 0xa170),
-	  .driver_data = AZX_DRIVER_PCH | AZX_DCAPS_INTEL_SKYLAKE },
+	  .driver_data = AZX_DRIVER_SKL | AZX_DCAPS_INTEL_SKYLAKE },
 	/* Sunrise Point-LP */
 	{ PCI_DEVICE(0x8086, 0x9d70),
-	  .driver_data = AZX_DRIVER_PCH | AZX_DCAPS_INTEL_SKYLAKE },
+	  .driver_data = AZX_DRIVER_SKL | AZX_DCAPS_INTEL_SKYLAKE },
 	/* Kabylake */
 	{ PCI_DEVICE(0x8086, 0xa171),
-	  .driver_data = AZX_DRIVER_PCH | AZX_DCAPS_INTEL_SKYLAKE },
+	  .driver_data = AZX_DRIVER_SKL | AZX_DCAPS_INTEL_SKYLAKE },
 	/* Kabylake-LP */
 	{ PCI_DEVICE(0x8086, 0x9d71),
-	  .driver_data = AZX_DRIVER_PCH | AZX_DCAPS_INTEL_SKYLAKE },
+	  .driver_data = AZX_DRIVER_SKL | AZX_DCAPS_INTEL_SKYLAKE },
 	/* Kabylake-H */
 	{ PCI_DEVICE(0x8086, 0xa2f0),
-	  .driver_data = AZX_DRIVER_PCH | AZX_DCAPS_INTEL_SKYLAKE },
+	  .driver_data = AZX_DRIVER_SKL | AZX_DCAPS_INTEL_SKYLAKE },
 	/* Coffelake */
 	{ PCI_DEVICE(0x8086, 0xa348),
-	  .driver_data = AZX_DRIVER_PCH | AZX_DCAPS_INTEL_SKYLAKE},
+	  .driver_data = AZX_DRIVER_SKL | AZX_DCAPS_INTEL_SKYLAKE},
+	/* Cannonlake */
+	{ PCI_DEVICE(0x8086, 0x9dc8),
+	  .driver_data = AZX_DRIVER_SKL | AZX_DCAPS_INTEL_SKYLAKE},
 	/* Broxton-P(Apollolake) */
 	{ PCI_DEVICE(0x8086, 0x5a98),
-	  .driver_data = AZX_DRIVER_PCH | AZX_DCAPS_INTEL_BROXTON },
+	  .driver_data = AZX_DRIVER_SKL | AZX_DCAPS_INTEL_BROXTON },
 	/* Broxton-T */
 	{ PCI_DEVICE(0x8086, 0x1a98),
-	  .driver_data = AZX_DRIVER_PCH | AZX_DCAPS_INTEL_BROXTON },
+	  .driver_data = AZX_DRIVER_SKL | AZX_DCAPS_INTEL_BROXTON },
 	/* Gemini-Lake */
 	{ PCI_DEVICE(0x8086, 0x3198),
-	  .driver_data = AZX_DRIVER_PCH | AZX_DCAPS_INTEL_BROXTON },
+	  .driver_data = AZX_DRIVER_SKL | AZX_DCAPS_INTEL_BROXTON },
 	/* Haswell */
 	{ PCI_DEVICE(0x8086, 0x0a0c),
 	  .driver_data = AZX_DRIVER_HDMI | AZX_DCAPS_INTEL_HASWELL },

@@ -211,14 +211,17 @@ static ssize_t tegra_bpmp_channel_read(struct tegra_bpmp_channel *channel,
 	int index;
 
 	index = tegra_bpmp_channel_get_thread_index(channel);
-	if (index < 0)
-		return index;
+	if (index < 0) {
+		err = index;
+		goto unlock;
+	}
 
 	spin_lock_irqsave(&bpmp->lock, flags);
 	err = __tegra_bpmp_channel_read(channel, data, size);
 	clear_bit(index, bpmp->threaded.allocated);
 	spin_unlock_irqrestore(&bpmp->lock, flags);
 
+unlock:
 	up(&bpmp->threaded.lock);
 
 	return err;
@@ -256,18 +259,18 @@ tegra_bpmp_write_threaded(struct tegra_bpmp *bpmp, unsigned int mrq,
 
 	index = find_first_zero_bit(bpmp->threaded.allocated, count);
 	if (index == count) {
-		channel = ERR_PTR(-EBUSY);
+		err = -EBUSY;
 		goto unlock;
 	}
 
 	channel = tegra_bpmp_channel_get_thread(bpmp, index);
 	if (!channel) {
-		channel = ERR_PTR(-EINVAL);
+		err = -EINVAL;
 		goto unlock;
 	}
 
 	if (!tegra_bpmp_master_free(channel)) {
-		channel = ERR_PTR(-EBUSY);
+		err = -EBUSY;
 		goto unlock;
 	}
 
@@ -275,16 +278,21 @@ tegra_bpmp_write_threaded(struct tegra_bpmp *bpmp, unsigned int mrq,
 
 	err = __tegra_bpmp_channel_write(channel, mrq, MSG_ACK | MSG_RING,
 					 data, size);
-	if (err < 0) {
-		clear_bit(index, bpmp->threaded.allocated);
-		goto unlock;
-	}
+	if (err < 0)
+		goto clear_allocated;
 
 	set_bit(index, bpmp->threaded.busy);
 
-unlock:
 	spin_unlock_irqrestore(&bpmp->lock, flags);
 	return channel;
+
+clear_allocated:
+	clear_bit(index, bpmp->threaded.allocated);
+unlock:
+	spin_unlock_irqrestore(&bpmp->lock, flags);
+	up(&bpmp->threaded.lock);
+
+	return ERR_PTR(err);
 }
 
 static ssize_t tegra_bpmp_channel_write(struct tegra_bpmp_channel *channel,
@@ -798,6 +806,8 @@ static int tegra_bpmp_probe(struct platform_device *pdev)
 
 	dev_info(&pdev->dev, "firmware: %s\n", tag);
 
+	platform_set_drvdata(pdev, bpmp);
+
 	err = of_platform_default_populate(pdev->dev.of_node, NULL, &pdev->dev);
 	if (err < 0)
 		goto free_mrq;
@@ -810,7 +820,9 @@ static int tegra_bpmp_probe(struct platform_device *pdev)
 	if (err < 0)
 		goto free_mrq;
 
-	platform_set_drvdata(pdev, bpmp);
+	err = tegra_bpmp_init_powergates(bpmp);
+	if (err < 0)
+		goto free_mrq;
 
 	return 0;
 

@@ -191,8 +191,8 @@ static void release_pmc_hardware(void) {}
 
 static bool check_hw_exists(void)
 {
-	u64 val, val_fail, val_new= ~0;
-	int i, reg, reg_fail, ret = 0;
+	u64 val, val_fail = -1, val_new= ~0;
+	int i, reg, reg_fail = -1, ret = 0;
 	int bios_fail = 0;
 	int reg_safe = -1;
 
@@ -487,22 +487,28 @@ static inline int precise_br_compat(struct perf_event *event)
 	return m == b;
 }
 
+int x86_pmu_max_precise(void)
+{
+	int precise = 0;
+
+	/* Support for constant skid */
+	if (x86_pmu.pebs_active && !x86_pmu.pebs_broken) {
+		precise++;
+
+		/* Support for IP fixup */
+		if (x86_pmu.lbr_nr || x86_pmu.intel_cap.pebs_format >= 2)
+			precise++;
+
+		if (x86_pmu.pebs_prec_dist)
+			precise++;
+	}
+	return precise;
+}
+
 int x86_pmu_hw_config(struct perf_event *event)
 {
 	if (event->attr.precise_ip) {
-		int precise = 0;
-
-		/* Support for constant skid */
-		if (x86_pmu.pebs_active && !x86_pmu.pebs_broken) {
-			precise++;
-
-			/* Support for IP fixup */
-			if (x86_pmu.lbr_nr || x86_pmu.intel_cap.pebs_format >= 2)
-				precise++;
-
-			if (x86_pmu.pebs_prec_dist)
-				precise++;
-		}
+		int precise = x86_pmu_max_precise();
 
 		if (event->attr.precise_ip > precise)
 			return -EOPNOTSUPP;
@@ -1750,6 +1756,9 @@ ssize_t x86_event_sysfs_show(char *page, u64 config, u64 event)
 	return ret;
 }
 
+static struct attribute_group x86_pmu_attr_group;
+static struct attribute_group x86_pmu_caps_group;
+
 static int __init init_hw_perf_events(void)
 {
 	struct x86_pmu_quirk *quirk;
@@ -1797,6 +1806,14 @@ static int __init init_hw_perf_events(void)
 
 	x86_pmu_format_group.attrs = x86_pmu.format_attrs;
 
+	if (x86_pmu.caps_attrs) {
+		struct attribute **tmp;
+
+		tmp = merge_attr(x86_pmu_caps_group.attrs, x86_pmu.caps_attrs);
+		if (!WARN_ON(!tmp))
+			x86_pmu_caps_group.attrs = tmp;
+	}
+
 	if (x86_pmu.event_attrs)
 		x86_pmu_events_group.attrs = x86_pmu.event_attrs;
 
@@ -1811,6 +1828,14 @@ static int __init init_hw_perf_events(void)
 		tmp = merge_attr(x86_pmu_events_group.attrs, x86_pmu.cpu_events);
 		if (!WARN_ON(!tmp))
 			x86_pmu_events_group.attrs = tmp;
+	}
+
+	if (x86_pmu.attrs) {
+		struct attribute **tmp;
+
+		tmp = merge_attr(x86_pmu_attr_group.attrs, x86_pmu.attrs);
+		if (!WARN_ON(!tmp))
+			x86_pmu_attr_group.attrs = tmp;
 	}
 
 	pr_info("... version:                %d\n",     x86_pmu.version);
@@ -2101,11 +2126,10 @@ static int x86_pmu_event_init(struct perf_event *event)
 
 static void refresh_pce(void *ignored)
 {
-	if (current->active_mm)
-		load_mm_cr4(current->active_mm);
+	load_mm_cr4(this_cpu_read(cpu_tlbstate.loaded_mm));
 }
 
-static void x86_pmu_event_mapped(struct perf_event *event)
+static void x86_pmu_event_mapped(struct perf_event *event, struct mm_struct *mm)
 {
 	if (!(event->hw.flags & PERF_X86_EVENT_RDPMC_ALLOWED))
 		return;
@@ -2120,22 +2144,20 @@ static void x86_pmu_event_mapped(struct perf_event *event)
 	 * For now, this can't happen because all callers hold mmap_sem
 	 * for write.  If this changes, we'll need a different solution.
 	 */
-	lockdep_assert_held_exclusive(&current->mm->mmap_sem);
+	lockdep_assert_held_exclusive(&mm->mmap_sem);
 
-	if (atomic_inc_return(&current->mm->context.perf_rdpmc_allowed) == 1)
-		on_each_cpu_mask(mm_cpumask(current->mm), refresh_pce, NULL, 1);
+	if (atomic_inc_return(&mm->context.perf_rdpmc_allowed) == 1)
+		on_each_cpu_mask(mm_cpumask(mm), refresh_pce, NULL, 1);
 }
 
-static void x86_pmu_event_unmapped(struct perf_event *event)
+static void x86_pmu_event_unmapped(struct perf_event *event, struct mm_struct *mm)
 {
-	if (!current->mm)
-		return;
 
 	if (!(event->hw.flags & PERF_X86_EVENT_RDPMC_ALLOWED))
 		return;
 
-	if (atomic_dec_and_test(&current->mm->context.perf_rdpmc_allowed))
-		on_each_cpu_mask(mm_cpumask(current->mm), refresh_pce, NULL, 1);
+	if (atomic_dec_and_test(&mm->context.perf_rdpmc_allowed))
+		on_each_cpu_mask(mm_cpumask(mm), refresh_pce, NULL, 1);
 }
 
 static int x86_pmu_event_idx(struct perf_event *event)
@@ -2206,10 +2228,30 @@ static struct attribute_group x86_pmu_attr_group = {
 	.attrs = x86_pmu_attrs,
 };
 
+static ssize_t max_precise_show(struct device *cdev,
+				  struct device_attribute *attr,
+				  char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%d\n", x86_pmu_max_precise());
+}
+
+static DEVICE_ATTR_RO(max_precise);
+
+static struct attribute *x86_pmu_caps_attrs[] = {
+	&dev_attr_max_precise.attr,
+	NULL
+};
+
+static struct attribute_group x86_pmu_caps_group = {
+	.name = "caps",
+	.attrs = x86_pmu_caps_attrs,
+};
+
 static const struct attribute_group *x86_pmu_attr_groups[] = {
 	&x86_pmu_attr_group,
 	&x86_pmu_format_group,
 	&x86_pmu_events_group,
+	&x86_pmu_caps_group,
 	NULL,
 };
 
@@ -2224,7 +2266,6 @@ void perf_check_microcode(void)
 	if (x86_pmu.check_microcode)
 		x86_pmu.check_microcode();
 }
-EXPORT_SYMBOL_GPL(perf_check_microcode);
 
 static struct pmu pmu = {
 	.pmu_enable		= x86_pmu_enable,
@@ -2255,7 +2296,7 @@ static struct pmu pmu = {
 void arch_perf_update_userpage(struct perf_event *event,
 			       struct perf_event_mmap_page *userpg, u64 now)
 {
-	struct cyc2ns_data *data;
+	struct cyc2ns_data data;
 	u64 offset;
 
 	userpg->cap_user_time = 0;
@@ -2267,17 +2308,17 @@ void arch_perf_update_userpage(struct perf_event *event,
 	if (!using_native_sched_clock() || !sched_clock_stable())
 		return;
 
-	data = cyc2ns_read_begin();
+	cyc2ns_read_begin(&data);
 
-	offset = data->cyc2ns_offset + __sched_clock_offset;
+	offset = data.cyc2ns_offset + __sched_clock_offset;
 
 	/*
 	 * Internal timekeeping for enabled/running/stopped times
 	 * is always in the local_clock domain.
 	 */
 	userpg->cap_user_time = 1;
-	userpg->time_mult = data->cyc2ns_mul;
-	userpg->time_shift = data->cyc2ns_shift;
+	userpg->time_mult = data.cyc2ns_mul;
+	userpg->time_shift = data.cyc2ns_shift;
 	userpg->time_offset = offset - now;
 
 	/*
@@ -2289,7 +2330,7 @@ void arch_perf_update_userpage(struct perf_event *event,
 		userpg->time_zero = offset;
 	}
 
-	cyc2ns_read_end(data);
+	cyc2ns_read_end();
 }
 
 void
@@ -2329,12 +2370,9 @@ static unsigned long get_segment_base(unsigned int segment)
 #ifdef CONFIG_MODIFY_LDT_SYSCALL
 		struct ldt_struct *ldt;
 
-		if (idx > LDT_ENTRIES)
-			return 0;
-
 		/* IRQs are off, so this synchronizes with smp_store_release */
 		ldt = lockless_dereference(current->active_mm->context.ldt);
-		if (!ldt || idx > ldt->size)
+		if (!ldt || idx >= ldt->nr_entries)
 			return 0;
 
 		desc = &ldt->entries[idx];
@@ -2342,7 +2380,7 @@ static unsigned long get_segment_base(unsigned int segment)
 		return 0;
 #endif
 	} else {
-		if (idx > GDT_ENTRIES)
+		if (idx >= GDT_ENTRIES)
 			return 0;
 
 		desc = raw_cpu_ptr(gdt_page.gdt) + idx;

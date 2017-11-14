@@ -14,10 +14,10 @@
 #include <linux/clk.h>
 #include <linux/gpio/consumer.h>
 #include <linux/regulator/consumer.h>
+#include <drm/drm_crtc.h>
+#include <drm/drm_dp_helper.h>
+#include <drm/drm_edid.h>
 
-#include "drm_crtc.h"
-#include "drm_dp_helper.h"
-#include "drm_edid.h"
 #include "edp.h"
 #include "edp.xml.h"
 

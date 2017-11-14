@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Common support for omap3 EVM boards
  */
@@ -10,6 +11,24 @@
 		cpu@0 {
 			cpu0-supply = <&vcc>;
 		};
+	};
+
+	/* HS USB Port 2 Power */
+	hsusb2_power: hsusb2_power_reg {
+		compatible = "regulator-fixed";
+		regulator-name = "hsusb2_vbus";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&gpio1 22 GPIO_ACTIVE_HIGH>; /* gpio_22 */
+		startup-delay-us = <70000>;
+		enable-active-high;
+	};
+
+	/* HS USB Host PHY on PORT 2 */
+	hsusb2_phy: hsusb2_phy {
+		compatible = "usb-nop-xceiv";
+		reset-gpios = <&gpio1 21 GPIO_ACTIVE_LOW>; /* gpio_21 */
+		vcc-supply = <&hsusb2_power>;
 	};
 
 	leds {
@@ -76,7 +95,6 @@
 
 &lcd_3v3 {
 	gpio = <&gpio5 25 GPIO_ACTIVE_LOW>;	/* gpio153 */
-	enable-active-low;
 };
 
 &lcd0 {
@@ -98,7 +116,7 @@
 &mmc1 {
 	interrupts-extended = <&intc 83 &omap3_pmx_core 0x11a>;
 	vmmc-supply = <&vmmc1>;
-	vmmc_aux-supply = <&vsim>;
+	vqmmc-supply = <&vsim>;
 	bus-width = <8>;
 };
 
@@ -143,6 +161,14 @@
 			>;
 };
 
+&usbhshost {
+	port2-mode = "ehci-phy";
+};
+
+&usbhsehci {
+	phys = <0 &hsusb2_phy>;
+};
+
 &usb_otg_hs {
 	interface-type = <0>;
 	usb-phy = <&usb2_phy>;
@@ -158,4 +184,11 @@
 		interrupts = <16 8>;
 		reg = <5 0 0xff>;
 	};
+};
+
+&vaux2 {
+	regulator-name = "usb_1v8";
+	regulator-min-microvolt = <1800000>;
+	regulator-max-microvolt = <1800000>;
+	regulator-always-on;
 };

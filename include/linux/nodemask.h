@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __LINUX_NODEMASK_H
 #define __LINUX_NODEMASK_H
 
@@ -387,11 +388,7 @@ enum node_states {
 #else
 	N_HIGH_MEMORY = N_NORMAL_MEMORY,
 #endif
-#ifdef CONFIG_MOVABLE_NODE
 	N_MEMORY,		/* The node has memory(regular, high, movable) */
-#else
-	N_MEMORY = N_HIGH_MEMORY,
-#endif
 	N_CPU,		/* The node has one or more cpus */
 	NR_NODE_STATES
 };

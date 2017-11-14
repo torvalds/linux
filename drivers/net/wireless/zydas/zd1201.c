@@ -25,7 +25,7 @@
 #include <linux/firmware.h>
 #include "zd1201.h"
 
-static struct usb_device_id zd1201_table[] = {
+static const struct usb_device_id zd1201_table[] = {
 	{USB_DEVICE(0x0586, 0x3400)}, /* Peabird Wireless USB Adapter */
 	{USB_DEVICE(0x0ace, 0x1201)}, /* ZyDAS ZD1201 Wireless USB Adapter */
 	{USB_DEVICE(0x050d, 0x6051)}, /* Belkin F5D6051 usb  adapter */
@@ -326,13 +326,13 @@ static void zd1201_usbrx(struct urb *urb)
 			if (!(skb = dev_alloc_skb(datalen+24)))
 				goto resubmit;
 			
-			memcpy(skb_put(skb, 2), &data[datalen-16], 2);
-			memcpy(skb_put(skb, 2), &data[datalen-2], 2);
-			memcpy(skb_put(skb, 6), &data[datalen-14], 6);
-			memcpy(skb_put(skb, 6), &data[datalen-22], 6);
-			memcpy(skb_put(skb, 6), &data[datalen-8], 6);
-			memcpy(skb_put(skb, 2), &data[datalen-24], 2);
-			memcpy(skb_put(skb, len), data, len);
+			skb_put_data(skb, &data[datalen - 16], 2);
+			skb_put_data(skb, &data[datalen - 2], 2);
+			skb_put_data(skb, &data[datalen - 14], 6);
+			skb_put_data(skb, &data[datalen - 22], 6);
+			skb_put_data(skb, &data[datalen - 8], 6);
+			skb_put_data(skb, &data[datalen - 24], 2);
+			skb_put_data(skb, data, len);
 			skb->protocol = eth_type_trans(skb, zd->dev);
 			zd->dev->stats.rx_packets++;
 			zd->dev->stats.rx_bytes += skb->len;
@@ -359,9 +359,9 @@ static void zd1201_usbrx(struct urb *urb)
 				frag->skb = skb;
 				frag->seq = seq & IEEE80211_SCTL_SEQ;
 				skb_reserve(skb, 2);
-				memcpy(skb_put(skb, 12), &data[datalen-14], 12);
-				memcpy(skb_put(skb, 2), &data[6], 2);
-				memcpy(skb_put(skb, len), data+8, len);
+				skb_put_data(skb, &data[datalen - 14], 12);
+				skb_put_data(skb, &data[6], 2);
+				skb_put_data(skb, data + 8, len);
 				hlist_add_head(&frag->fnode, &zd->fraglist);
 				goto resubmit;
 			}
@@ -385,9 +385,9 @@ static void zd1201_usbrx(struct urb *urb)
 			if (!skb)
 				goto resubmit;
 			skb_reserve(skb, 2);
-			memcpy(skb_put(skb, 12), &data[datalen-14], 12);
-			memcpy(skb_put(skb, 2), &data[6], 2);
-			memcpy(skb_put(skb, len), data+8, len);
+			skb_put_data(skb, &data[datalen - 14], 12);
+			skb_put_data(skb, &data[6], 2);
+			skb_put_data(skb, data + 8, len);
 		}
 		skb->protocol = eth_type_trans(skb, zd->dev);
 		zd->dev->stats.rx_packets++;

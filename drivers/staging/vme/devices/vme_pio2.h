@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _VME_PIO2_H_
 #define _VME_PIO2_H_
 
@@ -68,38 +69,38 @@ static const int PIO2_CHANNEL_BANK[32] = { 0, 0, 0, 0, 0, 0, 0, 0,
 					2, 2, 2, 2, 2, 2, 2, 2,
 					3, 3, 3, 3, 3, 3, 3, 3 };
 
-#define PIO2_CHANNEL0_BIT		(1 << 0)
-#define PIO2_CHANNEL1_BIT		(1 << 1)
-#define PIO2_CHANNEL2_BIT		(1 << 2)
-#define PIO2_CHANNEL3_BIT		(1 << 3)
-#define PIO2_CHANNEL4_BIT		(1 << 4)
-#define PIO2_CHANNEL5_BIT		(1 << 5)
-#define PIO2_CHANNEL6_BIT		(1 << 6)
-#define PIO2_CHANNEL7_BIT		(1 << 7)
-#define PIO2_CHANNEL8_BIT		(1 << 0)
-#define PIO2_CHANNEL9_BIT		(1 << 1)
-#define PIO2_CHANNEL10_BIT		(1 << 2)
-#define PIO2_CHANNEL11_BIT		(1 << 3)
-#define PIO2_CHANNEL12_BIT		(1 << 4)
-#define PIO2_CHANNEL13_BIT		(1 << 5)
-#define PIO2_CHANNEL14_BIT		(1 << 6)
-#define PIO2_CHANNEL15_BIT		(1 << 7)
-#define PIO2_CHANNEL16_BIT		(1 << 0)
-#define PIO2_CHANNEL17_BIT		(1 << 1)
-#define PIO2_CHANNEL18_BIT		(1 << 2)
-#define PIO2_CHANNEL19_BIT		(1 << 3)
-#define PIO2_CHANNEL20_BIT		(1 << 4)
-#define PIO2_CHANNEL21_BIT		(1 << 5)
-#define PIO2_CHANNEL22_BIT		(1 << 6)
-#define PIO2_CHANNEL23_BIT		(1 << 7)
-#define PIO2_CHANNEL24_BIT		(1 << 0)
-#define PIO2_CHANNEL25_BIT		(1 << 1)
-#define PIO2_CHANNEL26_BIT		(1 << 2)
-#define PIO2_CHANNEL27_BIT		(1 << 3)
-#define PIO2_CHANNEL28_BIT		(1 << 4)
-#define PIO2_CHANNEL29_BIT		(1 << 5)
-#define PIO2_CHANNEL30_BIT		(1 << 6)
-#define PIO2_CHANNEL31_BIT		(1 << 7)
+#define PIO2_CHANNEL0_BIT		BIT(0)
+#define PIO2_CHANNEL1_BIT		BIT(1)
+#define PIO2_CHANNEL2_BIT		BIT(2)
+#define PIO2_CHANNEL3_BIT		BIT(3)
+#define PIO2_CHANNEL4_BIT		BIT(4)
+#define PIO2_CHANNEL5_BIT		BIT(5)
+#define PIO2_CHANNEL6_BIT		BIT(6)
+#define PIO2_CHANNEL7_BIT		BIT(7)
+#define PIO2_CHANNEL8_BIT		BIT(0)
+#define PIO2_CHANNEL9_BIT		BIT(1)
+#define PIO2_CHANNEL10_BIT		BIT(2)
+#define PIO2_CHANNEL11_BIT		BIT(3)
+#define PIO2_CHANNEL12_BIT		BIT(4)
+#define PIO2_CHANNEL13_BIT		BIT(5)
+#define PIO2_CHANNEL14_BIT		BIT(6)
+#define PIO2_CHANNEL15_BIT		BIT(7)
+#define PIO2_CHANNEL16_BIT		BIT(0)
+#define PIO2_CHANNEL17_BIT		BIT(1)
+#define PIO2_CHANNEL18_BIT		BIT(2)
+#define PIO2_CHANNEL19_BIT		BIT(3)
+#define PIO2_CHANNEL20_BIT		BIT(4)
+#define PIO2_CHANNEL21_BIT		BIT(5)
+#define PIO2_CHANNEL22_BIT		BIT(6)
+#define PIO2_CHANNEL23_BIT		BIT(7)
+#define PIO2_CHANNEL24_BIT		BIT(0)
+#define PIO2_CHANNEL25_BIT		BIT(1)
+#define PIO2_CHANNEL26_BIT		BIT(2)
+#define PIO2_CHANNEL27_BIT		BIT(3)
+#define PIO2_CHANNEL28_BIT		BIT(4)
+#define PIO2_CHANNEL29_BIT		BIT(5)
+#define PIO2_CHANNEL30_BIT		BIT(6)
+#define PIO2_CHANNEL31_BIT		BIT(7)
 
 static const int PIO2_CHANNEL_BIT[32] = { PIO2_CHANNEL0_BIT, PIO2_CHANNEL1_BIT,
 					PIO2_CHANNEL2_BIT, PIO2_CHANNEL3_BIT,
@@ -120,12 +121,12 @@ static const int PIO2_CHANNEL_BIT[32] = { PIO2_CHANNEL0_BIT, PIO2_CHANNEL1_BIT,
 					};
 
 /* PIO2_REGS_INT_STAT_CNTR (0xc) */
-#define PIO2_COUNTER0			(1 << 0)
-#define PIO2_COUNTER1			(1 << 1)
-#define PIO2_COUNTER2			(1 << 2)
-#define PIO2_COUNTER3			(1 << 3)
-#define PIO2_COUNTER4			(1 << 4)
-#define PIO2_COUNTER5			(1 << 5)
+#define PIO2_COUNTER0			BIT(0)
+#define PIO2_COUNTER1			BIT(1)
+#define PIO2_COUNTER2			BIT(2)
+#define PIO2_COUNTER3			BIT(3)
+#define PIO2_COUNTER4			BIT(4)
+#define PIO2_COUNTER5			BIT(5)
 
 static const int PIO2_COUNTER[6] = { PIO2_COUNTER0, PIO2_COUNTER1,
 					PIO2_COUNTER2, PIO2_COUNTER3,
@@ -133,8 +134,8 @@ static const int PIO2_COUNTER[6] = { PIO2_COUNTER0, PIO2_COUNTER1,
 
 /* PIO2_REGS_CTRL (0x18) */
 #define PIO2_VME_INT_MASK		0x7
-#define PIO2_LED			(1 << 6)
-#define PIO2_LOOP			(1 << 7)
+#define PIO2_LED			BIT(6)
+#define PIO2_LOOP			BIT(7)
 
 /* PIO2_REGS_VME_VECTOR (0x19) */
 #define PIO2_VME_VECTOR_SPUR		0x0

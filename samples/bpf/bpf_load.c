@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -64,6 +65,8 @@ static int load_and_attach(const char *event, struct bpf_insn *prog, int size)
 	bool is_perf_event = strncmp(event, "perf_event", 10) == 0;
 	bool is_cgroup_skb = strncmp(event, "cgroup/skb", 10) == 0;
 	bool is_cgroup_sk = strncmp(event, "cgroup/sock", 11) == 0;
+	bool is_sockops = strncmp(event, "sockops", 7) == 0;
+	bool is_sk_skb = strncmp(event, "sk_skb", 6) == 0;
 	size_t insns_cnt = size / sizeof(struct bpf_insn);
 	enum bpf_prog_type prog_type;
 	char buf[256];
@@ -89,6 +92,10 @@ static int load_and_attach(const char *event, struct bpf_insn *prog, int size)
 		prog_type = BPF_PROG_TYPE_CGROUP_SKB;
 	} else if (is_cgroup_sk) {
 		prog_type = BPF_PROG_TYPE_CGROUP_SOCK;
+	} else if (is_sockops) {
+		prog_type = BPF_PROG_TYPE_SOCK_OPS;
+	} else if (is_sk_skb) {
+		prog_type = BPF_PROG_TYPE_SK_SKB;
 	} else {
 		printf("Unknown event '%s'\n", event);
 		return -1;
@@ -106,8 +113,11 @@ static int load_and_attach(const char *event, struct bpf_insn *prog, int size)
 	if (is_xdp || is_perf_event || is_cgroup_skb || is_cgroup_sk)
 		return 0;
 
-	if (is_socket) {
-		event += 6;
+	if (is_socket || is_sockops || is_sk_skb) {
+		if (is_socket)
+			event += 6;
+		else
+			event += 7;
 		if (*event != '/')
 			return 0;
 		event++;
@@ -192,7 +202,7 @@ static int load_and_attach(const char *event, struct bpf_insn *prog, int size)
 static int load_maps(struct bpf_map_data *maps, int nr_maps,
 		     fixup_map_cb fixup_map)
 {
-	int i;
+	int i, numa_node;
 
 	for (i = 0; i < nr_maps; i++) {
 		if (fixup_map) {
@@ -204,21 +214,26 @@ static int load_maps(struct bpf_map_data *maps, int nr_maps,
 			}
 		}
 
+		numa_node = maps[i].def.map_flags & BPF_F_NUMA_NODE ?
+			maps[i].def.numa_node : -1;
+
 		if (maps[i].def.type == BPF_MAP_TYPE_ARRAY_OF_MAPS ||
 		    maps[i].def.type == BPF_MAP_TYPE_HASH_OF_MAPS) {
 			int inner_map_fd = map_fd[maps[i].def.inner_map_idx];
 
-			map_fd[i] = bpf_create_map_in_map(maps[i].def.type,
+			map_fd[i] = bpf_create_map_in_map_node(maps[i].def.type,
 							maps[i].def.key_size,
 							inner_map_fd,
 							maps[i].def.max_entries,
-							maps[i].def.map_flags);
+							maps[i].def.map_flags,
+							numa_node);
 		} else {
-			map_fd[i] = bpf_create_map(maps[i].def.type,
-						   maps[i].def.key_size,
-						   maps[i].def.value_size,
-						   maps[i].def.max_entries,
-						   maps[i].def.map_flags);
+			map_fd[i] = bpf_create_map_node(maps[i].def.type,
+							maps[i].def.key_size,
+							maps[i].def.value_size,
+							maps[i].def.max_entries,
+							maps[i].def.map_flags,
+							numa_node);
 		}
 		if (map_fd[i] < 0) {
 			printf("failed to create a map: %d %s\n",
@@ -516,16 +531,18 @@ static int do_load_bpf_file(const char *path, fixup_map_cb fixup_map)
 		processed_sec[maps_shndx] = true;
 	}
 
-	/* load programs that need map fixup (relocations) */
+	/* process all relo sections, and rewrite bpf insns for maps */
 	for (i = 1; i < ehdr.e_shnum; i++) {
 		if (processed_sec[i])
 			continue;
 
 		if (get_sec(elf, i, &ehdr, &shname, &shdr, &data))
 			continue;
+
 		if (shdr.sh_type == SHT_REL) {
 			struct bpf_insn *insns;
 
+			/* locate prog sec that need map fixup (relocations) */
 			if (get_sec(elf, shdr.sh_info, &ehdr, &shname_prog,
 				    &shdr_prog, &data_prog))
 				continue;
@@ -535,26 +552,15 @@ static int do_load_bpf_file(const char *path, fixup_map_cb fixup_map)
 				continue;
 
 			insns = (struct bpf_insn *) data_prog->d_buf;
-
-			processed_sec[shdr.sh_info] = true;
-			processed_sec[i] = true;
+			processed_sec[i] = true; /* relo section */
 
 			if (parse_relo_and_apply(data, symbols, &shdr, insns,
 						 map_data, nr_maps))
 				continue;
-
-			if (memcmp(shname_prog, "kprobe/", 7) == 0 ||
-			    memcmp(shname_prog, "kretprobe/", 10) == 0 ||
-			    memcmp(shname_prog, "tracepoint/", 11) == 0 ||
-			    memcmp(shname_prog, "xdp", 3) == 0 ||
-			    memcmp(shname_prog, "perf_event", 10) == 0 ||
-			    memcmp(shname_prog, "socket", 6) == 0 ||
-			    memcmp(shname_prog, "cgroup/", 7) == 0)
-				load_and_attach(shname_prog, insns, data_prog->d_size);
 		}
 	}
 
-	/* load programs that don't use maps */
+	/* load programs */
 	for (i = 1; i < ehdr.e_shnum; i++) {
 
 		if (processed_sec[i])
@@ -569,8 +575,14 @@ static int do_load_bpf_file(const char *path, fixup_map_cb fixup_map)
 		    memcmp(shname, "xdp", 3) == 0 ||
 		    memcmp(shname, "perf_event", 10) == 0 ||
 		    memcmp(shname, "socket", 6) == 0 ||
-		    memcmp(shname, "cgroup/", 7) == 0)
-			load_and_attach(shname, data->d_buf, data->d_size);
+		    memcmp(shname, "cgroup/", 7) == 0 ||
+		    memcmp(shname, "sockops", 7) == 0 ||
+		    memcmp(shname, "sk_skb", 6) == 0) {
+			ret = load_and_attach(shname, data->d_buf,
+					      data->d_size);
+			if (ret != 0)
+				goto done;
+		}
 	}
 
 	ret = 0;

@@ -51,7 +51,6 @@ static struct octeon_config default_cn66xx_conf = {
 	/** OQ attributes */
 	.oq					= {
 		.max_oqs			= CN6XXX_CFG_IO_QUEUES,
-		.info_ptr			= OCTEON_OQ_INFOPTR_MODE,
 		.refill_threshold		= CN6XXX_OQ_REFIL_THRESHOLD,
 		.oq_intr_pkt			= CN6XXX_OQ_INTR_PKT,
 		.oq_intr_time			= CN6XXX_OQ_INTR_TIME,
@@ -161,7 +160,6 @@ static struct octeon_config default_cn68xx_conf = {
 	/** OQ attributes */
 	.oq					= {
 		.max_oqs			= CN6XXX_CFG_IO_QUEUES,
-		.info_ptr			= OCTEON_OQ_INFOPTR_MODE,
 		.refill_threshold		= CN6XXX_OQ_REFIL_THRESHOLD,
 		.oq_intr_pkt			= CN6XXX_OQ_INTR_PKT,
 		.oq_intr_time			= CN6XXX_OQ_INTR_TIME,
@@ -328,7 +326,6 @@ static struct octeon_config default_cn68xx_210nv_conf = {
 	/** OQ attributes */
 	.oq					= {
 		.max_oqs			= CN6XXX_CFG_IO_QUEUES,
-		.info_ptr			= OCTEON_OQ_INFOPTR_MODE,
 		.refill_threshold		= CN6XXX_OQ_REFIL_THRESHOLD,
 		.oq_intr_pkt			= CN6XXX_OQ_INTR_PKT,
 		.oq_intr_time			= CN6XXX_OQ_INTR_TIME,
@@ -421,7 +418,7 @@ static struct octeon_config default_cn23xx_conf = {
 	/** IQ attributes */
 	.iq = {
 		.max_iqs		= CN23XX_CFG_IO_QUEUES,
-		.pending_list_size	= (CN23XX_MAX_IQ_DESCRIPTORS *
+		.pending_list_size	= (CN23XX_DEFAULT_IQ_DESCRIPTORS *
 					   CN23XX_CFG_IO_QUEUES),
 		.instr_type		= OCTEON_64BYTE_INSTR,
 		.db_min			= CN23XX_DB_MIN,
@@ -432,7 +429,6 @@ static struct octeon_config default_cn23xx_conf = {
 	/** OQ attributes */
 	.oq = {
 		.max_oqs		= CN23XX_CFG_IO_QUEUES,
-		.info_ptr		= OCTEON_OQ_INFOPTR_MODE,
 		.pkts_per_intr	= CN23XX_OQ_PKTSPER_INTR,
 		.refill_threshold	= CN23XX_OQ_REFIL_THRESHOLD,
 		.oq_intr_pkt	= CN23XX_OQ_INTR_PKT,
@@ -440,8 +436,8 @@ static struct octeon_config default_cn23xx_conf = {
 	},
 
 	.num_nic_ports				= DEFAULT_NUM_NIC_PORTS_23XX,
-	.num_def_rx_descs			= CN23XX_MAX_OQ_DESCRIPTORS,
-	.num_def_tx_descs			= CN23XX_MAX_IQ_DESCRIPTORS,
+	.num_def_rx_descs			= CN23XX_DEFAULT_OQ_DESCRIPTORS,
+	.num_def_tx_descs			= CN23XX_DEFAULT_IQ_DESCRIPTORS,
 	.def_rx_buf_size			= CN23XX_OQ_BUF_SIZE,
 
 	/* For ethernet interface 0:  Port cfg Attributes */
@@ -459,10 +455,10 @@ static struct octeon_config default_cn23xx_conf = {
 		.num_rxqs			= DEF_RXQS_PER_INTF,
 
 		/* Num of desc for rx rings */
-		.num_rx_descs			= CN23XX_MAX_OQ_DESCRIPTORS,
+		.num_rx_descs			= CN23XX_DEFAULT_OQ_DESCRIPTORS,
 
 		/* Num of desc for tx rings */
-		.num_tx_descs			= CN23XX_MAX_IQ_DESCRIPTORS,
+		.num_tx_descs			= CN23XX_DEFAULT_IQ_DESCRIPTORS,
 
 		/* SKB size, We need not change buf size even for Jumbo frames.
 		 * Octeon can send jumbo frames in 4 consecutive descriptors,
@@ -488,10 +484,10 @@ static struct octeon_config default_cn23xx_conf = {
 		.num_rxqs			= DEF_RXQS_PER_INTF,
 
 		/* Num of desc for rx rings */
-		.num_rx_descs			= CN23XX_MAX_OQ_DESCRIPTORS,
+		.num_rx_descs			= CN23XX_DEFAULT_OQ_DESCRIPTORS,
 
 		/* Num of desc for tx rings */
-		.num_tx_descs			= CN23XX_MAX_IQ_DESCRIPTORS,
+		.num_tx_descs			= CN23XX_DEFAULT_IQ_DESCRIPTORS,
 
 		/* SKB size, We need not change buf size even for Jumbo frames.
 		 * Octeon can send jumbo frames in 4 consecutive descriptors,
@@ -532,9 +528,10 @@ static struct octeon_config_ptr {
 };
 
 static char oct_dev_state_str[OCT_DEV_STATES + 1][32] = {
-	"BEGIN", "PCI-MAP-DONE", "DISPATCH-INIT-DONE",
+	"BEGIN", "PCI-ENABLE-DONE", "PCI-MAP-DONE", "DISPATCH-INIT-DONE",
 	"IQ-INIT-DONE", "SCBUFF-POOL-INIT-DONE", "RESPLIST-INIT-DONE",
-	"DROQ-INIT-DONE", "IO-QUEUES-INIT-DONE", "CONSOLE-INIT-DONE",
+	"DROQ-INIT-DONE", "MBOX-SETUP-DONE", "MSIX-ALLOC-VECTOR-DONE",
+	"INTR-SET-DONE", "IO-QUEUES-INIT-DONE", "CONSOLE-INIT-DONE",
 	"HOST-READY", "CORE-READY", "RUNNING", "IN-RESET",
 	"INVALID"
 };
@@ -543,7 +540,11 @@ static char oct_dev_app_str[CVM_DRV_APP_COUNT + 1][32] = {
 	"BASE", "NIC", "UNKNOWN"};
 
 static struct octeon_device *octeon_device[MAX_OCTEON_DEVICES];
+static atomic_t adapter_refcounts[MAX_OCTEON_DEVICES];
+
 static u32 octeon_device_count;
+/* locks device array (i.e. octeon_device[]) */
+static spinlock_t octeon_devices_lock;
 
 static struct octeon_core_setup core_setup[MAX_OCTEON_DEVICES];
 
@@ -561,6 +562,7 @@ void octeon_init_device_list(int conf_type)
 	memset(octeon_device, 0, (sizeof(void *) * MAX_OCTEON_DEVICES));
 	for (i = 0; i <  MAX_OCTEON_DEVICES; i++)
 		oct_set_config_info(i, conf_type);
+	spin_lock_init(&octeon_devices_lock);
 }
 
 static void *__retrieve_octeon_config_info(struct octeon_device *oct,
@@ -720,28 +722,98 @@ struct octeon_device *octeon_allocate_device(u32 pci_id,
 	u32 oct_idx = 0;
 	struct octeon_device *oct = NULL;
 
+	spin_lock(&octeon_devices_lock);
+
 	for (oct_idx = 0; oct_idx < MAX_OCTEON_DEVICES; oct_idx++)
 		if (!octeon_device[oct_idx])
 			break;
 
-	if (oct_idx == MAX_OCTEON_DEVICES)
-		return NULL;
+	if (oct_idx < MAX_OCTEON_DEVICES) {
+		oct = octeon_allocate_device_mem(pci_id, priv_size);
+		if (oct) {
+			octeon_device_count++;
+			octeon_device[oct_idx] = oct;
+		}
+	}
 
-	oct = octeon_allocate_device_mem(pci_id, priv_size);
+	spin_unlock(&octeon_devices_lock);
 	if (!oct)
 		return NULL;
 
 	spin_lock_init(&oct->pci_win_lock);
 	spin_lock_init(&oct->mem_access_lock);
 
-	octeon_device_count++;
-	octeon_device[oct_idx] = oct;
-
 	oct->octeon_id = oct_idx;
 	snprintf(oct->device_name, sizeof(oct->device_name),
 		 "LiquidIO%d", (oct->octeon_id));
 
 	return oct;
+}
+
+/** Register a device's bus location at initialization time.
+ *  @param octeon_dev - pointer to the octeon device structure.
+ *  @param bus        - PCIe bus #
+ *  @param dev        - PCIe device #
+ *  @param func       - PCIe function #
+ *  @param is_pf      - TRUE for PF, FALSE for VF
+ *  @return reference count of device's adapter
+ */
+int octeon_register_device(struct octeon_device *oct,
+			   int bus, int dev, int func, int is_pf)
+{
+	int idx, refcount;
+
+	oct->loc.bus = bus;
+	oct->loc.dev = dev;
+	oct->loc.func = func;
+
+	oct->adapter_refcount = &adapter_refcounts[oct->octeon_id];
+	atomic_set(oct->adapter_refcount, 0);
+
+	spin_lock(&octeon_devices_lock);
+	for (idx = (int)oct->octeon_id - 1; idx >= 0; idx--) {
+		if (!octeon_device[idx]) {
+			dev_err(&oct->pci_dev->dev,
+				"%s: Internal driver error, missing dev",
+				__func__);
+			spin_unlock(&octeon_devices_lock);
+			atomic_inc(oct->adapter_refcount);
+			return 1; /* here, refcount is guaranteed to be 1 */
+		}
+		/* if another device is at same bus/dev, use its refcounter */
+		if ((octeon_device[idx]->loc.bus == bus) &&
+		    (octeon_device[idx]->loc.dev == dev)) {
+			oct->adapter_refcount =
+				octeon_device[idx]->adapter_refcount;
+			break;
+		}
+	}
+	spin_unlock(&octeon_devices_lock);
+
+	atomic_inc(oct->adapter_refcount);
+	refcount = atomic_read(oct->adapter_refcount);
+
+	dev_dbg(&oct->pci_dev->dev, "%s: %02x:%02x:%d refcount %u", __func__,
+		oct->loc.bus, oct->loc.dev, oct->loc.func, refcount);
+
+	return refcount;
+}
+
+/** Deregister a device at de-initialization time.
+ *  @param octeon_dev - pointer to the octeon device structure.
+ *  @return reference count of device's adapter
+ */
+int octeon_deregister_device(struct octeon_device *oct)
+{
+	int refcount;
+
+	atomic_dec(oct->adapter_refcount);
+	refcount = atomic_read(oct->adapter_refcount);
+
+	dev_dbg(&oct->pci_dev->dev, "%s: %04d:%02d:%d refcount %u", __func__,
+		oct->loc.bus, oct->loc.dev, oct->loc.func, refcount);
+
+	return refcount;
 }
 
 int
@@ -805,11 +877,11 @@ int octeon_setup_instr_queues(struct octeon_device *oct)
 
 	oct->num_iqs = 0;
 
-	oct->instr_queue[0] = vmalloc_node(sizeof(*oct->instr_queue[0]),
+	oct->instr_queue[0] = vzalloc_node(sizeof(*oct->instr_queue[0]),
 				numa_node);
 	if (!oct->instr_queue[0])
 		oct->instr_queue[0] =
-			vmalloc(sizeof(struct octeon_instr_queue));
+			vzalloc(sizeof(struct octeon_instr_queue));
 	if (!oct->instr_queue[0])
 		return 1;
 	memset(oct->instr_queue[0], 0, sizeof(struct octeon_instr_queue));
@@ -852,9 +924,9 @@ int octeon_setup_output_queues(struct octeon_device *oct)
 		desc_size = CFG_GET_DEF_RX_BUF_SIZE(CHIP_CONF(oct, cn23xx_vf));
 	}
 	oct->num_oqs = 0;
-	oct->droq[0] = vmalloc_node(sizeof(*oct->droq[0]), numa_node);
+	oct->droq[0] = vzalloc_node(sizeof(*oct->droq[0]), numa_node);
 	if (!oct->droq[0])
-		oct->droq[0] = vmalloc(sizeof(*oct->droq[0]));
+		oct->droq[0] = vzalloc(sizeof(*oct->droq[0]));
 	if (!oct->droq[0])
 		return 1;
 
@@ -1161,13 +1233,15 @@ int octeon_core_drv_init(struct octeon_recv_info *recv_info, void *buf)
 
 	cs = &core_setup[oct->octeon_id];
 
-	if (recv_pkt->buffer_size[0] != sizeof(*cs)) {
+	if (recv_pkt->buffer_size[0] != (sizeof(*cs) + OCT_DROQ_INFO_SIZE)) {
 		dev_dbg(&oct->pci_dev->dev, "Core setup bytes expected %u found %d\n",
 			(u32)sizeof(*cs),
 			recv_pkt->buffer_size[0]);
 	}
 
-	memcpy(cs, get_rbd(recv_pkt->buffer_ptr[0]), sizeof(*cs));
+	memcpy(cs, get_rbd(
+	       recv_pkt->buffer_ptr[0]) + OCT_DROQ_INFO_SIZE, sizeof(*cs));
+
 	strncpy(oct->boardinfo.name, cs->boardname, OCT_BOARD_NAME);
 	strncpy(oct->boardinfo.serial_number, cs->board_serial_number,
 		OCT_SERIAL_LEN);
@@ -1354,13 +1428,15 @@ int lio_get_device_id(void *dev)
 void lio_enable_irq(struct octeon_droq *droq, struct octeon_instr_queue *iq)
 {
 	u64 instr_cnt;
+	u32 pkts_pend;
 	struct octeon_device *oct = NULL;
 
 	/* the whole thing needs to be atomic, ideally */
 	if (droq) {
+		pkts_pend = (u32)atomic_read(&droq->pkts_pending);
 		spin_lock_bh(&droq->lock);
-		writel(droq->pkt_count, droq->pkts_sent_reg);
-		droq->pkt_count = 0;
+		writel(droq->pkt_count - pkts_pend, droq->pkts_sent_reg);
+		droq->pkt_count = pkts_pend;
 		/* this write needs to be flushed before we release the lock */
 		mmiowb();
 		spin_unlock_bh(&droq->lock);

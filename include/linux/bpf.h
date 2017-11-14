@@ -14,8 +14,10 @@
 #include <linux/percpu.h>
 #include <linux/err.h>
 #include <linux/rbtree_latch.h>
+#include <linux/numa.h>
 
 struct perf_event;
+struct bpf_prog;
 struct bpf_map;
 
 /* map is generic key/value storage optionally accesible by eBPF programs */
@@ -36,6 +38,7 @@ struct bpf_map_ops {
 				int fd);
 	void (*map_fd_put_ptr)(void *ptr);
 	u32 (*map_gen_lookup)(struct bpf_map *map, struct bpf_insn *insn_buf);
+	u32 (*map_fd_sys_lookup_elem)(void *ptr);
 };
 
 struct bpf_map {
@@ -46,6 +49,8 @@ struct bpf_map {
 	u32 max_entries;
 	u32 map_flags;
 	u32 pages;
+	u32 id;
+	int numa_node;
 	struct user_struct *user;
 	const struct bpf_map_ops *ops;
 	struct work_struct work;
@@ -115,38 +120,40 @@ enum bpf_access_type {
 };
 
 /* types of values stored in eBPF registers */
+/* Pointer types represent:
+ * pointer
+ * pointer + imm
+ * pointer + (u16) var
+ * pointer + (u16) var + imm
+ * if (range > 0) then [ptr, ptr + range - off) is safe to access
+ * if (id > 0) means that some 'var' was added
+ * if (off > 0) means that 'imm' was added
+ */
 enum bpf_reg_type {
 	NOT_INIT = 0,		 /* nothing was written into register */
-	UNKNOWN_VALUE,		 /* reg doesn't contain a valid pointer */
+	SCALAR_VALUE,		 /* reg doesn't contain a valid pointer */
 	PTR_TO_CTX,		 /* reg points to bpf_context */
 	CONST_PTR_TO_MAP,	 /* reg points to struct bpf_map */
 	PTR_TO_MAP_VALUE,	 /* reg points to map element value */
 	PTR_TO_MAP_VALUE_OR_NULL,/* points to map elem value or NULL */
-	FRAME_PTR,		 /* reg == frame_pointer */
-	PTR_TO_STACK,		 /* reg == frame_pointer + imm */
-	CONST_IMM,		 /* constant integer value */
-
-	/* PTR_TO_PACKET represents:
-	 * skb->data
-	 * skb->data + imm
-	 * skb->data + (u16) var
-	 * skb->data + (u16) var + imm
-	 * if (range > 0) then [ptr, ptr + range - off) is safe to access
-	 * if (id > 0) means that some 'var' was added
-	 * if (off > 0) menas that 'imm' was added
-	 */
-	PTR_TO_PACKET,
+	PTR_TO_STACK,		 /* reg == frame_pointer + offset */
+	PTR_TO_PACKET,		 /* reg points to skb->data */
 	PTR_TO_PACKET_END,	 /* skb->data + headlen */
-
-	/* PTR_TO_MAP_VALUE_ADJ is used for doing pointer math inside of a map
-	 * elem value.  We only allow this if we can statically verify that
-	 * access from this register are going to fall within the size of the
-	 * map element.
-	 */
-	PTR_TO_MAP_VALUE_ADJ,
 };
 
-struct bpf_prog;
+/* The information passed from prog-specific *_is_valid_access
+ * back to the verifier.
+ */
+struct bpf_insn_access_aux {
+	enum bpf_reg_type reg_type;
+	int ctx_field_size;
+};
+
+static inline void
+bpf_ctx_record_field_size(struct bpf_insn_access_aux *aux, u32 size)
+{
+	aux->ctx_field_size = size;
+}
 
 struct bpf_verifier_ops {
 	/* return eBPF function prototype for verification */
@@ -156,13 +163,13 @@ struct bpf_verifier_ops {
 	 * with 'type' (read or write) is allowed
 	 */
 	bool (*is_valid_access)(int off, int size, enum bpf_access_type type,
-				enum bpf_reg_type *reg_type);
+				struct bpf_insn_access_aux *info);
 	int (*gen_prologue)(struct bpf_insn *insn, bool direct_write,
 			    const struct bpf_prog *prog);
 	u32 (*convert_ctx_access)(enum bpf_access_type type,
 				  const struct bpf_insn *src,
 				  struct bpf_insn *dst,
-				  struct bpf_prog *prog);
+				  struct bpf_prog *prog, u32 *target_size);
 	int (*test_run)(struct bpf_prog *prog, const union bpf_attr *kattr,
 			union bpf_attr __user *uattr);
 };
@@ -171,6 +178,8 @@ struct bpf_prog_aux {
 	atomic_t refcnt;
 	u32 used_map_cnt;
 	u32 max_ctx_offset;
+	u32 stack_depth;
+	u32 id;
 	struct latch_tree_node ksym_tnode;
 	struct list_head ksym_lnode;
 	const struct bpf_verifier_ops *ops;
@@ -244,6 +253,7 @@ struct bpf_prog *bpf_prog_get_type(u32 ufd, enum bpf_prog_type type);
 struct bpf_prog * __must_check bpf_prog_add(struct bpf_prog *prog, int i);
 void bpf_prog_sub(struct bpf_prog *prog, int i);
 struct bpf_prog * __must_check bpf_prog_inc(struct bpf_prog *prog);
+struct bpf_prog * __must_check bpf_prog_inc_not_zero(struct bpf_prog *prog);
 void bpf_prog_put(struct bpf_prog *prog);
 int __bpf_prog_charge(struct user_struct *user, u32 pages);
 void __bpf_prog_uncharge(struct user_struct *user, u32 pages);
@@ -254,7 +264,7 @@ struct bpf_map * __must_check bpf_map_inc(struct bpf_map *map, bool uref);
 void bpf_map_put_with_uref(struct bpf_map *map);
 void bpf_map_put(struct bpf_map *map);
 int bpf_map_precharge_memlock(u32 pages);
-void *bpf_map_area_alloc(size_t size);
+void *bpf_map_area_alloc(size_t size, int numa_node);
 void bpf_map_area_free(void *base);
 
 extern int sysctl_unprivileged_bpf_disabled;
@@ -276,9 +286,11 @@ int bpf_stackmap_copy(struct bpf_map *map, void *key, void *value);
 
 int bpf_fd_array_map_update_elem(struct bpf_map *map, struct file *map_file,
 				 void *key, void *value, u64 map_flags);
+int bpf_fd_array_map_lookup_elem(struct bpf_map *map, void *key, u32 *value);
 void bpf_fd_array_map_clear(struct bpf_map *map);
 int bpf_fd_htab_map_update_elem(struct bpf_map *map, struct file *map_file,
 				void *key, void *value, u64 map_flags);
+int bpf_fd_htab_map_lookup_elem(struct bpf_map *map, void *key, u32 *value);
 
 /* memcpy that is used with 8-byte aligned pointers, power-of-8 size and
  * forced to use 'long' read/writes to try to atomically copy long counters.
@@ -298,6 +310,19 @@ static inline void bpf_long_memcpy(void *dst, const void *src, u32 size)
 
 /* verify correctness of eBPF program */
 int bpf_check(struct bpf_prog **fp, union bpf_attr *attr);
+
+/* Map specifics */
+struct net_device  *__dev_map_lookup_elem(struct bpf_map *map, u32 key);
+void __dev_map_insert_ctx(struct bpf_map *map, u32 index);
+void __dev_map_flush(struct bpf_map *map);
+
+/* Return map's numa specified by userspace */
+static inline int bpf_map_attr_numa_node(const union bpf_attr *attr)
+{
+	return (attr->map_flags & BPF_F_NUMA_NODE) ?
+		attr->numa_node : NUMA_NO_NODE;
+}
+
 #else
 static inline struct bpf_prog *bpf_prog_get(u32 ufd)
 {
@@ -328,6 +353,12 @@ static inline struct bpf_prog * __must_check bpf_prog_inc(struct bpf_prog *prog)
 	return ERR_PTR(-EOPNOTSUPP);
 }
 
+static inline struct bpf_prog *__must_check
+bpf_prog_inc_not_zero(struct bpf_prog *prog)
+{
+	return ERR_PTR(-EOPNOTSUPP);
+}
+
 static inline int __bpf_prog_charge(struct user_struct *user, u32 pages)
 {
 	return 0;
@@ -336,7 +367,43 @@ static inline int __bpf_prog_charge(struct user_struct *user, u32 pages)
 static inline void __bpf_prog_uncharge(struct user_struct *user, u32 pages)
 {
 }
+
+static inline int bpf_obj_get_user(const char __user *pathname)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline struct net_device  *__dev_map_lookup_elem(struct bpf_map *map,
+						       u32 key)
+{
+	return NULL;
+}
+
+static inline void __dev_map_insert_ctx(struct bpf_map *map, u32 index)
+{
+}
+
+static inline void __dev_map_flush(struct bpf_map *map)
+{
+}
 #endif /* CONFIG_BPF_SYSCALL */
+
+#if defined(CONFIG_STREAM_PARSER) && defined(CONFIG_BPF_SYSCALL)
+struct sock  *__sock_map_lookup_elem(struct bpf_map *map, u32 key);
+int sock_map_prog(struct bpf_map *map, struct bpf_prog *prog, u32 type);
+#else
+static inline struct sock  *__sock_map_lookup_elem(struct bpf_map *map, u32 key)
+{
+	return NULL;
+}
+
+static inline int sock_map_prog(struct bpf_map *map,
+				struct bpf_prog *prog,
+				u32 type)
+{
+	return -EOPNOTSUPP;
+}
+#endif
 
 /* verifier prototypes for helper functions called from eBPF programs */
 extern const struct bpf_func_proto bpf_map_lookup_elem_proto;
@@ -354,6 +421,7 @@ extern const struct bpf_func_proto bpf_get_current_comm_proto;
 extern const struct bpf_func_proto bpf_skb_vlan_push_proto;
 extern const struct bpf_func_proto bpf_skb_vlan_pop_proto;
 extern const struct bpf_func_proto bpf_get_stackid_proto;
+extern const struct bpf_func_proto bpf_sock_map_update_proto;
 
 /* Shared helpers among cBPF and eBPF. */
 void bpf_user_rnd_init_once(void);

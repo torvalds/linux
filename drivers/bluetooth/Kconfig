@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 
 menu "Bluetooth device drivers"
 	depends on BT
@@ -97,6 +98,8 @@ config BT_HCIUART_NOKIA
 	depends on BT_HCIUART
 	depends on BT_HCIUART_SERDEV
 	depends on PM
+	select BT_HCIUART_H4
+	select BT_BCM
 	help
 	  Nokia H4+ is serial protocol for communication between Bluetooth
 	  device and host. This protocol is required for Bluetooth devices
@@ -131,7 +134,7 @@ config BT_HCIUART_ATH3K
 
 config BT_HCIUART_LL
 	bool "HCILL protocol support"
-	depends on BT_HCIUART
+	depends on BT_HCIUART_SERDEV
 	help
 	  HCILL (HCI Low Level) is a serial protocol for communication
 	  between Bluetooth device and host. This protocol is required for
@@ -166,6 +169,7 @@ config BT_HCIUART_INTEL
 config BT_HCIUART_BCM
 	bool "Broadcom protocol support"
 	depends on BT_HCIUART
+	depends on BT_HCIUART_SERDEV
 	select BT_HCIUART_H4
 	select BT_BCM
 	help

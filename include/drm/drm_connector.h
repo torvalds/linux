@@ -25,11 +25,10 @@
 
 #include <linux/list.h>
 #include <linux/ctype.h>
+#include <linux/hdmi.h>
 #include <drm/drm_mode_object.h>
 
 #include <uapi/drm/drm_mode.h>
-
-struct drm_device;
 
 struct drm_connector_helper_funcs;
 struct drm_modeset_acquire_ctx;
@@ -136,6 +135,28 @@ struct drm_scdc {
 struct drm_hdmi_info {
 	/** @scdc: sink's scdc support and capabilities */
 	struct drm_scdc scdc;
+
+	/**
+	 * @y420_vdb_modes: bitmap of modes which can support ycbcr420
+	 * output only (not normal RGB/YCBCR444/422 outputs). There are total
+	 * 107 VICs defined by CEA-861-F spec, so the size is 128 bits to map
+	 * upto 128 VICs;
+	 */
+	unsigned long y420_vdb_modes[BITS_TO_LONGS(128)];
+
+	/**
+	 * @y420_cmdb_modes: bitmap of modes which can support ycbcr420
+	 * output also, along with normal HDMI outputs. There are total 107
+	 * VICs defined by CEA-861-F spec, so the size is 128 bits to map upto
+	 * 128 VICs;
+	 */
+	unsigned long y420_cmdb_modes[BITS_TO_LONGS(128)];
+
+	/** @y420_cmdb_map: bitmap of SVD index, to extraxt vcb modes */
+	u64 y420_cmdb_map;
+
+	/** @y420_dc_modes: bitmap of deep color support index */
+	u8 y420_dc_modes;
 };
 
 /**
@@ -199,6 +220,7 @@ struct drm_display_info {
 #define DRM_COLOR_FORMAT_RGB444		(1<<0)
 #define DRM_COLOR_FORMAT_YCRCB444	(1<<1)
 #define DRM_COLOR_FORMAT_YCRCB422	(1<<2)
+#define DRM_COLOR_FORMAT_YCRCB420	(1<<3)
 
 	/**
 	 * @color_formats: HDMI Color formats, selects between RGB and YCrCb
@@ -326,6 +348,21 @@ struct drm_connector_state {
 	struct drm_atomic_state *state;
 
 	struct drm_tv_connector_state tv;
+
+	/**
+	 * @picture_aspect_ratio: Connector property to control the
+	 * HDMI infoframe aspect ratio setting.
+	 *
+	 * The %DRM_MODE_PICTURE_ASPECT_\* values much match the
+	 * values for &enum hdmi_picture_aspect
+	 */
+	enum hdmi_picture_aspect picture_aspect_ratio;
+
+	/**
+	 * @scaling_mode: Connector property to control the
+	 * upscaling, mostly used for built-in panels.
+	 */
+	unsigned int scaling_mode;
 };
 
 /**
@@ -345,8 +382,8 @@ struct drm_connector_funcs {
 	 * implement the 4 level DPMS support on the connector any more, but
 	 * instead only have an on/off "ACTIVE" property on the CRTC object.
 	 *
-	 * Drivers implementing atomic modeset should use
-	 * drm_atomic_helper_connector_dpms() to implement this hook.
+	 * This hook is not used by atomic drivers, remapping of the legacy DPMS
+	 * property is entirely handled in the DRM core.
 	 *
 	 * RETURNS:
 	 *
@@ -443,11 +480,9 @@ struct drm_connector_funcs {
 	 * This is the legacy entry point to update a property attached to the
 	 * connector.
 	 *
-	 * Drivers implementing atomic modeset should use
-	 * drm_atomic_helper_connector_set_property() to implement this hook.
-	 *
 	 * This callback is optional if the driver does not support any legacy
-	 * driver-private properties.
+	 * driver-private properties. For atomic drivers it is not used because
+	 * property handling is done entirely in the DRM core.
 	 *
 	 * RETURNS:
 	 *
@@ -675,6 +710,7 @@ struct drm_cmdline_mode {
  * @tile_v_loc: vertical location of this tile
  * @tile_h_size: horizontal size of this tile.
  * @tile_v_size: vertical size of this tile.
+ * @scaling_mode_property:  Optional atomic property to control the upscaling.
  *
  * Each connector may be connected to one or more CRTCs, or may be clonable by
  * another connector if they can share a CRTC.  Each connector also has a specific
@@ -711,6 +747,15 @@ struct drm_connector {
 	bool interlace_allowed;
 	bool doublescan_allowed;
 	bool stereo_allowed;
+
+	/**
+	 * @ycbcr_420_allowed : This bool indicates if this connector is
+	 * capable of handling YCBCR 420 output. While parsing the EDID
+	 * blocks, its very helpful to know, if the source is capable of
+	 * handling YCBCR 420 outputs.
+	 */
+	bool ycbcr_420_allowed;
+
 	/**
 	 * @registered: Is this connector exposed (registered) with userspace?
 	 * Protected by @mutex.
@@ -753,6 +798,8 @@ struct drm_connector {
 
 	struct drm_property_blob *edid_blob_ptr;
 	struct drm_object_properties properties;
+
+	struct drm_property *scaling_mode_property;
 
 	/**
 	 * @path_blob_ptr:
@@ -953,6 +1000,8 @@ int drm_mode_create_tv_properties(struct drm_device *dev,
 				  unsigned int num_modes,
 				  const char * const modes[]);
 int drm_mode_create_scaling_mode_property(struct drm_device *dev);
+int drm_connector_attach_scaling_mode_property(struct drm_connector *connector,
+					       u32 scaling_mode_mask);
 int drm_mode_create_aspect_ratio_property(struct drm_device *dev);
 int drm_mode_create_suggested_offset_properties(struct drm_device *dev);
 
@@ -989,21 +1038,6 @@ void drm_mode_put_tile_group(struct drm_device *dev,
 			     struct drm_tile_group *tg);
 
 /**
- * drm_for_each_connector - iterate over all connectors
- * @connector: the loop cursor
- * @dev: the DRM device
- *
- * Iterate over all connectors of @dev.
- *
- * WARNING:
- *
- * This iterator is not safe against hotadd/removal of connectors and is
- * deprecated. Use drm_for_each_connector_iter() instead.
- */
-#define drm_for_each_connector(connector, dev) \
-	list_for_each_entry(connector, &(dev)->mode_config.connector_list, head)
-
-/**
  * struct drm_connector_list_iter - connector_list iterator
  *
  * This iterator tracks state needed to be able to walk the connector_list
@@ -1031,7 +1065,7 @@ void drm_connector_list_iter_end(struct drm_connector_list_iter *iter);
  *
  * Note that @connector is only valid within the list body, if you want to use
  * @connector after calling drm_connector_list_iter_end() then you need to grab
- * your own reference first using drm_connector_begin().
+ * your own reference first using drm_connector_get().
  */
 #define drm_for_each_connector_iter(connector, iter) \
 	while ((connector = drm_connector_list_iter_next(iter)))

@@ -15,36 +15,64 @@
  *
  */
 
+#include <linux/component.h>
 #include <linux/freezer.h>
 #include <linux/kthread.h>
+#include <linux/module.h>
+#include <linux/platform_device.h>
 #include <linux/v4l2-mediabus.h>
 #include <linux/vmalloc.h>
 #include <media/v4l2-subdev.h>
+#include <media/v4l2-tpg.h>
 
-#include "vimc-sensor.h"
+#include "vimc-common.h"
+
+#define VIMC_SEN_DRV_NAME "vimc-sensor"
 
 struct vimc_sen_device {
 	struct vimc_ent_device ved;
 	struct v4l2_subdev sd;
+	struct device *dev;
+	struct tpg_data tpg;
 	struct task_struct *kthread_sen;
 	u8 *frame;
 	/* The active format */
 	struct v4l2_mbus_framefmt mbus_format;
-	int frame_size;
 };
+
+static const struct v4l2_mbus_framefmt fmt_default = {
+	.width = 640,
+	.height = 480,
+	.code = MEDIA_BUS_FMT_RGB888_1X24,
+	.field = V4L2_FIELD_NONE,
+	.colorspace = V4L2_COLORSPACE_DEFAULT,
+};
+
+static int vimc_sen_init_cfg(struct v4l2_subdev *sd,
+			     struct v4l2_subdev_pad_config *cfg)
+{
+	unsigned int i;
+
+	for (i = 0; i < sd->entity.num_pads; i++) {
+		struct v4l2_mbus_framefmt *mf;
+
+		mf = v4l2_subdev_get_try_format(sd, cfg, i);
+		*mf = fmt_default;
+	}
+
+	return 0;
+}
 
 static int vimc_sen_enum_mbus_code(struct v4l2_subdev *sd,
 				   struct v4l2_subdev_pad_config *cfg,
 				   struct v4l2_subdev_mbus_code_enum *code)
 {
-	struct vimc_sen_device *vsen =
-				container_of(sd, struct vimc_sen_device, sd);
+	const struct vimc_pix_map *vpix = vimc_pix_map_by_index(code->index);
 
-	/* TODO: Add support for other codes */
-	if (code->index)
+	if (!vpix)
 		return -EINVAL;
 
-	code->code = vsen->mbus_format.code;
+	code->code = vpix->code;
 
 	return 0;
 }
@@ -53,51 +81,123 @@ static int vimc_sen_enum_frame_size(struct v4l2_subdev *sd,
 				    struct v4l2_subdev_pad_config *cfg,
 				    struct v4l2_subdev_frame_size_enum *fse)
 {
-	struct vimc_sen_device *vsen =
-				container_of(sd, struct vimc_sen_device, sd);
+	const struct vimc_pix_map *vpix;
 
-	/* TODO: Add support to other formats */
 	if (fse->index)
 		return -EINVAL;
 
-	/* TODO: Add support for other codes */
-	if (fse->code != vsen->mbus_format.code)
+	/* Only accept code in the pix map table */
+	vpix = vimc_pix_map_by_code(fse->code);
+	if (!vpix)
 		return -EINVAL;
 
-	fse->min_width = vsen->mbus_format.width;
-	fse->max_width = vsen->mbus_format.width;
-	fse->min_height = vsen->mbus_format.height;
-	fse->max_height = vsen->mbus_format.height;
+	fse->min_width = VIMC_FRAME_MIN_WIDTH;
+	fse->max_width = VIMC_FRAME_MAX_WIDTH;
+	fse->min_height = VIMC_FRAME_MIN_HEIGHT;
+	fse->max_height = VIMC_FRAME_MAX_HEIGHT;
 
 	return 0;
 }
 
 static int vimc_sen_get_fmt(struct v4l2_subdev *sd,
 			    struct v4l2_subdev_pad_config *cfg,
-			    struct v4l2_subdev_format *format)
+			    struct v4l2_subdev_format *fmt)
 {
 	struct vimc_sen_device *vsen =
 				container_of(sd, struct vimc_sen_device, sd);
 
-	format->format = vsen->mbus_format;
+	fmt->format = fmt->which == V4L2_SUBDEV_FORMAT_TRY ?
+		      *v4l2_subdev_get_try_format(sd, cfg, fmt->pad) :
+		      vsen->mbus_format;
+
+	return 0;
+}
+
+static void vimc_sen_tpg_s_format(struct vimc_sen_device *vsen)
+{
+	const struct vimc_pix_map *vpix =
+				vimc_pix_map_by_code(vsen->mbus_format.code);
+
+	tpg_reset_source(&vsen->tpg, vsen->mbus_format.width,
+			 vsen->mbus_format.height, vsen->mbus_format.field);
+	tpg_s_bytesperline(&vsen->tpg, 0, vsen->mbus_format.width * vpix->bpp);
+	tpg_s_buf_height(&vsen->tpg, vsen->mbus_format.height);
+	tpg_s_fourcc(&vsen->tpg, vpix->pixelformat);
+	/* TODO: add support for V4L2_FIELD_ALTERNATE */
+	tpg_s_field(&vsen->tpg, vsen->mbus_format.field, false);
+	tpg_s_colorspace(&vsen->tpg, vsen->mbus_format.colorspace);
+	tpg_s_ycbcr_enc(&vsen->tpg, vsen->mbus_format.ycbcr_enc);
+	tpg_s_quantization(&vsen->tpg, vsen->mbus_format.quantization);
+	tpg_s_xfer_func(&vsen->tpg, vsen->mbus_format.xfer_func);
+}
+
+static void vimc_sen_adjust_fmt(struct v4l2_mbus_framefmt *fmt)
+{
+	const struct vimc_pix_map *vpix;
+
+	/* Only accept code in the pix map table */
+	vpix = vimc_pix_map_by_code(fmt->code);
+	if (!vpix)
+		fmt->code = fmt_default.code;
+
+	fmt->width = clamp_t(u32, fmt->width, VIMC_FRAME_MIN_WIDTH,
+			     VIMC_FRAME_MAX_WIDTH) & ~1;
+	fmt->height = clamp_t(u32, fmt->height, VIMC_FRAME_MIN_HEIGHT,
+			      VIMC_FRAME_MAX_HEIGHT) & ~1;
+
+	/* TODO: add support for V4L2_FIELD_ALTERNATE */
+	if (fmt->field == V4L2_FIELD_ANY || fmt->field == V4L2_FIELD_ALTERNATE)
+		fmt->field = fmt_default.field;
+
+	vimc_colorimetry_clamp(fmt);
+}
+
+static int vimc_sen_set_fmt(struct v4l2_subdev *sd,
+			    struct v4l2_subdev_pad_config *cfg,
+			    struct v4l2_subdev_format *fmt)
+{
+	struct vimc_sen_device *vsen = v4l2_get_subdevdata(sd);
+	struct v4l2_mbus_framefmt *mf;
+
+	if (fmt->which == V4L2_SUBDEV_FORMAT_ACTIVE) {
+		/* Do not change the format while stream is on */
+		if (vsen->frame)
+			return -EBUSY;
+
+		mf = &vsen->mbus_format;
+	} else {
+		mf = v4l2_subdev_get_try_format(sd, cfg, fmt->pad);
+	}
+
+	/* Set the new format */
+	vimc_sen_adjust_fmt(&fmt->format);
+
+	dev_dbg(vsen->dev, "%s: format update: "
+		"old:%dx%d (0x%x, %d, %d, %d, %d) "
+		"new:%dx%d (0x%x, %d, %d, %d, %d)\n", vsen->sd.name,
+		/* old */
+		mf->width, mf->height, mf->code,
+		mf->colorspace,	mf->quantization,
+		mf->xfer_func, mf->ycbcr_enc,
+		/* new */
+		fmt->format.width, fmt->format.height, fmt->format.code,
+		fmt->format.colorspace, fmt->format.quantization,
+		fmt->format.xfer_func, fmt->format.ycbcr_enc);
+
+	*mf = fmt->format;
 
 	return 0;
 }
 
 static const struct v4l2_subdev_pad_ops vimc_sen_pad_ops = {
+	.init_cfg		= vimc_sen_init_cfg,
 	.enum_mbus_code		= vimc_sen_enum_mbus_code,
 	.enum_frame_size	= vimc_sen_enum_frame_size,
 	.get_fmt		= vimc_sen_get_fmt,
-	/* TODO: Add support to other formats */
-	.set_fmt		= vimc_sen_get_fmt,
+	.set_fmt		= vimc_sen_set_fmt,
 };
 
-/* media operations */
-static const struct media_entity_operations vimc_sen_mops = {
-	.link_validate = v4l2_subdev_link_validate,
-};
-
-static int vimc_thread_sen(void *data)
+static int vimc_sen_tpg_thread(void *data)
 {
 	struct vimc_sen_device *vsen = data;
 	unsigned int i;
@@ -110,7 +210,7 @@ static int vimc_thread_sen(void *data)
 		if (kthread_should_stop())
 			break;
 
-		memset(vsen->frame, 100, vsen->frame_size);
+		tpg_fill_plane_buffer(&vsen->tpg, 0, 0, vsen->frame);
 
 		/* Send the frame to all source pads */
 		for (i = 0; i < vsen->sd.entity.num_pads; i++)
@@ -132,50 +232,57 @@ static int vimc_sen_s_stream(struct v4l2_subdev *sd, int enable)
 
 	if (enable) {
 		const struct vimc_pix_map *vpix;
+		unsigned int frame_size;
 
 		if (vsen->kthread_sen)
-			return -EINVAL;
+			/* tpg is already executing */
+			return 0;
 
 		/* Calculate the frame size */
 		vpix = vimc_pix_map_by_code(vsen->mbus_format.code);
-		vsen->frame_size = vsen->mbus_format.width * vpix->bpp *
-				   vsen->mbus_format.height;
+		frame_size = vsen->mbus_format.width * vpix->bpp *
+			     vsen->mbus_format.height;
 
 		/*
 		 * Allocate the frame buffer. Use vmalloc to be able to
 		 * allocate a large amount of memory
 		 */
-		vsen->frame = vmalloc(vsen->frame_size);
+		vsen->frame = vmalloc(frame_size);
 		if (!vsen->frame)
 			return -ENOMEM;
 
+		/* configure the test pattern generator */
+		vimc_sen_tpg_s_format(vsen);
+
 		/* Initialize the image generator thread */
-		vsen->kthread_sen = kthread_run(vimc_thread_sen, vsen, "%s-sen",
-						vsen->sd.v4l2_dev->name);
+		vsen->kthread_sen = kthread_run(vimc_sen_tpg_thread, vsen,
+					"%s-sen", vsen->sd.v4l2_dev->name);
 		if (IS_ERR(vsen->kthread_sen)) {
-			dev_err(vsen->sd.v4l2_dev->dev,
-				"%s: kernel_thread() failed\n",	vsen->sd.name);
+			dev_err(vsen->dev, "%s: kernel_thread() failed\n",
+				vsen->sd.name);
 			vfree(vsen->frame);
 			vsen->frame = NULL;
 			return PTR_ERR(vsen->kthread_sen);
 		}
 	} else {
 		if (!vsen->kthread_sen)
-			return -EINVAL;
+			return 0;
 
 		/* Stop image generator */
 		ret = kthread_stop(vsen->kthread_sen);
-		vsen->kthread_sen = NULL;
+		if (ret)
+			return ret;
 
+		vsen->kthread_sen = NULL;
 		vfree(vsen->frame);
 		vsen->frame = NULL;
-		return ret;
+		return 0;
 	}
 
 	return 0;
 }
 
-struct v4l2_subdev_video_ops vimc_sen_video_ops = {
+static const struct v4l2_subdev_video_ops vimc_sen_video_ops = {
 	.s_stream = vimc_sen_s_stream,
 };
 
@@ -184,93 +291,100 @@ static const struct v4l2_subdev_ops vimc_sen_ops = {
 	.video = &vimc_sen_video_ops,
 };
 
-static void vimc_sen_destroy(struct vimc_ent_device *ved)
+static void vimc_sen_comp_unbind(struct device *comp, struct device *master,
+				 void *master_data)
 {
+	struct vimc_ent_device *ved = dev_get_drvdata(comp);
 	struct vimc_sen_device *vsen =
 				container_of(ved, struct vimc_sen_device, ved);
 
-	v4l2_device_unregister_subdev(&vsen->sd);
-	media_entity_cleanup(ved->ent);
+	vimc_ent_sd_unregister(ved, &vsen->sd);
+	tpg_free(&vsen->tpg);
 	kfree(vsen);
 }
 
-struct vimc_ent_device *vimc_sen_create(struct v4l2_device *v4l2_dev,
-					const char *const name,
-					u16 num_pads,
-					const unsigned long *pads_flag)
+static int vimc_sen_comp_bind(struct device *comp, struct device *master,
+			      void *master_data)
 {
+	struct v4l2_device *v4l2_dev = master_data;
+	struct vimc_platform_data *pdata = comp->platform_data;
 	struct vimc_sen_device *vsen;
-	unsigned int i;
 	int ret;
-
-	/* NOTE: a sensor node may be created with more then one pad */
-	if (!name || !num_pads || !pads_flag)
-		return ERR_PTR(-EINVAL);
-
-	/* check if all pads are sources */
-	for (i = 0; i < num_pads; i++)
-		if (!(pads_flag[i] & MEDIA_PAD_FL_SOURCE))
-			return ERR_PTR(-EINVAL);
 
 	/* Allocate the vsen struct */
 	vsen = kzalloc(sizeof(*vsen), GFP_KERNEL);
 	if (!vsen)
-		return ERR_PTR(-ENOMEM);
+		return -ENOMEM;
 
-	/* Allocate the pads */
-	vsen->ved.pads = vimc_pads_init(num_pads, pads_flag);
-	if (IS_ERR(vsen->ved.pads)) {
-		ret = PTR_ERR(vsen->ved.pads);
-		goto err_free_vsen;
-	}
-
-	/* Fill the vimc_ent_device struct */
-	vsen->ved.destroy = vimc_sen_destroy;
-	vsen->ved.ent = &vsen->sd.entity;
-
-	/* Initialize the subdev */
-	v4l2_subdev_init(&vsen->sd, &vimc_sen_ops);
-	vsen->sd.entity.function = MEDIA_ENT_F_CAM_SENSOR;
-	vsen->sd.entity.ops = &vimc_sen_mops;
-	vsen->sd.owner = THIS_MODULE;
-	strlcpy(vsen->sd.name, name, sizeof(vsen->sd.name));
-	v4l2_set_subdevdata(&vsen->sd, &vsen->ved);
-
-	/* Expose this subdev to user space */
-	vsen->sd.flags = V4L2_SUBDEV_FL_HAS_DEVNODE;
-
-	/* Initialize the media entity */
-	ret = media_entity_pads_init(&vsen->sd.entity,
-				     num_pads, vsen->ved.pads);
+	/* Initialize ved and sd */
+	ret = vimc_ent_sd_register(&vsen->ved, &vsen->sd, v4l2_dev,
+				   pdata->entity_name,
+				   MEDIA_ENT_F_ATV_DECODER, 1,
+				   (const unsigned long[1]) {MEDIA_PAD_FL_SOURCE},
+				   &vimc_sen_ops);
 	if (ret)
-		goto err_clean_pads;
+		goto err_free_vsen;
 
-	/* Set the active frame format (this is hardcoded for now) */
-	vsen->mbus_format.width = 640;
-	vsen->mbus_format.height = 480;
-	vsen->mbus_format.code = MEDIA_BUS_FMT_RGB888_1X24;
-	vsen->mbus_format.field = V4L2_FIELD_NONE;
-	vsen->mbus_format.colorspace = V4L2_COLORSPACE_SRGB;
-	vsen->mbus_format.quantization = V4L2_QUANTIZATION_FULL_RANGE;
-	vsen->mbus_format.xfer_func = V4L2_XFER_FUNC_SRGB;
+	dev_set_drvdata(comp, &vsen->ved);
+	vsen->dev = comp;
 
-	/* Register the subdev with the v4l2 and the media framework */
-	ret = v4l2_device_register_subdev(v4l2_dev, &vsen->sd);
-	if (ret) {
-		dev_err(vsen->sd.v4l2_dev->dev,
-			"%s: subdev register failed (err=%d)\n",
-			vsen->sd.name, ret);
-		goto err_clean_m_ent;
-	}
+	/* Initialize the frame format */
+	vsen->mbus_format = fmt_default;
 
-	return &vsen->ved;
+	/* Initialize the test pattern generator */
+	tpg_init(&vsen->tpg, vsen->mbus_format.width,
+		 vsen->mbus_format.height);
+	ret = tpg_alloc(&vsen->tpg, VIMC_FRAME_MAX_WIDTH);
+	if (ret)
+		goto err_unregister_ent_sd;
 
-err_clean_m_ent:
-	media_entity_cleanup(&vsen->sd.entity);
-err_clean_pads:
-	vimc_pads_cleanup(vsen->ved.pads);
+	return 0;
+
+err_unregister_ent_sd:
+	vimc_ent_sd_unregister(&vsen->ved,  &vsen->sd);
 err_free_vsen:
 	kfree(vsen);
 
-	return ERR_PTR(ret);
+	return ret;
 }
+
+static const struct component_ops vimc_sen_comp_ops = {
+	.bind = vimc_sen_comp_bind,
+	.unbind = vimc_sen_comp_unbind,
+};
+
+static int vimc_sen_probe(struct platform_device *pdev)
+{
+	return component_add(&pdev->dev, &vimc_sen_comp_ops);
+}
+
+static int vimc_sen_remove(struct platform_device *pdev)
+{
+	component_del(&pdev->dev, &vimc_sen_comp_ops);
+
+	return 0;
+}
+
+static const struct platform_device_id vimc_sen_driver_ids[] = {
+	{
+		.name           = VIMC_SEN_DRV_NAME,
+	},
+	{ }
+};
+
+static struct platform_driver vimc_sen_pdrv = {
+	.probe		= vimc_sen_probe,
+	.remove		= vimc_sen_remove,
+	.id_table	= vimc_sen_driver_ids,
+	.driver		= {
+		.name	= VIMC_SEN_DRV_NAME,
+	},
+};
+
+module_platform_driver(vimc_sen_pdrv);
+
+MODULE_DEVICE_TABLE(platform, vimc_sen_driver_ids);
+
+MODULE_DESCRIPTION("Virtual Media Controller Driver (VIMC) Sensor");
+MODULE_AUTHOR("Helen Mae Koike Fornazier <helen.fornazier@gmail.com>");
+MODULE_LICENSE("GPL");

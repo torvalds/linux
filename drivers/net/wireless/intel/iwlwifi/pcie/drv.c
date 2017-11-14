@@ -7,7 +7,7 @@
  *
  * Copyright(c) 2007 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2016 Intel Deutschland GmbH
+ * Copyright(c) 2016-2017 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -35,6 +35,7 @@
  * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * All rights reserved.
+ * Copyright(c) 2017 Intel Deutschland GmbH
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -429,6 +430,7 @@ static const struct pci_device_id iwl_hw_card_ids[] = {
 	{IWL_PCI_DEVICE(0x095B, 0x520A, iwl7265_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x095A, 0x9000, iwl7265_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x095A, 0x9400, iwl7265_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x095A, 0x9E10, iwl7265_2ac_cfg)},
 
 /* 8000 Series */
 	{IWL_PCI_DEVICE(0x24F3, 0x0010, iwl8260_2ac_cfg)},
@@ -509,9 +511,17 @@ static const struct pci_device_id iwl_hw_card_ids[] = {
 
 /* 9000 Series */
 	{IWL_PCI_DEVICE(0x271B, 0x0010, iwl9160_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x271B, 0x0014, iwl9160_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x271B, 0x0210, iwl9160_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x2526, 0x0000, iwl9260_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x2526, 0x0010, iwl9260_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x2526, 0x0014, iwl9260_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x2526, 0xA014, iwl9260_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x2526, 0x4010, iwl9260_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x2526, 0x0210, iwl9260_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x2526, 0x0214, iwl9260_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x2526, 0x1410, iwl9270_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x2526, 0x1610, iwl9270_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x9DF0, 0x0A10, iwl9460_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x9DF0, 0x0010, iwl9460_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x9DF0, 0x0210, iwl9460_2ac_cfg)},
@@ -526,19 +536,48 @@ static const struct pci_device_id iwl_hw_card_ids[] = {
 	{IWL_PCI_DEVICE(0x9DF0, 0x2A10, iwl9460_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x30DC, 0x0060, iwl9460_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x2526, 0x0060, iwl9460_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x2526, 0x0260, iwl9460_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x2526, 0x0064, iwl9460_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x2526, 0x00A4, iwl9460_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x2526, 0x40A4, iwl9460_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x2526, 0x02A4, iwl9460_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x2526, 0x00A0, iwl9460_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x2526, 0x02A0, iwl9460_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x9DF0, 0x0060, iwl9460_2ac_cfg)},
 	{IWL_PCI_DEVICE(0xA370, 0x0060, iwl9460_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x31DC, 0x0060, iwl9460_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x2526, 0x0030, iwl9560_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x2526, 0x4030, iwl9560_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x2526, 0x0230, iwl9560_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x2526, 0x0234, iwl9560_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x2526, 0x0238, iwl9560_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x2526, 0x023C, iwl9560_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x9DF0, 0x0030, iwl9560_2ac_cfg)},
 	{IWL_PCI_DEVICE(0xA370, 0x0030, iwl9560_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x31DC, 0x0030, iwl9560_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x2526, 0x1030, iwl9560_2ac_cfg)},
 	{IWL_PCI_DEVICE(0xA370, 0x1030, iwl9560_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x9DF0, 0x0034, iwl9560_2ac_cfg)},
+	{IWL_PCI_DEVICE(0xA370, 0x0034, iwl9560_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x31DC, 0x0034, iwl9560_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x2526, 0x0038, iwl9560_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x2526, 0x003C, iwl9560_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x9DF0, 0x0038, iwl9560_2ac_cfg)},
+	{IWL_PCI_DEVICE(0xA370, 0x0038, iwl9560_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x31DC, 0x0038, iwl9560_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x9DF0, 0x003C, iwl9560_2ac_cfg)},
+	{IWL_PCI_DEVICE(0xA370, 0x003C, iwl9560_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x31DC, 0x003C, iwl9560_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x2526, 0x0034, iwl9560_2ac_cfg)},
 
 /* a000 Series */
 	{IWL_PCI_DEVICE(0x2720, 0x0A10, iwla000_2ac_cfg_hr_cdb)},
-	{IWL_PCI_DEVICE(0x2722, 0x0A10, iwla000_2ac_cfg_hr)},
+	{IWL_PCI_DEVICE(0x34F0, 0x0310, iwla000_2ac_cfg_jf)},
+	{IWL_PCI_DEVICE(0x2720, 0x0000, iwla000_2ax_cfg_hr)},
+	{IWL_PCI_DEVICE(0x34F0, 0x0070, iwla000_2ax_cfg_hr)},
+	{IWL_PCI_DEVICE(0x2720, 0x0078, iwla000_2ax_cfg_hr)},
+	{IWL_PCI_DEVICE(0x2720, 0x0070, iwla000_2ax_cfg_hr)},
+	{IWL_PCI_DEVICE(0x2720, 0x1080, iwla000_2ax_cfg_hr)},
 #endif /* CONFIG_IWLMVM */
 
 	{0}
@@ -672,10 +711,23 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		iwl_trans->cfg = cfg_7265d;
 	}
 
-	if (iwl_trans->cfg->rf_id &&
-	    (cfg == &iwla000_2ac_cfg_hr || cfg == &iwla000_2ac_cfg_hr_cdb) &&
-	     iwl_trans->hw_rf_id == CSR_HW_RF_ID_TYPE_JF) {
-		cfg = &iwla000_2ac_cfg_jf;
+	if (iwl_trans->cfg->rf_id && cfg == &iwla000_2ac_cfg_hr_cdb &&
+	    iwl_trans->hw_rev != CSR_HW_REV_TYPE_HR_CDB) {
+		u32 rf_id_chp = CSR_HW_RF_ID_TYPE_CHIP_ID(iwl_trans->hw_rf_id);
+		u32 jf_chp_id = CSR_HW_RF_ID_TYPE_CHIP_ID(CSR_HW_RF_ID_TYPE_JF);
+		u32 hr_chp_id = CSR_HW_RF_ID_TYPE_CHIP_ID(CSR_HW_RF_ID_TYPE_HR);
+
+		if (rf_id_chp == jf_chp_id) {
+			if (iwl_trans->hw_rev == CSR_HW_REV_TYPE_QNJ)
+				cfg = &iwla000_2ax_cfg_qnj_jf_b0;
+			else
+				cfg = &iwla000_2ac_cfg_jf;
+		} else if (rf_id_chp == hr_chp_id) {
+			if (iwl_trans->hw_rev == CSR_HW_REV_TYPE_QNJ)
+				cfg = &iwla000_2ax_cfg_qnj_hr_a0;
+			else
+				cfg = &iwla000_2ac_cfg_hr;
+		}
 		iwl_trans->cfg = cfg;
 	}
 #endif
@@ -703,7 +755,7 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		pm_runtime_set_active(&pdev->dev);
 
 		pm_runtime_set_autosuspend_delay(&pdev->dev,
-					 iwlwifi_mod_params.d0i3_entry_delay);
+					 iwlwifi_mod_params.d0i3_timeout);
 		pm_runtime_use_autosuspend(&pdev->dev);
 
 		/* We are not supposed to call pm_runtime_allow() by
@@ -764,7 +816,6 @@ static int iwl_pci_resume(struct device *device)
 	struct pci_dev *pdev = to_pci_dev(device);
 	struct iwl_trans *trans = pci_get_drvdata(pdev);
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	bool hw_rfkill;
 
 	/* Before you put code here, think about WoWLAN. You cannot check here
 	 * whether WoWLAN is enabled or not, and your code will run even if
@@ -780,17 +831,17 @@ static int iwl_pci_resume(struct device *device)
 	if (!trans->op_mode)
 		return 0;
 
+	/* reconfigure the MSI-X mapping to get the correct IRQ for rfkill */
+	iwl_pcie_conf_msix_hw(trans_pcie);
+
 	/*
-	 * Enable rfkill interrupt (in order to keep track of
-	 * the rfkill status). Must be locked to avoid processing
-	 * a possible rfkill interrupt between reading the state
-	 * and calling iwl_trans_pcie_rf_kill() with it.
+	 * Enable rfkill interrupt (in order to keep track of the rfkill
+	 * status). Must be locked to avoid processing a possible rfkill
+	 * interrupt while in iwl_pcie_check_hw_rf_kill().
 	 */
 	mutex_lock(&trans_pcie->mutex);
 	iwl_enable_rfkill_int(trans);
-
-	hw_rfkill = iwl_is_rfkill_set(trans);
-	iwl_trans_pcie_rf_kill(trans, hw_rfkill);
+	iwl_pcie_check_hw_rf_kill(trans);
 	mutex_unlock(&trans_pcie->mutex);
 
 	return 0;

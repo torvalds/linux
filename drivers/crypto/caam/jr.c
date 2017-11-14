@@ -9,6 +9,7 @@
 #include <linux/of_address.h>
 
 #include "compat.h"
+#include "ctrl.h"
 #include "regs.h"
 #include "jr.h"
 #include "desc.h"
@@ -499,7 +500,11 @@ static int caam_jr_probe(struct platform_device *pdev)
 	jrpriv->rregs = (struct caam_job_ring __iomem __force *)ctrl;
 
 	if (sizeof(dma_addr_t) == sizeof(u64)) {
-		if (of_device_is_compatible(nprop, "fsl,sec-v5.0-job-ring"))
+		if (caam_dpaa2)
+			error = dma_set_mask_and_coherent(jrdev,
+							  DMA_BIT_MASK(49));
+		else if (of_device_is_compatible(nprop,
+						 "fsl,sec-v5.0-job-ring"))
 			error = dma_set_mask_and_coherent(jrdev,
 							  DMA_BIT_MASK(40));
 		else
@@ -536,7 +541,7 @@ static int caam_jr_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id caam_jr_match[] = {
+static const struct of_device_id caam_jr_match[] = {
 	{
 		.compatible = "fsl,sec-v4.0-job-ring",
 	},

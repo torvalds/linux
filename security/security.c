@@ -4,6 +4,7 @@
  * Copyright (C) 2001 WireX Communications, Inc <chris@wirex.com>
  * Copyright (C) 2001-2002 Greg Kroah-Hartman <greg@kroah.com>
  * Copyright (C) 2001 Networks Associates Technology, Inc <ssmalley@nai.com>
+ * Copyright (C) 2016 Mellanox Technologies
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -25,6 +26,7 @@
 #include <linux/mount.h>
 #include <linux/personality.h>
 #include <linux/backing-dev.h>
+#include <linux/string.h>
 #include <net/flow.h>
 
 #define MAX_LSM_EVM_XATTR	2
@@ -33,6 +35,8 @@
 #define SECURITY_NAME_MAX	10
 
 struct security_hook_heads security_hook_heads __lsm_ro_after_init;
+static ATOMIC_NOTIFIER_HEAD(lsm_notifier_chain);
+
 char *lsm_names;
 /* Boot-time LSM user choice */
 static __initdata char chosen_lsm[SECURITY_NAME_MAX + 1] =
@@ -86,6 +90,21 @@ static int __init choose_lsm(char *str)
 }
 __setup("security=", choose_lsm);
 
+static bool match_last_lsm(const char *list, const char *lsm)
+{
+	const char *last;
+
+	if (WARN_ON(!list || !lsm))
+		return false;
+	last = strrchr(list, ',');
+	if (last)
+		/* Pass the comma, strcmp() will check for '\0' */
+		last++;
+	else
+		last = list;
+	return !strcmp(last, lsm);
+}
+
 static int lsm_append(char *new, char **result)
 {
 	char *cp;
@@ -93,6 +112,9 @@ static int lsm_append(char *new, char **result)
 	if (*result == NULL) {
 		*result = kstrdup(new, GFP_KERNEL);
 	} else {
+		/* Check if it is the last registered name */
+		if (match_last_lsm(*result, new))
+			return 0;
 		cp = kasprintf(GFP_KERNEL, "%s,%s", *result, new);
 		if (cp == NULL)
 			return -ENOMEM;
@@ -145,6 +167,24 @@ void __init security_add_hooks(struct security_hook_list *hooks, int count,
 	if (lsm_append(lsm, &lsm_names) < 0)
 		panic("%s - Cannot get early memory.\n", __func__);
 }
+
+int call_lsm_notifier(enum lsm_event event, void *data)
+{
+	return atomic_notifier_call_chain(&lsm_notifier_chain, event, data);
+}
+EXPORT_SYMBOL(call_lsm_notifier);
+
+int register_lsm_notifier(struct notifier_block *nb)
+{
+	return atomic_notifier_chain_register(&lsm_notifier_chain, nb);
+}
+EXPORT_SYMBOL(register_lsm_notifier);
+
+int unregister_lsm_notifier(struct notifier_block *nb)
+{
+	return atomic_notifier_chain_unregister(&lsm_notifier_chain, nb);
+}
+EXPORT_SYMBOL(unregister_lsm_notifier);
 
 /*
  * Hook list operation macros.
@@ -311,11 +351,6 @@ void security_bprm_committed_creds(struct linux_binprm *bprm)
 	call_void_hook(bprm_committed_creds, bprm);
 }
 
-int security_bprm_secureexec(struct linux_binprm *bprm)
-{
-	return call_int_hook(bprm_secureexec, 0, bprm);
-}
-
 int security_sb_alloc(struct super_block *sb)
 {
 	return call_int_hook(sb_alloc_security, 0, sb);
@@ -380,9 +415,12 @@ int security_sb_set_mnt_opts(struct super_block *sb,
 EXPORT_SYMBOL(security_sb_set_mnt_opts);
 
 int security_sb_clone_mnt_opts(const struct super_block *oldsb,
-				struct super_block *newsb)
+				struct super_block *newsb,
+				unsigned long kern_flags,
+				unsigned long *set_kern_flags)
 {
-	return call_int_hook(sb_clone_mnt_opts, 0, oldsb, newsb);
+	return call_int_hook(sb_clone_mnt_opts, 0, oldsb, newsb,
+				kern_flags, set_kern_flags);
 }
 EXPORT_SYMBOL(security_sb_clone_mnt_opts);
 
@@ -934,11 +972,6 @@ int security_file_open(struct file *file, const struct cred *cred)
 		return ret;
 
 	return fsnotify_perm(file, MAY_OPEN);
-}
-
-int security_task_create(unsigned long clone_flags)
-{
-	return call_int_hook(task_create, 0, clone_flags);
 }
 
 int security_task_alloc(struct task_struct *task, unsigned long clone_flags)
@@ -1495,6 +1528,33 @@ int security_tun_dev_open(void *security)
 EXPORT_SYMBOL(security_tun_dev_open);
 
 #endif	/* CONFIG_SECURITY_NETWORK */
+
+#ifdef CONFIG_SECURITY_INFINIBAND
+
+int security_ib_pkey_access(void *sec, u64 subnet_prefix, u16 pkey)
+{
+	return call_int_hook(ib_pkey_access, 0, sec, subnet_prefix, pkey);
+}
+EXPORT_SYMBOL(security_ib_pkey_access);
+
+int security_ib_endport_manage_subnet(void *sec, const char *dev_name, u8 port_num)
+{
+	return call_int_hook(ib_endport_manage_subnet, 0, sec, dev_name, port_num);
+}
+EXPORT_SYMBOL(security_ib_endport_manage_subnet);
+
+int security_ib_alloc_security(void **sec)
+{
+	return call_int_hook(ib_alloc_security, 0, sec);
+}
+EXPORT_SYMBOL(security_ib_alloc_security);
+
+void security_ib_free_security(void *sec)
+{
+	call_void_hook(ib_free_security, sec);
+}
+EXPORT_SYMBOL(security_ib_free_security);
+#endif	/* CONFIG_SECURITY_INFINIBAND */
 
 #ifdef CONFIG_SECURITY_NETWORK_XFRM
 

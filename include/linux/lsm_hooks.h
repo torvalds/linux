@@ -8,6 +8,7 @@
  * Copyright (C) 2001 Silicon Graphics, Inc. (Trust Technology Group)
  * Copyright (C) 2015 Intel Corporation.
  * Copyright (C) 2015 Casey Schaufler <casey@schaufler-ca.com>
+ * Copyright (C) 2016 Mellanox Techonologies
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -29,6 +30,8 @@
 #include <linux/rculist.h>
 
 /**
+ * union security_list_options - Linux Security Module hook function list
+ *
  * Security hooks for program execution operations.
  *
  * @bprm_set_creds:
@@ -40,7 +43,11 @@
  *	interpreters.  The hook can tell whether it has already been called by
  *	checking to see if @bprm->security is non-NULL.  If so, then the hook
  *	may decide either to retain the security information saved earlier or
- *	to replace it.
+ *	to replace it.  The hook must set @bprm->secureexec to 1 if a "secure
+ *	exec" has happened as a result of this hook call.  The flag is used to
+ *	indicate the need for a sanitized execution environment, and is also
+ *	passed in the ELF auxiliary table on the initial stack to indicate
+ *	whether libc should enable secure mode.
  *	@bprm contains the linux_binprm structure.
  *	Return 0 if the hook is successful and permission is granted.
  * @bprm_check_security:
@@ -68,12 +75,6 @@
  *	linux_binprm structure.  This hook is a good place to perform state
  *	changes on the process such as clearing out non-inheritable signal
  *	state.  This is called immediately after commit_creds().
- * @bprm_secureexec:
- *	Return a boolean value (0 or 1) indicating whether a "secure exec"
- *	is required.  The flag is passed in the auxiliary table
- *	on the initial stack to the ELF interpreter to indicate whether libc
- *	should enable secure mode.
- *	@bprm contains the linux_binprm structure.
  *
  * Security hooks for filesystem operations.
  *
@@ -193,8 +194,8 @@
  *	@value will be set to the allocated attribute value.
  *	@len will be set to the length of the value.
  *	Returns 0 if @name and @value have been successfully set,
- *		-EOPNOTSUPP if no security attribute is needed, or
- *		-ENOMEM on memory allocation failure.
+ *	-EOPNOTSUPP if no security attribute is needed, or
+ *	-ENOMEM on memory allocation failure.
  * @inode_create:
  *	Check permission to create a regular file.
  *	@dir contains inode structure of the parent of the new file.
@@ -510,8 +511,7 @@
  *	process @tsk.  Note that this hook is sometimes called from interrupt.
  *	Note that the fown_struct, @fown, is never outside the context of a
  *	struct file, so the file structure (and associated security information)
- *	can always be obtained:
- *		container_of(fown, struct file, f_owner)
+ *	can always be obtained: container_of(fown, struct file, f_owner)
  *	@tsk contains the structure of task receiving signal.
  *	@fown contains the file owner information.
  *	@sig is the signal that will be sent.  When 0, kernel sends SIGIO.
@@ -521,18 +521,13 @@
  *	to receive an open file descriptor via socket IPC.
  *	@file contains the file structure being received.
  *	Return 0 if permission is granted.
- * @file_open
+ * @file_open:
  *	Save open-time permission checking state for later use upon
  *	file_permission, and recheck access if anything has changed
  *	since inode_permission.
  *
  * Security hooks for task operations.
  *
- * @task_create:
- *	Check permission before creating a child process.  See the clone(2)
- *	manual page for definitions of the @clone_flags.
- *	@clone_flags contains the flags indicating what should be shared.
- *	Return 0 if permission is granted.
  * @task_alloc:
  *	@task task being allocated.
  *	@clone_flags contains the flags indicating what should be shared.
@@ -911,6 +906,26 @@
  *	associated with the TUN device's security structure.
  *	@security pointer to the TUN devices's security structure.
  *
+ * Security hooks for Infiniband
+ *
+ * @ib_pkey_access:
+ *	Check permission to access a pkey when modifing a QP.
+ *	@subnet_prefix the subnet prefix of the port being used.
+ *	@pkey the pkey to be accessed.
+ *	@sec pointer to a security structure.
+ * @ib_endport_manage_subnet:
+ *	Check permissions to send and receive SMPs on a end port.
+ *	@dev_name the IB device name (i.e. mlx4_0).
+ *	@port_num the port number.
+ *	@sec pointer to a security structure.
+ * @ib_alloc_security:
+ *	Allocate a security structure for Infiniband objects.
+ *	@sec pointer to a security structure pointer.
+ *	Returns 0 on success, non-zero on failure
+ * @ib_free_security:
+ *	Deallocate an Infiniband security structure.
+ *	@sec contains the security structure to be freed.
+ *
  * Security hooks for XFRM operations.
  *
  * @xfrm_policy_alloc_security:
@@ -1143,7 +1158,7 @@
  *	@sma contains the semaphore structure.  May be NULL.
  *	@cmd contains the operation to be performed.
  *	Return 0 if permission is granted.
- * @sem_semop
+ * @sem_semop:
  *	Check permissions before performing operations on members of the
  *	semaphore set @sma.  If the @alter flag is nonzero, the semaphore set
  *	may be modified.
@@ -1153,20 +1168,20 @@
  *	@alter contains the flag indicating whether changes are to be made.
  *	Return 0 if permission is granted.
  *
- * @binder_set_context_mgr
+ * @binder_set_context_mgr:
  *	Check whether @mgr is allowed to be the binder context manager.
  *	@mgr contains the task_struct for the task being registered.
  *	Return 0 if permission is granted.
- * @binder_transaction
+ * @binder_transaction:
  *	Check whether @from is allowed to invoke a binder transaction call
  *	to @to.
  *	@from contains the task_struct for the sending task.
  *	@to contains the task_struct for the receiving task.
- * @binder_transfer_binder
+ * @binder_transfer_binder:
  *	Check whether @from is allowed to transfer a binder reference to @to.
  *	@from contains the task_struct for the sending task.
  *	@to contains the task_struct for the receiving task.
- * @binder_transfer_file
+ * @binder_transfer_file:
  *	Check whether @from is allowed to transfer @file to @to.
  *	@from contains the task_struct for the sending task.
  *	@file contains the struct file being transferred.
@@ -1214,7 +1229,7 @@
  *	@cred contains the credentials to use.
  *	@ns contains the user namespace we want the capability in
  *	@cap contains the capability <include/linux/capability.h>.
- *	@audit: Whether to write an audit message or not
+ *	@audit contains whether to write an audit message or not
  *	Return 0 if the capability is granted for @tsk.
  * @syslog:
  *	Check permission before accessing the kernel message ring or changing
@@ -1336,9 +1351,7 @@
  *	@inode we wish to get the security context of.
  *	@ctx is a pointer in which to place the allocated security context.
  *	@ctxlen points to the place to put the length of @ctx.
- * This is the main security structure.
  */
-
 union security_list_options {
 	int (*binder_set_context_mgr)(struct task_struct *mgr);
 	int (*binder_transaction)(struct task_struct *from,
@@ -1368,7 +1381,6 @@ union security_list_options {
 
 	int (*bprm_set_creds)(struct linux_binprm *bprm);
 	int (*bprm_check_security)(struct linux_binprm *bprm);
-	int (*bprm_secureexec)(struct linux_binprm *bprm);
 	void (*bprm_committing_creds)(struct linux_binprm *bprm);
 	void (*bprm_committed_creds)(struct linux_binprm *bprm);
 
@@ -1388,7 +1400,9 @@ union security_list_options {
 				unsigned long kern_flags,
 				unsigned long *set_kern_flags);
 	int (*sb_clone_mnt_opts)(const struct super_block *oldsb,
-					struct super_block *newsb);
+					struct super_block *newsb,
+					unsigned long kern_flags,
+					unsigned long *set_kern_flags);
 	int (*sb_parse_opts_str)(char *options, struct security_mnt_opts *opts);
 	int (*dentry_init_security)(struct dentry *dentry, int mode,
 					const struct qstr *name, void **ctx,
@@ -1486,7 +1500,6 @@ union security_list_options {
 	int (*file_receive)(struct file *file);
 	int (*file_open)(struct file *file, const struct cred *cred);
 
-	int (*task_create)(unsigned long clone_flags);
 	int (*task_alloc)(struct task_struct *task, unsigned long clone_flags);
 	void (*task_free)(struct task_struct *task);
 	int (*cred_alloc_blank)(struct cred *cred, gfp_t gfp);
@@ -1620,6 +1633,14 @@ union security_list_options {
 	int (*tun_dev_open)(void *security);
 #endif	/* CONFIG_SECURITY_NETWORK */
 
+#ifdef CONFIG_SECURITY_INFINIBAND
+	int (*ib_pkey_access)(void *sec, u64 subnet_prefix, u16 pkey);
+	int (*ib_endport_manage_subnet)(void *sec, const char *dev_name,
+					u8 port_num);
+	int (*ib_alloc_security)(void **sec);
+	void (*ib_free_security)(void *sec);
+#endif	/* CONFIG_SECURITY_INFINIBAND */
+
 #ifdef CONFIG_SECURITY_NETWORK_XFRM
 	int (*xfrm_policy_alloc_security)(struct xfrm_sec_ctx **ctxp,
 					  struct xfrm_user_sec_ctx *sec_ctx,
@@ -1680,7 +1701,6 @@ struct security_hook_heads {
 	struct list_head vm_enough_memory;
 	struct list_head bprm_set_creds;
 	struct list_head bprm_check_security;
-	struct list_head bprm_secureexec;
 	struct list_head bprm_committing_creds;
 	struct list_head bprm_committed_creds;
 	struct list_head sb_alloc_security;
@@ -1753,7 +1773,6 @@ struct security_hook_heads {
 	struct list_head file_send_sigiotask;
 	struct list_head file_receive;
 	struct list_head file_open;
-	struct list_head task_create;
 	struct list_head task_alloc;
 	struct list_head task_free;
 	struct list_head cred_alloc_blank;
@@ -1851,6 +1870,12 @@ struct security_hook_heads {
 	struct list_head tun_dev_attach;
 	struct list_head tun_dev_open;
 #endif	/* CONFIG_SECURITY_NETWORK */
+#ifdef CONFIG_SECURITY_INFINIBAND
+	struct list_head ib_pkey_access;
+	struct list_head ib_endport_manage_subnet;
+	struct list_head ib_alloc_security;
+	struct list_head ib_free_security;
+#endif	/* CONFIG_SECURITY_INFINIBAND */
 #ifdef CONFIG_SECURITY_NETWORK_XFRM
 	struct list_head xfrm_policy_alloc_security;
 	struct list_head xfrm_policy_clone_security;
@@ -1876,7 +1901,7 @@ struct security_hook_heads {
 	struct list_head audit_rule_match;
 	struct list_head audit_rule_free;
 #endif /* CONFIG_AUDIT */
-};
+} __randomize_layout;
 
 /*
  * Security module hook list structure.
@@ -1887,7 +1912,7 @@ struct security_hook_list {
 	struct list_head		*head;
 	union security_list_options	hook;
 	char				*lsm;
-};
+} __randomize_layout;
 
 /*
  * Initializing a security_hook_list structure takes

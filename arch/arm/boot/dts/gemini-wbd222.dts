@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Device Tree file for Wiliboard WBD-222
  */
@@ -33,6 +34,7 @@
 			wakeup-source;
 			linux,code = <KEY_SETUP>;
 			label = "reset";
+			/* Conflict with ICE */
 			gpios = <&gpio0 5 GPIO_ACTIVE_LOW>;
 		};
 	};
@@ -42,21 +44,25 @@
 
 		led@1 {
 			label = "wbd111:red:L3";
+			/* Conflict with TVC and extended parallel flash */
 			gpios = <&gpio0 1 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
 		led@2 {
 			label = "wbd111:green:L4";
+			/* Conflict with TVC and extended parallel flash */
 			gpios = <&gpio0 2 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
 		led@3 {
 			label = "wbd111:red:L4";
+			/* Conflict with TVC and extended parallel flash */
 			gpios = <&gpio0 3 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
 		led@5 {
 			label = "wbd111:green:L3";
+			/* Conflict with TVC and extended parallel flash */
 			gpios = <&gpio0 5 GPIO_ACTIVE_HIGH>;
 			default-state = "on";
 			linux,default-trigger = "heartbeat";
@@ -97,6 +103,27 @@
 				reg = <0x007e0000 0x00010000>;
 				read-only;
 			};
+		};
+
+		syscon: syscon@40000000 {
+			pinctrl {
+				/*
+				 * gpio0agrp cover line 0-4
+				 * gpio0bgrp cover line 5
+				 */
+				gpio0_default_pins: pinctrl-gpio0 {
+					mux {
+						function = "gpio0";
+						groups = "gpio0agrp",
+						"gpio0bgrp";
+					};
+				};
+			};
+		};
+
+		gpio0: gpio@4d000000 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&gpio0_default_pins>;
 		};
 	};
 };

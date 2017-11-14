@@ -166,26 +166,51 @@ static int ap_configuration_available(void)
 }
 
 /**
+ * ap_apft_available(): Test if AP facilities test (APFT)
+ * facility is available.
+ *
+ * Returns 1 if APFT is is available.
+ */
+static int ap_apft_available(void)
+{
+	return test_facility(15);
+}
+
+/**
  * ap_test_queue(): Test adjunct processor queue.
  * @qid: The AP queue number
+ * @tbit: Test facilities bit
  * @info: Pointer to queue descriptor
  *
  * Returns AP queue status structure.
  */
-static inline struct ap_queue_status
-ap_test_queue(ap_qid_t qid, unsigned long *info)
+struct ap_queue_status ap_test_queue(ap_qid_t qid,
+				     int tbit,
+				     unsigned long *info)
 {
-	if (test_facility(15))
-		qid |= 1UL << 23;		/* set APFT T bit*/
+	if (tbit)
+		qid |= 1UL << 23; /* set T bit*/
 	return ap_tapq(qid, info);
 }
+EXPORT_SYMBOL(ap_test_queue);
 
-static inline int ap_query_configuration(void)
+/*
+ * ap_query_configuration(): Fetch cryptographic config info
+ *
+ * Returns the ap configuration info fetched via PQAP(QCI).
+ * On success 0 is returned, on failure a negative errno
+ * is returned, e.g. if the PQAP(QCI) instruction is not
+ * available, the return value will be -EOPNOTSUPP.
+ */
+int ap_query_configuration(struct ap_config_info *info)
 {
-	if (!ap_configuration)
+	if (!ap_configuration_available())
 		return -EOPNOTSUPP;
-	return ap_qci(ap_configuration);
+	if (!info)
+		return -EINVAL;
+	return ap_qci(info);
 }
+EXPORT_SYMBOL(ap_query_configuration);
 
 /**
  * ap_init_configuration(): Allocate and query configuration array.
@@ -198,7 +223,7 @@ static void ap_init_configuration(void)
 	ap_configuration = kzalloc(sizeof(*ap_configuration), GFP_KERNEL);
 	if (!ap_configuration)
 		return;
-	if (ap_query_configuration() != 0) {
+	if (ap_query_configuration(ap_configuration) != 0) {
 		kfree(ap_configuration);
 		ap_configuration = NULL;
 		return;
@@ -261,7 +286,7 @@ static int ap_query_queue(ap_qid_t qid, int *queue_depth, int *device_type,
 	if (!ap_test_config_card_id(AP_QID_CARD(qid)))
 		return -ENODEV;
 
-	status = ap_test_queue(qid, &info);
+	status = ap_test_queue(qid, ap_apft_available(), &info);
 	switch (status.response_code) {
 	case AP_RESPONSE_NORMAL:
 		*queue_depth = (int)(info & 0xff);
@@ -766,7 +791,7 @@ static ssize_t ap_domain_store(struct bus_type *bus,
 	ap_domain_index = domain;
 	spin_unlock_bh(&ap_domain_lock);
 
-	AP_DBF(DBF_DEBUG, "store new default domain=%d\n", domain);
+	AP_DBF(DBF_DEBUG, "stored new default domain=%d\n", domain);
 
 	return count;
 }
@@ -940,7 +965,9 @@ static int ap_select_domain(void)
 		for (j = 0; j < AP_DEVICES; j++) {
 			if (!ap_test_config_card_id(j))
 				continue;
-			status = ap_test_queue(AP_MKQID(j, i), NULL);
+			status = ap_test_queue(AP_MKQID(j, i),
+					       ap_apft_available(),
+					       NULL);
 			if (status.response_code != AP_RESPONSE_NORMAL)
 				continue;
 			count++;
@@ -952,6 +979,7 @@ static int ap_select_domain(void)
 	}
 	if (best_domain >= 0){
 		ap_domain_index = best_domain;
+		AP_DBF(DBF_DEBUG, "new ap_domain_index=%d\n", ap_domain_index);
 		spin_unlock_bh(&ap_domain_lock);
 		return 0;
 	}
@@ -988,11 +1016,11 @@ static void ap_scan_bus(struct work_struct *unused)
 	ap_qid_t qid;
 	int depth = 0, type = 0;
 	unsigned int functions = 0;
-	int rc, id, dom, borked, domains;
+	int rc, id, dom, borked, domains, defdomdevs = 0;
 
 	AP_DBF(DBF_DEBUG, "ap_scan_bus running\n");
 
-	ap_query_configuration();
+	ap_query_configuration(ap_configuration);
 	if (ap_select_domain() != 0)
 		goto out;
 
@@ -1052,6 +1080,8 @@ static void ap_scan_bus(struct work_struct *unused)
 				put_device(dev);
 				if (!borked) {
 					domains++;
+					if (dom == ap_domain_index)
+						defdomdevs++;
 					continue;
 				}
 			}
@@ -1098,6 +1128,8 @@ static void ap_scan_bus(struct work_struct *unused)
 				continue;
 			}
 			domains++;
+			if (dom == ap_domain_index)
+				defdomdevs++;
 		} /* end domain loop */
 		if (ac) {
 			/* remove card dev if there are no queue devices */
@@ -1106,6 +1138,11 @@ static void ap_scan_bus(struct work_struct *unused)
 			put_device(&ac->ap_dev.device);
 		}
 	} /* end device loop */
+
+	if (defdomdevs < 1)
+		AP_DBF(DBF_INFO, "no queue device with default domain %d available\n",
+		       ap_domain_index);
+
 out:
 	mod_timer(&ap_config_timer, jiffies + ap_config_time * HZ);
 }
@@ -1174,14 +1211,14 @@ int __init ap_module_init(void)
 	ap_init_configuration();
 
 	if (ap_configuration)
-		max_domain_id = ap_max_domain_id ? : (AP_DOMAINS - 1);
+		max_domain_id =
+			ap_max_domain_id ? ap_max_domain_id : AP_DOMAINS - 1;
 	else
 		max_domain_id = 15;
 	if (ap_domain_index < -1 || ap_domain_index > max_domain_id) {
 		pr_warn("%d is not a valid cryptographic domain\n",
 			ap_domain_index);
-		rc = -EINVAL;
-		goto out_free;
+		ap_domain_index = -1;
 	}
 	/* In resume callback we need to know if the user had set the domain.
 	 * If so, we can not just reset it.
@@ -1254,7 +1291,6 @@ out:
 	unregister_reset_call(&ap_reset_call);
 	if (ap_using_interrupts())
 		unregister_adapter_interrupt(&ap_airq);
-out_free:
 	kfree(ap_configuration);
 	return rc;
 }

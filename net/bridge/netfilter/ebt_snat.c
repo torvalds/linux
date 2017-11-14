@@ -51,7 +51,7 @@ static int ebt_snat_tg_check(const struct xt_tgchk_param *par)
 	if (BASE_CHAIN && tmp == EBT_RETURN)
 		return -EINVAL;
 
-	if (tmp < -NUM_STANDARD_TARGETS || tmp >= 0)
+	if (ebt_invalid_target(tmp))
 		return -EINVAL;
 	tmp = info->target | EBT_VERDICT_BITS;
 	if ((tmp & ~NAT_ARP_BIT) != ~NAT_ARP_BIT)

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _BCACHE_REQUEST_H_
 #define _BCACHE_REQUEST_H_
 
@@ -10,7 +11,7 @@ struct data_insert_op {
 	unsigned		inode;
 	uint16_t		write_point;
 	uint16_t		write_prio;
-	short			error;
+	blk_status_t		status;
 
 	union {
 		uint16_t	flags;

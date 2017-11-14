@@ -417,7 +417,7 @@ static struct snd_soc_dai_driver ssm4567_dai = {
 	.ops = &ssm4567_dai_ops,
 };
 
-static struct snd_soc_codec_driver ssm4567_codec_driver = {
+static const struct snd_soc_codec_driver ssm4567_codec_driver = {
 	.set_bias_level = ssm4567_set_bias_level,
 	.idle_bias_off = true,
 

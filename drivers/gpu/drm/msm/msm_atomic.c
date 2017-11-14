@@ -84,13 +84,13 @@ static void msm_atomic_wait_for_commit_done(struct drm_device *dev,
 		struct drm_atomic_state *old_state)
 {
 	struct drm_crtc *crtc;
-	struct drm_crtc_state *crtc_state;
+	struct drm_crtc_state *new_crtc_state;
 	struct msm_drm_private *priv = old_state->dev->dev_private;
 	struct msm_kms *kms = priv->kms;
 	int i;
 
-	for_each_crtc_in_state(old_state, crtc, crtc_state, i) {
-		if (!crtc->state->enable)
+	for_each_new_crtc_in_state(old_state, crtc, new_crtc_state, i) {
+		if (!new_crtc_state->active)
 			continue;
 
 		kms->funcs->wait_for_crtc_commit_done(kms, crtc);
@@ -195,7 +195,7 @@ int msm_atomic_commit(struct drm_device *dev,
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *crtc_state;
 	struct drm_plane *plane;
-	struct drm_plane_state *plane_state;
+	struct drm_plane_state *old_plane_state, *new_plane_state;
 	int i, ret;
 
 	ret = drm_atomic_helper_prepare_planes(dev, state);
@@ -211,19 +211,19 @@ int msm_atomic_commit(struct drm_device *dev,
 	/*
 	 * Figure out what crtcs we have:
 	 */
-	for_each_crtc_in_state(state, crtc, crtc_state, i)
+	for_each_new_crtc_in_state(state, crtc, crtc_state, i)
 		c->crtc_mask |= drm_crtc_mask(crtc);
 
 	/*
 	 * Figure out what fence to wait for:
 	 */
-	for_each_plane_in_state(state, plane, plane_state, i) {
-		if ((plane->state->fb != plane_state->fb) && plane_state->fb) {
-			struct drm_gem_object *obj = msm_framebuffer_bo(plane_state->fb, 0);
+	for_each_oldnew_plane_in_state(state, plane, old_plane_state, new_plane_state, i) {
+		if ((new_plane_state->fb != old_plane_state->fb) && new_plane_state->fb) {
+			struct drm_gem_object *obj = msm_framebuffer_bo(new_plane_state->fb, 0);
 			struct msm_gem_object *msm_obj = to_msm_bo(obj);
 			struct dma_fence *fence = reservation_object_get_excl_rcu(msm_obj->resv);
 
-			drm_atomic_set_fence_for_plane(plane_state, fence);
+			drm_atomic_set_fence_for_plane(new_plane_state, fence);
 		}
 	}
 
@@ -232,20 +232,18 @@ int msm_atomic_commit(struct drm_device *dev,
 	 * mark our set of crtc's as busy:
 	 */
 	ret = start_atomic(dev->dev_private, c->crtc_mask);
-	if (ret) {
-		kfree(c);
-		goto error;
-	}
+	if (ret)
+		goto err_free;
+
+	BUG_ON(drm_atomic_helper_swap_state(state, false) < 0);
 
 	/*
 	 * This is the point of no return - everything below never fails except
 	 * when the hw goes bonghits. Which means we can commit the new state on
 	 * the software side now.
+	 *
+	 * swap driver private state while still holding state_lock
 	 */
-
-	drm_atomic_helper_swap_state(state, true);
-
-	/* swap driver private state while still holding state_lock */
 	if (to_kms_state(state)->state)
 		priv->kms->funcs->swap_state(priv->kms, state);
 
@@ -275,6 +273,8 @@ int msm_atomic_commit(struct drm_device *dev,
 
 	return 0;
 
+err_free:
+	kfree(c);
 error:
 	drm_atomic_helper_cleanup_planes(dev, state);
 	return ret;

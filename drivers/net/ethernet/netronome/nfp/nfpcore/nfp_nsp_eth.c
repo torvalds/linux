@@ -186,16 +186,20 @@ nfp_eth_port_translate(struct nfp_nsp *nsp, const union eth_table_entry *src,
 }
 
 static void
-nfp_eth_mark_split_ports(struct nfp_cpp *cpp, struct nfp_eth_table *table)
+nfp_eth_calc_port_geometry(struct nfp_cpp *cpp, struct nfp_eth_table *table)
 {
 	unsigned int i, j;
 
-	for (i = 0; i < table->count; i++)
+	for (i = 0; i < table->count; i++) {
+		table->max_index = max(table->max_index, table->ports[i].index);
+
 		for (j = 0; j < table->count; j++) {
-			if (i == j)
-				continue;
 			if (table->ports[i].label_port !=
 			    table->ports[j].label_port)
+				continue;
+			table->ports[i].port_lanes += table->ports[j].lanes;
+
+			if (i == j)
 				continue;
 			if (table->ports[i].label_subport ==
 			    table->ports[j].label_subport)
@@ -205,8 +209,8 @@ nfp_eth_mark_split_ports(struct nfp_cpp *cpp, struct nfp_eth_table *table)
 					 table->ports[i].label_subport);
 
 			table->ports[i].is_split = true;
-			break;
 		}
+	}
 }
 
 static void
@@ -289,7 +293,7 @@ __nfp_eth_read_ports(struct nfp_cpp *cpp, struct nfp_nsp *nsp)
 			nfp_eth_port_translate(nsp, &entries[i], i,
 					       &table->ports[j++]);
 
-	nfp_eth_mark_split_ports(cpp, table);
+	nfp_eth_calc_port_geometry(cpp, table);
 	for (i = 0; i < table->count; i++)
 		nfp_eth_calc_port_type(cpp, &table->ports[i]);
 
@@ -387,7 +391,10 @@ int nfp_eth_config_commit_end(struct nfp_nsp *nsp)
  * Enable or disable PHY module (this usually means setting the TX lanes
  * disable bits).
  *
- * Return: 0 or -ERRNO.
+ * Return:
+ * 0 - configuration successful;
+ * 1 - no changes were needed;
+ * -ERRNO - configuration failed.
  */
 int nfp_eth_set_mod_enable(struct nfp_cpp *cpp, unsigned int idx, bool enable)
 {
@@ -423,7 +430,10 @@ int nfp_eth_set_mod_enable(struct nfp_cpp *cpp, unsigned int idx, bool enable)
  *
  * Set the ifup/ifdown state on the PHY.
  *
- * Return: 0 or -ERRNO.
+ * Return:
+ * 0 - configuration successful;
+ * 1 - no changes were needed;
+ * -ERRNO - configuration failed.
  */
 int nfp_eth_set_configured(struct nfp_cpp *cpp, unsigned int idx, bool configed)
 {
@@ -434,6 +444,14 @@ int nfp_eth_set_configured(struct nfp_cpp *cpp, unsigned int idx, bool configed)
 	nsp = nfp_eth_config_start(cpp, idx);
 	if (IS_ERR(nsp))
 		return PTR_ERR(nsp);
+
+	/* Older ABI versions did support this feature, however this has only
+	 * been reliable since ABI 20.
+	 */
+	if (nfp_nsp_get_abi_ver_minor(nsp) < 20) {
+		nfp_eth_config_cleanup_end(nsp);
+		return -EOPNOTSUPP;
+	}
 
 	entries = nfp_nsp_config_entries(nsp);
 

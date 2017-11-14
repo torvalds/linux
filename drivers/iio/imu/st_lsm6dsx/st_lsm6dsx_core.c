@@ -36,6 +36,7 @@
 #include <linux/delay.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
+#include <linux/pm.h>
 
 #include <linux/platform_data/st_sensors_pdata.h>
 
@@ -730,6 +731,57 @@ int st_lsm6dsx_probe(struct device *dev, int irq, int hw_id, const char *name,
 	return 0;
 }
 EXPORT_SYMBOL(st_lsm6dsx_probe);
+
+static int __maybe_unused st_lsm6dsx_suspend(struct device *dev)
+{
+	struct st_lsm6dsx_hw *hw = dev_get_drvdata(dev);
+	struct st_lsm6dsx_sensor *sensor;
+	int i, err = 0;
+
+	for (i = 0; i < ST_LSM6DSX_ID_MAX; i++) {
+		sensor = iio_priv(hw->iio_devs[i]);
+		if (!(hw->enable_mask & BIT(sensor->id)))
+			continue;
+
+		err = st_lsm6dsx_write_with_mask(hw,
+				st_lsm6dsx_odr_table[sensor->id].reg.addr,
+				st_lsm6dsx_odr_table[sensor->id].reg.mask, 0);
+		if (err < 0)
+			return err;
+	}
+
+	if (hw->fifo_mode != ST_LSM6DSX_FIFO_BYPASS)
+		err = st_lsm6dsx_flush_fifo(hw);
+
+	return err;
+}
+
+static int __maybe_unused st_lsm6dsx_resume(struct device *dev)
+{
+	struct st_lsm6dsx_hw *hw = dev_get_drvdata(dev);
+	struct st_lsm6dsx_sensor *sensor;
+	int i, err = 0;
+
+	for (i = 0; i < ST_LSM6DSX_ID_MAX; i++) {
+		sensor = iio_priv(hw->iio_devs[i]);
+		if (!(hw->enable_mask & BIT(sensor->id)))
+			continue;
+
+		err = st_lsm6dsx_set_odr(sensor, sensor->odr);
+		if (err < 0)
+			return err;
+	}
+
+	if (hw->enable_mask)
+		err = st_lsm6dsx_set_fifo_mode(hw, ST_LSM6DSX_FIFO_CONT);
+
+	return err;
+}
+
+const struct dev_pm_ops st_lsm6dsx_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(st_lsm6dsx_suspend, st_lsm6dsx_resume)
+};
+EXPORT_SYMBOL(st_lsm6dsx_pm_ops);
 
 MODULE_AUTHOR("Lorenzo Bianconi <lorenzo.bianconi@st.com>");
 MODULE_AUTHOR("Denis Ciocca <denis.ciocca@st.com>");

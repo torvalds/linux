@@ -217,12 +217,15 @@ static inline void dim2_clear_ctr(u32 ctr_addr)
 }
 
 static void dim2_configure_cat(u8 cat_base, u8 ch_addr, u8 ch_type,
-			       bool read_not_write, bool sync_mfe)
+			       bool read_not_write)
 {
+	bool isoc_fce = ch_type == CAT_CT_VAL_ISOC;
+	bool sync_mfe = ch_type == CAT_CT_VAL_SYNC;
 	u16 const cat =
 		(read_not_write << CAT_RNW_BIT) |
 		(ch_type << CAT_CT_SHIFT) |
 		(ch_addr << CAT_CL_SHIFT) |
+		(isoc_fce << CAT_FCE_BIT) |
 		(sync_mfe << CAT_MFE_BIT) |
 		(false << CAT_MT_BIT) |
 		(true << CAT_CE_BIT);
@@ -350,13 +353,13 @@ static void dim2_clear_ctram(void)
 
 static void dim2_configure_channel(
 	u8 ch_addr, u8 type, u8 is_tx, u16 dbr_address, u16 hw_buffer_size,
-	u16 packet_length, bool sync_mfe)
+	u16 packet_length)
 {
 	dim2_configure_cdt(ch_addr, dbr_address, hw_buffer_size, packet_length);
-	dim2_configure_cat(MLB_CAT, ch_addr, type, is_tx ? 1 : 0, sync_mfe);
+	dim2_configure_cat(MLB_CAT, ch_addr, type, is_tx ? 1 : 0);
 
 	dim2_configure_adt(ch_addr);
-	dim2_configure_cat(AHB_CAT, ch_addr, type, is_tx ? 0 : 1, sync_mfe);
+	dim2_configure_cat(AHB_CAT, ch_addr, type, is_tx ? 0 : 1);
 
 	/* unmask interrupt for used channel, enable mlb_sys_int[0] interrupt */
 	dimcb_io_write(&g.dim2->ACMR0,
@@ -771,7 +774,7 @@ static u8 init_ctrl_async(struct dim_channel *ch, u8 type, u8 is_tx,
 	channel_init(ch, ch_address / 2);
 
 	dim2_configure_channel(ch->addr, type, is_tx,
-			       ch->dbr_addr, ch->dbr_size, 0, false);
+			       ch->dbr_addr, ch->dbr_size, 0);
 
 	return DIM_NO_ERROR;
 }
@@ -857,7 +860,7 @@ u8 dim_init_isoc(struct dim_channel *ch, u8 is_tx, u16 ch_address,
 	isoc_init(ch, ch_address / 2, packet_length);
 
 	dim2_configure_channel(ch->addr, CAT_CT_VAL_ISOC, is_tx, ch->dbr_addr,
-			       ch->dbr_size, packet_length, false);
+			       ch->dbr_size, packet_length);
 
 	return DIM_NO_ERROR;
 }
@@ -885,7 +888,7 @@ u8 dim_init_sync(struct dim_channel *ch, u8 is_tx, u16 ch_address,
 
 	dim2_clear_dbr(ch->dbr_addr, ch->dbr_size);
 	dim2_configure_channel(ch->addr, CAT_CT_VAL_SYNC, is_tx,
-			       ch->dbr_addr, ch->dbr_size, 0, true);
+			       ch->dbr_addr, ch->dbr_size, 0);
 
 	return DIM_NO_ERROR;
 }

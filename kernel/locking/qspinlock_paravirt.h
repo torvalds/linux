@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _GEN_PV_LOCK_SLOWPATH
 #error "do not include this file"
 #endif
@@ -72,7 +73,7 @@ static inline bool pv_queued_spin_steal_lock(struct qspinlock *lock)
 	struct __qspinlock *l = (void *)lock;
 
 	if (!(atomic_read(&lock->val) & _Q_LOCKED_PENDING_MASK) &&
-	    (cmpxchg(&l->locked, 0, _Q_LOCKED_VAL) == 0)) {
+	    (cmpxchg_acquire(&l->locked, 0, _Q_LOCKED_VAL) == 0)) {
 		qstat_inc(qstat_pv_lock_stealing, true);
 		return true;
 	}
@@ -101,16 +102,16 @@ static __always_inline void clear_pending(struct qspinlock *lock)
 
 /*
  * The pending bit check in pv_queued_spin_steal_lock() isn't a memory
- * barrier. Therefore, an atomic cmpxchg() is used to acquire the lock
- * just to be sure that it will get it.
+ * barrier. Therefore, an atomic cmpxchg_acquire() is used to acquire the
+ * lock just to be sure that it will get it.
  */
 static __always_inline int trylock_clear_pending(struct qspinlock *lock)
 {
 	struct __qspinlock *l = (void *)lock;
 
 	return !READ_ONCE(l->locked) &&
-	       (cmpxchg(&l->locked_pending, _Q_PENDING_VAL, _Q_LOCKED_VAL)
-			== _Q_PENDING_VAL);
+	       (cmpxchg_acquire(&l->locked_pending, _Q_PENDING_VAL,
+				_Q_LOCKED_VAL) == _Q_PENDING_VAL);
 }
 #else /* _Q_PENDING_BITS == 8 */
 static __always_inline void set_pending(struct qspinlock *lock)
@@ -138,7 +139,7 @@ static __always_inline int trylock_clear_pending(struct qspinlock *lock)
 		 */
 		old = val;
 		new = (val & ~_Q_PENDING_MASK) | _Q_LOCKED_VAL;
-		val = atomic_cmpxchg(&lock->val, old, new);
+		val = atomic_cmpxchg_acquire(&lock->val, old, new);
 
 		if (val == old)
 			return 1;
@@ -193,7 +194,8 @@ void __init __pv_init_lock_hash(void)
 	 */
 	pv_lock_hash = alloc_large_system_hash("PV qspinlock",
 					       sizeof(struct pv_hash_entry),
-					       pv_hash_size, 0, HASH_EARLY,
+					       pv_hash_size, 0,
+					       HASH_EARLY | HASH_ZERO,
 					       &pv_lock_hash_bits, NULL,
 					       pv_hash_size, pv_hash_size);
 }
@@ -361,8 +363,18 @@ static void pv_kick_node(struct qspinlock *lock, struct mcs_spinlock *node)
 	 * observe its next->locked value and advance itself.
 	 *
 	 * Matches with smp_store_mb() and cmpxchg() in pv_wait_node()
+	 *
+	 * The write to next->locked in arch_mcs_spin_unlock_contended()
+	 * must be ordered before the read of pn->state in the cmpxchg()
+	 * below for the code to work correctly. To guarantee full ordering
+	 * irrespective of the success or failure of the cmpxchg(),
+	 * a relaxed version with explicit barrier is used. The control
+	 * dependency will order the reading of pn->state before any
+	 * subsequent writes.
 	 */
-	if (cmpxchg(&pn->state, vcpu_halted, vcpu_hashed) != vcpu_halted)
+	smp_mb__before_atomic();
+	if (cmpxchg_relaxed(&pn->state, vcpu_halted, vcpu_hashed)
+	    != vcpu_halted)
 		return;
 
 	/*

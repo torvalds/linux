@@ -363,7 +363,7 @@ static int sctp_prsctp_prune_sent(struct sctp_association *asoc,
 		sctp_insert_list(&asoc->outqueue.abandoned,
 				 &chk->transmitted_list);
 
-		streamout = &asoc->stream->out[chk->sinfo.sinfo_stream];
+		streamout = &asoc->stream.out[chk->sinfo.sinfo_stream];
 		asoc->sent_cnt_removable--;
 		asoc->abandoned_sent[SCTP_PR_INDEX(PRIO)]++;
 		streamout->abandoned_sent[SCTP_PR_INDEX(PRIO)]++;
@@ -400,9 +400,9 @@ static int sctp_prsctp_prune_unsent(struct sctp_association *asoc,
 		q->out_qlen -= chk->skb->len;
 		asoc->sent_cnt_removable--;
 		asoc->abandoned_unsent[SCTP_PR_INDEX(PRIO)]++;
-		if (chk->sinfo.sinfo_stream < asoc->stream->outcnt) {
+		if (chk->sinfo.sinfo_stream < asoc->stream.outcnt) {
 			struct sctp_stream_out *streamout =
-				&asoc->stream->out[chk->sinfo.sinfo_stream];
+				&asoc->stream.out[chk->sinfo.sinfo_stream];
 
 			streamout->abandoned_unsent[SCTP_PR_INDEX(PRIO)]++;
 		}
@@ -534,7 +534,7 @@ void sctp_retransmit_mark(struct sctp_outq *q,
  * one packet out.
  */
 void sctp_retransmit(struct sctp_outq *q, struct sctp_transport *transport,
-		     sctp_retransmit_reason_t reason)
+		     enum sctp_retransmit_reason reason)
 {
 	struct net *net = sock_net(q->asoc->base.sk);
 
@@ -594,14 +594,14 @@ void sctp_retransmit(struct sctp_outq *q, struct sctp_transport *transport,
 static int sctp_outq_flush_rtx(struct sctp_outq *q, struct sctp_packet *pkt,
 			       int rtx_timeout, int *start_timer)
 {
-	struct list_head *lqueue;
 	struct sctp_transport *transport = pkt->transport;
-	sctp_xmit_t status;
 	struct sctp_chunk *chunk, *chunk1;
-	int fast_rtx;
+	struct list_head *lqueue;
+	enum sctp_xmit status;
 	int error = 0;
 	int timer = 0;
 	int done = 0;
+	int fast_rtx;
 
 	lqueue = &q->retransmit;
 	fast_rtx = q->fast_rtx;
@@ -781,7 +781,7 @@ static void sctp_outq_flush(struct sctp_outq *q, int rtx_timeout, gfp_t gfp)
 	struct sctp_transport *transport = NULL;
 	struct sctp_transport *new_transport;
 	struct sctp_chunk *chunk, *tmp;
-	sctp_xmit_t status;
+	enum sctp_xmit status;
 	int error = 0;
 	int start_timer = 0;
 	int one_packet = 0;
@@ -1036,7 +1036,7 @@ static void sctp_outq_flush(struct sctp_outq *q, int rtx_timeout, gfp_t gfp)
 			/* RFC 2960 6.5 Every DATA chunk MUST carry a valid
 			 * stream identifier.
 			 */
-			if (chunk->sinfo.sinfo_stream >= asoc->stream->outcnt) {
+			if (chunk->sinfo.sinfo_stream >= asoc->stream.outcnt) {
 
 				/* Mark as failed send. */
 				sctp_chunk_fail(chunk, SCTP_ERROR_INV_STRM);
@@ -1054,7 +1054,7 @@ static void sctp_outq_flush(struct sctp_outq *q, int rtx_timeout, gfp_t gfp)
 				continue;
 			}
 
-			if (asoc->stream->out[sid].state == SCTP_STREAM_CLOSED) {
+			if (asoc->stream.out[sid].state == SCTP_STREAM_CLOSED) {
 				sctp_outq_head_data(q, chunk);
 				goto sctp_flush_out;
 			}
@@ -1102,7 +1102,7 @@ static void sctp_outq_flush(struct sctp_outq *q, int rtx_timeout, gfp_t gfp)
 				 sctp_cname(SCTP_ST_CHUNK(chunk->chunk_hdr->type)) :
 				 "illegal chunk", ntohl(chunk->subh.data_hdr->tsn),
 				 chunk->skb ? chunk->skb->head : NULL, chunk->skb ?
-				 atomic_read(&chunk->skb->users) : -1);
+				 refcount_read(&chunk->skb->users) : -1);
 
 			/* Add the chunk to the packet.  */
 			status = sctp_packet_transmit_chunk(packet, chunk, 0, gfp);
@@ -1197,7 +1197,7 @@ sctp_flush_out:
 static void sctp_sack_update_unack_data(struct sctp_association *assoc,
 					struct sctp_sackhdr *sack)
 {
-	sctp_sack_variable_t *frags;
+	union sctp_sack_variable *frags;
 	__u16 unack_data;
 	int i;
 
@@ -1224,7 +1224,7 @@ int sctp_outq_sack(struct sctp_outq *q, struct sctp_chunk *chunk)
 	struct sctp_transport *transport;
 	struct sctp_chunk *tchunk = NULL;
 	struct list_head *lchunk, *transport_list, *temp;
-	sctp_sack_variable_t *frags = sack->variable;
+	union sctp_sack_variable *frags = sack->variable;
 	__u32 sack_ctsn, ctsn, tsn;
 	__u32 highest_tsn, highest_new_tsn;
 	__u32 sack_a_rwnd;
@@ -1736,10 +1736,10 @@ static void sctp_mark_missing(struct sctp_outq *q,
 /* Is the given TSN acked by this packet?  */
 static int sctp_acked(struct sctp_sackhdr *sack, __u32 tsn)
 {
-	int i;
-	sctp_sack_variable_t *frags;
-	__u16 tsn_offset, blocks;
 	__u32 ctsn = ntohl(sack->cum_tsn_ack);
+	union sctp_sack_variable *frags;
+	__u16 tsn_offset, blocks;
+	int i;
 
 	if (TSN_lte(tsn, ctsn))
 		goto pass;

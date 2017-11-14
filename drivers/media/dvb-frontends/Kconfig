@@ -28,12 +28,39 @@ config DVB_STV090x
 	  DVB-S/S2/DSS Multistandard Professional/Broadcast demodulators.
 	  Say Y when you want to support these frontends.
 
+config DVB_STV0910
+	tristate "STV0910 based"
+	depends on DVB_CORE && I2C
+	default m if !MEDIA_SUBDRV_AUTOSELECT
+	help
+	  ST STV0910 DVB-S/S2 demodulator driver.
+
+	  Say Y when you want to support these frontends.
+
 config DVB_STV6110x
 	tristate "STV6110/(A) based tuners"
 	depends on DVB_CORE && I2C
 	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  A Silicon tuner that supports DVB-S and DVB-S2 modes
+
+config DVB_STV6111
+	tristate "STV6111 based tuners"
+	depends on DVB_CORE && I2C
+	default m if !MEDIA_SUBDRV_AUTOSELECT
+	help
+	  A Silicon tuner that supports DVB-S and DVB-S2 modes
+
+	  Say Y when you want to support these frontends.
+
+config DVB_MXL5XX
+	tristate "MaxLinear MxL5xx based tuner-demodulators"
+	depends on DVB_CORE && I2C
+	default m if !MEDIA_SUBDRV_AUTOSELECT
+	help
+	  MaxLinear MxL5xx family of DVB-S/S2 tuners/demodulators.
+
+	  Say Y when you want to support these frontends.
 
 config DVB_M88DS3103
 	tristate "Montage Technology M88DS3103"
@@ -436,6 +463,7 @@ config DVB_TDA10048
 config DVB_AF9013
 	tristate "Afatech AF9013 demodulator"
 	depends on DVB_CORE && I2C
+	select REGMAP
 	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  Say Y when you want to support this frontend.

@@ -13,6 +13,7 @@
 #define _INTERNAL_H
 
 #include <linux/sched.h>
+#include <linux/wait_bit.h>
 #include <linux/cred.h>
 #include <linux/key-type.h>
 #include <linux/task_work.h>
@@ -140,7 +141,7 @@ extern key_ref_t keyring_search_aux(key_ref_t keyring_ref,
 extern key_ref_t search_my_process_keyrings(struct keyring_search_context *ctx);
 extern key_ref_t search_process_keyrings(struct keyring_search_context *ctx);
 
-extern struct key *find_keyring_by_name(const char *name, bool skip_perm_check);
+extern struct key *find_keyring_by_name(const char *name, bool uid_keyring);
 
 extern int install_user_keyrings(void);
 extern int install_thread_keyring_to_cred(struct cred *);
@@ -197,7 +198,7 @@ struct request_key_auth {
 	void			*callout_info;
 	size_t			callout_len;
 	pid_t			pid;
-};
+} __randomize_layout;
 
 extern struct key_type key_type_request_key_auth;
 extern struct key *request_key_auth_new(struct key *target,

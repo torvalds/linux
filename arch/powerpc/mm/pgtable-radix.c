@@ -8,9 +8,15 @@
  * as published by the Free Software Foundation; either version
  * 2 of the License, or (at your option) any later version.
  */
+
+#define pr_fmt(fmt) "radix-mmu: " fmt
+
+#include <linux/kernel.h>
 #include <linux/sched/mm.h>
 #include <linux/memblock.h>
 #include <linux/of_fdt.h>
+#include <linux/mm.h>
+#include <linux/string_helpers.h>
 
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
@@ -19,15 +25,24 @@
 #include <asm/mmu.h>
 #include <asm/firmware.h>
 #include <asm/powernv.h>
+#include <asm/sections.h>
+#include <asm/trace.h>
 
 #include <trace/events/thp.h>
+
+unsigned int mmu_pid_bits;
+unsigned int mmu_base_pid;
 
 static int native_register_process_table(unsigned long base, unsigned long pg_sz,
 					 unsigned long table_size)
 {
-	unsigned long patb1 = base | table_size | PATB_GR;
+	unsigned long patb0, patb1;
 
-	partition_tb->patb1 = cpu_to_be64(patb1);
+	patb0 = be64_to_cpu(partition_tb[0].patb0);
+	patb1 = base | table_size | PATB_GR;
+
+	mmu_partition_table_set_entry(0, patb0, patb1);
+
 	return 0;
 }
 
@@ -108,20 +123,92 @@ set_the_pte:
 	return 0;
 }
 
+#ifdef CONFIG_STRICT_KERNEL_RWX
+void radix__change_memory_range(unsigned long start, unsigned long end,
+				unsigned long clear)
+{
+	unsigned long idx;
+	pgd_t *pgdp;
+	pud_t *pudp;
+	pmd_t *pmdp;
+	pte_t *ptep;
+
+	start = ALIGN_DOWN(start, PAGE_SIZE);
+	end = PAGE_ALIGN(end); // aligns up
+
+	pr_debug("Changing flags on range %lx-%lx removing 0x%lx\n",
+		 start, end, clear);
+
+	for (idx = start; idx < end; idx += PAGE_SIZE) {
+		pgdp = pgd_offset_k(idx);
+		pudp = pud_alloc(&init_mm, pgdp, idx);
+		if (!pudp)
+			continue;
+		if (pud_huge(*pudp)) {
+			ptep = (pte_t *)pudp;
+			goto update_the_pte;
+		}
+		pmdp = pmd_alloc(&init_mm, pudp, idx);
+		if (!pmdp)
+			continue;
+		if (pmd_huge(*pmdp)) {
+			ptep = pmdp_ptep(pmdp);
+			goto update_the_pte;
+		}
+		ptep = pte_alloc_kernel(pmdp, idx);
+		if (!ptep)
+			continue;
+update_the_pte:
+		radix__pte_update(&init_mm, idx, ptep, clear, 0, 0);
+	}
+
+	radix__flush_tlb_kernel_range(start, end);
+}
+
+void radix__mark_rodata_ro(void)
+{
+	unsigned long start, end;
+
+	start = (unsigned long)_stext;
+	end = (unsigned long)__init_begin;
+
+	radix__change_memory_range(start, end, _PAGE_WRITE);
+}
+
+void radix__mark_initmem_nx(void)
+{
+	unsigned long start = (unsigned long)__init_begin;
+	unsigned long end = (unsigned long)__init_end;
+
+	radix__change_memory_range(start, end, _PAGE_EXEC);
+}
+#endif /* CONFIG_STRICT_KERNEL_RWX */
+
 static inline void __meminit print_mapping(unsigned long start,
 					   unsigned long end,
 					   unsigned long size)
 {
+	char buf[10];
+
 	if (end <= start)
 		return;
 
-	pr_info("Mapped range 0x%lx - 0x%lx with 0x%lx\n", start, end, size);
+	string_get_size(size, 1, STRING_UNITS_2, buf, sizeof(buf));
+
+	pr_info("Mapped 0x%016lx-0x%016lx with %s pages\n", start, end, buf);
 }
 
 static int __meminit create_physical_mapping(unsigned long start,
 					     unsigned long end)
 {
-	unsigned long addr, mapping_size = 0;
+	unsigned long vaddr, addr, mapping_size = 0;
+	pgprot_t prot;
+	unsigned long max_mapping_size;
+#ifdef CONFIG_STRICT_KERNEL_RWX
+	int split_text_mapping = 1;
+#else
+	int split_text_mapping = 0;
+#endif
 
 	start = _ALIGN_UP(start, PAGE_SIZE);
 	for (addr = start; addr < end; addr += mapping_size) {
@@ -130,9 +217,12 @@ static int __meminit create_physical_mapping(unsigned long start,
 
 		gap = end - addr;
 		previous_size = mapping_size;
+		max_mapping_size = PUD_SIZE;
 
+retry:
 		if (IS_ALIGNED(addr, PUD_SIZE) && gap >= PUD_SIZE &&
-		    mmu_psize_defs[MMU_PAGE_1G].shift)
+		    mmu_psize_defs[MMU_PAGE_1G].shift &&
+		    PUD_SIZE <= max_mapping_size)
 			mapping_size = PUD_SIZE;
 		else if (IS_ALIGNED(addr, PMD_SIZE) && gap >= PMD_SIZE &&
 			 mmu_psize_defs[MMU_PAGE_2M].shift)
@@ -140,13 +230,32 @@ static int __meminit create_physical_mapping(unsigned long start,
 		else
 			mapping_size = PAGE_SIZE;
 
+		if (split_text_mapping && (mapping_size == PUD_SIZE) &&
+			(addr <= __pa_symbol(__init_begin)) &&
+			(addr + mapping_size) >= __pa_symbol(_stext)) {
+			max_mapping_size = PMD_SIZE;
+			goto retry;
+		}
+
+		if (split_text_mapping && (mapping_size == PMD_SIZE) &&
+		    (addr <= __pa_symbol(__init_begin)) &&
+		    (addr + mapping_size) >= __pa_symbol(_stext))
+			mapping_size = PAGE_SIZE;
+
 		if (mapping_size != previous_size) {
 			print_mapping(start, addr, previous_size);
 			start = addr;
 		}
 
-		rc = radix__map_kernel_page((unsigned long)__va(addr), addr,
-					    PAGE_KERNEL_X, mapping_size);
+		vaddr = (unsigned long)__va(addr);
+
+		if (overlaps_kernel_text(vaddr, vaddr + mapping_size) ||
+		    overlaps_interrupt_vector_text(vaddr, vaddr + mapping_size))
+			prot = PAGE_KERNEL_X;
+		else
+			prot = PAGE_KERNEL;
+
+		rc = radix__map_kernel_page(vaddr, addr, prot, mapping_size);
 		if (rc)
 			return rc;
 	}
@@ -168,11 +277,34 @@ static void __init radix_init_pgtable(void)
 	for_each_memblock(memory, reg)
 		WARN_ON(create_physical_mapping(reg->base,
 						reg->base + reg->size));
+
+	/* Find out how many PID bits are supported */
+	if (cpu_has_feature(CPU_FTR_HVMODE)) {
+		if (!mmu_pid_bits)
+			mmu_pid_bits = 20;
+#ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
+		/*
+		 * When KVM is possible, we only use the top half of the
+		 * PID space to avoid collisions between host and guest PIDs
+		 * which can cause problems due to prefetch when exiting the
+		 * guest with AIL=3
+		 */
+		mmu_base_pid = 1 << (mmu_pid_bits - 1);
+#else
+		mmu_base_pid = 1;
+#endif
+	} else {
+		/* The guest uses the bottom half of the PID space */
+		if (!mmu_pid_bits)
+			mmu_pid_bits = 19;
+		mmu_base_pid = 1;
+	}
+
 	/*
 	 * Allocate Partition table and process table for the
 	 * host.
 	 */
-	BUILD_BUG_ON_MSG((PRTB_SIZE_SHIFT > 36), "Process table size too large.");
+	BUG_ON(PRTB_SIZE_SHIFT > 36);
 	process_tb = early_alloc_pgtable(1UL << PRTB_SIZE_SHIFT);
 	/*
 	 * Fill in the process table.
@@ -190,6 +322,7 @@ static void __init radix_init_pgtable(void)
 	asm volatile(PPC_TLBIE_5(%0,%1,2,1,1) : :
 		     "r" (TLBIEL_INVAL_SET_LPID), "r" (0));
 	asm volatile("eieio; tlbsync; ptesync" : : : "memory");
+	trace_tlbie(0, 0, TLBIEL_INVAL_SET_LPID, 0, 2, 1, 1);
 }
 
 static void __init radix_init_partition_table(void)
@@ -245,6 +378,12 @@ static int __init radix_dt_scan_page_sizes(unsigned long node,
 	if (type == NULL || strcmp(type, "cpu") != 0)
 		return 0;
 
+	/* Find MMU PID size */
+	prop = of_get_flat_dt_prop(node, "ibm,mmu-pid-bits", &size);
+	if (prop && size == 4)
+		mmu_pid_bits = be32_to_cpup(prop);
+
+	/* Grab page size encodings */
 	prop = of_get_flat_dt_prop(node, "ibm,processor-radix-AP-encodings", &size);
 	if (!prop)
 		return 0;
@@ -316,6 +455,9 @@ static void update_hid_for_radix(void)
 	asm volatile(PPC_TLBIE_5(%0, %4, %3, %2, %1)
 		     : : "r"(rb), "i"(1), "i"(1), "i"(2), "r"(0) : "memory");
 	asm volatile("eieio; tlbsync; ptesync; isync; slbia": : :"memory");
+	trace_tlbie(0, 0, rb, 0, 2, 0, 1);
+	trace_tlbie(0, 0, rb, 0, 2, 1, 1);
+
 	/*
 	 * now switch the HID
 	 */
@@ -397,6 +539,7 @@ void __init radix__early_init_mmu(void)
 	__kernel_virt_size = RADIX_KERN_VIRT_SIZE;
 	__vmalloc_start = RADIX_VMALLOC_START;
 	__vmalloc_end = RADIX_VMALLOC_END;
+	__kernel_io_start = RADIX_KERN_IO_START;
 	vmemmap = (struct page *)RADIX_VMEMMAP_BASE;
 	ioremap_bot = IOREMAP_BASE;
 
@@ -683,7 +826,7 @@ unsigned long radix__pmd_hugepage_update(struct mm_struct *mm, unsigned long add
 	unsigned long old;
 
 #ifdef CONFIG_DEBUG_VM
-	WARN_ON(!radix__pmd_trans_huge(*pmdp));
+	WARN_ON(!radix__pmd_trans_huge(*pmdp) && !pmd_devmap(*pmdp));
 	assert_spin_locked(&mm->page_table_lock);
 #endif
 
@@ -701,14 +844,18 @@ pmd_t radix__pmdp_collapse_flush(struct vm_area_struct *vma, unsigned long addre
 
 	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
 	VM_BUG_ON(radix__pmd_trans_huge(*pmdp));
+	VM_BUG_ON(pmd_devmap(*pmdp));
 	/*
 	 * khugepaged calls this for normal pmd
 	 */
 	pmd = *pmdp;
 	pmd_clear(pmdp);
+
 	/*FIXME!!  Verify whether we need this kick below */
-	kick_all_cpus_sync();
-	flush_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
+	serialize_against_pte_lookup(vma->vm_mm);
+
+	radix__flush_tlb_collapsed_pmd(vma->vm_mm, address);
+
 	return pmd;
 }
 
@@ -767,16 +914,16 @@ pmd_t radix__pmdp_huge_get_and_clear(struct mm_struct *mm,
 	old = radix__pmd_hugepage_update(mm, addr, pmdp, ~0UL, 0);
 	old_pmd = __pmd(old);
 	/*
-	 * Serialize against find_linux_pte_or_hugepte which does lock-less
+	 * Serialize against find_current_mm_pte which does lock-less
 	 * lookup in page tables with local interrupts disabled. For huge pages
 	 * it casts pmd_t to pte_t. Since format of pte_t is different from
 	 * pmd_t we want to prevent transit from pmd pointing to page table
 	 * to pmd pointing to huge page (and back) while interrupts are disabled.
 	 * We clear pmd to possibly replace it with page table pointer in
 	 * different code paths. So make sure we wait for the parallel
-	 * find_linux_pte_or_hugepage to finish.
+	 * find_current_mm_pte to finish.
 	 */
-	kick_all_cpus_sync();
+	serialize_against_pte_lookup(mm);
 	return old_pmd;
 }
 

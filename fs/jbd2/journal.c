@@ -2579,10 +2579,10 @@ restart:
 		wait_queue_head_t *wq;
 		DEFINE_WAIT_BIT(wait, &jinode->i_flags, __JI_COMMIT_RUNNING);
 		wq = bit_waitqueue(&jinode->i_flags, __JI_COMMIT_RUNNING);
-		prepare_to_wait(wq, &wait.wait, TASK_UNINTERRUPTIBLE);
+		prepare_to_wait(wq, &wait.wq_entry, TASK_UNINTERRUPTIBLE);
 		spin_unlock(&journal->j_list_lock);
 		schedule();
-		finish_wait(wq, &wait.wait);
+		finish_wait(wq, &wait.wq_entry);
 		goto restart;
 	}
 

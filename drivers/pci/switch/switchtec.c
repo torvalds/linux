@@ -120,6 +120,13 @@ struct sw_event_regs {
 	u32 reserved16[4];
 } __packed;
 
+enum {
+	SWITCHTEC_CFG0_RUNNING = 0x04,
+	SWITCHTEC_CFG1_RUNNING = 0x05,
+	SWITCHTEC_IMG0_RUNNING = 0x03,
+	SWITCHTEC_IMG1_RUNNING = 0x07,
+};
+
 struct sys_info_regs {
 	u32 device_id;
 	u32 device_version;
@@ -129,7 +136,9 @@ struct sys_info_regs {
 	u32 table_format_version;
 	u32 partition_id;
 	u32 cfg_file_fmt_version;
-	u32 reserved2[58];
+	u16 cfg_running;
+	u16 img_running;
+	u32 reserved2[57];
 	char vendor_id[8];
 	char product_id[16];
 	char product_revision[4];
@@ -807,6 +816,7 @@ static int ioctl_flash_part_info(struct switchtec_dev *stdev,
 {
 	struct switchtec_ioctl_flash_part_info info = {0};
 	struct flash_info_regs __iomem *fi = stdev->mmio_flash_info;
+	struct sys_info_regs __iomem *si = stdev->mmio_sys_info;
 	u32 active_addr = -1;
 
 	if (copy_from_user(&info, uinfo, sizeof(info)))
@@ -816,18 +826,26 @@ static int ioctl_flash_part_info(struct switchtec_dev *stdev,
 	case SWITCHTEC_IOCTL_PART_CFG0:
 		active_addr = ioread32(&fi->active_cfg);
 		set_fw_info_part(&info, &fi->cfg0);
+		if (ioread16(&si->cfg_running) == SWITCHTEC_CFG0_RUNNING)
+			info.active |= SWITCHTEC_IOCTL_PART_RUNNING;
 		break;
 	case SWITCHTEC_IOCTL_PART_CFG1:
 		active_addr = ioread32(&fi->active_cfg);
 		set_fw_info_part(&info, &fi->cfg1);
+		if (ioread16(&si->cfg_running) == SWITCHTEC_CFG1_RUNNING)
+			info.active |= SWITCHTEC_IOCTL_PART_RUNNING;
 		break;
 	case SWITCHTEC_IOCTL_PART_IMG0:
 		active_addr = ioread32(&fi->active_img);
 		set_fw_info_part(&info, &fi->img0);
+		if (ioread16(&si->img_running) == SWITCHTEC_IMG0_RUNNING)
+			info.active |= SWITCHTEC_IOCTL_PART_RUNNING;
 		break;
 	case SWITCHTEC_IOCTL_PART_IMG1:
 		active_addr = ioread32(&fi->active_img);
 		set_fw_info_part(&info, &fi->img1);
+		if (ioread16(&si->img_running) == SWITCHTEC_IMG1_RUNNING)
+			info.active |= SWITCHTEC_IOCTL_PART_RUNNING;
 		break;
 	case SWITCHTEC_IOCTL_PART_NVLOG:
 		set_fw_info_part(&info, &fi->nvlog);
@@ -861,7 +879,7 @@ static int ioctl_flash_part_info(struct switchtec_dev *stdev,
 	}
 
 	if (info.address == active_addr)
-		info.active = 1;
+		info.active |= SWITCHTEC_IOCTL_PART_ACTIVE;
 
 	if (copy_to_user(uinfo, &info, sizeof(info)))
 		return -EFAULT;
@@ -1540,6 +1558,24 @@ static const struct pci_device_id switchtec_pci_tbl[] = {
 	SWITCHTEC_PCI_DEVICE(0x8544),  //PSX 64xG3
 	SWITCHTEC_PCI_DEVICE(0x8545),  //PSX 80xG3
 	SWITCHTEC_PCI_DEVICE(0x8546),  //PSX 96xG3
+	SWITCHTEC_PCI_DEVICE(0x8551),  //PAX 24XG3
+	SWITCHTEC_PCI_DEVICE(0x8552),  //PAX 32XG3
+	SWITCHTEC_PCI_DEVICE(0x8553),  //PAX 48XG3
+	SWITCHTEC_PCI_DEVICE(0x8554),  //PAX 64XG3
+	SWITCHTEC_PCI_DEVICE(0x8555),  //PAX 80XG3
+	SWITCHTEC_PCI_DEVICE(0x8556),  //PAX 96XG3
+	SWITCHTEC_PCI_DEVICE(0x8561),  //PFXL 24XG3
+	SWITCHTEC_PCI_DEVICE(0x8562),  //PFXL 32XG3
+	SWITCHTEC_PCI_DEVICE(0x8563),  //PFXL 48XG3
+	SWITCHTEC_PCI_DEVICE(0x8564),  //PFXL 64XG3
+	SWITCHTEC_PCI_DEVICE(0x8565),  //PFXL 80XG3
+	SWITCHTEC_PCI_DEVICE(0x8566),  //PFXL 96XG3
+	SWITCHTEC_PCI_DEVICE(0x8571),  //PFXI 24XG3
+	SWITCHTEC_PCI_DEVICE(0x8572),  //PFXI 32XG3
+	SWITCHTEC_PCI_DEVICE(0x8573),  //PFXI 48XG3
+	SWITCHTEC_PCI_DEVICE(0x8574),  //PFXI 64XG3
+	SWITCHTEC_PCI_DEVICE(0x8575),  //PFXI 80XG3
+	SWITCHTEC_PCI_DEVICE(0x8576),  //PFXI 96XG3
 	{0}
 };
 MODULE_DEVICE_TABLE(pci, switchtec_pci_tbl);

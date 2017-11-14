@@ -24,7 +24,7 @@
  */
 
 #include <linux/firmware.h>
-#include "drmP.h"
+#include <drm/drmP.h>
 #include "amdgpu.h"
 #include "amdgpu_psp.h"
 #include "amdgpu_ucode.h"
@@ -172,7 +172,7 @@ int psp_v3_1_bootloader_load_sysdrv(struct psp_context *psp)
 	/* Check sOS sign of life register to confirm sys driver and sOS
 	 * are already been loaded.
 	 */
-	sol_reg = RREG32(SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_81));
+	sol_reg = RREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_81);
 	if (sol_reg)
 		return 0;
 
@@ -188,10 +188,10 @@ int psp_v3_1_bootloader_load_sysdrv(struct psp_context *psp)
 	memcpy(psp->fw_pri_buf, psp->sys_start_addr, psp->sys_bin_size);
 
 	/* Provide the sys driver to bootrom */
-	WREG32(SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_36),
+	WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_36,
 	       (uint32_t)(psp->fw_pri_mc_addr >> 20));
 	psp_gfxdrv_command_reg = 1 << 16;
-	WREG32(SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_35),
+	WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_35,
 	       psp_gfxdrv_command_reg);
 
 	/* there might be handshake issue with hardware which needs delay */
@@ -213,7 +213,7 @@ int psp_v3_1_bootloader_load_sos(struct psp_context *psp)
 	/* Check sOS sign of life register to confirm sys driver and sOS
 	 * are already been loaded.
 	 */
-	sol_reg = RREG32(SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_81));
+	sol_reg = RREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_81);
 	if (sol_reg)
 		return 0;
 
@@ -229,19 +229,17 @@ int psp_v3_1_bootloader_load_sos(struct psp_context *psp)
 	memcpy(psp->fw_pri_buf, psp->sos_start_addr, psp->sos_bin_size);
 
 	/* Provide the PSP secure OS to bootrom */
-	WREG32(SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_36),
+	WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_36,
 	       (uint32_t)(psp->fw_pri_mc_addr >> 20));
 	psp_gfxdrv_command_reg = 2 << 16;
-	WREG32(SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_35),
+	WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_35,
 	       psp_gfxdrv_command_reg);
 
 	/* there might be handshake issue with hardware which needs delay */
 	mdelay(20);
-#if 0
 	ret = psp_wait_for(psp, SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_81),
-			   RREG32(SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_81)),
+			   RREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_81),
 			   0, true);
-#endif
 
 	return ret;
 }
@@ -254,8 +252,8 @@ int psp_v3_1_prep_cmd_buf(struct amdgpu_firmware_info *ucode, struct psp_gfx_cmd
 	memset(cmd, 0, sizeof(struct psp_gfx_cmd_resp));
 
 	cmd->cmd_id = GFX_CMD_ID_LOAD_IP_FW;
-	cmd->cmd.cmd_load_ip_fw.fw_phy_addr_lo = (uint32_t)fw_mem_mc_addr;
-	cmd->cmd.cmd_load_ip_fw.fw_phy_addr_hi = (uint32_t)((uint64_t)fw_mem_mc_addr >> 32);
+	cmd->cmd.cmd_load_ip_fw.fw_phy_addr_lo = lower_32_bits(fw_mem_mc_addr);
+	cmd->cmd.cmd_load_ip_fw.fw_phy_addr_hi = upper_32_bits(fw_mem_mc_addr);
 	cmd->cmd.cmd_load_ip_fw.fw_size = ucode->ucode_size;
 
 	ret = psp_v3_1_get_fw_type(ucode, &cmd->cmd.cmd_load_ip_fw.fw_type);
@@ -299,17 +297,17 @@ int psp_v3_1_ring_create(struct psp_context *psp, enum psp_ring_type ring_type)
 
 	/* Write low address of the ring to C2PMSG_69 */
 	psp_ring_reg = lower_32_bits(ring->ring_mem_mc_addr);
-	WREG32(SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_69), psp_ring_reg);
+	WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_69, psp_ring_reg);
 	/* Write high address of the ring to C2PMSG_70 */
 	psp_ring_reg = upper_32_bits(ring->ring_mem_mc_addr);
-	WREG32(SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_70), psp_ring_reg);
+	WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_70, psp_ring_reg);
 	/* Write size of ring to C2PMSG_71 */
 	psp_ring_reg = ring->ring_size;
-	WREG32(SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_71), psp_ring_reg);
+	WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_71, psp_ring_reg);
 	/* Write the ring initialization command to C2PMSG_64 */
 	psp_ring_reg = ring_type;
 	psp_ring_reg = psp_ring_reg << 16;
-	WREG32(SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_64), psp_ring_reg);
+	WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_64, psp_ring_reg);
 
 	/* there might be handshake issue with hardware which needs delay */
 	mdelay(20);
@@ -332,7 +330,7 @@ int psp_v3_1_ring_destroy(struct psp_context *psp, enum psp_ring_type ring_type)
 
 	/* Write the ring destroy command to C2PMSG_64 */
 	psp_ring_reg = 3 << 16;
-	WREG32(SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_64), psp_ring_reg);
+	WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_64, psp_ring_reg);
 
 	/* there might be handshake issue with hardware which needs delay */
 	mdelay(20);
@@ -341,10 +339,10 @@ int psp_v3_1_ring_destroy(struct psp_context *psp, enum psp_ring_type ring_type)
 	ret = psp_wait_for(psp, SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_64),
 			   0x80000000, 0x80000000, false);
 
-	if (ring->ring_mem)
-		amdgpu_bo_free_kernel(&adev->firmware.rbuf,
-				      &ring->ring_mem_mc_addr,
-				      (void **)&ring->ring_mem);
+	amdgpu_bo_free_kernel(&adev->firmware.rbuf,
+			      &ring->ring_mem_mc_addr,
+			      (void **)&ring->ring_mem);
+
 	return ret;
 }
 
@@ -361,7 +359,7 @@ int psp_v3_1_cmd_submit(struct psp_context *psp,
 	uint32_t rb_frame_size_dw = sizeof(struct psp_gfx_rb_frame) / 4;
 
 	/* KM (GPCOM) prepare write pointer */
-	psp_write_ptr_reg = RREG32(SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_67));
+	psp_write_ptr_reg = RREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_67);
 
 	/* Update KM RB frame pointer to new frame */
 	/* write_frame ptr increments by size of rb_frame in bytes */
@@ -375,15 +373,15 @@ int psp_v3_1_cmd_submit(struct psp_context *psp,
 	memset(write_frame, 0, sizeof(struct psp_gfx_rb_frame));
 
 	/* Update KM RB frame */
-	write_frame->cmd_buf_addr_hi = (unsigned int)(cmd_buf_mc_addr >> 32);
-	write_frame->cmd_buf_addr_lo = (unsigned int)(cmd_buf_mc_addr);
-	write_frame->fence_addr_hi = (unsigned int)(fence_mc_addr >> 32);
-	write_frame->fence_addr_lo = (unsigned int)(fence_mc_addr);
+	write_frame->cmd_buf_addr_hi = upper_32_bits(cmd_buf_mc_addr);
+	write_frame->cmd_buf_addr_lo = lower_32_bits(cmd_buf_mc_addr);
+	write_frame->fence_addr_hi = upper_32_bits(fence_mc_addr);
+	write_frame->fence_addr_lo = lower_32_bits(fence_mc_addr);
 	write_frame->fence_value = index;
 
 	/* Update the write Pointer in DWORDs */
 	psp_write_ptr_reg = (psp_write_ptr_reg + rb_frame_size_dw) % ring_size_dw;
-	WREG32(SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_67), psp_write_ptr_reg);
+	WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_67, psp_write_ptr_reg);
 
 	return 0;
 }
@@ -515,7 +513,7 @@ bool psp_v3_1_smu_reload_quirk(struct psp_context *psp)
 	uint32_t reg;
 
 	reg = smnMP1_FIRMWARE_FLAGS | 0x03b00000;
-	WREG32(SOC15_REG_OFFSET(NBIO, 0, mmPCIE_INDEX2), reg);
-	reg = RREG32(SOC15_REG_OFFSET(NBIO, 0, mmPCIE_DATA2));
+	WREG32_SOC15(NBIO, 0, mmPCIE_INDEX2, reg);
+	reg = RREG32_SOC15(NBIO, 0, mmPCIE_DATA2);
 	return (reg & MP1_FIRMWARE_FLAGS__INTERRUPTS_ENABLED_MASK) ? true : false;
 }

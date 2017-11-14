@@ -484,13 +484,6 @@ static void mn_invl_range_start(struct mmu_notifier *mn,
 	mutex_unlock(&priv->lock);
 }
 
-static void mn_invl_page(struct mmu_notifier *mn,
-			 struct mm_struct *mm,
-			 unsigned long address)
-{
-	mn_invl_range_start(mn, mm, address, address + PAGE_SIZE);
-}
-
 static void mn_release(struct mmu_notifier *mn,
 		       struct mm_struct *mm)
 {
@@ -522,7 +515,6 @@ static void mn_release(struct mmu_notifier *mn,
 
 static const struct mmu_notifier_ops gntdev_mmu_ops = {
 	.release                = mn_release,
-	.invalidate_page        = mn_invl_page,
 	.invalidate_range_start = mn_invl_range_start,
 };
 
@@ -1032,6 +1024,7 @@ static int gntdev_mmap(struct file *flip, struct vm_area_struct *vma)
 	mutex_unlock(&priv->lock);
 
 	if (use_ptemod) {
+		map->pages_vm_start = vma->vm_start;
 		err = apply_to_page_range(vma->vm_mm, vma->vm_start,
 					  vma->vm_end - vma->vm_start,
 					  find_grant_ptes, map);
@@ -1069,7 +1062,6 @@ static int gntdev_mmap(struct file *flip, struct vm_area_struct *vma)
 					    set_grant_ptes_as_special, NULL);
 		}
 #endif
-		map->pages_vm_start = vma->vm_start;
 	}
 
 	return 0;

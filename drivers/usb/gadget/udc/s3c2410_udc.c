@@ -51,7 +51,6 @@
 #include "s3c2410_udc.h"
 
 #define DRIVER_DESC	"S3C2410 USB Device Controller Gadget"
-#define DRIVER_VERSION	"29 Apr 2007"
 #define DRIVER_AUTHOR	"Herbert Pötzl <herbert@13thfloor.at>, " \
 			"Arnaud Patard <arnaud.patard@rtp-net.org>"
 
@@ -1996,7 +1995,7 @@ static int __init udc_init(void)
 {
 	int retval;
 
-	dprintk(DEBUG_NORMAL, "%s: version %s\n", gadget_name, DRIVER_VERSION);
+	dprintk(DEBUG_NORMAL, "%s\n", gadget_name);
 
 	s3c2410_udc_debugfs_root = debugfs_create_dir(gadget_name, NULL);
 	if (IS_ERR(s3c2410_udc_debugfs_root)) {
@@ -2027,5 +2026,4 @@ module_exit(udc_exit);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
-MODULE_VERSION(DRIVER_VERSION);
 MODULE_LICENSE("GPL");

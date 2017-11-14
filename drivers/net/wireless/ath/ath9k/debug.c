@@ -1452,7 +1452,7 @@ int ath9k_init_debug(struct ath_hw *ah)
 #endif
 
 #ifdef CONFIG_ATH9K_DYNACK
-	debugfs_create_file("ack_to", S_IRUSR | S_IWUSR, sc->debug.debugfs_phy,
+	debugfs_create_file("ack_to", S_IRUSR, sc->debug.debugfs_phy,
 			    sc, &fops_ackto);
 #endif
 	debugfs_create_file("tpc", S_IRUSR | S_IWUSR,

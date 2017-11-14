@@ -35,6 +35,7 @@ Arguments
     File descriptor returned by :ref:`open() <func-open>`.
 
 ``argp``
+    Pointer to struct :c:type:`v4l2_dv_timings`.
 
 
 Description
@@ -208,7 +209,7 @@ EBUSY
       - 0
       - BT.656/1120 timings
 
-
+.. tabularcolumns:: |p{4.5cm}|p{12.8cm}|
 
 .. _dv-bt-standards:
 
@@ -231,7 +232,7 @@ EBUSY
 	There are no horizontal syncs/porches at all in this format.
 	Total blanking timings must be set in hsync or vsync fields only.
 
-.. tabularcolumns:: |p{6.0cm}|p{11.5cm}|
+.. tabularcolumns:: |p{7.0cm}|p{10.5cm}|
 
 .. _dv-bt-flags:
 

@@ -117,6 +117,7 @@ bool list_lru_add(struct list_lru *lru, struct list_head *item)
 		l = list_lru_from_kmem(nlru, item);
 		list_add_tail(item, &l->list);
 		l->nr_items++;
+		nlru->nr_items++;
 		spin_unlock(&nlru->lock);
 		return true;
 	}
@@ -136,6 +137,7 @@ bool list_lru_del(struct list_lru *lru, struct list_head *item)
 		l = list_lru_from_kmem(nlru, item);
 		list_del_init(item);
 		l->nr_items--;
+		nlru->nr_items--;
 		spin_unlock(&nlru->lock);
 		return true;
 	}
@@ -183,15 +185,10 @@ EXPORT_SYMBOL_GPL(list_lru_count_one);
 
 unsigned long list_lru_count_node(struct list_lru *lru, int nid)
 {
-	long count = 0;
-	int memcg_idx;
+	struct list_lru_node *nlru;
 
-	count += __list_lru_count_one(lru, nid, -1);
-	if (list_lru_memcg_aware(lru)) {
-		for_each_memcg_cache_index(memcg_idx)
-			count += __list_lru_count_one(lru, nid, memcg_idx);
-	}
-	return count;
+	nlru = &lru->node[nid];
+	return nlru->nr_items;
 }
 EXPORT_SYMBOL_GPL(list_lru_count_node);
 
@@ -226,6 +223,7 @@ restart:
 			assert_spin_locked(&nlru->lock);
 		case LRU_REMOVED:
 			isolated++;
+			nlru->nr_items--;
 			/*
 			 * If the lru lock has been dropped, our list
 			 * traversal is now invalid and so we have to
@@ -327,12 +325,12 @@ static int memcg_init_list_lru_node(struct list_lru_node *nlru)
 {
 	int size = memcg_nr_cache_ids;
 
-	nlru->memcg_lrus = kmalloc(size * sizeof(void *), GFP_KERNEL);
+	nlru->memcg_lrus = kvmalloc(size * sizeof(void *), GFP_KERNEL);
 	if (!nlru->memcg_lrus)
 		return -ENOMEM;
 
 	if (__memcg_init_list_lru_node(nlru->memcg_lrus, 0, size)) {
-		kfree(nlru->memcg_lrus);
+		kvfree(nlru->memcg_lrus);
 		return -ENOMEM;
 	}
 
@@ -342,7 +340,7 @@ static int memcg_init_list_lru_node(struct list_lru_node *nlru)
 static void memcg_destroy_list_lru_node(struct list_lru_node *nlru)
 {
 	__memcg_destroy_list_lru_node(nlru->memcg_lrus, 0, memcg_nr_cache_ids);
-	kfree(nlru->memcg_lrus);
+	kvfree(nlru->memcg_lrus);
 }
 
 static int memcg_update_list_lru_node(struct list_lru_node *nlru,
@@ -353,12 +351,12 @@ static int memcg_update_list_lru_node(struct list_lru_node *nlru,
 	BUG_ON(old_size > new_size);
 
 	old = nlru->memcg_lrus;
-	new = kmalloc(new_size * sizeof(void *), GFP_KERNEL);
+	new = kvmalloc(new_size * sizeof(void *), GFP_KERNEL);
 	if (!new)
 		return -ENOMEM;
 
 	if (__memcg_init_list_lru_node(new, old_size, new_size)) {
-		kfree(new);
+		kvfree(new);
 		return -ENOMEM;
 	}
 
@@ -375,7 +373,7 @@ static int memcg_update_list_lru_node(struct list_lru_node *nlru,
 	nlru->memcg_lrus = new;
 	spin_unlock_irq(&nlru->lock);
 
-	kfree(old);
+	kvfree(old);
 	return 0;
 }
 

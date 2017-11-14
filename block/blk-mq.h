@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef INT_BLK_MQ_H
 #define INT_BLK_MQ_H
 
@@ -54,13 +55,9 @@ int blk_mq_alloc_rqs(struct blk_mq_tag_set *set, struct blk_mq_tags *tags,
  */
 void __blk_mq_insert_request(struct blk_mq_hw_ctx *hctx, struct request *rq,
 				bool at_head);
+void blk_mq_request_bypass_insert(struct request *rq);
 void blk_mq_insert_requests(struct blk_mq_hw_ctx *hctx, struct blk_mq_ctx *ctx,
 				struct list_head *list);
-/*
- * CPU hotplug helpers
- */
-void blk_mq_enable_hotplug(void);
-void blk_mq_disable_hotplug(void);
 
 /*
  * CPU -> queue mappings
@@ -128,17 +125,6 @@ static inline struct blk_mq_tags *blk_mq_tags_from_data(struct blk_mq_alloc_data
 	return data->hctx->tags;
 }
 
-/*
- * Internal helpers for request allocation/init/free
- */
-void blk_mq_rq_ctx_init(struct request_queue *q, struct blk_mq_ctx *ctx,
-			struct request *rq, unsigned int op);
-void __blk_mq_finish_request(struct blk_mq_hw_ctx *hctx, struct blk_mq_ctx *ctx,
-				struct request *rq);
-void blk_mq_finish_request(struct request *rq);
-struct request *__blk_mq_alloc_request(struct blk_mq_alloc_data *data,
-					unsigned int op);
-
 static inline bool blk_mq_hctx_stopped(struct blk_mq_hw_ctx *hctx)
 {
 	return test_bit(BLK_MQ_S_STOPPED, &hctx->state);
@@ -148,5 +134,8 @@ static inline bool blk_mq_hw_queue_mapped(struct blk_mq_hw_ctx *hctx)
 {
 	return hctx->nr_ctx && hctx->tags;
 }
+
+void blk_mq_in_flight(struct request_queue *q, struct hd_struct *part,
+			unsigned int inflight[2]);
 
 #endif

@@ -512,6 +512,7 @@ static int tile_hwtstamp_set(struct net_device *dev, struct ifreq *rq)
 	case HWTSTAMP_FILTER_PTP_V2_EVENT:
 	case HWTSTAMP_FILTER_PTP_V2_SYNC:
 	case HWTSTAMP_FILTER_PTP_V2_DELAY_REQ:
+	case HWTSTAMP_FILTER_NTP_ALL:
 		config.rx_filter = HWTSTAMP_FILTER_ALL;
 		break;
 	default:
@@ -872,7 +873,7 @@ static int ptp_mpipe_enable(struct ptp_clock_info *ptp,
 	return -EOPNOTSUPP;
 }
 
-static struct ptp_clock_info ptp_mpipe_caps = {
+static const struct ptp_clock_info ptp_mpipe_caps = {
 	.owner		= THIS_MODULE,
 	.name		= "mPIPE clock",
 	.max_adj	= 999999999,

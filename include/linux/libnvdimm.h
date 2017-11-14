@@ -17,6 +17,7 @@
 #include <linux/kernel.h>
 #include <linux/sizes.h>
 #include <linux/types.h>
+#include <linux/uuid.h>
 
 enum {
 	/* when a dimm supports both PMEM and BLK access a label is required */
@@ -54,6 +55,7 @@ typedef int (*ndctl_fn)(struct nvdimm_bus_descriptor *nd_desc,
 
 struct nvdimm_bus_descriptor {
 	const struct attribute_group **attr_groups;
+	unsigned long bus_dsm_mask;
 	unsigned long cmd_mask;
 	struct module *module;
 	char *provider_name;
@@ -71,15 +73,21 @@ struct nd_cmd_desc {
 };
 
 struct nd_interleave_set {
-	u64 cookie;
+	/* v1.1 definition of the interleave-set-cookie algorithm */
+	u64 cookie1;
+	/* v1.2 definition of the interleave-set-cookie algorithm */
+	u64 cookie2;
 	/* compatibility with initial buggy Linux implementation */
 	u64 altcookie;
+
+	guid_t type_guid;
 };
 
 struct nd_mapping_desc {
 	struct nvdimm *nvdimm;
 	u64 start;
 	u64 size;
+	int position;
 };
 
 struct nd_region_desc {
@@ -159,9 +167,26 @@ void *nd_region_provider_data(struct nd_region *nd_region);
 void *nd_blk_region_provider_data(struct nd_blk_region *ndbr);
 void nd_blk_region_set_provider_data(struct nd_blk_region *ndbr, void *data);
 struct nvdimm *nd_blk_region_to_dimm(struct nd_blk_region *ndbr);
+unsigned long nd_blk_memremap_flags(struct nd_blk_region *ndbr);
 unsigned int nd_region_acquire_lane(struct nd_region *nd_region);
 void nd_region_release_lane(struct nd_region *nd_region, unsigned int lane);
 u64 nd_fletcher64(void *addr, size_t len, bool le);
 void nvdimm_flush(struct nd_region *nd_region);
 int nvdimm_has_flush(struct nd_region *nd_region);
+int nvdimm_has_cache(struct nd_region *nd_region);
+
+#ifdef CONFIG_ARCH_HAS_PMEM_API
+#define ARCH_MEMREMAP_PMEM MEMREMAP_WB
+void arch_wb_cache_pmem(void *addr, size_t size);
+void arch_invalidate_pmem(void *addr, size_t size);
+#else
+#define ARCH_MEMREMAP_PMEM MEMREMAP_WT
+static inline void arch_wb_cache_pmem(void *addr, size_t size)
+{
+}
+static inline void arch_invalidate_pmem(void *addr, size_t size)
+{
+}
+#endif
+
 #endif /* __LIBNVDIMM_H__ */

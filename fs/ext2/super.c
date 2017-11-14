@@ -52,7 +52,7 @@ void ext2_error(struct super_block *sb, const char *function,
 	struct ext2_sb_info *sbi = EXT2_SB(sb);
 	struct ext2_super_block *es = sbi->s_es;
 
-	if (!(sb->s_flags & MS_RDONLY)) {
+	if (!sb_rdonly(sb)) {
 		spin_lock(&sbi->s_lock);
 		sbi->s_mount_state |= EXT2_ERROR_FS;
 		es->s_state |= cpu_to_le16(EXT2_ERROR_FS);
@@ -147,11 +147,11 @@ static void ext2_put_super (struct super_block * sb)
 
 	ext2_quota_off_umount(sb);
 
-	if (sbi->s_mb_cache) {
-		ext2_xattr_destroy_cache(sbi->s_mb_cache);
-		sbi->s_mb_cache = NULL;
+	if (sbi->s_ea_block_cache) {
+		ext2_xattr_destroy_cache(sbi->s_ea_block_cache);
+		sbi->s_ea_block_cache = NULL;
 	}
-	if (!(sb->s_flags & MS_RDONLY)) {
+	if (!sb_rdonly(sb)) {
 		struct ext2_super_block *es = sbi->s_es;
 
 		spin_lock(&sbi->s_lock);
@@ -171,6 +171,7 @@ static void ext2_put_super (struct super_block * sb)
 	brelse (sbi->s_sbh);
 	sb->s_fs_info = NULL;
 	kfree(sbi->s_blockgroup_lock);
+	fs_put_dax(sbi->s_daxdev);
 	kfree(sbi);
 }
 
@@ -813,6 +814,7 @@ static unsigned long descriptor_loc(struct super_block *sb,
 
 static int ext2_fill_super(struct super_block *sb, void *data, int silent)
 {
+	struct dax_device *dax_dev = fs_dax_get_by_bdev(sb->s_bdev);
 	struct buffer_head * bh;
 	struct ext2_sb_info * sbi;
 	struct ext2_super_block * es;
@@ -842,6 +844,7 @@ static int ext2_fill_super(struct super_block *sb, void *data, int silent)
 	}
 	sb->s_fs_info = sbi;
 	sbi->s_sb_block = sb_block;
+	sbi->s_daxdev = dax_dev;
 
 	spin_lock_init(&sbi->s_lock);
 
@@ -940,8 +943,7 @@ static int ext2_fill_super(struct super_block *sb, void *data, int silent)
 			le32_to_cpu(features));
 		goto failed_mount;
 	}
-	if (!(sb->s_flags & MS_RDONLY) &&
-	    (features = EXT2_HAS_RO_COMPAT_FEATURE(sb, ~EXT2_FEATURE_RO_COMPAT_SUPP))){
+	if (!sb_rdonly(sb) && (features = EXT2_HAS_RO_COMPAT_FEATURE(sb, ~EXT2_FEATURE_RO_COMPAT_SUPP))){
 		ext2_msg(sb, KERN_ERR, "error: couldn't mount RDWR because of "
 		       "unsupported optional features (%x)",
 		       le32_to_cpu(features));
@@ -1131,9 +1133,9 @@ static int ext2_fill_super(struct super_block *sb, void *data, int silent)
 	}
 
 #ifdef CONFIG_EXT2_FS_XATTR
-	sbi->s_mb_cache = ext2_xattr_create_cache();
-	if (!sbi->s_mb_cache) {
-		ext2_msg(sb, KERN_ERR, "Failed to create an mb_cache");
+	sbi->s_ea_block_cache = ext2_xattr_create_cache();
+	if (!sbi->s_ea_block_cache) {
+		ext2_msg(sb, KERN_ERR, "Failed to create ea_block_cache");
 		goto failed_mount3;
 	}
 #endif
@@ -1170,7 +1172,7 @@ static int ext2_fill_super(struct super_block *sb, void *data, int silent)
 	if (EXT2_HAS_COMPAT_FEATURE(sb, EXT3_FEATURE_COMPAT_HAS_JOURNAL))
 		ext2_msg(sb, KERN_WARNING,
 			"warning: mounting ext3 filesystem as ext2");
-	if (ext2_setup_super (sb, es, sb->s_flags & MS_RDONLY))
+	if (ext2_setup_super (sb, es, sb_rdonly(sb)))
 		sb->s_flags |= MS_RDONLY;
 	ext2_write_super(sb);
 	return 0;
@@ -1182,8 +1184,8 @@ cantfind_ext2:
 			sb->s_id);
 	goto failed_mount;
 failed_mount3:
-	if (sbi->s_mb_cache)
-		ext2_xattr_destroy_cache(sbi->s_mb_cache);
+	if (sbi->s_ea_block_cache)
+		ext2_xattr_destroy_cache(sbi->s_ea_block_cache);
 	percpu_counter_destroy(&sbi->s_freeblocks_counter);
 	percpu_counter_destroy(&sbi->s_freeinodes_counter);
 	percpu_counter_destroy(&sbi->s_dirs_counter);
@@ -1200,6 +1202,7 @@ failed_sbi:
 	kfree(sbi->s_blockgroup_lock);
 	kfree(sbi);
 failed:
+	fs_put_dax(dax_dev);
 	return ret;
 }
 
@@ -1301,7 +1304,7 @@ static int ext2_unfreeze(struct super_block *sb)
 
 static void ext2_write_super(struct super_block *sb)
 {
-	if (!(sb->s_flags & MS_RDONLY))
+	if (!sb_rdonly(sb))
 		ext2_sync_fs(sb, 1);
 }
 
@@ -1339,7 +1342,7 @@ static int ext2_remount (struct super_block * sb, int * flags, char * data)
 			 "dax flag with busy inodes while remounting");
 		sbi->s_mount_opt ^= EXT2_MOUNT_DAX;
 	}
-	if ((*flags & MS_RDONLY) == (sb->s_flags & MS_RDONLY)) {
+	if ((bool)(*flags & MS_RDONLY) == sb_rdonly(sb)) {
 		spin_unlock(&sbi->s_lock);
 		return 0;
 	}

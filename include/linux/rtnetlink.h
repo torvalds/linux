@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __LINUX_RTNETLINK_H
 #define __LINUX_RTNETLINK_H
 
@@ -18,7 +19,8 @@ extern int rtnl_put_cacheinfo(struct sk_buff *skb, struct dst_entry *dst,
 
 void rtmsg_ifinfo(int type, struct net_device *dev, unsigned change, gfp_t flags);
 struct sk_buff *rtmsg_ifinfo_build_skb(int type, struct net_device *dev,
-				       unsigned change, gfp_t flags);
+				       unsigned change, u32 event,
+				       gfp_t flags);
 void rtmsg_ifinfo_send(struct sk_buff *skb, struct net_device *dev,
 		       gfp_t flags);
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/kernel.h>
 #include <linux/syscalls.h>
 #include <linux/fdtable.h>
@@ -11,6 +12,10 @@
 #include <linux/bug.h>
 #include <linux/err.h>
 #include <linux/kcmp.h>
+#include <linux/capability.h>
+#include <linux/list.h>
+#include <linux/eventpoll.h>
+#include <linux/file.h>
 
 #include <asm/unistd.h>
 
@@ -94,6 +99,56 @@ static int kcmp_lock(struct mutex *m1, struct mutex *m2)
 	return err;
 }
 
+#ifdef CONFIG_EPOLL
+static int kcmp_epoll_target(struct task_struct *task1,
+			     struct task_struct *task2,
+			     unsigned long idx1,
+			     struct kcmp_epoll_slot __user *uslot)
+{
+	struct file *filp, *filp_epoll, *filp_tgt;
+	struct kcmp_epoll_slot slot;
+	struct files_struct *files;
+
+	if (copy_from_user(&slot, uslot, sizeof(slot)))
+		return -EFAULT;
+
+	filp = get_file_raw_ptr(task1, idx1);
+	if (!filp)
+		return -EBADF;
+
+	files = get_files_struct(task2);
+	if (!files)
+		return -EBADF;
+
+	spin_lock(&files->file_lock);
+	filp_epoll = fcheck_files(files, slot.efd);
+	if (filp_epoll)
+		get_file(filp_epoll);
+	else
+		filp_tgt = ERR_PTR(-EBADF);
+	spin_unlock(&files->file_lock);
+	put_files_struct(files);
+
+	if (filp_epoll) {
+		filp_tgt = get_epoll_tfile_raw_ptr(filp_epoll, slot.tfd, slot.toff);
+		fput(filp_epoll);
+	}
+
+	if (IS_ERR(filp_tgt))
+		return PTR_ERR(filp_tgt);
+
+	return kcmp_ptr(filp, filp_tgt, KCMP_FILE);
+}
+#else
+static int kcmp_epoll_target(struct task_struct *task1,
+			     struct task_struct *task2,
+			     unsigned long idx1,
+			     struct kcmp_epoll_slot __user *uslot)
+{
+	return -EOPNOTSUPP;
+}
+#endif
+
 SYSCALL_DEFINE5(kcmp, pid_t, pid1, pid_t, pid2, int, type,
 		unsigned long, idx1, unsigned long, idx2)
 {
@@ -164,6 +219,9 @@ SYSCALL_DEFINE5(kcmp, pid_t, pid1, pid_t, pid2, int, type,
 #else
 		ret = -EOPNOTSUPP;
 #endif
+		break;
+	case KCMP_EPOLL_TFD:
+		ret = kcmp_epoll_target(task1, task2, idx1, (void *)idx2);
 		break;
 	default:
 		ret = -EINVAL;

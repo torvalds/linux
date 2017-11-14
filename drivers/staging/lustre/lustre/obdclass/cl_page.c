@@ -37,12 +37,12 @@
 
 #define DEBUG_SUBSYSTEM S_CLASS
 
-#include "../../include/linux/libcfs/libcfs.h"
-#include "../include/obd_class.h"
-#include "../include/obd_support.h"
+#include <linux/libcfs/libcfs.h>
+#include <obd_class.h>
+#include <obd_support.h>
 #include <linux/list.h>
 
-#include "../include/cl_object.h"
+#include <cl_object.h>
 #include "cl_internal.h"
 
 static void cl_page_delete0(const struct lu_env *env, struct cl_page *pg);
@@ -193,7 +193,7 @@ struct cl_page *cl_page_find(const struct lu_env *env,
 
 	hdr = cl_object_header(o);
 
-	CDEBUG(D_PAGE, "%lu@"DFID" %p %lx %d\n",
+	CDEBUG(D_PAGE, "%lu@" DFID " %p %lx %d\n",
 	       idx, PFID(&hdr->coh_lu.loh_fid), vmpage, vmpage->private, type);
 	/* fast path. */
 	if (type == CPT_CACHEABLE) {

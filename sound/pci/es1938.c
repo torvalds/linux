@@ -436,7 +436,7 @@ static void snd_es1938_reset_fifo(struct es1938 *chip)
 	outb(0, SLSB_REG(chip, RESET));
 }
 
-static struct snd_ratnum clocks[2] = {
+static const struct snd_ratnum clocks[2] = {
 	{
 		.num = 793800,
 		.den_min = 1,
@@ -451,7 +451,7 @@ static struct snd_ratnum clocks[2] = {
 	}
 };
 
-static struct snd_pcm_hw_constraint_ratnums hw_constraints_clocks = {
+static const struct snd_pcm_hw_constraint_ratnums hw_constraints_clocks = {
 	.nrats = 2,
 	.rats = clocks,
 };
@@ -839,15 +839,12 @@ static snd_pcm_uframes_t snd_es1938_playback_pointer(struct snd_pcm_substream *s
 }
 
 static int snd_es1938_capture_copy(struct snd_pcm_substream *substream,
-				   int channel,
-				   snd_pcm_uframes_t pos,
-				   void __user *dst,
-				   snd_pcm_uframes_t count)
+				   int channel, unsigned long pos,
+				   void __user *dst, unsigned long count)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct es1938 *chip = snd_pcm_substream_chip(substream);
-	pos <<= chip->dma1_shift;
-	count <<= chip->dma1_shift;
+
 	if (snd_BUG_ON(pos + count > chip->dma1_size))
 		return -EINVAL;
 	if (pos + count < chip->dma1_size) {
@@ -856,8 +853,27 @@ static int snd_es1938_capture_copy(struct snd_pcm_substream *substream,
 	} else {
 		if (copy_to_user(dst, runtime->dma_area + pos + 1, count - 1))
 			return -EFAULT;
-		if (put_user(runtime->dma_area[0], ((unsigned char __user *)dst) + count - 1))
+		if (put_user(runtime->dma_area[0],
+			     ((unsigned char __user *)dst) + count - 1))
 			return -EFAULT;
+	}
+	return 0;
+}
+
+static int snd_es1938_capture_copy_kernel(struct snd_pcm_substream *substream,
+					  int channel, unsigned long pos,
+					  void *dst, unsigned long count)
+{
+	struct snd_pcm_runtime *runtime = substream->runtime;
+	struct es1938 *chip = snd_pcm_substream_chip(substream);
+
+	if (snd_BUG_ON(pos + count > chip->dma1_size))
+		return -EINVAL;
+	if (pos + count < chip->dma1_size) {
+		memcpy(dst, runtime->dma_area + pos + 1, count);
+	} else {
+		memcpy(dst, runtime->dma_area + pos + 1, count - 1);
+		runtime->dma_area[0] = *((unsigned char *)dst + count - 1);
 	}
 	return 0;
 }
@@ -884,7 +900,7 @@ static int snd_es1938_pcm_hw_free(struct snd_pcm_substream *substream)
 /* ----------------------------------------------------------------------
  * Audio1 Capture (ADC)
  * ----------------------------------------------------------------------*/
-static struct snd_pcm_hardware snd_es1938_capture =
+static const struct snd_pcm_hardware snd_es1938_capture =
 {
 	.info =			(SNDRV_PCM_INFO_INTERLEAVED |
 				SNDRV_PCM_INFO_BLOCK_TRANSFER),
@@ -906,7 +922,7 @@ static struct snd_pcm_hardware snd_es1938_capture =
 /* -----------------------------------------------------------------------
  * Audio2 Playback (DAC)
  * -----------------------------------------------------------------------*/
-static struct snd_pcm_hardware snd_es1938_playback =
+static const struct snd_pcm_hardware snd_es1938_playback =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER |
@@ -1012,7 +1028,8 @@ static const struct snd_pcm_ops snd_es1938_capture_ops = {
 	.prepare =	snd_es1938_capture_prepare,
 	.trigger =	snd_es1938_capture_trigger,
 	.pointer =	snd_es1938_capture_pointer,
-	.copy =		snd_es1938_capture_copy,
+	.copy_user =	snd_es1938_capture_copy,
+	.copy_kernel =	snd_es1938_capture_copy_kernel,
 };
 
 static int snd_es1938_new_pcm(struct es1938 *chip, int device)

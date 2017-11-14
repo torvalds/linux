@@ -40,16 +40,16 @@
 
 #define DEBUG_SUBSYSTEM S_RPC
 
-#include "../../include/linux/libcfs/libcfs.h"
+#include <linux/libcfs/libcfs.h>
 
-#include "../include/lustre/ll_fiemap.h"
+#include <uapi/linux/lustre/lustre_fiemap.h>
 
-#include "../include/llog_swab.h"
-#include "../include/lustre_net.h"
-#include "../include/lustre_swab.h"
-#include "../include/obd_cksum.h"
-#include "../include/obd_support.h"
-#include "../include/obd_class.h"
+#include <llog_swab.h>
+#include <lustre_net.h>
+#include <lustre_swab.h>
+#include <obd_cksum.h>
+#include <obd_support.h>
+#include <obd_class.h>
 
 #include "ptlrpc_internal.h"
 
@@ -186,7 +186,9 @@ void lustre_init_msg_v2(struct lustre_msg_v2 *msg, int count, __u32 *lens,
 	for (i = 0; i < count; i++) {
 		char *tmp = bufs[i];
 
-		LOGL(tmp, lens[i], ptr);
+		if (tmp)
+			memcpy(ptr, tmp, lens[i]);
+		ptr += cfs_size_round(lens[i]);
 	}
 }
 EXPORT_SYMBOL(lustre_init_msg_v2);
@@ -2089,7 +2091,7 @@ static void dump_obdo(struct obdo *oa)
 
 	CDEBUG(D_RPCTRACE, "obdo: o_valid = %08x\n", valid);
 	if (valid & OBD_MD_FLID)
-		CDEBUG(D_RPCTRACE, "obdo: id = "DOSTID"\n", POSTID(&oa->o_oi));
+		CDEBUG(D_RPCTRACE, "obdo: id = " DOSTID "\n", POSTID(&oa->o_oi));
 	if (valid & OBD_MD_FLFID)
 		CDEBUG(D_RPCTRACE, "obdo: o_parent_seq = %#llx\n",
 		       oa->o_parent_seq);

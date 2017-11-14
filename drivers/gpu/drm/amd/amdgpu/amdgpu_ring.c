@@ -135,6 +135,8 @@ void amdgpu_ring_commit(struct amdgpu_ring *ring)
 
 	if (ring->funcs->end_use)
 		ring->funcs->end_use(ring);
+
+	amdgpu_ring_lru_touch(ring->adev, ring);
 }
 
 /**
@@ -168,6 +170,16 @@ int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 		     unsigned irq_type)
 {
 	int r;
+	int sched_hw_submission = amdgpu_sched_hw_submission;
+
+	/* Set the hw submission limit higher for KIQ because
+	 * it's used for a number of gfx/compute tasks by both
+	 * KFD and KGD which may have outstanding fences and
+	 * it doesn't really use the gpu scheduler anyway;
+	 * KIQ tasks get submitted directly to the ring.
+	 */
+	if (ring->funcs->type == AMDGPU_RING_TYPE_KIQ)
+		sched_hw_submission = max(sched_hw_submission, 256);
 
 	if (ring->adev == NULL) {
 		if (adev->num_rings >= AMDGPU_MAX_RINGS)
@@ -176,38 +188,21 @@ int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 		ring->adev = adev;
 		ring->idx = adev->num_rings++;
 		adev->rings[ring->idx] = ring;
-		r = amdgpu_fence_driver_init_ring(ring,
-			amdgpu_sched_hw_submission);
+		r = amdgpu_fence_driver_init_ring(ring, sched_hw_submission);
 		if (r)
 			return r;
 	}
 
-	if (ring->funcs->support_64bit_ptrs) {
-		r = amdgpu_wb_get_64bit(adev, &ring->rptr_offs);
-		if (r) {
-			dev_err(adev->dev, "(%d) ring rptr_offs wb alloc failed\n", r);
-			return r;
-		}
+	r = amdgpu_wb_get(adev, &ring->rptr_offs);
+	if (r) {
+		dev_err(adev->dev, "(%d) ring rptr_offs wb alloc failed\n", r);
+		return r;
+	}
 
-		r = amdgpu_wb_get_64bit(adev, &ring->wptr_offs);
-		if (r) {
-			dev_err(adev->dev, "(%d) ring wptr_offs wb alloc failed\n", r);
-			return r;
-		}
-
-	} else {
-		r = amdgpu_wb_get(adev, &ring->rptr_offs);
-		if (r) {
-			dev_err(adev->dev, "(%d) ring rptr_offs wb alloc failed\n", r);
-			return r;
-		}
-
-		r = amdgpu_wb_get(adev, &ring->wptr_offs);
-		if (r) {
-			dev_err(adev->dev, "(%d) ring wptr_offs wb alloc failed\n", r);
-			return r;
-		}
-
+	r = amdgpu_wb_get(adev, &ring->wptr_offs);
+	if (r) {
+		dev_err(adev->dev, "(%d) ring wptr_offs wb alloc failed\n", r);
+		return r;
 	}
 
 	r = amdgpu_wb_get(adev, &ring->fence_offs);
@@ -232,8 +227,7 @@ int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 		return r;
 	}
 
-	ring->ring_size = roundup_pow_of_two(max_dw * 4 *
-					     amdgpu_sched_hw_submission);
+	ring->ring_size = roundup_pow_of_two(max_dw * 4 * sched_hw_submission);
 
 	ring->buf_mask = (ring->ring_size / 4) - 1;
 	ring->ptr_mask = ring->funcs->support_64bit_ptrs ?
@@ -253,10 +247,13 @@ int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 	}
 
 	ring->max_dw = max_dw;
+	INIT_LIST_HEAD(&ring->lru_list);
+	amdgpu_ring_lru_touch(adev, ring);
 
 	if (amdgpu_debugfs_ring_init(adev, ring)) {
 		DRM_ERROR("Failed to register debugfs file for rings !\n");
 	}
+
 	return 0;
 }
 
@@ -272,18 +269,15 @@ void amdgpu_ring_fini(struct amdgpu_ring *ring)
 {
 	ring->ready = false;
 
-	if (ring->funcs->support_64bit_ptrs) {
-		amdgpu_wb_free_64bit(ring->adev, ring->cond_exe_offs);
-		amdgpu_wb_free_64bit(ring->adev, ring->fence_offs);
-		amdgpu_wb_free_64bit(ring->adev, ring->rptr_offs);
-		amdgpu_wb_free_64bit(ring->adev, ring->wptr_offs);
-	} else {
-		amdgpu_wb_free(ring->adev, ring->cond_exe_offs);
-		amdgpu_wb_free(ring->adev, ring->fence_offs);
-		amdgpu_wb_free(ring->adev, ring->rptr_offs);
-		amdgpu_wb_free(ring->adev, ring->wptr_offs);
-	}
+	/* Not to finish a ring which is not initialized */
+	if (!(ring->adev) || !(ring->adev->rings[ring->idx]))
+		return;
 
+	amdgpu_wb_free(ring->adev, ring->rptr_offs);
+	amdgpu_wb_free(ring->adev, ring->wptr_offs);
+
+	amdgpu_wb_free(ring->adev, ring->cond_exe_offs);
+	amdgpu_wb_free(ring->adev, ring->fence_offs);
 
 	amdgpu_bo_free_kernel(&ring->ring_obj,
 			      &ring->gpu_addr,
@@ -292,6 +286,84 @@ void amdgpu_ring_fini(struct amdgpu_ring *ring)
 	amdgpu_debugfs_ring_fini(ring);
 
 	ring->adev->rings[ring->idx] = NULL;
+}
+
+static void amdgpu_ring_lru_touch_locked(struct amdgpu_device *adev,
+					 struct amdgpu_ring *ring)
+{
+	/* list_move_tail handles the case where ring isn't part of the list */
+	list_move_tail(&ring->lru_list, &adev->ring_lru_list);
+}
+
+static bool amdgpu_ring_is_blacklisted(struct amdgpu_ring *ring,
+				       int *blacklist, int num_blacklist)
+{
+	int i;
+
+	for (i = 0; i < num_blacklist; i++) {
+		if (ring->idx == blacklist[i])
+			return true;
+	}
+
+	return false;
+}
+
+/**
+ * amdgpu_ring_lru_get - get the least recently used ring for a HW IP block
+ *
+ * @adev: amdgpu_device pointer
+ * @type: amdgpu_ring_type enum
+ * @blacklist: blacklisted ring ids array
+ * @num_blacklist: number of entries in @blacklist
+ * @ring: output ring
+ *
+ * Retrieve the amdgpu_ring structure for the least recently used ring of
+ * a specific IP block (all asics).
+ * Returns 0 on success, error on failure.
+ */
+int amdgpu_ring_lru_get(struct amdgpu_device *adev, int type, int *blacklist,
+			int num_blacklist, struct amdgpu_ring **ring)
+{
+	struct amdgpu_ring *entry;
+
+	/* List is sorted in LRU order, find first entry corresponding
+	 * to the desired HW IP */
+	*ring = NULL;
+	spin_lock(&adev->ring_lru_list_lock);
+	list_for_each_entry(entry, &adev->ring_lru_list, lru_list) {
+		if (entry->funcs->type != type)
+			continue;
+
+		if (amdgpu_ring_is_blacklisted(entry, blacklist, num_blacklist))
+			continue;
+
+		*ring = entry;
+		amdgpu_ring_lru_touch_locked(adev, *ring);
+		break;
+	}
+	spin_unlock(&adev->ring_lru_list_lock);
+
+	if (!*ring) {
+		DRM_ERROR("Ring LRU contains no entries for ring type:%d\n", type);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+/**
+ * amdgpu_ring_lru_touch - mark a ring as recently being used
+ *
+ * @adev: amdgpu_device pointer
+ * @ring: ring to touch
+ *
+ * Move @ring to the tail of the lru list
+ */
+void amdgpu_ring_lru_touch(struct amdgpu_device *adev, struct amdgpu_ring *ring)
+{
+	spin_lock(&adev->ring_lru_list_lock);
+	amdgpu_ring_lru_touch_locked(adev, ring);
+	spin_unlock(&adev->ring_lru_list_lock);
 }
 
 /*

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Thunderbolt Cactus Ridge driver - control channel and configuration commands
  *
@@ -5,22 +6,17 @@
  */
 
 #include <linux/crc32.h>
+#include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/pci.h>
 #include <linux/dmapool.h>
 #include <linux/workqueue.h>
-#include <linux/kfifo.h>
 
 #include "ctl.h"
 
 
-struct ctl_pkg {
-	struct tb_ctl *ctl;
-	void *buffer;
-	struct ring_frame frame;
-};
-
-#define TB_CTL_RX_PKG_COUNT 10
+#define TB_CTL_RX_PKG_COUNT	10
+#define TB_CTL_RETRIES		4
 
 /**
  * struct tb_cfg - thunderbolt control channel
@@ -32,10 +28,11 @@ struct tb_ctl {
 
 	struct dma_pool *frame_pool;
 	struct ctl_pkg *rx_packets[TB_CTL_RX_PKG_COUNT];
-	DECLARE_KFIFO(response_fifo, struct ctl_pkg*, 16);
-	struct completion response_ready;
+	struct mutex request_queue_lock;
+	struct list_head request_queue;
+	bool running;
 
-	hotplug_cb callback;
+	event_cb callback;
 	void *callback_data;
 };
 
@@ -52,102 +49,124 @@ struct tb_ctl {
 #define tb_ctl_info(ctl, format, arg...) \
 	dev_info(&(ctl)->nhi->pdev->dev, format, ## arg)
 
+#define tb_ctl_dbg(ctl, format, arg...) \
+	dev_dbg(&(ctl)->nhi->pdev->dev, format, ## arg)
 
-/* configuration packets definitions */
+static DECLARE_WAIT_QUEUE_HEAD(tb_cfg_request_cancel_queue);
+/* Serializes access to request kref_get/put */
+static DEFINE_MUTEX(tb_cfg_request_lock);
 
-enum tb_cfg_pkg_type {
-	TB_CFG_PKG_READ = 1,
-	TB_CFG_PKG_WRITE = 2,
-	TB_CFG_PKG_ERROR = 3,
-	TB_CFG_PKG_NOTIFY_ACK = 4,
-	TB_CFG_PKG_EVENT = 5,
-	TB_CFG_PKG_XDOMAIN_REQ = 6,
-	TB_CFG_PKG_XDOMAIN_RESP = 7,
-	TB_CFG_PKG_OVERRIDE = 8,
-	TB_CFG_PKG_RESET = 9,
-	TB_CFG_PKG_PREPARE_TO_SLEEP = 0xd,
-};
+/**
+ * tb_cfg_request_alloc() - Allocates a new config request
+ *
+ * This is refcounted object so when you are done with this, call
+ * tb_cfg_request_put() to it.
+ */
+struct tb_cfg_request *tb_cfg_request_alloc(void)
+{
+	struct tb_cfg_request *req;
 
-/* common header */
-struct tb_cfg_header {
-	u32 route_hi:22;
-	u32 unknown:10; /* highest order bit is set on replies */
-	u32 route_lo;
-} __packed;
+	req = kzalloc(sizeof(*req), GFP_KERNEL);
+	if (!req)
+		return NULL;
 
-/* additional header for read/write packets */
-struct tb_cfg_address {
-	u32 offset:13; /* in dwords */
-	u32 length:6; /* in dwords */
-	u32 port:6;
-	enum tb_cfg_space space:2;
-	u32 seq:2; /* sequence number  */
-	u32 zero:3;
-} __packed;
+	kref_init(&req->kref);
 
-/* TB_CFG_PKG_READ, response for TB_CFG_PKG_WRITE */
-struct cfg_read_pkg {
-	struct tb_cfg_header header;
-	struct tb_cfg_address addr;
-} __packed;
+	return req;
+}
 
-/* TB_CFG_PKG_WRITE, response for TB_CFG_PKG_READ */
-struct cfg_write_pkg {
-	struct tb_cfg_header header;
-	struct tb_cfg_address addr;
-	u32 data[64]; /* maximum size, tb_cfg_address.length has 6 bits */
-} __packed;
+/**
+ * tb_cfg_request_get() - Increase refcount of a request
+ * @req: Request whose refcount is increased
+ */
+void tb_cfg_request_get(struct tb_cfg_request *req)
+{
+	mutex_lock(&tb_cfg_request_lock);
+	kref_get(&req->kref);
+	mutex_unlock(&tb_cfg_request_lock);
+}
 
-/* TB_CFG_PKG_ERROR */
-struct cfg_error_pkg {
-	struct tb_cfg_header header;
-	enum tb_cfg_error error:4;
-	u32 zero1:4;
-	u32 port:6;
-	u32 zero2:2; /* Both should be zero, still they are different fields. */
-	u32 zero3:16;
-} __packed;
+static void tb_cfg_request_destroy(struct kref *kref)
+{
+	struct tb_cfg_request *req = container_of(kref, typeof(*req), kref);
 
-/* TB_CFG_PKG_EVENT */
-struct cfg_event_pkg {
-	struct tb_cfg_header header;
-	u32 port:6;
-	u32 zero:25;
-	bool unplug:1;
-} __packed;
+	kfree(req);
+}
 
-/* TB_CFG_PKG_RESET */
-struct cfg_reset_pkg {
-	struct tb_cfg_header header;
-} __packed;
+/**
+ * tb_cfg_request_put() - Decrease refcount and possibly release the request
+ * @req: Request whose refcount is decreased
+ *
+ * Call this function when you are done with the request. When refcount
+ * goes to %0 the object is released.
+ */
+void tb_cfg_request_put(struct tb_cfg_request *req)
+{
+	mutex_lock(&tb_cfg_request_lock);
+	kref_put(&req->kref, tb_cfg_request_destroy);
+	mutex_unlock(&tb_cfg_request_lock);
+}
 
-/* TB_CFG_PKG_PREPARE_TO_SLEEP */
-struct cfg_pts_pkg {
-	struct tb_cfg_header header;
-	u32 data;
-} __packed;
+static int tb_cfg_request_enqueue(struct tb_ctl *ctl,
+				  struct tb_cfg_request *req)
+{
+	WARN_ON(test_bit(TB_CFG_REQUEST_ACTIVE, &req->flags));
+	WARN_ON(req->ctl);
 
+	mutex_lock(&ctl->request_queue_lock);
+	if (!ctl->running) {
+		mutex_unlock(&ctl->request_queue_lock);
+		return -ENOTCONN;
+	}
+	req->ctl = ctl;
+	list_add_tail(&req->list, &ctl->request_queue);
+	set_bit(TB_CFG_REQUEST_ACTIVE, &req->flags);
+	mutex_unlock(&ctl->request_queue_lock);
+	return 0;
+}
+
+static void tb_cfg_request_dequeue(struct tb_cfg_request *req)
+{
+	struct tb_ctl *ctl = req->ctl;
+
+	mutex_lock(&ctl->request_queue_lock);
+	list_del(&req->list);
+	clear_bit(TB_CFG_REQUEST_ACTIVE, &req->flags);
+	if (test_bit(TB_CFG_REQUEST_CANCELED, &req->flags))
+		wake_up(&tb_cfg_request_cancel_queue);
+	mutex_unlock(&ctl->request_queue_lock);
+}
+
+static bool tb_cfg_request_is_active(struct tb_cfg_request *req)
+{
+	return test_bit(TB_CFG_REQUEST_ACTIVE, &req->flags);
+}
+
+static struct tb_cfg_request *
+tb_cfg_request_find(struct tb_ctl *ctl, struct ctl_pkg *pkg)
+{
+	struct tb_cfg_request *req;
+	bool found = false;
+
+	mutex_lock(&pkg->ctl->request_queue_lock);
+	list_for_each_entry(req, &pkg->ctl->request_queue, list) {
+		tb_cfg_request_get(req);
+		if (req->match(req, pkg)) {
+			found = true;
+			break;
+		}
+		tb_cfg_request_put(req);
+	}
+	mutex_unlock(&pkg->ctl->request_queue_lock);
+
+	return found ? req : NULL;
+}
 
 /* utility functions */
 
-static u64 get_route(struct tb_cfg_header header)
-{
-	return (u64) header.route_hi << 32 | header.route_lo;
-}
 
-static struct tb_cfg_header make_header(u64 route)
-{
-	struct tb_cfg_header header = {
-		.route_hi = route >> 32,
-		.route_lo = route,
-	};
-	/* check for overflow, route_hi is not 32 bits! */
-	WARN_ON(get_route(header) != route);
-	return header;
-}
-
-static int check_header(struct ctl_pkg *pkg, u32 len, enum tb_cfg_pkg_type type,
-			u64 route)
+static int check_header(const struct ctl_pkg *pkg, u32 len,
+			enum tb_cfg_pkg_type type, u64 route)
 {
 	struct tb_cfg_header *header = pkg->buffer;
 
@@ -167,9 +186,9 @@ static int check_header(struct ctl_pkg *pkg, u32 len, enum tb_cfg_pkg_type type,
 	if (WARN(header->unknown != 1 << 9,
 			"header->unknown is %#x\n", header->unknown))
 		return -EIO;
-	if (WARN(route != get_route(*header),
+	if (WARN(route != tb_cfg_get_route(header),
 			"wrong route (expected %llx, got %llx)",
-			route, get_route(*header)))
+			route, tb_cfg_get_route(header)))
 		return -EIO;
 	return 0;
 }
@@ -189,8 +208,6 @@ static int check_config_address(struct tb_cfg_address addr,
 	if (WARN(length != addr.length, "wrong space (expected %x, got %x\n)",
 			length, addr.length))
 		return -EIO;
-	if (WARN(addr.seq, "addr.seq is %#x\n", addr.seq))
-		return -EIO;
 	/*
 	 * We cannot check addr->port as it is set to the upstream port of the
 	 * sender.
@@ -198,14 +215,14 @@ static int check_config_address(struct tb_cfg_address addr,
 	return 0;
 }
 
-static struct tb_cfg_result decode_error(struct ctl_pkg *response)
+static struct tb_cfg_result decode_error(const struct ctl_pkg *response)
 {
 	struct cfg_error_pkg *pkg = response->buffer;
 	struct tb_cfg_result res = { 0 };
-	res.response_route = get_route(pkg->header);
+	res.response_route = tb_cfg_get_route(&pkg->header);
 	res.response_port = 0;
 	res.err = check_header(response, sizeof(*pkg), TB_CFG_PKG_ERROR,
-			       get_route(pkg->header));
+			       tb_cfg_get_route(&pkg->header));
 	if (res.err)
 		return res;
 
@@ -219,7 +236,7 @@ static struct tb_cfg_result decode_error(struct ctl_pkg *response)
 
 }
 
-static struct tb_cfg_result parse_header(struct ctl_pkg *pkg, u32 len,
+static struct tb_cfg_result parse_header(const struct ctl_pkg *pkg, u32 len,
 					 enum tb_cfg_pkg_type type, u64 route)
 {
 	struct tb_cfg_header *header = pkg->buffer;
@@ -229,7 +246,7 @@ static struct tb_cfg_result parse_header(struct ctl_pkg *pkg, u32 len,
 		return decode_error(pkg);
 
 	res.response_port = 0; /* will be updated later for cfg_read/write */
-	res.response_route = get_route(*header);
+	res.response_route = tb_cfg_get_route(header);
 	res.err = check_header(pkg, len, type, route);
 	return res;
 }
@@ -273,7 +290,7 @@ static void tb_cfg_print_error(struct tb_ctl *ctl,
 	}
 }
 
-static void cpu_to_be32_array(__be32 *dst, u32 *src, size_t len)
+static void cpu_to_be32_array(__be32 *dst, const u32 *src, size_t len)
 {
 	int i;
 	for (i = 0; i < len; i++)
@@ -287,7 +304,7 @@ static void be32_to_cpu_array(u32 *dst, __be32 *src, size_t len)
 		dst[i] = be32_to_cpu(src[i]);
 }
 
-static __be32 tb_crc(void *data, size_t len)
+static __be32 tb_crc(const void *data, size_t len)
 {
 	return cpu_to_be32(~__crc32c_le(~0, data, len));
 }
@@ -333,7 +350,7 @@ static void tb_ctl_tx_callback(struct tb_ring *ring, struct ring_frame *frame,
  *
  * Return: Returns 0 on success or an error code on failure.
  */
-static int tb_ctl_tx(struct tb_ctl *ctl, void *data, size_t len,
+static int tb_ctl_tx(struct tb_ctl *ctl, const void *data, size_t len,
 		     enum tb_cfg_pkg_type type)
 {
 	int res;
@@ -364,24 +381,12 @@ static int tb_ctl_tx(struct tb_ctl *ctl, void *data, size_t len,
 }
 
 /**
- * tb_ctl_handle_plug_event() - acknowledge a plug event, invoke ctl->callback
+ * tb_ctl_handle_event() - acknowledge a plug event, invoke ctl->callback
  */
-static void tb_ctl_handle_plug_event(struct tb_ctl *ctl,
-				     struct ctl_pkg *response)
+static void tb_ctl_handle_event(struct tb_ctl *ctl, enum tb_cfg_pkg_type type,
+				struct ctl_pkg *pkg, size_t size)
 {
-	struct cfg_event_pkg *pkg = response->buffer;
-	u64 route = get_route(pkg->header);
-
-	if (check_header(response, sizeof(*pkg), TB_CFG_PKG_EVENT, route)) {
-		tb_ctl_warn(ctl, "malformed TB_CFG_PKG_EVENT\n");
-		return;
-	}
-
-	if (tb_cfg_error(ctl, route, pkg->port, TB_CFG_ERROR_ACK_PLUG_EVENT))
-		tb_ctl_warn(ctl, "could not ack plug event on %llx:%x\n",
-			    route, pkg->port);
-	WARN(pkg->zero, "pkg->zero is %#x\n", pkg->zero);
-	ctl->callback(ctl->callback_data, route, pkg->port, pkg->unplug);
+	ctl->callback(ctl->callback_data, type, pkg->buffer, size);
 }
 
 static void tb_ctl_rx_submit(struct ctl_pkg *pkg)
@@ -394,10 +399,30 @@ static void tb_ctl_rx_submit(struct ctl_pkg *pkg)
 					     */
 }
 
+static int tb_async_error(const struct ctl_pkg *pkg)
+{
+	const struct cfg_error_pkg *error = (const struct cfg_error_pkg *)pkg;
+
+	if (pkg->frame.eof != TB_CFG_PKG_ERROR)
+		return false;
+
+	switch (error->error) {
+	case TB_CFG_ERROR_LINK_ERROR:
+	case TB_CFG_ERROR_HEC_ERROR_DETECTED:
+	case TB_CFG_ERROR_FLOW_CONTROL_ERROR:
+		return true;
+
+	default:
+		return false;
+	}
+}
+
 static void tb_ctl_rx_callback(struct tb_ring *ring, struct ring_frame *frame,
 			       bool canceled)
 {
 	struct ctl_pkg *pkg = container_of(frame, typeof(*pkg), frame);
+	struct tb_cfg_request *req;
+	__be32 crc32;
 
 	if (canceled)
 		return; /*
@@ -412,55 +437,168 @@ static void tb_ctl_rx_callback(struct tb_ring *ring, struct ring_frame *frame,
 	}
 
 	frame->size -= 4; /* remove checksum */
-	if (*(__be32 *) (pkg->buffer + frame->size)
-			!= tb_crc(pkg->buffer, frame->size)) {
-		tb_ctl_err(pkg->ctl,
-			   "RX: checksum mismatch, dropping packet\n");
-		goto rx;
-	}
+	crc32 = tb_crc(pkg->buffer, frame->size);
 	be32_to_cpu_array(pkg->buffer, pkg->buffer, frame->size / 4);
 
-	if (frame->eof == TB_CFG_PKG_EVENT) {
-		tb_ctl_handle_plug_event(pkg->ctl, pkg);
+	switch (frame->eof) {
+	case TB_CFG_PKG_READ:
+	case TB_CFG_PKG_WRITE:
+	case TB_CFG_PKG_ERROR:
+	case TB_CFG_PKG_OVERRIDE:
+	case TB_CFG_PKG_RESET:
+		if (*(__be32 *)(pkg->buffer + frame->size) != crc32) {
+			tb_ctl_err(pkg->ctl,
+				   "RX: checksum mismatch, dropping packet\n");
+			goto rx;
+		}
+		if (tb_async_error(pkg)) {
+			tb_ctl_handle_event(pkg->ctl, frame->eof,
+					    pkg, frame->size);
+			goto rx;
+		}
+		break;
+
+	case TB_CFG_PKG_EVENT:
+		if (*(__be32 *)(pkg->buffer + frame->size) != crc32) {
+			tb_ctl_err(pkg->ctl,
+				   "RX: checksum mismatch, dropping packet\n");
+			goto rx;
+		}
+		/* Fall through */
+	case TB_CFG_PKG_ICM_EVENT:
+		tb_ctl_handle_event(pkg->ctl, frame->eof, pkg, frame->size);
 		goto rx;
+
+	default:
+		break;
 	}
-	if (!kfifo_put(&pkg->ctl->response_fifo, pkg)) {
-		tb_ctl_err(pkg->ctl, "RX: fifo is full\n");
-		goto rx;
+
+	/*
+	 * The received packet will be processed only if there is an
+	 * active request and that the packet is what is expected. This
+	 * prevents packets such as replies coming after timeout has
+	 * triggered from messing with the active requests.
+	 */
+	req = tb_cfg_request_find(pkg->ctl, pkg);
+	if (req) {
+		if (req->copy(req, pkg))
+			schedule_work(&req->work);
+		tb_cfg_request_put(req);
 	}
-	complete(&pkg->ctl->response_ready);
-	return;
+
 rx:
 	tb_ctl_rx_submit(pkg);
 }
 
-/**
- * tb_ctl_rx() - receive a packet from the control channel
- */
-static struct tb_cfg_result tb_ctl_rx(struct tb_ctl *ctl, void *buffer,
-				      size_t length, int timeout_msec,
-				      u64 route, enum tb_cfg_pkg_type type)
+static void tb_cfg_request_work(struct work_struct *work)
 {
-	struct tb_cfg_result res;
-	struct ctl_pkg *pkg;
+	struct tb_cfg_request *req = container_of(work, typeof(*req), work);
 
-	if (!wait_for_completion_timeout(&ctl->response_ready,
-					 msecs_to_jiffies(timeout_msec))) {
-		tb_ctl_WARN(ctl, "RX: timeout\n");
-		return (struct tb_cfg_result) { .err = -ETIMEDOUT };
-	}
-	if (!kfifo_get(&ctl->response_fifo, &pkg)) {
-		tb_ctl_WARN(ctl, "empty kfifo\n");
-		return (struct tb_cfg_result) { .err = -EIO };
-	}
+	if (!test_bit(TB_CFG_REQUEST_CANCELED, &req->flags))
+		req->callback(req->callback_data);
 
-	res = parse_header(pkg, length, type, route);
-	if (!res.err)
-		memcpy(buffer, pkg->buffer, length);
-	tb_ctl_rx_submit(pkg);
-	return res;
+	tb_cfg_request_dequeue(req);
+	tb_cfg_request_put(req);
 }
 
+/**
+ * tb_cfg_request() - Start control request not waiting for it to complete
+ * @ctl: Control channel to use
+ * @req: Request to start
+ * @callback: Callback called when the request is completed
+ * @callback_data: Data to be passed to @callback
+ *
+ * This queues @req on the given control channel without waiting for it
+ * to complete. When the request completes @callback is called.
+ */
+int tb_cfg_request(struct tb_ctl *ctl, struct tb_cfg_request *req,
+		   void (*callback)(void *), void *callback_data)
+{
+	int ret;
+
+	req->flags = 0;
+	req->callback = callback;
+	req->callback_data = callback_data;
+	INIT_WORK(&req->work, tb_cfg_request_work);
+	INIT_LIST_HEAD(&req->list);
+
+	tb_cfg_request_get(req);
+	ret = tb_cfg_request_enqueue(ctl, req);
+	if (ret)
+		goto err_put;
+
+	ret = tb_ctl_tx(ctl, req->request, req->request_size,
+			req->request_type);
+	if (ret)
+		goto err_dequeue;
+
+	if (!req->response)
+		schedule_work(&req->work);
+
+	return 0;
+
+err_dequeue:
+	tb_cfg_request_dequeue(req);
+err_put:
+	tb_cfg_request_put(req);
+
+	return ret;
+}
+
+/**
+ * tb_cfg_request_cancel() - Cancel a control request
+ * @req: Request to cancel
+ * @err: Error to assign to the request
+ *
+ * This function can be used to cancel ongoing request. It will wait
+ * until the request is not active anymore.
+ */
+void tb_cfg_request_cancel(struct tb_cfg_request *req, int err)
+{
+	set_bit(TB_CFG_REQUEST_CANCELED, &req->flags);
+	schedule_work(&req->work);
+	wait_event(tb_cfg_request_cancel_queue, !tb_cfg_request_is_active(req));
+	req->result.err = err;
+}
+
+static void tb_cfg_request_complete(void *data)
+{
+	complete(data);
+}
+
+/**
+ * tb_cfg_request_sync() - Start control request and wait until it completes
+ * @ctl: Control channel to use
+ * @req: Request to start
+ * @timeout_msec: Timeout how long to wait @req to complete
+ *
+ * Starts a control request and waits until it completes. If timeout
+ * triggers the request is canceled before function returns. Note the
+ * caller needs to make sure only one message for given switch is active
+ * at a time.
+ */
+struct tb_cfg_result tb_cfg_request_sync(struct tb_ctl *ctl,
+					 struct tb_cfg_request *req,
+					 int timeout_msec)
+{
+	unsigned long timeout = msecs_to_jiffies(timeout_msec);
+	struct tb_cfg_result res = { 0 };
+	DECLARE_COMPLETION_ONSTACK(done);
+	int ret;
+
+	ret = tb_cfg_request(ctl, req, tb_cfg_request_complete, &done);
+	if (ret) {
+		res.err = ret;
+		return res;
+	}
+
+	if (!wait_for_completion_timeout(&done, timeout))
+		tb_cfg_request_cancel(req, -ETIMEDOUT);
+
+	flush_work(&req->work);
+
+	return req->result;
+}
 
 /* public interface, alloc/start/stop/free */
 
@@ -471,7 +609,7 @@ static struct tb_cfg_result tb_ctl_rx(struct tb_ctl *ctl, void *buffer,
  *
  * Return: Returns a pointer on success or NULL on failure.
  */
-struct tb_ctl *tb_ctl_alloc(struct tb_nhi *nhi, hotplug_cb cb, void *cb_data)
+struct tb_ctl *tb_ctl_alloc(struct tb_nhi *nhi, event_cb cb, void *cb_data)
 {
 	int i;
 	struct tb_ctl *ctl = kzalloc(sizeof(*ctl), GFP_KERNEL);
@@ -481,18 +619,18 @@ struct tb_ctl *tb_ctl_alloc(struct tb_nhi *nhi, hotplug_cb cb, void *cb_data)
 	ctl->callback = cb;
 	ctl->callback_data = cb_data;
 
-	init_completion(&ctl->response_ready);
-	INIT_KFIFO(ctl->response_fifo);
+	mutex_init(&ctl->request_queue_lock);
+	INIT_LIST_HEAD(&ctl->request_queue);
 	ctl->frame_pool = dma_pool_create("thunderbolt_ctl", &nhi->pdev->dev,
 					 TB_FRAME_SIZE, 4, 0);
 	if (!ctl->frame_pool)
 		goto err;
 
-	ctl->tx = ring_alloc_tx(nhi, 0, 10);
+	ctl->tx = ring_alloc_tx(nhi, 0, 10, RING_FLAG_NO_SUSPEND);
 	if (!ctl->tx)
 		goto err;
 
-	ctl->rx = ring_alloc_rx(nhi, 0, 10);
+	ctl->rx = ring_alloc_rx(nhi, 0, 10, RING_FLAG_NO_SUSPEND);
 	if (!ctl->rx)
 		goto err;
 
@@ -520,6 +658,10 @@ err:
 void tb_ctl_free(struct tb_ctl *ctl)
 {
 	int i;
+
+	if (!ctl)
+		return;
+
 	if (ctl->rx)
 		ring_free(ctl->rx);
 	if (ctl->tx)
@@ -546,6 +688,8 @@ void tb_ctl_start(struct tb_ctl *ctl)
 	ring_start(ctl->rx);
 	for (i = 0; i < TB_CTL_RX_PKG_COUNT; i++)
 		tb_ctl_rx_submit(ctl->rx_packets[i]);
+
+	ctl->running = true;
 }
 
 /**
@@ -558,12 +702,16 @@ void tb_ctl_start(struct tb_ctl *ctl)
  */
 void tb_ctl_stop(struct tb_ctl *ctl)
 {
+	mutex_lock(&ctl->request_queue_lock);
+	ctl->running = false;
+	mutex_unlock(&ctl->request_queue_lock);
+
 	ring_stop(ctl->rx);
 	ring_stop(ctl->tx);
 
-	if (!kfifo_is_empty(&ctl->response_fifo))
-		tb_ctl_WARN(ctl, "dangling response in response_fifo\n");
-	kfifo_reset(&ctl->response_fifo);
+	if (!list_empty(&ctl->request_queue))
+		tb_ctl_WARN(ctl, "dangling request in request_queue\n");
+	INIT_LIST_HEAD(&ctl->request_queue);
 	tb_ctl_info(ctl, "control channel stopped\n");
 }
 
@@ -578,12 +726,55 @@ int tb_cfg_error(struct tb_ctl *ctl, u64 route, u32 port,
 		 enum tb_cfg_error error)
 {
 	struct cfg_error_pkg pkg = {
-		.header = make_header(route),
+		.header = tb_cfg_make_header(route),
 		.port = port,
 		.error = error,
 	};
 	tb_ctl_info(ctl, "resetting error on %llx:%x.\n", route, port);
 	return tb_ctl_tx(ctl, &pkg, sizeof(pkg), TB_CFG_PKG_ERROR);
+}
+
+static bool tb_cfg_match(const struct tb_cfg_request *req,
+			 const struct ctl_pkg *pkg)
+{
+	u64 route = tb_cfg_get_route(pkg->buffer) & ~BIT_ULL(63);
+
+	if (pkg->frame.eof == TB_CFG_PKG_ERROR)
+		return true;
+
+	if (pkg->frame.eof != req->response_type)
+		return false;
+	if (route != tb_cfg_get_route(req->request))
+		return false;
+	if (pkg->frame.size != req->response_size)
+		return false;
+
+	if (pkg->frame.eof == TB_CFG_PKG_READ ||
+	    pkg->frame.eof == TB_CFG_PKG_WRITE) {
+		const struct cfg_read_pkg *req_hdr = req->request;
+		const struct cfg_read_pkg *res_hdr = pkg->buffer;
+
+		if (req_hdr->addr.seq != res_hdr->addr.seq)
+			return false;
+	}
+
+	return true;
+}
+
+static bool tb_cfg_copy(struct tb_cfg_request *req, const struct ctl_pkg *pkg)
+{
+	struct tb_cfg_result res;
+
+	/* Now make sure it is in expected format */
+	res = parse_header(pkg, req->response_size, req->response_type,
+			   tb_cfg_get_route(req->request));
+	if (!res.err)
+		memcpy(req->response, pkg->buffer, req->response_size);
+
+	req->result = res;
+
+	/* Always complete when first response is received */
+	return true;
 }
 
 /**
@@ -596,16 +787,31 @@ int tb_cfg_error(struct tb_ctl *ctl, u64 route, u32 port,
 struct tb_cfg_result tb_cfg_reset(struct tb_ctl *ctl, u64 route,
 				  int timeout_msec)
 {
-	int err;
-	struct cfg_reset_pkg request = { .header = make_header(route) };
+	struct cfg_reset_pkg request = { .header = tb_cfg_make_header(route) };
+	struct tb_cfg_result res = { 0 };
 	struct tb_cfg_header reply;
+	struct tb_cfg_request *req;
 
-	err = tb_ctl_tx(ctl, &request, sizeof(request), TB_CFG_PKG_RESET);
-	if (err)
-		return (struct tb_cfg_result) { .err = err };
+	req = tb_cfg_request_alloc();
+	if (!req) {
+		res.err = -ENOMEM;
+		return res;
+	}
 
-	return tb_ctl_rx(ctl, &reply, sizeof(reply), timeout_msec, route,
-			 TB_CFG_PKG_RESET);
+	req->match = tb_cfg_match;
+	req->copy = tb_cfg_copy;
+	req->request = &request;
+	req->request_size = sizeof(request);
+	req->request_type = TB_CFG_PKG_RESET;
+	req->response = &reply;
+	req->response_size = sizeof(reply);
+	req->response_type = TB_CFG_PKG_RESET;
+
+	res = tb_cfg_request_sync(ctl, req, timeout_msec);
+
+	tb_cfg_request_put(req);
+
+	return res;
 }
 
 /**
@@ -619,7 +825,7 @@ struct tb_cfg_result tb_cfg_read_raw(struct tb_ctl *ctl, void *buffer,
 {
 	struct tb_cfg_result res = { 0 };
 	struct cfg_read_pkg request = {
-		.header = make_header(route),
+		.header = tb_cfg_make_header(route),
 		.addr = {
 			.port = port,
 			.space = space,
@@ -628,13 +834,39 @@ struct tb_cfg_result tb_cfg_read_raw(struct tb_ctl *ctl, void *buffer,
 		},
 	};
 	struct cfg_write_pkg reply;
+	int retries = 0;
 
-	res.err = tb_ctl_tx(ctl, &request, sizeof(request), TB_CFG_PKG_READ);
-	if (res.err)
-		return res;
+	while (retries < TB_CTL_RETRIES) {
+		struct tb_cfg_request *req;
 
-	res = tb_ctl_rx(ctl, &reply, 12 + 4 * length, timeout_msec, route,
-			TB_CFG_PKG_READ);
+		req = tb_cfg_request_alloc();
+		if (!req) {
+			res.err = -ENOMEM;
+			return res;
+		}
+
+		request.addr.seq = retries++;
+
+		req->match = tb_cfg_match;
+		req->copy = tb_cfg_copy;
+		req->request = &request;
+		req->request_size = sizeof(request);
+		req->request_type = TB_CFG_PKG_READ;
+		req->response = &reply;
+		req->response_size = 12 + 4 * length;
+		req->response_type = TB_CFG_PKG_READ;
+
+		res = tb_cfg_request_sync(ctl, req, timeout_msec);
+
+		tb_cfg_request_put(req);
+
+		if (res.err != -ETIMEDOUT)
+			break;
+
+		/* Wait a bit (arbitrary time) until we send a retry */
+		usleep_range(10, 100);
+	}
+
 	if (res.err)
 		return res;
 
@@ -650,13 +882,13 @@ struct tb_cfg_result tb_cfg_read_raw(struct tb_ctl *ctl, void *buffer,
  *
  * Offset and length are in dwords.
  */
-struct tb_cfg_result tb_cfg_write_raw(struct tb_ctl *ctl, void *buffer,
+struct tb_cfg_result tb_cfg_write_raw(struct tb_ctl *ctl, const void *buffer,
 		u64 route, u32 port, enum tb_cfg_space space,
 		u32 offset, u32 length, int timeout_msec)
 {
 	struct tb_cfg_result res = { 0 };
 	struct cfg_write_pkg request = {
-		.header = make_header(route),
+		.header = tb_cfg_make_header(route),
 		.addr = {
 			.port = port,
 			.space = space,
@@ -665,15 +897,41 @@ struct tb_cfg_result tb_cfg_write_raw(struct tb_ctl *ctl, void *buffer,
 		},
 	};
 	struct cfg_read_pkg reply;
+	int retries = 0;
 
 	memcpy(&request.data, buffer, length * 4);
 
-	res.err = tb_ctl_tx(ctl, &request, 12 + 4 * length, TB_CFG_PKG_WRITE);
-	if (res.err)
-		return res;
+	while (retries < TB_CTL_RETRIES) {
+		struct tb_cfg_request *req;
 
-	res = tb_ctl_rx(ctl, &reply, sizeof(reply), timeout_msec, route,
-			TB_CFG_PKG_WRITE);
+		req = tb_cfg_request_alloc();
+		if (!req) {
+			res.err = -ENOMEM;
+			return res;
+		}
+
+		request.addr.seq = retries++;
+
+		req->match = tb_cfg_match;
+		req->copy = tb_cfg_copy;
+		req->request = &request;
+		req->request_size = 12 + 4 * length;
+		req->request_type = TB_CFG_PKG_WRITE;
+		req->response = &reply;
+		req->response_size = sizeof(reply);
+		req->response_type = TB_CFG_PKG_WRITE;
+
+		res = tb_cfg_request_sync(ctl, req, timeout_msec);
+
+		tb_cfg_request_put(req);
+
+		if (res.err != -ETIMEDOUT)
+			break;
+
+		/* Wait a bit (arbitrary time) until we send a retry */
+		usleep_range(10, 100);
+	}
+
 	if (res.err)
 		return res;
 
@@ -687,24 +945,52 @@ int tb_cfg_read(struct tb_ctl *ctl, void *buffer, u64 route, u32 port,
 {
 	struct tb_cfg_result res = tb_cfg_read_raw(ctl, buffer, route, port,
 			space, offset, length, TB_CFG_DEFAULT_TIMEOUT);
-	if (res.err == 1) {
+	switch (res.err) {
+	case 0:
+		/* Success */
+		break;
+
+	case 1:
+		/* Thunderbolt error, tb_error holds the actual number */
 		tb_cfg_print_error(ctl, &res);
 		return -EIO;
+
+	case -ETIMEDOUT:
+		tb_ctl_warn(ctl, "timeout reading config space %u from %#x\n",
+			    space, offset);
+		break;
+
+	default:
+		WARN(1, "tb_cfg_read: %d\n", res.err);
+		break;
 	}
-	WARN(res.err, "tb_cfg_read: %d\n", res.err);
 	return res.err;
 }
 
-int tb_cfg_write(struct tb_ctl *ctl, void *buffer, u64 route, u32 port,
+int tb_cfg_write(struct tb_ctl *ctl, const void *buffer, u64 route, u32 port,
 		 enum tb_cfg_space space, u32 offset, u32 length)
 {
 	struct tb_cfg_result res = tb_cfg_write_raw(ctl, buffer, route, port,
 			space, offset, length, TB_CFG_DEFAULT_TIMEOUT);
-	if (res.err == 1) {
+	switch (res.err) {
+	case 0:
+		/* Success */
+		break;
+
+	case 1:
+		/* Thunderbolt error, tb_error holds the actual number */
 		tb_cfg_print_error(ctl, &res);
 		return -EIO;
+
+	case -ETIMEDOUT:
+		tb_ctl_warn(ctl, "timeout writing config space %u to %#x\n",
+			    space, offset);
+		break;
+
+	default:
+		WARN(1, "tb_cfg_write: %d\n", res.err);
+		break;
 	}
-	WARN(res.err, "tb_cfg_write: %d\n", res.err);
 	return res.err;
 }
 

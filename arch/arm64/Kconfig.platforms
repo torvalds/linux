@@ -1,5 +1,11 @@
 menu "Platform selection"
 
+config ARCH_ACTIONS
+	bool "Actions Semi Platforms"
+	select OWL_TIMER
+	help
+	  This enables support for the Actions Semiconductor S900 SoC family.
+
 config ARCH_SUNXI
 	bool "Allwinner sunxi 64-bit SoC Family"
 	select ARCH_HAS_RESET_CONTROLLER
@@ -18,7 +24,7 @@ config ARCH_ALPINE
 
 config ARCH_BCM2835
 	bool "Broadcom BCM2835 family"
-	select CLKSRC_OF
+	select TIMER_OF
 	select GPIOLIB
 	select PINCTRL
 	select PINCTRL_BCM2835
@@ -108,11 +114,15 @@ config ARCH_MVEBU
 	select ARMADA_37XX_CLK
 	select GPIOLIB
 	select GPIOLIB_IRQCHIP
+	select MVEBU_GICP
+	select MVEBU_ICU
 	select MVEBU_ODMI
 	select MVEBU_PIC
 	select OF_GPIO
 	select PINCTRL
 	select PINCTRL_ARMADA_37XX
+	select PINCTRL_ARMADA_AP806
+	select PINCTRL_ARMADA_CP110
 	help
 	  This enables support for Marvell EBU familly, including:
 	   - Armada 3700 SoC Family
@@ -125,6 +135,12 @@ config ARCH_QCOM
 	select PINCTRL
 	help
 	  This enables support for the ARMv8 based Qualcomm chipsets.
+
+config ARCH_REALTEK
+	bool "Realtek Platforms"
+	help
+	  This enables support for the ARMv8 based Realtek chipsets,
+	  like the RTD1295.
 
 config ARCH_ROCKCHIP
 	bool "Rockchip Platforms"
@@ -168,6 +184,12 @@ config ARCH_R8A7796
 	help
 	  This enables support for the Renesas R-Car M3-W SoC.
 
+config ARCH_R8A77995
+	bool "Renesas R-Car D3 SoC Platform"
+	depends on ARCH_RENESAS
+	help
+	  This enables support for the Renesas R-Car D3 SoC.
+
 config ARCH_STRATIX10
 	bool "Altera's Stratix 10 SoCFPGA Family"
 	help
@@ -178,7 +200,7 @@ config ARCH_TEGRA
 	select ARCH_HAS_RESET_CONTROLLER
 	select CLKDEV_LOOKUP
 	select CLKSRC_MMIO
-	select CLKSRC_OF
+	select TIMER_OF
 	select GENERIC_CLOCKEVENTS
 	select GPIOLIB
 	select PINCTRL
@@ -225,10 +247,7 @@ config ARCH_VEXPRESS
 	  Express).
 
 config ARCH_VULCAN
-	bool "Broadcom Vulcan SOC Family"
-	select GPIOLIB
-	help
-	  This enables support for Broadcom Vulcan SoC Family
+	def_bool n
 
 config ARCH_XGENE
 	bool "AppliedMicro X-Gene SOC Family"
@@ -237,6 +256,7 @@ config ARCH_XGENE
 
 config ARCH_ZX
 	bool "ZTE ZX SoC Family"
+	select PINCTRL
 	help
 	  This enables support for ZTE ZX SoC Family
 

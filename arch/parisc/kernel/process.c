@@ -53,6 +53,7 @@
 #include <linux/uaccess.h>
 #include <linux/rcupdate.h>
 #include <linux/random.h>
+#include <linux/nmi.h>
 
 #include <asm/io.h>
 #include <asm/asm-offsets.h>
@@ -145,6 +146,7 @@ void machine_power_off(void)
 
 	/* prevent soft lockup/stalled CPU messages for endless loop. */
 	rcu_sysrq_start();
+	lockup_detector_soft_poweroff();
 	for (;;);
 }
 

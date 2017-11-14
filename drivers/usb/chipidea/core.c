@@ -736,7 +736,7 @@ static int ci_extcon_register(struct ci_hdrc *ci)
 
 	id = &ci->platdata->id_extcon;
 	id->ci = ci;
-	if (!IS_ERR(id->edev)) {
+	if (!IS_ERR_OR_NULL(id->edev)) {
 		ret = devm_extcon_register_notifier(ci->dev, id->edev,
 						EXTCON_USB_HOST, &id->nb);
 		if (ret < 0) {
@@ -747,7 +747,7 @@ static int ci_extcon_register(struct ci_hdrc *ci)
 
 	vbus = &ci->platdata->vbus_extcon;
 	vbus->ci = ci;
-	if (!IS_ERR(vbus->edev)) {
+	if (!IS_ERR_OR_NULL(vbus->edev)) {
 		ret = devm_extcon_register_notifier(ci->dev, vbus->edev,
 						EXTCON_USB, &vbus->nb);
 		if (ret < 0) {
@@ -818,7 +818,7 @@ static inline void ci_role_destroy(struct ci_hdrc *ci)
 {
 	ci_hdrc_gadget_destroy(ci);
 	ci_hdrc_host_destroy(ci);
-	if (ci->is_otg)
+	if (ci->is_otg && ci->roles[CI_ROLE_GADGET])
 		ci_hdrc_otg_destroy(ci);
 }
 
@@ -887,7 +887,7 @@ static struct attribute *ci_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group ci_attr_group = {
+static const struct attribute_group ci_attr_group = {
 	.attrs = ci_attrs,
 };
 
@@ -980,27 +980,35 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 	/* initialize role(s) before the interrupt is requested */
 	if (dr_mode == USB_DR_MODE_OTG || dr_mode == USB_DR_MODE_HOST) {
 		ret = ci_hdrc_host_init(ci);
-		if (ret)
-			dev_info(dev, "doesn't support host\n");
+		if (ret) {
+			if (ret == -ENXIO)
+				dev_info(dev, "doesn't support host\n");
+			else
+				goto deinit_phy;
+		}
 	}
 
 	if (dr_mode == USB_DR_MODE_OTG || dr_mode == USB_DR_MODE_PERIPHERAL) {
 		ret = ci_hdrc_gadget_init(ci);
-		if (ret)
-			dev_info(dev, "doesn't support gadget\n");
+		if (ret) {
+			if (ret == -ENXIO)
+				dev_info(dev, "doesn't support gadget\n");
+			else
+				goto deinit_host;
+		}
 	}
 
 	if (!ci->roles[CI_ROLE_HOST] && !ci->roles[CI_ROLE_GADGET]) {
 		dev_err(dev, "no supported roles\n");
 		ret = -ENODEV;
-		goto deinit_phy;
+		goto deinit_gadget;
 	}
 
 	if (ci->is_otg && ci->roles[CI_ROLE_GADGET]) {
 		ret = ci_hdrc_otg_init(ci);
 		if (ret) {
 			dev_err(dev, "init otg fails, ret = %d\n", ret);
-			goto stop;
+			goto deinit_gadget;
 		}
 	}
 
@@ -1070,7 +1078,12 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 remove_debug:
 	dbg_remove_files(ci);
 stop:
-	ci_role_destroy(ci);
+	if (ci->is_otg && ci->roles[CI_ROLE_GADGET])
+		ci_hdrc_otg_destroy(ci);
+deinit_gadget:
+	ci_hdrc_gadget_destroy(ci);
+deinit_host:
+	ci_hdrc_host_destroy(ci);
 deinit_phy:
 	ci_usb_phy_exit(ci);
 ulpi_exit:

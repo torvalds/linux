@@ -63,7 +63,8 @@ static const struct nla_policy xt_osf_policy[OSF_ATTR_MAX + 1] = {
 
 static int xt_osf_add_callback(struct net *net, struct sock *ctnl,
 			       struct sk_buff *skb, const struct nlmsghdr *nlh,
-			       const struct nlattr * const osf_attrs[])
+			       const struct nlattr * const osf_attrs[],
+			       struct netlink_ext_ack *extack)
 {
 	struct xt_osf_user_finger *f;
 	struct xt_osf_finger *kf = NULL, *sf;
@@ -107,7 +108,8 @@ static int xt_osf_add_callback(struct net *net, struct sock *ctnl,
 static int xt_osf_remove_callback(struct net *net, struct sock *ctnl,
 				  struct sk_buff *skb,
 				  const struct nlmsghdr *nlh,
-				  const struct nlattr * const osf_attrs[])
+				  const struct nlattr * const osf_attrs[],
+				  struct netlink_ext_ack *extack)
 {
 	struct xt_osf_user_finger *f;
 	struct xt_osf_finger *sf;
@@ -224,7 +226,6 @@ xt_osf_match_packet(const struct sk_buff *skb, struct xt_action_param *p)
 				sizeof(struct tcphdr), optsize, opts);
 	}
 
-	rcu_read_lock();
 	list_for_each_entry_rcu(kf, &xt_osf_fingers[df], finger_entry) {
 		int foptsize, optnum;
 
@@ -338,7 +339,6 @@ xt_osf_match_packet(const struct sk_buff *skb, struct xt_action_param *p)
 		    info->loglevel == XT_OSF_LOGLEVEL_FIRST)
 			break;
 	}
-	rcu_read_unlock();
 
 	if (!fcount && (info->flags & XT_OSF_LOG))
 		nf_log_packet(net, xt_family(p), xt_hooknum(p), skb, xt_in(p),

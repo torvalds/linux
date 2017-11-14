@@ -207,9 +207,6 @@ struct imx_port {
 	unsigned int		have_rtscts:1;
 	unsigned int		have_rtsgpio:1;
 	unsigned int		dte_mode:1;
-	unsigned int		irda_inv_rx:1;
-	unsigned int		irda_inv_tx:1;
-	unsigned short		trcv_delay; /* transceiver delay */
 	struct clk		*clk_ipg;
 	struct clk		*clk_per;
 	const struct imx_uart_data *devdata;
@@ -229,7 +226,6 @@ struct imx_port {
 	dma_cookie_t		rx_cookie;
 	unsigned int		tx_bytes;
 	unsigned int		dma_tx_nents;
-	wait_queue_head_t	dma_wait;
 	unsigned int            saved_reg[10];
 	bool			context_saved;
 };
@@ -461,6 +457,9 @@ static inline void imx_transmit_buffer(struct imx_port *sport)
 		}
 	}
 
+	if (sport->dma_is_txing)
+		return;
+
 	while (!uart_circ_empty(xmit) &&
 	       !(readl(sport->port.membase + uts_reg(sport)) & UTS_TXFULL)) {
 		/* send xmit->buf[xmit->tail]
@@ -501,20 +500,12 @@ static void dma_tx_callback(void *data)
 
 	sport->dma_is_txing = 0;
 
-	spin_unlock_irqrestore(&sport->port.lock, flags);
-
 	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
 		uart_write_wakeup(&sport->port);
 
-	if (waitqueue_active(&sport->dma_wait)) {
-		wake_up(&sport->dma_wait);
-		dev_dbg(sport->port.dev, "exit in %s.\n", __func__);
-		return;
-	}
-
-	spin_lock_irqsave(&sport->port.lock, flags);
 	if (!uart_circ_empty(xmit) && !uart_tx_stopped(&sport->port))
 		imx_dma_tx(sport);
+
 	spin_unlock_irqrestore(&sport->port.lock, flags);
 }
 
@@ -1211,8 +1202,6 @@ static void imx_enable_dma(struct imx_port *sport)
 {
 	unsigned long temp;
 
-	init_waitqueue_head(&sport->dma_wait);
-
 	/* set UCR1 */
 	temp = readl(sport->port.membase + UCR1);
 	temp |= UCR1_RDMAEN | UCR1_TDMAEN | UCR1_ATDMAEN;
@@ -1302,7 +1291,9 @@ static int imx_startup(struct uart_port *port)
 		imx_enable_dma(sport);
 
 	temp = readl(sport->port.membase + UCR1);
-	temp |= UCR1_RRDYEN | UCR1_RTSDEN | UCR1_UARTEN;
+	temp |= UCR1_RRDYEN | UCR1_UARTEN;
+	if (sport->have_rtscts)
+			temp |= UCR1_RTSDEN;
 
 	writel(temp, sport->port.membase + UCR1);
 
@@ -1340,29 +1331,13 @@ static int imx_startup(struct uart_port *port)
 	imx_enable_ms(&sport->port);
 
 	/*
-	 * If the serial port is opened for reading start RX DMA immediately
-	 * instead of waiting for RX FIFO interrupts. In our iMX53 the average
-	 * delay for the first reception dropped from approximately 35000
-	 * microseconds to 1000 microseconds.
+	 * Start RX DMA immediately instead of waiting for RX FIFO interrupts.
+	 * In our iMX53 the average delay for the first reception dropped from
+	 * approximately 35000 microseconds to 1000 microseconds.
 	 */
 	if (sport->dma_is_enabled) {
-		struct tty_struct *tty = sport->port.state->port.tty;
-		struct tty_file_private *file_priv;
-		int readcnt = 0;
-
-		spin_lock(&tty->files_lock);
-
-		if (!list_empty(&tty->tty_files))
-			list_for_each_entry(file_priv, &tty->tty_files, list)
-				if (!(file_priv->file->f_flags & O_WRONLY))
-					readcnt++;
-
-		spin_unlock(&tty->files_lock);
-
-		if (readcnt > 0) {
-			imx_disable_rx_int(sport);
-			start_rx_dma(sport);
-		}
+		imx_disable_rx_int(sport);
+		start_rx_dma(sport);
 	}
 
 	spin_unlock_irqrestore(&sport->port.lock, flags);
@@ -2349,6 +2324,7 @@ static int imx_serial_port_suspend(struct device *dev)
 	serial_imx_enable_wakeup(sport, true);
 
 	uart_suspend_port(&imx_reg, &sport->port);
+	disable_irq(sport->port.irq);
 
 	/* Needed to enable clock in suspend_noirq */
 	return clk_prepare(sport->clk_ipg);
@@ -2363,6 +2339,7 @@ static int imx_serial_port_resume(struct device *dev)
 	serial_imx_enable_wakeup(sport, false);
 
 	uart_resume_port(&imx_reg, &sport->port);
+	enable_irq(sport->port.irq);
 
 	clk_unprepare(sport->clk_ipg);
 

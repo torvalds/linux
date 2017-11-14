@@ -324,7 +324,7 @@ hangcheck_get_action(struct intel_engine_cs *engine,
 	if (engine->hangcheck.seqno != hc->seqno)
 		return ENGINE_ACTIVE_SEQNO;
 
-	if (i915_seqno_passed(hc->seqno, intel_engine_last_submit(engine)))
+	if (intel_engine_is_idle(engine))
 		return ENGINE_IDLE;
 
 	return engine_stuck(engine, hc->acthd);
@@ -407,7 +407,7 @@ static void hangcheck_declare_hang(struct drm_i915_private *i915,
 				 "%s, ", engine->name);
 	msg[len-2] = '\0';
 
-	return i915_handle_error(i915, hung, msg);
+	return i915_handle_error(i915, hung, "%s", msg);
 }
 
 /*

@@ -103,7 +103,7 @@ static int mtk_mdp_probe(struct platform_device *pdev)
 {
 	struct mtk_mdp_dev *mdp;
 	struct device *dev = &pdev->dev;
-	struct device_node *node;
+	struct device_node *node, *parent;
 	int i, ret = 0;
 
 	mdp = devm_kzalloc(dev, sizeof(*mdp), GFP_KERNEL);
@@ -117,8 +117,16 @@ static int mtk_mdp_probe(struct platform_device *pdev)
 	mutex_init(&mdp->lock);
 	mutex_init(&mdp->vpulock);
 
+	/* Old dts had the components as child nodes */
+	if (of_get_next_child(dev->of_node, NULL)) {
+		parent = dev->of_node;
+		dev_warn(dev, "device tree is out of date\n");
+	} else {
+		parent = dev->of_node->parent;
+	}
+
 	/* Iterate over sibling MDP function blocks */
-	for_each_child_of_node(dev->of_node, node) {
+	for_each_child_of_node(parent, node) {
 		const struct of_device_id *of_id;
 		enum mtk_mdp_comp_type comp_type;
 		int comp_id;
@@ -129,16 +137,16 @@ static int mtk_mdp_probe(struct platform_device *pdev)
 			continue;
 
 		if (!of_device_is_available(node)) {
-			dev_err(dev, "Skipping disabled component %s\n",
-				node->full_name);
+			dev_err(dev, "Skipping disabled component %pOF\n",
+				node);
 			continue;
 		}
 
 		comp_type = (enum mtk_mdp_comp_type)of_id->data;
 		comp_id = mtk_mdp_comp_get_id(dev, node, comp_type);
 		if (comp_id < 0) {
-			dev_warn(dev, "Skipping unknown component %s\n",
-				 node->full_name);
+			dev_warn(dev, "Skipping unknown component %pOF\n",
+				 node);
 			continue;
 		}
 

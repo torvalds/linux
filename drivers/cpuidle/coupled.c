@@ -119,13 +119,13 @@ struct cpuidle_coupled {
 
 #define CPUIDLE_COUPLED_NOT_IDLE	(-1)
 
-static DEFINE_PER_CPU(struct call_single_data, cpuidle_coupled_poke_cb);
+static DEFINE_PER_CPU(call_single_data_t, cpuidle_coupled_poke_cb);
 
 /*
  * The cpuidle_coupled_poke_pending mask is used to avoid calling
- * __smp_call_function_single with the per cpu call_single_data struct already
+ * __smp_call_function_single with the per cpu call_single_data_t struct already
  * in use.  This prevents a deadlock where two cpus are waiting for each others
- * call_single_data struct to be available
+ * call_single_data_t struct to be available
  */
 static cpumask_t cpuidle_coupled_poke_pending;
 
@@ -339,7 +339,7 @@ static void cpuidle_coupled_handle_poke(void *info)
  */
 static void cpuidle_coupled_poke(int cpu)
 {
-	struct call_single_data *csd = &per_cpu(cpuidle_coupled_poke_cb, cpu);
+	call_single_data_t *csd = &per_cpu(cpuidle_coupled_poke_cb, cpu);
 
 	if (!cpumask_test_and_set_cpu(cpu, &cpuidle_coupled_poke_pending))
 		smp_call_function_single_async(cpu, csd);
@@ -651,7 +651,7 @@ int cpuidle_coupled_register_device(struct cpuidle_device *dev)
 {
 	int cpu;
 	struct cpuidle_device *other_dev;
-	struct call_single_data *csd;
+	call_single_data_t *csd;
 	struct cpuidle_coupled *coupled;
 
 	if (cpumask_empty(&dev->coupled_cpus))

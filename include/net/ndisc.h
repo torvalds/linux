@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _NDISC_H
 #define _NDISC_H
 
@@ -384,7 +385,7 @@ static inline struct neighbour *__ipv6_neigh_lookup(struct net_device *dev, cons
 
 	rcu_read_lock_bh();
 	n = __ipv6_neigh_lookup_noref(dev, pkey);
-	if (n && !atomic_inc_not_zero(&n->refcnt))
+	if (n && !refcount_inc_not_zero(&n->refcnt))
 		n = NULL;
 	rcu_read_unlock_bh();
 

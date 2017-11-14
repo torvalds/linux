@@ -1382,13 +1382,13 @@ static inline int cmd_address_audit(struct parser_exec_state *s,
 			ret = -EINVAL;
 			goto err;
 		}
-	} else if ((!vgpu_gmadr_is_valid(s->vgpu, guest_gma)) ||
-			(!vgpu_gmadr_is_valid(s->vgpu,
-					      guest_gma + op_size - 1))) {
+	} else if (!intel_gvt_ggtt_validate_range(vgpu, guest_gma, op_size)) {
 		ret = -EINVAL;
 		goto err;
 	}
+
 	return 0;
+
 err:
 	gvt_vgpu_err("cmd_parser: Malicious %s detected, addr=0x%lx, len=%d!\n",
 			s->info->name, guest_gma, op_size);
@@ -2414,53 +2414,13 @@ static void add_cmd_entry(struct intel_gvt *gvt, struct cmd_entry *e)
 	hash_add(gvt->cmd_table, &e->hlist, e->info->opcode);
 }
 
-#define GVT_MAX_CMD_LENGTH     20  /* In Dword */
-
-static void trace_cs_command(struct parser_exec_state *s,
-		cycles_t cost_pre_cmd_handler, cycles_t cost_cmd_handler)
-{
-	/* This buffer is used by ftrace to store all commands copied from
-	 * guest gma space. Sometimes commands can cross pages, this should
-	 * not be handled in ftrace logic. So this is just used as a
-	 * 'bounce buffer'
-	 */
-	u32 cmd_trace_buf[GVT_MAX_CMD_LENGTH];
-	int i;
-	u32 cmd_len = cmd_length(s);
-	/* The chosen value of GVT_MAX_CMD_LENGTH are just based on
-	 * following two considerations:
-	 * 1) From observation, most common ring commands is not that long.
-	 *    But there are execeptions. So it indeed makes sence to observe
-	 *    longer commands.
-	 * 2) From the performance and debugging point of view, dumping all
-	 *    contents of very commands is not necessary.
-	 * We mgith shrink GVT_MAX_CMD_LENGTH or remove this trace event in
-	 * future for performance considerations.
-	 */
-	if (unlikely(cmd_len > GVT_MAX_CMD_LENGTH)) {
-		gvt_dbg_cmd("cmd length exceed tracing limitation!\n");
-		cmd_len = GVT_MAX_CMD_LENGTH;
-	}
-
-	for (i = 0; i < cmd_len; i++)
-		cmd_trace_buf[i] = cmd_val(s, i);
-
-	trace_gvt_command(s->vgpu->id, s->ring_id, s->ip_gma, cmd_trace_buf,
-			cmd_len, s->buf_type == RING_BUFFER_INSTRUCTION,
-			cost_pre_cmd_handler, cost_cmd_handler);
-}
-
 /* call the cmd handler, and advance ip */
 static int cmd_parser_exec(struct parser_exec_state *s)
 {
+	struct intel_vgpu *vgpu = s->vgpu;
 	struct cmd_info *info;
 	u32 cmd;
 	int ret = 0;
-	cycles_t t0, t1, t2;
-	struct parser_exec_state s_before_advance_custom;
-	struct intel_vgpu *vgpu = s->vgpu;
-
-	t0 = get_cycles();
 
 	cmd = cmd_val(s, 0);
 
@@ -2471,13 +2431,10 @@ static int cmd_parser_exec(struct parser_exec_state *s)
 		return -EINVAL;
 	}
 
-	gvt_dbg_cmd("%s\n", info->name);
-
 	s->info = info;
 
-	t1 = get_cycles();
-
-	s_before_advance_custom = *s;
+	trace_gvt_command(vgpu->id, s->ring_id, s->ip_gma, s->ip_va,
+			  cmd_length(s), s->buf_type);
 
 	if (info->handler) {
 		ret = info->handler(s);
@@ -2486,9 +2443,6 @@ static int cmd_parser_exec(struct parser_exec_state *s)
 			return ret;
 		}
 	}
-	t2 = get_cycles();
-
-	trace_cs_command(&s_before_advance_custom, t1 - t0, t2 - t1);
 
 	if (!(info->flag & F_IP_ADVANCE_CUSTOM)) {
 		ret = cmd_advance_default(s);
@@ -2522,8 +2476,6 @@ static int command_scan(struct parser_exec_state *s,
 	gma_tail = rb_start + rb_tail;
 	gma_bottom = rb_start +  rb_len;
 
-	gvt_dbg_cmd("scan_start: start=%lx end=%lx\n", gma_head, gma_tail);
-
 	while (s->ip_gma != gma_tail) {
 		if (s->buf_type == RING_BUFFER_INSTRUCTION) {
 			if (!(s->ip_gma >= rb_start) ||
@@ -2551,8 +2503,6 @@ static int command_scan(struct parser_exec_state *s,
 			break;
 		}
 	}
-
-	gvt_dbg_cmd("scan_end\n");
 
 	return ret;
 }
@@ -2585,6 +2535,11 @@ static int scan_workload(struct intel_vgpu_workload *workload)
 	if ((bypass_scan_mask & (1 << workload->ring_id)) ||
 		gma_head == gma_tail)
 		return 0;
+
+	if (!intel_gvt_ggtt_validate_range(s.vgpu, s.ring_start, s.ring_size)) {
+		ret = -EINVAL;
+		goto out;
+	}
 
 	ret = ip_gma_set(&s, gma_head);
 	if (ret)
@@ -2628,6 +2583,11 @@ static int scan_wa_ctx(struct intel_shadow_wa_ctx *wa_ctx)
 	s.ring_tail = gma_tail;
 	s.rb_va = wa_ctx->indirect_ctx.shadow_va;
 	s.workload = workload;
+
+	if (!intel_gvt_ggtt_validate_range(s.vgpu, s.ring_start, s.ring_size)) {
+		ret = -EINVAL;
+		goto out;
+	}
 
 	ret = ip_gma_set(&s, gma_head);
 	if (ret)
@@ -2687,7 +2647,7 @@ static int shadow_workload_ring_buffer(struct intel_vgpu_workload *workload)
 	return 0;
 }
 
-int intel_gvt_scan_and_shadow_workload(struct intel_vgpu_workload *workload)
+int intel_gvt_scan_and_shadow_ringbuffer(struct intel_vgpu_workload *workload)
 {
 	int ret;
 	struct intel_vgpu *vgpu = workload->vgpu;
@@ -2754,7 +2714,7 @@ static int shadow_indirect_ctx(struct intel_shadow_wa_ctx *wa_ctx)
 unmap_src:
 	i915_gem_object_unpin_map(obj);
 put_obj:
-	i915_gem_object_put(wa_ctx->indirect_ctx.obj);
+	i915_gem_object_put(obj);
 	return ret;
 }
 
@@ -2762,6 +2722,9 @@ static int combine_wa_ctx(struct intel_shadow_wa_ctx *wa_ctx)
 {
 	uint32_t per_ctx_start[CACHELINE_DWORDS] = {0};
 	unsigned char *bb_start_sva;
+
+	if (!wa_ctx->per_ctx.valid)
+		return 0;
 
 	per_ctx_start[0] = 0x18800001;
 	per_ctx_start[1] = wa_ctx->per_ctx.guest_gma;

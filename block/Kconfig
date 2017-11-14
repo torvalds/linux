@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # Block layer core configuration
 #
@@ -204,6 +205,11 @@ config BLK_MQ_PCI
 config BLK_MQ_VIRTIO
 	bool
 	depends on BLOCK && VIRTIO
+	default y
+
+config BLK_MQ_RDMA
+	bool
+	depends on BLOCK && INFINIBAND
 	default y
 
 source block/Kconfig.iosched

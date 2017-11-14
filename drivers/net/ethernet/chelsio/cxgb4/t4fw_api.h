@@ -103,6 +103,7 @@ enum fw_wr_opcodes {
 	FW_RI_FR_NSMR_TPTE_WR	       = 0x20,
 	FW_RI_INV_LSTAG_WR             = 0x1a,
 	FW_ISCSI_TX_DATA_WR	       = 0x45,
+	FW_PTP_TX_PKT_WR               = 0x46,
 	FW_CRYPTO_LOOKASIDE_WR         = 0X6d,
 	FW_LASTC2E_WR                  = 0x70
 };
@@ -685,6 +686,7 @@ enum fw_cmd_opcodes {
 	FW_SCHED_CMD                   = 0x24,
 	FW_DEVLOG_CMD                  = 0x25,
 	FW_CLIP_CMD                    = 0x28,
+	FW_PTP_CMD                     = 0x3e,
 	FW_LASTC2E_CMD                 = 0x40,
 	FW_ERROR_CMD                   = 0x80,
 	FW_DEBUG_CMD                   = 0x81,
@@ -1122,7 +1124,10 @@ enum fw_params_param_dev {
 	FW_PARAMS_PARAM_DEV_MAXIRD_ADAPTER = 0x14, /* max supported adap IRD */
 	FW_PARAMS_PARAM_DEV_ULPTX_MEMWRITE_DSGL = 0x17,
 	FW_PARAMS_PARAM_DEV_FWCACHE = 0x18,
+	FW_PARAMS_PARAM_DEV_SCFGREV = 0x1A,
+	FW_PARAMS_PARAM_DEV_VPDREV = 0x1B,
 	FW_PARAMS_PARAM_DEV_RI_FR_NSMR_TPTE_WR	= 0x1C,
+	FW_PARAMS_PARAM_DEV_MPSBGMAP	= 0x1E,
 };
 
 /*
@@ -1168,7 +1173,8 @@ enum fw_params_param_pfvf {
 	FW_PARAMS_PARAM_PFVF_ACTIVE_FILTER_END = 0x2E,
 	FW_PARAMS_PARAM_PFVF_ETHOFLD_END = 0x30,
 	FW_PARAMS_PARAM_PFVF_CPLFW4MSG_ENCAP = 0x31,
-	FW_PARAMS_PARAM_PFVF_NCRYPTO_LOOKASIDE = 0x32
+	FW_PARAMS_PARAM_PFVF_NCRYPTO_LOOKASIDE = 0x32,
+	FW_PARAMS_PARAM_PFVF_PORT_CAPS32 = 0x3A,
 };
 
 /*
@@ -2251,6 +2257,7 @@ struct fw_acl_vlan_cmd {
 #define FW_ACL_VLAN_CMD_FM_S	6
 #define FW_ACL_VLAN_CMD_FM_V(x)	((x) << FW_ACL_VLAN_CMD_FM_S)
 
+/* old 16-bit port capabilities bitmap (fw_port_cap16_t) */
 enum fw_port_cap {
 	FW_PORT_CAP_SPEED_100M		= 0x0001,
 	FW_PORT_CAP_SPEED_1G		= 0x0002,
@@ -2286,6 +2293,84 @@ enum fw_port_mdi {
 #define FW_PORT_CAP_MDI_S 9
 #define FW_PORT_CAP_MDI_V(x) ((x) << FW_PORT_CAP_MDI_S)
 
+/* new 32-bit port capabilities bitmap (fw_port_cap32_t) */
+#define	FW_PORT_CAP32_SPEED_100M	0x00000001UL
+#define	FW_PORT_CAP32_SPEED_1G		0x00000002UL
+#define	FW_PORT_CAP32_SPEED_10G		0x00000004UL
+#define	FW_PORT_CAP32_SPEED_25G		0x00000008UL
+#define	FW_PORT_CAP32_SPEED_40G		0x00000010UL
+#define	FW_PORT_CAP32_SPEED_50G		0x00000020UL
+#define	FW_PORT_CAP32_SPEED_100G	0x00000040UL
+#define	FW_PORT_CAP32_SPEED_200G	0x00000080UL
+#define	FW_PORT_CAP32_SPEED_400G	0x00000100UL
+#define	FW_PORT_CAP32_SPEED_RESERVED1	0x00000200UL
+#define	FW_PORT_CAP32_SPEED_RESERVED2	0x00000400UL
+#define	FW_PORT_CAP32_SPEED_RESERVED3	0x00000800UL
+#define	FW_PORT_CAP32_RESERVED1		0x0000f000UL
+#define	FW_PORT_CAP32_FC_RX		0x00010000UL
+#define	FW_PORT_CAP32_FC_TX		0x00020000UL
+#define	FW_PORT_CAP32_802_3_PAUSE	0x00040000UL
+#define	FW_PORT_CAP32_802_3_ASM_DIR	0x00080000UL
+#define	FW_PORT_CAP32_ANEG		0x00100000UL
+#define	FW_PORT_CAP32_MDIX		0x00200000UL
+#define	FW_PORT_CAP32_MDIAUTO		0x00400000UL
+#define	FW_PORT_CAP32_FEC_RS		0x00800000UL
+#define	FW_PORT_CAP32_FEC_BASER_RS	0x01000000UL
+#define	FW_PORT_CAP32_FEC_RESERVED1	0x02000000UL
+#define	FW_PORT_CAP32_FEC_RESERVED2	0x04000000UL
+#define	FW_PORT_CAP32_FEC_RESERVED3	0x08000000UL
+#define	FW_PORT_CAP32_RESERVED2		0xf0000000UL
+
+#define FW_PORT_CAP32_SPEED_S	0
+#define FW_PORT_CAP32_SPEED_M	0xfff
+#define FW_PORT_CAP32_SPEED_V(x)	((x) << FW_PORT_CAP32_SPEED_S)
+#define FW_PORT_CAP32_SPEED_G(x) \
+	(((x) >> FW_PORT_CAP32_SPEED_S) & FW_PORT_CAP32_SPEED_M)
+
+#define FW_PORT_CAP32_FC_S	16
+#define FW_PORT_CAP32_FC_M	0x3
+#define FW_PORT_CAP32_FC_V(x)	((x) << FW_PORT_CAP32_FC_S)
+#define FW_PORT_CAP32_FC_G(x) \
+	(((x) >> FW_PORT_CAP32_FC_S) & FW_PORT_CAP32_FC_M)
+
+#define FW_PORT_CAP32_802_3_S	18
+#define FW_PORT_CAP32_802_3_M	0x3
+#define FW_PORT_CAP32_802_3_V(x)	((x) << FW_PORT_CAP32_802_3_S)
+#define FW_PORT_CAP32_802_3_G(x) \
+	(((x) >> FW_PORT_CAP32_802_3_S) & FW_PORT_CAP32_802_3_M)
+
+#define FW_PORT_CAP32_ANEG_S	20
+#define FW_PORT_CAP32_ANEG_M	0x1
+#define FW_PORT_CAP32_ANEG_V(x)	((x) << FW_PORT_CAP32_ANEG_S)
+#define FW_PORT_CAP32_ANEG_G(x) \
+	(((x) >> FW_PORT_CAP32_ANEG_S) & FW_PORT_CAP32_ANEG_M)
+
+enum fw_port_mdi32 {
+	FW_PORT_CAP32_MDI_UNCHANGED,
+	FW_PORT_CAP32_MDI_AUTO,
+	FW_PORT_CAP32_MDI_F_STRAIGHT,
+	FW_PORT_CAP32_MDI_F_CROSSOVER
+};
+
+#define FW_PORT_CAP32_MDI_S 21
+#define FW_PORT_CAP32_MDI_M 3
+#define FW_PORT_CAP32_MDI_V(x) ((x) << FW_PORT_CAP32_MDI_S)
+#define FW_PORT_CAP32_MDI_G(x) \
+	(((x) >> FW_PORT_CAP32_MDI_S) & FW_PORT_CAP32_MDI_M)
+
+#define FW_PORT_CAP32_FEC_S	23
+#define FW_PORT_CAP32_FEC_M	0x1f
+#define FW_PORT_CAP32_FEC_V(x)	((x) << FW_PORT_CAP32_FEC_S)
+#define FW_PORT_CAP32_FEC_G(x) \
+	(((x) >> FW_PORT_CAP32_FEC_S) & FW_PORT_CAP32_FEC_M)
+
+/* macros to isolate various 32-bit Port Capabilities sub-fields */
+#define CAP32_SPEED(__cap32) \
+	(FW_PORT_CAP32_SPEED_V(FW_PORT_CAP32_SPEED_M) & __cap32)
+
+#define CAP32_FEC(__cap32) \
+	(FW_PORT_CAP32_FEC_V(FW_PORT_CAP32_FEC_M) & __cap32)
+
 enum fw_port_action {
 	FW_PORT_ACTION_L1_CFG		= 0x0001,
 	FW_PORT_ACTION_L2_CFG		= 0x0002,
@@ -2295,6 +2380,8 @@ enum fw_port_action {
 	FW_PORT_ACTION_DCB_READ_TRANS	= 0x0006,
 	FW_PORT_ACTION_DCB_READ_RECV	= 0x0007,
 	FW_PORT_ACTION_DCB_READ_DET	= 0x0008,
+	FW_PORT_ACTION_L1_CFG32		= 0x0009,
+	FW_PORT_ACTION_GET_PORT_INFO32	= 0x000a,
 	FW_PORT_ACTION_LOW_PWR_TO_NORMAL = 0x0010,
 	FW_PORT_ACTION_L1_LOW_PWR_EN	= 0x0011,
 	FW_PORT_ACTION_L2_WOL_MODE_EN	= 0x0012,
@@ -2442,6 +2529,18 @@ struct fw_port_cmd {
 				__be64 r12;
 			} control;
 		} dcb;
+		struct fw_port_l1cfg32 {
+			__be32 rcap32;
+			__be32 r;
+		} l1cfg32;
+		struct fw_port_info32 {
+			__be32 lstatus32_to_cbllen32;
+			__be32 auxlinfo32_mtu32;
+			__be32 linkattr32;
+			__be32 pcaps32;
+			__be32 acaps32;
+			__be32 lpacaps32;
+		} info32;
 	} u;
 };
 
@@ -2550,6 +2649,85 @@ struct fw_port_cmd {
 #define FW_PORT_CMD_DCB_VERSION_G(x)	\
 	(((x) >> FW_PORT_CMD_DCB_VERSION_S) & FW_PORT_CMD_DCB_VERSION_M)
 
+#define FW_PORT_CMD_LSTATUS32_S		31
+#define FW_PORT_CMD_LSTATUS32_M		0x1
+#define FW_PORT_CMD_LSTATUS32_V(x)	((x) << FW_PORT_CMD_LSTATUS32_S)
+#define FW_PORT_CMD_LSTATUS32_G(x)	\
+	(((x) >> FW_PORT_CMD_LSTATUS32_S) & FW_PORT_CMD_LSTATUS32_M)
+#define FW_PORT_CMD_LSTATUS32_F	FW_PORT_CMD_LSTATUS32_V(1U)
+
+#define FW_PORT_CMD_LINKDNRC32_S	28
+#define FW_PORT_CMD_LINKDNRC32_M	0x7
+#define FW_PORT_CMD_LINKDNRC32_V(x)	((x) << FW_PORT_CMD_LINKDNRC32_S)
+#define FW_PORT_CMD_LINKDNRC32_G(x)	\
+	(((x) >> FW_PORT_CMD_LINKDNRC32_S) & FW_PORT_CMD_LINKDNRC32_M)
+
+#define FW_PORT_CMD_DCBXDIS32_S		27
+#define FW_PORT_CMD_DCBXDIS32_M		0x1
+#define FW_PORT_CMD_DCBXDIS32_V(x)	((x) << FW_PORT_CMD_DCBXDIS32_S)
+#define FW_PORT_CMD_DCBXDIS32_G(x)	\
+	(((x) >> FW_PORT_CMD_DCBXDIS32_S) & FW_PORT_CMD_DCBXDIS32_M)
+#define FW_PORT_CMD_DCBXDIS32_F	FW_PORT_CMD_DCBXDIS32_V(1U)
+
+#define FW_PORT_CMD_MDIOCAP32_S		26
+#define FW_PORT_CMD_MDIOCAP32_M		0x1
+#define FW_PORT_CMD_MDIOCAP32_V(x)	((x) << FW_PORT_CMD_MDIOCAP32_S)
+#define FW_PORT_CMD_MDIOCAP32_G(x)	\
+	(((x) >> FW_PORT_CMD_MDIOCAP32_S) & FW_PORT_CMD_MDIOCAP32_M)
+#define FW_PORT_CMD_MDIOCAP32_F	FW_PORT_CMD_MDIOCAP32_V(1U)
+
+#define FW_PORT_CMD_MDIOADDR32_S	21
+#define FW_PORT_CMD_MDIOADDR32_M	0x1f
+#define FW_PORT_CMD_MDIOADDR32_V(x)	((x) << FW_PORT_CMD_MDIOADDR32_S)
+#define FW_PORT_CMD_MDIOADDR32_G(x)	\
+	(((x) >> FW_PORT_CMD_MDIOADDR32_S) & FW_PORT_CMD_MDIOADDR32_M)
+
+#define FW_PORT_CMD_PORTTYPE32_S	13
+#define FW_PORT_CMD_PORTTYPE32_M	0xff
+#define FW_PORT_CMD_PORTTYPE32_V(x)	((x) << FW_PORT_CMD_PORTTYPE32_S)
+#define FW_PORT_CMD_PORTTYPE32_G(x)	\
+	(((x) >> FW_PORT_CMD_PORTTYPE32_S) & FW_PORT_CMD_PORTTYPE32_M)
+
+#define FW_PORT_CMD_MODTYPE32_S		8
+#define FW_PORT_CMD_MODTYPE32_M		0x1f
+#define FW_PORT_CMD_MODTYPE32_V(x)	((x) << FW_PORT_CMD_MODTYPE32_S)
+#define FW_PORT_CMD_MODTYPE32_G(x)	\
+	(((x) >> FW_PORT_CMD_MODTYPE32_S) & FW_PORT_CMD_MODTYPE32_M)
+
+#define FW_PORT_CMD_CBLLEN32_S		0
+#define FW_PORT_CMD_CBLLEN32_M		0xff
+#define FW_PORT_CMD_CBLLEN32_V(x)	((x) << FW_PORT_CMD_CBLLEN32_S)
+#define FW_PORT_CMD_CBLLEN32_G(x)	\
+	(((x) >> FW_PORT_CMD_CBLLEN32_S) & FW_PORT_CMD_CBLLEN32_M)
+
+#define FW_PORT_CMD_AUXLINFO32_S	24
+#define FW_PORT_CMD_AUXLINFO32_M	0xff
+#define FW_PORT_CMD_AUXLINFO32_V(x)	((x) << FW_PORT_CMD_AUXLINFO32_S)
+#define FW_PORT_CMD_AUXLINFO32_G(x)	\
+	(((x) >> FW_PORT_CMD_AUXLINFO32_S) & FW_PORT_CMD_AUXLINFO32_M)
+
+#define FW_PORT_AUXLINFO32_KX4_S	2
+#define FW_PORT_AUXLINFO32_KX4_M	0x1
+#define FW_PORT_AUXLINFO32_KX4_V(x) \
+	((x) << FW_PORT_AUXLINFO32_KX4_S)
+#define FW_PORT_AUXLINFO32_KX4_G(x) \
+	(((x) >> FW_PORT_AUXLINFO32_KX4_S) & FW_PORT_AUXLINFO32_KX4_M)
+#define FW_PORT_AUXLINFO32_KX4_F	FW_PORT_AUXLINFO32_KX4_V(1U)
+
+#define FW_PORT_AUXLINFO32_KR_S	1
+#define FW_PORT_AUXLINFO32_KR_M	0x1
+#define FW_PORT_AUXLINFO32_KR_V(x) \
+	((x) << FW_PORT_AUXLINFO32_KR_S)
+#define FW_PORT_AUXLINFO32_KR_G(x) \
+	(((x) >> FW_PORT_AUXLINFO32_KR_S) & FW_PORT_AUXLINFO32_KR_M)
+#define FW_PORT_AUXLINFO32_KR_F	FW_PORT_AUXLINFO32_KR_V(1U)
+
+#define FW_PORT_CMD_MTU32_S	0
+#define FW_PORT_CMD_MTU32_M	0xffff
+#define FW_PORT_CMD_MTU32_V(x)	((x) << FW_PORT_CMD_MTU32_S)
+#define FW_PORT_CMD_MTU32_G(x)	\
+	(((x) >> FW_PORT_CMD_MTU32_S) & FW_PORT_CMD_MTU32_M)
+
 enum fw_port_type {
 	FW_PORT_TYPE_FIBER_XFI,
 	FW_PORT_TYPE_FIBER_XAUI,
@@ -2572,6 +2750,7 @@ enum fw_port_type {
 	FW_PORT_TYPE_CR_QSFP,
 	FW_PORT_TYPE_CR2_QSFP,
 	FW_PORT_TYPE_SFP28,
+	FW_PORT_TYPE_KR_SFP28,
 
 	FW_PORT_TYPE_NONE = FW_PORT_CMD_PTYPE_M
 };
@@ -2799,6 +2978,54 @@ struct fw_port_lb_stats_cmd {
 		} all;
 	} u;
 };
+
+enum fw_ptp_subop {
+	/* none */
+	FW_PTP_SC_INIT_TIMER            = 0x00,
+	FW_PTP_SC_TX_TYPE               = 0x01,
+	/* init */
+	FW_PTP_SC_RXTIME_STAMP          = 0x08,
+	FW_PTP_SC_RDRX_TYPE             = 0x09,
+	/* ts */
+	FW_PTP_SC_ADJ_FREQ              = 0x10,
+	FW_PTP_SC_ADJ_TIME              = 0x11,
+	FW_PTP_SC_ADJ_FTIME             = 0x12,
+	FW_PTP_SC_WALL_CLOCK            = 0x13,
+	FW_PTP_SC_GET_TIME              = 0x14,
+	FW_PTP_SC_SET_TIME              = 0x15,
+};
+
+struct fw_ptp_cmd {
+	__be32 op_to_portid;
+	__be32 retval_len16;
+	union fw_ptp {
+		struct fw_ptp_sc {
+			__u8   sc;
+			__u8   r3[7];
+		} scmd;
+		struct fw_ptp_init {
+			__u8   sc;
+			__u8   txchan;
+			__be16 absid;
+			__be16 mode;
+			__be16 r3;
+		} init;
+		struct fw_ptp_ts {
+			__u8   sc;
+			__u8   sign;
+			__be16 r3;
+			__be32 ppb;
+			__be64 tm;
+		} ts;
+	} u;
+	__be64 r3;
+};
+
+#define FW_PTP_CMD_PORTID_S             0
+#define FW_PTP_CMD_PORTID_M             0xf
+#define FW_PTP_CMD_PORTID_V(x)          ((x) << FW_PTP_CMD_PORTID_S)
+#define FW_PTP_CMD_PORTID_G(x)          \
+	(((x) >> FW_PTP_CMD_PORTID_S) & FW_PTP_CMD_PORTID_M)
 
 struct fw_rss_ind_tbl_cmd {
 	__be32 op_to_viid;
@@ -3086,6 +3313,10 @@ struct fw_debug_cmd {
 #define FW_DEBUG_CMD_TYPE_M	0xff
 #define FW_DEBUG_CMD_TYPE_G(x)	\
 	(((x) >> FW_DEBUG_CMD_TYPE_S) & FW_DEBUG_CMD_TYPE_M)
+
+enum pcie_fw_eval {
+	PCIE_FW_EVAL_CRASH = 0,
+};
 
 #define PCIE_FW_ERR_S		31
 #define PCIE_FW_ERR_V(x)	((x) << PCIE_FW_ERR_S)

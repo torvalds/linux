@@ -89,7 +89,7 @@ static int ov2680_read_reg(struct i2c_client *client,
 			"read from offset 0x%x error %d", reg, err);
 		return err;
 	}
-	
+
 	*val = 0;
 	/* high byte comes first */
 	if (data_length == OV2680_8BIT)
@@ -285,7 +285,6 @@ static int ov2680_g_fnumber(struct v4l2_subdev *sd, s32 *val)
 
 static int ov2680_g_fnumber_range(struct v4l2_subdev *sd, s32 *val)
 {
-	
 	*val = (OV2680_F_NUMBER_DEFAULT_NUM << 24) |
 		(OV2680_F_NUMBER_DEM << 16) |
 		(OV2680_F_NUMBER_DEFAULT_NUM << 8) | OV2680_F_NUMBER_DEM;
@@ -306,7 +305,7 @@ static int ov2680_g_bin_factor_y(struct v4l2_subdev *sd, s32 *val)
 {
 	struct ov2680_device *dev = to_ov2680_sensor(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	
+
 	*val = ov2680_res[dev->fmt_idx].bin_factor_y;
 	dev_dbg(&client->dev,  "++++ov2680_g_bin_factor_y\n");
 	return 0;
@@ -399,7 +398,7 @@ static long __ov2680_set_exposure(struct v4l2_subdev *sd, int coarse_itg,
 	struct ov2680_device *dev = to_ov2680_sensor(sd);
 	u16 vts,hts;
 	int ret,exp_val;
-	
+
        dev_dbg(&client->dev, "+++++++__ov2680_set_exposure coarse_itg %d, gain %d, digitgain %d++\n",coarse_itg, gain, digitgain);
 
 	hts = ov2680_res[dev->fmt_idx].pixels_per_line;
@@ -542,7 +541,7 @@ static long ov2680_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	switch (cmd) {
 	case ATOMISP_IOC_S_EXPOSURE:
 		return ov2680_s_exposure(sd, arg);
-	
+
 	default:
 		return -EINVAL;
 	}
@@ -885,11 +884,12 @@ static int gpio_ctrl(struct v4l2_subdev *sd, bool flag)
 	if (flag) {
 		ret = dev->platform_data->gpio0_ctrl(sd, 1);
 		usleep_range(10000, 15000);
-		ret |= dev->platform_data->gpio1_ctrl(sd, 1);
+		/* Ignore return from second gpio, it may not be there */
+		dev->platform_data->gpio1_ctrl(sd, 1);
 		usleep_range(10000, 15000);
 	} else {
-		ret = dev->platform_data->gpio1_ctrl(sd, 0);
-		ret |= dev->platform_data->gpio0_ctrl(sd, 0);
+		dev->platform_data->gpio1_ctrl(sd, 0);
+		ret = dev->platform_data->gpio0_ctrl(sd, 0);
 	}
 	return ret;
 }
@@ -982,7 +982,7 @@ static int ov2680_s_power(struct v4l2_subdev *sd, int on)
 	if (on == 0){
 		ret = power_down(sd);
 	} else {
-		ret = power_up(sd);	
+		ret = power_up(sd);
 		if (!ret)
 			return ov2680_init(sd);
 	}
@@ -1190,9 +1190,8 @@ static int ov2680_detect(struct i2c_client *client)
 					OV2680_SC_CMMN_SUB_ID, &high);
 	revision = (u8) high & 0x0f;
 
-	dev_err(&client->dev, "sensor_revision id  = 0x%x\n", id);
-	dev_err(&client->dev, "detect ov2680 success\n");
-	dev_err(&client->dev, "################5##########\n");
+	dev_info(&client->dev, "sensor_revision id = 0x%x\n", id);
+
 	return 0;
 }
 
@@ -1207,7 +1206,7 @@ static int ov2680_s_stream(struct v4l2_subdev *sd, int enable)
 		dev_dbg(&client->dev, "ov2680_s_stream one \n");
 	else
 		dev_dbg(&client->dev, "ov2680_s_stream off \n");
-	
+
 	ret = ov2680_write_reg(client, OV2680_8BIT, OV2680_SW_STREAM,
 				enable ? OV2680_START_STREAMING :
 				OV2680_STOP_STREAMING);
@@ -1267,7 +1266,7 @@ static int ov2680_s_config(struct v4l2_subdev *sd,
 		dev_err(&client->dev, "ov2680_detect err s_config.\n");
 		goto fail_csi_cfg;
 	}
-	
+
 	/* turn off sensor, after probed */
 	ret = power_down(sd);
 	if (ret) {
@@ -1385,7 +1384,7 @@ static int ov2680_enum_frame_size(struct v4l2_subdev *sd,
 static int ov2680_g_skip_frames(struct v4l2_subdev *sd, u32 *frames)
 {
 	struct ov2680_device *dev = to_ov2680_sensor(sd);
-	
+
 	mutex_lock(&dev->input_lock);
 	*frames = ov2680_res[dev->fmt_idx].skip_frames;
 	mutex_unlock(&dev->input_lock);
@@ -1447,8 +1446,6 @@ static int ov2680_probe(struct i2c_client *client,
 	void *pdata;
 	unsigned int i;
 
-	printk("++++ov2680_probe++++\n");
-	dev_info(&client->dev, "++++ov2680_probe++++\n");
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev) {
 		dev_err(&client->dev, "out of memory\n");
@@ -1519,8 +1516,9 @@ out_free:
 	return ret;
 }
 
-static struct acpi_device_id ov2680_acpi_match[] = {
+static const struct acpi_device_id ov2680_acpi_match[] = {
 	{"XXOV2680"},
+	{"OVTI2680"},
 	{},
 };
 MODULE_DEVICE_TABLE(acpi, ov2680_acpi_match);

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* SandyBridge-EP/IvyTown uncore support */
 #include "uncore.h"
 
@@ -316,7 +317,7 @@
 #define SKX_UPI_PCI_PMON_CTL0		0x350
 #define SKX_UPI_PCI_PMON_CTR0		0x318
 #define SKX_UPI_PCI_PMON_BOX_CTL	0x378
-#define SKX_PMON_CTL_UMASK_EXT		0xff
+#define SKX_UPI_CTL_UMASK_EXT		0xffefff
 
 /* SKX M2M */
 #define SKX_M2M_PCI_PMON_CTL0		0x228
@@ -328,7 +329,7 @@ DEFINE_UNCORE_FORMAT_ATTR(event2, event, "config:0-6");
 DEFINE_UNCORE_FORMAT_ATTR(event_ext, event, "config:0-7,21");
 DEFINE_UNCORE_FORMAT_ATTR(use_occ_ctr, use_occ_ctr, "config:7");
 DEFINE_UNCORE_FORMAT_ATTR(umask, umask, "config:8-15");
-DEFINE_UNCORE_FORMAT_ATTR(umask_ext, umask, "config:8-15,32-39");
+DEFINE_UNCORE_FORMAT_ATTR(umask_ext, umask, "config:8-15,32-43,45-55");
 DEFINE_UNCORE_FORMAT_ATTR(qor, qor, "config:16");
 DEFINE_UNCORE_FORMAT_ATTR(edge, edge, "config:18");
 DEFINE_UNCORE_FORMAT_ATTR(tid_en, tid_en, "config:19");
@@ -351,7 +352,6 @@ DEFINE_UNCORE_FORMAT_ATTR(filter_cid, filter_cid, "config1:5");
 DEFINE_UNCORE_FORMAT_ATTR(filter_link, filter_link, "config1:5-8");
 DEFINE_UNCORE_FORMAT_ATTR(filter_link2, filter_link, "config1:6-8");
 DEFINE_UNCORE_FORMAT_ATTR(filter_link3, filter_link, "config1:12");
-DEFINE_UNCORE_FORMAT_ATTR(filter_link4, filter_link, "config1:9-12");
 DEFINE_UNCORE_FORMAT_ATTR(filter_nid, filter_nid, "config1:10-17");
 DEFINE_UNCORE_FORMAT_ATTR(filter_nid2, filter_nid, "config1:32-47");
 DEFINE_UNCORE_FORMAT_ATTR(filter_state, filter_state, "config1:18-22");
@@ -603,27 +603,27 @@ static struct uncore_event_desc snbep_uncore_qpi_events[] = {
 	{ /* end: all zeroes */ },
 };
 
-static struct attribute_group snbep_uncore_format_group = {
+static const struct attribute_group snbep_uncore_format_group = {
 	.name = "format",
 	.attrs = snbep_uncore_formats_attr,
 };
 
-static struct attribute_group snbep_uncore_ubox_format_group = {
+static const struct attribute_group snbep_uncore_ubox_format_group = {
 	.name = "format",
 	.attrs = snbep_uncore_ubox_formats_attr,
 };
 
-static struct attribute_group snbep_uncore_cbox_format_group = {
+static const struct attribute_group snbep_uncore_cbox_format_group = {
 	.name = "format",
 	.attrs = snbep_uncore_cbox_formats_attr,
 };
 
-static struct attribute_group snbep_uncore_pcu_format_group = {
+static const struct attribute_group snbep_uncore_pcu_format_group = {
 	.name = "format",
 	.attrs = snbep_uncore_pcu_formats_attr,
 };
 
-static struct attribute_group snbep_uncore_qpi_format_group = {
+static const struct attribute_group snbep_uncore_qpi_format_group = {
 	.name = "format",
 	.attrs = snbep_uncore_qpi_formats_attr,
 };
@@ -1432,27 +1432,27 @@ static struct attribute *ivbep_uncore_qpi_formats_attr[] = {
 	NULL,
 };
 
-static struct attribute_group ivbep_uncore_format_group = {
+static const struct attribute_group ivbep_uncore_format_group = {
 	.name = "format",
 	.attrs = ivbep_uncore_formats_attr,
 };
 
-static struct attribute_group ivbep_uncore_ubox_format_group = {
+static const struct attribute_group ivbep_uncore_ubox_format_group = {
 	.name = "format",
 	.attrs = ivbep_uncore_ubox_formats_attr,
 };
 
-static struct attribute_group ivbep_uncore_cbox_format_group = {
+static const struct attribute_group ivbep_uncore_cbox_format_group = {
 	.name = "format",
 	.attrs = ivbep_uncore_cbox_formats_attr,
 };
 
-static struct attribute_group ivbep_uncore_pcu_format_group = {
+static const struct attribute_group ivbep_uncore_pcu_format_group = {
 	.name = "format",
 	.attrs = ivbep_uncore_pcu_formats_attr,
 };
 
-static struct attribute_group ivbep_uncore_qpi_format_group = {
+static const struct attribute_group ivbep_uncore_qpi_format_group = {
 	.name = "format",
 	.attrs = ivbep_uncore_qpi_formats_attr,
 };
@@ -1888,7 +1888,7 @@ static struct attribute *knl_uncore_ubox_formats_attr[] = {
 	NULL,
 };
 
-static struct attribute_group knl_uncore_ubox_format_group = {
+static const struct attribute_group knl_uncore_ubox_format_group = {
 	.name = "format",
 	.attrs = knl_uncore_ubox_formats_attr,
 };
@@ -1928,7 +1928,7 @@ static struct attribute *knl_uncore_cha_formats_attr[] = {
 	NULL,
 };
 
-static struct attribute_group knl_uncore_cha_format_group = {
+static const struct attribute_group knl_uncore_cha_format_group = {
 	.name = "format",
 	.attrs = knl_uncore_cha_formats_attr,
 };
@@ -2038,7 +2038,7 @@ static struct attribute *knl_uncore_pcu_formats_attr[] = {
 	NULL,
 };
 
-static struct attribute_group knl_uncore_pcu_format_group = {
+static const struct attribute_group knl_uncore_pcu_format_group = {
 	.name = "format",
 	.attrs = knl_uncore_pcu_formats_attr,
 };
@@ -2188,7 +2188,7 @@ static struct attribute *knl_uncore_irp_formats_attr[] = {
 	NULL,
 };
 
-static struct attribute_group knl_uncore_irp_format_group = {
+static const struct attribute_group knl_uncore_irp_format_group = {
 	.name = "format",
 	.attrs = knl_uncore_irp_formats_attr,
 };
@@ -2386,7 +2386,7 @@ static struct attribute *hswep_uncore_ubox_formats_attr[] = {
 	NULL,
 };
 
-static struct attribute_group hswep_uncore_ubox_format_group = {
+static const struct attribute_group hswep_uncore_ubox_format_group = {
 	.name = "format",
 	.attrs = hswep_uncore_ubox_formats_attr,
 };
@@ -2440,7 +2440,7 @@ static struct attribute *hswep_uncore_cbox_formats_attr[] = {
 	NULL,
 };
 
-static struct attribute_group hswep_uncore_cbox_format_group = {
+static const struct attribute_group hswep_uncore_cbox_format_group = {
 	.name = "format",
 	.attrs = hswep_uncore_cbox_formats_attr,
 };
@@ -2622,7 +2622,7 @@ static struct attribute *hswep_uncore_sbox_formats_attr[] = {
 	NULL,
 };
 
-static struct attribute_group hswep_uncore_sbox_format_group = {
+static const struct attribute_group hswep_uncore_sbox_format_group = {
 	.name = "format",
 	.attrs = hswep_uncore_sbox_formats_attr,
 };
@@ -3302,7 +3302,6 @@ static struct attribute *skx_uncore_cha_formats_attr[] = {
 	&format_attr_inv.attr,
 	&format_attr_thresh8.attr,
 	&format_attr_filter_tid4.attr,
-	&format_attr_filter_link4.attr,
 	&format_attr_filter_state5.attr,
 	&format_attr_filter_rem.attr,
 	&format_attr_filter_loc.attr,
@@ -3312,12 +3311,11 @@ static struct attribute *skx_uncore_cha_formats_attr[] = {
 	&format_attr_filter_opc_0.attr,
 	&format_attr_filter_opc_1.attr,
 	&format_attr_filter_nc.attr,
-	&format_attr_filter_c6.attr,
 	&format_attr_filter_isoc.attr,
 	NULL,
 };
 
-static struct attribute_group skx_uncore_chabox_format_group = {
+static const struct attribute_group skx_uncore_chabox_format_group = {
 	.name = "format",
 	.attrs = skx_uncore_cha_formats_attr,
 };
@@ -3333,8 +3331,11 @@ static struct extra_reg skx_uncore_cha_extra_regs[] = {
 	SNBEP_CBO_EVENT_EXTRA_REG(0x0534, 0xffff, 0x4),
 	SNBEP_CBO_EVENT_EXTRA_REG(0x0934, 0xffff, 0x4),
 	SNBEP_CBO_EVENT_EXTRA_REG(0x1134, 0xffff, 0x4),
-	SNBEP_CBO_EVENT_EXTRA_REG(0x2134, 0xffff, 0x4),
-	SNBEP_CBO_EVENT_EXTRA_REG(0x8134, 0xffff, 0x4),
+	SNBEP_CBO_EVENT_EXTRA_REG(0x3134, 0xffff, 0x4),
+	SNBEP_CBO_EVENT_EXTRA_REG(0x9134, 0xffff, 0x4),
+	SNBEP_CBO_EVENT_EXTRA_REG(0x35, 0xff, 0x8),
+	SNBEP_CBO_EVENT_EXTRA_REG(0x36, 0xff, 0x8),
+	EVENT_EXTRA_END
 };
 
 static u64 skx_cha_filter_mask(int fields)
@@ -3347,6 +3348,17 @@ static u64 skx_cha_filter_mask(int fields)
 		mask |= SKX_CHA_MSR_PMON_BOX_FILTER_LINK;
 	if (fields & 0x4)
 		mask |= SKX_CHA_MSR_PMON_BOX_FILTER_STATE;
+	if (fields & 0x8) {
+		mask |= SKX_CHA_MSR_PMON_BOX_FILTER_REM;
+		mask |= SKX_CHA_MSR_PMON_BOX_FILTER_LOC;
+		mask |= SKX_CHA_MSR_PMON_BOX_FILTER_ALL_OPC;
+		mask |= SKX_CHA_MSR_PMON_BOX_FILTER_NM;
+		mask |= SKX_CHA_MSR_PMON_BOX_FILTER_NOT_NM;
+		mask |= SKX_CHA_MSR_PMON_BOX_FILTER_OPC0;
+		mask |= SKX_CHA_MSR_PMON_BOX_FILTER_OPC1;
+		mask |= SKX_CHA_MSR_PMON_BOX_FILTER_NC;
+		mask |= SKX_CHA_MSR_PMON_BOX_FILTER_ISOC;
+	}
 	return mask;
 }
 
@@ -3416,7 +3428,7 @@ static struct attribute *skx_uncore_iio_formats_attr[] = {
 	NULL,
 };
 
-static struct attribute_group skx_uncore_iio_format_group = {
+static const struct attribute_group skx_uncore_iio_format_group = {
 	.name = "format",
 	.attrs = skx_uncore_iio_formats_attr,
 };
@@ -3451,7 +3463,7 @@ static struct intel_uncore_ops skx_uncore_iio_ops = {
 static struct intel_uncore_type skx_uncore_iio = {
 	.name			= "iio",
 	.num_counters		= 4,
-	.num_boxes		= 5,
+	.num_boxes		= 6,
 	.perf_ctr_bits		= 48,
 	.event_ctl		= SKX_IIO0_MSR_PMON_CTL0,
 	.perf_ctr		= SKX_IIO0_MSR_PMON_CTR0,
@@ -3473,7 +3485,7 @@ static struct attribute *skx_uncore_formats_attr[] = {
 	NULL,
 };
 
-static struct attribute_group skx_uncore_format_group = {
+static const struct attribute_group skx_uncore_format_group = {
 	.name = "format",
 	.attrs = skx_uncore_formats_attr,
 };
@@ -3481,7 +3493,7 @@ static struct attribute_group skx_uncore_format_group = {
 static struct intel_uncore_type skx_uncore_irp = {
 	.name			= "irp",
 	.num_counters		= 2,
-	.num_boxes		= 5,
+	.num_boxes		= 6,
 	.perf_ctr_bits		= 48,
 	.event_ctl		= SKX_IRP0_MSR_PMON_CTL0,
 	.perf_ctr		= SKX_IRP0_MSR_PMON_CTR0,
@@ -3490,6 +3502,26 @@ static struct intel_uncore_type skx_uncore_irp = {
 	.msr_offset		= SKX_IRP_MSR_OFFSET,
 	.ops			= &skx_uncore_iio_ops,
 	.format_group		= &skx_uncore_format_group,
+};
+
+static struct attribute *skx_uncore_pcu_formats_attr[] = {
+	&format_attr_event.attr,
+	&format_attr_umask.attr,
+	&format_attr_edge.attr,
+	&format_attr_inv.attr,
+	&format_attr_thresh8.attr,
+	&format_attr_occ_invert.attr,
+	&format_attr_occ_edge_det.attr,
+	&format_attr_filter_band0.attr,
+	&format_attr_filter_band1.attr,
+	&format_attr_filter_band2.attr,
+	&format_attr_filter_band3.attr,
+	NULL,
+};
+
+static struct attribute_group skx_uncore_pcu_format_group = {
+	.name = "format",
+	.attrs = skx_uncore_pcu_formats_attr,
 };
 
 static struct intel_uncore_ops skx_uncore_pcu_ops = {
@@ -3510,7 +3542,7 @@ static struct intel_uncore_type skx_uncore_pcu = {
 	.box_ctl		= HSWEP_PCU_MSR_PMON_BOX_CTL,
 	.num_shared_regs	= 1,
 	.ops			= &skx_uncore_pcu_ops,
-	.format_group		= &snbep_uncore_pcu_format_group,
+	.format_group		= &skx_uncore_pcu_format_group,
 };
 
 static struct intel_uncore_type *skx_msr_uncores[] = {
@@ -3574,7 +3606,7 @@ static struct attribute *skx_upi_uncore_formats_attr[] = {
 	NULL,
 };
 
-static struct attribute_group skx_upi_uncore_format_group = {
+static const struct attribute_group skx_upi_uncore_format_group = {
 	.name = "format",
 	.attrs = skx_upi_uncore_formats_attr,
 };
@@ -3603,8 +3635,8 @@ static struct intel_uncore_type skx_uncore_upi = {
 	.perf_ctr_bits	= 48,
 	.perf_ctr	= SKX_UPI_PCI_PMON_CTR0,
 	.event_ctl	= SKX_UPI_PCI_PMON_CTL0,
-	.event_mask	= SNBEP_QPI_PCI_PMON_RAW_EVENT_MASK,
-	.event_mask_ext = SKX_PMON_CTL_UMASK_EXT,
+	.event_mask	= SNBEP_PMON_RAW_EVENT_MASK,
+	.event_mask_ext = SKX_UPI_CTL_UMASK_EXT,
 	.box_ctl	= SKX_UPI_PCI_PMON_BOX_CTL,
 	.ops		= &skx_upi_uncore_pci_ops,
 	.format_group	= &skx_upi_uncore_format_group,

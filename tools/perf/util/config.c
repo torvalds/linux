@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * config.c
  *
@@ -19,6 +20,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <linux/string.h>
 
 #include "sane_ctype.h"
 
@@ -335,32 +337,42 @@ static int perf_parse_long(const char *value, long *ret)
 	return 0;
 }
 
-static void die_bad_config(const char *name)
+static void bad_config(const char *name)
 {
 	if (config_file_name)
-		die("bad config value for '%s' in %s", name, config_file_name);
-	die("bad config value for '%s'", name);
+		pr_warning("bad config value for '%s' in %s, ignoring...\n", name, config_file_name);
+	else
+		pr_warning("bad config value for '%s', ignoring...\n", name);
 }
 
-u64 perf_config_u64(const char *name, const char *value)
+int perf_config_u64(u64 *dest, const char *name, const char *value)
 {
 	long long ret = 0;
 
-	if (!perf_parse_llong(value, &ret))
-		die_bad_config(name);
-	return (u64) ret;
+	if (!perf_parse_llong(value, &ret)) {
+		bad_config(name);
+		return -1;
+	}
+
+	*dest = ret;
+	return 0;
 }
 
-int perf_config_int(const char *name, const char *value)
+int perf_config_int(int *dest, const char *name, const char *value)
 {
 	long ret = 0;
-	if (!perf_parse_long(value, &ret))
-		die_bad_config(name);
-	return ret;
+	if (!perf_parse_long(value, &ret)) {
+		bad_config(name);
+		return -1;
+	}
+	*dest = ret;
+	return 0;
 }
 
 static int perf_config_bool_or_int(const char *name, const char *value, int *is_bool)
 {
+	int ret;
+
 	*is_bool = 1;
 	if (!value)
 		return 1;
@@ -371,7 +383,7 @@ static int perf_config_bool_or_int(const char *name, const char *value, int *is_
 	if (!strcasecmp(value, "false") || !strcasecmp(value, "no") || !strcasecmp(value, "off"))
 		return 0;
 	*is_bool = 0;
-	return perf_config_int(name, value);
+	return perf_config_int(&ret, name, value) < 0 ? -1 : ret;
 }
 
 int perf_config_bool(const char *name, const char *value)
@@ -423,22 +435,22 @@ static int perf_ui_config(const char *var, const char *value)
 int perf_default_config(const char *var, const char *value,
 			void *dummy __maybe_unused)
 {
-	if (!prefixcmp(var, "core."))
+	if (strstarts(var, "core."))
 		return perf_default_core_config(var, value);
 
-	if (!prefixcmp(var, "hist."))
+	if (strstarts(var, "hist."))
 		return perf_hist_config(var, value);
 
-	if (!prefixcmp(var, "ui."))
+	if (strstarts(var, "ui."))
 		return perf_ui_config(var, value);
 
-	if (!prefixcmp(var, "call-graph."))
+	if (strstarts(var, "call-graph."))
 		return perf_callchain_config(var, value);
 
-	if (!prefixcmp(var, "llvm."))
+	if (strstarts(var, "llvm."))
 		return perf_llvm_config(var, value);
 
-	if (!prefixcmp(var, "buildid."))
+	if (strstarts(var, "buildid."))
 		return perf_buildid_config(var, value);
 
 	/* Add other config variables here. */
@@ -657,8 +669,7 @@ static int perf_config_set__init(struct perf_config_set *set)
 
 	user_config = strdup(mkpath("%s/.perfconfig", home));
 	if (user_config == NULL) {
-		warning("Not enough memory to process %s/.perfconfig, "
-			"ignoring it.", home);
+		pr_warning("Not enough memory to process %s/.perfconfig, ignoring it.", home);
 		goto out;
 	}
 
@@ -671,8 +682,7 @@ static int perf_config_set__init(struct perf_config_set *set)
 	ret = 0;
 
 	if (st.st_uid && (st.st_uid != geteuid())) {
-		warning("File %s not owned by current user or root, "
-			"ignoring it.", user_config);
+		pr_warning("File %s not owned by current user or root, ignoring it.", user_config);
 		goto out_free;
 	}
 
@@ -795,7 +805,8 @@ void perf_config_set__delete(struct perf_config_set *set)
  */
 int config_error_nonbool(const char *var)
 {
-	return error("Missing value for '%s'", var);
+	pr_err("Missing value for '%s'", var);
+	return -1;
 }
 
 void set_buildid_dir(const char *dir)

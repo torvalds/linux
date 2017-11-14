@@ -131,7 +131,7 @@ void new_thread_handler(void)
 	 * callback returns only if the kernel thread execs a process
 	 */
 	n = fn(arg);
-	userspace(&current->thread.regs.regs);
+	userspace(&current->thread.regs.regs, current_thread_info()->aux_fp_regs);
 }
 
 /* Called magically, see new_thread_handler above */
@@ -150,7 +150,7 @@ void fork_handler(void)
 
 	current->thread.prev_sched = NULL;
 
-	userspace(&current->thread.regs.regs);
+	userspace(&current->thread.regs.regs, current_thread_info()->aux_fp_regs);
 }
 
 int copy_thread(unsigned long clone_flags, unsigned long sp,
@@ -253,11 +253,6 @@ int copy_from_user_proc(void *to, void __user *from, int size)
 int clear_user_proc(void __user *buf, int size)
 {
 	return clear_user(buf, size);
-}
-
-int strlen_user_proc(char __user *str)
-{
-	return strlen_user(str);
 }
 
 int cpu(void)

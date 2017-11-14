@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Generic RTC interface.
  * This version contains the part of the user interface to the Real Time Clock
@@ -14,6 +15,7 @@
 
 #include <linux/types.h>
 #include <linux/interrupt.h>
+#include <linux/nvmem-provider.h>
 #include <uapi/linux/rtc.h>
 
 extern int rtc_month_days(unsigned int month, unsigned int year);
@@ -32,17 +34,11 @@ static inline time64_t rtc_tm_sub(struct rtc_time *lhs, struct rtc_time *rhs)
 	return rtc_tm_to_time64(lhs) - rtc_tm_to_time64(rhs);
 }
 
-/**
- * Deprecated. Use rtc_time64_to_tm().
- */
 static inline void rtc_time_to_tm(unsigned long time, struct rtc_time *tm)
 {
 	rtc_time64_to_tm(time, tm);
 }
 
-/**
- * Deprecated. Use rtc_tm_to_time64().
- */
 static inline int rtc_tm_to_time(struct rtc_time *tm, unsigned long *time)
 {
 	*time = rtc_tm_to_time64(tm);
@@ -77,8 +73,6 @@ extern struct class *rtc_class;
  * issued through ioctl() ...
  */
 struct rtc_class_ops {
-	int (*open)(struct device *);
-	void (*release)(struct device *);
 	int (*ioctl)(struct device *, unsigned int, unsigned long);
 	int (*read_time)(struct device *, struct rtc_time *);
 	int (*set_time)(struct device *, struct rtc_time *);
@@ -116,7 +110,6 @@ struct rtc_device {
 	struct module *owner;
 
 	int id;
-	char name[RTC_DEVICE_NAME_SIZE];
 
 	const struct rtc_class_ops *ops;
 	struct mutex ops_lock;
@@ -143,6 +136,14 @@ struct rtc_device {
 	/* Some hardware can't support UIE mode */
 	int uie_unsupported;
 
+	bool registered;
+
+	struct nvmem_config *nvmem_config;
+	struct nvmem_device *nvmem;
+	/* Old ABI support */
+	bool nvram_old_abi;
+	struct bin_attribute *nvram;
+
 #ifdef CONFIG_RTC_INTF_DEV_UIE_EMUL
 	struct work_struct uie_task;
 	struct timer_list uie_timer;
@@ -164,6 +165,8 @@ extern struct rtc_device *devm_rtc_device_register(struct device *dev,
 					const char *name,
 					const struct rtc_class_ops *ops,
 					struct module *owner);
+struct rtc_device *devm_rtc_allocate_device(struct device *dev);
+int __rtc_register_device(struct module *owner, struct rtc_device *rtc);
 extern void rtc_device_unregister(struct rtc_device *rtc);
 extern void devm_rtc_device_unregister(struct device *dev,
 					struct rtc_device *rtc);
@@ -218,6 +221,9 @@ static inline bool is_leap_year(unsigned int year)
 {
 	return (!(year % 4) && (year % 100)) || !(year % 400);
 }
+
+#define rtc_register_device(device) \
+	__rtc_register_device(THIS_MODULE, device)
 
 #ifdef CONFIG_RTC_HCTOSYS_DEVICE
 extern int rtc_hctosys_ret;

@@ -60,11 +60,11 @@ int mlx4_en_setup_tc(struct net_device *dev, u8 up)
 	int i;
 	unsigned int offset = 0;
 
-	if (up && up != MLX4_EN_NUM_UP)
+	if (up && up != MLX4_EN_NUM_UP_HIGH)
 		return -EINVAL;
 
 	netdev_set_num_tc(dev, up);
-
+	netif_set_real_num_tx_queues(dev, priv->tx_ring_num[TX]);
 	/* Partition Tx queues evenly amongst UP's */
 	for (i = 0; i < up; i++) {
 		netdev_set_tc_queue(dev, i, priv->num_tx_rings_p_up, offset);
@@ -86,15 +86,64 @@ int mlx4_en_setup_tc(struct net_device *dev, u8 up)
 	return 0;
 }
 
-static int __mlx4_en_setup_tc(struct net_device *dev, u32 handle, __be16 proto,
-			      struct tc_to_netdev *tc)
+int mlx4_en_alloc_tx_queue_per_tc(struct net_device *dev, u8 tc)
 {
-	if (tc->type != TC_SETUP_MQPRIO)
+	struct mlx4_en_priv *priv = netdev_priv(dev);
+	struct mlx4_en_dev *mdev = priv->mdev;
+	struct mlx4_en_port_profile new_prof;
+	struct mlx4_en_priv *tmp;
+	int port_up = 0;
+	int err = 0;
+
+	tmp = kzalloc(sizeof(*tmp), GFP_KERNEL);
+	if (!tmp)
+		return -ENOMEM;
+
+	mutex_lock(&mdev->state_lock);
+	memcpy(&new_prof, priv->prof, sizeof(struct mlx4_en_port_profile));
+	new_prof.num_up = (tc == 0) ? MLX4_EN_NUM_UP_LOW :
+				      MLX4_EN_NUM_UP_HIGH;
+	new_prof.tx_ring_num[TX] = new_prof.num_tx_rings_p_up *
+				   new_prof.num_up;
+	err = mlx4_en_try_alloc_resources(priv, tmp, &new_prof, true);
+	if (err)
+		goto out;
+
+	if (priv->port_up) {
+		port_up = 1;
+		mlx4_en_stop_port(dev, 1);
+	}
+
+	mlx4_en_safe_replace_resources(priv, tmp);
+	if (port_up) {
+		err = mlx4_en_start_port(dev);
+		if (err) {
+			en_err(priv, "Failed starting port for setup TC\n");
+			goto out;
+		}
+	}
+
+	err = mlx4_en_setup_tc(dev, tc);
+out:
+	mutex_unlock(&mdev->state_lock);
+	kfree(tmp);
+	return err;
+}
+
+static int __mlx4_en_setup_tc(struct net_device *dev, enum tc_setup_type type,
+			      void *type_data)
+{
+	struct tc_mqprio_qopt *mqprio = type_data;
+
+	if (type != TC_SETUP_MQPRIO)
+		return -EOPNOTSUPP;
+
+	if (mqprio->num_tc && mqprio->num_tc != MLX4_EN_NUM_UP_HIGH)
 		return -EINVAL;
 
-	tc->mqprio->hw = TC_MQPRIO_HW_OFFLOAD_TCS;
+	mqprio->hw = TC_MQPRIO_HW_OFFLOAD_TCS;
 
-	return mlx4_en_setup_tc(dev, tc->mqprio->num_tc);
+	return mlx4_en_alloc_tx_queue_per_tc(dev, mqprio->num_tc);
 }
 
 #ifdef CONFIG_RFS_ACCEL
@@ -595,13 +644,16 @@ static int mlx4_en_get_qp(struct mlx4_en_priv *priv)
 		return err;
 	}
 
+	en_info(priv, "Steering Mode %d\n", dev->caps.steering_mode);
+
 	if (dev->caps.steering_mode == MLX4_STEERING_MODE_A0) {
 		int base_qpn = mlx4_get_base_qpn(dev, priv->port);
 		*qpn = base_qpn + index;
 		return 0;
 	}
 
-	err = mlx4_qp_reserve_range(dev, 1, 1, qpn, MLX4_RESERVE_A0_QP);
+	err = mlx4_qp_reserve_range(dev, 1, 1, qpn, MLX4_RESERVE_A0_QP,
+				    MLX4_RES_USAGE_DRIVER);
 	en_dbg(DRV, priv, "Reserved qp %d\n", *qpn);
 	if (err) {
 		en_err(priv, "Failed to reserve qp for mac registration\n");
@@ -681,6 +733,21 @@ static int mlx4_en_replace_mac(struct mlx4_en_priv *priv, int qpn,
 	return __mlx4_replace_mac(dev, priv->port, qpn, new_mac_u64);
 }
 
+static void mlx4_en_update_user_mac(struct mlx4_en_priv *priv,
+				    unsigned char new_mac[ETH_ALEN + 2])
+{
+	struct mlx4_en_dev *mdev = priv->mdev;
+	int err;
+
+	if (!(mdev->dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_USER_MAC_EN))
+		return;
+
+	err = mlx4_SET_PORT_user_mac(mdev->dev, priv->port, new_mac);
+	if (err)
+		en_err(priv, "Failed to pass user MAC(%pM) to Firmware for port %d, with error %d\n",
+		       new_mac, priv->port, err);
+}
+
 static int mlx4_en_do_set_mac(struct mlx4_en_priv *priv,
 			      unsigned char new_mac[ETH_ALEN + 2])
 {
@@ -715,8 +782,12 @@ static int mlx4_en_set_mac(struct net_device *dev, void *addr)
 	mutex_lock(&mdev->state_lock);
 	memcpy(new_mac, saddr->sa_data, ETH_ALEN);
 	err = mlx4_en_do_set_mac(priv, new_mac);
-	if (!err)
-		memcpy(dev->dev_addr, saddr->sa_data, ETH_ALEN);
+	if (err)
+		goto out;
+
+	memcpy(dev->dev_addr, saddr->sa_data, ETH_ALEN);
+	mlx4_en_update_user_mac(priv, new_mac);
+out:
 	mutex_unlock(&mdev->state_lock);
 
 	return err;
@@ -1009,7 +1080,7 @@ static void mlx4_en_do_multicast(struct mlx4_en_priv *priv,
 				memcpy(&mc_list[10], mclist->addr, ETH_ALEN);
 				mc_list[5] = priv->port;
 				err = mlx4_multicast_detach(mdev->dev,
-							    &priv->rss_map.indir_qp,
+							    priv->rss_map.indir_qp,
 							    mc_list,
 							    MLX4_PROT_ETH,
 							    mclist->reg_id);
@@ -1031,7 +1102,7 @@ static void mlx4_en_do_multicast(struct mlx4_en_priv *priv,
 				/* needed for B0 steering support */
 				mc_list[5] = priv->port;
 				err = mlx4_multicast_attach(mdev->dev,
-							    &priv->rss_map.indir_qp,
+							    priv->rss_map.indir_qp,
 							    mc_list,
 							    priv->port, 0,
 							    MLX4_PROT_ETH,
@@ -1349,7 +1420,7 @@ static void mlx4_en_set_default_moderation(struct mlx4_en_priv *priv)
 	priv->rx_usecs = MLX4_EN_RX_COAL_TIME;
 	priv->tx_frames = MLX4_EN_TX_COAL_PKTS;
 	priv->tx_usecs = MLX4_EN_TX_COAL_TIME;
-	en_dbg(INTR, priv, "Default coalesing params for mtu:%d - rx_frames:%d rx_usecs:%d\n",
+	en_dbg(INTR, priv, "Default coalescing params for mtu:%d - rx_frames:%d rx_usecs:%d\n",
 	       priv->dev->mtu, priv->rx_frames, priv->rx_usecs);
 
 	/* Setup cq moderation params */
@@ -1676,12 +1747,14 @@ int mlx4_en_start_port(struct net_device *dev)
 			if (t != TX_XDP) {
 				tx_ring->tx_queue = netdev_get_tx_queue(dev, i);
 				tx_ring->recycle_ring = NULL;
+
+				/* Arm CQ for TX completions */
+				mlx4_en_arm_cq(priv, cq);
+
 			} else {
 				mlx4_en_init_recycle_ring(priv, i);
+				/* XDP TX CQ should never be armed */
 			}
-
-			/* Arm CQ for TX completions */
-			mlx4_en_arm_cq(priv, cq);
 
 			/* Set initial ownership of all Tx TXBBs to SW (1) */
 			for (j = 0; j < tx_ring->buf_size; j += STAMP_STRIDE)
@@ -1741,7 +1814,7 @@ int mlx4_en_start_port(struct net_device *dev)
 	/* Attach rx QP to bradcast address */
 	eth_broadcast_addr(&mc_list[10]);
 	mc_list[5] = priv->port; /* needed for B0 steering support */
-	if (mlx4_multicast_attach(mdev->dev, &priv->rss_map.indir_qp, mc_list,
+	if (mlx4_multicast_attach(mdev->dev, priv->rss_map.indir_qp, mc_list,
 				  priv->port, 0, MLX4_PROT_ETH,
 				  &priv->broadcast_id))
 		mlx4_warn(mdev, "Failed Attaching Broadcast\n");
@@ -1865,12 +1938,12 @@ void mlx4_en_stop_port(struct net_device *dev, int detach)
 	/* Detach All multicasts */
 	eth_broadcast_addr(&mc_list[10]);
 	mc_list[5] = priv->port; /* needed for B0 steering support */
-	mlx4_multicast_detach(mdev->dev, &priv->rss_map.indir_qp, mc_list,
+	mlx4_multicast_detach(mdev->dev, priv->rss_map.indir_qp, mc_list,
 			      MLX4_PROT_ETH, priv->broadcast_id);
 	list_for_each_entry(mclist, &priv->curr_list, list) {
 		memcpy(&mc_list[10], mclist->addr, ETH_ALEN);
 		mc_list[5] = priv->port;
-		mlx4_multicast_detach(mdev->dev, &priv->rss_map.indir_qp,
+		mlx4_multicast_detach(mdev->dev, priv->rss_map.indir_qp,
 				      mc_list, MLX4_PROT_ETH, mclist->reg_id);
 		if (mclist->tunnel_reg_id)
 			mlx4_flow_detach(mdev->dev, mclist->tunnel_reg_id);
@@ -2139,7 +2212,7 @@ static int mlx4_en_copy_priv(struct mlx4_en_priv *dst,
 
 	memcpy(&dst->hwtstamp_config, &prof->hwtstamp_config,
 	       sizeof(dst->hwtstamp_config));
-	dst->num_tx_rings_p_up = src->mdev->profile.num_tx_rings_p_up;
+	dst->num_tx_rings_p_up = prof->num_tx_rings_p_up;
 	dst->rx_ring_num = prof->rx_ring_num;
 	dst->flags = prof->flags;
 	dst->mdev = src->mdev;
@@ -2192,6 +2265,7 @@ static void mlx4_en_update_priv(struct mlx4_en_priv *dst,
 		dst->tx_ring[t] = src->tx_ring[t];
 		dst->tx_cq[t] = src->tx_cq[t];
 	}
+	dst->num_tx_rings_p_up = src->num_tx_rings_p_up;
 	dst->rx_ring_num = src->rx_ring_num;
 	memcpy(dst->prof, src->prof, sizeof(struct mlx4_en_port_profile));
 }
@@ -2375,6 +2449,7 @@ static int mlx4_en_hwtstamp_set(struct net_device *dev, struct ifreq *ifr)
 	case HWTSTAMP_FILTER_PTP_V2_EVENT:
 	case HWTSTAMP_FILTER_PTP_V2_SYNC:
 	case HWTSTAMP_FILTER_PTP_V2_DELAY_REQ:
+	case HWTSTAMP_FILTER_NTP_ALL:
 		config.rx_filter = HWTSTAMP_FILTER_ALL;
 		break;
 	default:
@@ -2774,7 +2849,7 @@ static int mlx4_xdp_set(struct net_device *dev, struct bpf_prog *prog)
 	if (priv->tx_ring_num[TX] + xdp_ring_num > MAX_TX_RINGS) {
 		tx_changed = 1;
 		new_prof.tx_ring_num[TX] =
-			MAX_TX_RINGS - ALIGN(xdp_ring_num, MLX4_EN_NUM_UP);
+			MAX_TX_RINGS - ALIGN(xdp_ring_num, priv->prof->num_up);
 		en_warn(priv, "Reducing the number of TX rings, to not exceed the max total rings number.\n");
 	}
 
@@ -2819,11 +2894,25 @@ out:
 	return err;
 }
 
-static bool mlx4_xdp_attached(struct net_device *dev)
+static u32 mlx4_xdp_query(struct net_device *dev)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
+	struct mlx4_en_dev *mdev = priv->mdev;
+	const struct bpf_prog *xdp_prog;
+	u32 prog_id = 0;
 
-	return !!priv->tx_ring_num[TX_XDP];
+	if (!priv->tx_ring_num[TX_XDP])
+		return prog_id;
+
+	mutex_lock(&mdev->state_lock);
+	xdp_prog = rcu_dereference_protected(
+		priv->rx_ring[0]->xdp_prog,
+		lockdep_is_held(&mdev->state_lock));
+	if (xdp_prog)
+		prog_id = xdp_prog->aux->id;
+	mutex_unlock(&mdev->state_lock);
+
+	return prog_id;
 }
 
 static int mlx4_xdp(struct net_device *dev, struct netdev_xdp *xdp)
@@ -2832,7 +2921,8 @@ static int mlx4_xdp(struct net_device *dev, struct netdev_xdp *xdp)
 	case XDP_SETUP_PROG:
 		return mlx4_xdp_set(dev, xdp->prog);
 	case XDP_QUERY_PROG:
-		xdp->prog_attached = mlx4_xdp_attached(dev);
+		xdp->prog_id = mlx4_xdp_query(dev);
+		xdp->prog_attached = !!xdp->prog_id;
 		return 0;
 	default:
 		return -EINVAL;
@@ -3250,7 +3340,7 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 		priv->flags |= MLX4_EN_DCB_ENABLED;
 		priv->cee_config.pfc_state = false;
 
-		for (i = 0; i < MLX4_EN_NUM_UP; i++)
+		for (i = 0; i < MLX4_EN_NUM_UP_HIGH; i++)
 			priv->cee_config.dcb_pfc[i] = pfc_disabled;
 
 		if (mdev->dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_ETS_CFG) {

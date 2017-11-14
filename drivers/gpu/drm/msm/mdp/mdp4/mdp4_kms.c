@@ -114,7 +114,7 @@ static void mdp4_prepare_commit(struct msm_kms *kms, struct drm_atomic_state *st
 	mdp4_enable(mdp4_kms);
 
 	/* see 119ecb7fd */
-	for_each_crtc_in_state(state, crtc, crtc_state, i)
+	for_each_new_crtc_in_state(state, crtc, crtc_state, i)
 		drm_crtc_vblank_get(crtc);
 }
 
@@ -126,7 +126,7 @@ static void mdp4_complete_commit(struct msm_kms *kms, struct drm_atomic_state *s
 	struct drm_crtc_state *crtc_state;
 
 	/* see 119ecb7fd */
-	for_each_crtc_in_state(state, crtc, crtc_state, i)
+	for_each_new_crtc_in_state(state, crtc, crtc_state, i)
 		drm_crtc_vblank_put(crtc);
 
 	mdp4_disable(mdp4_kms);
@@ -160,10 +160,10 @@ static void mdp4_destroy(struct msm_kms *kms)
 {
 	struct mdp4_kms *mdp4_kms = to_mdp4_kms(to_mdp_kms(kms));
 	struct device *dev = mdp4_kms->dev->dev;
-	struct msm_gem_address_space *aspace = mdp4_kms->aspace;
+	struct msm_gem_address_space *aspace = kms->aspace;
 
 	if (mdp4_kms->blank_cursor_iova)
-		msm_gem_put_iova(mdp4_kms->blank_cursor_bo, mdp4_kms->id);
+		msm_gem_put_iova(mdp4_kms->blank_cursor_bo, kms->aspace);
 	drm_gem_object_unreference_unlocked(mdp4_kms->blank_cursor_bo);
 
 	if (aspace) {
@@ -510,7 +510,7 @@ struct msm_kms *mdp4_kms_init(struct drm_device *dev)
 			goto fail;
 		}
 
-		mdp4_kms->aspace = aspace;
+		kms->aspace = aspace;
 
 		ret = aspace->mmu->funcs->attach(aspace->mmu, iommu_ports,
 				ARRAY_SIZE(iommu_ports));
@@ -522,22 +522,13 @@ struct msm_kms *mdp4_kms_init(struct drm_device *dev)
 		aspace = NULL;
 	}
 
-	mdp4_kms->id = msm_register_address_space(dev, aspace);
-	if (mdp4_kms->id < 0) {
-		ret = mdp4_kms->id;
-		dev_err(dev->dev, "failed to register mdp4 iommu: %d\n", ret);
-		goto fail;
-	}
-
 	ret = modeset_init(mdp4_kms);
 	if (ret) {
 		dev_err(dev->dev, "modeset_init failed: %d\n", ret);
 		goto fail;
 	}
 
-	mutex_lock(&dev->struct_mutex);
 	mdp4_kms->blank_cursor_bo = msm_gem_new(dev, SZ_16K, MSM_BO_WC);
-	mutex_unlock(&dev->struct_mutex);
 	if (IS_ERR(mdp4_kms->blank_cursor_bo)) {
 		ret = PTR_ERR(mdp4_kms->blank_cursor_bo);
 		dev_err(dev->dev, "could not allocate blank-cursor bo: %d\n", ret);
@@ -545,7 +536,7 @@ struct msm_kms *mdp4_kms_init(struct drm_device *dev)
 		goto fail;
 	}
 
-	ret = msm_gem_get_iova(mdp4_kms->blank_cursor_bo, mdp4_kms->id,
+	ret = msm_gem_get_iova(mdp4_kms->blank_cursor_bo, kms->aspace,
 			&mdp4_kms->blank_cursor_iova);
 	if (ret) {
 		dev_err(dev->dev, "could not pin blank-cursor bo: %d\n", ret);

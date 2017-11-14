@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __ASM_MACH_BCM963XX_CPU_FEATURE_OVERRIDES_H
 #define __ASM_MACH_BCM963XX_CPU_FEATURE_OVERRIDES_H
 
@@ -19,6 +20,7 @@
 #define cpu_has_ejtag			1
 #define cpu_has_llsc			1
 #define cpu_has_mips16			0
+#define cpu_has_mips16e2		0
 #define cpu_has_mdmx			0
 #define cpu_has_mips3d			0
 #define cpu_has_smartmips		0

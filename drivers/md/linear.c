@@ -245,7 +245,7 @@ static void linear_free(struct mddev *mddev, void *priv)
 	kfree(conf);
 }
 
-static void linear_make_request(struct mddev *mddev, struct bio *bio)
+static bool linear_make_request(struct mddev *mddev, struct bio *bio)
 {
 	char b[BDEVNAME_SIZE];
 	struct dev_info *tmp_dev;
@@ -254,7 +254,7 @@ static void linear_make_request(struct mddev *mddev, struct bio *bio)
 
 	if (unlikely(bio->bi_opf & REQ_PREFLUSH)) {
 		md_flush_request(mddev, bio);
-		return;
+		return true;
 	}
 
 	tmp_dev = which_dev(mddev, bio_sector);
@@ -275,24 +275,24 @@ static void linear_make_request(struct mddev *mddev, struct bio *bio)
 		bio = split;
 	}
 
-	bio->bi_bdev = tmp_dev->rdev->bdev;
+	bio_set_dev(bio, tmp_dev->rdev->bdev);
 	bio->bi_iter.bi_sector = bio->bi_iter.bi_sector -
 		start_sector + data_offset;
 
 	if (unlikely((bio_op(bio) == REQ_OP_DISCARD) &&
-		     !blk_queue_discard(bdev_get_queue(bio->bi_bdev)))) {
+		     !blk_queue_discard(bio->bi_disk->queue))) {
 		/* Just ignore it */
 		bio_endio(bio);
 	} else {
 		if (mddev->gendisk)
-			trace_block_bio_remap(bdev_get_queue(bio->bi_bdev),
+			trace_block_bio_remap(bio->bi_disk->queue,
 					      bio, disk_devt(mddev->gendisk),
 					      bio_sector);
 		mddev_check_writesame(mddev, bio);
 		mddev_check_write_zeroes(mddev, bio);
 		generic_make_request(bio);
 	}
-	return;
+	return true;
 
 out_of_bounds:
 	pr_err("md/linear:%s: make_request: Sector %llu out of bounds on dev %s: %llu sectors, offset %llu\n",
@@ -302,6 +302,7 @@ out_of_bounds:
 	       (unsigned long long)tmp_dev->rdev->sectors,
 	       (unsigned long long)start_sector);
 	bio_io_error(bio);
+	return true;
 }
 
 static void linear_status (struct seq_file *seq, struct mddev *mddev)

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  S390 version
  *    Copyright IBM Corp. 1999
@@ -26,6 +27,7 @@
 #include <linux/poison.h>
 #include <linux/initrd.h>
 #include <linux/export.h>
+#include <linux/cma.h>
 #include <linux/gfp.h>
 #include <linux/memblock.h>
 #include <asm/processor.h>
@@ -81,9 +83,10 @@ void __init paging_init(void)
 {
 	unsigned long max_zone_pfns[MAX_NR_ZONES];
 	unsigned long pgd_type, asce_bits;
+	psw_t psw;
 
 	init_mm.pgd = swapper_pg_dir;
-	if (VMALLOC_END > (1UL << 42)) {
+	if (VMALLOC_END > _REGION2_SIZE) {
 		asce_bits = _ASCE_TYPE_REGION2 | _ASCE_TABLE_LENGTH;
 		pgd_type = _REGION2_ENTRY_EMPTY;
 	} else {
@@ -92,15 +95,17 @@ void __init paging_init(void)
 	}
 	init_mm.context.asce = (__pa(init_mm.pgd) & PAGE_MASK) | asce_bits;
 	S390_lowcore.kernel_asce = init_mm.context.asce;
-	clear_table((unsigned long *) init_mm.pgd, pgd_type,
-		    sizeof(unsigned long)*2048);
+	crst_table_init((unsigned long *) init_mm.pgd, pgd_type);
 	vmem_map_init();
 
         /* enable virtual mapping in kernel mode */
 	__ctl_load(S390_lowcore.kernel_asce, 1, 1);
 	__ctl_load(S390_lowcore.kernel_asce, 7, 7);
 	__ctl_load(S390_lowcore.kernel_asce, 13, 13);
-	__arch_local_irq_stosm(0x04);
+	psw.mask = __extract_psw();
+	psw_bits(psw).dat = 1;
+	psw_bits(psw).as = PSW_BITS_AS_HOME;
+	__load_psw_mask(psw.mask);
 
 	sparse_memory_present_with_active_regions(MAX_NUMNODES);
 	sparse_init();
@@ -133,6 +138,8 @@ void __init mem_init(void)
 	free_all_bootmem();
 	setup_zero_pages();	/* Setup zeroed pages. */
 
+	cmma_init_nodat();
+
 	mem_init_print_info(NULL);
 }
 
@@ -162,43 +169,69 @@ unsigned long memory_block_size_bytes(void)
 }
 
 #ifdef CONFIG_MEMORY_HOTPLUG
-int arch_add_memory(int nid, u64 start, u64 size, bool for_device)
+
+#ifdef CONFIG_CMA
+
+/* Prevent memory blocks which contain cma regions from going offline */
+
+struct s390_cma_mem_data {
+	unsigned long start;
+	unsigned long end;
+};
+
+static int s390_cma_check_range(struct cma *cma, void *data)
 {
-	unsigned long zone_start_pfn, zone_end_pfn, nr_pages;
+	struct s390_cma_mem_data *mem_data;
+	unsigned long start, end;
+
+	mem_data = data;
+	start = cma_get_base(cma);
+	end = start + cma_get_size(cma);
+	if (end < mem_data->start)
+		return 0;
+	if (start >= mem_data->end)
+		return 0;
+	return -EBUSY;
+}
+
+static int s390_cma_mem_notifier(struct notifier_block *nb,
+				 unsigned long action, void *data)
+{
+	struct s390_cma_mem_data mem_data;
+	struct memory_notify *arg;
+	int rc = 0;
+
+	arg = data;
+	mem_data.start = arg->start_pfn << PAGE_SHIFT;
+	mem_data.end = mem_data.start + (arg->nr_pages << PAGE_SHIFT);
+	if (action == MEM_GOING_OFFLINE)
+		rc = cma_for_each_area(s390_cma_check_range, &mem_data);
+	return notifier_from_errno(rc);
+}
+
+static struct notifier_block s390_cma_mem_nb = {
+	.notifier_call = s390_cma_mem_notifier,
+};
+
+static int __init s390_cma_mem_init(void)
+{
+	return register_memory_notifier(&s390_cma_mem_nb);
+}
+device_initcall(s390_cma_mem_init);
+
+#endif /* CONFIG_CMA */
+
+int arch_add_memory(int nid, u64 start, u64 size, bool want_memblock)
+{
 	unsigned long start_pfn = PFN_DOWN(start);
 	unsigned long size_pages = PFN_DOWN(size);
-	pg_data_t *pgdat = NODE_DATA(nid);
-	struct zone *zone;
-	int rc, i;
+	int rc;
 
 	rc = vmem_add_mapping(start, size);
 	if (rc)
 		return rc;
 
-	for (i = 0; i < MAX_NR_ZONES; i++) {
-		zone = pgdat->node_zones + i;
-		if (zone_idx(zone) != ZONE_MOVABLE) {
-			/* Add range within existing zone limits, if possible */
-			zone_start_pfn = zone->zone_start_pfn;
-			zone_end_pfn = zone->zone_start_pfn +
-				       zone->spanned_pages;
-		} else {
-			/* Add remaining range to ZONE_MOVABLE */
-			zone_start_pfn = start_pfn;
-			zone_end_pfn = start_pfn + size_pages;
-		}
-		if (start_pfn < zone_start_pfn || start_pfn >= zone_end_pfn)
-			continue;
-		nr_pages = (start_pfn + size_pages > zone_end_pfn) ?
-			   zone_end_pfn - start_pfn : size_pages;
-		rc = __add_pages(nid, zone, start_pfn, nr_pages);
-		if (rc)
-			break;
-		start_pfn += nr_pages;
-		size_pages -= nr_pages;
-		if (!size_pages)
-			break;
-	}
+	rc = __add_pages(nid, start_pfn, size_pages, want_memblock);
 	if (rc)
 		vmem_remove_mapping(start, size);
 	return rc;

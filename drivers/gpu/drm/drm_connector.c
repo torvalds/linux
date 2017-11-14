@@ -717,9 +717,9 @@ DRM_ENUM_NAME_FN(drm_get_tv_subconnector_name,
  * 	drivers, it remaps to controlling the "ACTIVE" property on the CRTC the
  * 	connector is linked to. Drivers should never set this property directly,
  * 	it is handled by the DRM core by calling the &drm_connector_funcs.dpms
- * 	callback. Atomic drivers should implement this hook using
- * 	drm_atomic_helper_connector_dpms(). This is the only property standard
- * 	connector property that userspace can change.
+ * 	callback. For atomic drivers the remapping to the "ACTIVE" property is
+ * 	implemented in the DRM core.  This is the only standard connector
+ * 	property that userspace can change.
  * PATH:
  * 	Connector path property to identify how this sink is physically
  * 	connected. Used by DP MST. This should be set by calling
@@ -941,6 +941,10 @@ EXPORT_SYMBOL(drm_mode_create_tv_properties);
  *
  * Called by a driver the first time it's needed, must be attached to desired
  * connectors.
+ *
+ * Atomic drivers should use drm_connector_attach_scaling_mode_property()
+ * instead to correctly assign &drm_connector_state.picture_aspect_ratio
+ * in the atomic state.
  */
 int drm_mode_create_scaling_mode_property(struct drm_device *dev)
 {
@@ -959,6 +963,66 @@ int drm_mode_create_scaling_mode_property(struct drm_device *dev)
 	return 0;
 }
 EXPORT_SYMBOL(drm_mode_create_scaling_mode_property);
+
+/**
+ * drm_connector_attach_scaling_mode_property - attach atomic scaling mode property
+ * @connector: connector to attach scaling mode property on.
+ * @scaling_mode_mask: or'ed mask of BIT(%DRM_MODE_SCALE_\*).
+ *
+ * This is used to add support for scaling mode to atomic drivers.
+ * The scaling mode will be set to &drm_connector_state.picture_aspect_ratio
+ * and can be used from &drm_connector_helper_funcs->atomic_check for validation.
+ *
+ * This is the atomic version of drm_mode_create_scaling_mode_property().
+ *
+ * Returns:
+ * Zero on success, negative errno on failure.
+ */
+int drm_connector_attach_scaling_mode_property(struct drm_connector *connector,
+					       u32 scaling_mode_mask)
+{
+	struct drm_device *dev = connector->dev;
+	struct drm_property *scaling_mode_property;
+	int i, j = 0;
+	const unsigned valid_scaling_mode_mask =
+		(1U << ARRAY_SIZE(drm_scaling_mode_enum_list)) - 1;
+
+	if (WARN_ON(hweight32(scaling_mode_mask) < 2 ||
+		    scaling_mode_mask & ~valid_scaling_mode_mask))
+		return -EINVAL;
+
+	scaling_mode_property =
+		drm_property_create(dev, DRM_MODE_PROP_ENUM, "scaling mode",
+				    hweight32(scaling_mode_mask));
+
+	if (!scaling_mode_property)
+		return -ENOMEM;
+
+	for (i = 0; i < ARRAY_SIZE(drm_scaling_mode_enum_list); i++) {
+		int ret;
+
+		if (!(BIT(i) & scaling_mode_mask))
+			continue;
+
+		ret = drm_property_add_enum(scaling_mode_property, j++,
+					    drm_scaling_mode_enum_list[i].type,
+					    drm_scaling_mode_enum_list[i].name);
+
+		if (ret) {
+			drm_property_destroy(dev, scaling_mode_property);
+
+			return ret;
+		}
+	}
+
+	drm_object_attach_property(&connector->base,
+				   scaling_mode_property, 0);
+
+	connector->scaling_mode_property = scaling_mode_property;
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_connector_attach_scaling_mode_property);
 
 /**
  * drm_mode_create_aspect_ratio_property - create aspect ratio property
@@ -1161,7 +1225,6 @@ int drm_mode_connector_set_obj_prop(struct drm_mode_object *obj,
 	} else if (connector->funcs->set_property)
 		ret = connector->funcs->set_property(connector, property, value);
 
-	/* store the property value if successful */
 	if (!ret)
 		drm_object_property_set_value(&connector->base, property, value);
 	return ret;

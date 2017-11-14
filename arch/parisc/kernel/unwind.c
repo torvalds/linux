@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Kernel unwinding support
  *
@@ -14,6 +15,7 @@
 #include <linux/slab.h>
 #include <linux/kallsyms.h>
 #include <linux/sort.h>
+#include <linux/sched.h>
 
 #include <linux/uaccess.h>
 #include <asm/assembly.h>
@@ -34,7 +36,7 @@
 extern struct unwind_table_entry __start___unwind[];
 extern struct unwind_table_entry __stop___unwind[];
 
-static spinlock_t unwind_lock;
+static DEFINE_SPINLOCK(unwind_lock);
 /*
  * the kernel unwind block is not dynamically allocated so that
  * we can call unwind_init as early in the bootup process as 
@@ -181,8 +183,6 @@ int __init unwind_init(void)
 	start = (long)&__start___unwind[0];
 	stop = (long)&__stop___unwind[0];
 
-	spin_lock_init(&unwind_lock);
-
 	printk("unwind_init: start = 0x%lx, end = 0x%lx, entries = %lu\n", 
 	    start, stop,
 	    (stop - start) / sizeof(struct unwind_table_entry));
@@ -281,6 +281,17 @@ static void unwind_frame_regs(struct unwind_frame_info *info)
 
 			info->prev_sp = sp - 64;
 			info->prev_ip = 0;
+
+			/* The stack is at the end inside the thread_union
+			 * struct. If we reach data, we have reached the
+			 * beginning of the stack and should stop unwinding. */
+			if (info->prev_sp >= (unsigned long) task_thread_info(info->t) &&
+			    info->prev_sp < ((unsigned long) task_thread_info(info->t)
+						+ THREAD_SZ_ALGN)) {
+				info->prev_sp = 0;
+				break;
+			}
+
 			if (get_user(tmp, (unsigned long *)(info->prev_sp - RP_OFFSET))) 
 				break;
 			info->prev_ip = tmp;

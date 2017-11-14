@@ -710,7 +710,7 @@ static int ssm2518_set_sysclk(struct snd_soc_codec *codec, int clk_id,
 			SSM2518_POWER1_NO_BCLK, val);
 }
 
-static struct snd_soc_codec_driver ssm2518_codec_driver = {
+static const struct snd_soc_codec_driver ssm2518_codec_driver = {
 	.set_bias_level = ssm2518_set_bias_level,
 	.set_sysclk = ssm2518_set_sysclk,
 	.idle_bias_off = true,

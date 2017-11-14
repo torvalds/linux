@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NOUVEAU_DRV_H__
 #define __NOUVEAU_DRV_H__
 
@@ -43,7 +44,7 @@
 #include <nvif/device.h>
 #include <nvif/ioctl.h>
 
-#include <drmP.h>
+#include <drm/drmP.h>
 
 #include <drm/ttm/ttm_bo_api.h>
 #include <drm/ttm/ttm_bo_driver.h>

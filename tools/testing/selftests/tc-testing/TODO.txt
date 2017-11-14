@@ -1,0 +1,10 @@
+tc Testing Suite To-Do list:
+
+- Determine what tc features are supported in the kernel. If features are not
+  present, prevent the related categories from running.
+
+- Add support for multiple versions of tc to run successively
+
+- Improve error messages when tdc aborts its run
+
+- Allow tdc to write its results to file

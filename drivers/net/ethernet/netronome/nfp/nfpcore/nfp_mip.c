@@ -141,12 +141,19 @@ const struct nfp_mip *nfp_mip_open(struct nfp_cpp *cpp)
 		return NULL;
 	}
 
+	mip->name[sizeof(mip->name) - 1] = 0;
+
 	return mip;
 }
 
 void nfp_mip_close(const struct nfp_mip *mip)
 {
 	kfree(mip);
+}
+
+const char *nfp_mip_name(const struct nfp_mip *mip)
+{
+	return mip->name;
 }
 
 /**

@@ -214,7 +214,7 @@ struct drm_property_blob {
 
 struct drm_prop_enum_list {
 	int type;
-	char *name;
+	const char *name;
 };
 
 #define obj_to_property(x) container_of(x, struct drm_property, base)
@@ -273,6 +273,8 @@ int drm_property_replace_global_blob(struct drm_device *dev,
 				     const void *data,
 				     struct drm_mode_object *obj_holds_id,
 				     struct drm_property *prop_holds_id);
+bool drm_property_replace_blob(struct drm_property_blob **blob,
+			       struct drm_property_blob *new_blob);
 struct drm_property_blob *drm_property_blob_get(struct drm_property_blob *blob);
 void drm_property_blob_put(struct drm_property_blob *blob);
 

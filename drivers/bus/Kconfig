@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # Bus Devices
 #
@@ -57,7 +58,7 @@ config ARM_CCN
 
 config BRCMSTB_GISB_ARB
 	bool "Broadcom STB GISB bus arbiter"
-	depends on ARM || MIPS
+	depends on ARM || ARM64 || MIPS
 	default ARCH_BRCMSTB || BMIPS_GENERIC
 	help
 	  Driver for the Broadcom Set Top Box System-on-a-chip internal bus
@@ -121,7 +122,6 @@ config QCOM_EBI2
 config SIMPLE_PM_BUS
 	bool "Simple Power-Managed Bus Driver"
 	depends on OF && PM
-	depends on ARCH_RENESAS || COMPILE_TEST
 	help
 	  Driver for transparent busses that don't need a real driver, but
 	  where the bus controller is part of a PM domain, or under the control
@@ -133,7 +133,7 @@ config SIMPLE_PM_BUS
 
 config SUNXI_RSB
 	tristate "Allwinner sunXi Reduced Serial Bus Driver"
-	  default MACH_SUN8I || MACH_SUN9I
+	  default MACH_SUN8I || MACH_SUN9I || ARM64
 	  depends on ARCH_SUNXI
 	  select REGMAP
 	  help

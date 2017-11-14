@@ -114,7 +114,6 @@ static int __init bcm2835_timer_init(struct device_node *node)
 
 	timer = kzalloc(sizeof(*timer), GFP_KERNEL);
 	if (!timer) {
-		pr_err("Can't allocate timer struct\n");
 		ret = -ENOMEM;
 		goto err_iounmap;
 	}
@@ -148,5 +147,5 @@ err_iounmap:
 	iounmap(base);
 	return ret;
 }
-CLOCKSOURCE_OF_DECLARE(bcm2835, "brcm,bcm2835-system-timer",
+TIMER_OF_DECLARE(bcm2835, "brcm,bcm2835-system-timer",
 			bcm2835_timer_init);

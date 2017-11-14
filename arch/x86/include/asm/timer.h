@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_TIMER_H
 #define _ASM_X86_TIMER_H
 #include <linux/pm.h>
@@ -29,11 +30,9 @@ struct cyc2ns_data {
 	u32 cyc2ns_mul;
 	u32 cyc2ns_shift;
 	u64 cyc2ns_offset;
-	u32 __count;
-	/* u32 hole */
-}; /* 24 bytes -- do not grow */
+}; /* 16 bytes */
 
-extern struct cyc2ns_data *cyc2ns_read_begin(void);
-extern void cyc2ns_read_end(struct cyc2ns_data *);
+extern void cyc2ns_read_begin(struct cyc2ns_data *);
+extern void cyc2ns_read_end(void);
 
 #endif /* _ASM_X86_TIMER_H */

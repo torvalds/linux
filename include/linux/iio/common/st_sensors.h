@@ -105,6 +105,11 @@ struct st_sensor_fullscale {
 	struct st_sensor_fullscale_avl fs_avl[ST_SENSORS_FULLSCALE_AVL_MAX];
 };
 
+struct st_sensor_sim {
+	u8 addr;
+	u8 value;
+};
+
 /**
  * struct st_sensor_bdu - ST sensor device block data update
  * @addr: address of the register.
@@ -197,6 +202,7 @@ struct st_sensor_transfer_function {
  * @bdu: Block data update register.
  * @das: Data Alignment Selection register.
  * @drdy_irq: Data ready register of the sensor.
+ * @sim: SPI serial interface mode register of the sensor.
  * @multi_read_bit: Use or not particular bit for [I2C/SPI] multi-read.
  * @bootime: samples to discard when sensor passing from power-down to power-up.
  */
@@ -213,6 +219,7 @@ struct st_sensor_settings {
 	struct st_sensor_bdu bdu;
 	struct st_sensor_das das;
 	struct st_sensor_data_ready_irq drdy_irq;
+	struct st_sensor_sim sim;
 	bool multi_read_bit;
 	unsigned int bootime;
 };
@@ -324,5 +331,17 @@ ssize_t st_sensors_sysfs_sampling_frequency_avail(struct device *dev,
 
 ssize_t st_sensors_sysfs_scale_avail(struct device *dev,
 				struct device_attribute *attr, char *buf);
+
+#ifdef CONFIG_OF
+void st_sensors_of_name_probe(struct device *dev,
+			      const struct of_device_id *match,
+			      char *name, int len);
+#else
+static inline void st_sensors_of_name_probe(struct device *dev,
+					    const struct of_device_id *match,
+					    char *name, int len)
+{
+}
+#endif
 
 #endif /* ST_SENSORS_H */

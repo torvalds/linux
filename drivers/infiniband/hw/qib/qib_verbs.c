@@ -1341,6 +1341,15 @@ int qib_check_ah(struct ib_device *ibdev, struct rdma_ah_attr *ah_attr)
 	if (rdma_ah_get_sl(ah_attr) > 15)
 		return -EINVAL;
 
+	if (rdma_ah_get_dlid(ah_attr) == 0)
+		return -EINVAL;
+	if (rdma_ah_get_dlid(ah_attr) >=
+		be16_to_cpu(IB_MULTICAST_LID_BASE) &&
+	    rdma_ah_get_dlid(ah_attr) !=
+		be16_to_cpu(IB_LID_PERMISSIVE) &&
+	    !(rdma_ah_get_ah_flags(ah_attr) & IB_AH_GRH))
+		return -EINVAL;
+
 	return 0;
 }
 

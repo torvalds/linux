@@ -393,7 +393,7 @@ nv04_devinit_pll_set(struct nvkm_devinit *devinit, u32 type, u32 freq)
 int
 nv04_devinit_post(struct nvkm_devinit *init, bool execute)
 {
-	return nvbios_init(&init->subdev, execute);
+	return nvbios_post(&init->subdev, execute);
 }
 
 void

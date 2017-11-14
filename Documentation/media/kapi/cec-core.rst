@@ -107,6 +107,7 @@ your driver:
 		int (*adap_transmit)(struct cec_adapter *adap, u8 attempts,
 				      u32 signal_free_time, struct cec_msg *msg);
 		void (*adap_status)(struct cec_adapter *adap, struct seq_file *file);
+		void (*adap_free)(struct cec_adapter *adap);
 
 		/* High-level callbacks */
 		...
@@ -184,6 +185,14 @@ To log the current CEC hardware status:
 This optional callback can be used to show the status of the CEC hardware.
 The status is available through debugfs: cat /sys/kernel/debug/cec/cecX/status
 
+To free any resources when the adapter is deleted:
+
+.. c:function::
+	void (*adap_free)(struct cec_adapter *adap);
+
+This optional callback can be used to free any resources that might have been
+allocated by the driver. It's called from cec_delete_adapter.
+
 
 Your adapter driver will also have to react to events (typically interrupt
 driven) by calling into the framework in the following situations:
@@ -193,6 +202,11 @@ When a transmit finished (successfully or otherwise):
 .. c:function::
 	void cec_transmit_done(struct cec_adapter *adap, u8 status, u8 arb_lost_cnt,
 		       u8 nack_cnt, u8 low_drive_cnt, u8 error_cnt);
+
+or:
+
+.. c:function::
+	void cec_transmit_attempt_done(struct cec_adapter *adap, u8 status);
 
 The status can be one of:
 
@@ -230,6 +244,11 @@ hardware retry can just set the counter corresponding to the transmit error
 to 1, if the hardware does support retry then either set these counters to
 0 if the hardware provides no feedback of which errors occurred and how many
 times, or fill in the correct values as reported by the hardware.
+
+The cec_transmit_attempt_done() function is a helper for cases where the
+hardware never retries, so the transmit is always for just a single
+attempt. It will call cec_transmit_done() in turn, filling in 1 for the
+count argument corresponding to the status. Or all 0 if the status was OK.
 
 When a CEC message was received:
 
@@ -307,6 +326,14 @@ to another valid physical address, then this function will first set the
 address to CEC_PHYS_ADDR_INVALID before enabling the new physical address.
 
 .. c:function::
+	void cec_s_phys_addr_from_edid(struct cec_adapter *adap,
+				       const struct edid *edid);
+
+A helper function that extracts the physical address from the edid struct
+and calls cec_s_phys_addr() with that address, or CEC_PHYS_ADDR_INVALID
+if the EDID did not contain a physical address or edid was a NULL pointer.
+
+.. c:function::
 	int cec_s_log_addrs(struct cec_adapter *adap,
 			    struct cec_log_addrs *log_addrs, bool block);
 
@@ -318,3 +345,34 @@ log_addrs->num_log_addrs set to 0. The block argument is ignored when
 unconfiguring. This function will just return if the physical address is
 invalid. Once the physical address becomes valid, then the framework will
 attempt to claim these logical addresses.
+
+CEC Pin framework
+-----------------
+
+Most CEC hardware operates on full CEC messages where the software provides
+the message and the hardware handles the low-level CEC protocol. But some
+hardware only drives the CEC pin and software has to handle the low-level
+CEC protocol. The CEC pin framework was created to handle such devices.
+
+Note that due to the close-to-realtime requirements it can never be guaranteed
+to work 100%. This framework uses highres timers internally, but if a
+timer goes off too late by more than 300 microseconds wrong results can
+occur. In reality it appears to be fairly reliable.
+
+One advantage of this low-level implementation is that it can be used as
+a cheap CEC analyser, especially if interrupts can be used to detect
+CEC pin transitions from low to high or vice versa.
+
+.. kernel-doc:: include/media/cec-pin.h
+
+CEC Notifier framework
+----------------------
+
+Most drm HDMI implementations have an integrated CEC implementation and no
+notifier support is needed. But some have independent CEC implementations
+that have their own driver. This could be an IP block for an SoC or a
+completely separate chip that deals with the CEC pin. For those cases a
+drm driver can install a notifier and use the notifier to inform the
+CEC driver about changes in the physical address.
+
+.. kernel-doc:: include/media/cec-notifier.h

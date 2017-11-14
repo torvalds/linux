@@ -75,7 +75,8 @@ SYSCALL_DEFINE3(ioprio_set, int, which, int, who, int, ioprio)
 		case IOPRIO_CLASS_RT:
 			if (!capable(CAP_SYS_ADMIN))
 				return -EPERM;
-			/* fall through, rt has prio field too */
+			/* fall through */
+			/* rt has prio field too */
 		case IOPRIO_CLASS_BE:
 			if (data >= IOPRIO_BE_NR || data < 0)
 				return -EINVAL;

@@ -12,6 +12,7 @@
 #include <linux/cred.h>
 #include <linux/xattr.h>
 #include <linux/posix_acl.h>
+#include <linux/ratelimit.h>
 #include "overlayfs.h"
 
 int ovl_setattr(struct dentry *dentry, struct iattr *attr)
@@ -96,11 +97,15 @@ int ovl_getattr(const struct path *path, struct kstat *stat,
 
 			WARN_ON_ONCE(stat->dev != lowerstat.dev);
 			/*
-			 * Lower hardlinks are broken on copy up to different
+			 * Lower hardlinks may be broken on copy up to different
 			 * upper files, so we cannot use the lower origin st_ino
 			 * for those different files, even for the same fs case.
+			 * With inodes index enabled, it is safe to use st_ino
+			 * of an indexed hardlinked origin. The index validates
+			 * that the upper hardlink is not broken.
 			 */
-			if (is_dir || lowerstat.nlink == 1)
+			if (is_dir || lowerstat.nlink == 1 ||
+			    ovl_test_flag(OVL_INDEX, d_inode(dentry)))
 				stat->ino = lowerstat.ino;
 		}
 		stat->dev = dentry->d_sb->s_dev;
@@ -126,6 +131,15 @@ int ovl_getattr(const struct path *path, struct kstat *stat,
 	if (is_dir && OVL_TYPE_MERGE(type))
 		stat->nlink = 1;
 
+	/*
+	 * Return the overlay inode nlinks for indexed upper inodes.
+	 * Overlay inode nlink counts the union of the upper hardlinks
+	 * and non-covered lower hardlinks. It does not include the upper
+	 * index hardlink.
+	 */
+	if (!is_dir && ovl_test_flag(OVL_INDEX, d_inode(dentry)))
+		stat->nlink = dentry->d_inode->i_nlink;
+
 out:
 	revert_creds(old_cred);
 
@@ -134,8 +148,8 @@ out:
 
 int ovl_permission(struct inode *inode, int mask)
 {
-	bool is_upper;
-	struct inode *realinode = ovl_inode_real(inode, &is_upper);
+	struct inode *upperinode = ovl_inode_upper(inode);
+	struct inode *realinode = upperinode ?: ovl_inode_lower(inode);
 	const struct cred *old_cred;
 	int err;
 
@@ -154,7 +168,8 @@ int ovl_permission(struct inode *inode, int mask)
 		return err;
 
 	old_cred = ovl_override_creds(inode->i_sb);
-	if (!is_upper && !special_file(realinode->i_mode) && mask & MAY_WRITE) {
+	if (!upperinode &&
+	    !special_file(realinode->i_mode) && mask & MAY_WRITE) {
 		mask &= ~(MAY_WRITE | MAY_APPEND);
 		/* Make sure mounter can read file for copy up later */
 		mask |= MAY_READ;
@@ -187,37 +202,38 @@ bool ovl_is_private_xattr(const char *name)
 		       sizeof(OVL_XATTR_PREFIX) - 1) == 0;
 }
 
-int ovl_xattr_set(struct dentry *dentry, const char *name, const void *value,
-		  size_t size, int flags)
+int ovl_xattr_set(struct dentry *dentry, struct inode *inode, const char *name,
+		  const void *value, size_t size, int flags)
 {
 	int err;
-	struct path realpath;
-	enum ovl_path_type type = ovl_path_real(dentry, &realpath);
+	struct dentry *upperdentry = ovl_i_dentry_upper(inode);
+	struct dentry *realdentry = upperdentry ?: ovl_dentry_lower(dentry);
 	const struct cred *old_cred;
 
 	err = ovl_want_write(dentry);
 	if (err)
 		goto out;
 
-	if (!value && !OVL_TYPE_UPPER(type)) {
-		err = vfs_getxattr(realpath.dentry, name, NULL, 0);
+	if (!value && !upperdentry) {
+		err = vfs_getxattr(realdentry, name, NULL, 0);
 		if (err < 0)
 			goto out_drop_write;
 	}
 
-	err = ovl_copy_up(dentry);
-	if (err)
-		goto out_drop_write;
+	if (!upperdentry) {
+		err = ovl_copy_up(dentry);
+		if (err)
+			goto out_drop_write;
 
-	if (!OVL_TYPE_UPPER(type))
-		ovl_path_upper(dentry, &realpath);
+		realdentry = ovl_dentry_upper(dentry);
+	}
 
 	old_cred = ovl_override_creds(dentry->d_sb);
 	if (value)
-		err = vfs_setxattr(realpath.dentry, name, value, size, flags);
+		err = vfs_setxattr(realdentry, name, value, size, flags);
 	else {
 		WARN_ON(flags != XATTR_REPLACE);
-		err = vfs_removexattr(realpath.dentry, name);
+		err = vfs_removexattr(realdentry, name);
 	}
 	revert_creds(old_cred);
 
@@ -227,12 +243,13 @@ out:
 	return err;
 }
 
-int ovl_xattr_get(struct dentry *dentry, const char *name,
+int ovl_xattr_get(struct dentry *dentry, struct inode *inode, const char *name,
 		  void *value, size_t size)
 {
-	struct dentry *realdentry = ovl_dentry_real(dentry);
 	ssize_t res;
 	const struct cred *old_cred;
+	struct dentry *realdentry =
+		ovl_i_dentry_upper(inode) ?: ovl_dentry_lower(dentry);
 
 	old_cred = ovl_override_creds(dentry->d_sb);
 	res = vfs_getxattr(realdentry, name, value, size);
@@ -286,7 +303,7 @@ ssize_t ovl_listxattr(struct dentry *dentry, char *list, size_t size)
 
 struct posix_acl *ovl_get_acl(struct inode *inode, int type)
 {
-	struct inode *realinode = ovl_inode_real(inode, NULL);
+	struct inode *realinode = ovl_inode_real(inode);
 	const struct cred *old_cred;
 	struct posix_acl *acl;
 
@@ -300,13 +317,13 @@ struct posix_acl *ovl_get_acl(struct inode *inode, int type)
 	return acl;
 }
 
-static bool ovl_open_need_copy_up(int flags, enum ovl_path_type type,
-				  struct dentry *realdentry)
+static bool ovl_open_need_copy_up(struct dentry *dentry, int flags)
 {
-	if (OVL_TYPE_UPPER(type))
+	if (ovl_dentry_upper(dentry) &&
+	    ovl_dentry_has_upper_alias(dentry))
 		return false;
 
-	if (special_file(realdentry->d_inode->i_mode))
+	if (special_file(d_inode(dentry)->i_mode))
 		return false;
 
 	if (!(OPEN_FMODE(flags) & FMODE_WRITE) && !(flags & O_TRUNC))
@@ -318,11 +335,8 @@ static bool ovl_open_need_copy_up(int flags, enum ovl_path_type type,
 int ovl_open_maybe_copy_up(struct dentry *dentry, unsigned int file_flags)
 {
 	int err = 0;
-	struct path realpath;
-	enum ovl_path_type type;
 
-	type = ovl_path_real(dentry, &realpath);
-	if (ovl_open_need_copy_up(file_flags, type, realpath.dentry)) {
+	if (ovl_open_need_copy_up(dentry, file_flags)) {
 		err = ovl_want_write(dentry);
 		if (!err) {
 			err = ovl_copy_up_flags(dentry, file_flags);
@@ -440,6 +454,106 @@ static void ovl_fill_inode(struct inode *inode, umode_t mode, dev_t rdev)
 	}
 }
 
+/*
+ * With inodes index enabled, an overlay inode nlink counts the union of upper
+ * hardlinks and non-covered lower hardlinks. During the lifetime of a non-pure
+ * upper inode, the following nlink modifying operations can happen:
+ *
+ * 1. Lower hardlink copy up
+ * 2. Upper hardlink created, unlinked or renamed over
+ * 3. Lower hardlink whiteout or renamed over
+ *
+ * For the first, copy up case, the union nlink does not change, whether the
+ * operation succeeds or fails, but the upper inode nlink may change.
+ * Therefore, before copy up, we store the union nlink value relative to the
+ * lower inode nlink in the index inode xattr trusted.overlay.nlink.
+ *
+ * For the second, upper hardlink case, the union nlink should be incremented
+ * or decremented IFF the operation succeeds, aligned with nlink change of the
+ * upper inode. Therefore, before link/unlink/rename, we store the union nlink
+ * value relative to the upper inode nlink in the index inode.
+ *
+ * For the last, lower cover up case, we simplify things by preceding the
+ * whiteout or cover up with copy up. This makes sure that there is an index
+ * upper inode where the nlink xattr can be stored before the copied up upper
+ * entry is unlink.
+ */
+#define OVL_NLINK_ADD_UPPER	(1 << 0)
+
+/*
+ * On-disk format for indexed nlink:
+ *
+ * nlink relative to the upper inode - "U[+-]NUM"
+ * nlink relative to the lower inode - "L[+-]NUM"
+ */
+
+static int ovl_set_nlink_common(struct dentry *dentry,
+				struct dentry *realdentry, const char *format)
+{
+	struct inode *inode = d_inode(dentry);
+	struct inode *realinode = d_inode(realdentry);
+	char buf[13];
+	int len;
+
+	len = snprintf(buf, sizeof(buf), format,
+		       (int) (inode->i_nlink - realinode->i_nlink));
+
+	if (WARN_ON(len >= sizeof(buf)))
+		return -EIO;
+
+	return ovl_do_setxattr(ovl_dentry_upper(dentry),
+			       OVL_XATTR_NLINK, buf, len, 0);
+}
+
+int ovl_set_nlink_upper(struct dentry *dentry)
+{
+	return ovl_set_nlink_common(dentry, ovl_dentry_upper(dentry), "U%+i");
+}
+
+int ovl_set_nlink_lower(struct dentry *dentry)
+{
+	return ovl_set_nlink_common(dentry, ovl_dentry_lower(dentry), "L%+i");
+}
+
+unsigned int ovl_get_nlink(struct dentry *lowerdentry,
+			   struct dentry *upperdentry,
+			   unsigned int fallback)
+{
+	int nlink_diff;
+	int nlink;
+	char buf[13];
+	int err;
+
+	if (!lowerdentry || !upperdentry || d_inode(lowerdentry)->i_nlink == 1)
+		return fallback;
+
+	err = vfs_getxattr(upperdentry, OVL_XATTR_NLINK, &buf, sizeof(buf) - 1);
+	if (err < 0)
+		goto fail;
+
+	buf[err] = '\0';
+	if ((buf[0] != 'L' && buf[0] != 'U') ||
+	    (buf[1] != '+' && buf[1] != '-'))
+		goto fail;
+
+	err = kstrtoint(buf + 1, 10, &nlink_diff);
+	if (err < 0)
+		goto fail;
+
+	nlink = d_inode(buf[0] == 'L' ? lowerdentry : upperdentry)->i_nlink;
+	nlink += nlink_diff;
+
+	if (nlink <= 0)
+		goto fail;
+
+	return nlink;
+
+fail:
+	pr_warn_ratelimited("overlayfs: failed to get index nlink (%pd2, err=%i)\n",
+			    upperdentry, err);
+	return fallback;
+}
+
 struct inode *ovl_new_inode(struct super_block *sb, umode_t mode, dev_t rdev)
 {
 	struct inode *inode;
@@ -453,27 +567,102 @@ struct inode *ovl_new_inode(struct super_block *sb, umode_t mode, dev_t rdev)
 
 static int ovl_inode_test(struct inode *inode, void *data)
 {
-	return ovl_inode_real(inode, NULL) == data;
+	return inode->i_private == data;
 }
 
 static int ovl_inode_set(struct inode *inode, void *data)
 {
-	inode->i_private = (void *) (((unsigned long) data) | OVL_ISUPPER_MASK);
+	inode->i_private = data;
 	return 0;
 }
 
-struct inode *ovl_get_inode(struct super_block *sb, struct inode *realinode)
-
+static bool ovl_verify_inode(struct inode *inode, struct dentry *lowerdentry,
+			     struct dentry *upperdentry)
 {
+	/*
+	 * Allow non-NULL lower inode in ovl_inode even if lowerdentry is NULL.
+	 * This happens when finding a copied up overlay inode for a renamed
+	 * or hardlinked overlay dentry and lower dentry cannot be followed
+	 * by origin because lower fs does not support file handles.
+	 */
+	if (lowerdentry && ovl_inode_lower(inode) != d_inode(lowerdentry))
+		return false;
+
+	/*
+	 * Allow non-NULL __upperdentry in inode even if upperdentry is NULL.
+	 * This happens when finding a lower alias for a copied up hard link.
+	 */
+	if (upperdentry && ovl_inode_upper(inode) != d_inode(upperdentry))
+		return false;
+
+	return true;
+}
+
+struct inode *ovl_get_inode(struct dentry *dentry, struct dentry *upperdentry,
+			    struct dentry *index)
+{
+	struct dentry *lowerdentry = ovl_dentry_lower(dentry);
+	struct inode *realinode = upperdentry ? d_inode(upperdentry) : NULL;
 	struct inode *inode;
+	/* Already indexed or could be indexed on copy up? */
+	bool indexed = (index || (ovl_indexdir(dentry->d_sb) && !upperdentry));
 
-	inode = iget5_locked(sb, (unsigned long) realinode,
-			     ovl_inode_test, ovl_inode_set, realinode);
-	if (inode && inode->i_state & I_NEW) {
-		ovl_fill_inode(inode, realinode->i_mode, realinode->i_rdev);
-		set_nlink(inode, realinode->i_nlink);
-		unlock_new_inode(inode);
+	if (WARN_ON(upperdentry && indexed && !lowerdentry))
+		return ERR_PTR(-EIO);
+
+	if (!realinode)
+		realinode = d_inode(lowerdentry);
+
+	/*
+	 * Copy up origin (lower) may exist for non-indexed upper, but we must
+	 * not use lower as hash key in that case.
+	 * Hash inodes that are or could be indexed by origin inode and
+	 * non-indexed upper inodes that could be hard linked by upper inode.
+	 */
+	if (!S_ISDIR(realinode->i_mode) && (upperdentry || indexed)) {
+		struct inode *key = d_inode(indexed ? lowerdentry :
+						      upperdentry);
+		unsigned int nlink;
+
+		inode = iget5_locked(dentry->d_sb, (unsigned long) key,
+				     ovl_inode_test, ovl_inode_set, key);
+		if (!inode)
+			goto out_nomem;
+		if (!(inode->i_state & I_NEW)) {
+			/*
+			 * Verify that the underlying files stored in the inode
+			 * match those in the dentry.
+			 */
+			if (!ovl_verify_inode(inode, lowerdentry, upperdentry)) {
+				iput(inode);
+				inode = ERR_PTR(-ESTALE);
+				goto out;
+			}
+
+			dput(upperdentry);
+			goto out;
+		}
+
+		nlink = ovl_get_nlink(lowerdentry, upperdentry,
+				      realinode->i_nlink);
+		set_nlink(inode, nlink);
+	} else {
+		inode = new_inode(dentry->d_sb);
+		if (!inode)
+			goto out_nomem;
 	}
+	ovl_fill_inode(inode, realinode->i_mode, realinode->i_rdev);
+	ovl_inode_init(inode, upperdentry, lowerdentry);
 
+	if (upperdentry && ovl_is_impuredir(upperdentry))
+		ovl_set_flag(OVL_IMPURE, inode);
+
+	if (inode->i_state & I_NEW)
+		unlock_new_inode(inode);
+out:
 	return inode;
+
+out_nomem:
+	inode = ERR_PTR(-ENOMEM);
+	goto out;
 }

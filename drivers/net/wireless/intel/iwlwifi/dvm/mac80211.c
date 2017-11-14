@@ -138,7 +138,7 @@ int iwlagn_mac_setup_register(struct iwl_priv *priv,
 	 * packets, so enabling it with software crypto isn't safe)
 	 */
 	if (priv->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_MFP &&
-	    !iwlwifi_mod_params.sw_crypto)
+	    !iwlwifi_mod_params.swcrypto)
 		ieee80211_hw_set(hw, MFP_CAPABLE);
 
 	hw->sta_data_size = sizeof(struct iwl_station_priv);
@@ -171,7 +171,7 @@ int iwlagn_mac_setup_register(struct iwl_priv *priv,
 					     WIPHY_WOWLAN_DISCONNECT |
 					     WIPHY_WOWLAN_EAP_IDENTITY_REQ |
 					     WIPHY_WOWLAN_RFKILL_RELEASE;
-		if (!iwlwifi_mod_params.sw_crypto)
+		if (!iwlwifi_mod_params.swcrypto)
 			priv->wowlan_support.flags |=
 				WIPHY_WOWLAN_SUPPORTS_GTK_REKEY |
 				WIPHY_WOWLAN_GTK_REKEY_FAILURE;
@@ -348,7 +348,7 @@ static void iwlagn_mac_set_rekey_data(struct ieee80211_hw *hw,
 {
 	struct iwl_priv *priv = IWL_MAC80211_GET_DVM(hw);
 
-	if (iwlwifi_mod_params.sw_crypto)
+	if (iwlwifi_mod_params.swcrypto)
 		return;
 
 	IWL_DEBUG_MAC80211(priv, "enter\n");
@@ -624,7 +624,7 @@ static int iwlagn_mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 
 	IWL_DEBUG_MAC80211(priv, "enter\n");
 
-	if (iwlwifi_mod_params.sw_crypto) {
+	if (iwlwifi_mod_params.swcrypto) {
 		IWL_DEBUG_MAC80211(priv, "leave - hwcrypto disabled\n");
 		return -EOPNOTSUPP;
 	}

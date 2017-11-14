@@ -45,7 +45,6 @@
 MODULE_AUTHOR("Boyd Faulkner, Steve Wise");
 MODULE_DESCRIPTION("Chelsio T3 RDMA Driver");
 MODULE_LICENSE("Dual BSD/GPL");
-MODULE_VERSION(DRV_VERSION);
 
 static void open_rnic_dev(struct t3cdev *);
 static void close_rnic_dev(struct t3cdev *);

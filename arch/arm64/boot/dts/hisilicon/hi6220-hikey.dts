@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * dts file for Hisilicon HiKey Development Board
  *
@@ -141,6 +142,8 @@
 			bluetooth {
 				compatible = "ti,wl1835-st";
 				enable-gpios = <&gpio1 7 GPIO_ACTIVE_HIGH>;
+				clocks = <&pmic>;
+				clock-names = "ext_clock";
 			};
 		};
 
@@ -466,6 +469,11 @@
 			method = "smc";
 		};
 	};
+
+	sound_card {
+		compatible = "audio-graph-card";
+		dais = <&i2s0_port0>;
+	};
 };
 
 &uart2 {
@@ -506,10 +514,33 @@
 		interrupts = <1 2>;
 		pd-gpio = <&gpio0 4 0>;
 		adi,dsi-lanes = <4>;
+		#sound-dai-cells = <0>;
 
-		port {
-			adv7533_in: endpoint {
-				remote-endpoint = <&dsi_out0>;
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			port@0 {
+				adv7533_in: endpoint {
+					remote-endpoint = <&dsi_out0>;
+				};
+			};
+			port@2 {
+				reg = <2>;
+				codec_endpoint: endpoint {
+					remote-endpoint = <&i2s0_cpu_endpoint>;
+				};
+			};
+		};
+	};
+};
+
+&i2s0 {
+
+	ports {
+		i2s0_port0: port@0 {
+			i2s0_cpu_endpoint: endpoint {
+				remote-endpoint = <&codec_endpoint>;
+				dai-format = "i2s";
 			};
 		};
 	};

@@ -1236,6 +1236,7 @@ static inline int cpsw_tx_packet_submit(struct cpsw_priv *priv,
 {
 	struct cpsw_common *cpsw = priv->cpsw;
 
+	skb_tx_timestamp(skb);
 	return cpdma_chan_submit(txch, skb, skb->data, skb->len,
 				 priv->emac_port + cpsw->data.dual_emac);
 }
@@ -1320,8 +1321,8 @@ static void cpsw_slave_open(struct cpsw_slave *slave, struct cpsw_priv *priv)
 		phy = of_phy_connect(priv->ndev, slave->data->phy_node,
 				 &cpsw_adjust_link, 0, slave->data->phy_if);
 		if (!phy) {
-			dev_err(priv->dev, "phy \"%s\" not found on slave %d\n",
-				slave->data->phy_node->full_name,
+			dev_err(priv->dev, "phy \"%pOF\" not found on slave %d\n",
+				slave->data->phy_node,
 				slave->slave_num);
 			return;
 		}
@@ -1597,6 +1598,7 @@ static netdev_tx_t cpsw_ndo_start_xmit(struct sk_buff *skb,
 {
 	struct cpsw_priv *priv = netdev_priv(ndev);
 	struct cpsw_common *cpsw = priv->cpsw;
+	struct cpts *cpts = cpsw->cpts;
 	struct netdev_queue *txq;
 	struct cpdma_chan *txch;
 	int ret, q_idx;
@@ -1608,10 +1610,8 @@ static netdev_tx_t cpsw_ndo_start_xmit(struct sk_buff *skb,
 	}
 
 	if (skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP &&
-	    cpts_is_tx_enabled(cpsw->cpts))
+	    cpts_is_tx_enabled(cpts) && cpts_can_timestamp(cpts, skb))
 		skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
-
-	skb_tx_timestamp(skb);
 
 	q_idx = skb_get_queue_mapping(skb);
 	if (q_idx >= cpsw->tx_ch_num)
@@ -1731,10 +1731,14 @@ static int cpsw_hwtstamp_set(struct net_device *dev, struct ifreq *ifr)
 		cpts_rx_enable(cpts, 0);
 		break;
 	case HWTSTAMP_FILTER_ALL:
+	case HWTSTAMP_FILTER_NTP_ALL:
+		return -ERANGE;
 	case HWTSTAMP_FILTER_PTP_V1_L4_EVENT:
 	case HWTSTAMP_FILTER_PTP_V1_L4_SYNC:
 	case HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ:
-		return -ERANGE;
+		cpts_rx_enable(cpts, HWTSTAMP_FILTER_PTP_V1_L4_EVENT);
+		cfg.rx_filter = HWTSTAMP_FILTER_PTP_V1_L4_EVENT;
+		break;
 	case HWTSTAMP_FILTER_PTP_V2_L4_EVENT:
 	case HWTSTAMP_FILTER_PTP_V2_L4_SYNC:
 	case HWTSTAMP_FILTER_PTP_V2_L4_DELAY_REQ:
@@ -1744,7 +1748,7 @@ static int cpsw_hwtstamp_set(struct net_device *dev, struct ifreq *ifr)
 	case HWTSTAMP_FILTER_PTP_V2_EVENT:
 	case HWTSTAMP_FILTER_PTP_V2_SYNC:
 	case HWTSTAMP_FILTER_PTP_V2_DELAY_REQ:
-		cpts_rx_enable(cpts, 1);
+		cpts_rx_enable(cpts, HWTSTAMP_FILTER_PTP_V2_EVENT);
 		cfg.rx_filter = HWTSTAMP_FILTER_PTP_V2_EVENT;
 		break;
 	default:
@@ -1783,7 +1787,7 @@ static int cpsw_hwtstamp_get(struct net_device *dev, struct ifreq *ifr)
 	cfg.tx_type = cpts_is_tx_enabled(cpts) ?
 		      HWTSTAMP_TX_ON : HWTSTAMP_TX_OFF;
 	cfg.rx_filter = (cpts_is_rx_enabled(cpts) ?
-			 HWTSTAMP_FILTER_PTP_V2_EVENT : HWTSTAMP_FILTER_NONE);
+			 cpts->rx_enable : HWTSTAMP_FILTER_NONE);
 
 	return copy_to_user(ifr->ifr_data, &cfg, sizeof(cfg)) ? -EFAULT : 0;
 }
@@ -2140,6 +2144,7 @@ static int cpsw_get_ts_info(struct net_device *ndev,
 		(1 << HWTSTAMP_TX_ON);
 	info->rx_filters =
 		(1 << HWTSTAMP_FILTER_NONE) |
+		(1 << HWTSTAMP_FILTER_PTP_V1_L4_EVENT) |
 		(1 << HWTSTAMP_FILTER_PTP_V2_EVENT);
 	return 0;
 }
@@ -2165,11 +2170,11 @@ static int cpsw_get_link_ksettings(struct net_device *ndev,
 	struct cpsw_common *cpsw = priv->cpsw;
 	int slave_no = cpsw_slave_index(cpsw, priv);
 
-	if (cpsw->slaves[slave_no].phy)
-		return phy_ethtool_ksettings_get(cpsw->slaves[slave_no].phy,
-						 ecmd);
-	else
+	if (!cpsw->slaves[slave_no].phy)
 		return -EOPNOTSUPP;
+
+	phy_ethtool_ksettings_get(cpsw->slaves[slave_no].phy, ecmd);
+	return 0;
 }
 
 static int cpsw_set_link_ksettings(struct net_device *ndev,
@@ -2665,8 +2670,8 @@ static int cpsw_probe_dt(struct cpsw_platform_data *data,
 		parp = of_get_property(slave_node, "phy_id", &lenp);
 		if (slave_data->phy_node) {
 			dev_dbg(&pdev->dev,
-				"slave[%d] using phy-handle=\"%s\"\n",
-				i, slave_data->phy_node->full_name);
+				"slave[%d] using phy-handle=\"%pOF\"\n",
+				i, slave_data->phy_node);
 		} else if (of_phy_is_fixed_link(slave_node)) {
 			/* In the case of a fixed PHY, the DT node associated
 			 * to the PHY is the Ethernet MAC DT node.
@@ -2822,7 +2827,7 @@ static int cpsw_probe_dual_emac(struct cpsw_priv *priv)
 
 #define CPSW_QUIRK_IRQ		BIT(0)
 
-static struct platform_device_id cpsw_devtype[] = {
+static const struct platform_device_id cpsw_devtype[] = {
 	{
 		/* keep it for existing comaptibles */
 		.name = "cpsw",
@@ -3084,6 +3089,31 @@ static int cpsw_probe(struct platform_device *pdev)
 			cpsw->quirk_irq = true;
 	}
 
+	ndev->features |= NETIF_F_HW_VLAN_CTAG_FILTER;
+
+	ndev->netdev_ops = &cpsw_netdev_ops;
+	ndev->ethtool_ops = &cpsw_ethtool_ops;
+	netif_napi_add(ndev, &cpsw->napi_rx, cpsw_rx_poll, CPSW_POLL_WEIGHT);
+	netif_tx_napi_add(ndev, &cpsw->napi_tx, cpsw_tx_poll, CPSW_POLL_WEIGHT);
+	cpsw_split_res(ndev);
+
+	/* register the network device */
+	SET_NETDEV_DEV(ndev, &pdev->dev);
+	ret = register_netdev(ndev);
+	if (ret) {
+		dev_err(priv->dev, "error registering net device\n");
+		ret = -ENODEV;
+		goto clean_ale_ret;
+	}
+
+	if (cpsw->data.dual_emac) {
+		ret = cpsw_probe_dual_emac(priv);
+		if (ret) {
+			cpsw_err(priv, probe, "error probe slave 2 emac interface\n");
+			goto clean_unregister_netdev_ret;
+		}
+	}
+
 	/* Grab RX and TX IRQs. Note that we also have RX_THRESHOLD and
 	 * MISC IRQs which are always kept disabled with this driver so
 	 * we will not request them.
@@ -3122,33 +3152,9 @@ static int cpsw_probe(struct platform_device *pdev)
 		goto clean_ale_ret;
 	}
 
-	ndev->features |= NETIF_F_HW_VLAN_CTAG_FILTER;
-
-	ndev->netdev_ops = &cpsw_netdev_ops;
-	ndev->ethtool_ops = &cpsw_ethtool_ops;
-	netif_napi_add(ndev, &cpsw->napi_rx, cpsw_rx_poll, CPSW_POLL_WEIGHT);
-	netif_tx_napi_add(ndev, &cpsw->napi_tx, cpsw_tx_poll, CPSW_POLL_WEIGHT);
-	cpsw_split_res(ndev);
-
-	/* register the network device */
-	SET_NETDEV_DEV(ndev, &pdev->dev);
-	ret = register_netdev(ndev);
-	if (ret) {
-		dev_err(priv->dev, "error registering net device\n");
-		ret = -ENODEV;
-		goto clean_ale_ret;
-	}
-
 	cpsw_notice(priv, probe,
 		    "initialized device (regs %pa, irq %d, pool size %d)\n",
 		    &ss_res->start, ndev->irq, dma_params.descs_pool_size);
-	if (cpsw->data.dual_emac) {
-		ret = cpsw_probe_dual_emac(priv);
-		if (ret) {
-			cpsw_err(priv, probe, "error probe slave 2 emac interface\n");
-			goto clean_unregister_netdev_ret;
-		}
-	}
 
 	pm_runtime_put(&pdev->dev);
 

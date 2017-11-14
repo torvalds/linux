@@ -1,7 +1,7 @@
 /*
  * AMD Cryptographic Coprocessor (CCP) driver
  *
- * Copyright (C) 2016 Advanced Micro Devices, Inc.
+ * Copyright (C) 2016,2017 Advanced Micro Devices, Inc.
  *
  * Author: Gary R Hook <gary.hook@amd.com>
  *
@@ -14,6 +14,7 @@
 #include <linux/kernel.h>
 #include <linux/pci.h>
 #include <linux/kthread.h>
+#include <linux/debugfs.h>
 #include <linux/dma-mapping.h>
 #include <linux/interrupt.h>
 #include <linux/compiler.h>
@@ -144,6 +145,7 @@ union ccp_function {
 #define	CCP_AES_MODE(p)		((p)->aes.mode)
 #define	CCP_AES_TYPE(p)		((p)->aes.type)
 #define	CCP_XTS_SIZE(p)		((p)->aes_xts.size)
+#define	CCP_XTS_TYPE(p)		((p)->aes_xts.type)
 #define	CCP_XTS_ENCRYPT(p)	((p)->aes_xts.encrypt)
 #define	CCP_DES3_SIZE(p)	((p)->des3.size)
 #define	CCP_DES3_ENCRYPT(p)	((p)->des3.encrypt)
@@ -231,6 +233,8 @@ static int ccp5_do_cmd(struct ccp5_desc *desc,
 	int	i;
 	int ret = 0;
 
+	cmd_q->total_ops++;
+
 	if (CCP5_CMD_SOC(desc)) {
 		CCP5_CMD_IOC(desc) = 1;
 		CCP5_CMD_SOC(desc) = 0;
@@ -282,6 +286,8 @@ static int ccp5_perform_aes(struct ccp_op *op)
 	union ccp_function function;
 	u32 key_addr = op->sb_key * LSB_ITEM_SIZE;
 
+	op->cmd_q->total_aes_ops++;
+
 	/* Zero out all the fields of the command desc */
 	memset(&desc, 0, Q_DESC_SIZE);
 
@@ -325,6 +331,8 @@ static int ccp5_perform_xts_aes(struct ccp_op *op)
 	union ccp_function function;
 	u32 key_addr = op->sb_key * LSB_ITEM_SIZE;
 
+	op->cmd_q->total_xts_aes_ops++;
+
 	/* Zero out all the fields of the command desc */
 	memset(&desc, 0, Q_DESC_SIZE);
 
@@ -337,6 +345,7 @@ static int ccp5_perform_xts_aes(struct ccp_op *op)
 	CCP5_CMD_PROT(&desc) = 0;
 
 	function.raw = 0;
+	CCP_XTS_TYPE(&function) = op->u.xts.type;
 	CCP_XTS_ENCRYPT(&function) = op->u.xts.action;
 	CCP_XTS_SIZE(&function) = op->u.xts.unit_size;
 	CCP5_CMD_FUNCTION(&desc) = function.raw;
@@ -363,6 +372,8 @@ static int ccp5_perform_sha(struct ccp_op *op)
 {
 	struct ccp5_desc desc;
 	union ccp_function function;
+
+	op->cmd_q->total_sha_ops++;
 
 	/* Zero out all the fields of the command desc */
 	memset(&desc, 0, Q_DESC_SIZE);
@@ -404,6 +415,8 @@ static int ccp5_perform_des3(struct ccp_op *op)
 	union ccp_function function;
 	u32 key_addr = op->sb_key * LSB_ITEM_SIZE;
 
+	op->cmd_q->total_3des_ops++;
+
 	/* Zero out all the fields of the command desc */
 	memset(&desc, 0, sizeof(struct ccp5_desc));
 
@@ -444,6 +457,8 @@ static int ccp5_perform_rsa(struct ccp_op *op)
 	struct ccp5_desc desc;
 	union ccp_function function;
 
+	op->cmd_q->total_rsa_ops++;
+
 	/* Zero out all the fields of the command desc */
 	memset(&desc, 0, Q_DESC_SIZE);
 
@@ -456,7 +471,7 @@ static int ccp5_perform_rsa(struct ccp_op *op)
 	CCP5_CMD_PROT(&desc) = 0;
 
 	function.raw = 0;
-	CCP_RSA_SIZE(&function) = op->u.rsa.mod_size >> 3;
+	CCP_RSA_SIZE(&function) = (op->u.rsa.mod_size + 7) >> 3;
 	CCP5_CMD_FUNCTION(&desc) = function.raw;
 
 	CCP5_CMD_LEN(&desc) = op->u.rsa.input_len;
@@ -471,10 +486,10 @@ static int ccp5_perform_rsa(struct ccp_op *op)
 	CCP5_CMD_DST_HI(&desc) = ccp_addr_hi(&op->dst.u.dma);
 	CCP5_CMD_DST_MEM(&desc) = CCP_MEMTYPE_SYSTEM;
 
-	/* Exponent is in LSB memory */
-	CCP5_CMD_KEY_LO(&desc) = op->sb_key * LSB_ITEM_SIZE;
-	CCP5_CMD_KEY_HI(&desc) = 0;
-	CCP5_CMD_KEY_MEM(&desc) = CCP_MEMTYPE_SB;
+	/* Key (Exponent) is in external memory */
+	CCP5_CMD_KEY_LO(&desc) = ccp_addr_lo(&op->exp.u.dma);
+	CCP5_CMD_KEY_HI(&desc) = ccp_addr_hi(&op->exp.u.dma);
+	CCP5_CMD_KEY_MEM(&desc) = CCP_MEMTYPE_SYSTEM;
 
 	return ccp5_do_cmd(&desc, op->cmd_q);
 }
@@ -486,6 +501,8 @@ static int ccp5_perform_passthru(struct ccp_op *op)
 	struct ccp_dma_info *saddr = &op->src.u.dma;
 	struct ccp_dma_info *daddr = &op->dst.u.dma;
 
+
+	op->cmd_q->total_pt_ops++;
 
 	memset(&desc, 0, Q_DESC_SIZE);
 
@@ -543,6 +560,8 @@ static int ccp5_perform_ecc(struct ccp_op *op)
 	struct ccp5_desc desc;
 	union ccp_function function;
 
+	op->cmd_q->total_ecc_ops++;
+
 	/* Zero out all the fields of the command desc */
 	memset(&desc, 0, Q_DESC_SIZE);
 
@@ -591,7 +610,6 @@ static int ccp_find_lsb_regions(struct ccp_cmd_queue *cmd_q, u64 status)
 
 	return queues ? 0 : -EINVAL;
 }
-
 
 static int ccp_find_and_assign_lsb_to_q(struct ccp_device *ccp,
 					int lsb_cnt, int n_lsbs,
@@ -753,10 +771,10 @@ static void ccp5_irq_bh(unsigned long data)
 
 static irqreturn_t ccp5_irq_handler(int irq, void *data)
 {
-	struct device *dev = data;
-	struct ccp_device *ccp = dev_get_drvdata(dev);
+	struct ccp_device *ccp = (struct ccp_device *)data;
 
 	ccp5_disable_queue_interrupts(ccp);
+	ccp->total_interrupts++;
 	if (ccp->use_tasklet)
 		tasklet_schedule(&ccp->irq_tasklet);
 	else
@@ -864,7 +882,7 @@ static int ccp5_init(struct ccp_device *ccp)
 
 	dev_dbg(dev, "Requesting an IRQ...\n");
 	/* Request an irq */
-	ret = ccp->get_irq(ccp);
+	ret = sp_request_ccp_irq(ccp->sp, ccp5_irq_handler, ccp->name, ccp);
 	if (ret) {
 		dev_err(dev, "unable to allocate an IRQ\n");
 		goto e_pool;
@@ -956,6 +974,9 @@ static int ccp5_init(struct ccp_device *ccp)
 	if (ret)
 		goto e_hwrng;
 
+	/* Set up debugfs entries */
+	ccp5_debugfs_setup(ccp);
+
 	return 0;
 
 e_hwrng:
@@ -967,7 +988,7 @@ e_kthread:
 			kthread_stop(ccp->cmd_q[i].kthread);
 
 e_irq:
-	ccp->free_irq(ccp);
+	sp_free_ccp_irq(ccp->sp, ccp);
 
 e_pool:
 	for (i = 0; i < ccp->cmd_q_count; i++)
@@ -992,6 +1013,12 @@ static void ccp5_destroy(struct ccp_device *ccp)
 	/* Remove this device from the list of available units first */
 	ccp_del_device(ccp);
 
+	/* We're in the process of tearing down the entire driver;
+	 * when all the devices are gone clean up debugfs
+	 */
+	if (ccp_present())
+		ccp5_debugfs_destroy();
+
 	/* Disable and clear interrupts */
 	ccp5_disable_queue_interrupts(ccp);
 	for (i = 0; i < ccp->cmd_q_count; i++) {
@@ -1011,7 +1038,7 @@ static void ccp5_destroy(struct ccp_device *ccp)
 		if (ccp->cmd_q[i].kthread)
 			kthread_stop(ccp->cmd_q[i].kthread);
 
-	ccp->free_irq(ccp);
+	sp_free_ccp_irq(ccp->sp, ccp);
 
 	for (i = 0; i < ccp->cmd_q_count; i++) {
 		cmd_q = &ccp->cmd_q[i];
@@ -1080,15 +1107,14 @@ static const struct ccp_actions ccp5_actions = {
 	.init = ccp5_init,
 	.destroy = ccp5_destroy,
 	.get_free_slots = ccp5_get_free_slots,
-	.irqhandler = ccp5_irq_handler,
 };
 
 const struct ccp_vdata ccpv5a = {
 	.version = CCP_VERSION(5, 0),
 	.setup = ccp5_config,
 	.perform = &ccp5_actions,
-	.bar = 2,
 	.offset = 0x0,
+	.rsamax = CCP5_RSA_MAX_WIDTH,
 };
 
 const struct ccp_vdata ccpv5b = {
@@ -1096,6 +1122,6 @@ const struct ccp_vdata ccpv5b = {
 	.dma_chan_attr = DMA_PRIVATE,
 	.setup = ccp5other_config,
 	.perform = &ccp5_actions,
-	.bar = 2,
 	.offset = 0x0,
+	.rsamax = CCP5_RSA_MAX_WIDTH,
 };

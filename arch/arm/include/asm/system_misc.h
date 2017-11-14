@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __ASM_ARM_SYSTEM_MISC_H
 #define __ASM_ARM_SYSTEM_MISC_H
 
@@ -21,6 +22,11 @@ extern void (*arm_pm_idle)(void);
 #define UDBG_BUS	(1 << 4)
 
 extern unsigned int user_debug;
+
+static inline int handle_guest_sea(phys_addr_t addr, unsigned int esr)
+{
+	return -1;
+}
 
 #endif /* !__ASSEMBLY__ */
 

@@ -1376,6 +1376,8 @@ static void reset_highlight_buffers(struct vc_data *);
 
 static int read_all_key;
 
+static int in_keyboard_notifier;
+
 static void start_read_all_timer(struct vc_data *vc, int command);
 
 enum {
@@ -1408,7 +1410,10 @@ static void read_all_doc(struct vc_data *vc)
 	cursor_track = read_all_mode;
 	spk_reset_index_count(0);
 	if (get_sentence_buf(vc, 0) == -1) {
-		kbd_fakekey2(vc, RA_DOWN_ARROW);
+		del_timer(&cursor_timer);
+		if (!in_keyboard_notifier)
+			speakup_fake_down_arrow();
+		start_read_all_timer(vc, RA_DOWN_ARROW);
 	} else {
 		say_sentence_num(0, 0);
 		synth_insert_next_index(0);
@@ -1945,6 +1950,7 @@ static int handle_goto(struct vc_data *vc, u_char type, u_char ch, u_short key)
 		goto oops;
 	if (ch == 8) {
 		u16 wch;
+
 		if (num == 0)
 			return -1;
 		wch = goto_buf[--num];
@@ -2211,8 +2217,10 @@ static int keyboard_notifier_call(struct notifier_block *nb,
 	int ret = NOTIFY_OK;
 	static int keycode;	/* to hold the current keycode */
 
+	in_keyboard_notifier = 1;
+
 	if (vc->vc_mode == KD_GRAPHICS)
-		return ret;
+		goto out;
 
 	/*
 	 * First, determine whether we are handling a fake keypress on
@@ -2224,7 +2232,7 @@ static int keyboard_notifier_call(struct notifier_block *nb,
 	 */
 
 	if (speakup_fake_key_pressed())
-		return ret;
+		goto out;
 
 	switch (code) {
 	case KBD_KEYCODE:
@@ -2265,6 +2273,8 @@ static int keyboard_notifier_call(struct notifier_block *nb,
 			break;
 		}
 	}
+out:
+	in_keyboard_notifier = 0;
 	return ret;
 }
 
@@ -2287,6 +2297,7 @@ static int vt_notifier_call(struct notifier_block *nb,
 			speakup_bs(vc);
 		} else {
 			u16 d = param->c;
+
 			speakup_con_write(vc, &d, 1);
 		}
 		break;
@@ -2312,6 +2323,7 @@ static void __exit speakup_exit(void)
 	mutex_lock(&spk_mutex);
 	synth_release();
 	mutex_unlock(&spk_mutex);
+	spk_ttyio_unregister_ldisc();
 
 	speakup_kobj_exit();
 
@@ -2374,6 +2386,7 @@ static int __init speakup_init(void)
 	if (err)
 		goto error_kobjects;
 
+	spk_ttyio_register_ldisc();
 	synth_init(synth_name);
 	speakup_register_devsynth();
 	/*

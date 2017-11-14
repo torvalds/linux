@@ -66,7 +66,7 @@ void __init acpi_watchdog_init(void)
 	for (i = 0; i < wdat->entries; i++) {
 		const struct acpi_generic_address *gas;
 		struct resource_entry *rentry;
-		struct resource res;
+		struct resource res = {};
 		bool found;
 
 		gas = &entries[i].register_region;
@@ -86,7 +86,12 @@ void __init acpi_watchdog_init(void)
 
 		found = false;
 		resource_list_for_each_entry(rentry, &resource_list) {
-			if (resource_contains(rentry->res, &res)) {
+			if (rentry->res->flags == res.flags &&
+			    resource_overlaps(rentry->res, &res)) {
+				if (res.start < rentry->res->start)
+					rentry->res->start = res.start;
+				if (res.end > rentry->res->end)
+					rentry->res->end = res.end;
 				found = true;
 				break;
 			}

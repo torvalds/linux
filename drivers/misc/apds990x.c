@@ -32,7 +32,7 @@
 #include <linux/delay.h>
 #include <linux/wait.h>
 #include <linux/slab.h>
-#include <linux/i2c/apds990x.h>
+#include <linux/platform_data/apds990x.h>
 
 /* Register map */
 #define APDS990X_ENABLE	 0x00 /* Enable of states and interrupts */
@@ -841,7 +841,7 @@ static ssize_t apds990x_prox_enable_store(struct device *dev,
 static DEVICE_ATTR(prox0_raw_en, S_IRUGO | S_IWUSR, apds990x_prox_enable_show,
 						   apds990x_prox_enable_store);
 
-static const char reporting_modes[][9] = {"trigger", "periodic"};
+static const char *reporting_modes[] = {"trigger", "periodic"};
 
 static ssize_t apds990x_prox_reporting_mode_show(struct device *dev,
 				   struct device_attribute *attr, char *buf)
@@ -856,13 +856,13 @@ static ssize_t apds990x_prox_reporting_mode_store(struct device *dev,
 				  const char *buf, size_t len)
 {
 	struct apds990x_chip *chip =  dev_get_drvdata(dev);
+	int ret;
 
-	if (sysfs_streq(buf, reporting_modes[0]))
-		chip->prox_continuous_mode = 0;
-	else if (sysfs_streq(buf, reporting_modes[1]))
-		chip->prox_continuous_mode = 1;
-	else
-		return -EINVAL;
+	ret = sysfs_match_string(reporting_modes, buf);
+	if (ret < 0)
+		return ret;
+
+	chip->prox_continuous_mode = ret;
 	return len;
 }
 
@@ -1051,7 +1051,7 @@ static struct attribute *sysfs_attrs_ctrl[] = {
 	NULL
 };
 
-static struct attribute_group apds990x_attribute_group[] = {
+static const struct attribute_group apds990x_attribute_group[] = {
 	{.attrs = sysfs_attrs_ctrl },
 };
 

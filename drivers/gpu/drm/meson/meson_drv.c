@@ -116,8 +116,6 @@ static struct drm_driver meson_driver = {
 
 	/* GEM Ops */
 	.dumb_create		= drm_gem_cma_dumb_create,
-	.dumb_destroy		= drm_gem_dumb_destroy,
-	.dumb_map_offset	= drm_gem_cma_dumb_map_offset,
 	.gem_free_object_unlocked = drm_gem_cma_free_object,
 	.gem_vm_ops		= &drm_gem_cma_vm_ops,
 
@@ -292,7 +290,6 @@ static void meson_drv_unbind(struct device *dev)
 	drm_kms_helper_poll_fini(drm);
 	drm_fbdev_cma_fini(priv->fbdev);
 	drm_mode_config_cleanup(drm);
-	drm_vblank_cleanup(drm);
 	drm_dev_unref(drm);
 
 }
@@ -304,9 +301,8 @@ static const struct component_master_ops meson_drv_master_ops = {
 
 static int compare_of(struct device *dev, void *data)
 {
-	DRM_DEBUG_DRIVER("Comparing of node %s with %s\n",
-			 of_node_full_name(dev->of_node),
-			 of_node_full_name(data));
+	DRM_DEBUG_DRIVER("Comparing of node %pOF with %pOF\n",
+			 dev->of_node, data);
 
 	return dev->of_node == data;
 }

@@ -66,7 +66,7 @@ module_param(id, charp, 0444);
 MODULE_PARM_DESC(id, "ID string for Harmony driver.");
 
 
-static struct parisc_device_id snd_harmony_devtable[] = {
+static const struct parisc_device_id snd_harmony_devtable[] __initconst = {
 	/* bushmaster / flounder */
 	{ HPHW_FIO, HVERSION_REV_ANY_ID, HVERSION_ANY_ID, 0x0007A }, 
 	/* 712 / 715 */
@@ -83,14 +83,14 @@ MODULE_DEVICE_TABLE(parisc, snd_harmony_devtable);
 #define NAME "harmony"
 #define PFX  NAME ": "
 
-static unsigned int snd_harmony_rates[] = {
+static const unsigned int snd_harmony_rates[] = {
 	5512, 6615, 8000, 9600,
 	11025, 16000, 18900, 22050,
 	27428, 32000, 33075, 37800,
 	44100, 48000
 };
 
-static unsigned int rate_bits[14] = {
+static const unsigned int rate_bits[14] = {
 	HARMONY_SR_5KHZ, HARMONY_SR_6KHZ, HARMONY_SR_8KHZ,
 	HARMONY_SR_9KHZ, HARMONY_SR_11KHZ, HARMONY_SR_16KHZ,
 	HARMONY_SR_18KHZ, HARMONY_SR_22KHZ, HARMONY_SR_27KHZ,
@@ -98,7 +98,7 @@ static unsigned int rate_bits[14] = {
 	HARMONY_SR_44KHZ, HARMONY_SR_48KHZ
 };
 
-static struct snd_pcm_hw_constraint_list hw_constraint_rates = {
+static const struct snd_pcm_hw_constraint_list hw_constraint_rates = {
 	.count = ARRAY_SIZE(snd_harmony_rates),
 	.list = snd_harmony_rates,
 	.mask = 0,
@@ -260,7 +260,7 @@ snd_harmony_rate_bits(int rate)
 	return HARMONY_SR_44KHZ;
 }
 
-static struct snd_pcm_hardware snd_harmony_playback =
+static const struct snd_pcm_hardware snd_harmony_playback =
 {
 	.info =	(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED | 
 		 SNDRV_PCM_INFO_JOINT_DUPLEX | SNDRV_PCM_INFO_MMAP_VALID |
@@ -281,7 +281,7 @@ static struct snd_pcm_hardware snd_harmony_playback =
 	.fifo_size = 0,
 };
 
-static struct snd_pcm_hardware snd_harmony_capture =
+static const struct snd_pcm_hardware snd_harmony_capture =
 {
         .info = (SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
                  SNDRV_PCM_INFO_JOINT_DUPLEX | SNDRV_PCM_INFO_MMAP_VALID |
@@ -596,7 +596,7 @@ snd_harmony_hw_free(struct snd_pcm_substream *ss)
 	return snd_pcm_lib_free_pages(ss);
 }
 
-static struct snd_pcm_ops snd_harmony_playback_ops = {
+static const struct snd_pcm_ops snd_harmony_playback_ops = {
 	.open =	snd_harmony_playback_open,
 	.close = snd_harmony_playback_close,
 	.ioctl = snd_pcm_lib_ioctl,
@@ -607,7 +607,7 @@ static struct snd_pcm_ops snd_harmony_playback_ops = {
  	.pointer = snd_harmony_playback_pointer,
 };
 
-static struct snd_pcm_ops snd_harmony_capture_ops = {
+static const struct snd_pcm_ops snd_harmony_capture_ops = {
         .open = snd_harmony_capture_open,
         .close = snd_harmony_capture_close,
         .ioctl = snd_pcm_lib_ioctl,
@@ -960,7 +960,7 @@ free_and_ret:
 	return err;
 }
 
-static int
+static int __init
 snd_harmony_probe(struct parisc_device *padev)
 {
 	int err;
@@ -1000,18 +1000,18 @@ free_and_ret:
 	return err;
 }
 
-static int
+static int __exit
 snd_harmony_remove(struct parisc_device *padev)
 {
 	snd_card_free(parisc_get_drvdata(padev));
 	return 0;
 }
 
-static struct parisc_driver snd_harmony_driver = {
+static struct parisc_driver snd_harmony_driver __refdata = {
 	.name = "harmony",
 	.id_table = snd_harmony_devtable,
 	.probe = snd_harmony_probe,
-	.remove = snd_harmony_remove,
+	.remove = __exit_p(snd_harmony_remove),
 };
 
 static int __init 

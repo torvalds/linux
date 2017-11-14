@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef TARGET_CORE_BASE_H
 #define TARGET_CORE_BASE_H
 
@@ -188,7 +189,8 @@ enum target_sc_flags_table {
 	TARGET_SCF_BIDI_OP		= 0x01,
 	TARGET_SCF_ACK_KREF		= 0x02,
 	TARGET_SCF_UNKNOWN_SIZE		= 0x04,
-	TARGET_SCF_USE_CPUID	= 0x08,
+	TARGET_SCF_USE_CPUID		= 0x08,
+	TARGET_SCF_LOOKUP_LUN_FROM_TAG	= 0x10,
 };
 
 /* fabric independent task management function values */
@@ -218,7 +220,6 @@ enum tcm_tmrsp_table {
  */
 typedef enum {
 	SCSI_INST_INDEX,
-	SCSI_DEVICE_INDEX,
 	SCSI_AUTH_INTR_INDEX,
 	SCSI_INDEX_TYPE_MAX
 } scsi_index_t;
@@ -701,8 +702,6 @@ struct scsi_port_stats {
 
 struct se_lun {
 	u64			unpacked_lun;
-#define SE_LUN_LINK_MAGIC			0xffff7771
-	u32			lun_link_magic;
 	bool			lun_shutdown;
 	bool			lun_access_ro;
 	u32			lun_index;
@@ -746,8 +745,6 @@ struct se_dev_stat_grps {
 };
 
 struct se_device {
-#define SE_DEV_LINK_MAGIC			0xfeeddeef
-	u32			dev_link_magic;
 	/* RELATIVE TARGET PORT IDENTIFER Counter */
 	u16			dev_rpti_counter;
 	/* Used for SAM Task Attribute ordering */
@@ -800,7 +797,6 @@ struct se_device {
 	struct list_head	delayed_cmd_list;
 	struct list_head	state_list;
 	struct list_head	qf_cmd_list;
-	struct list_head	g_dev_node;
 	/* Pointer to associated SE HBA */
 	struct se_hba		*se_hba;
 	/* T10 Inquiry and VPD WWN Information */
@@ -819,8 +815,6 @@ struct se_device {
 	unsigned char		udev_path[SE_UDEV_PATH_LEN];
 	/* Pointer to template of function pointers for transport */
 	const struct target_backend_ops *transport;
-	/* Linked list for struct se_hba struct se_device list */
-	struct list_head	dev_list;
 	struct se_lun		xcopy_lun;
 	/* Protection Information */
 	int			prot_length;

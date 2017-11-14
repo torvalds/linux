@@ -43,17 +43,6 @@
 
 #define MAX_PIE_NUM     9
 #define MAX_PIE_FREQ    512
-static const u32 PIE_BIT_DEF[MAX_PIE_NUM][2] = {
-	{ 2,		RTC_2HZ_BIT },
-	{ 4,		RTC_SAM0_BIT },
-	{ 8,		RTC_SAM1_BIT },
-	{ 16,		RTC_SAM2_BIT },
-	{ 32,		RTC_SAM3_BIT },
-	{ 64,		RTC_SAM4_BIT },
-	{ 128,		RTC_SAM5_BIT },
-	{ 256,		RTC_SAM6_BIT },
-	{ MAX_PIE_FREQ,	RTC_SAM7_BIT },
-};
 
 #define MXC_RTC_TIME	0
 #define MXC_RTC_ALARM	1
@@ -249,26 +238,6 @@ static irqreturn_t mxc_rtc_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-/*
- * Clear all interrupts and release the IRQ
- */
-static void mxc_rtc_release(struct device *dev)
-{
-	struct platform_device *pdev = to_platform_device(dev);
-	struct rtc_plat_data *pdata = platform_get_drvdata(pdev);
-	void __iomem *ioaddr = pdata->ioaddr;
-
-	spin_lock_irq(&pdata->rtc->irq_lock);
-
-	/* Disable all rtc interrupts */
-	writew(0, ioaddr + RTC_RTCIENR);
-
-	/* Clear all interrupt status */
-	writew(0xffffffff, ioaddr + RTC_RTCISR);
-
-	spin_unlock_irq(&pdata->rtc->irq_lock);
-}
-
 static int mxc_rtc_alarm_irq_enable(struct device *dev, unsigned int enabled)
 {
 	mxc_rtc_irq_enable(dev, RTC_ALM_BIT, enabled);
@@ -354,7 +323,6 @@ static int mxc_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 
 /* RTC layer */
 static const struct rtc_class_ops mxc_rtc_ops = {
-	.release		= mxc_rtc_release,
 	.read_time		= mxc_rtc_read_time,
 	.set_mmss64		= mxc_rtc_set_mmss,
 	.read_alarm		= mxc_rtc_read_alarm,

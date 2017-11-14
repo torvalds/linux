@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include "cache.h"
 #include "config.h"
 #include <poll.h>
@@ -12,7 +13,7 @@ static int perf_unknown_cmd_config(const char *var, const char *value,
 				   void *cb __maybe_unused)
 {
 	if (!strcmp(var, "help.autocorrect"))
-		autocorrect = perf_config_int(var,value);
+		return perf_config_int(&autocorrect, var,value);
 
 	return 0;
 }

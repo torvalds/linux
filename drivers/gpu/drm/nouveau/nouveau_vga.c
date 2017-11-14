@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/vgaarb.h>
 #include <linux/vga_switcheroo.h>
 
@@ -110,6 +111,10 @@ nouveau_vga_fini(struct nouveau_drm *drm)
 {
 	struct drm_device *dev = drm->dev;
 	bool runtime = nouveau_pmops_runtime();
+
+	/* only relevant for PCI devices */
+	if (!dev->pdev)
+		return;
 
 	vga_client_register(dev->pdev, NULL, NULL, NULL);
 

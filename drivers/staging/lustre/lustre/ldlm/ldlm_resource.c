@@ -36,9 +36,9 @@
  */
 
 #define DEBUG_SUBSYSTEM S_LDLM
-#include "../include/lustre_dlm.h"
-#include "../include/lustre_fid.h"
-#include "../include/obd_class.h"
+#include <lustre_dlm.h>
+#include <lustre_fid.h>
+#include <obd_class.h>
 #include "ldlm_internal.h"
 
 struct kmem_cache *ldlm_resource_slab, *ldlm_lock_slab;
@@ -78,7 +78,25 @@ lprocfs_wr_dump_ns(struct file *file, const char __user *buffer,
 
 LPROC_SEQ_FOPS_WR_ONLY(ldlm, dump_ns);
 
-LPROC_SEQ_FOPS_RW_TYPE(ldlm_rw, uint);
+static int ldlm_rw_uint_seq_show(struct seq_file *m, void *v)
+{
+	seq_printf(m, "%u\n", *(unsigned int *)m->private);
+	return 0;
+}
+
+static ssize_t
+ldlm_rw_uint_seq_write(struct file *file, const char __user *buffer,
+		       size_t count, loff_t *off)
+{
+	struct seq_file *seq = file->private_data;
+
+	if (count == 0)
+		return 0;
+	return kstrtouint_from_user(buffer, count, 0,
+				    (unsigned int *)seq->private);
+}
+
+LPROC_SEQ_FOPS(ldlm_rw_uint);
 
 static struct lprocfs_vars ldlm_debugfs_list[] = {
 	{ "dump_namespaces", &ldlm_dump_ns_fops, NULL, 0222 },
@@ -205,7 +223,7 @@ static ssize_t lru_size_show(struct kobject *kobj, struct attribute *attr,
 
 	if (ns_connect_lru_resize(ns))
 		nr = &ns->ns_nr_unused;
-	return sprintf(buf, "%u", *nr);
+	return sprintf(buf, "%u\n", *nr);
 }
 
 static ssize_t lru_size_store(struct kobject *kobj, struct attribute *attr,
@@ -300,7 +318,7 @@ static ssize_t lru_max_age_show(struct kobject *kobj, struct attribute *attr,
 	struct ldlm_namespace *ns = container_of(kobj, struct ldlm_namespace,
 						 ns_kobj);
 
-	return sprintf(buf, "%u", ns->ns_max_age);
+	return sprintf(buf, "%u\n", ns->ns_max_age);
 }
 
 static ssize_t lru_max_age_store(struct kobject *kobj, struct attribute *attr,
@@ -518,16 +536,6 @@ static void ldlm_res_hop_get_locked(struct cfs_hash *hs,
 	ldlm_resource_getref(res);
 }
 
-static void ldlm_res_hop_put_locked(struct cfs_hash *hs,
-				    struct hlist_node *hnode)
-{
-	struct ldlm_resource *res;
-
-	res = hlist_entry(hnode, struct ldlm_resource, lr_hash);
-	/* cfs_hash_for_each_nolock is the only chance we call it */
-	ldlm_resource_putref_locked(res);
-}
-
 static void ldlm_res_hop_put(struct cfs_hash *hs, struct hlist_node *hnode)
 {
 	struct ldlm_resource *res;
@@ -543,7 +551,6 @@ static struct cfs_hash_ops ldlm_ns_hash_ops = {
 	.hs_keycpy      = NULL,
 	.hs_object      = ldlm_res_hop_object,
 	.hs_get		= ldlm_res_hop_get_locked,
-	.hs_put_locked  = ldlm_res_hop_put_locked,
 	.hs_put		= ldlm_res_hop_put
 };
 
@@ -554,7 +561,6 @@ static struct cfs_hash_ops ldlm_ns_fid_hash_ops = {
 	.hs_keycpy      = NULL,
 	.hs_object      = ldlm_res_hop_object,
 	.hs_get		= ldlm_res_hop_get_locked,
-	.hs_put_locked  = ldlm_res_hop_put_locked,
 	.hs_put		= ldlm_res_hop_put
 };
 
@@ -831,7 +837,7 @@ static int ldlm_resource_complain(struct cfs_hash *hs, struct cfs_hash_bd *bd,
 	struct ldlm_resource  *res = cfs_hash_object(hs, hnode);
 
 	lock_res(res);
-	CERROR("%s: namespace resource "DLDLMRES
+	CERROR("%s: namespace resource " DLDLMRES
 	       " (%p) refcount nonzero (%d) after lock cleanup; forcing cleanup.\n",
 	       ldlm_ns_name(ldlm_res_to_ns(res)), PLDLMRES(res), res,
 	       atomic_read(&res->lr_refcount) - 1);
@@ -1231,37 +1237,6 @@ int ldlm_resource_putref(struct ldlm_resource *res)
 }
 EXPORT_SYMBOL(ldlm_resource_putref);
 
-/* Returns 1 if the resource was freed, 0 if it remains. */
-int ldlm_resource_putref_locked(struct ldlm_resource *res)
-{
-	struct ldlm_namespace *ns = ldlm_res_to_ns(res);
-
-	LASSERT_ATOMIC_GT_LT(&res->lr_refcount, 0, LI_POISON);
-	CDEBUG(D_INFO, "putref res: %p count: %d\n",
-	       res, atomic_read(&res->lr_refcount) - 1);
-
-	if (atomic_dec_and_test(&res->lr_refcount)) {
-		struct cfs_hash_bd bd;
-
-		cfs_hash_bd_get(ldlm_res_to_ns(res)->ns_rs_hash,
-				&res->lr_name, &bd);
-		__ldlm_resource_putref_final(&bd, res);
-		cfs_hash_bd_unlock(ns->ns_rs_hash, &bd, 1);
-		/* NB: ns_rs_hash is created with CFS_HASH_NO_ITEMREF,
-		 * so we should never be here while calling cfs_hash_del,
-		 * cfs_hash_for_each_nolock is the only case we can get
-		 * here, which is safe to release cfs_hash_bd_lock.
-		 */
-		if (ns->ns_lvbo && ns->ns_lvbo->lvbo_free)
-			ns->ns_lvbo->lvbo_free(res);
-		kmem_cache_free(ldlm_resource_slab, res);
-
-		cfs_hash_bd_lock(ns->ns_rs_hash, &bd, 1);
-		return 1;
-	}
-	return 0;
-}
-
 /**
  * Add a lock into a given resource into specified lock list.
  */
@@ -1373,7 +1348,7 @@ void ldlm_resource_dump(int level, struct ldlm_resource *res)
 	if (!((libcfs_debug | D_ERROR) & level))
 		return;
 
-	CDEBUG(level, "--- Resource: "DLDLMRES" (%p) refcount = %d\n",
+	CDEBUG(level, "--- Resource: " DLDLMRES " (%p) refcount = %d\n",
 	       PLDLMRES(res), res, atomic_read(&res->lr_refcount));
 
 	if (!list_empty(&res->lr_granted)) {

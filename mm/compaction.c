@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * linux/mm/compaction.c
  *
@@ -236,10 +237,9 @@ static void __reset_isolation_suitable(struct zone *zone)
 
 		cond_resched();
 
-		if (!pfn_valid(pfn))
+		page = pfn_to_online_page(pfn);
+		if (!page)
 			continue;
-
-		page = pfn_to_page(pfn);
 		if (zone != page_zone(page))
 			continue;
 
@@ -2000,17 +2000,14 @@ void wakeup_kcompactd(pg_data_t *pgdat, int order, int classzone_idx)
 	if (pgdat->kcompactd_max_order < order)
 		pgdat->kcompactd_max_order = order;
 
-	/*
-	 * Pairs with implicit barrier in wait_event_freezable()
-	 * such that wakeups are not missed in the lockless
-	 * waitqueue_active() call.
-	 */
-	smp_acquire__after_ctrl_dep();
-
 	if (pgdat->kcompactd_classzone_idx > classzone_idx)
 		pgdat->kcompactd_classzone_idx = classzone_idx;
 
-	if (!waitqueue_active(&pgdat->kcompactd_wait))
+	/*
+	 * Pairs with implicit barrier in wait_event_freezable()
+	 * such that wakeups are not missed.
+	 */
+	if (!wq_has_sleeper(&pgdat->kcompactd_wait))
 		return;
 
 	if (!kcompactd_node_suitable(pgdat))

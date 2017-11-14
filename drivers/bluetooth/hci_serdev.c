@@ -31,7 +31,7 @@
 
 #include "hci_uart.h"
 
-struct serdev_device_ops hci_serdev_client_ops;
+static struct serdev_device_ops hci_serdev_client_ops;
 
 static inline void hci_uart_tx_complete(struct hci_uart *hu, int pkt_type)
 {
@@ -268,7 +268,7 @@ static int hci_uart_receive_buf(struct serdev_device *serdev, const u8 *data,
 	return count;
 }
 
-struct serdev_device_ops hci_serdev_client_ops = {
+static struct serdev_device_ops hci_serdev_client_ops = {
 	.receive_buf = hci_uart_receive_buf,
 	.write_wakeup = hci_uart_write_wakeup,
 };
@@ -354,3 +354,16 @@ err_alloc:
 	return err;
 }
 EXPORT_SYMBOL_GPL(hci_uart_register_device);
+
+void hci_uart_unregister_device(struct hci_uart *hu)
+{
+	struct hci_dev *hdev = hu->hdev;
+
+	hci_unregister_dev(hdev);
+	hci_free_dev(hdev);
+
+	cancel_work_sync(&hu->write_work);
+
+	hu->proto->close(hu);
+}
+EXPORT_SYMBOL_GPL(hci_uart_unregister_device);

@@ -158,6 +158,14 @@ config CRC32_BIT
 
 endchoice
 
+config CRC4
+	tristate "CRC4 functions"
+	help
+	  This option is provided for the case where no in-kernel-tree
+	  modules require CRC4 functions, but a module built outside
+	  the kernel tree does. Such modules that use library CRC4
+	  functions require M here.
+
 config CRC7
 	tristate "CRC7 functions"
 	help
@@ -183,6 +191,9 @@ config CRC8
 	  This option provides CRC8 function. Drivers may select this
 	  when they need to do cyclic redundancy check according CRC8
 	  algorithm. Module will be called crc8.
+
+config XXHASH
+	tristate
 
 config AUDIT_GENERIC
 	bool
@@ -236,6 +247,14 @@ config LZ4HC_COMPRESS
 	tristate
 
 config LZ4_DECOMPRESS
+	tristate
+
+config ZSTD_COMPRESS
+	select XXHASH
+	tristate
+
+config ZSTD_DECOMPRESS
+	select XXHASH
 	tristate
 
 source "lib/xz/Kconfig"
@@ -548,7 +567,7 @@ config ARCH_HAS_SG_CHAIN
 config ARCH_HAS_PMEM_API
 	bool
 
-config ARCH_HAS_MMIO_FLUSH
+config ARCH_HAS_UACCESS_FLUSHCACHE
 	bool
 
 config STACKDEPOT
@@ -563,5 +582,8 @@ config PARMAN
 
 config PRIME_NUMBERS
 	tristate
+
+config STRING_SELFTEST
+	bool "Test string functions"
 
 endmenu

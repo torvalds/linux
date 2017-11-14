@@ -45,18 +45,18 @@
 #include <linux/sched/signal.h>
 #include <linux/signal.h>
 #include <linux/types.h>
-#include "../../include/linux/libcfs/libcfs.h"
-#include "lustre/lustre_idl.h"
-#include "lustre_ver.h"
-#include "lustre_cfg.h"
+#include <linux/libcfs/libcfs.h>
+#include <uapi/linux/lustre/lustre_idl.h>
+#include <uapi/linux/lustre/lustre_ver.h>
+#include <uapi/linux/lustre/lustre_cfg.h>
 
 /* target.c */
 struct ptlrpc_request;
 struct obd_export;
 struct lu_target;
 struct l_wait_info;
-#include "lustre_ha.h"
-#include "lustre_net.h"
+#include <lustre_ha.h>
+#include <lustre_net.h>
 
 #define LI_POISON 0x5a5a5a5a
 #if BITS_PER_LONG > 32
@@ -201,7 +201,7 @@ struct l_wait_info {
 			   sigmask(SIGALRM))
 
 /**
- * wait_queue_t of Linux (version < 2.6.34) is a FIFO list for exclusively
+ * wait_queue_entry_t of Linux (version < 2.6.34) is a FIFO list for exclusively
  * waiting threads, which is not always desirable because all threads will
  * be waken up again and again, even user only needs a few of them to be
  * active most time. This is not good for performance because cache can
@@ -228,7 +228,7 @@ struct l_wait_info {
  */
 #define __l_wait_event(wq, condition, info, ret, l_add_wait)		   \
 do {									   \
-	wait_queue_t __wait;						 \
+	wait_queue_entry_t __wait;						 \
 	long __timeout = info->lwi_timeout;			  \
 	sigset_t   __blocked;					      \
 	int   __allow_intr = info->lwi_allow_intr;			     \

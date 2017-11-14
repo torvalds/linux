@@ -444,8 +444,8 @@ static void __init pnv_ioda_parse_m64_window(struct pnv_phb *phb)
 
 	r = of_get_property(dn, "ibm,opal-m64-window", NULL);
 	if (!r) {
-		pr_info("  No <ibm,opal-m64-window> on %s\n",
-			dn->full_name);
+		pr_info("  No <ibm,opal-m64-window> on %pOF\n",
+			dn);
 		return;
 	}
 
@@ -1408,7 +1408,6 @@ m64_failed:
 
 static long pnv_pci_ioda2_unset_window(struct iommu_table_group *table_group,
 		int num);
-static void pnv_pci_ioda2_set_bypass(struct pnv_ioda_pe *pe, bool enable);
 
 static void pnv_pci_ioda2_release_dma_pe(struct pci_dev *dev, struct pnv_ioda_pe *pe)
 {
@@ -1718,6 +1717,100 @@ static void pnv_pci_ioda_dma_dev_setup(struct pnv_phb *phb, struct pci_dev *pdev
 	 */
 }
 
+static bool pnv_pci_ioda_pe_single_vendor(struct pnv_ioda_pe *pe)
+{
+	unsigned short vendor = 0;
+	struct pci_dev *pdev;
+
+	if (pe->device_count == 1)
+		return true;
+
+	/* pe->pdev should be set if it's a single device, pe->pbus if not */
+	if (!pe->pbus)
+		return true;
+
+	list_for_each_entry(pdev, &pe->pbus->devices, bus_list) {
+		if (!vendor) {
+			vendor = pdev->vendor;
+			continue;
+		}
+
+		if (pdev->vendor != vendor)
+			return false;
+	}
+
+	return true;
+}
+
+/*
+ * Reconfigure TVE#0 to be usable as 64-bit DMA space.
+ *
+ * The first 4GB of virtual memory for a PE is reserved for 32-bit accesses.
+ * Devices can only access more than that if bit 59 of the PCI address is set
+ * by hardware, which indicates TVE#1 should be used instead of TVE#0.
+ * Many PCI devices are not capable of addressing that many bits, and as a
+ * result are limited to the 4GB of virtual memory made available to 32-bit
+ * devices in TVE#0.
+ *
+ * In order to work around this, reconfigure TVE#0 to be suitable for 64-bit
+ * devices by configuring the virtual memory past the first 4GB inaccessible
+ * by 64-bit DMAs.  This should only be used by devices that want more than
+ * 4GB, and only on PEs that have no 32-bit devices.
+ *
+ * Currently this will only work on PHB3 (POWER8).
+ */
+static int pnv_pci_ioda_dma_64bit_bypass(struct pnv_ioda_pe *pe)
+{
+	u64 window_size, table_size, tce_count, addr;
+	struct page *table_pages;
+	u64 tce_order = 28; /* 256MB TCEs */
+	__be64 *tces;
+	s64 rc;
+
+	/*
+	 * Window size needs to be a power of two, but needs to account for
+	 * shifting memory by the 4GB offset required to skip 32bit space.
+	 */
+	window_size = roundup_pow_of_two(memory_hotplug_max() + (1ULL << 32));
+	tce_count = window_size >> tce_order;
+	table_size = tce_count << 3;
+
+	if (table_size < PAGE_SIZE)
+		table_size = PAGE_SIZE;
+
+	table_pages = alloc_pages_node(pe->phb->hose->node, GFP_KERNEL,
+				       get_order(table_size));
+	if (!table_pages)
+		goto err;
+
+	tces = page_address(table_pages);
+	if (!tces)
+		goto err;
+
+	memset(tces, 0, table_size);
+
+	for (addr = 0; addr < memory_hotplug_max(); addr += (1 << tce_order)) {
+		tces[(addr + (1ULL << 32)) >> tce_order] =
+			cpu_to_be64(addr | TCE_PCI_READ | TCE_PCI_WRITE);
+	}
+
+	rc = opal_pci_map_pe_dma_window(pe->phb->opal_id,
+					pe->pe_number,
+					/* reconfigure window 0 */
+					(pe->pe_number << 1) + 0,
+					1,
+					__pa(tces),
+					table_size,
+					1 << tce_order);
+	if (rc == OPAL_SUCCESS) {
+		pe_info(pe, "Using 64-bit DMA iommu bypass (through TVE#0)\n");
+		return 0;
+	}
+err:
+	pe_err(pe, "Error configuring 64-bit DMA bypass\n");
+	return -EIO;
+}
+
 static int pnv_pci_ioda_dma_set_mask(struct pci_dev *pdev, u64 dma_mask)
 {
 	struct pci_controller *hose = pci_bus_to_host(pdev->bus);
@@ -1726,6 +1819,7 @@ static int pnv_pci_ioda_dma_set_mask(struct pci_dev *pdev, u64 dma_mask)
 	struct pnv_ioda_pe *pe;
 	uint64_t top;
 	bool bypass = false;
+	s64 rc;
 
 	if (WARN_ON(!pdn || pdn->pe_number == IODA_INVALID_PE))
 		return -ENODEV;;
@@ -1740,8 +1834,35 @@ static int pnv_pci_ioda_dma_set_mask(struct pci_dev *pdev, u64 dma_mask)
 		dev_info(&pdev->dev, "Using 64-bit DMA iommu bypass\n");
 		set_dma_ops(&pdev->dev, &dma_direct_ops);
 	} else {
-		dev_info(&pdev->dev, "Using 32-bit DMA via iommu\n");
-		set_dma_ops(&pdev->dev, &dma_iommu_ops);
+		/*
+		 * If the device can't set the TCE bypass bit but still wants
+		 * to access 4GB or more, on PHB3 we can reconfigure TVE#0 to
+		 * bypass the 32-bit region and be usable for 64-bit DMAs.
+		 * The device needs to be able to address all of this space.
+		 */
+		if (dma_mask >> 32 &&
+		    dma_mask > (memory_hotplug_max() + (1ULL << 32)) &&
+		    pnv_pci_ioda_pe_single_vendor(pe) &&
+		    phb->model == PNV_PHB_MODEL_PHB3) {
+			/* Configure the bypass mode */
+			rc = pnv_pci_ioda_dma_64bit_bypass(pe);
+			if (rc)
+				return rc;
+			/* 4GB offset bypasses 32-bit space */
+			set_dma_offset(&pdev->dev, (1ULL << 32));
+			set_dma_ops(&pdev->dev, &dma_direct_ops);
+		} else if (dma_mask >> 32 && dma_mask != DMA_BIT_MASK(64)) {
+			/*
+			 * Fail the request if a DMA mask between 32 and 64 bits
+			 * was requested but couldn't be fulfilled. Ideally we
+			 * would do this for 64-bits but historically we have
+			 * always fallen back to 32-bits.
+			 */
+			return -ENOMEM;
+		} else {
+			dev_info(&pdev->dev, "Using 32-bit DMA via iommu\n");
+			set_dma_ops(&pdev->dev, &dma_iommu_ops);
+		}
 	}
 	*pdev->dev.dma_mask = dma_mask;
 
@@ -2280,7 +2401,7 @@ static long pnv_pci_ioda2_set_window(struct iommu_table_group *table_group,
 	return 0;
 }
 
-static void pnv_pci_ioda2_set_bypass(struct pnv_ioda_pe *pe, bool enable)
+void pnv_pci_ioda2_set_bypass(struct pnv_ioda_pe *pe, bool enable)
 {
 	uint16_t window_id = (pe->pe_number << 1 ) + 1;
 	int64_t rc;
@@ -3123,13 +3244,13 @@ static int pnv_pci_diag_data_set(void *data, u64 val)
 	phb = hose->private_data;
 
 	/* Retrieve the diag data from firmware */
-	ret = opal_pci_get_phb_diag_data2(phb->opal_id, phb->diag.blob,
-					  PNV_PCI_DIAG_BUF_SIZE);
+	ret = opal_pci_get_phb_diag_data2(phb->opal_id, phb->diag_data,
+					  phb->diag_data_size);
 	if (ret != OPAL_SUCCESS)
 		return -EIO;
 
 	/* Print the diag data to the kernel log */
-	pnv_pci_dump_phb_diag_data(phb->hose, phb->diag.blob);
+	pnv_pci_dump_phb_diag_data(phb->hose, phb->diag_data);
 	return 0;
 }
 
@@ -3675,8 +3796,7 @@ static void __init pnv_pci_init_ioda_phb(struct device_node *np,
 	if (!of_device_is_available(np))
 		return;
 
-	pr_info("Initializing %s PHB (%s)\n",
-		pnv_phb_names[ioda_type], of_node_full_name(np));
+	pr_info("Initializing %s PHB (%pOF)\n",	pnv_phb_names[ioda_type], np);
 
 	prop64 = of_get_property(np, "ibm,opal-phbid", NULL);
 	if (!prop64) {
@@ -3691,8 +3811,8 @@ static void __init pnv_pci_init_ioda_phb(struct device_node *np,
 	/* Allocate PCI controller */
 	phb->hose = hose = pcibios_alloc_controller(np);
 	if (!phb->hose) {
-		pr_err("  Can't allocate PCI controller for %s\n",
-		       np->full_name);
+		pr_err("  Can't allocate PCI controller for %pOF\n",
+		       np);
 		memblock_free(__pa(phb), sizeof(struct pnv_phb));
 		return;
 	}
@@ -3703,7 +3823,7 @@ static void __init pnv_pci_init_ioda_phb(struct device_node *np,
 		hose->first_busno = be32_to_cpu(prop32[0]);
 		hose->last_busno = be32_to_cpu(prop32[1]);
 	} else {
-		pr_warn("  Broken <bus-range> on %s\n", np->full_name);
+		pr_warn("  Broken <bus-range> on %pOF\n", np);
 		hose->first_busno = 0;
 		hose->last_busno = 0xff;
 	}
@@ -3724,6 +3844,15 @@ static void __init pnv_pci_init_ioda_phb(struct device_node *np,
 		phb->model = PNV_PHB_MODEL_NPU2;
 	else
 		phb->model = PNV_PHB_MODEL_UNKNOWN;
+
+	/* Initialize diagnostic data buffer */
+	prop32 = of_get_property(np, "ibm,phb-diag-data-size", NULL);
+	if (prop32)
+		phb->diag_data_size = be32_to_cpup(prop32);
+	else
+		phb->diag_data_size = PNV_PCI_DIAG_BUF_SIZE;
+
+	phb->diag_data = memblock_virt_alloc(phb->diag_data_size, 0);
 
 	/* Parse 32-bit and IO ranges (if any) */
 	pci_process_bridge_OF_ranges(hose, np, !hose->global_number);
@@ -3915,7 +4044,7 @@ void __init pnv_pci_init_ioda_hub(struct device_node *np)
 	const __be64 *prop64;
 	u64 hub_id;
 
-	pr_info("Probing IODA IO-Hub %s\n", np->full_name);
+	pr_info("Probing IODA IO-Hub %pOF\n", np);
 
 	prop64 = of_get_property(np, "ibm,opal-hubid", NULL);
 	if (!prop64) {

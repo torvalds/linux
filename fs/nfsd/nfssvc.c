@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Central processing for nfsd.
  *
@@ -68,14 +69,14 @@ unsigned long	nfsd_drc_mem_used;
 
 #if defined(CONFIG_NFSD_V2_ACL) || defined(CONFIG_NFSD_V3_ACL)
 static struct svc_stat	nfsd_acl_svcstats;
-static struct svc_version *	nfsd_acl_version[] = {
+static const struct svc_version *nfsd_acl_version[] = {
 	[2] = &nfsd_acl_version2,
 	[3] = &nfsd_acl_version3,
 };
 
 #define NFSD_ACL_MINVERS            2
 #define NFSD_ACL_NRVERS		ARRAY_SIZE(nfsd_acl_version)
-static struct svc_version *nfsd_acl_versions[NFSD_ACL_NRVERS];
+static const struct svc_version *nfsd_acl_versions[NFSD_ACL_NRVERS];
 
 static struct svc_program	nfsd_acl_program = {
 	.pg_prog		= NFS_ACL_PROGRAM,
@@ -92,7 +93,7 @@ static struct svc_stat	nfsd_acl_svcstats = {
 };
 #endif /* defined(CONFIG_NFSD_V2_ACL) || defined(CONFIG_NFSD_V3_ACL) */
 
-static struct svc_version *	nfsd_version[] = {
+static const struct svc_version *nfsd_version[] = {
 	[2] = &nfsd_version2,
 #if defined(CONFIG_NFSD_V3)
 	[3] = &nfsd_version3,
@@ -104,7 +105,7 @@ static struct svc_version *	nfsd_version[] = {
 
 #define NFSD_MINVERS    	2
 #define NFSD_NRVERS		ARRAY_SIZE(nfsd_version)
-static struct svc_version *nfsd_versions[NFSD_NRVERS];
+static const struct svc_version *nfsd_versions[NFSD_NRVERS];
 
 struct svc_program		nfsd_program = {
 #if defined(CONFIG_NFSD_V2_ACL) || defined(CONFIG_NFSD_V3_ACL)
@@ -475,7 +476,7 @@ static int nfsd_get_default_max_blksize(void)
 	return ret;
 }
 
-static struct svc_serv_ops nfsd_thread_sv_ops = {
+static const struct svc_serv_ops nfsd_thread_sv_ops = {
 	.svo_shutdown		= nfsd_last_thread,
 	.svo_function		= nfsd,
 	.svo_enqueue_xprt	= svc_xprt_do_enqueue,
@@ -756,7 +757,7 @@ static __be32 map_new_errors(u32 vers, __be32 nfserr)
  * problem, we enforce these assumptions here:
  */
 static bool nfs_request_too_big(struct svc_rqst *rqstp,
-				struct svc_procedure *proc)
+				const struct svc_procedure *proc)
 {
 	/*
 	 * The ACL code has more careful bounds-checking and is not
@@ -781,8 +782,7 @@ static bool nfs_request_too_big(struct svc_rqst *rqstp,
 int
 nfsd_dispatch(struct svc_rqst *rqstp, __be32 *statp)
 {
-	struct svc_procedure	*proc;
-	kxdrproc_t		xdr;
+	const struct svc_procedure *proc;
 	__be32			nfserr;
 	__be32			*nfserrp;
 
@@ -801,9 +801,8 @@ nfsd_dispatch(struct svc_rqst *rqstp, __be32 *statp)
 	 */
 	rqstp->rq_cachetype = proc->pc_cachetype;
 	/* Decode arguments */
-	xdr = proc->pc_decode;
-	if (xdr && !xdr(rqstp, (__be32*)rqstp->rq_arg.head[0].iov_base,
-			rqstp->rq_argp)) {
+	if (proc->pc_decode &&
+	    !proc->pc_decode(rqstp, (__be32*)rqstp->rq_arg.head[0].iov_base)) {
 		dprintk("nfsd: failed to decode arguments!\n");
 		*statp = rpc_garbage_args;
 		return 1;
@@ -827,7 +826,7 @@ nfsd_dispatch(struct svc_rqst *rqstp, __be32 *statp)
 	rqstp->rq_res.head[0].iov_len += sizeof(__be32);
 
 	/* Now call the procedure handler, and encode NFS status. */
-	nfserr = proc->pc_func(rqstp, rqstp->rq_argp, rqstp->rq_resp);
+	nfserr = proc->pc_func(rqstp);
 	nfserr = map_new_errors(rqstp->rq_vers, nfserr);
 	if (nfserr == nfserr_dropit || test_bit(RQ_DROPME, &rqstp->rq_flags)) {
 		dprintk("nfsd: Dropping request; may be revisited later\n");
@@ -842,9 +841,7 @@ nfsd_dispatch(struct svc_rqst *rqstp, __be32 *statp)
 	 * For NFSv2, additional info is never returned in case of an error.
 	 */
 	if (!(nfserr && rqstp->rq_vers == 2)) {
-		xdr = proc->pc_encode;
-		if (xdr && !xdr(rqstp, nfserrp,
-				rqstp->rq_resp)) {
+		if (proc->pc_encode && !proc->pc_encode(rqstp, nfserrp)) {
 			/* Failed to encode result. Release cache entry */
 			dprintk("nfsd: failed to encode result!\n");
 			nfsd_cache_update(rqstp, RC_NOCACHE, NULL);

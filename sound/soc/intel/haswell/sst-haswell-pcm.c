@@ -1135,7 +1135,7 @@ static int hsw_pcm_remove(struct snd_soc_platform *platform)
 	return 0;
 }
 
-static struct snd_soc_platform_driver hsw_soc_platform = {
+static const struct snd_soc_platform_driver hsw_soc_platform = {
 	.probe		= hsw_pcm_probe,
 	.remove		= hsw_pcm_remove,
 	.ops		= &hsw_pcm_ops,

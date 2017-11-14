@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include "skeleton.dtsi"
 
 / {
@@ -26,7 +27,7 @@
 
 		fmc: flash-controller@1e620000 {
 			reg = < 0x1e620000 0x94
-				0x20000000 0x02000000 >;
+				0x20000000 0x10000000 >;
 			#address-cells = <1>;
 			#size-cells = <0>;
 			compatible = "aspeed,ast2400-fmc";
@@ -41,7 +42,7 @@
 
 		spi: flash-controller@1e630000 {
 			reg = < 0x1e630000 0x18
-				0x30000000 0x02000000 >;
+				0x30000000 0x10000000 >;
 			#address-cells = <1>;
 			#size-cells = <0>;
 			compatible = "aspeed,ast2400-spi";
@@ -886,13 +887,12 @@
 			};
 
 			timer: timer@1e782000 {
+				/* This timer is a Faraday FTTMR010 derivative */
 				compatible = "aspeed,ast2400-timer";
 				reg = <0x1e782000 0x90>;
-				// The moxart_timer driver registers only one
-				// interrupt and assumes it's for timer 1
-				//interrupts = <16 17 18 35 36 37 38 39>;
-				interrupts = <16>;
+				interrupts = <16 17 18 35 36 37 38 39>;
 				clocks = <&clk_apb>;
+				clock-names = "PCLK";
 			};
 
 			wdt1: wdt@1e785000 {

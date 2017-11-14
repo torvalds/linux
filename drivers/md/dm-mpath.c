@@ -504,7 +504,6 @@ static int multipath_clone_and_map(struct dm_target *ti, struct request *rq,
 		if (queue_dying) {
 			atomic_inc(&m->pg_init_in_progress);
 			activate_or_offline_path(pgpath);
-			return DM_MAPIO_REQUEUE;
 		}
 		return DM_MAPIO_DELAY_REQUEUE;
 	}
@@ -559,14 +558,14 @@ static int __multipath_map_bio(struct multipath *m, struct bio *bio, struct dm_m
 		if (test_bit(MPATHF_QUEUE_IF_NO_PATH, &m->flags))
 			return DM_MAPIO_REQUEUE;
 		dm_report_EIO(m);
-		return -EIO;
+		return DM_MAPIO_KILL;
 	}
 
 	mpio->pgpath = pgpath;
 	mpio->nr_bytes = nr_bytes;
 
-	bio->bi_error = 0;
-	bio->bi_bdev = pgpath->path.dev->bdev;
+	bio->bi_status = 0;
+	bio_set_dev(bio, pgpath->path.dev->bdev);
 	bio->bi_opf |= REQ_FAILFAST_TRANSPORT;
 
 	if (pgpath->pg->ps.type->start_io)
@@ -621,11 +620,23 @@ static void process_queued_bios(struct work_struct *work)
 	blk_start_plug(&plug);
 	while ((bio = bio_list_pop(&bios))) {
 		r = __multipath_map_bio(m, bio, get_mpio_from_bio(bio));
-		if (r < 0 || r == DM_MAPIO_REQUEUE) {
-			bio->bi_error = r;
+		switch (r) {
+		case DM_MAPIO_KILL:
+			bio->bi_status = BLK_STS_IOERR;
 			bio_endio(bio);
-		} else if (r == DM_MAPIO_REMAPPED)
+			break;
+		case DM_MAPIO_REQUEUE:
+			bio->bi_status = BLK_STS_DM_REQUEUE;
+			bio_endio(bio);
+			break;
+		case DM_MAPIO_REMAPPED:
 			generic_make_request(bio);
+			break;
+		case 0:
+			break;
+		default:
+			WARN_ONCE(true, "__multipath_map_bio() returned %d\n", r);
+		}
 	}
 	blk_finish_plug(&plug);
 }
@@ -691,7 +702,7 @@ static int parse_path_selector(struct dm_arg_set *as, struct priority_group *pg,
 	struct path_selector_type *pst;
 	unsigned ps_argc;
 
-	static struct dm_arg _args[] = {
+	static const struct dm_arg _args[] = {
 		{0, 1024, "invalid number of path selector args"},
 	};
 
@@ -815,7 +826,7 @@ retain:
 static struct priority_group *parse_priority_group(struct dm_arg_set *as,
 						   struct multipath *m)
 {
-	static struct dm_arg _args[] = {
+	static const struct dm_arg _args[] = {
 		{1, 1024, "invalid number of paths"},
 		{0, 1024, "invalid number of selector args"}
 	};
@@ -891,7 +902,7 @@ static int parse_hw_handler(struct dm_arg_set *as, struct multipath *m)
 	int ret;
 	struct dm_target *ti = m->ti;
 
-	static struct dm_arg _args[] = {
+	static const struct dm_arg _args[] = {
 		{0, 1024, "invalid number of hardware handler args"},
 	};
 
@@ -943,7 +954,7 @@ static int parse_features(struct dm_arg_set *as, struct multipath *m)
 	struct dm_target *ti = m->ti;
 	const char *arg_name;
 
-	static struct dm_arg _args[] = {
+	static const struct dm_arg _args[] = {
 		{0, 8, "invalid number of feature args"},
 		{1, 50, "pg_init_retries must be between 1 and 50"},
 		{0, 60000, "pg_init_delay_msecs must be between 0 and 60000"},
@@ -1012,7 +1023,7 @@ static int parse_features(struct dm_arg_set *as, struct multipath *m)
 static int multipath_ctr(struct dm_target *ti, unsigned argc, char **argv)
 {
 	/* target arguments */
-	static struct dm_arg _args[] = {
+	static const struct dm_arg _args[] = {
 		{0, 1024, "invalid number of priority groups"},
 		{0, 1024, "invalid initial priority group number"},
 	};
@@ -1372,6 +1383,7 @@ static void pg_init_done(void *data, int errors)
 	case SCSI_DH_RETRY:
 		/* Wait before retrying. */
 		delay_retry = 1;
+		/* fall through */
 	case SCSI_DH_IMM_RETRY:
 	case SCSI_DH_RES_TEMP_UNAVAIL:
 		if (pg_init_limit_reached(m, pgpath))
@@ -1442,22 +1454,14 @@ static void activate_path_work(struct work_struct *work)
 	activate_or_offline_path(pgpath);
 }
 
-static int noretry_error(int error)
+static int noretry_error(blk_status_t error)
 {
 	switch (error) {
-	case -EBADE:
-		/*
-		 * EBADE signals an reservation conflict.
-		 * We shouldn't fail the path here as we can communicate with
-		 * the target.  We should failover to the next path, but in
-		 * doing so we might be causing a ping-pong between paths.
-		 * So just return the reservation conflict error.
-		 */
-	case -EOPNOTSUPP:
-	case -EREMOTEIO:
-	case -EILSEQ:
-	case -ENODATA:
-	case -ENOSPC:
+	case BLK_STS_NOTSUPP:
+	case BLK_STS_NOSPC:
+	case BLK_STS_TARGET:
+	case BLK_STS_NEXUS:
+	case BLK_STS_MEDIUM:
 		return 1;
 	}
 
@@ -1466,7 +1470,7 @@ static int noretry_error(int error)
 }
 
 static int multipath_end_io(struct dm_target *ti, struct request *clone,
-			    int error, union map_info *map_context)
+			    blk_status_t error, union map_info *map_context)
 {
 	struct dm_mpath_io *mpio = get_mpio(map_context);
 	struct pgpath *pgpath = mpio->pgpath;
@@ -1493,7 +1497,7 @@ static int multipath_end_io(struct dm_target *ti, struct request *clone,
 
 		if (atomic_read(&m->nr_valid_paths) == 0 &&
 		    !test_bit(MPATHF_QUEUE_IF_NO_PATH, &m->flags)) {
-			if (error == -EIO)
+			if (error == BLK_STS_IOERR)
 				dm_report_EIO(m);
 			/* complete with the original error */
 			r = DM_ENDIO_DONE;
@@ -1510,24 +1514,26 @@ static int multipath_end_io(struct dm_target *ti, struct request *clone,
 	return r;
 }
 
-static int do_end_io_bio(struct multipath *m, struct bio *clone,
-			 int error, struct dm_mpath_io *mpio)
+static int multipath_end_io_bio(struct dm_target *ti, struct bio *clone,
+		blk_status_t *error)
 {
+	struct multipath *m = ti->private;
+	struct dm_mpath_io *mpio = get_mpio_from_bio(clone);
+	struct pgpath *pgpath = mpio->pgpath;
 	unsigned long flags;
+	int r = DM_ENDIO_DONE;
 
-	if (!error)
-		return 0;	/* I/O complete */
+	if (!*error || noretry_error(*error))
+		goto done;
 
-	if (noretry_error(error))
-		return error;
-
-	if (mpio->pgpath)
-		fail_path(mpio->pgpath);
+	if (pgpath)
+		fail_path(pgpath);
 
 	if (atomic_read(&m->nr_valid_paths) == 0 &&
 	    !test_bit(MPATHF_QUEUE_IF_NO_PATH, &m->flags)) {
 		dm_report_EIO(m);
-		return -EIO;
+		*error = BLK_STS_IOERR;
+		goto done;
 	}
 
 	/* Queue for the daemon to resubmit */
@@ -1539,23 +1545,11 @@ static int do_end_io_bio(struct multipath *m, struct bio *clone,
 	if (!test_bit(MPATHF_QUEUE_IO, &m->flags))
 		queue_work(kmultipathd, &m->process_queued_bios);
 
-	return DM_ENDIO_INCOMPLETE;
-}
-
-static int multipath_end_io_bio(struct dm_target *ti, struct bio *clone, int error)
-{
-	struct multipath *m = ti->private;
-	struct dm_mpath_io *mpio = get_mpio_from_bio(clone);
-	struct pgpath *pgpath;
-	struct path_selector *ps;
-	int r;
-
-	BUG_ON(!mpio);
-
-	r = do_end_io_bio(m, clone, error, mpio);
-	pgpath = mpio->pgpath;
+	r = DM_ENDIO_INCOMPLETE;
+done:
 	if (pgpath) {
-		ps = &pgpath->pg->ps;
+		struct path_selector *ps = &pgpath->pg->ps;
+
 		if (ps->type->end_io)
 			ps->type->end_io(ps, &pgpath->path, mpio->nr_bytes);
 	}

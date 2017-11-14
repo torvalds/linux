@@ -51,19 +51,6 @@ static const struct drm_mode_config_funcs mode_config_funcs = {
 	.atomic_state_free = msm_atomic_state_free,
 };
 
-int msm_register_address_space(struct drm_device *dev,
-		struct msm_gem_address_space *aspace)
-{
-	struct msm_drm_private *priv = dev->dev_private;
-
-	if (WARN_ON(priv->num_aspaces >= ARRAY_SIZE(priv->aspace)))
-		return -EINVAL;
-
-	priv->aspace[priv->num_aspaces] = aspace;
-
-	return priv->num_aspaces++;
-}
-
 #ifdef CONFIG_DRM_MSM_REGISTER_LOGGING
 static bool reglog = false;
 MODULE_PARM_DESC(reglog, "Enable register read/write logging");
@@ -85,6 +72,10 @@ module_param(vram, charp, 0);
 bool dumpstate = false;
 MODULE_PARM_DESC(dumpstate, "Dump KMS state on errors");
 module_param(dumpstate, bool, 0600);
+
+static bool modeset = true;
+MODULE_PARM_DESC(modeset, "Use kernel modesetting [KMS] (1=on (default), 0=disable)");
+module_param(modeset, bool, 0600);
 
 /*
  * Util/helpers:
@@ -349,6 +340,7 @@ static int msm_init_vram(struct drm_device *dev)
 		priv->vram.size = size;
 
 		drm_mm_init(&priv->vram.mm, 0, (size >> PAGE_SHIFT) - 1);
+		spin_lock_init(&priv->vram.lock);
 
 		attrs |= DMA_ATTR_NO_KERNEL_MAPPING;
 		attrs |= DMA_ATTR_WRITE_COMBINE;
@@ -699,6 +691,17 @@ static int msm_ioctl_gem_cpu_fini(struct drm_device *dev, void *data,
 	return ret;
 }
 
+static int msm_ioctl_gem_info_iova(struct drm_device *dev,
+		struct drm_gem_object *obj, uint64_t *iova)
+{
+	struct msm_drm_private *priv = dev->dev_private;
+
+	if (!priv->gpu)
+		return -EINVAL;
+
+	return msm_gem_get_iova(obj, priv->gpu->aspace, iova);
+}
+
 static int msm_ioctl_gem_info(struct drm_device *dev, void *data,
 		struct drm_file *file)
 {
@@ -706,14 +709,22 @@ static int msm_ioctl_gem_info(struct drm_device *dev, void *data,
 	struct drm_gem_object *obj;
 	int ret = 0;
 
-	if (args->pad)
+	if (args->flags & ~MSM_INFO_FLAGS)
 		return -EINVAL;
 
 	obj = drm_gem_object_lookup(file, args->handle);
 	if (!obj)
 		return -ENOENT;
 
-	args->offset = msm_gem_mmap_offset(obj);
+	if (args->flags & MSM_INFO_IOVA) {
+		uint64_t iova;
+
+		ret = msm_ioctl_gem_info_iova(dev, obj, &iova);
+		if (!ret)
+			args->offset = iova;
+	} else {
+		args->offset = msm_gem_mmap_offset(obj);
+	}
 
 	drm_gem_object_unreference_unlocked(obj);
 
@@ -825,7 +836,6 @@ static struct drm_driver msm_driver = {
 	.gem_vm_ops         = &vm_ops,
 	.dumb_create        = msm_gem_dumb_create,
 	.dumb_map_offset    = msm_gem_dumb_map_offset,
-	.dumb_destroy       = drm_gem_dumb_destroy,
 	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
 	.gem_prime_export   = drm_gem_prime_export,
@@ -842,7 +852,7 @@ static struct drm_driver msm_driver = {
 	.debugfs_init       = msm_debugfs_init,
 #endif
 	.ioctls             = msm_ioctls,
-	.num_ioctls         = DRM_MSM_NUM_IOCTLS,
+	.num_ioctls         = ARRAY_SIZE(msm_ioctls),
 	.fops               = &fops,
 	.name               = "msm",
 	.desc               = "MSM Snapdragon DRM",
@@ -872,8 +882,37 @@ static int msm_pm_resume(struct device *dev)
 }
 #endif
 
+#ifdef CONFIG_PM
+static int msm_runtime_suspend(struct device *dev)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct msm_drm_private *priv = ddev->dev_private;
+
+	DBG("");
+
+	if (priv->mdss)
+		return msm_mdss_disable(priv->mdss);
+
+	return 0;
+}
+
+static int msm_runtime_resume(struct device *dev)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct msm_drm_private *priv = ddev->dev_private;
+
+	DBG("");
+
+	if (priv->mdss)
+		return msm_mdss_enable(priv->mdss);
+
+	return 0;
+}
+#endif
+
 static const struct dev_pm_ops msm_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(msm_pm_suspend, msm_pm_resume)
+	SET_RUNTIME_PM_OPS(msm_runtime_suspend, msm_runtime_resume, NULL)
 };
 
 /*
@@ -1097,6 +1136,9 @@ static struct platform_driver msm_platform_driver = {
 
 static int __init msm_drm_register(void)
 {
+	if (!modeset)
+		return -EINVAL;
+
 	DBG("init");
 	msm_mdp_register();
 	msm_dsi_register();

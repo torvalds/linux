@@ -1,11 +1,14 @@
 #!/bin/sh
+# SPDX-License-Identifier: GPL-2.0
 # description: Register/unregister many kprobe events
 
+[ -f kprobe_events ] || exit_unsupported # this is configurable
+
 # ftrace fentry skip size depends on the machine architecture.
-# Currently HAVE_KPROBES_ON_FTRACE defined on x86 and powerpc
+# Currently HAVE_KPROBES_ON_FTRACE defined on x86 and powerpc64le
 case `uname -m` in
   x86_64|i[3456]86) OFFS=5;;
-  ppc*) OFFS=4;;
+  ppc64le) OFFS=8;;
   *) OFFS=0;;
 esac
 

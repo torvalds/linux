@@ -741,12 +741,12 @@ static void ide_port_tune_devices(ide_hwif_t *hwif)
 	}
 }
 
-static int ide_init_rq(struct request_queue *q, struct request *rq, gfp_t gfp)
+static void ide_initialize_rq(struct request *rq)
 {
 	struct ide_request *req = blk_mq_rq_to_pdu(rq);
 
+	scsi_req_init(&req->sreq);
 	req->sreq.sense = req->sense;
-	return 0;
 }
 
 /*
@@ -771,8 +771,9 @@ static int ide_init_queue(ide_drive_t *drive)
 		return 1;
 
 	q->request_fn = do_ide_request;
-	q->init_rq_fn = ide_init_rq;
+	q->initialize_rq_fn = ide_initialize_rq;
 	q->cmd_size = sizeof(struct ide_request);
+	queue_flag_set_unlocked(QUEUE_FLAG_SCSI_PASSTHROUGH, q);
 	if (blk_init_allocated_queue(q) < 0) {
 		blk_cleanup_queue(q);
 		return 1;
@@ -1450,6 +1451,7 @@ int ide_host_register(struct ide_host *host, const struct ide_port_info *d,
 		if (hwif_init(hwif) == 0) {
 			printk(KERN_INFO "%s: failed to initialize IDE "
 					 "interface\n", hwif->name);
+			device_unregister(hwif->portdev);
 			device_unregister(&hwif->gendev);
 			ide_disable_port(hwif);
 			continue;

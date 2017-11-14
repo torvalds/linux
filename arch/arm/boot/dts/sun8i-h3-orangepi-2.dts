@@ -104,6 +104,15 @@
 	};
 };
 
+&codec {
+	allwinner,pa-gpios = <&pio 0 16 GPIO_ACTIVE_HIGH>; /* PA16 */
+	allwinner,audio-routing =
+		"Speaker", "LINEOUT",
+		"MIC1", "Mic",
+		"Mic",  "MBIAS";
+	status = "okay";
+};
+
 &ehci1 {
 	status = "okay";
 };
@@ -193,10 +202,6 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart3_pins>;
 	status = "disabled";
-};
-
-&usb1_vbus_pin_a {
-	pins = "PG13";
 };
 
 &usbphy {

@@ -129,7 +129,7 @@ static void __save_processor_state(struct saved_context *ctxt)
 	 */
 	ctxt->cr0 = read_cr0();
 	ctxt->cr2 = read_cr2();
-	ctxt->cr3 = read_cr3();
+	ctxt->cr3 = __read_cr3();
 	ctxt->cr4 = __read_cr4();
 #ifdef CONFIG_X86_64
 	ctxt->cr8 = read_cr8();
@@ -181,6 +181,7 @@ static void fix_processor_context(void)
 #endif
 	load_TR_desc();				/* This does ltr */
 	load_mm_ldt(current->active_mm);	/* This does lldt */
+	initialize_tlbstate_and_flush();
 
 	fpu__resume_cpu();
 
@@ -427,7 +428,7 @@ static int msr_initialize_bdw(const struct dmi_system_id *d)
 	return msr_init_context(bdw_msr_id, ARRAY_SIZE(bdw_msr_id));
 }
 
-static struct dmi_system_id msr_save_dmi_table[] = {
+static const struct dmi_system_id msr_save_dmi_table[] = {
 	{
 	 .callback = msr_initialize_bdw,
 	 .ident = "BROADWELL BDX_EP",

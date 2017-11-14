@@ -13,7 +13,7 @@
 		compatible = "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
-		ranges = <0x00000000 0xe0000000 0x10000000>;
+		ranges = <0x00000000 0x0 0xe0000000 0x10000000>;
 		interrupt-parent = <&mb_intc>;
 
 		i2sclk: i2sclk@100a0 {
@@ -44,7 +44,14 @@
 
 			mmcclk: mmcclk {
 				compatible = "fixed-clock";
-				clock-frequency = <50000000>;
+				/*
+				 * DW sdio controller has external ciu clock divider
+				 * controlled via register in SDIO IP. It divides
+				 * sdio_ref_clk (which comes from CGU) by 16 for
+				 * default. So default mmcclk clock (which comes
+				 * to sdk_in) is 25000000 Hz.
+				 */
+				clock-frequency = <25000000>;
 				#clock-cells = <0>;
 			};
 
@@ -101,7 +108,6 @@
 		mmc@0x15000 {
 			compatible = "altr,socfpga-dw-mshc";
 			reg = < 0x15000 0x400 >;
-			num-slots = < 1 >;
 			fifo-depth = < 16 >;
 			card-detect-delay = < 200 >;
 			clocks = <&apbclk>, <&mmcclk>;

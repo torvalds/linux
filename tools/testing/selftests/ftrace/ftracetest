@@ -8,15 +8,18 @@
 # Released under the terms of the GPL v2.
 
 usage() { # errno [message]
-[ "$2" ] && echo $2
+[ ! -z "$2" ] && echo $2
 echo "Usage: ftracetest [options] [testcase(s)] [testcase-directory(s)]"
 echo " Options:"
 echo "		-h|--help  Show help message"
 echo "		-k|--keep  Keep passed test logs"
 echo "		-v|--verbose Increase verbosity of test messages"
 echo "		-vv        Alias of -v -v (Show all results in stdout)"
+echo "		-vvv       Alias of -v -v -v (Show all commands immediately)"
+echo "		--fail-unsupported Treat UNSUPPORTED as a failure"
 echo "		-d|--debug Debug mode (trace all shell commands)"
 echo "		-l|--logdir <dir> Save logs on the <dir>"
+echo "		            If <dir> is -, all logs output in console only"
 exit $1
 }
 
@@ -47,7 +50,7 @@ parse_opts() { # opts
   local OPT_TEST_CASES=
   local OPT_TEST_DIR=
 
-  while [ "$1" ]; do
+  while [ ! -z "$1" ]; do
     case "$1" in
     --help|-h)
       usage 0
@@ -56,13 +59,18 @@ parse_opts() { # opts
       KEEP_LOG=1
       shift 1
     ;;
-    --verbose|-v|-vv)
+    --verbose|-v|-vv|-vvv)
       VERBOSE=$((VERBOSE + 1))
       [ $1 = '-vv' ] && VERBOSE=$((VERBOSE + 1))
+      [ $1 = '-vvv' ] && VERBOSE=$((VERBOSE + 2))
       shift 1
     ;;
     --debug|-d)
       DEBUG=1
+      shift 1
+    ;;
+    --fail-unsupported)
+      UNSUPPORTED_RESULT=1
       shift 1
     ;;
     --logdir|-l)
@@ -88,7 +96,7 @@ parse_opts() { # opts
     ;;
     esac
   done
-  if [ "$OPT_TEST_CASES" ]; then
+  if [ ! -z "$OPT_TEST_CASES" ]; then
     TEST_CASES=$OPT_TEST_CASES
   fi
 }
@@ -108,6 +116,7 @@ LOG_DIR=$TOP_DIR/logs/`date +%Y%m%d-%H%M%S`/
 KEEP_LOG=0
 DEBUG=0
 VERBOSE=0
+UNSUPPORTED_RESULT=0
 # Parse command-line options
 parse_opts $*
 
@@ -119,14 +128,20 @@ if [ -z "$TRACING_DIR" -o ! -d "$TRACING_DIR" ]; then
 fi
 
 # Preparing logs
-LOG_FILE=$LOG_DIR/ftracetest.log
-mkdir -p $LOG_DIR || errexit "Failed to make a log directory: $LOG_DIR"
-date > $LOG_FILE
+if [ "x$LOG_DIR" = "x-" ]; then
+  LOG_FILE=
+  date
+else
+  LOG_FILE=$LOG_DIR/ftracetest.log
+  mkdir -p $LOG_DIR || errexit "Failed to make a log directory: $LOG_DIR"
+  date > $LOG_FILE
+fi
+
 prlog() { # messages
-  echo "$@" | tee -a $LOG_FILE
+  [ -z "$LOG_FILE" ] && echo "$@" || echo "$@" | tee -a $LOG_FILE
 }
 catlog() { #file
-  cat $1 | tee -a $LOG_FILE
+  [ -z "$LOG_FILE" ] && cat $1 || cat $1 | tee -a $LOG_FILE
 }
 prlog "=== Ftrace unit tests ==="
 
@@ -187,7 +202,7 @@ eval_result() { # sigval
     $UNSUPPORTED)
       prlog "	[UNSUPPORTED]"
       UNSUPPORTED_CASES="$UNSUPPORTED_CASES $CASENO"
-      return 1 # this is not a bug, but the result should be reported.
+      return $UNSUPPORTED_RESULT # depends on use case
     ;;
     $XFAIL)
       prlog "	[XFAIL]"
@@ -247,12 +262,20 @@ __run_test() { # testfile
 # Run one test case
 run_test() { # testfile
   local testname=`basename $1`
-  local testlog=`mktemp $LOG_DIR/${testname}-log.XXXXXX`
+  if [ ! -z "$LOG_FILE" ] ; then
+    local testlog=`mktemp $LOG_DIR/${testname}-log.XXXXXX`
+  else
+    local testlog=/proc/self/fd/1
+  fi
   export TMPDIR=`mktemp -d /tmp/ftracetest-dir.XXXXXX`
   testcase $1
-  echo "execute: "$1 > $testlog
+  echo "execute$INSTANCE: "$1 > $testlog
   SIG_RESULT=0
-  if [ $VERBOSE -ge 2 ]; then
+  if [ -z "$LOG_FILE" ]; then
+    __run_test $1 2>&1
+  elif [ $VERBOSE -ge 3 ]; then
+    __run_test $1 | tee -a $testlog 2>&1
+  elif [ $VERBOSE -eq 2 ]; then
     __run_test $1 2>> $testlog | tee -a $testlog
   else
     __run_test $1 >> $testlog 2>&1
@@ -260,9 +283,9 @@ run_test() { # testfile
   eval_result $SIG_RESULT
   if [ $? -eq 0 ]; then
     # Remove test log if the test was done as it was expected.
-    [ $KEEP_LOG -eq 0 ] && rm $testlog
+    [ $KEEP_LOG -eq 0 -a ! -z "$LOG_FILE" ] && rm $testlog
   else
-    [ $VERBOSE -ge 1 ] && catlog $testlog
+    [ $VERBOSE -eq 1 -o $VERBOSE -eq 2 ] && catlog $testlog
     TOTAL_RESULT=1
   fi
   rm -rf $TMPDIR

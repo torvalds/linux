@@ -1,6 +1,6 @@
 /*
  *  QLogic FCoE Offload Driver
- *  Copyright (c) 2016 Cavium Inc.
+ *  Copyright (c) 2016-2017 Cavium Inc.
  *
  *  This software is available under the terms of the GNU General Public License
  *  (GPL) Version 2, available from the file COPYING in the main directory of
@@ -44,7 +44,7 @@ static int qedf_initiate_els(struct qedf_rport *fcport, unsigned int op,
 		goto els_err;
 	}
 
-	if (!(test_bit(QEDF_RPORT_SESSION_READY, &fcport->flags))) {
+	if (!test_bit(QEDF_RPORT_SESSION_READY, &fcport->flags)) {
 		QEDF_ERR(&(qedf->dbg_ctx), "els 0x%x: fcport not ready\n", op);
 		rc = -EINVAL;
 		goto els_err;
@@ -225,7 +225,7 @@ int qedf_send_rrq(struct qedf_ioreq *aborted_io_req)
 	fcport = aborted_io_req->fcport;
 
 	/* Check that fcport is still offloaded */
-	if (!(test_bit(QEDF_RPORT_SESSION_READY, &fcport->flags))) {
+	if (!test_bit(QEDF_RPORT_SESSION_READY, &fcport->flags)) {
 		QEDF_ERR(NULL, "fcport is no longer offloaded.\n");
 		return -EINVAL;
 	}
@@ -489,7 +489,7 @@ static void qedf_srr_compl(struct qedf_els_cb_arg *cb_arg)
 
 	/* If a SRR times out, simply free resources */
 	if (srr_req->event == QEDF_IOREQ_EV_ELS_TMO)
-		goto out_free;
+		goto out_put;
 
 	/* Normalize response data into struct fc_frame */
 	mp_req = &(srr_req->mp_req);
@@ -501,7 +501,7 @@ static void qedf_srr_compl(struct qedf_els_cb_arg *cb_arg)
 	if (!fp) {
 		QEDF_ERR(&(qedf->dbg_ctx),
 		    "fc_frame_alloc failure.\n");
-		goto out_free;
+		goto out_put;
 	}
 
 	/* Copy frame header from firmware into fp */
@@ -526,9 +526,10 @@ static void qedf_srr_compl(struct qedf_els_cb_arg *cb_arg)
 	}
 
 	fc_frame_free(fp);
-out_free:
+out_put:
 	/* Put reference for original command since SRR completed */
 	kref_put(&orig_io_req->refcount, qedf_release_cmd);
+out_free:
 	kfree(cb_arg);
 }
 
@@ -550,7 +551,7 @@ static int qedf_send_srr(struct qedf_ioreq *orig_io_req, u32 offset, u8 r_ctl)
 	fcport = orig_io_req->fcport;
 
 	/* Check that fcport is still offloaded */
-	if (!(test_bit(QEDF_RPORT_SESSION_READY, &fcport->flags))) {
+	if (!test_bit(QEDF_RPORT_SESSION_READY, &fcport->flags)) {
 		QEDF_ERR(NULL, "fcport is no longer offloaded.\n");
 		return -EINVAL;
 	}
@@ -780,7 +781,7 @@ static void qedf_rec_compl(struct qedf_els_cb_arg *cb_arg)
 
 	/* If a REC times out, free resources */
 	if (rec_req->event == QEDF_IOREQ_EV_ELS_TMO)
-		goto out_free;
+		goto out_put;
 
 	/* Normalize response data into struct fc_frame */
 	mp_req = &(rec_req->mp_req);
@@ -792,7 +793,7 @@ static void qedf_rec_compl(struct qedf_els_cb_arg *cb_arg)
 	if (!fp) {
 		QEDF_ERR(&(qedf->dbg_ctx),
 		    "fc_frame_alloc failure.\n");
-		goto out_free;
+		goto out_put;
 	}
 
 	/* Copy frame header from firmware into fp */
@@ -884,9 +885,10 @@ static void qedf_rec_compl(struct qedf_els_cb_arg *cb_arg)
 
 out_free_frame:
 	fc_frame_free(fp);
-out_free:
+out_put:
 	/* Put reference for original command since REC completed */
 	kref_put(&orig_io_req->refcount, qedf_release_cmd);
+out_free:
 	kfree(cb_arg);
 }
 

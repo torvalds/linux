@@ -117,8 +117,14 @@ int pci_host_common_probe(struct platform_device *pdev,
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
 	struct pci_bus *bus, *child;
+	struct pci_host_bridge *bridge;
 	struct pci_config_window *cfg;
 	struct list_head resources;
+	int ret;
+
+	bridge = devm_pci_alloc_host_bridge(dev, 0);
+	if (!bridge)
+		return -ENOMEM;
 
 	type = of_get_property(np, "device_type", NULL);
 	if (!type || strcmp(type, "pci")) {
@@ -138,16 +144,21 @@ int pci_host_common_probe(struct platform_device *pdev,
 	if (!pci_has_flag(PCI_PROBE_ONLY))
 		pci_add_flags(PCI_REASSIGN_ALL_RSRC | PCI_REASSIGN_ALL_BUS);
 
-	bus = pci_scan_root_bus(dev, cfg->busr.start, &ops->pci_ops, cfg,
-				&resources);
-	if (!bus) {
-		dev_err(dev, "Scanning rootbus failed");
-		return -ENODEV;
+	list_splice_init(&resources, &bridge->windows);
+	bridge->dev.parent = dev;
+	bridge->sysdata = cfg;
+	bridge->busnr = cfg->busr.start;
+	bridge->ops = &ops->pci_ops;
+	bridge->map_irq = of_irq_parse_and_map_pci;
+	bridge->swizzle_irq = pci_common_swizzle;
+
+	ret = pci_scan_root_bus_bridge(bridge);
+	if (ret < 0) {
+		dev_err(dev, "Scanning root bridge failed");
+		return ret;
 	}
 
-#ifdef CONFIG_ARM
-	pci_fixup_irqs(pci_common_swizzle, of_irq_parse_and_map_pci);
-#endif
+	bus = bridge->bus;
 
 	/*
 	 * We insert PCI resources into the iomem_resource and

@@ -211,11 +211,10 @@ static struct bucket_table *bucket_table_alloc(struct rhashtable *ht,
 	int i;
 
 	size = sizeof(*tbl) + nbuckets * sizeof(tbl->buckets[0]);
-	if (size <= (PAGE_SIZE << PAGE_ALLOC_COSTLY_ORDER) ||
-	    gfp != GFP_KERNEL)
+	if (gfp != GFP_KERNEL)
 		tbl = kzalloc(size, gfp | __GFP_NOWARN | __GFP_NORETRY);
-	if (tbl == NULL && gfp == GFP_KERNEL)
-		tbl = vzalloc(size);
+	else
+		tbl = kvzalloc(size, gfp);
 
 	size = nbuckets;
 
@@ -235,7 +234,7 @@ static struct bucket_table *bucket_table_alloc(struct rhashtable *ht,
 
 	INIT_LIST_HEAD(&tbl->walkers);
 
-	get_random_bytes(&tbl->hash_rnd, sizeof(tbl->hash_rnd));
+	tbl->hash_rnd = get_random_u32();
 
 	for (i = 0; i < nbuckets; i++)
 		INIT_RHT_NULLS_HEAD(tbl->buckets[i], ht, i);
@@ -736,9 +735,9 @@ EXPORT_SYMBOL_GPL(rhashtable_walk_exit);
  * rhashtable_walk_start - Start a hash table walk
  * @iter:	Hash table iterator
  *
- * Start a hash table walk.  Note that we take the RCU lock in all
- * cases including when we return an error.  So you must always call
- * rhashtable_walk_stop to clean up.
+ * Start a hash table walk at the current iterator position.  Note that we take
+ * the RCU lock in all cases including when we return an error.  So you must
+ * always call rhashtable_walk_stop to clean up.
  *
  * Returns zero if successful.
  *
@@ -847,7 +846,8 @@ EXPORT_SYMBOL_GPL(rhashtable_walk_next);
  * rhashtable_walk_stop - Finish a hash table walk
  * @iter:	Hash table iterator
  *
- * Finish a hash table walk.
+ * Finish a hash table walk.  Does not reset the iterator to the start of the
+ * hash table.
  */
 void rhashtable_walk_stop(struct rhashtable_iter *iter)
 	__releases(RCU)

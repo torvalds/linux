@@ -94,6 +94,8 @@ static inline int is_pae40_enabled(void)
 	return IS_ENABLED(CONFIG_ARC_HAS_PAE40);
 }
 
+extern int pae40_exist_but_not_enab(void);
+
 #endif	/* !__ASSEMBLY__ */
 
 #endif

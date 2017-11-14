@@ -40,7 +40,7 @@
 #include <net/sctp/structs.h>
 
 
-typedef enum {
+enum sctp_verb {
 	SCTP_CMD_NOP = 0,	/* Do nothing. */
 	SCTP_CMD_NEW_ASOC,	/* Register a new association.  */
 	SCTP_CMD_DELETE_TCB,	/* Delete the current association. */
@@ -108,16 +108,16 @@ typedef enum {
 	SCTP_CMD_PURGE_ASCONF_QUEUE, /* Purge all asconf queues.*/
 	SCTP_CMD_SET_ASOC,	 /* Restore association context */
 	SCTP_CMD_LAST
-} sctp_verb_t;
+};
 
-/* How many commands can you put in an sctp_cmd_seq_t?
+/* How many commands can you put in an struct sctp_cmd_seq?
  * This is a rather arbitrary number, ideally derived from a careful
  * analysis of the state functions, but in reality just taken from
  * thin air in the hopes othat we don't trigger a kernel panic.
  */
 #define SCTP_MAX_NUM_COMMANDS 20
 
-typedef union {
+union sctp_arg {
 	void *zero_all;	/* Set to NULL to clear the entire union */
 	__s32 i32;
 	__u32 u32;
@@ -126,35 +126,35 @@ typedef union {
 	__u8 u8;
 	int error;
 	__be16 err;
-	sctp_state_t state;
-	sctp_event_timeout_t to;
+	enum sctp_state state;
+	enum sctp_event_timeout to;
 	struct sctp_chunk *chunk;
 	struct sctp_association *asoc;
 	struct sctp_transport *transport;
 	struct sctp_bind_addr *bp;
-	sctp_init_chunk_t *init;
+	struct sctp_init_chunk *init;
 	struct sctp_ulpevent *ulpevent;
 	struct sctp_packet *packet;
-	sctp_sackhdr_t *sackh;
+	struct sctp_sackhdr *sackh;
 	struct sctp_datamsg *msg;
-} sctp_arg_t;
+};
 
 /* We are simulating ML type constructors here.
  *
  * SCTP_ARG_CONSTRUCTOR(NAME, TYPE, ELT) builds a function called
  * SCTP_NAME() which takes an argument of type TYPE and returns an
- * sctp_arg_t.  It does this by inserting the sole argument into the
- * ELT union element of a local sctp_arg_t.
+ * union sctp_arg.  It does this by inserting the sole argument into
+ * the ELT union element of a local union sctp_arg.
  *
  * E.g., SCTP_ARG_CONSTRUCTOR(I32, __s32, i32) builds SCTP_I32(arg),
- * which takes an __s32 and returns a sctp_arg_t containing the
+ * which takes an __s32 and returns a union sctp_arg containing the
  * __s32.  So, after foo = SCTP_I32(arg), foo.i32 == arg.
  */
 
 #define SCTP_ARG_CONSTRUCTOR(name, type, elt) \
-static inline sctp_arg_t	\
+static inline union sctp_arg	\
 SCTP_## name (type arg)		\
-{ sctp_arg_t retval;\
+{ union sctp_arg retval;\
   retval.zero_all = NULL;\
   retval.elt = arg;\
   return retval;\
@@ -167,51 +167,51 @@ SCTP_ARG_CONSTRUCTOR(U16,	__u16, u16)
 SCTP_ARG_CONSTRUCTOR(U8,	__u8, u8)
 SCTP_ARG_CONSTRUCTOR(ERROR,     int, error)
 SCTP_ARG_CONSTRUCTOR(PERR,      __be16, err)	/* protocol error */
-SCTP_ARG_CONSTRUCTOR(STATE,	sctp_state_t, state)
-SCTP_ARG_CONSTRUCTOR(TO,	sctp_event_timeout_t, to)
+SCTP_ARG_CONSTRUCTOR(STATE,	enum sctp_state, state)
+SCTP_ARG_CONSTRUCTOR(TO,	enum sctp_event_timeout, to)
 SCTP_ARG_CONSTRUCTOR(CHUNK,	struct sctp_chunk *, chunk)
 SCTP_ARG_CONSTRUCTOR(ASOC,	struct sctp_association *, asoc)
 SCTP_ARG_CONSTRUCTOR(TRANSPORT,	struct sctp_transport *, transport)
 SCTP_ARG_CONSTRUCTOR(BA,	struct sctp_bind_addr *, bp)
-SCTP_ARG_CONSTRUCTOR(PEER_INIT,	sctp_init_chunk_t *, init)
+SCTP_ARG_CONSTRUCTOR(PEER_INIT,	struct sctp_init_chunk *, init)
 SCTP_ARG_CONSTRUCTOR(ULPEVENT,  struct sctp_ulpevent *, ulpevent)
 SCTP_ARG_CONSTRUCTOR(PACKET,	struct sctp_packet *, packet)
-SCTP_ARG_CONSTRUCTOR(SACKH,	sctp_sackhdr_t *, sackh)
+SCTP_ARG_CONSTRUCTOR(SACKH,	struct sctp_sackhdr *, sackh)
 SCTP_ARG_CONSTRUCTOR(DATAMSG,	struct sctp_datamsg *, msg)
 
-static inline sctp_arg_t SCTP_FORCE(void)
+static inline union sctp_arg SCTP_FORCE(void)
 {
 	return SCTP_I32(1);
 }
 
-static inline sctp_arg_t SCTP_NOFORCE(void)
+static inline union sctp_arg SCTP_NOFORCE(void)
 {
 	return SCTP_I32(0);
 }
 
-static inline sctp_arg_t SCTP_NULL(void)
+static inline union sctp_arg SCTP_NULL(void)
 {
-	sctp_arg_t retval;
+	union sctp_arg retval;
 	retval.zero_all = NULL;
 	return retval;
 }
 
-typedef struct {
-	sctp_arg_t obj;
-	sctp_verb_t verb;
-} sctp_cmd_t;
+struct sctp_cmd {
+	union sctp_arg obj;
+	enum sctp_verb verb;
+};
 
-typedef struct {
-	sctp_cmd_t cmds[SCTP_MAX_NUM_COMMANDS];
-	sctp_cmd_t *last_used_slot;
-	sctp_cmd_t *next_cmd;
-} sctp_cmd_seq_t;
+struct sctp_cmd_seq {
+	struct sctp_cmd cmds[SCTP_MAX_NUM_COMMANDS];
+	struct sctp_cmd *last_used_slot;
+	struct sctp_cmd *next_cmd;
+};
 
 
 /* Initialize a block of memory as a command sequence.
  * Return 0 if the initialization fails.
  */
-static inline int sctp_init_cmd_seq(sctp_cmd_seq_t *seq)
+static inline int sctp_init_cmd_seq(struct sctp_cmd_seq *seq)
 {
 	/* cmds[] is filled backwards to simplify the overflow BUG() check */
 	seq->last_used_slot = seq->cmds + SCTP_MAX_NUM_COMMANDS;
@@ -220,15 +220,15 @@ static inline int sctp_init_cmd_seq(sctp_cmd_seq_t *seq)
 }
 
 
-/* Add a command to an sctp_cmd_seq_t.
+/* Add a command to an struct sctp_cmd_seq.
  *
  * Use the SCTP_* constructors defined by SCTP_ARG_CONSTRUCTOR() above
  * to wrap data which goes in the obj argument.
  */
-static inline void sctp_add_cmd_sf(sctp_cmd_seq_t *seq, sctp_verb_t verb,
-				   sctp_arg_t obj)
+static inline void sctp_add_cmd_sf(struct sctp_cmd_seq *seq,
+				   enum sctp_verb verb, union sctp_arg obj)
 {
-	sctp_cmd_t *cmd = seq->last_used_slot - 1;
+	struct sctp_cmd *cmd = seq->last_used_slot - 1;
 
 	BUG_ON(cmd < seq->cmds);
 
@@ -240,7 +240,7 @@ static inline void sctp_add_cmd_sf(sctp_cmd_seq_t *seq, sctp_verb_t verb,
 /* Return the next command structure in an sctp_cmd_seq.
  * Return NULL at the end of the sequence.
  */
-static inline sctp_cmd_t *sctp_next_cmd(sctp_cmd_seq_t *seq)
+static inline struct sctp_cmd *sctp_next_cmd(struct sctp_cmd_seq *seq)
 {
 	if (seq->next_cmd <= seq->last_used_slot)
 		return NULL;

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  linux/fs/ext4/resize.c
  *
@@ -1927,7 +1928,8 @@ retry:
 			n_desc_blocks = o_desc_blocks +
 				le16_to_cpu(es->s_reserved_gdt_blocks);
 			n_group = n_desc_blocks * EXT4_DESC_PER_BLOCK(sb);
-			n_blocks_count = n_group * EXT4_BLOCKS_PER_GROUP(sb);
+			n_blocks_count = (ext4_fsblk_t)n_group *
+				EXT4_BLOCKS_PER_GROUP(sb);
 			n_group--; /* set to last group number */
 		}
 

@@ -28,8 +28,12 @@ int mmhub_v1_0_gart_enable(struct amdgpu_device *adev);
 void mmhub_v1_0_gart_disable(struct amdgpu_device *adev);
 void mmhub_v1_0_set_fault_enable_default(struct amdgpu_device *adev,
 					 bool value);
-
-extern const struct amd_ip_funcs mmhub_v1_0_ip_funcs;
-extern const struct amdgpu_ip_block_version mmhub_v1_0_ip_block;
+void mmhub_v1_0_init(struct amdgpu_device *adev);
+int mmhub_v1_0_set_clockgating(struct amdgpu_device *adev,
+			       enum amd_clockgating_state state);
+void mmhub_v1_0_get_clockgating(struct amdgpu_device *adev, u32 *flags);
+void mmhub_v1_0_initialize_power_gating(struct amdgpu_device *adev);
+void mmhub_v1_0_update_power_gating(struct amdgpu_device *adev,
+                                bool enable);
 
 #endif

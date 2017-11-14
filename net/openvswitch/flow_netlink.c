@@ -1255,7 +1255,7 @@ static int ovs_key_from_nlattrs(struct net *net, struct sw_flow_match *match,
 		}
 
 		if (!is_mask && ipv6_key->ipv6_label & htonl(0xFFF00000)) {
-			OVS_NLERR(log, "IPv6 flow label %x is out of range (max=%x).\n",
+			OVS_NLERR(log, "IPv6 flow label %x is out of range (max=%x)",
 				  ntohl(ipv6_key->ipv6_label), (1 << 20) - 1);
 			return -EINVAL;
 		}
@@ -2202,7 +2202,9 @@ static int validate_and_copy_set_tun(const struct nlattr *attr,
 	if (start < 0)
 		return start;
 
-	tun_dst = metadata_dst_alloc(key.tun_opts_len, GFP_KERNEL);
+	tun_dst = metadata_dst_alloc(key.tun_opts_len, METADATA_IP_TUNNEL,
+				     GFP_KERNEL);
+
 	if (!tun_dst)
 		return -ENOMEM;
 

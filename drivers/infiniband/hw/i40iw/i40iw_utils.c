@@ -160,7 +160,7 @@ int i40iw_inetaddr_event(struct notifier_block *notifier,
 		return NOTIFY_DONE;
 
 	iwdev = &hdl->device;
-	if (iwdev->init_state < INET_NOTIFIER)
+	if (iwdev->init_state < IP_ADDR_REGISTERED || iwdev->closing)
 		return NOTIFY_DONE;
 
 	netdev = iwdev->ldev->netdev;
@@ -217,7 +217,7 @@ int i40iw_inet6addr_event(struct notifier_block *notifier,
 		return NOTIFY_DONE;
 
 	iwdev = &hdl->device;
-	if (iwdev->init_state < INET_NOTIFIER)
+	if (iwdev->init_state < IP_ADDR_REGISTERED || iwdev->closing)
 		return NOTIFY_DONE;
 
 	netdev = iwdev->ldev->netdev;
@@ -266,7 +266,7 @@ int i40iw_net_event(struct notifier_block *notifier, unsigned long event, void *
 		if (!iwhdl)
 			return NOTIFY_DONE;
 		iwdev = &iwhdl->device;
-		if (iwdev->init_state < INET_NOTIFIER)
+		if (iwdev->init_state < IP_ADDR_REGISTERED || iwdev->closing)
 			return NOTIFY_DONE;
 		p = (__be32 *)neigh->primary_key;
 		i40iw_copy_ip_ntohl(local_ipaddr, p);
@@ -337,6 +337,7 @@ struct i40iw_cqp_request *i40iw_get_cqp_request(struct i40iw_cqp *cqp, bool wait
  */
 void i40iw_free_cqp_request(struct i40iw_cqp *cqp, struct i40iw_cqp_request *cqp_request)
 {
+	struct i40iw_device *iwdev = container_of(cqp, struct i40iw_device, cqp);
 	unsigned long flags;
 
 	if (cqp_request->dynamic) {
@@ -350,6 +351,7 @@ void i40iw_free_cqp_request(struct i40iw_cqp *cqp, struct i40iw_cqp_request *cqp
 		list_add_tail(&cqp_request->list, &cqp->cqp_avail_reqs);
 		spin_unlock_irqrestore(&cqp->req_lock, flags);
 	}
+	wake_up(&iwdev->close_wq);
 }
 
 /**
@@ -362,6 +364,56 @@ void i40iw_put_cqp_request(struct i40iw_cqp *cqp,
 {
 	if (atomic_dec_and_test(&cqp_request->refcount))
 		i40iw_free_cqp_request(cqp, cqp_request);
+}
+
+/**
+ * i40iw_free_pending_cqp_request -free pending cqp request objs
+ * @cqp: cqp ptr
+ * @cqp_request: to be put back in cqp list
+ */
+static void i40iw_free_pending_cqp_request(struct i40iw_cqp *cqp,
+					   struct i40iw_cqp_request *cqp_request)
+{
+	struct i40iw_device *iwdev = container_of(cqp, struct i40iw_device, cqp);
+
+	if (cqp_request->waiting) {
+		cqp_request->compl_info.error = true;
+		cqp_request->request_done = true;
+		wake_up(&cqp_request->waitq);
+	}
+	i40iw_put_cqp_request(cqp, cqp_request);
+	wait_event_timeout(iwdev->close_wq,
+			   !atomic_read(&cqp_request->refcount),
+			   1000);
+}
+
+/**
+ * i40iw_cleanup_pending_cqp_op - clean-up cqp with no completions
+ * @iwdev: iwarp device
+ */
+void i40iw_cleanup_pending_cqp_op(struct i40iw_device *iwdev)
+{
+	struct i40iw_sc_dev *dev = &iwdev->sc_dev;
+	struct i40iw_cqp *cqp = &iwdev->cqp;
+	struct i40iw_cqp_request *cqp_request = NULL;
+	struct cqp_commands_info *pcmdinfo = NULL;
+	u32 i, pending_work, wqe_idx;
+
+	pending_work = I40IW_RING_WORK_AVAILABLE(cqp->sc_cqp.sq_ring);
+	wqe_idx = I40IW_RING_GETCURRENT_TAIL(cqp->sc_cqp.sq_ring);
+	for (i = 0; i < pending_work; i++) {
+		cqp_request = (struct i40iw_cqp_request *)(unsigned long)cqp->scratch_array[wqe_idx];
+		if (cqp_request)
+			i40iw_free_pending_cqp_request(cqp, cqp_request);
+		wqe_idx = (wqe_idx + 1) % I40IW_RING_GETSIZE(cqp->sc_cqp.sq_ring);
+	}
+
+	while (!list_empty(&dev->cqp_cmd_head)) {
+		pcmdinfo = (struct cqp_commands_info *)i40iw_remove_head(&dev->cqp_cmd_head);
+		cqp_request = container_of(pcmdinfo, struct i40iw_cqp_request, info);
+		if (cqp_request)
+			i40iw_free_pending_cqp_request(cqp, cqp_request);
+	}
 }
 
 /**
@@ -393,23 +445,29 @@ static int i40iw_wait_event(struct i40iw_device *iwdev,
 {
 	struct cqp_commands_info *info = &cqp_request->info;
 	struct i40iw_cqp *iwcqp = &iwdev->cqp;
+	struct i40iw_cqp_timeout cqp_timeout;
 	bool cqp_error = false;
 	int err_code = 0;
-	int timeout_ret = 0;
+	memset(&cqp_timeout, 0, sizeof(cqp_timeout));
+	cqp_timeout.compl_cqp_cmds = iwdev->sc_dev.cqp_cmd_stats[OP_COMPLETED_COMMANDS];
+	do {
+		if (wait_event_timeout(cqp_request->waitq,
+				       cqp_request->request_done, CQP_COMPL_WAIT_TIME))
+			break;
 
-	timeout_ret = wait_event_timeout(cqp_request->waitq,
-					 cqp_request->request_done,
-					 I40IW_EVENT_TIMEOUT);
-	if (!timeout_ret) {
-		i40iw_pr_err("error cqp command 0x%x timed out ret = %d\n",
-			     info->cqp_cmd, timeout_ret);
+		i40iw_check_cqp_progress(&cqp_timeout, &iwdev->sc_dev);
+
+		if (cqp_timeout.count < CQP_TIMEOUT_THRESHOLD)
+			continue;
+
+		i40iw_pr_err("error cqp command 0x%x timed out", info->cqp_cmd);
 		err_code = -ETIME;
 		if (!iwdev->reset) {
 			iwdev->reset = true;
 			i40iw_request_reset(iwdev);
 		}
 		goto done;
-	}
+	} while (1);
 	cqp_error = cqp_request->compl_info.error;
 	if (cqp_error) {
 		i40iw_pr_err("error cqp command 0x%x completion maj = 0x%x min=0x%x\n",
@@ -546,8 +604,12 @@ void i40iw_rem_ref(struct ib_qp *ibqp)
 	cqp_info->in.u.qp_destroy.scratch = (uintptr_t)cqp_request;
 	cqp_info->in.u.qp_destroy.remove_hash_idx = true;
 	status = i40iw_handle_cqp_op(iwdev, cqp_request);
-	if (status)
-		i40iw_pr_err("CQP-OP Destroy QP fail");
+	if (!status)
+		return;
+
+	i40iw_rem_pdusecount(iwqp->iwpd, iwdev);
+	i40iw_free_qp_resources(iwdev, iwqp, qp_num);
+	i40iw_rem_devusecount(iwdev);
 }
 
 /**

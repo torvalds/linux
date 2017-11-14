@@ -5,9 +5,18 @@
 menuconfig MDIO_DEVICE
 	tristate "MDIO bus device drivers"
 	help
-	   MDIO devices and driver infrastructure code.
+	  MDIO devices and driver infrastructure code.
 
-if MDIO_DEVICE
+config MDIO_BUS
+	tristate
+	default m if PHYLIB=m
+	default MDIO_DEVICE
+	help
+	  This internal symbol is used for link time dependencies and it
+	  reflects whether the mdio_bus/mdio_device code is built as a
+	  loadable module or built-in.
+
+if MDIO_BUS
 
 config MDIO_BCM_IPROC
 	tristate "Broadcom iProc MDIO bus controller"
@@ -28,7 +37,6 @@ config MDIO_BCM_UNIMAC
 
 config MDIO_BITBANG
 	tristate "Bitbanged MDIO buses"
-	depends on !(MDIO_DEVICE=y && PHYLIB=m)
 	help
 	  This module implements the MDIO bus protocol in software,
 	  for use by low level drivers that export the ability to
@@ -77,7 +85,7 @@ config MDIO_BUS_MUX_MMIOREG
 	  parent bus.  Child bus selection is under the control of one of
 	  the FPGA's registers.
 
-	  Currently, only 8-bit registers are supported.
+	  Currently, only 8/16/32 bits registers are supported.
 
 config MDIO_CAVIUM
 	tristate
@@ -98,12 +106,22 @@ config MDIO_HISI_FEMAC
 	  This module provides a driver for the MDIO busses found in the
 	  Hisilicon SoC that have an Fast Ethernet MAC.
 
+config MDIO_I2C
+	tristate
+	depends on I2C
+	help
+	  Support I2C based PHYs.  This provides a MDIO bus bridged
+	  to I2C to allow PHYs connected in I2C mode to be accessed
+	  using the existing infrastructure.
+
+	  This is library mode.
+
 config MDIO_MOXART
-        tristate "MOXA ART MDIO interface support"
-        depends on ARCH_MOXART
-        help
-          This driver supports the MDIO interface found in the network
-          interface units of the MOXA ART SoC
+	tristate "MOXA ART MDIO interface support"
+	depends on ARCH_MOXART
+	help
+	  This driver supports the MDIO interface found in the network
+	  interface units of the MOXA ART SoC
 
 config MDIO_OCTEON
 	tristate "Octeon and some ThunderX SOCs MDIO buses"
@@ -127,7 +145,6 @@ config MDIO_THUNDER
 	tristate "ThunderX SOCs MDIO buses"
 	depends on 64BIT
 	depends on PCI
-	depends on !(MDIO_DEVICE=y && PHYLIB=m)
 	select MDIO_CAVIUM
 	help
 	  This driver supports the MDIO interfaces found on Cavium
@@ -142,6 +159,16 @@ config MDIO_XGENE
 	  APM X-Gene SoC's.
 
 endif
+
+config PHYLINK
+	tristate
+	depends on NETDEVICES
+	select PHYLIB
+	select SWPHY
+	help
+	  PHYlink models the link between the PHY and MAC, allowing fixed
+	  configuration links, PHYs, and Serdes links with MAC level
+	  autonegotiation modes.
 
 menuconfig PHYLIB
 	tristate "PHY Device support and infrastructure"
@@ -165,7 +192,7 @@ config LED_TRIGGER_PHY
 	  state change will trigger the events, for consumption by an
 	  LED class driver.  There are triggers for each link speed currently
 	  supported by the phy, and are of the form:
-	       <mii bus id>:<phy>:<speed>
+	      <mii bus id>:<phy>:<speed>
 
 	  Where speed is in the form:
 		<Speed in megabits>Mbps or <Speed in gigabits>Gbps
@@ -173,15 +200,20 @@ config LED_TRIGGER_PHY
 
 comment "MII PHY device drivers"
 
+config SFP
+	tristate "SFP cage support"
+	depends on I2C && PHYLINK
+	select MDIO_I2C
+
 config AMD_PHY
 	tristate "AMD PHYs"
 	---help---
 	  Currently supports the am79c874
 
 config AQUANTIA_PHY
-        tristate "Aquantia PHYs"
-        ---help---
-          Currently supports the Aquantia AQ1202, AQ2104, AQR105, AQR405
+	tristate "Aquantia PHYs"
+	---help---
+	  Currently supports the Aquantia AQ1202, AQ2104, AQR105, AQR405
 
 config AT803X_PHY
 	tristate "AT803X PHYs"
@@ -234,6 +266,11 @@ config CICADA_PHY
 	tristate "Cicada PHYs"
 	---help---
 	  Currently supports the cis8204
+
+config CORTINA_PHY
+	tristate "Cortina EDC CDR 10G Ethernet PHY"
+	---help---
+	  Currently supports the CS4340 phy.
 
 config DAVICOM_PHY
 	tristate "Davicom PHYs"
@@ -288,6 +325,11 @@ config MARVELL_PHY
 	---help---
 	  Currently has a driver for the 88E1011S
 
+config MARVELL_10G_PHY
+	tristate "Marvell Alaska 10Gbit PHYs"
+	---help---
+	  Support for the Marvell Alaska MV88X3310 and compatible PHYs.
+
 config MESON_GXL_PHY
 	tristate "Amlogic Meson GXL Internal PHY"
 	depends on ARCH_MESON || COMPILE_TEST
@@ -324,6 +366,11 @@ config REALTEK_PHY
 	---help---
 	  Supports the Realtek 821x PHY.
 
+config ROCKCHIP_PHY
+        tristate "Driver for Rockchip Ethernet PHYs"
+        ---help---
+          Currently supports the integrated Ethernet PHY.
+
 config SMSC_PHY
 	tristate "SMSC PHYs"
 	---help---
@@ -335,21 +382,21 @@ config STE10XP
 	  This is the driver for the STe100p and STe101p PHYs.
 
 config TERANETICS_PHY
-        tristate "Teranetics PHYs"
-        ---help---
-          Currently supports the Teranetics TN2020
+	tristate "Teranetics PHYs"
+	---help---
+	  Currently supports the Teranetics TN2020
 
 config VITESSE_PHY
-        tristate "Vitesse PHYs"
-        ---help---
-          Currently supports the vsc8244
+	tristate "Vitesse PHYs"
+	---help---
+	  Currently supports the vsc8244
 
 config XILINX_GMII2RGMII
-       tristate "Xilinx GMII2RGMII converter driver"
-       ---help---
-         This driver support xilinx GMII to RGMII IP core it provides
-         the Reduced Gigabit Media Independent Interface(RGMII) between
-         Ethernet physical media devices and the Gigabit Ethernet controller.
+	tristate "Xilinx GMII2RGMII converter driver"
+	---help---
+	  This driver support xilinx GMII to RGMII IP core it provides
+	  the Reduced Gigabit Media Independent Interface(RGMII) between
+	  Ethernet physical media devices and the Gigabit Ethernet controller.
 
 endif # PHYLIB
 

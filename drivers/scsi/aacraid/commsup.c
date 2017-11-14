@@ -770,7 +770,8 @@ int aac_hba_send(u8 command, struct fib *fibptr, fib_callback callback,
 		/* bit1 of request_id must be 0 */
 		hbacmd->request_id =
 			cpu_to_le32((((u32)(fibptr - dev->fibs)) << 2) + 1);
-	} else
+		fibptr->flags |= FIB_CONTEXT_FLAG_SCSI_CMD;
+	} else if (command != HBA_IU_TYPE_SCSI_TM_REQ)
 		return -EINVAL;
 
 
@@ -803,11 +804,11 @@ int aac_hba_send(u8 command, struct fib *fibptr, fib_callback callback,
 		if (aac_check_eeh_failure(dev))
 			return -EFAULT;
 
-		/* Only set for first known interruptable command */
-		if (down_interruptible(&fibptr->event_wait)) {
+		fibptr->flags |= FIB_CONTEXT_FLAG_WAIT;
+		if (down_interruptible(&fibptr->event_wait))
 			fibptr->done = 2;
-			up(&fibptr->event_wait);
-		}
+		fibptr->flags &= ~(FIB_CONTEXT_FLAG_WAIT);
+
 		spin_lock_irqsave(&fibptr->event_lock, flags);
 		if ((fibptr->done == 0) || (fibptr->done == 2)) {
 			fibptr->done = 2; /* Tell interrupt we aborted */
@@ -1513,6 +1514,8 @@ static int _aac_reset_adapter(struct aac_dev *aac, int forced, u8 reset_type)
 	struct scsi_cmnd *command_list;
 	int jafo = 0;
 	int bled;
+	u64 dmamask;
+	int num_of_fibs = 0;
 
 	/*
 	 * Assumptions:
@@ -1546,10 +1549,20 @@ static int _aac_reset_adapter(struct aac_dev *aac, int forced, u8 reset_type)
 	/*
 	 *	Loop through the fibs, close the synchronous FIBS
 	 */
-	for (retval = 1, index = 0; index < (aac->scsi_host_ptr->can_queue + AAC_NUM_MGT_FIB); index++) {
+	retval = 1;
+	num_of_fibs = aac->scsi_host_ptr->can_queue + AAC_NUM_MGT_FIB;
+	for (index = 0; index <  num_of_fibs; index++) {
+
 		struct fib *fib = &aac->fibs[index];
-		if (!(fib->hw_fib_va->header.XferState & cpu_to_le32(NoResponseExpected | Async)) &&
-		  (fib->hw_fib_va->header.XferState & cpu_to_le32(ResponseExpected))) {
+		__le32 XferState = fib->hw_fib_va->header.XferState;
+		bool is_response_expected = false;
+
+		if (!(XferState & cpu_to_le32(NoResponseExpected | Async)) &&
+		   (XferState & cpu_to_le32(ResponseExpected)))
+			is_response_expected = true;
+
+		if (is_response_expected
+		  || fib->flags & FIB_CONTEXT_FLAG_WAIT) {
 			unsigned long flagv;
 			spin_lock_irqsave(&fib->event_lock, flagv);
 			up(&fib->event_wait);
@@ -1580,21 +1593,27 @@ static int _aac_reset_adapter(struct aac_dev *aac, int forced, u8 reset_type)
 	aac_free_irq(aac);
 	kfree(aac->fsa_dev);
 	aac->fsa_dev = NULL;
+
+	dmamask = DMA_BIT_MASK(32);
 	quirks = aac_get_driver_ident(index)->quirks;
-	if (quirks & AAC_QUIRK_31BIT) {
-		if (((retval = pci_set_dma_mask(aac->pdev, DMA_BIT_MASK(31)))) ||
-		  ((retval = pci_set_consistent_dma_mask(aac->pdev, DMA_BIT_MASK(31)))))
-			goto out;
-	} else {
-		if (((retval = pci_set_dma_mask(aac->pdev, DMA_BIT_MASK(32)))) ||
-		  ((retval = pci_set_consistent_dma_mask(aac->pdev, DMA_BIT_MASK(32)))))
-			goto out;
+	if (quirks & AAC_QUIRK_31BIT)
+		retval = pci_set_dma_mask(aac->pdev, dmamask);
+	else if (!(quirks & AAC_QUIRK_SRC))
+		retval = pci_set_dma_mask(aac->pdev, dmamask);
+	else
+		retval = pci_set_consistent_dma_mask(aac->pdev, dmamask);
+
+	if (quirks & AAC_QUIRK_31BIT && !retval) {
+		dmamask = DMA_BIT_MASK(31);
+		retval = pci_set_consistent_dma_mask(aac->pdev, dmamask);
 	}
+
+	if (retval)
+		goto out;
+
 	if ((retval = (*(aac_get_driver_ident(index)->init))(aac)))
 		goto out;
-	if (quirks & AAC_QUIRK_31BIT)
-		if ((retval = pci_set_dma_mask(aac->pdev, DMA_BIT_MASK(32))))
-			goto out;
+
 	if (jafo) {
 		aac->thread = kthread_run(aac_command_thread, aac, "%s",
 					  aac->name);
@@ -1768,8 +1787,6 @@ int aac_check_health(struct aac_dev * aac)
 	int BlinkLED;
 	unsigned long time_now, flagv = 0;
 	struct list_head * entry;
-	struct Scsi_Host * host;
-	int bled;
 
 	/* Extending the scope of fib_lock slightly to protect aac->in_reset */
 	if (spin_trylock_irqsave(&aac->fib_lock, flagv) == 0)
@@ -1880,19 +1897,6 @@ int aac_check_health(struct aac_dev * aac)
 	}
 
 	printk(KERN_ERR "%s: Host adapter BLINK LED 0x%x\n", aac->name, BlinkLED);
-
-	if (!aac_check_reset || ((aac_check_reset == 1) &&
-		(aac->supplement_adapter_info.supported_options2 &
-			AAC_OPTION_IGNORE_RESET)))
-		goto out;
-	host = aac->scsi_host_ptr;
-	if (aac->thread->pid != current->pid)
-		spin_lock_irqsave(host->host_lock, flagv);
-	bled = aac_check_reset != 1 ? 1 : 0;
-	_aac_reset_adapter(aac, bled, IOP_HWSOFT_RESET);
-	if (aac->thread->pid != current->pid)
-		spin_unlock_irqrestore(host->host_lock, flagv);
-	return BlinkLED;
 
 out:
 	aac->in_reset = 0;
@@ -2483,7 +2487,7 @@ int aac_command_thread(void *data)
 		if ((time_before(next_check_jiffies,next_jiffies))
 		 && ((difference = next_check_jiffies - jiffies) <= 0)) {
 			next_check_jiffies = next_jiffies;
-			if (aac_check_health(dev) == 0) {
+			if (aac_adapter_check_health(dev) == 0) {
 				difference = ((long)(unsigned)check_interval)
 					   * HZ;
 				next_check_jiffies = jiffies + difference;
@@ -2496,7 +2500,7 @@ int aac_command_thread(void *data)
 			int ret;
 
 			/* Don't even try to talk to adapter if its sick */
-			ret = aac_check_health(dev);
+			ret = aac_adapter_check_health(dev);
 			if (ret || !dev->queues)
 				break;
 			next_check_jiffies = jiffies
@@ -2588,10 +2592,7 @@ void aac_free_irq(struct aac_dev *dev)
 	int cpu;
 
 	cpu = cpumask_first(cpu_online_mask);
-	if (dev->pdev->device == PMC_DEVICE_S6 ||
-	    dev->pdev->device == PMC_DEVICE_S7 ||
-	    dev->pdev->device == PMC_DEVICE_S8 ||
-	    dev->pdev->device == PMC_DEVICE_S9) {
+	if (aac_is_src(dev)) {
 		if (dev->max_msix > 1) {
 			for (i = 0; i < dev->max_msix; i++)
 				free_irq(pci_irq_vector(dev->pdev, i),

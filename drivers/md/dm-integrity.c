@@ -225,6 +225,8 @@ struct dm_integrity_c {
 	struct alg_spec internal_hash_alg;
 	struct alg_spec journal_crypt_alg;
 	struct alg_spec journal_mac_alg;
+
+	atomic64_t number_of_mismatches;
 };
 
 struct dm_integrity_range {
@@ -246,11 +248,12 @@ struct dm_integrity_io {
 	unsigned metadata_offset;
 
 	atomic_t in_flight;
-	int bi_error;
+	blk_status_t bi_status;
 
 	struct completion *completion;
 
-	struct block_device *orig_bi_bdev;
+	struct gendisk *orig_bi_disk;
+	u8 orig_bi_partno;
 	bio_end_io_t *orig_bi_end_io;
 	struct bio_integrity_payload *orig_bi_integrity;
 	struct bvec_iter orig_bi_iter;
@@ -297,7 +300,7 @@ static void __DEBUG_bytes(__u8 *bytes, size_t len, const char *msg, ...)
 /*
  * DM Integrity profile, protection is performed layer above (dm-crypt)
  */
-static struct blk_integrity_profile dm_integrity_profile = {
+static const struct blk_integrity_profile dm_integrity_profile = {
 	.name			= "DM-DIF-EXT-TAG",
 	.generate_fn		= NULL,
 	.verify_fn		= NULL,
@@ -309,6 +312,8 @@ static void dm_integrity_dtr(struct dm_target *ti);
 
 static void dm_integrity_io_error(struct dm_integrity_c *ic, const char *msg, int err)
 {
+	if (err == -EILSEQ)
+		atomic64_inc(&ic->number_of_mismatches);
 	if (!cmpxchg(&ic->failed, 0, err))
 		DMERR("Error on %s: %d", msg, err);
 }
@@ -769,13 +774,13 @@ static void write_journal(struct dm_integrity_c *ic, unsigned commit_start, unsi
 	unsigned i;
 
 	io_comp.ic = ic;
-	io_comp.comp = COMPLETION_INITIALIZER_ONSTACK(io_comp.comp);
+	init_completion(&io_comp.comp);
 
 	if (commit_start + commit_sections <= ic->journal_sections) {
 		io_comp.in_flight = (atomic_t)ATOMIC_INIT(1);
 		if (ic->journal_io) {
 			crypt_comp_1.ic = ic;
-			crypt_comp_1.comp = COMPLETION_INITIALIZER_ONSTACK(crypt_comp_1.comp);
+			init_completion(&crypt_comp_1.comp);
 			crypt_comp_1.in_flight = (atomic_t)ATOMIC_INIT(0);
 			encrypt_journal(ic, true, commit_start, commit_sections, &crypt_comp_1);
 			wait_for_completion_io(&crypt_comp_1.comp);
@@ -791,18 +796,18 @@ static void write_journal(struct dm_integrity_c *ic, unsigned commit_start, unsi
 		to_end = ic->journal_sections - commit_start;
 		if (ic->journal_io) {
 			crypt_comp_1.ic = ic;
-			crypt_comp_1.comp = COMPLETION_INITIALIZER_ONSTACK(crypt_comp_1.comp);
+			init_completion(&crypt_comp_1.comp);
 			crypt_comp_1.in_flight = (atomic_t)ATOMIC_INIT(0);
 			encrypt_journal(ic, true, commit_start, to_end, &crypt_comp_1);
 			if (try_wait_for_completion(&crypt_comp_1.comp)) {
 				rw_journal(ic, REQ_OP_WRITE, REQ_FUA, commit_start, to_end, &io_comp);
-				crypt_comp_1.comp = COMPLETION_INITIALIZER_ONSTACK(crypt_comp_1.comp);
+				reinit_completion(&crypt_comp_1.comp);
 				crypt_comp_1.in_flight = (atomic_t)ATOMIC_INIT(0);
 				encrypt_journal(ic, true, 0, commit_sections - to_end, &crypt_comp_1);
 				wait_for_completion_io(&crypt_comp_1.comp);
 			} else {
 				crypt_comp_2.ic = ic;
-				crypt_comp_2.comp = COMPLETION_INITIALIZER_ONSTACK(crypt_comp_2.comp);
+				init_completion(&crypt_comp_2.comp);
 				crypt_comp_2.in_flight = (atomic_t)ATOMIC_INIT(0);
 				encrypt_journal(ic, true, 0, commit_sections - to_end, &crypt_comp_2);
 				wait_for_completion_io(&crypt_comp_1.comp);
@@ -1040,7 +1045,7 @@ static int dm_integrity_rw_tag(struct dm_integrity_c *ic, unsigned char *tag, se
 			memcpy(tag, dp, to_copy);
 		} else if (op == TAG_WRITE) {
 			memcpy(dp, tag, to_copy);
-			dm_bufio_mark_buffer_dirty(b);
+			dm_bufio_mark_partial_buffer_dirty(b, *metadata_offset, *metadata_offset + to_copy);
 		} else  {
 			/* e.g.: op == TAG_CMP */
 			if (unlikely(memcmp(dp, tag, to_copy))) {
@@ -1118,8 +1123,8 @@ static void submit_flush_bio(struct dm_integrity_c *ic, struct dm_integrity_io *
 static void do_endio(struct dm_integrity_c *ic, struct bio *bio)
 {
 	int r = dm_integrity_failed(ic);
-	if (unlikely(r) && !bio->bi_error)
-		bio->bi_error = r;
+	if (unlikely(r) && !bio->bi_status)
+		bio->bi_status = errno_to_blk_status(r);
 	bio_endio(bio);
 }
 
@@ -1127,7 +1132,7 @@ static void do_endio_flush(struct dm_integrity_c *ic, struct dm_integrity_io *di
 {
 	struct bio *bio = dm_bio_from_per_bio_data(dio, sizeof(struct dm_integrity_io));
 
-	if (unlikely(dio->fua) && likely(!bio->bi_error) && likely(!dm_integrity_failed(ic)))
+	if (unlikely(dio->fua) && likely(!bio->bi_status) && likely(!dm_integrity_failed(ic)))
 		submit_flush_bio(ic, dio);
 	else
 		do_endio(ic, bio);
@@ -1146,9 +1151,9 @@ static void dec_in_flight(struct dm_integrity_io *dio)
 
 		bio = dm_bio_from_per_bio_data(dio, sizeof(struct dm_integrity_io));
 
-		if (unlikely(dio->bi_error) && !bio->bi_error)
-			bio->bi_error = dio->bi_error;
-		if (likely(!bio->bi_error) && unlikely(bio_sectors(bio) != dio->range.n_sectors)) {
+		if (unlikely(dio->bi_status) && !bio->bi_status)
+			bio->bi_status = dio->bi_status;
+		if (likely(!bio->bi_status) && unlikely(bio_sectors(bio) != dio->range.n_sectors)) {
 			dio->range.logical_sector += dio->range.n_sectors;
 			bio_advance(bio, dio->range.n_sectors << SECTOR_SHIFT);
 			INIT_WORK(&dio->work, integrity_bio_wait);
@@ -1164,7 +1169,8 @@ static void integrity_end_io(struct bio *bio)
 	struct dm_integrity_io *dio = dm_per_bio_data(bio, sizeof(struct dm_integrity_io));
 
 	bio->bi_iter = dio->orig_bi_iter;
-	bio->bi_bdev = dio->orig_bi_bdev;
+	bio->bi_disk = dio->orig_bi_disk;
+	bio->bi_partno = dio->orig_bi_partno;
 	if (dio->orig_bi_integrity) {
 		bio->bi_integrity = dio->orig_bi_integrity;
 		bio->bi_opf |= REQ_INTEGRITY;
@@ -1273,6 +1279,7 @@ again:
 					DMERR("Checksum failed at sector 0x%llx",
 					      (unsigned long long)(sector - ((r + ic->tag_size - 1) / ic->tag_size)));
 					r = -EILSEQ;
+					atomic64_inc(&ic->number_of_mismatches);
 				}
 				if (likely(checksums != checksums_onstack))
 					kfree(checksums);
@@ -1322,7 +1329,7 @@ skip_io:
 	dec_in_flight(dio);
 	return;
 error:
-	dio->bi_error = r;
+	dio->bi_status = errno_to_blk_status(r);
 	dec_in_flight(dio);
 }
 
@@ -1335,7 +1342,7 @@ static int dm_integrity_map(struct dm_target *ti, struct bio *bio)
 	sector_t area, offset;
 
 	dio->ic = ic;
-	dio->bi_error = 0;
+	dio->bi_status = 0;
 
 	if (unlikely(bio->bi_opf & REQ_PREFLUSH)) {
 		submit_flush_bio(ic, dio);
@@ -1356,13 +1363,13 @@ static int dm_integrity_map(struct dm_target *ti, struct bio *bio)
 		DMERR("Too big sector number: 0x%llx + 0x%x > 0x%llx",
 		      (unsigned long long)dio->range.logical_sector, bio_sectors(bio),
 		      (unsigned long long)ic->provided_data_sectors);
-		return -EIO;
+		return DM_MAPIO_KILL;
 	}
 	if (unlikely((dio->range.logical_sector | bio_sectors(bio)) & (unsigned)(ic->sectors_per_block - 1))) {
 		DMERR("Bio not aligned on %u sectors: 0x%llx, 0x%x",
 		      ic->sectors_per_block,
 		      (unsigned long long)dio->range.logical_sector, bio_sectors(bio));
-		return -EIO;
+		return DM_MAPIO_KILL;
 	}
 
 	if (ic->sectors_per_block > 1) {
@@ -1372,7 +1379,7 @@ static int dm_integrity_map(struct dm_target *ti, struct bio *bio)
 			if (unlikely((bv.bv_offset | bv.bv_len) & ((ic->sectors_per_block << SECTOR_SHIFT) - 1))) {
 				DMERR("Bio vector (%u,%u) is not aligned on %u-sector boundary",
 					bv.bv_offset, bv.bv_len, ic->sectors_per_block);
-				return -EIO;
+				return DM_MAPIO_KILL;
 			}
 		}
 	}
@@ -1387,18 +1394,18 @@ static int dm_integrity_map(struct dm_target *ti, struct bio *bio)
 				wanted_tag_size *= ic->tag_size;
 			if (unlikely(wanted_tag_size != bip->bip_iter.bi_size)) {
 				DMERR("Invalid integrity data size %u, expected %u", bip->bip_iter.bi_size, wanted_tag_size);
-				return -EIO;
+				return DM_MAPIO_KILL;
 			}
 		}
 	} else {
 		if (unlikely(bip != NULL)) {
 			DMERR("Unexpected integrity data when using internal hash");
-			return -EIO;
+			return DM_MAPIO_KILL;
 		}
 	}
 
 	if (unlikely(ic->mode == 'R') && unlikely(dio->write))
-		return -EIO;
+		return DM_MAPIO_KILL;
 
 	get_area_and_offset(ic, dio->range.logical_sector, &area, &offset);
 	dio->metadata_block = get_metadata_sector_and_offset(ic, area, offset, &dio->metadata_offset);
@@ -1587,16 +1594,18 @@ retry:
 	if (likely(ic->mode == 'J')) {
 		if (dio->write) {
 			unsigned next_entry, i, pos;
-			unsigned ws, we;
+			unsigned ws, we, range_sectors;
 
-			dio->range.n_sectors = min(dio->range.n_sectors, ic->free_sectors);
+			dio->range.n_sectors = min(dio->range.n_sectors,
+						   ic->free_sectors << ic->sb->log2_sectors_per_block);
 			if (unlikely(!dio->range.n_sectors))
 				goto sleep;
-			ic->free_sectors -= dio->range.n_sectors;
+			range_sectors = dio->range.n_sectors >> ic->sb->log2_sectors_per_block;
+			ic->free_sectors -= range_sectors;
 			journal_section = ic->free_section;
 			journal_entry = ic->free_section_entry;
 
-			next_entry = ic->free_section_entry + dio->range.n_sectors;
+			next_entry = ic->free_section_entry + range_sectors;
 			ic->free_section_entry = next_entry % ic->journal_section_entries;
 			ic->free_section += next_entry / ic->journal_section_entries;
 			ic->n_uncommitted_sections += next_entry / ic->journal_section_entries;
@@ -1672,15 +1681,16 @@ sleep:
 	dio->in_flight = (atomic_t)ATOMIC_INIT(2);
 
 	if (need_sync_io) {
-		read_comp = COMPLETION_INITIALIZER_ONSTACK(read_comp);
+		init_completion(&read_comp);
 		dio->completion = &read_comp;
 	} else
 		dio->completion = NULL;
 
 	dio->orig_bi_iter = bio->bi_iter;
 
-	dio->orig_bi_bdev = bio->bi_bdev;
-	bio->bi_bdev = ic->dev->bdev;
+	dio->orig_bi_disk = bio->bi_disk;
+	dio->orig_bi_partno = bio->bi_partno;
+	bio_set_dev(bio, ic->dev->bdev);
 
 	dio->orig_bi_integrity = bio_integrity(bio);
 	bio->bi_integrity = NULL;
@@ -1695,7 +1705,11 @@ sleep:
 
 	if (need_sync_io) {
 		wait_for_completion_io(&read_comp);
-		integrity_metadata(&dio->work);
+		if (likely(!bio->bi_status))
+			integrity_metadata(&dio->work);
+		else
+			dec_in_flight(dio);
+
 	} else {
 		INIT_WORK(&dio->work, integrity_metadata);
 		queue_work(ic->metadata_wq, &dio->work);
@@ -1727,6 +1741,8 @@ static void pad_uncommitted(struct dm_integrity_c *ic)
 		wraparound_section(ic, &ic->free_section);
 		ic->n_uncommitted_sections++;
 	}
+	WARN_ON(ic->journal_sections * ic->journal_section_entries !=
+		(ic->n_uncommitted_sections + ic->n_committed_sections) * ic->journal_section_entries + ic->free_sectors);
 }
 
 static void integrity_commit(struct work_struct *w)
@@ -1821,10 +1837,13 @@ static void do_journal_write(struct dm_integrity_c *ic, unsigned write_start,
 {
 	unsigned i, j, n;
 	struct journal_completion comp;
+	struct blk_plug plug;
+
+	blk_start_plug(&plug);
 
 	comp.ic = ic;
 	comp.in_flight = (atomic_t)ATOMIC_INIT(1);
-	comp.comp = COMPLETION_INITIALIZER_ONSTACK(comp.comp);
+	init_completion(&comp.comp);
 
 	i = write_start;
 	for (n = 0; n < write_sections; n++, i++, wraparound_section(ic, &i)) {
@@ -1945,6 +1964,8 @@ skip_io:
 
 	dm_bufio_write_dirty_buffers_async(ic->bufio);
 
+	blk_finish_plug(&plug);
+
 	complete_journal_op(&comp);
 	wait_for_completion_io(&comp.comp);
 
@@ -2049,7 +2070,7 @@ static void replay_journal(struct dm_integrity_c *ic)
 		if (ic->journal_io) {
 			struct journal_completion crypt_comp;
 			crypt_comp.ic = ic;
-			crypt_comp.comp = COMPLETION_INITIALIZER_ONSTACK(crypt_comp.comp);
+			init_completion(&crypt_comp.comp);
 			crypt_comp.in_flight = (atomic_t)ATOMIC_INIT(0);
 			encrypt_journal(ic, false, 0, ic->journal_sections, &crypt_comp);
 			wait_for_completion(&crypt_comp.comp);
@@ -2221,7 +2242,7 @@ static void dm_integrity_status(struct dm_target *ti, status_type_t type,
 
 	switch (type) {
 	case STATUSTYPE_INFO:
-		result[0] = '\0';
+		DMEMIT("%llu", (unsigned long long)atomic64_read(&ic->number_of_mismatches));
 		break;
 
 	case STATUSTYPE_TABLE: {
@@ -2622,7 +2643,7 @@ static int create_journal(struct dm_integrity_c *ic, char **error)
 			memset(iv, 0x00, ivsize);
 
 			skcipher_request_set_crypt(req, sg, sg, PAGE_SIZE * ic->journal_pages + sizeof ic->commit_ids, iv);
-			comp.comp = COMPLETION_INITIALIZER_ONSTACK(comp.comp);
+			init_completion(&comp.comp);
 			comp.in_flight = (atomic_t)ATOMIC_INIT(1);
 			if (do_crypt(true, req, &comp))
 				wait_for_completion(&comp.comp);
@@ -2679,7 +2700,7 @@ static int create_journal(struct dm_integrity_c *ic, char **error)
 
 				sg_init_one(&sg, crypt_data, crypt_len);
 				skcipher_request_set_crypt(req, &sg, &sg, crypt_len, iv);
-				comp.comp = COMPLETION_INITIALIZER_ONSTACK(comp.comp);
+				init_completion(&comp.comp);
 				comp.in_flight = (atomic_t)ATOMIC_INIT(1);
 				if (do_crypt(true, req, &comp))
 					wait_for_completion(&comp.comp);
@@ -2766,7 +2787,7 @@ static int dm_integrity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	int r;
 	unsigned extra_args;
 	struct dm_arg_set as;
-	static struct dm_arg _args[] = {
+	static const struct dm_arg _args[] = {
 		{0, 9, "Invalid number of feature args"},
 	};
 	unsigned journal_sectors, interleave_sectors, buffer_sectors, journal_watermark, sync_msec;
@@ -2794,6 +2815,7 @@ static int dm_integrity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	bio_list_init(&ic->flush_bio_list);
 	init_waitqueue_head(&ic->copy_to_journal_wait);
 	init_completion(&ic->crypto_backoff);
+	atomic64_set(&ic->number_of_mismatches, 0);
 
 	r = dm_get_device(ti, argv[0], dm_table_get_mode(ti->table), &ic->dev);
 	if (r) {
@@ -3019,6 +3041,11 @@ static int dm_integrity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 		ti->error = "Block size doesn't match the information in superblock";
 		goto bad;
 	}
+	if (!le32_to_cpu(ic->sb->journal_sections)) {
+		r = -EINVAL;
+		ti->error = "Corrupted superblock, journal_sections is 0";
+		goto bad;
+	}
 	/* make sure that ti->max_io_len doesn't overflow */
 	if (ic->sb->log2_interleave_sectors < MIN_LOG2_INTERLEAVE_SECTORS ||
 	    ic->sb->log2_interleave_sectors > MAX_LOG2_INTERLEAVE_SECTORS) {
@@ -3185,7 +3212,7 @@ static void dm_integrity_dtr(struct dm_target *ti)
 
 static struct target_type integrity_target = {
 	.name			= "integrity",
-	.version		= {1, 0, 0},
+	.version		= {1, 1, 0},
 	.module			= THIS_MODULE,
 	.features		= DM_TARGET_SINGLETON | DM_TARGET_INTEGRITY,
 	.ctr			= dm_integrity_ctr,

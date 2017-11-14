@@ -6587,7 +6587,7 @@ static void tg3_tx(struct tg3_napi *tnapi)
 		pkts_compl++;
 		bytes_compl += skb->len;
 
-		dev_kfree_skb_any(skb);
+		dev_consume_skb_any(skb);
 
 		if (unlikely(tx_bug)) {
 			tg3_tx_recover(tp);
@@ -7829,7 +7829,7 @@ static int tigon3_dma_hwbug_workaround(struct tg3_napi *tnapi,
 		}
 	}
 
-	dev_kfree_skb_any(skb);
+	dev_consume_skb_any(skb);
 	*pskb = new_skb;
 	return ret;
 }
@@ -7882,7 +7882,7 @@ static int tg3_tso_bug(struct tg3 *tp, struct tg3_napi *tnapi,
 	} while (segs);
 
 tg3_tso_bug_end:
-	dev_kfree_skb_any(skb);
+	dev_consume_skb_any(skb);
 
 	return NETDEV_TX_OK;
 }
@@ -8543,7 +8543,7 @@ static void tg3_free_rings(struct tg3 *tp)
 			tg3_tx_skb_unmap(tnapi, i,
 					 skb_shinfo(skb)->nr_frags - 1);
 
-			dev_kfree_skb_any(skb);
+			dev_consume_skb_any(skb);
 		}
 		netdev_tx_reset_queue(netdev_get_tx_queue(tp->dev, j));
 	}
@@ -11536,11 +11536,11 @@ static int tg3_start(struct tg3 *tp, bool reset_phy, bool test_irq,
 	tg3_napi_enable(tp);
 
 	for (i = 0; i < tp->irq_cnt; i++) {
-		struct tg3_napi *tnapi = &tp->napi[i];
 		err = tg3_request_irq(tp, i);
 		if (err) {
 			for (i--; i >= 0; i--) {
-				tnapi = &tp->napi[i];
+				struct tg3_napi *tnapi = &tp->napi[i];
+
 				free_irq(tnapi->irq_vec, tnapi);
 			}
 			goto out_napi_fini;
@@ -12097,7 +12097,9 @@ static int tg3_get_link_ksettings(struct net_device *dev,
 		if (!(tp->phy_flags & TG3_PHYFLG_IS_CONNECTED))
 			return -EAGAIN;
 		phydev = mdiobus_get_phy(tp->mdio_bus, tp->phy_addr);
-		return phy_ethtool_ksettings_get(phydev, cmd);
+		phy_ethtool_ksettings_get(phydev, cmd);
+
+		return 0;
 	}
 
 	supported = (SUPPORTED_Autoneg);

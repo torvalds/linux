@@ -232,16 +232,20 @@ static void gvt_cache_destroy(struct intel_vgpu *vgpu)
 	struct device *dev = mdev_dev(vgpu->vdev.mdev);
 	unsigned long gfn;
 
-	mutex_lock(&vgpu->vdev.cache_lock);
-	while ((node = rb_first(&vgpu->vdev.cache))) {
+	for (;;) {
+		mutex_lock(&vgpu->vdev.cache_lock);
+		node = rb_first(&vgpu->vdev.cache);
+		if (!node) {
+			mutex_unlock(&vgpu->vdev.cache_lock);
+			break;
+		}
 		dma = rb_entry(node, struct gvt_dma, node);
 		gvt_dma_unmap_iova(vgpu, dma->iova);
 		gfn = dma->gfn;
-
-		vfio_unpin_pages(dev, &gfn, 1);
 		__gvt_cache_remove_entry(vgpu, dma);
+		mutex_unlock(&vgpu->vdev.cache_lock);
+		vfio_unpin_pages(dev, &gfn, 1);
 	}
-	mutex_unlock(&vgpu->vdev.cache_lock);
 }
 
 static struct intel_vgpu_type *intel_gvt_find_vgpu_type(struct intel_gvt *gvt,
@@ -1166,10 +1170,27 @@ vgpu_id_show(struct device *dev, struct device_attribute *attr,
 	return sprintf(buf, "\n");
 }
 
+static ssize_t
+hw_id_show(struct device *dev, struct device_attribute *attr,
+	   char *buf)
+{
+	struct mdev_device *mdev = mdev_from_dev(dev);
+
+	if (mdev) {
+		struct intel_vgpu *vgpu = (struct intel_vgpu *)
+			mdev_get_drvdata(mdev);
+		return sprintf(buf, "%u\n",
+			       vgpu->shadow_ctx->hw_id);
+	}
+	return sprintf(buf, "\n");
+}
+
 static DEVICE_ATTR_RO(vgpu_id);
+static DEVICE_ATTR_RO(hw_id);
 
 static struct attribute *intel_vgpu_attrs[] = {
 	&dev_attr_vgpu_id.attr,
+	&dev_attr_hw_id.attr,
 	NULL
 };
 

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NET_RTNETLINK_H
 #define __NET_RTNETLINK_H
 
@@ -7,12 +8,15 @@
 typedef int (*rtnl_doit_func)(struct sk_buff *, struct nlmsghdr *,
 			      struct netlink_ext_ack *);
 typedef int (*rtnl_dumpit_func)(struct sk_buff *, struct netlink_callback *);
-typedef u16 (*rtnl_calcit_func)(struct sk_buff *, struct nlmsghdr *);
+
+enum rtnl_link_flags {
+	RTNL_FLAG_DOIT_UNLOCKED = 1,
+};
 
 int __rtnl_register(int protocol, int msgtype,
-		    rtnl_doit_func, rtnl_dumpit_func, rtnl_calcit_func);
+		    rtnl_doit_func, rtnl_dumpit_func, unsigned int flags);
 void rtnl_register(int protocol, int msgtype,
-		   rtnl_doit_func, rtnl_dumpit_func, rtnl_calcit_func);
+		   rtnl_doit_func, rtnl_dumpit_func, unsigned int flags);
 int rtnl_unregister(int protocol, int msgtype);
 void rtnl_unregister_all(int protocol);
 
@@ -63,15 +67,18 @@ struct rtnl_link_ops {
 	int			maxtype;
 	const struct nla_policy	*policy;
 	int			(*validate)(struct nlattr *tb[],
-					    struct nlattr *data[]);
+					    struct nlattr *data[],
+					    struct netlink_ext_ack *extack);
 
 	int			(*newlink)(struct net *src_net,
 					   struct net_device *dev,
 					   struct nlattr *tb[],
-					   struct nlattr *data[]);
+					   struct nlattr *data[],
+					   struct netlink_ext_ack *extack);
 	int			(*changelink)(struct net_device *dev,
 					      struct nlattr *tb[],
-					      struct nlattr *data[]);
+					      struct nlattr *data[],
+					      struct netlink_ext_ack *extack);
 	void			(*dellink)(struct net_device *dev,
 					   struct list_head *head);
 
@@ -88,11 +95,13 @@ struct rtnl_link_ops {
 	int			slave_maxtype;
 	const struct nla_policy	*slave_policy;
 	int			(*slave_validate)(struct nlattr *tb[],
-						  struct nlattr *data[]);
+						  struct nlattr *data[],
+						  struct netlink_ext_ack *extack);
 	int			(*slave_changelink)(struct net_device *dev,
 						    struct net_device *slave_dev,
 						    struct nlattr *tb[],
-						    struct nlattr *data[]);
+						    struct nlattr *data[],
+						    struct netlink_ext_ack *extack);
 	size_t			(*get_slave_size)(const struct net_device *dev,
 						  const struct net_device *slave_dev);
 	int			(*fill_slave_info)(struct sk_buff *skb,

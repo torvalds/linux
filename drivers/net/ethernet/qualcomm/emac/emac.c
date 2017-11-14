@@ -443,6 +443,9 @@ static void emac_init_adapter(struct emac_adapter *adpt)
 
 	/* default to automatic flow control */
 	adpt->automatic = true;
+
+	/* Disable single-pause-frame mode by default */
+	adpt->single_pause_mode = false;
 }
 
 /* Get the clock */
@@ -683,8 +686,6 @@ static int emac_probe(struct platform_device *pdev)
 		goto err_undo_mdiobus;
 	}
 
-	emac_mac_reset(adpt);
-
 	/* set hw features */
 	netdev->features = NETIF_F_SG | NETIF_F_HW_CSUM | NETIF_F_RXCSUM |
 			NETIF_F_TSO | NETIF_F_TSO6 | NETIF_F_HW_VLAN_CTAG_RX |
@@ -762,6 +763,21 @@ static int emac_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static void emac_shutdown(struct platform_device *pdev)
+{
+	struct net_device *netdev = dev_get_drvdata(&pdev->dev);
+	struct emac_adapter *adpt = netdev_priv(netdev);
+	struct emac_sgmii *sgmii = &adpt->phy;
+
+	if (netdev->flags & IFF_UP) {
+		/* Closing the SGMII turns off its interrupts */
+		sgmii->close(adpt);
+
+		/* Resetting the MAC turns off all DMA and its interrupts */
+		emac_mac_reset(adpt);
+	}
+}
+
 static struct platform_driver emac_platform_driver = {
 	.probe	= emac_probe,
 	.remove	= emac_remove,
@@ -770,6 +786,7 @@ static struct platform_driver emac_platform_driver = {
 		.of_match_table = emac_dt_match,
 		.acpi_match_table = ACPI_PTR(emac_acpi_match),
 	},
+	.shutdown = emac_shutdown,
 };
 
 module_platform_driver(emac_platform_driver);

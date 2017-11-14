@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef HOSTAP_WLAN_H
 #define HOSTAP_WLAN_H
 
@@ -6,6 +7,7 @@
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/mutex.h>
+#include <linux/refcount.h>
 #include <net/iw_handler.h>
 #include <net/ieee80211_radiotap.h>
 #include <net/lib80211.h>
@@ -557,7 +559,7 @@ struct hostap_cmd_queue {
 	u16 resp0, res;
 	volatile int issued, issuing;
 
-	atomic_t usecnt;
+	refcount_t usecnt;
 	int del_req;
 };
 

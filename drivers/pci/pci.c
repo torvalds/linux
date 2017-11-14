@@ -28,6 +28,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/pci_hotplug.h>
 #include <linux/vmalloc.h>
+#include <linux/pci-ats.h>
 #include <asm/setup.h>
 #include <asm/dma.h>
 #include <linux/aer.h>
@@ -455,7 +456,7 @@ struct resource *pci_find_parent_resource(const struct pci_dev *dev,
 	pci_bus_for_each_resource(bus, r, i) {
 		if (!r)
 			continue;
-		if (res->start && resource_contains(r, res)) {
+		if (resource_contains(r, res)) {
 
 			/*
 			 * If the window is prefetchable but the BAR is
@@ -513,7 +514,7 @@ EXPORT_SYMBOL(pci_find_resource);
  */
 struct pci_dev *pci_find_pcie_root_port(struct pci_dev *dev)
 {
-	struct pci_dev *bridge, *highest_pcie_bridge = NULL;
+	struct pci_dev *bridge, *highest_pcie_bridge = dev;
 
 	bridge = pci_upstream_bridge(dev);
 	while (bridge && pci_is_pcie(bridge)) {
@@ -574,8 +575,7 @@ static const struct pci_platform_pm_ops *pci_platform_pm;
 int pci_set_platform_pm(const struct pci_platform_pm_ops *ops)
 {
 	if (!ops->is_manageable || !ops->set_state  || !ops->get_state ||
-	    !ops->choose_state  || !ops->sleep_wake || !ops->run_wake  ||
-	    !ops->need_resume)
+	    !ops->choose_state  || !ops->set_wakeup || !ops->need_resume)
 		return -EINVAL;
 	pci_platform_pm = ops;
 	return 0;
@@ -603,16 +603,10 @@ static inline pci_power_t platform_pci_choose_state(struct pci_dev *dev)
 			pci_platform_pm->choose_state(dev) : PCI_POWER_ERROR;
 }
 
-static inline int platform_pci_sleep_wake(struct pci_dev *dev, bool enable)
+static inline int platform_pci_set_wakeup(struct pci_dev *dev, bool enable)
 {
 	return pci_platform_pm ?
-			pci_platform_pm->sleep_wake(dev, enable) : -ENODEV;
-}
-
-static inline int platform_pci_run_wake(struct pci_dev *dev, bool enable)
-{
-	return pci_platform_pm ?
-			pci_platform_pm->run_wake(dev, enable) : -ENODEV;
+			pci_platform_pm->set_wakeup(dev, enable) : -ENODEV;
 }
 
 static inline bool platform_pci_need_resume(struct pci_dev *dev)
@@ -898,7 +892,9 @@ EXPORT_SYMBOL_GPL(__pci_complete_power_transition);
  * -EINVAL if the requested state is invalid.
  * -EIO if device does not support PCI PM or its PM capabilities register has a
  * wrong version, or device doesn't support the requested state.
+ * 0 if the transition is to D1 or D2 but D1 and D2 are not supported.
  * 0 if device already is in the requested state.
+ * 0 if the transition is to D3 but D3 is not supported.
  * 0 if device's power state has been successfully changed.
  */
 int pci_set_power_state(struct pci_dev *dev, pci_power_t state)
@@ -1173,6 +1169,8 @@ void pci_restore_state(struct pci_dev *dev)
 
 	/* PCI Express register must be restored first */
 	pci_restore_pcie_state(dev);
+	pci_restore_pasid_state(dev);
+	pci_restore_pri_state(dev);
 	pci_restore_ats_state(dev);
 	pci_restore_vc_state(dev);
 
@@ -1806,6 +1804,28 @@ static void __pci_pme_active(struct pci_dev *dev, bool enable)
 }
 
 /**
+ * pci_pme_restore - Restore PME configuration after config space restore.
+ * @dev: PCI device to update.
+ */
+void pci_pme_restore(struct pci_dev *dev)
+{
+	u16 pmcsr;
+
+	if (!dev->pme_support)
+		return;
+
+	pci_read_config_word(dev, dev->pm_cap + PCI_PM_CTRL, &pmcsr);
+	if (dev->wakeup_prepared) {
+		pmcsr |= PCI_PM_CTRL_PME_ENABLE;
+		pmcsr &= ~PCI_PM_CTRL_PME_STATUS;
+	} else {
+		pmcsr &= ~PCI_PM_CTRL_PME_ENABLE;
+		pmcsr |= PCI_PM_CTRL_PME_STATUS;
+	}
+	pci_write_config_word(dev, dev->pm_cap + PCI_PM_CTRL, pmcsr);
+}
+
+/**
  * pci_pme_active - enable or disable PCI device's PME# function
  * @dev: PCI device to handle.
  * @enable: 'true' to enable PME# generation; 'false' to disable it.
@@ -1872,10 +1892,9 @@ void pci_pme_active(struct pci_dev *dev, bool enable)
 EXPORT_SYMBOL(pci_pme_active);
 
 /**
- * __pci_enable_wake - enable PCI device as wakeup event source
+ * pci_enable_wake - enable PCI device as wakeup event source
  * @dev: PCI device affected
  * @state: PCI state from which device will issue wakeup events
- * @runtime: True if the events are to be generated at run time
  * @enable: True to enable event generation; false to disable
  *
  * This enables the device as a wakeup event source, or disables it.
@@ -1891,13 +1910,16 @@ EXPORT_SYMBOL(pci_pme_active);
  * Error code depending on the platform is returned if both the platform and
  * the native mechanism fail to enable the generation of wake-up events
  */
-int __pci_enable_wake(struct pci_dev *dev, pci_power_t state,
-		      bool runtime, bool enable)
+int pci_enable_wake(struct pci_dev *dev, pci_power_t state, bool enable)
 {
 	int ret = 0;
 
-	if (enable && !runtime && !device_may_wakeup(&dev->dev))
-		return -EINVAL;
+	/*
+	 * Bridges can only signal wakeup on behalf of subordinate devices,
+	 * but that is set up elsewhere, so skip them.
+	 */
+	if (pci_has_subordinate(dev))
+		return 0;
 
 	/* Don't do the same thing twice in a row for one device. */
 	if (!!enable == !!dev->wakeup_prepared)
@@ -1916,24 +1938,20 @@ int __pci_enable_wake(struct pci_dev *dev, pci_power_t state,
 			pci_pme_active(dev, true);
 		else
 			ret = 1;
-		error = runtime ? platform_pci_run_wake(dev, true) :
-					platform_pci_sleep_wake(dev, true);
+		error = platform_pci_set_wakeup(dev, true);
 		if (ret)
 			ret = error;
 		if (!ret)
 			dev->wakeup_prepared = true;
 	} else {
-		if (runtime)
-			platform_pci_run_wake(dev, false);
-		else
-			platform_pci_sleep_wake(dev, false);
+		platform_pci_set_wakeup(dev, false);
 		pci_pme_active(dev, false);
 		dev->wakeup_prepared = false;
 	}
 
 	return ret;
 }
-EXPORT_SYMBOL(__pci_enable_wake);
+EXPORT_SYMBOL(pci_enable_wake);
 
 /**
  * pci_wake_from_d3 - enable/disable device to wake up from D3_hot or D3_cold
@@ -1960,12 +1978,13 @@ EXPORT_SYMBOL(pci_wake_from_d3);
 /**
  * pci_target_state - find an appropriate low power state for a given PCI dev
  * @dev: PCI device
+ * @wakeup: Whether or not wakeup functionality will be enabled for the device.
  *
  * Use underlying platform code to find a supported low power state for @dev.
  * If the platform can't manage @dev, return the deepest state from which it
  * can generate wake events, based on any available PME info.
  */
-static pci_power_t pci_target_state(struct pci_dev *dev)
+static pci_power_t pci_target_state(struct pci_dev *dev, bool wakeup)
 {
 	pci_power_t target_state = PCI_D3hot;
 
@@ -2002,7 +2021,7 @@ static pci_power_t pci_target_state(struct pci_dev *dev)
 	if (dev->current_state == PCI_D3cold)
 		target_state = PCI_D3cold;
 
-	if (device_may_wakeup(&dev->dev)) {
+	if (wakeup) {
 		/*
 		 * Find the deepest state from which the device can generate
 		 * wake-up events, make it the target state and enable device
@@ -2028,13 +2047,14 @@ static pci_power_t pci_target_state(struct pci_dev *dev)
  */
 int pci_prepare_to_sleep(struct pci_dev *dev)
 {
-	pci_power_t target_state = pci_target_state(dev);
+	bool wakeup = device_may_wakeup(&dev->dev);
+	pci_power_t target_state = pci_target_state(dev, wakeup);
 	int error;
 
 	if (target_state == PCI_POWER_ERROR)
 		return -EIO;
 
-	pci_enable_wake(dev, target_state, device_may_wakeup(&dev->dev));
+	pci_enable_wake(dev, target_state, wakeup);
 
 	error = pci_set_power_state(dev, target_state);
 
@@ -2067,20 +2087,21 @@ EXPORT_SYMBOL(pci_back_from_sleep);
  */
 int pci_finish_runtime_suspend(struct pci_dev *dev)
 {
-	pci_power_t target_state = pci_target_state(dev);
+	pci_power_t target_state;
 	int error;
 
+	target_state = pci_target_state(dev, device_can_wakeup(&dev->dev));
 	if (target_state == PCI_POWER_ERROR)
 		return -EIO;
 
 	dev->runtime_d3cold = target_state == PCI_D3cold;
 
-	__pci_enable_wake(dev, target_state, true, pci_dev_run_wake(dev));
+	pci_enable_wake(dev, target_state, pci_dev_run_wake(dev));
 
 	error = pci_set_power_state(dev, target_state);
 
 	if (error) {
-		__pci_enable_wake(dev, target_state, true, false);
+		pci_enable_wake(dev, target_state, false);
 		dev->runtime_d3cold = false;
 	}
 
@@ -2099,20 +2120,20 @@ bool pci_dev_run_wake(struct pci_dev *dev)
 {
 	struct pci_bus *bus = dev->bus;
 
-	if (device_run_wake(&dev->dev))
+	if (device_can_wakeup(&dev->dev))
 		return true;
 
 	if (!dev->pme_support)
 		return false;
 
-	/* PME-capable in principle, but not from the intended sleep state */
-	if (!pci_pme_capable(dev, pci_target_state(dev)))
+	/* PME-capable in principle, but not from the target power state */
+	if (!pci_pme_capable(dev, pci_target_state(dev, false)))
 		return false;
 
 	while (bus->parent) {
 		struct pci_dev *bridge = bus->self;
 
-		if (device_run_wake(&bridge->dev))
+		if (device_can_wakeup(&bridge->dev))
 			return true;
 
 		bus = bus->parent;
@@ -2120,7 +2141,7 @@ bool pci_dev_run_wake(struct pci_dev *dev)
 
 	/* We have reached the root bus. */
 	if (bus->bridge)
-		return device_run_wake(bus->bridge);
+		return device_can_wakeup(bus->bridge);
 
 	return false;
 }
@@ -2141,9 +2162,10 @@ EXPORT_SYMBOL_GPL(pci_dev_run_wake);
 bool pci_dev_keep_suspended(struct pci_dev *pci_dev)
 {
 	struct device *dev = &pci_dev->dev;
+	bool wakeup = device_may_wakeup(dev);
 
 	if (!pm_runtime_suspended(dev)
-	    || pci_target_state(pci_dev) != pci_dev->current_state
+	    || pci_target_state(pci_dev, wakeup) != pci_dev->current_state
 	    || platform_pci_need_resume(pci_dev)
 	    || (pci_dev->dev_flags & PCI_DEV_FLAGS_NEEDS_RESUME))
 		return false;
@@ -2161,7 +2183,7 @@ bool pci_dev_keep_suspended(struct pci_dev *pci_dev)
 	spin_lock_irq(&dev->power.lock);
 
 	if (pm_runtime_suspended(dev) && pci_dev->current_state < PCI_D3cold &&
-	    !device_may_wakeup(dev))
+	    !wakeup)
 		__pci_pme_active(pci_dev, false);
 
 	spin_unlock_irq(&dev->power.lock);
@@ -3709,46 +3731,6 @@ void pci_intx(struct pci_dev *pdev, int enable)
 }
 EXPORT_SYMBOL_GPL(pci_intx);
 
-/**
- * pci_intx_mask_supported - probe for INTx masking support
- * @dev: the PCI device to operate on
- *
- * Check if the device dev support INTx masking via the config space
- * command word.
- */
-bool pci_intx_mask_supported(struct pci_dev *dev)
-{
-	bool mask_supported = false;
-	u16 orig, new;
-
-	if (dev->broken_intx_masking)
-		return false;
-
-	pci_cfg_access_lock(dev);
-
-	pci_read_config_word(dev, PCI_COMMAND, &orig);
-	pci_write_config_word(dev, PCI_COMMAND,
-			      orig ^ PCI_COMMAND_INTX_DISABLE);
-	pci_read_config_word(dev, PCI_COMMAND, &new);
-
-	/*
-	 * There's no way to protect against hardware bugs or detect them
-	 * reliably, but as long as we know what the value should be, let's
-	 * go ahead and check it.
-	 */
-	if ((new ^ orig) & ~PCI_COMMAND_INTX_DISABLE) {
-		dev_err(&dev->dev, "Command register changed from 0x%x to 0x%x: driver or hardware bug?\n",
-			orig, new);
-	} else if ((new ^ orig) & PCI_COMMAND_INTX_DISABLE) {
-		mask_supported = true;
-		pci_write_config_word(dev, PCI_COMMAND, orig);
-	}
-
-	pci_cfg_access_unlock(dev);
-	return mask_supported;
-}
-EXPORT_SYMBOL_GPL(pci_intx_mask_supported);
-
 static bool pci_check_and_set_intx_mask(struct pci_dev *dev, bool mask)
 {
 	struct pci_bus *bus = dev->bus;
@@ -3799,7 +3781,7 @@ done:
  * @dev: the PCI device to operate on
  *
  * Check if the device dev has its INTx line asserted, mask it and
- * return true in that case. False is returned if not interrupt was
+ * return true in that case. False is returned if no interrupt was
  * pending.
  */
 bool pci_check_and_mask_intx(struct pci_dev *dev)
@@ -3838,27 +3820,49 @@ int pci_wait_for_pending_transaction(struct pci_dev *dev)
 }
 EXPORT_SYMBOL(pci_wait_for_pending_transaction);
 
-/*
- * We should only need to wait 100ms after FLR, but some devices take longer.
- * Wait for up to 1000ms for config space to return something other than -1.
- * Intel IGD requires this when an LCD panel is attached.  We read the 2nd
- * dword because VFs don't implement the 1st dword.
- */
 static void pci_flr_wait(struct pci_dev *dev)
 {
-	int i = 0;
+	int delay = 1, timeout = 60000;
 	u32 id;
 
-	do {
-		msleep(100);
-		pci_read_config_dword(dev, PCI_COMMAND, &id);
-	} while (i++ < 10 && id == ~0);
+	/*
+	 * Per PCIe r3.1, sec 6.6.2, a device must complete an FLR within
+	 * 100ms, but may silently discard requests while the FLR is in
+	 * progress.  Wait 100ms before trying to access the device.
+	 */
+	msleep(100);
 
-	if (id == ~0)
-		dev_warn(&dev->dev, "Failed to return from FLR\n");
-	else if (i > 1)
-		dev_info(&dev->dev, "Required additional %dms to return from FLR\n",
-			 (i - 1) * 100);
+	/*
+	 * After 100ms, the device should not silently discard config
+	 * requests, but it may still indicate that it needs more time by
+	 * responding to them with CRS completions.  The Root Port will
+	 * generally synthesize ~0 data to complete the read (except when
+	 * CRS SV is enabled and the read was for the Vendor ID; in that
+	 * case it synthesizes 0x0001 data).
+	 *
+	 * Wait for the device to return a non-CRS completion.  Read the
+	 * Command register instead of Vendor ID so we don't have to
+	 * contend with the CRS SV value.
+	 */
+	pci_read_config_dword(dev, PCI_COMMAND, &id);
+	while (id == ~0) {
+		if (delay > timeout) {
+			dev_warn(&dev->dev, "not ready %dms after FLR; giving up\n",
+				 100 + delay - 1);
+			return;
+		}
+
+		if (delay > 1000)
+			dev_info(&dev->dev, "not ready %dms after FLR; waiting\n",
+				 100 + delay - 1);
+
+		msleep(delay);
+		delay *= 2;
+		pci_read_config_dword(dev, PCI_COMMAND, &id);
+	}
+
+	if (delay > 1000)
+		dev_info(&dev->dev, "ready %dms after FLR\n", 100 + delay - 1);
 }
 
 /**
@@ -4069,40 +4073,6 @@ static int pci_dev_reset_slot_function(struct pci_dev *dev, int probe)
 	return pci_reset_hotplug_slot(dev->slot->hotplug, probe);
 }
 
-static int __pci_dev_reset(struct pci_dev *dev, int probe)
-{
-	int rc;
-
-	might_sleep();
-
-	rc = pci_dev_specific_reset(dev, probe);
-	if (rc != -ENOTTY)
-		goto done;
-
-	if (pcie_has_flr(dev)) {
-		if (!probe)
-			pcie_flr(dev);
-		rc = 0;
-		goto done;
-	}
-
-	rc = pci_af_flr(dev, probe);
-	if (rc != -ENOTTY)
-		goto done;
-
-	rc = pci_pm_reset(dev, probe);
-	if (rc != -ENOTTY)
-		goto done;
-
-	rc = pci_dev_reset_slot_function(dev, probe);
-	if (rc != -ENOTTY)
-		goto done;
-
-	rc = pci_parent_bus_reset(dev, probe);
-done:
-	return rc;
-}
-
 static void pci_dev_lock(struct pci_dev *dev)
 {
 	pci_cfg_access_lock(dev);
@@ -4128,26 +4098,18 @@ static void pci_dev_unlock(struct pci_dev *dev)
 	pci_cfg_access_unlock(dev);
 }
 
-/**
- * pci_reset_notify - notify device driver of reset
- * @dev: device to be notified of reset
- * @prepare: 'true' if device is about to be reset; 'false' if reset attempt
- *           completed
- *
- * Must be called prior to device access being disabled and after device
- * access is restored.
- */
-static void pci_reset_notify(struct pci_dev *dev, bool prepare)
+static void pci_dev_save_and_disable(struct pci_dev *dev)
 {
 	const struct pci_error_handlers *err_handler =
 			dev->driver ? dev->driver->err_handler : NULL;
-	if (err_handler && err_handler->reset_notify)
-		err_handler->reset_notify(dev, prepare);
-}
 
-static void pci_dev_save_and_disable(struct pci_dev *dev)
-{
-	pci_reset_notify(dev, true);
+	/*
+	 * dev->driver->err_handler->reset_prepare() is protected against
+	 * races with ->remove() by the device lock, which must be held by
+	 * the caller.
+	 */
+	if (err_handler && err_handler->reset_prepare)
+		err_handler->reset_prepare(dev);
 
 	/*
 	 * Wake-up device prior to save.  PM registers default to D0 after
@@ -4169,23 +4131,18 @@ static void pci_dev_save_and_disable(struct pci_dev *dev)
 
 static void pci_dev_restore(struct pci_dev *dev)
 {
+	const struct pci_error_handlers *err_handler =
+			dev->driver ? dev->driver->err_handler : NULL;
+
 	pci_restore_state(dev);
-	pci_reset_notify(dev, false);
-}
 
-static int pci_dev_reset(struct pci_dev *dev, int probe)
-{
-	int rc;
-
-	if (!probe)
-		pci_dev_lock(dev);
-
-	rc = __pci_dev_reset(dev, probe);
-
-	if (!probe)
-		pci_dev_unlock(dev);
-
-	return rc;
+	/*
+	 * dev->driver->err_handler->reset_done() is protected against
+	 * races with ->remove() by the device lock, which must be held by
+	 * the caller.
+	 */
+	if (err_handler && err_handler->reset_done)
+		err_handler->reset_done(dev);
 }
 
 /**
@@ -4207,7 +4164,13 @@ static int pci_dev_reset(struct pci_dev *dev, int probe)
  */
 int __pci_reset_function(struct pci_dev *dev)
 {
-	return pci_dev_reset(dev, 0);
+	int ret;
+
+	pci_dev_lock(dev);
+	ret = __pci_reset_function_locked(dev);
+	pci_dev_unlock(dev);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(__pci_reset_function);
 
@@ -4232,7 +4195,27 @@ EXPORT_SYMBOL_GPL(__pci_reset_function);
  */
 int __pci_reset_function_locked(struct pci_dev *dev)
 {
-	return __pci_dev_reset(dev, 0);
+	int rc;
+
+	might_sleep();
+
+	rc = pci_dev_specific_reset(dev, 0);
+	if (rc != -ENOTTY)
+		return rc;
+	if (pcie_has_flr(dev)) {
+		pcie_flr(dev);
+		return 0;
+	}
+	rc = pci_af_flr(dev, 0);
+	if (rc != -ENOTTY)
+		return rc;
+	rc = pci_pm_reset(dev, 0);
+	if (rc != -ENOTTY)
+		return rc;
+	rc = pci_dev_reset_slot_function(dev, 0);
+	if (rc != -ENOTTY)
+		return rc;
+	return pci_parent_bus_reset(dev, 0);
 }
 EXPORT_SYMBOL_GPL(__pci_reset_function_locked);
 
@@ -4249,7 +4232,26 @@ EXPORT_SYMBOL_GPL(__pci_reset_function_locked);
  */
 int pci_probe_reset_function(struct pci_dev *dev)
 {
-	return pci_dev_reset(dev, 1);
+	int rc;
+
+	might_sleep();
+
+	rc = pci_dev_specific_reset(dev, 1);
+	if (rc != -ENOTTY)
+		return rc;
+	if (pcie_has_flr(dev))
+		return 0;
+	rc = pci_af_flr(dev, 1);
+	if (rc != -ENOTTY)
+		return rc;
+	rc = pci_pm_reset(dev, 1);
+	if (rc != -ENOTTY)
+		return rc;
+	rc = pci_dev_reset_slot_function(dev, 1);
+	if (rc != -ENOTTY)
+		return rc;
+
+	return pci_parent_bus_reset(dev, 1);
 }
 
 /**
@@ -4272,19 +4274,56 @@ int pci_reset_function(struct pci_dev *dev)
 {
 	int rc;
 
-	rc = pci_dev_reset(dev, 1);
+	rc = pci_probe_reset_function(dev);
+	if (rc)
+		return rc;
+
+	pci_dev_lock(dev);
+	pci_dev_save_and_disable(dev);
+
+	rc = __pci_reset_function_locked(dev);
+
+	pci_dev_restore(dev);
+	pci_dev_unlock(dev);
+
+	return rc;
+}
+EXPORT_SYMBOL_GPL(pci_reset_function);
+
+/**
+ * pci_reset_function_locked - quiesce and reset a PCI device function
+ * @dev: PCI device to reset
+ *
+ * Some devices allow an individual function to be reset without affecting
+ * other functions in the same device.  The PCI device must be responsive
+ * to PCI config space in order to use this function.
+ *
+ * This function does not just reset the PCI portion of a device, but
+ * clears all the state associated with the device.  This function differs
+ * from __pci_reset_function() in that it saves and restores device state
+ * over the reset.  It also differs from pci_reset_function() in that it
+ * requires the PCI device lock to be held.
+ *
+ * Returns 0 if the device function was successfully reset or negative if the
+ * device doesn't support resetting a single function.
+ */
+int pci_reset_function_locked(struct pci_dev *dev)
+{
+	int rc;
+
+	rc = pci_probe_reset_function(dev);
 	if (rc)
 		return rc;
 
 	pci_dev_save_and_disable(dev);
 
-	rc = pci_dev_reset(dev, 0);
+	rc = __pci_reset_function_locked(dev);
 
 	pci_dev_restore(dev);
 
 	return rc;
 }
-EXPORT_SYMBOL_GPL(pci_reset_function);
+EXPORT_SYMBOL_GPL(pci_reset_function_locked);
 
 /**
  * pci_try_reset_function - quiesce and reset a PCI device function
@@ -4296,20 +4335,18 @@ int pci_try_reset_function(struct pci_dev *dev)
 {
 	int rc;
 
-	rc = pci_dev_reset(dev, 1);
+	rc = pci_probe_reset_function(dev);
 	if (rc)
 		return rc;
 
-	pci_dev_save_and_disable(dev);
+	if (!pci_dev_trylock(dev))
+		return -EAGAIN;
 
-	if (pci_dev_trylock(dev)) {
-		rc = __pci_dev_reset(dev, 0);
-		pci_dev_unlock(dev);
-	} else
-		rc = -EAGAIN;
+	pci_dev_save_and_disable(dev);
+	rc = __pci_reset_function_locked(dev);
+	pci_dev_unlock(dev);
 
 	pci_dev_restore(dev);
-
 	return rc;
 }
 EXPORT_SYMBOL_GPL(pci_try_reset_function);
@@ -4459,7 +4496,9 @@ static void pci_bus_save_and_disable(struct pci_bus *bus)
 	struct pci_dev *dev;
 
 	list_for_each_entry(dev, &bus->devices, bus_list) {
+		pci_dev_lock(dev);
 		pci_dev_save_and_disable(dev);
+		pci_dev_unlock(dev);
 		if (dev->subordinate)
 			pci_bus_save_and_disable(dev->subordinate);
 	}
@@ -4474,7 +4513,9 @@ static void pci_bus_restore(struct pci_bus *bus)
 	struct pci_dev *dev;
 
 	list_for_each_entry(dev, &bus->devices, bus_list) {
+		pci_dev_lock(dev);
 		pci_dev_restore(dev);
+		pci_dev_unlock(dev);
 		if (dev->subordinate)
 			pci_bus_restore(dev->subordinate);
 	}
@@ -5388,8 +5429,8 @@ static int of_pci_bus_find_domain_nr(struct device *parent)
 		use_dt_domains = 0;
 		domain = pci_get_new_domain_nr();
 	} else {
-		dev_err(parent, "Node %s has inconsistent \"linux,pci-domain\" property in DT\n",
-			parent->of_node->full_name);
+		dev_err(parent, "Node %pOF has inconsistent \"linux,pci-domain\" property in DT\n",
+			parent->of_node);
 		domain = -1;
 	}
 

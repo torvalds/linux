@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * include/linux/cpu.h - generic cpu definition
  *
@@ -99,26 +100,32 @@ static inline void cpu_maps_update_done(void)
 extern struct bus_type cpu_subsys;
 
 #ifdef CONFIG_HOTPLUG_CPU
-/* Stop CPUs going up and down. */
-
-extern void cpu_hotplug_begin(void);
-extern void cpu_hotplug_done(void);
-extern void get_online_cpus(void);
-extern void put_online_cpus(void);
+extern void cpus_write_lock(void);
+extern void cpus_write_unlock(void);
+extern void cpus_read_lock(void);
+extern void cpus_read_unlock(void);
+extern void lockdep_assert_cpus_held(void);
 extern void cpu_hotplug_disable(void);
 extern void cpu_hotplug_enable(void);
 void clear_tasks_mm_cpumask(int cpu);
 int cpu_down(unsigned int cpu);
 
-#else		/* CONFIG_HOTPLUG_CPU */
+#else /* CONFIG_HOTPLUG_CPU */
 
-static inline void cpu_hotplug_begin(void) {}
-static inline void cpu_hotplug_done(void) {}
-#define get_online_cpus()	do { } while (0)
-#define put_online_cpus()	do { } while (0)
-#define cpu_hotplug_disable()	do { } while (0)
-#define cpu_hotplug_enable()	do { } while (0)
-#endif		/* CONFIG_HOTPLUG_CPU */
+static inline void cpus_write_lock(void) { }
+static inline void cpus_write_unlock(void) { }
+static inline void cpus_read_lock(void) { }
+static inline void cpus_read_unlock(void) { }
+static inline void lockdep_assert_cpus_held(void) { }
+static inline void cpu_hotplug_disable(void) { }
+static inline void cpu_hotplug_enable(void) { }
+#endif	/* !CONFIG_HOTPLUG_CPU */
+
+/* Wrappers which go away once all code is converted */
+static inline void cpu_hotplug_begin(void) { cpus_write_lock(); }
+static inline void cpu_hotplug_done(void) { cpus_write_unlock(); }
+static inline void get_online_cpus(void) { cpus_read_lock(); }
+static inline void put_online_cpus(void) { cpus_read_unlock(); }
 
 #ifdef CONFIG_PM_SLEEP_SMP
 extern int freeze_secondary_cpus(int primary);

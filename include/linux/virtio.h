@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_VIRTIO_H
 #define _LINUX_VIRTIO_H
 /* Everything a virtio driver needs to work with any particular virtio

@@ -194,7 +194,7 @@ static const char *hp100_isa_tbl[] = {
 };
 #endif
 
-static struct eisa_device_id hp100_eisa_tbl[] = {
+static const struct eisa_device_id hp100_eisa_tbl[] = {
 	{ "HWPF180" }, /* HP J2577 rev A */
 	{ "HWP1920" }, /* HP 27248B */
 	{ "HWP1940" }, /* HP J2577 */
@@ -1281,7 +1281,7 @@ static int hp100_build_rx_pdl(hp100_ring_t * ringptr,
 		 */
 		skb_reserve(ringptr->skb, 2);
 
-		ringptr->skb->data = (u_char *) skb_put(ringptr->skb, MAX_ETHER_SIZE);
+		ringptr->skb->data = skb_put(ringptr->skb, MAX_ETHER_SIZE);
 
 		/* ringptr->pdl points to the beginning of the PDL, i.e. the PDH */
 		/* Note: 1st Fragment is used for the 4 byte packet status

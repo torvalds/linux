@@ -89,7 +89,7 @@ static inline void gic_write_ctlr(u32 val)
 
 static inline void gic_write_grpen1(u32 val)
 {
-	write_sysreg_s(val, SYS_ICC_GRPEN1_EL1);
+	write_sysreg_s(val, SYS_ICC_IGRPEN1_EL1);
 	isb();
 }
 
@@ -116,6 +116,8 @@ static inline void gic_write_bpr1(u32 val)
 
 #define gic_read_typer(c)		readq_relaxed(c)
 #define gic_write_irouter(v, c)		writeq_relaxed(v, c)
+#define gic_read_lpir(c)		readq_relaxed(c)
+#define gic_write_lpir(v, c)		writeq_relaxed(v, c)
 
 #define gic_flush_dcache_to_poc(a,l)	__flush_dcache_area((a), (l))
 
@@ -132,6 +134,11 @@ static inline void gic_write_bpr1(u32 val)
 
 #define gicr_write_pendbaser(v, c)	writeq_relaxed(v, c)
 #define gicr_read_pendbaser(c)		readq_relaxed(c)
+
+#define gits_write_vpropbaser(v, c)	writeq_relaxed(v, c)
+
+#define gits_write_vpendbaser(v, c)	writeq_relaxed(v, c)
+#define gits_read_vpendbaser(c)		readq_relaxed(c)
 
 #endif /* __ASSEMBLY__ */
 #endif /* __ASM_ARCH_GICV3_H */

@@ -158,7 +158,7 @@ static void
 gk20a_pmu_fini(struct nvkm_pmu *pmu)
 {
 	struct gk20a_pmu *gpmu = gk20a_pmu(pmu);
-	nvkm_timer_alarm_cancel(pmu->subdev.device->timer, &gpmu->alarm);
+	nvkm_timer_alarm(pmu->subdev.device->timer, 0, &gpmu->alarm);
 
 	nvkm_falcon_put(pmu->falcon, &pmu->subdev);
 }
@@ -196,9 +196,10 @@ gk20a_dvfs_data= {
 
 static const struct nvkm_pmu_func
 gk20a_pmu = {
+	.enabled = gf100_pmu_enabled,
 	.init = gk20a_pmu_init,
 	.fini = gk20a_pmu_fini,
-	.reset = gt215_pmu_reset,
+	.reset = gf100_pmu_reset,
 };
 
 int

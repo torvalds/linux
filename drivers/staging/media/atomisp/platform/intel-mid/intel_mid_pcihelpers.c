@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/export.h>
 #include <linux/pci.h>
 #include <linux/pm_qos.h>
@@ -5,7 +6,8 @@
 
 /* G-Min addition: "platform_is()" lives in intel_mid_pm.h in the MCG
  * tree, but it's just platform ID info and we don't want to pull in
- * the whole SFI-based PM architecture. */
+ * the whole SFI-based PM architecture.
+ */
 #define INTEL_ATOM_MRST 0x26
 #define INTEL_ATOM_MFLD 0x27
 #define INTEL_ATOM_CLV 0x35
@@ -22,7 +24,7 @@
 #endif
 static inline int platform_is(u8 model)
 {
-        return (boot_cpu_data.x86_model == model);
+	return (boot_cpu_data.x86_model == model);
 }
 
 #include "../../include/asm/intel_mid_pcihelpers.h"
@@ -32,7 +34,6 @@ static DEFINE_SPINLOCK(msgbus_lock);
 
 static struct pci_dev *pci_root;
 static struct pm_qos_request pm_qos;
-int qos;
 
 #define DW_I2C_NEED_QOS	(platform_is(INTEL_ATOM_BYT))
 
@@ -136,8 +137,8 @@ u32 intel_mid_msgbus_read32(u8 port, u32 addr)
 
 	return data;
 }
-
 EXPORT_SYMBOL(intel_mid_msgbus_read32);
+
 void intel_mid_msgbus_write32(u8 port, u32 addr, u32 data)
 {
 	unsigned long irq_flags;
@@ -171,8 +172,8 @@ EXPORT_SYMBOL(intel_mid_soc_stepping);
 
 static bool is_south_complex_device(struct pci_dev *dev)
 {
-	unsigned base_class = dev->class >> 16;
-	unsigned sub_class  = (dev->class & SUB_CLASS_MASK) >> 8;
+	unsigned int base_class = dev->class >> 16;
+	unsigned int sub_class  = (dev->class & SUB_CLASS_MASK) >> 8;
 
 	/* other than camera, pci bridges and display,
 	 * everything else are south complex devices.

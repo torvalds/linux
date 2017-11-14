@@ -282,7 +282,7 @@ static void halbtc8723b2ant_QueryBtInfo(PBTC_COEXIST pBtCoexist)
 
 static bool halbtc8723b2ant_IsWifiStatusChanged(PBTC_COEXIST pBtCoexist)
 {
-	static bool	bPreWifiBusy = false, bPreUnder4way = false, bPreBtHsOn = false;
+	static bool	bPreWifiBusy, bPreUnder4way, bPreBtHsOn;
 	bool bWifiBusy = false, bUnder4way = false, bBtHsOn = false;
 	bool bWifiConnected = false;
 
@@ -3706,7 +3706,7 @@ void EXhalbtc8723b2ant_PnpNotify(PBTC_COEXIST pBtCoexist, u8 pnpState)
 
 void EXhalbtc8723b2ant_Periodical(PBTC_COEXIST pBtCoexist)
 {
-	static u8 disVerInfoCnt = 0;
+	static u8 disVerInfoCnt;
 	u32 fwVer = 0, btPatchVer = 0;
 
 	BTC_PRINT(BTC_MSG_ALGORITHM, ALGO_TRACE, ("[BTCoex], ==========================Periodical ===========================\n"));

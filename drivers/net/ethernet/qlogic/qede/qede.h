@@ -40,6 +40,7 @@
 #include <linux/kernel.h>
 #include <linux/mutex.h>
 #include <linux/bpf.h>
+#include <linux/qed/qede_rdma.h>
 #include <linux/io.h>
 #ifdef CONFIG_RFS_ACCEL
 #include <linux/cpu_rmap.h>
@@ -153,11 +154,13 @@ struct qede_vlan {
 struct qede_rdma_dev {
 	struct qedr_dev *qedr_dev;
 	struct list_head entry;
-	struct list_head roce_event_list;
-	struct workqueue_struct *roce_wq;
+	struct list_head rdma_event_list;
+	struct workqueue_struct *rdma_wq;
 };
 
 struct qede_ptp;
+
+#define QEDE_RFS_MAX_FLTR	256
 
 struct qede_dev {
 	struct qed_dev			*cdev;
@@ -197,7 +200,6 @@ struct qede_dev {
 #define QEDE_TSS_COUNT(edev)	((edev)->num_queues - (edev)->fp_num_rx)
 
 	struct qed_int_info		int_info;
-	unsigned char			primary_mac[ETH_ALEN];
 
 	/* Smaller private varaiant of the RTNL lock */
 	struct mutex			qede_lock;
@@ -241,9 +243,7 @@ struct qede_dev {
 	u16				vxlan_dst_port;
 	u16				geneve_dst_port;
 
-#ifdef CONFIG_RFS_ACCEL
 	struct qede_arfs		*arfs;
-#endif
 	bool				wol_enabled;
 
 	struct qede_rdma_dev		rdma_info;
@@ -447,16 +447,21 @@ struct qede_fastpath {
 #ifdef CONFIG_RFS_ACCEL
 int qede_rx_flow_steer(struct net_device *dev, const struct sk_buff *skb,
 		       u16 rxq_index, u32 flow_id);
+#define QEDE_SP_ARFS_CONFIG	4
+#define QEDE_SP_TASK_POLL_DELAY	(5 * HZ)
+#endif
+
 void qede_process_arfs_filters(struct qede_dev *edev, bool free_fltr);
 void qede_poll_for_freeing_arfs_filters(struct qede_dev *edev);
 void qede_arfs_filter_op(void *dev, void *filter, u8 fw_rc);
 void qede_free_arfs(struct qede_dev *edev);
 int qede_alloc_arfs(struct qede_dev *edev);
-
-#define QEDE_SP_ARFS_CONFIG	4
-#define QEDE_SP_TASK_POLL_DELAY	(5 * HZ)
-#define QEDE_RFS_MAX_FLTR	256
-#endif
+int qede_add_cls_rule(struct qede_dev *edev, struct ethtool_rxnfc *info);
+int qede_del_cls_rule(struct qede_dev *edev, struct ethtool_rxnfc *info);
+int qede_get_cls_rule_entry(struct qede_dev *edev, struct ethtool_rxnfc *cmd);
+int qede_get_cls_rule_all(struct qede_dev *edev, struct ethtool_rxnfc *info,
+			  u32 *rule_locs);
+int qede_get_arfs_filter_count(struct qede_dev *edev);
 
 struct qede_reload_args {
 	void (*func)(struct qede_dev *edev, struct qede_reload_args *args);

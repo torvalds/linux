@@ -13,7 +13,6 @@
 #include "exynos5420.dtsi"
 #include "exynos5420-cpus.dtsi"
 #include <dt-bindings/gpio/gpio.h>
-#include "exynos-mfc-reserved-memory.dtsi"
 
 / {
 	model = "Samsung SMDK5420 board based on EXYNOS5420";

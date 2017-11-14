@@ -1,5 +1,6 @@
+# SPDX-License-Identifier: GPL-2.0
 
-subdir-ccflags-y += -Iinclude/drm  \
+subdir-ccflags-y += \
 		-I$(FULL_AMD_PATH)/powerplay/inc/  \
 		-I$(FULL_AMD_PATH)/include/asic_reg  \
 		-I$(FULL_AMD_PATH)/include  \

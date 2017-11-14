@@ -22,14 +22,13 @@
 #include <linux/suspend.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_fb_helper.h>
 
 #include "tilcdc_drv.h"
 #include "tilcdc_regs.h"
 #include "tilcdc_tfp410.h"
 #include "tilcdc_panel.h"
 #include "tilcdc_external.h"
-
-#include "drm_fb_helper.h"
 
 static LIST_HEAD(module_list);
 
@@ -109,7 +108,11 @@ static int tilcdc_commit(struct drm_device *dev,
 	if (ret)
 		return ret;
 
-	drm_atomic_helper_swap_state(state, true);
+	ret = drm_atomic_helper_swap_state(state, true);
+	if (ret) {
+		drm_atomic_helper_cleanup_planes(dev, state);
+		return ret;
+	}
 
 	/*
 	 * Everything below can be run asynchronously without the need to grab
@@ -539,8 +542,6 @@ static struct drm_driver tilcdc_driver = {
 	.gem_free_object_unlocked = drm_gem_cma_free_object,
 	.gem_vm_ops         = &drm_gem_cma_vm_ops,
 	.dumb_create        = drm_gem_cma_dumb_create,
-	.dumb_map_offset    = drm_gem_cma_dumb_map_offset,
-	.dumb_destroy       = drm_gem_dumb_destroy,
 
 	.prime_handle_to_fd	= drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle	= drm_gem_prime_fd_to_handle,

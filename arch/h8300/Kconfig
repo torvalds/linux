@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 config H8300
         def_bool y
 	select GENERIC_ATOMIC64
@@ -15,13 +16,16 @@ config H8300
 	select OF_IRQ
 	select OF_EARLY_FLATTREE
 	select HAVE_MEMBLOCK
-	select CLKSRC_OF
+	select TIMER_OF
 	select H8300_TMR8
 	select HAVE_KERNEL_GZIP
 	select HAVE_KERNEL_LZO
 	select HAVE_ARCH_KGDB
 	select HAVE_ARCH_HASH
 	select CPU_NO_EFFICIENT_FFS
+
+config CPU_BIG_ENDIAN
+	def_bool y
 
 config RWSEM_GENERIC_SPINLOCK
 	def_bool y

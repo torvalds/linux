@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * NOOP APIC driver.
  *
@@ -141,7 +142,7 @@ struct apic apic_noop __ro_after_init = {
 	.get_apic_id			= noop_get_apic_id,
 	.set_apic_id			= NULL,
 
-	.cpu_mask_to_apicid_and		= flat_cpu_mask_to_apicid_and,
+	.cpu_mask_to_apicid		= flat_cpu_mask_to_apicid,
 
 	.send_IPI			= noop_send_IPI,
 	.send_IPI_mask			= noop_send_IPI_mask,

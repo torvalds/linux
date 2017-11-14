@@ -18,6 +18,9 @@
 #include "bpf_lru_list.h"
 #include "map_in_map.h"
 
+#define HTAB_CREATE_FLAG_MASK \
+	(BPF_F_NO_PREALLOC | BPF_F_NO_COMMON_LRU | BPF_F_NUMA_NODE)
+
 struct bucket {
 	struct hlist_nulls_head head;
 	raw_spinlock_t lock;
@@ -138,7 +141,8 @@ static int prealloc_init(struct bpf_htab *htab)
 	if (!htab_is_percpu(htab) && !htab_is_lru(htab))
 		num_entries += num_possible_cpus();
 
-	htab->elems = bpf_map_area_alloc(htab->elem_size * num_entries);
+	htab->elems = bpf_map_area_alloc(htab->elem_size * num_entries,
+					 htab->map.numa_node);
 	if (!htab->elems)
 		return -ENOMEM;
 
@@ -233,6 +237,7 @@ static struct bpf_map *htab_map_alloc(union bpf_attr *attr)
 	 */
 	bool percpu_lru = (attr->map_flags & BPF_F_NO_COMMON_LRU);
 	bool prealloc = !(attr->map_flags & BPF_F_NO_PREALLOC);
+	int numa_node = bpf_map_attr_numa_node(attr);
 	struct bpf_htab *htab;
 	int err, i;
 	u64 cost;
@@ -248,7 +253,7 @@ static struct bpf_map *htab_map_alloc(union bpf_attr *attr)
 		 */
 		return ERR_PTR(-EPERM);
 
-	if (attr->map_flags & ~(BPF_F_NO_PREALLOC | BPF_F_NO_COMMON_LRU))
+	if (attr->map_flags & ~HTAB_CREATE_FLAG_MASK)
 		/* reserved bits should not be used */
 		return ERR_PTR(-EINVAL);
 
@@ -257,6 +262,9 @@ static struct bpf_map *htab_map_alloc(union bpf_attr *attr)
 
 	if (lru && !prealloc)
 		return ERR_PTR(-ENOTSUPP);
+
+	if (numa_node != NUMA_NO_NODE && (percpu || percpu_lru))
+		return ERR_PTR(-EINVAL);
 
 	htab = kzalloc(sizeof(*htab), GFP_USER);
 	if (!htab)
@@ -268,6 +276,7 @@ static struct bpf_map *htab_map_alloc(union bpf_attr *attr)
 	htab->map.value_size = attr->value_size;
 	htab->map.max_entries = attr->max_entries;
 	htab->map.map_flags = attr->map_flags;
+	htab->map.numa_node = numa_node;
 
 	/* check sanity of attributes.
 	 * value_size == 0 may be allowed in the future to use map as a set
@@ -308,10 +317,6 @@ static struct bpf_map *htab_map_alloc(union bpf_attr *attr)
 		 */
 		goto free_htab;
 
-	if (percpu && round_up(htab->map.value_size, 8) > PCPU_MIN_UNIT_SIZE)
-		/* make sure the size for pcpu_alloc() is reasonable */
-		goto free_htab;
-
 	htab->elem_size = sizeof(struct htab_elem) +
 			  round_up(htab->map.key_size, 8);
 	if (percpu)
@@ -346,7 +351,8 @@ static struct bpf_map *htab_map_alloc(union bpf_attr *attr)
 
 	err = -ENOMEM;
 	htab->buckets = bpf_map_area_alloc(htab->n_buckets *
-					   sizeof(struct bucket));
+					   sizeof(struct bucket),
+					   htab->map.numa_node);
 	if (!htab->buckets)
 		goto free_htab;
 
@@ -504,6 +510,29 @@ static void *htab_lru_map_lookup_elem(struct bpf_map *map, void *key)
 	return NULL;
 }
 
+static u32 htab_lru_map_gen_lookup(struct bpf_map *map,
+				   struct bpf_insn *insn_buf)
+{
+	struct bpf_insn *insn = insn_buf;
+	const int ret = BPF_REG_0;
+	const int ref_reg = BPF_REG_1;
+
+	*insn++ = BPF_EMIT_CALL((u64 (*)(u64, u64, u64, u64, u64))__htab_map_lookup_elem);
+	*insn++ = BPF_JMP_IMM(BPF_JEQ, ret, 0, 4);
+	*insn++ = BPF_LDX_MEM(BPF_B, ref_reg, ret,
+			      offsetof(struct htab_elem, lru_node) +
+			      offsetof(struct bpf_lru_node, ref));
+	*insn++ = BPF_JMP_IMM(BPF_JNE, ref_reg, 0, 1);
+	*insn++ = BPF_ST_MEM(BPF_B, ret,
+			     offsetof(struct htab_elem, lru_node) +
+			     offsetof(struct bpf_lru_node, ref),
+			     1);
+	*insn++ = BPF_ALU64_IMM(BPF_ADD, ret,
+				offsetof(struct htab_elem, key) +
+				round_up(map->key_size, 8));
+	return insn - insn_buf;
+}
+
 /* It is called from the bpf_lru_list when the LRU needs to delete
  * older elements from the htab.
  */
@@ -652,12 +681,27 @@ static void pcpu_copy_value(struct bpf_htab *htab, void __percpu *pptr,
 	}
 }
 
+static bool fd_htab_map_needs_adjust(const struct bpf_htab *htab)
+{
+	return htab->map.map_type == BPF_MAP_TYPE_HASH_OF_MAPS &&
+	       BITS_PER_LONG == 64;
+}
+
+static u32 htab_size_value(const struct bpf_htab *htab, bool percpu)
+{
+	u32 size = htab->map.value_size;
+
+	if (percpu || fd_htab_map_needs_adjust(htab))
+		size = round_up(size, 8);
+	return size;
+}
+
 static struct htab_elem *alloc_htab_elem(struct bpf_htab *htab, void *key,
 					 void *value, u32 key_size, u32 hash,
 					 bool percpu, bool onallcpus,
 					 struct htab_elem *old_elem)
 {
-	u32 size = htab->map.value_size;
+	u32 size = htab_size_value(htab, percpu);
 	bool prealloc = htab_is_prealloc(htab);
 	struct htab_elem *l_new, **pl_new;
 	void __percpu *pptr;
@@ -689,16 +733,14 @@ static struct htab_elem *alloc_htab_elem(struct bpf_htab *htab, void *key,
 				atomic_dec(&htab->count);
 				return ERR_PTR(-E2BIG);
 			}
-		l_new = kmalloc(htab->elem_size, GFP_ATOMIC | __GFP_NOWARN);
+		l_new = kmalloc_node(htab->elem_size, GFP_ATOMIC | __GFP_NOWARN,
+				     htab->map.numa_node);
 		if (!l_new)
 			return ERR_PTR(-ENOMEM);
 	}
 
 	memcpy(l_new->key, key, key_size);
 	if (percpu) {
-		/* round up value_size to 8 bytes */
-		size = round_up(size, 8);
-
 		if (prealloc) {
 			pptr = htab_elem_get_ptr(l_new, key_size);
 		} else {
@@ -1114,6 +1156,7 @@ const struct bpf_map_ops htab_lru_map_ops = {
 	.map_lookup_elem = htab_lru_map_lookup_elem,
 	.map_update_elem = htab_lru_map_update_elem,
 	.map_delete_elem = htab_lru_map_delete_elem,
+	.map_gen_lookup = htab_lru_map_gen_lookup,
 };
 
 /* Called from eBPF program */
@@ -1209,17 +1252,9 @@ const struct bpf_map_ops htab_lru_percpu_map_ops = {
 
 static struct bpf_map *fd_htab_map_alloc(union bpf_attr *attr)
 {
-	struct bpf_map *map;
-
 	if (attr->value_size != sizeof(u32))
 		return ERR_PTR(-EINVAL);
-
-	/* pointer is stored internally */
-	attr->value_size = sizeof(void *);
-	map = htab_map_alloc(attr);
-	attr->value_size = sizeof(u32);
-
-	return map;
+	return htab_map_alloc(attr);
 }
 
 static void fd_htab_map_free(struct bpf_map *map)
@@ -1241,6 +1276,26 @@ static void fd_htab_map_free(struct bpf_map *map)
 	}
 
 	htab_map_free(map);
+}
+
+/* only called from syscall */
+int bpf_fd_htab_map_lookup_elem(struct bpf_map *map, void *key, u32 *value)
+{
+	void **ptr;
+	int ret = 0;
+
+	if (!map->ops->map_fd_sys_lookup_elem)
+		return -ENOTSUPP;
+
+	rcu_read_lock();
+	ptr = htab_map_lookup_elem(map, key);
+	if (ptr)
+		*value = map->ops->map_fd_sys_lookup_elem(READ_ONCE(*ptr));
+	else
+		ret = -ENOENT;
+	rcu_read_unlock();
+
+	return ret;
 }
 
 /* only called from syscall */
@@ -1291,6 +1346,22 @@ static void *htab_of_map_lookup_elem(struct bpf_map *map, void *key)
 	return READ_ONCE(*inner_map);
 }
 
+static u32 htab_of_map_gen_lookup(struct bpf_map *map,
+				  struct bpf_insn *insn_buf)
+{
+	struct bpf_insn *insn = insn_buf;
+	const int ret = BPF_REG_0;
+
+	*insn++ = BPF_EMIT_CALL((u64 (*)(u64, u64, u64, u64, u64))__htab_map_lookup_elem);
+	*insn++ = BPF_JMP_IMM(BPF_JEQ, ret, 0, 2);
+	*insn++ = BPF_ALU64_IMM(BPF_ADD, ret,
+				offsetof(struct htab_elem, key) +
+				round_up(map->key_size, 8));
+	*insn++ = BPF_LDX_MEM(BPF_DW, ret, ret, 0);
+
+	return insn - insn_buf;
+}
+
 static void htab_of_map_free(struct bpf_map *map)
 {
 	bpf_map_meta_free(map->inner_map_meta);
@@ -1305,4 +1376,6 @@ const struct bpf_map_ops htab_of_maps_map_ops = {
 	.map_delete_elem = htab_map_delete_elem,
 	.map_fd_get_ptr = bpf_map_fd_get_ptr,
 	.map_fd_put_ptr = bpf_map_fd_put_ptr,
+	.map_fd_sys_lookup_elem = bpf_map_fd_sys_lookup_elem,
+	.map_gen_lookup = htab_of_map_gen_lookup,
 };

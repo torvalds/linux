@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_PID_NS_H
 #define _LINUX_PID_NS_H
 
@@ -52,7 +53,7 @@ struct pid_namespace {
 	int hide_pid;
 	int reboot;	/* group exit code if this pidns was rebooted */
 	struct ns_common ns;
-};
+} __randomize_layout;
 
 extern struct pid_namespace init_pid_ns;
 

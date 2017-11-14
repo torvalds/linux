@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
 /*
  * Copyright (c) 2016, Amir Vadai <amir@vadai.me>
  * Copyright (c) 2016, Mellanox Technologies. All rights reserved.
@@ -34,6 +35,7 @@ enum {
 	TCA_TUNNEL_KEY_ENC_KEY_ID,	/* be64 */
 	TCA_TUNNEL_KEY_PAD,
 	TCA_TUNNEL_KEY_ENC_DST_PORT,	/* be16 */
+	TCA_TUNNEL_KEY_NO_CSUM,		/* u8 */
 	__TCA_TUNNEL_KEY_MAX,
 };
 

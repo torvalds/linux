@@ -115,7 +115,7 @@ static void imx_drm_atomic_commit_tail(struct drm_atomic_state *state)
 {
 	struct drm_device *dev = state->dev;
 	struct drm_plane *plane;
-	struct drm_plane_state *old_plane_state;
+	struct drm_plane_state *old_plane_state, *new_plane_state;
 	bool plane_disabling = false;
 	int i;
 
@@ -127,15 +127,15 @@ static void imx_drm_atomic_commit_tail(struct drm_atomic_state *state)
 
 	drm_atomic_helper_commit_modeset_enables(dev, state);
 
-	for_each_plane_in_state(state, plane, old_plane_state, i) {
-		if (drm_atomic_plane_disabling(old_plane_state, plane->state))
+	for_each_oldnew_plane_in_state(state, plane, old_plane_state, new_plane_state, i) {
+		if (drm_atomic_plane_disabling(old_plane_state, new_plane_state))
 			plane_disabling = true;
 	}
 
 	if (plane_disabling) {
 		drm_atomic_helper_wait_for_vblanks(dev, state);
 
-		for_each_plane_in_state(state, plane, old_plane_state, i)
+		for_each_old_plane_in_state(state, plane, old_plane_state, i)
 			ipu_plane_disable_deferred(plane);
 
 	}
@@ -182,8 +182,6 @@ static struct drm_driver imx_drm_driver = {
 	.gem_free_object_unlocked = drm_gem_cma_free_object,
 	.gem_vm_ops		= &drm_gem_cma_vm_ops,
 	.dumb_create		= drm_gem_cma_dumb_create,
-	.dumb_map_offset	= drm_gem_cma_dumb_map_offset,
-	.dumb_destroy		= drm_gem_dumb_destroy,
 
 	.prime_handle_to_fd	= drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle	= drm_gem_prime_fd_to_handle,
@@ -278,7 +276,7 @@ static int imx_drm_bind(struct device *dev)
 	/* Now try and bind all our sub-components */
 	ret = component_bind_all(dev, drm);
 	if (ret)
-		goto err_vblank;
+		goto err_kms;
 
 	drm_mode_config_reset(drm);
 
@@ -316,8 +314,6 @@ err_fbhelper:
 err_unbind:
 #endif
 	component_unbind_all(drm->dev, drm);
-err_vblank:
-	drm_vblank_cleanup(drm);
 err_kms:
 	drm_mode_config_cleanup(drm);
 err_unref:

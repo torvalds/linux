@@ -733,7 +733,6 @@ struct lpfc_hba {
 	uint32_t fc_rttov;	/* R_T_TOV timer value */
 	uint32_t fc_altov;	/* AL_TOV timer value */
 	uint32_t fc_crtov;	/* C_R_TOV timer value */
-	uint32_t fc_citov;	/* C_I_TOV timer value */
 
 	struct serv_parm fc_fabparam;	/* fabric service parameters buffer */
 	uint8_t alpa_map[128];	/* AL_PA map from READ_LA */
@@ -756,6 +755,8 @@ struct lpfc_hba {
 	uint8_t  nvmet_support;	/* driver supports NVMET */
 #define LPFC_NVMET_MAX_PORTS	32
 	uint8_t  mds_diags_support;
+	uint32_t initial_imax;
+	uint8_t  bbcredit_support;
 
 	/* HBA Config Parameters */
 	uint32_t cfg_ack0;
@@ -777,6 +778,7 @@ struct lpfc_hba {
 	uint32_t cfg_poll_tmo;
 	uint32_t cfg_task_mgmt_tmo;
 	uint32_t cfg_use_msi;
+	uint32_t cfg_auto_imax;
 	uint32_t cfg_fcp_imax;
 	uint32_t cfg_fcp_cpu_map;
 	uint32_t cfg_fcp_io_channel;
@@ -834,6 +836,7 @@ struct lpfc_hba {
 	uint32_t cfg_enable_SmartSAN;
 	uint32_t cfg_enable_mds_diags;
 	uint32_t cfg_enable_fc4_type;
+	uint32_t cfg_enable_bbcr;	/*Enable BB Credit Recovery*/
 	uint32_t cfg_xri_split;
 #define LPFC_ENABLE_FCP  1
 #define LPFC_ENABLE_NVME 2
@@ -913,16 +916,16 @@ struct lpfc_hba {
 	/*
 	 * stat  counters
 	 */
-	uint64_t fc4ScsiInputRequests;
-	uint64_t fc4ScsiOutputRequests;
-	uint64_t fc4ScsiControlRequests;
-	uint64_t fc4ScsiIoCmpls;
-	uint64_t fc4NvmeInputRequests;
-	uint64_t fc4NvmeOutputRequests;
-	uint64_t fc4NvmeControlRequests;
-	uint64_t fc4NvmeIoCmpls;
-	uint64_t fc4NvmeLsRequests;
-	uint64_t fc4NvmeLsCmpls;
+	atomic_t fc4ScsiInputRequests;
+	atomic_t fc4ScsiOutputRequests;
+	atomic_t fc4ScsiControlRequests;
+	atomic_t fc4ScsiIoCmpls;
+	atomic_t fc4NvmeInputRequests;
+	atomic_t fc4NvmeOutputRequests;
+	atomic_t fc4NvmeControlRequests;
+	atomic_t fc4NvmeIoCmpls;
+	atomic_t fc4NvmeLsRequests;
+	atomic_t fc4NvmeLsCmpls;
 
 	uint64_t bg_guard_err_cnt;
 	uint64_t bg_apptag_err_cnt;
@@ -944,14 +947,14 @@ struct lpfc_hba {
 	struct list_head active_rrq_list;
 	spinlock_t hbalock;
 
-	/* pci_mem_pools */
-	struct pci_pool *lpfc_sg_dma_buf_pool;
-	struct pci_pool *lpfc_mbuf_pool;
-	struct pci_pool *lpfc_hrb_pool;	/* header receive buffer pool */
-	struct pci_pool *lpfc_drb_pool; /* data receive buffer pool */
-	struct pci_pool *lpfc_nvmet_drb_pool; /* data receive buffer pool */
-	struct pci_pool *lpfc_hbq_pool;	/* SLI3 hbq buffer pool */
-	struct pci_pool *txrdy_payload_pool;
+	/* dma_mem_pools */
+	struct dma_pool *lpfc_sg_dma_buf_pool;
+	struct dma_pool *lpfc_mbuf_pool;
+	struct dma_pool *lpfc_hrb_pool;	/* header receive buffer pool */
+	struct dma_pool *lpfc_drb_pool; /* data receive buffer pool */
+	struct dma_pool *lpfc_nvmet_drb_pool; /* data receive buffer pool */
+	struct dma_pool *lpfc_hbq_pool;	/* SLI3 hbq buffer pool */
+	struct dma_pool *txrdy_payload_pool;
 	struct lpfc_dma_pool lpfc_mbuf_safety_pool;
 
 	mempool_t *mbox_mem_pool;
@@ -1050,6 +1053,7 @@ struct lpfc_hba {
 
 	uint8_t temp_sensor_support;
 	/* Fields used for heart beat. */
+	unsigned long last_eqdelay_time;
 	unsigned long last_completion_time;
 	unsigned long skipped_hb;
 	struct timer_list hb_tmofunc;

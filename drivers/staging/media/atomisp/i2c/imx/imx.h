@@ -222,8 +222,6 @@
 struct imx_vcm {
 	int (*power_up)(struct v4l2_subdev *sd);
 	int (*power_down)(struct v4l2_subdev *sd);
-	int (*init)(struct v4l2_subdev *sd);
-	int (*t_focus_vcm)(struct v4l2_subdev *sd, u16 val);
 	int (*t_focus_abs)(struct v4l2_subdev *sd, s32 value);
 	int (*t_focus_abs_init)(struct v4l2_subdev *sd);
 	int (*t_focus_rel)(struct v4l2_subdev *sd, s32 value);
@@ -480,7 +478,7 @@ struct imx_device {
 	struct imx_vcm *vcm_driver;
 	struct imx_otp *otp_driver;
 	const struct imx_resolution *curr_res_table;
-	int entries_curr_table;
+	unsigned long entries_curr_table;
 	const struct firmware *fw;
 	struct imx_reg_addr *reg_addr;
 	const struct imx_reg *param_hold;
@@ -549,9 +547,6 @@ static const struct imx_reg imx219_param_update[] = {
 
 extern int ad5816g_vcm_power_up(struct v4l2_subdev *sd);
 extern int ad5816g_vcm_power_down(struct v4l2_subdev *sd);
-extern int ad5816g_vcm_init(struct v4l2_subdev *sd);
-
-extern int ad5816g_t_focus_vcm(struct v4l2_subdev *sd, u16 val);
 extern int ad5816g_t_focus_abs(struct v4l2_subdev *sd, s32 value);
 extern int ad5816g_t_focus_rel(struct v4l2_subdev *sd, s32 value);
 extern int ad5816g_q_focus_status(struct v4l2_subdev *sd, s32 *value);
@@ -561,9 +556,6 @@ extern int ad5816g_t_vcm_timing(struct v4l2_subdev *sd, s32 value);
 
 extern int drv201_vcm_power_up(struct v4l2_subdev *sd);
 extern int drv201_vcm_power_down(struct v4l2_subdev *sd);
-extern int drv201_vcm_init(struct v4l2_subdev *sd);
-
-extern int drv201_t_focus_vcm(struct v4l2_subdev *sd, u16 val);
 extern int drv201_t_focus_abs(struct v4l2_subdev *sd, s32 value);
 extern int drv201_t_focus_rel(struct v4l2_subdev *sd, s32 value);
 extern int drv201_q_focus_status(struct v4l2_subdev *sd, s32 *value);
@@ -573,9 +565,6 @@ extern int drv201_t_vcm_timing(struct v4l2_subdev *sd, s32 value);
 
 extern int dw9714_vcm_power_up(struct v4l2_subdev *sd);
 extern int dw9714_vcm_power_down(struct v4l2_subdev *sd);
-extern int dw9714_vcm_init(struct v4l2_subdev *sd);
-
-extern int dw9714_t_focus_vcm(struct v4l2_subdev *sd, u16 val);
 extern int dw9714_t_focus_abs(struct v4l2_subdev *sd, s32 value);
 extern int dw9714_t_focus_abs_init(struct v4l2_subdev *sd);
 extern int dw9714_t_focus_rel(struct v4l2_subdev *sd, s32 value);
@@ -586,9 +575,6 @@ extern int dw9714_t_vcm_timing(struct v4l2_subdev *sd, s32 value);
 
 extern int dw9719_vcm_power_up(struct v4l2_subdev *sd);
 extern int dw9719_vcm_power_down(struct v4l2_subdev *sd);
-extern int dw9719_vcm_init(struct v4l2_subdev *sd);
-
-extern int dw9719_t_focus_vcm(struct v4l2_subdev *sd, u16 val);
 extern int dw9719_t_focus_abs(struct v4l2_subdev *sd, s32 value);
 extern int dw9719_t_focus_rel(struct v4l2_subdev *sd, s32 value);
 extern int dw9719_q_focus_status(struct v4l2_subdev *sd, s32 *value);
@@ -598,9 +584,6 @@ extern int dw9719_t_vcm_timing(struct v4l2_subdev *sd, s32 value);
 
 extern int dw9718_vcm_power_up(struct v4l2_subdev *sd);
 extern int dw9718_vcm_power_down(struct v4l2_subdev *sd);
-extern int dw9718_vcm_init(struct v4l2_subdev *sd);
-
-extern int dw9718_t_focus_vcm(struct v4l2_subdev *sd, u16 val);
 extern int dw9718_t_focus_abs(struct v4l2_subdev *sd, s32 value);
 extern int dw9718_t_focus_rel(struct v4l2_subdev *sd, s32 value);
 extern int dw9718_q_focus_status(struct v4l2_subdev *sd, s32 *value);
@@ -615,8 +598,6 @@ struct imx_vcm imx_vcms[] = {
 	[IMX175_MERRFLD] = {
 		.power_up = drv201_vcm_power_up,
 		.power_down = drv201_vcm_power_down,
-		.init = drv201_vcm_init,
-		.t_focus_vcm = drv201_t_focus_vcm,
 		.t_focus_abs = drv201_t_focus_abs,
 		.t_focus_abs_init = NULL,
 		.t_focus_rel = drv201_t_focus_rel,
@@ -628,8 +609,6 @@ struct imx_vcm imx_vcms[] = {
 	[IMX175_VALLEYVIEW] = {
 		.power_up = dw9714_vcm_power_up,
 		.power_down = dw9714_vcm_power_down,
-		.init = dw9714_vcm_init,
-		.t_focus_vcm = dw9714_t_focus_vcm,
 		.t_focus_abs = dw9714_t_focus_abs,
 		.t_focus_abs_init = NULL,
 		.t_focus_rel = dw9714_t_focus_rel,
@@ -641,8 +620,6 @@ struct imx_vcm imx_vcms[] = {
 	[IMX135_SALTBAY] = {
 		.power_up = ad5816g_vcm_power_up,
 		.power_down = ad5816g_vcm_power_down,
-		.init = ad5816g_vcm_init,
-		.t_focus_vcm = ad5816g_t_focus_vcm,
 		.t_focus_abs = ad5816g_t_focus_abs,
 		.t_focus_abs_init = NULL,
 		.t_focus_rel = ad5816g_t_focus_rel,
@@ -654,8 +631,6 @@ struct imx_vcm imx_vcms[] = {
 	[IMX135_VICTORIABAY] = {
 		.power_up = dw9719_vcm_power_up,
 		.power_down = dw9719_vcm_power_down,
-		.init = dw9719_vcm_init,
-		.t_focus_vcm = dw9719_t_focus_vcm,
 		.t_focus_abs = dw9719_t_focus_abs,
 		.t_focus_abs_init = NULL,
 		.t_focus_rel = dw9719_t_focus_rel,
@@ -667,8 +642,6 @@ struct imx_vcm imx_vcms[] = {
 	[IMX134_VALLEYVIEW] = {
 		.power_up = dw9714_vcm_power_up,
 		.power_down = dw9714_vcm_power_down,
-		.init = dw9714_vcm_init,
-		.t_focus_vcm = dw9714_t_focus_vcm,
 		.t_focus_abs = dw9714_t_focus_abs,
 		.t_focus_abs_init = dw9714_t_focus_abs_init,
 		.t_focus_rel = dw9714_t_focus_rel,
@@ -680,8 +653,6 @@ struct imx_vcm imx_vcms[] = {
 	[IMX219_MFV0_PRH] = {
 		.power_up = dw9718_vcm_power_up,
 		.power_down = dw9718_vcm_power_down,
-		.init = dw9718_vcm_init,
-		.t_focus_vcm = dw9718_t_focus_vcm,
 		.t_focus_abs = dw9718_t_focus_abs,
 		.t_focus_abs_init = NULL,
 		.t_focus_rel = dw9718_t_focus_rel,

@@ -35,9 +35,9 @@
 
 #include <stdarg.h>
 #include <linux/percpu_counter.h>
-#include "../../include/linux/libcfs/libcfs.h"
-#include "lustre/lustre_idl.h"
-#include "lu_ref.h"
+#include <linux/libcfs/libcfs.h>
+#include <uapi/linux/lustre/lustre_idl.h>
+#include <lu_ref.h>
 
 struct seq_file;
 struct lustre_cfg;
@@ -968,11 +968,11 @@ struct lu_context {
 	 * Version counter used to skip calls to lu_context_refill() when no
 	 * keys were registered.
 	 */
-	unsigned	       lc_version;
+	unsigned int		lc_version;
 	/**
 	 * Debugging cookie.
 	 */
-	unsigned	       lc_cookie;
+	unsigned int		lc_cookie;
 };
 
 /**

@@ -59,10 +59,10 @@
 #include <linux/suspend.h>
 #include <linux/rtc.h>
 #include <linux/sched/cputime.h>
+#include <linux/processor.h>
 #include <asm/trace.h>
 
 #include <asm/io.h>
-#include <asm/processor.h>
 #include <asm/nvram.h>
 #include <asm/cache.h>
 #include <asm/machdep.h>
@@ -442,6 +442,7 @@ void __delay(unsigned long loops)
 	unsigned long start;
 	int diff;
 
+	spin_begin();
 	if (__USE_RTC()) {
 		start = get_rtcl();
 		do {
@@ -449,13 +450,14 @@ void __delay(unsigned long loops)
 			diff = get_rtcl() - start;
 			if (diff < 0)
 				diff += 1000000000;
+			spin_cpu_relax();
 		} while (diff < loops);
 	} else {
 		start = get_tbl();
 		while (get_tbl() - start < loops)
-			HMT_low();
-		HMT_medium();
+			spin_cpu_relax();
 	}
+	spin_end();
 }
 EXPORT_SYMBOL(__delay);
 
@@ -675,7 +677,7 @@ EXPORT_SYMBOL_GPL(tb_to_ns);
  * the high 64 bits of a * b, i.e. (a * b) >> 64, where a and b
  * are 64-bit unsigned numbers.
  */
-unsigned long long sched_clock(void)
+notrace unsigned long long sched_clock(void)
 {
 	if (__USE_RTC())
 		return get_rtc();
@@ -739,12 +741,20 @@ static int __init get_freq(char *name, int cells, unsigned long *val)
 static void start_cpu_decrementer(void)
 {
 #if defined(CONFIG_BOOKE) || defined(CONFIG_40x)
+	unsigned int tcr;
+
 	/* Clear any pending timer interrupts */
 	mtspr(SPRN_TSR, TSR_ENW | TSR_WIS | TSR_DIS | TSR_FIS);
 
-	/* Enable decrementer interrupt */
-	mtspr(SPRN_TCR, TCR_DIE);
-#endif /* defined(CONFIG_BOOKE) || defined(CONFIG_40x) */
+	tcr = mfspr(SPRN_TCR);
+	/*
+	 * The watchdog may have already been enabled by u-boot. So leave
+	 * TRC[WP] (Watchdog Period) alone.
+	 */
+	tcr &= TCR_WP_MASK;	/* Clear all bits except for TCR[WP] */
+	tcr |= TCR_DIE;		/* Enable decrementer */
+	mtspr(SPRN_TCR, tcr);
+#endif
 }
 
 void __init generic_calibrate_decr(void)
@@ -823,38 +833,76 @@ void read_persistent_clock(struct timespec *ts)
 }
 
 /* clocksource code */
-static u64 rtc_read(struct clocksource *cs)
+static notrace u64 rtc_read(struct clocksource *cs)
 {
 	return (u64)get_rtc();
 }
 
-static u64 timebase_read(struct clocksource *cs)
+static notrace u64 timebase_read(struct clocksource *cs)
 {
 	return (u64)get_tb();
 }
 
-void update_vsyscall_old(struct timespec *wall_time, struct timespec *wtm,
-			 struct clocksource *clock, u32 mult, u64 cycle_last)
+
+void update_vsyscall(struct timekeeper *tk)
 {
+	struct timespec xt;
+	struct clocksource *clock = tk->tkr_mono.clock;
+	u32 mult = tk->tkr_mono.mult;
+	u32 shift = tk->tkr_mono.shift;
+	u64 cycle_last = tk->tkr_mono.cycle_last;
 	u64 new_tb_to_xs, new_stamp_xsec;
-	u32 frac_sec;
+	u64 frac_sec;
 
 	if (clock != &clocksource_timebase)
 		return;
+
+	xt.tv_sec = tk->xtime_sec;
+	xt.tv_nsec = (long)(tk->tkr_mono.xtime_nsec >> tk->tkr_mono.shift);
 
 	/* Make userspace gettimeofday spin until we're done. */
 	++vdso_data->tb_update_count;
 	smp_mb();
 
-	/* 19342813113834067 ~= 2^(20+64) / 1e9 */
-	new_tb_to_xs = (u64) mult * (19342813113834067ULL >> clock->shift);
-	new_stamp_xsec = (u64) wall_time->tv_nsec * XSEC_PER_SEC;
-	do_div(new_stamp_xsec, 1000000000);
-	new_stamp_xsec += (u64) wall_time->tv_sec * XSEC_PER_SEC;
+	/*
+	 * This computes ((2^20 / 1e9) * mult) >> shift as a
+	 * 0.64 fixed-point fraction.
+	 * The computation in the else clause below won't overflow
+	 * (as long as the timebase frequency is >= 1.049 MHz)
+	 * but loses precision because we lose the low bits of the constant
+	 * in the shift.  Note that 19342813113834067 ~= 2^(20+64) / 1e9.
+	 * For a shift of 24 the error is about 0.5e-9, or about 0.5ns
+	 * over a second.  (Shift values are usually 22, 23 or 24.)
+	 * For high frequency clocks such as the 512MHz timebase clock
+	 * on POWER[6789], the mult value is small (e.g. 32768000)
+	 * and so we can shift the constant by 16 initially
+	 * (295147905179 ~= 2^(20+64-16) / 1e9) and then do the
+	 * remaining shifts after the multiplication, which gives a
+	 * more accurate result (e.g. with mult = 32768000, shift = 24,
+	 * the error is only about 1.2e-12, or 0.7ns over 10 minutes).
+	 */
+	if (mult <= 62500000 && clock->shift >= 16)
+		new_tb_to_xs = ((u64) mult * 295147905179ULL) >> (clock->shift - 16);
+	else
+		new_tb_to_xs = (u64) mult * (19342813113834067ULL >> clock->shift);
 
-	BUG_ON(wall_time->tv_nsec >= NSEC_PER_SEC);
-	/* this is tv_nsec / 1e9 as a 0.32 fraction */
-	frac_sec = ((u64) wall_time->tv_nsec * 18446744073ULL) >> 32;
+	/*
+	 * Compute the fractional second in units of 2^-32 seconds.
+	 * The fractional second is tk->tkr_mono.xtime_nsec >> tk->tkr_mono.shift
+	 * in nanoseconds, so multiplying that by 2^32 / 1e9 gives
+	 * it in units of 2^-32 seconds.
+	 * We assume shift <= 32 because clocks_calc_mult_shift()
+	 * generates shift values in the range 0 - 32.
+	 */
+	frac_sec = tk->tkr_mono.xtime_nsec << (32 - shift);
+	do_div(frac_sec, NSEC_PER_SEC);
+
+	/*
+	 * Work out new stamp_xsec value for any legacy users of systemcfg.
+	 * stamp_xsec is in units of 2^-20 seconds.
+	 */
+	new_stamp_xsec = frac_sec >> 12;
+	new_stamp_xsec += tk->xtime_sec * XSEC_PER_SEC;
 
 	/*
 	 * tb_update_count is used to allow the userspace gettimeofday code
@@ -864,15 +912,13 @@ void update_vsyscall_old(struct timespec *wall_time, struct timespec *wtm,
 	 * the two values of tb_update_count match and are even then the
 	 * tb_to_xs and stamp_xsec values are consistent.  If not, then it
 	 * loops back and reads them again until this criteria is met.
-	 * We expect the caller to have done the first increment of
-	 * vdso_data->tb_update_count already.
 	 */
 	vdso_data->tb_orig_stamp = cycle_last;
 	vdso_data->stamp_xsec = new_stamp_xsec;
 	vdso_data->tb_to_xs = new_tb_to_xs;
-	vdso_data->wtom_clock_sec = wtm->tv_sec;
-	vdso_data->wtom_clock_nsec = wtm->tv_nsec;
-	vdso_data->stamp_xtime = *wall_time;
+	vdso_data->wtom_clock_sec = tk->wall_to_monotonic.tv_sec;
+	vdso_data->wtom_clock_nsec = tk->wall_to_monotonic.tv_nsec;
+	vdso_data->stamp_xtime = xt;
 	vdso_data->stamp_sec_fraction = frac_sec;
 	smp_wmb();
 	++(vdso_data->tb_update_count);

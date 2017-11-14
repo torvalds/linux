@@ -20,8 +20,6 @@
 #define PD_SCU		BIT(1)	/* Area contains SCU and L2 cache */
 #define PD_NO_CR	BIT(2)	/* Area lacks PWR{ON,OFF}CR registers */
 
-#define PD_BUSY		BIT(3)	/* Busy, for internal use only */
-
 #define PD_CPU_CR	PD_CPU		  /* CPU area has CR (R-Car H1) */
 #define PD_CPU_NOCR	PD_CPU | PD_NO_CR /* CPU area lacks CR (R-Car Gen2/3) */
 #define PD_ALWAYS_ON	PD_NO_CR	  /* Always-on area */
@@ -60,6 +58,7 @@ extern const struct rcar_sysc_info r8a7792_sysc_info;
 extern const struct rcar_sysc_info r8a7794_sysc_info;
 extern const struct rcar_sysc_info r8a7795_sysc_info;
 extern const struct rcar_sysc_info r8a7796_sysc_info;
+extern const struct rcar_sysc_info r8a77995_sysc_info;
 
 
     /*

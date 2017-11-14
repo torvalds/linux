@@ -1175,11 +1175,6 @@ static int msm_startup(struct uart_port *port)
 	snprintf(msm_port->name, sizeof(msm_port->name),
 		 "msm_serial%d", port->line);
 
-	ret = request_irq(port->irq, msm_uart_irq, IRQF_TRIGGER_HIGH,
-			  msm_port->name, port);
-	if (unlikely(ret))
-		return ret;
-
 	msm_init_clock(port);
 
 	if (likely(port->fifosize > 12))
@@ -1206,7 +1201,21 @@ static int msm_startup(struct uart_port *port)
 		msm_request_rx_dma(msm_port, msm_port->uart.mapbase);
 	}
 
+	ret = request_irq(port->irq, msm_uart_irq, IRQF_TRIGGER_HIGH,
+			  msm_port->name, port);
+	if (unlikely(ret))
+		goto err_irq;
+
 	return 0;
+
+err_irq:
+	if (msm_port->is_uartdm)
+		msm_release_dma(msm_port);
+
+	clk_disable_unprepare(msm_port->pclk);
+	clk_disable_unprepare(msm_port->clk);
+
+	return ret;
 }
 
 static void msm_shutdown(struct uart_port *port)

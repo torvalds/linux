@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2013 Imagination Technologies
- * Author: Paul Burton <paul.burton@imgtec.com>
+ * Author: Paul Burton <paul.burton@mips.com>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -22,6 +22,7 @@
 #define GCR_CL_COHERENCE_OFS	0x2008
 #define GCR_CL_ID_OFS		0x2028
 
+#define CPC_CL_VC_STOP_OFS	0x2020
 #define CPC_CL_VC_RUN_OFS	0x2028
 
 .extern mips_cm_base
@@ -326,8 +327,8 @@ LEAF(mips_cps_get_bootcfg)
 	 * to handle contiguous VP numbering, but no such systems yet
 	 * exist.
 	 */
-	mfc0	t9, $3, 1
-	andi	t9, t9, 0xff
+	mfc0	t9, CP0_GLOBALNUMBER
+	andi	t9, t9, MIPS_GLOBALNUMBER_VP
 #elif defined(CONFIG_MIPS_MT_SMP)
 	has_mt	ta2, 1f
 
@@ -376,8 +377,12 @@ LEAF(mips_cps_boot_vpes)
 	PTR_LI	t2, UNCAC_BASE
 	PTR_ADD	t1, t1, t2
 
-	/* Set VC_RUN to the VPE mask */
+	/* Start any other VPs that ought to be running */
 	PTR_S	ta2, CPC_CL_VC_RUN_OFS(t1)
+
+	/* Ensure this VP stops running if it shouldn't be */
+	not	ta2
+	PTR_S	ta2, CPC_CL_VC_STOP_OFS(t1)
 	ehb
 
 #elif defined(CONFIG_MIPS_MT)

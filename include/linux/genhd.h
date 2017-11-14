@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_GENHD_H
 #define _LINUX_GENHD_H
 
@@ -219,12 +220,6 @@ static inline struct gendisk *part_to_disk(struct hd_struct *part)
 	return NULL;
 }
 
-static inline int blk_part_pack_uuid(const u8 *uuid_str, u8 *to)
-{
-	uuid_be_to_bin(uuid_str, (uuid_be *)to);
-	return 0;
-}
-
 static inline int disk_max_parts(struct gendisk *disk)
 {
 	if (disk->flags & GENHD_FL_EXT_DEVT)
@@ -368,24 +363,12 @@ static inline void free_part_stats(struct hd_struct *part)
 #define part_stat_sub(cpu, gendiskp, field, subnd)			\
 	part_stat_add(cpu, gendiskp, field, -subnd)
 
-static inline void part_inc_in_flight(struct hd_struct *part, int rw)
-{
-	atomic_inc(&part->in_flight[rw]);
-	if (part->partno)
-		atomic_inc(&part_to_disk(part)->part0.in_flight[rw]);
-}
-
-static inline void part_dec_in_flight(struct hd_struct *part, int rw)
-{
-	atomic_dec(&part->in_flight[rw]);
-	if (part->partno)
-		atomic_dec(&part_to_disk(part)->part0.in_flight[rw]);
-}
-
-static inline int part_in_flight(struct hd_struct *part)
-{
-	return atomic_read(&part->in_flight[0]) + atomic_read(&part->in_flight[1]);
-}
+void part_in_flight(struct request_queue *q, struct hd_struct *part,
+			unsigned int inflight[2]);
+void part_dec_in_flight(struct request_queue *q, struct hd_struct *part,
+			int rw);
+void part_inc_in_flight(struct request_queue *q, struct hd_struct *part,
+			int rw);
 
 static inline struct partition_meta_info *alloc_part_info(struct gendisk *disk)
 {
@@ -401,7 +384,7 @@ static inline void free_part_info(struct hd_struct *part)
 }
 
 /* block/blk-core.c */
-extern void part_round_stats(int cpu, struct hd_struct *part);
+extern void part_round_stats(struct request_queue *q, int cpu, struct hd_struct *part);
 
 /* block/genhd.c */
 extern void device_add_disk(struct device *parent, struct gendisk *disk);
@@ -735,11 +718,6 @@ static inline dev_t blk_lookup_devt(const char *name, int partno)
 {
 	dev_t devt = MKDEV(0, 0);
 	return devt;
-}
-
-static inline int blk_part_pack_uuid(const u8 *uuid_str, u8 *to)
-{
-	return -EINVAL;
 }
 #endif /* CONFIG_BLOCK */
 

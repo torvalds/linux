@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * This file contains the 64-bit "server" PowerPC variant
  * of the low level exception handling including exception
@@ -99,7 +100,11 @@ EXC_VIRT_NONE(0x4000, 0x100)
 #ifdef CONFIG_PPC_P7_NAP
 	/*
 	 * If running native on arch 2.06 or later, check if we are waking up
-	 * from nap/sleep/winkle, and branch to idle handler.
+	 * from nap/sleep/winkle, and branch to idle handler. This tests SRR1
+	 * bits 46:47. A non-0 value indicates that we are coming from a power
+	 * saving state. The idle wakeup handler initially runs in real mode,
+	 * but we branch to the 0xc000... address so we can turn on relocation
+	 * with mtmsr.
 	 */
 #define IDLETEST(n)							\
 	BEGIN_FTR_SECTION ;						\
@@ -107,7 +112,7 @@ EXC_VIRT_NONE(0x4000, 0x100)
 	rlwinm.	r10,r10,47-31,30,31 ;					\
 	beq-	1f ;							\
 	cmpwi	cr3,r10,2 ;						\
-	BRANCH_TO_COMMON(r10, system_reset_idle_common) ;		\
+	BRANCH_TO_C000(r10, system_reset_idle_common) ;			\
 1:									\
 	END_FTR_SECTION_IFSET(CPU_FTR_HVMODE | CPU_FTR_ARCH_206)
 #else
@@ -128,6 +133,7 @@ EXC_VIRT_NONE(0x4100, 0x100)
 
 #ifdef CONFIG_PPC_P7_NAP
 EXC_COMMON_BEGIN(system_reset_idle_common)
+	mfspr	r12,SPRN_SRR1
 	b	pnv_powersave_wakeup
 #endif
 
@@ -507,46 +513,22 @@ EXC_REAL_BEGIN(data_access_slb, 0x380, 0x80)
 	SET_SCRATCH0(r13)
 	EXCEPTION_PROLOG_0(PACA_EXSLB)
 	EXCEPTION_PROLOG_1(PACA_EXSLB, KVMTEST_PR, 0x380)
-	std	r3,PACA_EXSLB+EX_R3(r13)
+	mr	r12,r3	/* save r3 */
 	mfspr	r3,SPRN_DAR
-	mfspr	r12,SPRN_SRR1
+	mfspr	r11,SPRN_SRR1
 	crset	4*cr6+eq
-#ifndef CONFIG_RELOCATABLE
-	b	slb_miss_realmode
-#else
-	/*
-	 * We can't just use a direct branch to slb_miss_realmode
-	 * because the distance from here to there depends on where
-	 * the kernel ends up being put.
-	 */
-	mfctr	r11
-	LOAD_HANDLER(r10, slb_miss_realmode)
-	mtctr	r10
-	bctr
-#endif
+	BRANCH_TO_COMMON(r10, slb_miss_common)
 EXC_REAL_END(data_access_slb, 0x380, 0x80)
 
 EXC_VIRT_BEGIN(data_access_slb, 0x4380, 0x80)
 	SET_SCRATCH0(r13)
 	EXCEPTION_PROLOG_0(PACA_EXSLB)
 	EXCEPTION_PROLOG_1(PACA_EXSLB, NOTEST, 0x380)
-	std	r3,PACA_EXSLB+EX_R3(r13)
+	mr	r12,r3	/* save r3 */
 	mfspr	r3,SPRN_DAR
-	mfspr	r12,SPRN_SRR1
+	mfspr	r11,SPRN_SRR1
 	crset	4*cr6+eq
-#ifndef CONFIG_RELOCATABLE
-	b	slb_miss_realmode
-#else
-	/*
-	 * We can't just use a direct branch to slb_miss_realmode
-	 * because the distance from here to there depends on where
-	 * the kernel ends up being put.
-	 */
-	mfctr	r11
-	LOAD_HANDLER(r10, slb_miss_realmode)
-	mtctr	r10
-	bctr
-#endif
+	BRANCH_TO_COMMON(r10, slb_miss_common)
 EXC_VIRT_END(data_access_slb, 0x4380, 0x80)
 TRAMP_KVM_SKIP(PACA_EXSLB, 0x380)
 
@@ -560,7 +542,7 @@ EXC_COMMON_BEGIN(instruction_access_common)
 	RECONCILE_IRQ_STATE(r10, r11)
 	ld	r12,_MSR(r1)
 	ld	r3,_NIP(r1)
-	andis.	r4,r12,0x5820
+	andis.	r4,r12,DSISR_BAD_FAULT_64S@h
 	li	r5,0x400
 	std	r3,_DAR(r1)
 	std	r4,_DSISR(r1)
@@ -575,88 +557,82 @@ EXC_REAL_BEGIN(instruction_access_slb, 0x480, 0x80)
 	SET_SCRATCH0(r13)
 	EXCEPTION_PROLOG_0(PACA_EXSLB)
 	EXCEPTION_PROLOG_1(PACA_EXSLB, KVMTEST_PR, 0x480)
-	std	r3,PACA_EXSLB+EX_R3(r13)
+	mr	r12,r3	/* save r3 */
 	mfspr	r3,SPRN_SRR0		/* SRR0 is faulting address */
-	mfspr	r12,SPRN_SRR1
+	mfspr	r11,SPRN_SRR1
 	crclr	4*cr6+eq
-#ifndef CONFIG_RELOCATABLE
-	b	slb_miss_realmode
-#else
-	mfctr	r11
-	LOAD_HANDLER(r10, slb_miss_realmode)
-	mtctr	r10
-	bctr
-#endif
+	BRANCH_TO_COMMON(r10, slb_miss_common)
 EXC_REAL_END(instruction_access_slb, 0x480, 0x80)
 
 EXC_VIRT_BEGIN(instruction_access_slb, 0x4480, 0x80)
 	SET_SCRATCH0(r13)
 	EXCEPTION_PROLOG_0(PACA_EXSLB)
 	EXCEPTION_PROLOG_1(PACA_EXSLB, NOTEST, 0x480)
-	std	r3,PACA_EXSLB+EX_R3(r13)
+	mr	r12,r3	/* save r3 */
 	mfspr	r3,SPRN_SRR0		/* SRR0 is faulting address */
-	mfspr	r12,SPRN_SRR1
+	mfspr	r11,SPRN_SRR1
 	crclr	4*cr6+eq
-#ifndef CONFIG_RELOCATABLE
-	b	slb_miss_realmode
-#else
-	mfctr	r11
-	LOAD_HANDLER(r10, slb_miss_realmode)
-	mtctr	r10
-	bctr
-#endif
+	BRANCH_TO_COMMON(r10, slb_miss_common)
 EXC_VIRT_END(instruction_access_slb, 0x4480, 0x80)
 TRAMP_KVM(PACA_EXSLB, 0x480)
 
 
-/* This handler is used by both 0x380 and 0x480 slb miss interrupts */
-EXC_COMMON_BEGIN(slb_miss_realmode)
+/*
+ * This handler is used by the 0x380 and 0x480 SLB miss interrupts, as well as
+ * the virtual mode 0x4380 and 0x4480 interrupts if AIL is enabled.
+ */
+EXC_COMMON_BEGIN(slb_miss_common)
 	/*
 	 * r13 points to the PACA, r9 contains the saved CR,
-	 * r12 contain the saved SRR1, SRR0 is still ready for return
+	 * r12 contains the saved r3,
+	 * r11 contain the saved SRR1, SRR0 is still ready for return
 	 * r3 has the faulting address
 	 * r9 - r13 are saved in paca->exslb.
-	 * r3 is saved in paca->slb_r3
  	 * cr6.eq is set for a D-SLB miss, clear for a I-SLB miss
 	 * We assume we aren't going to take any exceptions during this
 	 * procedure.
 	 */
 	mflr	r10
-#ifdef CONFIG_RELOCATABLE
-	mtctr	r11
-#endif
-
 	stw	r9,PACA_EXSLB+EX_CCR(r13)	/* save CR in exc. frame */
 	std	r10,PACA_EXSLB+EX_LR(r13)	/* save LR */
-	std	r3,PACA_EXSLB+EX_DAR(r13)
+
+	/*
+	 * Test MSR_RI before calling slb_allocate_realmode, because the
+	 * MSR in r11 gets clobbered. However we still want to allocate
+	 * SLB in case MSR_RI=0, to minimise the risk of getting stuck in
+	 * recursive SLB faults. So use cr5 for this, which is preserved.
+	 */
+	andi.	r11,r11,MSR_RI	/* check for unrecoverable exception */
+	cmpdi	cr5,r11,MSR_RI
 
 	crset	4*cr0+eq
 #ifdef CONFIG_PPC_STD_MMU_64
 BEGIN_MMU_FTR_SECTION
-	bl	slb_allocate_realmode
+	bl	slb_allocate
 END_MMU_FTR_SECTION_IFCLR(MMU_FTR_TYPE_RADIX)
 #endif
 
 	ld	r10,PACA_EXSLB+EX_LR(r13)
-	ld	r3,PACA_EXSLB+EX_R3(r13)
 	lwz	r9,PACA_EXSLB+EX_CCR(r13)	/* get saved CR */
 	mtlr	r10
 
-	beq	8f		/* if bad address, make full stack frame */
+	beq-	8f		/* if bad address, make full stack frame */
 
-	andi.	r10,r12,MSR_RI	/* check for unrecoverable exception */
-	beq-	2f
+	bne-	cr5,2f		/* if unrecoverable exception, oops */
 
 	/* All done -- return from exception. */
 
 .machine	push
 .machine	"power4"
 	mtcrf	0x80,r9
+	mtcrf	0x04,r9		/* MSR[RI] indication is in cr5 */
 	mtcrf	0x02,r9		/* I/D indication is in cr6 */
 	mtcrf	0x01,r9		/* slb_allocate uses cr0 and cr7 */
 .machine	pop
 
+	RESTORE_CTR(r9, PACA_EXSLB)
 	RESTORE_PPR_PACA(PACA_EXSLB, r9)
+	mr	r3,r12
 	ld	r9,PACA_EXSLB+EX_R9(r13)
 	ld	r10,PACA_EXSLB+EX_R10(r13)
 	ld	r11,PACA_EXSLB+EX_R11(r13)
@@ -665,7 +641,10 @@ END_MMU_FTR_SECTION_IFCLR(MMU_FTR_TYPE_RADIX)
 	rfid
 	b	.	/* prevent speculative execution */
 
-2:	mfspr	r11,SPRN_SRR0
+2:	std     r3,PACA_EXSLB+EX_DAR(r13)
+	mr	r3,r12
+	mfspr	r11,SPRN_SRR0
+	mfspr	r12,SPRN_SRR1
 	LOAD_HANDLER(r10,unrecov_slb)
 	mtspr	SPRN_SRR0,r10
 	ld	r10,PACAKMSR(r13)
@@ -673,7 +652,10 @@ END_MMU_FTR_SECTION_IFCLR(MMU_FTR_TYPE_RADIX)
 	rfid
 	b	.
 
-8:	mfspr	r11,SPRN_SRR0
+8:	std     r3,PACA_EXSLB+EX_DAR(r13)
+	mr	r3,r12
+	mfspr	r11,SPRN_SRR0
+	mfspr	r12,SPRN_SRR1
 	LOAD_HANDLER(r10,bad_addr_slb)
 	mtspr	SPRN_SRR0,r10
 	ld	r10,PACAKMSR(r13)
@@ -753,7 +735,29 @@ EXC_REAL(program_check, 0x700, 0x100)
 EXC_VIRT(program_check, 0x4700, 0x100, 0x700)
 TRAMP_KVM(PACA_EXGEN, 0x700)
 EXC_COMMON_BEGIN(program_check_common)
-	EXCEPTION_PROLOG_COMMON(0x700, PACA_EXGEN)
+	/*
+	 * It's possible to receive a TM Bad Thing type program check with
+	 * userspace register values (in particular r1), but with SRR1 reporting
+	 * that we came from the kernel. Normally that would confuse the bad
+	 * stack logic, and we would report a bad kernel stack pointer. Instead
+	 * we switch to the emergency stack if we're taking a TM Bad Thing from
+	 * the kernel.
+	 */
+	li	r10,MSR_PR		/* Build a mask of MSR_PR ..	*/
+	oris	r10,r10,0x200000@h	/* .. and SRR1_PROGTM		*/
+	and	r10,r10,r12		/* Mask SRR1 with that.		*/
+	srdi	r10,r10,8		/* Shift it so we can compare	*/
+	cmpldi	r10,(0x200000 >> 8)	/* .. with an immediate.	*/
+	bne 1f				/* If != go to normal path.	*/
+
+	/* SRR1 had PR=0 and SRR1_PROGTM=1, so use the emergency stack	*/
+	andi.	r10,r12,MSR_PR;		/* Set CR0 correctly for label	*/
+					/* 3 in EXCEPTION_PROLOG_COMMON	*/
+	mr	r10,r1			/* Save r1			*/
+	ld	r1,PACAEMERGSP(r13)	/* Use emergency stack		*/
+	subi	r1,r1,INT_FRAME_SIZE	/* alloc stack frame		*/
+	b 3f				/* Jump into the macro !!	*/
+1:	EXCEPTION_PROLOG_COMMON(0x700, PACA_EXGEN)
 	bl	save_nvgprs
 	RECONCILE_IRQ_STATE(r10, r11)
 	addi	r3,r1,STACK_FRAME_OVERHEAD
@@ -821,46 +825,81 @@ EXC_VIRT(trap_0b, 0x4b00, 0x100, 0xb00)
 TRAMP_KVM(PACA_EXGEN, 0xb00)
 EXC_COMMON(trap_0b_common, 0xb00, unknown_exception)
 
+/*
+ * system call / hypercall (0xc00, 0x4c00)
+ *
+ * The system call exception is invoked with "sc 0" and does not alter HV bit.
+ * There is support for kernel code to invoke system calls but there are no
+ * in-tree users.
+ *
+ * The hypercall is invoked with "sc 1" and sets HV=1.
+ *
+ * In HPT, sc 1 always goes to 0xc00 real mode. In RADIX, sc 1 can go to
+ * 0x4c00 virtual mode.
+ *
+ * Call convention:
+ *
+ * syscall register convention is in Documentation/powerpc/syscall64-abi.txt
+ *
+ * For hypercalls, the register convention is as follows:
+ * r0 volatile
+ * r1-2 nonvolatile
+ * r3 volatile parameter and return value for status
+ * r4-r10 volatile input and output value
+ * r11 volatile hypercall number and output value
+ * r12 volatile input and output value
+ * r13-r31 nonvolatile
+ * LR nonvolatile
+ * CTR volatile
+ * XER volatile
+ * CR0-1 CR5-7 volatile
+ * CR2-4 nonvolatile
+ * Other registers nonvolatile
+ *
+ * The intersection of volatile registers that don't contain possible
+ * inputs is: cr0, xer, ctr. We may use these as scratch regs upon entry
+ * without saving, though xer is not a good idea to use, as hardware may
+ * interpret some bits so it may be costly to change them.
+ */
 #ifdef CONFIG_KVM_BOOK3S_64_HANDLER
-	 /*
-	  * If CONFIG_KVM_BOOK3S_64_HANDLER is set, save the PPR (on systems
-	  * that support it) before changing to HMT_MEDIUM. That allows the KVM
-	  * code to save that value into the guest state (it is the guest's PPR
-	  * value). Otherwise just change to HMT_MEDIUM as userspace has
-	  * already saved the PPR.
-	  */
+	/*
+	 * There is a little bit of juggling to get syscall and hcall
+	 * working well. Save r13 in ctr to avoid using SPRG scratch
+	 * register.
+	 *
+	 * Userspace syscalls have already saved the PPR, hcalls must save
+	 * it before setting HMT_MEDIUM.
+	 */
 #define SYSCALL_KVMTEST							\
-	SET_SCRATCH0(r13);						\
+	mtctr	r13;							\
 	GET_PACA(r13);							\
-	std	r9,PACA_EXGEN+EX_R9(r13);				\
-	OPT_GET_SPR(r9, SPRN_PPR, CPU_FTR_HAS_PPR);			\
-	HMT_MEDIUM;							\
 	std	r10,PACA_EXGEN+EX_R10(r13);				\
-	OPT_SAVE_REG_TO_PACA(PACA_EXGEN+EX_PPR, r9, CPU_FTR_HAS_PPR);	\
-	mfcr	r9;							\
-	KVMTEST_PR(0xc00);						\
-	GET_SCRATCH0(r13)
+	KVMTEST_PR(0xc00); /* uses r10, branch to do_kvm_0xc00_system_call */ \
+	HMT_MEDIUM;							\
+	mfctr	r9;
 
 #else
 #define SYSCALL_KVMTEST							\
-	HMT_MEDIUM
+	HMT_MEDIUM;							\
+	mr	r9,r13;							\
+	GET_PACA(r13);
 #endif
 	
 #define LOAD_SYSCALL_HANDLER(reg)					\
 	__LOAD_HANDLER(reg, system_call_common)
 
-/* Syscall routine is used twice, in reloc-off and reloc-on paths */
-#define SYSCALL_PSERIES_1 					\
+#define SYSCALL_FASTENDIAN_TEST					\
 BEGIN_FTR_SECTION						\
 	cmpdi	r0,0x1ebe ; 					\
 	beq-	1f ;						\
 END_FTR_SECTION_IFSET(CPU_FTR_REAL_LE)				\
-	mr	r9,r13 ;					\
-	GET_PACA(r13) ;						\
-	mfspr	r11,SPRN_SRR0 ;					\
-0:
 
-#define SYSCALL_PSERIES_2_RFID 					\
+/*
+ * After SYSCALL_KVMTEST, we reach here with PACA in r13, r13 in r9,
+ * and HMT_MEDIUM.
+ */
+#define SYSCALL_REAL	 					\
+	mfspr	r11,SPRN_SRR0 ;					\
 	mfspr	r12,SPRN_SRR1 ;					\
 	LOAD_SYSCALL_HANDLER(r10) ; 				\
 	mtspr	SPRN_SRR0,r10 ; 				\
@@ -869,11 +908,12 @@ END_FTR_SECTION_IFSET(CPU_FTR_REAL_LE)				\
 	rfid ; 							\
 	b	. ;	/* prevent speculative execution */
 
-#define SYSCALL_PSERIES_3					\
+#define SYSCALL_FASTENDIAN					\
 	/* Fast LE/BE switch system call */			\
 1:	mfspr	r12,SPRN_SRR1 ;					\
 	xori	r12,r12,MSR_LE ;				\
 	mtspr	SPRN_SRR1,r12 ;					\
+	mr	r13,r9 ;					\
 	rfid ;		/* return to userspace */		\
 	b	. ;	/* prevent speculative execution */
 
@@ -882,16 +922,18 @@ END_FTR_SECTION_IFSET(CPU_FTR_REAL_LE)				\
 	 * We can't branch directly so we do it via the CTR which
 	 * is volatile across system calls.
 	 */
-#define SYSCALL_PSERIES_2_DIRECT				\
-	LOAD_SYSCALL_HANDLER(r12) ;				\
-	mtctr	r12 ;						\
+#define SYSCALL_VIRT						\
+	LOAD_SYSCALL_HANDLER(r10) ;				\
+	mtctr	r10 ;						\
+	mfspr	r11,SPRN_SRR0 ;					\
 	mfspr	r12,SPRN_SRR1 ;					\
 	li	r10,MSR_RI ;					\
 	mtmsrd 	r10,1 ;						\
 	bctr ;
 #else
 	/* We can branch directly */
-#define SYSCALL_PSERIES_2_DIRECT				\
+#define SYSCALL_VIRT						\
+	mfspr	r11,SPRN_SRR0 ;					\
 	mfspr	r12,SPRN_SRR1 ;					\
 	li	r10,MSR_RI ;					\
 	mtmsrd 	r10,1 ;			/* Set RI (EE=0) */	\
@@ -899,20 +941,42 @@ END_FTR_SECTION_IFSET(CPU_FTR_REAL_LE)				\
 #endif
 
 EXC_REAL_BEGIN(system_call, 0xc00, 0x100)
-	SYSCALL_KVMTEST
-	SYSCALL_PSERIES_1
-	SYSCALL_PSERIES_2_RFID
-	SYSCALL_PSERIES_3
+	SYSCALL_KVMTEST /* loads PACA into r13, and saves r13 to r9 */
+	SYSCALL_FASTENDIAN_TEST
+	SYSCALL_REAL
+	SYSCALL_FASTENDIAN
 EXC_REAL_END(system_call, 0xc00, 0x100)
 
 EXC_VIRT_BEGIN(system_call, 0x4c00, 0x100)
-	SYSCALL_KVMTEST
-	SYSCALL_PSERIES_1
-	SYSCALL_PSERIES_2_DIRECT
-	SYSCALL_PSERIES_3
+	SYSCALL_KVMTEST /* loads PACA into r13, and saves r13 to r9 */
+	SYSCALL_FASTENDIAN_TEST
+	SYSCALL_VIRT
+	SYSCALL_FASTENDIAN
 EXC_VIRT_END(system_call, 0x4c00, 0x100)
 
-TRAMP_KVM(PACA_EXGEN, 0xc00)
+#ifdef CONFIG_KVM_BOOK3S_64_HANDLER
+	/*
+	 * This is a hcall, so register convention is as above, with these
+	 * differences:
+	 * r13 = PACA
+	 * ctr = orig r13
+	 * orig r10 saved in PACA
+	 */
+TRAMP_KVM_BEGIN(do_kvm_0xc00)
+	 /*
+	  * Save the PPR (on systems that support it) before changing to
+	  * HMT_MEDIUM. That allows the KVM code to save that value into the
+	  * guest state (it is the guest's PPR value).
+	  */
+	OPT_GET_SPR(r10, SPRN_PPR, CPU_FTR_HAS_PPR)
+	HMT_MEDIUM
+	OPT_SAVE_REG_TO_PACA(PACA_EXGEN+EX_PPR, r10, CPU_FTR_HAS_PPR)
+	mfctr	r10
+	SET_SCRATCH0(r10)
+	std	r9,PACA_EXGEN+EX_R9(r13)
+	mfcr	r9
+	KVM_HANDLER(PACA_EXGEN, EXC_STD, 0xc00)
+#endif
 
 
 EXC_REAL(single_step, 0xd00, 0x100)
@@ -1273,6 +1337,39 @@ EXC_REAL_NONE(0x1800, 0x100)
 EXC_VIRT_NONE(0x5800, 0x100)
 #endif
 
+#ifdef CONFIG_PPC_WATCHDOG
+
+#define MASKED_DEC_HANDLER_LABEL 3f
+
+#define MASKED_DEC_HANDLER(_H)				\
+3: /* soft-nmi */					\
+	std	r12,PACA_EXGEN+EX_R12(r13);		\
+	GET_SCRATCH0(r10);				\
+	std	r10,PACA_EXGEN+EX_R13(r13);		\
+	EXCEPTION_PROLOG_PSERIES_1(soft_nmi_common, _H)
+
+/*
+ * Branch to soft_nmi_interrupt using the emergency stack. The emergency
+ * stack is one that is usable by maskable interrupts so long as MSR_EE
+ * remains off. It is used for recovery when something has corrupted the
+ * normal kernel stack, for example. The "soft NMI" must not use the process
+ * stack because we want irq disabled sections to avoid touching the stack
+ * at all (other than PMU interrupts), so use the emergency stack for this,
+ * and run it entirely with interrupts hard disabled.
+ */
+EXC_COMMON_BEGIN(soft_nmi_common)
+	mr	r10,r1
+	ld	r1,PACAEMERGSP(r13)
+	subi	r1,r1,INT_FRAME_SIZE
+	EXCEPTION_COMMON_NORET_STACK(PACA_EXGEN, 0x900,
+			system_reset, soft_nmi_interrupt,
+			ADD_NVGPRS;ADD_RECONCILE)
+	b	ret_from_except
+
+#else /* CONFIG_PPC_WATCHDOG */
+#define MASKED_DEC_HANDLER_LABEL 2f /* normal return */
+#define MASKED_DEC_HANDLER(_H)
+#endif /* CONFIG_PPC_WATCHDOG */
 
 /*
  * An interrupt came in while soft-disabled. We set paca->irq_happened, then:
@@ -1295,22 +1392,20 @@ masked_##_H##interrupt:					\
 	lis	r10,0x7fff;				\
 	ori	r10,r10,0xffff;				\
 	mtspr	SPRN_DEC,r10;				\
-	b	2f;					\
-1:	cmpwi	r10,PACA_IRQ_DBELL;			\
-	beq	2f;					\
-	cmpwi	r10,PACA_IRQ_HMI;			\
-	beq	2f;					\
+	b	MASKED_DEC_HANDLER_LABEL;		\
+1:	andi.	r10,r10,(PACA_IRQ_DBELL|PACA_IRQ_HMI);	\
+	bne	2f;					\
 	mfspr	r10,SPRN_##_H##SRR1;			\
-	rldicl	r10,r10,48,1; /* clear MSR_EE */	\
-	rotldi	r10,r10,16;				\
+	xori	r10,r10,MSR_EE; /* clear MSR_EE */	\
 	mtspr	SPRN_##_H##SRR1,r10;			\
 2:	mtcrf	0x80,r9;				\
 	ld	r9,PACA_EXGEN+EX_R9(r13);		\
 	ld	r10,PACA_EXGEN+EX_R10(r13);		\
 	ld	r11,PACA_EXGEN+EX_R11(r13);		\
-	GET_SCRATCH0(r13);				\
+	/* returns to kernel where r13 must be set up, so don't restore it */ \
 	##_H##rfid;					\
-	b	.
+	b	.;					\
+	MASKED_DEC_HANDLER(_H)
 
 /*
  * Real mode exceptions actually use this too, but alternate
@@ -1410,8 +1505,10 @@ USE_TEXT_SECTION()
  */
 	.balign	IFETCH_ALIGN_BYTES
 do_hash_page:
-#ifdef CONFIG_PPC_STD_MMU_64
-	andis.	r0,r4,0xa450		/* weird error? */
+	#ifdef CONFIG_PPC_STD_MMU_64
+	lis	r0,DSISR_BAD_FAULT_64S@h
+	ori	r0,r0,DSISR_BAD_FAULT_64S@l
+	and.	r0,r4,r0		/* weird error? */
 	bne-	handle_page_fault	/* if not, try to insert a HPTE */
 	CURRENT_THREAD_INFO(r11, r1)
 	lwz	r0,TI_PREEMPT(r11)	/* If we're in an "NMI" */
@@ -1553,6 +1650,26 @@ END_FTR_SECTION_IFSET(CPU_FTR_CFAR)
 1:	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	kernel_bad_stack
 	b	1b
+_ASM_NOKPROBE_SYMBOL(bad_stack);
+
+/*
+ * When doorbell is triggered from system reset wakeup, the message is
+ * not cleared, so it would fire again when EE is enabled.
+ *
+ * When coming from local_irq_enable, there may be the same problem if
+ * we were hard disabled.
+ *
+ * Execute msgclr to clear pending exceptions before handling it.
+ */
+h_doorbell_common_msgclr:
+	LOAD_REG_IMMEDIATE(r3, PPC_DBELL_MSGTYPE << (63-36))
+	PPC_MSGCLR(3)
+	b 	h_doorbell_common
+
+doorbell_super_common_msgclr:
+	LOAD_REG_IMMEDIATE(r3, PPC_DBELL_MSGTYPE << (63-36))
+	PPC_MSGCLRP(3)
+	b 	doorbell_super_common
 
 /*
  * Called from arch_local_irq_enable when an interrupt needs
@@ -1563,6 +1680,10 @@ END_FTR_SECTION_IFSET(CPU_FTR_CFAR)
  * Note: While MSR:EE is off, we need to make sure that _MSR
  * in the generated frame has EE set to 1 or the exception
  * handler will not properly re-enable them.
+ *
+ * Note that we don't specify LR as the NIP (return address) for
+ * the interrupt because that would unbalance the return branch
+ * predictor.
  */
 _GLOBAL(__replay_interrupt)
 	/* We are going to jump to the exception common code which
@@ -1570,22 +1691,27 @@ _GLOBAL(__replay_interrupt)
 	 * we don't give a damn about, so we don't bother storing them.
 	 */
 	mfmsr	r12
-	mflr	r11
+	LOAD_REG_ADDR(r11, replay_interrupt_return)
 	mfcr	r9
 	ori	r12,r12,MSR_EE
 	cmpwi	r3,0x900
 	beq	decrementer_common
 	cmpwi	r3,0x500
-	beq	hardware_interrupt_common
 BEGIN_FTR_SECTION
-	cmpwi	r3,0xe80
-	beq	h_doorbell_common
-	cmpwi	r3,0xea0
 	beq	h_virt_irq_common
+FTR_SECTION_ELSE
+	beq	hardware_interrupt_common
+ALT_FTR_SECTION_END_IFSET(CPU_FTR_HVMODE | CPU_FTR_ARCH_300)
+BEGIN_FTR_SECTION
+	cmpwi	r3,0xa00
+	beq	h_doorbell_common_msgclr
 	cmpwi	r3,0xe60
 	beq	hmi_exception_common
 FTR_SECTION_ELSE
 	cmpwi	r3,0xa00
-	beq	doorbell_super_common
+	beq	doorbell_super_common_msgclr
 ALT_FTR_SECTION_END_IFSET(CPU_FTR_HVMODE)
+replay_interrupt_return:
 	blr
+
+_ASM_NOKPROBE_SYMBOL(__replay_interrupt)

@@ -1,7 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __LINUX_MTD_NAND_GPIO_H
 #define __LINUX_MTD_NAND_GPIO_H
 
-#include <linux/mtd/nand.h>
+#include <linux/mtd/rawnand.h>
 
 struct gpio_nand_platdata {
 	int	gpio_nce;

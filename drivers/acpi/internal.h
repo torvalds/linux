@@ -111,7 +111,7 @@ int acpi_device_setup_files(struct acpi_device *dev);
 void acpi_device_remove_files(struct acpi_device *dev);
 void acpi_device_add_finalize(struct acpi_device *device);
 void acpi_free_pnp_ids(struct acpi_device_pnp *pnp);
-bool acpi_device_is_present(struct acpi_device *adev);
+bool acpi_device_is_present(const struct acpi_device *adev);
 bool acpi_device_is_battery(struct acpi_device *adev);
 bool acpi_device_is_first_physical_node(struct acpi_device *adev,
 					const struct device *dev);
@@ -185,7 +185,6 @@ typedef int (*acpi_ec_query_func) (void *data);
 int acpi_ec_init(void);
 int acpi_ec_ecdt_probe(void);
 int acpi_ec_dsdt_probe(void);
-int acpi_ec_ecdt_start(void);
 void acpi_ec_block_transactions(void);
 void acpi_ec_unblock_transactions(void);
 int acpi_ec_add_query_handler(struct acpi_ec *ec, u8 query_bit,
@@ -193,13 +192,21 @@ int acpi_ec_add_query_handler(struct acpi_ec *ec, u8 query_bit,
 			      void *data);
 void acpi_ec_remove_query_handler(struct acpi_ec *ec, u8 query_bit);
 
+#ifdef CONFIG_PM_SLEEP
+void acpi_ec_flush_work(void);
+#endif
+
 
 /*--------------------------------------------------------------------------
                                   Suspend/Resume
   -------------------------------------------------------------------------- */
 #ifdef CONFIG_ACPI_SYSTEM_POWER_STATES_SUPPORT
+extern bool acpi_s2idle_wakeup(void);
+extern bool acpi_sleep_no_ec_events(void);
 extern int acpi_sleep_init(void);
 #else
+static inline bool acpi_s2idle_wakeup(void) { return false; }
+static inline bool acpi_sleep_no_ec_events(void) { return true; }
 static inline int acpi_sleep_init(void) { return -ENXIO; }
 #endif
 
@@ -224,6 +231,12 @@ static inline void suspend_nvs_restore(void) {}
 
 void acpi_init_properties(struct acpi_device *adev);
 void acpi_free_properties(struct acpi_device *adev);
+
+#ifdef CONFIG_X86
+void acpi_extract_apple_properties(struct acpi_device *adev);
+#else
+static inline void acpi_extract_apple_properties(struct acpi_device *adev) {}
+#endif
 
 /*--------------------------------------------------------------------------
 				Watchdog

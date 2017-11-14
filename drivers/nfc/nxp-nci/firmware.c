@@ -124,8 +124,7 @@ static int nxp_nci_fw_send_chunk(struct nxp_nci_info *info)
 	header |= chunk_len & NXP_NCI_FW_FRAME_LEN_MASK;
 	put_unaligned_be16(header, skb_put(skb, NXP_NCI_FW_HDR_LEN));
 
-	memcpy(skb_put(skb, chunk_len), fw_info->data + fw_info->written,
-	       chunk_len);
+	skb_put_data(skb, fw_info->data + fw_info->written, chunk_len);
 
 	crc = nxp_nci_fw_crc(skb->data, chunk_len + NXP_NCI_FW_HDR_LEN);
 	put_unaligned_be16(crc, skb_put(skb, NXP_NCI_FW_CRC_LEN));
@@ -312,8 +311,7 @@ void nxp_nci_fw_recv_frame(struct nci_dev *ndev, struct sk_buff *skb)
 		if (nxp_nci_fw_check_crc(skb) != 0x00)
 			fw_info->cmd_result = -EBADMSG;
 		else
-			fw_info->cmd_result = nxp_nci_fw_read_status(
-					*skb_pull(skb, NXP_NCI_FW_HDR_LEN));
+			fw_info->cmd_result = nxp_nci_fw_read_status(*(u8 *)skb_pull(skb, NXP_NCI_FW_HDR_LEN));
 		kfree_skb(skb);
 	} else {
 		fw_info->cmd_result = -EIO;

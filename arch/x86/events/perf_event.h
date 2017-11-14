@@ -91,7 +91,7 @@ struct amd_nb {
 	(PERF_SAMPLE_IP | PERF_SAMPLE_TID | PERF_SAMPLE_ADDR | \
 	PERF_SAMPLE_ID | PERF_SAMPLE_CPU | PERF_SAMPLE_STREAM_ID | \
 	PERF_SAMPLE_DATA_SRC | PERF_SAMPLE_IDENTIFIER | \
-	PERF_SAMPLE_TRANSACTION)
+	PERF_SAMPLE_TRANSACTION | PERF_SAMPLE_PHYS_ADDR)
 
 /*
  * A debug store configuration.
@@ -558,9 +558,13 @@ struct x86_pmu {
 	int		attr_rdpmc;
 	struct attribute **format_attrs;
 	struct attribute **event_attrs;
+	struct attribute **caps_attrs;
 
 	ssize_t		(*events_sysfs_show)(char *page, u64 config);
 	struct attribute **cpu_events;
+
+	unsigned long	attr_freeze_on_smi;
+	struct attribute **attrs;
 
 	/*
 	 * CPU Hotplug hooks
@@ -588,7 +592,8 @@ struct x86_pmu {
 			pebs		:1,
 			pebs_active	:1,
 			pebs_broken	:1,
-			pebs_prec_dist	:1;
+			pebs_prec_dist	:1,
+			pebs_no_tlb	:1;
 	int		pebs_record_size;
 	int		pebs_buffer_size;
 	void		(*drain_pebs)(struct pt_regs *regs);
@@ -738,6 +743,8 @@ int x86_reserve_hardware(void);
 
 void x86_release_hardware(void);
 
+int x86_pmu_max_precise(void);
+
 void hw_perf_lbr_event_destroy(struct perf_event *event);
 
 int x86_setup_perfctr(struct perf_event *event);
@@ -876,6 +883,8 @@ extern struct event_constraint intel_slm_pebs_event_constraints[];
 
 extern struct event_constraint intel_glm_pebs_event_constraints[];
 
+extern struct event_constraint intel_glp_pebs_event_constraints[];
+
 extern struct event_constraint intel_nehalem_pebs_event_constraints[];
 
 extern struct event_constraint intel_westmere_pebs_event_constraints[];
@@ -941,6 +950,8 @@ void intel_pmu_lbr_init_skl(void);
 void intel_pmu_lbr_init_knl(void);
 
 void intel_pmu_pebs_data_source_nhm(void);
+
+void intel_pmu_pebs_data_source_skl(bool pmem);
 
 int intel_pmu_setup_lbr_filter(struct perf_event *event);
 

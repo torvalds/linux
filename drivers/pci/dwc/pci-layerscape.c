@@ -33,13 +33,14 @@
 
 /* PEX Internal Configuration Registers */
 #define PCIE_STRFMR1		0x71c /* Symbol Timer & Filter Mask Register1 */
-#define PCIE_DBI_RO_WR_EN	0x8bc /* DBI Read-Only Write Enable Register */
+
+#define PCIE_IATU_NUM		6
 
 struct ls_pcie_drvdata {
 	u32 lut_offset;
 	u32 ltssm_shift;
 	u32 lut_dbg;
-	struct dw_pcie_host_ops *ops;
+	const struct dw_pcie_host_ops *ops;
 	const struct dw_pcie_ops *dw_pcie_ops;
 };
 
@@ -72,14 +73,6 @@ static void ls_pcie_clear_multifunction(struct ls_pcie *pcie)
 	iowrite8(PCI_HEADER_TYPE_BRIDGE, pci->dbi_base + PCI_HEADER_TYPE);
 }
 
-/* Fix class value */
-static void ls_pcie_fix_class(struct ls_pcie *pcie)
-{
-	struct dw_pcie *pci = pcie->pci;
-
-	iowrite16(PCI_CLASS_BRIDGE_PCI, pci->dbi_base + PCI_CLASS_DEVICE);
-}
-
 /* Drop MSG TLP except for Vendor MSG */
 static void ls_pcie_drop_msg_tlp(struct ls_pcie *pcie)
 {
@@ -89,6 +82,14 @@ static void ls_pcie_drop_msg_tlp(struct ls_pcie *pcie)
 	val = ioread32(pci->dbi_base + PCIE_STRFMR1);
 	val &= 0xDFFFFFFF;
 	iowrite32(val, pci->dbi_base + PCIE_STRFMR1);
+}
+
+static void ls_pcie_disable_outbound_atus(struct ls_pcie *pcie)
+{
+	int i;
+
+	for (i = 0; i < PCIE_IATU_NUM; i++)
+		dw_pcie_disable_atu(pcie->pci, DW_PCIE_REGION_OUTBOUND, i);
 }
 
 static int ls1021_pcie_link_up(struct dw_pcie *pci)
@@ -108,33 +109,6 @@ static int ls1021_pcie_link_up(struct dw_pcie *pci)
 	return 1;
 }
 
-static void ls1021_pcie_host_init(struct pcie_port *pp)
-{
-	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
-	struct ls_pcie *pcie = to_ls_pcie(pci);
-	struct device *dev = pci->dev;
-	u32 index[2];
-
-	pcie->scfg = syscon_regmap_lookup_by_phandle(dev->of_node,
-						     "fsl,pcie-scfg");
-	if (IS_ERR(pcie->scfg)) {
-		dev_err(dev, "No syscfg phandle specified\n");
-		pcie->scfg = NULL;
-		return;
-	}
-
-	if (of_property_read_u32_array(dev->of_node,
-				       "fsl,pcie-scfg", index, 2)) {
-		pcie->scfg = NULL;
-		return;
-	}
-	pcie->index = index[1];
-
-	dw_pcie_setup_rc(pp);
-
-	ls_pcie_drop_msg_tlp(pcie);
-}
-
 static int ls_pcie_link_up(struct dw_pcie *pci)
 {
 	struct ls_pcie *pcie = to_ls_pcie(pci);
@@ -150,16 +124,54 @@ static int ls_pcie_link_up(struct dw_pcie *pci)
 	return 1;
 }
 
-static void ls_pcie_host_init(struct pcie_port *pp)
+static int ls_pcie_host_init(struct pcie_port *pp)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 	struct ls_pcie *pcie = to_ls_pcie(pci);
 
-	iowrite32(1, pci->dbi_base + PCIE_DBI_RO_WR_EN);
-	ls_pcie_fix_class(pcie);
+	/*
+	 * Disable outbound windows configured by the bootloader to avoid
+	 * one transaction hitting multiple outbound windows.
+	 * dw_pcie_setup_rc() will reconfigure the outbound windows.
+	 */
+	ls_pcie_disable_outbound_atus(pcie);
+
+	dw_pcie_dbi_ro_wr_en(pci);
 	ls_pcie_clear_multifunction(pcie);
+	dw_pcie_dbi_ro_wr_dis(pci);
+
 	ls_pcie_drop_msg_tlp(pcie);
-	iowrite32(0, pci->dbi_base + PCIE_DBI_RO_WR_EN);
+
+	dw_pcie_setup_rc(pp);
+
+	return 0;
+}
+
+static int ls1021_pcie_host_init(struct pcie_port *pp)
+{
+	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
+	struct ls_pcie *pcie = to_ls_pcie(pci);
+	struct device *dev = pci->dev;
+	u32 index[2];
+	int ret;
+
+	pcie->scfg = syscon_regmap_lookup_by_phandle(dev->of_node,
+						     "fsl,pcie-scfg");
+	if (IS_ERR(pcie->scfg)) {
+		ret = PTR_ERR(pcie->scfg);
+		dev_err(dev, "No syscfg phandle specified\n");
+		pcie->scfg = NULL;
+		return ret;
+	}
+
+	if (of_property_read_u32_array(dev->of_node,
+				       "fsl,pcie-scfg", index, 2)) {
+		pcie->scfg = NULL;
+		return -EINVAL;
+	}
+	pcie->index = index[1];
+
+	return ls_pcie_host_init(pp);
 }
 
 static int ls_pcie_msi_host_init(struct pcie_port *pp,
@@ -185,12 +197,12 @@ static int ls_pcie_msi_host_init(struct pcie_port *pp,
 	return 0;
 }
 
-static struct dw_pcie_host_ops ls1021_pcie_host_ops = {
+static const struct dw_pcie_host_ops ls1021_pcie_host_ops = {
 	.host_init = ls1021_pcie_host_init,
 	.msi_host_init = ls_pcie_msi_host_init,
 };
 
-static struct dw_pcie_host_ops ls_pcie_host_ops = {
+static const struct dw_pcie_host_ops ls_pcie_host_ops = {
 	.host_init = ls_pcie_host_init,
 	.msi_host_init = ls_pcie_msi_host_init,
 };
@@ -232,12 +244,22 @@ static struct ls_pcie_drvdata ls2080_drvdata = {
 	.dw_pcie_ops = &dw_ls_pcie_ops,
 };
 
+static struct ls_pcie_drvdata ls2088_drvdata = {
+	.lut_offset = 0x80000,
+	.ltssm_shift = 0,
+	.lut_dbg = 0x407fc,
+	.ops = &ls_pcie_host_ops,
+	.dw_pcie_ops = &dw_ls_pcie_ops,
+};
+
 static const struct of_device_id ls_pcie_of_match[] = {
 	{ .compatible = "fsl,ls1021a-pcie", .data = &ls1021_drvdata },
 	{ .compatible = "fsl,ls1043a-pcie", .data = &ls1043_drvdata },
 	{ .compatible = "fsl,ls1046a-pcie", .data = &ls1046_drvdata },
 	{ .compatible = "fsl,ls2080a-pcie", .data = &ls2080_drvdata },
 	{ .compatible = "fsl,ls2085a-pcie", .data = &ls2080_drvdata },
+	{ .compatible = "fsl,ls2088a-pcie", .data = &ls2088_drvdata },
+	{ .compatible = "fsl,ls1088a-pcie", .data = &ls2088_drvdata },
 	{ },
 };
 

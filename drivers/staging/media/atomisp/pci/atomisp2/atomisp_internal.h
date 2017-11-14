@@ -75,15 +75,6 @@
 #define ATOMISP_PCI_REV_MRFLD_A0_MAX	0
 #define ATOMISP_PCI_REV_BYT_A0_MAX	4
 
-#define ATOMISP_MAJOR		0
-#define ATOMISP_MINOR		5
-#define ATOMISP_PATCHLEVEL	1
-
-#define DRIVER_VERSION_STR	__stringify(ATOMISP_MAJOR) \
-	"." __stringify(ATOMISP_MINOR) "." __stringify(ATOMISP_PATCHLEVEL)
-#define DRIVER_VERSION		KERNEL_VERSION(ATOMISP_MAJOR, \
-	ATOMISP_MINOR, ATOMISP_PATCHLEVEL)
-
 #define ATOM_ISP_STEP_WIDTH	2
 #define ATOM_ISP_STEP_HEIGHT	2
 
@@ -275,7 +266,7 @@ struct atomisp_device {
 	 */
 	struct mutex streamoff_mutex;
 
-	int input_cnt;
+	unsigned int input_cnt;
 	struct atomisp_input_subdev inputs[ATOM_ISP_MAX_INPUTS];
 	struct v4l2_subdev *flash;
 	struct v4l2_subdev *motor;
@@ -309,10 +300,6 @@ struct atomisp_device {
 	container_of(dev, struct atomisp_device, v4l2_dev)
 
 extern struct device *atomisp_dev;
-
-extern void *atomisp_kernel_malloc(size_t bytes);
-
-extern void atomisp_kernel_free(void *ptr);
 
 #define atomisp_is_wdt_running(a) timer_pending(&(a)->wdt)
 #ifdef ISP2401

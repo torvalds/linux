@@ -63,6 +63,8 @@ static int lan9303_i2c_probe(struct i2c_client *client,
 	i2c_set_clientdata(client, sw_dev);
 	sw_dev->chip.dev = &client->dev;
 
+	sw_dev->chip.ops = &lan9303_indirect_phy_ops;
+
 	ret = lan9303_probe(&sw_dev->chip, client->dev.of_node);
 	if (ret != 0)
 		return ret;

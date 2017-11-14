@@ -232,7 +232,7 @@
 
 	de: display-engine {
 		compatible = "allwinner,sun6i-a31-display-engine";
-		allwinner,pipelines = <&fe0>;
+		allwinner,pipelines = <&fe0>, <&fe1>;
 		status = "disabled";
 	};
 
@@ -264,7 +264,6 @@
 				      "tcon-ch0",
 				      "tcon-ch1";
 			clock-output-names = "tcon0-pixel-clock";
-			status = "disabled";
 
 			ports {
 				#address-cells = <1>;
@@ -282,6 +281,43 @@
 				};
 
 				tcon0_out: port@1 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <1>;
+				};
+			};
+		};
+
+		tcon1: lcd-controller@01c0d000 {
+			compatible = "allwinner,sun6i-a31-tcon";
+			reg = <0x01c0d000 0x1000>;
+			interrupts = <GIC_SPI 87 IRQ_TYPE_LEVEL_HIGH>;
+			resets = <&ccu RST_AHB1_LCD1>;
+			reset-names = "lcd";
+			clocks = <&ccu CLK_AHB1_LCD1>,
+				 <&ccu CLK_LCD1_CH0>,
+				 <&ccu CLK_LCD1_CH1>;
+			clock-names = "ahb",
+				      "tcon-ch0",
+				      "tcon-ch1";
+			clock-output-names = "tcon1-pixel-clock";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				tcon1_in: port@0 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0>;
+
+					tcon1_in_drc1: endpoint@1 {
+						reg = <1>;
+						remote-endpoint = <&drc1_out_tcon1>;
+					};
+				};
+
+				tcon1_out: port@1 {
 					#address-cells = <1>;
 					#size-cells = <0>;
 					reg = <1>;
@@ -780,7 +816,8 @@
 		};
 
 		crypto: crypto-engine@01c15000 {
-			compatible = "allwinner,sun4i-a10-crypto";
+			compatible = "allwinner,sun6i-a31-crypto",
+				     "allwinner,sun4i-a10-crypto";
 			reg = <0x01c15000 0x1000>;
 			interrupts = <GIC_SPI 80 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&ccu CLK_AHB1_SS>, <&ccu CLK_SS>;
@@ -896,6 +933,130 @@
 						reg = <0>;
 						remote-endpoint = <&be0_in_fe0>;
 					};
+
+					fe0_out_be1: endpoint@1 {
+						reg = <1>;
+						remote-endpoint = <&be1_in_fe0>;
+					};
+				};
+			};
+		};
+
+		fe1: display-frontend@01e20000 {
+			compatible = "allwinner,sun6i-a31-display-frontend";
+			reg = <0x01e20000 0x20000>;
+			interrupts = <GIC_SPI 94 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&ccu CLK_AHB1_FE1>, <&ccu CLK_FE1>,
+				 <&ccu CLK_DRAM_FE1>;
+			clock-names = "ahb", "mod",
+				      "ram";
+			resets = <&ccu RST_AHB1_FE1>;
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				fe1_out: port@1 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <1>;
+
+					fe1_out_be0: endpoint@0 {
+						reg = <0>;
+						remote-endpoint = <&be0_in_fe1>;
+					};
+
+					fe1_out_be1: endpoint@1 {
+						reg = <1>;
+						remote-endpoint = <&be1_in_fe1>;
+					};
+				};
+			};
+		};
+
+		be1: display-backend@01e40000 {
+			compatible = "allwinner,sun6i-a31-display-backend";
+			reg = <0x01e40000 0x10000>;
+			interrupts = <GIC_SPI 96 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&ccu CLK_AHB1_BE1>, <&ccu CLK_BE1>,
+				 <&ccu CLK_DRAM_BE1>;
+			clock-names = "ahb", "mod",
+				      "ram";
+			resets = <&ccu RST_AHB1_BE1>;
+
+			assigned-clocks = <&ccu CLK_BE1>;
+			assigned-clock-rates = <300000000>;
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				be1_in: port@0 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0>;
+
+					be1_in_fe0: endpoint@0 {
+						reg = <0>;
+						remote-endpoint = <&fe0_out_be1>;
+					};
+
+					be1_in_fe1: endpoint@1 {
+						reg = <1>;
+						remote-endpoint = <&fe1_out_be1>;
+					};
+				};
+
+				be1_out: port@1 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <1>;
+
+					be1_out_drc1: endpoint@1 {
+						reg = <1>;
+						remote-endpoint = <&drc1_in_be1>;
+					};
+				};
+			};
+		};
+
+		drc1: drc@01e50000 {
+			compatible = "allwinner,sun6i-a31-drc";
+			reg = <0x01e50000 0x10000>;
+			interrupts = <GIC_SPI 91 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&ccu CLK_AHB1_DRC1>, <&ccu CLK_IEP_DRC1>,
+				 <&ccu CLK_DRAM_DRC1>;
+			clock-names = "ahb", "mod",
+				      "ram";
+			resets = <&ccu RST_AHB1_DRC1>;
+
+			assigned-clocks = <&ccu CLK_IEP_DRC1>;
+			assigned-clock-rates = <300000000>;
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				drc1_in: port@0 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0>;
+
+					drc1_in_be1: endpoint@1 {
+						reg = <1>;
+						remote-endpoint = <&be1_out_drc1>;
+					};
+				};
+
+				drc1_out: port@1 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <1>;
+
+					drc1_out_tcon1: endpoint@1 {
+						reg = <1>;
+						remote-endpoint = <&tcon1_in_drc1>;
+					};
 				};
 			};
 		};
@@ -925,6 +1086,11 @@
 					be0_in_fe0: endpoint@0 {
 						reg = <0>;
 						remote-endpoint = <&fe0_out_be0>;
+					};
+
+					be0_in_fe1: endpoint@1 {
+						reg = <1>;
+						remote-endpoint = <&fe1_out_be0>;
 					};
 				};
 
@@ -989,11 +1155,11 @@
 				     <GIC_SPI 41 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
-		nmi_intc: interrupt-controller@01f00c0c {
-			compatible = "allwinner,sun6i-a31-sc-nmi";
+		nmi_intc: interrupt-controller@1f00c00 {
+			compatible = "allwinner,sun6i-a31-r-intc";
 			interrupt-controller;
 			#interrupt-cells = <2>;
-			reg = <0x01f00c0c 0x38>;
+			reg = <0x01f00c00 0x400>;
 			interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>;
 		};
 

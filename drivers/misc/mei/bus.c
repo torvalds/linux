@@ -845,7 +845,7 @@ static void mei_cl_bus_dev_release(struct device *dev)
 	kfree(cldev);
 }
 
-static struct device_type mei_cl_device_type = {
+static const struct device_type mei_cl_device_type = {
 	.release	= mei_cl_bus_dev_release,
 };
 
@@ -1040,7 +1040,7 @@ static void mei_cl_bus_dev_init(struct mei_device *bus,
  *
  * @bus: mei device
  */
-void mei_cl_bus_rescan(struct mei_device *bus)
+static void mei_cl_bus_rescan(struct mei_device *bus)
 {
 	struct mei_cl_device *cldev, *n;
 	struct mei_me_client *me_cl;

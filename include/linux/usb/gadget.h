@@ -48,6 +48,7 @@ struct usb_ep;
  *     by adding a zero length packet as needed;
  * @short_not_ok: When reading data, makes short packets be
  *     treated as errors (queue stops advancing till cleanup).
+ * @dma_mapped: Indicates if request has been mapped to DMA (internal)
  * @complete: Function called when request completes, so this request and
  *	its buffer may be re-used.  The function will always be called with
  *	interrupts disabled, and it must not sleep.
@@ -103,6 +104,7 @@ struct usb_request {
 	unsigned		no_interrupt:1;
 	unsigned		zero:1;
 	unsigned		short_not_ok:1;
+	unsigned		dma_mapped:1;
 
 	void			(*complete)(struct usb_ep *ep,
 					struct usb_request *req);
@@ -304,6 +306,7 @@ struct usb_gadget_ops {
 	int	(*udc_start)(struct usb_gadget *,
 			struct usb_gadget_driver *);
 	int	(*udc_stop)(struct usb_gadget *);
+	void	(*udc_set_speed)(struct usb_gadget *, enum usb_device_speed);
 	struct usb_ep *(*match_ep)(struct usb_gadget *,
 			struct usb_endpoint_descriptor *,
 			struct usb_ss_ep_comp_descriptor *);
@@ -352,6 +355,8 @@ struct usb_gadget_ops {
  * @deactivated: True if gadget is deactivated - in deactivated state it cannot
  *	be connected.
  * @connected: True if gadget is connected.
+ * @lpm_capable: If the gadget max_speed is FULL or HIGH, this flag
+ *	indicates that it supports LPM as per the LPM ECN & errata.
  *
  * Gadgets have a mostly-portable "gadget driver" implementing device
  * functions, handling all usb configurations and interfaces.  Gadget
@@ -404,6 +409,7 @@ struct usb_gadget {
 	unsigned			is_selfpowered:1;
 	unsigned			deactivated:1;
 	unsigned			connected:1;
+	unsigned			lpm_capable:1;
 };
 #define work_to_gadget(w)	(container_of((w), struct usb_gadget, work))
 

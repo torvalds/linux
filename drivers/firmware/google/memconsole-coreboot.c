@@ -26,12 +26,52 @@
 
 /* CBMEM firmware console log descriptor. */
 struct cbmem_cons {
-	u32 buffer_size;
-	u32 buffer_cursor;
-	u8  buffer_body[0];
+	u32 size_dont_access_after_boot;
+	u32 cursor;
+	u8  body[0];
 } __packed;
 
+#define CURSOR_MASK ((1 << 28) - 1)
+#define OVERFLOW (1 << 31)
+
 static struct cbmem_cons __iomem *cbmem_console;
+static u32 cbmem_console_size;
+
+/*
+ * The cbmem_console structure is read again on every access because it may
+ * change at any time if runtime firmware logs new messages. This may rarely
+ * lead to race conditions where the firmware overwrites the beginning of the
+ * ring buffer with more lines after we have already read |cursor|. It should be
+ * rare and harmless enough that we don't spend extra effort working around it.
+ */
+static ssize_t memconsole_coreboot_read(char *buf, loff_t pos, size_t count)
+{
+	u32 cursor = cbmem_console->cursor & CURSOR_MASK;
+	u32 flags = cbmem_console->cursor & ~CURSOR_MASK;
+	u32 size = cbmem_console_size;
+	struct seg {	/* describes ring buffer segments in logical order */
+		u32 phys;	/* physical offset from start of mem buffer */
+		u32 len;	/* length of segment */
+	} seg[2] = { {0}, {0} };
+	size_t done = 0;
+	int i;
+
+	if (flags & OVERFLOW) {
+		if (cursor > size)	/* Shouldn't really happen, but... */
+			cursor = 0;
+		seg[0] = (struct seg){.phys = cursor, .len = size - cursor};
+		seg[1] = (struct seg){.phys = 0, .len = cursor};
+	} else {
+		seg[0] = (struct seg){.phys = 0, .len = min(cursor, size)};
+	}
+
+	for (i = 0; i < ARRAY_SIZE(seg) && count > done; i++) {
+		done += memory_read_from_buffer(buf + done, count - done, &pos,
+			cbmem_console->body + seg[i].phys, seg[i].len);
+		pos -= seg[i].len;
+	}
+	return done;
+}
 
 static int memconsole_coreboot_init(phys_addr_t physaddr)
 {
@@ -42,17 +82,17 @@ static int memconsole_coreboot_init(phys_addr_t physaddr)
 	if (!tmp_cbmc)
 		return -ENOMEM;
 
+	/* Read size only once to prevent overrun attack through /dev/mem. */
+	cbmem_console_size = tmp_cbmc->size_dont_access_after_boot;
 	cbmem_console = memremap(physaddr,
-				 tmp_cbmc->buffer_size + sizeof(*cbmem_console),
+				 cbmem_console_size + sizeof(*cbmem_console),
 				 MEMREMAP_WB);
 	memunmap(tmp_cbmc);
 
 	if (!cbmem_console)
 		return -ENOMEM;
 
-	memconsole_setup(cbmem_console->buffer_body,
-		min(cbmem_console->buffer_cursor, cbmem_console->buffer_size));
-
+	memconsole_setup(memconsole_coreboot_read);
 	return 0;
 }
 

@@ -37,7 +37,7 @@
 
 # define DEBUG_SUBSYSTEM S_LNET
 
-#include "../../include/linux/libcfs/libcfs.h"
+#include <linux/libcfs/libcfs.h>
 #include "tracefile.h"
 
 static char debug_file_name[1024];
@@ -361,7 +361,7 @@ static int libcfs_debug_dumplog_thread(void *arg)
 
 void libcfs_debug_dumplog(void)
 {
-	wait_queue_t wait;
+	wait_queue_entry_t wait;
 	struct task_struct *dumper;
 
 	/* we're being careful to ensure that the kernel thread is

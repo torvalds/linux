@@ -63,19 +63,15 @@
 # define __must_hold(x)
 #endif
 
-/* module parameter, defined in drbd_main.c */
-extern unsigned int minor_count;
-extern bool disable_sendpage;
-extern bool allow_oos;
-void tl_abort_disk_io(struct drbd_device *device);
-
+/* shared module parameters, defined in drbd_main.c */
 #ifdef CONFIG_DRBD_FAULT_INJECTION
-extern int enable_faults;
-extern int fault_rate;
-extern int fault_devs;
+extern int drbd_enable_faults;
+extern int drbd_fault_rate;
 #endif
 
-extern char usermode_helper[];
+extern unsigned int drbd_minor_count;
+extern char drbd_usermode_helper[];
+extern int drbd_proc_details;
 
 
 /* This is used to stop/restart our threads.
@@ -181,8 +177,8 @@ _drbd_insert_fault(struct drbd_device *device, unsigned int type);
 static inline int
 drbd_insert_fault(struct drbd_device *device, unsigned int type) {
 #ifdef CONFIG_DRBD_FAULT_INJECTION
-	return fault_rate &&
-		(enable_faults & (1<<type)) &&
+	return drbd_fault_rate &&
+		(drbd_enable_faults & (1<<type)) &&
 		_drbd_insert_fault(device, type);
 #else
 	return 0;
@@ -745,6 +741,8 @@ struct drbd_connection {
 	unsigned current_tle_writes;	/* writes seen within this tl epoch */
 
 	unsigned long last_reconnect_jif;
+	/* empty member on older kernels without blk_start_plug() */
+	struct blk_plug receiver_plug;
 	struct drbd_thread receiver;
 	struct drbd_thread worker;
 	struct drbd_thread ack_receiver;
@@ -1131,7 +1129,8 @@ extern void conn_send_sr_reply(struct drbd_connection *connection, enum drbd_sta
 extern int drbd_send_rs_deallocated(struct drbd_peer_device *, struct drbd_peer_request *);
 extern void drbd_backing_dev_free(struct drbd_device *device, struct drbd_backing_dev *ldev);
 extern void drbd_device_cleanup(struct drbd_device *device);
-void drbd_print_uuids(struct drbd_device *device, const char *text);
+extern void drbd_print_uuids(struct drbd_device *device, const char *text);
+extern void drbd_queue_unplug(struct drbd_device *device);
 
 extern void conn_md_sync(struct drbd_connection *connection);
 extern void drbd_md_write(struct drbd_device *device, void *buffer);
@@ -1441,6 +1440,9 @@ extern struct bio_set *drbd_md_io_bio_set;
 /* to allocate from that set */
 extern struct bio *bio_alloc_drbd(gfp_t gfp_mask);
 
+/* And a bio_set for cloning */
+extern struct bio_set *drbd_io_bio_set;
+
 extern struct mutex resources_mutex;
 
 extern int conn_lowest_minor(struct drbd_connection *connection);
@@ -1459,8 +1461,6 @@ extern struct drbd_connection *conn_get_by_addrs(void *my_addr, int my_addr_len,
 extern struct drbd_resource *drbd_find_resource(const char *name);
 extern void drbd_destroy_resource(struct kref *kref);
 extern void conn_free_crypto(struct drbd_connection *connection);
-
-extern int proc_details;
 
 /* drbd_req */
 extern void do_submit(struct work_struct *ws);
@@ -1625,9 +1625,9 @@ static inline void drbd_generic_make_request(struct drbd_device *device,
 					     int fault_type, struct bio *bio)
 {
 	__release(local);
-	if (!bio->bi_bdev) {
-		drbd_err(device, "drbd_generic_make_request: bio->bi_bdev == NULL\n");
-		bio->bi_error = -ENODEV;
+	if (!bio->bi_disk) {
+		drbd_err(device, "drbd_generic_make_request: bio->bi_disk == NULL\n");
+		bio->bi_status = BLK_STS_IOERR;
 		bio_endio(bio);
 		return;
 	}

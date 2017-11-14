@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_IRQ_H
 #define _ASM_X86_IRQ_H
 /*
@@ -29,7 +30,6 @@ struct irq_desc;
 #include <linux/cpumask.h>
 extern int check_irq_vectors_for_cpu_disable(void);
 extern void fixup_irqs(void);
-extern void irq_force_complete_move(struct irq_desc *desc);
 #endif
 
 #ifdef CONFIG_HAVE_KVM
@@ -42,10 +42,6 @@ extern void native_init_IRQ(void);
 extern bool handle_irq(struct irq_desc *desc, struct pt_regs *regs);
 
 extern __visible unsigned int do_IRQ(struct pt_regs *regs);
-
-/* Interrupt vector management */
-extern DECLARE_BITMAP(used_vectors, NR_VECTORS);
-extern int vector_used_by_percpu_irq(unsigned int vector);
 
 extern void init_ISA_irqs(void);
 

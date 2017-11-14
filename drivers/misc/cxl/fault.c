@@ -132,18 +132,31 @@ static int cxl_handle_segment_miss(struct cxl_context *ctx,
 	return IRQ_HANDLED;
 }
 
-static void cxl_handle_page_fault(struct cxl_context *ctx,
-				  struct mm_struct *mm, u64 dsisr, u64 dar)
+int cxl_handle_mm_fault(struct mm_struct *mm, u64 dsisr, u64 dar)
 {
 	unsigned flt = 0;
 	int result;
 	unsigned long access, flags, inv_flags = 0;
 
-	trace_cxl_pte_miss(ctx, dsisr, dar);
-
+	/*
+	 * Add the fault handling cpu to task mm cpumask so that we
+	 * can do a safe lockless page table walk when inserting the
+	 * hash page table entry. This function get called with a
+	 * valid mm for user space addresses. Hence using the if (mm)
+	 * check is sufficient here.
+	 */
+	if (mm && !cpumask_test_cpu(smp_processor_id(), mm_cpumask(mm))) {
+		cpumask_set_cpu(smp_processor_id(), mm_cpumask(mm));
+		/*
+		 * We need to make sure we walk the table only after
+		 * we update the cpumask. The other side of the barrier
+		 * is explained in serialize_against_pte_lookup()
+		 */
+		smp_mb();
+	}
 	if ((result = copro_handle_mm_fault(mm, dar, dsisr, &flt))) {
 		pr_devel("copro_handle_mm_fault failed: %#x\n", result);
-		return cxl_ack_ae(ctx);
+		return result;
 	}
 
 	if (!radix_enabled()) {
@@ -155,9 +168,8 @@ static void cxl_handle_page_fault(struct cxl_context *ctx,
 		if (dsisr & CXL_PSL_DSISR_An_S)
 			access |= _PAGE_WRITE;
 
-		access |= _PAGE_PRIVILEGED;
-		if ((!ctx->kernel) || (REGION_ID(dar) == USER_REGION_ID))
-			access &= ~_PAGE_PRIVILEGED;
+		if (!mm && (REGION_ID(dar) != USER_REGION_ID))
+			access |= _PAGE_PRIVILEGED;
 
 		if (dsisr & DSISR_NOHPTE)
 			inv_flags |= HPTE_NOHPTE_UPDATE;
@@ -166,8 +178,21 @@ static void cxl_handle_page_fault(struct cxl_context *ctx,
 		hash_page_mm(mm, dar, access, 0x300, inv_flags);
 		local_irq_restore(flags);
 	}
-	pr_devel("Page fault successfully handled for pe: %i!\n", ctx->pe);
-	cxl_ops->ack_irq(ctx, CXL_PSL_TFC_An_R, 0);
+	return 0;
+}
+
+static void cxl_handle_page_fault(struct cxl_context *ctx,
+				  struct mm_struct *mm,
+				  u64 dsisr, u64 dar)
+{
+	trace_cxl_pte_miss(ctx, dsisr, dar);
+
+	if (cxl_handle_mm_fault(mm, dsisr, dar)) {
+		cxl_ack_ae(ctx);
+	} else {
+		pr_devel("Page fault successfully handled for pe: %i!\n", ctx->pe);
+		cxl_ops->ack_irq(ctx, CXL_PSL_TFC_An_R, 0);
+	}
 }
 
 /*

@@ -575,6 +575,10 @@ struct ib_mad_agent {
 	u32			flags;
 	u8			port_num;
 	u8			rmpp_version;
+	void			*security;
+	bool			smp_allowed;
+	bool			lsm_nb_reg;
+	struct notifier_block   lsm_nb;
 };
 
 /**

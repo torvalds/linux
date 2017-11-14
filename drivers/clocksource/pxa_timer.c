@@ -216,7 +216,7 @@ static int __init pxa_timer_dt_init(struct device_node *np)
 
 	return pxa_timer_common_init(irq, clk_get_rate(clk));
 }
-CLOCKSOURCE_OF_DECLARE(pxa_timer, "marvell,pxa-timer", pxa_timer_dt_init);
+TIMER_OF_DECLARE(pxa_timer, "marvell,pxa-timer", pxa_timer_dt_init);
 
 /*
  * Legacy timer init for non device-tree boards.

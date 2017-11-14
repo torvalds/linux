@@ -997,9 +997,9 @@ static int ffb_probe(struct platform_device *op)
 
 	dev_set_drvdata(&op->dev, info);
 
-	printk(KERN_INFO "%s: %s at %016lx, type %d, "
+	printk(KERN_INFO "%pOF: %s at %016lx, type %d, "
 	       "DAC pnum[%x] rev[%d] manuf_rev[%d]\n",
-	       dp->full_name,
+	       dp,
 	       ((par->flags & FFB_FLAG_AFB) ? "AFB" : "FFB"),
 	       par->physbase, par->board_type,
 	       dac_pnum, dac_rev, dac_mrev);

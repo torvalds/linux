@@ -37,22 +37,21 @@ struct va_alignment __read_mostly va_align = {
 	.flags = -1,
 };
 
-unsigned long tasksize_32bit(void)
+unsigned long task_size_32bit(void)
 {
 	return IA32_PAGE_OFFSET;
 }
 
-unsigned long tasksize_64bit(void)
+unsigned long task_size_64bit(int full_addr_space)
 {
-	return TASK_SIZE_MAX;
+	return full_addr_space ? TASK_SIZE_MAX : DEFAULT_MAP_WINDOW;
 }
 
 static unsigned long stack_maxrandom_size(unsigned long task_size)
 {
 	unsigned long max = 0;
-	if ((current->flags & PF_RANDOMIZE) &&
-		!(current->personality & ADDR_NO_RANDOMIZE)) {
-		max = (-1UL) & __STACK_RND_MASK(task_size == tasksize_32bit());
+	if (current->flags & PF_RANDOMIZE) {
+		max = (-1UL) & __STACK_RND_MASK(task_size == task_size_32bit());
 		max <<= PAGE_SHIFT;
 	}
 
@@ -74,34 +73,36 @@ static int mmap_is_legacy(void)
 	if (current->personality & ADDR_COMPAT_LAYOUT)
 		return 1;
 
-	if (rlimit(RLIMIT_STACK) == RLIM_INFINITY)
-		return 1;
-
 	return sysctl_legacy_va_layout;
 }
 
 static unsigned long arch_rnd(unsigned int rndbits)
 {
+	if (!(current->flags & PF_RANDOMIZE))
+		return 0;
 	return (get_random_long() & ((1UL << rndbits) - 1)) << PAGE_SHIFT;
 }
 
 unsigned long arch_mmap_rnd(void)
 {
-	if (!(current->flags & PF_RANDOMIZE))
-		return 0;
 	return arch_rnd(mmap_is_ia32() ? mmap32_rnd_bits : mmap64_rnd_bits);
 }
 
 static unsigned long mmap_base(unsigned long rnd, unsigned long task_size)
 {
 	unsigned long gap = rlimit(RLIMIT_STACK);
+	unsigned long pad = stack_maxrandom_size(task_size) + stack_guard_gap;
 	unsigned long gap_min, gap_max;
+
+	/* Values close to RLIM_INFINITY can overflow. */
+	if (gap + pad > gap)
+		gap += pad;
 
 	/*
 	 * Top of mmap area (just below the process stack).
 	 * Leave an at least ~128 MB hole with possible stack randomization.
 	 */
-	gap_min = SIZE_128M + stack_maxrandom_size(task_size);
+	gap_min = SIZE_128M;
 	gap_max = (task_size / 6) * 5;
 
 	if (gap < gap_min)
@@ -140,7 +141,7 @@ void arch_pick_mmap_layout(struct mm_struct *mm)
 		mm->get_unmapped_area = arch_get_unmapped_area_topdown;
 
 	arch_pick_mmap_base(&mm->mmap_base, &mm->mmap_legacy_base,
-			arch_rnd(mmap64_rnd_bits), tasksize_64bit());
+			arch_rnd(mmap64_rnd_bits), task_size_64bit(0));
 
 #ifdef CONFIG_HAVE_ARCH_COMPAT_MMAP_BASES
 	/*
@@ -150,7 +151,7 @@ void arch_pick_mmap_layout(struct mm_struct *mm)
 	 * mmap_base, the compat syscall uses mmap_compat_base.
 	 */
 	arch_pick_mmap_base(&mm->mmap_compat_base, &mm->mmap_compat_legacy_base,
-			arch_rnd(mmap32_rnd_bits), tasksize_32bit());
+			arch_rnd(mmap32_rnd_bits), task_size_32bit());
 #endif
 }
 

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_XEN_PAGE_H
 #define _ASM_X86_XEN_PAGE_H
 
@@ -158,9 +159,6 @@ static inline unsigned long mfn_to_pfn_no_overrides(unsigned long mfn)
 	unsigned long pfn;
 	int ret;
 
-	if (xen_feature(XENFEAT_auto_translated_physmap))
-		return mfn;
-
 	if (unlikely(mfn >= machine_to_phys_nr))
 		return ~0;
 
@@ -316,8 +314,6 @@ static inline pte_t __pte_ma(pteval_t x)
 #else
 #define p4d_val_ma(x)	((x).p4d)
 #endif
-
-void xen_set_domain_pte(pte_t *ptep, pte_t pteval, unsigned domid);
 
 xmaddr_t arbitrary_virt_to_machine(void *address);
 unsigned long arbitrary_virt_to_mfn(void *vaddr);

@@ -71,6 +71,7 @@ int thermal_build_list_of_policies(char *buf);
 
 /* sysfs I/F */
 int thermal_zone_create_device_groups(struct thermal_zone_device *, int);
+void thermal_zone_destroy_device_groups(struct thermal_zone_device *);
 void thermal_cooling_device_setup_sysfs(struct thermal_cooling_device *);
 /* used only at binding time */
 ssize_t

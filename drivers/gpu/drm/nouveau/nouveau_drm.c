@@ -29,8 +29,8 @@
 #include <linux/pm_runtime.h>
 #include <linux/vga_switcheroo.h>
 
-#include "drmP.h"
-#include "drm_crtc_helper.h"
+#include <drm/drmP.h>
+#include <drm/drm_crtc_helper.h>
 
 #include <core/gpuobj.h>
 #include <core/option.h>
@@ -585,18 +585,18 @@ nouveau_do_suspend(struct drm_device *dev, bool runtime)
 	nouveau_led_suspend(dev);
 
 	if (dev->mode_config.num_crtc) {
-		NV_INFO(drm, "suspending console...\n");
+		NV_DEBUG(drm, "suspending console...\n");
 		nouveau_fbcon_set_suspend(dev, 1);
-		NV_INFO(drm, "suspending display...\n");
+		NV_DEBUG(drm, "suspending display...\n");
 		ret = nouveau_display_suspend(dev, runtime);
 		if (ret)
 			return ret;
 	}
 
-	NV_INFO(drm, "evicting buffers...\n");
+	NV_DEBUG(drm, "evicting buffers...\n");
 	ttm_bo_evict_mm(&drm->ttm.bdev, TTM_PL_VRAM);
 
-	NV_INFO(drm, "waiting for kernel channels to go idle...\n");
+	NV_DEBUG(drm, "waiting for kernel channels to go idle...\n");
 	if (drm->cechan) {
 		ret = nouveau_channel_idle(drm->cechan);
 		if (ret)
@@ -609,7 +609,7 @@ nouveau_do_suspend(struct drm_device *dev, bool runtime)
 			goto fail_display;
 	}
 
-	NV_INFO(drm, "suspending fence...\n");
+	NV_DEBUG(drm, "suspending fence...\n");
 	if (drm->fence && nouveau_fence(drm)->suspend) {
 		if (!nouveau_fence(drm)->suspend(drm)) {
 			ret = -ENOMEM;
@@ -617,7 +617,7 @@ nouveau_do_suspend(struct drm_device *dev, bool runtime)
 		}
 	}
 
-	NV_INFO(drm, "suspending object tree...\n");
+	NV_DEBUG(drm, "suspending object tree...\n");
 	ret = nvif_client_suspend(&drm->client.base);
 	if (ret)
 		goto fail_client;
@@ -630,7 +630,7 @@ fail_client:
 
 fail_display:
 	if (dev->mode_config.num_crtc) {
-		NV_INFO(drm, "resuming display...\n");
+		NV_DEBUG(drm, "resuming display...\n");
 		nouveau_display_resume(dev, runtime);
 	}
 	return ret;
@@ -641,19 +641,19 @@ nouveau_do_resume(struct drm_device *dev, bool runtime)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
 
-	NV_INFO(drm, "resuming object tree...\n");
+	NV_DEBUG(drm, "resuming object tree...\n");
 	nvif_client_resume(&drm->client.base);
 
-	NV_INFO(drm, "resuming fence...\n");
+	NV_DEBUG(drm, "resuming fence...\n");
 	if (drm->fence && nouveau_fence(drm)->resume)
 		nouveau_fence(drm)->resume(drm);
 
 	nouveau_run_vbios_init(dev);
 
 	if (dev->mode_config.num_crtc) {
-		NV_INFO(drm, "resuming display...\n");
+		NV_DEBUG(drm, "resuming display...\n");
 		nouveau_display_resume(dev, runtime);
-		NV_INFO(drm, "resuming console...\n");
+		NV_DEBUG(drm, "resuming console...\n");
 		nouveau_fbcon_set_suspend(dev, 0);
 	}
 
@@ -727,7 +727,7 @@ nouveau_pmops_thaw(struct device *dev)
 }
 
 bool
-nouveau_pmops_runtime()
+nouveau_pmops_runtime(void)
 {
 	if (nouveau_runtime_pm == -1)
 		return nouveau_is_optimus() || nouveau_is_v1_dsm();
@@ -877,7 +877,7 @@ done:
 }
 
 static void
-nouveau_drm_preclose(struct drm_device *dev, struct drm_file *fpriv)
+nouveau_drm_postclose(struct drm_device *dev, struct drm_file *fpriv)
 {
 	struct nouveau_cli *cli = nouveau_cli(fpriv);
 	struct nouveau_drm *drm = nouveau_drm(dev);
@@ -893,12 +893,6 @@ nouveau_drm_preclose(struct drm_device *dev, struct drm_file *fpriv)
 	list_del(&cli->head);
 	mutex_unlock(&drm->client.mutex);
 
-}
-
-static void
-nouveau_drm_postclose(struct drm_device *dev, struct drm_file *fpriv)
-{
-	struct nouveau_cli *cli = nouveau_cli(fpriv);
 	nouveau_cli_fini(cli);
 	kfree(cli);
 	pm_runtime_mark_last_busy(dev->dev);
@@ -970,7 +964,6 @@ driver_stub = {
 	.load = nouveau_drm_load,
 	.unload = nouveau_drm_unload,
 	.open = nouveau_drm_open,
-	.preclose = nouveau_drm_preclose,
 	.postclose = nouveau_drm_postclose,
 	.lastclose = nouveau_vga_lastclose,
 
@@ -981,7 +974,7 @@ driver_stub = {
 	.enable_vblank = nouveau_display_vblank_enable,
 	.disable_vblank = nouveau_display_vblank_disable,
 	.get_scanout_position = nouveau_display_scanoutpos,
-	.get_vblank_timestamp = nouveau_display_vblstamp,
+	.get_vblank_timestamp = drm_calc_vbltimestamp_from_scanoutpos,
 
 	.ioctls = nouveau_ioctls,
 	.num_ioctls = ARRAY_SIZE(nouveau_ioctls),
@@ -1005,7 +998,6 @@ driver_stub = {
 
 	.dumb_create = nouveau_display_dumb_create,
 	.dumb_map_offset = nouveau_display_dumb_map_offset,
-	.dumb_destroy = drm_gem_dumb_destroy,
 
 	.name = DRIVER_NAME,
 	.desc = DRIVER_DESC,
@@ -1105,7 +1097,6 @@ static int __init
 nouveau_drm_init(void)
 {
 	driver_pci = driver_stub;
-	driver_pci.set_busid = drm_pci_set_busid;
 	driver_platform = driver_stub;
 
 	nouveau_display_options();
@@ -1124,7 +1115,12 @@ nouveau_drm_init(void)
 
 	nouveau_register_dsm_handler();
 	nouveau_backlight_ctor();
-	return drm_pci_init(&driver_pci, &nouveau_drm_pci_driver);
+
+#ifdef CONFIG_PCI
+	return pci_register_driver(&nouveau_drm_pci_driver);
+#else
+	return 0;
+#endif
 }
 
 static void __exit
@@ -1133,7 +1129,9 @@ nouveau_drm_exit(void)
 	if (!nouveau_modeset)
 		return;
 
-	drm_pci_exit(&driver_pci, &nouveau_drm_pci_driver);
+#ifdef CONFIG_PCI
+	pci_unregister_driver(&nouveau_drm_pci_driver);
+#endif
 	nouveau_backlight_dtor();
 	nouveau_unregister_dsm_handler();
 

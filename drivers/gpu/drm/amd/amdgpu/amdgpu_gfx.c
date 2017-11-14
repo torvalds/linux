@@ -108,3 +108,210 @@ void amdgpu_gfx_parse_disable_cu(unsigned *mask, unsigned max_se, unsigned max_s
 		p = next + 1;
 	}
 }
+
+void amdgpu_gfx_compute_queue_acquire(struct amdgpu_device *adev)
+{
+	int i, queue, pipe, mec;
+
+	/* policy for amdgpu compute queue ownership */
+	for (i = 0; i < AMDGPU_MAX_COMPUTE_QUEUES; ++i) {
+		queue = i % adev->gfx.mec.num_queue_per_pipe;
+		pipe = (i / adev->gfx.mec.num_queue_per_pipe)
+			% adev->gfx.mec.num_pipe_per_mec;
+		mec = (i / adev->gfx.mec.num_queue_per_pipe)
+			/ adev->gfx.mec.num_pipe_per_mec;
+
+		/* we've run out of HW */
+		if (mec >= adev->gfx.mec.num_mec)
+			break;
+
+		/* FIXME: spreading the queues across pipes causes perf regressions */
+		if (0) {
+			/* policy: amdgpu owns the first two queues of the first MEC */
+			if (mec == 0 && queue < 2)
+				set_bit(i, adev->gfx.mec.queue_bitmap);
+		} else {
+			/* policy: amdgpu owns all queues in the first pipe */
+			if (mec == 0 && pipe == 0)
+				set_bit(i, adev->gfx.mec.queue_bitmap);
+		}
+	}
+
+	/* update the number of active compute rings */
+	adev->gfx.num_compute_rings =
+		bitmap_weight(adev->gfx.mec.queue_bitmap, AMDGPU_MAX_COMPUTE_QUEUES);
+
+	/* If you hit this case and edited the policy, you probably just
+	 * need to increase AMDGPU_MAX_COMPUTE_RINGS */
+	if (WARN_ON(adev->gfx.num_compute_rings > AMDGPU_MAX_COMPUTE_RINGS))
+		adev->gfx.num_compute_rings = AMDGPU_MAX_COMPUTE_RINGS;
+}
+
+static int amdgpu_gfx_kiq_acquire(struct amdgpu_device *adev,
+				  struct amdgpu_ring *ring)
+{
+	int queue_bit;
+	int mec, pipe, queue;
+
+	queue_bit = adev->gfx.mec.num_mec
+		    * adev->gfx.mec.num_pipe_per_mec
+		    * adev->gfx.mec.num_queue_per_pipe;
+
+	while (queue_bit-- >= 0) {
+		if (test_bit(queue_bit, adev->gfx.mec.queue_bitmap))
+			continue;
+
+		amdgpu_gfx_bit_to_queue(adev, queue_bit, &mec, &pipe, &queue);
+
+		/* Using pipes 2/3 from MEC 2 seems cause problems */
+		if (mec == 1 && pipe > 1)
+			continue;
+
+		ring->me = mec + 1;
+		ring->pipe = pipe;
+		ring->queue = queue;
+
+		return 0;
+	}
+
+	dev_err(adev->dev, "Failed to find a queue for KIQ\n");
+	return -EINVAL;
+}
+
+int amdgpu_gfx_kiq_init_ring(struct amdgpu_device *adev,
+			     struct amdgpu_ring *ring,
+			     struct amdgpu_irq_src *irq)
+{
+	struct amdgpu_kiq *kiq = &adev->gfx.kiq;
+	int r = 0;
+
+	mutex_init(&kiq->ring_mutex);
+
+	r = amdgpu_wb_get(adev, &adev->virt.reg_val_offs);
+	if (r)
+		return r;
+
+	ring->adev = NULL;
+	ring->ring_obj = NULL;
+	ring->use_doorbell = true;
+	ring->doorbell_index = AMDGPU_DOORBELL_KIQ;
+
+	r = amdgpu_gfx_kiq_acquire(adev, ring);
+	if (r)
+		return r;
+
+	ring->eop_gpu_addr = kiq->eop_gpu_addr;
+	sprintf(ring->name, "kiq_%d.%d.%d", ring->me, ring->pipe, ring->queue);
+	r = amdgpu_ring_init(adev, ring, 1024,
+			     irq, AMDGPU_CP_KIQ_IRQ_DRIVER0);
+	if (r)
+		dev_warn(adev->dev, "(%d) failed to init kiq ring\n", r);
+
+	return r;
+}
+
+void amdgpu_gfx_kiq_free_ring(struct amdgpu_ring *ring,
+			      struct amdgpu_irq_src *irq)
+{
+	amdgpu_wb_free(ring->adev, ring->adev->virt.reg_val_offs);
+	amdgpu_ring_fini(ring);
+}
+
+void amdgpu_gfx_kiq_fini(struct amdgpu_device *adev)
+{
+	struct amdgpu_kiq *kiq = &adev->gfx.kiq;
+
+	amdgpu_bo_free_kernel(&kiq->eop_obj, &kiq->eop_gpu_addr, NULL);
+}
+
+int amdgpu_gfx_kiq_init(struct amdgpu_device *adev,
+			unsigned hpd_size)
+{
+	int r;
+	u32 *hpd;
+	struct amdgpu_kiq *kiq = &adev->gfx.kiq;
+
+	r = amdgpu_bo_create_kernel(adev, hpd_size, PAGE_SIZE,
+				    AMDGPU_GEM_DOMAIN_GTT, &kiq->eop_obj,
+				    &kiq->eop_gpu_addr, (void **)&hpd);
+	if (r) {
+		dev_warn(adev->dev, "failed to create KIQ bo (%d).\n", r);
+		return r;
+	}
+
+	memset(hpd, 0, hpd_size);
+
+	r = amdgpu_bo_reserve(kiq->eop_obj, true);
+	if (unlikely(r != 0))
+		dev_warn(adev->dev, "(%d) reserve kiq eop bo failed\n", r);
+	amdgpu_bo_kunmap(kiq->eop_obj);
+	amdgpu_bo_unreserve(kiq->eop_obj);
+
+	return 0;
+}
+
+/* create MQD for each compute queue */
+int amdgpu_gfx_compute_mqd_sw_init(struct amdgpu_device *adev,
+				   unsigned mqd_size)
+{
+	struct amdgpu_ring *ring = NULL;
+	int r, i;
+
+	/* create MQD for KIQ */
+	ring = &adev->gfx.kiq.ring;
+	if (!ring->mqd_obj) {
+		r = amdgpu_bo_create_kernel(adev, mqd_size, PAGE_SIZE,
+					    AMDGPU_GEM_DOMAIN_GTT, &ring->mqd_obj,
+					    &ring->mqd_gpu_addr, &ring->mqd_ptr);
+		if (r) {
+			dev_warn(adev->dev, "failed to create ring mqd ob (%d)", r);
+			return r;
+		}
+
+		/* prepare MQD backup */
+		adev->gfx.mec.mqd_backup[AMDGPU_MAX_COMPUTE_RINGS] = kmalloc(mqd_size, GFP_KERNEL);
+		if (!adev->gfx.mec.mqd_backup[AMDGPU_MAX_COMPUTE_RINGS])
+				dev_warn(adev->dev, "no memory to create MQD backup for ring %s\n", ring->name);
+	}
+
+	/* create MQD for each KCQ */
+	for (i = 0; i < adev->gfx.num_compute_rings; i++) {
+		ring = &adev->gfx.compute_ring[i];
+		if (!ring->mqd_obj) {
+			r = amdgpu_bo_create_kernel(adev, mqd_size, PAGE_SIZE,
+						    AMDGPU_GEM_DOMAIN_GTT, &ring->mqd_obj,
+						    &ring->mqd_gpu_addr, &ring->mqd_ptr);
+			if (r) {
+				dev_warn(adev->dev, "failed to create ring mqd ob (%d)", r);
+				return r;
+			}
+
+			/* prepare MQD backup */
+			adev->gfx.mec.mqd_backup[i] = kmalloc(mqd_size, GFP_KERNEL);
+			if (!adev->gfx.mec.mqd_backup[i])
+				dev_warn(adev->dev, "no memory to create MQD backup for ring %s\n", ring->name);
+		}
+	}
+
+	return 0;
+}
+
+void amdgpu_gfx_compute_mqd_sw_fini(struct amdgpu_device *adev)
+{
+	struct amdgpu_ring *ring = NULL;
+	int i;
+
+	for (i = 0; i < adev->gfx.num_compute_rings; i++) {
+		ring = &adev->gfx.compute_ring[i];
+		kfree(adev->gfx.mec.mqd_backup[i]);
+		amdgpu_bo_free_kernel(&ring->mqd_obj,
+				      &ring->mqd_gpu_addr,
+				      &ring->mqd_ptr);
+	}
+
+	ring = &adev->gfx.kiq.ring;
+	kfree(adev->gfx.mec.mqd_backup[AMDGPU_MAX_COMPUTE_RINGS]);
+	amdgpu_bo_free_kernel(&ring->mqd_obj,
+			      &ring->mqd_gpu_addr,
+			      &ring->mqd_ptr);
+}

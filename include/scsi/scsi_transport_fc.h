@@ -658,10 +658,6 @@ struct fc_function_template {
 	int	(*vport_disable)(struct fc_vport *, bool);
 	int  	(*vport_delete)(struct fc_vport *);
 
-	/* target-mode drivers' functions */
-	int     (* tsk_mgmt_response)(struct Scsi_Host *, u64, u64, int);
-	int     (* it_nexus_response)(struct Scsi_Host *, u64, int);
-
 	/* bsg support */
 	int	(*bsg_request)(struct bsg_job *);
 	int	(*bsg_timeout)(struct bsg_job *);
@@ -808,6 +804,7 @@ void fc_host_post_vendor_event(struct Scsi_Host *shost, u32 event_number,
 struct fc_vport *fc_vport_create(struct Scsi_Host *shost, int channel,
 		struct fc_vport_identifiers *);
 int fc_vport_terminate(struct fc_vport *vport);
+int fc_block_rport(struct fc_rport *rport);
 int fc_block_scsi_eh(struct scsi_cmnd *cmnd);
 enum blk_eh_timer_return fc_eh_timed_out(struct scsi_cmnd *scmd);
 

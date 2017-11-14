@@ -111,7 +111,6 @@ struct tcp_offload_params {
 	__le32 snd_wnd;
 	__le32 rcv_wnd;
 	__le32 snd_wl1;
-	__le32 ts_time;
 	__le32 ts_recent;
 	__le32 ts_recent_age;
 	__le32 total_rt;
@@ -122,7 +121,7 @@ struct tcp_offload_params {
 	u8 ka_probe_cnt;
 	u8 rt_cnt;
 	__le16 rtt_var;
-	__le16 reserved2;
+	__le16 fw_internal;
 	__le32 ka_timeout;
 	__le32 ka_interval;
 	__le32 max_rt_time;
@@ -130,7 +129,7 @@ struct tcp_offload_params {
 	u8 snd_wnd_scale;
 	u8 ack_frequency;
 	__le16 da_timeout_value;
-	__le32 ts_ticks_per_second;
+	__le32 reserved3[2];
 };
 
 struct tcp_offload_params_opt2 {

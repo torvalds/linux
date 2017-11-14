@@ -21,7 +21,9 @@ more details.
 
 For more details see the file COPYING in the source distribution of Linux.
 
-.. class:: toc-title
+.. only:: html
+
+   .. class:: toc-title
 
         Table of Contents
 
@@ -41,13 +43,16 @@ For more details see the file COPYING in the source distribution of Linux.
 	cx88
 	davinci-vpbe
 	fimc
+	imx
 	ivtv
+	max2175
 	meye
 	omap3isp
 	omap4_camera
 	philips
 	pvrusb2
 	pxa_camera
+	qcom_camss
 	radiotrack
 	rcar-fdp1
 	saa7134

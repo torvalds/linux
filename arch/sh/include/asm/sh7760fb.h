@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * sh7760fb.h -- platform data for SH7760/SH7763 LCDC framebuffer driver.
  *

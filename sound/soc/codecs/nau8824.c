@@ -1125,6 +1125,57 @@ static int nau8824_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 }
 
 /**
+ * nau8824_set_tdm_slot - configure DAI TDM.
+ * @dai: DAI
+ * @tx_mask: Bitmask representing active TX slots. Ex.
+ *                 0xf for normal 4 channel TDM.
+ *                 0xf0 for shifted 4 channel TDM
+ * @rx_mask: Bitmask [0:1] representing active DACR RX slots.
+ *                 Bitmask [2:3] representing active DACL RX slots.
+ *                 00=CH0,01=CH1,10=CH2,11=CH3. Ex.
+ *                 0xf for DACL/R selecting TDM CH3.
+ *                 0xf0 for DACL/R selecting shifted TDM CH3.
+ * @slots: Number of slots in use.
+ * @slot_width: Width in bits for each slot.
+ *
+ * Configures a DAI for TDM operation. Only support 4 slots TDM.
+ */
+static int nau8824_set_tdm_slot(struct snd_soc_dai *dai,
+	unsigned int tx_mask, unsigned int rx_mask, int slots, int slot_width)
+{
+	struct snd_soc_codec *codec = dai->codec;
+	struct nau8824 *nau8824 = snd_soc_codec_get_drvdata(codec);
+	unsigned int tslot_l = 0, ctrl_val = 0;
+
+	if (slots > 4 || ((tx_mask & 0xf0) && (tx_mask & 0xf)) ||
+		((rx_mask & 0xf0) && (rx_mask & 0xf)) ||
+		((rx_mask & 0xf0) && (tx_mask & 0xf)) ||
+		((rx_mask & 0xf) && (tx_mask & 0xf0)))
+		return -EINVAL;
+
+	ctrl_val |= (NAU8824_TDM_MODE | NAU8824_TDM_OFFSET_EN);
+	if (tx_mask & 0xf0) {
+		tslot_l = 4 * slot_width;
+		ctrl_val |= (tx_mask >> 4);
+	} else {
+		ctrl_val |= tx_mask;
+	}
+	if (rx_mask & 0xf0)
+		ctrl_val |= ((rx_mask >> 4) << NAU8824_TDM_DACR_RX_SFT);
+	else
+		ctrl_val |= (rx_mask << NAU8824_TDM_DACR_RX_SFT);
+
+	regmap_update_bits(nau8824->regmap, NAU8824_REG_TDM_CTRL,
+		NAU8824_TDM_MODE | NAU8824_TDM_OFFSET_EN |
+		NAU8824_TDM_DACL_RX_MASK | NAU8824_TDM_DACR_RX_MASK |
+		NAU8824_TDM_TX_MASK, ctrl_val);
+	regmap_update_bits(nau8824->regmap, NAU8824_REG_PORT0_LEFT_TIME_SLOT,
+		NAU8824_TSLOT_L_MASK, tslot_l);
+
+	return 0;
+}
+
+/**
  * nau8824_calc_fll_param - Calculate FLL parameters.
  * @fll_in: external clock provided to codec.
  * @fs: sampling rate.
@@ -1418,7 +1469,7 @@ static int __maybe_unused nau8824_resume(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static struct snd_soc_codec_driver nau8824_codec_driver = {
+static const struct snd_soc_codec_driver nau8824_codec_driver = {
 	.probe = nau8824_codec_probe,
 	.set_sysclk = nau8824_set_sysclk,
 	.set_pll = nau8824_set_pll,
@@ -1440,6 +1491,7 @@ static struct snd_soc_codec_driver nau8824_codec_driver = {
 static const struct snd_soc_dai_ops nau8824_dai_ops = {
 	.hw_params = nau8824_hw_params,
 	.set_fmt = nau8824_set_fmt,
+	.set_tdm_slot = nau8824_set_tdm_slot,
 };
 
 #define NAU8824_RATES SNDRV_PCM_RATE_8000_192000

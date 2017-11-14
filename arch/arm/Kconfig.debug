@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 menu "Kernel hacking"
 
 source "lib/Kconfig.debug"
@@ -144,6 +145,15 @@ choice
 		help
 		  Say Y here if you want kernel low-level debugging support
 		  on the USART3 port of sama5d4.
+
+	config DEBUG_AT91_SAMV7_USART1
+		bool "Kernel low-level debugging via SAMV7 USART1"
+		select DEBUG_AT91_UART
+		depends on SOC_SAMV7
+		help
+		  Say Y here if you want the debug print routines to direct
+		  their output to the USART1 port on SAMV7 based
+		  machines.
 
 	config DEBUG_BCM2835
 		bool "Kernel low-level debugging on BCM2835 PL011 UART"
@@ -637,7 +647,7 @@ choice
 	config DEBUG_OMAP2UART1
 		bool "OMAP2/3/4 UART1 (omap2/3 sdp boards and some omap3 boards)"
 		depends on ARCH_OMAP2PLUS
-		select DEBUG_OMAP2PLUS_UART
+		select DEBUG_UART_8250
 		help
 		  This covers at least h4, 2430sdp, 3430sdp, 3630sdp,
 		  omap3 torpedo and 3530 lv som.
@@ -645,17 +655,17 @@ choice
 	config DEBUG_OMAP2UART2
 		bool "Kernel low-level debugging messages via OMAP2/3/4 UART2"
 		depends on ARCH_OMAP2PLUS
-		select DEBUG_OMAP2PLUS_UART
+		select DEBUG_UART_8250
 
 	config DEBUG_OMAP2UART3
 		bool "Kernel low-level debugging messages via OMAP2 UART3 (n8x0)"
 		depends on ARCH_OMAP2PLUS
-		select DEBUG_OMAP2PLUS_UART
+		select DEBUG_UART_8250
 
 	config DEBUG_OMAP3UART3
 		bool "Kernel low-level debugging messages via OMAP3 UART3 (most omap3 boards)"
 		depends on ARCH_OMAP2PLUS
-		select DEBUG_OMAP2PLUS_UART
+		select DEBUG_UART_8250
 		help
 		  This covers at least cm_t3x, beagle, crane, devkit8000,
 		  igep00x0, ldp, n900, n9(50), pandora, overo, touchbook,
@@ -664,17 +674,17 @@ choice
 	config DEBUG_OMAP4UART3
 		bool "Kernel low-level debugging messages via OMAP4/5 UART3 (omap4 blaze, panda, omap5 sevm)"
 		depends on ARCH_OMAP2PLUS
-		select DEBUG_OMAP2PLUS_UART
+		select DEBUG_UART_8250
 
 	config DEBUG_OMAP3UART4
 		bool "Kernel low-level debugging messages via OMAP36XX UART4"
 		depends on ARCH_OMAP2PLUS
-		select DEBUG_OMAP2PLUS_UART
+		select DEBUG_UART_8250
 
 	config DEBUG_OMAP4UART4
 		bool "Kernel low-level debugging messages via OMAP4/5 UART4"
 		depends on ARCH_OMAP2PLUS
-		select DEBUG_OMAP2PLUS_UART
+		select DEBUG_UART_8250
 
 	config DEBUG_OMAP7XXUART1
 		bool "Kernel low-level debugging via OMAP730 UART1"
@@ -703,22 +713,22 @@ choice
 	config DEBUG_TI81XXUART1
 		bool "Kernel low-level debugging messages via TI81XX UART1 (ti8148evm)"
 		depends on ARCH_OMAP2PLUS
-		select DEBUG_OMAP2PLUS_UART
+		select DEBUG_UART_8250
 
 	config DEBUG_TI81XXUART2
 		bool "Kernel low-level debugging messages via TI81XX UART2"
 		depends on ARCH_OMAP2PLUS
-		select DEBUG_OMAP2PLUS_UART
+		select DEBUG_UART_8250
 
 	config DEBUG_TI81XXUART3
 		bool "Kernel low-level debugging messages via TI81XX UART3 (ti8168evm)"
 		depends on ARCH_OMAP2PLUS
-		select DEBUG_OMAP2PLUS_UART
+		select DEBUG_UART_8250
 
 	config DEBUG_AM33XXUART1
 		bool "Kernel low-level debugging messages via AM33XX UART1"
 		depends on ARCH_OMAP2PLUS
-		select DEBUG_OMAP2PLUS_UART
+		select DEBUG_UART_8250
 
 	config DEBUG_ZOOM_UART
 		bool "Kernel low-level debugging messages via Zoom2/3 UART"
@@ -751,6 +761,7 @@ choice
 		  ARCH      DEBUG_UART_PHYS   DEBUG_UART_VIRT
 		  APQ8064   0x16640000        0xf0040000
 		  APQ8084   0xf995e000        0xfa75e000
+		  IPQ4019   0x078af000        0xf78af000
 		  MSM8X60   0x19c40000        0xf0040000
 		  MSM8960   0x16440000        0xf0040000
 		  MSM8974   0xf991e000        0xfa71e000
@@ -775,6 +786,30 @@ choice
 		  Say Y here if you want the debug print routines to direct
 		  their output to the standard serial port on the RealView
 		  PB1176 platform.
+
+	config DEBUG_RV1108_UART0
+		bool "Kernel low-level debugging messages via Rockchip RV1108 UART0"
+		depends on ARCH_ROCKCHIP
+		select DEBUG_UART_8250
+		help
+		  Say Y here if you want kernel low-level debugging support
+                  on Rockchip RV1108 based platforms.
+
+	config DEBUG_RV1108_UART1
+		bool "Kernel low-level debugging messages via Rockchip RV1108 UART1"
+		depends on ARCH_ROCKCHIP
+		select DEBUG_UART_8250
+		help
+		  Say Y here if you want kernel low-level debugging support
+		  on Rockchip RV1108 based platforms.
+
+	config DEBUG_RV1108_UART2
+		bool "Kernel low-level debugging messages via Rockchip RV1108 UART2"
+		depends on ARCH_ROCKCHIP
+		select DEBUG_UART_8250
+		help
+		  Say Y here if you want kernel low-level debugging support
+		  on Rockchip RV1108 based platforms.
 
 	config DEBUG_RK29_UART0
 		bool "Kernel low-level debugging messages via Rockchip RK29 UART0"
@@ -862,12 +897,13 @@ choice
 		  via SCIF2 on Renesas R-Car H1 (R8A7779).
 
 	config DEBUG_RCAR_GEN2_SCIF0
-		bool "Kernel low-level debugging messages via SCIF0 on R8A7790/R8A7791/R8A7792/R8A7793"
-		depends on ARCH_R8A7790 || ARCH_R8A7791 || ARCH_R8A7792 || ARCH_R8A7793
+		bool "Kernel low-level debugging messages via SCIF0 on R-Car Gen2 and RZ/G1"
+		depends on ARCH_R8A7743 || ARCH_R8A7790 || ARCH_R8A7791 || \
+			ARCH_R8A7792 || ARCH_R8A7793
 		help
 		  Say Y here if you want kernel low-level debugging support
-		  via SCIF0 on Renesas R-Car H2 (R8A7790), M2-W (R8A7791), V2H
-		  (R8A7792), or M2-N (R8A7793).
+		  via SCIF0 on Renesas RZ/G1M (R8A7743), R-Car H2 (R8A7790),
+		  M2-W (R8A7791), V2H (R8A7792), or M2-N (R8A7793).
 
 	config DEBUG_RCAR_GEN2_SCIF2
 		bool "Kernel low-level debugging messages via SCIF2 on R8A7794"
@@ -1465,6 +1501,9 @@ config DEBUG_UART_PHYS
 	default 0x10126000 if DEBUG_RK3X_UART1
 	default 0x101f1000 if DEBUG_VERSATILE
 	default 0x101fb000 if DEBUG_NOMADIK_UART
+	default 0x10210000 if DEBUG_RV1108_UART2
+	default 0x10220000 if DEBUG_RV1108_UART1
+	default 0x10230000 if DEBUG_RV1108_UART0
 	default 0x11002000 if DEBUG_MT8127_UART0
 	default 0x11006000 if DEBUG_MT6589_UART0
 	default 0x11009000 if DEBUG_MT8135_UART3
@@ -1481,10 +1520,22 @@ config DEBUG_UART_PHYS
 	default 0x3f201000 if DEBUG_BCM2836
 	default 0x3e000000 if DEBUG_BCM_KONA_UART
 	default 0x4000e400 if DEBUG_LL_UART_EFM32
+	default 0x40028000 if DEBUG_AT91_SAMV7_USART1
 	default 0x40081000 if DEBUG_LPC18XX_UART0
 	default 0x40090000 if DEBUG_LPC32XX
 	default 0x40100000 if DEBUG_PXA_UART1
 	default 0x42000000 if DEBUG_GEMINI
+	default 0x44e09000 if DEBUG_AM33XXUART1
+	default 0x48020000 if DEBUG_OMAP4UART3 || DEBUG_TI81XXUART1
+	default 0x48022000 if DEBUG_TI81XXUART2
+	default 0x48024000 if DEBUG_TI81XXUART3
+	default 0x4806a000 if DEBUG_OMAP2UART1 || DEBUG_OMAP3UART1 || \
+				DEBUG_OMAP4UART1 || DEBUG_OMAP5UART1
+	default 0x4806c000 if DEBUG_OMAP2UART2 || DEBUG_OMAP3UART2 || \
+				DEBUG_OMAP4UART2 || DEBUG_OMAP5UART2
+	default 0x4806e000 if DEBUG_OMAP2UART3 || DEBUG_OMAP4UART4
+	default 0x49020000 if DEBUG_OMAP3UART3
+	default 0x49042000 if DEBUG_OMAP3UART4
 	default 0x50000000 if DEBUG_S3C24XX_UART && (DEBUG_S3C_UART0 || \
 				DEBUG_S3C2410_UART0)
 	default 0x50004000 if DEBUG_S3C24XX_UART && (DEBUG_S3C_UART1 || \
@@ -1563,6 +1614,9 @@ config DEBUG_UART_PHYS
 
 config DEBUG_UART_VIRT
 	hex "Virtual base address of debug UART"
+	default 0xc881f000 if DEBUG_RV1108_UART2
+	default 0xc8821000 if DEBUG_RV1108_UART1
+	default 0xc8912000 if DEBUG_RV1108_UART0
 	default 0xe0000a00 if DEBUG_NETX_UART
 	default 0xe0010fe0 if ARCH_RPC
 	default 0xf0000be0 if ARCH_EBSA110
@@ -1600,10 +1654,21 @@ config DEBUG_UART_VIRT
 	default 0xf8090000 if DEBUG_VEXPRESS_UART0_RS1
 	default 0xf8ffee00 if DEBUG_AT91_SAM9263_DBGU
 	default 0xf8fff200 if DEBUG_AT91_RM9200_DBGU
+	default 0xf9e09000 if DEBUG_AM33XXUART1
+	default 0xfa020000 if DEBUG_OMAP4UART3 || DEBUG_TI81XXUART1
+	default 0xfa022000 if DEBUG_TI81XXUART2
+	default 0xfa024000 if DEBUG_TI81XXUART3
+	default 0xfa06a000 if DEBUG_OMAP2UART1 || DEBUG_OMAP3UART1 || \
+				DEBUG_OMAP4UART1 || DEBUG_OMAP5UART1
+	default 0xfa06c000 if DEBUG_OMAP2UART2 || DEBUG_OMAP3UART2 || \
+				DEBUG_OMAP4UART2 || DEBUG_OMAP5UART2
+	default 0xfa06e000 if DEBUG_OMAP2UART3 || DEBUG_OMAP4UART4
 	default 0xfa71e000 if DEBUG_QCOM_UARTDM
 	default 0xfb002000 if DEBUG_CNS3XXX
 	default 0xfb009000 if DEBUG_REALVIEW_STD_PORT
 	default 0xfb00c000 if DEBUG_AT91_SAMA5D4_USART3
+	default 0xfb020000 if DEBUG_OMAP3UART3
+	default 0xfb042000 if DEBUG_OMAP3UART4
 	default 0xfb10c000 if DEBUG_REALVIEW_PB1176_PORT
 	default 0xfc705000 if DEBUG_ZTE_ZX
 	default 0xfcfe8600 if DEBUG_BCM63XX_UART

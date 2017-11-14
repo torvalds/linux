@@ -108,6 +108,11 @@ struct psp_context
 	struct amdgpu_bo 		*fence_buf_bo;
 	uint64_t 			fence_buf_mc_addr;
 	void				*fence_buf;
+
+	/* cmd buffer */
+	struct amdgpu_bo		*cmd_buf_bo;
+	uint64_t			cmd_buf_mc_addr;
+	struct psp_gfx_cmd_resp		*cmd_buf_mem;
 };
 
 struct amdgpu_psp_funcs {
@@ -137,5 +142,7 @@ extern const struct amd_ip_funcs psp_ip_funcs;
 extern const struct amdgpu_ip_block_version psp_v3_1_ip_block;
 extern int psp_wait_for(struct psp_context *psp, uint32_t reg_index,
 			uint32_t field_val, uint32_t mask, bool check_changed);
+
+extern const struct amdgpu_ip_block_version psp_v10_0_ip_block;
 
 #endif

@@ -43,7 +43,8 @@
 #define ML_MAGIC2			0x26594131
 #define TRX_MAGIC			0x30524448
 #define SHSQ_MAGIC			0x71736873	/* shsq (weird ZTE H218N endianness) */
-#define UBI_EC_MAGIC			0x23494255	/* UBI# */
+
+static const char * const trx_types[] = { "trx", NULL };
 
 struct trx_header {
 	uint32_t magic;
@@ -60,89 +61,6 @@ static void bcm47xxpart_add_part(struct mtd_partition *part, const char *name,
 	part->name = name;
 	part->offset = offset;
 	part->mask_flags = mask_flags;
-}
-
-static const char *bcm47xxpart_trx_data_part_name(struct mtd_info *master,
-						  size_t offset)
-{
-	uint32_t buf;
-	size_t bytes_read;
-	int err;
-
-	err  = mtd_read(master, offset, sizeof(buf), &bytes_read,
-			(uint8_t *)&buf);
-	if (err && !mtd_is_bitflip(err)) {
-		pr_err("mtd_read error while parsing (offset: 0x%X): %d\n",
-			offset, err);
-		goto out_default;
-	}
-
-	if (buf == UBI_EC_MAGIC)
-		return "ubi";
-
-out_default:
-	return "rootfs";
-}
-
-static int bcm47xxpart_parse_trx(struct mtd_info *master,
-				 struct mtd_partition *trx,
-				 struct mtd_partition *parts,
-				 size_t parts_len)
-{
-	struct trx_header header;
-	size_t bytes_read;
-	int curr_part = 0;
-	int i, err;
-
-	if (parts_len < 3) {
-		pr_warn("No enough space to add TRX partitions!\n");
-		return -ENOMEM;
-	}
-
-	err = mtd_read(master, trx->offset, sizeof(header), &bytes_read,
-		       (uint8_t *)&header);
-	if (err && !mtd_is_bitflip(err)) {
-		pr_err("mtd_read error while reading TRX header: %d\n", err);
-		return err;
-	}
-
-	i = 0;
-
-	/* We have LZMA loader if offset[2] points to sth */
-	if (header.offset[2]) {
-		bcm47xxpart_add_part(&parts[curr_part++], "loader",
-				     trx->offset + header.offset[i], 0);
-		i++;
-	}
-
-	if (header.offset[i]) {
-		bcm47xxpart_add_part(&parts[curr_part++], "linux",
-				     trx->offset + header.offset[i], 0);
-		i++;
-	}
-
-	if (header.offset[i]) {
-		size_t offset = trx->offset + header.offset[i];
-		const char *name = bcm47xxpart_trx_data_part_name(master,
-								  offset);
-
-		bcm47xxpart_add_part(&parts[curr_part++], name, offset, 0);
-		i++;
-	}
-
-	/*
-	 * Assume that every partition ends at the beginning of the one it is
-	 * followed by.
-	 */
-	for (i = 0; i < curr_part; i++) {
-		u64 next_part_offset = (i < curr_part - 1) ?
-					parts[i + 1].offset :
-					trx->offset + trx->size;
-
-		parts[i].size = next_part_offset - parts[i].offset;
-	}
-
-	return curr_part;
 }
 
 /**
@@ -362,17 +280,10 @@ static int bcm47xxpart_parse(struct mtd_info *master,
 	for (i = 0; i < trx_num; i++) {
 		struct mtd_partition *trx = &parts[trx_parts[i]];
 
-		if (i == bcm47xxpart_bootpartition()) {
-			int num_parts;
-
-			num_parts = bcm47xxpart_parse_trx(master, trx,
-							  parts + curr_part,
-							  BCM47XXPART_MAX_PARTS - curr_part);
-			if (num_parts > 0)
-				curr_part += num_parts;
-		} else {
+		if (i == bcm47xxpart_bootpartition())
+			trx->types = trx_types;
+		else
 			trx->name = "failsafe";
-		}
 	}
 
 	*pparts = parts;

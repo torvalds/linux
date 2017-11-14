@@ -214,7 +214,7 @@ struct opa_vnic_adapter {
 	struct mutex mactbl_lock;
 
 	/* Lock used to protect access to vnic counters */
-	struct mutex stats_lock;
+	spinlock_t stats_lock;
 
 	u8 flow_tbl[OPA_VNIC_FLOW_TBL_SIZE];
 

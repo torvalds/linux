@@ -269,19 +269,19 @@ static struct sha512_hash_ctx
 		 * LAST
 		 */
 		ctx->error = HASH_CTX_ERROR_INVALID_FLAGS;
-		return ctx;
+		goto unlock;
 	}
 
 	if (ctx->status & HASH_CTX_STS_PROCESSING) {
 		/* Cannot submit to a currently processing job. */
 		ctx->error = HASH_CTX_ERROR_ALREADY_PROCESSING;
-		return ctx;
+		goto unlock;
 	}
 
 	if ((ctx->status & HASH_CTX_STS_COMPLETE) && !(flags & HASH_FIRST)) {
 		/* Cannot update a finished job. */
 		ctx->error = HASH_CTX_ERROR_ALREADY_COMPLETED;
-		return ctx;
+		goto unlock;
 	}
 
 
@@ -363,6 +363,7 @@ static struct sha512_hash_ctx
 	}
 
 	ctx = sha512_ctx_mgr_resubmit(mgr, ctx);
+unlock:
 	spin_unlock_irqrestore(&cstate->work_lock, irqflags);
 	return ctx;
 }

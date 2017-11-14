@@ -101,7 +101,6 @@ static long smb_mnt_get_fsinfo(unsigned int xid, struct cifs_tcon *tcon,
 	fsinf->fs_attributes = le32_to_cpu(tcon->fsAttrInfo.Attributes);
 	fsinf->max_path_component =
 		le32_to_cpu(tcon->fsAttrInfo.MaxPathNameComponentLength);
-#ifdef CONFIG_CIFS_SMB2
 	fsinf->vol_serial_number = tcon->vol_serial_number;
 	fsinf->vol_create_time = le64_to_cpu(tcon->vol_create_time);
 	fsinf->share_flags = tcon->share_flags;
@@ -110,7 +109,6 @@ static long smb_mnt_get_fsinfo(unsigned int xid, struct cifs_tcon *tcon,
 	fsinf->optimal_sector_size = tcon->perf_sector_size;
 	fsinf->max_bytes_chunk = tcon->max_bytes_chunk;
 	fsinf->maximal_access = tcon->maximal_access;
-#endif /* SMB2 */
 	fsinf->cifs_posix_caps = le64_to_cpu(tcon->fsUnixInfo.Capability);
 
 	if (copy_to_user(arg, fsinf, sizeof(struct smb_mnt_fs_info)))

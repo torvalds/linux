@@ -111,10 +111,14 @@ static void rd_write(struct msm_rd_state *rd, const void *buf, int sz)
 
 		wait_event(rd->fifo_event, circ_space(&rd->fifo) > 0);
 
+		/* Note that smp_load_acquire() is not strictly required
+		 * as CIRC_SPACE_TO_END() does not access the tail more
+		 * than once.
+		 */
 		n = min(sz, circ_space_to_end(&rd->fifo));
 		memcpy(fptr, ptr, n);
 
-		fifo->head = (fifo->head + n) & (BUF_SZ - 1);
+		smp_store_release(&fifo->head, (fifo->head + n) & (BUF_SZ - 1));
 		sz  -= n;
 		ptr += n;
 
@@ -145,13 +149,17 @@ static ssize_t rd_read(struct file *file, char __user *buf,
 	if (ret)
 		goto out;
 
+	/* Note that smp_load_acquire() is not strictly required
+	 * as CIRC_CNT_TO_END() does not access the head more than
+	 * once.
+	 */
 	n = min_t(int, sz, circ_count_to_end(&rd->fifo));
 	if (copy_to_user(buf, fptr, n)) {
 		ret = -EFAULT;
 		goto out;
 	}
 
-	fifo->tail = (fifo->tail + n) & (BUF_SZ - 1);
+	smp_store_release(&fifo->tail, (fifo->tail + n) & (BUF_SZ - 1));
 	*ppos += n;
 
 	wake_up_all(&rd->fifo_event);
@@ -268,7 +276,7 @@ static void snapshot_buf(struct msm_rd_state *rd,
 	struct msm_gem_object *obj = submit->bos[idx].obj;
 	const char *buf;
 
-	buf = msm_gem_get_vaddr_locked(&obj->base);
+	buf = msm_gem_get_vaddr(&obj->base);
 	if (IS_ERR(buf))
 		return;
 
@@ -283,7 +291,7 @@ static void snapshot_buf(struct msm_rd_state *rd,
 			(uint32_t[3]){ iova, size, iova >> 32 }, 12);
 	rd_write_section(rd, RD_BUFFER_CONTENTS, buf, size);
 
-	msm_gem_put_vaddr_locked(&obj->base);
+	msm_gem_put_vaddr(&obj->base);
 }
 
 /* called under struct_mutex */

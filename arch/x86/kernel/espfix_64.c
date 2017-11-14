@@ -125,7 +125,7 @@ void __init init_espfix_bsp(void)
 	p4d_t *p4d;
 
 	/* Install the espfix pud into the kernel page directory */
-	pgd = &init_level4_pgt[pgd_index(ESPFIX_BASE_ADDR)];
+	pgd = &init_top_pgt[pgd_index(ESPFIX_BASE_ADDR)];
 	p4d = p4d_alloc(&init_mm, pgd, ESPFIX_BASE_ADDR);
 	p4d_populate(&init_mm, p4d, espfix_pud_page);
 
@@ -195,7 +195,7 @@ void init_espfix_ap(int cpu)
 
 	pte_p = pte_offset_kernel(&pmd, addr);
 	stack_page = page_address(alloc_pages_node(node, GFP_KERNEL, 0));
-	pte = __pte(__pa(stack_page) | (__PAGE_KERNEL_RO & ptemask));
+	pte = __pte(__pa(stack_page) | ((__PAGE_KERNEL_RO | _PAGE_ENC) & ptemask));
 	for (n = 0; n < ESPFIX_PTE_CLONES; n++)
 		set_pte(&pte_p[n*PTE_STRIDE], pte);
 

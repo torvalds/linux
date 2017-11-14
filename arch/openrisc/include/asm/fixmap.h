@@ -27,6 +27,7 @@
 #define FIXADDR_TOP	((unsigned long) (-2*PAGE_SIZE))
 
 #include <linux/kernel.h>
+#include <linux/bug.h>
 #include <asm/page.h>
 
 /*

@@ -19,6 +19,7 @@
 #include <linux/mtd/spi-nor.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
+#include <linux/sizes.h>
 #include <linux/sysfs.h>
 
 #define DEVICE_NAME	"aspeed-smc"
@@ -97,6 +98,7 @@ struct aspeed_smc_chip {
 	struct aspeed_smc_controller *controller;
 	void __iomem *ctl;			/* control register */
 	void __iomem *ahb_base;			/* base of chip window */
+	u32 ahb_window_size;			/* chip mapping window size */
 	u32 ctl_val[smc_max];			/* control settings */
 	enum aspeed_smc_flash_type type;	/* what type of flash */
 	struct spi_nor nor;
@@ -109,6 +111,7 @@ struct aspeed_smc_controller {
 	const struct aspeed_smc_info *info;	/* type info of controller */
 	void __iomem *regs;			/* controller registers */
 	void __iomem *ahb_base;			/* per-chip windows resource */
+	u32 ahb_window_size;			/* full mapping window size */
 
 	struct aspeed_smc_chip *chips[0];	/* pointers to attached chips */
 };
@@ -180,8 +183,7 @@ struct aspeed_smc_controller {
 
 #define CONTROL_KEEP_MASK						\
 	(CONTROL_AAF_MODE | CONTROL_CE_INACTIVE_MASK | CONTROL_CLK_DIV4 | \
-	 CONTROL_IO_DUMMY_MASK | CONTROL_CLOCK_FREQ_SEL_MASK |		\
-	 CONTROL_LSB_FIRST | CONTROL_CLOCK_MODE_3)
+	 CONTROL_CLOCK_FREQ_SEL_MASK | CONTROL_LSB_FIRST | CONTROL_CLOCK_MODE_3)
 
 /*
  * The Segment Register uses a 8MB unit to encode the start address
@@ -194,6 +196,10 @@ struct aspeed_smc_controller {
 #define SEGMENT_ADDR_REG0		0x30
 #define SEGMENT_ADDR_START(_r)		((((_r) >> 16) & 0xFF) << 23)
 #define SEGMENT_ADDR_END(_r)		((((_r) >> 24) & 0xFF) << 23)
+#define SEGMENT_ADDR_VALUE(start, end)					\
+	(((((start) >> 23) & 0xFF) << 16) | ((((end) >> 23) & 0xFF) << 24))
+#define SEGMENT_ADDR_REG(controller, cs)	\
+	((controller)->regs + SEGMENT_ADDR_REG0 + (cs) * 4)
 
 /*
  * In user mode all data bytes read or written to the chip decode address
@@ -439,8 +445,7 @@ static void __iomem *aspeed_smc_chip_base(struct aspeed_smc_chip *chip,
 	u32 reg;
 
 	if (controller->info->nce > 1) {
-		reg = readl(controller->regs + SEGMENT_ADDR_REG0 +
-			    chip->cs * 4);
+		reg = readl(SEGMENT_ADDR_REG(controller, chip->cs));
 
 		if (SEGMENT_ADDR_START(reg) >= SEGMENT_ADDR_END(reg))
 			return NULL;
@@ -449,6 +454,146 @@ static void __iomem *aspeed_smc_chip_base(struct aspeed_smc_chip *chip,
 	}
 
 	return controller->ahb_base + offset;
+}
+
+static u32 aspeed_smc_ahb_base_phy(struct aspeed_smc_controller *controller)
+{
+	u32 seg0_val = readl(SEGMENT_ADDR_REG(controller, 0));
+
+	return SEGMENT_ADDR_START(seg0_val);
+}
+
+static u32 chip_set_segment(struct aspeed_smc_chip *chip, u32 cs, u32 start,
+			    u32 size)
+{
+	struct aspeed_smc_controller *controller = chip->controller;
+	void __iomem *seg_reg;
+	u32 seg_oldval, seg_newval, ahb_base_phy, end;
+
+	ahb_base_phy = aspeed_smc_ahb_base_phy(controller);
+
+	seg_reg = SEGMENT_ADDR_REG(controller, cs);
+	seg_oldval = readl(seg_reg);
+
+	/*
+	 * If the chip size is not specified, use the default segment
+	 * size, but take into account the possible overlap with the
+	 * previous segment
+	 */
+	if (!size)
+		size = SEGMENT_ADDR_END(seg_oldval) - start;
+
+	/*
+	 * The segment cannot exceed the maximum window size of the
+	 * controller.
+	 */
+	if (start + size > ahb_base_phy + controller->ahb_window_size) {
+		size = ahb_base_phy + controller->ahb_window_size - start;
+		dev_warn(chip->nor.dev, "CE%d window resized to %dMB",
+			 cs, size >> 20);
+	}
+
+	end = start + size;
+	seg_newval = SEGMENT_ADDR_VALUE(start, end);
+	writel(seg_newval, seg_reg);
+
+	/*
+	 * Restore default value if something goes wrong. The chip
+	 * might have set some bogus value and we would loose access
+	 * to the chip.
+	 */
+	if (seg_newval != readl(seg_reg)) {
+		dev_err(chip->nor.dev, "CE%d window invalid", cs);
+		writel(seg_oldval, seg_reg);
+		start = SEGMENT_ADDR_START(seg_oldval);
+		end = SEGMENT_ADDR_END(seg_oldval);
+		size = end - start;
+	}
+
+	dev_info(chip->nor.dev, "CE%d window [ 0x%.8x - 0x%.8x ] %dMB",
+		 cs, start, end, size >> 20);
+
+	return size;
+}
+
+/*
+ * The segment register defines the mapping window on the AHB bus and
+ * it needs to be configured depending on the chip size. The segment
+ * register of the following CE also needs to be tuned in order to
+ * provide a contiguous window across multiple chips.
+ *
+ * This is expected to be called in increasing CE order
+ */
+static u32 aspeed_smc_chip_set_segment(struct aspeed_smc_chip *chip)
+{
+	struct aspeed_smc_controller *controller = chip->controller;
+	u32 ahb_base_phy, start;
+	u32 size = chip->nor.mtd.size;
+
+	/*
+	 * Each controller has a chip size limit for direct memory
+	 * access
+	 */
+	if (size > controller->info->maxsize)
+		size = controller->info->maxsize;
+
+	/*
+	 * The AST2400 SPI controller only handles one chip and does
+	 * not have segment registers. Let's use the chip size for the
+	 * AHB window.
+	 */
+	if (controller->info == &spi_2400_info)
+		goto out;
+
+	/*
+	 * The AST2500 SPI controller has a HW bug when the CE0 chip
+	 * size reaches 128MB. Enforce a size limit of 120MB to
+	 * prevent the controller from using bogus settings in the
+	 * segment register.
+	 */
+	if (chip->cs == 0 && controller->info == &spi_2500_info &&
+	    size == SZ_128M) {
+		size = 120 << 20;
+		dev_info(chip->nor.dev,
+			 "CE%d window resized to %dMB (AST2500 HW quirk)",
+			 chip->cs, size >> 20);
+	}
+
+	ahb_base_phy = aspeed_smc_ahb_base_phy(controller);
+
+	/*
+	 * As a start address for the current segment, use the default
+	 * start address if we are handling CE0 or use the previous
+	 * segment ending address
+	 */
+	if (chip->cs) {
+		u32 prev = readl(SEGMENT_ADDR_REG(controller, chip->cs - 1));
+
+		start = SEGMENT_ADDR_END(prev);
+	} else {
+		start = ahb_base_phy;
+	}
+
+	size = chip_set_segment(chip, chip->cs, start, size);
+
+	/* Update chip base address on the AHB bus */
+	chip->ahb_base = controller->ahb_base + (start - ahb_base_phy);
+
+	/*
+	 * Now, make sure the next segment does not overlap with the
+	 * current one we just configured, even if there is no
+	 * available chip. That could break access in Command Mode.
+	 */
+	if (chip->cs < controller->info->nce - 1)
+		chip_set_segment(chip, chip->cs + 1, start + size, 0);
+
+out:
+	if (size < chip->nor.mtd.size)
+		dev_warn(chip->nor.dev,
+			 "CE%d window too small for chip %dMB",
+			 chip->cs, (u32)chip->nor.mtd.size >> 20);
+
+	return size;
 }
 
 static void aspeed_smc_chip_enable_write(struct aspeed_smc_chip *chip)
@@ -476,19 +621,18 @@ static void aspeed_smc_chip_set_type(struct aspeed_smc_chip *chip, int type)
 }
 
 /*
- * The AST2500 FMC flash controller should be strapped by hardware, or
- * autodetected, but the AST2500 SPI flash needs to be set.
+ * The first chip of the AST2500 FMC flash controller is strapped by
+ * hardware, or autodetected, but other chips need to be set. Enforce
+ * the 4B setting for all chips.
  */
 static void aspeed_smc_chip_set_4b(struct aspeed_smc_chip *chip)
 {
 	struct aspeed_smc_controller *controller = chip->controller;
 	u32 reg;
 
-	if (chip->controller->info == &spi_2500_info) {
-		reg = readl(controller->regs + CE_CONTROL_REG);
-		reg |= 1 << chip->cs;
-		writel(reg, controller->regs + CE_CONTROL_REG);
-	}
+	reg = readl(controller->regs + CE_CONTROL_REG);
+	reg |= 1 << chip->cs;
+	writel(reg, controller->regs + CE_CONTROL_REG);
 }
 
 /*
@@ -524,7 +668,7 @@ static int aspeed_smc_chip_setup_init(struct aspeed_smc_chip *chip,
 	 */
 	chip->ahb_base = aspeed_smc_chip_base(chip, res);
 	if (!chip->ahb_base) {
-		dev_warn(chip->nor.dev, "CE segment window closed.\n");
+		dev_warn(chip->nor.dev, "CE%d window closed", chip->cs);
 		return -EINVAL;
 	}
 
@@ -571,6 +715,9 @@ static int aspeed_smc_chip_setup_finish(struct aspeed_smc_chip *chip)
 	if (chip->nor.addr_width == 4 && info->set_4b)
 		info->set_4b(chip);
 
+	/* This is for direct AHB access when using Command Mode. */
+	chip->ahb_window_size = aspeed_smc_chip_set_segment(chip);
+
 	/*
 	 * base mode has not been optimized yet. use it for writes.
 	 */
@@ -585,14 +732,12 @@ static int aspeed_smc_chip_setup_finish(struct aspeed_smc_chip *chip)
 	 * TODO: Adjust clocks if fast read is supported and interpret
 	 * SPI-NOR flags to adjust controller settings.
 	 */
-	switch (chip->nor.flash_read) {
-	case SPI_NOR_NORMAL:
-		cmd = CONTROL_COMMAND_MODE_NORMAL;
-		break;
-	case SPI_NOR_FAST:
-		cmd = CONTROL_COMMAND_MODE_FREAD;
-		break;
-	default:
+	if (chip->nor.read_proto == SNOR_PROTO_1_1_1) {
+		if (chip->nor.read_dummy == 0)
+			cmd = CONTROL_COMMAND_MODE_NORMAL;
+		else
+			cmd = CONTROL_COMMAND_MODE_FREAD;
+	} else {
 		dev_err(chip->nor.dev, "unsupported SPI read mode\n");
 		return -EINVAL;
 	}
@@ -608,6 +753,11 @@ static int aspeed_smc_chip_setup_finish(struct aspeed_smc_chip *chip)
 static int aspeed_smc_setup_flash(struct aspeed_smc_controller *controller,
 				  struct device_node *np, struct resource *r)
 {
+	const struct spi_nor_hwcaps hwcaps = {
+		.mask = SNOR_HWCAPS_READ |
+			SNOR_HWCAPS_READ_FAST |
+			SNOR_HWCAPS_PP,
+	};
 	const struct aspeed_smc_info *info = controller->info;
 	struct device *dev = controller->dev;
 	struct device_node *child;
@@ -671,11 +821,11 @@ static int aspeed_smc_setup_flash(struct aspeed_smc_controller *controller,
 			break;
 
 		/*
-		 * TODO: Add support for SPI_NOR_QUAD and SPI_NOR_DUAL
+		 * TODO: Add support for Dual and Quad SPI protocols
 		 * attach when board support is present as determined
 		 * by of property.
 		 */
-		ret = spi_nor_scan(nor, NULL, SPI_NOR_NORMAL);
+		ret = spi_nor_scan(nor, NULL, &hwcaps);
 		if (ret)
 			break;
 
@@ -730,6 +880,8 @@ static int aspeed_smc_probe(struct platform_device *pdev)
 	controller->ahb_base = devm_ioremap_resource(dev, res);
 	if (IS_ERR(controller->ahb_base))
 		return PTR_ERR(controller->ahb_base);
+
+	controller->ahb_window_size = resource_size(res);
 
 	ret = aspeed_smc_setup_flash(controller, np, res);
 	if (ret)

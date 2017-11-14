@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/list.h>
 #include <linux/errno.h>
 
@@ -120,7 +121,7 @@ static int i40evf_client_release_qvlist(struct i40e_info *ldev)
 		return -EAGAIN;
 
 	err = i40e_aq_send_msg_to_pf(&adapter->hw,
-			I40E_VIRTCHNL_OP_RELEASE_IWARP_IRQ_MAP,
+			VIRTCHNL_OP_RELEASE_IWARP_IRQ_MAP,
 			I40E_SUCCESS, NULL, 0, NULL);
 
 	if (err)
@@ -410,7 +411,7 @@ static u32 i40evf_client_virtchnl_send(struct i40e_info *ldev,
 	if (adapter->aq_required)
 		return -EAGAIN;
 
-	err = i40e_aq_send_msg_to_pf(&adapter->hw, I40E_VIRTCHNL_OP_IWARP,
+	err = i40e_aq_send_msg_to_pf(&adapter->hw, VIRTCHNL_OP_IWARP,
 				     I40E_SUCCESS, msg, len, NULL);
 	if (err)
 		dev_err(&adapter->pdev->dev, "Unable to send iWarp message to PF, error %d, aq status %d\n",
@@ -431,7 +432,7 @@ static int i40evf_client_setup_qvlist(struct i40e_info *ldev,
 				      struct i40e_client *client,
 				      struct i40e_qvlist_info *qvlist_info)
 {
-	struct i40e_virtchnl_iwarp_qvlist_info *v_qvlist_info;
+	struct virtchnl_iwarp_qvlist_info *v_qvlist_info;
 	struct i40evf_adapter *adapter = ldev->vf;
 	struct i40e_qv_info *qv_info;
 	i40e_status err;
@@ -453,14 +454,14 @@ static int i40evf_client_setup_qvlist(struct i40e_info *ldev,
 			return -EINVAL;
 	}
 
-	v_qvlist_info = (struct i40e_virtchnl_iwarp_qvlist_info *)qvlist_info;
-	msg_size = sizeof(struct i40e_virtchnl_iwarp_qvlist_info) +
-			(sizeof(struct i40e_virtchnl_iwarp_qv_info) *
+	v_qvlist_info = (struct virtchnl_iwarp_qvlist_info *)qvlist_info;
+	msg_size = sizeof(struct virtchnl_iwarp_qvlist_info) +
+			(sizeof(struct virtchnl_iwarp_qv_info) *
 			(v_qvlist_info->num_vectors - 1));
 
-	adapter->client_pending |= BIT(I40E_VIRTCHNL_OP_CONFIG_IWARP_IRQ_MAP);
+	adapter->client_pending |= BIT(VIRTCHNL_OP_CONFIG_IWARP_IRQ_MAP);
 	err = i40e_aq_send_msg_to_pf(&adapter->hw,
-			I40E_VIRTCHNL_OP_CONFIG_IWARP_IRQ_MAP,
+			VIRTCHNL_OP_CONFIG_IWARP_IRQ_MAP,
 			I40E_SUCCESS, (u8 *)v_qvlist_info, msg_size, NULL);
 
 	if (err) {
@@ -474,7 +475,7 @@ static int i40evf_client_setup_qvlist(struct i40e_info *ldev,
 	for (i = 0; i < 5; i++) {
 		msleep(100);
 		if (!(adapter->client_pending &
-		      BIT(I40E_VIRTCHNL_OP_CONFIG_IWARP_IRQ_MAP))) {
+		      BIT(VIRTCHNL_OP_CONFIG_IWARP_IRQ_MAP))) {
 			err = 0;
 			break;
 		}

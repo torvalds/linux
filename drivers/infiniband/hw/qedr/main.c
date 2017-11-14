@@ -37,7 +37,7 @@
 #include <linux/iommu.h>
 #include <linux/pci.h>
 #include <net/addrconf.h>
-#include <linux/qed/qede_roce.h>
+
 #include <linux/qed/qed_chain.h>
 #include <linux/qed/qed_if.h>
 #include "qedr.h"
@@ -47,7 +47,6 @@
 MODULE_DESCRIPTION("QLogic 40G/100G ROCE Driver");
 MODULE_AUTHOR("QLogic Corporation");
 MODULE_LICENSE("Dual BSD/GPL");
-MODULE_VERSION(QEDR_MODULE_VERSION);
 
 #define QEDR_WQ_MULTIPLIER_DFT	(3)
 
@@ -69,13 +68,12 @@ static enum rdma_link_layer qedr_link_layer(struct ib_device *device,
 	return IB_LINK_LAYER_ETHERNET;
 }
 
-static void qedr_get_dev_fw_str(struct ib_device *ibdev, char *str,
-				size_t str_len)
+static void qedr_get_dev_fw_str(struct ib_device *ibdev, char *str)
 {
 	struct qedr_dev *qedr = get_qedr_dev(ibdev);
 	u32 fw_ver = (u32)qedr->attr.fw_ver;
 
-	snprintf(str, str_len, "%d. %d. %d. %d",
+	snprintf(str, IB_FW_VERSION_NAME_MAX, "%d. %d. %d. %d",
 		 (fw_ver >> 24) & 0xFF, (fw_ver >> 16) & 0xFF,
 		 (fw_ver >> 8) & 0xFF, fw_ver & 0xFF);
 }
@@ -276,7 +274,7 @@ static int qedr_alloc_resources(struct qedr_dev *dev)
 						   QED_CHAIN_CNT_TYPE_U16,
 						   n_entries,
 						   sizeof(struct regpair *),
-						   &cnq->pbl);
+						   &cnq->pbl, NULL);
 		if (rc)
 			goto err4;
 
@@ -778,6 +776,7 @@ static struct qedr_dev *qedr_add(struct qed_dev *cdev, struct pci_dev *pdev,
 	if (rc)
 		goto init_err;
 
+	dev->user_dpm_enabled = dev_info.user_dpm_enabled;
 	dev->num_hwfns = dev_info.common.num_hwfns;
 	dev->rdma_ctx = dev->ops->rdma_get_rdma_ctx(cdev);
 
@@ -886,9 +885,9 @@ static void qedr_mac_address_change(struct qedr_dev *dev)
 	memcpy(&sgid->raw[8], guid, sizeof(guid));
 
 	/* Update LL2 */
-	rc = dev->ops->roce_ll2_set_mac_filter(dev->cdev,
-					       dev->gsi_ll2_mac_address,
-					       dev->ndev->dev_addr);
+	rc = dev->ops->ll2_set_mac_filter(dev->cdev,
+					  dev->gsi_ll2_mac_address,
+					  dev->ndev->dev_addr);
 
 	ether_addr_copy(dev->gsi_ll2_mac_address, dev->ndev->dev_addr);
 
@@ -902,7 +901,7 @@ static void qedr_mac_address_change(struct qedr_dev *dev)
  * initialization done before RoCE driver notifies
  * event to stack.
  */
-static void qedr_notify(struct qedr_dev *dev, enum qede_roce_event event)
+static void qedr_notify(struct qedr_dev *dev, enum qede_rdma_event event)
 {
 	switch (event) {
 	case QEDE_UP:
@@ -931,12 +930,12 @@ static struct qedr_driver qedr_drv = {
 
 static int __init qedr_init_module(void)
 {
-	return qede_roce_register_driver(&qedr_drv);
+	return qede_rdma_register_driver(&qedr_drv);
 }
 
 static void __exit qedr_exit_module(void)
 {
-	qede_roce_unregister_driver(&qedr_drv);
+	qede_rdma_unregister_driver(&qedr_drv);
 }
 
 module_init(qedr_init_module);

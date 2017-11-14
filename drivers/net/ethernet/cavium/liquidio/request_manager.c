@@ -77,13 +77,6 @@ int octeon_init_instr_queue(struct octeon_device *oct,
 		return 1;
 	}
 
-	if (num_descs & (num_descs - 1)) {
-		dev_err(&oct->pci_dev->dev,
-			"Number of descriptors for instr queue %d not in power of 2.\n",
-			iq_no);
-		return 1;
-	}
-
 	q_size = (u32)conf->instr_type * num_descs;
 
 	iq = oct->instr_queue[iq_no];
@@ -190,6 +183,10 @@ int octeon_delete_instr_queue(struct octeon_device *oct, u32 iq_no)
 		q_size = iq->max_count * desc_size;
 		lio_dma_free(oct, (u32)q_size, iq->base_addr,
 			     iq->base_addr_dma);
+		oct->io_qmask.iq &= ~(1ULL << iq_no);
+		vfree(oct->instr_queue[iq_no]);
+		oct->instr_queue[iq_no] = NULL;
+		oct->num_iqs--;
 		return 0;
 	}
 	return 1;
@@ -252,8 +249,7 @@ int lio_wait_for_instr_fetch(struct octeon_device *oct)
 			if (!(oct->io_qmask.iq & BIT_ULL(i)))
 				continue;
 			pending =
-			    atomic_read(&oct->
-					       instr_queue[i]->instr_pending);
+			    atomic_read(&oct->instr_queue[i]->instr_pending);
 			if (pending)
 				__check_db_timeout(oct, i);
 			instr_cnt += pending;

@@ -890,7 +890,7 @@ static const struct i8k_config_data i8k_config_data[] = {
 	},
 };
 
-static struct dmi_system_id i8k_dmi_table[] __initdata = {
+static const struct dmi_system_id i8k_dmi_table[] __initconst = {
 	{
 		.ident = "Dell Inspiron",
 		.matches = {
@@ -1013,7 +1013,7 @@ MODULE_DEVICE_TABLE(dmi, i8k_dmi_table);
  * of affected Dell machines for which we disallow I8K_SMM_GET_FAN_TYPE call.
  * See bug: https://bugzilla.kernel.org/show_bug.cgi?id=100121
  */
-static struct dmi_system_id i8k_blacklist_fan_type_dmi_table[] __initdata = {
+static const struct dmi_system_id i8k_blacklist_fan_type_dmi_table[] __initconst = {
 	{
 		.ident = "Dell Studio XPS 8000",
 		.matches = {

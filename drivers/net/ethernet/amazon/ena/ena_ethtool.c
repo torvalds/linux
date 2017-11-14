@@ -93,6 +93,7 @@ static const struct ena_stats ena_stats_rx_strings[] = {
 	ENA_STAT_RX_ENTRY(dma_mapping_err),
 	ENA_STAT_RX_ENTRY(bad_desc_num),
 	ENA_STAT_RX_ENTRY(rx_copybreak_pkt),
+	ENA_STAT_RX_ENTRY(bad_req_id),
 	ENA_STAT_RX_ENTRY(empty_rx_ring),
 };
 
@@ -539,12 +540,8 @@ static int ena_get_rss_hash(struct ena_com_dev *ena_dev,
 	}
 
 	rc = ena_com_get_hash_ctrl(ena_dev, proto, &hash_fields);
-	if (rc) {
-		/* If device don't have permission, return unsupported */
-		if (rc == -EPERM)
-			rc = -EOPNOTSUPP;
+	if (rc)
 		return rc;
-	}
 
 	cmd->data = ena_flow_hash_to_flow_type(hash_fields);
 
@@ -612,7 +609,7 @@ static int ena_set_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *info)
 		rc = -EOPNOTSUPP;
 	}
 
-	return (rc == -EPERM) ? -EOPNOTSUPP : rc;
+	return rc;
 }
 
 static int ena_get_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *info,
@@ -638,7 +635,7 @@ static int ena_get_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *info,
 		rc = -EOPNOTSUPP;
 	}
 
-	return (rc == -EPERM) ? -EOPNOTSUPP : rc;
+	return rc;
 }
 
 static u32 ena_get_rxfh_indir_size(struct net_device *netdev)
@@ -745,8 +742,8 @@ static void ena_get_channels(struct net_device *netdev,
 {
 	struct ena_adapter *adapter = netdev_priv(netdev);
 
-	channels->max_rx = ENA_MAX_NUM_IO_QUEUES;
-	channels->max_tx = ENA_MAX_NUM_IO_QUEUES;
+	channels->max_rx = adapter->num_queues;
+	channels->max_tx = adapter->num_queues;
 	channels->max_other = 0;
 	channels->max_combined = 0;
 	channels->rx_count = adapter->num_queues;

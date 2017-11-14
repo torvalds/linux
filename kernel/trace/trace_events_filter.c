@@ -702,7 +702,7 @@ static void append_filter_err(struct filter_parse_state *ps,
 	int pos = ps->lasterr_pos;
 	char *buf, *pbuf;
 
-	buf = (char *)__get_free_page(GFP_TEMPORARY);
+	buf = (char *)__get_free_page(GFP_KERNEL);
 	if (!buf)
 		return;
 
@@ -1958,6 +1958,10 @@ static int create_filter(struct trace_event_call *call,
 		err = replace_preds(call, filter, ps, false);
 		if (err && set_str)
 			append_filter_err(ps, filter);
+	}
+	if (err && !set_str) {
+		free_event_filter(filter);
+		filter = NULL;
 	}
 	create_filter_finish(ps);
 

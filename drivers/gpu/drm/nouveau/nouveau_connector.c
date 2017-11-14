@@ -770,9 +770,6 @@ nouveau_connector_set_property(struct drm_connector *connector,
 	struct drm_encoder *encoder = to_drm_encoder(nv_encoder);
 	int ret;
 
-	if (drm_drv_uses_atomic_modeset(connector->dev))
-		return drm_atomic_helper_connector_set_property(connector, property, value);
-
 	ret = connector->funcs->atomic_set_property(&nv_connector->base,
 						    &asyc->state,
 						    property, value);
@@ -1045,6 +1042,9 @@ nouveau_connector_mode_valid(struct drm_connector *connector,
 		return MODE_BAD;
 	}
 
+	if ((mode->flags & DRM_MODE_FLAG_3D_MASK) == DRM_MODE_FLAG_3D_FRAME_PACKING)
+		clock *= 2;
+
 	if (clock < min_clock)
 		return MODE_CLOCK_LOW;
 
@@ -1072,17 +1072,9 @@ nouveau_connector_helper_funcs = {
 	.best_encoder = nouveau_connector_best_encoder,
 };
 
-static int
-nouveau_connector_dpms(struct drm_connector *connector, int mode)
-{
-	if (drm_drv_uses_atomic_modeset(connector->dev))
-		return drm_atomic_helper_connector_dpms(connector, mode);
-	return drm_helper_connector_dpms(connector, mode);
-}
-
 static const struct drm_connector_funcs
 nouveau_connector_funcs = {
-	.dpms = nouveau_connector_dpms,
+	.dpms = drm_helper_connector_dpms,
 	.reset = nouveau_conn_reset,
 	.detect = nouveau_connector_detect,
 	.force = nouveau_connector_force,
@@ -1097,7 +1089,7 @@ nouveau_connector_funcs = {
 
 static const struct drm_connector_funcs
 nouveau_connector_funcs_lvds = {
-	.dpms = nouveau_connector_dpms,
+	.dpms = drm_helper_connector_dpms,
 	.reset = nouveau_conn_reset,
 	.detect = nouveau_connector_detect_lvds,
 	.force = nouveau_connector_force,
@@ -1155,8 +1147,6 @@ nouveau_connector_aux_xfer(struct drm_dp_aux *obj, struct drm_dp_aux_msg *msg)
 		return -ENODEV;
 	if (WARN_ON(msg->size > 16))
 		return -E2BIG;
-	if (msg->size == 0)
-		return msg->size;
 
 	ret = nvkm_i2c_aux_acquire(aux);
 	if (ret)
@@ -1194,6 +1184,7 @@ drm_conntype_from_dcb(enum dcb_connector_type dcb)
 	case DCB_CONNECTOR_HDMI_0   :
 	case DCB_CONNECTOR_HDMI_1   :
 	case DCB_CONNECTOR_HDMI_C   : return DRM_MODE_CONNECTOR_HDMIA;
+	case DCB_CONNECTOR_WFD	    : return DRM_MODE_CONNECTOR_VIRTUAL;
 	default:
 		break;
 	}
@@ -1320,6 +1311,13 @@ nouveau_connector_create(struct drm_device *dev, int index)
 		funcs = &nouveau_connector_funcs;
 		break;
 	}
+
+	/* HDMI 3D support */
+	if ((disp->disp.oclass >= G82_DISP)
+	    && ((type == DRM_MODE_CONNECTOR_DisplayPort)
+		|| (type == DRM_MODE_CONNECTOR_eDP)
+		|| (type == DRM_MODE_CONNECTOR_HDMIA)))
+		connector->stereo_allowed = true;
 
 	/* defaults, will get overridden in detect() */
 	connector->interlace_allowed = false;

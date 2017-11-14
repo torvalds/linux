@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * e100net.c: A network driver for the ETRAX 100LX network controller.
  *
@@ -1417,10 +1418,9 @@ static int e100_get_link_ksettings(struct net_device *dev,
 {
 	struct net_local *np = netdev_priv(dev);
 	u32 supported;
-	int err;
 
 	spin_lock_irq(&np->lock);
-	err = mii_ethtool_get_link_ksettings(&np->mii_if, cmd);
+	mii_ethtool_get_link_ksettings(&np->mii_if, cmd);
 	spin_unlock_irq(&np->lock);
 
 	/* The PHY may support 1000baseT, but the Etrax100 does not.  */
@@ -1432,7 +1432,7 @@ static int e100_get_link_ksettings(struct net_device *dev,
 	ethtool_convert_legacy_u32_to_link_mode(cmd->link_modes.supported,
 						supported);
 
-	return err;
+	return 0;
 }
 
 static int e100_set_link_ksettings(struct net_device *dev,

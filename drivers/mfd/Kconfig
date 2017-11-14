@@ -133,6 +133,20 @@ config MFD_BCM590XX
 	help
 	  Support for the BCM590xx PMUs from Broadcom
 
+config MFD_BD9571MWV
+	tristate "ROHM BD9571MWV PMIC"
+	select MFD_CORE
+	select REGMAP_I2C
+	select REGMAP_IRQ
+	depends on I2C
+	help
+	  Support for the ROHM BD9571MWV PMIC, which contains single
+	  voltage regulator, voltage sampling units, GPIO block and
+	  watchdog block.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called bd9571mwv.
+
 config MFD_AC100
 	tristate "X-Powers AC100"
 	select MFD_CORE
@@ -159,6 +173,11 @@ config MFD_AXP20X_I2C
 	  This driver include only the core APIs. You have to select individual
 	  components like regulators or the PEK (Power Enable Key) under the
 	  corresponding menus.
+
+	  Note on x86 this provides an ACPI OpRegion, so this must be 'y'
+	  (builtin) and not a module, as the OpRegion must be available as
+	  soon as possible. For the same reason the I2C bus driver options
+	  I2C_DESIGNWARE_PLATFORM and I2C_DESIGNWARE_BAYTRAIL must be 'y' too.
 
 config MFD_AXP20X_RSB
 	tristate "X-Powers AXP series PMICs with RSB"
@@ -448,16 +467,21 @@ config LPC_SCH
 
 config INTEL_SOC_PMIC
 	bool "Support for Crystal Cove PMIC"
-	depends on GPIOLIB
-	depends on I2C=y
+	depends on ACPI && HAS_IOMEM && I2C=y && GPIOLIB && COMMON_CLK
+	depends on X86 || COMPILE_TEST
 	select MFD_CORE
 	select REGMAP_I2C
 	select REGMAP_IRQ
+	select I2C_DESIGNWARE_PLATFORM
 	help
 	  Select this option to enable support for Crystal Cove PMIC
 	  on some Intel SoC systems. The PMIC provides ADC, GPIO,
 	  thermal, charger and related power management functions
 	  on these systems.
+
+	  This option is a bool as it provides an ACPI OpRegion which must be
+	  available before any devices using it are probed. This option also
+	  causes the designware-i2c driver to be builtin for the same reason.
 
 config INTEL_SOC_PMIC_BXTWC
 	tristate "Support for Intel Broxton Whiskey Cove PMIC"
@@ -469,6 +493,22 @@ config INTEL_SOC_PMIC_BXTWC
 	  on Intel Broxton systems. The PMIC provides ADC, GPIO,
 	  thermal, charger and related power management functions
 	  on these systems.
+
+config INTEL_SOC_PMIC_CHTWC
+	bool "Support for Intel Cherry Trail Whiskey Cove PMIC"
+	depends on ACPI && HAS_IOMEM && I2C=y && COMMON_CLK
+	depends on X86 || COMPILE_TEST
+	select MFD_CORE
+	select REGMAP_I2C
+	select REGMAP_IRQ
+	select I2C_DESIGNWARE_PLATFORM
+	help
+	  Select this option to enable support for the Intel Cherry Trail
+	  Whiskey Cove PMIC found on some Intel Cherry Trail systems.
+
+	  This option is a bool as it provides an ACPI OpRegion which must be
+	  available before any devices using it are probed. This option also
+	  causes the designware-i2c driver to be builtin for the same reason.
 
 config MFD_INTEL_LPSS
 	tristate
@@ -925,13 +965,13 @@ config MFD_RC5T583
 	  different functionality of the device.
 
 config MFD_RK808
-	tristate "Rockchip RK808/RK818 Power Management Chip"
+	tristate "Rockchip RK805/RK808/RK818 Power Management Chip"
 	depends on I2C && OF
 	select MFD_CORE
 	select REGMAP_I2C
 	select REGMAP_IRQ
 	help
-	  If you say yes here you get support for the RK808 and RK818
+	  If you say yes here you get support for the RK805, RK808 and RK818
 	  Power Management chips.
 	  This driver provides common support for accessing the device
 	  through I2C interface. The device supports multiple sub-devices
@@ -1268,6 +1308,7 @@ config TPS6507X
 
 config MFD_TPS65086
 	tristate "TI TPS65086 Power Management Integrated Chips (PMICs)"
+	select MFD_CORE
 	select REGMAP
 	select REGMAP_IRQ
 	select REGMAP_I2C
@@ -1311,6 +1352,24 @@ config MFD_TPS65217
 	  This driver can also be built as a module.  If so, the module
 	  will be called tps65217.
 
+config MFD_TPS68470
+	bool "TI TPS68470 Power Management / LED chips"
+	depends on ACPI && I2C=y
+	select MFD_CORE
+	select REGMAP_I2C
+	select I2C_DESIGNWARE_PLATFORM
+	help
+	  If you say yes here you get support for the TPS68470 series of
+	  Power Management / LED chips.
+
+	  These include voltage regulators, LEDs and other features
+	  that are often used in portable devices.
+
+	  This option is a bool as it provides an ACPI operation
+	  region, which must be available before any of the devices
+	  using this are probed. This option also configures the
+	  designware-i2c driver to be built-in, for the same reason.
+
 config MFD_TI_LP873X
 	tristate "TI LP873X Power Management IC"
 	depends on I2C
@@ -1324,6 +1383,20 @@ config MFD_TI_LP873X
 
 	  This driver can also be built as a module. If so, the module
 	  will be called lp873x.
+
+config MFD_TI_LP87565
+	tristate "TI LP87565 Power Management IC"
+	depends on I2C && OF
+	select MFD_CORE
+	select REGMAP_I2C
+	help
+	  If you say yes here then you get support for the LP87565 series of
+	  Power Management Integrated Circuits (PMIC).
+	  These include voltage regulators, thermal protection, configurable
+	  General Purpose Outputs (GPO) that are used in portable devices.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called lp87565.
 
 config MFD_TPS65218
 	tristate "TI TPS65218 Power Management chips"
@@ -1682,6 +1755,20 @@ config MFD_STW481X
 	  Select this option to enable the STw481x chip driver used
 	  in various ST Microelectronics and ST-Ericsson embedded
 	  Nomadik series.
+
+config MFD_STM32_LPTIMER
+	tristate "Support for STM32 Low-Power Timer"
+	depends on (ARCH_STM32 && OF) || COMPILE_TEST
+	select MFD_CORE
+	select REGMAP
+	select REGMAP_MMIO
+	help
+	  Select this option to enable STM32 Low-Power Timer driver
+	  used for PWM, IIO Trigger, IIO Encoder and Counter. Shared
+	  resources are also dealt with here.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called stm32-lptimer.
 
 config MFD_STM32_TIMERS
 	tristate "Support for STM32 Timers"

@@ -9,6 +9,7 @@
  */
 
 #include <linux/init.h>
+#include <linux/initrd.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/major.h>
@@ -22,6 +23,7 @@
 #ifdef CONFIG_BLK_DEV_RAM_DAX
 #include <linux/pfn_t.h>
 #include <linux/dax.h>
+#include <linux/uio.h>
 #endif
 
 #include <linux/uaccess.h>
@@ -292,14 +294,13 @@ out:
 
 static blk_qc_t brd_make_request(struct request_queue *q, struct bio *bio)
 {
-	struct block_device *bdev = bio->bi_bdev;
-	struct brd_device *brd = bdev->bd_disk->private_data;
+	struct brd_device *brd = bio->bi_disk->private_data;
 	struct bio_vec bvec;
 	sector_t sector;
 	struct bvec_iter iter;
 
 	sector = bio->bi_iter.bi_sector;
-	if (bio_end_sector(bio) > get_capacity(bdev->bd_disk))
+	if (bio_end_sector(bio) > get_capacity(bio->bi_disk))
 		goto io_error;
 
 	bio_for_each_segment(bvec, bio, iter) {
@@ -324,7 +325,11 @@ static int brd_rw_page(struct block_device *bdev, sector_t sector,
 		       struct page *page, bool is_write)
 {
 	struct brd_device *brd = bdev->bd_disk->private_data;
-	int err = brd_do_bvec(brd, page, PAGE_SIZE, 0, is_write, sector);
+	int err;
+
+	if (PageTransHuge(page))
+		return -ENOTSUPP;
+	err = brd_do_bvec(brd, page, PAGE_SIZE, 0, is_write, sector);
 	page_endio(page, is_write, err);
 	return err;
 }
@@ -337,7 +342,7 @@ static long __brd_direct_access(struct brd_device *brd, pgoff_t pgoff,
 
 	if (!brd)
 		return -ENODEV;
-	page = brd_insert_page(brd, PFN_PHYS(pgoff) / 512);
+	page = brd_insert_page(brd, (sector_t)pgoff << PAGE_SECTORS_SHIFT);
 	if (!page)
 		return -ENOSPC;
 	*kaddr = page_address(page);
@@ -354,8 +359,15 @@ static long brd_dax_direct_access(struct dax_device *dax_dev,
 	return __brd_direct_access(brd, pgoff, nr_pages, kaddr, pfn);
 }
 
+static size_t brd_dax_copy_from_iter(struct dax_device *dax_dev, pgoff_t pgoff,
+		void *addr, size_t bytes, struct iov_iter *i)
+{
+	return copy_from_iter(addr, bytes, i);
+}
+
 static const struct dax_operations brd_dax_ops = {
 	.direct_access = brd_dax_direct_access,
+	.copy_from_iter = brd_dax_copy_from_iter,
 };
 #endif
 
@@ -418,7 +430,6 @@ static struct brd_device *brd_alloc(int i)
 
 	blk_queue_make_request(brd->brd_queue, brd_make_request);
 	blk_queue_max_hw_sectors(brd->brd_queue, 1024);
-	blk_queue_bounce_limit(brd->brd_queue, BLK_BOUNCE_ANY);
 
 	/* This is so fdisk will align partitions on 4k, because of
 	 * direct_access API needing 4k alignment, returning a PFN

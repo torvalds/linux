@@ -64,6 +64,12 @@
 #define DM_BUFIO_BLOCK_SIZE_GFP_LIMIT	(PAGE_SIZE << (MAX_ORDER - 1))
 
 /*
+ * Align buffer writes to this boundary.
+ * Tests show that SSDs have the highest IOPS when using 4k writes.
+ */
+#define DM_BUFIO_WRITE_ALIGN		4096
+
+/*
  * dm_buffer->list_mode
  */
 #define LIST_CLEAN	0
@@ -145,10 +151,14 @@ struct dm_buffer {
 	enum data_mode data_mode;
 	unsigned char list_mode;		/* LIST_* */
 	unsigned hold_count;
-	int read_error;
-	int write_error;
+	blk_status_t read_error;
+	blk_status_t write_error;
 	unsigned long state;
 	unsigned long last_accessed;
+	unsigned dirty_start;
+	unsigned dirty_end;
+	unsigned write_start;
+	unsigned write_end;
 	struct dm_bufio_client *c;
 	struct list_head write_list;
 	struct bio bio;
@@ -555,12 +565,12 @@ static void dmio_complete(unsigned long error, void *context)
 {
 	struct dm_buffer *b = context;
 
-	b->bio.bi_error = error ? -EIO : 0;
+	b->bio.bi_status = error ? BLK_STS_IOERR : 0;
 	b->bio.bi_end_io(&b->bio);
 }
 
 static void use_dmio(struct dm_buffer *b, int rw, sector_t sector,
-		     unsigned n_sectors, bio_end_io_t *end_io)
+		     unsigned n_sectors, unsigned offset, bio_end_io_t *end_io)
 {
 	int r;
 	struct dm_io_request io_req = {
@@ -578,17 +588,17 @@ static void use_dmio(struct dm_buffer *b, int rw, sector_t sector,
 
 	if (b->data_mode != DATA_MODE_VMALLOC) {
 		io_req.mem.type = DM_IO_KMEM;
-		io_req.mem.ptr.addr = b->data;
+		io_req.mem.ptr.addr = (char *)b->data + offset;
 	} else {
 		io_req.mem.type = DM_IO_VMA;
-		io_req.mem.ptr.vma = b->data;
+		io_req.mem.ptr.vma = (char *)b->data + offset;
 	}
 
 	b->bio.bi_end_io = end_io;
 
 	r = dm_io(&io_req, 1, &region, NULL);
 	if (r) {
-		b->bio.bi_error = r;
+		b->bio.bi_status = errno_to_blk_status(r);
 		end_io(&b->bio);
 	}
 }
@@ -596,7 +606,7 @@ static void use_dmio(struct dm_buffer *b, int rw, sector_t sector,
 static void inline_endio(struct bio *bio)
 {
 	bio_end_io_t *end_fn = bio->bi_private;
-	int error = bio->bi_error;
+	blk_status_t status = bio->bi_status;
 
 	/*
 	 * Reset the bio to free any attached resources
@@ -604,19 +614,19 @@ static void inline_endio(struct bio *bio)
 	 */
 	bio_reset(bio);
 
-	bio->bi_error = error;
+	bio->bi_status = status;
 	end_fn(bio);
 }
 
 static void use_inline_bio(struct dm_buffer *b, int rw, sector_t sector,
-			   unsigned n_sectors, bio_end_io_t *end_io)
+			   unsigned n_sectors, unsigned offset, bio_end_io_t *end_io)
 {
 	char *ptr;
-	int len;
+	unsigned len;
 
 	bio_init(&b->bio, b->bio_vec, DM_BUFIO_INLINE_VECS);
 	b->bio.bi_iter.bi_sector = sector;
-	b->bio.bi_bdev = b->c->bdev;
+	bio_set_dev(&b->bio, b->c->bdev);
 	b->bio.bi_end_io = inline_endio;
 	/*
 	 * Use of .bi_private isn't a problem here because
@@ -625,29 +635,20 @@ static void use_inline_bio(struct dm_buffer *b, int rw, sector_t sector,
 	b->bio.bi_private = end_io;
 	bio_set_op_attrs(&b->bio, rw, 0);
 
-	/*
-	 * We assume that if len >= PAGE_SIZE ptr is page-aligned.
-	 * If len < PAGE_SIZE the buffer doesn't cross page boundary.
-	 */
-	ptr = b->data;
+	ptr = (char *)b->data + offset;
 	len = n_sectors << SECTOR_SHIFT;
 
-	if (len >= PAGE_SIZE)
-		BUG_ON((unsigned long)ptr & (PAGE_SIZE - 1));
-	else
-		BUG_ON((unsigned long)ptr & (len - 1));
-
 	do {
-		if (!bio_add_page(&b->bio, virt_to_page(ptr),
-				  len < PAGE_SIZE ? len : PAGE_SIZE,
+		unsigned this_step = min((unsigned)(PAGE_SIZE - offset_in_page(ptr)), len);
+		if (!bio_add_page(&b->bio, virt_to_page(ptr), this_step,
 				  offset_in_page(ptr))) {
 			BUG_ON(b->c->block_size <= PAGE_SIZE);
-			use_dmio(b, rw, sector, n_sectors, end_io);
+			use_dmio(b, rw, sector, n_sectors, offset, end_io);
 			return;
 		}
 
-		len -= PAGE_SIZE;
-		ptr += PAGE_SIZE;
+		len -= this_step;
+		ptr += this_step;
 	} while (len > 0);
 
 	submit_bio(&b->bio);
@@ -657,18 +658,33 @@ static void submit_io(struct dm_buffer *b, int rw, bio_end_io_t *end_io)
 {
 	unsigned n_sectors;
 	sector_t sector;
-
-	if (rw == WRITE && b->c->write_callback)
-		b->c->write_callback(b);
+	unsigned offset, end;
 
 	sector = (b->block << b->c->sectors_per_block_bits) + b->c->start;
-	n_sectors = 1 << b->c->sectors_per_block_bits;
+
+	if (rw != WRITE) {
+		n_sectors = 1 << b->c->sectors_per_block_bits;
+		offset = 0;
+	} else {
+		if (b->c->write_callback)
+			b->c->write_callback(b);
+		offset = b->write_start;
+		end = b->write_end;
+		offset &= -DM_BUFIO_WRITE_ALIGN;
+		end += DM_BUFIO_WRITE_ALIGN - 1;
+		end &= -DM_BUFIO_WRITE_ALIGN;
+		if (unlikely(end > b->c->block_size))
+			end = b->c->block_size;
+
+		sector += offset >> SECTOR_SHIFT;
+		n_sectors = (end - offset) >> SECTOR_SHIFT;
+	}
 
 	if (n_sectors <= ((DM_BUFIO_INLINE_VECS * PAGE_SIZE) >> SECTOR_SHIFT) &&
 	    b->data_mode != DATA_MODE_VMALLOC)
-		use_inline_bio(b, rw, sector, n_sectors, end_io);
+		use_inline_bio(b, rw, sector, n_sectors, offset, end_io);
 	else
-		use_dmio(b, rw, sector, n_sectors, end_io);
+		use_dmio(b, rw, sector, n_sectors, offset, end_io);
 }
 
 /*----------------------------------------------------------------
@@ -685,11 +701,12 @@ static void write_endio(struct bio *bio)
 {
 	struct dm_buffer *b = container_of(bio, struct dm_buffer, bio);
 
-	b->write_error = bio->bi_error;
-	if (unlikely(bio->bi_error)) {
+	b->write_error = bio->bi_status;
+	if (unlikely(bio->bi_status)) {
 		struct dm_bufio_client *c = b->c;
-		int error = bio->bi_error;
-		(void)cmpxchg(&c->async_write_error, 0, error);
+
+		(void)cmpxchg(&c->async_write_error, 0,
+				blk_status_to_errno(bio->bi_status));
 	}
 
 	BUG_ON(!test_bit(B_WRITING, &b->state));
@@ -718,6 +735,9 @@ static void __write_dirty_buffer(struct dm_buffer *b,
 
 	clear_bit(B_DIRTY, &b->state);
 	wait_on_bit_lock_io(&b->state, B_WRITING, TASK_UNINTERRUPTIBLE);
+
+	b->write_start = b->dirty_start;
+	b->write_end = b->dirty_end;
 
 	if (!write_list)
 		submit_io(b, WRITE, write_endio);
@@ -1063,7 +1083,7 @@ static void read_endio(struct bio *bio)
 {
 	struct dm_buffer *b = container_of(bio, struct dm_buffer, bio);
 
-	b->read_error = bio->bi_error;
+	b->read_error = bio->bi_status;
 
 	BUG_ON(!test_bit(B_READING, &b->state));
 
@@ -1107,7 +1127,7 @@ static void *new_read(struct dm_bufio_client *c, sector_t block,
 	wait_on_bit_io(&b->state, B_READING, TASK_UNINTERRUPTIBLE);
 
 	if (b->read_error) {
-		int error = b->read_error;
+		int error = blk_status_to_errno(b->read_error);
 
 		dm_bufio_release(b);
 
@@ -1220,18 +1240,36 @@ void dm_bufio_release(struct dm_buffer *b)
 }
 EXPORT_SYMBOL_GPL(dm_bufio_release);
 
-void dm_bufio_mark_buffer_dirty(struct dm_buffer *b)
+void dm_bufio_mark_partial_buffer_dirty(struct dm_buffer *b,
+					unsigned start, unsigned end)
 {
 	struct dm_bufio_client *c = b->c;
+
+	BUG_ON(start >= end);
+	BUG_ON(end > b->c->block_size);
 
 	dm_bufio_lock(c);
 
 	BUG_ON(test_bit(B_READING, &b->state));
 
-	if (!test_and_set_bit(B_DIRTY, &b->state))
+	if (!test_and_set_bit(B_DIRTY, &b->state)) {
+		b->dirty_start = start;
+		b->dirty_end = end;
 		__relink_lru(b, LIST_DIRTY);
+	} else {
+		if (start < b->dirty_start)
+			b->dirty_start = start;
+		if (end > b->dirty_end)
+			b->dirty_end = end;
+	}
 
 	dm_bufio_unlock(c);
+}
+EXPORT_SYMBOL_GPL(dm_bufio_mark_partial_buffer_dirty);
+
+void dm_bufio_mark_buffer_dirty(struct dm_buffer *b)
+{
+	dm_bufio_mark_partial_buffer_dirty(b, 0, b->c->block_size);
 }
 EXPORT_SYMBOL_GPL(dm_bufio_mark_buffer_dirty);
 
@@ -1397,6 +1435,8 @@ retry:
 		wait_on_bit_io(&b->state, B_WRITING,
 			       TASK_UNINTERRUPTIBLE);
 		set_bit(B_DIRTY, &b->state);
+		b->dirty_start = 0;
+		b->dirty_end = c->block_size;
 		__unlink_buffer(b);
 		__link_buffer(b, new_block, LIST_DIRTY);
 	} else {

@@ -681,6 +681,7 @@ void __elv_add_request(struct request_queue *q, struct request *rq, int where)
 		 */
 		if (elv_attempt_insert_merge(q, rq))
 			break;
+		/* fall through */
 	case ELEVATOR_INSERT_SORT:
 		BUG_ON(blk_rq_is_passthrough(rq));
 		rq->rq_flags |= RQF_SORTED;
@@ -1053,6 +1054,10 @@ static int __elevator_change(struct request_queue *q, const char *name)
 {
 	char elevator_name[ELV_NAME_MAX];
 	struct elevator_type *e;
+
+	/* Make sure queue is not in the middle of being removed */
+	if (!test_bit(QUEUE_FLAG_REGISTERED, &q->queue_flags))
+		return -ENOENT;
 
 	/*
 	 * Special case for mq, turn off scheduling

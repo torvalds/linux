@@ -1,5 +1,5 @@
 /*
- * Driver for the Renesas RCar I2C unit
+ * Driver for the Renesas R-Car I2C unit
  *
  * Copyright (C) 2014-15 Wolfram Sang <wsa@sang-engineering.com>
  * Copyright (C) 2011-2015 Renesas Electronics Corporation
@@ -625,9 +625,8 @@ static struct dma_chan *rcar_i2c_request_dma_chan(struct device *dev,
 
 	chan = dma_request_chan(dev, chan_name);
 	if (IS_ERR(chan)) {
-		ret = PTR_ERR(chan);
-		dev_dbg(dev, "request_channel failed for %s (%d)\n",
-			chan_name, ret);
+		dev_dbg(dev, "request_channel failed for %s (%ld)\n",
+			chan_name, PTR_ERR(chan));
 		return chan;
 	}
 
@@ -783,7 +782,12 @@ static int rcar_unreg_slave(struct i2c_client *slave)
 
 static u32 rcar_i2c_func(struct i2c_adapter *adap)
 {
-	/* This HW can't do SMBUS_QUICK and NOSTART */
+	/*
+	 * This HW can't do:
+	 * I2C_SMBUS_QUICK (setting FSB during START didn't work)
+	 * I2C_M_NOSTART (automatically sends address after START)
+	 * I2C_M_IGNORE_NAK (automatically sends STOP after NAK)
+	 */
 	return I2C_FUNC_I2C | I2C_FUNC_SLAVE |
 		(I2C_FUNC_SMBUS_EMUL & ~I2C_FUNC_SMBUS_QUICK);
 }

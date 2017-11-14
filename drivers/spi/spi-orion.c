@@ -22,6 +22,7 @@
 #include <linux/of_device.h>
 #include <linux/clk.h>
 #include <linux/sizes.h>
+#include <linux/gpio.h>
 #include <asm/unaligned.h>
 
 #define DRIVER_NAME			"orion_spi"
@@ -320,12 +321,18 @@ orion_spi_setup_transfer(struct spi_device *spi, struct spi_transfer *t)
 static void orion_spi_set_cs(struct spi_device *spi, bool enable)
 {
 	struct orion_spi *orion_spi;
+	int cs;
+
+	if (gpio_is_valid(spi->cs_gpio))
+		cs = 0;
+	else
+		cs = spi->chip_select;
 
 	orion_spi = spi_master_get_devdata(spi->master);
 
 	orion_spi_clrbits(orion_spi, ORION_SPI_IF_CTRL_REG, ORION_SPI_CS_MASK);
 	orion_spi_setbits(orion_spi, ORION_SPI_IF_CTRL_REG,
-				ORION_SPI_CS(spi->chip_select));
+				ORION_SPI_CS(cs));
 
 	/* Chip select logic is inverted from spi_set_cs */
 	if (!enable)
@@ -606,6 +613,7 @@ static int orion_spi_probe(struct platform_device *pdev)
 	master->setup = orion_spi_setup;
 	master->bits_per_word_mask = SPI_BPW_MASK(8) | SPI_BPW_MASK(16);
 	master->auto_runtime_pm = true;
+	master->flags = SPI_MASTER_GPIO_SS;
 
 	platform_set_drvdata(pdev, master);
 
@@ -661,8 +669,8 @@ static int orion_spi_probe(struct platform_device *pdev)
 		status = of_property_read_u32(np, "reg", &cs);
 		if (status) {
 			dev_err(&pdev->dev,
-				"%s has no valid 'reg' property (%d)\n",
-				np->full_name, status);
+				"%pOF has no valid 'reg' property (%d)\n",
+				np, status);
 			status = 0;
 			continue;
 		}

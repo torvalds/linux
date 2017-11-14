@@ -12,13 +12,17 @@
 #define BNXT_H
 
 #define DRV_MODULE_NAME		"bnxt_en"
-#define DRV_MODULE_VERSION	"1.7.0"
+#define DRV_MODULE_VERSION	"1.8.0"
 
 #define DRV_VER_MAJ	1
-#define DRV_VER_MIN	7
+#define DRV_VER_MIN	8
 #define DRV_VER_UPD	0
 
 #include <linux/interrupt.h>
+#include <linux/rhashtable.h>
+#include <net/devlink.h>
+#include <net/dst_metadata.h>
+#include <net/switchdev.h>
 
 struct tx_bd {
 	__le32 tx_bd_len_flags_type;
@@ -242,6 +246,10 @@ struct rx_cmp_ext {
 	    ((le32_to_cpu((rxcmp1)->rx_cmp_flags2) &			\
 	     RX_CMP_FLAGS2_T_L4_CS_CALC) >> 3)
 
+#define RX_CMP_CFA_CODE(rxcmpl1)					\
+	((le32_to_cpu((rxcmpl1)->rx_cmp_cfa_code_errors_v2) &		\
+	  RX_CMPL_CFA_CODE_MASK) >> RX_CMPL_CFA_CODE_SFT)
+
 struct rx_agg_cmp {
 	__le32 rx_agg_cmp_len_flags_type;
 	#define RX_AGG_CMP_TYPE					(0x3f << 0)
@@ -310,6 +318,10 @@ struct rx_tpa_start_cmp_ext {
 	 #define RX_TPA_START_CMPL_CFA_CODE_SHIFT		 16
 	__le32 rx_tpa_start_cmp_hdr_info;
 };
+
+#define TPA_START_CFA_CODE(rx_tpa_start)				\
+	((le32_to_cpu((rx_tpa_start)->rx_tpa_start_cmp_cfa_code_v2) &	\
+	 RX_TPA_START_CMP_CFA_CODE) >> RX_TPA_START_CMPL_CFA_CODE_SHIFT)
 
 struct rx_tpa_end_cmp {
 	__le32 rx_tpa_end_cmp_len_flags_type;
@@ -504,6 +516,7 @@ struct rx_tpa_end_cmp_ext {
 #define NEXT_CMP(idx)		RING_CMP(ADV_RAW_CMP(idx, 1))
 
 #define BNXT_HWRM_MAX_REQ_LEN		(bp->hwrm_max_req_len)
+#define BNXT_HWRM_SHORT_REQ_LEN		sizeof(struct hwrm_short_input)
 #define DFLT_HWRM_CMD_TIMEOUT		500
 #define HWRM_CMD_TIMEOUT		(bp->hwrm_cmd_timeout)
 #define HWRM_RESET_TIMEOUT		((HWRM_CMD_TIMEOUT) * 4)
@@ -617,6 +630,8 @@ struct bnxt_tpa_info {
 
 #define BNXT_TPA_OUTER_L3_OFF(hdr_info)	\
 	((hdr_info) & 0x1ff)
+
+	u16			cfa_code; /* cfa_code in TPA start compl */
 };
 
 struct bnxt_rx_ring_info {
@@ -687,8 +702,10 @@ struct bnxt_napi {
 struct bnxt_irq {
 	irq_handler_t	handler;
 	unsigned int	vector;
-	u8		requested;
+	u8		requested:1;
+	u8		have_cpumask:1;
 	char		name[IFNAMSIZ + 2];
+	cpumask_var_t	cpu_mask;
 };
 
 #define HWRM_RING_ALLOC_TX	0x1
@@ -824,8 +841,8 @@ struct bnxt_link_info {
 	u8			loop_back;
 	u8			link_up;
 	u8			duplex;
-#define BNXT_LINK_DUPLEX_HALF	PORT_PHY_QCFG_RESP_DUPLEX_HALF
-#define BNXT_LINK_DUPLEX_FULL	PORT_PHY_QCFG_RESP_DUPLEX_FULL
+#define BNXT_LINK_DUPLEX_HALF	PORT_PHY_QCFG_RESP_DUPLEX_STATE_HALF
+#define BNXT_LINK_DUPLEX_FULL	PORT_PHY_QCFG_RESP_DUPLEX_STATE_FULL
 	u8			pause;
 #define BNXT_LINK_PAUSE_TX	PORT_PHY_QCFG_RESP_PAUSE_TX
 #define BNXT_LINK_PAUSE_RX	PORT_PHY_QCFG_RESP_PAUSE_RX
@@ -927,6 +944,45 @@ struct bnxt_test_info {
 #define BNXT_CAG_REG_LEGACY_INT_STATUS	0x4014
 #define BNXT_CAG_REG_BASE		0x300000
 
+struct bnxt_tc_info {
+	bool				enabled;
+
+	/* hash table to store TC offloaded flows */
+	struct rhashtable		flow_table;
+	struct rhashtable_params	flow_ht_params;
+
+	/* hash table to store L2 keys of TC flows */
+	struct rhashtable		l2_table;
+	struct rhashtable_params	l2_ht_params;
+
+	/* lock to atomically add/del an l2 node when a flow is
+	 * added or deleted.
+	 */
+	struct mutex			lock;
+
+	/* Stat counter mask (width) */
+	u64				bytes_mask;
+	u64				packets_mask;
+};
+
+struct bnxt_vf_rep_stats {
+	u64			packets;
+	u64			bytes;
+	u64			dropped;
+};
+
+struct bnxt_vf_rep {
+	struct bnxt			*bp;
+	struct net_device		*dev;
+	struct metadata_dst		*dst;
+	u16				vf_idx;
+	u16				tx_cfa_action;
+	u16				rx_cfa_code;
+
+	struct bnxt_vf_rep_stats	rx_stats;
+	struct bnxt_vf_rep_stats	tx_stats;
+};
+
 struct bnxt {
 	void __iomem		*bar0;
 	void __iomem		*bar1;
@@ -941,37 +997,58 @@ struct bnxt {
 #define CHIP_NUM_57402		0x16d0
 #define CHIP_NUM_57404		0x16d1
 #define CHIP_NUM_57406		0x16d2
+#define CHIP_NUM_57407		0x16d5
 
 #define CHIP_NUM_57311		0x16ce
 #define CHIP_NUM_57312		0x16cf
 #define CHIP_NUM_57314		0x16df
+#define CHIP_NUM_57317		0x16e0
 #define CHIP_NUM_57412		0x16d6
 #define CHIP_NUM_57414		0x16d7
 #define CHIP_NUM_57416		0x16d8
 #define CHIP_NUM_57417		0x16d9
+#define CHIP_NUM_57412L		0x16da
+#define CHIP_NUM_57414L		0x16db
+
+#define CHIP_NUM_5745X		0xd730
+
+#define CHIP_NUM_58802		0xd802
+#define CHIP_NUM_58808		0xd808
 
 #define BNXT_CHIP_NUM_5730X(chip_num)		\
 	((chip_num) >= CHIP_NUM_57301 &&	\
 	 (chip_num) <= CHIP_NUM_57304)
 
 #define BNXT_CHIP_NUM_5740X(chip_num)		\
-	((chip_num) >= CHIP_NUM_57402 &&	\
-	 (chip_num) <= CHIP_NUM_57406)
+	(((chip_num) >= CHIP_NUM_57402 &&	\
+	  (chip_num) <= CHIP_NUM_57406) ||	\
+	 (chip_num) == CHIP_NUM_57407)
 
 #define BNXT_CHIP_NUM_5731X(chip_num)		\
 	((chip_num) == CHIP_NUM_57311 ||	\
 	 (chip_num) == CHIP_NUM_57312 ||	\
-	 (chip_num) == CHIP_NUM_57314)
+	 (chip_num) == CHIP_NUM_57314 ||	\
+	 (chip_num) == CHIP_NUM_57317)
 
 #define BNXT_CHIP_NUM_5741X(chip_num)		\
 	((chip_num) >= CHIP_NUM_57412 &&	\
-	 (chip_num) <= CHIP_NUM_57417)
+	 (chip_num) <= CHIP_NUM_57414L)
+
+#define BNXT_CHIP_NUM_58700(chip_num)		\
+	 ((chip_num) == CHIP_NUM_58700)
+
+#define BNXT_CHIP_NUM_5745X(chip_num)		\
+	 ((chip_num) == CHIP_NUM_5745X)
 
 #define BNXT_CHIP_NUM_57X0X(chip_num)		\
 	(BNXT_CHIP_NUM_5730X(chip_num) || BNXT_CHIP_NUM_5740X(chip_num))
 
 #define BNXT_CHIP_NUM_57X1X(chip_num)		\
 	(BNXT_CHIP_NUM_5731X(chip_num) || BNXT_CHIP_NUM_5741X(chip_num))
+
+#define BNXT_CHIP_NUM_588XX(chip_num)		\
+	((chip_num) == CHIP_NUM_58802 ||	\
+	 (chip_num) == CHIP_NUM_58808)
 
 	struct net_device	*dev;
 	struct pci_dev		*pdev;
@@ -1010,6 +1087,9 @@ struct bnxt {
 	#define BNXT_FLAG_RX_PAGE_MODE	0x40000
 	#define BNXT_FLAG_FW_LLDP_AGENT	0x80000
 	#define BNXT_FLAG_MULTI_HOST	0x100000
+	#define BNXT_FLAG_SHORT_CMD	0x200000
+	#define BNXT_FLAG_DOUBLE_DB	0x400000
+	#define BNXT_FLAG_FW_DCBX_AGENT	0x800000
 	#define BNXT_FLAG_CHIP_NITRO_A0	0x1000000
 
 	#define BNXT_FLAG_ALL_CONFIG_FEATS (BNXT_FLAG_TPA |		\
@@ -1023,6 +1103,14 @@ struct bnxt {
 #define BNXT_SINGLE_PF(bp)	(BNXT_PF(bp) && !BNXT_NPAR(bp) && !BNXT_MH(bp))
 #define BNXT_CHIP_TYPE_NITRO_A0(bp) ((bp)->flags & BNXT_FLAG_CHIP_NITRO_A0)
 #define BNXT_RX_PAGE_MODE(bp)	((bp)->flags & BNXT_FLAG_RX_PAGE_MODE)
+
+/* Chip class phase 4 and later */
+#define BNXT_CHIP_P4_PLUS(bp)			\
+	(BNXT_CHIP_NUM_57X1X((bp)->chip_num) ||	\
+	 BNXT_CHIP_NUM_5745X((bp)->chip_num) ||	\
+	 BNXT_CHIP_NUM_588XX((bp)->chip_num) ||	\
+	 (BNXT_CHIP_NUM_58700((bp)->chip_num) &&	\
+	  !BNXT_CHIP_TYPE_NITRO_A0(bp)))
 
 	struct bnxt_en_dev	*edev;
 	struct bnxt_en_dev *	(*ulp_probe)(struct net_device *);
@@ -1062,6 +1150,7 @@ struct bnxt {
 	int			tx_nr_rings;
 	int			tx_nr_rings_per_tc;
 	int			tx_nr_rings_xdp;
+	int			tx_reserved_rings;
 
 	int			tx_wake_thresh;
 	int			tx_push_thresh;
@@ -1093,6 +1182,7 @@ struct bnxt {
 	unsigned long		state;
 #define BNXT_STATE_OPEN		0
 #define BNXT_STATE_IN_SP_TASK	1
+#define BNXT_STATE_READ_STATS	2
 
 	struct bnxt_irq	*irq_tbl;
 	int			total_irqs;
@@ -1110,6 +1200,8 @@ struct bnxt {
 	u32			hwrm_spec_code;
 	u16			hwrm_cmd_seq;
 	u32			hwrm_intr_seq_id;
+	void			*hwrm_short_cmd_req_addr;
+	dma_addr_t		hwrm_short_cmd_req_dma_addr;
 	void			*hwrm_cmd_resp_addr;
 	dma_addr_t		hwrm_cmd_resp_dma_addr;
 	void			*hwrm_dbg_resp_addr;
@@ -1137,6 +1229,8 @@ struct bnxt {
 	u8			nge_port_cnt;
 	__le16			nge_fw_dst_port_id;
 	u8			port_partition_type;
+	u8			port_count;
+	u16			br_mode;
 
 	u16			rx_coal_ticks;
 	u16			rx_coal_ticks_irq;
@@ -1179,6 +1273,12 @@ struct bnxt {
 	wait_queue_head_t	sriov_cfg_wait;
 	bool			sriov_cfg;
 #define BNXT_SRIOV_CFG_WAIT_TMO	msecs_to_jiffies(10000)
+
+	/* lock to protect VF-rep creation/cleanup via
+	 * multiple paths such as ->sriov_configure() and
+	 * devlink ->eswitch_mode_set()
+	 */
+	struct mutex		sriov_lock;
 #endif
 
 #define BNXT_NTP_FLTR_MAX_FLTR	4096
@@ -1190,6 +1290,10 @@ struct bnxt {
 	unsigned long		*ntp_fltr_bmap;
 	int			ntp_fltr_count;
 
+	/* To protect link related settings during link changes and
+	 * ethtool settings changes.
+	 */
+	struct mutex		link_lock;
 	struct bnxt_link_info	link_info;
 	struct ethtool_eee	eee;
 	u32			lpi_tmr_lo;
@@ -1205,6 +1309,13 @@ struct bnxt {
 	struct bnxt_led_info	leds[BNXT_MAX_LED];
 
 	struct bpf_prog		*xdp_prog;
+
+	/* devlink interface and vf-rep structs */
+	struct devlink		*dl;
+	enum devlink_eswitch_mode eswitch_mode;
+	struct bnxt_vf_rep	**vf_reps; /* array of vf-rep ptrs */
+	u16			*cfa_code_map; /* cfa_code -> vf_idx map */
+	struct bnxt_tc_info	tc_info;
 };
 
 #define BNXT_RX_STATS_OFFSET(counter)			\
@@ -1233,6 +1344,14 @@ static inline u32 bnxt_tx_avail(struct bnxt *bp, struct bnxt_tx_ring_info *txr)
 		((txr->tx_prod - txr->tx_cons) & bp->tx_ring_mask);
 }
 
+/* For TX and RX ring doorbells */
+static inline void bnxt_db_write(struct bnxt *bp, void __iomem *db, u32 val)
+{
+	writel(val, db);
+	if (bp->flags & BNXT_FLAG_DOUBLE_DB)
+		writel(val, db);
+}
+
 extern const u16 bnxt_lhint_arr[];
 
 int bnxt_alloc_rx_data(struct bnxt *bp, struct bnxt_rx_ring_info *rxr,
@@ -1243,6 +1362,7 @@ void bnxt_set_ring_params(struct bnxt *);
 int bnxt_set_rx_skb_mode(struct bnxt *bp, bool page_mode);
 void bnxt_hwrm_cmd_hdr_init(struct bnxt *, void *, u16, u16, u16);
 int _hwrm_send_message(struct bnxt *, void *, u32, int);
+int _hwrm_send_message_silent(struct bnxt *bp, void *msg, u32 len, int timeout);
 int hwrm_send_message(struct bnxt *, void *, u32, int);
 int hwrm_send_message_silent(struct bnxt *, void *, u32, int);
 int bnxt_hwrm_func_rgtr_async_events(struct bnxt *bp, unsigned long *bmap,
@@ -1266,8 +1386,10 @@ int bnxt_open_nic(struct bnxt *, bool, bool);
 int bnxt_half_open_nic(struct bnxt *bp);
 void bnxt_half_close_nic(struct bnxt *bp);
 int bnxt_close_nic(struct bnxt *, bool, bool);
-int bnxt_reserve_rings(struct bnxt *bp, int tx, int rx, int tcs, int tx_xdp);
+int bnxt_check_rings(struct bnxt *bp, int tx, int rx, bool sh, int tcs,
+		     int tx_xdp);
 int bnxt_setup_mq_tc(struct net_device *dev, u8 tc);
 int bnxt_get_max_rings(struct bnxt *, int *, int *, bool);
 void bnxt_restore_pf_fw_resources(struct bnxt *bp);
+int bnxt_port_attr_get(struct bnxt *bp, struct switchdev_attr *attr);
 #endif

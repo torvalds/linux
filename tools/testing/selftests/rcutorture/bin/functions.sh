@@ -66,8 +66,33 @@ configfrag_boot_params () {
 
 # configfrag_boot_cpus bootparam-string config-fragment-file config-cpus
 #
-# Decreases number of CPUs based on any maxcpus= boot parameters specified.
+# Decreases number of CPUs based on any nr_cpus= boot parameters specified.
 configfrag_boot_cpus () {
+	local bootargs="`configfrag_boot_params "$1" "$2"`"
+	local nr_cpus
+	if echo "${bootargs}" | grep -q 'nr_cpus=[0-9]'
+	then
+		nr_cpus="`echo "${bootargs}" | sed -e 's/^.*nr_cpus=\([0-9]*\).*$/\1/'`"
+		if test "$3" -gt "$nr_cpus"
+		then
+			echo $nr_cpus
+		else
+			echo $3
+		fi
+	else
+		echo $3
+	fi
+}
+
+# configfrag_boot_maxcpus bootparam-string config-fragment-file config-cpus
+#
+# Decreases number of CPUs based on any maxcpus= boot parameters specified.
+# This allows tests where additional CPUs come online later during the
+# test run.  However, the torture parameters will be set based on the
+# number of CPUs initially present, so the scripting should schedule
+# test runs based on the maxcpus= boot parameter controlling the initial
+# number of CPUs instead of on the ultimate number of CPUs.
+configfrag_boot_maxcpus () {
 	local bootargs="`configfrag_boot_params "$1" "$2"`"
 	local maxcpus
 	if echo "${bootargs}" | grep -q 'maxcpus=[0-9]'

@@ -61,17 +61,18 @@ bool acpi_ata_match(acpi_handle handle);
 bool acpi_bay_match(acpi_handle handle);
 bool acpi_dock_match(acpi_handle handle);
 
-bool acpi_check_dsm(acpi_handle handle, const u8 *uuid, u64 rev, u64 funcs);
-union acpi_object *acpi_evaluate_dsm(acpi_handle handle, const u8 *uuid,
+bool acpi_check_dsm(acpi_handle handle, const guid_t *guid, u64 rev, u64 funcs);
+union acpi_object *acpi_evaluate_dsm(acpi_handle handle, const guid_t *guid,
 			u64 rev, u64 func, union acpi_object *argv4);
 
 static inline union acpi_object *
-acpi_evaluate_dsm_typed(acpi_handle handle, const u8 *uuid, u64 rev, u64 func,
-			union acpi_object *argv4, acpi_object_type type)
+acpi_evaluate_dsm_typed(acpi_handle handle, const guid_t *guid, u64 rev,
+			u64 func, union acpi_object *argv4,
+			acpi_object_type type)
 {
 	union acpi_object *obj;
 
-	obj = acpi_evaluate_dsm(handle, uuid, rev, func, argv4);
+	obj = acpi_evaluate_dsm(handle, guid, rev, func, argv4);
 	if (obj && obj->type != type) {
 		ACPI_FREE(obj);
 		obj = NULL;
@@ -314,13 +315,11 @@ struct acpi_device_perf {
 /* Wakeup Management */
 struct acpi_device_wakeup_flags {
 	u8 valid:1;		/* Can successfully enable wakeup? */
-	u8 run_wake:1;		/* Run-Wake GPE devices */
 	u8 notifier_present:1;  /* Wake-up notify handler has been installed */
-	u8 enabled:1;		/* Enabled for wakeup */
 };
 
 struct acpi_device_wakeup_context {
-	struct work_struct work;
+	void (*func)(struct acpi_device_wakeup_context *context);
 	struct device *dev;
 };
 
@@ -333,6 +332,7 @@ struct acpi_device_wakeup {
 	struct acpi_device_wakeup_context context;
 	struct wakeup_source *ws;
 	int prepare_count;
+	int enable_count;
 };
 
 struct acpi_device_physical_node {
@@ -395,35 +395,45 @@ struct acpi_data_node {
 	struct completion kobj_done;
 };
 
-static inline bool is_acpi_node(struct fwnode_handle *fwnode)
+extern const struct fwnode_operations acpi_device_fwnode_ops;
+extern const struct fwnode_operations acpi_data_fwnode_ops;
+extern const struct fwnode_operations acpi_static_fwnode_ops;
+
+bool is_acpi_device_node(const struct fwnode_handle *fwnode);
+bool is_acpi_data_node(const struct fwnode_handle *fwnode);
+
+static inline bool is_acpi_node(const struct fwnode_handle *fwnode)
 {
-	return !IS_ERR_OR_NULL(fwnode) && (fwnode->type == FWNODE_ACPI
-		|| fwnode->type == FWNODE_ACPI_DATA);
+	return (is_acpi_device_node(fwnode) || is_acpi_data_node(fwnode));
 }
 
-static inline bool is_acpi_device_node(struct fwnode_handle *fwnode)
+#define to_acpi_device_node(__fwnode)					\
+	({								\
+		typeof(__fwnode) __to_acpi_device_node_fwnode = __fwnode; \
+									\
+		is_acpi_device_node(__to_acpi_device_node_fwnode) ?	\
+			container_of(__to_acpi_device_node_fwnode,	\
+				     struct acpi_device, fwnode) :	\
+			NULL;						\
+	})
+
+#define to_acpi_data_node(__fwnode)					\
+	({								\
+		typeof(__fwnode) __to_acpi_data_node_fwnode = __fwnode;	\
+									\
+		is_acpi_data_node(__to_acpi_data_node_fwnode) ?		\
+			container_of(__to_acpi_data_node_fwnode,	\
+				     struct acpi_data_node, fwnode) :	\
+			NULL;						\
+	})
+
+static inline bool is_acpi_static_node(const struct fwnode_handle *fwnode)
 {
-	return !IS_ERR_OR_NULL(fwnode) && fwnode->type == FWNODE_ACPI;
+	return !IS_ERR_OR_NULL(fwnode) &&
+		fwnode->ops == &acpi_static_fwnode_ops;
 }
 
-static inline struct acpi_device *to_acpi_device_node(struct fwnode_handle *fwnode)
-{
-	return is_acpi_device_node(fwnode) ?
-		container_of(fwnode, struct acpi_device, fwnode) : NULL;
-}
-
-static inline bool is_acpi_data_node(struct fwnode_handle *fwnode)
-{
-	return fwnode && fwnode->type == FWNODE_ACPI_DATA;
-}
-
-static inline struct acpi_data_node *to_acpi_data_node(struct fwnode_handle *fwnode)
-{
-	return is_acpi_data_node(fwnode) ?
-		container_of(fwnode, struct acpi_data_node, fwnode) : NULL;
-}
-
-static inline bool acpi_data_node_match(struct fwnode_handle *fwnode,
+static inline bool acpi_data_node_match(const struct fwnode_handle *fwnode,
 					const char *name)
 {
 	return is_acpi_data_node(fwnode) ?
@@ -578,6 +588,8 @@ struct acpi_pci_root {
 
 bool acpi_dma_supported(struct acpi_device *adev);
 enum dev_dma_attr acpi_get_dma_attr(struct acpi_device *adev);
+int acpi_dma_get_range(struct device *dev, u64 *dma_addr, u64 *offset,
+		       u64 *size);
 int acpi_dma_configure(struct device *dev, enum dev_dma_attr attr);
 void acpi_dma_deconfigure(struct device *dev);
 
@@ -599,21 +611,31 @@ static inline bool acpi_device_always_present(struct acpi_device *adev)
 #endif
 
 #ifdef CONFIG_PM
+void acpi_pm_wakeup_event(struct device *dev);
 acpi_status acpi_add_pm_notifier(struct acpi_device *adev, struct device *dev,
-				 void (*work_func)(struct work_struct *work));
+			void (*func)(struct acpi_device_wakeup_context *context));
 acpi_status acpi_remove_pm_notifier(struct acpi_device *adev);
+bool acpi_pm_device_can_wakeup(struct device *dev);
 int acpi_pm_device_sleep_state(struct device *, int *, int);
-int acpi_pm_device_run_wake(struct device *, bool);
+int acpi_pm_set_device_wakeup(struct device *dev, bool enable);
+int acpi_pm_set_bridge_wakeup(struct device *dev, bool enable);
 #else
+static inline void acpi_pm_wakeup_event(struct device *dev)
+{
+}
 static inline acpi_status acpi_add_pm_notifier(struct acpi_device *adev,
 					       struct device *dev,
-				               void (*work_func)(struct work_struct *work))
+					       void (*func)(struct acpi_device_wakeup_context *context))
 {
 	return AE_SUPPORT;
 }
 static inline acpi_status acpi_remove_pm_notifier(struct acpi_device *adev)
 {
 	return AE_SUPPORT;
+}
+static inline bool acpi_pm_device_can_wakeup(struct device *dev)
+{
+	return false;
 }
 static inline int acpi_pm_device_sleep_state(struct device *d, int *p, int m)
 {
@@ -623,16 +645,11 @@ static inline int acpi_pm_device_sleep_state(struct device *d, int *p, int m)
 	return (m >= ACPI_STATE_D0 && m <= ACPI_STATE_D3_COLD) ?
 		m : ACPI_STATE_D0;
 }
-static inline int acpi_pm_device_run_wake(struct device *dev, bool enable)
+static inline int acpi_pm_set_device_wakeup(struct device *dev, bool enable)
 {
 	return -ENODEV;
 }
-#endif
-
-#ifdef CONFIG_PM_SLEEP
-int acpi_pm_device_sleep_wake(struct device *, bool);
-#else
-static inline int acpi_pm_device_sleep_wake(struct device *dev, bool enable)
+static inline int acpi_pm_set_bridge_wakeup(struct device *dev, bool enable)
 {
 	return -ENODEV;
 }

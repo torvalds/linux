@@ -29,20 +29,20 @@
  * hopefully present.
  */
 
-#include "drm_atomic_helper.h"
-#include "drm_crtc_helper.h"
-#include "drm_edid.h"
-#include "drm_mipi_dsi.h"
-#include "drm_panel.h"
-#include "linux/clk.h"
-#include "linux/clk-provider.h"
-#include "linux/completion.h"
-#include "linux/component.h"
-#include "linux/dmaengine.h"
-#include "linux/i2c.h"
-#include "linux/of_address.h"
-#include "linux/of_platform.h"
-#include "linux/pm_runtime.h"
+#include <drm/drm_atomic_helper.h>
+#include <drm/drm_crtc_helper.h>
+#include <drm/drm_edid.h>
+#include <drm/drm_mipi_dsi.h>
+#include <drm/drm_panel.h>
+#include <linux/clk.h>
+#include <linux/clk-provider.h>
+#include <linux/completion.h>
+#include <linux/component.h>
+#include <linux/dmaengine.h>
+#include <linux/i2c.h>
+#include <linux/of_address.h>
+#include <linux/of_platform.h>
+#include <linux/pm_runtime.h>
 #include "vc4_drv.h"
 #include "vc4_regs.h"
 
@@ -503,8 +503,8 @@ struct vc4_dsi {
 
 	struct mipi_dsi_host dsi_host;
 	struct drm_encoder *encoder;
-	struct drm_connector *connector;
-	struct drm_panel *panel;
+	struct drm_bridge *bridge;
+	bool is_panel_bridge;
 
 	void __iomem *regs;
 
@@ -519,7 +519,8 @@ struct vc4_dsi {
 	/* DSI channel for the panel we're connected to. */
 	u32 channel;
 	u32 lanes;
-	enum mipi_dsi_pixel_format format;
+	u32 format;
+	u32 divider;
 	u32 mode_flags;
 
 	/* Input clock from CPRMAN to the digital PHY, for the DSI
@@ -602,18 +603,6 @@ static inline struct vc4_dsi_encoder *
 to_vc4_dsi_encoder(struct drm_encoder *encoder)
 {
 	return container_of(encoder, struct vc4_dsi_encoder, base.base);
-}
-
-/* VC4 DSI connector KMS struct */
-struct vc4_dsi_connector {
-	struct drm_connector base;
-	struct vc4_dsi *dsi;
-};
-
-static inline struct vc4_dsi_connector *
-to_vc4_dsi_connector(struct drm_connector *connector)
-{
-	return container_of(connector, struct vc4_dsi_connector, base);
 }
 
 #define DSI_REG(reg) { reg, #reg }
@@ -723,79 +712,6 @@ int vc4_dsi_debugfs_regs(struct seq_file *m, void *unused)
 }
 #endif
 
-static enum drm_connector_status
-vc4_dsi_connector_detect(struct drm_connector *connector, bool force)
-{
-	struct vc4_dsi_connector *vc4_connector =
-		to_vc4_dsi_connector(connector);
-	struct vc4_dsi *dsi = vc4_connector->dsi;
-
-	if (dsi->panel)
-		return connector_status_connected;
-	else
-		return connector_status_disconnected;
-}
-
-static void vc4_dsi_connector_destroy(struct drm_connector *connector)
-{
-	drm_connector_unregister(connector);
-	drm_connector_cleanup(connector);
-}
-
-static int vc4_dsi_connector_get_modes(struct drm_connector *connector)
-{
-	struct vc4_dsi_connector *vc4_connector =
-		to_vc4_dsi_connector(connector);
-	struct vc4_dsi *dsi = vc4_connector->dsi;
-
-	if (dsi->panel)
-		return drm_panel_get_modes(dsi->panel);
-
-	return 0;
-}
-
-static const struct drm_connector_funcs vc4_dsi_connector_funcs = {
-	.dpms = drm_atomic_helper_connector_dpms,
-	.detect = vc4_dsi_connector_detect,
-	.fill_modes = drm_helper_probe_single_connector_modes,
-	.destroy = vc4_dsi_connector_destroy,
-	.reset = drm_atomic_helper_connector_reset,
-	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
-	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
-};
-
-static const struct drm_connector_helper_funcs vc4_dsi_connector_helper_funcs = {
-	.get_modes = vc4_dsi_connector_get_modes,
-};
-
-static struct drm_connector *vc4_dsi_connector_init(struct drm_device *dev,
-						    struct vc4_dsi *dsi)
-{
-	struct drm_connector *connector;
-	struct vc4_dsi_connector *dsi_connector;
-
-	dsi_connector = devm_kzalloc(dev->dev, sizeof(*dsi_connector),
-				     GFP_KERNEL);
-	if (!dsi_connector)
-		return ERR_PTR(-ENOMEM);
-
-	connector = &dsi_connector->base;
-
-	dsi_connector->dsi = dsi;
-
-	drm_connector_init(dev, connector, &vc4_dsi_connector_funcs,
-			   DRM_MODE_CONNECTOR_DSI);
-	drm_connector_helper_add(connector, &vc4_dsi_connector_helper_funcs);
-
-	connector->polled = 0;
-	connector->interlace_allowed = 0;
-	connector->doublescan_allowed = 0;
-
-	drm_mode_connector_attach_encoder(connector, dsi->encoder);
-
-	return connector;
-}
-
 static void vc4_dsi_encoder_destroy(struct drm_encoder *encoder)
 {
 	drm_encoder_cleanup(encoder);
@@ -820,18 +736,18 @@ static void vc4_dsi_latch_ulps(struct vc4_dsi *dsi, bool latch)
 /* Enters or exits Ultra Low Power State. */
 static void vc4_dsi_ulps(struct vc4_dsi *dsi, bool ulps)
 {
-	bool continuous = dsi->mode_flags & MIPI_DSI_CLOCK_NON_CONTINUOUS;
-	u32 phyc_ulps = ((continuous ? DSI_PORT_BIT(PHYC_CLANE_ULPS) : 0) |
+	bool non_continuous = dsi->mode_flags & MIPI_DSI_CLOCK_NON_CONTINUOUS;
+	u32 phyc_ulps = ((non_continuous ? DSI_PORT_BIT(PHYC_CLANE_ULPS) : 0) |
 			 DSI_PHYC_DLANE0_ULPS |
 			 (dsi->lanes > 1 ? DSI_PHYC_DLANE1_ULPS : 0) |
 			 (dsi->lanes > 2 ? DSI_PHYC_DLANE2_ULPS : 0) |
 			 (dsi->lanes > 3 ? DSI_PHYC_DLANE3_ULPS : 0));
-	u32 stat_ulps = ((continuous ? DSI1_STAT_PHY_CLOCK_ULPS : 0) |
+	u32 stat_ulps = ((non_continuous ? DSI1_STAT_PHY_CLOCK_ULPS : 0) |
 			 DSI1_STAT_PHY_D0_ULPS |
 			 (dsi->lanes > 1 ? DSI1_STAT_PHY_D1_ULPS : 0) |
 			 (dsi->lanes > 2 ? DSI1_STAT_PHY_D2_ULPS : 0) |
 			 (dsi->lanes > 3 ? DSI1_STAT_PHY_D3_ULPS : 0));
-	u32 stat_stop = ((continuous ? DSI1_STAT_PHY_CLOCK_STOP : 0) |
+	u32 stat_stop = ((non_continuous ? DSI1_STAT_PHY_CLOCK_STOP : 0) |
 			 DSI1_STAT_PHY_D0_STOP |
 			 (dsi->lanes > 1 ? DSI1_STAT_PHY_D1_STOP : 0) |
 			 (dsi->lanes > 2 ? DSI1_STAT_PHY_D2_STOP : 0) |
@@ -893,11 +809,7 @@ static void vc4_dsi_encoder_disable(struct drm_encoder *encoder)
 	struct vc4_dsi *dsi = vc4_encoder->dsi;
 	struct device *dev = &dsi->pdev->dev;
 
-	drm_panel_disable(dsi->panel);
-
 	vc4_dsi_ulps(dsi, true);
-
-	drm_panel_unprepare(dsi->panel);
 
 	clk_disable_unprepare(dsi->pll_phy_clock);
 	clk_disable_unprepare(dsi->escape_clock);
@@ -906,13 +818,67 @@ static void vc4_dsi_encoder_disable(struct drm_encoder *encoder)
 	pm_runtime_put(dev);
 }
 
+/* Extends the mode's blank intervals to handle BCM2835's integer-only
+ * DSI PLL divider.
+ *
+ * On 2835, PLLD is set to 2Ghz, and may not be changed by the display
+ * driver since most peripherals are hanging off of the PLLD_PER
+ * divider.  PLLD_DSI1, which drives our DSI bit clock (and therefore
+ * the pixel clock), only has an integer divider off of DSI.
+ *
+ * To get our panel mode to refresh at the expected 60Hz, we need to
+ * extend the horizontal blank time.  This means we drive a
+ * higher-than-expected clock rate to the panel, but that's what the
+ * firmware does too.
+ */
+static bool vc4_dsi_encoder_mode_fixup(struct drm_encoder *encoder,
+				       const struct drm_display_mode *mode,
+				       struct drm_display_mode *adjusted_mode)
+{
+	struct vc4_dsi_encoder *vc4_encoder = to_vc4_dsi_encoder(encoder);
+	struct vc4_dsi *dsi = vc4_encoder->dsi;
+	struct clk *phy_parent = clk_get_parent(dsi->pll_phy_clock);
+	unsigned long parent_rate = clk_get_rate(phy_parent);
+	unsigned long pixel_clock_hz = mode->clock * 1000;
+	unsigned long pll_clock = pixel_clock_hz * dsi->divider;
+	int divider;
+
+	/* Find what divider gets us a faster clock than the requested
+	 * pixel clock.
+	 */
+	for (divider = 1; divider < 8; divider++) {
+		if (parent_rate / divider < pll_clock) {
+			divider--;
+			break;
+		}
+	}
+
+	/* Now that we've picked a PLL divider, calculate back to its
+	 * pixel clock.
+	 */
+	pll_clock = parent_rate / divider;
+	pixel_clock_hz = pll_clock / dsi->divider;
+
+	/* Round up the clk_set_rate() request slightly, since
+	 * PLLD_DSI1 is an integer divider and its rate selection will
+	 * never round up.
+	 */
+	adjusted_mode->clock = pixel_clock_hz / 1000 + 1;
+
+	/* Given the new pixel clock, adjust HFP to keep vrefresh the same. */
+	adjusted_mode->htotal = pixel_clock_hz / (mode->vrefresh * mode->vtotal);
+	adjusted_mode->hsync_end += adjusted_mode->htotal - mode->htotal;
+	adjusted_mode->hsync_start += adjusted_mode->htotal - mode->htotal;
+
+	return true;
+}
+
 static void vc4_dsi_encoder_enable(struct drm_encoder *encoder)
 {
-	struct drm_display_mode *mode = &encoder->crtc->mode;
+	struct drm_display_mode *mode = &encoder->crtc->state->adjusted_mode;
 	struct vc4_dsi_encoder *vc4_encoder = to_vc4_dsi_encoder(encoder);
 	struct vc4_dsi *dsi = vc4_encoder->dsi;
 	struct device *dev = &dsi->pdev->dev;
-	u32 format = 0, divider = 0;
 	bool debug_dump_regs = false;
 	unsigned long hs_clock;
 	u32 ui_ns;
@@ -929,37 +895,12 @@ static void vc4_dsi_encoder_enable(struct drm_encoder *encoder)
 		return;
 	}
 
-	ret = drm_panel_prepare(dsi->panel);
-	if (ret) {
-		DRM_ERROR("Panel failed to prepare\n");
-		return;
-	}
-
 	if (debug_dump_regs) {
 		DRM_INFO("DSI regs before:\n");
 		vc4_dsi_dump_regs(dsi);
 	}
 
-	switch (dsi->format) {
-	case MIPI_DSI_FMT_RGB888:
-		format = DSI_PFORMAT_RGB888;
-		divider = 24 / dsi->lanes;
-		break;
-	case MIPI_DSI_FMT_RGB666:
-		format = DSI_PFORMAT_RGB666;
-		divider = 24 / dsi->lanes;
-		break;
-	case MIPI_DSI_FMT_RGB666_PACKED:
-		format = DSI_PFORMAT_RGB666_PACKED;
-		divider = 18 / dsi->lanes;
-		break;
-	case MIPI_DSI_FMT_RGB565:
-		format = DSI_PFORMAT_RGB565;
-		divider = 16 / dsi->lanes;
-		break;
-	}
-
-	phy_clock = pixel_clock_hz * divider;
+	phy_clock = pixel_clock_hz * dsi->divider;
 	ret = clk_set_rate(dsi->pll_phy_clock, phy_clock);
 	if (ret) {
 		dev_err(&dsi->pdev->dev,
@@ -1094,7 +1035,17 @@ static void vc4_dsi_encoder_enable(struct drm_encoder *encoder)
 				     DSI_HS_DLT4_TRAIL) |
 		       VC4_SET_FIELD(0, DSI_HS_DLT4_ANLAT));
 
-	DSI_PORT_WRITE(HS_DLT5, VC4_SET_FIELD(dsi_hs_timing(ui_ns, 1000, 5000),
+	/* T_INIT is how long STOP is driven after power-up to
+	 * indicate to the slave (also coming out of power-up) that
+	 * master init is complete, and should be greater than the
+	 * maximum of two value: T_INIT,MASTER and T_INIT,SLAVE.  The
+	 * D-PHY spec gives a minimum 100us for T_INIT,MASTER and
+	 * T_INIT,SLAVE, while allowing protocols on top of it to give
+	 * greater minimums.  The vc4 firmware uses an extremely
+	 * conservative 5ms, and we maintain that here.
+	 */
+	DSI_PORT_WRITE(HS_DLT5, VC4_SET_FIELD(dsi_hs_timing(ui_ns,
+							    5 * 1000 * 1000, 0),
 					      DSI_HS_DLT5_INIT));
 
 	DSI_PORT_WRITE(HS_DLT6,
@@ -1134,8 +1085,9 @@ static void vc4_dsi_encoder_enable(struct drm_encoder *encoder)
 
 	if (dsi->mode_flags & MIPI_DSI_MODE_VIDEO) {
 		DSI_PORT_WRITE(DISP0_CTRL,
-			       VC4_SET_FIELD(divider, DSI_DISP0_PIX_CLK_DIV) |
-			       VC4_SET_FIELD(format, DSI_DISP0_PFORMAT) |
+			       VC4_SET_FIELD(dsi->divider,
+					     DSI_DISP0_PIX_CLK_DIV) |
+			       VC4_SET_FIELD(dsi->format, DSI_DISP0_PFORMAT) |
 			       VC4_SET_FIELD(DSI_DISP0_LP_STOP_PERFRAME,
 					     DSI_DISP0_LP_STOP_CTRL) |
 			       DSI_DISP0_ST_END |
@@ -1173,13 +1125,6 @@ static void vc4_dsi_encoder_enable(struct drm_encoder *encoder)
 	if (debug_dump_regs) {
 		DRM_INFO("DSI regs after:\n");
 		vc4_dsi_dump_regs(dsi);
-	}
-
-	ret = drm_panel_enable(dsi->panel);
-	if (ret) {
-		DRM_ERROR("Panel failed to enable\n");
-		drm_panel_unprepare(dsi->panel);
-		return;
 	}
 }
 
@@ -1347,8 +1292,30 @@ static int vc4_dsi_host_attach(struct mipi_dsi_host *host,
 
 	dsi->lanes = device->lanes;
 	dsi->channel = device->channel;
-	dsi->format = device->format;
 	dsi->mode_flags = device->mode_flags;
+
+	switch (device->format) {
+	case MIPI_DSI_FMT_RGB888:
+		dsi->format = DSI_PFORMAT_RGB888;
+		dsi->divider = 24 / dsi->lanes;
+		break;
+	case MIPI_DSI_FMT_RGB666:
+		dsi->format = DSI_PFORMAT_RGB666;
+		dsi->divider = 24 / dsi->lanes;
+		break;
+	case MIPI_DSI_FMT_RGB666_PACKED:
+		dsi->format = DSI_PFORMAT_RGB666_PACKED;
+		dsi->divider = 18 / dsi->lanes;
+		break;
+	case MIPI_DSI_FMT_RGB565:
+		dsi->format = DSI_PFORMAT_RGB565;
+		dsi->divider = 16 / dsi->lanes;
+		break;
+	default:
+		dev_err(&dsi->pdev->dev, "Unknown DSI format: %d.\n",
+			dsi->format);
+		return 0;
+	}
 
 	if (!(dsi->mode_flags & MIPI_DSI_MODE_VIDEO)) {
 		dev_err(&dsi->pdev->dev,
@@ -1356,17 +1323,22 @@ static int vc4_dsi_host_attach(struct mipi_dsi_host *host,
 		return 0;
 	}
 
-	dsi->panel = of_drm_find_panel(device->dev.of_node);
-	if (!dsi->panel)
-		return 0;
+	dsi->bridge = of_drm_find_bridge(device->dev.of_node);
+	if (!dsi->bridge) {
+		struct drm_panel *panel =
+			of_drm_find_panel(device->dev.of_node);
 
-	ret = drm_panel_attach(dsi->panel, dsi->connector);
-	if (ret != 0)
-		return ret;
+		dsi->bridge = drm_panel_bridge_add(panel,
+						   DRM_MODE_CONNECTOR_DSI);
+		if (IS_ERR(dsi->bridge)) {
+			ret = PTR_ERR(dsi->bridge);
+			dsi->bridge = NULL;
+			return ret;
+		}
+		dsi->is_panel_bridge = true;
+	}
 
-	drm_helper_hpd_irq_event(dsi->connector->dev);
-
-	return 0;
+	return drm_bridge_attach(dsi->encoder, dsi->bridge, NULL);
 }
 
 static int vc4_dsi_host_detach(struct mipi_dsi_host *host,
@@ -1374,15 +1346,9 @@ static int vc4_dsi_host_detach(struct mipi_dsi_host *host,
 {
 	struct vc4_dsi *dsi = host_to_dsi(host);
 
-	if (dsi->panel) {
-		int ret = drm_panel_detach(dsi->panel);
-
-		if (ret)
-			return ret;
-
-		dsi->panel = NULL;
-
-		drm_helper_hpd_irq_event(dsi->connector->dev);
+	if (dsi->is_panel_bridge) {
+		drm_panel_bridge_remove(dsi->bridge);
+		dsi->bridge = NULL;
 	}
 
 	return 0;
@@ -1397,6 +1363,7 @@ static const struct mipi_dsi_host_ops vc4_dsi_host_ops = {
 static const struct drm_encoder_helper_funcs vc4_dsi_encoder_helper_funcs = {
 	.disable = vc4_dsi_encoder_disable,
 	.enable = vc4_dsi_encoder_enable,
+	.mode_fixup = vc4_dsi_encoder_mode_fixup,
 };
 
 static const struct of_device_id vc4_dsi_dt_match[] = {
@@ -1648,12 +1615,6 @@ static int vc4_dsi_bind(struct device *dev, struct device *master, void *data)
 			 DRM_MODE_ENCODER_DSI, NULL);
 	drm_encoder_helper_add(dsi->encoder, &vc4_dsi_encoder_helper_funcs);
 
-	dsi->connector = vc4_dsi_connector_init(drm, dsi);
-	if (IS_ERR(dsi->connector)) {
-		ret = PTR_ERR(dsi->connector);
-		goto err_destroy_encoder;
-	}
-
 	dsi->dsi_host.ops = &vc4_dsi_host_ops;
 	dsi->dsi_host.dev = dev;
 
@@ -1664,11 +1625,6 @@ static int vc4_dsi_bind(struct device *dev, struct device *master, void *data)
 	pm_runtime_enable(dev);
 
 	return 0;
-
-err_destroy_encoder:
-	vc4_dsi_encoder_destroy(dsi->encoder);
-
-	return ret;
 }
 
 static void vc4_dsi_unbind(struct device *dev, struct device *master,
@@ -1680,13 +1636,9 @@ static void vc4_dsi_unbind(struct device *dev, struct device *master,
 
 	pm_runtime_disable(dev);
 
-	vc4_dsi_connector_destroy(dsi->connector);
 	vc4_dsi_encoder_destroy(dsi->encoder);
 
 	mipi_dsi_host_unregister(&dsi->dsi_host);
-
-	clk_disable_unprepare(dsi->pll_phy_clock);
-	clk_disable_unprepare(dsi->escape_clock);
 
 	if (dsi->port == 1)
 		vc4->dsi1 = NULL;

@@ -257,15 +257,7 @@ struct amdgpu_audio {
 	int num_pins;
 };
 
-struct amdgpu_mode_mc_save {
-	u32 vga_render_control;
-	u32 vga_hdp_control;
-	bool crtc_enabled[AMDGPU_MAX_CRTCS];
-};
-
 struct amdgpu_display_funcs {
-	/* vga render */
-	void (*set_vga_render_state)(struct amdgpu_device *adev, bool render);
 	/* display watermarks */
 	void (*bandwidth_update)(struct amdgpu_device *adev);
 	/* get frame count */
@@ -300,10 +292,6 @@ struct amdgpu_display_funcs {
 			      uint16_t connector_object_id,
 			      struct amdgpu_hpd *hpd,
 			      struct amdgpu_router *router);
-	void (*stop_mc_access)(struct amdgpu_device *adev,
-			       struct amdgpu_mode_mc_save *save);
-	void (*resume_mc_access)(struct amdgpu_device *adev,
-				 struct amdgpu_mode_mc_save *save);
 };
 
 struct amdgpu_mode_info {
@@ -369,7 +357,6 @@ struct amdgpu_atom_ss {
 struct amdgpu_crtc {
 	struct drm_crtc base;
 	int crtc_id;
-	u16 lut_r[256], lut_g[256], lut_b[256];
 	bool enabled;
 	bool can_tile;
 	uint32_t crtc_offset;
@@ -534,6 +521,9 @@ struct amdgpu_framebuffer {
 				((em) == ATOM_ENCODER_MODE_DP_MST))
 
 /* Driver internal use only flags of amdgpu_get_crtc_scanoutpos() */
+#define DRM_SCANOUTPOS_VALID        (1 << 0)
+#define DRM_SCANOUTPOS_IN_VBLANK    (1 << 1)
+#define DRM_SCANOUTPOS_ACCURATE     (1 << 2)
 #define USE_REAL_VBLANKSTART		(1 << 30)
 #define GET_DISTANCE_TO_VBLANKSTART	(1 << 31)
 

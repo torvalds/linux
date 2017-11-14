@@ -675,7 +675,7 @@ static int ocfs2_remount(struct super_block *sb, int *flags, char *data)
 	}
 
 	/* We're going to/from readonly mode. */
-	if ((*flags & MS_RDONLY) != (sb->s_flags & MS_RDONLY)) {
+	if ((bool)(*flags & MS_RDONLY) != sb_rdonly(sb)) {
 		/* Disable quota accounting before remounting RO */
 		if (*flags & MS_RDONLY) {
 			ret = ocfs2_susp_quotas(osb, 0);
@@ -1063,7 +1063,7 @@ static int ocfs2_fill_super(struct super_block *sb, void *data, int silent)
 	/* Hard readonly mode only if: bdev_read_only, MS_RDONLY,
 	 * heartbeat=none */
 	if (bdev_read_only(sb->s_bdev)) {
-		if (!(sb->s_flags & MS_RDONLY)) {
+		if (!sb_rdonly(sb)) {
 			status = -EACCES;
 			mlog(ML_ERROR, "Readonly device detected but readonly "
 			     "mount was not specified.\n");
@@ -1098,7 +1098,7 @@ static int ocfs2_fill_super(struct super_block *sb, void *data, int silent)
 	}
 
 	if (!ocfs2_is_hard_readonly(osb)) {
-		if (sb->s_flags & MS_RDONLY)
+		if (sb_rdonly(sb))
 			ocfs2_set_ro_flag(osb, 0);
 	}
 
@@ -1179,7 +1179,7 @@ static int ocfs2_fill_super(struct super_block *sb, void *data, int silent)
 	/* Now we can initialize quotas because we can afford to wait
 	 * for cluster locks recovery now. That also means that truncation
 	 * log recovery can happen but that waits for proper quota setup */
-	if (!(sb->s_flags & MS_RDONLY)) {
+	if (!sb_rdonly(sb)) {
 		status = ocfs2_enable_quotas(osb);
 		if (status < 0) {
 			/* We have to err-out specially here because
@@ -2062,7 +2062,7 @@ static int ocfs2_initialize_super(struct super_block *sb,
 	cbits = le32_to_cpu(di->id2.i_super.s_clustersize_bits);
 	bbits = le32_to_cpu(di->id2.i_super.s_blocksize_bits);
 	sb->s_maxbytes = ocfs2_max_file_offset(bbits, cbits);
-	memcpy(sb->s_uuid, di->id2.i_super.s_uuid,
+	memcpy(&sb->s_uuid, di->id2.i_super.s_uuid,
 	       sizeof(di->id2.i_super.s_uuid));
 
 	osb->osb_dx_mask = (1 << (cbits - bbits)) - 1;
@@ -2180,8 +2180,7 @@ static int ocfs2_initialize_super(struct super_block *sb,
 		status = -EINVAL;
 		goto bail;
 	}
-	if (!(osb->sb->s_flags & MS_RDONLY) &&
-	    (i = OCFS2_HAS_RO_COMPAT_FEATURE(osb->sb, ~OCFS2_FEATURE_RO_COMPAT_SUPP))) {
+	if (!sb_rdonly(osb->sb) && (i = OCFS2_HAS_RO_COMPAT_FEATURE(osb->sb, ~OCFS2_FEATURE_RO_COMPAT_SUPP))) {
 		mlog(ML_ERROR, "couldn't mount RDWR because of "
 		     "unsupported optional features (%x).\n", i);
 		status = -EINVAL;
@@ -2486,7 +2485,6 @@ static int ocfs2_check_volume(struct ocfs2_super *osb)
 	if (dirty) {
 		/* Recovery will be completed after we've mounted the
 		 * rest of the volume. */
-		osb->dirty = 1;
 		osb->local_alloc_copy = local_alloc;
 		local_alloc = NULL;
 	}
@@ -2568,9 +2566,7 @@ static int ocfs2_handle_error(struct super_block *sb)
 		rv = -EIO;
 	} else { /* default option */
 		rv = -EROFS;
-		if (sb->s_flags & MS_RDONLY &&
-				(ocfs2_is_soft_readonly(osb) ||
-				 ocfs2_is_hard_readonly(osb)))
+		if (sb_rdonly(sb) && (ocfs2_is_soft_readonly(osb) || ocfs2_is_hard_readonly(osb)))
 			return rv;
 
 		pr_crit("OCFS2: File system is now read-only.\n");

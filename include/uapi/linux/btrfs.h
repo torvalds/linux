@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  * Copyright (C) 2007 Oracle.  All rights reserved.
  *
@@ -255,13 +256,7 @@ struct btrfs_ioctl_fs_info_args {
 #define BTRFS_FEATURE_INCOMPAT_DEFAULT_SUBVOL	(1ULL << 1)
 #define BTRFS_FEATURE_INCOMPAT_MIXED_GROUPS	(1ULL << 2)
 #define BTRFS_FEATURE_INCOMPAT_COMPRESS_LZO	(1ULL << 3)
-/*
- * some patches floated around with a second compression method
- * lets save that incompat here for when they do get in
- * Note we don't actually support it, we're just reserving the
- * number
- */
-#define BTRFS_FEATURE_INCOMPAT_COMPRESS_LZOv2	(1ULL << 4)
+#define BTRFS_FEATURE_INCOMPAT_COMPRESS_ZSTD	(1ULL << 4)
 
 /*
  * older kernels tried to do bigger metadata blocks, but the
@@ -426,31 +421,54 @@ struct btrfs_ioctl_ino_lookup_args {
 	char name[BTRFS_INO_LOOKUP_PATH_MAX];
 };
 
+/* Search criteria for the btrfs SEARCH ioctl family. */
 struct btrfs_ioctl_search_key {
-	/* which root are we searching.  0 is the tree of tree roots */
-	__u64 tree_id;
-
-	/* keys returned will be >= min and <= max */
-	__u64 min_objectid;
-	__u64 max_objectid;
-
-	/* keys returned will be >= min and <= max */
-	__u64 min_offset;
-	__u64 max_offset;
-
-	/* max and min transids to search for */
-	__u64 min_transid;
-	__u64 max_transid;
-
-	/* keys returned will be >= min and <= max */
-	__u32 min_type;
-	__u32 max_type;
+	/*
+	 * The tree we're searching in. 1 is the tree of tree roots, 2 is the
+	 * extent tree, etc...
+	 *
+	 * A special tree_id value of 0 will cause a search in the subvolume
+	 * tree that the inode which is passed to the ioctl is part of.
+	 */
+	__u64 tree_id;		/* in */
 
 	/*
-	 * how many items did userland ask for, and how many are we
-	 * returning
+	 * When doing a tree search, we're actually taking a slice from a
+	 * linear search space of 136-bit keys.
+	 *
+	 * A full 136-bit tree key is composed as:
+	 *   (objectid << 72) + (type << 64) + offset
+	 *
+	 * The individual min and max values for objectid, type and offset
+	 * define the min_key and max_key values for the search range. All
+	 * metadata items with a key in the interval [min_key, max_key] will be
+	 * returned.
+	 *
+	 * Additionally, we can filter the items returned on transaction id of
+	 * the metadata block they're stored in by specifying a transid range.
+	 * Be aware that this transaction id only denotes when the metadata
+	 * page that currently contains the item got written the last time as
+	 * result of a COW operation.  The number does not have any meaning
+	 * related to the transaction in which an individual item that is being
+	 * returned was created or changed.
 	 */
-	__u32 nr_items;
+	__u64 min_objectid;	/* in */
+	__u64 max_objectid;	/* in */
+	__u64 min_offset;	/* in */
+	__u64 max_offset;	/* in */
+	__u64 min_transid;	/* in */
+	__u64 max_transid;	/* in */
+	__u32 min_type;		/* in */
+	__u32 max_type;		/* in */
+
+	/*
+	 * input: The maximum amount of results desired.
+	 * output: The actual amount of items returned, restricted by any of:
+	 *  - reaching the upper bound of the search range
+	 *  - reaching the input nr_items amount of items
+	 *  - completely filling the supplied memory buffer
+	 */
+	__u32 nr_items;		/* in/out */
 
 	/* align to 64 bits */
 	__u32 unused;

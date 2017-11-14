@@ -88,6 +88,8 @@ enum iwl_device_family {
 	IWL_DEVICE_FAMILY_6150,
 	IWL_DEVICE_FAMILY_7000,
 	IWL_DEVICE_FAMILY_8000,
+	IWL_DEVICE_FAMILY_9000,
+	IWL_DEVICE_FAMILY_A000,
 };
 
 /*
@@ -104,6 +106,18 @@ enum iwl_led_mode {
 	IWL_LED_RF_STATE,
 	IWL_LED_BLINK,
 	IWL_LED_DISABLE,
+};
+
+/**
+ * enum iwl_nvm_type - nvm formats
+ * @IWL_NVM: the regular format
+ * @IWL_NVM_EXT: extended NVM format
+ * @IWL_NVM_SDP: NVM format used by 3168 series
+ */
+enum iwl_nvm_type {
+	IWL_NVM,
+	IWL_NVM_EXT,
+	IWL_NVM_SDP,
 };
 
 /*
@@ -129,6 +143,7 @@ enum iwl_led_mode {
 
 /* Antenna presence definitions */
 #define	ANT_NONE	0x0
+#define	ANT_INVALID	0xff
 #define	ANT_A		BIT(0)
 #define	ANT_B		BIT(1)
 #define ANT_C		BIT(2)
@@ -273,8 +288,10 @@ struct iwl_pwr_tx_backoff {
  * @fw_name_pre: Firmware filename prefix. The api version and extension
  *	(.ucode) will be added to filename before loading from disk. The
  *	filename is constructed as fw_name_pre<api>.ucode.
- * @fw_name_pre_next_step: same as @fw_name_pre, only for next step
+ * @fw_name_pre_b_or_c_step: same as @fw_name_pre, only for b or c steps
  *	(if supported)
+ * @fw_name_pre_rf_next_step: same as @fw_name_pre_b_or_c_step, only for rf
+ *	next step. Supported only in integrated solutions.
  * @ucode_api_max: Highest version of uCode API supported by driver.
  * @ucode_api_min: Lowest version of uCode API supported by driver.
  * @max_inst_size: The maximal length of the fw inst section
@@ -315,6 +332,7 @@ struct iwl_pwr_tx_backoff {
  * @integrated: discrete or integrated
  * @gen2: a000 and on transport operation
  * @cdb: CDB support
+ * @nvm_type: see &enum iwl_nvm_type
  *
  * We enable the driver to be backward compatible wrt. hardware features.
  * API differences in uCode shouldn't be handled here but through TLVs
@@ -324,18 +342,19 @@ struct iwl_cfg {
 	/* params specific to an individual device within a device family */
 	const char *name;
 	const char *fw_name_pre;
-	const char *fw_name_pre_next_step;
+	const char *fw_name_pre_b_or_c_step;
+	const char *fw_name_pre_rf_next_step;
 	/* params not likely to change within a device family */
 	const struct iwl_base_params *base_params;
 	/* params likely to change within a device family */
 	const struct iwl_ht_params *ht_params;
 	const struct iwl_eeprom_params *eeprom_params;
 	const struct iwl_pwr_tx_backoff *pwr_tx_backoffs;
-	const char *default_nvm_file_B_step;
 	const char *default_nvm_file_C_step;
 	const struct iwl_tt_params *thermal_params;
 	enum iwl_device_family device_family;
 	enum iwl_led_mode led_mode;
+	enum iwl_nvm_type nvm_type;
 	u32 max_data_size;
 	u32 max_inst_size;
 	netdev_features_t features;
@@ -362,7 +381,8 @@ struct iwl_cfg {
 	    integrated:1,
 	    use_tfh:1,
 	    gen2:1,
-	    cdb:1;
+	    cdb:1,
+	    dbgc_supported:1;
 	u8 valid_tx_ant;
 	u8 valid_rx_ant;
 	u8 non_shared_ant;
@@ -454,6 +474,10 @@ extern const struct iwl_cfg iwl9560_2ac_cfg;
 extern const struct iwl_cfg iwla000_2ac_cfg_hr;
 extern const struct iwl_cfg iwla000_2ac_cfg_hr_cdb;
 extern const struct iwl_cfg iwla000_2ac_cfg_jf;
+extern const struct iwl_cfg iwla000_2ax_cfg_hr;
+extern const struct iwl_cfg iwla000_2ax_cfg_qnj_hr_f0;
+extern const struct iwl_cfg iwla000_2ax_cfg_qnj_jf_b0;
+extern const struct iwl_cfg iwla000_2ax_cfg_qnj_hr_a0;
 #endif /* CONFIG_IWLMVM */
 
 #endif /* __IWL_CONFIG_H__ */

@@ -147,7 +147,7 @@ struct bcm63xx_spi {
 
 	/* Platform data */
 	const unsigned long	*reg_offsets;
-	unsigned		fifo_size;
+	unsigned int		fifo_size;
 	unsigned int		msg_type_shift;
 	unsigned int		msg_ctl_width;
 
@@ -191,7 +191,7 @@ static inline void bcm_spi_writew(struct bcm63xx_spi *bs,
 #endif
 }
 
-static const unsigned bcm63xx_spi_freq_table[SPI_CLK_MASK][2] = {
+static const unsigned int bcm63xx_spi_freq_table[SPI_CLK_MASK][2] = {
 	{ 20000000, SPI_CLK_20MHZ },
 	{ 12500000, SPI_CLK_12_50MHZ },
 	{  6250000, SPI_CLK_6_250MHZ },
@@ -530,8 +530,8 @@ static int bcm63xx_spi_probe(struct platform_device *pdev)
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
-		dev_err(dev, "no irq\n");
-		return -ENXIO;
+		dev_err(dev, "no irq: %d\n", irq);
+		return irq;
 	}
 
 	clk = devm_clk_get(dev, "spi");

@@ -226,22 +226,25 @@ static int enable_start_cpu0;
 static void notrace start_secondary(void *unused)
 {
 	/*
-	 * Don't put *anything* before cpu_init(), SMP booting is too
-	 * fragile that we want to limit the things done here to the
-	 * most necessary things.
+	 * Don't put *anything* except direct CPU state initialization
+	 * before cpu_init(), SMP booting is too fragile that we want to
+	 * limit the things done here to the most necessary things.
 	 */
-	cpu_init();
-	x86_cpuinit.early_percpu_clock_init();
-	preempt_disable();
-	smp_callin();
-
-	enable_start_cpu0 = 0;
+	if (boot_cpu_has(X86_FEATURE_PCID))
+		__write_cr4(__read_cr4() | X86_CR4_PCIDE);
 
 #ifdef CONFIG_X86_32
 	/* switch away from the initial page table */
 	load_cr3(swapper_pg_dir);
 	__flush_tlb_all();
 #endif
+
+	cpu_init();
+	x86_cpuinit.early_percpu_clock_init();
+	preempt_disable();
+	smp_callin();
+
+	enable_start_cpu0 = 0;
 
 	/* otherwise gcc will move up smp_processor_id before the cpu_init */
 	barrier();
@@ -863,7 +866,7 @@ static void announce_cpu(int cpu, int apicid)
 	if (cpu == 1)
 		printk(KERN_INFO "x86: Booting SMP configuration:\n");
 
-	if (system_state == SYSTEM_BOOTING) {
+	if (system_state < SYSTEM_RUNNING) {
 		if (node != current_node) {
 			if (current_node > (-1))
 				pr_cont("\n");
@@ -971,7 +974,8 @@ void common_cpu_up(unsigned int cpu, struct task_struct *idle)
  * Returns zero if CPU booted OK, else error code from
  * ->wakeup_secondary_cpu.
  */
-static int do_boot_cpu(int apicid, int cpu, struct task_struct *idle)
+static int do_boot_cpu(int apicid, int cpu, struct task_struct *idle,
+		       int *cpu0_nmi_registered)
 {
 	volatile u32 *trampoline_status =
 		(volatile u32 *) __va(real_mode_header->trampoline_status);
@@ -979,7 +983,6 @@ static int do_boot_cpu(int apicid, int cpu, struct task_struct *idle)
 	unsigned long start_ip = real_mode_header->trampoline_start;
 
 	unsigned long boot_error = 0;
-	int cpu0_nmi_registered = 0;
 	unsigned long timeout;
 
 	idle->thread.sp = (unsigned long)task_pt_regs(idle);
@@ -1035,7 +1038,7 @@ static int do_boot_cpu(int apicid, int cpu, struct task_struct *idle)
 		boot_error = apic->wakeup_secondary_cpu(apicid, start_ip);
 	else
 		boot_error = wakeup_cpu_via_init_nmi(cpu, start_ip, apicid,
-						     &cpu0_nmi_registered);
+						     cpu0_nmi_registered);
 
 	if (!boot_error) {
 		/*
@@ -1080,12 +1083,6 @@ static int do_boot_cpu(int apicid, int cpu, struct task_struct *idle)
 		 */
 		smpboot_restore_warm_reset_vector();
 	}
-	/*
-	 * Clean up the nmi handler. Do this after the callin and callout sync
-	 * to avoid impact of possible long unregister time.
-	 */
-	if (cpu0_nmi_registered)
-		unregister_nmi_handler(NMI_LOCAL, "wake_cpu0");
 
 	return boot_error;
 }
@@ -1093,8 +1090,9 @@ static int do_boot_cpu(int apicid, int cpu, struct task_struct *idle)
 int native_cpu_up(unsigned int cpu, struct task_struct *tidle)
 {
 	int apicid = apic->cpu_present_to_apicid(cpu);
+	int cpu0_nmi_registered = 0;
 	unsigned long flags;
-	int err;
+	int err, ret = 0;
 
 	WARN_ON(irqs_disabled());
 
@@ -1131,10 +1129,11 @@ int native_cpu_up(unsigned int cpu, struct task_struct *tidle)
 
 	common_cpu_up(cpu, tidle);
 
-	err = do_boot_cpu(apicid, cpu, tidle);
+	err = do_boot_cpu(apicid, cpu, tidle, &cpu0_nmi_registered);
 	if (err) {
 		pr_err("do_boot_cpu failed(%d) to wakeup CPU#%u\n", err, cpu);
-		return -EIO;
+		ret = -EIO;
+		goto unreg_nmi;
 	}
 
 	/*
@@ -1150,7 +1149,15 @@ int native_cpu_up(unsigned int cpu, struct task_struct *tidle)
 		touch_nmi_watchdog();
 	}
 
-	return 0;
+unreg_nmi:
+	/*
+	 * Clean up the nmi handler. Do this after the callin and callout sync
+	 * to avoid impact of possible long unregister time.
+	 */
+	if (cpu0_nmi_registered)
+		unregister_nmi_handler(NMI_LOCAL, "wake_cpu0");
+
+	return ret;
 }
 
 /**
@@ -1457,7 +1464,7 @@ __init void prefill_possible_map(void)
 
 	/* nr_cpu_ids could be reduced via nr_cpus= */
 	if (possible > nr_cpu_ids) {
-		pr_warn("%d Processors exceeds NR_CPUS limit of %d\n",
+		pr_warn("%d Processors exceeds NR_CPUS limit of %u\n",
 			possible, nr_cpu_ids);
 		possible = nr_cpu_ids;
 	}
@@ -1589,7 +1596,6 @@ void native_cpu_die(unsigned int cpu)
 void play_dead_common(void)
 {
 	idle_task_exit();
-	reset_lazy_tlbstate();
 
 	/* Ack it */
 	(void)cpu_report_death();

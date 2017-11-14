@@ -265,8 +265,11 @@ static int kvm_spapr_tce_release(struct inode *inode, struct file *filp)
 {
 	struct kvmppc_spapr_tce_table *stt = filp->private_data;
 	struct kvmppc_spapr_tce_iommu_table *stit, *tmp;
+	struct kvm *kvm = stt->kvm;
 
+	mutex_lock(&kvm->lock);
 	list_del_rcu(&stt->list);
+	mutex_unlock(&kvm->lock);
 
 	list_for_each_entry_safe(stit, tmp, &stt->iommu_tables, next) {
 		WARN_ON(!kref_read(&stit->kref));
@@ -294,6 +297,7 @@ long kvm_vm_ioctl_create_spapr_tce(struct kvm *kvm,
 				   struct kvm_create_spapr_tce_64 *args)
 {
 	struct kvmppc_spapr_tce_table *stt = NULL;
+	struct kvmppc_spapr_tce_table *siter;
 	unsigned long npages, size;
 	int ret = -ENOMEM;
 	int i;
@@ -301,25 +305,17 @@ long kvm_vm_ioctl_create_spapr_tce(struct kvm *kvm,
 	if (!args->size)
 		return -EINVAL;
 
-	/* Check this LIOBN hasn't been previously allocated */
-	list_for_each_entry(stt, &kvm->arch.spapr_tce_tables, list) {
-		if (stt->liobn == args->liobn)
-			return -EBUSY;
-	}
-
 	size = _ALIGN_UP(args->size, PAGE_SIZE >> 3);
 	npages = kvmppc_tce_pages(size);
 	ret = kvmppc_account_memlimit(kvmppc_stt_pages(npages), true);
-	if (ret) {
-		stt = NULL;
-		goto fail;
-	}
+	if (ret)
+		return ret;
 
 	ret = -ENOMEM;
 	stt = kzalloc(sizeof(*stt) + npages * sizeof(struct page *),
 		      GFP_KERNEL);
 	if (!stt)
-		goto fail;
+		goto fail_acct;
 
 	stt->liobn = args->liobn;
 	stt->page_shift = args->page_shift;
@@ -334,24 +330,39 @@ long kvm_vm_ioctl_create_spapr_tce(struct kvm *kvm,
 			goto fail;
 	}
 
-	kvm_get_kvm(kvm);
-
 	mutex_lock(&kvm->lock);
-	list_add_rcu(&stt->list, &kvm->arch.spapr_tce_tables);
+
+	/* Check this LIOBN hasn't been previously allocated */
+	ret = 0;
+	list_for_each_entry(siter, &kvm->arch.spapr_tce_tables, list) {
+		if (siter->liobn == args->liobn) {
+			ret = -EBUSY;
+			break;
+		}
+	}
+
+	if (!ret)
+		ret = anon_inode_getfd("kvm-spapr-tce", &kvm_spapr_tce_fops,
+				       stt, O_RDWR | O_CLOEXEC);
+
+	if (ret >= 0) {
+		list_add_rcu(&stt->list, &kvm->arch.spapr_tce_tables);
+		kvm_get_kvm(kvm);
+	}
 
 	mutex_unlock(&kvm->lock);
 
-	return anon_inode_getfd("kvm-spapr-tce", &kvm_spapr_tce_fops,
-				stt, O_RDWR | O_CLOEXEC);
+	if (ret >= 0)
+		return ret;
 
-fail:
-	if (stt) {
-		for (i = 0; i < npages; i++)
-			if (stt->pages[i])
-				__free_page(stt->pages[i]);
+ fail:
+	for (i = 0; i < npages; i++)
+		if (stt->pages[i])
+			__free_page(stt->pages[i]);
 
-		kfree(stt);
-	}
+	kfree(stt);
+ fail_acct:
+	kvmppc_account_memlimit(kvmppc_stt_pages(npages), false);
 	return ret;
 }
 
@@ -467,28 +478,30 @@ long kvmppc_h_put_tce(struct kvm_vcpu *vcpu, unsigned long liobn,
 		return ret;
 
 	dir = iommu_tce_direction(tce);
+
+	idx = srcu_read_lock(&vcpu->kvm->srcu);
+
 	if ((dir != DMA_NONE) && kvmppc_gpa_to_ua(vcpu->kvm,
-			tce & ~(TCE_PCI_READ | TCE_PCI_WRITE), &ua, NULL))
-		return H_PARAMETER;
+			tce & ~(TCE_PCI_READ | TCE_PCI_WRITE), &ua, NULL)) {
+		ret = H_PARAMETER;
+		goto unlock_exit;
+	}
 
 	entry = ioba >> stt->page_shift;
 
 	list_for_each_entry_lockless(stit, &stt->iommu_tables, next) {
-		if (dir == DMA_NONE) {
+		if (dir == DMA_NONE)
 			ret = kvmppc_tce_iommu_unmap(vcpu->kvm,
 					stit->tbl, entry);
-		} else {
-			idx = srcu_read_lock(&vcpu->kvm->srcu);
+		else
 			ret = kvmppc_tce_iommu_map(vcpu->kvm, stit->tbl,
 					entry, ua, dir);
-			srcu_read_unlock(&vcpu->kvm->srcu, idx);
-		}
 
 		if (ret == H_SUCCESS)
 			continue;
 
 		if (ret == H_TOO_HARD)
-			return ret;
+			goto unlock_exit;
 
 		WARN_ON_ONCE(1);
 		kvmppc_clear_tce(stit->tbl, entry);
@@ -496,7 +509,10 @@ long kvmppc_h_put_tce(struct kvm_vcpu *vcpu, unsigned long liobn,
 
 	kvmppc_tce_put(stt, entry, tce);
 
-	return H_SUCCESS;
+unlock_exit:
+	srcu_read_unlock(&vcpu->kvm->srcu, idx);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(kvmppc_h_put_tce);
 

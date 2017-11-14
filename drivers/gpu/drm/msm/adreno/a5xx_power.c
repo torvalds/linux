@@ -194,7 +194,7 @@ static int a5xx_gpmu_init(struct msm_gpu *gpu)
 
 	gpu->funcs->flush(gpu);
 
-	if (!gpu->funcs->idle(gpu)) {
+	if (!a5xx_idle(gpu)) {
 		DRM_ERROR("%s: Unable to load GPMU firmware. GPMU will not be active\n",
 			gpu->name);
 		return -EINVAL;
@@ -294,18 +294,10 @@ void a5xx_gpmu_ucode_init(struct msm_gpu *gpu)
 	 */
 	bosize = (cmds_size + (cmds_size / TYPE4_MAX_PAYLOAD) + 1) << 2;
 
-	mutex_lock(&drm->struct_mutex);
-	a5xx_gpu->gpmu_bo = msm_gem_new(drm, bosize, MSM_BO_UNCACHED);
-	mutex_unlock(&drm->struct_mutex);
-
-	if (IS_ERR(a5xx_gpu->gpmu_bo))
-		goto err;
-
-	if (msm_gem_get_iova(a5xx_gpu->gpmu_bo, gpu->id, &a5xx_gpu->gpmu_iova))
-		goto err;
-
-	ptr = msm_gem_get_vaddr(a5xx_gpu->gpmu_bo);
-	if (!ptr)
+	ptr = msm_gem_kernel_new_locked(drm, bosize,
+		MSM_BO_UNCACHED | MSM_BO_GPU_READONLY, gpu->aspace,
+		&a5xx_gpu->gpmu_bo, &a5xx_gpu->gpmu_iova);
+	if (IS_ERR(ptr))
 		goto err;
 
 	while (cmds_size > 0) {
@@ -330,9 +322,9 @@ void a5xx_gpmu_ucode_init(struct msm_gpu *gpu)
 
 err:
 	if (a5xx_gpu->gpmu_iova)
-		msm_gem_put_iova(a5xx_gpu->gpmu_bo, gpu->id);
+		msm_gem_put_iova(a5xx_gpu->gpmu_bo, gpu->aspace);
 	if (a5xx_gpu->gpmu_bo)
-		drm_gem_object_unreference_unlocked(a5xx_gpu->gpmu_bo);
+		drm_gem_object_unreference(a5xx_gpu->gpmu_bo);
 
 	a5xx_gpu->gpmu_bo = NULL;
 	a5xx_gpu->gpmu_iova = 0;

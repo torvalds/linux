@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * fs/mpage.c
  *
@@ -50,7 +51,8 @@ static void mpage_end_io(struct bio *bio)
 
 	bio_for_each_segment_all(bv, bio, i) {
 		struct page *page = bv->bv_page;
-		page_endio(page, op_is_write(bio_op(bio)), bio->bi_error);
+		page_endio(page, op_is_write(bio_op(bio)),
+				blk_status_to_errno(bio->bi_status));
 	}
 
 	bio_put(bio);
@@ -82,7 +84,7 @@ mpage_alloc(struct block_device *bdev,
 	}
 
 	if (bio) {
-		bio->bi_bdev = bdev;
+		bio_set_dev(bio, bdev);
 		bio->bi_iter.bi_sector = first_sector;
 	}
 	return bio;
@@ -344,6 +346,7 @@ confused:
  *
  * So an mpage read of the first 16 blocks of an ext2 file will cause I/O to be
  * submitted in the following order:
+ *
  * 	12 0 1 2 3 4 5 6 7 8 9 10 11 13 14 15 16
  *
  * because the indirect block has to be read to get the mappings of blocks
@@ -464,6 +467,16 @@ static void clean_buffers(struct page *page, unsigned first_unmapped)
 	 */
 	if (buffer_heads_over_limit && PageUptodate(page))
 		try_to_free_buffers(page);
+}
+
+/*
+ * For situations where we want to clean all buffers attached to a page.
+ * We don't need to calculate how many buffers are attached to the page,
+ * we just need to specify a number larger than the maximum number of buffers.
+ */
+void clean_page_buffers(struct page *page)
+{
+	clean_buffers(page, ~0U);
 }
 
 static int __mpage_writepage(struct page *page, struct writeback_control *wbc,
@@ -603,10 +616,8 @@ alloc_new:
 	if (bio == NULL) {
 		if (first_unmapped == blocks_per_page) {
 			if (!bdev_write_page(bdev, blocks[0] << (blkbits - 9),
-								page, wbc)) {
-				clean_buffers(page, first_unmapped);
+								page, wbc))
 				goto out;
-			}
 		}
 		bio = mpage_alloc(bdev, blocks[0] << (blkbits - 9),
 				BIO_MAX_PAGES, GFP_NOFS|__GFP_HIGH);
@@ -614,6 +625,7 @@ alloc_new:
 			goto confused;
 
 		wbc_init_bio(wbc, bio);
+		bio->bi_write_hint = inode->i_write_hint;
 	}
 
 	/*

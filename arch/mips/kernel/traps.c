@@ -50,9 +50,8 @@
 #include <asm/fpu.h>
 #include <asm/fpu_emulator.h>
 #include <asm/idle.h>
-#include <asm/mips-cm.h>
+#include <asm/mips-cps.h>
 #include <asm/mips-r2-to-r6-emul.h>
-#include <asm/mips-cm.h>
 #include <asm/mipsregs.h>
 #include <asm/mipsmtregs.h>
 #include <asm/module.h>
@@ -429,7 +428,8 @@ static const struct exception_table_entry *search_dbe_tables(unsigned long addr)
 {
 	const struct exception_table_entry *e;
 
-	e = search_extable(__start___dbe_table, __stop___dbe_table - 1, addr);
+	e = search_extable(__start___dbe_table,
+			   __stop___dbe_table - __start___dbe_table, addr);
 	if (!e)
 		e = search_module_dbetables(addr);
 	return e;
@@ -733,8 +733,7 @@ void force_fcr31_sig(unsigned long fcr31, void __user *fault_addr,
 		si.si_code = FPE_FLTUND;
 	else if (fcr31 & FPU_CSR_INE_X)
 		si.si_code = FPE_FLTRES;
-	else
-		si.si_code = __SI_FAULT;
+
 	force_sig_info(SIGFPE, &si, tsk);
 }
 
@@ -1672,7 +1671,7 @@ static inline void parity_protection_init(void)
 		/* Probe L2 ECC support */
 		gcr_ectl = read_gcr_err_control();
 
-		if (!(gcr_ectl & CM_GCR_ERR_CONTROL_L2_ECC_SUPPORT_MSK) ||
+		if (!(gcr_ectl & CM_GCR_ERR_CONTROL_L2_ECC_SUPPORT) ||
 		    !(cp0_ectl & ERRCTL_PE)) {
 			/*
 			 * One of L1 or L2 ECC checking isn't supported,
@@ -1692,12 +1691,12 @@ static inline void parity_protection_init(void)
 
 		/* Configure L2 ECC checking */
 		if (l2parity)
-			gcr_ectl |= CM_GCR_ERR_CONTROL_L2_ECC_EN_MSK;
+			gcr_ectl |= CM_GCR_ERR_CONTROL_L2_ECC_EN;
 		else
-			gcr_ectl &= ~CM_GCR_ERR_CONTROL_L2_ECC_EN_MSK;
+			gcr_ectl &= ~CM_GCR_ERR_CONTROL_L2_ECC_EN;
 		write_gcr_err_control(gcr_ectl);
 		gcr_ectl = read_gcr_err_control();
-		gcr_ectl &= CM_GCR_ERR_CONTROL_L2_ECC_EN_MSK;
+		gcr_ectl &= CM_GCR_ERR_CONTROL_L2_ECC_EN;
 		WARN_ON(!!gcr_ectl != l2parity);
 
 		pr_info("Cache parity protection %sabled\n",
@@ -2426,21 +2425,6 @@ void __init trap_init(void)
 	set_except_vector(EXCCODE_OV, handle_ov);
 	set_except_vector(EXCCODE_TR, handle_tr);
 	set_except_vector(EXCCODE_MSAFPE, handle_msa_fpe);
-
-	if (current_cpu_type() == CPU_R6000 ||
-	    current_cpu_type() == CPU_R6000A) {
-		/*
-		 * The R6000 is the only R-series CPU that features a machine
-		 * check exception (similar to the R4000 cache error) and
-		 * unaligned ldc1/sdc1 exception.  The handlers have not been
-		 * written yet.	 Well, anyway there is no R6000 machine on the
-		 * current list of targets for Linux/MIPS.
-		 * (Duh, crap, there is someone with a triple R6k machine)
-		 */
-		//set_except_vector(14, handle_mc);
-		//set_except_vector(15, handle_ndc);
-	}
-
 
 	if (board_nmi_handler_setup)
 		board_nmi_handler_setup();

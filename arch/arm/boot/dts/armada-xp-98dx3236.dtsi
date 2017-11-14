@@ -91,7 +91,7 @@
 		/*
 		 * 98DX3236 has 1 x1 PCIe unit Gen2.0
 		 */
-		pciec: pcie-controller@82000000 {
+		pciec: pcie@82000000 {
 			compatible = "marvell,armada-xp-pcie";
 			status = "disabled";
 			device_type = "pci";
@@ -116,6 +116,7 @@
 				#interrupt-cells = <1>;
 				ranges = <0x82000000 0 0 0x82000000 0x1 0 1 0
 					  0x81000000 0 0 0x81000000 0x1 0 1 0>;
+				bus-range = <0x00 0xff>;
 				interrupt-map-mask = <0 0 0 0>;
 				interrupt-map = <0 0 0 0 &mpic 58>;
 				marvell,pcie-port = <0>;
@@ -309,6 +310,10 @@
 
 &mpic {
 	reg = <0x20a00 0x2d0>, <0x21070 0x58>;
+};
+
+&rtc {
+	status = "disabled";
 };
 
 &timer {

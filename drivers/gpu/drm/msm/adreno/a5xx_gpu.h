@@ -23,7 +23,6 @@
 
 struct a5xx_gpu {
 	struct adreno_gpu base;
-	struct platform_device *pdev;
 
 	struct drm_gem_object *pm4_bo;
 	uint64_t pm4_iova;
@@ -56,5 +55,7 @@ static inline int spin_usecs(struct msm_gpu *gpu, uint32_t usecs,
 	return -ETIMEDOUT;
 }
 
+bool a5xx_idle(struct msm_gpu *gpu);
+void a5xx_set_hwcg(struct msm_gpu *gpu, bool state);
 
 #endif /* __A5XX_GPU_H__ */

@@ -52,11 +52,12 @@ static void hw_delay_complete(unsigned long data)
 	spin_unlock(&engine->hw_lock);
 }
 
-static int mock_context_pin(struct intel_engine_cs *engine,
-			    struct i915_gem_context *ctx)
+static struct intel_ring *
+mock_context_pin(struct intel_engine_cs *engine,
+		 struct i915_gem_context *ctx)
 {
 	i915_gem_context_get(ctx);
-	return 0;
+	return engine->buffer;
 }
 
 static void mock_context_unpin(struct intel_engine_cs *engine,
@@ -72,7 +73,6 @@ static int mock_request_alloc(struct drm_i915_gem_request *request)
 	INIT_LIST_HEAD(&mock->link);
 	mock->delay = 0;
 
-	request->ring = request->engine->buffer;
 	return 0;
 }
 
@@ -112,7 +112,6 @@ static struct intel_ring *mock_ring(struct intel_engine_cs *engine)
 	if (!ring)
 		return NULL;
 
-	ring->engine = engine;
 	ring->size = sz;
 	ring->effective_size = sz;
 	ring->vaddr = (void *)(ring + 1);
@@ -124,10 +123,12 @@ static struct intel_ring *mock_ring(struct intel_engine_cs *engine)
 }
 
 struct intel_engine_cs *mock_engine(struct drm_i915_private *i915,
-				    const char *name)
+				    const char *name,
+				    int id)
 {
 	struct mock_engine *engine;
-	static int id;
+
+	GEM_BUG_ON(id >= I915_NUM_ENGINES);
 
 	engine = kzalloc(sizeof(*engine) + PAGE_SIZE, GFP_KERNEL);
 	if (!engine)
@@ -141,8 +142,8 @@ struct intel_engine_cs *mock_engine(struct drm_i915_private *i915,
 
 	/* minimal engine setup for requests */
 	engine->base.i915 = i915;
-	engine->base.name = name;
-	engine->base.id = id++;
+	snprintf(engine->base.name, sizeof(engine->base.name), "%s", name);
+	engine->base.id = id;
 	engine->base.status_page.page_addr = (void *)(engine + 1);
 
 	engine->base.context_pin = mock_context_pin;

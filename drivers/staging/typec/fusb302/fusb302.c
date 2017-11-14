@@ -17,6 +17,7 @@
 #include <linux/debugfs.h>
 #include <linux/delay.h>
 #include <linux/errno.h>
+#include <linux/extcon.h>
 #include <linux/gpio.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
@@ -27,6 +28,7 @@
 #include <linux/of_device.h>
 #include <linux/of_gpio.h>
 #include <linux/pinctrl/consumer.h>
+#include <linux/power_supply.h>
 #include <linux/proc_fs.h>
 #include <linux/regulator/consumer.h>
 #include <linux/sched/clock.h>
@@ -90,11 +92,13 @@ struct fusb302_chip {
 	struct i2c_client *i2c_client;
 	struct tcpm_port *tcpm_port;
 	struct tcpc_dev tcpc_dev;
+	struct tcpc_config tcpc_config;
 
 	struct regulator *vbus;
 
 	int gpio_int_n;
 	int gpio_int_n_irq;
+	struct extcon_dev *extcon;
 
 	struct workqueue_struct *wq;
 	struct delayed_work bc_lvl_handler;
@@ -104,6 +108,11 @@ struct fusb302_chip {
 
 	/* lock for sharing chip states */
 	struct mutex lock;
+
+	/* psy + psy status */
+	struct power_supply *psy;
+	u32 current_limit;
+	u32 supply_voltage;
 
 	/* chip status */
 	enum toggling_mode toggling_mode;
@@ -515,6 +524,38 @@ static int tcpm_get_vbus(struct tcpc_dev *dev)
 	return ret;
 }
 
+static int tcpm_get_current_limit(struct tcpc_dev *dev)
+{
+	struct fusb302_chip *chip = container_of(dev, struct fusb302_chip,
+						 tcpc_dev);
+	int current_limit = 0;
+	unsigned long timeout;
+
+	if (!chip->extcon)
+		return 0;
+
+	/*
+	 * USB2 Charger detection may still be in progress when we get here,
+	 * this can take upto 600ms, wait 800ms max.
+	 */
+	timeout = jiffies + msecs_to_jiffies(800);
+	do {
+		if (extcon_get_state(chip->extcon, EXTCON_CHG_USB_SDP) == 1)
+			current_limit = 500;
+
+		if (extcon_get_state(chip->extcon, EXTCON_CHG_USB_CDP) == 1 ||
+		    extcon_get_state(chip->extcon, EXTCON_CHG_USB_ACA) == 1)
+			current_limit = 1500;
+
+		if (extcon_get_state(chip->extcon, EXTCON_CHG_USB_DCP) == 1)
+			current_limit = 2000;
+
+		msleep(50);
+	} while (current_limit == 0 && time_before(jiffies, timeout));
+
+	return current_limit;
+}
+
 static int fusb302_set_cc_pull(struct fusb302_chip *chip,
 			       bool pull_up, bool pull_down)
 {
@@ -841,11 +882,13 @@ static int tcpm_set_vbus(struct tcpc_dev *dev, bool on, bool charge)
 		chip->vbus_on = on;
 		fusb302_log(chip, "vbus := %s", on ? "On" : "Off");
 	}
-	if (chip->charge_on == charge)
+	if (chip->charge_on == charge) {
 		fusb302_log(chip, "charge is already %s",
 			    charge ? "On" : "Off");
-	else
+	} else {
 		chip->charge_on = charge;
+		power_supply_changed(chip->psy);
+	}
 
 done:
 	mutex_unlock(&chip->lock);
@@ -860,6 +903,11 @@ static int tcpm_set_current_limit(struct tcpc_dev *dev, u32 max_ma, u32 mv)
 
 	fusb302_log(chip, "current limit: %d ma, %d mv (not implemented)",
 		    max_ma, mv);
+
+	chip->supply_voltage = mv;
+	chip->current_limit = max_ma;
+
+	power_supply_changed(chip->psy);
 
 	return 0;
 }
@@ -1039,8 +1087,8 @@ static int fusb302_pd_send_message(struct fusb302_chip *chip,
 	}
 	/* packsym tells the FUSB302 chip that the next X bytes are payload */
 	buf[pos++] = FUSB302_TKN_PACKSYM | (len & 0x1F);
-	buf[pos++] = msg->header & 0xFF;
-	buf[pos++] = (msg->header >> 8) & 0xFF;
+	memcpy(&buf[pos], &msg->header, sizeof(msg->header));
+	pos += sizeof(msg->header);
 
 	len -= 2;
 	memcpy(&buf[pos], msg->payload, len);
@@ -1187,9 +1235,9 @@ static const struct tcpc_config fusb302_tcpc_config = {
 	.nr_src_pdo = ARRAY_SIZE(src_pdo),
 	.snk_pdo = snk_pdo,
 	.nr_snk_pdo = ARRAY_SIZE(snk_pdo),
-	.max_snk_mv = 9000,
+	.max_snk_mv = 5000,
 	.max_snk_ma = 3000,
-	.max_snk_mw = 27000,
+	.max_snk_mw = 15000,
 	.operating_snk_mw = 2500,
 	.type = TYPEC_PORT_DRP,
 	.default_role = TYPEC_SINK,
@@ -1198,9 +1246,9 @@ static const struct tcpc_config fusb302_tcpc_config = {
 
 static void init_tcpc_dev(struct tcpc_dev *fusb302_tcpc_dev)
 {
-	fusb302_tcpc_dev->config = &fusb302_tcpc_config;
 	fusb302_tcpc_dev->init = tcpm_init;
 	fusb302_tcpc_dev->get_vbus = tcpm_get_vbus;
+	fusb302_tcpc_dev->get_current_limit = tcpm_get_current_limit;
 	fusb302_tcpc_dev->set_cc = tcpm_set_cc;
 	fusb302_tcpc_dev->get_cc = tcpm_get_cc;
 	fusb302_tcpc_dev->set_polarity = tcpm_set_polarity;
@@ -1646,6 +1694,43 @@ done:
 	return IRQ_HANDLED;
 }
 
+static int fusb302_psy_get_property(struct power_supply *psy,
+				    enum power_supply_property psp,
+				    union power_supply_propval *val)
+{
+	struct fusb302_chip *chip = power_supply_get_drvdata(psy);
+
+	switch (psp) {
+	case POWER_SUPPLY_PROP_ONLINE:
+		val->intval = chip->charge_on;
+		break;
+	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
+		val->intval = chip->supply_voltage * 1000; /* mV -> µV */
+		break;
+	case POWER_SUPPLY_PROP_CURRENT_MAX:
+		val->intval = chip->current_limit * 1000; /* mA -> µA */
+		break;
+	default:
+		return -ENODATA;
+	}
+
+	return 0;
+}
+
+static enum power_supply_property fusb302_psy_properties[] = {
+	POWER_SUPPLY_PROP_ONLINE,
+	POWER_SUPPLY_PROP_VOLTAGE_NOW,
+	POWER_SUPPLY_PROP_CURRENT_MAX,
+};
+
+static const struct power_supply_desc fusb302_psy_desc = {
+	.name		= "fusb302-typec-source",
+	.type		= POWER_SUPPLY_TYPE_USB_TYPE_C,
+	.properties	= fusb302_psy_properties,
+	.num_properties	= ARRAY_SIZE(fusb302_psy_properties),
+	.get_property	= fusb302_psy_get_property,
+};
+
 static int init_gpio(struct fusb302_chip *chip)
 {
 	struct device_node *node;
@@ -1684,7 +1769,11 @@ static int fusb302_probe(struct i2c_client *client,
 {
 	struct fusb302_chip *chip;
 	struct i2c_adapter *adapter;
+	struct device *dev = &client->dev;
+	struct power_supply_config cfg = {};
+	const char *name;
 	int ret = 0;
+	u32 v;
 
 	adapter = to_i2c_adapter(client->dev.parent);
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_I2C_BLOCK)) {
@@ -1699,7 +1788,42 @@ static int fusb302_probe(struct i2c_client *client,
 	chip->i2c_client = client;
 	i2c_set_clientdata(client, chip);
 	chip->dev = &client->dev;
+	chip->tcpc_config = fusb302_tcpc_config;
+	chip->tcpc_dev.config = &chip->tcpc_config;
 	mutex_init(&chip->lock);
+
+	if (!device_property_read_u32(dev, "fcs,max-sink-microvolt", &v))
+		chip->tcpc_config.max_snk_mv = v / 1000;
+
+	if (!device_property_read_u32(dev, "fcs,max-sink-microamp", &v))
+		chip->tcpc_config.max_snk_ma = v / 1000;
+
+	if (!device_property_read_u32(dev, "fcs,max-sink-microwatt", &v))
+		chip->tcpc_config.max_snk_mw = v / 1000;
+
+	if (!device_property_read_u32(dev, "fcs,operating-sink-microwatt", &v))
+		chip->tcpc_config.operating_snk_mw = v / 1000;
+
+	/*
+	 * Devicetree platforms should get extcon via phandle (not yet
+	 * supported). On ACPI platforms, we get the name from a device prop.
+	 * This device prop is for kernel internal use only and is expected
+	 * to be set by the platform code which also registers the i2c client
+	 * for the fusb302.
+	 */
+	if (device_property_read_string(dev, "fcs,extcon-name", &name) == 0) {
+		chip->extcon = extcon_get_extcon_dev(name);
+		if (!chip->extcon)
+			return -EPROBE_DEFER;
+	}
+
+	cfg.drv_data = chip;
+	chip->psy = devm_power_supply_register(dev, &fusb302_psy_desc, &cfg);
+	if (IS_ERR(chip->psy)) {
+		ret = PTR_ERR(chip->psy);
+		dev_err(chip->dev, "Error registering power-supply: %d\n", ret);
+		return ret;
+	}
 
 	ret = fusb302_debugfs_init(chip);
 	if (ret < 0)
@@ -1719,9 +1843,13 @@ static int fusb302_probe(struct i2c_client *client,
 		goto destroy_workqueue;
 	}
 
-	ret = init_gpio(chip);
-	if (ret < 0)
-		goto destroy_workqueue;
+	if (client->irq) {
+		chip->gpio_int_n_irq = client->irq;
+	} else {
+		ret = init_gpio(chip);
+		if (ret < 0)
+			goto destroy_workqueue;
+	}
 
 	chip->tcpm_port = tcpm_register_port(&client->dev, &chip->tcpc_dev);
 	if (IS_ERR(chip->tcpm_port)) {

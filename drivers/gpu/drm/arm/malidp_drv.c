@@ -225,7 +225,7 @@ static void malidp_atomic_commit_tail(struct drm_atomic_state *state)
 
 	drm_atomic_helper_commit_modeset_disables(drm, state);
 
-	for_each_crtc_in_state(state, crtc, old_crtc_state, i) {
+	for_each_old_crtc_in_state(state, crtc, old_crtc_state, i) {
 		malidp_atomic_commit_update_gamma(crtc, old_crtc_state);
 		malidp_atomic_commit_update_coloradj(crtc, old_crtc_state);
 		malidp_atomic_commit_se_config(crtc, old_crtc_state);
@@ -331,8 +331,6 @@ static struct drm_driver malidp_driver = {
 	.gem_free_object_unlocked = drm_gem_cma_free_object,
 	.gem_vm_ops = &drm_gem_cma_vm_ops,
 	.dumb_create = drm_gem_cma_dumb_create,
-	.dumb_map_offset = drm_gem_cma_dumb_map_offset,
-	.dumb_destroy = drm_gem_dumb_destroy,
 	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
 	.gem_prime_export = drm_gem_prime_export,
@@ -652,7 +650,6 @@ register_fail:
 	drm_kms_helper_poll_fini(drm);
 fbdev_fail:
 	pm_runtime_get_sync(dev);
-	drm_vblank_cleanup(drm);
 vblank_fail:
 	malidp_se_irq_fini(drm);
 	malidp_de_irq_fini(drm);
@@ -692,7 +689,6 @@ static void malidp_unbind(struct device *dev)
 	}
 	drm_kms_helper_poll_fini(drm);
 	pm_runtime_get_sync(dev);
-	drm_vblank_cleanup(drm);
 	malidp_se_irq_fini(drm);
 	malidp_de_irq_fini(drm);
 	component_unbind_all(dev, drm);

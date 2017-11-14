@@ -73,9 +73,9 @@ int crypto_dh_encode_key(char *buf, unsigned int len, const struct dh *params);
 /**
  * crypto_dh_decode_key() - decode a private key
  * @buf:	Buffer holding a packet key that should be decoded
- * @len:	Lenth of the packet private key buffer
+ * @len:	Length of the packet private key buffer
  * @params:	Buffer allocated by the caller that is filled with the
- *		unpacket DH private key.
+ *		unpacked DH private key.
  *
  * The unpacking obtains the private key by pointing @p to the correct location
  * in @buf. Thus, both pointers refer to the same memory.

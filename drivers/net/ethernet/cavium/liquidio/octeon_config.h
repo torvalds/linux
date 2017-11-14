@@ -47,7 +47,7 @@
 /* CN6xxx OQ configuration macros */
 #define   CN6XXX_MAX_OUTPUT_QUEUES     32
 #define   CN6XXX_MAX_OQ_DESCRIPTORS    2048
-#define   CN6XXX_OQ_BUF_SIZE           1536
+#define   CN6XXX_OQ_BUF_SIZE           1664
 #define   CN6XXX_OQ_PKTSPER_INTR       ((CN6XXX_MAX_OQ_DESCRIPTORS < 512) ? \
 					(CN6XXX_MAX_OQ_DESCRIPTORS / 4) : 128)
 #define   CN6XXX_OQ_REFIL_THRESHOLD    ((CN6XXX_MAX_OQ_DESCRIPTORS < 512) ? \
@@ -71,14 +71,18 @@
 #define   CN23XX_MAX_RINGS_PER_VF          8
 
 #define   CN23XX_MAX_INPUT_QUEUES	CN23XX_MAX_RINGS_PER_PF
-#define   CN23XX_MAX_IQ_DESCRIPTORS	512
+#define   CN23XX_MAX_IQ_DESCRIPTORS	2048
+#define   CN23XX_DEFAULT_IQ_DESCRIPTORS	512
+#define   CN23XX_MIN_IQ_DESCRIPTORS	128
 #define   CN23XX_DB_MIN                 1
 #define   CN23XX_DB_MAX                 8
 #define   CN23XX_DB_TIMEOUT             1
 
 #define   CN23XX_MAX_OUTPUT_QUEUES	CN23XX_MAX_RINGS_PER_PF
-#define   CN23XX_MAX_OQ_DESCRIPTORS	512
-#define   CN23XX_OQ_BUF_SIZE		1536
+#define   CN23XX_MAX_OQ_DESCRIPTORS	2048
+#define   CN23XX_DEFAULT_OQ_DESCRIPTORS	512
+#define   CN23XX_MIN_OQ_DESCRIPTORS	128
+#define   CN23XX_OQ_BUF_SIZE		1664
 #define   CN23XX_OQ_PKTSPER_INTR	128
 /*#define CAVIUM_ONLY_CN23XX_RX_PERF*/
 #define   CN23XX_OQ_REFIL_THRESHOLD	16
@@ -98,8 +102,6 @@
 #define   OCTEON_32BYTE_INSTR          32
 #define   OCTEON_64BYTE_INSTR          64
 #define   OCTEON_MAX_BASE_IOQ          4
-#define   OCTEON_OQ_BUFPTR_MODE        0
-#define   OCTEON_OQ_INFOPTR_MODE       1
 
 #define   OCTEON_DMA_INTR_PKT          64
 #define   OCTEON_DMA_INTR_TIME         1000
@@ -125,7 +127,6 @@
 #define CFG_SET_IQ_INTR_PKT(cfg, val)            (cfg)->iq.iq_intr_pkt = val
 
 #define CFG_GET_OQ_MAX_Q(cfg)                    ((cfg)->oq.max_oqs)
-#define CFG_GET_OQ_INFO_PTR(cfg)                 ((cfg)->oq.info_ptr)
 #define CFG_GET_OQ_PKTS_PER_INTR(cfg)            ((cfg)->oq.pkts_per_intr)
 #define CFG_GET_OQ_REFILL_THRESHOLD(cfg)         ((cfg)->oq.refill_threshold)
 #define CFG_GET_OQ_INTR_PKT(cfg)                 ((cfg)->oq.oq_intr_pkt)
@@ -165,6 +166,11 @@
 #define CFG_GET_OCT_LINK_QUERY_INTERVAL(cfg) \
 				((cfg)->misc.oct_link_query_interval)
 #define CFG_GET_IS_SLI_BP_ON(cfg)                ((cfg)->misc.enable_sli_oq_bp)
+
+#define CFG_SET_NUM_RX_DESCS_NIC_IF(cfg, idx, value) \
+				((cfg)->nic_if_cfg[idx].num_rx_descs = value)
+#define CFG_SET_NUM_TX_DESCS_NIC_IF(cfg, idx, value) \
+				((cfg)->nic_if_cfg[idx].num_tx_descs = value)
 
 /* Max IOQs per OCTEON Link */
 #define MAX_IOQS_PER_NICIF              64
@@ -266,18 +272,12 @@ struct octeon_oq_config {
 	 */
 	u64 refill_threshold:16;
 
-	/** If set, the Output queue uses info-pointer mode. (Default: 1) */
-	u64 info_ptr:32;
-
 	/* Max number of OQs available */
 	u64 max_oqs:8;
 
 #else
 	/* Max number of OQs available */
 	u64 max_oqs:8;
-
-	/** If set, the Output queue uses info-pointer mode. (Default: 1) */
-	u64 info_ptr:32;
 
 	/** The number of buffers that were consumed during packet processing by
 	 *   the driver on this Output queue before the driver attempts to

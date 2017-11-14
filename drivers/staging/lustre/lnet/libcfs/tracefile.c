@@ -40,7 +40,7 @@
 #define pr_fmt(fmt) "Lustre: " fmt
 #include "tracefile.h"
 
-#include "../../include/linux/libcfs/libcfs.h"
+#include <linux/libcfs/libcfs.h>
 
 /* XXX move things up to the top, comment */
 union cfs_trace_data_union (*cfs_trace_data[TCD_MAX_TYPES])[NR_CPUS] __cacheline_aligned;
@@ -191,10 +191,9 @@ cfs_trace_get_tage_try(struct cfs_trace_cpu_data *tcd, unsigned long len)
 		} else {
 			tage = cfs_tage_alloc(GFP_ATOMIC);
 			if (unlikely(!tage)) {
-				if ((!memory_pressure_get() ||
-				     in_interrupt()) && printk_ratelimit())
-					pr_warn("cannot allocate a tage (%ld)\n",
-						tcd->tcd_cur_pages);
+				if (!memory_pressure_get() || in_interrupt())
+					pr_warn_ratelimited("cannot allocate a tage (%ld)\n",
+							    tcd->tcd_cur_pages);
 				return NULL;
 			}
 		}
@@ -229,9 +228,8 @@ static void cfs_tcd_shrink(struct cfs_trace_cpu_data *tcd)
 	 * from here: this will lead to infinite recursion.
 	 */
 
-	if (printk_ratelimit())
-		pr_warn("debug daemon buffer overflowed; discarding 10%% of pages (%d of %ld)\n",
-			pgcount + 1, tcd->tcd_cur_pages);
+	pr_warn_ratelimited("debug daemon buffer overflowed; discarding 10%% of pages (%d of %ld)\n",
+			    pgcount + 1, tcd->tcd_cur_pages);
 
 	INIT_LIST_HEAD(&pc.pc_pages);
 
@@ -733,8 +731,7 @@ int cfs_tracefile_dump_all_pages(char *filename)
 		__LASSERT_TAGE_INVARIANT(tage);
 
 		buf = kmap(tage->page);
-		rc = vfs_write(filp, (__force const char __user *)buf,
-			       tage->used, &filp->f_pos);
+		rc = kernel_write(filp, buf, tage->used, &filp->f_pos);
 		kunmap(tage->page);
 
 		if (rc != (int)tage->used) {
@@ -978,7 +975,6 @@ static int tracefiled(void *arg)
 	struct tracefiled_ctl *tctl = arg;
 	struct cfs_trace_page *tage;
 	struct cfs_trace_page *tmp;
-	mm_segment_t __oldfs;
 	struct file *filp;
 	char *buf;
 	int last_loop = 0;
@@ -990,7 +986,7 @@ static int tracefiled(void *arg)
 	complete(&tctl->tctl_start);
 
 	while (1) {
-		wait_queue_t __wait;
+		wait_queue_entry_t __wait;
 
 		pc.pc_want_daemon_pages = 0;
 		collect_pages(&pc);
@@ -1016,8 +1012,6 @@ static int tracefiled(void *arg)
 			__LASSERT(list_empty(&pc.pc_pages));
 			goto end_loop;
 		}
-		__oldfs = get_fs();
-		set_fs(get_ds());
 
 		list_for_each_entry_safe(tage, tmp, &pc.pc_pages, linkage) {
 			static loff_t f_pos;
@@ -1030,8 +1024,7 @@ static int tracefiled(void *arg)
 				f_pos = i_size_read(file_inode(filp));
 
 			buf = kmap(tage->page);
-			rc = vfs_write(filp, (__force const char __user *)buf,
-				       tage->used, &f_pos);
+			rc = kernel_write(filp, buf, tage->used, &f_pos);
 			kunmap(tage->page);
 
 			if (rc != (int)tage->used) {
@@ -1042,7 +1035,6 @@ static int tracefiled(void *arg)
 				break;
 			}
 		}
-		set_fs(__oldfs);
 
 		filp_close(filp, NULL);
 		put_pages_on_daemon_list(&pc);

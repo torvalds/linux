@@ -42,6 +42,10 @@ struct intel_gvt_workload_scheduler {
 	struct intel_vgpu_workload *current_workload[I915_NUM_ENGINES];
 	bool need_reschedule;
 
+	spinlock_t mmio_context_lock;
+	/* can be null when owner is host */
+	struct intel_vgpu *engine_owner[I915_NUM_ENGINES];
+
 	wait_queue_head_t workload_complete_wq;
 	struct task_struct *thread[I915_NUM_ENGINES];
 	wait_queue_head_t waitq[I915_NUM_ENGINES];
@@ -64,6 +68,7 @@ struct shadow_indirect_ctx {
 struct shadow_per_ctx {
 	unsigned long guest_gma;
 	unsigned long shadow_gma;
+	unsigned valid;
 };
 
 struct intel_shadow_wa_ctx {
@@ -78,6 +83,7 @@ struct intel_vgpu_workload {
 	struct drm_i915_gem_request *req;
 	/* if this workload has been dispatched to i915? */
 	bool dispatched;
+	bool shadowed;
 	int status;
 
 	struct intel_vgpu_mm *shadow_mm;

@@ -151,7 +151,7 @@ int btrfs_update_root(struct btrfs_trans_handle *trans, struct btrfs_root
 	}
 
 	if (ret != 0) {
-		btrfs_print_leaf(fs_info, path->nodes[0]);
+		btrfs_print_leaf(path->nodes[0]);
 		btrfs_crit(fs_info, "unable to update root key %llu %u %llu",
 			   key->objectid, key->type, key->offset);
 		BUG_ON(1);
@@ -228,7 +228,7 @@ int btrfs_find_orphan_roots(struct btrfs_fs_info *fs_info)
 	int ret;
 	bool can_recover = true;
 
-	if (fs_info->sb->s_flags & MS_RDONLY)
+	if (sb_rdonly(fs_info->sb))
 		can_recover = false;
 
 	path = btrfs_alloc_path();
@@ -335,10 +335,11 @@ int btrfs_find_orphan_roots(struct btrfs_fs_info *fs_info)
 	return err;
 }
 
-/* drop the root item for 'key' from 'root' */
-int btrfs_del_root(struct btrfs_trans_handle *trans, struct btrfs_root *root,
-		   const struct btrfs_key *key)
+/* drop the root item for 'key' from the tree root */
+int btrfs_del_root(struct btrfs_trans_handle *trans,
+		   struct btrfs_fs_info *fs_info, const struct btrfs_key *key)
 {
+	struct btrfs_root *root = fs_info->tree_root;
 	struct btrfs_path *path;
 	int ret;
 
@@ -390,6 +391,13 @@ again:
 		WARN_ON(btrfs_root_ref_dirid(leaf, ref) != dirid);
 		WARN_ON(btrfs_root_ref_name_len(leaf, ref) != name_len);
 		ptr = (unsigned long)(ref + 1);
+		ret = btrfs_is_name_len_valid(leaf, path->slots[0], ptr,
+					      name_len);
+		if (!ret) {
+			err = -EIO;
+			goto out;
+		}
+
 		WARN_ON(memcmp_extent_buffer(leaf, name, ptr, name_len));
 		*sequence = btrfs_root_ref_sequence(leaf, ref);
 

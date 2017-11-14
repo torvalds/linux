@@ -13,13 +13,17 @@
 
 /* Sub-module offset */
 #define MAIN_GL_OFFSET			0x130
-#define MAIN_CSC_OFFSET			0x580
+#define MAIN_GL_CSC_OFFSET		0x580
+#define MAIN_CHN_CSC_OFFSET		0x6c0
 #define MAIN_HBSC_OFFSET		0x820
+#define MAIN_DITHER_OFFSET		0x960
 #define MAIN_RSZ_OFFSET			0x600 /* OTFPPU sub-module */
 
 #define AUX_GL_OFFSET			0x200
-#define AUX_CSC_OFFSET			0x5d0
+#define AUX_GL_CSC_OFFSET		0x5d0
+#define AUX_CHN_CSC_OFFSET		0x710
 #define AUX_HBSC_OFFSET			0x860
+#define AUX_DITHER_OFFSET		0x970
 #define AUX_RSZ_OFFSET			0x800
 
 #define OSD_VL0_OFFSET			0x040
@@ -77,6 +81,10 @@
 #define CHN_UPDATE			0x08
 #define CHN_INTERLACE_BUF_CTRL		0x24
 #define CHN_INTERLACE_EN		BIT(2)
+
+/* Dither registers */
+#define OSD_DITHER_CTRL0		0x00
+#define DITHER_BYSPASS			BIT(31)
 
 /* TIMING_CTRL registers */
 #define TIMING_TC_ENABLE		0x04

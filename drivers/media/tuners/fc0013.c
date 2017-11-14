@@ -511,7 +511,7 @@ static int fc0013_get_rf_strength(struct dvb_frontend *fe, u16 *strength)
 	int ret;
 	unsigned char tmp;
 	int int_temp, lna_gain, int_lna, tot_agc_gain, power;
-	const int fc0013_lna_gain_table[] = {
+	static const int fc0013_lna_gain_table[] = {
 		/* low gain */
 		-63, -58, -99, -73,
 		-63, -65, -54, -60,

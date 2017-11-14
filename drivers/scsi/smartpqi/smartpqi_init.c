@@ -1,6 +1,6 @@
 /*
  *    driver for Microsemi PQI-based storage controllers
- *    Copyright (c) 2016 Microsemi Corporation
+ *    Copyright (c) 2016-2017 Microsemi Corporation
  *    Copyright (c) 2016 PMC-Sierra, Inc.
  *
  *    This program is free software; you can redistribute it and/or modify
@@ -24,6 +24,7 @@
 #include <linux/sched.h>
 #include <linux/rtc.h>
 #include <linux/bcd.h>
+#include <linux/reboot.h>
 #include <linux/cciss_ioctl.h>
 #include <linux/blk-mq-pci.h>
 #include <scsi/scsi_host.h>
@@ -39,14 +40,17 @@
 #define BUILD_TIMESTAMP
 #endif
 
-#define DRIVER_VERSION		"0.9.13-370"
-#define DRIVER_MAJOR		0
-#define DRIVER_MINOR		9
-#define DRIVER_RELEASE		13
-#define DRIVER_REVISION		370
+#define DRIVER_VERSION		"1.1.2-125"
+#define DRIVER_MAJOR		1
+#define DRIVER_MINOR		1
+#define DRIVER_RELEASE		2
+#define DRIVER_REVISION		125
 
-#define DRIVER_NAME		"Microsemi PQI Driver (v" DRIVER_VERSION ")"
+#define DRIVER_NAME		"Microsemi PQI Driver (v" \
+				DRIVER_VERSION BUILD_TIMESTAMP ")"
 #define DRIVER_NAME_SHORT	"smartpqi"
+
+#define PQI_EXTRA_SGL_MEMORY	(12 * sizeof(struct pqi_sg_descriptor))
 
 MODULE_AUTHOR("Microsemi");
 MODULE_DESCRIPTION("Driver for Microsemi Smart Family Controller version "
@@ -55,12 +59,9 @@ MODULE_SUPPORTED_DEVICE("Microsemi Smart Family Controllers");
 MODULE_VERSION(DRIVER_VERSION);
 MODULE_LICENSE("GPL");
 
-#define PQI_ENABLE_MULTI_QUEUE_SUPPORT	0
-
-static char *hpe_branded_controller = "HPE Smart Array Controller";
-static char *microsemi_branded_controller = "Microsemi Smart Family Controller";
-
 static void pqi_take_ctrl_offline(struct pqi_ctrl_info *ctrl_info);
+static void pqi_ctrl_offline_worker(struct work_struct *work);
+static void pqi_retry_raid_bypass_requests(struct pqi_ctrl_info *ctrl_info);
 static int pqi_scan_scsi_devices(struct pqi_ctrl_info *ctrl_info);
 static void pqi_scan_start(struct Scsi_Host *shost);
 static void pqi_start_io(struct pqi_ctrl_info *ctrl_info,
@@ -72,7 +73,7 @@ static int pqi_submit_raid_request_synchronous(struct pqi_ctrl_info *ctrl_info,
 static int pqi_aio_submit_io(struct pqi_ctrl_info *ctrl_info,
 	struct scsi_cmnd *scmd, u32 aio_handle, u8 *cdb,
 	unsigned int cdb_length, struct pqi_queue_group *queue_group,
-	struct pqi_encryption_info *encryption_info);
+	struct pqi_encryption_info *encryption_info, bool raid_bypass);
 
 /* for flags argument to pqi_submit_raid_request_synchronous() */
 #define PQI_SYNC_FLAGS_INTERRUPTABLE	0x1
@@ -81,11 +82,65 @@ static struct scsi_transport_template *pqi_sas_transport_template;
 
 static atomic_t pqi_controller_count = ATOMIC_INIT(0);
 
+enum pqi_lockup_action {
+	NONE,
+	REBOOT,
+	PANIC
+};
+
+static enum pqi_lockup_action pqi_lockup_action = NONE;
+
+static struct {
+	enum pqi_lockup_action	action;
+	char			*name;
+} pqi_lockup_actions[] = {
+	{
+		.action = NONE,
+		.name = "none",
+	},
+	{
+		.action = REBOOT,
+		.name = "reboot",
+	},
+	{
+		.action = PANIC,
+		.name = "panic",
+	},
+};
+
+static unsigned int pqi_supported_event_types[] = {
+	PQI_EVENT_TYPE_HOTPLUG,
+	PQI_EVENT_TYPE_HARDWARE,
+	PQI_EVENT_TYPE_PHYSICAL_DEVICE,
+	PQI_EVENT_TYPE_LOGICAL_DEVICE,
+	PQI_EVENT_TYPE_AIO_STATE_CHANGE,
+	PQI_EVENT_TYPE_AIO_CONFIG_CHANGE,
+};
+
 static int pqi_disable_device_id_wildcards;
 module_param_named(disable_device_id_wildcards,
-	pqi_disable_device_id_wildcards, int, S_IRUGO | S_IWUSR);
+	pqi_disable_device_id_wildcards, int, 0644);
 MODULE_PARM_DESC(disable_device_id_wildcards,
 	"Disable device ID wildcards.");
+
+static int pqi_disable_heartbeat;
+module_param_named(disable_heartbeat,
+	pqi_disable_heartbeat, int, 0644);
+MODULE_PARM_DESC(disable_heartbeat,
+	"Disable heartbeat.");
+
+static int pqi_disable_ctrl_shutdown;
+module_param_named(disable_ctrl_shutdown,
+	pqi_disable_ctrl_shutdown, int, 0644);
+MODULE_PARM_DESC(disable_ctrl_shutdown,
+	"Disable controller shutdown when controller locked up.");
+
+static char *pqi_lockup_action_param;
+module_param_named(lockup_action,
+	pqi_lockup_action_param, charp, 0644);
+MODULE_PARM_DESC(lockup_action, "Action to take when controller locked up.\n"
+	"\t\tSupported: none, reboot, panic\n"
+	"\t\tDefault: none");
 
 static char *raid_levels[] = {
 	"RAID-0",
@@ -102,7 +157,7 @@ static char *pqi_raid_level_to_string(u8 raid_level)
 	if (raid_level < ARRAY_SIZE(raid_levels))
 		return raid_levels[raid_level];
 
-	return "";
+	return "RAID UNKNOWN";
 }
 
 #define SA_RAID_0		0
@@ -117,6 +172,7 @@ static char *pqi_raid_level_to_string(u8 raid_level)
 
 static inline void pqi_scsi_done(struct scsi_cmnd *scmd)
 {
+	pqi_prep_for_scsi_done(scmd);
 	scmd->scsi_done(scmd);
 }
 
@@ -135,6 +191,11 @@ static inline struct pqi_ctrl_info *shost_to_hba(struct Scsi_Host *shost)
 static inline bool pqi_is_logical_device(struct pqi_scsi_dev *device)
 {
 	return !device->is_physical_device;
+}
+
+static inline bool pqi_is_external_raid_addr(u8 *scsi3addr)
+{
+	return scsi3addr[2] != 0;
 }
 
 static inline bool pqi_ctrl_offline(struct pqi_ctrl_info *ctrl_info)
@@ -166,12 +227,124 @@ static inline void pqi_save_ctrl_mode(struct pqi_ctrl_info *ctrl_info,
 	sis_write_driver_scratch(ctrl_info, mode);
 }
 
-#define PQI_RESCAN_WORK_INTERVAL	(10 * HZ)
+static inline void pqi_ctrl_block_requests(struct pqi_ctrl_info *ctrl_info)
+{
+	ctrl_info->block_requests = true;
+	scsi_block_requests(ctrl_info->scsi_host);
+}
+
+static inline void pqi_ctrl_unblock_requests(struct pqi_ctrl_info *ctrl_info)
+{
+	ctrl_info->block_requests = false;
+	wake_up_all(&ctrl_info->block_requests_wait);
+	pqi_retry_raid_bypass_requests(ctrl_info);
+	scsi_unblock_requests(ctrl_info->scsi_host);
+}
+
+static inline bool pqi_ctrl_blocked(struct pqi_ctrl_info *ctrl_info)
+{
+	return ctrl_info->block_requests;
+}
+
+static unsigned long pqi_wait_if_ctrl_blocked(struct pqi_ctrl_info *ctrl_info,
+	unsigned long timeout_msecs)
+{
+	unsigned long remaining_msecs;
+
+	if (!pqi_ctrl_blocked(ctrl_info))
+		return timeout_msecs;
+
+	atomic_inc(&ctrl_info->num_blocked_threads);
+
+	if (timeout_msecs == NO_TIMEOUT) {
+		wait_event(ctrl_info->block_requests_wait,
+			!pqi_ctrl_blocked(ctrl_info));
+		remaining_msecs = timeout_msecs;
+	} else {
+		unsigned long remaining_jiffies;
+
+		remaining_jiffies =
+			wait_event_timeout(ctrl_info->block_requests_wait,
+				!pqi_ctrl_blocked(ctrl_info),
+				msecs_to_jiffies(timeout_msecs));
+		remaining_msecs = jiffies_to_msecs(remaining_jiffies);
+	}
+
+	atomic_dec(&ctrl_info->num_blocked_threads);
+
+	return remaining_msecs;
+}
+
+static inline void pqi_ctrl_busy(struct pqi_ctrl_info *ctrl_info)
+{
+	atomic_inc(&ctrl_info->num_busy_threads);
+}
+
+static inline void pqi_ctrl_unbusy(struct pqi_ctrl_info *ctrl_info)
+{
+	atomic_dec(&ctrl_info->num_busy_threads);
+}
+
+static inline void pqi_ctrl_wait_until_quiesced(struct pqi_ctrl_info *ctrl_info)
+{
+	while (atomic_read(&ctrl_info->num_busy_threads) >
+		atomic_read(&ctrl_info->num_blocked_threads))
+		usleep_range(1000, 2000);
+}
+
+static inline bool pqi_device_offline(struct pqi_scsi_dev *device)
+{
+	return device->device_offline;
+}
+
+static inline void pqi_device_reset_start(struct pqi_scsi_dev *device)
+{
+	device->in_reset = true;
+}
+
+static inline void pqi_device_reset_done(struct pqi_scsi_dev *device)
+{
+	device->in_reset = false;
+}
+
+static inline bool pqi_device_in_reset(struct pqi_scsi_dev *device)
+{
+	return device->in_reset;
+}
+
+static inline void pqi_schedule_rescan_worker_with_delay(
+	struct pqi_ctrl_info *ctrl_info, unsigned long delay)
+{
+	if (pqi_ctrl_offline(ctrl_info))
+		return;
+
+	schedule_delayed_work(&ctrl_info->rescan_work, delay);
+}
 
 static inline void pqi_schedule_rescan_worker(struct pqi_ctrl_info *ctrl_info)
 {
-	schedule_delayed_work(&ctrl_info->rescan_work,
-		PQI_RESCAN_WORK_INTERVAL);
+	pqi_schedule_rescan_worker_with_delay(ctrl_info, 0);
+}
+
+#define PQI_RESCAN_WORK_DELAY  (10 * HZ)
+
+static inline void pqi_schedule_rescan_worker_delayed(
+	struct pqi_ctrl_info *ctrl_info)
+{
+	pqi_schedule_rescan_worker_with_delay(ctrl_info, PQI_RESCAN_WORK_DELAY);
+}
+
+static inline void pqi_cancel_rescan_worker(struct pqi_ctrl_info *ctrl_info)
+{
+	cancel_delayed_work_sync(&ctrl_info->rescan_work);
+}
+
+static inline u32 pqi_read_heartbeat_counter(struct pqi_ctrl_info *ctrl_info)
+{
+	if (!ctrl_info->heartbeat_counter)
+		return 0;
+
+	return readl(ctrl_info->heartbeat_counter);
 }
 
 static int pqi_map_single(struct pci_dev *pci_dev,
@@ -258,10 +431,10 @@ static int pqi_build_raid_path_request(struct pqi_ctrl_info *ctrl_info,
 		cdb[1] = CISS_GET_RAID_MAP;
 		put_unaligned_be32(buffer_length, &cdb[6]);
 		break;
-	case SA_CACHE_FLUSH:
+	case SA_FLUSH_CACHE:
 		request->data_direction = SOP_WRITE_FLAG;
 		cdb[0] = BMIC_WRITE;
-		cdb[6] = BMIC_CACHE_FLUSH;
+		cdb[6] = BMIC_FLUSH_CACHE;
 		put_unaligned_be16(buffer_length, &cdb[7]);
 		break;
 	case BMIC_IDENTIFY_CONTROLLER:
@@ -280,7 +453,6 @@ static int pqi_build_raid_path_request(struct pqi_ctrl_info *ctrl_info,
 	default:
 		dev_err(&ctrl_info->pci_dev->dev, "unknown command 0x%c\n",
 			cmd);
-		WARN_ON(cmd);
 		break;
 	}
 
@@ -305,6 +477,14 @@ static int pqi_build_raid_path_request(struct pqi_ctrl_info *ctrl_info,
 		buffer, buffer_length, pci_dir);
 }
 
+static inline void pqi_reinit_io_request(struct pqi_io_request *io_request)
+{
+	io_request->scmd = NULL;
+	io_request->status = 0;
+	io_request->error_info = NULL;
+	io_request->raid_bypass = false;
+}
+
 static struct pqi_io_request *pqi_alloc_io_request(
 	struct pqi_ctrl_info *ctrl_info)
 {
@@ -322,9 +502,7 @@ static struct pqi_io_request *pqi_alloc_io_request(
 	/* benignly racy */
 	ctrl_info->next_io_request_slot = (i + 1) % ctrl_info->max_io_slots;
 
-	io_request->scmd = NULL;
-	io_request->status = 0;
-	io_request->error_info = NULL;
+	pqi_reinit_io_request(io_request);
 
 	return io_request;
 }
@@ -407,14 +585,13 @@ static int pqi_identify_physical_device(struct pqi_ctrl_info *ctrl_info,
 	return rc;
 }
 
-#define SA_CACHE_FLUSH_BUFFER_LENGTH	4
-
-static int pqi_flush_cache(struct pqi_ctrl_info *ctrl_info)
+static int pqi_flush_cache(struct pqi_ctrl_info *ctrl_info,
+	enum bmic_flush_cache_shutdown_event shutdown_event)
 {
 	int rc;
 	struct pqi_raid_path_request request;
 	int pci_direction;
-	u8 *buffer;
+	struct bmic_flush_cache *flush_cache;
 
 	/*
 	 * Don't bother trying to flush the cache if the controller is
@@ -423,13 +600,15 @@ static int pqi_flush_cache(struct pqi_ctrl_info *ctrl_info)
 	if (pqi_ctrl_offline(ctrl_info))
 		return -ENXIO;
 
-	buffer = kzalloc(SA_CACHE_FLUSH_BUFFER_LENGTH, GFP_KERNEL);
-	if (!buffer)
+	flush_cache = kzalloc(sizeof(*flush_cache), GFP_KERNEL);
+	if (!flush_cache)
 		return -ENOMEM;
 
+	flush_cache->shutdown_event = shutdown_event;
+
 	rc = pqi_build_raid_path_request(ctrl_info, &request,
-		SA_CACHE_FLUSH, RAID_CTLR_LUNID, buffer,
-		SA_CACHE_FLUSH_BUFFER_LENGTH, 0, &pci_direction);
+		SA_FLUSH_CACHE, RAID_CTLR_LUNID, flush_cache,
+		sizeof(*flush_cache), 0, &pci_direction);
 	if (rc)
 		goto out;
 
@@ -440,7 +619,7 @@ static int pqi_flush_cache(struct pqi_ctrl_info *ctrl_info)
 		pci_direction);
 
 out:
-	kfree(buffer);
+	kfree(flush_cache);
 
 	return rc;
 }
@@ -500,7 +679,7 @@ static int pqi_write_driver_version_to_host_wellness(
 	buffer->driver_version_tag[1] = 'V';
 	put_unaligned_le16(sizeof(buffer->driver_version),
 		&buffer->driver_version_length);
-	strncpy(buffer->driver_version, DRIVER_VERSION,
+	strncpy(buffer->driver_version, "Linux " DRIVER_VERSION,
 		sizeof(buffer->driver_version) - 1);
 	buffer->driver_version[sizeof(buffer->driver_version) - 1] = '\0';
 	buffer->end_tag[0] = 'Z';
@@ -586,6 +765,9 @@ static void pqi_update_time_worker(struct work_struct *work)
 	ctrl_info = container_of(to_delayed_work(work), struct pqi_ctrl_info,
 		update_time_work);
 
+	if (pqi_ctrl_offline(ctrl_info))
+		return;
+
 	rc = pqi_write_current_time_to_host_wellness(ctrl_info);
 	if (rc)
 		dev_warn(&ctrl_info->pci_dev->dev,
@@ -599,6 +781,12 @@ static inline void pqi_schedule_update_time_worker(
 	struct pqi_ctrl_info *ctrl_info)
 {
 	schedule_delayed_work(&ctrl_info->update_time_work, 0);
+}
+
+static inline void pqi_cancel_update_time_worker(
+	struct pqi_ctrl_info *ctrl_info)
+{
+	cancel_delayed_work_sync(&ctrl_info->update_time_work);
 }
 
 static int pqi_report_luns(struct pqi_ctrl_info *ctrl_info, u8 cmd,
@@ -771,6 +959,9 @@ static void pqi_assign_bus_target_lun(struct pqi_scsi_dev *device)
 {
 	u8 *scsi3addr;
 	u32 lunid;
+	int bus;
+	int target;
+	int lun;
 
 	scsi3addr = device->scsi3addr;
 	lunid = get_unaligned_le32(scsi3addr);
@@ -783,8 +974,16 @@ static void pqi_assign_bus_target_lun(struct pqi_scsi_dev *device)
 	}
 
 	if (pqi_is_logical_device(device)) {
-		pqi_set_bus_target_lun(device, PQI_RAID_VOLUME_BUS, 0,
-			lunid & 0x3fff);
+		if (device->is_external_raid_device) {
+			bus = PQI_EXTERNAL_RAID_VOLUME_BUS;
+			target = (lunid >> 16) & 0x3fff;
+			lun = lunid & 0xff;
+		} else {
+			bus = PQI_RAID_VOLUME_BUS;
+			target = 0;
+			lun = lunid & 0x3fff;
+		}
+		pqi_set_bus_target_lun(device, bus, target, lun);
 		device->target_lun_valid = true;
 		return;
 	}
@@ -878,7 +1077,10 @@ static int pqi_validate_raid_map(struct pqi_ctrl_info *ctrl_info,
 	return 0;
 
 bad_raid_map:
-	dev_warn(&ctrl_info->pci_dev->dev, "%s\n", err_msg);
+	dev_warn(&ctrl_info->pci_dev->dev,
+		"scsi %d:%d:%d:%d %s\n",
+		ctrl_info->scsi_host->host_no,
+		device->bus, device->target, device->lun, err_msg);
 
 	return -EINVAL;
 }
@@ -924,35 +1126,33 @@ error:
 	return rc;
 }
 
-static void pqi_get_offload_status(struct pqi_ctrl_info *ctrl_info,
+static void pqi_get_raid_bypass_status(struct pqi_ctrl_info *ctrl_info,
 	struct pqi_scsi_dev *device)
 {
 	int rc;
 	u8 *buffer;
-	u8 offload_status;
+	u8 bypass_status;
 
 	buffer = kmalloc(64, GFP_KERNEL);
 	if (!buffer)
 		return;
 
 	rc = pqi_scsi_inquiry(ctrl_info, device->scsi3addr,
-		VPD_PAGE | CISS_VPD_LV_OFFLOAD_STATUS, buffer, 64);
+		VPD_PAGE | CISS_VPD_LV_BYPASS_STATUS, buffer, 64);
 	if (rc)
 		goto out;
 
-#define OFFLOAD_STATUS_BYTE	4
-#define OFFLOAD_CONFIGURED_BIT	0x1
-#define OFFLOAD_ENABLED_BIT	0x2
+#define RAID_BYPASS_STATUS	4
+#define RAID_BYPASS_CONFIGURED	0x1
+#define RAID_BYPASS_ENABLED	0x2
 
-	offload_status = buffer[OFFLOAD_STATUS_BYTE];
-	device->offload_configured =
-		!!(offload_status & OFFLOAD_CONFIGURED_BIT);
-	if (device->offload_configured) {
-		device->offload_enabled_pending =
-			!!(offload_status & OFFLOAD_ENABLED_BIT);
-		if (pqi_get_raid_map(ctrl_info, device))
-			device->offload_enabled_pending = false;
-	}
+	bypass_status = buffer[RAID_BYPASS_STATUS];
+	device->raid_bypass_configured =
+		(bypass_status & RAID_BYPASS_CONFIGURED) != 0;
+	if (device->raid_bypass_configured &&
+		(bypass_status & RAID_BYPASS_ENABLED) &&
+		pqi_get_raid_map(ctrl_info, device) == 0)
+		device->raid_bypass_enabled = true;
 
 out:
 	kfree(buffer);
@@ -1016,15 +1216,19 @@ static int pqi_get_device_info(struct pqi_ctrl_info *ctrl_info,
 	scsi_sanitize_inquiry_string(&buffer[16], 16);
 
 	device->devtype = buffer[0] & 0x1f;
-	memcpy(device->vendor, &buffer[8],
-		sizeof(device->vendor));
-	memcpy(device->model, &buffer[16],
-		sizeof(device->model));
+	memcpy(device->vendor, &buffer[8], sizeof(device->vendor));
+	memcpy(device->model, &buffer[16], sizeof(device->model));
 
 	if (pqi_is_logical_device(device) && device->devtype == TYPE_DISK) {
-		pqi_get_raid_level(ctrl_info, device);
-		pqi_get_offload_status(ctrl_info, device);
-		pqi_get_volume_status(ctrl_info, device);
+		if (device->is_external_raid_device) {
+			device->raid_level = SA_RAID_UNKNOWN;
+			device->volume_status = CISS_LV_OK;
+			device->volume_offline = false;
+		} else {
+			pqi_get_raid_level(ctrl_info, device);
+			pqi_get_raid_bypass_status(ctrl_info, device);
+			pqi_get_volume_status(ctrl_info, device);
+		}
 	}
 
 out:
@@ -1138,8 +1342,7 @@ static void pqi_show_volume_status(struct pqi_ctrl_info *ctrl_info,
 		status = "Volume undergoing encryption re-keying process";
 		break;
 	case CISS_LV_ENCRYPTED_IN_NON_ENCRYPTED_CONTROLLER:
-		status =
-			"Encrypted volume inaccessible - disabled on ctrl";
+		status = "Volume encrypted but encryption is disabled";
 		break;
 	case CISS_LV_PENDING_ENCRYPTION:
 		status = "Volume pending migration to encrypted state";
@@ -1164,85 +1367,6 @@ static void pqi_show_volume_status(struct pqi_ctrl_info *ctrl_info,
 		"scsi %d:%d:%d:%d %s\n",
 		ctrl_info->scsi_host->host_no,
 		device->bus, device->target, device->lun, status);
-}
-
-static struct pqi_scsi_dev *pqi_find_disk_by_aio_handle(
-	struct pqi_ctrl_info *ctrl_info, u32 aio_handle)
-{
-	struct pqi_scsi_dev *device;
-
-	list_for_each_entry(device, &ctrl_info->scsi_device_list,
-		scsi_device_list_entry) {
-		if (device->devtype != TYPE_DISK && device->devtype != TYPE_ZBC)
-			continue;
-		if (pqi_is_logical_device(device))
-			continue;
-		if (device->aio_handle == aio_handle)
-			return device;
-	}
-
-	return NULL;
-}
-
-static void pqi_update_logical_drive_queue_depth(
-	struct pqi_ctrl_info *ctrl_info, struct pqi_scsi_dev *logical_drive)
-{
-	unsigned int i;
-	struct raid_map *raid_map;
-	struct raid_map_disk_data *disk_data;
-	struct pqi_scsi_dev *phys_disk;
-	unsigned int num_phys_disks;
-	unsigned int num_raid_map_entries;
-	unsigned int queue_depth;
-
-	logical_drive->queue_depth = PQI_LOGICAL_DRIVE_DEFAULT_MAX_QUEUE_DEPTH;
-
-	raid_map = logical_drive->raid_map;
-	if (!raid_map)
-		return;
-
-	disk_data = raid_map->disk_data;
-	num_phys_disks = get_unaligned_le16(&raid_map->layout_map_count) *
-		(get_unaligned_le16(&raid_map->data_disks_per_row) +
-		get_unaligned_le16(&raid_map->metadata_disks_per_row));
-	num_raid_map_entries = num_phys_disks *
-		get_unaligned_le16(&raid_map->row_cnt);
-
-	queue_depth = 0;
-	for (i = 0; i < num_raid_map_entries; i++) {
-		phys_disk = pqi_find_disk_by_aio_handle(ctrl_info,
-			disk_data[i].aio_handle);
-
-		if (!phys_disk) {
-			dev_warn(&ctrl_info->pci_dev->dev,
-				"failed to find physical disk for logical drive %016llx\n",
-				get_unaligned_be64(logical_drive->scsi3addr));
-			logical_drive->offload_enabled = false;
-			logical_drive->offload_enabled_pending = false;
-			kfree(raid_map);
-			logical_drive->raid_map = NULL;
-			return;
-		}
-
-		queue_depth += phys_disk->queue_depth;
-	}
-
-	logical_drive->queue_depth = queue_depth;
-}
-
-static void pqi_update_all_logical_drive_queue_depths(
-	struct pqi_ctrl_info *ctrl_info)
-{
-	struct pqi_scsi_dev *device;
-
-	list_for_each_entry(device, &ctrl_info->scsi_device_list,
-		scsi_device_list_entry) {
-		if (device->devtype != TYPE_DISK && device->devtype != TYPE_ZBC)
-			continue;
-		if (!pqi_is_logical_device(device))
-			continue;
-		pqi_update_logical_drive_queue_depth(ctrl_info, device);
-	}
 }
 
 static void pqi_rescan_worker(struct work_struct *work)
@@ -1336,24 +1460,65 @@ static enum pqi_find_result pqi_scsi_find_entry(struct pqi_ctrl_info *ctrl_info,
 	return DEVICE_NOT_FOUND;
 }
 
+#define PQI_DEV_INFO_BUFFER_LENGTH	128
+
 static void pqi_dev_info(struct pqi_ctrl_info *ctrl_info,
 	char *action, struct pqi_scsi_dev *device)
 {
-	dev_info(&ctrl_info->pci_dev->dev,
-		"%s scsi %d:%d:%d:%d: %s %.8s %.16s %-12s SSDSmartPathCap%c En%c Exp%c qd=%d\n",
-		action,
-		ctrl_info->scsi_host->host_no,
-		device->bus,
-		device->target,
-		device->lun,
+	ssize_t count;
+	char buffer[PQI_DEV_INFO_BUFFER_LENGTH];
+
+	count = snprintf(buffer, PQI_DEV_INFO_BUFFER_LENGTH,
+		"%d:%d:", ctrl_info->scsi_host->host_no, device->bus);
+
+	if (device->target_lun_valid)
+		count += snprintf(buffer + count,
+			PQI_DEV_INFO_BUFFER_LENGTH - count,
+			"%d:%d",
+			device->target,
+			device->lun);
+	else
+		count += snprintf(buffer + count,
+			PQI_DEV_INFO_BUFFER_LENGTH - count,
+			"-:-");
+
+	if (pqi_is_logical_device(device))
+		count += snprintf(buffer + count,
+			PQI_DEV_INFO_BUFFER_LENGTH - count,
+			" %08x%08x",
+			*((u32 *)&device->scsi3addr),
+			*((u32 *)&device->scsi3addr[4]));
+	else
+		count += snprintf(buffer + count,
+			PQI_DEV_INFO_BUFFER_LENGTH - count,
+			" %016llx", device->sas_address);
+
+	count += snprintf(buffer + count, PQI_DEV_INFO_BUFFER_LENGTH - count,
+		" %s %.8s %.16s ",
 		scsi_device_type(device->devtype),
 		device->vendor,
-		device->model,
-		pqi_raid_level_to_string(device->raid_level),
-		device->offload_configured ? '+' : '-',
-		device->offload_enabled_pending ? '+' : '-',
-		device->expose_device ? '+' : '-',
-		device->queue_depth);
+		device->model);
+
+	if (pqi_is_logical_device(device)) {
+		if (device->devtype == TYPE_DISK)
+			count += snprintf(buffer + count,
+				PQI_DEV_INFO_BUFFER_LENGTH - count,
+				"SSDSmartPathCap%c En%c %-12s",
+				device->raid_bypass_configured ? '+' : '-',
+				device->raid_bypass_enabled ? '+' : '-',
+				pqi_raid_level_to_string(device->raid_level));
+	} else {
+		count += snprintf(buffer + count,
+			PQI_DEV_INFO_BUFFER_LENGTH - count,
+			"AIO%c", device->aio_enabled ? '+' : '-');
+		if (device->devtype == TYPE_DISK ||
+			device->devtype == TYPE_ZBC)
+			count += snprintf(buffer + count,
+				PQI_DEV_INFO_BUFFER_LENGTH - count,
+				" qd=%-6d", device->queue_depth);
+	}
+
+	dev_info(&ctrl_info->pci_dev->dev, "%s %s\n", action, buffer);
 }
 
 /* Assumes the SCSI device list lock is held. */
@@ -1373,8 +1538,8 @@ static void pqi_scsi_update_device(struct pqi_scsi_dev *existing_device,
 	/* By definition, the scsi3addr and wwid fields are already the same. */
 
 	existing_device->is_physical_device = new_device->is_physical_device;
-	existing_device->expose_device = new_device->expose_device;
-	existing_device->no_uld_attach = new_device->no_uld_attach;
+	existing_device->is_external_raid_device =
+		new_device->is_external_raid_device;
 	existing_device->aio_enabled = new_device->aio_enabled;
 	memcpy(existing_device->vendor, new_device->vendor,
 		sizeof(existing_device->vendor));
@@ -1392,13 +1557,13 @@ static void pqi_scsi_update_device(struct pqi_scsi_dev *existing_device,
 		sizeof(existing_device->box));
 	memcpy(existing_device->phys_connector, new_device->phys_connector,
 		sizeof(existing_device->phys_connector));
-	existing_device->offload_configured = new_device->offload_configured;
-	existing_device->offload_enabled = false;
-	existing_device->offload_enabled_pending =
-		new_device->offload_enabled_pending;
 	existing_device->offload_to_mirror = 0;
 	kfree(existing_device->raid_map);
 	existing_device->raid_map = new_device->raid_map;
+	existing_device->raid_bypass_configured =
+		new_device->raid_bypass_configured;
+	existing_device->raid_bypass_enabled =
+		new_device->raid_bypass_enabled;
 
 	/* To prevent this from being freed later. */
 	new_device->raid_map = NULL;
@@ -1440,11 +1605,8 @@ static void pqi_update_device_list(struct pqi_ctrl_info *ctrl_info,
 	struct pqi_scsi_dev *device;
 	struct pqi_scsi_dev *next;
 	struct pqi_scsi_dev *matching_device;
-	struct list_head add_list;
-	struct list_head delete_list;
-
-	INIT_LIST_HEAD(&add_list);
-	INIT_LIST_HEAD(&delete_list);
+	LIST_HEAD(add_list);
+	LIST_HEAD(delete_list);
 
 	/*
 	 * The idea here is to do as little work as possible while holding the
@@ -1490,9 +1652,6 @@ static void pqi_update_device_list(struct pqi_ctrl_info *ctrl_info,
 			 */
 			device->new_device = true;
 			break;
-		default:
-			WARN_ON(find_result);
-			break;
 		}
 	}
 
@@ -1519,26 +1678,19 @@ static void pqi_update_device_list(struct pqi_ctrl_info *ctrl_info,
 		device->keep_device = true;
 	}
 
-	pqi_update_all_logical_drive_queue_depths(ctrl_info);
-
-	list_for_each_entry(device, &ctrl_info->scsi_device_list,
-		scsi_device_list_entry)
-		device->offload_enabled =
-			device->offload_enabled_pending;
-
 	spin_unlock_irqrestore(&ctrl_info->scsi_device_list_lock, flags);
 
 	/* Remove all devices that have gone away. */
 	list_for_each_entry_safe(device, next, &delete_list,
 		delete_list_entry) {
-		if (device->sdev)
-			pqi_remove_device(ctrl_info, device);
 		if (device->volume_offline) {
 			pqi_dev_info(ctrl_info, "offline", device);
 			pqi_show_volume_status(ctrl_info, device);
 		} else {
 			pqi_dev_info(ctrl_info, "removed", device);
 		}
+		if (device->sdev)
+			pqi_remove_device(ctrl_info, device);
 		list_del(&device->delete_list_entry);
 		pqi_free_device(device);
 	}
@@ -1559,7 +1711,8 @@ static void pqi_update_device_list(struct pqi_ctrl_info *ctrl_info,
 
 	/* Expose any new devices. */
 	list_for_each_entry_safe(device, next, &add_list, add_list_entry) {
-		if (device->expose_device && !device->sdev) {
+		if (!device->sdev) {
+			pqi_dev_info(ctrl_info, "added", device);
 			rc = pqi_add_device(ctrl_info, device);
 			if (rc) {
 				dev_warn(&ctrl_info->pci_dev->dev,
@@ -1568,10 +1721,8 @@ static void pqi_update_device_list(struct pqi_ctrl_info *ctrl_info,
 					device->bus, device->target,
 					device->lun);
 				pqi_fixup_botched_add(ctrl_info, device);
-				continue;
 			}
 		}
-		pqi_dev_info(ctrl_info, "added", device);
 	}
 }
 
@@ -1591,8 +1742,8 @@ static bool pqi_is_supported_device(struct pqi_scsi_dev *device)
 		/*
 		 * Only support the HBA controller itself as a RAID
 		 * controller.  If it's a RAID controller other than
-		 * the HBA itself (an external RAID controller, MSA500
-		 * or similar), we don't support it.
+		 * the HBA itself (an external RAID controller, for
+		 * example), we don't support it.
 		 */
 		if (pqi_is_hba_lunid(device->scsi3addr))
 			is_supported = true;
@@ -1602,43 +1753,20 @@ static bool pqi_is_supported_device(struct pqi_scsi_dev *device)
 	return is_supported;
 }
 
-static inline bool pqi_skip_device(u8 *scsi3addr,
-	struct report_phys_lun_extended_entry *phys_lun_ext_entry)
+static inline bool pqi_skip_device(u8 *scsi3addr)
 {
-	u8 device_flags;
-
-	if (!MASKED_DEVICE(scsi3addr))
-		return false;
-
-	/* The device is masked. */
-
-	device_flags = phys_lun_ext_entry->device_flags;
-
-	if (device_flags & REPORT_PHYS_LUN_DEV_FLAG_NON_DISK) {
-		/*
-		 * It's a non-disk device.  We ignore all devices of this type
-		 * when they're masked.
-		 */
+	/* Ignore all masked devices. */
+	if (MASKED_DEVICE(scsi3addr))
 		return true;
-	}
 
 	return false;
-}
-
-static inline bool pqi_expose_device(struct pqi_scsi_dev *device)
-{
-	/* Expose all devices except for physical devices that are masked. */
-	if (device->is_physical_device && MASKED_DEVICE(device->scsi3addr))
-		return false;
-
-	return true;
 }
 
 static int pqi_update_scsi_devices(struct pqi_ctrl_info *ctrl_info)
 {
 	int i;
 	int rc;
-	struct list_head new_device_list_head;
+	LIST_HEAD(new_device_list_head);
 	struct report_phys_lun_extended *physdev_list = NULL;
 	struct report_log_lun_extended *logdev_list = NULL;
 	struct report_phys_lun_extended_entry *phys_lun_ext_entry;
@@ -1654,9 +1782,7 @@ static int pqi_update_scsi_devices(struct pqi_ctrl_info *ctrl_info)
 	bool is_physical_device;
 	u8 *scsi3addr;
 	static char *out_of_memory_msg =
-		"out of memory, device discovery stopped";
-
-	INIT_LIST_HEAD(&new_device_list_head);
+		"failed to allocate memory, device discovery stopped";
 
 	rc = pqi_get_device_lists(ctrl_info, &physdev_list, &logdev_list);
 	if (rc)
@@ -1732,8 +1858,7 @@ static int pqi_update_scsi_devices(struct pqi_ctrl_info *ctrl_info)
 			scsi3addr = log_lun_ext_entry->lunid;
 		}
 
-		if (is_physical_device &&
-			pqi_skip_device(scsi3addr, phys_lun_ext_entry))
+		if (is_physical_device && pqi_skip_device(scsi3addr))
 			continue;
 
 		if (device)
@@ -1744,7 +1869,9 @@ static int pqi_update_scsi_devices(struct pqi_ctrl_info *ctrl_info)
 
 		memcpy(device->scsi3addr, scsi3addr, sizeof(device->scsi3addr));
 		device->is_physical_device = is_physical_device;
-		device->raid_level = SA_RAID_UNKNOWN;
+		if (!is_physical_device)
+			device->is_external_raid_device =
+				pqi_is_external_raid_addr(scsi3addr);
 
 		/* Gather information about the device. */
 		rc = pqi_get_device_info(ctrl_info, device);
@@ -1754,9 +1881,16 @@ static int pqi_update_scsi_devices(struct pqi_ctrl_info *ctrl_info)
 			goto out;
 		}
 		if (rc) {
-			dev_warn(&ctrl_info->pci_dev->dev,
-				"obtaining device info failed, skipping device %016llx\n",
-				get_unaligned_be64(device->scsi3addr));
+			if (device->is_physical_device)
+				dev_warn(&ctrl_info->pci_dev->dev,
+					"obtaining device info failed, skipping physical device %016llx\n",
+					get_unaligned_be64(
+						&phys_lun_ext_entry->wwid));
+			else
+				dev_warn(&ctrl_info->pci_dev->dev,
+					"obtaining device info failed, skipping logical device %08x%08x\n",
+					*((u32 *)&device->scsi3addr),
+					*((u32 *)&device->scsi3addr[4]));
 			rc = 0;
 			continue;
 		}
@@ -1765,8 +1899,6 @@ static int pqi_update_scsi_devices(struct pqi_ctrl_info *ctrl_info)
 			continue;
 
 		pqi_assign_bus_target_lun(device);
-
-		device->expose_device = pqi_expose_device(device);
 
 		if (device->is_physical_device) {
 			device->wwid = phys_lun_ext_entry->wwid;
@@ -1823,19 +1955,25 @@ static void pqi_remove_all_scsi_devices(struct pqi_ctrl_info *ctrl_info)
 {
 	unsigned long flags;
 	struct pqi_scsi_dev *device;
-	struct pqi_scsi_dev *next;
 
-	spin_lock_irqsave(&ctrl_info->scsi_device_list_lock, flags);
+	while (1) {
+		spin_lock_irqsave(&ctrl_info->scsi_device_list_lock, flags);
 
-	list_for_each_entry_safe(device, next, &ctrl_info->scsi_device_list,
-		scsi_device_list_entry) {
+		device = list_first_entry_or_null(&ctrl_info->scsi_device_list,
+			struct pqi_scsi_dev, scsi_device_list_entry);
+		if (device)
+			list_del(&device->scsi_device_list_entry);
+
+		spin_unlock_irqrestore(&ctrl_info->scsi_device_list_lock,
+			flags);
+
+		if (!device)
+			break;
+
 		if (device->sdev)
 			pqi_remove_device(ctrl_info, device);
-		list_del(&device->scsi_device_list_entry);
 		pqi_free_device(device);
 	}
-
-	spin_unlock_irqrestore(&ctrl_info->scsi_device_list_lock, flags);
 }
 
 static int pqi_scan_scsi_devices(struct pqi_ctrl_info *ctrl_info)
@@ -1849,7 +1987,7 @@ static int pqi_scan_scsi_devices(struct pqi_ctrl_info *ctrl_info)
 
 	rc = pqi_update_scsi_devices(ctrl_info);
 	if (rc)
-		pqi_schedule_rescan_worker(ctrl_info);
+		pqi_schedule_rescan_worker_delayed(ctrl_info);
 
 	mutex_unlock(&ctrl_info->scan_mutex);
 
@@ -1871,6 +2009,18 @@ static int pqi_scan_finished(struct Scsi_Host *shost,
 	ctrl_info = shost_priv(shost);
 
 	return !mutex_is_locked(&ctrl_info->scan_mutex);
+}
+
+static void pqi_wait_until_scan_finished(struct pqi_ctrl_info *ctrl_info)
+{
+	mutex_lock(&ctrl_info->scan_mutex);
+	mutex_unlock(&ctrl_info->scan_mutex);
+}
+
+static void pqi_wait_until_lun_reset_finished(struct pqi_ctrl_info *ctrl_info)
+{
+	mutex_lock(&ctrl_info->lun_reset_mutex);
+	mutex_unlock(&ctrl_info->lun_reset_mutex);
 }
 
 static inline void pqi_set_encryption_info(
@@ -1895,7 +2045,7 @@ static inline void pqi_set_encryption_info(
 }
 
 /*
- * Attempt to perform offload RAID mapping for a logical volume I/O.
+ * Attempt to perform RAID bypass mapping for a logical volume I/O.
  */
 
 #define PQI_RAID_BYPASS_INELIGIBLE	1
@@ -2227,7 +2377,7 @@ static int pqi_raid_bypass_submit_scsi_cmd(struct pqi_ctrl_info *ctrl_info,
 	}
 
 	return pqi_aio_submit_io(ctrl_info, scmd, aio_handle,
-		cdb, cdb_length, queue_group, encryption_info_ptr);
+		cdb, cdb_length, queue_group, encryption_info_ptr, true);
 }
 
 #define PQI_STATUS_IDLE		0x0
@@ -2299,23 +2449,26 @@ static inline void pqi_aio_path_disabled(struct pqi_io_request *io_request)
 	struct pqi_scsi_dev *device;
 
 	device = io_request->scmd->device->hostdata;
-	device->offload_enabled = false;
+	device->raid_bypass_enabled = false;
+	device->aio_enabled = false;
 }
 
-static inline void pqi_take_device_offline(struct scsi_device *sdev)
+static inline void pqi_take_device_offline(struct scsi_device *sdev, char *path)
 {
 	struct pqi_ctrl_info *ctrl_info;
 	struct pqi_scsi_dev *device;
 
-	if (scsi_device_online(sdev)) {
-		scsi_device_set_state(sdev, SDEV_OFFLINE);
-		ctrl_info = shost_to_hba(sdev->host);
-		schedule_delayed_work(&ctrl_info->rescan_work, 0);
-		device = sdev->hostdata;
-		dev_err(&ctrl_info->pci_dev->dev, "offlined scsi %d:%d:%d:%d\n",
-			ctrl_info->scsi_host->host_no, device->bus,
-			device->target, device->lun);
-	}
+	device = sdev->hostdata;
+	if (device->device_offline)
+		return;
+
+	device->device_offline = true;
+	scsi_device_set_state(sdev, SDEV_OFFLINE);
+	ctrl_info = shost_to_hba(sdev->host);
+	pqi_schedule_rescan_worker(ctrl_info);
+	dev_err(&ctrl_info->pci_dev->dev, "offlined %s scsi %d:%d:%d:%d\n",
+		path, ctrl_info->scsi_host->host_no, device->bus,
+		device->target, device->lun);
 }
 
 static void pqi_process_raid_io_error(struct pqi_io_request *io_request)
@@ -2337,13 +2490,43 @@ static void pqi_process_raid_io_error(struct pqi_io_request *io_request)
 	scsi_status = error_info->status;
 	host_byte = DID_OK;
 
-	if (error_info->data_out_result == PQI_DATA_IN_OUT_UNDERFLOW) {
+	switch (error_info->data_out_result) {
+	case PQI_DATA_IN_OUT_GOOD:
+		break;
+	case PQI_DATA_IN_OUT_UNDERFLOW:
 		xfer_count =
 			get_unaligned_le32(&error_info->data_out_transferred);
 		residual_count = scsi_bufflen(scmd) - xfer_count;
 		scsi_set_resid(scmd, residual_count);
 		if (xfer_count < scmd->underflow)
 			host_byte = DID_SOFT_ERROR;
+		break;
+	case PQI_DATA_IN_OUT_UNSOLICITED_ABORT:
+	case PQI_DATA_IN_OUT_ABORTED:
+		host_byte = DID_ABORT;
+		break;
+	case PQI_DATA_IN_OUT_TIMEOUT:
+		host_byte = DID_TIME_OUT;
+		break;
+	case PQI_DATA_IN_OUT_BUFFER_OVERFLOW:
+	case PQI_DATA_IN_OUT_PROTOCOL_ERROR:
+	case PQI_DATA_IN_OUT_BUFFER_ERROR:
+	case PQI_DATA_IN_OUT_BUFFER_OVERFLOW_DESCRIPTOR_AREA:
+	case PQI_DATA_IN_OUT_BUFFER_OVERFLOW_BRIDGE:
+	case PQI_DATA_IN_OUT_ERROR:
+	case PQI_DATA_IN_OUT_HARDWARE_ERROR:
+	case PQI_DATA_IN_OUT_PCIE_FABRIC_ERROR:
+	case PQI_DATA_IN_OUT_PCIE_COMPLETION_TIMEOUT:
+	case PQI_DATA_IN_OUT_PCIE_COMPLETER_ABORT_RECEIVED:
+	case PQI_DATA_IN_OUT_PCIE_UNSUPPORTED_REQUEST_RECEIVED:
+	case PQI_DATA_IN_OUT_PCIE_ECRC_CHECK_FAILED:
+	case PQI_DATA_IN_OUT_PCIE_UNSUPPORTED_REQUEST:
+	case PQI_DATA_IN_OUT_PCIE_ACS_VIOLATION:
+	case PQI_DATA_IN_OUT_PCIE_TLP_PREFIX_BLOCKED:
+	case PQI_DATA_IN_OUT_PCIE_POISONED_MEMORY_READ:
+	default:
+		host_byte = DID_ERROR;
+		break;
 	}
 
 	sense_data_length = get_unaligned_le16(&error_info->sense_data_length);
@@ -2360,7 +2543,7 @@ static void pqi_process_raid_io_error(struct pqi_io_request *io_request)
 				sshdr.sense_key == HARDWARE_ERROR &&
 				sshdr.asc == 0x3e &&
 				sshdr.ascq == 0x1) {
-			pqi_take_device_offline(scmd->device);
+			pqi_take_device_offline(scmd->device, "RAID");
 			host_byte = DID_NO_CONNECT;
 		}
 
@@ -2419,9 +2602,11 @@ static void pqi_process_aio_io_error(struct pqi_io_request *io_request)
 			break;
 		case PQI_AIO_STATUS_NO_PATH_TO_DEVICE:
 		case PQI_AIO_STATUS_INVALID_DEVICE:
-			device_offline = true;
-			pqi_take_device_offline(scmd->device);
-			host_byte = DID_NO_CONNECT;
+			if (!io_request->raid_bypass) {
+				device_offline = true;
+				pqi_take_device_offline(scmd->device, "AIO");
+				host_byte = DID_NO_CONNECT;
+			}
 			scsi_status = SAM_STAT_CHECK_CONDITION;
 			break;
 		case PQI_AIO_STATUS_IO_ERROR:
@@ -2547,7 +2732,6 @@ static unsigned int pqi_process_io_intr(struct pqi_ctrl_info *ctrl_info,
 			dev_err(&ctrl_info->pci_dev->dev,
 				"unexpected IU type: 0x%x\n",
 				response->header.iu_type);
-			WARN_ON(response->header.iu_type);
 			break;
 		}
 
@@ -2583,22 +2767,17 @@ static inline unsigned int pqi_num_elements_free(unsigned int pi,
 	return elements_in_queue - num_elements_used - 1;
 }
 
-#define PQI_EVENT_ACK_TIMEOUT	30
-
-static void pqi_start_event_ack(struct pqi_ctrl_info *ctrl_info,
+static void pqi_send_event_ack(struct pqi_ctrl_info *ctrl_info,
 	struct pqi_event_acknowledge_request *iu, size_t iu_length)
 {
 	pqi_index_t iq_pi;
 	pqi_index_t iq_ci;
 	unsigned long flags;
 	void *next_element;
-	unsigned long timeout;
 	struct pqi_queue_group *queue_group;
 
 	queue_group = &ctrl_info->queue_groups[PQI_DEFAULT_QUEUE_GROUP];
 	put_unaligned_le16(queue_group->oq_id, &iu->header.response_queue_id);
-
-	timeout = (PQI_EVENT_ACK_TIMEOUT * HZ) + jiffies;
 
 	while (1) {
 		spin_lock_irqsave(&queue_group->submit_lock[RAID_PATH], flags);
@@ -2613,11 +2792,8 @@ static void pqi_start_event_ack(struct pqi_ctrl_info *ctrl_info,
 		spin_unlock_irqrestore(
 			&queue_group->submit_lock[RAID_PATH], flags);
 
-		if (time_after(jiffies, timeout)) {
-			dev_err(&ctrl_info->pci_dev->dev,
-				"sending event acknowledge timed out\n");
+		if (pqi_ctrl_offline(ctrl_info))
 			return;
-		}
 	}
 
 	next_element = queue_group->iq_element_array[RAID_PATH] +
@@ -2626,7 +2802,6 @@ static void pqi_start_event_ack(struct pqi_ctrl_info *ctrl_info,
 	memcpy(next_element, iu, iu_length);
 
 	iq_pi = (iq_pi + 1) % ctrl_info->num_elements_per_iq;
-
 	queue_group->iq_pi_copy[RAID_PATH] = iq_pi;
 
 	/*
@@ -2652,152 +2827,105 @@ static void pqi_acknowledge_event(struct pqi_ctrl_info *ctrl_info,
 	request.event_id = event->event_id;
 	request.additional_event_id = event->additional_event_id;
 
-	pqi_start_event_ack(ctrl_info, &request, sizeof(request));
+	pqi_send_event_ack(ctrl_info, &request, sizeof(request));
 }
 
 static void pqi_event_worker(struct work_struct *work)
 {
 	unsigned int i;
 	struct pqi_ctrl_info *ctrl_info;
-	struct pqi_event *pending_event;
-	bool got_non_heartbeat_event = false;
+	struct pqi_event *event;
 
 	ctrl_info = container_of(work, struct pqi_ctrl_info, event_work);
 
-	pending_event = ctrl_info->pending_events;
+	pqi_ctrl_busy(ctrl_info);
+	pqi_wait_if_ctrl_blocked(ctrl_info, NO_TIMEOUT);
+	if (pqi_ctrl_offline(ctrl_info))
+		goto out;
+
+	pqi_schedule_rescan_worker_delayed(ctrl_info);
+
+	event = ctrl_info->events;
 	for (i = 0; i < PQI_NUM_SUPPORTED_EVENTS; i++) {
-		if (pending_event->pending) {
-			pending_event->pending = false;
-			pqi_acknowledge_event(ctrl_info, pending_event);
-			if (i != PQI_EVENT_HEARTBEAT)
-				got_non_heartbeat_event = true;
+		if (event->pending) {
+			event->pending = false;
+			pqi_acknowledge_event(ctrl_info, event);
 		}
-		pending_event++;
+		event++;
 	}
 
-	if (got_non_heartbeat_event)
-		pqi_schedule_rescan_worker(ctrl_info);
+out:
+	pqi_ctrl_unbusy(ctrl_info);
 }
 
-static void pqi_take_ctrl_offline(struct pqi_ctrl_info *ctrl_info)
-{
-	unsigned int i;
-	unsigned int path;
-	struct pqi_queue_group *queue_group;
-	unsigned long flags;
-	struct pqi_io_request *io_request;
-	struct pqi_io_request *next;
-	struct scsi_cmnd *scmd;
-
-	ctrl_info->controller_online = false;
-	dev_err(&ctrl_info->pci_dev->dev, "controller offline\n");
-
-	for (i = 0; i < ctrl_info->num_queue_groups; i++) {
-		queue_group = &ctrl_info->queue_groups[i];
-
-		for (path = 0; path < 2; path++) {
-			spin_lock_irqsave(
-				&queue_group->submit_lock[path], flags);
-
-			list_for_each_entry_safe(io_request, next,
-				&queue_group->request_list[path],
-				request_list_entry) {
-
-				scmd = io_request->scmd;
-				if (scmd) {
-					set_host_byte(scmd, DID_NO_CONNECT);
-					pqi_scsi_done(scmd);
-				}
-
-				list_del(&io_request->request_list_entry);
-			}
-
-			spin_unlock_irqrestore(
-				&queue_group->submit_lock[path], flags);
-		}
-	}
-}
-
-#define PQI_HEARTBEAT_TIMER_INTERVAL	(5 * HZ)
-#define PQI_MAX_HEARTBEAT_REQUESTS	5
+#define PQI_HEARTBEAT_TIMER_INTERVAL	(10 * HZ)
 
 static void pqi_heartbeat_timer_handler(unsigned long data)
 {
 	int num_interrupts;
+	u32 heartbeat_count;
 	struct pqi_ctrl_info *ctrl_info = (struct pqi_ctrl_info *)data;
 
+	pqi_check_ctrl_health(ctrl_info);
+	if (pqi_ctrl_offline(ctrl_info))
+		return;
+
 	num_interrupts = atomic_read(&ctrl_info->num_interrupts);
+	heartbeat_count = pqi_read_heartbeat_counter(ctrl_info);
 
 	if (num_interrupts == ctrl_info->previous_num_interrupts) {
-		ctrl_info->num_heartbeats_requested++;
-		if (ctrl_info->num_heartbeats_requested >
-			PQI_MAX_HEARTBEAT_REQUESTS) {
+		if (heartbeat_count == ctrl_info->previous_heartbeat_count) {
+			dev_err(&ctrl_info->pci_dev->dev,
+				"no heartbeat detected - last heartbeat count: %u\n",
+				heartbeat_count);
 			pqi_take_ctrl_offline(ctrl_info);
 			return;
 		}
-		ctrl_info->pending_events[PQI_EVENT_HEARTBEAT].pending = true;
-		schedule_work(&ctrl_info->event_work);
 	} else {
-		ctrl_info->num_heartbeats_requested = 0;
+		ctrl_info->previous_num_interrupts = num_interrupts;
 	}
 
-	ctrl_info->previous_num_interrupts = num_interrupts;
+	ctrl_info->previous_heartbeat_count = heartbeat_count;
 	mod_timer(&ctrl_info->heartbeat_timer,
 		jiffies + PQI_HEARTBEAT_TIMER_INTERVAL);
 }
 
 static void pqi_start_heartbeat_timer(struct pqi_ctrl_info *ctrl_info)
 {
+	if (!ctrl_info->heartbeat_counter)
+		return;
+
 	ctrl_info->previous_num_interrupts =
 		atomic_read(&ctrl_info->num_interrupts);
+	ctrl_info->previous_heartbeat_count =
+		pqi_read_heartbeat_counter(ctrl_info);
 
-	init_timer(&ctrl_info->heartbeat_timer);
 	ctrl_info->heartbeat_timer.expires =
 		jiffies + PQI_HEARTBEAT_TIMER_INTERVAL;
 	ctrl_info->heartbeat_timer.data = (unsigned long)ctrl_info;
 	ctrl_info->heartbeat_timer.function = pqi_heartbeat_timer_handler;
 	add_timer(&ctrl_info->heartbeat_timer);
-	ctrl_info->heartbeat_timer_started = true;
 }
 
 static inline void pqi_stop_heartbeat_timer(struct pqi_ctrl_info *ctrl_info)
 {
-	if (ctrl_info->heartbeat_timer_started)
-		del_timer_sync(&ctrl_info->heartbeat_timer);
+	del_timer_sync(&ctrl_info->heartbeat_timer);
 }
 
-static int pqi_event_type_to_event_index(unsigned int event_type)
+static inline int pqi_event_type_to_event_index(unsigned int event_type)
 {
 	int index;
 
-	switch (event_type) {
-	case PQI_EVENT_TYPE_HEARTBEAT:
-		index = PQI_EVENT_HEARTBEAT;
-		break;
-	case PQI_EVENT_TYPE_HOTPLUG:
-		index = PQI_EVENT_HOTPLUG;
-		break;
-	case PQI_EVENT_TYPE_HARDWARE:
-		index = PQI_EVENT_HARDWARE;
-		break;
-	case PQI_EVENT_TYPE_PHYSICAL_DEVICE:
-		index = PQI_EVENT_PHYSICAL_DEVICE;
-		break;
-	case PQI_EVENT_TYPE_LOGICAL_DEVICE:
-		index = PQI_EVENT_LOGICAL_DEVICE;
-		break;
-	case PQI_EVENT_TYPE_AIO_STATE_CHANGE:
-		index = PQI_EVENT_AIO_STATE_CHANGE;
-		break;
-	case PQI_EVENT_TYPE_AIO_CONFIG_CHANGE:
-		index = PQI_EVENT_AIO_CONFIG_CHANGE;
-		break;
-	default:
-		index = -1;
-		break;
-	}
+	for (index = 0; index < ARRAY_SIZE(pqi_supported_event_types); index++)
+		if (event_type == pqi_supported_event_types[index])
+			return index;
 
-	return index;
+	return -1;
+}
+
+static inline bool pqi_is_supported_event(unsigned int event_type)
+{
+	return pqi_event_type_to_event_index(event_type) != -1;
 }
 
 static unsigned int pqi_process_event_intr(struct pqi_ctrl_info *ctrl_info)
@@ -2807,13 +2935,11 @@ static unsigned int pqi_process_event_intr(struct pqi_ctrl_info *ctrl_info)
 	pqi_index_t oq_ci;
 	struct pqi_event_queue *event_queue;
 	struct pqi_event_response *response;
-	struct pqi_event *pending_event;
-	bool need_delayed_work;
+	struct pqi_event *event;
 	int event_index;
 
 	event_queue = &ctrl_info->event_queue;
 	num_events = 0;
-	need_delayed_work = false;
 	oq_ci = event_queue->oq_ci_copy;
 
 	while (1) {
@@ -2830,17 +2956,12 @@ static unsigned int pqi_process_event_intr(struct pqi_ctrl_info *ctrl_info)
 
 		if (event_index >= 0) {
 			if (response->request_acknowlege) {
-				pending_event =
-					&ctrl_info->pending_events[event_index];
-				pending_event->event_type =
-					response->event_type;
-				pending_event->event_id = response->event_id;
-				pending_event->additional_event_id =
+				event = &ctrl_info->events[event_index];
+				event->pending = true;
+				event->event_type = response->event_type;
+				event->event_id = response->event_id;
+				event->additional_event_id =
 					response->additional_event_id;
-				if (event_index != PQI_EVENT_HEARTBEAT) {
-					pending_event->pending = true;
-					need_delayed_work = true;
-				}
 			}
 		}
 
@@ -2850,12 +2971,106 @@ static unsigned int pqi_process_event_intr(struct pqi_ctrl_info *ctrl_info)
 	if (num_events) {
 		event_queue->oq_ci_copy = oq_ci;
 		writel(oq_ci, event_queue->oq_ci);
-
-		if (need_delayed_work)
-			schedule_work(&ctrl_info->event_work);
+		schedule_work(&ctrl_info->event_work);
 	}
 
 	return num_events;
+}
+
+#define PQI_LEGACY_INTX_MASK	0x1
+
+static inline void pqi_configure_legacy_intx(struct pqi_ctrl_info *ctrl_info,
+						bool enable_intx)
+{
+	u32 intx_mask;
+	struct pqi_device_registers __iomem *pqi_registers;
+	volatile void __iomem *register_addr;
+
+	pqi_registers = ctrl_info->pqi_registers;
+
+	if (enable_intx)
+		register_addr = &pqi_registers->legacy_intx_mask_clear;
+	else
+		register_addr = &pqi_registers->legacy_intx_mask_set;
+
+	intx_mask = readl(register_addr);
+	intx_mask |= PQI_LEGACY_INTX_MASK;
+	writel(intx_mask, register_addr);
+}
+
+static void pqi_change_irq_mode(struct pqi_ctrl_info *ctrl_info,
+	enum pqi_irq_mode new_mode)
+{
+	switch (ctrl_info->irq_mode) {
+	case IRQ_MODE_MSIX:
+		switch (new_mode) {
+		case IRQ_MODE_MSIX:
+			break;
+		case IRQ_MODE_INTX:
+			pqi_configure_legacy_intx(ctrl_info, true);
+			sis_enable_intx(ctrl_info);
+			break;
+		case IRQ_MODE_NONE:
+			break;
+		}
+		break;
+	case IRQ_MODE_INTX:
+		switch (new_mode) {
+		case IRQ_MODE_MSIX:
+			pqi_configure_legacy_intx(ctrl_info, false);
+			sis_enable_msix(ctrl_info);
+			break;
+		case IRQ_MODE_INTX:
+			break;
+		case IRQ_MODE_NONE:
+			pqi_configure_legacy_intx(ctrl_info, false);
+			break;
+		}
+		break;
+	case IRQ_MODE_NONE:
+		switch (new_mode) {
+		case IRQ_MODE_MSIX:
+			sis_enable_msix(ctrl_info);
+			break;
+		case IRQ_MODE_INTX:
+			pqi_configure_legacy_intx(ctrl_info, true);
+			sis_enable_intx(ctrl_info);
+			break;
+		case IRQ_MODE_NONE:
+			break;
+		}
+		break;
+	}
+
+	ctrl_info->irq_mode = new_mode;
+}
+
+#define PQI_LEGACY_INTX_PENDING		0x1
+
+static inline bool pqi_is_valid_irq(struct pqi_ctrl_info *ctrl_info)
+{
+	bool valid_irq;
+	u32 intx_status;
+
+	switch (ctrl_info->irq_mode) {
+	case IRQ_MODE_MSIX:
+		valid_irq = true;
+		break;
+	case IRQ_MODE_INTX:
+		intx_status =
+			readl(&ctrl_info->pqi_registers->legacy_intx_status);
+		if (intx_status & PQI_LEGACY_INTX_PENDING)
+			valid_irq = true;
+		else
+			valid_irq = false;
+		break;
+	case IRQ_MODE_NONE:
+	default:
+		valid_irq = false;
+		break;
+	}
+
+	return valid_irq;
 }
 
 static irqreturn_t pqi_irq_handler(int irq, void *data)
@@ -2867,7 +3082,7 @@ static irqreturn_t pqi_irq_handler(int irq, void *data)
 	queue_group = data;
 	ctrl_info = queue_group->ctrl_info;
 
-	if (!ctrl_info || !queue_group->oq_ci)
+	if (!pqi_is_valid_irq(ctrl_info))
 		return IRQ_NONE;
 
 	num_responses_handled = pqi_process_io_intr(ctrl_info, queue_group);
@@ -2886,19 +3101,19 @@ static irqreturn_t pqi_irq_handler(int irq, void *data)
 
 static int pqi_request_irqs(struct pqi_ctrl_info *ctrl_info)
 {
-	struct pci_dev *pdev = ctrl_info->pci_dev;
+	struct pci_dev *pci_dev = ctrl_info->pci_dev;
 	int i;
 	int rc;
 
-	ctrl_info->event_irq = pci_irq_vector(pdev, 0);
+	ctrl_info->event_irq = pci_irq_vector(pci_dev, 0);
 
 	for (i = 0; i < ctrl_info->num_msix_vectors_enabled; i++) {
-		rc = request_irq(pci_irq_vector(pdev, i), pqi_irq_handler, 0,
+		rc = request_irq(pci_irq_vector(pci_dev, i), pqi_irq_handler, 0,
 			DRIVER_NAME_SHORT, &ctrl_info->queue_groups[i]);
 		if (rc) {
-			dev_err(&pdev->dev,
+			dev_err(&pci_dev->dev,
 				"irq %u init failed with error %d\n",
-				pci_irq_vector(pdev, i), rc);
+				pci_irq_vector(pci_dev, i), rc);
 			return rc;
 		}
 		ctrl_info->num_msix_vectors_initialized++;
@@ -2907,21 +3122,42 @@ static int pqi_request_irqs(struct pqi_ctrl_info *ctrl_info)
 	return 0;
 }
 
+static void pqi_free_irqs(struct pqi_ctrl_info *ctrl_info)
+{
+	int i;
+
+	for (i = 0; i < ctrl_info->num_msix_vectors_initialized; i++)
+		free_irq(pci_irq_vector(ctrl_info->pci_dev, i),
+			&ctrl_info->queue_groups[i]);
+
+	ctrl_info->num_msix_vectors_initialized = 0;
+}
+
 static int pqi_enable_msix_interrupts(struct pqi_ctrl_info *ctrl_info)
 {
-	int ret;
+	int num_vectors_enabled;
 
-	ret = pci_alloc_irq_vectors(ctrl_info->pci_dev,
+	num_vectors_enabled = pci_alloc_irq_vectors(ctrl_info->pci_dev,
 			PQI_MIN_MSIX_VECTORS, ctrl_info->num_queue_groups,
 			PCI_IRQ_MSIX | PCI_IRQ_AFFINITY);
-	if (ret < 0) {
+	if (num_vectors_enabled < 0) {
 		dev_err(&ctrl_info->pci_dev->dev,
-			"MSI-X init failed with error %d\n", ret);
-		return ret;
+			"MSI-X init failed with error %d\n",
+			num_vectors_enabled);
+		return num_vectors_enabled;
 	}
 
-	ctrl_info->num_msix_vectors_enabled = ret;
+	ctrl_info->num_msix_vectors_enabled = num_vectors_enabled;
+	ctrl_info->irq_mode = IRQ_MODE_MSIX;
 	return 0;
+}
+
+static void pqi_disable_msix_interrupts(struct pqi_ctrl_info *ctrl_info)
+{
+	if (ctrl_info->num_msix_vectors_enabled) {
+		pci_free_irq_vectors(ctrl_info->pci_dev);
+		ctrl_info->num_msix_vectors_enabled = 0;
+	}
 }
 
 static int pqi_alloc_operational_queues(struct pqi_ctrl_info *ctrl_info)
@@ -2976,16 +3212,15 @@ static int pqi_alloc_operational_queues(struct pqi_ctrl_info *ctrl_info)
 	alloc_length = (size_t)aligned_pointer +
 		PQI_QUEUE_ELEMENT_ARRAY_ALIGNMENT;
 
+	alloc_length += PQI_EXTRA_SGL_MEMORY;
+
 	ctrl_info->queue_memory_base =
 		dma_zalloc_coherent(&ctrl_info->pci_dev->dev,
 			alloc_length,
 			&ctrl_info->queue_memory_base_dma_handle, GFP_KERNEL);
 
-	if (!ctrl_info->queue_memory_base) {
-		dev_err(&ctrl_info->pci_dev->dev,
-			"failed to allocate memory for PQI admin queues\n");
+	if (!ctrl_info->queue_memory_base)
 		return -ENOMEM;
-	}
 
 	ctrl_info->queue_memory_length = alloc_length;
 
@@ -3235,6 +3470,8 @@ static void pqi_submit_admin_request(struct pqi_ctrl_info *ctrl_info,
 	writel(iq_pi, admin_queues->iq_pi);
 }
 
+#define PQI_ADMIN_REQUEST_TIMEOUT_SECS	60
+
 static int pqi_poll_for_admin_response(struct pqi_ctrl_info *ctrl_info,
 	struct pqi_general_admin_response *response)
 {
@@ -3246,7 +3483,7 @@ static int pqi_poll_for_admin_response(struct pqi_ctrl_info *ctrl_info,
 	admin_queues = &ctrl_info->admin_queues;
 	oq_ci = admin_queues->oq_ci_copy;
 
-	timeout = (3 * HZ) + jiffies;
+	timeout = (PQI_ADMIN_REQUEST_TIMEOUT_SECS * HZ) + jiffies;
 
 	while (1) {
 		oq_pi = *admin_queues->oq_pi;
@@ -3257,6 +3494,8 @@ static int pqi_poll_for_admin_response(struct pqi_ctrl_info *ctrl_info,
 				"timed out waiting for admin response\n");
 			return -ETIMEDOUT;
 		}
+		if (!sis_is_firmware_running(ctrl_info))
+			return -ENXIO;
 		usleep_range(1000, 2000);
 	}
 
@@ -3287,9 +3526,11 @@ static void pqi_start_io(struct pqi_ctrl_info *ctrl_info,
 
 	spin_lock_irqsave(&queue_group->submit_lock[path], flags);
 
-	if (io_request)
+	if (io_request) {
+		io_request->queue_group = queue_group;
 		list_add_tail(&io_request->request_list_entry,
 			&queue_group->request_list[path]);
+	}
 
 	iq_pi = queue_group->iq_pi_copy[path];
 
@@ -3348,6 +3589,30 @@ static void pqi_start_io(struct pqi_ctrl_info *ctrl_info,
 	spin_unlock_irqrestore(&queue_group->submit_lock[path], flags);
 }
 
+#define PQI_WAIT_FOR_COMPLETION_IO_TIMEOUT_SECS		10
+
+static int pqi_wait_for_completion_io(struct pqi_ctrl_info *ctrl_info,
+	struct completion *wait)
+{
+	int rc;
+
+	while (1) {
+		if (wait_for_completion_io_timeout(wait,
+			PQI_WAIT_FOR_COMPLETION_IO_TIMEOUT_SECS * HZ)) {
+			rc = 0;
+			break;
+		}
+
+		pqi_check_ctrl_health(ctrl_info);
+		if (pqi_ctrl_offline(ctrl_info)) {
+			rc = -ENXIO;
+			break;
+		}
+	}
+
+	return rc;
+}
+
 static void pqi_raid_synchronous_complete(struct pqi_io_request *io_request,
 	void *context)
 {
@@ -3371,7 +3636,7 @@ static int pqi_submit_raid_request_synchronous_with_io_request(
 		io_request);
 
 	if (timeout_msecs == NO_TIMEOUT) {
-		wait_for_completion_io(&wait);
+		pqi_wait_for_completion_io(ctrl_info, &wait);
 	} else {
 		if (!wait_for_completion_io_timeout(&wait,
 			msecs_to_jiffies(timeout_msecs))) {
@@ -3418,6 +3683,18 @@ static int pqi_submit_raid_request_synchronous(struct pqi_ctrl_info *ctrl_info,
 		}
 	}
 
+	pqi_ctrl_busy(ctrl_info);
+	timeout_msecs = pqi_wait_if_ctrl_blocked(ctrl_info, timeout_msecs);
+	if (timeout_msecs == 0) {
+		rc = -ETIMEDOUT;
+		goto out;
+	}
+
+	if (pqi_ctrl_offline(ctrl_info)) {
+		rc = -ENXIO;
+		goto out;
+	}
+
 	io_request = pqi_alloc_io_request(ctrl_info);
 
 	put_unaligned_le16(io_request->index,
@@ -3458,6 +3735,8 @@ static int pqi_submit_raid_request_synchronous(struct pqi_ctrl_info *ctrl_info,
 
 	pqi_free_io_request(io_request);
 
+out:
+	pqi_ctrl_unbusy(ctrl_info);
 	up(&ctrl_info->sync_request_sem);
 
 	return rc;
@@ -3688,16 +3967,15 @@ static int pqi_create_event_queue(struct pqi_ctrl_info *ctrl_info)
 	return 0;
 }
 
-static int pqi_create_queue_group(struct pqi_ctrl_info *ctrl_info)
+static int pqi_create_queue_group(struct pqi_ctrl_info *ctrl_info,
+	unsigned int group_number)
 {
-	unsigned int i;
 	int rc;
 	struct pqi_queue_group *queue_group;
 	struct pqi_general_admin_request request;
 	struct pqi_general_admin_response response;
 
-	i = ctrl_info->num_active_queue_groups;
-	queue_group = &ctrl_info->queue_groups[i];
+	queue_group = &ctrl_info->queue_groups[group_number];
 
 	/*
 	 * Create IQ (Inbound Queue - host to device queue) for
@@ -3827,8 +4105,6 @@ static int pqi_create_queue_group(struct pqi_ctrl_info *ctrl_info)
 		get_unaligned_le64(
 			&response.data.create_operational_oq.oq_ci_offset);
 
-	ctrl_info->num_active_queue_groups++;
-
 	return 0;
 
 delete_inbound_queue_aio:
@@ -3855,7 +4131,7 @@ static int pqi_create_queues(struct pqi_ctrl_info *ctrl_info)
 	}
 
 	for (i = 0; i < ctrl_info->num_queue_groups; i++) {
-		rc = pqi_create_queue_group(ctrl_info);
+		rc = pqi_create_queue_group(ctrl_info, i);
 		if (rc) {
 			dev_err(&ctrl_info->pci_dev->dev,
 				"error creating queue group number %u/%u\n",
@@ -3871,11 +4147,13 @@ static int pqi_create_queues(struct pqi_ctrl_info *ctrl_info)
 	(offsetof(struct pqi_event_config, descriptors) + \
 	(PQI_MAX_EVENT_DESCRIPTORS * sizeof(struct pqi_event_descriptor)))
 
-static int pqi_configure_events(struct pqi_ctrl_info *ctrl_info)
+static int pqi_configure_events(struct pqi_ctrl_info *ctrl_info,
+	bool enable_events)
 {
 	int rc;
 	unsigned int i;
 	struct pqi_event_config *event_config;
+	struct pqi_event_descriptor *event_descriptor;
 	struct pqi_general_management_request request;
 
 	event_config = kmalloc(PQI_REPORT_EVENT_CONFIG_BUFFER_LENGTH,
@@ -3909,9 +4187,15 @@ static int pqi_configure_events(struct pqi_ctrl_info *ctrl_info)
 	if (rc)
 		goto out;
 
-	for (i = 0; i < event_config->num_event_descriptors; i++)
-		put_unaligned_le16(ctrl_info->event_queue.oq_id,
-			&event_config->descriptors[i].oq_id);
+	for (i = 0; i < event_config->num_event_descriptors; i++) {
+		event_descriptor = &event_config->descriptors[i];
+		if (enable_events &&
+			pqi_is_supported_event(event_descriptor->event_type))
+			put_unaligned_le16(ctrl_info->event_queue.oq_id,
+					&event_descriptor->oq_id);
+		else
+			put_unaligned_le16(0, &event_descriptor->oq_id);
+	}
 
 	memset(&request, 0, sizeof(request));
 
@@ -3940,6 +4224,16 @@ out:
 	kfree(event_config);
 
 	return rc;
+}
+
+static inline int pqi_enable_events(struct pqi_ctrl_info *ctrl_info)
+{
+	return pqi_configure_events(ctrl_info, true);
+}
+
+static inline int pqi_disable_events(struct pqi_ctrl_info *ctrl_info)
+{
+	return pqi_configure_events(ctrl_info, false);
 }
 
 static void pqi_free_all_io_requests(struct pqi_ctrl_info *ctrl_info)
@@ -4056,8 +4350,12 @@ static void pqi_calculate_io_resources(struct pqi_ctrl_info *ctrl_info)
 	ctrl_info->error_buffer_length =
 		ctrl_info->max_io_slots * PQI_ERROR_BUFFER_ELEMENT_LENGTH;
 
-	max_transfer_size =
-		min(ctrl_info->max_transfer_size, PQI_MAX_TRANSFER_SIZE);
+	if (reset_devices)
+		max_transfer_size = min(ctrl_info->max_transfer_size,
+			PQI_MAX_TRANSFER_SIZE_KDUMP);
+	else
+		max_transfer_size = min(ctrl_info->max_transfer_size,
+			PQI_MAX_TRANSFER_SIZE);
 
 	max_sg_entries = max_transfer_size / PAGE_SIZE;
 
@@ -4069,28 +4367,35 @@ static void pqi_calculate_io_resources(struct pqi_ctrl_info *ctrl_info)
 	max_transfer_size = (max_sg_entries - 1) * PAGE_SIZE;
 
 	ctrl_info->sg_chain_buffer_length =
-		max_sg_entries * sizeof(struct pqi_sg_descriptor);
+		(max_sg_entries * sizeof(struct pqi_sg_descriptor)) +
+		PQI_EXTRA_SGL_MEMORY;
 	ctrl_info->sg_tablesize = max_sg_entries;
 	ctrl_info->max_sectors = max_transfer_size / 512;
 }
 
 static void pqi_calculate_queue_resources(struct pqi_ctrl_info *ctrl_info)
 {
-	int num_cpus;
-	int max_queue_groups;
 	int num_queue_groups;
 	u16 num_elements_per_iq;
 	u16 num_elements_per_oq;
 
-	max_queue_groups = min(ctrl_info->max_inbound_queues / 2,
-		ctrl_info->max_outbound_queues - 1);
-	max_queue_groups = min(max_queue_groups, PQI_MAX_QUEUE_GROUPS);
+	if (reset_devices) {
+		num_queue_groups = 1;
+	} else {
+		int num_cpus;
+		int max_queue_groups;
 
-	num_cpus = num_online_cpus();
-	num_queue_groups = min(num_cpus, ctrl_info->max_msix_vectors);
-	num_queue_groups = min(num_queue_groups, max_queue_groups);
+		max_queue_groups = min(ctrl_info->max_inbound_queues / 2,
+			ctrl_info->max_outbound_queues - 1);
+		max_queue_groups = min(max_queue_groups, PQI_MAX_QUEUE_GROUPS);
+
+		num_cpus = num_online_cpus();
+		num_queue_groups = min(num_cpus, ctrl_info->max_msix_vectors);
+		num_queue_groups = min(num_queue_groups, max_queue_groups);
+	}
 
 	ctrl_info->num_queue_groups = num_queue_groups;
+	ctrl_info->max_hw_queue_index = num_queue_groups - 1;
 
 	/*
 	 * Make sure that the max. inbound IU length is an even multiple
@@ -4276,20 +4581,17 @@ static void pqi_raid_io_complete(struct pqi_io_request *io_request,
 	pqi_scsi_done(scmd);
 }
 
-static int pqi_raid_submit_scsi_cmd(struct pqi_ctrl_info *ctrl_info,
+static int pqi_raid_submit_scsi_cmd_with_io_request(
+	struct pqi_ctrl_info *ctrl_info, struct pqi_io_request *io_request,
 	struct pqi_scsi_dev *device, struct scsi_cmnd *scmd,
 	struct pqi_queue_group *queue_group)
 {
 	int rc;
 	size_t cdb_length;
-	struct pqi_io_request *io_request;
 	struct pqi_raid_path_request *request;
 
-	io_request = pqi_alloc_io_request(ctrl_info);
 	io_request->io_complete_callback = pqi_raid_io_complete;
 	io_request->scmd = scmd;
-
-	scmd->host_scribble = (unsigned char *)io_request;
 
 	request = io_request->iu;
 	memset(request, 0,
@@ -4355,7 +4657,6 @@ static int pqi_raid_submit_scsi_cmd(struct pqi_ctrl_info *ctrl_info,
 		dev_err(&ctrl_info->pci_dev->dev,
 			"unknown data direction: %d\n",
 			scmd->sc_data_direction);
-		WARN_ON(scmd->sc_data_direction);
 		break;
 	}
 
@@ -4370,6 +4671,176 @@ static int pqi_raid_submit_scsi_cmd(struct pqi_ctrl_info *ctrl_info,
 	return 0;
 }
 
+static inline int pqi_raid_submit_scsi_cmd(struct pqi_ctrl_info *ctrl_info,
+	struct pqi_scsi_dev *device, struct scsi_cmnd *scmd,
+	struct pqi_queue_group *queue_group)
+{
+	struct pqi_io_request *io_request;
+
+	io_request = pqi_alloc_io_request(ctrl_info);
+
+	return pqi_raid_submit_scsi_cmd_with_io_request(ctrl_info, io_request,
+		device, scmd, queue_group);
+}
+
+static inline void pqi_schedule_bypass_retry(struct pqi_ctrl_info *ctrl_info)
+{
+	if (!pqi_ctrl_blocked(ctrl_info))
+		schedule_work(&ctrl_info->raid_bypass_retry_work);
+}
+
+static bool pqi_raid_bypass_retry_needed(struct pqi_io_request *io_request)
+{
+	struct scsi_cmnd *scmd;
+	struct pqi_scsi_dev *device;
+	struct pqi_ctrl_info *ctrl_info;
+
+	if (!io_request->raid_bypass)
+		return false;
+
+	scmd = io_request->scmd;
+	if ((scmd->result & 0xff) == SAM_STAT_GOOD)
+		return false;
+	if (host_byte(scmd->result) == DID_NO_CONNECT)
+		return false;
+
+	device = scmd->device->hostdata;
+	if (pqi_device_offline(device))
+		return false;
+
+	ctrl_info = shost_to_hba(scmd->device->host);
+	if (pqi_ctrl_offline(ctrl_info))
+		return false;
+
+	return true;
+}
+
+static inline void pqi_add_to_raid_bypass_retry_list(
+	struct pqi_ctrl_info *ctrl_info,
+	struct pqi_io_request *io_request, bool at_head)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&ctrl_info->raid_bypass_retry_list_lock, flags);
+	if (at_head)
+		list_add(&io_request->request_list_entry,
+			&ctrl_info->raid_bypass_retry_list);
+	else
+		list_add_tail(&io_request->request_list_entry,
+			&ctrl_info->raid_bypass_retry_list);
+	spin_unlock_irqrestore(&ctrl_info->raid_bypass_retry_list_lock, flags);
+}
+
+static void pqi_queued_raid_bypass_complete(struct pqi_io_request *io_request,
+	void *context)
+{
+	struct scsi_cmnd *scmd;
+
+	scmd = io_request->scmd;
+	pqi_free_io_request(io_request);
+	pqi_scsi_done(scmd);
+}
+
+static void pqi_queue_raid_bypass_retry(struct pqi_io_request *io_request)
+{
+	struct scsi_cmnd *scmd;
+	struct pqi_ctrl_info *ctrl_info;
+
+	io_request->io_complete_callback = pqi_queued_raid_bypass_complete;
+	scmd = io_request->scmd;
+	scmd->result = 0;
+	ctrl_info = shost_to_hba(scmd->device->host);
+
+	pqi_add_to_raid_bypass_retry_list(ctrl_info, io_request, false);
+	pqi_schedule_bypass_retry(ctrl_info);
+}
+
+static int pqi_retry_raid_bypass(struct pqi_io_request *io_request)
+{
+	struct scsi_cmnd *scmd;
+	struct pqi_scsi_dev *device;
+	struct pqi_ctrl_info *ctrl_info;
+	struct pqi_queue_group *queue_group;
+
+	scmd = io_request->scmd;
+	device = scmd->device->hostdata;
+	if (pqi_device_in_reset(device)) {
+		pqi_free_io_request(io_request);
+		set_host_byte(scmd, DID_RESET);
+		pqi_scsi_done(scmd);
+		return 0;
+	}
+
+	ctrl_info = shost_to_hba(scmd->device->host);
+	queue_group = io_request->queue_group;
+
+	pqi_reinit_io_request(io_request);
+
+	return pqi_raid_submit_scsi_cmd_with_io_request(ctrl_info, io_request,
+		device, scmd, queue_group);
+}
+
+static inline struct pqi_io_request *pqi_next_queued_raid_bypass_request(
+	struct pqi_ctrl_info *ctrl_info)
+{
+	unsigned long flags;
+	struct pqi_io_request *io_request;
+
+	spin_lock_irqsave(&ctrl_info->raid_bypass_retry_list_lock, flags);
+	io_request = list_first_entry_or_null(
+		&ctrl_info->raid_bypass_retry_list,
+		struct pqi_io_request, request_list_entry);
+	if (io_request)
+		list_del(&io_request->request_list_entry);
+	spin_unlock_irqrestore(&ctrl_info->raid_bypass_retry_list_lock, flags);
+
+	return io_request;
+}
+
+static void pqi_retry_raid_bypass_requests(struct pqi_ctrl_info *ctrl_info)
+{
+	int rc;
+	struct pqi_io_request *io_request;
+
+	pqi_ctrl_busy(ctrl_info);
+
+	while (1) {
+		if (pqi_ctrl_blocked(ctrl_info))
+			break;
+		io_request = pqi_next_queued_raid_bypass_request(ctrl_info);
+		if (!io_request)
+			break;
+		rc = pqi_retry_raid_bypass(io_request);
+		if (rc) {
+			pqi_add_to_raid_bypass_retry_list(ctrl_info, io_request,
+				true);
+			pqi_schedule_bypass_retry(ctrl_info);
+			break;
+		}
+	}
+
+	pqi_ctrl_unbusy(ctrl_info);
+}
+
+static void pqi_raid_bypass_retry_worker(struct work_struct *work)
+{
+	struct pqi_ctrl_info *ctrl_info;
+
+	ctrl_info = container_of(work, struct pqi_ctrl_info,
+		raid_bypass_retry_work);
+	pqi_retry_raid_bypass_requests(ctrl_info);
+}
+
+static void pqi_clear_all_queued_raid_bypass_retries(
+	struct pqi_ctrl_info *ctrl_info)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&ctrl_info->raid_bypass_retry_list_lock, flags);
+	INIT_LIST_HEAD(&ctrl_info->raid_bypass_retry_list);
+	spin_unlock_irqrestore(&ctrl_info->raid_bypass_retry_list_lock, flags);
+}
+
 static void pqi_aio_io_complete(struct pqi_io_request *io_request,
 	void *context)
 {
@@ -4379,6 +4850,10 @@ static void pqi_aio_io_complete(struct pqi_io_request *io_request,
 	scsi_dma_unmap(scmd);
 	if (io_request->status == -EAGAIN)
 		set_host_byte(scmd, DID_IMM_RETRY);
+	else if (pqi_raid_bypass_retry_needed(io_request)) {
+		pqi_queue_raid_bypass_retry(io_request);
+		return;
+	}
 	pqi_free_io_request(io_request);
 	pqi_scsi_done(scmd);
 }
@@ -4388,13 +4863,13 @@ static inline int pqi_aio_submit_scsi_cmd(struct pqi_ctrl_info *ctrl_info,
 	struct pqi_queue_group *queue_group)
 {
 	return pqi_aio_submit_io(ctrl_info, scmd, device->aio_handle,
-		scmd->cmnd, scmd->cmd_len, queue_group, NULL);
+		scmd->cmnd, scmd->cmd_len, queue_group, NULL, false);
 }
 
 static int pqi_aio_submit_io(struct pqi_ctrl_info *ctrl_info,
 	struct scsi_cmnd *scmd, u32 aio_handle, u8 *cdb,
 	unsigned int cdb_length, struct pqi_queue_group *queue_group,
-	struct pqi_encryption_info *encryption_info)
+	struct pqi_encryption_info *encryption_info, bool raid_bypass)
 {
 	int rc;
 	struct pqi_io_request *io_request;
@@ -4403,8 +4878,7 @@ static int pqi_aio_submit_io(struct pqi_ctrl_info *ctrl_info,
 	io_request = pqi_alloc_io_request(ctrl_info);
 	io_request->io_complete_callback = pqi_aio_io_complete;
 	io_request->scmd = scmd;
-
-	scmd->host_scribble = (unsigned char *)io_request;
+	io_request->raid_bypass = raid_bypass;
 
 	request = io_request->iu;
 	memset(request, 0,
@@ -4438,7 +4912,6 @@ static int pqi_aio_submit_io(struct pqi_ctrl_info *ctrl_info,
 		dev_err(&ctrl_info->pci_dev->dev,
 			"unknown data direction: %d\n",
 			scmd->sc_data_direction);
-		WARN_ON(scmd->sc_data_direction);
 		break;
 	}
 
@@ -4463,23 +4936,56 @@ static int pqi_aio_submit_io(struct pqi_ctrl_info *ctrl_info,
 	return 0;
 }
 
+static inline u16 pqi_get_hw_queue(struct pqi_ctrl_info *ctrl_info,
+	struct scsi_cmnd *scmd)
+{
+	u16 hw_queue;
+
+	hw_queue = blk_mq_unique_tag_to_hwq(blk_mq_unique_tag(scmd->request));
+	if (hw_queue > ctrl_info->max_hw_queue_index)
+		hw_queue = 0;
+
+	return hw_queue;
+}
+
+/*
+ * This function gets called just before we hand the completed SCSI request
+ * back to the SML.
+ */
+
+void pqi_prep_for_scsi_done(struct scsi_cmnd *scmd)
+{
+	struct pqi_scsi_dev *device;
+
+	device = scmd->device->hostdata;
+	atomic_dec(&device->scsi_cmds_outstanding);
+}
+
 static int pqi_scsi_queue_command(struct Scsi_Host *shost,
 	struct scsi_cmnd *scmd)
 {
 	int rc;
 	struct pqi_ctrl_info *ctrl_info;
 	struct pqi_scsi_dev *device;
-	u16 hwq;
+	u16 hw_queue;
 	struct pqi_queue_group *queue_group;
 	bool raid_bypassed;
 
 	device = scmd->device->hostdata;
 	ctrl_info = shost_to_hba(shost);
 
+	atomic_inc(&device->scsi_cmds_outstanding);
+
 	if (pqi_ctrl_offline(ctrl_info)) {
 		set_host_byte(scmd, DID_NO_CONNECT);
 		pqi_scsi_done(scmd);
 		return 0;
+	}
+
+	pqi_ctrl_busy(ctrl_info);
+	if (pqi_ctrl_blocked(ctrl_info) || pqi_device_in_reset(device)) {
+		rc = SCSI_MLQUEUE_HOST_BUSY;
+		goto out;
 	}
 
 	/*
@@ -4488,22 +4994,16 @@ static int pqi_scsi_queue_command(struct Scsi_Host *shost,
 	 */
 	scmd->result = 0;
 
-	hwq = blk_mq_unique_tag_to_hwq(blk_mq_unique_tag(scmd->request));
-	if (hwq >= ctrl_info->num_queue_groups)
-		hwq = 0;
-
-	queue_group = &ctrl_info->queue_groups[hwq];
+	hw_queue = pqi_get_hw_queue(ctrl_info, scmd);
+	queue_group = &ctrl_info->queue_groups[hw_queue];
 
 	if (pqi_is_logical_device(device)) {
 		raid_bypassed = false;
-		if (device->offload_enabled &&
+		if (device->raid_bypass_enabled &&
 				!blk_rq_is_passthrough(scmd->request)) {
 			rc = pqi_raid_bypass_submit_scsi_cmd(ctrl_info, device,
 				scmd, queue_group);
-			if (rc == 0 ||
-				rc == SCSI_MLQUEUE_HOST_BUSY ||
-				rc == SAM_STAT_CHECK_CONDITION ||
-				rc == SAM_STAT_RESERVATION_CONFLICT)
+			if (rc == 0 || rc == SCSI_MLQUEUE_HOST_BUSY)
 				raid_bypassed = true;
 		}
 		if (!raid_bypassed)
@@ -4518,7 +5018,160 @@ static int pqi_scsi_queue_command(struct Scsi_Host *shost,
 				queue_group);
 	}
 
+out:
+	pqi_ctrl_unbusy(ctrl_info);
+	if (rc)
+		atomic_dec(&device->scsi_cmds_outstanding);
+
 	return rc;
+}
+
+static int pqi_wait_until_queued_io_drained(struct pqi_ctrl_info *ctrl_info,
+	struct pqi_queue_group *queue_group)
+{
+	unsigned int path;
+	unsigned long flags;
+	bool list_is_empty;
+
+	for (path = 0; path < 2; path++) {
+		while (1) {
+			spin_lock_irqsave(
+				&queue_group->submit_lock[path], flags);
+			list_is_empty =
+				list_empty(&queue_group->request_list[path]);
+			spin_unlock_irqrestore(
+				&queue_group->submit_lock[path], flags);
+			if (list_is_empty)
+				break;
+			pqi_check_ctrl_health(ctrl_info);
+			if (pqi_ctrl_offline(ctrl_info))
+				return -ENXIO;
+			usleep_range(1000, 2000);
+		}
+	}
+
+	return 0;
+}
+
+static int pqi_wait_until_inbound_queues_empty(struct pqi_ctrl_info *ctrl_info)
+{
+	int rc;
+	unsigned int i;
+	unsigned int path;
+	struct pqi_queue_group *queue_group;
+	pqi_index_t iq_pi;
+	pqi_index_t iq_ci;
+
+	for (i = 0; i < ctrl_info->num_queue_groups; i++) {
+		queue_group = &ctrl_info->queue_groups[i];
+
+		rc = pqi_wait_until_queued_io_drained(ctrl_info, queue_group);
+		if (rc)
+			return rc;
+
+		for (path = 0; path < 2; path++) {
+			iq_pi = queue_group->iq_pi_copy[path];
+
+			while (1) {
+				iq_ci = *queue_group->iq_ci[path];
+				if (iq_ci == iq_pi)
+					break;
+				pqi_check_ctrl_health(ctrl_info);
+				if (pqi_ctrl_offline(ctrl_info))
+					return -ENXIO;
+				usleep_range(1000, 2000);
+			}
+		}
+	}
+
+	return 0;
+}
+
+static void pqi_fail_io_queued_for_device(struct pqi_ctrl_info *ctrl_info,
+	struct pqi_scsi_dev *device)
+{
+	unsigned int i;
+	unsigned int path;
+	struct pqi_queue_group *queue_group;
+	unsigned long flags;
+	struct pqi_io_request *io_request;
+	struct pqi_io_request *next;
+	struct scsi_cmnd *scmd;
+	struct pqi_scsi_dev *scsi_device;
+
+	for (i = 0; i < ctrl_info->num_queue_groups; i++) {
+		queue_group = &ctrl_info->queue_groups[i];
+
+		for (path = 0; path < 2; path++) {
+			spin_lock_irqsave(
+				&queue_group->submit_lock[path], flags);
+
+			list_for_each_entry_safe(io_request, next,
+				&queue_group->request_list[path],
+				request_list_entry) {
+				scmd = io_request->scmd;
+				if (!scmd)
+					continue;
+
+				scsi_device = scmd->device->hostdata;
+				if (scsi_device != device)
+					continue;
+
+				list_del(&io_request->request_list_entry);
+				set_host_byte(scmd, DID_RESET);
+				pqi_scsi_done(scmd);
+			}
+
+			spin_unlock_irqrestore(
+				&queue_group->submit_lock[path], flags);
+		}
+	}
+}
+
+static int pqi_device_wait_for_pending_io(struct pqi_ctrl_info *ctrl_info,
+	struct pqi_scsi_dev *device)
+{
+	while (atomic_read(&device->scsi_cmds_outstanding)) {
+		pqi_check_ctrl_health(ctrl_info);
+		if (pqi_ctrl_offline(ctrl_info))
+			return -ENXIO;
+		usleep_range(1000, 2000);
+	}
+
+	return 0;
+}
+
+static int pqi_ctrl_wait_for_pending_io(struct pqi_ctrl_info *ctrl_info)
+{
+	bool io_pending;
+	unsigned long flags;
+	struct pqi_scsi_dev *device;
+
+	while (1) {
+		io_pending = false;
+
+		spin_lock_irqsave(&ctrl_info->scsi_device_list_lock, flags);
+		list_for_each_entry(device, &ctrl_info->scsi_device_list,
+			scsi_device_list_entry) {
+			if (atomic_read(&device->scsi_cmds_outstanding)) {
+				io_pending = true;
+				break;
+			}
+		}
+		spin_unlock_irqrestore(&ctrl_info->scsi_device_list_lock,
+					flags);
+
+		if (!io_pending)
+			break;
+
+		pqi_check_ctrl_health(ctrl_info);
+		if (pqi_ctrl_offline(ctrl_info))
+			return -ENXIO;
+
+		usleep_range(1000, 2000);
+	}
+
+	return 0;
 }
 
 static void pqi_lun_reset_complete(struct pqi_io_request *io_request,
@@ -4535,7 +5188,6 @@ static int pqi_wait_for_lun_reset_completion(struct pqi_ctrl_info *ctrl_info,
 	struct pqi_scsi_dev *device, struct completion *wait)
 {
 	int rc;
-	unsigned int wait_secs = 0;
 
 	while (1) {
 		if (wait_for_completion_io_timeout(wait,
@@ -4546,16 +5198,9 @@ static int pqi_wait_for_lun_reset_completion(struct pqi_ctrl_info *ctrl_info,
 
 		pqi_check_ctrl_health(ctrl_info);
 		if (pqi_ctrl_offline(ctrl_info)) {
-			rc = -ETIMEDOUT;
+			rc = -ENXIO;
 			break;
 		}
-
-		wait_secs += PQI_LUN_RESET_TIMEOUT_SECS;
-
-		dev_err(&ctrl_info->pci_dev->dev,
-			"resetting scsi %d:%d:%d:%d - waiting %u seconds\n",
-			ctrl_info->scsi_host->host_no, device->bus,
-			device->target, device->lun, wait_secs);
 	}
 
 	return rc;
@@ -4568,8 +5213,6 @@ static int pqi_lun_reset(struct pqi_ctrl_info *ctrl_info,
 	struct pqi_io_request *io_request;
 	DECLARE_COMPLETION_ONSTACK(wait);
 	struct pqi_task_management_request *request;
-
-	down(&ctrl_info->lun_reset_sem);
 
 	io_request = pqi_alloc_io_request(ctrl_info);
 	io_request->io_complete_callback = pqi_lun_reset_complete;
@@ -4595,7 +5238,6 @@ static int pqi_lun_reset(struct pqi_ctrl_info *ctrl_info,
 		rc = io_request->status;
 
 	pqi_free_io_request(io_request);
-	up(&ctrl_info->lun_reset_sem);
 
 	return rc;
 }
@@ -4607,11 +5249,9 @@ static int pqi_device_reset(struct pqi_ctrl_info *ctrl_info,
 {
 	int rc;
 
-	pqi_check_ctrl_health(ctrl_info);
-	if (pqi_ctrl_offline(ctrl_info))
-		return FAILED;
-
 	rc = pqi_lun_reset(ctrl_info, device);
+	if (rc == 0)
+		rc = pqi_device_wait_for_pending_io(ctrl_info, device);
 
 	return rc == 0 ? SUCCESS : FAILED;
 }
@@ -4619,23 +5259,46 @@ static int pqi_device_reset(struct pqi_ctrl_info *ctrl_info,
 static int pqi_eh_device_reset_handler(struct scsi_cmnd *scmd)
 {
 	int rc;
+	struct Scsi_Host *shost;
 	struct pqi_ctrl_info *ctrl_info;
 	struct pqi_scsi_dev *device;
 
-	ctrl_info = shost_to_hba(scmd->device->host);
+	shost = scmd->device->host;
+	ctrl_info = shost_to_hba(shost);
 	device = scmd->device->hostdata;
 
 	dev_err(&ctrl_info->pci_dev->dev,
 		"resetting scsi %d:%d:%d:%d\n",
-		ctrl_info->scsi_host->host_no,
-		device->bus, device->target, device->lun);
+		shost->host_no, device->bus, device->target, device->lun);
 
-	rc = pqi_device_reset(ctrl_info, device);
+	pqi_check_ctrl_health(ctrl_info);
+	if (pqi_ctrl_offline(ctrl_info)) {
+		rc = FAILED;
+		goto out;
+	}
 
+	mutex_lock(&ctrl_info->lun_reset_mutex);
+
+	pqi_ctrl_block_requests(ctrl_info);
+	pqi_ctrl_wait_until_quiesced(ctrl_info);
+	pqi_fail_io_queued_for_device(ctrl_info, device);
+	rc = pqi_wait_until_inbound_queues_empty(ctrl_info);
+	pqi_device_reset_start(device);
+	pqi_ctrl_unblock_requests(ctrl_info);
+
+	if (rc)
+		rc = FAILED;
+	else
+		rc = pqi_device_reset(ctrl_info, device);
+
+	pqi_device_reset_done(device);
+
+	mutex_unlock(&ctrl_info->lun_reset_mutex);
+
+out:
 	dev_err(&ctrl_info->pci_dev->dev,
 		"reset of scsi %d:%d:%d:%d: %s\n",
-		ctrl_info->scsi_host->host_no,
-		device->bus, device->target, device->lun,
+		shost->host_no, device->bus, device->target, device->lun,
 		rc == SUCCESS ? "SUCCESS" : "FAILED");
 
 	return rc;
@@ -4667,7 +5330,7 @@ static int pqi_slave_alloc(struct scsi_device *sdev)
 			sdev_id(sdev), sdev->lun);
 	}
 
-	if (device && device->expose_device) {
+	if (device) {
 		sdev->hostdata = device;
 		device->sdev = sdev;
 		if (device->queue_depth) {
@@ -4678,17 +5341,6 @@ static int pqi_slave_alloc(struct scsi_device *sdev)
 	}
 
 	spin_unlock_irqrestore(&ctrl_info->scsi_device_list_lock, flags);
-
-	return 0;
-}
-
-static int pqi_slave_configure(struct scsi_device *sdev)
-{
-	struct pqi_scsi_dev *device;
-
-	device = sdev->hostdata;
-	if (!device->expose_device)
-		sdev->no_uld_attach = true;
 
 	return 0;
 }
@@ -4843,6 +5495,7 @@ static int pqi_passthru_ioctl(struct pqi_ctrl_info *ctrl_info, void __user *arg)
 	case XFER_NONE:
 	case XFER_WRITE:
 	case XFER_READ:
+	case XFER_READ | XFER_WRITE:
 		break;
 	default:
 		return -EINVAL;
@@ -4882,6 +5535,9 @@ static int pqi_passthru_ioctl(struct pqi_ctrl_info *ctrl_info, void __user *arg)
 		break;
 	case XFER_READ:
 		request.data_direction = SOP_READ_FLAG;
+		break;
+	case XFER_READ | XFER_WRITE:
+		request.data_direction = SOP_BIDIRECTIONAL;
 		break;
 	}
 
@@ -5005,12 +5661,55 @@ static ssize_t pqi_host_rescan_store(struct device *dev,
 	return count;
 }
 
-static DEVICE_ATTR(version, S_IRUGO, pqi_version_show, NULL);
-static DEVICE_ATTR(rescan, S_IWUSR, NULL, pqi_host_rescan_store);
+static ssize_t pqi_lockup_action_show(struct device *dev,
+	struct device_attribute *attr, char *buffer)
+{
+	int count = 0;
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(pqi_lockup_actions); i++) {
+		if (pqi_lockup_actions[i].action == pqi_lockup_action)
+			count += snprintf(buffer + count, PAGE_SIZE - count,
+				"[%s] ", pqi_lockup_actions[i].name);
+		else
+			count += snprintf(buffer + count, PAGE_SIZE - count,
+				"%s ", pqi_lockup_actions[i].name);
+	}
+
+	count += snprintf(buffer + count, PAGE_SIZE - count, "\n");
+
+	return count;
+}
+
+static ssize_t pqi_lockup_action_store(struct device *dev,
+	struct device_attribute *attr, const char *buffer, size_t count)
+{
+	unsigned int i;
+	char *action_name;
+	char action_name_buffer[32];
+
+	strlcpy(action_name_buffer, buffer, sizeof(action_name_buffer));
+	action_name = strstrip(action_name_buffer);
+
+	for (i = 0; i < ARRAY_SIZE(pqi_lockup_actions); i++) {
+		if (strcmp(action_name, pqi_lockup_actions[i].name) == 0) {
+			pqi_lockup_action = pqi_lockup_actions[i].action;
+			return count;
+		}
+	}
+
+	return -EINVAL;
+}
+
+static DEVICE_ATTR(version, 0444, pqi_version_show, NULL);
+static DEVICE_ATTR(rescan, 0200, NULL, pqi_host_rescan_store);
+static DEVICE_ATTR(lockup_action, 0644,
+	pqi_lockup_action_show, pqi_lockup_action_store);
 
 static struct device_attribute *pqi_shost_attrs[] = {
 	&dev_attr_version,
 	&dev_attr_rescan,
+	&dev_attr_lockup_action,
 	NULL
 };
 
@@ -5055,7 +5754,7 @@ static ssize_t pqi_ssd_smart_path_enabled_show(struct device *dev,
 	spin_lock_irqsave(&ctrl_info->scsi_device_list_lock, flags);
 
 	device = sdev->hostdata;
-	buffer[0] = device->offload_enabled ? '1' : '0';
+	buffer[0] = device->raid_bypass_enabled ? '1' : '0';
 	buffer[1] = '\n';
 	buffer[2] = '\0';
 
@@ -5064,13 +5763,41 @@ static ssize_t pqi_ssd_smart_path_enabled_show(struct device *dev,
 	return 2;
 }
 
-static DEVICE_ATTR(sas_address, S_IRUGO, pqi_sas_address_show, NULL);
-static DEVICE_ATTR(ssd_smart_path_enabled, S_IRUGO,
+static ssize_t pqi_raid_level_show(struct device *dev,
+	struct device_attribute *attr, char *buffer)
+{
+	struct pqi_ctrl_info *ctrl_info;
+	struct scsi_device *sdev;
+	struct pqi_scsi_dev *device;
+	unsigned long flags;
+	char *raid_level;
+
+	sdev = to_scsi_device(dev);
+	ctrl_info = shost_to_hba(sdev->host);
+
+	spin_lock_irqsave(&ctrl_info->scsi_device_list_lock, flags);
+
+	device = sdev->hostdata;
+
+	if (pqi_is_logical_device(device))
+		raid_level = pqi_raid_level_to_string(device->raid_level);
+	else
+		raid_level = "N/A";
+
+	spin_unlock_irqrestore(&ctrl_info->scsi_device_list_lock, flags);
+
+	return snprintf(buffer, PAGE_SIZE, "%s\n", raid_level);
+}
+
+static DEVICE_ATTR(sas_address, 0444, pqi_sas_address_show, NULL);
+static DEVICE_ATTR(ssd_smart_path_enabled, 0444,
 	pqi_ssd_smart_path_enabled_show, NULL);
+static DEVICE_ATTR(raid_level, 0444, pqi_raid_level_show, NULL);
 
 static struct device_attribute *pqi_sdev_attrs[] = {
 	&dev_attr_sas_address,
 	&dev_attr_ssd_smart_path_enabled,
+	&dev_attr_raid_level,
 	NULL
 };
 
@@ -5086,7 +5813,6 @@ static struct scsi_host_template pqi_driver_template = {
 	.eh_device_reset_handler = pqi_eh_device_reset_handler,
 	.ioctl = pqi_ioctl,
 	.slave_alloc = pqi_slave_alloc,
-	.slave_configure = pqi_slave_configure,
 	.map_queues = pqi_map_queues,
 	.sdev_attrs = pqi_sdev_attrs,
 	.shost_attrs = pqi_shost_attrs,
@@ -5164,28 +5890,62 @@ static void pqi_unregister_scsi(struct pqi_ctrl_info *ctrl_info)
 	scsi_host_put(shost);
 }
 
-#define PQI_RESET_ACTION_RESET		0x1
+static int pqi_wait_for_pqi_reset_completion(struct pqi_ctrl_info *ctrl_info)
+{
+	int rc = 0;
+	struct pqi_device_registers __iomem *pqi_registers;
+	unsigned long timeout;
+	unsigned int timeout_msecs;
+	union pqi_reset_register reset_reg;
 
-#define PQI_RESET_TYPE_NO_RESET		0x0
-#define PQI_RESET_TYPE_SOFT_RESET	0x1
-#define PQI_RESET_TYPE_FIRM_RESET	0x2
-#define PQI_RESET_TYPE_HARD_RESET	0x3
+	pqi_registers = ctrl_info->pqi_registers;
+	timeout_msecs = readw(&pqi_registers->max_reset_timeout) * 100;
+	timeout = msecs_to_jiffies(timeout_msecs) + jiffies;
+
+	while (1) {
+		msleep(PQI_RESET_POLL_INTERVAL_MSECS);
+		reset_reg.all_bits = readl(&pqi_registers->device_reset);
+		if (reset_reg.bits.reset_action == PQI_RESET_ACTION_COMPLETED)
+			break;
+		pqi_check_ctrl_health(ctrl_info);
+		if (pqi_ctrl_offline(ctrl_info)) {
+			rc = -ENXIO;
+			break;
+		}
+		if (time_after(jiffies, timeout)) {
+			rc = -ETIMEDOUT;
+			break;
+		}
+	}
+
+	return rc;
+}
 
 static int pqi_reset(struct pqi_ctrl_info *ctrl_info)
 {
 	int rc;
-	u32 reset_params;
+	union pqi_reset_register reset_reg;
 
-	reset_params = (PQI_RESET_ACTION_RESET << 5) |
-		PQI_RESET_TYPE_HARD_RESET;
+	if (ctrl_info->pqi_reset_quiesce_supported) {
+		rc = sis_pqi_reset_quiesce(ctrl_info);
+		if (rc) {
+			dev_err(&ctrl_info->pci_dev->dev,
+				"PQI reset failed during quiesce with error %d\n",
+				rc);
+			return rc;
+		}
+	}
 
-	writel(reset_params,
-		&ctrl_info->pqi_registers->device_reset);
+	reset_reg.all_bits = 0;
+	reset_reg.bits.reset_type = PQI_RESET_TYPE_HARD_RESET;
+	reset_reg.bits.reset_action = PQI_RESET_ACTION_RESET;
 
-	rc = pqi_wait_for_pqi_mode_ready(ctrl_info);
+	writel(reset_reg.all_bits, &ctrl_info->pqi_registers->device_reset);
+
+	rc = pqi_wait_for_pqi_reset_completion(ctrl_info);
 	if (rc)
 		dev_err(&ctrl_info->pci_dev->dev,
-			"PQI reset failed\n");
+			"PQI reset failed with error %d\n", rc);
 
 	return rc;
 }
@@ -5217,49 +5977,118 @@ out:
 	return rc;
 }
 
-static int pqi_kdump_init(struct pqi_ctrl_info *ctrl_info)
+static int pqi_process_config_table(struct pqi_ctrl_info *ctrl_info)
+{
+	u32 table_length;
+	u32 section_offset;
+	void __iomem *table_iomem_addr;
+	struct pqi_config_table *config_table;
+	struct pqi_config_table_section_header *section;
+
+	table_length = ctrl_info->config_table_length;
+
+	config_table = kmalloc(table_length, GFP_KERNEL);
+	if (!config_table) {
+		dev_err(&ctrl_info->pci_dev->dev,
+			"failed to allocate memory for PQI configuration table\n");
+		return -ENOMEM;
+	}
+
+	/*
+	 * Copy the config table contents from I/O memory space into the
+	 * temporary buffer.
+	 */
+	table_iomem_addr = ctrl_info->iomem_base +
+		ctrl_info->config_table_offset;
+	memcpy_fromio(config_table, table_iomem_addr, table_length);
+
+	section_offset =
+		get_unaligned_le32(&config_table->first_section_offset);
+
+	while (section_offset) {
+		section = (void *)config_table + section_offset;
+
+		switch (get_unaligned_le16(&section->section_id)) {
+		case PQI_CONFIG_TABLE_SECTION_HEARTBEAT:
+			if (pqi_disable_heartbeat)
+				dev_warn(&ctrl_info->pci_dev->dev,
+				"heartbeat disabled by module parameter\n");
+			else
+				ctrl_info->heartbeat_counter =
+					table_iomem_addr +
+					section_offset +
+					offsetof(
+					struct pqi_config_table_heartbeat,
+						heartbeat_counter);
+			break;
+		}
+
+		section_offset =
+			get_unaligned_le16(&section->next_section_offset);
+	}
+
+	kfree(config_table);
+
+	return 0;
+}
+
+/* Switches the controller from PQI mode back into SIS mode. */
+
+static int pqi_revert_to_sis_mode(struct pqi_ctrl_info *ctrl_info)
+{
+	int rc;
+
+	pqi_change_irq_mode(ctrl_info, IRQ_MODE_NONE);
+	rc = pqi_reset(ctrl_info);
+	if (rc)
+		return rc;
+	rc = sis_reenable_sis_mode(ctrl_info);
+	if (rc) {
+		dev_err(&ctrl_info->pci_dev->dev,
+			"re-enabling SIS mode failed with error %d\n", rc);
+		return rc;
+	}
+	pqi_save_ctrl_mode(ctrl_info, SIS_MODE);
+
+	return 0;
+}
+
+/*
+ * If the controller isn't already in SIS mode, this function forces it into
+ * SIS mode.
+ */
+
+static int pqi_force_sis_mode(struct pqi_ctrl_info *ctrl_info)
 {
 	if (!sis_is_firmware_running(ctrl_info))
 		return -ENXIO;
 
-	if (pqi_get_ctrl_mode(ctrl_info) == PQI_MODE) {
-		sis_disable_msix(ctrl_info);
-		if (pqi_reset(ctrl_info) == 0)
-			sis_reenable_sis_mode(ctrl_info);
+	if (pqi_get_ctrl_mode(ctrl_info) == SIS_MODE)
+		return 0;
+
+	if (sis_is_kernel_up(ctrl_info)) {
+		pqi_save_ctrl_mode(ctrl_info, SIS_MODE);
+		return 0;
 	}
 
-	return 0;
+	return pqi_revert_to_sis_mode(ctrl_info);
 }
 
 static int pqi_ctrl_init(struct pqi_ctrl_info *ctrl_info)
 {
 	int rc;
 
-	if (reset_devices) {
-		rc = pqi_kdump_init(ctrl_info);
-		if (rc)
-			return rc;
-	}
-
-	/*
-	 * When the controller comes out of reset, it is always running
-	 * in legacy SIS mode.  This is so that it can be compatible
-	 * with legacy drivers shipped with OSes.  So we have to talk
-	 * to it using SIS commands at first.  Once we are satisified
-	 * that the controller supports PQI, we transition it into PQI
-	 * mode.
-	 */
+	rc = pqi_force_sis_mode(ctrl_info);
+	if (rc)
+		return rc;
 
 	/*
 	 * Wait until the controller is ready to start accepting SIS
 	 * commands.
 	 */
 	rc = sis_wait_for_ctrl_ready(ctrl_info);
-	if (rc) {
-		dev_err(&ctrl_info->pci_dev->dev,
-			"error initializing SIS interface\n");
+	if (rc)
 		return rc;
-	}
 
 	/*
 	 * Get the controller properties.  This allows us to determine
@@ -5279,9 +6108,17 @@ static int pqi_ctrl_init(struct pqi_ctrl_info *ctrl_info)
 		return rc;
 	}
 
-	if (ctrl_info->max_outstanding_requests > PQI_MAX_OUTSTANDING_REQUESTS)
-		ctrl_info->max_outstanding_requests =
-			PQI_MAX_OUTSTANDING_REQUESTS;
+	if (reset_devices) {
+		if (ctrl_info->max_outstanding_requests >
+			PQI_MAX_OUTSTANDING_REQUESTS_KDUMP)
+			ctrl_info->max_outstanding_requests =
+					PQI_MAX_OUTSTANDING_REQUESTS_KDUMP;
+	} else {
+		if (ctrl_info->max_outstanding_requests >
+			PQI_MAX_OUTSTANDING_REQUESTS)
+			ctrl_info->max_outstanding_requests =
+					PQI_MAX_OUTSTANDING_REQUESTS;
+	}
 
 	pqi_calculate_io_resources(ctrl_info);
 
@@ -5316,10 +6153,14 @@ static int pqi_ctrl_init(struct pqi_ctrl_info *ctrl_info)
 	ctrl_info->pqi_mode_enabled = true;
 	pqi_save_ctrl_mode(ctrl_info, PQI_MODE);
 
+	rc = pqi_process_config_table(ctrl_info);
+	if (rc)
+		return rc;
+
 	rc = pqi_alloc_admin_queues(ctrl_info);
 	if (rc) {
 		dev_err(&ctrl_info->pci_dev->dev,
-			"error allocating admin queues\n");
+			"failed to allocate admin queues\n");
 		return rc;
 	}
 
@@ -5358,8 +6199,11 @@ static int pqi_ctrl_init(struct pqi_ctrl_info *ctrl_info)
 		return rc;
 
 	rc = pqi_alloc_operational_queues(ctrl_info);
-	if (rc)
+	if (rc) {
+		dev_err(&ctrl_info->pci_dev->dev,
+			"failed to allocate operational queues\n");
 		return rc;
+	}
 
 	pqi_init_operational_queues(ctrl_info);
 
@@ -5371,18 +6215,17 @@ static int pqi_ctrl_init(struct pqi_ctrl_info *ctrl_info)
 	if (rc)
 		return rc;
 
-	sis_enable_msix(ctrl_info);
-
-	rc = pqi_configure_events(ctrl_info);
-	if (rc) {
-		dev_err(&ctrl_info->pci_dev->dev,
-			"error configuring events\n");
-		return rc;
-	}
-
-	pqi_start_heartbeat_timer(ctrl_info);
+	pqi_change_irq_mode(ctrl_info, IRQ_MODE_MSIX);
 
 	ctrl_info->controller_online = true;
+	pqi_start_heartbeat_timer(ctrl_info);
+
+	rc = pqi_enable_events(ctrl_info);
+	if (rc) {
+		dev_err(&ctrl_info->pci_dev->dev,
+			"error enabling events\n");
+		return rc;
+	}
 
 	/* Register with the SCSI subsystem. */
 	rc = pqi_register_scsi(ctrl_info);
@@ -5408,6 +6251,119 @@ static int pqi_ctrl_init(struct pqi_ctrl_info *ctrl_info)
 	pqi_scan_scsi_devices(ctrl_info);
 
 	return 0;
+}
+
+static void pqi_reinit_queues(struct pqi_ctrl_info *ctrl_info)
+{
+	unsigned int i;
+	struct pqi_admin_queues *admin_queues;
+	struct pqi_event_queue *event_queue;
+
+	admin_queues = &ctrl_info->admin_queues;
+	admin_queues->iq_pi_copy = 0;
+	admin_queues->oq_ci_copy = 0;
+	*admin_queues->oq_pi = 0;
+
+	for (i = 0; i < ctrl_info->num_queue_groups; i++) {
+		ctrl_info->queue_groups[i].iq_pi_copy[RAID_PATH] = 0;
+		ctrl_info->queue_groups[i].iq_pi_copy[AIO_PATH] = 0;
+		ctrl_info->queue_groups[i].oq_ci_copy = 0;
+
+		*ctrl_info->queue_groups[i].iq_ci[RAID_PATH] = 0;
+		*ctrl_info->queue_groups[i].iq_ci[AIO_PATH] = 0;
+		*ctrl_info->queue_groups[i].oq_pi = 0;
+	}
+
+	event_queue = &ctrl_info->event_queue;
+	*event_queue->oq_pi = 0;
+	event_queue->oq_ci_copy = 0;
+}
+
+static int pqi_ctrl_init_resume(struct pqi_ctrl_info *ctrl_info)
+{
+	int rc;
+
+	rc = pqi_force_sis_mode(ctrl_info);
+	if (rc)
+		return rc;
+
+	/*
+	 * Wait until the controller is ready to start accepting SIS
+	 * commands.
+	 */
+	rc = sis_wait_for_ctrl_ready_resume(ctrl_info);
+	if (rc)
+		return rc;
+
+	/*
+	 * If the function we are about to call succeeds, the
+	 * controller will transition from legacy SIS mode
+	 * into PQI mode.
+	 */
+	rc = sis_init_base_struct_addr(ctrl_info);
+	if (rc) {
+		dev_err(&ctrl_info->pci_dev->dev,
+			"error initializing PQI mode\n");
+		return rc;
+	}
+
+	/* Wait for the controller to complete the SIS -> PQI transition. */
+	rc = pqi_wait_for_pqi_mode_ready(ctrl_info);
+	if (rc) {
+		dev_err(&ctrl_info->pci_dev->dev,
+			"transition to PQI mode failed\n");
+		return rc;
+	}
+
+	/* From here on, we are running in PQI mode. */
+	ctrl_info->pqi_mode_enabled = true;
+	pqi_save_ctrl_mode(ctrl_info, PQI_MODE);
+
+	pqi_reinit_queues(ctrl_info);
+
+	rc = pqi_create_admin_queues(ctrl_info);
+	if (rc) {
+		dev_err(&ctrl_info->pci_dev->dev,
+			"error creating admin queues\n");
+		return rc;
+	}
+
+	rc = pqi_create_queues(ctrl_info);
+	if (rc)
+		return rc;
+
+	pqi_change_irq_mode(ctrl_info, IRQ_MODE_MSIX);
+
+	ctrl_info->controller_online = true;
+	pqi_start_heartbeat_timer(ctrl_info);
+	pqi_ctrl_unblock_requests(ctrl_info);
+
+	rc = pqi_enable_events(ctrl_info);
+	if (rc) {
+		dev_err(&ctrl_info->pci_dev->dev,
+			"error enabling events\n");
+		return rc;
+	}
+
+	rc = pqi_write_driver_version_to_host_wellness(ctrl_info);
+	if (rc) {
+		dev_err(&ctrl_info->pci_dev->dev,
+			"error updating host wellness\n");
+		return rc;
+	}
+
+	pqi_schedule_update_time_worker(ctrl_info);
+
+	pqi_scan_scsi_devices(ctrl_info);
+
+	return 0;
+}
+
+static inline int pqi_set_pcie_completion_timeout(struct pci_dev *pci_dev,
+	u16 timeout)
+{
+	return pcie_capability_clear_and_set_word(pci_dev, PCI_EXP_DEVCTL2,
+		PCI_EXP_DEVCTL2_COMP_TIMEOUT, timeout);
 }
 
 static int pqi_pci_init(struct pqi_ctrl_info *ctrl_info)
@@ -5450,11 +6406,22 @@ static int pqi_pci_init(struct pqi_ctrl_info *ctrl_info)
 		goto release_regions;
 	}
 
-	ctrl_info->registers = ctrl_info->iomem_base;
-	ctrl_info->pqi_registers = &ctrl_info->registers->pqi_registers;
+#define PCI_EXP_COMP_TIMEOUT_65_TO_210_MS		0x6
+
+	/* Increase the PCIe completion timeout. */
+	rc = pqi_set_pcie_completion_timeout(ctrl_info->pci_dev,
+		PCI_EXP_COMP_TIMEOUT_65_TO_210_MS);
+	if (rc) {
+		dev_err(&ctrl_info->pci_dev->dev,
+			"failed to set PCIe completion timeout\n");
+		goto release_regions;
+	}
 
 	/* Enable bus mastering. */
 	pci_set_master(ctrl_info->pci_dev);
+
+	ctrl_info->registers = ctrl_info->iomem_base;
+	ctrl_info->pqi_registers = &ctrl_info->registers->pqi_registers;
 
 	pci_set_drvdata(ctrl_info->pci_dev, ctrl_info);
 
@@ -5472,7 +6439,8 @@ static void pqi_cleanup_pci_init(struct pqi_ctrl_info *ctrl_info)
 {
 	iounmap(ctrl_info->iomem_base);
 	pci_release_regions(ctrl_info->pci_dev);
-	pci_disable_device(ctrl_info->pci_dev);
+	if (pci_is_enabled(ctrl_info->pci_dev))
+		pci_disable_device(ctrl_info->pci_dev);
 	pci_set_drvdata(ctrl_info->pci_dev, NULL);
 }
 
@@ -5486,6 +6454,7 @@ static struct pqi_ctrl_info *pqi_alloc_ctrl_info(int numa_node)
 		return NULL;
 
 	mutex_init(&ctrl_info->scan_mutex);
+	mutex_init(&ctrl_info->lun_reset_mutex);
 
 	INIT_LIST_HEAD(&ctrl_info->scsi_device_list);
 	spin_lock_init(&ctrl_info->scsi_device_list_lock);
@@ -5496,11 +6465,20 @@ static struct pqi_ctrl_info *pqi_alloc_ctrl_info(int numa_node)
 	INIT_DELAYED_WORK(&ctrl_info->rescan_work, pqi_rescan_worker);
 	INIT_DELAYED_WORK(&ctrl_info->update_time_work, pqi_update_time_worker);
 
+	init_timer(&ctrl_info->heartbeat_timer);
+	INIT_WORK(&ctrl_info->ctrl_offline_work, pqi_ctrl_offline_worker);
+
 	sema_init(&ctrl_info->sync_request_sem,
 		PQI_RESERVED_IO_SLOTS_SYNCHRONOUS_REQUESTS);
-	sema_init(&ctrl_info->lun_reset_sem, PQI_RESERVED_IO_SLOTS_LUN_RESET);
+	init_waitqueue_head(&ctrl_info->block_requests_wait);
+
+	INIT_LIST_HEAD(&ctrl_info->raid_bypass_retry_list);
+	spin_lock_init(&ctrl_info->raid_bypass_retry_list_lock);
+	INIT_WORK(&ctrl_info->raid_bypass_retry_work,
+		pqi_raid_bypass_retry_worker);
 
 	ctrl_info->ctrl_id = atomic_inc_return(&pqi_controller_count) - 1;
+	ctrl_info->irq_mode = IRQ_MODE_NONE;
 	ctrl_info->max_msix_vectors = PQI_MAX_MSIX_VECTORS;
 
 	return ctrl_info;
@@ -5513,14 +6491,8 @@ static inline void pqi_free_ctrl_info(struct pqi_ctrl_info *ctrl_info)
 
 static void pqi_free_interrupts(struct pqi_ctrl_info *ctrl_info)
 {
-	int i;
-
-	for (i = 0; i < ctrl_info->num_msix_vectors_initialized; i++) {
-		free_irq(pci_irq_vector(ctrl_info->pci_dev, i),
-				&ctrl_info->queue_groups[i]);
-	}
-
-	pci_free_irq_vectors(ctrl_info->pci_dev);
+	pqi_free_irqs(ctrl_info);
+	pqi_disable_msix_interrupts(ctrl_info);
 }
 
 static void pqi_free_ctrl_resources(struct pqi_ctrl_info *ctrl_info)
@@ -5550,73 +6522,142 @@ static void pqi_free_ctrl_resources(struct pqi_ctrl_info *ctrl_info)
 
 static void pqi_remove_ctrl(struct pqi_ctrl_info *ctrl_info)
 {
-	cancel_delayed_work_sync(&ctrl_info->rescan_work);
-	cancel_delayed_work_sync(&ctrl_info->update_time_work);
+	pqi_cancel_rescan_worker(ctrl_info);
+	pqi_cancel_update_time_worker(ctrl_info);
 	pqi_remove_all_scsi_devices(ctrl_info);
 	pqi_unregister_scsi(ctrl_info);
-
-	if (ctrl_info->pqi_mode_enabled) {
-		sis_disable_msix(ctrl_info);
-		if (pqi_reset(ctrl_info) == 0)
-			sis_reenable_sis_mode(ctrl_info);
-	}
+	if (ctrl_info->pqi_mode_enabled)
+		pqi_revert_to_sis_mode(ctrl_info);
 	pqi_free_ctrl_resources(ctrl_info);
 }
 
-static void pqi_print_ctrl_info(struct pci_dev *pdev,
+static void pqi_perform_lockup_action(void)
+{
+	switch (pqi_lockup_action) {
+	case PANIC:
+		panic("FATAL: Smart Family Controller lockup detected");
+		break;
+	case REBOOT:
+		emergency_restart();
+		break;
+	case NONE:
+	default:
+		break;
+	}
+}
+
+static struct pqi_raid_error_info pqi_ctrl_offline_raid_error_info = {
+	.data_out_result = PQI_DATA_IN_OUT_HARDWARE_ERROR,
+	.status = SAM_STAT_CHECK_CONDITION,
+};
+
+static void pqi_fail_all_outstanding_requests(struct pqi_ctrl_info *ctrl_info)
+{
+	unsigned int i;
+	struct pqi_io_request *io_request;
+	struct scsi_cmnd *scmd;
+
+	for (i = 0; i < ctrl_info->max_io_slots; i++) {
+		io_request = &ctrl_info->io_request_pool[i];
+		if (atomic_read(&io_request->refcount) == 0)
+			continue;
+
+		scmd = io_request->scmd;
+		if (scmd) {
+			set_host_byte(scmd, DID_NO_CONNECT);
+		} else {
+			io_request->status = -ENXIO;
+			io_request->error_info =
+				&pqi_ctrl_offline_raid_error_info;
+		}
+
+		io_request->io_complete_callback(io_request,
+			io_request->context);
+	}
+}
+
+static void pqi_take_ctrl_offline_deferred(struct pqi_ctrl_info *ctrl_info)
+{
+	pqi_perform_lockup_action();
+	pqi_stop_heartbeat_timer(ctrl_info);
+	pqi_free_interrupts(ctrl_info);
+	pqi_cancel_rescan_worker(ctrl_info);
+	pqi_cancel_update_time_worker(ctrl_info);
+	pqi_ctrl_wait_until_quiesced(ctrl_info);
+	pqi_fail_all_outstanding_requests(ctrl_info);
+	pqi_clear_all_queued_raid_bypass_retries(ctrl_info);
+	pqi_ctrl_unblock_requests(ctrl_info);
+}
+
+static void pqi_ctrl_offline_worker(struct work_struct *work)
+{
+	struct pqi_ctrl_info *ctrl_info;
+
+	ctrl_info = container_of(work, struct pqi_ctrl_info, ctrl_offline_work);
+	pqi_take_ctrl_offline_deferred(ctrl_info);
+}
+
+static void pqi_take_ctrl_offline(struct pqi_ctrl_info *ctrl_info)
+{
+	if (!ctrl_info->controller_online)
+		return;
+
+	ctrl_info->controller_online = false;
+	ctrl_info->pqi_mode_enabled = false;
+	pqi_ctrl_block_requests(ctrl_info);
+	if (!pqi_disable_ctrl_shutdown)
+		sis_shutdown_ctrl(ctrl_info);
+	pci_disable_device(ctrl_info->pci_dev);
+	dev_err(&ctrl_info->pci_dev->dev, "controller offline\n");
+	schedule_work(&ctrl_info->ctrl_offline_work);
+}
+
+static void pqi_print_ctrl_info(struct pci_dev *pci_dev,
 	const struct pci_device_id *id)
 {
 	char *ctrl_description;
 
-	if (id->driver_data) {
+	if (id->driver_data)
 		ctrl_description = (char *)id->driver_data;
-	} else {
-		switch (id->subvendor) {
-		case PCI_VENDOR_ID_HP:
-			ctrl_description = hpe_branded_controller;
-			break;
-		case PCI_VENDOR_ID_ADAPTEC2:
-		default:
-			ctrl_description = microsemi_branded_controller;
-			break;
-		}
-	}
+	else
+		ctrl_description = "Microsemi Smart Family Controller";
 
-	dev_info(&pdev->dev, "%s found\n", ctrl_description);
+	dev_info(&pci_dev->dev, "%s found\n", ctrl_description);
 }
 
-static int pqi_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
+static int pqi_pci_probe(struct pci_dev *pci_dev,
+	const struct pci_device_id *id)
 {
 	int rc;
 	int node;
 	struct pqi_ctrl_info *ctrl_info;
 
-	pqi_print_ctrl_info(pdev, id);
+	pqi_print_ctrl_info(pci_dev, id);
 
 	if (pqi_disable_device_id_wildcards &&
 		id->subvendor == PCI_ANY_ID &&
 		id->subdevice == PCI_ANY_ID) {
-		dev_warn(&pdev->dev,
+		dev_warn(&pci_dev->dev,
 			"controller not probed because device ID wildcards are disabled\n");
 		return -ENODEV;
 	}
 
 	if (id->subvendor == PCI_ANY_ID || id->subdevice == PCI_ANY_ID)
-		dev_warn(&pdev->dev,
+		dev_warn(&pci_dev->dev,
 			"controller device ID matched using wildcards\n");
 
-	node = dev_to_node(&pdev->dev);
+	node = dev_to_node(&pci_dev->dev);
 	if (node == NUMA_NO_NODE)
-		set_dev_node(&pdev->dev, 0);
+		set_dev_node(&pci_dev->dev, 0);
 
 	ctrl_info = pqi_alloc_ctrl_info(node);
 	if (!ctrl_info) {
-		dev_err(&pdev->dev,
+		dev_err(&pci_dev->dev,
 			"failed to allocate controller info block\n");
 		return -ENOMEM;
 	}
 
-	ctrl_info->pci_dev = pdev;
+	ctrl_info->pci_dev = pci_dev;
 
 	rc = pqi_pci_init(ctrl_info);
 	if (rc)
@@ -5634,23 +6675,23 @@ error:
 	return rc;
 }
 
-static void pqi_pci_remove(struct pci_dev *pdev)
+static void pqi_pci_remove(struct pci_dev *pci_dev)
 {
 	struct pqi_ctrl_info *ctrl_info;
 
-	ctrl_info = pci_get_drvdata(pdev);
+	ctrl_info = pci_get_drvdata(pci_dev);
 	if (!ctrl_info)
 		return;
 
 	pqi_remove_ctrl(ctrl_info);
 }
 
-static void pqi_shutdown(struct pci_dev *pdev)
+static void pqi_shutdown(struct pci_dev *pci_dev)
 {
 	int rc;
 	struct pqi_ctrl_info *ctrl_info;
 
-	ctrl_info = pci_get_drvdata(pdev);
+	ctrl_info = pci_get_drvdata(pci_dev);
 	if (!ctrl_info)
 		goto error;
 
@@ -5658,20 +6699,238 @@ static void pqi_shutdown(struct pci_dev *pdev)
 	 * Write all data in the controller's battery-backed cache to
 	 * storage.
 	 */
-	rc = pqi_flush_cache(ctrl_info);
+	rc = pqi_flush_cache(ctrl_info, SHUTDOWN);
+	pqi_reset(ctrl_info);
 	if (rc == 0)
 		return;
 
 error:
-	dev_warn(&pdev->dev,
+	dev_warn(&pci_dev->dev,
 		"unable to flush controller cache\n");
+}
+
+static void pqi_process_lockup_action_param(void)
+{
+	unsigned int i;
+
+	if (!pqi_lockup_action_param)
+		return;
+
+	for (i = 0; i < ARRAY_SIZE(pqi_lockup_actions); i++) {
+		if (strcmp(pqi_lockup_action_param,
+			pqi_lockup_actions[i].name) == 0) {
+			pqi_lockup_action = pqi_lockup_actions[i].action;
+			return;
+		}
+	}
+
+	pr_warn("%s: invalid lockup action setting \"%s\" - supported settings: none, reboot, panic\n",
+		DRIVER_NAME_SHORT, pqi_lockup_action_param);
+}
+
+static void pqi_process_module_params(void)
+{
+	pqi_process_lockup_action_param();
+}
+
+static __maybe_unused int pqi_suspend(struct pci_dev *pci_dev, pm_message_t state)
+{
+	struct pqi_ctrl_info *ctrl_info;
+
+	ctrl_info = pci_get_drvdata(pci_dev);
+
+	pqi_disable_events(ctrl_info);
+	pqi_cancel_update_time_worker(ctrl_info);
+	pqi_cancel_rescan_worker(ctrl_info);
+	pqi_wait_until_scan_finished(ctrl_info);
+	pqi_wait_until_lun_reset_finished(ctrl_info);
+	pqi_flush_cache(ctrl_info, SUSPEND);
+	pqi_ctrl_block_requests(ctrl_info);
+	pqi_ctrl_wait_until_quiesced(ctrl_info);
+	pqi_wait_until_inbound_queues_empty(ctrl_info);
+	pqi_ctrl_wait_for_pending_io(ctrl_info);
+	pqi_stop_heartbeat_timer(ctrl_info);
+
+	if (state.event == PM_EVENT_FREEZE)
+		return 0;
+
+	pci_save_state(pci_dev);
+	pci_set_power_state(pci_dev, pci_choose_state(pci_dev, state));
+
+	ctrl_info->controller_online = false;
+	ctrl_info->pqi_mode_enabled = false;
+
+	return 0;
+}
+
+static __maybe_unused int pqi_resume(struct pci_dev *pci_dev)
+{
+	int rc;
+	struct pqi_ctrl_info *ctrl_info;
+
+	ctrl_info = pci_get_drvdata(pci_dev);
+
+	if (pci_dev->current_state != PCI_D0) {
+		ctrl_info->max_hw_queue_index = 0;
+		pqi_free_interrupts(ctrl_info);
+		pqi_change_irq_mode(ctrl_info, IRQ_MODE_INTX);
+		rc = request_irq(pci_irq_vector(pci_dev, 0), pqi_irq_handler,
+			IRQF_SHARED, DRIVER_NAME_SHORT,
+			&ctrl_info->queue_groups[0]);
+		if (rc) {
+			dev_err(&ctrl_info->pci_dev->dev,
+				"irq %u init failed with error %d\n",
+				pci_dev->irq, rc);
+			return rc;
+		}
+		pqi_start_heartbeat_timer(ctrl_info);
+		pqi_ctrl_unblock_requests(ctrl_info);
+		return 0;
+	}
+
+	pci_set_power_state(pci_dev, PCI_D0);
+	pci_restore_state(pci_dev);
+
+	return pqi_ctrl_init_resume(ctrl_info);
 }
 
 /* Define the PCI IDs for the controllers that we support. */
 static const struct pci_device_id pqi_pci_id_table[] = {
 	{
 		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
+			       0x152d, 0x8a22)
+	},
+	{
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
+			       0x152d, 0x8a23)
+	},
+	{
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
+			       0x152d, 0x8a24)
+	},
+	{
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
+			       0x152d, 0x8a36)
+	},
+	{
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
+			       0x152d, 0x8a37)
+	},
+	{
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
 			       PCI_VENDOR_ID_ADAPTEC2, 0x0110)
+	},
+	{
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
+			       PCI_VENDOR_ID_ADAPTEC2, 0x0608)
+	},
+	{
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
+			       PCI_VENDOR_ID_ADAPTEC2, 0x0800)
+	},
+	{
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
+			       PCI_VENDOR_ID_ADAPTEC2, 0x0801)
+	},
+	{
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
+			       PCI_VENDOR_ID_ADAPTEC2, 0x0802)
+	},
+	{
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
+			       PCI_VENDOR_ID_ADAPTEC2, 0x0803)
+	},
+	{
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
+			       PCI_VENDOR_ID_ADAPTEC2, 0x0804)
+	},
+	{
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
+			       PCI_VENDOR_ID_ADAPTEC2, 0x0805)
+	},
+	{
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
+			       PCI_VENDOR_ID_ADAPTEC2, 0x0806)
+	},
+	{
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
+			       PCI_VENDOR_ID_ADAPTEC2, 0x0807)
+	},
+	{
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
+			       PCI_VENDOR_ID_ADAPTEC2, 0x0900)
+	},
+	{
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
+			       PCI_VENDOR_ID_ADAPTEC2, 0x0901)
+	},
+	{
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
+			       PCI_VENDOR_ID_ADAPTEC2, 0x0902)
+	},
+	{
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
+			       PCI_VENDOR_ID_ADAPTEC2, 0x0903)
+	},
+	{
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
+			       PCI_VENDOR_ID_ADAPTEC2, 0x0904)
+	},
+	{
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
+			       PCI_VENDOR_ID_ADAPTEC2, 0x0905)
+	},
+	{
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
+			       PCI_VENDOR_ID_ADAPTEC2, 0x0906)
+	},
+	{
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
+			       PCI_VENDOR_ID_ADAPTEC2, 0x0907)
+	},
+	{
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
+			       PCI_VENDOR_ID_ADAPTEC2, 0x0908)
+	},
+	{
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
+			       PCI_VENDOR_ID_ADAPTEC2, 0x090a)
+	},
+	{
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
+			       PCI_VENDOR_ID_ADAPTEC2, 0x1200)
+	},
+	{
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
+			       PCI_VENDOR_ID_ADAPTEC2, 0x1201)
+	},
+	{
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
+			       PCI_VENDOR_ID_ADAPTEC2, 0x1202)
+	},
+	{
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
+			       PCI_VENDOR_ID_ADAPTEC2, 0x1280)
+	},
+	{
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
+			       PCI_VENDOR_ID_ADAPTEC2, 0x1281)
+	},
+	{
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
+			       PCI_VENDOR_ID_ADAPTEC2, 0x1300)
+	},
+	{
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
+			       PCI_VENDOR_ID_ADAPTEC2, 0x1301)
+	},
+	{
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
+			       PCI_VENDOR_ID_ADAPTEC2, 0x1380)
+	},
+	{
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
+			       PCI_VENDOR_ID_DELL, 0x1fe0)
 	},
 	{
 		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
@@ -5688,6 +6947,10 @@ static const struct pci_device_id pqi_pci_id_table[] = {
 	{
 		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
 			       PCI_VENDOR_ID_HP, 0x0603)
+	},
+	{
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
+			       PCI_VENDOR_ID_HP, 0x0609)
 	},
 	{
 		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
@@ -5723,58 +6986,6 @@ static const struct pci_device_id pqi_pci_id_table[] = {
 	},
 	{
 		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
-			       PCI_VENDOR_ID_ADAPTEC2, 0x0800)
-	},
-	{
-		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
-			       PCI_VENDOR_ID_ADAPTEC2, 0x0801)
-	},
-	{
-		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
-			       PCI_VENDOR_ID_ADAPTEC2, 0x0802)
-	},
-	{
-		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
-			       PCI_VENDOR_ID_ADAPTEC2, 0x0803)
-	},
-	{
-		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
-			       PCI_VENDOR_ID_ADAPTEC2, 0x0804)
-	},
-	{
-		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
-			       PCI_VENDOR_ID_ADAPTEC2, 0x0805)
-	},
-	{
-		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
-			       PCI_VENDOR_ID_ADAPTEC2, 0x0900)
-	},
-	{
-		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
-			       PCI_VENDOR_ID_ADAPTEC2, 0x0901)
-	},
-	{
-		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
-			       PCI_VENDOR_ID_ADAPTEC2, 0x0902)
-	},
-	{
-		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
-			       PCI_VENDOR_ID_ADAPTEC2, 0x0903)
-	},
-	{
-		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
-			       PCI_VENDOR_ID_ADAPTEC2, 0x0904)
-	},
-	{
-		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
-			       PCI_VENDOR_ID_ADAPTEC2, 0x0905)
-	},
-	{
-		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
-			       PCI_VENDOR_ID_ADAPTEC2, 0x0906)
-	},
-	{
-		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
 			       PCI_VENDOR_ID_HP, 0x1001)
 	},
 	{
@@ -5784,14 +6995,6 @@ static const struct pci_device_id pqi_pci_id_table[] = {
 	{
 		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
 			       PCI_VENDOR_ID_HP, 0x1101)
-	},
-	{
-		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
-			       PCI_VENDOR_ID_HP, 0x1102)
-	},
-	{
-		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
-			       PCI_VENDOR_ID_HP, 0x1150)
 	},
 	{
 		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
@@ -5808,6 +7011,10 @@ static struct pci_driver pqi_pci_driver = {
 	.probe = pqi_pci_probe,
 	.remove = pqi_pci_remove,
 	.shutdown = pqi_shutdown,
+#if defined(CONFIG_PM)
+	.suspend = pqi_suspend,
+	.resume = pqi_resume,
+#endif
 };
 
 static int __init pqi_init(void)
@@ -5820,6 +7027,8 @@ static int __init pqi_init(void)
 		sas_attach_transport(&pqi_sas_transport_functions);
 	if (!pqi_sas_transport_template)
 		return -ENODEV;
+
+	pqi_process_module_params();
 
 	rc = pci_register_driver(&pqi_pci_driver);
 	if (rc)
@@ -6173,6 +7382,9 @@ static void __attribute__((unused)) verify_structures(void)
 	BUILD_BUG_ON(offsetof(struct pqi_event_config,
 		descriptors) != 4);
 
+	BUILD_BUG_ON(PQI_NUM_SUPPORTED_EVENTS !=
+		ARRAY_SIZE(pqi_supported_event_types));
+
 	BUILD_BUG_ON(offsetof(struct pqi_event_response,
 		header.iu_type) != 0);
 	BUILD_BUG_ON(offsetof(struct pqi_event_response,
@@ -6246,6 +7458,22 @@ static void __attribute__((unused)) verify_structures(void)
 	BUILD_BUG_ON(offsetof(struct bmic_identify_controller,
 		controller_mode) != 292);
 
+	BUILD_BUG_ON(offsetof(struct bmic_identify_physical_device,
+		phys_bay_in_box) != 115);
+	BUILD_BUG_ON(offsetof(struct bmic_identify_physical_device,
+		device_type) != 120);
+	BUILD_BUG_ON(offsetof(struct bmic_identify_physical_device,
+		redundant_path_present_map) != 1736);
+	BUILD_BUG_ON(offsetof(struct bmic_identify_physical_device,
+		active_path_number) != 1738);
+	BUILD_BUG_ON(offsetof(struct bmic_identify_physical_device,
+		alternate_paths_phys_connector) != 1739);
+	BUILD_BUG_ON(offsetof(struct bmic_identify_physical_device,
+		alternate_paths_phys_box_on_port) != 1755);
+	BUILD_BUG_ON(offsetof(struct bmic_identify_physical_device,
+		current_queue_depth_limit) != 1796);
+	BUILD_BUG_ON(sizeof(struct bmic_identify_physical_device) != 2560);
+
 	BUILD_BUG_ON(PQI_ADMIN_IQ_NUM_ELEMENTS > 255);
 	BUILD_BUG_ON(PQI_ADMIN_OQ_NUM_ELEMENTS > 255);
 	BUILD_BUG_ON(PQI_ADMIN_IQ_ELEMENT_LENGTH %
@@ -6260,4 +7488,6 @@ static void __attribute__((unused)) verify_structures(void)
 		PQI_QUEUE_ELEMENT_LENGTH_ALIGNMENT != 0);
 
 	BUILD_BUG_ON(PQI_RESERVED_IO_SLOTS >= PQI_MAX_OUTSTANDING_REQUESTS);
+	BUILD_BUG_ON(PQI_RESERVED_IO_SLOTS >=
+		PQI_MAX_OUTSTANDING_REQUESTS_KDUMP);
 }

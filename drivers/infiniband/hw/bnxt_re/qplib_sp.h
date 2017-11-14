@@ -42,6 +42,8 @@
 
 #define BNXT_QPLIB_RESERVED_QP_WRS	128
 
+#define PCI_EXP_DEVCTL2_ATOMIC_REQ      0x0040
+
 struct bnxt_qplib_dev_attr {
 	char				fw_ver[32];
 	u16				max_sgid;
@@ -70,6 +72,7 @@ struct bnxt_qplib_dev_attr {
 	u32				max_inline_data;
 	u32				l2_db_size;
 	u8				tqm_alloc_reqs[MAX_TQM_ALLOC_REQ];
+	bool				is_atomic;
 };
 
 struct bnxt_qplib_pd {
@@ -132,6 +135,8 @@ int bnxt_qplib_del_sgid(struct bnxt_qplib_sgid_tbl *sgid_tbl,
 int bnxt_qplib_add_sgid(struct bnxt_qplib_sgid_tbl *sgid_tbl,
 			struct bnxt_qplib_gid *gid, u8 *mac, u16 vlan_id,
 			bool update, u32 *index);
+int bnxt_qplib_update_sgid(struct bnxt_qplib_sgid_tbl *sgid_tbl,
+			   struct bnxt_qplib_gid *gid, u16 gid_idx, u8 *smac);
 int bnxt_qplib_get_pkey(struct bnxt_qplib_res *res,
 			struct bnxt_qplib_pkey_tbl *pkey_tbl, u16 index,
 			u16 *pkey);

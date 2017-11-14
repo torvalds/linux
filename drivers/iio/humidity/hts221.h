@@ -30,12 +30,6 @@ struct hts221_transfer_function {
 	int (*write)(struct device *dev, u8 addr, int len, u8 *data);
 };
 
-#define HTS221_AVG_DEPTH	8
-struct hts221_avg_avl {
-	u16 avg;
-	u8 val;
-};
-
 enum hts221_sensor_type {
 	HTS221_SENSOR_H,
 	HTS221_SENSOR_T,
@@ -57,16 +51,18 @@ struct hts221_hw {
 
 	struct hts221_sensor sensors[HTS221_SENSOR_MAX];
 
+	bool enabled;
 	u8 odr;
 
 	const struct hts221_transfer_function *tf;
 	struct hts221_transfer_buffer tb;
 };
 
-int hts221_config_drdy(struct hts221_hw *hw, bool enable);
+extern const struct dev_pm_ops hts221_pm_ops;
+
+int hts221_write_with_mask(struct hts221_hw *hw, u8 addr, u8 mask, u8 val);
 int hts221_probe(struct iio_dev *iio_dev);
-int hts221_power_on(struct hts221_hw *hw);
-int hts221_power_off(struct hts221_hw *hw);
+int hts221_set_enable(struct hts221_hw *hw, bool enable);
 int hts221_allocate_buffers(struct hts221_hw *hw);
 int hts221_allocate_trigger(struct hts221_hw *hw);
 

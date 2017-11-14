@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *	Intel IO-APIC support for multi-Pentium hosts.
  *
@@ -1200,28 +1201,6 @@ EXPORT_SYMBOL(IO_APIC_get_PCI_irq_vector);
 
 static struct irq_chip ioapic_chip, ioapic_ir_chip;
 
-#ifdef CONFIG_X86_32
-static inline int IO_APIC_irq_trigger(int irq)
-{
-	int apic, idx, pin;
-
-	for_each_ioapic_pin(apic, pin) {
-		idx = find_irq_entry(apic, pin, mp_INT);
-		if ((idx != -1) && (irq == pin_2_irq(idx, apic, pin, 0)))
-			return irq_trigger(idx);
-	}
-	/*
-         * nonexistent IRQs are edge default
-         */
-	return 0;
-}
-#else
-static inline int IO_APIC_irq_trigger(int irq)
-{
-	return 1;
-}
-#endif
-
 static void __init setup_IO_APIC_irqs(void)
 {
 	unsigned int ioapic, pin;
@@ -1265,7 +1244,7 @@ static void io_apic_print_entries(unsigned int apic, unsigned int nr_entries)
 			 entry.vector, entry.irr, entry.delivery_status);
 		if (ir_entry->format)
 			printk(KERN_DEBUG "%s, remapped, I(%04X),  Z(%X)\n",
-			       buf, (ir_entry->index << 15) | ir_entry->index,
+			       buf, (ir_entry->index2 << 15) | ir_entry->index,
 			       ir_entry->zero);
 		else
 			printk(KERN_DEBUG "%s, %s, D(%02X), M(%1d)\n",
@@ -2115,7 +2094,7 @@ static inline void __init check_timer(void)
 			int idx;
 			idx = find_irq_entry(apic1, pin1, mp_INT);
 			if (idx != -1 && irq_trigger(idx))
-				unmask_ioapic_irq(irq_get_chip_data(0));
+				unmask_ioapic_irq(irq_get_irq_data(0));
 		}
 		irq_domain_deactivate_irq(irq_data);
 		irq_domain_activate_irq(irq_data);
@@ -2223,6 +2202,8 @@ static int mp_irqdomain_create(int ioapic)
 	struct ioapic *ip = &ioapics[ioapic];
 	struct ioapic_domain_cfg *cfg = &ip->irqdomain_cfg;
 	struct mp_ioapic_gsi *gsi_cfg = mp_ioapic_gsi_routing(ioapic);
+	struct fwnode_handle *fn;
+	char *name = "IO-APIC";
 
 	if (cfg->type == IOAPIC_DOMAIN_INVALID)
 		return 0;
@@ -2233,9 +2214,25 @@ static int mp_irqdomain_create(int ioapic)
 	parent = irq_remapping_get_ir_irq_domain(&info);
 	if (!parent)
 		parent = x86_vector_domain;
+	else
+		name = "IO-APIC-IR";
 
-	ip->irqdomain = irq_domain_add_linear(cfg->dev, hwirqs, cfg->ops,
-					      (void *)(long)ioapic);
+	/* Handle device tree enumerated APICs proper */
+	if (cfg->dev) {
+		fn = of_node_to_fwnode(cfg->dev);
+	} else {
+		fn = irq_domain_alloc_named_id_fwnode(name, ioapic);
+		if (!fn)
+			return -ENOMEM;
+	}
+
+	ip->irqdomain = irq_domain_create_linear(fn, hwirqs, cfg->ops,
+						 (void *)(long)ioapic);
+
+	/* Release fw handle if it was allocated above */
+	if (!cfg->dev)
+		irq_domain_free_fwnode(fn);
+
 	if (!ip->irqdomain)
 		return -ENOMEM;
 

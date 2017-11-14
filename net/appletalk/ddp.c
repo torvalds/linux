@@ -1529,7 +1529,7 @@ static int ltalk_rcv(struct sk_buff *skb, struct net_device *dev,
 		 * The push leaves us with a ddephdr not an shdr, and
 		 * handily the port bytes in the right place preset.
 		 */
-		ddp = (struct ddpehdr *) skb_push(skb, sizeof(*ddp) - 4);
+		ddp = skb_push(skb, sizeof(*ddp) - 4);
 
 		/* Now fill in the long header */
 
@@ -1647,7 +1647,7 @@ static int atalk_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 
 	SOCK_DEBUG(sk, "SK %p: Begin build.\n", sk);
 
-	ddp = (struct ddpehdr *)skb_put(skb, sizeof(struct ddpehdr));
+	ddp = skb_put(skb, sizeof(struct ddpehdr));
 	ddp->deh_len_hops  = htons(len + sizeof(*ddp));
 	ddp->deh_dnet  = usat->sat_addr.s_net;
 	ddp->deh_snet  = at->src_net;

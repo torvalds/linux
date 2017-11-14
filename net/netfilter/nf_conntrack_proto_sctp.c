@@ -174,23 +174,16 @@ static bool sctp_invert_tuple(struct nf_conntrack_tuple *tuple,
 	return true;
 }
 
-/* Print out the per-protocol part of the tuple. */
-static void sctp_print_tuple(struct seq_file *s,
-			     const struct nf_conntrack_tuple *tuple)
-{
-	seq_printf(s, "sport=%hu dport=%hu ",
-		   ntohs(tuple->src.u.sctp.port),
-		   ntohs(tuple->dst.u.sctp.port));
-}
-
+#ifdef CONFIG_NF_CONNTRACK_PROCFS
 /* Print out the private part of the conntrack. */
 static void sctp_print_conntrack(struct seq_file *s, struct nf_conn *ct)
 {
 	seq_printf(s, "%s ", sctp_conntrack_names[ct->proto.sctp.state]);
 }
+#endif
 
 #define for_each_sctp_chunk(skb, sch, _sch, offset, dataoff, count)	\
-for ((offset) = (dataoff) + sizeof(sctp_sctphdr_t), (count) = 0;	\
+for ((offset) = (dataoff) + sizeof(struct sctphdr), (count) = 0;	\
 	(offset) < (skb)->len &&					\
 	((sch) = skb_header_pointer((skb), (offset), sizeof(_sch), &(_sch)));	\
 	(offset) += (ntohs((sch)->length) + 3) & ~3, (count)++)
@@ -202,7 +195,7 @@ static int do_basic_checks(struct nf_conn *ct,
 			   unsigned long *map)
 {
 	u_int32_t offset, count;
-	sctp_chunkhdr_t _sch, *sch;
+	struct sctp_chunkhdr _sch, *sch;
 	int flag;
 
 	flag = 0;
@@ -314,7 +307,6 @@ static int sctp_packet(struct nf_conn *ct,
 		       unsigned int dataoff,
 		       enum ip_conntrack_info ctinfo,
 		       u_int8_t pf,
-		       unsigned int hooknum,
 		       unsigned int *timeouts)
 {
 	enum sctp_conntrack new_state, old_state;
@@ -395,9 +387,9 @@ static int sctp_packet(struct nf_conn *ct,
 		/* If it is an INIT or an INIT ACK note down the vtag */
 		if (sch->type == SCTP_CID_INIT ||
 		    sch->type == SCTP_CID_INIT_ACK) {
-			sctp_inithdr_t _inithdr, *ih;
+			struct sctp_inithdr _inithdr, *ih;
 
-			ih = skb_header_pointer(skb, offset + sizeof(sctp_chunkhdr_t),
+			ih = skb_header_pointer(skb, offset + sizeof(_sch),
 						sizeof(_inithdr), &_inithdr);
 			if (ih == NULL)
 				goto out_unlock;
@@ -471,23 +463,20 @@ static bool sctp_new(struct nf_conn *ct, const struct sk_buff *skb,
 
 		/* Copy the vtag into the state info */
 		if (sch->type == SCTP_CID_INIT) {
-			if (sh->vtag == 0) {
-				sctp_inithdr_t _inithdr, *ih;
-
-				ih = skb_header_pointer(skb, offset + sizeof(sctp_chunkhdr_t),
-							sizeof(_inithdr), &_inithdr);
-				if (ih == NULL)
-					return false;
-
-				pr_debug("Setting vtag %x for new conn\n",
-					 ih->init_tag);
-
-				ct->proto.sctp.vtag[IP_CT_DIR_REPLY] =
-								ih->init_tag;
-			} else {
-				/* Sec 8.5.1 (A) */
+			struct sctp_inithdr _inithdr, *ih;
+			/* Sec 8.5.1 (A) */
+			if (sh->vtag)
 				return false;
-			}
+
+			ih = skb_header_pointer(skb, offset + sizeof(_sch),
+						sizeof(_inithdr), &_inithdr);
+			if (!ih)
+				return false;
+
+			pr_debug("Setting vtag %x for new conn\n",
+				 ih->init_tag);
+
+			ct->proto.sctp.vtag[IP_CT_DIR_REPLY] = ih->init_tag;
 		} else if (sch->type == SCTP_CID_HEARTBEAT) {
 			pr_debug("Setting vtag %x for secondary conntrack\n",
 				 sh->vtag);
@@ -786,14 +775,19 @@ static int sctp_init_net(struct net *net, u_int16_t proto)
 	return sctp_kmemdup_sysctl_table(pn, sn);
 }
 
+static struct nf_proto_net *sctp_get_net_proto(struct net *net)
+{
+	return &net->ct.nf_ct_proto.sctp.pn;
+}
+
 struct nf_conntrack_l4proto nf_conntrack_l4proto_sctp4 __read_mostly = {
 	.l3proto		= PF_INET,
 	.l4proto 		= IPPROTO_SCTP,
-	.name 			= "sctp",
 	.pkt_to_tuple 		= sctp_pkt_to_tuple,
 	.invert_tuple 		= sctp_invert_tuple,
-	.print_tuple 		= sctp_print_tuple,
+#ifdef CONFIG_NF_CONNTRACK_PROCFS
 	.print_conntrack	= sctp_print_conntrack,
+#endif
 	.packet 		= sctp_packet,
 	.get_timeouts		= sctp_get_timeouts,
 	.new 			= sctp_new,
@@ -819,17 +813,18 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_sctp4 __read_mostly = {
 	},
 #endif /* CONFIG_NF_CT_NETLINK_TIMEOUT */
 	.init_net		= sctp_init_net,
+	.get_net_proto		= sctp_get_net_proto,
 };
 EXPORT_SYMBOL_GPL(nf_conntrack_l4proto_sctp4);
 
 struct nf_conntrack_l4proto nf_conntrack_l4proto_sctp6 __read_mostly = {
 	.l3proto		= PF_INET6,
 	.l4proto 		= IPPROTO_SCTP,
-	.name 			= "sctp",
 	.pkt_to_tuple 		= sctp_pkt_to_tuple,
 	.invert_tuple 		= sctp_invert_tuple,
-	.print_tuple 		= sctp_print_tuple,
+#ifdef CONFIG_NF_CONNTRACK_PROCFS
 	.print_conntrack	= sctp_print_conntrack,
+#endif
 	.packet 		= sctp_packet,
 	.get_timeouts		= sctp_get_timeouts,
 	.new 			= sctp_new,
@@ -855,5 +850,6 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_sctp6 __read_mostly = {
 #endif /* CONFIG_NF_CT_NETLINK_TIMEOUT */
 #endif
 	.init_net		= sctp_init_net,
+	.get_net_proto		= sctp_get_net_proto,
 };
 EXPORT_SYMBOL_GPL(nf_conntrack_l4proto_sctp6);

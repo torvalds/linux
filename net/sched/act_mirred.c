@@ -28,7 +28,6 @@
 #include <linux/tc_act/tc_mirred.h>
 #include <net/tc_act/tc_mirred.h>
 
-#define MIRRED_TAB_MASK     7
 static LIST_HEAD(mirred_list);
 static DEFINE_SPINLOCK(mirred_list_lock);
 
@@ -94,7 +93,7 @@ static int tcf_mirred_init(struct net *net, struct nlattr *nla,
 		return -EINVAL;
 	parm = nla_data(tb[TCA_MIRRED_PARMS]);
 
-	exists = tcf_hash_check(tn, parm->index, a, bind);
+	exists = tcf_idr_check(tn, parm->index, a, bind);
 	if (exists && bind)
 		return 0;
 
@@ -106,14 +105,14 @@ static int tcf_mirred_init(struct net *net, struct nlattr *nla,
 		break;
 	default:
 		if (exists)
-			tcf_hash_release(*a, bind);
+			tcf_idr_release(*a, bind);
 		return -EINVAL;
 	}
 	if (parm->ifindex) {
 		dev = __dev_get_by_index(net, parm->ifindex);
 		if (dev == NULL) {
 			if (exists)
-				tcf_hash_release(*a, bind);
+				tcf_idr_release(*a, bind);
 			return -ENODEV;
 		}
 		mac_header_xmit = dev_is_mac_header_xmit(dev);
@@ -124,13 +123,13 @@ static int tcf_mirred_init(struct net *net, struct nlattr *nla,
 	if (!exists) {
 		if (dev == NULL)
 			return -EINVAL;
-		ret = tcf_hash_create(tn, parm->index, est, a,
-				      &act_mirred_ops, bind, true);
+		ret = tcf_idr_create(tn, parm->index, est, a,
+				     &act_mirred_ops, bind, true);
 		if (ret)
 			return ret;
 		ret = ACT_P_CREATED;
 	} else {
-		tcf_hash_release(*a, bind);
+		tcf_idr_release(*a, bind);
 		if (!ovr)
 			return -EEXIST;
 	}
@@ -152,7 +151,7 @@ static int tcf_mirred_init(struct net *net, struct nlattr *nla,
 		spin_lock_bh(&mirred_list_lock);
 		list_add(&m->tcfm_list, &mirred_list);
 		spin_unlock_bh(&mirred_list_lock);
-		tcf_hash_insert(tn, *a);
+		tcf_idr_insert(tn, *a);
 	}
 
 	return ret;
@@ -283,7 +282,7 @@ static int tcf_mirred_search(struct net *net, struct tc_action **a, u32 index)
 {
 	struct tc_action_net *tn = net_generic(net, mirred_net_id);
 
-	return tcf_hash_search(tn, a, index);
+	return tcf_idr_search(tn, a, index);
 }
 
 static int mirred_device_event(struct notifier_block *unused,
@@ -344,7 +343,7 @@ static __net_init int mirred_init_net(struct net *net)
 {
 	struct tc_action_net *tn = net_generic(net, mirred_net_id);
 
-	return tc_action_net_init(tn, &act_mirred_ops, MIRRED_TAB_MASK);
+	return tc_action_net_init(tn, &act_mirred_ops, net);
 }
 
 static void __net_exit mirred_exit_net(struct net *net)

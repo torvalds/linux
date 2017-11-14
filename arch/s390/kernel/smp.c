@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  SMP related functions
  *
@@ -26,6 +27,7 @@
 #include <linux/err.h>
 #include <linux/spinlock.h>
 #include <linux/kernel_stat.h>
+#include <linux/kmemleak.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/irqflags.h>
@@ -207,6 +209,8 @@ static int pcpu_alloc_lowcore(struct pcpu *pcpu, int cpu)
 				kmem_cache_alloc(pcpu_mcesa_cache, GFP_KERNEL);
 			if (!mcesa_origin)
 				goto out;
+			/* The pointer is stored with mcesa_bits ORed in */
+			kmemleak_not_leak((void *) mcesa_origin);
 			mcesa_bits = MACHINE_HAS_GS ? 11 : 0;
 		}
 	} else {
@@ -290,7 +294,10 @@ static void pcpu_attach_task(struct pcpu *pcpu, struct task_struct *tsk)
 	lc->lpp = LPP_MAGIC;
 	lc->current_pid = tsk->pid;
 	lc->user_timer = tsk->thread.user_timer;
+	lc->guest_timer = tsk->thread.guest_timer;
 	lc->system_timer = tsk->thread.system_timer;
+	lc->hardirq_timer = tsk->thread.hardirq_timer;
+	lc->softirq_timer = tsk->thread.softirq_timer;
 	lc->steal_timer = 0;
 }
 
@@ -1178,6 +1185,7 @@ static int __init s390_smp_init(void)
 
 	rc = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "s390/smp:online",
 			       smp_cpu_online, smp_cpu_pre_down);
+	rc = rc <= 0 ? rc : 0;
 out:
 	return rc;
 }

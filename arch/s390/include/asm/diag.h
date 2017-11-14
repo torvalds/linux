@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * s390 diagnose functions
  *
@@ -8,6 +9,7 @@
 #ifndef _ASM_S390_DIAG_H
 #define _ASM_S390_DIAG_H
 
+#include <linux/if_ether.h>
 #include <linux/percpu.h>
 
 enum diag_stat_enum {
@@ -24,6 +26,7 @@ enum diag_stat_enum {
 	DIAG_STAT_X224,
 	DIAG_STAT_X250,
 	DIAG_STAT_X258,
+	DIAG_STAT_X26C,
 	DIAG_STAT_X288,
 	DIAG_STAT_X2C4,
 	DIAG_STAT_X2FC,
@@ -225,6 +228,30 @@ struct diag204_x_phys_block {
 	struct diag204_x_phys_cpu cpus[];
 } __packed;
 
+enum diag26c_sc {
+	DIAG26C_MAC_SERVICES = 0x00000030
+};
+
+enum diag26c_version {
+	DIAG26C_VERSION2 = 0x00000002	/* z/VM 5.4.0 */
+};
+
+#define DIAG26C_GET_MAC	0x0000
+struct diag26c_mac_req {
+	u32	resp_buf_len;
+	u32	resp_version;
+	u16	op_code;
+	u16	devno;
+	u8	res[4];
+};
+
+struct diag26c_mac_resp {
+	u32	version;
+	u8	mac[ETH_ALEN];
+	u8	res[2];
+} __aligned(8);
+
 int diag204(unsigned long subcode, unsigned long size, void *addr);
 int diag224(void *ptr);
+int diag26c(void *req, void *resp, enum diag26c_sc subcode);
 #endif /* _ASM_S390_DIAG_H */

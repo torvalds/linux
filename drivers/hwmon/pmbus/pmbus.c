@@ -25,7 +25,7 @@
 #include <linux/slab.h>
 #include <linux/mutex.h>
 #include <linux/i2c.h>
-#include <linux/i2c/pmbus.h>
+#include <linux/pmbus.h>
 #include "pmbus.h"
 
 /*

@@ -497,7 +497,7 @@ static int dmar_parse_one_rhsa(struct acpi_dmar_header *header, void *arg)
 #define	dmar_parse_one_rhsa		dmar_res_noop
 #endif
 
-static void __init
+static void
 dmar_table_print_dmar_entry(struct acpi_dmar_header *header)
 {
 	struct acpi_dmar_hardware_unit *drhd;
@@ -1343,7 +1343,7 @@ void qi_flush_dev_iotlb(struct intel_iommu *iommu, u16 sid, u16 qdep,
 
 	if (mask) {
 		BUG_ON(addr & ((1 << (VTD_PAGE_SHIFT + mask)) - 1));
-		addr |= (1 << (VTD_PAGE_SHIFT + mask - 1)) - 1;
+		addr |= (1ULL << (VTD_PAGE_SHIFT + mask - 1)) - 1;
 		desc.high = QI_DEV_IOTLB_ADDR(addr) | QI_DEV_IOTLB_SIZE;
 	} else
 		desc.high = QI_DEV_IOTLB_ADDR(addr);
@@ -1808,10 +1808,9 @@ IOMMU_INIT_POST(detect_intel_iommu);
  * for Directed-IO Architecture Specifiction, Rev 2.2, Section 8.8
  * "Remapping Hardware Unit Hot Plug".
  */
-static u8 dmar_hp_uuid[] = {
-	/* 0000 */    0xA6, 0xA3, 0xC1, 0xD8, 0x9B, 0xBE, 0x9B, 0x4C,
-	/* 0008 */    0x91, 0xBF, 0xC3, 0xCB, 0x81, 0xFC, 0x5D, 0xAF
-};
+static guid_t dmar_hp_guid =
+	GUID_INIT(0xD8C1A3A6, 0xBE9B, 0x4C9B,
+		  0x91, 0xBF, 0xC3, 0xCB, 0x81, 0xFC, 0x5D, 0xAF);
 
 /*
  * Currently there's only one revision and BIOS will not check the revision id,
@@ -1824,7 +1823,7 @@ static u8 dmar_hp_uuid[] = {
 
 static inline bool dmar_detect_dsm(acpi_handle handle, int func)
 {
-	return acpi_check_dsm(handle, dmar_hp_uuid, DMAR_DSM_REV_ID, 1 << func);
+	return acpi_check_dsm(handle, &dmar_hp_guid, DMAR_DSM_REV_ID, 1 << func);
 }
 
 static int dmar_walk_dsm_resource(acpi_handle handle, int func,
@@ -1843,7 +1842,7 @@ static int dmar_walk_dsm_resource(acpi_handle handle, int func,
 	if (!dmar_detect_dsm(handle, func))
 		return 0;
 
-	obj = acpi_evaluate_dsm_typed(handle, dmar_hp_uuid, DMAR_DSM_REV_ID,
+	obj = acpi_evaluate_dsm_typed(handle, &dmar_hp_guid, DMAR_DSM_REV_ID,
 				      func, NULL, ACPI_TYPE_BUFFER);
 	if (!obj)
 		return -ENODEV;

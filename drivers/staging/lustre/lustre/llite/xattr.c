@@ -33,13 +33,13 @@
 #include <linux/fs.h>
 #include <linux/sched.h>
 #include <linux/mm.h>
+#include <linux/xattr.h>
 #include <linux/selinux.h>
 
 #define DEBUG_SUBSYSTEM S_LLITE
 
-#include "../include/obd_support.h"
-#include "../include/lustre_dlm.h"
-#include "../include/lustre_ver.h"
+#include <obd_support.h>
+#include <lustre_dlm.h>
 
 #include "llite_internal.h"
 
@@ -195,7 +195,7 @@ static int ll_xattr_set(const struct xattr_handler *handler,
 	LASSERT(inode);
 	LASSERT(name);
 
-	CDEBUG(D_VFSTRACE, "VFS Op:inode="DFID"(%p), xattr %s\n",
+	CDEBUG(D_VFSTRACE, "VFS Op:inode=" DFID "(%p), xattr %s\n",
 	       PFID(ll_inode2fid(inode)), inode, name);
 
 	if (!strcmp(name, "lov")) {
@@ -370,7 +370,7 @@ static int ll_xattr_get_common(const struct xattr_handler *handler,
 #endif
 	int rc;
 
-	CDEBUG(D_VFSTRACE, "VFS Op:inode="DFID"(%p)\n",
+	CDEBUG(D_VFSTRACE, "VFS Op:inode=" DFID "(%p)\n",
 	       PFID(ll_inode2fid(inode)), inode);
 
 	ll_stats_ops_tally(ll_i2sbi(inode), LPROC_LL_GETXATTR, 1);
@@ -523,7 +523,7 @@ ssize_t ll_listxattr(struct dentry *dentry, char *buffer, size_t size)
 
 	LASSERT(inode);
 
-	CDEBUG(D_VFSTRACE, "VFS Op:inode="DFID"(%p)\n",
+	CDEBUG(D_VFSTRACE, "VFS Op:inode=" DFID "(%p)\n",
 	       PFID(ll_inode2fid(inode)), inode);
 
 	ll_stats_ops_tally(ll_i2sbi(inode), LPROC_LL_LISTXATTR, 1);

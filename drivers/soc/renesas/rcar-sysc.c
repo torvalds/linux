@@ -181,17 +181,6 @@ static int rcar_sysc_pd_power_off(struct generic_pm_domain *genpd)
 	struct rcar_sysc_pd *pd = to_rcar_pd(genpd);
 
 	pr_debug("%s: %s\n", __func__, genpd->name);
-
-	if (pd->flags & PD_NO_CR) {
-		pr_debug("%s: Cannot control %s\n", __func__, genpd->name);
-		return -EBUSY;
-	}
-
-	if (pd->flags & PD_BUSY) {
-		pr_debug("%s: %s busy\n", __func__, genpd->name);
-		return -EBUSY;
-	}
-
 	return rcar_sysc_power_down(&pd->ch);
 }
 
@@ -200,12 +189,6 @@ static int rcar_sysc_pd_power_on(struct generic_pm_domain *genpd)
 	struct rcar_sysc_pd *pd = to_rcar_pd(genpd);
 
 	pr_debug("%s: %s\n", __func__, genpd->name);
-
-	if (pd->flags & PD_NO_CR) {
-		pr_debug("%s: Cannot control %s\n", __func__, genpd->name);
-		return 0;
-	}
-
 	return rcar_sysc_power_up(&pd->ch);
 }
 
@@ -223,8 +206,7 @@ static void __init rcar_sysc_pd_setup(struct rcar_sysc_pd *pd)
 		 * only be turned off if the CPU is not in use.
 		 */
 		pr_debug("PM domain %s contains %s\n", name, "CPU");
-		pd->flags |= PD_BUSY;
-		gov = &pm_domain_always_on_gov;
+		genpd->flags |= GENPD_FLAG_ALWAYS_ON;
 	} else if (pd->flags & PD_SCU) {
 		/*
 		 * This domain contains an SCU and cache-controller, and
@@ -232,19 +214,17 @@ static void __init rcar_sysc_pd_setup(struct rcar_sysc_pd *pd)
 		 * not in use.
 		 */
 		pr_debug("PM domain %s contains %s\n", name, "SCU");
-		pd->flags |= PD_BUSY;
-		gov = &pm_domain_always_on_gov;
+		genpd->flags |= GENPD_FLAG_ALWAYS_ON;
 	} else if (pd->flags & PD_NO_CR) {
 		/*
 		 * This domain cannot be turned off.
 		 */
-		pd->flags |= PD_BUSY;
-		gov = &pm_domain_always_on_gov;
+		genpd->flags |= GENPD_FLAG_ALWAYS_ON;
 	}
 
 	if (!(pd->flags & (PD_CPU | PD_SCU))) {
 		/* Enable Clock Domain for I/O devices */
-		genpd->flags = GENPD_FLAG_PM_CLK;
+		genpd->flags |= GENPD_FLAG_PM_CLK;
 		if (has_cpg_mstp) {
 			genpd->attach_dev = cpg_mstp_attach_dev;
 			genpd->detach_dev = cpg_mstp_detach_dev;
@@ -275,36 +255,37 @@ finalize:
 }
 
 static const struct of_device_id rcar_sysc_matches[] = {
-#ifdef CONFIG_ARCH_R8A7743
+#ifdef CONFIG_SYSC_R8A7743
 	{ .compatible = "renesas,r8a7743-sysc", .data = &r8a7743_sysc_info },
 #endif
-#ifdef CONFIG_ARCH_R8A7745
+#ifdef CONFIG_SYSC_R8A7745
 	{ .compatible = "renesas,r8a7745-sysc", .data = &r8a7745_sysc_info },
 #endif
-#ifdef CONFIG_ARCH_R8A7779
+#ifdef CONFIG_SYSC_R8A7779
 	{ .compatible = "renesas,r8a7779-sysc", .data = &r8a7779_sysc_info },
 #endif
-#ifdef CONFIG_ARCH_R8A7790
+#ifdef CONFIG_SYSC_R8A7790
 	{ .compatible = "renesas,r8a7790-sysc", .data = &r8a7790_sysc_info },
 #endif
-#ifdef CONFIG_ARCH_R8A7791
+#ifdef CONFIG_SYSC_R8A7791
 	{ .compatible = "renesas,r8a7791-sysc", .data = &r8a7791_sysc_info },
-#endif
-#ifdef CONFIG_ARCH_R8A7792
-	{ .compatible = "renesas,r8a7792-sysc", .data = &r8a7792_sysc_info },
-#endif
-#ifdef CONFIG_ARCH_R8A7793
 	/* R-Car M2-N is identical to R-Car M2-W w.r.t. power domains. */
 	{ .compatible = "renesas,r8a7793-sysc", .data = &r8a7791_sysc_info },
 #endif
-#ifdef CONFIG_ARCH_R8A7794
+#ifdef CONFIG_SYSC_R8A7792
+	{ .compatible = "renesas,r8a7792-sysc", .data = &r8a7792_sysc_info },
+#endif
+#ifdef CONFIG_SYSC_R8A7794
 	{ .compatible = "renesas,r8a7794-sysc", .data = &r8a7794_sysc_info },
 #endif
-#ifdef CONFIG_ARCH_R8A7795
+#ifdef CONFIG_SYSC_R8A7795
 	{ .compatible = "renesas,r8a7795-sysc", .data = &r8a7795_sysc_info },
 #endif
-#ifdef CONFIG_ARCH_R8A7796
+#ifdef CONFIG_SYSC_R8A7796
 	{ .compatible = "renesas,r8a7796-sysc", .data = &r8a7796_sysc_info },
+#endif
+#ifdef CONFIG_SYSC_R8A77995
+	{ .compatible = "renesas,r8a77995-sysc", .data = &r8a77995_sysc_info },
 #endif
 	{ /* sentinel */ }
 };
@@ -345,7 +326,7 @@ static int __init rcar_sysc_pd_init(void)
 
 	base = of_iomap(np, 0);
 	if (!base) {
-		pr_warn("%s: Cannot map regs\n", np->full_name);
+		pr_warn("%pOF: Cannot map regs\n", np);
 		error = -ENOMEM;
 		goto out_put;
 	}
@@ -370,13 +351,13 @@ static int __init rcar_sysc_pd_init(void)
 	 */
 	syscimr = ioread32(base + SYSCIMR);
 	syscimr |= syscier;
-	pr_debug("%s: syscimr = 0x%08x\n", np->full_name, syscimr);
+	pr_debug("%pOF: syscimr = 0x%08x\n", np, syscimr);
 	iowrite32(syscimr, base + SYSCIMR);
 
 	/*
 	 * SYSC needs all interrupt sources enabled to control power.
 	 */
-	pr_debug("%s: syscier = 0x%08x\n", np->full_name, syscier);
+	pr_debug("%pOF: syscier = 0x%08x\n", np, syscier);
 	iowrite32(syscier, base + SYSCIER);
 
 	for (i = 0; i < info->num_areas; i++) {

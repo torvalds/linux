@@ -51,11 +51,11 @@ struct octeon_droq_desc {
  *  about the packet.
  */
 struct octeon_droq_info {
-	/** The Output Receive Header. */
-	union octeon_rh rh;
-
 	/** The Length of the packet. */
 	u64 length;
+
+	/** The Output Receive Header. */
+	union octeon_rh rh;
 };
 
 #define OCT_DROQ_INFO_SIZE   (sizeof(struct octeon_droq_info))
@@ -294,9 +294,6 @@ struct octeon_droq {
 	 */
 	u32 max_empty_descs;
 
-	/** The 8B aligned info ptrs begin from this address. */
-	struct octeon_droq_info *info_list;
-
 	/** The receive buffer list. This list has the virtual addresses of the
 	 * buffers.
 	 */
@@ -324,15 +321,6 @@ struct octeon_droq {
 	/** DMA mapped address of the DROQ descriptor ring. */
 	size_t desc_ring_dma;
 
-	/** Info ptr list are allocated at this virtual address. */
-	void *info_base_addr;
-
-	/** DMA mapped address of the info list */
-	dma_addr_t info_list_dma;
-
-	/** Allocated size of info list. */
-	u32 info_alloc_size;
-
 	/** application context */
 	void *app_ctx;
 
@@ -340,7 +328,7 @@ struct octeon_droq {
 
 	u32 cpu_id;
 
-	struct call_single_data csd;
+	call_single_data_t csd;
 };
 
 #define OCT_DROQ_SIZE   (sizeof(struct octeon_droq))

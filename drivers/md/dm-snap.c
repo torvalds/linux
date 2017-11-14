@@ -1590,7 +1590,7 @@ static void full_bio_end_io(struct bio *bio)
 {
 	void *callback_data = bio->bi_private;
 
-	dm_kcopyd_do_callback(callback_data, 0, bio->bi_error ? 1 : 0);
+	dm_kcopyd_do_callback(callback_data, 0, bio->bi_status ? 1 : 0);
 }
 
 static void start_full_bio(struct dm_snap_pending_exception *pe,
@@ -1663,7 +1663,7 @@ __find_pending_exception(struct dm_snapshot *s,
 static void remap_exception(struct dm_snapshot *s, struct dm_exception *e,
 			    struct bio *bio, chunk_t chunk)
 {
-	bio->bi_bdev = s->cow->bdev;
+	bio_set_dev(bio, s->cow->bdev);
 	bio->bi_iter.bi_sector =
 		chunk_to_sector(s->store, dm_chunk_number(e->new_chunk) +
 				(chunk - e->old_chunk)) +
@@ -1681,7 +1681,7 @@ static int snapshot_map(struct dm_target *ti, struct bio *bio)
 	init_tracked_chunk(bio);
 
 	if (bio->bi_opf & REQ_PREFLUSH) {
-		bio->bi_bdev = s->cow->bdev;
+		bio_set_dev(bio, s->cow->bdev);
 		return DM_MAPIO_REMAPPED;
 	}
 
@@ -1690,7 +1690,7 @@ static int snapshot_map(struct dm_target *ti, struct bio *bio)
 	/* Full snapshots are not usable */
 	/* To get here the table must be live so s->active is always set. */
 	if (!s->valid)
-		return -EIO;
+		return DM_MAPIO_KILL;
 
 	/* FIXME: should only take write lock if we need
 	 * to copy an exception */
@@ -1698,7 +1698,7 @@ static int snapshot_map(struct dm_target *ti, struct bio *bio)
 
 	if (!s->valid || (unlikely(s->snapshot_overflowed) &&
 	    bio_data_dir(bio) == WRITE)) {
-		r = -EIO;
+		r = DM_MAPIO_KILL;
 		goto out_unlock;
 	}
 
@@ -1723,7 +1723,7 @@ static int snapshot_map(struct dm_target *ti, struct bio *bio)
 
 			if (!s->valid || s->snapshot_overflowed) {
 				free_pending_exception(pe);
-				r = -EIO;
+				r = DM_MAPIO_KILL;
 				goto out_unlock;
 			}
 
@@ -1741,7 +1741,7 @@ static int snapshot_map(struct dm_target *ti, struct bio *bio)
 					DMERR("Snapshot overflowed: Unable to allocate exception.");
 				} else
 					__invalidate_snapshot(s, -ENOMEM);
-				r = -EIO;
+				r = DM_MAPIO_KILL;
 				goto out_unlock;
 			}
 		}
@@ -1769,7 +1769,7 @@ static int snapshot_map(struct dm_target *ti, struct bio *bio)
 			goto out;
 		}
 	} else {
-		bio->bi_bdev = s->origin->bdev;
+		bio_set_dev(bio, s->origin->bdev);
 		track_chunk(s, bio, chunk);
 	}
 
@@ -1802,9 +1802,9 @@ static int snapshot_merge_map(struct dm_target *ti, struct bio *bio)
 
 	if (bio->bi_opf & REQ_PREFLUSH) {
 		if (!dm_bio_get_target_bio_nr(bio))
-			bio->bi_bdev = s->origin->bdev;
+			bio_set_dev(bio, s->origin->bdev);
 		else
-			bio->bi_bdev = s->cow->bdev;
+			bio_set_dev(bio, s->cow->bdev);
 		return DM_MAPIO_REMAPPED;
 	}
 
@@ -1824,7 +1824,7 @@ static int snapshot_merge_map(struct dm_target *ti, struct bio *bio)
 		    chunk >= s->first_merging_chunk &&
 		    chunk < (s->first_merging_chunk +
 			     s->num_merging_chunks)) {
-			bio->bi_bdev = s->origin->bdev;
+			bio_set_dev(bio, s->origin->bdev);
 			bio_list_add(&s->bios_queued_during_merge, bio);
 			r = DM_MAPIO_SUBMITTED;
 			goto out_unlock;
@@ -1838,7 +1838,7 @@ static int snapshot_merge_map(struct dm_target *ti, struct bio *bio)
 	}
 
 redirect_to_origin:
-	bio->bi_bdev = s->origin->bdev;
+	bio_set_dev(bio, s->origin->bdev);
 
 	if (bio_data_dir(bio) == WRITE) {
 		up_write(&s->lock);
@@ -1851,14 +1851,15 @@ out_unlock:
 	return r;
 }
 
-static int snapshot_end_io(struct dm_target *ti, struct bio *bio, int error)
+static int snapshot_end_io(struct dm_target *ti, struct bio *bio,
+		blk_status_t *error)
 {
 	struct dm_snapshot *s = ti->private;
 
 	if (is_bio_tracked(bio))
 		stop_tracking_chunk(s, bio);
 
-	return 0;
+	return DM_ENDIO_DONE;
 }
 
 static void snapshot_merge_presuspend(struct dm_target *ti)
@@ -2284,7 +2285,7 @@ static int origin_map(struct dm_target *ti, struct bio *bio)
 	struct dm_origin *o = ti->private;
 	unsigned available_sectors;
 
-	bio->bi_bdev = o->dev->bdev;
+	bio_set_dev(bio, o->dev->bdev);
 
 	if (unlikely(bio->bi_opf & REQ_PREFLUSH))
 		return DM_MAPIO_REMAPPED;

@@ -135,7 +135,7 @@ static int nxp_nci_i2c_fw_read(struct nxp_nci_i2c_phy *phy,
 		goto fw_read_exit;
 	}
 
-	memcpy(skb_put(*skb, NXP_NCI_FW_HDR_LEN), &header, NXP_NCI_FW_HDR_LEN);
+	skb_put_data(*skb, &header, NXP_NCI_FW_HDR_LEN);
 
 	r = i2c_master_recv(client, skb_put(*skb, frame_len), frame_len);
 	if (r != frame_len) {
@@ -176,8 +176,7 @@ static int nxp_nci_i2c_nci_read(struct nxp_nci_i2c_phy *phy,
 		goto nci_read_exit;
 	}
 
-	memcpy(skb_put(*skb, NCI_CTRL_HDR_SIZE), (void *) &header,
-	       NCI_CTRL_HDR_SIZE);
+	skb_put_data(*skb, (void *)&header, NCI_CTRL_HDR_SIZE);
 
 	r = i2c_master_recv(client, skb_put(*skb, header.plen), header.plen);
 	if (r != header.plen) {

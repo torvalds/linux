@@ -2094,7 +2094,7 @@ static int de4x5_eisa_remove(struct device *device)
 	return 0;
 }
 
-static struct eisa_device_id de4x5_eisa_ids[] = {
+static const struct eisa_device_id de4x5_eisa_ids[] = {
         { "DEC4250", 0 },	/* 0 is the board name index... */
         { "" }
 };
@@ -3624,10 +3624,10 @@ de4x5_alloc_rx_buff(struct net_device *dev, int index, int len)
     skb_reserve(p, 2);	                               /* Align */
     if (index < lp->rx_old) {                          /* Wrapped buffer */
 	short tlen = (lp->rxRingSize - lp->rx_old) * RX_BUFF_SZ;
-	memcpy(skb_put(p,tlen),lp->rx_bufs + lp->rx_old * RX_BUFF_SZ,tlen);
-	memcpy(skb_put(p,len-tlen),lp->rx_bufs,len-tlen);
+	skb_put_data(p, lp->rx_bufs + lp->rx_old * RX_BUFF_SZ, tlen);
+	skb_put_data(p, lp->rx_bufs, len - tlen);
     } else {                                           /* Linear buffer */
-	memcpy(skb_put(p,len),lp->rx_bufs + lp->rx_old * RX_BUFF_SZ,len);
+	skb_put_data(p, lp->rx_bufs + lp->rx_old * RX_BUFF_SZ, len);
     }
 
     return p;

@@ -40,6 +40,7 @@
 extern bool hang_debug;
 
 static void a3xx_dump(struct msm_gpu *gpu);
+static bool a3xx_idle(struct msm_gpu *gpu);
 
 static bool a3xx_me_init(struct msm_gpu *gpu)
 {
@@ -65,7 +66,7 @@ static bool a3xx_me_init(struct msm_gpu *gpu)
 	OUT_RING(ring, 0x00000000);
 
 	gpu->funcs->flush(gpu);
-	return gpu->funcs->idle(gpu);
+	return a3xx_idle(gpu);
 }
 
 static int a3xx_hw_init(struct msm_gpu *gpu)
@@ -446,7 +447,6 @@ static const struct adreno_gpu_funcs funcs = {
 		.last_fence = adreno_last_fence,
 		.submit = adreno_submit,
 		.flush = adreno_flush,
-		.idle = a3xx_idle,
 		.irq = a3xx_irq,
 		.destroy = a3xx_destroy,
 #ifdef CONFIG_DEBUG_FS
@@ -485,8 +485,6 @@ struct msm_gpu *a3xx_gpu_init(struct drm_device *dev)
 
 	adreno_gpu = &a3xx_gpu->base;
 	gpu = &adreno_gpu->base;
-
-	a3xx_gpu->pdev = pdev;
 
 	gpu->perfcntrs = perfcntrs;
 	gpu->num_perfcntrs = ARRAY_SIZE(perfcntrs);

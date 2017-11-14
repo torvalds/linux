@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /dts-v1/;
 
 #include "kirkwood.dtsi"
@@ -141,7 +142,7 @@
 
 	partition@d4000 {
 		label = "test";
-		reg = <0xd4000 0x24000>;
+		reg = <0xd4000 0x20000>;
 	};
 
 	partition@f4000 {

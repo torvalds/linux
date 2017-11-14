@@ -119,21 +119,13 @@ sun4i_rgb_connector_destroy(struct drm_connector *connector)
 	drm_connector_cleanup(connector);
 }
 
-static struct drm_connector_funcs sun4i_rgb_con_funcs = {
-	.dpms			= drm_atomic_helper_connector_dpms,
+static const struct drm_connector_funcs sun4i_rgb_con_funcs = {
 	.fill_modes		= drm_helper_probe_single_connector_modes,
 	.destroy		= sun4i_rgb_connector_destroy,
 	.reset			= drm_atomic_helper_connector_reset,
 	.atomic_duplicate_state	= drm_atomic_helper_connector_duplicate_state,
 	.atomic_destroy_state	= drm_atomic_helper_connector_destroy_state,
 };
-
-static int sun4i_rgb_atomic_check(struct drm_encoder *encoder,
-				  struct drm_crtc_state *crtc_state,
-				  struct drm_connector_state *conn_state)
-{
-	return 0;
-}
 
 static void sun4i_rgb_encoder_enable(struct drm_encoder *encoder)
 {
@@ -175,15 +167,13 @@ static void sun4i_rgb_encoder_mode_set(struct drm_encoder *encoder,
 	struct sun4i_tcon *tcon = rgb->tcon;
 
 	sun4i_tcon0_mode_set(tcon, mode);
-
-	clk_set_rate(tcon->dclk, mode->crtc_clock * 1000);
+	sun4i_tcon_set_mux(tcon, 0, encoder);
 
 	/* FIXME: This seems to be board specific */
 	clk_set_phase(tcon->dclk, 120);
 }
 
 static struct drm_encoder_helper_funcs sun4i_rgb_enc_helper_funcs = {
-	.atomic_check	= sun4i_rgb_atomic_check,
 	.mode_set	= sun4i_rgb_encoder_mode_set,
 	.disable	= sun4i_rgb_encoder_disable,
 	.enable		= sun4i_rgb_encoder_enable,

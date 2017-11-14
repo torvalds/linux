@@ -42,6 +42,7 @@ static const struct atmel_hlcdc_layer_desc atmel_hlcdc_at91sam9n12_layers[] = {
 			.default_color = 3,
 			.general_config = 4,
 		},
+		.clut_offset = 0x400,
 	},
 };
 
@@ -73,6 +74,7 @@ static const struct atmel_hlcdc_layer_desc atmel_hlcdc_at91sam9x5_layers[] = {
 			.disc_pos = 5,
 			.disc_size = 6,
 		},
+		.clut_offset = 0x400,
 	},
 	{
 		.name = "overlay1",
@@ -91,6 +93,7 @@ static const struct atmel_hlcdc_layer_desc atmel_hlcdc_at91sam9x5_layers[] = {
 			.chroma_key_mask = 8,
 			.general_config = 9,
 		},
+		.clut_offset = 0x800,
 	},
 	{
 		.name = "high-end-overlay",
@@ -112,6 +115,7 @@ static const struct atmel_hlcdc_layer_desc atmel_hlcdc_at91sam9x5_layers[] = {
 			.scaler_config = 13,
 			.csc = 14,
 		},
+		.clut_offset = 0x1000,
 	},
 	{
 		.name = "cursor",
@@ -131,6 +135,7 @@ static const struct atmel_hlcdc_layer_desc atmel_hlcdc_at91sam9x5_layers[] = {
 			.chroma_key_mask = 8,
 			.general_config = 9,
 		},
+		.clut_offset = 0x1400,
 	},
 };
 
@@ -162,6 +167,7 @@ static const struct atmel_hlcdc_layer_desc atmel_hlcdc_sama5d3_layers[] = {
 			.disc_pos = 5,
 			.disc_size = 6,
 		},
+		.clut_offset = 0x600,
 	},
 	{
 		.name = "overlay1",
@@ -180,6 +186,7 @@ static const struct atmel_hlcdc_layer_desc atmel_hlcdc_sama5d3_layers[] = {
 			.chroma_key_mask = 8,
 			.general_config = 9,
 		},
+		.clut_offset = 0xa00,
 	},
 	{
 		.name = "overlay2",
@@ -198,6 +205,7 @@ static const struct atmel_hlcdc_layer_desc atmel_hlcdc_sama5d3_layers[] = {
 			.chroma_key_mask = 8,
 			.general_config = 9,
 		},
+		.clut_offset = 0xe00,
 	},
 	{
 		.name = "high-end-overlay",
@@ -223,6 +231,7 @@ static const struct atmel_hlcdc_layer_desc atmel_hlcdc_sama5d3_layers[] = {
 			},
 			.csc = 14,
 		},
+		.clut_offset = 0x1200,
 	},
 	{
 		.name = "cursor",
@@ -244,6 +253,7 @@ static const struct atmel_hlcdc_layer_desc atmel_hlcdc_sama5d3_layers[] = {
 			.general_config = 9,
 			.scaler_config = 13,
 		},
+		.clut_offset = 0x1600,
 	},
 };
 
@@ -275,6 +285,7 @@ static const struct atmel_hlcdc_layer_desc atmel_hlcdc_sama5d4_layers[] = {
 			.disc_pos = 5,
 			.disc_size = 6,
 		},
+		.clut_offset = 0x600,
 	},
 	{
 		.name = "overlay1",
@@ -293,6 +304,7 @@ static const struct atmel_hlcdc_layer_desc atmel_hlcdc_sama5d4_layers[] = {
 			.chroma_key_mask = 8,
 			.general_config = 9,
 		},
+		.clut_offset = 0xa00,
 	},
 	{
 		.name = "overlay2",
@@ -311,6 +323,7 @@ static const struct atmel_hlcdc_layer_desc atmel_hlcdc_sama5d4_layers[] = {
 			.chroma_key_mask = 8,
 			.general_config = 9,
 		},
+		.clut_offset = 0xe00,
 	},
 	{
 		.name = "high-end-overlay",
@@ -336,6 +349,7 @@ static const struct atmel_hlcdc_layer_desc atmel_hlcdc_sama5d4_layers[] = {
 			},
 			.csc = 14,
 		},
+		.clut_offset = 0x1200,
 	},
 };
 
@@ -375,8 +389,9 @@ static const struct of_device_id atmel_hlcdc_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, atmel_hlcdc_of_match);
 
-int atmel_hlcdc_dc_mode_valid(struct atmel_hlcdc_dc *dc,
-			      struct drm_display_mode *mode)
+enum drm_mode_status
+atmel_hlcdc_dc_mode_valid(struct atmel_hlcdc_dc *dc,
+			  const struct drm_display_mode *mode)
 {
 	int vfront_porch = mode->vsync_start - mode->vdisplay;
 	int vback_porch = mode->vtotal - mode->vsync_end;
@@ -450,8 +465,7 @@ static void atmel_hlcdc_fb_output_poll_changed(struct drm_device *dev)
 {
 	struct atmel_hlcdc_dc *dc = dev->dev_private;
 
-	if (dc->fbdev)
-		drm_fbdev_cma_hotplug_event(dc->fbdev);
+	drm_fbdev_cma_hotplug_event(dc->fbdev);
 }
 
 struct atmel_hlcdc_dc_commit {
@@ -525,14 +539,13 @@ static int atmel_hlcdc_dc_atomic_commit(struct drm_device *dev,
 		dc->commit.pending = true;
 	spin_unlock(&dc->commit.wait.lock);
 
-	if (ret) {
-		kfree(commit);
-		goto error;
-	}
+	if (ret)
+		goto err_free;
 
-	/* Swap the state, this is the point of no return. */
-	drm_atomic_helper_swap_state(state, true);
+	/* We have our own synchronization through the commit lock. */
+	BUG_ON(drm_atomic_helper_swap_state(state, false) < 0);
 
+	/* Swap state succeeded, this is the point of no return. */
 	drm_atomic_state_get(state);
 	if (async)
 		queue_work(dc->wq, &commit->work);
@@ -541,6 +554,8 @@ static int atmel_hlcdc_dc_atomic_commit(struct drm_device *dev,
 
 	return 0;
 
+err_free:
+	kfree(commit);
 error:
 	drm_atomic_helper_cleanup_planes(dev, state);
 	return ret;
@@ -678,7 +693,6 @@ static void atmel_hlcdc_dc_unload(struct drm_device *dev)
 	flush_workqueue(dc->wq);
 	drm_kms_helper_poll_fini(dev);
 	drm_mode_config_cleanup(dev);
-	drm_vblank_cleanup(dev);
 
 	pm_runtime_get_sync(dev->dev);
 	drm_irq_uninstall(dev);
@@ -747,8 +761,6 @@ static struct drm_driver atmel_hlcdc_dc_driver = {
 	.gem_prime_vunmap = drm_gem_cma_prime_vunmap,
 	.gem_prime_mmap = drm_gem_cma_prime_mmap,
 	.dumb_create = drm_gem_cma_dumb_create,
-	.dumb_map_offset = drm_gem_cma_dumb_map_offset,
-	.dumb_destroy = drm_gem_dumb_destroy,
 	.fops = &fops,
 	.name = "atmel-hlcdc",
 	.desc = "Atmel HLCD Controller DRM",

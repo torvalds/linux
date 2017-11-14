@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __ASM_GENERIC_UACCESS_H
 #define __ASM_GENERIC_UACCESS_H
 
@@ -75,10 +76,10 @@ static inline int __access_ok(unsigned long addr, unsigned long size)
 
 #define put_user(x, ptr)					\
 ({								\
-	void *__p = (ptr);					\
+	void __user *__p = (ptr);				\
 	might_fault();						\
 	access_ok(VERIFY_WRITE, __p, sizeof(*ptr)) ?		\
-		__put_user((x), ((__typeof__(*(ptr)) *)__p)) :	\
+		__put_user((x), ((__typeof__(*(ptr)) __user *)__p)) :	\
 		-EFAULT;					\
 })
 
@@ -137,10 +138,10 @@ extern int __put_user_bad(void) __attribute__((noreturn));
 
 #define get_user(x, ptr)					\
 ({								\
-	const void *__p = (ptr);				\
+	const void __user *__p = (ptr);				\
 	might_fault();						\
 	access_ok(VERIFY_READ, __p, sizeof(*ptr)) ?		\
-		__get_user((x), (__typeof__(*(ptr)) *)__p) :	\
+		__get_user((x), (__typeof__(*(ptr)) __user *)__p) :\
 		((x) = (__typeof__(*(ptr)))0,-EFAULT);		\
 })
 
@@ -198,11 +199,6 @@ static inline long strnlen_user(const char __user *src, long n)
 	if (!access_ok(VERIFY_READ, src, 1))
 		return 0;
 	return __strnlen_user(src, n);
-}
-
-static inline long strlen_user(const char __user *src)
-{
-	return strnlen_user(src, 32767);
 }
 
 /*

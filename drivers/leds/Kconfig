@@ -58,6 +58,15 @@ config LEDS_AAT1290
 	help
 	 This option enables support for the LEDs on the AAT1290.
 
+config LEDS_AS3645A
+	tristate "AS3645A LED flash controller support"
+	depends on I2C && LEDS_CLASS_FLASH
+	depends on V4L2_FLASH_LED_CLASS || !V4L2_FLASH_LED_CLASS
+	help
+	  Enable LED flash class support for AS3645A LED flash
+	  controller. V4L2 flash API is provided as well if
+	  CONFIG_V4L2_FLASH_API is enabled.
+
 config LEDS_BCM6328
 	tristate "LED Support for Broadcom BCM6328"
 	depends on LEDS_CLASS
@@ -377,6 +386,17 @@ config LEDS_PCA955X
 	  LED driver chips accessed via the I2C bus.  Supported
 	  devices include PCA9550, PCA9551, PCA9552, and PCA9553.
 
+config LEDS_PCA955X_GPIO
+	bool "Enable GPIO support for PCA955X"
+	depends on LEDS_PCA955X
+	depends on GPIOLIB
+	help
+	  Allow unused pins on PCA955X to be used as gpio.
+
+	  To use a pin as gpio the pin type should be set to
+	  PCA955X_TYPE_GPIO in the device tree.
+
+
 config LEDS_PCA963X
 	tristate "LED support for PCA963x I2C chip"
 	depends on LEDS_CLASS
@@ -590,16 +610,6 @@ config LEDS_KTD2692
 
 	  Say Y to enable this driver.
 
-config LEDS_SEAD3
-	tristate "LED support for the MIPS SEAD 3 board"
-	depends on LEDS_CLASS && MIPS_SEAD3
-	help
-	  Say Y here to include support for the FLED and PLED LEDs on SEAD3 eval
-	  boards.
-
-	  This driver can also be built as a module. If so the module
-	  will be called leds-sead3.
-
 config LEDS_IS31FL319X
 	tristate "LED Support for ISSI IS31FL319x I2C LED controller family"
 	depends on LEDS_CLASS && I2C && OF
@@ -650,14 +660,6 @@ config LEDS_SYSCON
 	  This option enabled support for the LEDs on syscon type
 	  devices. This will only work with device tree enabled
 	  devices.
-
-config LEDS_VERSATILE
-	tristate "LED support for the ARM Versatile and RealView"
-	depends on ARCH_REALVIEW || ARCH_VERSATILE
-	depends on LEDS_CLASS
-	help
-	  This option enabled support for the LEDs on the ARM Versatile
-	  and RealView boards. Say Y to enabled these.
 
 config LEDS_PM8058
 	tristate "LED Support for the Qualcomm PM8058 PMIC"

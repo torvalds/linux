@@ -130,9 +130,9 @@ static int atomisp_q_one_metadata_buffer(struct atomisp_sub_device *asd,
 	return 0;
 }
 
-int atomisp_q_one_s3a_buffer(struct atomisp_sub_device *asd,
-				enum atomisp_input_stream_id stream_id,
-				enum atomisp_css_pipe_id css_pipe_id)
+static int atomisp_q_one_s3a_buffer(struct atomisp_sub_device *asd,
+				    enum atomisp_input_stream_id stream_id,
+				    enum atomisp_css_pipe_id css_pipe_id)
 {
 	struct atomisp_s3a_buf *s3a_buf;
 	struct list_head *s3a_list;
@@ -172,9 +172,9 @@ int atomisp_q_one_s3a_buffer(struct atomisp_sub_device *asd,
 	return 0;
 }
 
-int atomisp_q_one_dis_buffer(struct atomisp_sub_device *asd,
-				enum atomisp_input_stream_id stream_id,
-				enum atomisp_css_pipe_id css_pipe_id)
+static int atomisp_q_one_dis_buffer(struct atomisp_sub_device *asd,
+				    enum atomisp_input_stream_id stream_id,
+				    enum atomisp_css_pipe_id css_pipe_id)
 {
 	struct atomisp_dis_buf *dis_buf;
 	unsigned long irqflags;
@@ -643,14 +643,14 @@ static void atomisp_buf_release_output(struct videobuf_queue *vq,
 	vb->state = VIDEOBUF_NEEDS_INIT;
 }
 
-static struct videobuf_queue_ops videobuf_qops = {
+static const struct videobuf_queue_ops videobuf_qops = {
 	.buf_setup	= atomisp_buf_setup,
 	.buf_prepare	= atomisp_buf_prepare,
 	.buf_queue	= atomisp_buf_queue,
 	.buf_release	= atomisp_buf_release,
 };
 
-static struct videobuf_queue_ops videobuf_qops_output = {
+static const struct videobuf_queue_ops videobuf_qops_output = {
 	.buf_setup	= atomisp_buf_setup_output,
 	.buf_prepare	= atomisp_buf_prepare_output,
 	.buf_queue	= atomisp_buf_queue_output,
@@ -744,7 +744,7 @@ static void atomisp_subdev_init_struct(struct atomisp_sub_device *asd)
 /*
  * file operation functions
  */
-unsigned int atomisp_subdev_users(struct atomisp_sub_device *asd)
+static unsigned int atomisp_subdev_users(struct atomisp_sub_device *asd)
 {
 	return asd->video_out_preview.users +
 	       asd->video_out_vf.users +

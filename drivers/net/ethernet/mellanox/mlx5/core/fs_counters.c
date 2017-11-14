@@ -38,6 +38,8 @@
 #include "fs_cmd.h"
 
 #define MLX5_FC_STATS_PERIOD msecs_to_jiffies(1000)
+/* Max number of counters to query in bulk read is 32K */
+#define MLX5_SW_MAX_COUNTERS_BULK BIT(15)
 
 /* locking scheme:
  *
@@ -90,16 +92,21 @@ static void mlx5_fc_stats_insert(struct rb_root *root, struct mlx5_fc *counter)
 	rb_insert_color(&counter->node, root);
 }
 
+/* The function returns the last node that was queried so the caller
+ * function can continue calling it till all counters are queried.
+ */
 static struct rb_node *mlx5_fc_stats_query(struct mlx5_core_dev *dev,
 					   struct mlx5_fc *first,
-					   u16 last_id)
+					   u32 last_id)
 {
 	struct mlx5_cmd_fc_bulk *b;
 	struct rb_node *node = NULL;
-	u16 afirst_id;
+	u32 afirst_id;
 	int num;
 	int err;
-	int max_bulk = 1 << MLX5_CAP_GEN(dev, log_max_flow_counter_bulk);
+
+	int max_bulk = min_t(int, MLX5_SW_MAX_COUNTERS_BULK,
+			     (1 << MLX5_CAP_GEN(dev, log_max_flow_counter_bulk)));
 
 	/* first id must be aligned to 4 when using bulk query */
 	afirst_id = first->id & ~0x3;

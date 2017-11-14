@@ -1,75 +1,78 @@
+# SPDX-License-Identifier: GPL-2.0
 config MIPS
 	bool
 	default y
-	select ARCH_SUPPORTS_UPROBES
+	select ARCH_BINFMT_ELF_STATE
+	select ARCH_CLOCKSOURCE_DATA
+	select ARCH_DISCARD_MEMBLOCK
+	select ARCH_HAS_ELF_RANDOMIZE
+	select ARCH_HAS_TICK_BROADCAST if GENERIC_CLOCKEVENTS_BROADCAST
 	select ARCH_MIGHT_HAVE_PC_PARPORT
 	select ARCH_MIGHT_HAVE_PC_SERIO
-	select ARCH_USE_CMPXCHG_LOCKREF if 64BIT
+	select ARCH_SUPPORTS_UPROBES
 	select ARCH_USE_BUILTIN_BSWAP
-	select HAVE_CONTEXT_TRACKING
-	select HAVE_GENERIC_DMA_COHERENT
-	select HAVE_IDE
-	select HAVE_IRQ_EXIT_ON_IRQ_STACK
-	select HAVE_OPROFILE
-	select HAVE_PERF_EVENTS
-	select PERF_USE_VMALLOC
+	select ARCH_USE_CMPXCHG_LOCKREF if 64BIT
+	select ARCH_USE_QUEUED_RWLOCKS
+	select ARCH_USE_QUEUED_SPINLOCKS
+	select ARCH_WANT_IPC_PARSE_VERSION
+	select BUILDTIME_EXTABLE_SORT
+	select CLONE_BACKWARDS
+	select CPU_PM if CPU_IDLE
+	select GENERIC_ATOMIC64 if !64BIT
+	select GENERIC_CLOCKEVENTS
+	select GENERIC_CMOS_UPDATE
+	select GENERIC_CPU_AUTOPROBE
+	select GENERIC_IRQ_PROBE
+	select GENERIC_IRQ_SHOW
+	select GENERIC_PCI_IOMAP
+	select GENERIC_SCHED_CLOCK if !CAVIUM_OCTEON_SOC
+	select GENERIC_SMP_IDLE_THREAD
+	select GENERIC_TIME_VSYSCALL
+	select HANDLE_DOMAIN_IRQ
+	select HAVE_ARCH_JUMP_LABEL
 	select HAVE_ARCH_KGDB
 	select HAVE_ARCH_MMAP_RND_BITS if MMU
 	select HAVE_ARCH_MMAP_RND_COMPAT_BITS if MMU && COMPAT
 	select HAVE_ARCH_SECCOMP_FILTER
 	select HAVE_ARCH_TRACEHOOK
-	select HAVE_CBPF_JIT if !CPU_MICROMIPS
-	select HAVE_FUNCTION_TRACER
-	select HAVE_DYNAMIC_FTRACE
-	select HAVE_FTRACE_MCOUNT_RECORD
+	select HAVE_ARCH_TRANSPARENT_HUGEPAGE if CPU_SUPPORTS_HUGEPAGES && 64BIT
+	select HAVE_CBPF_JIT if (!64BIT && !CPU_MICROMIPS)
+	select HAVE_EBPF_JIT if (64BIT && !CPU_MICROMIPS)
+	select HAVE_CC_STACKPROTECTOR
+	select HAVE_CONTEXT_TRACKING
+	select HAVE_COPY_THREAD_TLS
 	select HAVE_C_RECORDMCOUNT
+	select HAVE_DEBUG_KMEMLEAK
+	select HAVE_DEBUG_STACKOVERFLOW
+	select HAVE_DMA_API_DEBUG
+	select HAVE_DMA_CONTIGUOUS
+	select HAVE_DYNAMIC_FTRACE
+	select HAVE_EXIT_THREAD
+	select HAVE_FTRACE_MCOUNT_RECORD
 	select HAVE_FUNCTION_GRAPH_TRACER
+	select HAVE_FUNCTION_TRACER
+	select HAVE_GENERIC_DMA_COHERENT
+	select HAVE_IDE
+	select HAVE_IRQ_EXIT_ON_IRQ_STACK
+	select HAVE_IRQ_TIME_ACCOUNTING
 	select HAVE_KPROBES
 	select HAVE_KRETPROBES
-	select HAVE_SYSCALL_TRACEPOINTS
-	select HAVE_DEBUG_KMEMLEAK
-	select HAVE_SYSCALL_TRACEPOINTS
-	select ARCH_HAS_ELF_RANDOMIZE
-	select HAVE_ARCH_TRANSPARENT_HUGEPAGE if CPU_SUPPORTS_HUGEPAGES && 64BIT
-	select RTC_LIB if !MACH_LOONGSON64
-	select GENERIC_ATOMIC64 if !64BIT
-	select HAVE_DMA_CONTIGUOUS
-	select HAVE_DMA_API_DEBUG
-	select GENERIC_IRQ_PROBE
-	select GENERIC_IRQ_SHOW
-	select GENERIC_PCI_IOMAP
-	select HAVE_ARCH_JUMP_LABEL
-	select ARCH_WANT_IPC_PARSE_VERSION
-	select IRQ_FORCED_THREADING
 	select HAVE_MEMBLOCK
 	select HAVE_MEMBLOCK_NODE_MAP
-	select ARCH_DISCARD_MEMBLOCK
-	select GENERIC_SMP_IDLE_THREAD
-	select BUILDTIME_EXTABLE_SORT
-	select GENERIC_CPU_AUTOPROBE
-	select GENERIC_CLOCKEVENTS
-	select GENERIC_SCHED_CLOCK if !CAVIUM_OCTEON_SOC
-	select GENERIC_CMOS_UPDATE
 	select HAVE_MOD_ARCH_SPECIFIC
 	select HAVE_NMI
-	select VIRT_TO_BUS
-	select MODULES_USE_ELF_REL if MODULES
-	select MODULES_USE_ELF_RELA if MODULES && 64BIT
-	select CLONE_BACKWARDS
-	select HAVE_DEBUG_STACKOVERFLOW
-	select HAVE_CC_STACKPROTECTOR
-	select CPU_PM if CPU_IDLE
-	select ARCH_HAS_TICK_BROADCAST if GENERIC_CLOCKEVENTS_BROADCAST
-	select ARCH_BINFMT_ELF_STATE
-	select SYSCTL_EXCEPTION_TRACE
-	select HAVE_VIRT_CPU_ACCOUNTING_GEN
-	select HAVE_IRQ_TIME_ACCOUNTING
-	select GENERIC_TIME_VSYSCALL
-	select ARCH_CLOCKSOURCE_DATA
-	select HANDLE_DOMAIN_IRQ
-	select HAVE_EXIT_THREAD
+	select HAVE_OPROFILE
+	select HAVE_PERF_EVENTS
 	select HAVE_REGS_AND_STACK_ACCESS_API
-	select HAVE_COPY_THREAD_TLS
+	select HAVE_SYSCALL_TRACEPOINTS
+	select HAVE_VIRT_CPU_ACCOUNTING_GEN
+	select IRQ_FORCED_THREADING
+	select MODULES_USE_ELF_RELA if MODULES && 64BIT
+	select MODULES_USE_ELF_REL if MODULES
+	select PERF_USE_VMALLOC
+	select RTC_LIB if !MACH_LOONGSON64
+	select SYSCTL_EXCEPTION_TRACE
+	select VIRT_TO_BUS
 
 menu "Machine selection"
 
@@ -364,6 +367,7 @@ config MACH_INGENIC
 	select SYS_SUPPORTS_ZBOOT_UART16550
 	select DMA_NONCOHERENT
 	select IRQ_MIPS_CPU
+	select PINCTRL
 	select GPIOLIB
 	select COMMON_CLK
 	select GENERIC_IRQ_CHIP
@@ -1178,6 +1182,15 @@ config SYS_SUPPORTS_RELOCATABLE
 	 The platform must provide plat_get_fdt() if it selects CONFIG_USE_OF
 	 to allow access to command line and entropy sources.
 
+config MIPS_CBPF_JIT
+	def_bool y
+	depends on BPF_JIT && HAVE_CBPF_JIT
+
+config MIPS_EBPF_JIT
+	def_bool y
+	depends on BPF_JIT && HAVE_EBPF_JIT
+
+
 #
 # Endianness selection.  Sufficiently obscure so many users don't know what to
 # answer,so we try hard to limit the available choices.  Also the use of a
@@ -1615,14 +1628,6 @@ config CPU_R5500
 	  NEC VR5500 and VR5500A series processors implement 64-bit MIPS IV
 	  instruction set.
 
-config CPU_R6000
-	bool "R6000"
-	depends on SYS_HAS_CPU_R6000
-	select CPU_SUPPORTS_32BIT_KERNEL
-	help
-	  MIPS Technologies R6000 and R6000A series processors.  Note these
-	  processors are extremely rare and the support for them is incomplete.
-
 config CPU_NEVADA
 	bool "RM52xx"
 	depends on SYS_HAS_CPU_NEVADA
@@ -1938,9 +1943,6 @@ config SYS_HAS_CPU_R5432
 config SYS_HAS_CPU_R5500
 	bool
 
-config SYS_HAS_CPU_R6000
-	bool
-
 config SYS_HAS_CPU_NEVADA
 	bool
 
@@ -2061,7 +2063,7 @@ config CPU_SUPPORTS_UNCACHED_ACCELERATED
 	bool
 config MIPS_PGD_C0_CONTEXT
 	bool
-	default y if 64BIT && CPU_MIPSR2 && !CPU_XLP
+	default y if 64BIT && (CPU_MIPSR2 || CPU_MIPSR6) && !CPU_XLP
 
 #
 # Set to y for ptrace access to watch registers.
@@ -2168,7 +2170,7 @@ config PAGE_SIZE_32KB
 
 config PAGE_SIZE_64KB
 	bool "64kB"
-	depends on !CPU_R3000 && !CPU_TX39XX && !CPU_R6000
+	depends on !CPU_R3000 && !CPU_TX39XX
 	help
 	  Using 64kB page size will result in higher performance kernel at
 	  the price of higher memory consumption.  This option is available on
@@ -2236,11 +2238,11 @@ config CPU_HAS_PREFETCH
 
 config CPU_GENERIC_DUMP_TLB
 	bool
-	default y if !(CPU_R3000 || CPU_R6000 || CPU_R8000 || CPU_TX39XX)
+	default y if !(CPU_R3000 || CPU_R8000 || CPU_TX39XX)
 
 config CPU_R4K_FPU
 	bool
-	default y if !(CPU_R3000 || CPU_R6000 || CPU_TX39XX || CPU_CAVIUM_OCTEON)
+	default y if !(CPU_R3000 || CPU_TX39XX)
 
 config CPU_R4K_CACHE_TLB
 	bool
@@ -2248,7 +2250,8 @@ config CPU_R4K_CACHE_TLB
 
 config MIPS_MT_SMP
 	bool "MIPS MT SMP support (1 TC on each available VPE)"
-	depends on SYS_SUPPORTS_MULTITHREADING && !CPU_MIPSR6
+	default y
+	depends on SYS_SUPPORTS_MULTITHREADING && !CPU_MIPSR6 && !CPU_MICROMIPS
 	select CPU_MIPSR2_IRQ_VI
 	select CPU_MIPSR2_IRQ_EI
 	select SYNC_R4K
@@ -2364,11 +2367,11 @@ config MIPS_CPS
 	bool "MIPS Coherent Processing System support"
 	depends on SYS_SUPPORTS_MIPS_CPS
 	select MIPS_CM
-	select MIPS_CPC
 	select MIPS_CPS_PM if HOTPLUG_CPU
 	select SMP
 	select SYNC_R4K if (CEVT_R4K || CSRC_R4K)
 	select SYS_SUPPORTS_HOTPLUG_CPU
+	select SYS_SUPPORTS_SCHED_SMT if CPU_MIPSR6
 	select SYS_SUPPORTS_SMP
 	select WEAK_ORDERING
 	help
@@ -2380,11 +2383,11 @@ config MIPS_CPS
 
 config MIPS_CPS_PM
 	depends on MIPS_CPS
-	select MIPS_CPC
 	bool
 
 config MIPS_CM
 	bool
+	select MIPS_CPC
 
 config MIPS_CPC
 	bool

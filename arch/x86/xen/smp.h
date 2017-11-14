@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _XEN_SMP_H
 
 #ifdef CONFIG_SMP
@@ -13,6 +14,8 @@ extern int xen_smp_intr_init(unsigned int cpu);
 extern void xen_smp_intr_free(unsigned int cpu);
 int xen_smp_intr_init_pv(unsigned int cpu);
 void xen_smp_intr_free_pv(unsigned int cpu);
+
+void xen_smp_cpus_done(unsigned int max_cpus);
 
 void xen_smp_send_reschedule(int cpu);
 void xen_smp_send_call_function_ipi(const struct cpumask *mask);

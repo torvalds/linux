@@ -14,7 +14,6 @@
 / {
 	/* these are used by bootloader for disabling nodes */
 	aliases {
-		ethernet1 = &eth1;
 		led0 = &led0;
 		led1 = &led1;
 		led2 = &led2;
@@ -379,10 +378,6 @@
 	pinctrl-0 = <&pinctrl_pcie>;
 	reset-gpio = <&gpio1 29 GPIO_ACTIVE_LOW>;
 	status = "okay";
-
-	eth1: sky2@8 { /* MAC/PHY on bus 8 */
-		compatible = "marvell,sky2";
-	};
 };
 
 &pwm1 {
@@ -421,7 +416,6 @@
 &uart1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart1>;
-	uart-has-rtscts;
 	rts-gpios = <&gpio7 1 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 };

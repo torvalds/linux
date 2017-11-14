@@ -66,6 +66,7 @@
 #include <linux/spinlock.h>
 #include <linux/string.h>
 #include <linux/workqueue.h>
+#include <linux/interrupt.h>
 
 #include <net/ieee802154_netdev.h>
 #include <net/mac802154.h>
@@ -912,17 +913,15 @@ static int ca8210_spi_transfer(
 )
 {
 	int i, status = 0;
-	struct ca8210_priv *priv = spi_get_drvdata(spi);
+	struct ca8210_priv *priv;
 	struct cas_control *cas_ctl;
 
 	if (!spi) {
-		dev_crit(
-			&spi->dev,
-			"NULL spi device passed to ca8210_spi_transfer\n"
-		);
+		pr_crit("NULL spi device passed to %s\n", __func__);
 		return -ENODEV;
 	}
 
+	priv = spi_get_drvdata(spi);
 	reinit_completion(&priv->spi_transfer_complete);
 
 	dev_dbg(&spi->dev, "ca8210_spi_transfer called\n");
@@ -1808,10 +1807,9 @@ static int ca8210_skb_rx(
 
 	/* Allocate mtu size buffer for every rx packet */
 	skb = dev_alloc_skb(IEEE802154_MTU + sizeof(hdr));
-	if (!skb) {
-		dev_crit(&priv->spi->dev, "dev_alloc_skb failed\n");
+	if (!skb)
 		return -ENOMEM;
-	}
+
 	skb_reserve(skb, sizeof(hdr));
 
 	msdulen = data_ind[22]; /* msdu_length */
@@ -1875,7 +1873,7 @@ static int ca8210_skb_rx(
 copy_payload:
 	/* Add <msdulen> bytes of space to the back of the buffer */
 	/* Copy msdu to skb */
-	memcpy(skb_put(skb, msdulen), &data_ind[29], msdulen);
+	skb_put_data(skb, &data_ind[29], msdulen);
 
 	ieee802154_rx_irqsafe(hw, skb, mpdulinkquality);
 	return 0;
@@ -3143,10 +3141,6 @@ static int ca8210_probe(struct spi_device *spi_device)
 
 	pdata = kmalloc(sizeof(*pdata), GFP_KERNEL);
 	if (!pdata) {
-		dev_crit(
-			&spi_device->dev,
-			"Could not allocate platform data\n"
-		);
 		ret = -ENOMEM;
 		goto error;
 	}

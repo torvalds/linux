@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 # ==========================================================================
 # Building
 # ==========================================================================
@@ -229,8 +230,8 @@ ifeq ("$(origin RECORDMCOUNT_WARN)", "command line")
 endif
 # Due to recursion, we must skip empty.o.
 # The empty.o file is created in the make process in order to determine
-#  the target endianness and word size. It is made before all other C
-#  files, including recordmcount.
+# the target endianness and word size. It is made before all other C
+# files, including recordmcount.
 sub_cmd_record_mcount =					\
 	if [ $(@) != "scripts/mod/empty.o" ]; then	\
 		$(objtree)/scripts/recordmcount $(RECORDMCOUNT_FLAGS) "$(@)";	\
@@ -245,22 +246,28 @@ sub_cmd_record_mcount = set -e ; perl $(srctree)/scripts/recordmcount.pl "$(ARCH
 	"$(LD)" "$(NM)" "$(RM)" "$(MV)" \
 	"$(if $(part-of-module),1,0)" "$(@)";
 recordmcount_source := $(srctree)/scripts/recordmcount.pl
-endif
+endif # BUILD_C_RECORDMCOUNT
 cmd_record_mcount =						\
 	if [ "$(findstring $(CC_FLAGS_FTRACE),$(_c_flags))" =	\
 	     "$(CC_FLAGS_FTRACE)" ]; then			\
 		$(sub_cmd_record_mcount)			\
 	fi;
-endif
+endif # CONFIG_FTRACE_MCOUNT_RECORD
 
 ifdef CONFIG_STACK_VALIDATION
 ifneq ($(SKIP_STACK_VALIDATION),1)
 
 __objtool_obj := $(objtree)/tools/objtool/objtool
 
-objtool_args = check
+objtool_args = $(if $(CONFIG_ORC_UNWINDER),orc generate,check)
+
 ifndef CONFIG_FRAME_POINTER
 objtool_args += --no-fp
+endif
+ifdef CONFIG_GCOV_KERNEL
+objtool_args += --no-unreachable
+else
+objtool_args += $(call cc-ifversion, -lt, 0405, --no-unreachable)
 endif
 
 # 'OBJECT_FILES_NON_STANDARD := y': skip objtool checking for a directory
@@ -275,6 +282,11 @@ objtool_obj = $(if $(patsubst y%,, \
 
 endif # SKIP_STACK_VALIDATION
 endif # CONFIG_STACK_VALIDATION
+
+# Rebuild all objects when objtool changes, or is enabled/disabled.
+objtool_dep = $(objtool_obj)					\
+	      $(wildcard include/config/orc/unwinder.h		\
+			 include/config/stack/validation.h)
 
 define rule_cc_o_c
 	$(call echo-cmd,checksrc) $(cmd_checksrc)			  \
@@ -298,13 +310,13 @@ cmd_undef_syms = echo
 endif
 
 # Built-in and composite module parts
-$(obj)/%.o: $(src)/%.c $(recordmcount_source) $(objtool_obj) FORCE
+$(obj)/%.o: $(src)/%.c $(recordmcount_source) $(objtool_dep) FORCE
 	$(call cmd,force_checksrc)
 	$(call if_changed_rule,cc_o_c)
 
 # Single-part modules are special since we need to mark them in $(MODVERDIR)
 
-$(single-used-m): $(obj)/%.o: $(src)/%.c $(recordmcount_source) $(objtool_obj) FORCE
+$(single-used-m): $(obj)/%.o: $(src)/%.c $(recordmcount_source) $(objtool_dep) FORCE
 	$(call cmd,force_checksrc)
 	$(call if_changed_rule,cc_o_c)
 	@{ echo $(@:.o=.ko); echo $@; \
@@ -399,7 +411,7 @@ cmd_modversions_S =								\
 endif
 endif
 
-$(obj)/%.o: $(src)/%.S $(objtool_obj) FORCE
+$(obj)/%.o: $(src)/%.S $(objtool_dep) FORCE
 	$(call if_changed_rule,as_o_S)
 
 targets += $(real-objs-y) $(real-objs-m) $(lib-y)
@@ -408,7 +420,7 @@ targets += $(extra-y) $(MAKECMDGOALS) $(always)
 # Linker scripts preprocessor (.lds.S -> .lds)
 # ---------------------------------------------------------------------------
 quiet_cmd_cpp_lds_S = LDS     $@
-      cmd_cpp_lds_S = $(CPP) $(cpp_flags) -P -C -U$(ARCH) \
+      cmd_cpp_lds_S = $(CPP) $(cpp_flags) -P -U$(ARCH) \
 	                     -D__ASSEMBLY__ -DLINKER_SCRIPT -o $@ $<
 
 $(obj)/%.lds: $(src)/%.lds.S FORCE
@@ -437,8 +449,8 @@ $(sort $(subdir-obj-y)): $(subdir-ym) ;
 ifdef builtin-target
 
 ifdef CONFIG_THIN_ARCHIVES
-  cmd_make_builtin = rm -f $@; $(AR) rcST$(KBUILD_ARFLAGS)
-  cmd_make_empty_builtin = rm -f $@; $(AR) rcST$(KBUILD_ARFLAGS)
+  cmd_make_builtin = rm -f $@; $(AR) rcSTP$(KBUILD_ARFLAGS)
+  cmd_make_empty_builtin = rm -f $@; $(AR) rcSTP$(KBUILD_ARFLAGS)
   quiet_cmd_link_o_target = AR      $@
 else
   cmd_make_builtin = $(LD) $(ld_flags) -r -o
@@ -478,7 +490,7 @@ ifdef lib-target
 quiet_cmd_link_l_target = AR      $@
 
 ifdef CONFIG_THIN_ARCHIVES
-  cmd_link_l_target = rm -f $@; $(AR) rcsT$(KBUILD_ARFLAGS) $@ $(lib-y)
+  cmd_link_l_target = rm -f $@; $(AR) rcsTP$(KBUILD_ARFLAGS) $@ $(lib-y)
 else
   cmd_link_l_target = rm -f $@; $(AR) rcs$(KBUILD_ARFLAGS) $@ $(lib-y)
 endif
@@ -531,7 +543,7 @@ cmd_link_multi-link = $(LD) $(ld_flags) -r -o $@ $(link_multi_deps) $(cmd_secana
 
 ifdef CONFIG_THIN_ARCHIVES
   quiet_cmd_link_multi-y = AR      $@
-  cmd_link_multi-y = rm -f $@; $(AR) rcST$(KBUILD_ARFLAGS) $@ $(link_multi_deps)
+  cmd_link_multi-y = rm -f $@; $(AR) rcSTP$(KBUILD_ARFLAGS) $@ $(link_multi_deps)
 else
   quiet_cmd_link_multi-y = LD      $@
   cmd_link_multi-y = $(cmd_link_multi-link)

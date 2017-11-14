@@ -680,6 +680,9 @@ static void ravb_emac_interrupt_unlocked(struct net_device *ndev)
 
 	ecsr = ravb_read(ndev, ECSR);
 	ravb_write(ndev, ecsr, ECSR);	/* clear interrupt */
+
+	if (ecsr & ECSR_MPD)
+		pm_wakeup_event(&priv->pdev->dev, 0);
 	if (ecsr & ECSR_ICD)
 		ndev->stats.tx_carrier_errors++;
 	if (ecsr & ECSR_LCHNG) {
@@ -1076,16 +1079,16 @@ static int ravb_get_link_ksettings(struct net_device *ndev,
 				   struct ethtool_link_ksettings *cmd)
 {
 	struct ravb_private *priv = netdev_priv(ndev);
-	int error = -ENODEV;
 	unsigned long flags;
 
-	if (ndev->phydev) {
-		spin_lock_irqsave(&priv->lock, flags);
-		error = phy_ethtool_ksettings_get(ndev->phydev, cmd);
-		spin_unlock_irqrestore(&priv->lock, flags);
-	}
+	if (!ndev->phydev)
+		return -ENODEV;
 
-	return error;
+	spin_lock_irqsave(&priv->lock, flags);
+	phy_ethtool_ksettings_get(ndev->phydev, cmd);
+	spin_unlock_irqrestore(&priv->lock, flags);
+
+	return 0;
 }
 
 static int ravb_set_link_ksettings(struct net_device *ndev,
@@ -1330,6 +1333,33 @@ static int ravb_get_ts_info(struct net_device *ndev,
 	return 0;
 }
 
+static void ravb_get_wol(struct net_device *ndev, struct ethtool_wolinfo *wol)
+{
+	struct ravb_private *priv = netdev_priv(ndev);
+
+	wol->supported = 0;
+	wol->wolopts = 0;
+
+	if (priv->clk) {
+		wol->supported = WAKE_MAGIC;
+		wol->wolopts = priv->wol_enabled ? WAKE_MAGIC : 0;
+	}
+}
+
+static int ravb_set_wol(struct net_device *ndev, struct ethtool_wolinfo *wol)
+{
+	struct ravb_private *priv = netdev_priv(ndev);
+
+	if (!priv->clk || wol->wolopts & ~WAKE_MAGIC)
+		return -EOPNOTSUPP;
+
+	priv->wol_enabled = !!(wol->wolopts & WAKE_MAGIC);
+
+	device_set_wakeup_enable(&priv->pdev->dev, priv->wol_enabled);
+
+	return 0;
+}
+
 static const struct ethtool_ops ravb_ethtool_ops = {
 	.nway_reset		= ravb_nway_reset,
 	.get_msglevel		= ravb_get_msglevel,
@@ -1343,6 +1373,8 @@ static const struct ethtool_ops ravb_ethtool_ops = {
 	.get_ts_info		= ravb_get_ts_info,
 	.get_link_ksettings	= ravb_get_link_ksettings,
 	.set_link_ksettings	= ravb_set_link_ksettings,
+	.get_wol		= ravb_get_wol,
+	.set_wol		= ravb_set_wol,
 };
 
 static inline int ravb_hook_irq(unsigned int irq, irq_handler_t handler,
@@ -2041,6 +2073,11 @@ static int ravb_probe(struct platform_device *pdev)
 
 	priv->chip_id = chip_id;
 
+	/* Get clock, if not found that's OK but Wake-On-Lan is unavailable */
+	priv->clk = devm_clk_get(&pdev->dev, NULL);
+	if (IS_ERR(priv->clk))
+		priv->clk = NULL;
+
 	/* Set function */
 	ndev->netdev_ops = &ravb_netdev_ops;
 	ndev->ethtool_ops = &ravb_ethtool_ops;
@@ -2107,6 +2144,9 @@ static int ravb_probe(struct platform_device *pdev)
 	if (error)
 		goto out_napi_del;
 
+	if (priv->clk)
+		device_set_wakeup_capable(&pdev->dev, 1);
+
 	/* Print device information */
 	netdev_info(ndev, "Base address at %#x, %pM, IRQ %d.\n",
 		    (u32)ndev->base_addr, ndev->dev_addr, ndev->irq);
@@ -2160,15 +2200,66 @@ static int ravb_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static int ravb_wol_setup(struct net_device *ndev)
+{
+	struct ravb_private *priv = netdev_priv(ndev);
+
+	/* Disable interrupts by clearing the interrupt masks. */
+	ravb_write(ndev, 0, RIC0);
+	ravb_write(ndev, 0, RIC2);
+	ravb_write(ndev, 0, TIC);
+
+	/* Only allow ECI interrupts */
+	synchronize_irq(priv->emac_irq);
+	napi_disable(&priv->napi[RAVB_NC]);
+	napi_disable(&priv->napi[RAVB_BE]);
+	ravb_write(ndev, ECSIPR_MPDIP, ECSIPR);
+
+	/* Enable MagicPacket */
+	ravb_modify(ndev, ECMR, ECMR_MPDE, ECMR_MPDE);
+
+	/* Increased clock usage so device won't be suspended */
+	clk_enable(priv->clk);
+
+	return enable_irq_wake(priv->emac_irq);
+}
+
+static int ravb_wol_restore(struct net_device *ndev)
+{
+	struct ravb_private *priv = netdev_priv(ndev);
+	int ret;
+
+	napi_enable(&priv->napi[RAVB_NC]);
+	napi_enable(&priv->napi[RAVB_BE]);
+
+	/* Disable MagicPacket */
+	ravb_modify(ndev, ECMR, ECMR_MPDE, 0);
+
+	ret = ravb_close(ndev);
+	if (ret < 0)
+		return ret;
+
+	/* Restore clock usage count */
+	clk_disable(priv->clk);
+
+	return disable_irq_wake(priv->emac_irq);
+}
+
 static int __maybe_unused ravb_suspend(struct device *dev)
 {
 	struct net_device *ndev = dev_get_drvdata(dev);
-	int ret = 0;
+	struct ravb_private *priv = netdev_priv(ndev);
+	int ret;
 
-	if (netif_running(ndev)) {
-		netif_device_detach(ndev);
+	if (!netif_running(ndev))
+		return 0;
+
+	netif_device_detach(ndev);
+
+	if (priv->wol_enabled)
+		ret = ravb_wol_setup(ndev);
+	else
 		ret = ravb_close(ndev);
-	}
 
 	return ret;
 }
@@ -2178,6 +2269,33 @@ static int __maybe_unused ravb_resume(struct device *dev)
 	struct net_device *ndev = dev_get_drvdata(dev);
 	struct ravb_private *priv = netdev_priv(ndev);
 	int ret = 0;
+
+	if (priv->wol_enabled) {
+		/* Reduce the usecount of the clock to zero and then
+		 * restore it to its original value. This is done to force
+		 * the clock to be re-enabled which is a workaround
+		 * for renesas-cpg-mssr driver which do not enable clocks
+		 * when resuming from PSCI suspend/resume.
+		 *
+		 * Without this workaround the driver fails to communicate
+		 * with the hardware if WoL was enabled when the system
+		 * entered PSCI suspend. This is due to that if WoL is enabled
+		 * we explicitly keep the clock from being turned off when
+		 * suspending, but in PSCI sleep power is cut so the clock
+		 * is disabled anyhow, the clock driver is not aware of this
+		 * so the clock is not turned back on when resuming.
+		 *
+		 * TODO: once the renesas-cpg-mssr suspend/resume is working
+		 *       this clock dance should be removed.
+		 */
+		clk_disable(priv->clk);
+		clk_disable(priv->clk);
+		clk_enable(priv->clk);
+		clk_enable(priv->clk);
+
+		/* Set reset mode to rearm the WoL logic */
+		ravb_write(ndev, CCC_OPC_RESET, CCC);
+	}
 
 	/* All register have been reset to default values.
 	 * Restore all registers which where setup at probe time and
@@ -2202,6 +2320,11 @@ static int __maybe_unused ravb_resume(struct device *dev)
 	ravb_write(ndev, priv->desc_bat_dma, DBAT);
 
 	if (netif_running(ndev)) {
+		if (priv->wol_enabled) {
+			ret = ravb_wol_restore(ndev);
+			if (ret)
+				return ret;
+		}
 		ret = ravb_open(ndev);
 		if (ret < 0)
 			return ret;

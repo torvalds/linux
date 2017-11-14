@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * linux/fs/nfs/callback_xdr.c
  *
@@ -43,32 +44,27 @@
 /* Internal error code */
 #define NFS4ERR_RESOURCE_HDR	11050
 
-typedef __be32 (*callback_process_op_t)(void *, void *,
-					struct cb_process_state *);
-typedef __be32 (*callback_decode_arg_t)(struct svc_rqst *, struct xdr_stream *, void *);
-typedef __be32 (*callback_encode_res_t)(struct svc_rqst *, struct xdr_stream *, void *);
-
-
 struct callback_op {
-	callback_process_op_t process_op;
-	callback_decode_arg_t decode_args;
-	callback_encode_res_t encode_res;
+	__be32 (*process_op)(void *, void *, struct cb_process_state *);
+	__be32 (*decode_args)(struct svc_rqst *, struct xdr_stream *, void *);
+	__be32 (*encode_res)(struct svc_rqst *, struct xdr_stream *,
+			const void *);
 	long res_maxsize;
 };
 
 static struct callback_op callback_ops[];
 
-static __be32 nfs4_callback_null(struct svc_rqst *rqstp, void *argp, void *resp)
+static __be32 nfs4_callback_null(struct svc_rqst *rqstp)
 {
 	return htonl(NFS4_OK);
 }
 
-static int nfs4_decode_void(struct svc_rqst *rqstp, __be32 *p, void *dummy)
+static int nfs4_decode_void(struct svc_rqst *rqstp, __be32 *p)
 {
 	return xdr_argsize_check(rqstp, p);
 }
 
-static int nfs4_encode_void(struct svc_rqst *rqstp, __be32 *p, void *dummy)
+static int nfs4_encode_void(struct svc_rqst *rqstp, __be32 *p)
 {
 	return xdr_ressize_check(rqstp, p);
 }
@@ -184,8 +180,10 @@ static __be32 decode_op_hdr(struct xdr_stream *xdr, unsigned int *op)
 	return 0;
 }
 
-static __be32 decode_getattr_args(struct svc_rqst *rqstp, struct xdr_stream *xdr, struct cb_getattrargs *args)
+static __be32 decode_getattr_args(struct svc_rqst *rqstp,
+		struct xdr_stream *xdr, void *argp)
 {
+	struct cb_getattrargs *args = argp;
 	__be32 status;
 
 	status = decode_fh(xdr, &args->fh);
@@ -194,8 +192,10 @@ static __be32 decode_getattr_args(struct svc_rqst *rqstp, struct xdr_stream *xdr
 	return decode_bitmap(xdr, args->bitmap);
 }
 
-static __be32 decode_recall_args(struct svc_rqst *rqstp, struct xdr_stream *xdr, struct cb_recallargs *args)
+static __be32 decode_recall_args(struct svc_rqst *rqstp,
+		struct xdr_stream *xdr, void *argp)
 {
+	struct cb_recallargs *args = argp;
 	__be32 *p;
 	__be32 status;
 
@@ -217,9 +217,9 @@ static __be32 decode_layout_stateid(struct xdr_stream *xdr, nfs4_stateid *statei
 }
 
 static __be32 decode_layoutrecall_args(struct svc_rqst *rqstp,
-				       struct xdr_stream *xdr,
-				       struct cb_layoutrecallargs *args)
+				       struct xdr_stream *xdr, void *argp)
 {
+	struct cb_layoutrecallargs *args = argp;
 	__be32 *p;
 	__be32 status = 0;
 	uint32_t iomode;
@@ -262,8 +262,9 @@ static __be32 decode_layoutrecall_args(struct svc_rqst *rqstp,
 static
 __be32 decode_devicenotify_args(struct svc_rqst *rqstp,
 				struct xdr_stream *xdr,
-				struct cb_devicenotifyargs *args)
+				void *argp)
 {
+	struct cb_devicenotifyargs *args = argp;
 	__be32 *p;
 	__be32 status = 0;
 	u32 tmp;
@@ -403,8 +404,9 @@ out:
 
 static __be32 decode_cb_sequence_args(struct svc_rqst *rqstp,
 					struct xdr_stream *xdr,
-					struct cb_sequenceargs *args)
+					void *argp)
 {
+	struct cb_sequenceargs *args = argp;
 	__be32 *p;
 	int i;
 	__be32 status;
@@ -450,8 +452,9 @@ out_free:
 
 static __be32 decode_recallany_args(struct svc_rqst *rqstp,
 				      struct xdr_stream *xdr,
-				      struct cb_recallanyargs *args)
+				      void *argp)
 {
+	struct cb_recallanyargs *args = argp;
 	uint32_t bitmap[2];
 	__be32 *p, status;
 
@@ -469,8 +472,9 @@ static __be32 decode_recallany_args(struct svc_rqst *rqstp,
 
 static __be32 decode_recallslot_args(struct svc_rqst *rqstp,
 					struct xdr_stream *xdr,
-					struct cb_recallslotargs *args)
+					void *argp)
 {
+	struct cb_recallslotargs *args = argp;
 	__be32 *p;
 
 	p = read_buf(xdr, 4);
@@ -510,8 +514,10 @@ static __be32 decode_lockowner(struct xdr_stream *xdr, struct cb_notify_lock_arg
 	return 0;
 }
 
-static __be32 decode_notify_lock_args(struct svc_rqst *rqstp, struct xdr_stream *xdr, struct cb_notify_lock_args *args)
+static __be32 decode_notify_lock_args(struct svc_rqst *rqstp,
+		struct xdr_stream *xdr, void *argp)
 {
+	struct cb_notify_lock_args *args = argp;
 	__be32 status;
 
 	status = decode_fh(xdr, &args->cbnl_fh);
@@ -641,8 +647,10 @@ static __be32 encode_op_hdr(struct xdr_stream *xdr, uint32_t op, __be32 res)
 	return 0;
 }
 
-static __be32 encode_getattr_res(struct svc_rqst *rqstp, struct xdr_stream *xdr, const struct cb_getattrres *res)
+static __be32 encode_getattr_res(struct svc_rqst *rqstp, struct xdr_stream *xdr,
+		const void *resp)
 {
+	const struct cb_getattrres *res = resp;
 	__be32 *savep = NULL;
 	__be32 status = res->status;
 	
@@ -683,8 +691,9 @@ static __be32 encode_sessionid(struct xdr_stream *xdr,
 
 static __be32 encode_cb_sequence_res(struct svc_rqst *rqstp,
 				       struct xdr_stream *xdr,
-				       const struct cb_sequenceres *res)
+				       const void *resp)
 {
+	const struct cb_sequenceres *res = resp;
 	__be32 *p;
 	__be32 status = res->csr_status;
 
@@ -871,7 +880,7 @@ encode_hdr:
 /*
  * Decode, process and encode a COMPOUND
  */
-static __be32 nfs4_callback_compound(struct svc_rqst *rqstp, void *argp, void *resp)
+static __be32 nfs4_callback_compound(struct svc_rqst *rqstp)
 {
 	struct cb_compound_hdr_arg hdr_arg = { 0 };
 	struct cb_compound_hdr_res hdr_res = { NULL };
@@ -907,7 +916,8 @@ static __be32 nfs4_callback_compound(struct svc_rqst *rqstp, void *argp, void *r
 
 	while (status == 0 && nops != hdr_arg.nops) {
 		status = process_op(nops, rqstp, &xdr_in,
-				    argp, &xdr_out, resp, &cps);
+				    rqstp->rq_argp, &xdr_out, rqstp->rq_resp,
+				    &cps);
 		nops++;
 	}
 
@@ -937,48 +947,46 @@ static struct callback_op callback_ops[] = {
 		.res_maxsize = CB_OP_HDR_RES_MAXSZ,
 	},
 	[OP_CB_GETATTR] = {
-		.process_op = (callback_process_op_t)nfs4_callback_getattr,
-		.decode_args = (callback_decode_arg_t)decode_getattr_args,
-		.encode_res = (callback_encode_res_t)encode_getattr_res,
+		.process_op = nfs4_callback_getattr,
+		.decode_args = decode_getattr_args,
+		.encode_res = encode_getattr_res,
 		.res_maxsize = CB_OP_GETATTR_RES_MAXSZ,
 	},
 	[OP_CB_RECALL] = {
-		.process_op = (callback_process_op_t)nfs4_callback_recall,
-		.decode_args = (callback_decode_arg_t)decode_recall_args,
+		.process_op = nfs4_callback_recall,
+		.decode_args = decode_recall_args,
 		.res_maxsize = CB_OP_RECALL_RES_MAXSZ,
 	},
 #if defined(CONFIG_NFS_V4_1)
 	[OP_CB_LAYOUTRECALL] = {
-		.process_op = (callback_process_op_t)nfs4_callback_layoutrecall,
-		.decode_args =
-			(callback_decode_arg_t)decode_layoutrecall_args,
+		.process_op = nfs4_callback_layoutrecall,
+		.decode_args = decode_layoutrecall_args,
 		.res_maxsize = CB_OP_LAYOUTRECALL_RES_MAXSZ,
 	},
 	[OP_CB_NOTIFY_DEVICEID] = {
-		.process_op = (callback_process_op_t)nfs4_callback_devicenotify,
-		.decode_args =
-			(callback_decode_arg_t)decode_devicenotify_args,
+		.process_op = nfs4_callback_devicenotify,
+		.decode_args = decode_devicenotify_args,
 		.res_maxsize = CB_OP_DEVICENOTIFY_RES_MAXSZ,
 	},
 	[OP_CB_SEQUENCE] = {
-		.process_op = (callback_process_op_t)nfs4_callback_sequence,
-		.decode_args = (callback_decode_arg_t)decode_cb_sequence_args,
-		.encode_res = (callback_encode_res_t)encode_cb_sequence_res,
+		.process_op = nfs4_callback_sequence,
+		.decode_args = decode_cb_sequence_args,
+		.encode_res = encode_cb_sequence_res,
 		.res_maxsize = CB_OP_SEQUENCE_RES_MAXSZ,
 	},
 	[OP_CB_RECALL_ANY] = {
-		.process_op = (callback_process_op_t)nfs4_callback_recallany,
-		.decode_args = (callback_decode_arg_t)decode_recallany_args,
+		.process_op = nfs4_callback_recallany,
+		.decode_args = decode_recallany_args,
 		.res_maxsize = CB_OP_RECALLANY_RES_MAXSZ,
 	},
 	[OP_CB_RECALL_SLOT] = {
-		.process_op = (callback_process_op_t)nfs4_callback_recallslot,
-		.decode_args = (callback_decode_arg_t)decode_recallslot_args,
+		.process_op = nfs4_callback_recallslot,
+		.decode_args = decode_recallslot_args,
 		.res_maxsize = CB_OP_RECALLSLOT_RES_MAXSZ,
 	},
 	[OP_CB_NOTIFY_LOCK] = {
-		.process_op = (callback_process_op_t)nfs4_callback_notify_lock,
-		.decode_args = (callback_decode_arg_t)decode_notify_lock_args,
+		.process_op = nfs4_callback_notify_lock,
+		.decode_args = decode_notify_lock_args,
 		.res_maxsize = CB_OP_NOTIFY_LOCK_RES_MAXSZ,
 	},
 #endif /* CONFIG_NFS_V4_1 */
@@ -987,36 +995,40 @@ static struct callback_op callback_ops[] = {
 /*
  * Define NFS4 callback procedures
  */
-static struct svc_procedure nfs4_callback_procedures1[] = {
+static const struct svc_procedure nfs4_callback_procedures1[] = {
 	[CB_NULL] = {
 		.pc_func = nfs4_callback_null,
-		.pc_decode = (kxdrproc_t)nfs4_decode_void,
-		.pc_encode = (kxdrproc_t)nfs4_encode_void,
+		.pc_decode = nfs4_decode_void,
+		.pc_encode = nfs4_encode_void,
 		.pc_xdrressize = 1,
 	},
 	[CB_COMPOUND] = {
 		.pc_func = nfs4_callback_compound,
-		.pc_encode = (kxdrproc_t)nfs4_encode_void,
+		.pc_encode = nfs4_encode_void,
 		.pc_argsize = 256,
 		.pc_ressize = 256,
 		.pc_xdrressize = NFS4_CALLBACK_BUFSIZE,
 	}
 };
 
-struct svc_version nfs4_callback_version1 = {
+static unsigned int nfs4_callback_count1[ARRAY_SIZE(nfs4_callback_procedures1)];
+const struct svc_version nfs4_callback_version1 = {
 	.vs_vers = 1,
 	.vs_nproc = ARRAY_SIZE(nfs4_callback_procedures1),
 	.vs_proc = nfs4_callback_procedures1,
+	.vs_count = nfs4_callback_count1,
 	.vs_xdrsize = NFS4_CALLBACK_XDRSIZE,
 	.vs_dispatch = NULL,
 	.vs_hidden = true,
 	.vs_need_cong_ctrl = true,
 };
 
-struct svc_version nfs4_callback_version4 = {
+static unsigned int nfs4_callback_count4[ARRAY_SIZE(nfs4_callback_procedures1)];
+const struct svc_version nfs4_callback_version4 = {
 	.vs_vers = 4,
 	.vs_nproc = ARRAY_SIZE(nfs4_callback_procedures1),
 	.vs_proc = nfs4_callback_procedures1,
+	.vs_count = nfs4_callback_count4,
 	.vs_xdrsize = NFS4_CALLBACK_XDRSIZE,
 	.vs_dispatch = NULL,
 	.vs_hidden = true,

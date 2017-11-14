@@ -31,7 +31,7 @@ static void arcpgu_fb_output_poll_changed(struct drm_device *dev)
 	drm_fbdev_cma_hotplug_event(arcpgu->fbdev);
 }
 
-static struct drm_mode_config_funcs arcpgu_drm_modecfg_funcs = {
+static const struct drm_mode_config_funcs arcpgu_drm_modecfg_funcs = {
 	.fb_create  = drm_fb_cma_create,
 	.output_poll_changed = arcpgu_fb_output_poll_changed,
 	.atomic_check = drm_atomic_helper_check,
@@ -48,29 +48,7 @@ static void arcpgu_setup_mode_config(struct drm_device *drm)
 	drm->mode_config.funcs = &arcpgu_drm_modecfg_funcs;
 }
 
-static int arcpgu_gem_mmap(struct file *filp, struct vm_area_struct *vma)
-{
-	int ret;
-
-	ret = drm_gem_mmap(filp, vma);
-	if (ret)
-		return ret;
-
-	vma->vm_page_prot = pgprot_noncached(vm_get_page_prot(vma->vm_flags));
-	return 0;
-}
-
-static const struct file_operations arcpgu_drm_ops = {
-	.owner = THIS_MODULE,
-	.open = drm_open,
-	.release = drm_release,
-	.unlocked_ioctl = drm_ioctl,
-	.compat_ioctl = drm_compat_ioctl,
-	.poll = drm_poll,
-	.read = drm_read,
-	.llseek = no_llseek,
-	.mmap = arcpgu_gem_mmap,
-};
+DEFINE_DRM_GEM_CMA_FOPS(arcpgu_drm_ops);
 
 static void arcpgu_lastclose(struct drm_device *drm)
 {
@@ -142,7 +120,7 @@ static int arcpgu_load(struct drm_device *drm)
 		return -ENODEV;
 	}
 
-	platform_set_drvdata(pdev, arcpgu);
+	platform_set_drvdata(pdev, drm);
 	return 0;
 }
 
@@ -155,17 +133,42 @@ static int arcpgu_unload(struct drm_device *drm)
 		arcpgu->fbdev = NULL;
 	}
 	drm_kms_helper_poll_fini(drm);
-	drm_vblank_cleanup(drm);
 	drm_mode_config_cleanup(drm);
 
 	return 0;
 }
 
+#ifdef CONFIG_DEBUG_FS
+static int arcpgu_show_pxlclock(struct seq_file *m, void *arg)
+{
+	struct drm_info_node *node = (struct drm_info_node *)m->private;
+	struct drm_device *drm = node->minor->dev;
+	struct arcpgu_drm_private *arcpgu = drm->dev_private;
+	unsigned long clkrate = clk_get_rate(arcpgu->clk);
+	unsigned long mode_clock = arcpgu->crtc.mode.crtc_clock * 1000;
+
+	seq_printf(m, "hw  : %lu\n", clkrate);
+	seq_printf(m, "mode: %lu\n", mode_clock);
+	return 0;
+}
+
+static struct drm_info_list arcpgu_debugfs_list[] = {
+	{ "clocks", arcpgu_show_pxlclock, 0 },
+	{ "fb", drm_fb_cma_debugfs_show, 0 },
+};
+
+static int arcpgu_debugfs_init(struct drm_minor *minor)
+{
+	return drm_debugfs_create_files(arcpgu_debugfs_list,
+		ARRAY_SIZE(arcpgu_debugfs_list), minor->debugfs_root, minor);
+}
+#endif
+
 static struct drm_driver arcpgu_drm_driver = {
 	.driver_features = DRIVER_MODESET | DRIVER_GEM | DRIVER_PRIME |
 			   DRIVER_ATOMIC,
 	.lastclose = arcpgu_lastclose,
-	.name = "drm-arcpgu",
+	.name = "arcpgu",
 	.desc = "ARC PGU Controller",
 	.date = "20160219",
 	.major = 1,
@@ -173,8 +176,6 @@ static struct drm_driver arcpgu_drm_driver = {
 	.patchlevel = 0,
 	.fops = &arcpgu_drm_ops,
 	.dumb_create = drm_gem_cma_dumb_create,
-	.dumb_map_offset = drm_gem_cma_dumb_map_offset,
-	.dumb_destroy = drm_gem_dumb_destroy,
 	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
 	.gem_free_object_unlocked = drm_gem_cma_free_object,
@@ -186,6 +187,9 @@ static struct drm_driver arcpgu_drm_driver = {
 	.gem_prime_vmap = drm_gem_cma_prime_vmap,
 	.gem_prime_vunmap = drm_gem_cma_prime_vunmap,
 	.gem_prime_mmap = drm_gem_cma_prime_mmap,
+#ifdef CONFIG_DEBUG_FS
+	.debugfs_init = arcpgu_debugfs_init,
+#endif
 };
 
 static int arcpgu_probe(struct platform_device *pdev)

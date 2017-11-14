@@ -1356,7 +1356,7 @@ static inline char *ks_wlan_translate_scan(struct net_device *dev,
 
 	/* Add mode */
 	iwe.cmd = SIOCGIWMODE;
-	capabilities = le16_to_cpu(ap->capability);
+	capabilities = ap->capability;
 	if (capabilities & (BSS_CAP_ESS | BSS_CAP_IBSS)) {
 		if (capabilities & BSS_CAP_ESS)
 			iwe.u.mode = IW_MODE_INFRA;
@@ -2273,7 +2273,7 @@ static int ks_wlan_set_sleep_mode(struct net_device *dev,
 		netdev_info(dev, "SET_SLEEP_MODE %d\n", priv->sleep_mode);
 		hostif_sme_enqueue(priv, SME_SLEEP_REQUEST);
 	} else {
-		netdev_err(dev, "SET_SLEEP_MODE %d errror\n", *uwrq);
+		netdev_err(dev, "SET_SLEEP_MODE %d error\n", *uwrq);
 		return -EINVAL;
 	}
 
@@ -2378,14 +2378,14 @@ static int ks_wlan_set_tx_gain(struct net_device *dev,
 		return -EPERM;
 	/* for SLEEP MODE */
 	if (*uwrq >= 0 && *uwrq <= 0xFF)	/* 0-255 */
-		priv->gain.TxGain = (uint8_t)*uwrq;
+		priv->gain.tx_gain = (uint8_t)*uwrq;
 	else
 		return -EINVAL;
 
-	if (priv->gain.TxGain < 0xFF)
-		priv->gain.TxMode = 1;
+	if (priv->gain.tx_gain < 0xFF)
+		priv->gain.tx_mode = 1;
 	else
-		priv->gain.TxMode = 0;
+		priv->gain.tx_mode = 0;
 
 	hostif_sme_enqueue(priv, SME_SET_GAIN);
 	return 0;
@@ -2400,7 +2400,7 @@ static int ks_wlan_get_tx_gain(struct net_device *dev,
 	if (priv->sleep_mode == SLP_SLEEP)
 		return -EPERM;
 	/* for SLEEP MODE */
-	*uwrq = priv->gain.TxGain;
+	*uwrq = priv->gain.tx_gain;
 	hostif_sme_enqueue(priv, SME_GET_GAIN);
 	return 0;
 }
@@ -2415,14 +2415,14 @@ static int ks_wlan_set_rx_gain(struct net_device *dev,
 		return -EPERM;
 	/* for SLEEP MODE */
 	if (*uwrq >= 0 && *uwrq <= 0xFF)	/* 0-255 */
-		priv->gain.RxGain = (uint8_t)*uwrq;
+		priv->gain.rx_gain = (uint8_t)*uwrq;
 	else
 		return -EINVAL;
 
-	if (priv->gain.RxGain < 0xFF)
-		priv->gain.RxMode = 1;
+	if (priv->gain.rx_gain < 0xFF)
+		priv->gain.rx_mode = 1;
 	else
-		priv->gain.RxMode = 0;
+		priv->gain.rx_mode = 0;
 
 	hostif_sme_enqueue(priv, SME_SET_GAIN);
 	return 0;
@@ -2437,7 +2437,7 @@ static int ks_wlan_get_rx_gain(struct net_device *dev,
 	if (priv->sleep_mode == SLP_SLEEP)
 		return -EPERM;
 	/* for SLEEP MODE */
-	*uwrq = priv->gain.RxGain;
+	*uwrq = priv->gain.rx_gain;
 	hostif_sme_enqueue(priv, SME_GET_GAIN);
 	return 0;
 }

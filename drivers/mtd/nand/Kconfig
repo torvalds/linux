@@ -308,13 +308,14 @@ config MTD_NAND_CS553X
 config MTD_NAND_ATMEL
 	tristate "Support for NAND Flash / SmartMedia on AT91"
 	depends on ARCH_AT91
+	select MFD_ATMEL_SMC
 	help
 	  Enables support for NAND Flash / Smart Media Card interface
 	  on Atmel AT91 processors.
 
 config MTD_NAND_PXA3xx
 	tristate "NAND support on PXA3xx and Armada 370/XP"
-	depends on PXA3xx || ARCH_MMP || PLAT_ORION
+	depends on PXA3xx || ARCH_MMP || PLAT_ORION || ARCH_MVEBU
 	help
 	  This enables the driver for the NAND flash device found on
 	  PXA3xx processors (NFCv1) and also on Armada 370/XP (NFCv2).
@@ -542,6 +543,7 @@ config MTD_NAND_SUNXI
 
 config MTD_NAND_HISI504
 	tristate "Support for NAND controller on Hisilicon SoC Hip04"
+	depends on ARCH_HISI || COMPILE_TEST
 	depends on HAS_DMA
 	help
 	  Enables support for NAND controller on Hisilicon SoC Hip04.
@@ -555,6 +557,7 @@ config MTD_NAND_QCOM
 
 config MTD_NAND_MTK
 	tristate "Support for NAND controller on MTK SoCs"
+	depends on ARCH_MEDIATEK || COMPILE_TEST
 	depends on HAS_DMA
 	help
 	  Enables support for NAND controller on MTK SoCs.

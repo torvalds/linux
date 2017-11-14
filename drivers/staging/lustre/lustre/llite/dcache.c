@@ -36,9 +36,9 @@
 
 #define DEBUG_SUBSYSTEM S_LLITE
 
-#include "../include/obd_support.h"
-#include "../include/lustre/lustre_idl.h"
-#include "../include/lustre_dlm.h"
+#include <obd_support.h>
+#include <uapi/linux/lustre/lustre_idl.h>
+#include <lustre_dlm.h>
 
 #include "llite_internal.h"
 
@@ -180,7 +180,7 @@ void ll_invalidate_aliases(struct inode *inode)
 {
 	struct dentry *dentry;
 
-	CDEBUG(D_INODE, "marking dentries for ino "DFID"(%p) invalid\n",
+	CDEBUG(D_INODE, "marking dentries for ino " DFID "(%p) invalid\n",
 	       PFID(ll_inode2fid(inode)), inode);
 
 	spin_lock(&inode->i_lock);
@@ -216,7 +216,7 @@ void ll_lookup_finish_locks(struct lookup_intent *it, struct inode *inode)
 	if (it->it_lock_mode && inode) {
 		struct ll_sb_info *sbi = ll_i2sbi(inode);
 
-		CDEBUG(D_DLMTRACE, "setting l_data to inode "DFID"(%p)\n",
+		CDEBUG(D_DLMTRACE, "setting l_data to inode " DFID "(%p)\n",
 		       PFID(ll_inode2fid(inode)), inode);
 		ll_set_lock_data(sbi->ll_md_exp, inode, it, NULL);
 	}

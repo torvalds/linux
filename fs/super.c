@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  linux/fs/super.c
  *
@@ -168,7 +169,6 @@ static void destroy_super(struct super_block *s)
 	WARN_ON(!list_empty(&s->s_mounts));
 	put_user_ns(s->s_user_ns);
 	kfree(s->s_subtype);
-	kfree(s->s_options);
 	call_rcu(&s->rcu, destroy_super_rcu);
 }
 
@@ -243,7 +243,7 @@ static struct super_block *alloc_super(struct file_system_type *type, int flags,
 	atomic_set(&s->s_active, 1);
 	mutex_init(&s->s_vfs_rename_mutex);
 	lockdep_set_class(&s->s_vfs_rename_mutex, &type->s_vfs_rename_key);
-	mutex_init(&s->s_dquot.dqio_mutex);
+	init_rwsem(&s->s_dquot.dqio_sem);
 	s->s_maxbytes = MAX_NON_LFS;
 	s->s_op = &default_op;
 	s->s_time_gran = 1000000000;
@@ -361,7 +361,7 @@ static int grab_super(struct super_block *s) __releases(sb_lock)
 	s->s_count++;
 	spin_unlock(&sb_lock);
 	down_write(&s->s_umount);
-	if ((s->s_flags & MS_BORN) && atomic_inc_not_zero(&s->s_active)) {
+	if ((s->s_flags & SB_BORN) && atomic_inc_not_zero(&s->s_active)) {
 		put_super(s);
 		return 1;
 	}
@@ -391,7 +391,7 @@ bool trylock_super(struct super_block *sb)
 {
 	if (down_read_trylock(&sb->s_umount)) {
 		if (!hlist_unhashed(&sb->s_instances) &&
-		    sb->s_root && (sb->s_flags & MS_BORN))
+		    sb->s_root && (sb->s_flags & SB_BORN))
 			return true;
 		up_read(&sb->s_umount);
 	}
@@ -420,7 +420,7 @@ void generic_shutdown_super(struct super_block *sb)
 	if (sb->s_root) {
 		shrink_dcache_for_umount(sb);
 		sync_filesystem(sb);
-		sb->s_flags &= ~MS_ACTIVE;
+		sb->s_flags &= ~SB_ACTIVE;
 
 		fsnotify_unmount_inodes(sb);
 		cgroup_writeback_umount();
@@ -473,7 +473,7 @@ struct super_block *sget_userns(struct file_system_type *type,
 	struct super_block *old;
 	int err;
 
-	if (!(flags & (MS_KERNMOUNT|MS_SUBMOUNT)) &&
+	if (!(flags & (SB_KERNMOUNT|SB_SUBMOUNT)) &&
 	    !(type->fs_flags & FS_USERNS_MOUNT) &&
 	    !capable(CAP_SYS_ADMIN))
 		return ERR_PTR(-EPERM);
@@ -503,12 +503,12 @@ retry:
 	}
 	if (!s) {
 		spin_unlock(&sb_lock);
-		s = alloc_super(type, (flags & ~MS_SUBMOUNT), user_ns);
+		s = alloc_super(type, (flags & ~SB_SUBMOUNT), user_ns);
 		if (!s)
 			return ERR_PTR(-ENOMEM);
 		goto retry;
 	}
-		
+
 	err = set(s, data);
 	if (err) {
 		spin_unlock(&sb_lock);
@@ -548,11 +548,11 @@ struct super_block *sget(struct file_system_type *type,
 	 * mount through to here so always use &init_user_ns
 	 * until that changes.
 	 */
-	if (flags & MS_SUBMOUNT)
+	if (flags & SB_SUBMOUNT)
 		user_ns = &init_user_ns;
 
 	/* Ensure the requestor has permissions over the target filesystem */
-	if (!(flags & (MS_KERNMOUNT|MS_SUBMOUNT)) && !ns_capable(user_ns, CAP_SYS_ADMIN))
+	if (!(flags & (SB_KERNMOUNT|SB_SUBMOUNT)) && !ns_capable(user_ns, CAP_SYS_ADMIN))
 		return ERR_PTR(-EPERM);
 
 	return sget_userns(type, test, set, flags, user_ns, data);
@@ -595,7 +595,7 @@ void iterate_supers(void (*f)(struct super_block *, void *), void *arg)
 		spin_unlock(&sb_lock);
 
 		down_read(&sb->s_umount);
-		if (sb->s_root && (sb->s_flags & MS_BORN))
+		if (sb->s_root && (sb->s_flags & SB_BORN))
 			f(sb, arg);
 		up_read(&sb->s_umount);
 
@@ -629,7 +629,7 @@ void iterate_supers_type(struct file_system_type *type,
 		spin_unlock(&sb_lock);
 
 		down_read(&sb->s_umount);
-		if (sb->s_root && (sb->s_flags & MS_BORN))
+		if (sb->s_root && (sb->s_flags & SB_BORN))
 			f(sb, arg);
 		up_read(&sb->s_umount);
 
@@ -665,7 +665,7 @@ rescan:
 			else
 				down_write(&sb->s_umount);
 			/* still alive? */
-			if (sb->s_root && (sb->s_flags & MS_BORN))
+			if (sb->s_root && (sb->s_flags & SB_BORN))
 				return sb;
 			if (!excl)
 				up_read(&sb->s_umount);
@@ -771,7 +771,7 @@ restart:
 	spin_unlock(&sb_lock);
 	return NULL;
 }
- 
+
 struct super_block *user_get_super(dev_t dev)
 {
 	struct super_block *sb;
@@ -786,7 +786,7 @@ rescan:
 			spin_unlock(&sb_lock);
 			down_read(&sb->s_umount);
 			/* still alive? */
-			if (sb->s_root && (sb->s_flags & MS_BORN))
+			if (sb->s_root && (sb->s_flags & SB_BORN))
 				return sb;
 			up_read(&sb->s_umount);
 			/* nope, got unmounted */
@@ -802,13 +802,13 @@ rescan:
 /**
  *	do_remount_sb - asks filesystem to change mount options.
  *	@sb:	superblock in question
- *	@flags:	numeric part of options
+ *	@sb_flags: revised superblock flags
  *	@data:	the rest of options
  *      @force: whether or not to force the change
  *
  *	Alters the mount options of a mounted file system.
  */
-int do_remount_sb(struct super_block *sb, int flags, void *data, int force)
+int do_remount_sb(struct super_block *sb, int sb_flags, void *data, int force)
 {
 	int retval;
 	int remount_ro;
@@ -817,11 +817,11 @@ int do_remount_sb(struct super_block *sb, int flags, void *data, int force)
 		return -EBUSY;
 
 #ifdef CONFIG_BLOCK
-	if (!(flags & MS_RDONLY) && bdev_read_only(sb->s_bdev))
+	if (!(sb_flags & SB_RDONLY) && bdev_read_only(sb->s_bdev))
 		return -EACCES;
 #endif
 
-	remount_ro = (flags & MS_RDONLY) && !(sb->s_flags & MS_RDONLY);
+	remount_ro = (sb_flags & SB_RDONLY) && !sb_rdonly(sb);
 
 	if (remount_ro) {
 		if (!hlist_empty(&sb->s_pins)) {
@@ -832,7 +832,7 @@ int do_remount_sb(struct super_block *sb, int flags, void *data, int force)
 				return 0;
 			if (sb->s_writers.frozen != SB_UNFROZEN)
 				return -EBUSY;
-			remount_ro = (flags & MS_RDONLY) && !(sb->s_flags & MS_RDONLY);
+			remount_ro = (sb_flags & SB_RDONLY) && !sb_rdonly(sb);
 		}
 	}
 	shrink_dcache_sb(sb);
@@ -851,7 +851,7 @@ int do_remount_sb(struct super_block *sb, int flags, void *data, int force)
 	}
 
 	if (sb->s_op->remount_fs) {
-		retval = sb->s_op->remount_fs(sb, &flags, data);
+		retval = sb->s_op->remount_fs(sb, &sb_flags, data);
 		if (retval) {
 			if (!force)
 				goto cancel_readonly;
@@ -860,7 +860,7 @@ int do_remount_sb(struct super_block *sb, int flags, void *data, int force)
 			     sb->s_type->name, retval);
 		}
 	}
-	sb->s_flags = (sb->s_flags & ~MS_RMT_MASK) | (flags & MS_RMT_MASK);
+	sb->s_flags = (sb->s_flags & ~MS_RMT_MASK) | (sb_flags & MS_RMT_MASK);
 	/* Needs to be ordered wrt mnt_is_readonly() */
 	smp_wmb();
 	sb->s_readonly_remount = 0;
@@ -893,12 +893,12 @@ static void do_emergency_remount(struct work_struct *work)
 		sb->s_count++;
 		spin_unlock(&sb_lock);
 		down_write(&sb->s_umount);
-		if (sb->s_root && sb->s_bdev && (sb->s_flags & MS_BORN) &&
-		    !(sb->s_flags & MS_RDONLY)) {
+		if (sb->s_root && sb->s_bdev && (sb->s_flags & SB_BORN) &&
+		    !sb_rdonly(sb)) {
 			/*
 			 * What lock protects sb->s_flags??
 			 */
-			do_remount_sb(sb, MS_RDONLY, NULL, 1);
+			do_remount_sb(sb, SB_RDONLY, NULL, 1);
 		}
 		up_write(&sb->s_umount);
 		spin_lock(&sb_lock);
@@ -1024,7 +1024,7 @@ struct dentry *mount_ns(struct file_system_type *fs_type,
 	/* Don't allow mounting unless the caller has CAP_SYS_ADMIN
 	 * over the namespace.
 	 */
-	if (!(flags & MS_KERNMOUNT) && !ns_capable(user_ns, CAP_SYS_ADMIN))
+	if (!(flags & SB_KERNMOUNT) && !ns_capable(user_ns, CAP_SYS_ADMIN))
 		return ERR_PTR(-EPERM);
 
 	sb = sget_userns(fs_type, ns_test_super, ns_set_super, flags,
@@ -1034,13 +1034,13 @@ struct dentry *mount_ns(struct file_system_type *fs_type,
 
 	if (!sb->s_root) {
 		int err;
-		err = fill_super(sb, data, flags & MS_SILENT ? 1 : 0);
+		err = fill_super(sb, data, flags & SB_SILENT ? 1 : 0);
 		if (err) {
 			deactivate_locked_super(sb);
 			return ERR_PTR(err);
 		}
 
-		sb->s_flags |= MS_ACTIVE;
+		sb->s_flags |= SB_ACTIVE;
 	}
 
 	return dget(sb->s_root);
@@ -1072,7 +1072,7 @@ struct dentry *mount_bdev(struct file_system_type *fs_type,
 	fmode_t mode = FMODE_READ | FMODE_EXCL;
 	int error = 0;
 
-	if (!(flags & MS_RDONLY))
+	if (!(flags & SB_RDONLY))
 		mode |= FMODE_WRITE;
 
 	bdev = blkdev_get_by_path(dev_name, mode, fs_type);
@@ -1090,14 +1090,14 @@ struct dentry *mount_bdev(struct file_system_type *fs_type,
 		error = -EBUSY;
 		goto error_bdev;
 	}
-	s = sget(fs_type, test_bdev_super, set_bdev_super, flags | MS_NOSEC,
+	s = sget(fs_type, test_bdev_super, set_bdev_super, flags | SB_NOSEC,
 		 bdev);
 	mutex_unlock(&bdev->bd_fsfreeze_mutex);
 	if (IS_ERR(s))
 		goto error_s;
 
 	if (s->s_root) {
-		if ((flags ^ s->s_flags) & MS_RDONLY) {
+		if ((flags ^ s->s_flags) & SB_RDONLY) {
 			deactivate_locked_super(s);
 			error = -EBUSY;
 			goto error_bdev;
@@ -1117,13 +1117,13 @@ struct dentry *mount_bdev(struct file_system_type *fs_type,
 		s->s_mode = mode;
 		snprintf(s->s_id, sizeof(s->s_id), "%pg", bdev);
 		sb_set_blocksize(s, block_size(bdev));
-		error = fill_super(s, data, flags & MS_SILENT ? 1 : 0);
+		error = fill_super(s, data, flags & SB_SILENT ? 1 : 0);
 		if (error) {
 			deactivate_locked_super(s);
 			goto error;
 		}
 
-		s->s_flags |= MS_ACTIVE;
+		s->s_flags |= SB_ACTIVE;
 		bdev->bd_super = s;
 	}
 
@@ -1163,12 +1163,12 @@ struct dentry *mount_nodev(struct file_system_type *fs_type,
 	if (IS_ERR(s))
 		return ERR_CAST(s);
 
-	error = fill_super(s, data, flags & MS_SILENT ? 1 : 0);
+	error = fill_super(s, data, flags & SB_SILENT ? 1 : 0);
 	if (error) {
 		deactivate_locked_super(s);
 		return ERR_PTR(error);
 	}
-	s->s_flags |= MS_ACTIVE;
+	s->s_flags |= SB_ACTIVE;
 	return dget(s->s_root);
 }
 EXPORT_SYMBOL(mount_nodev);
@@ -1189,12 +1189,12 @@ struct dentry *mount_single(struct file_system_type *fs_type,
 	if (IS_ERR(s))
 		return ERR_CAST(s);
 	if (!s->s_root) {
-		error = fill_super(s, data, flags & MS_SILENT ? 1 : 0);
+		error = fill_super(s, data, flags & SB_SILENT ? 1 : 0);
 		if (error) {
 			deactivate_locked_super(s);
 			return ERR_PTR(error);
 		}
-		s->s_flags |= MS_ACTIVE;
+		s->s_flags |= SB_ACTIVE;
 	} else {
 		do_remount_sb(s, flags, data, 0);
 	}
@@ -1228,7 +1228,7 @@ mount_fs(struct file_system_type *type, int flags, const char *name, void *data)
 	sb = root->d_sb;
 	BUG_ON(!sb);
 	WARN_ON(!sb->s_bdi);
-	sb->s_flags |= MS_BORN;
+	sb->s_flags |= SB_BORN;
 
 	error = security_sb_kern_mount(sb, flags, secdata);
 	if (error)
@@ -1435,12 +1435,12 @@ int freeze_super(struct super_block *sb)
 		return -EBUSY;
 	}
 
-	if (!(sb->s_flags & MS_BORN)) {
+	if (!(sb->s_flags & SB_BORN)) {
 		up_write(&sb->s_umount);
 		return 0;	/* sic - it's "nothing to do" */
 	}
 
-	if (sb->s_flags & MS_RDONLY) {
+	if (sb_rdonly(sb)) {
 		/* Nothing to do really... */
 		sb->s_writers.frozen = SB_FREEZE_COMPLETE;
 		up_write(&sb->s_umount);
@@ -1503,7 +1503,7 @@ int thaw_super(struct super_block *sb)
 		return -EINVAL;
 	}
 
-	if (sb->s_flags & MS_RDONLY) {
+	if (sb_rdonly(sb)) {
 		sb->s_writers.frozen = SB_UNFROZEN;
 		goto out;
 	}

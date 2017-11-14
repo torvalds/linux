@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef _ASM_X86_HYPERV_H
 #define _ASM_X86_HYPERV_H
 
@@ -34,16 +35,10 @@
 #define HV_X64_MSR_REFERENCE_TSC		0x40000021
 
 /*
- * There is a single feature flag that signifies the presence of the MSR
- * that can be used to retrieve both the local APIC Timer frequency as
- * well as the TSC frequency.
+ * There is a single feature flag that signifies if the partition has access
+ * to MSRs with local APIC and TSC frequencies.
  */
-
-/* Local APIC timer frequency MSR (HV_X64_MSR_APIC_FREQUENCY) is available */
-#define HV_X64_MSR_APIC_FREQUENCY_AVAILABLE (1 << 11)
-
-/* TSC frequency MSR (HV_X64_MSR_TSC_FREQUENCY) is available */
-#define HV_X64_MSR_TSC_FREQUENCY_AVAILABLE (1 << 11)
+#define HV_X64_ACCESS_FREQUENCY_MSRS		(1 << 11)
 
 /*
  * Basic SynIC MSRs (HV_X64_MSR_SCONTROL through HV_X64_MSR_EOM
@@ -72,6 +67,9 @@
   * HV_X64_MSR_STATS_VP_INTERNAL_PAGE) available
   */
 #define HV_X64_MSR_STAT_PAGES_AVAILABLE		(1 << 8)
+
+/* Frequency MSRs available */
+#define HV_FEATURE_FREQUENCY_MSRS_AVAILABLE	(1 << 8)
 
 /* Crash MSR available */
 #define HV_FEATURE_GUEST_CRASH_MSR_AVAILABLE (1 << 10)
@@ -151,6 +149,9 @@
  * Virtual APIC support
  */
 #define HV_X64_DEPRECATING_AEOI_RECOMMENDED	(1 << 9)
+
+/* Recommend using the newer ExProcessorMasks interface */
+#define HV_X64_EX_PROCESSOR_MASKS_RECOMMENDED	(1 << 11)
 
 /*
  * Crash notification flag.
@@ -239,7 +240,11 @@
 		(~((1ull << HV_X64_MSR_HYPERCALL_PAGE_ADDRESS_SHIFT) - 1))
 
 /* Declare the various hypercall operations. */
+#define HVCALL_FLUSH_VIRTUAL_ADDRESS_SPACE	0x0002
+#define HVCALL_FLUSH_VIRTUAL_ADDRESS_LIST	0x0003
 #define HVCALL_NOTIFY_LONG_SPIN_WAIT		0x0008
+#define HVCALL_FLUSH_VIRTUAL_ADDRESS_SPACE_EX  0x0013
+#define HVCALL_FLUSH_VIRTUAL_ADDRESS_LIST_EX   0x0014
 #define HVCALL_POST_MESSAGE			0x005c
 #define HVCALL_SIGNAL_EVENT			0x005d
 
@@ -255,6 +260,16 @@
 #define HV_PROCESSOR_POWER_STATE_C1		1
 #define HV_PROCESSOR_POWER_STATE_C2		2
 #define HV_PROCESSOR_POWER_STATE_C3		3
+
+#define HV_FLUSH_ALL_PROCESSORS			BIT(0)
+#define HV_FLUSH_ALL_VIRTUAL_ADDRESS_SPACES	BIT(1)
+#define HV_FLUSH_NON_GLOBAL_MAPPINGS_ONLY	BIT(2)
+#define HV_FLUSH_USE_EXTENDED_RANGE_FORMAT	BIT(3)
+
+enum HV_GENERIC_SET_FORMAT {
+	HV_GENERIC_SET_SPARCE_4K,
+	HV_GENERIC_SET_ALL,
+};
 
 /* hypercall status code */
 #define HV_STATUS_SUCCESS			0

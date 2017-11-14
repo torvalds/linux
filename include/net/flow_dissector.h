@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _NET_FLOW_DISSECTOR_H
 #define _NET_FLOW_DISSECTOR_H
 
@@ -18,6 +19,14 @@ struct flow_dissector_key_control {
 #define FLOW_DIS_IS_FRAGMENT	BIT(0)
 #define FLOW_DIS_FIRST_FRAG	BIT(1)
 #define FLOW_DIS_ENCAPSULATION	BIT(2)
+
+enum flow_dissect_ret {
+	FLOW_DISSECT_RET_OUT_GOOD,
+	FLOW_DISSECT_RET_OUT_BAD,
+	FLOW_DISSECT_RET_PROTO_AGAIN,
+	FLOW_DISSECT_RET_IPPROTO_AGAIN,
+	FLOW_DISSECT_RET_CONTINUE,
+};
 
 /**
  * struct flow_dissector_key_basic:
@@ -157,6 +166,24 @@ struct flow_dissector_key_eth_addrs {
 	unsigned char src[ETH_ALEN];
 };
 
+/**
+ * struct flow_dissector_key_tcp:
+ * @flags: flags
+ */
+struct flow_dissector_key_tcp {
+	__be16 flags;
+};
+
+/**
+ * struct flow_dissector_key_ip:
+ * @tos: tos
+ * @ttl: ttl
+ */
+struct flow_dissector_key_ip {
+	__u8	tos;
+	__u8	ttl;
+};
+
 enum flow_dissector_key_id {
 	FLOW_DISSECTOR_KEY_CONTROL, /* struct flow_dissector_key_control */
 	FLOW_DISSECTOR_KEY_BASIC, /* struct flow_dissector_key_basic */
@@ -177,6 +204,8 @@ enum flow_dissector_key_id {
 	FLOW_DISSECTOR_KEY_ENC_CONTROL, /* struct flow_dissector_key_control */
 	FLOW_DISSECTOR_KEY_ENC_PORTS, /* struct flow_dissector_key_ports */
 	FLOW_DISSECTOR_KEY_MPLS, /* struct flow_dissector_key_mpls */
+	FLOW_DISSECTOR_KEY_TCP, /* struct flow_dissector_key_tcp */
+	FLOW_DISSECTOR_KEY_IP, /* struct flow_dissector_key_ip */
 
 	FLOW_DISSECTOR_KEY_MAX,
 };

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* apc - Driver implementation for power management functions
  * of Aurora Personality Chip (APC) on SPARCstation-4/5 and
  * derivatives.
@@ -167,7 +168,7 @@ static int apc_probe(struct platform_device *op)
 	return 0;
 }
 
-static struct of_device_id apc_match[] = {
+static const struct of_device_id apc_match[] = {
 	{
 		.name = APC_OBPNAME,
 	},

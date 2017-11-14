@@ -21,7 +21,7 @@
  *
  */
 #include <linux/slab.h>
-#include "drmP.h"
+#include <drm/drmP.h>
 #include "amdgpu.h"
 #include "amdgpu_atombios.h"
 #include "amdgpu_ih.h"
@@ -463,89 +463,83 @@ static void vi_detect_hw_virtualization(struct amdgpu_device *adev)
 	}
 }
 
-static const struct amdgpu_allowed_register_entry tonga_allowed_read_registers[] = {
-};
-
-static const struct amdgpu_allowed_register_entry cz_allowed_read_registers[] = {
-};
-
 static const struct amdgpu_allowed_register_entry vi_allowed_read_registers[] = {
-	{mmGRBM_STATUS, false},
-	{mmGRBM_STATUS2, false},
-	{mmGRBM_STATUS_SE0, false},
-	{mmGRBM_STATUS_SE1, false},
-	{mmGRBM_STATUS_SE2, false},
-	{mmGRBM_STATUS_SE3, false},
-	{mmSRBM_STATUS, false},
-	{mmSRBM_STATUS2, false},
-	{mmSRBM_STATUS3, false},
-	{mmSDMA0_STATUS_REG + SDMA0_REGISTER_OFFSET, false},
-	{mmSDMA0_STATUS_REG + SDMA1_REGISTER_OFFSET, false},
-	{mmCP_STAT, false},
-	{mmCP_STALLED_STAT1, false},
-	{mmCP_STALLED_STAT2, false},
-	{mmCP_STALLED_STAT3, false},
-	{mmCP_CPF_BUSY_STAT, false},
-	{mmCP_CPF_STALLED_STAT1, false},
-	{mmCP_CPF_STATUS, false},
-	{mmCP_CPC_BUSY_STAT, false},
-	{mmCP_CPC_STALLED_STAT1, false},
-	{mmCP_CPC_STATUS, false},
-	{mmGB_ADDR_CONFIG, false},
-	{mmMC_ARB_RAMCFG, false},
-	{mmGB_TILE_MODE0, false},
-	{mmGB_TILE_MODE1, false},
-	{mmGB_TILE_MODE2, false},
-	{mmGB_TILE_MODE3, false},
-	{mmGB_TILE_MODE4, false},
-	{mmGB_TILE_MODE5, false},
-	{mmGB_TILE_MODE6, false},
-	{mmGB_TILE_MODE7, false},
-	{mmGB_TILE_MODE8, false},
-	{mmGB_TILE_MODE9, false},
-	{mmGB_TILE_MODE10, false},
-	{mmGB_TILE_MODE11, false},
-	{mmGB_TILE_MODE12, false},
-	{mmGB_TILE_MODE13, false},
-	{mmGB_TILE_MODE14, false},
-	{mmGB_TILE_MODE15, false},
-	{mmGB_TILE_MODE16, false},
-	{mmGB_TILE_MODE17, false},
-	{mmGB_TILE_MODE18, false},
-	{mmGB_TILE_MODE19, false},
-	{mmGB_TILE_MODE20, false},
-	{mmGB_TILE_MODE21, false},
-	{mmGB_TILE_MODE22, false},
-	{mmGB_TILE_MODE23, false},
-	{mmGB_TILE_MODE24, false},
-	{mmGB_TILE_MODE25, false},
-	{mmGB_TILE_MODE26, false},
-	{mmGB_TILE_MODE27, false},
-	{mmGB_TILE_MODE28, false},
-	{mmGB_TILE_MODE29, false},
-	{mmGB_TILE_MODE30, false},
-	{mmGB_TILE_MODE31, false},
-	{mmGB_MACROTILE_MODE0, false},
-	{mmGB_MACROTILE_MODE1, false},
-	{mmGB_MACROTILE_MODE2, false},
-	{mmGB_MACROTILE_MODE3, false},
-	{mmGB_MACROTILE_MODE4, false},
-	{mmGB_MACROTILE_MODE5, false},
-	{mmGB_MACROTILE_MODE6, false},
-	{mmGB_MACROTILE_MODE7, false},
-	{mmGB_MACROTILE_MODE8, false},
-	{mmGB_MACROTILE_MODE9, false},
-	{mmGB_MACROTILE_MODE10, false},
-	{mmGB_MACROTILE_MODE11, false},
-	{mmGB_MACROTILE_MODE12, false},
-	{mmGB_MACROTILE_MODE13, false},
-	{mmGB_MACROTILE_MODE14, false},
-	{mmGB_MACROTILE_MODE15, false},
-	{mmCC_RB_BACKEND_DISABLE, false, true},
-	{mmGC_USER_RB_BACKEND_DISABLE, false, true},
-	{mmGB_BACKEND_MAP, false, false},
-	{mmPA_SC_RASTER_CONFIG, false, true},
-	{mmPA_SC_RASTER_CONFIG_1, false, true},
+	{mmGRBM_STATUS},
+	{mmGRBM_STATUS2},
+	{mmGRBM_STATUS_SE0},
+	{mmGRBM_STATUS_SE1},
+	{mmGRBM_STATUS_SE2},
+	{mmGRBM_STATUS_SE3},
+	{mmSRBM_STATUS},
+	{mmSRBM_STATUS2},
+	{mmSRBM_STATUS3},
+	{mmSDMA0_STATUS_REG + SDMA0_REGISTER_OFFSET},
+	{mmSDMA0_STATUS_REG + SDMA1_REGISTER_OFFSET},
+	{mmCP_STAT},
+	{mmCP_STALLED_STAT1},
+	{mmCP_STALLED_STAT2},
+	{mmCP_STALLED_STAT3},
+	{mmCP_CPF_BUSY_STAT},
+	{mmCP_CPF_STALLED_STAT1},
+	{mmCP_CPF_STATUS},
+	{mmCP_CPC_BUSY_STAT},
+	{mmCP_CPC_STALLED_STAT1},
+	{mmCP_CPC_STATUS},
+	{mmGB_ADDR_CONFIG},
+	{mmMC_ARB_RAMCFG},
+	{mmGB_TILE_MODE0},
+	{mmGB_TILE_MODE1},
+	{mmGB_TILE_MODE2},
+	{mmGB_TILE_MODE3},
+	{mmGB_TILE_MODE4},
+	{mmGB_TILE_MODE5},
+	{mmGB_TILE_MODE6},
+	{mmGB_TILE_MODE7},
+	{mmGB_TILE_MODE8},
+	{mmGB_TILE_MODE9},
+	{mmGB_TILE_MODE10},
+	{mmGB_TILE_MODE11},
+	{mmGB_TILE_MODE12},
+	{mmGB_TILE_MODE13},
+	{mmGB_TILE_MODE14},
+	{mmGB_TILE_MODE15},
+	{mmGB_TILE_MODE16},
+	{mmGB_TILE_MODE17},
+	{mmGB_TILE_MODE18},
+	{mmGB_TILE_MODE19},
+	{mmGB_TILE_MODE20},
+	{mmGB_TILE_MODE21},
+	{mmGB_TILE_MODE22},
+	{mmGB_TILE_MODE23},
+	{mmGB_TILE_MODE24},
+	{mmGB_TILE_MODE25},
+	{mmGB_TILE_MODE26},
+	{mmGB_TILE_MODE27},
+	{mmGB_TILE_MODE28},
+	{mmGB_TILE_MODE29},
+	{mmGB_TILE_MODE30},
+	{mmGB_TILE_MODE31},
+	{mmGB_MACROTILE_MODE0},
+	{mmGB_MACROTILE_MODE1},
+	{mmGB_MACROTILE_MODE2},
+	{mmGB_MACROTILE_MODE3},
+	{mmGB_MACROTILE_MODE4},
+	{mmGB_MACROTILE_MODE5},
+	{mmGB_MACROTILE_MODE6},
+	{mmGB_MACROTILE_MODE7},
+	{mmGB_MACROTILE_MODE8},
+	{mmGB_MACROTILE_MODE9},
+	{mmGB_MACROTILE_MODE10},
+	{mmGB_MACROTILE_MODE11},
+	{mmGB_MACROTILE_MODE12},
+	{mmGB_MACROTILE_MODE13},
+	{mmGB_MACROTILE_MODE14},
+	{mmGB_MACROTILE_MODE15},
+	{mmCC_RB_BACKEND_DISABLE, true},
+	{mmGC_USER_RB_BACKEND_DISABLE, true},
+	{mmGB_BACKEND_MAP, false},
+	{mmPA_SC_RASTER_CONFIG, true},
+	{mmPA_SC_RASTER_CONFIG_1, true},
 };
 
 static uint32_t vi_get_register_value(struct amdgpu_device *adev,
@@ -647,51 +641,17 @@ static uint32_t vi_get_register_value(struct amdgpu_device *adev,
 static int vi_read_register(struct amdgpu_device *adev, u32 se_num,
 			    u32 sh_num, u32 reg_offset, u32 *value)
 {
-	const struct amdgpu_allowed_register_entry *asic_register_table = NULL;
-	const struct amdgpu_allowed_register_entry *asic_register_entry;
-	uint32_t size, i;
+	uint32_t i;
 
 	*value = 0;
-	switch (adev->asic_type) {
-	case CHIP_TOPAZ:
-		asic_register_table = tonga_allowed_read_registers;
-		size = ARRAY_SIZE(tonga_allowed_read_registers);
-		break;
-	case CHIP_FIJI:
-	case CHIP_TONGA:
-	case CHIP_POLARIS11:
-	case CHIP_POLARIS10:
-	case CHIP_POLARIS12:
-	case CHIP_CARRIZO:
-	case CHIP_STONEY:
-		asic_register_table = cz_allowed_read_registers;
-		size = ARRAY_SIZE(cz_allowed_read_registers);
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	if (asic_register_table) {
-		for (i = 0; i < size; i++) {
-			asic_register_entry = asic_register_table + i;
-			if (reg_offset != asic_register_entry->reg_offset)
-				continue;
-			if (!asic_register_entry->untouched)
-				*value = vi_get_register_value(adev,
-							       asic_register_entry->grbm_indexed,
-							       se_num, sh_num, reg_offset);
-			return 0;
-		}
-	}
-
 	for (i = 0; i < ARRAY_SIZE(vi_allowed_read_registers); i++) {
+		bool indexed = vi_allowed_read_registers[i].grbm_indexed;
+
 		if (reg_offset != vi_allowed_read_registers[i].reg_offset)
 			continue;
 
-		if (!vi_allowed_read_registers[i].untouched)
-			*value = vi_get_register_value(adev,
-						       vi_allowed_read_registers[i].grbm_indexed,
-						       se_num, sh_num, reg_offset);
+		*value = vi_get_register_value(adev, indexed, se_num, sh_num,
+					       reg_offset);
 		return 0;
 	}
 	return -EINVAL;
@@ -934,11 +894,6 @@ static int vi_common_early_init(void *handle)
 		(amdgpu_ip_block_mask & (1 << AMD_IP_BLOCK_TYPE_SMC)))
 		smc_enabled = true;
 
-	if (amdgpu_sriov_vf(adev)) {
-		amdgpu_virt_init_setting(adev);
-		xgpu_vi_mailbox_set_irq_funcs(adev);
-	}
-
 	adev->rev_id = vi_get_rev_id(adev);
 	adev->external_rev_id = 0xFF;
 	switch (adev->asic_type) {
@@ -1073,8 +1028,7 @@ static int vi_common_early_init(void *handle)
 		/* rev0 hardware requires workarounds to support PG */
 		adev->pg_flags = 0;
 		if (adev->rev_id != 0x00 || CZ_REV_BRISTOL(adev->pdev->revision)) {
-			adev->pg_flags |=
-				AMD_PG_SUPPORT_GFX_SMG |
+			adev->pg_flags |= AMD_PG_SUPPORT_GFX_SMG |
 				AMD_PG_SUPPORT_GFX_PIPELINE |
 				AMD_PG_SUPPORT_CP |
 				AMD_PG_SUPPORT_UVD |
@@ -1109,6 +1063,11 @@ static int vi_common_early_init(void *handle)
 	default:
 		/* FIXME: not supported yet */
 		return -EINVAL;
+	}
+
+	if (amdgpu_sriov_vf(adev)) {
+		amdgpu_virt_init_setting(adev);
+		xgpu_vi_mailbox_set_irq_funcs(adev);
 	}
 
 	/* vi use smc load by default */

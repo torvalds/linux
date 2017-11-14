@@ -231,6 +231,7 @@ enum ath10k_hw_rev {
 	ATH10K_HW_QCA9377,
 	ATH10K_HW_QCA4019,
 	ATH10K_HW_QCA9887,
+	ATH10K_HW_WCN3990,
 };
 
 struct ath10k_hw_regs {
@@ -247,6 +248,10 @@ struct ath10k_hw_regs {
 	u32 ce5_base_address;
 	u32 ce6_base_address;
 	u32 ce7_base_address;
+	u32 ce8_base_address;
+	u32 ce9_base_address;
+	u32 ce10_base_address;
+	u32 ce11_base_address;
 	u32 soc_reset_control_si0_rst_mask;
 	u32 soc_reset_control_ce_rst_mask;
 	u32 soc_chip_id_address;
@@ -267,6 +272,87 @@ extern const struct ath10k_hw_regs qca988x_regs;
 extern const struct ath10k_hw_regs qca6174_regs;
 extern const struct ath10k_hw_regs qca99x0_regs;
 extern const struct ath10k_hw_regs qca4019_regs;
+extern const struct ath10k_hw_regs wcn3990_regs;
+
+struct ath10k_hw_ce_regs_addr_map {
+	u32 msb;
+	u32 lsb;
+	u32 mask;
+};
+
+struct ath10k_hw_ce_ctrl1 {
+	u32 addr;
+	u32 hw_mask;
+	u32 sw_mask;
+	u32 hw_wr_mask;
+	u32 sw_wr_mask;
+	u32 reset_mask;
+	u32 reset;
+	struct ath10k_hw_ce_regs_addr_map *src_ring;
+	struct ath10k_hw_ce_regs_addr_map *dst_ring;
+	struct ath10k_hw_ce_regs_addr_map *dmax; };
+
+struct ath10k_hw_ce_cmd_halt {
+	u32 status_reset;
+	u32 msb;
+	u32 mask;
+	struct ath10k_hw_ce_regs_addr_map *status; };
+
+struct ath10k_hw_ce_host_ie {
+	u32 copy_complete_reset;
+	struct ath10k_hw_ce_regs_addr_map *copy_complete; };
+
+struct ath10k_hw_ce_host_wm_regs {
+	u32 dstr_lmask;
+	u32 dstr_hmask;
+	u32 srcr_lmask;
+	u32 srcr_hmask;
+	u32 cc_mask;
+	u32 wm_mask;
+	u32 addr;
+};
+
+struct ath10k_hw_ce_misc_regs {
+	u32 axi_err;
+	u32 dstr_add_err;
+	u32 srcr_len_err;
+	u32 dstr_mlen_vio;
+	u32 dstr_overflow;
+	u32 srcr_overflow;
+	u32 err_mask;
+	u32 addr;
+};
+
+struct ath10k_hw_ce_dst_src_wm_regs {
+	u32 addr;
+	u32 low_rst;
+	u32 high_rst;
+	struct ath10k_hw_ce_regs_addr_map *wm_low;
+	struct ath10k_hw_ce_regs_addr_map *wm_high; };
+
+struct ath10k_hw_ce_regs {
+	u32 sr_base_addr;
+	u32 sr_size_addr;
+	u32 dr_base_addr;
+	u32 dr_size_addr;
+	u32 ce_cmd_addr;
+	u32 misc_ie_addr;
+	u32 sr_wr_index_addr;
+	u32 dst_wr_index_addr;
+	u32 current_srri_addr;
+	u32 current_drri_addr;
+	u32 ddr_addr_for_rri_low;
+	u32 ddr_addr_for_rri_high;
+	u32 ce_rri_low;
+	u32 ce_rri_high;
+	u32 host_ie_addr;
+	struct ath10k_hw_ce_host_wm_regs *wm_regs;
+	struct ath10k_hw_ce_misc_regs *misc_regs;
+	struct ath10k_hw_ce_ctrl1 *ctrl1_regs;
+	struct ath10k_hw_ce_cmd_halt *cmd_halt;
+	struct ath10k_hw_ce_host_ie *host_ie;
+	struct ath10k_hw_ce_dst_src_wm_regs *wm_srcr;
+	struct ath10k_hw_ce_dst_src_wm_regs *wm_dstr; };
 
 struct ath10k_hw_values {
 	u32 rtc_state_val_on;
@@ -282,6 +368,9 @@ extern const struct ath10k_hw_values qca6174_values;
 extern const struct ath10k_hw_values qca99x0_values;
 extern const struct ath10k_hw_values qca9888_values;
 extern const struct ath10k_hw_values qca4019_values;
+extern const struct ath10k_hw_values wcn3990_values;
+extern struct ath10k_hw_ce_regs wcn3990_ce_regs;
+extern struct ath10k_hw_ce_regs qcax_ce_regs;
 
 void ath10k_hw_fill_survey_time(struct ath10k *ar, struct survey_info *survey,
 				u32 cc, u32 rcc, u32 cc_prev, u32 rcc_prev);
@@ -294,6 +383,7 @@ void ath10k_hw_fill_survey_time(struct ath10k *ar, struct survey_info *survey,
 #define QCA_REV_9984(ar) ((ar)->hw_rev == ATH10K_HW_QCA9984)
 #define QCA_REV_9377(ar) ((ar)->hw_rev == ATH10K_HW_QCA9377)
 #define QCA_REV_40XX(ar) ((ar)->hw_rev == ATH10K_HW_QCA4019)
+#define QCA_REV_WCN3990(ar) ((ar)->hw_rev == ATH10K_HW_WCN3990)
 
 /* Known peculiarities:
  *  - raw appears in nwifi decap, raw and nwifi appear in ethernet decap
@@ -454,6 +544,12 @@ struct ath10k_hw_params {
 
 	/* Number of bytes to be discarded for each FFT sample */
 	int spectral_bin_discard;
+
+	/* The board may have a restricted NSS for 160 or 80+80 vs what it
+	 * can do for 80Mhz.
+	 */
+	int vht160_mcs_rx_highest;
+	int vht160_mcs_tx_highest;
 };
 
 struct htt_rx_desc;
@@ -623,6 +719,11 @@ ath10k_rx_desc_get_l3_pad_bytes(struct ath10k_hw_params *hw,
 #define TARGET_10_4_ATF_CONFIG			0
 #define TARGET_10_4_IPHDR_PAD_CONFIG		1
 #define TARGET_10_4_QWRAP_CONFIG		0
+
+/* TDLS config */
+#define TARGET_10_4_NUM_TDLS_VDEVS		1
+#define TARGET_10_4_NUM_TDLS_BUFFER_STA		1
+#define TARGET_10_4_NUM_TDLS_SLEEP_STA		1
 
 /* Maximum number of Copy Engine's supported */
 #define CE_COUNT_MAX 12
@@ -862,6 +963,59 @@ ath10k_rx_desc_get_l3_pad_bytes(struct ath10k_hw_params *hw,
 #define QCA9887_EEPROM_ADDR_HI_LSB		8
 #define QCA9887_EEPROM_ADDR_LO_MASK		0x00ff0000
 #define QCA9887_EEPROM_ADDR_LO_LSB		16
+
+#define MBOX_RESET_CONTROL_ADDRESS		0x00000000
+#define MBOX_HOST_INT_STATUS_ADDRESS		0x00000800
+#define MBOX_HOST_INT_STATUS_ERROR_LSB		7
+#define MBOX_HOST_INT_STATUS_ERROR_MASK		0x00000080
+#define MBOX_HOST_INT_STATUS_CPU_LSB		6
+#define MBOX_HOST_INT_STATUS_CPU_MASK		0x00000040
+#define MBOX_HOST_INT_STATUS_COUNTER_LSB	4
+#define MBOX_HOST_INT_STATUS_COUNTER_MASK	0x00000010
+#define MBOX_CPU_INT_STATUS_ADDRESS		0x00000801
+#define MBOX_ERROR_INT_STATUS_ADDRESS		0x00000802
+#define MBOX_ERROR_INT_STATUS_WAKEUP_LSB	2
+#define MBOX_ERROR_INT_STATUS_WAKEUP_MASK	0x00000004
+#define MBOX_ERROR_INT_STATUS_RX_UNDERFLOW_LSB	1
+#define MBOX_ERROR_INT_STATUS_RX_UNDERFLOW_MASK	0x00000002
+#define MBOX_ERROR_INT_STATUS_TX_OVERFLOW_LSB	0
+#define MBOX_ERROR_INT_STATUS_TX_OVERFLOW_MASK	0x00000001
+#define MBOX_COUNTER_INT_STATUS_ADDRESS		0x00000803
+#define MBOX_COUNTER_INT_STATUS_COUNTER_LSB	0
+#define MBOX_COUNTER_INT_STATUS_COUNTER_MASK	0x000000ff
+#define MBOX_RX_LOOKAHEAD_VALID_ADDRESS		0x00000805
+#define MBOX_INT_STATUS_ENABLE_ADDRESS		0x00000828
+#define MBOX_INT_STATUS_ENABLE_ERROR_LSB	7
+#define MBOX_INT_STATUS_ENABLE_ERROR_MASK	0x00000080
+#define MBOX_INT_STATUS_ENABLE_CPU_LSB		6
+#define MBOX_INT_STATUS_ENABLE_CPU_MASK		0x00000040
+#define MBOX_INT_STATUS_ENABLE_INT_LSB		5
+#define MBOX_INT_STATUS_ENABLE_INT_MASK		0x00000020
+#define MBOX_INT_STATUS_ENABLE_COUNTER_LSB	4
+#define MBOX_INT_STATUS_ENABLE_COUNTER_MASK	0x00000010
+#define MBOX_INT_STATUS_ENABLE_MBOX_DATA_LSB	0
+#define MBOX_INT_STATUS_ENABLE_MBOX_DATA_MASK	0x0000000f
+#define MBOX_CPU_INT_STATUS_ENABLE_ADDRESS	0x00000819
+#define MBOX_CPU_INT_STATUS_ENABLE_BIT_LSB	0
+#define MBOX_CPU_INT_STATUS_ENABLE_BIT_MASK	0x000000ff
+#define MBOX_ERROR_STATUS_ENABLE_ADDRESS	0x0000081a
+#define MBOX_ERROR_STATUS_ENABLE_RX_UNDERFLOW_LSB  1
+#define MBOX_ERROR_STATUS_ENABLE_RX_UNDERFLOW_MASK 0x00000002
+#define MBOX_ERROR_STATUS_ENABLE_TX_OVERFLOW_LSB   0
+#define MBOX_ERROR_STATUS_ENABLE_TX_OVERFLOW_MASK  0x00000001
+#define MBOX_COUNTER_INT_STATUS_ENABLE_ADDRESS	0x0000081b
+#define MBOX_COUNTER_INT_STATUS_ENABLE_BIT_LSB	0
+#define MBOX_COUNTER_INT_STATUS_ENABLE_BIT_MASK	0x000000ff
+#define MBOX_COUNT_ADDRESS			0x00000820
+#define MBOX_COUNT_DEC_ADDRESS			0x00000840
+#define MBOX_WINDOW_DATA_ADDRESS		0x00000874
+#define MBOX_WINDOW_WRITE_ADDR_ADDRESS		0x00000878
+#define MBOX_WINDOW_READ_ADDR_ADDRESS		0x0000087c
+#define MBOX_CPU_DBG_SEL_ADDRESS		0x00000883
+#define MBOX_CPU_DBG_ADDRESS			0x00000884
+#define MBOX_RTC_BASE_ADDRESS			0x00000000
+#define MBOX_GPIO_BASE_ADDRESS			0x00005000
+#define MBOX_MBOX_BASE_ADDRESS			0x00008000
 
 #define RTC_STATE_V_GET(x) (((x) & RTC_STATE_V_MASK) >> RTC_STATE_V_LSB)
 

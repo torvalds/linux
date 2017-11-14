@@ -19,18 +19,11 @@
 #define __XFS_LINUX__
 
 #include <linux/types.h>
+#include <linux/uuid.h>
 
 /*
  * Kernel specific type declarations for XFS
  */
-typedef signed char		__int8_t;
-typedef unsigned char		__uint8_t;
-typedef signed short int	__int16_t;
-typedef unsigned short int	__uint16_t;
-typedef signed int		__int32_t;
-typedef unsigned int		__uint32_t;
-typedef signed long long int	__int64_t;
-typedef unsigned long long int	__uint64_t;
 
 typedef __s64			xfs_off_t;	/* <file offset> type */
 typedef unsigned long long	xfs_ino_t;	/* <inode> type */
@@ -42,7 +35,6 @@ typedef __u32			xfs_nlink_t;
 
 #include "kmem.h"
 #include "mrlock.h"
-#include "uuid.h"
 
 #include <linux/semaphore.h>
 #include <linux/mm.h>
@@ -151,7 +143,6 @@ typedef __u32			xfs_nlink_t;
 #define __return_address __builtin_return_address(0)
 
 #define XFS_PROJID_DEFAULT	0
-#define MAXPATHLEN	1024
 
 #define MIN(a,b)	(min(a,b))
 #define MAX(a,b)	(max(a,b))
@@ -186,22 +177,22 @@ extern struct xstats xfsstats;
  * are converting to the init_user_ns. The uid is later mapped to a particular
  * user namespace value when crossing the kernel/user boundary.
  */
-static inline __uint32_t xfs_kuid_to_uid(kuid_t uid)
+static inline uint32_t xfs_kuid_to_uid(kuid_t uid)
 {
 	return from_kuid(&init_user_ns, uid);
 }
 
-static inline kuid_t xfs_uid_to_kuid(__uint32_t uid)
+static inline kuid_t xfs_uid_to_kuid(uint32_t uid)
 {
 	return make_kuid(&init_user_ns, uid);
 }
 
-static inline __uint32_t xfs_kgid_to_gid(kgid_t gid)
+static inline uint32_t xfs_kgid_to_gid(kgid_t gid)
 {
 	return from_kgid(&init_user_ns, gid);
 }
 
-static inline kgid_t xfs_gid_to_kgid(__uint32_t gid)
+static inline kgid_t xfs_gid_to_kgid(uint32_t gid)
 {
 	return make_kgid(&init_user_ns, gid);
 }
@@ -231,14 +222,14 @@ static inline __u32 xfs_do_mod(void *a, __u32 b, int n)
 
 #define do_mod(a, b)	xfs_do_mod(&(a), (b), sizeof(a))
 
-static inline __uint64_t roundup_64(__uint64_t x, __uint32_t y)
+static inline uint64_t roundup_64(uint64_t x, uint32_t y)
 {
 	x += y - 1;
 	do_div(x, y);
 	return x * y;
 }
 
-static inline __uint64_t howmany_64(__uint64_t x, __uint32_t y)
+static inline uint64_t howmany_64(uint64_t x, uint32_t y)
 {
 	x += y - 1;
 	do_div(x, y);
@@ -279,7 +270,14 @@ static inline __uint64_t howmany_64(__uint64_t x, __uint32_t y)
 #endif /* DEBUG */
 
 #ifdef CONFIG_XFS_RT
-#define XFS_IS_REALTIME_INODE(ip) ((ip)->i_d.di_flags & XFS_DIFLAG_REALTIME)
+
+/*
+ * make sure we ignore the inode flag if the filesystem doesn't have a
+ * configured realtime device.
+ */
+#define XFS_IS_REALTIME_INODE(ip)			\
+	(((ip)->i_d.di_flags & XFS_DIFLAG_REALTIME) &&	\
+	 (ip)->i_mount->m_rtdev_targp)
 #else
 #define XFS_IS_REALTIME_INODE(ip) (0)
 #endif

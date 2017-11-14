@@ -1,0 +1,71 @@
+STMicroelectronics STM32H7 Reset and Clock Controller
+=====================================================
+
+The RCC IP is both a reset and a clock controller.
+
+Please refer to clock-bindings.txt for common clock controller binding usage.
+Please also refer to reset.txt for common reset controller binding usage.
+
+Required properties:
+- compatible: Should be:
+  "st,stm32h743-rcc"
+
+- reg: should be register base and length as documented in the
+  datasheet
+
+- #reset-cells: 1, see below
+
+- #clock-cells : from common clock binding; shall be set to 1
+
+- clocks: External oscillator clock phandle
+  - high speed external clock signal (HSE)
+  - low speed external clock signal (LSE)
+  - external I2S clock (I2S_CKIN)
+
+Optional properties:
+- st,syscfg: phandle for pwrcfg, mandatory to disable/enable backup domain
+  write protection (RTC clock).
+
+Example:
+
+	rcc: reset-clock-controller@58024400 {
+		compatible = "st,stm32h743-rcc", "st,stm32-rcc";
+		reg = <0x58024400 0x400>;
+		#reset-cells = <1>;
+		#clock-cells = <1>;
+		clocks = <&clk_hse>, <&clk_lse>, <&clk_i2s_ckin>;
+
+		st,syscfg = <&pwrcfg>;
+};
+
+The peripheral clock consumer should specify the desired clock by
+having the clock ID in its "clocks" phandle cell.
+
+Example:
+
+		timer5: timer@40000c00 {
+			compatible = "st,stm32-timer";
+			reg = <0x40000c00 0x400>;
+			interrupts = <50>;
+			clocks = <&rcc TIM5_CK>;
+		};
+
+Specifying softreset control of devices
+=======================================
+
+Device nodes should specify the reset channel required in their "resets"
+property, containing a phandle to the reset device node and an index specifying
+which channel to use.
+The index is the bit number within the RCC registers bank, starting from RCC
+base address.
+It is calculated as: index = register_offset / 4 * 32 + bit_offset.
+Where bit_offset is the bit offset within the register.
+
+For example, for CRC reset:
+  crc = AHB4RSTR_offset / 4 * 32 + CRCRST_bit_offset = 0x88 / 4 * 32 + 19 = 1107
+
+Example:
+
+	timer2 {
+		resets	= <&rcc STM32H7_APB1L_RESET(TIM2)>;
+	};

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 ifndef NO_DWARF
 PERF_HAVE_DWARF_REGS := 1
 endif
@@ -20,7 +21,7 @@ _dummy := $(shell [ -d '$(out)' ] || mkdir -p '$(out)')
 $(header): $(sys)/syscall_64.tbl $(systbl)
 	@(test -d ../../kernel -a -d ../../tools -a -d ../perf && ( \
         (diff -B arch/x86/entry/syscalls/syscall_64.tbl ../../arch/x86/entry/syscalls/syscall_64.tbl >/dev/null) \
-        || echo "Warning: x86_64's syscall_64.tbl differs from kernel" >&2 )) || true
+        || echo "Warning: Kernel ABI header at 'tools/arch/x86/entry/syscalls/syscall_64.tbl' differs from latest version at 'arch/x86/entry/syscalls/syscall_64.tbl'" >&2 )) || true
 	$(Q)$(SHELL) '$(systbl)' $(sys)/syscall_64.tbl 'x86_64' > $@
 
 clean::

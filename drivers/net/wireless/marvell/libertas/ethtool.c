@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/hardirq.h>
 #include <linux/netdevice.h>
 #include <linux/ethtool.h>
@@ -41,8 +42,6 @@ static int lbs_ethtool_get_eeprom(struct net_device *dev,
 	struct cmd_ds_802_11_eeprom_access cmd;
 	int ret;
 
-	lbs_deb_enter(LBS_DEB_ETHTOOL);
-
 	if (eeprom->offset + eeprom->len > LBS_EEPROM_LEN ||
 	    eeprom->len > LBS_EEPROM_READ_LEN) {
 		ret = -EINVAL;
@@ -59,7 +58,6 @@ static int lbs_ethtool_get_eeprom(struct net_device *dev,
 		memcpy(bytes, cmd.value, eeprom->len);
 
 out:
-	lbs_deb_leave_args(LBS_DEB_ETHTOOL, "ret %d", ret);
         return ret;
 }
 

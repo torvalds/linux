@@ -76,16 +76,18 @@ void sas_porte_broadcast_rcvd(struct work_struct *work);
 void sas_porte_link_reset_err(struct work_struct *work);
 void sas_porte_timer_event(struct work_struct *work);
 void sas_porte_hard_reset(struct work_struct *work);
-void sas_queue_work(struct sas_ha_struct *ha, struct sas_work *sw);
+int sas_queue_work(struct sas_ha_struct *ha, struct sas_work *sw);
 
 int sas_notify_lldd_dev_found(struct domain_device *);
 void sas_notify_lldd_dev_gone(struct domain_device *);
 
+void sas_smp_handler(struct bsg_job *job, struct Scsi_Host *shost,
+		struct sas_rphy *rphy);
 int sas_smp_phy_control(struct domain_device *dev, int phy_id,
 			enum phy_func phy_func, struct sas_phy_linkrates *);
 int sas_smp_get_phy_events(struct sas_phy *phy);
 
-void sas_notify_phy_event(struct asd_sas_phy *phy, enum phy_event event);
+int sas_notify_phy_event(struct asd_sas_phy *phy, enum phy_event event);
 void sas_device_set_phy(struct domain_device *dev, struct sas_port *port);
 struct domain_device *sas_find_dev_by_rphy(struct sas_rphy *rphy);
 struct domain_device *sas_ex_to_ata(struct domain_device *ex_dev, int phy_id);
@@ -98,16 +100,14 @@ void sas_hae_reset(struct work_struct *work);
 void sas_free_device(struct kref *kref);
 
 #ifdef CONFIG_SCSI_SAS_HOST_SMP
-extern int sas_smp_host_handler(struct Scsi_Host *shost, struct request *req,
-				struct request *rsp);
+extern void sas_smp_host_handler(struct bsg_job *job, struct Scsi_Host *shost);
 #else
-static inline int sas_smp_host_handler(struct Scsi_Host *shost,
-				       struct request *req,
-				       struct request *rsp)
+static inline void sas_smp_host_handler(struct bsg_job *job,
+		struct Scsi_Host *shost)
 {
 	shost_printk(KERN_ERR, shost,
 		"Cannot send SMP to a sas host (not enabled in CONFIG)\n");
-	return -EINVAL;
+	bsg_job_done(job, -EINVAL, 0);
 }
 #endif
 

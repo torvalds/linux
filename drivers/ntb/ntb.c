@@ -5,6 +5,7 @@
  *   GPL LICENSE SUMMARY
  *
  *   Copyright (C) 2015 EMC Corporation. All Rights Reserved.
+ *   Copyright (C) 2016 T-Platforms. All Rights Reserved.
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of version 2 of the GNU General Public License as
@@ -18,6 +19,7 @@
  *   BSD LICENSE
  *
  *   Copyright (C) 2015 EMC Corporation. All Rights Reserved.
+ *   Copyright (C) 2016 T-Platforms. All Rights Reserved.
  *
  *   Redistribution and use in source and binary forms, with or without
  *   modification, are permitted provided that the following conditions
@@ -190,6 +192,73 @@ void ntb_db_event(struct ntb_dev *ntb, int vector)
 	spin_unlock_irqrestore(&ntb->ctx_lock, irqflags);
 }
 EXPORT_SYMBOL(ntb_db_event);
+
+void ntb_msg_event(struct ntb_dev *ntb)
+{
+	unsigned long irqflags;
+
+	spin_lock_irqsave(&ntb->ctx_lock, irqflags);
+	{
+		if (ntb->ctx_ops && ntb->ctx_ops->msg_event)
+			ntb->ctx_ops->msg_event(ntb->ctx);
+	}
+	spin_unlock_irqrestore(&ntb->ctx_lock, irqflags);
+}
+EXPORT_SYMBOL(ntb_msg_event);
+
+int ntb_default_port_number(struct ntb_dev *ntb)
+{
+	switch (ntb->topo) {
+	case NTB_TOPO_PRI:
+	case NTB_TOPO_B2B_USD:
+		return NTB_PORT_PRI_USD;
+	case NTB_TOPO_SEC:
+	case NTB_TOPO_B2B_DSD:
+		return NTB_PORT_SEC_DSD;
+	default:
+		break;
+	}
+
+	return -EINVAL;
+}
+EXPORT_SYMBOL(ntb_default_port_number);
+
+int ntb_default_peer_port_count(struct ntb_dev *ntb)
+{
+	return NTB_DEF_PEER_CNT;
+}
+EXPORT_SYMBOL(ntb_default_peer_port_count);
+
+int ntb_default_peer_port_number(struct ntb_dev *ntb, int pidx)
+{
+	if (pidx != NTB_DEF_PEER_IDX)
+		return -EINVAL;
+
+	switch (ntb->topo) {
+	case NTB_TOPO_PRI:
+	case NTB_TOPO_B2B_USD:
+		return NTB_PORT_SEC_DSD;
+	case NTB_TOPO_SEC:
+	case NTB_TOPO_B2B_DSD:
+		return NTB_PORT_PRI_USD;
+	default:
+		break;
+	}
+
+	return -EINVAL;
+}
+EXPORT_SYMBOL(ntb_default_peer_port_number);
+
+int ntb_default_peer_port_idx(struct ntb_dev *ntb, int port)
+{
+	int peer_port = ntb_default_peer_port_number(ntb, NTB_DEF_PEER_IDX);
+
+	if (peer_port == -EINVAL || port != peer_port)
+		return -EINVAL;
+
+	return 0;
+}
+EXPORT_SYMBOL(ntb_default_peer_port_idx);
 
 static int ntb_probe(struct device *dev)
 {

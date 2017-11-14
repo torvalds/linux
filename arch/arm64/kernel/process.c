@@ -210,6 +210,7 @@ void __show_regs(struct pt_regs *regs)
 void show_regs(struct pt_regs * regs)
 {
 	__show_regs(regs);
+	dump_backtrace(regs, NULL);
 }
 
 static void tls_thread_flush(void)
@@ -297,12 +298,16 @@ int copy_thread(unsigned long clone_flags, unsigned long stack_start,
 	return 0;
 }
 
+void tls_preserve_current_state(void)
+{
+	*task_user_tls(current) = read_sysreg(tpidr_el0);
+}
+
 static void tls_thread_switch(struct task_struct *next)
 {
 	unsigned long tpidr, tpidrro;
 
-	tpidr = read_sysreg(tpidr_el0);
-	*task_user_tls(current) = tpidr;
+	tls_preserve_current_state();
 
 	tpidr = *task_user_tls(next);
 	tpidrro = is_compat_thread(task_thread_info(next)) ?
@@ -355,6 +360,8 @@ __notrace_funcgraph struct task_struct *__switch_to(struct task_struct *prev,
 	/*
 	 * Complete any pending TLB or cache maintenance on this CPU in case
 	 * the thread migrates to a different CPU.
+	 * This full barrier is also required by the membarrier system
+	 * call.
 	 */
 	dsb(ish);
 
@@ -377,15 +384,12 @@ unsigned long get_wchan(struct task_struct *p)
 		return 0;
 
 	frame.fp = thread_saved_fp(p);
-	frame.sp = thread_saved_sp(p);
 	frame.pc = thread_saved_pc(p);
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 	frame.graph = p->curr_ret_stack;
 #endif
 	do {
-		if (frame.sp < stack_page ||
-		    frame.sp >= stack_page + THREAD_SIZE ||
-		    unwind_frame(p, &frame))
+		if (unwind_frame(p, &frame))
 			goto out;
 		if (!in_sched_functions(frame.pc)) {
 			ret = frame.pc;
@@ -411,4 +415,12 @@ unsigned long arch_randomize_brk(struct mm_struct *mm)
 		return randomize_page(mm->brk, SZ_32M);
 	else
 		return randomize_page(mm->brk, SZ_1G);
+}
+
+/*
+ * Called from setup_new_exec() after (COMPAT_)SET_PERSONALITY.
+ */
+void arch_setup_new_exec(void)
+{
+	current->mm->context.flags = is_compat_task() ? MMCF_AARCH32 : 0;
 }

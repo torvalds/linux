@@ -1278,6 +1278,12 @@ static void hauppauge_eeprom(struct cx23885_dev *dev, u8 *eeprom_data)
 	case 85721:
 		/* WinTV-HVR1290 (PCIe, OEM, RCA in, IR,
 			Dual channel ATSC and Basic analog */
+	case 121019:
+		/* WinTV-HVR4400 (PCIe, DVB-S2, DVB-C/T) */
+		break;
+	case 121029:
+		/* WinTV-HVR5500 (PCIe, DVB-S2, DVB-C/T) */
+		break;
 	case 150329:
 		/* WinTV-HVR5525 (PCIe, DVB-S/S2, DVB-T/T2/C) */
 		break;
@@ -2081,7 +2087,7 @@ void cx23885_card_setup(struct cx23885_dev *dev)
 		ts2->gen_ctrl_val  = 0xc; /* Serial bus + punctured clock */
 		ts2->ts_clk_en_val = 0x1; /* Enable TS_CLK */
 		ts2->src_sel_val   = CX23885_SRC_SEL_PARALLEL_MPEG_VIDEO;
-		/* break omitted intentionally */
+		/* fall-through */
 	case CX23885_BOARD_DVICO_FUSIONHDTV_5_EXP:
 		ts1->gen_ctrl_val  = 0xc; /* Serial bus + punctured clock */
 		ts1->ts_clk_en_val = 0x1; /* Enable TS_CLK */
@@ -2238,6 +2244,7 @@ void cx23885_card_setup(struct cx23885_dev *dev)
 		/* Currently only enabled for the integrated IR controller */
 		if (!enable_885_ir)
 			break;
+		/* fall-through */
 	case CX23885_BOARD_HAUPPAUGE_HVR1250:
 	case CX23885_BOARD_HAUPPAUGE_HVR1800:
 	case CX23885_BOARD_HAUPPAUGE_IMPACTVCBE:

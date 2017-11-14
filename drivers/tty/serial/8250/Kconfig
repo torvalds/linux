@@ -155,6 +155,17 @@ config SERIAL_8250_CS
 
 	  If unsure, say N.
 
+config SERIAL_8250_MEN_MCB
+	tristate "MEN Z125 UART device support"
+	depends on MCB && SERIAL_8250
+	help
+	  This enables support for FPGA based UARTs found on many MEN
+	  boards. This driver enables support for the Z125 UARTs.
+
+	  To compile this driver as a module, chose M here: the
+	  module will be called 8250_men_mcb.
+
+
 config SERIAL_8250_NR_UARTS
 	int "Maximum number of 8250/16550 serial ports"
 	depends on SERIAL_8250
@@ -223,6 +234,16 @@ config SERIAL_8250_ACCENT
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called 8250_accent.
+
+config SERIAL_8250_ASPEED_VUART
+	tristate "Aspeed Virtual UART"
+	depends on SERIAL_8250
+	depends on OF
+	help
+	  If you want to use the virtual UART (VUART) device on Aspeed
+	  BMC platforms, enable this option. This enables the 16550A-
+	  compatible device on the local LPC bus, giving a UART device
+	  with no physical RS232 connections.
 
 config SERIAL_8250_BOCA
 	tristate "Support Boca cards"

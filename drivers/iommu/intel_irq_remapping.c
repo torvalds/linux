@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 
 #define pr_fmt(fmt)     "DMAR-IR: " fmt
 
@@ -76,7 +77,7 @@ static struct hpet_scope ir_hpet[MAX_HPET_TBS];
  * the dmar_global_lock.
  */
 static DEFINE_RAW_SPINLOCK(irq_2_ir_lock);
-static struct irq_domain_ops intel_ir_domain_ops;
+static const struct irq_domain_ops intel_ir_domain_ops;
 
 static void iommu_disable_irq_remapping(struct intel_iommu *iommu);
 static int __init parse_ioapics_under_ir(void);
@@ -500,8 +501,9 @@ static void iommu_enable_irq_remapping(struct intel_iommu *iommu)
 static int intel_setup_irq_remapping(struct intel_iommu *iommu)
 {
 	struct ir_table *ir_table;
-	struct page *pages;
+	struct fwnode_handle *fn;
 	unsigned long *bitmap;
+	struct page *pages;
 
 	if (iommu->ir_table)
 		return 0;
@@ -525,15 +527,24 @@ static int intel_setup_irq_remapping(struct intel_iommu *iommu)
 		goto out_free_pages;
 	}
 
-	iommu->ir_domain = irq_domain_add_hierarchy(arch_get_ir_parent_domain(),
-						    0, INTR_REMAP_TABLE_ENTRIES,
-						    NULL, &intel_ir_domain_ops,
-						    iommu);
+	fn = irq_domain_alloc_named_id_fwnode("INTEL-IR", iommu->seq_id);
+	if (!fn)
+		goto out_free_bitmap;
+
+	iommu->ir_domain =
+		irq_domain_create_hierarchy(arch_get_ir_parent_domain(),
+					    0, INTR_REMAP_TABLE_ENTRIES,
+					    fn, &intel_ir_domain_ops,
+					    iommu);
+	irq_domain_free_fwnode(fn);
 	if (!iommu->ir_domain) {
 		pr_err("IR%d: failed to allocate irqdomain\n", iommu->seq_id);
 		goto out_free_bitmap;
 	}
-	iommu->ir_msi_domain = arch_create_msi_irq_domain(iommu->ir_domain);
+	iommu->ir_msi_domain =
+		arch_create_remap_msi_irq_domain(iommu->ir_domain,
+						 "INTEL-IR-MSI",
+						 iommu->seq_id);
 
 	ir_table->base = page_address(pages);
 	ir_table->bitmap = bitmap;
@@ -1205,10 +1216,11 @@ static int intel_ir_set_vcpu_affinity(struct irq_data *data, void *info)
 }
 
 static struct irq_chip intel_ir_chip = {
-	.irq_ack = ir_ack_apic_edge,
-	.irq_set_affinity = intel_ir_set_affinity,
-	.irq_compose_msi_msg = intel_ir_compose_msi_msg,
-	.irq_set_vcpu_affinity = intel_ir_set_vcpu_affinity,
+	.name			= "INTEL-IR",
+	.irq_ack		= ir_ack_apic_edge,
+	.irq_set_affinity	= intel_ir_set_affinity,
+	.irq_compose_msi_msg	= intel_ir_compose_msi_msg,
+	.irq_set_vcpu_affinity	= intel_ir_set_vcpu_affinity,
 };
 
 static void intel_irq_remapping_prepare_irte(struct intel_ir_data *data,
@@ -1396,7 +1408,7 @@ static void intel_irq_remapping_deactivate(struct irq_domain *domain,
 	modify_irte(&data->irq_2_iommu, &entry);
 }
 
-static struct irq_domain_ops intel_ir_domain_ops = {
+static const struct irq_domain_ops intel_ir_domain_ops = {
 	.alloc = intel_irq_remapping_alloc,
 	.free = intel_irq_remapping_free,
 	.activate = intel_irq_remapping_activate,

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * (C) 2001 Clemson University and The University of Chicago
  *
@@ -34,6 +35,19 @@ static const match_table_t tokens = {
 };
 
 uint64_t orangefs_features;
+
+static int orangefs_show_options(struct seq_file *m, struct dentry *root)
+{
+	struct orangefs_sb_info_s *orangefs_sb = ORANGEFS_SB(root->d_sb);
+
+	if (root->d_sb->s_flags & MS_POSIXACL)
+		seq_puts(m, ",acl");
+	if (orangefs_sb->flags & ORANGEFS_OPT_INTR)
+		seq_puts(m, ",intr");
+	if (orangefs_sb->flags & ORANGEFS_OPT_LOCAL_LOCK)
+		seq_puts(m, ",local_lock");
+	return 0;
+}
 
 static int parse_mount_options(struct super_block *sb, char *options,
 		int silent)
@@ -94,10 +108,8 @@ static struct inode *orangefs_alloc_inode(struct super_block *sb)
 	struct orangefs_inode_s *orangefs_inode;
 
 	orangefs_inode = kmem_cache_alloc(orangefs_inode_cache, GFP_KERNEL);
-	if (orangefs_inode == NULL) {
-		gossip_err("Failed to allocate orangefs_inode\n");
+	if (!orangefs_inode)
 		return NULL;
-	}
 
 	/*
 	 * We want to clear everything except for rw_semaphore and the
@@ -305,7 +317,7 @@ static const struct super_operations orangefs_s_ops = {
 	.drop_inode = generic_delete_inode,
 	.statfs = orangefs_statfs,
 	.remount_fs = orangefs_remount_fs,
-	.show_options = generic_show_options,
+	.show_options = orangefs_show_options,
 };
 
 static struct dentry *orangefs_fh_to_dentry(struct super_block *sb,

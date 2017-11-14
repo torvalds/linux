@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * page.h:  Various defines and such for MMU operations on the Sparc for
  *          the Linux kernel.
@@ -68,6 +69,7 @@ typedef struct { unsigned long iopgprot; } iopgprot_t;
 #define iopgprot_val(x)	((x).iopgprot)
 
 #define __pte(x)	((pte_t) { (x) } )
+#define __pmd(x)	((pmd_t) { { (x) }, })
 #define __iopte(x)	((iopte_t) { (x) } )
 #define __pgd(x)	((pgd_t) { (x) } )
 #define __ctxd(x)	((ctxd_t) { (x) } )
@@ -95,6 +97,7 @@ typedef unsigned long iopgprot_t;
 #define iopgprot_val(x)	(x)
 
 #define __pte(x)	(x)
+#define __pmd(x)	((pmd_t) { { (x) }, })
 #define __iopte(x)	(x)
 #define __pgd(x)	(x)
 #define __ctxd(x)	(x)

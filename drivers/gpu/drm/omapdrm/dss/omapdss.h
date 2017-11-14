@@ -25,6 +25,7 @@
 #include <video/videomode.h>
 #include <linux/platform_data/omapdss.h>
 #include <uapi/drm/drm_mode.h>
+#include <drm/drm_crtc.h>
 
 #define DISPC_IRQ_FRAMEDONE		(1 << 0)
 #define DISPC_IRQ_VSYNC			(1 << 1)
@@ -59,7 +60,6 @@
 #define DISPC_IRQ_FRAMEDONE3		(1 << 30)
 
 struct omap_dss_device;
-struct omap_overlay_manager;
 struct dss_lcd_mgr_config;
 struct snd_aes_iec958;
 struct snd_cea_861_aud_if;
@@ -93,25 +93,7 @@ enum omap_channel {
 };
 
 enum omap_color_mode {
-	OMAP_DSS_COLOR_CLUT1	= 1 << 0,  /* BITMAP 1 */
-	OMAP_DSS_COLOR_CLUT2	= 1 << 1,  /* BITMAP 2 */
-	OMAP_DSS_COLOR_CLUT4	= 1 << 2,  /* BITMAP 4 */
-	OMAP_DSS_COLOR_CLUT8	= 1 << 3,  /* BITMAP 8 */
-	OMAP_DSS_COLOR_RGB12U	= 1 << 4,  /* RGB12, 16-bit container */
-	OMAP_DSS_COLOR_ARGB16	= 1 << 5,  /* ARGB16 */
-	OMAP_DSS_COLOR_RGB16	= 1 << 6,  /* RGB16 */
-	OMAP_DSS_COLOR_RGB24U	= 1 << 7,  /* RGB24, 32-bit container */
-	OMAP_DSS_COLOR_RGB24P	= 1 << 8,  /* RGB24, 24-bit container */
-	OMAP_DSS_COLOR_YUV2	= 1 << 9,  /* YUV2 4:2:2 co-sited */
-	OMAP_DSS_COLOR_UYVY	= 1 << 10, /* UYVY 4:2:2 co-sited */
-	OMAP_DSS_COLOR_ARGB32	= 1 << 11, /* ARGB32 */
-	OMAP_DSS_COLOR_RGBA32	= 1 << 12, /* RGBA32 */
-	OMAP_DSS_COLOR_RGBX32	= 1 << 13, /* RGBx32 */
-	OMAP_DSS_COLOR_NV12		= 1 << 14, /* NV12 format: YUV 4:2:0 */
-	OMAP_DSS_COLOR_RGBA16		= 1 << 15, /* RGBA16 - 4444 */
-	OMAP_DSS_COLOR_RGBX16		= 1 << 16, /* RGBx16 - 4444 */
-	OMAP_DSS_COLOR_ARGB16_1555	= 1 << 17, /* ARGB16 - 1555 */
-	OMAP_DSS_COLOR_XRGB16_1555	= 1 << 18, /* xRGB16 - 1555 */
+	_UNUSED_,
 };
 
 enum omap_dss_load_mode {
@@ -124,11 +106,6 @@ enum omap_dss_load_mode {
 enum omap_dss_trans_key_type {
 	OMAP_DSS_COLOR_KEY_GFX_DST = 0,
 	OMAP_DSS_COLOR_KEY_VID_SRC = 1,
-};
-
-enum omap_rfbi_te_mode {
-	OMAP_DSS_RFBI_TE_MODE_1 = 1,
-	OMAP_DSS_RFBI_TE_MODE_2 = 2,
 };
 
 enum omap_dss_signal_level {
@@ -169,17 +146,8 @@ enum omap_dss_display_state {
 };
 
 enum omap_dss_rotation_type {
-	OMAP_DSS_ROT_DMA	= 1 << 0,
-	OMAP_DSS_ROT_VRFB	= 1 << 1,
-	OMAP_DSS_ROT_TILER	= 1 << 2,
-};
-
-/* clockwise rotation angle */
-enum omap_dss_rotation_angle {
-	OMAP_DSS_ROT_0   = 0,
-	OMAP_DSS_ROT_90  = 1,
-	OMAP_DSS_ROT_180 = 2,
-	OMAP_DSS_ROT_270 = 3,
+	OMAP_DSS_ROT_NONE	= 0,
+	OMAP_DSS_ROT_TILER	= 1 << 0,
 };
 
 enum omap_overlay_caps {
@@ -189,10 +157,6 @@ enum omap_overlay_caps {
 	OMAP_DSS_OVL_CAP_ZORDER = 1 << 3,
 	OMAP_DSS_OVL_CAP_POS = 1 << 4,
 	OMAP_DSS_OVL_CAP_REPLICATION = 1 << 5,
-};
-
-enum omap_overlay_manager_caps {
-	OMAP_DSS_DUMMY_VALUE, /* add a dummy value to prevent compiler error */
 };
 
 enum omap_dss_clk_source {
@@ -218,27 +182,6 @@ enum omap_dss_output_id {
 	OMAP_DSS_OUTPUT_DSI2	= 1 << 4,
 	OMAP_DSS_OUTPUT_VENC	= 1 << 5,
 	OMAP_DSS_OUTPUT_HDMI	= 1 << 6,
-};
-
-/* RFBI */
-
-struct rfbi_timings {
-	int cs_on_time;
-	int cs_off_time;
-	int we_on_time;
-	int we_off_time;
-	int re_on_time;
-	int re_off_time;
-	int we_cycle_time;
-	int re_cycle_time;
-	int cs_pulse_width;
-	int access_time;
-
-	int clk_div;
-
-	u32 tim[5];             /* set by rfbi_convert_timings() */
-
-	int converted;
 };
 
 /* DSI */
@@ -299,13 +242,6 @@ struct omap_dss_dsi_config {
 	enum omap_dss_dsi_trans_mode trans_mode;
 };
 
-/* Hardcoded videomodes for tv. Venc only uses these to
- * identify the mode, and does not actually use the configs
- * itself. However, the configs should be something that
- * a normal monitor can also show */
-extern const struct videomode omap_dss_pal_vm;
-extern const struct videomode omap_dss_ntsc_vm;
-
 struct omap_dss_cpr_coefs {
 	s16 rr, rg, rb;
 	s16 gr, gg, gb;
@@ -318,10 +254,9 @@ struct omap_overlay_info {
 	u16 screen_width;
 	u16 width;
 	u16 height;
-	enum omap_color_mode color_mode;
+	u32 fourcc;
 	u8 rotation;
 	enum omap_dss_rotation_type rotation_type;
-	bool mirror;
 
 	u16 pos_x;
 	u16 pos_y;
@@ -330,48 +265,6 @@ struct omap_overlay_info {
 	u8 global_alpha;
 	u8 pre_mult_alpha;
 	u8 zorder;
-};
-
-struct omap_overlay {
-	struct kobject kobj;
-	struct list_head list;
-
-	/* static fields */
-	const char *name;
-	enum omap_plane_id id;
-	enum omap_color_mode supported_modes;
-	enum omap_overlay_caps caps;
-
-	/* dynamic fields */
-	struct omap_overlay_manager *manager;
-
-	/*
-	 * The following functions do not block:
-	 *
-	 * is_enabled
-	 * set_overlay_info
-	 * get_overlay_info
-	 *
-	 * The rest of the functions may block and cannot be called from
-	 * interrupt context
-	 */
-
-	int (*enable)(struct omap_overlay *ovl);
-	int (*disable)(struct omap_overlay *ovl);
-	bool (*is_enabled)(struct omap_overlay *ovl);
-
-	int (*set_manager)(struct omap_overlay *ovl,
-		struct omap_overlay_manager *mgr);
-	int (*unset_manager)(struct omap_overlay *ovl);
-
-	int (*set_overlay_info)(struct omap_overlay *ovl,
-			struct omap_overlay_info *info);
-	void (*get_overlay_info)(struct omap_overlay *ovl,
-			struct omap_overlay_info *info);
-
-	int (*wait_for_go)(struct omap_overlay *ovl);
-
-	struct omap_dss_device *(*get_device)(struct omap_overlay *ovl);
 };
 
 struct omap_overlay_manager_info {
@@ -385,47 +278,6 @@ struct omap_overlay_manager_info {
 
 	bool cpr_enable;
 	struct omap_dss_cpr_coefs cpr_coefs;
-};
-
-struct omap_overlay_manager {
-	struct kobject kobj;
-
-	/* static fields */
-	const char *name;
-	enum omap_channel id;
-	enum omap_overlay_manager_caps caps;
-	struct list_head overlays;
-	enum omap_display_type supported_displays;
-	enum omap_dss_output_id supported_outputs;
-
-	/* dynamic fields */
-	struct omap_dss_device *output;
-
-	/*
-	 * The following functions do not block:
-	 *
-	 * set_manager_info
-	 * get_manager_info
-	 * apply
-	 *
-	 * The rest of the functions may block and cannot be called from
-	 * interrupt context
-	 */
-
-	int (*set_output)(struct omap_overlay_manager *mgr,
-		struct omap_dss_device *output);
-	int (*unset_output)(struct omap_overlay_manager *mgr);
-
-	int (*set_manager_info)(struct omap_overlay_manager *mgr,
-			struct omap_overlay_manager_info *info);
-	void (*get_manager_info)(struct omap_overlay_manager *mgr,
-			struct omap_overlay_manager_info *info);
-
-	int (*apply)(struct omap_overlay_manager *mgr);
-	int (*wait_for_go)(struct omap_overlay_manager *mgr);
-	int (*wait_for_vsync)(struct omap_overlay_manager *mgr);
-
-	struct omap_dss_device *(*get_device)(struct omap_overlay_manager *mgr);
 };
 
 /* 22 pins means 1 clk lane and 10 data lanes */
@@ -449,10 +301,9 @@ struct omap_dss_writeback_info {
 	u16 buf_width;
 	u16 width;
 	u16 height;
-	enum omap_color_mode color_mode;
+	u32 fourcc;
 	u8 rotation;
 	enum omap_dss_rotation_type rotation_type;
-	bool mirror;
 	u8 pre_mult_alpha;
 };
 
@@ -471,8 +322,6 @@ struct omapdss_dpi_ops {
 			    struct videomode *vm);
 	void (*get_timings)(struct omap_dss_device *dssdev,
 			    struct videomode *vm);
-
-	void (*set_data_lines)(struct omap_dss_device *dssdev, int data_lines);
 };
 
 struct omapdss_sdi_ops {
@@ -490,8 +339,6 @@ struct omapdss_sdi_ops {
 			    struct videomode *vm);
 	void (*get_timings)(struct omap_dss_device *dssdev,
 			    struct videomode *vm);
-
-	void (*set_datapairs)(struct omap_dss_device *dssdev, int datapairs);
 };
 
 struct omapdss_dvi_ops {
@@ -527,11 +374,6 @@ struct omapdss_atv_ops {
 	void (*get_timings)(struct omap_dss_device *dssdev,
 			    struct videomode *vm);
 
-	void (*set_type)(struct omap_dss_device *dssdev,
-		enum omap_dss_venc_type type);
-	void (*invert_vid_out_polarity)(struct omap_dss_device *dssdev,
-		bool invert_polarity);
-
 	int (*set_wss)(struct omap_dss_device *dssdev, u32 wss);
 	u32 (*get_wss)(struct omap_dss_device *dssdev);
 };
@@ -554,6 +396,14 @@ struct omapdss_hdmi_ops {
 
 	int (*read_edid)(struct omap_dss_device *dssdev, u8 *buf, int len);
 	bool (*detect)(struct omap_dss_device *dssdev);
+
+	int (*register_hpd_cb)(struct omap_dss_device *dssdev,
+			       void (*cb)(void *cb_data,
+					  enum drm_connector_status status),
+			       void *cb_data);
+	void (*unregister_hpd_cb)(struct omap_dss_device *dssdev);
+	void (*enable_hpd)(struct omap_dss_device *dssdev);
+	void (*disable_hpd)(struct omap_dss_device *dssdev);
 
 	int (*set_hdmi_mode)(struct omap_dss_device *dssdev, bool hdmi_mode);
 	int (*set_infoframe)(struct omap_dss_device *dssdev,
@@ -631,30 +481,6 @@ struct omap_dss_device {
 	enum omap_display_type type;
 	enum omap_display_type output_type;
 
-	union {
-		struct {
-			u8 data_lines;
-		} dpi;
-
-		struct {
-			u8 channel;
-			u8 data_lines;
-		} rfbi;
-
-		struct {
-			u8 datapairs;
-		} sdi;
-
-		struct {
-			int module;
-		} dsi;
-
-		struct {
-			enum omap_dss_venc_type type;
-			bool invert_polarity;
-		} venc;
-	} phy;
-
 	struct {
 		struct videomode vm;
 
@@ -662,17 +488,7 @@ struct omap_dss_device {
 		enum omap_dss_dsi_mode dsi_mode;
 	} panel;
 
-	struct {
-		u8 pixel_size;
-		struct rfbi_timings rfbi_timings;
-	} ctrl;
-
 	const char *name;
-
-	/* used to match device to driver */
-	const char *driver_name;
-
-	void *data;
 
 	struct omap_dss_driver *driver;
 
@@ -709,8 +525,6 @@ struct omap_dss_device {
 	int port_num;
 
 	/* dynamic fields */
-	struct omap_overlay_manager *manager;
-
 	struct omap_dss_device *dst;
 };
 
@@ -742,12 +556,6 @@ struct omap_dss_driver {
 			void *buf, size_t size,
 			u16 x, u16 y, u16 w, u16 h);
 
-	void (*get_resolution)(struct omap_dss_device *dssdev,
-			u16 *xres, u16 *yres);
-	void (*get_dimensions)(struct omap_dss_device *dssdev,
-			u32 *width, u32 *height);
-	int (*get_recommended_bpp)(struct omap_dss_device *dssdev);
-
 	int (*check_timings)(struct omap_dss_device *dssdev,
 			     struct videomode *vm);
 	void (*set_timings)(struct omap_dss_device *dssdev,
@@ -761,12 +569,19 @@ struct omap_dss_driver {
 	int (*read_edid)(struct omap_dss_device *dssdev, u8 *buf, int len);
 	bool (*detect)(struct omap_dss_device *dssdev);
 
+	int (*register_hpd_cb)(struct omap_dss_device *dssdev,
+			       void (*cb)(void *cb_data,
+					  enum drm_connector_status status),
+			       void *cb_data);
+	void (*unregister_hpd_cb)(struct omap_dss_device *dssdev);
+	void (*enable_hpd)(struct omap_dss_device *dssdev);
+	void (*disable_hpd)(struct omap_dss_device *dssdev);
+
 	int (*set_hdmi_mode)(struct omap_dss_device *dssdev, bool hdmi_mode);
 	int (*set_hdmi_infoframe)(struct omap_dss_device *dssdev,
 		const struct hdmi_avi_infoframe *avi);
 };
 
-enum omapdss_version omapdss_get_version(void);
 bool omapdss_is_initialized(void);
 
 int omap_dss_register_driver(struct omap_dss_driver *);
@@ -781,35 +596,22 @@ void omap_dss_put_device(struct omap_dss_device *dssdev);
 struct omap_dss_device *omap_dss_get_next_device(struct omap_dss_device *from);
 struct omap_dss_device *omap_dss_find_device(void *data,
 		int (*match)(struct omap_dss_device *dssdev, void *data));
-const char *omapdss_get_default_display_name(void);
-
-int dss_feat_get_num_mgrs(void);
-int dss_feat_get_num_ovls(void);
-enum omap_color_mode dss_feat_get_supported_color_modes(enum omap_plane_id plane);
-
 
 
 int omap_dss_get_num_overlay_managers(void);
-struct omap_overlay_manager *omap_dss_get_overlay_manager(int num);
 
 int omap_dss_get_num_overlays(void);
-struct omap_overlay *omap_dss_get_overlay(int num);
 
 int omapdss_register_output(struct omap_dss_device *output);
 void omapdss_unregister_output(struct omap_dss_device *output);
 struct omap_dss_device *omap_dss_get_output(enum omap_dss_output_id id);
-struct omap_dss_device *omap_dss_find_output(const char *name);
 struct omap_dss_device *omap_dss_find_output_by_port_node(struct device_node *port);
 int omapdss_output_set_device(struct omap_dss_device *out,
 		struct omap_dss_device *dssdev);
 int omapdss_output_unset_device(struct omap_dss_device *out);
 
 struct omap_dss_device *omapdss_find_output_from_display(struct omap_dss_device *dssdev);
-struct omap_overlay_manager *omapdss_find_mgr_from_display(struct omap_dss_device *dssdev);
 
-void omapdss_default_get_resolution(struct omap_dss_device *dssdev,
-		u16 *xres, u16 *yres);
-int omapdss_default_get_recommended_bpp(struct omap_dss_device *dssdev);
 void omapdss_default_get_timings(struct omap_dss_device *dssdev,
 				 struct videomode *vm);
 
@@ -881,7 +683,6 @@ void dss_mgr_unregister_framedone_handler(enum omap_channel channel,
 struct dispc_ops {
 	u32 (*read_irqstatus)(void);
 	void (*clear_irqstatus)(u32 mask);
-	u32 (*read_irqenable)(void);
 	void (*write_irqenable)(u32 mask);
 
 	int (*request_irq)(irq_handler_t handler, void *dev_id);
@@ -913,14 +714,12 @@ struct dispc_ops {
 		unsigned int length);
 
 	int (*ovl_enable)(enum omap_plane_id plane, bool enable);
-	bool (*ovl_enabled)(enum omap_plane_id plane);
-	void (*ovl_set_channel_out)(enum omap_plane_id plane,
-			enum omap_channel channel);
 	int (*ovl_setup)(enum omap_plane_id plane,
 			 const struct omap_overlay_info *oi,
-			const struct videomode *vm, bool mem_to_mem);
+			const struct videomode *vm, bool mem_to_mem,
+			enum omap_channel channel);
 
-	enum omap_color_mode (*ovl_get_color_modes)(enum omap_plane_id plane);
+	const u32 *(*ovl_get_color_modes)(enum omap_plane_id plane);
 };
 
 void dispc_set_ops(const struct dispc_ops *o);

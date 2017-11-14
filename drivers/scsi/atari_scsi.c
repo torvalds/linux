@@ -671,7 +671,7 @@ static void atari_scsi_falcon_reg_write(unsigned int reg, u8 value)
 
 #include "NCR5380.c"
 
-static int atari_scsi_bus_reset(struct scsi_cmnd *cmd)
+static int atari_scsi_host_reset(struct scsi_cmnd *cmd)
 {
 	int rv;
 	unsigned long flags;
@@ -688,7 +688,7 @@ static int atari_scsi_bus_reset(struct scsi_cmnd *cmd)
 		atari_dma_orig_addr = NULL;
 	}
 
-	rv = NCR5380_bus_reset(cmd);
+	rv = NCR5380_host_reset(cmd);
 
 	/* The 5380 raises its IRQ line while _RST is active but the ST DMA
 	 * "lock" has been released so this interrupt may end up handled by
@@ -711,7 +711,7 @@ static struct scsi_host_template atari_scsi_template = {
 	.info			= atari_scsi_info,
 	.queuecommand		= atari_scsi_queue_command,
 	.eh_abort_handler	= atari_scsi_abort,
-	.eh_bus_reset_handler	= atari_scsi_bus_reset,
+	.eh_host_reset_handler	= atari_scsi_host_reset,
 	.this_id		= 7,
 	.cmd_per_lun		= 2,
 	.use_clustering		= DISABLE_CLUSTERING,
@@ -776,7 +776,7 @@ static int __init atari_scsi_probe(struct platform_device *pdev)
 	 * from/to alternative Ram.
 	 */
 	if (ATARIHW_PRESENT(ST_SCSI) && !ATARIHW_PRESENT(EXTD_DMA) &&
-	    m68k_num_memory > 1) {
+	    m68k_realnum_memory > 1) {
 		atari_dma_buffer = atari_stram_alloc(STRAM_BUFFER_SIZE, "SCSI");
 		if (!atari_dma_buffer) {
 			pr_err(PFX "can't allocate ST-RAM double buffer\n");

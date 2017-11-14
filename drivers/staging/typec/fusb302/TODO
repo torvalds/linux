@@ -4,3 +4,7 @@ fusb302:
 - Find a non-hacky way to coordinate between PM and I2C access
 - Documentation? The FUSB302 datasheet provides information on the chip to help
   understand the code. But it may still be helpful to have a documentation.
+- We may want to replace the  "fcs,max-snk-microvolt", "fcs,max-snk-microamp",
+  "fcs,max-snk-microwatt" and "fcs,operating-snk-microwatt" device(tree)
+  properties with properties which are part of a generic type-c controller
+  devicetree binding.

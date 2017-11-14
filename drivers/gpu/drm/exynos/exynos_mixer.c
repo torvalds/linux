@@ -45,6 +45,22 @@
 #define MIXER_WIN_NR		3
 #define VP_DEFAULT_WIN		2
 
+/*
+ * Mixer color space conversion coefficient triplet.
+ * Used for CSC from RGB to YCbCr.
+ * Each coefficient is a 10-bit fixed point number with
+ * sign and no integer part, i.e.
+ * [0:8] = fractional part (representing a value y = x / 2^9)
+ * [9] = sign
+ * Negative values are encoded with two's complement.
+ */
+#define MXR_CSC_C(x) ((int)((x) * 512.0) & 0x3ff)
+#define MXR_CSC_CT(a0, a1, a2) \
+  ((MXR_CSC_C(a0) << 20) | (MXR_CSC_C(a1) << 10) | (MXR_CSC_C(a2) << 0))
+
+/* YCbCr value, used for mixer background color configuration. */
+#define MXR_YCBCR_VAL(y, cb, cr) (((y) << 16) | ((cb) << 8) | ((cr) << 0))
+
 /* The pixelformats that are natively supported by the mixer. */
 #define MXR_FORMAT_RGB565	4
 #define MXR_FORMAT_ARGB1555	5
@@ -99,7 +115,6 @@ struct mixer_context {
 	struct drm_device	*drm_dev;
 	struct exynos_drm_crtc	*crtc;
 	struct exynos_drm_plane	planes[MIXER_WIN_NR];
-	int			pipe;
 	unsigned long		flags;
 
 	struct mixer_resources	mixer_res;
@@ -133,7 +148,8 @@ static const struct exynos_drm_plane_config plane_configs[MIXER_WIN_NR] = {
 		.pixel_formats = vp_formats,
 		.num_pixel_formats = ARRAY_SIZE(vp_formats),
 		.capabilities = EXYNOS_DRM_PLANE_CAP_SCALE |
-				EXYNOS_DRM_PLANE_CAP_ZPOS,
+				EXYNOS_DRM_PLANE_CAP_ZPOS |
+				EXYNOS_DRM_PLANE_CAP_TILE,
 	},
 };
 
@@ -382,37 +398,24 @@ static void mixer_cfg_rgb_fmt(struct mixer_context *ctx, unsigned int height)
 	struct mixer_resources *res = &ctx->mixer_res;
 	u32 val;
 
-	if (height == 480) {
+	switch (height) {
+	case 480:
+	case 576:
 		val = MXR_CFG_RGB601_0_255;
-	} else if (height == 576) {
-		val = MXR_CFG_RGB601_0_255;
-	} else if (height == 720) {
+		break;
+	case 720:
+	case 1080:
+	default:
 		val = MXR_CFG_RGB709_16_235;
+		/* Configure the BT.709 CSC matrix for full range RGB. */
 		mixer_reg_write(res, MXR_CM_COEFF_Y,
-				(1 << 30) | (94 << 20) | (314 << 10) |
-				(32 << 0));
+			MXR_CSC_CT( 0.184,  0.614,  0.063) |
+			MXR_CM_COEFF_RGB_FULL);
 		mixer_reg_write(res, MXR_CM_COEFF_CB,
-				(972 << 20) | (851 << 10) | (225 << 0));
+			MXR_CSC_CT(-0.102, -0.338,  0.440));
 		mixer_reg_write(res, MXR_CM_COEFF_CR,
-				(225 << 20) | (820 << 10) | (1004 << 0));
-	} else if (height == 1080) {
-		val = MXR_CFG_RGB709_16_235;
-		mixer_reg_write(res, MXR_CM_COEFF_Y,
-				(1 << 30) | (94 << 20) | (314 << 10) |
-				(32 << 0));
-		mixer_reg_write(res, MXR_CM_COEFF_CB,
-				(972 << 20) | (851 << 10) | (225 << 0));
-		mixer_reg_write(res, MXR_CM_COEFF_CR,
-				(225 << 20) | (820 << 10) | (1004 << 0));
-	} else {
-		val = MXR_CFG_RGB709_16_235;
-		mixer_reg_write(res, MXR_CM_COEFF_Y,
-				(1 << 30) | (94 << 20) | (314 << 10) |
-				(32 << 0));
-		mixer_reg_write(res, MXR_CM_COEFF_CB,
-				(972 << 20) | (851 << 10) | (225 << 0));
-		mixer_reg_write(res, MXR_CM_COEFF_CR,
-				(225 << 20) | (820 << 10) | (1004 << 0));
+			MXR_CSC_CT( 0.440, -0.399, -0.040));
+		break;
 	}
 
 	mixer_reg_writemask(res, MXR_CFG, val, MXR_CFG_RGB_FMT_MASK);
@@ -481,29 +484,18 @@ static void vp_video_buffer(struct mixer_context *ctx,
 	unsigned int priority = state->base.normalized_zpos + 1;
 	unsigned long flags;
 	dma_addr_t luma_addr[2], chroma_addr[2];
-	bool tiled_mode = false;
-	bool crcb_mode = false;
+	bool is_tiled, is_nv21;
 	u32 val;
 
-	switch (fb->format->format) {
-	case DRM_FORMAT_NV12:
-		crcb_mode = false;
-		break;
-	case DRM_FORMAT_NV21:
-		crcb_mode = true;
-		break;
-	default:
-		DRM_ERROR("pixel format for vp is wrong [%d].\n",
-				fb->format->format);
-		return;
-	}
+	is_nv21 = (fb->format->format == DRM_FORMAT_NV21);
+	is_tiled = (fb->modifier == DRM_FORMAT_MOD_SAMSUNG_64_32_TILE);
 
 	luma_addr[0] = exynos_drm_fb_dma_addr(fb, 0);
 	chroma_addr[0] = exynos_drm_fb_dma_addr(fb, 1);
 
 	if (mode->flags & DRM_MODE_FLAG_INTERLACE) {
 		__set_bit(MXR_BIT_INTERLACE, &ctx->flags);
-		if (tiled_mode) {
+		if (is_tiled) {
 			luma_addr[1] = luma_addr[0] + 0x40;
 			chroma_addr[1] = chroma_addr[0] + 0x40;
 		} else {
@@ -523,14 +515,14 @@ static void vp_video_buffer(struct mixer_context *ctx,
 	vp_reg_writemask(res, VP_MODE, val, VP_MODE_LINE_SKIP);
 
 	/* setup format */
-	val = (crcb_mode ? VP_MODE_NV21 : VP_MODE_NV12);
-	val |= (tiled_mode ? VP_MODE_MEM_TILED : VP_MODE_MEM_LINEAR);
+	val = (is_nv21 ? VP_MODE_NV21 : VP_MODE_NV12);
+	val |= (is_tiled ? VP_MODE_MEM_TILED : VP_MODE_MEM_LINEAR);
 	vp_reg_writemask(res, VP_MODE, val, VP_MODE_FMT_MASK);
 
 	/* setting size of input image */
 	vp_reg_write(res, VP_IMG_SIZE_Y, VP_IMG_HSIZE(fb->pitches[0]) |
 		VP_IMG_VSIZE(fb->height));
-	/* chroma height has to reduced by 2 to avoid chroma distorions */
+	/* chroma plane for NV12/NV21 is half the height of the luma plane */
 	vp_reg_write(res, VP_IMG_SIZE_C, VP_IMG_HSIZE(fb->pitches[0]) |
 		VP_IMG_VSIZE(fb->height / 2));
 
@@ -592,7 +584,7 @@ static void mixer_graph_buffer(struct mixer_context *ctx,
 	unsigned long flags;
 	unsigned int win = plane->index;
 	unsigned int x_ratio = 0, y_ratio = 0;
-	unsigned int src_x_offset, src_y_offset, dst_x_offset, dst_y_offset;
+	unsigned int dst_x_offset, dst_y_offset;
 	dma_addr_t dma_addr;
 	unsigned int fmt;
 	u32 val;
@@ -614,12 +606,9 @@ static void mixer_graph_buffer(struct mixer_context *ctx,
 
 	case DRM_FORMAT_XRGB8888:
 	case DRM_FORMAT_ARGB8888:
+	default:
 		fmt = MXR_FORMAT_ARGB8888;
 		break;
-
-	default:
-		DRM_DEBUG_KMS("pixelformat unsupported by mixer\n");
-		return;
 	}
 
 	/* ratio is already checked by common plane code */
@@ -629,12 +618,10 @@ static void mixer_graph_buffer(struct mixer_context *ctx,
 	dst_x_offset = state->crtc.x;
 	dst_y_offset = state->crtc.y;
 
-	/* converting dma address base and source offset */
+	/* translate dma address base s.t. the source image offset is zero */
 	dma_addr = exynos_drm_fb_dma_addr(fb, 0)
 		+ (state->src.x * fb->format->cpp[0])
 		+ (state->src.y * fb->pitches[0]);
-	src_x_offset = 0;
-	src_y_offset = 0;
 
 	if (mode->flags & DRM_MODE_FLAG_INTERLACE)
 		__set_bit(MXR_BIT_INTERLACE, &ctx->flags);
@@ -664,11 +651,6 @@ static void mixer_graph_buffer(struct mixer_context *ctx,
 	val |= MXR_GRP_WH_H_SCALE(x_ratio);
 	val |= MXR_GRP_WH_V_SCALE(y_ratio);
 	mixer_reg_write(res, MXR_GRAPHIC_WH(win), val);
-
-	/* setup offsets in source image */
-	val  = MXR_GRP_SXY_SX(src_x_offset);
-	val |= MXR_GRP_SXY_SY(src_y_offset);
-	mixer_reg_write(res, MXR_GRAPHIC_SXY(win), val);
 
 	/* setup offsets in display image */
 	val  = MXR_GRP_DXY_DX(dst_x_offset);
@@ -729,10 +711,10 @@ static void mixer_win_reset(struct mixer_context *ctx)
 	/* reset default layer priority */
 	mixer_reg_write(res, MXR_LAYER_CFG, 0);
 
-	/* setting background color */
-	mixer_reg_write(res, MXR_BG_COLOR0, 0x008080);
-	mixer_reg_write(res, MXR_BG_COLOR1, 0x008080);
-	mixer_reg_write(res, MXR_BG_COLOR2, 0x008080);
+	/* set all background colors to RGB (0,0,0) */
+	mixer_reg_write(res, MXR_BG_COLOR0, MXR_YCBCR_VAL(0, 128, 128));
+	mixer_reg_write(res, MXR_BG_COLOR1, MXR_YCBCR_VAL(0, 128, 128));
+	mixer_reg_write(res, MXR_BG_COLOR2, MXR_YCBCR_VAL(0, 128, 128));
 
 	if (test_bit(MXR_BIT_VP_ENABLED, &ctx->flags)) {
 		/* configuration of Video Processor Registers */
@@ -745,6 +727,10 @@ static void mixer_win_reset(struct mixer_context *ctx)
 	mixer_reg_writemask(res, MXR_CFG, 0, MXR_CFG_GRP1_ENABLE);
 	if (test_bit(MXR_BIT_VP_ENABLED, &ctx->flags))
 		mixer_reg_writemask(res, MXR_CFG, 0, MXR_CFG_VP_ENABLE);
+
+	/* set all source image offsets to zero */
+	mixer_reg_write(res, MXR_GRAPHIC_SXY(0), 0);
+	mixer_reg_write(res, MXR_GRAPHIC_SXY(1), 0);
 
 	spin_unlock_irqrestore(&res->reg_slock, flags);
 }
@@ -900,7 +886,6 @@ static int mixer_initialize(struct mixer_context *mixer_ctx,
 	priv = drm_dev->dev_private;
 
 	mixer_ctx->drm_dev = drm_dev;
-	mixer_ctx->pipe = priv->pipe++;
 
 	/* acquire resources: regs, irqs, clocks */
 	ret = mixer_resources_init(mixer_ctx);
@@ -918,11 +903,7 @@ static int mixer_initialize(struct mixer_context *mixer_ctx,
 		}
 	}
 
-	ret = drm_iommu_attach_device(drm_dev, mixer_ctx->dev);
-	if (ret)
-		priv->pipe--;
-
-	return ret;
+	return drm_iommu_attach_device(drm_dev, mixer_ctx->dev);
 }
 
 static void mixer_ctx_remove(struct mixer_context *mixer_ctx)
@@ -1097,28 +1078,28 @@ static const struct exynos_drm_crtc_ops mixer_crtc_ops = {
 	.atomic_check		= mixer_atomic_check,
 };
 
-static struct mixer_drv_data exynos5420_mxr_drv_data = {
+static const struct mixer_drv_data exynos5420_mxr_drv_data = {
 	.version = MXR_VER_128_0_0_184,
 	.is_vp_enabled = 0,
 };
 
-static struct mixer_drv_data exynos5250_mxr_drv_data = {
+static const struct mixer_drv_data exynos5250_mxr_drv_data = {
 	.version = MXR_VER_16_0_33_0,
 	.is_vp_enabled = 0,
 };
 
-static struct mixer_drv_data exynos4212_mxr_drv_data = {
+static const struct mixer_drv_data exynos4212_mxr_drv_data = {
 	.version = MXR_VER_0_0_0_16,
 	.is_vp_enabled = 1,
 };
 
-static struct mixer_drv_data exynos4210_mxr_drv_data = {
+static const struct mixer_drv_data exynos4210_mxr_drv_data = {
 	.version = MXR_VER_0_0_0_16,
 	.is_vp_enabled = 1,
 	.has_sclk = 1,
 };
 
-static struct of_device_id mixer_match_types[] = {
+static const struct of_device_id mixer_match_types[] = {
 	{
 		.compatible = "samsung,exynos4210-mixer",
 		.data	= &exynos4210_mxr_drv_data,
@@ -1158,15 +1139,14 @@ static int mixer_bind(struct device *dev, struct device *manager, void *data)
 			continue;
 
 		ret = exynos_plane_init(drm_dev, &ctx->planes[i], i,
-					1 << ctx->pipe, &plane_configs[i]);
+					&plane_configs[i]);
 		if (ret)
 			return ret;
 	}
 
 	exynos_plane = &ctx->planes[DEFAULT_WIN];
 	ctx->crtc = exynos_drm_crtc_create(drm_dev, &exynos_plane->base,
-					   ctx->pipe, EXYNOS_DISPLAY_TYPE_HDMI,
-					   &mixer_crtc_ops, ctx);
+			EXYNOS_DISPLAY_TYPE_HDMI, &mixer_crtc_ops, ctx);
 	if (IS_ERR(ctx->crtc)) {
 		mixer_ctx_remove(ctx);
 		ret = PTR_ERR(ctx->crtc);

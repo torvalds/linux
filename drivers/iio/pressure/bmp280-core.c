@@ -282,6 +282,11 @@ static int bmp280_read_temp(struct bmp280_data *data,
 	}
 
 	adc_temp = be32_to_cpu(tmp) >> 12;
+	if (adc_temp == BMP280_TEMP_SKIPPED) {
+		/* reading was skipped */
+		dev_err(data->dev, "reading temperature skipped\n");
+		return -EIO;
+	}
 	comp_temp = bmp280_compensate_temp(data, adc_temp);
 
 	/*
@@ -317,6 +322,11 @@ static int bmp280_read_press(struct bmp280_data *data,
 	}
 
 	adc_press = be32_to_cpu(tmp) >> 12;
+	if (adc_press == BMP280_PRESS_SKIPPED) {
+		/* reading was skipped */
+		dev_err(data->dev, "reading pressure skipped\n");
+		return -EIO;
+	}
 	comp_press = bmp280_compensate_press(data, adc_press);
 
 	*val = comp_press;
@@ -345,6 +355,11 @@ static int bmp280_read_humid(struct bmp280_data *data, int *val, int *val2)
 	}
 
 	adc_humidity = be16_to_cpu(tmp);
+	if (adc_humidity == BMP280_HUMIDITY_SKIPPED) {
+		/* reading was skipped */
+		dev_err(data->dev, "reading humidity skipped\n");
+		return -EIO;
+	}
 	comp_humidity = bmp280_compensate_humidity(data, adc_humidity);
 
 	*val = comp_humidity;
@@ -558,7 +573,7 @@ static int bmp280_chip_config(struct bmp280_data *data)
 	u8 osrs = BMP280_OSRS_TEMP_X(data->oversampling_temp + 1) |
 		  BMP280_OSRS_PRESS_X(data->oversampling_press + 1);
 
-	ret = regmap_update_bits(data->regmap, BMP280_REG_CTRL_MEAS,
+	ret = regmap_write_bits(data->regmap, BMP280_REG_CTRL_MEAS,
 				 BMP280_OSRS_TEMP_MASK |
 				 BMP280_OSRS_PRESS_MASK |
 				 BMP280_MODE_MASK,
@@ -597,14 +612,20 @@ static const struct bmp280_chip_info bmp280_chip_info = {
 
 static int bme280_chip_config(struct bmp280_data *data)
 {
-	int ret = bmp280_chip_config(data);
+	int ret;
 	u8 osrs = BMP280_OSRS_HUMIDITIY_X(data->oversampling_humid + 1);
+
+	/*
+	 * Oversampling of humidity must be set before oversampling of
+	 * temperature/pressure is set to become effective.
+	 */
+	ret = regmap_update_bits(data->regmap, BMP280_REG_CTRL_HUMIDITY,
+				  BMP280_OSRS_HUMIDITY_MASK, osrs);
 
 	if (ret < 0)
 		return ret;
 
-	return regmap_update_bits(data->regmap, BMP280_REG_CTRL_HUMIDITY,
-				  BMP280_OSRS_HUMIDITY_MASK, osrs);
+	return bmp280_chip_config(data);
 }
 
 static const struct bmp280_chip_info bme280_chip_info = {

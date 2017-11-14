@@ -38,9 +38,6 @@ MODULE_PARM_DESC(debug, "RxRPC debugging mask");
 static struct proto rxrpc_proto;
 static const struct proto_ops rxrpc_rpc_ops;
 
-/* local epoch for detecting local-end reset */
-u32 rxrpc_epoch;
-
 /* current debugging ID */
 atomic_t rxrpc_debug_id;
 
@@ -56,7 +53,7 @@ static void rxrpc_sock_destructor(struct sock *);
  */
 static inline int rxrpc_writable(struct sock *sk)
 {
-	return atomic_read(&sk->sk_wmem_alloc) < (size_t) sk->sk_sndbuf;
+	return refcount_read(&sk->sk_wmem_alloc) < (size_t) sk->sk_sndbuf;
 }
 
 /*
@@ -134,9 +131,8 @@ static int rxrpc_validate_address(struct rxrpc_sock *rx,
 static int rxrpc_bind(struct socket *sock, struct sockaddr *saddr, int len)
 {
 	struct sockaddr_rxrpc *srx = (struct sockaddr_rxrpc *)saddr;
-	struct sock *sk = sock->sk;
 	struct rxrpc_local *local;
-	struct rxrpc_sock *rx = rxrpc_sk(sk);
+	struct rxrpc_sock *rx = rxrpc_sk(sock->sk);
 	u16 service_id = srx->srx_service;
 	int ret;
 
@@ -148,31 +144,48 @@ static int rxrpc_bind(struct socket *sock, struct sockaddr *saddr, int len)
 
 	lock_sock(&rx->sk);
 
-	if (rx->sk.sk_state != RXRPC_UNBOUND) {
+	switch (rx->sk.sk_state) {
+	case RXRPC_UNBOUND:
+		rx->srx = *srx;
+		local = rxrpc_lookup_local(sock_net(&rx->sk), &rx->srx);
+		if (IS_ERR(local)) {
+			ret = PTR_ERR(local);
+			goto error_unlock;
+		}
+
+		if (service_id) {
+			write_lock(&local->services_lock);
+			if (rcu_access_pointer(local->service))
+				goto service_in_use;
+			rx->local = local;
+			rcu_assign_pointer(local->service, rx);
+			write_unlock(&local->services_lock);
+
+			rx->sk.sk_state = RXRPC_SERVER_BOUND;
+		} else {
+			rx->local = local;
+			rx->sk.sk_state = RXRPC_CLIENT_BOUND;
+		}
+		break;
+
+	case RXRPC_SERVER_BOUND:
+		ret = -EINVAL;
+		if (service_id == 0)
+			goto error_unlock;
+		ret = -EADDRINUSE;
+		if (service_id == rx->srx.srx_service)
+			goto error_unlock;
+		ret = -EINVAL;
+		srx->srx_service = rx->srx.srx_service;
+		if (memcmp(srx, &rx->srx, sizeof(*srx)) != 0)
+			goto error_unlock;
+		rx->second_service = service_id;
+		rx->sk.sk_state = RXRPC_SERVER_BOUND2;
+		break;
+
+	default:
 		ret = -EINVAL;
 		goto error_unlock;
-	}
-
-	memcpy(&rx->srx, srx, sizeof(rx->srx));
-
-	local = rxrpc_lookup_local(&rx->srx);
-	if (IS_ERR(local)) {
-		ret = PTR_ERR(local);
-		goto error_unlock;
-	}
-
-	if (service_id) {
-		write_lock(&local->services_lock);
-		if (rcu_access_pointer(local->service))
-			goto service_in_use;
-		rx->local = local;
-		rcu_assign_pointer(local->service, rx);
-		write_unlock(&local->services_lock);
-
-		rx->sk.sk_state = RXRPC_SERVER_BOUND;
-	} else {
-		rx->local = local;
-		rx->sk.sk_state = RXRPC_CLIENT_BOUND;
 	}
 
 	release_sock(&rx->sk);
@@ -209,6 +222,7 @@ static int rxrpc_listen(struct socket *sock, int backlog)
 		ret = -EADDRNOTAVAIL;
 		break;
 	case RXRPC_SERVER_BOUND:
+	case RXRPC_SERVER_BOUND2:
 		ASSERT(rx->local != NULL);
 		max = READ_ONCE(rxrpc_max_backlog);
 		ret = -EINVAL;
@@ -248,6 +262,7 @@ static int rxrpc_listen(struct socket *sock, int backlog)
  * @srx: The address of the peer to contact
  * @key: The security context to use (defaults to socket setting)
  * @user_call_ID: The ID to use
+ * @tx_total_len: Total length of data to transmit during the call (or -1)
  * @gfp: The allocation constraints
  * @notify_rx: Where to send notifications instead of socket queue
  *
@@ -262,6 +277,7 @@ struct rxrpc_call *rxrpc_kernel_begin_call(struct socket *sock,
 					   struct sockaddr_rxrpc *srx,
 					   struct key *key,
 					   unsigned long user_call_ID,
+					   s64 tx_total_len,
 					   gfp_t gfp,
 					   rxrpc_notify_rx_t notify_rx)
 {
@@ -289,12 +305,14 @@ struct rxrpc_call *rxrpc_kernel_begin_call(struct socket *sock,
 	cp.security_level	= 0;
 	cp.exclusive		= false;
 	cp.service_id		= srx->srx_service;
-	call = rxrpc_new_client_call(rx, &cp, srx, user_call_ID, gfp);
+	call = rxrpc_new_client_call(rx, &cp, srx, user_call_ID, tx_total_len,
+				     gfp);
 	/* The socket has been unlocked. */
-	if (!IS_ERR(call))
+	if (!IS_ERR(call)) {
 		call->notify_rx = notify_rx;
+		mutex_unlock(&call->user_mutex);
+	}
 
-	mutex_unlock(&call->user_mutex);
 	_leave(" = %p", call);
 	return call;
 }
@@ -318,6 +336,75 @@ void rxrpc_kernel_end_call(struct socket *sock, struct rxrpc_call *call)
 	rxrpc_put_call(call, rxrpc_call_put_kernel);
 }
 EXPORT_SYMBOL(rxrpc_kernel_end_call);
+
+/**
+ * rxrpc_kernel_check_call - Check a call's state
+ * @sock: The socket the call is on
+ * @call: The call to check
+ * @_compl: Where to store the completion state
+ * @_abort_code: Where to store any abort code
+ *
+ * Allow a kernel service to query the state of a call and find out the manner
+ * of its termination if it has completed.  Returns -EINPROGRESS if the call is
+ * still going, 0 if the call finished successfully, -ECONNABORTED if the call
+ * was aborted and an appropriate error if the call failed in some other way.
+ */
+int rxrpc_kernel_check_call(struct socket *sock, struct rxrpc_call *call,
+			    enum rxrpc_call_completion *_compl, u32 *_abort_code)
+{
+	if (call->state != RXRPC_CALL_COMPLETE)
+		return -EINPROGRESS;
+	smp_rmb();
+	*_compl = call->completion;
+	*_abort_code = call->abort_code;
+	return call->error;
+}
+EXPORT_SYMBOL(rxrpc_kernel_check_call);
+
+/**
+ * rxrpc_kernel_retry_call - Allow a kernel service to retry a call
+ * @sock: The socket the call is on
+ * @call: The call to retry
+ * @srx: The address of the peer to contact
+ * @key: The security context to use (defaults to socket setting)
+ *
+ * Allow a kernel service to try resending a client call that failed due to a
+ * network error to a new address.  The Tx queue is maintained intact, thereby
+ * relieving the need to re-encrypt any request data that has already been
+ * buffered.
+ */
+int rxrpc_kernel_retry_call(struct socket *sock, struct rxrpc_call *call,
+			    struct sockaddr_rxrpc *srx, struct key *key)
+{
+	struct rxrpc_conn_parameters cp;
+	struct rxrpc_sock *rx = rxrpc_sk(sock->sk);
+	int ret;
+
+	_enter("%d{%d}", call->debug_id, atomic_read(&call->usage));
+
+	if (!key)
+		key = rx->key;
+	if (key && !key->payload.data[0])
+		key = NULL; /* a no-security key */
+
+	memset(&cp, 0, sizeof(cp));
+	cp.local		= rx->local;
+	cp.key			= key;
+	cp.security_level	= 0;
+	cp.exclusive		= false;
+	cp.service_id		= srx->srx_service;
+
+	mutex_lock(&call->user_mutex);
+
+	ret = rxrpc_prepare_call_for_retry(rx, call);
+	if (ret == 0)
+		ret = rxrpc_retry_client_call(rx, call, &cp, srx, GFP_KERNEL);
+
+	mutex_unlock(&call->user_mutex);
+	_leave(" = %d", ret);
+	return ret;
+}
+EXPORT_SYMBOL(rxrpc_kernel_retry_call);
 
 /**
  * rxrpc_kernel_new_call_notification - Get notifications of new calls
@@ -434,7 +521,7 @@ static int rxrpc_sendmsg(struct socket *sock, struct msghdr *m, size_t len)
 			ret = -EAFNOSUPPORT;
 			goto error_unlock;
 		}
-		local = rxrpc_lookup_local(&rx->srx);
+		local = rxrpc_lookup_local(sock_net(sock->sk), &rx->srx);
 		if (IS_ERR(local)) {
 			ret = PTR_ERR(local);
 			goto error_unlock;
@@ -476,6 +563,7 @@ static int rxrpc_setsockopt(struct socket *sock, int level, int optname,
 {
 	struct rxrpc_sock *rx = rxrpc_sk(sock->sk);
 	unsigned int min_sec_level;
+	u16 service_upgrade[2];
 	int ret;
 
 	_enter(",%d,%d,,%d", level, optname, optlen);
@@ -532,6 +620,28 @@ static int rxrpc_setsockopt(struct socket *sock, int level, int optname,
 			rx->min_sec_level = min_sec_level;
 			goto success;
 
+		case RXRPC_UPGRADEABLE_SERVICE:
+			ret = -EINVAL;
+			if (optlen != sizeof(service_upgrade) ||
+			    rx->service_upgrade.from != 0)
+				goto error;
+			ret = -EISCONN;
+			if (rx->sk.sk_state != RXRPC_SERVER_BOUND2)
+				goto error;
+			ret = -EFAULT;
+			if (copy_from_user(service_upgrade, optval,
+					   sizeof(service_upgrade)) != 0)
+				goto error;
+			ret = -EINVAL;
+			if ((service_upgrade[0] != rx->srx.srx_service ||
+			     service_upgrade[1] != rx->second_service) &&
+			    (service_upgrade[0] != rx->second_service ||
+			     service_upgrade[1] != rx->srx.srx_service))
+				goto error;
+			rx->service_upgrade.from = service_upgrade[0];
+			rx->service_upgrade.to = service_upgrade[1];
+			goto success;
+
 		default:
 			break;
 		}
@@ -542,6 +652,34 @@ success:
 error:
 	release_sock(&rx->sk);
 	return ret;
+}
+
+/*
+ * Get socket options.
+ */
+static int rxrpc_getsockopt(struct socket *sock, int level, int optname,
+			    char __user *optval, int __user *_optlen)
+{
+	int optlen;
+
+	if (level != SOL_RXRPC)
+		return -EOPNOTSUPP;
+
+	if (get_user(optlen, _optlen))
+		return -EFAULT;
+
+	switch (optname) {
+	case RXRPC_SUPPORTED_CMSG:
+		if (optlen < sizeof(int))
+			return -ETOOSMALL;
+		if (put_user(RXRPC__SUPPORTED - 1, (int __user *)optval) ||
+		    put_user(sizeof(int), _optlen))
+			return -EFAULT;
+		return 0;
+
+	default:
+		return -EOPNOTSUPP;
+	}
 }
 
 /*
@@ -581,9 +719,6 @@ static int rxrpc_create(struct net *net, struct socket *sock, int protocol,
 	struct sock *sk;
 
 	_enter("%p,%d", sock, protocol);
-
-	if (!net_eq(net, &init_net))
-		return -EAFNOSUPPORT;
 
 	/* we support transport protocol UDP/UDP6 only */
 	if (protocol != PF_INET &&
@@ -665,7 +800,7 @@ static void rxrpc_sock_destructor(struct sock *sk)
 
 	rxrpc_purge_queue(&sk->sk_receive_queue);
 
-	WARN_ON(atomic_read(&sk->sk_wmem_alloc));
+	WARN_ON(refcount_read(&sk->sk_wmem_alloc));
 	WARN_ON(!sk_unhashed(sk));
 	WARN_ON(sk->sk_socket);
 
@@ -682,7 +817,7 @@ static int rxrpc_release_sock(struct sock *sk)
 {
 	struct rxrpc_sock *rx = rxrpc_sk(sk);
 
-	_enter("%p{%d,%d}", sk, sk->sk_state, atomic_read(&sk->sk_refcnt));
+	_enter("%p{%d,%d}", sk, sk->sk_state, refcount_read(&sk->sk_refcnt));
 
 	/* declare the socket closed for business */
 	sock_orphan(sk);
@@ -750,7 +885,7 @@ static const struct proto_ops rxrpc_rpc_ops = {
 	.listen		= rxrpc_listen,
 	.shutdown	= rxrpc_shutdown,
 	.setsockopt	= rxrpc_setsockopt,
-	.getsockopt	= sock_no_getsockopt,
+	.getsockopt	= rxrpc_getsockopt,
 	.sendmsg	= rxrpc_sendmsg,
 	.recvmsg	= rxrpc_recvmsg,
 	.mmap		= sock_no_mmap,
@@ -780,8 +915,6 @@ static int __init af_rxrpc_init(void)
 
 	BUILD_BUG_ON(sizeof(struct rxrpc_skb_priv) > FIELD_SIZEOF(struct sk_buff, cb));
 
-	get_random_bytes(&rxrpc_epoch, sizeof(rxrpc_epoch));
-	rxrpc_epoch |= RXRPC_RANDOM_EPOCH;
 	get_random_bytes(&tmp, sizeof(tmp));
 	tmp &= 0x3fffffff;
 	if (tmp == 0)
@@ -808,6 +941,10 @@ static int __init af_rxrpc_init(void)
 		pr_crit("Cannot initialise security\n");
 		goto error_security;
 	}
+
+	ret = register_pernet_subsys(&rxrpc_net_ops);
+	if (ret)
+		goto error_pernet;
 
 	ret = proto_register(&rxrpc_proto, 1);
 	if (ret < 0) {
@@ -839,11 +976,6 @@ static int __init af_rxrpc_init(void)
 		goto error_sysctls;
 	}
 
-#ifdef CONFIG_PROC_FS
-	proc_create("rxrpc_calls", 0, init_net.proc_net, &rxrpc_call_seq_fops);
-	proc_create("rxrpc_conns", 0, init_net.proc_net,
-		    &rxrpc_connection_seq_fops);
-#endif
 	return 0;
 
 error_sysctls:
@@ -855,6 +987,8 @@ error_key_type:
 error_sock:
 	proto_unregister(&rxrpc_proto);
 error_proto:
+	unregister_pernet_subsys(&rxrpc_net_ops);
+error_pernet:
 	rxrpc_exit_security();
 error_security:
 	destroy_workqueue(rxrpc_workqueue);
@@ -875,14 +1009,16 @@ static void __exit af_rxrpc_exit(void)
 	unregister_key_type(&key_type_rxrpc);
 	sock_unregister(PF_RXRPC);
 	proto_unregister(&rxrpc_proto);
-	rxrpc_destroy_all_calls();
-	rxrpc_destroy_all_connections();
+	unregister_pernet_subsys(&rxrpc_net_ops);
 	ASSERTCMP(atomic_read(&rxrpc_n_tx_skbs), ==, 0);
 	ASSERTCMP(atomic_read(&rxrpc_n_rx_skbs), ==, 0);
-	rxrpc_destroy_all_locals();
 
-	remove_proc_entry("rxrpc_conns", init_net.proc_net);
-	remove_proc_entry("rxrpc_calls", init_net.proc_net);
+	/* Make sure the local and peer records pinned by any dying connections
+	 * are released.
+	 */
+	rcu_barrier();
+	rxrpc_destroy_client_conn_ids();
+
 	destroy_workqueue(rxrpc_workqueue);
 	rxrpc_exit_security();
 	kmem_cache_destroy(rxrpc_call_jar);

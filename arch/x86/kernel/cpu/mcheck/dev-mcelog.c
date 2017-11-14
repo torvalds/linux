@@ -17,18 +17,12 @@
 
 #include "mce-internal.h"
 
+static BLOCKING_NOTIFIER_HEAD(mce_injector_chain);
+
 static DEFINE_MUTEX(mce_chrdev_read_mutex);
 
 static char mce_helper[128];
 static char *mce_helper_argv[2] = { mce_helper, NULL };
-
-#define mce_log_get_idx_check(p) \
-({ \
-	RCU_LOCKDEP_WARN(!rcu_read_lock_sched_held() && \
-			 !lockdep_is_held(&mce_chrdev_read_mutex), \
-			 "suspicious mce_log_get_idx_check() usage"); \
-	smp_load_acquire(&(p)); \
-})
 
 /*
  * Lockless MCE logging infrastructure.
@@ -51,42 +45,31 @@ static int dev_mce_log(struct notifier_block *nb, unsigned long val,
 				void *data)
 {
 	struct mce *mce = (struct mce *)data;
-	unsigned int next, entry;
+	unsigned int entry;
 
-	wmb();
-	for (;;) {
-		entry = mce_log_get_idx_check(mcelog.next);
-		for (;;) {
+	mutex_lock(&mce_chrdev_read_mutex);
 
-			/*
-			 * When the buffer fills up discard new entries.
-			 * Assume that the earlier errors are the more
-			 * interesting ones:
-			 */
-			if (entry >= MCE_LOG_LEN) {
-				set_bit(MCE_OVERFLOW,
-					(unsigned long *)&mcelog.flags);
-				return NOTIFY_OK;
-			}
-			/* Old left over entry. Skip: */
-			if (mcelog.entry[entry].finished) {
-				entry++;
-				continue;
-			}
-			break;
-		}
-		smp_rmb();
-		next = entry + 1;
-		if (cmpxchg(&mcelog.next, entry, next) == entry)
-			break;
+	entry = mcelog.next;
+
+	/*
+	 * When the buffer fills up discard new entries. Assume that the
+	 * earlier errors are the more interesting ones:
+	 */
+	if (entry >= MCE_LOG_LEN) {
+		set_bit(MCE_OVERFLOW, (unsigned long *)&mcelog.flags);
+		goto unlock;
 	}
+
+	mcelog.next = entry + 1;
+
 	memcpy(mcelog.entry + entry, mce, sizeof(struct mce));
-	wmb();
 	mcelog.entry[entry].finished = 1;
-	wmb();
 
 	/* wake processes polling /dev/mcelog */
 	wake_up_interruptible(&mce_chrdev_wait);
+
+unlock:
+	mutex_unlock(&mce_chrdev_read_mutex);
 
 	return NOTIFY_OK;
 }
@@ -175,13 +158,6 @@ static int mce_chrdev_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static void collect_tscs(void *data)
-{
-	unsigned long *cpu_tsc = (unsigned long *)data;
-
-	cpu_tsc[smp_processor_id()] = rdtsc();
-}
-
 static int mce_apei_read_done;
 
 /* Collect MCE record of previous boot in persistent storage via APEI ERST. */
@@ -229,13 +205,8 @@ static ssize_t mce_chrdev_read(struct file *filp, char __user *ubuf,
 				size_t usize, loff_t *off)
 {
 	char __user *buf = ubuf;
-	unsigned long *cpu_tsc;
-	unsigned prev, next;
+	unsigned next;
 	int i, err;
-
-	cpu_tsc = kmalloc(nr_cpu_ids * sizeof(long), GFP_KERNEL);
-	if (!cpu_tsc)
-		return -ENOMEM;
 
 	mutex_lock(&mce_chrdev_read_mutex);
 
@@ -245,65 +216,29 @@ static ssize_t mce_chrdev_read(struct file *filp, char __user *ubuf,
 			goto out;
 	}
 
-	next = mce_log_get_idx_check(mcelog.next);
-
 	/* Only supports full reads right now */
 	err = -EINVAL;
 	if (*off != 0 || usize < MCE_LOG_LEN*sizeof(struct mce))
 		goto out;
 
+	next = mcelog.next;
 	err = 0;
-	prev = 0;
-	do {
-		for (i = prev; i < next; i++) {
-			unsigned long start = jiffies;
-			struct mce *m = &mcelog.entry[i];
 
-			while (!m->finished) {
-				if (time_after_eq(jiffies, start + 2)) {
-					memset(m, 0, sizeof(*m));
-					goto timeout;
-				}
-				cpu_relax();
-			}
-			smp_rmb();
-			err |= copy_to_user(buf, m, sizeof(*m));
-			buf += sizeof(*m);
-timeout:
-			;
-		}
-
-		memset(mcelog.entry + prev, 0,
-		       (next - prev) * sizeof(struct mce));
-		prev = next;
-		next = cmpxchg(&mcelog.next, prev, 0);
-	} while (next != prev);
-
-	synchronize_sched();
-
-	/*
-	 * Collect entries that were still getting written before the
-	 * synchronize.
-	 */
-	on_each_cpu(collect_tscs, cpu_tsc, 1);
-
-	for (i = next; i < MCE_LOG_LEN; i++) {
+	for (i = 0; i < next; i++) {
 		struct mce *m = &mcelog.entry[i];
 
-		if (m->finished && m->tsc < cpu_tsc[m->cpu]) {
-			err |= copy_to_user(buf, m, sizeof(*m));
-			smp_rmb();
-			buf += sizeof(*m);
-			memset(m, 0, sizeof(*m));
-		}
+		err |= copy_to_user(buf, m, sizeof(*m));
+		buf += sizeof(*m);
 	}
+
+	memset(mcelog.entry, 0, next * sizeof(struct mce));
+	mcelog.next = 0;
 
 	if (err)
 		err = -EFAULT;
 
 out:
 	mutex_unlock(&mce_chrdev_read_mutex);
-	kfree(cpu_tsc);
 
 	return err ? err : buf - ubuf;
 }
@@ -345,24 +280,49 @@ static long mce_chrdev_ioctl(struct file *f, unsigned int cmd,
 	}
 }
 
-static ssize_t (*mce_write)(struct file *filp, const char __user *ubuf,
-			    size_t usize, loff_t *off);
-
-void register_mce_write_callback(ssize_t (*fn)(struct file *filp,
-			     const char __user *ubuf,
-			     size_t usize, loff_t *off))
+void mce_register_injector_chain(struct notifier_block *nb)
 {
-	mce_write = fn;
+	blocking_notifier_chain_register(&mce_injector_chain, nb);
 }
-EXPORT_SYMBOL_GPL(register_mce_write_callback);
+EXPORT_SYMBOL_GPL(mce_register_injector_chain);
+
+void mce_unregister_injector_chain(struct notifier_block *nb)
+{
+	blocking_notifier_chain_unregister(&mce_injector_chain, nb);
+}
+EXPORT_SYMBOL_GPL(mce_unregister_injector_chain);
 
 static ssize_t mce_chrdev_write(struct file *filp, const char __user *ubuf,
 				size_t usize, loff_t *off)
 {
-	if (mce_write)
-		return mce_write(filp, ubuf, usize, off);
-	else
+	struct mce m;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+	/*
+	 * There are some cases where real MSR reads could slip
+	 * through.
+	 */
+	if (!boot_cpu_has(X86_FEATURE_MCE) || !boot_cpu_has(X86_FEATURE_MCA))
+		return -EIO;
+
+	if ((unsigned long)usize > sizeof(struct mce))
+		usize = sizeof(struct mce);
+	if (copy_from_user(&m, ubuf, usize))
+		return -EFAULT;
+
+	if (m.extcpu >= num_possible_cpus() || !cpu_online(m.extcpu))
 		return -EINVAL;
+
+	/*
+	 * Need to give user space some time to set everything up,
+	 * so do it a jiffie or two later everywhere.
+	 */
+	schedule_timeout(2);
+
+	blocking_notifier_call_chain(&mce_injector_chain, 0, &m);
+
+	return usize;
 }
 
 static const struct file_operations mce_chrdev_ops = {
@@ -388,9 +348,15 @@ static __init int dev_mcelog_init_device(void)
 	/* register character device /dev/mcelog */
 	err = misc_register(&mce_chrdev_device);
 	if (err) {
-		pr_err("Unable to init device /dev/mcelog (rc: %d)\n", err);
+		if (err == -EBUSY)
+			/* Xen dom0 might have registered the device already. */
+			pr_info("Unable to init device /dev/mcelog, already registered");
+		else
+			pr_err("Unable to init device /dev/mcelog (rc: %d)\n", err);
+
 		return err;
 	}
+
 	mce_register_decode_chain(&dev_mcelog_nb);
 	return 0;
 }

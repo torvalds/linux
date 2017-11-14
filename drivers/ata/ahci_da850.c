@@ -216,12 +216,16 @@ static int ahci_da850_probe(struct platform_device *pdev)
 		return rc;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	if (!res)
+	if (!res) {
+		rc = -ENODEV;
 		goto disable_resources;
+	}
 
 	pwrdn_reg = devm_ioremap(dev, res->start, resource_size(res));
-	if (!pwrdn_reg)
+	if (!pwrdn_reg) {
+		rc = -ENOMEM;
 		goto disable_resources;
+	}
 
 	da850_sata_init(dev, pwrdn_reg, hpriv->mmio, mpy);
 

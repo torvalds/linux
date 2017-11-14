@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Connection state tracking for netfilter.  This is separated from,
  * but required by, the (future) NAT layer; it can also be used by an iptables
@@ -17,7 +18,6 @@
 #include <linux/bitops.h>
 #include <linux/compiler.h>
 #include <linux/atomic.h>
-#include <linux/rhashtable.h>
 
 #include <linux/netfilter/nf_conntrack_tcp.h>
 #include <linux/netfilter/nf_conntrack_dccp.h>
@@ -43,12 +43,6 @@ union nf_conntrack_expect_proto {
 
 #include <linux/types.h>
 #include <linux/skbuff.h>
-
-#ifdef CONFIG_NETFILTER_DEBUG
-#define NF_CT_ASSERT(x)		WARN_ON(!(x))
-#else
-#define NF_CT_ASSERT(x)
-#endif
 
 #include <net/netfilter/ipv4/nf_conntrack_ipv4.h>
 #include <net/netfilter/ipv6/nf_conntrack_ipv6.h>
@@ -83,7 +77,7 @@ struct nf_conn {
 	possible_net_t ct_net;
 
 #if IS_ENABLED(CONFIG_NF_NAT)
-	struct rhlist_head nat_bysource;
+	struct hlist_node	nat_bysource;
 #endif
 	/* all members below initialized via memset */
 	u8 __nfct_init_offset[0];
@@ -159,7 +153,7 @@ nf_ct_get(const struct sk_buff *skb, enum ip_conntrack_info *ctinfo)
 /* decrement reference count on a conntrack */
 static inline void nf_ct_put(struct nf_conn *ct)
 {
-	NF_CT_ASSERT(ct);
+	WARN_ON(!ct);
 	nf_conntrack_put(&ct->ct_general);
 }
 
@@ -224,10 +218,17 @@ extern s32 (*nf_ct_nat_offset)(const struct nf_conn *ct,
 			       enum ip_conntrack_dir dir,
 			       u32 seq);
 
+/* Set all unconfirmed conntrack as dying */
+void nf_ct_unconfirmed_destroy(struct net *);
+
 /* Iterate over all conntracks: if iter returns true, it's deleted. */
-void nf_ct_iterate_cleanup(struct net *net,
-			   int (*iter)(struct nf_conn *i, void *data),
-			   void *data, u32 portid, int report);
+void nf_ct_iterate_cleanup_net(struct net *net,
+			       int (*iter)(struct nf_conn *i, void *data),
+			       void *data, u32 portid, int report);
+
+/* also set unconfirmed conntracks as dying. Only use in module exit path. */
+void nf_ct_iterate_destroy(int (*iter)(struct nf_conn *i, void *data),
+			   void *data);
 
 struct nf_conntrack_zone;
 

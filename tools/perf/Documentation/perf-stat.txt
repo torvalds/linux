@@ -41,13 +41,13 @@ report::
 
 	- a symbolically formed event like 'pmu/param1=0x3,param2/' where
 	  param1 and param2 are defined as formats for the PMU in
-	  /sys/bus/event_sources/devices/<pmu>/format/*
+	  /sys/bus/event_source/devices/<pmu>/format/*
 
 	- a symbolically formed event like 'pmu/config=M,config1=N,config2=K/'
 	  where M, N, K are numbers (in decimal, hex, octal format).
 	  Acceptable values for each of 'config', 'config1' and 'config2'
 	  parameters are defined by corresponding entries in
-	  /sys/bus/event_sources/devices/<pmu>/format/*
+	  /sys/bus/event_source/devices/<pmu>/format/*
 
 -i::
 --no-inherit::
@@ -238,6 +238,20 @@ taskset.
 
 --no-merge::
 Do not merge results from same PMUs.
+
+--smi-cost::
+Measure SMI cost if msr/aperf/ and msr/smi/ events are supported.
+
+During the measurement, the /sys/device/cpu/freeze_on_smi will be set to
+freeze core counters on SMI.
+The aperf counter will not be effected by the setting.
+The cost of SMI can be measured by (aperf - unhalted core cycles).
+
+In practice, the percentages of SMI cycles is very useful for performance
+oriented analysis. --metric_only will be applied by default.
+The output is SMI cycles%, equals to (aperf - unhalted core cycles) / aperf
+
+Users who wants to get the actual value can apply --no-metric-only.
 
 EXAMPLES
 --------

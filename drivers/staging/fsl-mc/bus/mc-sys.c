@@ -37,8 +37,7 @@
 #include <linux/ioport.h>
 #include <linux/device.h>
 #include <linux/io.h>
-#include "../include/mc-sys.h"
-#include "../include/mc-cmd.h"
+#include <linux/io-64-nonatomic-hi-lo.h>
 #include "../include/mc.h"
 
 #include "dpmcp.h"
@@ -128,11 +127,15 @@ static inline void mc_write_command(struct mc_command __iomem *portal,
 
 	/* copy command parameters into the portal */
 	for (i = 0; i < MC_CMD_NUM_OF_PARAMS; i++)
-		__raw_writeq(cmd->params[i], &portal->params[i]);
-	__iowmb();
+		/*
+		 * Data is already in the expected LE byte-order. Do an
+		 * extra LE -> CPU conversion so that the CPU -> LE done in
+		 * the device io write api puts it back in the right order.
+		 */
+		writeq_relaxed(le64_to_cpu(cmd->params[i]), &portal->params[i]);
 
 	/* submit the command by writing the header */
-	__raw_writeq(cmd->header, &portal->header);
+	writeq(le64_to_cpu(cmd->header), &portal->header);
 }
 
 /**
@@ -152,17 +155,20 @@ static inline enum mc_cmd_status mc_read_response(struct mc_command __iomem *
 	enum mc_cmd_status status;
 
 	/* Copy command response header from MC portal: */
-	__iormb();
-	resp->header = __raw_readq(&portal->header);
-	__iormb();
+	resp->header = cpu_to_le64(readq_relaxed(&portal->header));
 	status = mc_cmd_hdr_read_status(resp);
 	if (status != MC_CMD_STATUS_OK)
 		return status;
 
 	/* Copy command response data from MC portal: */
 	for (i = 0; i < MC_CMD_NUM_OF_PARAMS; i++)
-		resp->params[i] = __raw_readq(&portal->params[i]);
-	__iormb();
+		/*
+		 * Data is expected to be in LE byte-order. Do an
+		 * extra CPU -> LE to revert the LE -> CPU done in
+		 * the device io read api.
+		 */
+		resp->params[i] =
+			cpu_to_le64(readq_relaxed(&portal->params[i]));
 
 	return status;
 }
@@ -200,8 +206,8 @@ static int mc_polling_wait_preemptible(struct fsl_mc_io *mc_io,
 
 		if (time_after_eq(jiffies, jiffies_until_timeout)) {
 			dev_dbg(mc_io->dev,
-				"MC command timed out (portal: %#llx, dprc handle: %#x, command: %#x)\n",
-				 mc_io->portal_phys_addr,
+				"MC command timed out (portal: %pa, dprc handle: %#x, command: %#x)\n",
+				 &mc_io->portal_phys_addr,
 				 (unsigned int)mc_cmd_hdr_read_token(cmd),
 				 (unsigned int)mc_cmd_hdr_read_cmdid(cmd));
 
@@ -240,8 +246,8 @@ static int mc_polling_wait_atomic(struct fsl_mc_io *mc_io,
 		timeout_usecs -= MC_CMD_COMPLETION_POLLING_MAX_SLEEP_USECS;
 		if (timeout_usecs == 0) {
 			dev_dbg(mc_io->dev,
-				"MC command timed out (portal: %#llx, dprc handle: %#x, command: %#x)\n",
-				 mc_io->portal_phys_addr,
+				"MC command timed out (portal: %pa, dprc handle: %#x, command: %#x)\n",
+				 &mc_io->portal_phys_addr,
 				 (unsigned int)mc_cmd_hdr_read_token(cmd),
 				 (unsigned int)mc_cmd_hdr_read_cmdid(cmd));
 
@@ -294,8 +300,8 @@ int mc_send_command(struct fsl_mc_io *mc_io, struct mc_command *cmd)
 
 	if (status != MC_CMD_STATUS_OK) {
 		dev_dbg(mc_io->dev,
-			"MC command failed: portal: %#llx, dprc handle: %#x, command: %#x, status: %s (%#x)\n",
-			 mc_io->portal_phys_addr,
+			"MC command failed: portal: %pa, dprc handle: %#x, command: %#x, status: %s (%#x)\n",
+			 &mc_io->portal_phys_addr,
 			 (unsigned int)mc_cmd_hdr_read_token(cmd),
 			 (unsigned int)mc_cmd_hdr_read_cmdid(cmd),
 			 mc_status_to_string(status),

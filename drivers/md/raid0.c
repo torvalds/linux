@@ -30,7 +30,8 @@
 	((1L << MD_HAS_JOURNAL) |	\
 	 (1L << MD_JOURNAL_CLEAN) |	\
 	 (1L << MD_FAILFAST_SUPPORTED) |\
-	 (1L << MD_HAS_PPL))
+	 (1L << MD_HAS_PPL) |		\
+	 (1L << MD_HAS_MULTIPLE_PPLS))
 
 static int raid0_congested(struct mddev *mddev, int bits)
 {
@@ -539,6 +540,7 @@ static void raid0_handle_discard(struct mddev *mddev, struct bio *bio)
 		    !discard_bio)
 			continue;
 		bio_chain(discard_bio, bio);
+		bio_clone_blkcg_association(discard_bio, bio);
 		if (mddev->gendisk)
 			trace_block_bio_remap(bdev_get_queue(rdev->bdev),
 				discard_bio, disk_devt(mddev->gendisk),
@@ -548,7 +550,7 @@ static void raid0_handle_discard(struct mddev *mddev, struct bio *bio)
 	bio_endio(bio);
 }
 
-static void raid0_make_request(struct mddev *mddev, struct bio *bio)
+static bool raid0_make_request(struct mddev *mddev, struct bio *bio)
 {
 	struct strip_zone *zone;
 	struct md_rdev *tmp_dev;
@@ -559,12 +561,12 @@ static void raid0_make_request(struct mddev *mddev, struct bio *bio)
 
 	if (unlikely(bio->bi_opf & REQ_PREFLUSH)) {
 		md_flush_request(mddev, bio);
-		return;
+		return true;
 	}
 
 	if (unlikely((bio_op(bio) == REQ_OP_DISCARD))) {
 		raid0_handle_discard(mddev, bio);
-		return;
+		return true;
 	}
 
 	bio_sector = bio->bi_iter.bi_sector;
@@ -588,17 +590,17 @@ static void raid0_make_request(struct mddev *mddev, struct bio *bio)
 
 	zone = find_zone(mddev->private, &sector);
 	tmp_dev = map_sector(mddev, zone, sector, &sector);
-	bio->bi_bdev = tmp_dev->bdev;
+	bio_set_dev(bio, tmp_dev->bdev);
 	bio->bi_iter.bi_sector = sector + zone->dev_start +
 		tmp_dev->data_offset;
 
 	if (mddev->gendisk)
-		trace_block_bio_remap(bdev_get_queue(bio->bi_bdev),
-				      bio, disk_devt(mddev->gendisk),
-				      bio_sector);
+		trace_block_bio_remap(bio->bi_disk->queue, bio,
+				disk_devt(mddev->gendisk), bio_sector);
 	mddev_check_writesame(mddev, bio);
 	mddev_check_write_zeroes(mddev, bio);
 	generic_make_request(bio);
+	return true;
 }
 
 static void raid0_status(struct seq_file *seq, struct mddev *mddev)

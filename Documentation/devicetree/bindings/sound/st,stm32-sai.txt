@@ -6,7 +6,7 @@ The SAI contains two independent audio sub-blocks. Each sub-block has
 its own clock generator and I/O lines controller.
 
 Required properties:
-  - compatible: Should be "st,stm32f4-sai"
+  - compatible: Should be "st,stm32f4-sai" or "st,stm32h7-sai"
   - reg: Base address and size of SAI common register set.
   - clocks: Must contain phandle and clock specifier pairs for each entry
 	in clock-names.
@@ -36,6 +36,10 @@ SAI subnodes required properties:
   - pinctrl-names: should contain only value "default"
   - pinctrl-0: see Documentation/devicetree/bindings/pinctrl/pinctrl-stm32.txt
 
+The device node should contain one 'port' child node with one child 'endpoint'
+node, according to the bindings defined in Documentation/devicetree/bindings/
+graph.txt.
+
 Example:
 sound_card {
 	compatible = "audio-graph-card";
@@ -43,38 +47,29 @@ sound_card {
 };
 
 sai1: sai1@40015800 {
-	compatible = "st,stm32f4-sai";
+	compatible = "st,stm32h7-sai";
 	#address-cells = <1>;
 	#size-cells = <1>;
-	ranges;
+	ranges = <0 0x40015800 0x400>;
 	reg = <0x40015800 0x4>;
-	clocks = <&rcc 1 CLK_SAIQ_PDIV>, <&rcc 1 CLK_I2SQ_PDIV>;
+	clocks = <&rcc PLL1_Q>, <&rcc PLL2_P>;
 	clock-names = "x8k", "x11k";
 	interrupts = <87>;
 
-	sai1b: audio-controller@40015824 {
-		#sound-dai-cells = <0>;
-		compatible = "st,stm32-sai-sub-b";
-		reg = <0x40015824 0x1C>;
-		clocks = <&rcc 1 CLK_SAI2>;
+	sai1a: audio-controller@40015804 {
+		compatible = "st,stm32-sai-sub-a";
+		reg = <0x4 0x1C>;
+		clocks = <&rcc SAI1_CK>;
 		clock-names = "sai_ck";
-		dmas = <&dma2 5 0 0x400 0x0>;
+		dmas = <&dmamux1 1 87 0x400 0x0>;
 		dma-names = "tx";
 		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_sai1b>;
+		pinctrl-0 = <&pinctrl_sai1a>;
 
-		ports {
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			sai1b_port: port@0 {
-				reg = <0>;
-				cpu_endpoint: endpoint {
-					remote-endpoint = <&codec_endpoint>;
-					audio-graph-card,format = "i2s";
-					audio-graph-card,bitclock-master = <&codec_endpoint>;
-					audio-graph-card,frame-master = <&codec_endpoint>;
-				};
+		sai1b_port: port {
+			cpu_endpoint: endpoint {
+				remote-endpoint = <&codec_endpoint>;
+				format = "i2s";
 			};
 		};
 	};

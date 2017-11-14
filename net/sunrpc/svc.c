@@ -421,7 +421,7 @@ __svc_init_bc(struct svc_serv *serv)
  */
 static struct svc_serv *
 __svc_create(struct svc_program *prog, unsigned int bufsize, int npools,
-	     struct svc_serv_ops *ops)
+	     const struct svc_serv_ops *ops)
 {
 	struct svc_serv	*serv;
 	unsigned int vers;
@@ -486,7 +486,7 @@ __svc_create(struct svc_program *prog, unsigned int bufsize, int npools,
 
 struct svc_serv *
 svc_create(struct svc_program *prog, unsigned int bufsize,
-	   struct svc_serv_ops *ops)
+	   const struct svc_serv_ops *ops)
 {
 	return __svc_create(prog, bufsize, /*npools*/1, ops);
 }
@@ -494,7 +494,7 @@ EXPORT_SYMBOL_GPL(svc_create);
 
 struct svc_serv *
 svc_create_pooled(struct svc_program *prog, unsigned int bufsize,
-		  struct svc_serv_ops *ops)
+		  const struct svc_serv_ops *ops)
 {
 	struct svc_serv *serv;
 	unsigned int npools = svc_pool_map_get();
@@ -1008,7 +1008,7 @@ int svc_register(const struct svc_serv *serv, struct net *net,
 		 const unsigned short port)
 {
 	struct svc_program	*progp;
-	struct svc_version	*vers;
+	const struct svc_version *vers;
 	unsigned int		i;
 	int			error = 0;
 
@@ -1151,10 +1151,9 @@ static int
 svc_process_common(struct svc_rqst *rqstp, struct kvec *argv, struct kvec *resv)
 {
 	struct svc_program	*progp;
-	struct svc_version	*versp = NULL;	/* compiler food */
-	struct svc_procedure	*procp = NULL;
+	const struct svc_version *versp = NULL;	/* compiler food */
+	const struct svc_procedure *procp = NULL;
 	struct svc_serv		*serv = rqstp->rq_server;
-	kxdrproc_t		xdr;
 	__be32			*statp;
 	u32			prog, vers, proc;
 	__be32			auth_stat, rpc_stat;
@@ -1166,7 +1165,7 @@ svc_process_common(struct svc_rqst *rqstp, struct kvec *argv, struct kvec *resv)
 	if (argv->iov_len < 6*4)
 		goto err_short_len;
 
-	/* Will be turned off only in gss privacy case: */
+	/* Will be turned off by GSS integrity and privacy services */
 	set_bit(RQ_SPLICE_OK, &rqstp->rq_flags);
 	/* Will be turned off only when NFSv4 Sessions are used */
 	set_bit(RQ_USEDEFERRAL, &rqstp->rq_flags);
@@ -1262,7 +1261,7 @@ svc_process_common(struct svc_rqst *rqstp, struct kvec *argv, struct kvec *resv)
 	svc_putnl(resv, RPC_SUCCESS);
 
 	/* Bump per-procedure stats counter */
-	procp->pc_count++;
+	versp->vs_count[proc]++;
 
 	/* Initialize storage for argp and resp */
 	memset(rqstp->rq_argp, 0, procp->pc_argsize);
@@ -1276,28 +1275,30 @@ svc_process_common(struct svc_rqst *rqstp, struct kvec *argv, struct kvec *resv)
 
 	/* Call the function that processes the request. */
 	if (!versp->vs_dispatch) {
-		/* Decode arguments */
-		xdr = procp->pc_decode;
-		if (xdr && !xdr(rqstp, argv->iov_base, rqstp->rq_argp))
+		/*
+		 * Decode arguments
+		 * XXX: why do we ignore the return value?
+		 */
+		if (procp->pc_decode &&
+		    !procp->pc_decode(rqstp, argv->iov_base))
 			goto err_garbage;
 
-		*statp = procp->pc_func(rqstp, rqstp->rq_argp, rqstp->rq_resp);
+		*statp = procp->pc_func(rqstp);
 
 		/* Encode reply */
 		if (*statp == rpc_drop_reply ||
 		    test_bit(RQ_DROPME, &rqstp->rq_flags)) {
 			if (procp->pc_release)
-				procp->pc_release(rqstp, NULL, rqstp->rq_resp);
+				procp->pc_release(rqstp);
 			goto dropit;
 		}
 		if (*statp == rpc_autherr_badcred) {
 			if (procp->pc_release)
-				procp->pc_release(rqstp, NULL, rqstp->rq_resp);
+				procp->pc_release(rqstp);
 			goto err_bad_auth;
 		}
-		if (*statp == rpc_success &&
-		    (xdr = procp->pc_encode) &&
-		    !xdr(rqstp, resv->iov_base+resv->iov_len, rqstp->rq_resp)) {
+		if (*statp == rpc_success && procp->pc_encode &&
+		    !procp->pc_encode(rqstp, resv->iov_base + resv->iov_len)) {
 			dprintk("svc: failed to encode reply\n");
 			/* serv->sv_stats->rpcsystemerr++; */
 			*statp = rpc_system_err;
@@ -1307,7 +1308,7 @@ svc_process_common(struct svc_rqst *rqstp, struct kvec *argv, struct kvec *resv)
 		if (!versp->vs_dispatch(rqstp, statp)) {
 			/* Release reply info */
 			if (procp->pc_release)
-				procp->pc_release(rqstp, NULL, rqstp->rq_resp);
+				procp->pc_release(rqstp);
 			goto dropit;
 		}
 	}
@@ -1318,7 +1319,7 @@ svc_process_common(struct svc_rqst *rqstp, struct kvec *argv, struct kvec *resv)
 
 	/* Release reply info */
 	if (procp->pc_release)
-		procp->pc_release(rqstp, NULL, rqstp->rq_resp);
+		procp->pc_release(rqstp);
 
 	if (procp->pc_encode == NULL)
 		goto dropit;

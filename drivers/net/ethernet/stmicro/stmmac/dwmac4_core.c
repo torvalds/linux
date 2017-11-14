@@ -35,15 +35,17 @@ static void dwmac4_core_init(struct mac_device_info *hw, int mtu)
 	if (hw->ps) {
 		value |= GMAC_CONFIG_TE;
 
-		if (hw->ps == SPEED_1000) {
-			value &= ~GMAC_CONFIG_PS;
-		} else {
-			value |= GMAC_CONFIG_PS;
-
-			if (hw->ps == SPEED_10)
-				value &= ~GMAC_CONFIG_FES;
-			else
-				value |= GMAC_CONFIG_FES;
+		value &= hw->link.speed_mask;
+		switch (hw->ps) {
+		case SPEED_1000:
+			value |= hw->link.speed1000;
+			break;
+		case SPEED_100:
+			value |= hw->link.speed100;
+			break;
+		case SPEED_10:
+			value |= hw->link.speed10;
+			break;
 		}
 	}
 
@@ -115,7 +117,7 @@ static void dwmac4_tx_queue_routing(struct mac_device_info *hw,
 	void __iomem *ioaddr = hw->pcsr;
 	u32 value;
 
-	const struct stmmac_rx_routing route_possibilities[] = {
+	static const struct stmmac_rx_routing route_possibilities[] = {
 		{ GMAC_RXQCTRL_AVCPQ_MASK, GMAC_RXQCTRL_AVCPQ_SHIFT },
 		{ GMAC_RXQCTRL_PTPQ_MASK, GMAC_RXQCTRL_PTPQ_SHIFT },
 		{ GMAC_RXQCTRL_DCBCPQ_MASK, GMAC_RXQCTRL_DCBCPQ_SHIFT },
@@ -294,6 +296,7 @@ static void dwmac4_pmt(struct mac_device_info *hw, unsigned long mode)
 {
 	void __iomem *ioaddr = hw->pcsr;
 	unsigned int pmt = 0;
+	u32 config;
 
 	if (mode & WAKE_MAGIC) {
 		pr_debug("GMAC: WOL Magic frame\n");
@@ -304,6 +307,12 @@ static void dwmac4_pmt(struct mac_device_info *hw, unsigned long mode)
 		pmt |= power_down | global_unicast | wake_up_frame_en;
 	}
 
+	if (pmt) {
+		/* The receiver must be enabled for WOL before powering down */
+		config = readl(ioaddr + GMAC_CONFIG);
+		config |= GMAC_CONFIG_RE;
+		writel(config, ioaddr + GMAC_CONFIG);
+	}
 	writel(pmt, ioaddr + GMAC_PMT);
 }
 
@@ -747,9 +756,11 @@ struct mac_device_info *dwmac4_setup(void __iomem *ioaddr, int mcbins,
 	if (mac->multicast_filter_bins)
 		mac->mcast_bits_log2 = ilog2(mac->multicast_filter_bins);
 
-	mac->link.port = GMAC_CONFIG_PS;
 	mac->link.duplex = GMAC_CONFIG_DM;
-	mac->link.speed = GMAC_CONFIG_FES;
+	mac->link.speed10 = GMAC_CONFIG_PS;
+	mac->link.speed100 = GMAC_CONFIG_FES | GMAC_CONFIG_PS;
+	mac->link.speed1000 = 0;
+	mac->link.speed_mask = GMAC_CONFIG_FES | GMAC_CONFIG_PS;
 	mac->mii.addr = GMAC_MDIO_ADDR;
 	mac->mii.data = GMAC_MDIO_DATA;
 	mac->mii.addr_shift = 21;

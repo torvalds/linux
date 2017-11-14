@@ -51,6 +51,7 @@
 #include <linux/workqueue.h>
 #include <rdma/ib_verbs.h>
 #include <rdma/rdma_cm.h>
+#include <rdma/rw.h>
 #include <linux/sunrpc/svc_rdma.h>
 #include <linux/export.h>
 #include "xprt_rdma.h"
@@ -70,7 +71,7 @@ static int svc_rdma_has_wspace(struct svc_xprt *xprt);
 static int svc_rdma_secure_port(struct svc_rqst *);
 static void svc_rdma_kill_temp_xprt(struct svc_xprt *);
 
-static struct svc_xprt_ops svc_rdma_ops = {
+static const struct svc_xprt_ops svc_rdma_ops = {
 	.xpo_create = svc_rdma_create,
 	.xpo_recvfrom = svc_rdma_recvfrom,
 	.xpo_sendto = svc_rdma_sendto,
@@ -98,7 +99,7 @@ static struct svc_xprt *svc_rdma_bc_create(struct svc_serv *, struct net *,
 static void svc_rdma_bc_detach(struct svc_xprt *);
 static void svc_rdma_bc_free(struct svc_xprt *);
 
-static struct svc_xprt_ops svc_rdma_bc_ops = {
+static const struct svc_xprt_ops svc_rdma_bc_ops = {
 	.xpo_create = svc_rdma_bc_create,
 	.xpo_detach = svc_rdma_bc_detach,
 	.xpo_free = svc_rdma_bc_free,
@@ -167,8 +168,8 @@ static bool svc_rdma_prealloc_ctxts(struct svcxprt_rdma *xprt)
 {
 	unsigned int i;
 
-	/* Each RPC/RDMA credit can consume a number of send
-	 * and receive WQEs. One ctxt is allocated for each.
+	/* Each RPC/RDMA credit can consume one Receive and
+	 * one Send WQE at the same time.
 	 */
 	i = xprt->sc_sq_depth + xprt->sc_rq_depth;
 
@@ -202,7 +203,6 @@ struct svc_rdma_op_ctxt *svc_rdma_get_context(struct svcxprt_rdma *xprt)
 out:
 	ctxt->count = 0;
 	ctxt->mapped_sges = 0;
-	ctxt->frmr = NULL;
 	return ctxt;
 
 out_empty:
@@ -226,22 +226,13 @@ void svc_rdma_unmap_dma(struct svc_rdma_op_ctxt *ctxt)
 {
 	struct svcxprt_rdma *xprt = ctxt->xprt;
 	struct ib_device *device = xprt->sc_cm_id->device;
-	u32 lkey = xprt->sc_pd->local_dma_lkey;
 	unsigned int i;
 
-	for (i = 0; i < ctxt->mapped_sges; i++) {
-		/*
-		 * Unmap the DMA addr in the SGE if the lkey matches
-		 * the local_dma_lkey, otherwise, ignore it since it is
-		 * an FRMR lkey and will be unmapped later when the
-		 * last WR that uses it completes.
-		 */
-		if (ctxt->sge[i].lkey == lkey)
-			ib_dma_unmap_page(device,
-					    ctxt->sge[i].addr,
-					    ctxt->sge[i].length,
-					    ctxt->direction);
-	}
+	for (i = 0; i < ctxt->mapped_sges; i++)
+		ib_dma_unmap_page(device,
+				  ctxt->sge[i].addr,
+				  ctxt->sge[i].length,
+				  ctxt->direction);
 	ctxt->mapped_sges = 0;
 }
 
@@ -346,36 +337,6 @@ out:
 	svc_xprt_put(&xprt->sc_xprt);
 }
 
-static void svc_rdma_send_wc_common(struct svcxprt_rdma *xprt,
-				    struct ib_wc *wc,
-				    const char *opname)
-{
-	if (wc->status != IB_WC_SUCCESS)
-		goto err;
-
-out:
-	atomic_inc(&xprt->sc_sq_avail);
-	wake_up(&xprt->sc_send_wait);
-	return;
-
-err:
-	set_bit(XPT_CLOSE, &xprt->sc_xprt.xpt_flags);
-	if (wc->status != IB_WC_WR_FLUSH_ERR)
-		pr_err("svcrdma: %s: %s (%u/0x%x)\n",
-		       opname, ib_wc_status_msg(wc->status),
-		       wc->status, wc->vendor_err);
-	goto out;
-}
-
-static void svc_rdma_send_wc_common_put(struct ib_cq *cq, struct ib_wc *wc,
-					const char *opname)
-{
-	struct svcxprt_rdma *xprt = cq->cq_context;
-
-	svc_rdma_send_wc_common(xprt, wc, opname);
-	svc_xprt_put(&xprt->sc_xprt);
-}
-
 /**
  * svc_rdma_wc_send - Invoked by RDMA provider for each polled Send WC
  * @cq:        completion queue
@@ -384,71 +345,26 @@ static void svc_rdma_send_wc_common_put(struct ib_cq *cq, struct ib_wc *wc,
  */
 void svc_rdma_wc_send(struct ib_cq *cq, struct ib_wc *wc)
 {
-	struct ib_cqe *cqe = wc->wr_cqe;
-	struct svc_rdma_op_ctxt *ctxt;
-
-	svc_rdma_send_wc_common_put(cq, wc, "send");
-
-	ctxt = container_of(cqe, struct svc_rdma_op_ctxt, cqe);
-	svc_rdma_unmap_dma(ctxt);
-	svc_rdma_put_context(ctxt, 1);
-}
-
-/**
- * svc_rdma_wc_reg - Invoked by RDMA provider for each polled FASTREG WC
- * @cq:        completion queue
- * @wc:        completed WR
- *
- */
-void svc_rdma_wc_reg(struct ib_cq *cq, struct ib_wc *wc)
-{
-	svc_rdma_send_wc_common_put(cq, wc, "fastreg");
-}
-
-/**
- * svc_rdma_wc_read - Invoked by RDMA provider for each polled Read WC
- * @cq:        completion queue
- * @wc:        completed WR
- *
- */
-void svc_rdma_wc_read(struct ib_cq *cq, struct ib_wc *wc)
-{
 	struct svcxprt_rdma *xprt = cq->cq_context;
 	struct ib_cqe *cqe = wc->wr_cqe;
 	struct svc_rdma_op_ctxt *ctxt;
 
-	svc_rdma_send_wc_common(xprt, wc, "read");
+	atomic_inc(&xprt->sc_sq_avail);
+	wake_up(&xprt->sc_send_wait);
 
 	ctxt = container_of(cqe, struct svc_rdma_op_ctxt, cqe);
 	svc_rdma_unmap_dma(ctxt);
-	svc_rdma_put_frmr(xprt, ctxt->frmr);
+	svc_rdma_put_context(ctxt, 1);
 
-	if (test_bit(RDMACTXT_F_LAST_CTXT, &ctxt->flags)) {
-		struct svc_rdma_op_ctxt *read_hdr;
-
-		read_hdr = ctxt->read_hdr;
-		spin_lock(&xprt->sc_rq_dto_lock);
-		list_add_tail(&read_hdr->list,
-			      &xprt->sc_read_complete_q);
-		spin_unlock(&xprt->sc_rq_dto_lock);
-
-		set_bit(XPT_DATA, &xprt->sc_xprt.xpt_flags);
-		svc_xprt_enqueue(&xprt->sc_xprt);
+	if (unlikely(wc->status != IB_WC_SUCCESS)) {
+		set_bit(XPT_CLOSE, &xprt->sc_xprt.xpt_flags);
+		if (wc->status != IB_WC_WR_FLUSH_ERR)
+			pr_err("svcrdma: Send: %s (%u/0x%x)\n",
+			       ib_wc_status_msg(wc->status),
+			       wc->status, wc->vendor_err);
 	}
 
-	svc_rdma_put_context(ctxt, 0);
 	svc_xprt_put(&xprt->sc_xprt);
-}
-
-/**
- * svc_rdma_wc_inv - Invoked by RDMA provider for each polled LOCAL_INV WC
- * @cq:        completion queue
- * @wc:        completed WR
- *
- */
-void svc_rdma_wc_inv(struct ib_cq *cq, struct ib_wc *wc)
-{
-	svc_rdma_send_wc_common_put(cq, wc, "localInv");
 }
 
 static struct svcxprt_rdma *rdma_create_xprt(struct svc_serv *serv,
@@ -462,14 +378,12 @@ static struct svcxprt_rdma *rdma_create_xprt(struct svc_serv *serv,
 	INIT_LIST_HEAD(&cma_xprt->sc_accept_q);
 	INIT_LIST_HEAD(&cma_xprt->sc_rq_dto_q);
 	INIT_LIST_HEAD(&cma_xprt->sc_read_complete_q);
-	INIT_LIST_HEAD(&cma_xprt->sc_frmr_q);
 	INIT_LIST_HEAD(&cma_xprt->sc_ctxts);
 	INIT_LIST_HEAD(&cma_xprt->sc_rw_ctxts);
 	init_waitqueue_head(&cma_xprt->sc_send_wait);
 
 	spin_lock_init(&cma_xprt->sc_lock);
 	spin_lock_init(&cma_xprt->sc_rq_dto_lock);
-	spin_lock_init(&cma_xprt->sc_frmr_q_lock);
 	spin_lock_init(&cma_xprt->sc_ctxt_lock);
 	spin_lock_init(&cma_xprt->sc_rw_ctxt_lock);
 
@@ -780,86 +694,6 @@ static struct svc_xprt *svc_rdma_create(struct svc_serv *serv,
 	return ERR_PTR(ret);
 }
 
-static struct svc_rdma_fastreg_mr *rdma_alloc_frmr(struct svcxprt_rdma *xprt)
-{
-	struct ib_mr *mr;
-	struct scatterlist *sg;
-	struct svc_rdma_fastreg_mr *frmr;
-	u32 num_sg;
-
-	frmr = kmalloc(sizeof(*frmr), GFP_KERNEL);
-	if (!frmr)
-		goto err;
-
-	num_sg = min_t(u32, RPCSVC_MAXPAGES, xprt->sc_frmr_pg_list_len);
-	mr = ib_alloc_mr(xprt->sc_pd, IB_MR_TYPE_MEM_REG, num_sg);
-	if (IS_ERR(mr))
-		goto err_free_frmr;
-
-	sg = kcalloc(RPCSVC_MAXPAGES, sizeof(*sg), GFP_KERNEL);
-	if (!sg)
-		goto err_free_mr;
-
-	sg_init_table(sg, RPCSVC_MAXPAGES);
-
-	frmr->mr = mr;
-	frmr->sg = sg;
-	INIT_LIST_HEAD(&frmr->frmr_list);
-	return frmr;
-
- err_free_mr:
-	ib_dereg_mr(mr);
- err_free_frmr:
-	kfree(frmr);
- err:
-	return ERR_PTR(-ENOMEM);
-}
-
-static void rdma_dealloc_frmr_q(struct svcxprt_rdma *xprt)
-{
-	struct svc_rdma_fastreg_mr *frmr;
-
-	while (!list_empty(&xprt->sc_frmr_q)) {
-		frmr = list_entry(xprt->sc_frmr_q.next,
-				  struct svc_rdma_fastreg_mr, frmr_list);
-		list_del_init(&frmr->frmr_list);
-		kfree(frmr->sg);
-		ib_dereg_mr(frmr->mr);
-		kfree(frmr);
-	}
-}
-
-struct svc_rdma_fastreg_mr *svc_rdma_get_frmr(struct svcxprt_rdma *rdma)
-{
-	struct svc_rdma_fastreg_mr *frmr = NULL;
-
-	spin_lock(&rdma->sc_frmr_q_lock);
-	if (!list_empty(&rdma->sc_frmr_q)) {
-		frmr = list_entry(rdma->sc_frmr_q.next,
-				  struct svc_rdma_fastreg_mr, frmr_list);
-		list_del_init(&frmr->frmr_list);
-		frmr->sg_nents = 0;
-	}
-	spin_unlock(&rdma->sc_frmr_q_lock);
-	if (frmr)
-		return frmr;
-
-	return rdma_alloc_frmr(rdma);
-}
-
-void svc_rdma_put_frmr(struct svcxprt_rdma *rdma,
-		       struct svc_rdma_fastreg_mr *frmr)
-{
-	if (frmr) {
-		ib_dma_unmap_sg(rdma->sc_cm_id->device,
-				frmr->sg, frmr->sg_nents, frmr->direction);
-		spin_lock(&rdma->sc_frmr_q_lock);
-		WARN_ON_ONCE(!list_empty(&frmr->frmr_list));
-		list_add(&frmr->frmr_list, &rdma->sc_frmr_q);
-		spin_unlock(&rdma->sc_frmr_q_lock);
-	}
-}
-
 /*
  * This is the xpo_recvfrom function for listening endpoints. Its
  * purpose is to accept incoming connections. The CMA callback handler
@@ -880,7 +714,7 @@ static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt)
 	struct ib_qp_init_attr qp_attr;
 	struct ib_device *dev;
 	struct sockaddr *sap;
-	unsigned int i;
+	unsigned int i, ctxts;
 	int ret = 0;
 
 	listen_rdma = container_of(xprt, struct svcxprt_rdma, sc_xprt);
@@ -908,17 +742,27 @@ static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt)
 	 * capabilities of this particular device */
 	newxprt->sc_max_sge = min((size_t)dev->attrs.max_sge,
 				  (size_t)RPCSVC_MAXPAGES);
-	newxprt->sc_max_sge_rd = min_t(size_t, dev->attrs.max_sge_rd,
-				       RPCSVC_MAXPAGES);
 	newxprt->sc_max_req_size = svcrdma_max_req_size;
-	newxprt->sc_max_requests = min_t(u32, dev->attrs.max_qp_wr,
-					 svcrdma_max_requests);
-	newxprt->sc_fc_credits = cpu_to_be32(newxprt->sc_max_requests);
-	newxprt->sc_max_bc_requests = min_t(u32, dev->attrs.max_qp_wr,
-					    svcrdma_max_bc_requests);
+	newxprt->sc_max_requests = svcrdma_max_requests;
+	newxprt->sc_max_bc_requests = svcrdma_max_bc_requests;
 	newxprt->sc_rq_depth = newxprt->sc_max_requests +
 			       newxprt->sc_max_bc_requests;
-	newxprt->sc_sq_depth = newxprt->sc_rq_depth;
+	if (newxprt->sc_rq_depth > dev->attrs.max_qp_wr) {
+		pr_warn("svcrdma: reducing receive depth to %d\n",
+			dev->attrs.max_qp_wr);
+		newxprt->sc_rq_depth = dev->attrs.max_qp_wr;
+		newxprt->sc_max_requests = newxprt->sc_rq_depth - 2;
+		newxprt->sc_max_bc_requests = 2;
+	}
+	newxprt->sc_fc_credits = cpu_to_be32(newxprt->sc_max_requests);
+	ctxts = rdma_rw_mr_factor(dev, newxprt->sc_port_num, RPCSVC_MAXPAGES);
+	ctxts *= newxprt->sc_max_requests;
+	newxprt->sc_sq_depth = newxprt->sc_rq_depth + ctxts;
+	if (newxprt->sc_sq_depth > dev->attrs.max_qp_wr) {
+		pr_warn("svcrdma: reducing send depth to %d\n",
+			dev->attrs.max_qp_wr);
+		newxprt->sc_sq_depth = dev->attrs.max_qp_wr;
+	}
 	atomic_set(&newxprt->sc_sq_avail, newxprt->sc_sq_depth);
 
 	if (!svc_rdma_prealloc_ctxts(newxprt))
@@ -952,9 +796,9 @@ static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt)
 	memset(&qp_attr, 0, sizeof qp_attr);
 	qp_attr.event_handler = qp_event_handler;
 	qp_attr.qp_context = &newxprt->sc_xprt;
-	qp_attr.port_num = newxprt->sc_cm_id->port_num;
-	qp_attr.cap.max_rdma_ctxs = newxprt->sc_max_requests;
-	qp_attr.cap.max_send_wr = newxprt->sc_sq_depth;
+	qp_attr.port_num = newxprt->sc_port_num;
+	qp_attr.cap.max_rdma_ctxs = ctxts;
+	qp_attr.cap.max_send_wr = newxprt->sc_sq_depth - ctxts;
 	qp_attr.cap.max_recv_wr = newxprt->sc_rq_depth;
 	qp_attr.cap.max_send_sge = newxprt->sc_max_sge;
 	qp_attr.cap.max_recv_sge = newxprt->sc_max_sge;
@@ -976,46 +820,11 @@ static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt)
 	}
 	newxprt->sc_qp = newxprt->sc_cm_id->qp;
 
-	/*
-	 * Use the most secure set of MR resources based on the
-	 * transport type and available memory management features in
-	 * the device. Here's the table implemented below:
-	 *
-	 *		Fast	Global	DMA	Remote WR
-	 *		Reg	LKEY	MR	Access
-	 *		Sup'd	Sup'd	Needed	Needed
-	 *
-	 * IWARP	N	N	Y	Y
-	 *		N	Y	Y	Y
-	 *		Y	N	Y	N
-	 *		Y	Y	N	-
-	 *
-	 * IB		N	N	Y	N
-	 *		N	Y	N	-
-	 *		Y	N	Y	N
-	 *		Y	Y	N	-
-	 *
-	 * NB:	iWARP requires remote write access for the data sink
-	 *	of an RDMA_READ. IB does not.
-	 */
-	newxprt->sc_reader = rdma_read_chunk_lcl;
-	if (dev->attrs.device_cap_flags & IB_DEVICE_MEM_MGT_EXTENSIONS) {
-		newxprt->sc_frmr_pg_list_len =
-			dev->attrs.max_fast_reg_page_list_len;
-		newxprt->sc_dev_caps |= SVCRDMA_DEVCAP_FAST_REG;
-		newxprt->sc_reader = rdma_read_chunk_frmr;
-	} else
+	if (!(dev->attrs.device_cap_flags & IB_DEVICE_MEM_MGT_EXTENSIONS))
 		newxprt->sc_snd_w_inv = false;
-
-	/*
-	 * Determine if a DMA MR is required and if so, what privs are required
-	 */
-	if (!rdma_protocol_iwarp(dev, newxprt->sc_cm_id->port_num) &&
-	    !rdma_ib_or_roce(dev, newxprt->sc_cm_id->port_num))
+	if (!rdma_protocol_iwarp(dev, newxprt->sc_port_num) &&
+	    !rdma_ib_or_roce(dev, newxprt->sc_port_num))
 		goto errout;
-
-	if (rdma_protocol_iwarp(dev, newxprt->sc_cm_id->port_num))
-		newxprt->sc_dev_caps |= SVCRDMA_DEVCAP_READ_W_INV;
 
 	/* Post receive buffers */
 	for (i = 0; i < newxprt->sc_max_requests; i++) {
@@ -1056,8 +865,8 @@ static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt)
 	sap = (struct sockaddr *)&newxprt->sc_cm_id->route.addr.dst_addr;
 	dprintk("    remote address  : %pIS:%u\n", sap, rpc_get_port(sap));
 	dprintk("    max_sge         : %d\n", newxprt->sc_max_sge);
-	dprintk("    max_sge_rd      : %d\n", newxprt->sc_max_sge_rd);
 	dprintk("    sq_depth        : %d\n", newxprt->sc_sq_depth);
+	dprintk("    rdma_rw_ctxs    : %d\n", ctxts);
 	dprintk("    max_requests    : %d\n", newxprt->sc_max_requests);
 	dprintk("    ord             : %d\n", newxprt->sc_ord);
 
@@ -1117,12 +926,6 @@ static void __svc_rdma_free(struct work_struct *work)
 		pr_err("svcrdma: sc_xprt still in use? (%d)\n",
 		       kref_read(&xprt->xpt_ref));
 
-	/*
-	 * Destroy queued, but not processed read completions. Note
-	 * that this cleanup has to be done before destroying the
-	 * cm_id because the device ptr is needed to unmap the dma in
-	 * svc_rdma_put_context.
-	 */
 	while (!list_empty(&rdma->sc_read_complete_q)) {
 		struct svc_rdma_op_ctxt *ctxt;
 		ctxt = list_first_entry(&rdma->sc_read_complete_q,
@@ -1130,8 +933,6 @@ static void __svc_rdma_free(struct work_struct *work)
 		list_del(&ctxt->list);
 		svc_rdma_put_context(ctxt, 1);
 	}
-
-	/* Destroy queued, but not processed recv completions */
 	while (!list_empty(&rdma->sc_rq_dto_q)) {
 		struct svc_rdma_op_ctxt *ctxt;
 		ctxt = list_first_entry(&rdma->sc_rq_dto_q,
@@ -1151,7 +952,6 @@ static void __svc_rdma_free(struct work_struct *work)
 		xprt->xpt_bc_xprt = NULL;
 	}
 
-	rdma_dealloc_frmr_q(rdma);
 	svc_rdma_destroy_rw_ctxts(rdma);
 	svc_rdma_destroy_ctxts(rdma);
 

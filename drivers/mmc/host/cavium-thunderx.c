@@ -7,6 +7,7 @@
  *
  * Copyright (C) 2016 Cavium Inc.
  */
+#include <linux/device.h>
 #include <linux/dma-mapping.h>
 #include <linux/interrupt.h>
 #include <linux/mmc/mmc.h>
@@ -149,8 +150,11 @@ error:
 	for (i = 0; i < CAVIUM_MAX_MMC; i++) {
 		if (host->slot[i])
 			cvm_mmc_of_slot_remove(host->slot[i]);
-		if (host->slot_pdev[i])
+		if (host->slot_pdev[i]) {
+			get_device(&host->slot_pdev[i]->dev);
 			of_platform_device_destroy(&host->slot_pdev[i]->dev, NULL);
+			put_device(&host->slot_pdev[i]->dev);
+		}
 	}
 	clk_disable_unprepare(host->clk);
 	return ret;

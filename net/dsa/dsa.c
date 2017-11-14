@@ -24,7 +24,7 @@
 #include <linux/phy_fixed.h>
 #include <linux/gpio/consumer.h>
 #include <linux/etherdevice.h>
-#include <net/dsa.h>
+
 #include "dsa_priv.h"
 
 static struct sk_buff *dsa_slave_notag_xmit(struct sk_buff *skb,
@@ -40,41 +40,44 @@ static const struct dsa_device_ops none_ops = {
 };
 
 const struct dsa_device_ops *dsa_device_ops[DSA_TAG_LAST] = {
+#ifdef CONFIG_NET_DSA_TAG_BRCM
+	[DSA_TAG_PROTO_BRCM] = &brcm_netdev_ops,
+#endif
 #ifdef CONFIG_NET_DSA_TAG_DSA
 	[DSA_TAG_PROTO_DSA] = &dsa_netdev_ops,
 #endif
 #ifdef CONFIG_NET_DSA_TAG_EDSA
 	[DSA_TAG_PROTO_EDSA] = &edsa_netdev_ops,
 #endif
-#ifdef CONFIG_NET_DSA_TAG_TRAILER
-	[DSA_TAG_PROTO_TRAILER] = &trailer_netdev_ops,
-#endif
-#ifdef CONFIG_NET_DSA_TAG_BRCM
-	[DSA_TAG_PROTO_BRCM] = &brcm_netdev_ops,
-#endif
-#ifdef CONFIG_NET_DSA_TAG_QCA
-	[DSA_TAG_PROTO_QCA] = &qca_netdev_ops,
-#endif
-#ifdef CONFIG_NET_DSA_TAG_MTK
-	[DSA_TAG_PROTO_MTK] = &mtk_netdev_ops,
+#ifdef CONFIG_NET_DSA_TAG_KSZ
+	[DSA_TAG_PROTO_KSZ] = &ksz_netdev_ops,
 #endif
 #ifdef CONFIG_NET_DSA_TAG_LAN9303
 	[DSA_TAG_PROTO_LAN9303] = &lan9303_netdev_ops,
 #endif
+#ifdef CONFIG_NET_DSA_TAG_MTK
+	[DSA_TAG_PROTO_MTK] = &mtk_netdev_ops,
+#endif
+#ifdef CONFIG_NET_DSA_TAG_QCA
+	[DSA_TAG_PROTO_QCA] = &qca_netdev_ops,
+#endif
+#ifdef CONFIG_NET_DSA_TAG_TRAILER
+	[DSA_TAG_PROTO_TRAILER] = &trailer_netdev_ops,
+#endif
 	[DSA_TAG_PROTO_NONE] = &none_ops,
 };
 
-int dsa_cpu_dsa_setup(struct dsa_switch *ds, struct device *dev,
-		      struct dsa_port *dport, int port)
+int dsa_cpu_dsa_setup(struct dsa_port *port)
 {
-	struct device_node *port_dn = dport->dn;
+	struct device_node *port_dn = port->dn;
+	struct dsa_switch *ds = port->ds;
 	struct phy_device *phydev;
 	int ret, mode;
 
 	if (of_phy_is_fixed_link(port_dn)) {
 		ret = of_phy_register_fixed_link(port_dn);
 		if (ret) {
-			dev_err(dev, "failed to register fixed PHY\n");
+			dev_err(ds->dev, "failed to register fixed PHY\n");
 			return ret;
 		}
 		phydev = of_phy_find_device(port_dn);
@@ -87,7 +90,7 @@ int dsa_cpu_dsa_setup(struct dsa_switch *ds, struct device *dev,
 		genphy_config_init(phydev);
 		genphy_read_status(phydev);
 		if (ds->ops->adjust_link)
-			ds->ops->adjust_link(ds, port, phydev);
+			ds->ops->adjust_link(ds, port->index, phydev);
 
 		put_device(&phydev->mdio.dev);
 	}
@@ -109,23 +112,22 @@ const struct dsa_device_ops *dsa_resolve_tag_protocol(int tag_protocol)
 	return ops;
 }
 
-int dsa_cpu_port_ethtool_setup(struct dsa_switch *ds)
+int dsa_cpu_port_ethtool_setup(struct dsa_port *cpu_dp)
 {
+	struct dsa_switch *ds = cpu_dp->ds;
 	struct net_device *master;
 	struct ethtool_ops *cpu_ops;
 
-	master = ds->dst->master_netdev;
-	if (ds->master_netdev)
-		master = ds->master_netdev;
+	master = cpu_dp->netdev;
 
 	cpu_ops = devm_kzalloc(ds->dev, sizeof(*cpu_ops), GFP_KERNEL);
 	if (!cpu_ops)
 		return -ENOMEM;
 
-	memcpy(&ds->dst->master_ethtool_ops, master->ethtool_ops,
+	memcpy(&cpu_dp->ethtool_ops, master->ethtool_ops,
 	       sizeof(struct ethtool_ops));
-	ds->dst->master_orig_ethtool_ops = master->ethtool_ops;
-	memcpy(cpu_ops, &ds->dst->master_ethtool_ops,
+	cpu_dp->orig_ethtool_ops = master->ethtool_ops;
+	memcpy(cpu_ops, &cpu_dp->ethtool_ops,
 	       sizeof(struct ethtool_ops));
 	dsa_cpu_port_ethtool_init(cpu_ops);
 	master->ethtool_ops = cpu_ops;
@@ -133,15 +135,9 @@ int dsa_cpu_port_ethtool_setup(struct dsa_switch *ds)
 	return 0;
 }
 
-void dsa_cpu_port_ethtool_restore(struct dsa_switch *ds)
+void dsa_cpu_port_ethtool_restore(struct dsa_port *cpu_dp)
 {
-	struct net_device *master;
-
-	master = ds->dst->master_netdev;
-	if (ds->master_netdev)
-		master = ds->master_netdev;
-
-	master->ethtool_ops = ds->dst->master_orig_ethtool_ops;
+	cpu_dp->netdev->ethtool_ops = cpu_dp->orig_ethtool_ops;
 }
 
 void dsa_cpu_dsa_destroy(struct dsa_port *port)
@@ -190,10 +186,12 @@ struct net_device *dsa_dev_to_net_device(struct device *dev)
 EXPORT_SYMBOL_GPL(dsa_dev_to_net_device);
 
 static int dsa_switch_rcv(struct sk_buff *skb, struct net_device *dev,
-			  struct packet_type *pt, struct net_device *orig_dev)
+			  struct packet_type *pt, struct net_device *unused)
 {
 	struct dsa_switch_tree *dst = dev->dsa_ptr;
 	struct sk_buff *nskb = NULL;
+	struct pcpu_sw_netstats *s;
+	struct dsa_slave_priv *p;
 
 	if (unlikely(dst == NULL)) {
 		kfree_skb(skb);
@@ -204,19 +202,23 @@ static int dsa_switch_rcv(struct sk_buff *skb, struct net_device *dev,
 	if (!skb)
 		return 0;
 
-	nskb = dst->rcv(skb, dev, pt, orig_dev);
+	nskb = dst->rcv(skb, dev, pt);
 	if (!nskb) {
 		kfree_skb(skb);
 		return 0;
 	}
 
 	skb = nskb;
+	p = netdev_priv(skb->dev);
 	skb_push(skb, ETH_HLEN);
 	skb->pkt_type = PACKET_HOST;
 	skb->protocol = eth_type_trans(skb, skb->dev);
 
-	skb->dev->stats.rx_packets++;
-	skb->dev->stats.rx_bytes += skb->len;
+	s = this_cpu_ptr(p->stats64);
+	u64_stats_update_begin(&s->syncp);
+	s->rx_packets++;
+	s->rx_bytes += skb->len;
+	u64_stats_update_end(&s->syncp);
 
 	netif_receive_skb(skb);
 
@@ -224,6 +226,11 @@ static int dsa_switch_rcv(struct sk_buff *skb, struct net_device *dev,
 }
 
 #ifdef CONFIG_PM_SLEEP
+static bool dsa_is_port_initialized(struct dsa_switch *ds, int p)
+{
+	return ds->enabled_port_mask & (1 << p) && ds->ports[p].netdev;
+}
+
 int dsa_switch_suspend(struct dsa_switch *ds)
 {
 	int i, ret = 0;
@@ -275,9 +282,21 @@ static struct packet_type dsa_pack_type __read_mostly = {
 	.func	= dsa_switch_rcv,
 };
 
+static struct workqueue_struct *dsa_owq;
+
+bool dsa_schedule_work(struct work_struct *work)
+{
+	return queue_work(dsa_owq, work);
+}
+
 static int __init dsa_init_module(void)
 {
 	int rc;
+
+	dsa_owq = alloc_ordered_workqueue("dsa_ordered",
+					  WQ_MEM_RECLAIM);
+	if (!dsa_owq)
+		return -ENOMEM;
 
 	rc = dsa_slave_register_notifier();
 	if (rc)
@@ -298,6 +317,7 @@ static void __exit dsa_cleanup_module(void)
 	dsa_slave_unregister_notifier();
 	dev_remove_pack(&dsa_pack_type);
 	dsa_legacy_unregister();
+	destroy_workqueue(dsa_owq);
 }
 module_exit(dsa_cleanup_module);
 

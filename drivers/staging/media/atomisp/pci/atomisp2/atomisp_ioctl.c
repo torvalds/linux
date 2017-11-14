@@ -51,7 +51,6 @@
 static const char *DRIVER = "atomisp";	/* max size 15 */
 static const char *CARD = "ATOM ISP";	/* max size 31 */
 static const char *BUS_INFO = "PCI-3";	/* max size 31 */
-static const u32 VERSION = DRIVER_VERSION;
 
 /*
  * FIXME: ISP should not know beforehand all CIDs supported by sensor.
@@ -562,8 +561,6 @@ static int atomisp_querycap(struct file *file, void *fh,
 	strncpy(cap->card, CARD, sizeof(cap->card) - 1);
 	strncpy(cap->bus_info, BUS_INFO, sizeof(cap->card) - 1);
 
-	cap->version = VERSION;
-
 	cap->device_caps = V4L2_CAP_VIDEO_CAPTURE |
 	    V4L2_CAP_STREAMING | V4L2_CAP_VIDEO_OUTPUT;
 	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
@@ -683,7 +680,7 @@ static int atomisp_s_input(struct file *file, void *fh, unsigned int input)
 	int ret;
 
 	rt_mutex_lock(&isp->mutex);
-	if (input >= ATOM_ISP_MAX_INPUTS || input > isp->input_cnt) {
+	if (input >= ATOM_ISP_MAX_INPUTS || input >= isp->input_cnt) {
 		dev_dbg(isp->dev, "input_cnt: %d\n", isp->input_cnt);
 		ret = -EINVAL;
 		goto error;

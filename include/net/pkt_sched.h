@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NET_PKT_SCHED_H
 #define __NET_PKT_SCHED_H
 
@@ -5,6 +6,7 @@
 #include <linux/ktime.h>
 #include <linux/if_vlan.h>
 #include <net/sch_generic.h>
+#include <uapi/linux/pkt_sched.h>
 
 #define DEFAULT_TX_QUEUE_LEN	1000
 
@@ -113,9 +115,6 @@ static inline void qdisc_run(struct Qdisc *q)
 		__qdisc_run(q);
 }
 
-int tc_classify(struct sk_buff *skb, const struct tcf_proto *tp,
-		struct tcf_result *res, bool compat_mode);
-
 static inline __be16 tc_skb_protocol(const struct sk_buff *skb)
 {
 	/* We need to take extra care in case the skb came via
@@ -133,6 +132,19 @@ static inline __be16 tc_skb_protocol(const struct sk_buff *skb)
 static inline unsigned int psched_mtu(const struct net_device *dev)
 {
 	return dev->mtu + dev->hard_header_len;
+}
+
+static inline bool is_classid_clsact_ingress(u32 classid)
+{
+	/* This also returns true for ingress qdisc */
+	return TC_H_MAJ(classid) == TC_H_MAJ(TC_H_CLSACT) &&
+	       TC_H_MIN(classid) != TC_H_MIN(TC_H_MIN_EGRESS);
+}
+
+static inline bool is_classid_clsact_egress(u32 classid)
+{
+	return TC_H_MAJ(classid) == TC_H_MAJ(TC_H_CLSACT) &&
+	       TC_H_MIN(classid) == TC_H_MIN(TC_H_MIN_EGRESS);
 }
 
 #endif

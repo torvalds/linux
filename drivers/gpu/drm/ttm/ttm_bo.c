@@ -70,6 +70,7 @@ static inline int ttm_mem_type_from_place(const struct ttm_place *place,
 static void ttm_mem_type_debug(struct ttm_bo_device *bdev, int mem_type)
 {
 	struct ttm_mem_type_manager *man = &bdev->man[mem_type];
+	struct drm_printer p = drm_debug_printer(TTM_PFX);
 
 	pr_err("    has_type: %d\n", man->has_type);
 	pr_err("    use_type: %d\n", man->use_type);
@@ -79,7 +80,7 @@ static void ttm_mem_type_debug(struct ttm_bo_device *bdev, int mem_type)
 	pr_err("    available_caching: 0x%08X\n", man->available_caching);
 	pr_err("    default_caching: 0x%08X\n", man->default_caching);
 	if (mem_type != TTM_PL_SYSTEM)
-		(*man->func->debug)(man, TTM_PFX);
+		(*man->func->debug)(man, &p);
 }
 
 static void ttm_bo_mem_space_debug(struct ttm_buffer_object *bo,
@@ -108,8 +109,8 @@ static ssize_t ttm_bo_global_show(struct kobject *kobj,
 	struct ttm_bo_global *glob =
 		container_of(kobj, struct ttm_bo_global, kobj);
 
-	return snprintf(buffer, PAGE_SIZE, "%lu\n",
-			(unsigned long) atomic_read(&glob->bo_count));
+	return snprintf(buffer, PAGE_SIZE, "%d\n",
+				atomic_read(&glob->bo_count));
 }
 
 static struct attribute *ttm_bo_global_attrs[] = {
@@ -394,14 +395,33 @@ static void ttm_bo_cleanup_memtype_use(struct ttm_buffer_object *bo)
 	ww_mutex_unlock (&bo->resv->lock);
 }
 
+static int ttm_bo_individualize_resv(struct ttm_buffer_object *bo)
+{
+	int r;
+
+	if (bo->resv == &bo->ttm_resv)
+		return 0;
+
+	reservation_object_init(&bo->ttm_resv);
+	BUG_ON(!reservation_object_trylock(&bo->ttm_resv));
+
+	r = reservation_object_copy_fences(&bo->ttm_resv, bo->resv);
+	if (r) {
+		reservation_object_unlock(&bo->ttm_resv);
+		reservation_object_fini(&bo->ttm_resv);
+	}
+
+	return r;
+}
+
 static void ttm_bo_flush_all_fences(struct ttm_buffer_object *bo)
 {
 	struct reservation_object_list *fobj;
 	struct dma_fence *fence;
 	int i;
 
-	fobj = reservation_object_get_list(bo->resv);
-	fence = reservation_object_get_excl(bo->resv);
+	fobj = reservation_object_get_list(&bo->ttm_resv);
+	fence = reservation_object_get_excl(&bo->ttm_resv);
 	if (fence && !fence->ops->signaled)
 		dma_fence_enable_sw_signaling(fence);
 
@@ -430,8 +450,19 @@ static void ttm_bo_cleanup_refs_or_queue(struct ttm_buffer_object *bo)
 			ttm_bo_cleanup_memtype_use(bo);
 
 			return;
-		} else
-			ttm_bo_flush_all_fences(bo);
+		}
+
+		ret = ttm_bo_individualize_resv(bo);
+		if (ret) {
+			/* Last resort, if we fail to allocate memory for the
+			 * fences block for the BO to become idle and free it.
+			 */
+			spin_unlock(&glob->lru_lock);
+			ttm_bo_wait(bo, true, true);
+			ttm_bo_cleanup_memtype_use(bo);
+			return;
+		}
+		ttm_bo_flush_all_fences(bo);
 
 		/*
 		 * Make NO_EVICT bos immediately available to
@@ -443,6 +474,8 @@ static void ttm_bo_cleanup_refs_or_queue(struct ttm_buffer_object *bo)
 			ttm_bo_add_to_lru(bo);
 		}
 
+		if (bo->resv != &bo->ttm_resv)
+			reservation_object_unlock(&bo->ttm_resv);
 		__ttm_bo_unreserve(bo);
 	}
 
@@ -471,17 +504,25 @@ static int ttm_bo_cleanup_refs_and_unlock(struct ttm_buffer_object *bo,
 					  bool no_wait_gpu)
 {
 	struct ttm_bo_global *glob = bo->glob;
+	struct reservation_object *resv;
 	int ret;
 
-	ret = ttm_bo_wait(bo, false, true);
+	if (unlikely(list_empty(&bo->ddestroy)))
+		resv = bo->resv;
+	else
+		resv = &bo->ttm_resv;
+
+	if (reservation_object_test_signaled_rcu(resv, true))
+		ret = 0;
+	else
+		ret = -EBUSY;
 
 	if (ret && !no_wait_gpu) {
 		long lret;
 		ww_mutex_unlock(&bo->resv->lock);
 		spin_unlock(&glob->lru_lock);
 
-		lret = reservation_object_wait_timeout_rcu(bo->resv,
-							   true,
+		lret = reservation_object_wait_timeout_rcu(resv, true,
 							   interruptible,
 							   30 * HZ);
 
@@ -505,13 +546,6 @@ static int ttm_bo_cleanup_refs_and_unlock(struct ttm_buffer_object *bo,
 			spin_unlock(&glob->lru_lock);
 			return 0;
 		}
-
-		/*
-		 * remove sync_obj with ttm_bo_wait, the wait should be
-		 * finished, and no new wait object should have been added.
-		 */
-		ret = ttm_bo_wait(bo, false, true);
-		WARN_ON(ret);
 	}
 
 	if (ret || unlikely(list_empty(&bo->ddestroy))) {
@@ -1353,7 +1387,6 @@ int ttm_bo_clean_mm(struct ttm_bo_device *bdev, unsigned mem_type)
 		       mem_type);
 		return ret;
 	}
-	dma_fence_put(man->move);
 
 	man->use_type = false;
 	man->has_type = false;
@@ -1368,6 +1401,9 @@ int ttm_bo_clean_mm(struct ttm_bo_device *bdev, unsigned mem_type)
 
 		ret = (*man->func->takedown)(man);
 	}
+
+	dma_fence_put(man->move);
+	man->move = NULL;
 
 	return ret;
 }

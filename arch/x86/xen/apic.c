@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/init.h>
 
 #include <asm/x86_init.h>
@@ -178,7 +179,7 @@ static struct apic xen_pv_apic = {
 	.get_apic_id 			= xen_get_apic_id,
 	.set_apic_id 			= xen_set_apic_id, /* Can be NULL on 32-bit. */
 
-	.cpu_mask_to_apicid_and		= flat_cpu_mask_to_apicid_and,
+	.cpu_mask_to_apicid		= flat_cpu_mask_to_apicid,
 
 #ifdef CONFIG_SMP
 	.send_IPI_mask 			= xen_send_IPI_mask,

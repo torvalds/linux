@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * misc.c
  *
@@ -116,8 +117,7 @@ void __putstr(const char *s)
 		}
 	}
 
-	if (boot_params->screen_info.orig_video_mode == 0 &&
-	    lines == 0 && cols == 0)
+	if (lines == 0 || cols == 0)
 		return;
 
 	x = boot_params->screen_info.orig_x;
@@ -410,4 +410,9 @@ asmlinkage __visible void *extract_kernel(void *rmode, memptr heap,
 	handle_relocations(output, output_len, virt_addr);
 	debug_putstr("done.\nBooting the kernel.\n");
 	return output;
+}
+
+void fortify_panic(const char *name)
+{
+	error("detected buffer overflow");
 }

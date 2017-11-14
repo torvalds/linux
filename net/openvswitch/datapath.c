@@ -335,8 +335,6 @@ static int queue_gso_packets(struct datapath *dp, struct sk_buff *skb,
 			     const struct dp_upcall_info *upcall_info,
 				 uint32_t cutlen)
 {
-	unsigned short gso_type = skb_shinfo(skb)->gso_type;
-	struct sw_flow_key later_key;
 	struct sk_buff *segs, *nskb;
 	int err;
 
@@ -347,21 +345,9 @@ static int queue_gso_packets(struct datapath *dp, struct sk_buff *skb,
 	if (segs == NULL)
 		return -EINVAL;
 
-	if (gso_type & SKB_GSO_UDP) {
-		/* The initial flow key extracted by ovs_flow_key_extract()
-		 * in this case is for a first fragment, so we need to
-		 * properly mark later fragments.
-		 */
-		later_key = *key;
-		later_key.ip.frag = OVS_FRAG_TYPE_LATER;
-	}
-
 	/* Queue all of the segments. */
 	skb = segs;
 	do {
-		if (gso_type & SKB_GSO_UDP && skb != segs)
-			key = &later_key;
-
 		err = queue_userspace_packet(dp, skb, key, upcall_info, cutlen);
 		if (err)
 			break;
@@ -381,7 +367,7 @@ static int queue_gso_packets(struct datapath *dp, struct sk_buff *skb,
 }
 
 static size_t upcall_msg_size(const struct dp_upcall_info *upcall_info,
-			      unsigned int hdrlen)
+			      unsigned int hdrlen, int actions_attrlen)
 {
 	size_t size = NLMSG_ALIGN(sizeof(struct ovs_header))
 		+ nla_total_size(hdrlen) /* OVS_PACKET_ATTR_PACKET */
@@ -398,7 +384,7 @@ static size_t upcall_msg_size(const struct dp_upcall_info *upcall_info,
 
 	/* OVS_PACKET_ATTR_ACTIONS */
 	if (upcall_info->actions_len)
-		size += nla_total_size(upcall_info->actions_len);
+		size += nla_total_size(actions_attrlen);
 
 	/* OVS_PACKET_ATTR_MRU */
 	if (upcall_info->mru)
@@ -413,7 +399,7 @@ static void pad_packet(struct datapath *dp, struct sk_buff *skb)
 		size_t plen = NLA_ALIGN(skb->len) - skb->len;
 
 		if (plen > 0)
-			memset(skb_put(skb, plen), 0, plen);
+			skb_put_zero(skb, plen);
 	}
 }
 
@@ -453,7 +439,7 @@ static int queue_userspace_packet(struct datapath *dp, struct sk_buff *skb,
 
 	/* Complete checksum if needed */
 	if (skb->ip_summed == CHECKSUM_PARTIAL &&
-	    (err = skb_checksum_help(skb)))
+	    (err = skb_csum_hwoffload_help(skb, 0)))
 		goto out;
 
 	/* Older versions of OVS user space enforce alignment of the last
@@ -465,7 +451,8 @@ static int queue_userspace_packet(struct datapath *dp, struct sk_buff *skb,
 	else
 		hlen = skb->len;
 
-	len = upcall_msg_size(upcall_info, hlen - cutlen);
+	len = upcall_msg_size(upcall_info, hlen - cutlen,
+			      OVS_CB(skb)->acts_origlen);
 	user_skb = genlmsg_new(len, GFP_ATOMIC);
 	if (!user_skb) {
 		err = -ENOMEM;
@@ -1090,6 +1077,59 @@ static struct sw_flow_actions *get_flow_actions(struct net *net,
 	return acts;
 }
 
+/* Factor out match-init and action-copy to avoid
+ * "Wframe-larger-than=1024" warning. Because mask is only
+ * used to get actions, we new a function to save some
+ * stack space.
+ *
+ * If there are not key and action attrs, we return 0
+ * directly. In the case, the caller will also not use the
+ * match as before. If there is action attr, we try to get
+ * actions and save them to *acts. Before returning from
+ * the function, we reset the match->mask pointer. Because
+ * we should not to return match object with dangling reference
+ * to mask.
+ * */
+static int ovs_nla_init_match_and_action(struct net *net,
+					 struct sw_flow_match *match,
+					 struct sw_flow_key *key,
+					 struct nlattr **a,
+					 struct sw_flow_actions **acts,
+					 bool log)
+{
+	struct sw_flow_mask mask;
+	int error = 0;
+
+	if (a[OVS_FLOW_ATTR_KEY]) {
+		ovs_match_init(match, key, true, &mask);
+		error = ovs_nla_get_match(net, match, a[OVS_FLOW_ATTR_KEY],
+					  a[OVS_FLOW_ATTR_MASK], log);
+		if (error)
+			goto error;
+	}
+
+	if (a[OVS_FLOW_ATTR_ACTIONS]) {
+		if (!a[OVS_FLOW_ATTR_KEY]) {
+			OVS_NLERR(log,
+				  "Flow key attribute not present in set flow.");
+			error = -EINVAL;
+			goto error;
+		}
+
+		*acts = get_flow_actions(net, a[OVS_FLOW_ATTR_ACTIONS], key,
+					 &mask, log);
+		if (IS_ERR(*acts)) {
+			error = PTR_ERR(*acts);
+			goto error;
+		}
+	}
+
+	/* On success, error is 0. */
+error:
+	match->mask = NULL;
+	return error;
+}
+
 static int ovs_flow_cmd_set(struct sk_buff *skb, struct genl_info *info)
 {
 	struct net *net = sock_net(skb->sk);
@@ -1097,7 +1137,6 @@ static int ovs_flow_cmd_set(struct sk_buff *skb, struct genl_info *info)
 	struct ovs_header *ovs_header = info->userhdr;
 	struct sw_flow_key key;
 	struct sw_flow *flow;
-	struct sw_flow_mask mask;
 	struct sk_buff *reply = NULL;
 	struct datapath *dp;
 	struct sw_flow_actions *old_acts = NULL, *acts = NULL;
@@ -1109,34 +1148,18 @@ static int ovs_flow_cmd_set(struct sk_buff *skb, struct genl_info *info)
 	bool ufid_present;
 
 	ufid_present = ovs_nla_get_ufid(&sfid, a[OVS_FLOW_ATTR_UFID], log);
-	if (a[OVS_FLOW_ATTR_KEY]) {
-		ovs_match_init(&match, &key, true, &mask);
-		error = ovs_nla_get_match(net, &match, a[OVS_FLOW_ATTR_KEY],
-					  a[OVS_FLOW_ATTR_MASK], log);
-	} else if (!ufid_present) {
+	if (!a[OVS_FLOW_ATTR_KEY] && !ufid_present) {
 		OVS_NLERR(log,
 			  "Flow set message rejected, Key attribute missing.");
-		error = -EINVAL;
+		return -EINVAL;
 	}
+
+	error = ovs_nla_init_match_and_action(net, &match, &key, a,
+					      &acts, log);
 	if (error)
 		goto error;
 
-	/* Validate actions. */
-	if (a[OVS_FLOW_ATTR_ACTIONS]) {
-		if (!a[OVS_FLOW_ATTR_KEY]) {
-			OVS_NLERR(log,
-				  "Flow key attribute not present in set flow.");
-			error = -EINVAL;
-			goto error;
-		}
-
-		acts = get_flow_actions(net, a[OVS_FLOW_ATTR_ACTIONS], &key,
-					&mask, log);
-		if (IS_ERR(acts)) {
-			error = PTR_ERR(acts);
-			goto error;
-		}
-
+	if (acts) {
 		/* Can allocate before locking if have acts. */
 		reply = ovs_flow_cmd_alloc_info(acts, &sfid, info, false,
 						ufid_flags);

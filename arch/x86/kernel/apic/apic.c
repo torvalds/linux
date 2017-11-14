@@ -54,6 +54,8 @@
 #include <asm/mce.h>
 #include <asm/tsc.h>
 #include <asm/hypervisor.h>
+#include <asm/cpu_device_id.h>
+#include <asm/intel-family.h>
 
 unsigned int num_processors;
 
@@ -174,8 +176,6 @@ static int disable_apic_timer __initdata;
 /* Local APIC timer works in C2 */
 int local_apic_timer_c2_ok;
 EXPORT_SYMBOL_GPL(local_apic_timer_c2_ok);
-
-int first_system_vector = FIRST_SYSTEM_VECTOR;
 
 /*
  * Debug level, exported for io_apic.c
@@ -545,6 +545,96 @@ static struct clock_event_device lapic_clockevent = {
 };
 static DEFINE_PER_CPU(struct clock_event_device, lapic_events);
 
+#define DEADLINE_MODEL_MATCH_FUNC(model, func)	\
+	{ X86_VENDOR_INTEL, 6, model, X86_FEATURE_ANY, (unsigned long)&func }
+
+#define DEADLINE_MODEL_MATCH_REV(model, rev)	\
+	{ X86_VENDOR_INTEL, 6, model, X86_FEATURE_ANY, (unsigned long)rev }
+
+static u32 hsx_deadline_rev(void)
+{
+	switch (boot_cpu_data.x86_mask) {
+	case 0x02: return 0x3a; /* EP */
+	case 0x04: return 0x0f; /* EX */
+	}
+
+	return ~0U;
+}
+
+static u32 bdx_deadline_rev(void)
+{
+	switch (boot_cpu_data.x86_mask) {
+	case 0x02: return 0x00000011;
+	case 0x03: return 0x0700000e;
+	case 0x04: return 0x0f00000c;
+	case 0x05: return 0x0e000003;
+	}
+
+	return ~0U;
+}
+
+static u32 skx_deadline_rev(void)
+{
+	switch (boot_cpu_data.x86_mask) {
+	case 0x03: return 0x01000136;
+	case 0x04: return 0x02000014;
+	}
+
+	return ~0U;
+}
+
+static const struct x86_cpu_id deadline_match[] = {
+	DEADLINE_MODEL_MATCH_FUNC( INTEL_FAM6_HASWELL_X,	hsx_deadline_rev),
+	DEADLINE_MODEL_MATCH_REV ( INTEL_FAM6_BROADWELL_X,	0x0b000020),
+	DEADLINE_MODEL_MATCH_FUNC( INTEL_FAM6_BROADWELL_XEON_D,	bdx_deadline_rev),
+	DEADLINE_MODEL_MATCH_FUNC( INTEL_FAM6_SKYLAKE_X,	skx_deadline_rev),
+
+	DEADLINE_MODEL_MATCH_REV ( INTEL_FAM6_HASWELL_CORE,	0x22),
+	DEADLINE_MODEL_MATCH_REV ( INTEL_FAM6_HASWELL_ULT,	0x20),
+	DEADLINE_MODEL_MATCH_REV ( INTEL_FAM6_HASWELL_GT3E,	0x17),
+
+	DEADLINE_MODEL_MATCH_REV ( INTEL_FAM6_BROADWELL_CORE,	0x25),
+	DEADLINE_MODEL_MATCH_REV ( INTEL_FAM6_BROADWELL_GT3E,	0x17),
+
+	DEADLINE_MODEL_MATCH_REV ( INTEL_FAM6_SKYLAKE_MOBILE,	0xb2),
+	DEADLINE_MODEL_MATCH_REV ( INTEL_FAM6_SKYLAKE_DESKTOP,	0xb2),
+
+	DEADLINE_MODEL_MATCH_REV ( INTEL_FAM6_KABYLAKE_MOBILE,	0x52),
+	DEADLINE_MODEL_MATCH_REV ( INTEL_FAM6_KABYLAKE_DESKTOP,	0x52),
+
+	{},
+};
+
+static void apic_check_deadline_errata(void)
+{
+	const struct x86_cpu_id *m;
+	u32 rev;
+
+	if (!boot_cpu_has(X86_FEATURE_TSC_DEADLINE_TIMER) ||
+	    boot_cpu_has(X86_FEATURE_HYPERVISOR))
+		return;
+
+	m = x86_match_cpu(deadline_match);
+	if (!m)
+		return;
+
+	/*
+	 * Function pointers will have the MSB set due to address layout,
+	 * immediate revisions will not.
+	 */
+	if ((long)m->driver_data < 0)
+		rev = ((u32 (*)(void))(m->driver_data))();
+	else
+		rev = (u32)m->driver_data;
+
+	if (boot_cpu_data.microcode >= rev)
+		return;
+
+	setup_clear_cpu_cap(X86_FEATURE_TSC_DEADLINE_TIMER);
+	pr_err(FW_BUG "TSC_DEADLINE disabled due to Errata; "
+	       "please update microcode to version: 0x%x (or later)\n", rev);
+}
+
 /*
  * Setup the local APIC timer for this CPU. Copy the initialized values
  * of the boot CPU and register the clock event in the framework.
@@ -563,6 +653,7 @@ static void setup_APIC_timer(void)
 	levt->cpumask = cpumask_of(smp_processor_id());
 
 	if (this_cpu_has(X86_FEATURE_TSC_DEADLINE_TIMER)) {
+		levt->name = "lapic-deadline";
 		levt->features &= ~(CLOCK_EVT_FEAT_PERIODIC |
 				    CLOCK_EVT_FEAT_DUMMY);
 		levt->set_next_event = lapic_next_deadline;
@@ -912,8 +1003,7 @@ void setup_secondary_APIC_clock(void)
  */
 static void local_apic_timer_interrupt(void)
 {
-	int cpu = smp_processor_id();
-	struct clock_event_device *evt = &per_cpu(lapic_events, cpu);
+	struct clock_event_device *evt = this_cpu_ptr(&lapic_events);
 
 	/*
 	 * Normally we should not be here till LAPIC has been initialized but
@@ -927,7 +1017,8 @@ static void local_apic_timer_interrupt(void)
 	 * spurious.
 	 */
 	if (!evt->event_handler) {
-		pr_warning("Spurious LAPIC timer interrupt on cpu %d\n", cpu);
+		pr_warning("Spurious LAPIC timer interrupt on cpu %d\n",
+			   smp_processor_id());
 		/* Switch it off */
 		lapic_timer_shutdown(evt);
 		return;
@@ -950,25 +1041,6 @@ static void local_apic_timer_interrupt(void)
  *   interrupt as well. Thus we cannot inline the local irq ... ]
  */
 __visible void __irq_entry smp_apic_timer_interrupt(struct pt_regs *regs)
-{
-	struct pt_regs *old_regs = set_irq_regs(regs);
-
-	/*
-	 * NOTE! We'd better ACK the irq immediately,
-	 * because timer handling can be slow.
-	 *
-	 * update_process_times() expects us to have done irq_enter().
-	 * Besides, if we don't timer interrupts ignore the global
-	 * interrupt lock, which is the WrongThing (tm) to do.
-	 */
-	entering_ack_irq();
-	local_apic_timer_interrupt();
-	exiting_irq();
-
-	set_irq_regs(old_regs);
-}
-
-__visible void __irq_entry smp_trace_apic_timer_interrupt(struct pt_regs *regs)
 {
 	struct pt_regs *old_regs = set_irq_regs(regs);
 
@@ -1779,6 +1851,8 @@ void __init init_apic_mappings(void)
 {
 	unsigned int new_apicid;
 
+	apic_check_deadline_errata();
+
 	if (x2apic_mode) {
 		boot_cpu_physical_apicid = read_apic_id();
 		return;
@@ -1840,9 +1914,13 @@ void __init register_lapic_address(unsigned long address)
 /*
  * This interrupt should _never_ happen with our APIC/SMP architecture
  */
-static void __smp_spurious_interrupt(u8 vector)
+__visible void __irq_entry smp_spurious_interrupt(struct pt_regs *regs)
 {
+	u8 vector = ~regs->orig_ax;
 	u32 v;
+
+	entering_irq();
+	trace_spurious_apic_entry(vector);
 
 	/*
 	 * Check if this really is a spurious interrupt and ACK it
@@ -1858,22 +1936,7 @@ static void __smp_spurious_interrupt(u8 vector)
 	/* see sw-dev-man vol 3, chapter 7.4.13.5 */
 	pr_info("spurious APIC interrupt through vector %02x on CPU#%d, "
 		"should never happen.\n", vector, smp_processor_id());
-}
 
-__visible void __irq_entry smp_spurious_interrupt(struct pt_regs *regs)
-{
-	entering_irq();
-	__smp_spurious_interrupt(~regs->orig_ax);
-	exiting_irq();
-}
-
-__visible void __irq_entry smp_trace_spurious_interrupt(struct pt_regs *regs)
-{
-	u8 vector = ~regs->orig_ax;
-
-	entering_irq();
-	trace_spurious_apic_entry(vector);
-	__smp_spurious_interrupt(vector);
 	trace_spurious_apic_exit(vector);
 	exiting_irq();
 }
@@ -1881,10 +1944,8 @@ __visible void __irq_entry smp_trace_spurious_interrupt(struct pt_regs *regs)
 /*
  * This interrupt should never happen with our APIC/SMP architecture
  */
-static void __smp_error_interrupt(struct pt_regs *regs)
+__visible void __irq_entry smp_error_interrupt(struct pt_regs *regs)
 {
-	u32 v;
-	u32 i = 0;
 	static const char * const error_interrupt_reason[] = {
 		"Send CS error",		/* APIC Error Bit 0 */
 		"Receive CS error",		/* APIC Error Bit 1 */
@@ -1895,6 +1956,10 @@ static void __smp_error_interrupt(struct pt_regs *regs)
 		"Received illegal vector",	/* APIC Error Bit 6 */
 		"Illegal register address",	/* APIC Error Bit 7 */
 	};
+	u32 v, i = 0;
+
+	entering_irq();
+	trace_error_apic_entry(ERROR_APIC_VECTOR);
 
 	/* First tickle the hardware, only then report what went on. -- REW */
 	if (lapic_get_maxlvt() > 3)	/* Due to the Pentium erratum 3AP. */
@@ -1916,20 +1981,6 @@ static void __smp_error_interrupt(struct pt_regs *regs)
 
 	apic_printk(APIC_DEBUG, KERN_CONT "\n");
 
-}
-
-__visible void __irq_entry smp_error_interrupt(struct pt_regs *regs)
-{
-	entering_irq();
-	__smp_error_interrupt(regs);
-	exiting_irq();
-}
-
-__visible void __irq_entry smp_trace_error_interrupt(struct pt_regs *regs)
-{
-	entering_irq();
-	trace_error_apic_entry(ERROR_APIC_VECTOR);
-	__smp_error_interrupt(regs);
 	trace_error_apic_exit(ERROR_APIC_VECTOR);
 	exiting_irq();
 }
@@ -2057,7 +2108,7 @@ static int allocate_logical_cpuid(int apicid)
 
 	/* Allocate a new cpuid. */
 	if (nr_logical_cpuids >= nr_cpu_ids) {
-		WARN_ONCE(1, "APIC: NR_CPUS/possible_cpus limit of %i reached. "
+		WARN_ONCE(1, "APIC: NR_CPUS/possible_cpus limit of %u reached. "
 			     "Processor %d/0x%x and the rest are ignored.\n",
 			     nr_cpu_ids, nr_logical_cpuids, apicid);
 		return -EINVAL;
@@ -2090,7 +2141,7 @@ int generic_processor_info(int apicid, int version)
 	 * Since fixing handling of boot_cpu_physical_apicid requires
 	 * another discussion and tests on each platform, we leave it
 	 * for now and here we use read_apic_id() directly in this
-	 * function, __generic_processor_info().
+	 * function, generic_processor_info().
 	 */
 	if (disabled_cpu_apicid != BAD_APICID &&
 	    disabled_cpu_apicid != read_apic_id() &&
@@ -2201,23 +2252,32 @@ void default_init_apic_ldr(void)
 	apic_write(APIC_LDR, val);
 }
 
-int default_cpu_mask_to_apicid_and(const struct cpumask *cpumask,
-				   const struct cpumask *andmask,
-				   unsigned int *apicid)
+int default_cpu_mask_to_apicid(const struct cpumask *mask,
+			       struct irq_data *irqdata,
+			       unsigned int *apicid)
 {
-	unsigned int cpu;
+	unsigned int cpu = cpumask_first(mask);
 
-	for_each_cpu_and(cpu, cpumask, andmask) {
-		if (cpumask_test_cpu(cpu, cpu_online_mask))
-			break;
-	}
+	if (cpu >= nr_cpu_ids)
+		return -EINVAL;
+	*apicid = per_cpu(x86_cpu_to_apicid, cpu);
+	irq_data_update_effective_affinity(irqdata, cpumask_of(cpu));
+	return 0;
+}
 
-	if (likely(cpu < nr_cpu_ids)) {
-		*apicid = per_cpu(x86_cpu_to_apicid, cpu);
-		return 0;
-	}
+int flat_cpu_mask_to_apicid(const struct cpumask *mask,
+			    struct irq_data *irqdata,
+			    unsigned int *apicid)
 
-	return -EINVAL;
+{
+	struct cpumask *effmsk = irq_data_get_effective_affinity_mask(irqdata);
+	unsigned long cpu_mask = cpumask_bits(mask)[0] & APIC_ALL_CPUS;
+
+	if (!cpu_mask)
+		return -EINVAL;
+	*apicid = (unsigned int)cpu_mask;
+	cpumask_bits(effmsk)[0] = cpu_mask;
+	return 0;
 }
 
 /*

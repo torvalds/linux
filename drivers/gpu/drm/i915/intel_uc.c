@@ -94,12 +94,22 @@ void intel_uc_sanitize_options(struct drm_i915_private *dev_priv)
 		i915.enable_guc_submission = HAS_GUC_SCHED(dev_priv);
 }
 
+static void gen8_guc_raise_irq(struct intel_guc *guc)
+{
+	struct drm_i915_private *dev_priv = guc_to_i915(guc);
+
+	I915_WRITE(GUC_SEND_INTERRUPT, GUC_SEND_TRIGGER);
+}
+
 void intel_uc_init_early(struct drm_i915_private *dev_priv)
 {
 	struct intel_guc *guc = &dev_priv->guc;
 
+	intel_guc_ct_init_early(&guc->ct);
+
 	mutex_init(&guc->send_mutex);
-	guc->send = intel_guc_send_mmio;
+	guc->send = intel_guc_send_nop;
+	guc->notify = gen8_guc_raise_irq;
 }
 
 static void fetch_uc_fw(struct drm_i915_private *dev_priv,
@@ -252,13 +262,81 @@ void intel_uc_fini_fw(struct drm_i915_private *dev_priv)
 	__intel_uc_fw_fini(&dev_priv->huc.fw);
 }
 
+static inline i915_reg_t guc_send_reg(struct intel_guc *guc, u32 i)
+{
+	GEM_BUG_ON(!guc->send_regs.base);
+	GEM_BUG_ON(!guc->send_regs.count);
+	GEM_BUG_ON(i >= guc->send_regs.count);
+
+	return _MMIO(guc->send_regs.base + 4 * i);
+}
+
+static void guc_init_send_regs(struct intel_guc *guc)
+{
+	struct drm_i915_private *dev_priv = guc_to_i915(guc);
+	enum forcewake_domains fw_domains = 0;
+	unsigned int i;
+
+	guc->send_regs.base = i915_mmio_reg_offset(SOFT_SCRATCH(0));
+	guc->send_regs.count = SOFT_SCRATCH_COUNT - 1;
+
+	for (i = 0; i < guc->send_regs.count; i++) {
+		fw_domains |= intel_uncore_forcewake_for_reg(dev_priv,
+					guc_send_reg(guc, i),
+					FW_REG_READ | FW_REG_WRITE);
+	}
+	guc->send_regs.fw_domains = fw_domains;
+}
+
+static void guc_capture_load_err_log(struct intel_guc *guc)
+{
+	if (!guc->log.vma || i915.guc_log_level < 0)
+		return;
+
+	if (!guc->load_err_log)
+		guc->load_err_log = i915_gem_object_get(guc->log.vma->obj);
+
+	return;
+}
+
+static void guc_free_load_err_log(struct intel_guc *guc)
+{
+	if (guc->load_err_log)
+		i915_gem_object_put(guc->load_err_log);
+}
+
+static int guc_enable_communication(struct intel_guc *guc)
+{
+	struct drm_i915_private *dev_priv = guc_to_i915(guc);
+
+	guc_init_send_regs(guc);
+
+	if (HAS_GUC_CT(dev_priv))
+		return intel_guc_enable_ct(guc);
+
+	guc->send = intel_guc_send_mmio;
+	return 0;
+}
+
+static void guc_disable_communication(struct intel_guc *guc)
+{
+	struct drm_i915_private *dev_priv = guc_to_i915(guc);
+
+	if (HAS_GUC_CT(dev_priv))
+		intel_guc_disable_ct(guc);
+
+	guc->send = intel_guc_send_nop;
+}
+
 int intel_uc_init_hw(struct drm_i915_private *dev_priv)
 {
+	struct intel_guc *guc = &dev_priv->guc;
 	int ret, attempts;
 
 	if (!i915.enable_guc_loading)
 		return 0;
 
+	guc_disable_communication(guc);
 	gen9_reset_guc_interrupts(dev_priv);
 
 	/* We need to notify the guc whenever we change the GGTT */
@@ -273,6 +351,11 @@ int intel_uc_init_hw(struct drm_i915_private *dev_priv)
 		if (ret)
 			goto err_guc;
 	}
+
+	/* init WOPCM */
+	I915_WRITE(GUC_WOPCM_SIZE, intel_guc_wopcm_size(dev_priv));
+	I915_WRITE(DMA_GUC_WOPCM_OFFSET,
+		   GUC_WOPCM_OFFSET_VALUE | HUC_LOADING_AGENT_GUC);
 
 	/* WaEnableuKernelHeaderValidFix:skl */
 	/* WaEnableGuCBootHashCheckNotSet:skl,bxt,kbl */
@@ -301,7 +384,11 @@ int intel_uc_init_hw(struct drm_i915_private *dev_priv)
 
 	/* Did we succeded or run out of retries? */
 	if (ret)
-		goto err_submission;
+		goto err_log_capture;
+
+	ret = guc_enable_communication(guc);
+	if (ret)
+		goto err_log_capture;
 
 	intel_guc_auth_huc(dev_priv);
 	if (i915.enable_guc_submission) {
@@ -325,7 +412,10 @@ int intel_uc_init_hw(struct drm_i915_private *dev_priv)
 	 * marks the GPU as wedged until reset).
 	 */
 err_interrupts:
+	guc_disable_communication(guc);
 	gen9_disable_guc_interrupts(dev_priv);
+err_log_capture:
+	guc_capture_load_err_log(guc);
 err_submission:
 	if (i915.enable_guc_submission)
 		i915_guc_submission_fini(dev_priv);
@@ -343,33 +433,36 @@ err_guc:
 		DRM_NOTE("Falling back from GuC submission to execlist mode\n");
 	}
 
+	i915.enable_guc_loading = 0;
+	DRM_NOTE("GuC firmware loading disabled\n");
+
 	return ret;
 }
 
 void intel_uc_fini_hw(struct drm_i915_private *dev_priv)
 {
+	guc_free_load_err_log(&dev_priv->guc);
+
 	if (!i915.enable_guc_loading)
 		return;
 
-	if (i915.enable_guc_submission) {
+	if (i915.enable_guc_submission)
 		i915_guc_submission_disable(dev_priv);
+
+	guc_disable_communication(&dev_priv->guc);
+
+	if (i915.enable_guc_submission) {
 		gen9_disable_guc_interrupts(dev_priv);
 		i915_guc_submission_fini(dev_priv);
 	}
+
 	i915_ggtt_disable_guc(dev_priv);
 }
 
-/*
- * Read GuC command/status register (SOFT_SCRATCH_0)
- * Return true if it contains a response rather than a command
- */
-static bool guc_recv(struct intel_guc *guc, u32 *status)
+int intel_guc_send_nop(struct intel_guc *guc, const u32 *action, u32 len)
 {
-	struct drm_i915_private *dev_priv = guc_to_i915(guc);
-
-	u32 val = I915_READ(SOFT_SCRATCH(0));
-	*status = val;
-	return INTEL_GUC_RECV_IS_RESPONSE(val);
+	WARN(1, "Unexpected send: action=%#x\n", *action);
+	return -ENODEV;
 }
 
 /*
@@ -382,30 +475,33 @@ int intel_guc_send_mmio(struct intel_guc *guc, const u32 *action, u32 len)
 	int i;
 	int ret;
 
-	if (WARN_ON(len < 1 || len > 15))
-		return -EINVAL;
+	GEM_BUG_ON(!len);
+	GEM_BUG_ON(len > guc->send_regs.count);
+
+	/* If CT is available, we expect to use MMIO only during init/fini */
+	GEM_BUG_ON(HAS_GUC_CT(dev_priv) &&
+		*action != INTEL_GUC_ACTION_REGISTER_COMMAND_TRANSPORT_BUFFER &&
+		*action != INTEL_GUC_ACTION_DEREGISTER_COMMAND_TRANSPORT_BUFFER);
 
 	mutex_lock(&guc->send_mutex);
-	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_BLITTER);
-
-	dev_priv->guc.action_count += 1;
-	dev_priv->guc.action_cmd = action[0];
+	intel_uncore_forcewake_get(dev_priv, guc->send_regs.fw_domains);
 
 	for (i = 0; i < len; i++)
-		I915_WRITE(SOFT_SCRATCH(i), action[i]);
+		I915_WRITE(guc_send_reg(guc, i), action[i]);
 
-	POSTING_READ(SOFT_SCRATCH(i - 1));
+	POSTING_READ(guc_send_reg(guc, i - 1));
 
-	I915_WRITE(GUC_SEND_INTERRUPT, GUC_SEND_TRIGGER);
+	intel_guc_notify(guc);
 
 	/*
-	 * Fast commands should complete in less than 10us, so sample quickly
-	 * up to that length of time, then switch to a slower sleep-wait loop.
-	 * No inte_guc_send command should ever take longer than 10ms.
+	 * No GuC command should ever take longer than 10ms.
+	 * Fast commands should still complete in 10us.
 	 */
-	ret = wait_for_us(guc_recv(guc, &status), 10);
-	if (ret)
-		ret = wait_for(guc_recv(guc, &status), 10);
+	ret = __intel_wait_for_register_fw(dev_priv,
+					   guc_send_reg(guc, 0),
+					   INTEL_GUC_RECV_MASK,
+					   INTEL_GUC_RECV_MASK,
+					   10, 10, &status);
 	if (status != INTEL_GUC_STATUS_SUCCESS) {
 		/*
 		 * Either the GuC explicitly returned an error (which
@@ -418,13 +514,9 @@ int intel_guc_send_mmio(struct intel_guc *guc, const u32 *action, u32 len)
 		DRM_WARN("INTEL_GUC_SEND: Action 0x%X failed;"
 			 " ret=%d status=0x%08X response=0x%08X\n",
 			 action[0], ret, status, I915_READ(SOFT_SCRATCH(15)));
-
-		dev_priv->guc.action_fail += 1;
-		dev_priv->guc.action_err = ret;
 	}
-	dev_priv->guc.action_status = status;
 
-	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_BLITTER);
+	intel_uncore_forcewake_put(dev_priv, guc->send_regs.fw_domains);
 	mutex_unlock(&guc->send_mutex);
 
 	return ret;

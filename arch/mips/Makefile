@@ -151,7 +151,6 @@ cflags-y += -fno-stack-check
 #
 cflags-$(CONFIG_CPU_R3000)	+= -march=r3000
 cflags-$(CONFIG_CPU_TX39XX)	+= -march=r3900
-cflags-$(CONFIG_CPU_R6000)	+= -march=r6000 -Wa,--trap
 cflags-$(CONFIG_CPU_R4300)	+= -march=r4300 -Wa,--trap
 cflags-$(CONFIG_CPU_VR41XX)	+= -march=r4100 -Wa,--trap
 cflags-$(CONFIG_CPU_R4X00)	+= -march=r4600 -Wa,--trap
@@ -160,7 +159,7 @@ cflags-$(CONFIG_CPU_MIPS32_R1)	+= $(call cc-option,-march=mips32,-mips32 -U_MIPS
 			-Wa,-mips32 -Wa,--trap
 cflags-$(CONFIG_CPU_MIPS32_R2)	+= $(call cc-option,-march=mips32r2,-mips32r2 -U_MIPS_ISA -D_MIPS_ISA=_MIPS_ISA_MIPS32) \
 			-Wa,-mips32r2 -Wa,--trap
-cflags-$(CONFIG_CPU_MIPS32_R6)	+= -march=mips32r6 -Wa,--trap
+cflags-$(CONFIG_CPU_MIPS32_R6)	+= -march=mips32r6 -Wa,--trap -modd-spreg
 cflags-$(CONFIG_CPU_MIPS64_R1)	+= $(call cc-option,-march=mips64,-mips64 -U_MIPS_ISA -D_MIPS_ISA=_MIPS_ISA_MIPS64) \
 			-Wa,-mips64 -Wa,--trap
 cflags-$(CONFIG_CPU_MIPS64_R2)	+= $(call cc-option,-march=mips64r2,-mips64r2 -U_MIPS_ISA -D_MIPS_ISA=_MIPS_ISA_MIPS64) \
@@ -243,8 +242,21 @@ include arch/mips/Kbuild.platforms
 ifdef CONFIG_PHYSICAL_START
 load-y					= $(CONFIG_PHYSICAL_START)
 endif
-entry-y				= 0x$(shell $(NM) vmlinux 2>/dev/null \
+
+entry-noisa-y				= 0x$(shell $(NM) vmlinux 2>/dev/null \
 					| grep "\bkernel_entry\b" | cut -f1 -d \ )
+ifdef CONFIG_CPU_MICROMIPS
+  #
+  # Set the ISA bit, since the kernel_entry symbol in the ELF will have it
+  # clear which would lead to images containing addresses which bootloaders may
+  # jump to as MIPS32 code.
+  #
+  entry-y = $(patsubst %0,%1,$(patsubst %2,%3,$(patsubst %4,%5, \
+              $(patsubst %6,%7,$(patsubst %8,%9,$(patsubst %a,%b, \
+              $(patsubst %c,%d,$(patsubst %e,%f,$(entry-noisa-y)))))))))
+else
+  entry-y = $(entry-noisa-y)
+endif
 
 cflags-y			+= -I$(srctree)/arch/mips/include/asm/mach-generic
 drivers-$(CONFIG_PCI)		+= arch/mips/pci/
@@ -278,13 +290,18 @@ KBUILD_CPPFLAGS += -DDATAOFFSET=$(if $(dataoffset-y),$(dataoffset-y),0)
 
 bootvars-y	= VMLINUX_LOAD_ADDRESS=$(load-y) \
 		  VMLINUX_ENTRY_ADDRESS=$(entry-y) \
-		  PLATFORM="$(platform-y)"
+		  PLATFORM="$(platform-y)" \
+		  ITS_INPUTS="$(its-y)"
 ifdef CONFIG_32BIT
 bootvars-y	+= ADDR_BITS=32
 endif
 ifdef CONFIG_64BIT
 bootvars-y	+= ADDR_BITS=64
 endif
+
+# This is required to get dwarf unwinding tables into .debug_frame
+# instead of .eh_frame so we don't discard them.
+KBUILD_CFLAGS += -fno-asynchronous-unwind-tables
 
 LDFLAGS			+= -m $(ld-emul)
 
@@ -487,14 +504,33 @@ $(eval $(call gen_generic_defconfigs,micro32,r2,eb el))
 .PHONY: $(generic_defconfigs)
 $(generic_defconfigs):
 	$(Q)$(CONFIG_SHELL) $(srctree)/scripts/kconfig/merge_config.sh \
-		-m -O $(objtree) $(srctree)/arch/$(ARCH)/configs/generic_defconfig $^ \
-		$(foreach board,$(BOARDS),$(generic_config_dir)/board-$(board).config)
+		-m -O $(objtree) $(srctree)/arch/$(ARCH)/configs/generic_defconfig $^ | \
+		grep -Ev '^#'
+	$(Q)cp $(KCONFIG_CONFIG) $(objtree)/.config.$@
+	$(Q)$(MAKE) -f $(srctree)/Makefile olddefconfig \
+		KCONFIG_CONFIG=$(objtree)/.config.$@ >/dev/null
+	$(Q)$(CONFIG_SHELL) $(srctree)/arch/$(ARCH)/tools/generic-board-config.sh \
+		$(srctree) $(objtree) $(objtree)/.config.$@ $(KCONFIG_CONFIG) \
+		"$(origin BOARDS)" $(BOARDS)
 	$(Q)$(MAKE) -f $(srctree)/Makefile olddefconfig
 
 #
 # Prevent generic merge_config rules attempting to merge single fragments
 #
 $(generic_config_dir)/%.config: ;
+
+#
+# Prevent direct use of generic_defconfig, which is intended to be used as the
+# basis of the various ISA-specific targets generated above.
+#
+.PHONY: generic_defconfig
+generic_defconfig:
+	$(Q)echo "generic_defconfig is not intended for direct use, but should instead be"
+	$(Q)echo "used via an ISA-specific target from the following list:"
+	$(Q)echo
+	$(Q)for cfg in $(generic_defconfigs); do echo "  $${cfg}"; done
+	$(Q)echo
+	$(Q)false
 
 #
 # Legacy defconfig compatibility - these targets used to be real defconfigs but

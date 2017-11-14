@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/bitops.h>
 #include <linux/device.h>
 #include <linux/delay.h>
@@ -56,7 +57,7 @@ int dw9714_vcm_power_down(struct v4l2_subdev *sd)
 }
 
 
-int dw9714_t_focus_vcm(struct v4l2_subdev *sd, u16 val)
+static int dw9714_t_focus_vcm(struct v4l2_subdev *sd, u16 val)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int ret = -EINVAL;
@@ -221,15 +222,3 @@ int dw9714_t_vcm_timing(struct v4l2_subdev *sd, s32 value)
 
 	return 0;
 }
-
-int dw9714_vcm_init(struct v4l2_subdev *sd)
-{
-
-	/* set VCM to home position and vcm mode to direct*/
-	dw9714_dev.vcm_mode = DW9714_DIRECT;
-	dw9714_dev.vcm_settings.update = false;
-	dw9714_dev.platform_data = camera_get_af_platform_data();
-	return (NULL == dw9714_dev.platform_data) ? -ENODEV : 0;
-
-}
-

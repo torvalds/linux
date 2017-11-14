@@ -91,18 +91,6 @@ static void limit_channels_and_rates(struct snd_pcm_hardware *hw,
 	}
 }
 
-static void limit_period_and_buffer(struct snd_pcm_hardware *hw)
-{
-	hw->periods_min = 2;		/* SNDRV_PCM_INFO_BATCH */
-	hw->periods_max = UINT_MAX;
-
-	hw->period_bytes_min = 4 * hw->channels_max;	/* bytes for a frame */
-
-	/* Just to prevent from allocating much pages. */
-	hw->period_bytes_max = hw->period_bytes_min * 2048;
-	hw->buffer_bytes_max = hw->period_bytes_max * hw->periods_min;
-}
-
 static int pcm_init_hw_params(struct snd_ff *ff,
 			      struct snd_pcm_substream *substream)
 {
@@ -110,13 +98,6 @@ static int pcm_init_hw_params(struct snd_ff *ff,
 	struct amdtp_stream *s;
 	const unsigned int *pcm_channels;
 	int err;
-
-	runtime->hw.info = SNDRV_PCM_INFO_BATCH |
-			   SNDRV_PCM_INFO_BLOCK_TRANSFER |
-			   SNDRV_PCM_INFO_INTERLEAVED |
-			   SNDRV_PCM_INFO_JOINT_DUPLEX |
-			   SNDRV_PCM_INFO_MMAP |
-			   SNDRV_PCM_INFO_MMAP_VALID;
 
 	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
 		runtime->hw.formats = SNDRV_PCM_FMTBIT_S32;
@@ -128,9 +109,7 @@ static int pcm_init_hw_params(struct snd_ff *ff,
 		pcm_channels = ff->spec->pcm_playback_channels;
 	}
 
-	/* limit rates */
 	limit_channels_and_rates(&runtime->hw, pcm_channels);
-	limit_period_and_buffer(&runtime->hw);
 
 	err = snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_CHANNELS,
 				  hw_rule_channels, (void *)pcm_channels,
@@ -159,16 +138,12 @@ static int pcm_open(struct snd_pcm_substream *substream)
 		return err;
 
 	err = pcm_init_hw_params(ff, substream);
-	if (err < 0) {
-		snd_ff_stream_lock_release(ff);
-		return err;
-	}
+	if (err < 0)
+		goto release_lock;
 
 	err = ff->spec->protocol->get_clock(ff, &rate, &src);
-	if (err < 0) {
-		snd_ff_stream_lock_release(ff);
-		return err;
-	}
+	if (err < 0)
+		goto release_lock;
 
 	if (src != SND_FF_CLOCK_SRC_INTERNAL) {
 		for (i = 0; i < CIP_SFC_COUNT; ++i) {
@@ -180,8 +155,8 @@ static int pcm_open(struct snd_pcm_substream *substream)
 		 * streaming engine can't support.
 		 */
 		if (i >= CIP_SFC_COUNT) {
-			snd_ff_stream_lock_release(ff);
-			return -EIO;
+			err = -EIO;
+			goto release_lock;
 		}
 
 		substream->runtime->hw.rate_min = rate;
@@ -198,6 +173,10 @@ static int pcm_open(struct snd_pcm_substream *substream)
 	snd_pcm_set_sync(substream);
 
 	return 0;
+
+release_lock:
+	snd_ff_stream_lock_release(ff);
+	return err;
 }
 
 static int pcm_close(struct snd_pcm_substream *substream)
@@ -365,33 +344,47 @@ static snd_pcm_uframes_t pcm_playback_pointer(struct snd_pcm_substream *sbstrm)
 	return amdtp_stream_pcm_pointer(&ff->rx_stream);
 }
 
-static struct snd_pcm_ops pcm_capture_ops = {
-	.open		= pcm_open,
-	.close		= pcm_close,
-	.ioctl		= snd_pcm_lib_ioctl,
-	.hw_params	= pcm_capture_hw_params,
-	.hw_free	= pcm_capture_hw_free,
-	.prepare	= pcm_capture_prepare,
-	.trigger	= pcm_capture_trigger,
-	.pointer	= pcm_capture_pointer,
-	.page		= snd_pcm_lib_get_vmalloc_page,
-};
+static int pcm_capture_ack(struct snd_pcm_substream *substream)
+{
+	struct snd_ff *ff = substream->private_data;
 
-static struct snd_pcm_ops pcm_playback_ops = {
-	.open		= pcm_open,
-	.close		= pcm_close,
-	.ioctl		= snd_pcm_lib_ioctl,
-	.hw_params	= pcm_playback_hw_params,
-	.hw_free	= pcm_playback_hw_free,
-	.prepare	= pcm_playback_prepare,
-	.trigger	= pcm_playback_trigger,
-	.pointer	= pcm_playback_pointer,
-	.page		= snd_pcm_lib_get_vmalloc_page,
-	.mmap		= snd_pcm_lib_mmap_vmalloc,
-};
+	return amdtp_stream_pcm_ack(&ff->tx_stream);
+}
+
+static int pcm_playback_ack(struct snd_pcm_substream *substream)
+{
+	struct snd_ff *ff = substream->private_data;
+
+	return amdtp_stream_pcm_ack(&ff->rx_stream);
+}
 
 int snd_ff_create_pcm_devices(struct snd_ff *ff)
 {
+	static const struct snd_pcm_ops pcm_capture_ops = {
+		.open		= pcm_open,
+		.close		= pcm_close,
+		.ioctl		= snd_pcm_lib_ioctl,
+		.hw_params	= pcm_capture_hw_params,
+		.hw_free	= pcm_capture_hw_free,
+		.prepare	= pcm_capture_prepare,
+		.trigger	= pcm_capture_trigger,
+		.pointer	= pcm_capture_pointer,
+		.ack		= pcm_capture_ack,
+		.page		= snd_pcm_lib_get_vmalloc_page,
+	};
+	static const struct snd_pcm_ops pcm_playback_ops = {
+		.open		= pcm_open,
+		.close		= pcm_close,
+		.ioctl		= snd_pcm_lib_ioctl,
+		.hw_params	= pcm_playback_hw_params,
+		.hw_free	= pcm_playback_hw_free,
+		.prepare	= pcm_playback_prepare,
+		.trigger	= pcm_playback_trigger,
+		.pointer	= pcm_playback_pointer,
+		.ack		= pcm_playback_ack,
+		.page		= snd_pcm_lib_get_vmalloc_page,
+		.mmap		= snd_pcm_lib_mmap_vmalloc,
+	};
 	struct snd_pcm *pcm;
 	int err;
 

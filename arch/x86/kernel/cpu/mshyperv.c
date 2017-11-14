@@ -59,13 +59,6 @@ void hyperv_vector_handler(struct pt_regs *regs)
 void hv_setup_vmbus_irq(void (*handler)(void))
 {
 	vmbus_handler = handler;
-	/*
-	 * Setup the IDT for hypervisor callback. Prevent reallocation
-	 * at module reload.
-	 */
-	if (!test_bit(HYPERVISOR_CALLBACK_VECTOR, used_vectors))
-		alloc_intr_gate(HYPERVISOR_CALLBACK_VECTOR,
-				hyperv_callback_vector);
 }
 
 void hv_remove_vmbus_irq(void)
@@ -161,6 +154,15 @@ static int hv_nmi_unknown(unsigned int val, struct pt_regs *regs)
 }
 #endif
 
+static unsigned long hv_get_tsc_khz(void)
+{
+	unsigned long freq;
+
+	rdmsrl(HV_X64_MSR_TSC_FREQUENCY, freq);
+
+	return freq / 1000;
+}
+
 static void __init ms_hyperv_init_platform(void)
 {
 	int hv_host_info_eax;
@@ -175,8 +177,14 @@ static void __init ms_hyperv_init_platform(void)
 	ms_hyperv.misc_features = cpuid_edx(HYPERV_CPUID_FEATURES);
 	ms_hyperv.hints    = cpuid_eax(HYPERV_CPUID_ENLIGHTMENT_INFO);
 
-	pr_info("HyperV: features 0x%x, hints 0x%x\n",
+	pr_info("Hyper-V: features 0x%x, hints 0x%x\n",
 		ms_hyperv.features, ms_hyperv.hints);
+
+	ms_hyperv.max_vp_index = cpuid_eax(HVCPUID_IMPLEMENTATION_LIMITS);
+	ms_hyperv.max_lp_index = cpuid_ebx(HVCPUID_IMPLEMENTATION_LIMITS);
+
+	pr_debug("Hyper-V: max %u virtual processors, %u logical processors\n",
+		 ms_hyperv.max_vp_index, ms_hyperv.max_lp_index);
 
 	/*
 	 * Extract host information.
@@ -193,8 +201,15 @@ static void __init ms_hyperv_init_platform(void)
 			hv_host_info_edx >> 24, hv_host_info_edx & 0xFFFFFF);
 	}
 
+	if (ms_hyperv.features & HV_X64_ACCESS_FREQUENCY_MSRS &&
+	    ms_hyperv.misc_features & HV_FEATURE_FREQUENCY_MSRS_AVAILABLE) {
+		x86_platform.calibrate_tsc = hv_get_tsc_khz;
+		x86_platform.calibrate_cpu = hv_get_tsc_khz;
+	}
+
 #ifdef CONFIG_X86_LOCAL_APIC
-	if (ms_hyperv.features & HV_X64_MSR_APIC_FREQUENCY_AVAILABLE) {
+	if (ms_hyperv.features & HV_X64_ACCESS_FREQUENCY_MSRS &&
+	    ms_hyperv.misc_features & HV_FEATURE_FREQUENCY_MSRS_AVAILABLE) {
 		/*
 		 * Get the APIC frequency.
 		 */
@@ -203,7 +218,7 @@ static void __init ms_hyperv_init_platform(void)
 		rdmsrl(HV_X64_MSR_APIC_FREQUENCY, hv_lapic_frequency);
 		hv_lapic_frequency = div_u64(hv_lapic_frequency, HZ);
 		lapic_timer_frequency = hv_lapic_frequency;
-		pr_info("HyperV: LAPIC Timer Frequency: %#x\n",
+		pr_info("Hyper-V: LAPIC Timer Frequency: %#x\n",
 			lapic_timer_frequency);
 	}
 
@@ -233,11 +248,14 @@ static void __init ms_hyperv_init_platform(void)
 	 * Setup the hook to get control post apic initialization.
 	 */
 	x86_platform.apic_post_init = hyperv_init;
+	hyperv_setup_mmu_ops();
+	/* Setup the IDT for hypervisor callback */
+	alloc_intr_gate(HYPERVISOR_CALLBACK_VECTOR, hyperv_callback_vector);
 #endif
 }
 
 const __refconst struct hypervisor_x86 x86_hyper_ms_hyperv = {
-	.name			= "Microsoft HyperV",
+	.name			= "Microsoft Hyper-V",
 	.detect			= ms_hyperv_platform,
 	.init_platform		= ms_hyperv_init_platform,
 };

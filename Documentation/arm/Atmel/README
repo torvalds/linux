@@ -16,7 +16,7 @@ git branches/tags and email subject always contain this "at91" sub-string.
 
 AT91 SoCs
 ---------
-Documentation and detailled datasheet for each product are available on
+Documentation and detailed datasheet for each product are available on
 the Atmel website: http://www.atmel.com.
 
   Flavors:
@@ -101,6 +101,42 @@ the Atmel website: http://www.atmel.com.
         + Datasheet
           http://www.atmel.com/Images/Atmel-11267-32-bit-Cortex-A5-Microcontroller-SAMA5D2_Datasheet.pdf
 
+    * ARM Cortex-M7 MCUs
+      - sams70 family
+        - sams70j19
+        - sams70j20
+        - sams70j21
+        - sams70n19
+        - sams70n20
+        - sams70n21
+        - sams70q19
+        - sams70q20
+        - sams70q21
+        + Datasheet
+          http://www.atmel.com/Images/Atmel-11242-32-bit-Cortex-M7-Microcontroller-SAM-S70Q-SAM-S70N-SAM-S70J_Datasheet.pdf
+
+      - samv70 family
+        - samv70j19
+        - samv70j20
+        - samv70n19
+        - samv70n20
+        - samv70q19
+        - samv70q20
+        + Datasheet
+          http://www.atmel.com/Images/Atmel-11297-32-bit-Cortex-M7-Microcontroller-SAM-V70Q-SAM-V70N-SAM-V70J_Datasheet.pdf
+
+      - samv71 family
+        - samv71j19
+        - samv71j20
+        - samv71j21
+        - samv71n19
+        - samv71n20
+        - samv71n21
+        - samv71q19
+        - samv71q20
+        - samv71q21
+        + Datasheet
+          http://www.atmel.com/Images/Atmel-44003-32-bit-Cortex-M7-Microcontroller-SAM-V71Q-SAM-V71N-SAM-V71J_Datasheet.pdf
 
 Linux kernel information
 ------------------------

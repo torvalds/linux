@@ -118,8 +118,8 @@ static void rds_ib_dev_free(struct work_struct *work)
 
 void rds_ib_dev_put(struct rds_ib_device *rds_ibdev)
 {
-	BUG_ON(atomic_read(&rds_ibdev->refcount) <= 0);
-	if (atomic_dec_and_test(&rds_ibdev->refcount))
+	BUG_ON(refcount_read(&rds_ibdev->refcount) == 0);
+	if (refcount_dec_and_test(&rds_ibdev->refcount))
 		queue_work(rds_wq, &rds_ibdev->free_work);
 }
 
@@ -137,7 +137,7 @@ static void rds_ib_add_one(struct ib_device *device)
 		return;
 
 	spin_lock_init(&rds_ibdev->spinlock);
-	atomic_set(&rds_ibdev->refcount, 1);
+	refcount_set(&rds_ibdev->refcount, 1);
 	INIT_WORK(&rds_ibdev->free_work, rds_ib_dev_free);
 
 	rds_ibdev->max_wrs = device->attrs.max_qp_wr;
@@ -205,10 +205,10 @@ static void rds_ib_add_one(struct ib_device *device)
 	down_write(&rds_ib_devices_lock);
 	list_add_tail_rcu(&rds_ibdev->list, &rds_ib_devices);
 	up_write(&rds_ib_devices_lock);
-	atomic_inc(&rds_ibdev->refcount);
+	refcount_inc(&rds_ibdev->refcount);
 
 	ib_set_client_data(device, &rds_ib_client, rds_ibdev);
-	atomic_inc(&rds_ibdev->refcount);
+	refcount_inc(&rds_ibdev->refcount);
 
 	rds_ib_nodev_connect();
 
@@ -239,7 +239,7 @@ struct rds_ib_device *rds_ib_get_client_data(struct ib_device *device)
 	rcu_read_lock();
 	rds_ibdev = ib_get_client_data(device, &rds_ib_client);
 	if (rds_ibdev)
-		atomic_inc(&rds_ibdev->refcount);
+		refcount_inc(&rds_ibdev->refcount);
 	rcu_read_unlock();
 	return rds_ibdev;
 }

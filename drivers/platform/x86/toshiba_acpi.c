@@ -1502,14 +1502,9 @@ static ssize_t video_proc_write(struct file *file, const char __user *buf,
 	int ret;
 	u32 video_out;
 
-	cmd = kmalloc(count + 1, GFP_KERNEL);
-	if (!cmd)
-		return -ENOMEM;
-	if (copy_from_user(cmd, buf, count)) {
-		kfree(cmd);
-		return -EFAULT;
-	}
-	cmd[count] = '\0';
+	cmd = memdup_user_nul(buf, count);
+	if (IS_ERR(cmd))
+		return PTR_ERR(cmd);
 
 	buffer = cmd;
 
@@ -2424,7 +2419,7 @@ static umode_t toshiba_sysfs_is_visible(struct kobject *kobj,
 	return exists ? attr->mode : 0;
 }
 
-static struct attribute_group toshiba_attr_group = {
+static const struct attribute_group toshiba_attr_group = {
 	.is_visible = toshiba_sysfs_is_visible,
 	.attrs = toshiba_attributes,
 };

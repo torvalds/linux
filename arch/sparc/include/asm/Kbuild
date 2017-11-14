@@ -18,5 +18,4 @@ generic-y += preempt.h
 generic-y += rwsem.h
 generic-y += serial.h
 generic-y += trace_clock.h
-generic-y += types.h
 generic-y += word-at-a-time.h

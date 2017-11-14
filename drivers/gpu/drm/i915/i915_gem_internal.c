@@ -174,6 +174,7 @@ i915_gem_object_create_internal(struct drm_i915_private *i915,
 				phys_addr_t size)
 {
 	struct drm_i915_gem_object *obj;
+	unsigned int cache_level;
 
 	GEM_BUG_ON(!size);
 	GEM_BUG_ON(!IS_ALIGNED(size, PAGE_SIZE));
@@ -188,9 +189,11 @@ i915_gem_object_create_internal(struct drm_i915_private *i915,
 	drm_gem_private_object_init(&i915->drm, &obj->base, size);
 	i915_gem_object_init(obj, &i915_gem_object_internal_ops);
 
-	obj->base.write_domain = I915_GEM_DOMAIN_CPU;
 	obj->base.read_domains = I915_GEM_DOMAIN_CPU;
-	obj->cache_level = HAS_LLC(i915) ? I915_CACHE_LLC : I915_CACHE_NONE;
+	obj->base.write_domain = I915_GEM_DOMAIN_CPU;
+
+	cache_level = HAS_LLC(i915) ? I915_CACHE_LLC : I915_CACHE_NONE;
+	i915_gem_object_set_cache_coherency(obj, cache_level);
 
 	return obj;
 }

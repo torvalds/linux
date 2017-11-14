@@ -36,7 +36,7 @@ static int af9015_ctrl_msg(struct dvb_usb_device *d, struct req_t *req)
 
 	state->buf[0] = req->cmd;
 	state->buf[1] = state->seq++;
-	state->buf[2] = req->i2c_addr;
+	state->buf[2] = req->i2c_addr << 1;
 	state->buf[3] = req->addr >> 8;
 	state->buf[4] = req->addr & 0xff;
 	state->buf[5] = req->mbox;
@@ -52,6 +52,7 @@ static int af9015_ctrl_msg(struct dvb_usb_device *d, struct req_t *req)
 	case READ_I2C:
 		write = 0;
 		state->buf[2] |= 0x01; /* set I2C direction */
+		/* fall through */
 	case WRITE_I2C:
 		state->buf[0] = READ_WRITE_I2C;
 		break;
@@ -205,9 +206,9 @@ static int af9015_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 {
 	struct dvb_usb_device *d = i2c_get_adapdata(adap);
 	struct af9015_state *state = d_to_priv(d);
-	int ret = 0, i = 0;
+	int ret;
 	u16 addr;
-	u8 uninitialized_var(mbox), addr_len;
+	u8 mbox, addr_len;
 	struct req_t req;
 
 /*
@@ -232,84 +233,89 @@ Due to that the only way to select correct tuner is use demodulator I2C-gate.
 				| addr 0x3a  |                 |  addr 0xc6 |
 				|____________|                 |____________|
 */
-	if (mutex_lock_interruptible(&d->i2c_mutex) < 0)
-		return -EAGAIN;
 
-	while (i < num) {
-		if (msg[i].addr == state->af9013_config[0].i2c_addr ||
-		    msg[i].addr == state->af9013_config[1].i2c_addr) {
-			addr = msg[i].buf[0] << 8;
-			addr += msg[i].buf[1];
-			mbox = msg[i].buf[2];
-			addr_len = 3;
-		} else {
-			addr = msg[i].buf[0];
-			addr_len = 1;
-			/* mbox is don't care in that case */
-		}
-
-		if (num > i + 1 && (msg[i+1].flags & I2C_M_RD)) {
-			if (msg[i].len > 3 || msg[i+1].len > 61) {
-				ret = -EOPNOTSUPP;
-				goto error;
-			}
-			if (msg[i].addr == state->af9013_config[0].i2c_addr)
-				req.cmd = READ_MEMORY;
-			else
-				req.cmd = READ_I2C;
-			req.i2c_addr = msg[i].addr;
-			req.addr = addr;
-			req.mbox = mbox;
-			req.addr_len = addr_len;
-			req.data_len = msg[i+1].len;
-			req.data = &msg[i+1].buf[0];
-			ret = af9015_ctrl_msg(d, &req);
-			i += 2;
-		} else if (msg[i].flags & I2C_M_RD) {
-			if (msg[i].len > 61) {
-				ret = -EOPNOTSUPP;
-				goto error;
-			}
-			if (msg[i].addr == state->af9013_config[0].i2c_addr) {
-				ret = -EINVAL;
-				goto error;
-			}
-			req.cmd = READ_I2C;
-			req.i2c_addr = msg[i].addr;
-			req.addr = addr;
-			req.mbox = mbox;
-			req.addr_len = addr_len;
-			req.data_len = msg[i].len;
-			req.data = &msg[i].buf[0];
-			ret = af9015_ctrl_msg(d, &req);
-			i += 1;
-		} else {
-			if (msg[i].len > 21) {
-				ret = -EOPNOTSUPP;
-				goto error;
-			}
-			if (msg[i].addr == state->af9013_config[0].i2c_addr)
-				req.cmd = WRITE_MEMORY;
-			else
-				req.cmd = WRITE_I2C;
-			req.i2c_addr = msg[i].addr;
-			req.addr = addr;
-			req.mbox = mbox;
-			req.addr_len = addr_len;
-			req.data_len = msg[i].len-addr_len;
-			req.data = &msg[i].buf[addr_len];
-			ret = af9015_ctrl_msg(d, &req);
-			i += 1;
-		}
-		if (ret)
-			goto error;
-
+	if (msg[0].len == 0 || msg[0].flags & I2C_M_RD) {
+		addr = 0x0000;
+		mbox = 0;
+		addr_len = 0;
+	} else if (msg[0].len == 1) {
+		addr = msg[0].buf[0];
+		mbox = 0;
+		addr_len = 1;
+	} else if (msg[0].len == 2) {
+		addr = msg[0].buf[0] << 8|msg[0].buf[1] << 0;
+		mbox = 0;
+		addr_len = 2;
+	} else {
+		addr = msg[0].buf[0] << 8|msg[0].buf[1] << 0;
+		mbox = msg[0].buf[2];
+		addr_len = 3;
 	}
-	ret = i;
 
-error:
-	mutex_unlock(&d->i2c_mutex);
+	if (num == 1 && !(msg[0].flags & I2C_M_RD)) {
+		/* i2c write */
+		if (msg[0].len > 21) {
+			ret = -EOPNOTSUPP;
+			goto err;
+		}
+		if (msg[0].addr == state->af9013_config[0].i2c_addr)
+			req.cmd = WRITE_MEMORY;
+		else
+			req.cmd = WRITE_I2C;
+		req.i2c_addr = msg[0].addr;
+		req.addr = addr;
+		req.mbox = mbox;
+		req.addr_len = addr_len;
+		req.data_len = msg[0].len-addr_len;
+		req.data = &msg[0].buf[addr_len];
+		ret = af9015_ctrl_msg(d, &req);
+	} else if (num == 2 && !(msg[0].flags & I2C_M_RD) &&
+		   (msg[1].flags & I2C_M_RD)) {
+		/* i2c write + read */
+		if (msg[0].len > 3 || msg[1].len > 61) {
+			ret = -EOPNOTSUPP;
+			goto err;
+		}
+		if (msg[0].addr == state->af9013_config[0].i2c_addr)
+			req.cmd = READ_MEMORY;
+		else
+			req.cmd = READ_I2C;
+		req.i2c_addr = msg[0].addr;
+		req.addr = addr;
+		req.mbox = mbox;
+		req.addr_len = addr_len;
+		req.data_len = msg[1].len;
+		req.data = &msg[1].buf[0];
+		ret = af9015_ctrl_msg(d, &req);
+	} else if (num == 1 && (msg[0].flags & I2C_M_RD)) {
+		/* i2c read */
+		if (msg[0].len > 61) {
+			ret = -EOPNOTSUPP;
+			goto err;
+		}
+		if (msg[0].addr == state->af9013_config[0].i2c_addr) {
+			ret = -EINVAL;
+			goto err;
+		}
+		req.cmd = READ_I2C;
+		req.i2c_addr = msg[0].addr;
+		req.addr = addr;
+		req.mbox = mbox;
+		req.addr_len = addr_len;
+		req.data_len = msg[0].len;
+		req.data = &msg[0].buf[0];
+		ret = af9015_ctrl_msg(d, &req);
+	} else {
+		ret = -EOPNOTSUPP;
+		dev_dbg(&d->udev->dev, "%s: unknown msg, num %u\n",
+			__func__, num);
+	}
+	if (ret)
+		goto err;
 
+	return num;
+err:
+	dev_dbg(&d->udev->dev, "%s: failed %d\n", __func__, ret);
 	return ret;
 }
 
@@ -471,6 +477,8 @@ static int af9015_read_config(struct dvb_usb_device *d)
 	if (d->udev->speed == USB_SPEED_FULL)
 		state->dual_mode = 0;
 
+	state->af9013_config[0].i2c_addr = AF9015_I2C_DEMOD;
+
 	if (state->dual_mode) {
 		/* read 2nd demodulator I2C address */
 		req.addr = AF9015_EEPROM_DEMOD2_I2C;
@@ -478,7 +486,7 @@ static int af9015_read_config(struct dvb_usb_device *d)
 		if (ret)
 			goto error;
 
-		state->af9013_config[1].i2c_addr = val;
+		state->af9013_config[1].i2c_addr = val >> 1;
 	}
 
 	for (i = 0; i < state->dual_mode + 1; i++) {
@@ -733,9 +741,6 @@ static int af9015_copy_firmware(struct dvb_usb_device *d)
 	fw_params[2] = state->firmware_checksum >> 8;
 	fw_params[3] = state->firmware_checksum & 0xff;
 
-	/* wait 2nd demodulator ready */
-	msleep(100);
-
 	ret = af9015_read_reg_i2c(d, state->af9013_config[1].i2c_addr,
 			0x98be, &val);
 	if (ret)
@@ -823,6 +828,9 @@ static int af9015_af9013_frontend_attach(struct dvb_usb_adapter *adap)
 
 		/* copy firmware to 2nd demodulator */
 		if (state->dual_mode) {
+			/* Wait 2nd demodulator ready */
+			msleep(100);
+
 			ret = af9015_copy_firmware(adap_to_d(adap));
 			if (ret) {
 				dev_err(&adap_to_d(adap)->udev->dev,
@@ -870,12 +878,12 @@ static int af9015_af9013_frontend_attach(struct dvb_usb_adapter *adap)
 }
 
 static struct mt2060_config af9015_mt2060_config = {
-	.i2c_address = 0xc0,
+	.i2c_address = 0x60,
 	.clock_out = 0,
 };
 
 static struct qt1010_config af9015_qt1010_config = {
-	.i2c_address = 0xc4,
+	.i2c_address = 0x62,
 };
 
 static struct tda18271_config af9015_tda18271_config = {
@@ -884,7 +892,7 @@ static struct tda18271_config af9015_tda18271_config = {
 };
 
 static struct mxl5005s_config af9015_mxl5003_config = {
-	.i2c_address     = 0xc6,
+	.i2c_address     = 0x63,
 	.if_freq         = IF_FREQ_4570000HZ,
 	.xtal_freq       = CRYSTAL_FREQ_16000000HZ,
 	.agc_mode        = MXL_SINGLE_AGC,
@@ -901,7 +909,7 @@ static struct mxl5005s_config af9015_mxl5003_config = {
 };
 
 static struct mxl5005s_config af9015_mxl5005_config = {
-	.i2c_address     = 0xc6,
+	.i2c_address     = 0x63,
 	.if_freq         = IF_FREQ_4570000HZ,
 	.xtal_freq       = CRYSTAL_FREQ_16000000HZ,
 	.agc_mode        = MXL_SINGLE_AGC,
@@ -918,12 +926,12 @@ static struct mxl5005s_config af9015_mxl5005_config = {
 };
 
 static struct mc44s803_config af9015_mc44s803_config = {
-	.i2c_address = 0xc0,
+	.i2c_address = 0x60,
 	.dig_out = 1,
 };
 
 static struct tda18218_config af9015_tda18218_config = {
-	.i2c_address = 0xc0,
+	.i2c_address = 0x60,
 	.i2c_wr_max = 21, /* max wr bytes AF9015 I2C adap can handle at once */
 };
 
@@ -954,7 +962,7 @@ static int af9015_tuner_attach(struct dvb_usb_adapter *adap)
 			&af9015_qt1010_config) == NULL ? -ENODEV : 0;
 		break;
 	case AF9013_TUNER_TDA18271:
-		ret = dvb_attach(tda18271_attach, adap->fe[0], 0xc0,
+		ret = dvb_attach(tda18271_attach, adap->fe[0], 0x60,
 			&adap_to_d(adap)->i2c_adap,
 			&af9015_tda18271_config) == NULL ? -ENODEV : 0;
 		break;
@@ -975,7 +983,7 @@ static int af9015_tuner_attach(struct dvb_usb_adapter *adap)
 			&af9015_mxl5005_config) == NULL ? -ENODEV : 0;
 		break;
 	case AF9013_TUNER_ENV77H11D5:
-		ret = dvb_attach(dvb_pll_attach, adap->fe[0], 0xc0,
+		ret = dvb_attach(dvb_pll_attach, adap->fe[0], 0x60,
 			&adap_to_d(adap)->i2c_adap,
 			DVB_PLL_TDA665X) == NULL ? -ENODEV : 0;
 		break;
@@ -987,7 +995,7 @@ static int af9015_tuner_attach(struct dvb_usb_adapter *adap)
 	case AF9013_TUNER_MXL5007T:
 		ret = dvb_attach(mxl5007t_attach, adap->fe[0],
 			&adap_to_d(adap)->i2c_adap,
-			0xc0, &af9015_mxl5007t_config) == NULL ? -ENODEV : 0;
+			0x60, &af9015_mxl5007t_config) == NULL ? -ENODEV : 0;
 		break;
 	case AF9013_TUNER_UNKNOWN:
 	default:
@@ -1124,10 +1132,21 @@ static int af9015_init_endpoint(struct dvb_usb_device *d)
 	}
 
 	/* enable / disable mp2if2 */
-	if (state->dual_mode)
+	if (state->dual_mode) {
 		ret = af9015_set_reg_bit(d, 0xd50b, 0);
-	else
+		if (ret)
+			goto error;
+		ret = af9015_set_reg_bit(d, 0xd520, 4);
+		if (ret)
+			goto error;
+	} else {
 		ret = af9015_clear_reg_bit(d, 0xd50b, 0);
+		if (ret)
+			goto error;
+		ret = af9015_clear_reg_bit(d, 0xd520, 4);
+		if (ret)
+			goto error;
+	}
 
 error:
 	if (ret)
@@ -1218,7 +1237,7 @@ static int af9015_rc_query(struct dvb_usb_device *d)
 
 	/* Only process key if canary killed */
 	if (buf[16] != 0xff && buf[0] != 0x01) {
-		enum rc_type proto;
+		enum rc_proto proto;
 		dev_dbg(&d->udev->dev, "%s: key pressed %*ph\n",
 				__func__, 4, buf + 12);
 
@@ -1234,13 +1253,13 @@ static int af9015_rc_query(struct dvb_usb_device *d)
 				/* NEC */
 				state->rc_keycode = RC_SCANCODE_NEC(buf[12],
 								    buf[14]);
-				proto = RC_TYPE_NEC;
+				proto = RC_PROTO_NEC;
 			} else {
 				/* NEC extended*/
 				state->rc_keycode = RC_SCANCODE_NECX(buf[12] << 8 |
 								     buf[13],
 								     buf[14]);
-				proto = RC_TYPE_NECX;
+				proto = RC_PROTO_NECX;
 			}
 		} else {
 			/* 32 bit NEC */
@@ -1248,7 +1267,7 @@ static int af9015_rc_query(struct dvb_usb_device *d)
 							      buf[13] << 16 |
 							      buf[14] << 8  |
 							      buf[15]);
-			proto = RC_TYPE_NEC32;
+			proto = RC_PROTO_NEC32;
 		}
 		rc_keydown(d->rc_dev, proto, state->rc_keycode, 0);
 	} else {
@@ -1317,7 +1336,8 @@ static int af9015_get_rc_config(struct dvb_usb_device *d, struct dvb_usb_rc *rc)
 	if (!rc->map_name)
 		rc->map_name = RC_MAP_EMPTY;
 
-	rc->allowed_protos = RC_BIT_NEC | RC_BIT_NECX | RC_BIT_NEC32;
+	rc->allowed_protos = RC_PROTO_BIT_NEC | RC_PROTO_BIT_NECX |
+						RC_PROTO_BIT_NEC32;
 	rc->query = af9015_rc_query;
 	rc->interval = 500;
 

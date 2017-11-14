@@ -396,6 +396,20 @@ acpi_ns_init_one_object(acpi_handle obj_handle,
 
 		info->package_init++;
 		status = acpi_ds_get_package_arguments(obj_desc);
+		if (ACPI_FAILURE(status)) {
+			break;
+		}
+
+		/*
+		 * Resolve all named references in package objects (and all
+		 * sub-packages). This action has been deferred until the entire
+		 * namespace has been loaded, in order to support external and
+		 * forward references from individual package elements (05/2017).
+		 */
+		status = acpi_ut_walk_package_tree(obj_desc, NULL,
+						   acpi_ds_init_package_element,
+						   NULL);
+		obj_desc->package.flags |= AOPOBJ_DATA_VALID;
 		break;
 
 	default:

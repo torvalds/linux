@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_TIME_H
 #define _LINUX_TIME_H
 
@@ -7,6 +8,15 @@
 # include <linux/time64.h>
 
 extern struct timezone sys_tz;
+
+int get_timespec64(struct timespec64 *ts,
+		const struct timespec __user *uts);
+int put_timespec64(const struct timespec64 *ts,
+		struct timespec __user *uts);
+int get_itimerspec64(struct itimerspec64 *it,
+			const struct itimerspec __user *uit);
+int put_itimerspec64(const struct itimerspec64 *it,
+			struct itimerspec __user *uit);
 
 #define TIME_T_MAX	(time_t)((1UL << ((sizeof(time_t) << 3) - 1)) - 1)
 
@@ -169,10 +179,7 @@ extern int do_setitimer(int which, struct itimerval *value,
 			struct itimerval *ovalue);
 extern int do_getitimer(int which, struct itimerval *value);
 
-extern long do_utimes(int dfd, const char __user *filename, struct timespec *times, int flags);
-
-struct tms;
-extern void do_sys_times(struct tms *);
+extern long do_utimes(int dfd, const char __user *filename, struct timespec64 *times, int flags);
 
 /*
  * Similar to the struct tm in userspace <time.h>, but it needs to be here so
@@ -270,4 +277,28 @@ static __always_inline void timespec_add_ns(struct timespec *a, u64 ns)
 	a->tv_nsec = ns;
 }
 
+static inline bool itimerspec64_valid(const struct itimerspec64 *its)
+{
+	if (!timespec64_valid(&(its->it_interval)) ||
+		!timespec64_valid(&(its->it_value)))
+		return false;
+
+	return true;
+}
+
+/**
+ * time_after32 - compare two 32-bit relative times
+ * @a:	the time which may be after @b
+ * @b:	the time which may be before @a
+ *
+ * time_after32(a, b) returns true if the time @a is after time @b.
+ * time_before32(b, a) returns true if the time @b is before time @a.
+ *
+ * Similar to time_after(), compare two 32-bit timestamps for relative
+ * times.  This is useful for comparing 32-bit seconds values that can't
+ * be converted to 64-bit values (e.g. due to disk format or wire protocol
+ * issues) when it is known that the times are less than 68 years apart.
+ */
+#define time_after32(a, b)	((s32)((u32)(b) - (u32)(a)) < 0)
+#define time_before32(b, a)	time_after32(a, b)
 #endif

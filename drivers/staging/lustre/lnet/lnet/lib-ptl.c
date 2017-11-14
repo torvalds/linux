@@ -31,7 +31,7 @@
 
 #define DEBUG_SUBSYSTEM S_LNET
 
-#include "../../include/linux/lnet/lib-lnet.h"
+#include <linux/lnet/lib-lnet.h>
 
 /* NB: add /proc interfaces in upcoming patches */
 int portal_rotor = LNET_PTL_ROTOR_HASH_RT;

@@ -153,7 +153,6 @@ int vchiq_platform_init(struct platform_device *pdev, VCHIQ_STATE_T *state)
 		MAX_FRAGMENTS;
 
 	g_fragments_base = (char *)slot_mem + slot_mem_size;
-	slot_mem_size += frag_mem_size;
 
 	g_free_fragments = g_fragments_base;
 	for (i = 0; i < (MAX_FRAGMENTS - 1); i++) {
@@ -365,7 +364,7 @@ vchiq_doorbell_irq(int irq, void *dev_id)
 }
 
 static void
-cleaup_pagelistinfo(struct vchiq_pagelist_info *pagelistinfo)
+cleanup_pagelistinfo(struct vchiq_pagelist_info *pagelistinfo)
 {
 	if (pagelistinfo->scatterlist_mapped) {
 		dma_unmap_sg(g_dev, pagelistinfo->scatterlist,
@@ -460,6 +459,11 @@ create_pagelist(char __user *buf, size_t count, unsigned short type,
 								 PAGE_SIZE));
 			size_t bytes = PAGE_SIZE - off;
 
+			if (!pg) {
+				cleanup_pagelistinfo(pagelistinfo);
+				return NULL;
+			}
+
 			if (bytes > length)
 				bytes = length;
 			pages[actual_pages] = pg;
@@ -470,7 +474,7 @@ create_pagelist(char __user *buf, size_t count, unsigned short type,
 	} else {
 		down_read(&task->mm->mmap_sem);
 		actual_pages = get_user_pages(
-				          (unsigned long)buf & ~(PAGE_SIZE - 1),
+					  (unsigned long)buf & PAGE_MASK,
 					  num_pages,
 					  (type == PAGELIST_READ) ? FOLL_WRITE : 0,
 					  pages,
@@ -489,7 +493,7 @@ create_pagelist(char __user *buf, size_t count, unsigned short type,
 				actual_pages--;
 				put_page(pages[actual_pages]);
 			}
-			cleaup_pagelistinfo(pagelistinfo);
+			cleanup_pagelistinfo(pagelistinfo);
 			return NULL;
 		}
 		 /* release user pages */
@@ -518,7 +522,7 @@ create_pagelist(char __user *buf, size_t count, unsigned short type,
 				 pagelistinfo->dma_dir);
 
 	if (dma_buffers == 0) {
-		cleaup_pagelistinfo(pagelistinfo);
+		cleanup_pagelistinfo(pagelistinfo);
 		return NULL;
 	}
 
@@ -555,7 +559,7 @@ create_pagelist(char __user *buf, size_t count, unsigned short type,
 		char *fragments;
 
 		if (down_interruptible(&g_free_fragments_sema) != 0) {
-			cleaup_pagelistinfo(pagelistinfo);
+			cleanup_pagelistinfo(pagelistinfo);
 			return NULL;
 		}
 
@@ -577,7 +581,6 @@ static void
 free_pagelist(struct vchiq_pagelist_info *pagelistinfo,
 	      int actual)
 {
-	unsigned int i;
 	PAGELIST_T *pagelist   = pagelistinfo->pagelist;
 	struct page **pages    = pagelistinfo->pages;
 	unsigned int num_pages = pagelistinfo->num_pages;
@@ -609,18 +612,20 @@ free_pagelist(struct vchiq_pagelist_info *pagelistinfo,
 			if (head_bytes > actual)
 				head_bytes = actual;
 
-			memcpy((char *)page_address(pages[0]) +
+			memcpy((char *)kmap(pages[0]) +
 				pagelist->offset,
 				fragments,
 				head_bytes);
+			kunmap(pages[0]);
 		}
 		if ((actual >= 0) && (head_bytes < actual) &&
 			(tail_bytes != 0)) {
-			memcpy((char *)page_address(pages[num_pages - 1]) +
+			memcpy((char *)kmap(pages[num_pages - 1]) +
 				((pagelist->offset + actual) &
 				(PAGE_SIZE - 1) & ~(g_cache_line_size - 1)),
 				fragments + g_cache_line_size,
 				tail_bytes);
+			kunmap(pages[num_pages - 1]);
 		}
 
 		down(&g_free_fragments_mutex);
@@ -633,9 +638,11 @@ free_pagelist(struct vchiq_pagelist_info *pagelistinfo,
 	/* Need to mark all the pages dirty. */
 	if (pagelist->type != PAGELIST_WRITE &&
 	    pagelistinfo->pages_need_release) {
+		unsigned int i;
+
 		for (i = 0; i < num_pages; i++)
 			set_page_dirty(pages[i]);
 	}
 
-	cleaup_pagelistinfo(pagelistinfo);
+	cleanup_pagelistinfo(pagelistinfo);
 }

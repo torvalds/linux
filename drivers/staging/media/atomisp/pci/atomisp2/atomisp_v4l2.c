@@ -51,12 +51,12 @@
 /* G-Min addition: pull this in from intel_mid_pm.h */
 #define CSTATE_EXIT_LATENCY_C1  1
 
-static uint skip_fwload = 0;
+static uint skip_fwload;
 module_param(skip_fwload, uint, 0644);
 MODULE_PARM_DESC(skip_fwload, "Skip atomisp firmware load");
 
 /* set reserved memory pool size in page */
-unsigned int repool_pgnr;
+static unsigned int repool_pgnr;
 module_param(repool_pgnr, uint, 0644);
 MODULE_PARM_DESC(repool_pgnr,
 		"Set the reserved memory pool size in page (default:0)");
@@ -384,7 +384,7 @@ done:
  * WA for DDR DVFS enable/disable
  * By default, ISP will force DDR DVFS 1600MHz before disable DVFS
  */
-void punit_ddr_dvfs_enable(bool enable)
+static void punit_ddr_dvfs_enable(bool enable)
 {
 	int reg = intel_mid_msgbus_read32(PUNIT_PORT, MRFLD_ISPSSDVFS);
 	int door_bell = 1 << 8;
@@ -1083,27 +1083,23 @@ atomisp_load_firmware(struct atomisp_device *isp)
 	if (skip_fwload)
 		return NULL;
 
-	if (isp->media_dev.driver_version == ATOMISP_CSS_VERSION_21) {
-		if (isp->media_dev.hw_revision ==
-		    ((ATOMISP_HW_REVISION_ISP2401 << ATOMISP_HW_REVISION_SHIFT)
-		     | ATOMISP_HW_STEPPING_A0))
-			fw_path = "shisp_2401a0_v21.bin";
+	if (isp->media_dev.hw_revision ==
+	    ((ATOMISP_HW_REVISION_ISP2401 << ATOMISP_HW_REVISION_SHIFT)
+	     | ATOMISP_HW_STEPPING_A0))
+		fw_path = "shisp_2401a0_v21.bin";
 
-		if (isp->media_dev.hw_revision ==
-		    ((ATOMISP_HW_REVISION_ISP2401_LEGACY << ATOMISP_HW_REVISION_SHIFT)
-		     | ATOMISP_HW_STEPPING_A0))
-			fw_path = "shisp_2401a0_legacy_v21.bin";
+	if (isp->media_dev.hw_revision ==
+	    ((ATOMISP_HW_REVISION_ISP2401_LEGACY << ATOMISP_HW_REVISION_SHIFT)
+	     | ATOMISP_HW_STEPPING_A0))
+		fw_path = "shisp_2401a0_legacy_v21.bin";
 
-		if (isp->media_dev.hw_revision ==
-		    ((ATOMISP_HW_REVISION_ISP2400 << ATOMISP_HW_REVISION_SHIFT)
-		     | ATOMISP_HW_STEPPING_B0))
-			fw_path = "shisp_2400b0_v21.bin";
-	}
+	if (isp->media_dev.hw_revision ==
+	    ((ATOMISP_HW_REVISION_ISP2400 << ATOMISP_HW_REVISION_SHIFT)
+	     | ATOMISP_HW_STEPPING_B0))
+		fw_path = "shisp_2400b0_v21.bin";
 
 	if (!fw_path) {
-		dev_err(isp->dev,
-			"Unsupported driver_version 0x%x, hw_revision 0x%x\n",
-			isp->media_dev.driver_version,
+		dev_err(isp->dev, "Unsupported hw_revision 0x%x\n",
 			isp->media_dev.hw_revision);
 		return NULL;
 	}
@@ -1251,7 +1247,6 @@ static int atomisp_pci_probe(struct pci_dev *dev,
 	/* This is not a true PCI device on SoC, so the delay is not needed. */
 	isp->pdev->d3_delay = 0;
 
-	isp->media_dev.driver_version = ATOMISP_CSS_VERSION_21;
 	switch (id->device & ATOMISP_PCI_DEVICE_SOC_MASK) {
 	case ATOMISP_PCI_DEVICE_SOC_MRFLD:
 		isp->media_dev.hw_revision =

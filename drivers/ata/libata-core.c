@@ -25,7 +25,7 @@
  *
  *
  *  libata documentation is available via 'make {ps|pdf}docs',
- *  as Documentation/DocBook/libata.*
+ *  as Documentation/driver-api/libata.rst
  *
  *  Hardware documentation available from http://www.t13.org/ and
  *  http://www.sata-io.org/
@@ -2047,6 +2047,110 @@ retry:
 	return rc;
 }
 
+/**
+ *	ata_read_log_page - read a specific log page
+ *	@dev: target device
+ *	@log: log to read
+ *	@page: page to read
+ *	@buf: buffer to store read page
+ *	@sectors: number of sectors to read
+ *
+ *	Read log page using READ_LOG_EXT command.
+ *
+ *	LOCKING:
+ *	Kernel thread context (may sleep).
+ *
+ *	RETURNS:
+ *	0 on success, AC_ERR_* mask otherwise.
+ */
+unsigned int ata_read_log_page(struct ata_device *dev, u8 log,
+			       u8 page, void *buf, unsigned int sectors)
+{
+	unsigned long ap_flags = dev->link->ap->flags;
+	struct ata_taskfile tf;
+	unsigned int err_mask;
+	bool dma = false;
+
+	DPRINTK("read log page - log 0x%x, page 0x%x\n", log, page);
+
+	/*
+	 * Return error without actually issuing the command on controllers
+	 * which e.g. lockup on a read log page.
+	 */
+	if (ap_flags & ATA_FLAG_NO_LOG_PAGE)
+		return AC_ERR_DEV;
+
+retry:
+	ata_tf_init(dev, &tf);
+	if (dev->dma_mode && ata_id_has_read_log_dma_ext(dev->id) &&
+	    !(dev->horkage & ATA_HORKAGE_NO_DMA_LOG)) {
+		tf.command = ATA_CMD_READ_LOG_DMA_EXT;
+		tf.protocol = ATA_PROT_DMA;
+		dma = true;
+	} else {
+		tf.command = ATA_CMD_READ_LOG_EXT;
+		tf.protocol = ATA_PROT_PIO;
+		dma = false;
+	}
+	tf.lbal = log;
+	tf.lbam = page;
+	tf.nsect = sectors;
+	tf.hob_nsect = sectors >> 8;
+	tf.flags |= ATA_TFLAG_ISADDR | ATA_TFLAG_LBA48 | ATA_TFLAG_DEVICE;
+
+	err_mask = ata_exec_internal(dev, &tf, NULL, DMA_FROM_DEVICE,
+				     buf, sectors * ATA_SECT_SIZE, 0);
+
+	if (err_mask && dma) {
+		dev->horkage |= ATA_HORKAGE_NO_DMA_LOG;
+		ata_dev_warn(dev, "READ LOG DMA EXT failed, trying PIO\n");
+		goto retry;
+	}
+
+	DPRINTK("EXIT, err_mask=%x\n", err_mask);
+	return err_mask;
+}
+
+static bool ata_log_supported(struct ata_device *dev, u8 log)
+{
+	struct ata_port *ap = dev->link->ap;
+
+	if (ata_read_log_page(dev, ATA_LOG_DIRECTORY, 0, ap->sector_buf, 1))
+		return false;
+	return get_unaligned_le16(&ap->sector_buf[log * 2]) ? true : false;
+}
+
+static bool ata_identify_page_supported(struct ata_device *dev, u8 page)
+{
+	struct ata_port *ap = dev->link->ap;
+	unsigned int err, i;
+
+	if (!ata_log_supported(dev, ATA_LOG_IDENTIFY_DEVICE)) {
+		ata_dev_warn(dev, "ATA Identify Device Log not supported\n");
+		return false;
+	}
+
+	/*
+	 * Read IDENTIFY DEVICE data log, page 0, to figure out if the page is
+	 * supported.
+	 */
+	err = ata_read_log_page(dev, ATA_LOG_IDENTIFY_DEVICE, 0, ap->sector_buf,
+				1);
+	if (err) {
+		ata_dev_info(dev,
+			     "failed to get Device Identify Log Emask 0x%x\n",
+			     err);
+		return false;
+	}
+
+	for (i = 0; i < ap->sector_buf[8]; i++) {
+		if (ap->sector_buf[9 + i] == page)
+			return true;
+	}
+
+	return false;
+}
+
 static int ata_do_link_spd_horkage(struct ata_device *dev)
 {
 	struct ata_link *plink = ata_dev_phys_link(dev);
@@ -2094,21 +2198,9 @@ static void ata_dev_config_ncq_send_recv(struct ata_device *dev)
 {
 	struct ata_port *ap = dev->link->ap;
 	unsigned int err_mask;
-	int log_index = ATA_LOG_NCQ_SEND_RECV * 2;
-	u16 log_pages;
 
-	err_mask = ata_read_log_page(dev, ATA_LOG_DIRECTORY,
-				     0, ap->sector_buf, 1);
-	if (err_mask) {
-		ata_dev_dbg(dev,
-			    "failed to get Log Directory Emask 0x%x\n",
-			    err_mask);
-		return;
-	}
-	log_pages = get_unaligned_le16(&ap->sector_buf[log_index]);
-	if (!log_pages) {
-		ata_dev_warn(dev,
-			     "NCQ Send/Recv Log not supported\n");
+	if (!ata_log_supported(dev, ATA_LOG_NCQ_SEND_RECV)) {
+		ata_dev_warn(dev, "NCQ Send/Recv Log not supported\n");
 		return;
 	}
 	err_mask = ata_read_log_page(dev, ATA_LOG_NCQ_SEND_RECV,
@@ -2135,19 +2227,8 @@ static void ata_dev_config_ncq_non_data(struct ata_device *dev)
 {
 	struct ata_port *ap = dev->link->ap;
 	unsigned int err_mask;
-	int log_index = ATA_LOG_NCQ_NON_DATA * 2;
-	u16 log_pages;
 
-	err_mask = ata_read_log_page(dev, ATA_LOG_DIRECTORY,
-				     0, ap->sector_buf, 1);
-	if (err_mask) {
-		ata_dev_dbg(dev,
-			    "failed to get Log Directory Emask 0x%x\n",
-			    err_mask);
-		return;
-	}
-	log_pages = get_unaligned_le16(&ap->sector_buf[log_index]);
-	if (!log_pages) {
+	if (!ata_log_supported(dev, ATA_LOG_NCQ_NON_DATA)) {
 		ata_dev_warn(dev,
 			     "NCQ Send/Recv Log not supported\n");
 		return;
@@ -2176,7 +2257,7 @@ static void ata_dev_config_ncq_prio(struct ata_device *dev)
 	}
 
 	err_mask = ata_read_log_page(dev,
-				     ATA_LOG_SATA_ID_DEV_DATA,
+				     ATA_LOG_IDENTIFY_DEVICE,
 				     ATA_LOG_SATA_SETTINGS,
 				     ap->sector_buf,
 				     1);
@@ -2275,8 +2356,6 @@ static void ata_dev_config_zac(struct ata_device *dev)
 	struct ata_port *ap = dev->link->ap;
 	unsigned int err_mask;
 	u8 *identify_buf = ap->sector_buf;
-	int log_index = ATA_LOG_SATA_ID_DEV_DATA * 2, i, found = 0;
-	u16 log_pages;
 
 	dev->zac_zones_optimal_open = U32_MAX;
 	dev->zac_zones_optimal_nonseq = U32_MAX;
@@ -2296,44 +2375,7 @@ static void ata_dev_config_zac(struct ata_device *dev)
 	if (!(dev->flags & ATA_DFLAG_ZAC))
 		return;
 
-	/*
-	 * Read Log Directory to figure out if IDENTIFY DEVICE log
-	 * is supported.
-	 */
-	err_mask = ata_read_log_page(dev, ATA_LOG_DIRECTORY,
-				     0, ap->sector_buf, 1);
-	if (err_mask) {
-		ata_dev_info(dev,
-			     "failed to get Log Directory Emask 0x%x\n",
-			     err_mask);
-		return;
-	}
-	log_pages = get_unaligned_le16(&ap->sector_buf[log_index]);
-	if (log_pages == 0) {
-		ata_dev_warn(dev,
-			     "ATA Identify Device Log not supported\n");
-		return;
-	}
-	/*
-	 * Read IDENTIFY DEVICE data log, page 0, to figure out
-	 * if page 9 is supported.
-	 */
-	err_mask = ata_read_log_page(dev, ATA_LOG_SATA_ID_DEV_DATA, 0,
-				     identify_buf, 1);
-	if (err_mask) {
-		ata_dev_info(dev,
-			     "failed to get Device Identify Log Emask 0x%x\n",
-			     err_mask);
-		return;
-	}
-	log_pages = identify_buf[8];
-	for (i = 0; i < log_pages; i++) {
-		if (identify_buf[9 + i] == ATA_LOG_ZONED_INFORMATION) {
-			found++;
-			break;
-		}
-	}
-	if (!found) {
+	if (!ata_identify_page_supported(dev, ATA_LOG_ZONED_INFORMATION)) {
 		ata_dev_warn(dev,
 			     "ATA Zoned Information Log not supported\n");
 		return;
@@ -2342,7 +2384,7 @@ static void ata_dev_config_zac(struct ata_device *dev)
 	/*
 	 * Read IDENTIFY DEVICE data log, page 9 (Zoned-device information)
 	 */
-	err_mask = ata_read_log_page(dev, ATA_LOG_SATA_ID_DEV_DATA,
+	err_mask = ata_read_log_page(dev, ATA_LOG_IDENTIFY_DEVICE,
 				     ATA_LOG_ZONED_INFORMATION,
 				     identify_buf, 1);
 	if (!err_mask) {
@@ -2361,6 +2403,40 @@ static void ata_dev_config_zac(struct ata_device *dev)
 		if ((max_open >> 63))
 			dev->zac_zones_max_open = (u32)max_open;
 	}
+}
+
+static void ata_dev_config_trusted(struct ata_device *dev)
+{
+	struct ata_port *ap = dev->link->ap;
+	u64 trusted_cap;
+	unsigned int err;
+
+	if (!ata_id_has_trusted(dev->id))
+		return;
+
+	if (!ata_identify_page_supported(dev, ATA_LOG_SECURITY)) {
+		ata_dev_warn(dev,
+			     "Security Log not supported\n");
+		return;
+	}
+
+	err = ata_read_log_page(dev, ATA_LOG_IDENTIFY_DEVICE, ATA_LOG_SECURITY,
+			ap->sector_buf, 1);
+	if (err) {
+		ata_dev_dbg(dev,
+			    "failed to read Security Log, Emask 0x%x\n", err);
+		return;
+	}
+
+	trusted_cap = get_unaligned_le64(&ap->sector_buf[40]);
+	if (!(trusted_cap & (1ULL << 63))) {
+		ata_dev_dbg(dev,
+			    "Trusted Computing capability qword not valid!\n");
+		return;
+	}
+
+	if (trusted_cap & (1 << 0))
+		dev->flags |= ATA_DFLAG_TRUSTED;
 }
 
 /**
@@ -2571,7 +2647,7 @@ int ata_dev_configure(struct ata_device *dev)
 
 			dev->flags |= ATA_DFLAG_DEVSLP;
 			err_mask = ata_read_log_page(dev,
-						     ATA_LOG_SATA_ID_DEV_DATA,
+						     ATA_LOG_IDENTIFY_DEVICE,
 						     ATA_LOG_SATA_SETTINGS,
 						     sata_setting,
 						     1);
@@ -2587,7 +2663,8 @@ int ata_dev_configure(struct ata_device *dev)
 		}
 		ata_dev_config_sense_reporting(dev);
 		ata_dev_config_zac(dev);
-		dev->cdb_len = 16;
+		ata_dev_config_trusted(dev);
+		dev->cdb_len = 32;
 	}
 
 	/* ATAPI-specific feature tests */
@@ -3157,19 +3234,19 @@ static const struct ata_timing ata_timing[] = {
 };
 
 #define ENOUGH(v, unit)		(((v)-1)/(unit)+1)
-#define EZ(v, unit)		((v)?ENOUGH(v, unit):0)
+#define EZ(v, unit)		((v)?ENOUGH(((v) * 1000), unit):0)
 
 static void ata_timing_quantize(const struct ata_timing *t, struct ata_timing *q, int T, int UT)
 {
-	q->setup	= EZ(t->setup      * 1000,  T);
-	q->act8b	= EZ(t->act8b      * 1000,  T);
-	q->rec8b	= EZ(t->rec8b      * 1000,  T);
-	q->cyc8b	= EZ(t->cyc8b      * 1000,  T);
-	q->active	= EZ(t->active     * 1000,  T);
-	q->recover	= EZ(t->recover    * 1000,  T);
-	q->dmack_hold	= EZ(t->dmack_hold * 1000,  T);
-	q->cycle	= EZ(t->cycle      * 1000,  T);
-	q->udma		= EZ(t->udma       * 1000, UT);
+	q->setup	= EZ(t->setup,       T);
+	q->act8b	= EZ(t->act8b,       T);
+	q->rec8b	= EZ(t->rec8b,       T);
+	q->cyc8b	= EZ(t->cyc8b,       T);
+	q->active	= EZ(t->active,      T);
+	q->recover	= EZ(t->recover,     T);
+	q->dmack_hold	= EZ(t->dmack_hold,  T);
+	q->cycle	= EZ(t->cycle,       T);
+	q->udma		= EZ(t->udma,       UT);
 }
 
 void ata_timing_merge(const struct ata_timing *a, const struct ata_timing *b,

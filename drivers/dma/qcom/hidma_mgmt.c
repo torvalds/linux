@@ -1,7 +1,7 @@
 /*
  * Qualcomm Technologies HIDMA DMA engine Management interface
  *
- * Copyright (c) 2015-2016, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015-2017, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -28,7 +28,7 @@
 
 #include "hidma_mgmt.h"
 
-#define HIDMA_QOS_N_OFFSET		0x300
+#define HIDMA_QOS_N_OFFSET		0x700
 #define HIDMA_CFG_OFFSET		0x400
 #define HIDMA_MAX_BUS_REQ_LEN_OFFSET	0x41C
 #define HIDMA_MAX_XACTIONS_OFFSET	0x420
@@ -48,6 +48,26 @@
 
 #define HIDMA_AUTOSUSPEND_TIMEOUT	2000
 #define HIDMA_MAX_CHANNEL_WEIGHT	15
+
+static unsigned int max_write_request;
+module_param(max_write_request, uint, 0644);
+MODULE_PARM_DESC(max_write_request,
+		"maximum write burst (default: ACPI/DT value)");
+
+static unsigned int max_read_request;
+module_param(max_read_request, uint, 0644);
+MODULE_PARM_DESC(max_read_request,
+		"maximum read burst (default: ACPI/DT value)");
+
+static unsigned int max_wr_xactions;
+module_param(max_wr_xactions, uint, 0644);
+MODULE_PARM_DESC(max_wr_xactions,
+	"maximum number of write transactions (default: ACPI/DT value)");
+
+static unsigned int max_rd_xactions;
+module_param(max_rd_xactions, uint, 0644);
+MODULE_PARM_DESC(max_rd_xactions,
+	"maximum number of read transactions (default: ACPI/DT value)");
 
 int hidma_mgmt_setup(struct hidma_mgmt_dev *mgmtdev)
 {
@@ -207,12 +227,27 @@ static int hidma_mgmt_probe(struct platform_device *pdev)
 		goto out;
 	}
 
+	if (max_write_request &&
+			(max_write_request != mgmtdev->max_write_request)) {
+		dev_info(&pdev->dev, "overriding max-write-burst-bytes: %d\n",
+			max_write_request);
+		mgmtdev->max_write_request = max_write_request;
+	} else
+		max_write_request = mgmtdev->max_write_request;
+
 	rc = device_property_read_u32(&pdev->dev, "max-read-burst-bytes",
 				      &mgmtdev->max_read_request);
 	if (rc) {
 		dev_err(&pdev->dev, "max-read-burst-bytes missing\n");
 		goto out;
 	}
+	if (max_read_request &&
+			(max_read_request != mgmtdev->max_read_request)) {
+		dev_info(&pdev->dev, "overriding max-read-burst-bytes: %d\n",
+			max_read_request);
+		mgmtdev->max_read_request = max_read_request;
+	} else
+		max_read_request = mgmtdev->max_read_request;
 
 	rc = device_property_read_u32(&pdev->dev, "max-write-transactions",
 				      &mgmtdev->max_wr_xactions);
@@ -220,6 +255,13 @@ static int hidma_mgmt_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "max-write-transactions missing\n");
 		goto out;
 	}
+	if (max_wr_xactions &&
+			(max_wr_xactions != mgmtdev->max_wr_xactions)) {
+		dev_info(&pdev->dev, "overriding max-write-transactions: %d\n",
+			max_wr_xactions);
+		mgmtdev->max_wr_xactions = max_wr_xactions;
+	} else
+		max_wr_xactions = mgmtdev->max_wr_xactions;
 
 	rc = device_property_read_u32(&pdev->dev, "max-read-transactions",
 				      &mgmtdev->max_rd_xactions);
@@ -227,6 +269,13 @@ static int hidma_mgmt_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "max-read-transactions missing\n");
 		goto out;
 	}
+	if (max_rd_xactions &&
+			(max_rd_xactions != mgmtdev->max_rd_xactions)) {
+		dev_info(&pdev->dev, "overriding max-read-transactions: %d\n",
+			max_rd_xactions);
+		mgmtdev->max_rd_xactions = max_rd_xactions;
+	} else
+		max_rd_xactions = mgmtdev->max_rd_xactions;
 
 	mgmtdev->priority = devm_kcalloc(&pdev->dev,
 					 mgmtdev->dma_channels,
@@ -309,7 +358,7 @@ static int __init hidma_mgmt_of_populate_channels(struct device_node *np)
 	struct platform_device_info pdevinfo;
 	struct of_phandle_args out_irq;
 	struct device_node *child;
-	struct resource *res;
+	struct resource *res = NULL;
 	const __be32 *cell;
 	int ret = 0, size, i, num;
 	u64 addr, addr_size;

@@ -23,12 +23,12 @@
 #include <linux/workqueue.h>
 #include <linux/i2c.h>
 #include <linux/mtd/mtd.h>
-#include <linux/mtd/nand.h>
+#include <linux/mtd/rawnand.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/physmap.h>
 #include <linux/input.h>
 #include <linux/spi/spi.h>
-#include <linux/i2c/tps65010.h>
+#include <linux/mfd/tps65010.h>
 #include <linux/smc91x.h>
 #include <linux/omapfb.h>
 #include <linux/platform_data/gpio-omap.h>

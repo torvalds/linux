@@ -1067,7 +1067,7 @@ static const struct pmic_wrapper_type pwrap_mt2701 = {
 	.init_soc_specific = pwrap_mt2701_init_soc_specific,
 };
 
-static struct pmic_wrapper_type pwrap_mt8135 = {
+static const struct pmic_wrapper_type pwrap_mt8135 = {
 	.regs = mt8135_regs,
 	.type = PWRAP_MT8135,
 	.arb_en_all = 0x1ff,
@@ -1079,7 +1079,7 @@ static struct pmic_wrapper_type pwrap_mt8135 = {
 	.init_soc_specific = pwrap_mt8135_init_soc_specific,
 };
 
-static struct pmic_wrapper_type pwrap_mt8173 = {
+static const struct pmic_wrapper_type pwrap_mt8173 = {
 	.regs = mt8173_regs,
 	.type = PWRAP_MT8173,
 	.arb_en_all = 0x3f,
@@ -1091,7 +1091,7 @@ static struct pmic_wrapper_type pwrap_mt8173 = {
 	.init_soc_specific = pwrap_mt8173_init_soc_specific,
 };
 
-static struct of_device_id of_pwrap_match_tbl[] = {
+static const struct of_device_id of_pwrap_match_tbl[] = {
 	{
 		.compatible = "mediatek,mt2701-pwrap",
 		.data = &pwrap_mt2701,
@@ -1116,6 +1116,11 @@ static int pwrap_probe(struct platform_device *pdev)
 		of_match_device(of_pwrap_match_tbl, &pdev->dev);
 	const struct of_device_id *of_slave_id = NULL;
 	struct resource *res;
+
+	if (!of_id) {
+		dev_err(&pdev->dev, "Error: No device match found\n");
+		return -ENODEV;
+	}
 
 	if (pdev->dev.of_node->child)
 		of_slave_id = of_match_node(of_slave_match_tbl,
@@ -1200,7 +1205,8 @@ static int pwrap_probe(struct platform_device *pdev)
 
 	if (!(pwrap_readl(wrp, PWRAP_WACS2_RDATA) & PWRAP_STATE_INIT_DONE0)) {
 		dev_dbg(wrp->dev, "initialization isn't finished\n");
-		return -ENODEV;
+		ret = -ENODEV;
+		goto err_out2;
 	}
 
 	/* Initialize watchdog, may not be done by the bootloader */
@@ -1220,13 +1226,15 @@ static int pwrap_probe(struct platform_device *pdev)
 		goto err_out2;
 
 	wrp->regmap = devm_regmap_init(wrp->dev, NULL, wrp, &pwrap_regmap_config);
-	if (IS_ERR(wrp->regmap))
-		return PTR_ERR(wrp->regmap);
+	if (IS_ERR(wrp->regmap)) {
+		ret = PTR_ERR(wrp->regmap);
+		goto err_out2;
+	}
 
 	ret = of_platform_populate(np, NULL, NULL, wrp->dev);
 	if (ret) {
-		dev_dbg(wrp->dev, "failed to create child devices at %s\n",
-				np->full_name);
+		dev_dbg(wrp->dev, "failed to create child devices at %pOF\n",
+				np);
 		goto err_out2;
 	}
 

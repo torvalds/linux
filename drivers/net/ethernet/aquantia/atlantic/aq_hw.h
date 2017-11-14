@@ -105,8 +105,7 @@ struct aq_hw_ops {
 
 	int (*hw_set_mac_address)(struct aq_hw_s *self, u8 *mac_addr);
 
-	int (*hw_get_link_status)(struct aq_hw_s *self,
-				  struct aq_hw_link_status_s *link_status);
+	int (*hw_get_link_status)(struct aq_hw_s *self);
 
 	int (*hw_set_link_speed)(struct aq_hw_s *self, u32 speed);
 
@@ -152,8 +151,7 @@ struct aq_hw_ops {
 				     [ETH_ALEN],
 				     u32 count);
 
-	int (*hw_interrupt_moderation_set)(struct aq_hw_s *self,
-					   bool itr_enabled);
+	int (*hw_interrupt_moderation_set)(struct aq_hw_s *self);
 
 	int (*hw_rss_set)(struct aq_hw_s *self,
 			  struct aq_rss_parameters *rss_params);
@@ -163,6 +161,8 @@ struct aq_hw_ops {
 
 	int (*hw_get_regs)(struct aq_hw_s *self,
 			   struct aq_hw_caps_s *aq_hw_caps, u32 *regs_buff);
+
+	int (*hw_update_stats)(struct aq_hw_s *self);
 
 	int (*hw_get_hw_stats)(struct aq_hw_s *self, u64 *data,
 			       unsigned int *p_count);

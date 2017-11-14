@@ -181,7 +181,7 @@ static void intel_sst_remove(struct pci_dev *pci)
 }
 
 /* PCI Routines */
-static struct pci_device_id intel_sst_ids[] = {
+static const struct pci_device_id intel_sst_ids[] = {
 	{ PCI_VDEVICE(INTEL, SST_MRFLD_PCI_ID), 0},
 	{ 0, }
 };

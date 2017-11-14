@@ -567,7 +567,7 @@ int rt5670_set_jack_detect(struct snd_soc_codec *codec,
 
 	rt5670->jack = jack;
 	rt5670->hp_gpio.gpiod_dev = codec->dev;
-	rt5670->hp_gpio.name = "headphone detect";
+	rt5670->hp_gpio.name = "headset";
 	rt5670->hp_gpio.report = SND_JACK_HEADSET |
 		SND_JACK_BTN_0 | SND_JACK_BTN_1 | SND_JACK_BTN_2;
 	rt5670->hp_gpio.debounce_time = 150;
@@ -1151,20 +1151,15 @@ static const char * const rt5670_stereo_adc1_src[] = {
 static SOC_ENUM_SINGLE_DECL(rt5670_stereo1_adc1_enum, RT5670_STO1_ADC_MIXER,
 	RT5670_ADC_1_SRC_SFT, rt5670_stereo_adc1_src);
 
-static const struct snd_kcontrol_new rt5670_sto_adc_l1_mux =
-	SOC_DAPM_ENUM("Stereo1 ADC L1 source", rt5670_stereo1_adc1_enum);
-
-static const struct snd_kcontrol_new rt5670_sto_adc_r1_mux =
-	SOC_DAPM_ENUM("Stereo1 ADC R1 source", rt5670_stereo1_adc1_enum);
+static const struct snd_kcontrol_new rt5670_sto_adc_1_mux =
+	SOC_DAPM_ENUM("Stereo1 ADC 1 Mux", rt5670_stereo1_adc1_enum);
 
 static SOC_ENUM_SINGLE_DECL(rt5670_stereo2_adc1_enum, RT5670_STO2_ADC_MIXER,
 	RT5670_ADC_1_SRC_SFT, rt5670_stereo_adc1_src);
 
-static const struct snd_kcontrol_new rt5670_sto2_adc_l1_mux =
-	SOC_DAPM_ENUM("Stereo2 ADC L1 source", rt5670_stereo2_adc1_enum);
+static const struct snd_kcontrol_new rt5670_sto2_adc_1_mux =
+	SOC_DAPM_ENUM("Stereo2 ADC 1 Mux", rt5670_stereo2_adc1_enum);
 
-static const struct snd_kcontrol_new rt5670_sto2_adc_r1_mux =
-	SOC_DAPM_ENUM("Stereo2 ADC R1 source", rt5670_stereo2_adc1_enum);
 
 /* MX-27 MX-26 [11] */
 static const char * const rt5670_stereo_adc2_src[] = {
@@ -1174,20 +1169,15 @@ static const char * const rt5670_stereo_adc2_src[] = {
 static SOC_ENUM_SINGLE_DECL(rt5670_stereo1_adc2_enum, RT5670_STO1_ADC_MIXER,
 	RT5670_ADC_2_SRC_SFT, rt5670_stereo_adc2_src);
 
-static const struct snd_kcontrol_new rt5670_sto_adc_l2_mux =
-	SOC_DAPM_ENUM("Stereo1 ADC L2 source", rt5670_stereo1_adc2_enum);
-
-static const struct snd_kcontrol_new rt5670_sto_adc_r2_mux =
-	SOC_DAPM_ENUM("Stereo1 ADC R2 source", rt5670_stereo1_adc2_enum);
+static const struct snd_kcontrol_new rt5670_sto_adc_2_mux =
+	SOC_DAPM_ENUM("Stereo1 ADC 2 Mux", rt5670_stereo1_adc2_enum);
 
 static SOC_ENUM_SINGLE_DECL(rt5670_stereo2_adc2_enum, RT5670_STO2_ADC_MIXER,
 	RT5670_ADC_2_SRC_SFT, rt5670_stereo_adc2_src);
 
-static const struct snd_kcontrol_new rt5670_sto2_adc_l2_mux =
-	SOC_DAPM_ENUM("Stereo2 ADC L2 source", rt5670_stereo2_adc2_enum);
+static const struct snd_kcontrol_new rt5670_sto2_adc_2_mux =
+	SOC_DAPM_ENUM("Stereo2 ADC 2 Mux", rt5670_stereo2_adc2_enum);
 
-static const struct snd_kcontrol_new rt5670_sto2_adc_r2_mux =
-	SOC_DAPM_ENUM("Stereo2 ADC R2 source", rt5670_stereo2_adc2_enum);
 
 /* MX-27 MX26 [10] */
 static const char * const rt5670_stereo_adc_src[] = {
@@ -1642,23 +1632,23 @@ static const struct snd_soc_dapm_widget rt5670_dapm_widgets[] = {
 	SND_SOC_DAPM_MUX("Stereo1 DMIC Mux", SND_SOC_NOPM, 0, 0,
 			 &rt5670_sto1_dmic_mux),
 	SND_SOC_DAPM_MUX("Stereo1 ADC L2 Mux", SND_SOC_NOPM, 0, 0,
-			 &rt5670_sto_adc_l2_mux),
+			 &rt5670_sto_adc_2_mux),
 	SND_SOC_DAPM_MUX("Stereo1 ADC R2 Mux", SND_SOC_NOPM, 0, 0,
-			 &rt5670_sto_adc_r2_mux),
+			 &rt5670_sto_adc_2_mux),
 	SND_SOC_DAPM_MUX("Stereo1 ADC L1 Mux", SND_SOC_NOPM, 0, 0,
-			 &rt5670_sto_adc_l1_mux),
+			 &rt5670_sto_adc_1_mux),
 	SND_SOC_DAPM_MUX("Stereo1 ADC R1 Mux", SND_SOC_NOPM, 0, 0,
-			 &rt5670_sto_adc_r1_mux),
+			 &rt5670_sto_adc_1_mux),
 	SND_SOC_DAPM_MUX("Stereo2 DMIC Mux", SND_SOC_NOPM, 0, 0,
 			 &rt5670_sto2_dmic_mux),
 	SND_SOC_DAPM_MUX("Stereo2 ADC L2 Mux", SND_SOC_NOPM, 0, 0,
-			 &rt5670_sto2_adc_l2_mux),
+			 &rt5670_sto2_adc_2_mux),
 	SND_SOC_DAPM_MUX("Stereo2 ADC R2 Mux", SND_SOC_NOPM, 0, 0,
-			 &rt5670_sto2_adc_r2_mux),
+			 &rt5670_sto2_adc_2_mux),
 	SND_SOC_DAPM_MUX("Stereo2 ADC L1 Mux", SND_SOC_NOPM, 0, 0,
-			 &rt5670_sto2_adc_l1_mux),
+			 &rt5670_sto2_adc_1_mux),
 	SND_SOC_DAPM_MUX("Stereo2 ADC R1 Mux", SND_SOC_NOPM, 0, 0,
-			 &rt5670_sto2_adc_r1_mux),
+			 &rt5670_sto2_adc_1_mux),
 	SND_SOC_DAPM_MUX("Stereo2 ADC LR Mux", SND_SOC_NOPM, 0, 0,
 			 &rt5670_sto2_adc_lr_mux),
 	SND_SOC_DAPM_MUX("Mono DMIC L Mux", SND_SOC_NOPM, 0, 0,
@@ -1717,7 +1707,6 @@ static const struct snd_soc_dapm_widget rt5670_dapm_widgets[] = {
 	SND_SOC_DAPM_PGA("IF1_ADC1", SND_SOC_NOPM, 0, 0, NULL, 0),
 	SND_SOC_DAPM_PGA("IF1_ADC2", SND_SOC_NOPM, 0, 0, NULL, 0),
 	SND_SOC_DAPM_PGA("IF1_ADC3", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("IF1_ADC4", SND_SOC_NOPM, 0, 0, NULL, 0),
 
 	/* DSP */
 	SND_SOC_DAPM_PGA("TxDP_ADC", SND_SOC_NOPM, 0, 0, NULL, 0),
@@ -2023,7 +2012,6 @@ static const struct snd_soc_dapm_route rt5670_dapm_routes[] = {
 
 	{ "Stereo1 ADC MIXL", NULL, "Sto1 ADC MIXL" },
 	{ "Stereo1 ADC MIXL", NULL, "ADC Stereo1 Filter" },
-	{ "ADC Stereo1 Filter", NULL, "PLL1", is_sys_clk_from_pll },
 
 	{ "Stereo1 ADC MIXR", NULL, "Sto1 ADC MIXR" },
 	{ "Stereo1 ADC MIXR", NULL, "ADC Stereo1 Filter" },
@@ -2062,7 +2050,6 @@ static const struct snd_soc_dapm_route rt5670_dapm_routes[] = {
 
 	{ "Stereo2 ADC MIXL", NULL, "Stereo2 ADC LR Mux" },
 	{ "Stereo2 ADC MIXL", NULL, "ADC Stereo2 Filter" },
-	{ "ADC Stereo2 Filter", NULL, "PLL1", is_sys_clk_from_pll },
 
 	{ "Stereo2 ADC MIXR", NULL, "Sto2 ADC MIXR" },
 	{ "Stereo2 ADC MIXR", NULL, "ADC Stereo2 Filter" },
@@ -2086,13 +2073,13 @@ static const struct snd_soc_dapm_route rt5670_dapm_routes[] = {
 	{ "IF1 ADC1 IN1 Mux", "IF1_ADC3", "IF1_ADC3" },
 
 	{ "IF1 ADC1 IN2 Mux", "IF1_ADC1_IN1", "IF1 ADC1 IN1 Mux" },
-	{ "IF1 ADC1 IN2 Mux", "IF1_ADC4", "IF1_ADC4" },
+	{ "IF1 ADC1 IN2 Mux", "IF1_ADC4", "TxDP_ADC" },
 
 	{ "IF1 ADC2 IN Mux", "IF_ADC2", "IF_ADC2" },
 	{ "IF1 ADC2 IN Mux", "VAD_ADC", "VAD_ADC" },
 
 	{ "IF1 ADC2 IN1 Mux", "IF1_ADC2_IN", "IF1 ADC2 IN Mux" },
-	{ "IF1 ADC2 IN1 Mux", "IF1_ADC4", "IF1_ADC4" },
+	{ "IF1 ADC2 IN1 Mux", "IF1_ADC4", "TxDP_ADC" },
 
 	{ "IF1_ADC1" , NULL, "IF1 ADC1 IN2 Mux" },
 	{ "IF1_ADC2" , NULL, "IF1 ADC2 IN1 Mux" },
@@ -2445,10 +2432,9 @@ static int rt5670_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	return 0;
 }
 
-static int rt5670_set_dai_sysclk(struct snd_soc_dai *dai,
-		int clk_id, unsigned int freq, int dir)
+static int rt5670_set_codec_sysclk(struct snd_soc_codec *codec, int clk_id,
+				   int source, unsigned int freq, int dir)
 {
-	struct snd_soc_codec *codec = dai->codec;
 	struct rt5670_priv *rt5670 = snd_soc_codec_get_drvdata(codec);
 	unsigned int reg_val = 0;
 
@@ -2472,7 +2458,7 @@ static int rt5670_set_dai_sysclk(struct snd_soc_dai *dai,
 	if (clk_id != RT5670_SCLK_S_RCCLK)
 		rt5670->sysclk_src = clk_id;
 
-	dev_dbg(dai->dev, "Sysclk is %dHz and clock id is %d\n", freq, clk_id);
+	dev_dbg(codec->dev, "Sysclk : %dHz clock id : %d\n", freq, clk_id);
 
 	return 0;
 }
@@ -2724,7 +2710,6 @@ static int rt5670_resume(struct snd_soc_codec *codec)
 static const struct snd_soc_dai_ops rt5670_aif_dai_ops = {
 	.hw_params = rt5670_hw_params,
 	.set_fmt = rt5670_set_dai_fmt,
-	.set_sysclk = rt5670_set_dai_sysclk,
 	.set_tdm_slot = rt5670_set_tdm_slot,
 	.set_pll = rt5670_set_dai_pll,
 };
@@ -2748,6 +2733,7 @@ static struct snd_soc_dai_driver rt5670_dai[] = {
 			.formats = RT5670_FORMATS,
 		},
 		.ops = &rt5670_aif_dai_ops,
+		.symmetric_rates = 1,
 	},
 	{
 		.name = "rt5670-aif2",
@@ -2767,16 +2753,18 @@ static struct snd_soc_dai_driver rt5670_dai[] = {
 			.formats = RT5670_FORMATS,
 		},
 		.ops = &rt5670_aif_dai_ops,
+		.symmetric_rates = 1,
 	},
 };
 
-static struct snd_soc_codec_driver soc_codec_dev_rt5670 = {
+static const struct snd_soc_codec_driver soc_codec_dev_rt5670 = {
 	.probe = rt5670_probe,
 	.remove = rt5670_remove,
 	.suspend = rt5670_suspend,
 	.resume = rt5670_resume,
 	.set_bias_level = rt5670_set_bias_level,
 	.idle_bias_off = true,
+	.set_sysclk = rt5670_set_codec_sysclk,
 	.component_driver = {
 		.controls		= rt5670_snd_controls,
 		.num_controls		= ARRAY_SIZE(rt5670_snd_controls),
@@ -2849,11 +2837,26 @@ static const struct dmi_system_id dmi_platform_intel_braswell[] = {
 			DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad Tablet B"),
 		},
 	},
+	{}
+};
+
+static const struct dmi_system_id dmi_platform_intel_bytcht_jdmode2[] = {
 	{
 		.ident = "Lenovo Thinkpad Tablet 10",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
 			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo Miix 2 10"),
+		},
+	},
+	{}
+};
+
+static const struct dmi_system_id dmi_platform_intel_bytcht_jdmode3[] = {
+	{
+		.ident = "Dell Venue 8 Pro 5855",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Venue 8 Pro 5855"),
 		},
 	},
 	{}
@@ -2883,6 +2886,16 @@ static int rt5670_i2c_probe(struct i2c_client *i2c,
 		rt5670->pdata.dmic1_data_pin = RT5670_DMIC_DATA_IN2P;
 		rt5670->pdata.dev_gpio = true;
 		rt5670->pdata.jd_mode = 1;
+	} else if (dmi_check_system(dmi_platform_intel_bytcht_jdmode2)) {
+		rt5670->pdata.dmic_en = true;
+		rt5670->pdata.dmic1_data_pin = RT5670_DMIC_DATA_IN2P;
+		rt5670->pdata.dev_gpio = true;
+		rt5670->pdata.jd_mode = 2;
+	} else if (dmi_check_system(dmi_platform_intel_bytcht_jdmode3)) {
+		rt5670->pdata.dmic_en = true;
+		rt5670->pdata.dmic1_data_pin = RT5670_DMIC_DATA_IN2P;
+		rt5670->pdata.dev_gpio = true;
+		rt5670->pdata.jd_mode = 3;
 	}
 
 	rt5670->regmap = devm_regmap_init_i2c(i2c, &rt5670_regmap);

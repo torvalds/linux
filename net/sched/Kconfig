@@ -649,6 +649,7 @@ config NET_EMATCH_IPSET
 
 config NET_CLS_ACT
 	bool "Actions"
+	select NET_CLS
 	---help---
 	  Say Y here if you want to use traffic control actions. Actions
 	  get attached to classifiers and are invoked after a successful

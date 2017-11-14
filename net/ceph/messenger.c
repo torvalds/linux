@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/ceph/ceph_debug.h>
 
 #include <linux/crc32c.h>
@@ -1287,14 +1288,17 @@ static void prepare_write_message(struct ceph_connection *con)
 	if (m->needs_out_seq) {
 		m->hdr.seq = cpu_to_le64(++con->out_seq);
 		m->needs_out_seq = false;
+
+		if (con->ops->reencode_message)
+			con->ops->reencode_message(m);
 	}
-	WARN_ON(m->data_length != le32_to_cpu(m->hdr.data_len));
 
 	dout("prepare_write_message %p seq %lld type %d len %d+%d+%zd\n",
 	     m, con->out_seq, le16_to_cpu(m->hdr.type),
 	     le32_to_cpu(m->hdr.front_len), le32_to_cpu(m->hdr.middle_len),
 	     m->data_length);
-	BUG_ON(le32_to_cpu(m->hdr.front_len) != m->front.iov_len);
+	WARN_ON(m->front.iov_len != le32_to_cpu(m->hdr.front_len));
+	WARN_ON(m->data_length != le32_to_cpu(m->hdr.data_len));
 
 	/* tag + hdr + front + middle */
 	con_out_kvec_add(con, sizeof (tag_msg), &tag_msg);
@@ -2033,8 +2037,7 @@ static int process_connect(struct ceph_connection *con)
 {
 	u64 sup_feat = from_msgr(con->msgr)->supported_features;
 	u64 req_feat = from_msgr(con->msgr)->required_features;
-	u64 server_feat = ceph_sanitize_features(
-				le64_to_cpu(con->in_reply.features));
+	u64 server_feat = le64_to_cpu(con->in_reply.features);
 	int ret;
 
 	dout("process_connect on %p tag %d\n", con, (int)con->in_tag);
@@ -3201,8 +3204,10 @@ static struct ceph_msg_data *ceph_msg_data_create(enum ceph_msg_data_type type)
 		return NULL;
 
 	data = kmem_cache_zalloc(ceph_msg_data_cache, GFP_NOFS);
-	if (data)
-		data->type = type;
+	if (!data)
+		return NULL;
+
+	data->type = type;
 	INIT_LIST_HEAD(&data->links);
 
 	return data;

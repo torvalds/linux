@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Common code for low-level network console, dump, and debugger code
  *
@@ -11,6 +12,7 @@
 #include <linux/interrupt.h>
 #include <linux/rcupdate.h>
 #include <linux/list.h>
+#include <linux/refcount.h>
 
 union inet_addr {
 	__u32		all[4];
@@ -34,7 +36,7 @@ struct netpoll {
 };
 
 struct netpoll_info {
-	atomic_t refcnt;
+	refcount_t refcnt;
 
 	struct semaphore dev_lock;
 

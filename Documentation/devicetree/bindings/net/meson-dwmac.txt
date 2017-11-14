@@ -66,5 +66,4 @@ Example for GXBB:
 				<&clkc CLKID_MPLL2>;
 		clock-names = "stmmaceth", "clkin0", "clkin1";
 		phy-mode = "rgmii";
-		status = "disabled";
 	};

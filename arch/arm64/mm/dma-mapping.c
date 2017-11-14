@@ -42,7 +42,7 @@ static pgprot_t __get_dma_pgprot(unsigned long attrs, pgprot_t prot,
 	return prot;
 }
 
-static struct gen_pool *atomic_pool;
+static struct gen_pool *atomic_pool __ro_after_init;
 
 #define DEFAULT_DMA_COHERENT_POOL_SIZE  SZ_256K
 static size_t atomic_pool_size __initdata = DEFAULT_DMA_COHERENT_POOL_SIZE;
@@ -95,11 +95,6 @@ static void *__dma_alloc_coherent(struct device *dev, size_t size,
 				  dma_addr_t *dma_handle, gfp_t flags,
 				  unsigned long attrs)
 {
-	if (dev == NULL) {
-		WARN_ONCE(1, "Use an actual device structure for DMA allocation\n");
-		return NULL;
-	}
-
 	if (IS_ENABLED(CONFIG_ZONE_DMA) &&
 	    dev->coherent_dma_mask <= DMA_BIT_MASK(32))
 		flags |= GFP_DMA;
@@ -128,10 +123,6 @@ static void __dma_free_coherent(struct device *dev, size_t size,
 	bool freed;
 	phys_addr_t paddr = dma_to_phys(dev, dma_handle);
 
-	if (dev == NULL) {
-		WARN_ONCE(1, "Use an actual device structure for DMA allocation\n");
-		return;
-	}
 
 	freed = dma_release_from_contiguous(dev,
 					phys_to_page(paddr),
@@ -184,7 +175,6 @@ static void *__dma_alloc(struct device *dev, size_t size,
 no_map:
 	__dma_free_coherent(dev, size, ptr, *dma_handle, attrs);
 no_mem:
-	*dma_handle = DMA_ERROR_CODE;
 	return NULL;
 }
 
@@ -339,7 +329,7 @@ static int __swiotlb_mmap(struct device *dev,
 	vma->vm_page_prot = __get_dma_pgprot(attrs, vma->vm_page_prot,
 					     is_device_dma_coherent(dev));
 
-	if (dma_mmap_from_coherent(dev, vma, cpu_addr, size, &ret))
+	if (dma_mmap_from_dev_coherent(dev, vma, cpu_addr, size, &ret))
 		return ret;
 
 	return __swiotlb_mmap_pfn(vma, pfn, size);
@@ -435,7 +425,7 @@ static int __init atomic_pool_init(void)
 
 		gen_pool_set_algo(atomic_pool,
 				  gen_pool_first_fit_order_align,
-				  (void *)PAGE_SHIFT);
+				  NULL);
 
 		pr_info("DMA: preallocated %zu KiB pool for atomic allocations\n",
 			atomic_pool_size / 1024);
@@ -487,7 +477,7 @@ static dma_addr_t __dummy_map_page(struct device *dev, struct page *page,
 				   enum dma_data_direction dir,
 				   unsigned long attrs)
 {
-	return DMA_ERROR_CODE;
+	return 0;
 }
 
 static void __dummy_unmap_page(struct device *dev, dma_addr_t dev_addr,
@@ -716,7 +706,7 @@ static int __iommu_mmap_attrs(struct device *dev, struct vm_area_struct *vma,
 	vma->vm_page_prot = __get_dma_pgprot(attrs, vma->vm_page_prot,
 					     is_device_dma_coherent(dev));
 
-	if (dma_mmap_from_coherent(dev, vma, cpu_addr, size, &ret))
+	if (dma_mmap_from_dev_coherent(dev, vma, cpu_addr, size, &ret))
 		return ret;
 
 	if (attrs & DMA_ATTR_FORCE_CONTIGUOUS) {

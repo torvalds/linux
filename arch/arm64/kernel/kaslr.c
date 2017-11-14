@@ -27,7 +27,7 @@ u16 __initdata memstart_offset_seed;
 static __init u64 get_kaslr_seed(void *fdt)
 {
 	int node, len;
-	u64 *prop;
+	fdt64_t *prop;
 	u64 ret;
 
 	node = fdt_path_offset(fdt, "/chosen");
@@ -75,7 +75,7 @@ extern void *__init __fixmap_remap_fdt(phys_addr_t dt_phys, int *size,
  * containing function pointers) to be reinitialized, and zero-initialized
  * .bss variables will be reset to 0.
  */
-u64 __init kaslr_early_init(u64 dt_phys, u64 modulo_offset)
+u64 __init kaslr_early_init(u64 dt_phys)
 {
 	void *fdt;
 	u64 seed, offset, mask, module_range;
@@ -131,15 +131,17 @@ u64 __init kaslr_early_init(u64 dt_phys, u64 modulo_offset)
 	/*
 	 * The kernel Image should not extend across a 1GB/32MB/512MB alignment
 	 * boundary (for 4KB/16KB/64KB granule kernels, respectively). If this
-	 * happens, increase the KASLR offset by the size of the kernel image
-	 * rounded up by SWAPPER_BLOCK_SIZE.
+	 * happens, round down the KASLR offset by (1 << SWAPPER_TABLE_SHIFT).
+	 *
+	 * NOTE: The references to _text and _end below will already take the
+	 *       modulo offset (the physical displacement modulo 2 MB) into
+	 *       account, given that the physical placement is controlled by
+	 *       the loader, and will not change as a result of the virtual
+	 *       mapping we choose.
 	 */
-	if ((((u64)_text + offset + modulo_offset) >> SWAPPER_TABLE_SHIFT) !=
-	    (((u64)_end + offset + modulo_offset) >> SWAPPER_TABLE_SHIFT)) {
-		u64 kimg_sz = _end - _text;
-		offset = (offset + round_up(kimg_sz, SWAPPER_BLOCK_SIZE))
-				& mask;
-	}
+	if ((((u64)_text + offset) >> SWAPPER_TABLE_SHIFT) !=
+	    (((u64)_end + offset) >> SWAPPER_TABLE_SHIFT))
+		offset = round_down(offset, 1 << SWAPPER_TABLE_SHIFT);
 
 	if (IS_ENABLED(CONFIG_KASAN))
 		/*

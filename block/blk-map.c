@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Functions related to mapping data to requests
  */
@@ -16,6 +17,8 @@
  */
 int blk_rq_append_bio(struct request *rq, struct bio *bio)
 {
+	blk_queue_bounce(rq->q, &bio);
+
 	if (!rq->bio) {
 		blk_rq_bio_prep(rq->q, rq, bio);
 	} else {
@@ -72,15 +75,13 @@ static int __blk_rq_map_user_iov(struct request *rq,
 		map_data->offset += bio->bi_iter.bi_size;
 
 	orig_bio = bio;
-	blk_queue_bounce(q, &bio);
 
 	/*
 	 * We link the bounce buffer in and could have to traverse it
 	 * later so we have to get a ref to prevent it from being freed
 	 */
-	bio_get(bio);
-
 	ret = blk_rq_append_bio(rq, bio);
+	bio_get(bio);
 	if (ret) {
 		bio_endio(bio);
 		__blk_rq_unmap_user(orig_bio);
@@ -249,7 +250,6 @@ int blk_rq_map_kern(struct request_queue *q, struct request *rq, void *kbuf,
 		return ret;
 	}
 
-	blk_queue_bounce(q, &rq->bio);
 	return 0;
 }
 EXPORT_SYMBOL(blk_rq_map_kern);

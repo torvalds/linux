@@ -45,10 +45,9 @@ This document describes the Linux kernel Makefiles.
 
 	=== 7 Kbuild syntax for exported headers
 		--- 7.1 no-export-headers
-		--- 7.2 genhdr-y
-		--- 7.3 generic-y
-		--- 7.4 generated-y
-		--- 7.5 mandatory-y
+		--- 7.2 generic-y
+		--- 7.3 generated-y
+		--- 7.4 mandatory-y
 
 	=== 8 Kbuild Variables
 	=== 9 Makefile language
@@ -298,9 +297,9 @@ more details, with real examples.
 	ccflags-y specifies options for compiling with $(CC).
 
 	Example:
-		# drivers/acpi/Makefile
-		ccflags-y := -Os
-		ccflags-$(CONFIG_ACPI_DEBUG) += -DACPI_DEBUG_OUTPUT
+		# drivers/acpi/acpica/Makefile
+		ccflags-y			:= -Os -D_LINUX -DBUILDING_ACPICA
+		ccflags-$(CONFIG_ACPI_DEBUG)	+= -DACPI_DEBUG_OUTPUT
 
 	This variable is necessary because the top Makefile owns the
 	variable $(KBUILD_CFLAGS) and uses it for compilation flags for the
@@ -486,22 +485,6 @@ more details, with real examples.
 	and $(cflags-y) will be assigned the values -a32 and -m32,
 	respectively.
 	Note: cc-option-yn uses KBUILD_CFLAGS for $(CC) options
-
-    cc-option-align
-	gcc versions >= 3.0 changed the type of options used to specify
-	alignment of functions, loops etc. $(cc-option-align), when used
-	as prefix to the align options, will select the right prefix:
-	gcc < 3.00
-		cc-option-align = -malign
-	gcc >= 3.00
-		cc-option-align = -falign
-
-	Example:
-		KBUILD_CFLAGS += $(cc-option-align)-functions=4
-
-	In the above example, the option -falign-functions=4 is used for
-	gcc >= 3.00. For gcc < 3.00, -malign-functions=4 is used.
-	Note: cc-option-align uses KBUILD_CFLAGS for $(CC) options
 
     cc-disable-warning
 	cc-disable-warning checks if gcc supports a given warning and returns
@@ -1125,14 +1108,6 @@ When kbuild executes, the following steps are followed (roughly):
     ld
 	Link target. Often, LDFLAGS_$@ is used to set specific options to ld.
 
-    objcopy
-	Copy binary. Uses OBJCOPYFLAGS usually specified in
-	arch/$(ARCH)/Makefile.
-	OBJCOPYFLAGS_$@ may be used to set additional options.
-
-    gzip
-	Compress target. Use maximum compression to compress target.
-
 	Example:
 		#arch/x86/boot/Makefile
 		LDFLAGS_bootsect := -Ttext 0x0 -s --oformat binary
@@ -1155,6 +1130,19 @@ When kbuild executes, the following steps are followed (roughly):
 	Note: It is a common mistake to forget the "targets :=" assignment,
 	      resulting in the target file being recompiled for no
 	      obvious reason.
+
+    objcopy
+	Copy binary. Uses OBJCOPYFLAGS usually specified in
+	arch/$(ARCH)/Makefile.
+	OBJCOPYFLAGS_$@ may be used to set additional options.
+
+    gzip
+	Compress target. Use maximum compression to compress target.
+
+	Example:
+		#arch/x86/boot/compressed/Makefile
+		$(obj)/vmlinux.bin.gz: $(vmlinux.bin.all-y) FORCE
+			$(call if_changed,gzip)
 
     dtc
 	Create flattened device tree blob object suitable for linking
@@ -1236,7 +1224,7 @@ When kbuild executes, the following steps are followed (roughly):
 	that may be shared between individual architectures.
 	The recommended approach how to use a generic header file is
 	to list the file in the Kbuild file.
-	See "7.3 generic-y" for further info on syntax etc.
+	See "7.2 generic-y" for further info on syntax etc.
 
 --- 6.11 Post-link pass
 
@@ -1271,24 +1259,13 @@ A Kbuild file may be defined under arch/<arch>/include/uapi/asm/ and
 arch/<arch>/include/asm/ to list asm files coming from asm-generic.
 See subsequent chapter for the syntax of the Kbuild file.
 
-	--- 7.1 no-export-headers
+--- 7.1 no-export-headers
 
 	no-export-headers is essentially used by include/uapi/linux/Kbuild to
 	avoid exporting specific headers (e.g. kvm.h) on architectures that do
 	not support it. It should be avoided as much as possible.
 
-	--- 7.2 genhdr-y
-
-	genhdr-y specifies asm files to be generated.
-
-		Example:
-			#arch/x86/include/uapi/asm/Kbuild
-			genhdr-y += unistd_32.h
-			genhdr-y += unistd_64.h
-			genhdr-y += unistd_x32.h
-
-
-	--- 7.3 generic-y
+--- 7.2 generic-y
 
 	If an architecture uses a verbatim copy of a header from
 	include/asm-generic then this is listed in the file
@@ -1315,11 +1292,10 @@ See subsequent chapter for the syntax of the Kbuild file.
 		Example: termios.h
 			#include <asm-generic/termios.h>
 
-	--- 7.4 generated-y
+--- 7.3 generated-y
 
 	If an architecture generates other header files alongside generic-y
-	wrappers, and not included in genhdr-y, then generated-y specifies
-	them.
+	wrappers, generated-y specifies them.
 
 	This prevents them being treated as stale asm-generic wrappers and
 	removed.
@@ -1328,10 +1304,10 @@ See subsequent chapter for the syntax of the Kbuild file.
 			#arch/x86/include/asm/Kbuild
 			generated-y += syscalls_32.h
 
-	--- 7.5 mandatory-y
+--- 7.4 mandatory-y
 
 	mandatory-y is essentially used by include/uapi/asm-generic/Kbuild.asm
-	to define the minimun set of headers that must be exported in
+	to define the minimum set of headers that must be exported in
 	include/asm.
 
 	The convention is to list one subdir per line and

@@ -1149,13 +1149,9 @@ static void storvsc_on_receive(struct storvsc_device *stor_device,
 static void storvsc_on_channel_callback(void *context)
 {
 	struct vmbus_channel *channel = (struct vmbus_channel *)context;
+	const struct vmpacket_descriptor *desc;
 	struct hv_device *device;
 	struct storvsc_device *stor_device;
-	u32 bytes_recvd;
-	u64 request_id;
-	unsigned char packet[ALIGN(sizeof(struct vstor_packet), 8)];
-	struct storvsc_cmd_request *request;
-	int ret;
 
 	if (channel->primary_channel != NULL)
 		device = channel->primary_channel->device_obj;
@@ -1166,32 +1162,22 @@ static void storvsc_on_channel_callback(void *context)
 	if (!stor_device)
 		return;
 
-	do {
-		ret = vmbus_recvpacket(channel, packet,
-				       ALIGN((sizeof(struct vstor_packet) -
-					     vmscsi_size_delta), 8),
-				       &bytes_recvd, &request_id);
-		if (ret == 0 && bytes_recvd > 0) {
+	foreach_vmbus_pkt(desc, channel) {
+		void *packet = hv_pkt_data(desc);
+		struct storvsc_cmd_request *request;
 
-			request = (struct storvsc_cmd_request *)
-					(unsigned long)request_id;
+		request = (struct storvsc_cmd_request *)
+			((unsigned long)desc->trans_id);
 
-			if ((request == &stor_device->init_request) ||
-			    (request == &stor_device->reset_request)) {
-
-				memcpy(&request->vstor_packet, packet,
-				       (sizeof(struct vstor_packet) -
-					vmscsi_size_delta));
-				complete(&request->wait_event);
-			} else {
-				storvsc_on_receive(stor_device,
-						(struct vstor_packet *)packet,
-						request);
-			}
+		if (request == &stor_device->init_request ||
+		    request == &stor_device->reset_request) {
+			memcpy(&request->vstor_packet, packet,
+			       (sizeof(struct vstor_packet) - vmscsi_size_delta));
+			complete(&request->wait_event);
 		} else {
-			break;
+			storvsc_on_receive(stor_device, packet, request);
 		}
-	} while (1);
+	}
 }
 
 static int storvsc_connect_to_vsp(struct hv_device *device, u32 ring_size,
@@ -1220,13 +1206,13 @@ static int storvsc_connect_to_vsp(struct hv_device *device, u32 ring_size,
 static int storvsc_dev_remove(struct hv_device *device)
 {
 	struct storvsc_device *stor_device;
-	unsigned long flags;
 
 	stor_device = hv_get_drvdata(device);
 
-	spin_lock_irqsave(&device->channel->inbound_lock, flags);
 	stor_device->destroy = true;
-	spin_unlock_irqrestore(&device->channel->inbound_lock, flags);
+
+	/* Make sure flag is set before waiting */
+	wmb();
 
 	/*
 	 * At this point, all outbound traffic should be disable. We
@@ -1243,9 +1229,7 @@ static int storvsc_dev_remove(struct hv_device *device)
 	 * we have drained - to drain the outgoing packets, we need to
 	 * allow incoming packets.
 	 */
-	spin_lock_irqsave(&device->channel->inbound_lock, flags);
 	hv_set_drvdata(device, NULL);
-	spin_unlock_irqrestore(&device->channel->inbound_lock, flags);
 
 	/* Close the channel */
 	vmbus_close(device->channel);
@@ -1511,6 +1495,10 @@ static int storvsc_host_reset_handler(struct scsi_cmnd *scmnd)
  */
 static enum blk_eh_timer_return storvsc_eh_timed_out(struct scsi_cmnd *scmnd)
 {
+#if IS_ENABLED(CONFIG_SCSI_FC_ATTRS)
+	if (scmnd->device->host->transportt == fc_transport_template)
+		return fc_eh_timed_out(scmnd);
+#endif
 	return BLK_EH_RESET_TIMER;
 }
 
@@ -1652,6 +1640,8 @@ static int storvsc_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *scmnd)
 	put_cpu();
 
 	if (ret == -EAGAIN) {
+		if (payload_sz > sizeof(cmd_request->mpb))
+			kfree(payload);
 		/* no more space */
 		return SCSI_MLQUEUE_DEVICE_BUSY;
 	}

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <errno.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -154,7 +155,7 @@ out_close:
 	return 0;
 }
 
-int test__rdpmc(int subtest __maybe_unused)
+int test__rdpmc(struct test *test __maybe_unused, int subtest __maybe_unused)
 {
 	int status = 0;
 	int wret = 0;

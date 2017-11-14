@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * arch/alpha/lib/copy_user.S
  *
@@ -34,7 +35,7 @@
 	.ent __copy_user
 __copy_user:
 	.prologue 0
-	and $18,$18,$0
+	mov $18,$0
 	and $16,7,$3
 	beq $0,$35
 	beq $3,$36

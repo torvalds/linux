@@ -102,7 +102,7 @@ ssize_t drm_scdc_write(struct i2c_adapter *adapter, u8 offset,
 	void *data;
 	int err;
 
-	data = kmalloc(1 + size, GFP_TEMPORARY);
+	data = kmalloc(1 + size, GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
@@ -194,19 +194,26 @@ EXPORT_SYMBOL(drm_scdc_set_scrambling);
  * @adapter: I2C adapter for DDC channel
  * @set: ret or reset the high clock ratio
  *
- * TMDS clock ratio calculations go like this:
- * TMDS character = 10 bit TMDS encoded value
- * TMDS character rate = The rate at which TMDS characters are transmitted(Mcsc)
- * TMDS bit rate = 10x TMDS character rate
- * As per the spec:
- * TMDS clock rate for pixel clock < 340 MHz = 1x the character rate
- *	= 1/10 pixel clock rate
- * TMDS clock rate for pixel clock > 340 MHz = 0.25x the character rate
- *	= 1/40 pixel clock rate
  *
- * Writes to the TMDS config register over SCDC channel, and:
- * sets TMDS clock ratio to 1/40 when set = 1
- * sets TMDS clock ratio to 1/10 when set = 0
+ *	TMDS clock ratio calculations go like this:
+ *		TMDS character = 10 bit TMDS encoded value
+ *
+ *		TMDS character rate = The rate at which TMDS characters are
+ *		transmitted (Mcsc)
+ *
+ *		TMDS bit rate = 10x TMDS character rate
+ *
+ *	As per the spec:
+ *		TMDS clock rate for pixel clock < 340 MHz = 1x the character
+ *		rate = 1/10 pixel clock rate
+ *
+ *		TMDS clock rate for pixel clock > 340 MHz = 0.25x the character
+ *		rate = 1/40 pixel clock rate
+ *
+ *	Writes to the TMDS config register over SCDC channel, and:
+ *		sets TMDS clock ratio to 1/40 when set = 1
+ *
+ *		sets TMDS clock ratio to 1/10 when set = 0
  *
  * Returns:
  * True if write is successful, false otherwise.

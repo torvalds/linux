@@ -799,7 +799,7 @@ static int snd_cx88_alc_put(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static struct snd_kcontrol_new snd_cx88_alc_switch = {
+static const struct snd_kcontrol_new snd_cx88_alc_switch = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "Line-In ALC Switch",
 	.info = snd_ctl_boolean_mono_info,

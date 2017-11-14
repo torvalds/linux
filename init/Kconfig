@@ -472,354 +472,7 @@ config TASK_IO_ACCOUNTING
 
 endmenu # "CPU/Task time and stats accounting"
 
-menu "RCU Subsystem"
-
-config TREE_RCU
-	bool
-	default y if !PREEMPT && SMP
-	help
-	  This option selects the RCU implementation that is
-	  designed for very large SMP system with hundreds or
-	  thousands of CPUs.  It also scales down nicely to
-	  smaller systems.
-
-config PREEMPT_RCU
-	bool
-	default y if PREEMPT
-	help
-	  This option selects the RCU implementation that is
-	  designed for very large SMP systems with hundreds or
-	  thousands of CPUs, but for which real-time response
-	  is also required.  It also scales down nicely to
-	  smaller systems.
-
-	  Select this option if you are unsure.
-
-config TINY_RCU
-	bool
-	default y if !PREEMPT && !SMP
-	help
-	  This option selects the RCU implementation that is
-	  designed for UP systems from which real-time response
-	  is not required.  This option greatly reduces the
-	  memory footprint of RCU.
-
-config RCU_EXPERT
-	bool "Make expert-level adjustments to RCU configuration"
-	default n
-	help
-	  This option needs to be enabled if you wish to make
-	  expert-level adjustments to RCU configuration.  By default,
-	  no such adjustments can be made, which has the often-beneficial
-	  side-effect of preventing "make oldconfig" from asking you all
-	  sorts of detailed questions about how you would like numerous
-	  obscure RCU options to be set up.
-
-	  Say Y if you need to make expert-level adjustments to RCU.
-
-	  Say N if you are unsure.
-
-config SRCU
-	bool
-	default y
-	help
-	  This option selects the sleepable version of RCU. This version
-	  permits arbitrary sleeping or blocking within RCU read-side critical
-	  sections.
-
-config CLASSIC_SRCU
-	bool "Use v4.11 classic SRCU implementation"
-	default n
-	depends on RCU_EXPERT && SRCU
-	help
-	  This option selects the traditional well-tested classic SRCU
-	  implementation from v4.11, as might be desired for enterprise
-	  Linux distributions.  Without this option, the shiny new
-	  Tiny SRCU and Tree SRCU implementations are used instead.
-	  At some point, it is hoped that Tiny SRCU and Tree SRCU
-	  will accumulate enough test time and confidence to allow
-	  Classic SRCU to be dropped entirely.
-
-	  Say Y if you need a rock-solid SRCU.
-
-	  Say N if you would like help test Tree SRCU.
-
-config TINY_SRCU
-	bool
-	default y if SRCU && TINY_RCU && !CLASSIC_SRCU
-	help
-	  This option selects the single-CPU non-preemptible version of SRCU.
-
-config TREE_SRCU
-	bool
-	default y if SRCU && !TINY_RCU && !CLASSIC_SRCU
-	help
-	  This option selects the full-fledged version of SRCU.
-
-config TASKS_RCU
-	bool
-	default n
-	select SRCU
-	help
-	  This option enables a task-based RCU implementation that uses
-	  only voluntary context switch (not preemption!), idle, and
-	  user-mode execution as quiescent states.
-
-config RCU_STALL_COMMON
-	def_bool ( TREE_RCU || PREEMPT_RCU || RCU_TRACE )
-	help
-	  This option enables RCU CPU stall code that is common between
-	  the TINY and TREE variants of RCU.  The purpose is to allow
-	  the tiny variants to disable RCU CPU stall warnings, while
-	  making these warnings mandatory for the tree variants.
-
-config RCU_NEED_SEGCBLIST
-	def_bool ( TREE_RCU || PREEMPT_RCU || TINY_SRCU || TREE_SRCU )
-
-config CONTEXT_TRACKING
-       bool
-
-config CONTEXT_TRACKING_FORCE
-	bool "Force context tracking"
-	depends on CONTEXT_TRACKING
-	default y if !NO_HZ_FULL
-	help
-	  The major pre-requirement for full dynticks to work is to
-	  support the context tracking subsystem. But there are also
-	  other dependencies to provide in order to make the full
-	  dynticks working.
-
-	  This option stands for testing when an arch implements the
-	  context tracking backend but doesn't yet fullfill all the
-	  requirements to make the full dynticks feature working.
-	  Without the full dynticks, there is no way to test the support
-	  for context tracking and the subsystems that rely on it: RCU
-	  userspace extended quiescent state and tickless cputime
-	  accounting. This option copes with the absence of the full
-	  dynticks subsystem by forcing the context tracking on all
-	  CPUs in the system.
-
-	  Say Y only if you're working on the development of an
-	  architecture backend for the context tracking.
-
-	  Say N otherwise, this option brings an overhead that you
-	  don't want in production.
-
-
-config RCU_FANOUT
-	int "Tree-based hierarchical RCU fanout value"
-	range 2 64 if 64BIT
-	range 2 32 if !64BIT
-	depends on (TREE_RCU || PREEMPT_RCU) && RCU_EXPERT
-	default 64 if 64BIT
-	default 32 if !64BIT
-	help
-	  This option controls the fanout of hierarchical implementations
-	  of RCU, allowing RCU to work efficiently on machines with
-	  large numbers of CPUs.  This value must be at least the fourth
-	  root of NR_CPUS, which allows NR_CPUS to be insanely large.
-	  The default value of RCU_FANOUT should be used for production
-	  systems, but if you are stress-testing the RCU implementation
-	  itself, small RCU_FANOUT values allow you to test large-system
-	  code paths on small(er) systems.
-
-	  Select a specific number if testing RCU itself.
-	  Take the default if unsure.
-
-config RCU_FANOUT_LEAF
-	int "Tree-based hierarchical RCU leaf-level fanout value"
-	range 2 64 if 64BIT
-	range 2 32 if !64BIT
-	depends on (TREE_RCU || PREEMPT_RCU) && RCU_EXPERT
-	default 16
-	help
-	  This option controls the leaf-level fanout of hierarchical
-	  implementations of RCU, and allows trading off cache misses
-	  against lock contention.  Systems that synchronize their
-	  scheduling-clock interrupts for energy-efficiency reasons will
-	  want the default because the smaller leaf-level fanout keeps
-	  lock contention levels acceptably low.  Very large systems
-	  (hundreds or thousands of CPUs) will instead want to set this
-	  value to the maximum value possible in order to reduce the
-	  number of cache misses incurred during RCU's grace-period
-	  initialization.  These systems tend to run CPU-bound, and thus
-	  are not helped by synchronized interrupts, and thus tend to
-	  skew them, which reduces lock contention enough that large
-	  leaf-level fanouts work well.  That said, setting leaf-level
-	  fanout to a large number will likely cause problematic
-	  lock contention on the leaf-level rcu_node structures unless
-	  you boot with the skew_tick kernel parameter.
-
-	  Select a specific number if testing RCU itself.
-
-	  Select the maximum permissible value for large systems, but
-	  please understand that you may also need to set the skew_tick
-	  kernel boot parameter to avoid contention on the rcu_node
-	  structure's locks.
-
-	  Take the default if unsure.
-
-config RCU_FAST_NO_HZ
-	bool "Accelerate last non-dyntick-idle CPU's grace periods"
-	depends on NO_HZ_COMMON && SMP && RCU_EXPERT
-	default n
-	help
-	  This option permits CPUs to enter dynticks-idle state even if
-	  they have RCU callbacks queued, and prevents RCU from waking
-	  these CPUs up more than roughly once every four jiffies (by
-	  default, you can adjust this using the rcutree.rcu_idle_gp_delay
-	  parameter), thus improving energy efficiency.  On the other
-	  hand, this option increases the duration of RCU grace periods,
-	  for example, slowing down synchronize_rcu().
-
-	  Say Y if energy efficiency is critically important, and you
-	  	don't care about increased grace-period durations.
-
-	  Say N if you are unsure.
-
-config TREE_RCU_TRACE
-	def_bool RCU_TRACE && ( TREE_RCU || PREEMPT_RCU )
-	select DEBUG_FS
-	help
-	  This option provides tracing for the TREE_RCU and
-	  PREEMPT_RCU implementations, permitting Makefile to
-	  trivially select kernel/rcutree_trace.c.
-
-config RCU_BOOST
-	bool "Enable RCU priority boosting"
-	depends on RT_MUTEXES && PREEMPT_RCU && RCU_EXPERT
-	default n
-	help
-	  This option boosts the priority of preempted RCU readers that
-	  block the current preemptible RCU grace period for too long.
-	  This option also prevents heavy loads from blocking RCU
-	  callback invocation for all flavors of RCU.
-
-	  Say Y here if you are working with real-time apps or heavy loads
-	  Say N here if you are unsure.
-
-config RCU_KTHREAD_PRIO
-	int "Real-time priority to use for RCU worker threads"
-	range 1 99 if RCU_BOOST
-	range 0 99 if !RCU_BOOST
-	default 1 if RCU_BOOST
-	default 0 if !RCU_BOOST
-	depends on RCU_EXPERT
-	help
-	  This option specifies the SCHED_FIFO priority value that will be
-	  assigned to the rcuc/n and rcub/n threads and is also the value
-	  used for RCU_BOOST (if enabled). If you are working with a
-	  real-time application that has one or more CPU-bound threads
-	  running at a real-time priority level, you should set
-	  RCU_KTHREAD_PRIO to a priority higher than the highest-priority
-	  real-time CPU-bound application thread.  The default RCU_KTHREAD_PRIO
-	  value of 1 is appropriate in the common case, which is real-time
-	  applications that do not have any CPU-bound threads.
-
-	  Some real-time applications might not have a single real-time
-	  thread that saturates a given CPU, but instead might have
-	  multiple real-time threads that, taken together, fully utilize
-	  that CPU.  In this case, you should set RCU_KTHREAD_PRIO to
-	  a priority higher than the lowest-priority thread that is
-	  conspiring to prevent the CPU from running any non-real-time
-	  tasks.  For example, if one thread at priority 10 and another
-	  thread at priority 5 are between themselves fully consuming
-	  the CPU time on a given CPU, then RCU_KTHREAD_PRIO should be
-	  set to priority 6 or higher.
-
-	  Specify the real-time priority, or take the default if unsure.
-
-config RCU_BOOST_DELAY
-	int "Milliseconds to delay boosting after RCU grace-period start"
-	range 0 3000
-	depends on RCU_BOOST
-	default 500
-	help
-	  This option specifies the time to wait after the beginning of
-	  a given grace period before priority-boosting preempted RCU
-	  readers blocking that grace period.  Note that any RCU reader
-	  blocking an expedited RCU grace period is boosted immediately.
-
-	  Accept the default if unsure.
-
-config RCU_NOCB_CPU
-	bool "Offload RCU callback processing from boot-selected CPUs"
-	depends on TREE_RCU || PREEMPT_RCU
-	depends on RCU_EXPERT || NO_HZ_FULL
-	default n
-	help
-	  Use this option to reduce OS jitter for aggressive HPC or
-	  real-time workloads.	It can also be used to offload RCU
-	  callback invocation to energy-efficient CPUs in battery-powered
-	  asymmetric multiprocessors.
-
-	  This option offloads callback invocation from the set of
-	  CPUs specified at boot time by the rcu_nocbs parameter.
-	  For each such CPU, a kthread ("rcuox/N") will be created to
-	  invoke callbacks, where the "N" is the CPU being offloaded,
-	  and where the "x" is "b" for RCU-bh, "p" for RCU-preempt, and
-	  "s" for RCU-sched.  Nothing prevents this kthread from running
-	  on the specified CPUs, but (1) the kthreads may be preempted
-	  between each callback, and (2) affinity or cgroups can be used
-	  to force the kthreads to run on whatever set of CPUs is desired.
-
-	  Say Y here if you want to help to debug reduced OS jitter.
-	  Say N here if you are unsure.
-
-choice
-	prompt "Build-forced no-CBs CPUs"
-	default RCU_NOCB_CPU_NONE
-	depends on RCU_NOCB_CPU
-	help
-	  This option allows no-CBs CPUs (whose RCU callbacks are invoked
-	  from kthreads rather than from softirq context) to be specified
-	  at build time.  Additional no-CBs CPUs may be specified by
-	  the rcu_nocbs= boot parameter.
-
-config RCU_NOCB_CPU_NONE
-	bool "No build_forced no-CBs CPUs"
-	help
-	  This option does not force any of the CPUs to be no-CBs CPUs.
-	  Only CPUs designated by the rcu_nocbs= boot parameter will be
-	  no-CBs CPUs, whose RCU callbacks will be invoked by per-CPU
-	  kthreads whose names begin with "rcuo".  All other CPUs will
-	  invoke their own RCU callbacks in softirq context.
-
-	  Select this option if you want to choose no-CBs CPUs at
-	  boot time, for example, to allow testing of different no-CBs
-	  configurations without having to rebuild the kernel each time.
-
-config RCU_NOCB_CPU_ZERO
-	bool "CPU 0 is a build_forced no-CBs CPU"
-	help
-	  This option forces CPU 0 to be a no-CBs CPU, so that its RCU
-	  callbacks are invoked by a per-CPU kthread whose name begins
-	  with "rcuo".	Additional CPUs may be designated as no-CBs
-	  CPUs using the rcu_nocbs= boot parameter will be no-CBs CPUs.
-	  All other CPUs will invoke their own RCU callbacks in softirq
-	  context.
-
-	  Select this if CPU 0 needs to be a no-CBs CPU for real-time
-	  or energy-efficiency reasons, but the real reason it exists
-	  is to ensure that randconfig testing covers mixed systems.
-
-config RCU_NOCB_CPU_ALL
-	bool "All CPUs are build_forced no-CBs CPUs"
-	help
-	  This option forces all CPUs to be no-CBs CPUs.  The rcu_nocbs=
-	  boot parameter will be ignored.  All CPUs' RCU callbacks will
-	  be executed in the context of per-CPU rcuo kthreads created for
-	  this purpose.  Assuming that the kthreads whose names start with
-	  "rcuo" are bound to "housekeeping" CPUs, this reduces OS jitter
-	  on the remaining CPUs, but might decrease memory locality during
-	  RCU-callback invocation, thus potentially degrading throughput.
-
-	  Select this if all CPUs need to be no-CBs CPUs for real-time
-	  or energy-efficiency reasons.
-
-endchoice
-
-endmenu # "RCU Subsystem"
+source "kernel/rcu/Kconfig"
 
 config BUILD_BIN2C
 	bool
@@ -1156,6 +809,7 @@ config CGROUP_HUGETLB
 
 config CPUSETS
 	bool "Cpuset controller"
+	depends on SMP
 	help
 	  This option will let you create and manage CPUSETs which
 	  allow dynamically partitioning a system into sets of CPUs and
@@ -1205,11 +859,14 @@ config CGROUP_BPF
 	  inet sockets.
 
 config CGROUP_DEBUG
-	bool "Example controller"
+	bool "Debug controller"
 	default n
+	depends on DEBUG_KERNEL
 	help
 	  This option enables a simple controller that exports
-	  debugging information about the cgroups framework.
+	  debugging information about the cgroups framework. This
+	  controller is for control cgroup debugging only. Its
+	  interfaces are not stable.
 
 	  Say N.
 
@@ -1376,7 +1033,7 @@ endif
 
 choice
 	prompt "Compiler optimization level"
-	default CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE
+	default CC_OPTIMIZE_FOR_PERFORMANCE
 
 config CC_OPTIMIZE_FOR_PERFORMANCE
 	bool "Optimize for performance"
@@ -1618,11 +1275,16 @@ config BASE_FULL
 config FUTEX
 	bool "Enable futex support" if EXPERT
 	default y
-	select RT_MUTEXES
+	imply RT_MUTEXES
 	help
 	  Disabling this option will cause the kernel to be built without
 	  support for "fast userspace mutexes".  The resulting kernel may not
 	  run glibc-based applications correctly.
+
+config FUTEX_PI
+	bool
+	depends on FUTEX && RT_MUTEXES
+	default y
 
 config HAVE_FUTEX_CMPXCHG
 	bool
@@ -1891,6 +1553,20 @@ config SLOB
 
 endchoice
 
+config SLAB_MERGE_DEFAULT
+	bool "Allow slab caches to be merged"
+	default y
+	help
+	  For reduced kernel memory fragmentation, slab caches can be
+	  merged when they share the same size and other characteristics.
+	  This carries a risk of kernel heap overflows being able to
+	  overwrite objects from merged caches (and more easily control
+	  cache layout), which makes such heap attacks easier to exploit
+	  by attackers. By keeping caches unmerged, these kinds of exploits
+	  can usually only damage objects in the same cache. To disable
+	  merging at runtime, "slab_nomerge" can be passed on the kernel
+	  command line.
+
 config SLAB_FREELIST_RANDOM
 	default n
 	depends on SLAB || SLUB
@@ -1899,6 +1575,15 @@ config SLAB_FREELIST_RANDOM
 	  Randomizes the freelist order used on creating new pages. This
 	  security feature reduces the predictability of the kernel slab
 	  allocator against heap overflows.
+
+config SLAB_FREELIST_HARDENED
+	bool "Harden slab freelist metadata"
+	depends on SLUB
+	help
+	  Many kernel heap attacks try to target slab cache metadata and
+	  other infrastructure. This options makes minor performance
+	  sacrifies to harden the kernel slab allocator against common
+	  freelist exploit methods.
 
 config SLUB_CPU_PARTIAL
 	default y

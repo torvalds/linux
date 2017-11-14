@@ -48,6 +48,8 @@
 #include <linux/vmalloc.h>
 #include <linux/etherdevice.h>
 #include <linux/net_tstamp.h>
+#include <linux/ptp_clock_kernel.h>
+#include <linux/ptp_classify.h>
 #include <asm/io.h>
 #include "t4_chip_type.h"
 #include "cxgb4_uld.h"
@@ -102,13 +104,13 @@ enum dev_state {
 	DEV_STATE_ERR
 };
 
-enum {
+enum cc_pause {
 	PAUSE_RX      = 1 << 0,
 	PAUSE_TX      = 1 << 1,
 	PAUSE_AUTONEG = 1 << 2
 };
 
-enum {
+enum cc_fec {
 	FEC_AUTO      = 1 << 0,	 /* IEEE 802.3 "automatic" */
 	FEC_RS        = 1 << 1,  /* Reed-Solomon */
 	FEC_BASER_RS  = 1 << 2   /* BaseR/Reed-Solomon */
@@ -336,10 +338,12 @@ struct adapter_params {
 	unsigned int sf_nsec;             /* # of flash sectors */
 	unsigned int sf_fw_start;         /* start of FW image in flash */
 
-	unsigned int fw_vers;
-	unsigned int bs_vers;		/* bootstrap version */
-	unsigned int tp_vers;
-	unsigned int er_vers;		/* expansion ROM version */
+	unsigned int fw_vers;		  /* firmware version */
+	unsigned int bs_vers;		  /* bootstrap version */
+	unsigned int tp_vers;		  /* TP microcode version */
+	unsigned int er_vers;		  /* expansion ROM version */
+	unsigned int scfg_vers;		  /* Serial Configuration version */
+	unsigned int vpd_vers;		  /* VPD Version */
 	u8 api_vers[7];
 
 	unsigned short mtus[NMTUS];
@@ -362,6 +366,12 @@ struct adapter_params {
 	unsigned int max_ordird_qp;       /* Max read depth per RDMA QP */
 	unsigned int max_ird_adapter;     /* Max read depth per adapter */
 	bool fr_nsmr_tpte_wr_support;	  /* FW support for FR_NSMR_TPTE_WR */
+	u8 fw_caps_support;		/* 32-bit Port Capabilities */
+
+	/* MPS Buffer Group Map[per Port].  Bit i is set if buffer group i is
+	 * used by the Port
+	 */
+	u8 mps_bg_map[MAX_NPORTS];	/* MPS Buffer Group Map */
 };
 
 /* State needed to monitor the forward progress of SGE Ingress DMA activities
@@ -430,18 +440,34 @@ struct trace_params {
 	unsigned char port;
 };
 
+/* Firmware Port Capabilities types. */
+
+typedef u16 fw_port_cap16_t;	/* 16-bit Port Capabilities integral value */
+typedef u32 fw_port_cap32_t;	/* 32-bit Port Capabilities integral value */
+
+enum fw_caps {
+	FW_CAPS_UNKNOWN	= 0,	/* 0'ed out initial state */
+	FW_CAPS16	= 1,	/* old Firmware: 16-bit Port Capabilities */
+	FW_CAPS32	= 2,	/* new Firmware: 32-bit Port Capabilities */
+};
+
 struct link_config {
-	unsigned short supported;        /* link capabilities */
-	unsigned short advertising;      /* advertised capabilities */
-	unsigned short lp_advertising;   /* peer advertised capabilities */
-	unsigned int   requested_speed;  /* speed user has requested */
-	unsigned int   speed;            /* actual link speed */
-	unsigned char  requested_fc;     /* flow control user has requested */
-	unsigned char  fc;               /* actual link flow control */
-	unsigned char  auto_fec;	 /* Forward Error Correction: */
-	unsigned char  requested_fec;	 /* "automatic" (IEEE 802.3), */
-	unsigned char  fec;		 /* requested, and actual in use */
+	fw_port_cap32_t pcaps;           /* link capabilities */
+	fw_port_cap32_t def_acaps;       /* default advertised capabilities */
+	fw_port_cap32_t acaps;           /* advertised capabilities */
+	fw_port_cap32_t lpacaps;         /* peer advertised capabilities */
+
+	fw_port_cap32_t speed_caps;      /* speed(s) user has requested */
+	unsigned int   speed;            /* actual link speed (Mb/s) */
+
+	enum cc_pause  requested_fc;     /* flow control user has requested */
+	enum cc_pause  fc;               /* actual link flow control */
+
+	enum cc_fec    requested_fec;	 /* Forward Error Correction: */
+	enum cc_fec    fec;		 /* requested and actual in use */
+
 	unsigned char  autoneg;          /* autonegotiating? */
+
 	unsigned char  link_ok;          /* link up? */
 	unsigned char  link_down_rc;     /* link down reason */
 };
@@ -505,6 +531,7 @@ struct port_info {
 #endif /* CONFIG_CHELSIO_T4_FCOE */
 	bool rxtstamp;  /* Enable TS */
 	struct hwtstamp_config tstamp_config;
+	bool ptp_enable;
 	struct sched_table *sched_tbl;
 };
 
@@ -521,6 +548,7 @@ enum {                                 /* adapter flags */
 	USING_SOFT_PARAMS  = (1 << 6),
 	MASTER_PF          = (1 << 7),
 	FW_OFLD_CONN       = (1 << 9),
+	ROOT_NO_RELAXED_ORDERING = (1 << 10),
 };
 
 enum {
@@ -700,6 +728,7 @@ struct sge_uld_txq_info {
 
 struct sge {
 	struct sge_eth_txq ethtxq[MAX_ETH_QSETS];
+	struct sge_eth_txq ptptxq;
 	struct sge_ctrl_txq ctrlq[MAX_CTRL_QUEUES];
 
 	struct sge_eth_rxq ethrxq[MAX_ETH_QSETS];
@@ -777,6 +806,7 @@ struct uld_msix_info {
 
 struct vf_info {
 	unsigned char vf_mac_addr[ETH_ALEN];
+	unsigned int tx_rate;
 	bool pf_set_mac;
 };
 
@@ -863,11 +893,17 @@ struct adapter {
 			 * used for all 4 filters.
 			 */
 
+	struct ptp_clock *ptp_clock;
+	struct ptp_clock_info ptp_clock_info;
+	struct sk_buff *ptp_tx_skb;
+	/* ptp lock */
+	spinlock_t ptp_lock;
 	spinlock_t stats_lock;
 	spinlock_t win0_lock ____cacheline_aligned_in_smp;
 
 	/* TC u32 offload */
 	struct cxgb4_tc_u32_table *tc_u32;
+	struct chcr_stats_debug chcr_stats;
 };
 
 /* Support for "sched-class" command to allow a TX Scheduling Class to be
@@ -1387,10 +1423,15 @@ int t4_fw_upgrade(struct adapter *adap, unsigned int mbox,
 int t4_fl_pkt_align(struct adapter *adap);
 unsigned int t4_flash_cfg_addr(struct adapter *adapter);
 int t4_check_fw_version(struct adapter *adap);
+int t4_load_cfg(struct adapter *adapter, const u8 *cfg_data, unsigned int size);
 int t4_get_fw_version(struct adapter *adapter, u32 *vers);
 int t4_get_bs_version(struct adapter *adapter, u32 *vers);
 int t4_get_tp_version(struct adapter *adapter, u32 *vers);
 int t4_get_exprom_version(struct adapter *adapter, u32 *vers);
+int t4_get_scfg_version(struct adapter *adapter, u32 *vers);
+int t4_get_vpd_version(struct adapter *adapter, u32 *vers);
+int t4_get_version_info(struct adapter *adapter);
+void t4_dump_version_info(struct adapter *adapter);
 int t4_prep_fw(struct adapter *adap, struct fw_info *fw_info,
 	       const u8 *fw_data, unsigned int fw_size,
 	       struct fw_hdr *card_fw, enum dev_state state, int *reset);
@@ -1433,7 +1474,8 @@ void t4_read_rss_vf_config(struct adapter *adapter, unsigned int index,
 u32 t4_read_rss_pf_map(struct adapter *adapter);
 u32 t4_read_rss_pf_mask(struct adapter *adapter);
 
-unsigned int t4_get_mps_bg_map(struct adapter *adapter, int idx);
+unsigned int t4_get_mps_bg_map(struct adapter *adapter, int pidx);
+unsigned int t4_get_tp_ch_map(struct adapter *adapter, int pidx);
 void t4_pmtx_get_stats(struct adapter *adap, u32 cnt[], u64 cycles[]);
 void t4_pmrx_get_stats(struct adapter *adap, u32 cnt[], u64 cycles[]);
 int t4_read_cim_ibq(struct adapter *adap, unsigned int qid, u32 *data,
@@ -1493,9 +1535,12 @@ int t4_fw_initialize(struct adapter *adap, unsigned int mbox);
 int t4_query_params(struct adapter *adap, unsigned int mbox, unsigned int pf,
 		    unsigned int vf, unsigned int nparams, const u32 *params,
 		    u32 *val);
+int t4_query_params_ns(struct adapter *adap, unsigned int mbox, unsigned int pf,
+		       unsigned int vf, unsigned int nparams, const u32 *params,
+		       u32 *val);
 int t4_query_params_rw(struct adapter *adap, unsigned int mbox, unsigned int pf,
 		       unsigned int vf, unsigned int nparams, const u32 *params,
-		       u32 *val, int rw);
+		       u32 *val, int rw, bool sleep_ok);
 int t4_set_params_timeout(struct adapter *adap, unsigned int mbox,
 			  unsigned int pf, unsigned int vf,
 			  unsigned int nparams, const u32 *params,
@@ -1551,6 +1596,9 @@ int t4_ofld_eq_free(struct adapter *adap, unsigned int mbox, unsigned int pf,
 		    unsigned int vf, unsigned int eqid);
 int t4_sge_ctxt_flush(struct adapter *adap, unsigned int mbox);
 void t4_handle_get_port_info(struct port_info *pi, const __be64 *rpl);
+int t4_update_port_info(struct port_info *pi);
+int t4_get_link_params(struct port_info *pi, unsigned int *link_okp,
+		       unsigned int *speedp, unsigned int *mtup);
 int t4_handle_fw_rpl(struct adapter *adap, const __be64 *rpl);
 void t4_db_full(struct adapter *adapter);
 void t4_db_dropped(struct adapter *adapter);

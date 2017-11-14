@@ -15,6 +15,7 @@ Adriana Reus <adi.reus@gmail.com> <adriana.reus@intel.com>
 Alan Cox <alan@lxorguk.ukuu.org.uk>
 Alan Cox <root@hraefn.swansea.linux.org.uk>
 Aleksey Gorelov <aleksey_gorelov@phoenix.com>
+Aleksandar Markovic <aleksandar.markovic@mips.com> <aleksandar.markovic@imgtec.com>
 Al Viro <viro@ftp.linux.org.uk>
 Al Viro <viro@zenIV.linux.org.uk>
 Andreas Herrmann <aherrman@de.ibm.com>
@@ -43,6 +44,7 @@ Corey Minyard <minyard@acm.org>
 Damian Hobson-Garcia <dhobsong@igel.co.jp>
 David Brownell <david-b@pacbell.net>
 David Woodhouse <dwmw2@shinybook.infradead.org>
+Deng-Cheng Zhu <dengcheng.zhu@mips.com> <dengcheng.zhu@imgtec.com>
 Dmitry Eremin-Solenikov <dbaryshkov@gmail.com>
 Domen Puncer <domen@coderock.org>
 Douglas Gilbert <dougg@torque.net>
@@ -68,6 +70,8 @@ Jacob Shin <Jacob.Shin@amd.com>
 James Bottomley <jejb@mulgrave.(none)>
 James Bottomley <jejb@titanic.il.steeleye.com>
 James E Wilson <wilson@specifix.com>
+James Hogan <jhogan@kernel.org> <james.hogan@imgtec.com>
+James Hogan <jhogan@kernel.org> <james@albanarts.com>
 James Ketrenos <jketreno@io.(none)>
 Javi Merino <javi.merino@kernel.org> <javi.merino@arm.com>
 <javier@osg.samsung.com> <javier.martinez@collabora.co.uk>
@@ -98,6 +102,7 @@ Leonid I Ananiev <leonid.i.ananiev@intel.com>
 Linas Vepstas <linas@austin.ibm.com>
 Linus Lüssing <linus.luessing@c0d3.blue> <linus.luessing@web.de>
 Linus Lüssing <linus.luessing@c0d3.blue> <linus.luessing@ascom.ch>
+Marcin Nowakowski <marcin.nowakowski@mips.com> <marcin.nowakowski@imgtec.com>
 Mark Brown <broonie@sirena.org.uk>
 Martin Kepplinger <martink@posteo.de> <martin.kepplinger@theobroma-systems.com>
 Martin Kepplinger <martink@posteo.de> <martin.kepplinger@ginzinger.com>
@@ -112,9 +117,11 @@ Mauro Carvalho Chehab <mchehab@kernel.org> <mchehab@s-opensource.com>
 Matt Ranostay <mranostay@gmail.com> Matthew Ranostay <mranostay@embeddedalley.com>
 Matt Ranostay <mranostay@gmail.com> <matt.ranostay@intel.com>
 Matt Ranostay <matt.ranostay@konsulko.com> <matt@ranostay.consulting>
+Matt Redfearn <matt.redfearn@mips.com> <matt.redfearn@imgtec.com>
 Mayuresh Janorkar <mayur@ti.com>
 Michael Buesch <m@bues.ch>
 Michel Dänzer <michel@tungstengraphics.com>
+Miodrag Dinic <miodrag.dinic@mips.com> <miodrag.dinic@imgtec.com>
 Mitesh shah <mshah@teja.com>
 Mohit Kumar <mohit.kumar@st.com> <mohit.kumar.dhaka@gmail.com>
 Morten Welinder <terra@gnome.org>
@@ -125,6 +132,7 @@ Mythri P K <mythripk@ti.com>
 Nguyen Anh Quynh <aquynh@gmail.com>
 Paolo 'Blaisorblade' Giarrusso <blaisorblade@yahoo.it>
 Patrick Mochel <mochel@digitalimplant.org>
+Paul Burton <paul.burton@mips.com> <paul.burton@imgtec.com>
 Peter A Jonsson <pj@ludd.ltu.se>
 Peter Oruba <peter@oruba.de>
 Peter Oruba <peter.oruba@amd.com>

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX__INIT_TASK_H
 #define _LINUX__INIT_TASK_H
 
@@ -126,17 +127,11 @@ extern struct group_info init_groups;
 #endif
 
 #ifdef CONFIG_PREEMPT_RCU
-#define INIT_TASK_RCU_TREE_PREEMPT()					\
-	.rcu_blocked_node = NULL,
-#else
-#define INIT_TASK_RCU_TREE_PREEMPT(tsk)
-#endif
-#ifdef CONFIG_PREEMPT_RCU
 #define INIT_TASK_RCU_PREEMPT(tsk)					\
 	.rcu_read_lock_nesting = 0,					\
 	.rcu_read_unlock_special.s = 0,					\
 	.rcu_node_entry = LIST_HEAD_INIT(tsk.rcu_node_entry),		\
-	INIT_TASK_RCU_TREE_PREEMPT()
+	.rcu_blocked_node = NULL,
 #else
 #define INIT_TASK_RCU_PREEMPT(tsk)
 #endif
@@ -170,9 +165,9 @@ extern struct cred init_cred;
 
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING_GEN
 # define INIT_VTIME(tsk)						\
-	.vtime_seqcount = SEQCNT_ZERO(tsk.vtime_seqcount),	\
-	.vtime_snap = 0,				\
-	.vtime_snap_whence = VTIME_SYS,
+	.vtime.seqcount = SEQCNT_ZERO(tsk.vtime.seqcount),		\
+	.vtime.starttime = 0,						\
+	.vtime.state = VTIME_SYS,
 #else
 # define INIT_VTIME(tsk)
 #endif
@@ -181,9 +176,8 @@ extern struct cred init_cred;
 
 #ifdef CONFIG_RT_MUTEXES
 # define INIT_RT_MUTEXES(tsk)						\
-	.pi_waiters = RB_ROOT,						\
-	.pi_top_task = NULL,						\
-	.pi_waiters_leftmost = NULL,
+	.pi_waiters = RB_ROOT_CACHED,					\
+	.pi_top_task = NULL,
 #else
 # define INIT_RT_MUTEXES(tsk)
 #endif

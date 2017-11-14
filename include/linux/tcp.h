@@ -123,7 +123,7 @@ struct tcp_request_sock_ops;
 struct tcp_request_sock {
 	struct inet_request_sock 	req;
 	const struct tcp_request_sock_ops *af_specific;
-	struct skb_mstamp		snt_synack; /* first SYNACK sent time */
+	u64				snt_synack; /* first SYNACK sent time */
 	bool				tfo_listener;
 	u32				txhash;
 	u32				rcv_isn;
@@ -192,15 +192,6 @@ struct tcp_sock {
 
 	struct list_head tsq_node; /* anchor in tsq_tasklet.head list */
 
-	/* Data for direct copy to user */
-	struct {
-		struct sk_buff_head	prequeue;
-		struct task_struct	*task;
-		struct msghdr		*msg;
-		int			memory;
-		int			len;
-	} ucopy;
-
 	u32	snd_wl1;	/* Sequence for window update		*/
 	u32	snd_wnd;	/* The window we expect to receive	*/
 	u32	max_window;	/* Maximal window ever seen from peer	*/
@@ -211,7 +202,7 @@ struct tcp_sock {
 
 	/* Information of the most recently (s)acked skb */
 	struct tcp_rack {
-		struct skb_mstamp mstamp; /* (Re)sent time of the skb */
+		u64 mstamp; /* (Re)sent time of the skb */
 		u32 rtt_us;  /* Associated RTT */
 		u32 end_seq; /* Ending TCP sequence of the skb */
 		u8 advanced; /* mstamp advanced since last lost marking */
@@ -240,7 +231,7 @@ struct tcp_sock {
 	u32	tlp_high_seq;	/* snd_nxt at the time of TLP retransmit. */
 
 /* RTT measurement */
-	struct skb_mstamp tcp_mstamp; /* most recent packet received/sent */
+	u64	tcp_mstamp;	/* most recent packet received/sent */
 	u32	srtt_us;	/* smoothed round trip time << 3 in usecs */
 	u32	mdev_us;	/* medium deviation			*/
 	u32	mdev_max_us;	/* maximal mdev for the last rtt period	*/
@@ -273,15 +264,15 @@ struct tcp_sock {
 	u32	snd_cwnd_clamp; /* Do not allow snd_cwnd to grow above this */
 	u32	snd_cwnd_used;
 	u32	snd_cwnd_stamp;
-	u32	prior_cwnd;	/* Congestion window at start of Recovery. */
+	u32	prior_cwnd;	/* cwnd right before starting loss recovery */
 	u32	prr_delivered;	/* Number of newly delivered packets to
 				 * receiver in Recovery. */
 	u32	prr_out;	/* Total number of pkts sent during Recovery. */
 	u32	delivered;	/* Total data packets delivered incl. rexmits */
 	u32	lost;		/* Total data packets lost incl. rexmits */
 	u32	app_limited;	/* limited until "delivered" reaches this val */
-	struct skb_mstamp first_tx_mstamp;  /* start of window send phase */
-	struct skb_mstamp delivered_mstamp; /* time we reached "delivered" */
+	u64	first_tx_mstamp;  /* start of window send phase */
+	u64	delivered_mstamp; /* time we reached "delivered" */
 	u32	rate_delivered;    /* saved rate sample: packets delivered */
 	u32	rate_interval_us;  /* saved rate sample: time elapsed */
 
@@ -292,6 +283,8 @@ struct tcp_sock {
 	u32	lost_out;	/* Lost packets			*/
 	u32	sacked_out;	/* SACK'd packets			*/
 	u32	fackets_out;	/* FACK'd packets			*/
+
+	struct hrtimer	pacing_timer;
 
 	/* from STCP, retrans queue hinting */
 	struct sk_buff* lost_skb_hint;
@@ -333,16 +326,16 @@ struct tcp_sock {
 
 /* Receiver side RTT estimation */
 	struct {
-		u32		rtt_us;
-		u32		seq;
-		struct skb_mstamp time;
+		u32	rtt_us;
+		u32	seq;
+		u64	time;
 	} rcv_rtt_est;
 
 /* Receiver queue space */
 	struct {
-		int		space;
-		u32		seq;
-		struct skb_mstamp time;
+		int	space;
+		u32	seq;
+		u64	time;
 	} rcvq_space;
 
 /* TCP-specific MTU probe information. */

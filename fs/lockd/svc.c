@@ -396,7 +396,7 @@ out_rqst:
 	return error;
 }
 
-static struct svc_serv_ops lockd_sv_ops = {
+static const struct svc_serv_ops lockd_sv_ops = {
 	.svo_shutdown		= svc_rpcb_cleanup,
 	.svo_enqueue_xprt	= svc_xprt_do_enqueue,
 };
@@ -739,27 +739,33 @@ module_exit(exit_nlm);
 /*
  * Define NLM program and procedures
  */
-static struct svc_version	nlmsvc_version1 = {
-		.vs_vers	= 1,
-		.vs_nproc	= 17,
-		.vs_proc	= nlmsvc_procedures,
-		.vs_xdrsize	= NLMSVC_XDRSIZE,
+static unsigned int nlmsvc_version1_count[17];
+static const struct svc_version	nlmsvc_version1 = {
+	.vs_vers	= 1,
+	.vs_nproc	= 17,
+	.vs_proc	= nlmsvc_procedures,
+	.vs_count	= nlmsvc_version1_count,
+	.vs_xdrsize	= NLMSVC_XDRSIZE,
 };
-static struct svc_version	nlmsvc_version3 = {
-		.vs_vers	= 3,
-		.vs_nproc	= 24,
-		.vs_proc	= nlmsvc_procedures,
-		.vs_xdrsize	= NLMSVC_XDRSIZE,
+static unsigned int nlmsvc_version3_count[24];
+static const struct svc_version	nlmsvc_version3 = {
+	.vs_vers	= 3,
+	.vs_nproc	= 24,
+	.vs_proc	= nlmsvc_procedures,
+	.vs_count	= nlmsvc_version3_count,
+	.vs_xdrsize	= NLMSVC_XDRSIZE,
 };
 #ifdef CONFIG_LOCKD_V4
-static struct svc_version	nlmsvc_version4 = {
-		.vs_vers	= 4,
-		.vs_nproc	= 24,
-		.vs_proc	= nlmsvc_procedures4,
-		.vs_xdrsize	= NLMSVC_XDRSIZE,
+static unsigned int nlmsvc_version4_count[24];
+static const struct svc_version	nlmsvc_version4 = {
+	.vs_vers	= 4,
+	.vs_nproc	= 24,
+	.vs_proc	= nlmsvc_procedures4,
+	.vs_count	= nlmsvc_version4_count,
+	.vs_xdrsize	= NLMSVC_XDRSIZE,
 };
 #endif
-static struct svc_version *	nlmsvc_version[] = {
+static const struct svc_version *nlmsvc_version[] = {
 	[1] = &nlmsvc_version1,
 	[3] = &nlmsvc_version3,
 #ifdef CONFIG_LOCKD_V4

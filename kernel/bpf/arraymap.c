@@ -49,13 +49,15 @@ static int bpf_array_alloc_percpu(struct bpf_array *array)
 static struct bpf_map *array_map_alloc(union bpf_attr *attr)
 {
 	bool percpu = attr->map_type == BPF_MAP_TYPE_PERCPU_ARRAY;
+	int numa_node = bpf_map_attr_numa_node(attr);
 	struct bpf_array *array;
 	u64 array_size;
 	u32 elem_size;
 
 	/* check sanity of attributes */
 	if (attr->max_entries == 0 || attr->key_size != 4 ||
-	    attr->value_size == 0 || attr->map_flags)
+	    attr->value_size == 0 || attr->map_flags & ~BPF_F_NUMA_NODE ||
+	    (percpu && numa_node != NUMA_NO_NODE))
 		return ERR_PTR(-EINVAL);
 
 	if (attr->value_size > KMALLOC_MAX_SIZE)
@@ -77,7 +79,7 @@ static struct bpf_map *array_map_alloc(union bpf_attr *attr)
 		return ERR_PTR(-ENOMEM);
 
 	/* allocate all map elements and zero-initialize them */
-	array = bpf_map_area_alloc(array_size);
+	array = bpf_map_area_alloc(array_size, numa_node);
 	if (!array)
 		return ERR_PTR(-ENOMEM);
 
@@ -87,6 +89,7 @@ static struct bpf_map *array_map_alloc(union bpf_attr *attr)
 	array->map.value_size = attr->value_size;
 	array->map.max_entries = attr->max_entries;
 	array->map.map_flags = attr->map_flags;
+	array->map.numa_node = numa_node;
 	array->elem_size = elem_size;
 
 	if (!percpu)
@@ -95,7 +98,7 @@ static struct bpf_map *array_map_alloc(union bpf_attr *attr)
 	array_size += (u64) attr->max_entries * elem_size * num_possible_cpus();
 
 	if (array_size >= U32_MAX - PAGE_SIZE ||
-	    elem_size > PCPU_MIN_UNIT_SIZE || bpf_array_alloc_percpu(array)) {
+	    bpf_array_alloc_percpu(array)) {
 		bpf_map_area_free(array);
 		return ERR_PTR(-ENOMEM);
 	}
@@ -335,6 +338,26 @@ static void *fd_array_map_lookup_elem(struct bpf_map *map, void *key)
 }
 
 /* only called from syscall */
+int bpf_fd_array_map_lookup_elem(struct bpf_map *map, void *key, u32 *value)
+{
+	void **elem, *ptr;
+	int ret =  0;
+
+	if (!map->ops->map_fd_sys_lookup_elem)
+		return -ENOTSUPP;
+
+	rcu_read_lock();
+	elem = array_map_lookup_elem(map, key);
+	if (elem && (ptr = READ_ONCE(*elem)))
+		*value = map->ops->map_fd_sys_lookup_elem(ptr);
+	else
+		ret = -ENOENT;
+	rcu_read_unlock();
+
+	return ret;
+}
+
+/* only called from syscall */
 int bpf_fd_array_map_update_elem(struct bpf_map *map, struct file *map_file,
 				 void *key, void *value, u64 map_flags)
 {
@@ -400,6 +423,11 @@ static void prog_fd_array_put_ptr(void *ptr)
 	bpf_prog_put(ptr);
 }
 
+static u32 prog_fd_array_sys_lookup_elem(void *ptr)
+{
+	return ((struct bpf_prog *)ptr)->aux->id;
+}
+
 /* decrement refcnt of all bpf_progs that are stored in this map */
 void bpf_fd_array_map_clear(struct bpf_map *map)
 {
@@ -418,6 +446,7 @@ const struct bpf_map_ops prog_array_map_ops = {
 	.map_delete_elem = fd_array_map_delete_elem,
 	.map_fd_get_ptr = prog_fd_array_get_ptr,
 	.map_fd_put_ptr = prog_fd_array_put_ptr,
+	.map_fd_sys_lookup_elem = prog_fd_array_sys_lookup_elem,
 };
 
 static struct bpf_event_entry *bpf_event_entry_gen(struct file *perf_file,
@@ -452,38 +481,24 @@ static void bpf_event_entry_free_rcu(struct bpf_event_entry *ee)
 static void *perf_event_fd_array_get_ptr(struct bpf_map *map,
 					 struct file *map_file, int fd)
 {
-	const struct perf_event_attr *attr;
 	struct bpf_event_entry *ee;
 	struct perf_event *event;
 	struct file *perf_file;
+	u64 value;
 
 	perf_file = perf_event_get(fd);
 	if (IS_ERR(perf_file))
 		return perf_file;
 
+	ee = ERR_PTR(-EOPNOTSUPP);
 	event = perf_file->private_data;
-	ee = ERR_PTR(-EINVAL);
-
-	attr = perf_event_attrs(event);
-	if (IS_ERR(attr) || attr->inherit)
+	if (perf_event_read_local(event, &value) == -EOPNOTSUPP)
 		goto err_out;
 
-	switch (attr->type) {
-	case PERF_TYPE_SOFTWARE:
-		if (attr->config != PERF_COUNT_SW_BPF_OUTPUT)
-			goto err_out;
-		/* fall-through */
-	case PERF_TYPE_RAW:
-	case PERF_TYPE_HARDWARE:
-		ee = bpf_event_entry_gen(perf_file, map_file);
-		if (ee)
-			return ee;
-		ee = ERR_PTR(-ENOMEM);
-		/* fall-through */
-	default:
-		break;
-	}
-
+	ee = bpf_event_entry_gen(perf_file, map_file);
+	if (ee)
+		return ee;
+	ee = ERR_PTR(-ENOMEM);
 err_out:
 	fput(perf_file);
 	return ee;
@@ -591,6 +606,31 @@ static void *array_of_map_lookup_elem(struct bpf_map *map, void *key)
 	return READ_ONCE(*inner_map);
 }
 
+static u32 array_of_map_gen_lookup(struct bpf_map *map,
+				   struct bpf_insn *insn_buf)
+{
+	u32 elem_size = round_up(map->value_size, 8);
+	struct bpf_insn *insn = insn_buf;
+	const int ret = BPF_REG_0;
+	const int map_ptr = BPF_REG_1;
+	const int index = BPF_REG_2;
+
+	*insn++ = BPF_ALU64_IMM(BPF_ADD, map_ptr, offsetof(struct bpf_array, value));
+	*insn++ = BPF_LDX_MEM(BPF_W, ret, index, 0);
+	*insn++ = BPF_JMP_IMM(BPF_JGE, ret, map->max_entries, 5);
+	if (is_power_of_2(elem_size))
+		*insn++ = BPF_ALU64_IMM(BPF_LSH, ret, ilog2(elem_size));
+	else
+		*insn++ = BPF_ALU64_IMM(BPF_MUL, ret, elem_size);
+	*insn++ = BPF_ALU64_REG(BPF_ADD, ret, map_ptr);
+	*insn++ = BPF_LDX_MEM(BPF_DW, ret, ret, 0);
+	*insn++ = BPF_JMP_IMM(BPF_JEQ, ret, 0, 1);
+	*insn++ = BPF_JMP_IMM(BPF_JA, 0, 0, 1);
+	*insn++ = BPF_MOV64_IMM(ret, 0);
+
+	return insn - insn_buf;
+}
+
 const struct bpf_map_ops array_of_maps_map_ops = {
 	.map_alloc = array_of_map_alloc,
 	.map_free = array_of_map_free,
@@ -599,4 +639,6 @@ const struct bpf_map_ops array_of_maps_map_ops = {
 	.map_delete_elem = fd_array_map_delete_elem,
 	.map_fd_get_ptr = bpf_map_fd_get_ptr,
 	.map_fd_put_ptr = bpf_map_fd_put_ptr,
+	.map_fd_sys_lookup_elem = bpf_map_fd_sys_lookup_elem,
+	.map_gen_lookup = array_of_map_gen_lookup,
 };

@@ -7,6 +7,9 @@
 #ifndef __QLA_FW_H
 #define __QLA_FW_H
 
+#include <linux/nvme.h>
+#include <linux/nvme-fc.h>
+
 #define MBS_CHECKSUM_ERROR	0x4010
 #define MBS_INVALID_PRODUCT_KEY	0x4020
 
@@ -37,6 +40,12 @@ struct port_database_24xx {
 #define PDF_CLASS_2		BIT_4
 #define PDF_HARD_ADDR		BIT_1
 
+	/*
+	 * for NVMe, the login_state field has been
+	 * split into nibbles.
+	 * The lower nibble is for FCP.
+	 * The upper nibble is for NVMe.
+	 */
 	uint8_t current_login_state;
 	uint8_t last_login_state;
 #define PDS_PLOGI_PENDING	0x03
@@ -69,7 +78,11 @@ struct port_database_24xx {
 	uint8_t port_name[WWN_SIZE];
 	uint8_t node_name[WWN_SIZE];
 
-	uint8_t reserved_3[24];
+	uint8_t reserved_3[4];
+	uint16_t prli_nvme_svc_param_word_0;	/* Bits 15-0 of word 0 */
+	uint16_t prli_nvme_svc_param_word_3;	/* Bits 15-0 of word 3 */
+	uint16_t nvme_first_burst_size;
+	uint8_t reserved_4[14];
 };
 
 /*
@@ -593,9 +606,14 @@ struct sts_entry_24xx {
 
 	uint32_t residual_len;		/* FW calc residual transfer length. */
 
-	uint16_t reserved_1;
+	union {
+		uint16_t reserved_1;
+		uint16_t nvme_rsp_pyld_len;
+	};
+
 	uint16_t state_flags;		/* State flags. */
 #define SF_TRANSFERRED_DATA	BIT_11
+#define SF_NVME_ERSP            BIT_6
 #define SF_FCP_RSP_DMA		BIT_0
 
 	uint16_t retry_delay;
@@ -605,8 +623,16 @@ struct sts_entry_24xx {
 	uint32_t rsp_residual_count;	/* FCP RSP residual count. */
 
 	uint32_t sense_len;		/* FCP SENSE length. */
-	uint32_t rsp_data_len;		/* FCP response data length. */
-	uint8_t data[28];		/* FCP response/sense information. */
+
+	union {
+		struct {
+			uint32_t rsp_data_len;	/* FCP response data length  */
+			uint8_t data[28];	/* FCP rsp/sense information */
+		};
+		struct nvme_fc_ersp_iu nvme_ersp;
+		uint8_t nvme_ersp_data[32];
+	};
+
 	/*
 	 * If DIF Error is set in comp_status, these additional fields are
 	 * defined:
@@ -819,6 +845,7 @@ struct logio_entry_24xx {
 #define LCF_CLASS_2		BIT_8	/* Enable class 2 during PLOGI. */
 #define LCF_FREE_NPORT		BIT_7	/* Release NPORT handle after LOGO. */
 #define LCF_EXPL_LOGO		BIT_6	/* Perform an explicit LOGO. */
+#define LCF_NVME_PRLI		BIT_6   /* Perform NVME FC4 PRLI */
 #define LCF_SKIP_PRLI		BIT_5	/* Skip PRLI after PLOGI. */
 #define LCF_IMPL_LOGO_ALL	BIT_5	/* Implicit LOGO to all ports. */
 #define LCF_COND_PLOGI		BIT_4	/* PLOGI only if not logged-in. */
@@ -1672,6 +1699,15 @@ struct access_chip_rsp_84xx {
 #define FAC_OPT_CMD_UNLOCK_SEMAPHORE	0x04
 #define FAC_OPT_CMD_GET_SECTOR_SIZE	0x05
 
+/* enhanced features bit definitions */
+#define NEF_LR_DIST_ENABLE	BIT_0
+
+/* LR Distance bit positions */
+#define LR_DIST_NV_POS		2
+#define LR_DIST_FW_POS		12
+#define LR_DIST_FW_SHIFT	(LR_DIST_FW_POS - LR_DIST_NV_POS)
+#define LR_DIST_FW_FIELD(x)	((x) << LR_DIST_FW_SHIFT & 0xf000)
+
 struct nvram_81xx {
 	/* NVRAM header. */
 	uint8_t id[4];
@@ -1718,7 +1754,9 @@ struct nvram_81xx {
 	uint16_t reserved_6_3[14];
 
 	/* Offset 192. */
-	uint16_t reserved_7[32];
+	uint8_t min_link_speed;
+	uint8_t reserved_7_0;
+	uint16_t reserved_7[31];
 
 	/*
 	 * BIT 0  = Enable spinup delay
@@ -1812,16 +1850,13 @@ struct nvram_81xx {
 	uint8_t reserved_21[16];
 	uint16_t reserved_22[3];
 
-	/*
-	 * BIT 0 = Extended BB credits for LR
-	 * BIT 1 = Virtual Fabric Enable
-	 * BIT 2 = Enhanced Features Unused
-	 * BIT 3-7 = Enhanced Features Reserved
+	/* Offset 406 (0x196) Enhanced Features
+	 * BIT 0    = Extended BB credits for LR
+	 * BIT 1    = Virtual Fabric Enable
+	 * BIT 2-5  = Distance Support if BIT 0 is on
+	 * BIT 6-15 = Unused
 	 */
-	/* Enhanced Features */
-	uint8_t enhanced_features;
-
-	uint8_t reserved_23;
+	uint16_t enhanced_features;
 	uint16_t reserved_24[4];
 
 	/* Offset 416. */

@@ -533,6 +533,7 @@ ssize_t badblocks_store(struct badblocks *bb, const char *page, size_t len,
 	case 3:
 		if (newline != '\n')
 			return -EINVAL;
+		/* fall through */
 	case 2:
 		if (length <= 0)
 			return -EINVAL;

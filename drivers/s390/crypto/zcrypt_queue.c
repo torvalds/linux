@@ -89,7 +89,7 @@ static struct attribute *zcrypt_queue_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group zcrypt_queue_attr_group = {
+static const struct attribute_group zcrypt_queue_attr_group = {
 	.attrs = zcrypt_queue_attrs,
 };
 

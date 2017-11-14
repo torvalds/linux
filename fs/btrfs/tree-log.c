@@ -1143,8 +1143,6 @@ again:
 				goto again;
 			}
 			kfree(victim_name);
-			if (ret)
-				return ret;
 next:
 			cur_offset += victim_name_len + sizeof(*extref);
 		}
@@ -1175,15 +1173,19 @@ next:
 	return 0;
 }
 
-static int extref_get_fields(struct extent_buffer *eb, unsigned long ref_ptr,
-			     u32 *namelen, char **name, u64 *index,
-			     u64 *parent_objectid)
+static int extref_get_fields(struct extent_buffer *eb, int slot,
+			     unsigned long ref_ptr, u32 *namelen, char **name,
+			     u64 *index, u64 *parent_objectid)
 {
 	struct btrfs_inode_extref *extref;
 
 	extref = (struct btrfs_inode_extref *)ref_ptr;
 
 	*namelen = btrfs_inode_extref_name_len(eb, extref);
+	if (!btrfs_is_name_len_valid(eb, slot, (unsigned long)&extref->name,
+				     *namelen))
+		return -EIO;
+
 	*name = kmalloc(*namelen, GFP_NOFS);
 	if (*name == NULL)
 		return -ENOMEM;
@@ -1198,14 +1200,19 @@ static int extref_get_fields(struct extent_buffer *eb, unsigned long ref_ptr,
 	return 0;
 }
 
-static int ref_get_fields(struct extent_buffer *eb, unsigned long ref_ptr,
-			  u32 *namelen, char **name, u64 *index)
+static int ref_get_fields(struct extent_buffer *eb, int slot,
+			  unsigned long ref_ptr, u32 *namelen, char **name,
+			  u64 *index)
 {
 	struct btrfs_inode_ref *ref;
 
 	ref = (struct btrfs_inode_ref *)ref_ptr;
 
 	*namelen = btrfs_inode_ref_name_len(eb, ref);
+	if (!btrfs_is_name_len_valid(eb, slot, (unsigned long)(ref + 1),
+				     *namelen))
+		return -EIO;
+
 	*name = kmalloc(*namelen, GFP_NOFS);
 	if (*name == NULL)
 		return -ENOMEM;
@@ -1280,8 +1287,8 @@ static noinline int add_inode_ref(struct btrfs_trans_handle *trans,
 
 	while (ref_ptr < ref_end) {
 		if (log_ref_ver) {
-			ret = extref_get_fields(eb, ref_ptr, &namelen, &name,
-						&ref_index, &parent_objectid);
+			ret = extref_get_fields(eb, slot, ref_ptr, &namelen,
+					  &name, &ref_index, &parent_objectid);
 			/*
 			 * parent object can change from one array
 			 * item to another.
@@ -1293,8 +1300,8 @@ static noinline int add_inode_ref(struct btrfs_trans_handle *trans,
 				goto out;
 			}
 		} else {
-			ret = ref_get_fields(eb, ref_ptr, &namelen, &name,
-					     &ref_index);
+			ret = ref_get_fields(eb, slot, ref_ptr, &namelen,
+					     &name, &ref_index);
 		}
 		if (ret)
 			goto out;
@@ -1841,7 +1848,7 @@ static noinline int replay_one_dir_item(struct btrfs_trans_handle *trans,
 	ptr_end = ptr + item_size;
 	while (ptr < ptr_end) {
 		di = (struct btrfs_dir_item *)ptr;
-		if (verify_dir_item(fs_info, eb, di))
+		if (verify_dir_item(fs_info, eb, slot, di))
 			return -EIO;
 		name_len = btrfs_dir_name_len(eb, di);
 		ret = replay_one_name(trans, root, path, eb, di, key);
@@ -2017,7 +2024,7 @@ again:
 	ptr_end = ptr + item_size;
 	while (ptr < ptr_end) {
 		di = (struct btrfs_dir_item *)ptr;
-		if (verify_dir_item(fs_info, eb, di)) {
+		if (verify_dir_item(fs_info, eb, slot, di)) {
 			ret = -EIO;
 			goto out;
 		}
@@ -2102,6 +2109,7 @@ static int replay_xattr_deletes(struct btrfs_trans_handle *trans,
 			      struct btrfs_path *path,
 			      const u64 ino)
 {
+	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct btrfs_key search_key;
 	struct btrfs_path *log_path;
 	int i;
@@ -2143,6 +2151,11 @@ process_leaf:
 			u32 this_len = sizeof(*di) + name_len + data_len;
 			char *name;
 
+			ret = verify_dir_item(fs_info, path->nodes[0], i, di);
+			if (ret) {
+				ret = -EIO;
+				goto out;
+			}
 			name = kmalloc(name_len, GFP_NOFS);
 			if (!name) {
 				ret = -ENOMEM;
@@ -3675,7 +3688,7 @@ static noinline int copy_items(struct btrfs_trans_handle *trans,
 
 		src_offset = btrfs_item_ptr_offset(src, start_slot + i);
 
-		if ((i == (nr - 1)))
+		if (i == nr - 1)
 			last_key = ins_keys[i];
 
 		if (ins_keys[i].type == BTRFS_INODE_ITEM_KEY) {
@@ -4168,6 +4181,7 @@ static int btrfs_log_changed_extents(struct btrfs_trans_handle *trans,
 	struct extent_map *em, *n;
 	struct list_head extents;
 	struct extent_map_tree *tree = &inode->extent_tree;
+	u64 logged_start, logged_end;
 	u64 test_gen;
 	int ret = 0;
 	int num = 0;
@@ -4177,10 +4191,11 @@ static int btrfs_log_changed_extents(struct btrfs_trans_handle *trans,
 	down_write(&inode->dio_sem);
 	write_lock(&tree->lock);
 	test_gen = root->fs_info->last_trans_committed;
+	logged_start = start;
+	logged_end = end;
 
 	list_for_each_entry_safe(em, n, &tree->modified_extents, list) {
 		list_del_init(&em->list);
-
 		/*
 		 * Just an arbitrary number, this can be really CPU intensive
 		 * once we start getting a lot of extents, and really once we
@@ -4195,6 +4210,12 @@ static int btrfs_log_changed_extents(struct btrfs_trans_handle *trans,
 
 		if (em->generation <= test_gen)
 			continue;
+
+		if (em->start < logged_start)
+			logged_start = em->start;
+		if ((em->start + em->len - 1) > logged_end)
+			logged_end = em->start + em->len - 1;
+
 		/* Need a ref to keep it from getting evicted from cache */
 		refcount_inc(&em->refs);
 		set_bit(EXTENT_FLAG_LOGGING, &em->flags);
@@ -4203,7 +4224,7 @@ static int btrfs_log_changed_extents(struct btrfs_trans_handle *trans,
 	}
 
 	list_sort(NULL, &extents, extent_cmp);
-	btrfs_get_logged_extents(inode, logged_list, start, end);
+	btrfs_get_logged_extents(inode, logged_list, logged_start, logged_end);
 	/*
 	 * Some ordered extents started by fsync might have completed
 	 * before we could collect them into the list logged_list, which
@@ -4435,7 +4456,10 @@ static int btrfs_log_trailing_hole(struct btrfs_trans_handle *trans,
 			len = btrfs_file_extent_inline_len(leaf,
 							   path->slots[0],
 							   extent);
-			ASSERT(len == i_size);
+			ASSERT(len == i_size ||
+			       (len == fs_info->sectorsize &&
+				btrfs_file_extent_compression(leaf, extent) !=
+				BTRFS_COMPRESS_NONE));
 			return 0;
 		}
 
@@ -4546,6 +4570,12 @@ static int btrfs_check_ref_name_override(struct extent_buffer *eb,
 			this_len = sizeof(*extref) + this_name_len;
 		}
 
+		ret = btrfs_is_name_len_valid(eb, slot, name_ptr,
+					      this_name_len);
+		if (!ret) {
+			ret = -EIO;
+			goto out;
+		}
 		if (this_name_len > name_len) {
 			char *new_name;
 

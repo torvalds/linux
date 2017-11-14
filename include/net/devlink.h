@@ -178,7 +178,6 @@ struct devlink_dpipe_table_ops;
  * struct devlink_dpipe_table - table object
  * @priv: private
  * @name: table name
- * @size: maximum number of entries
  * @counters_enabled: indicates if counters are active
  * @counter_control_extern: indicates if counter control is in dpipe or
  *			    external tool
@@ -189,7 +188,6 @@ struct devlink_dpipe_table {
 	void *priv;
 	struct list_head list;
 	const char *name;
-	u64 size;
 	bool counters_enabled;
 	bool counter_control_extern;
 	struct devlink_dpipe_table_ops *table_ops;
@@ -204,6 +202,7 @@ struct devlink_dpipe_table {
  * @counters_set_update - when changing the counter status hardware sync
  *			  maybe needed to allocate/free counter related
  *			  resources
+ * @size_get - get size
  */
 struct devlink_dpipe_table_ops {
 	int (*actions_dump)(void *priv, struct sk_buff *skb);
@@ -211,6 +210,7 @@ struct devlink_dpipe_table_ops {
 	int (*entries_dump)(void *priv, bool counters_enabled,
 			    struct devlink_dpipe_dump_ctx *dump_ctx);
 	int (*counters_set_update)(void *priv, bool enable);
+	u64 (*size_get)(void *priv);
 };
 
 /**
@@ -311,8 +311,7 @@ void devlink_sb_unregister(struct devlink *devlink, unsigned int sb_index);
 int devlink_dpipe_table_register(struct devlink *devlink,
 				 const char *table_name,
 				 struct devlink_dpipe_table_ops *table_ops,
-				 void *priv, u64 size,
-				 bool counter_control_extern);
+				 void *priv, bool counter_control_extern);
 void devlink_dpipe_table_unregister(struct devlink *devlink,
 				    const char *table_name);
 int devlink_dpipe_headers_register(struct devlink *devlink,
@@ -324,10 +323,14 @@ int devlink_dpipe_entry_ctx_prepare(struct devlink_dpipe_dump_ctx *dump_ctx);
 int devlink_dpipe_entry_ctx_append(struct devlink_dpipe_dump_ctx *dump_ctx,
 				   struct devlink_dpipe_entry *entry);
 int devlink_dpipe_entry_ctx_close(struct devlink_dpipe_dump_ctx *dump_ctx);
+void devlink_dpipe_entry_clear(struct devlink_dpipe_entry *entry);
 int devlink_dpipe_action_put(struct sk_buff *skb,
 			     struct devlink_dpipe_action *action);
 int devlink_dpipe_match_put(struct sk_buff *skb,
 			    struct devlink_dpipe_match *match);
+extern struct devlink_dpipe_header devlink_dpipe_header_ethernet;
+extern struct devlink_dpipe_header devlink_dpipe_header_ipv4;
+extern struct devlink_dpipe_header devlink_dpipe_header_ipv6;
 
 #else
 
@@ -400,8 +403,7 @@ static inline int
 devlink_dpipe_table_register(struct devlink *devlink,
 			     const char *table_name,
 			     struct devlink_dpipe_table_ops *table_ops,
-			     void *priv, u64 size,
-			     bool counter_control_extern)
+			     void *priv, bool counter_control_extern)
 {
 	return 0;
 }
@@ -445,6 +447,11 @@ static inline int
 devlink_dpipe_entry_ctx_close(struct devlink_dpipe_dump_ctx *dump_ctx)
 {
 	return 0;
+}
+
+static inline void
+devlink_dpipe_entry_clear(struct devlink_dpipe_entry *entry)
+{
 }
 
 static inline int

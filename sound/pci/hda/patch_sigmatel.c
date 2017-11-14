@@ -961,7 +961,7 @@ static int stac_smux_enum_put(struct snd_kcontrol *kcontrol,
 				     &spec->cur_smux[smux_idx]);
 }
 
-static struct snd_kcontrol_new stac_smux_mixer = {
+static const struct snd_kcontrol_new stac_smux_mixer = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "IEC958 Playback Source",
 	/* count set later */

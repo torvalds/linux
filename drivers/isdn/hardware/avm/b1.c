@@ -529,8 +529,8 @@ irqreturn_t b1_interrupt(int interrupt, void *devptr)
 			printk(KERN_ERR "%s: incoming packet dropped\n",
 			       card->name);
 		} else {
-			memcpy(skb_put(skb, MsgLen), card->msgbuf, MsgLen);
-			memcpy(skb_put(skb, DataB3Len), card->databuf, DataB3Len);
+			skb_put_data(skb, card->msgbuf, MsgLen);
+			skb_put_data(skb, card->databuf, DataB3Len);
 			capi_ctr_handle_message(ctrl, ApplId, skb);
 		}
 		break;
@@ -544,7 +544,7 @@ irqreturn_t b1_interrupt(int interrupt, void *devptr)
 			       card->name);
 			spin_unlock_irqrestore(&card->lock, flags);
 		} else {
-			memcpy(skb_put(skb, MsgLen), card->msgbuf, MsgLen);
+			skb_put_data(skb, card->msgbuf, MsgLen);
 			if (CAPIMSG_CMD(skb->data) == CAPI_DATA_B3_CONF)
 				capilib_data_b3_conf(&cinfo->ncci_head, ApplId,
 						     CAPIMSG_NCCI(skb->data),

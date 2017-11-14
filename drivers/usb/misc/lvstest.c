@@ -178,6 +178,25 @@ static ssize_t hot_reset_store(struct device *dev,
 }
 static DEVICE_ATTR_WO(hot_reset);
 
+static ssize_t warm_reset_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct usb_interface *intf = to_usb_interface(dev);
+	struct usb_device *hdev = interface_to_usbdev(intf);
+	struct lvs_rh *lvs = usb_get_intfdata(intf);
+	int ret;
+
+	ret = lvs_rh_set_port_feature(hdev, lvs->portnum,
+			USB_PORT_FEAT_BH_PORT_RESET);
+	if (ret < 0) {
+		dev_err(dev, "can't issue warm reset %d\n", ret);
+		return ret;
+	}
+
+	return count;
+}
+static DEVICE_ATTR_WO(warm_reset);
+
 static ssize_t u2_timeout_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
@@ -274,13 +293,35 @@ free_desc:
 }
 static DEVICE_ATTR_WO(get_dev_desc);
 
+static ssize_t enable_compliance_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct usb_interface *intf = to_usb_interface(dev);
+	struct usb_device *hdev = interface_to_usbdev(intf);
+	struct lvs_rh *lvs = usb_get_intfdata(intf);
+	int ret;
+
+	ret = lvs_rh_set_port_feature(hdev,
+			lvs->portnum | USB_SS_PORT_LS_COMP_MOD << 3,
+			USB_PORT_FEAT_LINK_STATE);
+	if (ret < 0) {
+		dev_err(dev, "can't enable compliance mode %d\n", ret);
+		return ret;
+	}
+
+	return count;
+}
+static DEVICE_ATTR_WO(enable_compliance);
+
 static struct attribute *lvs_attributes[] = {
 	&dev_attr_get_dev_desc.attr,
 	&dev_attr_u1_timeout.attr,
 	&dev_attr_u2_timeout.attr,
 	&dev_attr_hot_reset.attr,
+	&dev_attr_warm_reset.attr,
 	&dev_attr_u3_entry.attr,
 	&dev_attr_u3_exit.attr,
+	&dev_attr_enable_compliance.attr,
 	NULL
 };
 

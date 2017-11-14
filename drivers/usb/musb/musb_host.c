@@ -139,6 +139,7 @@ static void musb_h_tx_flush_fifo(struct musb_hw_ep *ep)
 				"Could not flush host TX%d fifo: csr: %04x\n",
 				ep->epnum, csr))
 			return;
+		mdelay(1);
 	}
 }
 
@@ -1540,7 +1541,7 @@ static int musb_rx_dma_iso_cppi41(struct dma_controller *dma,
 	struct dma_channel *channel = hw_ep->rx_channel;
 	void __iomem *epio = hw_ep->regs;
 	dma_addr_t *buf;
-	u32 length, res;
+	u32 length;
 	u16 val;
 
 	buf = (void *)urb->iso_frame_desc[qh->iso_idx].offset +
@@ -1552,10 +1553,8 @@ static int musb_rx_dma_iso_cppi41(struct dma_controller *dma,
 	val |= MUSB_RXCSR_DMAENAB;
 	musb_writew(hw_ep->regs, MUSB_RXCSR, val);
 
-	res = dma->channel_program(channel, qh->maxpacket, 0,
+	return dma->channel_program(channel, qh->maxpacket, 0,
 				   (u32)buf, length);
-
-	return res;
 }
 #else
 static inline int musb_rx_dma_iso_cppi41(struct dma_controller *dma,
@@ -2153,6 +2152,10 @@ static int musb_schedule(
 				(USB_SPEED_HIGH == qh->dev->speed) ? 8 : 4;
 		goto success;
 	} else if (best_end < 0) {
+		dev_err(musb->controller,
+				"%s hwep alloc failed for %dx%d\n",
+				musb_ep_xfertype_string(qh->type),
+				qh->hb_mult, qh->maxpacket);
 		return -ENOSPC;
 	}
 
@@ -2245,6 +2248,10 @@ static int musb_urb_enqueue(
 			ok = (usb_pipein(urb->pipe) && musb->hb_iso_rx)
 				|| (usb_pipeout(urb->pipe) && musb->hb_iso_tx);
 		if (!ok) {
+			dev_err(musb->controller,
+				"high bandwidth %s (%dx%d) not supported\n",
+				musb_ep_xfertype_string(qh->type),
+				qh->hb_mult, qh->maxpacket & 0x7ff);
 			ret = -EMSGSIZE;
 			goto done;
 		}

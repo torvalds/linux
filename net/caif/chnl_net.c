@@ -461,7 +461,8 @@ static void caif_netlink_parms(struct nlattr *data[],
 }
 
 static int ipcaif_newlink(struct net *src_net, struct net_device *dev,
-			  struct nlattr *tb[], struct nlattr *data[])
+			  struct nlattr *tb[], struct nlattr *data[],
+			  struct netlink_ext_ack *extack)
 {
 	int ret;
 	struct chnl_net *caifdev;
@@ -484,7 +485,8 @@ static int ipcaif_newlink(struct net *src_net, struct net_device *dev,
 }
 
 static int ipcaif_changelink(struct net_device *dev, struct nlattr *tb[],
-			     struct nlattr *data[])
+			     struct nlattr *data[],
+			     struct netlink_ext_ack *extack)
 {
 	struct chnl_net *caifdev;
 	ASSERT_RTNL();

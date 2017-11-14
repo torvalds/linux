@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 config ARM
 	bool
 	default y
@@ -22,9 +23,11 @@ config ARM
 	select CLONE_BACKWARDS
 	select CPU_PM if (SUSPEND || CPU_IDLE)
 	select DCACHE_WORD_ACCESS if HAVE_EFFICIENT_UNALIGNED_ACCESS
+	select DMA_NOOP_OPS if !MMU
 	select EDAC_SUPPORT
 	select EDAC_ATOMIC_SCRUB
 	select GENERIC_ALLOCATOR
+	select GENERIC_ARCH_TOPOLOGY if ARM_CPU_TOPOLOGY
 	select GENERIC_ATOMIC64 if (CPU_V7M || CPU_V6 || !CPU_32v6K || !AEABI)
 	select GENERIC_CLOCKEVENTS_BROADCAST if SMP
 	select GENERIC_CPU_AUTOPROBE
@@ -48,7 +51,7 @@ config ARM
 	select HAVE_ARCH_SECCOMP_FILTER if (AEABI && !OABI_COMPAT)
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_ARM_SMCCC if CPU_V7
-	select HAVE_CBPF_JIT
+	select HAVE_EBPF_JIT if !CPU_ENDIAN_BE32
 	select HAVE_CC_STACKPROTECTOR
 	select HAVE_CONTEXT_TRACKING
 	select HAVE_C_RECORDMCOUNT
@@ -56,6 +59,7 @@ config ARM
 	select HAVE_DMA_API_DEBUG
 	select HAVE_DMA_CONTIGUOUS if MMU
 	select HAVE_DYNAMIC_FTRACE if (!XIP_KERNEL) && !CPU_ENDIAN_BE32 && MMU
+	select HAVE_DYNAMIC_FTRACE_WITH_REGS if HAVE_DYNAMIC_FTRACE
 	select HAVE_EFFICIENT_UNALIGNED_ACCESS if (CPU_V6 || CPU_V6K || CPU_V7) && MMU
 	select HAVE_EXIT_THREAD
 	select HAVE_FTRACE_MCOUNT_RECORD if (!XIP_KERNEL)
@@ -337,7 +341,7 @@ config ARCH_MULTIPLATFORM
 	select ARM_HAS_SG_CHAIN
 	select ARM_PATCH_PHYS_VIRT
 	select AUTO_ZRELADDR
-	select CLKSRC_OF
+	select TIMER_OF
 	select COMMON_CLK
 	select GENERIC_CLOCKEVENTS
 	select MIGHT_HAVE_PCI
@@ -351,7 +355,7 @@ config ARM_SINGLE_ARMV7M
 	depends on !MMU
 	select ARM_NVIC
 	select AUTO_ZRELADDR
-	select CLKSRC_OF
+	select TIMER_OF
 	select COMMON_CLK
 	select CPU_V7M
 	select GENERIC_CLOCKEVENTS
@@ -377,7 +381,7 @@ config ARCH_EP93XX
 	bool "EP93xx-based"
 	select ARCH_HAS_HOLES_MEMORYMODEL
 	select ARM_AMBA
-	select ARM_PATCH_PHYS_VIRT
+	imply ARM_PATCH_PHYS_VIRT
 	select ARM_VIC
 	select AUTO_ZRELADDR
 	select CLKDEV_LOOKUP
@@ -532,7 +536,7 @@ config ARCH_PXA
 	select CLKDEV_LOOKUP
 	select CLKSRC_PXA
 	select CLKSRC_MMIO
-	select CLKSRC_OF
+	select TIMER_OF
 	select CPU_XSCALE if !CPU_XSC3
 	select GENERIC_CLOCKEVENTS
 	select GPIO_PXA
@@ -571,7 +575,7 @@ config ARCH_SA1100
 	select CLKDEV_LOOKUP
 	select CLKSRC_MMIO
 	select CLKSRC_PXA
-	select CLKSRC_OF if OF
+	select TIMER_OF if OF
 	select CPU_FREQ
 	select CPU_SA1100
 	select GENERIC_CLOCKEVENTS
@@ -710,6 +714,8 @@ config ARCH_VIRT
 # plat- suffix) or along side the corresponding mach-* source.
 #
 source "arch/arm/mach-mvebu/Kconfig"
+
+source "arch/arm/mach-actions/Kconfig"
 
 source "arch/arm/mach-alpine/Kconfig"
 
@@ -1357,7 +1363,7 @@ config HAVE_ARM_ARCH_TIMER
 
 config HAVE_ARM_TWD
 	bool
-	select CLKSRC_OF if OF
+	select TIMER_OF if OF
 	help
 	  This options enables support for the ARM timer and watchdog unit
 
@@ -1461,6 +1467,7 @@ config ARM_PSCI
 # selected platforms.
 config ARCH_NR_GPIO
 	int
+	default 2048 if ARCH_SOCFPGA
 	default 1024 if ARCH_BRCMSTB || ARCH_SHMOBILE || ARCH_TEGRA || \
 		ARCH_ZYNQ
 	default 512 if ARCH_EXYNOS || ARCH_KEYSTONE || SOC_OMAP5 || \
@@ -1525,7 +1532,6 @@ config THUMB2_KERNEL
 	bool "Compile the kernel in Thumb-2 mode" if !CPU_THUMBONLY
 	depends on (CPU_V7 || CPU_V7M) && !CPU_V6 && !CPU_V6K
 	default y if CPU_THUMBONLY
-	select AEABI
 	select ARM_ASM_UNIFIED
 	select ARM_UNWIND
 	help
@@ -1588,7 +1594,8 @@ config ARM_PATCH_IDIV
 	  code to do integer division.
 
 config AEABI
-	bool "Use the ARM EABI to compile the kernel"
+	bool "Use the ARM EABI to compile the kernel" if !CPU_V7 && !CPU_V7M && !CPU_V6 && !CPU_V6K
+	default CPU_V7 || CPU_V7M || CPU_V6 || CPU_V6K
 	help
 	  This option allows for the kernel to be compiled using the latest
 	  ARM ABI (aka EABI).  This is only useful if you are using a user
@@ -1638,7 +1645,7 @@ config ARCH_SELECT_MEMORY_MODEL
 config HAVE_ARCH_PFN_VALID
 	def_bool ARCH_HAS_HOLES_MEMORYMODEL || !SPARSEMEM
 
-config HAVE_GENERIC_RCU_GUP
+config HAVE_GENERIC_GUP
 	def_bool y
 	depends on ARM_LPAE
 
@@ -2061,6 +2068,23 @@ config EFI
 	  allow the kernel to be booted as an EFI application. This
 	  is only useful for kernels that may run on systems that have
 	  UEFI firmware.
+
+config DMI
+	bool "Enable support for SMBIOS (DMI) tables"
+	depends on EFI
+	default y
+	help
+	  This enables SMBIOS/DMI feature for systems.
+
+	  This option is only useful on systems that have UEFI firmware.
+	  However, even with this option, the resultant kernel should
+	  continue to boot on existing non-UEFI platforms.
+
+	  NOTE: This does *NOT* enable or encourage the use of DMI quirks,
+	  i.e., the the practice of identifying the platform via DMI to
+	  decide whether certain workarounds for buggy hardware and/or
+	  firmware need to be enabled. This would require the DMI subsystem
+	  to be enabled much earlier than we do on ARM, which is non-trivial.
 
 endmenu
 

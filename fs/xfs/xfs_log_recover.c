@@ -352,13 +352,13 @@ xlog_header_check_mount(
 {
 	ASSERT(head->h_magicno == cpu_to_be32(XLOG_HEADER_MAGIC_NUM));
 
-	if (uuid_is_nil(&head->h_fs_uuid)) {
+	if (uuid_is_null(&head->h_fs_uuid)) {
 		/*
 		 * IRIX doesn't write the h_fs_uuid or h_fmt fields. If
-		 * h_fs_uuid is nil, we assume this log was last mounted
+		 * h_fs_uuid is null, we assume this log was last mounted
 		 * by IRIX and continue.
 		 */
-		xfs_warn(mp, "nil uuid in log - IRIX style log");
+		xfs_warn(mp, "null uuid in log - IRIX style log");
 	} else if (unlikely(!uuid_equal(&mp->m_sb.sb_uuid, &head->h_fs_uuid))) {
 		xfs_warn(mp, "log has mismatched uuid - can't recover");
 		xlog_header_check_dump(mp, head);
@@ -1029,61 +1029,106 @@ out_error:
 }
 
 /*
- * Check the log tail for torn writes. This is required when torn writes are
- * detected at the head and the head had to be walked back to a previous record.
- * The tail of the previous record must now be verified to ensure the torn
- * writes didn't corrupt the previous tail.
+ * Calculate distance from head to tail (i.e., unused space in the log).
+ */
+static inline int
+xlog_tail_distance(
+	struct xlog	*log,
+	xfs_daddr_t	head_blk,
+	xfs_daddr_t	tail_blk)
+{
+	if (head_blk < tail_blk)
+		return tail_blk - head_blk;
+
+	return tail_blk + (log->l_logBBsize - head_blk);
+}
+
+/*
+ * Verify the log tail. This is particularly important when torn or incomplete
+ * writes have been detected near the front of the log and the head has been
+ * walked back accordingly.
  *
- * Return an error if CRC verification fails as recovery cannot proceed.
+ * We also have to handle the case where the tail was pinned and the head
+ * blocked behind the tail right before a crash. If the tail had been pushed
+ * immediately prior to the crash and the subsequent checkpoint was only
+ * partially written, it's possible it overwrote the last referenced tail in the
+ * log with garbage. This is not a coherency problem because the tail must have
+ * been pushed before it can be overwritten, but appears as log corruption to
+ * recovery because we have no way to know the tail was updated if the
+ * subsequent checkpoint didn't write successfully.
+ *
+ * Therefore, CRC check the log from tail to head. If a failure occurs and the
+ * offending record is within max iclog bufs from the head, walk the tail
+ * forward and retry until a valid tail is found or corruption is detected out
+ * of the range of a possible overwrite.
  */
 STATIC int
 xlog_verify_tail(
 	struct xlog		*log,
 	xfs_daddr_t		head_blk,
-	xfs_daddr_t		tail_blk)
+	xfs_daddr_t		*tail_blk,
+	int			hsize)
 {
 	struct xlog_rec_header	*thead;
 	struct xfs_buf		*bp;
 	xfs_daddr_t		first_bad;
-	int			count;
 	int			error = 0;
 	bool			wrapped;
-	xfs_daddr_t		tmp_head;
+	xfs_daddr_t		tmp_tail;
+	xfs_daddr_t		orig_tail = *tail_blk;
 
 	bp = xlog_get_bp(log, 1);
 	if (!bp)
 		return -ENOMEM;
 
 	/*
-	 * Seek XLOG_MAX_ICLOGS + 1 records past the current tail record to get
-	 * a temporary head block that points after the last possible
-	 * concurrently written record of the tail.
+	 * Make sure the tail points to a record (returns positive count on
+	 * success).
 	 */
-	count = xlog_seek_logrec_hdr(log, head_blk, tail_blk,
-				     XLOG_MAX_ICLOGS + 1, bp, &tmp_head, &thead,
-				     &wrapped);
-	if (count < 0) {
-		error = count;
+	error = xlog_seek_logrec_hdr(log, head_blk, *tail_blk, 1, bp,
+			&tmp_tail, &thead, &wrapped);
+	if (error < 0)
 		goto out;
+	if (*tail_blk != tmp_tail)
+		*tail_blk = tmp_tail;
+
+	/*
+	 * Run a CRC check from the tail to the head. We can't just check
+	 * MAX_ICLOGS records past the tail because the tail may point to stale
+	 * blocks cleared during the search for the head/tail. These blocks are
+	 * overwritten with zero-length records and thus record count is not a
+	 * reliable indicator of the iclog state before a crash.
+	 */
+	first_bad = 0;
+	error = xlog_do_recovery_pass(log, head_blk, *tail_blk,
+				      XLOG_RECOVER_CRCPASS, &first_bad);
+	while ((error == -EFSBADCRC || error == -EFSCORRUPTED) && first_bad) {
+		int	tail_distance;
+
+		/*
+		 * Is corruption within range of the head? If so, retry from
+		 * the next record. Otherwise return an error.
+		 */
+		tail_distance = xlog_tail_distance(log, head_blk, first_bad);
+		if (tail_distance > BTOBB(XLOG_MAX_ICLOGS * hsize))
+			break;
+
+		/* skip to the next record; returns positive count on success */
+		error = xlog_seek_logrec_hdr(log, head_blk, first_bad, 2, bp,
+				&tmp_tail, &thead, &wrapped);
+		if (error < 0)
+			goto out;
+
+		*tail_blk = tmp_tail;
+		first_bad = 0;
+		error = xlog_do_recovery_pass(log, head_blk, *tail_blk,
+					      XLOG_RECOVER_CRCPASS, &first_bad);
 	}
 
-	/*
-	 * If the call above didn't find XLOG_MAX_ICLOGS + 1 records, we ran
-	 * into the actual log head. tmp_head points to the start of the record
-	 * so update it to the actual head block.
-	 */
-	if (count < XLOG_MAX_ICLOGS + 1)
-		tmp_head = head_blk;
-
-	/*
-	 * We now have a tail and temporary head block that covers at least
-	 * XLOG_MAX_ICLOGS records from the tail. We need to verify that these
-	 * records were completely written. Run a CRC verification pass from
-	 * tail to head and return the result.
-	 */
-	error = xlog_do_recovery_pass(log, tmp_head, tail_blk,
-				      XLOG_RECOVER_CRCPASS, &first_bad);
-
+	if (!error && *tail_blk != orig_tail)
+		xfs_warn(log->l_mp,
+		"Tail block (0x%llx) overwrite detected. Updated to 0x%llx",
+			 orig_tail, *tail_blk);
 out:
 	xlog_put_bp(bp);
 	return error;
@@ -1143,7 +1188,7 @@ xlog_verify_head(
 	 */
 	error = xlog_do_recovery_pass(log, *head_blk, tmp_rhead_blk,
 				      XLOG_RECOVER_CRCPASS, &first_bad);
-	if (error == -EFSBADCRC) {
+	if ((error == -EFSBADCRC || error == -EFSCORRUPTED) && first_bad) {
 		/*
 		 * We've hit a potential torn write. Reset the error and warn
 		 * about it.
@@ -1183,31 +1228,12 @@ xlog_verify_head(
 			ASSERT(0);
 			return 0;
 		}
-
-		/*
-		 * Now verify the tail based on the updated head. This is
-		 * required because the torn writes trimmed from the head could
-		 * have been written over the tail of a previous record. Return
-		 * any errors since recovery cannot proceed if the tail is
-		 * corrupt.
-		 *
-		 * XXX: This leaves a gap in truly robust protection from torn
-		 * writes in the log. If the head is behind the tail, the tail
-		 * pushes forward to create some space and then a crash occurs
-		 * causing the writes into the previous record's tail region to
-		 * tear, log recovery isn't able to recover.
-		 *
-		 * How likely is this to occur? If possible, can we do something
-		 * more intelligent here? Is it safe to push the tail forward if
-		 * we can determine that the tail is within the range of the
-		 * torn write (e.g., the kernel can only overwrite the tail if
-		 * it has actually been pushed forward)? Alternatively, could we
-		 * somehow prevent this condition at runtime?
-		 */
-		error = xlog_verify_tail(log, *head_blk, *tail_blk);
 	}
+	if (error)
+		return error;
 
-	return error;
+	return xlog_verify_tail(log, *head_blk, tail_blk,
+				be32_to_cpu((*rhead)->h_size));
 }
 
 /*
@@ -2230,9 +2256,9 @@ xlog_recover_get_buf_lsn(
 	struct xfs_mount	*mp,
 	struct xfs_buf		*bp)
 {
-	__uint32_t		magic32;
-	__uint16_t		magic16;
-	__uint16_t		magicda;
+	uint32_t		magic32;
+	uint16_t		magic16;
+	uint16_t		magicda;
 	void			*blk = bp->b_addr;
 	uuid_t			*uuid;
 	xfs_lsn_t		lsn = -1;
@@ -2381,9 +2407,9 @@ xlog_recover_validate_buf_type(
 	xfs_lsn_t		current_lsn)
 {
 	struct xfs_da_blkinfo	*info = bp->b_addr;
-	__uint32_t		magic32;
-	__uint16_t		magic16;
-	__uint16_t		magicda;
+	uint32_t		magic32;
+	uint16_t		magic16;
+	uint16_t		magicda;
 	char			*warnmsg = NULL;
 
 	/*
@@ -2852,7 +2878,7 @@ xlog_recover_buffer_pass2(
 	if (XFS_DINODE_MAGIC ==
 	    be16_to_cpu(*((__be16 *)xfs_buf_offset(bp, 0))) &&
 	    (BBTOB(bp->b_io_length) != MAX(log->l_mp->m_sb.sb_blocksize,
-			(__uint32_t)log->l_mp->m_inode_cluster_size))) {
+			(uint32_t)log->l_mp->m_inode_cluster_size))) {
 		xfs_buf_stale(bp);
 		error = xfs_bwrite(bp);
 	} else {
@@ -3423,7 +3449,7 @@ xlog_recover_efd_pass2(
 	xfs_efd_log_format_t	*efd_formatp;
 	xfs_efi_log_item_t	*efip = NULL;
 	xfs_log_item_t		*lip;
-	__uint64_t		efi_id;
+	uint64_t		efi_id;
 	struct xfs_ail_cursor	cur;
 	struct xfs_ail		*ailp = log->l_ailp;
 
@@ -3519,7 +3545,7 @@ xlog_recover_rud_pass2(
 	struct xfs_rud_log_format	*rud_formatp;
 	struct xfs_rui_log_item		*ruip = NULL;
 	struct xfs_log_item		*lip;
-	__uint64_t			rui_id;
+	uint64_t			rui_id;
 	struct xfs_ail_cursor		cur;
 	struct xfs_ail			*ailp = log->l_ailp;
 
@@ -3635,7 +3661,7 @@ xlog_recover_cud_pass2(
 	struct xfs_cud_log_format	*cud_formatp;
 	struct xfs_cui_log_item		*cuip = NULL;
 	struct xfs_log_item		*lip;
-	__uint64_t			cui_id;
+	uint64_t			cui_id;
 	struct xfs_ail_cursor		cur;
 	struct xfs_ail			*ailp = log->l_ailp;
 
@@ -3754,7 +3780,7 @@ xlog_recover_bud_pass2(
 	struct xfs_bud_log_format	*bud_formatp;
 	struct xfs_bui_log_item		*buip = NULL;
 	struct xfs_log_item		*lip;
-	__uint64_t			bui_id;
+	uint64_t			bui_id;
 	struct xfs_ail_cursor		cur;
 	struct xfs_ail			*ailp = log->l_ailp;
 
@@ -4152,7 +4178,7 @@ xlog_recover_commit_trans(
 
 	#define XLOG_RECOVER_COMMIT_QUEUE_MAX 100
 
-	hlist_del(&trans->r_list);
+	hlist_del_init(&trans->r_list);
 
 	error = xlog_recover_reorder_trans(log, trans, pass);
 	if (error)
@@ -4353,6 +4379,8 @@ xlog_recover_free_trans(
 {
 	xlog_recover_item_t	*item, *n;
 	int			i;
+
+	hlist_del_init(&trans->r_list);
 
 	list_for_each_entry_safe(item, n, &trans->r_itemq, ri_list) {
 		/* Free the regions in the item. */
@@ -4799,12 +4827,16 @@ xlog_recover_process_intents(
 	int			error = 0;
 	struct xfs_ail_cursor	cur;
 	struct xfs_ail		*ailp;
+#if defined(DEBUG) || defined(XFS_WARN)
 	xfs_lsn_t		last_lsn;
+#endif
 
 	ailp = log->l_ailp;
 	spin_lock(&ailp->xa_lock);
 	lip = xfs_trans_ail_cursor_first(ailp, &cur, 0);
+#if defined(DEBUG) || defined(XFS_WARN)
 	last_lsn = xlog_assign_lsn(log->l_curr_cycle, log->l_curr_block);
+#endif
 	while (lip != NULL) {
 		/*
 		 * We're done when we see something other than an intent.
@@ -5216,7 +5248,7 @@ xlog_do_recovery_pass(
 	xfs_daddr_t		*first_bad)	/* out: first bad log rec */
 {
 	xlog_rec_header_t	*rhead;
-	xfs_daddr_t		blk_no;
+	xfs_daddr_t		blk_no, rblk_no;
 	xfs_daddr_t		rhead_blk;
 	char			*offset;
 	xfs_buf_t		*hbp, *dbp;
@@ -5224,11 +5256,15 @@ xlog_do_recovery_pass(
 	int			error2 = 0;
 	int			bblks, split_bblks;
 	int			hblks, split_hblks, wrapped_hblks;
+	int			i;
 	struct hlist_head	rhash[XLOG_RHASH_SIZE];
 	LIST_HEAD		(buffer_list);
 
 	ASSERT(head_blk != tail_blk);
-	rhead_blk = 0;
+	blk_no = rhead_blk = tail_blk;
+
+	for (i = 0; i < XLOG_RHASH_SIZE; i++)
+		INIT_HLIST_HEAD(&rhash[i]);
 
 	/*
 	 * Read the header of the tail block and get the iclog buffer size from
@@ -5303,7 +5339,6 @@ xlog_do_recovery_pass(
 	}
 
 	memset(rhash, 0, sizeof(rhash));
-	blk_no = rhead_blk = tail_blk;
 	if (tail_blk > head_blk) {
 		/*
 		 * Perform recovery around the end of the physical log.
@@ -5365,9 +5400,19 @@ xlog_do_recovery_pass(
 			bblks = (int)BTOBB(be32_to_cpu(rhead->h_len));
 			blk_no += hblks;
 
-			/* Read in data for log record */
-			if (blk_no + bblks <= log->l_logBBsize) {
-				error = xlog_bread(log, blk_no, bblks, dbp,
+			/*
+			 * Read the log record data in multiple reads if it
+			 * wraps around the end of the log. Note that if the
+			 * header already wrapped, blk_no could point past the
+			 * end of the log. The record data is contiguous in
+			 * that case.
+			 */
+			if (blk_no + bblks <= log->l_logBBsize ||
+			    blk_no >= log->l_logBBsize) {
+				/* mod blk_no in case the header wrapped and
+				 * pushed it beyond the end of the log */
+				rblk_no = do_mod(blk_no, log->l_logBBsize);
+				error = xlog_bread(log, rblk_no, bblks, dbp,
 						   &offset);
 				if (error)
 					goto bread_err2;
@@ -5466,6 +5511,19 @@ xlog_do_recovery_pass(
 	if (error && first_bad)
 		*first_bad = rhead_blk;
 
+	/*
+	 * Transactions are freed at commit time but transactions without commit
+	 * records on disk are never committed. Free any that may be left in the
+	 * hash table.
+	 */
+	for (i = 0; i < XLOG_RHASH_SIZE; i++) {
+		struct hlist_node	*tmp;
+		struct xlog_recover	*trans;
+
+		hlist_for_each_entry_safe(trans, tmp, &rhash[i], r_list)
+			xlog_recover_free_trans(trans);
+	}
+
 	return error ? error : error2;
 }
 
@@ -5543,6 +5601,8 @@ xlog_do_recover(
 	int		error;
 	xfs_buf_t	*bp;
 	xfs_sb_t	*sbp;
+
+	trace_xfs_log_recover(log, head_blk, tail_blk);
 
 	/*
 	 * First replay the images in the log.
@@ -5772,9 +5832,9 @@ xlog_recover_check_summary(
 	xfs_buf_t	*agfbp;
 	xfs_buf_t	*agibp;
 	xfs_agnumber_t	agno;
-	__uint64_t	freeblks;
-	__uint64_t	itotal;
-	__uint64_t	ifree;
+	uint64_t	freeblks;
+	uint64_t	itotal;
+	uint64_t	ifree;
 	int		error;
 
 	mp = log->l_mp;

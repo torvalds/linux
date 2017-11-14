@@ -153,6 +153,10 @@
 /* GIO Chicken Bits (PCI Express bus link power management) */
 #define CSR_GIO_CHICKEN_BITS    (CSR_BASE+0x100)
 
+/* host chicken bits */
+#define CSR_HOST_CHICKEN	(CSR_BASE + 0x204)
+#define CSR_HOST_CHICKEN_PM_IDLE_SRC_DIS_SB_PME	BIT(19)
+
 /* Analog phase-lock-loop configuration  */
 #define CSR_ANA_PLL_CFG         (CSR_BASE+0x20c)
 
@@ -165,7 +169,7 @@
 
 /*
  * CSR Hardware Revision Workaround Register.  Indicates hardware rev;
- * "step" determines CCK backoff for txpower calculation.  Used for 4965 only.
+ * "step" determines CCK backoff for txpower calculation.
  * See also CSR_HW_REV register.
  * Bit fields:
  *  3-2:  0 = A, 1 = B, 2 = C, 3 = D step
@@ -308,7 +312,7 @@
 #define CSR_GP_CNTRL_REG_VAL_MAC_ACCESS_EN           (0x00000001)
 
 #define CSR_GP_CNTRL_REG_MSK_POWER_SAVE_TYPE         (0x07000000)
-#define CSR_GP_CNTRL_REG_FLAG_MAC_POWER_SAVE         (0x04000000)
+#define CSR_GP_CNTRL_REG_FLAG_RFKILL_WAKE_L1A_EN     (0x04000000)
 #define CSR_GP_CNTRL_REG_FLAG_HW_RF_KILL_SW          (0x08000000)
 
 
@@ -316,6 +320,11 @@
 #define CSR_HW_REV_DASH(_val)          (((_val) & 0x0000003) >> 0)
 #define CSR_HW_REV_STEP(_val)          (((_val) & 0x000000C) >> 2)
 
+/* HW RFID */
+#define CSR_HW_RFID_FLAVOR(_val)       (((_val) & 0x000000F) >> 0)
+#define CSR_HW_RFID_DASH(_val)         (((_val) & 0x00000F0) >> 4)
+#define CSR_HW_RFID_STEP(_val)         (((_val) & 0x0000F00) >> 8)
+#define CSR_HW_RFID_TYPE(_val)         (((_val) & 0x0FFF000) >> 12)
 
 /**
  *  hw_rev values
@@ -345,10 +354,16 @@ enum {
 #define CSR_HW_REV_TYPE_135		(0x0000120)
 #define CSR_HW_REV_TYPE_7265D		(0x0000210)
 #define CSR_HW_REV_TYPE_NONE		(0x00001F0)
+#define CSR_HW_REV_TYPE_QNJ		(0x0000360)
+#define CSR_HW_REV_TYPE_HR_CDB		(0x0000340)
 
 /* RF_ID value */
-#define CSR_HW_RF_ID_TYPE_JF		(0x00105000)
-#define CSR_HW_RF_ID_TYPE_HR		(0x00109000)
+#define CSR_HW_RF_ID_TYPE_JF		(0x00105100)
+#define CSR_HW_RF_ID_TYPE_HR		(0x0010A000)
+#define CSR_HW_RF_ID_TYPE_HRCDB		(0x00109F00)
+
+/* HW_RF CHIP ID  */
+#define CSR_HW_RF_ID_TYPE_CHIP_ID(_val) (((_val) >> 12) & 0xFFF)
 
 /* EEPROM REG */
 #define CSR_EEPROM_REG_READ_VALID_MSK	(0x00000001)

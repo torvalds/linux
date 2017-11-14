@@ -281,6 +281,8 @@
                       capabilities of the underlying ICAP hardware
                       differ between different families.  May be
                       'virtex2p', 'virtex4', or 'virtex5'.
+		- compatible : should contain "xlnx,xps-hwicap-1.00.a" or
+				"xlnx,opb-hwicap-1.00.b".
 
       vi) Xilinx Uart 16550
 

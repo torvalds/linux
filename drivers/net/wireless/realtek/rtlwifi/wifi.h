@@ -314,35 +314,29 @@ enum hardware_type {
 	HARDWARE_TYPE_RTL8192EE,
 	HARDWARE_TYPE_RTL8821AE,
 	HARDWARE_TYPE_RTL8812AE,
+	HARDWARE_TYPE_RTL8822BE,
 
 	/* keep it last */
 	HARDWARE_TYPE_NUM
 };
 
-#define IS_HARDWARE_TYPE_8192SU(rtlhal)			\
-	(rtlhal->hw_type == HARDWARE_TYPE_RTL8192SU)
-#define IS_HARDWARE_TYPE_8192SE(rtlhal)			\
-	(rtlhal->hw_type == HARDWARE_TYPE_RTL8192SE)
-#define IS_HARDWARE_TYPE_8192CE(rtlhal)			\
-	(rtlhal->hw_type == HARDWARE_TYPE_RTL8192CE)
-#define IS_HARDWARE_TYPE_8192CU(rtlhal)			\
-	(rtlhal->hw_type == HARDWARE_TYPE_RTL8192CU)
-#define IS_HARDWARE_TYPE_8192DE(rtlhal)			\
-	(rtlhal->hw_type == HARDWARE_TYPE_RTL8192DE)
-#define IS_HARDWARE_TYPE_8192DU(rtlhal)			\
-	(rtlhal->hw_type == HARDWARE_TYPE_RTL8192DU)
-#define IS_HARDWARE_TYPE_8723E(rtlhal)			\
-	(rtlhal->hw_type == HARDWARE_TYPE_RTL8723E)
-#define IS_HARDWARE_TYPE_8723U(rtlhal)			\
-	(rtlhal->hw_type == HARDWARE_TYPE_RTL8723U)
-#define	IS_HARDWARE_TYPE_8192S(rtlhal)			\
-(IS_HARDWARE_TYPE_8192SE(rtlhal) || IS_HARDWARE_TYPE_8192SU(rtlhal))
-#define	IS_HARDWARE_TYPE_8192C(rtlhal)			\
-(IS_HARDWARE_TYPE_8192CE(rtlhal) || IS_HARDWARE_TYPE_8192CU(rtlhal))
-#define	IS_HARDWARE_TYPE_8192D(rtlhal)			\
-(IS_HARDWARE_TYPE_8192DE(rtlhal) || IS_HARDWARE_TYPE_8192DU(rtlhal))
-#define	IS_HARDWARE_TYPE_8723(rtlhal)			\
-(IS_HARDWARE_TYPE_8723E(rtlhal) || IS_HARDWARE_TYPE_8723U(rtlhal))
+#define RTL_HW_TYPE(rtlpriv)	(rtl_hal((struct rtl_priv *)rtlpriv)->hw_type)
+#define IS_NEW_GENERATION_IC(rtlpriv)			\
+			(RTL_HW_TYPE(rtlpriv) >= HARDWARE_TYPE_RTL8192EE)
+#define IS_HARDWARE_TYPE_8192CE(rtlpriv)		\
+			(RTL_HW_TYPE(rtlpriv) == HARDWARE_TYPE_RTL8192CE)
+#define IS_HARDWARE_TYPE_8812(rtlpriv)			\
+			(RTL_HW_TYPE(rtlpriv) == HARDWARE_TYPE_RTL8812AE)
+#define IS_HARDWARE_TYPE_8821(rtlpriv)			\
+			(RTL_HW_TYPE(rtlpriv) == HARDWARE_TYPE_RTL8821AE)
+#define IS_HARDWARE_TYPE_8723A(rtlpriv)			\
+			(RTL_HW_TYPE(rtlpriv) == HARDWARE_TYPE_RTL8723AE)
+#define IS_HARDWARE_TYPE_8723B(rtlpriv)			\
+			(RTL_HW_TYPE(rtlpriv) == HARDWARE_TYPE_RTL8723BE)
+#define IS_HARDWARE_TYPE_8192E(rtlpriv)			\
+			(RTL_HW_TYPE(rtlpriv) == HARDWARE_TYPE_RTL8192EE)
+#define IS_HARDWARE_TYPE_8822B(rtlpriv)			\
+			(RTL_HW_TYPE(rtlpriv) == HARDWARE_TYPE_RTL8822BE)
 
 #define RX_HAL_IS_CCK_RATE(rxmcs)			\
 	((rxmcs) == DESC_RATE1M ||			\
@@ -592,7 +586,7 @@ enum rtl_hal_state {
 	_HAL_STATE_START = 1,
 };
 
-enum rtl_desc92_rate {
+enum rtl_desc_rate {
 	DESC_RATE1M = 0x00,
 	DESC_RATE2M = 0x01,
 	DESC_RATE5_5M = 0x02,
@@ -1886,6 +1880,13 @@ struct rtl_efuse {
 	u8 channel_plan;
 };
 
+struct rtl_tx_report {
+	atomic_t sn;
+	u16 last_sent_sn;
+	unsigned long last_sent_time;
+	u16 last_recv_sn;
+};
+
 struct rtl_ps_ctl {
 	bool pwrdomain_protect;
 	bool in_powersavemode;
@@ -2074,6 +2075,8 @@ struct rtl_tcb_desc {
 	u8 use_shortpreamble:1;
 	u8 use_driver_rate:1;
 	u8 disable_ratefallback:1;
+
+	u8 use_spe_rpt:1;
 
 	u8 ratr_index;
 	u8 mac_id;
@@ -2324,6 +2327,7 @@ struct rtl_locks {
 	spinlock_t entry_list_lock;
 	spinlock_t usb_lock;
 	spinlock_t c2hcmd_lock;
+	spinlock_t scan_list_lock; /* lock for the scan list */
 
 	/*FW clock change */
 	spinlock_t fw_ps_lock;
@@ -2467,11 +2471,17 @@ struct rtl_global_var {
 	spinlock_t glb_list_lock;
 };
 
+#define IN_4WAY_TIMEOUT_TIME	(30 * MSEC_PER_SEC)	/* 30 seconds */
+
 struct rtl_btc_info {
 	u8 bt_type;
 	u8 btcoexist;
 	u8 ant_num;
 	u8 single_ant_path;
+
+	u8 ap_num;
+	bool in_4way;
+	unsigned long in_4way_ts;
 };
 
 struct bt_coexist_info {
@@ -2545,11 +2555,20 @@ struct rtl_btc_ops {
 	void (*btc_halt_notify) (void);
 	void (*btc_btinfo_notify) (struct rtl_priv *rtlpriv,
 				   u8 *tmp_buf, u8 length);
+	void (*btc_btmpinfo_notify)(struct rtl_priv *rtlpriv,
+				    u8 *tmp_buf, u8 length);
 	bool (*btc_is_limited_dig) (struct rtl_priv *rtlpriv);
 	bool (*btc_is_disable_edca_turbo) (struct rtl_priv *rtlpriv);
 	bool (*btc_is_bt_disabled) (struct rtl_priv *rtlpriv);
 	void (*btc_special_packet_notify)(struct rtl_priv *rtlpriv,
 					  u8 pkt_type);
+	void (*btc_record_pwr_mode)(struct rtl_priv *rtlpriv, u8 *buf, u8 len);
+	u8   (*btc_get_lps_val)(struct rtl_priv *rtlpriv);
+	u8   (*btc_get_rpwm_val)(struct rtl_priv *rtlpriv);
+	bool (*btc_is_bt_ctrl_lps)(struct rtl_priv *rtlpriv);
+	void (*btc_get_ampdu_cfg)(struct rtl_priv *rtlpriv, u8 *reject_agg,
+				  u8 *ctrl_agg_size, u8 *agg_size);
+	bool (*btc_is_bt_lps_on)(struct rtl_priv *rtlpriv);
 };
 
 struct proxim {
@@ -2566,6 +2585,17 @@ struct rtl_c2hcmd {
 	u8 tag;
 	u8 len;
 	u8 *val;
+};
+
+struct rtl_bssid_entry {
+	struct list_head list;
+	u8 bssid[ETH_ALEN];
+	u32 age;
+};
+
+struct rtl_scan_list {
+	int num;
+	struct list_head list;	/* sort by age */
 };
 
 struct rtl_priv {
@@ -2588,6 +2618,8 @@ struct rtl_priv {
 	struct rtl_security sec;
 	struct rtl_efuse efuse;
 	struct rtl_led_ctl ledctl;
+	struct rtl_tx_report tx_report;
+	struct rtl_scan_list scan_list;
 
 	struct rtl_ps_ctl psc;
 	struct rate_adaptive ra;

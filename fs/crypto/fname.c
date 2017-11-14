@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * This contains functions for filename crypto management
  *
@@ -453,12 +454,3 @@ errout:
 	return ret;
 }
 EXPORT_SYMBOL(fscrypt_setup_filename);
-
-void fscrypt_free_filename(struct fscrypt_name *fname)
-{
-	kfree(fname->crypto_buf.name);
-	fname->crypto_buf.name = NULL;
-	fname->usr_fname = NULL;
-	fname->disk_name.name = NULL;
-}
-EXPORT_SYMBOL(fscrypt_free_filename);

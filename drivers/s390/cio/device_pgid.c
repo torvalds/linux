@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  CCW device PGID and path verification I/O handling.
  *

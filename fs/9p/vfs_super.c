@@ -33,7 +33,6 @@
 #include <linux/string.h>
 #include <linux/inet.h>
 #include <linux/pagemap.h>
-#include <linux/seq_file.h>
 #include <linux/mount.h>
 #include <linux/idr.h>
 #include <linux/sched.h>
@@ -104,7 +103,6 @@ v9fs_fill_super(struct super_block *sb, struct v9fs_session_info *v9ses,
 		sb->s_flags |= MS_POSIXACL;
 #endif
 
-	save_mount_options(sb, data);
 	return 0;
 }
 
@@ -349,7 +347,7 @@ static const struct super_operations v9fs_super_ops = {
 	.destroy_inode = v9fs_destroy_inode,
 	.statfs = simple_statfs,
 	.evict_inode = v9fs_evict_inode,
-	.show_options = generic_show_options,
+	.show_options = v9fs_show_options,
 	.umount_begin = v9fs_umount_begin,
 	.write_inode = v9fs_write_inode,
 };
@@ -360,7 +358,7 @@ static const struct super_operations v9fs_super_ops_dotl = {
 	.statfs = v9fs_statfs,
 	.drop_inode = v9fs_drop_inode,
 	.evict_inode = v9fs_evict_inode,
-	.show_options = generic_show_options,
+	.show_options = v9fs_show_options,
 	.umount_begin = v9fs_umount_begin,
 	.write_inode = v9fs_write_inode_dotl,
 };

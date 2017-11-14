@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_BUG_H
 #define _ASM_X86_BUG_H
 
@@ -35,7 +36,7 @@
 #define _BUG_FLAGS(ins, flags)						\
 do {									\
 	asm volatile("1:\t" ins "\n"					\
-		     ".pushsection __bug_table,\"a\"\n"			\
+		     ".pushsection __bug_table,\"aw\"\n"		\
 		     "2:\t" __BUG_REL(1b) "\t# bug_entry::bug_addr\n"	\
 		     "\t"  __BUG_REL(%c0) "\t# bug_entry::file\n"	\
 		     "\t.word %c1"        "\t# bug_entry::line\n"	\
@@ -52,7 +53,7 @@ do {									\
 #define _BUG_FLAGS(ins, flags)						\
 do {									\
 	asm volatile("1:\t" ins "\n"					\
-		     ".pushsection __bug_table,\"a\"\n"			\
+		     ".pushsection __bug_table,\"aw\"\n"		\
 		     "2:\t" __BUG_REL(1b) "\t# bug_entry::bug_addr\n"	\
 		     "\t.word %c0"        "\t# bug_entry::flags\n"	\
 		     "\t.org 2b+%c1\n"					\

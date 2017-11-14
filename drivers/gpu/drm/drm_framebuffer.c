@@ -817,7 +817,7 @@ retry:
 		plane->old_fb = plane->fb;
 	}
 
-	for_each_connector_in_state(state, conn, conn_state, i) {
+	for_each_new_connector_in_state(state, conn, conn_state, i) {
 		ret = drm_atomic_set_crtc_for_connector(conn_state, NULL);
 
 		if (ret)
@@ -832,6 +832,7 @@ unlock:
 		drm_atomic_clean_old_fb(dev, plane_mask, ret);
 
 	if (ret == -EDEADLK) {
+		drm_atomic_state_clear(state);
 		drm_modeset_backoff(&ctx);
 		goto retry;
 	}

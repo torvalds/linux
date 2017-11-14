@@ -93,7 +93,6 @@ int ide_queue_pc_tail(ide_drive_t *drive, struct gendisk *disk,
 	int error;
 
 	rq = blk_get_request(drive->queue, REQ_OP_DRV_IN, __GFP_RECLAIM);
-	scsi_req_init(rq);
 	ide_req(rq)->type = ATA_PRIV_MISC;
 	rq->special = (char *)pc;
 
@@ -200,7 +199,7 @@ void ide_prep_sense(ide_drive_t *drive, struct request *rq)
 	memset(sense, 0, sizeof(*sense));
 
 	blk_rq_init(rq->q, sense_rq);
-	scsi_req_init(sense_rq);
+	scsi_req_init(req);
 
 	err = blk_rq_map_kern(drive->queue, sense_rq, sense, sense_len,
 			      GFP_NOIO);
@@ -273,7 +272,7 @@ void ide_retry_pc(ide_drive_t *drive)
 	ide_requeue_and_plug(drive, failed_rq);
 	if (ide_queue_sense_rq(drive, pc)) {
 		blk_start_request(failed_rq);
-		ide_complete_rq(drive, -EIO, blk_rq_bytes(failed_rq));
+		ide_complete_rq(drive, BLK_STS_IOERR, blk_rq_bytes(failed_rq));
 	}
 }
 EXPORT_SYMBOL_GPL(ide_retry_pc);
@@ -437,7 +436,8 @@ static ide_startstop_t ide_pc_intr(ide_drive_t *drive)
 
 	/* No more interrupts */
 	if ((stat & ATA_DRQ) == 0) {
-		int uptodate, error;
+		int uptodate;
+		blk_status_t error;
 
 		debug_log("Packet command completed, %d bytes transferred\n",
 			  blk_rq_bytes(rq));
@@ -490,7 +490,7 @@ static ide_startstop_t ide_pc_intr(ide_drive_t *drive)
 
 		if (ata_misc_request(rq)) {
 			scsi_req(rq)->result = 0;
-			error = 0;
+			error = BLK_STS_OK;
 		} else {
 
 			if (blk_rq_is_passthrough(rq) && uptodate <= 0) {
@@ -498,7 +498,7 @@ static ide_startstop_t ide_pc_intr(ide_drive_t *drive)
 					scsi_req(rq)->result = -EIO;
 			}
 
-			error = uptodate ? 0 : -EIO;
+			error = uptodate ? BLK_STS_OK : BLK_STS_IOERR;
 		}
 
 		ide_complete_rq(drive, error, blk_rq_bytes(rq));

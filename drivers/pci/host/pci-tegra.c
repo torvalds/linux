@@ -235,6 +235,7 @@ struct tegra_msi {
 	struct irq_domain *domain;
 	unsigned long pages;
 	struct mutex lock;
+	u64 phys;
 	int irq;
 };
 
@@ -1147,15 +1148,15 @@ static int tegra_pcie_resets_get(struct tegra_pcie *pcie)
 {
 	struct device *dev = pcie->dev;
 
-	pcie->pex_rst = devm_reset_control_get(dev, "pex");
+	pcie->pex_rst = devm_reset_control_get_exclusive(dev, "pex");
 	if (IS_ERR(pcie->pex_rst))
 		return PTR_ERR(pcie->pex_rst);
 
-	pcie->afi_rst = devm_reset_control_get(dev, "afi");
+	pcie->afi_rst = devm_reset_control_get_exclusive(dev, "afi");
 	if (IS_ERR(pcie->afi_rst))
 		return PTR_ERR(pcie->afi_rst);
 
-	pcie->pcie_xrst = devm_reset_control_get(dev, "pcie_x");
+	pcie->pcie_xrst = devm_reset_control_get_exclusive(dev, "pcie_x");
 	if (IS_ERR(pcie->pcie_xrst))
 		return PTR_ERR(pcie->pcie_xrst);
 
@@ -1448,9 +1449,8 @@ static int tegra_msi_setup_irq(struct msi_controller *chip,
 
 	irq_set_msi_desc(irq, desc);
 
-	msg.address_lo = virt_to_phys((void *)msi->pages);
-	/* 32 bit address only */
-	msg.address_hi = 0;
+	msg.address_lo = lower_32_bits(msi->phys);
+	msg.address_hi = upper_32_bits(msi->phys);
 	msg.data = hwirq;
 
 	pci_write_msi_msg(irq, &msg);
@@ -1499,7 +1499,6 @@ static int tegra_pcie_enable_msi(struct tegra_pcie *pcie)
 	const struct tegra_pcie_soc *soc = pcie->soc;
 	struct tegra_msi *msi = &pcie->msi;
 	struct device *dev = pcie->dev;
-	unsigned long base;
 	int err;
 	u32 reg;
 
@@ -1533,10 +1532,10 @@ static int tegra_pcie_enable_msi(struct tegra_pcie *pcie)
 
 	/* setup AFI/FPCI range */
 	msi->pages = __get_free_pages(GFP_KERNEL, 0);
-	base = virt_to_phys((void *)msi->pages);
+	msi->phys = virt_to_phys((void *)msi->pages);
 
-	afi_writel(pcie, base >> soc->msi_base_shift, AFI_MSI_FPCI_BAR_ST);
-	afi_writel(pcie, base, AFI_MSI_AXI_BAR_ST);
+	afi_writel(pcie, msi->phys >> soc->msi_base_shift, AFI_MSI_FPCI_BAR_ST);
+	afi_writel(pcie, msi->phys, AFI_MSI_AXI_BAR_ST);
 	/* this register is in 4K increments */
 	afi_writel(pcie, 1, AFI_MSI_BAR_SZ);
 
@@ -1694,8 +1693,7 @@ static int tegra_pcie_get_legacy_regulators(struct tegra_pcie *pcie)
 		pcie->num_supplies = 2;
 
 	if (pcie->num_supplies == 0) {
-		dev_err(dev, "device %s not supported in legacy mode\n",
-			np->full_name);
+		dev_err(dev, "device %pOF not supported in legacy mode\n", np);
 		return -ENODEV;
 	}
 
@@ -2238,7 +2236,7 @@ static int tegra_pcie_probe(struct platform_device *pdev)
 	struct pci_bus *child;
 	int err;
 
-	host = pci_alloc_host_bridge(sizeof(*pcie));
+	host = devm_pci_alloc_host_bridge(dev, sizeof(*pcie));
 	if (!host)
 		return -ENOMEM;
 
@@ -2284,16 +2282,15 @@ static int tegra_pcie_probe(struct platform_device *pdev)
 	host->busnr = pcie->busn.start;
 	host->dev.parent = &pdev->dev;
 	host->ops = &tegra_pcie_ops;
+	host->map_irq = tegra_pcie_map_irq;
+	host->swizzle_irq = pci_common_swizzle;
 
-	err = pci_register_host_bridge(host);
+	err = pci_scan_root_bus_bridge(host);
 	if (err < 0) {
 		dev_err(dev, "failed to register host: %d\n", err);
 		goto disable_msi;
 	}
 
-	pci_scan_child_bus(host->bus);
-
-	pci_fixup_irqs(pci_common_swizzle, tegra_pcie_map_irq);
 	pci_bus_size_bridges(host->bus);
 	pci_bus_assign_resources(host->bus);
 

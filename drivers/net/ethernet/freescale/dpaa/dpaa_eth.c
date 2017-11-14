@@ -158,7 +158,7 @@ MODULE_PARM_DESC(tx_timeout, "The Tx timeout in ms");
 #define DPAA_RX_PRIV_DATA_SIZE	(u16)(DPAA_TX_PRIV_DATA_SIZE + \
 					dpaa_rx_extra_headroom)
 
-#define DPAA_ETH_RX_QUEUES	128
+#define DPAA_ETH_PCD_RXQ_NUM	128
 
 #define DPAA_ENQUEUE_RETRIES	100000
 
@@ -169,6 +169,7 @@ struct fm_port_fqs {
 	struct dpaa_fq *tx_errq;
 	struct dpaa_fq *rx_defq;
 	struct dpaa_fq *rx_errq;
+	struct dpaa_fq *rx_pcdq;
 };
 
 /* All the dpa bps in use at any moment */
@@ -235,7 +236,7 @@ static int dpaa_netdev_init(struct net_device *net_dev,
 	net_dev->max_mtu = dpaa_get_max_mtu();
 
 	net_dev->hw_features |= (NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
-				 NETIF_F_LLTX);
+				 NETIF_F_LLTX | NETIF_F_RXHASH);
 
 	net_dev->hw_features |= NETIF_F_SG | NETIF_F_HIGHDMA;
 	/* The kernels enables GSO automatically, if we declare NETIF_F_SG.
@@ -342,18 +343,19 @@ static void dpaa_get_stats64(struct net_device *net_dev,
 	}
 }
 
-static int dpaa_setup_tc(struct net_device *net_dev, u32 handle, __be16 proto,
-			 struct tc_to_netdev *tc)
+static int dpaa_setup_tc(struct net_device *net_dev, enum tc_setup_type type,
+			 void *type_data)
 {
 	struct dpaa_priv *priv = netdev_priv(net_dev);
+	struct tc_mqprio_qopt *mqprio = type_data;
 	u8 num_tc;
 	int i;
 
-	if (tc->type != TC_SETUP_MQPRIO)
-		return -EINVAL;
+	if (type != TC_SETUP_MQPRIO)
+		return -EOPNOTSUPP;
 
-	tc->mqprio->hw = TC_MQPRIO_HW_OFFLOAD_TCS;
-	num_tc = tc->mqprio->num_tc;
+	mqprio->hw = TC_MQPRIO_HW_OFFLOAD_TCS;
+	num_tc = mqprio->num_tc;
 
 	if (num_tc == priv->num_tc)
 		return 0;
@@ -398,8 +400,8 @@ static struct mac_device *dpaa_mac_dev_get(struct platform_device *pdev)
 
 	of_dev = of_find_device_by_node(mac_node);
 	if (!of_dev) {
-		dev_err(dpaa_dev, "of_find_device_by_node(%s) failed\n",
-			mac_node->full_name);
+		dev_err(dpaa_dev, "of_find_device_by_node(%pOF) failed\n",
+			mac_node);
 		of_node_put(mac_node);
 		return ERR_PTR(-EINVAL);
 	}
@@ -627,6 +629,7 @@ static inline void dpaa_assign_wq(struct dpaa_fq *fq, int idx)
 		fq->wq = 5;
 		break;
 	case FQ_TYPE_RX_DEFAULT:
+	case FQ_TYPE_RX_PCD:
 		fq->wq = 6;
 		break;
 	case FQ_TYPE_TX:
@@ -687,6 +690,7 @@ static int dpaa_alloc_all_fqs(struct device *dev, struct list_head *list,
 			      struct fm_port_fqs *port_fqs)
 {
 	struct dpaa_fq *dpaa_fq;
+	u32 fq_base, fq_base_aligned, i;
 
 	dpaa_fq = dpaa_fq_alloc(dev, 0, 1, list, FQ_TYPE_RX_ERROR);
 	if (!dpaa_fq)
@@ -699,6 +703,26 @@ static int dpaa_alloc_all_fqs(struct device *dev, struct list_head *list,
 		goto fq_alloc_failed;
 
 	port_fqs->rx_defq = &dpaa_fq[0];
+
+	/* the PCD FQIDs range needs to be aligned for correct operation */
+	if (qman_alloc_fqid_range(&fq_base, 2 * DPAA_ETH_PCD_RXQ_NUM))
+		goto fq_alloc_failed;
+
+	fq_base_aligned = ALIGN(fq_base, DPAA_ETH_PCD_RXQ_NUM);
+
+	for (i = fq_base; i < fq_base_aligned; i++)
+		qman_release_fqid(i);
+
+	for (i = fq_base_aligned + DPAA_ETH_PCD_RXQ_NUM;
+	     i < (fq_base + 2 * DPAA_ETH_PCD_RXQ_NUM); i++)
+		qman_release_fqid(i);
+
+	dpaa_fq = dpaa_fq_alloc(dev, fq_base_aligned, DPAA_ETH_PCD_RXQ_NUM,
+				list, FQ_TYPE_RX_PCD);
+	if (!dpaa_fq)
+		goto fq_alloc_failed;
+
+	port_fqs->rx_pcdq = &dpaa_fq[0];
 
 	if (!dpaa_fq_alloc(dev, 0, DPAA_ETH_TXQ_NUM, list, FQ_TYPE_TX_CONF_MQ))
 		goto fq_alloc_failed;
@@ -869,13 +893,14 @@ static void dpaa_fq_setup(struct dpaa_priv *priv,
 			  const struct dpaa_fq_cbs *fq_cbs,
 			  struct fman_port *tx_port)
 {
-	int egress_cnt = 0, conf_cnt = 0, num_portals = 0, cpu;
+	int egress_cnt = 0, conf_cnt = 0, num_portals = 0, portal_cnt = 0, cpu;
 	const cpumask_t *affine_cpus = qman_affine_cpus();
-	u16 portals[NR_CPUS];
+	u16 channels[NR_CPUS];
 	struct dpaa_fq *fq;
 
 	for_each_cpu(cpu, affine_cpus)
-		portals[num_portals++] = qman_affine_channel(cpu);
+		channels[num_portals++] = qman_affine_channel(cpu);
+
 	if (num_portals == 0)
 		dev_err(priv->net_dev->dev.parent,
 			"No Qman software (affine) channels found");
@@ -888,6 +913,12 @@ static void dpaa_fq_setup(struct dpaa_priv *priv,
 			break;
 		case FQ_TYPE_RX_ERROR:
 			dpaa_setup_ingress(priv, fq, &fq_cbs->rx_errq);
+			break;
+		case FQ_TYPE_RX_PCD:
+			if (!num_portals)
+				continue;
+			dpaa_setup_ingress(priv, fq, &fq_cbs->rx_defq);
+			fq->channel = channels[portal_cnt++ % num_portals];
 			break;
 		case FQ_TYPE_TX:
 			dpaa_setup_egress(priv, fq, tx_port,
@@ -1038,7 +1069,8 @@ static int dpaa_fq_init(struct dpaa_fq *dpaa_fq, bool td_enable)
 		/* Put all the ingress queues in our "ingress CGR". */
 		if (priv->use_ingress_cgr &&
 		    (dpaa_fq->fq_type == FQ_TYPE_RX_DEFAULT ||
-		     dpaa_fq->fq_type == FQ_TYPE_RX_ERROR)) {
+		     dpaa_fq->fq_type == FQ_TYPE_RX_ERROR ||
+		     dpaa_fq->fq_type == FQ_TYPE_RX_PCD)) {
 			initfq.we_mask |= cpu_to_be16(QM_INITFQ_WE_CGID);
 			initfq.fqd.fq_ctrl |= cpu_to_be16(QM_FQCTRL_CGE);
 			initfq.fqd.cgid = (u8)priv->ingress_cgr.cgrid;
@@ -1169,7 +1201,7 @@ static int dpaa_eth_init_tx_port(struct fman_port *port, struct dpaa_fq *errq,
 
 static int dpaa_eth_init_rx_port(struct fman_port *port, struct dpaa_bp **bps,
 				 size_t count, struct dpaa_fq *errq,
-				 struct dpaa_fq *defq,
+				 struct dpaa_fq *defq, struct dpaa_fq *pcdq,
 				 struct dpaa_buffer_layout *buf_layout)
 {
 	struct fman_buffer_prefix_content buf_prefix_content;
@@ -1189,6 +1221,10 @@ static int dpaa_eth_init_rx_port(struct fman_port *port, struct dpaa_bp **bps,
 	rx_p = &params.specific_params.rx_params;
 	rx_p->err_fqid = errq->fqid;
 	rx_p->dflt_fqid = defq->fqid;
+	if (pcdq) {
+		rx_p->pcd_base_fqid = pcdq->fqid;
+		rx_p->pcd_fqs_count = DPAA_ETH_PCD_RXQ_NUM;
+	}
 
 	count = min(ARRAY_SIZE(rx_p->ext_buf_pools.ext_buf_pool), count);
 	rx_p->ext_buf_pools.num_of_pools_used = (u8)count;
@@ -1233,7 +1269,8 @@ static int dpaa_eth_init_ports(struct mac_device *mac_dev,
 		return err;
 
 	err = dpaa_eth_init_rx_port(rxport, bps, count, port_fqs->rx_errq,
-				    port_fqs->rx_defq, &buf_layout[RX]);
+				    port_fqs->rx_defq, port_fqs->rx_pcdq,
+				    &buf_layout[RX]);
 
 	return err;
 }
@@ -2200,12 +2237,13 @@ static enum qman_cb_dqrr_result rx_default_dqrr(struct qman_portal *portal,
 	dma_addr_t addr = qm_fd_addr(fd);
 	enum qm_fd_format fd_format;
 	struct net_device *net_dev;
-	u32 fd_status;
+	u32 fd_status, hash_offset;
 	struct dpaa_bp *dpaa_bp;
 	struct dpaa_priv *priv;
 	unsigned int skb_len;
 	struct sk_buff *skb;
 	int *count_ptr;
+	void *vaddr;
 
 	fd_status = be32_to_cpu(fd->status);
 	fd_format = qm_fd_get_format(fd);
@@ -2251,7 +2289,8 @@ static enum qman_cb_dqrr_result rx_default_dqrr(struct qman_portal *portal,
 	dma_unmap_single(dpaa_bp->dev, addr, dpaa_bp->size, DMA_FROM_DEVICE);
 
 	/* prefetch the first 64 bytes of the frame or the SGT start */
-	prefetch(phys_to_virt(addr) + qm_fd_get_offset(fd));
+	vaddr = phys_to_virt(addr);
+	prefetch(vaddr + qm_fd_get_offset(fd));
 
 	fd_format = qm_fd_get_format(fd);
 	/* The only FD types that we may receive are contig and S/G */
@@ -2271,6 +2310,18 @@ static enum qman_cb_dqrr_result rx_default_dqrr(struct qman_portal *portal,
 		return qman_cb_dqrr_consume;
 
 	skb->protocol = eth_type_trans(skb, net_dev);
+
+	if (net_dev->features & NETIF_F_RXHASH && priv->keygen_in_use &&
+	    !fman_port_get_hash_result_offset(priv->mac_dev->port[RX],
+					      &hash_offset)) {
+		enum pkt_hash_types type;
+
+		/* if L4 exists, it was used in the hash generation */
+		type = be32_to_cpu(fd->status) & FM_FD_STAT_L4CV ?
+			PKT_HASH_TYPE_L4 : PKT_HASH_TYPE_L3;
+		skb_set_hash(skb, be32_to_cpu(*(u32 *)(vaddr + hash_offset)),
+			     type);
+	}
 
 	skb_len = skb->len;
 
@@ -2510,6 +2561,9 @@ static struct dpaa_bp *dpaa_bp_alloc(struct device *dev)
 
 	dpaa_bp->bpid = FSL_DPAA_BPID_INV;
 	dpaa_bp->percpu_count = devm_alloc_percpu(dev, *dpaa_bp->percpu_count);
+	if (!dpaa_bp->percpu_count)
+		return ERR_PTR(-ENOMEM);
+
 	dpaa_bp->config_count = FSL_DPAA_ETH_MAX_BUF_COUNT;
 
 	dpaa_bp->seed_cb = dpaa_bp_seed;
@@ -2737,6 +2791,9 @@ static int dpaa_eth_probe(struct platform_device *pdev)
 	if (err)
 		goto init_ports_failed;
 
+	/* Rx traffic distribution based on keygen hashing defaults to on */
+	priv->keygen_in_use = true;
+
 	priv->percpu_priv = devm_alloc_percpu(dev, *priv->percpu_priv);
 	if (!priv->percpu_priv) {
 		dev_err(dev, "devm_alloc_percpu() failed\n");
@@ -2829,7 +2886,7 @@ static int dpaa_remove(struct platform_device *pdev)
 	return err;
 }
 
-static struct platform_device_id dpaa_devtype[] = {
+static const struct platform_device_id dpaa_devtype[] = {
 	{
 		.name = "dpaa-ethernet",
 		.driver_data = 0,

@@ -335,6 +335,10 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 				maj = ((pvr >> 8) & 0xFF) - 1;
 				min = pvr & 0xFF;
 				break;
+			case 0x004e: /* POWER9 bits 12-15 give chip type */
+				maj = (pvr >> 8) & 0x0F;
+				min = pvr & 0xFF;
+				break;
 			default:
 				maj = (pvr >> 8) & 0xFF;
 				min = pvr & 0xFF;
@@ -477,7 +481,7 @@ void __init smp_setup_cpu_maps(void)
 		__be32 cpu_be;
 		int j, len;
 
-		DBG("  * %s...\n", dn->full_name);
+		DBG("  * %pOF...\n", dn);
 
 		intserv = of_get_property(dn, "ibm,ppc-interrupt-server#s",
 				&len);
@@ -547,7 +551,7 @@ void __init smp_setup_cpu_maps(void)
 		if (maxcpus > nr_cpu_ids) {
 			printk(KERN_WARNING
 			       "Partition configured for %d cpus, "
-			       "operating system maximum is %d.\n",
+			       "operating system maximum is %u.\n",
 			       maxcpus, nr_cpu_ids);
 			maxcpus = nr_cpu_ids;
 		} else
@@ -700,30 +704,6 @@ int check_legacy_ioport(unsigned long base_port)
 }
 EXPORT_SYMBOL(check_legacy_ioport);
 
-static int ppc_panic_event(struct notifier_block *this,
-                             unsigned long event, void *ptr)
-{
-	/*
-	 * If firmware-assisted dump has been registered then trigger
-	 * firmware-assisted dump and let firmware handle everything else.
-	 */
-	crash_fadump(NULL, ptr);
-	ppc_md.panic(ptr);  /* May not return */
-	return NOTIFY_DONE;
-}
-
-static struct notifier_block ppc_panic_block = {
-	.notifier_call = ppc_panic_event,
-	.priority = INT_MIN /* may not return; must be done last */
-};
-
-void __init setup_panic(void)
-{
-	if (!ppc_md.panic)
-		return;
-	atomic_notifier_chain_register(&panic_notifier_list, &ppc_panic_block);
-}
-
 #ifdef CONFIG_CHECK_CACHE_COHERENCY
 /*
  * For platforms that have configurable cache-coherency.  This function
@@ -868,9 +848,6 @@ void __init setup_arch(char **cmdline_p)
 	/* Probe the machine type, establish ppc_md. */
 	probe_machine();
 
-	/* Setup panic notifier if requested by the platform. */
-	setup_panic();
-
 	/*
 	 * Configure ppc_md.power_save (ppc32 only, 64-bit machines do
 	 * it from their respective probe() function.
@@ -912,13 +889,6 @@ void __init setup_arch(char **cmdline_p)
 	/* Reserve large chunks of memory for use by CMA for KVM. */
 	kvm_cma_reserve();
 
-	/*
-	 * Reserve any gigantic pages requested on the command line.
-	 * memblock needs to have been initialized by the time this is
-	 * called since this will reserve memory.
-	 */
-	reserve_hugetlb_gpages();
-
 	klp_init_thread_info(&init_thread_info);
 
 	init_mm.start_code = (unsigned long)_stext;
@@ -934,9 +904,6 @@ void __init setup_arch(char **cmdline_p)
 #endif
 #endif
 
-#ifdef CONFIG_PPC_64K_PAGES
-	init_mm.context.pte_frag = NULL;
-#endif
 #ifdef CONFIG_SPAPR_TCE_IOMMU
 	mm_iommu_init(&init_mm);
 #endif

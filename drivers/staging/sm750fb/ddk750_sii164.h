@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef DDK750_SII164_H__
 #define DDK750_SII164_H__
 
@@ -13,18 +14,16 @@ typedef enum _sii164_hot_plug_mode_t {
 
 
 /* Silicon Image SiI164 chip prototype */
-long sii164InitChip(
-	unsigned char edgeSelect,
-	unsigned char busSelect,
-	unsigned char dualEdgeClkSelect,
-	unsigned char hsyncEnable,
-	unsigned char vsyncEnable,
-	unsigned char deskewEnable,
-	unsigned char deskewSetting,
-	unsigned char continuousSyncEnable,
-	unsigned char pllFilterEnable,
-	unsigned char pllFilterValue
-);
+long sii164InitChip(unsigned char edgeSelect,
+		    unsigned char busSelect,
+		    unsigned char dualEdgeClkSelect,
+		    unsigned char hsyncEnable,
+		    unsigned char vsyncEnable,
+		    unsigned char deskewEnable,
+		    unsigned char deskewSetting,
+		    unsigned char continuousSyncEnable,
+		    unsigned char pllFilterEnable,
+		    unsigned char pllFilterValue);
 
 unsigned short sii164GetVendorID(void);
 unsigned short sii164GetDeviceID(void);

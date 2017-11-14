@@ -145,6 +145,9 @@ static int __init uefi_init(void)
 					 sizeof(efi_config_table_t),
 					 arch_tables);
 
+	if (!retval)
+		efi.config_table = (unsigned long)efi.systab->tables;
+
 	early_memunmap(config_tables, table_size);
 out:
 	early_memunmap(efi.systab,  sizeof(efi_system_table_t));
@@ -159,6 +162,7 @@ static __init int is_usable_memory(efi_memory_desc_t *md)
 	switch (md->type) {
 	case EFI_LOADER_CODE:
 	case EFI_LOADER_DATA:
+	case EFI_ACPI_RECLAIM_MEMORY:
 	case EFI_BOOT_SERVICES_CODE:
 	case EFI_BOOT_SERVICES_DATA:
 	case EFI_CONVENTIONAL_MEMORY:
@@ -211,6 +215,10 @@ static __init void reserve_regions(void)
 
 			if (!is_usable_memory(md))
 				memblock_mark_nomap(paddr, size);
+
+			/* keep ACPI reclaim memory intact for kexec etc. */
+			if (md->type == EFI_ACPI_RECLAIM_MEMORY)
+				memblock_reserve(paddr, size);
 		}
 	}
 }

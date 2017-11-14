@@ -43,24 +43,12 @@
  *  @{
  */
 
-static inline void lov_sub_enter(struct lov_io_sub *sub)
-{
-	sub->sub_reenter++;
-}
-
-static inline void lov_sub_exit(struct lov_io_sub *sub)
-{
-	sub->sub_reenter--;
-}
-
 static void lov_io_sub_fini(const struct lu_env *env, struct lov_io *lio,
 			    struct lov_io_sub *sub)
 {
 	if (sub->sub_io) {
 		if (sub->sub_io_initialized) {
-			lov_sub_enter(sub);
 			cl_io_fini(sub->sub_env, sub->sub_io);
-			lov_sub_exit(sub);
 			sub->sub_io_initialized = 0;
 			lio->lis_active_subios--;
 		}
@@ -142,13 +130,11 @@ static int lov_io_sub_init(const struct lu_env *env, struct lov_io *lio,
 			   struct lov_io_sub *sub)
 {
 	struct lov_object *lov = lio->lis_object;
-	struct lov_device *ld  = lu2lov_dev(lov2cl(lov)->co_lu.lo_dev);
 	struct cl_io      *sub_io;
 	struct cl_object  *sub_obj;
 	struct cl_io      *io  = lio->lis_cl.cis_io;
-
 	int stripe = sub->sub_stripe;
-	int result;
+	int rc;
 
 	LASSERT(!sub->sub_io);
 	LASSERT(!sub->sub_env);
@@ -157,63 +143,53 @@ static int lov_io_sub_init(const struct lu_env *env, struct lov_io *lio,
 	if (unlikely(!lov_r0(lov)->lo_sub[stripe]))
 		return -EIO;
 
-	result = 0;
 	sub->sub_io_initialized = 0;
 	sub->sub_borrowed = 0;
 
-	if (lio->lis_mem_frozen) {
-		LASSERT(mutex_is_locked(&ld->ld_mutex));
-		sub->sub_io  = &ld->ld_emrg[stripe]->emrg_subio;
-		sub->sub_env = ld->ld_emrg[stripe]->emrg_env;
-		sub->sub_borrowed = 1;
+	/* obtain new environment */
+	sub->sub_env = cl_env_get(&sub->sub_refcheck);
+	if (IS_ERR(sub->sub_env)) {
+		rc = PTR_ERR(sub->sub_env);
+		goto fini_lov_io;
+	}
+
+	/*
+	 * First sub-io. Use ->lis_single_subio to
+	 * avoid dynamic allocation.
+	 */
+	if (lio->lis_active_subios == 0) {
+		sub->sub_io = &lio->lis_single_subio;
+		lio->lis_single_subio_index = stripe;
 	} else {
-		sub->sub_env = cl_env_get(&sub->sub_refcheck);
-		if (IS_ERR(sub->sub_env))
-			result = PTR_ERR(sub->sub_env);
-
-		if (result == 0) {
-			/*
-			 * First sub-io. Use ->lis_single_subio to
-			 * avoid dynamic allocation.
-			 */
-			if (lio->lis_active_subios == 0) {
-				sub->sub_io = &lio->lis_single_subio;
-				lio->lis_single_subio_index = stripe;
-			} else {
-				sub->sub_io = kzalloc(sizeof(*sub->sub_io),
-						      GFP_NOFS);
-				if (!sub->sub_io)
-					result = -ENOMEM;
-			}
+		sub->sub_io = kzalloc(sizeof(*sub->sub_io),
+				      GFP_NOFS);
+		if (!sub->sub_io) {
+			rc = -ENOMEM;
+			goto fini_lov_io;
 		}
 	}
 
-	if (result == 0) {
-		sub_obj = lovsub2cl(lov_r0(lov)->lo_sub[stripe]);
-		sub_io  = sub->sub_io;
+	sub_obj = lovsub2cl(lov_r0(lov)->lo_sub[stripe]);
+	sub_io = sub->sub_io;
 
-		sub_io->ci_obj    = sub_obj;
-		sub_io->ci_result = 0;
+	sub_io->ci_obj = sub_obj;
+	sub_io->ci_result = 0;
+	sub_io->ci_parent = io;
+	sub_io->ci_lockreq = io->ci_lockreq;
+	sub_io->ci_type = io->ci_type;
+	sub_io->ci_no_srvlock = io->ci_no_srvlock;
+	sub_io->ci_noatime = io->ci_noatime;
 
-		sub_io->ci_parent  = io;
-		sub_io->ci_lockreq = io->ci_lockreq;
-		sub_io->ci_type    = io->ci_type;
-		sub_io->ci_no_srvlock = io->ci_no_srvlock;
-		sub_io->ci_noatime = io->ci_noatime;
-
-		lov_sub_enter(sub);
-		result = cl_io_sub_init(sub->sub_env, sub_io,
-					io->ci_type, sub_obj);
-		lov_sub_exit(sub);
-		if (result >= 0) {
-			lio->lis_active_subios++;
-			sub->sub_io_initialized = 1;
-			result = 0;
-		}
+	rc = cl_io_sub_init(sub->sub_env, sub_io, io->ci_type, sub_obj);
+	if (rc >= 0) {
+		lio->lis_active_subios++;
+		sub->sub_io_initialized = 1;
+		rc = 0;
 	}
-	if (result != 0)
+fini_lov_io:
+	if (rc)
 		lov_io_sub_fini(env, lio, sub);
-	return result;
+	return rc;
 }
 
 struct lov_io_sub *lov_sub_get(const struct lu_env *env,
@@ -230,16 +206,10 @@ struct lov_io_sub *lov_sub_get(const struct lu_env *env,
 	} else {
 		rc = 0;
 	}
-	if (rc == 0)
-		lov_sub_enter(sub);
-	else
+	if (rc < 0)
 		sub = ERR_PTR(rc);
-	return sub;
-}
 
-void lov_sub_put(struct lov_io_sub *sub)
-{
-	lov_sub_exit(sub);
+	return sub;
 }
 
 /*****************************************************************************
@@ -256,22 +226,6 @@ int lov_page_stripe(const struct cl_page *page)
 	LASSERT(slice->cpl_obj);
 
 	return cl2lov_page(slice)->lps_stripe;
-}
-
-struct lov_io_sub *lov_page_subio(const struct lu_env *env, struct lov_io *lio,
-				  const struct cl_page_slice *slice)
-{
-	struct lov_stripe_md *lsm  = lio->lis_object->lo_lsm;
-	struct cl_page       *page = slice->cpl_page;
-	int stripe;
-
-	LASSERT(lio->lis_cl.cis_io);
-	LASSERT(cl2lov(slice->cpl_obj) == lio->lis_object);
-	LASSERT(lsm);
-	LASSERT(lio->lis_nr_subios > 0);
-
-	stripe = lov_page_stripe(page);
-	return lov_sub_get(env, lio, stripe);
 }
 
 static int lov_io_subio_init(const struct lu_env *env, struct lov_io *lio,
@@ -431,12 +385,10 @@ static int lov_io_iter_init(const struct lu_env *env,
 
 		lov_io_sub_inherit(sub->sub_io, lio, stripe, start, end);
 		rc = cl_io_iter_init(sub->sub_env, sub->sub_io);
-		if (rc)
+		if (rc) {
 			cl_io_iter_fini(sub->sub_env, sub->sub_io);
-		lov_sub_put(sub);
-		if (rc)
 			break;
-
+		}
 		CDEBUG(D_VFSTRACE, "shrink: %d [%llu, %llu)\n",
 		       stripe, start, end);
 
@@ -488,9 +440,7 @@ static int lov_io_call(const struct lu_env *env, struct lov_io *lio,
 	int rc = 0;
 
 	list_for_each_entry(sub, &lio->lis_active, sub_linkage) {
-		lov_sub_enter(sub);
 		rc = iofunc(sub->sub_env, sub->sub_io);
-		lov_sub_exit(sub);
 		if (rc)
 			break;
 
@@ -610,7 +560,6 @@ static int lov_io_read_ahead(const struct lu_env *env,
 	rc = cl_io_read_ahead(sub->sub_env, sub->sub_io,
 			      cl_index(lovsub2cl(r0->lo_sub[stripe]), suboff),
 			      ra);
-	lov_sub_put(sub);
 
 	CDEBUG(D_READA, DFID " cra_end = %lu, stripes = %d, rc = %d\n",
 	       PFID(lu_object_fid(lov2lu(loo))), ra->cra_end, r0->lo_nr, rc);
@@ -679,7 +628,6 @@ static int lov_io_submit(const struct lu_env *env,
 		LASSERT(sub->sub_io == &lio->lis_single_subio);
 		rc = cl_io_submit_rw(sub->sub_env, sub->sub_io,
 				     crt, queue);
-		lov_sub_put(sub);
 		return rc;
 	}
 
@@ -707,7 +655,6 @@ static int lov_io_submit(const struct lu_env *env,
 		if (!IS_ERR(sub)) {
 			rc = cl_io_submit_rw(sub->sub_env, sub->sub_io,
 					     crt, cl2q);
-			lov_sub_put(sub);
 		} else {
 			rc = PTR_ERR(sub);
 		}
@@ -746,7 +693,6 @@ static int lov_io_commit_async(const struct lu_env *env,
 		LASSERT(sub->sub_io == &lio->lis_single_subio);
 		rc = cl_io_commit_async(sub->sub_env, sub->sub_io, queue,
 					from, to, cb);
-		lov_sub_put(sub);
 		return rc;
 	}
 
@@ -777,7 +723,6 @@ static int lov_io_commit_async(const struct lu_env *env,
 		if (!IS_ERR(sub)) {
 			rc = cl_io_commit_async(sub->sub_env, sub->sub_io,
 						plist, from, stripe_to, cb);
-			lov_sub_put(sub);
 		} else {
 			rc = PTR_ERR(sub);
 			break;
@@ -813,7 +758,6 @@ static int lov_io_fault_start(const struct lu_env *env,
 	if (IS_ERR(sub))
 		return PTR_ERR(sub);
 	sub->sub_io->u.ci_fault.ft_nob = fio->ft_nob;
-	lov_sub_put(sub);
 	return lov_io_start(env, ios);
 }
 
@@ -828,9 +772,7 @@ static void lov_io_fsync_end(const struct lu_env *env,
 	list_for_each_entry(sub, &lio->lis_active, sub_linkage) {
 		struct cl_io *subio = sub->sub_io;
 
-		lov_sub_enter(sub);
 		lov_io_end_wrapper(sub->sub_env, subio);
-		lov_sub_exit(sub);
 
 		if (subio->ci_result == 0)
 			*written += subio->u.ci_fsync.fi_nr_written;
@@ -939,12 +881,6 @@ static const struct cl_io_operations lov_empty_io_ops = {
 	.op = {
 		[CIT_READ] = {
 			.cio_fini       = lov_empty_io_fini,
-#if 0
-			.cio_iter_init  = LOV_EMPTY_IMPOSSIBLE,
-			.cio_lock       = LOV_EMPTY_IMPOSSIBLE,
-			.cio_start      = LOV_EMPTY_IMPOSSIBLE,
-			.cio_end	= LOV_EMPTY_IMPOSSIBLE
-#endif
 		},
 		[CIT_WRITE] = {
 			.cio_fini      = lov_empty_io_fini,
@@ -1021,7 +957,7 @@ int lov_io_init_empty(const struct lu_env *env, struct cl_object *obj,
 		break;
 	case CIT_FAULT:
 		result = -EFAULT;
-		CERROR("Page fault on a file without stripes: "DFID"\n",
+		CERROR("Page fault on a file without stripes: " DFID "\n",
 		       PFID(lu_object_fid(&obj->co_lu)));
 		break;
 	}
@@ -1047,6 +983,8 @@ int lov_io_init_released(const struct lu_env *env, struct cl_object *obj,
 	switch (io->ci_type) {
 	default:
 		LASSERTF(0, "invalid type %d\n", io->ci_type);
+		result = -EOPNOTSUPP;
+		break;
 	case CIT_MISC:
 	case CIT_FSYNC:
 	case CIT_DATA_VERSION:

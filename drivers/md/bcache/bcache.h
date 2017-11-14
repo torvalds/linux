@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _BCACHE_H
 #define _BCACHE_H
 
@@ -333,6 +334,7 @@ struct cached_dev {
 	/* Limit number of writeback bios in flight */
 	struct semaphore	in_flight;
 	struct task_struct	*writeback_thread;
+	struct workqueue_struct	*writeback_write_wq;
 
 	struct keybuf		writeback_keys;
 
@@ -849,10 +851,11 @@ static inline void wake_up_allocators(struct cache_set *c)
 
 /* Forward declarations */
 
-void bch_count_io_errors(struct cache *, int, const char *);
+void bch_count_io_errors(struct cache *, blk_status_t, const char *);
 void bch_bbio_count_io_errors(struct cache_set *, struct bio *,
-			      int, const char *);
-void bch_bbio_endio(struct cache_set *, struct bio *, int, const char *);
+			      blk_status_t, const char *);
+void bch_bbio_endio(struct cache_set *, struct bio *, blk_status_t,
+		const char *);
 void bch_bbio_free(struct bio *, struct cache_set *);
 struct bio *bch_bbio_alloc(struct cache_set *);
 

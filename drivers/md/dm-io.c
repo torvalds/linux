@@ -58,7 +58,8 @@ struct dm_io_client *dm_io_client_create(void)
 	if (!client->pool)
 		goto bad;
 
-	client->bios = bioset_create(min_ios, 0);
+	client->bios = bioset_create(min_ios, 0, (BIOSET_NEED_BVECS |
+						  BIOSET_NEED_RESCUER));
 	if (!client->bios)
 		goto bad;
 
@@ -124,7 +125,7 @@ static void complete_io(struct io *io)
 	fn(error_bits, context);
 }
 
-static void dec_count(struct io *io, unsigned int region, int error)
+static void dec_count(struct io *io, unsigned int region, blk_status_t error)
 {
 	if (error)
 		set_bit(region, &io->error_bits);
@@ -137,9 +138,9 @@ static void endio(struct bio *bio)
 {
 	struct io *io;
 	unsigned region;
-	int error;
+	blk_status_t error;
 
-	if (bio->bi_error && bio_data_dir(bio) == READ)
+	if (bio->bi_status && bio_data_dir(bio) == READ)
 		zero_fill_bio(bio);
 
 	/*
@@ -147,7 +148,7 @@ static void endio(struct bio *bio)
 	 */
 	retrieve_io_and_region_from_bio(bio, &io, &region);
 
-	error = bio->bi_error;
+	error = bio->bi_status;
 	bio_put(bio);
 
 	dec_count(io, region, error);
@@ -319,7 +320,7 @@ static void do_region(int op, int op_flags, unsigned region,
 	if ((op == REQ_OP_DISCARD || op == REQ_OP_WRITE_ZEROES ||
 	     op == REQ_OP_WRITE_SAME) && special_cmd_max_sectors == 0) {
 		atomic_inc(&io->count);
-		dec_count(io, region, -EOPNOTSUPP);
+		dec_count(io, region, BLK_STS_NOTSUPP);
 		return;
 	}
 
@@ -346,7 +347,7 @@ static void do_region(int op, int op_flags, unsigned region,
 
 		bio = bio_alloc_bioset(GFP_NOIO, num_bvecs, io->client->bios);
 		bio->bi_iter.bi_sector = where->sector + (where->count - remaining);
-		bio->bi_bdev = where->bdev;
+		bio_set_dev(bio, where->bdev);
 		bio->bi_end_io = endio;
 		bio_set_op_attrs(bio, op, op_flags);
 		store_io_and_region_in_bio(bio, io, region);

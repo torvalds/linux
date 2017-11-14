@@ -2255,8 +2255,8 @@ void tipc_sk_reinit(struct net *net)
 
 	do {
 		tsk = ERR_PTR(rhashtable_walk_start(&iter));
-		if (tsk)
-			continue;
+		if (IS_ERR(tsk))
+			goto walk_stop;
 
 		while ((tsk = rhashtable_walk_next(&iter)) && !IS_ERR(tsk)) {
 			spin_lock_bh(&tsk->sk.sk_lock.slock);
@@ -2265,7 +2265,7 @@ void tipc_sk_reinit(struct net *net)
 			msg_set_orignode(msg, tn->own_addr);
 			spin_unlock_bh(&tsk->sk.sk_lock.slock);
 		}
-
+walk_stop:
 		rhashtable_walk_stop(&iter);
 	} while (tsk == ERR_PTR(-EAGAIN));
 }
@@ -2313,7 +2313,7 @@ static void tipc_sk_remove(struct tipc_sock *tsk)
 	struct tipc_net *tn = net_generic(sock_net(sk), tipc_net_id);
 
 	if (!rhashtable_remove_fast(&tn->sk_rht, &tsk->node, tsk_rht_params)) {
-		WARN_ON(atomic_read(&sk->sk_refcnt) == 1);
+		WARN_ON(refcount_read(&sk->sk_refcnt) == 1);
 		__sock_put(sk);
 	}
 }

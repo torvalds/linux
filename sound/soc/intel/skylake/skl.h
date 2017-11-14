@@ -23,6 +23,7 @@
 
 #include <sound/hda_register.h>
 #include <sound/hdaudio_ext.h>
+#include <sound/soc.h>
 #include "skl-nhlt.h"
 
 #define SKL_SUSPEND_DELAY 2000
@@ -41,6 +42,8 @@ struct skl_dsp_resource {
 	u32 mcps;
 	u32 mem;
 };
+
+struct skl_debug;
 
 struct skl {
 	struct hdac_ext_bus ebus;
@@ -66,6 +69,10 @@ struct skl {
 	int supend_active;
 
 	struct work_struct probe_work;
+
+	struct skl_debug *debugfs;
+	u8 nr_modules;
+	struct skl_module **modules;
 };
 
 #define skl_to_ebus(s)	(&(s)->ebus)
@@ -85,6 +92,7 @@ struct skl_machine_pdata {
 
 struct skl_dsp_ops {
 	int id;
+	unsigned int num_cores;
 	struct skl_dsp_loader_ops (*loader_ops)(void);
 	int (*init)(struct device *dev, void __iomem *mmio_base,
 			int irq, const char *fw_name,
@@ -115,5 +123,23 @@ const struct skl_dsp_ops *skl_get_dsp_ops(int pci_id);
 void skl_update_d0i3c(struct device *dev, bool enable);
 int skl_nhlt_create_sysfs(struct skl *skl);
 void skl_nhlt_remove_sysfs(struct skl *skl);
+
+struct skl_module_cfg;
+
+#ifdef CONFIG_DEBUG_FS
+struct skl_debug *skl_debugfs_init(struct skl *skl);
+void skl_debug_init_module(struct skl_debug *d,
+			struct snd_soc_dapm_widget *w,
+			struct skl_module_cfg *mconfig);
+#else
+static inline struct skl_debug *skl_debugfs_init(struct skl *skl)
+{
+	return NULL;
+}
+static inline void skl_debug_init_module(struct skl_debug *d,
+					 struct snd_soc_dapm_widget *w,
+					 struct skl_module_cfg *mconfig)
+{}
+#endif
 
 #endif /* __SOUND_SOC_SKL_H */

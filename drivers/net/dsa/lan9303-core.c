@@ -20,6 +20,11 @@
 
 #include "lan9303.h"
 
+#define LAN9303_NUM_PORTS 3
+
+/* 13.2 System Control and Status Registers
+ * Multiply register number by 4 to get address offset.
+ */
 #define LAN9303_CHIP_REV 0x14
 # define LAN9303_CHIP_ID 0x9303
 #define LAN9303_IRQ_CFG 0x15
@@ -53,6 +58,9 @@
 #define LAN9303_VIRT_PHY_BASE 0x70
 #define LAN9303_VIRT_SPECIAL_CTRL 0x77
 
+/*13.4 Switch Fabric Control and Status Registers
+ * Accessed indirectly via SWITCH_CSR_CMD, SWITCH_CSR_DATA.
+ */
 #define LAN9303_SW_DEV_ID 0x0000
 #define LAN9303_SW_RESET 0x0001
 #define LAN9303_SW_RESET_RESET BIT(0)
@@ -153,9 +161,7 @@
 # define LAN9303_BM_EGRSS_PORT_TYPE_SPECIAL_TAG_PORT1 (BIT(9) | BIT(8))
 # define LAN9303_BM_EGRSS_PORT_TYPE_SPECIAL_TAG_PORT0 (BIT(1) | BIT(0))
 
-#define LAN9303_PORT_0_OFFSET 0x400
-#define LAN9303_PORT_1_OFFSET 0x800
-#define LAN9303_PORT_2_OFFSET 0xc00
+#define LAN9303_SWITCH_PORT_REG(port, reg0) (0x400 * (port) + (reg0))
 
 /* the built-in PHYs are of type LAN911X */
 #define MII_LAN911X_SPECIAL_MODES 0x12
@@ -242,7 +248,7 @@ static int lan9303_virt_phy_reg_write(struct lan9303 *chip, int regnum, u16 val)
 	return regmap_write(chip->regmap, LAN9303_VIRT_PHY_BASE + regnum, val);
 }
 
-static int lan9303_port_phy_reg_wait_for_completion(struct lan9303 *chip)
+static int lan9303_indirect_phy_wait_for_completion(struct lan9303 *chip)
 {
 	int ret, i;
 	u32 reg;
@@ -262,7 +268,7 @@ static int lan9303_port_phy_reg_wait_for_completion(struct lan9303 *chip)
 	return -EIO;
 }
 
-static int lan9303_port_phy_reg_read(struct lan9303 *chip, int addr, int regnum)
+static int lan9303_indirect_phy_read(struct lan9303 *chip, int addr, int regnum)
 {
 	int ret;
 	u32 val;
@@ -272,7 +278,7 @@ static int lan9303_port_phy_reg_read(struct lan9303 *chip, int addr, int regnum)
 
 	mutex_lock(&chip->indirect_mutex);
 
-	ret = lan9303_port_phy_reg_wait_for_completion(chip);
+	ret = lan9303_indirect_phy_wait_for_completion(chip);
 	if (ret)
 		goto on_error;
 
@@ -281,7 +287,7 @@ static int lan9303_port_phy_reg_read(struct lan9303 *chip, int addr, int regnum)
 	if (ret)
 		goto on_error;
 
-	ret = lan9303_port_phy_reg_wait_for_completion(chip);
+	ret = lan9303_indirect_phy_wait_for_completion(chip);
 	if (ret)
 		goto on_error;
 
@@ -299,8 +305,8 @@ on_error:
 	return ret;
 }
 
-static int lan9303_phy_reg_write(struct lan9303 *chip, int addr, int regnum,
-				 unsigned int val)
+static int lan9303_indirect_phy_write(struct lan9303 *chip, int addr,
+				      int regnum, u16 val)
 {
 	int ret;
 	u32 reg;
@@ -311,7 +317,7 @@ static int lan9303_phy_reg_write(struct lan9303 *chip, int addr, int regnum,
 
 	mutex_lock(&chip->indirect_mutex);
 
-	ret = lan9303_port_phy_reg_wait_for_completion(chip);
+	ret = lan9303_indirect_phy_wait_for_completion(chip);
 	if (ret)
 		goto on_error;
 
@@ -327,6 +333,12 @@ on_error:
 	mutex_unlock(&chip->indirect_mutex);
 	return ret;
 }
+
+const struct lan9303_phy_ops lan9303_indirect_phy_ops = {
+	.phy_read = lan9303_indirect_phy_read,
+	.phy_write = lan9303_indirect_phy_write,
+};
+EXPORT_SYMBOL_GPL(lan9303_indirect_phy_ops);
 
 static int lan9303_switch_wait_for_completion(struct lan9303 *chip)
 {
@@ -416,6 +428,20 @@ on_error:
 	return ret;
 }
 
+static int lan9303_write_switch_port(struct lan9303 *chip, int port,
+				     u16 regnum, u32 val)
+{
+	return lan9303_write_switch_reg(
+		chip, LAN9303_SWITCH_PORT_REG(port, regnum), val);
+}
+
+static int lan9303_read_switch_port(struct lan9303 *chip, int port,
+				    u16 regnum, u32 *val)
+{
+	return lan9303_read_switch_reg(
+		chip, LAN9303_SWITCH_PORT_REG(port, regnum), val);
+}
+
 static int lan9303_detect_phy_setup(struct lan9303 *chip)
 {
 	int reg;
@@ -427,14 +453,15 @@ static int lan9303_detect_phy_setup(struct lan9303 *chip)
 	 * Special reg 18 of phy 3 reads as 0x0000, if 'phy_addr_sel_strap' is 0
 	 * and the IDs are 0-1-2, else it contains something different from
 	 * 0x0000, which means 'phy_addr_sel_strap' is 1 and the IDs are 1-2-3.
+	 * 0xffff is returned on MDIO read with no response.
 	 */
-	reg = lan9303_port_phy_reg_read(chip, 3, MII_LAN911X_SPECIAL_MODES);
+	reg = chip->ops->phy_read(chip, 3, MII_LAN911X_SPECIAL_MODES);
 	if (reg < 0) {
 		dev_err(chip->dev, "Failed to detect phy config: %d\n", reg);
 		return reg;
 	}
 
-	if (reg != 0)
+	if ((reg != 0) && (reg != 0xffff))
 		chip->phy_addr_sel_strap = 1;
 	else
 		chip->phy_addr_sel_strap = 0;
@@ -445,40 +472,37 @@ static int lan9303_detect_phy_setup(struct lan9303 *chip)
 	return 0;
 }
 
-#define LAN9303_MAC_RX_CFG_OFFS (LAN9303_MAC_RX_CFG_0 - LAN9303_PORT_0_OFFSET)
-#define LAN9303_MAC_TX_CFG_OFFS (LAN9303_MAC_TX_CFG_0 - LAN9303_PORT_0_OFFSET)
-
-static int lan9303_disable_packet_processing(struct lan9303 *chip,
-					     unsigned int port)
+static int lan9303_disable_processing_port(struct lan9303 *chip,
+					   unsigned int port)
 {
 	int ret;
 
 	/* disable RX, but keep register reset default values else */
-	ret = lan9303_write_switch_reg(chip, LAN9303_MAC_RX_CFG_OFFS + port,
-				       LAN9303_MAC_RX_CFG_X_REJECT_MAC_TYPES);
+	ret = lan9303_write_switch_port(chip, port, LAN9303_MAC_RX_CFG_0,
+					LAN9303_MAC_RX_CFG_X_REJECT_MAC_TYPES);
 	if (ret)
 		return ret;
 
 	/* disable TX, but keep register reset default values else */
-	return lan9303_write_switch_reg(chip, LAN9303_MAC_TX_CFG_OFFS + port,
+	return lan9303_write_switch_port(chip, port, LAN9303_MAC_TX_CFG_0,
 				LAN9303_MAC_TX_CFG_X_TX_IFG_CONFIG_DEFAULT |
 				LAN9303_MAC_TX_CFG_X_TX_PAD_ENABLE);
 }
 
-static int lan9303_enable_packet_processing(struct lan9303 *chip,
-					    unsigned int port)
+static int lan9303_enable_processing_port(struct lan9303 *chip,
+					  unsigned int port)
 {
 	int ret;
 
 	/* enable RX and keep register reset default values else */
-	ret = lan9303_write_switch_reg(chip, LAN9303_MAC_RX_CFG_OFFS + port,
-				       LAN9303_MAC_RX_CFG_X_REJECT_MAC_TYPES |
-				       LAN9303_MAC_RX_CFG_X_RX_ENABLE);
+	ret = lan9303_write_switch_port(chip, port, LAN9303_MAC_RX_CFG_0,
+					LAN9303_MAC_RX_CFG_X_REJECT_MAC_TYPES |
+					LAN9303_MAC_RX_CFG_X_RX_ENABLE);
 	if (ret)
 		return ret;
 
 	/* enable TX and keep register reset default values else */
-	return lan9303_write_switch_reg(chip, LAN9303_MAC_TX_CFG_OFFS + port,
+	return lan9303_write_switch_port(chip, port, LAN9303_MAC_TX_CFG_0,
 				LAN9303_MAC_TX_CFG_X_TX_IFG_CONFIG_DEFAULT |
 				LAN9303_MAC_TX_CFG_X_TX_PAD_ENABLE |
 				LAN9303_MAC_TX_CFG_X_TX_ENABLE);
@@ -543,15 +567,16 @@ static int lan9303_handle_reset(struct lan9303 *chip)
 /* stop processing packets for all ports */
 static int lan9303_disable_processing(struct lan9303 *chip)
 {
-	int ret;
+	int p;
 
-	ret = lan9303_disable_packet_processing(chip, LAN9303_PORT_0_OFFSET);
-	if (ret)
-		return ret;
-	ret = lan9303_disable_packet_processing(chip, LAN9303_PORT_1_OFFSET);
-	if (ret)
-		return ret;
-	return lan9303_disable_packet_processing(chip, LAN9303_PORT_2_OFFSET);
+	for (p = 0; p < LAN9303_NUM_PORTS; p++) {
+		int ret = lan9303_disable_processing_port(chip, p);
+
+		if (ret)
+			return ret;
+	}
+
+	return 0;
 }
 
 static int lan9303_check_device(struct lan9303 *chip)
@@ -621,7 +646,7 @@ static int lan9303_setup(struct dsa_switch *ds)
 	if (ret)
 		dev_err(chip->dev, "failed to separate ports %d\n", ret);
 
-	ret = lan9303_enable_packet_processing(chip, LAN9303_PORT_0_OFFSET);
+	ret = lan9303_enable_processing_port(chip, 0);
 	if (ret)
 		dev_err(chip->dev, "failed to re-enable switching %d\n", ret);
 
@@ -687,19 +712,18 @@ static void lan9303_get_ethtool_stats(struct dsa_switch *ds, int port,
 				      uint64_t *data)
 {
 	struct lan9303 *chip = ds->priv;
-	u32 reg;
-	unsigned int u, poff;
-	int ret;
-
-	poff = port * 0x400;
+	unsigned int u;
 
 	for (u = 0; u < ARRAY_SIZE(lan9303_mib); u++) {
-		ret = lan9303_read_switch_reg(chip,
-					      lan9303_mib[u].offset + poff,
-					      &reg);
+		u32 reg;
+		int ret;
+
+		ret = lan9303_read_switch_port(
+			chip, port, lan9303_mib[u].offset, &reg);
+
 		if (ret)
-			dev_warn(chip->dev, "Reading status reg %u failed\n",
-				 lan9303_mib[u].offset + poff);
+			dev_warn(chip->dev, "Reading status port %d reg %u failed\n",
+				 port, lan9303_mib[u].offset);
 		data[u] = reg;
 	}
 }
@@ -719,7 +743,7 @@ static int lan9303_phy_read(struct dsa_switch *ds, int phy, int regnum)
 	if (phy > phy_base + 2)
 		return -ENODEV;
 
-	return lan9303_port_phy_reg_read(chip, phy, regnum);
+	return chip->ops->phy_read(chip, phy, regnum);
 }
 
 static int lan9303_phy_write(struct dsa_switch *ds, int phy, int regnum,
@@ -733,7 +757,7 @@ static int lan9303_phy_write(struct dsa_switch *ds, int phy, int regnum,
 	if (phy > phy_base + 2)
 		return -ENODEV;
 
-	return lan9303_phy_reg_write(chip, phy, regnum, val);
+	return chip->ops->phy_write(chip, phy, regnum, val);
 }
 
 static int lan9303_port_enable(struct dsa_switch *ds, int port,
@@ -744,11 +768,8 @@ static int lan9303_port_enable(struct dsa_switch *ds, int port,
 	/* enable internal packet processing */
 	switch (port) {
 	case 1:
-		return lan9303_enable_packet_processing(chip,
-							LAN9303_PORT_1_OFFSET);
 	case 2:
-		return lan9303_enable_packet_processing(chip,
-							LAN9303_PORT_2_OFFSET);
+		return lan9303_enable_processing_port(chip, port);
 	default:
 		dev_dbg(chip->dev,
 			"Error: request to power up invalid port %d\n", port);
@@ -765,14 +786,10 @@ static void lan9303_port_disable(struct dsa_switch *ds, int port,
 	/* disable internal packet processing */
 	switch (port) {
 	case 1:
-		lan9303_disable_packet_processing(chip, LAN9303_PORT_1_OFFSET);
-		lan9303_phy_reg_write(chip, chip->phy_addr_sel_strap + 1,
-				      MII_BMCR, BMCR_PDOWN);
-		break;
 	case 2:
-		lan9303_disable_packet_processing(chip, LAN9303_PORT_2_OFFSET);
-		lan9303_phy_reg_write(chip, chip->phy_addr_sel_strap + 2,
-				      MII_BMCR, BMCR_PDOWN);
+		lan9303_disable_processing_port(chip, port);
+		lan9303_phy_write(ds, chip->phy_addr_sel_strap + port,
+				  MII_BMCR, BMCR_PDOWN);
 		break;
 	default:
 		dev_dbg(chip->dev,
@@ -780,7 +797,7 @@ static void lan9303_port_disable(struct dsa_switch *ds, int port,
 	}
 }
 
-static struct dsa_switch_ops lan9303_switch_ops = {
+static const struct dsa_switch_ops lan9303_switch_ops = {
 	.get_tag_protocol = lan9303_get_tag_protocol,
 	.setup = lan9303_setup,
 	.get_strings = lan9303_get_strings,
@@ -794,7 +811,7 @@ static struct dsa_switch_ops lan9303_switch_ops = {
 
 static int lan9303_register_switch(struct lan9303 *chip)
 {
-	chip->ds = dsa_switch_alloc(chip->dev, DSA_MAX_PORTS);
+	chip->ds = dsa_switch_alloc(chip->dev, LAN9303_NUM_PORTS);
 	if (!chip->ds)
 		return -ENOMEM;
 
@@ -802,7 +819,7 @@ static int lan9303_register_switch(struct lan9303 *chip)
 	chip->ds->ops = &lan9303_switch_ops;
 	chip->ds->phys_mii_mask = chip->phy_addr_sel_strap ? 0xe : 0x7;
 
-	return dsa_register_switch(chip->ds, chip->dev);
+	return dsa_register_switch(chip->ds);
 }
 
 static void lan9303_probe_reset_gpio(struct lan9303 *chip,

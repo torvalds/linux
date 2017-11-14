@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (c) 2013 Trond Myklebust <Trond.Myklebust@netapp.com>
  */
@@ -890,6 +891,35 @@ DEFINE_NFS4_LOOKUP_EVENT(nfs4_mknod);
 DEFINE_NFS4_LOOKUP_EVENT(nfs4_remove);
 DEFINE_NFS4_LOOKUP_EVENT(nfs4_get_fs_locations);
 DEFINE_NFS4_LOOKUP_EVENT(nfs4_secinfo);
+
+TRACE_EVENT(nfs4_lookupp,
+		TP_PROTO(
+			const struct inode *inode,
+			int error
+		),
+
+		TP_ARGS(inode, error),
+
+		TP_STRUCT__entry(
+			__field(dev_t, dev)
+			__field(u64, ino)
+			__field(int, error)
+		),
+
+		TP_fast_assign(
+			__entry->dev = inode->i_sb->s_dev;
+			__entry->ino = NFS_FILEID(inode);
+			__entry->error = error;
+		),
+
+		TP_printk(
+			"error=%d (%s) inode=%02x:%02x:%llu",
+			__entry->error,
+			show_nfsv4_errors(__entry->error),
+			MAJOR(__entry->dev), MINOR(__entry->dev),
+			(unsigned long long)__entry->ino
+		)
+);
 
 TRACE_EVENT(nfs4_rename,
 		TP_PROTO(

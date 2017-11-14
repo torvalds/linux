@@ -34,7 +34,8 @@ enum typec_cc_polarity {
 };
 
 /* Time to wait for TCPC to complete transmit */
-#define PD_T_TCPC_TX_TIMEOUT  100
+#define PD_T_TCPC_TX_TIMEOUT	100		/* in ms	*/
+#define PD_ROLE_SWAP_TIMEOUT	(MSEC_PER_SEC * 10)
 
 enum tcpm_transmit_status {
 	TCPC_TX_SUCCESS = 0,
@@ -72,7 +73,7 @@ struct tcpc_config {
 	enum typec_role default_role;
 	bool try_role_hw;	/* try.{src,snk} implemented in hardware */
 
-	struct typec_altmode_desc *alt_modes;
+	const struct typec_altmode_desc *alt_modes;
 };
 
 enum tcpc_usb_switch {
@@ -108,6 +109,13 @@ struct tcpc_dev {
 
 	int (*init)(struct tcpc_dev *dev);
 	int (*get_vbus)(struct tcpc_dev *dev);
+	/*
+	 * This optional callback gets called by the tcpm core when configured
+	 * as a snk and cc=Rp-def. This allows the tcpm to provide a fallback
+	 * current-limit detection method for the cc=Rp-def case. E.g. some
+	 * tcpcs may include BC1.2 charger detection and use that in this case.
+	 */
+	int (*get_current_limit)(struct tcpc_dev *dev);
 	int (*set_cc)(struct tcpc_dev *dev, enum typec_cc_status cc);
 	int (*get_cc)(struct tcpc_dev *dev, enum typec_cc_status *cc1,
 		      enum typec_cc_status *cc2);

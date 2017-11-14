@@ -237,6 +237,8 @@ struct dummy_hcd {
 
 	struct usb_device		*udev;
 	struct list_head		urbp_list;
+	struct urbp			*next_frame_urbp;
+
 	u32				stream_en_ep;
 	u8				num_stream[30 / 2];
 
@@ -253,11 +255,13 @@ struct dummy {
 	 */
 	struct dummy_ep			ep[DUMMY_ENDPOINTS];
 	int				address;
+	int				callback_usage;
 	struct usb_gadget		gadget;
 	struct usb_gadget_driver	*driver;
 	struct dummy_request		fifo_req;
 	u8				fifo_buf[FIFO_SIZE];
 	u16				devstatus;
+	unsigned			ints_enabled:1;
 	unsigned			udc_suspended:1;
 	unsigned			pullup:1;
 
@@ -375,11 +379,10 @@ static void set_link_state_by_speed(struct dummy_hcd *dum_hcd)
 			     USB_PORT_STAT_CONNECTION) == 0)
 				dum_hcd->port_status |=
 					(USB_PORT_STAT_C_CONNECTION << 16);
-			if ((dum_hcd->port_status &
-			     USB_PORT_STAT_ENABLE) == 1 &&
-				(dum_hcd->port_status &
-				 USB_SS_PORT_LS_U0) == 1 &&
-				dum_hcd->rh_state != DUMMY_RH_SUSPENDED)
+			if ((dum_hcd->port_status & USB_PORT_STAT_ENABLE) &&
+			    (dum_hcd->port_status &
+			     USB_PORT_STAT_LINK_STATE) == USB_SS_PORT_LS_U0 &&
+			    dum_hcd->rh_state != DUMMY_RH_SUSPENDED)
 				dum_hcd->active = 1;
 		}
 	} else {
@@ -416,6 +419,7 @@ static void set_link_state_by_speed(struct dummy_hcd *dum_hcd)
 static void set_link_state(struct dummy_hcd *dum_hcd)
 {
 	struct dummy *dum = dum_hcd->dum;
+	unsigned int power_bit;
 
 	dum_hcd->active = 0;
 	if (dum->pullup)
@@ -426,32 +430,43 @@ static void set_link_state(struct dummy_hcd *dum_hcd)
 			return;
 
 	set_link_state_by_speed(dum_hcd);
+	power_bit = (dummy_hcd_to_hcd(dum_hcd)->speed == HCD_USB3 ?
+			USB_SS_PORT_STAT_POWER : USB_PORT_STAT_POWER);
 
 	if ((dum_hcd->port_status & USB_PORT_STAT_ENABLE) == 0 ||
 	     dum_hcd->active)
 		dum_hcd->resuming = 0;
 
 	/* Currently !connected or in reset */
-	if ((dum_hcd->port_status & USB_PORT_STAT_CONNECTION) == 0 ||
+	if ((dum_hcd->port_status & power_bit) == 0 ||
 			(dum_hcd->port_status & USB_PORT_STAT_RESET) != 0) {
-		unsigned disconnect = USB_PORT_STAT_CONNECTION &
+		unsigned int disconnect = power_bit &
 				dum_hcd->old_status & (~dum_hcd->port_status);
-		unsigned reset = USB_PORT_STAT_RESET &
+		unsigned int reset = USB_PORT_STAT_RESET &
 				(~dum_hcd->old_status) & dum_hcd->port_status;
 
 		/* Report reset and disconnect events to the driver */
-		if (dum->driver && (disconnect || reset)) {
+		if (dum->ints_enabled && (disconnect || reset)) {
 			stop_activity(dum);
+			++dum->callback_usage;
+			spin_unlock(&dum->lock);
 			if (reset)
 				usb_gadget_udc_reset(&dum->gadget, dum->driver);
 			else
 				dum->driver->disconnect(&dum->gadget);
+			spin_lock(&dum->lock);
+			--dum->callback_usage;
 		}
-	} else if (dum_hcd->active != dum_hcd->old_active) {
+	} else if (dum_hcd->active != dum_hcd->old_active &&
+			dum->ints_enabled) {
+		++dum->callback_usage;
+		spin_unlock(&dum->lock);
 		if (dum_hcd->old_active && dum->driver->suspend)
 			dum->driver->suspend(&dum->gadget);
 		else if (!dum_hcd->old_active &&  dum->driver->resume)
 			dum->driver->resume(&dum->gadget);
+		spin_lock(&dum->lock);
+		--dum->callback_usage;
 	}
 
 	dum_hcd->old_status = dum_hcd->port_status;
@@ -881,22 +896,6 @@ static int dummy_pullup(struct usb_gadget *_gadget, int value)
 	unsigned long	flags;
 
 	dum = gadget_dev_to_dummy(&_gadget->dev);
-
-	if (value && dum->driver) {
-		if (mod_data.is_super_speed)
-			dum->gadget.speed = dum->driver->max_speed;
-		else if (mod_data.is_high_speed)
-			dum->gadget.speed = min_t(u8, USB_SPEED_HIGH,
-					dum->driver->max_speed);
-		else
-			dum->gadget.speed = USB_SPEED_FULL;
-		dummy_udc_update_ep0(dum);
-
-		if (dum->gadget.speed < dum->driver->max_speed)
-			dev_dbg(udc_dev(dum), "This device can perform faster"
-				" if you connect it to a %s port...\n",
-				usb_speed_string(dum->driver->max_speed));
-	}
 	dum_hcd = gadget_to_dummy_hcd(_gadget);
 
 	spin_lock_irqsave(&dum->lock, flags);
@@ -906,6 +905,28 @@ static int dummy_pullup(struct usb_gadget *_gadget, int value)
 
 	usb_hcd_poll_rh_status(dummy_hcd_to_hcd(dum_hcd));
 	return 0;
+}
+
+static void dummy_udc_set_speed(struct usb_gadget *_gadget,
+		enum usb_device_speed speed)
+{
+	struct dummy	*dum;
+
+	dum = gadget_dev_to_dummy(&_gadget->dev);
+
+	 if (mod_data.is_super_speed)
+		 dum->gadget.speed = min_t(u8, USB_SPEED_SUPER, speed);
+	 else if (mod_data.is_high_speed)
+		 dum->gadget.speed = min_t(u8, USB_SPEED_HIGH, speed);
+	 else
+		 dum->gadget.speed = USB_SPEED_FULL;
+
+	dummy_udc_update_ep0(dum);
+
+	if (dum->gadget.speed < speed)
+		dev_dbg(udc_dev(dum), "This device can perform faster"
+			" if you connect it to a %s port...\n",
+			usb_speed_string(speed));
 }
 
 static int dummy_udc_start(struct usb_gadget *g,
@@ -919,6 +940,7 @@ static const struct usb_gadget_ops dummy_ops = {
 	.pullup		= dummy_pullup,
 	.udc_start	= dummy_udc_start,
 	.udc_stop	= dummy_udc_stop,
+	.udc_set_speed	= dummy_udc_set_speed,
 };
 
 /*-------------------------------------------------------------------------*/
@@ -965,8 +987,11 @@ static int dummy_udc_start(struct usb_gadget *g,
 	 * can't enumerate without help from the driver we're binding.
 	 */
 
+	spin_lock_irq(&dum->lock);
 	dum->devstatus = 0;
 	dum->driver = driver;
+	dum->ints_enabled = 1;
+	spin_unlock_irq(&dum->lock);
 
 	return 0;
 }
@@ -977,6 +1002,16 @@ static int dummy_udc_stop(struct usb_gadget *g)
 	struct dummy		*dum = dum_hcd->dum;
 
 	spin_lock_irq(&dum->lock);
+	dum->ints_enabled = 0;
+	stop_activity(dum);
+
+	/* emulate synchronize_irq(): wait for callbacks to finish */
+	while (dum->callback_usage > 0) {
+		spin_unlock_irq(&dum->lock);
+		usleep_range(1000, 2000);
+		spin_lock_irq(&dum->lock);
+	}
+
 	dum->driver = NULL;
 	spin_unlock_irq(&dum->lock);
 
@@ -1030,7 +1065,12 @@ static int dummy_udc_probe(struct platform_device *pdev)
 	memzero_explicit(&dum->gadget, sizeof(struct usb_gadget));
 	dum->gadget.name = gadget_name;
 	dum->gadget.ops = &dummy_ops;
-	dum->gadget.max_speed = USB_SPEED_SUPER;
+	if (mod_data.is_super_speed)
+		dum->gadget.max_speed = USB_SPEED_SUPER;
+	else if (mod_data.is_high_speed)
+		dum->gadget.max_speed = USB_SPEED_HIGH;
+	else
+		dum->gadget.max_speed = USB_SPEED_FULL;
 
 	dum->gadget.dev.parent = &pdev->dev;
 	init_dummy_udc_hw(dum);
@@ -1239,6 +1279,8 @@ static int dummy_urb_enqueue(
 
 	list_add_tail(&urbp->urbp_list, &dum_hcd->urbp_list);
 	urb->hcpriv = urbp;
+	if (!dum_hcd->next_frame_urbp)
+		dum_hcd->next_frame_urbp = urbp;
 	if (usb_pipetype(urb->pipe) == PIPE_CONTROL)
 		urb->error_count = 1;		/* mark as a new urb */
 
@@ -1514,6 +1556,8 @@ static struct dummy_ep *find_endpoint(struct dummy *dum, u8 address)
 	if (!is_active((dum->gadget.speed == USB_SPEED_SUPER ?
 			dum->ss_hcd : dum->hs_hcd)))
 		return NULL;
+	if (!dum->ints_enabled)
+		return NULL;
 	if ((address & ~USB_DIR_IN) == 0)
 		return &dum->ep[0];
 	for (i = 1; i < DUMMY_ENDPOINTS; i++) {
@@ -1755,6 +1799,7 @@ static void dummy_timer(unsigned long _dum_hcd)
 		spin_unlock_irqrestore(&dum->lock, flags);
 		return;
 	}
+	dum_hcd->next_frame_urbp = NULL;
 
 	for (i = 0; i < DUMMY_ENDPOINTS; i++) {
 		if (!ep_info[i].name)
@@ -1770,6 +1815,10 @@ restart:
 		struct dummy_ep		*ep = NULL;
 		int			type;
 		int			status = -EINPROGRESS;
+
+		/* stop when we reach URBs queued after the timer interrupt */
+		if (urbp == dum_hcd->next_frame_urbp)
+			break;
 
 		urb = urbp->urb;
 		if (urb->unlinked)
@@ -1850,10 +1899,12 @@ restart:
 			 * until setup() returns; no reentrancy issues etc.
 			 */
 			if (value > 0) {
+				++dum->callback_usage;
 				spin_unlock(&dum->lock);
 				value = dum->driver->setup(&dum->gadget,
 						&setup);
 				spin_lock(&dum->lock);
+				--dum->callback_usage;
 
 				if (value >= 0) {
 					/* no delays (max 64KB data stage) */
@@ -2554,8 +2605,6 @@ static struct hc_driver dummy_hcd = {
 	.product_desc =		"Dummy host controller",
 	.hcd_priv_size =	sizeof(struct dummy_hcd),
 
-	.flags =		HCD_USB3 | HCD_SHARED,
-
 	.reset =		dummy_setup,
 	.start =		dummy_start,
 	.stop =			dummy_stop,
@@ -2584,8 +2633,12 @@ static int dummy_hcd_probe(struct platform_device *pdev)
 	dev_info(&pdev->dev, "%s, driver " DRIVER_VERSION "\n", driver_desc);
 	dum = *((void **)dev_get_platdata(&pdev->dev));
 
-	if (!mod_data.is_super_speed)
+	if (mod_data.is_super_speed)
+		dummy_hcd.flags = HCD_USB3 | HCD_SHARED;
+	else if (mod_data.is_high_speed)
 		dummy_hcd.flags = HCD_USB2;
+	else
+		dummy_hcd.flags = HCD_USB11;
 	hs_hcd = usb_create_hcd(&dummy_hcd, &pdev->dev, dev_name(&pdev->dev));
 	if (!hs_hcd)
 		return -ENOMEM;
@@ -2769,7 +2822,7 @@ static int __init init(void)
 		if (retval < 0) {
 			i--;
 			while (i >= 0)
-				platform_device_del(the_udc_pdev[i]);
+				platform_device_del(the_udc_pdev[i--]);
 			goto err_add_udc;
 		}
 	}

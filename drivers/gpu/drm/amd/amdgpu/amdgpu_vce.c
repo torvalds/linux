@@ -165,34 +165,13 @@ int amdgpu_vce_sw_init(struct amdgpu_device *adev, unsigned long size)
 	adev->vce.fw_version = ((version_major << 24) | (version_minor << 16) |
 				(binary_id << 8));
 
-	/* allocate firmware, stack and heap BO */
-
-	r = amdgpu_bo_create(adev, size, PAGE_SIZE, true,
-			     AMDGPU_GEM_DOMAIN_VRAM,
-			     AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED |
-			     AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS,
-			     NULL, NULL, &adev->vce.vcpu_bo);
+	r = amdgpu_bo_create_kernel(adev, size, PAGE_SIZE,
+				    AMDGPU_GEM_DOMAIN_VRAM, &adev->vce.vcpu_bo,
+				    &adev->vce.gpu_addr, &adev->vce.cpu_addr);
 	if (r) {
 		dev_err(adev->dev, "(%d) failed to allocate VCE bo\n", r);
 		return r;
 	}
-
-	r = amdgpu_bo_reserve(adev->vce.vcpu_bo, false);
-	if (r) {
-		amdgpu_bo_unref(&adev->vce.vcpu_bo);
-		dev_err(adev->dev, "(%d) failed to reserve VCE bo\n", r);
-		return r;
-	}
-
-	r = amdgpu_bo_pin(adev->vce.vcpu_bo, AMDGPU_GEM_DOMAIN_VRAM,
-			  &adev->vce.gpu_addr);
-	amdgpu_bo_unreserve(adev->vce.vcpu_bo);
-	if (r) {
-		amdgpu_bo_unref(&adev->vce.vcpu_bo);
-		dev_err(adev->dev, "(%d) VCE bo pin failed\n", r);
-		return r;
-	}
-
 
 	ring = &adev->vce.ring[0];
 	rq = &ring->sched.sched_rq[AMD_SCHED_PRIORITY_NORMAL];
@@ -230,7 +209,8 @@ int amdgpu_vce_sw_fini(struct amdgpu_device *adev)
 
 	amd_sched_entity_fini(&adev->vce.ring[0].sched, &adev->vce.entity);
 
-	amdgpu_bo_unref(&adev->vce.vcpu_bo);
+	amdgpu_bo_free_kernel(&adev->vce.vcpu_bo, &adev->vce.gpu_addr,
+		(void **)&adev->vce.cpu_addr);
 
 	for (i = 0; i < adev->vce.num_rings; i++)
 		amdgpu_ring_fini(&adev->vce.ring[i]);
@@ -957,9 +937,9 @@ int amdgpu_vce_ring_test_ring(struct amdgpu_ring *ring)
 	unsigned i;
 	int r, timeout = adev->usec_timeout;
 
-	/* workaround VCE ring test slow issue for sriov*/
+	/* skip ring test for sriov*/
 	if (amdgpu_sriov_vf(adev))
-		timeout *= 10;
+		return 0;
 
 	r = amdgpu_ring_alloc(ring, 16);
 	if (r) {

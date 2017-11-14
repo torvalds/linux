@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #define DISABLE_BRANCH_PROFILING
 #define pr_fmt(fmt) "kasan: " fmt
 #include <linux/bootmem.h>
@@ -11,8 +12,8 @@
 #include <asm/e820/types.h>
 #include <asm/tlbflush.h>
 #include <asm/sections.h>
+#include <asm/pgtable.h>
 
-extern pgd_t early_level4_pgt[PTRS_PER_PGD];
 extern struct range pfn_mapped[E820_MAX_ENTRIES];
 
 static int __init map_range(struct range *range)
@@ -23,12 +24,7 @@ static int __init map_range(struct range *range)
 	start = (unsigned long)kasan_mem_to_shadow(pfn_to_kaddr(range->start));
 	end = (unsigned long)kasan_mem_to_shadow(pfn_to_kaddr(range->end));
 
-	/*
-	 * end + 1 here is intentional. We check several shadow bytes in advance
-	 * to slightly speed up fastpath. In some rare cases we could cross
-	 * boundary of mapped shadow, so we just map some more here.
-	 */
-	return vmemmap_populate(start, end + 1, NUMA_NO_NODE);
+	return vmemmap_populate(start, end, NUMA_NO_NODE);
 }
 
 static void __init clear_pgds(unsigned long start,
@@ -92,7 +88,7 @@ static struct notifier_block kasan_die_notifier = {
 void __init kasan_early_init(void)
 {
 	int i;
-	pteval_t pte_val = __pa_nodebug(kasan_zero_page) | __PAGE_KERNEL;
+	pteval_t pte_val = __pa_nodebug(kasan_zero_page) | __PAGE_KERNEL | _PAGE_ENC;
 	pmdval_t pmd_val = __pa_nodebug(kasan_zero_pte) | _KERNPG_TABLE;
 	pudval_t pud_val = __pa_nodebug(kasan_zero_pmd) | _KERNPG_TABLE;
 	p4dval_t p4d_val = __pa_nodebug(kasan_zero_pud) | _KERNPG_TABLE;
@@ -109,8 +105,8 @@ void __init kasan_early_init(void)
 	for (i = 0; CONFIG_PGTABLE_LEVELS >= 5 && i < PTRS_PER_P4D; i++)
 		kasan_zero_p4d[i] = __p4d(p4d_val);
 
-	kasan_map_early_shadow(early_level4_pgt);
-	kasan_map_early_shadow(init_level4_pgt);
+	kasan_map_early_shadow(early_top_pgt);
+	kasan_map_early_shadow(init_top_pgt);
 }
 
 void __init kasan_init(void)
@@ -121,8 +117,8 @@ void __init kasan_init(void)
 	register_die_notifier(&kasan_die_notifier);
 #endif
 
-	memcpy(early_level4_pgt, init_level4_pgt, sizeof(early_level4_pgt));
-	load_cr3(early_level4_pgt);
+	memcpy(early_top_pgt, init_top_pgt, sizeof(early_top_pgt));
+	load_cr3(early_top_pgt);
 	__flush_tlb_all();
 
 	clear_pgds(KASAN_SHADOW_START, KASAN_SHADOW_END);
@@ -148,7 +144,7 @@ void __init kasan_init(void)
 	kasan_populate_zero_shadow(kasan_mem_to_shadow((void *)MODULES_END),
 			(void *)KASAN_SHADOW_END);
 
-	load_cr3(init_level4_pgt);
+	load_cr3(init_top_pgt);
 	__flush_tlb_all();
 
 	/*
@@ -158,7 +154,7 @@ void __init kasan_init(void)
 	 */
 	memset(kasan_zero_page, 0, PAGE_SIZE);
 	for (i = 0; i < PTRS_PER_PTE; i++) {
-		pte_t pte = __pte(__pa(kasan_zero_page) | __PAGE_KERNEL_RO);
+		pte_t pte = __pte(__pa(kasan_zero_page) | __PAGE_KERNEL_RO | _PAGE_ENC);
 		set_pte(&kasan_zero_pte[i], pte);
 	}
 	/* Flush TLBs again to be sure that write protection applied. */

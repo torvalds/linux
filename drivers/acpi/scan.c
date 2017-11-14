@@ -13,6 +13,7 @@
 #include <linux/dmi.h>
 #include <linux/nls.h>
 #include <linux/dma-mapping.h>
+#include <linux/platform_data/x86/apple.h>
 
 #include <asm/pgtable.h>
 
@@ -404,10 +405,6 @@ void acpi_device_hotplug(struct acpi_device *adev, u32 src)
 		error = dock_notify(adev, src);
 	} else if (adev->flags.hotplug_notify) {
 		error = acpi_generic_hotplug_event(adev, src);
-		if (error == -EPERM) {
-			ost_code = ACPI_OST_SC_EJECT_NOT_SUPPORTED;
-			goto err_out;
-		}
 	} else {
 		int (*notify)(struct acpi_device *, u32);
 
@@ -423,8 +420,20 @@ void acpi_device_hotplug(struct acpi_device *adev, u32 src)
 		else
 			goto out;
 	}
-	if (!error)
+	switch (error) {
+	case 0:
 		ost_code = ACPI_OST_SC_SUCCESS;
+		break;
+	case -EPERM:
+		ost_code = ACPI_OST_SC_EJECT_NOT_SUPPORTED;
+		break;
+	case -EBUSY:
+		ost_code = ACPI_OST_SC_DEVICE_BUSY;
+		break;
+	default:
+		ost_code = ACPI_OST_SC_NON_SPECIFIC_FAILURE;
+		break;
+	}
 
  err_out:
 	acpi_evaluate_ost(adev->handle, src, ost_code, NULL);
@@ -835,7 +844,7 @@ static int acpi_bus_extract_wakeup_device_power_package(acpi_handle handle,
 	return err;
 }
 
-static void acpi_wakeup_gpe_init(struct acpi_device *device)
+static bool acpi_wakeup_gpe_init(struct acpi_device *device)
 {
 	static const struct acpi_device_id button_device_ids[] = {
 		{"PNP0C0C", 0},
@@ -845,13 +854,11 @@ static void acpi_wakeup_gpe_init(struct acpi_device *device)
 	};
 	struct acpi_device_wakeup *wakeup = &device->wakeup;
 	acpi_status status;
-	acpi_event_status event_status;
 
 	wakeup->flags.notifier_present = 0;
 
 	/* Power button, Lid switch always enable wakeup */
 	if (!acpi_match_device_ids(device, button_device_ids)) {
-		wakeup->flags.run_wake = 1;
 		if (!acpi_match_device_ids(device, &button_device_ids[1])) {
 			/* Do not use Lid/sleep button for S5 wakeup */
 			if (wakeup->sleep_state == ACPI_STATE_S5)
@@ -859,17 +866,12 @@ static void acpi_wakeup_gpe_init(struct acpi_device *device)
 		}
 		acpi_mark_gpe_for_wake(wakeup->gpe_device, wakeup->gpe_number);
 		device_set_wakeup_capable(&device->dev, true);
-		return;
+		return true;
 	}
 
-	acpi_setup_gpe_for_wake(device->handle, wakeup->gpe_device,
-				wakeup->gpe_number);
-	status = acpi_get_gpe_status(wakeup->gpe_device, wakeup->gpe_number,
-				     &event_status);
-	if (ACPI_FAILURE(status))
-		return;
-
-	wakeup->flags.run_wake = !!(event_status & ACPI_EVENT_FLAG_HAS_HANDLER);
+	status = acpi_setup_gpe_for_wake(device->handle, wakeup->gpe_device,
+					 wakeup->gpe_number);
+	return ACPI_SUCCESS(status);
 }
 
 static void acpi_bus_get_wakeup_device_flags(struct acpi_device *device)
@@ -887,10 +889,10 @@ static void acpi_bus_get_wakeup_device_flags(struct acpi_device *device)
 		return;
 	}
 
-	device->wakeup.flags.valid = 1;
+	device->wakeup.flags.valid = acpi_wakeup_gpe_init(device);
 	device->wakeup.prepare_count = 0;
-	acpi_wakeup_gpe_init(device);
-	/* Call _PSW/_DSW object to disable its ability to wake the sleeping
+	/*
+	 * Call _PSW/_DSW object to disable its ability to wake the sleeping
 	 * system for the ACPI device with the _PRW object.
 	 * The _PSW object is depreciated in ACPI 3.0 and is replaced by _DSW.
 	 * So it is necessary to call _DSW object first. Only when it is not
@@ -1359,6 +1361,85 @@ enum dev_dma_attr acpi_get_dma_attr(struct acpi_device *adev)
 }
 
 /**
+ * acpi_dma_get_range() - Get device DMA parameters.
+ *
+ * @dev: device to configure
+ * @dma_addr: pointer device DMA address result
+ * @offset: pointer to the DMA offset result
+ * @size: pointer to DMA range size result
+ *
+ * Evaluate DMA regions and return respectively DMA region start, offset
+ * and size in dma_addr, offset and size on parsing success; it does not
+ * update the passed in values on failure.
+ *
+ * Return 0 on success, < 0 on failure.
+ */
+int acpi_dma_get_range(struct device *dev, u64 *dma_addr, u64 *offset,
+		       u64 *size)
+{
+	struct acpi_device *adev;
+	LIST_HEAD(list);
+	struct resource_entry *rentry;
+	int ret;
+	struct device *dma_dev = dev;
+	u64 len, dma_start = U64_MAX, dma_end = 0, dma_offset = 0;
+
+	/*
+	 * Walk the device tree chasing an ACPI companion with a _DMA
+	 * object while we go. Stop if we find a device with an ACPI
+	 * companion containing a _DMA method.
+	 */
+	do {
+		adev = ACPI_COMPANION(dma_dev);
+		if (adev && acpi_has_method(adev->handle, METHOD_NAME__DMA))
+			break;
+
+		dma_dev = dma_dev->parent;
+	} while (dma_dev);
+
+	if (!dma_dev)
+		return -ENODEV;
+
+	if (!acpi_has_method(adev->handle, METHOD_NAME__CRS)) {
+		acpi_handle_warn(adev->handle, "_DMA is valid only if _CRS is present\n");
+		return -EINVAL;
+	}
+
+	ret = acpi_dev_get_dma_resources(adev, &list);
+	if (ret > 0) {
+		list_for_each_entry(rentry, &list, node) {
+			if (dma_offset && rentry->offset != dma_offset) {
+				ret = -EINVAL;
+				dev_warn(dma_dev, "Can't handle multiple windows with different offsets\n");
+				goto out;
+			}
+			dma_offset = rentry->offset;
+
+			/* Take lower and upper limits */
+			if (rentry->res->start < dma_start)
+				dma_start = rentry->res->start;
+			if (rentry->res->end > dma_end)
+				dma_end = rentry->res->end;
+		}
+
+		if (dma_start >= dma_end) {
+			ret = -EINVAL;
+			dev_dbg(dma_dev, "Invalid DMA regions configuration\n");
+			goto out;
+		}
+
+		*dma_addr = dma_start - dma_offset;
+		len = dma_end - dma_start;
+		*size = max(len, len + 1);
+		*offset = dma_offset;
+	}
+ out:
+	acpi_dev_free_resource_list(&list);
+
+	return ret >= 0 ? 0 : ret;
+}
+
+/**
  * acpi_dma_configure - Set-up DMA configuration for the device.
  * @dev: The pointer to the device
  * @attr: device dma attributes
@@ -1366,20 +1447,16 @@ enum dev_dma_attr acpi_get_dma_attr(struct acpi_device *adev)
 int acpi_dma_configure(struct device *dev, enum dev_dma_attr attr)
 {
 	const struct iommu_ops *iommu;
-	u64 size;
+	u64 dma_addr = 0, size = 0;
 
-	iort_set_dma_mask(dev);
+	iort_dma_setup(dev, &dma_addr, &size);
 
 	iommu = iort_iommu_configure(dev);
 	if (IS_ERR(iommu) && PTR_ERR(iommu) == -EPROBE_DEFER)
 		return -EPROBE_DEFER;
 
-	size = max(dev->coherent_dma_mask, dev->coherent_dma_mask + 1);
-	/*
-	 * Assume dma valid range starts at 0 and covers the whole
-	 * coherent_dma_mask.
-	 */
-	arch_setup_dma_ops(dev, 0, size, iommu, attr == DEV_DMA_COHERENT);
+	arch_setup_dma_ops(dev, dma_addr, size,
+				iommu, attr == DEV_DMA_COHERENT);
 
 	return 0;
 }
@@ -1451,6 +1528,12 @@ static bool acpi_is_spi_i2c_slave(struct acpi_device *device)
 	struct list_head resource_list;
 	bool is_spi_i2c_slave = false;
 
+	/* Macs use device properties in lieu of _CRS resources */
+	if (x86_apple_machine &&
+	    (fwnode_property_present(&device->fwnode, "spiSclkPeriod") ||
+	     fwnode_property_present(&device->fwnode, "i2cAddress")))
+		return true;
+
 	INIT_LIST_HEAD(&resource_list);
 	acpi_dev_get_resources(device, &resource_list, acpi_check_spi_i2c_slave,
 			       &is_spi_i2c_slave);
@@ -1466,7 +1549,7 @@ void acpi_init_device_object(struct acpi_device *device, acpi_handle handle,
 	device->device_type = type;
 	device->handle = handle;
 	device->parent = acpi_bus_get_parent(handle);
-	device->fwnode.type = FWNODE_ACPI;
+	device->fwnode.ops = &acpi_device_fwnode_ops;
 	acpi_set_device_status(device, sta);
 	acpi_device_get_busid(device);
 	acpi_set_pnp_ids(handle, &device->pnp, type);
@@ -1599,13 +1682,9 @@ static int acpi_bus_type_and_status(acpi_handle handle, int *type,
 	return 0;
 }
 
-bool acpi_device_is_present(struct acpi_device *adev)
+bool acpi_device_is_present(const struct acpi_device *adev)
 {
-	if (adev->status.present || adev->status.functional)
-		return true;
-
-	adev->flags.initialized = false;
-	return false;
+	return adev->status.present || adev->status.functional;
 }
 
 static bool acpi_scan_handler_matching(struct acpi_scan_handler *handler,
@@ -1838,6 +1917,7 @@ static void acpi_bus_attach(struct acpi_device *device)
 	acpi_bus_get_status(device);
 	/* Skip devices that are not present. */
 	if (!acpi_device_is_present(device)) {
+		device->flags.initialized = false;
 		acpi_device_clear_enumerated(device);
 		device->flags.power_manageable = 0;
 		return;
@@ -2059,6 +2139,9 @@ int __init acpi_scan_init(void)
 			acpi_get_spcr_uart_addr();
 	}
 
+	acpi_gpe_apply_masked_gpes();
+	acpi_update_all_gpes();
+
 	mutex_lock(&acpi_scan_lock);
 	/*
 	 * Enumerate devices in the ACPI namespace.
@@ -2082,10 +2165,6 @@ int __init acpi_scan_init(void)
 			goto out;
 		}
 	}
-
-	acpi_gpe_apply_masked_gpes();
-	acpi_update_all_gpes();
-	acpi_ec_ecdt_start();
 
 	acpi_scan_initialized = true;
 

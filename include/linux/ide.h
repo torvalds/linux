@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _IDE_H
 #define _IDE_H
 /*
@@ -671,7 +672,7 @@ struct ide_port_ops {
 	void	(*init_dev)(ide_drive_t *);
 	void	(*set_pio_mode)(struct hwif_s *, ide_drive_t *);
 	void	(*set_dma_mode)(struct hwif_s *, ide_drive_t *);
-	int	(*reset_poll)(ide_drive_t *);
+	blk_status_t (*reset_poll)(ide_drive_t *);
 	void	(*pre_reset)(ide_drive_t *);
 	void	(*resetproc)(ide_drive_t *);
 	void	(*maskproc)(ide_drive_t *, int);
@@ -1092,7 +1093,7 @@ int generic_ide_ioctl(ide_drive_t *, struct block_device *, unsigned, unsigned l
 extern int ide_vlb_clk;
 extern int ide_pci_clk;
 
-int ide_end_rq(ide_drive_t *, struct request *, int, unsigned int);
+int ide_end_rq(ide_drive_t *, struct request *, blk_status_t, unsigned int);
 void ide_kill_rq(ide_drive_t *, struct request *);
 
 void __ide_set_handler(ide_drive_t *, ide_handler_t *, unsigned int);
@@ -1123,7 +1124,7 @@ extern int ide_devset_execute(ide_drive_t *drive,
 			      const struct ide_devset *setting, int arg);
 
 void ide_complete_cmd(ide_drive_t *, struct ide_cmd *, u8, u8);
-int ide_complete_rq(ide_drive_t *, int, unsigned int);
+int ide_complete_rq(ide_drive_t *, blk_status_t, unsigned int);
 
 void ide_tf_readback(ide_drive_t *drive, struct ide_cmd *cmd);
 void ide_tf_dump(const char *, struct ide_cmd *);

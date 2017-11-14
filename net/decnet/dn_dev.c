@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * DECnet       An implementation of the DECnet protocol suite for the LINUX
  *              operating system.  DECnet is implemented using the  BSD Socket
@@ -846,7 +847,7 @@ static void dn_send_endnode_hello(struct net_device *dev, struct dn_ifaddr *ifa)
 
 	skb->dev = dev;
 
-	msg = (struct endnode_hello_message *)skb_put(skb,sizeof(*msg));
+	msg = skb_put(skb, sizeof(*msg));
 
 	msg->msgflg  = 0x0D;
 	memcpy(msg->tiver, dn_eco_version, 3);
@@ -867,7 +868,7 @@ static void dn_send_endnode_hello(struct net_device *dev, struct dn_ifaddr *ifa)
 	msg->datalen = 0x02;
 	memset(msg->data, 0xAA, 2);
 
-	pktlen = (__le16 *)skb_push(skb,2);
+	pktlen = skb_push(skb, 2);
 	*pktlen = cpu_to_le16(skb->len - 2);
 
 	skb_reset_network_header(skb);
@@ -959,7 +960,7 @@ static void dn_send_router_hello(struct net_device *dev, struct dn_ifaddr *ifa)
 
 	skb_trim(skb, (27 + *i2));
 
-	pktlen = (__le16 *)skb_push(skb, 2);
+	pktlen = skb_push(skb, 2);
 	*pktlen = cpu_to_le16(skb->len - 2);
 
 	skb_reset_network_header(skb);
@@ -1419,9 +1420,9 @@ void __init dn_dev_init(void)
 
 	dn_dev_devices_on();
 
-	rtnl_register(PF_DECnet, RTM_NEWADDR, dn_nl_newaddr, NULL, NULL);
-	rtnl_register(PF_DECnet, RTM_DELADDR, dn_nl_deladdr, NULL, NULL);
-	rtnl_register(PF_DECnet, RTM_GETADDR, NULL, dn_nl_dump_ifaddr, NULL);
+	rtnl_register(PF_DECnet, RTM_NEWADDR, dn_nl_newaddr, NULL, 0);
+	rtnl_register(PF_DECnet, RTM_DELADDR, dn_nl_deladdr, NULL, 0);
+	rtnl_register(PF_DECnet, RTM_GETADDR, NULL, dn_nl_dump_ifaddr, 0);
 
 	proc_create("decnet_dev", S_IRUGO, init_net.proc_net, &dn_dev_seq_fops);
 

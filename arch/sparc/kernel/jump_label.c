@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/mutex.h>
@@ -41,12 +42,10 @@ void arch_jump_label_transform(struct jump_entry *entry,
 		val = 0x01000000;
 	}
 
-	get_online_cpus();
 	mutex_lock(&text_mutex);
 	*insn = val;
 	flushi(insn);
 	mutex_unlock(&text_mutex);
-	put_online_cpus();
 }
 
 #endif

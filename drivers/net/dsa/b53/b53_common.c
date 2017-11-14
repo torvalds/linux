@@ -29,7 +29,6 @@
 #include <linux/etherdevice.h>
 #include <linux/if_bridge.h>
 #include <net/dsa.h>
-#include <net/switchdev.h>
 
 #include "b53_regs.h"
 #include "b53_priv.h"
@@ -1054,49 +1053,6 @@ int b53_vlan_del(struct dsa_switch *ds, int port,
 }
 EXPORT_SYMBOL(b53_vlan_del);
 
-int b53_vlan_dump(struct dsa_switch *ds, int port,
-		  struct switchdev_obj_port_vlan *vlan,
-		  int (*cb)(struct switchdev_obj *obj))
-{
-	struct b53_device *dev = ds->priv;
-	u16 vid, vid_start = 0, pvid;
-	struct b53_vlan *vl;
-	int err = 0;
-
-	if (is5325(dev) || is5365(dev))
-		vid_start = 1;
-
-	b53_read16(dev, B53_VLAN_PAGE, B53_VLAN_PORT_DEF_TAG(port), &pvid);
-
-	/* Use our software cache for dumps, since we do not have any HW
-	 * operation returning only the used/valid VLANs
-	 */
-	for (vid = vid_start; vid < dev->num_vlans; vid++) {
-		vl = &dev->vlans[vid];
-
-		if (!vl->valid)
-			continue;
-
-		if (!(vl->members & BIT(port)))
-			continue;
-
-		vlan->vid_begin = vlan->vid_end = vid;
-		vlan->flags = 0;
-
-		if (vl->untag & BIT(port))
-			vlan->flags |= BRIDGE_VLAN_INFO_UNTAGGED;
-		if (pvid == vid)
-			vlan->flags |= BRIDGE_VLAN_INFO_PVID;
-
-		err = cb(&vlan->obj);
-		if (err)
-			break;
-	}
-
-	return err;
-}
-EXPORT_SYMBOL(b53_vlan_dump);
-
 /* Address Resolution Logic routines */
 static int b53_arl_op_wait(struct b53_device *dev)
 {
@@ -1214,9 +1170,8 @@ static int b53_arl_op(struct b53_device *dev, int op, int port,
 	return b53_arl_rw_op(dev, 0);
 }
 
-int b53_fdb_prepare(struct dsa_switch *ds, int port,
-		    const struct switchdev_obj_port_fdb *fdb,
-		    struct switchdev_trans *trans)
+int b53_fdb_add(struct dsa_switch *ds, int port,
+		const unsigned char *addr, u16 vid)
 {
 	struct b53_device *priv = ds->priv;
 
@@ -1226,27 +1181,16 @@ int b53_fdb_prepare(struct dsa_switch *ds, int port,
 	if (is5325(priv) || is5365(priv))
 		return -EOPNOTSUPP;
 
-	return 0;
-}
-EXPORT_SYMBOL(b53_fdb_prepare);
-
-void b53_fdb_add(struct dsa_switch *ds, int port,
-		 const struct switchdev_obj_port_fdb *fdb,
-		 struct switchdev_trans *trans)
-{
-	struct b53_device *priv = ds->priv;
-
-	if (b53_arl_op(priv, 0, port, fdb->addr, fdb->vid, true))
-		pr_err("%s: failed to add MAC address\n", __func__);
+	return b53_arl_op(priv, 0, port, addr, vid, true);
 }
 EXPORT_SYMBOL(b53_fdb_add);
 
 int b53_fdb_del(struct dsa_switch *ds, int port,
-		const struct switchdev_obj_port_fdb *fdb)
+		const unsigned char *addr, u16 vid)
 {
 	struct b53_device *priv = ds->priv;
 
-	return b53_arl_op(priv, 0, port, fdb->addr, fdb->vid, false);
+	return b53_arl_op(priv, 0, port, addr, vid, false);
 }
 EXPORT_SYMBOL(b53_fdb_del);
 
@@ -1282,10 +1226,8 @@ static void b53_arl_search_rd(struct b53_device *dev, u8 idx,
 	b53_arl_to_entry(ent, mac_vid, fwd_entry);
 }
 
-static int b53_fdb_copy(struct net_device *dev, int port,
-			const struct b53_arl_entry *ent,
-			struct switchdev_obj_port_fdb *fdb,
-			int (*cb)(struct switchdev_obj *obj))
+static int b53_fdb_copy(int port, const struct b53_arl_entry *ent,
+			dsa_fdb_dump_cb_t *cb, void *data)
 {
 	if (!ent->is_valid)
 		return 0;
@@ -1293,19 +1235,13 @@ static int b53_fdb_copy(struct net_device *dev, int port,
 	if (port != ent->port)
 		return 0;
 
-	ether_addr_copy(fdb->addr, ent->mac);
-	fdb->vid = ent->vid;
-	fdb->ndm_state = ent->is_static ? NUD_NOARP : NUD_REACHABLE;
-
-	return cb(&fdb->obj);
+	return cb(ent->mac, ent->vid, ent->is_static, data);
 }
 
 int b53_fdb_dump(struct dsa_switch *ds, int port,
-		 struct switchdev_obj_port_fdb *fdb,
-		 int (*cb)(struct switchdev_obj *obj))
+		 dsa_fdb_dump_cb_t *cb, void *data)
 {
 	struct b53_device *priv = ds->priv;
-	struct net_device *dev = ds->ports[port].netdev;
 	struct b53_arl_entry results[2];
 	unsigned int count = 0;
 	int ret;
@@ -1321,13 +1257,13 @@ int b53_fdb_dump(struct dsa_switch *ds, int port,
 			return ret;
 
 		b53_arl_search_rd(priv, 0, &results[0]);
-		ret = b53_fdb_copy(dev, port, &results[0], fdb, cb);
+		ret = b53_fdb_copy(port, &results[0], cb, data);
 		if (ret)
 			return ret;
 
 		if (priv->num_arl_entries > 2) {
 			b53_arl_search_rd(priv, 1, &results[1]);
-			ret = b53_fdb_copy(dev, port, &results[1], fdb, cb);
+			ret = b53_fdb_copy(port, &results[1], cb, data);
 			if (ret)
 				return ret;
 
@@ -1344,7 +1280,7 @@ EXPORT_SYMBOL(b53_fdb_dump);
 int b53_br_join(struct dsa_switch *ds, int port, struct net_device *br)
 {
 	struct b53_device *dev = ds->priv;
-	s8 cpu_port = ds->dst->cpu_port;
+	s8 cpu_port = ds->dst->cpu_dp->index;
 	u16 pvlan, reg;
 	unsigned int i;
 
@@ -1390,7 +1326,7 @@ void b53_br_leave(struct dsa_switch *ds, int port, struct net_device *br)
 {
 	struct b53_device *dev = ds->priv;
 	struct b53_vlan *vl = &dev->vlans[0];
-	s8 cpu_port = ds->dst->cpu_port;
+	s8 cpu_port = ds->dst->cpu_dp->index;
 	unsigned int i;
 	u16 pvlan, reg, pvid;
 
@@ -1567,8 +1503,6 @@ static const struct dsa_switch_ops b53_switch_ops = {
 	.port_vlan_prepare	= b53_vlan_prepare,
 	.port_vlan_add		= b53_vlan_add,
 	.port_vlan_del		= b53_vlan_del,
-	.port_vlan_dump		= b53_vlan_dump,
-	.port_fdb_prepare	= b53_fdb_prepare,
 	.port_fdb_dump		= b53_fdb_dump,
 	.port_fdb_add		= b53_fdb_add,
 	.port_fdb_del		= b53_fdb_del,
@@ -1668,6 +1602,7 @@ static const struct b53_chip_data b53_switch_chips[] = {
 		.dev_name = "BCM53125",
 		.vlans = 4096,
 		.enabled_ports = 0xff,
+		.arl_entries = 4,
 		.cpu_port = B53_CPU_PORT,
 		.vta_regs = B53_VTA_REGS,
 		.duplex_reg = B53_DUPLEX_STAT_GE,
@@ -1992,7 +1927,7 @@ int b53_switch_register(struct b53_device *dev)
 
 	pr_info("found switch: %s, rev %i\n", dev->name, dev->core_rev);
 
-	return dsa_register_switch(dev->ds, dev->ds->dev);
+	return dsa_register_switch(dev->ds);
 }
 EXPORT_SYMBOL(b53_switch_register);
 

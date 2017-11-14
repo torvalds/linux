@@ -333,8 +333,12 @@ out:
 	return ret;
 }
 
-/* Change congestion control for socket */
-int tcp_set_congestion_control(struct sock *sk, const char *name)
+/* Change congestion control for socket. If load is false, then it is the
+ * responsibility of the caller to call tcp_init_congestion_control or
+ * tcp_reinit_congestion_control (if the current congestion control was
+ * already initialized.
+ */
+int tcp_set_congestion_control(struct sock *sk, const char *name, bool load, bool reinit)
 {
 	struct inet_connection_sock *icsk = inet_csk(sk);
 	const struct tcp_congestion_ops *ca;
@@ -344,21 +348,38 @@ int tcp_set_congestion_control(struct sock *sk, const char *name)
 		return -EPERM;
 
 	rcu_read_lock();
-	ca = __tcp_ca_find_autoload(name);
+	if (!load)
+		ca = tcp_ca_find(name);
+	else
+		ca = __tcp_ca_find_autoload(name);
 	/* No change asking for existing value */
 	if (ca == icsk->icsk_ca_ops) {
 		icsk->icsk_ca_setsockopt = 1;
 		goto out;
 	}
-	if (!ca)
+	if (!ca) {
 		err = -ENOENT;
-	else if (!((ca->flags & TCP_CONG_NON_RESTRICTED) ||
-		   ns_capable(sock_net(sk)->user_ns, CAP_NET_ADMIN)))
+	} else if (!load) {
+		const struct tcp_congestion_ops *old_ca = icsk->icsk_ca_ops;
+
+		if (try_module_get(ca->owner)) {
+			if (reinit) {
+				tcp_reinit_congestion_control(sk, ca);
+			} else {
+				icsk->icsk_ca_ops = ca;
+				module_put(old_ca->owner);
+			}
+		} else {
+			err = -EBUSY;
+		}
+	} else if (!((ca->flags & TCP_CONG_NON_RESTRICTED) ||
+		     ns_capable(sock_net(sk)->user_ns, CAP_NET_ADMIN))) {
 		err = -EPERM;
-	else if (!try_module_get(ca->owner))
+	} else if (!try_module_get(ca->owner)) {
 		err = -EBUSY;
-	else
+	} else {
 		tcp_reinit_congestion_control(sk, ca);
+	}
  out:
 	rcu_read_unlock();
 	return err;
@@ -444,7 +465,7 @@ u32 tcp_reno_undo_cwnd(struct sock *sk)
 {
 	const struct tcp_sock *tp = tcp_sk(sk);
 
-	return max(tp->snd_cwnd, tp->snd_ssthresh << 1);
+	return max(tp->snd_cwnd, tp->prior_cwnd);
 }
 EXPORT_SYMBOL_GPL(tcp_reno_undo_cwnd);
 

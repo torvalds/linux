@@ -551,17 +551,53 @@ static void sdma_v3_0_rlc_stop(struct amdgpu_device *adev)
  */
 static void sdma_v3_0_ctx_switch_enable(struct amdgpu_device *adev, bool enable)
 {
-	u32 f32_cntl;
+	u32 f32_cntl, phase_quantum = 0;
 	int i;
+
+	if (amdgpu_sdma_phase_quantum) {
+		unsigned value = amdgpu_sdma_phase_quantum;
+		unsigned unit = 0;
+
+		while (value > (SDMA0_PHASE0_QUANTUM__VALUE_MASK >>
+				SDMA0_PHASE0_QUANTUM__VALUE__SHIFT)) {
+			value = (value + 1) >> 1;
+			unit++;
+		}
+		if (unit > (SDMA0_PHASE0_QUANTUM__UNIT_MASK >>
+			    SDMA0_PHASE0_QUANTUM__UNIT__SHIFT)) {
+			value = (SDMA0_PHASE0_QUANTUM__VALUE_MASK >>
+				 SDMA0_PHASE0_QUANTUM__VALUE__SHIFT);
+			unit = (SDMA0_PHASE0_QUANTUM__UNIT_MASK >>
+				SDMA0_PHASE0_QUANTUM__UNIT__SHIFT);
+			WARN_ONCE(1,
+			"clamping sdma_phase_quantum to %uK clock cycles\n",
+				  value << unit);
+		}
+		phase_quantum =
+			value << SDMA0_PHASE0_QUANTUM__VALUE__SHIFT |
+			unit  << SDMA0_PHASE0_QUANTUM__UNIT__SHIFT;
+	}
 
 	for (i = 0; i < adev->sdma.num_instances; i++) {
 		f32_cntl = RREG32(mmSDMA0_CNTL + sdma_offsets[i]);
-		if (enable)
+		if (enable) {
 			f32_cntl = REG_SET_FIELD(f32_cntl, SDMA0_CNTL,
 					AUTO_CTXSW_ENABLE, 1);
-		else
+			f32_cntl = REG_SET_FIELD(f32_cntl, SDMA0_CNTL,
+					ATC_L1_ENABLE, 1);
+			if (amdgpu_sdma_phase_quantum) {
+				WREG32(mmSDMA0_PHASE0_QUANTUM + sdma_offsets[i],
+				       phase_quantum);
+				WREG32(mmSDMA0_PHASE1_QUANTUM + sdma_offsets[i],
+				       phase_quantum);
+			}
+		} else {
 			f32_cntl = REG_SET_FIELD(f32_cntl, SDMA0_CNTL,
 					AUTO_CTXSW_ENABLE, 0);
+			f32_cntl = REG_SET_FIELD(f32_cntl, SDMA0_CNTL,
+					ATC_L1_ENABLE, 1);
+		}
+
 		WREG32(mmSDMA0_CNTL + sdma_offsets[i], f32_cntl);
 	}
 }
@@ -643,8 +679,9 @@ static int sdma_v3_0_gfx_resume(struct amdgpu_device *adev)
 		WREG32(mmSDMA0_GFX_RB_CNTL + sdma_offsets[i], rb_cntl);
 
 		/* Initialize the ring buffer's read and write pointers */
+		ring->wptr = 0;
 		WREG32(mmSDMA0_GFX_RB_RPTR + sdma_offsets[i], 0);
-		WREG32(mmSDMA0_GFX_RB_WPTR + sdma_offsets[i], 0);
+		sdma_v3_0_ring_set_wptr(ring);
 		WREG32(mmSDMA0_GFX_IB_RPTR + sdma_offsets[i], 0);
 		WREG32(mmSDMA0_GFX_IB_OFFSET + sdma_offsets[i], 0);
 
@@ -658,9 +695,6 @@ static int sdma_v3_0_gfx_resume(struct amdgpu_device *adev)
 
 		WREG32(mmSDMA0_GFX_RB_BASE + sdma_offsets[i], ring->gpu_addr >> 8);
 		WREG32(mmSDMA0_GFX_RB_BASE_HI + sdma_offsets[i], ring->gpu_addr >> 40);
-
-		ring->wptr = 0;
-		WREG32(mmSDMA0_GFX_RB_WPTR + sdma_offsets[i], lower_32_bits(ring->wptr) << 2);
 
 		doorbell = RREG32(mmSDMA0_GFX_DOORBELL + sdma_offsets[i]);
 

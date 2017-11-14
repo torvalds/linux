@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
 /* SCTP kernel implementation
  * (C) Copyright IBM Corp. 2001, 2004
  * Copyright (c) 1999-2000 Cisco, Inc.
@@ -121,6 +122,7 @@ typedef __s32 sctp_assoc_t;
 #define SCTP_RESET_STREAMS	119
 #define SCTP_RESET_ASSOC	120
 #define SCTP_ADD_STREAMS	121
+#define SCTP_SOCKOPT_PEELOFF_FLAGS 122
 
 /* PR-SCTP policies */
 #define SCTP_PR_SCTP_NONE	0x0000
@@ -375,7 +377,7 @@ struct sctp_remote_error {
 	__u16 sre_type;
 	__u16 sre_flags;
 	__u32 sre_length;
-	__u16 sre_error;
+	__be16 sre_error;
 	sctp_assoc_t sre_assoc_id;
 	__u8 sre_data[0];
 };
@@ -977,6 +979,11 @@ typedef struct {
 	sctp_assoc_t associd;
 	int sd;
 } sctp_peeloff_arg_t;
+
+typedef struct {
+	sctp_peeloff_arg_t p_arg;
+	unsigned flags;
+} sctp_peeloff_flags_arg_t;
 
 /*
  *  Peer Address Thresholds socket option

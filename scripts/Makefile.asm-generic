@@ -1,9 +1,10 @@
+# SPDX-License-Identifier: GPL-2.0
 # include/asm-generic contains a lot of files that are used
 # verbatim by several architectures.
 #
-# This Makefile reads the file arch/$(SRCARCH)/include/asm/Kbuild
+# This Makefile reads the file arch/$(SRCARCH)/include/$(src)/Kbuild
 # and for each file listed in this file with generic-y creates
-# a small wrapper file in $(obj) (arch/$(SRCARCH)/include/generated/asm)
+# a small wrapper file in $(obj) (arch/$(SRCARCH)/include/generated/$(src))
 
 kbuild-file := $(srctree)/arch/$(SRCARCH)/include/$(src)/Kbuild
 -include $(kbuild-file)
@@ -15,7 +16,7 @@ _dummy := $(shell [ -d $(obj) ] || mkdir -p $(obj))
 
 # Stale wrappers when the corresponding files are removed from generic-y
 # need removing.
-generated-y   := $(generic-y) $(genhdr-y) $(generated-y)
+generated-y   := $(generic-y) $(generated-y)
 all-files     := $(patsubst %, $(obj)/%, $(generated-y))
 old-headers   := $(wildcard $(obj)/*.h)
 unwanted      := $(filter-out $(all-files),$(old-headers))

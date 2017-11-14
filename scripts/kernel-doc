@@ -1,5 +1,6 @@
-#!/usr/bin/perl -w
+#!/usr/bin/env perl
 
+use warnings;
 use strict;
 
 ## Copyright (c) 1998 Michael Zucchi, All Rights Reserved        ##
@@ -2189,6 +2190,8 @@ sub dump_struct($$) {
 	$members =~ s/\s*CRYPTO_MINALIGN_ATTR//gos;
 	# replace DECLARE_BITMAP
 	$members =~ s/DECLARE_BITMAP\s*\(([^,)]+), ([^,)]+)\)/unsigned long $1\[BITS_TO_LONGS($2)\]/gos;
+	# replace DECLARE_HASHTABLE
+	$members =~ s/DECLARE_HASHTABLE\s*\(([^,)]+), ([^,)]+)\)/unsigned long $1\[1 << (($2) - 1)\]/gos;
 
 	create_parameterlist($members, ';', $file);
 	check_sections($file, $declaration_name, "struct", $sectcheck, $struct_actual, $nested);
@@ -2223,6 +2226,7 @@ sub dump_enum($$) {
     if ($x =~ /enum\s+(\w+)\s*{(.*)}/) {
 	$declaration_name = $1;
 	my $members = $2;
+	$members =~ s/\s+$//;
 
 	foreach my $arg (split ',', $members) {
 	    $arg =~ s/^\s*(\w+).*/$1/;
@@ -2763,6 +2767,9 @@ sub process_proto_type($$) {
 
     while (1) {
 	if ( $x =~ /([^{};]*)([{};])(.*)/ ) {
+            if( length $prototype ) {
+                $prototype .= " "
+            }
 	    $prototype .= $1 . $2;
 	    ($2 eq '{') && $brcount++;
 	    ($2 eq '}') && $brcount--;

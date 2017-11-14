@@ -150,16 +150,27 @@ static const struct irq_domain_ops htirq_domain_ops = {
 	.deactivate	= htirq_domain_deactivate,
 };
 
-void arch_init_htirq_domain(struct irq_domain *parent)
+void __init arch_init_htirq_domain(struct irq_domain *parent)
 {
+	struct fwnode_handle *fn;
+
 	if (disable_apic)
 		return;
 
-	htirq_domain = irq_domain_add_tree(NULL, &htirq_domain_ops, NULL);
+	fn = irq_domain_alloc_named_fwnode("PCI-HT");
+	if (!fn)
+		goto warn;
+
+	htirq_domain = irq_domain_create_tree(fn, &htirq_domain_ops, NULL);
+	irq_domain_free_fwnode(fn);
 	if (!htirq_domain)
-		pr_warn("failed to initialize irqdomain for HTIRQ.\n");
-	else
-		htirq_domain->parent = parent;
+		goto warn;
+
+	htirq_domain->parent = parent;
+	return;
+
+warn:
+	pr_warn("Failed to initialize irqdomain for HTIRQ.\n");
 }
 
 int arch_setup_ht_irq(int idx, int pos, struct pci_dev *dev,

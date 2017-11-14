@@ -15,6 +15,7 @@
 #include <linux/iio/iio.h>
 #include <linux/regulator/consumer.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
 #include <asm/unaligned.h>
 #include <linux/iio/common/st_sensors.h>
 
@@ -345,6 +346,36 @@ static struct st_sensors_platform_data *st_sensors_of_probe(struct device *dev,
 
 	return pdata;
 }
+
+/**
+ * st_sensors_of_name_probe() - device tree probe for ST sensor name
+ * @dev: driver model representation of the device.
+ * @match: the OF match table for the device, containing compatible strings
+ *	but also a .data field with the corresponding internal kernel name
+ *	used by this sensor.
+ * @name: device name buffer reference.
+ * @len: device name buffer length.
+ *
+ * In effect this function matches a compatible string to an internal kernel
+ * name for a certain sensor device, so that the rest of the autodetection can
+ * rely on that name from this point on. I2C/SPI devices will be renamed
+ * to match the internal kernel convention.
+ */
+void st_sensors_of_name_probe(struct device *dev,
+			      const struct of_device_id *match,
+			      char *name, int len)
+{
+	const struct of_device_id *of_id;
+
+	of_id = of_match_device(match, dev);
+	if (!of_id || !of_id->data)
+		return;
+
+	/* The name from the OF match takes precedence if present */
+	strncpy(name, of_id->data, len);
+	name[len - 1] = '\0';
+}
+EXPORT_SYMBOL(st_sensors_of_name_probe);
 #else
 static struct st_sensors_platform_data *st_sensors_of_probe(struct device *dev,
 		struct st_sensors_platform_data *defdata)
@@ -432,8 +463,17 @@ int st_sensors_set_dataready_irq(struct iio_dev *indio_dev, bool enable)
 	u8 drdy_mask;
 	struct st_sensor_data *sdata = iio_priv(indio_dev);
 
-	if (!sdata->sensor_settings->drdy_irq.addr)
+	if (!sdata->sensor_settings->drdy_irq.addr) {
+		/*
+		 * there are some devices (e.g. LIS3MDL) where drdy line is
+		 * routed to a given pin and it is not possible to select a
+		 * different one. Take into account irq status register
+		 * to understand if irq trigger can be properly supported
+		 */
+		if (sdata->sensor_settings->drdy_irq.addr_stat_drdy)
+			sdata->hw_irq_trigger = enable;
 		return 0;
+	}
 
 	/* Enable/Disable the interrupt generator 1. */
 	if (sdata->sensor_settings->drdy_irq.ig1.en_addr > 0) {
@@ -550,6 +590,31 @@ out:
 }
 EXPORT_SYMBOL(st_sensors_read_info_raw);
 
+static int st_sensors_init_interface_mode(struct iio_dev *indio_dev,
+			const struct st_sensor_settings *sensor_settings)
+{
+	struct st_sensor_data *sdata = iio_priv(indio_dev);
+	struct device_node *np = sdata->dev->of_node;
+	struct st_sensors_platform_data *pdata;
+
+	pdata = (struct st_sensors_platform_data *)sdata->dev->platform_data;
+	if (((np && of_property_read_bool(np, "spi-3wire")) ||
+	     (pdata && pdata->spi_3wire)) && sensor_settings->sim.addr) {
+		int err;
+
+		err = sdata->tf->write_byte(&sdata->tb, sdata->dev,
+					    sensor_settings->sim.addr,
+					    sensor_settings->sim.value);
+		if (err < 0) {
+			dev_err(&indio_dev->dev,
+				"failed to init interface mode\n");
+			return err;
+		}
+	}
+
+	return 0;
+}
+
 int st_sensors_check_device_support(struct iio_dev *indio_dev,
 			int num_sensors_list,
 			const struct st_sensor_settings *sensor_settings)
@@ -573,6 +638,10 @@ int st_sensors_check_device_support(struct iio_dev *indio_dev,
 							indio_dev->name);
 		return -ENODEV;
 	}
+
+	err = st_sensors_init_interface_mode(indio_dev, &sensor_settings[i]);
+	if (err < 0)
+		return err;
 
 	if (sensor_settings[i].wai_addr) {
 		err = sdata->tf->read_byte(&sdata->tb, sdata->dev,

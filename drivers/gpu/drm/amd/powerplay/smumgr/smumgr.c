@@ -20,15 +20,16 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
-#include <linux/types.h>
+
+#include <linux/delay.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/types.h>
 #include <drm/amdgpu_drm.h>
 #include "pp_instance.h"
 #include "smumgr.h"
 #include "cgs_common.h"
-#include "linux/delay.h"
 
 MODULE_FIRMWARE("amdgpu/topaz_smc.bin");
 MODULE_FIRMWARE("amdgpu/topaz_k_smc.bin");
@@ -42,7 +43,8 @@ MODULE_FIRMWARE("amdgpu/polaris11_smc.bin");
 MODULE_FIRMWARE("amdgpu/polaris11_smc_sk.bin");
 MODULE_FIRMWARE("amdgpu/polaris11_k_smc.bin");
 MODULE_FIRMWARE("amdgpu/polaris12_smc.bin");
-
+MODULE_FIRMWARE("amdgpu/vega10_smc.bin");
+MODULE_FIRMWARE("amdgpu/vega10_acg_smc.bin");
 
 int smum_early_init(struct pp_instance *handle)
 {
@@ -90,6 +92,15 @@ int smum_early_init(struct pp_instance *handle)
 		switch (smumgr->chip_id) {
 		case CHIP_VEGA10:
 			smumgr->smumgr_funcs = &vega10_smu_funcs;
+			break;
+		default:
+			return -EINVAL;
+		}
+		break;
+	case AMDGPU_FAMILY_RV:
+		switch (smumgr->chip_id) {
+		case CHIP_RAVEN:
+			smumgr->smumgr_funcs = &rv_smu_funcs;
 			break;
 		default:
 			return -EINVAL;
@@ -392,4 +403,12 @@ int smum_populate_requested_graphic_levels(struct pp_hwmgr *hwmgr,
 				hwmgr, request);
 
 	return 0;
+}
+
+bool smum_is_hw_avfs_present(struct pp_smumgr *smumgr)
+{
+	if (smumgr->smumgr_funcs->is_hw_avfs_present)
+		return smumgr->smumgr_funcs->is_hw_avfs_present(smumgr);
+
+	return false;
 }

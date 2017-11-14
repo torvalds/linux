@@ -480,7 +480,7 @@ static const struct v4l2_ctrl_ops ctrl_ops = {
 	.g_volatile_ctrl = gc2235_g_volatile_ctrl
 };
 
-struct v4l2_ctrl_config gc2235_controls[] = {
+static struct v4l2_ctrl_config gc2235_controls[] = {
 	{
 	 .ops = &ctrl_ops,
 	 .id = V4L2_CID_EXPOSURE_ABSOLUTE,
@@ -1183,7 +1183,7 @@ out_free:
 	return ret;
 }
 
-static struct acpi_device_id gc2235_acpi_match[] = {
+static const struct acpi_device_id gc2235_acpi_match[] = {
 	{ "INT33F8" },
 	{},
 };

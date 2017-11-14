@@ -527,8 +527,11 @@ pid_t __task_pid_nr_ns(struct task_struct *task, enum pid_type type,
 	if (!ns)
 		ns = task_active_pid_ns(current);
 	if (likely(pid_alive(task))) {
-		if (type != PIDTYPE_PID)
+		if (type != PIDTYPE_PID) {
+			if (type == __PIDTYPE_TGID)
+				type = PIDTYPE_PID;
 			task = task->group_leader;
+		}
 		nr = pid_nr_ns(rcu_dereference(task->pids[type].pid), ns);
 	}
 	rcu_read_unlock();
@@ -536,12 +539,6 @@ pid_t __task_pid_nr_ns(struct task_struct *task, enum pid_type type,
 	return nr;
 }
 EXPORT_SYMBOL(__task_pid_nr_ns);
-
-pid_t task_tgid_nr_ns(struct task_struct *tsk, struct pid_namespace *ns)
-{
-	return pid_nr_ns(task_tgid(tsk), ns);
-}
-EXPORT_SYMBOL(task_tgid_nr_ns);
 
 struct pid_namespace *task_active_pid_ns(struct task_struct *tsk)
 {
@@ -575,16 +572,10 @@ struct pid *find_ge_pid(int nr, struct pid_namespace *ns)
  */
 void __init pidhash_init(void)
 {
-	unsigned int i, pidhash_size;
-
 	pid_hash = alloc_large_system_hash("PID", sizeof(*pid_hash), 0, 18,
-					   HASH_EARLY | HASH_SMALL,
+					   HASH_EARLY | HASH_SMALL | HASH_ZERO,
 					   &pidhash_shift, NULL,
 					   0, 4096);
-	pidhash_size = 1U << pidhash_shift;
-
-	for (i = 0; i < pidhash_size; i++)
-		INIT_HLIST_HEAD(&pid_hash[i]);
 }
 
 void __init pidmap_init(void)

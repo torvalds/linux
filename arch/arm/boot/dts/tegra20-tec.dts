@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /dts-v1/;
 
 #include "tegra20-tamonten.dtsi"
@@ -32,7 +33,7 @@
 		};
 	};
 
-	pcie-controller@80003000 {
+	pcie@80003000 {
 		status = "okay";
 
 		pci@1,0 {

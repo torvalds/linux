@@ -88,8 +88,8 @@
 /*
  * super-class definitions.
  */
-#include "lu_object.h"
-#include "lustre_compat.h"
+#include <lu_object.h>
+#include <lustre_compat.h>
 #include <linux/atomic.h>
 #include <linux/mutex.h>
 #include <linux/radix-tree.h>
@@ -1287,7 +1287,7 @@ do {								    \
  * @{
  */
 struct cl_page_list {
-	unsigned	     pl_nr;
+	unsigned int		 pl_nr;
 	struct list_head	   pl_pages;
 	struct task_struct	*pl_owner;
 };
@@ -1358,7 +1358,7 @@ struct cl_2queue {
 /** IO types */
 enum cl_io_type {
 	/** read system call */
-	CIT_READ,
+	CIT_READ = 1,
 	/** write system call */
 	CIT_WRITE,
 	/** truncate, utime system calls */
@@ -1842,7 +1842,7 @@ struct cl_io {
 	/**
 	 * Number of pages owned by this IO. For invariant checking.
 	 */
-	unsigned	     ci_owned_nr;
+	unsigned int	     ci_owned_nr;
 };
 
 /** @} cl_io */

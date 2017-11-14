@@ -37,7 +37,7 @@ static struct etnaviv_gem_submit *submit_create(struct drm_device *dev,
 	struct etnaviv_gem_submit *submit;
 	size_t sz = size_vstruct(nr, sizeof(submit->bos[0]), sizeof(*submit));
 
-	submit = kmalloc(sz, GFP_TEMPORARY | __GFP_NOWARN | __GFP_NORETRY);
+	submit = kmalloc(sz, GFP_KERNEL | __GFP_NOWARN | __GFP_NORETRY);
 	if (submit) {
 		submit->dev = dev;
 		submit->gpu = gpu;
@@ -88,7 +88,7 @@ static int submit_lookup_objects(struct etnaviv_gem_submit *submit,
 		 * Take a refcount on the object. The file table lock
 		 * prevents the object_idr's refcount on this being dropped.
 		 */
-		drm_gem_object_reference(obj);
+		drm_gem_object_get(obj);
 
 		submit->bos[i].obj = to_etnaviv_bo(obj);
 	}
@@ -270,8 +270,8 @@ static int submit_reloc(struct etnaviv_gem_submit *submit, void *stream,
 		if (ret)
 			return ret;
 
-		if (r->reloc_offset >= bo->obj->base.size - sizeof(*ptr)) {
-			DRM_ERROR("relocation %u outside object", i);
+		if (r->reloc_offset > bo->obj->base.size - sizeof(*ptr)) {
+			DRM_ERROR("relocation %u outside object\n", i);
 			return -EINVAL;
 		}
 
@@ -291,7 +291,7 @@ static void submit_cleanup(struct etnaviv_gem_submit *submit)
 		struct etnaviv_gem_object *etnaviv_obj = submit->bos[i].obj;
 
 		submit_unlock_object(submit, i);
-		drm_gem_object_unreference_unlocked(&etnaviv_obj->base);
+		drm_gem_object_put_unlocked(&etnaviv_obj->base);
 	}
 
 	ww_acquire_fini(&submit->ticket);
@@ -345,9 +345,9 @@ int etnaviv_ioctl_gem_submit(struct drm_device *dev, void *data,
 	 * Copy the command submission and bo array to kernel space in
 	 * one go, and do this outside of any locks.
 	 */
-	bos = drm_malloc_ab(args->nr_bos, sizeof(*bos));
-	relocs = drm_malloc_ab(args->nr_relocs, sizeof(*relocs));
-	stream = drm_malloc_ab(1, args->stream_size);
+	bos = kvmalloc_array(args->nr_bos, sizeof(*bos), GFP_KERNEL);
+	relocs = kvmalloc_array(args->nr_relocs, sizeof(*relocs), GFP_KERNEL);
+	stream = kvmalloc_array(1, args->stream_size, GFP_KERNEL);
 	cmdbuf = etnaviv_cmdbuf_new(gpu->cmdbuf_suballoc,
 				    ALIGN(args->stream_size, 8) + 8,
 				    args->nr_bos);
@@ -445,8 +445,10 @@ int etnaviv_ioctl_gem_submit(struct drm_device *dev, void *data,
 	cmdbuf->user_size = ALIGN(args->stream_size, 8);
 
 	ret = etnaviv_gpu_submit(gpu, submit, cmdbuf);
-	if (ret == 0)
-		cmdbuf = NULL;
+	if (ret)
+		goto out;
+
+	cmdbuf = NULL;
 
 	if (args->flags & ETNA_SUBMIT_FENCE_FD_OUT) {
 		/*
@@ -489,11 +491,11 @@ err_submit_cmds:
 	if (cmdbuf)
 		etnaviv_cmdbuf_free(cmdbuf);
 	if (stream)
-		drm_free_large(stream);
+		kvfree(stream);
 	if (bos)
-		drm_free_large(bos);
+		kvfree(bos);
 	if (relocs)
-		drm_free_large(relocs);
+		kvfree(relocs);
 
 	return ret;
 }

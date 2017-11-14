@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *  S390 version
  *    Copyright IBM Corp. 1999
@@ -20,6 +21,7 @@
 #define CIF_FPU			4	/* restore FPU registers */
 #define CIF_IGNORE_IRQ		5	/* ignore interrupt (for udelay) */
 #define CIF_ENABLED_WAIT	6	/* in enabled wait state */
+#define CIF_MCCK_GUEST		7	/* machine check happening in guest */
 
 #define _CIF_MCCK_PENDING	_BITUL(CIF_MCCK_PENDING)
 #define _CIF_ASCE_PRIMARY	_BITUL(CIF_ASCE_PRIMARY)
@@ -28,6 +30,7 @@
 #define _CIF_FPU		_BITUL(CIF_FPU)
 #define _CIF_IGNORE_IRQ		_BITUL(CIF_IGNORE_IRQ)
 #define _CIF_ENABLED_WAIT	_BITUL(CIF_ENABLED_WAIT)
+#define _CIF_MCCK_GUEST		_BITUL(CIF_MCCK_GUEST)
 
 #ifndef __ASSEMBLY__
 
@@ -92,11 +95,11 @@ extern void execve_tail(void);
  */
 
 #define TASK_SIZE_OF(tsk)	(test_tsk_thread_flag(tsk, TIF_31BIT) ? \
-					(1UL << 31) : (1UL << 53))
+					(1UL << 31) : -PAGE_SIZE)
 #define TASK_UNMAPPED_BASE	(test_thread_flag(TIF_31BIT) ? \
 					(1UL << 30) : (1UL << 41))
 #define TASK_SIZE		TASK_SIZE_OF(current)
-#define TASK_SIZE_MAX		(1UL << 53)
+#define TASK_SIZE_MAX		(-PAGE_SIZE)
 
 #define STACK_TOP		(test_thread_flag(TIF_31BIT) ? \
 					(1UL << 31) : (1UL << 42))

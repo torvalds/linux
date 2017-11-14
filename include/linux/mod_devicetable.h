@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Device tables which are exported to userspace via
  * scripts/mod/file2alias.c.  You must keep that file in sync with this
@@ -677,8 +678,6 @@ struct ulpi_device_id {
  * struct fsl_mc_device_id - MC object device identifier
  * @vendor: vendor ID
  * @obj_type: MC object type
- * @ver_major: MC object version major number
- * @ver_minor: MC object version minor number
  *
  * Type of entries in the "device Id" table for MC object devices supported by
  * a MC object device driver. The last entry of the table has vendor set to 0x0

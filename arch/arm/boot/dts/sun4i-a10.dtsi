@@ -1030,12 +1030,6 @@
 				bias-pull-up;
 			};
 
-			mmc0_cd_pin_reference_design: mmc0_cd_pin@0 {
-				pins = "PH1";
-				function = "gpio_in";
-				bias-pull-up;
-			};
-
 			ps20_pins_a: ps20@0 {
 				pins = "PI20", "PI21";
 				function = "ps2";

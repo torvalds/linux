@@ -36,20 +36,18 @@
 #include <linux/firmware.h>
 #include <linux/platform_device.h>
 
-#include "drmP.h"
-#include "drm_crtc.h"
-#include <ttm/ttm_bo_api.h>
-#include <ttm/ttm_bo_driver.h>
-#include <ttm/ttm_placement.h>
-#include <ttm/ttm_module.h>
-
+#include <drm/drm_crtc.h>
 #include <drm/drm_encoder.h>
 #include <drm/drm_gem.h>
-
+#include <drm/drmP.h>
+#include <drm/ttm/ttm_bo_api.h>
+#include <drm/ttm/ttm_bo_driver.h>
 /* just for ttm_validate_buffer */
-#include <ttm/ttm_execbuf_util.h>
-
+#include <drm/ttm/ttm_execbuf_util.h>
+#include <drm/ttm/ttm_module.h>
+#include <drm/ttm/ttm_placement.h>
 #include <drm/qxl_drm.h>
+
 #include "qxl_dev.h"
 
 #define DRIVER_AUTHOR		"Dave Airlie"
@@ -66,6 +64,7 @@
 
 extern int qxl_log_level;
 extern int qxl_num_crtc;
+extern int qxl_max_ioctls;
 
 enum {
 	QXL_INFO_LEVEL = 1,

@@ -36,6 +36,7 @@
 #include "logging.h"
 #include "futextest.h"
 
+#define TEST_NAME "futex-wait-uninitialized-heap"
 #define WAIT_US 5000000
 
 static int child_blocked = 1;
@@ -98,7 +99,8 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 
-	printf("%s: Test the uninitialized futex value in FUTEX_WAIT\n",
+	ksft_print_header();
+	ksft_print_msg("%s: Test the uninitialized futex value in FUTEX_WAIT\n",
 	       basename(argv[0]));
 
 
@@ -119,6 +121,6 @@ int main(int argc, char **argv)
 	}
 
  out:
-	print_result(ret);
+	print_result(TEST_NAME, ret);
 	return ret;
 }

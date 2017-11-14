@@ -455,7 +455,11 @@ void arch_timer_enable_workaround(const struct arch_timer_erratum_workaround *wa
 			per_cpu(timer_unstable_counter_workaround, i) = wa;
 	}
 
-	static_branch_enable(&arch_timer_read_ool_enabled);
+	/*
+	 * Use the locked version, as we're called from the CPU
+	 * hotplug framework. Otherwise, we end-up in deadlock-land.
+	 */
+	static_branch_enable_cpuslocked(&arch_timer_read_ool_enabled);
 
 	/*
 	 * Don't use the vdso fastpath if errata require using the
@@ -1194,8 +1198,8 @@ static int __init arch_timer_of_init(struct device_node *np)
 
 	return arch_timer_common_init();
 }
-CLOCKSOURCE_OF_DECLARE(armv7_arch_timer, "arm,armv7-timer", arch_timer_of_init);
-CLOCKSOURCE_OF_DECLARE(armv8_arch_timer, "arm,armv8-timer", arch_timer_of_init);
+TIMER_OF_DECLARE(armv7_arch_timer, "arm,armv7-timer", arch_timer_of_init);
+TIMER_OF_DECLARE(armv8_arch_timer, "arm,armv8-timer", arch_timer_of_init);
 
 static u32 __init
 arch_timer_mem_frame_get_cntfrq(struct arch_timer_mem_frame *frame)
@@ -1382,7 +1386,7 @@ out:
 	kfree(timer_mem);
 	return ret;
 }
-CLOCKSOURCE_OF_DECLARE(armv7_arch_timer_mem, "arm,armv7-timer-mem",
+TIMER_OF_DECLARE(armv7_arch_timer_mem, "arm,armv7-timer-mem",
 		       arch_timer_mem_of_init);
 
 #ifdef CONFIG_ACPI_GTDT
@@ -1440,7 +1444,7 @@ static int __init arch_timer_mem_acpi_init(int platform_timer_count)
 	 * While unlikely, it's theoretically possible that none of the frames
 	 * in a timer expose the combination of feature we want.
 	 */
-	for (i = i; i < timer_count; i++) {
+	for (i = 0; i < timer_count; i++) {
 		timer = &timers[i];
 
 		frame = arch_timer_mem_find_best_frame(timer);
@@ -1516,5 +1520,5 @@ static int __init arch_timer_acpi_init(struct acpi_table_header *table)
 
 	return arch_timer_common_init();
 }
-CLOCKSOURCE_ACPI_DECLARE(arch_timer, ACPI_SIG_GTDT, arch_timer_acpi_init);
+TIMER_ACPI_DECLARE(arch_timer, ACPI_SIG_GTDT, arch_timer_acpi_init);
 #endif

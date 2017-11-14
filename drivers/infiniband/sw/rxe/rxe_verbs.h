@@ -89,6 +89,7 @@ struct rxe_cq {
 	struct rxe_queue	*queue;
 	spinlock_t		cq_lock;
 	u8			notify;
+	bool			is_dying;
 	int			is_user;
 	struct tasklet_struct	comp_task;
 };
@@ -247,6 +248,7 @@ struct rxe_qp {
 	struct rxe_rq		rq;
 
 	struct socket		*sk;
+	u32			dst_cookie;
 
 	struct rxe_av		pri_av;
 	struct rxe_av		alt_av;

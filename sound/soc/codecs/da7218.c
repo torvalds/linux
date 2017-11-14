@@ -1457,7 +1457,7 @@ static int da7218_dai_event(struct snd_soc_dapm_widget *w,
 				++i;
 				msleep(DA7218_SRM_CHECK_DELAY);
 			}
-		} while ((i < DA7218_SRM_CHECK_TRIES) & (!success));
+		} while ((i < DA7218_SRM_CHECK_TRIES) && (!success));
 
 		if (!success)
 			dev_warn(codec->dev, "SRM failed to lock\n");
@@ -3035,7 +3035,7 @@ static int da7218_resume(struct snd_soc_codec *codec)
 #define da7218_resume NULL
 #endif
 
-static struct snd_soc_codec_driver soc_codec_dev_da7218 = {
+static const struct snd_soc_codec_driver soc_codec_dev_da7218 = {
 	.probe			= da7218_probe,
 	.remove			= da7218_remove,
 	.suspend		= da7218_suspend,

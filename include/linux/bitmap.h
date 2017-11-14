@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __LINUX_BITMAP_H
 #define __LINUX_BITMAP_H
 
@@ -112,9 +113,8 @@ extern int __bitmap_intersects(const unsigned long *bitmap1,
 extern int __bitmap_subset(const unsigned long *bitmap1,
 			const unsigned long *bitmap2, unsigned int nbits);
 extern int __bitmap_weight(const unsigned long *bitmap, unsigned int nbits);
-
-extern void bitmap_set(unsigned long *map, unsigned int start, int len);
-extern void bitmap_clear(unsigned long *map, unsigned int start, int len);
+extern void __bitmap_set(unsigned long *map, unsigned int start, int len);
+extern void __bitmap_clear(unsigned long *map, unsigned int start, int len);
 
 extern unsigned long bitmap_find_next_zero_area_off(unsigned long *map,
 						    unsigned long size,
@@ -267,10 +267,8 @@ static inline int bitmap_equal(const unsigned long *src1,
 {
 	if (small_const_nbits(nbits))
 		return !((*src1 ^ *src2) & BITMAP_LAST_WORD_MASK(nbits));
-#ifdef CONFIG_S390
-	if (__builtin_constant_p(nbits) && (nbits % BITS_PER_LONG) == 0)
+	if (__builtin_constant_p(nbits & 7) && IS_ALIGNED(nbits, 8))
 		return !memcmp(src1, src2, nbits / 8);
-#endif
 	return __bitmap_equal(src1, src2, nbits);
 }
 
@@ -315,6 +313,30 @@ static __always_inline int bitmap_weight(const unsigned long *src, unsigned int 
 	return __bitmap_weight(src, nbits);
 }
 
+static __always_inline void bitmap_set(unsigned long *map, unsigned int start,
+		unsigned int nbits)
+{
+	if (__builtin_constant_p(nbits) && nbits == 1)
+		__set_bit(start, map);
+	else if (__builtin_constant_p(start & 7) && IS_ALIGNED(start, 8) &&
+		 __builtin_constant_p(nbits & 7) && IS_ALIGNED(nbits, 8))
+		memset((char *)map + start / 8, 0xff, nbits / 8);
+	else
+		__bitmap_set(map, start, nbits);
+}
+
+static __always_inline void bitmap_clear(unsigned long *map, unsigned int start,
+		unsigned int nbits)
+{
+	if (__builtin_constant_p(nbits) && nbits == 1)
+		__clear_bit(start, map);
+	else if (__builtin_constant_p(start & 7) && IS_ALIGNED(start, 8) &&
+		 __builtin_constant_p(nbits & 7) && IS_ALIGNED(nbits, 8))
+		memset((char *)map + start / 8, 0, nbits / 8);
+	else
+		__bitmap_clear(map, start, nbits);
+}
+
 static inline void bitmap_shift_right(unsigned long *dst, const unsigned long *src,
 				unsigned int shift, int nbits)
 {
@@ -338,6 +360,38 @@ static inline int bitmap_parse(const char *buf, unsigned int buflen,
 {
 	return __bitmap_parse(buf, buflen, 0, maskp, nmaskbits);
 }
+
+/*
+ * BITMAP_FROM_U64() - Represent u64 value in the format suitable for bitmap.
+ *
+ * Linux bitmaps are internally arrays of unsigned longs, i.e. 32-bit
+ * integers in 32-bit environment, and 64-bit integers in 64-bit one.
+ *
+ * There are four combinations of endianness and length of the word in linux
+ * ABIs: LE64, BE64, LE32 and BE32.
+ *
+ * On 64-bit kernels 64-bit LE and BE numbers are naturally ordered in
+ * bitmaps and therefore don't require any special handling.
+ *
+ * On 32-bit kernels 32-bit LE ABI orders lo word of 64-bit number in memory
+ * prior to hi, and 32-bit BE orders hi word prior to lo. The bitmap on the
+ * other hand is represented as an array of 32-bit words and the position of
+ * bit N may therefore be calculated as: word #(N/32) and bit #(N%32) in that
+ * word.  For example, bit #42 is located at 10th position of 2nd word.
+ * It matches 32-bit LE ABI, and we can simply let the compiler store 64-bit
+ * values in memory as it usually does. But for BE we need to swap hi and lo
+ * words manually.
+ *
+ * With all that, the macro BITMAP_FROM_U64() does explicit reordering of hi and
+ * lo parts of u64.  For LE32 it does nothing, and for BE environment it swaps
+ * hi and lo words, as is expected by bitmap.
+ */
+#if __BITS_PER_LONG == 64
+#define BITMAP_FROM_U64(n) (n)
+#else
+#define BITMAP_FROM_U64(n) ((unsigned long) ((u64)(n) & ULONG_MAX)), \
+				((unsigned long) ((u64)(n) >> 32))
+#endif
 
 /*
  * bitmap_from_u64 - Check and swap words within u64.

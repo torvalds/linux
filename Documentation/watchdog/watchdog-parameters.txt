@@ -117,7 +117,7 @@ nowayout: Watchdog cannot be stopped once started
 -------------------------------------------------
 iTCO_wdt:
 heartbeat: Watchdog heartbeat in seconds.
-	(5<=heartbeat<=74 (TCO v1) or 1226 (TCO v2), default=30)
+	(2<heartbeat<39 (TCO v1) or 613 (TCO v2), default=30)
 nowayout: Watchdog cannot be stopped once started
 	(default=kernel config parameter)
 -------------------------------------------------
@@ -366,6 +366,12 @@ nowayout: Watchdog cannot be stopped once started
 -------------------------------------------------
 txx9wdt:
 timeout: Watchdog timeout in seconds. (0<timeout<N, default=60)
+nowayout: Watchdog cannot be stopped once started
+	(default=kernel config parameter)
+-------------------------------------------------
+uniphier_wdt:
+timeout: Watchdog timeout in power of two seconds.
+	(1 <= timeout <= 128, default=64)
 nowayout: Watchdog cannot be stopped once started
 	(default=kernel config parameter)
 -------------------------------------------------

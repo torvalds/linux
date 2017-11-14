@@ -128,7 +128,7 @@ static void io_err_dtr(struct dm_target *tt)
 
 static int io_err_map(struct dm_target *tt, struct bio *bio)
 {
-	return -EIO;
+	return DM_MAPIO_KILL;
 }
 
 static int io_err_clone_and_map_rq(struct dm_target *ti, struct request *rq,

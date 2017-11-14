@@ -829,8 +829,8 @@ static void ar5523_tx_work_locked(struct ar5523 *ar)
 		data->ar = ar;
 		data->urb = urb;
 
-		desc = (struct ar5523_tx_desc *)skb_push(skb, sizeof(*desc));
-		chunk = (struct ar5523_chunk *)skb_push(skb, sizeof(*chunk));
+		desc = skb_push(skb, sizeof(*desc));
+		chunk = skb_push(skb, sizeof(*chunk));
 
 		chunk->seqnum = 0;
 		chunk->flags = UATH_CFLAGS_FINAL;
@@ -1749,7 +1749,7 @@ static void ar5523_disconnect(struct usb_interface *intf)
 	{ USB_DEVICE((vendor), (device) + 1), \
 		.driver_info = AR5523_FLAG_ABG|AR5523_FLAG_PRE_FIRMWARE }
 
-static struct usb_device_id ar5523_id_table[] = {
+static const struct usb_device_id ar5523_id_table[] = {
 	AR5523_DEVICE_UG(0x168c, 0x0001),	/* Atheros / AR5523 */
 	AR5523_DEVICE_UG(0x0cf3, 0x0001),	/* Atheros2 / AR5523_1 */
 	AR5523_DEVICE_UG(0x0cf3, 0x0003),	/* Atheros2 / AR5523_2 */

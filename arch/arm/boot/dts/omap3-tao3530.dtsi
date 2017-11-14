@@ -63,7 +63,6 @@
 		regulator-min-microvolt = <3150000>;
 		regulator-max-microvolt = <3150000>;
 		gpio = <&gpio5 29 GPIO_ACTIVE_LOW>;		/* gpio_157 */
-		enable-active-low;
 		startup-delay-us = <10000>;
 	};
 };
@@ -224,7 +223,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&mmc1_pins>;
 	vmmc-supply = <&vmmc1>;
-	vmmc_aux-supply = <&vsim>;
+	vqmmc-supply = <&vsim>;
 	cd-gpios = <&twl_gpio 0 GPIO_ACTIVE_HIGH>;
 	bus-width = <8>;
 };

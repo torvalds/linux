@@ -125,7 +125,7 @@ armada_ovl_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 				 src_x, src_y, src_w, src_h);
 
 	ret = drm_plane_helper_check_update(plane, crtc, fb, &src, &dest, &clip,
-					    DRM_ROTATE_0,
+					    DRM_MODE_ROTATE_0,
 					    0, INT_MAX, true, false, &visible);
 	if (ret)
 		return ret;
@@ -388,7 +388,7 @@ static const uint32_t armada_ovl_formats[] = {
 	DRM_FORMAT_BGR565,
 };
 
-static struct drm_prop_enum_list armada_drm_colorkey_enum_list[] = {
+static const struct drm_prop_enum_list armada_drm_colorkey_enum_list[] = {
 	{ CKMODE_DISABLE, "disabled" },
 	{ CKMODE_Y,       "Y component" },
 	{ CKMODE_U,       "U component" },
@@ -460,6 +460,7 @@ int armada_overlay_plane_create(struct drm_device *dev, unsigned long crtcs)
 				       &armada_ovl_plane_funcs,
 				       armada_ovl_formats,
 				       ARRAY_SIZE(armada_ovl_formats),
+				       NULL,
 				       DRM_PLANE_TYPE_OVERLAY, NULL);
 	if (ret) {
 		kfree(dplane);

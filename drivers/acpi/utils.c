@@ -613,19 +613,19 @@ acpi_status acpi_evaluate_lck(acpi_handle handle, int lock)
 /**
  * acpi_evaluate_dsm - evaluate device's _DSM method
  * @handle: ACPI device handle
- * @uuid: UUID of requested functions, should be 16 bytes
+ * @guid: GUID of requested functions, should be 16 bytes
  * @rev: revision number of requested function
  * @func: requested function number
  * @argv4: the function specific parameter
  *
- * Evaluate device's _DSM method with specified UUID, revision id and
+ * Evaluate device's _DSM method with specified GUID, revision id and
  * function number. Caller needs to free the returned object.
  *
  * Though ACPI defines the fourth parameter for _DSM should be a package,
  * some old BIOSes do expect a buffer or an integer etc.
  */
 union acpi_object *
-acpi_evaluate_dsm(acpi_handle handle, const u8 *uuid, u64 rev, u64 func,
+acpi_evaluate_dsm(acpi_handle handle, const guid_t *guid, u64 rev, u64 func,
 		  union acpi_object *argv4)
 {
 	acpi_status ret;
@@ -638,7 +638,7 @@ acpi_evaluate_dsm(acpi_handle handle, const u8 *uuid, u64 rev, u64 func,
 
 	params[0].type = ACPI_TYPE_BUFFER;
 	params[0].buffer.length = 16;
-	params[0].buffer.pointer = (char *)uuid;
+	params[0].buffer.pointer = (u8 *)guid;
 	params[1].type = ACPI_TYPE_INTEGER;
 	params[1].integer.value = rev;
 	params[2].type = ACPI_TYPE_INTEGER;
@@ -666,7 +666,7 @@ EXPORT_SYMBOL(acpi_evaluate_dsm);
 /**
  * acpi_check_dsm - check if _DSM method supports requested functions.
  * @handle: ACPI device handle
- * @uuid: UUID of requested functions, should be 16 bytes at least
+ * @guid: GUID of requested functions, should be 16 bytes at least
  * @rev: revision number of requested functions
  * @funcs: bitmap of requested functions
  *
@@ -674,7 +674,7 @@ EXPORT_SYMBOL(acpi_evaluate_dsm);
  * functions. Currently only support 64 functions at maximum, should be
  * enough for now.
  */
-bool acpi_check_dsm(acpi_handle handle, const u8 *uuid, u64 rev, u64 funcs)
+bool acpi_check_dsm(acpi_handle handle, const guid_t *guid, u64 rev, u64 funcs)
 {
 	int i;
 	u64 mask = 0;
@@ -683,7 +683,7 @@ bool acpi_check_dsm(acpi_handle handle, const u8 *uuid, u64 rev, u64 funcs)
 	if (funcs == 0)
 		return false;
 
-	obj = acpi_evaluate_dsm(handle, uuid, rev, 0, NULL);
+	obj = acpi_evaluate_dsm(handle, guid, rev, 0, NULL);
 	if (!obj)
 		return false;
 
@@ -697,7 +697,7 @@ bool acpi_check_dsm(acpi_handle handle, const u8 *uuid, u64 rev, u64 funcs)
 
 	/*
 	 * Bit 0 indicates whether there's support for any functions other than
-	 * function 0 for the specified UUID and revision.
+	 * function 0 for the specified GUID and revision.
 	 */
 	if ((mask & 0x1) && (mask & funcs) == funcs)
 		return true;
@@ -816,3 +816,39 @@ static int __init acpi_backlight(char *str)
 	return 1;
 }
 __setup("acpi_backlight=", acpi_backlight);
+
+/**
+ * acpi_match_platform_list - Check if the system matches with a given list
+ * @plat: pointer to acpi_platform_list table terminated by a NULL entry
+ *
+ * Return the matched index if the system is found in the platform list.
+ * Otherwise, return a negative error code.
+ */
+int acpi_match_platform_list(const struct acpi_platform_list *plat)
+{
+	struct acpi_table_header hdr;
+	int idx = 0;
+
+	if (acpi_disabled)
+		return -ENODEV;
+
+	for (; plat->oem_id[0]; plat++, idx++) {
+		if (ACPI_FAILURE(acpi_get_table_header(plat->table, 0, &hdr)))
+			continue;
+
+		if (strncmp(plat->oem_id, hdr.oem_id, ACPI_OEM_ID_SIZE))
+			continue;
+
+		if (strncmp(plat->oem_table_id, hdr.oem_table_id, ACPI_OEM_TABLE_ID_SIZE))
+			continue;
+
+		if ((plat->pred == all_versions) ||
+		    (plat->pred == less_than_or_equal && hdr.oem_revision <= plat->oem_revision) ||
+		    (plat->pred == greater_than_or_equal && hdr.oem_revision >= plat->oem_revision) ||
+		    (plat->pred == equal && hdr.oem_revision == plat->oem_revision))
+			return idx;
+	}
+
+	return -ENODEV;
+}
+EXPORT_SYMBOL(acpi_match_platform_list);

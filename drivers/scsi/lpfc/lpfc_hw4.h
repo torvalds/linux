@@ -197,6 +197,7 @@ struct lpfc_sli_intf {
 
 /* Delay Multiplier constant */
 #define LPFC_DMULT_CONST       651042
+#define LPFC_DMULT_MAX         1023
 
 /* Configuration of Interrupts / sec for entire HBA port */
 #define LPFC_MIN_IMAX          5000
@@ -656,6 +657,15 @@ struct lpfc_register {
 
 #define LPFC_CTL_PORT_ER1_OFFSET	0x40C
 #define LPFC_CTL_PORT_ER2_OFFSET	0x410
+
+#define LPFC_CTL_PORT_EQ_DELAY_OFFSET	0x418
+#define lpfc_sliport_eqdelay_delay_SHIFT 16
+#define lpfc_sliport_eqdelay_delay_MASK	0xffff
+#define lpfc_sliport_eqdelay_delay_WORD	word0
+#define lpfc_sliport_eqdelay_id_SHIFT	0
+#define lpfc_sliport_eqdelay_id_MASK	0xfff
+#define lpfc_sliport_eqdelay_id_WORD	word0
+#define LPFC_SEC_TO_USEC		1000000
 
 /* The following Registers apply to SLI4 if_type 0 UCNAs. They typically
  * reside in BAR 2.
@@ -2207,9 +2217,15 @@ struct lpfc_mbx_reg_vfi {
 	uint32_t e_d_tov;
 	uint32_t r_a_tov;
 	uint32_t word10;
-#define lpfc_reg_vfi_nport_id_SHIFT		0
-#define lpfc_reg_vfi_nport_id_MASK		0x00FFFFFF
-#define lpfc_reg_vfi_nport_id_WORD		word10
+#define lpfc_reg_vfi_nport_id_SHIFT	0
+#define lpfc_reg_vfi_nport_id_MASK	0x00FFFFFF
+#define lpfc_reg_vfi_nport_id_WORD	word10
+#define lpfc_reg_vfi_bbcr_SHIFT		27
+#define lpfc_reg_vfi_bbcr_MASK		0x00000001
+#define lpfc_reg_vfi_bbcr_WORD		word10
+#define lpfc_reg_vfi_bbscn_SHIFT	28
+#define lpfc_reg_vfi_bbscn_MASK		0x0000000F
+#define lpfc_reg_vfi_bbscn_WORD		word10
 };
 
 struct lpfc_mbx_init_vpi {
@@ -2636,7 +2652,16 @@ struct lpfc_mbx_read_config {
 #define lpfc_mbx_rd_conf_link_speed_MASK	0x0000FFFF
 #define lpfc_mbx_rd_conf_link_speed_WORD	word6
 	uint32_t rsvd_7;
-	uint32_t rsvd_8;
+	uint32_t word8;
+#define lpfc_mbx_rd_conf_bbscn_min_SHIFT	0
+#define lpfc_mbx_rd_conf_bbscn_min_MASK		0x0000000F
+#define lpfc_mbx_rd_conf_bbscn_min_WORD		word8
+#define lpfc_mbx_rd_conf_bbscn_max_SHIFT	4
+#define lpfc_mbx_rd_conf_bbscn_max_MASK		0x0000000F
+#define lpfc_mbx_rd_conf_bbscn_max_WORD		word8
+#define lpfc_mbx_rd_conf_bbscn_def_SHIFT	8
+#define lpfc_mbx_rd_conf_bbscn_def_MASK		0x0000000F
+#define lpfc_mbx_rd_conf_bbscn_def_WORD		word8
 	uint32_t word9;
 #define lpfc_mbx_rd_conf_lmt_SHIFT		0
 #define lpfc_mbx_rd_conf_lmt_MASK		0x0000FFFF
@@ -3258,6 +3283,10 @@ struct lpfc_sli4_parameters {
 #define cfg_xib_SHIFT				4
 #define cfg_xib_MASK				0x00000001
 #define cfg_xib_WORD				word19
+#define cfg_eqdr_SHIFT				8
+#define cfg_eqdr_MASK				0x00000001
+#define cfg_eqdr_WORD				word19
+#define LPFC_NODELAY_MAX_IO		32
 };
 
 #define LPFC_SET_UE_RECOVERY		0x10

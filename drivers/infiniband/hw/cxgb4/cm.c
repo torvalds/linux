@@ -398,7 +398,8 @@ void _c4iw_free_ep(struct kref *kref)
 					(const u32 *)&sin6->sin6_addr.s6_addr,
 					1);
 		}
-		cxgb4_remove_tid(ep->com.dev->rdev.lldi.tids, 0, ep->hwtid);
+		cxgb4_remove_tid(ep->com.dev->rdev.lldi.tids, 0, ep->hwtid,
+				 ep->com.local_addr.ss_family);
 		dst_release(ep->dst);
 		cxgb4_l2t_release(ep->l2t);
 		if (ep->mpa_skb)
@@ -596,7 +597,7 @@ static int send_flowc(struct c4iw_ep *ep)
 	else
 		nparams = 9;
 
-	flowc = (struct fw_flowc_wr *)__skb_put(skb, FLOWC_LEN);
+	flowc = __skb_put(skb, FLOWC_LEN);
 
 	flowc->op_to_nparams = cpu_to_be32(FW_WR_OP_V(FW_FLOWC_WR) |
 					   FW_FLOWC_WR_NPARAMS_V(nparams));
@@ -786,18 +787,16 @@ static int send_connect(struct c4iw_ep *ep)
 	if (ep->com.remote_addr.ss_family == AF_INET) {
 		switch (CHELSIO_CHIP_VERSION(adapter_type)) {
 		case CHELSIO_T4:
-			req = (struct cpl_act_open_req *)skb_put(skb, wrlen);
+			req = skb_put(skb, wrlen);
 			INIT_TP_WR(req, 0);
 			break;
 		case CHELSIO_T5:
-			t5req = (struct cpl_t5_act_open_req *)skb_put(skb,
-					wrlen);
+			t5req = skb_put(skb, wrlen);
 			INIT_TP_WR(t5req, 0);
 			req = (struct cpl_act_open_req *)t5req;
 			break;
 		case CHELSIO_T6:
-			t6req = (struct cpl_t6_act_open_req *)skb_put(skb,
-					wrlen);
+			t6req = skb_put(skb, wrlen);
 			INIT_TP_WR(t6req, 0);
 			req = (struct cpl_act_open_req *)t6req;
 			t5req = (struct cpl_t5_act_open_req *)t6req;
@@ -838,18 +837,16 @@ static int send_connect(struct c4iw_ep *ep)
 	} else {
 		switch (CHELSIO_CHIP_VERSION(adapter_type)) {
 		case CHELSIO_T4:
-			req6 = (struct cpl_act_open_req6 *)skb_put(skb, wrlen);
+			req6 = skb_put(skb, wrlen);
 			INIT_TP_WR(req6, 0);
 			break;
 		case CHELSIO_T5:
-			t5req6 = (struct cpl_t5_act_open_req6 *)skb_put(skb,
-					wrlen);
+			t5req6 = skb_put(skb, wrlen);
 			INIT_TP_WR(t5req6, 0);
 			req6 = (struct cpl_act_open_req6 *)t5req6;
 			break;
 		case CHELSIO_T6:
-			t6req6 = (struct cpl_t6_act_open_req6 *)skb_put(skb,
-					wrlen);
+			t6req6 = skb_put(skb, wrlen);
 			INIT_TP_WR(t6req6, 0);
 			req6 = (struct cpl_act_open_req6 *)t6req6;
 			t5req6 = (struct cpl_t5_act_open_req6 *)t6req6;
@@ -926,8 +923,7 @@ static int send_mpa_req(struct c4iw_ep *ep, struct sk_buff *skb,
 	}
 	set_wr_txq(skb, CPL_PRIORITY_DATA, ep->txq_idx);
 
-	req = (struct fw_ofld_tx_data_wr *)skb_put(skb, wrlen);
-	memset(req, 0, wrlen);
+	req = skb_put_zero(skb, wrlen);
 	req->op_to_immdlen = cpu_to_be32(
 		FW_WR_OP_V(FW_OFLD_TX_DATA_WR) |
 		FW_WR_COMPL_F |
@@ -1033,8 +1029,7 @@ static int send_mpa_reject(struct c4iw_ep *ep, const void *pdata, u8 plen)
 	}
 	set_wr_txq(skb, CPL_PRIORITY_DATA, ep->txq_idx);
 
-	req = (struct fw_ofld_tx_data_wr *)skb_put(skb, wrlen);
-	memset(req, 0, wrlen);
+	req = skb_put_zero(skb, wrlen);
 	req->op_to_immdlen = cpu_to_be32(
 		FW_WR_OP_V(FW_OFLD_TX_DATA_WR) |
 		FW_WR_COMPL_F |
@@ -1114,8 +1109,7 @@ static int send_mpa_reply(struct c4iw_ep *ep, const void *pdata, u8 plen)
 	}
 	set_wr_txq(skb, CPL_PRIORITY_DATA, ep->txq_idx);
 
-	req = (struct fw_ofld_tx_data_wr *) skb_put(skb, wrlen);
-	memset(req, 0, wrlen);
+	req = skb_put_zero(skb, wrlen);
 	req->op_to_immdlen = cpu_to_be32(
 		FW_WR_OP_V(FW_OFLD_TX_DATA_WR) |
 		FW_WR_COMPL_F |
@@ -1199,7 +1193,7 @@ static int act_establish(struct c4iw_dev *dev, struct sk_buff *skb)
 
 	/* setup the hwtid for this connection */
 	ep->hwtid = tid;
-	cxgb4_insert_tid(t, ep, tid);
+	cxgb4_insert_tid(t, ep, tid, ep->com.local_addr.ss_family);
 	insert_ep_tid(ep);
 
 	ep->snd_seq = be32_to_cpu(req->snd_isn);
@@ -1906,8 +1900,7 @@ static int send_fw_act_open_req(struct c4iw_ep *ep, unsigned int atid)
 	int win;
 
 	skb = get_skb(NULL, sizeof(*req), GFP_KERNEL);
-	req = (struct fw_ofld_connection_wr *)__skb_put(skb, sizeof(*req));
-	memset(req, 0, sizeof(*req));
+	req = __skb_put_zero(skb, sizeof(*req));
 	req->op_compl = htonl(WR_OP_V(FW_OFLD_CONNECTION_WR));
 	req->len16_pkd = htonl(FW_WR_LEN16_V(DIV_ROUND_UP(sizeof(*req), 16)));
 	req->le.filter = cpu_to_be32(cxgb4_select_ntuple(
@@ -2304,7 +2297,8 @@ fail:
 				   (const u32 *)&sin6->sin6_addr.s6_addr, 1);
 	}
 	if (status && act_open_has_tid(status))
-		cxgb4_remove_tid(ep->com.dev->rdev.lldi.tids, 0, GET_TID(rpl));
+		cxgb4_remove_tid(ep->com.dev->rdev.lldi.tids, 0, GET_TID(rpl),
+				 ep->com.local_addr.ss_family);
 
 	remove_handle(ep->com.dev, &ep->com.dev->atid_idr, atid);
 	cxgb4_free_atid(t, atid);
@@ -2339,9 +2333,14 @@ static int close_listsrv_rpl(struct c4iw_dev *dev, struct sk_buff *skb)
 	unsigned int stid = GET_TID(rpl);
 	struct c4iw_listen_ep *ep = get_ep_from_stid(dev, stid);
 
+	if (!ep) {
+		pr_debug("%s stid %d lookup failure!\n", __func__, stid);
+		goto out;
+	}
 	pr_debug("%s ep %p\n", __func__, ep);
 	c4iw_wake_up(&ep->com.wr_wait, status2errno(rpl->status));
 	c4iw_put_ep(&ep->com);
+out:
 	return 0;
 }
 
@@ -2581,7 +2580,8 @@ static int pass_accept_req(struct c4iw_dev *dev, struct sk_buff *skb)
 		 child_ep->tx_chan, child_ep->smac_idx, child_ep->rss_qid);
 
 	init_timer(&child_ep->timer);
-	cxgb4_insert_tid(t, child_ep, hwtid);
+	cxgb4_insert_tid(t, child_ep, hwtid,
+			 child_ep->com.local_addr.ss_family);
 	insert_ep_tid(child_ep);
 	if (accept_cr(child_ep, skb, req)) {
 		c4iw_put_ep(&parent_ep->com);
@@ -2599,9 +2599,9 @@ fail:
 	c4iw_put_ep(&child_ep->com);
 reject:
 	reject_cr(dev, hwtid, skb);
+out:
 	if (parent_ep)
 		c4iw_put_ep(&parent_ep->com);
-out:
 	return 0;
 }
 
@@ -2849,7 +2849,8 @@ out:
 					1);
 		}
 		remove_handle(ep->com.dev, &ep->com.dev->hwtid_idr, ep->hwtid);
-		cxgb4_remove_tid(ep->com.dev->rdev.lldi.tids, 0, ep->hwtid);
+		cxgb4_remove_tid(ep->com.dev->rdev.lldi.tids, 0, ep->hwtid,
+				 ep->com.local_addr.ss_family);
 		dst_release(ep->dst);
 		cxgb4_l2t_release(ep->l2t);
 		c4iw_reconnect(ep);
@@ -2875,7 +2876,6 @@ static int close_con_rpl(struct c4iw_dev *dev, struct sk_buff *skb)
 		return 0;
 
 	pr_debug("%s ep %p tid %u\n", __func__, ep, ep->hwtid);
-	BUG_ON(!ep);
 
 	/* The cm_id may be null if we failed to connect */
 	mutex_lock(&ep->com.mutex);
@@ -3462,7 +3462,7 @@ int c4iw_create_listen(struct iw_cm_id *cm_id, int backlog)
 		cm_id->provider_data = ep;
 		goto out;
 	}
-
+	remove_handle(ep->com.dev, &ep->com.dev->stid_idr, ep->stid);
 	cxgb4_free_stid(ep->com.dev->rdev.lldi.tids, ep->stid,
 			ep->com.local_addr.ss_family);
 fail2:
@@ -3752,9 +3752,9 @@ static void build_cpl_pass_accept_req(struct sk_buff *skb, int stid , u8 tos)
 	 */
 	memset(&tmp_opt, 0, sizeof(tmp_opt));
 	tcp_clear_options(&tmp_opt);
-	tcp_parse_options(skb, &tmp_opt, 0, NULL);
+	tcp_parse_options(&init_net, skb, &tmp_opt, 0, NULL);
 
-	req = (struct cpl_pass_accept_req *)__skb_push(skb, sizeof(*req));
+	req = __skb_push(skb, sizeof(*req));
 	memset(req, 0, sizeof(*req));
 	req->l2info = cpu_to_be16(SYN_INTF_V(intf) |
 			 SYN_MAC_IDX_V(RX_MACIDX_G(
@@ -3806,8 +3806,7 @@ static void send_fw_pass_open_req(struct c4iw_dev *dev, struct sk_buff *skb,
 	req_skb = alloc_skb(sizeof(struct fw_ofld_connection_wr), GFP_KERNEL);
 	if (!req_skb)
 		return;
-	req = (struct fw_ofld_connection_wr *)__skb_put(req_skb, sizeof(*req));
-	memset(req, 0, sizeof(*req));
+	req = __skb_put_zero(req_skb, sizeof(*req));
 	req->op_compl = htonl(WR_OP_V(FW_OFLD_CONNECTION_WR) | FW_WR_COMPL_F);
 	req->len16_pkd = htonl(FW_WR_LEN16_V(DIV_ROUND_UP(sizeof(*req), 16)));
 	req->le.version_cpl = htonl(FW_OFLD_CONNECTION_WR_CPL_F);

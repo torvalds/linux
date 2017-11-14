@@ -118,8 +118,6 @@ struct snd_card {
 	int user_ctl_count;		/* count of all user controls */
 	struct list_head controls;	/* all controls for this card */
 	struct list_head ctl_files;	/* active control files */
-	struct mutex user_ctl_lock;	/* protects user controls against
-					   concurrent access */
 
 	struct snd_info_entry *proc_root;	/* root for soundcard specific files */
 	struct snd_info_entry *proc_id;	/* the card id */
@@ -138,11 +136,10 @@ struct snd_card {
 
 #ifdef CONFIG_PM
 	unsigned int power_state;	/* power state */
-	struct mutex power_lock;	/* power lock */
 	wait_queue_head_t power_sleep;
 #endif
 
-#if defined(CONFIG_SND_MIXER_OSS) || defined(CONFIG_SND_MIXER_OSS_MODULE)
+#if IS_ENABLED(CONFIG_SND_MIXER_OSS)
 	struct snd_mixer_oss *mixer_oss;
 	int mixer_oss_change_count;
 #endif
@@ -151,16 +148,6 @@ struct snd_card {
 #define dev_to_snd_card(p)	container_of(p, struct snd_card, card_dev)
 
 #ifdef CONFIG_PM
-static inline void snd_power_lock(struct snd_card *card)
-{
-	mutex_lock(&card->power_lock);
-}
-
-static inline void snd_power_unlock(struct snd_card *card)
-{
-	mutex_unlock(&card->power_lock);
-}
-
 static inline unsigned int snd_power_get_state(struct snd_card *card)
 {
 	return card->power_state;
@@ -177,8 +164,6 @@ int snd_power_wait(struct snd_card *card, unsigned int power_state);
 
 #else /* ! CONFIG_PM */
 
-#define snd_power_lock(card)		do { (void)(card); } while (0)
-#define snd_power_unlock(card)		do { (void)(card); } while (0)
 static inline int snd_power_wait(struct snd_card *card, unsigned int state) { return 0; }
 #define snd_power_get_state(card)	({ (void)(card); SNDRV_CTL_POWER_D0; })
 #define snd_power_change_state(card, state)	do { (void)(card); } while (0)
@@ -243,7 +228,7 @@ int copy_from_user_toio(volatile void __iomem *dst, const void __user *src, size
 
 extern struct snd_card *snd_cards[SNDRV_CARDS];
 int snd_card_locked(int card);
-#if defined(CONFIG_SND_MIXER_OSS) || defined(CONFIG_SND_MIXER_OSS_MODULE)
+#if IS_ENABLED(CONFIG_SND_MIXER_OSS)
 #define SND_MIXER_OSS_NOTIFY_REGISTER	0
 #define SND_MIXER_OSS_NOTIFY_DISCONNECT	1
 #define SND_MIXER_OSS_NOTIFY_FREE	2
@@ -394,7 +379,7 @@ static inline void snd_printdd(const char *format, ...) {}
 #define SNDRV_OSS_VERSION         ((3<<16)|(8<<8)|(1<<4)|(0))	/* 3.8.1a */
 
 /* for easier backward-porting */
-#if defined(CONFIG_GAMEPORT) || defined(CONFIG_GAMEPORT_MODULE)
+#if IS_ENABLED(CONFIG_GAMEPORT)
 #define gameport_set_dev_parent(gp,xdev) ((gp)->dev.parent = (xdev))
 #define gameport_set_port_data(gp,r) ((gp)->port_data = (r))
 #define gameport_get_port_data(gp) (gp)->port_data

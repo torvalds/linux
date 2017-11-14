@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * builtin-record.c
  *
@@ -453,7 +454,7 @@ try_again:
 	}
 
 	if (perf_evlist__apply_filters(evlist, &pos)) {
-		error("failed to set filter \"%s\" on event %s with %d (%s)\n",
+		pr_err("failed to set filter \"%s\" on event %s with %d (%s)\n",
 			pos->filter, perf_evsel__name(pos), errno,
 			str_error_r(errno, msg, sizeof(msg)));
 		rc = -1;
@@ -461,7 +462,7 @@ try_again:
 	}
 
 	if (perf_evlist__apply_drv_configs(evlist, &pos, &err_term)) {
-		error("failed to set config \"%s\" on event %s with %d (%s)\n",
+		pr_err("failed to set config \"%s\" on event %s with %d (%s)\n",
 		      err_term->val.drv_cfg, perf_evsel__name(pos), errno,
 		      str_error_r(errno, msg, sizeof(msg)));
 		rc = -1;
@@ -799,6 +800,13 @@ static int record__synthesize(struct record *rec, bool tail)
 		return 0;
 
 	if (file->is_pipe) {
+		err = perf_event__synthesize_features(
+			tool, session, rec->evlist, process_synthesized_event);
+		if (err < 0) {
+			pr_err("Couldn't synthesize features.\n");
+			return err;
+		}
+
 		err = perf_event__synthesize_attrs(tool, session,
 						   process_synthesized_event);
 		if (err < 0) {
@@ -1597,6 +1605,8 @@ static struct option __record_options[] = {
 	OPT_BOOLEAN('s', "stat", &record.opts.inherit_stat,
 		    "per thread counts"),
 	OPT_BOOLEAN('d', "data", &record.opts.sample_address, "Record the sample addresses"),
+	OPT_BOOLEAN(0, "phys-data", &record.opts.sample_phys_addr,
+		    "Record the sample physical addresses"),
 	OPT_BOOLEAN(0, "sample-cpu", &record.opts.sample_cpu, "Record the sample cpu"),
 	OPT_BOOLEAN_SET('T', "timestamp", &record.opts.sample_time,
 			&record.opts.sample_time_set,
@@ -1821,7 +1831,7 @@ int cmd_record(int argc, const char **argv)
 		record.opts.tail_synthesize = true;
 
 	if (rec->evlist->nr_entries == 0 &&
-	    perf_evlist__add_default(rec->evlist) < 0) {
+	    __perf_evlist__add_default(rec->evlist, !record.opts.no_samples) < 0) {
 		pr_err("Not enough memory for event selector list\n");
 		goto out;
 	}

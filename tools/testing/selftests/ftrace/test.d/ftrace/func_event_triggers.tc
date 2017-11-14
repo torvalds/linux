@@ -1,4 +1,5 @@
 #!/bin/sh
+# SPDX-License-Identifier: GPL-2.0
 # description: ftrace - test for function event triggers
 # flags: instance
 #
@@ -72,6 +73,15 @@ run_enable_disable() {
     test_event_enabled $check_disable
 
     echo "schedule:${enable}_event:$EVENT" > set_ftrace_filter
+    if [ -d ../../instances ]; then # Check instances
+	cur=`cat set_ftrace_filter`
+	top=`cat ../../set_ftrace_filter`
+	if [ "$cur" = "$top" ]; then
+	    echo "This kernel is too old to support per instance filter"
+	    reset_ftrace_filter
+	    exit_unsupported
+	fi
+    fi
 
     echo " make sure it works 5 times"
 

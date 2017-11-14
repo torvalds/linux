@@ -15,12 +15,14 @@
 #include <crypto/cryptd.h>
 #include <crypto/internal/hash.h>
 #include <crypto/gf128mul.h>
+#include <linux/cpufeature.h>
 #include <linux/crypto.h>
 #include <linux/module.h>
 
 MODULE_DESCRIPTION("GHASH secure hash using ARMv8 Crypto Extensions");
 MODULE_AUTHOR("Ard Biesheuvel <ard.biesheuvel@linaro.org>");
 MODULE_LICENSE("GPL v2");
+MODULE_ALIAS_CRYPTO("ghash");
 
 #define GHASH_BLOCK_SIZE	16
 #define GHASH_DIGEST_SIZE	16
@@ -40,8 +42,17 @@ struct ghash_async_ctx {
 	struct cryptd_ahash *cryptd_tfm;
 };
 
-asmlinkage void pmull_ghash_update(int blocks, u64 dg[], const char *src,
-				   struct ghash_key const *k, const char *head);
+asmlinkage void pmull_ghash_update_p64(int blocks, u64 dg[], const char *src,
+				       struct ghash_key const *k,
+				       const char *head);
+
+asmlinkage void pmull_ghash_update_p8(int blocks, u64 dg[], const char *src,
+				      struct ghash_key const *k,
+				      const char *head);
+
+static void (*pmull_ghash_update)(int blocks, u64 dg[], const char *src,
+				  struct ghash_key const *k,
+				  const char *head);
 
 static int ghash_init(struct shash_desc *desc)
 {
@@ -311,8 +322,13 @@ static int __init ghash_ce_mod_init(void)
 {
 	int err;
 
-	if (!(elf_hwcap2 & HWCAP2_PMULL))
+	if (!(elf_hwcap & HWCAP_NEON))
 		return -ENODEV;
+
+	if (elf_hwcap2 & HWCAP2_PMULL)
+		pmull_ghash_update = pmull_ghash_update_p64;
+	else
+		pmull_ghash_update = pmull_ghash_update_p8;
 
 	err = crypto_register_shash(&ghash_alg);
 	if (err)

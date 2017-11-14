@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _PARISC_PDC_H
 #define _PARISC_PDC_H
 
@@ -5,7 +6,11 @@
 
 #if !defined(__ASSEMBLY__)
 
+extern int parisc_narrow_firmware;
+
 extern int pdc_type;
+extern unsigned long parisc_cell_num; /* cell number the CPU runs on (PAT) */
+extern unsigned long parisc_cell_loc; /* cell location of CPU (PAT)	   */
 
 /* Values for pdc_type */
 #define PDC_TYPE_ILLEGAL	-1
@@ -143,6 +148,18 @@ struct pdc_btlb_info {	/* PDC_BLOCK_TLB, return of PDC_BTLB_INFO */
 
 #endif /* !CONFIG_PA20 */
 
+struct pdc_mem_retinfo { /* PDC_MEM/PDC_MEM_MEMINFO (return info) */
+	unsigned long pdt_size;
+	unsigned long pdt_entries;
+	unsigned long pdt_status;
+	unsigned long first_dbe_loc;
+	unsigned long good_mem;
+};
+
+struct pdc_mem_read_pdt { /* PDC_MEM/PDC_MEM_READ_PDT (return info) */
+	unsigned long pdt_entries;
+};
+
 #ifdef CONFIG_64BIT
 struct pdc_memory_table_raddr { /* PDC_MEM/PDC_MEM_TABLE (return info) */
 	unsigned long entries_returned;
@@ -264,6 +281,7 @@ void setup_pdc(void);		/* in inventory.c */
 /* wrapper-functions from pdc.c */
 
 int pdc_add_valid(unsigned long address);
+int pdc_instr(unsigned int *instr);
 int pdc_chassis_info(struct pdc_chassis_info *chassis_info, void *led_info, unsigned long len);
 int pdc_chassis_disp(unsigned long disp);
 int pdc_chassis_warn(unsigned long *warn);
@@ -301,6 +319,10 @@ int pdc_get_initiator(struct hardware_path *, struct pdc_initiator *);
 int pdc_tod_read(struct pdc_tod *tod);
 int pdc_tod_set(unsigned long sec, unsigned long usec);
 
+void pdc_pdt_init(void);	/* in pdt.c */
+int pdc_mem_pdt_info(struct pdc_mem_retinfo *rinfo);
+int pdc_mem_pdt_read_entries(struct pdc_mem_read_pdt *rpdt_read,
+		unsigned long *pdt_entries_ptr);
 #ifdef CONFIG_64BIT
 int pdc_mem_mem_table(struct pdc_memory_table_raddr *r_addr,
 		struct pdc_memory_table *tbl, unsigned long entries);

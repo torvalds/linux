@@ -663,7 +663,7 @@ static int deliver_to_subscribers(struct snd_seq_client *client,
 	if (atomic)
 		read_lock(&grp->list_lock);
 	else
-		down_read(&grp->list_mutex);
+		down_read_nested(&grp->list_mutex, hop);
 	list_for_each_entry(subs, &grp->list_head, src_list) {
 		/* both ports ready? */
 		if (atomic_read(&subs->ref_count) != 2)
@@ -1259,6 +1259,7 @@ static int snd_seq_ioctl_create_port(struct snd_seq_client *client, void *arg)
 	struct snd_seq_port_info *info = arg;
 	struct snd_seq_client_port *port;
 	struct snd_seq_port_callback *callback;
+	int port_idx;
 
 	/* it is not allowed to create the port for an another client */
 	if (info->addr.client != client->number)
@@ -1269,7 +1270,9 @@ static int snd_seq_ioctl_create_port(struct snd_seq_client *client, void *arg)
 		return -ENOMEM;
 
 	if (client->type == USER_CLIENT && info->kernel) {
-		snd_seq_delete_port(client, port->addr.port);
+		port_idx = port->addr.port;
+		snd_seq_port_unlock(port);
+		snd_seq_delete_port(client, port_idx);
 		return -EINVAL;
 	}
 	if (client->type == KERNEL_CLIENT) {
@@ -1290,6 +1293,7 @@ static int snd_seq_ioctl_create_port(struct snd_seq_client *client, void *arg)
 
 	snd_seq_set_port_info(port, info);
 	snd_seq_system_client_ev_port_start(port->addr.client, port->addr.port);
+	snd_seq_port_unlock(port);
 
 	return 0;
 }
@@ -1502,16 +1506,11 @@ static int snd_seq_ioctl_unsubscribe_port(struct snd_seq_client *client,
 static int snd_seq_ioctl_create_queue(struct snd_seq_client *client, void *arg)
 {
 	struct snd_seq_queue_info *info = arg;
-	int result;
 	struct snd_seq_queue *q;
 
-	result = snd_seq_queue_alloc(client->number, info->locked, info->flags);
-	if (result < 0)
-		return result;
-
-	q = queueptr(result);
-	if (q == NULL)
-		return -EINVAL;
+	q = snd_seq_queue_alloc(client->number, info->locked, info->flags);
+	if (IS_ERR(q))
+		return PTR_ERR(q);
 
 	info->queue = q->queue;
 	info->locked = q->locked;
@@ -1521,7 +1520,7 @@ static int snd_seq_ioctl_create_queue(struct snd_seq_client *client, void *arg)
 	if (!info->name[0])
 		snprintf(info->name, sizeof(info->name), "Queue-%d", q->queue);
 	strlcpy(q->name, info->name, sizeof(q->name));
-	queuefree(q);
+	snd_use_lock_free(&q->use_lock);
 
 	return 0;
 }
@@ -1668,7 +1667,6 @@ int snd_seq_set_queue_tempo(int client, struct snd_seq_queue_tempo *tempo)
 		return -EPERM;
 	return snd_seq_queue_timer_set_tempo(tempo->queue, client, tempo);
 }
-
 EXPORT_SYMBOL(snd_seq_set_queue_tempo);
 
 static int snd_seq_ioctl_set_queue_tempo(struct snd_seq_client *client,
@@ -2200,7 +2198,6 @@ int snd_seq_create_kernel_client(struct snd_card *card, int client_index,
 	/* return client number to caller */
 	return client->number;
 }
-
 EXPORT_SYMBOL(snd_seq_create_kernel_client);
 
 /* exported to kernel modules */
@@ -2219,7 +2216,6 @@ int snd_seq_delete_kernel_client(int client)
 	kfree(ptr);
 	return 0;
 }
-
 EXPORT_SYMBOL(snd_seq_delete_kernel_client);
 
 /* skeleton to enqueue event, called from snd_seq_kernel_client_enqueue
@@ -2269,7 +2265,6 @@ int snd_seq_kernel_client_enqueue(int client, struct snd_seq_event * ev,
 {
 	return kernel_client_enqueue(client, ev, NULL, 0, atomic, hop);
 }
-
 EXPORT_SYMBOL(snd_seq_kernel_client_enqueue);
 
 /*
@@ -2283,7 +2278,6 @@ int snd_seq_kernel_client_enqueue_blocking(int client, struct snd_seq_event * ev
 {
 	return kernel_client_enqueue(client, ev, file, 1, atomic, hop);
 }
-
 EXPORT_SYMBOL(snd_seq_kernel_client_enqueue_blocking);
 
 /* 
@@ -2321,7 +2315,6 @@ int snd_seq_kernel_client_dispatch(int client, struct snd_seq_event * ev,
 	snd_seq_client_unlock(cptr);
 	return result;
 }
-
 EXPORT_SYMBOL(snd_seq_kernel_client_dispatch);
 
 /**
@@ -2354,7 +2347,6 @@ int snd_seq_kernel_client_ctl(int clientid, unsigned int cmd, void *arg)
 		 cmd, _IOC_TYPE(cmd), _IOC_NR(cmd));
 	return -ENOTTY;
 }
-
 EXPORT_SYMBOL(snd_seq_kernel_client_ctl);
 
 /* exported (for OSS emulator) */
@@ -2372,7 +2364,6 @@ int snd_seq_kernel_client_write_poll(int clientid, struct file *file, poll_table
 		return 1;
 	return 0;
 }
-
 EXPORT_SYMBOL(snd_seq_kernel_client_write_poll);
 
 /*---------------------------------------------------------------------------*/

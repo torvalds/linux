@@ -57,14 +57,11 @@ struct memblock {
 
 extern struct memblock memblock;
 extern int memblock_debug;
-#ifdef CONFIG_MOVABLE_NODE
-/* If movable_node boot option specified */
-extern bool movable_node_enabled;
-#endif /* CONFIG_MOVABLE_NODE */
 
 #ifdef CONFIG_ARCH_DISCARD_MEMBLOCK
 #define __init_memblock __meminit
 #define __initdata_memblock __meminitdata
+void memblock_discard(void);
 #else
 #define __init_memblock
 #define __initdata_memblock
@@ -78,8 +75,6 @@ phys_addr_t memblock_find_in_range_node(phys_addr_t size, phys_addr_t align,
 					int nid, ulong flags);
 phys_addr_t memblock_find_in_range(phys_addr_t start, phys_addr_t end,
 				   phys_addr_t size, phys_addr_t align);
-phys_addr_t get_allocated_memblock_reserved_regions_info(phys_addr_t *addr);
-phys_addr_t get_allocated_memblock_memory_regions_info(phys_addr_t *addr);
 void memblock_allow_resize(void);
 int memblock_add_node(phys_addr_t base, phys_addr_t size, int nid);
 int memblock_add(phys_addr_t base, phys_addr_t size);
@@ -113,6 +108,9 @@ void __next_mem_range_rev(u64 *idx, int nid, ulong flags,
 
 void __next_reserved_mem_region(u64 *idx, phys_addr_t *out_start,
 				phys_addr_t *out_end);
+
+void __memblock_free_early(phys_addr_t base, phys_addr_t size);
+void __memblock_free_late(phys_addr_t base, phys_addr_t size);
 
 /**
  * for_each_mem_range - iterate through memblock areas from type_a and not
@@ -169,26 +167,10 @@ void __next_reserved_mem_region(u64 *idx, phys_addr_t *out_start,
 	     i != (u64)ULLONG_MAX;					\
 	     __next_reserved_mem_region(&i, p_start, p_end))
 
-#ifdef CONFIG_MOVABLE_NODE
 static inline bool memblock_is_hotpluggable(struct memblock_region *m)
 {
 	return m->flags & MEMBLOCK_HOTPLUG;
 }
-
-static inline bool __init_memblock movable_node_is_enabled(void)
-{
-	return movable_node_enabled;
-}
-#else
-static inline bool memblock_is_hotpluggable(struct memblock_region *m)
-{
-	return false;
-}
-static inline bool movable_node_is_enabled(void)
-{
-	return false;
-}
-#endif
 
 static inline bool memblock_is_mirror(struct memblock_region *m)
 {
@@ -296,7 +278,6 @@ phys_addr_t memblock_alloc_try_nid(phys_addr_t size, phys_addr_t align, int nid)
 
 phys_addr_t memblock_alloc(phys_addr_t size, phys_addr_t align);
 
-#ifdef CONFIG_MOVABLE_NODE
 /*
  * Set the allocation direction to bottom-up or top-down.
  */
@@ -314,10 +295,6 @@ static inline bool memblock_bottom_up(void)
 {
 	return memblock.bottom_up;
 }
-#else
-static inline void __init memblock_set_bottom_up(bool enable) {}
-static inline bool memblock_bottom_up(void) { return false; }
-#endif
 
 /* Flags for memblock_alloc_base() amd __memblock_alloc_base() */
 #define MEMBLOCK_ALLOC_ANYWHERE	(~(phys_addr_t)0)

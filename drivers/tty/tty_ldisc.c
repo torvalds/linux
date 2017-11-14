@@ -492,6 +492,29 @@ static void tty_ldisc_close(struct tty_struct *tty, struct tty_ldisc *ld)
 }
 
 /**
+ *	tty_ldisc_failto	-	helper for ldisc failback
+ *	@tty: tty to open the ldisc on
+ *	@ld: ldisc we are trying to fail back to
+ *
+ *	Helper to try and recover a tty when switching back to the old
+ *	ldisc fails and we need something attached.
+ */
+
+static int tty_ldisc_failto(struct tty_struct *tty, int ld)
+{
+	struct tty_ldisc *disc = tty_ldisc_get(tty, ld);
+	int r;
+
+	if (IS_ERR(disc))
+		return PTR_ERR(disc);
+	tty->ldisc = disc;
+	tty_set_termios_ldisc(tty, ld);
+	if ((r = tty_ldisc_open(tty, disc)) < 0)
+		tty_ldisc_put(disc);
+	return r;
+}
+
+/**
  *	tty_ldisc_restore	-	helper for tty ldisc change
  *	@tty: tty to recover
  *	@old: previous ldisc
@@ -502,9 +525,6 @@ static void tty_ldisc_close(struct tty_struct *tty, struct tty_ldisc *ld)
 
 static void tty_ldisc_restore(struct tty_struct *tty, struct tty_ldisc *old)
 {
-	struct tty_ldisc *new_ldisc;
-	int r;
-
 	/* There is an outstanding reference here so this is safe */
 	old = tty_ldisc_get(tty, old->ops->num);
 	WARN_ON(IS_ERR(old));
@@ -512,17 +532,13 @@ static void tty_ldisc_restore(struct tty_struct *tty, struct tty_ldisc *old)
 	tty_set_termios_ldisc(tty, old->ops->num);
 	if (tty_ldisc_open(tty, old) < 0) {
 		tty_ldisc_put(old);
-		/* This driver is always present */
-		new_ldisc = tty_ldisc_get(tty, N_TTY);
-		if (IS_ERR(new_ldisc))
-			panic("n_tty: get");
-		tty->ldisc = new_ldisc;
-		tty_set_termios_ldisc(tty, N_TTY);
-		r = tty_ldisc_open(tty, new_ldisc);
-		if (r < 0)
-			panic("Couldn't open N_TTY ldisc for "
-			      "%s --- error %d.",
-			      tty_name(tty), r);
+		/* The traditional behaviour is to fall back to N_TTY, we
+		   want to avoid falling back to N_NULL unless we have no
+		   choice to avoid the risk of breaking anything */
+		if (tty_ldisc_failto(tty, N_TTY) < 0 &&
+		    tty_ldisc_failto(tty, N_NULL) < 0)
+			panic("Couldn't open N_NULL ldisc for %s.",
+			      tty_name(tty));
 	}
 }
 
@@ -605,6 +621,7 @@ err:
 	tty_unlock(tty);
 	return retval;
 }
+EXPORT_SYMBOL_GPL(tty_set_ldisc);
 
 /**
  *	tty_ldisc_kill	-	teardown ldisc
@@ -677,10 +694,8 @@ int tty_ldisc_reinit(struct tty_struct *tty, int disc)
 	tty_set_termios_ldisc(tty, disc);
 	retval = tty_ldisc_open(tty, tty->ldisc);
 	if (retval) {
-		if (!WARN_ON(disc == N_TTY)) {
-			tty_ldisc_put(tty->ldisc);
-			tty->ldisc = NULL;
-		}
+		tty_ldisc_put(tty->ldisc);
+		tty->ldisc = NULL;
 	}
 	return retval;
 }
@@ -735,8 +750,9 @@ void tty_ldisc_hangup(struct tty_struct *tty, bool reinit)
 
 	if (tty->ldisc) {
 		if (reinit) {
-			if (tty_ldisc_reinit(tty, tty->termios.c_line) < 0)
-				tty_ldisc_reinit(tty, N_TTY);
+			if (tty_ldisc_reinit(tty, tty->termios.c_line) < 0 &&
+			    tty_ldisc_reinit(tty, N_TTY) < 0)
+				WARN_ON(tty_ldisc_reinit(tty, N_NULL) < 0);
 		} else
 			tty_ldisc_kill(tty);
 	}
@@ -797,6 +813,7 @@ void tty_ldisc_release(struct tty_struct *tty)
 
 	tty_ldisc_debug(tty, "released\n");
 }
+EXPORT_SYMBOL_GPL(tty_ldisc_release);
 
 /**
  *	tty_ldisc_init		-	ldisc setup for new tty

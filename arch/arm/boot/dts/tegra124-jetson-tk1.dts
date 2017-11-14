@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /dts-v1/;
 
 #include <dt-bindings/input/input.h>
@@ -27,7 +28,7 @@
 		reg = <0x0 0x80000000 0x0 0x80000000>;
 	};
 
-	pcie-controller@01003000 {
+	pcie@1003000 {
 		status = "okay";
 
 		avddio-pex-supply = <&vdd_1v05_run>;
@@ -1722,7 +1723,7 @@
 
 				lanes {
 					usb2-0 {
-						nvidia,function = "xusb";
+						nvidia,function = "snps";
 						status = "okay";
 					};
 
@@ -1827,6 +1828,16 @@
 		i2s@70301100 {
 			status = "okay";
 		};
+	};
+
+	usb@7d000000 {
+		compatible = "nvidia,tegra124-udc";
+		status = "okay";
+		dr_mode = "peripheral";
+	};
+
+	usb-phy@7d000000 {
+		status = "okay";
 	};
 
 	/* mini-PCIe USB */

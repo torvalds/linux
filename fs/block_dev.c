@@ -223,8 +223,9 @@ __blkdev_direct_IO_simple(struct kiocb *iocb, struct iov_iter *iter,
 	}
 
 	bio_init(&bio, vecs, nr_pages);
-	bio.bi_bdev = bdev;
+	bio_set_dev(&bio, bdev);
 	bio.bi_iter.bi_sector = pos >> 9;
+	bio.bi_write_hint = iocb->ki_hint;
 	bio.bi_private = current;
 	bio.bi_end_io = blkdev_bio_end_io_simple;
 
@@ -262,8 +263,8 @@ __blkdev_direct_IO_simple(struct kiocb *iocb, struct iov_iter *iter,
 	if (vecs != inline_vecs)
 		kfree(vecs);
 
-	if (unlikely(bio.bi_error))
-		ret = bio.bi_error;
+	if (unlikely(bio.bi_status))
+		ret = blk_status_to_errno(bio.bi_status);
 
 	bio_uninit(&bio);
 
@@ -291,16 +292,18 @@ static void blkdev_bio_end_io(struct bio *bio)
 	bool should_dirty = dio->should_dirty;
 
 	if (dio->multi_bio && !atomic_dec_and_test(&dio->ref)) {
-		if (bio->bi_error && !dio->bio.bi_error)
-			dio->bio.bi_error = bio->bi_error;
+		if (bio->bi_status && !dio->bio.bi_status)
+			dio->bio.bi_status = bio->bi_status;
 	} else {
 		if (!dio->is_sync) {
 			struct kiocb *iocb = dio->iocb;
-			ssize_t ret = dio->bio.bi_error;
+			ssize_t ret;
 
-			if (likely(!ret)) {
+			if (likely(!dio->bio.bi_status)) {
 				ret = dio->size;
 				iocb->ki_pos += ret;
+			} else {
+				ret = blk_status_to_errno(dio->bio.bi_status);
 			}
 
 			dio->iocb->ki_complete(iocb, ret, 0);
@@ -337,7 +340,7 @@ __blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter, int nr_pages)
 	bool is_read = (iov_iter_rw(iter) == READ), is_sync;
 	loff_t pos = iocb->ki_pos;
 	blk_qc_t qc = BLK_QC_T_NONE;
-	int ret;
+	int ret = 0;
 
 	if ((pos | iov_iter_alignment(iter)) &
 	    (bdev_logical_block_size(bdev) - 1))
@@ -359,14 +362,15 @@ __blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter, int nr_pages)
 
 	blk_start_plug(&plug);
 	for (;;) {
-		bio->bi_bdev = bdev;
+		bio_set_dev(bio, bdev);
 		bio->bi_iter.bi_sector = pos >> 9;
+		bio->bi_write_hint = iocb->ki_hint;
 		bio->bi_private = dio;
 		bio->bi_end_io = blkdev_bio_end_io;
 
 		ret = bio_iov_iter_get_pages(bio, iter);
 		if (unlikely(ret)) {
-			bio->bi_error = ret;
+			bio->bi_status = BLK_STS_IOERR;
 			bio_endio(bio);
 			break;
 		}
@@ -415,7 +419,8 @@ __blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter, int nr_pages)
 	}
 	__set_current_state(TASK_RUNNING);
 
-	ret = dio->bio.bi_error;
+	if (!ret)
+		ret = blk_status_to_errno(dio->bio.bi_status);
 	if (likely(!ret))
 		ret = dio->size;
 
@@ -439,7 +444,7 @@ blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 
 static __init int blkdev_init(void)
 {
-	blkdev_dio_pool = bioset_create(4, offsetof(struct blkdev_dio, bio));
+	blkdev_dio_pool = bioset_create(4, offsetof(struct blkdev_dio, bio), BIOSET_NEED_BVECS);
 	if (!blkdev_dio_pool)
 		return -ENOMEM;
 	return 0;
@@ -627,7 +632,7 @@ int blkdev_fsync(struct file *filp, loff_t start, loff_t end, int datasync)
 	struct block_device *bdev = I_BDEV(bd_inode);
 	int error;
 	
-	error = filemap_write_and_wait_range(filp->f_mapping, start, end);
+	error = file_write_and_wait_range(filp, start, end);
 	if (error)
 		return error;
 
@@ -711,10 +716,12 @@ int bdev_write_page(struct block_device *bdev, sector_t sector,
 
 	set_page_writeback(page);
 	result = ops->rw_page(bdev, sector + get_start_sect(bdev), page, true);
-	if (result)
+	if (result) {
 		end_page_writeback(page);
-	else
+	} else {
+		clean_page_buffers(page);
 		unlock_page(page);
+	}
 	blk_queue_exit(bdev->bd_queue);
 	return result;
 }
@@ -1446,6 +1453,7 @@ static int __blkdev_get(struct block_device *bdev, fmode_t mode, int for_part)
 		bdev->bd_disk = disk;
 		bdev->bd_queue = disk->queue;
 		bdev->bd_contains = bdev;
+		bdev->bd_partno = partno;
 
 		if (!partno) {
 			ret = -ENXIO;
@@ -1734,6 +1742,8 @@ static int blkdev_open(struct inode * inode, struct file * filp)
 	 */
 	filp->f_flags |= O_LARGEFILE;
 
+	filp->f_mode |= FMODE_NOWAIT;
+
 	if (filp->f_flags & O_NDELAY)
 		filp->f_mode |= FMODE_NDELAY;
 	if (filp->f_flags & O_EXCL)
@@ -1746,6 +1756,7 @@ static int blkdev_open(struct inode * inode, struct file * filp)
 		return -ENOMEM;
 
 	filp->f_mapping = bdev->bd_inode->i_mapping;
+	filp->f_wb_err = filemap_sample_wb_err(filp->f_mapping);
 
 	return blkdev_get(bdev, filp->f_mode, filp);
 }
@@ -1884,6 +1895,9 @@ ssize_t blkdev_write_iter(struct kiocb *iocb, struct iov_iter *from)
 
 	if (iocb->ki_pos >= size)
 		return -ENOSPC;
+
+	if ((iocb->ki_flags & (IOCB_NOWAIT | IOCB_DIRECT)) == IOCB_NOWAIT)
+		return -EOPNOTSUPP;
 
 	iov_iter_truncate(from, size - iocb->ki_pos);
 

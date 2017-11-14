@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _BPF_CGROUP_H
 #define _BPF_CGROUP_H
 
@@ -7,6 +8,7 @@
 struct sock;
 struct cgroup;
 struct sk_buff;
+struct bpf_sock_ops_kern;
 
 #ifdef CONFIG_CGROUP_BPF
 
@@ -42,6 +44,10 @@ int __cgroup_bpf_run_filter_skb(struct sock *sk,
 int __cgroup_bpf_run_filter_sk(struct sock *sk,
 			       enum bpf_attach_type type);
 
+int __cgroup_bpf_run_filter_sock_ops(struct sock *sk,
+				     struct bpf_sock_ops_kern *sock_ops,
+				     enum bpf_attach_type type);
+
 /* Wrappers for __cgroup_bpf_run_filter_skb() guarded by cgroup_bpf_enabled. */
 #define BPF_CGROUP_RUN_PROG_INET_INGRESS(sk, skb)			      \
 ({									      \
@@ -75,6 +81,18 @@ int __cgroup_bpf_run_filter_sk(struct sock *sk,
 	__ret;								       \
 })
 
+#define BPF_CGROUP_RUN_PROG_SOCK_OPS(sock_ops)				       \
+({									       \
+	int __ret = 0;							       \
+	if (cgroup_bpf_enabled && (sock_ops)->sk) {	       \
+		typeof(sk) __sk = sk_to_full_sk((sock_ops)->sk);	       \
+		if (__sk && sk_fullsock(__sk))				       \
+			__ret = __cgroup_bpf_run_filter_sock_ops(__sk,	       \
+								 sock_ops,     \
+							 BPF_CGROUP_SOCK_OPS); \
+	}								       \
+	__ret;								       \
+})
 #else
 
 struct cgroup_bpf {};
@@ -85,6 +103,7 @@ static inline void cgroup_bpf_inherit(struct cgroup *cgrp,
 #define BPF_CGROUP_RUN_PROG_INET_INGRESS(sk,skb) ({ 0; })
 #define BPF_CGROUP_RUN_PROG_INET_EGRESS(sk,skb) ({ 0; })
 #define BPF_CGROUP_RUN_PROG_INET_SOCK(sk) ({ 0; })
+#define BPF_CGROUP_RUN_PROG_SOCK_OPS(sock_ops) ({ 0; })
 
 #endif /* CONFIG_CGROUP_BPF */
 

@@ -20,8 +20,6 @@
 #include <linux/tc_act/tc_skbmod.h>
 #include <net/tc_act/tc_skbmod.h>
 
-#define SKBMOD_TAB_MASK     15
-
 static unsigned int skbmod_net_id;
 static struct tc_action_ops act_skbmod_ops;
 
@@ -129,7 +127,7 @@ static int tcf_skbmod_init(struct net *net, struct nlattr *nla,
 	if (parm->flags & SKBMOD_F_SWAPMAC)
 		lflags = SKBMOD_F_SWAPMAC;
 
-	exists = tcf_hash_check(tn, parm->index, a, bind);
+	exists = tcf_idr_check(tn, parm->index, a, bind);
 	if (exists && bind)
 		return 0;
 
@@ -137,14 +135,14 @@ static int tcf_skbmod_init(struct net *net, struct nlattr *nla,
 		return -EINVAL;
 
 	if (!exists) {
-		ret = tcf_hash_create(tn, parm->index, est, a,
-				      &act_skbmod_ops, bind, true);
+		ret = tcf_idr_create(tn, parm->index, est, a,
+				     &act_skbmod_ops, bind, true);
 		if (ret)
 			return ret;
 
 		ret = ACT_P_CREATED;
 	} else {
-		tcf_hash_release(*a, bind);
+		tcf_idr_release(*a, bind);
 		if (!ovr)
 			return -EEXIST;
 	}
@@ -155,7 +153,7 @@ static int tcf_skbmod_init(struct net *net, struct nlattr *nla,
 	p = kzalloc(sizeof(struct tcf_skbmod_params), GFP_KERNEL);
 	if (unlikely(!p)) {
 		if (ovr)
-			tcf_hash_release(*a, bind);
+			tcf_idr_release(*a, bind);
 		return -ENOMEM;
 	}
 
@@ -182,7 +180,7 @@ static int tcf_skbmod_init(struct net *net, struct nlattr *nla,
 		kfree_rcu(p_old, rcu);
 
 	if (ret == ACT_P_CREATED)
-		tcf_hash_insert(tn, *a);
+		tcf_idr_insert(tn, *a);
 	return ret;
 }
 
@@ -245,7 +243,7 @@ static int tcf_skbmod_search(struct net *net, struct tc_action **a, u32 index)
 {
 	struct tc_action_net *tn = net_generic(net, skbmod_net_id);
 
-	return tcf_hash_search(tn, a, index);
+	return tcf_idr_search(tn, a, index);
 }
 
 static struct tc_action_ops act_skbmod_ops = {
@@ -265,7 +263,7 @@ static __net_init int skbmod_init_net(struct net *net)
 {
 	struct tc_action_net *tn = net_generic(net, skbmod_net_id);
 
-	return tc_action_net_init(tn, &act_skbmod_ops, SKBMOD_TAB_MASK);
+	return tc_action_net_init(tn, &act_skbmod_ops, net);
 }
 
 static void __net_exit skbmod_exit_net(struct net *net)

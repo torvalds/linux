@@ -306,7 +306,7 @@ static void bxt_exec_gpio(struct drm_i915_private *dev_priv,
 
 	if (!gpio_desc) {
 		gpio_desc = devm_gpiod_get_index(dev_priv->drm.dev,
-						 "panel", gpio_index,
+						 NULL, gpio_index,
 						 value ? GPIOD_OUT_LOW :
 						 GPIOD_OUT_HIGH);
 
@@ -694,8 +694,8 @@ bool intel_dsi_vbt_init(struct intel_dsi *intel_dsi, u16 panel_id)
 						clk_zero_cnt << 8 | prepare_cnt;
 
 	/*
-	 * LP to HS switch count = 4TLPX + PREP_COUNT * 2 + EXIT_ZERO_COUNT * 2
-	 *					+ 10UI + Extra Byte Count
+	 * LP to HS switch count = 4TLPX + PREP_COUNT * mul + EXIT_ZERO_COUNT *
+	 *					mul + 10UI + Extra Byte Count
 	 *
 	 * HS to LP switch count = THS-TRAIL + 2TLPX + Extra Byte Count
 	 * Extra Byte Count is calculated according to number of lanes.
@@ -708,8 +708,8 @@ bool intel_dsi_vbt_init(struct intel_dsi *intel_dsi, u16 panel_id)
 	/* B044 */
 	/* FIXME:
 	 * The comment above does not match with the code */
-	lp_to_hs_switch = DIV_ROUND_UP(4 * tlpx_ui + prepare_cnt * 2 +
-						exit_zero_cnt * 2 + 10, 8);
+	lp_to_hs_switch = DIV_ROUND_UP(4 * tlpx_ui + prepare_cnt * mul +
+						exit_zero_cnt * mul + 10, 8);
 
 	hs_to_lp_switch = DIV_ROUND_UP(mipi_config->ths_trail + 2 * tlpx_ui, 8);
 

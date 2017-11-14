@@ -412,13 +412,19 @@ static void etnaviv_gpu_load_clock(struct etnaviv_gpu *gpu, u32 clock)
 
 static void etnaviv_gpu_update_clock(struct etnaviv_gpu *gpu)
 {
-	unsigned int fscale = 1 << (6 - gpu->freq_scale);
-	u32 clock;
+	if (gpu->identity.minor_features2 &
+	    chipMinorFeatures2_DYNAMIC_FREQUENCY_SCALING) {
+		clk_set_rate(gpu->clk_core,
+			     gpu->base_rate_core >> gpu->freq_scale);
+		clk_set_rate(gpu->clk_shader,
+			     gpu->base_rate_shader >> gpu->freq_scale);
+	} else {
+		unsigned int fscale = 1 << (6 - gpu->freq_scale);
+		u32 clock = VIVS_HI_CLOCK_CONTROL_DISABLE_DEBUG_REGISTERS |
+			    VIVS_HI_CLOCK_CONTROL_FSCALE_VAL(fscale);
 
-	clock = VIVS_HI_CLOCK_CONTROL_DISABLE_DEBUG_REGISTERS |
-		VIVS_HI_CLOCK_CONTROL_FSCALE_VAL(fscale);
-
-	etnaviv_gpu_load_clock(gpu, clock);
+		etnaviv_gpu_load_clock(gpu, clock);
+	}
 }
 
 static int etnaviv_hw_reset(struct etnaviv_gpu *gpu)
@@ -523,9 +529,10 @@ static void etnaviv_gpu_enable_mlcg(struct etnaviv_gpu *gpu)
 
 	pmc = gpu_read(gpu, VIVS_PM_MODULE_CONTROLS);
 
-	/* Disable PA clock gating for GC400+ except for GC420 */
+	/* Disable PA clock gating for GC400+ without bugfix except for GC420 */
 	if (gpu->identity.model >= chipModel_GC400 &&
-	    gpu->identity.model != chipModel_GC420)
+	    gpu->identity.model != chipModel_GC420 &&
+	    !(gpu->identity.minor_features3 & chipMinorFeatures3_BUG_FIXES12))
 		pmc |= VIVS_PM_MODULE_CONTROLS_DISABLE_MODULE_CLOCK_GATING_PA;
 
 	/*
@@ -540,6 +547,11 @@ static void etnaviv_gpu_enable_mlcg(struct etnaviv_gpu *gpu)
 
 	if (gpu->identity.revision < 0x5422)
 		pmc |= BIT(15); /* Unknown bit */
+
+	/* Disable TX clock gating on affected core revisions. */
+	if (etnaviv_is_model_rev(gpu, GC4000, 0x5222) ||
+	    etnaviv_is_model_rev(gpu, GC2000, 0x5108))
+		pmc |= VIVS_PM_MODULE_CONTROLS_DISABLE_MODULE_CLOCK_GATING_TX;
 
 	pmc |= VIVS_PM_MODULE_CONTROLS_DISABLE_MODULE_CLOCK_GATING_RA_HZ;
 	pmc |= VIVS_PM_MODULE_CONTROLS_DISABLE_MODULE_CLOCK_GATING_RA_EZ;
@@ -1610,10 +1622,12 @@ static int etnaviv_gpu_bind(struct device *dev, struct device *master,
 	struct etnaviv_gpu *gpu = dev_get_drvdata(dev);
 	int ret;
 
-	gpu->cooling = thermal_of_cooling_device_register(dev->of_node,
+	if (IS_ENABLED(CONFIG_THERMAL)) {
+		gpu->cooling = thermal_of_cooling_device_register(dev->of_node,
 				(char *)dev_name(dev), gpu, &cooling_ops);
-	if (IS_ERR(gpu->cooling))
-		return PTR_ERR(gpu->cooling);
+		if (IS_ERR(gpu->cooling))
+			return PTR_ERR(gpu->cooling);
+	}
 
 #ifdef CONFIG_PM
 	ret = pm_runtime_get_sync(gpu->dev);
@@ -1736,11 +1750,13 @@ static int etnaviv_gpu_platform_probe(struct platform_device *pdev)
 	DBG("clk_core: %p", gpu->clk_core);
 	if (IS_ERR(gpu->clk_core))
 		gpu->clk_core = NULL;
+	gpu->base_rate_core = clk_get_rate(gpu->clk_core);
 
 	gpu->clk_shader = devm_clk_get(&pdev->dev, "shader");
 	DBG("clk_shader: %p", gpu->clk_shader);
 	if (IS_ERR(gpu->clk_shader))
 		gpu->clk_shader = NULL;
+	gpu->base_rate_shader = clk_get_rate(gpu->clk_shader);
 
 	/* TODO: figure out max mapped size */
 	dev_set_drvdata(dev, gpu);

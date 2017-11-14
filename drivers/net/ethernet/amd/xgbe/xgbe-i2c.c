@@ -274,13 +274,16 @@ static void xgbe_i2c_clear_isr_interrupts(struct xgbe_prv_data *pdata,
 		XI2C_IOREAD(pdata, IC_CLR_STOP_DET);
 }
 
-static irqreturn_t xgbe_i2c_isr(int irq, void *data)
+static void xgbe_i2c_isr_task(unsigned long data)
 {
 	struct xgbe_prv_data *pdata = (struct xgbe_prv_data *)data;
 	struct xgbe_i2c_op_state *state = &pdata->i2c.op_state;
 	unsigned int isr;
 
 	isr = XI2C_IOREAD(pdata, IC_RAW_INTR_STAT);
+	if (!isr)
+		goto reissue_check;
+
 	netif_dbg(pdata, intr, pdata->netdev,
 		  "I2C interrupt received: status=%#010x\n", isr);
 
@@ -307,6 +310,21 @@ out:
 	/* Complete on an error or STOP condition */
 	if (state->ret || XI2C_GET_BITS(isr, IC_RAW_INTR_STAT, STOP_DET))
 		complete(&pdata->i2c_complete);
+
+reissue_check:
+	/* Reissue interrupt if status is not clear */
+	if (pdata->vdata->irq_reissue_support)
+		XP_IOWRITE(pdata, XP_INT_REISSUE_EN, 1 << 2);
+}
+
+static irqreturn_t xgbe_i2c_isr(int irq, void *data)
+{
+	struct xgbe_prv_data *pdata = (struct xgbe_prv_data *)data;
+
+	if (pdata->isr_as_tasklet)
+		tasklet_schedule(&pdata->tasklet_i2c);
+	else
+		xgbe_i2c_isr_task((unsigned long)pdata);
 
 	return IRQ_HANDLED;
 }
@@ -349,12 +367,11 @@ static void xgbe_i2c_set_target(struct xgbe_prv_data *pdata, unsigned int addr)
 	XI2C_IOWRITE(pdata, IC_TAR, addr);
 }
 
-static irqreturn_t xgbe_i2c_combined_isr(int irq, struct xgbe_prv_data *pdata)
+static irqreturn_t xgbe_i2c_combined_isr(struct xgbe_prv_data *pdata)
 {
-	if (!XI2C_IOREAD(pdata, IC_RAW_INTR_STAT))
-		return IRQ_HANDLED;
+	xgbe_i2c_isr_task((unsigned long)pdata);
 
-	return xgbe_i2c_isr(irq, pdata);
+	return IRQ_HANDLED;
 }
 
 static int xgbe_i2c_xfer(struct xgbe_prv_data *pdata, struct xgbe_i2c_op *op)
@@ -445,6 +462,9 @@ static int xgbe_i2c_start(struct xgbe_prv_data *pdata)
 
 	/* If we have a separate I2C irq, enable it */
 	if (pdata->dev_irq != pdata->i2c_irq) {
+		tasklet_init(&pdata->tasklet_i2c, xgbe_i2c_isr_task,
+			     (unsigned long)pdata);
+
 		ret = devm_request_irq(pdata->dev, pdata->i2c_irq,
 				       xgbe_i2c_isr, 0, pdata->i2c_name,
 				       pdata);

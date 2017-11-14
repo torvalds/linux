@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * IDE ATAPI floppy driver.
  *
@@ -72,7 +73,7 @@ static int ide_floppy_callback(ide_drive_t *drive, int dsc)
 		drive->failed_pc = NULL;
 
 	if (pc->c[0] == GPCMD_READ_10 || pc->c[0] == GPCMD_WRITE_10 ||
-	    (req_op(rq) == REQ_OP_SCSI_IN || req_op(rq) == REQ_OP_SCSI_OUT))
+	    blk_rq_is_scsi(rq))
 		uptodate = 1; /* FIXME */
 	else if (pc->c[0] == GPCMD_REQUEST_SENSE) {
 
@@ -143,7 +144,7 @@ static ide_startstop_t ide_floppy_issue_pc(ide_drive_t *drive,
 
 		drive->failed_pc = NULL;
 		drive->pc_callback(drive, 0);
-		ide_complete_rq(drive, -EIO, done);
+		ide_complete_rq(drive, BLK_STS_IOERR, done);
 		return ide_stopped;
 	}
 
@@ -248,7 +249,7 @@ static ide_startstop_t ide_floppy_do_request(ide_drive_t *drive,
 
 		if (ata_misc_request(rq)) {
 			scsi_req(rq)->result = 0;
-			ide_complete_rq(drive, 0, blk_rq_bytes(rq));
+			ide_complete_rq(drive, BLK_STS_OK, blk_rq_bytes(rq));
 			return ide_stopped;
 		} else
 			goto out_end;
@@ -303,7 +304,7 @@ out_end:
 	drive->failed_pc = NULL;
 	if (blk_rq_is_passthrough(rq) && scsi_req(rq)->result == 0)
 		scsi_req(rq)->result = -EIO;
-	ide_complete_rq(drive, -EIO, blk_rq_bytes(rq));
+	ide_complete_rq(drive, BLK_STS_IOERR, blk_rq_bytes(rq));
 	return ide_stopped;
 }
 

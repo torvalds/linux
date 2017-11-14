@@ -22,6 +22,7 @@
 
 #include <linux/iio/iio.h>
 #include <linux/iio/driver.h>
+#include <linux/iopoll.h>
 
 #define ASPEED_RESOLUTION_BITS		10
 #define ASPEED_CLOCKS_PER_SAMPLE	12
@@ -38,11 +39,17 @@
 
 #define ASPEED_ENGINE_ENABLE		BIT(0)
 
+#define ASPEED_ADC_CTRL_INIT_RDY	BIT(8)
+
+#define ASPEED_ADC_INIT_POLLING_TIME	500
+#define ASPEED_ADC_INIT_TIMEOUT		500000
+
 struct aspeed_adc_model_data {
 	const char *model_name;
 	unsigned int min_sampling_rate;	// Hz
 	unsigned int max_sampling_rate;	// Hz
 	unsigned int vref_voltage;	// mV
+	bool wait_init_sequence;
 };
 
 struct aspeed_adc_data {
@@ -211,8 +218,29 @@ static int aspeed_adc_probe(struct platform_device *pdev)
 		goto scaler_error;
 	}
 
+	model_data = of_device_get_match_data(&pdev->dev);
+
+	if (model_data->wait_init_sequence) {
+		/* Enable engine in normal mode. */
+		writel(ASPEED_OPERATION_MODE_NORMAL | ASPEED_ENGINE_ENABLE,
+		       data->base + ASPEED_REG_ENGINE_CONTROL);
+
+		/* Wait for initial sequence complete. */
+		ret = readl_poll_timeout(data->base + ASPEED_REG_ENGINE_CONTROL,
+					 adc_engine_control_reg_val,
+					 adc_engine_control_reg_val &
+					 ASPEED_ADC_CTRL_INIT_RDY,
+					 ASPEED_ADC_INIT_POLLING_TIME,
+					 ASPEED_ADC_INIT_TIMEOUT);
+		if (ret)
+			goto scaler_error;
+	}
+
 	/* Start all channels in normal mode. */
-	clk_prepare_enable(data->clk_scaler->clk);
+	ret = clk_prepare_enable(data->clk_scaler->clk);
+	if (ret)
+		goto clk_enable_error;
+
 	adc_engine_control_reg_val = GENMASK(31, 16) |
 		ASPEED_OPERATION_MODE_NORMAL | ASPEED_ENGINE_ENABLE;
 	writel(adc_engine_control_reg_val,
@@ -236,6 +264,7 @@ iio_register_error:
 	writel(ASPEED_OPERATION_MODE_POWER_DOWN,
 		data->base + ASPEED_REG_ENGINE_CONTROL);
 	clk_disable_unprepare(data->clk_scaler->clk);
+clk_enable_error:
 	clk_hw_unregister_divider(data->clk_scaler);
 
 scaler_error:
@@ -270,6 +299,7 @@ static const struct aspeed_adc_model_data ast2500_model_data = {
 	.vref_voltage = 1800, // mV
 	.min_sampling_rate = 1,
 	.max_sampling_rate = 1000000,
+	.wait_init_sequence = true,
 };
 
 static const struct of_device_id aspeed_adc_matches[] = {

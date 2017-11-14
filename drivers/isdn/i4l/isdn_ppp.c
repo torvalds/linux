@@ -795,9 +795,6 @@ isdn_ppp_read(int min, struct file *file, char __user *buf, int count)
 	if (!(is->state & IPPP_OPEN))
 		return 0;
 
-	if (!access_ok(VERIFY_WRITE, buf, count))
-		return -EFAULT;
-
 	spin_lock_irqsave(&is->buflock, flags);
 	b = is->first->next;
 	save_buf = b->buf;
@@ -828,7 +825,6 @@ isdn_ppp_write(int min, struct file *file, const char __user *buf, int count)
 	isdn_net_local *lp;
 	struct ippp_struct *is;
 	int proto;
-	unsigned char protobuf[4];
 
 	is = file->private_data;
 
@@ -842,24 +838,28 @@ isdn_ppp_write(int min, struct file *file, const char __user *buf, int count)
 	if (!lp)
 		printk(KERN_DEBUG "isdn_ppp_write: lp == NULL\n");
 	else {
-		/*
-		 * Don't reset huptimer for
-		 * LCP packets. (Echo requests).
-		 */
-		if (copy_from_user(protobuf, buf, 4))
-			return -EFAULT;
-		proto = PPP_PROTOCOL(protobuf);
-		if (proto != PPP_LCP)
-			lp->huptimer = 0;
+		if (lp->isdn_device < 0 || lp->isdn_channel < 0) {
+			unsigned char protobuf[4];
+			/*
+			 * Don't reset huptimer for
+			 * LCP packets. (Echo requests).
+			 */
+			if (copy_from_user(protobuf, buf, 4))
+				return -EFAULT;
 
-		if (lp->isdn_device < 0 || lp->isdn_channel < 0)
+			proto = PPP_PROTOCOL(protobuf);
+			if (proto != PPP_LCP)
+				lp->huptimer = 0;
+
 			return 0;
+		}
 
 		if ((dev->drv[lp->isdn_device]->flags & DRV_FLAG_RUNNING) &&
 		    lp->dialstate == 0 &&
 		    (lp->flags & ISDN_NET_CONNECTED)) {
 			unsigned short hl;
 			struct sk_buff *skb;
+			unsigned char *cpy_buf;
 			/*
 			 * we need to reserve enough space in front of
 			 * sk_buff. old call to dev_alloc_skb only reserved
@@ -872,11 +872,21 @@ isdn_ppp_write(int min, struct file *file, const char __user *buf, int count)
 				return count;
 			}
 			skb_reserve(skb, hl);
-			if (copy_from_user(skb_put(skb, count), buf, count))
+			cpy_buf = skb_put(skb, count);
+			if (copy_from_user(cpy_buf, buf, count))
 			{
 				kfree_skb(skb);
 				return -EFAULT;
 			}
+
+			/*
+			 * Don't reset huptimer for
+			 * LCP packets. (Echo requests).
+			 */
+			proto = PPP_PROTOCOL(cpy_buf);
+			if (proto != PPP_LCP)
+				lp->huptimer = 0;
+
 			if (is->debug & 0x40) {
 				printk(KERN_DEBUG "ppp xmit: len %d\n", (int) skb->len);
 				isdn_ppp_frame_log("xmit", skb->data, skb->len, 32, is->unit, lp->ppp_slot);
@@ -1312,7 +1322,7 @@ isdn_ppp_xmit(struct sk_buff *skb, struct net_device *netdev)
 	/* check if we should pass this packet
 	 * the filter instructions are constructed assuming
 	 * a four-byte PPP header on each packet */
-	*skb_push(skb, 4) = 1; /* indicate outbound */
+	*(u8 *)skb_push(skb, 4) = 1; /* indicate outbound */
 
 	{
 		__be16 *p = (__be16 *)skb->data;
@@ -1509,7 +1519,7 @@ int isdn_ppp_autodial_filter(struct sk_buff *skb, isdn_net_local *lp)
 	 * temporarily remove part of the fake header stuck on
 	 * earlier.
 	 */
-	*skb_pull(skb, IPPP_MAX_HEADER - 4) = 1; /* indicate outbound */
+	*(u8 *)skb_pull(skb, IPPP_MAX_HEADER - 4) = 1; /* indicate outbound */
 
 	{
 		__be16 *p = (__be16 *)skb->data;
@@ -2014,9 +2024,6 @@ isdn_ppp_dev_ioctl_stats(int slot, struct ifreq *ifr, struct net_device *dev)
 	struct ppp_stats t;
 	isdn_net_local *lp = netdev_priv(dev);
 
-	if (!access_ok(VERIFY_WRITE, res, sizeof(struct ppp_stats)))
-		return -EFAULT;
-
 	/* build a temporary stat struct and copy it to user space */
 
 	memset(&t, 0, sizeof(struct ppp_stats));
@@ -2258,8 +2265,7 @@ static void isdn_ppp_ccp_xmit_reset(struct ippp_struct *is, int proto,
 
 	/* Now stuff remaining bytes */
 	if (len) {
-		p = skb_put(skb, len);
-		memcpy(p, data, len);
+		skb_put_data(skb, data, len);
 	}
 
 	/* skb is now ready for xmit */

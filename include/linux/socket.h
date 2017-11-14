@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_SOCKET_H
 #define _LINUX_SOCKET_H
 
@@ -287,6 +288,7 @@ struct ucred {
 #define MSG_BATCH	0x40000 /* sendmmsg(): more messages coming */
 #define MSG_EOF         MSG_FIN
 
+#define MSG_ZEROCOPY	0x4000000	/* Use user data in kernel path */
 #define MSG_FASTOPEN	0x20000000	/* Send data in TCP SYN */
 #define MSG_CMSG_CLOEXEC 0x40000000	/* Set close_on_exec for file
 					   descriptor received through
@@ -334,6 +336,7 @@ struct ucred {
 #define SOL_ALG		279
 #define SOL_NFC		280
 #define SOL_KCM		281
+#define SOL_TLS		282
 
 /* IPX options */
 #define IPX_TYPE	1

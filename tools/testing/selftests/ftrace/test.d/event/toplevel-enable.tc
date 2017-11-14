@@ -1,4 +1,5 @@
 #!/bin/sh
+# SPDX-License-Identifier: GPL-2.0
 # description: event tracing - enable/disable with top level files
 
 do_reset() {
@@ -28,7 +29,9 @@ echo '*:*' > set_event
 
 yield
 
-count=`cat trace | grep -v ^# | wc -l`
+echo 0 > tracing_on
+
+count=`head -n 128 trace | grep -v ^# | wc -l`
 if [ $count -eq 0 ]; then
     fail "none of events are recorded"
 fi
@@ -36,10 +39,12 @@ fi
 do_reset
 
 echo 1 > events/enable
+echo 1 > tracing_on
 
 yield
 
-count=`cat trace | grep -v ^# | wc -l`
+echo 0 > tracing_on
+count=`head -n 128 trace | grep -v ^# | wc -l`
 if [ $count -eq 0 ]; then
     fail "none of events are recorded"
 fi

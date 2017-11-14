@@ -1,10 +1,11 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef ASM_KVM_CACHE_REGS_H
 #define ASM_KVM_CACHE_REGS_H
 
 #define KVM_POSSIBLE_CR0_GUEST_BITS X86_CR0_TS
 #define KVM_POSSIBLE_CR4_GUEST_BITS				  \
 	(X86_CR4_PVI | X86_CR4_DE | X86_CR4_PCE | X86_CR4_OSFXSR  \
-	 | X86_CR4_OSXMMEXCPT | X86_CR4_PGE)
+	 | X86_CR4_OSXMMEXCPT | X86_CR4_LA57 | X86_CR4_PGE)
 
 static inline unsigned long kvm_register_read(struct kvm_vcpu *vcpu,
 					      enum kvm_reg reg)
@@ -82,11 +83,6 @@ static inline u64 kvm_read_edx_eax(struct kvm_vcpu *vcpu)
 {
 	return (kvm_register_read(vcpu, VCPU_REGS_RAX) & -1u)
 		| ((u64)(kvm_register_read(vcpu, VCPU_REGS_RDX) & -1u) << 32);
-}
-
-static inline u32 kvm_read_pkru(struct kvm_vcpu *vcpu)
-{
-	return kvm_x86_ops->get_pkru(vcpu);
 }
 
 static inline void enter_guest_mode(struct kvm_vcpu *vcpu)

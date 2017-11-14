@@ -1176,7 +1176,7 @@ static struct clk_rcg2 bimc_gpu_clk_src = {
 		.parent_names = gcc_xo_gpll0_bimc,
 		.num_parents = 3,
 		.flags = CLK_GET_RATE_NOCACHE,
-		.ops = &clk_rcg2_shared_ops,
+		.ops = &clk_rcg2_ops,
 	},
 };
 
@@ -1430,6 +1430,7 @@ static struct clk_branch gcc_ultaudio_stc_xo_clk = {
 };
 
 static const struct freq_tbl ftbl_codec_clk[] = {
+	F(9600000, P_XO, 2, 0, 0),
 	F(19200000, P_XO, 1, 0, 0),
 	F(11289600, P_EXT_MCLK, 1, 0, 0),
 	{ }

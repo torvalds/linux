@@ -586,6 +586,14 @@ static irqreturn_t pciehp_isr(int irq, void *dev_id)
 	events = status & (PCI_EXP_SLTSTA_ABP | PCI_EXP_SLTSTA_PFD |
 			   PCI_EXP_SLTSTA_PDC | PCI_EXP_SLTSTA_CC |
 			   PCI_EXP_SLTSTA_DLLSC);
+
+	/*
+	 * If we've already reported a power fault, don't report it again
+	 * until we've done something to handle it.
+	 */
+	if (ctrl->power_fault_detected)
+		events &= ~PCI_EXP_SLTSTA_PFD;
+
 	if (!events)
 		return IRQ_NONE;
 

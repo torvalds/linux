@@ -1671,12 +1671,12 @@ int atomisp_alloc_metadata_output_buf(struct atomisp_sub_device *asd)
 	/* We allocate the cpu-side buffer used for communication with user
 	 * space */
 	for (i = 0; i < ATOMISP_METADATA_TYPE_NUM; i++) {
-		asd->params.metadata_user[i] = atomisp_kernel_malloc(
+		asd->params.metadata_user[i] = kvmalloc(
 				asd->stream_env[ATOMISP_INPUT_STREAM_GENERAL].
-				stream_info.metadata_info.size);
+				stream_info.metadata_info.size, GFP_KERNEL);
 		if (!asd->params.metadata_user[i]) {
 			while (--i >= 0) {
-				atomisp_kernel_free(asd->params.metadata_user[i]);
+				kvfree(asd->params.metadata_user[i]);
 				asd->params.metadata_user[i] = NULL;
 			}
 			return -ENOMEM;
@@ -1692,7 +1692,7 @@ void atomisp_free_metadata_output_buf(struct atomisp_sub_device *asd)
 
 	for (i = 0; i < ATOMISP_METADATA_TYPE_NUM; i++) {
 		if (asd->params.metadata_user[i]) {
-			atomisp_kernel_free(asd->params.metadata_user[i]);
+			kvfree(asd->params.metadata_user[i]);
 			asd->params.metadata_user[i] = NULL;
 		}
 	}
@@ -2506,7 +2506,6 @@ static void __configure_capture_pp_input(struct atomisp_sub_device *asd,
 	struct ia_css_pipe_extra_config *pipe_extra_configs =
 		&stream_env->pipe_extra_configs[pipe_id];
 	unsigned int hor_ds_factor = 0, ver_ds_factor = 0;
-#define CEIL_DIV(a, b)       ((b) ? ((a) + (b) - 1) / (b) : 0)
 
 	if (width == 0 && height == 0)
 		return;

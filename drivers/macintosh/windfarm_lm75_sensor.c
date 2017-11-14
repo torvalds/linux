@@ -82,7 +82,7 @@ static void wf_lm75_release(struct wf_sensor *sr)
 	kfree(lm);
 }
 
-static struct wf_sensor_ops wf_lm75_ops = {
+static const struct wf_sensor_ops wf_lm75_ops = {
 	.get_value	= wf_lm75_get,
 	.release	= wf_lm75_release,
 	.owner		= THIS_MODULE,

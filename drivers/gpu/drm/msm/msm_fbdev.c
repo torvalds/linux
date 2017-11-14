@@ -15,11 +15,11 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "msm_drv.h"
+#include <drm/drm_crtc.h>
+#include <drm/drm_fb_helper.h>
 
-#include "drm_crtc.h"
-#include "drm_fb_helper.h"
-#include "msm_gem.h"
+#include "msm_drv.h"
+#include "msm_kms.h"
 
 extern int msm_gem_mmap_obj(struct drm_gem_object *obj,
 					struct vm_area_struct *vma);
@@ -34,7 +34,6 @@ static int msm_fbdev_mmap(struct fb_info *info, struct vm_area_struct *vma);
 struct msm_fbdev {
 	struct drm_fb_helper base;
 	struct drm_framebuffer *fb;
-	struct drm_gem_object *bo;
 };
 
 static struct fb_ops msm_fb_ops = {
@@ -56,16 +55,16 @@ static int msm_fbdev_mmap(struct fb_info *info, struct vm_area_struct *vma)
 {
 	struct drm_fb_helper *helper = (struct drm_fb_helper *)info->par;
 	struct msm_fbdev *fbdev = to_msm_fbdev(helper);
-	struct drm_gem_object *drm_obj = fbdev->bo;
+	struct drm_gem_object *bo = msm_framebuffer_bo(fbdev->fb, 0);
 	int ret = 0;
 
-	ret = drm_gem_mmap_obj(drm_obj, drm_obj->size, vma);
+	ret = drm_gem_mmap_obj(bo, bo->size, vma);
 	if (ret) {
 		pr_err("%s:drm_gem_mmap_obj fail\n", __func__);
 		return ret;
 	}
 
-	return msm_gem_mmap_obj(drm_obj, vma);
+	return msm_gem_mmap_obj(bo, vma);
 }
 
 static int msm_fbdev_create(struct drm_fb_helper *helper,
@@ -73,49 +72,31 @@ static int msm_fbdev_create(struct drm_fb_helper *helper,
 {
 	struct msm_fbdev *fbdev = to_msm_fbdev(helper);
 	struct drm_device *dev = helper->dev;
+	struct msm_drm_private *priv = dev->dev_private;
 	struct drm_framebuffer *fb = NULL;
+	struct drm_gem_object *bo;
 	struct fb_info *fbi = NULL;
-	struct drm_mode_fb_cmd2 mode_cmd = {0};
 	uint64_t paddr;
-	int ret, size;
+	uint32_t format;
+	int ret, pitch;
+
+	format = drm_mode_legacy_fb_format(sizes->surface_bpp, sizes->surface_depth);
 
 	DBG("create fbdev: %dx%d@%d (%dx%d)", sizes->surface_width,
 			sizes->surface_height, sizes->surface_bpp,
 			sizes->fb_width, sizes->fb_height);
 
-	mode_cmd.pixel_format = drm_mode_legacy_fb_format(sizes->surface_bpp,
-			sizes->surface_depth);
+	pitch = align_pitch(sizes->surface_width, sizes->surface_bpp);
+	fb = msm_alloc_stolen_fb(dev, sizes->surface_width,
+			sizes->surface_height, pitch, format);
 
-	mode_cmd.width = sizes->surface_width;
-	mode_cmd.height = sizes->surface_height;
-
-	mode_cmd.pitches[0] = align_pitch(
-			mode_cmd.width, sizes->surface_bpp);
-
-	/* allocate backing bo */
-	size = mode_cmd.pitches[0] * mode_cmd.height;
-	DBG("allocating %d bytes for fb %d", size, dev->primary->index);
-	mutex_lock(&dev->struct_mutex);
-	fbdev->bo = msm_gem_new(dev, size, MSM_BO_SCANOUT |
-			MSM_BO_WC | MSM_BO_STOLEN);
-	mutex_unlock(&dev->struct_mutex);
-	if (IS_ERR(fbdev->bo)) {
-		ret = PTR_ERR(fbdev->bo);
-		fbdev->bo = NULL;
-		dev_err(dev->dev, "failed to allocate buffer object: %d\n", ret);
-		goto fail;
-	}
-
-	fb = msm_framebuffer_init(dev, &mode_cmd, &fbdev->bo);
 	if (IS_ERR(fb)) {
 		dev_err(dev->dev, "failed to allocate fb\n");
-		/* note: if fb creation failed, we can't rely on fb destroy
-		 * to unref the bo:
-		 */
-		drm_gem_object_unreference_unlocked(fbdev->bo);
 		ret = PTR_ERR(fb);
 		goto fail;
 	}
+
+	bo = msm_framebuffer_bo(fb, 0);
 
 	mutex_lock(&dev->struct_mutex);
 
@@ -124,7 +105,7 @@ static int msm_fbdev_create(struct drm_fb_helper *helper,
 	 * in panic (ie. lock-safe, etc) we could avoid pinning the
 	 * buffer now:
 	 */
-	ret = msm_gem_get_iova_locked(fbdev->bo, 0, &paddr);
+	ret = msm_gem_get_iova(bo, priv->kms->aspace, &paddr);
 	if (ret) {
 		dev_err(dev->dev, "failed to get buffer obj iova: %d\n", ret);
 		goto fail_unlock;
@@ -143,7 +124,6 @@ static int msm_fbdev_create(struct drm_fb_helper *helper,
 	helper->fb = fb;
 
 	fbi->par = helper;
-	fbi->flags = FBINFO_DEFAULT;
 	fbi->fbops = &msm_fb_ops;
 
 	strcpy(fbi->fix.id, "msm");
@@ -153,14 +133,14 @@ static int msm_fbdev_create(struct drm_fb_helper *helper,
 
 	dev->mode_config.fb_base = paddr;
 
-	fbi->screen_base = msm_gem_get_vaddr_locked(fbdev->bo);
+	fbi->screen_base = msm_gem_get_vaddr(bo);
 	if (IS_ERR(fbi->screen_base)) {
 		ret = PTR_ERR(fbi->screen_base);
 		goto fail_unlock;
 	}
-	fbi->screen_size = fbdev->bo->size;
+	fbi->screen_size = bo->size;
 	fbi->fix.smem_start = paddr;
-	fbi->fix.smem_len = fbdev->bo->size;
+	fbi->fix.smem_len = bo->size;
 
 	DBG("par=%p, %dx%d", fbi->par, fbi->var.xres, fbi->var.yres);
 	DBG("allocated %dx%d fb", fbdev->fb->width, fbdev->fb->height);
@@ -242,7 +222,9 @@ void msm_fbdev_free(struct drm_device *dev)
 
 	/* this will free the backing object */
 	if (fbdev->fb) {
-		msm_gem_put_vaddr(fbdev->bo);
+		struct drm_gem_object *bo =
+			msm_framebuffer_bo(fbdev->fb, 0);
+		msm_gem_put_vaddr(bo);
 		drm_framebuffer_remove(fbdev->fb);
 	}
 

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NET_GENERIC_NETLINK_H
 #define __NET_GENERIC_NETLINK_H
 
@@ -128,7 +129,6 @@ static inline int genl_err_attr(struct genl_info *info, int err,
  * @start: start callback for dumps
  * @dumpit: callback for dumpers
  * @done: completion callback for dumps
- * @ops_list: operations list
  */
 struct genl_ops {
 	const struct nla_policy	*policy;

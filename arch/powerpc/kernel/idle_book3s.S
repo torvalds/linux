@@ -30,7 +30,9 @@
  * Use unused space in the interrupt stack to save and restore
  * registers for winkle support.
  */
+#define _MMCR0	GPR0
 #define _SDR1	GPR3
+#define _PTCR	GPR3
 #define _RPR	GPR4
 #define _SPURR	GPR5
 #define _PURR	GPR6
@@ -39,7 +41,7 @@
 #define _AMOR	GPR9
 #define _WORT	GPR10
 #define _WORC	GPR11
-#define _PTCR	GPR12
+#define _LPCR	GPR12
 
 #define PSSCR_EC_ESL_MASK_SHIFTED          (PSSCR_EC | PSSCR_ESL) >> 16
 
@@ -55,12 +57,14 @@ save_sprs_to_stack:
 	 * here since any thread in the core might wake up first
 	 */
 BEGIN_FTR_SECTION
-	mfspr	r3,SPRN_PTCR
-	std	r3,_PTCR(r1)
 	/*
 	 * Note - SDR1 is dropped in Power ISA v3. Hence not restoring
 	 * SDR1 here
 	 */
+	mfspr	r3,SPRN_PTCR
+	std	r3,_PTCR(r1)
+	mfspr	r3,SPRN_LPCR
+	std	r3,_LPCR(r1)
 FTR_SECTION_ELSE
 	mfspr	r3,SPRN_SDR1
 	std	r3,_SDR1(r1)
@@ -81,7 +85,61 @@ ALT_FTR_SECTION_END_IFSET(CPU_FTR_ARCH_300)
 	std	r3,_WORT(r1)
 	mfspr	r3,SPRN_WORC
 	std	r3,_WORC(r1)
+/*
+ * On POWER9, there are idle states such as stop4, invoked via cpuidle,
+ * that lose hypervisor resources. In such cases, we need to save
+ * additional SPRs before entering those idle states so that they can
+ * be restored to their older values on wakeup from the idle state.
+ *
+ * On POWER8, the only such deep idle state is winkle which is used
+ * only in the context of CPU-Hotplug, where these additional SPRs are
+ * reinitiazed to a sane value. Hence there is no need to save/restore
+ * these SPRs.
+ */
+BEGIN_FTR_SECTION
+	blr
+END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_300)
 
+power9_save_additional_sprs:
+	mfspr	r3, SPRN_PID
+	mfspr	r4, SPRN_LDBAR
+	std	r3, STOP_PID(r13)
+	std	r4, STOP_LDBAR(r13)
+
+	mfspr	r3, SPRN_FSCR
+	mfspr	r4, SPRN_HFSCR
+	std	r3, STOP_FSCR(r13)
+	std	r4, STOP_HFSCR(r13)
+
+	mfspr	r3, SPRN_MMCRA
+	mfspr	r4, SPRN_MMCR1
+	std	r3, STOP_MMCRA(r13)
+	std	r4, STOP_MMCR1(r13)
+
+	mfspr	r3, SPRN_MMCR2
+	std	r3, STOP_MMCR2(r13)
+	blr
+
+power9_restore_additional_sprs:
+	ld	r3,_LPCR(r1)
+	ld	r4, STOP_PID(r13)
+	mtspr	SPRN_LPCR,r3
+	mtspr	SPRN_PID, r4
+
+	ld	r3, STOP_LDBAR(r13)
+	ld	r4, STOP_FSCR(r13)
+	mtspr	SPRN_LDBAR, r3
+	mtspr	SPRN_FSCR, r4
+
+	ld	r3, STOP_HFSCR(r13)
+	ld	r4, STOP_MMCRA(r13)
+	mtspr	SPRN_HFSCR, r3
+	mtspr	SPRN_MMCRA, r4
+	/* We have already restored PACA_MMCR0 */
+	ld	r3, STOP_MMCR1(r13)
+	ld	r4, STOP_MMCR2(r13)
+	mtspr	SPRN_MMCR1, r3
+	mtspr	SPRN_MMCR2, r4
 	blr
 
 /*
@@ -106,13 +164,9 @@ core_idle_lock_held:
 /*
  * Pass requested state in r3:
  *	r3 - PNV_THREAD_NAP/SLEEP/WINKLE in POWER8
- *	   - Requested STOP state in POWER9
+ *	   - Requested PSSCR value in POWER9
  *
- * To check IRQ_HAPPENED in r4
- * 	0 - don't check
- * 	1 - check
- *
- * Address to 'rfid' to in r5
+ * Address of idle handler to branch to in realmode in r4
  */
 pnv_powersave_common:
 	/* Use r3 to pass state nap/sleep/winkle */
@@ -122,36 +176,13 @@ pnv_powersave_common:
 	 * need to save PC, some CR bits and the NV GPRs,
 	 * but for now an interrupt frame will do.
 	 */
+	mtctr	r4
+
 	mflr	r0
 	std	r0,16(r1)
 	stdu	r1,-INT_FRAME_SIZE(r1)
 	std	r0,_LINK(r1)
 	std	r0,_NIP(r1)
-
-	/* Hard disable interrupts */
-	mfmsr	r9
-	rldicl	r9,r9,48,1
-	rotldi	r9,r9,16
-	mtmsrd	r9,1			/* hard-disable interrupts */
-
-	/* Check if something happened while soft-disabled */
-	lbz	r0,PACAIRQHAPPENED(r13)
-	andi.	r0,r0,~PACA_IRQ_HARD_DIS@l
-	beq	1f
-	cmpwi	cr0,r4,0
-	beq	1f
-	addi	r1,r1,INT_FRAME_SIZE
-	ld	r0,16(r1)
-	li	r3,0			/* Return 0 (no nap) */
-	mtlr	r0
-	blr
-
-1:	/* We mark irqs hard disabled as this is the state we'll
-	 * be in when returning and we need to tell arch_local_irq_restore()
-	 * about it
-	 */
-	li	r0,PACA_IRQ_HARD_DIS
-	stb	r0,PACAIRQHAPPENED(r13)
 
 	/* We haven't lost state ... yet */
 	li	r0,0
@@ -160,24 +191,42 @@ pnv_powersave_common:
 	/* Continue saving state */
 	SAVE_GPR(2, r1)
 	SAVE_NVGPRS(r1)
-	mfcr	r4
-	std	r4,_CCR(r1)
-	std	r9,_MSR(r1)
+	mfcr	r5
+	std	r5,_CCR(r1)
 	std	r1,PACAR1(r13)
 
+BEGIN_FTR_SECTION
 	/*
+	 * POWER9 does not require real mode to stop, and presently does not
+	 * set hwthread_state for KVM (threads don't share MMU context), so
+	 * we can remain in virtual mode for this.
+	 */
+	bctr
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
+	/*
+	 * POWER8
 	 * Go to real mode to do the nap, as required by the architecture.
 	 * Also, we need to be in real mode before setting hwthread_state,
 	 * because as soon as we do that, another thread can switch
 	 * the MMU context to the guest.
 	 */
 	LOAD_REG_IMMEDIATE(r7, MSR_IDLE)
-	li	r6, MSR_RI
-	andc	r6, r9, r6
-	mtmsrd	r6, 1		/* clear RI before setting SRR0/1 */
-	mtspr	SPRN_SRR0, r5
-	mtspr	SPRN_SRR1, r7
-	rfid
+	mtmsrd	r7,0
+	bctr
+
+/*
+ * This is the sequence required to execute idle instructions, as
+ * specified in ISA v2.07 (and earlier). MSR[IR] and MSR[DR] must be 0.
+ */
+#define IDLE_STATE_ENTER_SEQ_NORET(IDLE_INST)			\
+	/* Magic NAP/SLEEP/WINKLE mode enter sequence */	\
+	std	r0,0(r1);					\
+	ptesync;						\
+	ld	r0,0(r1);					\
+236:	cmpd	cr0,r0,r0;					\
+	bne	236b;						\
+	IDLE_INST;
+
 
 	.globl pnv_enter_arch207_idle_mode
 pnv_enter_arch207_idle_mode:
@@ -270,24 +319,52 @@ enter_winkle:
 /*
  * r3 - PSSCR value corresponding to the requested stop state.
  */
-power_enter_stop:
 #ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
-	/* Tell KVM we're entering idle */
+power_enter_stop_kvm_rm:
+	/*
+	 * This is currently unused because POWER9 KVM does not have to
+	 * gather secondary threads into sibling mode, but the code is
+	 * here in case that function is required.
+	 *
+	 * Tell KVM we're entering idle.
+	 */
 	li	r4,KVM_HWTHREAD_IN_IDLE
 	/* DO THIS IN REAL MODE!  See comment above. */
 	stb	r4,HSTATE_HWTHREAD_STATE(r13)
 #endif
+power_enter_stop:
 /*
  * Check if we are executing the lite variant with ESL=EC=0
  */
 	andis.   r4,r3,PSSCR_EC_ESL_MASK_SHIFTED
 	clrldi   r3,r3,60 /* r3 = Bits[60:63] = Requested Level (RL) */
 	bne	 .Lhandle_esl_ec_set
-	IDLE_STATE_ENTER_SEQ(PPC_STOP)
+	PPC_STOP
 	li	r3,0  /* Since we didn't lose state, return 0 */
+
+	/*
+	 * pnv_wakeup_noloss() expects r12 to contain the SRR1 value so
+	 * it can determine if the wakeup reason is an HMI in
+	 * CHECK_HMI_INTERRUPT.
+	 *
+	 * However, when we wakeup with ESL=0, SRR1 will not contain the wakeup
+	 * reason, so there is no point setting r12 to SRR1.
+	 *
+	 * Further, we clear r12 here, so that we don't accidentally enter the
+	 * HMI in pnv_wakeup_noloss() if the value of r12[42:45] == WAKE_HMI.
+	 */
+	li	r12, 0
 	b 	pnv_wakeup_noloss
 
 .Lhandle_esl_ec_set:
+	/*
+	 * POWER9 DD2 can incorrectly set PMAO when waking up after a
+	 * state-loss idle. Saving and restoring MMCR0 over idle is a
+	 * workaround.
+	 */
+	mfspr	r4,SPRN_MMCR0
+	std	r4,_MMCR0(r1)
+
 /*
  * Check if the requested state is a deep idle state.
  */
@@ -295,7 +372,8 @@ power_enter_stop:
 	ld	r4,ADDROFF(pnv_first_deep_stop_state)(r5)
 	cmpd	r3,r4
 	bge	.Lhandle_deep_stop
-	IDLE_STATE_ENTER_SEQ_NORET(PPC_STOP)
+	PPC_STOP	/* Does not return (system reset interrupt) */
+
 .Lhandle_deep_stop:
 /*
  * Entering deep idle state.
@@ -317,47 +395,25 @@ lwarx_loop_stop:
 
 	bl	save_sprs_to_stack
 
-	IDLE_STATE_ENTER_SEQ_NORET(PPC_STOP)
+	PPC_STOP	/* Does not return (system reset interrupt) */
 
-_GLOBAL(power7_idle)
+/*
+ * Entered with MSR[EE]=0 and no soft-masked interrupts pending.
+ * r3 contains desired idle state (PNV_THREAD_NAP/SLEEP/WINKLE).
+ */
+_GLOBAL(power7_idle_insn)
 	/* Now check if user or arch enabled NAP mode */
-	LOAD_REG_ADDRBASE(r3,powersave_nap)
-	lwz	r4,ADDROFF(powersave_nap)(r3)
-	cmpwi	0,r4,0
-	beqlr
-	li	r3, 1
-	/* fall through */
-
-_GLOBAL(power7_nap)
-	mr	r4,r3
-	li	r3,PNV_THREAD_NAP
-	LOAD_REG_ADDR(r5, pnv_enter_arch207_idle_mode)
+	LOAD_REG_ADDR(r4, pnv_enter_arch207_idle_mode)
 	b	pnv_powersave_common
-	/* No return */
-
-_GLOBAL(power7_sleep)
-	li	r3,PNV_THREAD_SLEEP
-	li	r4,1
-	LOAD_REG_ADDR(r5, pnv_enter_arch207_idle_mode)
-	b	pnv_powersave_common
-	/* No return */
-
-_GLOBAL(power7_winkle)
-	li	r3,PNV_THREAD_WINKLE
-	li	r4,1
-	LOAD_REG_ADDR(r5, pnv_enter_arch207_idle_mode)
-	b	pnv_powersave_common
-	/* No return */
 
 #define CHECK_HMI_INTERRUPT						\
-	mfspr	r0,SPRN_SRR1;						\
 BEGIN_FTR_SECTION_NESTED(66);						\
-	rlwinm	r0,r0,45-31,0xf;  /* extract wake reason field (P8) */	\
+	rlwinm	r0,r12,45-31,0xf;  /* extract wake reason field (P8) */	\
 FTR_SECTION_ELSE_NESTED(66);						\
-	rlwinm	r0,r0,45-31,0xe;  /* P7 wake reason field is 3 bits */	\
+	rlwinm	r0,r12,45-31,0xe;  /* P7 wake reason field is 3 bits */	\
 ALT_FTR_SECTION_END_NESTED_IFSET(CPU_FTR_ARCH_207S, 66);		\
 	cmpwi	r0,0xa;			/* Hypervisor maintenance ? */	\
-	bne	20f;							\
+	bne+	20f;							\
 	/* Invoke opal call to handle hmi */				\
 	ld	r2,PACATOC(r13);					\
 	ld	r1,PACAR1(r13);						\
@@ -369,16 +425,13 @@ ALT_FTR_SECTION_END_NESTED_IFSET(CPU_FTR_ARCH_207S, 66);		\
 20:	nop;
 
 /*
- * r3 - The PSSCR value corresponding to the stop state.
- * r4 - The PSSCR mask corrresonding to the stop state.
+ * Entered with MSR[EE]=0 and no soft-masked interrupts pending.
+ * r3 contains desired PSSCR register value.
  */
 _GLOBAL(power9_idle_stop)
-	mfspr   r5,SPRN_PSSCR
-	andc    r5,r5,r4
-	or      r3,r3,r5
+	std	r3, PACA_REQ_PSSCR(r13)
 	mtspr 	SPRN_PSSCR,r3
-	LOAD_REG_ADDR(r5,power_enter_stop)
-	li	r4,1
+	LOAD_REG_ADDR(r4,power_enter_stop)
 	b	pnv_powersave_common
 	/* No return */
 
@@ -436,17 +489,29 @@ pnv_powersave_wakeup_mce:
 
 	/*
 	 * Now put the original SRR1 with SRR1_WAKEMCE_RESVD as the wake
-	 * reason into SRR1, which allows reuse of the system reset wakeup
+	 * reason into r12, which allows reuse of the system reset wakeup
 	 * code without being mistaken for another type of wakeup.
 	 */
-	oris	r3,r3,SRR1_WAKEMCE_RESVD@h
-	mtspr	SPRN_SRR1,r3
+	oris	r12,r3,SRR1_WAKEMCE_RESVD@h
 
 	b	pnv_powersave_wakeup
+
+#ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
+kvm_start_guest_check:
+	li	r0,KVM_HWTHREAD_IN_KERNEL
+	stb	r0,HSTATE_HWTHREAD_STATE(r13)
+	/* Order setting hwthread_state vs. testing hwthread_req */
+	sync
+	lbz	r0,HSTATE_HWTHREAD_REQ(r13)
+	cmpwi	r0,0
+	beqlr
+	b	kvm_start_guest
+#endif
 
 /*
  * Called from reset vector for powersave wakeups.
  * cr3 - set to gt if waking up with partial/complete hypervisor state loss
+ * r12 - SRR1
  */
 .global pnv_powersave_wakeup
 pnv_powersave_wakeup:
@@ -464,20 +529,15 @@ ALT_FTR_SECTION_END_IFSET(CPU_FTR_ARCH_300)
 	li	r0,PNV_THREAD_RUNNING
 	stb	r0,PACA_THREAD_IDLE_STATE(r13)	/* Clear thread state */
 
+	mr	r3,r12
+
 #ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
-	li	r0,KVM_HWTHREAD_IN_KERNEL
-	stb	r0,HSTATE_HWTHREAD_STATE(r13)
-	/* Order setting hwthread_state vs. testing hwthread_req */
-	sync
-	lbz	r0,HSTATE_HWTHREAD_REQ(r13)
-	cmpwi	r0,0
-	beq	1f
-	b	kvm_start_guest
-1:
+BEGIN_FTR_SECTION
+	bl	kvm_start_guest_check
+END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_300)
 #endif
 
 	/* Return SRR1 from power7_nap() */
-	mfspr	r3,SPRN_SRR1
 	blt	cr3,pnv_wakeup_noloss
 	b	pnv_wakeup_loss
 
@@ -489,18 +549,45 @@ ALT_FTR_SECTION_END_IFSET(CPU_FTR_ARCH_300)
  */
 pnv_restore_hyp_resource_arch300:
 	/*
+	 * Workaround for POWER9, if we lost resources, the ERAT
+	 * might have been mixed up and needs flushing. We also need
+	 * to reload MMCR0 (see comment above). We also need to set
+	 * then clear bit 60 in MMCRA to ensure the PMU starts running.
+	 */
+	blt	cr3,1f
+	PPC_INVALIDATE_ERAT
+	ld	r1,PACAR1(r13)
+	mfspr	r4,SPRN_MMCRA
+	ori	r4,r4,(1 << (63-60))
+	mtspr	SPRN_MMCRA,r4
+	xori	r4,r4,(1 << (63-60))
+	mtspr	SPRN_MMCRA,r4
+	ld	r4,_MMCR0(r1)
+	mtspr	SPRN_MMCR0,r4
+1:
+	/*
 	 * POWER ISA 3. Use PSSCR to determine if we
 	 * are waking up from deep idle state
 	 */
 	LOAD_REG_ADDRBASE(r5,pnv_first_deep_stop_state)
 	ld	r4,ADDROFF(pnv_first_deep_stop_state)(r5)
 
-	mfspr	r5,SPRN_PSSCR
+BEGIN_FTR_SECTION_NESTED(71)
+	/*
+	 * Assume that we are waking up from the state
+	 * same as the Requested Level (RL) in the PSSCR
+	 * which are Bits 60-63
+	 */
+	ld	r5,PACA_REQ_PSSCR(r13)
+	rldicl  r5,r5,0,60
+FTR_SECTION_ELSE_NESTED(71)
 	/*
 	 * 0-3 bits correspond to Power-Saving Level Status
 	 * which indicates the idle state we are waking up from
 	 */
+	mfspr	r5, SPRN_PSSCR
 	rldicl  r5,r5,4,60
+ALT_FTR_SECTION_END_NESTED_IFSET(CPU_FTR_POWER9_DD1, 71)
 	cmpd	cr4,r5,r4
 	bge	cr4,pnv_wakeup_tb_loss /* returns to caller */
 
@@ -567,9 +654,9 @@ pnv_wakeup_tb_loss:
 	 * is required to return back to reset vector after hypervisor state
 	 * restore is complete.
 	 */
+	mr	r19,r12
 	mr	r18,r4
 	mflr	r17
-	mfspr	r16,SPRN_SRR1
 BEGIN_FTR_SECTION
 	CHECK_HMI_INTERRUPT
 END_FTR_SECTION_IFSET(CPU_FTR_HVMODE)
@@ -731,13 +818,14 @@ timebase_resync:
 	 * Use cr3 which indicates that we are waking up with atleast partial
 	 * hypervisor state loss to determine if TIMEBASE RESYNC is needed.
 	 */
-	ble	cr3,clear_lock
+	ble	cr3,.Ltb_resynced
 	/* Time base re-sync */
 	bl	opal_resync_timebase;
 	/*
-	 * If waking up from sleep, per core state is not lost, skip to
-	 * clear_lock.
+	 * If waking up from sleep (POWER8), per core state
+	 * is not lost, skip to clear_lock.
 	 */
+.Ltb_resynced:
 	blt	cr4,clear_lock
 
 	/*
@@ -812,9 +900,20 @@ no_segments:
 	mtctr	r12
 	bctrl
 
+/*
+ * On POWER9, we can come here on wakeup from a cpuidle stop state.
+ * Hence restore the additional SPRs to the saved value.
+ *
+ * On POWER8, we come here only on winkle. Since winkle is used
+ * only in the case of CPU-Hotplug, we don't need to restore
+ * the additional SPRs.
+ */
+BEGIN_FTR_SECTION
+	bl 	power9_restore_additional_sprs
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
 hypervisor_state_restored:
 
-	mtspr	SPRN_SRR1,r16
+	mr	r12,r19
 	mtlr	r17
 	blr		/* return to pnv_powersave_wakeup */
 
@@ -827,6 +926,7 @@ fastsleep_workaround_at_exit:
 /*
  * R3 here contains the value that will be returned to the caller
  * of power7_nap.
+ * R12 contains SRR1 for CHECK_HMI_INTERRUPT.
  */
 .global pnv_wakeup_loss
 pnv_wakeup_loss:
@@ -836,32 +936,33 @@ BEGIN_FTR_SECTION
 END_FTR_SECTION_IFSET(CPU_FTR_HVMODE)
 	REST_NVGPRS(r1)
 	REST_GPR(2, r1)
+	ld	r4,PACAKMSR(r13)
+	ld	r5,_LINK(r1)
 	ld	r6,_CCR(r1)
-	ld	r4,_MSR(r1)
-	ld	r5,_NIP(r1)
 	addi	r1,r1,INT_FRAME_SIZE
+	mtlr	r5
 	mtcr	r6
-	mtspr	SPRN_SRR1,r4
-	mtspr	SPRN_SRR0,r5
-	rfid
+	mtmsrd	r4
+	blr
 
 /*
  * R3 here contains the value that will be returned to the caller
  * of power7_nap.
+ * R12 contains SRR1 for CHECK_HMI_INTERRUPT.
  */
 pnv_wakeup_noloss:
 	lbz	r0,PACA_NAPSTATELOST(r13)
 	cmpwi	r0,0
 	bne	pnv_wakeup_loss
+	ld	r1,PACAR1(r13)
 BEGIN_FTR_SECTION
 	CHECK_HMI_INTERRUPT
 END_FTR_SECTION_IFSET(CPU_FTR_HVMODE)
-	ld	r1,PACAR1(r13)
-	ld	r6,_CCR(r1)
-	ld	r4,_MSR(r1)
+	ld	r4,PACAKMSR(r13)
 	ld	r5,_NIP(r1)
+	ld	r6,_CCR(r1)
 	addi	r1,r1,INT_FRAME_SIZE
+	mtlr	r5
 	mtcr	r6
-	mtspr	SPRN_SRR1,r4
-	mtspr	SPRN_SRR0,r5
-	rfid
+	mtmsrd	r4
+	blr

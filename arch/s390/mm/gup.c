@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  Lockless get_user_pages_fast for s390
  *
@@ -56,13 +57,12 @@ static inline int gup_pte_range(pmd_t *pmdp, pmd_t pmd, unsigned long addr,
 static inline int gup_huge_pmd(pmd_t *pmdp, pmd_t pmd, unsigned long addr,
 		unsigned long end, int write, struct page **pages, int *nr)
 {
-	unsigned long mask, result;
 	struct page *head, *page;
+	unsigned long mask;
 	int refs;
 
-	result = write ? 0 : _SEGMENT_ENTRY_PROTECT;
-	mask = result | _SEGMENT_ENTRY_INVALID;
-	if ((pmd_val(pmd) & mask) != result)
+	mask = (write ? _SEGMENT_ENTRY_PROTECT : 0) | _SEGMENT_ENTRY_INVALID;
+	if ((pmd_val(pmd) & mask) != 0)
 		return 0;
 	VM_BUG_ON(!pfn_valid(pmd_val(pmd) >> PAGE_SHIFT));
 
@@ -166,15 +166,15 @@ static int gup_huge_pud(pud_t *pudp, pud_t pud, unsigned long addr,
 	return 1;
 }
 
-static inline int gup_pud_range(pgd_t *pgdp, pgd_t pgd, unsigned long addr,
+static inline int gup_pud_range(p4d_t *p4dp, p4d_t p4d, unsigned long addr,
 		unsigned long end, int write, struct page **pages, int *nr)
 {
 	unsigned long next;
 	pud_t *pudp, pud;
 
-	pudp = (pud_t *) pgdp;
-	if ((pgd_val(pgd) & _REGION_ENTRY_TYPE_MASK) == _REGION_ENTRY_TYPE_R2)
-		pudp = (pud_t *) pgd_deref(pgd);
+	pudp = (pud_t *) p4dp;
+	if ((p4d_val(p4d) & _REGION_ENTRY_TYPE_MASK) == _REGION_ENTRY_TYPE_R2)
+		pudp = (pud_t *) p4d_deref(p4d);
 	pudp += pud_index(addr);
 	do {
 		pud = *pudp;
@@ -190,6 +190,29 @@ static inline int gup_pud_range(pgd_t *pgdp, pgd_t pgd, unsigned long addr,
 					  nr))
 			return 0;
 	} while (pudp++, addr = next, addr != end);
+
+	return 1;
+}
+
+static inline int gup_p4d_range(pgd_t *pgdp, pgd_t pgd, unsigned long addr,
+		unsigned long end, int write, struct page **pages, int *nr)
+{
+	unsigned long next;
+	p4d_t *p4dp, p4d;
+
+	p4dp = (p4d_t *) pgdp;
+	if ((pgd_val(pgd) & _REGION_ENTRY_TYPE_MASK) == _REGION_ENTRY_TYPE_R1)
+		p4dp = (p4d_t *) pgd_deref(pgd);
+	p4dp += p4d_index(addr);
+	do {
+		p4d = *p4dp;
+		barrier();
+		next = p4d_addr_end(addr, end);
+		if (p4d_none(p4d))
+			return 0;
+		if (!gup_pud_range(p4dp, p4d, addr, next, write, pages, nr))
+			return 0;
+	} while (p4dp++, addr = next, addr != end);
 
 	return 1;
 }
@@ -228,7 +251,7 @@ int __get_user_pages_fast(unsigned long start, int nr_pages, int write,
 		next = pgd_addr_end(addr, end);
 		if (pgd_none(pgd))
 			break;
-		if (!gup_pud_range(pgdp, pgd, addr, next, write, pages, &nr))
+		if (!gup_p4d_range(pgdp, pgd, addr, next, write, pages, &nr))
 			break;
 	} while (pgdp++, addr = next, addr != end);
 	local_irq_restore(flags);

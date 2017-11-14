@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/crypto.h>
 #include <linux/err.h>
 #include <linux/init.h>
@@ -171,7 +172,6 @@ void tcp_fastopen_add_skb(struct sock *sk, struct sk_buff *skb)
 
 static struct sock *tcp_fastopen_create_child(struct sock *sk,
 					      struct sk_buff *skb,
-					      struct dst_entry *dst,
 					      struct request_sock *req)
 {
 	struct tcp_sock *tp;
@@ -214,13 +214,14 @@ static struct sock *tcp_fastopen_create_child(struct sock *sk,
 	inet_csk_reset_xmit_timer(child, ICSK_TIME_RETRANS,
 				  TCP_TIMEOUT_INIT, TCP_RTO_MAX);
 
-	atomic_set(&req->rsk_refcnt, 2);
+	refcount_set(&req->rsk_refcnt, 2);
 
 	/* Now finish processing the fastopen child socket. */
 	inet_csk(child)->icsk_af_ops->rebuild_header(child);
 	tcp_init_congestion_control(child);
 	tcp_mtup_init(child);
 	tcp_init_metrics(child);
+	tcp_call_bpf(child, BPF_SOCK_OPS_PASSIVE_ESTABLISHED_CB);
 	tcp_init_buffer_space(child);
 
 	tp->rcv_nxt = TCP_SKB_CB(skb)->seq + 1;
@@ -277,8 +278,7 @@ static bool tcp_fastopen_queue_check(struct sock *sk)
  */
 struct sock *tcp_try_fastopen(struct sock *sk, struct sk_buff *skb,
 			      struct request_sock *req,
-			      struct tcp_fastopen_cookie *foc,
-			      struct dst_entry *dst)
+			      struct tcp_fastopen_cookie *foc)
 {
 	struct tcp_fastopen_cookie valid_foc = { .len = -1 };
 	bool syn_data = TCP_SKB_CB(skb)->end_seq != TCP_SKB_CB(skb)->seq + 1;
@@ -311,7 +311,7 @@ struct sock *tcp_try_fastopen(struct sock *sk, struct sk_buff *skb,
 		 * data in SYN_RECV state.
 		 */
 fastopen:
-		child = tcp_fastopen_create_child(sk, skb, dst, req);
+		child = tcp_fastopen_create_child(sk, skb, req);
 		if (child) {
 			foc->len = -1;
 			NET_INC_STATS(sock_net(sk),

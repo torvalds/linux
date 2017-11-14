@@ -253,8 +253,6 @@ static struct drm_driver hdlcd_driver = {
 	.gem_free_object_unlocked = drm_gem_cma_free_object,
 	.gem_vm_ops = &drm_gem_cma_vm_ops,
 	.dumb_create = drm_gem_cma_dumb_create,
-	.dumb_map_offset = drm_gem_cma_dumb_map_offset,
-	.dumb_destroy = drm_gem_dumb_destroy,
 	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
 	.gem_prime_export = drm_gem_prime_export,
@@ -296,6 +294,9 @@ static int hdlcd_drm_bind(struct device *dev)
 	ret = hdlcd_load(drm, 0);
 	if (ret)
 		goto err_free;
+
+	/* Set the CRTC's port so that the encoder component can find it */
+	hdlcd->crtc.port = of_graph_get_port_by_id(dev->of_node, 0);
 
 	ret = component_bind_all(dev, drm);
 	if (ret) {
@@ -340,12 +341,13 @@ err_register:
 	}
 err_fbdev:
 	drm_kms_helper_poll_fini(drm);
-	drm_vblank_cleanup(drm);
 err_vblank:
 	pm_runtime_disable(drm->dev);
 err_pm_active:
 	component_unbind_all(dev, drm);
 err_unload:
+	of_node_put(hdlcd->crtc.port);
+	hdlcd->crtc.port = NULL;
 	drm_irq_uninstall(drm);
 	of_reserved_mem_device_release(drm->dev);
 err_free:
@@ -368,7 +370,8 @@ static void hdlcd_drm_unbind(struct device *dev)
 	}
 	drm_kms_helper_poll_fini(drm);
 	component_unbind_all(dev, drm);
-	drm_vblank_cleanup(drm);
+	of_node_put(hdlcd->crtc.port);
+	hdlcd->crtc.port = NULL;
 	pm_runtime_get_sync(drm->dev);
 	drm_irq_uninstall(drm);
 	pm_runtime_put_sync(drm->dev);

@@ -45,7 +45,7 @@
 #define UBIFS_KMALLOC_OK (128*1024)
 
 /* Slab cache for UBIFS inodes */
-struct kmem_cache *ubifs_inode_slab;
+static struct kmem_cache *ubifs_inode_slab;
 
 /* UBIFS TNC shrinker description */
 static struct shrinker ubifs_shrinker_info = {
@@ -445,6 +445,8 @@ static int ubifs_show_options(struct seq_file *s, struct dentry *root)
 		seq_printf(s, ",compr=%s",
 			   ubifs_compr_name(c->mount_opts.compr_type));
 	}
+
+	seq_printf(s, ",ubi=%d,vol=%d", c->vi.ubi_num, c->vi.vol_id);
 
 	return 0;
 }
@@ -931,6 +933,7 @@ enum {
 	Opt_chk_data_crc,
 	Opt_no_chk_data_crc,
 	Opt_override_compr,
+	Opt_ignore,
 	Opt_err,
 };
 
@@ -942,6 +945,8 @@ static const match_table_t tokens = {
 	{Opt_chk_data_crc, "chk_data_crc"},
 	{Opt_no_chk_data_crc, "no_chk_data_crc"},
 	{Opt_override_compr, "compr=%s"},
+	{Opt_ignore, "ubi=%s"},
+	{Opt_ignore, "vol=%s"},
 	{Opt_err, NULL},
 };
 
@@ -1042,6 +1047,8 @@ static int ubifs_parse_options(struct ubifs_info *c, char *options,
 			c->default_compr = c->mount_opts.compr_type;
 			break;
 		}
+		case Opt_ignore:
+			break;
 		default:
 		{
 			unsigned long flag;
@@ -1152,7 +1159,7 @@ static int mount_ubifs(struct ubifs_info *c)
 	long long x, y;
 	size_t sz;
 
-	c->ro_mount = !!(c->vfs_sb->s_flags & MS_RDONLY);
+	c->ro_mount = !!sb_rdonly(c->vfs_sb);
 	/* Suppress error messages while probing if MS_SILENT is set */
 	c->probing = !!(c->vfs_sb->s_flags & MS_SILENT);
 
@@ -1869,8 +1876,10 @@ static int ubifs_remount_fs(struct super_block *sb, int *flags, char *data)
 		bu_init(c);
 	else {
 		dbg_gen("disable bulk-read");
+		mutex_lock(&c->bu_mutex);
 		kfree(c->bu.buf);
 		c->bu.buf = NULL;
+		mutex_unlock(&c->bu_mutex);
 	}
 
 	ubifs_assert(c->lst.taken_empty_lebs > 0);

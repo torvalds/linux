@@ -11,6 +11,7 @@
 
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/interrupt.h>
 #include <linux/mii.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
@@ -868,7 +869,10 @@ static int w90p910_get_link_ksettings(struct net_device *dev,
 				      struct ethtool_link_ksettings *cmd)
 {
 	struct w90p910_ether *ether = netdev_priv(dev);
-	return mii_ethtool_get_link_ksettings(&ether->mii, cmd);
+
+	mii_ethtool_get_link_ksettings(&ether->mii, cmd);
+
+	return 0;
 }
 
 static int w90p910_set_link_ksettings(struct net_device *dev,

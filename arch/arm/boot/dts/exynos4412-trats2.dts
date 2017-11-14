@@ -144,7 +144,7 @@
 		max77693@66 {
 			compatible = "maxim,max77693";
 			interrupt-parent = <&gpx1>;
-			interrupts = <5 2>;
+			interrupts = <5 IRQ_TYPE_EDGE_FALLING>;
 			reg = <0x66>;
 
 			regulators {
@@ -224,7 +224,7 @@
 			compatible = "capella,cm36651";
 			reg = <0x18>;
 			interrupt-parent = <&gpx0>;
-			interrupts = <2 2>;
+			interrupts = <2 IRQ_TYPE_EDGE_FALLING>;
 			vled-supply = <&ps_als_reg>;
 		};
 	};
@@ -390,21 +390,6 @@
 	samsung,pll-clock-frequency = <24000000>;
 	status = "okay";
 
-	ports {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		port@1 {
-			reg = <1>;
-
-			dsi_out: endpoint {
-				remote-endpoint = <&dsi_in>;
-				samsung,burst-clock-frequency = <500000000>;
-				samsung,esc-clock-frequency = <20000000>;
-			};
-		};
-	};
-
 	panel@0 {
 		compatible = "samsung,s6e8aa0";
 		reg = <0>;
@@ -430,12 +415,6 @@
 				vfront-porch = <13>;
 				vback-porch = <1>;
 				vsync-len = <2>;
-			};
-		};
-
-		port {
-			dsi_in: endpoint {
-				remote-endpoint = <&dsi_out>;
 			};
 		};
 	};
@@ -573,7 +552,7 @@
 		compatible = "melfas,mms114";
 		reg = <0x48>;
 		interrupt-parent = <&gpm2>;
-		interrupts = <3 2>;
+		interrupts = <3 IRQ_TYPE_EDGE_FALLING>;
 		x-size = <720>;
 		y-size = <1280>;
 		avdd-supply = <&ldo23_reg>;
@@ -611,7 +590,7 @@
 	max77686: max77686_pmic@09 {
 		compatible = "maxim,max77686";
 		interrupt-parent = <&gpx0>;
-		interrupts = <7 0>;
+		interrupts = <7 IRQ_TYPE_NONE>;
 		reg = <0x09>;
 		#clock-cells = <1>;
 
@@ -901,7 +880,6 @@
 };
 
 &mshc_0 {
-	num-slots = <1>;
 	broken-cd;
 	non-removable;
 	card-detect-delay = <200>;

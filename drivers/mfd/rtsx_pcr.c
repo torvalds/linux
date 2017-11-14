@@ -30,6 +30,7 @@
 #include <linux/platform_device.h>
 #include <linux/mfd/core.h>
 #include <linux/mfd/rtsx_pci.h>
+#include <linux/mmc/card.h>
 #include <asm/unaligned.h>
 
 #include "rtsx_pcr.h"
@@ -452,8 +453,12 @@ int rtsx_pci_dma_transfer(struct rtsx_pcr *pcr, struct scatterlist *sglist,
 	}
 
 	spin_lock_irqsave(&pcr->lock, flags);
-	if (pcr->trans_result == TRANS_RESULT_FAIL)
-		err = -EINVAL;
+	if (pcr->trans_result == TRANS_RESULT_FAIL) {
+		err = -EILSEQ;
+		if (pcr->dma_error_count < RTS_MAX_TIMES_FREQ_REDUCTION)
+			pcr->dma_error_count++;
+	}
+
 	else if (pcr->trans_result == TRANS_NO_DEVICE)
 		err = -ENODEV;
 	spin_unlock_irqrestore(&pcr->lock, flags);
@@ -639,7 +644,7 @@ int rtsx_pci_switch_clock(struct rtsx_pcr *pcr, unsigned int card_clock,
 {
 	int err, clk;
 	u8 n, clk_divider, mcu_cnt, div;
-	u8 depth[] = {
+	static const u8 depth[] = {
 		[RTSX_SSC_DEPTH_4M] = SSC_DEPTH_4M,
 		[RTSX_SSC_DEPTH_2M] = SSC_DEPTH_2M,
 		[RTSX_SSC_DEPTH_1M] = SSC_DEPTH_1M,
@@ -658,6 +663,13 @@ int rtsx_pci_switch_clock(struct rtsx_pcr *pcr, unsigned int card_clock,
 			SD_CLK_DIVIDE_MASK, clk_divider);
 	if (err < 0)
 		return err;
+
+	/* Reduce card clock by 20MHz each time a DMA transfer error occurs */
+	if (card_clock == UHS_SDR104_MAX_DTR &&
+	    pcr->dma_error_count &&
+	    PCI_PID(pcr) == RTS5227_DEVICE_ID)
+		card_clock = UHS_SDR104_MAX_DTR -
+			(pcr->dma_error_count * 20000000);
 
 	card_clock /= 1000000;
 	pcr_dbg(pcr, "Switch card clock to %dMHz\n", card_clock);
@@ -756,7 +768,7 @@ EXPORT_SYMBOL_GPL(rtsx_pci_card_power_off);
 
 int rtsx_pci_card_exclusive_check(struct rtsx_pcr *pcr, int card)
 {
-	unsigned int cd_mask[] = {
+	static const unsigned int cd_mask[] = {
 		[RTSX_SD_CARD] = SD_EXIST,
 		[RTSX_MS_CARD] = MS_EXIST
 	};
@@ -894,6 +906,7 @@ static irqreturn_t rtsx_pci_isr(int irq, void *dev_id)
 			pcr->card_removed |= SD_EXIST;
 			pcr->card_inserted &= ~SD_EXIST;
 		}
+		pcr->dma_error_count = 0;
 	}
 
 	if (int_reg & MS_INT) {

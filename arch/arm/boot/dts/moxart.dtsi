@@ -58,10 +58,11 @@
 		};
 
 		timer: timer@98400000 {
-			compatible = "moxa,moxart-timer";
+			compatible = "moxa,moxart-timer", "faraday,fttmr010";
 			reg = <0x98400000 0x42>;
 			interrupts = <19 IRQ_TYPE_EDGE_FALLING>;
 			clocks = <&clk_apb>;
+			clock-names = "PCLK";
 		};
 
 		gpio: gpio@98700000 {
@@ -86,9 +87,10 @@
 		};
 
 		watchdog: watchdog@98500000 {
-			compatible = "moxa,moxart-watchdog";
+			compatible = "moxa,moxart-watchdog", "faraday,ftwdt010";
 			reg = <0x98500000 0x10>;
 			clocks = <&clk_apb>;
+			clock-names = "PCLK";
 		};
 
 		sdhci: sdhci@98e00000 {

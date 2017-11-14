@@ -60,32 +60,15 @@ int init_srcu_struct(struct srcu_struct *sp);
 #include <linux/srcutiny.h>
 #elif defined(CONFIG_TREE_SRCU)
 #include <linux/srcutree.h>
-#elif defined(CONFIG_CLASSIC_SRCU)
-#include <linux/srcuclassic.h>
-#else
+#elif defined(CONFIG_SRCU)
 #error "Unknown SRCU implementation specified to kernel configuration"
+#else
+/* Dummy definition for things like notifiers.  Actual use gets link error. */
+struct srcu_struct { };
 #endif
 
-/**
- * call_srcu() - Queue a callback for invocation after an SRCU grace period
- * @sp: srcu_struct in queue the callback
- * @head: structure to be used for queueing the SRCU callback.
- * @func: function to be invoked after the SRCU grace period
- *
- * The callback function will be invoked some time after a full SRCU
- * grace period elapses, in other words after all pre-existing SRCU
- * read-side critical sections have completed.  However, the callback
- * function might well execute concurrently with other SRCU read-side
- * critical sections that started after call_srcu() was invoked.  SRCU
- * read-side critical sections are delimited by srcu_read_lock() and
- * srcu_read_unlock(), and may be nested.
- *
- * The callback will be invoked from process context, but must nevertheless
- * be fast and must not block.
- */
 void call_srcu(struct srcu_struct *sp, struct rcu_head *head,
 		void (*func)(struct rcu_head *head));
-
 void cleanup_srcu_struct(struct srcu_struct *sp);
 int __srcu_read_lock(struct srcu_struct *sp) __acquires(sp);
 void __srcu_read_unlock(struct srcu_struct *sp, int idx) __releases(sp);
@@ -95,6 +78,7 @@ void synchronize_srcu(struct srcu_struct *sp);
 
 /**
  * srcu_read_lock_held - might we be in SRCU read-side critical section?
+ * @sp: The srcu_struct structure to check
  *
  * If CONFIG_DEBUG_LOCK_ALLOC is selected, returns nonzero iff in an SRCU
  * read-side critical section.  In absence of CONFIG_DEBUG_LOCK_ALLOC,

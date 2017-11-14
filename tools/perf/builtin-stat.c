@@ -86,6 +86,7 @@
 #define DEFAULT_SEPARATOR	" "
 #define CNTR_NOT_SUPPORTED	"<not supported>"
 #define CNTR_NOT_COUNTED	"<not counted>"
+#define FREEZE_ON_SMI_PATH	"devices/cpu/freeze_on_smi"
 
 static void print_counters(struct timespec *ts, int argc, const char **argv);
 
@@ -122,6 +123,14 @@ static const char * topdown_attrs[] = {
 	NULL,
 };
 
+static const char *smi_cost_attrs = {
+	"{"
+	"msr/aperf/,"
+	"msr/smi/,"
+	"cycles"
+	"}"
+};
+
 static struct perf_evlist	*evsel_list;
 
 static struct target target = {
@@ -137,6 +146,8 @@ static bool			null_run			=  false;
 static int			detailed_run			=  0;
 static bool			transaction_run;
 static bool			topdown_run			= false;
+static bool			smi_cost			= false;
+static bool			smi_reset			= false;
 static bool			big_num				=  true;
 static int			big_num_opt			=  -1;
 static const char		*csv_sep			= NULL;
@@ -202,10 +213,20 @@ static void perf_stat__reset_stats(void)
 static int create_perf_stat_counter(struct perf_evsel *evsel)
 {
 	struct perf_event_attr *attr = &evsel->attr;
+	struct perf_evsel *leader = evsel->leader;
 
-	if (stat_config.scale)
+	if (stat_config.scale) {
 		attr->read_format = PERF_FORMAT_TOTAL_TIME_ENABLED |
 				    PERF_FORMAT_TOTAL_TIME_RUNNING;
+	}
+
+	/*
+	 * The event is part of non trivial group, let's enable
+	 * the group read (for leader) and ID retrieval for all
+	 * members.
+	 */
+	if (leader->nr_members > 1)
+		attr->read_format |= PERF_FORMAT_ID|PERF_FORMAT_GROUP;
 
 	attr->inherit = !no_inherit;
 
@@ -322,12 +343,20 @@ static int read_counter(struct perf_evsel *counter)
 			struct perf_counts_values *count;
 
 			count = perf_counts(counter->counts, cpu, thread);
-			if (perf_evsel__read(counter, cpu, thread, count)) {
+
+			/*
+			 * The leader's group read loads data into its group members
+			 * (via perf_evsel__read_counter) and sets threir count->loaded.
+			 */
+			if (!count->loaded &&
+			    perf_evsel__read_counter(counter, cpu, thread)) {
 				counter->counts->scaled = -1;
 				perf_counts(counter->counts, cpu, thread)->ena = 0;
 				perf_counts(counter->counts, cpu, thread)->run = 0;
 				return -1;
 			}
+
+			count->loaded = false;
 
 			if (STAT_RECORD) {
 				if (perf_evsel__write_stat_event(counter, cpu, thread, count)) {
@@ -548,6 +577,11 @@ static int store_counter_ids(struct perf_evsel *counter)
 	return __store_counter_ids(counter, cpus, threads);
 }
 
+static bool perf_evsel__should_store_id(struct perf_evsel *counter)
+{
+	return STAT_RECORD || counter->attr.read_format & PERF_FORMAT_ID;
+}
+
 static int __run_perf_stat(int argc, const char **argv)
 {
 	int interval = stat_config.interval;
@@ -620,19 +654,20 @@ try_again:
 		if (l > unit_width)
 			unit_width = l;
 
-		if (STAT_RECORD && store_counter_ids(counter))
+		if (perf_evsel__should_store_id(counter) &&
+		    store_counter_ids(counter))
 			return -1;
 	}
 
 	if (perf_evlist__apply_filters(evsel_list, &counter)) {
-		error("failed to set filter \"%s\" on event %s with %d (%s)\n",
+		pr_err("failed to set filter \"%s\" on event %s with %d (%s)\n",
 			counter->filter, perf_evsel__name(counter), errno,
 			str_error_r(errno, msg, sizeof(msg)));
 		return -1;
 	}
 
 	if (perf_evlist__apply_drv_configs(evsel_list, &counter, &err_term)) {
-		error("failed to set config \"%s\" on event %s with %d (%s)\n",
+		pr_err("failed to set config \"%s\" on event %s with %d (%s)\n",
 		      err_term->val.drv_cfg, perf_evsel__name(counter), errno,
 		      str_error_r(errno, msg, sizeof(msg)));
 		return -1;
@@ -672,7 +707,7 @@ try_again:
 				process_interval();
 			}
 		}
-		wait(&status);
+		waitpid(child_pid, &status, 0);
 
 		if (workload_exec_errno) {
 			const char *emsg = str_error_r(workload_exec_errno, msg, sizeof(msg));
@@ -1222,7 +1257,7 @@ static bool collect_data(struct perf_evsel *counter,
 	if (counter->merged_stat)
 		return false;
 	cb(counter, data, true);
-	if (!no_merge)
+	if (!no_merge && counter->auto_merge_stats)
 		collect_all_aliases(counter, cb, data);
 	return true;
 }
@@ -1782,6 +1817,8 @@ static const struct option stat_options[] = {
 			"Only print computed metrics. No raw values", enable_metric_only),
 	OPT_BOOLEAN(0, "topdown", &topdown_run,
 			"measure topdown level 1 statistics"),
+	OPT_BOOLEAN(0, "smi-cost", &smi_cost,
+			"measure SMI cost"),
 	OPT_END()
 };
 
@@ -2155,6 +2192,39 @@ static int add_default_attributes(void)
 			err = parse_events(evsel_list, transaction_limited_attrs, NULL);
 		if (err) {
 			fprintf(stderr, "Cannot set up transaction events\n");
+			return -1;
+		}
+		return 0;
+	}
+
+	if (smi_cost) {
+		int smi;
+
+		if (sysfs__read_int(FREEZE_ON_SMI_PATH, &smi) < 0) {
+			fprintf(stderr, "freeze_on_smi is not supported.\n");
+			return -1;
+		}
+
+		if (!smi) {
+			if (sysfs__write_int(FREEZE_ON_SMI_PATH, 1) < 0) {
+				fprintf(stderr, "Failed to set freeze_on_smi.\n");
+				return -1;
+			}
+			smi_reset = true;
+		}
+
+		if (pmu_have_event("msr", "aperf") &&
+		    pmu_have_event("msr", "smi")) {
+			if (!force_metric_only)
+				metric_only = true;
+			err = parse_events(evsel_list, smi_cost_attrs, NULL);
+		} else {
+			fprintf(stderr, "To measure SMI cost, it needs "
+				"msr/aperf/, msr/smi/ and cpu/cycles/ support\n");
+			return -1;
+		}
+		if (err) {
+			fprintf(stderr, "Cannot set up SMI cost events\n");
 			return -1;
 		}
 		return 0;
@@ -2742,6 +2812,9 @@ int cmd_stat(int argc, const char **argv)
 	perf_stat__exit_aggr_mode();
 	perf_evlist__free_stats(evsel_list);
 out:
+	if (smi_cost && smi_reset)
+		sysfs__write_int(FREEZE_ON_SMI_PATH, 0);
+
 	perf_evlist__delete(evsel_list);
 	return status;
 }

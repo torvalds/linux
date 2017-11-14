@@ -25,14 +25,15 @@
  */
 #include <linux/module.h>
 
-#include "drmP.h"
-#include "drm/drm.h"
-#include "drm/drm_crtc.h"
-#include "drm/drm_crtc_helper.h"
+#include <drm/drmP.h>
+#include <drm/drm.h>
+#include <drm/drm_crtc.h>
+#include <drm/drm_crtc_helper.h>
+#include <drm/drm_fb_helper.h>
+
 #include "qxl_drv.h"
 
 #include "qxl_object.h"
-#include "drm_fb_helper.h"
 
 #define QXL_DIRTY_DELAY (HZ / 30)
 
@@ -274,7 +275,6 @@ static int qxlfb_create(struct qxl_fbdev *qfbdev,
 
 	drm_fb_helper_fill_fix(info, fb->pitches[0], fb->format->depth);
 
-	info->flags = FBINFO_DEFAULT | FBINFO_HWACCEL_COPYAREA | FBINFO_HWACCEL_FILLRECT;
 	info->fbops = &qxlfb_ops;
 
 	/*

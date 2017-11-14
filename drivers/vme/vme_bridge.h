@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _VME_BRIDGE_H_
 #define _VME_BRIDGE_H_
 

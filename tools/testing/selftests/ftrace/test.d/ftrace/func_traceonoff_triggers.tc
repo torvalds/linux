@@ -1,4 +1,5 @@
 #!/bin/sh
+# SPDX-License-Identifier: GPL-2.0
 # description: ftrace - test for function traceon/off triggers
 # flags: instance
 #
@@ -63,6 +64,10 @@ fi
 
 # powerpc uses .schedule
 func="schedule"
+available_file=available_filter_functions
+if [ -d ../../instances -a -f ../../available_filter_functions ]; then
+   available_file=../../available_filter_functions
+fi
 x=`grep '^\.schedule$' available_filter_functions | wc -l`
 if [ "$x" -eq 1 ]; then
    func=".schedule"
@@ -71,6 +76,15 @@ fi
 echo '** SET TRACEOFF'
 
 echo "$func:traceoff" > set_ftrace_filter
+if [ -d ../../instances ]; then # Check instances
+    cur=`cat set_ftrace_filter`
+    top=`cat ../../set_ftrace_filter`
+    if [ "$cur" = "$top" ]; then
+	echo "This kernel is too old to support per instance filter"
+	reset_ftrace_filter
+	exit_unsupported
+    fi
+fi
 
 cnt=`grep schedule set_ftrace_filter | wc -l`
 if [ $cnt -ne 1 ]; then
@@ -90,11 +104,11 @@ if [ $on != "0" ]; then
     fail "Tracing is not off"
 fi
 
-line1=`cat trace | tail -1`
+csum1=`md5sum trace`
 sleep $SLEEP_TIME
-line2=`cat trace | tail -1`
+csum2=`md5sum trace`
 
-if [ "$line1" != "$line2" ]; then
+if [ "$csum1" != "$csum2" ]; then
     fail "Tracing file is still changing"
 fi
 

@@ -467,41 +467,41 @@ MODULE_DEVICE_TABLE(pci, snd_audiopci_ids);
 #define POLL_COUNT	0xa000
 
 #ifdef CHIP1370
-static unsigned int snd_es1370_fixed_rates[] =
+static const unsigned int snd_es1370_fixed_rates[] =
 	{5512, 11025, 22050, 44100};
-static struct snd_pcm_hw_constraint_list snd_es1370_hw_constraints_rates = {
+static const struct snd_pcm_hw_constraint_list snd_es1370_hw_constraints_rates = {
 	.count = 4, 
 	.list = snd_es1370_fixed_rates,
 	.mask = 0,
 };
-static struct snd_ratnum es1370_clock = {
+static const struct snd_ratnum es1370_clock = {
 	.num = ES_1370_SRCLOCK,
 	.den_min = 29, 
 	.den_max = 353,
 	.den_step = 1,
 };
-static struct snd_pcm_hw_constraint_ratnums snd_es1370_hw_constraints_clock = {
+static const struct snd_pcm_hw_constraint_ratnums snd_es1370_hw_constraints_clock = {
 	.nrats = 1,
 	.rats = &es1370_clock,
 };
 #else
-static struct snd_ratden es1371_dac_clock = {
+static const struct snd_ratden es1371_dac_clock = {
 	.num_min = 3000 * (1 << 15),
 	.num_max = 48000 * (1 << 15),
 	.num_step = 3000,
 	.den = 1 << 15,
 };
-static struct snd_pcm_hw_constraint_ratdens snd_es1371_hw_constraints_dac_clock = {
+static const struct snd_pcm_hw_constraint_ratdens snd_es1371_hw_constraints_dac_clock = {
 	.nrats = 1,
 	.rats = &es1371_dac_clock,
 };
-static struct snd_ratnum es1371_adc_clock = {
+static const struct snd_ratnum es1371_adc_clock = {
 	.num = 48000 << 15,
 	.den_min = 32768, 
 	.den_max = 393216,
 	.den_step = 1,
 };
-static struct snd_pcm_hw_constraint_ratnums snd_es1371_hw_constraints_adc_clock = {
+static const struct snd_pcm_hw_constraint_ratnums snd_es1371_hw_constraints_adc_clock = {
 	.nrats = 1,
 	.rats = &es1371_adc_clock,
 };
@@ -1059,7 +1059,7 @@ static snd_pcm_uframes_t snd_ensoniq_capture_pointer(struct snd_pcm_substream *s
 	return ptr;
 }
 
-static struct snd_pcm_hardware snd_ensoniq_playback1 =
+static const struct snd_pcm_hardware snd_ensoniq_playback1 =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER |
@@ -1086,7 +1086,7 @@ static struct snd_pcm_hardware snd_ensoniq_playback1 =
 	.fifo_size =		0,
 };
 
-static struct snd_pcm_hardware snd_ensoniq_playback2 =
+static const struct snd_pcm_hardware snd_ensoniq_playback2 =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER |
@@ -1106,7 +1106,7 @@ static struct snd_pcm_hardware snd_ensoniq_playback2 =
 	.fifo_size =		0,
 };
 
-static struct snd_pcm_hardware snd_ensoniq_capture =
+static const struct snd_pcm_hardware snd_ensoniq_capture =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER |

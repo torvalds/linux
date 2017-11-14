@@ -272,11 +272,14 @@ struct cpg_pll_config {
 	unsigned int extal_div;
 	unsigned int pll1_mult;
 	unsigned int pll3_mult;
+	unsigned int pll0_mult;		/* For R-Car V2H and E2 only */
 };
 
 static const struct cpg_pll_config cpg_pll_configs[8] __initconst = {
-	{ 1, 208, 106 }, { 1, 208,  88 }, { 1, 156,  80 }, { 1, 156,  66 },
-	{ 2, 240, 122 }, { 2, 240, 102 }, { 2, 208, 106 }, { 2, 208,  88 },
+	{ 1, 208, 106, 200 }, { 1, 208,  88, 200 },
+	{ 1, 156,  80, 150 }, { 1, 156,  66, 150 },
+	{ 2, 240, 122, 230 }, { 2, 240, 102, 230 },
+	{ 2, 208, 106, 200 }, { 2, 208,  88, 200 },
 };
 
 /* SDHI divisors */
@@ -298,6 +301,12 @@ static const struct clk_div_table cpg_sd01_div_table[] = {
 
 static u32 cpg_mode __initdata;
 
+static const char * const pll0_mult_match[] = {
+	"renesas,r8a7792-cpg-clocks",
+	"renesas,r8a7794-cpg-clocks",
+	NULL
+};
+
 static struct clk * __init
 rcar_gen2_cpg_register_clock(struct device_node *np, struct rcar_gen2_cpg *cpg,
 			     const struct cpg_pll_config *config,
@@ -318,9 +327,15 @@ rcar_gen2_cpg_register_clock(struct device_node *np, struct rcar_gen2_cpg *cpg,
 		 * clock implementation and we currently have no need to change
 		 * the multiplier value.
 		 */
-		u32 value = clk_readl(cpg->reg + CPG_PLL0CR);
+		if (of_device_compatible_match(np, pll0_mult_match)) {
+			/* R-Car V2H and E2 do not have PLL0CR */
+			mult = config->pll0_mult;
+			div = 3;
+		} else {
+			u32 value = clk_readl(cpg->reg + CPG_PLL0CR);
+			mult = ((value >> 24) & ((1 << 7) - 1)) + 1;
+		}
 		parent_name = "main";
-		mult = ((value >> 24) & ((1 << 7) - 1)) + 1;
 	} else if (!strcmp(name, "pll1")) {
 		parent_name = "main";
 		mult = config->pll1_mult / 2;
@@ -392,8 +407,7 @@ static void __init rcar_gen2_cpg_clocks_init(struct device_node *np)
 
 	if (rcar_rst_read_mode_pins(&cpg_mode)) {
 		/* Backward-compatibility with old DT */
-		pr_warn("%s: failed to obtain mode pins from RST\n",
-			np->full_name);
+		pr_warn("%pOF: failed to obtain mode pins from RST\n", np);
 		cpg_mode = rcar_gen2_read_mode_pins();
 	}
 

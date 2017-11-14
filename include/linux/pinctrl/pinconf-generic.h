@@ -73,13 +73,20 @@
  *	operation, if several modes of operation are supported these can be
  *	passed in the argument on a custom form, else just use argument 1
  *	to indicate low power mode, argument 0 turns low power mode off.
- * @PIN_CONFIG_OUTPUT: this will configure the pin as an output. Use argument
- *	1 to indicate high level, argument 0 to indicate low level. (Please
- *	see Documentation/pinctrl.txt, section "GPIO mode pitfalls" for a
- *	discussion around this parameter.)
+ * @PIN_CONFIG_OUTPUT_ENABLE: this will enable the pin's output mode
+ * 	without driving a value there. For most platforms this reduces to
+ * 	enable the output buffers and then let the pin controller current
+ * 	configuration (eg. the currently selected mux function) drive values on
+ * 	the line. Use argument 1 to enable output mode, argument 0 to disable
+ * 	it.
+ * @PIN_CONFIG_OUTPUT: this will configure the pin as an output and drive a
+ * 	value on the line. Use argument 1 to indicate high level, argument 0 to
+ *	indicate low level. (Please see Documentation/driver-api/pinctl.rst,
+ *	section "GPIO mode pitfalls" for a discussion around this parameter.)
  * @PIN_CONFIG_POWER_SOURCE: if the pin can select between different power
  *	supplies, the argument to this parameter (on a custom format) tells
  *	the driver which alternative power source to use.
+ * @PIN_CONFIG_SLEEP_HARDWARE_STATE: indicate this is sleep related state.
  * @PIN_CONFIG_SLEW_RATE: if the pin can select slew rate, the argument to
  *	this parameter (on a custom format) tells the driver which alternative
  *	slew rate to use.
@@ -105,8 +112,10 @@ enum pin_config_param {
 	PIN_CONFIG_INPUT_SCHMITT,
 	PIN_CONFIG_INPUT_SCHMITT_ENABLE,
 	PIN_CONFIG_LOW_POWER_MODE,
+	PIN_CONFIG_OUTPUT_ENABLE,
 	PIN_CONFIG_OUTPUT,
 	PIN_CONFIG_POWER_SOURCE,
+	PIN_CONFIG_SLEEP_HARDWARE_STATE,
 	PIN_CONFIG_SLEW_RATE,
 	PIN_CONFIG_END = 0x7F,
 	PIN_CONFIG_MAX = 0xFF,

@@ -252,7 +252,7 @@ void machine_crash_shutdown(struct pt_regs *regs)
 	local_irq_disable();
 
 	/* shutdown non-crashing cpus */
-	smp_send_crash_stop();
+	crash_smp_send_stop();
 
 	/* for crashing cpu */
 	crash_save_cpu(regs, smp_processor_id());

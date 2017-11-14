@@ -524,6 +524,32 @@ unsigned int cpufreq_driver_resolve_freq(struct cpufreq_policy *policy,
 }
 EXPORT_SYMBOL_GPL(cpufreq_driver_resolve_freq);
 
+unsigned int cpufreq_policy_transition_delay_us(struct cpufreq_policy *policy)
+{
+	unsigned int latency;
+
+	if (policy->transition_delay_us)
+		return policy->transition_delay_us;
+
+	latency = policy->cpuinfo.transition_latency / NSEC_PER_USEC;
+	if (latency) {
+		/*
+		 * For platforms that can change the frequency very fast (< 10
+		 * us), the above formula gives a decent transition delay. But
+		 * for platforms where transition_latency is in milliseconds, it
+		 * ends up giving unrealistic values.
+		 *
+		 * Cap the default transition delay to 10 ms, which seems to be
+		 * a reasonable amount of time after which we should reevaluate
+		 * the frequency.
+		 */
+		return min(latency * LATENCY_MULTIPLIER, (unsigned int)10000);
+	}
+
+	return LATENCY_MULTIPLIER;
+}
+EXPORT_SYMBOL_GPL(cpufreq_policy_transition_delay_us);
+
 /*********************************************************************
  *                          SYSFS INTERFACE                          *
  *********************************************************************/
@@ -632,11 +658,21 @@ show_one(cpuinfo_transition_latency, cpuinfo.transition_latency);
 show_one(scaling_min_freq, min);
 show_one(scaling_max_freq, max);
 
+__weak unsigned int arch_freq_get_on_cpu(int cpu)
+{
+	return 0;
+}
+
 static ssize_t show_scaling_cur_freq(struct cpufreq_policy *policy, char *buf)
 {
 	ssize_t ret;
+	unsigned int freq;
 
-	if (cpufreq_driver && cpufreq_driver->setpolicy && cpufreq_driver->get)
+	freq = arch_freq_get_on_cpu(policy->cpu);
+	if (freq)
+		ret = sprintf(buf, "%u\n", freq);
+	else if (cpufreq_driver && cpufreq_driver->setpolicy &&
+			cpufreq_driver->get)
 		ret = sprintf(buf, "%u\n", cpufreq_driver->get(policy->cpu));
 	else
 		ret = sprintf(buf, "%u\n", policy->cur);
@@ -887,7 +923,7 @@ static ssize_t store(struct kobject *kobj, struct attribute *attr,
 	struct freq_attr *fattr = to_attr(attr);
 	ssize_t ret = -EINVAL;
 
-	get_online_cpus();
+	cpus_read_lock();
 
 	if (cpu_online(policy->cpu)) {
 		down_write(&policy->rwsem);
@@ -895,7 +931,7 @@ static ssize_t store(struct kobject *kobj, struct attribute *attr,
 		up_write(&policy->rwsem);
 	}
 
-	put_online_cpus();
+	cpus_read_unlock();
 
 	return ret;
 }
@@ -1807,9 +1843,10 @@ EXPORT_SYMBOL(cpufreq_unregister_notifier);
  * twice in parallel for the same policy and that it will never be called in
  * parallel with either ->target() or ->target_index() for the same policy.
  *
- * If CPUFREQ_ENTRY_INVALID is returned by the driver's ->fast_switch()
- * callback to indicate an error condition, the hardware configuration must be
- * preserved.
+ * Returns the actual frequency set for the CPU.
+ *
+ * If 0 is returned by the driver's ->fast_switch() callback to indicate an
+ * error condition, the hardware configuration must be preserved.
  */
 unsigned int cpufreq_driver_fast_switch(struct cpufreq_policy *policy,
 					unsigned int target_freq)
@@ -1978,13 +2015,13 @@ static int cpufreq_init_governor(struct cpufreq_policy *policy)
 	if (!policy->governor)
 		return -EINVAL;
 
-	if (policy->governor->max_transition_latency &&
-	    policy->cpuinfo.transition_latency >
-	    policy->governor->max_transition_latency) {
+	/* Platform doesn't want dynamic frequency switching ? */
+	if (policy->governor->dynamic_switching &&
+	    cpufreq_driver->flags & CPUFREQ_NO_AUTO_DYNAMIC_SWITCHING) {
 		struct cpufreq_governor *gov = cpufreq_fallback_governor();
 
 		if (gov) {
-			pr_warn("%s governor failed, too long transition latency of HW, fallback to %s governor\n",
+			pr_warn("Can't use %s governor as dynamic switching is disallowed. Fallback to %s governor\n",
 				policy->governor->name, gov->name);
 			policy->governor = gov;
 		} else {
@@ -2441,7 +2478,7 @@ int cpufreq_register_driver(struct cpufreq_driver *driver_data)
 	pr_debug("trying to register driver %s\n", driver_data->name);
 
 	/* Protect against concurrent CPU online/offline. */
-	get_online_cpus();
+	cpus_read_lock();
 
 	write_lock_irqsave(&cpufreq_driver_lock, flags);
 	if (cpufreq_driver) {
@@ -2474,9 +2511,10 @@ int cpufreq_register_driver(struct cpufreq_driver *driver_data)
 		goto err_if_unreg;
 	}
 
-	ret = cpuhp_setup_state_nocalls(CPUHP_AP_ONLINE_DYN, "cpufreq:online",
-					cpuhp_cpufreq_online,
-					cpuhp_cpufreq_offline);
+	ret = cpuhp_setup_state_nocalls_cpuslocked(CPUHP_AP_ONLINE_DYN,
+						   "cpufreq:online",
+						   cpuhp_cpufreq_online,
+						   cpuhp_cpufreq_offline);
 	if (ret < 0)
 		goto err_if_unreg;
 	hp_online = ret;
@@ -2494,7 +2532,7 @@ err_null_driver:
 	cpufreq_driver = NULL;
 	write_unlock_irqrestore(&cpufreq_driver_lock, flags);
 out:
-	put_online_cpus();
+	cpus_read_unlock();
 	return ret;
 }
 EXPORT_SYMBOL_GPL(cpufreq_register_driver);
@@ -2517,17 +2555,17 @@ int cpufreq_unregister_driver(struct cpufreq_driver *driver)
 	pr_debug("unregistering driver %s\n", driver->name);
 
 	/* Protect against concurrent cpu hotplug */
-	get_online_cpus();
+	cpus_read_lock();
 	subsys_interface_unregister(&cpufreq_interface);
 	remove_boost_sysfs_file();
-	cpuhp_remove_state_nocalls(hp_online);
+	cpuhp_remove_state_nocalls_cpuslocked(hp_online);
 
 	write_lock_irqsave(&cpufreq_driver_lock, flags);
 
 	cpufreq_driver = NULL;
 
 	write_unlock_irqrestore(&cpufreq_driver_lock, flags);
-	put_online_cpus();
+	cpus_read_unlock();
 
 	return 0;
 }

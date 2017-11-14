@@ -78,9 +78,6 @@ static int vdso_mremap(const struct vm_special_mapping *sm,
 	if (image->size != new_size)
 		return -EINVAL;
 
-	if (WARN_ON_ONCE(current->mm != new_vma->vm_mm))
-		return -EFAULT;
-
 	vdso_fix_landing(image, new_vma);
 	current->mm->context.vdso = (void __user *)new_vma->vm_start;
 
@@ -354,7 +351,7 @@ static void vgetcpu_cpu_init(void *arg)
 	 * and 8 bits for the node)
 	 */
 	d.limit0 = cpu | ((node & 0xf) << 12);
-	d.limit = node >> 4;
+	d.limit1 = node >> 4;
 	d.type = 5;		/* RO data, expand down, accessed */
 	d.dpl = 3;		/* Visible to user code */
 	d.s = 1;		/* Not a system segment */

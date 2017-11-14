@@ -1739,7 +1739,9 @@ static int sis190_get_link_ksettings(struct net_device *dev,
 {
 	struct sis190_private *tp = netdev_priv(dev);
 
-	return mii_ethtool_get_link_ksettings(&tp->mii_if, cmd);
+	mii_ethtool_get_link_ksettings(&tp->mii_if, cmd);
+
+	return 0;
 }
 
 static int sis190_set_link_ksettings(struct net_device *dev,

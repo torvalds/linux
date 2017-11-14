@@ -120,6 +120,19 @@ struct dpaa2_eth_swa {
 #define DPAA2_FD_FRC_FASWOV		0x0800
 #define DPAA2_FD_FRC_FAICFDV		0x0400
 
+/* Error bits in FD CTRL */
+#define DPAA2_FD_CTRL_UFD		0x00000004
+#define DPAA2_FD_CTRL_SBE		0x00000008
+#define DPAA2_FD_CTRL_FSE		0x00000020
+#define DPAA2_FD_CTRL_FAERR		0x00000040
+
+#define DPAA2_FD_RX_ERR_MASK		(DPAA2_FD_CTRL_SBE	| \
+					 DPAA2_FD_CTRL_FAERR)
+#define DPAA2_FD_TX_ERR_MASK		(DPAA2_FD_CTRL_UFD	| \
+					 DPAA2_FD_CTRL_SBE	| \
+					 DPAA2_FD_CTRL_FSE	| \
+					 DPAA2_FD_CTRL_FAERR)
+
 /* Annotation bits in FD CTRL */
 #define DPAA2_FD_CTRL_ASAL		0x00020000	/* ASAL = 128 */
 #define DPAA2_FD_CTRL_PTA		0x00800000
@@ -138,6 +151,12 @@ struct dpaa2_fas {
  */
 #define DPAA2_FAS_OFFSET		0
 #define DPAA2_FAS_SIZE			(sizeof(struct dpaa2_fas))
+
+/* Accessors for the hardware annotation fields that we use */
+#define dpaa2_get_hwa(buf_addr) \
+	((void *)(buf_addr) + DPAA2_ETH_SWA_SIZE)
+#define dpaa2_get_fas(buf_addr) \
+	(struct dpaa2_fas *)(dpaa2_get_hwa(buf_addr) + DPAA2_FAS_OFFSET)
 
 /* Error and status bits in the frame annotation status word */
 /* Debug frame, otherwise supposed to be discarded */
@@ -171,7 +190,7 @@ struct dpaa2_fas {
 /* L4 csum error */
 #define DPAA2_FAS_L4CE			0x00000001
 /* Possible errors on the ingress path */
-#define DPAA2_ETH_RX_ERR_MASK		(DPAA2_FAS_KSE		| \
+#define DPAA2_FAS_RX_ERR_MASK		(DPAA2_FAS_KSE		| \
 					 DPAA2_FAS_EOFHE	| \
 					 DPAA2_FAS_MNLE		| \
 					 DPAA2_FAS_TIDE		| \
@@ -185,7 +204,7 @@ struct dpaa2_fas {
 					 DPAA2_FAS_L3CE		| \
 					 DPAA2_FAS_L4CE)
 /* Tx errors */
-#define DPAA2_ETH_TXCONF_ERR_MASK	(DPAA2_FAS_KSE		| \
+#define DPAA2_FAS_TX_ERR_MASK		(DPAA2_FAS_KSE		| \
 					 DPAA2_FAS_EOFHE	| \
 					 DPAA2_FAS_MNLE		| \
 					 DPAA2_FAS_TIDE)
@@ -291,16 +310,12 @@ struct dpaa2_eth_priv {
 	u8 num_channels;
 	struct dpaa2_eth_channel *channel[DPAA2_ETH_MAX_DPCONS];
 
-	int dpni_id;
 	struct dpni_attr dpni_attrs;
-	/* Insofar as the MC is concerned, we're using one layout on all 3 types
-	 * of buffers (Rx, Tx, Tx-Conf).
-	 */
-	struct dpni_buffer_layout buf_layout;
 	u16 tx_data_offset;
 
 	struct fsl_mc_device *dpbp_dev;
-	struct dpbp_attr dpbp_attrs;
+	u16 bpid;
+	struct iommu_domain *iommu_domain;
 
 	u16 tx_qdid;
 	struct fsl_mc_io *mc_io;
@@ -337,8 +352,6 @@ struct dpaa2_eth_priv {
 
 extern const struct ethtool_ops dpaa2_ethtool_ops;
 extern const char dpaa2_eth_drv_version[];
-
-int dpaa2_eth_set_hash(struct net_device *net_dev, u64 flags);
 
 static int dpaa2_eth_queue_count(struct dpaa2_eth_priv *priv)
 {

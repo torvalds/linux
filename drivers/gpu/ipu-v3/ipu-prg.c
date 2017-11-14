@@ -14,6 +14,7 @@
 #include <drm/drm_fourcc.h>
 #include <linux/clk.h>
 #include <linux/err.h>
+#include <linux/iopoll.h>
 #include <linux/mfd/syscon.h>
 #include <linux/mfd/syscon/imx6q-iomuxc-gpr.h>
 #include <linux/module.h>
@@ -318,8 +319,6 @@ int ipu_prg_channel_configure(struct ipuv3_channel *ipu_chan,
 	writel(val, prg->regs + IPU_PRG_BADDR(prg_chan));
 
 	val = readl(prg->regs + IPU_PRG_CTL);
-	/* counter load enable */
-	val |= IPU_PRG_CTL_CNT_LOAD_EN(prg_chan);
 	/* config AXI ID */
 	val &= ~(IPU_PRG_CTL_SOFT_ARID_MASK <<
 		 IPU_PRG_CTL_SOFT_ARID_SHIFT(prg_chan));
@@ -330,6 +329,12 @@ int ipu_prg_channel_configure(struct ipuv3_channel *ipu_chan,
 
 	val = IPU_PRG_REG_UPDATE_REG_UPDATE;
 	writel(val, prg->regs + IPU_PRG_REG_UPDATE);
+
+	/* wait for both double buffers to be filled */
+	readl_poll_timeout(prg->regs + IPU_PRG_STATUS, val,
+			   (val & IPU_PRG_STATUS_BUFFER0_READY(prg_chan)) &&
+			   (val & IPU_PRG_STATUS_BUFFER1_READY(prg_chan)),
+			   5, 1000);
 
 	clk_disable_unprepare(prg->clk_ipg);
 

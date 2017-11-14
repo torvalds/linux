@@ -93,7 +93,7 @@ void btrfs_put_transaction(struct btrfs_transaction *transaction)
 			btrfs_put_block_group_trimming(cache);
 			btrfs_put_block_group(cache);
 		}
-		kmem_cache_free(btrfs_transaction_cachep, transaction);
+		kfree(transaction);
 	}
 }
 
@@ -228,7 +228,7 @@ loop:
 	 */
 	BUG_ON(type == TRANS_JOIN_NOLOCK);
 
-	cur_trans = kmem_cache_alloc(btrfs_transaction_cachep, GFP_NOFS);
+	cur_trans = kmalloc(sizeof(*cur_trans), GFP_NOFS);
 	if (!cur_trans)
 		return -ENOMEM;
 
@@ -238,11 +238,11 @@ loop:
 		 * someone started a transaction after we unlocked.  Make sure
 		 * to redo the checks above
 		 */
-		kmem_cache_free(btrfs_transaction_cachep, cur_trans);
+		kfree(cur_trans);
 		goto loop;
 	} else if (test_bit(BTRFS_FS_STATE_ERROR, &fs_info->fs_state)) {
 		spin_unlock(&fs_info->trans_lock);
-		kmem_cache_free(btrfs_transaction_cachep, cur_trans);
+		kfree(cur_trans);
 		return -EROFS;
 	}
 
@@ -294,7 +294,7 @@ loop:
 	spin_lock_init(&cur_trans->dropped_roots_lock);
 	list_add_tail(&cur_trans->list, &fs_info->trans_list);
 	extent_io_tree_init(&cur_trans->dirty_pages,
-			     fs_info->btree_inode->i_mapping);
+			     fs_info->btree_inode);
 	fs_info->generation++;
 	cur_trans->transid = fs_info->generation;
 	fs_info->running_transaction = cur_trans;
@@ -1374,9 +1374,6 @@ static int qgroup_account_snapshot(struct btrfs_trans_handle *trans,
 	ret = commit_fs_roots(trans, fs_info);
 	if (ret)
 		goto out;
-	ret = btrfs_qgroup_prepare_account_extents(trans, fs_info);
-	if (ret < 0)
-		goto out;
 	ret = btrfs_qgroup_account_extents(trans, fs_info);
 	if (ret < 0)
 		goto out;
@@ -1926,7 +1923,7 @@ static inline int btrfs_start_delalloc_flush(struct btrfs_fs_info *fs_info)
 static inline void btrfs_wait_delalloc_flush(struct btrfs_fs_info *fs_info)
 {
 	if (btrfs_test_opt(fs_info, FLUSHONCOMMIT))
-		btrfs_wait_ordered_roots(fs_info, -1, 0, (u64)-1);
+		btrfs_wait_ordered_roots(fs_info, U64_MAX, 0, (u64)-1);
 }
 
 static inline void
@@ -2180,13 +2177,6 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 		goto scrub_continue;
 	}
 
-	ret = btrfs_qgroup_prepare_account_extents(trans, fs_info);
-	if (ret) {
-		mutex_unlock(&fs_info->tree_log_mutex);
-		mutex_unlock(&fs_info->reloc_mutex);
-		goto scrub_continue;
-	}
-
 	/*
 	 * Since fs roots are all committed, we can get a quite accurate
 	 * new_roots. So let's do quota accounting.
@@ -2314,7 +2304,8 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 	 * it'll result in deadlock about SB_FREEZE_FS.
 	 */
 	if (current != fs_info->transaction_kthread &&
-	    current != fs_info->cleaner_kthread && !fs_info->fs_frozen)
+	    current != fs_info->cleaner_kthread &&
+	    !test_bit(BTRFS_FS_FROZEN, &fs_info->flags))
 		btrfs_run_delayed_iputs(fs_info);
 
 	return ret;

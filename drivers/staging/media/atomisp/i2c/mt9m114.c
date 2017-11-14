@@ -1209,10 +1209,10 @@ static int mt9m114_s_exposure_selection(struct v4l2_subdev *sd,
 		return -EINVAL;
 	}
 
-	clamp_t(int, win_left, 0, 4);
-	clamp_t(int, win_top, 0, 4);
-	clamp_t(int, win_right, 0, 4);
-	clamp_t(int, win_bottom, 0, 4);
+	win_left   = clamp_t(int, win_left, 0, 4);
+	win_top    = clamp_t(int, win_top, 0, 4);
+	win_right  = clamp_t(int, win_right, 0, 4);
+	win_bottom = clamp_t(int, win_bottom, 0, 4);
 
 	ret = mt9m114_write_reg_array(client, mt9m114_exp_average, NO_POLLING);
 	if (ret) {
@@ -1499,7 +1499,7 @@ static struct v4l2_ctrl_config mt9m114_controls[] = {
 	 .type = V4L2_CTRL_TYPE_MENU,
 	 .min = 0,
 	 .max = 3,
-	 .step = 1,
+	 .step = 0,
 	 .def = 1,
 	 .flags = 0,
 	 },
@@ -1806,7 +1806,7 @@ static const struct v4l2_subdev_video_ops mt9m114_video_ops = {
 	.g_frame_interval = mt9m114_g_frame_interval,
 };
 
-static struct v4l2_subdev_sensor_ops mt9m114_sensor_ops = {
+static const struct v4l2_subdev_sensor_ops mt9m114_sensor_ops = {
 	.g_skip_frames	= mt9m114_g_skip_frames,
 };
 
@@ -1928,7 +1928,7 @@ static int mt9m114_probe(struct i2c_client *client,
 
 MODULE_DEVICE_TABLE(i2c, mt9m114_id);
 
-static struct acpi_device_id mt9m114_acpi_match[] = {
+static const struct acpi_device_id mt9m114_acpi_match[] = {
 	{ "INT33F0" },
 	{ "CRMT1040" },
 	{},

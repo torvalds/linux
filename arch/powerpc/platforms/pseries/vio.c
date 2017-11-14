@@ -519,7 +519,7 @@ static dma_addr_t vio_dma_iommu_map_page(struct device *dev, struct page *page,
 {
 	struct vio_dev *viodev = to_vio_dev(dev);
 	struct iommu_table *tbl;
-	dma_addr_t ret = DMA_ERROR_CODE;
+	dma_addr_t ret = IOMMU_MAPPING_ERROR;
 
 	tbl = get_iommu_table_base(dev);
 	if (vio_cmo_alloc(viodev, roundup(size, IOMMU_PAGE_SIZE(tbl)))) {
@@ -625,6 +625,7 @@ static const struct dma_map_ops vio_dma_mapping_ops = {
 	.unmap_page        = vio_dma_iommu_unmap_page,
 	.dma_supported     = vio_dma_iommu_dma_supported,
 	.get_required_mask = vio_dma_get_required_mask,
+	.mapping_error	   = dma_iommu_mapping_error,
 };
 
 /**
@@ -948,21 +949,21 @@ static void vio_cmo_bus_init(void)
 /* sysfs device functions and data structures for CMO */
 
 #define viodev_cmo_rd_attr(name)                                        \
-static ssize_t viodev_cmo_##name##_show(struct device *dev,             \
+static ssize_t cmo_##name##_show(struct device *dev,                    \
                                         struct device_attribute *attr,  \
                                          char *buf)                     \
 {                                                                       \
 	return sprintf(buf, "%lu\n", to_vio_dev(dev)->cmo.name);        \
 }
 
-static ssize_t viodev_cmo_allocs_failed_show(struct device *dev,
+static ssize_t cmo_allocs_failed_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct vio_dev *viodev = to_vio_dev(dev);
 	return sprintf(buf, "%d\n", atomic_read(&viodev->cmo.allocs_failed));
 }
 
-static ssize_t viodev_cmo_allocs_failed_reset(struct device *dev,
+static ssize_t cmo_allocs_failed_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct vio_dev *viodev = to_vio_dev(dev);
@@ -970,7 +971,7 @@ static ssize_t viodev_cmo_allocs_failed_reset(struct device *dev,
 	return count;
 }
 
-static ssize_t viodev_cmo_desired_set(struct device *dev,
+static ssize_t cmo_desired_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct vio_dev *viodev = to_vio_dev(dev);
@@ -993,27 +994,37 @@ static ssize_t name_show(struct device *, struct device_attribute *, char *);
 static ssize_t devspec_show(struct device *, struct device_attribute *, char *);
 static ssize_t modalias_show(struct device *dev, struct device_attribute *attr,
 			     char *buf);
-static struct device_attribute vio_cmo_dev_attrs[] = {
-	__ATTR_RO(name),
-	__ATTR_RO(devspec),
-	__ATTR_RO(modalias),
-	__ATTR(cmo_desired,       S_IWUSR|S_IRUSR|S_IWGRP|S_IRGRP|S_IROTH,
-	       viodev_cmo_desired_show, viodev_cmo_desired_set),
-	__ATTR(cmo_entitled,      S_IRUGO, viodev_cmo_entitled_show,      NULL),
-	__ATTR(cmo_allocated,     S_IRUGO, viodev_cmo_allocated_show,     NULL),
-	__ATTR(cmo_allocs_failed, S_IWUSR|S_IRUSR|S_IWGRP|S_IRGRP|S_IROTH,
-	       viodev_cmo_allocs_failed_show, viodev_cmo_allocs_failed_reset),
-	__ATTR_NULL
+
+static struct device_attribute dev_attr_name;
+static struct device_attribute dev_attr_devspec;
+static struct device_attribute dev_attr_modalias;
+
+static DEVICE_ATTR_RO(cmo_entitled);
+static DEVICE_ATTR_RO(cmo_allocated);
+static DEVICE_ATTR_RW(cmo_desired);
+static DEVICE_ATTR_RW(cmo_allocs_failed);
+
+static struct attribute *vio_cmo_dev_attrs[] = {
+	&dev_attr_name.attr,
+	&dev_attr_devspec.attr,
+	&dev_attr_modalias.attr,
+	&dev_attr_cmo_entitled.attr,
+	&dev_attr_cmo_allocated.attr,
+	&dev_attr_cmo_desired.attr,
+	&dev_attr_cmo_allocs_failed.attr,
+	NULL,
 };
+ATTRIBUTE_GROUPS(vio_cmo_dev);
 
 /* sysfs bus functions and data structures for CMO */
 
 #define viobus_cmo_rd_attr(name)                                        \
-static ssize_t cmo_##name##_show(struct bus_type *bt, char *buf)        \
+static ssize_t cmo_bus_##name##_show(struct bus_type *bt, char *buf)    \
 {                                                                       \
 	return sprintf(buf, "%lu\n", vio_cmo.name);                     \
 }                                                                       \
-static BUS_ATTR_RO(cmo_##name)
+static struct bus_attribute bus_attr_cmo_bus_##name =			\
+	__ATTR(cmo_##name, S_IRUGO, cmo_bus_##name##_show, NULL)
 
 #define viobus_cmo_pool_rd_attr(name, var)                              \
 static ssize_t                                                          \
@@ -1051,11 +1062,11 @@ static ssize_t cmo_high_store(struct bus_type *bt, const char *buf,
 static BUS_ATTR_RW(cmo_high);
 
 static struct attribute *vio_bus_attrs[] = {
-	&bus_attr_cmo_entitled.attr,
-	&bus_attr_cmo_spare.attr,
-	&bus_attr_cmo_min.attr,
-	&bus_attr_cmo_desired.attr,
-	&bus_attr_cmo_curr.attr,
+	&bus_attr_cmo_bus_entitled.attr,
+	&bus_attr_cmo_bus_spare.attr,
+	&bus_attr_cmo_bus_min.attr,
+	&bus_attr_cmo_bus_desired.attr,
+	&bus_attr_cmo_bus_curr.attr,
 	&bus_attr_cmo_high.attr,
 	&bus_attr_cmo_reserve_size.attr,
 	&bus_attr_cmo_excess_size.attr,
@@ -1066,7 +1077,7 @@ ATTRIBUTE_GROUPS(vio_bus);
 
 static void vio_cmo_sysfs_init(void)
 {
-	vio_bus_type.dev_attrs = vio_cmo_dev_attrs;
+	vio_bus_type.dev_groups = vio_cmo_dev_groups;
 	vio_bus_type.bus_groups = vio_bus_groups;
 }
 #else /* CONFIG_PPC_SMLPAR */
@@ -1346,14 +1357,14 @@ struct vio_dev *vio_register_device_node(struct device_node *of_node)
 	 */
 	parent_node = of_get_parent(of_node);
 	if (parent_node) {
-		if (!strcmp(parent_node->full_name, "/ibm,platform-facilities"))
+		if (!strcmp(parent_node->type, "ibm,platform-facilities"))
 			family = PFO;
-		else if (!strcmp(parent_node->full_name, "/vdevice"))
+		else if (!strcmp(parent_node->type, "vdevice"))
 			family = VDEVICE;
 		else {
-			pr_warn("%s: parent(%s) of %s not recognized.\n",
+			pr_warn("%s: parent(%pOF) of %s not recognized.\n",
 					__func__,
-					parent_node->full_name,
+					parent_node,
 					of_node_name);
 			of_node_put(parent_node);
 			return NULL;
@@ -1537,14 +1548,16 @@ static ssize_t name_show(struct device *dev,
 {
 	return sprintf(buf, "%s\n", to_vio_dev(dev)->name);
 }
+static DEVICE_ATTR_RO(name);
 
 static ssize_t devspec_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct device_node *of_node = dev->of_node;
 
-	return sprintf(buf, "%s\n", of_node_full_name(of_node));
+	return sprintf(buf, "%pOF\n", of_node);
 }
+static DEVICE_ATTR_RO(devspec);
 
 static ssize_t modalias_show(struct device *dev, struct device_attribute *attr,
 			     char *buf)
@@ -1566,13 +1579,15 @@ static ssize_t modalias_show(struct device *dev, struct device_attribute *attr,
 
 	return sprintf(buf, "vio:T%sS%s\n", vio_dev->type, cp);
 }
+static DEVICE_ATTR_RO(modalias);
 
-static struct device_attribute vio_dev_attrs[] = {
-	__ATTR_RO(name),
-	__ATTR_RO(devspec),
-	__ATTR_RO(modalias),
-	__ATTR_NULL
+static struct attribute *vio_dev_attrs[] = {
+	&dev_attr_name.attr,
+	&dev_attr_devspec.attr,
+	&dev_attr_modalias.attr,
+	NULL,
 };
+ATTRIBUTE_GROUPS(vio_dev);
 
 void vio_unregister_device(struct vio_dev *viodev)
 {
@@ -1608,7 +1623,7 @@ static int vio_hotplug(struct device *dev, struct kobj_uevent_env *env)
 
 struct bus_type vio_bus_type = {
 	.name = "vio",
-	.dev_attrs = vio_dev_attrs,
+	.dev_groups = vio_dev_groups,
 	.uevent = vio_hotplug,
 	.match = vio_bus_match,
 	.probe = vio_bus_probe,

@@ -642,11 +642,10 @@ static inline int rt2x00queue_dma_timeout(struct queue_entry *entry)
  * _rt2x00_desc_read - Read a word from the hardware descriptor.
  * @desc: Base descriptor address
  * @word: Word index from where the descriptor should be read.
- * @value: Address where the descriptor value should be written into.
  */
-static inline void _rt2x00_desc_read(__le32 *desc, const u8 word, __le32 *value)
+static inline __le32 _rt2x00_desc_read(__le32 *desc, const u8 word)
 {
-	*value = desc[word];
+	return desc[word];
 }
 
 /**
@@ -654,13 +653,10 @@ static inline void _rt2x00_desc_read(__le32 *desc, const u8 word, __le32 *value)
  * function will take care of the byte ordering.
  * @desc: Base descriptor address
  * @word: Word index from where the descriptor should be read.
- * @value: Address where the descriptor value should be written into.
  */
-static inline void rt2x00_desc_read(__le32 *desc, const u8 word, u32 *value)
+static inline u32 rt2x00_desc_read(__le32 *desc, const u8 word)
 {
-	__le32 tmp;
-	_rt2x00_desc_read(desc, word, &tmp);
-	*value = le32_to_cpu(tmp);
+	return le32_to_cpu(_rt2x00_desc_read(desc, word));
 }
 
 /**

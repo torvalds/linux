@@ -205,8 +205,8 @@ target_emulate_report_target_port_groups(struct se_cmd *cmd)
 		/*
 		 * TARGET PORT GROUP
 		 */
-		buf[off++] = ((tg_pt_gp->tg_pt_gp_id >> 8) & 0xff);
-		buf[off++] = (tg_pt_gp->tg_pt_gp_id & 0xff);
+		put_unaligned_be16(tg_pt_gp->tg_pt_gp_id, &buf[off]);
+		off += 2;
 
 		off++; /* Skip over Reserved */
 		/*
@@ -235,8 +235,8 @@ target_emulate_report_target_port_groups(struct se_cmd *cmd)
 			/*
 			 * Set RELATIVE TARGET PORT IDENTIFIER
 			 */
-			buf[off++] = ((lun->lun_rtpi >> 8) & 0xff);
-			buf[off++] = (lun->lun_rtpi & 0xff);
+			put_unaligned_be16(lun->lun_rtpi, &buf[off]);
+			off += 2;
 			rd_len += 4;
 		}
 		spin_unlock(&tg_pt_gp->tg_pt_gp_lock);
@@ -896,13 +896,14 @@ static int core_alua_write_tpg_metadata(
 	u32 md_buf_len)
 {
 	struct file *file = filp_open(path, O_RDWR | O_CREAT | O_TRUNC, 0600);
+	loff_t pos = 0;
 	int ret;
 
 	if (IS_ERR(file)) {
 		pr_err("filp_open(%s) for ALUA metadata failed\n", path);
 		return -ENODEV;
 	}
-	ret = kernel_write(file, md_buf, md_buf_len, 0);
+	ret = kernel_write(file, md_buf, md_buf_len, &pos);
 	if (ret < 0)
 		pr_err("Error writing ALUA metadata file: %s\n", path);
 	fput(file);

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_PARISC_THREAD_INFO_H
 #define _ASM_PARISC_THREAD_INFO_H
 
@@ -34,7 +35,7 @@ struct thread_info {
 
 /* thread information allocation */
 
-#define THREAD_SIZE_ORDER	2 /* PA-RISC requires at least 16k stack */
+#define THREAD_SIZE_ORDER	3 /* PA-RISC requires at least 32k stack */
 /* Be sure to hunt all references to this down when you change the size of
  * the kernel stack */
 #define THREAD_SIZE             (PAGE_SIZE << THREAD_SIZE_ORDER)

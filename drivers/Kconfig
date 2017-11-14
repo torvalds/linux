@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 menu "Device Drivers"
 
 source "drivers/amba/Kconfig"
@@ -205,5 +206,7 @@ source "drivers/fpga/Kconfig"
 source "drivers/fsi/Kconfig"
 
 source "drivers/tee/Kconfig"
+
+source "drivers/mux/Kconfig"
 
 endmenu

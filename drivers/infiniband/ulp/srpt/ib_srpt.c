@@ -1157,8 +1157,8 @@ static int srpt_abort_cmd(struct srpt_send_ioctx *ioctx)
 	}
 	spin_unlock_irqrestore(&ioctx->spinlock, flags);
 
-	pr_debug("Aborting cmd with state %d and tag %lld\n", state,
-		 ioctx->cmd.tag);
+	pr_debug("Aborting cmd with state %d -> %d and tag %lld\n", state,
+		 ioctx->state, ioctx->cmd.tag);
 
 	switch (state) {
 	case SRPT_STATE_NEW:
@@ -2238,7 +2238,7 @@ static int srpt_write_pending(struct se_cmd *se_cmd)
 				cqe, first_wr);
 		cqe = NULL;
 	}
-	
+
 	ret = ib_post_send(ch->qp, first_wr, &bad_wr);
 	if (ret) {
 		pr_err("%s: ib_post_send() returned %d for %d (avail: %d)\n",
@@ -2530,8 +2530,7 @@ static void srpt_add_one(struct ib_device *device)
 
 	INIT_IB_EVENT_HANDLER(&sdev->event_handler, sdev->device,
 			      srpt_event_handler);
-	if (ib_register_event_handler(&sdev->event_handler))
-		goto err_cm;
+	ib_register_event_handler(&sdev->event_handler);
 
 	sdev->ioctx_ring = (struct srpt_recv_ioctx **)
 		srpt_alloc_ioctx_ring(sdev, sdev->srq_size,

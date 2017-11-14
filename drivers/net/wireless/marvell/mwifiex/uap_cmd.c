@@ -160,7 +160,6 @@ mwifiex_set_ht_params(struct mwifiex_private *priv,
 		      struct cfg80211_ap_settings *params)
 {
 	const u8 *ht_ie;
-	u16 cap_info;
 
 	if (!ISSUPP_11NENABLED(priv->adapter->fw_cap_info))
 		return;
@@ -170,27 +169,6 @@ mwifiex_set_ht_params(struct mwifiex_private *priv,
 	if (ht_ie) {
 		memcpy(&bss_cfg->ht_cap, ht_ie + 2,
 		       sizeof(struct ieee80211_ht_cap));
-		cap_info = le16_to_cpu(bss_cfg->ht_cap.cap_info);
-		memset(&bss_cfg->ht_cap.mcs, 0,
-		       priv->adapter->number_of_antenna);
-		switch (GET_RXSTBC(cap_info)) {
-		case MWIFIEX_RX_STBC1:
-			/* HT_CAP 1X1 mode */
-			bss_cfg->ht_cap.mcs.rx_mask[0] = 0xff;
-			break;
-		case MWIFIEX_RX_STBC12:	/* fall through */
-		case MWIFIEX_RX_STBC123:
-			/* HT_CAP 2X2 mode */
-			bss_cfg->ht_cap.mcs.rx_mask[0] = 0xff;
-			bss_cfg->ht_cap.mcs.rx_mask[1] = 0xff;
-			break;
-		default:
-			mwifiex_dbg(priv->adapter, WARN,
-				    "Unsupported RX-STBC, default to 2x2\n");
-			bss_cfg->ht_cap.mcs.rx_mask[0] = 0xff;
-			bss_cfg->ht_cap.mcs.rx_mask[1] = 0xff;
-			break;
-		}
 		priv->ap_11n_enabled = 1;
 	} else {
 		memset(&bss_cfg->ht_cap, 0, sizeof(struct ieee80211_ht_cap));
@@ -464,6 +442,28 @@ mwifiex_uap_bss_wep(u8 **tlv_buf, void *cmd_buf, u16 *param_size)
 	*tlv_buf = tlv;
 
 	return;
+}
+
+/* This function enable 11D if userspace set the country IE.
+ */
+void mwifiex_config_uap_11d(struct mwifiex_private *priv,
+			    struct cfg80211_beacon_data *beacon_data)
+{
+	enum state_11d_t state_11d;
+	const u8 *country_ie;
+
+	country_ie = cfg80211_find_ie(WLAN_EID_COUNTRY, beacon_data->tail,
+				      beacon_data->tail_len);
+	if (country_ie) {
+		/* Send cmd to FW to enable 11D function */
+		state_11d = ENABLE_11D;
+		if (mwifiex_send_cmd(priv, HostCmd_CMD_802_11_SNMP_MIB,
+				     HostCmd_ACT_GEN_SET, DOT11D_I,
+				     &state_11d, true)) {
+			mwifiex_dbg(priv->adapter, ERROR,
+				    "11D: failed to enable 11D\n");
+		}
+	}
 }
 
 /* This function parses BSS related parameters from structure
@@ -870,23 +870,11 @@ void mwifiex_uap_set_channel(struct mwifiex_private *priv,
 int mwifiex_config_start_uap(struct mwifiex_private *priv,
 			     struct mwifiex_uap_bss_param *bss_cfg)
 {
-	enum state_11d_t state_11d;
-
 	if (mwifiex_send_cmd(priv, HostCmd_CMD_UAP_SYS_CONFIG,
 			     HostCmd_ACT_GEN_SET,
 			     UAP_BSS_PARAMS_I, bss_cfg, true)) {
 		mwifiex_dbg(priv->adapter, ERROR,
 			    "Failed to set AP configuration\n");
-		return -1;
-	}
-
-	/* Send cmd to FW to enable 11D function */
-	state_11d = ENABLE_11D;
-	if (mwifiex_send_cmd(priv, HostCmd_CMD_802_11_SNMP_MIB,
-			     HostCmd_ACT_GEN_SET, DOT11D_I,
-			     &state_11d, true)) {
-		mwifiex_dbg(priv->adapter, ERROR,
-			    "11D: failed to enable 11D\n");
 		return -1;
 	}
 

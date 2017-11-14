@@ -262,11 +262,13 @@ static ssize_t modalias_show(struct device *dev,
 {
 	return of_device_modalias(dev, buf, PAGE_SIZE);
 }
+DEVICE_ATTR_RO(modalias);
 
-static struct device_attribute serdev_device_attrs[] = {
-	__ATTR_RO(modalias),
-	__ATTR_NULL
+static struct attribute *serdev_device_attrs[] = {
+	&dev_attr_modalias.attr,
+	NULL,
 };
+ATTRIBUTE_GROUPS(serdev_device);
 
 static struct bus_type serdev_bus_type = {
 	.name		= "serial",
@@ -274,7 +276,7 @@ static struct bus_type serdev_bus_type = {
 	.probe		= serdev_drv_probe,
 	.remove		= serdev_drv_remove,
 	.uevent		= serdev_uevent,
-	.dev_attrs	= serdev_device_attrs,
+	.dev_groups	= serdev_device_groups,
 };
 
 /**
@@ -361,7 +363,7 @@ static int of_serdev_register_devices(struct serdev_controller *ctrl)
 		if (!of_get_property(node, "compatible", NULL))
 			continue;
 
-		dev_dbg(&ctrl->dev, "adding child %s\n", node->full_name);
+		dev_dbg(&ctrl->dev, "adding child %pOF\n", node);
 
 		serdev = serdev_device_alloc(ctrl);
 		if (!serdev)

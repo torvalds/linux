@@ -37,6 +37,9 @@
 #define I915_CSR_GLK "i915/glk_dmc_ver1_04.bin"
 #define GLK_CSR_VERSION_REQUIRED	CSR_VERSION(1, 4)
 
+#define I915_CSR_CNL "i915/cnl_dmc_ver1_04.bin"
+#define CNL_CSR_VERSION_REQUIRED	CSR_VERSION(1, 4)
+
 #define I915_CSR_KBL "i915/kbl_dmc_ver1_01.bin"
 MODULE_FIRMWARE(I915_CSR_KBL);
 #define KBL_CSR_VERSION_REQUIRED	CSR_VERSION(1, 1)
@@ -213,7 +216,7 @@ static void gen9_set_dc_state_debugmask(struct drm_i915_private *dev_priv)
 
 	mask = DC_STATE_DEBUG_MASK_MEMORY_UP;
 
-	if (IS_BROXTON(dev_priv))
+	if (IS_GEN9_LP(dev_priv))
 		mask |= DC_STATE_DEBUG_MASK_CORES;
 
 	/* The below bit doesn't need to be cleared ever afterwards */
@@ -238,7 +241,7 @@ void intel_csr_load_program(struct drm_i915_private *dev_priv)
 	u32 *payload = dev_priv->csr.dmc_payload;
 	uint32_t i, fw_size;
 
-	if (!IS_GEN9(dev_priv)) {
+	if (!HAS_CSR(dev_priv)) {
 		DRM_ERROR("No CSR support available for this platform\n");
 		return;
 	}
@@ -289,9 +292,11 @@ static uint32_t *parse_csr_fw(struct drm_i915_private *dev_priv,
 
 	csr->version = css_header->version;
 
-	if (IS_GEMINILAKE(dev_priv)) {
+	if (IS_CANNONLAKE(dev_priv)) {
+		required_version = CNL_CSR_VERSION_REQUIRED;
+	} else if (IS_GEMINILAKE(dev_priv)) {
 		required_version = GLK_CSR_VERSION_REQUIRED;
-	} else if (IS_KABYLAKE(dev_priv)) {
+	} else if (IS_KABYLAKE(dev_priv) || IS_COFFEELAKE(dev_priv)) {
 		required_version = KBL_CSR_VERSION_REQUIRED;
 	} else if (IS_SKYLAKE(dev_priv)) {
 		required_version = SKL_CSR_VERSION_REQUIRED;
@@ -438,9 +443,11 @@ void intel_csr_ucode_init(struct drm_i915_private *dev_priv)
 	if (!HAS_CSR(dev_priv))
 		return;
 
-	if (IS_GEMINILAKE(dev_priv))
+	if (IS_CANNONLAKE(dev_priv))
+		csr->fw_path = I915_CSR_CNL;
+	else if (IS_GEMINILAKE(dev_priv))
 		csr->fw_path = I915_CSR_GLK;
-	else if (IS_KABYLAKE(dev_priv))
+	else if (IS_KABYLAKE(dev_priv) || IS_COFFEELAKE(dev_priv))
 		csr->fw_path = I915_CSR_KBL;
 	else if (IS_SKYLAKE(dev_priv))
 		csr->fw_path = I915_CSR_SKL;

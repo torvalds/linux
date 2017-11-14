@@ -46,5 +46,5 @@
 	model = "Pine64+";
 	compatible = "pine64,pine64-plus", "allwinner,sun50i-a64";
 
-	/* TODO: Camera, Ethernet PHY, touchscreen, etc. */
+	/* TODO: Camera, touchscreen, etc. */
 };

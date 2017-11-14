@@ -255,12 +255,13 @@ static int parse_rgb(const char *buf, struct platform_zone *zone)
 
 static struct platform_zone *match_zone(struct device_attribute *attr)
 {
-	int i;
-	for (i = 0; i < quirks->num_zones; i++) {
-		if ((struct device_attribute *)zone_data[i].attr == attr) {
+	u8 zone;
+
+	for (zone = 0; zone < quirks->num_zones; zone++) {
+		if ((struct device_attribute *)zone_data[zone].attr == attr) {
 			pr_debug("alienware-wmi: matched zone location: %d\n",
-				 zone_data[i].location);
-			return &zone_data[i];
+				 zone_data[zone].location);
+			return &zone_data[zone];
 		}
 	}
 	return NULL;
@@ -303,7 +304,7 @@ static int alienware_update_led(struct platform_zone *zone)
 	}
 	pr_debug("alienware-wmi: guid %s method %d\n", guid, method_id);
 
-	status = wmi_evaluate_method(guid, 1, method_id, &input, NULL);
+	status = wmi_evaluate_method(guid, 0, method_id, &input, NULL);
 	if (ACPI_FAILURE(status))
 		pr_err("alienware-wmi: zone set failure: %u\n", status);
 	return ACPI_FAILURE(status);
@@ -352,7 +353,7 @@ static int wmax_brightness(int brightness)
 	};
 	input.length = (acpi_size) sizeof(args);
 	input.pointer = &args;
-	status = wmi_evaluate_method(WMAX_CONTROL_GUID, 1,
+	status = wmi_evaluate_method(WMAX_CONTROL_GUID, 0,
 				     WMAX_METHOD_BRIGHTNESS, &input, NULL);
 	if (ACPI_FAILURE(status))
 		pr_err("alienware-wmi: brightness set failure: %u\n", status);
@@ -420,7 +421,7 @@ static DEVICE_ATTR(lighting_control_state, 0644, show_control_state,
 
 static int alienware_zone_init(struct platform_device *dev)
 {
-	int i;
+	u8 zone;
 	char buffer[10];
 	char *name;
 
@@ -457,19 +458,19 @@ static int alienware_zone_init(struct platform_device *dev)
 	if (!zone_data)
 		return -ENOMEM;
 
-	for (i = 0; i < quirks->num_zones; i++) {
-		sprintf(buffer, "zone%02X", i);
+	for (zone = 0; zone < quirks->num_zones; zone++) {
+		sprintf(buffer, "zone%02hhX", zone);
 		name = kstrdup(buffer, GFP_KERNEL);
 		if (name == NULL)
 			return 1;
-		sysfs_attr_init(&zone_dev_attrs[i].attr);
-		zone_dev_attrs[i].attr.name = name;
-		zone_dev_attrs[i].attr.mode = 0644;
-		zone_dev_attrs[i].show = zone_show;
-		zone_dev_attrs[i].store = zone_set;
-		zone_data[i].location = i;
-		zone_attrs[i] = &zone_dev_attrs[i].attr;
-		zone_data[i].attr = &zone_dev_attrs[i];
+		sysfs_attr_init(&zone_dev_attrs[zone].attr);
+		zone_dev_attrs[zone].attr.name = name;
+		zone_dev_attrs[zone].attr.mode = 0644;
+		zone_dev_attrs[zone].show = zone_show;
+		zone_dev_attrs[zone].store = zone_set;
+		zone_data[zone].location = zone;
+		zone_attrs[zone] = &zone_dev_attrs[zone].attr;
+		zone_data[zone].attr = &zone_dev_attrs[zone];
 	}
 	zone_attrs[quirks->num_zones] = &dev_attr_lighting_control_state.attr;
 	zone_attribute_group.attrs = zone_attrs;
@@ -481,12 +482,13 @@ static int alienware_zone_init(struct platform_device *dev)
 
 static void alienware_zone_exit(struct platform_device *dev)
 {
+	u8 zone;
+
 	sysfs_remove_group(&dev->dev.kobj, &zone_attribute_group);
 	led_classdev_unregister(&global_led);
 	if (zone_dev_attrs) {
-		int i;
-		for (i = 0; i < quirks->num_zones; i++)
-			kfree(zone_dev_attrs[i].attr.name);
+		for (zone = 0; zone < quirks->num_zones; zone++)
+			kfree(zone_dev_attrs[zone].attr.name);
 	}
 	kfree(zone_dev_attrs);
 	kfree(zone_data);
@@ -506,10 +508,10 @@ static acpi_status alienware_wmax_command(struct wmax_basic_args *in_args,
 	if (out_data != NULL) {
 		output.length = ACPI_ALLOCATE_BUFFER;
 		output.pointer = NULL;
-		status = wmi_evaluate_method(WMAX_CONTROL_GUID, 1,
+		status = wmi_evaluate_method(WMAX_CONTROL_GUID, 0,
 					     command, &input, &output);
 	} else
-		status = wmi_evaluate_method(WMAX_CONTROL_GUID, 1,
+		status = wmi_evaluate_method(WMAX_CONTROL_GUID, 0,
 					     command, &input, NULL);
 
 	if (ACPI_SUCCESS(status) && out_data != NULL) {
@@ -604,7 +606,7 @@ static struct attribute *hdmi_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group hdmi_attribute_group = {
+static const struct attribute_group hdmi_attribute_group = {
 	.name = "hdmi",
 	.attrs = hdmi_attrs,
 };
@@ -660,7 +662,7 @@ static struct attribute *amplifier_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group amplifier_attribute_group = {
+static const struct attribute_group amplifier_attribute_group = {
 	.name = "amplifier",
 	.attrs = amplifier_attrs,
 };
@@ -741,7 +743,7 @@ static struct attribute *deepsleep_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group deepsleep_attribute_group = {
+static const struct attribute_group deepsleep_attribute_group = {
 	.name = "deepsleep",
 	.attrs = deepsleep_attrs,
 };

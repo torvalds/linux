@@ -52,10 +52,6 @@
 #include <linux/slab.h>
 #include <linux/sched/signal.h>
 
-/*
- * Version Information
- */
-#define DRIVER_VERSION "v0.6"
 #define DRIVER_AUTHOR "Thomas M. Sailer, t.sailer@alumni.ethz.ch"
 #define DRIVER_DESC "USB Parport Cable driver for Cables using the Lucent Technologies USS720 Chip"
 
@@ -816,8 +812,7 @@ static int __init uss720_init(void)
 	if (retval)
 		goto out;
 
-	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
-	       DRIVER_DESC "\n");
+	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_DESC "\n");
 	printk(KERN_INFO KBUILD_MODNAME ": NOTE: this is a special purpose "
 	       "driver to allow nonstandard\n");
 	printk(KERN_INFO KBUILD_MODNAME ": protocols (eg. bitbang) over "

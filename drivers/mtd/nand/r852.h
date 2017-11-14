@@ -10,7 +10,7 @@
 #include <linux/pci.h>
 #include <linux/completion.h>
 #include <linux/workqueue.h>
-#include <linux/mtd/nand.h>
+#include <linux/mtd/rawnand.h>
 #include <linux/spinlock.h>
 
 

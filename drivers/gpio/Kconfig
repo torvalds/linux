@@ -242,6 +242,17 @@ config GPIO_ICH
 
 	  If unsure, say N.
 
+config GPIO_INGENIC
+	tristate "Ingenic JZ47xx SoCs GPIO support"
+	depends on OF
+	depends on MACH_INGENIC || COMPILE_TEST
+	select GPIOLIB_IRQCHIP
+	help
+	  Say yes here to support the GPIO functionality present on the
+	  JZ4740 and JZ4780 SoCs from Ingenic.
+
+	  If unsure, say N.
+
 config GPIO_IOP
 	tristate "Intel IOP GPIO"
 	depends on ARCH_IOP32X || ARCH_IOP33X || COMPILE_TEST
@@ -300,7 +311,7 @@ config GPIO_MOCKUP
 	depends on GPIOLIB && SYSFS
 	select GPIO_SYSFS
 	select GPIOLIB_IRQCHIP
-	select IRQ_WORK
+	select IRQ_SIM
 	help
 	  This enables GPIO Testing driver, which provides a way to test GPIO
 	  subsystem through sysfs(or char device) and debugfs. GPIO_SYSFS
@@ -326,9 +337,10 @@ config GPIO_MPC8XXX
 
 config GPIO_MVEBU
 	def_bool y
-	depends on PLAT_ORION
+	depends on PLAT_ORION || ARCH_MVEBU
 	depends on OF_GPIO
 	select GENERIC_IRQ_CHIP
+	select REGMAP_MMIO
 
 config GPIO_MXC
 	def_bool y
@@ -438,6 +450,16 @@ config GPIO_TS4800
 	help
 	  This driver support TS-4800 FPGA GPIO controllers.
 
+config GPIO_THUNDERX
+	tristate "Cavium ThunderX/OCTEON-TX GPIO"
+	depends on ARCH_THUNDER || (64BIT && COMPILE_TEST)
+	depends on PCI_MSI
+	select IRQ_DOMAIN_HIERARCHY
+	select IRQ_FASTEOI_HIERARCHY_HANDLERS
+	help
+	  Say yes here to support the on-chip GPIO lines on the ThunderX
+	  and OCTEON-TX families of SoCs.
+
 config GPIO_TZ1090
 	bool "Toumaz Xenif TZ1090 GPIO support"
 	depends on SOC_TZ1090
@@ -492,6 +514,7 @@ config GPIO_XGENE_SB
 	depends on ARCH_XGENE && OF_GPIO
 	select GPIO_GENERIC
 	select GPIOLIB_IRQCHIP
+	select IRQ_DOMAIN_HIERARCHY
 	help
 	  This driver supports the GPIO block within the APM X-Gene
 	  Standby Domain. Say yes here to enable the GPIO functionality.
@@ -504,12 +527,13 @@ config GPIO_XILINX
 
 config GPIO_XLP
 	tristate "Netlogic XLP GPIO support"
-	depends on OF_GPIO && (CPU_XLP || ARCH_VULCAN || ARCH_THUNDER2 || COMPILE_TEST)
+	depends on OF_GPIO && (CPU_XLP || ARCH_THUNDER2 || COMPILE_TEST)
 	select GPIOLIB_IRQCHIP
 	help
 	  This driver provides support for GPIO interface on Netlogic XLP MIPS64
 	  SoCs. Currently supported XLP variants are XLP8XX, XLP3XX, XLP2XX,
-	  XLP9XX and XLP5XX.
+	  XLP9XX and XLP5XX. The same GPIO controller block is also present in
+	  Cavium's ThunderX2 CN99XX SoCs.
 
 	  If unsure, say N.
 
@@ -952,6 +976,16 @@ config GPIO_LP873X
 	  This driver can also be built as a module. If so, the module will be
           called gpio-lp873x.
 
+config GPIO_LP87565
+	tristate "TI LP87565 GPIO"
+	depends on MFD_TI_LP87565
+	help
+	  This driver supports the GPIO on TI Lp873565 PMICs. 3 GPIOs are present
+	  on LP87565 PMICs.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called gpio-lp87565.
+
 config GPIO_MAX77620
 	tristate "GPIO support for PMIC MAX77620 and MAX20024"
 	depends on MFD_MAX77620
@@ -1040,6 +1074,21 @@ config GPIO_TPS65912
 	depends on MFD_TPS65912
 	help
 	  This driver supports TPS65912 gpio chip
+
+config GPIO_TPS68470
+	bool "TPS68470 GPIO"
+	depends on MFD_TPS68470
+	help
+	  Select this option to enable GPIO driver for the TPS68470
+	  chip family.
+	  There are 7 GPIOs and few sensor related GPIOs supported
+	  by the TPS68470. While the 7 GPIOs can be configured as
+	  input or output as appropriate, the sensor related GPIOs
+	  are "output only" GPIOs.
+
+	  This driver config is bool, as the GPIO functionality
+	  of the TPS68470 must be available before dependent
+	  drivers are loaded.
 
 config GPIO_TWL4030
 	tristate "TWL4030, TWL5030, and TPS659x0 GPIOs"
@@ -1225,22 +1274,11 @@ config GPIO_PISOSR
 	  GPIO driver for SPI compatible parallel-in/serial-out shift
 	  registers. These are input only devices.
 
-endmenu
-
-menu "SPI or I2C GPIO expanders"
-	depends on (SPI_MASTER && !I2C) || I2C
-
-config GPIO_MCP23S08
-	tristate "Microchip MCP23xxx I/O expander"
-	depends on OF_GPIO
-	select GPIOLIB_IRQCHIP
-	select REGMAP_I2C if I2C
-	select REGMAP if SPI_MASTER
+config GPIO_XRA1403
+	tristate "EXAR XRA1403 16-bit GPIO expander"
+	select REGMAP_SPI
 	help
-	  SPI/I2C driver for Microchip MCP23S08/MCP23S17/MCP23008/MCP23017
-	  I/O expanders.
-	  This provides a GPIO interface supporting inputs and outputs.
-	  The I2C versions of the chips can be used as interrupt-controller.
+	  GPIO driver for EXAR XRA1403 16-bit SPI-based GPIO expander.
 
 endmenu
 

@@ -52,6 +52,8 @@
 #include <linux/torture.h>
 #include <linux/vmalloc.h>
 
+#include "rcu.h"
+
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Paul E. McKenney <paulmck@us.ibm.com> and Josh Triplett <josh@joshtriplett.org>");
 
@@ -197,7 +199,8 @@ MODULE_PARM_DESC(torture_runnable, "Start rcutorture at boot");
 static u64 notrace rcu_trace_clock_local(void)
 {
 	u64 ts = trace_clock_local();
-	unsigned long __maybe_unused ts_rem = do_div(ts, NSEC_PER_USEC);
+
+	(void)do_div(ts, NSEC_PER_USEC);
 	return ts;
 }
 #else /* #ifdef CONFIG_RCU_TRACE */
@@ -494,7 +497,7 @@ static struct rcu_torture_ops rcu_busted_ops = {
 	.fqs		= NULL,
 	.stats		= NULL,
 	.irq_capable	= 1,
-	.name		= "rcu_busted"
+	.name		= "busted"
 };
 
 /*
@@ -520,7 +523,7 @@ static void srcu_read_delay(struct torture_random_state *rrsp)
 
 	delay = torture_random(rrsp) %
 		(nrealreaders * 2 * longdelay * uspertick);
-	if (!delay)
+	if (!delay && in_task())
 		schedule_timeout_interruptible(longdelay);
 	else
 		rcu_read_delay(rrsp);
@@ -559,61 +562,7 @@ static void srcu_torture_barrier(void)
 
 static void srcu_torture_stats(void)
 {
-	int __maybe_unused cpu;
-	int idx;
-
-#if defined(CONFIG_TREE_SRCU) || defined(CONFIG_CLASSIC_SRCU)
-#ifdef CONFIG_TREE_SRCU
-	idx = srcu_ctlp->srcu_idx & 0x1;
-#else /* #ifdef CONFIG_TREE_SRCU */
-	idx = srcu_ctlp->completed & 0x1;
-#endif /* #else #ifdef CONFIG_TREE_SRCU */
-	pr_alert("%s%s Tree SRCU per-CPU(idx=%d):",
-		 torture_type, TORTURE_FLAG, idx);
-	for_each_possible_cpu(cpu) {
-		unsigned long l0, l1;
-		unsigned long u0, u1;
-		long c0, c1;
-#ifdef CONFIG_TREE_SRCU
-		struct srcu_data *counts;
-
-		counts = per_cpu_ptr(srcu_ctlp->sda, cpu);
-		u0 = counts->srcu_unlock_count[!idx];
-		u1 = counts->srcu_unlock_count[idx];
-#else /* #ifdef CONFIG_TREE_SRCU */
-		struct srcu_array *counts;
-
-		counts = per_cpu_ptr(srcu_ctlp->per_cpu_ref, cpu);
-		u0 = counts->unlock_count[!idx];
-		u1 = counts->unlock_count[idx];
-#endif /* #else #ifdef CONFIG_TREE_SRCU */
-
-		/*
-		 * Make sure that a lock is always counted if the corresponding
-		 * unlock is counted.
-		 */
-		smp_rmb();
-
-#ifdef CONFIG_TREE_SRCU
-		l0 = counts->srcu_lock_count[!idx];
-		l1 = counts->srcu_lock_count[idx];
-#else /* #ifdef CONFIG_TREE_SRCU */
-		l0 = counts->lock_count[!idx];
-		l1 = counts->lock_count[idx];
-#endif /* #else #ifdef CONFIG_TREE_SRCU */
-
-		c0 = l0 - u0;
-		c1 = l1 - u1;
-		pr_cont(" %d(%ld,%ld)", cpu, c0, c1);
-	}
-	pr_cont("\n");
-#elif defined(CONFIG_TINY_SRCU)
-	idx = READ_ONCE(srcu_ctlp->srcu_idx) & 0x1;
-	pr_alert("%s%s Tiny SRCU per-CPU(idx=%d): (%d,%d)\n",
-		 torture_type, TORTURE_FLAG, idx,
-		 READ_ONCE(srcu_ctlp->srcu_lock_nesting[!idx]),
-		 READ_ONCE(srcu_ctlp->srcu_lock_nesting[idx]));
-#endif
+	srcu_torture_stats_print(srcu_ctlp, torture_type, TORTURE_FLAG);
 }
 
 static void srcu_torture_synchronize_expedited(void)
@@ -635,6 +584,7 @@ static struct rcu_torture_ops srcu_ops = {
 	.call		= srcu_torture_call,
 	.cb_barrier	= srcu_torture_barrier,
 	.stats		= srcu_torture_stats,
+	.irq_capable	= 1,
 	.name		= "srcu"
 };
 
@@ -667,6 +617,7 @@ static struct rcu_torture_ops srcud_ops = {
 	.call		= srcu_torture_call,
 	.cb_barrier	= srcu_torture_barrier,
 	.stats		= srcu_torture_stats,
+	.irq_capable	= 1,
 	.name		= "srcud"
 };
 
@@ -711,8 +662,6 @@ static struct rcu_torture_ops sched_ops = {
 	.name		= "sched"
 };
 
-#ifdef CONFIG_TASKS_RCU
-
 /*
  * Definitions for RCU-tasks torture testing.
  */
@@ -750,23 +699,10 @@ static struct rcu_torture_ops tasks_ops = {
 	.name		= "tasks"
 };
 
-#define RCUTORTURE_TASKS_OPS &tasks_ops,
-
 static bool __maybe_unused torturing_tasks(void)
 {
 	return cur_ops == &tasks_ops;
 }
-
-#else /* #ifdef CONFIG_TASKS_RCU */
-
-#define RCUTORTURE_TASKS_OPS
-
-static bool __maybe_unused torturing_tasks(void)
-{
-	return false;
-}
-
-#endif /* #else #ifdef CONFIG_TASKS_RCU */
 
 /*
  * RCU torture priority-boost testing.  Runs one real-time thread per
@@ -1129,6 +1065,11 @@ rcu_torture_fakewriter(void *arg)
 	return 0;
 }
 
+static void rcu_torture_timer_cb(struct rcu_head *rhp)
+{
+	kfree(rhp);
+}
+
 /*
  * RCU torture reader from timer handler.  Dereferences rcu_torture_current,
  * incrementing the corresponding element of the pipeline array.  The
@@ -1191,6 +1132,14 @@ static void rcu_torture_timer(unsigned long unused)
 	__this_cpu_inc(rcu_torture_batch[completed]);
 	preempt_enable();
 	cur_ops->readunlock(idx);
+
+	/* Test call_rcu() invocation from interrupt handler. */
+	if (cur_ops->call) {
+		struct rcu_head *rhp = kmalloc(sizeof(*rhp), GFP_NOWAIT);
+
+		if (rhp)
+			cur_ops->call(rhp, rcu_torture_timer_cb);
+	}
 }
 
 /*
@@ -1369,11 +1318,12 @@ rcu_torture_stats_print(void)
 		srcutorture_get_gp_data(cur_ops->ttype, srcu_ctlp,
 					&flags, &gpnum, &completed);
 		wtp = READ_ONCE(writer_task);
-		pr_alert("??? Writer stall state %s(%d) g%lu c%lu f%#x ->state %#lx\n",
+		pr_alert("??? Writer stall state %s(%d) g%lu c%lu f%#x ->state %#lx cpu %d\n",
 			 rcu_torture_writer_state_getname(),
 			 rcu_torture_writer_state,
 			 gpnum, completed, flags,
-			 wtp == NULL ? ~0UL : wtp->state);
+			 wtp == NULL ? ~0UL : wtp->state,
+			 wtp == NULL ? -1 : (int)task_cpu(wtp));
 		show_rcu_gp_kthreads();
 		rcu_ftrace_dump(DUMP_ALL);
 	}
@@ -1764,7 +1714,7 @@ rcu_torture_init(void)
 	int firsterr = 0;
 	static struct rcu_torture_ops *torture_ops[] = {
 		&rcu_ops, &rcu_bh_ops, &rcu_busted_ops, &srcu_ops, &srcud_ops,
-		&sched_ops, RCUTORTURE_TASKS_OPS
+		&sched_ops, &tasks_ops,
 	};
 
 	if (!torture_init_begin(torture_type, verbose, &torture_runnable))

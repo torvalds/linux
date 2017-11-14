@@ -32,22 +32,22 @@
 
 #define DEBUG_SUBSYSTEM S_OSC
 
-#include "../../include/linux/libcfs/libcfs.h"
+#include <linux/libcfs/libcfs.h>
 
-#include "../include/lustre_dlm.h"
-#include "../include/lustre_net.h"
-#include "../include/lustre/lustre_user.h"
-#include "../include/obd_cksum.h"
+#include <lustre_dlm.h>
+#include <lustre_net.h>
+#include <uapi/linux/lustre/lustre_idl.h>
+#include <obd_cksum.h>
 
-#include "../include/lustre_ha.h"
-#include "../include/lprocfs_status.h"
-#include "../include/lustre/lustre_ioctl.h"
-#include "../include/lustre_debug.h"
-#include "../include/lustre_obdo.h"
-#include "../include/lustre_param.h"
-#include "../include/lustre_fid.h"
-#include "../include/obd_class.h"
-#include "../include/obd.h"
+#include <lustre_ha.h>
+#include <lprocfs_status.h>
+#include <uapi/linux/lustre/lustre_ioctl.h>
+#include <lustre_debug.h>
+#include <lustre_obdo.h>
+#include <uapi/linux/lustre/lustre_param.h>
+#include <lustre_fid.h>
+#include <obd_class.h>
+#include <obd.h>
 #include "osc_internal.h"
 #include "osc_cl_internal.h"
 
@@ -1227,8 +1227,7 @@ static int check_write_checksum(struct obdo *oa,
 		msg = "changed in transit AND doesn't match the original - likely false positive due to mmap IO (bug 11742)"
 			;
 
-	LCONSOLE_ERROR_MSG(0x132, "BAD WRITE CHECKSUM: %s: from %s inode "DFID
-			   " object "DOSTID" extent [%llu-%llu]\n",
+	LCONSOLE_ERROR_MSG(0x132, "BAD WRITE CHECKSUM: %s: from %s inode " DFID " object " DOSTID " extent [%llu-%llu]\n",
 			   msg, libcfs_nid2str(peer->nid),
 			   oa->o_valid & OBD_MD_FLFID ? oa->o_parent_seq : (__u64)0,
 			   oa->o_valid & OBD_MD_FLFID ? oa->o_parent_oid : 0,

@@ -128,9 +128,6 @@ void mwifiex_dfs_cac_work_queue(struct work_struct *work)
 			container_of(delayed_work, struct mwifiex_private,
 				     dfs_cac_work);
 
-	if (WARN_ON(!priv))
-		return;
-
 	chandef = priv->dfs_chandef;
 	if (priv->wdev.cac_started) {
 		mwifiex_dbg(priv->adapter, MSG,
@@ -288,9 +285,6 @@ void mwifiex_dfs_chan_sw_work_queue(struct work_struct *work)
 	struct mwifiex_private *priv =
 			container_of(delayed_work, struct mwifiex_private,
 				     dfs_chan_sw_work);
-
-	if (WARN_ON(!priv))
-		return;
 
 	bss_cfg = &priv->bss_cfg;
 	if (!bss_cfg->beacon_period) {

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 
 #ifndef _LINUX_KERNEL_TRACE_H
 #define _LINUX_KERNEL_TRACE_H
@@ -245,6 +246,7 @@ struct trace_array {
 	int			stop_count;
 	int			clock_id;
 	int			nr_topts;
+	bool			clear_trace;
 	struct tracer		*current_trace;
 	unsigned int		trace_flags;
 	unsigned char		trace_flags_index[TRACE_FLAGS_MAX_SIZE];
@@ -263,7 +265,10 @@ struct trace_array {
 	struct ftrace_ops	*ops;
 	struct trace_pid_list	__rcu *function_pids;
 #ifdef CONFIG_DYNAMIC_FTRACE
+	/* All of these are protected by the ftrace_lock */
 	struct list_head	func_probes;
+	struct list_head	mod_trace;
+	struct list_head	mod_notrace;
 #endif
 	/* function tracing enabled */
 	int			function_enabled;
@@ -440,6 +445,8 @@ struct tracer {
 #ifdef CONFIG_TRACER_MAX_TRACE
 	bool			use_max_tr;
 #endif
+	/* True if tracer cannot be enabled in kernel param */
+	bool			noboot;
 };
 
 
@@ -637,6 +644,9 @@ void set_graph_array(struct trace_array *tr);
 
 void tracing_start_cmdline_record(void);
 void tracing_stop_cmdline_record(void);
+void tracing_start_tgid_record(void);
+void tracing_stop_tgid_record(void);
+
 int register_tracer(struct tracer *type);
 int is_tracing_stopped(void);
 
@@ -697,6 +707,7 @@ static inline void __trace_stack(struct trace_array *tr, unsigned long flags,
 extern u64 ftrace_now(int cpu);
 
 extern void trace_find_cmdline(int pid, char comm[]);
+extern int trace_find_tgid(int pid);
 extern void trace_event_follow_fork(struct trace_array *tr, bool enable);
 
 #ifdef CONFIG_DYNAMIC_FTRACE
@@ -761,10 +772,24 @@ enum print_line_t print_trace_line(struct trace_iterator *iter);
 
 extern char trace_find_mark(unsigned long long duration);
 
+struct ftrace_hash;
+
+struct ftrace_mod_load {
+	struct list_head	list;
+	char			*func;
+	char			*module;
+	int			 enable;
+};
+
+enum {
+	FTRACE_HASH_FL_MOD	= (1 << 0),
+};
+
 struct ftrace_hash {
 	unsigned long		size_bits;
 	struct hlist_head	*buckets;
 	unsigned long		count;
+	unsigned long		flags;
 	struct rcu_head		rcu;
 };
 
@@ -773,7 +798,7 @@ ftrace_lookup_ip(struct ftrace_hash *hash, unsigned long ip);
 
 static __always_inline bool ftrace_hash_empty(struct ftrace_hash *hash)
 {
-	return !hash || !hash->count;
+	return !hash || !(hash->count || (hash->flags & FTRACE_HASH_FL_MOD));
 }
 
 /* Standard output formatting function used for function return traces */
@@ -1107,6 +1132,7 @@ extern int trace_get_user(struct trace_parser *parser, const char __user *ubuf,
 		C(CONTEXT_INFO,		"context-info"),   /* Print pid/cpu/time */ \
 		C(LATENCY_FMT,		"latency-format"),	\
 		C(RECORD_CMD,		"record-cmd"),		\
+		C(RECORD_TGID,		"record-tgid"),		\
 		C(OVERWRITE,		"overwrite"),		\
 		C(STOP_ON_FREE,		"disable_on_free"),	\
 		C(IRQ_INFO,		"irq-info"),		\
@@ -1188,9 +1214,9 @@ struct ftrace_event_field {
 struct event_filter {
 	int			n_preds;	/* Number assigned */
 	int			a_preds;	/* allocated */
-	struct filter_pred	*preds;
-	struct filter_pred	*root;
-	char			*filter_string;
+	struct filter_pred __rcu	*preds;
+	struct filter_pred __rcu	*root;
+	char				*filter_string;
 };
 
 struct event_subsystem {
@@ -1423,6 +1449,8 @@ struct ftrace_event_field *
 trace_find_event_field(struct trace_event_call *call, char *name);
 
 extern void trace_event_enable_cmd_record(bool enable);
+extern void trace_event_enable_tgid_record(bool enable);
+
 extern int event_trace_add_tracer(struct dentry *parent, struct trace_array *tr);
 extern int event_trace_del_tracer(struct trace_array *tr);
 
@@ -1773,10 +1801,10 @@ static inline const char *get_syscall_name(int syscall)
 
 #ifdef CONFIG_EVENT_TRACING
 void trace_event_init(void);
-void trace_event_enum_update(struct trace_enum_map **map, int len);
+void trace_event_eval_update(struct trace_eval_map **map, int len);
 #else
 static inline void __init trace_event_init(void) { }
-static inline void trace_event_enum_update(struct trace_enum_map **map, int len) { }
+static inline void trace_event_eval_update(struct trace_eval_map **map, int len) { }
 #endif
 
 extern struct trace_iterator *tracepoint_print_iter;

@@ -14,7 +14,7 @@
 #include <linux/etherdevice.h>
 #include <linux/list.h>
 #include <linux/slab.h>
-#include <net/dsa.h>
+
 #include "dsa_priv.h"
 
 /* To define the outgoing port and to discover the incoming port a regular
@@ -39,7 +39,6 @@
  */
 
 #define LAN9303_TAG_LEN 4
-#define LAN9303_MAX_PORTS 3
 
 static struct sk_buff *lan9303_xmit(struct sk_buff *skb, struct net_device *dev)
 {
@@ -52,7 +51,7 @@ static struct sk_buff *lan9303_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (skb_cow_head(skb, LAN9303_TAG_LEN) < 0) {
 		dev_dbg(&dev->dev,
 			"Cannot make room for the special tag. Dropping packet\n");
-		goto out_free;
+		return NULL;
 	}
 
 	/* provide 'LAN9303_TAG_LEN' bytes additional space */
@@ -66,13 +65,10 @@ static struct sk_buff *lan9303_xmit(struct sk_buff *skb, struct net_device *dev)
 	lan9303_tag[1] = htons(p->dp->index | BIT(4));
 
 	return skb;
-out_free:
-	kfree_skb(skb);
-	return NULL;
 }
 
 static struct sk_buff *lan9303_rcv(struct sk_buff *skb, struct net_device *dev,
-			struct packet_type *pt, struct net_device *orig_dev)
+			struct packet_type *pt)
 {
 	u16 *lan9303_tag;
 	struct dsa_switch_tree *dst = dev->dsa_ptr;
@@ -107,7 +103,7 @@ static struct sk_buff *lan9303_rcv(struct sk_buff *skb, struct net_device *dev,
 
 	source_port = ntohs(lan9303_tag[1]) & 0x3;
 
-	if (source_port >= LAN9303_MAX_PORTS) {
+	if (source_port >= ds->num_ports) {
 		dev_warn_ratelimited(&dev->dev, "Dropping packet due to invalid source port\n");
 		return NULL;
 	}

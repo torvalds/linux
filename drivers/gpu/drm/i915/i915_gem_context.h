@@ -27,6 +27,7 @@
 
 #include <linux/bitops.h>
 #include <linux/list.h>
+#include <linux/radix-tree.h>
 
 struct pid;
 
@@ -86,6 +87,7 @@ struct i915_gem_context {
 
 	/** link: place with &drm_i915_private.context_list */
 	struct list_head link;
+	struct llist_node free_link;
 
 	/**
 	 * @ref: reference count
@@ -97,6 +99,11 @@ struct i915_gem_context {
 	 * i915_gem_context_put() for access.
 	 */
 	struct kref ref;
+
+	/**
+	 * @rcu: rcu_head for deferred freeing.
+	 */
+	struct rcu_head rcu;
 
 	/**
 	 * @flags: small set of booleans
@@ -159,20 +166,32 @@ struct i915_gem_context {
 	u32 desc_template;
 
 	/** guilty_count: How many times this context has caused a GPU hang. */
-	unsigned int guilty_count;
+	atomic_t guilty_count;
 	/**
 	 * @active_count: How many times this context was active during a GPU
 	 * hang, but did not cause it.
 	 */
-	unsigned int active_count;
+	atomic_t active_count;
 
 #define CONTEXT_SCORE_GUILTY		10
 #define CONTEXT_SCORE_BAN_THRESHOLD	40
 	/** ban_score: Accumulated score of all hangs caused by this context. */
-	int ban_score;
+	atomic_t ban_score;
 
 	/** remap_slice: Bitmask of cache lines that need remapping */
 	u8 remap_slice;
+
+	/** handles_vma: rbtree to look up our context specific obj/vma for
+	 * the user handle. (user handles are per fd, but the binding is
+	 * per vm, which may be one per context or shared with the global GTT)
+	 */
+	struct radix_tree_root handles_vma;
+
+	/** handles_list: reverse list of all the rbtree entries in use for
+	 * this context, which allows us to free all the allocations on
+	 * context close.
+	 */
+	struct list_head handles_list;
 };
 
 static inline bool i915_gem_context_is_closed(const struct i915_gem_context *ctx)
@@ -247,14 +266,18 @@ static inline bool i915_gem_context_is_kernel(struct i915_gem_context *ctx)
 }
 
 /* i915_gem_context.c */
-int __must_check i915_gem_context_init(struct drm_i915_private *dev_priv);
-void i915_gem_context_lost(struct drm_i915_private *dev_priv);
-void i915_gem_context_fini(struct drm_i915_private *dev_priv);
-int i915_gem_context_open(struct drm_device *dev, struct drm_file *file);
-void i915_gem_context_close(struct drm_device *dev, struct drm_file *file);
+int __must_check i915_gem_contexts_init(struct drm_i915_private *dev_priv);
+void i915_gem_contexts_lost(struct drm_i915_private *dev_priv);
+void i915_gem_contexts_fini(struct drm_i915_private *dev_priv);
+
+int i915_gem_context_open(struct drm_i915_private *i915,
+			  struct drm_file *file);
+void i915_gem_context_close(struct drm_file *file);
+
 int i915_switch_context(struct drm_i915_gem_request *req);
 int i915_gem_switch_to_kernel_context(struct drm_i915_private *dev_priv);
-void i915_gem_context_free(struct kref *ctx_ref);
+
+void i915_gem_context_release(struct kref *ctx_ref);
 struct i915_gem_context *
 i915_gem_context_create_gvt(struct drm_device *dev);
 
@@ -268,5 +291,17 @@ int i915_gem_context_setparam_ioctl(struct drm_device *dev, void *data,
 				    struct drm_file *file_priv);
 int i915_gem_context_reset_stats_ioctl(struct drm_device *dev, void *data,
 				       struct drm_file *file);
+
+static inline struct i915_gem_context *
+i915_gem_context_get(struct i915_gem_context *ctx)
+{
+	kref_get(&ctx->ref);
+	return ctx;
+}
+
+static inline void i915_gem_context_put(struct i915_gem_context *ctx)
+{
+	kref_put(&ctx->ref, i915_gem_context_release);
+}
 
 #endif /* !__I915_GEM_CONTEXT_H__ */

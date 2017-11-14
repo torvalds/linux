@@ -213,7 +213,7 @@ ia_css_translate_dvs2_statistics(
 		     "hor_coefs.even_real=%p, hor_coefs.even_imag=%p, "
 		     "ver_coefs.odd_real=%p, ver_coefs.odd_imag=%p, "
 		     "ver_coefs.even_real=%p, ver_coefs.even_imag=%p, "
-		     "haddr=%x, vaddr=%x",
+		     "haddr=%p, vaddr=%p",
 		host_stats->hor_prod.odd_real, host_stats->hor_prod.odd_imag,
 		host_stats->hor_prod.even_real, host_stats->hor_prod.even_imag,
 		host_stats->ver_prod.odd_real, host_stats->ver_prod.odd_imag,

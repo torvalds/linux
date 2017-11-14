@@ -53,6 +53,60 @@ static void flush_tlb_206(unsigned int num_sets, unsigned int action)
 	asm volatile("ptesync" : : : "memory");
 }
 
+static void flush_tlb_300(unsigned int num_sets, unsigned int action)
+{
+	unsigned long rb;
+	unsigned int i;
+	unsigned int r;
+
+	switch (action) {
+	case TLB_INVAL_SCOPE_GLOBAL:
+		rb = TLBIEL_INVAL_SET;
+		break;
+	case TLB_INVAL_SCOPE_LPID:
+		rb = TLBIEL_INVAL_SET_LPID;
+		break;
+	default:
+		BUG();
+		break;
+	}
+
+	asm volatile("ptesync" : : : "memory");
+
+	if (early_radix_enabled())
+		r = 1;
+	else
+		r = 0;
+
+	/*
+	 * First flush table/PWC caches with set 0, then flush the
+	 * rest of the sets, partition scope. Radix must then do it
+	 * all again with process scope. Hash just has to flush
+	 * process table.
+	 */
+	asm volatile(PPC_TLBIEL(%0, %1, %2, %3, %4) : :
+			"r"(rb), "r"(0), "i"(2), "i"(0), "r"(r));
+	for (i = 1; i < num_sets; i++) {
+		unsigned long set = i * (1<<TLBIEL_INVAL_SET_SHIFT);
+
+		asm volatile(PPC_TLBIEL(%0, %1, %2, %3, %4) : :
+				"r"(rb+set), "r"(0), "i"(2), "i"(0), "r"(r));
+	}
+
+	asm volatile(PPC_TLBIEL(%0, %1, %2, %3, %4) : :
+			"r"(rb), "r"(0), "i"(2), "i"(1), "r"(r));
+	if (early_radix_enabled()) {
+		for (i = 1; i < num_sets; i++) {
+			unsigned long set = i * (1<<TLBIEL_INVAL_SET_SHIFT);
+
+			asm volatile(PPC_TLBIEL(%0, %1, %2, %3, %4) : :
+				"r"(rb+set), "r"(0), "i"(2), "i"(1), "r"(r));
+		}
+	}
+
+	asm volatile("ptesync" : : : "memory");
+}
+
 /*
  * Generic routines to flush TLB on POWER processors. These routines
  * are used as flush_tlb hook in the cpu_spec.
@@ -79,7 +133,7 @@ void __flush_tlb_power9(unsigned int action)
 	else
 		num_sets = POWER9_TLB_SETS_HASH;
 
-	flush_tlb_206(num_sets, action);
+	flush_tlb_300(num_sets, action);
 }
 
 
@@ -235,6 +289,9 @@ static const struct mce_ierror_table mce_p9_ierror_table[] = {
   MCE_INITIATOR_CPU,  MCE_SEV_ERROR_SYNC, },
 { 0x00000000081c0000, 0x0000000000180000, true,
   MCE_ERROR_TYPE_UE,  MCE_UE_ERROR_PAGE_TABLE_WALK_IFETCH,
+  MCE_INITIATOR_CPU,  MCE_SEV_ERROR_SYNC, },
+{ 0x00000000081c0000, 0x00000000001c0000, true,
+  MCE_ERROR_TYPE_RA,  MCE_RA_ERROR_IFETCH_FOREIGN,
   MCE_INITIATOR_CPU,  MCE_SEV_ERROR_SYNC, },
 { 0x00000000081c0000, 0x0000000008000000, true,
   MCE_ERROR_TYPE_LINK,MCE_LINK_ERROR_IFETCH_TIMEOUT,
@@ -567,5 +624,18 @@ long __machine_check_early_realmode_p8(struct pt_regs *regs)
 
 long __machine_check_early_realmode_p9(struct pt_regs *regs)
 {
+	/*
+	 * On POWER9 DD2.1 and below, it's possible to get a machine check
+	 * caused by a paste instruction where only DSISR bit 25 is set. This
+	 * will result in the MCE handler seeing an unknown event and the kernel
+	 * crashing. An MCE that occurs like this is spurious, so we don't need
+	 * to do anything in terms of servicing it. If there is something that
+	 * needs to be serviced, the CPU will raise the MCE again with the
+	 * correct DSISR so that it can be serviced properly. So detect this
+	 * case and mark it as handled.
+	 */
+	if (SRR1_MC_LOADSTORE(regs->msr) && regs->dsisr == 0x02000000)
+		return 1;
+
 	return mce_handle_error(regs, mce_p9_derror_table, mce_p9_ierror_table);
 }

@@ -30,7 +30,7 @@
 #include <linux/err.h>
 #include <linux/mutex.h>
 #include <linux/sysfs.h>
-#include <linux/i2c/ds620.h>
+#include <linux/platform_data/ds620.h>
 
 /*
  * Many DS620 constants specified below

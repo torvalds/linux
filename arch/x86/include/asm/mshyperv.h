@@ -1,8 +1,11 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_MSHYPER_H
 #define _ASM_X86_MSHYPER_H
 
 #include <linux/types.h>
 #include <linux/atomic.h>
+#include <linux/nmi.h>
+#include <asm/io.h>
 #include <asm/hyperv.h>
 
 /*
@@ -28,6 +31,8 @@ struct ms_hyperv_info {
 	u32 features;
 	u32 misc_features;
 	u32 hints;
+	u32 max_vp_index;
+	u32 max_lp_index;
 };
 
 extern struct ms_hyperv_info ms_hyperv;
@@ -136,7 +141,6 @@ static inline void vmbus_signal_eom(struct hv_message *msg, u32 old_msg_type)
 	}
 }
 
-#define hv_get_current_tick(tick) rdmsrl(HV_X64_MSR_TIME_REF_COUNT, tick)
 #define hv_init_timer(timer, tick) wrmsrl(timer, tick)
 #define hv_init_timer_config(config, val) wrmsrl(config, val)
 
@@ -169,12 +173,154 @@ void hv_remove_crash_handler(void);
 
 #if IS_ENABLED(CONFIG_HYPERV)
 extern struct clocksource *hyperv_cs;
+extern void *hv_hypercall_pg;
+
+static inline u64 hv_do_hypercall(u64 control, void *input, void *output)
+{
+	u64 input_address = input ? virt_to_phys(input) : 0;
+	u64 output_address = output ? virt_to_phys(output) : 0;
+	u64 hv_status;
+
+#ifdef CONFIG_X86_64
+	if (!hv_hypercall_pg)
+		return U64_MAX;
+
+	__asm__ __volatile__("mov %4, %%r8\n"
+			     "call *%5"
+			     : "=a" (hv_status), ASM_CALL_CONSTRAINT,
+			       "+c" (control), "+d" (input_address)
+			     :  "r" (output_address), "m" (hv_hypercall_pg)
+			     : "cc", "memory", "r8", "r9", "r10", "r11");
+#else
+	u32 input_address_hi = upper_32_bits(input_address);
+	u32 input_address_lo = lower_32_bits(input_address);
+	u32 output_address_hi = upper_32_bits(output_address);
+	u32 output_address_lo = lower_32_bits(output_address);
+
+	if (!hv_hypercall_pg)
+		return U64_MAX;
+
+	__asm__ __volatile__("call *%7"
+			     : "=A" (hv_status),
+			       "+c" (input_address_lo), ASM_CALL_CONSTRAINT
+			     : "A" (control),
+			       "b" (input_address_hi),
+			       "D"(output_address_hi), "S"(output_address_lo),
+			       "m" (hv_hypercall_pg)
+			     : "cc", "memory");
+#endif /* !x86_64 */
+	return hv_status;
+}
+
+#define HV_HYPERCALL_RESULT_MASK	GENMASK_ULL(15, 0)
+#define HV_HYPERCALL_FAST_BIT		BIT(16)
+#define HV_HYPERCALL_VARHEAD_OFFSET	17
+#define HV_HYPERCALL_REP_COMP_OFFSET	32
+#define HV_HYPERCALL_REP_COMP_MASK	GENMASK_ULL(43, 32)
+#define HV_HYPERCALL_REP_START_OFFSET	48
+#define HV_HYPERCALL_REP_START_MASK	GENMASK_ULL(59, 48)
+
+/* Fast hypercall with 8 bytes of input and no output */
+static inline u64 hv_do_fast_hypercall8(u16 code, u64 input1)
+{
+	u64 hv_status, control = (u64)code | HV_HYPERCALL_FAST_BIT;
+
+#ifdef CONFIG_X86_64
+	{
+		__asm__ __volatile__("call *%4"
+				     : "=a" (hv_status), ASM_CALL_CONSTRAINT,
+				       "+c" (control), "+d" (input1)
+				     : "m" (hv_hypercall_pg)
+				     : "cc", "r8", "r9", "r10", "r11");
+	}
+#else
+	{
+		u32 input1_hi = upper_32_bits(input1);
+		u32 input1_lo = lower_32_bits(input1);
+
+		__asm__ __volatile__ ("call *%5"
+				      : "=A"(hv_status),
+					"+c"(input1_lo),
+					ASM_CALL_CONSTRAINT
+				      :	"A" (control),
+					"b" (input1_hi),
+					"m" (hv_hypercall_pg)
+				      : "cc", "edi", "esi");
+	}
+#endif
+		return hv_status;
+}
+
+/*
+ * Rep hypercalls. Callers of this functions are supposed to ensure that
+ * rep_count and varhead_size comply with Hyper-V hypercall definition.
+ */
+static inline u64 hv_do_rep_hypercall(u16 code, u16 rep_count, u16 varhead_size,
+				      void *input, void *output)
+{
+	u64 control = code;
+	u64 status;
+	u16 rep_comp;
+
+	control |= (u64)varhead_size << HV_HYPERCALL_VARHEAD_OFFSET;
+	control |= (u64)rep_count << HV_HYPERCALL_REP_COMP_OFFSET;
+
+	do {
+		status = hv_do_hypercall(control, input, output);
+		if ((status & HV_HYPERCALL_RESULT_MASK) != HV_STATUS_SUCCESS)
+			return status;
+
+		/* Bits 32-43 of status have 'Reps completed' data. */
+		rep_comp = (status & HV_HYPERCALL_REP_COMP_MASK) >>
+			HV_HYPERCALL_REP_COMP_OFFSET;
+
+		control &= ~HV_HYPERCALL_REP_START_MASK;
+		control |= (u64)rep_comp << HV_HYPERCALL_REP_START_OFFSET;
+
+		touch_nmi_watchdog();
+	} while (rep_comp < rep_count);
+
+	return status;
+}
+
+/*
+ * Hypervisor's notion of virtual processor ID is different from
+ * Linux' notion of CPU ID. This information can only be retrieved
+ * in the context of the calling CPU. Setup a map for easy access
+ * to this information.
+ */
+extern u32 *hv_vp_index;
+extern u32 hv_max_vp_index;
+
+/**
+ * hv_cpu_number_to_vp_number() - Map CPU to VP.
+ * @cpu_number: CPU number in Linux terms
+ *
+ * This function returns the mapping between the Linux processor
+ * number and the hypervisor's virtual processor number, useful
+ * in making hypercalls and such that talk about specific
+ * processors.
+ *
+ * Return: Virtual processor number in Hyper-V terms
+ */
+static inline int hv_cpu_number_to_vp_number(int cpu_number)
+{
+	return hv_vp_index[cpu_number];
+}
 
 void hyperv_init(void);
+void hyperv_setup_mmu_ops(void);
+void hyper_alloc_mmu(void);
 void hyperv_report_panic(struct pt_regs *regs);
 bool hv_is_hypercall_page_setup(void);
 void hyperv_cleanup(void);
-#endif
+#else /* CONFIG_HYPERV */
+static inline void hyperv_init(void) {}
+static inline bool hv_is_hypercall_page_setup(void) { return false; }
+static inline void hyperv_cleanup(void) {}
+static inline void hyperv_setup_mmu_ops(void) {}
+#endif /* CONFIG_HYPERV */
+
 #ifdef CONFIG_HYPERV_TSCPAGE
 struct ms_hyperv_tsc_page *hv_get_tsc_page(void);
 static inline u64 hv_read_tsc_page(const struct ms_hyperv_tsc_page *tsc_pg)

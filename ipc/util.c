@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * linux/ipc/util.c
  * Copyright (C) 1992 Krishna Balasubramanian
@@ -83,27 +84,46 @@ struct ipc_proc_iface {
  */
 static int __init ipc_init(void)
 {
-	sem_init();
-	msg_init();
+	int err_sem, err_msg;
+
+	err_sem = sem_init();
+	WARN(err_sem, "ipc: sysv sem_init failed: %d\n", err_sem);
+	err_msg = msg_init();
+	WARN(err_msg, "ipc: sysv msg_init failed: %d\n", err_msg);
 	shm_init();
-	return 0;
+
+	return err_msg ? err_msg : err_sem;
 }
 device_initcall(ipc_init);
+
+static const struct rhashtable_params ipc_kht_params = {
+	.head_offset		= offsetof(struct kern_ipc_perm, khtnode),
+	.key_offset		= offsetof(struct kern_ipc_perm, key),
+	.key_len		= FIELD_SIZEOF(struct kern_ipc_perm, key),
+	.locks_mul		= 1,
+	.automatic_shrinking	= true,
+};
 
 /**
  * ipc_init_ids	- initialise ipc identifiers
  * @ids: ipc identifier set
  *
  * Set up the sequence range to use for the ipc identifier range (limited
- * below IPCMNI) then initialise the ids idr.
+ * below IPCMNI) then initialise the keys hashtable and ids idr.
  */
-void ipc_init_ids(struct ipc_ids *ids)
+int ipc_init_ids(struct ipc_ids *ids)
 {
+	int err;
 	ids->in_use = 0;
 	ids->seq = 0;
 	ids->next_id = -1;
 	init_rwsem(&ids->rwsem);
+	err = rhashtable_init(&ids->key_ht, &ipc_kht_params);
+	if (err)
+		return err;
 	idr_init(&ids->ipcs_idr);
+	ids->tables_initialized = true;
+	return 0;
 }
 
 #ifdef CONFIG_PROC_FS
@@ -147,28 +167,20 @@ void __init ipc_init_proc_interface(const char *path, const char *header,
  * Returns the locked pointer to the ipc structure if found or NULL
  * otherwise. If key is found ipc points to the owning ipc structure
  *
- * Called with ipc_ids.rwsem held.
+ * Called with writer ipc_ids.rwsem held.
  */
 static struct kern_ipc_perm *ipc_findkey(struct ipc_ids *ids, key_t key)
 {
-	struct kern_ipc_perm *ipc;
-	int next_id;
-	int total;
+	struct kern_ipc_perm *ipcp = NULL;
 
-	for (total = 0, next_id = 0; total < ids->in_use; next_id++) {
-		ipc = idr_find(&ids->ipcs_idr, next_id);
+	if (likely(ids->tables_initialized))
+		ipcp = rhashtable_lookup_fast(&ids->key_ht, &key,
+					      ipc_kht_params);
 
-		if (ipc == NULL)
-			continue;
-
-		if (ipc->key != key) {
-			total++;
-			continue;
-		}
-
+	if (ipcp) {
 		rcu_read_lock();
-		ipc_lock_object(ipc);
-		return ipc;
+		ipc_lock_object(ipcp);
+		return ipcp;
 	}
 
 	return NULL;
@@ -221,17 +233,18 @@ int ipc_addid(struct ipc_ids *ids, struct kern_ipc_perm *new, int size)
 {
 	kuid_t euid;
 	kgid_t egid;
-	int id;
+	int id, err;
 	int next_id = ids->next_id;
 
 	if (size > IPCMNI)
 		size = IPCMNI;
 
-	if (ids->in_use >= size)
+	if (!ids->tables_initialized || ids->in_use >= size)
 		return -ENOSPC;
 
 	idr_preload(GFP_KERNEL);
 
+	refcount_set(&new->refcount, 1);
 	spin_lock_init(&new->lock);
 	new->deleted = false;
 	rcu_read_lock();
@@ -245,6 +258,15 @@ int ipc_addid(struct ipc_ids *ids, struct kern_ipc_perm *new, int size)
 		       (next_id < 0) ? 0 : ipcid_to_idx(next_id), 0,
 		       GFP_NOWAIT);
 	idr_preload_end();
+
+	if (id >= 0 && new->key != IPC_PRIVATE) {
+		err = rhashtable_insert_fast(&ids->key_ht, &new->khtnode,
+					     ipc_kht_params);
+		if (err < 0) {
+			idr_remove(&ids->ipcs_idr, id);
+			id = err;
+		}
+	}
 	if (id < 0) {
 		spin_unlock(&new->lock);
 		rcu_read_unlock();
@@ -376,6 +398,20 @@ static int ipcget_public(struct ipc_namespace *ns, struct ipc_ids *ids,
 	return err;
 }
 
+/**
+ * ipc_kht_remove - remove an ipc from the key hashtable
+ * @ids: ipc identifier set
+ * @ipcp: ipc perm structure containing the key to remove
+ *
+ * ipc_ids.rwsem (as a writer) and the spinlock for this ID are held
+ * before this function is called, and remain locked on the exit.
+ */
+static void ipc_kht_remove(struct ipc_ids *ids, struct kern_ipc_perm *ipcp)
+{
+	if (ipcp->key != IPC_PRIVATE)
+		rhashtable_remove_fast(&ids->key_ht, &ipcp->khtnode,
+				       ipc_kht_params);
+}
 
 /**
  * ipc_rmid - remove an ipc identifier
@@ -390,74 +426,37 @@ void ipc_rmid(struct ipc_ids *ids, struct kern_ipc_perm *ipcp)
 	int lid = ipcid_to_idx(ipcp->id);
 
 	idr_remove(&ids->ipcs_idr, lid);
+	ipc_kht_remove(ids, ipcp);
 	ids->in_use--;
 	ipcp->deleted = true;
 }
 
 /**
- * ipc_alloc -	allocate ipc space
- * @size: size desired
+ * ipc_set_key_private - switch the key of an existing ipc to IPC_PRIVATE
+ * @ids: ipc identifier set
+ * @ipcp: ipc perm structure containing the key to modify
  *
- * Allocate memory from the appropriate pools and return a pointer to it.
- * NULL is returned if the allocation fails
+ * ipc_ids.rwsem (as a writer) and the spinlock for this ID are held
+ * before this function is called, and remain locked on the exit.
  */
-void *ipc_alloc(int size)
+void ipc_set_key_private(struct ipc_ids *ids, struct kern_ipc_perm *ipcp)
 {
-	return kvmalloc(size, GFP_KERNEL);
+	ipc_kht_remove(ids, ipcp);
+	ipcp->key = IPC_PRIVATE;
 }
 
-/**
- * ipc_free - free ipc space
- * @ptr: pointer returned by ipc_alloc
- *
- * Free a block created with ipc_alloc().
- */
-void ipc_free(void *ptr)
+int ipc_rcu_getref(struct kern_ipc_perm *ptr)
 {
-	kvfree(ptr);
+	return refcount_inc_not_zero(&ptr->refcount);
 }
 
-/**
- * ipc_rcu_alloc - allocate ipc and rcu space
- * @size: size desired
- *
- * Allocate memory for the rcu header structure +  the object.
- * Returns the pointer to the object or NULL upon failure.
- */
-void *ipc_rcu_alloc(int size)
+void ipc_rcu_putref(struct kern_ipc_perm *ptr,
+			void (*func)(struct rcu_head *head))
 {
-	/*
-	 * We prepend the allocation with the rcu struct
-	 */
-	struct ipc_rcu *out = ipc_alloc(sizeof(struct ipc_rcu) + size);
-	if (unlikely(!out))
-		return NULL;
-	atomic_set(&out->refcount, 1);
-	return out + 1;
-}
-
-int ipc_rcu_getref(void *ptr)
-{
-	struct ipc_rcu *p = ((struct ipc_rcu *)ptr) - 1;
-
-	return atomic_inc_not_zero(&p->refcount);
-}
-
-void ipc_rcu_putref(void *ptr, void (*func)(struct rcu_head *head))
-{
-	struct ipc_rcu *p = ((struct ipc_rcu *)ptr) - 1;
-
-	if (!atomic_dec_and_test(&p->refcount))
+	if (!refcount_dec_and_test(&ptr->refcount))
 		return;
 
-	call_rcu(&p->rcu, func);
-}
-
-void ipc_rcu_free(struct rcu_head *head)
-{
-	struct ipc_rcu *p = container_of(head, struct ipc_rcu, rcu);
-
-	kvfree(p);
+	call_rcu(&ptr->rcu, func);
 }
 
 /**
@@ -536,7 +535,7 @@ void ipc64_perm_to_ipc_perm(struct ipc64_perm *in, struct ipc_perm *out)
 }
 
 /**
- * ipc_obtain_object
+ * ipc_obtain_object_idr
  * @ids: ipc identifier set
  * @id: ipc id to look for
  *
@@ -549,6 +548,9 @@ struct kern_ipc_perm *ipc_obtain_object_idr(struct ipc_ids *ids, int id)
 {
 	struct kern_ipc_perm *out;
 	int lid = ipcid_to_idx(id);
+
+	if (unlikely(!ids->tables_initialized))
+		return ERR_PTR(-EINVAL);
 
 	out = idr_find(&ids->ipcs_idr, lid);
 	if (!out)

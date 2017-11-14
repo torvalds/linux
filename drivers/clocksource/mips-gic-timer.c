@@ -10,25 +10,45 @@
 #include <linux/cpu.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
-#include <linux/irqchip/mips-gic.h>
 #include <linux/notifier.h>
 #include <linux/of_irq.h>
 #include <linux/percpu.h>
 #include <linux/smp.h>
 #include <linux/time.h>
+#include <asm/mips-cps.h>
 
 static DEFINE_PER_CPU(struct clock_event_device, gic_clockevent_device);
 static int gic_timer_irq;
 static unsigned int gic_frequency;
 
+static u64 notrace gic_read_count(void)
+{
+	unsigned int hi, hi2, lo;
+
+	if (mips_cm_is64)
+		return read_gic_counter();
+
+	do {
+		hi = read_gic_counter_32h();
+		lo = read_gic_counter_32l();
+		hi2 = read_gic_counter_32h();
+	} while (hi2 != hi);
+
+	return (((u64) hi) << 32) + lo;
+}
+
 static int gic_next_event(unsigned long delta, struct clock_event_device *evt)
 {
+	unsigned long flags;
 	u64 cnt;
 	int res;
 
 	cnt = gic_read_count();
 	cnt += (u64)delta;
-	gic_write_cpu_compare(cnt, cpumask_first(evt->cpumask));
+	local_irq_save(flags);
+	write_gic_vl_other(mips_cm_vp_id(cpumask_first(evt->cpumask)));
+	write_gic_vo_compare(cnt);
+	local_irq_restore(flags);
 	res = ((int)(gic_read_count() - cnt) >= 0) ? -ETIME : 0;
 	return res;
 }
@@ -37,7 +57,7 @@ static irqreturn_t gic_compare_interrupt(int irq, void *dev_id)
 {
 	struct clock_event_device *cd = dev_id;
 
-	gic_write_compare(gic_read_compare());
+	write_gic_vl_compare(read_gic_vl_compare());
 	cd->event_handler(cd);
 	return IRQ_HANDLED;
 }
@@ -139,10 +159,15 @@ static struct clocksource gic_clocksource = {
 
 static int __init __gic_clocksource_init(void)
 {
+	unsigned int count_width;
 	int ret;
 
 	/* Set clocksource mask. */
-	gic_clocksource.mask = CLOCKSOURCE_MASK(gic_get_count_width());
+	count_width = read_gic_config() & GIC_CONFIG_COUNTBITS;
+	count_width >>= __fls(GIC_CONFIG_COUNTBITS);
+	count_width *= 4;
+	count_width += 32;
+	gic_clocksource.mask = CLOCKSOURCE_MASK(count_width);
 
 	/* Calculate a somewhat reasonable rating value. */
 	gic_clocksource.rating = 200 + gic_frequency / 10000000;
@@ -159,7 +184,7 @@ static int __init gic_clocksource_of_init(struct device_node *node)
 	struct clk *clk;
 	int ret;
 
-	if (!gic_present || !node->parent ||
+	if (!mips_gic_present() || !node->parent ||
 	    !of_device_is_compatible(node->parent, "mti,gic")) {
 		pr_warn("No DT definition for the mips gic driver\n");
 		return -ENXIO;
@@ -167,10 +192,11 @@ static int __init gic_clocksource_of_init(struct device_node *node)
 
 	clk = of_clk_get(node, 0);
 	if (!IS_ERR(clk)) {
-		if (clk_prepare_enable(clk) < 0) {
+		ret = clk_prepare_enable(clk);
+		if (ret < 0) {
 			pr_err("GIC failed to enable clock\n");
 			clk_put(clk);
-			return PTR_ERR(clk);
+			return ret;
 		}
 
 		gic_frequency = clk_get_rate(clk);
@@ -196,9 +222,9 @@ static int __init gic_clocksource_of_init(struct device_node *node)
 	}
 
 	/* And finally start the counter */
-	gic_start_count();
+	clear_gic_config(GIC_CONFIG_COUNTSTOP);
 
 	return 0;
 }
-CLOCKSOURCE_OF_DECLARE(mips_gic_timer, "mti,gic-timer",
+TIMER_OF_DECLARE(mips_gic_timer, "mti,gic-timer",
 		       gic_clocksource_of_init);

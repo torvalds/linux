@@ -66,6 +66,7 @@
 
 #ifndef	__iwl_prph_h__
 #define __iwl_prph_h__
+#include <linux/bitfield.h>
 
 /*
  * Registers in this file are internal, not PCI bus memory mapped.
@@ -108,13 +109,12 @@
 /* Device system time */
 #define DEVICE_SYSTEM_TIME_REG 0xA0206C
 
-/* Device NMI register */
+/* Device NMI register and value for 8000 family and lower hw's */
 #define DEVICE_SET_NMI_REG 0x00a01c30
-#define DEVICE_SET_NMI_VAL_HW BIT(0)
 #define DEVICE_SET_NMI_VAL_DRV BIT(7)
-#define DEVICE_SET_NMI_8000_REG 0x00a01c24
-#define DEVICE_SET_NMI_8000_VAL 0x1000000
+/* Device NMI register and value for 9000 family and above hw's */
 #define UREG_NIC_SET_NMI_DRIVER 0x00a05c10
+#define UREG_NIC_SET_NMI_DRIVER_NMI_FROM_DRIVER_MSK 0xff000000
 
 /* Shared registers (0x0..0x3ff, via target indirect or periphery */
 #define SHR_BASE	0x00a10000
@@ -247,14 +247,14 @@
 #define SCD_QUEUE_STTS_REG_POS_SCD_ACT_EN (19)
 #define SCD_QUEUE_STTS_REG_MSK		(0x017F0000)
 
-#define SCD_QUEUE_CTX_REG1_CREDIT_POS		(8)
-#define SCD_QUEUE_CTX_REG1_CREDIT_MSK		(0x00FFFF00)
-#define SCD_QUEUE_CTX_REG1_SUPER_CREDIT_POS	(24)
-#define SCD_QUEUE_CTX_REG1_SUPER_CREDIT_MSK	(0xFF000000)
-#define SCD_QUEUE_CTX_REG2_WIN_SIZE_POS		(0)
-#define SCD_QUEUE_CTX_REG2_WIN_SIZE_MSK		(0x0000007F)
-#define SCD_QUEUE_CTX_REG2_FRAME_LIMIT_POS	(16)
-#define SCD_QUEUE_CTX_REG2_FRAME_LIMIT_MSK	(0x007F0000)
+#define SCD_QUEUE_CTX_REG1_CREDIT		(0x00FFFF00)
+#define SCD_QUEUE_CTX_REG1_SUPER_CREDIT		(0xFF000000)
+#define SCD_QUEUE_CTX_REG1_VAL(_n, _v)		FIELD_PREP(SCD_QUEUE_CTX_REG1_ ## _n, _v)
+
+#define SCD_QUEUE_CTX_REG2_WIN_SIZE		(0x0000007F)
+#define SCD_QUEUE_CTX_REG2_FRAME_LIMIT		(0x007F0000)
+#define SCD_QUEUE_CTX_REG2_VAL(_n, _v)		FIELD_PREP(SCD_QUEUE_CTX_REG2_ ## _n, _v)
+
 #define SCD_GP_CTRL_ENABLE_31_QUEUES		BIT(0)
 #define SCD_GP_CTRL_AUTO_ACTIVE_MODE		BIT(18)
 
@@ -403,6 +403,12 @@ enum aux_misc_master1_en {
 #define SB_CPU_2_STATUS			0xA01E34
 #define UMAG_SB_CPU_1_STATUS		0xA038C0
 #define UMAG_SB_CPU_2_STATUS		0xA038C4
+#define UMAG_GEN_HW_STATUS		0xA038C8
+
+/* For UMAG_GEN_HW_STATUS reg check */
+enum {
+	UMAG_GEN_HW_IS_FPGA = BIT(1),
+};
 
 /* FW chicken bits */
 #define LMPM_CHICK			0xA01FF8

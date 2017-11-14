@@ -176,7 +176,8 @@ Architectures: s390
 
 3.1. ATTRIBUTE: KVM_S390_VM_TOD_HIGH
 
-Allows user space to set/get the TOD clock extension (u8).
+Allows user space to set/get the TOD clock extension (u8) (superseded by
+KVM_S390_VM_TOD_EXT).
 
 Parameters: address of a buffer in user space to store the data (u8) to
 Returns:    -EFAULT if the given address is not accessible from kernel space
@@ -189,6 +190,17 @@ the POP (u64).
 
 Parameters: address of a buffer in user space to store the data (u64) to
 Returns:    -EFAULT if the given address is not accessible from kernel space
+
+3.3. ATTRIBUTE: KVM_S390_VM_TOD_EXT
+Allows user space to set/get bits 0-63 of the TOD clock register as defined in
+the POP (u64). If the guest CPU model supports the TOD clock extension (u8), it
+also allows user space to get/set it. If the guest CPU model does not support
+it, it is stored as 0 and not allowed to be set to a value != 0.
+
+Parameters: address of a buffer in user space to store the data
+            (kvm_s390_vm_tod_clock) to
+Returns:    -EFAULT if the given address is not accessible from kernel space
+	    -EINVAL if setting the TOD clock extension to != 0 is not supported
 
 4. GROUP: KVM_S390_VM_CRYPTO
 Architectures: s390
@@ -222,3 +234,36 @@ Allows user space to disable dea key wrapping, clearing the wrapping key.
 
 Parameters: none
 Returns:    0
+
+5. GROUP: KVM_S390_VM_MIGRATION
+Architectures: s390
+
+5.1. ATTRIBUTE: KVM_S390_VM_MIGRATION_STOP (w/o)
+
+Allows userspace to stop migration mode, needed for PGSTE migration.
+Setting this attribute when migration mode is not active will have no
+effects.
+
+Parameters: none
+Returns:    0
+
+5.2. ATTRIBUTE: KVM_S390_VM_MIGRATION_START (w/o)
+
+Allows userspace to start migration mode, needed for PGSTE migration.
+Setting this attribute when migration mode is already active will have
+no effects.
+
+Parameters: none
+Returns:    -ENOMEM if there is not enough free memory to start migration mode
+	    -EINVAL if the state of the VM is invalid (e.g. no memory defined)
+	    0 in case of success.
+
+5.3. ATTRIBUTE: KVM_S390_VM_MIGRATION_STATUS (r/o)
+
+Allows userspace to query the status of migration mode.
+
+Parameters: address of a buffer in user space to store the data (u64) to;
+	    the data itself is either 0 if migration mode is disabled or 1
+	    if it is enabled
+Returns:    -EFAULT if the given address is not accessible from kernel space
+	    0 in case of success.

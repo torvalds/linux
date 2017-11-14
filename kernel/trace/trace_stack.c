@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2008 Steven Rostedt <srostedt@redhat.com>
  *
@@ -96,22 +97,8 @@ check_stack(unsigned long ip, unsigned long *stack)
 	if (in_nmi())
 		return;
 
-	/*
-	 * There's a slight chance that we are tracing inside the
-	 * RCU infrastructure, and rcu_irq_enter() will not work
-	 * as expected.
-	 */
-	if (unlikely(rcu_irq_enter_disabled()))
-		return;
-
 	local_irq_save(flags);
 	arch_spin_lock(&stack_trace_max_lock);
-
-	/*
-	 * RCU may not be watching, make it see us.
-	 * The stack trace code uses rcu_sched.
-	 */
-	rcu_irq_enter();
 
 	/* In case another CPU set the tracer_frame on us */
 	if (unlikely(!frame_size))
@@ -205,7 +192,6 @@ check_stack(unsigned long ip, unsigned long *stack)
 	}
 
  out:
-	rcu_irq_exit();
 	arch_spin_unlock(&stack_trace_max_lock);
 	local_irq_restore(flags);
 }
@@ -406,6 +392,8 @@ static const struct file_operations stack_trace_fops = {
 	.release	= seq_release,
 };
 
+#ifdef CONFIG_DYNAMIC_FTRACE
+
 static int
 stack_trace_filter_open(struct inode *inode, struct file *file)
 {
@@ -422,6 +410,8 @@ static const struct file_operations stack_trace_filter_fops = {
 	.llseek = tracing_lseek,
 	.release = ftrace_regex_release,
 };
+
+#endif /* CONFIG_DYNAMIC_FTRACE */
 
 int
 stack_trace_sysctl(struct ctl_table *table, int write,
@@ -477,8 +467,10 @@ static __init int stack_trace_init(void)
 	trace_create_file("stack_trace", 0444, d_tracer,
 			NULL, &stack_trace_fops);
 
+#ifdef CONFIG_DYNAMIC_FTRACE
 	trace_create_file("stack_trace_filter", 0444, d_tracer,
 			  &trace_ops, &stack_trace_filter_fops);
+#endif
 
 	if (stack_trace_filter_buf[0])
 		ftrace_set_early_filter(&trace_ops, stack_trace_filter_buf, 1);

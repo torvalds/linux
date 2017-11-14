@@ -1,8 +1,10 @@
+# SPDX-License-Identifier: GPL-2.0
 config ZONE_DMA
 	def_bool y
 
 config XTENSA
 	def_bool y
+	select ARCH_NO_COHERENT_DMA_MMAP if !MMU
 	select ARCH_WANT_FRAME_POINTERS
 	select ARCH_WANT_IPC_PARSE_VERSION
 	select BUILDTIME_EXTABLE_SORT

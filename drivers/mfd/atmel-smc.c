@@ -206,7 +206,7 @@ EXPORT_SYMBOL_GPL(atmel_smc_cs_conf_set_pulse);
  *	     parameter
  *
  * This function encodes the @ncycles value as described in the datasheet
- * (section "SMC Pulse Register"), and then stores the result in the
+ * (section "SMC Cycle Register"), and then stores the result in the
  * @conf->setup field at @shift position.
  *
  * Returns -EINVAL if @shift is invalid, -ERANGE if @ncycles does not fit in
@@ -258,19 +258,21 @@ EXPORT_SYMBOL_GPL(atmel_smc_cs_conf_apply);
  * atmel_hsmc_cs_conf_apply - apply an SMC CS conf
  * @regmap: the HSMC regmap
  * @cs: the CS id
+ * @layout: the layout of registers
  * @conf the SMC CS conf to apply
  *
  * Applies an SMC CS configuration.
  * Only valid on post-sama5 SoCs.
  */
-void atmel_hsmc_cs_conf_apply(struct regmap *regmap, int cs,
-			      const struct atmel_smc_cs_conf *conf)
+void atmel_hsmc_cs_conf_apply(struct regmap *regmap,
+			      const struct atmel_hsmc_reg_layout *layout,
+			      int cs, const struct atmel_smc_cs_conf *conf)
 {
-	regmap_write(regmap, ATMEL_HSMC_SETUP(cs), conf->setup);
-	regmap_write(regmap, ATMEL_HSMC_PULSE(cs), conf->pulse);
-	regmap_write(regmap, ATMEL_HSMC_CYCLE(cs), conf->cycle);
-	regmap_write(regmap, ATMEL_HSMC_TIMINGS(cs), conf->timings);
-	regmap_write(regmap, ATMEL_HSMC_MODE(cs), conf->mode);
+	regmap_write(regmap, ATMEL_HSMC_SETUP(layout, cs), conf->setup);
+	regmap_write(regmap, ATMEL_HSMC_PULSE(layout, cs), conf->pulse);
+	regmap_write(regmap, ATMEL_HSMC_CYCLE(layout, cs), conf->cycle);
+	regmap_write(regmap, ATMEL_HSMC_TIMINGS(layout, cs), conf->timings);
+	regmap_write(regmap, ATMEL_HSMC_MODE(layout, cs), conf->mode);
 }
 EXPORT_SYMBOL_GPL(atmel_hsmc_cs_conf_apply);
 
@@ -297,18 +299,55 @@ EXPORT_SYMBOL_GPL(atmel_smc_cs_conf_get);
  * atmel_hsmc_cs_conf_get - retrieve the current SMC CS conf
  * @regmap: the HSMC regmap
  * @cs: the CS id
+ * @layout: the layout of registers
  * @conf: the SMC CS conf object to store the current conf
  *
  * Retrieve the SMC CS configuration.
  * Only valid on post-sama5 SoCs.
  */
-void atmel_hsmc_cs_conf_get(struct regmap *regmap, int cs,
-			    struct atmel_smc_cs_conf *conf)
+void atmel_hsmc_cs_conf_get(struct regmap *regmap,
+			    const struct atmel_hsmc_reg_layout *layout,
+			    int cs, struct atmel_smc_cs_conf *conf)
 {
-	regmap_read(regmap, ATMEL_HSMC_SETUP(cs), &conf->setup);
-	regmap_read(regmap, ATMEL_HSMC_PULSE(cs), &conf->pulse);
-	regmap_read(regmap, ATMEL_HSMC_CYCLE(cs), &conf->cycle);
-	regmap_read(regmap, ATMEL_HSMC_TIMINGS(cs), &conf->timings);
-	regmap_read(regmap, ATMEL_HSMC_MODE(cs), &conf->mode);
+	regmap_read(regmap, ATMEL_HSMC_SETUP(layout, cs), &conf->setup);
+	regmap_read(regmap, ATMEL_HSMC_PULSE(layout, cs), &conf->pulse);
+	regmap_read(regmap, ATMEL_HSMC_CYCLE(layout, cs), &conf->cycle);
+	regmap_read(regmap, ATMEL_HSMC_TIMINGS(layout, cs), &conf->timings);
+	regmap_read(regmap, ATMEL_HSMC_MODE(layout, cs), &conf->mode);
 }
 EXPORT_SYMBOL_GPL(atmel_hsmc_cs_conf_get);
+
+static const struct atmel_hsmc_reg_layout sama5d3_reg_layout = {
+	.timing_regs_offset = 0x600,
+};
+
+static const struct atmel_hsmc_reg_layout sama5d2_reg_layout = {
+	.timing_regs_offset = 0x700,
+};
+
+static const struct of_device_id atmel_smc_ids[] = {
+	{ .compatible = "atmel,at91sam9260-smc", .data = NULL },
+	{ .compatible = "atmel,sama5d3-smc", .data = &sama5d3_reg_layout },
+	{ .compatible = "atmel,sama5d2-smc", .data = &sama5d2_reg_layout },
+	{ /* sentinel */ },
+};
+
+/**
+ * atmel_hsmc_get_reg_layout - retrieve the layout of HSMC registers
+ * @np: the HSMC regmap
+ *
+ * Retrieve the layout of HSMC registers.
+ *
+ * Returns NULL in case of SMC, a struct atmel_hsmc_reg_layout pointer
+ * in HSMC case, otherwise ERR_PTR(-EINVAL).
+ */
+const struct atmel_hsmc_reg_layout *
+atmel_hsmc_get_reg_layout(struct device_node *np)
+{
+	const struct of_device_id *match;
+
+	match = of_match_node(atmel_smc_ids, np);
+
+	return match ? match->data : ERR_PTR(-EINVAL);
+}
+EXPORT_SYMBOL_GPL(atmel_hsmc_get_reg_layout);

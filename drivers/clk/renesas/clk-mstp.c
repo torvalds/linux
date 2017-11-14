@@ -325,7 +325,7 @@ fail_put:
 
 void cpg_mstp_detach_dev(struct generic_pm_domain *unused, struct device *dev)
 {
-	if (!list_empty(&dev->power.subsys_data->clock_list))
+	if (!pm_clk_no_clocks(dev))
 		pm_clk_destroy(dev);
 }
 
@@ -335,7 +335,7 @@ void __init cpg_mstp_add_clk_domain(struct device_node *np)
 	u32 ncells;
 
 	if (of_property_read_u32(np, "#power-domain-cells", &ncells)) {
-		pr_warn("%s lacks #power-domain-cells\n", np->full_name);
+		pr_warn("%pOF lacks #power-domain-cells\n", np);
 		return;
 	}
 

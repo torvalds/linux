@@ -145,7 +145,7 @@ static void bcm2835_thermal_debugfs(struct platform_device *pdev)
 	debugfs_create_regset32("regset", 0444, data->debugfsdir, regset);
 }
 
-static struct thermal_zone_of_device_ops bcm2835_thermal_ops = {
+static const struct thermal_zone_of_device_ops bcm2835_thermal_ops = {
 	.get_temp = bcm2835_thermal_get_temp,
 };
 
@@ -245,7 +245,6 @@ static int bcm2835_thermal_probe(struct platform_device *pdev)
 		 */
 		err = tz->ops->get_trip_temp(tz, 0, &trip_temp);
 		if (err < 0) {
-			err = PTR_ERR(tz);
 			dev_err(&pdev->dev,
 				"Not able to read trip_temp: %d\n",
 				err);

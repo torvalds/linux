@@ -22,7 +22,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/mtd/mtd.h>
-#include <linux/mtd/nand.h>
+#include <linux/mtd/rawnand.h>
 #include <linux/mtd/partitions.h>
 #include <linux/interrupt.h>
 #include <linux/device.h>
@@ -152,9 +152,8 @@ struct mxc_nand_devtype_data {
 	void (*select_chip)(struct mtd_info *mtd, int chip);
 	int (*correct_data)(struct mtd_info *mtd, u_char *dat,
 			u_char *read_ecc, u_char *calc_ecc);
-	int (*setup_data_interface)(struct mtd_info *mtd,
-				    const struct nand_data_interface *conf,
-				    bool check_only);
+	int (*setup_data_interface)(struct mtd_info *mtd, int csline,
+				    const struct nand_data_interface *conf);
 
 	/*
 	 * On i.MX21 the CONFIG2:INT bit cannot be read if interrupts are masked
@@ -877,6 +876,8 @@ static void mxc_do_addr_cycle(struct mtd_info *mtd, int column, int page_addr)
 	}
 }
 
+#define MXC_V1_ECCBYTES		5
+
 static int mxc_v1_ooblayout_ecc(struct mtd_info *mtd, int section,
 				struct mtd_oob_region *oobregion)
 {
@@ -886,7 +887,7 @@ static int mxc_v1_ooblayout_ecc(struct mtd_info *mtd, int section,
 		return -ERANGE;
 
 	oobregion->offset = (section * 16) + 6;
-	oobregion->length = nand_chip->ecc.bytes;
+	oobregion->length = MXC_V1_ECCBYTES;
 
 	return 0;
 }
@@ -908,8 +909,7 @@ static int mxc_v1_ooblayout_free(struct mtd_info *mtd, int section,
 			oobregion->length = 4;
 		}
 	} else {
-		oobregion->offset = ((section - 1) * 16) +
-				    nand_chip->ecc.bytes + 6;
+		oobregion->offset = ((section - 1) * 16) + MXC_V1_ECCBYTES + 6;
 		if (section < nand_chip->ecc.steps)
 			oobregion->length = (section * 16) + 6 -
 					    oobregion->offset;
@@ -1015,9 +1015,8 @@ static void preset_v1(struct mtd_info *mtd)
 	writew(0x4, NFC_V1_V2_WRPROT);
 }
 
-static int mxc_nand_v2_setup_data_interface(struct mtd_info *mtd,
-					const struct nand_data_interface *conf,
-					bool check_only)
+static int mxc_nand_v2_setup_data_interface(struct mtd_info *mtd, int csline,
+					const struct nand_data_interface *conf)
 {
 	struct nand_chip *nand_chip = mtd_to_nand(mtd);
 	struct mxc_nand_host *host = nand_get_controller_data(nand_chip);
@@ -1075,7 +1074,7 @@ static int mxc_nand_v2_setup_data_interface(struct mtd_info *mtd,
 		return -EINVAL;
 	}
 
-	if (check_only)
+	if (csline == NAND_DATA_IFACE_CHECK_ONLY)
 		return 0;
 
 	ret = clk_set_rate(host->clk, rate);

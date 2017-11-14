@@ -421,7 +421,7 @@ void sctp_icmp_redirect(struct sock *sk, struct sctp_transport *t,
 {
 	struct dst_entry *dst;
 
-	if (!t)
+	if (sock_owned_by_user(sk) || !t)
 		return;
 	dst = sctp_transport_dst_check(t);
 	if (dst)
@@ -663,19 +663,19 @@ out_unlock:
  */
 static int sctp_rcv_ootb(struct sk_buff *skb)
 {
-	sctp_chunkhdr_t *ch, _ch;
+	struct sctp_chunkhdr *ch, _ch;
 	int ch_end, offset = 0;
 
 	/* Scan through all the chunks in the packet.  */
 	do {
 		/* Make sure we have at least the header there */
-		if (offset + sizeof(sctp_chunkhdr_t) > skb->len)
+		if (offset + sizeof(_ch) > skb->len)
 			break;
 
 		ch = skb_header_pointer(skb, offset, sizeof(*ch), &_ch);
 
 		/* Break out if chunk length is less then minimal. */
-		if (ntohs(ch->length) < sizeof(sctp_chunkhdr_t))
+		if (ntohs(ch->length) < sizeof(_ch))
 			break;
 
 		ch_end = offset + SCTP_PAD4(ntohs(ch->length));
@@ -794,7 +794,7 @@ hit:
 struct sctp_hash_cmp_arg {
 	const union sctp_addr	*paddr;
 	const struct net	*net;
-	u16			lport;
+	__be16			lport;
 };
 
 static inline int sctp_hash_cmp(struct rhashtable_compare_arg *arg,
@@ -820,37 +820,37 @@ out:
 	return err;
 }
 
-static inline u32 sctp_hash_obj(const void *data, u32 len, u32 seed)
+static inline __u32 sctp_hash_obj(const void *data, u32 len, u32 seed)
 {
 	const struct sctp_transport *t = data;
 	const union sctp_addr *paddr = &t->ipaddr;
 	const struct net *net = sock_net(t->asoc->base.sk);
-	u16 lport = htons(t->asoc->base.bind_addr.port);
-	u32 addr;
+	__be16 lport = htons(t->asoc->base.bind_addr.port);
+	__u32 addr;
 
 	if (paddr->sa.sa_family == AF_INET6)
 		addr = jhash(&paddr->v6.sin6_addr, 16, seed);
 	else
-		addr = paddr->v4.sin_addr.s_addr;
+		addr = (__force __u32)paddr->v4.sin_addr.s_addr;
 
-	return  jhash_3words(addr, ((__u32)paddr->v4.sin_port) << 16 |
+	return  jhash_3words(addr, ((__force __u32)paddr->v4.sin_port) << 16 |
 			     (__force __u32)lport, net_hash_mix(net), seed);
 }
 
-static inline u32 sctp_hash_key(const void *data, u32 len, u32 seed)
+static inline __u32 sctp_hash_key(const void *data, u32 len, u32 seed)
 {
 	const struct sctp_hash_cmp_arg *x = data;
 	const union sctp_addr *paddr = x->paddr;
 	const struct net *net = x->net;
-	u16 lport = x->lport;
-	u32 addr;
+	__be16 lport = x->lport;
+	__u32 addr;
 
 	if (paddr->sa.sa_family == AF_INET6)
 		addr = jhash(&paddr->v6.sin6_addr, 16, seed);
 	else
-		addr = paddr->v4.sin_addr.s_addr;
+		addr = (__force __u32)paddr->v4.sin_addr.s_addr;
 
-	return  jhash_3words(addr, ((__u32)paddr->v4.sin_port) << 16 |
+	return  jhash_3words(addr, ((__force __u32)paddr->v4.sin_port) << 16 |
 			     (__force __u32)lport, net_hash_mix(net), seed);
 }
 
@@ -1051,7 +1051,7 @@ static struct sctp_association *__sctp_rcv_init_lookup(struct net *net,
 	union sctp_addr *paddr = &addr;
 	struct sctphdr *sh = sctp_hdr(skb);
 	union sctp_params params;
-	sctp_init_chunk_t *init;
+	struct sctp_init_chunk *init;
 	struct sctp_af *af;
 
 	/*
@@ -1070,7 +1070,7 @@ static struct sctp_association *__sctp_rcv_init_lookup(struct net *net,
 	/* Find the start of the TLVs and the end of the chunk.  This is
 	 * the region we search for address parameters.
 	 */
-	init = (sctp_init_chunk_t *)skb->data;
+	init = (struct sctp_init_chunk *)skb->data;
 
 	/* Walk the parameters looking for embedded addresses. */
 	sctp_walk_params(params, init, init_hdr.params) {
@@ -1106,12 +1106,12 @@ static struct sctp_association *__sctp_rcv_init_lookup(struct net *net,
  */
 static struct sctp_association *__sctp_rcv_asconf_lookup(
 					struct net *net,
-					sctp_chunkhdr_t *ch,
+					struct sctp_chunkhdr *ch,
 					const union sctp_addr *laddr,
 					__be16 peer_port,
 					struct sctp_transport **transportp)
 {
-	sctp_addip_chunk_t *asconf = (struct sctp_addip_chunk *)ch;
+	struct sctp_addip_chunk *asconf = (struct sctp_addip_chunk *)ch;
 	struct sctp_af *af;
 	union sctp_addr_param *param;
 	union sctp_addr paddr;
@@ -1144,7 +1144,7 @@ static struct sctp_association *__sctp_rcv_walk_lookup(struct net *net,
 				      struct sctp_transport **transportp)
 {
 	struct sctp_association *asoc = NULL;
-	sctp_chunkhdr_t *ch;
+	struct sctp_chunkhdr *ch;
 	int have_auth = 0;
 	unsigned int chunk_num = 1;
 	__u8 *ch_end;
@@ -1152,10 +1152,10 @@ static struct sctp_association *__sctp_rcv_walk_lookup(struct net *net,
 	/* Walk through the chunks looking for AUTH or ASCONF chunks
 	 * to help us find the association.
 	 */
-	ch = (sctp_chunkhdr_t *) skb->data;
+	ch = (struct sctp_chunkhdr *)skb->data;
 	do {
 		/* Break out if chunk length is less then minimal. */
-		if (ntohs(ch->length) < sizeof(sctp_chunkhdr_t))
+		if (ntohs(ch->length) < sizeof(*ch))
 			break;
 
 		ch_end = ((__u8 *)ch) + SCTP_PAD4(ntohs(ch->length));
@@ -1192,7 +1192,7 @@ static struct sctp_association *__sctp_rcv_walk_lookup(struct net *net,
 		if (asoc)
 			break;
 
-		ch = (sctp_chunkhdr_t *) ch_end;
+		ch = (struct sctp_chunkhdr *)ch_end;
 		chunk_num++;
 	} while (ch_end < skb_tail_pointer(skb));
 
@@ -1210,7 +1210,7 @@ static struct sctp_association *__sctp_rcv_lookup_harder(struct net *net,
 				      const union sctp_addr *laddr,
 				      struct sctp_transport **transportp)
 {
-	sctp_chunkhdr_t *ch;
+	struct sctp_chunkhdr *ch;
 
 	/* We do not allow GSO frames here as we need to linearize and
 	 * then cannot guarantee frame boundaries. This shouldn't be an
@@ -1220,7 +1220,7 @@ static struct sctp_association *__sctp_rcv_lookup_harder(struct net *net,
 	if ((skb_shinfo(skb)->gso_type & SKB_GSO_SCTP) == SKB_GSO_SCTP)
 		return NULL;
 
-	ch = (sctp_chunkhdr_t *) skb->data;
+	ch = (struct sctp_chunkhdr *)skb->data;
 
 	/* The code below will attempt to walk the chunk and extract
 	 * parameter information.  Before we do that, we need to verify

@@ -246,9 +246,9 @@ static int nokia_send_alive_packet(struct hci_uart *hu)
 	hci_skb_pkt_type(skb) = HCI_NOKIA_ALIVE_PKT;
 	memset(skb->data, 0x00, len);
 
-	hdr = (struct hci_nokia_alive_hdr *)skb_put(skb, sizeof(*hdr));
+	hdr = skb_put(skb, sizeof(*hdr));
 	hdr->dlen = sizeof(*pkt);
-	pkt = (struct hci_nokia_alive_pkt *)skb_put(skb, sizeof(*pkt));
+	pkt = skb_put(skb, sizeof(*pkt));
 	pkt->mid = NOKIA_ALIVE_REQ;
 
 	nokia_enqueue(hu, skb);
@@ -285,10 +285,10 @@ static int nokia_send_negotiation(struct hci_uart *hu)
 
 	hci_skb_pkt_type(skb) = HCI_NOKIA_NEG_PKT;
 
-	neg_hdr = (struct hci_nokia_neg_hdr *)skb_put(skb, sizeof(*neg_hdr));
+	neg_hdr = skb_put(skb, sizeof(*neg_hdr));
 	neg_hdr->dlen = sizeof(*neg_cmd);
 
-	neg_cmd = (struct hci_nokia_neg_cmd *)skb_put(skb, sizeof(*neg_cmd));
+	neg_cmd = skb_put(skb, sizeof(*neg_cmd));
 	neg_cmd->ack = NOKIA_NEG_REQ;
 	neg_cmd->baud = cpu_to_le16(baud);
 	neg_cmd->unused1 = 0x0000;
@@ -532,7 +532,7 @@ static int nokia_enqueue(struct hci_uart *hu, struct sk_buff *skb)
 		err = skb_pad(skb, 1);
 		if (err)
 			return err;
-		*skb_put(skb, 1) = 0x00;
+		skb_put_u8(skb, 0x00);
 	}
 
 	skb_queue_tail(&btdev->txq, skb);
@@ -557,7 +557,7 @@ static int nokia_recv_negotiation_packet(struct hci_dev *hdev,
 		goto finish_neg;
 	}
 
-	evt = (struct hci_nokia_neg_evt *)skb_pull(skb, sizeof(*hdr));
+	evt = skb_pull(skb, sizeof(*hdr));
 
 	if (evt->ack != NOKIA_NEG_ACK) {
 		dev_err(dev, "Negotiation received: wrong reply");
@@ -595,7 +595,7 @@ static int nokia_recv_alive_packet(struct hci_dev *hdev, struct sk_buff *skb)
 		goto finish_alive;
 	}
 
-	pkt = (struct hci_nokia_alive_pkt *)skb_pull(skb, sizeof(*hdr));
+	pkt = skb_pull(skb, sizeof(*hdr));
 
 	if (pkt->mid != NOKIA_ALIVE_RESP) {
 		dev_err(dev, "Alive received: invalid response: 0x%02x!",
@@ -767,16 +767,8 @@ static int nokia_bluetooth_serdev_probe(struct serdev_device *serdev)
 static void nokia_bluetooth_serdev_remove(struct serdev_device *serdev)
 {
 	struct nokia_bt_dev *btdev = serdev_device_get_drvdata(serdev);
-	struct hci_uart *hu = &btdev->hu;
-	struct hci_dev *hdev = hu->hdev;
 
-	cancel_work_sync(&hu->write_work);
-
-	hci_unregister_dev(hdev);
-	hci_free_dev(hdev);
-	hu->proto->close(hu);
-
-	pm_runtime_disable(&btdev->serdev->dev);
+	hci_uart_unregister_device(&btdev->hu);
 }
 
 static int nokia_bluetooth_runtime_suspend(struct device *dev)

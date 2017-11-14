@@ -21,7 +21,7 @@
 #include <linux/of_device.h>
 #include <linux/of_graph.h>
 
-#include <media/v4l2-of.h>
+#include <media/v4l2-fwnode.h>
 #include <media/v4l2-async.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-ctrls.h>
@@ -270,7 +270,7 @@ struct cal_ctx {
 	struct video_device	vdev;
 	struct v4l2_async_notifier notifier;
 	struct v4l2_subdev	*sensor;
-	struct v4l2_of_endpoint	endpoint;
+	struct v4l2_fwnode_endpoint	endpoint;
 
 	struct v4l2_async_subdev asd;
 	struct v4l2_async_subdev *asd_list[1];
@@ -608,7 +608,8 @@ static void csi2_lane_config(struct cal_ctx *ctx)
 	u32 val = reg_read(ctx->dev, CAL_CSI2_COMPLEXIO_CFG(ctx->csi2_port));
 	u32 lane_mask = CAL_CSI2_COMPLEXIO_CFG_CLOCK_POSITION_MASK;
 	u32 polarity_mask = CAL_CSI2_COMPLEXIO_CFG_CLOCK_POL_MASK;
-	struct v4l2_of_bus_mipi_csi2 *mipi_csi2 = &ctx->endpoint.bus.mipi_csi2;
+	struct v4l2_fwnode_bus_mipi_csi2 *mipi_csi2 =
+		&ctx->endpoint.bus.mipi_csi2;
 	int lane;
 
 	set_field(&val, mipi_csi2->clock_lane + 1, lane_mask);
@@ -1419,7 +1420,7 @@ static const struct v4l2_ioctl_ops cal_ioctl_ops = {
 	.vidioc_unsubscribe_event = v4l2_event_unsubscribe,
 };
 
-static struct video_device cal_videodev = {
+static const struct video_device cal_videodev = {
 	.name		= CAL_MODULE_NAME,
 	.fops		= &cal_fops,
 	.ioctl_ops	= &cal_ioctl_ops,
@@ -1643,7 +1644,7 @@ static int of_cal_create_instance(struct cal_ctx *ctx, int inst)
 	struct platform_device *pdev = ctx->dev->pdev;
 	struct device_node *ep_node, *port, *remote_ep,
 			*sensor_node, *parent;
-	struct v4l2_of_endpoint *endpoint;
+	struct v4l2_fwnode_endpoint *endpoint;
 	struct v4l2_async_subdev *asd;
 	u32 regval = 0;
 	int ret, index, found_port = 0, lane;
@@ -1698,15 +1699,15 @@ static int of_cal_create_instance(struct cal_ctx *ctx, int inst)
 		ctx_dbg(3, ctx, "can't get remote parent\n");
 		goto cleanup_exit;
 	}
-	asd->match_type = V4L2_ASYNC_MATCH_OF;
-	asd->match.of.node = sensor_node;
+	asd->match_type = V4L2_ASYNC_MATCH_FWNODE;
+	asd->match.fwnode.fwnode = of_fwnode_handle(sensor_node);
 
-	remote_ep = of_parse_phandle(ep_node, "remote-endpoint", 0);
+	remote_ep = of_graph_get_remote_endpoint(ep_node);
 	if (!remote_ep) {
 		ctx_dbg(3, ctx, "can't get remote-endpoint\n");
 		goto cleanup_exit;
 	}
-	v4l2_of_parse_endpoint(remote_ep, endpoint);
+	v4l2_fwnode_endpoint_parse(of_fwnode_handle(remote_ep), endpoint);
 
 	if (endpoint->bus_type != V4L2_MBUS_CSI2) {
 		ctx_err(ctx, "Port:%d sub-device %s is not a CSI2 device\n",

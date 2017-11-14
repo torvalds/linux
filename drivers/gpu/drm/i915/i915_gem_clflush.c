@@ -27,7 +27,6 @@
 #include "i915_gem_clflush.h"
 
 static DEFINE_SPINLOCK(clflush_lock);
-static u64 clflush_context;
 
 struct clflush {
 	struct dma_fence dma; /* Must be first for dma_fence_free() */
@@ -72,8 +71,6 @@ static const struct dma_fence_ops i915_clflush_ops = {
 static void __i915_do_clflush(struct drm_i915_gem_object *obj)
 {
 	drm_clflush_sg(obj->mm.pages);
-	obj->cache_dirty = false;
-
 	intel_fb_obj_flush(obj, ORIGIN_CPU);
 }
 
@@ -81,9 +78,6 @@ static void i915_clflush_work(struct work_struct *work)
 {
 	struct clflush *clflush = container_of(work, typeof(*clflush), work);
 	struct drm_i915_gem_object *obj = clflush->obj;
-
-	if (!obj->cache_dirty)
-		goto out;
 
 	if (i915_gem_object_pin_pages(obj)) {
 		DRM_ERROR("Failed to acquire obj->pages for clflushing\n");
@@ -120,7 +114,7 @@ i915_clflush_notify(struct i915_sw_fence *fence,
 	return NOTIFY_DONE;
 }
 
-void i915_gem_clflush_object(struct drm_i915_gem_object *obj,
+bool i915_gem_clflush_object(struct drm_i915_gem_object *obj,
 			     unsigned int flags)
 {
 	struct clflush *clflush;
@@ -132,10 +126,10 @@ void i915_gem_clflush_object(struct drm_i915_gem_object *obj,
 	 * anything not backed by physical memory we consider to be always
 	 * coherent and not need clflushing.
 	 */
-	if (!i915_gem_object_has_struct_page(obj))
-		return;
-
-	obj->cache_dirty = true;
+	if (!i915_gem_object_has_struct_page(obj)) {
+		obj->cache_dirty = false;
+		return false;
+	}
 
 	/* If the GPU is snooping the contents of the CPU cache,
 	 * we do not need to manually clear the CPU cache lines.  However,
@@ -145,8 +139,9 @@ void i915_gem_clflush_object(struct drm_i915_gem_object *obj,
 	 * snooping behaviour occurs naturally as the result of our domain
 	 * tracking.
 	 */
-	if (!(flags & I915_CLFLUSH_FORCE) && i915_gem_object_is_coherent(obj))
-		return;
+	if (!(flags & I915_CLFLUSH_FORCE) &&
+	    obj->cache_coherent & I915_BO_CACHE_COHERENT_FOR_READ)
+		return false;
 
 	trace_i915_gem_object_clflush(obj);
 
@@ -154,10 +149,12 @@ void i915_gem_clflush_object(struct drm_i915_gem_object *obj,
 	if (!(flags & I915_CLFLUSH_SYNC))
 		clflush = kmalloc(sizeof(*clflush), GFP_KERNEL);
 	if (clflush) {
+		GEM_BUG_ON(!obj->cache_dirty);
+
 		dma_fence_init(&clflush->dma,
 			       &i915_clflush_ops,
 			       &clflush_lock,
-			       clflush_context,
+			       to_i915(obj->base.dev)->mm.unordered_timeline,
 			       0);
 		i915_sw_fence_init(&clflush->wait, i915_clflush_notify);
 
@@ -181,9 +178,7 @@ void i915_gem_clflush_object(struct drm_i915_gem_object *obj,
 	} else {
 		GEM_BUG_ON(obj->base.write_domain != I915_GEM_DOMAIN_CPU);
 	}
-}
 
-void i915_gem_clflush_init(struct drm_i915_private *i915)
-{
-	clflush_context = dma_fence_context_alloc(1);
+	obj->cache_dirty = false;
+	return true;
 }

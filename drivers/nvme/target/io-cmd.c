@@ -21,7 +21,7 @@ static void nvmet_bio_done(struct bio *bio)
 	struct nvmet_req *req = bio->bi_private;
 
 	nvmet_req_complete(req,
-		bio->bi_error ? NVME_SC_INTERNAL | NVME_SC_DNR : 0);
+		bio->bi_status ? NVME_SC_INTERNAL | NVME_SC_DNR : 0);
 
 	if (bio != &req->inline_bio)
 		bio_put(bio);
@@ -68,7 +68,7 @@ static void nvmet_execute_rw(struct nvmet_req *req)
 
 	nvmet_inline_bio_init(req);
 	bio = &req->inline_bio;
-	bio->bi_bdev = req->ns->bdev;
+	bio_set_dev(bio, req->ns->bdev);
 	bio->bi_iter.bi_sector = sector;
 	bio->bi_private = req;
 	bio->bi_end_io = nvmet_bio_done;
@@ -80,12 +80,12 @@ static void nvmet_execute_rw(struct nvmet_req *req)
 			struct bio *prev = bio;
 
 			bio = bio_alloc(GFP_KERNEL, min(sg_cnt, BIO_MAX_PAGES));
-			bio->bi_bdev = req->ns->bdev;
+			bio_set_dev(bio, req->ns->bdev);
 			bio->bi_iter.bi_sector = sector;
 			bio_set_op_attrs(bio, op, op_flags);
 
 			bio_chain(bio, prev);
-			cookie = submit_bio(prev);
+			submit_bio(prev);
 		}
 
 		sector += sg->length >> 9;
@@ -104,7 +104,7 @@ static void nvmet_execute_flush(struct nvmet_req *req)
 	nvmet_inline_bio_init(req);
 	bio = &req->inline_bio;
 
-	bio->bi_bdev = req->ns->bdev;
+	bio_set_dev(bio, req->ns->bdev);
 	bio->bi_private = req;
 	bio->bi_end_io = nvmet_bio_done;
 	bio->bi_opf = REQ_OP_WRITE | REQ_PREFLUSH;
@@ -145,7 +145,7 @@ static void nvmet_execute_discard(struct nvmet_req *req)
 		bio->bi_private = req;
 		bio->bi_end_io = nvmet_bio_done;
 		if (status) {
-			bio->bi_error = -EIO;
+			bio->bi_status = BLK_STS_IOERR;
 			bio_endio(bio);
 		} else {
 			submit_bio(bio);

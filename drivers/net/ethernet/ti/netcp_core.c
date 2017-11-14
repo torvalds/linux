@@ -1877,20 +1877,21 @@ static u16 netcp_select_queue(struct net_device *dev, struct sk_buff *skb,
 	return 0;
 }
 
-static int netcp_setup_tc(struct net_device *dev, u32 handle, __be16 proto,
-			  struct tc_to_netdev *tc)
+static int netcp_setup_tc(struct net_device *dev, enum tc_setup_type type,
+			  void *type_data)
 {
+	struct tc_mqprio_qopt *mqprio = type_data;
 	u8 num_tc;
 	int i;
 
 	/* setup tc must be called under rtnl lock */
 	ASSERT_RTNL();
 
-	if (tc->type != TC_SETUP_MQPRIO)
-		return -EINVAL;
+	if (type != TC_SETUP_MQPRIO)
+		return -EOPNOTSUPP;
 
-	tc->mqprio->hw = TC_MQPRIO_HW_OFFLOAD_TCS;
-	num_tc = tc->mqprio->num_tc;
+	mqprio->hw = TC_MQPRIO_HW_OFFLOAD_TCS;
+	num_tc = mqprio->num_tc;
 
 	/* Sanity-check the number of traffic classes requested */
 	if ((dev->real_num_tx_queues <= 1) ||
@@ -2144,7 +2145,6 @@ static void netcp_delete_interface(struct netcp_device *netcp_device,
 
 	of_node_put(netcp->node_interface);
 	unregister_netdev(ndev);
-	netif_napi_del(&netcp->rx_napi);
 	free_netdev(ndev);
 }
 

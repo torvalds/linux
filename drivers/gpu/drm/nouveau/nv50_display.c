@@ -23,6 +23,7 @@
  */
 
 #include <linux/dma-mapping.h>
+#include <linux/hdmi.h>
 
 #include <drm/drmP.h>
 #include <drm/drm_atomic.h>
@@ -31,6 +32,7 @@
 #include <drm/drm_dp_helper.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_plane_helper.h>
+#include <drm/drm_edid.h>
 
 #include <nvif/class.h>
 #include <nvif/cl0002.h>
@@ -1033,7 +1035,7 @@ nv50_wndw_reset(struct drm_plane *plane)
 		plane->funcs->atomic_destroy_state(plane, plane->state);
 	plane->state = &asyw->state;
 	plane->state->plane = plane;
-	plane->state->rotation = DRM_ROTATE_0;
+	plane->state->rotation = DRM_MODE_ROTATE_0;
 }
 
 static void
@@ -1053,7 +1055,6 @@ nv50_wndw = {
 	.disable_plane = drm_atomic_helper_disable_plane,
 	.destroy = nv50_wndw_destroy,
 	.reset = nv50_wndw_reset,
-	.set_property = drm_atomic_helper_plane_set_property,
 	.atomic_duplicate_state = nv50_wndw_atomic_duplicate_state,
 	.atomic_destroy_state = nv50_wndw_atomic_destroy_state,
 };
@@ -1081,8 +1082,9 @@ nv50_wndw_ctor(const struct nv50_wndw_func *func, struct drm_device *dev,
 	wndw->func = func;
 	wndw->dmac = dmac;
 
-	ret = drm_universal_plane_init(dev, &wndw->plane, 0, &nv50_wndw, format,
-				       nformat, type, "%s-%d", name, index);
+	ret = drm_universal_plane_init(dev, &wndw->plane, 0, &nv50_wndw,
+				       format, nformat, NULL,
+				       type, "%s-%d", name, index);
 	if (ret)
 		return ret;
 
@@ -1965,6 +1967,7 @@ nv50_head_atomic_check_view(struct nv50_head_atom *armh,
 	struct drm_display_mode *umode = &asyh->state.mode;
 	int mode = asyc->scaler.mode;
 	struct edid *edid;
+	int umode_vdisplay, omode_hdisplay, omode_vdisplay;
 
 	if (connector->edid_blob_ptr)
 		edid = (struct edid *)connector->edid_blob_ptr->data;
@@ -1979,12 +1982,18 @@ nv50_head_atomic_check_view(struct nv50_head_atom *armh,
 		mode = DRM_MODE_SCALE_FULLSCREEN;
 	}
 
+	/* For the user-specified mode, we must ignore doublescan and
+	 * the like, but honor frame packing.
+	 */
+	umode_vdisplay = umode->vdisplay;
+	if ((umode->flags & DRM_MODE_FLAG_3D_MASK) == DRM_MODE_FLAG_3D_FRAME_PACKING)
+		umode_vdisplay += umode->vtotal;
 	asyh->view.iW = umode->hdisplay;
-	asyh->view.iH = umode->vdisplay;
-	asyh->view.oW = omode->hdisplay;
-	asyh->view.oH = omode->vdisplay;
-	if (omode->flags & DRM_MODE_FLAG_DBLSCAN)
-		asyh->view.oH *= 2;
+	asyh->view.iH = umode_vdisplay;
+	/* For the output mode, we can just use the stock helper. */
+	drm_mode_get_hv_timing(omode, &omode_hdisplay, &omode_vdisplay);
+	asyh->view.oW = omode_hdisplay;
+	asyh->view.oH = omode_vdisplay;
 
 	/* Add overscan compensation if necessary, will keep the aspect
 	 * ratio the same as the backend mode unless overridden by the
@@ -2014,7 +2023,7 @@ nv50_head_atomic_check_view(struct nv50_head_atom *armh,
 	switch (mode) {
 	case DRM_MODE_SCALE_CENTER:
 		asyh->view.oW = min((u16)umode->hdisplay, asyh->view.oW);
-		asyh->view.oH = min((u16)umode->vdisplay, asyh->view.oH);
+		asyh->view.oH = min((u16)umode_vdisplay, asyh->view.oH);
 		/* fall-through */
 	case DRM_MODE_SCALE_ASPECT:
 		if (asyh->view.oH < asyh->view.oW) {
@@ -2036,34 +2045,37 @@ static void
 nv50_head_atomic_check_mode(struct nv50_head *head, struct nv50_head_atom *asyh)
 {
 	struct drm_display_mode *mode = &asyh->state.adjusted_mode;
-	u32 ilace   = (mode->flags & DRM_MODE_FLAG_INTERLACE) ? 2 : 1;
-	u32 vscan   = (mode->flags & DRM_MODE_FLAG_DBLSCAN) ? 2 : 1;
-	u32 hbackp  =  mode->htotal - mode->hsync_end;
-	u32 vbackp  = (mode->vtotal - mode->vsync_end) * vscan / ilace;
-	u32 hfrontp =  mode->hsync_start - mode->hdisplay;
-	u32 vfrontp = (mode->vsync_start - mode->vdisplay) * vscan / ilace;
-	u32 blankus;
 	struct nv50_head_mode *m = &asyh->mode;
+	u32 blankus;
 
-	m->h.active = mode->htotal;
-	m->h.synce  = mode->hsync_end - mode->hsync_start - 1;
-	m->h.blanke = m->h.synce + hbackp;
-	m->h.blanks = mode->htotal - hfrontp - 1;
+	drm_mode_set_crtcinfo(mode, CRTC_INTERLACE_HALVE_V | CRTC_STEREO_DOUBLE);
 
-	m->v.active = mode->vtotal * vscan / ilace;
-	m->v.synce  = ((mode->vsync_end - mode->vsync_start) * vscan / ilace) - 1;
-	m->v.blanke = m->v.synce + vbackp;
-	m->v.blanks = m->v.active - vfrontp - 1;
+	/*
+	 * DRM modes are defined in terms of a repeating interval
+	 * starting with the active display area.  The hardware modes
+	 * are defined in terms of a repeating interval starting one
+	 * unit (pixel or line) into the sync pulse.  So, add bias.
+	 */
+
+	m->h.active = mode->crtc_htotal;
+	m->h.synce  = mode->crtc_hsync_end - mode->crtc_hsync_start - 1;
+	m->h.blanke = mode->crtc_hblank_end - mode->crtc_hsync_start - 1;
+	m->h.blanks = m->h.blanke + mode->crtc_hdisplay;
+
+	m->v.active = mode->crtc_vtotal;
+	m->v.synce  = mode->crtc_vsync_end - mode->crtc_vsync_start - 1;
+	m->v.blanke = mode->crtc_vblank_end - mode->crtc_vsync_start - 1;
+	m->v.blanks = m->v.blanke + mode->crtc_vdisplay;
 
 	/*XXX: Safe underestimate, even "0" works */
-	blankus = (m->v.active - mode->vdisplay - 2) * m->h.active;
+	blankus = (m->v.active - mode->crtc_vdisplay - 2) * m->h.active;
 	blankus *= 1000;
-	blankus /= mode->clock;
+	blankus /= mode->crtc_clock;
 	m->v.blankus = blankus;
 
 	if (mode->flags & DRM_MODE_FLAG_INTERLACE) {
-		m->v.blank2e =  m->v.active + m->v.synce + vbackp;
-		m->v.blank2s =  m->v.blank2e + (mode->vdisplay * vscan / ilace);
+		m->v.blank2e =  m->v.active + m->v.blanke;
+		m->v.blank2s =  m->v.blank2e + mode->crtc_vdisplay;
 		m->v.active  = (m->v.active * 2) + 1;
 		m->interlace = true;
 	} else {
@@ -2071,9 +2083,8 @@ nv50_head_atomic_check_mode(struct nv50_head *head, struct nv50_head_atom *asyh)
 		m->v.blank2s = 1;
 		m->interlace = false;
 	}
-	m->clock = mode->clock;
+	m->clock = mode->crtc_clock;
 
-	drm_mode_set_crtcinfo(mode, CRTC_INTERLACE_HALVE_V);
 	asyh->set.mode = true;
 }
 
@@ -2092,7 +2103,7 @@ nv50_head_atomic_check(struct drm_crtc *crtc, struct drm_crtc_state *state)
 
 	NV_ATOMIC(drm, "%s atomic_check %d\n", crtc->name, asyh->state.active);
 	if (asyh->state.active) {
-		for_each_connector_in_state(asyh->state.state, conn, conns, i) {
+		for_each_new_connector_in_state(asyh->state.state, conn, conns, i) {
 			if (conns->crtc == crtc) {
 				asyc = nouveau_conn_atom(conns);
 				break;
@@ -2193,28 +2204,29 @@ nv50_head_lut_load(struct drm_crtc *crtc)
 	struct nv50_disp *disp = nv50_disp(crtc->dev);
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
 	void __iomem *lut = nvbo_kmap_obj_iovirtual(nv_crtc->lut.nvbo);
+	u16 *r, *g, *b;
 	int i;
 
-	for (i = 0; i < 256; i++) {
-		u16 r = nv_crtc->lut.r[i] >> 2;
-		u16 g = nv_crtc->lut.g[i] >> 2;
-		u16 b = nv_crtc->lut.b[i] >> 2;
+	r = crtc->gamma_store;
+	g = r + crtc->gamma_size;
+	b = g + crtc->gamma_size;
 
+	for (i = 0; i < 256; i++) {
 		if (disp->disp->oclass < GF110_DISP) {
-			writew(r + 0x0000, lut + (i * 0x08) + 0);
-			writew(g + 0x0000, lut + (i * 0x08) + 2);
-			writew(b + 0x0000, lut + (i * 0x08) + 4);
+			writew((*r++ >> 2) + 0x0000, lut + (i * 0x08) + 0);
+			writew((*g++ >> 2) + 0x0000, lut + (i * 0x08) + 2);
+			writew((*b++ >> 2) + 0x0000, lut + (i * 0x08) + 4);
 		} else {
-			writew(r + 0x6000, lut + (i * 0x20) + 0);
-			writew(g + 0x6000, lut + (i * 0x20) + 2);
-			writew(b + 0x6000, lut + (i * 0x20) + 4);
+			/* 0x6000 interferes with the 14-bit color??? */
+			writew((*r++ >> 2) + 0x6000, lut + (i * 0x20) + 0);
+			writew((*g++ >> 2) + 0x6000, lut + (i * 0x20) + 2);
+			writew((*b++ >> 2) + 0x6000, lut + (i * 0x20) + 4);
 		}
 	}
 }
 
 static const struct drm_crtc_helper_funcs
 nv50_head_help = {
-	.load_lut = nv50_head_lut_load,
 	.atomic_check = nv50_head_atomic_check,
 };
 
@@ -2223,15 +2235,6 @@ nv50_head_gamma_set(struct drm_crtc *crtc, u16 *r, u16 *g, u16 *b,
 		    uint32_t size,
 		    struct drm_modeset_acquire_ctx *ctx)
 {
-	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
-	u32 i;
-
-	for (i = 0; i < size; i++) {
-		nv_crtc->lut.r[i] = r[i];
-		nv_crtc->lut.g[i] = g[i];
-		nv_crtc->lut.b[i] = b[i];
-	}
-
 	nv50_head_lut_load(crtc);
 	return 0;
 }
@@ -2314,7 +2317,6 @@ nv50_head_func = {
 	.destroy = nv50_head_destroy,
 	.set_config = drm_atomic_helper_set_config,
 	.page_flip = drm_atomic_helper_page_flip,
-	.set_property = drm_atomic_helper_crtc_set_property,
 	.atomic_duplicate_state = nv50_head_atomic_duplicate_state,
 	.atomic_destroy_state = nv50_head_atomic_destroy_state,
 };
@@ -2329,19 +2331,13 @@ nv50_head_create(struct drm_device *dev, int index)
 	struct nv50_base *base;
 	struct nv50_curs *curs;
 	struct drm_crtc *crtc;
-	int ret, i;
+	int ret;
 
 	head = kzalloc(sizeof(*head), GFP_KERNEL);
 	if (!head)
 		return -ENOMEM;
 
 	head->base.index = index;
-	for (i = 0; i < 256; i++) {
-		head->base.lut.r[i] = i << 8;
-		head->base.lut.g[i] = i << 8;
-		head->base.lut.b[i] = i << 8;
-	}
-
 	ret = nv50_base_new(drm, head, &base);
 	if (ret == 0)
 		ret = nv50_curs_new(drm, head, &curs);
@@ -2392,6 +2388,51 @@ out:
 /******************************************************************************
  * Output path helpers
  *****************************************************************************/
+static void
+nv50_outp_release(struct nouveau_encoder *nv_encoder)
+{
+	struct nv50_disp *disp = nv50_disp(nv_encoder->base.base.dev);
+	struct {
+		struct nv50_disp_mthd_v1 base;
+	} args = {
+		.base.version = 1,
+		.base.method = NV50_DISP_MTHD_V1_RELEASE,
+		.base.hasht  = nv_encoder->dcb->hasht,
+		.base.hashm  = nv_encoder->dcb->hashm,
+	};
+
+	nvif_mthd(disp->disp, 0, &args, sizeof(args));
+	nv_encoder->or = -1;
+	nv_encoder->link = 0;
+}
+
+static int
+nv50_outp_acquire(struct nouveau_encoder *nv_encoder)
+{
+	struct nouveau_drm *drm = nouveau_drm(nv_encoder->base.base.dev);
+	struct nv50_disp *disp = nv50_disp(drm->dev);
+	struct {
+		struct nv50_disp_mthd_v1 base;
+		struct nv50_disp_acquire_v0 info;
+	} args = {
+		.base.version = 1,
+		.base.method = NV50_DISP_MTHD_V1_ACQUIRE,
+		.base.hasht  = nv_encoder->dcb->hasht,
+		.base.hashm  = nv_encoder->dcb->hashm,
+	};
+	int ret;
+
+	ret = nvif_mthd(disp->disp, 0, &args, sizeof(args));
+	if (ret) {
+		NV_ERROR(drm, "error acquiring output path: %d\n", ret);
+		return ret;
+	}
+
+	nv_encoder->or = args.info.or;
+	nv_encoder->link = args.info.link;
+	return 0;
+}
+
 static int
 nv50_outp_atomic_check_view(struct drm_encoder *encoder,
 			    struct drm_crtc_state *crtc_state,
@@ -2449,30 +2490,6 @@ nv50_outp_atomic_check(struct drm_encoder *encoder,
  * DAC
  *****************************************************************************/
 static void
-nv50_dac_dpms(struct drm_encoder *encoder, int mode)
-{
-	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
-	struct nv50_disp *disp = nv50_disp(encoder->dev);
-	struct {
-		struct nv50_disp_mthd_v1 base;
-		struct nv50_disp_dac_pwr_v0 pwr;
-	} args = {
-		.base.version = 1,
-		.base.method = NV50_DISP_MTHD_V1_DAC_PWR,
-		.base.hasht  = nv_encoder->dcb->hasht,
-		.base.hashm  = nv_encoder->dcb->hashm,
-		.pwr.state = 1,
-		.pwr.data  = 1,
-		.pwr.vsync = (mode != DRM_MODE_DPMS_SUSPEND &&
-			      mode != DRM_MODE_DPMS_OFF),
-		.pwr.hsync = (mode != DRM_MODE_DPMS_STANDBY &&
-			      mode != DRM_MODE_DPMS_OFF),
-	};
-
-	nvif_mthd(disp->disp, 0, &args, sizeof(args));
-}
-
-static void
 nv50_dac_disable(struct drm_encoder *encoder)
 {
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
@@ -2495,6 +2512,7 @@ nv50_dac_disable(struct drm_encoder *encoder)
 	}
 
 	nv_encoder->crtc = NULL;
+	nv50_outp_release(nv_encoder);
 }
 
 static void
@@ -2505,6 +2523,8 @@ nv50_dac_enable(struct drm_encoder *encoder)
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(encoder->crtc);
 	struct drm_display_mode *mode = &nv_crtc->base.state->adjusted_mode;
 	u32 *push;
+
+	nv50_outp_acquire(nv_encoder);
 
 	push = evo_wait(mast, 8);
 	if (push) {
@@ -2573,7 +2593,6 @@ nv50_dac_detect(struct drm_encoder *encoder, struct drm_connector *connector)
 
 static const struct drm_encoder_helper_funcs
 nv50_dac_help = {
-	.dpms = nv50_dac_dpms,
 	.atomic_check = nv50_outp_atomic_check,
 	.enable = nv50_dac_enable,
 	.disable = nv50_dac_disable,
@@ -2606,7 +2625,6 @@ nv50_dac_create(struct drm_connector *connector, struct dcb_output *dcbe)
 	if (!nv_encoder)
 		return -ENOMEM;
 	nv_encoder->dcb = dcbe;
-	nv_encoder->or = ffs(dcbe->or) - 1;
 
 	bus = nvkm_i2c_bus_find(i2c, dcbe->i2c_index);
 	if (bus)
@@ -2708,6 +2726,7 @@ nv50_hdmi_enable(struct drm_encoder *encoder, struct drm_display_mode *mode)
 	struct {
 		struct nv50_disp_mthd_v1 base;
 		struct nv50_disp_sor_hdmi_pwr_v0 pwr;
+		u8 infoframes[2 * 17]; /* two frames, up to 17 bytes each */
 	} args = {
 		.base.version = 1,
 		.base.method = NV50_DISP_MTHD_V1_SOR_HDMI_PWR,
@@ -2719,17 +2738,43 @@ nv50_hdmi_enable(struct drm_encoder *encoder, struct drm_display_mode *mode)
 	};
 	struct nouveau_connector *nv_connector;
 	u32 max_ac_packet;
+	union hdmi_infoframe avi_frame;
+	union hdmi_infoframe vendor_frame;
+	int ret;
+	int size;
 
 	nv_connector = nouveau_encoder_connector_get(nv_encoder);
 	if (!drm_detect_hdmi_monitor(nv_connector->edid))
 		return;
+
+	ret = drm_hdmi_avi_infoframe_from_display_mode(&avi_frame.avi, mode,
+						       false);
+	if (!ret) {
+		/* We have an AVI InfoFrame, populate it to the display */
+		args.pwr.avi_infoframe_length
+			= hdmi_infoframe_pack(&avi_frame, args.infoframes, 17);
+	}
+
+	ret = drm_hdmi_vendor_infoframe_from_display_mode(&vendor_frame.vendor.hdmi, mode);
+	if (!ret) {
+		/* We have a Vendor InfoFrame, populate it to the display */
+		args.pwr.vendor_infoframe_length
+			= hdmi_infoframe_pack(&vendor_frame,
+					      args.infoframes
+					      + args.pwr.avi_infoframe_length,
+					      17);
+	}
 
 	max_ac_packet  = mode->htotal - mode->hdisplay;
 	max_ac_packet -= args.pwr.rekey;
 	max_ac_packet -= 18; /* constant from tegra */
 	args.pwr.max_ac_packet = max_ac_packet / 32;
 
-	nvif_mthd(disp->disp, 0, &args, sizeof(args));
+	size = sizeof(args.base)
+		+ sizeof(args.pwr)
+		+ args.pwr.avi_infoframe_length
+		+ args.pwr.vendor_infoframe_length;
+	nvif_mthd(disp->disp, 0, &args, size);
 	nv50_audio_enable(encoder, mode);
 }
 
@@ -2747,6 +2792,8 @@ struct nv50_mstm {
 	struct nv50_msto *msto[4];
 
 	bool modified;
+	bool disabled;
+	int links;
 };
 
 struct nv50_mstc {
@@ -2873,17 +2920,20 @@ nv50_msto_enable(struct drm_encoder *encoder)
 	struct nv50_mstc *mstc = NULL;
 	struct nv50_mstm *mstm = NULL;
 	struct drm_connector *connector;
+	struct drm_connector_list_iter conn_iter;
 	u8 proto, depth;
 	int slots;
 	bool r;
 
-	drm_for_each_connector(connector, encoder->dev) {
+	drm_connector_list_iter_begin(encoder->dev, &conn_iter);
+	drm_for_each_connector_iter(connector, &conn_iter) {
 		if (connector->state->best_encoder == &msto->encoder) {
 			mstc = nv50_mstc(connector);
 			mstm = mstc->mstm;
 			break;
 		}
 	}
+	drm_connector_list_iter_end(&conn_iter);
 
 	if (WARN_ON(!mstc))
 		return;
@@ -2892,7 +2942,10 @@ nv50_msto_enable(struct drm_encoder *encoder)
 	r = drm_dp_mst_allocate_vcpi(&mstm->mgr, mstc->port, mstc->pbn, slots);
 	WARN_ON(!r);
 
-	if (mstm->outp->dcb->sorconf.link & 1)
+	if (!mstm->links++)
+		nv50_outp_acquire(mstm->outp);
+
+	if (mstm->outp->link & 1)
 		proto = 0x8;
 	else
 		proto = 0x9;
@@ -2924,6 +2977,8 @@ nv50_msto_disable(struct drm_encoder *encoder)
 
 	mstm->outp->update(mstm->outp, msto->head->base.index, NULL, 0, 0);
 	mstm->modified = true;
+	if (!--mstm->links)
+		mstm->disabled = true;
 	msto->disabled = true;
 }
 
@@ -3050,11 +3105,9 @@ nv50_mstc_destroy(struct drm_connector *connector)
 
 static const struct drm_connector_funcs
 nv50_mstc = {
-	.dpms = drm_atomic_helper_connector_dpms,
 	.reset = nouveau_conn_reset,
 	.detect = nv50_mstc_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
-	.set_property = drm_atomic_helper_connector_set_property,
 	.destroy = nv50_mstc_destroy,
 	.atomic_duplicate_state = nouveau_conn_atomic_duplicate_state,
 	.atomic_destroy_state = nouveau_conn_atomic_destroy_state,
@@ -3088,7 +3141,7 @@ nv50_mstc_new(struct nv50_mstm *mstm, struct drm_dp_mst_port *port,
 	mstc->connector.funcs->reset(&mstc->connector);
 	nouveau_conn_attach_properties(&mstc->connector);
 
-	for (i = 0; i < ARRAY_SIZE(mstm->msto) && mstm->msto; i++)
+	for (i = 0; i < ARRAY_SIZE(mstm->msto) && mstm->msto[i]; i++)
 		drm_mode_connector_attach_encoder(&mstc->connector, &mstm->msto[i]->encoder);
 
 	drm_object_attach_property(&mstc->connector.base, dev->mode_config.path_property, 0);
@@ -3138,6 +3191,12 @@ nv50_mstm_prepare(struct nv50_mstm *mstm)
 			if (mstc && mstc->mstm == mstm)
 				nv50_msto_prepare(msto);
 		}
+	}
+
+	if (mstm->disabled) {
+		if (!mstm->links)
+			nv50_outp_release(mstm->outp);
+		mstm->disabled = false;
 	}
 }
 
@@ -3206,10 +3265,13 @@ nv50_mstm = {
 void
 nv50_mstm_service(struct nv50_mstm *mstm)
 {
-	struct drm_dp_aux *aux = mstm->mgr.aux;
+	struct drm_dp_aux *aux = mstm ? mstm->mgr.aux : NULL;
 	bool handled = true;
 	int ret;
 	u8 esi[8] = {};
+
+	if (!aux)
+		return;
 
 	while (handled) {
 		ret = drm_dp_dpcd_read(aux, DP_SINK_COUNT_ESI, esi, 8);
@@ -3366,25 +3428,6 @@ nv50_mstm_new(struct nouveau_encoder *outp, struct drm_dp_aux *aux, int aux_max,
  * SOR
  *****************************************************************************/
 static void
-nv50_sor_dpms(struct drm_encoder *encoder, int mode)
-{
-	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
-	struct nv50_disp *disp = nv50_disp(encoder->dev);
-	struct {
-		struct nv50_disp_mthd_v1 base;
-		struct nv50_disp_sor_pwr_v0 pwr;
-	} args = {
-		.base.version = 1,
-		.base.method = NV50_DISP_MTHD_V1_SOR_PWR,
-		.base.hasht  = nv_encoder->dcb->hasht,
-		.base.hashm  = nv_encoder->dcb->hashm,
-		.pwr.state = mode == DRM_MODE_DPMS_ON,
-	};
-
-	nvif_mthd(disp->disp, 0, &args, sizeof(args));
-}
-
-static void
 nv50_sor_update(struct nouveau_encoder *nv_encoder, u8 head,
 		struct drm_display_mode *mode, u8 proto, u8 depth)
 {
@@ -3456,6 +3499,7 @@ nv50_sor_disable(struct drm_encoder *encoder)
 		nv_encoder->update(nv_encoder, nv_crtc->index, NULL, 0, 0);
 		nv50_audio_disable(encoder, nv_crtc);
 		nv50_hdmi_disable(&nv_encoder->base.base, nv_crtc);
+		nv50_outp_release(nv_encoder);
 	}
 }
 
@@ -3484,10 +3528,11 @@ nv50_sor_enable(struct drm_encoder *encoder)
 
 	nv_connector = nouveau_encoder_connector_get(nv_encoder);
 	nv_encoder->crtc = encoder->crtc;
+	nv50_outp_acquire(nv_encoder);
 
 	switch (nv_encoder->dcb->type) {
 	case DCB_OUTPUT_TMDS:
-		if (nv_encoder->dcb->sorconf.link & 1) {
+		if (nv_encoder->link & 1) {
 			proto = 0x1;
 			/* Only enable dual-link if:
 			 *  - Need to (i.e. rate > 165MHz)
@@ -3545,7 +3590,7 @@ nv50_sor_enable(struct drm_encoder *encoder)
 		else
 			depth = 0x6;
 
-		if (nv_encoder->dcb->sorconf.link & 1)
+		if (nv_encoder->link & 1)
 			proto = 0x8;
 		else
 			proto = 0x9;
@@ -3562,7 +3607,6 @@ nv50_sor_enable(struct drm_encoder *encoder)
 
 static const struct drm_encoder_helper_funcs
 nv50_sor_help = {
-	.dpms = nv50_sor_dpms,
 	.atomic_check = nv50_outp_atomic_check,
 	.enable = nv50_sor_enable,
 	.disable = nv50_sor_disable,
@@ -3605,7 +3649,6 @@ nv50_sor_create(struct drm_connector *connector, struct dcb_output *dcbe)
 	if (!nv_encoder)
 		return -ENOMEM;
 	nv_encoder->dcb = dcbe;
-	nv_encoder->or = ffs(dcbe->or) - 1;
 	nv_encoder->update = nv50_sor_update;
 
 	encoder = to_drm_encoder(nv_encoder);
@@ -3618,15 +3661,24 @@ nv50_sor_create(struct drm_connector *connector, struct dcb_output *dcbe)
 	drm_mode_connector_attach_encoder(connector, encoder);
 
 	if (dcbe->type == DCB_OUTPUT_DP) {
+		struct nv50_disp *disp = nv50_disp(encoder->dev);
 		struct nvkm_i2c_aux *aux =
 			nvkm_i2c_aux_find(i2c, dcbe->i2c_index);
 		if (aux) {
-			nv_encoder->i2c = &nv_connector->aux.ddc;
+			if (disp->disp->oclass < GF110_DISP) {
+				/* HW has no support for address-only
+				 * transactions, so we're required to
+				 * use custom I2C-over-AUX code.
+				 */
+				nv_encoder->i2c = &aux->i2c;
+			} else {
+				nv_encoder->i2c = &nv_connector->aux.ddc;
+			}
 			nv_encoder->aux = aux;
 		}
 
 		/*TODO: Use DP Info Table to check for support. */
-		if (nv50_disp(encoder->dev)->disp->oclass >= GF110_DISP) {
+		if (disp->disp->oclass >= GF110_DISP) {
 			ret = nv50_mstm_new(nv_encoder, &nv_connector->aux, 16,
 					    nv_connector->base.base.id,
 					    &nv_encoder->dp.mstm);
@@ -3646,26 +3698,6 @@ nv50_sor_create(struct drm_connector *connector, struct dcb_output *dcbe)
 /******************************************************************************
  * PIOR
  *****************************************************************************/
-static void
-nv50_pior_dpms(struct drm_encoder *encoder, int mode)
-{
-	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
-	struct nv50_disp *disp = nv50_disp(encoder->dev);
-	struct {
-		struct nv50_disp_mthd_v1 base;
-		struct nv50_disp_pior_pwr_v0 pwr;
-	} args = {
-		.base.version = 1,
-		.base.method = NV50_DISP_MTHD_V1_PIOR_PWR,
-		.base.hasht  = nv_encoder->dcb->hasht,
-		.base.hashm  = nv_encoder->dcb->hashm,
-		.pwr.state = mode == DRM_MODE_DPMS_ON,
-		.pwr.type = nv_encoder->dcb->type,
-	};
-
-	nvif_mthd(disp->disp, 0, &args, sizeof(args));
-}
-
 static int
 nv50_pior_atomic_check(struct drm_encoder *encoder,
 		       struct drm_crtc_state *crtc_state,
@@ -3698,6 +3730,7 @@ nv50_pior_disable(struct drm_encoder *encoder)
 	}
 
 	nv_encoder->crtc = NULL;
+	nv50_outp_release(nv_encoder);
 }
 
 static void
@@ -3711,6 +3744,8 @@ nv50_pior_enable(struct drm_encoder *encoder)
 	u8 owner = 1 << nv_crtc->index;
 	u8 proto, depth;
 	u32 *push;
+
+	nv50_outp_acquire(nv_encoder);
 
 	nv_connector = nouveau_encoder_connector_get(nv_encoder);
 	switch (nv_connector->base.display_info.bpc) {
@@ -3750,7 +3785,6 @@ nv50_pior_enable(struct drm_encoder *encoder)
 
 static const struct drm_encoder_helper_funcs
 nv50_pior_help = {
-	.dpms = nv50_pior_dpms,
 	.atomic_check = nv50_pior_atomic_check,
 	.enable = nv50_pior_enable,
 	.disable = nv50_pior_disable,
@@ -3800,7 +3834,6 @@ nv50_pior_create(struct drm_connector *connector, struct dcb_output *dcbe)
 	if (!nv_encoder)
 		return -ENOMEM;
 	nv_encoder->dcb = dcbe;
-	nv_encoder->or = ffs(dcbe->or) - 1;
 	nv_encoder->i2c = ddc;
 	nv_encoder->aux = aux;
 
@@ -3867,9 +3900,9 @@ static void
 nv50_disp_atomic_commit_tail(struct drm_atomic_state *state)
 {
 	struct drm_device *dev = state->dev;
-	struct drm_crtc_state *crtc_state;
+	struct drm_crtc_state *new_crtc_state, *old_crtc_state;
 	struct drm_crtc *crtc;
-	struct drm_plane_state *plane_state;
+	struct drm_plane_state *new_plane_state;
 	struct drm_plane *plane;
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nv50_disp *disp = nv50_disp(dev);
@@ -3888,12 +3921,14 @@ nv50_disp_atomic_commit_tail(struct drm_atomic_state *state)
 		mutex_lock(&disp->mutex);
 
 	/* Disable head(s). */
-	for_each_crtc_in_state(state, crtc, crtc_state, i) {
-		struct nv50_head_atom *asyh = nv50_head_atom(crtc->state);
+	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
+		struct nv50_head_atom *asyh = nv50_head_atom(new_crtc_state);
 		struct nv50_head *head = nv50_head(crtc);
 
 		NV_ATOMIC(drm, "%s: clr %04x (set %04x)\n", crtc->name,
 			  asyh->clr.mask, asyh->set.mask);
+		if (old_crtc_state->active && !new_crtc_state->active)
+			drm_crtc_vblank_off(crtc);
 
 		if (asyh->clr.mask) {
 			nv50_head_flush_clr(head, asyh, atom->flush_disable);
@@ -3902,8 +3937,8 @@ nv50_disp_atomic_commit_tail(struct drm_atomic_state *state)
 	}
 
 	/* Disable plane(s). */
-	for_each_plane_in_state(state, plane, plane_state, i) {
-		struct nv50_wndw_atom *asyw = nv50_wndw_atom(plane->state);
+	for_each_new_plane_in_state(state, plane, new_plane_state, i) {
+		struct nv50_wndw_atom *asyw = nv50_wndw_atom(new_plane_state);
 		struct nv50_wndw *wndw = nv50_wndw(plane);
 
 		NV_ATOMIC(drm, "%s: clr %02x (set %02x)\n", plane->name,
@@ -3968,8 +4003,8 @@ nv50_disp_atomic_commit_tail(struct drm_atomic_state *state)
 	}
 
 	/* Update head(s). */
-	for_each_crtc_in_state(state, crtc, crtc_state, i) {
-		struct nv50_head_atom *asyh = nv50_head_atom(crtc->state);
+	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
+		struct nv50_head_atom *asyh = nv50_head_atom(new_crtc_state);
 		struct nv50_head *head = nv50_head(crtc);
 
 		NV_ATOMIC(drm, "%s: set %04x (clr %04x)\n", crtc->name,
@@ -3979,16 +4014,18 @@ nv50_disp_atomic_commit_tail(struct drm_atomic_state *state)
 			nv50_head_flush_set(head, asyh);
 			interlock_core = 1;
 		}
-	}
 
-	for_each_crtc_in_state(state, crtc, crtc_state, i) {
-		if (crtc->state->event)
-			drm_crtc_vblank_get(crtc);
+		if (new_crtc_state->active) {
+			if (!old_crtc_state->active)
+				drm_crtc_vblank_on(crtc);
+			if (new_crtc_state->event)
+				drm_crtc_vblank_get(crtc);
+		}
 	}
 
 	/* Update plane(s). */
-	for_each_plane_in_state(state, plane, plane_state, i) {
-		struct nv50_wndw_atom *asyw = nv50_wndw_atom(plane->state);
+	for_each_new_plane_in_state(state, plane, new_plane_state, i) {
+		struct nv50_wndw_atom *asyw = nv50_wndw_atom(new_plane_state);
 		struct nv50_wndw *wndw = nv50_wndw(plane);
 
 		NV_ATOMIC(drm, "%s: set %02x (clr %02x)\n", plane->name,
@@ -4018,24 +4055,27 @@ nv50_disp_atomic_commit_tail(struct drm_atomic_state *state)
 		mutex_unlock(&disp->mutex);
 
 	/* Wait for HW to signal completion. */
-	for_each_plane_in_state(state, plane, plane_state, i) {
-		struct nv50_wndw_atom *asyw = nv50_wndw_atom(plane->state);
+	for_each_new_plane_in_state(state, plane, new_plane_state, i) {
+		struct nv50_wndw_atom *asyw = nv50_wndw_atom(new_plane_state);
 		struct nv50_wndw *wndw = nv50_wndw(plane);
 		int ret = nv50_wndw_wait_armed(wndw, asyw);
 		if (ret)
 			NV_ERROR(drm, "%s: timeout\n", plane->name);
 	}
 
-	for_each_crtc_in_state(state, crtc, crtc_state, i) {
-		if (crtc->state->event) {
+	for_each_new_crtc_in_state(state, crtc, new_crtc_state, i) {
+		if (new_crtc_state->event) {
 			unsigned long flags;
 			/* Get correct count/ts if racing with vblank irq */
-			drm_accurate_vblank_count(crtc);
+			if (new_crtc_state->active)
+				drm_crtc_accurate_vblank_count(crtc);
 			spin_lock_irqsave(&crtc->dev->event_lock, flags);
-			drm_crtc_send_vblank_event(crtc, crtc->state->event);
+			drm_crtc_send_vblank_event(crtc, new_crtc_state->event);
 			spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
-			crtc->state->event = NULL;
-			drm_crtc_vblank_put(crtc);
+
+			new_crtc_state->event = NULL;
+			if (new_crtc_state->active)
+				drm_crtc_vblank_put(crtc);
 		}
 	}
 
@@ -4059,7 +4099,7 @@ nv50_disp_atomic_commit(struct drm_device *dev,
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nv50_disp *disp = nv50_disp(dev);
-	struct drm_plane_state *plane_state;
+	struct drm_plane_state *new_plane_state;
 	struct drm_plane *plane;
 	struct drm_crtc *crtc;
 	bool active = false;
@@ -4082,12 +4122,17 @@ nv50_disp_atomic_commit(struct drm_device *dev,
 	if (!nonblock) {
 		ret = drm_atomic_helper_wait_for_fences(dev, state, true);
 		if (ret)
-			goto done;
+			goto err_cleanup;
 	}
 
-	for_each_plane_in_state(state, plane, plane_state, i) {
-		struct nv50_wndw_atom *asyw = nv50_wndw_atom(plane_state);
+	ret = drm_atomic_helper_swap_state(state, true);
+	if (ret)
+		goto err_cleanup;
+
+	for_each_new_plane_in_state(state, plane, new_plane_state, i) {
+		struct nv50_wndw_atom *asyw = nv50_wndw_atom(new_plane_state);
 		struct nv50_wndw *wndw = nv50_wndw(plane);
+
 		if (asyw->set.image) {
 			asyw->ntfy.handle = wndw->dmac->sync.handle;
 			asyw->ntfy.offset = wndw->ntfy;
@@ -4098,7 +4143,6 @@ nv50_disp_atomic_commit(struct drm_device *dev,
 		}
 	}
 
-	drm_atomic_helper_swap_state(state, true);
 	drm_atomic_state_get(state);
 
 	if (nonblock)
@@ -4110,7 +4154,7 @@ nv50_disp_atomic_commit(struct drm_device *dev,
 		if (crtc->state->enable) {
 			if (!drm->have_disp_power_ref) {
 				drm->have_disp_power_ref = true;
-				return ret;
+				return 0;
 			}
 			active = true;
 			break;
@@ -4122,6 +4166,9 @@ nv50_disp_atomic_commit(struct drm_device *dev,
 		drm->have_disp_power_ref = false;
 	}
 
+err_cleanup:
+	if (ret)
+		drm_atomic_helper_cleanup_planes(dev, state);
 done:
 	pm_runtime_put_autosuspend(dev->dev);
 	return ret;
@@ -4148,18 +4195,19 @@ nv50_disp_outp_atomic_add(struct nv50_atom *atom, struct drm_encoder *encoder)
 
 static int
 nv50_disp_outp_atomic_check_clr(struct nv50_atom *atom,
-				struct drm_connector *connector)
+				struct drm_connector_state *old_connector_state)
 {
-	struct drm_encoder *encoder = connector->state->best_encoder;
-	struct drm_crtc_state *crtc_state;
+	struct drm_encoder *encoder = old_connector_state->best_encoder;
+	struct drm_crtc_state *old_crtc_state, *new_crtc_state;
 	struct drm_crtc *crtc;
 	struct nv50_outp_atom *outp;
 
-	if (!(crtc = connector->state->crtc))
+	if (!(crtc = old_connector_state->crtc))
 		return 0;
 
-	crtc_state = drm_atomic_get_existing_crtc_state(&atom->state, crtc);
-	if (crtc->state->active && drm_atomic_crtc_needs_modeset(crtc_state)) {
+	old_crtc_state = drm_atomic_get_old_crtc_state(&atom->state, crtc);
+	new_crtc_state = drm_atomic_get_new_crtc_state(&atom->state, crtc);
+	if (old_crtc_state->active && drm_atomic_crtc_needs_modeset(new_crtc_state)) {
 		outp = nv50_disp_outp_atomic_add(atom, encoder);
 		if (IS_ERR(outp))
 			return PTR_ERR(outp);
@@ -4180,15 +4228,15 @@ nv50_disp_outp_atomic_check_set(struct nv50_atom *atom,
 				struct drm_connector_state *connector_state)
 {
 	struct drm_encoder *encoder = connector_state->best_encoder;
-	struct drm_crtc_state *crtc_state;
+	struct drm_crtc_state *new_crtc_state;
 	struct drm_crtc *crtc;
 	struct nv50_outp_atom *outp;
 
 	if (!(crtc = connector_state->crtc))
 		return 0;
 
-	crtc_state = drm_atomic_get_existing_crtc_state(&atom->state, crtc);
-	if (crtc_state->active && drm_atomic_crtc_needs_modeset(crtc_state)) {
+	new_crtc_state = drm_atomic_get_new_crtc_state(&atom->state, crtc);
+	if (new_crtc_state->active && drm_atomic_crtc_needs_modeset(new_crtc_state)) {
 		outp = nv50_disp_outp_atomic_add(atom, encoder);
 		if (IS_ERR(outp))
 			return PTR_ERR(outp);
@@ -4204,7 +4252,7 @@ static int
 nv50_disp_atomic_check(struct drm_device *dev, struct drm_atomic_state *state)
 {
 	struct nv50_atom *atom = nv50_atom(state);
-	struct drm_connector_state *connector_state;
+	struct drm_connector_state *old_connector_state, *new_connector_state;
 	struct drm_connector *connector;
 	int ret, i;
 
@@ -4212,12 +4260,12 @@ nv50_disp_atomic_check(struct drm_device *dev, struct drm_atomic_state *state)
 	if (ret)
 		return ret;
 
-	for_each_connector_in_state(state, connector, connector_state, i) {
-		ret = nv50_disp_outp_atomic_check_clr(atom, connector);
+	for_each_oldnew_connector_in_state(state, connector, old_connector_state, new_connector_state, i) {
+		ret = nv50_disp_outp_atomic_check_clr(atom, old_connector_state);
 		if (ret)
 			return ret;
 
-		ret = nv50_disp_outp_atomic_check_set(atom, connector_state);
+		ret = nv50_disp_outp_atomic_check_set(atom, new_connector_state);
 		if (ret)
 			return ret;
 	}
@@ -4315,14 +4363,8 @@ nv50_display_init(struct drm_device *dev)
 
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
 		if (encoder->encoder_type != DRM_MODE_ENCODER_DPMST) {
-			const struct drm_encoder_helper_funcs *help;
-			struct nouveau_encoder *nv_encoder;
-
-			nv_encoder = nouveau_encoder(encoder);
-			help = encoder->helper_private;
-			if (help && help->dpms)
-				help->dpms(encoder, DRM_MODE_DPMS_ON);
-
+			struct nouveau_encoder *nv_encoder =
+				nouveau_encoder(encoder);
 			nv50_mstm_init(nv_encoder->dp.mstm);
 		}
 	}
@@ -4412,11 +4454,13 @@ nv50_display_create(struct drm_device *dev)
 
 	/* create crtc objects to represent the hw heads */
 	if (disp->disp->oclass >= GF110_DISP)
-		crtcs = nvif_rd32(&device->object, 0x022448);
+		crtcs = nvif_rd32(&device->object, 0x612004) & 0xf;
 	else
-		crtcs = 2;
+		crtcs = 0x3;
 
-	for (i = 0; i < crtcs; i++) {
+	for (i = 0; i < fls(crtcs); i++) {
+		if (!(crtcs & (1 << i)))
+			continue;
 		ret = nv50_head_create(dev, i);
 		if (ret)
 			goto out;

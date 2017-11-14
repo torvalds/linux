@@ -1,4 +1,7 @@
+=============
 TEE subsystem
+=============
+
 This document describes the TEE subsystem in Linux.
 
 A TEE (Trusted Execution Environment) is a trusted OS running in some
@@ -80,27 +83,27 @@ The GlobalPlatform TEE Client API [5] is implemented on top of the generic
 TEE API.
 
 Picture of the relationship between the different components in the
-OP-TEE architecture.
+OP-TEE architecture::
 
-    User space                  Kernel                   Secure world
-    ~~~~~~~~~~                  ~~~~~~                   ~~~~~~~~~~~~
- +--------+                                             +-------------+
- | Client |                                             | Trusted     |
- +--------+                                             | Application |
-    /\                                                  +-------------+
-    || +----------+                                           /\
-    || |tee-      |                                           ||
-    || |supplicant|                                           \/
-    || +----------+                                     +-------------+
-    \/      /\                                          | TEE Internal|
- +-------+  ||                                          | API         |
- + TEE   |  ||            +--------+--------+           +-------------+
- | Client|  ||            | TEE    | OP-TEE |           | OP-TEE      |
- | API   |  \/            | subsys | driver |           | Trusted OS  |
- +-------+----------------+----+-------+----+-----------+-------------+
- |      Generic TEE API        |       |     OP-TEE MSG               |
- |      IOCTL (TEE_IOC_*)      |       |     SMCCC (OPTEE_SMC_CALL_*) |
- +-----------------------------+       +------------------------------+
+      User space                  Kernel                   Secure world
+      ~~~~~~~~~~                  ~~~~~~                   ~~~~~~~~~~~~
+   +--------+                                             +-------------+
+   | Client |                                             | Trusted     |
+   +--------+                                             | Application |
+      /\                                                  +-------------+
+      || +----------+                                           /\
+      || |tee-      |                                           ||
+      || |supplicant|                                           \/
+      || +----------+                                     +-------------+
+      \/      /\                                          | TEE Internal|
+   +-------+  ||                                          | API         |
+   + TEE   |  ||            +--------+--------+           +-------------+
+   | Client|  ||            | TEE    | OP-TEE |           | OP-TEE      |
+   | API   |  \/            | subsys | driver |           | Trusted OS  |
+   +-------+----------------+----+-------+----+-----------+-------------+
+   |      Generic TEE API        |       |     OP-TEE MSG               |
+   |      IOCTL (TEE_IOC_*)      |       |     SMCCC (OPTEE_SMC_CALL_*) |
+   +-----------------------------+       +------------------------------+
 
 RPC (Remote Procedure Call) are requests from secure world to kernel driver
 or tee-supplicant. An RPC is identified by a special range of SMCCC return
@@ -109,10 +112,16 @@ kernel are handled by the kernel driver. Other RPC messages will be forwarded to
 tee-supplicant without further involvement of the driver, except switching
 shared memory buffer representation.
 
-References:
+References
+==========
+
 [1] https://github.com/OP-TEE/optee_os
+
 [2] http://infocenter.arm.com/help/topic/com.arm.doc.den0028a/index.html
+
 [3] drivers/tee/optee/optee_smc.h
+
 [4] drivers/tee/optee/optee_msg.h
+
 [5] http://www.globalplatform.org/specificationsdevice.asp look for
     "TEE Client API Specification v1.0" and click download.

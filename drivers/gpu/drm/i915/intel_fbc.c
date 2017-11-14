@@ -406,9 +406,7 @@ static void intel_fbc_work_fn(struct work_struct *__work)
 	struct drm_vblank_crtc *vblank = &dev_priv->drm.vblank[crtc->pipe];
 
 	if (drm_crtc_vblank_get(&crtc->base)) {
-		DRM_ERROR("vblank not available for FBC on pipe %c\n",
-			  pipe_name(crtc->pipe));
-
+		/* CRTC is now off, leave FBC deactivated */
 		mutex_lock(&fbc->lock);
 		work->scheduled = false;
 		mutex_unlock(&fbc->lock);
@@ -461,6 +459,8 @@ static void intel_fbc_schedule_activation(struct intel_crtc *crtc)
 	struct intel_fbc_work *work = &fbc->work;
 
 	WARN_ON(!mutex_is_locked(&fbc->lock));
+	if (WARN_ON(!fbc->enabled))
+		return;
 
 	if (drm_crtc_vblank_get(&crtc->base)) {
 		DRM_ERROR("vblank not available for FBC on pipe %c\n",
@@ -796,7 +796,7 @@ static bool intel_fbc_can_activate(struct intel_crtc *crtc)
 		return false;
 	}
 	if (INTEL_GEN(dev_priv) <= 4 && !IS_G4X(dev_priv) &&
-	    cache->plane.rotation != DRM_ROTATE_0) {
+	    cache->plane.rotation != DRM_MODE_ROTATE_0) {
 		fbc->no_fbc_reason = "rotation unsupported";
 		return false;
 	}
@@ -1216,7 +1216,7 @@ static void intel_fbc_underrun_work_fn(struct work_struct *work)
 	mutex_lock(&fbc->lock);
 
 	/* Maybe we were scheduled twice. */
-	if (fbc->underrun_detected)
+	if (fbc->underrun_detected || !fbc->enabled)
 		goto out;
 
 	DRM_DEBUG_KMS("Disabling FBC due to FIFO underrun.\n");
@@ -1307,14 +1307,12 @@ static int intel_sanitize_fbc_option(struct drm_i915_private *dev_priv)
 
 static bool need_fbc_vtd_wa(struct drm_i915_private *dev_priv)
 {
-#ifdef CONFIG_INTEL_IOMMU
 	/* WaFbcTurnOffFbcWhenHyperVisorIsUsed:skl,bxt */
-	if (intel_iommu_gfx_mapped &&
+	if (intel_vtd_active() &&
 	    (IS_SKYLAKE(dev_priv) || IS_BROXTON(dev_priv))) {
 		DRM_INFO("Disabling framebuffer compression (FBC) to prevent screen flicker with VT-d enabled\n");
 		return true;
 	}
-#endif
 
 	return false;
 }

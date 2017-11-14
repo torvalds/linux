@@ -88,6 +88,11 @@
 			no-map;
 		};
 
+		venus_mem: venus@89900000 {
+			reg = <0x0 0x89900000 0x0 0x600000>;
+			no-map;
+		};
+
 		mba_mem: mba@8ea00000 {
 			no-map;
 			reg = <0 0x8ea00000 0 0x100000>;
@@ -202,6 +207,17 @@
 			};
 		};
 
+	};
+
+	gpu_opp_table: opp_table {
+		compatible = "operating-points-v2";
+
+		opp-400000000 {
+			opp-hz = /bits/ 64 <400000000>;
+		};
+		opp-19200000 {
+			opp-hz = /bits/ 64 <19200000>;
+		};
 	};
 
 	timer {
@@ -546,44 +562,40 @@
 			status = "disabled";
 		};
 
-		usb_dev: usb@78d9000 {
+		otg: usb@78d9000 {
 			compatible = "qcom,ci-hdrc";
-			reg = <0x78d9000 0x400>;
-			dr_mode = "peripheral";
-			interrupts = <GIC_SPI 134 IRQ_TYPE_LEVEL_HIGH>;
-			usb-phy = <&usb_otg>;
-			status = "disabled";
-		};
-
-		usb_host: ehci@78d9000 {
-			compatible = "qcom,ehci-host";
-			reg = <0x78d9000 0x400>;
-			interrupts = <GIC_SPI 134 IRQ_TYPE_LEVEL_HIGH>;
-			usb-phy = <&usb_otg>;
-			status = "disabled";
-		};
-
-		usb_otg: phy@78d9000 {
-			compatible = "qcom,usb-otg-snps";
-			reg = <0x78d9000 0x400>;
+			reg = <0x78d9000 0x200>,
+			      <0x78d9200 0x200>;
 			interrupts = <GIC_SPI 134 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 140 IRQ_TYPE_LEVEL_HIGH>;
-
-			qcom,vdd-levels = <500000 1000000 1320000>;
-			qcom,phy-init-sequence = <0x44 0x6B 0x24 0x13>;
-			dr_mode = "peripheral";
-			qcom,otg-control = <2>; // PMIC
-			qcom,manual-pullup;
-
 			clocks = <&gcc GCC_USB_HS_AHB_CLK>,
-				 <&gcc GCC_USB_HS_SYSTEM_CLK>,
-				 <&gcc GCC_USB2A_PHY_SLEEP_CLK>;
-			clock-names = "iface", "core", "sleep";
-
-			resets = <&gcc GCC_USB2A_PHY_BCR>,
-				 <&gcc GCC_USB_HS_BCR>;
-			reset-names = "phy", "link";
+				 <&gcc GCC_USB_HS_SYSTEM_CLK>;
+			clock-names = "iface", "core";
+			assigned-clocks = <&gcc GCC_USB_HS_SYSTEM_CLK>;
+			assigned-clock-rates = <80000000>;
+			resets = <&gcc GCC_USB_HS_BCR>;
+			reset-names = "core";
+			phy_type = "ulpi";
+			dr_mode = "otg";
+			ahb-burst-config = <0>;
+			phy-names = "usb-phy";
+			phys = <&usb_hs_phy>;
 			status = "disabled";
+			#reset-cells = <1>;
+
+			ulpi {
+				usb_hs_phy: phy {
+					compatible = "qcom,usb-hs-phy-msm8916",
+						     "qcom,usb-hs-phy";
+					#phy-cells = <0>;
+					clocks = <&xo_board>, <&gcc GCC_USB2A_PHY_SLEEP_CLK>;
+					clock-names = "ref", "sleep";
+					resets = <&gcc GCC_USB2A_PHY_BCR>, <&otg 0>;
+					reset-names = "phy", "por";
+					qcom,init-seq = /bits/ 8 <0x0 0x44
+						0x1 0x6b 0x2 0x24 0x3 0x13>;
+				};
+			};
 		};
 
 		intc: interrupt-controller@b000000 {
@@ -698,6 +710,84 @@
 			#thermal-sensor-cells = <1>;
 		};
 
+		apps_iommu: iommu@1ef0000 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			#iommu-cells = <1>;
+			compatible = "qcom,msm8916-iommu", "qcom,msm-iommu-v1";
+			ranges = <0 0x1e20000 0x40000>;
+			reg = <0x1ef0000 0x3000>;
+			clocks = <&gcc GCC_SMMU_CFG_CLK>,
+				 <&gcc GCC_APSS_TCU_CLK>;
+			clock-names = "iface", "bus";
+			qcom,iommu-secure-id = <17>;
+
+			// mdp_0:
+			iommu-ctx@4000 {
+				compatible = "qcom,msm-iommu-v1-ns";
+				reg = <0x4000 0x1000>;
+				interrupts = <GIC_SPI 70 IRQ_TYPE_LEVEL_HIGH>;
+			};
+
+			// venus_ns:
+			iommu-ctx@5000 {
+				compatible = "qcom,msm-iommu-v1-sec";
+				reg = <0x5000 0x1000>;
+				interrupts = <GIC_SPI 70 IRQ_TYPE_LEVEL_HIGH>;
+			};
+		};
+
+		gpu_iommu: iommu@1f08000 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			#iommu-cells = <1>;
+			compatible = "qcom,msm8916-iommu", "qcom,msm-iommu-v1";
+			ranges = <0 0x1f08000 0x10000>;
+			clocks = <&gcc GCC_SMMU_CFG_CLK>,
+				 <&gcc GCC_GFX_TCU_CLK>;
+			clock-names = "iface", "bus";
+			qcom,iommu-secure-id = <18>;
+
+			// gfx3d_user:
+			iommu-ctx@1000 {
+				compatible = "qcom,msm-iommu-v1-ns";
+				reg = <0x1000 0x1000>;
+				interrupts = <GIC_SPI 241 IRQ_TYPE_LEVEL_HIGH>;
+			};
+
+			// gfx3d_priv:
+			iommu-ctx@2000 {
+				compatible = "qcom,msm-iommu-v1-ns";
+				reg = <0x2000 0x1000>;
+				interrupts = <GIC_SPI 242 0>;
+			};
+		};
+
+		gpu@1c00000 {
+			compatible = "qcom,adreno-306.0", "qcom,adreno";
+			reg = <0x01c00000 0x20000>;
+			reg-names = "kgsl_3d0_reg_memory";
+			interrupts = <GIC_SPI 33 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "kgsl_3d0_irq";
+			clock-names =
+			    "core",
+			    "iface",
+			    "mem",
+			    "mem_iface",
+			    "alt_mem_iface",
+			    "gfx3d";
+			clocks =
+			    <&gcc GCC_OXILI_GFX3D_CLK>,
+			    <&gcc GCC_OXILI_AHB_CLK>,
+			    <&gcc GCC_OXILI_GMEM_CLK>,
+			    <&gcc GCC_BIMC_GFX_CLK>,
+			    <&gcc GCC_BIMC_GPU_CLK>,
+			    <&gcc GFX3D_CLK_SRC>;
+			power-domains = <&gcc OXILI_GDSC>;
+			operating-points-v2 = <&gpu_opp_table>;
+			iommus = <&gpu_iommu 1>, <&gpu_iommu 2>;
+		};
+
 		mdss: mdss@1a00000 {
 			compatible = "qcom,mdss";
 			reg = <0x1a00000 0x1000>,
@@ -738,6 +828,8 @@
 					      "bus_clk",
 					      "core_clk",
 					      "vsync_clk";
+
+				iommus = <&apps_iommu 4>;
 
 				ports {
 					#address-cells = <1>;
@@ -994,7 +1086,7 @@
 		};
 
 		replicator@824000 {
-			compatible = "qcom,coresight-replicator1x", "arm,primecell";
+			compatible = "arm,coresight-dynamic-replicator", "arm,primecell";
 			reg = <0x824000 0x1000>;
 
 			clocks = <&rpmcc RPM_QDSS_CLK>, <&rpmcc RPM_QDSS_A_CLK>;
@@ -1116,6 +1208,38 @@
 			};
 		};
 
+		debug@850000 {
+			compatible = "arm,coresight-cpu-debug","arm,primecell";
+			reg = <0x850000 0x1000>;
+			clocks = <&rpmcc RPM_QDSS_CLK>;
+			clock-names = "apb_pclk";
+			cpu = <&CPU0>;
+		};
+
+		debug@852000 {
+			compatible = "arm,coresight-cpu-debug","arm,primecell";
+			reg = <0x852000 0x1000>;
+			clocks = <&rpmcc RPM_QDSS_CLK>;
+			clock-names = "apb_pclk";
+			cpu = <&CPU1>;
+		};
+
+		debug@854000 {
+			compatible = "arm,coresight-cpu-debug","arm,primecell";
+			reg = <0x854000 0x1000>;
+			clocks = <&rpmcc RPM_QDSS_CLK>;
+			clock-names = "apb_pclk";
+			cpu = <&CPU2>;
+		};
+
+		debug@856000 {
+			compatible = "arm,coresight-cpu-debug","arm,primecell";
+			reg = <0x856000 0x1000>;
+			clocks = <&rpmcc RPM_QDSS_CLK>;
+			clock-names = "apb_pclk";
+			cpu = <&CPU3>;
+		};
+
 		etm@85c000 {
 			compatible = "arm,coresight-etm4x", "arm,primecell";
 			reg = <0x85c000 0x1000>;
@@ -1177,6 +1301,28 @@
 				etm3_out: endpoint {
 					remote-endpoint = <&funnel1_in3>;
 				};
+			};
+		};
+
+		venus: video-codec@1d00000 {
+			compatible = "qcom,msm8916-venus";
+			reg = <0x01d00000 0xff000>;
+			interrupts = <GIC_SPI 44 IRQ_TYPE_LEVEL_HIGH>;
+			power-domains = <&gcc VENUS_GDSC>;
+			clocks = <&gcc GCC_VENUS0_VCODEC0_CLK>,
+				 <&gcc GCC_VENUS0_AHB_CLK>,
+				 <&gcc GCC_VENUS0_AXI_CLK>;
+			clock-names = "core", "iface", "bus";
+			iommus = <&apps_iommu 5>;
+			memory-region = <&venus_mem>;
+			status = "okay";
+
+			video-decoder {
+				compatible = "venus-decoder";
+			};
+
+			video-encoder {
+				compatible = "venus-encoder";
 			};
 		};
 	};

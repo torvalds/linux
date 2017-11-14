@@ -13,6 +13,7 @@ Required properties:
 
 - compatible : Shall contain one or more of
   - "renesas,r8a7795-hdmi" for R8A7795 (R-Car H3) compatible HDMI TX
+  - "renesas,r8a7796-hdmi" for R8A7796 (R-Car M3-W) compatible HDMI TX
   - "renesas,rcar-gen3-hdmi" for the generic R-Car Gen3 compatible HDMI TX
 
     When compatible with generic versions, nodes must list the SoC-specific
@@ -25,7 +26,8 @@ Required properties:
 - clock-names: Shall contain "iahb" and "isfr" as defined in dw_hdmi.txt.
 - ports: See dw_hdmi.txt. The DWC HDMI shall have one port numbered 0
   corresponding to the video input of the controller and one port numbered 1
-  corresponding to its HDMI output. Each port shall have a single endpoint.
+  corresponding to its HDMI output, and one port numbered 2 corresponding to
+  sound input of the controller. Each port shall have a single endpoint.
 
 Optional properties:
 
@@ -42,7 +44,6 @@ Example:
 		clocks = <&cpg CPG_CORE R8A7795_CLK_S0D4>, <&cpg CPG_MOD 729>;
 		clock-names = "iahb", "isfr";
 		power-domains = <&sysc R8A7795_PD_ALWAYS_ON>;
-		status = "disabled";
 
 		ports {
 			#address-cells = <1>;
@@ -57,6 +58,12 @@ Example:
 				reg = <1>;
 				rcar_dw_hdmi0_out: endpoint {
 					remote-endpoint = <&hdmi0_con>;
+				};
+			};
+			port@2 {
+				reg = <2>;
+				rcar_dw_hdmi0_sound_in: endpoint {
+					remote-endpoint = <&hdmi_sound_out>;
 				};
 			};
 		};

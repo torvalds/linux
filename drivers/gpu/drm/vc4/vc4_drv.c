@@ -31,7 +31,7 @@
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
-#include "drm_fb_cma_helper.h"
+#include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_fb_helper.h>
 
 #include "uapi/drm/vc4_drm.h"
@@ -99,6 +99,7 @@ static int vc4_get_param_ioctl(struct drm_device *dev, void *data,
 	case DRM_VC4_PARAM_SUPPORTS_BRANCHES:
 	case DRM_VC4_PARAM_SUPPORTS_ETC1:
 	case DRM_VC4_PARAM_SUPPORTS_THREADED_FS:
+	case DRM_VC4_PARAM_SUPPORTS_FIXED_RCL_ORDER:
 		args->value = true;
 		break;
 	default:
@@ -138,6 +139,9 @@ static const struct drm_ioctl_desc vc4_drm_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(VC4_GET_HANG_STATE, vc4_get_hang_state_ioctl,
 			  DRM_ROOT_ONLY),
 	DRM_IOCTL_DEF_DRV(VC4_GET_PARAM, vc4_get_param_ioctl, DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(VC4_SET_TILING, vc4_set_tiling_ioctl, DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(VC4_GET_TILING, vc4_get_tiling_ioctl, DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(VC4_LABEL_BO, vc4_label_bo_ioctl, DRM_RENDER_ALLOW),
 };
 
 static struct drm_driver vc4_drm_driver = {
@@ -154,7 +158,7 @@ static struct drm_driver vc4_drm_driver = {
 	.irq_uninstall = vc4_irq_uninstall,
 
 	.get_scanout_position = vc4_crtc_get_scanoutpos,
-	.get_vblank_timestamp = vc4_crtc_get_vblank_timestamp,
+	.get_vblank_timestamp = drm_calc_vbltimestamp_from_scanoutpos,
 
 #if defined(CONFIG_DEBUG_FS)
 	.debugfs_init = vc4_debugfs_init,
@@ -168,15 +172,14 @@ static struct drm_driver vc4_drm_driver = {
 	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
 	.gem_prime_import = drm_gem_prime_import,
 	.gem_prime_export = vc4_prime_export,
+	.gem_prime_res_obj = vc4_prime_res_obj,
 	.gem_prime_get_sg_table	= drm_gem_cma_prime_get_sg_table,
-	.gem_prime_import_sg_table = drm_gem_cma_prime_import_sg_table,
+	.gem_prime_import_sg_table = vc4_prime_import_sg_table,
 	.gem_prime_vmap = vc4_prime_vmap,
 	.gem_prime_vunmap = drm_gem_cma_prime_vunmap,
 	.gem_prime_mmap = vc4_prime_mmap,
 
 	.dumb_create = vc4_dumb_create,
-	.dumb_map_offset = drm_gem_cma_dumb_map_offset,
-	.dumb_destroy = drm_gem_dumb_destroy,
 
 	.ioctls = vc4_drm_ioctls,
 	.num_ioctls = ARRAY_SIZE(vc4_drm_ioctls),
@@ -254,7 +257,9 @@ static int vc4_drm_bind(struct device *dev)
 	vc4->dev = drm;
 	drm->dev_private = vc4;
 
-	vc4_bo_cache_init(drm);
+	ret = vc4_bo_cache_init(drm);
+	if (ret)
+		goto dev_unref;
 
 	drm_mode_config_init(drm);
 
@@ -278,8 +283,9 @@ unbind_all:
 	component_unbind_all(dev, drm);
 gem_destroy:
 	vc4_gem_destroy(drm);
-	drm_dev_unref(drm);
 	vc4_bo_cache_destroy(drm);
+dev_unref:
+	drm_dev_unref(drm);
 	return ret;
 }
 
@@ -334,6 +340,7 @@ static int vc4_platform_drm_remove(struct platform_device *pdev)
 
 static const struct of_device_id vc4_of_match[] = {
 	{ .compatible = "brcm,bcm2835-vc4", },
+	{ .compatible = "brcm,cygnus-vc4", },
 	{},
 };
 MODULE_DEVICE_TABLE(of, vc4_of_match);

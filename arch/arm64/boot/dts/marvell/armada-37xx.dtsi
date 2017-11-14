@@ -75,14 +75,15 @@
 
 	timer {
 		compatible = "arm,armv8-timer";
-		interrupts = <GIC_PPI 13
-			(GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_LEVEL_HIGH)>,
-			     <GIC_PPI 14
-			(GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_LEVEL_HIGH)>,
-			     <GIC_PPI 11
-			(GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_LEVEL_HIGH)>,
-			     <GIC_PPI 10
-			(GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_LEVEL_HIGH)>;
+		interrupts = <GIC_PPI 13 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_PPI 14 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_PPI 11 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_PPI 10 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	pmu {
+		compatible = "arm,armv8-pmuv3";
+		interrupts = <GIC_PPI 7 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
 	soc {
@@ -163,7 +164,7 @@
 
 			pinctrl_nb: pinctrl@13800 {
 				compatible = "marvell,armada3710-nb-pinctrl",
-				"syscon", "simple-mfd";
+					     "syscon", "simple-mfd";
 				reg = <0x13800 0x100>, <0x13C00 0x20>;
 				gpionb: gpio {
 					#gpio-cells = <2>;
@@ -219,11 +220,11 @@
 
 			pinctrl_sb: pinctrl@18800 {
 				compatible = "marvell,armada3710-sb-pinctrl",
-				"syscon", "simple-mfd";
+					     "syscon", "simple-mfd";
 				reg = <0x18800 0x100>, <0x18C00 0x20>;
 				gpiosb: gpio {
 					#gpio-cells = <2>;
-					gpio-ranges = <&pinctrl_sb 0 0 29>;
+					gpio-ranges = <&pinctrl_sb 0 0 30>;
 					gpio-controller;
 					interrupts =
 					<GIC_SPI 160 IRQ_TYPE_LEVEL_HIGH>,
@@ -281,8 +282,8 @@
 
 			xor@60900 {
 				compatible = "marvell,armada-3700-xor";
-				reg = <0x60900 0x100
-				       0x60b00 0x100>;
+				reg = <0x60900 0x100>,
+				      <0x60b00 0x100>;
 
 				xor10 {
 					interrupts = <GIC_SPI 47 IRQ_TYPE_LEVEL_HIGH>;
@@ -292,11 +293,22 @@
 				};
 			};
 
+			sdhci1: sdhci@d0000 {
+				compatible = "marvell,armada-3700-sdhci",
+					     "marvell,sdhci-xenon";
+				reg = <0xd0000 0x300>,
+				      <0x1e808 0x4>;
+				interrupts = <GIC_SPI 25 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&nb_periph_clk 0>;
+				clock-names = "core";
+				status = "disabled";
+			};
+
 			sdhci0: sdhci@d8000 {
 				compatible = "marvell,armada-3700-sdhci",
-				"marvell,sdhci-xenon";
-				reg = <0xd8000 0x300
-				       0x17808 0x4>;
+					     "marvell,sdhci-xenon";
+				reg = <0xd8000 0x300>,
+				      <0x17808 0x4>;
 				interrupts = <GIC_SPI 26 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&nb_periph_clk 0>;
 				clock-names = "core";
@@ -315,7 +327,11 @@
 				#interrupt-cells = <3>;
 				interrupt-controller;
 				reg = <0x1d00000 0x10000>, /* GICD */
-				      <0x1d40000 0x40000>; /* GICR */
+				      <0x1d40000 0x40000>, /* GICR */
+				      <0x1d80000 0x2000>,  /* GICC */
+				      <0x1d90000 0x2000>,  /* GICH */
+				      <0x1da0000 0x20000>; /* GICV */
+				interrupts = <GIC_PPI 9 IRQ_TYPE_LEVEL_HIGH>;
 			};
 		};
 

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *  S390 version
  *    Copyright IBM Corp. 1999, 2000
@@ -14,6 +15,8 @@
 #include <linux/threads.h>
 #include <linux/gfp.h>
 #include <linux/mm.h>
+
+#define CRST_ALLOC_ORDER 2
 
 unsigned long *crst_table_alloc(struct mm_struct *);
 void crst_table_free(struct mm_struct *, unsigned long *);
@@ -42,20 +45,32 @@ static inline void clear_table(unsigned long *s, unsigned long val, size_t n)
 
 static inline void crst_table_init(unsigned long *crst, unsigned long entry)
 {
-	clear_table(crst, entry, sizeof(unsigned long)*2048);
+	clear_table(crst, entry, _CRST_TABLE_SIZE);
 }
 
 static inline unsigned long pgd_entry_type(struct mm_struct *mm)
 {
-	if (mm->context.asce_limit <= (1UL << 31))
+	if (mm->context.asce_limit <= _REGION3_SIZE)
 		return _SEGMENT_ENTRY_EMPTY;
-	if (mm->context.asce_limit <= (1UL << 42))
+	if (mm->context.asce_limit <= _REGION2_SIZE)
 		return _REGION3_ENTRY_EMPTY;
-	return _REGION2_ENTRY_EMPTY;
+	if (mm->context.asce_limit <= _REGION1_SIZE)
+		return _REGION2_ENTRY_EMPTY;
+	return _REGION1_ENTRY_EMPTY;
 }
 
-int crst_table_upgrade(struct mm_struct *);
+int crst_table_upgrade(struct mm_struct *mm, unsigned long limit);
 void crst_table_downgrade(struct mm_struct *);
+
+static inline p4d_t *p4d_alloc_one(struct mm_struct *mm, unsigned long address)
+{
+	unsigned long *table = crst_table_alloc(mm);
+
+	if (table)
+		crst_table_init(table, _REGION2_ENTRY_EMPTY);
+	return (p4d_t *) table;
+}
+#define p4d_free(mm, p4d) crst_table_free(mm, (unsigned long *) p4d)
 
 static inline pud_t *pud_alloc_one(struct mm_struct *mm, unsigned long address)
 {
@@ -86,9 +101,14 @@ static inline void pmd_free(struct mm_struct *mm, pmd_t *pmd)
 	crst_table_free(mm, (unsigned long *) pmd);
 }
 
-static inline void pgd_populate(struct mm_struct *mm, pgd_t *pgd, pud_t *pud)
+static inline void pgd_populate(struct mm_struct *mm, pgd_t *pgd, p4d_t *p4d)
 {
-	pgd_val(*pgd) = _REGION2_ENTRY | __pa(pud);
+	pgd_val(*pgd) = _REGION1_ENTRY | __pa(p4d);
+}
+
+static inline void p4d_populate(struct mm_struct *mm, p4d_t *p4d, pud_t *pud)
+{
+	p4d_val(*p4d) = _REGION2_ENTRY | __pa(pud);
 }
 
 static inline void pud_populate(struct mm_struct *mm, pud_t *pud, pmd_t *pmd)
@@ -102,7 +122,7 @@ static inline pgd_t *pgd_alloc(struct mm_struct *mm)
 
 	if (!table)
 		return NULL;
-	if (mm->context.asce_limit == (1UL << 31)) {
+	if (mm->context.asce_limit == _REGION3_SIZE) {
 		/* Forking a compat process with 2 page table levels */
 		if (!pgtable_pmd_page_ctor(virt_to_page(table))) {
 			crst_table_free(mm, table);
@@ -114,7 +134,7 @@ static inline pgd_t *pgd_alloc(struct mm_struct *mm)
 
 static inline void pgd_free(struct mm_struct *mm, pgd_t *pgd)
 {
-	if (mm->context.asce_limit == (1UL << 31))
+	if (mm->context.asce_limit == _REGION3_SIZE)
 		pgtable_pmd_page_dtor(virt_to_page(pgd));
 	crst_table_free(mm, (unsigned long *) pgd);
 }
@@ -140,5 +160,9 @@ static inline void pmd_populate(struct mm_struct *mm,
 #define pte_free(mm, pte) page_table_free(mm, (unsigned long *) pte)
 
 extern void rcu_table_freelist_finish(void);
+
+void vmem_map_init(void);
+void *vmem_crst_alloc(unsigned long val);
+pte_t *vmem_pte_alloc(void);
 
 #endif /* _S390_PGALLOC_H */

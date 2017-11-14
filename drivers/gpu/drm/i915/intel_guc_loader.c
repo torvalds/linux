@@ -61,6 +61,9 @@
 #define KBL_FW_MAJOR 9
 #define KBL_FW_MINOR 14
 
+#define GLK_FW_MAJOR 10
+#define GLK_FW_MINOR 56
+
 #define GUC_FW_PATH(platform, major, minor) \
        "i915/" __stringify(platform) "_guc_ver" __stringify(major) "_" __stringify(minor) ".bin"
 
@@ -72,6 +75,8 @@ MODULE_FIRMWARE(I915_BXT_GUC_UCODE);
 
 #define I915_KBL_GUC_UCODE GUC_FW_PATH(kbl, KBL_FW_MAJOR, KBL_FW_MINOR)
 MODULE_FIRMWARE(I915_KBL_GUC_UCODE);
+
+#define I915_GLK_GUC_UCODE GUC_FW_PATH(glk, GLK_FW_MAJOR, GLK_FW_MINOR)
 
 
 static u32 get_gttype(struct drm_i915_private *dev_priv)
@@ -86,11 +91,11 @@ static u32 get_core_family(struct drm_i915_private *dev_priv)
 
 	switch (gen) {
 	case 9:
-		return GFXCORE_FAMILY_GEN9;
+		return GUC_CORE_FAMILY_GEN9;
 
 	default:
-		WARN(1, "GEN%d does not support GuC operation!\n", gen);
-		return GFXCORE_FAMILY_UNKNOWN;
+		MISSING_CASE(gen);
+		return GUC_CORE_FAMILY_UNKNOWN;
 	}
 }
 
@@ -280,10 +285,6 @@ static int guc_ucode_xfer(struct drm_i915_private *dev_priv)
 
 	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
 
-	/* init WOPCM */
-	I915_WRITE(GUC_WOPCM_SIZE, intel_guc_wopcm_size(dev_priv));
-	I915_WRITE(DMA_GUC_WOPCM_OFFSET, GUC_WOPCM_OFFSET_VALUE);
-
 	/* Enable MIA caching. GuC clock gating is disabled. */
 	I915_WRITE(GUC_SHIM_CONTROL, GUC_SHIM_CONTROL_VALUE);
 
@@ -401,10 +402,14 @@ int intel_guc_select_fw(struct intel_guc *guc)
 		guc->fw.path = I915_BXT_GUC_UCODE;
 		guc->fw.major_ver_wanted = BXT_FW_MAJOR;
 		guc->fw.minor_ver_wanted = BXT_FW_MINOR;
-	} else if (IS_KABYLAKE(dev_priv)) {
+	} else if (IS_KABYLAKE(dev_priv) || IS_COFFEELAKE(dev_priv)) {
 		guc->fw.path = I915_KBL_GUC_UCODE;
 		guc->fw.major_ver_wanted = KBL_FW_MAJOR;
 		guc->fw.minor_ver_wanted = KBL_FW_MINOR;
+	} else if (IS_GEMINILAKE(dev_priv)) {
+		guc->fw.path = I915_GLK_GUC_UCODE;
+		guc->fw.major_ver_wanted = GLK_FW_MAJOR;
+		guc->fw.minor_ver_wanted = GLK_FW_MINOR;
 	} else {
 		DRM_ERROR("No GuC firmware known for platform with GuC!\n");
 		return -ENOENT;

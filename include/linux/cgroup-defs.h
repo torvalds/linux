@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * linux/cgroup-defs.h - basic definitions for cgroup
  *
@@ -67,12 +68,26 @@ enum {
 enum {
 	CGRP_ROOT_NOPREFIX	= (1 << 1), /* mounted subsystems have no named prefix */
 	CGRP_ROOT_XATTR		= (1 << 2), /* supports extended attributes */
+
+	/*
+	 * Consider namespaces as delegation boundaries.  If this flag is
+	 * set, controller specific interface files in a namespace root
+	 * aren't writeable from inside the namespace.
+	 */
+	CGRP_ROOT_NS_DELEGATE	= (1 << 3),
+
+	/*
+	 * Enable cpuset controller in v1 cgroup to use v2 behavior.
+	 */
+	CGRP_ROOT_CPUSET_V2_MODE = (1 << 4),
 };
 
 /* cftype->flags */
 enum {
 	CFTYPE_ONLY_ON_ROOT	= (1 << 0),	/* only create on root cgrp */
 	CFTYPE_NOT_ON_ROOT	= (1 << 1),	/* don't create on root cgrp */
+	CFTYPE_NS_DELEGATABLE	= (1 << 2),	/* writeable beyond delegation boundaries */
+
 	CFTYPE_NO_PREFIX	= (1 << 3),	/* (DON'T USE FOR NEW FILES) no subsys prefix */
 	CFTYPE_WORLD_WRITABLE	= (1 << 4),	/* (DON'T USE FOR NEW FILES) S_IWUGO */
 
@@ -163,8 +178,19 @@ struct css_set {
 	/* reference count */
 	refcount_t refcount;
 
+	/*
+	 * For a domain cgroup, the following points to self.  If threaded,
+	 * to the matching cset of the nearest domain ancestor.  The
+	 * dom_cset provides access to the domain cgroup and its csses to
+	 * which domain level resource consumptions should be charged.
+	 */
+	struct css_set *dom_cset;
+
 	/* the default cgroup associated with this css_set */
 	struct cgroup *dfl_cgrp;
+
+	/* internal task count, protected by css_set_lock */
+	int nr_tasks;
 
 	/*
 	 * Lists running through all tasks using this cgroup group.
@@ -187,6 +213,10 @@ struct css_set {
 	 * iterate through all css's attached to a given cgroup.
 	 */
 	struct list_head e_cset_node[CGROUP_SUBSYS_COUNT];
+
+	/* all threaded csets whose ->dom_cset points to this cset */
+	struct list_head threaded_csets;
+	struct list_head threaded_csets_node;
 
 	/*
 	 * List running through all cgroup groups in the same hash
@@ -249,13 +279,35 @@ struct cgroup {
 	 */
 	int level;
 
+	/* Maximum allowed descent tree depth */
+	int max_depth;
+
+	/*
+	 * Keep track of total numbers of visible and dying descent cgroups.
+	 * Dying cgroups are cgroups which were deleted by a user,
+	 * but are still existing because someone else is holding a reference.
+	 * max_descendants is a maximum allowed number of descent cgroups.
+	 */
+	int nr_descendants;
+	int nr_dying_descendants;
+	int max_descendants;
+
 	/*
 	 * Each non-empty css_set associated with this cgroup contributes
-	 * one to populated_cnt.  All children with non-zero popuplated_cnt
-	 * of their own contribute one.  The count is zero iff there's no
-	 * task in this cgroup or its subtree.
+	 * one to nr_populated_csets.  The counter is zero iff this cgroup
+	 * doesn't have any tasks.
+	 *
+	 * All children which have non-zero nr_populated_csets and/or
+	 * nr_populated_children of their own contribute one to either
+	 * nr_populated_domain_children or nr_populated_threaded_children
+	 * depending on their type.  Each counter is zero iff all cgroups
+	 * of the type in the subtree proper don't have any tasks.
 	 */
-	int populated_cnt;
+	int nr_populated_csets;
+	int nr_populated_domain_children;
+	int nr_populated_threaded_children;
+
+	int nr_threaded_children;	/* # of live threaded child cgroups */
 
 	struct kernfs_node *kn;		/* cgroup kernfs entry */
 	struct cgroup_file procs_file;	/* handle for "cgroup.procs" */
@@ -292,6 +344,15 @@ struct cgroup {
 	 * for the given subsystem.
 	 */
 	struct list_head e_csets[CGROUP_SUBSYS_COUNT];
+
+	/*
+	 * If !threaded, self.  If threaded, it points to the nearest
+	 * domain ancestor.  Inside a threaded subtree, cgroups are exempt
+	 * from process granularity and no-internal-task constraint.
+	 * Domain level resource consumptions which aren't tied to a
+	 * specific task are charged to the dom_cgrp.
+	 */
+	struct cgroup *dom_cgrp;
 
 	/*
 	 * list of pidlists, up to two for each namespace (one for procs, one
@@ -478,6 +539,18 @@ struct cgroup_subsys {
 	 * hierarchies coexisting with csses for the current one.
 	 */
 	bool implicit_on_dfl:1;
+
+	/*
+	 * If %true, the controller, supports threaded mode on the default
+	 * hierarchy.  In a threaded subtree, both process granularity and
+	 * no-internal-process constraint are ignored and a threaded
+	 * controllers should be able to handle that.
+	 *
+	 * Note that as an implicit controller is automatically enabled on
+	 * all cgroups on the default hierarchy, it should also be
+	 * threaded.  implicit && !threaded is not supported.
+	 */
+	bool threaded:1;
 
 	/*
 	 * If %false, this subsystem is properly hierarchical -

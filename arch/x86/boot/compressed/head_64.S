@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *  linux/boot/head.S
  *
@@ -243,13 +244,119 @@ ENTRY(startup_64)
 	 * that maps our entire kernel(text+data+bss+brk), zero page
 	 * and command line.
 	 */
-#ifdef CONFIG_EFI_STUB
-	/*
-	 * The entry point for the PE/COFF executable is efi_pe_entry, so
-	 * only legacy boot loaders will execute this jmp.
-	 */
-	jmp	preferred_addr
 
+	/* Setup data segments. */
+	xorl	%eax, %eax
+	movl	%eax, %ds
+	movl	%eax, %es
+	movl	%eax, %ss
+	movl	%eax, %fs
+	movl	%eax, %gs
+
+	/*
+	 * Compute the decompressed kernel start address.  It is where
+	 * we were loaded at aligned to a 2M boundary. %rbp contains the
+	 * decompressed kernel start address.
+	 *
+	 * If it is a relocatable kernel then decompress and run the kernel
+	 * from load address aligned to 2MB addr, otherwise decompress and
+	 * run the kernel from LOAD_PHYSICAL_ADDR
+	 *
+	 * We cannot rely on the calculation done in 32-bit mode, since we
+	 * may have been invoked via the 64-bit entry point.
+	 */
+
+	/* Start with the delta to where the kernel will run at. */
+#ifdef CONFIG_RELOCATABLE
+	leaq	startup_32(%rip) /* - $startup_32 */, %rbp
+	movl	BP_kernel_alignment(%rsi), %eax
+	decl	%eax
+	addq	%rax, %rbp
+	notq	%rax
+	andq	%rax, %rbp
+	cmpq	$LOAD_PHYSICAL_ADDR, %rbp
+	jge	1f
+#endif
+	movq	$LOAD_PHYSICAL_ADDR, %rbp
+1:
+
+	/* Target address to relocate to for decompression */
+	movl	BP_init_size(%rsi), %ebx
+	subl	$_end, %ebx
+	addq	%rbp, %rbx
+
+	/* Set up the stack */
+	leaq	boot_stack_end(%rbx), %rsp
+
+#ifdef CONFIG_X86_5LEVEL
+	/* Check if 5-level paging has already enabled */
+	movq	%cr4, %rax
+	testl	$X86_CR4_LA57, %eax
+	jnz	lvl5
+
+	/*
+	 * At this point we are in long mode with 4-level paging enabled,
+	 * but we want to enable 5-level paging.
+	 *
+	 * The problem is that we cannot do it directly. Setting LA57 in
+	 * long mode would trigger #GP. So we need to switch off long mode
+	 * first.
+	 *
+	 * NOTE: This is not going to work if bootloader put us above 4G
+	 * limit.
+	 *
+	 * The first step is go into compatibility mode.
+	 */
+
+	/* Clear additional page table */
+	leaq	lvl5_pgtable(%rbx), %rdi
+	xorq	%rax, %rax
+	movq	$(PAGE_SIZE/8), %rcx
+	rep	stosq
+
+	/*
+	 * Setup current CR3 as the first and only entry in a new top level
+	 * page table.
+	 */
+	movq	%cr3, %rdi
+	leaq	0x7 (%rdi), %rax
+	movq	%rax, lvl5_pgtable(%rbx)
+
+	/* Switch to compatibility mode (CS.L = 0 CS.D = 1) via far return */
+	pushq	$__KERNEL32_CS
+	leaq	compatible_mode(%rip), %rax
+	pushq	%rax
+	lretq
+lvl5:
+#endif
+
+	/* Zero EFLAGS */
+	pushq	$0
+	popfq
+
+/*
+ * Copy the compressed kernel to the end of our buffer
+ * where decompression in place becomes safe.
+ */
+	pushq	%rsi
+	leaq	(_bss-8)(%rip), %rsi
+	leaq	(_bss-8)(%rbx), %rdi
+	movq	$_bss /* - $startup_32 */, %rcx
+	shrq	$3, %rcx
+	std
+	rep	movsq
+	cld
+	popq	%rsi
+
+/*
+ * Jump to the relocated address.
+ */
+	leaq	relocated(%rbx), %rax
+	jmp	*%rax
+
+#ifdef CONFIG_EFI_STUB
+
+/* The entry point for the PE/COFF executable is efi_pe_entry. */
 ENTRY(efi_pe_entry)
 	movq	%rcx, efi64_config(%rip)	/* Handle */
 	movq	%rdx, efi64_config+8(%rip) /* EFI System table pointer */
@@ -297,80 +404,10 @@ fail:
 	jmp	fail
 2:
 	movl	BP_code32_start(%esi), %eax
-	leaq	preferred_addr(%rax), %rax
+	leaq	startup_64(%rax), %rax
 	jmp	*%rax
+ENDPROC(efi_pe_entry)
 
-preferred_addr:
-#endif
-
-	/* Setup data segments. */
-	xorl	%eax, %eax
-	movl	%eax, %ds
-	movl	%eax, %es
-	movl	%eax, %ss
-	movl	%eax, %fs
-	movl	%eax, %gs
-
-	/*
-	 * Compute the decompressed kernel start address.  It is where
-	 * we were loaded at aligned to a 2M boundary. %rbp contains the
-	 * decompressed kernel start address.
-	 *
-	 * If it is a relocatable kernel then decompress and run the kernel
-	 * from load address aligned to 2MB addr, otherwise decompress and
-	 * run the kernel from LOAD_PHYSICAL_ADDR
-	 *
-	 * We cannot rely on the calculation done in 32-bit mode, since we
-	 * may have been invoked via the 64-bit entry point.
-	 */
-
-	/* Start with the delta to where the kernel will run at. */
-#ifdef CONFIG_RELOCATABLE
-	leaq	startup_32(%rip) /* - $startup_32 */, %rbp
-	movl	BP_kernel_alignment(%rsi), %eax
-	decl	%eax
-	addq	%rax, %rbp
-	notq	%rax
-	andq	%rax, %rbp
-	cmpq	$LOAD_PHYSICAL_ADDR, %rbp
-	jge	1f
-#endif
-	movq	$LOAD_PHYSICAL_ADDR, %rbp
-1:
-
-	/* Target address to relocate to for decompression */
-	movl	BP_init_size(%rsi), %ebx
-	subl	$_end, %ebx
-	addq	%rbp, %rbx
-
-	/* Set up the stack */
-	leaq	boot_stack_end(%rbx), %rsp
-
-	/* Zero EFLAGS */
-	pushq	$0
-	popfq
-
-/*
- * Copy the compressed kernel to the end of our buffer
- * where decompression in place becomes safe.
- */
-	pushq	%rsi
-	leaq	(_bss-8)(%rip), %rsi
-	leaq	(_bss-8)(%rbx), %rdi
-	movq	$_bss /* - $startup_32 */, %rcx
-	shrq	$3, %rcx
-	std
-	rep	movsq
-	cld
-	popq	%rsi
-
-/*
- * Jump to the relocated address.
- */
-	leaq	relocated(%rbx), %rax
-	jmp	*%rax
-
-#ifdef CONFIG_EFI_STUB
 	.org 0x390
 ENTRY(efi64_stub_entry)
 	movq	%rdi, efi64_config(%rip)	/* Handle */
@@ -429,6 +466,44 @@ relocated:
 	jmp	*%rax
 
 	.code32
+#ifdef CONFIG_X86_5LEVEL
+compatible_mode:
+	/* Setup data and stack segments */
+	movl	$__KERNEL_DS, %eax
+	movl	%eax, %ds
+	movl	%eax, %ss
+
+	/* Disable paging */
+	movl	%cr0, %eax
+	btrl	$X86_CR0_PG_BIT, %eax
+	movl	%eax, %cr0
+
+	/* Point CR3 to 5-level paging */
+	leal	lvl5_pgtable(%ebx), %eax
+	movl	%eax, %cr3
+
+	/* Enable PAE and LA57 mode */
+	movl	%cr4, %eax
+	orl	$(X86_CR4_PAE | X86_CR4_LA57), %eax
+	movl	%eax, %cr4
+
+	/* Calculate address we are running at */
+	call	1f
+1:	popl	%edi
+	subl	$1b, %edi
+
+	/* Prepare stack for far return to Long Mode */
+	pushl	$__KERNEL_CS
+	leal	lvl5(%edi), %eax
+	push	%eax
+
+	/* Enable paging back */
+	movl	$(X86_CR0_PG | X86_CR0_PE), %eax
+	movl	%eax, %cr0
+
+	lret
+#endif
+
 no_longmode:
 	/* This isn't an x86-64 CPU so hang */
 1:
@@ -442,7 +517,7 @@ gdt:
 	.word	gdt_end - gdt
 	.long	gdt
 	.word	0
-	.quad	0x0000000000000000	/* NULL descriptor */
+	.quad	0x00cf9a000000ffff	/* __KERNEL32_CS */
 	.quad	0x00af9a000000ffff	/* __KERNEL_CS */
 	.quad	0x00cf92000000ffff	/* __KERNEL_DS */
 	.quad	0x0080890000000000	/* TS descriptor */
@@ -486,3 +561,7 @@ boot_stack_end:
 	.balign 4096
 pgtable:
 	.fill BOOT_PGT_SIZE, 1, 0
+#ifdef CONFIG_X86_5LEVEL
+lvl5_pgtable:
+	.fill PAGE_SIZE, 1, 0
+#endif

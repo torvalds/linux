@@ -103,6 +103,7 @@ static void iwl_pcie_ctxt_info_free_fw_img(struct iwl_trans *trans)
 
 	kfree(dram->fw);
 	dram->fw_cnt = 0;
+	dram->fw = NULL;
 }
 
 void iwl_pcie_ctxt_info_free_paging(struct iwl_trans *trans)
@@ -124,6 +125,7 @@ void iwl_pcie_ctxt_info_free_paging(struct iwl_trans *trans)
 
 	kfree(dram->paging);
 	dram->paging_cnt = 0;
+	dram->paging = NULL;
 }
 
 static int iwl_pcie_ctxt_info_init_fw_sec(struct iwl_trans *trans,
@@ -134,6 +136,11 @@ static int iwl_pcie_ctxt_info_init_fw_sec(struct iwl_trans *trans,
 	struct iwl_self_init_dram *dram = &trans_pcie->init_dram;
 	struct iwl_context_info_dram *ctxt_dram = &ctxt_info->dram;
 	int i, ret, lmac_cnt, umac_cnt, paging_cnt;
+
+	if (WARN(dram->paging,
+		 "paging shouldn't already be initialized (%d pages)\n",
+		 dram->paging_cnt))
+		iwl_pcie_ctxt_info_free_paging(trans);
 
 	lmac_cnt = iwl_pcie_get_num_sections(fw, 0);
 	/* add 1 due to separator */
@@ -237,7 +244,7 @@ int iwl_pcie_ctxt_info_init(struct iwl_trans *trans,
 	ctxt_info->hcmd_cfg.cmd_queue_addr =
 		cpu_to_le64(trans_pcie->txq[trans_pcie->cmd_queue]->dma_addr);
 	ctxt_info->hcmd_cfg.cmd_queue_size =
-		TFD_QUEUE_CB_SIZE(TFD_QUEUE_SIZE_MAX);
+		TFD_QUEUE_CB_SIZE(TFD_CMD_SLOTS);
 
 	/* allocate ucode sections in dram and set addresses */
 	ret = iwl_pcie_ctxt_info_init_fw_sec(trans, fw, ctxt_info);

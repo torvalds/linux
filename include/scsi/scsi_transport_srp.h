@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef SCSI_TRANSPORT_SRP_H
 #define SCSI_TRANSPORT_SRP_H
 
@@ -111,7 +112,7 @@ extern struct srp_rport *srp_rport_add(struct Scsi_Host *,
 				       struct srp_rport_identifiers *);
 extern void srp_rport_del(struct srp_rport *);
 extern int srp_tmo_valid(int reconnect_delay, int fast_io_fail_tmo,
-			 int dev_loss_tmo);
+			 long dev_loss_tmo);
 int srp_parse_tmo(int *tmo, const char *buf);
 extern int srp_reconnect_rport(struct srp_rport *rport);
 extern void srp_start_tl_fail_timers(struct srp_rport *rport);

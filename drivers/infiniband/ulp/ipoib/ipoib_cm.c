@@ -39,6 +39,7 @@
 #include <linux/vmalloc.h>
 #include <linux/moduleparam.h>
 #include <linux/sched/signal.h>
+#include <linux/sched/mm.h>
 
 #include "ipoib.h"
 
@@ -510,7 +511,6 @@ static int ipoib_cm_rx_handler(struct ib_cm_id *cm_id,
 	case IB_CM_REQ_RECEIVED:
 		return ipoib_cm_req_handler(cm_id, event);
 	case IB_CM_DREQ_RECEIVED:
-		p = cm_id->context;
 		ib_send_cm_drep(cm_id, NULL, 0);
 		/* Fall through */
 	case IB_CM_REJ_RECEIVED:
@@ -823,12 +823,18 @@ void ipoib_cm_handle_tx_wc(struct net_device *dev, struct ib_wc *wc)
 	    wc->status != IB_WC_WR_FLUSH_ERR) {
 		struct ipoib_neigh *neigh;
 
-		if (wc->status != IB_WC_RNR_RETRY_EXC_ERR)
-			ipoib_warn(priv, "failed cm send event (status=%d, wrid=%d vend_err %x)\n",
-				   wc->status, wr_id, wc->vendor_err);
+		/* IB_WC[_RNR]_RETRY_EXC_ERR error is part of the life cycle,
+		 * so don't make waves.
+		 */
+		if (wc->status == IB_WC_RNR_RETRY_EXC_ERR ||
+		    wc->status == IB_WC_RETRY_EXC_ERR)
+			ipoib_dbg(priv,
+				  "%s: failed cm send event (status=%d, wrid=%d vend_err 0x%x)\n",
+				   __func__, wc->status, wr_id, wc->vendor_err);
 		else
-			ipoib_dbg(priv, "failed cm send event (status=%d, wrid=%d vend_err %x)\n",
-				  wc->status, wr_id, wc->vendor_err);
+			ipoib_warn(priv,
+				    "%s: failed cm send event (status=%d, wrid=%d vend_err 0x%x)\n",
+				   __func__, wc->status, wr_id, wc->vendor_err);
 
 		spin_lock_irqsave(&priv->lock, flags);
 		neigh = tx->neigh;
@@ -954,7 +960,7 @@ void ipoib_cm_dev_stop(struct net_device *dev)
 			break;
 		}
 		spin_unlock_irq(&priv->lock);
-		msleep(1);
+		usleep_range(1000, 2000);
 		ipoib_drain_cq(dev);
 		spin_lock_irq(&priv->lock);
 	}
@@ -1047,9 +1053,8 @@ static struct ib_qp *ipoib_cm_create_tx_qp(struct net_device *dev, struct ipoib_
 		.sq_sig_type		= IB_SIGNAL_ALL_WR,
 		.qp_type		= IB_QPT_RC,
 		.qp_context		= tx,
-		.create_flags		= IB_QP_CREATE_USE_GFP_NOIO
+		.create_flags		= 0
 	};
-
 	struct ib_qp *tx_qp;
 
 	if (dev->features & NETIF_F_SG)
@@ -1057,10 +1062,6 @@ static struct ib_qp *ipoib_cm_create_tx_qp(struct net_device *dev, struct ipoib_
 			min_t(u32, priv->ca->attrs.max_sge, MAX_SKB_FRAGS + 1);
 
 	tx_qp = ib_create_qp(priv->pd, &attr);
-	if (PTR_ERR(tx_qp) == -EINVAL) {
-		attr.create_flags &= ~IB_QP_CREATE_USE_GFP_NOIO;
-		tx_qp = ib_create_qp(priv->pd, &attr);
-	}
 	tx->max_send_sge = attr.cap.max_send_sge;
 	return tx_qp;
 }
@@ -1131,10 +1132,11 @@ static int ipoib_cm_tx_init(struct ipoib_cm_tx *p, u32 qpn,
 			    struct sa_path_rec *pathrec)
 {
 	struct ipoib_dev_priv *priv = ipoib_priv(p->dev);
+	unsigned int noio_flag;
 	int ret;
 
-	p->tx_ring = __vmalloc(ipoib_sendq_size * sizeof *p->tx_ring,
-			       GFP_NOIO, PAGE_KERNEL);
+	noio_flag = memalloc_noio_save();
+	p->tx_ring = vzalloc(ipoib_sendq_size * sizeof(*p->tx_ring));
 	if (!p->tx_ring) {
 		ret = -ENOMEM;
 		goto err_tx;
@@ -1142,9 +1144,10 @@ static int ipoib_cm_tx_init(struct ipoib_cm_tx *p, u32 qpn,
 	memset(p->tx_ring, 0, ipoib_sendq_size * sizeof *p->tx_ring);
 
 	p->qp = ipoib_cm_create_tx_qp(p->dev, p);
+	memalloc_noio_restore(noio_flag);
 	if (IS_ERR(p->qp)) {
 		ret = PTR_ERR(p->qp);
-		ipoib_warn(priv, "failed to allocate tx qp: %d\n", ret);
+		ipoib_warn(priv, "failed to create tx qp: %d\n", ret);
 		goto err_qp;
 	}
 
@@ -1206,7 +1209,7 @@ static void ipoib_cm_tx_destroy(struct ipoib_cm_tx *p)
 				goto timeout;
 			}
 
-			msleep(1);
+			usleep_range(1000, 2000);
 		}
 	}
 
@@ -1509,8 +1512,13 @@ static ssize_t set_mode(struct device *d, struct device_attribute *attr,
 	if (test_bit(IPOIB_FLAG_GOING_DOWN, &priv->flags))
 		return -EPERM;
 
-	if (!rtnl_trylock())
+	if (!mutex_trylock(&priv->sysfs_mutex))
 		return restart_syscall();
+
+	if (!rtnl_trylock()) {
+		mutex_unlock(&priv->sysfs_mutex);
+		return restart_syscall();
+	}
 
 	ret = ipoib_set_mode(dev, buf);
 
@@ -1520,6 +1528,7 @@ static ssize_t set_mode(struct device *d, struct device_attribute *attr,
 	 */
 	if (ret != -EBUSY)
 		rtnl_unlock();
+	mutex_unlock(&priv->sysfs_mutex);
 
 	return (!ret || ret == -EBUSY) ? count : ret;
 }

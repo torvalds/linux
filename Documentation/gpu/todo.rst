@@ -108,8 +108,8 @@ This would be especially useful for tinydrm:
   crtc state, clear that to the max values, x/y = 0 and w/h = MAX_INT, in
   __drm_atomic_helper_crtc_duplicate_state().
 
-- Move tinydrm_merge_clips into drm_framebuffer.c, dropping the tinydrm_
-  prefix ofc and using drm_fb_. drm_framebuffer.c makes sense since this
+- Move tinydrm_merge_clips into drm_framebuffer.c, dropping the tinydrm\_
+  prefix ofc and using drm_fb\_. drm_framebuffer.c makes sense since this
   is a function useful to implement the fb->dirty function.
 
 - Create a new drm_fb_dirty function which does essentially what e.g.
@@ -177,19 +177,6 @@ following drivers still use ``struct_mutex``: ``msm``, ``omapdrm`` and
 
 Contact: Daniel Vetter, respective driver maintainers
 
-Switch to drm_connector_list_iter for any connector_list walking
-----------------------------------------------------------------
-
-Connectors can be hotplugged, and we now have a special list of helpers to walk
-the connector_list in a race-free fashion, without incurring deadlocks on
-mutexes and other fun stuff.
-
-Unfortunately most drivers are not converted yet. At least all those supporting
-DP MST hotplug should be converted, since for those drivers the difference
-matters. See drm_for_each_connector_iter() vs. drm_for_each_connector().
-
-Contact: Daniel Vetter
-
 Core refactorings
 =================
 
@@ -228,7 +215,7 @@ The DRM reference documentation is still lacking kerneldoc in a few areas. The
 task would be to clean up interfaces like moving functions around between
 files to better group them and improving the interfaces like dropping return
 values for functions that never fail. Then write kerneldoc for all exported
-functions and an overview section and integrate it all into the drm DocBook.
+functions and an overview section and integrate it all into the drm book.
 
 See https://dri.freedesktop.org/docs/drm/ for what's there already.
 

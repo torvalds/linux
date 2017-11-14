@@ -254,7 +254,6 @@ static void cdn_dp_connector_destroy(struct drm_connector *connector)
 }
 
 static const struct drm_connector_funcs cdn_dp_atomic_connector_funcs = {
-	.dpms = drm_atomic_helper_connector_dpms,
 	.detect = cdn_dp_connector_detect,
 	.destroy = cdn_dp_connector_destroy,
 	.fill_modes = drm_helper_probe_single_connector_modes,
@@ -1195,7 +1194,7 @@ static int cdn_dp_probe(struct platform_device *pdev)
 			continue;
 
 		port = devm_kzalloc(dev, sizeof(*port), GFP_KERNEL);
-		if (!dp)
+		if (!port)
 			return -ENOMEM;
 
 		port->extcon = extcon;

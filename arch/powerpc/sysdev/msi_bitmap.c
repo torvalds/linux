@@ -86,13 +86,13 @@ int msi_bitmap_reserve_dt_hwirqs(struct msi_bitmap *bmp)
 	p = of_get_property(bmp->of_node, "msi-available-ranges", &len);
 	if (!p) {
 		pr_debug("msi_bitmap: no msi-available-ranges property " \
-			 "found on %s\n", bmp->of_node->full_name);
+			 "found on %pOF\n", bmp->of_node);
 		return 1;
 	}
 
 	if (len % (2 * sizeof(u32)) != 0) {
 		printk(KERN_WARNING "msi_bitmap: Malformed msi-available-ranges"
-		       " property on %s\n", bmp->of_node->full_name);
+		       " property on %pOF\n", bmp->of_node);
 		return -EINVAL;
 	}
 

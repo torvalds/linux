@@ -80,7 +80,7 @@ static int s3c_camif_hw_init(struct camif_dev *camif, struct camif_vp *vp)
 	camif_hw_set_test_pattern(camif, camif->test_pattern);
 	if (variant->has_img_effect)
 		camif_hw_set_effect(camif, camif->colorfx,
-				camif->colorfx_cb, camif->colorfx_cr);
+				camif->colorfx_cr, camif->colorfx_cb);
 	if (variant->ip_revision == S3C6410_CAMIF_IP_REV)
 		camif_hw_set_input_path(vp);
 	camif_cfg_video_path(vp);
@@ -364,7 +364,7 @@ irqreturn_t s3c_camif_irq_handler(int irq, void *priv)
 		camif_hw_set_test_pattern(camif, camif->test_pattern);
 		if (camif->variant->has_img_effect)
 			camif_hw_set_effect(camif, camif->colorfx,
-				    camif->colorfx_cb, camif->colorfx_cr);
+				    camif->colorfx_cr, camif->colorfx_cb);
 		vp->state &= ~ST_VP_CONFIG;
 	}
 unlock:

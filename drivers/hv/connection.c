@@ -32,6 +32,8 @@
 #include <linux/hyperv.h>
 #include <linux/export.h>
 #include <asm/hyperv.h>
+#include <asm/mshyperv.h>
+
 #include "hyperv_vmbus.h"
 
 
@@ -93,10 +95,14 @@ static int vmbus_negotiate_version(struct vmbus_channel_msginfo *msginfo,
 	 * all the CPUs. This is needed for kexec to work correctly where
 	 * the CPU attempting to connect may not be CPU 0.
 	 */
-	if (version >= VERSION_WIN8_1)
-		msg->target_vcpu = hv_context.vp_index[smp_processor_id()];
-	else
+	if (version >= VERSION_WIN8_1) {
+		msg->target_vcpu =
+			hv_cpu_number_to_vp_number(smp_processor_id());
+		vmbus_connection.connect_cpu = smp_processor_id();
+	} else {
 		msg->target_vcpu = 0;
+		vmbus_connection.connect_cpu = 0;
+	}
 
 	/*
 	 * Add to list before we send the request since we may
@@ -370,7 +376,7 @@ int vmbus_post_msg(void *buffer, size_t buflen, bool can_sleep)
 			break;
 		case HV_STATUS_INSUFFICIENT_MEMORY:
 		case HV_STATUS_INSUFFICIENT_BUFFERS:
-			ret = -ENOMEM;
+			ret = -ENOBUFS;
 			break;
 		case HV_STATUS_SUCCESS:
 			return ret;
@@ -387,7 +393,7 @@ int vmbus_post_msg(void *buffer, size_t buflen, bool can_sleep)
 		else
 			mdelay(usec / 1000);
 
-		if (usec < 256000)
+		if (retries < 22)
 			usec *= 2;
 	}
 	return ret;
@@ -403,6 +409,6 @@ void vmbus_set_event(struct vmbus_channel *channel)
 	if (!channel->is_dedicated_interrupt)
 		vmbus_send_interrupt(child_relid);
 
-	hv_do_hypercall(HVCALL_SIGNAL_EVENT, channel->sig_event, NULL);
+	hv_do_fast_hypercall8(HVCALL_SIGNAL_EVENT, channel->sig_event);
 }
 EXPORT_SYMBOL_GPL(vmbus_set_event);

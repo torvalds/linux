@@ -218,17 +218,16 @@ enum {
 
 struct rpcrdma_rep {
 	struct ib_cqe		rr_cqe;
-	unsigned int		rr_len;
 	int			rr_wc_flags;
 	u32			rr_inv_rkey;
+	struct rpcrdma_regbuf	*rr_rdmabuf;
 	struct rpcrdma_xprt	*rr_rxprt;
 	struct work_struct	rr_work;
+	struct xdr_buf		rr_hdrbuf;
+	struct xdr_stream	rr_stream;
 	struct list_head	rr_list;
 	struct ib_recv_wr	rr_recv_wr;
-	struct rpcrdma_regbuf	*rr_rdmabuf;
 };
-
-#define RPCRDMA_BAD_LEN		(~0U)
 
 /*
  * struct rpcrdma_mw - external memory region metadata
@@ -271,6 +270,7 @@ struct rpcrdma_mw {
 	struct scatterlist	*mw_sg;
 	int			mw_nents;
 	enum dma_data_direction	mw_dir;
+	unsigned long		mw_flags;
 	union {
 		struct rpcrdma_fmr	fmr;
 		struct rpcrdma_frmr	frmr;
@@ -280,6 +280,11 @@ struct rpcrdma_mw {
 	u32			mw_length;
 	u64			mw_offset;
 	struct list_head	mw_all;
+};
+
+/* mw_flags */
+enum {
+	RPCRDMA_MW_F_RI		= 1,
 };
 
 /*
@@ -334,11 +339,13 @@ enum {
 
 struct rpcrdma_buffer;
 struct rpcrdma_req {
-	struct list_head	rl_free;
+	struct list_head	rl_list;
 	unsigned int		rl_mapped_sges;
 	unsigned int		rl_connect_cookie;
 	struct rpcrdma_buffer	*rl_buffer;
 	struct rpcrdma_rep	*rl_reply;
+	struct xdr_stream	rl_stream;
+	struct xdr_buf		rl_hdrbuf;
 	struct ib_send_wr	rl_send_wr;
 	struct ib_sge		rl_send_sge[RPCRDMA_MAX_SEND_SGES];
 	struct rpcrdma_regbuf	*rl_rdmabuf;	/* xprt header */
@@ -432,24 +439,27 @@ struct rpcrdma_create_data_internal {
  * Statistics for RPCRDMA
  */
 struct rpcrdma_stats {
+	/* accessed when sending a call */
 	unsigned long		read_chunk_count;
 	unsigned long		write_chunk_count;
 	unsigned long		reply_chunk_count;
-
 	unsigned long long	total_rdma_request;
-	unsigned long long	total_rdma_reply;
 
+	/* rarely accessed error counters */
 	unsigned long long	pullup_copy_count;
-	unsigned long long	fixup_copy_count;
 	unsigned long		hardway_register_count;
 	unsigned long		failed_marshal_count;
 	unsigned long		bad_reply_count;
-	unsigned long		nomsg_call_count;
-	unsigned long		bcall_count;
 	unsigned long		mrs_recovered;
 	unsigned long		mrs_orphaned;
 	unsigned long		mrs_allocated;
+
+	/* accessed when receiving a reply */
+	unsigned long long	total_rdma_reply;
+	unsigned long long	fixup_copy_count;
 	unsigned long		local_inv_needed;
+	unsigned long		nomsg_call_count;
+	unsigned long		bcall_count;
 };
 
 /*
@@ -457,11 +467,12 @@ struct rpcrdma_stats {
  */
 struct rpcrdma_xprt;
 struct rpcrdma_memreg_ops {
-	int		(*ro_map)(struct rpcrdma_xprt *,
+	struct rpcrdma_mr_seg *
+			(*ro_map)(struct rpcrdma_xprt *,
 				  struct rpcrdma_mr_seg *, int, bool,
 				  struct rpcrdma_mw **);
 	void		(*ro_unmap_sync)(struct rpcrdma_xprt *,
-					 struct rpcrdma_req *);
+					 struct list_head *);
 	void		(*ro_unmap_safe)(struct rpcrdma_xprt *,
 					 struct rpcrdma_req *, bool);
 	void		(*ro_recover_mr)(struct rpcrdma_mw *);
@@ -602,9 +613,15 @@ enum rpcrdma_chunktype {
 bool rpcrdma_prepare_send_sges(struct rpcrdma_ia *, struct rpcrdma_req *,
 			       u32, struct xdr_buf *, enum rpcrdma_chunktype);
 void rpcrdma_unmap_sges(struct rpcrdma_ia *, struct rpcrdma_req *);
-int rpcrdma_marshal_req(struct rpc_rqst *);
+int rpcrdma_marshal_req(struct rpcrdma_xprt *r_xprt, struct rpc_rqst *rqst);
 void rpcrdma_set_max_header_sizes(struct rpcrdma_xprt *);
 void rpcrdma_reply_handler(struct work_struct *work);
+
+static inline void rpcrdma_set_xdrlen(struct xdr_buf *xdr, size_t len)
+{
+	xdr->head[0].iov_len = len;
+	xdr->len = len;
+}
 
 /* RPC/RDMA module init - xprtrdma/transport.c
  */

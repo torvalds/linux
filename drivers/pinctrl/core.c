@@ -170,7 +170,7 @@ const char *pin_get_name(struct pinctrl_dev *pctldev, const unsigned pin)
 	const struct pin_desc *desc;
 
 	desc = pin_desc_get(pctldev, pin);
-	if (desc == NULL) {
+	if (!desc) {
 		dev_err(pctldev->dev, "failed to get pin(%d) name\n",
 			pin);
 		return NULL;
@@ -214,7 +214,7 @@ static void pinctrl_free_pindescs(struct pinctrl_dev *pctldev,
 
 		pindesc = radix_tree_lookup(&pctldev->pin_desc_tree,
 					    pins[i].number);
-		if (pindesc != NULL) {
+		if (pindesc) {
 			radix_tree_delete(&pctldev->pin_desc_tree,
 					  pins[i].number);
 			if (pindesc->dynamic_name)
@@ -230,7 +230,7 @@ static int pinctrl_register_one_pin(struct pinctrl_dev *pctldev,
 	struct pin_desc *pindesc;
 
 	pindesc = pin_desc_get(pctldev, pin->number);
-	if (pindesc != NULL) {
+	if (pindesc) {
 		dev_err(pctldev->dev, "pin %d already registered\n",
 			pin->number);
 		return -EINVAL;
@@ -248,7 +248,7 @@ static int pinctrl_register_one_pin(struct pinctrl_dev *pctldev,
 		pindesc->name = pin->name;
 	} else {
 		pindesc->name = kasprintf(GFP_KERNEL, "PIN%u", pin->number);
-		if (pindesc->name == NULL) {
+		if (!pindesc->name) {
 			kfree(pindesc);
 			return -ENOMEM;
 		}
@@ -264,7 +264,7 @@ static int pinctrl_register_one_pin(struct pinctrl_dev *pctldev,
 }
 
 static int pinctrl_register_pins(struct pinctrl_dev *pctldev,
-				 struct pinctrl_pin_desc const *pins,
+				 const struct pinctrl_pin_desc *pins,
 				 unsigned num_descs)
 {
 	unsigned i;
@@ -402,7 +402,7 @@ static int pinctrl_get_device_gpio_range(unsigned gpio,
 		struct pinctrl_gpio_range *range;
 
 		range = pinctrl_match_gpio_range(pctldev, gpio);
-		if (range != NULL) {
+		if (range) {
 			*outdev = pctldev;
 			*outrange = range;
 			mutex_unlock(&pinctrldev_list_mutex);
@@ -686,7 +686,7 @@ EXPORT_SYMBOL_GPL(pinctrl_generic_remove_group);
 static void pinctrl_generic_free_groups(struct pinctrl_dev *pctldev)
 {
 	struct radix_tree_iter iter;
-	void **slot;
+	void __rcu **slot;
 
 	radix_tree_for_each_slot(slot, &pctldev->pin_group_tree, &iter, 0)
 		radix_tree_delete(&pctldev->pin_group_tree, iter.index);
@@ -907,7 +907,7 @@ static struct pinctrl_state *create_state(struct pinctrl *p,
 }
 
 static int add_setting(struct pinctrl *p, struct pinctrl_dev *pctldev,
-		       struct pinctrl_map const *map)
+		       const struct pinctrl_map *map)
 {
 	struct pinctrl_state *state;
 	struct pinctrl_setting *setting;
@@ -933,7 +933,7 @@ static int add_setting(struct pinctrl *p, struct pinctrl_dev *pctldev,
 	else
 		setting->pctldev =
 			get_pinctrl_dev_from_devname(map->ctrl_dev_name);
-	if (setting->pctldev == NULL) {
+	if (!setting->pctldev) {
 		kfree(setting);
 		/* Do not defer probing of hogs (circular loop) */
 		if (!strcmp(map->ctrl_dev_name, map->dev_name))
@@ -995,7 +995,7 @@ static struct pinctrl *create_pinctrl(struct device *dev,
 	const char *devname;
 	struct pinctrl_maps *maps_node;
 	int i;
-	struct pinctrl_map const *map;
+	const struct pinctrl_map *map;
 	int ret;
 
 	/*
@@ -1023,6 +1023,16 @@ static struct pinctrl *create_pinctrl(struct device *dev,
 	for_each_maps(maps_node, i, map) {
 		/* Map must be for this device */
 		if (strcmp(map->dev_name, devname))
+			continue;
+		/*
+		 * If pctldev is not null, we are claiming hog for it,
+		 * that means, setting that is served by pctldev by itself.
+		 *
+		 * Thus we must skip map that is for this device but is served
+		 * by other device.
+		 */
+		if (pctldev &&
+		    strcmp(dev_name(pctldev->dev), map->ctrl_dev_name))
 			continue;
 
 		ret = add_setting(p, pctldev, map);
@@ -1080,7 +1090,7 @@ struct pinctrl *pinctrl_get(struct device *dev)
 	 * return another pointer to it.
 	 */
 	p = find_pinctrl(dev);
-	if (p != NULL) {
+	if (p) {
 		dev_dbg(dev, "obtain a copy of previously claimed pinctrl\n");
 		kref_get(&p->users);
 		return p;
@@ -1311,7 +1321,7 @@ void devm_pinctrl_put(struct pinctrl *p)
 }
 EXPORT_SYMBOL_GPL(devm_pinctrl_put);
 
-int pinctrl_register_map(struct pinctrl_map const *maps, unsigned num_maps,
+int pinctrl_register_map(const struct pinctrl_map *maps, unsigned num_maps,
 			 bool dup)
 {
 	int i, ret;
@@ -1370,7 +1380,6 @@ int pinctrl_register_map(struct pinctrl_map const *maps, unsigned num_maps,
 		maps_node->maps = kmemdup(maps, sizeof(*maps) * num_maps,
 					  GFP_KERNEL);
 		if (!maps_node->maps) {
-			pr_err("failed to duplicate mapping table\n");
 			kfree(maps_node);
 			return -ENOMEM;
 		}
@@ -1392,13 +1401,13 @@ int pinctrl_register_map(struct pinctrl_map const *maps, unsigned num_maps,
  *	function will perform a shallow copy for the mapping entries.
  * @num_maps: the number of maps in the mapping table
  */
-int pinctrl_register_mappings(struct pinctrl_map const *maps,
+int pinctrl_register_mappings(const struct pinctrl_map *maps,
 			      unsigned num_maps)
 {
 	return pinctrl_register_map(maps, num_maps, true);
 }
 
-void pinctrl_unregister_map(struct pinctrl_map const *map)
+void pinctrl_unregister_map(const struct pinctrl_map *map)
 {
 	struct pinctrl_maps *maps_node;
 
@@ -1551,7 +1560,7 @@ static int pinctrl_pins_show(struct seq_file *s, void *what)
 		pin = pctldev->desc->pins[i].number;
 		desc = pin_desc_get(pctldev, pin);
 		/* Pin space may be sparse */
-		if (desc == NULL)
+		if (!desc)
 			continue;
 
 		seq_printf(s, "pin %d (%s) ", pin, desc->name);
@@ -1692,7 +1701,7 @@ static int pinctrl_maps_show(struct seq_file *s, void *what)
 {
 	struct pinctrl_maps *maps_node;
 	int i;
-	struct pinctrl_map const *map;
+	const struct pinctrl_map *map;
 
 	seq_puts(s, "Pinctrl maps:\n");
 
@@ -1718,7 +1727,7 @@ static int pinctrl_maps_show(struct seq_file *s, void *what)
 			break;
 		}
 
-		seq_printf(s, "\n");
+		seq_putc(s, '\n');
 	}
 	mutex_unlock(&pinctrl_maps_mutex);
 
@@ -2131,7 +2140,7 @@ void pinctrl_unregister(struct pinctrl_dev *pctldev)
 {
 	struct pinctrl_gpio_range *range, *n;
 
-	if (pctldev == NULL)
+	if (!pctldev)
 		return;
 
 	mutex_lock(&pctldev->mutex);

@@ -21,6 +21,7 @@
 #include <linux/percpu-refcount.h>
 #include <linux/list.h>
 #include <linux/mutex.h>
+#include <linux/uuid.h>
 #include <linux/nvme.h>
 #include <linux/configfs.h>
 #include <linux/rcupdate.h>
@@ -46,6 +47,7 @@ struct nvmet_ns {
 	u32			blksize_shift;
 	loff_t			size;
 	u8			nguid[16];
+	uuid_t			uuid;
 
 	bool			enabled;
 	struct nvmet_subsys	*subsys;
@@ -72,6 +74,7 @@ struct nvmet_sq {
 	struct percpu_ref	ref;
 	u16			qid;
 	u16			size;
+	u32			sqhd;
 	struct completion	free_done;
 	struct completion	confirm_done;
 };
@@ -110,10 +113,10 @@ struct nvmet_ctrl {
 
 	struct mutex		lock;
 	u64			cap;
-	u64			serial;
 	u32			cc;
 	u32			csts;
 
+	uuid_t			hostid;
 	u16			cntlid;
 	u32			kato;
 
@@ -150,6 +153,7 @@ struct nvmet_subsys {
 	u16			max_qid;
 
 	u64			ver;
+	u64			serial;
 	char			*subsysnqn;
 
 	struct config_group	group;

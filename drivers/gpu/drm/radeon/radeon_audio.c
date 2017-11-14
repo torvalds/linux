@@ -516,7 +516,7 @@ static int radeon_audio_set_avi_packet(struct drm_encoder *encoder,
 	if (!connector)
 		return -EINVAL;
 
-	err = drm_hdmi_avi_infoframe_from_display_mode(&frame, mode);
+	err = drm_hdmi_avi_infoframe_from_display_mode(&frame, mode, false);
 	if (err < 0) {
 		DRM_ERROR("failed to setup AVI infoframe: %d\n", err);
 		return err;

@@ -174,8 +174,8 @@ static int fimc_is_parse_sensor_config(struct fimc_is *is, unsigned int index,
 
 	sensor->drvdata = fimc_is_sensor_get_drvdata(node);
 	if (!sensor->drvdata) {
-		dev_err(&is->pdev->dev, "no driver data found for: %s\n",
-							 node->full_name);
+		dev_err(&is->pdev->dev, "no driver data found for: %pOF\n",
+							 node);
 		return -EINVAL;
 	}
 
@@ -191,8 +191,8 @@ static int fimc_is_parse_sensor_config(struct fimc_is *is, unsigned int index,
 	/* Use MIPI-CSIS channel id to determine the ISP I2C bus index. */
 	ret = of_property_read_u32(port, "reg", &tmp);
 	if (ret < 0) {
-		dev_err(&is->pdev->dev, "reg property not found at: %s\n",
-							 port->full_name);
+		dev_err(&is->pdev->dev, "reg property not found at: %pOF\n",
+							 port);
 		of_node_put(port);
 		return ret;
 	}
@@ -854,7 +854,7 @@ static int fimc_is_probe(struct platform_device *pdev)
 
 	vb2_dma_contig_set_max_seg_size(dev, DMA_BIT_MASK(32));
 
-	ret = of_platform_populate(dev->of_node, NULL, NULL, dev);
+	ret = devm_of_platform_populate(dev);
 	if (ret < 0)
 		goto err_pm;
 
@@ -864,7 +864,7 @@ static int fimc_is_probe(struct platform_device *pdev)
 	 */
 	ret = fimc_is_register_subdevs(is);
 	if (ret < 0)
-		goto err_of_dep;
+		goto err_pm;
 
 	ret = fimc_is_debugfs_create(is);
 	if (ret < 0)
@@ -883,8 +883,6 @@ err_dfs:
 	fimc_is_debugfs_remove(is);
 err_sd:
 	fimc_is_unregister_subdevs(is);
-err_of_dep:
-	of_platform_depopulate(dev);
 err_pm:
 	if (!pm_runtime_enabled(dev))
 		fimc_is_runtime_suspend(dev);
@@ -946,7 +944,6 @@ static int fimc_is_remove(struct platform_device *pdev)
 	if (!pm_runtime_status_suspended(dev))
 		fimc_is_runtime_suspend(dev);
 	free_irq(is->irq, is);
-	of_platform_depopulate(dev);
 	fimc_is_unregister_subdevs(is);
 	vb2_dma_contig_clear_max_seg_size(dev);
 	fimc_is_put_clocks(is);

@@ -249,13 +249,8 @@ void udp_destruct_sock(struct sock *sk);
 void skb_consume_udp(struct sock *sk, struct sk_buff *skb, int len);
 int __udp_enqueue_schedule_skb(struct sock *sk, struct sk_buff *skb);
 void udp_skb_destructor(struct sock *sk, struct sk_buff *skb);
-static inline struct sk_buff *
-__skb_recv_udp(struct sock *sk, unsigned int flags, int noblock, int *peeked,
-	       int *off, int *err)
-{
-	return __skb_recv_datagram(sk, flags | (noblock ? MSG_DONTWAIT : 0),
-				   udp_skb_destructor, peeked, off, err);
-}
+struct sk_buff *__skb_recv_udp(struct sock *sk, unsigned int flags,
+			       int noblock, int *peeked, int *off, int *err);
 static inline struct sk_buff *skb_recv_udp(struct sock *sk, unsigned int flags,
 					   int noblock, int *err)
 {
@@ -264,7 +259,8 @@ static inline struct sk_buff *skb_recv_udp(struct sock *sk, unsigned int flags,
 	return __skb_recv_udp(sk, flags, noblock, &peeked, &off, err);
 }
 
-void udp_v4_early_demux(struct sk_buff *skb);
+int udp_v4_early_demux(struct sk_buff *skb);
+bool udp_sk_rx_dst_set(struct sock *sk, struct dst_entry *dst);
 int udp_get_port(struct sock *sk, unsigned short snum,
 		 int (*saddr_cmp)(const struct sock *,
 				  const struct sock *));
@@ -291,7 +287,7 @@ int udp_lib_setsockopt(struct sock *sk, int level, int optname,
 struct sock *udp4_lib_lookup(struct net *net, __be32 saddr, __be16 sport,
 			     __be32 daddr, __be16 dport, int dif);
 struct sock *__udp4_lib_lookup(struct net *net, __be32 saddr, __be16 sport,
-			       __be32 daddr, __be16 dport, int dif,
+			       __be32 daddr, __be16 dport, int dif, int sdif,
 			       struct udp_table *tbl, struct sk_buff *skb);
 struct sock *udp4_lib_lookup_skb(struct sk_buff *skb,
 				 __be16 sport, __be16 dport);
@@ -302,10 +298,83 @@ struct sock *udp6_lib_lookup(struct net *net,
 struct sock *__udp6_lib_lookup(struct net *net,
 			       const struct in6_addr *saddr, __be16 sport,
 			       const struct in6_addr *daddr, __be16 dport,
-			       int dif, struct udp_table *tbl,
+			       int dif, int sdif, struct udp_table *tbl,
 			       struct sk_buff *skb);
 struct sock *udp6_lib_lookup_skb(struct sk_buff *skb,
 				 __be16 sport, __be16 dport);
+
+/* UDP uses skb->dev_scratch to cache as much information as possible and avoid
+ * possibly multiple cache miss on dequeue()
+ */
+struct udp_dev_scratch {
+	/* skb->truesize and the stateless bit are embedded in a single field;
+	 * do not use a bitfield since the compiler emits better/smaller code
+	 * this way
+	 */
+	u32 _tsize_state;
+
+#if BITS_PER_LONG == 64
+	/* len and the bit needed to compute skb_csum_unnecessary
+	 * will be on cold cache lines at recvmsg time.
+	 * skb->len can be stored on 16 bits since the udp header has been
+	 * already validated and pulled.
+	 */
+	u16 len;
+	bool is_linear;
+	bool csum_unnecessary;
+#endif
+};
+
+static inline struct udp_dev_scratch *udp_skb_scratch(struct sk_buff *skb)
+{
+	return (struct udp_dev_scratch *)&skb->dev_scratch;
+}
+
+#if BITS_PER_LONG == 64
+static inline unsigned int udp_skb_len(struct sk_buff *skb)
+{
+	return udp_skb_scratch(skb)->len;
+}
+
+static inline bool udp_skb_csum_unnecessary(struct sk_buff *skb)
+{
+	return udp_skb_scratch(skb)->csum_unnecessary;
+}
+
+static inline bool udp_skb_is_linear(struct sk_buff *skb)
+{
+	return udp_skb_scratch(skb)->is_linear;
+}
+
+#else
+static inline unsigned int udp_skb_len(struct sk_buff *skb)
+{
+	return skb->len;
+}
+
+static inline bool udp_skb_csum_unnecessary(struct sk_buff *skb)
+{
+	return skb_csum_unnecessary(skb);
+}
+
+static inline bool udp_skb_is_linear(struct sk_buff *skb)
+{
+	return !skb_is_nonlinear(skb);
+}
+#endif
+
+static inline int copy_linear_skb(struct sk_buff *skb, int len, int off,
+				  struct iov_iter *to)
+{
+	int n;
+
+	n = copy_to_iter(skb->data + off, len, to);
+	if (n == len)
+		return 0;
+
+	iov_iter_revert(to, n);
+	return -EFAULT;
+}
 
 /*
  * 	SNMP statistics for UDP and UDP-Lite

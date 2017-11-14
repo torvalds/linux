@@ -7,7 +7,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2016        Intel Deutschland GmbH
+ * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -34,7 +34,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2016        Intel Deutschland GmbH
+ * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -65,7 +65,7 @@
  *
  *****************************************************************************/
 #include "mvm.h"
-#include "fw-api-tof.h"
+#include "fw/api/tof.h"
 #include "debugfs.h"
 
 static void iwl_dbgfs_update_pm(struct iwl_mvm *mvm,
@@ -1304,11 +1304,11 @@ static ssize_t iwl_dbgfs_low_latency_read(struct file *file,
 	char buf[30] = {};
 	int len;
 
-	len = snprintf(buf, sizeof(buf) - 1,
-		       "traffic=%d\ndbgfs=%d\nvcmd=%d\n",
-		       mvmvif->low_latency_traffic,
-		       mvmvif->low_latency_dbgfs,
-		       mvmvif->low_latency_vcmd);
+	len = scnprintf(buf, sizeof(buf) - 1,
+			"traffic=%d\ndbgfs=%d\nvcmd=%d\n",
+			mvmvif->low_latency_traffic,
+			mvmvif->low_latency_dbgfs,
+			mvmvif->low_latency_vcmd);
 	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
 }
 
@@ -1385,10 +1385,12 @@ static ssize_t iwl_dbgfs_rx_phyinfo_read(struct file *file,
 	struct ieee80211_vif *vif = file->private_data;
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	char buf[8];
+	int len;
 
-	snprintf(buf, sizeof(buf), "0x%04x\n", mvmvif->mvm->dbgfs_rx_phyinfo);
+	len = scnprintf(buf, sizeof(buf), "0x%04x\n",
+			mvmvif->mvm->dbgfs_rx_phyinfo);
 
-	return simple_read_from_buffer(user_buf, count, ppos, buf, sizeof(buf));
+	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
 }
 
 static void iwl_dbgfs_quota_check(void *data, u8 *mac,
@@ -1439,7 +1441,7 @@ static ssize_t iwl_dbgfs_quota_min_read(struct file *file,
 	char buf[10];
 	int len;
 
-	len = snprintf(buf, sizeof(buf), "%d\n", mvmvif->dbgfs_quota_min);
+	len = scnprintf(buf, sizeof(buf), "%d\n", mvmvif->dbgfs_quota_min);
 
 	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
 }

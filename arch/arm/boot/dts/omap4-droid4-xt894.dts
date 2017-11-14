@@ -129,6 +129,34 @@
 		output-high;
 		line-name = "touchscreen-reset";
 	};
+
+	pwm8: dmtimer-pwm-8 {
+		pinctrl-names = "default";
+		pinctrl-0 = <&vibrator_direction_pin>;
+
+		compatible = "ti,omap-dmtimer-pwm";
+		#pwm-cells = <3>;
+		ti,timers = <&timer8>;
+		ti,clock-source = <0x01>;
+	};
+
+	pwm9: dmtimer-pwm-9 {
+		pinctrl-names = "default";
+		pinctrl-0 = <&vibrator_enable_pin>;
+
+		compatible = "ti,omap-dmtimer-pwm";
+		#pwm-cells = <3>;
+		ti,timers = <&timer9>;
+		ti,clock-source = <0x01>;
+	};
+
+	vibrator {
+		compatible = "pwm-vibrator";
+		pwms = <&pwm9 0 10000000 0>, <&pwm8 0 10000000 0>;
+		pwm-names = "enable", "direction";
+		direction-duty-cycle-ns = <10000000>;
+	};
+
 };
 
 &dsi1 {
@@ -301,7 +329,7 @@
 	#address-cells = <1>;
 	#size-cells = <0>;
 	wlcore: wlcore@2 {
-		compatible = "ti,wl1283";
+		compatible = "ti,wl1285", "ti,wl1283";
 		reg = <2>;
 		interrupt-parent = <&gpio4>;
 		interrupts = <4 IRQ_TYPE_LEVEL_HIGH>; /* gpio100 */
@@ -348,6 +376,17 @@
 		interrupt-names = "irq", "wakeup";
 		wakeup-source;
 	};
+
+	isl29030@44 {
+		compatible = "isil,isl29030";
+		reg = <0x44>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&als_proximity_pins>;
+
+		interrupt-parent = <&gpio6>;
+		interrupts = <17 IRQ_TYPE_LEVEL_LOW>; /* gpio177 */
+	};
 };
 
 &omap4_pmx_core {
@@ -362,7 +401,7 @@
 	/* hdmi_cec.hdmi_cec, hdmi_scl.hdmi_scl, hdmi_sda.hdmi_sda */
 	dss_hdmi_pins: pinmux_dss_hdmi_pins {
 		pinctrl-single,pins = <
-		OMAP4_IOPAD(0x09a, PIN_INPUT_PULLUP | MUX_MODE0)
+		OMAP4_IOPAD(0x09a, PIN_INPUT | MUX_MODE0)
 		OMAP4_IOPAD(0x09c, PIN_INPUT | MUX_MODE0)
 		OMAP4_IOPAD(0x09e, PIN_INPUT | MUX_MODE0)
 		>;
@@ -392,6 +431,12 @@
 	touchscreen_pins: pinmux_touchscreen_pins {
 		pinctrl-single,pins = <
 		OMAP4_IOPAD(0x1a0, PIN_INPUT_PULLUP | MUX_MODE3)
+		>;
+	};
+
+	als_proximity_pins: pinmux_als_proximity_pins {
+		pinctrl-single,pins = <
+		OMAP4_IOPAD(0x18c, PIN_INPUT_PULLUP | MUX_MODE3)
 		>;
 	};
 
@@ -453,6 +498,15 @@
 		OMAP4_IOPAD(0x1c8, PIN_INPUT_PULLUP | MUX_MODE7)
 		>;
 	};
+
+	uart4_pins: pinmux_uart4_pins {
+		pinctrl-single,pins = <
+		OMAP4_IOPAD(0x15c, PIN_INPUT | MUX_MODE0)		/* uart4_rx */
+		OMAP4_IOPAD(0x15e, PIN_OUTPUT | MUX_MODE0)		/* uart4_tx */
+		OMAP4_IOPAD(0x110, PIN_INPUT_PULLUP | MUX_MODE5)	/* uart4_cts */
+		OMAP4_IOPAD(0x112, PIN_OUTPUT_PULLUP | MUX_MODE5)	/* uart4_rts */
+		>;
+	};
 };
 
 &omap4_pmx_wkup {
@@ -462,11 +516,34 @@
 		OMAP4_IOPAD(0x040, PIN_OUTPUT_PULLDOWN | MUX_MODE3)
 		>;
 	};
+
+	vibrator_direction_pin: pinmux_vibrator_direction_pin {
+		pinctrl-single,pins = <
+		OMAP4_IOPAD(0x1ce, PIN_OUTPUT | MUX_MODE1)	/* dmtimer8_pwm_evt (gpio_27) */
+		>;
+	};
+
+	vibrator_enable_pin: pinmux_vibrator_enable_pin {
+		pinctrl-single,pins = <
+		OMAP4_IOPAD(0X1d0, PIN_OUTPUT | MUX_MODE1)	/* dmtimer9_pwm_evt (gpio_28) */
+		>;
+	};
 };
 
 &uart3 {
 	interrupts-extended = <&wakeupgen GIC_SPI 74 IRQ_TYPE_LEVEL_HIGH
 			       &omap4_pmx_core 0x17c>;
+};
+
+&uart4 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart4_pins>;
+
+	bluetooth {
+		compatible = "ti,wl1285-st";
+		enable-gpios = <&gpio6 14 GPIO_ACTIVE_HIGH>; /* gpio 174 */
+		max-speed = <3686400>;
+	};
 };
 
 &usbhsehci {

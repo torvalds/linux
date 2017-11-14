@@ -10,17 +10,16 @@
 
 #include <linux/module.h>
 #include <linux/msi.h>
-#include "../include/mc-bus.h"
-#include "../include/mc-sys.h"
+#include "../include/mc.h"
 
-#include "dpbp-cmd.h"
-#include "dpcon-cmd.h"
 #include "fsl-mc-private.h"
 
-#define FSL_MC_IS_ALLOCATABLE(_obj_type) \
-	(strcmp(_obj_type, "dpbp") == 0 || \
-	 strcmp(_obj_type, "dpmcp") == 0 || \
-	 strcmp(_obj_type, "dpcon") == 0)
+static bool __must_check fsl_mc_is_allocatable(const char *obj_type)
+{
+	return strcmp(obj_type, "dpbp") == 0 ||
+	       strcmp(obj_type, "dpmcp") == 0 ||
+	       strcmp(obj_type, "dpcon") == 0;
+}
 
 /**
  * fsl_mc_resource_pool_add_device - add allocatable object to a resource
@@ -44,7 +43,7 @@ static int __must_check fsl_mc_resource_pool_add_device(struct fsl_mc_bus
 
 	if (WARN_ON(pool_type < 0 || pool_type >= FSL_MC_NUM_POOL_TYPES))
 		goto out;
-	if (WARN_ON(!FSL_MC_IS_ALLOCATABLE(mc_dev->obj_desc.type)))
+	if (WARN_ON(!fsl_mc_is_allocatable(mc_dev->obj_desc.type)))
 		goto out;
 	if (WARN_ON(mc_dev->resource))
 		goto out;
@@ -106,7 +105,7 @@ static int __must_check fsl_mc_resource_pool_remove_device(struct fsl_mc_device
 	struct fsl_mc_resource *resource;
 	int error = -EINVAL;
 
-	if (WARN_ON(!FSL_MC_IS_ALLOCATABLE(mc_dev->obj_desc.type)))
+	if (WARN_ON(!fsl_mc_is_allocatable(mc_dev->obj_desc.type)))
 		goto out;
 
 	resource = mc_dev->resource;
@@ -586,7 +585,7 @@ static int fsl_mc_allocator_probe(struct fsl_mc_device *mc_dev)
 	struct fsl_mc_bus *mc_bus;
 	int error;
 
-	if (WARN_ON(!FSL_MC_IS_ALLOCATABLE(mc_dev->obj_desc.type)))
+	if (WARN_ON(!fsl_mc_is_allocatable(mc_dev->obj_desc.type)))
 		return -EINVAL;
 
 	mc_bus_dev = to_fsl_mc_device(mc_dev->dev.parent);
@@ -615,7 +614,7 @@ static int fsl_mc_allocator_remove(struct fsl_mc_device *mc_dev)
 {
 	int error;
 
-	if (WARN_ON(!FSL_MC_IS_ALLOCATABLE(mc_dev->obj_desc.type)))
+	if (WARN_ON(!fsl_mc_is_allocatable(mc_dev->obj_desc.type)))
 		return -EINVAL;
 
 	if (mc_dev->resource) {

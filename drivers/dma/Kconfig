@@ -56,14 +56,22 @@ config DMA_OF
 	select DMA_ENGINE
 
 #devices
+config ALTERA_MSGDMA
+	tristate "Altera / Intel mSGDMA Engine"
+	select DMA_ENGINE
+	help
+	  Enable support for Altera / Intel mSGDMA controller.
+
 config AMBA_PL08X
 	bool "ARM PrimeCell PL080 or PL081 support"
 	depends on ARM_AMBA
 	select DMA_ENGINE
 	select DMA_VIRTUAL_CHANNELS
 	help
-	  Platform has a PL08x DMAC device
-	  which can provide DMA engine support
+	  Say yes if your platform has a PL08x DMAC device which can
+	  provide DMA engine support. This includes the original ARM
+	  PL080 and PL081, Samsungs PL080 derivative and Faraday
+	  Technology's FTDMAC020 PL080 derivative.
 
 config AMCC_PPC440SPE_ADMA
 	tristate "AMCC PPC440SPe ADMA support"
@@ -98,6 +106,21 @@ config AXI_DMAC
 	  Enable support for the Analog Devices AXI-DMAC peripheral. This DMA
 	  controller is often used in Analog Device's reference designs for FPGA
 	  platforms.
+
+config BCM_SBA_RAID
+	tristate "Broadcom SBA RAID engine support"
+	depends on ARM64 || COMPILE_TEST
+	depends on MAILBOX && RAID6_PQ
+	select DMA_ENGINE
+	select DMA_ENGINE_RAID
+	select ASYNC_TX_DISABLE_XOR_VAL_DMA
+	select ASYNC_TX_DISABLE_PQ_VAL_DMA
+	default ARCH_BCM_IPROC
+	help
+	  Enable support for Broadcom SBA RAID Engine. The SBA RAID
+	  engine is available on most of the Broadcom iProc SoCs. It
+	  has the capability to offload memcpy, xor and pq computation
+	  for raid5/6.
 
 config COH901318
 	bool "ST-Ericsson COH901318 DMA support"
@@ -354,13 +377,12 @@ config MV_XOR_V2
 
 config MXS_DMA
 	bool "MXS DMA support"
-	depends on SOC_IMX23 || SOC_IMX28 || SOC_IMX6Q || SOC_IMX6UL
+	depends on ARCH_MXS || ARCH_MXC || COMPILE_TEST
 	select STMP_DEVICE
 	select DMA_ENGINE
 	help
 	  Support the MXS DMA engine. This engine including APBH-DMA
-	  and APBX-DMA is integrated into Freescale
-	  i.MX23/28/MX6Q/MX6DL/MX6UL chips.
+	  and APBX-DMA is integrated into some Freescale chips.
 
 config MX3_IPU
 	bool "MX3x Image Processing Unit support"

@@ -598,6 +598,14 @@ static struct notifier_block trace_kprobe_module_nb = {
 	.priority = 1	/* Invoked after kprobe module callback */
 };
 
+/* Convert certain expected symbols into '_' when generating event names */
+static inline void sanitize_event_name(char *name)
+{
+	while (*name++ != '\0')
+		if (*name == ':' || *name == '.')
+			*name = '_';
+}
+
 static int create_trace_kprobe(int argc, char **argv)
 {
 	/*
@@ -720,7 +728,7 @@ static int create_trace_kprobe(int argc, char **argv)
 			return ret;
 		}
 		if (offset && is_return &&
-		    !function_offset_within_entry(NULL, symbol, offset)) {
+		    !kprobe_on_func_entry(NULL, symbol, offset)) {
 			pr_info("Given offset is not valid for return probe.\n");
 			return -EINVAL;
 		}
@@ -736,6 +744,7 @@ static int create_trace_kprobe(int argc, char **argv)
 		else
 			snprintf(buf, MAX_EVENT_NAME_LEN, "%c_0x%p",
 				 is_return ? 'r' : 'p', addr);
+		sanitize_event_name(buf);
 		event = buf;
 	}
 	tk = alloc_trace_kprobe(group, event, addr, symbol, offset, maxactive,
@@ -1191,7 +1200,7 @@ kprobe_perf_func(struct trace_kprobe *tk, struct pt_regs *regs)
 	memset(&entry[1], 0, dsize);
 	store_trace_args(sizeof(*entry), &tk->tp, regs, (u8 *)&entry[1], dsize);
 	perf_trace_buf_submit(entry, size, rctx, call->event.type, 1, regs,
-			      head, NULL);
+			      head, NULL, NULL);
 }
 NOKPROBE_SYMBOL(kprobe_perf_func);
 
@@ -1227,7 +1236,7 @@ kretprobe_perf_func(struct trace_kprobe *tk, struct kretprobe_instance *ri,
 	entry->ret_ip = (unsigned long)ri->ret_addr;
 	store_trace_args(sizeof(*entry), &tk->tp, regs, (u8 *)&entry[1], dsize);
 	perf_trace_buf_submit(entry, size, rctx, call->event.type, 1, regs,
-			      head, NULL);
+			      head, NULL, NULL);
 }
 NOKPROBE_SYMBOL(kretprobe_perf_func);
 #endif	/* CONFIG_PERF_EVENTS */

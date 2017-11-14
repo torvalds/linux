@@ -96,7 +96,7 @@ static struct attribute *rc6_attrs[] = {
 	NULL
 };
 
-static struct attribute_group rc6_attr_group = {
+static const struct attribute_group rc6_attr_group = {
 	.name = power_group_name,
 	.attrs =  rc6_attrs
 };
@@ -107,7 +107,7 @@ static struct attribute *rc6p_attrs[] = {
 	NULL
 };
 
-static struct attribute_group rc6p_attr_group = {
+static const struct attribute_group rc6p_attr_group = {
 	.name = power_group_name,
 	.attrs =  rc6p_attrs
 };
@@ -117,7 +117,7 @@ static struct attribute *media_rc6_attrs[] = {
 	NULL
 };
 
-static struct attribute_group media_rc6_attr_group = {
+static const struct attribute_group media_rc6_attr_group = {
 	.name = power_group_name,
 	.attrs =  media_rc6_attrs
 };
@@ -181,12 +181,9 @@ i915_l3_write(struct file *filp, struct kobject *kobj,
 	struct drm_i915_private *dev_priv = kdev_minor_to_i915(kdev);
 	struct drm_device *dev = &dev_priv->drm;
 	struct i915_gem_context *ctx;
-	u32 *temp = NULL; /* Just here to make handling failures easy */
 	int slice = (int)(uintptr_t)attr->private;
+	u32 **remap_info;
 	int ret;
-
-	if (!HAS_HW_CONTEXTS(dev_priv))
-		return -ENXIO;
 
 	ret = l3_access_valid(dev_priv, offset);
 	if (ret)
@@ -196,11 +193,12 @@ i915_l3_write(struct file *filp, struct kobject *kobj,
 	if (ret)
 		return ret;
 
-	if (!dev_priv->l3_parity.remap_info[slice]) {
-		temp = kzalloc(GEN7_L3LOG_SIZE, GFP_KERNEL);
-		if (!temp) {
-			mutex_unlock(&dev->struct_mutex);
-			return -ENOMEM;
+	remap_info = &dev_priv->l3_parity.remap_info[slice];
+	if (!*remap_info) {
+		*remap_info = kzalloc(GEN7_L3LOG_SIZE, GFP_KERNEL);
+		if (!*remap_info) {
+			ret = -ENOMEM;
+			goto out;
 		}
 	}
 
@@ -208,21 +206,21 @@ i915_l3_write(struct file *filp, struct kobject *kobj,
 	 * aren't propagated. Since I cannot find a stable way to reset the GPU
 	 * at this point it is left as a TODO.
 	*/
-	if (temp)
-		dev_priv->l3_parity.remap_info[slice] = temp;
-
-	memcpy(dev_priv->l3_parity.remap_info[slice] + (offset/4), buf, count);
+	memcpy(*remap_info + (offset/4), buf, count);
 
 	/* NB: We defer the remapping until we switch to the context */
-	list_for_each_entry(ctx, &dev_priv->context_list, link)
+	list_for_each_entry(ctx, &dev_priv->contexts.list, link)
 		ctx->remap_slice |= (1<<slice);
 
+	ret = count;
+
+out:
 	mutex_unlock(&dev->struct_mutex);
 
-	return count;
+	return ret;
 }
 
-static struct bin_attribute dpf_attrs = {
+static const struct bin_attribute dpf_attrs = {
 	.attr = {.name = "l3_parity", .mode = (S_IRUSR | S_IWUSR)},
 	.size = GEN7_L3LOG_SIZE,
 	.read = i915_l3_read,
@@ -231,7 +229,7 @@ static struct bin_attribute dpf_attrs = {
 	.private = (void *)0
 };
 
-static struct bin_attribute dpf_attrs_1 = {
+static const struct bin_attribute dpf_attrs_1 = {
 	.attr = {.name = "l3_parity_slice_1", .mode = (S_IRUSR | S_IWUSR)},
 	.size = GEN7_L3LOG_SIZE,
 	.read = i915_l3_read,
@@ -255,7 +253,7 @@ static ssize_t gt_act_freq_mhz_show(struct device *kdev,
 		ret = intel_gpu_freq(dev_priv, (freq >> 8) & 0xff);
 	} else {
 		u32 rpstat = I915_READ(GEN6_RPSTAT1);
-		if (IS_GEN9(dev_priv))
+		if (INTEL_GEN(dev_priv) >= 9)
 			ret = (rpstat & GEN9_CAGF_MASK) >> GEN9_CAGF_SHIFT;
 		else if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
 			ret = (rpstat & HSW_CAGF_MASK) >> HSW_CAGF_SHIFT;
@@ -534,7 +532,7 @@ static ssize_t error_state_write(struct file *file, struct kobject *kobj,
 	return count;
 }
 
-static struct bin_attribute error_state_attr = {
+static const struct bin_attribute error_state_attr = {
 	.attr.name = "error",
 	.attr.mode = S_IRUSR | S_IWUSR,
 	.size = 0,

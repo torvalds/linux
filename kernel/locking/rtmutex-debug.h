@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * RT-Mutexes: blocking mutual exclusion locks with PI support
  *
@@ -11,7 +12,7 @@
 
 extern void debug_rt_mutex_init_waiter(struct rt_mutex_waiter *waiter);
 extern void debug_rt_mutex_free_waiter(struct rt_mutex_waiter *waiter);
-extern void debug_rt_mutex_init(struct rt_mutex *lock, const char *name);
+extern void debug_rt_mutex_init(struct rt_mutex *lock, const char *name, struct lock_class_key *key);
 extern void debug_rt_mutex_lock(struct rt_mutex *lock);
 extern void debug_rt_mutex_unlock(struct rt_mutex *lock);
 extern void debug_rt_mutex_proxy_lock(struct rt_mutex *lock,

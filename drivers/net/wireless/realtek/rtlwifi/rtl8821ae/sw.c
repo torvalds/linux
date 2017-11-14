@@ -172,8 +172,8 @@ int rtl8821ae_init_sw_vars(struct ieee80211_hw *hw)
 		rtlpriv->cfg->mod_params->disable_watchdog;
 	if (rtlpriv->cfg->mod_params->disable_watchdog)
 		pr_info("watchdog disabled\n");
-	rtlpriv->psc.reg_fwctrl_lps = 3;
-	rtlpriv->psc.reg_max_lps_awakeintvl = 5;
+	rtlpriv->psc.reg_fwctrl_lps = 2;
+	rtlpriv->psc.reg_max_lps_awakeintvl = 2;
 
 	/* for ASPM, you can close aspm through
 	 * set const_support_pciaspm = 0
@@ -196,6 +196,8 @@ int rtl8821ae_init_sw_vars(struct ieee80211_hw *hw)
 	rtlpriv->rtlhal.wowlan_firmware = vzalloc(0x8000);
 	if (!rtlpriv->rtlhal.wowlan_firmware) {
 		pr_err("Can't alloc buffer for wowlan fw.\n");
+		vfree(rtlpriv->rtlhal.pfirmware);
+		rtlpriv->rtlhal.pfirmware = NULL;
 		return 1;
 	}
 
@@ -214,16 +216,10 @@ int rtl8821ae_init_sw_vars(struct ieee80211_hw *hw)
 				      rtlpriv->io.dev, GFP_KERNEL, hw,
 				      rtl_fw_cb);
 	if (err) {
-		/* Failed to get firmware. Check if old version available */
-		fw_name = "rtlwifi/rtl8821aefw.bin";
-		pr_info("Using firmware %s\n", fw_name);
-		err = request_firmware_nowait(THIS_MODULE, 1, fw_name,
-					      rtlpriv->io.dev, GFP_KERNEL, hw,
-					      rtl_fw_cb);
-		if (err) {
-			pr_err("Failed to request normal firmware!\n");
-			return 1;
-		}
+		pr_err("Failed to request normal firmware!\n");
+		vfree(rtlpriv->rtlhal.wowlan_firmware);
+		vfree(rtlpriv->rtlhal.pfirmware);
+		return 1;
 	}
 	/*load wowlan firmware*/
 	pr_info("Using firmware %s\n", wowlan_fw_name);
@@ -233,6 +229,8 @@ int rtl8821ae_init_sw_vars(struct ieee80211_hw *hw)
 				      rtl_wowlan_fw_cb);
 	if (err) {
 		pr_err("Failed to request wowlan firmware!\n");
+		vfree(rtlpriv->rtlhal.wowlan_firmware);
+		vfree(rtlpriv->rtlhal.pfirmware);
 		return 1;
 	}
 	return 0;
@@ -325,6 +323,7 @@ static const struct rtl_hal_cfg rtl8821ae_hal_cfg = {
 	.bar_id = 2,
 	.write_readback = true,
 	.name = "rtl8821ae_pci",
+	.alt_fw_name = "rtlwifi/rtl8821aefw.bin",
 	.ops = &rtl8821ae_hal_ops,
 	.mod_params = &rtl8821ae_mod_params,
 	.maps[SYS_ISO_CTRL] = REG_SYS_ISO_CTRL,
@@ -424,7 +423,7 @@ static const struct rtl_hal_cfg rtl8821ae_hal_cfg = {
 	.maps[RTL_RC_VHT_RATE_2SS_MCS9] = DESC_RATEVHT2SS_MCS9,
 };
 
-static struct pci_device_id rtl8821ae_pci_ids[] = {
+static const struct pci_device_id rtl8821ae_pci_ids[] = {
 	{RTL_PCI_DEVICE(PCI_VENDOR_ID_REALTEK, 0x8812, rtl8821ae_hal_cfg)},
 	{RTL_PCI_DEVICE(PCI_VENDOR_ID_REALTEK, 0x8821, rtl8821ae_hal_cfg)},
 	{},

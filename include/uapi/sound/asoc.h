@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  * uapi/sound/asoc.h -- ALSA SoC Firmware Controls and DAPM
  *
@@ -73,7 +74,15 @@
 #define SND_SOC_TPLG_DAPM_DAI_IN	13
 #define SND_SOC_TPLG_DAPM_DAI_OUT	14
 #define SND_SOC_TPLG_DAPM_DAI_LINK	15
-#define SND_SOC_TPLG_DAPM_LAST		SND_SOC_TPLG_DAPM_DAI_LINK
+#define SND_SOC_TPLG_DAPM_BUFFER	16
+#define SND_SOC_TPLG_DAPM_SCHEDULER	17
+#define SND_SOC_TPLG_DAPM_EFFECT	18
+#define SND_SOC_TPLG_DAPM_SIGGEN	19
+#define SND_SOC_TPLG_DAPM_SRC		20
+#define SND_SOC_TPLG_DAPM_ASRC		21
+#define SND_SOC_TPLG_DAPM_ENCODER	22
+#define SND_SOC_TPLG_DAPM_DECODER	23
+#define SND_SOC_TPLG_DAPM_LAST		SND_SOC_TPLG_DAPM_DECODER
 
 /* Header magic number and string sizes */
 #define SND_SOC_TPLG_MAGIC		0x41536F43 /* ASoC */

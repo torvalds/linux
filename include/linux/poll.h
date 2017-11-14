@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_POLL_H
 #define _LINUX_POLL_H
 
@@ -75,7 +76,7 @@ static inline void init_poll_funcptr(poll_table *pt, poll_queue_proc qproc)
 struct poll_table_entry {
 	struct file *filp;
 	unsigned long key;
-	wait_queue_t wait;
+	wait_queue_entry_t wait;
 	wait_queue_head_t *wait_address;
 };
 
