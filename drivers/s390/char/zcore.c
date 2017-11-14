@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-1.0+
 /*
  * zcore module to export memory content and register sets for creating system
  * dumps on SCSI disks (zfcpdump). The "zcore/mem" debugfs file shows the same
