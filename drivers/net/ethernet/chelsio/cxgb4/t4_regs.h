@@ -65,6 +65,9 @@
 
 #define PCIE_FW_REG(reg_addr, idx) ((reg_addr) + (idx) * 4)
 
+#define NUM_LE_DB_DBGI_REQ_DATA_INSTANCES 17
+#define NUM_LE_DB_DBGI_RSP_DATA_INSTANCES 17
+
 #define SGE_PF_KDOORBELL_A 0x0
 
 #define QID_S    15
@@ -149,6 +152,23 @@
 #define T6_DBVFIFO_SIZE_S    0
 #define T6_DBVFIFO_SIZE_M    0x1fffU
 #define T6_DBVFIFO_SIZE_G(x) (((x) >> T6_DBVFIFO_SIZE_S) & T6_DBVFIFO_SIZE_M)
+
+#define SGE_CTXT_CMD_A 0x11fc
+
+#define BUSY_S    31
+#define BUSY_V(x) ((x) << BUSY_S)
+#define BUSY_F    BUSY_V(1U)
+
+#define CTXTTYPE_S    24
+#define CTXTTYPE_M    0x3U
+#define CTXTTYPE_V(x) ((x) << CTXTTYPE_S)
+
+#define CTXTQID_S    0
+#define CTXTQID_M    0x1ffffU
+#define CTXTQID_V(x) ((x) << CTXTQID_S)
+
+#define SGE_CTXT_DATA0_A 0x1200
+#define SGE_CTXT_DATA5_A 0x1214
 
 #define GLOBALENABLE_S    0
 #define GLOBALENABLE_V(x) ((x) << GLOBALENABLE_S)
@@ -319,6 +339,16 @@
 
 #define SGE_IMSG_CTXT_BADDR_A 0x1088
 #define SGE_FLM_CACHE_BADDR_A 0x108c
+#define SGE_FLM_CFG_A 0x1090
+
+#define NOHDR_S    18
+#define NOHDR_V(x) ((x) << NOHDR_S)
+#define NOHDR_F    NOHDR_V(1U)
+
+#define HDRSTARTFLQ_S    11
+#define HDRSTARTFLQ_M    0x7U
+#define HDRSTARTFLQ_G(x) (((x) >> HDRSTARTFLQ_S) & HDRSTARTFLQ_M)
+
 #define SGE_INGRESS_RX_THRESHOLD_A 0x10a0
 
 #define THRESHOLD_0_S    24
@@ -2273,6 +2303,35 @@
 #define CHNENABLE_V(x) ((x) << CHNENABLE_S)
 #define CHNENABLE_F    CHNENABLE_V(1U)
 
+#define LE_DB_DBGI_CONFIG_A 0x19cf0
+
+#define DBGICMDBUSY_S    3
+#define DBGICMDBUSY_V(x) ((x) << DBGICMDBUSY_S)
+#define DBGICMDBUSY_F    DBGICMDBUSY_V(1U)
+
+#define DBGICMDSTRT_S    2
+#define DBGICMDSTRT_V(x) ((x) << DBGICMDSTRT_S)
+#define DBGICMDSTRT_F    DBGICMDSTRT_V(1U)
+
+#define DBGICMDMODE_S    0
+#define DBGICMDMODE_M    0x3U
+#define DBGICMDMODE_V(x) ((x) << DBGICMDMODE_S)
+
+#define LE_DB_DBGI_REQ_TCAM_CMD_A 0x19cf4
+
+#define DBGICMD_S    20
+#define DBGICMD_M    0xfU
+#define DBGICMD_V(x) ((x) << DBGICMD_S)
+
+#define DBGITID_S    0
+#define DBGITID_M    0xfffffU
+#define DBGITID_V(x) ((x) << DBGITID_S)
+
+#define LE_DB_DBGI_REQ_DATA_A 0x19d00
+#define LE_DB_DBGI_RSP_STATUS_A 0x19d94
+
+#define LE_DB_DBGI_RSP_DATA_A 0x19da0
+
 #define PRTENABLE_S    29
 #define PRTENABLE_V(x) ((x) << PRTENABLE_S)
 #define PRTENABLE_F    PRTENABLE_V(1U)
@@ -2882,11 +2941,20 @@
 #define T6_LIPMISS_F    T6_LIPMISS_V(1U)
 
 #define LE_DB_CONFIG_A 0x19c04
+#define LE_DB_ROUTING_TABLE_INDEX_A 0x19c10
 #define LE_DB_ACTIVE_TABLE_START_INDEX_A 0x19c10
+#define LE_DB_FILTER_TABLE_INDEX_A 0x19c14
 #define LE_DB_SERVER_INDEX_A 0x19c18
 #define LE_DB_SRVR_START_INDEX_A 0x19c18
+#define LE_DB_CLIP_TABLE_INDEX_A 0x19c1c
 #define LE_DB_ACT_CNT_IPV4_A 0x19c20
 #define LE_DB_ACT_CNT_IPV6_A 0x19c24
+#define LE_DB_HASH_CONFIG_A 0x19c28
+
+#define HASHTIDSIZE_S    16
+#define HASHTIDSIZE_M    0x3fU
+#define HASHTIDSIZE_G(x) (((x) >> HASHTIDSIZE_S) & HASHTIDSIZE_M)
+
 #define LE_DB_HASH_TID_BASE_A 0x19c30
 #define LE_DB_HASH_TBL_BASE_ADDR_A 0x19c30
 #define LE_DB_INT_CAUSE_A 0x19c3c
