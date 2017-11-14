@@ -504,6 +504,14 @@ config STM32_MDMA
 	  If you have a board based on STM32 SoC and wish to use the master DMA
 	  say Y here.
 
+config SPRD_DMA
+	tristate "Spreadtrum DMA support"
+	depends on ARCH_SPRD || COMPILE_TEST
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+	help
+	  Enable support for the on-chip DMA controller on Spreadtrum platform.
+
 config S3C24XX_DMAC
 	bool "Samsung S3C24XX DMA support"
 	depends on ARCH_S3C24XX || COMPILE_TEST
