@@ -543,7 +543,7 @@ int twl6040_get_dl1_gain(struct snd_soc_codec *codec)
 	if (snd_soc_dapm_get_pin_status(dapm, "HSOR") ||
 		snd_soc_dapm_get_pin_status(dapm, "HSOL")) {
 
-		u8 val = snd_soc_read(codec, TWL6040_REG_HSLCTL);
+		u8 val = twl6040_read(codec, TWL6040_REG_HSLCTL);
 		if (val & TWL6040_HSDACMODE)
 			/* HSDACL in LP mode */
 			return -8; /* -8dB */
@@ -1158,8 +1158,6 @@ static int twl6040_remove(struct snd_soc_codec *codec)
 static const struct snd_soc_codec_driver soc_codec_dev_twl6040 = {
 	.probe = twl6040_probe,
 	.remove = twl6040_remove,
-	.read = twl6040_read,
-	.write = twl6040_write,
 	.set_bias_level = twl6040_set_bias_level,
 	.suspend_bias_off = true,
 	.ignore_pmdown_time = true,
