@@ -614,7 +614,7 @@ retry:
 			goto out;
 		}
 
-		ret = drm_mode_convert_umode(mode, &crtc_req->mode);
+		ret = drm_mode_convert_umode(dev, mode, &crtc_req->mode);
 		if (ret) {
 			DRM_DEBUG_KMS("Invalid mode\n");
 			goto out;
