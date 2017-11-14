@@ -282,33 +282,6 @@ void i40evf_irq_enable_queues(struct i40evf_adapter *adapter, u32 mask)
 }
 
 /**
- * i40evf_fire_sw_int - Generate SW interrupt for specified vectors
- * @adapter: board private structure
- * @mask: bitmap of vectors to trigger
- **/
-static void i40evf_fire_sw_int(struct i40evf_adapter *adapter, u32 mask)
-{
-	struct i40e_hw *hw = &adapter->hw;
-	int i;
-	u32 dyn_ctl;
-
-	if (mask & 1) {
-		dyn_ctl = rd32(hw, I40E_VFINT_DYN_CTL01);
-		dyn_ctl |= I40E_VFINT_DYN_CTLN1_SWINT_TRIG_MASK |
-			   I40E_VFINT_DYN_CTLN1_ITR_INDX_MASK;
-		wr32(hw, I40E_VFINT_DYN_CTL01, dyn_ctl);
-	}
-	for (i = 1; i < adapter->num_msix_vectors; i++) {
-		if (mask & BIT(i)) {
-			dyn_ctl = rd32(hw, I40E_VFINT_DYN_CTLN1(i - 1));
-			dyn_ctl |= I40E_VFINT_DYN_CTLN1_SWINT_TRIG_MASK |
-				   I40E_VFINT_DYN_CTLN1_ITR_INDX_MASK;
-			wr32(hw, I40E_VFINT_DYN_CTLN1(i - 1), dyn_ctl);
-		}
-	}
-}
-
-/**
  * i40evf_irq_enable - Enable default interrupt generation settings
  * @adapter: board private structure
  * @flush: boolean value whether to run rd32()
@@ -1743,13 +1716,6 @@ static void i40evf_watchdog_task(struct work_struct *work)
 	if (adapter->state == __I40EVF_RUNNING)
 		i40evf_request_stats(adapter);
 watchdog_done:
-	if (adapter->state == __I40EVF_RUNNING) {
-		i40evf_irq_enable_queues(adapter, ~0);
-		i40evf_fire_sw_int(adapter, 0xFF);
-	} else {
-		i40evf_fire_sw_int(adapter, 0x1);
-	}
-
 	clear_bit(__I40EVF_IN_CRITICAL_TASK, &adapter->crit_section);
 restart_watchdog:
 	if (adapter->state == __I40EVF_REMOVE)
