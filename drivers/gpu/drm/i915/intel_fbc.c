@@ -794,8 +794,7 @@ static bool intel_fbc_can_activate(struct intel_crtc *crtc)
 		return false;
 	}
 
-	if ((cache->crtc.mode_flags & DRM_MODE_FLAG_INTERLACE) ||
-	    (cache->crtc.mode_flags & DRM_MODE_FLAG_DBLSCAN)) {
+	if (cache->crtc.mode_flags & DRM_MODE_FLAG_INTERLACE) {
 		fbc->no_fbc_reason = "incompatible mode";
 		return false;
 	}

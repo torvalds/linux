@@ -14082,10 +14082,37 @@ static void intel_atomic_state_free(struct drm_atomic_state *state)
 	kfree(state);
 }
 
+static enum drm_mode_status
+intel_mode_valid(struct drm_device *dev,
+		 const struct drm_display_mode *mode)
+{
+	if (mode->vscan > 1)
+		return MODE_NO_VSCAN;
+
+	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
+		return MODE_NO_DBLESCAN;
+
+	if (mode->flags & DRM_MODE_FLAG_HSKEW)
+		return MODE_H_ILLEGAL;
+
+	if (mode->flags & (DRM_MODE_FLAG_CSYNC |
+			   DRM_MODE_FLAG_NCSYNC |
+			   DRM_MODE_FLAG_PCSYNC))
+		return MODE_HSYNC;
+
+	if (mode->flags & (DRM_MODE_FLAG_BCAST |
+			   DRM_MODE_FLAG_PIXMUX |
+			   DRM_MODE_FLAG_CLKDIV2))
+		return MODE_BAD;
+
+	return MODE_OK;
+}
+
 static const struct drm_mode_config_funcs intel_mode_funcs = {
 	.fb_create = intel_user_framebuffer_create,
 	.get_format_info = intel_get_format_info,
 	.output_poll_changed = intel_fbdev_output_poll_changed,
+	.mode_valid = intel_mode_valid,
 	.atomic_check = intel_atomic_check,
 	.atomic_commit = intel_atomic_commit,
 	.atomic_state_alloc = intel_atomic_state_alloc,
