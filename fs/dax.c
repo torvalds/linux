@@ -1079,6 +1079,17 @@ static int dax_fault_return(int error)
 	return VM_FAULT_SIGBUS;
 }
 
+/*
+ * MAP_SYNC on a dax mapping guarantees dirty metadata is
+ * flushed on write-faults (non-cow), but not read-faults.
+ */
+static bool dax_fault_is_synchronous(unsigned long flags,
+		struct vm_area_struct *vma, struct iomap *iomap)
+{
+	return (flags & IOMAP_WRITE) && (vma->vm_flags & VM_SYNC)
+		&& (iomap->flags & IOMAP_F_DIRTY);
+}
+
 static int dax_iomap_pte_fault(struct vm_fault *vmf, pfn_t *pfnp,
 			       const struct iomap_ops *ops)
 {
@@ -1170,7 +1181,7 @@ static int dax_iomap_pte_fault(struct vm_fault *vmf, pfn_t *pfnp,
 		goto finish_iomap;
 	}
 
-	sync = (vma->vm_flags & VM_SYNC) && (iomap.flags & IOMAP_F_DIRTY);
+	sync = dax_fault_is_synchronous(flags, vma, &iomap);
 
 	switch (iomap.type) {
 	case IOMAP_MAPPED:
@@ -1390,7 +1401,7 @@ static int dax_iomap_pmd_fault(struct vm_fault *vmf, pfn_t *pfnp,
 	if (iomap.offset + iomap.length < pos + PMD_SIZE)
 		goto finish_iomap;
 
-	sync = (vma->vm_flags & VM_SYNC) && (iomap.flags & IOMAP_F_DIRTY);
+	sync = dax_fault_is_synchronous(iomap_flags, vma, &iomap);
 
 	switch (iomap.type) {
 	case IOMAP_MAPPED:

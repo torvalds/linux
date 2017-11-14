@@ -3479,7 +3479,7 @@ retry:
 	}
 
 	iomap->flags = 0;
-	if ((flags & IOMAP_WRITE) && ext4_inode_datasync_dirty(inode))
+	if (ext4_inode_datasync_dirty(inode))
 		iomap->flags |= IOMAP_F_DIRTY;
 	iomap->bdev = inode->i_sb->s_bdev;
 	iomap->dax_dev = sbi->s_daxdev;

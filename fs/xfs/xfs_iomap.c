@@ -1087,8 +1087,8 @@ xfs_file_iomap_begin(
 		trace_xfs_iomap_found(ip, offset, length, 0, &imap);
 	}
 
-	if ((flags & IOMAP_WRITE) && xfs_ipincount(ip) &&
-	    (ip->i_itemp->ili_fsync_fields & ~XFS_ILOG_TIMESTAMP))
+	if (xfs_ipincount(ip) && (ip->i_itemp->ili_fsync_fields
+				& ~XFS_ILOG_TIMESTAMP))
 		iomap->flags |= IOMAP_F_DIRTY;
 
 	xfs_bmbt_to_iomap(ip, iomap, &imap);
