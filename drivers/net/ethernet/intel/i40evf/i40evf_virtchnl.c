@@ -739,8 +739,10 @@ void i40evf_set_promiscuous(struct i40evf_adapter *adapter, int flags)
 	}
 
 	if (!flags) {
-		adapter->flags &= ~I40EVF_FLAG_PROMISC_ON;
-		adapter->aq_required &= ~I40EVF_FLAG_AQ_RELEASE_PROMISC;
+		adapter->flags &= ~(I40EVF_FLAG_PROMISC_ON |
+				    I40EVF_FLAG_ALLMULTI_ON);
+		adapter->aq_required &= ~(I40EVF_FLAG_AQ_RELEASE_PROMISC |
+					  I40EVF_FLAG_AQ_RELEASE_ALLMULTI);
 		dev_info(&adapter->pdev->dev, "Leaving promiscuous mode\n");
 	}
 
