@@ -37,8 +37,6 @@ extern struct pci_controller* pcibios_alloc_controller(void);
 #include <linux/string.h>
 #include <asm/io.h>
 
-struct pci_dev;
-
 /* The PCI address space does equal the physical memory address space.
  * The networking and block device layers use this boolean for bounce buffer
  * decisions.

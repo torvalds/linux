@@ -47,8 +47,6 @@ extern void unit_pci_init(void);
 #define PCIBIOS_MIN_IO		0xBE000004
 #define PCIBIOS_MIN_MEM		0xB8000000
 
-void pcibios_set_master(struct pci_dev *dev);
-
 /* Dynamic DMA mapping stuff.
  * i386 has everything mapped statically.
  */
@@ -58,8 +56,6 @@ void pcibios_set_master(struct pci_dev *dev);
 #include <linux/scatterlist.h>
 #include <linux/string.h>
 #include <asm/io.h>
-
-struct pci_dev;
 
 /* The PCI address space does equal the physical memory
  * address space.  The networking and block device layers use
