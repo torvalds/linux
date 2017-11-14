@@ -843,11 +843,11 @@ static inline void hfi1_make_rc_ack_16B(struct rvt_qp *qp,
 	/* Convert dwords to flits */
 	len = (*hwords + *nwords) >> 1;
 
-	hfi1_make_16b_hdr(hdr,
-			  ppd->lid | rdma_ah_get_path_bits(&qp->remote_ah_attr),
+	hfi1_make_16b_hdr(hdr, ppd->lid |
+			  (rdma_ah_get_path_bits(&qp->remote_ah_attr) &
+			  ((1 << ppd->lmc) - 1)),
 			  opa_get_lid(rdma_ah_get_dlid(&qp->remote_ah_attr),
-				      16B),
-			  len, pkey, becn, 0, l4, sc5);
+				      16B), len, pkey, becn, 0, l4, sc5);
 
 	bth0 = pkey | (OP(ACKNOWLEDGE) << 24);
 	bth0 |= extra_bytes << 20;
