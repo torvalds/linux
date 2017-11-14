@@ -191,7 +191,6 @@ static int notrace s390_check_registers(union mci mci, int umode)
 {
 	union ctlreg2 cr2;
 	int kill_task;
-	void *fpt_save_area;
 
 	kill_task = 0;
 
@@ -224,7 +223,6 @@ static int notrace s390_check_registers(union mci mci, int umode)
 		if (!test_cpu_flag(CIF_FPU))
 			kill_task = 1;
 	}
-	fpt_save_area = &S390_lowcore.floating_pt_save_area;
 	if (!mci.fc) {
 		/*
 		 * Floating point control register can't be restored.
