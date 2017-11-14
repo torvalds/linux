@@ -185,7 +185,8 @@ static void testmgr_free_buf(char *buf[XBUFSIZE])
 }
 
 static void sg_init_aead(struct scatterlist *sg, char *xbuf[XBUFSIZE],
-			unsigned int buflen)
+			 unsigned int buflen, const void *assoc,
+			 unsigned int aad_size)
 {
 	int np = (buflen + PAGE_SIZE - 1)/PAGE_SIZE;
 	int k, rem;
@@ -198,6 +199,9 @@ static void sg_init_aead(struct scatterlist *sg, char *xbuf[XBUFSIZE],
 	}
 
 	sg_init_table(sg, np + 1);
+
+	sg_set_buf(&sg[0], assoc, aad_size);
+
 	if (rem)
 		np--;
 	for (k = 0; k < np; k++)
@@ -318,14 +322,12 @@ static void test_aead_speed(const char *algo, int enc, unsigned int secs,
 				goto out;
 			}
 
-			sg_init_aead(sg, xbuf,
-				    *b_size + (enc ? 0 : authsize));
+			sg_init_aead(sg, xbuf, *b_size + (enc ? 0 : authsize),
+				     assoc, aad_size);
 
 			sg_init_aead(sgout, xoutbuf,
-				    *b_size + (enc ? authsize : 0));
-
-			sg_set_buf(&sg[0], assoc, aad_size);
-			sg_set_buf(&sgout[0], assoc, aad_size);
+				     *b_size + (enc ? authsize : 0), assoc,
+				     aad_size);
 
 			aead_request_set_crypt(req, sg, sgout,
 					       *b_size + (enc ? 0 : authsize),
