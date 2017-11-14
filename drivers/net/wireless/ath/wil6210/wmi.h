@@ -2267,8 +2267,8 @@ struct wmi_link_maintain_cfg_read_done_event {
 } __packed;
 
 enum wmi_traffic_suspend_status {
-	WMI_TRAFFIC_SUSPEND_APPROVED	= 0x0,
-	WMI_TRAFFIC_SUSPEND_REJECTED	= 0x1,
+	WMI_TRAFFIC_SUSPEND_APPROVED			= 0x0,
+	WMI_TRAFFIC_SUSPEND_REJECTED_LINK_NOT_IDLE	= 0x1,
 };
 
 /* WMI_TRAFFIC_SUSPEND_EVENTID */
@@ -2282,10 +2282,21 @@ enum wmi_traffic_resume_status {
 	WMI_TRAFFIC_RESUME_FAILED	= 0x1,
 };
 
+enum wmi_resume_trigger {
+	WMI_RESUME_TRIGGER_UNKNOWN	= 0x0,
+	WMI_RESUME_TRIGGER_HOST		= 0x1,
+	WMI_RESUME_TRIGGER_UCAST_RX	= 0x2,
+	WMI_RESUME_TRIGGER_BCAST_RX	= 0x4,
+	WMI_RESUME_TRIGGER_WMI_EVT	= 0x8,
+};
+
 /* WMI_TRAFFIC_RESUME_EVENTID */
 struct wmi_traffic_resume_event {
-	/* enum wmi_traffic_resume_status_e */
+	/* enum wmi_traffic_resume_status */
 	u8 status;
+	u8 reserved[3];
+	/* enum wmi_resume_trigger bitmap */
+	__le32 resume_triggers;
 } __packed;
 
 /* Power Save command completion status codes */

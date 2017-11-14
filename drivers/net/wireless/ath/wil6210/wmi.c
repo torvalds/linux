@@ -2043,6 +2043,16 @@ void wmi_event_flush(struct wil6210_priv *wil)
 	spin_unlock_irqrestore(&wil->wmi_ev_lock, flags);
 }
 
+static const char *suspend_status2name(u8 status)
+{
+	switch (status) {
+	case WMI_TRAFFIC_SUSPEND_REJECTED_LINK_NOT_IDLE:
+		return "LINK_NOT_IDLE";
+	default:
+		return "Untracked status";
+	}
+}
+
 int wmi_suspend(struct wil6210_priv *wil)
 {
 	int rc;
@@ -2058,7 +2068,7 @@ int wmi_suspend(struct wil6210_priv *wil)
 	wil->suspend_resp_rcvd = false;
 	wil->suspend_resp_comp = false;
 
-	reply.evt.status = WMI_TRAFFIC_SUSPEND_REJECTED;
+	reply.evt.status = WMI_TRAFFIC_SUSPEND_REJECTED_LINK_NOT_IDLE;
 
 	rc = wmi_call(wil, WMI_TRAFFIC_SUSPEND_CMDID, &cmd, sizeof(cmd),
 		      WMI_TRAFFIC_SUSPEND_EVENTID, &reply, sizeof(reply),
@@ -2090,8 +2100,9 @@ int wmi_suspend(struct wil6210_priv *wil)
 	}
 
 	wil_dbg_wmi(wil, "suspend_response_completed rcvd\n");
-	if (reply.evt.status == WMI_TRAFFIC_SUSPEND_REJECTED) {
-		wil_dbg_pm(wil, "device rejected the suspend\n");
+	if (reply.evt.status != WMI_TRAFFIC_SUSPEND_APPROVED) {
+		wil_dbg_pm(wil, "device rejected the suspend, %s\n",
+			   suspend_status2name(reply.evt.status));
 		wil->suspend_stats.rejected_by_device++;
 	}
 	rc = reply.evt.status;
@@ -2103,21 +2114,50 @@ out:
 	return rc;
 }
 
+static void resume_triggers2string(u32 triggers, char *string, int str_size)
+{
+	string[0] = '\0';
+
+	if (!triggers) {
+		strlcat(string, " UNKNOWN", str_size);
+		return;
+	}
+
+	if (triggers & WMI_RESUME_TRIGGER_HOST)
+		strlcat(string, " HOST", str_size);
+
+	if (triggers & WMI_RESUME_TRIGGER_UCAST_RX)
+		strlcat(string, " UCAST_RX", str_size);
+
+	if (triggers & WMI_RESUME_TRIGGER_BCAST_RX)
+		strlcat(string, " BCAST_RX", str_size);
+
+	if (triggers & WMI_RESUME_TRIGGER_WMI_EVT)
+		strlcat(string, " WMI_EVT", str_size);
+}
+
 int wmi_resume(struct wil6210_priv *wil)
 {
 	int rc;
+	char string[100];
 	struct {
 		struct wmi_cmd_hdr wmi;
 		struct wmi_traffic_resume_event evt;
 	} __packed reply;
 
 	reply.evt.status = WMI_TRAFFIC_RESUME_FAILED;
+	reply.evt.resume_triggers = WMI_RESUME_TRIGGER_UNKNOWN;
 
 	rc = wmi_call(wil, WMI_TRAFFIC_RESUME_CMDID, NULL, 0,
 		      WMI_TRAFFIC_RESUME_EVENTID, &reply, sizeof(reply),
 		      WIL_WAIT_FOR_SUSPEND_RESUME_COMP);
 	if (rc)
 		return rc;
+	resume_triggers2string(le32_to_cpu(reply.evt.resume_triggers), string,
+			       sizeof(string));
+	wil_dbg_pm(wil, "device resume %s, resume triggers:%s (0x%x)\n",
+		   reply.evt.status ? "failed" : "passed", string,
+		   le32_to_cpu(reply.evt.resume_triggers));
 
 	return reply.evt.status;
 }
