@@ -34,7 +34,6 @@
  * type for this bio
  */
 #define EXTENT_BIO_COMPRESSED 1
-#define EXTENT_BIO_TREE_LOG 2
 #define EXTENT_BIO_FLAG_SHIFT 16
 
 /* these are bit numbers for test/set bit */

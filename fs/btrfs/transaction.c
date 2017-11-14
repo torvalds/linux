@@ -797,8 +797,7 @@ static int should_end_transaction(struct btrfs_trans_handle *trans)
 {
 	struct btrfs_fs_info *fs_info = trans->fs_info;
 
-	if (fs_info->global_block_rsv.space_info->full &&
-	    btrfs_check_space_for_delayed_refs(trans, fs_info))
+	if (btrfs_check_space_for_delayed_refs(trans, fs_info))
 		return 1;
 
 	return !!btrfs_block_rsv_check(&fs_info->global_block_rsv, 5);
@@ -950,6 +949,7 @@ int btrfs_write_marked_extents(struct btrfs_fs_info *fs_info,
 	u64 start = 0;
 	u64 end;
 
+	atomic_inc(&BTRFS_I(fs_info->btree_inode)->sync_writers);
 	while (!find_first_extent_bit(dirty_pages, start, &start, &end,
 				      mark, &cached_state)) {
 		bool wait_writeback = false;
@@ -985,6 +985,7 @@ int btrfs_write_marked_extents(struct btrfs_fs_info *fs_info,
 		cond_resched();
 		start = end + 1;
 	}
+	atomic_dec(&BTRFS_I(fs_info->btree_inode)->sync_writers);
 	return werr;
 }
 
@@ -1915,8 +1916,17 @@ static void cleanup_transaction(struct btrfs_trans_handle *trans,
 
 static inline int btrfs_start_delalloc_flush(struct btrfs_fs_info *fs_info)
 {
+	/*
+	 * We use writeback_inodes_sb here because if we used
+	 * btrfs_start_delalloc_roots we would deadlock with fs freeze.
+	 * Currently are holding the fs freeze lock, if we do an async flush
+	 * we'll do btrfs_join_transaction() and deadlock because we need to
+	 * wait for the fs freeze lock.  Using the direct flushing we benefit
+	 * from already being in a transaction and our join_transaction doesn't
+	 * have to re-take the fs freeze lock.
+	 */
 	if (btrfs_test_opt(fs_info, FLUSHONCOMMIT))
-		return btrfs_start_delalloc_roots(fs_info, 1, -1);
+		writeback_inodes_sb(fs_info->sb, WB_REASON_SYNC);
 	return 0;
 }
 
