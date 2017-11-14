@@ -4852,6 +4852,8 @@ void i915_gem_resume(struct drm_i915_private *i915)
 	if (i915_gem_init_hw(i915))
 		goto err_wedged;
 
+	intel_guc_resume(i915);
+
 	/* Always reload a context for powersaving. */
 	if (i915_gem_switch_to_kernel_context(i915))
 		goto err_wedged;
