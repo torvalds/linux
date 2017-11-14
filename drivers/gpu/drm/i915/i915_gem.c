@@ -1725,7 +1725,7 @@ i915_gem_mmap_ioctl(struct drm_device *dev, void *data,
 	 */
 	if (!obj->base.filp) {
 		i915_gem_object_put(obj);
-		return -EINVAL;
+		return -ENXIO;
 	}
 
 	addr = vm_mmap(obj->base.filp, 0, args->size,
