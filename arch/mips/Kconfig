@@ -259,6 +259,7 @@ config BCM47XX
 	select LEDS_GPIO_REGISTER
 	select BCM47XX_NVRAM
 	select BCM47XX_SPROM
+	select BCM47XX_SSB if !BCM47XX_BCMA
 	help
 	 Support for BCM47XX based boards
 
