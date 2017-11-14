@@ -166,7 +166,7 @@ static int ovs_meter_cmd_features(struct sk_buff *skb, struct genl_info *info)
 
 	reply = ovs_meter_cmd_reply_start(info, OVS_METER_CMD_FEATURES,
 					  &ovs_reply_header);
-	if (!reply)
+	if (IS_ERR(reply))
 		return PTR_ERR(reply);
 
 	if (nla_put_u32(reply, OVS_METER_ATTR_MAX_METERS, U32_MAX) ||
