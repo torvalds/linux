@@ -880,7 +880,6 @@ int ib_find_gid_by_filter(struct ib_device *device,
 					   port_num, filter,
 					   context, index);
 }
-EXPORT_SYMBOL(ib_find_gid_by_filter);
 
 int ib_get_cached_pkey(struct ib_device *device,
 		       u8                port_num,
