@@ -31,6 +31,17 @@ To build and run the tests with a single command, use::
 
 Note that some tests will require root privileges.
 
+Build and run from user specific object directory (make O=dir)::
+
+  $ make O=/tmp/kselftest kselftest
+
+Build and run KBUILD_OUTPUT directory (make KBUILD_OUTPUT=)::
+
+  $ make KBUILD_OUTPUT=/tmp/kselftest kselftest
+
+The above commands run the tests and print pass/fail summary to make it
+easier to understand the test results. Please find the detailed individual
+test results for each test in /tmp/testname file(s).
 
 Running a subset of selftests
 =============================
@@ -46,9 +57,20 @@ You can specify multiple tests to build and run::
 
   $  make TARGETS="size timers" kselftest
 
+Build and run from user specific object directory (make O=dir)::
+
+  $ make O=/tmp/kselftest TARGETS="size timers" kselftest
+
+Build and run KBUILD_OUTPUT directory (make KBUILD_OUTPUT=)::
+
+  $ make KBUILD_OUTPUT=/tmp/kselftest TARGETS="size timers" kselftest
+
+The above commands run the tests and print pass/fail summary to make it
+easier to understand the test results. Please find the detailed individual
+test results for each test in /tmp/testname file(s).
+
 See the top-level tools/testing/selftests/Makefile for the list of all
 possible targets.
-
 
 Running the full range hotplug selftests
 ========================================
@@ -113,8 +135,16 @@ Contributing new tests (details)
  * Use TEST_GEN_XXX if such binaries or files are generated during
    compiling.
 
-   TEST_PROGS, TEST_GEN_PROGS mean it is the excutable tested by
+   TEST_PROGS, TEST_GEN_PROGS mean it is the executable tested by
    default.
+
+   TEST_CUSTOM_PROGS should be used by tests that require custom build
+   rule and prevent common build rule use.
+
+   TEST_PROGS are for test shell scripts. Please ensure shell script has
+   its exec bit set. Otherwise, lib.mk run_tests will generate a warning.
+
+   TEST_CUSTOM_PROGS and TEST_PROGS will be run by common run_tests.
 
    TEST_PROGS_EXTENDED, TEST_GEN_PROGS_EXTENDED mean it is the
    executable which is not tested by default.

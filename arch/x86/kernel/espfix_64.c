@@ -155,14 +155,14 @@ void init_espfix_ap(int cpu)
 	page = cpu/ESPFIX_STACKS_PER_PAGE;
 
 	/* Did another CPU already set this up? */
-	stack_page = ACCESS_ONCE(espfix_pages[page]);
+	stack_page = READ_ONCE(espfix_pages[page]);
 	if (likely(stack_page))
 		goto done;
 
 	mutex_lock(&espfix_init_mutex);
 
 	/* Did we race on the lock? */
-	stack_page = ACCESS_ONCE(espfix_pages[page]);
+	stack_page = READ_ONCE(espfix_pages[page]);
 	if (stack_page)
 		goto unlock_done;
 
@@ -200,7 +200,7 @@ void init_espfix_ap(int cpu)
 		set_pte(&pte_p[n*PTE_STRIDE], pte);
 
 	/* Job is done for this CPU and any CPU which shares this page */
-	ACCESS_ONCE(espfix_pages[page]) = stack_page;
+	WRITE_ONCE(espfix_pages[page], stack_page);
 
 unlock_done:
 	mutex_unlock(&espfix_init_mutex);

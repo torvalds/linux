@@ -159,6 +159,7 @@ static int __init snd_hrtimer_init(void)
 	timer->hw = hrtimer_hw;
 	timer->hw.resolution = resolution;
 	timer->hw.ticks = NANO_SEC / resolution;
+	timer->max_instances = 100; /* lower the limit */
 
 	err = snd_timer_global_register(timer);
 	if (err < 0) {

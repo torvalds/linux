@@ -1781,8 +1781,8 @@ static int __set_memory_enc_dec(unsigned long addr, int numpages, bool enc)
 	unsigned long start;
 	int ret;
 
-	/* Nothing to do if the SME is not active */
-	if (!sme_active())
+	/* Nothing to do if memory encryption is not active */
+	if (!mem_encrypt_active())
 		return 0;
 
 	/* Should not be working on unaligned addresses */

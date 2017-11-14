@@ -9,6 +9,7 @@
 enum {
 	/* Allocate contiguous CPU vectors */
 	X86_IRQ_ALLOC_CONTIGUOUS_VECTORS		= 0x1,
+	X86_IRQ_ALLOC_LEGACY				= 0x2,
 };
 
 extern struct irq_domain *x86_vector_domain;
@@ -42,8 +43,8 @@ extern int mp_irqdomain_alloc(struct irq_domain *domain, unsigned int virq,
 			      unsigned int nr_irqs, void *arg);
 extern void mp_irqdomain_free(struct irq_domain *domain, unsigned int virq,
 			      unsigned int nr_irqs);
-extern void mp_irqdomain_activate(struct irq_domain *domain,
-				  struct irq_data *irq_data);
+extern int mp_irqdomain_activate(struct irq_domain *domain,
+				 struct irq_data *irq_data, bool early);
 extern void mp_irqdomain_deactivate(struct irq_domain *domain,
 				    struct irq_data *irq_data);
 extern int mp_irqdomain_ioapic_idx(struct irq_domain *domain);

@@ -2629,7 +2629,7 @@ static void vxge_poll_vp_lockup(unsigned long data)
 		ring = &vdev->vpaths[i].ring;
 
 		/* Truncated to machine word size number of frames */
-		rx_frms = ACCESS_ONCE(ring->stats.rx_frms);
+		rx_frms = READ_ONCE(ring->stats.rx_frms);
 
 		/* Did this vpath received any packets */
 		if (ring->stats.prev_rx_frms == rx_frms) {

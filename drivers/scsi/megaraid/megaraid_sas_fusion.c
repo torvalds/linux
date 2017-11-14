@@ -85,12 +85,9 @@ int megasas_transition_to_ready(struct megasas_instance *instance, int ocr);
 void megaraid_sas_kill_hba(struct megasas_instance *instance);
 
 extern u32 megasas_dbg_lvl;
-void megasas_sriov_heartbeat_handler(unsigned long instance_addr);
 int megasas_sriov_start_heartbeat(struct megasas_instance *instance,
 				  int initial);
-void megasas_start_timer(struct megasas_instance *instance,
-			struct timer_list *timer,
-			 void *fn, unsigned long interval);
+void megasas_start_timer(struct megasas_instance *instance);
 extern struct megasas_mgmt_info megasas_mgmt_info;
 extern unsigned int resetwaittime;
 extern unsigned int dual_qdepth_disable;
@@ -4369,10 +4366,7 @@ transition_to_ready:
 			/* Restart SR-IOV heartbeat */
 			if (instance->requestorId) {
 				if (!megasas_sriov_start_heartbeat(instance, 0))
-					megasas_start_timer(instance,
-							    &instance->sriov_heartbeat_timer,
-							    megasas_sriov_heartbeat_handler,
-							    MEGASAS_SRIOV_HEARTBEAT_INTERVAL_VF);
+					megasas_start_timer(instance);
 				else
 					instance->skip_heartbeat_timer_del = 1;
 			}
@@ -4404,10 +4398,7 @@ fail_kill_adapter:
 	} else {
 		/* For VF: Restart HB timer if we didn't OCR */
 		if (instance->requestorId) {
-			megasas_start_timer(instance,
-					    &instance->sriov_heartbeat_timer,
-					    megasas_sriov_heartbeat_handler,
-					    MEGASAS_SRIOV_HEARTBEAT_INTERVAL_VF);
+			megasas_start_timer(instance);
 		}
 		clear_bit(MEGASAS_FUSION_IN_RESET, &instance->reset_flags);
 		instance->instancet->enable_intr(instance);

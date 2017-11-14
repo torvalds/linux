@@ -20,6 +20,12 @@
 
 struct its_vpe;
 
+/*
+ * Maximum number of ITTs when GITS_TYPER.VMOVP == 0, using the
+ * ITSList mechanism to perform inter-ITS synchronization.
+ */
+#define GICv4_ITS_LIST_MAX		16
+
 /* Embedded in kvm.arch */
 struct its_vm {
 	struct fwnode_handle	*fwnode;
@@ -30,6 +36,7 @@ struct its_vm {
 	irq_hw_number_t		db_lpi_base;
 	unsigned long		*db_bitmap;
 	int			nr_db_lpis;
+	u32			vlpi_count[GICv4_ITS_LIST_MAX];
 };
 
 /* Embedded in kvm_vcpu.arch */
@@ -64,12 +71,14 @@ struct its_vpe {
  * @vm:		Pointer to the GICv4 notion of a VM
  * @vpe:	Pointer to the GICv4 notion of a virtual CPU (VPE)
  * @vintid:	Virtual LPI number
+ * @properties:	Priority and enable bits (as written in the prop table)
  * @db_enabled:	Is the VPE doorbell to be generated?
  */
 struct its_vlpi_map {
 	struct its_vm		*vm;
 	struct its_vpe		*vpe;
 	u32			vintid;
+	u8			properties;
 	bool			db_enabled;
 };
 

@@ -620,8 +620,8 @@ char *dentry_name(char *buf, char *end, const struct dentry *d, struct printf_sp
 
 	rcu_read_lock();
 	for (i = 0; i < depth; i++, d = p) {
-		p = ACCESS_ONCE(d->d_parent);
-		array[i] = ACCESS_ONCE(d->d_name.name);
+		p = READ_ONCE(d->d_parent);
+		array[i] = READ_ONCE(d->d_name.name);
 		if (p == d) {
 			if (i)
 				array[i] = "";

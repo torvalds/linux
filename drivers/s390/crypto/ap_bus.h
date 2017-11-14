@@ -250,8 +250,8 @@ void ap_queue_remove(struct ap_queue *aq);
 void ap_queue_suspend(struct ap_device *ap_dev);
 void ap_queue_resume(struct ap_device *ap_dev);
 
-struct ap_card *ap_card_create(int id, int queue_depth, int device_type,
-			       unsigned int device_functions);
+struct ap_card *ap_card_create(int id, int queue_depth, int raw_device_type,
+			       int comp_device_type, unsigned int functions);
 
 int ap_module_init(void);
 void ap_module_exit(void);

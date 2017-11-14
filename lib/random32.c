@@ -215,7 +215,7 @@ core_initcall(prandom_init);
 
 static void __prandom_timer(unsigned long dontcare);
 
-static DEFINE_TIMER(seed_timer, __prandom_timer, 0, 0);
+static DEFINE_TIMER(seed_timer, __prandom_timer);
 
 static void __prandom_timer(unsigned long dontcare)
 {

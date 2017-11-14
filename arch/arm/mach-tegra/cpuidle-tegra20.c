@@ -179,7 +179,7 @@ static int tegra20_idle_lp2_coupled(struct cpuidle_device *dev,
 	bool entered_lp2 = false;
 
 	if (tegra_pending_sgi())
-		ACCESS_ONCE(abort_flag) = true;
+		WRITE_ONCE(abort_flag, true);
 
 	cpuidle_coupled_parallel_barrier(dev, &abort_barrier);
 

@@ -961,6 +961,11 @@ static int __init acpi_parse_fadt(struct acpi_table_header *table)
 		x86_platform.legacy.rtc = 0;
 	}
 
+	if (acpi_gbl_FADT.boot_flags & ACPI_FADT_NO_VGA) {
+		pr_debug("ACPI: probing for VGA not safe\n");
+		x86_platform.legacy.no_vga = 1;
+	}
+
 #ifdef CONFIG_X86_PM_TIMER
 	/* detect the location of the ACPI PM Timer */
 	if (acpi_gbl_FADT.header.revision >= FADT2_REVISION_ID) {

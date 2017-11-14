@@ -283,7 +283,7 @@ static void cyz_poll(unsigned long);
 /* The Cyclades-Z polling cycle is defined by this variable */
 static long cyz_polling_cycle = CZ_DEF_POLL;
 
-static DEFINE_TIMER(cyz_timerlist, cyz_poll, 0, 0);
+static DEFINE_TIMER(cyz_timerlist, cyz_poll);
 
 #else				/* CONFIG_CYZ_INTR */
 static void cyz_rx_restart(unsigned long);

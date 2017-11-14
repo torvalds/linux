@@ -380,7 +380,7 @@ static long hfi1_file_ioctl(struct file *fp, unsigned int cmd,
 		if (sc->flags & SCF_FROZEN) {
 			wait_event_interruptible_timeout(
 				dd->event_queue,
-				!(ACCESS_ONCE(dd->flags) & HFI1_FROZEN),
+				!(READ_ONCE(dd->flags) & HFI1_FROZEN),
 				msecs_to_jiffies(SEND_CTXT_HALT_TIMEOUT));
 			if (dd->flags & HFI1_FROZEN)
 				return -ENOLCK;

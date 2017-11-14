@@ -29,7 +29,7 @@
  * it needs to be correct to get the early console working.
  */
 
-#define BASE_BAUD (cpuinfo.clock_frequency/16)
+#define BASE_BAUD (cpuinfo_or1k[smp_processor_id()].clock_frequency/16)
 
 #endif /* __KERNEL__ */
 

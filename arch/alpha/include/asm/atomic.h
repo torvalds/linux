@@ -14,6 +14,15 @@
  * than regular operations.
  */
 
+/*
+ * To ensure dependency ordering is preserved for the _relaxed and
+ * _release atomics, an smp_read_barrier_depends() is unconditionally
+ * inserted into the _relaxed variants, which are used to build the
+ * barriered versions. To avoid redundant back-to-back fences, we can
+ * define the _acquire and _fence versions explicitly.
+ */
+#define __atomic_op_acquire(op, args...)	op##_relaxed(args)
+#define __atomic_op_fence			__atomic_op_release
 
 #define ATOMIC_INIT(i)		{ (i) }
 #define ATOMIC64_INIT(i)	{ (i) }
@@ -61,6 +70,7 @@ static inline int atomic_##op##_return_relaxed(int i, atomic_t *v)	\
 	".previous"							\
 	:"=&r" (temp), "=m" (v->counter), "=&r" (result)		\
 	:"Ir" (i), "m" (v->counter) : "memory");			\
+	smp_read_barrier_depends();					\
 	return result;							\
 }
 
@@ -78,6 +88,7 @@ static inline int atomic_fetch_##op##_relaxed(int i, atomic_t *v)	\
 	".previous"							\
 	:"=&r" (temp), "=m" (v->counter), "=&r" (result)		\
 	:"Ir" (i), "m" (v->counter) : "memory");			\
+	smp_read_barrier_depends();					\
 	return result;							\
 }
 
@@ -112,6 +123,7 @@ static __inline__ long atomic64_##op##_return_relaxed(long i, atomic64_t * v)	\
 	".previous"							\
 	:"=&r" (temp), "=m" (v->counter), "=&r" (result)		\
 	:"Ir" (i), "m" (v->counter) : "memory");			\
+	smp_read_barrier_depends();					\
 	return result;							\
 }
 
@@ -129,6 +141,7 @@ static __inline__ long atomic64_fetch_##op##_relaxed(long i, atomic64_t * v)	\
 	".previous"							\
 	:"=&r" (temp), "=m" (v->counter), "=&r" (result)		\
 	:"Ir" (i), "m" (v->counter) : "memory");			\
+	smp_read_barrier_depends();					\
 	return result;							\
 }
 

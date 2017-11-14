@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <linux/types.h>
+#include "rwsem.h"
 
 enum map_type {
 	MAP__FUNCTION = 0,
@@ -62,7 +63,7 @@ struct kmap {
 
 struct maps {
 	struct rb_root	 entries;
-	pthread_rwlock_t lock;
+	struct rw_semaphore lock;
 };
 
 struct map_groups {

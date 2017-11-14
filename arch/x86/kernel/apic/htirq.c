@@ -112,8 +112,8 @@ static void htirq_domain_free(struct irq_domain *domain, unsigned int virq,
 	irq_domain_free_irqs_top(domain, virq, nr_irqs);
 }
 
-static void htirq_domain_activate(struct irq_domain *domain,
-				  struct irq_data *irq_data)
+static int htirq_domain_activate(struct irq_domain *domain,
+				 struct irq_data *irq_data, bool early)
 {
 	struct ht_irq_msg msg;
 	struct irq_cfg *cfg = irqd_cfg(irq_data);
@@ -132,6 +132,7 @@ static void htirq_domain_activate(struct irq_domain *domain,
 			HT_IRQ_LOW_MT_ARBITRATED) |
 		HT_IRQ_LOW_IRQ_MASKED;
 	write_ht_irq_msg(irq_data->irq, &msg);
+	return 0;
 }
 
 static void htirq_domain_deactivate(struct irq_domain *domain,
