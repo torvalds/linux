@@ -1902,56 +1902,52 @@ static int cm_req_handler(struct cm_work *work)
 				work->port->port_num,
 				grh->sgid_index,
 				&gid, &gid_attr);
-	if (!ret) {
-		if (gid_attr.ndev) {
-			work->path[0].rec_type =
-				sa_conv_gid_to_pathrec_type(gid_attr.gid_type);
-			sa_path_set_ifindex(&work->path[0],
-					    gid_attr.ndev->ifindex);
-			sa_path_set_ndev(&work->path[0],
-					 dev_net(gid_attr.ndev));
-			dev_put(gid_attr.ndev);
-		} else {
-			cm_path_set_rec_type(work->port->cm_dev->ib_device,
-					     work->port->port_num,
-					     &work->path[0],
-					     &req_msg->primary_local_gid);
-		}
-		if (cm_req_has_alt_path(req_msg))
-			work->path[1].rec_type = work->path[0].rec_type;
-		cm_format_paths_from_req(req_msg, &work->path[0],
-					 &work->path[1]);
-		if (cm_id_priv->av.ah_attr.type == RDMA_AH_ATTR_TYPE_ROCE)
-			sa_path_set_dmac(&work->path[0],
-					 cm_id_priv->av.ah_attr.roce.dmac);
-		work->path[0].hop_limit = grh->hop_limit;
-		ret = cm_init_av_by_path(&work->path[0], &cm_id_priv->av,
-					 cm_id_priv);
-	}
 	if (ret) {
-		int err = ib_get_cached_gid(work->port->cm_dev->ib_device,
-					    work->port->port_num, 0,
-					    &work->path[0].sgid,
-					    &gid_attr);
-		if (!err && gid_attr.ndev) {
-			work->path[0].rec_type =
-				sa_conv_gid_to_pathrec_type(gid_attr.gid_type);
-			sa_path_set_ifindex(&work->path[0],
-					    gid_attr.ndev->ifindex);
-			sa_path_set_ndev(&work->path[0],
-					 dev_net(gid_attr.ndev));
+		if (gid_attr.ndev)
 			dev_put(gid_attr.ndev);
-		} else {
-			cm_path_set_rec_type(work->port->cm_dev->ib_device,
-					     work->port->port_num,
-					     &work->path[0],
-					     &req_msg->primary_local_gid);
-		}
-		if (cm_req_has_alt_path(req_msg))
-			work->path[1].rec_type = work->path[0].rec_type;
-		ib_send_cm_rej(cm_id, IB_CM_REJ_INVALID_GID,
-			       &work->path[0].sgid, sizeof work->path[0].sgid,
-			       NULL, 0);
+		ib_send_cm_rej(cm_id, IB_CM_REJ_UNSUPPORTED, NULL, 0, NULL, 0);
+		goto rejected;
+	}
+
+	if (gid_attr.ndev) {
+		work->path[0].rec_type =
+			sa_conv_gid_to_pathrec_type(gid_attr.gid_type);
+		sa_path_set_ifindex(&work->path[0],
+				    gid_attr.ndev->ifindex);
+		sa_path_set_ndev(&work->path[0],
+				 dev_net(gid_attr.ndev));
+		dev_put(gid_attr.ndev);
+	} else {
+		cm_path_set_rec_type(work->port->cm_dev->ib_device,
+				     work->port->port_num,
+				     &work->path[0],
+				     &req_msg->primary_local_gid);
+	}
+	if (cm_req_has_alt_path(req_msg))
+		work->path[1].rec_type = work->path[0].rec_type;
+	cm_format_paths_from_req(req_msg, &work->path[0],
+				 &work->path[1]);
+	if (cm_id_priv->av.ah_attr.type == RDMA_AH_ATTR_TYPE_ROCE)
+		sa_path_set_dmac(&work->path[0],
+				 cm_id_priv->av.ah_attr.roce.dmac);
+	work->path[0].hop_limit = grh->hop_limit;
+	ret = cm_init_av_by_path(&work->path[0], &cm_id_priv->av,
+				 cm_id_priv);
+	if (ret) {
+		int err;
+
+		err = ib_get_cached_gid(work->port->cm_dev->ib_device,
+					work->port->port_num, 0,
+					&work->path[0].sgid,
+					NULL);
+		if (err)
+			ib_send_cm_rej(cm_id, IB_CM_REJ_INVALID_GID,
+				       NULL, 0, NULL, 0);
+		else
+			ib_send_cm_rej(cm_id, IB_CM_REJ_INVALID_GID,
+				       &work->path[0].sgid,
+				       sizeof(work->path[0].sgid),
+				       NULL, 0);
 		goto rejected;
 	}
 	if (cm_req_has_alt_path(req_msg)) {
@@ -1960,7 +1956,7 @@ static int cm_req_handler(struct cm_work *work)
 		if (ret) {
 			ib_send_cm_rej(cm_id, IB_CM_REJ_INVALID_ALT_GID,
 				       &work->path[0].sgid,
-				       sizeof work->path[0].sgid, NULL, 0);
+				       sizeof(work->path[0].sgid), NULL, 0);
 			goto rejected;
 		}
 	}
