@@ -1962,10 +1962,8 @@ static struct n2_crypto *alloc_n2cp(void)
 
 static void free_n2cp(struct n2_crypto *np)
 {
-	if (np->cwq_info.ino_table) {
-		kfree(np->cwq_info.ino_table);
-		np->cwq_info.ino_table = NULL;
-	}
+	kfree(np->cwq_info.ino_table);
+	np->cwq_info.ino_table = NULL;
 
 	kfree(np);
 }
@@ -2079,10 +2077,8 @@ static struct n2_mau *alloc_ncp(void)
 
 static void free_ncp(struct n2_mau *mp)
 {
-	if (mp->mau_info.ino_table) {
-		kfree(mp->mau_info.ino_table);
-		mp->mau_info.ino_table = NULL;
-	}
+	kfree(mp->mau_info.ino_table);
+	mp->mau_info.ino_table = NULL;
 
 	kfree(mp);
 }
