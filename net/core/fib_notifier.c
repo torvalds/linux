@@ -34,12 +34,14 @@ static unsigned int fib_seq_sum(void)
 
 	rtnl_lock();
 	for_each_net(net) {
-		list_for_each_entry(ops, &net->fib_notifier_ops, list) {
+		rcu_read_lock();
+		list_for_each_entry_rcu(ops, &net->fib_notifier_ops, list) {
 			if (!try_module_get(ops->owner))
 				continue;
 			fib_seq += ops->fib_seq_read(net);
 			module_put(ops->owner);
 		}
+		rcu_read_unlock();
 	}
 	rtnl_unlock();
 
