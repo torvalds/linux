@@ -38,7 +38,6 @@
 #include <media/soc_camera.h>
 #include <media/soc_mediabus.h>
 #include <media/videobuf-core.h>
-#include <linux/rockchip/iomap.h>
 
 #include "../../video/rockchip/rga/rga.h"
 #include "../../../drivers/soc/rockchip/rk30_camera.h"
@@ -3267,7 +3266,7 @@ static int rk_camera_cif_iomux(struct device *dev)
     strcpy(state_str,"cif_pin_all");
 
 	if(CHIP_NAME == 3288){
-		__raw_writel(((1<<1)|(1<<(1+16))),RK_GRF_VIRT+0x0380);
+		write_grf_reg(0x0380, ((1 << 1) | (1 << (1 + 16))));
 	}else if(CHIP_NAME == 3368){
 		write_grf_reg(0x0900, ((1 << 1) | (1 << (1 + 16))));
 	}

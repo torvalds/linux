@@ -2046,6 +2046,8 @@ enodrv:
 eadddev:
 		soc_camera_clock_stop(ici);
 	}
+
+	soc_camera_power_off(icd->pdev, ssdd, NULL);
 eadd:
 	if (icd->vdev) {
 		video_device_release(icd->vdev);
@@ -2383,7 +2385,7 @@ static int video_dev_create(struct soc_camera_device *icd)
 	vdev->fops		= &soc_camera_fops;
 	vdev->ioctl_ops		= &soc_camera_ioctl_ops;
 	vdev->release		= video_device_release;
-	vdev->ctrl_handler	= &icd->ctrl_handler;
+	vdev->ctrl_handler	= NULL;
 	vdev->lock		= &ici->host_lock;
 
 	icd->vdev = vdev;
