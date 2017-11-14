@@ -344,6 +344,9 @@ static struct inode *dax_alloc_inode(struct super_block *sb)
 	struct inode *inode;
 
 	dax_dev = kmem_cache_alloc(dax_cache, GFP_KERNEL);
+	if (!dax_dev)
+		return NULL;
+
 	inode = &dax_dev->inode;
 	inode->i_rdev = 0;
 	return inode;
