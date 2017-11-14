@@ -284,6 +284,11 @@ enum {
 	MSI_FLAG_PCI_MSIX		= (1 << 3),
 	/* Needs early activate, required for PCI */
 	MSI_FLAG_ACTIVATE_EARLY		= (1 << 4),
+	/*
+	 * Must reactivate when irq is started even when
+	 * MSI_FLAG_ACTIVATE_EARLY has been set.
+	 */
+	MSI_FLAG_MUST_REACTIVATE	= (1 << 5),
 };
 
 int msi_domain_set_affinity(struct irq_data *data, const struct cpumask *mask,

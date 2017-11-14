@@ -77,11 +77,12 @@ config USB_PCI
 	depends on PCI
 	default y
 	---help---
-	  A lot of embeded system SOC (e.g. freescale T2080) have both
-	  PCI and USB modules. But USB module is controlled by registers
-	  directly, it have no relationship with PCI module.
+	  Many embedded system SOCs (e.g. freescale T2080) have both
+	  PCI and USB modules with the USB module directly controlled by
+	  registers and having no relationship to the PCI module.
 
-	  When say N here it will not build PCI related code in USB driver.
+	  If you have such a device you may say N here and PCI related code
+	  will not be built in the USB driver.
 
 if USB
 

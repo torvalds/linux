@@ -18,7 +18,7 @@ struct workqueue_struct;
 
 struct work_struct;
 typedef void (*work_func_t)(struct work_struct *work);
-void delayed_work_timer_fn(unsigned long __data);
+void delayed_work_timer_fn(struct timer_list *t);
 
 /*
  * The first word is the work queue pointer and the flags rolled into
@@ -176,8 +176,8 @@ struct execute_work {
 
 #define __DELAYED_WORK_INITIALIZER(n, f, tflags) {			\
 	.work = __WORK_INITIALIZER((n).work, (f)),			\
-	.timer = __TIMER_INITIALIZER(delayed_work_timer_fn,		\
-				     0, (unsigned long)&(n),		\
+	.timer = __TIMER_INITIALIZER((TIMER_FUNC_TYPE)delayed_work_timer_fn,\
+				     (TIMER_DATA_TYPE)&(n.timer),	\
 				     (tflags) | TIMER_IRQSAFE),		\
 	}
 
@@ -219,7 +219,7 @@ static inline unsigned int work_static(struct work_struct *work) { return 0; }
 									\
 		__init_work((_work), _onstack);				\
 		(_work)->data = (atomic_long_t) WORK_DATA_INIT();	\
-		lockdep_init_map(&(_work)->lockdep_map, #_work, &__key, 0); \
+		lockdep_init_map(&(_work)->lockdep_map, "(work_completion)"#_work, &__key, 0); \
 		INIT_LIST_HEAD(&(_work)->entry);			\
 		(_work)->func = (_func);				\
 	} while (0)
@@ -242,8 +242,9 @@ static inline unsigned int work_static(struct work_struct *work) { return 0; }
 #define __INIT_DELAYED_WORK(_work, _func, _tflags)			\
 	do {								\
 		INIT_WORK(&(_work)->work, (_func));			\
-		__setup_timer(&(_work)->timer, delayed_work_timer_fn,	\
-			      (unsigned long)(_work),			\
+		__setup_timer(&(_work)->timer,				\
+			      (TIMER_FUNC_TYPE)delayed_work_timer_fn,	\
+			      (TIMER_DATA_TYPE)&(_work)->timer,		\
 			      (_tflags) | TIMER_IRQSAFE);		\
 	} while (0)
 
@@ -251,8 +252,8 @@ static inline unsigned int work_static(struct work_struct *work) { return 0; }
 	do {								\
 		INIT_WORK_ONSTACK(&(_work)->work, (_func));		\
 		__setup_timer_on_stack(&(_work)->timer,			\
-				       delayed_work_timer_fn,		\
-				       (unsigned long)(_work),		\
+				       (TIMER_FUNC_TYPE)delayed_work_timer_fn,\
+				       (TIMER_DATA_TYPE)&(_work)->timer,\
 				       (_tflags) | TIMER_IRQSAFE);	\
 	} while (0)
 
@@ -399,7 +400,7 @@ __alloc_workqueue_key(const char *fmt, unsigned int flags, int max_active,
 	static struct lock_class_key __key;				\
 	const char *__lock_name;					\
 									\
-	__lock_name = #fmt#args;					\
+	__lock_name = "(wq_completion)"#fmt#args;			\
 									\
 	__alloc_workqueue_key((fmt), (flags), (max_active),		\
 			      &__key, __lock_name, ##args);		\

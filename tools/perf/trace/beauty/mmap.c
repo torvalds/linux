@@ -95,35 +95,21 @@ static size_t syscall_arg__scnprintf_mremap_flags(char *bf, size_t size,
 
 #define SCA_MREMAP_FLAGS syscall_arg__scnprintf_mremap_flags
 
+static size_t madvise__scnprintf_behavior(int behavior, char *bf, size_t size)
+{
+#include "trace/beauty/generated/madvise_behavior_array.c"
+       static DEFINE_STRARRAY(madvise_advices);
+
+       if (behavior < strarray__madvise_advices.nr_entries && strarray__madvise_advices.entries[behavior] != NULL)
+               return scnprintf(bf, size, "MADV_%s", strarray__madvise_advices.entries[behavior]);
+
+       return scnprintf(bf, size, "%#", behavior);
+}
+
 static size_t syscall_arg__scnprintf_madvise_behavior(char *bf, size_t size,
 						      struct syscall_arg *arg)
 {
-	int behavior = arg->val;
-
-	switch (behavior) {
-#define	P_MADV_BHV(n) case MADV_##n: return scnprintf(bf, size, #n)
-	P_MADV_BHV(NORMAL);
-	P_MADV_BHV(RANDOM);
-	P_MADV_BHV(SEQUENTIAL);
-	P_MADV_BHV(WILLNEED);
-	P_MADV_BHV(DONTNEED);
-	P_MADV_BHV(FREE);
-	P_MADV_BHV(REMOVE);
-	P_MADV_BHV(DONTFORK);
-	P_MADV_BHV(DOFORK);
-	P_MADV_BHV(HWPOISON);
-	P_MADV_BHV(SOFT_OFFLINE);
-	P_MADV_BHV(MERGEABLE);
-	P_MADV_BHV(UNMERGEABLE);
-	P_MADV_BHV(HUGEPAGE);
-	P_MADV_BHV(NOHUGEPAGE);
-	P_MADV_BHV(DONTDUMP);
-	P_MADV_BHV(DODUMP);
-#undef P_MADV_BHV
-	default: break;
-	}
-
-	return scnprintf(bf, size, "%#x", behavior);
+	return madvise__scnprintf_behavior(arg->val, bf, size);
 }
 
 #define SCA_MADV_BHV syscall_arg__scnprintf_madvise_behavior

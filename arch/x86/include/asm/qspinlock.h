@@ -2,6 +2,7 @@
 #ifndef _ASM_X86_QSPINLOCK_H
 #define _ASM_X86_QSPINLOCK_H
 
+#include <linux/jump_label.h>
 #include <asm/cpufeature.h>
 #include <asm-generic/qspinlock_types.h>
 #include <asm/paravirt.h>
@@ -47,10 +48,14 @@ static inline void queued_spin_unlock(struct qspinlock *lock)
 #endif
 
 #ifdef CONFIG_PARAVIRT
+DECLARE_STATIC_KEY_TRUE(virt_spin_lock_key);
+
+void native_pv_lock_init(void) __init;
+
 #define virt_spin_lock virt_spin_lock
 static inline bool virt_spin_lock(struct qspinlock *lock)
 {
-	if (!static_cpu_has(X86_FEATURE_HYPERVISOR))
+	if (!static_branch_likely(&virt_spin_lock_key))
 		return false;
 
 	/*
@@ -65,6 +70,10 @@ static inline bool virt_spin_lock(struct qspinlock *lock)
 	} while (atomic_cmpxchg(&lock->val, 0, _Q_LOCKED_VAL) != 0);
 
 	return true;
+}
+#else
+static inline void native_pv_lock_init(void)
+{
 }
 #endif /* CONFIG_PARAVIRT */
 

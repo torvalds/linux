@@ -987,7 +987,6 @@ static const struct iio_chan_spec mma9553_channels[] = {
 };
 
 static const struct iio_info mma9553_info = {
-	.driver_module = THIS_MODULE,
 	.read_raw = mma9553_read_raw,
 	.write_raw = mma9553_write_raw,
 	.read_event_config = mma9553_read_event_config,

@@ -1570,7 +1570,7 @@ static void i40e_get_ethtool_stats(struct net_device *netdev,
 	}
 	rcu_read_lock();
 	for (j = 0; j < vsi->num_queue_pairs; j++) {
-		tx_ring = ACCESS_ONCE(vsi->tx_rings[j]);
+		tx_ring = READ_ONCE(vsi->tx_rings[j]);
 
 		if (!tx_ring)
 			continue;

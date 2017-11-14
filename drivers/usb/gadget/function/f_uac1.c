@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * f_uac1.c -- USB Audio Class 1.0 Function (using u_audio API)
  *
@@ -10,11 +11,6 @@
  * This file is based on f_uac1.c which is
  *   Copyright (C) 2008 Bryan Wu <cooloney@kernel.org>
  *   Copyright (C) 2008 Analog Devices, Inc
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/usb/audio.h>

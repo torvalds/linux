@@ -98,7 +98,6 @@ static const struct iio_chan_spec ad2s1200_channels[] = {
 
 static const struct iio_info ad2s1200_info = {
 	.read_raw = ad2s1200_read_raw,
-	.driver_module = THIS_MODULE,
 };
 
 static int ad2s1200_probe(struct spi_device *spi)

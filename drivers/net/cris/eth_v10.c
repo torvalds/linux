@@ -166,8 +166,8 @@ static unsigned int network_rec_config_shadow = 0;
 static unsigned int network_tr_ctrl_shadow = 0;
 
 /* Network speed indication. */
-static DEFINE_TIMER(speed_timer, NULL, 0, 0);
-static DEFINE_TIMER(clear_led_timer, NULL, 0, 0);
+static DEFINE_TIMER(speed_timer, NULL);
+static DEFINE_TIMER(clear_led_timer, NULL);
 static int current_speed; /* Speed read from transceiver */
 static int current_speed_selection; /* Speed selected by user */
 static unsigned long led_next_time;
@@ -175,7 +175,7 @@ static int led_active;
 static int rx_queue_len;
 
 /* Duplex */
-static DEFINE_TIMER(duplex_timer, NULL, 0, 0);
+static DEFINE_TIMER(duplex_timer, NULL);
 static int full_duplex;
 static enum duplex current_duplex;
 

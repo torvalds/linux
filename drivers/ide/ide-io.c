@@ -611,9 +611,9 @@ static int drive_is_ready(ide_drive_t *drive)
  *	logic that wants cleaning up.
  */
  
-void ide_timer_expiry (unsigned long data)
+void ide_timer_expiry (struct timer_list *t)
 {
-	ide_hwif_t	*hwif = (ide_hwif_t *)data;
+	ide_hwif_t	*hwif = from_timer(hwif, t, timer);
 	ide_drive_t	*uninitialized_var(drive);
 	ide_handler_t	*handler;
 	unsigned long	flags;

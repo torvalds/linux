@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
 ** mux.c:
 **	serial driver for the Mux console found in some PA-RISC servers.
 **
 **	(c) Copyright 2002 Ryan Bradetich
 **	(c) Copyright 2002 Hewlett-Packard Company
-**
-** This program is free software; you can redistribute it and/or modify
-** it under the terms of the GNU General Public License as published by
-** the Free Software Foundation; either version 2 of the License, or
-** (at your option) any later version.
 **
 ** This Driver currently only supports the console (port 0) on the MUX.
 ** Additional work will be needed on this driver to enable the full
@@ -576,8 +572,7 @@ static int __init mux_init(void)
 
 	if(port_cnt > 0) {
 		/* Start the Mux timer */
-		init_timer(&mux_timer);
-		mux_timer.function = mux_poll;
+		setup_timer(&mux_timer, mux_poll, 0UL);
 		mod_timer(&mux_timer, jiffies + MUX_POLL_DELAY);
 
 #ifdef CONFIG_SERIAL_MUX_CONSOLE

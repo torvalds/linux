@@ -105,7 +105,7 @@ static unsigned long mixcomwd_opened; /* long req'd for setbit --RR */
 
 static int watchdog_port;
 static int mixcomwd_timer_alive;
-static DEFINE_TIMER(mixcomwd_timer, mixcomwd_timerfun, 0, 0);
+static DEFINE_TIMER(mixcomwd_timer, mixcomwd_timerfun);
 static char expect_close;
 
 static bool nowayout = WATCHDOG_NOWAYOUT;

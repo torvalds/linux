@@ -1,20 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
 * ***************************************************************************
 * Marvell Armada-3700 Serial Driver
 * Author: Wilson Ding <dingwei@marvell.com>
 * Copyright (C) 2015 Marvell International Ltd.
-* ***************************************************************************
-* This program is free software: you can redistribute it and/or modify it
-* under the terms of the GNU General Public License as published by the Free
-* Software Foundation, either version 2 of the License, or any later version.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-* GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License
-* along with this program.  If not, see <http://www.gnu.org/licenses/>.
 * ***************************************************************************
 */
 
@@ -38,46 +27,40 @@
 #include <linux/tty_flip.h>
 
 /* Register Map */
-#define UART_RBR		0x00
-#define  RBR_BRK_DET		BIT(15)
-#define  RBR_FRM_ERR_DET	BIT(14)
-#define  RBR_PAR_ERR_DET	BIT(13)
-#define  RBR_OVR_ERR_DET	BIT(12)
+#define UART_STD_RBR		0x00
+#define UART_EXT_RBR		0x18
 
-#define UART_TSH		0x04
+#define UART_STD_TSH		0x04
+#define UART_EXT_TSH		0x1C
 
-#define UART_CTRL		0x08
+#define UART_STD_CTRL1		0x08
+#define UART_EXT_CTRL1		0x04
 #define  CTRL_SOFT_RST		BIT(31)
 #define  CTRL_TXFIFO_RST	BIT(15)
 #define  CTRL_RXFIFO_RST	BIT(14)
-#define  CTRL_ST_MIRR_EN	BIT(13)
-#define  CTRL_LPBK_EN		BIT(12)
 #define  CTRL_SND_BRK_SEQ	BIT(11)
-#define  CTRL_PAR_EN		BIT(10)
-#define  CTRL_TWO_STOP		BIT(9)
-#define  CTRL_TX_HFL_INT	BIT(8)
-#define  CTRL_RX_HFL_INT	BIT(7)
-#define  CTRL_TX_EMP_INT	BIT(6)
-#define  CTRL_TX_RDY_INT	BIT(5)
-#define  CTRL_RX_RDY_INT	BIT(4)
 #define  CTRL_BRK_DET_INT	BIT(3)
 #define  CTRL_FRM_ERR_INT	BIT(2)
 #define  CTRL_PAR_ERR_INT	BIT(1)
 #define  CTRL_OVR_ERR_INT	BIT(0)
-#define  CTRL_RX_INT			(CTRL_RX_RDY_INT | CTRL_BRK_DET_INT |\
-	CTRL_FRM_ERR_INT | CTRL_PAR_ERR_INT | CTRL_OVR_ERR_INT)
+#define  CTRL_BRK_INT		(CTRL_BRK_DET_INT | CTRL_FRM_ERR_INT | \
+				CTRL_PAR_ERR_INT | CTRL_OVR_ERR_INT)
 
-#define UART_STAT		0x0c
+#define UART_STD_CTRL2		UART_STD_CTRL1
+#define UART_EXT_CTRL2		0x20
+#define  CTRL_STD_TX_RDY_INT	BIT(5)
+#define  CTRL_EXT_TX_RDY_INT	BIT(6)
+#define  CTRL_STD_RX_RDY_INT	BIT(4)
+#define  CTRL_EXT_RX_RDY_INT	BIT(5)
+
+#define UART_STAT		0x0C
 #define  STAT_TX_FIFO_EMP	BIT(13)
-#define  STAT_RX_FIFO_EMP	BIT(12)
 #define  STAT_TX_FIFO_FUL	BIT(11)
-#define  STAT_TX_FIFO_HFL	BIT(10)
-#define  STAT_RX_TOGL		BIT(9)
-#define  STAT_RX_FIFO_FUL	BIT(8)
-#define  STAT_RX_FIFO_HFL	BIT(7)
 #define  STAT_TX_EMP		BIT(6)
-#define  STAT_TX_RDY		BIT(5)
-#define  STAT_RX_RDY		BIT(4)
+#define  STAT_STD_TX_RDY	BIT(5)
+#define  STAT_EXT_TX_RDY	BIT(15)
+#define  STAT_STD_RX_RDY	BIT(4)
+#define  STAT_EXT_RX_RDY	BIT(14)
 #define  STAT_BRK_DET		BIT(3)
 #define  STAT_FRM_ERR		BIT(2)
 #define  STAT_PAR_ERR		BIT(1)
@@ -86,17 +69,72 @@
 				 | STAT_PAR_ERR | STAT_OVR_ERR)
 
 #define UART_BRDV		0x10
+#define  BRDV_BAUD_MASK         0x3FF
 
-#define MVEBU_NR_UARTS		1
+#define MVEBU_NR_UARTS		2
 
 #define MVEBU_UART_TYPE		"mvebu-uart"
+#define DRIVER_NAME		"mvebu_serial"
+
+enum {
+	/* Either there is only one summed IRQ... */
+	UART_IRQ_SUM = 0,
+	/* ...or there are two separate IRQ for RX and TX */
+	UART_RX_IRQ = 0,
+	UART_TX_IRQ,
+	UART_IRQ_COUNT
+};
+
+/* Diverging register offsets */
+struct uart_regs_layout {
+	unsigned int rbr;
+	unsigned int tsh;
+	unsigned int ctrl;
+	unsigned int intr;
+};
+
+/* Diverging flags */
+struct uart_flags {
+	unsigned int ctrl_tx_rdy_int;
+	unsigned int ctrl_rx_rdy_int;
+	unsigned int stat_tx_rdy;
+	unsigned int stat_rx_rdy;
+};
+
+/* Driver data, a structure for each UART port */
+struct mvebu_uart_driver_data {
+	bool is_ext;
+	struct uart_regs_layout regs;
+	struct uart_flags flags;
+};
+
+/* MVEBU UART driver structure */
+struct mvebu_uart {
+	struct uart_port *port;
+	struct clk *clk;
+	int irq[UART_IRQ_COUNT];
+	unsigned char __iomem *nb;
+	struct mvebu_uart_driver_data *data;
+};
+
+static struct mvebu_uart *to_mvuart(struct uart_port *port)
+{
+	return (struct mvebu_uart *)port->private_data;
+}
+
+#define IS_EXTENDED(port) (to_mvuart(port)->data->is_ext)
+
+#define UART_RBR(port) (to_mvuart(port)->data->regs.rbr)
+#define UART_TSH(port) (to_mvuart(port)->data->regs.tsh)
+#define UART_CTRL(port) (to_mvuart(port)->data->regs.ctrl)
+#define UART_INTR(port) (to_mvuart(port)->data->regs.intr)
+
+#define CTRL_TX_RDY_INT(port) (to_mvuart(port)->data->flags.ctrl_tx_rdy_int)
+#define CTRL_RX_RDY_INT(port) (to_mvuart(port)->data->flags.ctrl_rx_rdy_int)
+#define STAT_TX_RDY(port) (to_mvuart(port)->data->flags.stat_tx_rdy)
+#define STAT_RX_RDY(port) (to_mvuart(port)->data->flags.stat_rx_rdy)
 
 static struct uart_port mvebu_uart_ports[MVEBU_NR_UARTS];
-
-struct mvebu_uart_data {
-	struct uart_port *port;
-	struct clk       *clk;
-};
 
 /* Core UART Driver Operations */
 static unsigned int mvebu_uart_tx_empty(struct uart_port *port)
@@ -127,26 +165,39 @@ static void mvebu_uart_set_mctrl(struct uart_port *port,
 
 static void mvebu_uart_stop_tx(struct uart_port *port)
 {
-	unsigned int ctl = readl(port->membase + UART_CTRL);
+	unsigned int ctl = readl(port->membase + UART_INTR(port));
 
-	ctl &= ~CTRL_TX_RDY_INT;
-	writel(ctl, port->membase + UART_CTRL);
+	ctl &= ~CTRL_TX_RDY_INT(port);
+	writel(ctl, port->membase + UART_INTR(port));
 }
 
 static void mvebu_uart_start_tx(struct uart_port *port)
 {
-	unsigned int ctl = readl(port->membase + UART_CTRL);
+	unsigned int ctl;
+	struct circ_buf *xmit = &port->state->xmit;
 
-	ctl |= CTRL_TX_RDY_INT;
-	writel(ctl, port->membase + UART_CTRL);
+	if (IS_EXTENDED(port) && !uart_circ_empty(xmit)) {
+		writel(xmit->buf[xmit->tail], port->membase + UART_TSH(port));
+		xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE - 1);
+		port->icount.tx++;
+	}
+
+	ctl = readl(port->membase + UART_INTR(port));
+	ctl |= CTRL_TX_RDY_INT(port);
+	writel(ctl, port->membase + UART_INTR(port));
 }
 
 static void mvebu_uart_stop_rx(struct uart_port *port)
 {
-	unsigned int ctl = readl(port->membase + UART_CTRL);
+	unsigned int ctl;
 
-	ctl &= ~CTRL_RX_INT;
-	writel(ctl, port->membase + UART_CTRL);
+	ctl = readl(port->membase + UART_CTRL(port));
+	ctl &= ~CTRL_BRK_INT;
+	writel(ctl, port->membase + UART_CTRL(port));
+
+	ctl = readl(port->membase + UART_INTR(port));
+	ctl &= ~CTRL_RX_RDY_INT(port);
+	writel(ctl, port->membase + UART_INTR(port));
 }
 
 static void mvebu_uart_break_ctl(struct uart_port *port, int brk)
@@ -155,12 +206,12 @@ static void mvebu_uart_break_ctl(struct uart_port *port, int brk)
 	unsigned long flags;
 
 	spin_lock_irqsave(&port->lock, flags);
-	ctl = readl(port->membase + UART_CTRL);
+	ctl = readl(port->membase + UART_CTRL(port));
 	if (brk == -1)
 		ctl |= CTRL_SND_BRK_SEQ;
 	else
 		ctl &= ~CTRL_SND_BRK_SEQ;
-	writel(ctl, port->membase + UART_CTRL);
+	writel(ctl, port->membase + UART_CTRL(port));
 	spin_unlock_irqrestore(&port->lock, flags);
 }
 
@@ -171,8 +222,8 @@ static void mvebu_uart_rx_chars(struct uart_port *port, unsigned int status)
 	char flag = 0;
 
 	do {
-		if (status & STAT_RX_RDY) {
-			ch = readl(port->membase + UART_RBR);
+		if (status & STAT_RX_RDY(port)) {
+			ch = readl(port->membase + UART_RBR(port));
 			ch &= 0xff;
 			flag = TTY_NORMAL;
 			port->icount.rx++;
@@ -198,7 +249,7 @@ static void mvebu_uart_rx_chars(struct uart_port *port, unsigned int status)
 			goto ignore_char;
 
 		if (status & port->ignore_status_mask & STAT_PAR_ERR)
-			status &= ~STAT_RX_RDY;
+			status &= ~STAT_RX_RDY(port);
 
 		status &= port->read_status_mask;
 
@@ -207,7 +258,7 @@ static void mvebu_uart_rx_chars(struct uart_port *port, unsigned int status)
 
 		status &= ~port->ignore_status_mask;
 
-		if (status & STAT_RX_RDY)
+		if (status & STAT_RX_RDY(port))
 			tty_insert_flip_char(tport, ch, flag);
 
 		if (status & STAT_BRK_DET)
@@ -221,7 +272,7 @@ static void mvebu_uart_rx_chars(struct uart_port *port, unsigned int status)
 
 ignore_char:
 		status = readl(port->membase + UART_STAT);
-	} while (status & (STAT_RX_RDY | STAT_BRK_DET));
+	} while (status & (STAT_RX_RDY(port) | STAT_BRK_DET));
 
 	tty_flip_buffer_push(tport);
 }
@@ -233,7 +284,7 @@ static void mvebu_uart_tx_chars(struct uart_port *port, unsigned int status)
 	unsigned int st;
 
 	if (port->x_char) {
-		writel(port->x_char, port->membase + UART_TSH);
+		writel(port->x_char, port->membase + UART_TSH(port));
 		port->icount.tx++;
 		port->x_char = 0;
 		return;
@@ -245,7 +296,7 @@ static void mvebu_uart_tx_chars(struct uart_port *port, unsigned int status)
 	}
 
 	for (count = 0; count < port->fifosize; count++) {
-		writel(xmit->buf[xmit->tail], port->membase + UART_TSH);
+		writel(xmit->buf[xmit->tail], port->membase + UART_TSH(port));
 		xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE - 1);
 		port->icount.tx++;
 
@@ -269,10 +320,34 @@ static irqreturn_t mvebu_uart_isr(int irq, void *dev_id)
 	struct uart_port *port = (struct uart_port *)dev_id;
 	unsigned int st = readl(port->membase + UART_STAT);
 
-	if (st & (STAT_RX_RDY | STAT_OVR_ERR | STAT_FRM_ERR | STAT_BRK_DET))
+	if (st & (STAT_RX_RDY(port) | STAT_OVR_ERR | STAT_FRM_ERR |
+		  STAT_BRK_DET))
 		mvebu_uart_rx_chars(port, st);
 
-	if (st & STAT_TX_RDY)
+	if (st & STAT_TX_RDY(port))
+		mvebu_uart_tx_chars(port, st);
+
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t mvebu_uart_rx_isr(int irq, void *dev_id)
+{
+	struct uart_port *port = (struct uart_port *)dev_id;
+	unsigned int st = readl(port->membase + UART_STAT);
+
+	if (st & (STAT_RX_RDY(port) | STAT_OVR_ERR | STAT_FRM_ERR |
+			STAT_BRK_DET))
+		mvebu_uart_rx_chars(port, st);
+
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t mvebu_uart_tx_isr(int irq, void *dev_id)
+{
+	struct uart_port *port = (struct uart_port *)dev_id;
+	unsigned int st = readl(port->membase + UART_STAT);
+
+	if (st & STAT_TX_RDY(port))
 		mvebu_uart_tx_chars(port, st);
 
 	return IRQ_HANDLED;
@@ -280,18 +355,57 @@ static irqreturn_t mvebu_uart_isr(int irq, void *dev_id)
 
 static int mvebu_uart_startup(struct uart_port *port)
 {
+	struct mvebu_uart *mvuart = to_mvuart(port);
+	unsigned int ctl;
 	int ret;
 
 	writel(CTRL_TXFIFO_RST | CTRL_RXFIFO_RST,
-	       port->membase + UART_CTRL);
+	       port->membase + UART_CTRL(port));
 	udelay(1);
-	writel(CTRL_RX_INT, port->membase + UART_CTRL);
 
-	ret = request_irq(port->irq, mvebu_uart_isr, port->irqflags, "serial",
-			  port);
-	if (ret) {
-		dev_err(port->dev, "failed to request irq\n");
-		return ret;
+	/* Clear the error bits of state register before IRQ request */
+	ret = readl(port->membase + UART_STAT);
+	ret |= STAT_BRK_ERR;
+	writel(ret, port->membase + UART_STAT);
+
+	writel(CTRL_BRK_INT, port->membase + UART_CTRL(port));
+
+	ctl = readl(port->membase + UART_INTR(port));
+	ctl |= CTRL_RX_RDY_INT(port);
+	writel(ctl, port->membase + UART_INTR(port));
+
+	if (!mvuart->irq[UART_TX_IRQ]) {
+		/* Old bindings with just one interrupt (UART0 only) */
+		ret = devm_request_irq(port->dev, mvuart->irq[UART_IRQ_SUM],
+				       mvebu_uart_isr, port->irqflags,
+				       dev_name(port->dev), port);
+		if (ret) {
+			dev_err(port->dev, "unable to request IRQ %d\n",
+				mvuart->irq[UART_IRQ_SUM]);
+			return ret;
+		}
+	} else {
+		/* New bindings with an IRQ for RX and TX (both UART) */
+		ret = devm_request_irq(port->dev, mvuart->irq[UART_RX_IRQ],
+				       mvebu_uart_rx_isr, port->irqflags,
+				       dev_name(port->dev), port);
+		if (ret) {
+			dev_err(port->dev, "unable to request IRQ %d\n",
+				mvuart->irq[UART_RX_IRQ]);
+			return ret;
+		}
+
+		ret = devm_request_irq(port->dev, mvuart->irq[UART_TX_IRQ],
+				       mvebu_uart_tx_isr, port->irqflags,
+				       dev_name(port->dev),
+				       port);
+		if (ret) {
+			dev_err(port->dev, "unable to request IRQ %d\n",
+				mvuart->irq[UART_TX_IRQ]);
+			devm_free_irq(port->dev, mvuart->irq[UART_RX_IRQ],
+				      port);
+			return ret;
+		}
 	}
 
 	return 0;
@@ -299,9 +413,41 @@ static int mvebu_uart_startup(struct uart_port *port)
 
 static void mvebu_uart_shutdown(struct uart_port *port)
 {
-	writel(0, port->membase + UART_CTRL);
+	struct mvebu_uart *mvuart = to_mvuart(port);
 
-	free_irq(port->irq, port);
+	writel(0, port->membase + UART_INTR(port));
+
+	if (!mvuart->irq[UART_TX_IRQ]) {
+		devm_free_irq(port->dev, mvuart->irq[UART_IRQ_SUM], port);
+	} else {
+		devm_free_irq(port->dev, mvuart->irq[UART_RX_IRQ], port);
+		devm_free_irq(port->dev, mvuart->irq[UART_TX_IRQ], port);
+	}
+}
+
+static int mvebu_uart_baud_rate_set(struct uart_port *port, unsigned int baud)
+{
+	struct mvebu_uart *mvuart = to_mvuart(port);
+	unsigned int baud_rate_div;
+	u32 brdv;
+
+	if (IS_ERR(mvuart->clk))
+		return -PTR_ERR(mvuart->clk);
+
+	/*
+	 * The UART clock is divided by the value of the divisor to generate
+	 * UCLK_OUT clock, which is 16 times faster than the baudrate.
+	 * This prescaler can achieve all standard baudrates until 230400.
+	 * Higher baudrates could be achieved for the extended UART by using the
+	 * programmable oversampling stack (also called fractional divisor).
+	 */
+	baud_rate_div = DIV_ROUND_UP(port->uartclk, baud * 16);
+	brdv = readl(port->membase + UART_BRDV);
+	brdv &= ~BRDV_BAUD_MASK;
+	brdv |= baud_rate_div;
+	writel(brdv, port->membase + UART_BRDV);
+
+	return 0;
 }
 
 static void mvebu_uart_set_termios(struct uart_port *port,
@@ -313,8 +459,8 @@ static void mvebu_uart_set_termios(struct uart_port *port,
 
 	spin_lock_irqsave(&port->lock, flags);
 
-	port->read_status_mask = STAT_RX_RDY | STAT_OVR_ERR |
-		STAT_TX_RDY | STAT_TX_FIFO_FUL;
+	port->read_status_mask = STAT_RX_RDY(port) | STAT_OVR_ERR |
+		STAT_TX_RDY(port) | STAT_TX_FIFO_FUL;
 
 	if (termios->c_iflag & INPCK)
 		port->read_status_mask |= STAT_FRM_ERR | STAT_PAR_ERR;
@@ -325,13 +471,32 @@ static void mvebu_uart_set_termios(struct uart_port *port,
 			STAT_FRM_ERR | STAT_PAR_ERR | STAT_OVR_ERR;
 
 	if ((termios->c_cflag & CREAD) == 0)
-		port->ignore_status_mask |= STAT_RX_RDY | STAT_BRK_ERR;
+		port->ignore_status_mask |= STAT_RX_RDY(port) | STAT_BRK_ERR;
 
-	if (old)
-		tty_termios_copy_hw(termios, old);
+	/*
+	 * Maximum achievable frequency with simple baudrate divisor is 230400.
+	 * Since the error per bit frame would be of more than 15%, achieving
+	 * higher frequencies would require to implement the fractional divisor
+	 * feature.
+	 */
+	baud = uart_get_baud_rate(port, termios, old, 0, 230400);
+	if (mvebu_uart_baud_rate_set(port, baud)) {
+		/* No clock available, baudrate cannot be changed */
+		if (old)
+			baud = uart_get_baud_rate(port, old, NULL, 0, 230400);
+	} else {
+		tty_termios_encode_baud_rate(termios, baud, baud);
+		uart_update_timeout(port, termios->c_cflag, baud);
+	}
 
-	baud = uart_get_baud_rate(port, termios, old, 0, 460800);
-	uart_update_timeout(port, termios->c_cflag, baud);
+	/* Only the following flag changes are supported */
+	if (old) {
+		termios->c_iflag &= INPCK | IGNPAR;
+		termios->c_iflag |= old->c_iflag & ~(INPCK | IGNPAR);
+		termios->c_cflag &= CREAD | CBAUD;
+		termios->c_cflag |= old->c_cflag & ~(CREAD | CBAUD);
+		termios->c_lflag = old->c_lflag;
+	}
 
 	spin_unlock_irqrestore(&port->lock, flags);
 }
@@ -356,10 +521,10 @@ static int mvebu_uart_get_poll_char(struct uart_port *port)
 {
 	unsigned int st = readl(port->membase + UART_STAT);
 
-	if (!(st & STAT_RX_RDY))
+	if (!(st & STAT_RX_RDY(port)))
 		return NO_POLL_CHAR;
 
-	return readl(port->membase + UART_RBR);
+	return readl(port->membase + UART_RBR(port));
 }
 
 static void mvebu_uart_put_poll_char(struct uart_port *port, unsigned char c)
@@ -375,7 +540,7 @@ static void mvebu_uart_put_poll_char(struct uart_port *port, unsigned char c)
 		udelay(1);
 	}
 
-	writel(c, port->membase + UART_TSH);
+	writel(c, port->membase + UART_TSH(port));
 }
 #endif
 
@@ -413,7 +578,8 @@ static void mvebu_uart_putc(struct uart_port *port, int c)
 			break;
 	}
 
-	writel(c, port->membase + UART_TSH);
+	/* At early stage, DT is not parsed yet, only use UART0 */
+	writel(c, port->membase + UART_STD_TSH);
 
 	for (;;) {
 		st = readl(port->membase + UART_STAT);
@@ -458,7 +624,7 @@ static void wait_for_xmitr(struct uart_port *port)
 static void mvebu_uart_console_putchar(struct uart_port *port, int ch)
 {
 	wait_for_xmitr(port);
-	writel(ch, port->membase + UART_TSH);
+	writel(ch, port->membase + UART_TSH(port));
 }
 
 static void mvebu_uart_console_write(struct console *co, const char *s,
@@ -466,7 +632,7 @@ static void mvebu_uart_console_write(struct console *co, const char *s,
 {
 	struct uart_port *port = &mvebu_uart_ports[co->index];
 	unsigned long flags;
-	unsigned int ier;
+	unsigned int ier, intr, ctl;
 	int locked = 1;
 
 	if (oops_in_progress)
@@ -474,16 +640,23 @@ static void mvebu_uart_console_write(struct console *co, const char *s,
 	else
 		spin_lock_irqsave(&port->lock, flags);
 
-	ier = readl(port->membase + UART_CTRL) &
-		(CTRL_RX_INT | CTRL_TX_RDY_INT);
-	writel(0, port->membase + UART_CTRL);
+	ier = readl(port->membase + UART_CTRL(port)) & CTRL_BRK_INT;
+	intr = readl(port->membase + UART_INTR(port)) &
+		(CTRL_RX_RDY_INT(port) | CTRL_TX_RDY_INT(port));
+	writel(0, port->membase + UART_CTRL(port));
+	writel(0, port->membase + UART_INTR(port));
 
 	uart_console_write(port, s, count, mvebu_uart_console_putchar);
 
 	wait_for_xmitr(port);
 
 	if (ier)
-		writel(ier, port->membase + UART_CTRL);
+		writel(ier, port->membase + UART_CTRL(port));
+
+	if (intr) {
+		ctl = intr | readl(port->membase + UART_INTR(port));
+		writel(ctl, port->membase + UART_INTR(port));
+	}
 
 	if (locked)
 		spin_unlock_irqrestore(&port->lock, flags);
@@ -538,7 +711,7 @@ console_initcall(mvebu_uart_console_init);
 
 static struct uart_driver mvebu_uart_driver = {
 	.owner			= THIS_MODULE,
-	.driver_name		= "mvebu_serial",
+	.driver_name		= DRIVER_NAME,
 	.dev_name		= "ttyMV",
 	.nr			= MVEBU_NR_UARTS,
 #ifdef CONFIG_SERIAL_MVEBU_CONSOLE
@@ -546,20 +719,39 @@ static struct uart_driver mvebu_uart_driver = {
 #endif
 };
 
+static const struct of_device_id mvebu_uart_of_match[];
+
+/* Counter to keep track of each UART port id when not using CONFIG_OF */
+static int uart_num_counter;
+
 static int mvebu_uart_probe(struct platform_device *pdev)
 {
 	struct resource *reg = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	struct resource *irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
+	const struct of_device_id *match = of_match_device(mvebu_uart_of_match,
+							   &pdev->dev);
 	struct uart_port *port;
-	struct mvebu_uart_data *data;
-	int ret;
+	struct mvebu_uart *mvuart;
+	int ret, id, irq;
 
-	if (!reg || !irq) {
-		dev_err(&pdev->dev, "no registers/irq defined\n");
+	if (!reg) {
+		dev_err(&pdev->dev, "no registers defined\n");
 		return -EINVAL;
 	}
 
-	port = &mvebu_uart_ports[0];
+	/* Assume that all UART ports have a DT alias or none has */
+	id = of_alias_get_id(pdev->dev.of_node, "serial");
+	if (!pdev->dev.of_node || id < 0)
+		pdev->id = uart_num_counter++;
+	else
+		pdev->id = id;
+
+	if (pdev->id >= MVEBU_NR_UARTS) {
+		dev_err(&pdev->dev, "cannot have more than %d UART ports\n",
+			MVEBU_NR_UARTS);
+		return -EINVAL;
+	}
+
+	port = &mvebu_uart_ports[pdev->id];
 
 	spin_lock_init(&port->lock);
 
@@ -571,9 +763,14 @@ static int mvebu_uart_probe(struct platform_device *pdev)
 	port->fifosize   = 32;
 	port->iotype     = UPIO_MEM32;
 	port->flags      = UPF_FIXED_PORT;
-	port->line       = 0; /* single port: force line number to  0 */
+	port->line       = pdev->id;
 
-	port->irq        = irq->start;
+	/*
+	 * IRQ number is not stored in this structure because we may have two of
+	 * them per port (RX and TX). Instead, use the driver UART structure
+	 * array so called ->irq[].
+	 */
+	port->irq        = 0;
 	port->irqflags   = 0;
 	port->mapbase    = reg->start;
 
@@ -581,15 +778,70 @@ static int mvebu_uart_probe(struct platform_device *pdev)
 	if (IS_ERR(port->membase))
 		return -PTR_ERR(port->membase);
 
-	data = devm_kzalloc(&pdev->dev, sizeof(struct mvebu_uart_data),
-			    GFP_KERNEL);
-	if (!data)
+	mvuart = devm_kzalloc(&pdev->dev, sizeof(struct mvebu_uart),
+			      GFP_KERNEL);
+	if (!mvuart)
 		return -ENOMEM;
 
-	data->port = port;
+	/* Get controller data depending on the compatible string */
+	mvuart->data = (struct mvebu_uart_driver_data *)match->data;
+	mvuart->port = port;
 
-	port->private_data = data;
-	platform_set_drvdata(pdev, data);
+	port->private_data = mvuart;
+	platform_set_drvdata(pdev, mvuart);
+
+	/* Get fixed clock frequency */
+	mvuart->clk = devm_clk_get(&pdev->dev, NULL);
+	if (IS_ERR(mvuart->clk)) {
+		if (PTR_ERR(mvuart->clk) == -EPROBE_DEFER)
+			return PTR_ERR(mvuart->clk);
+
+		if (IS_EXTENDED(port)) {
+			dev_err(&pdev->dev, "unable to get UART clock\n");
+			return PTR_ERR(mvuart->clk);
+		}
+	} else {
+		if (!clk_prepare_enable(mvuart->clk))
+			port->uartclk = clk_get_rate(mvuart->clk);
+	}
+
+	/* Manage interrupts */
+	if (platform_irq_count(pdev) == 1) {
+		/* Old bindings: no name on the single unamed UART0 IRQ */
+		irq = platform_get_irq(pdev, 0);
+		if (irq < 0) {
+			dev_err(&pdev->dev, "unable to get UART IRQ\n");
+			return irq;
+		}
+
+		mvuart->irq[UART_IRQ_SUM] = irq;
+	} else {
+		/*
+		 * New bindings: named interrupts (RX, TX) for both UARTS,
+		 * only make use of uart-rx and uart-tx interrupts, do not use
+		 * uart-sum of UART0 port.
+		 */
+		irq = platform_get_irq_byname(pdev, "uart-rx");
+		if (irq < 0) {
+			dev_err(&pdev->dev, "unable to get 'uart-rx' IRQ\n");
+			return irq;
+		}
+
+		mvuart->irq[UART_RX_IRQ] = irq;
+
+		irq = platform_get_irq_byname(pdev, "uart-tx");
+		if (irq < 0) {
+			dev_err(&pdev->dev, "unable to get 'uart-tx' IRQ\n");
+			return irq;
+		}
+
+		mvuart->irq[UART_TX_IRQ] = irq;
+	}
+
+	/* UART Soft Reset*/
+	writel(CTRL_SOFT_RST, port->membase + UART_CTRL(port));
+	udelay(1);
+	writel(0, port->membase + UART_CTRL(port));
 
 	ret = uart_add_one_port(&mvebu_uart_driver, port);
 	if (ret)
@@ -597,9 +849,40 @@ static int mvebu_uart_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static struct mvebu_uart_driver_data uart_std_driver_data = {
+	.is_ext = false,
+	.regs.rbr = UART_STD_RBR,
+	.regs.tsh = UART_STD_TSH,
+	.regs.ctrl = UART_STD_CTRL1,
+	.regs.intr = UART_STD_CTRL2,
+	.flags.ctrl_tx_rdy_int = CTRL_STD_TX_RDY_INT,
+	.flags.ctrl_rx_rdy_int = CTRL_STD_RX_RDY_INT,
+	.flags.stat_tx_rdy = STAT_STD_TX_RDY,
+	.flags.stat_rx_rdy = STAT_STD_RX_RDY,
+};
+
+static struct mvebu_uart_driver_data uart_ext_driver_data = {
+	.is_ext = true,
+	.regs.rbr = UART_EXT_RBR,
+	.regs.tsh = UART_EXT_TSH,
+	.regs.ctrl = UART_EXT_CTRL1,
+	.regs.intr = UART_EXT_CTRL2,
+	.flags.ctrl_tx_rdy_int = CTRL_EXT_TX_RDY_INT,
+	.flags.ctrl_rx_rdy_int = CTRL_EXT_RX_RDY_INT,
+	.flags.stat_tx_rdy = STAT_EXT_TX_RDY,
+	.flags.stat_rx_rdy = STAT_EXT_RX_RDY,
+};
+
 /* Match table for of_platform binding */
 static const struct of_device_id mvebu_uart_of_match[] = {
-	{ .compatible = "marvell,armada-3700-uart", },
+	{
+		.compatible = "marvell,armada-3700-uart",
+		.data = (void *)&uart_std_driver_data,
+	},
+	{
+		.compatible = "marvell,armada-3700-uart-ext",
+		.data = (void *)&uart_ext_driver_data,
+	},
 	{}
 };
 

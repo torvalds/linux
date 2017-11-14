@@ -76,6 +76,7 @@ struct ica_z90_status {
 #define ZCRYPT_CEX3A		8
 #define ZCRYPT_CEX4	       10
 #define ZCRYPT_CEX5	       11
+#define ZCRYPT_CEX6	       12
 
 /**
  * Large random numbers are pulled in 4096 byte chunks from the crypto cards

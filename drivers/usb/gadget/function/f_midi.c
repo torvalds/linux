@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * f_midi.c -- USB MIDI class function driver
  *
@@ -15,8 +16,6 @@
  * and drivers/usb/gadget/midi.c,
  *   Copyright (C) 2006 Thumtronics Pty Ltd.
  *   Ben Williamson <ben.williamson@greyinnovation.com>
- *
- * Licensed under the GPL-2 or later.
  */
 
 #include <linux/kernel.h>

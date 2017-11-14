@@ -1114,6 +1114,28 @@ static inline u32 irq_reg_readl(struct irq_chip_generic *gc,
 		return readl(gc->reg_base + reg_offset);
 }
 
+struct irq_matrix;
+struct irq_matrix *irq_alloc_matrix(unsigned int matrix_bits,
+				    unsigned int alloc_start,
+				    unsigned int alloc_end);
+void irq_matrix_online(struct irq_matrix *m);
+void irq_matrix_offline(struct irq_matrix *m);
+void irq_matrix_assign_system(struct irq_matrix *m, unsigned int bit, bool replace);
+int irq_matrix_reserve_managed(struct irq_matrix *m, const struct cpumask *msk);
+void irq_matrix_remove_managed(struct irq_matrix *m, const struct cpumask *msk);
+int irq_matrix_alloc_managed(struct irq_matrix *m, unsigned int cpu);
+void irq_matrix_reserve(struct irq_matrix *m);
+void irq_matrix_remove_reserved(struct irq_matrix *m);
+int irq_matrix_alloc(struct irq_matrix *m, const struct cpumask *msk,
+		     bool reserved, unsigned int *mapped_cpu);
+void irq_matrix_free(struct irq_matrix *m, unsigned int cpu,
+		     unsigned int bit, bool managed);
+void irq_matrix_assign(struct irq_matrix *m, unsigned int bit);
+unsigned int irq_matrix_available(struct irq_matrix *m, bool cpudown);
+unsigned int irq_matrix_allocated(struct irq_matrix *m);
+unsigned int irq_matrix_reserved(struct irq_matrix *m);
+void irq_matrix_debug_show(struct seq_file *sf, struct irq_matrix *m, int ind);
+
 /* Contrary to Linux irqs, for hardware irqs the irq number 0 is valid */
 #define INVALID_HWIRQ	(~0UL)
 irq_hw_number_t ipi_get_hwirq(unsigned int irq, unsigned int cpu);

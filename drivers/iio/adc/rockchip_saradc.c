@@ -125,7 +125,6 @@ static irqreturn_t rockchip_saradc_isr(int irq, void *dev_id)
 
 static const struct iio_info rockchip_saradc_iio_info = {
 	.read_raw = rockchip_saradc_read_raw,
-	.driver_module = THIS_MODULE,
 };
 
 #define ADC_CHANNEL(_index, _id) {				\

@@ -1697,7 +1697,7 @@ static int xgifb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	if (XGIfb_get_dram_size(xgifb_info)) {
 		xgifb_info->video_size = min_t(unsigned long, video_size_max,
-						SZ_16M);
+					       SZ_16M);
 	} else if (xgifb_info->video_size > video_size_max) {
 		xgifb_info->video_size = video_size_max;
 	}
@@ -1736,7 +1736,7 @@ static int xgifb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	hw_info->pjVideoMemoryAddress =
 		ioremap_wc(xgifb_info->video_base, xgifb_info->video_size);
 	xgifb_info->mmio_vbase = ioremap(xgifb_info->mmio_base,
-					    xgifb_info->mmio_size);
+					 xgifb_info->mmio_size);
 
 	dev_info(&pdev->dev,
 		 "Framebuffer at 0x%llx, mapped to 0x%p, size %dk\n",

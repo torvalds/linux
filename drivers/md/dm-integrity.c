@@ -6,6 +6,7 @@
  * This file is released under the GPL.
  */
 
+#include <linux/compiler.h>
 #include <linux/module.h>
 #include <linux/device-mapper.h>
 #include <linux/dm-io.h>
@@ -80,13 +81,13 @@ struct journal_entry {
 #define journal_entry_tag(ic, je)		((__u8 *)&(je)->last_bytes[(ic)->sectors_per_block])
 
 #if BITS_PER_LONG == 64
-#define journal_entry_set_sector(je, x)		do { smp_wmb(); ACCESS_ONCE((je)->u.sector) = cpu_to_le64(x); } while (0)
+#define journal_entry_set_sector(je, x)		do { smp_wmb(); WRITE_ONCE((je)->u.sector, cpu_to_le64(x)); } while (0)
 #define journal_entry_get_sector(je)		le64_to_cpu((je)->u.sector)
 #elif defined(CONFIG_LBDAF)
-#define journal_entry_set_sector(je, x)		do { (je)->u.s.sector_lo = cpu_to_le32(x); smp_wmb(); ACCESS_ONCE((je)->u.s.sector_hi) = cpu_to_le32((x) >> 32); } while (0)
+#define journal_entry_set_sector(je, x)		do { (je)->u.s.sector_lo = cpu_to_le32(x); smp_wmb(); WRITE_ONCE((je)->u.s.sector_hi, cpu_to_le32((x) >> 32)); } while (0)
 #define journal_entry_get_sector(je)		le64_to_cpu((je)->u.sector)
 #else
-#define journal_entry_set_sector(je, x)		do { (je)->u.s.sector_lo = cpu_to_le32(x); smp_wmb(); ACCESS_ONCE((je)->u.s.sector_hi) = cpu_to_le32(0); } while (0)
+#define journal_entry_set_sector(je, x)		do { (je)->u.s.sector_lo = cpu_to_le32(x); smp_wmb(); WRITE_ONCE((je)->u.s.sector_hi, cpu_to_le32(0)); } while (0)
 #define journal_entry_get_sector(je)		le32_to_cpu((je)->u.s.sector_lo)
 #endif
 #define journal_entry_is_unused(je)		((je)->u.s.sector_hi == cpu_to_le32(-1))
@@ -320,7 +321,7 @@ static void dm_integrity_io_error(struct dm_integrity_c *ic, const char *msg, in
 
 static int dm_integrity_failed(struct dm_integrity_c *ic)
 {
-	return ACCESS_ONCE(ic->failed);
+	return READ_ONCE(ic->failed);
 }
 
 static commit_id_t dm_integrity_commit_id(struct dm_integrity_c *ic, unsigned i,
@@ -1545,7 +1546,7 @@ retry_kmap:
 		smp_mb();
 		if (unlikely(waitqueue_active(&ic->copy_to_journal_wait)))
 			wake_up(&ic->copy_to_journal_wait);
-		if (ACCESS_ONCE(ic->free_sectors) <= ic->free_sectors_threshold) {
+		if (READ_ONCE(ic->free_sectors) <= ic->free_sectors_threshold) {
 			queue_work(ic->commit_wq, &ic->commit_work);
 		} else {
 			schedule_autocommit(ic);
@@ -1798,7 +1799,7 @@ static void integrity_commit(struct work_struct *w)
 	ic->n_committed_sections += commit_sections;
 	spin_unlock_irq(&ic->endio_wait.lock);
 
-	if (ACCESS_ONCE(ic->free_sectors) <= ic->free_sectors_threshold)
+	if (READ_ONCE(ic->free_sectors) <= ic->free_sectors_threshold)
 		queue_work(ic->writer_wq, &ic->writer_work);
 
 release_flush_bios:
@@ -1980,7 +1981,7 @@ static void integrity_writer(struct work_struct *w)
 	unsigned prev_free_sectors;
 
 	/* the following test is not needed, but it tests the replay code */
-	if (ACCESS_ONCE(ic->suspending))
+	if (READ_ONCE(ic->suspending))
 		return;
 
 	spin_lock_irq(&ic->endio_wait.lock);

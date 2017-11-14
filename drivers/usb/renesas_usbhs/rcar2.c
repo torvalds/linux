@@ -1,13 +1,8 @@
+// SPDX-License-Identifier: GPL-1.0+
 /*
  * Renesas USB driver R-Car Gen. 2 initialization and power control
  *
  * Copyright (C) 2014 Ulrich Hecht
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
 #include <linux/gpio.h>

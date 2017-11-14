@@ -1644,13 +1644,10 @@ csio_mb_cancel_all(struct csio_hw *hw, struct list_head *cbfn_q)
  */
 int
 csio_mbm_init(struct csio_mbm *mbm, struct csio_hw *hw,
-	      void (*timer_fn)(uintptr_t))
+	      void (*timer_fn)(struct timer_list *))
 {
-	struct timer_list *timer = &mbm->timer;
-
-	init_timer(timer);
-	timer->function = timer_fn;
-	timer->data = (unsigned long)hw;
+	mbm->hw = hw;
+	timer_setup(&mbm->timer, timer_fn, 0);
 
 	INIT_LIST_HEAD(&mbm->req_q);
 	INIT_LIST_HEAD(&mbm->cbfn_q);

@@ -37,7 +37,7 @@ struct cpufreq_arm_bL_ops {
 	void (*free_opp_table)(const struct cpumask *cpumask);
 };
 
-int bL_cpufreq_register(struct cpufreq_arm_bL_ops *ops);
-void bL_cpufreq_unregister(struct cpufreq_arm_bL_ops *ops);
+int bL_cpufreq_register(const struct cpufreq_arm_bL_ops *ops);
+void bL_cpufreq_unregister(const struct cpufreq_arm_bL_ops *ops);
 
 #endif /* CPUFREQ_ARM_BIG_LITTLE_H */

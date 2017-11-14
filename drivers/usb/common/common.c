@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Provides code common for host and device side USB.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation, version 2.
  *
  * If either host side (ie. CONFIG_USB=y) or device side USB stack
  * (ie. CONFIG_USB_GADGET=y) is compiled in the kernel, this module is

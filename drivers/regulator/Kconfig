@@ -244,7 +244,7 @@ config REGULATOR_DA9210
 	  interface.
 
 config REGULATOR_DA9211
-	tristate "Dialog Semiconductor DA9211/DA9212/DA9213/DA9214/DA9215 regulator"
+	tristate "Dialog Semiconductor DA9211/DA9212/DA9213/DA9223/DA9214/DA9224/DA9215/DA9225 regulator"
 	depends on I2C
 	select REGMAP_I2C
 	help

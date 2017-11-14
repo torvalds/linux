@@ -103,7 +103,6 @@ struct hisi_sas_phy {
 	struct hisi_sas_port	*port;
 	struct asd_sas_phy	sas_phy;
 	struct sas_identify	identify;
-	struct timer_list	timer;
 	struct work_struct	phyup_ws;
 	u64		port_id; /* from hw */
 	u64		dev_sas_addr;

@@ -17,7 +17,8 @@
 #define __CONTROLVMCHANNEL_H__
 
 #include <linux/uuid.h>
-#include "channel.h"
+
+#include "visorchannel.h"
 
 /* {2B3C2D10-7EF5-4ad8-B966-3448B7386B3D} */
 #define VISOR_CONTROLVM_CHANNEL_GUID \

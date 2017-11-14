@@ -702,7 +702,6 @@ vchiq_platform_handle_timeout(VCHIQ_STATE_T *state);
 extern void
 vchiq_set_conn_state(VCHIQ_STATE_T *state, VCHIQ_CONNSTATE_T newstate);
 
-
 extern void
 vchiq_log_dump_mem(const char *label, uint32_t addr, const void *voidMem,
 	size_t numBytes);

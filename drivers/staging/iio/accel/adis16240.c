@@ -361,7 +361,6 @@ static const struct iio_info adis16240_info = {
 	.read_raw = adis16240_read_raw,
 	.write_raw = adis16240_write_raw,
 	.update_scan_mode = adis_update_scan_mode,
-	.driver_module = THIS_MODULE,
 };
 
 static const char * const adis16240_status_error_msgs[] = {

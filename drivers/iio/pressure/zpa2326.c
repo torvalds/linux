@@ -1390,7 +1390,6 @@ static int zpa2326_set_trigger_state(struct iio_trigger *trig, bool state)
 }
 
 static const struct iio_trigger_ops zpa2326_trigger_ops = {
-	.owner             = THIS_MODULE,
 	.set_trigger_state = zpa2326_set_trigger_state,
 };
 
@@ -1590,7 +1589,6 @@ static const struct iio_chan_spec zpa2326_channels[] = {
 };
 
 static const struct iio_info zpa2326_info = {
-	.driver_module = THIS_MODULE,
 	.attrs         = &zpa2326_attribute_group,
 	.read_raw      = zpa2326_read_raw,
 	.write_raw     = zpa2326_write_raw,

@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  *  Freescale lpuart serial port driver
  *
  *  Copyright 2012-2014 Freescale Semiconductor, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #if defined(CONFIG_SERIAL_FSL_LPUART_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
@@ -1632,12 +1628,11 @@ lpuart32_set_termios(struct uart_port *port, struct ktermios *termios,
 {
 	struct lpuart_port *sport = container_of(port, struct lpuart_port, port);
 	unsigned long flags;
-	unsigned long ctrl, old_ctrl, bd, modem;
+	unsigned long ctrl, old_ctrl, modem;
 	unsigned int  baud;
 	unsigned int old_csize = old ? old->c_cflag & CSIZE : CS8;
 
 	ctrl = old_ctrl = lpuart32_read(&sport->port, UARTCTRL);
-	bd = lpuart32_read(&sport->port, UARTBAUD);
 	modem = lpuart32_read(&sport->port, UARTMODIR);
 	/*
 	 * only support CS8 and CS7, and for CS7 must enable PE.
@@ -2212,6 +2207,24 @@ static int lpuart_probe(struct platform_device *pdev)
 	if (ret)
 		goto failed_attach_port;
 
+	of_get_rs485_mode(np, &sport->port.rs485);
+
+	if (sport->port.rs485.flags & SER_RS485_RX_DURING_TX) {
+		dev_err(&pdev->dev, "driver doesn't support RX during TX\n");
+		return -ENOSYS;
+	}
+
+	if (sport->port.rs485.delay_rts_before_send ||
+	    sport->port.rs485.delay_rts_after_send) {
+		dev_err(&pdev->dev, "driver doesn't support RTS delays\n");
+		return -ENOSYS;
+	}
+
+	if (sport->port.rs485.flags & SER_RS485_ENABLED) {
+		sport->port.rs485.flags |= SER_RS485_RTS_ON_SEND;
+		writeb(UARTMODEM_TXRTSE, sport->port.membase + UARTMODEM);
+	}
+
 	sport->dma_tx_chan = dma_request_slave_channel(sport->port.dev, "tx");
 	if (!sport->dma_tx_chan)
 		dev_info(sport->port.dev, "DMA tx channel request failed, "
@@ -2221,12 +2234,6 @@ static int lpuart_probe(struct platform_device *pdev)
 	if (!sport->dma_rx_chan)
 		dev_info(sport->port.dev, "DMA rx channel request failed, "
 				"operating without rx DMA\n");
-
-	if (of_property_read_bool(np, "linux,rs485-enabled-at-boot-time")) {
-		sport->port.rs485.flags |= SER_RS485_ENABLED;
-		sport->port.rs485.flags |= SER_RS485_RTS_ON_SEND;
-		writeb(UARTMODEM_TXRTSE, sport->port.membase + UARTMODEM);
-	}
 
 	return 0;
 

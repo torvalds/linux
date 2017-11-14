@@ -2809,7 +2809,7 @@ static void efx_reset_work(struct work_struct *data)
 	unsigned long pending;
 	enum reset_type method;
 
-	pending = ACCESS_ONCE(efx->reset_pending);
+	pending = READ_ONCE(efx->reset_pending);
 	method = fls(pending) - 1;
 
 	if (method == RESET_TYPE_MC_BIST)
@@ -2874,7 +2874,7 @@ void efx_schedule_reset(struct efx_nic *efx, enum reset_type type)
 	/* If we're not READY then just leave the flags set as the cue
 	 * to abort probing or reschedule the reset later.
 	 */
-	if (ACCESS_ONCE(efx->state) != STATE_READY)
+	if (READ_ONCE(efx->state) != STATE_READY)
 		return;
 
 	/* efx_process_channel() will no longer read events once a

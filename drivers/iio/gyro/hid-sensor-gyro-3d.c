@@ -186,7 +186,6 @@ static int gyro_3d_write_raw(struct iio_dev *indio_dev,
 }
 
 static const struct iio_info gyro_3d_info = {
-	.driver_module = THIS_MODULE,
 	.read_raw = &gyro_3d_read_raw,
 	.write_raw = &gyro_3d_write_raw,
 };

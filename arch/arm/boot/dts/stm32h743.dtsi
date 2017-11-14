@@ -67,7 +67,7 @@
 		};
 
 		usart2: serial@40004400 {
-			compatible = "st,stm32f7-usart", "st,stm32f7-uart";
+			compatible = "st,stm32f7-uart";
 			reg = <0x40004400 0x400>;
 			interrupts = <38>;
 			status = "disabled";
@@ -99,7 +99,7 @@
 		};
 
 		usart1: serial@40011000 {
-			compatible = "st,stm32f7-usart", "st,stm32f7-uart";
+			compatible = "st,stm32f7-uart";
 			reg = <0x40011000 0x400>;
 			interrupts = <37>;
 			status = "disabled";

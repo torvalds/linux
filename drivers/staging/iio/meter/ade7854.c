@@ -530,7 +530,6 @@ static const struct attribute_group ade7854_attribute_group = {
 
 static const struct iio_info ade7854_info = {
 	.attrs = &ade7854_attribute_group,
-	.driver_module = THIS_MODULE,
 };
 
 int ade7854_probe(struct iio_dev *indio_dev, struct device *dev)

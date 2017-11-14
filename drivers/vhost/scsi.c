@@ -929,7 +929,7 @@ vhost_scsi_handle_vq(struct vhost_scsi *vs, struct vhost_virtqueue *vq)
 			continue;
 		}
 
-		tpg = ACCESS_ONCE(vs_tpg[*target]);
+		tpg = READ_ONCE(vs_tpg[*target]);
 		if (unlikely(!tpg)) {
 			/* Target does not exist, fail the request */
 			vhost_scsi_send_bad_target(vs, vq, head, out);

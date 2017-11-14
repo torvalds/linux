@@ -128,7 +128,6 @@ static const struct iio_info dpot_dac_info = {
 	.read_raw = dpot_dac_read_raw,
 	.read_avail = dpot_dac_read_avail,
 	.write_raw = dpot_dac_write_raw,
-	.driver_module = THIS_MODULE,
 };
 
 static int dpot_dac_channel_max_ohms(struct iio_dev *indio_dev)

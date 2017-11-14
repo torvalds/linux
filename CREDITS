@@ -2113,6 +2113,10 @@ S: J. Obrechtstr 23
 S: NL-5216 GP 's-Hertogenbosch
 S: The Netherlands
 
+N: Ashley Lai
+E: ashleydlai@gmail.com
+D: IBM VTPM driver
+
 N: Savio Lam
 E: lam836@cs.cuhk.hk
 D: Author of the dialog utility, foundation
@@ -3333,6 +3337,10 @@ S: Braunschweiger Strasse 79
 S: 31134 Hildesheim
 S: Germany
 
+N: Marcel Selhorst
+E: tpmdd@selhorst.net
+D: TPM driver
+
 N: Darren Senn
 E: sinster@darkwater.com
 D: Whatever I notice needs doing (so far: itimers, /proc)
@@ -4127,7 +4135,6 @@ W: http://www.misterjones.org
 D: MD driver
 D: EISA/sysfs subsystem
 S: France
-
 
 # Don't add your name here, unless you really _are_ after Marc
 # alphabetically. Leonard used to be very proud of being the 

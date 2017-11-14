@@ -1354,13 +1354,7 @@ dev_t blk_lookup_devt(const char *name, int partno)
 }
 EXPORT_SYMBOL(blk_lookup_devt);
 
-struct gendisk *alloc_disk(int minors)
-{
-	return alloc_disk_node(minors, NUMA_NO_NODE);
-}
-EXPORT_SYMBOL(alloc_disk);
-
-struct gendisk *alloc_disk_node(int minors, int node_id)
+struct gendisk *__alloc_disk_node(int minors, int node_id)
 {
 	struct gendisk *disk;
 	struct disk_part_tbl *ptbl;
@@ -1411,7 +1405,7 @@ struct gendisk *alloc_disk_node(int minors, int node_id)
 	}
 	return disk;
 }
-EXPORT_SYMBOL(alloc_disk_node);
+EXPORT_SYMBOL(__alloc_disk_node);
 
 struct kobject *get_disk(struct gendisk *disk)
 {

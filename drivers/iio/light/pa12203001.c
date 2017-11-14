@@ -306,7 +306,6 @@ static int pa12203001_write_raw(struct iio_dev *indio_dev,
 }
 
 static const struct iio_info pa12203001_info = {
-	.driver_module	= THIS_MODULE,
 	.read_raw = pa12203001_read_raw,
 	.write_raw = pa12203001_write_raw,
 	.attrs = &pa12203001_attr_group,

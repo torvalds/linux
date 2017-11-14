@@ -212,6 +212,8 @@ void foo(void)
 	BLANK();
 	DEFINE(IA64_TIMESPEC_TV_NSEC_OFFSET,
 	       offsetof (struct timespec, tv_nsec));
+	DEFINE(IA64_TIME_SN_SPEC_SNSEC_OFFSET,
+	       offsetof (struct time_sn_spec, snsec));
 
 	DEFINE(CLONE_SETTLS_BIT, 19);
 #if CLONE_SETTLS != (1<<19)

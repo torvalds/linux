@@ -237,7 +237,6 @@ static int stk8312_data_rdy_trigger_set_state(struct iio_trigger *trig,
 
 static const struct iio_trigger_ops stk8312_trigger_ops = {
 	.set_trigger_state = stk8312_data_rdy_trigger_set_state,
-	.owner = THIS_MODULE,
 };
 
 static int stk8312_set_sample_rate(struct stk8312_data *data, u8 rate)
@@ -421,7 +420,6 @@ static int stk8312_write_raw(struct iio_dev *indio_dev,
 }
 
 static const struct iio_info stk8312_info = {
-	.driver_module		= THIS_MODULE,
 	.read_raw		= stk8312_read_raw,
 	.write_raw		= stk8312_write_raw,
 	.attrs			= &stk8312_attribute_group,

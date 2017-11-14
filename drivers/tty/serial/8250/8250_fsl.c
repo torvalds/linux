@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/serial_reg.h>
 #include <linux/serial_8250.h>
 
@@ -5,10 +6,6 @@
 
 /*
  * Freescale 16550 UART "driver", Copyright (C) 2011 Paul Gortmaker.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * This isn't a full driver; it just provides an alternate IRQ
  * handler to deal with an errata.  Everything else is just

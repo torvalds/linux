@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-1.0+
 /*
  * Open Host Controller Interface (OHCI) driver for USB.
  *
@@ -382,7 +383,7 @@ sanitize:
 			ed_free (ohci, ed);
 			break;
 		}
-		/* else FALL THROUGH */
+		/* fall through */
 	default:
 		/* caller was supposed to have unlinked any requests;
 		 * that's not our job.  can't recover; must leak ed.
@@ -785,7 +786,7 @@ static void io_watchdog_func(unsigned long _ohci)
 		}
 
 		/* find the last TD processed by the controller. */
-		head = hc32_to_cpu(ohci, ACCESS_ONCE(ed->hwHeadP)) & TD_MASK;
+		head = hc32_to_cpu(ohci, READ_ONCE(ed->hwHeadP)) & TD_MASK;
 		td_start = td;
 		td_next = list_prepare_entry(td, &ed->td_list, td_list);
 		list_for_each_entry_continue(td_next, &ed->td_list, td_list) {

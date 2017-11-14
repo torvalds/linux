@@ -2545,7 +2545,7 @@ static void ef4_reset_work(struct work_struct *data)
 	unsigned long pending;
 	enum reset_type method;
 
-	pending = ACCESS_ONCE(efx->reset_pending);
+	pending = READ_ONCE(efx->reset_pending);
 	method = fls(pending) - 1;
 
 	if ((method == RESET_TYPE_RECOVER_OR_DISABLE ||
@@ -2605,7 +2605,7 @@ void ef4_schedule_reset(struct ef4_nic *efx, enum reset_type type)
 	/* If we're not READY then just leave the flags set as the cue
 	 * to abort probing or reschedule the reset later.
 	 */
-	if (ACCESS_ONCE(efx->state) != STATE_READY)
+	if (READ_ONCE(efx->state) != STATE_READY)
 		return;
 
 	queue_work(reset_workqueue, &efx->reset_work);

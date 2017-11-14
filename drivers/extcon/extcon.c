@@ -36,7 +36,7 @@
 
 #define SUPPORTED_CABLE_MAX	32
 
-struct __extcon_info {
+static const struct __extcon_info {
 	unsigned int type;
 	unsigned int id;
 	const char *name;

@@ -133,6 +133,7 @@ static void add_cpus_to_mask(struct topology_core *tl_core,
 			topo->socket_id = socket->id;
 			topo->core_id = rcore;
 			topo->thread_id = lcpu + i;
+			topo->dedicated = tl_core->d;
 			cpumask_set_cpu(lcpu + i, &drawer->mask);
 			cpumask_set_cpu(lcpu + i, &book->mask);
 			cpumask_set_cpu(lcpu + i, &socket->mask);
@@ -273,6 +274,14 @@ void store_topology(struct sysinfo_15_1_x *info)
 	stsi(info, 15, 1, topology_mnest_limit());
 }
 
+static void __arch_update_dedicated_flag(void *arg)
+{
+	if (topology_cpu_dedicated(smp_processor_id()))
+		set_cpu_flag(CIF_DEDICATED_CPU);
+	else
+		clear_cpu_flag(CIF_DEDICATED_CPU);
+}
+
 static int __arch_update_cpu_topology(void)
 {
 	struct sysinfo_15_1_x *info = tl_info;
@@ -298,6 +307,7 @@ int arch_update_cpu_topology(void)
 	int cpu, rc;
 
 	rc = __arch_update_cpu_topology();
+	on_each_cpu(__arch_update_dedicated_flag, NULL, 0);
 	for_each_online_cpu(cpu) {
 		dev = get_cpu_device(cpu);
 		kobject_uevent(&dev->kobj, KOBJ_CHANGE);
@@ -320,15 +330,14 @@ static void topology_flush_work(void)
 	flush_work(&topology_work);
 }
 
-static void topology_timer_fn(unsigned long ignored)
+static void topology_timer_fn(struct timer_list *unused)
 {
 	if (ptf(PTF_CHECK))
 		topology_schedule_update();
 	set_topology_timer();
 }
 
-static struct timer_list topology_timer =
-	TIMER_DEFERRED_INITIALIZER(topology_timer_fn, 0, 0);
+static struct timer_list topology_timer;
 
 static atomic_t topology_poll = ATOMIC_INIT(0);
 
@@ -435,9 +444,39 @@ static struct attribute_group topology_cpu_attr_group = {
 	.attrs = topology_cpu_attrs,
 };
 
+static ssize_t cpu_dedicated_show(struct device *dev,
+				  struct device_attribute *attr, char *buf)
+{
+	int cpu = dev->id;
+	ssize_t count;
+
+	mutex_lock(&smp_cpu_state_mutex);
+	count = sprintf(buf, "%d\n", topology_cpu_dedicated(cpu));
+	mutex_unlock(&smp_cpu_state_mutex);
+	return count;
+}
+static DEVICE_ATTR(dedicated, 0444, cpu_dedicated_show, NULL);
+
+static struct attribute *topology_extra_cpu_attrs[] = {
+	&dev_attr_dedicated.attr,
+	NULL,
+};
+
+static struct attribute_group topology_extra_cpu_attr_group = {
+	.attrs = topology_extra_cpu_attrs,
+};
+
 int topology_cpu_init(struct cpu *cpu)
 {
-	return sysfs_create_group(&cpu->dev.kobj, &topology_cpu_attr_group);
+	int rc;
+
+	rc = sysfs_create_group(&cpu->dev.kobj, &topology_cpu_attr_group);
+	if (rc || !MACHINE_HAS_TOPOLOGY)
+		return rc;
+	rc = sysfs_create_group(&cpu->dev.kobj, &topology_extra_cpu_attr_group);
+	if (rc)
+		sysfs_remove_group(&cpu->dev.kobj, &topology_cpu_attr_group);
+	return rc;
 }
 
 static const struct cpumask *cpu_thread_mask(int cpu)
@@ -509,6 +548,7 @@ void __init topology_init_early(void)
 	alloc_masks(info, &drawer_info, 3);
 out:
 	__arch_update_cpu_topology();
+	__arch_update_dedicated_flag(NULL);
 }
 
 static inline int topology_get_mode(int enabled)
@@ -597,6 +637,7 @@ static struct ctl_table topology_dir_table[] = {
 
 static int __init topology_init(void)
 {
+	timer_setup(&topology_timer, topology_timer_fn, TIMER_DEFERRABLE);
 	if (MACHINE_HAS_TOPOLOGY)
 		set_topology_timer();
 	else

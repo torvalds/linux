@@ -29,6 +29,22 @@ void __sched down_read(struct rw_semaphore *sem)
 
 EXPORT_SYMBOL(down_read);
 
+int __sched down_read_killable(struct rw_semaphore *sem)
+{
+	might_sleep();
+	rwsem_acquire_read(&sem->dep_map, 0, 0, _RET_IP_);
+
+	if (LOCK_CONTENDED_RETURN(sem, __down_read_trylock, __down_read_killable)) {
+		rwsem_release(&sem->dep_map, 1, _RET_IP_);
+		return -EINTR;
+	}
+
+	rwsem_set_reader_owned(sem);
+	return 0;
+}
+
+EXPORT_SYMBOL(down_read_killable);
+
 /*
  * trylock for reading -- returns 1 if successful, 0 if contention
  */

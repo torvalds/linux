@@ -161,8 +161,6 @@ struct swap_insn_args {
 
 static int swap_instruction(void *data)
 {
-	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();
-	unsigned long status = kcb->kprobe_status;
 	struct swap_insn_args *args = data;
 	struct ftrace_insn new_insn, *insn;
 	struct kprobe *p = args->p;
@@ -185,9 +183,7 @@ static int swap_instruction(void *data)
 			ftrace_generate_nop_insn(&new_insn);
 	}
 skip_ftrace:
-	kcb->kprobe_status = KPROBE_SWAP_INST;
 	s390_kernel_write(p->addr, &new_insn, len);
-	kcb->kprobe_status = status;
 	return 0;
 }
 NOKPROBE_SYMBOL(swap_instruction);
@@ -574,9 +570,6 @@ static int kprobe_trap_handler(struct pt_regs *regs, int trapnr)
 	const struct exception_table_entry *entry;
 
 	switch(kcb->kprobe_status) {
-	case KPROBE_SWAP_INST:
-		/* We are here because the instruction replacement failed */
-		return 0;
 	case KPROBE_HIT_SS:
 	case KPROBE_REENTER:
 		/*

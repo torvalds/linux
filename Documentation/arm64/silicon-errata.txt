@@ -70,6 +70,7 @@ stable kernels.
 |                |                 |                 |                             |
 | Hisilicon      | Hip0{5,6,7}     | #161010101      | HISILICON_ERRATUM_161010101 |
 | Hisilicon      | Hip0{6,7}       | #161010701      | N/A                         |
+| Hisilicon      | Hip07           | #161600802      | HISILICON_ERRATUM_161600802 |
 |                |                 |                 |                             |
 | Qualcomm Tech. | Falkor v1       | E1003           | QCOM_FALKOR_ERRATUM_1003    |
 | Qualcomm Tech. | Falkor v1       | E1009           | QCOM_FALKOR_ERRATUM_1009    |
