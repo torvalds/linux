@@ -30,12 +30,6 @@ else
 	VERBOSE=0
 fi
 
-if [ -z "$J" ]; then
-	NPROC=$(getconf _NPROCESSORS_ONLN)
-else
-	NPROC="$J"
-fi
-
 FLAGS="--very-quiet"
 
 # You can use SPFLAGS to append extra arguments to coccicheck or override any
@@ -70,12 +64,21 @@ if [ "$C" = "1" -o "$C" = "2" ]; then
     # Take only the last argument, which is the C file to test
     shift $(( $# - 1 ))
     OPTIONS="$COCCIINCLUDE $1"
+
+    # No need to parallelize Coccinelle since this mode takes one input file.
+    NPROC=1
 else
     ONLINE=0
     if [ "$KBUILD_EXTMOD" = "" ] ; then
         OPTIONS="--dir $srctree $COCCIINCLUDE"
     else
         OPTIONS="--dir $KBUILD_EXTMOD $COCCIINCLUDE"
+    fi
+
+    if [ -z "$J" ]; then
+        NPROC=$(getconf _NPROCESSORS_ONLN)
+    else
+        NPROC="$J"
     fi
 fi
 
