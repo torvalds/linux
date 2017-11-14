@@ -356,6 +356,7 @@ extern int __audit_log_bprm_fcaps(struct linux_binprm *bprm,
 extern void __audit_log_capset(const struct cred *new, const struct cred *old);
 extern void __audit_mmap_fd(int fd, int flags);
 extern void __audit_log_kern_module(char *name);
+extern void __audit_fanotify(unsigned int response);
 
 static inline void audit_ipc_obj(struct kern_ipc_perm *ipcp)
 {
@@ -450,6 +451,12 @@ static inline void audit_log_kern_module(char *name)
 {
 	if (!audit_dummy_context())
 		__audit_log_kern_module(name);
+}
+
+static inline void audit_fanotify(unsigned int response)
+{
+	if (!audit_dummy_context())
+		__audit_fanotify(response);
 }
 
 extern int audit_n_rules;
@@ -567,6 +574,9 @@ static inline void audit_mmap_fd(int fd, int flags)
 static inline void audit_log_kern_module(char *name)
 {
 }
+
+static inline void audit_fanotify(unsigned int response)
+{ }
 
 static inline void audit_ptrace(struct task_struct *t)
 { }

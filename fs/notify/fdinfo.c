@@ -156,6 +156,9 @@ void fanotify_show_fdinfo(struct seq_file *m, struct file *f)
 	if (group->fanotify_data.max_marks == UINT_MAX)
 		flags |= FAN_UNLIMITED_MARKS;
 
+	if (group->fanotify_data.audit)
+		flags |= FAN_ENABLE_AUDIT;
+
 	seq_printf(m, "fanotify flags:%x event-flags:%x\n",
 		   flags, group->fanotify_data.f_flags);
 

@@ -9,6 +9,7 @@
 #include <linux/sched/user.h>
 #include <linux/types.h>
 #include <linux/wait.h>
+#include <linux/audit.h>
 
 #include "fanotify.h"
 
@@ -78,7 +79,7 @@ static int fanotify_get_response(struct fsnotify_group *group,
 	fsnotify_finish_user_wait(iter_info);
 out:
 	/* userspace responded, convert to something usable */
-	switch (event->response) {
+	switch (event->response & ~FAN_AUDIT) {
 	case FAN_ALLOW:
 		ret = 0;
 		break;
@@ -86,6 +87,11 @@ out:
 	default:
 		ret = -EPERM;
 	}
+
+	/* Check if the response should be audited */
+	if (event->response & FAN_AUDIT)
+		audit_fanotify(event->response & ~FAN_AUDIT);
+
 	event->response = 0;
 
 	pr_debug("%s: group=%p event=%p about to return ret=%d\n", __func__,
