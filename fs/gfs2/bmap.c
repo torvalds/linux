@@ -69,8 +69,8 @@ static int gfs2_unstuffer_page(struct gfs2_inode *ip, struct buffer_head *dibh,
 		void *kaddr = kmap(page);
 		u64 dsize = i_size_read(inode);
  
-		if (dsize > (dibh->b_size - sizeof(struct gfs2_dinode)))
-			dsize = dibh->b_size - sizeof(struct gfs2_dinode);
+		if (dsize > gfs2_max_stuffed_size(ip))
+			dsize = gfs2_max_stuffed_size(ip);
 
 		memcpy(kaddr, dibh->b_data + sizeof(struct gfs2_dinode), dsize);
 		memset(kaddr + dsize, 0, PAGE_SIZE - dsize);
@@ -1692,8 +1692,7 @@ static int do_grow(struct inode *inode, u64 size)
 	int error;
 	int unstuff = 0;
 
-	if (gfs2_is_stuffed(ip) &&
-	    (size > (sdp->sd_sb.sb_bsize - sizeof(struct gfs2_dinode)))) {
+	if (gfs2_is_stuffed(ip) && size > gfs2_max_stuffed_size(ip)) {
 		error = gfs2_quota_lock_check(ip, &ap);
 		if (error)
 			return error;
@@ -1928,8 +1927,7 @@ int gfs2_write_alloc_required(struct gfs2_inode *ip, u64 offset,
 		return 0;
 
 	if (gfs2_is_stuffed(ip)) {
-		if (offset + len >
-		    sdp->sd_sb.sb_bsize - sizeof(struct gfs2_dinode))
+		if (offset + len > gfs2_max_stuffed_size(ip))
 			return 1;
 		return 0;
 	}

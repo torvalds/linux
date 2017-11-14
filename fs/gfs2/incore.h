@@ -861,5 +861,10 @@ static inline void gfs2_sbstats_inc(const struct gfs2_glock *gl, int which)
 
 extern struct gfs2_rgrpd *gfs2_glock2rgrp(struct gfs2_glock *gl);
 
+static inline unsigned gfs2_max_stuffed_size(const struct gfs2_inode *ip)
+{
+	return GFS2_SB(&ip->i_inode)->sd_sb.sb_bsize - sizeof(struct gfs2_dinode);
+}
+
 #endif /* __INCORE_DOT_H__ */
 
