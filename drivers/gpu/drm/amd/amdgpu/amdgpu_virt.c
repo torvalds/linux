@@ -47,6 +47,12 @@ int amdgpu_allocate_static_csa(struct amdgpu_device *adev)
 	return 0;
 }
 
+void amdgpu_free_static_csa(struct amdgpu_device *adev) {
+	amdgpu_bo_free_kernel(&adev->virt.csa_obj,
+						&adev->virt.csa_vmid0_addr,
+						NULL);
+}
+
 /*
  * amdgpu_map_static_csa should be called during amdgpu_vm_init
  * it maps virtual address "AMDGPU_VA_RESERVED_SIZE - AMDGPU_CSA_SIZE"
