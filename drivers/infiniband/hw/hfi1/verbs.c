@@ -1486,7 +1486,7 @@ static int query_port(struct rvt_dev_info *rdi, u8 port_num,
 	props->max_mtu = mtu_to_enum((!valid_ib_mtu(hfi1_max_mtu) ?
 				      4096 : hfi1_max_mtu), IB_MTU_4096);
 	props->active_mtu = !valid_ib_mtu(ppd->ibmtu) ? props->max_mtu :
-		mtu_to_enum(ppd->ibmtu, IB_MTU_2048);
+		mtu_to_enum(ppd->ibmtu, IB_MTU_4096);
 
 	/*
 	 * sm_lid of 0xFFFF needs special handling so that it can
