@@ -431,13 +431,15 @@ i40e_status i40e_write_phy_register(struct i40e_hw *hw, u8 page, u16 reg,
 u8 i40e_get_phy_address(struct i40e_hw *hw, u8 dev_num);
 i40e_status i40e_blink_phy_link_led(struct i40e_hw *hw,
 				    u32 time, u32 interval);
-i40e_status i40e_aq_write_ppp(struct i40e_hw *hw, void *buff,
+i40e_status i40e_aq_write_ddp(struct i40e_hw *hw, void *buff,
 			      u16 buff_size, u32 track_id,
 			      u32 *error_offset, u32 *error_info,
-			      struct i40e_asq_cmd_details *cmd_details);
-i40e_status i40e_aq_get_ppp_list(struct i40e_hw *hw, void *buff,
+			      struct i40e_asq_cmd_details *
+			      cmd_details);
+i40e_status i40e_aq_get_ddp_list(struct i40e_hw *hw, void *buff,
 				 u16 buff_size, u8 flags,
-				 struct i40e_asq_cmd_details *cmd_details);
+				 struct i40e_asq_cmd_details *
+				 cmd_details);
 struct i40e_generic_seg_header *
 i40e_find_segment_in_package(u32 segment_type,
 			     struct i40e_package_header *pkg_header);
