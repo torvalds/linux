@@ -114,6 +114,18 @@ config PSTORE_CONSOLE
 	  When the option is enabled, pstore will log all kernel
 	  messages, even if no oops or panic happened.
 
+config PSTORE_CONSOLE_FORCE
+	bool "Log kernel console messages ignore loglevel setting"
+	depends on PSTORE_CONSOLE
+	help
+	  When the option is enabled, allow all kernel messages
+	  log to the pstore console. Enable this with a kernel bool
+	  parameter like "pstore_con_force=1".
+
+config PSTORE_CONSOLE_FORCE_ON
+	bool "Log kernel console messages ignore loglevel setting on by default"
+	depends on PSTORE_CONSOLE_FORCE
+
 config PSTORE_PMSG
 	bool "Log user space messages"
 	depends on PSTORE
