@@ -59,6 +59,9 @@ static int mpu6500_set_rate(struct i2c_client *client, int rate)
 	int result;
 	u16 fifo_rate;
 
+	/* always use poll mode, no need to set rate */
+	return 0;
+
 	if ((rate < 1) || (rate > 250))
 		return -1;
 
@@ -90,7 +93,7 @@ static int sensor_active(struct i2c_client *client, int enable, int rate)
 	if (!enable) {
 		status = BIT_ACCEL_STBY;
 		sensor->ops->ctrl_data |= status;
-		if (sensor->ops->ctrl_data && (BIT_ACCEL_STBY | BIT_GYRO_STBY) != 0) {
+		if ((sensor->ops->ctrl_data &  BIT_GYRO_STBY) == BIT_GYRO_STBY) {
 			pwrm1 |= MPU6500_PWRM1_SLEEP;
 		}
 	} else {
@@ -112,7 +115,7 @@ static int sensor_active(struct i2c_client *client, int enable, int rate)
 		dev_err(&client->dev, "%s:fail to set pwrm1\n", __func__);
 		return -1;
 	}
-	msleep(100);
+	msleep(50);
 
 	return result;
 }
