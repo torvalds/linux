@@ -2201,8 +2201,8 @@ cnl_ddi_calculate_wrpll(int clock,
 			struct skl_wrpll_params *wrpll_params)
 {
 	u32 afe_clock = clock * 5;
-	u32 dco_min = 7998 * KHz(1);
-	u32 dco_max = 10000 * KHz(1);
+	u32 dco_min = 7998000;
+	u32 dco_max = 10000000;
 	u32 dco_mid = (dco_min + dco_max) / 2;
 	static const int dividers[] = {  2,  4,  6,  8, 10, 12,  14,  16,
 					 18, 20, 24, 28, 30, 32,  36,  40,
@@ -2211,7 +2211,7 @@ cnl_ddi_calculate_wrpll(int clock,
 					 84, 88, 90, 92, 96, 98, 100, 102,
 					  3,  5,  7,  9, 15, 21 };
 	u32 dco, best_dco = 0, dco_centrality = 0;
-	u32 best_dco_centrality = 999999;
+	u32 best_dco_centrality = U32_MAX; /* Spec meaning of 999999 MHz */
 	int d, best_div = 0, pdiv = 0, qdiv = 0, kdiv = 0;
 
 	for (d = 0; d < ARRAY_SIZE(dividers); d++) {
