@@ -73,8 +73,24 @@
 
 	.macro kernel_ventry, el, label, regsize = 64
 	.align 7
+#ifdef CONFIG_UNMAP_KERNEL_AT_EL0
+	.if	\el == 0
+	.if	\regsize == 64
+	mrs	x30, tpidrro_el0
+	msr	tpidrro_el0, xzr
+	.else
+	mov	x30, xzr
+	.endif
+	.endif
+#endif
+
 	sub	sp, sp, #S_FRAME_SIZE
 	b	el\()\el\()_\label
+	.endm
+
+	.macro tramp_alias, dst, sym
+	mov_q	\dst, TRAMP_VALIAS
+	add	\dst, \dst, #(\sym - .entry.tramp.text)
 	.endm
 
 	.macro	kernel_entry, el, regsize = 64
@@ -232,24 +248,20 @@ alternative_else_nop_endif
 	.if	\el == 0
 	ldr	x23, [sp, #S_SP]		// load return stack pointer
 	msr	sp_el0, x23
+	tst	x22, #PSR_MODE32_BIT		// native task?
+	b.eq	3f
+
 #ifdef CONFIG_ARM64_ERRATUM_845719
-alternative_if_not ARM64_WORKAROUND_845719
-	nop
-	nop
-#ifdef CONFIG_PID_IN_CONTEXTIDR
-	nop
-#endif
-alternative_else
-	tbz	x22, #4, 1f
+alternative_if ARM64_WORKAROUND_845719
 #ifdef CONFIG_PID_IN_CONTEXTIDR
 	mrs	x29, contextidr_el1
 	msr	contextidr_el1, x29
 #else
 	msr contextidr_el1, xzr
 #endif
-1:
-alternative_endif
+alternative_else_nop_endif
 #endif
+3:
 	.endif
 
 	msr	elr_el1, x21			// set up the return data
@@ -271,7 +283,22 @@ alternative_endif
 	ldp	x28, x29, [sp, #16 * 14]
 	ldr	lr, [sp, #S_LR]
 	add	sp, sp, #S_FRAME_SIZE		// restore sp
-	eret					// return to kernel
+
+#ifndef CONFIG_UNMAP_KERNEL_AT_EL0
+	eret
+#else
+	.if	\el == 0
+	bne	4f
+	msr	far_el1, x30
+	tramp_alias	x30, tramp_exit_native
+	br	x30
+4:
+	tramp_alias	x30, tramp_exit_compat
+	br	x30
+	.else
+	eret
+	.endif
+#endif
 	.endm
 
 	.macro	irq_stack_entry
