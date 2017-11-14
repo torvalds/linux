@@ -43,6 +43,7 @@
 #include "../pwrseqcmd.h"
 #include "pwrseq.h"
 #include "../btcoexist/rtl_btc.h"
+#include <linux/kernel.h>
 
 #define LLT_CONFIG	5
 
@@ -2126,28 +2127,28 @@ static void _rtl8723be_read_adapter_info(struct ieee80211_hw *hw,
 
 	if (rtlhal->oem_id == RT_CID_DEFAULT) {
 		/* Does this one have a Toshiba SMID from group 1? */
-		for (i = 0; i < sizeof(toshiba_smid1) / sizeof(u16); i++) {
+		for (i = 0; i < ARRAY_SIZE(toshiba_smid1); i++) {
 			if (rtlefuse->eeprom_smid == toshiba_smid1[i]) {
 				is_toshiba_smid1 = true;
 				break;
 			}
 		}
 		/* Does this one have a Toshiba SMID from group 2? */
-		for (i = 0; i < sizeof(toshiba_smid2) / sizeof(u16); i++) {
+		for (i = 0; i < ARRAY_SIZE(toshiba_smid2); i++) {
 			if (rtlefuse->eeprom_smid == toshiba_smid2[i]) {
 				is_toshiba_smid2 = true;
 				break;
 			}
 		}
 		/* Does this one have a Samsung SMID? */
-		for (i = 0; i < sizeof(samsung_smid) / sizeof(u16); i++) {
+		for (i = 0; i < ARRAY_SIZE(samsung_smid); i++) {
 			if (rtlefuse->eeprom_smid == samsung_smid[i]) {
 				is_samsung_smid = true;
 				break;
 			}
 		}
 		/* Does this one have a Lenovo SMID? */
-		for (i = 0; i < sizeof(lenovo_smid) / sizeof(u16); i++) {
+		for (i = 0; i < ARRAY_SIZE(lenovo_smid); i++) {
 			if (rtlefuse->eeprom_smid == lenovo_smid[i]) {
 				is_lenovo_smid = true;
 				break;
