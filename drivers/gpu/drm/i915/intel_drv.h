@@ -47,14 +47,11 @@
  * contexts. Note that it's important that we check the condition again after
  * having timed out, since the timeout could be due to preemption or similar and
  * we've never had a chance to check the condition before the timeout.
- *
- * TODO: When modesetting has fully transitioned to atomic, the below
- * drm_can_sleep() can be removed and in_atomic()/!in_atomic() asserts
- * added.
  */
 #define _wait_for(COND, US, W) ({ \
 	unsigned long timeout__ = jiffies + usecs_to_jiffies(US) + 1;	\
 	int ret__;							\
+	might_sleep();							\
 	for (;;) {							\
 		bool expired__ = time_after(jiffies, timeout__);	\
 		if (COND) {						\
@@ -65,11 +62,7 @@
 			ret__ = -ETIMEDOUT;				\
 			break;						\
 		}							\
-		if ((W) && drm_can_sleep()) {				\
-			usleep_range((W), (W)*2);			\
-		} else {						\
-			cpu_relax();					\
-		}							\
+		usleep_range((W), (W) * 2);				\
 	}								\
 	ret__;								\
 })
