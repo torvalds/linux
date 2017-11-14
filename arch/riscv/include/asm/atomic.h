@@ -50,30 +50,30 @@ static __always_inline void atomic64_set(atomic64_t *v, long i)
  * have the AQ or RL bits set.  These don't return anything, so there's only
  * one version to worry about.
  */
-#define ATOMIC_OP(op, asm_op, c_op, I, asm_type, c_type, prefix)				\
-static __always_inline void atomic##prefix##_##op(c_type i, atomic##prefix##_t *v)		\
-{												\
-	__asm__ __volatile__ (									\
-		"amo" #asm_op "." #asm_type " zero, %1, %0"					\
-		: "+A" (v->counter)								\
-		: "r" (I)									\
-		: "memory");									\
+#define ATOMIC_OP(op, asm_op, I, asm_type, c_type, prefix)				\
+static __always_inline void atomic##prefix##_##op(c_type i, atomic##prefix##_t *v)	\
+{											\
+	__asm__ __volatile__ (								\
+		"amo" #asm_op "." #asm_type " zero, %1, %0"				\
+		: "+A" (v->counter)							\
+		: "r" (I)								\
+		: "memory");								\
 }
 
 #ifdef CONFIG_GENERIC_ATOMIC64
-#define ATOMIC_OPS(op, asm_op, c_op, I)			\
-        ATOMIC_OP (op, asm_op, c_op, I, w,  int,   )
+#define ATOMIC_OPS(op, asm_op, I)			\
+        ATOMIC_OP (op, asm_op, I, w,  int,   )
 #else
-#define ATOMIC_OPS(op, asm_op, c_op, I)			\
-        ATOMIC_OP (op, asm_op, c_op, I, w,  int,   )	\
-        ATOMIC_OP (op, asm_op, c_op, I, d, long, 64)
+#define ATOMIC_OPS(op, asm_op, I)			\
+        ATOMIC_OP (op, asm_op, I, w,  int,   )	\
+        ATOMIC_OP (op, asm_op, I, d, long, 64)
 #endif
 
-ATOMIC_OPS(add, add, +,  i)
-ATOMIC_OPS(sub, add, +, -i)
-ATOMIC_OPS(and, and, &,  i)
-ATOMIC_OPS( or,  or, |,  i)
-ATOMIC_OPS(xor, xor, ^,  i)
+ATOMIC_OPS(add, add,  i)
+ATOMIC_OPS(sub, add, -i)
+ATOMIC_OPS(and, and,  i)
+ATOMIC_OPS( or,  or,  i)
+ATOMIC_OPS(xor, xor,  i)
 
 #undef ATOMIC_OP
 #undef ATOMIC_OPS
@@ -83,7 +83,7 @@ ATOMIC_OPS(xor, xor, ^,  i)
  * There's two flavors of these: the arithmatic ops have both fetch and return
  * versions, while the logical ops only have fetch versions.
  */
-#define ATOMIC_FETCH_OP(op, asm_op, c_op, I, asm_or, c_or, asm_type, c_type, prefix)			\
+#define ATOMIC_FETCH_OP(op, asm_op, I, asm_or, c_or, asm_type, c_type, prefix)				\
 static __always_inline c_type atomic##prefix##_fetch_##op##c_or(c_type i, atomic##prefix##_t *v)	\
 {													\
 	register c_type ret;										\
@@ -103,13 +103,13 @@ static __always_inline c_type atomic##prefix##_##op##_return##c_or(c_type i, ato
 
 #ifdef CONFIG_GENERIC_ATOMIC64
 #define ATOMIC_OPS(op, asm_op, c_op, I, asm_or, c_or)				\
-        ATOMIC_FETCH_OP (op, asm_op, c_op, I, asm_or, c_or, w,  int,   )	\
+        ATOMIC_FETCH_OP (op, asm_op,       I, asm_or, c_or, w,  int,   )	\
         ATOMIC_OP_RETURN(op, asm_op, c_op, I, asm_or, c_or, w,  int,   )
 #else
 #define ATOMIC_OPS(op, asm_op, c_op, I, asm_or, c_or)				\
-        ATOMIC_FETCH_OP (op, asm_op, c_op, I, asm_or, c_or, w,  int,   )	\
+        ATOMIC_FETCH_OP (op, asm_op,       I, asm_or, c_or, w,  int,   )	\
         ATOMIC_OP_RETURN(op, asm_op, c_op, I, asm_or, c_or, w,  int,   )	\
-        ATOMIC_FETCH_OP (op, asm_op, c_op, I, asm_or, c_or, d, long, 64)	\
+        ATOMIC_FETCH_OP (op, asm_op,       I, asm_or, c_or, d, long, 64)	\
         ATOMIC_OP_RETURN(op, asm_op, c_op, I, asm_or, c_or, d, long, 64)
 #endif
 
@@ -126,28 +126,28 @@ ATOMIC_OPS(sub, add, +, -i, .aqrl,         )
 #undef ATOMIC_OPS
 
 #ifdef CONFIG_GENERIC_ATOMIC64
-#define ATOMIC_OPS(op, asm_op, c_op, I, asm_or, c_or)				\
-        ATOMIC_FETCH_OP(op, asm_op, c_op, I, asm_or, c_or, w,  int,   )
+#define ATOMIC_OPS(op, asm_op, I, asm_or, c_or)				\
+        ATOMIC_FETCH_OP(op, asm_op, I, asm_or, c_or, w,  int,   )
 #else
-#define ATOMIC_OPS(op, asm_op, c_op, I, asm_or, c_or)				\
-        ATOMIC_FETCH_OP(op, asm_op, c_op, I, asm_or, c_or, w,  int,   )		\
-        ATOMIC_FETCH_OP(op, asm_op, c_op, I, asm_or, c_or, d, long, 64)
+#define ATOMIC_OPS(op, asm_op, I, asm_or, c_or)				\
+        ATOMIC_FETCH_OP(op, asm_op, I, asm_or, c_or, w,  int,   )	\
+        ATOMIC_FETCH_OP(op, asm_op, I, asm_or, c_or, d, long, 64)
 #endif
 
-ATOMIC_OPS(and, and, &,  i,      , _relaxed)
-ATOMIC_OPS(and, and, &,  i, .aq  , _acquire)
-ATOMIC_OPS(and, and, &,  i, .rl  , _release)
-ATOMIC_OPS(and, and, &,  i, .aqrl,         )
+ATOMIC_OPS(and, and, i,      , _relaxed)
+ATOMIC_OPS(and, and, i, .aq  , _acquire)
+ATOMIC_OPS(and, and, i, .rl  , _release)
+ATOMIC_OPS(and, and, i, .aqrl,         )
 
-ATOMIC_OPS( or,  or, |,  i,      , _relaxed)
-ATOMIC_OPS( or,  or, |,  i, .aq  , _acquire)
-ATOMIC_OPS( or,  or, |,  i, .rl  , _release)
-ATOMIC_OPS( or,  or, |,  i, .aqrl,         )
+ATOMIC_OPS( or,  or, i,      , _relaxed)
+ATOMIC_OPS( or,  or, i, .aq  , _acquire)
+ATOMIC_OPS( or,  or, i, .rl  , _release)
+ATOMIC_OPS( or,  or, i, .aqrl,         )
 
-ATOMIC_OPS(xor, xor, ^,  i,      , _relaxed)
-ATOMIC_OPS(xor, xor, ^,  i, .aq  , _acquire)
-ATOMIC_OPS(xor, xor, ^,  i, .rl  , _release)
-ATOMIC_OPS(xor, xor, ^,  i, .aqrl,         )
+ATOMIC_OPS(xor, xor, i,      , _relaxed)
+ATOMIC_OPS(xor, xor, i, .aq  , _acquire)
+ATOMIC_OPS(xor, xor, i, .rl  , _release)
+ATOMIC_OPS(xor, xor, i, .aqrl,         )
 
 #undef ATOMIC_OPS
 
@@ -182,13 +182,13 @@ ATOMIC_OPS(add_negative, add,  <, 0)
 #undef ATOMIC_OP
 #undef ATOMIC_OPS
 
-#define ATOMIC_OP(op, func_op, c_op, I, c_type, prefix)				\
+#define ATOMIC_OP(op, func_op, I, c_type, prefix)				\
 static __always_inline void atomic##prefix##_##op(atomic##prefix##_t *v)	\
 {										\
 	atomic##prefix##_##func_op(I, v);					\
 }
 
-#define ATOMIC_FETCH_OP(op, func_op, c_op, I, c_type, prefix)				\
+#define ATOMIC_FETCH_OP(op, func_op, I, c_type, prefix)					\
 static __always_inline c_type atomic##prefix##_fetch_##op(atomic##prefix##_t *v)	\
 {											\
 	return atomic##prefix##_fetch_##func_op(I, v);					\
@@ -202,16 +202,16 @@ static __always_inline c_type atomic##prefix##_##op##_return(atomic##prefix##_t 
 
 #ifdef CONFIG_GENERIC_ATOMIC64
 #define ATOMIC_OPS(op, asm_op, c_op, I)						\
-        ATOMIC_OP       (op, asm_op, c_op, I,  int,   )				\
-        ATOMIC_FETCH_OP (op, asm_op, c_op, I,  int,   )				\
+        ATOMIC_OP       (op, asm_op,       I,  int,   )				\
+        ATOMIC_FETCH_OP (op, asm_op,       I,  int,   )				\
         ATOMIC_OP_RETURN(op, asm_op, c_op, I,  int,   )
 #else
 #define ATOMIC_OPS(op, asm_op, c_op, I)						\
-        ATOMIC_OP       (op, asm_op, c_op, I,  int,   )				\
-        ATOMIC_FETCH_OP (op, asm_op, c_op, I,  int,   )				\
+        ATOMIC_OP       (op, asm_op,       I,  int,   )				\
+        ATOMIC_FETCH_OP (op, asm_op,       I,  int,   )				\
         ATOMIC_OP_RETURN(op, asm_op, c_op, I,  int,   )				\
-        ATOMIC_OP       (op, asm_op, c_op, I, long, 64)				\
-        ATOMIC_FETCH_OP (op, asm_op, c_op, I, long, 64)				\
+        ATOMIC_OP       (op, asm_op,       I, long, 64)				\
+        ATOMIC_FETCH_OP (op, asm_op,       I, long, 64)				\
         ATOMIC_OP_RETURN(op, asm_op, c_op, I, long, 64)
 #endif
 
