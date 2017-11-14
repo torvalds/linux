@@ -1320,6 +1320,7 @@ static int ib_resolve_eth_dmac(struct ib_device *device,
 int ib_modify_qp_with_udata(struct ib_qp *qp, struct ib_qp_attr *attr,
 			    int attr_mask, struct ib_udata *udata)
 {
+	u8 port = attr_mask & IB_QP_PORT ? attr->port_num : qp->port;
 	int ret;
 
 	if (attr_mask & IB_QP_AV) {
@@ -1327,6 +1328,21 @@ int ib_modify_qp_with_udata(struct ib_qp *qp, struct ib_qp_attr *attr,
 		if (ret)
 			return ret;
 	}
+
+	if (rdma_ib_or_roce(qp->device, port)) {
+		if (attr_mask & IB_QP_RQ_PSN && attr->rq_psn & ~0xffffff) {
+			pr_warn("%s: %s rq_psn overflow, masking to 24 bits\n",
+				__func__, qp->device->name);
+			attr->rq_psn &= 0xffffff;
+		}
+
+		if (attr_mask & IB_QP_SQ_PSN && attr->sq_psn & ~0xffffff) {
+			pr_warn("%s: %s sq_psn overflow, masking to 24 bits\n",
+				__func__, qp->device->name);
+			attr->sq_psn &= 0xffffff;
+		}
+	}
+
 	ret = ib_security_modify_qp(qp, attr, attr_mask, udata);
 	if (!ret && (attr_mask & IB_QP_PORT))
 		qp->port = attr->port_num;
