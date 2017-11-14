@@ -165,7 +165,7 @@ static int clk_pll_set_rate(struct clk_hw *hw, unsigned long drate,
 	return 0;
 }
 
-static struct clk_ops clk_pll_ops = {
+static const struct clk_ops clk_pll_ops = {
 	.recalc_rate = clk_pll_recalc_rate,
 	.round_rate = clk_pll_round_rate,
 	.set_rate = clk_pll_set_rate,
@@ -266,7 +266,7 @@ static int clk_vco_set_rate(struct clk_hw *hw, unsigned long drate,
 	return 0;
 }
 
-static struct clk_ops clk_vco_ops = {
+static const struct clk_ops clk_vco_ops = {
 	.recalc_rate = clk_vco_recalc_rate,
 	.round_rate = clk_vco_round_rate,
 	.set_rate = clk_vco_set_rate,

@@ -105,7 +105,7 @@ static int clk_gpt_set_rate(struct clk_hw *hw, unsigned long drate,
 	return 0;
 }
 
-static struct clk_ops clk_gpt_ops = {
+static const struct clk_ops clk_gpt_ops = {
 	.recalc_rate = clk_gpt_recalc_rate,
 	.round_rate = clk_gpt_round_rate,
 	.set_rate = clk_gpt_set_rate,

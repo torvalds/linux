@@ -149,7 +149,7 @@ static void clk_factor_init(struct clk_hw *hw)
 		spin_unlock_irqrestore(factor->lock, flags);
 }
 
-static struct clk_ops clk_factor_ops = {
+static const struct clk_ops clk_factor_ops = {
 	.recalc_rate = clk_factor_recalc_rate,
 	.round_rate = clk_factor_round_rate,
 	.set_rate = clk_factor_set_rate,
