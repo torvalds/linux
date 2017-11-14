@@ -312,9 +312,9 @@ static bool loss_event(struct netem_sched_data *q)
  * std deviation sigma.  Uses table lookup to approximate the desired
  * distribution, and a uniformly-distributed pseudo-random source.
  */
-static s64 tabledist(s64 mu, s64 sigma,
+static s64 tabledist(s64 mu, s32 sigma,
 		     struct crndstate *state,
-			 const struct disttable *dist)
+		     const struct disttable *dist)
 {
 	s64 x;
 	long t;
@@ -327,7 +327,7 @@ static s64 tabledist(s64 mu, s64 sigma,
 
 	/* default uniform distribution */
 	if (dist == NULL)
-		return (rnd % (2*sigma)) - sigma + mu;
+		return (rnd % (2 * sigma)) - sigma + mu;
 
 	t = dist->table[rnd % dist->size];
 	x = (sigma % NETEM_DIST_SCALE) * t;
