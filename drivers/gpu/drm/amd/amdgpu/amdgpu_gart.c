@@ -253,10 +253,8 @@ int amdgpu_gart_init(struct amdgpu_device *adev)
 #ifdef CONFIG_DRM_AMDGPU_GART_DEBUGFS
 	/* Allocate pages table */
 	adev->gart.pages = vzalloc(sizeof(void *) * adev->gart.num_cpu_pages);
-	if (adev->gart.pages == NULL) {
-		amdgpu_gart_fini(adev);
+	if (adev->gart.pages == NULL)
 		return -ENOMEM;
-	}
 #endif
 
 	return 0;
@@ -271,11 +269,6 @@ int amdgpu_gart_init(struct amdgpu_device *adev)
  */
 void amdgpu_gart_fini(struct amdgpu_device *adev)
 {
-	if (adev->gart.ready) {
-		/* unbind pages */
-		amdgpu_gart_unbind(adev, 0, adev->gart.num_cpu_pages);
-	}
-	adev->gart.ready = false;
 #ifdef CONFIG_DRM_AMDGPU_GART_DEBUGFS
 	vfree(adev->gart.pages);
 	adev->gart.pages = NULL;
