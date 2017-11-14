@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  *  Linux for S/390 Lan Channel Station Network Driver
  *
