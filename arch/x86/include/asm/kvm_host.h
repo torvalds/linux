@@ -536,7 +536,20 @@ struct kvm_vcpu_arch {
 	struct kvm_mmu_memory_cache mmu_page_cache;
 	struct kvm_mmu_memory_cache mmu_page_header_cache;
 
+	/*
+	 * QEMU userspace and the guest each have their own FPU state.
+	 * In vcpu_run, we switch between the user and guest FPU contexts.
+	 * While running a VCPU, the VCPU thread will have the guest FPU
+	 * context.
+	 *
+	 * Note that while the PKRU state lives inside the fpu registers,
+	 * it is switched out separately at VMENTER and VMEXIT time. The
+	 * "guest_fpu" state here contains the guest FPU context, with the
+	 * host PRKU bits.
+	 */
+	struct fpu user_fpu;
 	struct fpu guest_fpu;
+
 	u64 xcr0;
 	u64 guest_supported_xcr0;
 	u32 guest_xstate_size;

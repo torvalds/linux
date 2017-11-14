@@ -2937,7 +2937,6 @@ void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu)
 	srcu_read_unlock(&vcpu->kvm->srcu, idx);
 	pagefault_enable();
 	kvm_x86_ops->vcpu_put(vcpu);
-	kvm_put_guest_fpu(vcpu);
 	vcpu->arch.last_host_tsc = rdtsc();
 }
 
@@ -5254,13 +5253,10 @@ static void emulator_halt(struct x86_emulate_ctxt *ctxt)
 
 static void emulator_get_fpu(struct x86_emulate_ctxt *ctxt)
 {
-	preempt_disable();
-	kvm_load_guest_fpu(emul_to_vcpu(ctxt));
 }
 
 static void emulator_put_fpu(struct x86_emulate_ctxt *ctxt)
 {
-	preempt_enable();
 }
 
 static int emulator_intercept(struct x86_emulate_ctxt *ctxt,
@@ -6952,7 +6948,6 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 	preempt_disable();
 
 	kvm_x86_ops->prepare_guest_switch(vcpu);
-	kvm_load_guest_fpu(vcpu);
 
 	/*
 	 * Disable IRQs before setting IN_GUEST_MODE.  Posted interrupt
@@ -7297,12 +7292,14 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		}
 	}
 
+	kvm_load_guest_fpu(vcpu);
+
 	if (unlikely(vcpu->arch.complete_userspace_io)) {
 		int (*cui)(struct kvm_vcpu *) = vcpu->arch.complete_userspace_io;
 		vcpu->arch.complete_userspace_io = NULL;
 		r = cui(vcpu);
 		if (r <= 0)
-			goto out;
+			goto out_fpu;
 	} else
 		WARN_ON(vcpu->arch.pio.count || vcpu->mmio_needed);
 
@@ -7311,6 +7308,8 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	else
 		r = vcpu_run(vcpu);
 
+out_fpu:
+	kvm_put_guest_fpu(vcpu);
 out:
 	post_kvm_run_save(vcpu);
 	kvm_sigset_deactivate(vcpu);
@@ -7704,32 +7703,25 @@ static void fx_init(struct kvm_vcpu *vcpu)
 	vcpu->arch.cr0 |= X86_CR0_ET;
 }
 
+/* Swap (qemu) user FPU context for the guest FPU context. */
 void kvm_load_guest_fpu(struct kvm_vcpu *vcpu)
 {
-	if (vcpu->guest_fpu_loaded)
-		return;
-
-	/*
-	 * Restore all possible states in the guest,
-	 * and assume host would use all available bits.
-	 * Guest xcr0 would be loaded later.
-	 */
-	vcpu->guest_fpu_loaded = 1;
-	__kernel_fpu_begin();
+	preempt_disable();
+	copy_fpregs_to_fpstate(&vcpu->arch.user_fpu);
 	/* PKRU is separately restored in kvm_x86_ops->run.  */
 	__copy_kernel_to_fpregs(&vcpu->arch.guest_fpu.state,
 				~XFEATURE_MASK_PKRU);
+	preempt_enable();
 	trace_kvm_fpu(1);
 }
 
+/* When vcpu_run ends, restore user space FPU context. */
 void kvm_put_guest_fpu(struct kvm_vcpu *vcpu)
 {
-	if (!vcpu->guest_fpu_loaded)
-		return;
-
-	vcpu->guest_fpu_loaded = 0;
+	preempt_disable();
 	copy_fpregs_to_fpstate(&vcpu->arch.guest_fpu);
-	__kernel_fpu_end();
+	copy_kernel_to_fpregs(&vcpu->arch.user_fpu.state);
+	preempt_enable();
 	++vcpu->stat.fpu_reload;
 	trace_kvm_fpu(0);
 }
@@ -7846,7 +7838,8 @@ void kvm_vcpu_reset(struct kvm_vcpu *vcpu, bool init_event)
 		 * To avoid have the INIT path from kvm_apic_has_events() that be
 		 * called with loaded FPU and does not let userspace fix the state.
 		 */
-		kvm_put_guest_fpu(vcpu);
+		if (init_event)
+			kvm_put_guest_fpu(vcpu);
 		mpx_state_buffer = get_xsave_addr(&vcpu->arch.guest_fpu.state.xsave,
 					XFEATURE_MASK_BNDREGS);
 		if (mpx_state_buffer)
@@ -7855,6 +7848,8 @@ void kvm_vcpu_reset(struct kvm_vcpu *vcpu, bool init_event)
 					XFEATURE_MASK_BNDCSR);
 		if (mpx_state_buffer)
 			memset(mpx_state_buffer, 0, sizeof(struct mpx_bndcsr));
+		if (init_event)
+			kvm_load_guest_fpu(vcpu);
 	}
 
 	if (!init_event) {
