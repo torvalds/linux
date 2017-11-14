@@ -1390,12 +1390,13 @@ static void intel_irq_remapping_free(struct irq_domain *domain,
 	irq_domain_free_irqs_common(domain, virq, nr_irqs);
 }
 
-static void intel_irq_remapping_activate(struct irq_domain *domain,
-					 struct irq_data *irq_data)
+static int intel_irq_remapping_activate(struct irq_domain *domain,
+					struct irq_data *irq_data, bool early)
 {
 	struct intel_ir_data *data = irq_data->chip_data;
 
 	modify_irte(&data->irq_2_iommu, &data->irte_entry);
+	return 0;
 }
 
 static void intel_irq_remapping_deactivate(struct irq_domain *domain,

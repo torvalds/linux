@@ -2097,7 +2097,7 @@ static inline void __init check_timer(void)
 				unmask_ioapic_irq(irq_get_irq_data(0));
 		}
 		irq_domain_deactivate_irq(irq_data);
-		irq_domain_activate_irq(irq_data);
+		irq_domain_activate_irq(irq_data, false);
 		if (timer_irq_works()) {
 			if (disable_timer_pin_1 > 0)
 				clear_IO_APIC_pin(0, pin1);
@@ -2119,7 +2119,7 @@ static inline void __init check_timer(void)
 		 */
 		replace_pin_at_irq_node(data, node, apic1, pin1, apic2, pin2);
 		irq_domain_deactivate_irq(irq_data);
-		irq_domain_activate_irq(irq_data);
+		irq_domain_activate_irq(irq_data, false);
 		legacy_pic->unmask(0);
 		if (timer_irq_works()) {
 			apic_printk(APIC_QUIET, KERN_INFO "....... works.\n");
@@ -2978,8 +2978,8 @@ void mp_irqdomain_free(struct irq_domain *domain, unsigned int virq,
 	irq_domain_free_irqs_top(domain, virq, nr_irqs);
 }
 
-void mp_irqdomain_activate(struct irq_domain *domain,
-			   struct irq_data *irq_data)
+int mp_irqdomain_activate(struct irq_domain *domain,
+			  struct irq_data *irq_data, bool early)
 {
 	unsigned long flags;
 	struct irq_pin_list *entry;
@@ -2989,6 +2989,7 @@ void mp_irqdomain_activate(struct irq_domain *domain,
 	for_each_irq_pin(entry, data->irq_2_pin)
 		__ioapic_write_entry(entry->apic, entry->pin, data->entry);
 	raw_spin_unlock_irqrestore(&ioapic_lock, flags);
+	return 0;
 }
 
 void mp_irqdomain_deactivate(struct irq_domain *domain,

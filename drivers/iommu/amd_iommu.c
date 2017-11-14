@@ -4173,8 +4173,8 @@ static void irq_remapping_free(struct irq_domain *domain, unsigned int virq,
 	irq_domain_free_irqs_common(domain, virq, nr_irqs);
 }
 
-static void irq_remapping_activate(struct irq_domain *domain,
-				   struct irq_data *irq_data)
+static int irq_remapping_activate(struct irq_domain *domain,
+				  struct irq_data *irq_data, bool early)
 {
 	struct amd_ir_data *data = irq_data->chip_data;
 	struct irq_2_irte *irte_info = &data->irq_2_irte;
@@ -4183,6 +4183,7 @@ static void irq_remapping_activate(struct irq_domain *domain,
 	if (iommu)
 		iommu->irte_ops->activate(data->entry, irte_info->devid,
 					  irte_info->index);
+	return 0;
 }
 
 static void irq_remapping_deactivate(struct irq_domain *domain,

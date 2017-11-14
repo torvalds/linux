@@ -1,3 +1,5 @@
+menu "IRQ chip support"
+
 config IRQCHIP
 	def_bool y
 	depends on OF_IRQ
@@ -307,6 +309,7 @@ config EZNPS_GIC
 config STM32_EXTI
 	bool
 	select IRQ_DOMAIN
+	select GENERIC_IRQ_CHIP
 
 config QCOM_IRQ_COMBINER
 	bool "QCOM IRQ combiner support"
@@ -324,3 +327,13 @@ config IRQ_UNIPHIER_AIDET
 	select IRQ_DOMAIN_HIERARCHY
 	help
 	  Support for the UniPhier AIDET (ARM Interrupt Detector).
+
+config MESON_IRQ_GPIO
+       bool "Meson GPIO Interrupt Multiplexer"
+       depends on ARCH_MESON
+       select IRQ_DOMAIN
+       select IRQ_DOMAIN_HIERARCHY
+       help
+         Support Meson SoC Family GPIO Interrupt Multiplexer
+
+endmenu

@@ -131,9 +131,9 @@ bool irq_work_needs_cpu(void)
 
 static void irq_work_run_list(struct llist_head *list)
 {
-	unsigned long flags;
-	struct irq_work *work;
+	struct irq_work *work, *tmp;
 	struct llist_node *llnode;
+	unsigned long flags;
 
 	BUG_ON(!irqs_disabled());
 
@@ -141,11 +141,7 @@ static void irq_work_run_list(struct llist_head *list)
 		return;
 
 	llnode = llist_del_all(list);
-	while (llnode != NULL) {
-		work = llist_entry(llnode, struct irq_work, llnode);
-
-		llnode = llist_next(llnode);
-
+	llist_for_each_entry_safe(work, tmp, llnode, llnode) {
 		/*
 		 * Clear the PENDING bit, after this point the @work
 		 * can be re-used.
