@@ -684,7 +684,6 @@ int amdgpu_fw_reserve_vram_init(struct amdgpu_device *adev)
 {
 	int r = 0;
 	int i;
-	u64 gpu_addr;
 	u64 vram_size = adev->mc.visible_vram_size;
 	u64 offset = adev->fw_vram_usage.start_offset;
 	u64 size = adev->fw_vram_usage.size;
@@ -728,7 +727,7 @@ int amdgpu_fw_reserve_vram_init(struct amdgpu_device *adev)
 			AMDGPU_GEM_DOMAIN_VRAM,
 			adev->fw_vram_usage.start_offset,
 			(adev->fw_vram_usage.start_offset +
-			adev->fw_vram_usage.size), &gpu_addr);
+			adev->fw_vram_usage.size), NULL);
 		if (r)
 			goto error_pin;
 		r = amdgpu_bo_kmap(adev->fw_vram_usage.reserved_bo,
