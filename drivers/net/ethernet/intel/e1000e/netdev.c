@@ -3306,6 +3306,8 @@ static void e1000_configure_rx(struct e1000_adapter *adapter)
 			ew32(RXDCTL(0), rxdctl | 0x3 | BIT(8));
 		}
 
+		dev_info(&adapter->pdev->dev,
+			 "Some CPU C-states have been disabled in order to enable jumbo frames\n");
 		pm_qos_update_request(&adapter->pm_qos_req, lat);
 	} else {
 		pm_qos_update_request(&adapter->pm_qos_req,
