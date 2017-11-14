@@ -833,7 +833,7 @@ EXPORT_SYMBOL(drm_mode_get_hv_timing);
  */
 void drm_mode_set_crtcinfo(struct drm_display_mode *p, int adjust_flags)
 {
-	if ((p == NULL) || ((p->type & DRM_MODE_TYPE_CRTC_C) == DRM_MODE_TYPE_BUILTIN))
+	if (!p)
 		return;
 
 	p->crtc_clock = p->clock;
