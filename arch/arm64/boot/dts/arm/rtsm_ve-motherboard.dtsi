@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * ARM Ltd. Fast Models
  *
@@ -219,7 +220,7 @@
 				};
 			};
 
-			virtio_block@0130000 {
+			virtio-block@0130000 {
 				compatible = "virtio,mmio";
 				reg = <0x130000 0x200>;
 				interrupts = <42>;

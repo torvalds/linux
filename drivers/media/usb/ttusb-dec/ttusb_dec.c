@@ -1791,7 +1791,7 @@ static void ttusb_dec_set_model(struct ttusb_dec *dec,
 	}
 }
 
-static struct usb_device_id ttusb_dec_table[] = {
+static const struct usb_device_id ttusb_dec_table[] = {
 	{USB_DEVICE(0x0b48, 0x1006)},	/* DEC3000-s */
 	/*{USB_DEVICE(0x0b48, 0x1007)},	   Unconfirmed */
 	{USB_DEVICE(0x0b48, 0x1008)},	/* DEC2000-t */

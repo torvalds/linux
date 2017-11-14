@@ -1904,7 +1904,7 @@ static const struct dev_pm_ops mmci_dev_pm_ops = {
 	SET_RUNTIME_PM_OPS(mmci_runtime_suspend, mmci_runtime_resume, NULL)
 };
 
-static struct amba_id mmci_ids[] = {
+static const struct amba_id mmci_ids[] = {
 	{
 		.id	= 0x00041180,
 		.mask	= 0xff0fffff,

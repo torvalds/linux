@@ -22,11 +22,14 @@
 #undef DEBUG
 #define pr_fmt(fmt) "mce: " fmt
 
+#include <linux/hardirq.h>
 #include <linux/types.h>
 #include <linux/ptrace.h>
 #include <linux/percpu.h>
 #include <linux/export.h>
 #include <linux/irq_work.h>
+
+#include <asm/machdep.h>
 #include <asm/mce.h>
 
 static DEFINE_PER_CPU(int, mce_nest_count);
@@ -446,3 +449,33 @@ uint64_t get_mce_fault_addr(struct machine_check_event *evt)
 	return 0;
 }
 EXPORT_SYMBOL(get_mce_fault_addr);
+
+/*
+ * This function is called in real mode. Strictly no printk's please.
+ *
+ * regs->nip and regs->msr contains srr0 and ssr1.
+ */
+long machine_check_early(struct pt_regs *regs)
+{
+	long handled = 0;
+
+	__this_cpu_inc(irq_stat.mce_exceptions);
+
+	if (cur_cpu_spec && cur_cpu_spec->machine_check_early)
+		handled = cur_cpu_spec->machine_check_early(regs);
+	return handled;
+}
+
+long hmi_exception_realmode(struct pt_regs *regs)
+{
+	__this_cpu_inc(irq_stat.hmi_exceptions);
+
+	wait_for_subcore_guest_exit();
+
+	if (ppc_md.hmi_exception_early)
+		ppc_md.hmi_exception_early(regs);
+
+	wait_for_tb_resync();
+
+	return 0;
+}

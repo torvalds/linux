@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  Copyright (C) 1991, 1992  Linus Torvalds
  *
@@ -742,6 +743,11 @@ static void pty_unix98_remove(struct tty_driver *driver, struct tty_struct *tty)
 	}
 }
 
+static void pty_show_fdinfo(struct tty_struct *tty, struct seq_file *m)
+{
+	seq_printf(m, "tty-index:\t%d\n", tty->index);
+}
+
 static const struct tty_operations ptm_unix98_ops = {
 	.lookup = ptm_unix98_lookup,
 	.install = pty_unix98_install,
@@ -756,7 +762,8 @@ static const struct tty_operations ptm_unix98_ops = {
 	.ioctl = pty_unix98_ioctl,
 	.compat_ioctl = pty_unix98_compat_ioctl,
 	.resize = pty_resize,
-	.cleanup = pty_cleanup
+	.cleanup = pty_cleanup,
+	.show_fdinfo = pty_show_fdinfo,
 };
 
 static const struct tty_operations pty_unix98_ops = {

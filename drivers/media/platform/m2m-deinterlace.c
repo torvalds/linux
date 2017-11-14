@@ -979,7 +979,7 @@ static const struct v4l2_file_operations deinterlace_fops = {
 	.mmap		= deinterlace_mmap,
 };
 
-static struct video_device deinterlace_videodev = {
+static const struct video_device deinterlace_videodev = {
 	.name		= MEM2MEM_NAME,
 	.fops		= &deinterlace_fops,
 	.ioctl_ops	= &deinterlace_ioctl_ops,
@@ -988,7 +988,7 @@ static struct video_device deinterlace_videodev = {
 	.vfl_dir	= VFL_DIR_M2M,
 };
 
-static struct v4l2_m2m_ops m2m_ops = {
+static const struct v4l2_m2m_ops m2m_ops = {
 	.device_run	= deinterlace_device_run,
 	.job_ready	= deinterlace_job_ready,
 	.job_abort	= deinterlace_job_abort,

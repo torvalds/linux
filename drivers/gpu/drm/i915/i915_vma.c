@@ -579,10 +579,16 @@ err_unpin:
 
 static void i915_vma_destroy(struct i915_vma *vma)
 {
+	int i;
+
 	GEM_BUG_ON(vma->node.allocated);
 	GEM_BUG_ON(i915_vma_is_active(vma));
 	GEM_BUG_ON(!i915_vma_is_closed(vma));
 	GEM_BUG_ON(vma->fence);
+
+	for (i = 0; i < ARRAY_SIZE(vma->last_read); i++)
+		GEM_BUG_ON(i915_gem_active_isset(&vma->last_read[i]));
+	GEM_BUG_ON(i915_gem_active_isset(&vma->last_fence));
 
 	list_del(&vma->vm_link);
 	if (!i915_vma_is_ggtt(vma))
@@ -591,32 +597,10 @@ static void i915_vma_destroy(struct i915_vma *vma)
 	kmem_cache_free(to_i915(vma->obj->base.dev)->vmas, vma);
 }
 
-void i915_vma_unlink_ctx(struct i915_vma *vma)
-{
-	struct i915_gem_context *ctx = vma->ctx;
-
-	if (ctx->vma_lut.ht_size & I915_CTX_RESIZE_IN_PROGRESS) {
-		cancel_work_sync(&ctx->vma_lut.resize);
-		ctx->vma_lut.ht_size &= ~I915_CTX_RESIZE_IN_PROGRESS;
-	}
-
-	__hlist_del(&vma->ctx_node);
-	ctx->vma_lut.ht_count--;
-
-	if (i915_vma_is_ggtt(vma))
-		vma->obj->vma_hashed = NULL;
-	vma->ctx = NULL;
-
-	i915_vma_put(vma);
-}
-
 void i915_vma_close(struct i915_vma *vma)
 {
 	GEM_BUG_ON(i915_vma_is_closed(vma));
 	vma->flags |= I915_VMA_CLOSED;
-
-	if (vma->ctx)
-		i915_vma_unlink_ctx(vma);
 
 	list_del(&vma->obj_link);
 	rb_erase(&vma->obj_node, &vma->obj->vma_tree);
@@ -680,9 +664,8 @@ int i915_vma_unbind(struct i915_vma *vma)
 		__i915_vma_unpin(vma);
 		if (ret)
 			return ret;
-
-		GEM_BUG_ON(i915_vma_is_active(vma));
 	}
+	GEM_BUG_ON(i915_vma_is_active(vma));
 
 	if (i915_vma_is_pinned(vma))
 		return -EBUSY;

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_S390_TOPOLOGY_H
 #define _ASM_S390_TOPOLOGY_H
 
@@ -76,12 +77,6 @@ static inline const struct cpumask *cpumask_of_node(int node)
 {
 	return &node_to_cpumask_map[node];
 }
-
-/*
- * Returns the number of the node containing node 'node'. This
- * architecture is flat, so it is a pretty simple function!
- */
-#define parent_node(node) (node)
 
 #define pcibus_to_node(bus) __pcibus_to_node(bus)
 

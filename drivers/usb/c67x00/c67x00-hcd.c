@@ -305,7 +305,7 @@ static int c67x00_hcd_get_frame(struct usb_hcd *hcd)
 	return temp_val ? (temp_val - 1) : HOST_FRAME_MASK;
 }
 
-static struct hc_driver c67x00_hc_driver = {
+static const struct hc_driver c67x00_hc_driver = {
 	.description	= "c67x00-hcd",
 	.product_desc	= "Cypress C67X00 Host Controller",
 	.hcd_priv_size	= sizeof(struct c67x00_hcd),

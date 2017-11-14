@@ -45,6 +45,10 @@ static inline int ieee754sp_finite(union ieee754sp x)
 	return SPBEXP(x) != SP_EMAX + 1 + SP_EBIAS;
 }
 
+/* 64 bit right shift with rounding */
+#define XSPSRS64(v, rs)						\
+	(((rs) >= 64) ? ((v) != 0) : ((v) >> (rs)) | ((v) << (64-(rs)) != 0))
+
 /* 3bit extended single precision sticky right shift */
 #define XSPSRS(v, rs)						\
 	((rs > (SP_FBITS+3))?1:((v) >> (rs)) | ((v) << (32-(rs)) != 0))

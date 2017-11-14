@@ -367,11 +367,11 @@ int rxe_mem_copy(struct rxe_mem *mem, u64 iova, void *addr, int length,
 		dest = (dir == to_mem_obj) ?
 			((void *)(uintptr_t)iova) : addr;
 
+		memcpy(dest, src, length);
+
 		if (crcp)
 			*crcp = rxe_crc32(to_rdev(mem->pd->ibpd.device),
-					*crcp, src, length);
-
-		memcpy(dest, src, length);
+					*crcp, dest, length);
 
 		return 0;
 	}
@@ -401,11 +401,11 @@ int rxe_mem_copy(struct rxe_mem *mem, u64 iova, void *addr, int length,
 		if (bytes > length)
 			bytes = length;
 
+		memcpy(dest, src, bytes);
+
 		if (crcp)
 			crc = rxe_crc32(to_rdev(mem->pd->ibpd.device),
-					crc, src, bytes);
-
-		memcpy(dest, src, bytes);
+					crc, dest, bytes);
 
 		length	-= bytes;
 		addr	+= bytes;

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright IBM Corp. 2016
  * Author(s): Martin Schwidefsky <schwidefsky@de.ibm.com>
@@ -69,16 +70,19 @@ static inline struct ap_queue_status ap_rapq(ap_qid_t qid)
 }
 
 /**
- * ap_aqic(): Enable interruption for a specific AP.
+ * ap_aqic(): Control interruption for a specific AP.
  * @qid: The AP queue number
+ * @qirqctrl: struct ap_qirq_ctrl (64 bit value)
  * @ind: The notification indicator byte
  *
  * Returns AP queue status.
  */
-static inline struct ap_queue_status ap_aqic(ap_qid_t qid, void *ind)
+static inline struct ap_queue_status ap_aqic(ap_qid_t qid,
+					     struct ap_qirq_ctrl qirqctrl,
+					     void *ind)
 {
 	register unsigned long reg0 asm ("0") = qid | (3UL << 24);
-	register unsigned long reg1_in asm ("1") = (8UL << 44) | AP_ISC;
+	register struct ap_qirq_ctrl reg1_in asm ("1") = qirqctrl;
 	register struct ap_queue_status reg1_out asm ("1");
 	register void *reg2 asm ("2") = ind;
 

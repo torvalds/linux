@@ -373,7 +373,7 @@ static int dsi_phy_enable_resource(struct msm_dsi_phy *phy)
 static void dsi_phy_disable_resource(struct msm_dsi_phy *phy)
 {
 	clk_disable_unprepare(phy->ahb_clk);
-	pm_runtime_put_sync(&phy->pdev->dev);
+	pm_runtime_put_autosuspend(&phy->pdev->dev);
 }
 
 static const struct of_device_id dsi_phy_dt_match[] = {

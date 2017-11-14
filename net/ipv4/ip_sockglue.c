@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * INET		An implementation of the TCP/IP protocol suite for the LINUX
  *		operating system.  INET is implemented using the  BSD Socket
@@ -80,7 +81,8 @@ static void ip_cmsg_recv_opts(struct msghdr *msg, struct sk_buff *skb)
 }
 
 
-static void ip_cmsg_recv_retopts(struct msghdr *msg, struct sk_buff *skb)
+static void ip_cmsg_recv_retopts(struct net *net, struct msghdr *msg,
+				 struct sk_buff *skb)
 {
 	unsigned char optbuf[sizeof(struct ip_options) + 40];
 	struct ip_options *opt = (struct ip_options *)optbuf;
@@ -88,7 +90,7 @@ static void ip_cmsg_recv_retopts(struct msghdr *msg, struct sk_buff *skb)
 	if (IPCB(skb)->opt.optlen == 0)
 		return;
 
-	if (ip_options_echo(opt, skb)) {
+	if (ip_options_echo(net, opt, skb)) {
 		msg->msg_flags |= MSG_CTRUNC;
 		return;
 	}
@@ -204,7 +206,7 @@ void ip_cmsg_recv_offset(struct msghdr *msg, struct sock *sk,
 	}
 
 	if (flags & IP_CMSG_RETOPTS) {
-		ip_cmsg_recv_retopts(msg, skb);
+		ip_cmsg_recv_retopts(sock_net(sk), msg, skb);
 
 		flags &= ~IP_CMSG_RETOPTS;
 		if (!flags)
@@ -1219,22 +1221,20 @@ void ipv4_pktinfo_prepare(const struct sock *sk, struct sk_buff *skb)
 		 * (e.g., process binds socket to eth0 for Tx which is
 		 * redirected to loopback in the rtable/dst).
 		 */
+		struct rtable *rt = skb_rtable(skb);
+		bool l3slave = ipv4_l3mdev_skb(IPCB(skb)->flags);
+
 		if (pktinfo->ipi_ifindex == LOOPBACK_IFINDEX)
 			pktinfo->ipi_ifindex = inet_iif(skb);
+		else if (l3slave && rt && rt->rt_iif)
+			pktinfo->ipi_ifindex = rt->rt_iif;
 
 		pktinfo->ipi_spec_dst.s_addr = fib_compute_spec_dst(skb);
 	} else {
 		pktinfo->ipi_ifindex = 0;
 		pktinfo->ipi_spec_dst.s_addr = 0;
 	}
-	/* We need to keep the dst for __ip_options_echo()
-	 * We could restrict the test to opt.ts_needtime || opt.srr,
-	 * but the following is good enough as IP options are not often used.
-	 */
-	if (unlikely(IPCB(skb)->opt.optlen))
-		skb_dst_force(skb);
-	else
-		skb_dst_drop(skb);
+	skb_dst_drop(skb);
 }
 
 int ip_setsockopt(struct sock *sk, int level,

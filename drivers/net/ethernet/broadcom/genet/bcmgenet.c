@@ -72,23 +72,42 @@
 #define GENET_RDMA_REG_OFF	(priv->hw_params->rdma_offset + \
 				TOTAL_DESC * DMA_DESC_SIZE)
 
+static inline void bcmgenet_writel(u32 value, void __iomem *offset)
+{
+	/* MIPS chips strapped for BE will automagically configure the
+	 * peripheral registers for CPU-native byte order.
+	 */
+	if (IS_ENABLED(CONFIG_MIPS) && IS_ENABLED(CONFIG_CPU_BIG_ENDIAN))
+		__raw_writel(value, offset);
+	else
+		writel_relaxed(value, offset);
+}
+
+static inline u32 bcmgenet_readl(void __iomem *offset)
+{
+	if (IS_ENABLED(CONFIG_MIPS) && IS_ENABLED(CONFIG_CPU_BIG_ENDIAN))
+		return __raw_readl(offset);
+	else
+		return readl_relaxed(offset);
+}
+
 static inline void dmadesc_set_length_status(struct bcmgenet_priv *priv,
 					     void __iomem *d, u32 value)
 {
-	__raw_writel(value, d + DMA_DESC_LENGTH_STATUS);
+	bcmgenet_writel(value, d + DMA_DESC_LENGTH_STATUS);
 }
 
 static inline u32 dmadesc_get_length_status(struct bcmgenet_priv *priv,
 					    void __iomem *d)
 {
-	return __raw_readl(d + DMA_DESC_LENGTH_STATUS);
+	return bcmgenet_readl(d + DMA_DESC_LENGTH_STATUS);
 }
 
 static inline void dmadesc_set_addr(struct bcmgenet_priv *priv,
 				    void __iomem *d,
 				    dma_addr_t addr)
 {
-	__raw_writel(lower_32_bits(addr), d + DMA_DESC_ADDRESS_LO);
+	bcmgenet_writel(lower_32_bits(addr), d + DMA_DESC_ADDRESS_LO);
 
 	/* Register writes to GISB bus can take couple hundred nanoseconds
 	 * and are done for each packet, save these expensive writes unless
@@ -96,7 +115,7 @@ static inline void dmadesc_set_addr(struct bcmgenet_priv *priv,
 	 */
 #ifdef CONFIG_PHYS_ADDR_T_64BIT
 	if (priv->hw_params->flags & GENET_HAS_40BITS)
-		__raw_writel(upper_32_bits(addr), d + DMA_DESC_ADDRESS_HI);
+		bcmgenet_writel(upper_32_bits(addr), d + DMA_DESC_ADDRESS_HI);
 #endif
 }
 
@@ -113,7 +132,7 @@ static inline dma_addr_t dmadesc_get_addr(struct bcmgenet_priv *priv,
 {
 	dma_addr_t addr;
 
-	addr = __raw_readl(d + DMA_DESC_ADDRESS_LO);
+	addr = bcmgenet_readl(d + DMA_DESC_ADDRESS_LO);
 
 	/* Register writes to GISB bus can take couple hundred nanoseconds
 	 * and are done for each packet, save these expensive writes unless
@@ -121,7 +140,7 @@ static inline dma_addr_t dmadesc_get_addr(struct bcmgenet_priv *priv,
 	 */
 #ifdef CONFIG_PHYS_ADDR_T_64BIT
 	if (priv->hw_params->flags & GENET_HAS_40BITS)
-		addr |= (u64)__raw_readl(d + DMA_DESC_ADDRESS_HI) << 32;
+		addr |= (u64)bcmgenet_readl(d + DMA_DESC_ADDRESS_HI) << 32;
 #endif
 	return addr;
 }
@@ -156,8 +175,8 @@ static inline u32 bcmgenet_tbuf_ctrl_get(struct bcmgenet_priv *priv)
 	if (GENET_IS_V1(priv))
 		return bcmgenet_rbuf_readl(priv, TBUF_CTRL_V1);
 	else
-		return __raw_readl(priv->base +
-				priv->hw_params->tbuf_offset + TBUF_CTRL);
+		return bcmgenet_readl(priv->base +
+				      priv->hw_params->tbuf_offset + TBUF_CTRL);
 }
 
 static inline void bcmgenet_tbuf_ctrl_set(struct bcmgenet_priv *priv, u32 val)
@@ -165,7 +184,7 @@ static inline void bcmgenet_tbuf_ctrl_set(struct bcmgenet_priv *priv, u32 val)
 	if (GENET_IS_V1(priv))
 		bcmgenet_rbuf_writel(priv, val, TBUF_CTRL_V1);
 	else
-		__raw_writel(val, priv->base +
+		bcmgenet_writel(val, priv->base +
 				priv->hw_params->tbuf_offset + TBUF_CTRL);
 }
 
@@ -174,8 +193,8 @@ static inline u32 bcmgenet_bp_mc_get(struct bcmgenet_priv *priv)
 	if (GENET_IS_V1(priv))
 		return bcmgenet_rbuf_readl(priv, TBUF_BP_MC_V1);
 	else
-		return __raw_readl(priv->base +
-				priv->hw_params->tbuf_offset + TBUF_BP_MC);
+		return bcmgenet_readl(priv->base +
+				      priv->hw_params->tbuf_offset + TBUF_BP_MC);
 }
 
 static inline void bcmgenet_bp_mc_set(struct bcmgenet_priv *priv, u32 val)
@@ -183,7 +202,7 @@ static inline void bcmgenet_bp_mc_set(struct bcmgenet_priv *priv, u32 val)
 	if (GENET_IS_V1(priv))
 		bcmgenet_rbuf_writel(priv, val, TBUF_BP_MC_V1);
 	else
-		__raw_writel(val, priv->base +
+		bcmgenet_writel(val, priv->base +
 				priv->hw_params->tbuf_offset + TBUF_BP_MC);
 }
 
@@ -326,28 +345,28 @@ static inline struct bcmgenet_priv *dev_to_priv(struct device *dev)
 static inline u32 bcmgenet_tdma_readl(struct bcmgenet_priv *priv,
 				      enum dma_reg r)
 {
-	return __raw_readl(priv->base + GENET_TDMA_REG_OFF +
-			DMA_RINGS_SIZE + bcmgenet_dma_regs[r]);
+	return bcmgenet_readl(priv->base + GENET_TDMA_REG_OFF +
+			      DMA_RINGS_SIZE + bcmgenet_dma_regs[r]);
 }
 
 static inline void bcmgenet_tdma_writel(struct bcmgenet_priv *priv,
 					u32 val, enum dma_reg r)
 {
-	__raw_writel(val, priv->base + GENET_TDMA_REG_OFF +
+	bcmgenet_writel(val, priv->base + GENET_TDMA_REG_OFF +
 			DMA_RINGS_SIZE + bcmgenet_dma_regs[r]);
 }
 
 static inline u32 bcmgenet_rdma_readl(struct bcmgenet_priv *priv,
 				      enum dma_reg r)
 {
-	return __raw_readl(priv->base + GENET_RDMA_REG_OFF +
-			DMA_RINGS_SIZE + bcmgenet_dma_regs[r]);
+	return bcmgenet_readl(priv->base + GENET_RDMA_REG_OFF +
+			      DMA_RINGS_SIZE + bcmgenet_dma_regs[r]);
 }
 
 static inline void bcmgenet_rdma_writel(struct bcmgenet_priv *priv,
 					u32 val, enum dma_reg r)
 {
-	__raw_writel(val, priv->base + GENET_RDMA_REG_OFF +
+	bcmgenet_writel(val, priv->base + GENET_RDMA_REG_OFF +
 			DMA_RINGS_SIZE + bcmgenet_dma_regs[r]);
 }
 
@@ -418,16 +437,16 @@ static inline u32 bcmgenet_tdma_ring_readl(struct bcmgenet_priv *priv,
 					   unsigned int ring,
 					   enum dma_ring_reg r)
 {
-	return __raw_readl(priv->base + GENET_TDMA_REG_OFF +
-			(DMA_RING_SIZE * ring) +
-			genet_dma_ring_regs[r]);
+	return bcmgenet_readl(priv->base + GENET_TDMA_REG_OFF +
+			      (DMA_RING_SIZE * ring) +
+			      genet_dma_ring_regs[r]);
 }
 
 static inline void bcmgenet_tdma_ring_writel(struct bcmgenet_priv *priv,
 					     unsigned int ring, u32 val,
 					     enum dma_ring_reg r)
 {
-	__raw_writel(val, priv->base + GENET_TDMA_REG_OFF +
+	bcmgenet_writel(val, priv->base + GENET_TDMA_REG_OFF +
 			(DMA_RING_SIZE * ring) +
 			genet_dma_ring_regs[r]);
 }
@@ -436,16 +455,16 @@ static inline u32 bcmgenet_rdma_ring_readl(struct bcmgenet_priv *priv,
 					   unsigned int ring,
 					   enum dma_ring_reg r)
 {
-	return __raw_readl(priv->base + GENET_RDMA_REG_OFF +
-			(DMA_RING_SIZE * ring) +
-			genet_dma_ring_regs[r]);
+	return bcmgenet_readl(priv->base + GENET_RDMA_REG_OFF +
+			      (DMA_RING_SIZE * ring) +
+			      genet_dma_ring_regs[r]);
 }
 
 static inline void bcmgenet_rdma_ring_writel(struct bcmgenet_priv *priv,
 					     unsigned int ring, u32 val,
 					     enum dma_ring_reg r)
 {
-	__raw_writel(val, priv->base + GENET_RDMA_REG_OFF +
+	bcmgenet_writel(val, priv->base + GENET_RDMA_REG_OFF +
 			(DMA_RING_SIZE * ring) +
 			genet_dma_ring_regs[r]);
 }
@@ -991,12 +1010,12 @@ static void bcmgenet_eee_enable_set(struct net_device *dev, bool enable)
 	bcmgenet_umac_writel(priv, reg, UMAC_EEE_CTRL);
 
 	/* Enable EEE and switch to a 27Mhz clock automatically */
-	reg = __raw_readl(priv->base + off);
+	reg = bcmgenet_readl(priv->base + off);
 	if (enable)
 		reg |= TBUF_EEE_EN | TBUF_PM_EN;
 	else
 		reg &= ~(TBUF_EEE_EN | TBUF_PM_EN);
-	__raw_writel(reg, priv->base + off);
+	bcmgenet_writel(reg, priv->base + off);
 
 	/* Do the same for thing for RBUF */
 	reg = bcmgenet_rbuf_readl(priv, RBUF_ENERGY_CTRL);

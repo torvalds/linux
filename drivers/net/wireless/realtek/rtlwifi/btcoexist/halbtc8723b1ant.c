@@ -600,14 +600,8 @@ static void halbtc8723b1ant_coex_table_with_type(struct btc_coexist *btcoexist,
 						   0xffffff, 0x3);
 		break;
 	case 5:
-		if ((coex_sta->cck_ever_lock) && (coex_sta->scan_ap_num <= 5))
-			halbtc8723b1ant_coex_table(btcoexist, force_exec,
-						   0x5a5a5a5a, 0x5aaa5a5a,
-						   0xffffff, 0x3);
-		else
-			halbtc8723b1ant_coex_table(btcoexist, force_exec,
-						   0x5a5a5a5a, 0x5aaa5a5a,
-						   0xffffff, 0x3);
+		halbtc8723b1ant_coex_table(btcoexist, force_exec, 0x5a5a5a5a,
+					   0x5aaa5a5a, 0xffffff, 0x3);
 		break;
 	case 6:
 		halbtc8723b1ant_coex_table(btcoexist, force_exec, 0x55555555,

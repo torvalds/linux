@@ -751,33 +751,38 @@ static int intel_gpio_get(struct gpio_chip *chip, unsigned offset)
 {
 	struct intel_pinctrl *pctrl = gpiochip_get_data(chip);
 	void __iomem *reg;
+	u32 padcfg0;
 
 	reg = intel_get_padcfg(pctrl, offset, PADCFG0);
 	if (!reg)
 		return -EINVAL;
 
-	return !!(readl(reg) & PADCFG0_GPIORXSTATE);
+	padcfg0 = readl(reg);
+	if (!(padcfg0 & PADCFG0_GPIOTXDIS))
+		return !!(padcfg0 & PADCFG0_GPIOTXSTATE);
+
+	return !!(padcfg0 & PADCFG0_GPIORXSTATE);
 }
 
 static void intel_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 {
 	struct intel_pinctrl *pctrl = gpiochip_get_data(chip);
+	unsigned long flags;
 	void __iomem *reg;
+	u32 padcfg0;
 
 	reg = intel_get_padcfg(pctrl, offset, PADCFG0);
-	if (reg) {
-		unsigned long flags;
-		u32 padcfg0;
+	if (!reg)
+		return;
 
-		raw_spin_lock_irqsave(&pctrl->lock, flags);
-		padcfg0 = readl(reg);
-		if (value)
-			padcfg0 |= PADCFG0_GPIOTXSTATE;
-		else
-			padcfg0 &= ~PADCFG0_GPIOTXSTATE;
-		writel(padcfg0, reg);
-		raw_spin_unlock_irqrestore(&pctrl->lock, flags);
-	}
+	raw_spin_lock_irqsave(&pctrl->lock, flags);
+	padcfg0 = readl(reg);
+	if (value)
+		padcfg0 |= PADCFG0_GPIOTXSTATE;
+	else
+		padcfg0 &= ~PADCFG0_GPIOTXSTATE;
+	writel(padcfg0, reg);
+	raw_spin_unlock_irqrestore(&pctrl->lock, flags);
 }
 
 static int intel_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
@@ -1035,6 +1040,7 @@ static struct irq_chip intel_gpio_irqchip = {
 	.irq_unmask = intel_gpio_irq_unmask,
 	.irq_set_type = intel_gpio_irq_type,
 	.irq_set_wake = intel_gpio_irq_wake,
+	.flags = IRQCHIP_MASK_ON_SUSPEND,
 };
 
 static int intel_gpio_probe(struct intel_pinctrl *pctrl, int irq)

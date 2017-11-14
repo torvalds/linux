@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * ld script to make ARM Linux kernel
  * taken from the i386 version by Russell King
@@ -70,22 +71,6 @@ PECOFF_FILE_ALIGNMENT = 0x200;
 	.pecoff_edata_padding : { BYTE(0); . = ALIGN(PECOFF_FILE_ALIGNMENT); }
 #else
 #define PECOFF_EDATA_PADDING
-#endif
-
-#if defined(CONFIG_DEBUG_ALIGN_RODATA)
-/*
- *  4 KB granule:   1 level 2 entry
- * 16 KB granule: 128 level 3 entries, with contiguous bit
- * 64 KB granule:  32 level 3 entries, with contiguous bit
- */
-#define SEGMENT_ALIGN			SZ_2M
-#else
-/*
- *  4 KB granule:  16 level 3 entries, with contiguous bit
- * 16 KB granule:   4 level 3 entries, without contiguous bit
- * 64 KB granule:   1 level 3 entry
- */
-#define SEGMENT_ALIGN			SZ_64K
 #endif
 
 SECTIONS
@@ -192,7 +177,7 @@ SECTIONS
 
 	_data = .;
 	_sdata = .;
-	RW_DATA_SECTION(L1_CACHE_BYTES, PAGE_SIZE, THREAD_SIZE)
+	RW_DATA_SECTION(L1_CACHE_BYTES, PAGE_SIZE, THREAD_ALIGN)
 
 	/*
 	 * Data written with the MMU off but read with the MMU on requires

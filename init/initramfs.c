@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Many of the syscalls used in this file expect some of the arguments
  * to be __user pointers not __kernel pointers.  To limit the sparse
@@ -110,7 +111,7 @@ static void __init free_hash(void)
 
 static long __init do_utime(char *filename, time_t mtime)
 {
-	struct timespec t[2];
+	struct timespec64 t[2];
 
 	t[0].tv_sec = mtime;
 	t[0].tv_nsec = 0;

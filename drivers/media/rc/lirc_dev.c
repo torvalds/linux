@@ -59,6 +59,8 @@ static void lirc_release(struct device *ld)
 {
 	struct irctl *ir = container_of(ld, struct irctl, dev);
 
+	put_device(ir->dev.parent);
+
 	if (ir->buf_internal) {
 		lirc_buffer_free(ir->buf);
 		kfree(ir->buf);
@@ -217,6 +219,8 @@ int lirc_register_driver(struct lirc_driver *d)
 		goto out_cdev;
 
 	mutex_unlock(&lirc_dev_lock);
+
+	get_device(ir->dev.parent);
 
 	dev_info(ir->d.dev, "lirc_dev: driver %s registered at minor = %d\n",
 		 ir->d.name, ir->d.minor);

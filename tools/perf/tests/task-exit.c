@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include "evlist.h"
 #include "evsel.h"
 #include "thread_map.h"
@@ -32,7 +33,7 @@ static void workload_exec_failed_signal(int signo __maybe_unused,
  * if the number of exit event reported by the kernel is 1 or not
  * in order to check the kernel returns correct number of event.
  */
-int test__task_exit(int subtest __maybe_unused)
+int test__task_exit(struct test *test __maybe_unused, int subtest __maybe_unused)
 {
 	int err = -1;
 	union perf_event *event;

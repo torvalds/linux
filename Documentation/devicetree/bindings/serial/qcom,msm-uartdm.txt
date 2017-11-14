@@ -72,13 +72,10 @@ Examples:
 	};
 
 	uarta: serial@12490000 {
-		status = "ok";
 	};
 
 	uartb: serial@16340000 {
-		status = "ok";
 	};
 
 	uartc: serial@1a240000 {
-		status = "ok";
 	};

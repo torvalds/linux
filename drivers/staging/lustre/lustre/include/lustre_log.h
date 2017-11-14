@@ -52,8 +52,8 @@
  * @{
  */
 
-#include "obd_class.h"
-#include "lustre/lustre_idl.h"
+#include <obd_class.h>
+#include <uapi/linux/lustre/lustre_idl.h>
 
 #define LOG_NAME_LIMIT(logname, name)		   \
 	snprintf(logname, sizeof(logname), "LOGS/%s", name)

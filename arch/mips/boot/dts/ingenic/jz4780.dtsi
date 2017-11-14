@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <dt-bindings/clock/jz4780-cgu.h>
 
 / {
@@ -42,6 +43,17 @@
 		clock-names = "ext", "rtc";
 
 		#clock-cells = <1>;
+	};
+
+	rtc_dev: rtc@10003000 {
+		compatible = "ingenic,jz4780-rtc";
+		reg = <0x10003000 0x4c>;
+
+		interrupt-parent = <&intc>;
+		interrupts = <32>;
+
+		clocks = <&cgu JZ4780_CLK_RTCLK>;
+		clock-names = "rtc";
 	};
 
 	pinctrl: pin-controller@10010000 {

@@ -121,12 +121,25 @@ slb_miss_kernel_load_vmemmap:
 1:
 #endif /* CONFIG_SPARSEMEM_VMEMMAP */
 
-	/* vmalloc mapping gets the encoding from the PACA as the mapping
-	 * can be demoted from 64K -> 4K dynamically on some machines
+	/*
+	 * r10 contains the ESID, which is the original faulting EA shifted
+	 * right by 28 bits. We need to compare that with (H_VMALLOC_END >> 28)
+	 * which is 0xd00038000. That can't be used as an immediate, even if we
+	 * ignored the 0xd, so we have to load it into a register, and we only
+	 * have one register free. So we must load all of (H_VMALLOC_END >> 28)
+	 * into a register and compare ESID against that.
 	 */
-	clrldi	r11,r10,48
-	cmpldi	r11,(H_VMALLOC_SIZE >> 28) - 1
-	bgt	5f
+	lis	r11,(H_VMALLOC_END >> 32)@h	// r11 = 0xffffffffd0000000
+	ori	r11,r11,(H_VMALLOC_END >> 32)@l	// r11 = 0xffffffffd0003800
+	// Rotate left 4, then mask with 0xffffffff0
+	rldic	r11,r11,4,28			// r11 = 0xd00038000
+	cmpld	r10,r11				// if r10 >= r11
+	bge	5f				//   goto io_mapping
+
+	/*
+	 * vmalloc mapping gets the encoding from the PACA as the mapping
+	 * can be demoted from 64K -> 4K dynamically on some machines.
+	 */
 	lhz	r11,PACAVMALLOCSLLP(r13)
 	b	6f
 5:

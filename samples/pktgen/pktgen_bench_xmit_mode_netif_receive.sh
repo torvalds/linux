@@ -1,4 +1,5 @@
 #!/bin/bash
+# SPDX-License-Identifier: GPL-2.0
 #
 # Benchmark script:
 #  - developed for benchmarking ingress qdisc path

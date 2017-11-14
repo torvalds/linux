@@ -111,21 +111,4 @@ static inline __s32 pvrdma_idx_ring_has_data(const struct pvrdma_ring *r,
 	return PVRDMA_INVALID_IDX;
 }
 
-static inline bool pvrdma_idx_ring_is_valid_idx(const struct pvrdma_ring *r,
-						__u32 max_elems, __u32 *idx)
-{
-	const __u32 tail = atomic_read(&r->prod_tail);
-	const __u32 head = atomic_read(&r->cons_head);
-
-	if (pvrdma_idx_valid(tail, max_elems) &&
-	    pvrdma_idx_valid(head, max_elems) &&
-	    pvrdma_idx_valid(*idx, max_elems)) {
-		if (tail > head && (*idx < tail && *idx >= head))
-			return true;
-		else if (head > tail && (*idx >= head || *idx < tail))
-			return true;
-	}
-	return false;
-}
-
 #endif /* __PVRDMA_RING_H__ */

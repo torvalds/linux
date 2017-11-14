@@ -1,8 +1,8 @@
 HiSilicon Kirin SoCs PCIe host DT description
 
-Kirin PCIe host controller is based on Designware PCI core.
-It shares common functions with PCIe Designware core driver
-and inherits common properties defined in
+Kirin PCIe host controller is based on the Synopsys DesignWare PCI core.
+It shares common functions with the PCIe DesignWare core driver and
+inherits common properties defined in
 Documentation/devicetree/bindings/pci/designware-pci.txt.
 
 Additional properties are described here:
@@ -16,7 +16,7 @@ Required properties
   "apb": apb Ctrl register defined by Kirin;
   "phy": apb PHY register defined by Kirin;
   "config": PCIe configuration space registers.
-- reset-gpios: The gpio to generate PCIe perst assert and deassert signal.
+- reset-gpios: The GPIO to generate PCIe PERST# assert and deassert signal.
 
 Optional properties:
 

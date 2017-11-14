@@ -1,7 +1,7 @@
 /*
  * Bit sliced AES using NEON instructions
  *
- * Copyright (C) 2016 Linaro Ltd <ard.biesheuvel@linaro.org>
+ * Copyright (C) 2016 - 2017 Linaro Ltd <ard.biesheuvel@linaro.org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -9,11 +9,14 @@
  */
 
 #include <asm/neon.h>
+#include <asm/simd.h>
 #include <crypto/aes.h>
 #include <crypto/internal/simd.h>
 #include <crypto/internal/skcipher.h>
 #include <crypto/xts.h>
 #include <linux/module.h>
+
+#include "aes-ctr-fallback.h"
 
 MODULE_AUTHOR("Ard Biesheuvel <ard.biesheuvel@linaro.org>");
 MODULE_LICENSE("GPL v2");
@@ -56,6 +59,11 @@ struct aesbs_ctx {
 struct aesbs_cbc_ctx {
 	struct aesbs_ctx	key;
 	u32			enc[AES_MAX_KEYLENGTH_U32];
+};
+
+struct aesbs_ctr_ctx {
+	struct aesbs_ctx	key;		/* must be first member */
+	struct crypto_aes_ctx	fallback;
 };
 
 struct aesbs_xts_ctx {
@@ -196,6 +204,25 @@ static int cbc_decrypt(struct skcipher_request *req)
 	return err;
 }
 
+static int aesbs_ctr_setkey_sync(struct crypto_skcipher *tfm, const u8 *in_key,
+				 unsigned int key_len)
+{
+	struct aesbs_ctr_ctx *ctx = crypto_skcipher_ctx(tfm);
+	int err;
+
+	err = crypto_aes_expand_key(&ctx->fallback, in_key, key_len);
+	if (err)
+		return err;
+
+	ctx->key.rounds = 6 + key_len / 4;
+
+	kernel_neon_begin();
+	aesbs_convert_key(ctx->key.rk, ctx->fallback.key_enc, ctx->key.rounds);
+	kernel_neon_end();
+
+	return 0;
+}
+
 static int ctr_encrypt(struct skcipher_request *req)
 {
 	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
@@ -224,9 +251,8 @@ static int ctr_encrypt(struct skcipher_request *req)
 			u8 *dst = walk.dst.virt.addr + blocks * AES_BLOCK_SIZE;
 			u8 *src = walk.src.virt.addr + blocks * AES_BLOCK_SIZE;
 
-			if (dst != src)
-				memcpy(dst, src, walk.total % AES_BLOCK_SIZE);
-			crypto_xor(dst, final, walk.total % AES_BLOCK_SIZE);
+			crypto_xor_cpy(dst, src, final,
+				       walk.total % AES_BLOCK_SIZE);
 
 			err = skcipher_walk_done(&walk, 0);
 			break;
@@ -258,6 +284,17 @@ static int aesbs_xts_setkey(struct crypto_skcipher *tfm, const u8 *in_key,
 	memcpy(ctx->twkey, rk.key_enc, sizeof(ctx->twkey));
 
 	return aesbs_setkey(tfm, in_key, key_len);
+}
+
+static int ctr_encrypt_sync(struct skcipher_request *req)
+{
+	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
+	struct aesbs_ctr_ctx *ctx = crypto_skcipher_ctx(tfm);
+
+	if (!may_use_simd())
+		return aes_ctr_encrypt_fallback(&ctx->fallback, req);
+
+	return ctr_encrypt(req);
 }
 
 static int __xts_crypt(struct skcipher_request *req,
@@ -356,7 +393,7 @@ static struct skcipher_alg aes_algs[] = { {
 	.base.cra_driver_name	= "ctr-aes-neonbs",
 	.base.cra_priority	= 250 - 1,
 	.base.cra_blocksize	= 1,
-	.base.cra_ctxsize	= sizeof(struct aesbs_ctx),
+	.base.cra_ctxsize	= sizeof(struct aesbs_ctr_ctx),
 	.base.cra_module	= THIS_MODULE,
 
 	.min_keysize		= AES_MIN_KEY_SIZE,
@@ -364,9 +401,9 @@ static struct skcipher_alg aes_algs[] = { {
 	.chunksize		= AES_BLOCK_SIZE,
 	.walksize		= 8 * AES_BLOCK_SIZE,
 	.ivsize			= AES_BLOCK_SIZE,
-	.setkey			= aesbs_setkey,
-	.encrypt		= ctr_encrypt,
-	.decrypt		= ctr_encrypt,
+	.setkey			= aesbs_ctr_setkey_sync,
+	.encrypt		= ctr_encrypt_sync,
+	.decrypt		= ctr_encrypt_sync,
 }, {
 	.base.cra_name		= "__xts(aes)",
 	.base.cra_driver_name	= "__xts-aes-neonbs",

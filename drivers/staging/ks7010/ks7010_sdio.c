@@ -834,8 +834,6 @@ static int ks7010_sdio_probe(struct sdio_func *func,
 	unsigned char byte;
 	int ret;
 
-	DPRINTK(5, "ks7010_sdio_probe()\n");
-
 	priv = NULL;
 	netdev = NULL;
 
@@ -1007,8 +1005,6 @@ static void ks7010_sdio_remove(struct sdio_func *func)
 	int ret;
 	struct ks_sdio_card *card;
 	struct ks_wlan_private *priv;
-
-	DPRINTK(1, "ks7010_sdio_remove()\n");
 
 	card = sdio_get_drvdata(func);
 

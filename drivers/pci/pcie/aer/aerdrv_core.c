@@ -5,10 +5,10 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * This file implements the core part of PCI-Express AER. When an pci-express
+ * This file implements the core part of PCIe AER. When a PCIe
  * error is delivered, an error message will be collected and printed to
  * console, then, an error recovery procedure will be executed by following
- * the pci error recovery rules.
+ * the PCI error recovery rules.
  *
  * Copyright (C) 2006 Intel Corp.
  *	Tom Long Nguyen (tom.l.nguyen@intel.com)

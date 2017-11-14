@@ -165,7 +165,8 @@ static void hdlcd_crtc_mode_set_nofb(struct drm_crtc *crtc)
 	clk_set_rate(hdlcd->clk, m->crtc_clock * 1000);
 }
 
-static void hdlcd_crtc_enable(struct drm_crtc *crtc)
+static void hdlcd_crtc_atomic_enable(struct drm_crtc *crtc,
+				     struct drm_crtc_state *old_state)
 {
 	struct hdlcd_drm_private *hdlcd = crtc_to_hdlcd_priv(crtc);
 
@@ -175,7 +176,8 @@ static void hdlcd_crtc_enable(struct drm_crtc *crtc)
 	drm_crtc_vblank_on(crtc);
 }
 
-static void hdlcd_crtc_disable(struct drm_crtc *crtc)
+static void hdlcd_crtc_atomic_disable(struct drm_crtc *crtc,
+				      struct drm_crtc_state *old_state)
 {
 	struct hdlcd_drm_private *hdlcd = crtc_to_hdlcd_priv(crtc);
 
@@ -218,10 +220,10 @@ static void hdlcd_crtc_atomic_begin(struct drm_crtc *crtc,
 }
 
 static const struct drm_crtc_helper_funcs hdlcd_crtc_helper_funcs = {
-	.enable		= hdlcd_crtc_enable,
-	.disable	= hdlcd_crtc_disable,
 	.atomic_check	= hdlcd_crtc_atomic_check,
 	.atomic_begin	= hdlcd_crtc_atomic_begin,
+	.atomic_enable	= hdlcd_crtc_atomic_enable,
+	.atomic_disable	= hdlcd_crtc_atomic_disable,
 };
 
 static int hdlcd_plane_atomic_check(struct drm_plane *plane,
@@ -313,6 +315,7 @@ static struct drm_plane *hdlcd_plane_init(struct drm_device *drm)
 
 	ret = drm_universal_plane_init(drm, plane, 0xff, &hdlcd_plane_funcs,
 				       formats, ARRAY_SIZE(formats),
+				       NULL,
 				       DRM_PLANE_TYPE_PRIMARY, NULL);
 	if (ret) {
 		return ERR_PTR(ret);

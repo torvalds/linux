@@ -1,4 +1,5 @@
 #!/bin/sh
+# SPDX-License-Identifier: GPL-2.0
 #
 # This test is for checking network interface
 # For the moment it tests only ethernet interface (but wifi could be easily added)
@@ -178,7 +179,7 @@ if [ "$(id -u)" -ne 0 ];then
 	exit 0
 fi
 
-ip -Version 2>/dev/null >/dev/null
+ip link show 2>/dev/null >/dev/null
 if [ $? -ne 0 ];then
 	echo "SKIP: Could not run test without the ip tool"
 	exit 0

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* Fallback functions when the main IOMMU code is not compiled in. This
    code is roughly equivalent to i386. */
 #include <linux/dma-mapping.h>
@@ -32,7 +33,7 @@ static dma_addr_t nommu_map_page(struct device *dev, struct page *page,
 				 enum dma_data_direction dir,
 				 unsigned long attrs)
 {
-	dma_addr_t bus = page_to_phys(page) + offset;
+	dma_addr_t bus = phys_to_dma(dev, page_to_phys(page)) + offset;
 	WARN_ON(size == 0);
 	if (!check_addr("map_single", dev, bus, size))
 		return NOMMU_MAPPING_ERROR;

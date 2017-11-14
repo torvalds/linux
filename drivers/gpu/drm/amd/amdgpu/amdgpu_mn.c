@@ -51,7 +51,7 @@ struct amdgpu_mn {
 
 	/* objects protected by lock */
 	struct mutex		lock;
-	struct rb_root		objects;
+	struct rb_root_cached	objects;
 };
 
 struct amdgpu_mn_node {
@@ -76,8 +76,8 @@ static void amdgpu_mn_destroy(struct work_struct *work)
 	mutex_lock(&adev->mn_lock);
 	mutex_lock(&rmn->lock);
 	hash_del(&rmn->node);
-	rbtree_postorder_for_each_entry_safe(node, next_node, &rmn->objects,
-					     it.rb) {
+	rbtree_postorder_for_each_entry_safe(node, next_node,
+					     &rmn->objects.rb_root, it.rb) {
 		list_for_each_entry_safe(bo, next_bo, &node->bos, mn_list) {
 			bo->mn = NULL;
 			list_del_init(&bo->mn_list);
@@ -221,7 +221,7 @@ static struct amdgpu_mn *amdgpu_mn_get(struct amdgpu_device *adev)
 	rmn->mm = mm;
 	rmn->mn.ops = &amdgpu_mn_ops;
 	mutex_init(&rmn->lock);
-	rmn->objects = RB_ROOT;
+	rmn->objects = RB_ROOT_CACHED;
 
 	r = __mmu_notifier_register(&rmn->mn, mm);
 	if (r)

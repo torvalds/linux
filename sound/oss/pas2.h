@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 
 /*	From pas_card.c	*/
 int pas_set_intr(int mask);

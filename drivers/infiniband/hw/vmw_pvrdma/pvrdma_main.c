@@ -102,12 +102,11 @@ static struct device_attribute *pvrdma_class_attributes[] = {
 	&dev_attr_board_id
 };
 
-static void pvrdma_get_fw_ver_str(struct ib_device *device, char *str,
-				  size_t str_len)
+static void pvrdma_get_fw_ver_str(struct ib_device *device, char *str)
 {
 	struct pvrdma_dev *dev =
 		container_of(device, struct pvrdma_dev, ib_dev);
-	snprintf(str, str_len, "%d.%d.%d\n",
+	snprintf(str, IB_FW_VERSION_NAME_MAX, "%d.%d.%d\n",
 		 (int) (dev->dsr->caps.fw_ver >> 32),
 		 (int) (dev->dsr->caps.fw_ver >> 16) & 0xffff,
 		 (int) dev->dsr->caps.fw_ver & 0xffff);
@@ -129,10 +128,14 @@ static int pvrdma_init_device(struct pvrdma_dev *dev)
 static int pvrdma_port_immutable(struct ib_device *ibdev, u8 port_num,
 				 struct ib_port_immutable *immutable)
 {
+	struct pvrdma_dev *dev = to_vdev(ibdev);
 	struct ib_port_attr attr;
 	int err;
 
-	immutable->core_cap_flags = RDMA_CORE_PORT_IBA_ROCE;
+	if (dev->dsr->caps.gid_types == PVRDMA_GID_TYPE_FLAG_ROCE_V1)
+		immutable->core_cap_flags |= RDMA_CORE_PORT_IBA_ROCE;
+	else if (dev->dsr->caps.gid_types == PVRDMA_GID_TYPE_FLAG_ROCE_V2)
+		immutable->core_cap_flags |= RDMA_CORE_PORT_IBA_ROCE_UDP_ENCAP;
 
 	err = ib_query_port(ibdev, port_num, &attr);
 	if (err)
@@ -570,6 +573,7 @@ static void pvrdma_free_slots(struct pvrdma_dev *dev)
 
 static int pvrdma_add_gid_at_index(struct pvrdma_dev *dev,
 				   const union ib_gid *gid,
+				   u8 gid_type,
 				   int index)
 {
 	int ret;
@@ -587,7 +591,7 @@ static int pvrdma_add_gid_at_index(struct pvrdma_dev *dev,
 	cmd_bind->mtu = ib_mtu_enum_to_int(IB_MTU_1024);
 	cmd_bind->vlan = 0xfff;
 	cmd_bind->index = index;
-	cmd_bind->gid_type = PVRDMA_GID_TYPE_FLAG_ROCE_V1;
+	cmd_bind->gid_type = gid_type;
 
 	ret = pvrdma_cmd_post(dev, &req, NULL, 0);
 	if (ret < 0) {
@@ -608,7 +612,9 @@ static int pvrdma_add_gid(struct ib_device *ibdev,
 {
 	struct pvrdma_dev *dev = to_vdev(ibdev);
 
-	return pvrdma_add_gid_at_index(dev, gid, index);
+	return pvrdma_add_gid_at_index(dev, gid,
+				       ib_gid_type_to_pvrdma(attr->gid_type),
+				       index);
 }
 
 static int pvrdma_del_gid_at_index(struct pvrdma_dev *dev, int index)
@@ -723,7 +729,6 @@ static int pvrdma_pci_probe(struct pci_dev *pdev,
 	int ret;
 	unsigned long start;
 	unsigned long len;
-	unsigned int version;
 	dma_addr_t slot_dma = 0;
 
 	dev_dbg(&pdev->dev, "initializing driver %s\n", pci_name(pdev));
@@ -820,13 +825,9 @@ static int pvrdma_pci_probe(struct pci_dev *pdev,
 		goto err_unmap_regs;
 	}
 
-	version = pvrdma_read_reg(dev, PVRDMA_REG_VERSION);
+	dev->dsr_version = pvrdma_read_reg(dev, PVRDMA_REG_VERSION);
 	dev_info(&pdev->dev, "device version %d, driver version %d\n",
-		 version, PVRDMA_VERSION);
-	if (version < PVRDMA_VERSION) {
-		dev_err(&pdev->dev, "incompatible device version\n");
-		goto err_uar_unmap;
-	}
+		 dev->dsr_version, PVRDMA_VERSION);
 
 	dev->dsr = dma_alloc_coherent(&pdev->dev, sizeof(*dev->dsr),
 				      &dev->dsrbase, GFP_KERNEL);
@@ -897,17 +898,9 @@ static int pvrdma_pci_probe(struct pci_dev *pdev,
 	/* Make sure the write is complete before reading status. */
 	mb();
 
-	/* Currently, the driver only supports RoCE mode. */
-	if (dev->dsr->caps.mode != PVRDMA_DEVICE_MODE_ROCE) {
-		dev_err(&pdev->dev, "unsupported transport %d\n",
-			dev->dsr->caps.mode);
-		ret = -EFAULT;
-		goto err_free_cq_ring;
-	}
-
-	/* Currently, the driver only supports RoCE V1. */
-	if (!(dev->dsr->caps.gid_types & PVRDMA_GID_TYPE_FLAG_ROCE_V1)) {
-		dev_err(&pdev->dev, "driver needs RoCE v1 support\n");
+	/* The driver supports RoCE V1 and V2. */
+	if (!PVRDMA_SUPPORTED(dev)) {
+		dev_err(&pdev->dev, "driver needs RoCE v1 or v2 support\n");
 		ret = -EFAULT;
 		goto err_free_cq_ring;
 	}
@@ -1078,7 +1071,7 @@ static void pvrdma_pci_remove(struct pci_dev *pdev)
 	pci_set_drvdata(pdev, NULL);
 }
 
-static struct pci_device_id pvrdma_pci_table[] = {
+static const struct pci_device_id pvrdma_pci_table[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_VMWARE, PCI_DEVICE_ID_VMWARE_PVRDMA), },
 	{ 0 },
 };
@@ -1119,5 +1112,4 @@ module_exit(pvrdma_cleanup);
 
 MODULE_AUTHOR("VMware, Inc");
 MODULE_DESCRIPTION("VMware Paravirtual RDMA driver");
-MODULE_VERSION(DRV_VERSION);
 MODULE_LICENSE("Dual BSD/GPL");

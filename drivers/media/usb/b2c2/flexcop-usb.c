@@ -596,7 +596,7 @@ static void flexcop_usb_disconnect(struct usb_interface *intf)
 	info("%s successfully deinitialized and disconnected.", DRIVER_NAME);
 }
 
-static struct usb_device_id flexcop_usb_table [] = {
+static const struct usb_device_id flexcop_usb_table[] = {
 	{ USB_DEVICE(0x0af7, 0x0101) },
 	{ }
 };

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 obj-$(CONFIG_MLXSW_CORE)	+= mlxsw_core.o
 mlxsw_core-objs			:= core.o core_acl_flex_keys.o \
 				   core_acl_flex_actions.o
@@ -16,8 +17,9 @@ mlxsw_spectrum-objs		:= spectrum.o spectrum_buffers.o \
 				   spectrum_switchdev.o spectrum_router.o \
 				   spectrum_kvdl.o spectrum_acl_tcam.o \
 				   spectrum_acl.o spectrum_flower.o \
-				   spectrum_cnt.o spectrum_dpipe.o \
-				   spectrum_fid.o
+				   spectrum_cnt.o spectrum_fid.o \
+				   spectrum_ipip.o
 mlxsw_spectrum-$(CONFIG_MLXSW_SPECTRUM_DCB)	+= spectrum_dcb.o
+mlxsw_spectrum-$(CONFIG_NET_DEVLINK) += spectrum_dpipe.o
 obj-$(CONFIG_MLXSW_MINIMAL)	+= mlxsw_minimal.o
 mlxsw_minimal-objs		:= minimal.o

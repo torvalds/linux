@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _PERF_RESORT_RB_H_
 #define _PERF_RESORT_RB_H_
 /*

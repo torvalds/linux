@@ -113,7 +113,7 @@ static ssize_t devspec_show(struct device *dev, struct device_attribute *attr,
 {
 	struct device_node *of_node = dev->of_node;
 
-	return sprintf(buf, "%s\n", of_node_full_name(of_node));
+	return sprintf(buf, "%pOF\n", of_node);
 }
 static DEVICE_ATTR_RO(devspec);
 #endif

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <errno.h>
 #include <inttypes.h>
 #include <math.h>
@@ -128,6 +129,10 @@ static int perf_evsel__alloc_stat_priv(struct perf_evsel *evsel)
 
 static void perf_evsel__free_stat_priv(struct perf_evsel *evsel)
 {
+	struct perf_stat_evsel *ps = evsel->priv;
+
+	if (ps)
+		free(ps->group_data);
 	zfree(&evsel->priv);
 }
 

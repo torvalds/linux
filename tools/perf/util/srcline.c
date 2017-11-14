@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -155,6 +156,9 @@ static void find_address_in_section(bfd *abfd, asection *section, void *data)
 	a2l->found = bfd_find_nearest_line(abfd, section, a2l->syms, pc - vma,
 					   &a2l->filename, &a2l->funcname,
 					   &a2l->line);
+
+	if (a2l->filename && !strlen(a2l->filename))
+		a2l->filename = NULL;
 }
 
 static struct a2l_data *addr2line_init(const char *path)
@@ -247,6 +251,9 @@ static int addr2line(const char *dso_name, u64 addr,
 		while (bfd_find_inliner_info(a2l->abfd, &a2l->filename,
 					     &a2l->funcname, &a2l->line) &&
 		       cnt++ < MAX_INLINE_NEST) {
+
+			if (a2l->filename && !strlen(a2l->filename))
+				a2l->filename = NULL;
 
 			if (node != NULL) {
 				if (inline_list__append_dso_a2l(dso, node))

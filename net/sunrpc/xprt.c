@@ -844,6 +844,50 @@ struct rpc_rqst *xprt_lookup_rqst(struct rpc_xprt *xprt, __be32 xid)
 }
 EXPORT_SYMBOL_GPL(xprt_lookup_rqst);
 
+/**
+ * xprt_pin_rqst - Pin a request on the transport receive list
+ * @req: Request to pin
+ *
+ * Caller must ensure this is atomic with the call to xprt_lookup_rqst()
+ * so should be holding the xprt transport lock.
+ */
+void xprt_pin_rqst(struct rpc_rqst *req)
+{
+	set_bit(RPC_TASK_MSG_RECV, &req->rq_task->tk_runstate);
+}
+EXPORT_SYMBOL_GPL(xprt_pin_rqst);
+
+/**
+ * xprt_unpin_rqst - Unpin a request on the transport receive list
+ * @req: Request to pin
+ *
+ * Caller should be holding the xprt transport lock.
+ */
+void xprt_unpin_rqst(struct rpc_rqst *req)
+{
+	struct rpc_task *task = req->rq_task;
+
+	clear_bit(RPC_TASK_MSG_RECV, &task->tk_runstate);
+	if (test_bit(RPC_TASK_MSG_RECV_WAIT, &task->tk_runstate))
+		wake_up_bit(&task->tk_runstate, RPC_TASK_MSG_RECV);
+}
+EXPORT_SYMBOL_GPL(xprt_unpin_rqst);
+
+static void xprt_wait_on_pinned_rqst(struct rpc_rqst *req)
+__must_hold(&req->rq_xprt->recv_lock)
+{
+	struct rpc_task *task = req->rq_task;
+	
+	if (task && test_bit(RPC_TASK_MSG_RECV, &task->tk_runstate)) {
+		spin_unlock(&req->rq_xprt->recv_lock);
+		set_bit(RPC_TASK_MSG_RECV_WAIT, &task->tk_runstate);
+		wait_on_bit(&task->tk_runstate, RPC_TASK_MSG_RECV,
+				TASK_UNINTERRUPTIBLE);
+		clear_bit(RPC_TASK_MSG_RECV_WAIT, &task->tk_runstate);
+		spin_lock(&req->rq_xprt->recv_lock);
+	}
+}
+
 static void xprt_update_rtt(struct rpc_task *task)
 {
 	struct rpc_rqst *req = task->tk_rqstp;
@@ -966,13 +1010,13 @@ void xprt_transmit(struct rpc_task *task)
 			/*
 			 * Add to the list only if we're expecting a reply
 			 */
-			spin_lock_bh(&xprt->transport_lock);
 			/* Update the softirq receive buffer */
 			memcpy(&req->rq_private_buf, &req->rq_rcv_buf,
 					sizeof(req->rq_private_buf));
 			/* Add request to the receive list */
+			spin_lock(&xprt->recv_lock);
 			list_add_tail(&req->rq_list, &xprt->recv);
-			spin_unlock_bh(&xprt->transport_lock);
+			spin_unlock(&xprt->recv_lock);
 			xprt_reset_majortimeo(req);
 			/* Turn off autodisconnect */
 			del_singleshot_timer_sync(&xprt->timer);
@@ -1287,12 +1331,16 @@ void xprt_release(struct rpc_task *task)
 		task->tk_ops->rpc_count_stats(task, task->tk_calldata);
 	else if (task->tk_client)
 		rpc_count_iostats(task, task->tk_client->cl_metrics);
+	spin_lock(&xprt->recv_lock);
+	if (!list_empty(&req->rq_list)) {
+		list_del_init(&req->rq_list);
+		xprt_wait_on_pinned_rqst(req);
+	}
+	spin_unlock(&xprt->recv_lock);
 	spin_lock_bh(&xprt->transport_lock);
 	xprt->ops->release_xprt(xprt, task);
 	if (xprt->ops->release_request)
 		xprt->ops->release_request(task);
-	if (!list_empty(&req->rq_list))
-		list_del(&req->rq_list);
 	xprt->last_used = jiffies;
 	xprt_schedule_autodisconnect(xprt);
 	spin_unlock_bh(&xprt->transport_lock);
@@ -1318,6 +1366,7 @@ static void xprt_init(struct rpc_xprt *xprt, struct net *net)
 
 	spin_lock_init(&xprt->transport_lock);
 	spin_lock_init(&xprt->reserve_lock);
+	spin_lock_init(&xprt->recv_lock);
 
 	INIT_LIST_HEAD(&xprt->free);
 	INIT_LIST_HEAD(&xprt->recv);
@@ -1396,6 +1445,23 @@ out:
 	return xprt;
 }
 
+static void xprt_destroy_cb(struct work_struct *work)
+{
+	struct rpc_xprt *xprt =
+		container_of(work, struct rpc_xprt, task_cleanup);
+
+	rpc_xprt_debugfs_unregister(xprt);
+	rpc_destroy_wait_queue(&xprt->binding);
+	rpc_destroy_wait_queue(&xprt->pending);
+	rpc_destroy_wait_queue(&xprt->sending);
+	rpc_destroy_wait_queue(&xprt->backlog);
+	kfree(xprt->servername);
+	/*
+	 * Tear down transport state and free the rpc_xprt
+	 */
+	xprt->ops->destroy(xprt);
+}
+
 /**
  * xprt_destroy - destroy an RPC transport, killing off all requests.
  * @xprt: transport to destroy
@@ -1405,22 +1471,19 @@ static void xprt_destroy(struct rpc_xprt *xprt)
 {
 	dprintk("RPC:       destroying transport %p\n", xprt);
 
-	/* Exclude transport connect/disconnect handlers */
+	/*
+	 * Exclude transport connect/disconnect handlers and autoclose
+	 */
 	wait_on_bit_lock(&xprt->state, XPRT_LOCKED, TASK_UNINTERRUPTIBLE);
 
 	del_timer_sync(&xprt->timer);
 
-	rpc_xprt_debugfs_unregister(xprt);
-	rpc_destroy_wait_queue(&xprt->binding);
-	rpc_destroy_wait_queue(&xprt->pending);
-	rpc_destroy_wait_queue(&xprt->sending);
-	rpc_destroy_wait_queue(&xprt->backlog);
-	cancel_work_sync(&xprt->task_cleanup);
-	kfree(xprt->servername);
 	/*
-	 * Tear down transport state and free the rpc_xprt
+	 * Destroy sockets etc from the system workqueue so they can
+	 * safely flush receive work running on rpciod.
 	 */
-	xprt->ops->destroy(xprt);
+	INIT_WORK(&xprt->task_cleanup, xprt_destroy_cb);
+	schedule_work(&xprt->task_cleanup);
 }
 
 static void xprt_destroy_kref(struct kref *kref)

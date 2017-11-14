@@ -528,6 +528,10 @@ retry:
 		if (mode->status == MODE_OK)
 			mode->status = drm_mode_validate_pipeline(mode,
 								  connector);
+
+		if (mode->status == MODE_OK)
+			mode->status = drm_mode_validate_ycbcr420(mode,
+								  connector);
 	}
 
 prune:

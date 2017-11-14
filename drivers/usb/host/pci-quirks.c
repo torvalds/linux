@@ -142,29 +142,30 @@ static int amd_chipset_sb_type_init(struct amd_chipset_info *pinfo)
 			pinfo->sb_type.gen = AMD_CHIPSET_SB700;
 		else if (rev >= 0x40 && rev <= 0x4f)
 			pinfo->sb_type.gen = AMD_CHIPSET_SB800;
-	}
-	pinfo->smbus_dev = pci_get_device(PCI_VENDOR_ID_AMD,
-					  0x145c, NULL);
-	if (pinfo->smbus_dev) {
-		pinfo->sb_type.gen = AMD_CHIPSET_TAISHAN;
 	} else {
 		pinfo->smbus_dev = pci_get_device(PCI_VENDOR_ID_AMD,
 				PCI_DEVICE_ID_AMD_HUDSON2_SMBUS, NULL);
 
-		if (!pinfo->smbus_dev) {
-			pinfo->sb_type.gen = NOT_AMD_CHIPSET;
-			return 0;
+		if (pinfo->smbus_dev) {
+			rev = pinfo->smbus_dev->revision;
+			if (rev >= 0x11 && rev <= 0x14)
+				pinfo->sb_type.gen = AMD_CHIPSET_HUDSON2;
+			else if (rev >= 0x15 && rev <= 0x18)
+				pinfo->sb_type.gen = AMD_CHIPSET_BOLTON;
+			else if (rev >= 0x39 && rev <= 0x3a)
+				pinfo->sb_type.gen = AMD_CHIPSET_YANGTZE;
+		} else {
+			pinfo->smbus_dev = pci_get_device(PCI_VENDOR_ID_AMD,
+							  0x145c, NULL);
+			if (pinfo->smbus_dev) {
+				rev = pinfo->smbus_dev->revision;
+				pinfo->sb_type.gen = AMD_CHIPSET_TAISHAN;
+			} else {
+				pinfo->sb_type.gen = NOT_AMD_CHIPSET;
+				return 0;
+			}
 		}
-
-		rev = pinfo->smbus_dev->revision;
-		if (rev >= 0x11 && rev <= 0x14)
-			pinfo->sb_type.gen = AMD_CHIPSET_HUDSON2;
-		else if (rev >= 0x15 && rev <= 0x18)
-			pinfo->sb_type.gen = AMD_CHIPSET_BOLTON;
-		else if (rev >= 0x39 && rev <= 0x3a)
-			pinfo->sb_type.gen = AMD_CHIPSET_YANGTZE;
 	}
-
 	pinfo->sb_type.rev = rev;
 	return 1;
 }
@@ -446,7 +447,7 @@ static int usb_asmedia_wait_write(struct pci_dev *pdev)
 		if ((value & ASMT_CONTROL_WRITE_BIT) == 0)
 			return 0;
 
-		usleep_range(40, 60);
+		udelay(50);
 	}
 
 	dev_warn(&pdev->dev, "%s: check_write_ready timeout", __func__);
@@ -1021,7 +1022,7 @@ EXPORT_SYMBOL_GPL(usb_disable_xhci_ports);
  *
  * Takes care of the handoff between the Pre-OS (i.e. BIOS) and the OS.
  * It signals to the BIOS that the OS wants control of the host controller,
- * and then waits 5 seconds for the BIOS to hand over control.
+ * and then waits 1 second for the BIOS to hand over control.
  * If we timeout, assume the BIOS is broken and take control anyway.
  */
 static void quirk_usb_handoff_xhci(struct pci_dev *pdev)
@@ -1068,9 +1069,9 @@ static void quirk_usb_handoff_xhci(struct pci_dev *pdev)
 	if (val & XHCI_HC_BIOS_OWNED) {
 		writel(val | XHCI_HC_OS_OWNED, base + ext_cap_offset);
 
-		/* Wait for 5 seconds with 10 microsecond polling interval */
+		/* Wait for 1 second with 10 microsecond polling interval */
 		timeout = handshake(base + ext_cap_offset, XHCI_HC_BIOS_OWNED,
-				0, 5000, 10);
+				0, 1000000, 10);
 
 		/* Assume a buggy BIOS and take HC ownership anyway */
 		if (timeout) {
@@ -1099,7 +1100,7 @@ hc_init:
 	 * operational or runtime registers.  Wait 5 seconds and no more.
 	 */
 	timeout = handshake(op_reg_base + XHCI_STS_OFFSET, XHCI_STS_CNR, 0,
-			5000, 10);
+			5000000, 10);
 	/* Assume a buggy HC and start HC initialization anyway */
 	if (timeout) {
 		val = readl(op_reg_base + XHCI_STS_OFFSET);

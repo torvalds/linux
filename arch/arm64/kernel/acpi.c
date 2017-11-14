@@ -95,7 +95,7 @@ static int __init dt_scan_depth1_nodes(unsigned long node,
  * __acpi_map_table() will be called before page_init(), so early_ioremap()
  * or early_memremap() should be called here to for ACPI table mapping.
  */
-char *__init __acpi_map_table(unsigned long phys, unsigned long size)
+void __init __iomem *__acpi_map_table(unsigned long phys, unsigned long size)
 {
 	if (!size)
 		return NULL;
@@ -103,7 +103,7 @@ char *__init __acpi_map_table(unsigned long phys, unsigned long size)
 	return early_memremap(phys, size);
 }
 
-void __init __acpi_unmap_table(char *map, unsigned long size)
+void __init __acpi_unmap_table(void __iomem *map, unsigned long size)
 {
 	if (!map || !size)
 		return;

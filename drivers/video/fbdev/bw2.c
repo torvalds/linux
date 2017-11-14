@@ -333,8 +333,8 @@ static int bw2_probe(struct platform_device *op)
 
 	dev_set_drvdata(&op->dev, info);
 
-	printk(KERN_INFO "%s: bwtwo at %lx:%lx\n",
-	       dp->full_name, par->which_io, info->fix.smem_start);
+	printk(KERN_INFO "%pOF: bwtwo at %lx:%lx\n",
+	       dp, par->which_io, info->fix.smem_start);
 
 	return 0;
 

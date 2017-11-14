@@ -892,8 +892,6 @@ static void intel_dsi_disable(struct intel_encoder *encoder,
 			      struct intel_crtc_state *old_crtc_state,
 			      struct drm_connector_state *old_conn_state)
 {
-	struct drm_device *dev = encoder->base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
 	enum port port;
 
@@ -901,15 +899,6 @@ static void intel_dsi_disable(struct intel_encoder *encoder,
 
 	intel_dsi_vbt_exec_sequence(intel_dsi, MIPI_SEQ_BACKLIGHT_OFF);
 	intel_panel_disable_backlight(old_conn_state);
-
-	/*
-	 * Disable Device ready before the port shutdown in order
-	 * to avoid split screen
-	 */
-	if (IS_BROXTON(dev_priv)) {
-		for_each_dsi_port(port, intel_dsi->ports)
-			I915_WRITE(MIPI_DEVICE_READY(port), 0);
-	}
 
 	/*
 	 * According to the spec we should send SHUTDOWN before
@@ -1653,12 +1642,10 @@ static const struct drm_connector_helper_funcs intel_dsi_connector_helper_funcs 
 };
 
 static const struct drm_connector_funcs intel_dsi_connector_funcs = {
-	.dpms = drm_atomic_helper_connector_dpms,
 	.late_register = intel_connector_register,
 	.early_unregister = intel_connector_unregister,
 	.destroy = intel_dsi_connector_destroy,
 	.fill_modes = drm_helper_probe_single_connector_modes,
-	.set_property = drm_atomic_helper_connector_set_property,
 	.atomic_get_property = intel_digital_connector_atomic_get_property,
 	.atomic_set_property = intel_digital_connector_atomic_set_property,
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
@@ -1851,7 +1838,7 @@ void intel_dsi_init(struct drm_i915_private *dev_priv)
 	connector->display_info.width_mm = fixed_mode->width_mm;
 	connector->display_info.height_mm = fixed_mode->height_mm;
 
-	intel_panel_init(&intel_connector->panel, fixed_mode, NULL);
+	intel_panel_init(&intel_connector->panel, fixed_mode, NULL, NULL);
 	intel_panel_setup_backlight(connector, INVALID_PIPE);
 
 	intel_dsi_add_properties(intel_connector);

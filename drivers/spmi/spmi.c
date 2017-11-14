@@ -466,27 +466,25 @@ static void of_spmi_register_devices(struct spmi_controller *ctrl)
 		struct spmi_device *sdev;
 		u32 reg[2];
 
-		dev_dbg(&ctrl->dev, "adding child %s\n", node->full_name);
+		dev_dbg(&ctrl->dev, "adding child %pOF\n", node);
 
 		err = of_property_read_u32_array(node, "reg", reg, 2);
 		if (err) {
 			dev_err(&ctrl->dev,
-				"node %s err (%d) does not have 'reg' property\n",
-				node->full_name, err);
+				"node %pOF err (%d) does not have 'reg' property\n",
+				node, err);
 			continue;
 		}
 
 		if (reg[1] != SPMI_USID) {
 			dev_err(&ctrl->dev,
-				"node %s contains unsupported 'reg' entry\n",
-				node->full_name);
+				"node %pOF contains unsupported 'reg' entry\n",
+				node);
 			continue;
 		}
 
 		if (reg[0] >= SPMI_MAX_SLAVE_ID) {
-			dev_err(&ctrl->dev,
-				"invalid usid on node %s\n",
-				node->full_name);
+			dev_err(&ctrl->dev, "invalid usid on node %pOF\n", node);
 			continue;
 		}
 

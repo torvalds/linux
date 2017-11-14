@@ -292,20 +292,27 @@ static struct iwl_nvm_data *
 iwl_parse_nvm_sections(struct iwl_mvm *mvm)
 {
 	struct iwl_nvm_section *sections = mvm->nvm_sections;
-	const __le16 *hw, *sw, *calib, *regulatory, *mac_override, *phy_sku;
+	const __be16 *hw;
+	const __le16 *sw, *calib, *regulatory, *mac_override, *phy_sku;
 	bool lar_enabled;
+	int regulatory_type;
 
 	/* Checking for required sections */
-	if (!mvm->trans->cfg->ext_nvm) {
+	if (mvm->trans->cfg->nvm_type != IWL_NVM_EXT) {
 		if (!mvm->nvm_sections[NVM_SECTION_TYPE_SW].data ||
 		    !mvm->nvm_sections[mvm->cfg->nvm_hw_section_num].data) {
 			IWL_ERR(mvm, "Can't parse empty OTP/NVM sections\n");
 			return NULL;
 		}
 	} else {
+		if (mvm->trans->cfg->nvm_type == IWL_NVM_SDP)
+			regulatory_type = NVM_SECTION_TYPE_REGULATORY_SDP;
+		else
+			regulatory_type = NVM_SECTION_TYPE_REGULATORY;
+
 		/* SW and REGULATORY sections are mandatory */
 		if (!mvm->nvm_sections[NVM_SECTION_TYPE_SW].data ||
-		    !mvm->nvm_sections[NVM_SECTION_TYPE_REGULATORY].data) {
+		    !mvm->nvm_sections[regulatory_type].data) {
 			IWL_ERR(mvm,
 				"Can't parse empty family 8000 OTP/NVM sections\n");
 			return NULL;
@@ -326,16 +333,16 @@ iwl_parse_nvm_sections(struct iwl_mvm *mvm)
 		}
 	}
 
-	if (WARN_ON(!mvm->cfg))
-		return NULL;
-
-	hw = (const __le16 *)sections[mvm->cfg->nvm_hw_section_num].data;
+	hw = (const __be16 *)sections[mvm->cfg->nvm_hw_section_num].data;
 	sw = (const __le16 *)sections[NVM_SECTION_TYPE_SW].data;
 	calib = (const __le16 *)sections[NVM_SECTION_TYPE_CALIBRATION].data;
-	regulatory = (const __le16 *)sections[NVM_SECTION_TYPE_REGULATORY].data;
 	mac_override =
 		(const __le16 *)sections[NVM_SECTION_TYPE_MAC_OVERRIDE].data;
 	phy_sku = (const __le16 *)sections[NVM_SECTION_TYPE_PHY_SKU].data;
+
+	regulatory = mvm->trans->cfg->nvm_type == IWL_NVM_SDP ?
+		(const __le16 *)sections[NVM_SECTION_TYPE_REGULATORY_SDP].data :
+		(const __le16 *)sections[NVM_SECTION_TYPE_REGULATORY].data;
 
 	lar_enabled = !iwlwifi_mod_params.lar_disable &&
 		      fw_has_capa(&mvm->fw->ucode_capa,
@@ -396,7 +403,7 @@ int iwl_mvm_read_external_nvm(struct iwl_mvm *mvm)
 	IWL_DEBUG_EEPROM(mvm->trans->dev, "Read from external NVM\n");
 
 	/* Maximal size depends on NVM version */
-	if (!mvm->trans->cfg->ext_nvm)
+	if (mvm->trans->cfg->nvm_type != IWL_NVM_EXT)
 		max_section_size = IWL_MAX_NVM_SECTION_SIZE;
 	else
 		max_section_size = IWL_MAX_EXT_NVM_SECTION_SIZE;
@@ -467,7 +474,7 @@ int iwl_mvm_read_external_nvm(struct iwl_mvm *mvm)
 			break;
 		}
 
-		if (!mvm->trans->cfg->ext_nvm) {
+		if (mvm->trans->cfg->nvm_type != IWL_NVM_EXT) {
 			section_size =
 				2 * NVM_WORD1_LEN(le16_to_cpu(file_sec->word1));
 			section_id = NVM_WORD2_ID(le16_to_cpu(file_sec->word2));
@@ -546,101 +553,7 @@ int iwl_mvm_load_nvm_to_nic(struct iwl_mvm *mvm)
 	return ret;
 }
 
-int iwl_mvm_nvm_get_from_fw(struct iwl_mvm *mvm)
-{
-	struct iwl_nvm_get_info cmd = {};
-	struct iwl_nvm_get_info_rsp *rsp;
-	struct iwl_trans *trans = mvm->trans;
-	struct iwl_host_cmd hcmd = {
-		.flags = CMD_WANT_SKB | CMD_SEND_IN_RFKILL,
-		.data = { &cmd, },
-		.len = { sizeof(cmd) },
-		.id = WIDE_ID(REGULATORY_AND_NVM_GROUP, NVM_GET_INFO)
-	};
-	int  ret;
-	bool lar_fw_supported = !iwlwifi_mod_params.lar_disable &&
-				fw_has_capa(&mvm->fw->ucode_capa,
-					    IWL_UCODE_TLV_CAPA_LAR_SUPPORT);
-
-	lockdep_assert_held(&mvm->mutex);
-
-	ret = iwl_mvm_send_cmd(mvm, &hcmd);
-	if (ret)
-		return ret;
-
-	if (WARN(iwl_rx_packet_payload_len(hcmd.resp_pkt) != sizeof(*rsp),
-		 "Invalid payload len in NVM response from FW %d",
-		 iwl_rx_packet_payload_len(hcmd.resp_pkt))) {
-		ret = -EINVAL;
-		goto out;
-	}
-
-	rsp = (void *)hcmd.resp_pkt->data;
-	if (le32_to_cpu(rsp->general.flags)) {
-		IWL_ERR(mvm, "Invalid NVM data from FW\n");
-		ret = -EINVAL;
-		goto out;
-	}
-
-	mvm->nvm_data = kzalloc(sizeof(*mvm->nvm_data) +
-				sizeof(struct ieee80211_channel) *
-				IWL_NUM_CHANNELS, GFP_KERNEL);
-	if (!mvm->nvm_data) {
-		ret = -ENOMEM;
-		goto out;
-	}
-
-	iwl_set_hw_address_from_csr(trans, mvm->nvm_data);
-	/* TODO: if platform NVM has MAC address - override it here */
-
-	if (!is_valid_ether_addr(mvm->nvm_data->hw_addr)) {
-		IWL_ERR(trans, "no valid mac address was found\n");
-		ret = -EINVAL;
-		goto err_free;
-	}
-
-	IWL_INFO(trans, "base HW address: %pM\n", mvm->nvm_data->hw_addr);
-
-	/* Initialize general data */
-	mvm->nvm_data->nvm_version = le16_to_cpu(rsp->general.nvm_version);
-
-	/* Initialize MAC sku data */
-	mvm->nvm_data->sku_cap_11ac_enable =
-		le32_to_cpu(rsp->mac_sku.enable_11ac);
-	mvm->nvm_data->sku_cap_11n_enable =
-		le32_to_cpu(rsp->mac_sku.enable_11n);
-	mvm->nvm_data->sku_cap_band_24GHz_enable =
-		le32_to_cpu(rsp->mac_sku.enable_24g);
-	mvm->nvm_data->sku_cap_band_52GHz_enable =
-		le32_to_cpu(rsp->mac_sku.enable_5g);
-	mvm->nvm_data->sku_cap_mimo_disabled =
-		le32_to_cpu(rsp->mac_sku.mimo_disable);
-
-	/* Initialize PHY sku data */
-	mvm->nvm_data->valid_tx_ant = (u8)le32_to_cpu(rsp->phy_sku.tx_chains);
-	mvm->nvm_data->valid_rx_ant = (u8)le32_to_cpu(rsp->phy_sku.rx_chains);
-
-	/* Initialize regulatory data */
-	mvm->nvm_data->lar_enabled =
-		le32_to_cpu(rsp->regulatory.lar_enabled) && lar_fw_supported;
-
-	iwl_init_sbands(trans->dev, trans->cfg, mvm->nvm_data,
-			rsp->regulatory.channel_profile,
-			mvm->nvm_data->valid_tx_ant & mvm->fw->valid_tx_ant,
-			mvm->nvm_data->valid_rx_ant & mvm->fw->valid_rx_ant,
-			rsp->regulatory.lar_enabled && lar_fw_supported);
-
-	iwl_free_resp(&hcmd);
-	return 0;
-
-err_free:
-	kfree(mvm->nvm_data);
-out:
-	iwl_free_resp(&hcmd);
-	return ret;
-}
-
-int iwl_nvm_init(struct iwl_mvm *mvm, bool read_nvm_from_nic)
+int iwl_nvm_init(struct iwl_mvm *mvm)
 {
 	int ret, section;
 	u32 size_read = 0;
@@ -651,63 +564,61 @@ int iwl_nvm_init(struct iwl_mvm *mvm, bool read_nvm_from_nic)
 		return -EINVAL;
 
 	/* load NVM values from nic */
-	if (read_nvm_from_nic) {
-		/* Read From FW NVM */
-		IWL_DEBUG_EEPROM(mvm->trans->dev, "Read from NVM\n");
+	/* Read From FW NVM */
+	IWL_DEBUG_EEPROM(mvm->trans->dev, "Read from NVM\n");
 
-		nvm_buffer = kmalloc(mvm->cfg->base_params->eeprom_size,
-				     GFP_KERNEL);
-		if (!nvm_buffer)
-			return -ENOMEM;
-		for (section = 0; section < NVM_MAX_NUM_SECTIONS; section++) {
-			/* we override the constness for initial read */
-			ret = iwl_nvm_read_section(mvm, section, nvm_buffer,
-						   size_read);
-			if (ret < 0)
-				continue;
-			size_read += ret;
-			temp = kmemdup(nvm_buffer, ret, GFP_KERNEL);
-			if (!temp) {
-				ret = -ENOMEM;
-				break;
-			}
+	nvm_buffer = kmalloc(mvm->cfg->base_params->eeprom_size,
+			     GFP_KERNEL);
+	if (!nvm_buffer)
+		return -ENOMEM;
+	for (section = 0; section < NVM_MAX_NUM_SECTIONS; section++) {
+		/* we override the constness for initial read */
+		ret = iwl_nvm_read_section(mvm, section, nvm_buffer,
+					   size_read);
+		if (ret < 0)
+			continue;
+		size_read += ret;
+		temp = kmemdup(nvm_buffer, ret, GFP_KERNEL);
+		if (!temp) {
+			ret = -ENOMEM;
+			break;
+		}
 
-			iwl_mvm_nvm_fixups(mvm, section, temp, ret);
+		iwl_mvm_nvm_fixups(mvm, section, temp, ret);
 
-			mvm->nvm_sections[section].data = temp;
-			mvm->nvm_sections[section].length = ret;
+		mvm->nvm_sections[section].data = temp;
+		mvm->nvm_sections[section].length = ret;
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
-			switch (section) {
-			case NVM_SECTION_TYPE_SW:
-				mvm->nvm_sw_blob.data = temp;
-				mvm->nvm_sw_blob.size  = ret;
+		switch (section) {
+		case NVM_SECTION_TYPE_SW:
+			mvm->nvm_sw_blob.data = temp;
+			mvm->nvm_sw_blob.size  = ret;
+			break;
+		case NVM_SECTION_TYPE_CALIBRATION:
+			mvm->nvm_calib_blob.data = temp;
+			mvm->nvm_calib_blob.size  = ret;
+			break;
+		case NVM_SECTION_TYPE_PRODUCTION:
+			mvm->nvm_prod_blob.data = temp;
+			mvm->nvm_prod_blob.size  = ret;
+			break;
+		case NVM_SECTION_TYPE_PHY_SKU:
+			mvm->nvm_phy_sku_blob.data = temp;
+			mvm->nvm_phy_sku_blob.size  = ret;
+			break;
+		default:
+			if (section == mvm->cfg->nvm_hw_section_num) {
+				mvm->nvm_hw_blob.data = temp;
+				mvm->nvm_hw_blob.size = ret;
 				break;
-			case NVM_SECTION_TYPE_CALIBRATION:
-				mvm->nvm_calib_blob.data = temp;
-				mvm->nvm_calib_blob.size  = ret;
-				break;
-			case NVM_SECTION_TYPE_PRODUCTION:
-				mvm->nvm_prod_blob.data = temp;
-				mvm->nvm_prod_blob.size  = ret;
-				break;
-			case NVM_SECTION_TYPE_PHY_SKU:
-				mvm->nvm_phy_sku_blob.data = temp;
-				mvm->nvm_phy_sku_blob.size  = ret;
-				break;
-			default:
-				if (section == mvm->cfg->nvm_hw_section_num) {
-					mvm->nvm_hw_blob.data = temp;
-					mvm->nvm_hw_blob.size = ret;
-					break;
-				}
 			}
-#endif
 		}
-		if (!size_read)
-			IWL_ERR(mvm, "OTP is blank\n");
-		kfree(nvm_buffer);
+#endif
 	}
+	if (!size_read)
+		IWL_ERR(mvm, "OTP is blank\n");
+	kfree(nvm_buffer);
 
 	/* Only if PNVM selected in the mod param - load external NVM  */
 	if (mvm->nvm_file_name) {
@@ -838,7 +749,7 @@ int iwl_mvm_init_mcc(struct iwl_mvm *mvm)
 	struct ieee80211_regdomain *regd;
 	char mcc[3];
 
-	if (mvm->cfg->ext_nvm) {
+	if (mvm->cfg->nvm_type == IWL_NVM_EXT) {
 		tlv_lar = fw_has_capa(&mvm->fw->ucode_capa,
 				      IWL_UCODE_TLV_CAPA_LAR_SUPPORT);
 		nvm_lar = mvm->nvm_data->lar_enabled;

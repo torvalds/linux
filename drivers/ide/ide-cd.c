@@ -867,10 +867,15 @@ static void msf_from_bcd(struct atapi_msf *msf)
 int cdrom_check_status(ide_drive_t *drive, struct request_sense *sense)
 {
 	struct cdrom_info *info = drive->driver_data;
-	struct cdrom_device_info *cdi = &info->devinfo;
+	struct cdrom_device_info *cdi;
 	unsigned char cmd[BLK_MAX_CDB];
 
 	ide_debug_log(IDE_DBG_FUNC, "enter");
+
+	if (!info)
+		return -EIO;
+
+	cdi = &info->devinfo;
 
 	memset(cmd, 0, BLK_MAX_CDB);
 	cmd[0] = GPCMD_TEST_UNIT_READY;
@@ -1328,6 +1333,7 @@ static int ide_cdrom_prep_fs(struct request_queue *q, struct request *rq)
 	unsigned long blocks = blk_rq_sectors(rq) / (hard_sect >> 9);
 	struct scsi_request *req = scsi_req(rq);
 
+	scsi_req_init(req);
 	memset(req->cmd, 0, BLK_MAX_CDB);
 
 	if (rq_data_dir(rq) == READ)

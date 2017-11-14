@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2016 Intel Corporation.
+ * Copyright(c) 2016 - 2017 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -54,7 +54,7 @@
 
 struct mmu_rb_handler {
 	struct mmu_notifier mn;
-	struct rb_root root;
+	struct rb_root_cached root;
 	void *ops_arg;
 	spinlock_t lock;        /* protect the RB tree */
 	struct mmu_rb_ops *ops;
@@ -108,7 +108,7 @@ int hfi1_mmu_rb_register(void *ops_arg, struct mm_struct *mm,
 	if (!handlr)
 		return -ENOMEM;
 
-	handlr->root = RB_ROOT;
+	handlr->root = RB_ROOT_CACHED;
 	handlr->ops = ops;
 	handlr->ops_arg = ops_arg;
 	INIT_HLIST_NODE(&handlr->mn.hlist);
@@ -149,9 +149,9 @@ void hfi1_mmu_rb_unregister(struct mmu_rb_handler *handler)
 	INIT_LIST_HEAD(&del_list);
 
 	spin_lock_irqsave(&handler->lock, flags);
-	while ((node = rb_first(&handler->root))) {
+	while ((node = rb_first_cached(&handler->root))) {
 		rbnode = rb_entry(node, struct mmu_rb_node, node);
-		rb_erase(node, &handler->root);
+		rb_erase_cached(node, &handler->root);
 		/* move from LRU list to delete list */
 		list_move(&rbnode->list, &del_list);
 	}
@@ -169,9 +169,8 @@ int hfi1_mmu_rb_insert(struct mmu_rb_handler *handler,
 	unsigned long flags;
 	int ret = 0;
 
+	trace_hfi1_mmu_rb_insert(mnode->addr, mnode->len);
 	spin_lock_irqsave(&handler->lock, flags);
-	hfi1_cdbg(MMU, "Inserting node addr 0x%llx, len %u", mnode->addr,
-		  mnode->len);
 	node = __mmu_rb_search(handler, mnode->addr, mnode->len);
 	if (node) {
 		ret = -EINVAL;
@@ -197,7 +196,7 @@ static struct mmu_rb_node *__mmu_rb_search(struct mmu_rb_handler *handler,
 {
 	struct mmu_rb_node *node = NULL;
 
-	hfi1_cdbg(MMU, "Searching for addr 0x%llx, len %u", addr, len);
+	trace_hfi1_mmu_rb_search(addr, len);
 	if (!handler->ops->filter) {
 		node = __mmu_int_rb_iter_first(&handler->root, addr,
 					       (addr + len) - 1);
@@ -214,21 +213,27 @@ static struct mmu_rb_node *__mmu_rb_search(struct mmu_rb_handler *handler,
 	return node;
 }
 
-struct mmu_rb_node *hfi1_mmu_rb_extract(struct mmu_rb_handler *handler,
-					unsigned long addr, unsigned long len)
+bool hfi1_mmu_rb_remove_unless_exact(struct mmu_rb_handler *handler,
+				     unsigned long addr, unsigned long len,
+				     struct mmu_rb_node **rb_node)
 {
 	struct mmu_rb_node *node;
 	unsigned long flags;
+	bool ret = false;
 
 	spin_lock_irqsave(&handler->lock, flags);
 	node = __mmu_rb_search(handler, addr, len);
 	if (node) {
+		if (node->addr == addr && node->len == len)
+			goto unlock;
 		__mmu_int_rb_remove(node, &handler->root);
 		list_del(&node->list); /* remove from LRU list */
+		ret = true;
 	}
+unlock:
 	spin_unlock_irqrestore(&handler->lock, flags);
-
-	return node;
+	*rb_node = node;
+	return ret;
 }
 
 void hfi1_mmu_rb_evict(struct mmu_rb_handler *handler, void *evict_arg)
@@ -272,8 +277,7 @@ void hfi1_mmu_rb_remove(struct mmu_rb_handler *handler,
 	unsigned long flags;
 
 	/* Validity of handler and node pointers has been checked by caller. */
-	hfi1_cdbg(MMU, "Removing node addr 0x%llx, len %u", node->addr,
-		  node->len);
+	trace_hfi1_mmu_rb_remove(node->addr, node->len);
 	spin_lock_irqsave(&handler->lock, flags);
 	__mmu_int_rb_remove(node, &handler->root);
 	list_del(&node->list); /* remove from LRU list */
@@ -296,7 +300,7 @@ static void mmu_notifier_mem_invalidate(struct mmu_notifier *mn,
 {
 	struct mmu_rb_handler *handler =
 		container_of(mn, struct mmu_rb_handler, mn);
-	struct rb_root *root = &handler->root;
+	struct rb_root_cached *root = &handler->root;
 	struct mmu_rb_node *node, *ptr = NULL;
 	unsigned long flags;
 	bool added = false;
@@ -306,8 +310,7 @@ static void mmu_notifier_mem_invalidate(struct mmu_notifier *mn,
 	     node; node = ptr) {
 		/* Guard against node removal. */
 		ptr = __mmu_int_rb_iter_next(node, start, end - 1);
-		hfi1_cdbg(MMU, "Invalidating node addr 0x%llx, len %u",
-			  node->addr, node->len);
+		trace_hfi1_mmu_mem_invalidate(node->addr, node->len);
 		if (handler->ops->invalidate(handler->ops_arg, node)) {
 			__mmu_int_rb_remove(node, root);
 			/* move from LRU list to delete list */

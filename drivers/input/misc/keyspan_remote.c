@@ -85,7 +85,7 @@ static const unsigned short keyspan_key_table[] = {
 };
 
 /* table of devices that work with this driver */
-static struct usb_device_id keyspan_table[] = {
+static const struct usb_device_id keyspan_table[] = {
 	{ USB_DEVICE(USB_KEYSPAN_VENDOR_ID, USB_KEYSPAN_PRODUCT_UIA11) },
 	{ }					/* Terminating entry */
 };

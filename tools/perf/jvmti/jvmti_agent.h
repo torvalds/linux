@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __JVMTI_AGENT_H__
 #define __JVMTI_AGENT_H__
 

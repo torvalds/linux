@@ -270,22 +270,24 @@ static void vmw_sou_crtc_helper_prepare(struct drm_crtc *crtc)
 }
 
 /**
- * vmw_sou_crtc_helper_commit - Noop
+ * vmw_sou_crtc_atomic_enable - Noop
  *
  * @crtc: CRTC associated with the new screen
  *
  * This is called after a mode set has been completed.
  */
-static void vmw_sou_crtc_helper_commit(struct drm_crtc *crtc)
+static void vmw_sou_crtc_atomic_enable(struct drm_crtc *crtc,
+				       struct drm_crtc_state *old_state)
 {
 }
 
 /**
- * vmw_sou_crtc_helper_disable - Turns off CRTC
+ * vmw_sou_crtc_atomic_disable - Turns off CRTC
  *
  * @crtc: CRTC to be turned off
  */
-static void vmw_sou_crtc_helper_disable(struct drm_crtc *crtc)
+static void vmw_sou_crtc_atomic_disable(struct drm_crtc *crtc,
+					struct drm_crtc_state *old_state)
 {
 	struct vmw_private *dev_priv;
 	struct vmw_screen_object_unit *sou;
@@ -573,12 +575,12 @@ drm_plane_helper_funcs vmw_sou_primary_plane_helper_funcs = {
 
 static const struct drm_crtc_helper_funcs vmw_sou_crtc_helper_funcs = {
 	.prepare = vmw_sou_crtc_helper_prepare,
-	.commit = vmw_sou_crtc_helper_commit,
-	.disable = vmw_sou_crtc_helper_disable,
 	.mode_set_nofb = vmw_sou_crtc_mode_set_nofb,
 	.atomic_check = vmw_du_crtc_atomic_check,
 	.atomic_begin = vmw_du_crtc_atomic_begin,
 	.atomic_flush = vmw_du_crtc_atomic_flush,
+	.atomic_enable = vmw_sou_crtc_atomic_enable,
+	.atomic_disable = vmw_sou_crtc_atomic_disable,
 };
 
 
@@ -622,7 +624,7 @@ static int vmw_sou_init(struct vmw_private *dev_priv, unsigned unit)
 				       0, &vmw_sou_plane_funcs,
 				       vmw_primary_plane_formats,
 				       ARRAY_SIZE(vmw_primary_plane_formats),
-				       DRM_PLANE_TYPE_PRIMARY, NULL);
+				       NULL, DRM_PLANE_TYPE_PRIMARY, NULL);
 	if (ret) {
 		DRM_ERROR("Failed to initialize primary plane");
 		goto err_free;
@@ -637,7 +639,7 @@ static int vmw_sou_init(struct vmw_private *dev_priv, unsigned unit)
 			0, &vmw_sou_cursor_funcs,
 			vmw_cursor_plane_formats,
 			ARRAY_SIZE(vmw_cursor_plane_formats),
-			DRM_PLANE_TYPE_CURSOR, NULL);
+			NULL, DRM_PLANE_TYPE_CURSOR, NULL);
 	if (ret) {
 		DRM_ERROR("Failed to initialize cursor plane");
 		drm_plane_cleanup(&sou->base.primary);
@@ -742,15 +744,6 @@ int vmw_kms_sou_init_display(struct vmw_private *dev_priv)
 	dev_priv->active_display_unit = vmw_du_screen_object;
 
 	DRM_INFO("Screen Objects Display Unit initialized\n");
-
-	return 0;
-}
-
-int vmw_kms_sou_close_display(struct vmw_private *dev_priv)
-{
-	struct drm_device *dev = dev_priv->dev;
-
-	drm_vblank_cleanup(dev);
 
 	return 0;
 }

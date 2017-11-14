@@ -14,10 +14,9 @@ Required properties:
 - compatible: Must be "ti,k2g-sci-clk"
 - #clock-cells: Shall be 2.
   In clock consumers, this cell represents the device ID and clock ID
-  exposed by the PM firmware. The assignments can be found in the header
-  files <dt-bindings/genpd/<soc>.h> (which covers the device IDs) and
-  <dt-bindings/clock/<soc>.h> (which covers the clock IDs), where <soc>
-  is the SoC involved, for example 'k2g'.
+  exposed by the PM firmware. The list of valid values for the device IDs
+  and clocks IDs for 66AK2G SoC are documented at
+  http://processors.wiki.ti.com/index.php/TISCI#66AK2G02_Data
 
 Examples:
 --------

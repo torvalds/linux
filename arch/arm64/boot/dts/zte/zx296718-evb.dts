@@ -57,16 +57,28 @@
 		reg = <0x40000000 0x40000000>;
 	};
 
-	sound0 {
-		compatible = "simple-audio-card";
-		simple-audio-card,name = "zx_snd_spdif0";
+	sound-spdif0 {
+		compatible = "audio-graph-card";
+		dais = <&spdif0_port>;
+	};
 
-		simple-audio-card,cpu {
-			sound-dai = <&spdif0>;
-		};
+	sound-i2s0 {
+		compatible = "audio-graph-card";
+		dais = <&i2s0_port>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&amplifier_pins>;
+		pa-gpios = <&bgpio4 0 GPIO_ACTIVE_HIGH>;
+		widgets = "Line", "Line Out Jack";
+		routing = "Amplifier", "LINEOUTL",
+			  "Amplifier", "LINEOUTR",
+			  "Line Out Jack", "Amplifier";
+	};
+};
 
-		simple-audio-card,codec {
-			sound-dai = <&hdmi>;
+&aud96p22 {
+	port {
+		aud96p22_endpoint: endpoint {
+			remote-endpoint = <&i2s0_endpoint>;
 		};
 	};
 };
@@ -77,6 +89,36 @@
 
 &hdmi {
 	status = "okay";
+
+	port {
+		hdmi_endpoint: endpoint {
+			remote-endpoint = <&spdif0_endpoint>;
+		};
+	};
+};
+
+&i2c0 {
+	status = "okay";
+};
+
+&i2s0 {
+	status = "okay";
+
+	i2s0_port: port {
+		i2s0_endpoint: endpoint {
+			remote-endpoint = <&aud96p22_endpoint>;
+			dai-format = "i2s";
+			frame-master;
+			bitclock-master;
+		};
+	};
+};
+
+&pmm {
+	amplifier_pins: amplifier {
+		pins = "TSI3_DATA";
+		function = "BGPIO";
+	};
 };
 
 &sd1 {
@@ -84,6 +126,16 @@
 };
 
 &spdif0 {
+	status = "okay";
+
+	spdif0_port: port {
+		spdif0_endpoint: endpoint {
+			remote-endpoint = <&hdmi_endpoint>;
+		};
+	};
+};
+
+&tvenc {
 	status = "okay";
 };
 

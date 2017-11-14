@@ -496,7 +496,7 @@ static void hal2_free_dmabuf(struct hal2_codec *codec)
 		       DMA_ATTR_NON_CONSISTENT);
 }
 
-static struct snd_pcm_hardware hal2_pcm_hw = {
+static const struct snd_pcm_hardware hal2_pcm_hw = {
 	.info = (SNDRV_PCM_INFO_MMAP |
 		 SNDRV_PCM_INFO_MMAP_VALID |
 		 SNDRV_PCM_INFO_INTERLEAVED |
@@ -711,7 +711,7 @@ static int hal2_capture_ack(struct snd_pcm_substream *substream)
 						 hal2_capture_transfer);
 }
 
-static struct snd_pcm_ops hal2_playback_ops = {
+static const struct snd_pcm_ops hal2_playback_ops = {
 	.open =        hal2_playback_open,
 	.close =       hal2_playback_close,
 	.ioctl =       snd_pcm_lib_ioctl,
@@ -723,7 +723,7 @@ static struct snd_pcm_ops hal2_playback_ops = {
 	.ack =         hal2_playback_ack,
 };
 
-static struct snd_pcm_ops hal2_capture_ops = {
+static const struct snd_pcm_ops hal2_capture_ops = {
 	.open =        hal2_capture_open,
 	.close =       hal2_capture_close,
 	.ioctl =       snd_pcm_lib_ioctl,

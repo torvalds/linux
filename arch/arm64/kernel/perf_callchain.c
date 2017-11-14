@@ -162,7 +162,6 @@ void perf_callchain_kernel(struct perf_callchain_entry_ctx *entry,
 	}
 
 	frame.fp = regs->regs[29];
-	frame.sp = regs->sp;
 	frame.pc = regs->pc;
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 	frame.graph = current->curr_ret_stack;

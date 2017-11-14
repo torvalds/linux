@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __DT_TAS2552_H
 #define __DT_TAS2552_H
 

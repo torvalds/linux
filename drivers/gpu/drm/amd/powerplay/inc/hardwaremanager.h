@@ -164,9 +164,14 @@ enum phm_platform_caps {
 	PHM_PlatformCaps_EnablePlatformPowerManagement,         /* indicates that Platform Power Management feature is supported */
 	PHM_PlatformCaps_SurpriseRemoval,                       /* indicates that surprise removal feature is requested */
 	PHM_PlatformCaps_NewCACVoltage,                         /* indicates new CAC voltage table support */
+	PHM_PlatformCaps_DiDtSupport,                           /* for dI/dT feature */
 	PHM_PlatformCaps_DBRamping,                             /* for dI/dT feature */
 	PHM_PlatformCaps_TDRamping,                             /* for dI/dT feature */
 	PHM_PlatformCaps_TCPRamping,                            /* for dI/dT feature */
+	PHM_PlatformCaps_DBRRamping,                            /* for dI/dT feature */
+	PHM_PlatformCaps_DiDtEDCEnable,                         /* for dI/dT feature */
+	PHM_PlatformCaps_GCEDC,                                 /* for dI/dT feature */
+	PHM_PlatformCaps_PSM,                                   /* for dI/dT feature */
 	PHM_PlatformCaps_EnableSMU7ThermalManagement,           /* SMC will manage thermal events */
 	PHM_PlatformCaps_FPS,                                   /* FPS support */
 	PHM_PlatformCaps_ACP,                                   /* ACP support */

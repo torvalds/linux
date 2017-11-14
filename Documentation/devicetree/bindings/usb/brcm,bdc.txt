@@ -1,0 +1,29 @@
+Broadcom USB Device Controller (BDC)
+====================================
+
+Required properties:
+
+- compatible: must be one of:
+                "brcm,bdc-v0.16"
+                "brcm,bdc"
+- reg: the base register address and length
+- interrupts: the interrupt line for this controller
+
+Optional properties:
+
+On Broadcom STB platforms, these properties are required:
+
+- phys: phandle to one or two USB PHY blocks
+        NOTE: Some SoC's have a single phy and some have
+        USB 2.0 and USB 3.0 phys
+- clocks: phandle to the functional clock of this block
+
+Example:
+
+        bdc@f0b02000 {
+                compatible = "brcm,bdc-v0.16";
+                reg = <0xf0b02000 0xfc4>;
+                interrupts = <0x0 0x60 0x0>;
+                phys = <&usbphy_0 0x0>;
+                clocks = <&sw_usbd>;
+        };

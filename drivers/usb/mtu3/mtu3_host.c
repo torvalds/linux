@@ -258,8 +258,8 @@ int ssusb_host_init(struct ssusb_mtk *ssusb, struct device_node *parent_dn)
 
 	ret = of_platform_populate(parent_dn, NULL, NULL, parent_dev);
 	if (ret) {
-		dev_dbg(parent_dev, "failed to create child devices at %s\n",
-				parent_dn->full_name);
+		dev_dbg(parent_dev, "failed to create child devices at %pOF\n",
+				parent_dn);
 		return ret;
 	}
 

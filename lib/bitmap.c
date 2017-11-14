@@ -513,7 +513,7 @@ static int __bitmap_parselist(const char *buf, unsigned int buflen,
 		int nmaskbits)
 {
 	unsigned int a, b, old_a, old_b;
-	unsigned int group_size, used_size;
+	unsigned int group_size, used_size, off;
 	int c, old_c, totaldigits, ndigits;
 	const char __user __force *ubuf = (const char __user __force *)buf;
 	int at_start, in_range, in_partial_range;
@@ -599,6 +599,8 @@ static int __bitmap_parselist(const char *buf, unsigned int buflen,
 			a = old_a;
 			b = old_b;
 			old_a = old_b = 0;
+		} else {
+			used_size = group_size = b - a + 1;
 		}
 		/* if no digit is after '-', it's wrong*/
 		if (at_start && in_range)
@@ -608,17 +610,9 @@ static int __bitmap_parselist(const char *buf, unsigned int buflen,
 		if (b >= nmaskbits)
 			return -ERANGE;
 		while (a <= b) {
-			if (in_partial_range) {
-				static int pos_in_group = 1;
-
-				if (pos_in_group <= used_size)
-					set_bit(a, maskp);
-
-				if (a == b || ++pos_in_group > group_size)
-					pos_in_group = 1;
-			} else
-				set_bit(a, maskp);
-			a++;
+			off = min(b - a + 1, used_size);
+			bitmap_set(maskp, a, off);
+			a += group_size;
 		}
 	} while (buflen && c == ',');
 	return 0;

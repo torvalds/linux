@@ -285,6 +285,11 @@ enum host_event_code {
 	EC_HOST_EVENT_HANG_DETECT = 20,
 	/* Hang detect logic detected a hang and warm rebooted the AP */
 	EC_HOST_EVENT_HANG_REBOOT = 21,
+	/* PD MCU triggering host event */
+	EC_HOST_EVENT_PD_MCU = 22,
+
+	/* EC desires to change state of host-controlled USB mux */
+	EC_HOST_EVENT_USB_MUX = 28,
 
 	/*
 	 * The high bit of the event mask is not used as a host event code.  If
@@ -2903,6 +2908,76 @@ struct ec_params_usb_pd_control {
 	uint8_t port;
 	uint8_t role;
 	uint8_t mux;
+} __packed;
+
+#define PD_CTRL_RESP_ENABLED_COMMS      (1 << 0) /* Communication enabled */
+#define PD_CTRL_RESP_ENABLED_CONNECTED  (1 << 1) /* Device connected */
+#define PD_CTRL_RESP_ENABLED_PD_CAPABLE (1 << 2) /* Partner is PD capable */
+
+struct ec_response_usb_pd_control_v1 {
+	uint8_t enabled;
+	uint8_t role;
+	uint8_t polarity;
+	char state[32];
+} __packed;
+
+#define EC_CMD_USB_PD_PORTS 0x102
+
+struct ec_response_usb_pd_ports {
+	uint8_t num_ports;
+} __packed;
+
+#define EC_CMD_USB_PD_POWER_INFO 0x103
+
+#define PD_POWER_CHARGING_PORT 0xff
+struct ec_params_usb_pd_power_info {
+	uint8_t port;
+} __packed;
+
+enum usb_chg_type {
+	USB_CHG_TYPE_NONE,
+	USB_CHG_TYPE_PD,
+	USB_CHG_TYPE_C,
+	USB_CHG_TYPE_PROPRIETARY,
+	USB_CHG_TYPE_BC12_DCP,
+	USB_CHG_TYPE_BC12_CDP,
+	USB_CHG_TYPE_BC12_SDP,
+	USB_CHG_TYPE_OTHER,
+	USB_CHG_TYPE_VBUS,
+	USB_CHG_TYPE_UNKNOWN,
+};
+
+struct usb_chg_measures {
+	uint16_t voltage_max;
+	uint16_t voltage_now;
+	uint16_t current_max;
+	uint16_t current_lim;
+} __packed;
+
+struct ec_response_usb_pd_power_info {
+	uint8_t role;
+	uint8_t type;
+	uint8_t dualrole;
+	uint8_t reserved1;
+	struct usb_chg_measures meas;
+	uint32_t max_power;
+} __packed;
+
+/* Get info about USB-C SS muxes */
+#define EC_CMD_USB_PD_MUX_INFO 0x11a
+
+struct ec_params_usb_pd_mux_info {
+	uint8_t port; /* USB-C port number */
+} __packed;
+
+/* Flags representing mux state */
+#define USB_PD_MUX_USB_ENABLED       (1 << 0)
+#define USB_PD_MUX_DP_ENABLED        (1 << 1)
+#define USB_PD_MUX_POLARITY_INVERTED (1 << 2)
+#define USB_PD_MUX_HPD_IRQ           (1 << 3)
+
+struct ec_response_usb_pd_mux_info {
+	uint8_t flags; /* USB_PD_MUX_*-encoded USB mux state */
 } __packed;
 
 /*****************************************************************************/

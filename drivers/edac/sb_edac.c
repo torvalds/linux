@@ -300,6 +300,12 @@ enum domain {
 	SOCK,
 };
 
+enum mirroring_mode {
+	NON_MIRRORING,
+	ADDR_RANGE_MIRRORING,
+	FULL_MIRRORING,
+};
+
 struct sbridge_pvt;
 struct sbridge_info {
 	enum type	type;
@@ -377,8 +383,9 @@ struct sbridge_pvt {
 	struct sbridge_channel	channel[NUM_CHANNELS];
 
 	/* Memory type detection */
-	bool			is_mirrored, is_lockstep, is_close_pg;
+	bool			is_cur_addr_mirrored, is_lockstep, is_close_pg;
 	bool			is_chan_hash;
+	enum mirroring_mode	mirror_mode;
 
 	/* Memory description */
 	u64			tolm, tohm;
@@ -1648,10 +1655,6 @@ static int get_dimm_config(struct mem_ctl_info *mci)
 	enum edac_type mode;
 	u32 reg;
 
-	if (pvt->info.type == HASWELL || pvt->info.type == BROADWELL) {
-		pci_read_config_dword(pvt->pci_ha, HASWELL_HASYSDEFEATURE2, &reg);
-		pvt->is_chan_hash = GET_BITFIELD(reg, 21, 21);
-	}
 	pvt->sbridge_dev->node_id = pvt->info.get_node_id(pvt);
 	edac_dbg(0, "mc#%d: Node ID: %d, source ID: %d\n",
 		 pvt->sbridge_dev->mc,
@@ -1663,22 +1666,45 @@ static int get_dimm_config(struct mem_ctl_info *mci)
 	 */
 	if (pvt->info.type == KNIGHTS_LANDING) {
 		mode = EDAC_S4ECD4ED;
-		pvt->is_mirrored = false;
+		pvt->mirror_mode = NON_MIRRORING;
+		pvt->is_cur_addr_mirrored = false;
 
 		if (knl_get_dimm_capacity(pvt, knl_mc_sizes) != 0)
 			return -1;
-		pci_read_config_dword(pvt->pci_ta, KNL_MCMTR, &pvt->info.mcmtr);
+		if (pci_read_config_dword(pvt->pci_ta, KNL_MCMTR, &pvt->info.mcmtr)) {
+			edac_dbg(0, "Failed to read KNL_MCMTR register\n");
+			return -ENODEV;
+		}
 	} else {
-		pci_read_config_dword(pvt->pci_ras, RASENABLES, &reg);
+		if (pvt->info.type == HASWELL || pvt->info.type == BROADWELL) {
+			if (pci_read_config_dword(pvt->pci_ha, HASWELL_HASYSDEFEATURE2, &reg)) {
+				edac_dbg(0, "Failed to read HASWELL_HASYSDEFEATURE2 register\n");
+				return -ENODEV;
+			}
+			pvt->is_chan_hash = GET_BITFIELD(reg, 21, 21);
+			if (GET_BITFIELD(reg, 28, 28)) {
+				pvt->mirror_mode = ADDR_RANGE_MIRRORING;
+				edac_dbg(0, "Address range partial memory mirroring is enabled\n");
+				goto next;
+			}
+		}
+		if (pci_read_config_dword(pvt->pci_ras, RASENABLES, &reg)) {
+			edac_dbg(0, "Failed to read RASENABLES register\n");
+			return -ENODEV;
+		}
 		if (IS_MIRROR_ENABLED(reg)) {
-			edac_dbg(0, "Memory mirror is enabled\n");
-			pvt->is_mirrored = true;
+			pvt->mirror_mode = FULL_MIRRORING;
+			edac_dbg(0, "Full memory mirroring is enabled\n");
 		} else {
-			edac_dbg(0, "Memory mirror is disabled\n");
-			pvt->is_mirrored = false;
+			pvt->mirror_mode = NON_MIRRORING;
+			edac_dbg(0, "Memory mirroring is disabled\n");
 		}
 
-		pci_read_config_dword(pvt->pci_ta, MCMTR, &pvt->info.mcmtr);
+next:
+		if (pci_read_config_dword(pvt->pci_ta, MCMTR, &pvt->info.mcmtr)) {
+			edac_dbg(0, "Failed to read MCMTR register\n");
+			return -ENODEV;
+		}
 		if (IS_LOCKSTEP_ENABLED(pvt->info.mcmtr)) {
 			edac_dbg(0, "Lockstep is enabled\n");
 			mode = EDAC_S8ECD8ED;
@@ -2092,7 +2118,8 @@ static int get_memory_error_data(struct mem_ctl_info *mci,
 
 	pci_read_config_dword(pvt->pci_tad[base_ch], tad_ch_nilv_offset[n_tads], &tad_offset);
 
-	if (pvt->is_mirrored) {
+	if (pvt->mirror_mode == FULL_MIRRORING ||
+	    (pvt->mirror_mode == ADDR_RANGE_MIRRORING && n_tads == 0)) {
 		*channel_mask |= 1 << ((base_ch + 2) % 4);
 		switch(ch_way) {
 		case 2:
@@ -2103,8 +2130,12 @@ static int get_memory_error_data(struct mem_ctl_info *mci,
 			sprintf(msg, "Invalid mirror set. Can't decode addr");
 			return -EINVAL;
 		}
-	} else
+
+		pvt->is_cur_addr_mirrored = true;
+	} else {
 		sck_xch = (1 << sck_way) * ch_way;
+		pvt->is_cur_addr_mirrored = false;
+	}
 
 	if (pvt->is_lockstep)
 		*channel_mask |= 1 << ((base_ch + 1) % 4);
@@ -2967,7 +2998,7 @@ static void sbridge_mce_output_error(struct mem_ctl_info *mci,
 	 * EDAC core should be handling the channel mask, in order to point
 	 * to the group of dimm's where the error may be happening.
 	 */
-	if (!pvt->is_lockstep && !pvt->is_mirrored && !pvt->is_close_pg)
+	if (!pvt->is_lockstep && !pvt->is_cur_addr_mirrored && !pvt->is_close_pg)
 		channel = first_channel;
 
 	snprintf(msg, sizeof(msg),
@@ -3125,7 +3156,6 @@ static int sbridge_register_mci(struct sbridge_dev *sbridge_dev, enum type type)
 	mci->edac_ctl_cap = EDAC_FLAG_NONE;
 	mci->edac_cap = EDAC_FLAG_NONE;
 	mci->mod_name = "sb_edac.c";
-	mci->mod_ver = SBRIDGE_REVISION;
 	mci->dev_name = pci_name(pdev);
 	mci->ctl_page_to_phys = NULL;
 

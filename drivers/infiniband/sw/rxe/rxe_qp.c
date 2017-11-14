@@ -851,13 +851,8 @@ void rxe_qp_cleanup(struct rxe_pool_entry *arg)
 		qp->resp.mr = NULL;
 	}
 
-	if (qp_type(qp) == IB_QPT_RC) {
-		struct dst_entry *dst = NULL;
-
-		dst = sk_dst_get(qp->sk->sk);
-		if (dst)
-			dst_release(dst);
-	}
+	if (qp_type(qp) == IB_QPT_RC)
+		sk_dst_reset(qp->sk->sk);
 
 	free_rd_atomic_resources(qp);
 

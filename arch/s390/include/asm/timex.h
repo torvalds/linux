@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *  S390 version
  *    Copyright IBM Corp. 1999
@@ -14,6 +15,8 @@
 
 /* The value of the TOD clock for 1.1.1970. */
 #define TOD_UNIX_EPOCH 0x7d91048bca000000ULL
+
+extern u64 clock_comparator_max;
 
 /* Inline functions for clock register access. */
 static inline int set_tod_clock(__u64 time)
@@ -126,7 +129,7 @@ static inline unsigned long long local_tick_disable(void)
 	unsigned long long old;
 
 	old = S390_lowcore.clock_comparator;
-	S390_lowcore.clock_comparator = -1ULL;
+	S390_lowcore.clock_comparator = clock_comparator_max;
 	set_clock_comparator(S390_lowcore.clock_comparator);
 	return old;
 }
@@ -174,24 +177,24 @@ static inline cycles_t get_cycles(void)
 	return (cycles_t) get_tod_clock() >> 2;
 }
 
-int get_phys_clock(unsigned long long *clock);
+int get_phys_clock(unsigned long *clock);
 void init_cpu_timer(void);
 unsigned long long monotonic_clock(void);
 
-extern u64 sched_clock_base_cc;
+extern unsigned char tod_clock_base[16] __aligned(8);
 
 /**
  * get_clock_monotonic - returns current time in clock rate units
  *
  * The caller must ensure that preemption is disabled.
- * The clock and sched_clock_base get changed via stop_machine.
+ * The clock and tod_clock_base get changed via stop_machine.
  * Therefore preemption must be disabled when calling this
  * function, otherwise the returned value is not guaranteed to
  * be monotonic.
  */
 static inline unsigned long long get_tod_clock_monotonic(void)
 {
-	return get_tod_clock() - sched_clock_base_cc;
+	return get_tod_clock() - *(unsigned long long *) &tod_clock_base[1];
 }
 
 /**
@@ -216,6 +219,34 @@ static inline unsigned long long get_tod_clock_monotonic(void)
 static inline unsigned long long tod_to_ns(unsigned long long todval)
 {
 	return ((todval >> 9) * 125) + (((todval & 0x1ff) * 125) >> 9);
+}
+
+/**
+ * tod_after - compare two 64 bit TOD values
+ * @a: first 64 bit TOD timestamp
+ * @b: second 64 bit TOD timestamp
+ *
+ * Returns: true if a is later than b
+ */
+static inline int tod_after(unsigned long long a, unsigned long long b)
+{
+	if (MACHINE_HAS_SCC)
+		return (long long) a > (long long) b;
+	return a > b;
+}
+
+/**
+ * tod_after_eq - compare two 64 bit TOD values
+ * @a: first 64 bit TOD timestamp
+ * @b: second 64 bit TOD timestamp
+ *
+ * Returns: true if a is later than b
+ */
+static inline int tod_after_eq(unsigned long long a, unsigned long long b)
+{
+	if (MACHINE_HAS_SCC)
+		return (long long) a >= (long long) b;
+	return a >= b;
 }
 
 #endif

@@ -279,7 +279,8 @@ static void mdp4_crtc_mode_set_nofb(struct drm_crtc *crtc)
 	}
 }
 
-static void mdp4_crtc_disable(struct drm_crtc *crtc)
+static void mdp4_crtc_atomic_disable(struct drm_crtc *crtc,
+				     struct drm_crtc_state *old_state)
 {
 	struct mdp4_crtc *mdp4_crtc = to_mdp4_crtc(crtc);
 	struct mdp4_kms *mdp4_kms = get_kms(crtc);
@@ -295,7 +296,8 @@ static void mdp4_crtc_disable(struct drm_crtc *crtc)
 	mdp4_crtc->enabled = false;
 }
 
-static void mdp4_crtc_enable(struct drm_crtc *crtc)
+static void mdp4_crtc_atomic_enable(struct drm_crtc *crtc,
+				    struct drm_crtc_state *old_state)
 {
 	struct mdp4_crtc *mdp4_crtc = to_mdp4_crtc(crtc);
 	struct mdp4_kms *mdp4_kms = get_kms(crtc);
@@ -482,7 +484,6 @@ static const struct drm_crtc_funcs mdp4_crtc_funcs = {
 	.set_config = drm_atomic_helper_set_config,
 	.destroy = mdp4_crtc_destroy,
 	.page_flip = drm_atomic_helper_page_flip,
-	.set_property = drm_atomic_helper_crtc_set_property,
 	.cursor_set = mdp4_crtc_cursor_set,
 	.cursor_move = mdp4_crtc_cursor_move,
 	.reset = drm_atomic_helper_crtc_reset,
@@ -492,11 +493,11 @@ static const struct drm_crtc_funcs mdp4_crtc_funcs = {
 
 static const struct drm_crtc_helper_funcs mdp4_crtc_helper_funcs = {
 	.mode_set_nofb = mdp4_crtc_mode_set_nofb,
-	.disable = mdp4_crtc_disable,
-	.enable = mdp4_crtc_enable,
 	.atomic_check = mdp4_crtc_atomic_check,
 	.atomic_begin = mdp4_crtc_atomic_begin,
 	.atomic_flush = mdp4_crtc_atomic_flush,
+	.atomic_enable = mdp4_crtc_atomic_enable,
+	.atomic_disable = mdp4_crtc_atomic_disable,
 };
 
 static void mdp4_crtc_vblank_irq(struct mdp_irq *irq, uint32_t irqstatus)

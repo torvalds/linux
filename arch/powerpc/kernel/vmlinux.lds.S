@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifdef CONFIG_PPC64
 #define PROVIDE32(x)	PROVIDE(__unused__##x)
 #else
@@ -8,7 +9,7 @@
 #include <asm/cache.h>
 #include <asm/thread_info.h>
 
-#ifdef CONFIG_STRICT_KERNEL_RWX
+#if defined(CONFIG_STRICT_KERNEL_RWX) && !defined(CONFIG_PPC32)
 #define STRICT_ALIGN_SIZE	(1 << 24)
 #else
 #define STRICT_ALIGN_SIZE	PAGE_SIZE

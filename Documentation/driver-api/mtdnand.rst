@@ -516,7 +516,7 @@ mirrored table is performed.
 
 The most important field in the nand_bbt_descr structure is the
 options field. The options define most of the table properties. Use the
-predefined constants from nand.h to define the options.
+predefined constants from rawnand.h to define the options.
 
 -  Number of bits per block
 
@@ -843,7 +843,7 @@ Chip option constants
 Constants for chip id table
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-These constants are defined in nand.h. They are OR-ed together to
+These constants are defined in rawnand.h. They are OR-ed together to
 describe the chip functionality::
 
     /* Buswitdh is 16 bit */
@@ -865,7 +865,7 @@ describe the chip functionality::
 Constants for runtime options
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-These constants are defined in nand.h. They are OR-ed together to
+These constants are defined in rawnand.h. They are OR-ed together to
 describe the functionality::
 
     /* The hw ecc generator provides a syndrome instead a ecc value on read
@@ -956,7 +956,7 @@ developer. Each struct member has a short description which is marked
 with an [XXX] identifier. See the chapter "Documentation hints" for an
 explanation.
 
-.. kernel-doc:: include/linux/mtd/nand.h
+.. kernel-doc:: include/linux/mtd/rawnand.h
    :internal:
 
 Public Functions Provided

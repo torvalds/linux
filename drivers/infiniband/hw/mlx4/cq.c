@@ -218,6 +218,7 @@ struct ib_cq *mlx4_ib_create_cq(struct ib_device *ibdev,
 			goto err_mtt;
 
 		uar = &to_mucontext(context)->uar;
+		cq->mcq.usage = MLX4_RES_USAGE_USER_VERBS;
 	} else {
 		err = mlx4_db_alloc(dev->dev, &cq->db, 1);
 		if (err)
@@ -233,6 +234,7 @@ struct ib_cq *mlx4_ib_create_cq(struct ib_device *ibdev,
 			goto err_db;
 
 		uar = &dev->priv_uar;
+		cq->mcq.usage = MLX4_RES_USAGE_DRIVER;
 	}
 
 	if (dev->eq_table)
@@ -635,7 +637,7 @@ static void mlx4_ib_poll_sw_comp(struct mlx4_ib_cq *cq, int num_entries,
 	struct mlx4_ib_qp *qp;
 
 	*npolled = 0;
-	/* Find uncompleted WQEs belonging to that cq and retrun
+	/* Find uncompleted WQEs belonging to that cq and return
 	 * simulated FLUSH_ERR completions
 	 */
 	list_for_each_entry(qp, &cq->send_qp_list, cq_send_list) {

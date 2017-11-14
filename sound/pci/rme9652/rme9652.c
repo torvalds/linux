@@ -2181,7 +2181,7 @@ static int snd_rme9652_prepare(struct snd_pcm_substream *substream)
 	return result;
 }
 
-static struct snd_pcm_hardware snd_rme9652_playback_subinfo =
+static const struct snd_pcm_hardware snd_rme9652_playback_subinfo =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP |
 				 SNDRV_PCM_INFO_MMAP_VALID |
@@ -2205,7 +2205,7 @@ static struct snd_pcm_hardware snd_rme9652_playback_subinfo =
 	.fifo_size =		0,
 };
 
-static struct snd_pcm_hardware snd_rme9652_capture_subinfo =
+static const struct snd_pcm_hardware snd_rme9652_capture_subinfo =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP |
 				 SNDRV_PCM_INFO_MMAP_VALID |
@@ -2618,19 +2618,17 @@ static int snd_rme9652_probe(struct pci_dev *pci,
 	card->private_free = snd_rme9652_card_free;
 	rme9652->dev = dev;
 	rme9652->pci = pci;
-
-	if ((err = snd_rme9652_create(card, rme9652, precise_ptr[dev])) < 0) {
-		snd_card_free(card);
-		return err;
-	}
+	err = snd_rme9652_create(card, rme9652, precise_ptr[dev]);
+	if (err)
+		goto free_card;
 
 	strcpy(card->shortname, rme9652->card_name);
 
 	sprintf(card->longname, "%s at 0x%lx, irq %d",
 		card->shortname, rme9652->port, rme9652->irq);
-
-	
-	if ((err = snd_card_register(card)) < 0) {
+	err = snd_card_register(card);
+	if (err) {
+free_card:
 		snd_card_free(card);
 		return err;
 	}

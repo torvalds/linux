@@ -1,7 +1,7 @@
 #ifndef _UAPI_LINUX_VIRTIO_RING_H
 #define _UAPI_LINUX_VIRTIO_RING_H
-/* An interface for efficient virtio implementation, currently for use by KVM
- * and lguest, but hopefully others soon.  Do NOT change this since it will
+/* An interface for efficient virtio implementation, currently for use by KVM,
+ * but hopefully others soon.  Do NOT change this since it will
  * break existing servers and clients.
  *
  * This header is BSD licensed so anyone can use the definitions to implement

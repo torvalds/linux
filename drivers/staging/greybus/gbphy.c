@@ -66,7 +66,7 @@ static const struct dev_pm_ops gb_gbphy_pm_ops = {
 			   gb_gbphy_idle)
 };
 
-static struct device_type greybus_gbphy_dev_type = {
+static const struct device_type greybus_gbphy_dev_type = {
 	.name	 =	"gbphy_device",
 	.release =	gbphy_dev_release,
 	.pm	=	&gb_gbphy_pm_ops,

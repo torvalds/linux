@@ -38,8 +38,8 @@
 
 #define DEBUG_SUBSYSTEM S_LLITE
 
-#include "../include/obd_support.h"
-#include "../include/lustre_dlm.h"
+#include <obd_support.h>
+#include <lustre_dlm.h>
 #include "llite_internal.h"
 
 #define SA_OMITTED_ENTRY_MAX 8ULL

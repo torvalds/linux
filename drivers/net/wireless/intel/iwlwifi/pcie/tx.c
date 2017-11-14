@@ -43,8 +43,7 @@
 #include "iwl-scd.h"
 #include "iwl-op-mode.h"
 #include "internal.h"
-/* FIXME: need to abstract out TX command (once we know what it looks like) */
-#include "dvm/commands.h"
+#include "fw/api/tx.h"
 
 #define IWL_TX_CRC_SIZE 4
 #define IWL_TX_DELIMITER_SIZE 4
@@ -107,7 +106,7 @@ static int iwl_queue_init(struct iwl_txq *q, int slots_num)
 	q->n_window = slots_num;
 
 	/* slots_num must be power-of-two size, otherwise
-	 * get_cmd_index is broken. */
+	 * iwl_pcie_get_cmd_index is broken. */
 	if (WARN_ON(!is_power_of_2(slots_num)))
 		return -EINVAL;
 
@@ -429,7 +428,7 @@ void iwl_pcie_txq_free_tfd(struct iwl_trans *trans, struct iwl_txq *txq)
 	 * idx is bounded by n_window
 	 */
 	int rd_ptr = txq->read_ptr;
-	int idx = get_cmd_index(txq, rd_ptr);
+	int idx = iwl_pcie_get_cmd_index(txq, rd_ptr);
 
 	lockdep_assert_held(&txq->lock);
 
@@ -578,8 +577,8 @@ int iwl_pcie_txq_init(struct iwl_trans *trans, struct iwl_txq *txq,
 	return 0;
 }
 
-static void iwl_pcie_free_tso_page(struct iwl_trans_pcie *trans_pcie,
-				   struct sk_buff *skb)
+void iwl_pcie_free_tso_page(struct iwl_trans_pcie *trans_pcie,
+			    struct sk_buff *skb)
 {
 	struct page **page_ptr;
 
@@ -1101,7 +1100,8 @@ void iwl_trans_pcie_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
 	for (;
 	     txq->read_ptr != tfd_num;
 	     txq->read_ptr = iwl_queue_inc_wrap(txq->read_ptr)) {
-		struct sk_buff *skb = txq->entries[txq->read_ptr].skb;
+		int idx = iwl_pcie_get_cmd_index(txq, txq->read_ptr);
+		struct sk_buff *skb = txq->entries[idx].skb;
 
 		if (WARN_ON_ONCE(!skb))
 			continue;
@@ -1110,7 +1110,7 @@ void iwl_trans_pcie_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
 
 		__skb_queue_tail(skbs, skb);
 
-		txq->entries[txq->read_ptr].skb = NULL;
+		txq->entries[idx].skb = NULL;
 
 		if (!trans->cfg->use_tfh)
 			iwl_pcie_txq_inval_byte_cnt_tbl(trans, txq);
@@ -1560,7 +1560,7 @@ static int iwl_pcie_enqueue_hcmd(struct iwl_trans *trans,
 		goto free_dup_buf;
 	}
 
-	idx = get_cmd_index(txq, txq->write_ptr);
+	idx = iwl_pcie_get_cmd_index(txq, txq->write_ptr);
 	out_cmd = txq->entries[idx].cmd;
 	out_meta = &txq->entries[idx].meta;
 
@@ -1752,7 +1752,7 @@ void iwl_pcie_hcmd_complete(struct iwl_trans *trans,
 
 	spin_lock_bh(&txq->lock);
 
-	cmd_index = get_cmd_index(txq, index);
+	cmd_index = iwl_pcie_get_cmd_index(txq, index);
 	cmd = txq->entries[cmd_index].cmd;
 	meta = &txq->entries[cmd_index].meta;
 	group_id = cmd->hdr.group_id;
@@ -2370,7 +2370,7 @@ int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 		tb1_len = ALIGN(len, 4);
 		/* Tell NIC about any 2-byte padding after MAC header */
 		if (tb1_len != len)
-			tx_cmd->tx_flags |= TX_CMD_FLG_MH_PAD_MSK;
+			tx_cmd->tx_flags |= cpu_to_le32(TX_CMD_FLG_MH_PAD);
 	} else {
 		tb1_len = len;
 	}

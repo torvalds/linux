@@ -113,9 +113,17 @@ static int new_mmio_info(struct intel_gvt *gvt,
 
 		info->offset = i;
 		p = find_mmio_info(gvt, info->offset);
-		if (p)
-			gvt_err("dup mmio definition offset %x\n",
+		if (p) {
+			WARN(1, "dup mmio definition offset %x\n",
 				info->offset);
+			kfree(info);
+
+			/* We return -EEXIST here to make GVT-g load fail.
+			 * So duplicated MMIO can be found as soon as
+			 * possible.
+			 */
+			return -EEXIST;
+		}
 
 		info->ro_mask = ro_mask;
 		info->device = device;
@@ -1222,10 +1230,12 @@ static int power_well_ctl_mmio_write(struct intel_vgpu *vgpu,
 {
 	write_vreg(vgpu, offset, p_data, bytes);
 
-	if (vgpu_vreg(vgpu, offset) & HSW_PWR_WELL_ENABLE_REQUEST)
-		vgpu_vreg(vgpu, offset) |= HSW_PWR_WELL_STATE_ENABLED;
+	if (vgpu_vreg(vgpu, offset) & HSW_PWR_WELL_CTL_REQ(HSW_DISP_PW_GLOBAL))
+		vgpu_vreg(vgpu, offset) |=
+			HSW_PWR_WELL_CTL_STATE(HSW_DISP_PW_GLOBAL);
 	else
-		vgpu_vreg(vgpu, offset) &= ~HSW_PWR_WELL_STATE_ENABLED;
+		vgpu_vreg(vgpu, offset) &=
+			~HSW_PWR_WELL_CTL_STATE(HSW_DISP_PW_GLOBAL);
 	return 0;
 }
 
@@ -1419,18 +1429,7 @@ static int skl_lcpll_write(struct intel_vgpu *vgpu, unsigned int offset,
 	return 0;
 }
 
-static int ring_timestamp_mmio_read(struct intel_vgpu *vgpu,
-		unsigned int offset, void *p_data, unsigned int bytes)
-{
-	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
-
-	mmio_hw_access_pre(dev_priv);
-	vgpu_vreg(vgpu, offset) = I915_READ(_MMIO(offset));
-	mmio_hw_access_post(dev_priv);
-	return intel_vgpu_default_mmio_read(vgpu, offset, p_data, bytes);
-}
-
-static int instdone_mmio_read(struct intel_vgpu *vgpu,
+static int mmio_read_from_hw(struct intel_vgpu *vgpu,
 		unsigned int offset, void *p_data, unsigned int bytes)
 {
 	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
@@ -1579,6 +1578,8 @@ static int ring_reset_ctl_write(struct intel_vgpu *vgpu,
 	MMIO_F(prefix(BLT_RING_BASE), s, f, am, rm, d, r, w); \
 	MMIO_F(prefix(GEN6_BSD_RING_BASE), s, f, am, rm, d, r, w); \
 	MMIO_F(prefix(VEBOX_RING_BASE), s, f, am, rm, d, r, w); \
+	if (HAS_BSD2(dev_priv)) \
+		MMIO_F(prefix(GEN8_BSD2_RING_BASE), s, f, am, rm, d, r, w); \
 } while (0)
 
 #define MMIO_RING_D(prefix, d) \
@@ -1625,10 +1626,9 @@ static int init_generic_mmio_info(struct intel_gvt *gvt)
 #undef RING_REG
 
 #define RING_REG(base) (base + 0x6c)
-	MMIO_RING_DFH(RING_REG, D_ALL, 0, instdone_mmio_read, NULL);
-	MMIO_DH(RING_REG(GEN8_BSD2_RING_BASE), D_ALL, instdone_mmio_read, NULL);
+	MMIO_RING_DFH(RING_REG, D_ALL, 0, mmio_read_from_hw, NULL);
 #undef RING_REG
-	MMIO_DH(GEN7_SC_INSTDONE, D_BDW_PLUS, instdone_mmio_read, NULL);
+	MMIO_DH(GEN7_SC_INSTDONE, D_BDW_PLUS, mmio_read_from_hw, NULL);
 
 	MMIO_GM_RDR(0x2148, D_ALL, NULL, NULL);
 	MMIO_GM_RDR(CCID, D_ALL, NULL, NULL);
@@ -1638,7 +1638,7 @@ static int init_generic_mmio_info(struct intel_gvt *gvt)
 	MMIO_RING_DFH(RING_TAIL, D_ALL, F_CMD_ACCESS, NULL, NULL);
 	MMIO_RING_DFH(RING_HEAD, D_ALL, F_CMD_ACCESS, NULL, NULL);
 	MMIO_RING_DFH(RING_CTL, D_ALL, F_CMD_ACCESS, NULL, NULL);
-	MMIO_RING_DFH(RING_ACTHD, D_ALL, F_CMD_ACCESS, NULL, NULL);
+	MMIO_RING_DFH(RING_ACTHD, D_ALL, F_CMD_ACCESS, mmio_read_from_hw, NULL);
 	MMIO_RING_GM_RDR(RING_START, D_ALL, NULL, NULL);
 
 	/* RING MODE */
@@ -1652,9 +1652,9 @@ static int init_generic_mmio_info(struct intel_gvt *gvt)
 	MMIO_RING_DFH(RING_INSTPM, D_ALL, F_MODE_MASK | F_CMD_ACCESS,
 			NULL, NULL);
 	MMIO_RING_DFH(RING_TIMESTAMP, D_ALL, F_CMD_ACCESS,
-			ring_timestamp_mmio_read, NULL);
+			mmio_read_from_hw, NULL);
 	MMIO_RING_DFH(RING_TIMESTAMP_UDW, D_ALL, F_CMD_ACCESS,
-			ring_timestamp_mmio_read, NULL);
+			mmio_read_from_hw, NULL);
 
 	MMIO_DFH(GEN7_GT_MODE, D_ALL, F_MODE_MASK | F_CMD_ACCESS, NULL, NULL);
 	MMIO_DFH(CACHE_MODE_0_GEN7, D_ALL, F_MODE_MASK | F_CMD_ACCESS,
@@ -2242,10 +2242,17 @@ static int init_generic_mmio_info(struct intel_gvt *gvt)
 	MMIO_D(GEN6_RC6p_THRESHOLD, D_ALL);
 	MMIO_D(GEN6_RC6pp_THRESHOLD, D_ALL);
 	MMIO_D(GEN6_PMINTRMSK, D_ALL);
-	MMIO_DH(HSW_PWR_WELL_BIOS, D_BDW, NULL, power_well_ctl_mmio_write);
-	MMIO_DH(HSW_PWR_WELL_DRIVER, D_BDW, NULL, power_well_ctl_mmio_write);
-	MMIO_DH(HSW_PWR_WELL_KVMR, D_BDW, NULL, power_well_ctl_mmio_write);
-	MMIO_DH(HSW_PWR_WELL_DEBUG, D_BDW, NULL, power_well_ctl_mmio_write);
+	/*
+	 * Use an arbitrary power well controlled by the PWR_WELL_CTL
+	 * register.
+	 */
+	MMIO_DH(HSW_PWR_WELL_CTL_BIOS(HSW_DISP_PW_GLOBAL), D_BDW, NULL,
+		power_well_ctl_mmio_write);
+	MMIO_DH(HSW_PWR_WELL_CTL_DRIVER(HSW_DISP_PW_GLOBAL), D_BDW, NULL,
+		power_well_ctl_mmio_write);
+	MMIO_DH(HSW_PWR_WELL_CTL_KVMR, D_BDW, NULL, power_well_ctl_mmio_write);
+	MMIO_DH(HSW_PWR_WELL_CTL_DEBUG(HSW_DISP_PW_GLOBAL), D_BDW, NULL,
+		power_well_ctl_mmio_write);
 	MMIO_DH(HSW_PWR_WELL_CTL5, D_BDW, NULL, power_well_ctl_mmio_write);
 	MMIO_DH(HSW_PWR_WELL_CTL6, D_BDW, NULL, power_well_ctl_mmio_write);
 
@@ -2394,9 +2401,6 @@ static int init_broadwell_mmio_info(struct intel_gvt *gvt)
 	struct drm_i915_private *dev_priv = gvt->dev_priv;
 	int ret;
 
-	MMIO_DFH(RING_IMR(GEN8_BSD2_RING_BASE), D_BDW_PLUS, F_CMD_ACCESS, NULL,
-			intel_vgpu_reg_imr_handler);
-
 	MMIO_DH(GEN8_GT_IMR(0), D_BDW_PLUS, NULL, intel_vgpu_reg_imr_handler);
 	MMIO_DH(GEN8_GT_IER(0), D_BDW_PLUS, NULL, intel_vgpu_reg_ier_handler);
 	MMIO_DH(GEN8_GT_IIR(0), D_BDW_PLUS, NULL, intel_vgpu_reg_iir_handler);
@@ -2459,68 +2463,34 @@ static int init_broadwell_mmio_info(struct intel_gvt *gvt)
 	MMIO_DH(GEN8_MASTER_IRQ, D_BDW_PLUS, NULL,
 		intel_vgpu_reg_master_irq_handler);
 
-	MMIO_DFH(RING_HWSTAM(GEN8_BSD2_RING_BASE), D_BDW_PLUS,
-		F_CMD_ACCESS, NULL, NULL);
-	MMIO_DFH(0x1c134, D_BDW_PLUS, F_CMD_ACCESS, NULL, NULL);
-
-	MMIO_DFH(RING_TAIL(GEN8_BSD2_RING_BASE), D_BDW_PLUS, F_CMD_ACCESS,
-		NULL, NULL);
-	MMIO_DFH(RING_HEAD(GEN8_BSD2_RING_BASE),  D_BDW_PLUS,
-		F_CMD_ACCESS, NULL, NULL);
-	MMIO_GM_RDR(RING_START(GEN8_BSD2_RING_BASE), D_BDW_PLUS, NULL, NULL);
-	MMIO_DFH(RING_CTL(GEN8_BSD2_RING_BASE), D_BDW_PLUS, F_CMD_ACCESS,
-		NULL, NULL);
-	MMIO_DFH(RING_ACTHD(GEN8_BSD2_RING_BASE), D_BDW_PLUS,
-		F_CMD_ACCESS, NULL, NULL);
-	MMIO_DFH(RING_ACTHD_UDW(GEN8_BSD2_RING_BASE), D_BDW_PLUS,
-		F_CMD_ACCESS, NULL, NULL);
-	MMIO_DFH(0x1c29c, D_BDW_PLUS, F_MODE_MASK | F_CMD_ACCESS, NULL,
-		ring_mode_mmio_write);
-	MMIO_DFH(RING_MI_MODE(GEN8_BSD2_RING_BASE), D_BDW_PLUS,
-		F_MODE_MASK | F_CMD_ACCESS, NULL, NULL);
-	MMIO_DFH(RING_INSTPM(GEN8_BSD2_RING_BASE), D_BDW_PLUS,
-		F_MODE_MASK | F_CMD_ACCESS, NULL, NULL);
-	MMIO_DFH(RING_TIMESTAMP(GEN8_BSD2_RING_BASE), D_BDW_PLUS, F_CMD_ACCESS,
-			ring_timestamp_mmio_read, NULL);
-
-	MMIO_RING_DFH(RING_ACTHD_UDW, D_BDW_PLUS, F_CMD_ACCESS, NULL, NULL);
+	MMIO_RING_DFH(RING_ACTHD_UDW, D_BDW_PLUS, F_CMD_ACCESS,
+		mmio_read_from_hw, NULL);
 
 #define RING_REG(base) (base + 0xd0)
 	MMIO_RING_F(RING_REG, 4, F_RO, 0,
-		~_MASKED_BIT_ENABLE(RESET_CTL_REQUEST_RESET), D_BDW_PLUS, NULL,
-		ring_reset_ctl_write);
-	MMIO_F(RING_REG(GEN8_BSD2_RING_BASE), 4, F_RO, 0,
 		~_MASKED_BIT_ENABLE(RESET_CTL_REQUEST_RESET), D_BDW_PLUS, NULL,
 		ring_reset_ctl_write);
 #undef RING_REG
 
 #define RING_REG(base) (base + 0x230)
 	MMIO_RING_DFH(RING_REG, D_BDW_PLUS, 0, NULL, elsp_mmio_write);
-	MMIO_DH(RING_REG(GEN8_BSD2_RING_BASE), D_BDW_PLUS, NULL, elsp_mmio_write);
 #undef RING_REG
 
 #define RING_REG(base) (base + 0x234)
 	MMIO_RING_F(RING_REG, 8, F_RO | F_CMD_ACCESS, 0, ~0, D_BDW_PLUS,
 		NULL, NULL);
-	MMIO_F(RING_REG(GEN8_BSD2_RING_BASE), 4, F_RO | F_CMD_ACCESS, 0,
-		~0LL, D_BDW_PLUS, NULL, NULL);
 #undef RING_REG
 
 #define RING_REG(base) (base + 0x244)
 	MMIO_RING_DFH(RING_REG, D_BDW_PLUS, F_CMD_ACCESS, NULL, NULL);
-	MMIO_DFH(RING_REG(GEN8_BSD2_RING_BASE), D_BDW_PLUS, F_CMD_ACCESS,
-		NULL, NULL);
 #undef RING_REG
 
 #define RING_REG(base) (base + 0x370)
 	MMIO_RING_F(RING_REG, 48, F_RO, 0, ~0, D_BDW_PLUS, NULL, NULL);
-	MMIO_F(RING_REG(GEN8_BSD2_RING_BASE), 48, F_RO, 0, ~0, D_BDW_PLUS,
-			NULL, NULL);
 #undef RING_REG
 
 #define RING_REG(base) (base + 0x3a0)
 	MMIO_RING_DFH(RING_REG, D_BDW_PLUS, F_MODE_MASK, NULL, NULL);
-	MMIO_DFH(RING_REG(GEN8_BSD2_RING_BASE), D_BDW_PLUS, F_MODE_MASK, NULL, NULL);
 #undef RING_REG
 
 	MMIO_D(PIPEMISC(PIPE_A), D_BDW_PLUS);
@@ -2540,11 +2510,9 @@ static int init_broadwell_mmio_info(struct intel_gvt *gvt)
 
 #define RING_REG(base) (base + 0x270)
 	MMIO_RING_F(RING_REG, 32, 0, 0, 0, D_BDW_PLUS, NULL, NULL);
-	MMIO_F(RING_REG(GEN8_BSD2_RING_BASE), 32, 0, 0, 0, D_BDW_PLUS, NULL, NULL);
 #undef RING_REG
 
 	MMIO_RING_GM_RDR(RING_HWS_PGA, D_BDW_PLUS, NULL, NULL);
-	MMIO_GM_RDR(RING_HWS_PGA(GEN8_BSD2_RING_BASE), D_BDW_PLUS, NULL, NULL);
 
 	MMIO_DFH(HDC_CHICKEN0, D_BDW_PLUS, F_MODE_MASK | F_CMD_ACCESS, NULL, NULL);
 
@@ -2581,7 +2549,6 @@ static int init_broadwell_mmio_info(struct intel_gvt *gvt)
 	MMIO_F(0x24d0, 48, F_CMD_ACCESS, 0, 0, D_BDW_PLUS,
 		NULL, force_nonpriv_write);
 
-	MMIO_D(0x22040, D_BDW_PLUS);
 	MMIO_D(0x44484, D_BDW_PLUS);
 	MMIO_D(0x4448c, D_BDW_PLUS);
 
@@ -2636,10 +2603,13 @@ static int init_skl_mmio_info(struct intel_gvt *gvt)
 	MMIO_F(_DPD_AUX_CH_CTL, 6 * 4, 0, 0, 0, D_SKL_PLUS, NULL,
 						dp_aux_ch_ctl_mmio_write);
 
-	MMIO_D(HSW_PWR_WELL_BIOS, D_SKL_PLUS);
-	MMIO_DH(HSW_PWR_WELL_DRIVER, D_SKL_PLUS, NULL,
-						skl_power_well_ctl_write);
-	MMIO_DH(GEN6_PCODE_MAILBOX, D_SKL_PLUS, NULL, mailbox_write);
+	/*
+	 * Use an arbitrary power well controlled by the PWR_WELL_CTL
+	 * register.
+	 */
+	MMIO_D(HSW_PWR_WELL_CTL_BIOS(SKL_DISP_PW_MISC_IO), D_SKL_PLUS);
+	MMIO_DH(HSW_PWR_WELL_CTL_DRIVER(SKL_DISP_PW_MISC_IO), D_SKL_PLUS, NULL,
+		skl_power_well_ctl_write);
 
 	MMIO_D(0xa210, D_SKL_PLUS);
 	MMIO_D(GEN9_MEDIA_PG_IDLE_HYSTERESIS, D_SKL_PLUS);
@@ -2830,8 +2800,6 @@ static int init_skl_mmio_info(struct intel_gvt *gvt)
 	MMIO_D(0x65f08, D_SKL | D_KBL);
 	MMIO_D(0x320f0, D_SKL | D_KBL);
 
-	MMIO_DFH(_REG_VCS2_EXCC, D_SKL_PLUS, F_CMD_ACCESS, NULL, NULL);
-	MMIO_DFH(_REG_VECS_EXCC, D_SKL_PLUS, F_CMD_ACCESS, NULL, NULL);
 	MMIO_D(0x70034, D_SKL_PLUS);
 	MMIO_D(0x71034, D_SKL_PLUS);
 	MMIO_D(0x72034, D_SKL_PLUS);
@@ -2849,10 +2817,7 @@ static int init_skl_mmio_info(struct intel_gvt *gvt)
 		NULL, NULL);
 
 	MMIO_D(0x4ab8, D_KBL);
-	MMIO_D(0x940c, D_SKL_PLUS);
 	MMIO_D(0x2248, D_SKL_PLUS | D_KBL);
-	MMIO_D(0x4ab0, D_SKL | D_KBL);
-	MMIO_D(0x20d4, D_SKL | D_KBL);
 
 	return 0;
 }

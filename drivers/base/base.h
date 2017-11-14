@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #include <linux/notifier.h>
 
 /**
@@ -124,11 +125,6 @@ extern bool driver_allows_async_probing(struct device_driver *drv);
 extern int driver_add_groups(struct device_driver *drv,
 			     const struct attribute_group **groups);
 extern void driver_remove_groups(struct device_driver *drv,
-				 const struct attribute_group **groups);
-
-extern int device_add_groups(struct device *dev,
-			     const struct attribute_group **groups);
-extern void device_remove_groups(struct device *dev,
 				 const struct attribute_group **groups);
 
 extern char *make_class_name(const char *name, struct kobject *kobj);

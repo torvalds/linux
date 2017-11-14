@@ -2023,7 +2023,6 @@ int hns_roce_v1_req_notify_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags flags)
 	struct hns_roce_cq *hr_cq = to_hr_cq(ibcq);
 	u32 notification_flag;
 	u32 doorbell[2];
-	int ret = 0;
 
 	notification_flag = (flags & IB_CQ_SOLICITED_MASK) ==
 			    IB_CQ_SOLICITED ? CQ_DB_REQ_NOT : CQ_DB_REQ_NOT_SOL;
@@ -2043,7 +2042,7 @@ int hns_roce_v1_req_notify_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags flags)
 
 	hns_roce_write64_k(doorbell, hr_cq->cq_db_l);
 
-	return ret;
+	return 0;
 }
 
 static int hns_roce_v1_poll_one(struct hns_roce_cq *hr_cq,

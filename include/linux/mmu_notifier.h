@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_MMU_NOTIFIER_H
 #define _LINUX_MMU_NOTIFIER_H
 
@@ -399,6 +400,11 @@ extern void mmu_notifier_call_srcu(struct rcu_head *rcu,
 extern void mmu_notifier_synchronize(void);
 
 #else /* CONFIG_MMU_NOTIFIER */
+
+static inline int mm_has_notifiers(struct mm_struct *mm)
+{
+	return 0;
+}
 
 static inline void mmu_notifier_release(struct mm_struct *mm)
 {

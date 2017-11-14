@@ -483,20 +483,20 @@ static void dscc4_tx_print(struct net_device *dev,
 
 static void dscc4_release_ring(struct dscc4_dev_priv *dpriv)
 {
-	struct pci_dev *pdev = dpriv->pci_priv->pdev;
+	struct device *d = &dpriv->pci_priv->pdev->dev;
 	struct TxFD *tx_fd = dpriv->tx_fd;
 	struct RxFD *rx_fd = dpriv->rx_fd;
 	struct sk_buff **skbuff;
 	int i;
 
-	pci_free_consistent(pdev, TX_TOTAL_SIZE, tx_fd, dpriv->tx_fd_dma);
-	pci_free_consistent(pdev, RX_TOTAL_SIZE, rx_fd, dpriv->rx_fd_dma);
+	dma_free_coherent(d, TX_TOTAL_SIZE, tx_fd, dpriv->tx_fd_dma);
+	dma_free_coherent(d, RX_TOTAL_SIZE, rx_fd, dpriv->rx_fd_dma);
 
 	skbuff = dpriv->tx_skbuff;
 	for (i = 0; i < TX_RING_SIZE; i++) {
 		if (*skbuff) {
-			pci_unmap_single(pdev, le32_to_cpu(tx_fd->data),
-				(*skbuff)->len, PCI_DMA_TODEVICE);
+			dma_unmap_single(d, le32_to_cpu(tx_fd->data),
+					 (*skbuff)->len, DMA_TO_DEVICE);
 			dev_kfree_skb(*skbuff);
 		}
 		skbuff++;
@@ -506,8 +506,9 @@ static void dscc4_release_ring(struct dscc4_dev_priv *dpriv)
 	skbuff = dpriv->rx_skbuff;
 	for (i = 0; i < RX_RING_SIZE; i++) {
 		if (*skbuff) {
-			pci_unmap_single(pdev, le32_to_cpu(rx_fd->data),
-				RX_MAX(HDLC_MAX_MRU), PCI_DMA_FROMDEVICE);
+			dma_unmap_single(d, le32_to_cpu(rx_fd->data),
+					 RX_MAX(HDLC_MAX_MRU),
+					 DMA_FROM_DEVICE);
 			dev_kfree_skb(*skbuff);
 		}
 		skbuff++;
@@ -519,22 +520,30 @@ static inline int try_get_rx_skb(struct dscc4_dev_priv *dpriv,
 				 struct net_device *dev)
 {
 	unsigned int dirty = dpriv->rx_dirty%RX_RING_SIZE;
+	struct device *d = &dpriv->pci_priv->pdev->dev;
 	struct RxFD *rx_fd = dpriv->rx_fd + dirty;
 	const int len = RX_MAX(HDLC_MAX_MRU);
 	struct sk_buff *skb;
-	int ret = 0;
+	dma_addr_t addr;
 
 	skb = dev_alloc_skb(len);
+	if (!skb)
+		goto err_out;
+
+	skb->protocol = hdlc_type_trans(skb, dev);
+	addr = dma_map_single(d, skb->data, len, DMA_FROM_DEVICE);
+	if (dma_mapping_error(d, addr))
+		goto err_free_skb;
+
 	dpriv->rx_skbuff[dirty] = skb;
-	if (skb) {
-		skb->protocol = hdlc_type_trans(skb, dev);
-		rx_fd->data = cpu_to_le32(pci_map_single(dpriv->pci_priv->pdev,
-					  skb->data, len, PCI_DMA_FROMDEVICE));
-	} else {
-		rx_fd->data = 0;
-		ret = -1;
-	}
-	return ret;
+	rx_fd->data = cpu_to_le32(addr);
+	return 0;
+
+err_free_skb:
+	dev_kfree_skb_any(skb);
+err_out:
+	rx_fd->data = 0;
+	return -1;
 }
 
 /*
@@ -646,7 +655,7 @@ static inline void dscc4_rx_skb(struct dscc4_dev_priv *dpriv,
 				struct net_device *dev)
 {
 	struct RxFD *rx_fd = dpriv->rx_fd + dpriv->rx_current%RX_RING_SIZE;
-	struct pci_dev *pdev = dpriv->pci_priv->pdev;
+	struct device *d = &dpriv->pci_priv->pdev->dev;
 	struct sk_buff *skb;
 	int pkt_len;
 
@@ -656,8 +665,8 @@ static inline void dscc4_rx_skb(struct dscc4_dev_priv *dpriv,
 		goto refill;
 	}
 	pkt_len = TO_SIZE(le32_to_cpu(rx_fd->state2));
-	pci_unmap_single(pdev, le32_to_cpu(rx_fd->data),
-			 RX_MAX(HDLC_MAX_MRU), PCI_DMA_FROMDEVICE);
+	dma_unmap_single(d, le32_to_cpu(rx_fd->data),
+			 RX_MAX(HDLC_MAX_MRU), DMA_FROM_DEVICE);
 	if ((skb->data[--pkt_len] & FrameOk) == FrameOk) {
 		dev->stats.rx_packets++;
 		dev->stats.rx_bytes += pkt_len;
@@ -774,8 +783,8 @@ static int dscc4_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	rc = -ENOMEM;
 
-	priv->iqcfg = (__le32 *) pci_alloc_consistent(pdev,
-		IRQ_RING_SIZE*sizeof(__le32), &priv->iqcfg_dma);
+	priv->iqcfg = (__le32 *)dma_alloc_coherent(&pdev->dev,
+		IRQ_RING_SIZE*sizeof(__le32), &priv->iqcfg_dma, GFP_KERNEL);
 	if (!priv->iqcfg)
 		goto err_free_irq_5;
 	writel(priv->iqcfg_dma, ioaddr + IQCFG);
@@ -786,16 +795,18 @@ static int dscc4_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 */
 	for (i = 0; i < dev_per_card; i++) {
 		dpriv = priv->root + i;
-		dpriv->iqtx = (__le32 *) pci_alloc_consistent(pdev,
-			IRQ_RING_SIZE*sizeof(u32), &dpriv->iqtx_dma);
+		dpriv->iqtx = (__le32 *)dma_alloc_coherent(&pdev->dev,
+			IRQ_RING_SIZE*sizeof(u32), &dpriv->iqtx_dma,
+			GFP_KERNEL);
 		if (!dpriv->iqtx)
 			goto err_free_iqtx_6;
 		writel(dpriv->iqtx_dma, ioaddr + IQTX0 + i*4);
 	}
 	for (i = 0; i < dev_per_card; i++) {
 		dpriv = priv->root + i;
-		dpriv->iqrx = (__le32 *) pci_alloc_consistent(pdev,
-			IRQ_RING_SIZE*sizeof(u32), &dpriv->iqrx_dma);
+		dpriv->iqrx = (__le32 *)dma_alloc_coherent(&pdev->dev,
+			IRQ_RING_SIZE*sizeof(u32), &dpriv->iqrx_dma,
+			GFP_KERNEL);
 		if (!dpriv->iqrx)
 			goto err_free_iqrx_7;
 		writel(dpriv->iqrx_dma, ioaddr + IQRX0 + i*4);
@@ -819,18 +830,18 @@ out:
 err_free_iqrx_7:
 	while (--i >= 0) {
 		dpriv = priv->root + i;
-		pci_free_consistent(pdev, IRQ_RING_SIZE*sizeof(u32),
-				    dpriv->iqrx, dpriv->iqrx_dma);
+		dma_free_coherent(&pdev->dev, IRQ_RING_SIZE*sizeof(u32),
+				  dpriv->iqrx, dpriv->iqrx_dma);
 	}
 	i = dev_per_card;
 err_free_iqtx_6:
 	while (--i >= 0) {
 		dpriv = priv->root + i;
-		pci_free_consistent(pdev, IRQ_RING_SIZE*sizeof(u32),
-				    dpriv->iqtx, dpriv->iqtx_dma);
+		dma_free_coherent(&pdev->dev, IRQ_RING_SIZE*sizeof(u32),
+				  dpriv->iqtx, dpriv->iqtx_dma);
 	}
-	pci_free_consistent(pdev, IRQ_RING_SIZE*sizeof(u32), priv->iqcfg,
-			    priv->iqcfg_dma);
+	dma_free_coherent(&pdev->dev, IRQ_RING_SIZE*sizeof(u32), priv->iqcfg,
+			  priv->iqcfg_dma);
 err_free_irq_5:
 	free_irq(pdev->irq, priv->root);
 err_release_4:
@@ -1145,16 +1156,23 @@ static netdev_tx_t dscc4_start_xmit(struct sk_buff *skb,
 					  struct net_device *dev)
 {
 	struct dscc4_dev_priv *dpriv = dscc4_priv(dev);
-	struct dscc4_pci_priv *ppriv = dpriv->pci_priv;
+	struct device *d = &dpriv->pci_priv->pdev->dev;
 	struct TxFD *tx_fd;
+	dma_addr_t addr;
 	int next;
+
+	addr = dma_map_single(d, skb->data, skb->len, DMA_TO_DEVICE);
+	if (dma_mapping_error(d, addr)) {
+		dev_kfree_skb_any(skb);
+		dev->stats.tx_dropped++;
+		return NETDEV_TX_OK;
+	}
 
 	next = dpriv->tx_current%TX_RING_SIZE;
 	dpriv->tx_skbuff[next] = skb;
 	tx_fd = dpriv->tx_fd + next;
 	tx_fd->state = FrameEnd | TO_STATE_TX(skb->len);
-	tx_fd->data = cpu_to_le32(pci_map_single(ppriv->pdev, skb->data, skb->len,
-				     PCI_DMA_TODEVICE));
+	tx_fd->data = cpu_to_le32(addr);
 	tx_fd->complete = 0x00000000;
 	tx_fd->jiffies = jiffies;
 	mb();
@@ -1572,8 +1590,9 @@ try:
 			tx_fd = dpriv->tx_fd + cur;
 			skb = dpriv->tx_skbuff[cur];
 			if (skb) {
-				pci_unmap_single(ppriv->pdev, le32_to_cpu(tx_fd->data),
-						 skb->len, PCI_DMA_TODEVICE);
+				dma_unmap_single(&ppriv->pdev->dev,
+						 le32_to_cpu(tx_fd->data),
+						 skb->len, DMA_TO_DEVICE);
 				if (tx_fd->state & FrameEnd) {
 					dev->stats.tx_packets++;
 					dev->stats.tx_bytes += skb->len;
@@ -1887,16 +1906,22 @@ static struct sk_buff *dscc4_init_dummy_skb(struct dscc4_dev_priv *dpriv)
 
 	skb = dev_alloc_skb(DUMMY_SKB_SIZE);
 	if (skb) {
+		struct device *d = &dpriv->pci_priv->pdev->dev;
 		int last = dpriv->tx_dirty%TX_RING_SIZE;
 		struct TxFD *tx_fd = dpriv->tx_fd + last;
+		dma_addr_t addr;
 
 		skb->len = DUMMY_SKB_SIZE;
 		skb_copy_to_linear_data(skb, version,
 					strlen(version) % DUMMY_SKB_SIZE);
+		addr = dma_map_single(d, skb->data, DUMMY_SKB_SIZE,
+				      DMA_TO_DEVICE);
+		if (dma_mapping_error(d, addr)) {
+			dev_kfree_skb_any(skb);
+			return NULL;
+		}
 		tx_fd->state = FrameEnd | TO_STATE_TX(DUMMY_SKB_SIZE);
-		tx_fd->data = cpu_to_le32(pci_map_single(dpriv->pci_priv->pdev,
-					     skb->data, DUMMY_SKB_SIZE,
-					     PCI_DMA_TODEVICE));
+		tx_fd->data = cpu_to_le32(addr);
 		dpriv->tx_skbuff[last] = skb;
 	}
 	return skb;
@@ -1905,18 +1930,20 @@ static struct sk_buff *dscc4_init_dummy_skb(struct dscc4_dev_priv *dpriv)
 static int dscc4_init_ring(struct net_device *dev)
 {
 	struct dscc4_dev_priv *dpriv = dscc4_priv(dev);
-	struct pci_dev *pdev = dpriv->pci_priv->pdev;
+	struct device *d = &dpriv->pci_priv->pdev->dev;
 	struct TxFD *tx_fd;
 	struct RxFD *rx_fd;
 	void *ring;
 	int i;
 
-	ring = pci_alloc_consistent(pdev, RX_TOTAL_SIZE, &dpriv->rx_fd_dma);
+	ring = dma_alloc_coherent(d, RX_TOTAL_SIZE, &dpriv->rx_fd_dma,
+				  GFP_KERNEL);
 	if (!ring)
 		goto err_out;
 	dpriv->rx_fd = rx_fd = (struct RxFD *) ring;
 
-	ring = pci_alloc_consistent(pdev, TX_TOTAL_SIZE, &dpriv->tx_fd_dma);
+	ring = dma_alloc_coherent(d, TX_TOTAL_SIZE, &dpriv->tx_fd_dma,
+				  GFP_KERNEL);
 	if (!ring)
 		goto err_free_dma_rx;
 	dpriv->tx_fd = tx_fd = (struct TxFD *) ring;
@@ -1954,9 +1981,9 @@ static int dscc4_init_ring(struct net_device *dev)
 	return 0;
 
 err_free_dma_tx:
-	pci_free_consistent(pdev, TX_TOTAL_SIZE, ring, dpriv->tx_fd_dma);
+	dma_free_coherent(d, TX_TOTAL_SIZE, ring, dpriv->tx_fd_dma);
 err_free_dma_rx:
-	pci_free_consistent(pdev, RX_TOTAL_SIZE, rx_fd, dpriv->rx_fd_dma);
+	dma_free_coherent(d, RX_TOTAL_SIZE, rx_fd, dpriv->rx_fd_dma);
 err_out:
 	return -ENOMEM;
 }
@@ -1976,16 +2003,16 @@ static void dscc4_remove_one(struct pci_dev *pdev)
 	dscc4_pci_reset(pdev, ioaddr);
 
 	free_irq(pdev->irq, root);
-	pci_free_consistent(pdev, IRQ_RING_SIZE*sizeof(u32), ppriv->iqcfg,
-			    ppriv->iqcfg_dma);
+	dma_free_coherent(&pdev->dev, IRQ_RING_SIZE*sizeof(u32), ppriv->iqcfg,
+			  ppriv->iqcfg_dma);
 	for (i = 0; i < dev_per_card; i++) {
 		struct dscc4_dev_priv *dpriv = root + i;
 
 		dscc4_release_ring(dpriv);
-		pci_free_consistent(pdev, IRQ_RING_SIZE*sizeof(u32),
-				    dpriv->iqrx, dpriv->iqrx_dma);
-		pci_free_consistent(pdev, IRQ_RING_SIZE*sizeof(u32),
-				    dpriv->iqtx, dpriv->iqtx_dma);
+		dma_free_coherent(&pdev->dev, IRQ_RING_SIZE*sizeof(u32),
+				  dpriv->iqrx, dpriv->iqrx_dma);
+		dma_free_coherent(&pdev->dev, IRQ_RING_SIZE*sizeof(u32),
+				  dpriv->iqtx, dpriv->iqtx_dma);
 	}
 
 	dscc4_free1(pdev);

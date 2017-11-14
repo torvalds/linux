@@ -26,7 +26,7 @@
 #include <linux/slab.h>
 #include "kfd_priv.h"
 #include "kfd_device_queue_manager.h"
-#include "kfd_pm4_headers.h"
+#include "kfd_pm4_headers_vi.h"
 
 #define MQD_SIZE_ALIGNED 768
 
@@ -98,10 +98,13 @@ static const struct kfd_device_info *lookup_device_info(unsigned short did)
 
 	for (i = 0; i < ARRAY_SIZE(supported_devices); i++) {
 		if (supported_devices[i].did == did) {
-			BUG_ON(supported_devices[i].device_info == NULL);
+			WARN_ON(!supported_devices[i].device_info);
 			return supported_devices[i].device_info;
 		}
 	}
+
+	dev_warn(kfd_device, "DID %04x is missing in supported_devices\n",
+		 did);
 
 	return NULL;
 }
@@ -114,8 +117,10 @@ struct kfd_dev *kgd2kfd_probe(struct kgd_dev *kgd,
 	const struct kfd_device_info *device_info =
 					lookup_device_info(pdev->device);
 
-	if (!device_info)
+	if (!device_info) {
+		dev_err(kfd_device, "kgd2kfd_probe failed\n");
 		return NULL;
+	}
 
 	kfd = kzalloc(sizeof(*kfd), GFP_KERNEL);
 	if (!kfd)
@@ -152,15 +157,16 @@ static bool device_iommu_pasid_init(struct kfd_dev *kfd)
 	}
 
 	if ((iommu_info.flags & required_iommu_flags) != required_iommu_flags) {
-		dev_err(kfd_device, "error required iommu flags ats(%i), pri(%i), pasid(%i)\n",
+		dev_err(kfd_device, "error required iommu flags ats %i, pri %i, pasid %i\n",
 		       (iommu_info.flags & AMD_IOMMU_DEVICE_FLAG_ATS_SUP) != 0,
 		       (iommu_info.flags & AMD_IOMMU_DEVICE_FLAG_PRI_SUP) != 0,
-		       (iommu_info.flags & AMD_IOMMU_DEVICE_FLAG_PASID_SUP) != 0);
+		       (iommu_info.flags & AMD_IOMMU_DEVICE_FLAG_PASID_SUP)
+									!= 0);
 		return false;
 	}
 
 	pasid_limit = min_t(unsigned int,
-			(unsigned int)1 << kfd->device_info->max_pasid_bits,
+			(unsigned int)(1 << kfd->device_info->max_pasid_bits),
 			iommu_info.max_pasids);
 	/*
 	 * last pasid is used for kernel queues doorbells
@@ -211,9 +217,8 @@ static int iommu_invalid_ppr_cb(struct pci_dev *pdev, int pasid,
 			flags);
 
 	dev = kfd_device_by_pci_dev(pdev);
-	BUG_ON(dev == NULL);
-
-	kfd_signal_iommu_event(dev, pasid, address,
+	if (!WARN_ON(!dev))
+		kfd_signal_iommu_event(dev, pasid, address,
 			flags & PPR_FAULT_WRITE, flags & PPR_FAULT_EXEC);
 
 	return AMD_IOMMU_INV_PRI_RSP_INVALID;
@@ -234,9 +239,9 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 	 * calculate max size of runlist packet.
 	 * There can be only 2 packets at once
 	 */
-	size += (KFD_MAX_NUM_OF_PROCESSES * sizeof(struct pm4_map_process) +
-		max_num_of_queues_per_device *
-		sizeof(struct pm4_map_queues) + sizeof(struct pm4_runlist)) * 2;
+	size += (KFD_MAX_NUM_OF_PROCESSES * sizeof(struct pm4_mes_map_process) +
+		max_num_of_queues_per_device * sizeof(struct pm4_mes_map_queues)
+		+ sizeof(struct pm4_mes_runlist)) * 2;
 
 	/* Add size of HIQ & DIQ */
 	size += KFD_KERNEL_QUEUE_SIZE * 2;
@@ -247,42 +252,37 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 	if (kfd->kfd2kgd->init_gtt_mem_allocation(
 			kfd->kgd, size, &kfd->gtt_mem,
 			&kfd->gtt_start_gpu_addr, &kfd->gtt_start_cpu_ptr)){
-		dev_err(kfd_device,
-			"Could not allocate %d bytes for device (%x:%x)\n",
-			size, kfd->pdev->vendor, kfd->pdev->device);
+		dev_err(kfd_device, "Could not allocate %d bytes\n", size);
 		goto out;
 	}
 
-	dev_info(kfd_device,
-		"Allocated %d bytes on gart for device(%x:%x)\n",
-		size, kfd->pdev->vendor, kfd->pdev->device);
+	dev_info(kfd_device, "Allocated %d bytes on gart\n", size);
 
 	/* Initialize GTT sa with 512 byte chunk size */
 	if (kfd_gtt_sa_init(kfd, size, 512) != 0) {
-		dev_err(kfd_device,
-			"Error initializing gtt sub-allocator\n");
+		dev_err(kfd_device, "Error initializing gtt sub-allocator\n");
 		goto kfd_gtt_sa_init_error;
 	}
 
-	kfd_doorbell_init(kfd);
-
-	if (kfd_topology_add_device(kfd) != 0) {
+	if (kfd_doorbell_init(kfd)) {
 		dev_err(kfd_device,
-			"Error adding device (%x:%x) to topology\n",
-			kfd->pdev->vendor, kfd->pdev->device);
+			"Error initializing doorbell aperture\n");
+		goto kfd_doorbell_error;
+	}
+
+	if (kfd_topology_add_device(kfd)) {
+		dev_err(kfd_device, "Error adding device to topology\n");
 		goto kfd_topology_add_device_error;
 	}
 
 	if (kfd_interrupt_init(kfd)) {
-		dev_err(kfd_device,
-			"Error initializing interrupts for device (%x:%x)\n",
-			kfd->pdev->vendor, kfd->pdev->device);
+		dev_err(kfd_device, "Error initializing interrupts\n");
 		goto kfd_interrupt_error;
 	}
 
 	if (!device_iommu_pasid_init(kfd)) {
 		dev_err(kfd_device,
-			"Error initializing iommuv2 for device (%x:%x)\n",
+			"Error initializing iommuv2 for device %x:%x\n",
 			kfd->pdev->vendor, kfd->pdev->device);
 		goto device_iommu_pasid_error;
 	}
@@ -292,15 +292,13 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 
 	kfd->dqm = device_queue_manager_init(kfd);
 	if (!kfd->dqm) {
-		dev_err(kfd_device,
-			"Error initializing queue manager for device (%x:%x)\n",
-			kfd->pdev->vendor, kfd->pdev->device);
+		dev_err(kfd_device, "Error initializing queue manager\n");
 		goto device_queue_manager_error;
 	}
 
-	if (kfd->dqm->ops.start(kfd->dqm) != 0) {
+	if (kfd->dqm->ops.start(kfd->dqm)) {
 		dev_err(kfd_device,
-			"Error starting queuen manager for device (%x:%x)\n",
+			"Error starting queue manager for device %x:%x\n",
 			kfd->pdev->vendor, kfd->pdev->device);
 		goto dqm_start_error;
 	}
@@ -308,10 +306,10 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 	kfd->dbgmgr = NULL;
 
 	kfd->init_complete = true;
-	dev_info(kfd_device, "added device (%x:%x)\n", kfd->pdev->vendor,
+	dev_info(kfd_device, "added device %x:%x\n", kfd->pdev->vendor,
 		 kfd->pdev->device);
 
-	pr_debug("kfd: Starting kfd with the following scheduling policy %d\n",
+	pr_debug("Starting kfd with the following scheduling policy %d\n",
 		sched_policy);
 
 	goto out;
@@ -325,11 +323,13 @@ device_iommu_pasid_error:
 kfd_interrupt_error:
 	kfd_topology_remove_device(kfd);
 kfd_topology_add_device_error:
+	kfd_doorbell_fini(kfd);
+kfd_doorbell_error:
 	kfd_gtt_sa_fini(kfd);
 kfd_gtt_sa_init_error:
 	kfd->kfd2kgd->free_gtt_mem(kfd->kgd, kfd->gtt_mem);
 	dev_err(kfd_device,
-		"device (%x:%x) NOT added due to errors\n",
+		"device %x:%x NOT added due to errors\n",
 		kfd->pdev->vendor, kfd->pdev->device);
 out:
 	return kfd->init_complete;
@@ -342,6 +342,7 @@ void kgd2kfd_device_exit(struct kfd_dev *kfd)
 		amd_iommu_free_device(kfd->pdev);
 		kfd_interrupt_exit(kfd);
 		kfd_topology_remove_device(kfd);
+		kfd_doorbell_fini(kfd);
 		kfd_gtt_sa_fini(kfd);
 		kfd->kfd2kgd->free_gtt_mem(kfd->kgd, kfd->gtt_mem);
 	}
@@ -351,8 +352,6 @@ void kgd2kfd_device_exit(struct kfd_dev *kfd)
 
 void kgd2kfd_suspend(struct kfd_dev *kfd)
 {
-	BUG_ON(kfd == NULL);
-
 	if (kfd->init_complete) {
 		kfd->dqm->ops.stop(kfd->dqm);
 		amd_iommu_set_invalidate_ctx_cb(kfd->pdev, NULL);
@@ -366,14 +365,15 @@ int kgd2kfd_resume(struct kfd_dev *kfd)
 	unsigned int pasid_limit;
 	int err;
 
-	BUG_ON(kfd == NULL);
-
 	pasid_limit = kfd_get_pasid_limit();
 
 	if (kfd->init_complete) {
 		err = amd_iommu_init_device(kfd->pdev, pasid_limit);
-		if (err < 0)
+		if (err < 0) {
+			dev_err(kfd_device, "failed to initialize iommu\n");
 			return -ENXIO;
+		}
+
 		amd_iommu_set_invalidate_ctx_cb(kfd->pdev,
 						iommu_pasid_shutdown_callback);
 		amd_iommu_set_invalid_ppr_cb(kfd->pdev, iommu_invalid_ppr_cb);
@@ -402,26 +402,27 @@ void kgd2kfd_interrupt(struct kfd_dev *kfd, const void *ih_ring_entry)
 static int kfd_gtt_sa_init(struct kfd_dev *kfd, unsigned int buf_size,
 				unsigned int chunk_size)
 {
-	unsigned int num_of_bits;
+	unsigned int num_of_longs;
 
-	BUG_ON(!kfd);
-	BUG_ON(!kfd->gtt_mem);
-	BUG_ON(buf_size < chunk_size);
-	BUG_ON(buf_size == 0);
-	BUG_ON(chunk_size == 0);
+	if (WARN_ON(buf_size < chunk_size))
+		return -EINVAL;
+	if (WARN_ON(buf_size == 0))
+		return -EINVAL;
+	if (WARN_ON(chunk_size == 0))
+		return -EINVAL;
 
 	kfd->gtt_sa_chunk_size = chunk_size;
 	kfd->gtt_sa_num_of_chunks = buf_size / chunk_size;
 
-	num_of_bits = kfd->gtt_sa_num_of_chunks / BITS_PER_BYTE;
-	BUG_ON(num_of_bits == 0);
+	num_of_longs = (kfd->gtt_sa_num_of_chunks + BITS_PER_LONG - 1) /
+		BITS_PER_LONG;
 
-	kfd->gtt_sa_bitmap = kzalloc(num_of_bits, GFP_KERNEL);
+	kfd->gtt_sa_bitmap = kcalloc(num_of_longs, sizeof(long), GFP_KERNEL);
 
 	if (!kfd->gtt_sa_bitmap)
 		return -ENOMEM;
 
-	pr_debug("kfd: gtt_sa_num_of_chunks = %d, gtt_sa_bitmap = %p\n",
+	pr_debug("gtt_sa_num_of_chunks = %d, gtt_sa_bitmap = %p\n",
 			kfd->gtt_sa_num_of_chunks, kfd->gtt_sa_bitmap);
 
 	mutex_init(&kfd->gtt_sa_lock);
@@ -455,8 +456,6 @@ int kfd_gtt_sa_allocate(struct kfd_dev *kfd, unsigned int size,
 {
 	unsigned int found, start_search, cur_size;
 
-	BUG_ON(!kfd);
-
 	if (size == 0)
 		return -EINVAL;
 
@@ -467,7 +466,7 @@ int kfd_gtt_sa_allocate(struct kfd_dev *kfd, unsigned int size,
 	if ((*mem_obj) == NULL)
 		return -ENOMEM;
 
-	pr_debug("kfd: allocated mem_obj = %p for size = %d\n", *mem_obj, size);
+	pr_debug("Allocated mem_obj = %p for size = %d\n", *mem_obj, size);
 
 	start_search = 0;
 
@@ -479,7 +478,7 @@ kfd_gtt_restart_search:
 					kfd->gtt_sa_num_of_chunks,
 					start_search);
 
-	pr_debug("kfd: found = %d\n", found);
+	pr_debug("Found = %d\n", found);
 
 	/* If there wasn't any free chunk, bail out */
 	if (found == kfd->gtt_sa_num_of_chunks)
@@ -497,12 +496,12 @@ kfd_gtt_restart_search:
 					found,
 					kfd->gtt_sa_chunk_size);
 
-	pr_debug("kfd: gpu_addr = %p, cpu_addr = %p\n",
+	pr_debug("gpu_addr = %p, cpu_addr = %p\n",
 			(uint64_t *) (*mem_obj)->gpu_addr, (*mem_obj)->cpu_ptr);
 
 	/* If we need only one chunk, mark it as allocated and get out */
 	if (size <= kfd->gtt_sa_chunk_size) {
-		pr_debug("kfd: single bit\n");
+		pr_debug("Single bit\n");
 		set_bit(found, kfd->gtt_sa_bitmap);
 		goto kfd_gtt_out;
 	}
@@ -537,7 +536,7 @@ kfd_gtt_restart_search:
 
 	} while (cur_size > 0);
 
-	pr_debug("kfd: range_start = %d, range_end = %d\n",
+	pr_debug("range_start = %d, range_end = %d\n",
 		(*mem_obj)->range_start, (*mem_obj)->range_end);
 
 	/* Mark the chunks as allocated */
@@ -551,7 +550,7 @@ kfd_gtt_out:
 	return 0;
 
 kfd_gtt_no_free_chunk:
-	pr_debug("kfd: allocation failed with mem_obj = %p\n", mem_obj);
+	pr_debug("Allocation failed with mem_obj = %p\n", mem_obj);
 	mutex_unlock(&kfd->gtt_sa_lock);
 	kfree(mem_obj);
 	return -ENOMEM;
@@ -561,13 +560,11 @@ int kfd_gtt_sa_free(struct kfd_dev *kfd, struct kfd_mem_obj *mem_obj)
 {
 	unsigned int bit;
 
-	BUG_ON(!kfd);
-
 	/* Act like kfree when trying to free a NULL object */
 	if (!mem_obj)
 		return 0;
 
-	pr_debug("kfd: free mem_obj = %p, range_start = %d, range_end = %d\n",
+	pr_debug("Free mem_obj = %p, range_start = %d, range_end = %d\n",
 			mem_obj, mem_obj->range_start, mem_obj->range_end);
 
 	mutex_lock(&kfd->gtt_sa_lock);

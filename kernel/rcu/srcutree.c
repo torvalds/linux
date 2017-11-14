@@ -51,6 +51,7 @@ module_param(counter_wrap_check, ulong, 0444);
 
 static void srcu_invoke_callbacks(struct work_struct *work);
 static void srcu_reschedule(struct srcu_struct *sp, unsigned long delay);
+static void process_srcu(struct work_struct *work);
 
 /*
  * Initialize SRCU combining tree.  Note that statically allocated
@@ -853,7 +854,7 @@ void __call_srcu(struct srcu_struct *sp, struct rcu_head *rhp,
 /**
  * call_srcu() - Queue a callback for invocation after an SRCU grace period
  * @sp: srcu_struct in queue the callback
- * @head: structure to be used for queueing the SRCU callback.
+ * @rhp: structure to be used for queueing the SRCU callback.
  * @func: function to be invoked after the SRCU grace period
  *
  * The callback function will be invoked some time after a full SRCU
@@ -896,6 +897,15 @@ static void __synchronize_srcu(struct srcu_struct *sp, bool do_norm)
 	__call_srcu(sp, &rcu.head, wakeme_after_rcu, do_norm);
 	wait_for_completion(&rcu.completion);
 	destroy_rcu_head_on_stack(&rcu.head);
+
+	/*
+	 * Make sure that later code is ordered after the SRCU grace
+	 * period.  This pairs with the raw_spin_lock_irq_rcu_node()
+	 * in srcu_invoke_callbacks().  Unlike Tree RCU, this is needed
+	 * because the current CPU might have been totally uninvolved with
+	 * (and thus unordered against) that grace period.
+	 */
+	smp_mb();
 }
 
 /**
@@ -1194,7 +1204,7 @@ static void srcu_reschedule(struct srcu_struct *sp, unsigned long delay)
 /*
  * This is the work-queue function that handles SRCU grace periods.
  */
-void process_srcu(struct work_struct *work)
+static void process_srcu(struct work_struct *work)
 {
 	struct srcu_struct *sp;
 
@@ -1203,7 +1213,6 @@ void process_srcu(struct work_struct *work)
 	srcu_advance_state(sp);
 	srcu_reschedule(sp, srcu_get_delay(sp));
 }
-EXPORT_SYMBOL_GPL(process_srcu);
 
 void srcutorture_get_gp_data(enum rcutorture_type test_type,
 			     struct srcu_struct *sp, int *flags,
@@ -1216,6 +1225,43 @@ void srcutorture_get_gp_data(enum rcutorture_type test_type,
 	*gpnum = rcu_seq_ctr(sp->srcu_gp_seq_needed);
 }
 EXPORT_SYMBOL_GPL(srcutorture_get_gp_data);
+
+void srcu_torture_stats_print(struct srcu_struct *sp, char *tt, char *tf)
+{
+	int cpu;
+	int idx;
+	unsigned long s0 = 0, s1 = 0;
+
+	idx = sp->srcu_idx & 0x1;
+	pr_alert("%s%s Tree SRCU per-CPU(idx=%d):", tt, tf, idx);
+	for_each_possible_cpu(cpu) {
+		unsigned long l0, l1;
+		unsigned long u0, u1;
+		long c0, c1;
+		struct srcu_data *counts;
+
+		counts = per_cpu_ptr(sp->sda, cpu);
+		u0 = counts->srcu_unlock_count[!idx];
+		u1 = counts->srcu_unlock_count[idx];
+
+		/*
+		 * Make sure that a lock is always counted if the corresponding
+		 * unlock is counted.
+		 */
+		smp_rmb();
+
+		l0 = counts->srcu_lock_count[!idx];
+		l1 = counts->srcu_lock_count[idx];
+
+		c0 = l0 - u0;
+		c1 = l1 - u1;
+		pr_cont(" %d(%ld,%ld)", cpu, c0, c1);
+		s0 += c0;
+		s1 += c1;
+	}
+	pr_cont(" T(%ld,%ld)\n", s0, s1);
+}
+EXPORT_SYMBOL_GPL(srcu_torture_stats_print);
 
 static int __init srcu_bootup_announce(void)
 {

@@ -334,7 +334,7 @@ static int serial21285_verify_port(struct uart_port *port, struct serial_struct 
 	return ret;
 }
 
-static struct uart_ops serial21285_ops = {
+static const struct uart_ops serial21285_ops = {
 	.tx_empty	= serial21285_tx_empty,
 	.get_mctrl	= serial21285_get_mctrl,
 	.set_mctrl	= serial21285_set_mctrl,

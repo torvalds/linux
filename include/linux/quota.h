@@ -223,12 +223,12 @@ struct mem_dqinfo {
 	struct quota_format_type *dqi_format;
 	int dqi_fmt_id;		/* Id of the dqi_format - used when turning
 				 * quotas on after remount RW */
-	struct list_head dqi_dirty_list;	/* List of dirty dquots */
-	unsigned long dqi_flags;
-	unsigned int dqi_bgrace;
-	unsigned int dqi_igrace;
-	qsize_t dqi_max_spc_limit;
-	qsize_t dqi_max_ino_limit;
+	struct list_head dqi_dirty_list;	/* List of dirty dquots [dq_list_lock] */
+	unsigned long dqi_flags;	/* DFQ_ flags [dq_data_lock] */
+	unsigned int dqi_bgrace;	/* Space grace time [dq_data_lock] */
+	unsigned int dqi_igrace;	/* Inode grace time [dq_data_lock] */
+	qsize_t dqi_max_spc_limit;	/* Maximum space limit [static] */
+	qsize_t dqi_max_ino_limit;	/* Maximum inode limit [static] */
 	void *dqi_priv;
 };
 
@@ -293,18 +293,18 @@ static inline void dqstats_dec(unsigned int type)
 				 * clear them when it sees fit. */
 
 struct dquot {
-	struct hlist_node dq_hash;	/* Hash list in memory */
-	struct list_head dq_inuse;	/* List of all quotas */
-	struct list_head dq_free;	/* Free list element */
-	struct list_head dq_dirty;	/* List of dirty dquots */
+	struct hlist_node dq_hash;	/* Hash list in memory [dq_list_lock] */
+	struct list_head dq_inuse;	/* List of all quotas [dq_list_lock] */
+	struct list_head dq_free;	/* Free list element [dq_list_lock] */
+	struct list_head dq_dirty;	/* List of dirty dquots [dq_list_lock] */
 	struct mutex dq_lock;		/* dquot IO lock */
+	spinlock_t dq_dqb_lock;		/* Lock protecting dq_dqb changes */
 	atomic_t dq_count;		/* Use count */
-	wait_queue_head_t dq_wait_unused;	/* Wait queue for dquot to become unused */
 	struct super_block *dq_sb;	/* superblock this applies to */
 	struct kqid dq_id;		/* ID this applies to (uid, gid, projid) */
-	loff_t dq_off;			/* Offset of dquot on disk */
+	loff_t dq_off;			/* Offset of dquot on disk [dq_lock, stable once set] */
 	unsigned long dq_flags;		/* See DQ_* */
-	struct mem_dqblk dq_dqb;	/* Diskquota usage */
+	struct mem_dqblk dq_dqb;	/* Diskquota usage [dq_dqb_lock] */
 };
 
 /* Operations which must be implemented by each quota format */
@@ -491,6 +491,9 @@ enum {
 						 */
 #define DQUOT_NEGATIVE_USAGE	(1 << (DQUOT_STATE_LAST + 1))
 					       /* Allow negative quota usage */
+/* Do not track dirty dquots in a list */
+#define DQUOT_NOLIST_DIRTY	(1 << (DQUOT_STATE_LAST + 2))
+
 static inline unsigned int dquot_state_flag(unsigned int flags, int type)
 {
 	return flags << type;
@@ -521,7 +524,7 @@ static inline void quota_send_warning(struct kqid qid, dev_t dev,
 
 struct quota_info {
 	unsigned int flags;			/* Flags for diskquotas on this device */
-	struct mutex dqio_mutex;		/* lock device while I/O in progress */
+	struct rw_semaphore dqio_sem;		/* Lock quota file while I/O in progress */
 	struct inode *files[MAXQUOTAS];		/* inodes of quotafiles */
 	struct mem_dqinfo info[MAXQUOTAS];	/* Information for each quota type */
 	const struct quota_format_ops *ops[MAXQUOTAS];	/* Operations for each type */

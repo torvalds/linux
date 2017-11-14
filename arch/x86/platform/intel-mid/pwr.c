@@ -444,7 +444,7 @@ static int mid_set_initial_state(struct mid_pwr *pwr, const u32 *states)
 static int pnw_set_initial_state(struct mid_pwr *pwr)
 {
 	/* On Penwell SRAM must stay powered on */
-	const u32 states[] = {
+	static const u32 states[] = {
 		0xf00fffff,		/* PM_SSC(0) */
 		0xffffffff,		/* PM_SSC(1) */
 		0xffffffff,		/* PM_SSC(2) */
@@ -455,7 +455,7 @@ static int pnw_set_initial_state(struct mid_pwr *pwr)
 
 static int tng_set_initial_state(struct mid_pwr *pwr)
 {
-	const u32 states[] = {
+	static const u32 states[] = {
 		0xffffffff,		/* PM_SSC(0) */
 		0xffffffff,		/* PM_SSC(1) */
 		0xffffffff,		/* PM_SSC(2) */

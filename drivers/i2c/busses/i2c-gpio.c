@@ -98,8 +98,8 @@ static int of_i2c_gpio_get_pins(struct device_node *np,
 		return -EPROBE_DEFER;
 
 	if (!gpio_is_valid(*sda_pin) || !gpio_is_valid(*scl_pin)) {
-		pr_err("%s: invalid GPIO pins, sda=%d/scl=%d\n",
-		       np->full_name, *sda_pin, *scl_pin);
+		pr_err("%pOF: invalid GPIO pins, sda=%d/scl=%d\n",
+		       np, *sda_pin, *scl_pin);
 		return -ENODEV;
 	}
 

@@ -261,7 +261,7 @@ static const struct snd_soc_dapm_route aud96p22_dapm_routes[] = {
 	{ "LINEOUTMN", NULL, "LD2" },
 };
 
-static struct snd_soc_codec_driver aud96p22_driver = {
+static const struct snd_soc_codec_driver aud96p22_driver = {
 	.component_driver = {
 		.controls = aud96p22_snd_controls,
 		.num_controls = ARRAY_SIZE(aud96p22_snd_controls),
@@ -312,7 +312,7 @@ static int aud96p22_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	return 0;
 }
 
-static struct snd_soc_dai_ops aud96p22_dai_ops = {
+static const struct snd_soc_dai_ops aud96p22_dai_ops = {
 	.set_fmt = aud96p22_set_fmt,
 };
 
@@ -382,7 +382,7 @@ static int aud96p22_i2c_remove(struct i2c_client *i2c)
 	return 0;
 }
 
-const struct of_device_id aud96p22_dt_ids[] = {
+static const struct of_device_id aud96p22_dt_ids[] = {
 	{ .compatible = "zte,zx-aud96p22", },
 	{ }
 };

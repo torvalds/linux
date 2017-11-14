@@ -54,11 +54,6 @@
 	model = "Freescale Layerscape 2088A QDS Board";
 	compatible = "fsl,ls2088a-qds", "fsl,ls2088a";
 
-	aliases {
-		serial0 = &serial0;
-		serial1 = &serial1;
-	};
-
 	chosen {
 		stdout-path = "serial0:115200n8";
 	};

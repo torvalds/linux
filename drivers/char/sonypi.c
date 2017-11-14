@@ -1491,7 +1491,7 @@ static struct platform_driver sonypi_driver = {
 
 static struct platform_device *sonypi_platform_device;
 
-static struct dmi_system_id __initdata sonypi_dmi_table[] = {
+static const struct dmi_system_id sonypi_dmi_table[] __initconst = {
 	{
 		.ident = "Sony Vaio",
 		.matches = {

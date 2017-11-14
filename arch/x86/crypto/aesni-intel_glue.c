@@ -475,8 +475,8 @@ static void ctr_crypt_final(struct crypto_aes_ctx *ctx,
 	unsigned int nbytes = walk->nbytes;
 
 	aesni_enc(ctx, keystream, ctrblk);
-	crypto_xor(keystream, src, nbytes);
-	memcpy(dst, keystream, nbytes);
+	crypto_xor_cpy(dst, keystream, src, nbytes);
+
 	crypto_inc(ctrblk, AES_BLOCK_SIZE);
 }
 

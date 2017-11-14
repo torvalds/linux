@@ -509,7 +509,7 @@ static int ptp_pch_enable(struct ptp_clock_info *ptp,
 	return -EOPNOTSUPP;
 }
 
-static struct ptp_clock_info ptp_pch_caps = {
+static const struct ptp_clock_info ptp_pch_caps = {
 	.owner		= THIS_MODULE,
 	.name		= "PCH timer",
 	.max_adj	= 50000000,

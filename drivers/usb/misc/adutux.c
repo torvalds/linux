@@ -29,8 +29,6 @@
 #include <linux/mutex.h>
 #include <linux/uaccess.h>
 
-/* Version Information */
-#define DRIVER_VERSION "v0.0.13"
 #define DRIVER_AUTHOR "John Homppi"
 #define DRIVER_DESC "adutux (see www.ontrak.net)"
 

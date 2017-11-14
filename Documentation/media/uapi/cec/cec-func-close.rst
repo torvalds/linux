@@ -40,7 +40,7 @@ freed. The device configuration remain unchanged.
 Return Value
 ============
 
-:c:func:`close()` returns 0 on success. On error, -1 is returned, and
+:c:func:`close() <cec-close>` returns 0 on success. On error, -1 is returned, and
 ``errno`` is set appropriately. Possible error codes are:
 
 ``EBADF``

@@ -1319,14 +1319,14 @@ static struct attribute *vid_attrs[] = {
 	NULL
 };
 
-static struct attribute_group adt7475_attr_group = { .attrs = adt7475_attrs };
-static struct attribute_group fan4_attr_group = { .attrs = fan4_attrs };
-static struct attribute_group pwm2_attr_group = { .attrs = pwm2_attrs };
-static struct attribute_group in0_attr_group = { .attrs = in0_attrs };
-static struct attribute_group in3_attr_group = { .attrs = in3_attrs };
-static struct attribute_group in4_attr_group = { .attrs = in4_attrs };
-static struct attribute_group in5_attr_group = { .attrs = in5_attrs };
-static struct attribute_group vid_attr_group = { .attrs = vid_attrs };
+static const struct attribute_group adt7475_attr_group = { .attrs = adt7475_attrs };
+static const struct attribute_group fan4_attr_group = { .attrs = fan4_attrs };
+static const struct attribute_group pwm2_attr_group = { .attrs = pwm2_attrs };
+static const struct attribute_group in0_attr_group = { .attrs = in0_attrs };
+static const struct attribute_group in3_attr_group = { .attrs = in3_attrs };
+static const struct attribute_group in4_attr_group = { .attrs = in4_attrs };
+static const struct attribute_group in5_attr_group = { .attrs = in5_attrs };
+static const struct attribute_group vid_attr_group = { .attrs = vid_attrs };
 
 static int adt7475_detect(struct i2c_client *client,
 			  struct i2c_board_info *info)

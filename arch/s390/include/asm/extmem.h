@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *  definitions for external memory segment support
  *  Copyright IBM Corp. 2003

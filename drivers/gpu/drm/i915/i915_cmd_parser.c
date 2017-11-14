@@ -1073,7 +1073,7 @@ static u32 *copy_batch(struct drm_i915_gem_object *dst_obj,
 		goto unpin_src;
 	}
 
-	dst = i915_gem_object_pin_map(dst_obj, I915_MAP_WB);
+	dst = i915_gem_object_pin_map(dst_obj, I915_MAP_FORCE_WB);
 	if (IS_ERR(dst))
 		goto unpin_dst;
 

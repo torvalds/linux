@@ -4,15 +4,33 @@ Allwinner A10 Display Pipeline
 The Allwinner A10 Display pipeline is composed of several components
 that are going to be documented below:
 
-For the input port of all components up to the TCON in the display
-pipeline, if there are multiple components, the local endpoint IDs
-must correspond to the index of the upstream block. For example, if
-the remote endpoint is Frontend 1, then the local endpoint ID must
-be 1.
+For all connections between components up to the TCONs in the display
+pipeline, when there are multiple components of the same type at the
+same depth, the local endpoint ID must be the same as the remote
+component's index. For example, if the remote endpoint is Frontend 1,
+then the local endpoint ID must be 1.
 
-Conversely, for the output ports of the same group, the remote endpoint
-ID must be the index of the local hardware block. If the local backend
-is backend 1, then the remote endpoint ID must be 1.
+    Frontend 0  [0] ------- [0]  Backend 0  [0] ------- [0]  TCON 0
+		[1] --   -- [1]             [1] --   -- [1]
+		      \ /                         \ /
+		       X                           X
+		      / \                         / \
+		[0] --   -- [0]             [0] --   -- [0]
+    Frontend 1  [1] ------- [1]  Backend 1  [1] ------- [1]  TCON 1
+
+For a two pipeline system such as the one depicted above, the lines
+represent the connections between the components, while the numbers
+within the square brackets corresponds to the ID of the local endpoint.
+
+The same rule also applies to DE 2.0 mixer-TCON connections:
+
+    Mixer 0  [0] ----------- [0]  TCON 0
+	     [1] ----   ---- [1]
+		     \ /
+		      X
+		     / \
+	     [0] ----   ---- [0]
+    Mixer 1  [1] ----------- [1]  TCON 1
 
 HDMI Encoder
 ------------
@@ -260,7 +278,6 @@ hdmi: hdmi@01c16000 {
 	       <&dma SUN4I_DMA_NORMAL 16>,
 	       <&dma SUN4I_DMA_DEDICATED 24>;
 	dma-names = "ddc-tx", "ddc-rx", "audio-tx";
-	status = "disabled";
 
 	ports {
 		#address-cells = <1>;

@@ -55,7 +55,7 @@ static struct list_head global_has_mode;
 static struct fb_ops vmlfb_ops;
 static struct vml_sys *subsys = NULL;
 static char *vml_default_mode = "1024x768@60";
-static struct fb_videomode defaultmode = {
+static const struct fb_videomode defaultmode = {
 	NULL, 60, 1024, 768, 12896, 144, 24, 29, 3, 136, 6,
 	0, FB_VMODE_NONINTERLACED
 };
@@ -1044,7 +1044,7 @@ static struct fb_ops vmlfb_ops = {
 	.fb_setcolreg = vmlfb_setcolreg
 };
 
-static struct pci_device_id vml_ids[] = {
+static const struct pci_device_id vml_ids[] = {
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, VML_DEVICE_VDC)},
 	{0}
 };

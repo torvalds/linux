@@ -184,6 +184,12 @@ config ARCH_R8A7796
 	help
 	  This enables support for the Renesas R-Car M3-W SoC.
 
+config ARCH_R8A77995
+	bool "Renesas R-Car D3 SoC Platform"
+	depends on ARCH_RENESAS
+	help
+	  This enables support for the Renesas R-Car D3 SoC.
+
 config ARCH_STRATIX10
 	bool "Altera's Stratix 10 SoCFPGA Family"
 	help
@@ -250,6 +256,7 @@ config ARCH_XGENE
 
 config ARCH_ZX
 	bool "ZTE ZX SoC Family"
+	select PINCTRL
 	help
 	  This enables support for ZTE ZX SoC Family
 

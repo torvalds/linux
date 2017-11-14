@@ -454,6 +454,8 @@ tegra_xusb_find_port_node(struct tegra_xusb_padctl *padctl, const char *type,
 		char *name;
 
 		name = kasprintf(GFP_KERNEL, "%s-%u", type, index);
+		if (!name)
+			return ERR_PTR(-ENOMEM);
 		np = of_find_node_by_name(np, name);
 		kfree(name);
 	}

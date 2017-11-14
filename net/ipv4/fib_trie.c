@@ -81,6 +81,7 @@
 #include <net/tcp.h>
 #include <net/sock.h>
 #include <net/ip_fib.h>
+#include <net/fib_notifier.h>
 #include <trace/events/fib.h>
 #include "fib_lookup.h"
 
@@ -97,7 +98,7 @@ static int call_fib_entry_notifier(struct notifier_block *nb, struct net *net,
 		.type = type,
 		.tb_id = tb_id,
 	};
-	return call_fib_notifier(nb, net, event_type, &info.info);
+	return call_fib4_notifier(nb, net, event_type, &info.info);
 }
 
 static int call_fib_entry_notifiers(struct net *net,
@@ -113,7 +114,7 @@ static int call_fib_entry_notifiers(struct net *net,
 		.type = type,
 		.tb_id = tb_id,
 	};
-	return call_fib_notifiers(net, event_type, &info.info);
+	return call_fib4_notifiers(net, event_type, &info.info);
 }
 
 #define MAX_STAT_DEPTH 32
@@ -1562,7 +1563,8 @@ int fib_table_delete(struct net *net, struct fib_table *tb,
 		     fi->fib_prefsrc == cfg->fc_prefsrc) &&
 		    (!cfg->fc_protocol ||
 		     fi->fib_protocol == cfg->fc_protocol) &&
-		    fib_nh_match(cfg, fi, extack) == 0) {
+		    fib_nh_match(cfg, fi, extack) == 0 &&
+		    fib_metrics_match(cfg, fi)) {
 			fa_to_delete = fa;
 			break;
 		}

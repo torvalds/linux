@@ -374,8 +374,8 @@ static const char *next_name(int xtype, const char *name)
  *
  * Returns: refcounted label, or NULL on failure (MAYBE NULL)
  */
-static struct aa_label *x_table_lookup(struct aa_profile *profile, u32 xindex,
-				       const char **name)
+struct aa_label *x_table_lookup(struct aa_profile *profile, u32 xindex,
+				const char **name)
 {
 	struct aa_label *label = NULL;
 	u32 xtype = xindex & AA_X_TYPE_MASK;
@@ -758,7 +758,7 @@ int apparmor_bprm_set_creds(struct linux_binprm *bprm)
 		file_inode(bprm->file)->i_mode
 	};
 
-	if (bprm->cred_prepared)
+	if (bprm->called_set_creds)
 		return 0;
 
 	ctx = cred_ctx(bprm->cred);
@@ -807,7 +807,7 @@ int apparmor_bprm_set_creds(struct linux_binprm *bprm)
 			aa_label_printk(new, GFP_ATOMIC);
 			dbg_printk("\n");
 		}
-		bprm->unsafe |= AA_SECURE_X_NEEDED;
+		bprm->secureexec = 1;
 	}
 
 	if (label->proxy != new->proxy) {
@@ -841,23 +841,6 @@ audit:
 				      error));
 	aa_put_label(new);
 	goto done;
-}
-
-/**
- * apparmor_bprm_secureexec - determine if secureexec is needed
- * @bprm: binprm for exec  (NOT NULL)
- *
- * Returns: %1 if secureexec is needed else %0
- */
-int apparmor_bprm_secureexec(struct linux_binprm *bprm)
-{
-	/* the decision to use secure exec is computed in set_creds
-	 * and stored in bprm->unsafe.
-	 */
-	if (bprm->unsafe & AA_SECURE_X_NEEDED)
-		return 1;
-
-	return 0;
 }
 
 /*

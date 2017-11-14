@@ -62,7 +62,7 @@ struct capture_priv {
 /* In bytes, per queue */
 #define VID_MEM_LIMIT	SZ_64M
 
-static struct vb2_ops capture_qops;
+static const struct vb2_ops capture_qops;
 
 /*
  * Video ioctls follow
@@ -503,7 +503,7 @@ static void capture_stop_streaming(struct vb2_queue *vq)
 	spin_unlock_irqrestore(&priv->q_lock, flags);
 }
 
-static struct vb2_ops capture_qops = {
+static const struct vb2_ops capture_qops = {
 	.queue_setup	 = capture_queue_setup,
 	.buf_init        = capture_buf_init,
 	.buf_prepare	 = capture_buf_prepare,

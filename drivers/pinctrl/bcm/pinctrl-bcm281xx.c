@@ -1384,7 +1384,7 @@ static int bcm281xx_pinctrl_pin_config_set(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
-static struct pinconf_ops bcm281xx_pinctrl_pinconf_ops = {
+static const struct pinconf_ops bcm281xx_pinctrl_pinconf_ops = {
 	.pin_config_get = bcm281xx_pinctrl_pin_config_get,
 	.pin_config_set = bcm281xx_pinctrl_pin_config_set,
 };

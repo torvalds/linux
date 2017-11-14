@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/kernel.h>
 #include <linux/stat.h>
 #include <asm/macio.h>
@@ -52,7 +53,7 @@ static ssize_t devspec_show(struct device *dev,
 	struct platform_device *ofdev;
 
 	ofdev = to_platform_device(dev);
-	return sprintf(buf, "%s\n", ofdev->dev.of_node->full_name);
+	return sprintf(buf, "%pOF\n", ofdev->dev.of_node);
 }
 static DEVICE_ATTR_RO(modalias);
 static DEVICE_ATTR_RO(devspec);

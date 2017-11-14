@@ -48,13 +48,6 @@ SECTIONS
     *(.rodata)
     *(.rodata.*)
   }
-  .data : {
-    /*
-     * The EFI stub always executes from RAM, and runs strictly before the
-     * decompressor, so we can make an exception for its r/w data, and keep it
-     */
-    *(.data.efistub)
-  }
   .piggydata : {
     *(.piggydata)
   }
@@ -70,7 +63,36 @@ SECTIONS
   /* ensure the zImage file size is always a multiple of 64 bits */
   /* (without a dummy byte, ld just ignores the empty section) */
   .pad			: { BYTE(0); . = ALIGN(8); }
+
+#ifdef CONFIG_EFI_STUB
+  .data : ALIGN(4096) {
+    __pecoff_data_start = .;
+    /*
+     * The EFI stub always executes from RAM, and runs strictly before the
+     * decompressor, so we can make an exception for its r/w data, and keep it
+     */
+    *(.data.efistub)
+    __pecoff_data_end = .;
+
+    /*
+     * PE/COFF mandates a file size which is a multiple of 512 bytes if the
+     * section size equals or exceeds 4 KB
+     */
+    . = ALIGN(512);
+  }
+  __pecoff_data_rawsize = . - ADDR(.data);
+#endif
+
   _edata = .;
+
+  /*
+   * The image_end section appears after any additional loadable sections
+   * that the linker may decide to insert in the binary image.  Having
+   * this symbol allows further debug in the near future.
+   */
+  .image_end (NOLOAD) : {
+    _edata_real = .;
+  }
 
   _magic_sig = ZIMAGE_MAGIC(0x016f2818);
   _magic_start = ZIMAGE_MAGIC(_start);
@@ -83,6 +105,9 @@ SECTIONS
 
   . = ALIGN(8);		/* the stack must be 64-bit aligned */
   .stack		: { *(.stack) }
+
+  PROVIDE(__pecoff_data_size = ALIGN(512) - ADDR(.data));
+  PROVIDE(__pecoff_end = ALIGN(512));
 
   .stab 0		: { *(.stab) }
   .stabstr 0		: { *(.stabstr) }

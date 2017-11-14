@@ -390,7 +390,8 @@ mwifiex_sdio_remove(struct sdio_func *func)
 	mwifiex_dbg(adapter, INFO, "info: SDIO func num=%d\n", func->num);
 
 	ret = mwifiex_sdio_read_fw_status(adapter, &firmware_stat);
-	if (firmware_stat == FIRMWARE_READY_SDIO && !adapter->mfg_mode) {
+	if (!ret && firmware_stat == FIRMWARE_READY_SDIO &&
+	    !adapter->mfg_mode) {
 		mwifiex_deauthenticate_all(adapter);
 
 		priv = mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_ANY);

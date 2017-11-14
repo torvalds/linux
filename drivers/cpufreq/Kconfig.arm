@@ -71,15 +71,6 @@ config ARM_HIGHBANK_CPUFREQ
 
 	  If in doubt, say N.
 
-config ARM_DB8500_CPUFREQ
-	tristate "ST-Ericsson DB8500 cpufreq" if COMPILE_TEST && !ARCH_U8500
-	default ARCH_U8500
-	depends on HAS_IOMEM
-	depends on !CPU_THERMAL || THERMAL
-	help
-	  This adds the CPUFreq driver for ST-Ericsson Ux500 (DB8500) SoC
-	  series.
-
 config ARM_IMX6Q_CPUFREQ
 	tristate "Freescale i.MX6 cpufreq support"
 	depends on ARCH_MXC
@@ -96,14 +87,13 @@ config ARM_KIRKWOOD_CPUFREQ
 	  This adds the CPUFreq driver for Marvell Kirkwood
 	  SoCs.
 
-config ARM_MT8173_CPUFREQ
-	tristate "Mediatek MT8173 CPUFreq support"
+config ARM_MEDIATEK_CPUFREQ
+	tristate "CPU Frequency scaling support for MediaTek SoCs"
 	depends on ARCH_MEDIATEK && REGULATOR
-	depends on ARM64 || (ARM_CPU_TOPOLOGY && COMPILE_TEST)
 	depends on !CPU_THERMAL || THERMAL
 	select PM_OPP
 	help
-	  This adds the CPUFreq driver support for Mediatek MT8173 SoC.
+	  This adds the CPUFreq driver support for MediaTek SoCs.
 
 config ARM_OMAP2PLUS_CPUFREQ
 	bool "TI OMAP2+"
@@ -241,6 +231,11 @@ config ARM_STI_CPUFREQ
 	  we will fall-back so safe-values contained in Device Tree.  Enable
 	  this config option if you wish to add CPUFreq support for STi based
 	  SoCs.
+
+config ARM_TANGO_CPUFREQ
+	bool
+	depends on CPUFREQ_DT && ARCH_TANGO
+	default y
 
 config ARM_TEGRA20_CPUFREQ
 	bool "Tegra20 CPUFreq support"

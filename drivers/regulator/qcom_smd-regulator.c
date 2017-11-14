@@ -570,6 +570,11 @@ static int rpm_reg_probe(struct platform_device *pdev)
 	}
 
 	match = of_match_device(rpm_of_match, &pdev->dev);
+	if (!match) {
+		dev_err(&pdev->dev, "failed to match device\n");
+		return -ENODEV;
+	}
+
 	for (reg = match->data; reg->name; reg++) {
 		vreg = devm_kzalloc(&pdev->dev, sizeof(*vreg), GFP_KERNEL);
 		if (!vreg)

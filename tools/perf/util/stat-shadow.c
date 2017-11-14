@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <stdio.h>
 #include "evsel.h"
 #include "stat.h"
@@ -70,7 +71,11 @@ static int saved_value_cmp(struct rb_node *rb_node, const void *entry)
 		return a->ctx - b->ctx;
 	if (a->cpu != b->cpu)
 		return a->cpu - b->cpu;
-	return a->evsel - b->evsel;
+	if (a->evsel == b->evsel)
+		return 0;
+	if ((char *)a->evsel < (char *)b->evsel)
+		return -1;
+	return +1;
 }
 
 static struct rb_node *saved_value_new(struct rblist *rblist __maybe_unused,

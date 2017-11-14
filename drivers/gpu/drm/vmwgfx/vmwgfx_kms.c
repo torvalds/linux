@@ -1536,7 +1536,7 @@ err_out:
  * RETURNS
  * Zero for success or -errno
  */
-int
+static int
 vmw_kms_atomic_check_modeset(struct drm_device *dev,
 			     struct drm_atomic_state *state)
 {
@@ -1545,8 +1545,7 @@ vmw_kms_atomic_check_modeset(struct drm_device *dev,
 	struct vmw_private *dev_priv = vmw_priv(dev);
 	int i;
 
-
-	for_each_crtc_in_state(state, crtc, crtc_state, i) {
+	for_each_new_crtc_in_state(state, crtc, crtc_state, i) {
 		unsigned long requested_bb_mem = 0;
 
 		if (dev_priv->active_display_unit == vmw_du_screen_target) {
@@ -1691,7 +1690,7 @@ int vmw_kms_init(struct vmw_private *dev_priv)
 
 int vmw_kms_close(struct vmw_private *dev_priv)
 {
-	int ret;
+	int ret = 0;
 
 	/*
 	 * Docs says we should take the lock before calling this function
@@ -1699,11 +1698,7 @@ int vmw_kms_close(struct vmw_private *dev_priv)
 	 * drm_encoder_cleanup which takes the lock we deadlock.
 	 */
 	drm_mode_config_cleanup(dev_priv->dev);
-	if (dev_priv->active_display_unit == vmw_du_screen_object)
-		ret = vmw_kms_sou_close_display(dev_priv);
-	else if (dev_priv->active_display_unit == vmw_du_screen_target)
-		ret = vmw_kms_stdu_close_display(dev_priv);
-	else
+	if (dev_priv->active_display_unit == vmw_du_legacy)
 		ret = vmw_kms_ldu_close_display(dev_priv);
 
 	return ret;
@@ -2523,7 +2518,7 @@ void vmw_kms_helper_buffer_finish(struct vmw_private *dev_priv,
 	if (file_priv)
 		vmw_execbuf_copy_fence_user(dev_priv, vmw_fpriv(file_priv),
 					    ret, user_fence_rep, fence,
-					    handle);
+					    handle, -1, NULL);
 	if (out_fence)
 		*out_fence = fence;
 	else

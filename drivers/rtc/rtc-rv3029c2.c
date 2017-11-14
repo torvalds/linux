@@ -868,7 +868,7 @@ static int rv3029_i2c_probe(struct i2c_client *client,
 	return rv3029_probe(&client->dev, regmap, client->irq, client->name);
 }
 
-static struct i2c_device_id rv3029_id[] = {
+static const struct i2c_device_id rv3029_id[] = {
 	{ "rv3029", 0 },
 	{ "rv3029c2", 0 },
 	{ }

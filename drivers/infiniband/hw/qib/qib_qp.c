@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2013 Intel Corporation.  All rights reserved.
+ * Copyright (c) 2012 - 2017 Intel Corporation.  All rights reserved.
  * Copyright (c) 2006 - 2012 QLogic Corporation.  * All rights reserved.
  * Copyright (c) 2005, 2006 PathScale, Inc. All rights reserved.
  *
@@ -415,53 +415,16 @@ int qib_check_send_wqe(struct rvt_qp *qp,
 
 #ifdef CONFIG_DEBUG_FS
 
-struct qib_qp_iter {
-	struct qib_ibdev *dev;
-	struct rvt_qp *qp;
-	int n;
-};
-
-struct qib_qp_iter *qib_qp_iter_init(struct qib_ibdev *dev)
-{
-	struct qib_qp_iter *iter;
-
-	iter = kzalloc(sizeof(*iter), GFP_KERNEL);
-	if (!iter)
-		return NULL;
-
-	iter->dev = dev;
-
-	return iter;
-}
-
-int qib_qp_iter_next(struct qib_qp_iter *iter)
-{
-	struct qib_ibdev *dev = iter->dev;
-	int n = iter->n;
-	int ret = 1;
-	struct rvt_qp *pqp = iter->qp;
-	struct rvt_qp *qp;
-
-	for (; n < dev->rdi.qp_dev->qp_table_size; n++) {
-		if (pqp)
-			qp = rcu_dereference(pqp->next);
-		else
-			qp = rcu_dereference(dev->rdi.qp_dev->qp_table[n]);
-		pqp = qp;
-		if (qp) {
-			iter->qp = qp;
-			iter->n = n;
-			return 0;
-		}
-	}
-	return ret;
-}
-
 static const char * const qp_type_str[] = {
 	"SMI", "GSI", "RC", "UC", "UD",
 };
 
-void qib_qp_iter_print(struct seq_file *s, struct qib_qp_iter *iter)
+/**
+ * qib_qp_iter_print - print information to seq_file
+ * @s - the seq_file
+ * @iter - the iterator
+ */
+void qib_qp_iter_print(struct seq_file *s, struct rvt_qp_iter *iter)
 {
 	struct rvt_swqe *wqe;
 	struct rvt_qp *qp = iter->qp;

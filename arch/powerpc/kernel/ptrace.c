@@ -131,7 +131,7 @@ static void flush_tmregs_to_thread(struct task_struct *tsk)
 	 * in the appropriate thread structures from live.
 	 */
 
-	if (tsk != current)
+	if ((!cpu_has_feature(CPU_FTR_TM)) || (tsk != current))
 		return;
 
 	if (MSR_TM_SUSPENDED(mfmsr())) {
@@ -1594,11 +1594,8 @@ static int ppr_get(struct task_struct *target,
 		      unsigned int pos, unsigned int count,
 		      void *kbuf, void __user *ubuf)
 {
-	int ret;
-
-	ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf,
-				&target->thread.ppr, 0, sizeof(u64));
-	return ret;
+	return user_regset_copyout(&pos, &count, &kbuf, &ubuf,
+				   &target->thread.ppr, 0, sizeof(u64));
 }
 
 static int ppr_set(struct task_struct *target,
@@ -1606,11 +1603,8 @@ static int ppr_set(struct task_struct *target,
 		      unsigned int pos, unsigned int count,
 		      const void *kbuf, const void __user *ubuf)
 {
-	int ret;
-
-	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
-				&target->thread.ppr, 0, sizeof(u64));
-	return ret;
+	return user_regset_copyin(&pos, &count, &kbuf, &ubuf,
+				  &target->thread.ppr, 0, sizeof(u64));
 }
 
 static int dscr_get(struct task_struct *target,
@@ -1618,22 +1612,16 @@ static int dscr_get(struct task_struct *target,
 		      unsigned int pos, unsigned int count,
 		      void *kbuf, void __user *ubuf)
 {
-	int ret;
-
-	ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf,
-				&target->thread.dscr, 0, sizeof(u64));
-	return ret;
+	return user_regset_copyout(&pos, &count, &kbuf, &ubuf,
+				   &target->thread.dscr, 0, sizeof(u64));
 }
 static int dscr_set(struct task_struct *target,
 		      const struct user_regset *regset,
 		      unsigned int pos, unsigned int count,
 		      const void *kbuf, const void __user *ubuf)
 {
-	int ret;
-
-	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
-				&target->thread.dscr, 0, sizeof(u64));
-	return ret;
+	return user_regset_copyin(&pos, &count, &kbuf, &ubuf,
+				  &target->thread.dscr, 0, sizeof(u64));
 }
 #endif
 #ifdef CONFIG_PPC_BOOK3S_64
@@ -1642,22 +1630,16 @@ static int tar_get(struct task_struct *target,
 		      unsigned int pos, unsigned int count,
 		      void *kbuf, void __user *ubuf)
 {
-	int ret;
-
-	ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf,
-				&target->thread.tar, 0, sizeof(u64));
-	return ret;
+	return user_regset_copyout(&pos, &count, &kbuf, &ubuf,
+				   &target->thread.tar, 0, sizeof(u64));
 }
 static int tar_set(struct task_struct *target,
 		      const struct user_regset *regset,
 		      unsigned int pos, unsigned int count,
 		      const void *kbuf, const void __user *ubuf)
 {
-	int ret;
-
-	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
-				&target->thread.tar, 0, sizeof(u64));
-	return ret;
+	return user_regset_copyin(&pos, &count, &kbuf, &ubuf,
+				  &target->thread.tar, 0, sizeof(u64));
 }
 
 static int ebb_active(struct task_struct *target,

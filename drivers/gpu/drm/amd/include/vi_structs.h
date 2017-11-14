@@ -419,8 +419,8 @@ struct vi_mqd_allocation {
 	struct vi_mqd mqd;
 	uint32_t wptr_poll_mem;
 	uint32_t rptr_report_mem;
-	uint32_t dyamic_cu_mask;
-	uint32_t dyamic_rb_mask;
+	uint32_t dynamic_cu_mask;
+	uint32_t dynamic_rb_mask;
 };
 
 struct cz_mqd {

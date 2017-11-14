@@ -241,13 +241,14 @@ err_out:
 	return err;
 }
 
-static int mlx4_cq_alloc_icm(struct mlx4_dev *dev, int *cqn)
+static int mlx4_cq_alloc_icm(struct mlx4_dev *dev, int *cqn, u8 usage)
 {
+	u32 in_modifier = RES_CQ | (((u32)usage & 3) << 30);
 	u64 out_param;
 	int err;
 
 	if (mlx4_is_mfunc(dev)) {
-		err = mlx4_cmd_imm(dev, 0, &out_param, RES_CQ,
+		err = mlx4_cmd_imm(dev, 0, &out_param, in_modifier,
 				   RES_OP_RESERVE_AND_MAP, MLX4_CMD_ALLOC_RES,
 				   MLX4_CMD_TIME_CLASS_A, MLX4_CMD_WRAPPED);
 		if (err)
@@ -303,7 +304,7 @@ int mlx4_cq_alloc(struct mlx4_dev *dev, int nent,
 
 	cq->vector = vector;
 
-	err = mlx4_cq_alloc_icm(dev, &cq->cqn);
+	err = mlx4_cq_alloc_icm(dev, &cq->cqn, cq->usage);
 	if (err)
 		return err;
 

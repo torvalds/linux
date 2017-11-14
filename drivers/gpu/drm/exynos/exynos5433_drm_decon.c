@@ -13,6 +13,8 @@
 #include <linux/platform_device.h>
 #include <linux/clk.h>
 #include <linux/component.h>
+#include <linux/iopoll.h>
+#include <linux/irq.h>
 #include <linux/mfd/syscon.h>
 #include <linux/of_device.h>
 #include <linux/of_gpio.h>
@@ -33,9 +35,8 @@
 #define WINDOWS_NR	3
 #define MIN_FB_WIDTH_FOR_16WORD_BURST	128
 
-#define IFTYPE_I80	(1 << 0)
-#define I80_HW_TRG	(1 << 1)
-#define IFTYPE_HDMI	(1 << 2)
+#define I80_HW_TRG	(1 << 0)
+#define IFTYPE_HDMI	(1 << 1)
 
 static const char * const decon_clks_name[] = {
 	"pclk",
@@ -57,6 +58,8 @@ struct decon_context {
 	struct regmap			*sysreg;
 	struct clk			*clks[ARRAY_SIZE(decon_clks_name)];
 	unsigned int			irq;
+	unsigned int			irq_vsync;
+	unsigned int			irq_lcd_sys;
 	unsigned int			te_irq;
 	unsigned long			out_type;
 	int				first_win;
@@ -90,7 +93,7 @@ static int decon_enable_vblank(struct exynos_drm_crtc *crtc)
 	u32 val;
 
 	val = VIDINTCON0_INTEN;
-	if (ctx->out_type & IFTYPE_I80)
+	if (crtc->i80_mode)
 		val |= VIDINTCON0_FRAMEDONE;
 	else
 		val |= VIDINTCON0_INTFRMEN | VIDINTCON0_FRAMESEL_FP;
@@ -139,7 +142,7 @@ static u32 decon_get_frame_count(struct decon_context *ctx, bool end)
 
 	switch (status & (VIDCON1_VSTATUS_MASK | VIDCON1_I80_ACTIVE)) {
 	case VIDCON1_VSTATUS_VS:
-		if (!(ctx->out_type & IFTYPE_I80))
+		if (!(ctx->crtc->i80_mode))
 			--frm;
 		break;
 	case VIDCON1_VSTATUS_BP:
@@ -166,7 +169,7 @@ static u32 decon_get_vblank_counter(struct exynos_drm_crtc *crtc)
 
 static void decon_setup_trigger(struct decon_context *ctx)
 {
-	if (!(ctx->out_type & (IFTYPE_I80 | I80_HW_TRG)))
+	if (!ctx->crtc->i80_mode && !(ctx->out_type & I80_HW_TRG))
 		return;
 
 	if (!(ctx->out_type & I80_HW_TRG)) {
@@ -206,7 +209,7 @@ static void decon_commit(struct exynos_drm_crtc *crtc)
 	val = VIDOUT_LCD_ON;
 	if (interlaced)
 		val |= VIDOUT_INTERLACE_EN_F;
-	if (ctx->out_type & IFTYPE_I80) {
+	if (crtc->i80_mode) {
 		val |= VIDOUT_COMMAND_IF;
 	} else {
 		val |= VIDOUT_RGB_IF;
@@ -222,7 +225,7 @@ static void decon_commit(struct exynos_drm_crtc *crtc)
 			VIDTCON2_HOZVAL(m->hdisplay - 1);
 	writel(val, ctx->addr + DECON_VIDTCON2);
 
-	if (!(ctx->out_type & IFTYPE_I80)) {
+	if (!crtc->i80_mode) {
 		int vbp = m->crtc_vtotal - m->crtc_vsync_end;
 		int vfp = m->crtc_vsync_start - m->crtc_vdisplay;
 
@@ -277,16 +280,14 @@ static void decon_win_set_pixfmt(struct decon_context *ctx, unsigned int win,
 		val |= WINCONx_BURSTLEN_16WORD;
 		break;
 	case DRM_FORMAT_ARGB8888:
+	default:
 		val |= WINCONx_BPPMODE_32BPP_A8888;
 		val |= WINCONx_WSWP_F | WINCONx_BLD_PIX_F | WINCONx_ALPHA_SEL_F;
 		val |= WINCONx_BURSTLEN_16WORD;
 		break;
-	default:
-		DRM_ERROR("Proper pixel format is not set\n");
-		return;
 	}
 
-	DRM_DEBUG_KMS("bpp = %u\n", fb->format->cpp[0] * 8);
+	DRM_DEBUG_KMS("cpp = %u\n", fb->format->cpp[0]);
 
 	/*
 	 * In case of exynos, setting dma-burst to 16Word causes permanent
@@ -329,7 +330,7 @@ static void decon_update_plane(struct exynos_drm_crtc *crtc,
 	struct decon_context *ctx = crtc->ctx;
 	struct drm_framebuffer *fb = state->base.fb;
 	unsigned int win = plane->index;
-	unsigned int bpp = fb->format->cpp[0];
+	unsigned int cpp = fb->format->cpp[0];
 	unsigned int pitch = fb->pitches[0];
 	dma_addr_t dma_addr = exynos_drm_fb_dma_addr(fb, 0);
 	u32 val;
@@ -365,11 +366,11 @@ static void decon_update_plane(struct exynos_drm_crtc *crtc,
 	writel(val, ctx->addr + DECON_VIDW0xADD1B0(win));
 
 	if (!(ctx->out_type & IFTYPE_HDMI))
-		val = BIT_VAL(pitch - state->crtc.w * bpp, 27, 14)
-			| BIT_VAL(state->crtc.w * bpp, 13, 0);
+		val = BIT_VAL(pitch - state->crtc.w * cpp, 27, 14)
+			| BIT_VAL(state->crtc.w * cpp, 13, 0);
 	else
-		val = BIT_VAL(pitch - state->crtc.w * bpp, 29, 15)
-			| BIT_VAL(state->crtc.w * bpp, 14, 0);
+		val = BIT_VAL(pitch - state->crtc.w * cpp, 29, 15)
+			| BIT_VAL(state->crtc.w * cpp, 14, 0);
 	writel(val, ctx->addr + DECON_VIDW0xADD2(win));
 
 	decon_win_set_pixfmt(ctx, win, fb);
@@ -407,24 +408,19 @@ static void decon_atomic_flush(struct exynos_drm_crtc *crtc)
 
 static void decon_swreset(struct decon_context *ctx)
 {
-	unsigned int tries;
 	unsigned long flags;
+	u32 val;
+	int ret;
 
 	writel(0, ctx->addr + DECON_VIDCON0);
-	for (tries = 2000; tries; --tries) {
-		if (~readl(ctx->addr + DECON_VIDCON0) & VIDCON0_STOP_STATUS)
-			break;
-		udelay(10);
-	}
+	readl_poll_timeout(ctx->addr + DECON_VIDCON0, val,
+			   ~val & VIDCON0_STOP_STATUS, 12, 20000);
 
 	writel(VIDCON0_SWRESET, ctx->addr + DECON_VIDCON0);
-	for (tries = 2000; tries; --tries) {
-		if (~readl(ctx->addr + DECON_VIDCON0) & VIDCON0_SWRESET)
-			break;
-		udelay(10);
-	}
+	ret = readl_poll_timeout(ctx->addr + DECON_VIDCON0, val,
+				 ~val & VIDCON0_SWRESET, 12, 20000);
 
-	WARN(tries == 0, "failed to software reset DECON\n");
+	WARN(ret < 0, "failed to software reset DECON\n");
 
 	spin_lock_irqsave(&ctx->vblank_lock, flags);
 	ctx->frame_id = 0;
@@ -515,6 +511,22 @@ err:
 		clk_disable_unprepare(ctx->clks[i]);
 }
 
+static enum drm_mode_status decon_mode_valid(struct exynos_drm_crtc *crtc,
+		const struct drm_display_mode *mode)
+{
+	struct decon_context *ctx = crtc->ctx;
+
+	ctx->irq = crtc->i80_mode ? ctx->irq_lcd_sys : ctx->irq_vsync;
+
+	if (ctx->irq)
+		return MODE_OK;
+
+	dev_info(ctx->dev, "Sink requires %s mode, but appropriate interrupt is not provided.\n",
+			crtc->i80_mode ? "command" : "video");
+
+	return MODE_BAD;
+}
+
 static const struct exynos_drm_crtc_ops decon_crtc_ops = {
 	.enable			= decon_enable,
 	.disable		= decon_disable,
@@ -524,6 +536,7 @@ static const struct exynos_drm_crtc_ops decon_crtc_ops = {
 	.atomic_begin		= decon_atomic_begin,
 	.update_plane		= decon_update_plane,
 	.disable_plane		= decon_disable_plane,
+	.mode_valid		= decon_mode_valid,
 	.atomic_flush		= decon_atomic_flush,
 };
 
@@ -674,19 +687,22 @@ static const struct of_device_id exynos5433_decon_driver_dt_match[] = {
 MODULE_DEVICE_TABLE(of, exynos5433_decon_driver_dt_match);
 
 static int decon_conf_irq(struct decon_context *ctx, const char *name,
-		irq_handler_t handler, unsigned long int flags, bool required)
+		irq_handler_t handler, unsigned long int flags)
 {
 	struct platform_device *pdev = to_platform_device(ctx->dev);
 	int ret, irq = platform_get_irq_byname(pdev, name);
 
 	if (irq < 0) {
-		if (irq == -EPROBE_DEFER)
+		switch (irq) {
+		case -EPROBE_DEFER:
 			return irq;
-		if (required)
-			dev_err(ctx->dev, "cannot get %s IRQ\n", name);
-		else
-			irq = 0;
-		return irq;
+		case -ENODATA:
+		case -ENXIO:
+			return 0;
+		default:
+			dev_err(ctx->dev, "IRQ %s get failed, %d\n", name, irq);
+			return irq;
+		}
 	}
 	irq_set_status_flags(irq, IRQ_NOAUTOEN);
 	ret = devm_request_irq(ctx->dev, irq, handler, flags, "drm_decon", ctx);
@@ -714,11 +730,8 @@ static int exynos5433_decon_probe(struct platform_device *pdev)
 	ctx->out_type = (unsigned long)of_device_get_match_data(dev);
 	spin_lock_init(&ctx->vblank_lock);
 
-	if (ctx->out_type & IFTYPE_HDMI) {
+	if (ctx->out_type & IFTYPE_HDMI)
 		ctx->first_win = 1;
-	} else if (of_get_child_by_name(dev->of_node, "i80-if-timings")) {
-		ctx->out_type |= IFTYPE_I80;
-	}
 
 	for (i = 0; i < ARRAY_SIZE(decon_clks_name); i++) {
 		struct clk *clk;
@@ -742,25 +755,23 @@ static int exynos5433_decon_probe(struct platform_device *pdev)
 		return PTR_ERR(ctx->addr);
 	}
 
-	if (ctx->out_type & IFTYPE_I80) {
-		ret = decon_conf_irq(ctx, "lcd_sys", decon_irq_handler, 0, true);
-		if (ret < 0)
-			return ret;
-		ctx->irq = ret;
+	ret = decon_conf_irq(ctx, "vsync", decon_irq_handler, 0);
+	if (ret < 0)
+		return ret;
+	ctx->irq_vsync = ret;
 
-		ret = decon_conf_irq(ctx, "te", decon_te_irq_handler,
-				     IRQF_TRIGGER_RISING, false);
-		if (ret < 0)
+	ret = decon_conf_irq(ctx, "lcd_sys", decon_irq_handler, 0);
+	if (ret < 0)
+		return ret;
+	ctx->irq_lcd_sys = ret;
+
+	ret = decon_conf_irq(ctx, "te", decon_te_irq_handler,
+			IRQF_TRIGGER_RISING);
+	if (ret < 0)
 			return ret;
-		if (ret) {
-			ctx->te_irq = ret;
-			ctx->out_type &= ~I80_HW_TRG;
-		}
-	} else {
-		ret = decon_conf_irq(ctx, "vsync", decon_irq_handler, 0, true);
-		if (ret < 0)
-			return ret;
-		ctx->irq = ret;
+	if (ret) {
+		ctx->te_irq = ret;
+		ctx->out_type &= ~I80_HW_TRG;
 	}
 
 	if (ctx->out_type & I80_HW_TRG) {

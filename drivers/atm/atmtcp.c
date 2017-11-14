@@ -342,7 +342,7 @@ static struct atmdev_ops atmtcp_v_dev_ops = {
  */
 
 
-static struct atmdev_ops atmtcp_c_dev_ops = {
+static const struct atmdev_ops atmtcp_c_dev_ops = {
 	.close		= atmtcp_c_close,
 	.send		= atmtcp_c_send
 };

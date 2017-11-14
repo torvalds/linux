@@ -269,10 +269,8 @@ static enum i40iw_status_code add_bp_pages(struct i40iw_sc_dev *dev,
 	status = i40iw_add_sd_table_entry(dev->hw, hmc_info,
 					  info->idx.sd_idx, I40IW_SD_TYPE_PAGED,
 					  I40IW_HMC_DIRECT_BP_SIZE);
-	if (status) {
-		i40iw_free_vmalloc_mem(dev->hw, chunk);
-		return status;
-	}
+	if (status)
+		goto error;
 	if (!dev->is_pf) {
 		status = i40iw_vchnl_vf_add_hmc_objs(dev, I40IW_HMC_IW_PBLE,
 						     fpm_to_idx(pble_rsrc,
@@ -280,8 +278,7 @@ static enum i40iw_status_code add_bp_pages(struct i40iw_sc_dev *dev,
 						     (info->pages << PBLE_512_SHIFT));
 		if (status) {
 			i40iw_pr_err("allocate PBLEs in the PF.  Error %i\n", status);
-			i40iw_free_vmalloc_mem(dev->hw, chunk);
-			return status;
+			goto error;
 		}
 	}
 	addr = chunk->vaddr;

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Shared Memory Communications over RDMA (SMC-R) and RoCE
  *
@@ -68,6 +69,16 @@ static inline void smc_wr_tx_process_cqe(struct ib_wc *wc)
 	int i;
 
 	link = wc->qp->qp_context;
+
+	if (wc->opcode == IB_WC_REG_MR) {
+		if (wc->status)
+			link->wr_reg_state = FAILED;
+		else
+			link->wr_reg_state = CONFIRMED;
+		wake_up(&link->wr_reg_wait);
+		return;
+	}
+
 	pnd_snd_idx = smc_wr_tx_find_pending_index(link, wc->wr_id);
 	if (pnd_snd_idx == link->wr_tx_cnt)
 		return;
@@ -234,12 +245,58 @@ int smc_wr_tx_send(struct smc_link *link, struct smc_wr_tx_pend_priv *priv)
 	int rc;
 
 	ib_req_notify_cq(link->smcibdev->roce_cq_send,
-			 IB_CQ_SOLICITED_MASK | IB_CQ_REPORT_MISSED_EVENTS);
+			 IB_CQ_NEXT_COMP | IB_CQ_REPORT_MISSED_EVENTS);
 	pend = container_of(priv, struct smc_wr_tx_pend, priv);
 	rc = ib_post_send(link->roce_qp, &link->wr_tx_ibs[pend->idx],
 			  &failed_wr);
 	if (rc)
 		smc_wr_tx_put_slot(link, priv);
+	return rc;
+}
+
+/* Register a memory region and wait for result. */
+int smc_wr_reg_send(struct smc_link *link, struct ib_mr *mr)
+{
+	struct ib_send_wr *failed_wr = NULL;
+	int rc;
+
+	ib_req_notify_cq(link->smcibdev->roce_cq_send,
+			 IB_CQ_NEXT_COMP | IB_CQ_REPORT_MISSED_EVENTS);
+	link->wr_reg_state = POSTED;
+	link->wr_reg.wr.wr_id = (u64)(uintptr_t)mr;
+	link->wr_reg.mr = mr;
+	link->wr_reg.key = mr->rkey;
+	failed_wr = &link->wr_reg.wr;
+	rc = ib_post_send(link->roce_qp, &link->wr_reg.wr, &failed_wr);
+	WARN_ON(failed_wr != &link->wr_reg.wr);
+	if (rc)
+		return rc;
+
+	rc = wait_event_interruptible_timeout(link->wr_reg_wait,
+					      (link->wr_reg_state != POSTED),
+					      SMC_WR_REG_MR_WAIT_TIME);
+	if (!rc) {
+		/* timeout - terminate connections */
+		struct smc_link_group *lgr;
+
+		lgr = container_of(link, struct smc_link_group,
+				   lnk[SMC_SINGLE_LINK]);
+		smc_lgr_terminate(lgr);
+		return -EPIPE;
+	}
+	if (rc == -ERESTARTSYS)
+		return -EINTR;
+	switch (link->wr_reg_state) {
+	case CONFIRMED:
+		rc = 0;
+		break;
+	case FAILED:
+		rc = -EIO;
+		break;
+	case POSTED:
+		rc = -EPIPE;
+		break;
+	}
 	return rc;
 }
 
@@ -458,6 +515,11 @@ static void smc_wr_init_sge(struct smc_link *lnk)
 		lnk->wr_rx_ibs[i].sg_list = &lnk->wr_rx_sges[i];
 		lnk->wr_rx_ibs[i].num_sge = 1;
 	}
+	lnk->wr_reg.wr.next = NULL;
+	lnk->wr_reg.wr.num_sge = 0;
+	lnk->wr_reg.wr.send_flags = IB_SEND_SIGNALED;
+	lnk->wr_reg.wr.opcode = IB_WR_REG_MR;
+	lnk->wr_reg.access = IB_ACCESS_LOCAL_WRITE | IB_ACCESS_REMOTE_WRITE;
 }
 
 void smc_wr_free_link(struct smc_link *lnk)
@@ -602,6 +664,8 @@ int smc_wr_create_link(struct smc_link *lnk)
 	smc_wr_init_sge(lnk);
 	memset(lnk->wr_tx_mask, 0,
 	       BITS_TO_LONGS(SMC_WR_BUF_CNT) * sizeof(*lnk->wr_tx_mask));
+	init_waitqueue_head(&lnk->wr_tx_wait);
+	init_waitqueue_head(&lnk->wr_reg_wait);
 	return rc;
 
 dma_unmap:

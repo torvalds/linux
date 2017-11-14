@@ -839,49 +839,31 @@ mt7530_port_bridge_leave(struct dsa_switch *ds, int port,
 }
 
 static int
-mt7530_port_fdb_prepare(struct dsa_switch *ds, int port,
-			const struct switchdev_obj_port_fdb *fdb,
-			struct switchdev_trans *trans)
+mt7530_port_fdb_add(struct dsa_switch *ds, int port,
+		    const unsigned char *addr, u16 vid)
 {
 	struct mt7530_priv *priv = ds->priv;
 	int ret;
+	u8 port_mask = BIT(port);
 
-	/* Because auto-learned entrie shares the same FDB table.
-	 * an entry is reserved with no port_mask to make sure fdb_add
-	 * is called while the entry is still available.
-	 */
 	mutex_lock(&priv->reg_mutex);
-	mt7530_fdb_write(priv, fdb->vid, 0, fdb->addr, -1, STATIC_ENT);
+	mt7530_fdb_write(priv, vid, port_mask, addr, -1, STATIC_ENT);
 	ret = mt7530_fdb_cmd(priv, MT7530_FDB_WRITE, 0);
 	mutex_unlock(&priv->reg_mutex);
 
 	return ret;
 }
 
-static void
-mt7530_port_fdb_add(struct dsa_switch *ds, int port,
-		    const struct switchdev_obj_port_fdb *fdb,
-		    struct switchdev_trans *trans)
-{
-	struct mt7530_priv *priv = ds->priv;
-	u8 port_mask = BIT(port);
-
-	mutex_lock(&priv->reg_mutex);
-	mt7530_fdb_write(priv, fdb->vid, port_mask, fdb->addr, -1, STATIC_ENT);
-	mt7530_fdb_cmd(priv, MT7530_FDB_WRITE, 0);
-	mutex_unlock(&priv->reg_mutex);
-}
-
 static int
 mt7530_port_fdb_del(struct dsa_switch *ds, int port,
-		    const struct switchdev_obj_port_fdb *fdb)
+		    const unsigned char *addr, u16 vid)
 {
 	struct mt7530_priv *priv = ds->priv;
 	int ret;
 	u8 port_mask = BIT(port);
 
 	mutex_lock(&priv->reg_mutex);
-	mt7530_fdb_write(priv, fdb->vid, port_mask, fdb->addr, -1, STATIC_EMP);
+	mt7530_fdb_write(priv, vid, port_mask, addr, -1, STATIC_EMP);
 	ret = mt7530_fdb_cmd(priv, MT7530_FDB_WRITE, 0);
 	mutex_unlock(&priv->reg_mutex);
 
@@ -890,8 +872,7 @@ mt7530_port_fdb_del(struct dsa_switch *ds, int port,
 
 static int
 mt7530_port_fdb_dump(struct dsa_switch *ds, int port,
-		     struct switchdev_obj_port_fdb *fdb,
-		     switchdev_obj_dump_cb_t *cb)
+		     dsa_fdb_dump_cb_t *cb, void *data)
 {
 	struct mt7530_priv *priv = ds->priv;
 	struct mt7530_fdb _fdb = { 0 };
@@ -909,11 +890,8 @@ mt7530_port_fdb_dump(struct dsa_switch *ds, int port,
 		if (rsp & ATC_SRCH_HIT) {
 			mt7530_fdb_read(priv, &_fdb);
 			if (_fdb.port_mask & BIT(port)) {
-				ether_addr_copy(fdb->addr, _fdb.mac);
-				fdb->vid = _fdb.vid;
-				fdb->ndm_state = _fdb.noarp ?
-						NUD_NOARP : NUD_REACHABLE;
-				ret = cb(&fdb->obj);
+				ret = cb(_fdb.mac, _fdb.vid, _fdb.noarp,
+					 data);
 				if (ret < 0)
 					break;
 			}
@@ -1039,7 +1017,7 @@ mt7530_setup(struct dsa_switch *ds)
 	return 0;
 }
 
-static struct dsa_switch_ops mt7530_switch_ops = {
+static const struct dsa_switch_ops mt7530_switch_ops = {
 	.get_tag_protocol	= mtk_get_tag_protocol,
 	.setup			= mt7530_setup,
 	.get_strings		= mt7530_get_strings,
@@ -1053,7 +1031,6 @@ static struct dsa_switch_ops mt7530_switch_ops = {
 	.port_stp_state_set	= mt7530_stp_state_set,
 	.port_bridge_join	= mt7530_port_bridge_join,
 	.port_bridge_leave	= mt7530_port_bridge_leave,
-	.port_fdb_prepare	= mt7530_port_fdb_prepare,
 	.port_fdb_add		= mt7530_port_fdb_add,
 	.port_fdb_del		= mt7530_port_fdb_del,
 	.port_fdb_dump		= mt7530_port_fdb_dump,

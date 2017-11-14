@@ -664,7 +664,7 @@ static int hdmi_audio_register(struct device *dev)
 {
 	struct omap_hdmi_audio_pdata pdata = {
 		.dev = dev,
-		.dss_version = omapdss_get_version(),
+		.version = 4,
 		.audio_dma_addr = hdmi_wp_get_audio_dma_addr(&hdmi.wp),
 		.ops = &hdmi_audio_ops,
 	};

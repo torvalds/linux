@@ -71,6 +71,7 @@
 #include "nfp_app.h"
 #include "nfp_net_ctrl.h"
 #include "nfp_net.h"
+#include "nfp_net_sriov.h"
 #include "nfp_port.h"
 
 /**
@@ -990,7 +991,7 @@ static void nfp_net_tx_complete(struct nfp_net_tx_ring *tx_ring)
 
 		/* check for last gather fragment */
 		if (fidx == nr_frags - 1)
-			dev_kfree_skb_any(skb);
+			dev_consume_skb_any(skb);
 
 		tx_ring->txbufs[idx].dma_addr = 0;
 		tx_ring->txbufs[idx].skb = NULL;
@@ -1179,10 +1180,14 @@ static void *nfp_net_rx_alloc_one(struct nfp_net_dp *dp, dma_addr_t *dma_addr)
 {
 	void *frag;
 
-	if (!dp->xdp_prog)
+	if (!dp->xdp_prog) {
 		frag = netdev_alloc_frag(dp->fl_bufsz);
-	else
-		frag = page_address(alloc_page(GFP_KERNEL | __GFP_COLD));
+	} else {
+		struct page *page;
+
+		page = alloc_page(GFP_KERNEL | __GFP_COLD);
+		frag = page ? page_address(page) : NULL;
+	}
 	if (!frag) {
 		nn_dp_warn(dp, "Failed to alloc receive page frag\n");
 		return NULL;
@@ -1202,10 +1207,14 @@ static void *nfp_net_napi_alloc_one(struct nfp_net_dp *dp, dma_addr_t *dma_addr)
 {
 	void *frag;
 
-	if (!dp->xdp_prog)
+	if (!dp->xdp_prog) {
 		frag = napi_alloc_frag(dp->fl_bufsz);
-	else
-		frag = page_address(alloc_page(GFP_ATOMIC | __GFP_COLD));
+	} else {
+		struct page *page;
+
+		page = alloc_page(GFP_ATOMIC | __GFP_COLD);
+		frag = page ? page_address(page) : NULL;
+	}
 	if (!frag) {
 		nn_dp_warn(dp, "Failed to alloc receive page frag\n");
 		return NULL;
@@ -2659,6 +2668,7 @@ static int nfp_net_netdev_close(struct net_device *netdev)
 	/* Step 2: Tell NFP
 	 */
 	nfp_net_clear_config_and_disable(nn);
+	nfp_port_configure(netdev, false);
 
 	/* Step 3: Free resources
 	 */
@@ -2776,15 +2786,20 @@ static int nfp_net_netdev_open(struct net_device *netdev)
 		goto err_free_all;
 
 	/* Step 2: Configure the NFP
+	 * - Ifup the physical interface if it exists
 	 * - Enable rings from 0 to tx_rings/rx_rings - 1.
 	 * - Write MAC address (in case it changed)
 	 * - Set the MTU
 	 * - Set the Freelist buffer size
 	 * - Enable the FW
 	 */
-	err = nfp_net_set_config_and_enable(nn);
+	err = nfp_port_configure(netdev, true);
 	if (err)
 		goto err_free_all;
+
+	err = nfp_net_set_config_and_enable(nn);
+	if (err)
+		goto err_port_disable;
 
 	/* Step 3: Enable for kernel
 	 * - put some freelist descriptors on each RX ring
@@ -2796,6 +2811,8 @@ static int nfp_net_netdev_open(struct net_device *netdev)
 
 	return 0;
 
+err_port_disable:
+	nfp_port_configure(netdev, false);
 err_free_all:
 	nfp_net_close_free_all(nn);
 	return err;
@@ -3413,6 +3430,11 @@ const struct net_device_ops nfp_net_netdev_ops = {
 	.ndo_get_stats64	= nfp_net_stat64,
 	.ndo_vlan_rx_add_vid	= nfp_net_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid	= nfp_net_vlan_rx_kill_vid,
+	.ndo_set_vf_mac         = nfp_app_set_vf_mac,
+	.ndo_set_vf_vlan        = nfp_app_set_vf_vlan,
+	.ndo_set_vf_spoofchk    = nfp_app_set_vf_spoofchk,
+	.ndo_get_vf_config	= nfp_app_get_vf_config,
+	.ndo_set_vf_link_state  = nfp_app_set_vf_link_state,
 	.ndo_setup_tc		= nfp_port_setup_tc,
 	.ndo_tx_timeout		= nfp_net_tx_timeout,
 	.ndo_set_rx_mode	= nfp_net_set_rx_mode,

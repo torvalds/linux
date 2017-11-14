@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * drivers/pci/pci-sysfs.c
  *
@@ -556,9 +557,9 @@ static ssize_t devspec_show(struct device *dev,
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct device_node *np = pci_device_to_OF_node(pdev);
 
-	if (np == NULL || np->full_name == NULL)
+	if (np == NULL)
 		return 0;
-	return sprintf(buf, "%s", np->full_name);
+	return sprintf(buf, "%pOF", np);
 }
 static DEVICE_ATTR_RO(devspec);
 #endif
@@ -686,7 +687,7 @@ static ssize_t driver_override_store(struct device *dev,
 				     const char *buf, size_t count)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
-	char *driver_override, *old = pdev->driver_override, *cp;
+	char *driver_override, *old, *cp;
 
 	/* We need to keep extra room for a newline */
 	if (count >= (PAGE_SIZE - 1))
@@ -700,12 +701,15 @@ static ssize_t driver_override_store(struct device *dev,
 	if (cp)
 		*cp = '\0';
 
+	device_lock(dev);
+	old = pdev->driver_override;
 	if (strlen(driver_override)) {
 		pdev->driver_override = driver_override;
 	} else {
 		kfree(driver_override);
 		pdev->driver_override = NULL;
 	}
+	device_unlock(dev);
 
 	kfree(old);
 
@@ -716,8 +720,12 @@ static ssize_t driver_override_show(struct device *dev,
 				    struct device_attribute *attr, char *buf)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
+	ssize_t len;
 
-	return snprintf(buf, PAGE_SIZE, "%s\n", pdev->driver_override);
+	device_lock(dev);
+	len = snprintf(buf, PAGE_SIZE, "%s\n", pdev->driver_override);
+	device_unlock(dev);
+	return len;
 }
 static DEVICE_ATTR_RW(driver_override);
 
@@ -1211,10 +1219,7 @@ static ssize_t pci_resource_io(struct file *filp, struct kobject *kobj,
 {
 	struct pci_dev *pdev = to_pci_dev(kobj_to_dev(kobj));
 	int bar = (unsigned long)attr->private;
-	struct resource *res;
 	unsigned long port = off;
-
-	res = &pdev->resource[bar];
 
 	port += pci_resource_start(pdev, bar);
 
@@ -1431,7 +1436,7 @@ static ssize_t pci_read_rom(struct file *filp, struct kobject *kobj,
 	return count;
 }
 
-static struct bin_attribute pci_config_attr = {
+static const struct bin_attribute pci_config_attr = {
 	.attr =	{
 		.name = "config",
 		.mode = S_IRUGO | S_IWUSR,
@@ -1441,7 +1446,7 @@ static struct bin_attribute pci_config_attr = {
 	.write = pci_write_config,
 };
 
-static struct bin_attribute pcie_config_attr = {
+static const struct bin_attribute pcie_config_attr = {
 	.attr =	{
 		.name = "config",
 		.mode = S_IRUGO | S_IWUSR,
@@ -1735,7 +1740,7 @@ const struct attribute_group *pcie_dev_groups[] = {
 	NULL,
 };
 
-static struct attribute_group pci_dev_hp_attr_group = {
+static const struct attribute_group pci_dev_hp_attr_group = {
 	.attrs = pci_dev_hp_attrs,
 	.is_visible = pci_dev_hp_attrs_are_visible,
 };
@@ -1759,23 +1764,23 @@ static umode_t sriov_attrs_are_visible(struct kobject *kobj,
 	return a->mode;
 }
 
-static struct attribute_group sriov_dev_attr_group = {
+static const struct attribute_group sriov_dev_attr_group = {
 	.attrs = sriov_dev_attrs,
 	.is_visible = sriov_attrs_are_visible,
 };
 #endif /* CONFIG_PCI_IOV */
 
-static struct attribute_group pci_dev_attr_group = {
+static const struct attribute_group pci_dev_attr_group = {
 	.attrs = pci_dev_dev_attrs,
 	.is_visible = pci_dev_attrs_are_visible,
 };
 
-static struct attribute_group pci_bridge_attr_group = {
+static const struct attribute_group pci_bridge_attr_group = {
 	.attrs = pci_bridge_attrs,
 	.is_visible = pci_bridge_attrs_are_visible,
 };
 
-static struct attribute_group pcie_dev_attr_group = {
+static const struct attribute_group pcie_dev_attr_group = {
 	.attrs = pcie_dev_attrs,
 	.is_visible = pcie_dev_attrs_are_visible,
 };

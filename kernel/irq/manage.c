@@ -168,6 +168,19 @@ void irq_set_thread_affinity(struct irq_desc *desc)
 			set_bit(IRQTF_AFFINITY, &action->thread_flags);
 }
 
+static void irq_validate_effective_affinity(struct irq_data *data)
+{
+#ifdef CONFIG_GENERIC_IRQ_EFFECTIVE_AFF_MASK
+	const struct cpumask *m = irq_data_get_effective_affinity_mask(data);
+	struct irq_chip *chip = irq_data_get_irq_chip(data);
+
+	if (!cpumask_empty(m))
+		return;
+	pr_warn_once("irq_chip %s did not update eff. affinity mask of irq %u\n",
+		     chip->name, data->irq);
+#endif
+}
+
 int irq_do_set_affinity(struct irq_data *data, const struct cpumask *mask,
 			bool force)
 {
@@ -175,12 +188,16 @@ int irq_do_set_affinity(struct irq_data *data, const struct cpumask *mask,
 	struct irq_chip *chip = irq_data_get_irq_chip(data);
 	int ret;
 
+	if (!chip || !chip->irq_set_affinity)
+		return -EINVAL;
+
 	ret = chip->irq_set_affinity(data, mask, force);
 	switch (ret) {
 	case IRQ_SET_MASK_OK:
 	case IRQ_SET_MASK_OK_DONE:
 		cpumask_copy(desc->irq_common_data.affinity, mask);
 	case IRQ_SET_MASK_OK_NOCOPY:
+		irq_validate_effective_affinity(data);
 		irq_set_thread_affinity(desc);
 		ret = 0;
 	}
@@ -400,8 +417,18 @@ int irq_set_vcpu_affinity(unsigned int irq, void *vcpu_info)
 		return -EINVAL;
 
 	data = irq_desc_get_irq_data(desc);
-	chip = irq_data_get_irq_chip(data);
-	if (chip && chip->irq_set_vcpu_affinity)
+	do {
+		chip = irq_data_get_irq_chip(data);
+		if (chip && chip->irq_set_vcpu_affinity)
+			break;
+#ifdef CONFIG_IRQ_DOMAIN_HIERARCHY
+		data = data->parent_data;
+#else
+		data = NULL;
+#endif
+	} while (data);
+
+	if (data)
 		ret = chip->irq_set_vcpu_affinity(data, vcpu_info);
 	irq_put_desc_unlock(desc, flags);
 
@@ -1633,6 +1660,10 @@ const void *free_irq(unsigned int irq, void *dev_id)
 #endif
 
 	action = __free_irq(irq, dev_id);
+
+	if (!action)
+		return NULL;
+
 	devname = action->name;
 	kfree(action);
 	return devname;

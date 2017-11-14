@@ -233,6 +233,7 @@ struct tegra_msi {
 	struct msi_controller chip;
 	DECLARE_BITMAP(used, INT_PCI_MSI_NR);
 	struct irq_domain *domain;
+	unsigned long pages;
 	struct mutex lock;
 	u64 phys;
 	int irq;
@@ -1147,15 +1148,15 @@ static int tegra_pcie_resets_get(struct tegra_pcie *pcie)
 {
 	struct device *dev = pcie->dev;
 
-	pcie->pex_rst = devm_reset_control_get(dev, "pex");
+	pcie->pex_rst = devm_reset_control_get_exclusive(dev, "pex");
 	if (IS_ERR(pcie->pex_rst))
 		return PTR_ERR(pcie->pex_rst);
 
-	pcie->afi_rst = devm_reset_control_get(dev, "afi");
+	pcie->afi_rst = devm_reset_control_get_exclusive(dev, "afi");
 	if (IS_ERR(pcie->afi_rst))
 		return PTR_ERR(pcie->afi_rst);
 
-	pcie->pcie_xrst = devm_reset_control_get(dev, "pcie_x");
+	pcie->pcie_xrst = devm_reset_control_get_exclusive(dev, "pcie_x");
 	if (IS_ERR(pcie->pcie_xrst))
 		return PTR_ERR(pcie->pcie_xrst);
 
@@ -1529,22 +1530,9 @@ static int tegra_pcie_enable_msi(struct tegra_pcie *pcie)
 		goto err;
 	}
 
-	/*
-	 * The PCI host bridge on Tegra contains some logic that intercepts
-	 * MSI writes, which means that the MSI target address doesn't have
-	 * to point to actual physical memory. Rather than allocating one 4
-	 * KiB page of system memory that's never used, we can simply pick
-	 * an arbitrary address within an area reserved for system memory
-	 * in the FPCI address map.
-	 *
-	 * However, in order to avoid confusion, we pick an address that
-	 * doesn't map to physical memory. The FPCI address map reserves a
-	 * 1012 GiB region for system memory and memory-mapped I/O. Since
-	 * none of the Tegra SoCs that contain this PCI host bridge can
-	 * address more than 16 GiB of system memory, the last 4 KiB of
-	 * these 1012 GiB is a good candidate.
-	 */
-	msi->phys = 0xfcfffff000;
+	/* setup AFI/FPCI range */
+	msi->pages = __get_free_pages(GFP_KERNEL, 0);
+	msi->phys = virt_to_phys((void *)msi->pages);
 
 	afi_writel(pcie, msi->phys >> soc->msi_base_shift, AFI_MSI_FPCI_BAR_ST);
 	afi_writel(pcie, msi->phys, AFI_MSI_AXI_BAR_ST);
@@ -1595,6 +1583,8 @@ static int tegra_pcie_disable_msi(struct tegra_pcie *pcie)
 	afi_writel(pcie, 0, AFI_MSI_EN_VEC5);
 	afi_writel(pcie, 0, AFI_MSI_EN_VEC6);
 	afi_writel(pcie, 0, AFI_MSI_EN_VEC7);
+
+	free_pages(msi->pages, 0);
 
 	if (msi->irq > 0)
 		free_irq(msi->irq, pcie);
@@ -1703,8 +1693,7 @@ static int tegra_pcie_get_legacy_regulators(struct tegra_pcie *pcie)
 		pcie->num_supplies = 2;
 
 	if (pcie->num_supplies == 0) {
-		dev_err(dev, "device %s not supported in legacy mode\n",
-			np->full_name);
+		dev_err(dev, "device %pOF not supported in legacy mode\n", np);
 		return -ENODEV;
 	}
 

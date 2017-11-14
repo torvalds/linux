@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 # CPU tuning section - shared with UML.
 # Must change only cflags-y (or [yn]), not CFLAGS! That makes a difference for UML.
 

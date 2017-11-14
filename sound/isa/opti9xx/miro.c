@@ -143,7 +143,7 @@ static int snd_miro_pnp_is_probed;
 
 #ifdef CONFIG_PNP
 
-static struct pnp_card_device_id snd_miro_pnpids[] = {
+static const struct pnp_card_device_id snd_miro_pnpids[] = {
 	/* PCM20 and PCM12 in PnP mode */
 	{ .id = "MIR0924",
 	  .devs = { { "MIR0000" }, { "MIR0002" }, { "MIR0005" } }, },
@@ -1353,9 +1353,10 @@ static int snd_miro_probe(struct snd_card *card)
 	}
 
 	strcpy(card->driver, "miro");
-	sprintf(card->longname, "%s: OPTi%s, %s at 0x%lx, irq %d, dma %d&%d",
-		card->shortname, miro->name, codec->pcm->name,
-		miro->wss_base + 4, miro->irq, miro->dma1, miro->dma2);
+	snprintf(card->longname, sizeof(card->longname),
+		 "%s: OPTi%s, %s at 0x%lx, irq %d, dma %d&%d",
+		 card->shortname, miro->name, codec->pcm->name,
+		 miro->wss_base + 4, miro->irq, miro->dma1, miro->dma2);
 
 	if (mpu_port <= 0 || mpu_port == SNDRV_AUTO_PORT)
 		rmidi = NULL;

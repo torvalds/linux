@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Transactional memory support routines to reclaim and recheckpoint
  * transactional process state.

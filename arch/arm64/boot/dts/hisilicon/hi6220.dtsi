@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * dts file for Hisilicon Hi6220 SoC
  *
@@ -259,6 +260,12 @@
 		pm_ctrl: pm_ctrl@f7032000 {
 			compatible = "hisilicon,hi6220-pmctrl", "syscon";
 			reg = <0x0 0xf7032000 0x0 0x1000>;
+			#clock-cells = <1>;
+		};
+
+		acpu_sctrl: acpu_sctrl@f6504000 {
+			compatible = "hisilicon,hi6220-acpu-sctrl", "syscon";
+			reg = <0x0 0xf6504000 0x0 0x1000>;
 			#clock-cells = <1>;
 		};
 
@@ -755,7 +762,8 @@
 			dr_mode = "otg";
 			g-rx-fifo-size = <512>;
 			g-np-tx-fifo-size = <128>;
-			g-tx-fifo-size = <128 128 128 128 128 128>;
+			g-tx-fifo-size = <128 128 128 128 128 128 128 128
+					   16  16  16  16  16  16  16>;
 			interrupts = <0 77 0x4>;
 		};
 

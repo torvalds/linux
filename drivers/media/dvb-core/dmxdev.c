@@ -562,7 +562,7 @@ static int dvb_dmxdev_start_feed(struct dmxdev *dmxdev,
 {
 	ktime_t timeout = 0;
 	struct dmx_pes_filter_params *para = &filter->params.pes;
-	dmx_output_t otype;
+	enum dmx_output otype;
 	int ret;
 	int ts_type;
 	enum dmx_ts_pes ts_pes;
@@ -787,7 +787,7 @@ static int dvb_dmxdev_filter_free(struct dmxdev *dmxdev,
 	return 0;
 }
 
-static inline void invert_mode(dmx_filter_t *filter)
+static inline void invert_mode(struct dmx_filter *filter)
 {
 	int i;
 
@@ -1024,26 +1024,6 @@ static int dvb_demux_do_ioctl(struct file *file,
 		}
 		dmxdev->demux->get_pes_pids(dmxdev->demux, parg);
 		break;
-
-#if 0
-	/* Not used upstream and never documented */
-
-	case DMX_GET_CAPS:
-		if (!dmxdev->demux->get_caps) {
-			ret = -EINVAL;
-			break;
-		}
-		ret = dmxdev->demux->get_caps(dmxdev->demux, parg);
-		break;
-
-	case DMX_SET_SOURCE:
-		if (!dmxdev->demux->set_source) {
-			ret = -EINVAL;
-			break;
-		}
-		ret = dmxdev->demux->set_source(dmxdev->demux, parg);
-		break;
-#endif
 
 	case DMX_GET_STC:
 		if (!dmxdev->demux->get_stc) {

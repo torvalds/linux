@@ -116,7 +116,7 @@ static void mdc_set(struct mdiobb_ctrl *ctrl, int what)
 	gpiod_set_value(bitbang->mdc, what);
 }
 
-static struct mdiobb_ops mdio_gpio_ops = {
+static const struct mdiobb_ops mdio_gpio_ops = {
 	.owner = THIS_MODULE,
 	.set_mdc = mdc_set,
 	.set_mdio_dir = mdio_dir,

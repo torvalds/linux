@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * sysctl.h: General linux system control interface
  *
@@ -208,6 +209,11 @@ static inline struct ctl_table_header *register_sysctl_table(struct ctl_table * 
 
 static inline struct ctl_table_header *register_sysctl_paths(
 			const struct ctl_path *path, struct ctl_table *table)
+{
+	return NULL;
+}
+
+static inline struct ctl_table_header *register_sysctl(const char *path, struct ctl_table *table)
 {
 	return NULL;
 }

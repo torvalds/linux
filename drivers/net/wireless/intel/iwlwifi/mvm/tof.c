@@ -61,7 +61,7 @@
  *
  *****************************************************************************/
 #include "mvm.h"
-#include "fw-api-tof.h"
+#include "fw/api/tof.h"
 
 #define IWL_MVM_TOF_RANGE_REQ_MAX_ID 256
 

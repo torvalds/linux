@@ -21,6 +21,7 @@
  * GNU General Public License for more details.
  */
 
+#include <linux/acpi.h>
 #include <linux/bitops.h>
 #include <linux/device.h>
 #include <linux/err.h>
@@ -36,6 +37,12 @@
 #include <linux/iio/sysfs.h>
 #include <linux/iio/trigger_consumer.h>
 #include <linux/iio/triggered_buffer.h>
+
+/*
+ * In case of ACPI, we use the 5000 mV as default for the reference pin.
+ * Device tree users encode that via the vref-supply regulator.
+ */
+#define TI_ADS7950_VA_MV_ACPI_DEFAULT	5000
 
 #define TI_ADS7950_CR_MANUAL	BIT(12)
 #define TI_ADS7950_CR_WRITE	BIT(11)
@@ -58,6 +65,7 @@ struct ti_ads7950_state {
 	struct spi_message	scan_single_msg;
 
 	struct regulator	*reg;
+	unsigned int		vref_mv;
 
 	unsigned int		settings;
 
@@ -305,11 +313,15 @@ static int ti_ads7950_get_range(struct ti_ads7950_state *st)
 {
 	int vref;
 
-	vref = regulator_get_voltage(st->reg);
-	if (vref < 0)
-		return vref;
+	if (st->vref_mv) {
+		vref = st->vref_mv;
+	} else {
+		vref = regulator_get_voltage(st->reg);
+		if (vref < 0)
+			return vref;
 
-	vref /= 1000;
+		vref /= 1000;
+	}
 
 	if (st->settings & TI_ADS7950_CR_RANGE_5V)
 		vref *= 2;
@@ -411,6 +423,10 @@ static int ti_ads7950_probe(struct spi_device *spi)
 	spi_message_init_with_transfers(&st->scan_single_msg,
 					st->scan_single_xfer, 3);
 
+	/* Use hard coded value for reference voltage in ACPI case */
+	if (ACPI_COMPANION(&spi->dev))
+		st->vref_mv = TI_ADS7950_VA_MV_ACPI_DEFAULT;
+
 	st->reg = devm_regulator_get(&spi->dev, "vref");
 	if (IS_ERR(st->reg)) {
 		dev_err(&spi->dev, "Failed get get regulator \"vref\"\n");
@@ -475,9 +491,27 @@ static const struct spi_device_id ti_ads7950_id[] = {
 };
 MODULE_DEVICE_TABLE(spi, ti_ads7950_id);
 
+static const struct of_device_id ads7950_of_table[] = {
+	{ .compatible = "ti,ads7950", .data = &ti_ads7950_chip_info[TI_ADS7950] },
+	{ .compatible = "ti,ads7951", .data = &ti_ads7950_chip_info[TI_ADS7951] },
+	{ .compatible = "ti,ads7952", .data = &ti_ads7950_chip_info[TI_ADS7952] },
+	{ .compatible = "ti,ads7953", .data = &ti_ads7950_chip_info[TI_ADS7953] },
+	{ .compatible = "ti,ads7954", .data = &ti_ads7950_chip_info[TI_ADS7954] },
+	{ .compatible = "ti,ads7955", .data = &ti_ads7950_chip_info[TI_ADS7955] },
+	{ .compatible = "ti,ads7956", .data = &ti_ads7950_chip_info[TI_ADS7956] },
+	{ .compatible = "ti,ads7957", .data = &ti_ads7950_chip_info[TI_ADS7957] },
+	{ .compatible = "ti,ads7958", .data = &ti_ads7950_chip_info[TI_ADS7958] },
+	{ .compatible = "ti,ads7959", .data = &ti_ads7950_chip_info[TI_ADS7959] },
+	{ .compatible = "ti,ads7960", .data = &ti_ads7950_chip_info[TI_ADS7960] },
+	{ .compatible = "ti,ads7961", .data = &ti_ads7950_chip_info[TI_ADS7961] },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, ads7950_of_table);
+
 static struct spi_driver ti_ads7950_driver = {
 	.driver = {
 		.name	= "ads7950",
+		.of_match_table = ads7950_of_table,
 	},
 	.probe		= ti_ads7950_probe,
 	.remove		= ti_ads7950_remove,

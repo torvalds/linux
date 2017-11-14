@@ -557,9 +557,8 @@ uint16_t phm_find_closest_vddci(struct pp_atomctrl_voltage_table *vddci_table, u
 			return vddci_table->entries[i].value;
 	}
 
-	PP_ASSERT_WITH_CODE(false,
-			"VDDCI is larger than max VDDCI in VDDCI Voltage Table!",
-			return vddci_table->entries[i-1].value);
+	pr_debug("vddci is larger than max value in vddci_table\n");
+	return vddci_table->entries[i-1].value;
 }
 
 int phm_find_boot_level(void *table,
@@ -583,26 +582,26 @@ int phm_get_sclk_for_voltage_evv(struct pp_hwmgr *hwmgr,
 	phm_ppt_v1_voltage_lookup_table *lookup_table,
 	uint16_t virtual_voltage_id, int32_t *sclk)
 {
-	uint8_t entryId;
-	uint8_t voltageId;
+	uint8_t entry_id;
+	uint8_t voltage_id;
 	struct phm_ppt_v1_information *table_info =
 			(struct phm_ppt_v1_information *)(hwmgr->pptable);
 
 	PP_ASSERT_WITH_CODE(lookup_table->count != 0, "Lookup table is empty", return -EINVAL);
 
 	/* search for leakage voltage ID 0xff01 ~ 0xff08 and sckl */
-	for (entryId = 0; entryId < table_info->vdd_dep_on_sclk->count; entryId++) {
-		voltageId = table_info->vdd_dep_on_sclk->entries[entryId].vddInd;
-		if (lookup_table->entries[voltageId].us_vdd == virtual_voltage_id)
+	for (entry_id = 0; entry_id < table_info->vdd_dep_on_sclk->count; entry_id++) {
+		voltage_id = table_info->vdd_dep_on_sclk->entries[entry_id].vddInd;
+		if (lookup_table->entries[voltage_id].us_vdd == virtual_voltage_id)
 			break;
 	}
 
-	PP_ASSERT_WITH_CODE(entryId < table_info->vdd_dep_on_sclk->count,
-			"Can't find requested voltage id in vdd_dep_on_sclk table!",
-			return -EINVAL;
-			);
+	if (entry_id >= table_info->vdd_dep_on_sclk->count) {
+		pr_debug("Can't find requested voltage id in vdd_dep_on_sclk table\n");
+		return -EINVAL;
+	}
 
-	*sclk = table_info->vdd_dep_on_sclk->entries[entryId].clk;
+	*sclk = table_info->vdd_dep_on_sclk->entries[entry_id].clk;
 
 	return 0;
 }

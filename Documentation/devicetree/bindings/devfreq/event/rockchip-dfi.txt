@@ -15,5 +15,4 @@ Example:
 		rockchip,pmu = <&pmugrf>;
 		clocks = <&cru PCLK_DDR_MON>;
 		clock-names = "pclk_ddr_mon";
-		status = "disabled";
 	};

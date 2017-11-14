@@ -73,7 +73,7 @@
 
 #define ETHERCAT_MASTER_ID	0x14
 
-static struct pci_device_id ids[] = {
+static const struct pci_device_id ids[] = {
 	{ PCI_DEVICE(0x15ec, 0x5000), },
 	{ 0, }
 };

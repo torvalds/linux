@@ -426,9 +426,8 @@ static void _rtl_init_mac80211(struct ieee80211_hw *hw)
 	hw->extra_tx_headroom = RTL_TX_HEADER_SIZE;
 
 	/* TODO: Correct this value for our hw */
-	/* TODO: define these hard code value */
-	hw->max_listen_interval = 10;
-	hw->max_rate_tries = 4;
+	hw->max_listen_interval = MAX_LISTEN_INTERVAL;
+	hw->max_rate_tries = MAX_RATE_TRIES;
 	/* hw->max_rates = 1; */
 	hw->sta_data_size = sizeof(struct rtl_sta_info);
 
@@ -1166,9 +1165,9 @@ void rtl_get_tcb_desc(struct ieee80211_hw *hw,
 			}
 		}
 
-		if (is_multicast_ether_addr(ieee80211_get_DA(hdr)))
+		if (is_multicast_ether_addr(hdr->addr1))
 			tcb_desc->multicast = 1;
-		else if (is_broadcast_ether_addr(ieee80211_get_DA(hdr)))
+		else if (is_broadcast_ether_addr(hdr->addr1))
 			tcb_desc->broadcast = 1;
 
 		_rtl_txrate_selectmode(hw, sta, tcb_desc);
@@ -1408,6 +1407,11 @@ u8 rtl_is_special_data(struct ieee80211_hw *hw, struct sk_buff *skb, u8 is_tx,
 
 		return true;
 	} else if (ETH_P_PAE == ether_type) {
+		/* EAPOL is seens as in-4way */
+		rtlpriv->btcoexist.btc_info.in_4way = true;
+		rtlpriv->btcoexist.btc_info.in_4way_ts = jiffies;
+	rtlpriv->btcoexist.btc_info.in_4way_ts = jiffies;
+
 		RT_TRACE(rtlpriv, (COMP_SEND | COMP_RECV), DBG_DMESG,
 			 "802.1X %s EAPOL pkt!!\n", (is_tx) ? "Tx" : "Rx");
 
@@ -1735,12 +1739,12 @@ void rtl_scan_list_expire(struct ieee80211_hw *hw)
 			continue;
 
 		list_del(&entry->list);
-		kfree(entry);
 		rtlpriv->scan_list.num--;
 
 		RT_TRACE(rtlpriv, COMP_SCAN, DBG_LOUD,
 			 "BSSID=%pM is expire in scan list (total=%d)\n",
 			 entry->bssid, rtlpriv->scan_list.num);
+		kfree(entry);
 	}
 
 	spin_unlock_irqrestore(&rtlpriv->locks.scan_list_lock, flags);
@@ -1958,6 +1962,12 @@ label_lps_done:
 
 	if (rtlpriv->cfg->ops->get_btc_status())
 		rtlpriv->btcoexist.btc_ops->btc_periodical(rtlpriv);
+
+	if (rtlpriv->btcoexist.btc_info.in_4way) {
+		if (time_after(jiffies, rtlpriv->btcoexist.btc_info.in_4way_ts +
+			       msecs_to_jiffies(IN_4WAY_TIMEOUT_TIME)))
+			rtlpriv->btcoexist.btc_info.in_4way = false;
+	}
 
 	rtlpriv->link_info.bcn_rx_inperiod = 0;
 

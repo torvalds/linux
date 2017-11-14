@@ -93,6 +93,7 @@ static void bluecard_detach(struct pcmcia_device *p_dev);
 
 /* Hardware states */
 #define CARD_READY             1
+#define CARD_ACTIVITY	       2
 #define CARD_HAS_PCCARD_ID     4
 #define CARD_HAS_POWER_LED     5
 #define CARD_HAS_ACTIVITY_LED  6
@@ -160,16 +161,14 @@ static void bluecard_activity_led_timeout(u_long arg)
 	struct bluecard_info *info = (struct bluecard_info *)arg;
 	unsigned int iobase = info->p_dev->resource[0]->start;
 
-	if (!test_bit(CARD_HAS_PCCARD_ID, &(info->hw_state)))
-		return;
-
-	if (test_bit(CARD_HAS_ACTIVITY_LED, &(info->hw_state))) {
-		/* Disable activity LED */
-		outb(0x08 | 0x20, iobase + 0x30);
-	} else {
-		/* Disable power LED */
-		outb(0x00, iobase + 0x30);
+	if (test_bit(CARD_ACTIVITY, &(info->hw_state))) {
+		/* leave LED in inactive state for HZ/10 for blink effect */
+		clear_bit(CARD_ACTIVITY, &(info->hw_state));
+		mod_timer(&(info->timer), jiffies + HZ / 10);
 	}
+
+	/* Disable activity LED, enable power LED */
+	outb(0x08 | 0x20, iobase + 0x30);
 }
 
 
@@ -177,22 +176,22 @@ static void bluecard_enable_activity_led(struct bluecard_info *info)
 {
 	unsigned int iobase = info->p_dev->resource[0]->start;
 
-	if (!test_bit(CARD_HAS_PCCARD_ID, &(info->hw_state)))
+	/* don't disturb running blink timer */
+	if (timer_pending(&(info->timer)))
 		return;
 
+	set_bit(CARD_ACTIVITY, &(info->hw_state));
+
 	if (test_bit(CARD_HAS_ACTIVITY_LED, &(info->hw_state))) {
-		/* Enable activity LED */
-		outb(0x10 | 0x40, iobase + 0x30);
-
-		/* Stop the LED after HZ/4 */
-		mod_timer(&(info->timer), jiffies + HZ / 4);
+		/* Enable activity LED, keep power LED enabled */
+		outb(0x18 | 0x60, iobase + 0x30);
 	} else {
-		/* Enable power LED */
-		outb(0x08 | 0x20, iobase + 0x30);
-
-		/* Stop the LED after HZ/2 */
-		mod_timer(&(info->timer), jiffies + HZ / 2);
+		/* Disable power LED */
+		outb(0x00, iobase + 0x30);
 	}
+
+	/* Stop the LED after HZ/10 */
+	mod_timer(&(info->timer), jiffies + HZ / 10);
 }
 
 
@@ -625,16 +624,13 @@ static int bluecard_hci_flush(struct hci_dev *hdev)
 static int bluecard_hci_open(struct hci_dev *hdev)
 {
 	struct bluecard_info *info = hci_get_drvdata(hdev);
+	unsigned int iobase = info->p_dev->resource[0]->start;
 
 	if (test_bit(CARD_HAS_PCCARD_ID, &(info->hw_state)))
 		bluecard_hci_set_baud_rate(hdev, DEFAULT_BAUD_RATE);
 
-	if (test_bit(CARD_HAS_PCCARD_ID, &(info->hw_state))) {
-		unsigned int iobase = info->p_dev->resource[0]->start;
-
-		/* Enable LED */
-		outb(0x08 | 0x20, iobase + 0x30);
-	}
+	/* Enable power LED */
+	outb(0x08 | 0x20, iobase + 0x30);
 
 	return 0;
 }
@@ -643,15 +639,15 @@ static int bluecard_hci_open(struct hci_dev *hdev)
 static int bluecard_hci_close(struct hci_dev *hdev)
 {
 	struct bluecard_info *info = hci_get_drvdata(hdev);
+	unsigned int iobase = info->p_dev->resource[0]->start;
 
 	bluecard_hci_flush(hdev);
 
-	if (test_bit(CARD_HAS_PCCARD_ID, &(info->hw_state))) {
-		unsigned int iobase = info->p_dev->resource[0]->start;
+	/* Stop LED timer */
+	del_timer_sync(&(info->timer));
 
-		/* Disable LED */
-		outb(0x00, iobase + 0x30);
-	}
+	/* Disable power LED */
+	outb(0x00, iobase + 0x30);
 
 	return 0;
 }

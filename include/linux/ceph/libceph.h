@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _FS_CEPH_LIBCEPH_H
 #define _FS_CEPH_LIBCEPH_H
 
@@ -83,17 +84,6 @@ struct ceph_options {
 #define CEPH_MSG_MAX_DATA_LEN	(16*1024*1024)
 
 #define CEPH_AUTH_NAME_DEFAULT   "guest"
-
-/*
- * Delay telling the MDS we no longer want caps, in case we reopen
- * the file.  Delay a minimum amount of time, even if we send a cap
- * message for some other reason.  Otherwise, take the oppotunity to
- * update the mds to avoid sending another message later.
- */
-#define CEPH_CAPS_WANTED_DELAY_MIN_DEFAULT      5  /* cap release delay */
-#define CEPH_CAPS_WANTED_DELAY_MAX_DEFAULT     60  /* cap release delay */
-
-#define CEPH_CAP_RELEASE_SAFETY_DEFAULT        (CEPH_CAPS_PER_RELEASE * 4)
 
 /* mount state */
 enum {

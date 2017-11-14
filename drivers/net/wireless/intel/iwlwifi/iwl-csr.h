@@ -169,7 +169,7 @@
 
 /*
  * CSR Hardware Revision Workaround Register.  Indicates hardware rev;
- * "step" determines CCK backoff for txpower calculation.  Used for 4965 only.
+ * "step" determines CCK backoff for txpower calculation.
  * See also CSR_HW_REV register.
  * Bit fields:
  *  3-2:  0 = A, 1 = B, 2 = C, 3 = D step
@@ -354,11 +354,16 @@ enum {
 #define CSR_HW_REV_TYPE_135		(0x0000120)
 #define CSR_HW_REV_TYPE_7265D		(0x0000210)
 #define CSR_HW_REV_TYPE_NONE		(0x00001F0)
+#define CSR_HW_REV_TYPE_QNJ		(0x0000360)
+#define CSR_HW_REV_TYPE_HR_CDB		(0x0000340)
 
 /* RF_ID value */
-#define CSR_HW_RF_ID_TYPE_JF		(0x00105000)
+#define CSR_HW_RF_ID_TYPE_JF		(0x00105100)
 #define CSR_HW_RF_ID_TYPE_HR		(0x0010A000)
-#define CSR_HW_RF_ID_TYPE_HRCDB		(0x00109000)
+#define CSR_HW_RF_ID_TYPE_HRCDB		(0x00109F00)
+
+/* HW_RF CHIP ID  */
+#define CSR_HW_RF_ID_TYPE_CHIP_ID(_val) (((_val) >> 12) & 0xFFF)
 
 /* EEPROM REG */
 #define CSR_EEPROM_REG_READ_VALID_MSK	(0x00000001)

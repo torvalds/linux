@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * The proc filesystem constants/structures
  */
@@ -28,13 +29,7 @@ extern struct proc_dir_entry *proc_create_data(const char *, umode_t,
 					       const struct file_operations *,
 					       void *);
 
-static inline struct proc_dir_entry *proc_create(
-	const char *name, umode_t mode, struct proc_dir_entry *parent,
-	const struct file_operations *proc_fops)
-{
-	return proc_create_data(name, mode, parent, proc_fops, NULL);
-}
-
+struct proc_dir_entry *proc_create(const char *name, umode_t mode, struct proc_dir_entry *parent, const struct file_operations *proc_fops);
 extern void proc_set_size(struct proc_dir_entry *, loff_t);
 extern void proc_set_user(struct proc_dir_entry *, kuid_t, kgid_t);
 extern void *PDE_DATA(const struct inode *);

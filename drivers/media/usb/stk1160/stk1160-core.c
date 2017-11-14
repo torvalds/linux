@@ -47,7 +47,7 @@ MODULE_AUTHOR("Ezequiel Garcia");
 MODULE_DESCRIPTION("STK1160 driver");
 
 /* Devices supported by this driver */
-static struct usb_device_id stk1160_id_table[] = {
+static const struct usb_device_id stk1160_id_table[] = {
 	{ USB_DEVICE(0x05e1, 0x0408) },
 	{ }
 };

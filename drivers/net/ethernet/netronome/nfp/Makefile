@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 obj-$(CONFIG_NFP)	+= nfp.o
 
 nfp-objs := \
@@ -23,6 +24,7 @@ nfp-objs := \
 	    nfp_net_ethtool.o \
 	    nfp_net_main.o \
 	    nfp_net_repr.o \
+	    nfp_net_sriov.o \
 	    nfp_netvf_main.o \
 	    nfp_port.o \
 	    bpf/main.o \

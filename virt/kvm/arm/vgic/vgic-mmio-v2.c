@@ -303,6 +303,51 @@ static void vgic_mmio_write_vcpuif(struct kvm_vcpu *vcpu,
 	vgic_set_vmcr(vcpu, &vmcr);
 }
 
+static unsigned long vgic_mmio_read_apr(struct kvm_vcpu *vcpu,
+					gpa_t addr, unsigned int len)
+{
+	int n; /* which APRn is this */
+
+	n = (addr >> 2) & 0x3;
+
+	if (kvm_vgic_global_state.type == VGIC_V2) {
+		/* GICv2 hardware systems support max. 32 groups */
+		if (n != 0)
+			return 0;
+		return vcpu->arch.vgic_cpu.vgic_v2.vgic_apr;
+	} else {
+		struct vgic_v3_cpu_if *vgicv3 = &vcpu->arch.vgic_cpu.vgic_v3;
+
+		if (n > vgic_v3_max_apr_idx(vcpu))
+			return 0;
+		/* GICv3 only uses ICH_AP1Rn for memory mapped (GICv2) guests */
+		return vgicv3->vgic_ap1r[n];
+	}
+}
+
+static void vgic_mmio_write_apr(struct kvm_vcpu *vcpu,
+				gpa_t addr, unsigned int len,
+				unsigned long val)
+{
+	int n; /* which APRn is this */
+
+	n = (addr >> 2) & 0x3;
+
+	if (kvm_vgic_global_state.type == VGIC_V2) {
+		/* GICv2 hardware systems support max. 32 groups */
+		if (n != 0)
+			return;
+		vcpu->arch.vgic_cpu.vgic_v2.vgic_apr = val;
+	} else {
+		struct vgic_v3_cpu_if *vgicv3 = &vcpu->arch.vgic_cpu.vgic_v3;
+
+		if (n > vgic_v3_max_apr_idx(vcpu))
+			return;
+		/* GICv3 only uses ICH_AP1Rn for memory mapped (GICv2) guests */
+		vgicv3->vgic_ap1r[n] = val;
+	}
+}
+
 static const struct vgic_register_region vgic_v2_dist_registers[] = {
 	REGISTER_DESC_WITH_LENGTH(GIC_DIST_CTRL,
 		vgic_mmio_read_v2_misc, vgic_mmio_write_v2_misc, 12,
@@ -364,7 +409,7 @@ static const struct vgic_register_region vgic_v2_cpu_registers[] = {
 		vgic_mmio_read_vcpuif, vgic_mmio_write_vcpuif, 4,
 		VGIC_ACCESS_32bit),
 	REGISTER_DESC_WITH_LENGTH(GIC_CPU_ACTIVEPRIO,
-		vgic_mmio_read_raz, vgic_mmio_write_wi, 16,
+		vgic_mmio_read_apr, vgic_mmio_write_apr, 16,
 		VGIC_ACCESS_32bit),
 	REGISTER_DESC_WITH_LENGTH(GIC_CPU_IDENT,
 		vgic_mmio_read_vcpuif, vgic_mmio_write_vcpuif, 4,

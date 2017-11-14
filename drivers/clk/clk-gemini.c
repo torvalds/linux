@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Cortina Gemini SoC Clock Controller driver
  * Copyright (c) 2017 Linus Walleij <linus.walleij@linaro.org>
@@ -37,7 +38,6 @@ static DEFINE_SPINLOCK(gemini_clk_lock);
 
 #define GEMINI_GLOBAL_MISC_CONTROL	0x30
 #define PCI_CLK_66MHZ			BIT(18)
-#define PCI_CLK_OE			BIT(17)
 
 #define GEMINI_GLOBAL_CLOCK_CONTROL	0x34
 #define PCI_CLKRUN_EN			BIT(16)
@@ -159,9 +159,6 @@ static int gemini_pci_enable(struct clk_hw *hw)
 
 	regmap_update_bits(pciclk->map, GEMINI_GLOBAL_CLOCK_CONTROL,
 			   0, PCI_CLKRUN_EN);
-	regmap_update_bits(pciclk->map,
-			   GEMINI_GLOBAL_MISC_CONTROL,
-			   0, PCI_CLK_OE);
 	return 0;
 }
 
@@ -169,9 +166,6 @@ static void gemini_pci_disable(struct clk_hw *hw)
 {
 	struct clk_gemini_pci *pciclk = to_pciclk(hw);
 
-	regmap_update_bits(pciclk->map,
-			   GEMINI_GLOBAL_MISC_CONTROL,
-			   PCI_CLK_OE, 0);
 	regmap_update_bits(pciclk->map, GEMINI_GLOBAL_CLOCK_CONTROL,
 			   PCI_CLKRUN_EN, 0);
 }

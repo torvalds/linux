@@ -628,6 +628,8 @@ static int au0828_usb_probe(struct usb_interface *interface,
 	if (retval) {
 		pr_err("%s() au0282_dev_register failed to register on V4L2\n",
 			__func__);
+		mutex_unlock(&dev->lock);
+		kfree(dev);
 		goto done;
 	}
 

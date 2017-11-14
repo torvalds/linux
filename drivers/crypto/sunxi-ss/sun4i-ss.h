@@ -32,6 +32,7 @@
 #include <crypto/aes.h>
 #include <crypto/des.h>
 #include <crypto/internal/rng.h>
+#include <crypto/rng.h>
 
 #define SS_CTL            0x00
 #define SS_KEY0           0x04
@@ -127,6 +128,9 @@
 #define SS_RXFIFO_EMP_INT_ENABLE	(1 << 2)
 #define SS_TXFIFO_AVA_INT_ENABLE	(1 << 0)
 
+#define SS_SEED_LEN 192
+#define SS_DATA_LEN 160
+
 struct sun4i_ss_ctx {
 	void __iomem *base;
 	int irq;
@@ -136,6 +140,9 @@ struct sun4i_ss_ctx {
 	struct device *dev;
 	struct resource *res;
 	spinlock_t slock; /* control the use of the device */
+#ifdef CONFIG_CRYPTO_DEV_SUN4I_SS_PRNG
+	u32 seed[SS_SEED_LEN / BITS_PER_LONG];
+#endif
 };
 
 struct sun4i_ss_alg_template {
@@ -144,6 +151,7 @@ struct sun4i_ss_alg_template {
 	union {
 		struct skcipher_alg crypto;
 		struct ahash_alg hash;
+		struct rng_alg rng;
 	} alg;
 	struct sun4i_ss_ctx *ss;
 };
@@ -201,3 +209,6 @@ int sun4i_ss_des_setkey(struct crypto_skcipher *tfm, const u8 *key,
 			unsigned int keylen);
 int sun4i_ss_des3_setkey(struct crypto_skcipher *tfm, const u8 *key,
 			 unsigned int keylen);
+int sun4i_ss_prng_generate(struct crypto_rng *tfm, const u8 *src,
+			   unsigned int slen, u8 *dst, unsigned int dlen);
+int sun4i_ss_prng_seed(struct crypto_rng *tfm, const u8 *seed, unsigned int slen);

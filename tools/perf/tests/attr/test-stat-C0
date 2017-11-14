@@ -4,6 +4,6 @@ args    = -e cycles -C 0 kill >/dev/null 2>&1
 ret     = 1
 
 [event:base-stat]
-# events are enabled by default when attached to cpu
-disabled=0
+# events are disabled by default when attached to cpu
+disabled=1
 enable_on_exec=0
