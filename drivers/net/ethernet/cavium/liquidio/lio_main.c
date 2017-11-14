@@ -4038,7 +4038,8 @@ static int liquidio_init_nic_module(struct octeon_device *oct)
 	 */
 	if (!oct->octeon_id &&
 	    oct->fw_info.app_cap_flags & LIQUIDIO_SWITCHDEV_CAP) {
-		if (lio_vf_rep_modinit()) {
+		retval = lio_vf_rep_modinit();
+		if (retval) {
 			liquidio_stop_nic_module(oct);
 			goto octnet_init_failure;
 		}
