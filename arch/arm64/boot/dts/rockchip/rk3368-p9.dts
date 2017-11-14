@@ -42,6 +42,7 @@
 
 /dts-v1/;
 #include <dt-bindings/pwm/pwm.h>
+#include <dt-bindings/sensor-dev.h>
 #include "rk3368.dtsi"
 #include "rk3368-android.dtsi"
 
@@ -602,8 +603,28 @@
 
 &i2c4 {
 	status = "okay";
+
+	mpu6500_acc: mpu_acc@68 {
+		compatible = "mpu6500_acc";
+		reg = <0x68>;
+		irq-gpio = <&gpio3 14 IRQ_TYPE_LEVEL_LOW>;
+		irq_enable = <0>;
+		poll_delay_ms = <30>;
+		type = <SENSOR_TYPE_ACCEL>;
+		layout = <7>;
+	};
+
+	mpu6500_gyro: mpu_gyro@68 {
+		compatible = "mpu6500_gyro";
+		reg = <0x68>;
+		irq_enable = <0>;
+		poll_delay_ms = <30>;
+		type = <SENSOR_TYPE_GYROSCOPE>;
+		layout = <7>;
+	};
+
 	mpu6500@68 {
-		status = "okay";
+		status = "disabled";
 		compatible = "invensense,mpu6500";
 		pinctrl-names = "default";
 		pinctrl-0 = <&mpu6500_irq_gpio>;
