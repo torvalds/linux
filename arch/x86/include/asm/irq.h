@@ -26,11 +26,7 @@ extern void irq_ctx_init(int cpu);
 
 struct irq_desc;
 
-#ifdef CONFIG_HOTPLUG_CPU
-#include <linux/cpumask.h>
-extern int check_irq_vectors_for_cpu_disable(void);
 extern void fixup_irqs(void);
-#endif
 
 #ifdef CONFIG_HAVE_KVM
 extern void kvm_set_posted_intr_wakeup_handler(void (*handler)(void));

@@ -136,18 +136,6 @@ RESERVE_BRK(dmi_alloc, 65536);
 static __initdata unsigned long _brk_start = (unsigned long)__brk_base;
 unsigned long _brk_end = (unsigned long)__brk_base;
 
-#ifdef CONFIG_X86_64
-int default_cpu_present_to_apicid(int mps_cpu)
-{
-	return __default_cpu_present_to_apicid(mps_cpu);
-}
-
-int default_check_phys_apicid_present(int phys_apicid)
-{
-	return __default_check_phys_apicid_present(phys_apicid);
-}
-#endif
-
 struct boot_params boot_params;
 
 /*

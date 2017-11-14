@@ -72,7 +72,7 @@
 #include <asm/proto.h>
 #endif
 
-DECLARE_BITMAP(used_vectors, NR_VECTORS);
+DECLARE_BITMAP(system_vectors, NR_VECTORS);
 
 static inline void cond_local_irq_enable(struct pt_regs *regs)
 {
