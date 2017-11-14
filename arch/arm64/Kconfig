@@ -522,20 +522,13 @@ config CAVIUM_ERRATUM_30115
 config QCOM_FALKOR_ERRATUM_1003
 	bool "Falkor E1003: Incorrect translation due to ASID change"
 	default y
-	select ARM64_PAN if ARM64_SW_TTBR0_PAN
 	help
 	  On Falkor v1, an incorrect ASID may be cached in the TLB when ASID
-	  and BADDR are changed together in TTBRx_EL1. The workaround for this
-	  issue is to use a reserved ASID in cpu_do_switch_mm() before
-	  switching to the new ASID. Saying Y here selects ARM64_PAN if
-	  ARM64_SW_TTBR0_PAN is selected. This is done because implementing and
-	  maintaining the E1003 workaround in the software PAN emulation code
-	  would be an unnecessary complication. The affected Falkor v1 CPU
-	  implements ARMv8.1 hardware PAN support and using hardware PAN
-	  support versus software PAN emulation is mutually exclusive at
-	  runtime.
-
-	  If unsure, say Y.
+	  and BADDR are changed together in TTBRx_EL1. Since we keep the ASID
+	  in TTBR1_EL1, this situation only occurs in the entry trampoline and
+	  then only for entries in the walk cache, since the leaf translation
+	  is unchanged. Work around the erratum by invalidating the walk cache
+	  entries for the trampoline before entering the kernel proper.
 
 config QCOM_FALKOR_ERRATUM_1009
 	bool "Falkor E1009: Prematurely complete a DSB after a TLBI"
