@@ -19,6 +19,7 @@
 #include <linux/slab.h>
 #include <linux/device.h>
 #include <linux/export.h>
+#include <linux/pm_domain.h>
 #include <linux/regulator/consumer.h>
 
 #include "opp.h"
@@ -296,7 +297,7 @@ int dev_pm_opp_get_opp_count(struct device *dev)
 	opp_table = _find_opp_table(dev);
 	if (IS_ERR(opp_table)) {
 		count = PTR_ERR(opp_table);
-		dev_err(dev, "%s: OPP table not found (%d)\n",
+		dev_dbg(dev, "%s: OPP table not found (%d)\n",
 			__func__, count);
 		return count;
 	}
@@ -535,6 +536,44 @@ _generic_set_opp_clk_only(struct device *dev, struct clk *clk,
 	return ret;
 }
 
+static inline int
+_generic_set_opp_domain(struct device *dev, struct clk *clk,
+			unsigned long old_freq, unsigned long freq,
+			unsigned int old_pstate, unsigned int new_pstate)
+{
+	int ret;
+
+	/* Scaling up? Scale domain performance state before frequency */
+	if (freq > old_freq) {
+		ret = dev_pm_genpd_set_performance_state(dev, new_pstate);
+		if (ret)
+			return ret;
+	}
+
+	ret = _generic_set_opp_clk_only(dev, clk, old_freq, freq);
+	if (ret)
+		goto restore_domain_state;
+
+	/* Scaling down? Scale domain performance state after frequency */
+	if (freq < old_freq) {
+		ret = dev_pm_genpd_set_performance_state(dev, new_pstate);
+		if (ret)
+			goto restore_freq;
+	}
+
+	return 0;
+
+restore_freq:
+	if (_generic_set_opp_clk_only(dev, clk, freq, old_freq))
+		dev_err(dev, "%s: failed to restore old-freq (%lu Hz)\n",
+			__func__, old_freq);
+restore_domain_state:
+	if (freq > old_freq)
+		dev_pm_genpd_set_performance_state(dev, old_pstate);
+
+	return ret;
+}
+
 static int _generic_set_opp_regulator(const struct opp_table *opp_table,
 				      struct device *dev,
 				      unsigned long old_freq,
@@ -653,7 +692,16 @@ int dev_pm_opp_set_rate(struct device *dev, unsigned long target_freq)
 
 	/* Only frequency scaling */
 	if (!opp_table->regulators) {
-		ret = _generic_set_opp_clk_only(dev, clk, old_freq, freq);
+		/*
+		 * We don't support devices with both regulator and
+		 * domain performance-state for now.
+		 */
+		if (opp_table->genpd_performance_state)
+			ret = _generic_set_opp_domain(dev, clk, old_freq, freq,
+						      IS_ERR(old_opp) ? 0 : old_opp->pstate,
+						      opp->pstate);
+		else
+			ret = _generic_set_opp_clk_only(dev, clk, old_freq, freq);
 	} else if (!opp_table->set_opp) {
 		ret = _generic_set_opp_regulator(opp_table, dev, old_freq, freq,
 						 IS_ERR(old_opp) ? NULL : old_opp->supplies,
@@ -987,6 +1035,9 @@ int _opp_add(struct device *dev, struct dev_pm_opp *new_opp,
 		mutex_unlock(&opp_table->lock);
 		return ret;
 	}
+
+	if (opp_table->get_pstate)
+		new_opp->pstate = opp_table->get_pstate(dev, new_opp->rate);
 
 	list_add(&new_opp->node, head);
 	mutex_unlock(&opp_table->lock);
@@ -1476,13 +1527,13 @@ err:
 EXPORT_SYMBOL_GPL(dev_pm_opp_register_set_opp_helper);
 
 /**
- * dev_pm_opp_register_put_opp_helper() - Releases resources blocked for
+ * dev_pm_opp_unregister_set_opp_helper() - Releases resources blocked for
  *					   set_opp helper
  * @opp_table: OPP table returned from dev_pm_opp_register_set_opp_helper().
  *
  * Release resources blocked for platform specific set_opp helper.
  */
-void dev_pm_opp_register_put_opp_helper(struct opp_table *opp_table)
+void dev_pm_opp_unregister_set_opp_helper(struct opp_table *opp_table)
 {
 	if (!opp_table->set_opp) {
 		pr_err("%s: Doesn't have custom set_opp helper set\n",
@@ -1497,7 +1548,82 @@ void dev_pm_opp_register_put_opp_helper(struct opp_table *opp_table)
 
 	dev_pm_opp_put_opp_table(opp_table);
 }
-EXPORT_SYMBOL_GPL(dev_pm_opp_register_put_opp_helper);
+EXPORT_SYMBOL_GPL(dev_pm_opp_unregister_set_opp_helper);
+
+/**
+ * dev_pm_opp_register_get_pstate_helper() - Register get_pstate() helper.
+ * @dev: Device for which the helper is getting registered.
+ * @get_pstate: Helper.
+ *
+ * TODO: Remove this callback after the same information is available via Device
+ * Tree.
+ *
+ * This allows a platform to initialize the performance states of individual
+ * OPPs for its devices, until we get similar information directly from DT.
+ *
+ * This must be called before the OPPs are initialized for the device.
+ */
+struct opp_table *dev_pm_opp_register_get_pstate_helper(struct device *dev,
+		int (*get_pstate)(struct device *dev, unsigned long rate))
+{
+	struct opp_table *opp_table;
+	int ret;
+
+	if (!get_pstate)
+		return ERR_PTR(-EINVAL);
+
+	opp_table = dev_pm_opp_get_opp_table(dev);
+	if (!opp_table)
+		return ERR_PTR(-ENOMEM);
+
+	/* This should be called before OPPs are initialized */
+	if (WARN_ON(!list_empty(&opp_table->opp_list))) {
+		ret = -EBUSY;
+		goto err;
+	}
+
+	/* Already have genpd_performance_state set */
+	if (WARN_ON(opp_table->genpd_performance_state)) {
+		ret = -EBUSY;
+		goto err;
+	}
+
+	opp_table->genpd_performance_state = true;
+	opp_table->get_pstate = get_pstate;
+
+	return opp_table;
+
+err:
+	dev_pm_opp_put_opp_table(opp_table);
+
+	return ERR_PTR(ret);
+}
+EXPORT_SYMBOL_GPL(dev_pm_opp_register_get_pstate_helper);
+
+/**
+ * dev_pm_opp_unregister_get_pstate_helper() - Releases resources blocked for
+ *					   get_pstate() helper
+ * @opp_table: OPP table returned from dev_pm_opp_register_get_pstate_helper().
+ *
+ * Release resources blocked for platform specific get_pstate() helper.
+ */
+void dev_pm_opp_unregister_get_pstate_helper(struct opp_table *opp_table)
+{
+	if (!opp_table->genpd_performance_state) {
+		pr_err("%s: Doesn't have performance states set\n",
+		       __func__);
+		return;
+	}
+
+	/* Make sure there are no concurrent readers while updating opp_table */
+	WARN_ON(!list_empty(&opp_table->opp_list));
+
+	opp_table->genpd_performance_state = false;
+	opp_table->get_pstate = NULL;
+
+	dev_pm_opp_put_opp_table(opp_table);
+}
+EXPORT_SYMBOL_GPL(dev_pm_opp_unregister_get_pstate_helper);
 
 /**
  * dev_pm_opp_add()  - Add an OPP table from a table definitions
@@ -1706,6 +1832,13 @@ void _dev_pm_opp_remove_table(struct opp_table *opp_table, struct device *dev,
 			if (remove_all || !opp->dynamic)
 				dev_pm_opp_put(opp);
 		}
+
+		/*
+		 * The OPP table is getting removed, drop the performance state
+		 * constraints.
+		 */
+		if (opp_table->genpd_performance_state)
+			dev_pm_genpd_set_performance_state(dev, 0);
 	} else {
 		_remove_opp_dev(_find_opp_dev(dev, opp_table), opp_table);
 	}

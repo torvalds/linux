@@ -1304,7 +1304,7 @@ int i915_driver_load(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 * becaue the HDA driver may require us to enable the audio power
 	 * domain during system suspend.
 	 */
-	pdev->dev_flags |= PCI_DEV_FLAGS_NEEDS_RESUME;
+	dev_pm_set_driver_flags(&pdev->dev, DPM_FLAG_NEVER_SKIP);
 
 	ret = i915_driver_init_early(dev_priv, ent);
 	if (ret < 0)

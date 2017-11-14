@@ -16,7 +16,7 @@
 #include <linux/cpu.h>
 #include <linux/errno.h>
 #include <linux/device.h>
-#include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/slab.h>
 #include <linux/export.h>
 
@@ -397,6 +397,7 @@ static int _of_add_opp_table_v2(struct device *dev, struct device_node *opp_np)
 			dev_err(dev, "%s: Failed to add OPP, %d\n", __func__,
 				ret);
 			_dev_pm_opp_remove_table(opp_table, dev, false);
+			of_node_put(np);
 			goto put_opp_table;
 		}
 	}
@@ -603,7 +604,7 @@ int dev_pm_opp_of_get_sharing_cpus(struct device *cpu_dev,
 		if (cpu == cpu_dev->id)
 			continue;
 
-		cpu_np = of_get_cpu_node(cpu, NULL);
+		cpu_np = of_cpu_device_node_get(cpu);
 		if (!cpu_np) {
 			dev_err(cpu_dev, "%s: failed to get cpu%d node\n",
 				__func__, cpu);
@@ -613,6 +614,7 @@ int dev_pm_opp_of_get_sharing_cpus(struct device *cpu_dev,
 
 		/* Get OPP descriptor node */
 		tmp_np = _opp_of_get_opp_desc_node(cpu_np);
+		of_node_put(cpu_np);
 		if (!tmp_np) {
 			pr_err("%pOF: Couldn't find opp node\n", cpu_np);
 			ret = -ENOENT;

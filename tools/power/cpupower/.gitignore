@@ -1,7 +1,6 @@
 .libs
 libcpupower.so
-libcpupower.so.0
-libcpupower.so.0.0.0
+libcpupower.so.*
 build/ccdv
 cpufreq-info
 cpufreq-set

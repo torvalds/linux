@@ -1043,7 +1043,7 @@ static int powernowk8_cpu_init(struct cpufreq_policy *pol)
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data) {
-		pr_err("unable to alloc powernow_k8_data");
+		pr_err("unable to alloc powernow_k8_data\n");
 		return -ENOMEM;
 	}
 
