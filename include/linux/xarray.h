@@ -280,6 +280,10 @@ void *xa_cmpxchg(struct xarray *, unsigned long index,
 bool xa_get_mark(struct xarray *, unsigned long index, xa_mark_t);
 void xa_set_mark(struct xarray *, unsigned long index, xa_mark_t);
 void xa_clear_mark(struct xarray *, unsigned long index, xa_mark_t);
+void *xa_find(struct xarray *xa, unsigned long *index,
+		unsigned long max, xa_mark_t) __attribute__((nonnull(2)));
+void *xa_find_after(struct xarray *xa, unsigned long *index,
+		unsigned long max, xa_mark_t) __attribute__((nonnull(2)));
 
 /**
  * xa_init() - Initialise an empty XArray.
@@ -363,6 +367,35 @@ static inline int xa_insert(struct xarray *xa, unsigned long index,
 		return xa_err(curr);
 	return -EEXIST;
 }
+
+/**
+ * xa_for_each() - Iterate over a portion of an XArray.
+ * @xa: XArray.
+ * @entry: Entry retrieved from array.
+ * @index: Index of @entry.
+ * @max: Maximum index to retrieve from array.
+ * @filter: Selection criterion.
+ *
+ * Initialise @index to the lowest index you want to retrieve from the
+ * array.  During the iteration, @entry will have the value of the entry
+ * stored in @xa at @index.  The iteration will skip all entries in the
+ * array which do not match @filter.  You may modify @index during the
+ * iteration if you want to skip or reprocess indices.  It is safe to modify
+ * the array during the iteration.  At the end of the iteration, @entry will
+ * be set to NULL and @index will have a value less than or equal to max.
+ *
+ * xa_for_each() is O(n.log(n)) while xas_for_each() is O(n).  You have
+ * to handle your own locking with xas_for_each(), and if you have to unlock
+ * after each iteration, it will also end up being O(n.log(n)).  xa_for_each()
+ * will spin if it hits a retry entry; if you intend to see retry entries,
+ * you should use the xas_for_each() iterator instead.  The xas_for_each()
+ * iterator will expand into more inline code than xa_for_each().
+ *
+ * Context: Any context.  Takes and releases the RCU lock.
+ */
+#define xa_for_each(xa, entry, index, max, filter) \
+	for (entry = xa_find(xa, &index, max, filter); entry; \
+	     entry = xa_find_after(xa, &index, max, filter))
 
 #define xa_trylock(xa)		spin_trylock(&(xa)->xa_lock)
 #define xa_lock(xa)		spin_lock(&(xa)->xa_lock)
@@ -835,13 +868,16 @@ static inline bool xas_retry(struct xa_state *xas, const void *entry)
 
 void *xas_load(struct xa_state *);
 void *xas_store(struct xa_state *, void *entry);
+void *xas_find(struct xa_state *, unsigned long max);
 
 bool xas_get_mark(const struct xa_state *, xa_mark_t);
 void xas_set_mark(const struct xa_state *, xa_mark_t);
 void xas_clear_mark(const struct xa_state *, xa_mark_t);
+void *xas_find_marked(struct xa_state *, unsigned long max, xa_mark_t);
 void xas_init_marks(const struct xa_state *);
 
 bool xas_nomem(struct xa_state *, gfp_t);
+void xas_pause(struct xa_state *);
 
 /**
  * xas_reload() - Refetch an entry from the xarray.
@@ -913,5 +949,134 @@ static inline void xas_set_update(struct xa_state *xas, xa_update_node_t update)
 {
 	xas->xa_update = update;
 }
+
+/**
+ * xas_next_entry() - Advance iterator to next present entry.
+ * @xas: XArray operation state.
+ * @max: Highest index to return.
+ *
+ * xas_next_entry() is an inline function to optimise xarray traversal for
+ * speed.  It is equivalent to calling xas_find(), and will call xas_find()
+ * for all the hard cases.
+ *
+ * Return: The next present entry after the one currently referred to by @xas.
+ */
+static inline void *xas_next_entry(struct xa_state *xas, unsigned long max)
+{
+	struct xa_node *node = xas->xa_node;
+	void *entry;
+
+	if (unlikely(xas_not_node(node) || node->shift ||
+			xas->xa_offset != (xas->xa_index & XA_CHUNK_MASK)))
+		return xas_find(xas, max);
+
+	do {
+		if (unlikely(xas->xa_index >= max))
+			return xas_find(xas, max);
+		if (unlikely(xas->xa_offset == XA_CHUNK_MASK))
+			return xas_find(xas, max);
+		entry = xa_entry(xas->xa, node, xas->xa_offset + 1);
+		if (unlikely(xa_is_internal(entry)))
+			return xas_find(xas, max);
+		xas->xa_offset++;
+		xas->xa_index++;
+	} while (!entry);
+
+	return entry;
+}
+
+/* Private */
+static inline unsigned int xas_find_chunk(struct xa_state *xas, bool advance,
+		xa_mark_t mark)
+{
+	unsigned long *addr = xas->xa_node->marks[(__force unsigned)mark];
+	unsigned int offset = xas->xa_offset;
+
+	if (advance)
+		offset++;
+	if (XA_CHUNK_SIZE == BITS_PER_LONG) {
+		if (offset < XA_CHUNK_SIZE) {
+			unsigned long data = *addr & (~0UL << offset);
+			if (data)
+				return __ffs(data);
+		}
+		return XA_CHUNK_SIZE;
+	}
+
+	return find_next_bit(addr, XA_CHUNK_SIZE, offset);
+}
+
+/**
+ * xas_next_marked() - Advance iterator to next marked entry.
+ * @xas: XArray operation state.
+ * @max: Highest index to return.
+ * @mark: Mark to search for.
+ *
+ * xas_next_marked() is an inline function to optimise xarray traversal for
+ * speed.  It is equivalent to calling xas_find_marked(), and will call
+ * xas_find_marked() for all the hard cases.
+ *
+ * Return: The next marked entry after the one currently referred to by @xas.
+ */
+static inline void *xas_next_marked(struct xa_state *xas, unsigned long max,
+								xa_mark_t mark)
+{
+	struct xa_node *node = xas->xa_node;
+	unsigned int offset;
+
+	if (unlikely(xas_not_node(node) || node->shift))
+		return xas_find_marked(xas, max, mark);
+	offset = xas_find_chunk(xas, true, mark);
+	xas->xa_offset = offset;
+	xas->xa_index = (xas->xa_index & ~XA_CHUNK_MASK) + offset;
+	if (xas->xa_index > max)
+		return NULL;
+	if (offset == XA_CHUNK_SIZE)
+		return xas_find_marked(xas, max, mark);
+	return xa_entry(xas->xa, node, offset);
+}
+
+/*
+ * If iterating while holding a lock, drop the lock and reschedule
+ * every %XA_CHECK_SCHED loops.
+ */
+enum {
+	XA_CHECK_SCHED = 4096,
+};
+
+/**
+ * xas_for_each() - Iterate over a range of an XArray.
+ * @xas: XArray operation state.
+ * @entry: Entry retrieved from the array.
+ * @max: Maximum index to retrieve from array.
+ *
+ * The loop body will be executed for each entry present in the xarray
+ * between the current xas position and @max.  @entry will be set to
+ * the entry retrieved from the xarray.  It is safe to delete entries
+ * from the array in the loop body.  You should hold either the RCU lock
+ * or the xa_lock while iterating.  If you need to drop the lock, call
+ * xas_pause() first.
+ */
+#define xas_for_each(xas, entry, max) \
+	for (entry = xas_find(xas, max); entry; \
+	     entry = xas_next_entry(xas, max))
+
+/**
+ * xas_for_each_marked() - Iterate over a range of an XArray.
+ * @xas: XArray operation state.
+ * @entry: Entry retrieved from the array.
+ * @max: Maximum index to retrieve from array.
+ * @mark: Mark to search for.
+ *
+ * The loop body will be executed for each marked entry in the xarray
+ * between the current xas position and @max.  @entry will be set to
+ * the entry retrieved from the xarray.  It is safe to delete entries
+ * from the array in the loop body.  You should hold either the RCU lock
+ * or the xa_lock while iterating.  If you need to drop the lock, call
+ * xas_pause() first.
+ */
+#define xas_for_each_marked(xas, entry, max, mark) \
+	for (entry = xas_find_marked(xas, max, mark); entry; \
+	     entry = xas_next_marked(xas, max, mark))
 
 #endif /* _LINUX_XARRAY_H */
