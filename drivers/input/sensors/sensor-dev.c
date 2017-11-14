@@ -229,12 +229,7 @@ static int sensor_irq_init(struct i2c_client *client)
 		}
 
 		client->irq = irq;
-		if ((sensor->pdata->type == SENSOR_TYPE_GYROSCOPE) || (sensor->pdata->type == SENSOR_TYPE_ACCEL) || (sensor->pdata->type == SENSOR_TYPE_ANGLE))
-			disable_irq_nosync(client->irq);
-		if (((sensor->pdata->type == SENSOR_TYPE_LIGHT) || (sensor->pdata->type == SENSOR_TYPE_PROXIMITY)) && (!(sensor->ops->trig & IRQF_SHARED)))
-			disable_irq_nosync(client->irq);
-		if (((sensor->pdata->type == SENSOR_TYPE_TEMPERATURE) || (sensor->pdata->type == SENSOR_TYPE_PRESSURE)) && (!(sensor->ops->trig & IRQF_SHARED)))
-			disable_irq_nosync(client->irq);
+		disable_irq_nosync(client->irq);
 
 		dev_info(&client->dev, "%s:use irq=%d\n", __func__, irq);
 	} else if (!sensor->pdata->irq_enable) {
