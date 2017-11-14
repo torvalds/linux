@@ -183,7 +183,7 @@ static int wil_suspend_keep_radio_on(struct wil6210_priv *wil)
 					break;
 				wil_err(wil,
 					"TO waiting for idle RX, suspend failed\n");
-				wil->suspend_stats.failed_suspends++;
+				wil->suspend_stats.r_on.failed_suspends++;
 				goto resume_after_fail;
 			}
 			wil_dbg_ratelimited(wil, "rx vring is not empty -> NAPI\n");
@@ -199,7 +199,7 @@ static int wil_suspend_keep_radio_on(struct wil6210_priv *wil)
 	 */
 	if (!wil_is_wmi_idle(wil)) {
 		wil_err(wil, "suspend failed due to pending WMI events\n");
-		wil->suspend_stats.failed_suspends++;
+		wil->suspend_stats.r_on.failed_suspends++;
 		goto resume_after_fail;
 	}
 
@@ -213,7 +213,7 @@ static int wil_suspend_keep_radio_on(struct wil6210_priv *wil)
 		if (rc) {
 			wil_err(wil, "platform device failed to suspend (%d)\n",
 				rc);
-			wil->suspend_stats.failed_suspends++;
+			wil->suspend_stats.r_on.failed_suspends++;
 			wil_c(wil, RGF_USER_CLKS_CTL_0, BIT_USER_CLKS_RST_PWGD);
 			wil_unmask_irq(wil);
 			goto resume_after_fail;
@@ -260,6 +260,7 @@ static int wil_suspend_radio_off(struct wil6210_priv *wil)
 		rc = wil_down(wil);
 		if (rc) {
 			wil_err(wil, "wil_down : %d\n", rc);
+			wil->suspend_stats.r_off.failed_suspends++;
 			goto out;
 		}
 	}
@@ -272,6 +273,7 @@ static int wil_suspend_radio_off(struct wil6210_priv *wil)
 		rc = wil->platform_ops.suspend(wil->platform_handle, false);
 		if (rc) {
 			wil_enable_irq(wil);
+			wil->suspend_stats.r_off.failed_suspends++;
 			goto out;
 		}
 	}

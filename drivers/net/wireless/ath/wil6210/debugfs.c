@@ -1641,24 +1641,41 @@ static ssize_t wil_read_suspend_stats(struct file *file,
 				      size_t count, loff_t *ppos)
 {
 	struct wil6210_priv *wil = file->private_data;
-	static char text[400];
-	int n;
+	char *text;
+	int n, ret, text_size = 500;
 
-	n = snprintf(text, sizeof(text),
-		     "Suspend statistics:\n"
+	text = kmalloc(text_size, GFP_KERNEL);
+	if (!text)
+		return -ENOMEM;
+
+	n = snprintf(text, text_size,
+		     "Radio on suspend statistics:\n"
 		     "successful suspends:%ld failed suspends:%ld\n"
 		     "successful resumes:%ld failed resumes:%ld\n"
-		     "rejected by host:%ld rejected by device:%ld\n",
-		     wil->suspend_stats.successful_suspends,
-		     wil->suspend_stats.failed_suspends,
-		     wil->suspend_stats.successful_resumes,
-		     wil->suspend_stats.failed_resumes,
-		     wil->suspend_stats.rejected_by_host,
-		     wil->suspend_stats.rejected_by_device);
+		     "rejected by device:%ld\n"
+		     "Radio off suspend statistics:\n"
+		     "successful suspends:%ld failed suspends:%ld\n"
+		     "successful resumes:%ld failed resumes:%ld\n"
+		     "General statistics:\n"
+		     "rejected by host:%ld\n",
+		     wil->suspend_stats.r_on.successful_suspends,
+		     wil->suspend_stats.r_on.failed_suspends,
+		     wil->suspend_stats.r_on.successful_resumes,
+		     wil->suspend_stats.r_on.failed_resumes,
+		     wil->suspend_stats.rejected_by_device,
+		     wil->suspend_stats.r_off.successful_suspends,
+		     wil->suspend_stats.r_off.failed_suspends,
+		     wil->suspend_stats.r_off.successful_resumes,
+		     wil->suspend_stats.r_off.failed_resumes,
+		     wil->suspend_stats.rejected_by_host);
 
-	n = min_t(int, n, sizeof(text));
+	n = min_t(int, n, text_size);
 
-	return simple_read_from_buffer(user_buf, count, ppos, text, n);
+	ret = simple_read_from_buffer(user_buf, count, ppos, text, n);
+
+	kfree(text);
+
+	return ret;
 }
 
 static const struct file_operations fops_suspend_stats = {
