@@ -2167,6 +2167,73 @@ i40e_aqc_broadcast_filter(struct i40e_vsi *vsi, const char *vsi_name,
 }
 
 /**
+ * i40e_set_promiscuous - set promiscuous mode
+ * @pf: board private structure
+ * @promisc: promisc on or off
+ *
+ * There are different ways of setting promiscuous mode on a PF depending on
+ * what state/environment we're in.  This identifies and sets it appropriately.
+ * Returns 0 on success.
+ **/
+static int i40e_set_promiscuous(struct i40e_pf *pf, bool promisc)
+{
+	struct i40e_vsi *vsi = pf->vsi[pf->lan_vsi];
+	struct i40e_hw *hw = &pf->hw;
+	i40e_status aq_ret;
+
+	if (vsi->type == I40E_VSI_MAIN &&
+	    pf->lan_veb != I40E_NO_VEB &&
+	    !(pf->flags & I40E_FLAG_MFP_ENABLED)) {
+		/* set defport ON for Main VSI instead of true promisc
+		 * this way we will get all unicast/multicast and VLAN
+		 * promisc behavior but will not get VF or VMDq traffic
+		 * replicated on the Main VSI.
+		 */
+		if (promisc)
+			aq_ret = i40e_aq_set_default_vsi(hw,
+							 vsi->seid,
+							 NULL);
+		else
+			aq_ret = i40e_aq_clear_default_vsi(hw,
+							   vsi->seid,
+							   NULL);
+		if (aq_ret) {
+			dev_info(&pf->pdev->dev,
+				 "Set default VSI failed, err %s, aq_err %s\n",
+				 i40e_stat_str(hw, aq_ret),
+				 i40e_aq_str(hw, hw->aq.asq_last_status));
+		}
+	} else {
+		aq_ret = i40e_aq_set_vsi_unicast_promiscuous(
+						  hw,
+						  vsi->seid,
+						  promisc, NULL,
+						  true);
+		if (aq_ret) {
+			dev_info(&pf->pdev->dev,
+				 "set unicast promisc failed, err %s, aq_err %s\n",
+				 i40e_stat_str(hw, aq_ret),
+				 i40e_aq_str(hw, hw->aq.asq_last_status));
+		}
+		aq_ret = i40e_aq_set_vsi_multicast_promiscuous(
+						  hw,
+						  vsi->seid,
+						  promisc, NULL);
+		if (aq_ret) {
+			dev_info(&pf->pdev->dev,
+				 "set multicast promisc failed, err %s, aq_err %s\n",
+				 i40e_stat_str(hw, aq_ret),
+				 i40e_aq_str(hw, hw->aq.asq_last_status));
+		}
+	}
+
+	if (!aq_ret)
+		pf->cur_promisc = promisc;
+
+	return aq_ret;
+}
+
+/**
  * i40e_sync_vsi_filters - Update the VSI filter list to the HW
  * @vsi: ptr to the VSI
  *
@@ -2467,81 +2534,16 @@ int i40e_sync_vsi_filters(struct i40e_vsi *vsi)
 		cur_promisc = (!!(vsi->current_netdev_flags & IFF_PROMISC) ||
 			       test_bit(__I40E_VSI_OVERFLOW_PROMISC,
 					vsi->state));
-		if ((vsi->type == I40E_VSI_MAIN) &&
-		    (pf->lan_veb != I40E_NO_VEB) &&
-		    !(pf->flags & I40E_FLAG_MFP_ENABLED)) {
-			/* set defport ON for Main VSI instead of true promisc
-			 * this way we will get all unicast/multicast and VLAN
-			 * promisc behavior but will not get VF or VMDq traffic
-			 * replicated on the Main VSI.
-			 */
-			if (pf->cur_promisc != cur_promisc) {
-				pf->cur_promisc = cur_promisc;
-				if (cur_promisc)
-					aq_ret =
-					      i40e_aq_set_default_vsi(hw,
-								      vsi->seid,
-								      NULL);
-				else
-					aq_ret =
-					    i40e_aq_clear_default_vsi(hw,
-								      vsi->seid,
-								      NULL);
-				if (aq_ret) {
-					retval = i40e_aq_rc_to_posix(aq_ret,
-							hw->aq.asq_last_status);
-					dev_info(&pf->pdev->dev,
-						 "Set default VSI failed on %s, err %s, aq_err %s\n",
-						 vsi_name,
-						 i40e_stat_str(hw, aq_ret),
-						 i40e_aq_str(hw,
-						     hw->aq.asq_last_status));
-				}
-			}
-		} else {
-			aq_ret = i40e_aq_set_vsi_unicast_promiscuous(
-							  hw,
-							  vsi->seid,
-							  cur_promisc, NULL,
-							  true);
-			if (aq_ret) {
-				retval =
-				i40e_aq_rc_to_posix(aq_ret,
-						    hw->aq.asq_last_status);
-				dev_info(&pf->pdev->dev,
-					 "set unicast promisc failed on %s, err %s, aq_err %s\n",
-					 vsi_name,
-					 i40e_stat_str(hw, aq_ret),
-					 i40e_aq_str(hw,
-						     hw->aq.asq_last_status));
-			}
-			aq_ret = i40e_aq_set_vsi_multicast_promiscuous(
-							  hw,
-							  vsi->seid,
-							  cur_promisc, NULL);
-			if (aq_ret) {
-				retval =
-				i40e_aq_rc_to_posix(aq_ret,
-						    hw->aq.asq_last_status);
-				dev_info(&pf->pdev->dev,
-					 "set multicast promisc failed on %s, err %s, aq_err %s\n",
-					 vsi_name,
-					 i40e_stat_str(hw, aq_ret),
-					 i40e_aq_str(hw,
-						     hw->aq.asq_last_status));
-			}
-		}
-		aq_ret = i40e_aq_set_vsi_broadcast(&vsi->back->hw,
-						   vsi->seid,
-						   cur_promisc, NULL);
+		aq_ret = i40e_set_promiscuous(pf, cur_promisc);
 		if (aq_ret) {
 			retval = i40e_aq_rc_to_posix(aq_ret,
-						     pf->hw.aq.asq_last_status);
+						     hw->aq.asq_last_status);
 			dev_info(&pf->pdev->dev,
-				 "set brdcast promisc failed, err %s, aq_err %s\n",
-					 i40e_stat_str(hw, aq_ret),
-					 i40e_aq_str(hw,
-						     hw->aq.asq_last_status));
+				 "Setting promiscuous %s failed on %s, err %s aq_err %s\n",
+				 cur_promisc ? "on" : "off",
+				 vsi_name,
+				 i40e_stat_str(hw, aq_ret),
+				 i40e_aq_str(hw, hw->aq.asq_last_status));
 		}
 	}
 out:
@@ -9420,6 +9422,15 @@ static void i40e_rebuild(struct i40e_pf *pf, bool reinit, bool lock_acquired)
 	/* Release the RTNL lock before we start resetting VFs */
 	if (!lock_acquired)
 		rtnl_unlock();
+
+	/* Restore promiscuous settings */
+	ret = i40e_set_promiscuous(pf, pf->cur_promisc);
+	if (ret)
+		dev_warn(&pf->pdev->dev,
+			 "Failed to restore promiscuous setting: %s, err %s aq_err %s\n",
+			 pf->cur_promisc ? "on" : "off",
+			 i40e_stat_str(&pf->hw, ret),
+			 i40e_aq_str(&pf->hw, pf->hw.aq.asq_last_status));
 
 	i40e_reset_all_vfs(pf, true);
 
