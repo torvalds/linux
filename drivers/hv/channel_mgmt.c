@@ -333,6 +333,7 @@ static struct vmbus_channel *alloc_channel(void)
 		return NULL;
 
 	spin_lock_init(&channel->lock);
+	init_completion(&channel->rescind_event);
 
 	INIT_LIST_HEAD(&channel->sc_list);
 	INIT_LIST_HEAD(&channel->percpu_list);
@@ -883,6 +884,7 @@ static void vmbus_onoffer_rescind(struct vmbus_channel_message_header *hdr)
 	/*
 	 * Now wait for offer handling to complete.
 	 */
+	vmbus_rescind_cleanup(channel);
 	while (READ_ONCE(channel->probe_done) == false) {
 		/*
 		 * We wait here until any channel offer is currently
@@ -898,7 +900,6 @@ static void vmbus_onoffer_rescind(struct vmbus_channel_message_header *hdr)
 	if (channel->device_obj) {
 		if (channel->chn_rescind_callback) {
 			channel->chn_rescind_callback(channel);
-			vmbus_rescind_cleanup(channel);
 			return;
 		}
 		/*
@@ -907,7 +908,6 @@ static void vmbus_onoffer_rescind(struct vmbus_channel_message_header *hdr)
 		 */
 		dev = get_device(&channel->device_obj->device);
 		if (dev) {
-			vmbus_rescind_cleanup(channel);
 			vmbus_device_unregister(channel->device_obj);
 			put_device(dev);
 		}
@@ -921,13 +921,14 @@ static void vmbus_onoffer_rescind(struct vmbus_channel_message_header *hdr)
 		 * 2. Then close the primary channel.
 		 */
 		mutex_lock(&vmbus_connection.channel_mutex);
-		vmbus_rescind_cleanup(channel);
 		if (channel->state == CHANNEL_OPEN_STATE) {
 			/*
 			 * The channel is currently not open;
 			 * it is safe for us to cleanup the channel.
 			 */
 			hv_process_channel_removal(rescind->child_relid);
+		} else {
+			complete(&channel->rescind_event);
 		}
 		mutex_unlock(&vmbus_connection.channel_mutex);
 	}
