@@ -98,7 +98,7 @@
 #define	GMAC_PCS_IRQ_DEFAULT	(GMAC_INT_RGSMIIS | GMAC_INT_PCS_LINK |	\
 				 GMAC_INT_PCS_ANE)
 
-#define	GMAC_INT_DEFAULT_MASK	GMAC_INT_PMT_EN
+#define	GMAC_INT_DEFAULT_MASK	(GMAC_INT_PMT_EN | GMAC_INT_LPI_EN)
 
 enum dwmac4_irq_status {
 	time_stamp_irq = 0x00001000,
@@ -106,6 +106,7 @@ enum dwmac4_irq_status {
 	mmc_tx_irq = 0x00000400,
 	mmc_rx_irq = 0x00000200,
 	mmc_irq = 0x00000100,
+	lpi_irq = 0x00000020,
 	pmt_irq = 0x00000010,
 };
 
@@ -132,6 +133,10 @@ enum power_event {
 #define GMAC4_LPI_CTRL_STATUS_LPITXA	BIT(19)	/* Enable LPI TX Automate */
 #define GMAC4_LPI_CTRL_STATUS_PLS	BIT(17) /* PHY Link Status */
 #define GMAC4_LPI_CTRL_STATUS_LPIEN	BIT(16)	/* LPI Enable */
+#define GMAC4_LPI_CTRL_STATUS_RLPIEX	BIT(3) /* Receive LPI Exit */
+#define GMAC4_LPI_CTRL_STATUS_RLPIEN	BIT(2) /* Receive LPI Entry */
+#define GMAC4_LPI_CTRL_STATUS_TLPIEX	BIT(1) /* Transmit LPI Exit */
+#define GMAC4_LPI_CTRL_STATUS_TLPIEN	BIT(0) /* Transmit LPI Entry */
 
 /* MAC Debug bitmap */
 #define GMAC_DEBUG_TFCSTS_MASK		GENMASK(18, 17)
