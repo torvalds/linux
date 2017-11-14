@@ -348,6 +348,7 @@ struct kfd_process_device *kfd_create_process_device_data(struct kfd_dev *dev,
 		INIT_LIST_HEAD(&pdd->qpd.queues_list);
 		INIT_LIST_HEAD(&pdd->qpd.priv_queue_list);
 		pdd->qpd.dqm = dev->dqm;
+		pdd->qpd.pqm = &p->pqm;
 		pdd->process = p;
 		pdd->bound = PDD_UNBOUND;
 		pdd->already_dequeued = false;

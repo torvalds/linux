@@ -178,10 +178,8 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 		return retval;
 
 	if (list_empty(&pdd->qpd.queues_list) &&
-	    list_empty(&pdd->qpd.priv_queue_list)) {
-		pdd->qpd.pqm = pqm;
+	    list_empty(&pdd->qpd.priv_queue_list))
 		dev->dqm->ops.register_process(dev->dqm, &pdd->qpd);
-	}
 
 	pqn = kzalloc(sizeof(*pqn), GFP_KERNEL);
 	if (!pqn) {
