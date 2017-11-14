@@ -806,7 +806,7 @@ static int tmio_mmc_execute_tuning(struct mmc_host *mmc, u32 opcode)
 		if (ret == 0)
 			set_bit(i, host->taps);
 
-		mdelay(1);
+		usleep_range(1000, 1200);
 	}
 
 	ret = host->select_tuning(host);
@@ -958,7 +958,7 @@ static void tmio_mmc_power_on(struct tmio_mmc_host *host, unsigned short vdd)
 		 * 100us were not enough. Is this the same 140us delay, as in
 		 * tmio_mmc_set_ios()?
 		 */
-		udelay(200);
+		usleep_range(200, 300);
 	}
 	/*
 	 * It seems, VccQ should be switched on after Vcc, this is also what the
@@ -966,7 +966,7 @@ static void tmio_mmc_power_on(struct tmio_mmc_host *host, unsigned short vdd)
 	 */
 	if (!IS_ERR(mmc->supply.vqmmc) && !ret) {
 		ret = regulator_enable(mmc->supply.vqmmc);
-		udelay(200);
+		usleep_range(200, 300);
 	}
 
 	if (ret < 0)
@@ -1059,7 +1059,7 @@ static void tmio_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	}
 
 	/* Let things settle. delay taken from winCE driver */
-	udelay(140);
+	usleep_range(140, 200);
 	if (PTR_ERR(host->mrq) == -EINTR)
 		dev_dbg(&host->pdev->dev,
 			"%s.%d: IOS interrupted: clk %u, mode %u",
