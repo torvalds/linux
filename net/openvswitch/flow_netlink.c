@@ -338,7 +338,7 @@ size_t ovs_tun_key_attr_size(void)
 		+ nla_total_size(4);   /* OVS_TUNNEL_KEY_ATTR_ERSPAN_OPTS */
 }
 
-size_t ovs_nsh_key_attr_size(void)
+static size_t ovs_nsh_key_attr_size(void)
 {
 	/* Whenever adding new OVS_NSH_KEY_ FIELDS, we should consider
 	 * updating this function.
