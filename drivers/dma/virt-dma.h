@@ -104,6 +104,20 @@ static inline void vchan_cookie_complete(struct virt_dma_desc *vd)
 }
 
 /**
+ * vchan_vdesc_fini - Free or reuse a descriptor
+ * @vd: virtual descriptor to free/reuse
+ */
+static inline void vchan_vdesc_fini(struct virt_dma_desc *vd)
+{
+	struct virt_dma_chan *vc = to_virt_chan(vd->tx.chan);
+
+	if (dmaengine_desc_test_reuse(&vd->tx))
+		list_add(&vd->node, &vc->desc_allocated);
+	else
+		vc->desc_free(vd);
+}
+
+/**
  * vchan_cyclic_callback - report the completion of a period
  * @vd: virtual descriptor
  */
