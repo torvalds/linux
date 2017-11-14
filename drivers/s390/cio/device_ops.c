@@ -4,8 +4,6 @@
  *
  * Author(s): Martin Schwidefsky (schwidefsky@de.ibm.com)
  *	      Cornelia Huck (cornelia.huck@de.ibm.com)
- *
- * License: GPL
  */
 #include <linux/export.h>
 #include <linux/init.h>

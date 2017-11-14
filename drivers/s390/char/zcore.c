@@ -8,7 +8,6 @@
  *
  * Copyright IBM Corp. 2003, 2008
  * Author(s): Michael Holzheu
- * License: GPL
  */
 
 #define KMSG_COMPONENT "zdump"
