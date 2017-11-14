@@ -35,6 +35,10 @@
 #define _TLS_OFFLOAD_H
 
 #include <linux/types.h>
+#include <asm/byteorder.h>
+#include <linux/socket.h>
+#include <linux/tcp.h>
+#include <net/tcp.h>
 
 #include <uapi/linux/tls.h>
 
