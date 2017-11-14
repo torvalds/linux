@@ -2113,12 +2113,10 @@ static int hotkey_gmms_get_tablet_mode(int s, int *has_tablet_mode)
 			      TP_ACPI_MULTI_MODE_FLAT;
 		break;
 	case 4:
-		valid_modes = TP_ACPI_MULTI_MODE_LAPTOP |
-			      TP_ACPI_MULTI_MODE_TABLET |
-			      TP_ACPI_MULTI_MODE_STAND |
-			      TP_ACPI_MULTI_MODE_TENT;
-		break;
 	case 5:
+		/* In mode 4, FLAT is not specified as a valid mode. However,
+		 * it can be seen at least on the X1 Yoga 2nd Generation.
+		 */
 		valid_modes = TP_ACPI_MULTI_MODE_LAPTOP |
 			      TP_ACPI_MULTI_MODE_FLAT |
 			      TP_ACPI_MULTI_MODE_TABLET |
