@@ -1269,6 +1269,7 @@ i40e_status i40e_pf_reset(struct i40e_hw *hw)
 	 * we don't need to do the PF Reset
 	 */
 	if (!cnt) {
+		u32 reg2 = 0;
 		if (hw->revision_id == 0)
 			cnt = I40E_PF_RESET_WAIT_COUNT_A0;
 		else
@@ -1280,6 +1281,12 @@ i40e_status i40e_pf_reset(struct i40e_hw *hw)
 			reg = rd32(hw, I40E_PFGEN_CTRL);
 			if (!(reg & I40E_PFGEN_CTRL_PFSWR_MASK))
 				break;
+			reg2 = rd32(hw, I40E_GLGEN_RSTAT);
+			if (reg2 & I40E_GLGEN_RSTAT_DEVSTATE_MASK) {
+				hw_dbg(hw, "Core reset upcoming. Skipping PF reset request.\n");
+				hw_dbg(hw, "I40E_GLGEN_RSTAT = 0x%x\n", reg2);
+				return I40E_ERR_NOT_READY;
+			}
 			usleep_range(1000, 2000);
 		}
 		if (reg & I40E_PFGEN_CTRL_PFSWR_MASK) {
