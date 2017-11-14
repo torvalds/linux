@@ -1786,3 +1786,15 @@ void perf_evlist__toggle_bkw_mmap(struct perf_evlist *evlist,
 state_err:
 	return;
 }
+
+bool perf_evlist__exclude_kernel(struct perf_evlist *evlist)
+{
+	struct perf_evsel *evsel;
+
+	evlist__for_each_entry(evlist, evsel) {
+		if (!evsel->attr.exclude_kernel)
+			return false;
+	}
+
+	return true;
+}
