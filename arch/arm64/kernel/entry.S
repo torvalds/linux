@@ -954,6 +954,16 @@ __ni_sys_trace:
 	sub	\tmp, \tmp, #(SWAPPER_DIR_SIZE + RESERVED_TTBR0_SIZE)
 	bic	\tmp, \tmp, #USER_ASID_FLAG
 	msr	ttbr1_el1, \tmp
+#ifdef CONFIG_ARCH_MSM8996
+	/* ASID already in \tmp[63:48] */
+	movk	\tmp, #:abs_g2_nc:(TRAMP_VALIAS >> 12)
+	movk	\tmp, #:abs_g1_nc:(TRAMP_VALIAS >> 12)
+	/* 2MB boundary containing the vectors, so we nobble the walk cache */
+	movk	\tmp, #:abs_g0_nc:((TRAMP_VALIAS & ~(SZ_2M - 1)) >> 12)
+	isb
+	tlbi	vae1, \tmp
+	dsb	nsh
+#endif /* CONFIG_ARCH_MSM8996 */
 	.endm
 
 	.macro tramp_unmap_kernel, tmp
