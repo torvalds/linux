@@ -4713,6 +4713,7 @@ static void skl_compute_transition_wm(struct intel_crtc_state *cstate,
 	if (!dev_priv->ipc_enabled)
 		goto exit;
 
+	trans_min = 0;
 	if (INTEL_GEN(dev_priv) >= 10)
 		trans_min = 4;
 
