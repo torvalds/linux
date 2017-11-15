@@ -70,9 +70,8 @@ static bool construct(struct dc_context *ctx, struct dal_logger *logger,
 {
 	/* malloc buffer and init offsets */
 	logger->log_buffer_size = DAL_LOGGER_BUFFER_MAX_SIZE;
-	logger->log_buffer = (char *)kzalloc(logger->log_buffer_size * sizeof(char),
-					     GFP_KERNEL);
-
+	logger->log_buffer = kcalloc(logger->log_buffer_size, sizeof(char),
+				     GFP_KERNEL);
 	if (!logger->log_buffer)
 		return false;
 
