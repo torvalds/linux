@@ -2140,6 +2140,12 @@ static void wacom_wac_pen_event(struct hid_device *hdev, struct hid_field *field
 	case HID_DG_TIPSWITCH:
 		wacom_wac->hid_data.tipswitch |= value;
 		return;
+	case HID_DG_BARRELSWITCH:
+		wacom_wac->hid_data.barrelswitch = value;
+		return;
+	case HID_DG_BARRELSWITCH2:
+		wacom_wac->hid_data.barrelswitch2 = value;
+		return;
 	case HID_DG_TOOLSERIALNUMBER:
 		if (value) {
 			wacom_wac->serial[0] = (wacom_wac->serial[0] & ~0xFFFFFFFFULL);
@@ -2217,11 +2223,11 @@ static void wacom_wac_pen_event(struct hid_device *hdev, struct hid_field *field
 	if (!usage->type || delay_pen_events(wacom_wac))
 		return;
 
-	/* send pen events only when the pen is in/entering/leaving proximity */
-	if (!wacom_wac->hid_data.inrange_state && !wacom_wac->tool[0])
-		return;
-
-	input_event(input, usage->type, usage->code, value);
+	/* send pen events only when the pen is in range */
+	if (wacom_wac->hid_data.inrange_state)
+		input_event(input, usage->type, usage->code, value);
+	else if (wacom_wac->shared->stylus_in_proximity && !wacom_wac->hid_data.sense_state)
+		input_event(input, usage->type, usage->code, 0);
 }
 
 static void wacom_wac_pen_pre_report(struct hid_device *hdev,
@@ -2236,11 +2242,11 @@ static void wacom_wac_pen_report(struct hid_device *hdev,
 	struct wacom *wacom = hid_get_drvdata(hdev);
 	struct wacom_wac *wacom_wac = &wacom->wacom_wac;
 	struct input_dev *input = wacom_wac->pen_input;
-	bool prox = wacom_wac->hid_data.inrange_state;
-	bool range = wacom_wac->hid_data.sense_state;
+	bool range = wacom_wac->hid_data.inrange_state;
+	bool sense = wacom_wac->hid_data.sense_state;
 
-	if (!wacom_wac->tool[0] && prox) { /* first in prox */
-		/* Going into proximity select tool */
+	if (!wacom_wac->tool[0] && range) { /* first in range */
+		/* Going into range select tool */
 		if (wacom_wac->hid_data.invert_state)
 			wacom_wac->tool[0] = BTN_TOOL_RUBBER;
 		else if (wacom_wac->id[0])
@@ -2250,10 +2256,16 @@ static void wacom_wac_pen_report(struct hid_device *hdev,
 	}
 
 	/* keep pen state for touch events */
-	wacom_wac->shared->stylus_in_proximity = range;
+	wacom_wac->shared->stylus_in_proximity = sense;
 
 	if (!delay_pen_events(wacom_wac) && wacom_wac->tool[0]) {
 		int id = wacom_wac->id[0];
+		int sw_state = wacom_wac->hid_data.barrelswitch |
+			       (wacom_wac->hid_data.barrelswitch2 << 1);
+
+		input_report_key(input, BTN_STYLUS, sw_state == 1);
+		input_report_key(input, BTN_STYLUS2, sw_state == 2);
+		input_report_key(input, BTN_STYLUS3, sw_state == 3);
 
 		/*
 		 * Non-USI EMR tools should have their IDs mangled to
@@ -2269,10 +2281,10 @@ static void wacom_wac_pen_report(struct hid_device *hdev,
 		 */
 		input_report_key(input, BTN_TOUCH,
 				wacom_wac->hid_data.tipswitch);
-		input_report_key(input, wacom_wac->tool[0], prox);
+		input_report_key(input, wacom_wac->tool[0], sense);
 		if (wacom_wac->serial[0]) {
 			input_event(input, EV_MSC, MSC_SERIAL, wacom_wac->serial[0]);
-			input_report_abs(input, ABS_MISC, prox ? id : 0);
+			input_report_abs(input, ABS_MISC, sense ? id : 0);
 		}
 
 		wacom_wac->hid_data.tipswitch = false;
@@ -2280,7 +2292,7 @@ static void wacom_wac_pen_report(struct hid_device *hdev,
 		input_sync(input);
 	}
 
-	if (!prox) {
+	if (!sense) {
 		wacom_wac->tool[0] = 0;
 		wacom_wac->id[0] = 0;
 		wacom_wac->serial[0] = 0;
@@ -3300,9 +3312,11 @@ int wacom_setup_pen_input_capabilities(struct input_dev *input_dev,
 	else
 		__set_bit(INPUT_PROP_POINTER, input_dev->propbit);
 
-	if (features->type == HID_GENERIC)
-		/* setup has already been done */
+	if (features->type == HID_GENERIC) {
+		/* setup has already been done; apply otherwise-undetectible quirks */
+		input_set_capability(input_dev, EV_KEY, BTN_STYLUS3);
 		return 0;
+	}
 
 	__set_bit(BTN_TOUCH, input_dev->keybit);
 	__set_bit(ABS_MISC, input_dev->absbit);
