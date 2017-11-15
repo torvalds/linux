@@ -2378,6 +2378,7 @@ retry:
 				 */
 				if (ip->i_ino != inum + i) {
 					xfs_iunlock(ip, XFS_ILOCK_EXCL);
+					rcu_read_unlock();
 					continue;
 				}
 			}
