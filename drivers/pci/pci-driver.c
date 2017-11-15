@@ -1516,6 +1516,7 @@ struct bus_type pci_bus_type = {
 	.drv_groups	= pci_drv_groups,
 	.pm		= PCI_PM_OPS_PTR,
 	.num_vf		= pci_bus_num_vf,
+	.force_dma	= true,
 };
 EXPORT_SYMBOL(pci_bus_type);
 

@@ -383,7 +383,7 @@ static int mips_dma_supported(struct device *dev, u64 mask)
 	return plat_dma_supported(dev, mask);
 }
 
-void dma_cache_sync(struct device *dev, void *vaddr, size_t size,
+static void mips_dma_cache_sync(struct device *dev, void *vaddr, size_t size,
 			 enum dma_data_direction direction)
 {
 	BUG_ON(direction == DMA_NONE);
@@ -391,8 +391,6 @@ void dma_cache_sync(struct device *dev, void *vaddr, size_t size,
 	if (!plat_device_is_coherent(dev))
 		__dma_sync_virtual(vaddr, size, direction);
 }
-
-EXPORT_SYMBOL(dma_cache_sync);
 
 static const struct dma_map_ops mips_default_dma_map_ops = {
 	.alloc = mips_dma_alloc_coherent,
@@ -407,7 +405,8 @@ static const struct dma_map_ops mips_default_dma_map_ops = {
 	.sync_sg_for_cpu = mips_dma_sync_sg_for_cpu,
 	.sync_sg_for_device = mips_dma_sync_sg_for_device,
 	.mapping_error = mips_dma_mapping_error,
-	.dma_supported = mips_dma_supported
+	.dma_supported = mips_dma_supported,
+	.cache_sync = mips_dma_cache_sync,
 };
 
 const struct dma_map_ops *mips_dma_map_ops = &mips_default_dma_map_ops;

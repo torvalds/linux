@@ -300,7 +300,7 @@ static void maple_send(void)
 	mutex_unlock(&maple_wlist_lock);
 	if (maple_packets > 0) {
 		for (i = 0; i < (1 << MAPLE_DMA_PAGES); i++)
-			dma_cache_sync(0, maple_sendbuf + i * PAGE_SIZE,
+			sh_sync_dma_for_device(maple_sendbuf + i * PAGE_SIZE,
 				       PAGE_SIZE, DMA_BIDIRECTIONAL);
 	}
 
@@ -642,8 +642,7 @@ static void maple_dma_handler(struct work_struct *work)
 		list_for_each_entry_safe(mq, nmq, &maple_sentq, list) {
 			mdev = mq->dev;
 			recvbuf = mq->recvbuf->buf;
-			dma_cache_sync(&mdev->dev, recvbuf, 0x400,
-				DMA_FROM_DEVICE);
+			sh_sync_dma_for_device(recvbuf, 0x400, DMA_FROM_DEVICE);
 			code = recvbuf[0];
 			kfree(mq->sendbuf);
 			list_del_init(&mq->list);
