@@ -10,7 +10,6 @@
  */
 
 #define DRV_NAME	"xen_wdt"
-#define DRV_VERSION	"0.01"
 
 #include <linux/bug.h>
 #include <linux/errno.h>
@@ -189,8 +188,6 @@ static int __init xen_wdt_init_module(void)
 	if (!xen_domain())
 		return -ENODEV;
 
-	pr_info("Xen WatchDog Timer Driver v%s\n", DRV_VERSION);
-
 	err = platform_driver_register(&xen_wdt_driver);
 	if (err)
 		return err;
@@ -216,5 +213,4 @@ module_exit(xen_wdt_cleanup_module);
 
 MODULE_AUTHOR("Jan Beulich <jbeulich@novell.com>");
 MODULE_DESCRIPTION("Xen WatchDog Timer Driver");
-MODULE_VERSION(DRV_VERSION);
 MODULE_LICENSE("GPL");
