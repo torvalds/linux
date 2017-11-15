@@ -326,21 +326,29 @@ static struct platform_driver vpd_driver = {
 	},
 };
 
+static struct platform_device *vpd_pdev;
+
 static int __init vpd_platform_init(void)
 {
-	struct platform_device *pdev;
+	int ret;
 
-	pdev = platform_device_register_simple("vpd", -1, NULL, 0);
-	if (IS_ERR(pdev))
-		return PTR_ERR(pdev);
+	ret = platform_driver_register(&vpd_driver);
+	if (ret)
+		return ret;
 
-	platform_driver_register(&vpd_driver);
+	vpd_pdev = platform_device_register_simple("vpd", -1, NULL, 0);
+	if (IS_ERR(vpd_pdev)) {
+		platform_driver_unregister(&vpd_driver);
+		return PTR_ERR(vpd_pdev);
+	}
 
 	return 0;
 }
 
 static void __exit vpd_platform_exit(void)
 {
+	platform_device_unregister(vpd_pdev);
+	platform_driver_unregister(&vpd_driver);
 }
 
 module_init(vpd_platform_init);
