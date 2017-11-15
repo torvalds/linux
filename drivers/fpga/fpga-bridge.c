@@ -78,8 +78,6 @@ static struct fpga_bridge *__fpga_bridge_get(struct device *dev,
 	int ret = -ENODEV;
 
 	bridge = to_fpga_bridge(dev);
-	if (!bridge)
-		goto err_dev;
 
 	bridge->info = info;
 
