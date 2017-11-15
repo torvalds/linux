@@ -764,11 +764,29 @@ int amdgpu_device_resize_fb_bar(struct amdgpu_device *adev)
 {
 	u64 space_needed = roundup_pow_of_two(adev->mc.real_vram_size);
 	u32 rbar_size = order_base_2(((space_needed >> 20) | 1)) - 1;
+	struct pci_bus *root;
+	struct resource *res;
+	unsigned i;
 	u16 cmd;
 	int r;
 
 	/* Bypass for VF */
 	if (amdgpu_sriov_vf(adev))
+		return 0;
+
+	/* Check if the root BUS has 64bit memory resources */
+	root = adev->pdev->bus;
+	while (root->parent)
+		root = root->parent;
+
+	pci_bus_for_each_resource(root, res, i) {
+		if (res && res->flags & IORESOURCE_MEM_64 &&
+		    res->start > 0x100000000ull)
+			break;
+	}
+
+	/* Trying to resize is pointless without a root hub window above 4GB */
+	if (!res)
 		return 0;
 
 	/* Disable memory decoding while we change the BAR addresses and size */
