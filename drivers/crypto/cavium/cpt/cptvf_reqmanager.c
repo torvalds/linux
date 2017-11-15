@@ -459,7 +459,8 @@ int process_request(struct cpt_vf *cptvf, struct cpt_request_info *req)
 	info->completion_addr = kzalloc(sizeof(union cpt_res_s), GFP_KERNEL);
 	if (unlikely(!info->completion_addr)) {
 		dev_err(&pdev->dev, "Unable to allocate memory for completion_addr\n");
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto request_cleanup;
 	}
 
 	result = (union cpt_res_s *)info->completion_addr;
