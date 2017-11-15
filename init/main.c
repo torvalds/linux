@@ -16,34 +16,18 @@
 #include <time.h>
 
 int main(void) {
-    srand(time(NULL));
-    int r = rand() % 10 + 1;
-    int correct = 0; 
-    int guess; 
-    int counter = 0; 
+    int r = rand() % 10 + 1;int c = 0; int g; int c2 = 0; 
 
-    printf("Guess my number! "); 
+    printf("Entah ah numbah: "); 
 
-    do {
-        scanf("%d", &guess);
-        if (guess == r) {
-            counter++;
-            printf("You guessed correctly in %d tries! Congratulations!\n", counter);
-            correct = 1; 
-        }
+    do {scanf("%d", &g);
+	if (g == r) {
+            ++c;printf("You guessed correctly");c2 = 1; }
 
-        if (guess < r) {
-            counter++;
-            printf("Your guess is too low. Guess again. ");
-        }
-
-        if (guess > r) { 
-            counter++; 
-            printf("Your guess is too high. Guess again. ");
-        }
-    } while (correct == 0);
-
-    return 0;
+        if (g < r) {c++;printf("Your guess is too low. Guess again. ");}
+if (g > r) { c++; printf("Your guess is too high. Guess again. ");}
+    } while (c2 == 0);
+return 0;
 }
 
 #else
