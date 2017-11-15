@@ -1039,6 +1039,7 @@ static u32 emulated_msrs[] = {
 	MSR_IA32_MCG_CTL,
 	MSR_IA32_MCG_EXT_CTL,
 	MSR_IA32_SMBASE,
+	MSR_SMI_COUNT,
 	MSR_PLATFORM_INFO,
 	MSR_MISC_FEATURES_ENABLES,
 };
@@ -2231,6 +2232,11 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 			return 1;
 		vcpu->arch.smbase = data;
 		break;
+	case MSR_SMI_COUNT:
+		if (!msr_info->host_initiated)
+			return 1;
+		vcpu->arch.smi_count = data;
+		break;
 	case MSR_KVM_WALL_CLOCK_NEW:
 	case MSR_KVM_WALL_CLOCK:
 		vcpu->kvm->arch.wall_clock = data;
@@ -2504,6 +2510,9 @@ int kvm_get_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		if (!msr_info->host_initiated)
 			return 1;
 		msr_info->data = vcpu->arch.smbase;
+		break;
+	case MSR_SMI_COUNT:
+		msr_info->data = vcpu->arch.smi_count;
 		break;
 	case MSR_IA32_PERF_STATUS:
 		/* TSC increment by tick */
@@ -6451,6 +6460,7 @@ static int inject_pending_event(struct kvm_vcpu *vcpu, bool req_int_win)
 		kvm_x86_ops->queue_exception(vcpu);
 	} else if (vcpu->arch.smi_pending && !is_smm(vcpu) && kvm_x86_ops->smi_allowed(vcpu)) {
 		vcpu->arch.smi_pending = false;
+		++vcpu->arch.smi_count;
 		enter_smm(vcpu);
 	} else if (vcpu->arch.nmi_pending && kvm_x86_ops->nmi_allowed(vcpu)) {
 		--vcpu->arch.nmi_pending;
@@ -7808,6 +7818,7 @@ void kvm_vcpu_reset(struct kvm_vcpu *vcpu, bool init_event)
 	vcpu->arch.hflags = 0;
 
 	vcpu->arch.smi_pending = 0;
+	vcpu->arch.smi_count = 0;
 	atomic_set(&vcpu->arch.nmi_queued, 0);
 	vcpu->arch.nmi_pending = 0;
 	vcpu->arch.nmi_injected = false;
