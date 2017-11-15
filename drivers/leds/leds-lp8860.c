@@ -247,6 +247,15 @@ static int lp8860_init(struct lp8860_led *led)
 	unsigned int read_buf;
 	int ret, i, reg_count;
 
+	if (led->regulator) {
+		ret = regulator_enable(led->regulator);
+		if (ret) {
+			dev_err(&led->client->dev,
+				"Failed to enable regulator\n");
+			return ret;
+		}
+	}
+
 	if (led->enable_gpio)
 		gpiod_direction_output(led->enable_gpio, 1);
 
@@ -282,12 +291,25 @@ static int lp8860_init(struct lp8860_led *led)
 	ret = regmap_write(led->regmap,
 			LP8860_EEPROM_CNTRL,
 			LP8860_PROGRAM_EEPROM);
-	if (ret)
+	if (ret) {
 		dev_err(&led->client->dev, "Failed programming EEPROM\n");
+		goto out;
+	}
+
+	return ret;
+
 out:
 	if (ret)
 		if (led->enable_gpio)
 			gpiod_direction_output(led->enable_gpio, 0);
+
+	if (led->regulator) {
+		ret = regulator_disable(led->regulator);
+		if (ret)
+			dev_err(&led->client->dev,
+				"Failed to disable regulator\n");
+	}
+
 	return ret;
 }
 
