@@ -176,8 +176,12 @@ If a patch is in transition, this file shows 0 to indicate the task is
 unpatched and 1 to indicate it's patched.  Otherwise, if no patch is in
 transition, it shows -1.  Any tasks which are blocking the transition
 can be signaled with SIGSTOP and SIGCONT to force them to change their
-patched state.
-
+patched state. This may be harmful to the system though.
+/sys/kernel/livepatch/<patch>/signal attribute provides a better alternative.
+Writing 1 to the attribute sends a fake signal to all remaining blocking
+tasks. No proper signal is actually delivered (there is no data in signal
+pending structures). Tasks are interrupted or woken up, and forced to change
+their patched state.
 
 3.1 Adding consistency model support to new architectures
 ---------------------------------------------------------
@@ -434,6 +438,9 @@ is removed from the list of known patches.
 Information about the registered patches can be found under
 /sys/kernel/livepatch. The patches could be enabled and disabled
 by writing there.
+
+/sys/kernel/livepatch/<patch>/signal attribute allows administrator to affect a
+patching operation.
 
 See Documentation/ABI/testing/sysfs-kernel-livepatch for more details.
 
