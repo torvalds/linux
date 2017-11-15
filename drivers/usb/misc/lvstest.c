@@ -370,6 +370,10 @@ static int lvs_rh_probe(struct usb_interface *intf,
 
 	hdev = interface_to_usbdev(intf);
 	desc = intf->cur_altsetting;
+
+	if (desc->desc.bNumEndpoints < 1)
+		return -ENODEV;
+
 	endpoint = &desc->endpoint[0].desc;
 
 	/* valid only for SS root hub */

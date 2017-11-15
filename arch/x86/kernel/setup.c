@@ -1048,6 +1048,13 @@ void __init setup_arch(char **cmdline_p)
 	if (mtrr_trim_uncached_memory(max_pfn))
 		max_pfn = e820_end_of_ram_pfn();
 
+	/*
+	 * This call is required when the CPU does not support PAT. If
+	 * mtrr_bp_init() invoked it already via pat_init() the call has no
+	 * effect.
+	 */
+	init_cache_modes();
+
 #ifdef CONFIG_X86_32
 	/* max_low_pfn get updated here */
 	find_low_pfn_range();

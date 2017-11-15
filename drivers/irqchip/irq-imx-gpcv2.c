@@ -230,6 +230,8 @@ static int __init imx_gpcv2_irqchip_init(struct device_node *node,
 		return -ENOMEM;
 	}
 
+	raw_spin_lock_init(&cd->rlock);
+
 	cd->gpc_base = of_iomap(node, 0);
 	if (!cd->gpc_base) {
 		pr_err("fsl-gpcv2: unable to map gpc registers\n");

@@ -35,6 +35,7 @@
 #define _LINUX_RDS_H
 
 #include <linux/types.h>
+#include <linux/socket.h>		/* For __kernel_sockaddr_storage. */
 
 #define RDS_IB_ABI_VERSION		0x301
 
@@ -223,7 +224,7 @@ struct rds_get_mr_args {
 };
 
 struct rds_get_mr_for_dest_args {
-	struct sockaddr_storage	dest_addr;
+	struct __kernel_sockaddr_storage dest_addr;
 	struct rds_iovec 	vec;
 	uint64_t		cookie_addr;
 	uint64_t		flags;

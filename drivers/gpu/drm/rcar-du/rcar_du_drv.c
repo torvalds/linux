@@ -144,91 +144,6 @@ MODULE_DEVICE_TABLE(of, rcar_du_of_table);
  * DRM operations
  */
 
-static int rcar_du_unload(struct drm_device *dev)
-{
-	struct rcar_du_device *rcdu = dev->dev_private;
-
-	if (rcdu->fbdev)
-		drm_fbdev_cma_fini(rcdu->fbdev);
-
-	drm_kms_helper_poll_fini(dev);
-	drm_mode_config_cleanup(dev);
-	drm_vblank_cleanup(dev);
-
-	dev->irq_enabled = 0;
-	dev->dev_private = NULL;
-
-	return 0;
-}
-
-static int rcar_du_load(struct drm_device *dev, unsigned long flags)
-{
-	struct platform_device *pdev = dev->platformdev;
-	struct device_node *np = pdev->dev.of_node;
-	struct rcar_du_device *rcdu;
-	struct resource *mem;
-	int ret;
-
-	if (np == NULL) {
-		dev_err(dev->dev, "no platform data\n");
-		return -ENODEV;
-	}
-
-	rcdu = devm_kzalloc(&pdev->dev, sizeof(*rcdu), GFP_KERNEL);
-	if (rcdu == NULL) {
-		dev_err(dev->dev, "failed to allocate private data\n");
-		return -ENOMEM;
-	}
-
-	init_waitqueue_head(&rcdu->commit.wait);
-
-	rcdu->dev = &pdev->dev;
-	rcdu->info = of_match_device(rcar_du_of_table, rcdu->dev)->data;
-	rcdu->ddev = dev;
-	dev->dev_private = rcdu;
-
-	/* I/O resources */
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	rcdu->mmio = devm_ioremap_resource(&pdev->dev, mem);
-	if (IS_ERR(rcdu->mmio))
-		return PTR_ERR(rcdu->mmio);
-
-	/* Initialize vertical blanking interrupts handling. Start with vblank
-	 * disabled for all CRTCs.
-	 */
-	ret = drm_vblank_init(dev, (1 << rcdu->info->num_crtcs) - 1);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "failed to initialize vblank\n");
-		goto done;
-	}
-
-	/* DRM/KMS objects */
-	ret = rcar_du_modeset_init(rcdu);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "failed to initialize DRM/KMS (%d)\n", ret);
-		goto done;
-	}
-
-	dev->irq_enabled = 1;
-
-	platform_set_drvdata(pdev, rcdu);
-
-done:
-	if (ret)
-		rcar_du_unload(dev);
-
-	return ret;
-}
-
-static void rcar_du_preclose(struct drm_device *dev, struct drm_file *file)
-{
-	struct rcar_du_device *rcdu = dev->dev_private;
-	unsigned int i;
-
-	for (i = 0; i < rcdu->num_crtcs; ++i)
-		rcar_du_crtc_cancel_page_flip(&rcdu->crtcs[i], file);
-}
-
 static void rcar_du_lastclose(struct drm_device *dev)
 {
 	struct rcar_du_device *rcdu = dev->dev_private;
@@ -269,11 +184,7 @@ static const struct file_operations rcar_du_fops = {
 static struct drm_driver rcar_du_driver = {
 	.driver_features	= DRIVER_GEM | DRIVER_MODESET | DRIVER_PRIME
 				| DRIVER_ATOMIC,
-	.load			= rcar_du_load,
-	.unload			= rcar_du_unload,
-	.preclose		= rcar_du_preclose,
 	.lastclose		= rcar_du_lastclose,
-	.set_busid		= drm_platform_set_busid,
 	.get_vblank_counter	= drm_vblank_no_hw_counter,
 	.enable_vblank		= rcar_du_enable_vblank,
 	.disable_vblank		= rcar_du_disable_vblank,
@@ -333,18 +244,104 @@ static const struct dev_pm_ops rcar_du_pm_ops = {
  * Platform driver
  */
 
-static int rcar_du_probe(struct platform_device *pdev)
-{
-	return drm_platform_init(&rcar_du_driver, pdev);
-}
-
 static int rcar_du_remove(struct platform_device *pdev)
 {
 	struct rcar_du_device *rcdu = platform_get_drvdata(pdev);
+	struct drm_device *ddev = rcdu->ddev;
 
-	drm_put_dev(rcdu->ddev);
+	mutex_lock(&ddev->mode_config.mutex);
+	drm_connector_unplug_all(ddev);
+	mutex_unlock(&ddev->mode_config.mutex);
+
+	drm_dev_unregister(ddev);
+
+	if (rcdu->fbdev)
+		drm_fbdev_cma_fini(rcdu->fbdev);
+
+	drm_kms_helper_poll_fini(ddev);
+	drm_mode_config_cleanup(ddev);
+
+	drm_dev_unref(ddev);
 
 	return 0;
+}
+
+static int rcar_du_probe(struct platform_device *pdev)
+{
+	struct device_node *np = pdev->dev.of_node;
+	struct rcar_du_device *rcdu;
+	struct drm_connector *connector;
+	struct drm_device *ddev;
+	struct resource *mem;
+	int ret;
+
+	if (np == NULL) {
+		dev_err(&pdev->dev, "no device tree node\n");
+		return -ENODEV;
+	}
+
+	/* Allocate and initialize the DRM and R-Car device structures. */
+	rcdu = devm_kzalloc(&pdev->dev, sizeof(*rcdu), GFP_KERNEL);
+	if (rcdu == NULL)
+		return -ENOMEM;
+
+	init_waitqueue_head(&rcdu->commit.wait);
+
+	rcdu->dev = &pdev->dev;
+	rcdu->info = of_match_device(rcar_du_of_table, rcdu->dev)->data;
+
+	platform_set_drvdata(pdev, rcdu);
+
+	/* I/O resources */
+	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	rcdu->mmio = devm_ioremap_resource(&pdev->dev, mem);
+	if (IS_ERR(rcdu->mmio))
+		return PTR_ERR(rcdu->mmio);
+
+	/* DRM/KMS objects */
+	ddev = drm_dev_alloc(&rcar_du_driver, &pdev->dev);
+	if (!ddev)
+		return -ENOMEM;
+
+	drm_dev_set_unique(ddev, dev_name(&pdev->dev));
+
+	rcdu->ddev = ddev;
+	ddev->dev_private = rcdu;
+
+	ret = rcar_du_modeset_init(rcdu);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "failed to initialize DRM/KMS (%d)\n", ret);
+		goto error;
+	}
+
+	ddev->irq_enabled = 1;
+
+	/* Register the DRM device with the core and the connectors with
+	 * sysfs.
+	 */
+	ret = drm_dev_register(ddev, 0);
+	if (ret)
+		goto error;
+
+	mutex_lock(&ddev->mode_config.mutex);
+	drm_for_each_connector(connector, ddev) {
+		ret = drm_connector_register(connector);
+		if (ret < 0)
+			break;
+	}
+	mutex_unlock(&ddev->mode_config.mutex);
+
+	if (ret < 0)
+		goto error;
+
+	DRM_INFO("Device %s probed\n", dev_name(&pdev->dev));
+
+	return 0;
+
+error:
+	rcar_du_remove(pdev);
+
+	return ret;
 }
 
 static struct platform_driver rcar_du_platform_driver = {

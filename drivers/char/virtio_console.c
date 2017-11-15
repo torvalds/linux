@@ -1130,6 +1130,8 @@ static int put_chars(u32 vtermno, const char *buf, int count)
 {
 	struct port *port;
 	struct scatterlist sg[1];
+	void *data;
+	int ret;
 
 	if (unlikely(early_put_chars))
 		return early_put_chars(vtermno, buf, count);
@@ -1138,8 +1140,14 @@ static int put_chars(u32 vtermno, const char *buf, int count)
 	if (!port)
 		return -EPIPE;
 
-	sg_init_one(sg, buf, count);
-	return __send_to_port(port, sg, 1, count, (void *)buf, false);
+	data = kmemdup(buf, count, GFP_ATOMIC);
+	if (!data)
+		return -ENOMEM;
+
+	sg_init_one(sg, data, count);
+	ret = __send_to_port(port, sg, 1, count, data, false);
+	kfree(data);
+	return ret;
 }
 
 /*
@@ -1856,7 +1864,7 @@ static void config_work_handler(struct work_struct *work)
 {
 	struct ports_device *portdev;
 
-	portdev = container_of(work, struct ports_device, control_work);
+	portdev = container_of(work, struct ports_device, config_work);
 	if (!use_multiport(portdev)) {
 		struct virtio_device *vdev;
 		struct port *port;

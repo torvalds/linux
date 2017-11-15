@@ -485,11 +485,11 @@ static int __write_initial_superblock(struct dm_pool_metadata *pmd)
 	if (r < 0)
 		return r;
 
-	r = save_sm_roots(pmd);
+	r = dm_tm_pre_commit(pmd->tm);
 	if (r < 0)
 		return r;
 
-	r = dm_tm_pre_commit(pmd->tm);
+	r = save_sm_roots(pmd);
 	if (r < 0)
 		return r;
 

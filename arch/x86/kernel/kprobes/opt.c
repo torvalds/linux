@@ -177,7 +177,7 @@ static int copy_optimized_instructions(u8 *dest, u8 *src)
 
 	while (len < RELATIVEJUMP_SIZE) {
 		ret = __copy_instruction(dest + len, src + len);
-		if (!ret || !can_boost(dest + len))
+		if (!ret || !can_boost(dest + len, src + len))
 			return -EINVAL;
 		len += ret;
 	}

@@ -94,7 +94,6 @@ static int __afu_open(struct inode *inode, struct file *file, bool master)
 
 	pr_devel("afu_open pe: %i\n", ctx->pe);
 	file->private_data = ctx;
-	cxl_ctx_get();
 
 	/* indicate success */
 	rc = 0;
@@ -158,11 +157,8 @@ static long afu_ioctl_start_work(struct cxl_context *ctx,
 
 	/* Do this outside the status_mutex to avoid a circular dependency with
 	 * the locking in cxl_mmap_fault() */
-	if (copy_from_user(&work, uwork,
-			   sizeof(struct cxl_ioctl_start_work))) {
-		rc = -EFAULT;
-		goto out;
-	}
+	if (copy_from_user(&work, uwork, sizeof(work)))
+		return -EFAULT;
 
 	mutex_lock(&ctx->status_mutex);
 	if (ctx->status != OPENED) {
@@ -208,11 +204,18 @@ static long afu_ioctl_start_work(struct cxl_context *ctx,
 	ctx->pid = get_task_pid(current, PIDTYPE_PID);
 	ctx->glpid = get_task_pid(current->group_leader, PIDTYPE_PID);
 
+	/*
+	 * Increment driver use count. Enables global TLBIs for hash
+	 * and callbacks to handle the segment table
+	 */
+	cxl_ctx_get();
+
 	trace_cxl_attach(ctx, work.work_element_descriptor, work.num_interrupts, amr);
 
 	if ((rc = cxl_attach_process(ctx, false, work.work_element_descriptor,
 				     amr))) {
 		afu_release_irqs(ctx, ctx);
+		cxl_ctx_put();
 		goto out;
 	}
 

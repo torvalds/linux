@@ -676,7 +676,7 @@ static int deliver_to_subscribers(struct snd_seq_client *client,
 	if (atomic)
 		read_lock(&grp->list_lock);
 	else
-		down_read(&grp->list_mutex);
+		down_read_nested(&grp->list_mutex, hop);
 	list_for_each_entry(subs, &grp->list_head, src_list) {
 		/* both ports ready? */
 		if (atomic_read(&subs->ref_count) != 2)
@@ -1260,6 +1260,7 @@ static int snd_seq_ioctl_create_port(struct snd_seq_client *client,
 	struct snd_seq_client_port *port;
 	struct snd_seq_port_info info;
 	struct snd_seq_port_callback *callback;
+	int port_idx;
 
 	if (copy_from_user(&info, arg, sizeof(info)))
 		return -EFAULT;
@@ -1273,7 +1274,9 @@ static int snd_seq_ioctl_create_port(struct snd_seq_client *client,
 		return -ENOMEM;
 
 	if (client->type == USER_CLIENT && info.kernel) {
-		snd_seq_delete_port(client, port->addr.port);
+		port_idx = port->addr.port;
+		snd_seq_port_unlock(port);
+		snd_seq_delete_port(client, port_idx);
 		return -EINVAL;
 	}
 	if (client->type == KERNEL_CLIENT) {
@@ -1294,6 +1297,7 @@ static int snd_seq_ioctl_create_port(struct snd_seq_client *client,
 
 	snd_seq_set_port_info(port, &info);
 	snd_seq_system_client_ev_port_start(port->addr.client, port->addr.port);
+	snd_seq_port_unlock(port);
 
 	if (copy_to_user(arg, &info, sizeof(info)))
 		return -EFAULT;
@@ -1530,19 +1534,14 @@ static int snd_seq_ioctl_create_queue(struct snd_seq_client *client,
 				      void __user *arg)
 {
 	struct snd_seq_queue_info info;
-	int result;
 	struct snd_seq_queue *q;
 
 	if (copy_from_user(&info, arg, sizeof(info)))
 		return -EFAULT;
 
-	result = snd_seq_queue_alloc(client->number, info.locked, info.flags);
-	if (result < 0)
-		return result;
-
-	q = queueptr(result);
-	if (q == NULL)
-		return -EINVAL;
+	q = snd_seq_queue_alloc(client->number, info.locked, info.flags);
+	if (IS_ERR(q))
+		return PTR_ERR(q);
 
 	info.queue = q->queue;
 	info.locked = q->locked;
@@ -1552,7 +1551,7 @@ static int snd_seq_ioctl_create_queue(struct snd_seq_client *client,
 	if (! info.name[0])
 		snprintf(info.name, sizeof(info.name), "Queue-%d", q->queue);
 	strlcpy(q->name, info.name, sizeof(q->name));
-	queuefree(q);
+	snd_use_lock_free(&q->use_lock);
 
 	if (copy_to_user(arg, &info, sizeof(info)))
 		return -EFAULT;
@@ -1921,6 +1920,7 @@ static int snd_seq_ioctl_set_client_pool(struct snd_seq_client *client,
 	     info.output_pool != client->pool->size)) {
 		if (snd_seq_write_pool_allocated(client)) {
 			/* remove all existing cells */
+			snd_seq_pool_mark_closing(client->pool);
 			snd_seq_queue_client_leave_cells(client->number);
 			snd_seq_pool_done(client->pool);
 		}

@@ -1635,8 +1635,11 @@ void dasd_int_handler(struct ccw_device *cdev, unsigned long intparm,
 	/* check for for attention message */
 	if (scsw_dstat(&irb->scsw) & DEV_STAT_ATTENTION) {
 		device = dasd_device_from_cdev_locked(cdev);
-		device->discipline->check_attention(device, irb->esw.esw1.lpum);
-		dasd_put_device(device);
+		if (!IS_ERR(device)) {
+			device->discipline->check_attention(device,
+							    irb->esw.esw1.lpum);
+			dasd_put_device(device);
+		}
 	}
 
 	if (!cqr)

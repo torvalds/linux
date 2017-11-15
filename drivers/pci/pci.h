@@ -232,7 +232,6 @@ bool pci_bus_read_dev_vendor_id(struct pci_bus *bus, int devfn, u32 *pl,
 int pci_setup_device(struct pci_dev *dev);
 int __pci_read_base(struct pci_dev *dev, enum pci_bar_type type,
 		    struct resource *res, unsigned int reg);
-int pci_resource_bar(struct pci_dev *dev, int resno, enum pci_bar_type *type);
 void pci_configure_ari(struct pci_dev *dev);
 void __pci_bus_size_bridges(struct pci_bus *bus,
 			struct list_head *realloc_head);
@@ -276,7 +275,7 @@ static inline void pci_restore_ats_state(struct pci_dev *dev)
 #ifdef CONFIG_PCI_IOV
 int pci_iov_init(struct pci_dev *dev);
 void pci_iov_release(struct pci_dev *dev);
-int pci_iov_resource_bar(struct pci_dev *dev, int resno);
+void pci_iov_update_resource(struct pci_dev *dev, int resno);
 resource_size_t pci_sriov_resource_alignment(struct pci_dev *dev, int resno);
 void pci_restore_iov_state(struct pci_dev *dev);
 int pci_iov_bus_range(struct pci_bus *bus);
@@ -289,10 +288,6 @@ static inline int pci_iov_init(struct pci_dev *dev)
 static inline void pci_iov_release(struct pci_dev *dev)
 
 {
-}
-static inline int pci_iov_resource_bar(struct pci_dev *dev, int resno)
-{
-	return 0;
 }
 static inline void pci_restore_iov_state(struct pci_dev *dev)
 {

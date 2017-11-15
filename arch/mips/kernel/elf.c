@@ -206,7 +206,7 @@ int arch_check_elf(void *_ehdr, bool has_interpreter,
 	else if ((prog_req.fr1 && prog_req.frdefault) ||
 		 (prog_req.single && !prog_req.frdefault))
 		/* Make sure 64-bit MIPS III/IV/64R1 will not pick FR1 */
-		state->overall_fp_mode = ((current_cpu_data.fpu_id & MIPS_FPIR_F64) &&
+		state->overall_fp_mode = ((raw_current_cpu_data.fpu_id & MIPS_FPIR_F64) &&
 					  cpu_has_mips_r2_r6) ?
 					  FP_FR1 : FP_FR0;
 	else if (prog_req.fr1)

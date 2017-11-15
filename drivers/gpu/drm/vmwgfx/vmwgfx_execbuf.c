@@ -471,7 +471,7 @@ static int vmw_cmd_invalid(struct vmw_private *dev_priv,
 			   struct vmw_sw_context *sw_context,
 			   SVGA3dCmdHeader *header)
 {
-	return capable(CAP_SYS_ADMIN) ? : -EINVAL;
+	return -EINVAL;
 }
 
 static int vmw_cmd_ok(struct vmw_private *dev_priv,

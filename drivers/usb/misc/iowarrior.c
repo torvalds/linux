@@ -557,7 +557,7 @@ static long iowarrior_ioctl(struct file *file, unsigned int cmd,
 			info.revision = le16_to_cpu(dev->udev->descriptor.bcdDevice);
 
 			/* 0==UNKNOWN, 1==LOW(usb1.1) ,2=FULL(usb1.1), 3=HIGH(usb2.0) */
-			info.speed = le16_to_cpu(dev->udev->speed);
+			info.speed = dev->udev->speed;
 			info.if_num = dev->interface->cur_altsetting->desc.bInterfaceNumber;
 			info.report_size = dev->report_size;
 

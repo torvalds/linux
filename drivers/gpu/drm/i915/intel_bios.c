@@ -957,6 +957,13 @@ static void parse_ddi_port(struct drm_i915_private *dev_priv, enum port port,
 	is_hdmi = is_dvi && (child->common.device_type & DEVICE_TYPE_NOT_HDMI_OUTPUT) == 0;
 	is_edp = is_dp && (child->common.device_type & DEVICE_TYPE_INTERNAL_CONNECTOR);
 
+	if (port == PORT_A && is_dvi) {
+		DRM_DEBUG_KMS("VBT claims port A supports DVI%s, ignoring\n",
+			      is_hdmi ? "/HDMI" : "");
+		is_dvi = false;
+		is_hdmi = false;
+	}
+
 	info->supports_dvi = is_dvi;
 	info->supports_hdmi = is_hdmi;
 	info->supports_dp = is_dp;

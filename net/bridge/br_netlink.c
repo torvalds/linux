@@ -768,6 +768,13 @@ static int br_validate(struct nlattr *tb[], struct nlattr *data[])
 			return -EPROTONOSUPPORT;
 		}
 	}
+
+	if (data[IFLA_BR_VLAN_DEFAULT_PVID]) {
+		__u16 defpvid = nla_get_u16(data[IFLA_BR_VLAN_DEFAULT_PVID]);
+
+		if (defpvid >= VLAN_VID_MASK)
+			return -EINVAL;
+	}
 #endif
 
 	return 0;
@@ -1066,11 +1073,14 @@ static int br_dev_newlink(struct net *src_net, struct net_device *dev,
 		spin_unlock_bh(&br->lock);
 	}
 
-	err = br_changelink(dev, tb, data);
+	err = register_netdevice(dev);
 	if (err)
 		return err;
 
-	return register_netdevice(dev);
+	err = br_changelink(dev, tb, data);
+	if (err)
+		unregister_netdevice(dev);
+	return err;
 }
 
 static size_t br_get_size(const struct net_device *brdev)

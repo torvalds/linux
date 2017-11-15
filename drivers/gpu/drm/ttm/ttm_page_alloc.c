@@ -612,7 +612,7 @@ static void ttm_page_pool_fill_locked(struct ttm_page_pool *pool,
 		} else {
 			pr_err("Failed to fill pool (%p)\n", pool);
 			/* If we have any pages left put them to the pool. */
-			list_for_each_entry(p, &pool->list, lru) {
+			list_for_each_entry(p, &new_pages, lru) {
 				++cpages;
 			}
 			list_splice(&new_pages, &pool->list);

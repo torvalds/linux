@@ -53,7 +53,7 @@ static const char * const th_names[] = {
 	"load_store",
 	"insn_fetch",
 	"combined_unit",
-	"",
+	"decode_unit",
 	"northbridge",
 	"execution_unit",
 };
@@ -681,6 +681,9 @@ static int threshold_create_bank(unsigned int cpu, unsigned int bank)
 	struct threshold_bank *b = NULL;
 	const char *name = th_names[bank];
 	int err = 0;
+
+	if (!dev)
+		return -ENODEV;
 
 	if (is_shared_bank(bank)) {
 		nb = node_to_amd_nb(amd_get_nb_id(cpu));

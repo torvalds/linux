@@ -272,3 +272,11 @@ void qeth_l2_setup_bridgeport_attrs(struct qeth_card *card)
 	} else
 		qeth_bridgeport_an_set(card, 0);
 }
+
+const struct attribute_group *qeth_l2_attr_groups[] = {
+	&qeth_device_attr_group,
+	&qeth_device_blkt_group,
+	/* l2 specific, see l2_{create,remove}_device_attributes(): */
+	&qeth_l2_bridgeport_attr_group,
+	NULL,
+};

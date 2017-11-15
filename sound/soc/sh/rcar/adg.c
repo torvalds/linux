@@ -437,7 +437,7 @@ static void rsnd_adg_get_clkout(struct rsnd_priv *priv,
 	struct device *dev = rsnd_priv_to_dev(priv);
 	struct device_node *np = dev->of_node;
 	u32 ckr, rbgx, rbga, rbgb;
-	u32 rate, req_rate, div;
+	u32 rate, req_rate = 0, div;
 	uint32_t count = 0;
 	unsigned long req_48kHz_rate, req_441kHz_rate;
 	int i;

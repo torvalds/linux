@@ -221,7 +221,6 @@ static int xen_blkif_disconnect(struct xen_blkif *blkif)
 	if (blkif->xenblkd) {
 		kthread_stop(blkif->xenblkd);
 		wake_up(&blkif->shutdown_wq);
-		blkif->xenblkd = NULL;
 	}
 
 	/* The above kthread_stop() guarantees that at this point we
@@ -266,9 +265,10 @@ static int xen_blkif_disconnect(struct xen_blkif *blkif)
 
 static void xen_blkif_free(struct xen_blkif *blkif)
 {
-
-	xen_blkif_disconnect(blkif);
+	WARN_ON(xen_blkif_disconnect(blkif));
 	xen_vbd_free(&blkif->vbd);
+	kfree(blkif->be->mode);
+	kfree(blkif->be);
 
 	/* Make sure everything is drained before shutting down */
 	BUG_ON(blkif->persistent_gnt_c != 0);
@@ -445,8 +445,6 @@ static int xen_blkbk_remove(struct xenbus_device *dev)
 		xen_blkif_put(be->blkif);
 	}
 
-	kfree(be->mode);
-	kfree(be);
 	return 0;
 }
 

@@ -3,7 +3,7 @@
  *
  * Interface to Linux SCSI midlayer.
  *
- * Copyright IBM Corp. 2002, 2016
+ * Copyright IBM Corp. 2002, 2017
  */
 
 #define KMSG_COMPONENT "zfcp"
@@ -115,9 +115,14 @@ static int zfcp_scsi_slave_alloc(struct scsi_device *sdev)
 	struct zfcp_unit *unit;
 	int npiv = adapter->connection_features & FSF_FEATURE_NPIV_MODE;
 
+	zfcp_sdev->erp_action.adapter = adapter;
+	zfcp_sdev->erp_action.sdev = sdev;
+
 	port = zfcp_get_port_by_wwpn(adapter, rport->port_name);
 	if (!port)
 		return -ENXIO;
+
+	zfcp_sdev->erp_action.port = port;
 
 	unit = zfcp_unit_find(port, zfcp_scsi_dev_lun(sdev));
 	if (unit)
@@ -273,25 +278,29 @@ static int zfcp_task_mgmt_function(struct scsi_cmnd *scpnt, u8 tm_flags)
 
 		zfcp_erp_wait(adapter);
 		ret = fc_block_scsi_eh(scpnt);
-		if (ret)
+		if (ret) {
+			zfcp_dbf_scsi_devreset("fiof", scpnt, tm_flags, NULL);
 			return ret;
+		}
 
 		if (!(atomic_read(&adapter->status) &
 		      ZFCP_STATUS_COMMON_RUNNING)) {
-			zfcp_dbf_scsi_devreset("nres", scpnt, tm_flags);
+			zfcp_dbf_scsi_devreset("nres", scpnt, tm_flags, NULL);
 			return SUCCESS;
 		}
 	}
-	if (!fsf_req)
+	if (!fsf_req) {
+		zfcp_dbf_scsi_devreset("reqf", scpnt, tm_flags, NULL);
 		return FAILED;
+	}
 
 	wait_for_completion(&fsf_req->completion);
 
 	if (fsf_req->status & ZFCP_STATUS_FSFREQ_TMFUNCFAILED) {
-		zfcp_dbf_scsi_devreset("fail", scpnt, tm_flags);
+		zfcp_dbf_scsi_devreset("fail", scpnt, tm_flags, fsf_req);
 		retval = FAILED;
 	} else {
-		zfcp_dbf_scsi_devreset("okay", scpnt, tm_flags);
+		zfcp_dbf_scsi_devreset("okay", scpnt, tm_flags, fsf_req);
 		zfcp_scsi_forget_cmnds(zfcp_sdev, tm_flags);
 	}
 

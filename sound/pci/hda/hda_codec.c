@@ -1755,7 +1755,7 @@ static int get_kctl_0dB_offset(struct hda_codec *codec,
 			return -1;
 		if (*step_to_check && *step_to_check != step) {
 			codec_err(codec, "Mismatching dB step for vmaster slave (%d!=%d)\n",
--				   *step_to_check, step);
+				   *step_to_check, step);
 			return -1;
 		}
 		*step_to_check = step;

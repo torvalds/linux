@@ -952,7 +952,7 @@ void stm_source_unregister_device(struct stm_source_data *data)
 
 	stm_source_link_drop(src);
 
-	device_destroy(&stm_source_class, src->dev.devt);
+	device_unregister(&src->dev);
 }
 EXPORT_SYMBOL_GPL(stm_source_unregister_device);
 

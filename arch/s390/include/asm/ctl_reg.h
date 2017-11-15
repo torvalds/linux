@@ -15,7 +15,9 @@
 	BUILD_BUG_ON(sizeof(addrtype) != (high - low + 1) * sizeof(long));\
 	asm volatile(							\
 		"	lctlg	%1,%2,%0\n"				\
-		: : "Q" (*(addrtype *)(&array)), "i" (low), "i" (high));\
+		:							\
+		: "Q" (*(addrtype *)(&array)), "i" (low), "i" (high)	\
+		: "memory");						\
 }
 
 #define __ctl_store(array, low, high) {					\

@@ -281,16 +281,16 @@ static int cmtp_session(void *arg)
 	struct cmtp_session *session = arg;
 	struct sock *sk = session->sock->sk;
 	struct sk_buff *skb;
-	wait_queue_t wait;
+	DEFINE_WAIT_FUNC(wait, woken_wake_function);
 
 	BT_DBG("session %p", session);
 
 	set_user_nice(current, -15);
 
-	init_waitqueue_entry(&wait, current);
 	add_wait_queue(sk_sleep(sk), &wait);
 	while (1) {
-		set_current_state(TASK_INTERRUPTIBLE);
+		/* Ensure session->terminate is updated */
+		smp_mb__before_atomic();
 
 		if (atomic_read(&session->terminate))
 			break;
@@ -307,9 +307,8 @@ static int cmtp_session(void *arg)
 
 		cmtp_process_transmit(session);
 
-		schedule();
+		wait_woken(&wait, TASK_INTERRUPTIBLE, MAX_SCHEDULE_TIMEOUT);
 	}
-	__set_current_state(TASK_RUNNING);
 	remove_wait_queue(sk_sleep(sk), &wait);
 
 	down_write(&cmtp_session_sem);
@@ -394,7 +393,7 @@ int cmtp_add_connection(struct cmtp_connadd_req *req, struct socket *sock)
 		err = cmtp_attach_device(session);
 		if (err < 0) {
 			atomic_inc(&session->terminate);
-			wake_up_process(session->task);
+			wake_up_interruptible(sk_sleep(session->sock->sk));
 			up_write(&cmtp_session_sem);
 			return err;
 		}
@@ -432,7 +431,11 @@ int cmtp_del_connection(struct cmtp_conndel_req *req)
 
 		/* Stop session thread */
 		atomic_inc(&session->terminate);
-		wake_up_process(session->task);
+
+		/* Ensure session->terminate is updated */
+		smp_mb__after_atomic();
+
+		wake_up_interruptible(sk_sleep(session->sock->sk));
 	} else
 		err = -ENOENT;
 

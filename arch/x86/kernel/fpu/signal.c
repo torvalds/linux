@@ -309,7 +309,9 @@ static int __fpu__restore_sig(void __user *buf, void __user *buf_fx, int size)
 		fpu__drop(fpu);
 
 		if (__copy_from_user(&fpu->state.xsave, buf_fx, state_size) ||
-		    __copy_from_user(&env, buf, sizeof(env))) {
+		    __copy_from_user(&env, buf, sizeof(env)) ||
+		    (state_size > offsetof(struct xregs_state, header) &&
+		     fpu->state.xsave.header.xcomp_bv)) {
 			fpstate_init(&fpu->state);
 			err = -1;
 		} else {

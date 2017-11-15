@@ -227,7 +227,7 @@ void thread__find_cpumode_addr_location(struct thread *thread,
 					struct addr_location *al)
 {
 	size_t i;
-	const u8 const cpumodes[] = {
+	const u8 cpumodes[] = {
 		PERF_RECORD_MISC_USER,
 		PERF_RECORD_MISC_KERNEL,
 		PERF_RECORD_MISC_GUEST_USER,

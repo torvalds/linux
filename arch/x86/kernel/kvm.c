@@ -151,6 +151,8 @@ void kvm_async_pf_task_wait(u32 token)
 		if (hlist_unhashed(&n.link))
 			break;
 
+		rcu_irq_exit();
+
 		if (!n.halted) {
 			local_irq_enable();
 			schedule();
@@ -159,11 +161,11 @@ void kvm_async_pf_task_wait(u32 token)
 			/*
 			 * We cannot reschedule. So halt.
 			 */
-			rcu_irq_exit();
 			native_safe_halt();
-			rcu_irq_enter();
 			local_irq_disable();
 		}
+
+		rcu_irq_enter();
 	}
 	if (!n.halted)
 		finish_wait(&n.wq, &wait);

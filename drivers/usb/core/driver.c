@@ -1328,6 +1328,24 @@ static int usb_suspend_both(struct usb_device *udev, pm_message_t msg)
 		 */
 		if (udev->parent && !PMSG_IS_AUTO(msg))
 			status = 0;
+
+		/*
+		 * If the device is inaccessible, don't try to resume
+		 * suspended interfaces and just return the error.
+		 */
+		if (status && status != -EBUSY) {
+			int err;
+			u16 devstat;
+
+			err = usb_get_status(udev, USB_RECIP_DEVICE, 0,
+					     &devstat);
+			if (err) {
+				dev_err(&udev->dev,
+					"Failed to suspend device, error %d\n",
+					status);
+				goto done;
+			}
+		}
 	}
 
 	/* If the suspend failed, resume interfaces that did get suspended */
@@ -1759,6 +1777,9 @@ static int autosuspend_check(struct usb_device *udev)
 {
 	int			w, i;
 	struct usb_interface	*intf;
+
+	if (udev->state == USB_STATE_NOTATTACHED)
+		return -ENODEV;
 
 	/* Fail if autosuspend is disabled, or any interfaces are in use, or
 	 * any interface drivers require remote wakeup but it isn't available.

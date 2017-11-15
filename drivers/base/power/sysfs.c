@@ -268,6 +268,8 @@ static ssize_t pm_qos_latency_tolerance_store(struct device *dev,
 			value = PM_QOS_LATENCY_TOLERANCE_NO_CONSTRAINT;
 		else if (!strcmp(buf, "any") || !strcmp(buf, "any\n"))
 			value = PM_QOS_LATENCY_ANY;
+		else
+			return -EINVAL;
 	}
 	ret = dev_pm_qos_update_user_latency_tolerance(dev, value);
 	return ret < 0 ? ret : n;

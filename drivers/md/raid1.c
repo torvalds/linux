@@ -570,7 +570,7 @@ static int read_balance(struct r1conf *conf, struct r1bio *r1_bio, int *max_sect
 			if (best_dist_disk < 0) {
 				if (is_badblock(rdev, this_sector, sectors,
 						&first_bad, &bad_sectors)) {
-					if (first_bad < this_sector)
+					if (first_bad <= this_sector)
 						/* Cannot use this */
 						continue;
 					best_good_sectors = first_bad - this_sector;
@@ -877,7 +877,8 @@ static sector_t wait_barrier(struct r1conf *conf, struct bio *bio)
 				     ((conf->start_next_window <
 				       conf->next_resync + RESYNC_SECTORS) &&
 				      current->bio_list &&
-				      !bio_list_empty(current->bio_list))),
+				     (!bio_list_empty(&current->bio_list[0]) ||
+				      !bio_list_empty(&current->bio_list[1])))),
 				    conf->resync_lock);
 		conf->nr_waiting--;
 	}
@@ -1087,7 +1088,7 @@ static void make_request(struct mddev *mddev, struct bio * bio)
 		 */
 		DEFINE_WAIT(w);
 		for (;;) {
-			flush_signals(current);
+			sigset_t full, old;
 			prepare_to_wait(&conf->wait_barrier,
 					&w, TASK_INTERRUPTIBLE);
 			if (bio_end_sector(bio) <= mddev->suspend_lo ||
@@ -1096,7 +1097,10 @@ static void make_request(struct mddev *mddev, struct bio * bio)
 			     !md_cluster_ops->area_resyncing(mddev, WRITE,
 				     bio->bi_iter.bi_sector, bio_end_sector(bio))))
 				break;
+			sigfillset(&full);
+			sigprocmask(SIG_BLOCK, &full, &old);
 			schedule();
+			sigprocmask(SIG_SETMASK, &old, NULL);
 		}
 		finish_wait(&conf->wait_barrier, &w);
 	}

@@ -1570,13 +1570,13 @@ static int __bench_numa(const char *name)
 		"GB/sec,", "total-speed",	"GB/sec total speed");
 
 	if (g->p.show_details >= 2) {
-		char tname[32];
+		char tname[14 + 2 * 10 + 1];
 		struct thread_data *td;
 		for (p = 0; p < g->p.nr_proc; p++) {
 			for (t = 0; t < g->p.nr_threads; t++) {
-				memset(tname, 0, 32);
+				memset(tname, 0, sizeof(tname));
 				td = g->threads + p*g->p.nr_threads + t;
-				snprintf(tname, 32, "process%d:thread%d", p, t);
+				snprintf(tname, sizeof(tname), "process%d:thread%d", p, t);
 				print_res(tname, td->speed_gbs,
 					"GB/sec",	"thread-speed", "GB/sec/thread speed");
 				print_res(tname, td->system_time_ns / 1e9,

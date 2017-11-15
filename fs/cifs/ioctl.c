@@ -272,6 +272,8 @@ long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 				rc = -EOPNOTSUPP;
 			break;
 		case CIFS_IOC_GET_MNT_INFO:
+			if (pSMBFile == NULL)
+				break;
 			tcon = tlink_tcon(pSMBFile->tlink);
 			rc = smb_mnt_get_fsinfo(xid, tcon, (void __user *)arg);
 			break;

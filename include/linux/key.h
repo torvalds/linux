@@ -126,6 +126,11 @@ static inline bool is_key_possessed(const key_ref_t key_ref)
 	return (unsigned long) key_ref & 1UL;
 }
 
+enum key_state {
+	KEY_IS_UNINSTANTIATED,
+	KEY_IS_POSITIVE,		/* Positively instantiated */
+};
+
 /*****************************************************************************/
 /*
  * authentication token / access credential / keyring
@@ -157,6 +162,7 @@ struct key {
 						 * - may not match RCU dereferenced payload
 						 * - payload should contain own length
 						 */
+	short			state;		/* Key state (+) or rejection error (-) */
 
 #ifdef KEY_DEBUGGING
 	unsigned		magic;
@@ -165,18 +171,17 @@ struct key {
 #endif
 
 	unsigned long		flags;		/* status flags (change with bitops) */
-#define KEY_FLAG_INSTANTIATED	0	/* set if key has been instantiated */
-#define KEY_FLAG_DEAD		1	/* set if key type has been deleted */
-#define KEY_FLAG_REVOKED	2	/* set if key had been revoked */
-#define KEY_FLAG_IN_QUOTA	3	/* set if key consumes quota */
-#define KEY_FLAG_USER_CONSTRUCT	4	/* set if key is being constructed in userspace */
-#define KEY_FLAG_NEGATIVE	5	/* set if key is negative */
-#define KEY_FLAG_ROOT_CAN_CLEAR	6	/* set if key can be cleared by root without permission */
-#define KEY_FLAG_INVALIDATED	7	/* set if key has been invalidated */
-#define KEY_FLAG_TRUSTED	8	/* set if key is trusted */
-#define KEY_FLAG_TRUSTED_ONLY	9	/* set if keyring only accepts links to trusted keys */
-#define KEY_FLAG_BUILTIN	10	/* set if key is builtin */
-#define KEY_FLAG_ROOT_CAN_INVAL	11	/* set if key can be invalidated by root without permission */
+#define KEY_FLAG_DEAD		0	/* set if key type has been deleted */
+#define KEY_FLAG_REVOKED	1	/* set if key had been revoked */
+#define KEY_FLAG_IN_QUOTA	2	/* set if key consumes quota */
+#define KEY_FLAG_USER_CONSTRUCT	3	/* set if key is being constructed in userspace */
+#define KEY_FLAG_ROOT_CAN_CLEAR	4	/* set if key can be cleared by root without permission */
+#define KEY_FLAG_INVALIDATED	5	/* set if key has been invalidated */
+#define KEY_FLAG_TRUSTED	6	/* set if key is trusted */
+#define KEY_FLAG_TRUSTED_ONLY	7	/* set if keyring only accepts links to trusted keys */
+#define KEY_FLAG_BUILTIN	8	/* set if key is builtin */
+#define KEY_FLAG_ROOT_CAN_INVAL	9	/* set if key can be invalidated by root without permission */
+#define KEY_FLAG_UID_KEYRING	10	/* set if key is a user or user session keyring */
 
 	/* the key type and key description string
 	 * - the desc is used to match a key against search criteria
@@ -202,7 +207,6 @@ struct key {
 			struct list_head name_link;
 			struct assoc_array keys;
 		};
-		int reject_error;
 	};
 };
 
@@ -218,6 +222,7 @@ extern struct key *key_alloc(struct key_type *type,
 #define KEY_ALLOC_QUOTA_OVERRUN	0x0001	/* add to quota, permit even if overrun */
 #define KEY_ALLOC_NOT_IN_QUOTA	0x0002	/* not in quota */
 #define KEY_ALLOC_TRUSTED	0x0004	/* Key should be flagged as trusted */
+#define KEY_ALLOC_UID_KEYRING	0x0010	/* allocating a user or user session keyring */
 
 extern void key_revoke(struct key *key);
 extern void key_invalidate(struct key *key);
@@ -317,17 +322,27 @@ extern void key_set_timeout(struct key *, unsigned);
 #define	KEY_NEED_SETATTR 0x20	/* Require permission to change attributes */
 #define	KEY_NEED_ALL	0x3f	/* All the above permissions */
 
+static inline short key_read_state(const struct key *key)
+{
+	/* Barrier versus mark_key_instantiated(). */
+	return smp_load_acquire(&key->state);
+}
+
 /**
- * key_is_instantiated - Determine if a key has been positively instantiated
+ * key_is_positive - Determine if a key has been positively instantiated
  * @key: The key to check.
  *
  * Return true if the specified key has been positively instantiated, false
  * otherwise.
  */
-static inline bool key_is_instantiated(const struct key *key)
+static inline bool key_is_positive(const struct key *key)
 {
-	return test_bit(KEY_FLAG_INSTANTIATED, &key->flags) &&
-		!test_bit(KEY_FLAG_NEGATIVE, &key->flags);
+	return key_read_state(key) == KEY_IS_POSITIVE;
+}
+
+static inline bool key_is_negative(const struct key *key)
+{
+	return key_read_state(key) < 0;
 }
 
 #define rcu_dereference_key(KEY)					\

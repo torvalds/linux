@@ -14,6 +14,7 @@
 #ifndef _NVME_H
 #define _NVME_H
 
+#include <linux/mutex.h>
 #include <linux/nvme.h>
 #include <linux/pci.h>
 #include <linux/kref.h>
@@ -26,6 +27,13 @@ enum {
 	NVME_NS_LBA		= 0,
 	NVME_NS_LIGHTNVM	= 1,
 };
+
+/* The below value is the specific amount of delay needed before checking
+ * readiness in case of the PCI_DEVICE(0x1c58, 0x0003), which needs the
+ * NVME_QUIRK_DELAY_BEFORE_CHK_RDY quirk enabled. The value (in ms) was
+ * found empirically.
+ */
+#define NVME_QUIRK_DELAY_AMOUNT		2000
 
 /*
  * Represents an NVM Express device.  Each nvme_dev is a PCI function.
@@ -55,6 +63,7 @@ struct nvme_dev {
 	struct work_struct reset_work;
 	struct work_struct probe_work;
 	struct work_struct scan_work;
+	struct mutex shutdown_lock;
 	char name[12];
 	char serial[20];
 	char model[40];
