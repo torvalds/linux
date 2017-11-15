@@ -1337,8 +1337,9 @@ package-dir	:= scripts/package
 	$(Q)$(MAKE) $(build)=$(package-dir) $@
 %pkg: include/config/kernel.release FORCE
 	$(Q)$(MAKE) $(build)=$(package-dir) $@
-rpm: include/config/kernel.release FORCE
-	$(Q)$(MAKE) $(build)=$(package-dir) $@
+rpm: rpm-pkg
+	@echo "  WARNING: \"rpm\" target will be removed after Linux 4.18"
+	@echo "           Please use \"rpm-pkg\" instead."
 
 
 # Brief documentation of the typical targets used
