@@ -13,6 +13,7 @@ Required properties:
 - #dma-cells : Must be <4>. See DMA client paragraph for more details.
 
 Optional properties:
+- dma-requests : Number of DMA requests supported.
 - resets: Reference to a reset controller asserting the DMA controller
 - st,mem2mem: boolean; if defined, it indicates that the controller supports
   memory-to-memory transfer
@@ -34,12 +35,13 @@ Example:
 		#dma-cells = <4>;
 		st,mem2mem;
 		resets = <&rcc 150>;
+		dma-requests = <8>;
 	};
 
 * DMA client
 
 DMA clients connected to the STM32 DMA controller must use the format
-described in the dma.txt file, using a five-cell specifier for each
+described in the dma.txt file, using a four-cell specifier for each
 channel: a phandle to the DMA controller plus the following four integer cells:
 
 1. The channel id

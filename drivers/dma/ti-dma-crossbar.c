@@ -49,12 +49,12 @@ struct ti_am335x_xbar_data {
 
 struct ti_am335x_xbar_map {
 	u16 dma_line;
-	u16 mux_val;
+	u8 mux_val;
 };
 
-static inline void ti_am335x_xbar_write(void __iomem *iomem, int event, u16 val)
+static inline void ti_am335x_xbar_write(void __iomem *iomem, int event, u8 val)
 {
-	writeb_relaxed(val & 0x1f, iomem + event);
+	writeb_relaxed(val, iomem + event);
 }
 
 static void ti_am335x_xbar_free(struct device *dev, void *route_data)
@@ -105,7 +105,7 @@ static void *ti_am335x_xbar_route_allocate(struct of_phandle_args *dma_spec,
 	}
 
 	map->dma_line = (u16)dma_spec->args[0];
-	map->mux_val = (u16)dma_spec->args[2];
+	map->mux_val = (u8)dma_spec->args[2];
 
 	dma_spec->args[2] = 0;
 	dma_spec->args_count = 2;
