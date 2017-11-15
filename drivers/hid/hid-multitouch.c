@@ -113,6 +113,7 @@ struct mt_device {
 	struct mt_slot curdata;	/* placeholder of incoming data */
 	struct mt_class mtclass;	/* our mt device class */
 	struct timer_list release_timer;	/* to release sticky fingers */
+	struct hid_device *hdev;	/* hid_device we're attached to */
 	struct mt_fields *fields;	/* temporary placeholder for storing the
 					   multitouch fields */
 	unsigned long mt_io_flags;	/* mt flags (MT_IO_FLAGS_*) */
@@ -1288,10 +1289,10 @@ static void mt_release_contacts(struct hid_device *hid)
 	td->num_received = 0;
 }
 
-static void mt_expired_timeout(unsigned long arg)
+static void mt_expired_timeout(struct timer_list *t)
 {
-	struct hid_device *hdev = (void *)arg;
-	struct mt_device *td = hid_get_drvdata(hdev);
+	struct mt_device *td = from_timer(td, t, release_timer);
+	struct hid_device *hdev = td->hdev;
 
 	/*
 	 * An input report came in just before we release the sticky fingers,
@@ -1322,6 +1323,7 @@ static int mt_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		dev_err(&hdev->dev, "cannot allocate multitouch data\n");
 		return -ENOMEM;
 	}
+	td->hdev = hdev;
 	td->mtclass = *mtclass;
 	td->inputmode = -1;
 	td->maxcontact_report_id = -1;
@@ -1373,7 +1375,7 @@ static int mt_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	 */
 	hdev->quirks |= HID_QUIRK_NO_INIT_REPORTS;
 
-	setup_timer(&td->release_timer, mt_expired_timeout, (long)hdev);
+	timer_setup(&td->release_timer, mt_expired_timeout, 0);
 
 	ret = hid_parse(hdev);
 	if (ret != 0)
