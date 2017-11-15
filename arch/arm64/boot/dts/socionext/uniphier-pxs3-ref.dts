@@ -38,7 +38,8 @@
 };
 
 &ethsc {
-	interrupts = <0 52 4>;
+	interrupt-parent = <&gpio>;
+	interrupts = <0 8>;
 };
 
 &serial0 {
