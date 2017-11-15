@@ -1584,8 +1584,8 @@ static void calc_percent(struct sym_hist *hist,
 	}
 }
 
-static int annotation__calc_percent(struct annotation *notes,
-				    struct perf_evsel *evsel, s64 len)
+static void annotation__calc_percent(struct annotation *notes,
+				     struct perf_evsel *evsel, s64 len)
 {
 	struct annotation_line *al, *next;
 
@@ -1609,15 +1609,13 @@ static int annotation__calc_percent(struct annotation *notes,
 			calc_percent(hist, sample, al->offset, end);
 		}
 	}
-
-	return 0;
 }
 
-int symbol__calc_percent(struct symbol *sym, struct perf_evsel *evsel)
+void symbol__calc_percent(struct symbol *sym, struct perf_evsel *evsel)
 {
 	struct annotation *notes = symbol__annotation(sym);
 
-	return annotation__calc_percent(notes, evsel, symbol__size(sym));
+	annotation__calc_percent(notes, evsel, symbol__size(sym));
 }
 
 int symbol__annotate(struct symbol *sym, struct map *map,
@@ -1656,10 +1654,11 @@ int symbol__annotate(struct symbol *sym, struct map *map,
 	}
 
 	err = symbol__disassemble(sym, &args);
-	if (err)
-		return err;
+	if (!err)
+		symbol__calc_percent(sym, evsel);
 
-	return symbol__calc_percent(sym, evsel);
+	return err;
+
 }
 
 static void insert_source_line(struct rb_root *root, struct annotation_line *al)

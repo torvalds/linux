@@ -107,7 +107,7 @@ struct annotation_line *
 annotation_line__next(struct annotation_line *pos, struct list_head *head);
 int disasm_line__scnprintf(struct disasm_line *dl, char *bf, size_t size, bool raw);
 size_t disasm__fprintf(struct list_head *head, FILE *fp);
-int symbol__calc_percent(struct symbol *sym, struct perf_evsel *evsel);
+void symbol__calc_percent(struct symbol *sym, struct perf_evsel *evsel);
 
 struct sym_hist {
 	u64		      nr_samples;
