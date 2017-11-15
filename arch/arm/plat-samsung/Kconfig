@@ -278,7 +278,7 @@ config SAMSUNG_PM_CHECK_CHUNKSIZE
 	help
 	  Set the chunksize in Kilobytes of the CRC for checking memory
 	  corruption over suspend and resume. A smaller value will mean that
-	  the CRC data block will take more memory, but wil identify any
+	  the CRC data block will take more memory, but will identify any
 	  faults with better precision.
 
 	  See <file:Documentation/arm/Samsung-S3C24XX/Suspend.txt>

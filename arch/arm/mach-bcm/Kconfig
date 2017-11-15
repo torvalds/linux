@@ -23,7 +23,7 @@ config ARCH_BCM_IPROC
 	help
 	  This enables support for systems based on Broadcom IPROC architected SoCs.
 	  The IPROC complex contains one or more ARM CPUs along with common
-	  core periperals. Application specific SoCs are created by adding a
+	  core peripherals. Application specific SoCs are created by adding a
 	  uArchitecture containing peripherals outside of the IPROC complex.
 	  Currently supported SoCs are Cygnus.
 
@@ -69,8 +69,8 @@ config ARCH_BCM_5301X
 	  Support for Broadcom BCM470X and BCM5301X SoCs with ARM CPU cores.
 
 	  This is a network SoC line mostly used in home routers and
-	  wifi access points, it's internal name is Northstar.
-	  This inclused the following SoC: BCM53010, BCM53011, BCM53012,
+	  wifi access points, its internal name is Northstar.
+	  This includes the following SoC: BCM53010, BCM53011, BCM53012,
 	  BCM53014, BCM53015, BCM53016, BCM53017, BCM53018, BCM4707,
 	  BCM4708 and BCM4709.
 

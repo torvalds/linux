@@ -1759,7 +1759,7 @@ config MODULE_SIG
 	help
 	  Check modules for valid signatures upon load: the signature
 	  is simply appended to the module. For more information see
-	  Documentation/module-signing.txt.
+	  <file:Documentation/admin-guide/module-signing.rst>.
 
 	  Note that this option adds the OpenSSL development packages as a
 	  kernel build dependency so that the signing tool can use its crypto
