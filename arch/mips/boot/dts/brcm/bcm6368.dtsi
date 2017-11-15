@@ -90,6 +90,7 @@
 			interrupt-parent = <&periph_intc>;
 			interrupts = <2>;
 			clocks = <&periph_clk>;
+			clock-names = "refclk";
 			status = "disabled";
 		};
 
@@ -99,6 +100,7 @@
 			interrupt-parent = <&periph_intc>;
 			interrupts = <3>;
 			clocks = <&periph_clk>;
+			clock-names = "refclk";
 			status = "disabled";
 		};
 

@@ -47,6 +47,6 @@
 	};
 
 	usb@101c0000 {
-		status = "ok";
+		status = "okay";
 	};
 };
