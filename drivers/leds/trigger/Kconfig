@@ -77,6 +77,15 @@ config LEDS_TRIGGER_CPU
 
 	  If unsure, say N.
 
+config LEDS_TRIGGER_ACTIVITY
+	tristate "LED activity Trigger"
+	depends on LEDS_TRIGGERS
+	help
+	  This allows LEDs to be controlled by a immediate CPU usage.
+	  The flash frequency and duty cycle varies from faint flashes to
+	  intense brightness depending on the instant CPU load.
+	  If unsure, say N.
+
 config LEDS_TRIGGER_GPIO
 	tristate "LED GPIO Trigger"
 	depends on LEDS_TRIGGERS
