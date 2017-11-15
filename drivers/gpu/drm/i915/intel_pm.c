@@ -2026,16 +2026,27 @@ static void vlv_atomic_update_fifo(struct intel_atomic_state *state,
 
 static int vlv_compute_intermediate_wm(struct drm_device *dev,
 				       struct intel_crtc *crtc,
-				       struct intel_crtc_state *crtc_state)
+				       struct intel_crtc_state *new_crtc_state)
 {
-	struct vlv_wm_state *intermediate = &crtc_state->wm.vlv.intermediate;
-	const struct vlv_wm_state *optimal = &crtc_state->wm.vlv.optimal;
-	const struct vlv_wm_state *active = &crtc->wm.active.vlv;
+	struct vlv_wm_state *intermediate = &new_crtc_state->wm.vlv.intermediate;
+	const struct vlv_wm_state *optimal = &new_crtc_state->wm.vlv.optimal;
+	struct intel_atomic_state *intel_state =
+		to_intel_atomic_state(new_crtc_state->base.state);
+	const struct intel_crtc_state *old_crtc_state =
+		intel_atomic_get_old_crtc_state(intel_state, crtc);
+	const struct vlv_wm_state *active = &old_crtc_state->wm.vlv.optimal;
 	int level;
+
+	if (!new_crtc_state->base.active || drm_atomic_crtc_needs_modeset(&new_crtc_state->base)) {
+		*intermediate = *optimal;
+
+		intermediate->cxsr = false;
+		goto out;
+	}
 
 	intermediate->num_levels = min(optimal->num_levels, active->num_levels);
 	intermediate->cxsr = optimal->cxsr && active->cxsr &&
-		!crtc_state->disable_cxsr;
+		!new_crtc_state->disable_cxsr;
 
 	for (level = 0; level < intermediate->num_levels; level++) {
 		enum plane_id plane_id;
@@ -2054,12 +2065,13 @@ static int vlv_compute_intermediate_wm(struct drm_device *dev,
 
 	vlv_invalidate_wms(crtc, intermediate, level);
 
+out:
 	/*
 	 * If our intermediate WM are identical to the final WM, then we can
 	 * omit the post-vblank programming; only update if it's different.
 	 */
 	if (memcmp(intermediate, optimal, sizeof(*intermediate)) != 0)
-		crtc_state->wm.need_postvbl_update = true;
+		new_crtc_state->wm.need_postvbl_update = true;
 
 	return 0;
 }
