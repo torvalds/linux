@@ -18,6 +18,7 @@
 
 #include <linux/fpga/fpga-bridge.h>
 #include <linux/fpga/fpga-mgr.h>
+#include <linux/fpga/fpga-region.h>
 #include <linux/idr.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
@@ -25,24 +26,6 @@
 #include <linux/of_platform.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
-
-/**
- * struct fpga_region - FPGA Region structure
- * @dev: FPGA Region device
- * @mutex: enforces exclusive reference to region
- * @bridge_list: list of FPGA bridges specified in region
- * @mgr: FPGA manager
- * @info: fpga image specific information
- */
-struct fpga_region {
-	struct device dev;
-	struct mutex mutex; /* for exclusive reference to region */
-	struct list_head bridge_list;
-	struct fpga_manager *mgr;
-	struct fpga_image_info *info;
-};
-
-#define to_fpga_region(d) container_of(d, struct fpga_region, dev)
 
 static DEFINE_IDA(fpga_region_ida);
 static struct class *fpga_region_class;
@@ -226,7 +209,7 @@ static int fpga_region_get_bridges(struct fpga_region *region,
  * Program an FPGA using fpga image info (region->info).
  * Return 0 for success or negative error code.
  */
-static int fpga_region_program_fpga(struct fpga_region *region)
+int fpga_region_program_fpga(struct fpga_region *region)
 {
 	struct device *dev = &region->dev;
 	struct fpga_image_info *info = region->info;
@@ -282,6 +265,7 @@ err_put_region:
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(fpga_region_program_fpga);
 
 /**
  * child_regions_with_firmware
@@ -667,5 +651,5 @@ subsys_initcall(fpga_region_init);
 module_exit(fpga_region_exit);
 
 MODULE_DESCRIPTION("FPGA Region");
-MODULE_AUTHOR("Alan Tull <atull@opensource.altera.com>");
+MODULE_AUTHOR("Alan Tull <atull@kernel.org>");
 MODULE_LICENSE("GPL v2");
