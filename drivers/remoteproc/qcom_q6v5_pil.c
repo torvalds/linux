@@ -580,7 +580,8 @@ static int q6v5_mpss_init_image(struct q6v5 *qproc, const struct firmware *fw)
 	if (ret) {
 		dev_err(qproc->dev,
 			"assigning Q6 access to metadata failed: %d\n", ret);
-		return -EAGAIN;
+		ret = -EAGAIN;
+		goto free_dma_attrs;
 	}
 
 	writel(phys, qproc->rmb_base + RMB_PMI_META_DATA_REG);
@@ -599,6 +600,7 @@ static int q6v5_mpss_init_image(struct q6v5 *qproc, const struct firmware *fw)
 		dev_warn(qproc->dev,
 			 "mdt buffer not reclaimed system may become unstable\n");
 
+free_dma_attrs:
 	dma_free_attrs(qproc->dev, fw->size, ptr, phys, dma_attrs);
 
 	return ret < 0 ? ret : 0;
@@ -712,7 +714,8 @@ static int q6v5_mpss_load(struct q6v5 *qproc)
 	if (ret) {
 		dev_err(qproc->dev,
 			"assigning Q6 access to mpss memory failed: %d\n", ret);
-		return -EAGAIN;
+		ret = -EAGAIN;
+		goto release_firmware;
 	}
 
 	boot_addr = relocate ? qproc->mpss_phys : min_addr;
