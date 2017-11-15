@@ -86,8 +86,7 @@ static void perf_top__update_print_entries(struct perf_top *top)
 	top->print_entries = top->winsize.ws_row - HEADER_LINE_NR;
 }
 
-static void perf_top__sig_winch(int sig __maybe_unused,
-				siginfo_t *info __maybe_unused, void *arg __maybe_unused)
+static void winch_sig(int sig __maybe_unused)
 {
 	resize = 1;
 }
@@ -480,12 +479,8 @@ static bool perf_top__handle_keypress(struct perf_top *top, int c)
 		case 'e':
 			prompt_integer(&top->print_entries, "Enter display entries (lines)");
 			if (top->print_entries == 0) {
-				struct sigaction act = {
-					.sa_sigaction = perf_top__sig_winch,
-					.sa_flags     = SA_SIGINFO,
-				};
 				perf_top__resize(top);
-				sigaction(SIGWINCH, &act, NULL);
+				signal(SIGWINCH, winch_sig);
 			} else {
 				signal(SIGWINCH, SIG_DFL);
 			}
@@ -1366,12 +1361,8 @@ int cmd_top(int argc, const char **argv)
 
 	get_term_dimensions(&top.winsize);
 	if (top.print_entries == 0) {
-		struct sigaction act = {
-			.sa_sigaction = perf_top__sig_winch,
-			.sa_flags     = SA_SIGINFO,
-		};
 		perf_top__update_print_entries(&top);
-		sigaction(SIGWINCH, &act, NULL);
+		signal(SIGWINCH, winch_sig);
 	}
 
 	status = __cmd_top(&top);
