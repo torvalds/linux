@@ -1058,6 +1058,7 @@ static void omap_gpio_mod_init(struct gpio_bank *bank)
 
 static int omap_gpio_chip_init(struct gpio_bank *bank, struct irq_chip *irqc)
 {
+	struct gpio_irq_chip *irq;
 	static int gpio;
 	int irq_base = 0;
 	int ret;
@@ -1085,16 +1086,6 @@ static int omap_gpio_chip_init(struct gpio_bank *bank, struct irq_chip *irqc)
 	}
 	bank->chip.ngpio = bank->width;
 
-	ret = gpiochip_add_data(&bank->chip, bank);
-	if (ret) {
-		dev_err(bank->chip.parent,
-			"Could not register gpio chip %d\n", ret);
-		return ret;
-	}
-
-	if (!bank->is_mpuio)
-		gpio += bank->width;
-
 #ifdef CONFIG_ARCH_OMAP1
 	/*
 	 * REVISIT: Once we have OMAP1 supporting SPARSE_IRQ, we can drop
@@ -1115,24 +1106,29 @@ static int omap_gpio_chip_init(struct gpio_bank *bank, struct irq_chip *irqc)
 			irqc->irq_set_wake = NULL;
 	}
 
-	ret = gpiochip_irqchip_add(&bank->chip, irqc,
-				   irq_base, handle_bad_irq,
-				   IRQ_TYPE_NONE);
+	irq = &bank->chip.irq;
+	irq->chip = irqc;
+	irq->handler = handle_bad_irq;
+	irq->default_type = IRQ_TYPE_NONE;
+	irq->num_parents = 1;
+	irq->parents = &bank->irq;
+	irq->first = irq_base;
 
+	ret = gpiochip_add_data(&bank->chip, bank);
 	if (ret) {
 		dev_err(bank->chip.parent,
-			"Couldn't add irqchip to gpiochip %d\n", ret);
-		gpiochip_remove(&bank->chip);
-		return -ENODEV;
+			"Could not register gpio chip %d\n", ret);
+		return ret;
 	}
-
-	gpiochip_set_chained_irqchip(&bank->chip, irqc, bank->irq, NULL);
 
 	ret = devm_request_irq(bank->chip.parent, bank->irq,
 			       omap_gpio_irq_handler,
 			       0, dev_name(bank->chip.parent), bank);
 	if (ret)
 		gpiochip_remove(&bank->chip);
+
+	if (!bank->is_mpuio)
+		gpio += bank->width;
 
 	return ret;
 }
