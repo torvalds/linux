@@ -1427,6 +1427,8 @@
 				interrupts = <40 IRQ_TYPE_LEVEL_HIGH 7>;
 				clocks = <&adc_clk>;
 				clock-names = "adc_clk";
+				dmas = <&dma0 (AT91_XDMAC_DT_MEM_IF(0) | AT91_XDMAC_DT_PER_IF(1) | AT91_XDMAC_DT_PERID(25))>;
+				dma-names = "rx";
 				atmel,min-sample-rate-hz = <200000>;
 				atmel,max-sample-rate-hz = <20000000>;
 				atmel,startup-time-ms = <4>;
