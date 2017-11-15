@@ -572,60 +572,37 @@ static int ttm_bo_cleanup_refs(struct ttm_buffer_object *bo,
  * Traverse the delayed list, and call ttm_bo_cleanup_refs on all
  * encountered buffers.
  */
-
-static int ttm_bo_delayed_delete(struct ttm_bo_device *bdev, bool remove_all)
+static bool ttm_bo_delayed_delete(struct ttm_bo_device *bdev, bool remove_all)
 {
 	struct ttm_bo_global *glob = bdev->glob;
-	struct ttm_buffer_object *entry = NULL;
-	int ret = 0;
+	struct list_head removed;
+	bool empty;
+
+	INIT_LIST_HEAD(&removed);
 
 	spin_lock(&glob->lru_lock);
-	if (list_empty(&bdev->ddestroy))
-		goto out_unlock;
+	while (!list_empty(&bdev->ddestroy)) {
+		struct ttm_buffer_object *bo;
 
-	entry = list_first_entry(&bdev->ddestroy,
-		struct ttm_buffer_object, ddestroy);
-	kref_get(&entry->list_kref);
+		bo = list_first_entry(&bdev->ddestroy, struct ttm_buffer_object,
+				      ddestroy);
+		kref_get(&bo->list_kref);
+		list_move_tail(&bo->ddestroy, &removed);
+		spin_unlock(&glob->lru_lock);
 
-	for (;;) {
-		struct ttm_buffer_object *nentry = NULL;
-
-		if (entry->ddestroy.next != &bdev->ddestroy) {
-			nentry = list_first_entry(&entry->ddestroy,
-				struct ttm_buffer_object, ddestroy);
-			kref_get(&nentry->list_kref);
-		}
-
-		ret = reservation_object_trylock(entry->resv) ? 0 : -EBUSY;
-		if (remove_all && ret) {
-			spin_unlock(&glob->lru_lock);
-			ret = reservation_object_lock(entry->resv, NULL);
-			spin_lock(&glob->lru_lock);
-		}
-
-		if (!ret)
-			ret = ttm_bo_cleanup_refs(entry, false, !remove_all,
-						  true);
-		else
-			spin_unlock(&glob->lru_lock);
-
-		kref_put(&entry->list_kref, ttm_bo_release_list);
-		entry = nentry;
-
-		if (ret || !entry)
-			goto out;
+		reservation_object_lock(bo->resv, NULL);
 
 		spin_lock(&glob->lru_lock);
-		if (list_empty(&entry->ddestroy))
-			break;
-	}
+		ttm_bo_cleanup_refs(bo, false, !remove_all, true);
 
-out_unlock:
+		kref_put(&bo->list_kref, ttm_bo_release_list);
+		spin_lock(&glob->lru_lock);
+	}
+	list_splice_tail(&removed, &bdev->ddestroy);
+	empty = list_empty(&bdev->ddestroy);
 	spin_unlock(&glob->lru_lock);
-out:
-	if (entry)
-		kref_put(&entry->list_kref, ttm_bo_release_list);
-	return ret;
+
+	return empty;
 }
 
 static void ttm_bo_delayed_workqueue(struct work_struct *work)
@@ -633,7 +610,7 @@ static void ttm_bo_delayed_workqueue(struct work_struct *work)
 	struct ttm_bo_device *bdev =
 	    container_of(work, struct ttm_bo_device, wq.work);
 
-	if (ttm_bo_delayed_delete(bdev, false)) {
+	if (!ttm_bo_delayed_delete(bdev, false)) {
 		schedule_delayed_work(&bdev->wq,
 				      ((HZ / 100) < 1) ? 1 : HZ / 100);
 	}
@@ -1573,13 +1550,10 @@ int ttm_bo_device_release(struct ttm_bo_device *bdev)
 
 	cancel_delayed_work_sync(&bdev->wq);
 
-	while (ttm_bo_delayed_delete(bdev, true))
-		;
-
-	spin_lock(&glob->lru_lock);
-	if (list_empty(&bdev->ddestroy))
+	if (ttm_bo_delayed_delete(bdev, true))
 		TTM_DEBUG("Delayed destroy list was clean\n");
 
+	spin_lock(&glob->lru_lock);
 	for (i = 0; i < TTM_MAX_BO_PRIORITY; ++i)
 		if (list_empty(&bdev->man[0].lru[0]))
 			TTM_DEBUG("Swap list %d was clean\n", i);
