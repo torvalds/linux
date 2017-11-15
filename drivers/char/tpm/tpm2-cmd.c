@@ -570,7 +570,7 @@ static void tpm2_flush_context_cmd(struct tpm_chip *chip, u32 handle,
 
 	rc = tpm_buf_init(&buf, TPM2_ST_NO_SESSIONS, TPM2_CC_FLUSH_CONTEXT);
 	if (rc) {
-		dev_warn(chip->pdev, "0x%08x was not flushed, out of memory\n",
+		dev_warn(&chip->dev, "0x%08x was not flushed, out of memory\n",
 			 handle);
 		return;
 	}
@@ -580,7 +580,7 @@ static void tpm2_flush_context_cmd(struct tpm_chip *chip, u32 handle,
 	rc = tpm_transmit_cmd(chip, buf.data, PAGE_SIZE, flags,
 			      "flushing context");
 	if (rc)
-		dev_warn(chip->pdev, "0x%08x was not flushed, rc=%d\n", handle,
+		dev_warn(&chip->dev, "0x%08x was not flushed, rc=%d\n", handle,
 			 rc);
 
 	tpm_buf_destroy(&buf);
@@ -753,7 +753,7 @@ void tpm2_shutdown(struct tpm_chip *chip, u16 shutdown_type)
 	 * except print the error code on a system failure.
 	 */
 	if (rc < 0)
-		dev_warn(chip->pdev, "transmit returned %d while stopping the TPM",
+		dev_warn(&chip->dev, "transmit returned %d while stopping the TPM",
 			 rc);
 }
 EXPORT_SYMBOL_GPL(tpm2_shutdown);
@@ -820,7 +820,7 @@ static int tpm2_start_selftest(struct tpm_chip *chip, bool full)
 	 * immediately. This is a workaround for that.
 	 */
 	if (rc == TPM2_RC_TESTING) {
-		dev_warn(chip->pdev, "Got RC_TESTING, ignoring\n");
+		dev_warn(&chip->dev, "Got RC_TESTING, ignoring\n");
 		rc = 0;
 	}
 

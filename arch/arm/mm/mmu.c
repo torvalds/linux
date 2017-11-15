@@ -1184,15 +1184,15 @@ void __init sanity_check_meminfo(void)
 
 	high_memory = __va(arm_lowmem_limit - 1) + 1;
 
+	if (!memblock_limit)
+		memblock_limit = arm_lowmem_limit;
+
 	/*
 	 * Round the memblock limit down to a pmd size.  This
 	 * helps to ensure that we will allocate memory from the
 	 * last full pmd, which should be mapped.
 	 */
-	if (memblock_limit)
-		memblock_limit = round_down(memblock_limit, PMD_SIZE);
-	if (!memblock_limit)
-		memblock_limit = arm_lowmem_limit;
+	memblock_limit = round_down(memblock_limit, PMD_SIZE);
 
 	memblock_set_current_limit(memblock_limit);
 }

@@ -467,10 +467,10 @@ void __init ltq_soc_init(void)
 
 		if (!np_xbar)
 			panic("Failed to load xbar nodes from devicetree");
-		if (of_address_to_resource(np_pmu, 0, &res_xbar))
+		if (of_address_to_resource(np_xbar, 0, &res_xbar))
 			panic("Failed to get xbar resources");
-		if (request_mem_region(res_xbar.start, resource_size(&res_xbar),
-			res_xbar.name) < 0)
+		if (!request_mem_region(res_xbar.start, resource_size(&res_xbar),
+			res_xbar.name))
 			panic("Failed to get xbar resources");
 
 		ltq_xbar_membase = ioremap_nocache(res_xbar.start,

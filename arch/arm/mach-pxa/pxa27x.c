@@ -309,7 +309,7 @@ static int __init pxa27x_init(void)
 		if (!of_have_populated_dt()) {
 			pxa_register_device(&pxa27x_device_gpio,
 					    &pxa27x_gpio_info);
-			pxa2xx_set_dmac_info(32);
+			pxa2xx_set_dmac_info(32, 75);
 			ret = platform_add_devices(devices,
 						   ARRAY_SIZE(devices));
 		}

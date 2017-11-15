@@ -2179,8 +2179,10 @@ xfs_bmap_add_extent_delay_real(
 		}
 		temp = xfs_bmap_worst_indlen(bma->ip, temp);
 		temp2 = xfs_bmap_worst_indlen(bma->ip, temp2);
-		diff = (int)(temp + temp2 - startblockval(PREV.br_startblock) -
-			(bma->cur ? bma->cur->bc_private.b.allocated : 0));
+		diff = (int)(temp + temp2 -
+			     (startblockval(PREV.br_startblock) -
+			      (bma->cur ?
+			       bma->cur->bc_private.b.allocated : 0)));
 		if (diff > 0) {
 			error = xfs_mod_fdblocks(bma->ip->i_mount,
 						 -((int64_t)diff), false);
@@ -2232,7 +2234,6 @@ xfs_bmap_add_extent_delay_real(
 		temp = da_new;
 		if (bma->cur)
 			temp += bma->cur->bc_private.b.allocated;
-		ASSERT(temp <= da_old);
 		if (temp < da_old)
 			xfs_mod_fdblocks(bma->ip->i_mount,
 					(int64_t)(da_old - temp), false);

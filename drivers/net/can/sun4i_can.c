@@ -342,7 +342,7 @@ static int sun4i_can_start(struct net_device *dev)
 
 	/* enter the selected mode */
 	mod_reg_val = readl(priv->base + SUN4I_REG_MSEL_ADDR);
-	if (priv->can.ctrlmode & CAN_CTRLMODE_PRESUME_ACK)
+	if (priv->can.ctrlmode & CAN_CTRLMODE_LOOPBACK)
 		mod_reg_val |= SUN4I_MSEL_LOOPBACK_MODE;
 	else if (priv->can.ctrlmode & CAN_CTRLMODE_LISTENONLY)
 		mod_reg_val |= SUN4I_MSEL_LISTEN_ONLY_MODE;
@@ -811,7 +811,6 @@ static int sun4ican_probe(struct platform_device *pdev)
 	priv->can.ctrlmode_supported = CAN_CTRLMODE_BERR_REPORTING |
 				       CAN_CTRLMODE_LISTENONLY |
 				       CAN_CTRLMODE_LOOPBACK |
-				       CAN_CTRLMODE_PRESUME_ACK |
 				       CAN_CTRLMODE_3_SAMPLES;
 	priv->base = addr;
 	priv->clk = clk;

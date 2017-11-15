@@ -36,8 +36,6 @@ static int _hid_sensor_power_state(struct hid_sensor_common *st, bool state)
 	s32 poll_value = 0;
 
 	if (state) {
-		if (!atomic_read(&st->user_requested_state))
-			return 0;
 		if (sensor_hub_device_open(st->hsdev))
 			return -EIO;
 
@@ -51,8 +49,6 @@ static int _hid_sensor_power_state(struct hid_sensor_common *st, bool state)
 			st->report_state.report_id,
 			st->report_state.index,
 			HID_USAGE_SENSOR_PROP_REPORTING_STATE_ALL_EVENTS_ENUM);
-
-		poll_value = hid_sensor_read_poll_value(st);
 	} else {
 		int val;
 
@@ -86,10 +82,15 @@ static int _hid_sensor_power_state(struct hid_sensor_common *st, bool state)
 				       &report_val);
 	}
 
+	pr_debug("HID_SENSOR %s set power_state %d report_state %d\n",
+		 st->pdev->name, state_val, report_val);
+
 	sensor_hub_get_feature(st->hsdev, st->power_state.report_id,
 			       st->power_state.index,
 			       sizeof(state_val), &state_val);
-	if (state && poll_value)
+	if (state)
+		poll_value = hid_sensor_read_poll_value(st);
+	if (poll_value > 0)
 		msleep_interruptible(poll_value * 2);
 
 	return 0;
@@ -107,6 +108,7 @@ int hid_sensor_power_state(struct hid_sensor_common *st, bool state)
 		ret = pm_runtime_get_sync(&st->pdev->dev);
 	else {
 		pm_runtime_mark_last_busy(&st->pdev->dev);
+		pm_runtime_use_autosuspend(&st->pdev->dev);
 		ret = pm_runtime_put_autosuspend(&st->pdev->dev);
 	}
 	if (ret < 0) {
@@ -175,8 +177,6 @@ int hid_sensor_setup_trigger(struct iio_dev *indio_dev, const char *name,
 	/* Default to 3 seconds, but can be changed from sysfs */
 	pm_runtime_set_autosuspend_delay(&attrb->pdev->dev,
 					 3000);
-	pm_runtime_use_autosuspend(&attrb->pdev->dev);
-
 	return ret;
 error_unreg_trigger:
 	iio_trigger_unregister(trig);

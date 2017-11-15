@@ -583,10 +583,12 @@ config TELCLOCK
 	  controlling the behavior of this hardware.
 
 config DEVPORT
-	bool
-	depends on !M68K
+	bool "/dev/port character device"
 	depends on ISA || PCI
 	default y
+	help
+	  Say Y here if you want to support the /dev/port device. The /dev/port
+	  device is similar to /dev/mem, but for I/O ports.
 
 source "drivers/s390/char/Kconfig"
 

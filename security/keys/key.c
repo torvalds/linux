@@ -296,6 +296,8 @@ struct key *key_alloc(struct key_type *type, const char *desc,
 		key->flags |= 1 << KEY_FLAG_IN_QUOTA;
 	if (flags & KEY_ALLOC_TRUSTED)
 		key->flags |= 1 << KEY_FLAG_TRUSTED;
+	if (flags & KEY_ALLOC_UID_KEYRING)
+		key->flags |= 1 << KEY_FLAG_UID_KEYRING;
 
 #ifdef KEY_DEBUGGING
 	key->magic = KEY_DEBUG_MAGIC;
@@ -394,6 +396,18 @@ int key_payload_reserve(struct key *key, size_t datalen)
 EXPORT_SYMBOL(key_payload_reserve);
 
 /*
+ * Change the key state to being instantiated.
+ */
+static void mark_key_instantiated(struct key *key, int reject_error)
+{
+	/* Commit the payload before setting the state; barrier versus
+	 * key_read_state().
+	 */
+	smp_store_release(&key->state,
+			  (reject_error < 0) ? reject_error : KEY_IS_POSITIVE);
+}
+
+/*
  * Instantiate a key and link it into the target keyring atomically.  Must be
  * called with the target keyring's semaphore writelocked.  The target key's
  * semaphore need not be locked as instantiation is serialised by
@@ -416,14 +430,14 @@ static int __key_instantiate_and_link(struct key *key,
 	mutex_lock(&key_construction_mutex);
 
 	/* can't instantiate twice */
-	if (!test_bit(KEY_FLAG_INSTANTIATED, &key->flags)) {
+	if (key->state == KEY_IS_UNINSTANTIATED) {
 		/* instantiate the key */
 		ret = key->type->instantiate(key, prep);
 
 		if (ret == 0) {
 			/* mark the key as being instantiated */
 			atomic_inc(&key->user->nikeys);
-			set_bit(KEY_FLAG_INSTANTIATED, &key->flags);
+			mark_key_instantiated(key, 0);
 
 			if (test_and_clear_bit(KEY_FLAG_USER_CONSTRUCT, &key->flags))
 				awaken = 1;
@@ -551,13 +565,10 @@ int key_reject_and_link(struct key *key,
 	mutex_lock(&key_construction_mutex);
 
 	/* can't instantiate twice */
-	if (!test_bit(KEY_FLAG_INSTANTIATED, &key->flags)) {
+	if (key->state == KEY_IS_UNINSTANTIATED) {
 		/* mark the key as being negatively instantiated */
 		atomic_inc(&key->user->nikeys);
-		key->reject_error = -error;
-		smp_wmb();
-		set_bit(KEY_FLAG_NEGATIVE, &key->flags);
-		set_bit(KEY_FLAG_INSTANTIATED, &key->flags);
+		mark_key_instantiated(key, -error);
 		now = current_kernel_time();
 		key->expiry = now.tv_sec + timeout;
 		key_schedule_gc(key->expiry + key_gc_delay);
@@ -729,8 +740,8 @@ static inline key_ref_t __key_update(key_ref_t key_ref,
 
 	ret = key->type->update(key, prep);
 	if (ret == 0)
-		/* updating a negative key instantiates it */
-		clear_bit(KEY_FLAG_NEGATIVE, &key->flags);
+		/* Updating a negative key positively instantiates it */
+		mark_key_instantiated(key, 0);
 
 	up_write(&key->sem);
 
@@ -905,6 +916,16 @@ error:
 	 */
 	__key_link_end(keyring, &index_key, edit);
 
+	key = key_ref_to_ptr(key_ref);
+	if (test_bit(KEY_FLAG_USER_CONSTRUCT, &key->flags)) {
+		ret = wait_for_key_construction(key, true);
+		if (ret < 0) {
+			key_ref_put(key_ref);
+			key_ref = ERR_PTR(ret);
+			goto error_free_prep;
+		}
+	}
+
 	key_ref = __key_update(key_ref, &prep);
 	goto error_free_prep;
 }
@@ -934,12 +955,11 @@ int key_update(key_ref_t key_ref, const void *payload, size_t plen)
 	/* the key must be writable */
 	ret = key_permission(key_ref, KEY_NEED_WRITE);
 	if (ret < 0)
-		goto error;
+		return ret;
 
 	/* attempt to update it if supported */
-	ret = -EOPNOTSUPP;
 	if (!key->type->update)
-		goto error;
+		return -EOPNOTSUPP;
 
 	memset(&prep, 0, sizeof(prep));
 	prep.data = payload;
@@ -956,8 +976,8 @@ int key_update(key_ref_t key_ref, const void *payload, size_t plen)
 
 	ret = key->type->update(key, &prep);
 	if (ret == 0)
-		/* updating a negative key instantiates it */
-		clear_bit(KEY_FLAG_NEGATIVE, &key->flags);
+		/* Updating a negative key positively instantiates it */
+		mark_key_instantiated(key, 0);
 
 	up_write(&key->sem);
 

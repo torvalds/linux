@@ -124,7 +124,6 @@ static int f2fs_fname_encrypt(struct inode *inode,
 	ablkcipher_request_set_crypt(req, &src_sg, &dst_sg, ciphertext_len, iv);
 	res = crypto_ablkcipher_encrypt(req);
 	if (res == -EINPROGRESS || res == -EBUSY) {
-		BUG_ON(req->base.data != &ecr);
 		wait_for_completion(&ecr.completion);
 		res = ecr.res;
 	}
@@ -180,7 +179,6 @@ static int f2fs_fname_decrypt(struct inode *inode,
 	ablkcipher_request_set_crypt(req, &src_sg, &dst_sg, iname->len, iv);
 	res = crypto_ablkcipher_decrypt(req);
 	if (res == -EINPROGRESS || res == -EBUSY) {
-		BUG_ON(req->base.data != &ecr);
 		wait_for_completion(&ecr.completion);
 		res = ecr.res;
 	}
@@ -333,7 +331,7 @@ int f2fs_fname_disk_to_usr(struct inode *inode,
 		memset(buf + 4, 0, 4);
 	} else
 		memset(buf, 0, 8);
-	memcpy(buf + 8, iname->name + iname->len - 16, 16);
+	memcpy(buf + 8, iname->name + ((iname->len - 17) & ~15), 16);
 	oname->name[0] = '_';
 	ret = digest_encode(buf, 24, oname->name + 1);
 	oname->len = ret + 1;

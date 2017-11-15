@@ -40,9 +40,9 @@
 #define AS3935_AFE_PWR_BIT	BIT(0)
 
 #define AS3935_INT		0x03
-#define AS3935_INT_MASK		0x07
+#define AS3935_INT_MASK		0x0f
 #define AS3935_EVENT_INT	BIT(3)
-#define AS3935_NOISE_INT	BIT(1)
+#define AS3935_NOISE_INT	BIT(0)
 
 #define AS3935_DATA		0x07
 #define AS3935_DATA_MASK	0x3F
@@ -50,7 +50,6 @@
 #define AS3935_TUNE_CAP		0x08
 #define AS3935_CALIBRATE	0x3D
 
-#define AS3935_WRITE_DATA	BIT(15)
 #define AS3935_READ_DATA	BIT(14)
 #define AS3935_ADDRESS(x)	((x) << 8)
 
@@ -105,7 +104,7 @@ static int as3935_write(struct as3935_state *st,
 {
 	u8 *buf = st->buf;
 
-	buf[0] = (AS3935_WRITE_DATA | AS3935_ADDRESS(reg)) >> 8;
+	buf[0] = AS3935_ADDRESS(reg) >> 8;
 	buf[1] = val;
 
 	return spi_write(st->spi, buf, 2);
@@ -264,8 +263,6 @@ static irqreturn_t as3935_interrupt_handler(int irq, void *private)
 
 static void calibrate_as3935(struct as3935_state *st)
 {
-	mutex_lock(&st->lock);
-
 	/* mask disturber interrupt bit */
 	as3935_write(st, AS3935_INT, BIT(5));
 
@@ -275,8 +272,6 @@ static void calibrate_as3935(struct as3935_state *st)
 
 	mdelay(2);
 	as3935_write(st, AS3935_TUNE_CAP, (st->tune_cap / TUNE_CAP_DIV));
-
-	mutex_unlock(&st->lock);
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -312,6 +307,8 @@ static int as3935_resume(struct device *dev)
 		goto err_resume;
 	val &= ~AS3935_AFE_PWR_BIT;
 	ret = as3935_write(st, AS3935_AFE_GAIN, val);
+
+	calibrate_as3935(st);
 
 err_resume:
 	mutex_unlock(&st->lock);

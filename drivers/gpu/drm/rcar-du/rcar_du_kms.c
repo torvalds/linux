@@ -642,13 +642,13 @@ static int rcar_du_encoders_init_one(struct rcar_du_device *rcdu,
 	}
 
 	ret = rcar_du_encoder_init(rcdu, enc_type, output, encoder, connector);
-	of_node_put(encoder);
-	of_node_put(connector);
-
 	if (ret && ret != -EPROBE_DEFER)
 		dev_warn(rcdu->dev,
-			 "failed to initialize encoder %s (%d), skipping\n",
-			 encoder->full_name, ret);
+			 "failed to initialize encoder %s on output %u (%d), skipping\n",
+			 of_node_full_name(encoder), output, ret);
+
+	of_node_put(encoder);
+	of_node_put(connector);
 
 	return ret;
 }
@@ -758,6 +758,13 @@ int rcar_du_modeset_init(struct rcar_du_device *rcdu)
 	rcdu->num_crtcs = rcdu->info->num_crtcs;
 
 	ret = rcar_du_properties_init(rcdu);
+	if (ret < 0)
+		return ret;
+
+	/* Initialize vertical blanking interrupts handling. Start with vblank
+	* disabled for all CRTCs.
+	*/
+	ret = drm_vblank_init(dev, (1 << rcdu->info->num_crtcs) - 1);
 	if (ret < 0)
 		return ret;
 

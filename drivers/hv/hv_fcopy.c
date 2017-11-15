@@ -155,6 +155,10 @@ static void fcopy_send_data(struct work_struct *dummy)
 		out_src = smsg_out;
 		break;
 
+	case WRITE_TO_FILE:
+		out_src = fcopy_transaction.fcopy_msg;
+		out_len = sizeof(struct hv_do_fcopy);
+		break;
 	default:
 		out_src = fcopy_transaction.fcopy_msg;
 		out_len = fcopy_transaction.recv_len;

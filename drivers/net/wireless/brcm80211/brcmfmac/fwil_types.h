@@ -45,6 +45,11 @@
 #define BRCMF_SCAN_PARAMS_COUNT_MASK	0x0000ffff
 #define BRCMF_SCAN_PARAMS_NSSID_SHIFT	16
 
+/* scan type definitions */
+#define BRCMF_SCANTYPE_DEFAULT		0xFF
+#define BRCMF_SCANTYPE_ACTIVE		0
+#define BRCMF_SCANTYPE_PASSIVE		1
+
 /* primary (ie tx) key */
 #define BRCMF_PRIMARY_KEY		(1 << 1)
 #define DOT11_BSSTYPE_ANY		2

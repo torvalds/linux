@@ -299,6 +299,14 @@ xfs_dinode_verify(
 	if (dip->di_magic != cpu_to_be16(XFS_DINODE_MAGIC))
 		return false;
 
+	/* don't allow invalid i_size */
+	if (be64_to_cpu(dip->di_size) & (1ULL << 63))
+		return false;
+
+	/* No zero-length symlinks. */
+	if (S_ISLNK(be16_to_cpu(dip->di_mode)) && dip->di_size == 0)
+		return false;
+
 	/* only version 3 or greater inodes are extensively verified here */
 	if (dip->di_version < 3)
 		return true;

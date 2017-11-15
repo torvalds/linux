@@ -300,6 +300,8 @@ static void parse_bsd(struct parsed_partitions *state,
 			continue;
 		bsd_start = le32_to_cpu(p->p_offset);
 		bsd_size = le32_to_cpu(p->p_size);
+		if (memcmp(flavour, "bsd\0", 4) == 0)
+			bsd_start += offset;
 		if (offset == bsd_start && size == bsd_size)
 			/* full parent partition, we have it already */
 			continue;

@@ -446,6 +446,7 @@ ENDPROC(__mmap_switched)
  * booted in EL1 or EL2 respectively.
  */
 ENTRY(el2_setup)
+	msr	SPsel, #1			// We want to use SP_EL{1,2}
 	mrs	x0, CurrentEL
 	cmp	x0, #CurrentEL_EL2
 	b.ne	1f

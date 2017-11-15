@@ -295,11 +295,7 @@ show_map_vma(struct seq_file *m, struct vm_area_struct *vma, int is_pid)
 
 	/* We don't show the stack guard page in /proc/maps */
 	start = vma->vm_start;
-	if (stack_guard_page_start(vma, start))
-		start += PAGE_SIZE;
 	end = vma->vm_end;
-	if (stack_guard_page_end(vma, end))
-		end -= PAGE_SIZE;
 
 	seq_setwidth(m, 25 + sizeof(void *) * 6 - 1);
 	seq_printf(m, "%08lx-%08lx %c%c%c%c %08llx %02x:%02x %lu ",
@@ -803,7 +799,14 @@ static inline void clear_soft_dirty(struct vm_area_struct *vma,
 static inline void clear_soft_dirty_pmd(struct vm_area_struct *vma,
 		unsigned long addr, pmd_t *pmdp)
 {
-	pmd_t pmd = pmdp_huge_get_and_clear(vma->vm_mm, addr, pmdp);
+	pmd_t pmd = *pmdp;
+
+	/* See comment in change_huge_pmd() */
+	pmdp_invalidate(vma, addr, pmdp);
+	if (pmd_dirty(*pmdp))
+		pmd = pmd_mkdirty(pmd);
+	if (pmd_young(*pmdp))
+		pmd = pmd_mkyoung(pmd);
 
 	pmd = pmd_wrprotect(pmd);
 	pmd = pmd_clear_soft_dirty(pmd);

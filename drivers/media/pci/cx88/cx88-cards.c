@@ -3691,7 +3691,14 @@ struct cx88_core *cx88_core_create(struct pci_dev *pci, int nr)
 	core->nr = nr;
 	sprintf(core->name, "cx88[%d]", core->nr);
 
-	core->tvnorm = V4L2_STD_NTSC_M;
+	/*
+	 * Note: Setting initial standard here would cause first call to
+	 * cx88_set_tvnorm() to return without programming any registers.  Leave
+	 * it blank for at this point and it will get set later in
+	 * cx8800_initdev()
+	 */
+	core->tvnorm  = 0;
+
 	core->width   = 320;
 	core->height  = 240;
 	core->field   = V4L2_FIELD_INTERLACED;

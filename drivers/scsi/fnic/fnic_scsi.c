@@ -2533,6 +2533,19 @@ int fnic_host_reset(struct scsi_cmnd *sc)
 	unsigned long wait_host_tmo;
 	struct Scsi_Host *shost = sc->device->host;
 	struct fc_lport *lp = shost_priv(shost);
+	struct fnic *fnic = lport_priv(lp);
+	unsigned long flags;
+
+	spin_lock_irqsave(&fnic->fnic_lock, flags);
+	if (fnic->internal_reset_inprogress == 0) {
+		fnic->internal_reset_inprogress = 1;
+	} else {
+		spin_unlock_irqrestore(&fnic->fnic_lock, flags);
+		FNIC_SCSI_DBG(KERN_DEBUG, fnic->lport->host,
+			"host reset in progress skipping another host reset\n");
+		return SUCCESS;
+	}
+	spin_unlock_irqrestore(&fnic->fnic_lock, flags);
 
 	/*
 	 * If fnic_reset is successful, wait for fabric login to complete
@@ -2553,6 +2566,9 @@ int fnic_host_reset(struct scsi_cmnd *sc)
 		}
 	}
 
+	spin_lock_irqsave(&fnic->fnic_lock, flags);
+	fnic->internal_reset_inprogress = 0;
+	spin_unlock_irqrestore(&fnic->fnic_lock, flags);
 	return ret;
 }
 

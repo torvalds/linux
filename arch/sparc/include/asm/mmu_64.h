@@ -52,7 +52,7 @@
 #define CTX_NR_MASK		TAG_CONTEXT_BITS
 #define CTX_HW_MASK		(CTX_NR_MASK | CTX_PGSZ_MASK)
 
-#define CTX_FIRST_VERSION	((_AC(1,UL) << CTX_VERSION_SHIFT) + _AC(1,UL))
+#define CTX_FIRST_VERSION	BIT(CTX_VERSION_SHIFT)
 #define CTX_VALID(__ctx)	\
 	 (!(((__ctx.sparc64_ctx_val) ^ tlb_context_cache) & CTX_VERSION_MASK))
 #define CTX_HWBITS(__ctx)	((__ctx.sparc64_ctx_val) & CTX_HW_MASK)

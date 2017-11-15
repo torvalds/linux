@@ -1131,6 +1131,7 @@ static int at91_twi_suspend_noirq(struct device *dev)
 
 static int at91_twi_resume_noirq(struct device *dev)
 {
+	struct at91_twi_dev *twi_dev = dev_get_drvdata(dev);
 	int ret;
 
 	if (!pm_runtime_status_suspended(dev)) {
@@ -1141,6 +1142,8 @@ static int at91_twi_resume_noirq(struct device *dev)
 
 	pm_runtime_mark_last_busy(dev);
 	pm_request_autosuspend(dev);
+
+	at91_init_twi_bus(twi_dev);
 
 	return 0;
 }

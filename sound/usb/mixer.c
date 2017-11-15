@@ -541,6 +541,8 @@ int snd_usb_mixer_vol_tlv(struct snd_kcontrol *kcontrol, int op_flag,
 
 	if (size < sizeof(scale))
 		return -ENOMEM;
+	if (cval->min_mute)
+		scale[0] = SNDRV_CTL_TLVT_DB_MINMAX_MUTE;
 	scale[2] = cval->dBmin;
 	scale[3] = cval->dBmax;
 	if (copy_to_user(_tlv, scale, sizeof(scale)))
@@ -2159,6 +2161,9 @@ static int parse_audio_unit(struct mixer_build *state, int unitid)
 
 static void snd_usb_mixer_free(struct usb_mixer_interface *mixer)
 {
+	/* kill pending URBs */
+	snd_usb_mixer_disconnect(mixer);
+
 	kfree(mixer->id_elems);
 	if (mixer->urb) {
 		kfree(mixer->urb->transfer_buffer);
@@ -2502,8 +2507,13 @@ _error:
 
 void snd_usb_mixer_disconnect(struct usb_mixer_interface *mixer)
 {
-	usb_kill_urb(mixer->urb);
-	usb_kill_urb(mixer->rc_urb);
+	if (mixer->disconnected)
+		return;
+	if (mixer->urb)
+		usb_kill_urb(mixer->urb);
+	if (mixer->rc_urb)
+		usb_kill_urb(mixer->rc_urb);
+	mixer->disconnected = true;
 }
 
 #ifdef CONFIG_PM

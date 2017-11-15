@@ -284,13 +284,16 @@ static struct vio_dev *vio_create_one(struct mdesc_handle *hp, u64 mp,
 	if (!id) {
 		dev_set_name(&vdev->dev, "%s", bus_id_name);
 		vdev->dev_no = ~(u64)0;
+		vdev->id = ~(u64)0;
 	} else if (!cfg_handle) {
 		dev_set_name(&vdev->dev, "%s-%llu", bus_id_name, *id);
 		vdev->dev_no = *id;
+		vdev->id = ~(u64)0;
 	} else {
 		dev_set_name(&vdev->dev, "%s-%llu-%llu", bus_id_name,
 			     *cfg_handle, *id);
 		vdev->dev_no = *cfg_handle;
+		vdev->id = *id;
 	}
 
 	vdev->dev.parent = parent;
@@ -333,27 +336,84 @@ static void vio_add(struct mdesc_handle *hp, u64 node)
 	(void) vio_create_one(hp, node, &root_vdev->dev);
 }
 
+struct vio_md_node_query {
+	const char *type;
+	u64 dev_no;
+	u64 id;
+};
+
 static int vio_md_node_match(struct device *dev, void *arg)
 {
+	struct vio_md_node_query *query = (struct vio_md_node_query *) arg;
 	struct vio_dev *vdev = to_vio_dev(dev);
 
-	if (vdev->mp == (u64) arg)
-		return 1;
+	if (vdev->dev_no != query->dev_no)
+		return 0;
+	if (vdev->id != query->id)
+		return 0;
+	if (strcmp(vdev->type, query->type))
+		return 0;
 
-	return 0;
+	return 1;
 }
 
 static void vio_remove(struct mdesc_handle *hp, u64 node)
 {
+	const char *type;
+	const u64 *id, *cfg_handle;
+	u64 a;
+	struct vio_md_node_query query;
 	struct device *dev;
 
-	dev = device_find_child(&root_vdev->dev, (void *) node,
+	type = mdesc_get_property(hp, node, "device-type", NULL);
+	if (!type) {
+		type = mdesc_get_property(hp, node, "name", NULL);
+		if (!type)
+			type = mdesc_node_name(hp, node);
+	}
+
+	query.type = type;
+
+	id = mdesc_get_property(hp, node, "id", NULL);
+	cfg_handle = NULL;
+	mdesc_for_each_arc(a, hp, node, MDESC_ARC_TYPE_BACK) {
+		u64 target;
+
+		target = mdesc_arc_target(hp, a);
+		cfg_handle = mdesc_get_property(hp, target,
+						"cfg-handle", NULL);
+		if (cfg_handle)
+			break;
+	}
+
+	if (!id) {
+		query.dev_no = ~(u64)0;
+		query.id = ~(u64)0;
+	} else if (!cfg_handle) {
+		query.dev_no = *id;
+		query.id = ~(u64)0;
+	} else {
+		query.dev_no = *cfg_handle;
+		query.id = *id;
+	}
+
+	dev = device_find_child(&root_vdev->dev, &query,
 				vio_md_node_match);
 	if (dev) {
 		printk(KERN_INFO "VIO: Removing device %s\n", dev_name(dev));
 
 		device_unregister(dev);
 		put_device(dev);
+	} else {
+		if (!id)
+			printk(KERN_ERR "VIO: Removed unknown %s node.\n",
+			       type);
+		else if (!cfg_handle)
+			printk(KERN_ERR "VIO: Removed unknown %s node %llu.\n",
+			       type, *id);
+		else
+			printk(KERN_ERR "VIO: Removed unknown %s node %llu-%llu.\n",
+			       type, *cfg_handle, *id);
 	}
 }
 

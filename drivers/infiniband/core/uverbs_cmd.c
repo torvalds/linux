@@ -2287,6 +2287,11 @@ ssize_t ib_uverbs_modify_qp(struct ib_uverbs_file *file,
 	if (copy_from_user(&cmd, buf, sizeof cmd))
 		return -EFAULT;
 
+	if ((cmd.attr_mask & IB_QP_PORT) &&
+	    (cmd.port_num < rdma_start_port(ib_dev) ||
+	     cmd.port_num > rdma_end_port(ib_dev)))
+		return -EINVAL;
+
 	INIT_UDATA(&udata, buf + sizeof cmd, NULL, in_len - sizeof cmd,
 		   out_len);
 
@@ -2826,6 +2831,10 @@ ssize_t ib_uverbs_create_ah(struct ib_uverbs_file *file,
 
 	if (copy_from_user(&cmd, buf, sizeof cmd))
 		return -EFAULT;
+
+	if (cmd.attr.port_num < rdma_start_port(ib_dev) ||
+	    cmd.attr.port_num > rdma_end_port(ib_dev))
+		return -EINVAL;
 
 	uobj = kmalloc(sizeof *uobj, GFP_KERNEL);
 	if (!uobj)

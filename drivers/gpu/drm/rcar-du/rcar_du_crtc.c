@@ -148,8 +148,8 @@ static void rcar_du_crtc_set_display_timing(struct rcar_du_crtc *rcrtc)
 	rcar_du_group_write(rcrtc->group, rcrtc->index % 2 ? OTAR2 : OTAR, 0);
 
 	/* Signal polarities */
-	value = ((mode->flags & DRM_MODE_FLAG_PVSYNC) ? 0 : DSMR_VSL)
-	      | ((mode->flags & DRM_MODE_FLAG_PHSYNC) ? 0 : DSMR_HSL)
+	value = ((mode->flags & DRM_MODE_FLAG_PVSYNC) ? DSMR_VSL : 0)
+	      | ((mode->flags & DRM_MODE_FLAG_PHSYNC) ? DSMR_HSL : 0)
 	      | DSMR_DIPM_DE | DSMR_CSPM;
 	rcar_du_crtc_write(rcrtc, DSMR, value);
 
@@ -171,7 +171,7 @@ static void rcar_du_crtc_set_display_timing(struct rcar_du_crtc *rcrtc)
 					mode->crtc_vsync_start - 1);
 	rcar_du_crtc_write(rcrtc, VCR,  mode->crtc_vtotal - 1);
 
-	rcar_du_crtc_write(rcrtc, DESR,  mode->htotal - mode->hsync_start);
+	rcar_du_crtc_write(rcrtc, DESR,  mode->htotal - mode->hsync_start - 1);
 	rcar_du_crtc_write(rcrtc, DEWR,  mode->hdisplay);
 }
 
@@ -281,26 +281,6 @@ static void rcar_du_crtc_update_planes(struct rcar_du_crtc *rcrtc)
 /* -----------------------------------------------------------------------------
  * Page Flip
  */
-
-void rcar_du_crtc_cancel_page_flip(struct rcar_du_crtc *rcrtc,
-				   struct drm_file *file)
-{
-	struct drm_pending_vblank_event *event;
-	struct drm_device *dev = rcrtc->crtc.dev;
-	unsigned long flags;
-
-	/* Destroy the pending vertical blanking event associated with the
-	 * pending page flip, if any, and disable vertical blanking interrupts.
-	 */
-	spin_lock_irqsave(&dev->event_lock, flags);
-	event = rcrtc->event;
-	if (event && event->base.file_priv == file) {
-		rcrtc->event = NULL;
-		event->base.destroy(&event->base);
-		drm_crtc_vblank_put(&rcrtc->crtc);
-	}
-	spin_unlock_irqrestore(&dev->event_lock, flags);
-}
 
 static void rcar_du_crtc_finish_page_flip(struct rcar_du_crtc *rcrtc)
 {

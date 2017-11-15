@@ -194,8 +194,6 @@ static int exynos_irq_request_resources(struct irq_data *irqd)
 
 	spin_unlock_irqrestore(&bank->slock, flags);
 
-	exynos_irq_unmask(irqd);
-
 	return 0;
 }
 
@@ -215,8 +213,6 @@ static void exynos_irq_release_resources(struct irq_data *irqd)
 	reg_con = bank->pctl_offset + bank_type->reg_offset[PINCFG_TYPE_FUNC];
 	shift = irqd->hwirq * bank_type->fld_width[PINCFG_TYPE_FUNC];
 	mask = (1 << bank_type->fld_width[PINCFG_TYPE_FUNC]) - 1;
-
-	exynos_irq_mask(irqd);
 
 	spin_lock_irqsave(&bank->slock, flags);
 

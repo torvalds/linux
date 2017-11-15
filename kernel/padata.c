@@ -189,19 +189,20 @@ static struct padata_priv *padata_get_next(struct parallel_data *pd)
 
 	reorder = &next_queue->reorder;
 
+	spin_lock(&reorder->lock);
 	if (!list_empty(&reorder->list)) {
 		padata = list_entry(reorder->list.next,
 				    struct padata_priv, list);
 
-		spin_lock(&reorder->lock);
 		list_del_init(&padata->list);
 		atomic_dec(&pd->reorder_objects);
-		spin_unlock(&reorder->lock);
 
 		pd->processed++;
 
+		spin_unlock(&reorder->lock);
 		goto out;
 	}
+	spin_unlock(&reorder->lock);
 
 	if (__this_cpu_read(pd->pqueue->cpu_index) == next_queue->cpu_index) {
 		padata = ERR_PTR(-ENODATA);
@@ -356,7 +357,7 @@ static int padata_setup_cpumasks(struct parallel_data *pd,
 
 	cpumask_and(pd->cpumask.pcpu, pcpumask, cpu_online_mask);
 	if (!alloc_cpumask_var(&pd->cpumask.cbcpu, GFP_KERNEL)) {
-		free_cpumask_var(pd->cpumask.cbcpu);
+		free_cpumask_var(pd->cpumask.pcpu);
 		return -ENOMEM;
 	}
 

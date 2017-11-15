@@ -3050,7 +3050,7 @@ static int ath10k_pci_probe(struct pci_dev *pdev,
 		goto err_core_destroy;
 	}
 
-	if (QCA_REV_6174(ar))
+	if (QCA_REV_6174(ar) || QCA_REV_9377(ar))
 		ath10k_pci_override_ce_config(ar);
 
 	ret = ath10k_pci_alloc_pipes(ar);

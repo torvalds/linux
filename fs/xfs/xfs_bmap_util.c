@@ -682,7 +682,7 @@ xfs_getbmap(
 			 * extents.
 			 */
 			if (map[i].br_startblock == DELAYSTARTBLOCK &&
-			    map[i].br_startoff <= XFS_B_TO_FSB(mp, XFS_ISIZE(ip)))
+			    map[i].br_startoff < XFS_B_TO_FSB(mp, XFS_ISIZE(ip)))
 				ASSERT((iflags & BMV_IF_DELALLOC) != 0);
 
                         if (map[i].br_startblock == HOLESTARTBLOCK &&
@@ -1713,6 +1713,7 @@ xfs_swap_extents(
 	xfs_trans_t	*tp;
 	xfs_bstat_t	*sbp = &sxp->sx_stat;
 	xfs_ifork_t	*tempifp, *ifp, *tifp;
+	xfs_extnum_t	nextents;
 	int		src_log_flags, target_log_flags;
 	int		error = 0;
 	int		aforkblks = 0;
@@ -1899,7 +1900,8 @@ xfs_swap_extents(
 		 * pointer.  Otherwise it's already NULL or
 		 * pointing to the extent.
 		 */
-		if (ip->i_d.di_nextents <= XFS_INLINE_EXTS) {
+		nextents = ip->i_df.if_bytes / (uint)sizeof(xfs_bmbt_rec_t);
+		if (nextents <= XFS_INLINE_EXTS) {
 			ifp->if_u1.if_extents =
 				ifp->if_u2.if_inline_ext;
 		}
@@ -1918,7 +1920,8 @@ xfs_swap_extents(
 		 * pointer.  Otherwise it's already NULL or
 		 * pointing to the extent.
 		 */
-		if (tip->i_d.di_nextents <= XFS_INLINE_EXTS) {
+		nextents = tip->i_df.if_bytes / (uint)sizeof(xfs_bmbt_rec_t);
+		if (nextents <= XFS_INLINE_EXTS) {
 			tifp->if_u1.if_extents =
 				tifp->if_u2.if_inline_ext;
 		}

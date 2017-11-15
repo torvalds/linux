@@ -229,6 +229,8 @@ extern void ttm_base_object_unref(struct ttm_base_object **p_base);
  * @ref_type: The type of reference.
  * @existed: Upon completion, indicates that an identical reference object
  * already existed, and the refcount was upped on that object instead.
+ * @require_existed: Fail with -EPERM if an identical ref object didn't
+ * already exist.
  *
  * Checks that the base object is shareable and adds a ref object to it.
  *
@@ -243,7 +245,8 @@ extern void ttm_base_object_unref(struct ttm_base_object **p_base);
  */
 extern int ttm_ref_object_add(struct ttm_object_file *tfile,
 			      struct ttm_base_object *base,
-			      enum ttm_ref_type ref_type, bool *existed);
+			      enum ttm_ref_type ref_type, bool *existed,
+			      bool require_existed);
 
 extern bool ttm_ref_object_exists(struct ttm_object_file *tfile,
 				  struct ttm_base_object *base);

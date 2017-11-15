@@ -246,6 +246,8 @@ static int gs_cmd_reset(struct gs_usb *gsusb, struct gs_can *gsdev)
 			     sizeof(*dm),
 			     1000);
 
+	kfree(dm);
+
 	return rc;
 }
 
@@ -354,6 +356,8 @@ static void gs_usb_receive_bulk_callback(struct urb *urb)
 
 		gs_free_tx_context(txc);
 
+		atomic_dec(&dev->active_tx_urbs);
+
 		netif_wake_queue(netdev);
 	}
 
@@ -442,14 +446,6 @@ static void gs_usb_xmit_callback(struct urb *urb)
 			  urb->transfer_buffer_length,
 			  urb->transfer_buffer,
 			  urb->transfer_dma);
-
-	atomic_dec(&dev->active_tx_urbs);
-
-	if (!netif_device_present(netdev))
-		return;
-
-	if (netif_queue_stopped(netdev))
-		netif_wake_queue(netdev);
 }
 
 static netdev_tx_t gs_can_start_xmit(struct sk_buff *skb, struct net_device *netdev)

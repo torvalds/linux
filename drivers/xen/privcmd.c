@@ -335,8 +335,8 @@ static int mmap_batch_fn(void *data, int nr, void *state)
 				st->global_error = 1;
 		}
 	}
-	st->va += PAGE_SIZE * nr;
-	st->index += nr;
+	st->va += XEN_PAGE_SIZE * nr;
+	st->index += nr / XEN_PFN_PER_PAGE;
 
 	return 0;
 }

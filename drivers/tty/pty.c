@@ -216,16 +216,11 @@ static int pty_signal(struct tty_struct *tty, int sig)
 static void pty_flush_buffer(struct tty_struct *tty)
 {
 	struct tty_struct *to = tty->link;
-	struct tty_ldisc *ld;
 
 	if (!to)
 		return;
 
-	ld = tty_ldisc_ref(to);
-	tty_buffer_flush(to, ld);
-	if (ld)
-		tty_ldisc_deref(ld);
-
+	tty_buffer_flush(to, NULL);
 	if (to->packet) {
 		spin_lock_irq(&tty->ctrl_lock);
 		tty->ctrl_status |= TIOCPKT_FLUSHWRITE;

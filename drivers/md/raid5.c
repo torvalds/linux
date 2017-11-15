@@ -818,6 +818,14 @@ static void stripe_add_to_batch_list(struct r5conf *conf, struct stripe_head *sh
 			spin_unlock(&head->batch_head->batch_lock);
 			goto unlock_out;
 		}
+		/*
+		 * We must assign batch_head of this stripe within the
+		 * batch_lock, otherwise clear_batch_ready of batch head
+		 * stripe could clear BATCH_READY bit of this stripe and
+		 * this stripe->batch_head doesn't get assigned, which
+		 * could confuse clear_batch_ready for this stripe
+		 */
+		sh->batch_head = head->batch_head;
 
 		/*
 		 * at this point, head's BATCH_READY could be cleared, but we
@@ -825,8 +833,6 @@ static void stripe_add_to_batch_list(struct r5conf *conf, struct stripe_head *sh
 		 */
 		list_add(&sh->batch_list, &head->batch_list);
 		spin_unlock(&head->batch_head->batch_lock);
-
-		sh->batch_head = head->batch_head;
 	} else {
 		head->batch_head = head;
 		sh->batch_head = head->batch_head;
@@ -2232,6 +2238,10 @@ static int resize_stripes(struct r5conf *conf, int newsize)
 		err = -ENOMEM;
 
 	mutex_unlock(&conf->cache_size_mutex);
+
+	conf->slab_cache = sc;
+	conf->active_name = 1-conf->active_name;
+
 	/* Step 4, return new stripes to service */
 	while(!list_empty(&newstripes)) {
 		nsh = list_entry(newstripes.next, struct stripe_head, lru);
@@ -2249,8 +2259,6 @@ static int resize_stripes(struct r5conf *conf, int newsize)
 	}
 	/* critical section pass, GFP_NOIO no longer needed */
 
-	conf->slab_cache = sc;
-	conf->active_name = 1-conf->active_name;
 	if (!err)
 		conf->pool_size = newsize;
 	return err;
@@ -4256,7 +4264,8 @@ static void break_stripe_batch_list(struct stripe_head *head_sh,
 
 		set_mask_bits(&sh->state, ~(STRIPE_EXPAND_SYNC_FLAGS |
 					    (1 << STRIPE_PREREAD_ACTIVE) |
-					    (1 << STRIPE_DEGRADED)),
+					    (1 << STRIPE_DEGRADED) |
+					    (1 << STRIPE_ON_UNPLUG_LIST)),
 			      head_sh->state & (1 << STRIPE_INSYNC));
 
 		sh->check_state = head_sh->check_state;
@@ -5277,12 +5286,15 @@ static void make_request(struct mddev *mddev, struct bio * bi)
 				 * userspace, we want an interruptible
 				 * wait.
 				 */
-				flush_signals(current);
 				prepare_to_wait(&conf->wait_for_overlap,
 						&w, TASK_INTERRUPTIBLE);
 				if (logical_sector >= mddev->suspend_lo &&
 				    logical_sector < mddev->suspend_hi) {
+					sigset_t full, old;
+					sigfillset(&full);
+					sigprocmask(SIG_BLOCK, &full, &old);
 					schedule();
+					sigprocmask(SIG_SETMASK, &old, NULL);
 					do_prepare = true;
 				}
 				goto retry;
@@ -5816,6 +5828,10 @@ static void raid5_do_work(struct work_struct *work)
 	pr_debug("%d stripes handled\n", handled);
 
 	spin_unlock_irq(&conf->device_lock);
+
+	r5l_flush_stripe_to_raid(conf->log);
+
+	async_tx_issue_pending_all();
 	blk_finish_plug(&plug);
 
 	pr_debug("--- raid5worker inactive\n");
@@ -7526,12 +7542,10 @@ static void end_reshape(struct r5conf *conf)
 {
 
 	if (!test_bit(MD_RECOVERY_INTR, &conf->mddev->recovery)) {
-		struct md_rdev *rdev;
 
 		spin_lock_irq(&conf->device_lock);
 		conf->previous_raid_disks = conf->raid_disks;
-		rdev_for_each(rdev, conf->mddev)
-			rdev->data_offset = rdev->new_data_offset;
+		md_finish_reshape(conf->mddev);
 		smp_wmb();
 		conf->reshape_progress = MaxSector;
 		conf->mddev->reshape_position = MaxSector;

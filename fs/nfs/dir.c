@@ -1135,11 +1135,13 @@ static int nfs_lookup_revalidate(struct dentry *dentry, unsigned int flags)
 	/* Force a full look up iff the parent directory has changed */
 	if (!nfs_is_exclusive_create(dir, flags) &&
 	    nfs_check_verifier(dir, dentry, flags & LOOKUP_RCU)) {
-
-		if (nfs_lookup_verify_inode(inode, flags)) {
+		error = nfs_lookup_verify_inode(inode, flags);
+		if (error) {
 			if (flags & LOOKUP_RCU)
 				return -ECHILD;
-			goto out_zap_parent;
+			if (error == -ESTALE)
+				goto out_zap_parent;
+			goto out_error;
 		}
 		goto out_valid;
 	}
@@ -1163,8 +1165,10 @@ static int nfs_lookup_revalidate(struct dentry *dentry, unsigned int flags)
 	trace_nfs_lookup_revalidate_enter(dir, dentry, flags);
 	error = NFS_PROTO(dir)->lookup(dir, &dentry->d_name, fhandle, fattr, label);
 	trace_nfs_lookup_revalidate_exit(dir, dentry, flags, error);
-	if (error)
+	if (error == -ESTALE || error == -ENOENT)
 		goto out_bad;
+	if (error)
+		goto out_error;
 	if (nfs_compare_fh(NFS_FH(inode), fhandle))
 		goto out_bad;
 	if ((error = nfs_refresh_inode(inode, fattr)) != 0)
@@ -2421,6 +2425,20 @@ int nfs_may_open(struct inode *inode, struct rpc_cred *cred, int openflags)
 }
 EXPORT_SYMBOL_GPL(nfs_may_open);
 
+static int nfs_execute_ok(struct inode *inode, int mask)
+{
+	struct nfs_server *server = NFS_SERVER(inode);
+	int ret;
+
+	if (mask & MAY_NOT_BLOCK)
+		ret = nfs_revalidate_inode_rcu(server, inode);
+	else
+		ret = nfs_revalidate_inode(server, inode);
+	if (ret == 0 && !execute_ok(inode))
+		ret = -EACCES;
+	return ret;
+}
+
 int nfs_permission(struct inode *inode, int mask)
 {
 	struct rpc_cred *cred;
@@ -2438,6 +2456,9 @@ int nfs_permission(struct inode *inode, int mask)
 		case S_IFLNK:
 			goto out;
 		case S_IFREG:
+			if ((mask & MAY_OPEN) &&
+			   nfs_server_capable(inode, NFS_CAP_ATOMIC_OPEN))
+				return 0;
 			break;
 		case S_IFDIR:
 			/*
@@ -2470,8 +2491,8 @@ force_lookup:
 			res = PTR_ERR(cred);
 	}
 out:
-	if (!res && (mask & MAY_EXEC) && !execute_ok(inode))
-		res = -EACCES;
+	if (!res && (mask & MAY_EXEC))
+		res = nfs_execute_ok(inode, mask);
 
 	dfprintk(VFS, "NFS: permission(%s/%lu), mask=0x%x, res=%d\n",
 		inode->i_sb->s_id, inode->i_ino, mask, res);

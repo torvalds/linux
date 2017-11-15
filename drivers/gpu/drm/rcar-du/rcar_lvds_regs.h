@@ -18,7 +18,7 @@
 #define LVDCR0_DMD			(1 << 12)
 #define LVDCR0_LVMD_MASK		(0xf << 8)
 #define LVDCR0_LVMD_SHIFT		8
-#define LVDCR0_PLLEN			(1 << 4)
+#define LVDCR0_PLLON			(1 << 4)
 #define LVDCR0_BEN			(1 << 2)
 #define LVDCR0_LVEN			(1 << 1)
 #define LVDCR0_LVRES			(1 << 0)

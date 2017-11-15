@@ -76,7 +76,8 @@ static int llcp_sock_bind(struct socket *sock, struct sockaddr *addr, int alen)
 	struct sockaddr_nfc_llcp llcp_addr;
 	int len, ret = 0;
 
-	if (!addr || addr->sa_family != AF_NFC)
+	if (!addr || alen < offsetofend(struct sockaddr, sa_family) ||
+	    addr->sa_family != AF_NFC)
 		return -EINVAL;
 
 	pr_debug("sk %p addr %p family %d\n", sk, addr, addr->sa_family);
@@ -150,7 +151,8 @@ static int llcp_raw_sock_bind(struct socket *sock, struct sockaddr *addr,
 	struct sockaddr_nfc_llcp llcp_addr;
 	int len, ret = 0;
 
-	if (!addr || addr->sa_family != AF_NFC)
+	if (!addr || alen < offsetofend(struct sockaddr, sa_family) ||
+	    addr->sa_family != AF_NFC)
 		return -EINVAL;
 
 	pr_debug("sk %p addr %p family %d\n", sk, addr, addr->sa_family);
@@ -655,8 +657,7 @@ static int llcp_sock_connect(struct socket *sock, struct sockaddr *_addr,
 
 	pr_debug("sock %p sk %p flags 0x%x\n", sock, sk, flags);
 
-	if (!addr || len < sizeof(struct sockaddr_nfc) ||
-	    addr->sa_family != AF_NFC)
+	if (!addr || len < sizeof(*addr) || addr->sa_family != AF_NFC)
 		return -EINVAL;
 
 	if (addr->service_name_len == 0 && addr->dsap == 0)

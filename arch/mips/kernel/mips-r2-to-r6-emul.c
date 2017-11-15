@@ -434,8 +434,8 @@ static int multu_func(struct pt_regs *regs, u32 ir)
 	rs = regs->regs[MIPSInst_RS(ir)];
 	res = (u64)rt * (u64)rs;
 	rt = res;
-	regs->lo = (s64)rt;
-	regs->hi = (s64)(res >> 32);
+	regs->lo = (s64)(s32)rt;
+	regs->hi = (s64)(s32)(res >> 32);
 
 	MIPS_R2_STATS(muls);
 
@@ -671,9 +671,9 @@ static int maddu_func(struct pt_regs *regs, u32 ir)
 	res += ((((s64)rt) << 32) | (u32)rs);
 
 	rt = res;
-	regs->lo = (s64)rt;
+	regs->lo = (s64)(s32)rt;
 	rs = res >> 32;
-	regs->hi = (s64)rs;
+	regs->hi = (s64)(s32)rs;
 
 	MIPS_R2_STATS(dsps);
 
@@ -729,9 +729,9 @@ static int msubu_func(struct pt_regs *regs, u32 ir)
 	res = ((((s64)rt) << 32) | (u32)rs) - res;
 
 	rt = res;
-	regs->lo = (s64)rt;
+	regs->lo = (s64)(s32)rt;
 	rs = res >> 32;
-	regs->hi = (s64)rs;
+	regs->hi = (s64)(s32)rs;
 
 	MIPS_R2_STATS(dsps);
 

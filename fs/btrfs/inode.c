@@ -4397,8 +4397,19 @@ search_again:
 		if (found_type > min_type) {
 			del_item = 1;
 		} else {
-			if (item_end < new_size)
+			if (item_end < new_size) {
+				/*
+				 * With NO_HOLES mode, for the following mapping
+				 *
+				 * [0-4k][hole][8k-12k]
+				 *
+				 * if truncating isize down to 6k, it ends up
+				 * isize being 8k.
+				 */
+				if (btrfs_fs_incompat(root->fs_info, NO_HOLES))
+					last_size = new_size;
 				break;
+			}
 			if (found_key.offset >= new_size)
 				del_item = 1;
 			else
@@ -7318,8 +7329,8 @@ bool btrfs_page_exists_in_range(struct inode *inode, loff_t start, loff_t end)
 	int found = false;
 	void **pagep = NULL;
 	struct page *page = NULL;
-	int start_idx;
-	int end_idx;
+	unsigned long start_idx;
+	unsigned long end_idx;
 
 	start_idx = start >> PAGE_CACHE_SHIFT;
 
@@ -7510,11 +7521,18 @@ static void adjust_dio_outstanding_extents(struct inode *inode,
 	 * within our reservation, otherwise we need to adjust our inode
 	 * counter appropriately.
 	 */
-	if (dio_data->outstanding_extents) {
+	if (dio_data->outstanding_extents >= num_extents) {
 		dio_data->outstanding_extents -= num_extents;
 	} else {
+		/*
+		 * If dio write length has been split due to no large enough
+		 * contiguous space, we need to compensate our inode counter
+		 * appropriately.
+		 */
+		u64 num_needed = num_extents - dio_data->outstanding_extents;
+
 		spin_lock(&BTRFS_I(inode)->lock);
-		BTRFS_I(inode)->outstanding_extents += num_extents;
+		BTRFS_I(inode)->outstanding_extents += num_needed;
 		spin_unlock(&BTRFS_I(inode)->lock);
 	}
 }

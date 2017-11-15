@@ -207,7 +207,7 @@ struct lm_lockname {
 	struct gfs2_sbd *ln_sbd;
 	u64 ln_number;
 	unsigned int ln_type;
-};
+} __packed __aligned(sizeof(int));
 
 #define lm_name_equal(name1, name2) \
         (((name1)->ln_number == (name2)->ln_number) &&	\
@@ -367,6 +367,7 @@ struct gfs2_glock {
 			loff_t end;
 		} gl_vm;
 	};
+	struct rcu_head gl_rcu;
 	struct rhash_head gl_node;
 };
 

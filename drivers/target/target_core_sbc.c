@@ -498,8 +498,11 @@ static sense_reason_t compare_and_write_callback(struct se_cmd *cmd, bool succes
 	 * been failed with a non-zero SCSI status.
 	 */
 	if (cmd->scsi_status) {
-		pr_err("compare_and_write_callback: non zero scsi_status:"
+		pr_debug("compare_and_write_callback: non zero scsi_status:"
 			" 0x%02x\n", cmd->scsi_status);
+		*post_ret = 1;
+		if (cmd->scsi_status == SAM_STAT_CHECK_CONDITION)
+			ret = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 		goto out;
 	}
 
@@ -1096,9 +1099,15 @@ sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops)
 			return ret;
 		break;
 	case VERIFY:
+	case VERIFY_16:
 		size = 0;
-		sectors = transport_get_sectors_10(cdb);
-		cmd->t_task_lba = transport_lba_32(cdb);
+		if (cdb[0] == VERIFY) {
+			sectors = transport_get_sectors_10(cdb);
+			cmd->t_task_lba = transport_lba_32(cdb);
+		} else {
+			sectors = transport_get_sectors_16(cdb);
+			cmd->t_task_lba = transport_lba_64(cdb);
+		}
 		cmd->execute_cmd = sbc_emulate_noop;
 		goto check_lba;
 	case REZERO_UNIT:

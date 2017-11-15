@@ -2258,7 +2258,7 @@ static void kv_apply_state_adjust_rules(struct amdgpu_device *adev,
 	if (pi->caps_stable_p_state) {
 		stable_p_state_sclk = (max_limits->sclk * 75) / 100;
 
-		for (i = table->count - 1; i >= 0; i++) {
+		for (i = table->count - 1; i >= 0; i--) {
 			if (stable_p_state_sclk >= table->entries[i].clk) {
 				stable_p_state_sclk = table->entries[i].clk;
 				break;

@@ -1875,6 +1875,7 @@ static struct irq_chip ioapic_chip __read_mostly = {
 	.irq_ack		= irq_chip_ack_parent,
 	.irq_eoi		= ioapic_ack_level,
 	.irq_set_affinity	= ioapic_set_affinity,
+	.irq_retrigger		= irq_chip_retrigger_hierarchy,
 	.flags			= IRQCHIP_SKIP_SET_WAKE,
 };
 
@@ -1886,6 +1887,7 @@ static struct irq_chip ioapic_ir_chip __read_mostly = {
 	.irq_ack		= irq_chip_ack_parent,
 	.irq_eoi		= ioapic_ir_ack_level,
 	.irq_set_affinity	= ioapic_set_affinity,
+	.irq_retrigger		= irq_chip_retrigger_hierarchy,
 	.flags			= IRQCHIP_SKIP_SET_WAKE,
 };
 
@@ -2113,7 +2115,7 @@ static inline void __init check_timer(void)
 			int idx;
 			idx = find_irq_entry(apic1, pin1, mp_INT);
 			if (idx != -1 && irq_trigger(idx))
-				unmask_ioapic_irq(irq_get_chip_data(0));
+				unmask_ioapic_irq(irq_get_irq_data(0));
 		}
 		irq_domain_deactivate_irq(irq_data);
 		irq_domain_activate_irq(irq_data);
