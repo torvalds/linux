@@ -1273,3 +1273,7 @@ static int __init pvcalls_frontend_init(void)
 }
 
 module_init(pvcalls_frontend_init);
+
+MODULE_DESCRIPTION("Xen PV Calls frontend driver");
+MODULE_AUTHOR("Stefano Stabellini <sstabellini@kernel.org>");
+MODULE_LICENSE("GPL");
