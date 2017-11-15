@@ -425,6 +425,34 @@ static void bios_golden_init(struct dc *dc)
 	}
 }
 
+static void false_optc_underflow_wa(
+		struct dc *dc,
+		const struct dc_stream_state *stream,
+		struct timing_generator *tg)
+{
+	int i;
+	bool underflow;
+
+	if (!dc->hwseq->wa.false_optc_underflow)
+		return;
+
+	underflow = tg->funcs->is_optc_underflow_occurred(tg);
+
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *old_pipe_ctx = &dc->current_state->res_ctx.pipe_ctx[i];
+
+		if (old_pipe_ctx->stream != stream)
+			continue;
+
+		dc->hwss.wait_for_mpcc_disconnect(dc, dc->res_pool, old_pipe_ctx);
+	}
+
+	tg->funcs->set_blank_data_double_buffer(tg, true);
+
+	if (tg->funcs->is_optc_underflow_occurred(tg) && !underflow)
+		tg->funcs->clear_optc_underflow(tg);
+}
+
 static enum dc_status dcn10_prog_pixclk_crtc_otg(
 		struct pipe_ctx *pipe_ctx,
 		struct dc_state *context,
@@ -493,8 +521,11 @@ static enum dc_status dcn10_prog_pixclk_crtc_otg(
 			pipe_ctx->stream_res.tg,
 			&black_color);
 
-	pipe_ctx->stream_res.tg->funcs->set_blank(pipe_ctx->stream_res.tg, true);
-	hwss_wait_for_blank_complete(pipe_ctx->stream_res.tg);
+	if (!pipe_ctx->stream_res.tg->funcs->is_blanked(pipe_ctx->stream_res.tg)) {
+		pipe_ctx->stream_res.tg->funcs->set_blank(pipe_ctx->stream_res.tg, true);
+		hwss_wait_for_blank_complete(pipe_ctx->stream_res.tg);
+		false_optc_underflow_wa(dc, pipe_ctx->stream, pipe_ctx->stream_res.tg);
+	}
 
 	/* VTG is  within DCHUB command block. DCFCLK is always on */
 	if (false == pipe_ctx->stream_res.tg->funcs->enable_crtc(pipe_ctx->stream_res.tg)) {
@@ -2251,6 +2282,9 @@ static void dcn10_apply_ctx_for_surface(
 	}
 
 	tg->funcs->unlock(tg);
+
+	if (num_planes == 0)
+		false_optc_underflow_wa(dc, stream, tg);
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *old_pipe_ctx =

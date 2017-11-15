@@ -678,6 +678,7 @@ static struct dce_hwseq *dcn10_hwseq_create(
 		hws->shifts = &hwseq_shift;
 		hws->masks = &hwseq_mask;
 		hws->wa.DEGVIDCN10_253 = true;
+		hws->wa.false_optc_underflow = true;
 	}
 	return hws;
 }

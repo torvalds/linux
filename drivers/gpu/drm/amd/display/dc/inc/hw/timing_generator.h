@@ -187,6 +187,8 @@ struct timing_generator_funcs {
 
 	void (*tg_init)(struct timing_generator *tg);
 	bool (*is_tg_enabled)(struct timing_generator *tg);
+	bool (*is_optc_underflow_occurred)(struct timing_generator *tg);
+	void (*clear_optc_underflow)(struct timing_generator *tg);
 };
 
 #endif

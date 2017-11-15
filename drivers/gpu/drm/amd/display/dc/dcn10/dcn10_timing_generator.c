@@ -336,13 +336,6 @@ static void tgn10_blank_crtc(struct timing_generator *tg)
 			OTG_BLANK_DATA_EN, 1,
 			OTG_BLANK_DE_MODE, 0);
 
-	/* todo: why are we waiting for BLANK_DATA_EN?  shouldn't we be waiting
-	 * for status?
-	 */
-	REG_WAIT(OTG_BLANK_CONTROL,
-			OTG_BLANK_DATA_EN, 1,
-			1, 100000);
-
 	tgn10_set_blank_data_double_buffer(tg, false);
 }
 
@@ -1199,12 +1192,17 @@ void tgn10_read_otg_state(struct dcn10_timing_generator *tgn10,
 			OPTC_UNDERFLOW_OCCURRED_STATUS, &s->underflow_occurred_status);
 }
 
-static void tgn10_tg_init(struct timing_generator *tg)
+static void tgn10_clear_optc_underflow(struct timing_generator *tg)
 {
 	struct dcn10_timing_generator *tgn10 = DCN10TG_FROM_TG(tg);
 
-	tgn10_set_blank_data_double_buffer(tg, true);
 	REG_UPDATE(OPTC_INPUT_GLOBAL_CONTROL, OPTC_UNDERFLOW_CLEAR, 1);
+}
+
+static void tgn10_tg_init(struct timing_generator *tg)
+{
+	tgn10_set_blank_data_double_buffer(tg, true);
+	tgn10_clear_optc_underflow(tg);
 }
 
 static bool tgn10_is_tg_enabled(struct timing_generator *tg)
@@ -1217,6 +1215,19 @@ static bool tgn10_is_tg_enabled(struct timing_generator *tg)
 	return (otg_enabled != 0);
 
 }
+
+static bool tgn10_is_optc_underflow_occurred(struct timing_generator *tg)
+{
+	struct dcn10_timing_generator *tgn10 = DCN10TG_FROM_TG(tg);
+	uint32_t underflow_occurred = 0;
+
+	REG_GET(OPTC_INPUT_GLOBAL_CONTROL,
+			OPTC_UNDERFLOW_OCCURRED_STATUS,
+			&underflow_occurred);
+
+	return (underflow_occurred == 1);
+}
+
 static const struct timing_generator_funcs dcn10_tg_funcs = {
 		.validate_timing = tgn10_validate_timing,
 		.program_timing = tgn10_program_timing,
@@ -1249,6 +1260,8 @@ static const struct timing_generator_funcs dcn10_tg_funcs = {
 		.set_blank_data_double_buffer = tgn10_set_blank_data_double_buffer,
 		.tg_init = tgn10_tg_init,
 		.is_tg_enabled = tgn10_is_tg_enabled,
+		.is_optc_underflow_occurred = tgn10_is_optc_underflow_occurred,
+		.clear_optc_underflow = tgn10_clear_optc_underflow,
 };
 
 void dcn10_timing_generator_init(struct dcn10_timing_generator *tgn10)
