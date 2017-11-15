@@ -2267,6 +2267,14 @@ int usb_hcd_get_controller_id(struct usb_device *udev)
 	return hcd->driver->get_core_id(hcd);
 }
 
+int usb_hcd_stop_endpoint(struct usb_device *udev,
+		struct usb_host_endpoint *ep)
+{
+	struct usb_hcd	*hcd = bus_to_hcd(udev->bus);
+
+	return hcd->driver->stop_endpoint(hcd, udev, ep);
+}
+
 #ifdef	CONFIG_PM
 
 int hcd_bus_suspend(struct usb_device *rhdev, pm_message_t msg)

@@ -855,6 +855,12 @@ int usb_get_controller_id(struct usb_device *dev)
 }
 EXPORT_SYMBOL_GPL(usb_get_controller_id);
 
+int usb_stop_endpoint(struct usb_device *dev, struct usb_host_endpoint *ep)
+{
+	return usb_hcd_stop_endpoint(dev, ep);
+}
+EXPORT_SYMBOL_GPL(usb_stop_endpoint);
+
 /*-------------------------------------------------------------------*/
 /*
  * __usb_get_extra_descriptor() finds a descriptor of specific type in the
