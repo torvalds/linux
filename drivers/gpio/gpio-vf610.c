@@ -160,7 +160,7 @@ static void vf610_gpio_irq_handler(struct irq_desc *desc)
 	for_each_set_bit(pin, &irq_isfr, VF610_GPIO_PER_PORT) {
 		vf610_gpio_writel(BIT(pin), port->base + PORT_ISFR);
 
-		generic_handle_irq(irq_find_mapping(port->gc.irqdomain, pin));
+		generic_handle_irq(irq_find_mapping(port->gc.irq.domain, pin));
 	}
 
 	chained_irq_exit(chip, desc);

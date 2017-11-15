@@ -1523,7 +1523,7 @@ static void chv_gpio_irq_handler(struct irq_desc *desc)
 		unsigned irq, offset;
 
 		offset = pctrl->intr_lines[intr_line];
-		irq = irq_find_mapping(gc->irqdomain, offset);
+		irq = irq_find_mapping(gc->irq.domain, offset);
 		generic_handle_irq(irq);
 	}
 
@@ -1585,7 +1585,7 @@ static int chv_gpio_probe(struct chv_pinctrl *pctrl, int irq)
 	chip->label = dev_name(pctrl->dev);
 	chip->parent = pctrl->dev;
 	chip->base = -1;
-	chip->irq_need_valid_mask = need_valid_mask;
+	chip->irq.need_valid_mask = need_valid_mask;
 
 	ret = devm_gpiochip_add_data(pctrl->dev, chip, pctrl);
 	if (ret) {
@@ -1617,7 +1617,7 @@ static int chv_gpio_probe(struct chv_pinctrl *pctrl, int irq)
 		intsel >>= CHV_PADCTRL0_INTSEL_SHIFT;
 
 		if (need_valid_mask && intsel >= pctrl->community->nirqs)
-			clear_bit(i, chip->irq_valid_mask);
+			clear_bit(i, chip->irq.valid_mask);
 	}
 
 	/* Clear all interrupts */

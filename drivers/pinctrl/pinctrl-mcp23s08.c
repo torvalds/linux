@@ -537,7 +537,7 @@ static irqreturn_t mcp23s08_irq(int irq, void *data)
 		    ((gpio_bit_changed || intcap_changed) &&
 			(BIT(i) & mcp->irq_fall) && !gpio_set) ||
 		    defval_changed) {
-			child_irq = irq_find_mapping(mcp->chip.irqdomain, i);
+			child_irq = irq_find_mapping(mcp->chip.irq.domain, i);
 			handle_nested_irq(child_irq);
 		}
 	}

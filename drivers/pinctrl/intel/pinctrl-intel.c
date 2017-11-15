@@ -1005,7 +1005,7 @@ static irqreturn_t intel_gpio_community_irq_handler(struct intel_pinctrl *pctrl,
 			if (padno >= community->npins)
 				break;
 
-			irq = irq_find_mapping(gc->irqdomain,
+			irq = irq_find_mapping(gc->irq.domain,
 					       community->pin_base + padno);
 			generic_handle_irq(irq);
 

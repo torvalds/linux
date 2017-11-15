@@ -532,7 +532,7 @@ static irqreturn_t amd_gpio_irq_handler(int irq, void *dev_id)
 			regval = readl(regs + i);
 			if (!(regval & PIN_IRQ_PENDING))
 				continue;
-			irq = irq_find_mapping(gc->irqdomain, irqnr + i);
+			irq = irq_find_mapping(gc->irq.domain, irqnr + i);
 			generic_handle_irq(irq);
 
 			/* Clear interrupt.
