@@ -3534,7 +3534,7 @@ static int tcp_ack(struct sock *sk, const struct sk_buff *skb, int flag)
 		icsk->icsk_retransmits = 0;
 	}
 
-	prior_fack = tcp_highest_sack_seq(tp);
+	prior_fack = tcp_is_sack(tp) ? tcp_highest_sack_seq(tp) : tp->snd_una;
 	rs.prior_in_flight = tcp_packets_in_flight(tp);
 
 	/* ts_recent update must be made after we are sure that the packet
