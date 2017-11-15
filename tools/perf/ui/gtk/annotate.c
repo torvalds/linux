@@ -177,6 +177,8 @@ static int symbol__gtk_annotate(struct symbol *sym, struct map *map,
 		return -1;
 	}
 
+	symbol__calc_percent(sym, evsel);
+
 	if (perf_gtk__is_active_context(pgctx)) {
 		window = pgctx->main_window;
 		notebook = pgctx->notebook;

@@ -1126,6 +1126,8 @@ int symbol__tui_annotate(struct symbol *sym, struct map *map,
 		goto out_free_offsets;
 	}
 
+	symbol__calc_percent(sym, evsel);
+
 	ui_helpline__push("Press ESC to exit");
 
 	notes = symbol__annotation(sym);

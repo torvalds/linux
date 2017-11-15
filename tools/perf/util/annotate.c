@@ -1653,12 +1653,7 @@ int symbol__annotate(struct symbol *sym, struct map *map,
 		}
 	}
 
-	err = symbol__disassemble(sym, &args);
-	if (!err)
-		symbol__calc_percent(sym, evsel);
-
-	return err;
-
+	return symbol__disassemble(sym, &args);
 }
 
 static void insert_source_line(struct rb_root *root, struct annotation_line *al)
@@ -2004,6 +1999,8 @@ int symbol__tty_annotate(struct symbol *sym, struct map *map,
 
 	if (symbol__annotate(sym, map, evsel, 0, NULL, NULL) < 0)
 		return -1;
+
+	symbol__calc_percent(sym, evsel);
 
 	if (print_lines) {
 		srcline_full_filename = full_paths;
