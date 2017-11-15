@@ -367,9 +367,19 @@ static const struct dmi_system_id acpisleep_dmi_table[] __initconst = {
 	{},
 };
 
+static bool ignore_blacklist;
+
+void __init acpi_sleep_no_blacklist(void)
+{
+	ignore_blacklist = true;
+}
+
 static void __init acpi_sleep_dmi_check(void)
 {
 	int year;
+
+	if (ignore_blacklist)
+		return;
 
 	if (dmi_get_date(DMI_BIOS_DATE, &year, NULL, NULL) && year >= 2012)
 		acpi_nvs_nosave_s3();
