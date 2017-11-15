@@ -1448,11 +1448,11 @@ static int hdmi_phy_configure_dwc_hdmi_3d_tx(struct dw_hdmi *hdmi,
 	/*
 	 * RK3399 mpll clock source is vpll, also is vop clock source.
 	 * vpll rate is twice of mpixelclock in YCBCR420 mode, we need
-	 * to enable mpll pre-divider.
+	 * to enable mpll output divider.
 	 */
 	if (hdmi_bus_fmt_is_yuv420(hdmi->hdmi_data.enc_out_bus_format) &&
 	    (hdmi->dev_type == RK3399_HDMI || hdmi->dev_type == RK3368_HDMI))
-		dw_hdmi_phy_i2c_write(hdmi, mpll_config->res[depth].cpce | 4,
+		dw_hdmi_phy_i2c_write(hdmi, mpll_config->res[depth].cpce | 1,
 				      HDMI_3D_TX_PHY_CPCE_CTRL);
 	else
 		dw_hdmi_phy_i2c_write(hdmi, mpll_config->res[depth].cpce,
