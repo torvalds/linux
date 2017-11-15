@@ -3240,9 +3240,9 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 
 		hw_status = iwl_read_prph(trans, UMAG_GEN_HW_STATUS);
 		if (hw_status & UMAG_GEN_HW_IS_FPGA)
-			trans->cfg = &iwla000_2ax_cfg_qnj_hr_f0;
+			trans->cfg = &iwl22000_2ax_cfg_qnj_hr_f0;
 		else
-			trans->cfg = &iwla000_2ac_cfg_hr;
+			trans->cfg = &iwl22000_2ac_cfg_hr;
 	}
 #endif
 

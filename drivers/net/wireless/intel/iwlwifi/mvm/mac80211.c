@@ -4281,7 +4281,7 @@ void iwl_mvm_sync_rx_queues_internal(struct iwl_mvm *mvm,
 			   mvm->trans->num_rx_queues);
 
 	/* TODO - remove this when we have RXQ config API */
-	if (mvm->trans->cfg->device_family == IWL_DEVICE_FAMILY_A000) {
+	if (mvm->trans->cfg->device_family == IWL_DEVICE_FAMILY_22000) {
 		qmask = BIT(0);
 		if (notif->sync)
 			atomic_set(&mvm->queue_sync_counter, 1);
