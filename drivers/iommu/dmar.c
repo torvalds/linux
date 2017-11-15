@@ -801,11 +801,14 @@ int __init dmar_dev_scope_init(void)
 				dmar_free_pci_notify_info(info);
 			}
 		}
-
-		bus_register_notifier(&pci_bus_type, &dmar_pci_bus_nb);
 	}
 
 	return dmar_dev_scope_status;
+}
+
+void dmar_register_bus_notifier(void)
+{
+	bus_register_notifier(&pci_bus_type, &dmar_pci_bus_nb);
 }
 
 
@@ -1676,7 +1679,8 @@ irqreturn_t dmar_fault(int irq, void *dev_id)
 		raw_spin_lock_irqsave(&iommu->register_lock, flag);
 	}
 
-	writel(DMA_FSTS_PFO | DMA_FSTS_PPF, iommu->reg + DMAR_FSTS_REG);
+	writel(DMA_FSTS_PFO | DMA_FSTS_PPF | DMA_FSTS_PRO,
+	       iommu->reg + DMAR_FSTS_REG);
 
 unlock_exit:
 	raw_spin_unlock_irqrestore(&iommu->register_lock, flag);
