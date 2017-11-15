@@ -30,7 +30,6 @@
 #include <linux/log2.h>
 #include <linux/gpio.h>
 #include <linux/rockchip/cpu.h>
-#include <linux/rockchip/iomap.h>
 #include <linux/rockchip/grf.h>
 #include <asm/uaccess.h>
 #include <linux/of.h>

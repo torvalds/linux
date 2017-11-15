@@ -31,7 +31,6 @@
 #include <linux/proc_fs.h>
 #include <linux/uaccess.h>
 #include <linux/gpio.h>
-#include <linux/rockchip/iomap.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <linux/skbuff.h>
 #include <linux/fb.h>

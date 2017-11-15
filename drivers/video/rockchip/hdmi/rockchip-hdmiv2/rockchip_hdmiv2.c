@@ -8,7 +8,6 @@
 #include <linux/of_gpio.h>
 #include <linux/rockchip/cpu.h>
 #include <linux/rockchip/grf.h>
-#include <linux/rockchip/iomap.h>
 #include <linux/mfd/syscon.h>
 #if defined(CONFIG_DEBUG_FS)
 #include <linux/uaccess.h>
