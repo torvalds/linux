@@ -1178,12 +1178,6 @@ static void commit_planes_for_stream(struct dc *dc,
 	if (update_type == UPDATE_TYPE_FULL) {
 		dc->hwss.set_bandwidth(dc, context, false);
 		context_clock_trace(dc, context);
-
-		for (j = 0; j < dc->res_pool->pipe_count; j++) {
-			struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[j];
-
-			dc->hwss.wait_for_mpcc_disconnect(dc, dc->res_pool, pipe_ctx);
-		}
 	}
 
 	if (surface_count == 0) {
