@@ -51,6 +51,7 @@
  * non-default DSM revision ids
  */
 enum nvdimm_family_cmds {
+	NVDIMM_INTEL_LATCH_SHUTDOWN = 10,
 	NVDIMM_INTEL_GET_MODES = 11,
 	NVDIMM_INTEL_GET_FWINFO = 12,
 	NVDIMM_INTEL_START_FWUPDATE = 13,
@@ -66,7 +67,7 @@ enum nvdimm_family_cmds {
  | 1 << NVDIMM_INTEL_GET_FWINFO | 1 << NVDIMM_INTEL_START_FWUPDATE \
  | 1 << NVDIMM_INTEL_SEND_FWUPDATE | 1 << NVDIMM_INTEL_FINISH_FWUPDATE \
  | 1 << NVDIMM_INTEL_QUERY_FWUPDATE | 1 << NVDIMM_INTEL_SET_THRESHOLD \
- | 1 << NVDIMM_INTEL_INJECT_ERROR)
+ | 1 << NVDIMM_INTEL_INJECT_ERROR | 1 << NVDIMM_INTEL_LATCH_SHUTDOWN)
 
 enum nfit_uuids {
 	/* for simplicity alias the uuid index with the family id */
