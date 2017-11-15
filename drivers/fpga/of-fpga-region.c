@@ -298,17 +298,18 @@ static int of_fpga_region_notify_pre_apply(struct fpga_region *region,
 	struct fpga_image_info *info;
 	int ret;
 
-	if (region->info) {
-		dev_err(dev, "Region already has overlay applied.\n");
-		return -EINVAL;
-	}
-
 	info = of_fpga_region_parse_ov(region, nd->overlay);
 	if (IS_ERR(info))
 		return PTR_ERR(info);
 
+	/* If overlay doesn't program the FPGA, accept it anyway. */
 	if (!info)
 		return 0;
+
+	if (region->info) {
+		dev_err(dev, "Region already has overlay applied.\n");
+		return -EINVAL;
+	}
 
 	region->info = info;
 	ret = fpga_region_program_fpga(region);
