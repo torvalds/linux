@@ -793,10 +793,13 @@ static int ttm_mem_evict_first(struct ttm_bo_device *bdev,
 	spin_unlock(&glob->lru_lock);
 
 	ret = ttm_bo_evict(bo, interruptible, no_wait_gpu);
-	if (locked)
+	if (locked) {
 		ttm_bo_unreserve(bo);
-	else
+	} else {
+		spin_lock(&glob->lru_lock);
 		ttm_bo_add_to_lru(bo);
+		spin_unlock(&glob->lru_lock);
+	}
 
 	kref_put(&bo->list_kref, ttm_bo_release_list);
 	return ret;
