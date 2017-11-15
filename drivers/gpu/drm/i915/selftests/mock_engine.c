@@ -124,8 +124,10 @@ static void mock_submit_request(struct drm_i915_gem_request *request)
 
 static struct intel_ring *mock_ring(struct intel_engine_cs *engine)
 {
-	const unsigned long sz = roundup_pow_of_two(sizeof(struct intel_ring));
+	const unsigned long sz = PAGE_SIZE / 2;
 	struct intel_ring *ring;
+
+	BUILD_BUG_ON(MIN_SPACE_FOR_ADD_REQUEST > sz);
 
 	ring = kzalloc(sizeof(*ring) + sz, GFP_KERNEL);
 	if (!ring)
