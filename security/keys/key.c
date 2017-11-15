@@ -460,7 +460,7 @@ static int __key_instantiate_and_link(struct key *key,
 			if (authkey)
 				key_revoke(authkey);
 
-			if (prep->expiry != TIME_T_MAX) {
+			if (prep->expiry != TIME64_MAX) {
 				key->expiry = prep->expiry;
 				key_schedule_gc(prep->expiry + key_gc_delay);
 			}
@@ -506,7 +506,7 @@ int key_instantiate_and_link(struct key *key,
 	prep.data = data;
 	prep.datalen = datalen;
 	prep.quotalen = key->type->def_datalen;
-	prep.expiry = TIME_T_MAX;
+	prep.expiry = TIME64_MAX;
 	if (key->type->preparse) {
 		ret = key->type->preparse(&prep);
 		if (ret < 0)
@@ -845,7 +845,7 @@ key_ref_t key_create_or_update(key_ref_t keyring_ref,
 	prep.data = payload;
 	prep.datalen = plen;
 	prep.quotalen = index_key.type->def_datalen;
-	prep.expiry = TIME_T_MAX;
+	prep.expiry = TIME64_MAX;
 	if (index_key.type->preparse) {
 		ret = index_key.type->preparse(&prep);
 		if (ret < 0) {
@@ -989,7 +989,7 @@ int key_update(key_ref_t key_ref, const void *payload, size_t plen)
 	prep.data = payload;
 	prep.datalen = plen;
 	prep.quotalen = key->type->def_datalen;
-	prep.expiry = TIME_T_MAX;
+	prep.expiry = TIME64_MAX;
 	if (key->type->preparse) {
 		ret = key->type->preparse(&prep);
 		if (ret < 0)
