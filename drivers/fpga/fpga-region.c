@@ -223,14 +223,13 @@ static int fpga_region_get_bridges(struct fpga_region *region,
 /**
  * fpga_region_program_fpga - program FPGA
  * @region: FPGA region
- * @overlay: device node of the overlay
- * Program an FPGA using information in the region's fpga image info.
+ * Program an FPGA using fpga image info (region->info).
  * Return 0 for success or negative error code.
  */
-static int fpga_region_program_fpga(struct fpga_region *region,
-				    struct device_node *overlay)
+static int fpga_region_program_fpga(struct fpga_region *region)
 {
 	struct device *dev = &region->dev;
+	struct fpga_image_info *info = region->info;
 	int ret;
 
 	region = fpga_region_get(region);
@@ -245,7 +244,7 @@ static int fpga_region_program_fpga(struct fpga_region *region,
 		goto err_put_region;
 	}
 
-	ret = fpga_region_get_bridges(region, overlay);
+	ret = fpga_region_get_bridges(region, info->overlay);
 	if (ret) {
 		dev_err(dev, "failed to get FPGA bridges\n");
 		goto err_unlock_mgr;
@@ -257,7 +256,7 @@ static int fpga_region_program_fpga(struct fpga_region *region,
 		goto err_put_br;
 	}
 
-	ret = fpga_mgr_load(region->mgr, region->info);
+	ret = fpga_mgr_load(region->mgr, info);
 	if (ret) {
 		dev_err(dev, "failed to load FPGA image\n");
 		goto err_put_br;
@@ -373,6 +372,8 @@ static int fpga_region_notify_pre_apply(struct fpga_region *region,
 	if (!info)
 		return -ENOMEM;
 
+	info->overlay = nd->overlay;
+
 	/* Read FPGA region properties from the overlay */
 	if (of_property_read_bool(nd->overlay, "partial-fpga-config"))
 		info->flags |= FPGA_MGR_PARTIAL_RECONFIG;
@@ -421,7 +422,8 @@ static int fpga_region_notify_pre_apply(struct fpga_region *region,
 	}
 
 	region->info = info;
-	ret = fpga_region_program_fpga(region, nd->overlay);
+
+	ret = fpga_region_program_fpga(region);
 	if (ret) {
 		fpga_image_info_free(info);
 		region->info = NULL;
