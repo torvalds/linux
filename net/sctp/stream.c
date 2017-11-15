@@ -282,15 +282,31 @@ int sctp_send_reset_streams(struct sctp_association *asoc,
 
 	str_nums = params->srs_number_streams;
 	str_list = params->srs_stream_list;
-	if (out && str_nums)
-		for (i = 0; i < str_nums; i++)
-			if (str_list[i] >= stream->outcnt)
-				goto out;
+	if (str_nums) {
+		int param_len = 0;
 
-	if (in && str_nums)
-		for (i = 0; i < str_nums; i++)
-			if (str_list[i] >= stream->incnt)
-				goto out;
+		if (out) {
+			for (i = 0; i < str_nums; i++)
+				if (str_list[i] >= stream->outcnt)
+					goto out;
+
+			param_len = str_nums * sizeof(__u16) +
+				    sizeof(struct sctp_strreset_outreq);
+		}
+
+		if (in) {
+			for (i = 0; i < str_nums; i++)
+				if (str_list[i] >= stream->incnt)
+					goto out;
+
+			param_len += str_nums * sizeof(__u16) +
+				     sizeof(struct sctp_strreset_inreq);
+		}
+
+		if (param_len > SCTP_MAX_CHUNK_LEN -
+				sizeof(struct sctp_reconf_chunk))
+			goto out;
+	}
 
 	nstr_list = kcalloc(str_nums, sizeof(__be16), GFP_KERNEL);
 	if (!nstr_list) {
