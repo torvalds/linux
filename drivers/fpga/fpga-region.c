@@ -102,7 +102,7 @@ static struct fpga_region *fpga_region_get(struct fpga_region *region)
 		return ERR_PTR(-ENODEV);
 	}
 
-	dev_dbg(&region->dev, "get\n");
+	dev_dbg(dev, "get\n");
 
 	return region;
 }
@@ -116,7 +116,7 @@ static void fpga_region_put(struct fpga_region *region)
 {
 	struct device *dev = &region->dev;
 
-	dev_dbg(&region->dev, "put\n");
+	dev_dbg(dev, "put\n");
 
 	module_put(dev->parent->driver->owner);
 	of_node_put(dev->of_node);
@@ -239,13 +239,13 @@ static int fpga_region_program_fpga(struct fpga_region *region,
 
 	region = fpga_region_get(region);
 	if (IS_ERR(region)) {
-		pr_err("failed to get fpga region\n");
+		dev_err(dev, "failed to get FPGA region\n");
 		return PTR_ERR(region);
 	}
 
 	mgr = fpga_region_get_manager(region);
 	if (IS_ERR(mgr)) {
-		pr_err("failed to get fpga region manager\n");
+		dev_err(dev, "failed to get FPGA manager\n");
 		ret = PTR_ERR(mgr);
 		goto err_put_region;
 	}
@@ -258,25 +258,25 @@ static int fpga_region_program_fpga(struct fpga_region *region,
 
 	ret = fpga_region_get_bridges(region, overlay);
 	if (ret) {
-		pr_err("failed to get fpga region bridges\n");
+		dev_err(dev, "failed to get FPGA bridges\n");
 		goto err_unlock_mgr;
 	}
 
 	ret = fpga_bridges_disable(&region->bridge_list);
 	if (ret) {
-		pr_err("failed to disable region bridges\n");
+		dev_err(dev, "failed to disable bridges\n");
 		goto err_put_br;
 	}
 
 	ret = fpga_mgr_load(mgr, region->info);
 	if (ret) {
-		pr_err("failed to load fpga image\n");
+		dev_err(dev, "failed to load FPGA image\n");
 		goto err_put_br;
 	}
 
 	ret = fpga_bridges_enable(&region->bridge_list);
 	if (ret) {
-		pr_err("failed to enable region bridges\n");
+		dev_err(dev, "failed to enable region bridges\n");
 		goto err_put_br;
 	}
 
@@ -407,7 +407,7 @@ static int fpga_region_notify_pre_apply(struct fpga_region *region,
 
 	/* If FPGA was externally programmed, don't specify firmware */
 	if ((info->flags & FPGA_MGR_EXTERNAL_CONFIG) && info->firmware_name) {
-		pr_err("error: specified firmware and external-fpga-config");
+		dev_err(dev, "error: specified firmware and external-fpga-config");
 		fpga_image_info_free(info);
 		return -EINVAL;
 	}
@@ -420,7 +420,7 @@ static int fpga_region_notify_pre_apply(struct fpga_region *region,
 
 	/* If we got this far, we should be programming the FPGA */
 	if (!info->firmware_name) {
-		pr_err("should specify firmware-name or external-fpga-config\n");
+		dev_err(dev, "should specify firmware-name or external-fpga-config\n");
 		fpga_image_info_free(info);
 		return -EINVAL;
 	}
