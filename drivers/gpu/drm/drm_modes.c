@@ -1036,6 +1036,12 @@ EXPORT_SYMBOL(drm_mode_equal_no_clocks_no_stereo);
 enum drm_mode_status
 drm_mode_validate_basic(const struct drm_display_mode *mode)
 {
+	if (mode->type & ~DRM_MODE_TYPE_ALL)
+		return MODE_BAD;
+
+	if (mode->flags & ~DRM_MODE_FLAG_ALL)
+		return MODE_BAD;
+
 	if ((mode->flags & DRM_MODE_FLAG_3D_MASK) > DRM_MODE_FLAG_3D_MAX)
 		return MODE_BAD;
 
