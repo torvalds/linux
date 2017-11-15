@@ -55,6 +55,12 @@
 #define STM_SAI_IS_SUB_B(x)	((x)->id == STM_SAI_B_ID)
 #define STM_SAI_BLOCK_NAME(x)	(((x)->id == STM_SAI_A_ID) ? "A" : "B")
 
+#define SAI_SYNC_NONE		0x0
+#define SAI_SYNC_INTERNAL	0x1
+#define SAI_SYNC_EXTERNAL	0x2
+
+#define STM_SAI_HAS_EXT_SYNC(x) (!STM_SAI_IS_F4(sai->pdata))
+
 /**
  * struct stm32_sai_sub_data - private data of SAI sub block (block A or B)
  * @pdev: device data pointer
@@ -65,6 +71,7 @@
  * @cpu_dai: DAI runtime data pointer
  * @substream: PCM substream data pointer
  * @pdata: SAI block parent data pointer
+ * @np_sync_provider: synchronization provider node
  * @sai_ck: kernel clock feeding the SAI clock generator
  * @phys_addr: SAI registers physical base address
  * @mclk_rate: SAI block master clock frequency (Hz). set at init
@@ -73,6 +80,8 @@
  * @master: SAI block mode flag. (true=master, false=slave) set at init
  * @fmt: SAI block format. relevant only for custom protocols. set at init
  * @sync: SAI block synchronization mode. (none, internal or external)
+ * @synco: SAI block ext sync source (provider setting). (none, sub-block A/B)
+ * @synci: SAI block ext sync source (client setting). (SAI sync provider index)
  * @fs_length: frame synchronization length. depends on protocol settings
  * @slots: rx or tx slot number
  * @slot_width: rx or tx slot width in bits
@@ -88,6 +97,7 @@ struct stm32_sai_sub_data {
 	struct snd_soc_dai *cpu_dai;
 	struct snd_pcm_substream *substream;
 	struct stm32_sai_data *pdata;
+	struct device_node *np_sync_provider;
 	struct clk *sai_ck;
 	dma_addr_t phys_addr;
 	unsigned int mclk_rate;
@@ -96,6 +106,8 @@ struct stm32_sai_sub_data {
 	bool master;
 	int fmt;
 	int sync;
+	int synco;
+	int synci;
 	int fs_length;
 	int slots;
 	int slot_width;
@@ -184,7 +196,6 @@ static const struct regmap_config stm32_sai_sub_regmap_config_h7 = {
 static irqreturn_t stm32_sai_isr(int irq, void *devid)
 {
 	struct stm32_sai_sub_data *sai = (struct stm32_sai_sub_data *)devid;
-	struct snd_pcm_substream *substream = sai->substream;
 	struct platform_device *pdev = sai->pdev;
 	unsigned int sr, imr, flags;
 	snd_pcm_state_t status = SNDRV_PCM_STATE_RUNNING;
@@ -198,6 +209,11 @@ static irqreturn_t stm32_sai_isr(int irq, void *devid)
 
 	regmap_update_bits(sai->regmap, STM_SAI_CLRFR_REGX, SAI_XCLRFR_MASK,
 			   SAI_XCLRFR_MASK);
+
+	if (!sai->substream) {
+		dev_err(&pdev->dev, "Device stopped. Spurious IRQ 0x%x\n", sr);
+		return IRQ_NONE;
+	}
 
 	if (flags & SAI_XIMR_OVRUDRIE) {
 		dev_err(&pdev->dev, "IRQ %s\n",
@@ -227,9 +243,9 @@ static irqreturn_t stm32_sai_isr(int irq, void *devid)
 	}
 
 	if (status != SNDRV_PCM_STATE_RUNNING) {
-		snd_pcm_stream_lock(substream);
-		snd_pcm_stop(substream, SNDRV_PCM_STATE_XRUN);
-		snd_pcm_stream_unlock(substream);
+		snd_pcm_stream_lock(sai->substream);
+		snd_pcm_stop(sai->substream, SNDRV_PCM_STATE_XRUN);
+		snd_pcm_stream_unlock(sai->substream);
 	}
 
 	return IRQ_HANDLED;
@@ -304,11 +320,14 @@ static int stm32_sai_set_dai_tdm_slot(struct snd_soc_dai *cpu_dai, u32 tx_mask,
 static int stm32_sai_set_dai_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
 {
 	struct stm32_sai_sub_data *sai = snd_soc_dai_get_drvdata(cpu_dai);
-	int cr1 = 0, frcr = 0;
-	int cr1_mask = 0, frcr_mask = 0;
+	int cr1, frcr = 0;
+	int cr1_mask, frcr_mask = 0;
 	int ret;
 
 	dev_dbg(cpu_dai->dev, "fmt %x\n", fmt);
+
+	cr1_mask = SAI_XCR1_PRTCFG_MASK;
+	cr1 = SAI_XCR1_PRTCFG_SET(SAI_FREE_PROTOCOL);
 
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	/* SCK active high for all protocols */
@@ -336,7 +355,7 @@ static int stm32_sai_set_dai_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
 		return -EINVAL;
 	}
 
-	cr1_mask |= SAI_XCR1_PRTCFG_MASK | SAI_XCR1_CKSTR;
+	cr1_mask |= SAI_XCR1_CKSTR;
 	frcr_mask |= SAI_XFRCR_FSPOL | SAI_XFRCR_FSOFF |
 		     SAI_XFRCR_FSDEF;
 
@@ -380,6 +399,14 @@ static int stm32_sai_set_dai_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
 			fmt & SND_SOC_DAIFMT_MASTER_MASK);
 		return -EINVAL;
 	}
+
+	/* Set slave mode if sub-block is synchronized with another SAI */
+	if (sai->sync) {
+		dev_dbg(cpu_dai->dev, "Synchronized SAI configured as slave\n");
+		cr1 |= SAI_XCR1_SLAVE;
+		sai->master = false;
+	}
+
 	cr1_mask |= SAI_XCR1_SLAVE;
 
 	/* do not generate master by default */
@@ -412,8 +439,6 @@ static int stm32_sai_startup(struct snd_pcm_substream *substream,
 	}
 
 	/* Enable ITs */
-	regmap_update_bits(sai->regmap, STM_SAI_SR_REGX,
-			   SAI_XSR_MASK, (unsigned int)~SAI_XSR_MASK);
 
 	regmap_update_bits(sai->regmap, STM_SAI_CLRFR_REGX,
 			   SAI_XCLRFR_MASK, SAI_XCLRFR_MASK);
@@ -442,34 +467,33 @@ static int stm32_sai_set_config(struct snd_soc_dai *cpu_dai,
 {
 	struct stm32_sai_sub_data *sai = snd_soc_dai_get_drvdata(cpu_dai);
 	int cr1, cr1_mask, ret;
-	int fth = STM_SAI_FIFO_TH_HALF;
 
-	/* FIFO config */
+	/*
+	 * DMA bursts increment is set to 4 words.
+	 * SAI fifo threshold is set to half fifo, to keep enough space
+	 * for DMA incoming bursts.
+	 */
 	regmap_update_bits(sai->regmap, STM_SAI_CR2_REGX,
 			   SAI_XCR2_FFLUSH | SAI_XCR2_FTH_MASK,
-			   SAI_XCR2_FFLUSH | SAI_XCR2_FTH_SET(fth));
+			   SAI_XCR2_FFLUSH |
+			   SAI_XCR2_FTH_SET(STM_SAI_FIFO_TH_HALF));
 
 	/* Mode, data format and channel config */
-	cr1 = SAI_XCR1_PRTCFG_SET(SAI_FREE_PROTOCOL);
+	cr1_mask = SAI_XCR1_DS_MASK;
 	switch (params_format(params)) {
 	case SNDRV_PCM_FORMAT_S8:
-		cr1 |= SAI_XCR1_DS_SET(SAI_DATASIZE_8);
+		cr1 = SAI_XCR1_DS_SET(SAI_DATASIZE_8);
 		break;
 	case SNDRV_PCM_FORMAT_S16_LE:
-		cr1 |= SAI_XCR1_DS_SET(SAI_DATASIZE_16);
+		cr1 = SAI_XCR1_DS_SET(SAI_DATASIZE_16);
 		break;
 	case SNDRV_PCM_FORMAT_S32_LE:
-		cr1 |= SAI_XCR1_DS_SET(SAI_DATASIZE_32);
+		cr1 = SAI_XCR1_DS_SET(SAI_DATASIZE_32);
 		break;
 	default:
 		dev_err(cpu_dai->dev, "Data format not supported");
 		return -EINVAL;
 	}
-	cr1_mask = SAI_XCR1_DS_MASK | SAI_XCR1_PRTCFG_MASK;
-
-	cr1_mask |= SAI_XCR1_RX_TX;
-	if (STM_SAI_IS_CAPTURE(sai))
-		cr1 |= SAI_XCR1_RX_TX;
 
 	cr1_mask |= SAI_XCR1_MONO;
 	if ((sai->slots == 2) && (params_channels(params) == 1))
@@ -480,10 +504,6 @@ static int stm32_sai_set_config(struct snd_soc_dai *cpu_dai,
 		dev_err(cpu_dai->dev, "Failed to update CR1 register\n");
 		return ret;
 	}
-
-	/* DMA config */
-	sai->dma_params.maxburst = STM_SAI_FIFO_SIZE * fth / sizeof(u32);
-	snd_soc_dai_set_dma_data(cpu_dai, substream, (void *)&sai->dma_params);
 
 	return 0;
 }
@@ -691,6 +711,9 @@ static int stm32_sai_trigger(struct snd_pcm_substream *substream, int cmd,
 	case SNDRV_PCM_TRIGGER_STOP:
 		dev_dbg(cpu_dai->dev, "Disable DMA and SAI\n");
 
+		regmap_update_bits(sai->regmap, STM_SAI_IMR_REGX,
+				   SAI_XIMR_MASK, 0);
+
 		regmap_update_bits(sai->regmap, STM_SAI_CR1_REGX,
 				   SAI_XCR1_SAIEN,
 				   (unsigned int)~SAI_XCR1_SAIEN);
@@ -725,9 +748,15 @@ static void stm32_sai_shutdown(struct snd_pcm_substream *substream,
 static int stm32_sai_dai_probe(struct snd_soc_dai *cpu_dai)
 {
 	struct stm32_sai_sub_data *sai = dev_get_drvdata(cpu_dai->dev);
+	int cr1 = 0, cr1_mask;
 
 	sai->dma_params.addr = (dma_addr_t)(sai->phys_addr + STM_SAI_DR_REGX);
-	sai->dma_params.maxburst = 1;
+	/*
+	 * DMA supports 4, 8 or 16 burst sizes. Burst size 4 is the best choice,
+	 * as it allows bytes, half-word and words transfers. (See DMA fifos
+	 * constraints).
+	 */
+	sai->dma_params.maxburst = 4;
 	/* Buswidth will be set by framework at runtime */
 	sai->dma_params.addr_width = DMA_SLAVE_BUSWIDTH_UNDEFINED;
 
@@ -736,7 +765,21 @@ static int stm32_sai_dai_probe(struct snd_soc_dai *cpu_dai)
 	else
 		snd_soc_dai_init_dma_data(cpu_dai, NULL, &sai->dma_params);
 
-	return 0;
+	cr1_mask = SAI_XCR1_RX_TX;
+	if (STM_SAI_IS_CAPTURE(sai))
+		cr1 |= SAI_XCR1_RX_TX;
+
+	/* Configure synchronization */
+	if (sai->sync == SAI_SYNC_EXTERNAL) {
+		/* Configure synchro client and provider */
+		sai->pdata->set_sync(sai->pdata, sai->np_sync_provider,
+				     sai->synco, sai->synci);
+	}
+
+	cr1_mask |= SAI_XCR1_SYNCEN_MASK;
+	cr1 |= SAI_XCR1_SYNCEN_SET(sai->sync);
+
+	return regmap_update_bits(sai->regmap, STM_SAI_CR1_REGX, cr1_mask, cr1);
 }
 
 static const struct snd_soc_dai_ops stm32_sai_pcm_dai_ops = {
@@ -822,6 +865,8 @@ static int stm32_sai_sub_parse_of(struct platform_device *pdev,
 	struct device_node *np = pdev->dev.of_node;
 	struct resource *res;
 	void __iomem *base;
+	struct of_phandle_args args;
+	int ret;
 
 	if (!np)
 		return -ENODEV;
@@ -855,6 +900,69 @@ static int stm32_sai_sub_parse_of(struct platform_device *pdev,
 		return -EINVAL;
 	}
 
+	/* Get synchronization property */
+	args.np = NULL;
+	ret = of_parse_phandle_with_fixed_args(np, "st,sync", 1, 0, &args);
+	if (ret < 0  && ret != -ENOENT) {
+		dev_err(&pdev->dev, "Failed to get st,sync property\n");
+		return ret;
+	}
+
+	sai->sync = SAI_SYNC_NONE;
+	if (args.np) {
+		if (args.np == np) {
+			dev_err(&pdev->dev, "%s sync own reference\n",
+				np->name);
+			of_node_put(args.np);
+			return -EINVAL;
+		}
+
+		sai->np_sync_provider  = of_get_parent(args.np);
+		if (!sai->np_sync_provider) {
+			dev_err(&pdev->dev, "%s parent node not found\n",
+				np->name);
+			of_node_put(args.np);
+			return -ENODEV;
+		}
+
+		sai->sync = SAI_SYNC_INTERNAL;
+		if (sai->np_sync_provider != sai->pdata->pdev->dev.of_node) {
+			if (!STM_SAI_HAS_EXT_SYNC(sai)) {
+				dev_err(&pdev->dev,
+					"External synchro not supported\n");
+				of_node_put(args.np);
+				return -EINVAL;
+			}
+			sai->sync = SAI_SYNC_EXTERNAL;
+
+			sai->synci = args.args[0];
+			if (sai->synci < 1 ||
+			    (sai->synci > (SAI_GCR_SYNCIN_MAX + 1))) {
+				dev_err(&pdev->dev, "Wrong SAI index\n");
+				of_node_put(args.np);
+				return -EINVAL;
+			}
+
+			if (of_property_match_string(args.np, "compatible",
+						     "st,stm32-sai-sub-a") >= 0)
+				sai->synco = STM_SAI_SYNC_OUT_A;
+
+			if (of_property_match_string(args.np, "compatible",
+						     "st,stm32-sai-sub-b") >= 0)
+				sai->synco = STM_SAI_SYNC_OUT_B;
+
+			if (!sai->synco) {
+				dev_err(&pdev->dev, "Unknown SAI sub-block\n");
+				of_node_put(args.np);
+				return -EINVAL;
+			}
+		}
+
+		dev_dbg(&pdev->dev, "%s synchronized with %s\n",
+			pdev->name, args.np->full_name);
+	}
+
+	of_node_put(args.np);
 	sai->sai_ck = devm_clk_get(&pdev->dev, "sai_ck");
 	if (IS_ERR(sai->sai_ck)) {
 		dev_err(&pdev->dev, "Missing kernel clock sai_ck\n");

@@ -1,7 +1,7 @@
 /*
  * Driver for the PCM512x CODECs
  *
- * Author:	Mark Brown <broonie@linaro.org>
+ * Author:	Mark Brown <broonie@kernel.org>
  *		Copyright 2014 Linaro Ltd
  *
  * This program is free software; you can redistribute it and/or
@@ -1602,5 +1602,5 @@ const struct dev_pm_ops pcm512x_pm_ops = {
 EXPORT_SYMBOL_GPL(pcm512x_pm_ops);
 
 MODULE_DESCRIPTION("ASoC PCM512x codec driver");
-MODULE_AUTHOR("Mark Brown <broonie@linaro.org>");
+MODULE_AUTHOR("Mark Brown <broonie@kernel.org>");
 MODULE_LICENSE("GPL v2");

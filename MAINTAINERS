@@ -527,11 +527,6 @@ W:	http://ez.analog.com/community/linux-device-drivers
 S:	Supported
 F:	drivers/input/misc/adxl34x.c
 
-AEDSP16 DRIVER
-M:	Riccardo Facchetti <fizban@tin.it>
-S:	Maintained
-F:	sound/oss/aedsp16.c
-
 AF9013 MEDIA DRIVER
 M:	Antti Palosaari <crope@iki.fi>
 L:	linux-media@vger.kernel.org
@@ -9222,12 +9217,6 @@ F:	include/linux/dt-bindings/mux/
 F:	include/linux/mux/
 F:	drivers/mux/
 
-MULTISOUND SOUND DRIVER
-M:	Andrew Veliath <andrewtv@usa.net>
-S:	Maintained
-F:	Documentation/sound/oss/MultiSound
-F:	sound/oss/msnd*
-
 MULTITECH MULTIPORT CARD (ISICOM)
 S:	Orphan
 F:	drivers/tty/isicom.c
@@ -14638,6 +14627,7 @@ F:	Documentation/devicetree/bindings/extcon/extcon-arizona.txt
 F:	Documentation/devicetree/bindings/regulator/arizona-regulator.txt
 F:	Documentation/devicetree/bindings/mfd/arizona.txt
 F:	Documentation/devicetree/bindings/mfd/wm831x.txt
+F:	Documentation/devicetree/bindings/sound/wlf,arizona.txt
 F:	arch/arm/mach-s3c64xx/mach-crag6410*
 F:	drivers/clk/clk-wm83*.c
 F:	drivers/extcon/extcon-arizona.c

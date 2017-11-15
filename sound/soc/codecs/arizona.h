@@ -313,7 +313,9 @@ int arizona_set_fll(struct arizona_fll *fll, int source,
 int arizona_init_spk(struct snd_soc_codec *codec);
 int arizona_init_gpio(struct snd_soc_codec *codec);
 int arizona_init_mono(struct snd_soc_codec *codec);
-int arizona_init_notifiers(struct snd_soc_codec *codec);
+
+int arizona_init_common(struct arizona *arizona);
+int arizona_init_vol_limit(struct arizona *arizona);
 
 int arizona_init_spk_irqs(struct arizona *arizona);
 int arizona_free_spk_irqs(struct arizona *arizona);
@@ -349,5 +351,7 @@ static inline int arizona_unregister_notifier(struct snd_soc_codec *codec,
 
 	return blocking_notifier_chain_unregister(&arizona->notifier, nb);
 }
+
+int arizona_of_get_audio_pdata(struct arizona *arizona);
 
 #endif

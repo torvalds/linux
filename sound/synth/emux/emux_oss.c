@@ -430,7 +430,6 @@ gusspec_control(struct snd_emux *emu, struct snd_emux_port *port, int cmd,
 {
 	int voice;
 	unsigned short p1;
-	short p2;
 	int plong;
 	struct snd_midi_channel *chan;
 
@@ -445,7 +444,6 @@ gusspec_control(struct snd_emux *emu, struct snd_emux_port *port, int cmd,
 	chan = &port->chset.channels[voice];
 
 	p1 = *(unsigned short *) &event[4];
-	p2 = *(short *) &event[6];
 	plong = *(int*) &event[4];
 
 	switch (cmd) {
