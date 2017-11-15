@@ -2935,13 +2935,12 @@ static int selinux_inode_init_security(struct inode *inode, struct inode *dir,
 {
 	const struct task_security_struct *tsec = current_security();
 	struct superblock_security_struct *sbsec;
-	u32 sid, newsid, clen;
+	u32 newsid, clen;
 	int rc;
 	char *context;
 
 	sbsec = dir->i_sb->s_security;
 
-	sid = tsec->sid;
 	newsid = tsec->create_sid;
 
 	rc = selinux_determine_inode_label(current_security(),
@@ -3141,27 +3140,6 @@ static int selinux_inode_getattr(const struct path *path)
 	return path_has_perm(current_cred(), path, FILE__GETATTR);
 }
 
-static int selinux_inode_setotherxattr(struct dentry *dentry, const char *name)
-{
-	const struct cred *cred = current_cred();
-
-	if (!strncmp(name, XATTR_SECURITY_PREFIX,
-		     sizeof XATTR_SECURITY_PREFIX - 1)) {
-		if (!strcmp(name, XATTR_NAME_CAPS)) {
-			if (!capable(CAP_SETFCAP))
-				return -EPERM;
-		} else if (!capable(CAP_SYS_ADMIN)) {
-			/* A different attribute in the security namespace.
-			   Restrict to administrator. */
-			return -EPERM;
-		}
-	}
-
-	/* Not an attribute we recognize, so just check the
-	   ordinary setattr permission. */
-	return dentry_has_perm(cred, dentry, FILE__SETATTR);
-}
-
 static bool has_cap_mac_admin(bool audit)
 {
 	const struct cred *cred = current_cred();
@@ -3184,8 +3162,15 @@ static int selinux_inode_setxattr(struct dentry *dentry, const char *name,
 	u32 newsid, sid = current_sid();
 	int rc = 0;
 
-	if (strcmp(name, XATTR_NAME_SELINUX))
-		return selinux_inode_setotherxattr(dentry, name);
+	if (strcmp(name, XATTR_NAME_SELINUX)) {
+		rc = cap_inode_setxattr(dentry, name, value, size, flags);
+		if (rc)
+			return rc;
+
+		/* Not an attribute we recognize, so just check the
+		   ordinary setattr permission. */
+		return dentry_has_perm(current_cred(), dentry, FILE__SETATTR);
+	}
 
 	sbsec = inode->i_sb->s_security;
 	if (!(sbsec->flags & SBLABEL_MNT))
@@ -3208,18 +3193,17 @@ static int selinux_inode_setxattr(struct dentry *dentry, const char *name,
 		if (!has_cap_mac_admin(true)) {
 			struct audit_buffer *ab;
 			size_t audit_size;
-			const char *str;
 
 			/* We strip a nul only if it is at the end, otherwise the
 			 * context contains a nul and we should audit that */
 			if (value) {
-				str = value;
+				const char *str = value;
+
 				if (str[size - 1] == '\0')
 					audit_size = size - 1;
 				else
 					audit_size = size;
 			} else {
-				str = "";
 				audit_size = 0;
 			}
 			ab = audit_log_start(current->audit_context, GFP_ATOMIC, AUDIT_SELINUX_ERR);
@@ -3299,8 +3283,15 @@ static int selinux_inode_listxattr(struct dentry *dentry)
 
 static int selinux_inode_removexattr(struct dentry *dentry, const char *name)
 {
-	if (strcmp(name, XATTR_NAME_SELINUX))
-		return selinux_inode_setotherxattr(dentry, name);
+	if (strcmp(name, XATTR_NAME_SELINUX)) {
+		int rc = cap_inode_removexattr(dentry, name);
+		if (rc)
+			return rc;
+
+		/* Not an attribute we recognize, so just check the
+		   ordinary setattr permission. */
+		return dentry_has_perm(current_cred(), dentry, FILE__SETATTR);
+	}
 
 	/* No one is allowed to remove a SELinux security label.
 	   You can change the label, but all data must be labeled. */
@@ -3995,8 +3986,8 @@ static int selinux_task_getioprio(struct task_struct *p)
 			    PROCESS__GETSCHED, NULL);
 }
 
-int selinux_task_prlimit(const struct cred *cred, const struct cred *tcred,
-			 unsigned int flags)
+static int selinux_task_prlimit(const struct cred *cred, const struct cred *tcred,
+				unsigned int flags)
 {
 	u32 av = 0;
 
