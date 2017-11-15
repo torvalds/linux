@@ -99,6 +99,7 @@ static void perf_top__resize(struct perf_top *top)
 
 static int perf_top__parse_source(struct perf_top *top, struct hist_entry *he)
 {
+	struct perf_evsel *evsel = hists_to_evsel(he->hists);
 	struct symbol *sym;
 	struct annotation *notes;
 	struct map *map;
@@ -137,7 +138,7 @@ static int perf_top__parse_source(struct perf_top *top, struct hist_entry *he)
 		return err;
 	}
 
-	err = symbol__annotate(sym, map, NULL, 0, NULL, NULL);
+	err = symbol__annotate(sym, map, evsel, 0, NULL, NULL);
 	if (err == 0) {
 out_assign:
 		top->sym_filter_entry = he;
