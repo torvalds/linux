@@ -355,14 +355,18 @@ static int fpga_region_notify_pre_apply(struct fpga_region *region,
 	const char *firmware_name;
 	int ret;
 
-	info = fpga_image_info_alloc(dev);
-	if (!info)
-		return -ENOMEM;
-
-	/* Reject overlay if child FPGA Regions have firmware-name property */
+	/*
+	 * Reject overlay if child FPGA Regions added in the overlay have
+	 * firmware-name property (would mean that an FPGA region that has
+	 * not been added to the live tree yet is doing FPGA programming).
+	 */
 	ret = child_regions_with_firmware(nd->overlay);
 	if (ret)
 		return ret;
+
+	info = fpga_image_info_alloc(dev);
+	if (!info)
+		return -ENOMEM;
 
 	/* Read FPGA region properties from the overlay */
 	if (of_property_read_bool(nd->overlay, "partial-fpga-config"))
