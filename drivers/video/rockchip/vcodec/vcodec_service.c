@@ -790,11 +790,6 @@ static void vpu_service_power_on(struct vpu_subdev_data *data,
 
 	dev_dbg(pservice->dev, "power on\n");
 
-#define BIT_VCODEC_CLK_SEL	(1<<10)
-	if (of_machine_is_compatible("rockchip,rk3126"))
-		regmap_write(pservice->grf, RK312X_GRF_SOC_CON1,
-			BIT_VCODEC_CLK_SEL | (BIT_VCODEC_CLK_SEL << 16));
-
 #if VCODEC_CLOCK_ENABLE
 	if (pservice->aclk_vcodec)
 		clk_prepare_enable(pservice->aclk_vcodec);
@@ -2261,6 +2256,12 @@ static int vcodec_subdev_probe(struct platform_device *pdev,
 
 	dev_info(dev, "vpu mmu dec %p\n", data->mmu_dev);
 
+#define BIT_VCODEC_CLK_SEL	BIT(10)
+	if (of_machine_is_compatible("rockchip,rk3126") ||
+	    of_machine_is_compatible("rockchip,rk3128"))
+		regmap_write(pservice->grf, RK312X_GRF_SOC_CON1,
+			BIT_VCODEC_CLK_SEL | (BIT_VCODEC_CLK_SEL << 16));
+
 	clear_bit(MMU_ACTIVATED, &data->state);
 	vpu_service_power_on(data, pservice);
 
@@ -2756,6 +2757,7 @@ static void get_hw_info(struct vpu_subdev_data *data)
 			of_machine_is_compatible("rockchip,rk3036") ||
 			of_machine_is_compatible("rockchip,rk3066") ||
 			of_machine_is_compatible("rockchip,rk3126") ||
+			of_machine_is_compatible("rockchip,rk3128") ||
 			of_machine_is_compatible("rockchip,rk3188")) {
 		dec->max_dec_pic_width = 1920;
 		pservice->auto_freq = false;
