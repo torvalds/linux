@@ -21,7 +21,7 @@
  * Data Sheet:
  *   http://www.silabs.com/Support%20Documents/TechnicalDocs/CP2112.pdf
  * Programming Interface Specification:
- *   http://www.silabs.com/Support%20Documents/TechnicalDocs/AN495.pdf
+ *   https://www.silabs.com/documents/public/application-notes/an495-cp2112-interface-specification.pdf
  */
 
 #include <linux/gpio.h>
@@ -196,6 +196,8 @@ static int cp2112_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
 				 HID_REQ_GET_REPORT);
 	if (ret != CP2112_GPIO_CONFIG_LENGTH) {
 		hid_err(hdev, "error requesting GPIO config: %d\n", ret);
+		if (ret >= 0)
+			ret = -EIO;
 		goto exit;
 	}
 
@@ -205,8 +207,10 @@ static int cp2112_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
 	ret = hid_hw_raw_request(hdev, CP2112_GPIO_CONFIG, buf,
 				 CP2112_GPIO_CONFIG_LENGTH, HID_FEATURE_REPORT,
 				 HID_REQ_SET_REPORT);
-	if (ret < 0) {
+	if (ret != CP2112_GPIO_CONFIG_LENGTH) {
 		hid_err(hdev, "error setting GPIO config: %d\n", ret);
+		if (ret >= 0)
+			ret = -EIO;
 		goto exit;
 	}
 
@@ -214,7 +218,7 @@ static int cp2112_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
 
 exit:
 	mutex_unlock(&dev->lock);
-	return ret < 0 ? ret : -EIO;
+	return ret;
 }
 
 static void cp2112_gpio_set(struct gpio_chip *chip, unsigned offset, int value)

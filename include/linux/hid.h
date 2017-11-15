@@ -754,6 +754,7 @@ struct hid_driver {
  * @stop: called on remove
  * @open: called by input layer on open
  * @close: called by input layer on close
+ * @power: request underlying hardware to enter requested power mode
  * @parse: this method is called only once to parse the device data,
  *	   shouldn't allocate anything to not leak memory
  * @request: send report request to device (e.g. feature report)
