@@ -248,3 +248,11 @@ UBSAN_SANITIZE_ubsan.o := n
 obj-$(CONFIG_SBITMAP) += sbitmap.o
 
 obj-$(CONFIG_PARMAN) += parman.o
+
+# GCC library routines
+obj-$(CONFIG_GENERIC_ASHLDI3) += ashldi3.o
+obj-$(CONFIG_GENERIC_ASHRDI3) += ashrdi3.o
+obj-$(CONFIG_GENERIC_LSHRDI3) += lshrdi3.o
+obj-$(CONFIG_GENERIC_MULDI3) += muldi3.o
+obj-$(CONFIG_GENERIC_CMPDI2) += cmpdi2.o
+obj-$(CONFIG_GENERIC_UCMPDI2) += ucmpdi2.o
