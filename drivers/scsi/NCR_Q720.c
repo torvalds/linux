@@ -217,8 +217,7 @@ NCR_Q720_probe(struct device *dev)
 	}
 	
 	if (dma_declare_coherent_memory(dev, base_addr, base_addr,
-					mem_size, DMA_MEMORY_MAP)
-	    != DMA_MEMORY_MAP) {
+					mem_size, 0)) {
 		printk(KERN_ERR "NCR_Q720: DMA declare memory failed\n");
 		goto out_release_region;
 	}

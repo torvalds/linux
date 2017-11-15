@@ -17,6 +17,7 @@
 
 #include <linux/netdevice.h>
 #include <linux/tcp.h>
+#include <linux/interrupt.h>
 
 #include "dwc-xlgmac.h"
 #include "dwc-xlgmac-reg.h"

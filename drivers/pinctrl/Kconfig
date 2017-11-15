@@ -100,6 +100,7 @@ config PINCTRL_AMD
 	tristate "AMD GPIO pin control"
 	depends on GPIOLIB
 	select GPIOLIB_IRQCHIP
+	select PINMUX
 	select PINCONF
 	select GENERIC_PINCONF
 	help
@@ -337,6 +338,15 @@ config PINCTRL_INGENIC
 	select GENERIC_PINCTRL_GROUPS
 	select GENERIC_PINMUX_FUNCTIONS
 	select REGMAP_MMIO
+
+config PINCTRL_RK805
+	tristate "Pinctrl and GPIO driver for RK805 PMIC"
+	depends on MFD_RK808
+	select GPIOLIB
+	select PINMUX
+	select GENERIC_PINCONF
+	help
+	  This selects the pinctrl driver for RK805.
 
 source "drivers/pinctrl/aspeed/Kconfig"
 source "drivers/pinctrl/bcm/Kconfig"

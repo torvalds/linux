@@ -110,7 +110,7 @@ lpfc_nvme_create_queue(struct nvme_fc_local_port *pnvme_lport,
 		qhandle->index = qidx;
 	}
 
-	lpfc_printf_vlog(vport, KERN_ERR, LOG_NVME,
+	lpfc_printf_vlog(vport, KERN_INFO, LOG_NVME,
 			 "6073 Binding %s HdwQueue %d  (cpu %d) to "
 			 "io_channel %d qhandle %p\n", str,
 			 qidx, qhandle->cpu_id, qhandle->index, qhandle);
@@ -364,7 +364,7 @@ lpfc_nvme_gen_req(struct lpfc_vport *vport, struct lpfc_dmabuf *bmp,
 			 genwqe->sli4_xritag, genwqe->iotag, ndlp->nlp_DID);
 
 	rc = lpfc_sli4_issue_wqe(phba, LPFC_ELS_RING, genwqe);
-	if (rc == WQE_ERROR) {
+	if (rc) {
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_ELS,
 				 "6045 Issue GEN REQ WQE to NPORT x%x "
 				 "Data: x%x x%x\n",
@@ -884,7 +884,7 @@ out_err:
 					 wcqe->total_data_placed);
 			nCmd->transferred_length = 0;
 			nCmd->rcv_rsplen = 0;
-			nCmd->status = NVME_SC_FC_TRANSPORT_ERROR;
+			nCmd->status = NVME_SC_INTERNAL;
 		}
 	}
 
@@ -1270,7 +1270,7 @@ lpfc_nvme_fcp_io_submit(struct nvme_fc_local_port *pnvme_lport,
 	 * not exceed the programmed depth.
 	 */
 	if (atomic_read(&ndlp->cmd_pending) >= ndlp->cmd_qdepth) {
-		ret = -EAGAIN;
+		ret = -EBUSY;
 		goto out_fail;
 	}
 
@@ -1279,7 +1279,7 @@ lpfc_nvme_fcp_io_submit(struct nvme_fc_local_port *pnvme_lport,
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_NVME_IOERR,
 				 "6065 driver's buffer pool is empty, "
 				 "IO failed\n");
-		ret = -ENOMEM;
+		ret = -EBUSY;
 		goto out_fail;
 	}
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
@@ -1332,7 +1332,6 @@ lpfc_nvme_fcp_io_submit(struct nvme_fc_local_port *pnvme_lport,
 				 "sid: x%x did: x%x oxid: x%x\n",
 				 ret, vport->fc_myDID, ndlp->nlp_DID,
 				 lpfc_ncmd->cur_iocbq.sli4_xritag);
-		ret = -EBUSY;
 		goto out_free_nvme_buf;
 	}
 
@@ -1576,7 +1575,7 @@ lpfc_nvme_fcp_abort(struct nvme_fc_local_port *pnvme_lport,
 	abts_buf->wqe_cmpl = lpfc_nvme_abort_fcreq_cmpl;
 	ret_val = lpfc_sli4_issue_wqe(phba, LPFC_FCP_RING, abts_buf);
 	spin_unlock_irqrestore(&phba->hbalock, flags);
-	if (ret_val == IOCB_ERROR) {
+	if (ret_val) {
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_NVME_ABTS,
 				 "6137 Failed abts issue_wqe with status x%x "
 				 "for nvme_fcreq %p.\n",
@@ -1939,7 +1938,7 @@ lpfc_new_nvme_buf(struct lpfc_vport *vport, int num_to_alloc)
 		 * pci bus space for an I/O. The DMA buffer includes the
 		 * number of SGE's necessary to support the sg_tablesize.
 		 */
-		lpfc_ncmd->data = pci_pool_alloc(phba->lpfc_sg_dma_buf_pool,
+		lpfc_ncmd->data = dma_pool_alloc(phba->lpfc_sg_dma_buf_pool,
 						 GFP_KERNEL,
 						 &lpfc_ncmd->dma_handle);
 		if (!lpfc_ncmd->data) {
@@ -1950,7 +1949,7 @@ lpfc_new_nvme_buf(struct lpfc_vport *vport, int num_to_alloc)
 
 		lxri = lpfc_sli4_next_xritag(phba);
 		if (lxri == NO_XRI) {
-			pci_pool_free(phba->lpfc_sg_dma_buf_pool,
+			dma_pool_free(phba->lpfc_sg_dma_buf_pool,
 				      lpfc_ncmd->data, lpfc_ncmd->dma_handle);
 			kfree(lpfc_ncmd);
 			break;
@@ -1961,7 +1960,7 @@ lpfc_new_nvme_buf(struct lpfc_vport *vport, int num_to_alloc)
 		/* Allocate iotag for lpfc_ncmd->cur_iocbq. */
 		iotag = lpfc_sli_next_iotag(phba, pwqeq);
 		if (iotag == 0) {
-			pci_pool_free(phba->lpfc_sg_dma_buf_pool,
+			dma_pool_free(phba->lpfc_sg_dma_buf_pool,
 				      lpfc_ncmd->data, lpfc_ncmd->dma_handle);
 			kfree(lpfc_ncmd);
 			lpfc_printf_log(phba, KERN_ERR, LOG_NVME_IOERR,
@@ -2182,8 +2181,15 @@ lpfc_nvme_create_localport(struct lpfc_vport *vport)
 		vport->localport = localport;
 		lport->vport = vport;
 		vport->nvmei_support = 1;
-		len  = lpfc_new_nvme_buf(vport, phba->sli4_hba.nvme_xri_max);
-		vport->phba->total_nvme_bufs += len;
+
+		/* Don't post more new bufs if repost already recovered
+		 * the nvme sgls.
+		 */
+		if (phba->sli4_hba.nvme_xri_cnt == 0) {
+			len  = lpfc_new_nvme_buf(vport,
+						 phba->sli4_hba.nvme_xri_max);
+			vport->phba->total_nvme_bufs += len;
+		}
 	}
 
 	return ret;
@@ -2296,6 +2302,9 @@ lpfc_nvme_register_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 			 ndlp->nlp_DID, ndlp->nlp_type);
 
 	localport = vport->localport;
+	if (!localport)
+		return 0;
+
 	lport = (struct lpfc_nvme_lport *)localport->private;
 
 	/* NVME rports are not preserved across devloss.

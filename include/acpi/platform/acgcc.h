@@ -84,4 +84,8 @@ typedef __builtin_va_list va_list;
 
 #define COMPILER_VA_MACRO               1
 
+/* GCC supports native multiply/shift on 32-bit platforms */
+
+#define ACPI_USE_NATIVE_MATH64
+
 #endif				/* __ACGCC_H__ */

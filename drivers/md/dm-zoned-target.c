@@ -238,7 +238,7 @@ static void dmz_submit_write_bio(struct dmz_target *dmz, struct dm_zone *zone,
 	struct dmz_bioctx *bioctx = dm_per_bio_data(bio, sizeof(struct dmz_bioctx));
 
 	/* Setup and submit the BIO */
-	bio->bi_bdev = dmz->dev->bdev;
+	bio_set_dev(bio, dmz->dev->bdev);
 	bio->bi_iter.bi_sector = dmz_start_sect(dmz->metadata, zone) + dmz_blk2sect(chunk_block);
 	atomic_inc(&bioctx->ref);
 	generic_make_request(bio);
@@ -586,7 +586,7 @@ static int dmz_map(struct dm_target *ti, struct bio *bio)
 		      (unsigned long long)dmz_chunk_block(dmz->dev, dmz_bio_block(bio)),
 		      (unsigned int)dmz_bio_blocks(bio));
 
-	bio->bi_bdev = dev->bdev;
+	bio_set_dev(bio, dev->bdev);
 
 	if (!nr_sectors && bio_op(bio) != REQ_OP_WRITE)
 		return DM_MAPIO_REMAPPED;

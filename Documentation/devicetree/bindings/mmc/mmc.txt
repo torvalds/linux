@@ -153,7 +153,6 @@ mmc3: mmc@01c12000 {
 	bus-width = <4>;
 	non-removable;
 	mmc-pwrseq = <&sdhci0_pwrseq>
-	status = "okay";
 
 	brcmf: bcrmf@1 {
 		reg = <1>;

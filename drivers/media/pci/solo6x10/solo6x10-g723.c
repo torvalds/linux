@@ -319,7 +319,7 @@ static int snd_solo_capture_volume_put(struct snd_kcontrol *kcontrol,
 	return 1;
 }
 
-static struct snd_kcontrol_new snd_solo_capture_volume = {
+static const struct snd_kcontrol_new snd_solo_capture_volume = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "Capture Volume",
 	.info = snd_solo_capture_volume_info,

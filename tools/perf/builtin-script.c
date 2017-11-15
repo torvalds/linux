@@ -87,6 +87,7 @@ enum perf_output_field {
 	PERF_OUTPUT_BRSTACKINSN	    = 1U << 23,
 	PERF_OUTPUT_BRSTACKOFF	    = 1U << 24,
 	PERF_OUTPUT_SYNTH           = 1U << 25,
+	PERF_OUTPUT_PHYS_ADDR       = 1U << 26,
 };
 
 struct output_option {
@@ -119,6 +120,7 @@ struct output_option {
 	{.str = "brstackinsn", .field = PERF_OUTPUT_BRSTACKINSN},
 	{.str = "brstackoff", .field = PERF_OUTPUT_BRSTACKOFF},
 	{.str = "synth", .field = PERF_OUTPUT_SYNTH},
+	{.str = "phys_addr", .field = PERF_OUTPUT_PHYS_ADDR},
 };
 
 enum {
@@ -175,7 +177,8 @@ static struct {
 			      PERF_OUTPUT_EVNAME | PERF_OUTPUT_IP |
 			      PERF_OUTPUT_SYM | PERF_OUTPUT_DSO |
 			      PERF_OUTPUT_PERIOD |  PERF_OUTPUT_ADDR |
-			      PERF_OUTPUT_DATA_SRC | PERF_OUTPUT_WEIGHT,
+			      PERF_OUTPUT_DATA_SRC | PERF_OUTPUT_WEIGHT |
+			      PERF_OUTPUT_PHYS_ADDR,
 
 		.invalid_fields = PERF_OUTPUT_TRACE | PERF_OUTPUT_BPF_OUTPUT,
 	},
@@ -380,6 +383,11 @@ static int perf_evsel__check_attr(struct perf_evsel *evsel,
 	if (PRINT_FIELD(IREGS) &&
 		perf_evsel__check_stype(evsel, PERF_SAMPLE_REGS_INTR, "IREGS",
 					PERF_OUTPUT_IREGS))
+		return -EINVAL;
+
+	if (PRINT_FIELD(PHYS_ADDR) &&
+		perf_evsel__check_stype(evsel, PERF_SAMPLE_PHYS_ADDR, "PHYS_ADDR",
+					PERF_OUTPUT_PHYS_ADDR))
 		return -EINVAL;
 
 	return 0;
@@ -1446,6 +1454,9 @@ static void process_event(struct perf_script *script,
 	if (perf_evsel__is_bpf_output(evsel) && PRINT_FIELD(BPF_OUTPUT))
 		print_sample_bpf_output(sample);
 	print_insn(sample, attr, thread, machine);
+
+	if (PRINT_FIELD(PHYS_ADDR))
+		printf("%16" PRIx64, sample->phys_addr);
 	printf("\n");
 }
 
@@ -2729,7 +2740,7 @@ int cmd_script(int argc, const char **argv)
 		     "Valid types: hw,sw,trace,raw,synth. "
 		     "Fields: comm,tid,pid,time,cpu,event,trace,ip,sym,dso,"
 		     "addr,symoff,period,iregs,brstack,brstacksym,flags,"
-		     "bpf-output,callindent,insn,insnlen,brstackinsn,synth",
+		     "bpf-output,callindent,insn,insnlen,brstackinsn,synth,phys_addr",
 		     parse_output_fields),
 	OPT_BOOLEAN('a', "all-cpus", &system_wide,
 		    "system-wide collection from all CPUs"),

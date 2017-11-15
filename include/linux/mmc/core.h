@@ -122,11 +122,18 @@ struct mmc_data {
 	unsigned int		timeout_clks;	/* data timeout (in clocks) */
 	unsigned int		blksz;		/* data block size */
 	unsigned int		blocks;		/* number of blocks */
+	unsigned int		blk_addr;	/* block address */
 	int			error;		/* data error */
 	unsigned int		flags;
 
-#define MMC_DATA_WRITE	(1 << 8)
-#define MMC_DATA_READ	(1 << 9)
+#define MMC_DATA_WRITE		BIT(8)
+#define MMC_DATA_READ		BIT(9)
+/* Extra flags used by CQE */
+#define MMC_DATA_QBR		BIT(10)		/* CQE queue barrier*/
+#define MMC_DATA_PRIO		BIT(11)		/* CQE high priority */
+#define MMC_DATA_REL_WR		BIT(12)		/* Reliable write */
+#define MMC_DATA_DAT_TAG	BIT(13)		/* Tag request */
+#define MMC_DATA_FORCED_PRG	BIT(14)		/* Forced programming */
 
 	unsigned int		bytes_xfered;
 
@@ -149,18 +156,22 @@ struct mmc_request {
 	struct completion	completion;
 	struct completion	cmd_completion;
 	void			(*done)(struct mmc_request *);/* completion function */
+	/*
+	 * Notify uppers layers (e.g. mmc block driver) that recovery is needed
+	 * due to an error associated with the mmc_request. Currently used only
+	 * by CQE.
+	 */
+	void			(*recovery_notifier)(struct mmc_request *);
 	struct mmc_host		*host;
 
 	/* Allow other commands during this ongoing data transfer or busy wait */
 	bool			cap_cmd_during_tfr;
+
+	int			tag;
 };
 
 struct mmc_card;
-struct mmc_async_req;
 
-struct mmc_async_req *mmc_start_areq(struct mmc_host *host,
-				struct mmc_async_req *areq,
-				enum mmc_blk_status *ret_stat);
 void mmc_wait_for_req(struct mmc_host *host, struct mmc_request *mrq);
 int mmc_wait_for_cmd(struct mmc_host *host, struct mmc_command *cmd,
 		int retries);

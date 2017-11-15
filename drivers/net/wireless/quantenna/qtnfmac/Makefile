@@ -25,7 +25,3 @@ qtnfmac_pearl_pcie-objs += \
 	pearl/pcie.o
 
 qtnfmac_pearl_pcie-$(CONFIG_DEBUG_FS) += debug.o
-
-#
-
-ccflags-y += -D__CHECK_ENDIAN

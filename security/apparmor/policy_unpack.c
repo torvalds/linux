@@ -85,9 +85,9 @@ static void audit_cb(struct audit_buffer *ab, void *va)
 		audit_log_format(ab, " ns=");
 		audit_log_untrustedstring(ab, aad(sa)->iface.ns);
 	}
-	if (aad(sa)->iface.name) {
+	if (aad(sa)->name) {
 		audit_log_format(ab, " name=");
-		audit_log_untrustedstring(ab, aad(sa)->iface.name);
+		audit_log_untrustedstring(ab, aad(sa)->name);
 	}
 	if (aad(sa)->iface.pos)
 		audit_log_format(ab, " offset=%ld", aad(sa)->iface.pos);
@@ -114,9 +114,9 @@ static int audit_iface(struct aa_profile *new, const char *ns_name,
 		aad(&sa)->iface.pos = e->pos - e->start;
 	aad(&sa)->iface.ns = ns_name;
 	if (new)
-		aad(&sa)->iface.name = new->base.hname;
+		aad(&sa)->name = new->base.hname;
 	else
-		aad(&sa)->iface.name = name;
+		aad(&sa)->name = name;
 	aad(&sa)->info = info;
 	aad(&sa)->error = error;
 
@@ -272,6 +272,19 @@ static bool unpack_nameX(struct aa_ext *e, enum aa_code code, const char *name)
 
 fail:
 	e->pos = pos;
+	return 0;
+}
+
+static bool unpack_u16(struct aa_ext *e, u16 *data, const char *name)
+{
+	if (unpack_nameX(e, AA_U16, name)) {
+		if (!inbounds(e, sizeof(u16)))
+			return 0;
+		if (data)
+			*data = le16_to_cpu(get_unaligned((__le16 *) e->pos));
+		e->pos += sizeof(u16);
+		return 1;
+	}
 	return 0;
 }
 
@@ -448,7 +461,7 @@ fail:
  */
 static bool unpack_trans_table(struct aa_ext *e, struct aa_profile *profile)
 {
-	void *pos = e->pos;
+	void *saved_pos = e->pos;
 
 	/* exec table is optional */
 	if (unpack_nameX(e, AA_STRUCT, "xtable")) {
@@ -511,7 +524,7 @@ static bool unpack_trans_table(struct aa_ext *e, struct aa_profile *profile)
 
 fail:
 	aa_free_domain_entries(&profile->file.trans);
-	e->pos = pos;
+	e->pos = saved_pos;
 	return 0;
 }
 
@@ -583,7 +596,8 @@ static struct aa_profile *unpack_profile(struct aa_ext *e, char **ns_name)
 {
 	struct aa_profile *profile = NULL;
 	const char *tmpname, *tmpns = NULL, *name = NULL;
-	size_t ns_len;
+	const char *info = "failed to unpack profile";
+	size_t size = 0, ns_len;
 	struct rhashtable_params params = { 0 };
 	char *key = NULL;
 	struct aa_data *data;
@@ -604,8 +618,10 @@ static struct aa_profile *unpack_profile(struct aa_ext *e, char **ns_name)
 	tmpname = aa_splitn_fqname(name, strlen(name), &tmpns, &ns_len);
 	if (tmpns) {
 		*ns_name = kstrndup(tmpns, ns_len, GFP_KERNEL);
-		if (!*ns_name)
+		if (!*ns_name) {
+			info = "out of memory";
 			goto fail;
+		}
 		name = tmpname;
 	}
 
@@ -624,12 +640,15 @@ static struct aa_profile *unpack_profile(struct aa_ext *e, char **ns_name)
 	if (IS_ERR(profile->xmatch)) {
 		error = PTR_ERR(profile->xmatch);
 		profile->xmatch = NULL;
+		info = "bad xmatch";
 		goto fail;
 	}
 	/* xmatch_len is not optional if xmatch is set */
 	if (profile->xmatch) {
-		if (!unpack_u32(e, &tmp, NULL))
+		if (!unpack_u32(e, &tmp, NULL)) {
+			info = "missing xmatch len";
 			goto fail;
+		}
 		profile->xmatch_len = tmp;
 	}
 
@@ -637,8 +656,11 @@ static struct aa_profile *unpack_profile(struct aa_ext *e, char **ns_name)
 	(void) unpack_str(e, &profile->disconnected, "disconnected");
 
 	/* per profile debug flags (complain, audit) */
-	if (!unpack_nameX(e, AA_STRUCT, "flags"))
+	if (!unpack_nameX(e, AA_STRUCT, "flags")) {
+		info = "profile missing flags";
 		goto fail;
+	}
+	info = "failed to unpack profile flags";
 	if (!unpack_u32(e, &tmp, NULL))
 		goto fail;
 	if (tmp & PACKED_FLAG_HAT)
@@ -667,6 +689,7 @@ static struct aa_profile *unpack_profile(struct aa_ext *e, char **ns_name)
 		/* set a default value if path_flags field is not present */
 		profile->path_flags = PATH_MEDIATE_DELETED;
 
+	info = "failed to unpack profile capabilities";
 	if (!unpack_u32(e, &(profile->caps.allow.cap[0]), NULL))
 		goto fail;
 	if (!unpack_u32(e, &(profile->caps.audit.cap[0]), NULL))
@@ -676,6 +699,7 @@ static struct aa_profile *unpack_profile(struct aa_ext *e, char **ns_name)
 	if (!unpack_u32(e, &tmpcap.cap[0], NULL))
 		goto fail;
 
+	info = "failed to unpack upper profile capabilities";
 	if (unpack_nameX(e, AA_STRUCT, "caps64")) {
 		/* optional upper half of 64 bit caps */
 		if (!unpack_u32(e, &(profile->caps.allow.cap[1]), NULL))
@@ -690,6 +714,7 @@ static struct aa_profile *unpack_profile(struct aa_ext *e, char **ns_name)
 			goto fail;
 	}
 
+	info = "failed to unpack extended profile capabilities";
 	if (unpack_nameX(e, AA_STRUCT, "capsx")) {
 		/* optional extended caps mediation mask */
 		if (!unpack_u32(e, &(profile->caps.extended.cap[0]), NULL))
@@ -700,11 +725,46 @@ static struct aa_profile *unpack_profile(struct aa_ext *e, char **ns_name)
 			goto fail;
 	}
 
-	if (!unpack_rlimits(e, profile))
+	if (!unpack_rlimits(e, profile)) {
+		info = "failed to unpack profile rlimits";
 		goto fail;
+	}
+
+	size = unpack_array(e, "net_allowed_af");
+	if (size) {
+
+		for (i = 0; i < size; i++) {
+			/* discard extraneous rules that this kernel will
+			 * never request
+			 */
+			if (i >= AF_MAX) {
+				u16 tmp;
+
+				if (!unpack_u16(e, &tmp, NULL) ||
+				    !unpack_u16(e, &tmp, NULL) ||
+				    !unpack_u16(e, &tmp, NULL))
+					goto fail;
+				continue;
+			}
+			if (!unpack_u16(e, &profile->net.allow[i], NULL))
+				goto fail;
+			if (!unpack_u16(e, &profile->net.audit[i], NULL))
+				goto fail;
+			if (!unpack_u16(e, &profile->net.quiet[i], NULL))
+				goto fail;
+		}
+		if (!unpack_nameX(e, AA_ARRAYEND, NULL))
+			goto fail;
+	}
+	if (VERSION_LT(e->version, v7)) {
+		/* pre v7 policy always allowed these */
+		profile->net.allow[AF_UNIX] = 0xffff;
+		profile->net.allow[AF_NETLINK] = 0xffff;
+	}
 
 	if (unpack_nameX(e, AA_STRUCT, "policydb")) {
 		/* generic policy dfa - optional and may be NULL */
+		info = "failed to unpack policydb";
 		profile->policy.dfa = unpack_dfa(e);
 		if (IS_ERR(profile->policy.dfa)) {
 			error = PTR_ERR(profile->policy.dfa);
@@ -734,6 +794,7 @@ static struct aa_profile *unpack_profile(struct aa_ext *e, char **ns_name)
 	if (IS_ERR(profile->file.dfa)) {
 		error = PTR_ERR(profile->file.dfa);
 		profile->file.dfa = NULL;
+		info = "failed to unpack profile file rules";
 		goto fail;
 	} else if (profile->file.dfa) {
 		if (!unpack_u32(e, &profile->file.start, "dfa_start"))
@@ -746,10 +807,13 @@ static struct aa_profile *unpack_profile(struct aa_ext *e, char **ns_name)
 	} else
 		profile->file.dfa = aa_get_dfa(nulldfa);
 
-	if (!unpack_trans_table(e, profile))
+	if (!unpack_trans_table(e, profile)) {
+		info = "failed to unpack profile transition table";
 		goto fail;
+	}
 
 	if (unpack_nameX(e, AA_STRUCT, "data")) {
+		info = "out of memory";
 		profile->data = kzalloc(sizeof(*profile->data), GFP_KERNEL);
 		if (!profile->data)
 			goto fail;
@@ -761,8 +825,10 @@ static struct aa_profile *unpack_profile(struct aa_ext *e, char **ns_name)
 		params.hashfn = strhash;
 		params.obj_cmpfn = datacmp;
 
-		if (rhashtable_init(profile->data, &params))
+		if (rhashtable_init(profile->data, &params)) {
+			info = "failed to init key, value hash table";
 			goto fail;
+		}
 
 		while (unpack_strdup(e, &key, NULL)) {
 			data = kzalloc(sizeof(*data), GFP_KERNEL);
@@ -784,12 +850,16 @@ static struct aa_profile *unpack_profile(struct aa_ext *e, char **ns_name)
 					       profile->data->p);
 		}
 
-		if (!unpack_nameX(e, AA_STRUCTEND, NULL))
+		if (!unpack_nameX(e, AA_STRUCTEND, NULL)) {
+			info = "failed to unpack end of key, value data table";
 			goto fail;
+		}
 	}
 
-	if (!unpack_nameX(e, AA_STRUCTEND, NULL))
+	if (!unpack_nameX(e, AA_STRUCTEND, NULL)) {
+		info = "failed to unpack end of profile";
 		goto fail;
+	}
 
 	return profile;
 
@@ -798,8 +868,7 @@ fail:
 		name = NULL;
 	else if (!name)
 		name = "unknown";
-	audit_iface(profile, NULL, name, "failed to unpack profile", e,
-		    error);
+	audit_iface(profile, NULL, name, info, e, error);
 	aa_free_profile(profile);
 
 	return ERR_PTR(error);
@@ -832,7 +901,7 @@ static int verify_header(struct aa_ext *e, int required, const char **ns)
 	 * if not specified use previous version
 	 * Mask off everything that is not kernel abi version
 	 */
-	if (VERSION_LT(e->version, v5) && VERSION_GT(e->version, v7)) {
+	if (VERSION_LT(e->version, v5) || VERSION_GT(e->version, v7)) {
 		audit_iface(NULL, NULL, NULL, "unsupported interface version",
 			    e, error);
 		return error;

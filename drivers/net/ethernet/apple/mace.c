@@ -114,8 +114,8 @@ static int mace_probe(struct macio_dev *mdev, const struct of_device_id *match)
 	int j, rev, rc = -EBUSY;
 
 	if (macio_resource_count(mdev) != 3 || macio_irq_count(mdev) != 3) {
-		printk(KERN_ERR "can't use MACE %s: need 3 addrs and 3 irqs\n",
-		       mace->full_name);
+		printk(KERN_ERR "can't use MACE %pOF: need 3 addrs and 3 irqs\n",
+		       mace);
 		return -ENODEV;
 	}
 
@@ -123,8 +123,8 @@ static int mace_probe(struct macio_dev *mdev, const struct of_device_id *match)
 	if (addr == NULL) {
 		addr = of_get_property(mace, "local-mac-address", NULL);
 		if (addr == NULL) {
-			printk(KERN_ERR "Can't get mac-address for MACE %s\n",
-			       mace->full_name);
+			printk(KERN_ERR "Can't get mac-address for MACE %pOF\n",
+			       mace);
 			return -ENODEV;
 		}
 	}

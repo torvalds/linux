@@ -110,7 +110,7 @@ static void __init free_hash(void)
 
 static long __init do_utime(char *filename, time_t mtime)
 {
-	struct timespec t[2];
+	struct timespec64 t[2];
 
 	t[0].tv_sec = mtime;
 	t[0].tv_nsec = 0;

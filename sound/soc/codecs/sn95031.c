@@ -883,7 +883,7 @@ static int sn95031_codec_probe(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static struct snd_soc_codec_driver sn95031_codec = {
+static const struct snd_soc_codec_driver sn95031_codec = {
 	.probe		= sn95031_codec_probe,
 	.set_bias_level	= sn95031_set_vaud_bias,
 	.idle_bias_off	= true,

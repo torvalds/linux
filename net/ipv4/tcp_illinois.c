@@ -48,7 +48,6 @@ struct illinois {
 	u32	end_seq;	/* right edge of current RTT */
 	u32	alpha;		/* Additive increase */
 	u32	beta;		/* Muliplicative decrease */
-	u32	loss_cwnd;	/* cwnd on loss */
 	u16	acked;		/* # packets acked by current ACK */
 	u8	rtt_above;	/* average rtt has gone above threshold */
 	u8	rtt_low;	/* # of rtts measurements below threshold */
@@ -297,16 +296,8 @@ static u32 tcp_illinois_ssthresh(struct sock *sk)
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct illinois *ca = inet_csk_ca(sk);
 
-	ca->loss_cwnd = tp->snd_cwnd;
 	/* Multiplicative decrease */
 	return max(tp->snd_cwnd - ((tp->snd_cwnd * ca->beta) >> BETA_SHIFT), 2U);
-}
-
-static u32 tcp_illinois_cwnd_undo(struct sock *sk)
-{
-	const struct illinois *ca = inet_csk_ca(sk);
-
-	return max(tcp_sk(sk)->snd_cwnd, ca->loss_cwnd);
 }
 
 /* Extract info for Tcp socket info provided via netlink. */
@@ -336,7 +327,7 @@ static size_t tcp_illinois_info(struct sock *sk, u32 ext, int *attr,
 static struct tcp_congestion_ops tcp_illinois __read_mostly = {
 	.init		= tcp_illinois_init,
 	.ssthresh	= tcp_illinois_ssthresh,
-	.undo_cwnd	= tcp_illinois_cwnd_undo,
+	.undo_cwnd	= tcp_reno_undo_cwnd,
 	.cong_avoid	= tcp_illinois_cong_avoid,
 	.set_state	= tcp_illinois_state,
 	.get_info	= tcp_illinois_info,

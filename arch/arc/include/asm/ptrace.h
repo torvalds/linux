@@ -19,6 +19,11 @@
 #ifdef CONFIG_ISA_ARCOMPACT
 struct pt_regs {
 
+#ifdef CONFIG_ARC_PLAT_EZNPS
+	unsigned long eflags;	/* Extended FLAGS */
+	unsigned long gpa1;	/* General Purpose Aux */
+#endif
+
 	/* Real registers */
 	unsigned long bta;	/* bta_l1, bta_l2, erbta */
 

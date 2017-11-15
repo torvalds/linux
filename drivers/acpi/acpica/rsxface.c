@@ -615,7 +615,7 @@ ACPI_EXPORT_SYMBOL(acpi_walk_resource_buffer)
  *                                device we are querying
  *              name            - Method name of the resources we want.
  *                                (METHOD_NAME__CRS, METHOD_NAME__PRS, or
- *                                METHOD_NAME__AEI)
+ *                                METHOD_NAME__AEI or METHOD_NAME__DMA)
  *              user_function   - Called for each resource
  *              context         - Passed to user_function
  *
@@ -641,11 +641,12 @@ acpi_walk_resources(acpi_handle device_handle,
 	if (!device_handle || !user_function || !name ||
 	    (!ACPI_COMPARE_NAME(name, METHOD_NAME__CRS) &&
 	     !ACPI_COMPARE_NAME(name, METHOD_NAME__PRS) &&
-	     !ACPI_COMPARE_NAME(name, METHOD_NAME__AEI))) {
+	     !ACPI_COMPARE_NAME(name, METHOD_NAME__AEI) &&
+	     !ACPI_COMPARE_NAME(name, METHOD_NAME__DMA))) {
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
-	/* Get the _CRS/_PRS/_AEI resource list */
+	/* Get the _CRS/_PRS/_AEI/_DMA resource list */
 
 	buffer.length = ACPI_ALLOCATE_LOCAL_BUFFER;
 	status = acpi_rs_get_method_data(device_handle, name, &buffer);

@@ -4579,9 +4579,9 @@ static int gfx_v8_0_mqd_init(struct amdgpu_ring *ring)
 	mqd->compute_misc_reserved = 0x00000003;
 	if (!(adev->flags & AMD_IS_APU)) {
 		mqd->dynamic_cu_mask_addr_lo = lower_32_bits(ring->mqd_gpu_addr
-					     + offsetof(struct vi_mqd_allocation, dyamic_cu_mask));
+					     + offsetof(struct vi_mqd_allocation, dynamic_cu_mask));
 		mqd->dynamic_cu_mask_addr_hi = upper_32_bits(ring->mqd_gpu_addr
-					     + offsetof(struct vi_mqd_allocation, dyamic_cu_mask));
+					     + offsetof(struct vi_mqd_allocation, dynamic_cu_mask));
 	}
 	eop_base_addr = ring->eop_gpu_addr >> 8;
 	mqd->cp_hqd_eop_base_addr_lo = eop_base_addr;
@@ -4768,8 +4768,8 @@ static int gfx_v8_0_kiq_init_queue(struct amdgpu_ring *ring)
 		mutex_unlock(&adev->srbm_mutex);
 	} else {
 		memset((void *)mqd, 0, sizeof(struct vi_mqd_allocation));
-		((struct vi_mqd_allocation *)mqd)->dyamic_cu_mask = 0xFFFFFFFF;
-		((struct vi_mqd_allocation *)mqd)->dyamic_rb_mask = 0xFFFFFFFF;
+		((struct vi_mqd_allocation *)mqd)->dynamic_cu_mask = 0xFFFFFFFF;
+		((struct vi_mqd_allocation *)mqd)->dynamic_rb_mask = 0xFFFFFFFF;
 		mutex_lock(&adev->srbm_mutex);
 		vi_srbm_select(adev, ring->me, ring->pipe, ring->queue, 0);
 		gfx_v8_0_mqd_init(ring);
@@ -4792,8 +4792,8 @@ static int gfx_v8_0_kcq_init_queue(struct amdgpu_ring *ring)
 
 	if (!adev->gfx.in_reset && !adev->gfx.in_suspend) {
 		memset((void *)mqd, 0, sizeof(struct vi_mqd_allocation));
-		((struct vi_mqd_allocation *)mqd)->dyamic_cu_mask = 0xFFFFFFFF;
-		((struct vi_mqd_allocation *)mqd)->dyamic_rb_mask = 0xFFFFFFFF;
+		((struct vi_mqd_allocation *)mqd)->dynamic_cu_mask = 0xFFFFFFFF;
+		((struct vi_mqd_allocation *)mqd)->dynamic_rb_mask = 0xFFFFFFFF;
 		mutex_lock(&adev->srbm_mutex);
 		vi_srbm_select(adev, ring->me, ring->pipe, ring->queue, 0);
 		gfx_v8_0_mqd_init(ring);

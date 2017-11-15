@@ -647,9 +647,7 @@ static int pci_legacy_resume(struct device *dev)
 static void pci_pm_default_resume(struct pci_dev *pci_dev)
 {
 	pci_fixup_device(pci_fixup_resume, pci_dev);
-
-	if (!pci_has_subordinate(pci_dev))
-		pci_enable_wake(pci_dev, PCI_D0, false);
+	pci_enable_wake(pci_dev, PCI_D0, false);
 }
 
 static void pci_pm_default_suspend(struct pci_dev *pci_dev)

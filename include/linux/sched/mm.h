@@ -88,7 +88,7 @@ extern void mmput(struct mm_struct *);
 /* same as above but performs the slow path from the async context. Can
  * be called from the atomic context as well
  */
-extern void mmput_async(struct mm_struct *);
+void mmput_async(struct mm_struct *);
 #endif
 
 /* Grab a reference to a task's mm, if it is not already going away */

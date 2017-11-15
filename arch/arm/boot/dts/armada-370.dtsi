@@ -72,7 +72,7 @@
 			reg = <MBUS_ID(0x01, 0xe0) 0 0x100000>;
 		};
 
-		pciec: pcie-controller@82000000 {
+		pciec: pcie@82000000 {
 			compatible = "marvell,armada-370-pcie";
 			status = "disabled";
 			device_type = "pci";
@@ -100,6 +100,7 @@
 				#interrupt-cells = <1>;
                                 ranges = <0x82000000 0 0 0x82000000 0x1 0 1 0
                                           0x81000000 0 0 0x81000000 0x1 0 1 0>;
+				bus-range = <0x00 0xff>;
 				interrupt-map-mask = <0 0 0 0>;
 				interrupt-map = <0 0 0 0 &mpic 58>;
 				marvell,pcie-port = <0>;
@@ -117,6 +118,7 @@
 				#interrupt-cells = <1>;
                                 ranges = <0x82000000 0 0 0x82000000 0x2 0 1 0
                                           0x81000000 0 0 0x81000000 0x2 0 1 0>;
+				bus-range = <0x00 0xff>;
 				interrupt-map-mask = <0 0 0 0>;
 				interrupt-map = <0 0 0 0 &mpic 62>;
 				marvell,pcie-port = <1>;

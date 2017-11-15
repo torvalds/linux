@@ -15,8 +15,8 @@
 
 #define SEQ_MULTIPLIER	(IPCMNI)
 
-void sem_init(void);
-void msg_init(void);
+int sem_init(void);
+int msg_init(void);
 void shm_init(void);
 
 struct ipc_namespace;
@@ -30,17 +30,17 @@ static inline void mq_put_mnt(struct ipc_namespace *ns) { }
 #endif
 
 #ifdef CONFIG_SYSVIPC
-void sem_init_ns(struct ipc_namespace *ns);
-void msg_init_ns(struct ipc_namespace *ns);
-void shm_init_ns(struct ipc_namespace *ns);
+int sem_init_ns(struct ipc_namespace *ns);
+int msg_init_ns(struct ipc_namespace *ns);
+int shm_init_ns(struct ipc_namespace *ns);
 
 void sem_exit_ns(struct ipc_namespace *ns);
 void msg_exit_ns(struct ipc_namespace *ns);
 void shm_exit_ns(struct ipc_namespace *ns);
 #else
-static inline void sem_init_ns(struct ipc_namespace *ns) { }
-static inline void msg_init_ns(struct ipc_namespace *ns) { }
-static inline void shm_init_ns(struct ipc_namespace *ns) { }
+static inline int sem_init_ns(struct ipc_namespace *ns) { return 0; }
+static inline int msg_init_ns(struct ipc_namespace *ns) { return 0; }
+static inline int shm_init_ns(struct ipc_namespace *ns) { return 0; }
 
 static inline void sem_exit_ns(struct ipc_namespace *ns) { }
 static inline void msg_exit_ns(struct ipc_namespace *ns) { }
@@ -79,7 +79,7 @@ struct ipc_ops {
 struct seq_file;
 struct ipc_ids;
 
-void ipc_init_ids(struct ipc_ids *);
+int ipc_init_ids(struct ipc_ids *);
 #ifdef CONFIG_PROC_FS
 void __init ipc_init_proc_interface(const char *path, const char *header,
 		int ids, int (*show)(struct seq_file *, void *));
@@ -103,6 +103,9 @@ int ipc_get_maxid(struct ipc_ids *);
 
 /* must be called with both locks acquired. */
 void ipc_rmid(struct ipc_ids *, struct kern_ipc_perm *);
+
+/* must be called with both locks acquired. */
+void ipc_set_key_private(struct ipc_ids *, struct kern_ipc_perm *);
 
 /* must be called with ipcp locked */
 int ipcperms(struct ipc_namespace *ns, struct kern_ipc_perm *ipcp, short flg);
@@ -191,4 +194,34 @@ int ipcget(struct ipc_namespace *ns, struct ipc_ids *ids,
 			const struct ipc_ops *ops, struct ipc_params *params);
 void free_ipcs(struct ipc_namespace *ns, struct ipc_ids *ids,
 		void (*free)(struct ipc_namespace *, struct kern_ipc_perm *));
+
+#ifdef CONFIG_COMPAT
+#include <linux/compat.h>
+struct compat_ipc_perm {
+	key_t key;
+	__compat_uid_t uid;
+	__compat_gid_t gid;
+	__compat_uid_t cuid;
+	__compat_gid_t cgid;
+	compat_mode_t mode;
+	unsigned short seq;
+};
+
+void to_compat_ipc_perm(struct compat_ipc_perm *, struct ipc64_perm *);
+void to_compat_ipc64_perm(struct compat_ipc64_perm *, struct ipc64_perm *);
+int get_compat_ipc_perm(struct ipc64_perm *, struct compat_ipc_perm __user *);
+int get_compat_ipc64_perm(struct ipc64_perm *,
+			  struct compat_ipc64_perm __user *);
+
+static inline int compat_ipc_parse_version(int *cmd)
+{
+#ifdef	CONFIG_ARCH_WANT_COMPAT_IPC_PARSE_VERSION
+	int version = *cmd & IPC_64;
+	*cmd &= ~IPC_64;
+	return version;
+#else
+	return IPC_64;
+#endif
+}
+#endif
 #endif

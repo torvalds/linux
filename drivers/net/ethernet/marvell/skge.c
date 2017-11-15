@@ -3516,7 +3516,7 @@ static const char *skge_board_name(const struct skge_hw *hw)
 		if (skge_chips[i].id == hw->chip_id)
 			return skge_chips[i].name;
 
-	snprintf(buf, sizeof buf, "chipid 0x%x", hw->chip_id);
+	snprintf(buf, sizeof(buf), "chipid 0x%x", hw->chip_id);
 	return buf;
 }
 
@@ -4193,7 +4193,7 @@ static struct pci_driver skge_driver = {
 	.driver.pm =	SKGE_PM_OPS,
 };
 
-static struct dmi_system_id skge_32bit_dma_boards[] = {
+static const struct dmi_system_id skge_32bit_dma_boards[] = {
 	{
 		.ident = "Gigabyte nForce boards",
 		.matches = {

@@ -121,7 +121,6 @@ uart2: serial@20064000 {
 	reg-shift = <2>;
 	reg-io-width = <1>;
 	clocks = <&mux_uart2>;
-	status = "okay";
 
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart2_xfer>;

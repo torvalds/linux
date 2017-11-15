@@ -216,13 +216,13 @@ static void sdhci_arasan_hs400_enhanced_strobe(struct mmc_host *mmc,
 	u32 vendor;
 	struct sdhci_host *host = mmc_priv(mmc);
 
-	vendor = readl(host->ioaddr + SDHCI_ARASAN_VENDOR_REGISTER);
+	vendor = sdhci_readl(host, SDHCI_ARASAN_VENDOR_REGISTER);
 	if (ios->enhanced_strobe)
 		vendor |= VENDOR_ENHANCED_STROBE;
 	else
 		vendor &= ~VENDOR_ENHANCED_STROBE;
 
-	writel(vendor, host->ioaddr + SDHCI_ARASAN_VENDOR_REGISTER);
+	sdhci_writel(host, vendor, SDHCI_ARASAN_VENDOR_REGISTER);
 }
 
 static void sdhci_arasan_reset(struct sdhci_host *host, u8 mask)
@@ -262,7 +262,7 @@ static int sdhci_arasan_voltage_switch(struct mmc_host *mmc,
 	return -EINVAL;
 }
 
-static struct sdhci_ops sdhci_arasan_ops = {
+static const struct sdhci_ops sdhci_arasan_ops = {
 	.set_clock = sdhci_arasan_set_clock,
 	.get_max_clock = sdhci_pltfm_clk_get_max_clock,
 	.get_timeout_clock = sdhci_pltfm_clk_get_max_clock,
@@ -271,7 +271,7 @@ static struct sdhci_ops sdhci_arasan_ops = {
 	.set_uhs_signaling = sdhci_set_uhs_signaling,
 };
 
-static struct sdhci_pltfm_data sdhci_arasan_pdata = {
+static const struct sdhci_pltfm_data sdhci_arasan_pdata = {
 	.ops = &sdhci_arasan_ops,
 	.quirks = SDHCI_QUIRK_CAP_CLOCK_BASE_BROKEN,
 	.quirks2 = SDHCI_QUIRK2_PRESET_VALUE_BROKEN |

@@ -32,7 +32,6 @@ config PPC_85xx
 config PPC_8xx
 	bool "Freescale 8xx"
 	select FSL_SOC
-	select 8xx
 	select PPC_LIB_RHEAP
 	select SYS_SUPPORTS_HUGETLBFS
 
@@ -148,10 +147,6 @@ config 6xx
 	def_bool y
 	depends on PPC32 && PPC_BOOK3S
 	select PPC_HAVE_PMU_SUPPORT
-
-# this is temp to handle compat with arch=ppc
-config 8xx
-	bool
 
 config E500
 	select FSL_EMB_PERFMON
@@ -271,44 +266,6 @@ config VSX
 
 	  If in doubt, say Y here.
 
-config PPC_ICSWX
-	bool "Support for PowerPC icswx coprocessor instruction"
-	depends on PPC_BOOK3S_64
-	default n
-	---help---
-
-	  This option enables kernel support for the PowerPC Initiate
-	  Coprocessor Store Word (icswx) coprocessor instruction on POWER7
-	  and POWER8 processors. POWER9 uses new copy/paste instructions
-	  to invoke the coprocessor.
-
-	  This option is only useful if you have a processor that supports
-	  the icswx coprocessor instruction. It does not have any effect
-	  on processors without the icswx coprocessor instruction.
-
-	  This option slightly increases kernel memory usage.
-
-	  If in doubt, say N here.
-
-config PPC_ICSWX_PID
-	bool "icswx requires direct PID management"
-	depends on PPC_ICSWX
-	default y
-	---help---
-	  The PID register in server is used explicitly for ICSWX.  In
-	  embedded systems PID management is done by the system.
-
-config PPC_ICSWX_USE_SIGILL
-	bool "Should a bad CT cause a SIGILL?"
-	depends on PPC_ICSWX
-	default n
-	---help---
-	  Should a bad CT used for "non-record form ICSWX" cause an
-	  illegal instruction signal or should it be silent as
-	  architected.
-
-	  If in doubt, say N here.
-
 config SPE_POSSIBLE
 	def_bool y
 	depends on E200 || (E500 && !PPC_E500MC)
@@ -413,7 +370,7 @@ config NR_CPUS
 
 config NOT_COHERENT_CACHE
 	bool
-	depends on 4xx || 8xx || E200 || PPC_MPC512x || GAMECUBE_COMMON
+	depends on 4xx || PPC_8xx || E200 || PPC_MPC512x || GAMECUBE_COMMON
 	default n if PPC_47x
 	default y
 

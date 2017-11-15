@@ -22,48 +22,99 @@
 
 static int mv88e6xxx_g2_read(struct mv88e6xxx_chip *chip, int reg, u16 *val)
 {
-	return mv88e6xxx_read(chip, MV88E6XXX_G2, reg, val);
+	return mv88e6xxx_read(chip, chip->info->global2_addr, reg, val);
 }
 
 static int mv88e6xxx_g2_write(struct mv88e6xxx_chip *chip, int reg, u16 val)
 {
-	return mv88e6xxx_write(chip, MV88E6XXX_G2, reg, val);
+	return mv88e6xxx_write(chip, chip->info->global2_addr, reg, val);
 }
 
 static int mv88e6xxx_g2_update(struct mv88e6xxx_chip *chip, int reg, u16 update)
 {
-	return mv88e6xxx_update(chip, MV88E6XXX_G2, reg, update);
+	return mv88e6xxx_update(chip, chip->info->global2_addr, reg, update);
 }
 
 static int mv88e6xxx_g2_wait(struct mv88e6xxx_chip *chip, int reg, u16 mask)
 {
-	return mv88e6xxx_wait(chip, MV88E6XXX_G2, reg, mask);
+	return mv88e6xxx_wait(chip, chip->info->global2_addr, reg, mask);
+}
+
+/* Offset 0x00: Interrupt Source Register */
+
+static int mv88e6xxx_g2_int_source(struct mv88e6xxx_chip *chip, u16 *src)
+{
+	/* Read (and clear most of) the Interrupt Source bits */
+	return mv88e6xxx_g2_read(chip, MV88E6XXX_G2_INT_SRC, src);
+}
+
+/* Offset 0x01: Interrupt Mask Register */
+
+static int mv88e6xxx_g2_int_mask(struct mv88e6xxx_chip *chip, u16 mask)
+{
+	return mv88e6xxx_g2_write(chip, MV88E6XXX_G2_INT_MASK, mask);
 }
 
 /* Offset 0x02: Management Enable 2x */
+
+static int mv88e6xxx_g2_mgmt_enable_2x(struct mv88e6xxx_chip *chip, u16 en2x)
+{
+	return mv88e6xxx_g2_write(chip, MV88E6XXX_G2_MGMT_EN_2X, en2x);
+}
+
 /* Offset 0x03: Management Enable 0x */
 
-int mv88e6095_g2_mgmt_rsvd2cpu(struct mv88e6xxx_chip *chip)
+static int mv88e6xxx_g2_mgmt_enable_0x(struct mv88e6xxx_chip *chip, u16 en0x)
+{
+	return mv88e6xxx_g2_write(chip, MV88E6XXX_G2_MGMT_EN_0X, en0x);
+}
+
+/* Offset 0x05: Switch Management Register */
+
+static int mv88e6xxx_g2_switch_mgmt_rsvd2cpu(struct mv88e6xxx_chip *chip,
+					     bool enable)
+{
+	u16 val;
+	int err;
+
+	err = mv88e6xxx_g2_read(chip, MV88E6XXX_G2_SWITCH_MGMT, &val);
+	if (err)
+		return err;
+
+	if (enable)
+		val |= MV88E6XXX_G2_SWITCH_MGMT_RSVD2CPU;
+	else
+		val &= ~MV88E6XXX_G2_SWITCH_MGMT_RSVD2CPU;
+
+	return mv88e6xxx_g2_write(chip, MV88E6XXX_G2_SWITCH_MGMT, val);
+}
+
+int mv88e6185_g2_mgmt_rsvd2cpu(struct mv88e6xxx_chip *chip)
+{
+	int err;
+
+	/* Consider the frames with reserved multicast destination
+	 * addresses matching 01:80:c2:00:00:0x as MGMT.
+	 */
+	err = mv88e6xxx_g2_mgmt_enable_0x(chip, 0xffff);
+	if (err)
+		return err;
+
+	return mv88e6xxx_g2_switch_mgmt_rsvd2cpu(chip, true);
+}
+
+int mv88e6352_g2_mgmt_rsvd2cpu(struct mv88e6xxx_chip *chip)
 {
 	int err;
 
 	/* Consider the frames with reserved multicast destination
 	 * addresses matching 01:80:c2:00:00:2x as MGMT.
 	 */
-	if (mv88e6xxx_has(chip, MV88E6XXX_FLAG_G2_MGMT_EN_2X)) {
-		err = mv88e6xxx_g2_write(chip, MV88E6XXX_G2_MGMT_EN_2X, 0xffff);
-		if (err)
-			return err;
-	}
+	err = mv88e6xxx_g2_mgmt_enable_2x(chip, 0xffff);
+	if (err)
+		return err;
 
-	/* Consider the frames with reserved multicast destination
-	 * addresses matching 01:80:c2:00:00:0x as MGMT.
-	 */
-	if (mv88e6xxx_has(chip, MV88E6XXX_FLAG_G2_MGMT_EN_0X))
-		return mv88e6xxx_g2_write(chip, MV88E6XXX_G2_MGMT_EN_0X,
-					  0xffff);
-
-	return 0;
+	return mv88e6185_g2_mgmt_rsvd2cpu(chip);
 }
 
 /* Offset 0x06: Device Mapping Table register */
@@ -260,7 +311,7 @@ static int mv88e6xxx_g2_pot_write(struct mv88e6xxx_chip *chip, int pointer,
 	return mv88e6xxx_g2_update(chip, MV88E6XXX_G2_PRIO_OVERRIDE, val);
 }
 
-static int mv88e6xxx_g2_clear_pot(struct mv88e6xxx_chip *chip)
+int mv88e6xxx_g2_pot_clear(struct mv88e6xxx_chip *chip)
 {
 	int i, err;
 
@@ -933,7 +984,7 @@ static irqreturn_t mv88e6xxx_g2_irq_thread_fn(int irq, void *dev_id)
 	u16 reg;
 
 	mutex_lock(&chip->reg_lock);
-	err = mv88e6xxx_g2_read(chip, MV88E6XXX_G2_INT_SOURCE, &reg);
+	err = mv88e6xxx_g2_int_source(chip, &reg);
 	mutex_unlock(&chip->reg_lock);
 	if (err)
 		goto out;
@@ -959,13 +1010,16 @@ static void mv88e6xxx_g2_irq_bus_lock(struct irq_data *d)
 static void mv88e6xxx_g2_irq_bus_sync_unlock(struct irq_data *d)
 {
 	struct mv88e6xxx_chip *chip = irq_data_get_irq_chip_data(d);
+	int err;
 
-	mv88e6xxx_g2_write(chip, MV88E6XXX_G2_INT_MASK, ~chip->g2_irq.masked);
+	err = mv88e6xxx_g2_int_mask(chip, ~chip->g2_irq.masked);
+	if (err)
+		dev_err(chip->dev, "failed to mask interrupts\n");
 
 	mutex_unlock(&chip->reg_lock);
 }
 
-static struct irq_chip mv88e6xxx_g2_irq_chip = {
+static const struct irq_chip mv88e6xxx_g2_irq_chip = {
 	.name			= "mv88e6xxx-g2",
 	.irq_mask		= mv88e6xxx_g2_irq_mask,
 	.irq_unmask		= mv88e6xxx_g2_irq_unmask,
@@ -1063,9 +1117,6 @@ int mv88e6xxx_g2_setup(struct mv88e6xxx_chip *chip)
 	 * port at the highest priority.
 	 */
 	reg = MV88E6XXX_G2_SWITCH_MGMT_FORCE_FLOW_CTL_PRI | (0x7 << 4);
-	if (mv88e6xxx_has(chip, MV88E6XXX_FLAG_G2_MGMT_EN_0X) ||
-	    mv88e6xxx_has(chip, MV88E6XXX_FLAG_G2_MGMT_EN_2X))
-		reg |= MV88E6XXX_G2_SWITCH_MGMT_RSVD2CPU | 0x7;
 	err = mv88e6xxx_g2_write(chip, MV88E6XXX_G2_SWITCH_MGMT, reg);
 	if (err)
 		return err;
@@ -1079,13 +1130,6 @@ int mv88e6xxx_g2_setup(struct mv88e6xxx_chip *chip)
 	err = mv88e6xxx_g2_clear_trunk(chip);
 	if (err)
 		return err;
-
-	if (mv88e6xxx_has(chip, MV88E6XXX_FLAG_G2_POT)) {
-		/* Clear the priority override table. */
-		err = mv88e6xxx_g2_clear_pot(chip);
-		if (err)
-			return err;
-	}
 
 	return 0;
 }

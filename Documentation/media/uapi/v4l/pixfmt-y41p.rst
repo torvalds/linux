@@ -88,7 +88,7 @@ Each cell is one byte.
       - Y'\ :sub:`37`
 
 
-**Color Sample Location..**
+**Color Sample Location:**
 
 .. flat-table::
     :header-rows:  0

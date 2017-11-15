@@ -160,7 +160,7 @@ int i40iw_inetaddr_event(struct notifier_block *notifier,
 		return NOTIFY_DONE;
 
 	iwdev = &hdl->device;
-	if (iwdev->init_state < INET_NOTIFIER)
+	if (iwdev->init_state < IP_ADDR_REGISTERED || iwdev->closing)
 		return NOTIFY_DONE;
 
 	netdev = iwdev->ldev->netdev;
@@ -217,7 +217,7 @@ int i40iw_inet6addr_event(struct notifier_block *notifier,
 		return NOTIFY_DONE;
 
 	iwdev = &hdl->device;
-	if (iwdev->init_state < INET_NOTIFIER)
+	if (iwdev->init_state < IP_ADDR_REGISTERED || iwdev->closing)
 		return NOTIFY_DONE;
 
 	netdev = iwdev->ldev->netdev;
@@ -266,7 +266,7 @@ int i40iw_net_event(struct notifier_block *notifier, unsigned long event, void *
 		if (!iwhdl)
 			return NOTIFY_DONE;
 		iwdev = &iwhdl->device;
-		if (iwdev->init_state < INET_NOTIFIER)
+		if (iwdev->init_state < IP_ADDR_REGISTERED || iwdev->closing)
 			return NOTIFY_DONE;
 		p = (__be32 *)neigh->primary_key;
 		i40iw_copy_ip_ntohl(local_ipaddr, p);

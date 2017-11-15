@@ -121,8 +121,27 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
 	 * hypothetical buggy code that directly switches to swapper_pg_dir
 	 * without going through leave_mm() / switch_mm_irqs_off() or that
 	 * does something like write_cr3(read_cr3_pa()).
+	 *
+	 * Only do this check if CONFIG_DEBUG_VM=y because __read_cr3()
+	 * isn't free.
 	 */
-	VM_BUG_ON(__read_cr3() != (__sme_pa(real_prev->pgd) | prev_asid));
+#ifdef CONFIG_DEBUG_VM
+	if (WARN_ON_ONCE(__read_cr3() != build_cr3(real_prev, prev_asid))) {
+		/*
+		 * If we were to BUG here, we'd be very likely to kill
+		 * the system so hard that we don't see the call trace.
+		 * Try to recover instead by ignoring the error and doing
+		 * a global flush to minimize the chance of corruption.
+		 *
+		 * (This is far from being a fully correct recovery.
+		 *  Architecturally, the CPU could prefetch something
+		 *  back into an incorrect ASID slot and leave it there
+		 *  to cause trouble down the road.  It's better than
+		 *  nothing, though.)
+		 */
+		__flush_tlb_all();
+	}
+#endif
 
 	if (real_prev == next) {
 		VM_BUG_ON(this_cpu_read(cpu_tlbstate.ctxs[prev_asid].ctx_id) !=
@@ -152,7 +171,7 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
 			 */
 			this_cpu_write(cpu_tlbstate.ctxs[prev_asid].tlb_gen,
 				       next_tlb_gen);
-			write_cr3(__sme_pa(next->pgd) | prev_asid);
+			write_cr3(build_cr3(next, prev_asid));
 			trace_tlb_flush(TLB_FLUSH_ON_TASK_SWITCH,
 					TLB_FLUSH_ALL);
 		}
@@ -172,7 +191,7 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
 			 * mapped in the new pgd, we'll double-fault.  Forcibly
 			 * map it.
 			 */
-			unsigned int index = pgd_index(current_stack_pointer());
+			unsigned int index = pgd_index(current_stack_pointer);
 			pgd_t *pgd = next->pgd + index;
 
 			if (unlikely(pgd_none(*pgd)))
@@ -196,12 +215,12 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
 		if (need_flush) {
 			this_cpu_write(cpu_tlbstate.ctxs[new_asid].ctx_id, next->context.ctx_id);
 			this_cpu_write(cpu_tlbstate.ctxs[new_asid].tlb_gen, next_tlb_gen);
-			write_cr3(__sme_pa(next->pgd) | new_asid);
+			write_cr3(build_cr3(next, new_asid));
 			trace_tlb_flush(TLB_FLUSH_ON_TASK_SWITCH,
 					TLB_FLUSH_ALL);
 		} else {
 			/* The new ASID is already up to date. */
-			write_cr3(__sme_pa(next->pgd) | new_asid | CR3_NOFLUSH);
+			write_cr3(build_cr3_noflush(next, new_asid));
 			trace_tlb_flush(TLB_FLUSH_ON_TASK_SWITCH, 0);
 		}
 
@@ -211,6 +230,50 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
 
 	load_mm_cr4(next);
 	switch_ldt(real_prev, next);
+}
+
+/*
+ * Call this when reinitializing a CPU.  It fixes the following potential
+ * problems:
+ *
+ * - The ASID changed from what cpu_tlbstate thinks it is (most likely
+ *   because the CPU was taken down and came back up with CR3's PCID
+ *   bits clear.  CPU hotplug can do this.
+ *
+ * - The TLB contains junk in slots corresponding to inactive ASIDs.
+ *
+ * - The CPU went so far out to lunch that it may have missed a TLB
+ *   flush.
+ */
+void initialize_tlbstate_and_flush(void)
+{
+	int i;
+	struct mm_struct *mm = this_cpu_read(cpu_tlbstate.loaded_mm);
+	u64 tlb_gen = atomic64_read(&init_mm.context.tlb_gen);
+	unsigned long cr3 = __read_cr3();
+
+	/* Assert that CR3 already references the right mm. */
+	WARN_ON((cr3 & CR3_ADDR_MASK) != __pa(mm->pgd));
+
+	/*
+	 * Assert that CR4.PCIDE is set if needed.  (CR4.PCIDE initialization
+	 * doesn't work like other CR4 bits because it can only be set from
+	 * long mode.)
+	 */
+	WARN_ON(boot_cpu_has(X86_FEATURE_PCID) &&
+		!(cr4_read_shadow() & X86_CR4_PCIDE));
+
+	/* Force ASID 0 and force a TLB flush. */
+	write_cr3(build_cr3(mm, 0));
+
+	/* Reinitialize tlbstate. */
+	this_cpu_write(cpu_tlbstate.loaded_mm_asid, 0);
+	this_cpu_write(cpu_tlbstate.next_asid, 1);
+	this_cpu_write(cpu_tlbstate.ctxs[0].ctx_id, mm->context.ctx_id);
+	this_cpu_write(cpu_tlbstate.ctxs[0].tlb_gen, tlb_gen);
+
+	for (i = 1; i < TLB_NR_DYN_ASIDS; i++)
+		this_cpu_write(cpu_tlbstate.ctxs[i].ctx_id, 0);
 }
 
 /*

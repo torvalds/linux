@@ -534,7 +534,7 @@ static void
 cper_estatus_print_section(const char *pfx, struct acpi_hest_generic_data *gdata,
 			   int sec_no)
 {
-	uuid_le *sec_type = (uuid_le *)gdata->section_type;
+	guid_t *sec_type = (guid_t *)gdata->section_type;
 	__u16 severity;
 	char newpfx[64];
 
@@ -545,12 +545,12 @@ cper_estatus_print_section(const char *pfx, struct acpi_hest_generic_data *gdata
 	printk("%s""Error %d, type: %s\n", pfx, sec_no,
 	       cper_severity_str(severity));
 	if (gdata->validation_bits & CPER_SEC_VALID_FRU_ID)
-		printk("%s""fru_id: %pUl\n", pfx, (uuid_le *)gdata->fru_id);
+		printk("%s""fru_id: %pUl\n", pfx, gdata->fru_id);
 	if (gdata->validation_bits & CPER_SEC_VALID_FRU_TEXT)
 		printk("%s""fru_text: %.20s\n", pfx, gdata->fru_text);
 
 	snprintf(newpfx, sizeof(newpfx), "%s%s", pfx, INDENT_SP);
-	if (!uuid_le_cmp(*sec_type, CPER_SEC_PROC_GENERIC)) {
+	if (guid_equal(sec_type, &CPER_SEC_PROC_GENERIC)) {
 		struct cper_sec_proc_generic *proc_err = acpi_hest_get_payload(gdata);
 
 		printk("%s""section_type: general processor error\n", newpfx);
@@ -558,7 +558,7 @@ cper_estatus_print_section(const char *pfx, struct acpi_hest_generic_data *gdata
 			cper_print_proc_generic(newpfx, proc_err);
 		else
 			goto err_section_too_small;
-	} else if (!uuid_le_cmp(*sec_type, CPER_SEC_PLATFORM_MEM)) {
+	} else if (guid_equal(sec_type, &CPER_SEC_PLATFORM_MEM)) {
 		struct cper_sec_mem_err *mem_err = acpi_hest_get_payload(gdata);
 
 		printk("%s""section_type: memory error\n", newpfx);
@@ -568,7 +568,7 @@ cper_estatus_print_section(const char *pfx, struct acpi_hest_generic_data *gdata
 				       gdata->error_data_length);
 		else
 			goto err_section_too_small;
-	} else if (!uuid_le_cmp(*sec_type, CPER_SEC_PCIE)) {
+	} else if (guid_equal(sec_type, &CPER_SEC_PCIE)) {
 		struct cper_sec_pcie *pcie = acpi_hest_get_payload(gdata);
 
 		printk("%s""section_type: PCIe error\n", newpfx);
@@ -606,7 +606,6 @@ void cper_estatus_print(const char *pfx,
 			const struct acpi_hest_generic_status *estatus)
 {
 	struct acpi_hest_generic_data *gdata;
-	unsigned int data_len;
 	int sec_no = 0;
 	char newpfx[64];
 	__u16 severity;
@@ -617,14 +616,10 @@ void cper_estatus_print(const char *pfx,
 		       "It has been corrected by h/w "
 		       "and requires no further action");
 	printk("%s""event severity: %s\n", pfx, cper_severity_str(severity));
-	data_len = estatus->data_length;
-	gdata = (struct acpi_hest_generic_data *)(estatus + 1);
 	snprintf(newpfx, sizeof(newpfx), "%s%s", pfx, INDENT_SP);
 
-	while (data_len >= acpi_hest_get_size(gdata)) {
+	apei_estatus_for_each_section(estatus, gdata) {
 		cper_estatus_print_section(newpfx, gdata, sec_no);
-		data_len -= acpi_hest_get_record_size(gdata);
-		gdata = acpi_hest_get_next(gdata);
 		sec_no++;
 	}
 }
@@ -653,15 +648,12 @@ int cper_estatus_check(const struct acpi_hest_generic_status *estatus)
 	if (rc)
 		return rc;
 	data_len = estatus->data_length;
-	gdata = (struct acpi_hest_generic_data *)(estatus + 1);
 
-	while (data_len >= acpi_hest_get_size(gdata)) {
+	apei_estatus_for_each_section(estatus, gdata) {
 		gedata_len = acpi_hest_get_error_length(gdata);
 		if (gedata_len > data_len - acpi_hest_get_size(gdata))
 			return -EINVAL;
-
 		data_len -= acpi_hest_get_record_size(gdata);
-		gdata = acpi_hest_get_next(gdata);
 	}
 	if (data_len)
 		return -EINVAL;

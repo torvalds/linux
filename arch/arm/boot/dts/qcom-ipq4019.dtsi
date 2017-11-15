@@ -96,6 +96,21 @@
 			clock-frequency = <32768>;
 			#clock-cells = <0>;
 		};
+
+		xo: xo {
+			compatible = "fixed-clock";
+			clock-frequency = <48000000>;
+			#clock-cells = <0>;
+		};
+	};
+
+	timer {
+		compatible = "arm,armv7-timer";
+		interrupts = <1 2 0xf08>,
+			     <1 3 0xf08>,
+			     <1 4 0xf08>,
+			     <1 1 0xf08>;
+		clock-frequency = <48000000>;
 	};
 
 	soc {
@@ -119,7 +134,15 @@
 			reg = <0x1800000 0x60000>;
 		};
 
-		tlmm: pinctrl@0x01000000 {
+		rng@22000 {
+			compatible = "qcom,prng";
+			reg = <0x22000 0x140>;
+			clocks = <&gcc GCC_PRNG_AHB_CLK>;
+			clock-names = "core";
+			status = "disabled";
+		};
+
+		tlmm: pinctrl@1000000 {
 			compatible = "qcom,ipq4019-pinctrl";
 			reg = <0x01000000 0x300000>;
 			gpio-controller;
@@ -268,6 +291,90 @@
 		restart@4ab000 {
 			compatible = "qcom,pshold";
 			reg = <0x4ab000 0x4>;
+		};
+
+		wifi0: wifi@a000000 {
+			compatible = "qcom,ipq4019-wifi";
+			reg = <0xa000000 0x200000>;
+			resets = <&gcc WIFI0_CPU_INIT_RESET>,
+				 <&gcc WIFI0_RADIO_SRIF_RESET>,
+				 <&gcc WIFI0_RADIO_WARM_RESET>,
+				 <&gcc WIFI0_RADIO_COLD_RESET>,
+				 <&gcc WIFI0_CORE_WARM_RESET>,
+				 <&gcc WIFI0_CORE_COLD_RESET>;
+			reset-names = "wifi_cpu_init", "wifi_radio_srif",
+				      "wifi_radio_warm", "wifi_radio_cold",
+				      "wifi_core_warm", "wifi_core_cold";
+			clocks = <&gcc GCC_WCSS2G_CLK>,
+				 <&gcc GCC_WCSS2G_REF_CLK>,
+				 <&gcc GCC_WCSS2G_RTC_CLK>;
+			clock-names = "wifi_wcss_cmd", "wifi_wcss_ref",
+				      "wifi_wcss_rtc";
+			interrupts = <GIC_SPI 32 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 33 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 34 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 35 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 36 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 37 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 38 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 39 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 40 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 41 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 42 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 43 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 44 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 45 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 46 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 47 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 168 IRQ_TYPE_NONE>;
+			interrupt-names =  "msi0",  "msi1",  "msi2",  "msi3",
+					   "msi4",  "msi5",  "msi6",  "msi7",
+					   "msi8",  "msi9", "msi10", "msi11",
+					  "msi12", "msi13", "msi14", "msi15",
+					  "legacy";
+			status = "disabled";
+		};
+
+		wifi1: wifi@a800000 {
+			compatible = "qcom,ipq4019-wifi";
+			reg = <0xa800000 0x200000>;
+			resets = <&gcc WIFI1_CPU_INIT_RESET>,
+				 <&gcc WIFI1_RADIO_SRIF_RESET>,
+				 <&gcc WIFI1_RADIO_WARM_RESET>,
+				 <&gcc WIFI1_RADIO_COLD_RESET>,
+				 <&gcc WIFI1_CORE_WARM_RESET>,
+				 <&gcc WIFI1_CORE_COLD_RESET>;
+			reset-names = "wifi_cpu_init", "wifi_radio_srif",
+				      "wifi_radio_warm", "wifi_radio_cold",
+				      "wifi_core_warm", "wifi_core_cold";
+			clocks = <&gcc GCC_WCSS5G_CLK>,
+				 <&gcc GCC_WCSS5G_REF_CLK>,
+				 <&gcc GCC_WCSS5G_RTC_CLK>;
+			clock-names = "wifi_wcss_cmd", "wifi_wcss_ref",
+				      "wifi_wcss_rtc";
+			interrupts = <GIC_SPI 48 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 49 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 50 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 51 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 52 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 53 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 54 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 55 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 56 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 57 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 58 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 59 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 60 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 61 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 62 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 63 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 169 IRQ_TYPE_NONE>;
+			interrupt-names =  "msi0",  "msi1",  "msi2",  "msi3",
+					   "msi4",  "msi5",  "msi6",  "msi7",
+					   "msi8",  "msi9", "msi10", "msi11",
+					  "msi12", "msi13", "msi14", "msi15",
+					  "legacy";
+			status = "disabled";
 		};
 	};
 };

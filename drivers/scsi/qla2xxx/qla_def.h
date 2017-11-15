@@ -427,6 +427,7 @@ struct srb_iocb {
 			enum nvmefc_fcp_datadir dir;
 			uint32_t dl;
 			uint32_t timeout_sec;
+			struct	list_head   entry;
 		} nvme;
 	} u;
 
@@ -470,7 +471,7 @@ typedef struct srb {
 	uint8_t cmd_type;
 	uint8_t pad[3];
 	atomic_t ref_count;
-	wait_queue_head_t nvme_ls_waitQ;
+	wait_queue_head_t nvme_ls_waitq;
 	struct fc_port *fcport;
 	struct scsi_qla_host *vha;
 	uint32_t handle;
@@ -901,6 +902,7 @@ struct mbx_cmd_32 {
 #define MBA_SHUTDOWN_REQUESTED	0x8062	/* Shutdown Requested */
 #define MBA_TEMPERATURE_ALERT	0x8070	/* Temperature Alert */
 #define MBA_DPORT_DIAGNOSTICS	0x8080	/* D-port Diagnostics */
+#define MBA_TRANS_INSERT	0x8130	/* Transceiver Insertion */
 #define MBA_FW_INIT_FAILURE	0x8401	/* Firmware initialization failure */
 #define MBA_MIRROR_LUN_CHANGE	0x8402	/* Mirror LUN State Change
 					   Notification */
@@ -977,6 +979,7 @@ struct mbx_cmd_32 {
 #define MBC_ABORT_TARGET		0x17	/* Abort target (ID). */
 #define MBC_RESET			0x18	/* Reset. */
 #define MBC_GET_ADAPTER_LOOP_ID		0x20	/* Get loop id of ISP2200. */
+#define MBC_GET_SET_ZIO_THRESHOLD	0x21	/* Get/SET ZIO THRESHOLD. */
 #define MBC_GET_RETRY_COUNT		0x22	/* Get f/w retry cnt/delay. */
 #define MBC_DISABLE_VI			0x24	/* Disable VI operation. */
 #define MBC_ENABLE_VI			0x25	/* Enable VI operation. */
@@ -2301,8 +2304,7 @@ typedef struct fc_port {
 	unsigned int login_succ:1;
 
 	struct work_struct nvme_del_work;
-	atomic_t nvme_ref_count;
-	wait_queue_head_t nvme_waitQ;
+	struct completion nvme_del_done;
 	uint32_t nvme_prli_service_param;
 #define NVME_PRLI_SP_CONF       BIT_7
 #define NVME_PRLI_SP_INITIATOR  BIT_5
@@ -3338,6 +3340,7 @@ struct qla_qpair {
 	struct work_struct q_work;
 	struct list_head qp_list_elem; /* vha->qp_list */
 	struct list_head hints_list;
+	struct list_head nvme_done_list;
 	uint16_t cpuid;
 	struct qla_tgt_counters tgt_counters;
 };
@@ -3463,7 +3466,14 @@ struct qla_hw_data {
 		uint32_t	n2n_ae:1;
 		uint32_t	fw_started:1;
 		uint32_t	fw_init_done:1;
+
+		uint32_t	detected_lr_sfp:1;
+		uint32_t	using_lr_setting:1;
 	} flags;
+
+	uint16_t long_range_distance;	/* 32G & above */
+#define LR_DISTANCE_5K  1
+#define LR_DISTANCE_10K 0
 
 	/* This spinlock is used to protect "io transactions", you must
 	* acquire it before doing any IO to the card, eg with RD_REG*() and
@@ -3712,7 +3722,7 @@ struct qla_hw_data {
 	struct sns_cmd_pkt	*sns_cmd;
 	dma_addr_t		sns_cmd_dma;
 
-#define SFP_DEV_SIZE    256
+#define SFP_DEV_SIZE    512
 #define SFP_BLOCK_SIZE  64
 	void		*sfp_data;
 	dma_addr_t	sfp_data_dma;
@@ -4017,7 +4027,19 @@ struct qla_hw_data {
 
 	struct qlt_hw_data tgt;
 	int	allow_cna_fw_dump;
+	uint32_t fw_ability_mask;
+	uint16_t min_link_speed;
+	uint16_t max_speed_sup;
+
+	atomic_t        nvme_active_aen_cnt;
+	uint16_t        nvme_last_rptd_aen;             /* Last recorded aen count */
 };
+
+#define FW_ABILITY_MAX_SPEED_MASK	0xFUL
+#define FW_ABILITY_MAX_SPEED_16G	0x0
+#define FW_ABILITY_MAX_SPEED_32G	0x1
+#define FW_ABILITY_MAX_SPEED(ha)	\
+	(ha->fw_ability_mask & FW_ABILITY_MAX_SPEED_MASK)
 
 /*
  * Qlogic scsi host structure
@@ -4089,6 +4111,8 @@ typedef struct scsi_qla_host {
 #define FX00_CRITEMP_RECOVERY	25
 #define FX00_HOST_INFO_RESEND	26
 #define QPAIR_ONLINE_CHECK_NEEDED	27
+#define SET_ZIO_THRESHOLD_NEEDED	28
+#define DETECT_SFP_CHANGE	29
 
 	unsigned long	pci_flags;
 #define PFLG_DISCONNECTED	0	/* PCI device removed */
@@ -4129,8 +4153,7 @@ typedef struct scsi_qla_host {
 	uint8_t		fabric_node_name[WWN_SIZE];
 
 	struct		nvme_fc_local_port *nvme_local_port;
-	atomic_t	nvme_ref_count;
-	wait_queue_head_t nvme_waitQ;
+	struct completion nvme_del_done;
 	struct list_head nvme_rport_list;
 	atomic_t 	nvme_active_aen_cnt;
 	uint16_t	nvme_last_rptd_aen;
@@ -4199,6 +4222,7 @@ typedef struct scsi_qla_host {
 	int fcport_count;
 	wait_queue_head_t fcport_waitQ;
 	wait_queue_head_t vref_waitq;
+	uint8_t min_link_speed_feat;
 } scsi_qla_host_t;
 
 struct qla27xx_image_status {
@@ -4372,6 +4396,88 @@ enum nexus_wait_type {
 	WAIT_TARGET,
 	WAIT_LUN,
 };
+
+/* Refer to SNIA SFF 8247 */
+struct sff_8247_a0 {
+	u8 txid;	/* transceiver id */
+	u8 ext_txid;
+	u8 connector;
+	/* compliance code */
+	u8 eth_infi_cc3;	/* ethernet, inifiband */
+	u8 sonet_cc4[2];
+	u8 eth_cc6;
+	/* link length */
+#define FC_LL_VL BIT_7	/* very long */
+#define FC_LL_S  BIT_6	/* Short */
+#define FC_LL_I  BIT_5	/* Intermidiate*/
+#define FC_LL_L  BIT_4	/* Long */
+#define FC_LL_M  BIT_3	/* Medium */
+#define FC_LL_SA BIT_2	/* ShortWave laser */
+#define FC_LL_LC BIT_1	/* LongWave laser */
+#define FC_LL_EL BIT_0	/* Electrical inter enclosure */
+	u8 fc_ll_cc7;
+	/* FC technology */
+#define FC_TEC_EL BIT_7	/* Electrical inter enclosure */
+#define FC_TEC_SN BIT_6	/* short wave w/o OFC */
+#define FC_TEC_SL BIT_5	/* short wave with OFC */
+#define FC_TEC_LL BIT_4	/* Longwave Laser */
+#define FC_TEC_ACT BIT_3	/* Active cable */
+#define FC_TEC_PAS BIT_2	/* Passive cable */
+	u8 fc_tec_cc8;
+	/* Transmission Media */
+#define FC_MED_TW BIT_7	/* Twin Ax */
+#define FC_MED_TP BIT_6	/* Twited Pair */
+#define FC_MED_MI BIT_5	/* Min Coax */
+#define FC_MED_TV BIT_4	/* Video Coax */
+#define FC_MED_M6 BIT_3	/* Multimode, 62.5um */
+#define FC_MED_M5 BIT_2	/* Multimode, 50um */
+#define FC_MED_SM BIT_0	/* Single Mode */
+	u8 fc_med_cc9;
+	/* speed FC_SP_12: 12*100M = 1200 MB/s */
+#define FC_SP_12 BIT_7
+#define FC_SP_8  BIT_6
+#define FC_SP_16 BIT_5
+#define FC_SP_4  BIT_4
+#define FC_SP_32 BIT_3
+#define FC_SP_2  BIT_2
+#define FC_SP_1  BIT_0
+	u8 fc_sp_cc10;
+	u8 encode;
+	u8 bitrate;
+	u8 rate_id;
+	u8 length_km;		/* offset 14/eh */
+	u8 length_100m;
+	u8 length_50um_10m;
+	u8 length_62um_10m;
+	u8 length_om4_10m;
+	u8 length_om3_10m;
+#define SFF_VEN_NAME_LEN 16
+	u8 vendor_name[SFF_VEN_NAME_LEN];	/* offset 20/14h */
+	u8 tx_compat;
+	u8 vendor_oui[3];
+#define SFF_PART_NAME_LEN 16
+	u8 vendor_pn[SFF_PART_NAME_LEN];	/* part number */
+	u8 vendor_rev[4];
+	u8 wavelength[2];
+	u8 resv;
+	u8 cc_base;
+	u8 options[2];	/* offset 64 */
+	u8 br_max;
+	u8 br_min;
+	u8 vendor_sn[16];
+	u8 date_code[8];
+	u8 diag;
+	u8 enh_options;
+	u8 sff_revision;
+	u8 cc_ext;
+	u8 vendor_specific[32];
+	u8 resv2[128];
+};
+
+#define AUTO_DETECT_SFP_SUPPORT(_vha)\
+	(ql2xautodetectsfp && !_vha->vp_idx &&		\
+	(IS_QLA25XX(_vha->hw) || IS_QLA81XX(_vha->hw) ||\
+	IS_QLA83XX(_vha->hw) || IS_QLA27XX(_vha->hw)))
 
 #define USER_CTRL_IRQ(_ha) (ql2xuctrlirq && QLA_TGT_MODE_ENABLED() && \
 	(IS_QLA27XX(_ha) || IS_QLA83XX(_ha)))

@@ -72,10 +72,10 @@ static struct rc_map_table avermedia_m733a_rm_k6[] = {
 
 static struct rc_map_list avermedia_m733a_rm_k6_map = {
 	.map = {
-		.scan    = avermedia_m733a_rm_k6,
-		.size    = ARRAY_SIZE(avermedia_m733a_rm_k6),
-		.rc_type = RC_TYPE_NEC,
-		.name    = RC_MAP_AVERMEDIA_M733A_RM_K6,
+		.scan     = avermedia_m733a_rm_k6,
+		.size     = ARRAY_SIZE(avermedia_m733a_rm_k6),
+		.rc_proto = RC_PROTO_NEC,
+		.name     = RC_MAP_AVERMEDIA_M733A_RM_K6,
 	}
 };
 

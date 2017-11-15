@@ -214,19 +214,6 @@ extern void devm_devfreq_unregister_notifier(struct device *dev,
 extern struct devfreq *devfreq_get_devfreq_by_phandle(struct device *dev,
 						int index);
 
-/**
- * devfreq_update_stats() - update the last_status pointer in struct devfreq
- * @df:		the devfreq instance whose status needs updating
- *
- *  Governors are recommended to use this function along with last_status,
- * which allows other entities to reuse the last_status without affecting
- * the values fetched later by governors.
- */
-static inline int devfreq_update_stats(struct devfreq *df)
-{
-	return df->profile->get_dev_status(df->dev.parent, &df->last_status);
-}
-
 #if IS_ENABLED(CONFIG_DEVFREQ_GOV_SIMPLE_ONDEMAND)
 /**
  * struct devfreq_simple_ondemand_data - void *data fed to struct devfreq

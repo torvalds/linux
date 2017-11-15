@@ -130,7 +130,7 @@ mwifiex_tdls_append_rates_ie(struct mwifiex_private *priv,
 
 	if (skb_tailroom(skb) < rates_size + 4) {
 		mwifiex_dbg(priv->adapter, ERROR,
-			    "Insuffient space while adding rates\n");
+			    "Insufficient space while adding rates\n");
 		return -ENOMEM;
 	}
 

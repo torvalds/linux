@@ -716,7 +716,7 @@ struct validate_negotiate_info_req {
 	__u8   Guid[SMB2_CLIENT_GUID_SIZE];
 	__le16 SecurityMode;
 	__le16 DialectCount;
-	__le16 Dialects[1]; /* dialect (someday maybe list) client asked for */
+	__le16 Dialects[3]; /* BB expand this if autonegotiate > 3 dialects */
 } __packed;
 
 struct validate_negotiate_info_rsp {
@@ -1177,6 +1177,16 @@ struct smb2_file_link_info { /* encoding of request for level 11 */
 	__le32 FileNameLength;
 	char   FileName[0];     /* Name to be assigned to new link */
 } __packed; /* level 11 Set */
+
+#define SMB2_MAX_EA_BUF 2048
+
+struct smb2_file_full_ea_info { /* encoding of response for level 15 */
+	__le32 next_entry_offset;
+	__u8   flags;
+	__u8   ea_name_length;
+	__le16 ea_value_length;
+	char   ea_data[0]; /* \0 terminated name plus value */
+} __packed; /* level 15 Set */
 
 /*
  * This level 18, although with struct with same name is different from cifs

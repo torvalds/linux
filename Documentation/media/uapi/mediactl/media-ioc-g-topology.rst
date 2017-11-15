@@ -46,7 +46,7 @@ other values untouched.
 If the ``topology_version`` remains the same, the ioctl should fill the
 desired arrays with the media graph elements.
 
-.. tabularcolumns:: |p{1.6cm}|p{3.2cm}|p{12.7cm}|
+.. tabularcolumns:: |p{1.6cm}|p{3.4cm}|p{12.5cm}|
 
 .. c:type:: media_v2_topology
 

@@ -416,10 +416,10 @@ static void __init mx51_clocks_init(struct device_node *np)
 
 	clk[IMX5_CLK_LP_APM]		= imx_clk_mux("lp_apm", MXC_CCM_CCSR, 9, 1,
 						lp_apm_sel, ARRAY_SIZE(lp_apm_sel));
-	clk[IMX5_CLK_IPU_DI0_SEL]	= imx_clk_mux("ipu_di0_sel", MXC_CCM_CSCMR2, 26, 3,
-						mx51_ipu_di0_sel, ARRAY_SIZE(mx51_ipu_di0_sel));
-	clk[IMX5_CLK_IPU_DI1_SEL]	= imx_clk_mux("ipu_di1_sel", MXC_CCM_CSCMR2, 29, 3,
-						mx51_ipu_di1_sel, ARRAY_SIZE(mx51_ipu_di1_sel));
+	clk[IMX5_CLK_IPU_DI0_SEL]	= imx_clk_mux_flags("ipu_di0_sel", MXC_CCM_CSCMR2, 26, 3,
+						mx51_ipu_di0_sel, ARRAY_SIZE(mx51_ipu_di0_sel), CLK_SET_RATE_PARENT);
+	clk[IMX5_CLK_IPU_DI1_SEL]	= imx_clk_mux_flags("ipu_di1_sel", MXC_CCM_CSCMR2, 29, 3,
+						mx51_ipu_di1_sel, ARRAY_SIZE(mx51_ipu_di1_sel), CLK_SET_RATE_PARENT);
 	clk[IMX5_CLK_TVE_EXT_SEL]	= imx_clk_mux_flags("tve_ext_sel", MXC_CCM_CSCMR1, 6, 1,
 						mx51_tve_ext_sel, ARRAY_SIZE(mx51_tve_ext_sel), CLK_SET_RATE_PARENT);
 	clk[IMX5_CLK_TVE_SEL]		= imx_clk_mux("tve_sel", MXC_CCM_CSCMR1, 7, 1,

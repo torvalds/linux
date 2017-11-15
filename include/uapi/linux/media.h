@@ -30,8 +30,6 @@
 #include <linux/types.h>
 #include <linux/version.h>
 
-#define MEDIA_API_VERSION	KERNEL_VERSION(0, 1, 0)
-
 struct media_device_info {
 	char driver[16];
 	char model[32];
@@ -187,6 +185,9 @@ struct media_device_info {
 #define MEDIA_ENT_T_V4L2_SUBDEV_LENS	MEDIA_ENT_F_LENS
 #define MEDIA_ENT_T_V4L2_SUBDEV_DECODER	MEDIA_ENT_F_ATV_DECODER
 #define MEDIA_ENT_T_V4L2_SUBDEV_TUNER	MEDIA_ENT_F_TUNER
+
+/* Obsolete symbol for media_version, no longer used in the kernel */
+#define MEDIA_API_VERSION		KERNEL_VERSION(0, 1, 0)
 #endif
 
 /* Entity flags */

@@ -52,7 +52,6 @@ int libcfs_kkuc_msg_put(struct file *filp, void *payload)
 	struct kuc_hdr *kuch = (struct kuc_hdr *)payload;
 	ssize_t count = kuch->kuc_msglen;
 	loff_t offset = 0;
-	mm_segment_t fs;
 	int rc = -ENXIO;
 
 	if (IS_ERR_OR_NULL(filp))
@@ -63,18 +62,14 @@ int libcfs_kkuc_msg_put(struct file *filp, void *payload)
 		return rc;
 	}
 
-	fs = get_fs();
-	set_fs(KERNEL_DS);
 	while (count > 0) {
-		rc = vfs_write(filp, (void __force __user *)payload,
-			       count, &offset);
+		rc = kernel_write(filp, payload, count, &offset);
 		if (rc < 0)
 			break;
 		count -= rc;
 		payload += rc;
 		rc = 0;
 	}
-	set_fs(fs);
 
 	if (rc < 0)
 		CWARN("message send failed (%d)\n", rc);

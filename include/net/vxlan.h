@@ -168,12 +168,6 @@ reserved_flags2:2;
 #define VXLAN_GPE_USED_BITS (VXLAN_HF_VER | VXLAN_HF_NP | VXLAN_HF_OAM | \
 			     cpu_to_be32(0xff))
 
-/* VXLAN-GPE header Next Protocol. */
-#define VXLAN_GPE_NP_IPV4      0x01
-#define VXLAN_GPE_NP_IPV6      0x02
-#define VXLAN_GPE_NP_ETHERNET  0x03
-#define VXLAN_GPE_NP_NSH       0x04
-
 struct vxlan_metadata {
 	u32		gbp;
 };

@@ -194,6 +194,10 @@ config TIMER_DIVIDE
 	int "Timer divider (integer)"
 	default "128"
 
+config CPU_BIG_ENDIAN
+        bool "Generate big endian code"
+	default n
+
 config CPU_LITTLE_ENDIAN
         bool "Generate little endian code"
 	default n

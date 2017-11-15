@@ -32,6 +32,19 @@ function add_gre_tunnel {
 	ip addr add dev $DEV 10.1.1.200/24
 }
 
+function add_erspan_tunnel {
+	# in namespace
+	ip netns exec at_ns0 \
+		ip link add dev $DEV_NS type $TYPE seq key 2 local 172.16.1.100 remote 172.16.1.200 erspan 123
+	ip netns exec at_ns0 ip link set dev $DEV_NS up
+	ip netns exec at_ns0 ip addr add dev $DEV_NS 10.1.1.100/24
+
+	# out of namespace
+	ip link add dev $DEV type $TYPE external
+	ip link set dev $DEV up
+	ip addr add dev $DEV 10.1.1.200/24
+}
+
 function add_vxlan_tunnel {
 	# Set static ARP entry here because iptables set-mark works
 	# on L3 packet, as a result not applying to ARP packets,
@@ -99,6 +112,18 @@ function test_gre {
 	cleanup
 }
 
+function test_erspan {
+	TYPE=erspan
+	DEV_NS=erspan00
+	DEV=erspan11
+	config_device
+	add_erspan_tunnel
+	attach_bpf $DEV erspan_set_tunnel erspan_get_tunnel
+	ping -c 1 10.1.1.100
+	ip netns exec at_ns0 ping -c 1 10.1.1.200
+	cleanup
+}
+
 function test_vxlan {
 	TYPE=vxlan
 	DEV_NS=vxlan00
@@ -151,14 +176,18 @@ function cleanup {
 	ip link del gretap11
 	ip link del vxlan11
 	ip link del geneve11
+	ip link del erspan11
 	pkill tcpdump
 	pkill cat
 	set -ex
 }
 
+trap cleanup 0 2 3 6 9
 cleanup
 echo "Testing GRE tunnel..."
 test_gre
+echo "Testing ERSPAN tunnel..."
+test_erspan
 echo "Testing VXLAN tunnel..."
 test_vxlan
 echo "Testing GENEVE tunnel..."

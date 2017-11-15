@@ -7,6 +7,7 @@ config PPC_PSERIES
 	select PCI
 	select PCI_MSI
 	select PPC_XICS
+	select PPC_XIVE_SPAPR
 	select PPC_ICP_NATIVE
 	select PPC_ICP_HV
 	select PPC_ICS_RTAS

@@ -13,6 +13,7 @@ struct bpf_map_def {
 	unsigned int max_entries;
 	unsigned int map_flags;
 	unsigned int inner_map_idx;
+	unsigned int numa_node;
 };
 
 struct bpf_map_data {

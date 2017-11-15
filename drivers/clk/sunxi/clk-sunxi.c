@@ -666,15 +666,14 @@ static struct clk * __init sunxi_mux_clk_setup(struct device_node *node,
 
 	reg = of_iomap(node, 0);
 	if (!reg) {
-		pr_err("Could not map registers for mux-clk: %s\n",
-		       of_node_full_name(node));
+		pr_err("Could not map registers for mux-clk: %pOF\n", node);
 		return NULL;
 	}
 
 	i = of_clk_parent_fill(node, parents, SUNXI_MAX_PARENTS);
 	if (of_property_read_string(node, "clock-output-names", &clk_name)) {
-		pr_err("%s: could not read clock-output-names from \"%s\"\n",
-		       __func__, of_node_full_name(node));
+		pr_err("%s: could not read clock-output-names from \"%pOF\"\n",
+		       __func__, node);
 		goto out_unmap;
 	}
 
@@ -797,16 +796,15 @@ static void __init sunxi_divider_clk_setup(struct device_node *node,
 
 	reg = of_iomap(node, 0);
 	if (!reg) {
-		pr_err("Could not map registers for mux-clk: %s\n",
-		       of_node_full_name(node));
+		pr_err("Could not map registers for mux-clk: %pOF\n", node);
 		return;
 	}
 
 	clk_parent = of_clk_get_parent_name(node, 0);
 
 	if (of_property_read_string(node, "clock-output-names", &clk_name)) {
-		pr_err("%s: could not read clock-output-names from \"%s\"\n",
-		       __func__, of_node_full_name(node));
+		pr_err("%s: could not read clock-output-names from \"%pOF\"\n",
+		       __func__, node);
 		goto out_unmap;
 	}
 
@@ -1010,8 +1008,7 @@ static struct clk ** __init sunxi_divs_clk_setup(struct device_node *node,
 
 	reg = of_iomap(node, 0);
 	if (!reg) {
-		pr_err("Could not map registers for divs-clk: %s\n",
-		       of_node_full_name(node));
+		pr_err("Could not map registers for divs-clk: %pOF\n", node);
 		return NULL;
 	}
 

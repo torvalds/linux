@@ -297,8 +297,8 @@ static int __init via_cuda_start(void)
 #else
     cuda_irq = irq_of_parse_and_map(vias, 0);
     if (!cuda_irq) {
-	printk(KERN_ERR "via-cuda: can't map interrupts for %s\n",
-	       vias->full_name);
+	printk(KERN_ERR "via-cuda: can't map interrupts for %pOF\n",
+	       vias);
 	return -ENODEV;
     }
 #endif

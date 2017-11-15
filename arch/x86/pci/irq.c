@@ -1092,7 +1092,7 @@ static int __init fix_acer_tm360_irqrouting(const struct dmi_system_id *d)
 	return 0;
 }
 
-static struct dmi_system_id __initdata pciirq_dmi_table[] = {
+static const struct dmi_system_id pciirq_dmi_table[] __initconst = {
 	{
 		.callback = fix_broken_hp_bios_irq9,
 		.ident = "HP Pavilion N5400 Series Laptop",

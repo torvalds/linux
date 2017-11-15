@@ -596,7 +596,7 @@ granted:
 		default:
 			getlk->fl_type = F_UNLCK;
 		}
-		getlk->fl_pid = (pid_t)lock->l_policy_data.l_flock.pid;
+		getlk->fl_pid = -(pid_t)lock->l_policy_data.l_flock.pid;
 		getlk->fl_start = (loff_t)lock->l_policy_data.l_flock.start;
 		getlk->fl_end = (loff_t)lock->l_policy_data.l_flock.end;
 	} else {

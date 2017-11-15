@@ -5,6 +5,8 @@
 #include <linux/efi.h>
 #include <linux/reboot.h>
 
+static void (*orig_pm_power_off)(void);
+
 int efi_reboot_quirk_mode = -1;
 
 void efi_reboot(enum reboot_mode reboot_mode, const char *__unused)
@@ -51,6 +53,12 @@ bool __weak efi_poweroff_required(void)
 static void efi_power_off(void)
 {
 	efi.reset_system(EFI_RESET_SHUTDOWN, EFI_SUCCESS, 0, NULL);
+	/*
+	 * The above call should not return, if it does fall back to
+	 * the original power off method (typically ACPI poweroff).
+	 */
+	if (orig_pm_power_off)
+		orig_pm_power_off();
 }
 
 static int __init efi_shutdown_init(void)
@@ -58,8 +66,10 @@ static int __init efi_shutdown_init(void)
 	if (!efi_enabled(EFI_RUNTIME_SERVICES))
 		return -ENODEV;
 
-	if (efi_poweroff_required())
+	if (efi_poweroff_required()) {
+		orig_pm_power_off = pm_power_off;
 		pm_power_off = efi_power_off;
+	}
 
 	return 0;
 }

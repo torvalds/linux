@@ -181,10 +181,15 @@ static const struct file_operations sched_feat_fops = {
 	.release	= single_release,
 };
 
+__read_mostly bool sched_debug_enabled;
+
 static __init int sched_init_debug(void)
 {
 	debugfs_create_file("sched_features", 0644, NULL, NULL,
 			&sched_feat_fops);
+
+	debugfs_create_bool("sched_debug", 0644, NULL,
+			&sched_debug_enabled);
 
 	return 0;
 }
@@ -461,8 +466,6 @@ static char *task_group_path(struct task_group *tg)
 }
 #endif
 
-static const char stat_nam[] = TASK_STATE_TO_CHAR_STR;
-
 static void
 print_task(struct seq_file *m, struct rq *rq, struct task_struct *p)
 {
@@ -530,7 +533,7 @@ void print_cfs_rq(struct seq_file *m, int cpu, struct cfs_rq *cfs_rq)
 			SPLIT_NS(cfs_rq->exec_clock));
 
 	raw_spin_lock_irqsave(&rq->lock, flags);
-	if (cfs_rq->rb_leftmost)
+	if (rb_first_cached(&cfs_rq->tasks_timeline))
 		MIN_vruntime = (__pick_first_entity(cfs_rq))->vruntime;
 	last = __pick_last_entity(cfs_rq);
 	if (last)

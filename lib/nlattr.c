@@ -27,6 +27,30 @@ static const u8 nla_attr_minlen[NLA_TYPE_MAX+1] = {
 	[NLA_S64]	= sizeof(s64),
 };
 
+static int validate_nla_bitfield32(const struct nlattr *nla,
+				   u32 *valid_flags_allowed)
+{
+	const struct nla_bitfield32 *bf = nla_data(nla);
+	u32 *valid_flags_mask = valid_flags_allowed;
+
+	if (!valid_flags_allowed)
+		return -EINVAL;
+
+	/*disallow invalid bit selector */
+	if (bf->selector & ~*valid_flags_mask)
+		return -EINVAL;
+
+	/*disallow invalid bit values */
+	if (bf->value & ~*valid_flags_mask)
+		return -EINVAL;
+
+	/*disallow valid bit values that are not selected*/
+	if (bf->value & ~bf->selector)
+		return -EINVAL;
+
+	return 0;
+}
+
 static int validate_nla(const struct nlattr *nla, int maxtype,
 			const struct nla_policy *policy)
 {
@@ -45,6 +69,12 @@ static int validate_nla(const struct nlattr *nla, int maxtype,
 		if (attrlen > 0)
 			return -ERANGE;
 		break;
+
+	case NLA_BITFIELD32:
+		if (attrlen != sizeof(struct nla_bitfield32))
+			return -ERANGE;
+
+		return validate_nla_bitfield32(nla, pt->validation_data);
 
 	case NLA_NUL_STRING:
 		if (pt->len)
@@ -270,6 +300,30 @@ size_t nla_strlcpy(char *dst, const struct nlattr *nla, size_t dstsize)
 	return srclen;
 }
 EXPORT_SYMBOL(nla_strlcpy);
+
+/**
+ * nla_strdup - Copy string attribute payload into a newly allocated buffer
+ * @nla: attribute to copy the string from
+ * @flags: the type of memory to allocate (see kmalloc).
+ *
+ * Returns a pointer to the allocated buffer or NULL on error.
+ */
+char *nla_strdup(const struct nlattr *nla, gfp_t flags)
+{
+	size_t srclen = nla_len(nla);
+	char *src = nla_data(nla), *dst;
+
+	if (srclen > 0 && src[srclen - 1] == '\0')
+		srclen--;
+
+	dst = kmalloc(srclen + 1, flags);
+	if (dst != NULL) {
+		memcpy(dst, src, srclen);
+		dst[srclen] = '\0';
+	}
+	return dst;
+}
+EXPORT_SYMBOL(nla_strdup);
 
 /**
  * nla_memcpy - Copy a netlink attribute into another memory area

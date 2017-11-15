@@ -25,6 +25,7 @@
 #include <asm/unaligned.h>
 #include <linux/if_vlan.h>
 #include <net/switchdev.h>
+#include <trace/events/bridge.h>
 #include "br_private.h"
 
 static struct kmem_cache *br_fdb_cache __read_mostly;
@@ -169,28 +170,12 @@ static void fdb_del_hw_addr(struct net_bridge *br, const unsigned char *addr)
 	}
 }
 
-static void fdb_del_external_learn(struct net_bridge_fdb_entry *f)
-{
-	struct switchdev_obj_port_fdb fdb = {
-		.obj = {
-			.orig_dev = f->dst->dev,
-			.id = SWITCHDEV_OBJ_ID_PORT_FDB,
-			.flags = SWITCHDEV_F_DEFER,
-		},
-		.vid = f->vlan_id,
-	};
-
-	ether_addr_copy(fdb.addr, f->addr.addr);
-	switchdev_port_obj_del(f->dst->dev, &fdb.obj);
-}
-
 static void fdb_delete(struct net_bridge *br, struct net_bridge_fdb_entry *f)
 {
+	trace_fdb_delete(br, f);
+
 	if (f->is_static)
 		fdb_del_hw_addr(br, f->addr.addr);
-
-	if (f->added_by_external_learn)
-		fdb_del_external_learn(f);
 
 	hlist_del_init_rcu(&f->hlist);
 	fdb_notify(br, f, RTM_DELNEIGH);
@@ -598,8 +583,10 @@ void br_fdb_update(struct net_bridge *br, struct net_bridge_port *source,
 				fdb->updated = now;
 			if (unlikely(added_by_user))
 				fdb->added_by_user = 1;
-			if (unlikely(fdb_modified))
+			if (unlikely(fdb_modified)) {
+				trace_br_fdb_update(br, source, addr, vid, added_by_user);
 				fdb_notify(br, fdb, RTM_NEWNEIGH);
+			}
 		}
 	} else {
 		spin_lock(&br->hash_lock);
@@ -608,6 +595,7 @@ void br_fdb_update(struct net_bridge *br, struct net_bridge_port *source,
 			if (fdb) {
 				if (unlikely(added_by_user))
 					fdb->added_by_user = 1;
+				trace_br_fdb_update(br, source, addr, vid, added_by_user);
 				fdb_notify(br, fdb, RTM_NEWNEIGH);
 			}
 		}
@@ -888,6 +876,8 @@ int br_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
 	struct net_bridge *br = NULL;
 	int err = 0;
 
+	trace_br_fdb_add(ndm, dev, addr, vid, nlh_flags);
+
 	if (!(ndm->ndm_state & (NUD_PERMANENT|NUD_NOARP|NUD_REACHABLE))) {
 		pr_info("bridge: RTM_NEWNEIGH with invalid state %#x\n", ndm->ndm_state);
 		return -EINVAL;
@@ -1083,6 +1073,8 @@ int br_fdb_external_learn_add(struct net_bridge *br, struct net_bridge_port *p,
 	struct hlist_head *head;
 	bool modified = false;
 	int err = 0;
+
+	trace_br_fdb_external_learn_add(br, p, addr, vid);
 
 	spin_lock_bh(&br->hash_lock);
 

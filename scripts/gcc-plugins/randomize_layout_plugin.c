@@ -436,9 +436,6 @@ static int is_pure_ops_struct(const_tree node)
 
 	gcc_assert(TREE_CODE(node) == RECORD_TYPE || TREE_CODE(node) == UNION_TYPE);
 
-	/* XXX: Do not apply randomization to all-ftpr structs yet. */
-	return 0;
-
 	for (field = TYPE_FIELDS(node); field; field = TREE_CHAIN(field)) {
 		const_tree fieldtype = get_field_type(field);
 		enum tree_code code = TREE_CODE(fieldtype);

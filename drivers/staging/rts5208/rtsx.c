@@ -205,16 +205,6 @@ static int device_reset(struct scsi_cmnd *srb)
 	return SUCCESS;
 }
 
-/* Simulate a SCSI bus reset by resetting the device's USB port. */
-static int bus_reset(struct scsi_cmnd *srb)
-{
-	struct rtsx_dev *dev = host_to_rtsx(srb->device->host);
-
-	dev_info(&dev->pci->dev, "%s called\n", __func__);
-
-	return SUCCESS;
-}
-
 /*
  * this defines our host template, with which we'll allocate hosts
  */
@@ -231,7 +221,6 @@ static struct scsi_host_template rtsx_host_template = {
 	/* error and abort handlers */
 	.eh_abort_handler =		command_abort,
 	.eh_device_reset_handler =	device_reset,
-	.eh_bus_reset_handler =		bus_reset,
 
 	/* queue commands only, only one command per LUN */
 	.can_queue =			1,

@@ -54,8 +54,6 @@
 #define PRIu64 "u"
 #define PRIo64 "o"
 
-#define APIC_BUS_CYCLE_NS 1
-
 /* #define apic_debug(fmt,arg...) printk(KERN_WARNING fmt,##arg) */
 #define apic_debug(fmt, arg...)
 
@@ -1326,6 +1324,10 @@ static void apic_timer_expired(struct kvm_lapic *apic)
 	atomic_inc(&apic->lapic_timer.pending);
 	kvm_set_pending_timer(vcpu);
 
+	/*
+	 * For x86, the atomic_inc() is serialized, thus
+	 * using swait_active() is safe.
+	 */
 	if (swait_active(q))
 		swake_up(q);
 

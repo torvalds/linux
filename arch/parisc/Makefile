@@ -129,8 +129,13 @@ Image: vmlinux
 bzImage: vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@
 
+ifdef CONFIG_PARISC_SELF_EXTRACT
 vmlinuz: bzImage
 	$(OBJCOPY) $(boot)/bzImage $@
+else
+vmlinuz: vmlinux
+	@gzip -cf -9 $< > $@
+endif
 
 install:
 	$(CONFIG_SHELL) $(src)/arch/parisc/install.sh \

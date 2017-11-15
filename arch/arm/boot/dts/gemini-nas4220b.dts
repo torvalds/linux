@@ -33,6 +33,7 @@
 			wakeup-source;
 			linux,code = <KEY_SETUP>;
 			label = "Backup button";
+			/* Conflict with TVC */
 			gpios = <&gpio1 29 GPIO_ACTIVE_LOW>;
 		};
 		button@31 {
@@ -40,6 +41,7 @@
 			wakeup-source;
 			linux,code = <KEY_RESTART>;
 			label = "Softreset button";
+			/* Conflict with TVC */
 			gpios = <&gpio1 31 GPIO_ACTIVE_LOW>;
 		};
 	};
@@ -48,11 +50,13 @@
 		compatible = "gpio-leds";
 		led@28 {
 			label = "nas4220b:orange:hdd";
+			/* Conflict with TVC */
 			gpios = <&gpio1 28 GPIO_ACTIVE_HIGH>;
 			default-state = "on";
 		};
 		led@30 {
 			label = "nas4220b:green:os";
+			/* Conflict with TVC */
 			gpios = <&gpio1 30 GPIO_ACTIVE_HIGH>;
 			default-state = "on";
 			linux,default-trigger = "heartbeat";
@@ -99,10 +103,30 @@
 			};
 		};
 
+		syscon: syscon@40000000 {
+			pinctrl {
+				/*
+				 * gpio1dgrp cover line 28-31 otherwise used
+				 * by TVC.
+				 */
+				gpio1_default_pins: pinctrl-gpio1 {
+					mux {
+						function = "gpio1";
+						groups = "gpio1dgrp";
+					};
+				};
+			};
+		};
+
 		sata: sata@46000000 {
 			cortina,gemini-ata-muxmode = <0>;
 			cortina,gemini-enable-sata-bridge;
 			status = "okay";
+		};
+
+		gpio1: gpio@4e000000 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&gpio1_default_pins>;
 		};
 
 		ata@63000000 {

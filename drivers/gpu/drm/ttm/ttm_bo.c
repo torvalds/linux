@@ -109,8 +109,8 @@ static ssize_t ttm_bo_global_show(struct kobject *kobj,
 	struct ttm_bo_global *glob =
 		container_of(kobj, struct ttm_bo_global, kobj);
 
-	return snprintf(buffer, PAGE_SIZE, "%lu\n",
-			(unsigned long) atomic_read(&glob->bo_count));
+	return snprintf(buffer, PAGE_SIZE, "%d\n",
+				atomic_read(&glob->bo_count));
 }
 
 static struct attribute *ttm_bo_global_attrs[] = {

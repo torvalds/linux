@@ -370,8 +370,11 @@ static int tegra_kbc_start(struct tegra_kbc *kbc)
 {
 	unsigned int debounce_cnt;
 	u32 val = 0;
+	int ret;
 
-	clk_prepare_enable(kbc->clk);
+	ret = clk_prepare_enable(kbc->clk);
+	if (ret)
+		return ret;
 
 	/* Reset the KBC controller to clear all previous status.*/
 	reset_control_assert(kbc->rst);

@@ -53,7 +53,7 @@
 /*
  * Possible values for the disposition are:
  */
-typedef enum {
+enum sctp_disposition {
 	SCTP_DISPOSITION_DISCARD,	 /* No further processing.  */
 	SCTP_DISPOSITION_CONSUME,	 /* Process return values normally.  */
 	SCTP_DISPOSITION_NOMEM,		 /* We ran out of memory--recover.  */
@@ -63,24 +63,20 @@ typedef enum {
 	SCTP_DISPOSITION_NOT_IMPL,	 /* This entry is not implemented.  */
 	SCTP_DISPOSITION_ERROR,		 /* This is plain old user error.  */
 	SCTP_DISPOSITION_BUG,		 /* This is a bug.  */
-} sctp_disposition_t;
+};
 
-typedef struct {
-	int name;
-	int action;
-} sctp_sm_command_t;
-
-typedef sctp_disposition_t (sctp_state_fn_t) (struct net *,
-					      const struct sctp_endpoint *,
-					      const struct sctp_association *,
-					      const sctp_subtype_t type,
-					      void *arg,
-					      sctp_cmd_seq_t *);
+typedef enum sctp_disposition (sctp_state_fn_t) (
+					struct net *net,
+					const struct sctp_endpoint *ep,
+					const struct sctp_association *asoc,
+					const union sctp_subtype type,
+					void *arg,
+					struct sctp_cmd_seq *commands);
 typedef void (sctp_timer_event_t) (unsigned long);
-typedef struct {
+struct sctp_sm_table_entry {
 	sctp_state_fn_t *fn;
 	const char *name;
-} sctp_sm_table_entry_t;
+};
 
 /* A naming convention of "sctp_sf_xxx" applies to all the state functions
  * currently in use.
@@ -175,10 +171,11 @@ sctp_state_fn_t sctp_sf_autoclose_timer_expire;
 
 /* Prototypes for utility support functions.  */
 __u8 sctp_get_chunk_type(struct sctp_chunk *chunk);
-const sctp_sm_table_entry_t *sctp_sm_lookup_event(struct net *,
-					    sctp_event_t,
-					    sctp_state_t,
-					    sctp_subtype_t);
+const struct sctp_sm_table_entry *sctp_sm_lookup_event(
+					struct net *net,
+					enum sctp_event event_type,
+					enum sctp_state state,
+					union sctp_subtype event_subtype);
 int sctp_chunk_iif(const struct sctp_chunk *);
 struct sctp_association *sctp_make_temp_asoc(const struct sctp_endpoint *,
 					     struct sctp_chunk *,
@@ -187,68 +184,69 @@ __u32 sctp_generate_verification_tag(void);
 void sctp_populate_tie_tags(__u8 *cookie, __u32 curTag, __u32 hisTag);
 
 /* Prototypes for chunk-building functions.  */
-struct sctp_chunk *sctp_make_init(const struct sctp_association *,
-			     const struct sctp_bind_addr *,
-			     gfp_t gfp, int vparam_len);
-struct sctp_chunk *sctp_make_init_ack(const struct sctp_association *,
-				 const struct sctp_chunk *,
-				 const gfp_t gfp,
-				 const int unkparam_len);
-struct sctp_chunk *sctp_make_cookie_echo(const struct sctp_association *,
-				    const struct sctp_chunk *);
-struct sctp_chunk *sctp_make_cookie_ack(const struct sctp_association *,
-				   const struct sctp_chunk *);
-struct sctp_chunk *sctp_make_cwr(const struct sctp_association *,
+struct sctp_chunk *sctp_make_init(const struct sctp_association *asoc,
+				  const struct sctp_bind_addr *bp,
+				  gfp_t gfp, int vparam_len);
+struct sctp_chunk *sctp_make_init_ack(const struct sctp_association *asoc,
+				      const struct sctp_chunk *chunk,
+				      const gfp_t gfp, const int unkparam_len);
+struct sctp_chunk *sctp_make_cookie_echo(const struct sctp_association *asoc,
+					 const struct sctp_chunk *chunk);
+struct sctp_chunk *sctp_make_cookie_ack(const struct sctp_association *asoc,
+					const struct sctp_chunk *chunk);
+struct sctp_chunk *sctp_make_cwr(const struct sctp_association *asoc,
 				 const __u32 lowest_tsn,
-				 const struct sctp_chunk *);
-struct sctp_chunk * sctp_make_datafrag_empty(struct sctp_association *,
-					const struct sctp_sndrcvinfo *sinfo,
-					int len, const __u8 flags,
-					__u16 ssn, gfp_t gfp);
-struct sctp_chunk *sctp_make_ecne(const struct sctp_association *,
-				  const __u32);
-struct sctp_chunk *sctp_make_sack(const struct sctp_association *);
+				 const struct sctp_chunk *chunk);
+struct sctp_chunk *sctp_make_datafrag_empty(struct sctp_association *asoc,
+					    const struct sctp_sndrcvinfo *sinfo,
+					    int len, const __u8 flags,
+					    __u16 ssn, gfp_t gfp);
+struct sctp_chunk *sctp_make_ecne(const struct sctp_association *asoc,
+				  const __u32 lowest_tsn);
+struct sctp_chunk *sctp_make_sack(const struct sctp_association *asoc);
 struct sctp_chunk *sctp_make_shutdown(const struct sctp_association *asoc,
 				      const struct sctp_chunk *chunk);
 struct sctp_chunk *sctp_make_shutdown_ack(const struct sctp_association *asoc,
-					  const struct sctp_chunk *);
-struct sctp_chunk *sctp_make_shutdown_complete(const struct sctp_association *,
-					  const struct sctp_chunk *);
-void sctp_init_cause(struct sctp_chunk *, __be16 cause, size_t);
-struct sctp_chunk *sctp_make_abort(const struct sctp_association *,
-			      const struct sctp_chunk *,
-			      const size_t hint);
-struct sctp_chunk *sctp_make_abort_no_data(const struct sctp_association *,
-				      const struct sctp_chunk *,
-				      __u32 tsn);
-struct sctp_chunk *sctp_make_abort_user(const struct sctp_association *,
-					struct msghdr *, size_t msg_len);
-struct sctp_chunk *sctp_make_abort_violation(const struct sctp_association *,
-				   const struct sctp_chunk *,
-				   const __u8 *,
-				   const size_t );
-struct sctp_chunk *sctp_make_violation_paramlen(const struct sctp_association *,
-				   const struct sctp_chunk *,
-				   struct sctp_paramhdr *);
-struct sctp_chunk *sctp_make_violation_max_retrans(const struct sctp_association *,
-						   const struct sctp_chunk *);
-struct sctp_chunk *sctp_make_heartbeat(const struct sctp_association *,
-				  const struct sctp_transport *);
-struct sctp_chunk *sctp_make_heartbeat_ack(const struct sctp_association *,
-				      const struct sctp_chunk *,
-				      const void *payload,
-				      const size_t paylen);
-struct sctp_chunk *sctp_make_op_error(const struct sctp_association *,
-				 const struct sctp_chunk *chunk,
-				 __be16 cause_code,
-				 const void *payload,
-				 size_t paylen,
-				 size_t reserve_tail);
+					  const struct sctp_chunk *chunk);
+struct sctp_chunk *sctp_make_shutdown_complete(
+					const struct sctp_association *asoc,
+					const struct sctp_chunk *chunk);
+void sctp_init_cause(struct sctp_chunk *chunk, __be16 cause, size_t paylen);
+struct sctp_chunk *sctp_make_abort(const struct sctp_association *asoc,
+				   const struct sctp_chunk *chunk,
+				   const size_t hint);
+struct sctp_chunk *sctp_make_abort_no_data(const struct sctp_association *asoc,
+					   const struct sctp_chunk *chunk,
+					   __u32 tsn);
+struct sctp_chunk *sctp_make_abort_user(const struct sctp_association *asoc,
+					struct msghdr *msg, size_t msg_len);
+struct sctp_chunk *sctp_make_abort_violation(
+					const struct sctp_association *asoc,
+					const struct sctp_chunk *chunk,
+					const __u8 *payload,
+					const size_t paylen);
+struct sctp_chunk *sctp_make_violation_paramlen(
+					const struct sctp_association *asoc,
+					const struct sctp_chunk *chunk,
+					struct sctp_paramhdr *param);
+struct sctp_chunk *sctp_make_violation_max_retrans(
+					const struct sctp_association *asoc,
+					const struct sctp_chunk *chunk);
+struct sctp_chunk *sctp_make_heartbeat(const struct sctp_association *asoc,
+				       const struct sctp_transport *transport);
+struct sctp_chunk *sctp_make_heartbeat_ack(const struct sctp_association *asoc,
+					   const struct sctp_chunk *chunk,
+					   const void *payload,
+					   const size_t paylen);
+struct sctp_chunk *sctp_make_op_error(const struct sctp_association *asoc,
+				      const struct sctp_chunk *chunk,
+				      __be16 cause_code, const void *payload,
+				      size_t paylen, size_t reserve_tail);
 
-struct sctp_chunk *sctp_make_asconf_update_ip(struct sctp_association *,
-					      union sctp_addr *,
-					      struct sockaddr *,
-					      int, __be16);
+struct sctp_chunk *sctp_make_asconf_update_ip(struct sctp_association *asoc,
+					      union sctp_addr *laddr,
+					      struct sockaddr *addrs,
+					      int addrcnt, __be16 flags);
 struct sctp_chunk *sctp_make_asconf_set_prim(struct sctp_association *asoc,
 					     union sctp_addr *addr);
 bool sctp_verify_asconf(const struct sctp_association *asoc,
@@ -262,27 +260,25 @@ struct sctp_chunk *sctp_make_fwdtsn(const struct sctp_association *asoc,
 				    __u32 new_cum_tsn, size_t nstreams,
 				    struct sctp_fwdtsn_skip *skiplist);
 struct sctp_chunk *sctp_make_auth(const struct sctp_association *asoc);
-struct sctp_chunk *sctp_make_strreset_req(
-				const struct sctp_association *asoc,
-				__u16 stream_num, __u16 *stream_list,
-				bool out, bool in);
+struct sctp_chunk *sctp_make_strreset_req(const struct sctp_association *asoc,
+					  __u16 stream_num, __u16 *stream_list,
+					  bool out, bool in);
 struct sctp_chunk *sctp_make_strreset_tsnreq(
-				const struct sctp_association *asoc);
+					const struct sctp_association *asoc);
 struct sctp_chunk *sctp_make_strreset_addstrm(
-				const struct sctp_association *asoc,
-				__u16 out, __u16 in);
-struct sctp_chunk *sctp_make_strreset_resp(
-				const struct sctp_association *asoc,
-				__u32 result, __u32 sn);
-struct sctp_chunk *sctp_make_strreset_tsnresp(
-				struct sctp_association *asoc,
-				__u32 result, __u32 sn,
-				__u32 sender_tsn, __u32 receiver_tsn);
+					const struct sctp_association *asoc,
+					__u16 out, __u16 in);
+struct sctp_chunk *sctp_make_strreset_resp(const struct sctp_association *asoc,
+					   __u32 result, __u32 sn);
+struct sctp_chunk *sctp_make_strreset_tsnresp(struct sctp_association *asoc,
+					      __u32 result, __u32 sn,
+					      __u32 sender_tsn,
+					      __u32 receiver_tsn);
 bool sctp_verify_reconf(const struct sctp_association *asoc,
 			struct sctp_chunk *chunk,
 			struct sctp_paramhdr **errp);
-void sctp_chunk_assign_tsn(struct sctp_chunk *);
-void sctp_chunk_assign_ssn(struct sctp_chunk *);
+void sctp_chunk_assign_tsn(struct sctp_chunk *chunk);
+void sctp_chunk_assign_ssn(struct sctp_chunk *chunk);
 
 /* Prototypes for stream-processing functions.  */
 struct sctp_chunk *sctp_process_strreset_outreq(
@@ -312,12 +308,10 @@ struct sctp_chunk *sctp_process_strreset_resp(
 
 /* Prototypes for statetable processing. */
 
-int sctp_do_sm(struct net *net, sctp_event_t event_type, sctp_subtype_t subtype,
-	       sctp_state_t state,
-               struct sctp_endpoint *,
-               struct sctp_association *asoc,
-               void *event_arg,
-	       gfp_t gfp);
+int sctp_do_sm(struct net *net, enum sctp_event event_type,
+	       union sctp_subtype subtype, enum sctp_state state,
+	       struct sctp_endpoint *ep, struct sctp_association *asoc,
+	       void *event_arg, gfp_t gfp);
 
 /* 2nd level prototypes */
 void sctp_generate_t3_rtx_event(unsigned long peer);
@@ -327,11 +321,12 @@ void sctp_generate_proto_unreach_event(unsigned long peer);
 
 void sctp_ootb_pkt_free(struct sctp_packet *packet);
 
-struct sctp_association *sctp_unpack_cookie(const struct sctp_endpoint *ep,
-				       const struct sctp_association *asoc,
-				       struct sctp_chunk *chunk,
-				       gfp_t gfp, int *err,
-				       struct sctp_chunk **err_chk_p);
+struct sctp_association *sctp_unpack_cookie(
+					const struct sctp_endpoint *ep,
+					const struct sctp_association *asoc,
+					struct sctp_chunk *chunk,
+					gfp_t gfp, int *err,
+					struct sctp_chunk **err_chk_p);
 
 /* 3rd level prototypes */
 __u32 sctp_generate_tag(const struct sctp_endpoint *ep);

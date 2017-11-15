@@ -59,6 +59,9 @@ config PARISC
 config CPU_BIG_ENDIAN
 	def_bool y
 
+config CPU_BIG_ENDIAN
+	def_bool y
+
 config MMU
 	def_bool y
 
@@ -253,6 +256,18 @@ config PARISC_PAGE_SIZE_64KB
 	depends on PA8X00
 
 endchoice
+
+config PARISC_SELF_EXTRACT
+	bool "Build kernel as self-extracting executable"
+	default y
+	help
+	  Say Y if you want to build the parisc kernel as a kind of
+	  self-extracting executable.
+
+	  If you say N here, the kernel will be compressed with gzip
+	  which can be loaded by the palo bootloader directly too.
+
+	  If you don't know what to do here, say Y.
 
 config SMP
 	bool "Symmetric multi-processing support"

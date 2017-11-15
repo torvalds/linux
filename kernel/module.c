@@ -2707,21 +2707,21 @@ static void add_kallsyms(struct module *mod, const struct load_info *info)
 }
 #endif /* CONFIG_KALLSYMS */
 
-static void dynamic_debug_setup(struct _ddebug *debug, unsigned int num)
+static void dynamic_debug_setup(struct module *mod, struct _ddebug *debug, unsigned int num)
 {
 	if (!debug)
 		return;
 #ifdef CONFIG_DYNAMIC_DEBUG
-	if (ddebug_add_module(debug, num, debug->modname))
+	if (ddebug_add_module(debug, num, mod->name))
 		pr_err("dynamic debug error adding module: %s\n",
 			debug->modname);
 #endif
 }
 
-static void dynamic_debug_remove(struct _ddebug *debug)
+static void dynamic_debug_remove(struct module *mod, struct _ddebug *debug)
 {
 	if (debug)
-		ddebug_remove_module(debug->modname);
+		ddebug_remove_module(mod->name);
 }
 
 void * __weak module_alloc(unsigned long size)
@@ -3715,7 +3715,7 @@ static int load_module(struct load_info *info, const char __user *uargs,
 		goto free_arch_cleanup;
 	}
 
-	dynamic_debug_setup(info->debug, info->num_debug);
+	dynamic_debug_setup(mod, info->debug, info->num_debug);
 
 	/* Ftrace init must be called in the MODULE_STATE_UNFORMED state */
 	ftrace_module_init(mod);
@@ -3779,7 +3779,7 @@ static int load_module(struct load_info *info, const char __user *uargs,
 	module_disable_nx(mod);
 
  ddebug_cleanup:
-	dynamic_debug_remove(info->debug);
+	dynamic_debug_remove(mod, info->debug);
 	synchronize_sched();
 	kfree(mod->args);
  free_arch_cleanup:

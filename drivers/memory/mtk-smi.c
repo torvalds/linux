@@ -16,6 +16,7 @@
 #include <linux/device.h>
 #include <linux/err.h>
 #include <linux/io.h>
+#include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
@@ -23,7 +24,10 @@
 #include <soc/mediatek/smi.h>
 #include <dt-bindings/memory/mt2701-larb-port.h>
 
+/* mt8173 */
 #define SMI_LARB_MMU_EN		0xf00
+
+/* mt2701 */
 #define REG_SMI_SECUR_CON_BASE		0x5c0
 
 /* every register control 8 port, register offset 0x4 */
@@ -41,7 +45,12 @@
 /* mt2701 domain should be set to 3 */
 #define SMI_SECUR_CON_VAL_DOMAIN(id)	(0x3 << ((((id) & 0x7) << 2) + 1))
 
+/* mt2712 */
+#define SMI_LARB_NONSEC_CON(id)	(0x380 + ((id) * 4))
+#define F_MMU_EN		BIT(0)
+
 struct mtk_smi_larb_gen {
+	bool need_larbid;
 	int port_in_larb[MTK_LARB_NR_MAX + 1];
 	void (*config_port)(struct device *);
 };
@@ -148,6 +157,15 @@ mtk_smi_larb_bind(struct device *dev, struct device *master, void *data)
 	struct mtk_smi_iommu *smi_iommu = data;
 	unsigned int         i;
 
+	if (larb->larb_gen->need_larbid) {
+		larb->mmu = &smi_iommu->larb_imu[larb->larbid].mmu;
+		return 0;
+	}
+
+	/*
+	 * If there is no larbid property, Loop to find the corresponding
+	 * iommu information.
+	 */
 	for (i = 0; i < smi_iommu->larb_nr; i++) {
 		if (dev == smi_iommu->larb_imu[i].dev) {
 			/* The 'mmu' may be updated in iommu-attach/detach. */
@@ -158,13 +176,32 @@ mtk_smi_larb_bind(struct device *dev, struct device *master, void *data)
 	return -ENODEV;
 }
 
-static void mtk_smi_larb_config_port(struct device *dev)
+static void mtk_smi_larb_config_port_mt2712(struct device *dev)
+{
+	struct mtk_smi_larb *larb = dev_get_drvdata(dev);
+	u32 reg;
+	int i;
+
+	/*
+	 * larb 8/9 is the bdpsys larb, the iommu_en is enabled defaultly.
+	 * Don't need to set it again.
+	 */
+	if (larb->larbid == 8 || larb->larbid == 9)
+		return;
+
+	for_each_set_bit(i, (unsigned long *)larb->mmu, 32) {
+		reg = readl_relaxed(larb->base + SMI_LARB_NONSEC_CON(i));
+		reg |= F_MMU_EN;
+		writel(reg, larb->base + SMI_LARB_NONSEC_CON(i));
+	}
+}
+
+static void mtk_smi_larb_config_port_mt8173(struct device *dev)
 {
 	struct mtk_smi_larb *larb = dev_get_drvdata(dev);
 
 	writel(*larb->mmu, larb->base + SMI_LARB_MMU_EN);
 }
-
 
 static void mtk_smi_larb_config_port_gen1(struct device *dev)
 {
@@ -210,15 +247,21 @@ static const struct component_ops mtk_smi_larb_component_ops = {
 
 static const struct mtk_smi_larb_gen mtk_smi_larb_mt8173 = {
 	/* mt8173 do not need the port in larb */
-	.config_port = mtk_smi_larb_config_port,
+	.config_port = mtk_smi_larb_config_port_mt8173,
 };
 
 static const struct mtk_smi_larb_gen mtk_smi_larb_mt2701 = {
+	.need_larbid = true,
 	.port_in_larb = {
 		LARB0_PORT_OFFSET, LARB1_PORT_OFFSET,
 		LARB2_PORT_OFFSET, LARB3_PORT_OFFSET
 	},
 	.config_port = mtk_smi_larb_config_port_gen1,
+};
+
+static const struct mtk_smi_larb_gen mtk_smi_larb_mt2712 = {
+	.need_larbid = true,
+	.config_port = mtk_smi_larb_config_port_mt2712,
 };
 
 static const struct of_device_id mtk_smi_larb_of_ids[] = {
@@ -230,6 +273,10 @@ static const struct of_device_id mtk_smi_larb_of_ids[] = {
 		.compatible = "mediatek,mt2701-smi-larb",
 		.data = &mtk_smi_larb_mt2701
 	},
+	{
+		.compatible = "mediatek,mt2712-smi-larb",
+		.data = &mtk_smi_larb_mt2712
+	},
 	{}
 };
 
@@ -240,20 +287,13 @@ static int mtk_smi_larb_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct device_node *smi_node;
 	struct platform_device *smi_pdev;
-	const struct of_device_id *of_id;
-
-	if (!dev->pm_domain)
-		return -EPROBE_DEFER;
-
-	of_id = of_match_node(mtk_smi_larb_of_ids, pdev->dev.of_node);
-	if (!of_id)
-		return -EINVAL;
+	int err;
 
 	larb = devm_kzalloc(dev, sizeof(*larb), GFP_KERNEL);
 	if (!larb)
 		return -ENOMEM;
 
-	larb->larb_gen = of_id->data;
+	larb->larb_gen = of_device_get_match_data(dev);
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	larb->base = devm_ioremap_resource(dev, res);
 	if (IS_ERR(larb->base))
@@ -268,6 +308,15 @@ static int mtk_smi_larb_probe(struct platform_device *pdev)
 		return PTR_ERR(larb->smi.clk_smi);
 	larb->smi.dev = dev;
 
+	if (larb->larb_gen->need_larbid) {
+		err = of_property_read_u32(dev->of_node, "mediatek,larb-id",
+					   &larb->larbid);
+		if (err) {
+			dev_err(dev, "missing larbid property\n");
+			return err;
+		}
+	}
+
 	smi_node = of_parse_phandle(dev->of_node, "mediatek,smi", 0);
 	if (!smi_node)
 		return -EINVAL;
@@ -275,6 +324,8 @@ static int mtk_smi_larb_probe(struct platform_device *pdev)
 	smi_pdev = of_find_device_by_node(smi_node);
 	of_node_put(smi_node);
 	if (smi_pdev) {
+		if (!platform_get_drvdata(smi_pdev))
+			return -EPROBE_DEFER;
 		larb->smi_common_dev = &smi_pdev->dev;
 	} else {
 		dev_err(dev, "Failed to get the smi_common device\n");
@@ -311,6 +362,10 @@ static const struct of_device_id mtk_smi_common_of_ids[] = {
 		.compatible = "mediatek,mt2701-smi-common",
 		.data = (void *)MTK_SMI_GEN1
 	},
+	{
+		.compatible = "mediatek,mt2712-smi-common",
+		.data = (void *)MTK_SMI_GEN2
+	},
 	{}
 };
 
@@ -319,11 +374,8 @@ static int mtk_smi_common_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct mtk_smi *common;
 	struct resource *res;
-	const struct of_device_id *of_id;
 	enum mtk_smi_gen smi_gen;
-
-	if (!dev->pm_domain)
-		return -EPROBE_DEFER;
+	int ret;
 
 	common = devm_kzalloc(dev, sizeof(*common), GFP_KERNEL);
 	if (!common)
@@ -338,17 +390,13 @@ static int mtk_smi_common_probe(struct platform_device *pdev)
 	if (IS_ERR(common->clk_smi))
 		return PTR_ERR(common->clk_smi);
 
-	of_id = of_match_node(mtk_smi_common_of_ids, pdev->dev.of_node);
-	if (!of_id)
-		return -EINVAL;
-
 	/*
 	 * for mtk smi gen 1, we need to get the ao(always on) base to config
 	 * m4u port, and we need to enable the aync clock for transform the smi
 	 * clock into emi clock domain, but for mtk smi gen2, there's no smi ao
 	 * base.
 	 */
-	smi_gen = (enum mtk_smi_gen)of_id->data;
+	smi_gen = (enum mtk_smi_gen)of_device_get_match_data(dev);
 	if (smi_gen == MTK_SMI_GEN1) {
 		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 		common->smi_ao_base = devm_ioremap_resource(dev, res);
@@ -359,7 +407,9 @@ static int mtk_smi_common_probe(struct platform_device *pdev)
 		if (IS_ERR(common->clk_async))
 			return PTR_ERR(common->clk_async);
 
-		clk_prepare_enable(common->clk_async);
+		ret = clk_prepare_enable(common->clk_async);
+		if (ret)
+			return ret;
 	}
 	pm_runtime_enable(dev);
 	platform_set_drvdata(pdev, common);
@@ -403,4 +453,4 @@ err_unreg_smi:
 	return ret;
 }
 
-subsys_initcall(mtk_smi_init);
+module_init(mtk_smi_init);

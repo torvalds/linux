@@ -103,29 +103,6 @@ int amd_iommu_max_glx_val = -1;
 static const struct dma_map_ops amd_iommu_dma_ops;
 
 /*
- * This struct contains device specific data for the IOMMU
- */
-struct iommu_dev_data {
-	struct list_head list;		  /* For domain->dev_list */
-	struct list_head dev_data_list;	  /* For global dev_data_list */
-	struct protection_domain *domain; /* Domain the device is bound to */
-	u16 devid;			  /* PCI Device ID */
-	u16 alias;			  /* Alias Device ID */
-	bool iommu_v2;			  /* Device can make use of IOMMUv2 */
-	bool passthrough;		  /* Device is identity mapped */
-	struct {
-		bool enabled;
-		int qdep;
-	} ats;				  /* ATS state */
-	bool pri_tlp;			  /* PASID TLB required for
-					     PPR completions */
-	u32 errata;			  /* Bitmap for errata to apply */
-	bool use_vapic;			  /* Enable device to use vapic mode */
-
-	struct ratelimit_state rs;	  /* Ratelimit IOPF messages */
-};
-
-/*
  * general struct to manage commands send to an IOMMU
  */
 struct iommu_cmd {
@@ -137,20 +114,7 @@ struct kmem_cache *amd_iommu_irq_cache;
 static void update_domain(struct protection_domain *domain);
 static int protection_domain_init(struct protection_domain *domain);
 static void detach_device(struct device *dev);
-
-#define FLUSH_QUEUE_SIZE 256
-
-struct flush_queue_entry {
-	unsigned long iova_pfn;
-	unsigned long pages;
-	u64 counter; /* Flush counter when this entry was added to the queue */
-};
-
-struct flush_queue {
-	struct flush_queue_entry *entries;
-	unsigned head, tail;
-	spinlock_t lock;
-};
+static void iova_domain_flush_tlb(struct iova_domain *iovad);
 
 /*
  * Data container for a dma_ops specific protection domain
@@ -161,36 +125,6 @@ struct dma_ops_domain {
 
 	/* IOVA RB-Tree */
 	struct iova_domain iovad;
-
-	struct flush_queue __percpu *flush_queue;
-
-	/*
-	 * We need two counter here to be race-free wrt. IOTLB flushing and
-	 * adding entries to the flush queue.
-	 *
-	 * The flush_start_cnt is incremented _before_ the IOTLB flush starts.
-	 * New entries added to the flush ring-buffer get their 'counter' value
-	 * from here. This way we can make sure that entries added to the queue
-	 * (or other per-cpu queues of the same domain) while the TLB is about
-	 * to be flushed are not considered to be flushed already.
-	 */
-	atomic64_t flush_start_cnt;
-
-	/*
-	 * The flush_finish_cnt is incremented when an IOTLB flush is complete.
-	 * This value is always smaller than flush_start_cnt. The queue_add
-	 * function frees all IOVAs that have a counter value smaller than
-	 * flush_finish_cnt. This makes sure that we only free IOVAs that are
-	 * flushed out of the IOTLB of the domain.
-	 */
-	atomic64_t flush_finish_cnt;
-
-	/*
-	 * Timer to make sure we don't keep IOVAs around unflushed
-	 * for too long
-	 */
-	struct timer_list flush_timer;
-	atomic_t flush_timer_on;
 };
 
 static struct iova_domain reserved_iova_ranges;
@@ -371,19 +305,25 @@ static u16 get_alias(struct device *dev)
 static struct iommu_dev_data *find_dev_data(u16 devid)
 {
 	struct iommu_dev_data *dev_data;
+	struct amd_iommu *iommu = amd_iommu_rlookup_table[devid];
 
 	dev_data = search_dev_data(devid);
 
-	if (dev_data == NULL)
+	if (dev_data == NULL) {
 		dev_data = alloc_dev_data(devid);
+
+		if (translation_pre_enabled(iommu))
+			dev_data->defer_attach = true;
+	}
 
 	return dev_data;
 }
 
-static struct iommu_dev_data *get_dev_data(struct device *dev)
+struct iommu_dev_data *get_dev_data(struct device *dev)
 {
 	return dev->archdata.iommu;
 }
+EXPORT_SYMBOL(get_dev_data);
 
 /*
 * Find or create an IOMMU group for a acpihid device.
@@ -1167,7 +1107,7 @@ static int iommu_flush_dte(struct amd_iommu *iommu, u16 devid)
 	return iommu_queue_command(iommu, &cmd);
 }
 
-static void iommu_flush_dte_all(struct amd_iommu *iommu)
+static void amd_iommu_flush_dte_all(struct amd_iommu *iommu)
 {
 	u32 devid;
 
@@ -1181,7 +1121,7 @@ static void iommu_flush_dte_all(struct amd_iommu *iommu)
  * This function uses heavy locking and may disable irqs for some time. But
  * this is no issue because it is only called during resume.
  */
-static void iommu_flush_tlb_all(struct amd_iommu *iommu)
+static void amd_iommu_flush_tlb_all(struct amd_iommu *iommu)
 {
 	u32 dom_id;
 
@@ -1195,7 +1135,7 @@ static void iommu_flush_tlb_all(struct amd_iommu *iommu)
 	iommu_completion_wait(iommu);
 }
 
-static void iommu_flush_all(struct amd_iommu *iommu)
+static void amd_iommu_flush_all(struct amd_iommu *iommu)
 {
 	struct iommu_cmd cmd;
 
@@ -1214,7 +1154,7 @@ static void iommu_flush_irt(struct amd_iommu *iommu, u16 devid)
 	iommu_queue_command(iommu, &cmd);
 }
 
-static void iommu_flush_irt_all(struct amd_iommu *iommu)
+static void amd_iommu_flush_irt_all(struct amd_iommu *iommu)
 {
 	u32 devid;
 
@@ -1227,11 +1167,11 @@ static void iommu_flush_irt_all(struct amd_iommu *iommu)
 void iommu_flush_all_caches(struct amd_iommu *iommu)
 {
 	if (iommu_feature(iommu, FEATURE_IA)) {
-		iommu_flush_all(iommu);
+		amd_iommu_flush_all(iommu);
 	} else {
-		iommu_flush_dte_all(iommu);
-		iommu_flush_irt_all(iommu);
-		iommu_flush_tlb_all(iommu);
+		amd_iommu_flush_dte_all(iommu);
+		amd_iommu_flush_irt_all(iommu);
+		amd_iommu_flush_tlb_all(iommu);
 	}
 }
 
@@ -1539,9 +1479,9 @@ static int iommu_map_page(struct protection_domain *dom,
 
 	if (count > 1) {
 		__pte = PAGE_SIZE_PTE(__sme_set(phys_addr), page_size);
-		__pte |= PM_LEVEL_ENC(7) | IOMMU_PTE_P | IOMMU_PTE_FC;
+		__pte |= PM_LEVEL_ENC(7) | IOMMU_PTE_PR | IOMMU_PTE_FC;
 	} else
-		__pte = __sme_set(phys_addr) | IOMMU_PTE_P | IOMMU_PTE_FC;
+		__pte = __sme_set(phys_addr) | IOMMU_PTE_PR | IOMMU_PTE_FC;
 
 	if (prot & IOMMU_PROT_IR)
 		__pte |= IOMMU_PTE_IR;
@@ -1790,178 +1730,19 @@ static void free_gcr3_table(struct protection_domain *domain)
 	free_page((unsigned long)domain->gcr3_tbl);
 }
 
-static void dma_ops_domain_free_flush_queue(struct dma_ops_domain *dom)
-{
-	int cpu;
-
-	for_each_possible_cpu(cpu) {
-		struct flush_queue *queue;
-
-		queue = per_cpu_ptr(dom->flush_queue, cpu);
-		kfree(queue->entries);
-	}
-
-	free_percpu(dom->flush_queue);
-
-	dom->flush_queue = NULL;
-}
-
-static int dma_ops_domain_alloc_flush_queue(struct dma_ops_domain *dom)
-{
-	int cpu;
-
-	atomic64_set(&dom->flush_start_cnt,  0);
-	atomic64_set(&dom->flush_finish_cnt, 0);
-
-	dom->flush_queue = alloc_percpu(struct flush_queue);
-	if (!dom->flush_queue)
-		return -ENOMEM;
-
-	/* First make sure everything is cleared */
-	for_each_possible_cpu(cpu) {
-		struct flush_queue *queue;
-
-		queue = per_cpu_ptr(dom->flush_queue, cpu);
-		queue->head    = 0;
-		queue->tail    = 0;
-		queue->entries = NULL;
-	}
-
-	/* Now start doing the allocation */
-	for_each_possible_cpu(cpu) {
-		struct flush_queue *queue;
-
-		queue = per_cpu_ptr(dom->flush_queue, cpu);
-		queue->entries = kzalloc(FLUSH_QUEUE_SIZE * sizeof(*queue->entries),
-					 GFP_KERNEL);
-		if (!queue->entries) {
-			dma_ops_domain_free_flush_queue(dom);
-			return -ENOMEM;
-		}
-
-		spin_lock_init(&queue->lock);
-	}
-
-	return 0;
-}
-
 static void dma_ops_domain_flush_tlb(struct dma_ops_domain *dom)
 {
-	atomic64_inc(&dom->flush_start_cnt);
 	domain_flush_tlb(&dom->domain);
 	domain_flush_complete(&dom->domain);
-	atomic64_inc(&dom->flush_finish_cnt);
 }
 
-static inline bool queue_ring_full(struct flush_queue *queue)
+static void iova_domain_flush_tlb(struct iova_domain *iovad)
 {
-	assert_spin_locked(&queue->lock);
+	struct dma_ops_domain *dom;
 
-	return (((queue->tail + 1) % FLUSH_QUEUE_SIZE) == queue->head);
-}
-
-#define queue_ring_for_each(i, q) \
-	for (i = (q)->head; i != (q)->tail; i = (i + 1) % FLUSH_QUEUE_SIZE)
-
-static inline unsigned queue_ring_add(struct flush_queue *queue)
-{
-	unsigned idx = queue->tail;
-
-	assert_spin_locked(&queue->lock);
-	queue->tail = (idx + 1) % FLUSH_QUEUE_SIZE;
-
-	return idx;
-}
-
-static inline void queue_ring_remove_head(struct flush_queue *queue)
-{
-	assert_spin_locked(&queue->lock);
-	queue->head = (queue->head + 1) % FLUSH_QUEUE_SIZE;
-}
-
-static void queue_ring_free_flushed(struct dma_ops_domain *dom,
-				    struct flush_queue *queue)
-{
-	u64 counter = atomic64_read(&dom->flush_finish_cnt);
-	int idx;
-
-	queue_ring_for_each(idx, queue) {
-		/*
-		 * This assumes that counter values in the ring-buffer are
-		 * monotonously rising.
-		 */
-		if (queue->entries[idx].counter >= counter)
-			break;
-
-		free_iova_fast(&dom->iovad,
-			       queue->entries[idx].iova_pfn,
-			       queue->entries[idx].pages);
-
-		queue_ring_remove_head(queue);
-	}
-}
-
-static void queue_add(struct dma_ops_domain *dom,
-		      unsigned long address, unsigned long pages)
-{
-	struct flush_queue *queue;
-	unsigned long flags;
-	int idx;
-
-	pages     = __roundup_pow_of_two(pages);
-	address >>= PAGE_SHIFT;
-
-	queue = get_cpu_ptr(dom->flush_queue);
-	spin_lock_irqsave(&queue->lock, flags);
-
-	/*
-	 * First remove the enries from the ring-buffer that are already
-	 * flushed to make the below queue_ring_full() check less likely
-	 */
-	queue_ring_free_flushed(dom, queue);
-
-	/*
-	 * When ring-queue is full, flush the entries from the IOTLB so
-	 * that we can free all entries with queue_ring_free_flushed()
-	 * below.
-	 */
-	if (queue_ring_full(queue)) {
-		dma_ops_domain_flush_tlb(dom);
-		queue_ring_free_flushed(dom, queue);
-	}
-
-	idx = queue_ring_add(queue);
-
-	queue->entries[idx].iova_pfn = address;
-	queue->entries[idx].pages    = pages;
-	queue->entries[idx].counter  = atomic64_read(&dom->flush_start_cnt);
-
-	spin_unlock_irqrestore(&queue->lock, flags);
-
-	if (atomic_cmpxchg(&dom->flush_timer_on, 0, 1) == 0)
-		mod_timer(&dom->flush_timer, jiffies + msecs_to_jiffies(10));
-
-	put_cpu_ptr(dom->flush_queue);
-}
-
-static void queue_flush_timeout(unsigned long data)
-{
-	struct dma_ops_domain *dom = (struct dma_ops_domain *)data;
-	int cpu;
-
-	atomic_set(&dom->flush_timer_on, 0);
+	dom = container_of(iovad, struct dma_ops_domain, iovad);
 
 	dma_ops_domain_flush_tlb(dom);
-
-	for_each_possible_cpu(cpu) {
-		struct flush_queue *queue;
-		unsigned long flags;
-
-		queue = per_cpu_ptr(dom->flush_queue, cpu);
-		spin_lock_irqsave(&queue->lock, flags);
-		queue_ring_free_flushed(dom, queue);
-		spin_unlock_irqrestore(&queue->lock, flags);
-	}
 }
 
 /*
@@ -1974,11 +1755,6 @@ static void dma_ops_domain_free(struct dma_ops_domain *dom)
 		return;
 
 	del_domain_from_list(&dom->domain);
-
-	if (timer_pending(&dom->flush_timer))
-		del_timer(&dom->flush_timer);
-
-	dma_ops_domain_free_flush_queue(dom);
 
 	put_iova_domain(&dom->iovad);
 
@@ -2015,16 +1791,11 @@ static struct dma_ops_domain *dma_ops_domain_alloc(void)
 	init_iova_domain(&dma_dom->iovad, PAGE_SIZE,
 			 IOVA_START_PFN, DMA_32BIT_PFN);
 
-	/* Initialize reserved ranges */
-	copy_reserved_iova(&reserved_iova_ranges, &dma_dom->iovad);
-
-	if (dma_ops_domain_alloc_flush_queue(dma_dom))
+	if (init_iova_flush_queue(&dma_dom->iovad, iova_domain_flush_tlb, NULL))
 		goto free_dma_dom;
 
-	setup_timer(&dma_dom->flush_timer, queue_flush_timeout,
-		    (unsigned long)dma_dom);
-
-	atomic_set(&dma_dom->flush_timer_on, 0);
+	/* Initialize reserved ranges */
+	copy_reserved_iova(&reserved_iova_ranges, &dma_dom->iovad);
 
 	add_domain_to_list(&dma_dom->domain);
 
@@ -2055,7 +1826,7 @@ static void set_dte_entry(u16 devid, struct protection_domain *domain, bool ats)
 
 	pte_root |= (domain->mode & DEV_ENTRY_MODE_MASK)
 		    << DEV_ENTRY_MODE_SHIFT;
-	pte_root |= IOMMU_PTE_IR | IOMMU_PTE_IW | IOMMU_PTE_P | IOMMU_PTE_TV;
+	pte_root |= DTE_FLAG_IR | DTE_FLAG_IW | DTE_FLAG_V | DTE_FLAG_TV;
 
 	flags = amd_iommu_dev_table[devid].data[1];
 
@@ -2088,8 +1859,7 @@ static void set_dte_entry(u16 devid, struct protection_domain *domain, bool ats)
 		flags    |= tmp;
 	}
 
-
-	flags &= ~(DTE_FLAG_SA | 0xffffULL);
+	flags &= ~DEV_DOMID_MASK;
 	flags |= domain->id;
 
 	amd_iommu_dev_table[devid].data[1]  = flags;
@@ -2099,7 +1869,7 @@ static void set_dte_entry(u16 devid, struct protection_domain *domain, bool ats)
 static void clear_dte_entry(u16 devid)
 {
 	/* remove entry from the device table seen by the hardware */
-	amd_iommu_dev_table[devid].data[0]  = IOMMU_PTE_P | IOMMU_PTE_TV;
+	amd_iommu_dev_table[devid].data[0]  = DTE_FLAG_V | DTE_FLAG_TV;
 	amd_iommu_dev_table[devid].data[1] &= DTE_FLAG_MASK;
 
 	amd_iommu_apply_erratum_63(devid);
@@ -2480,11 +2250,21 @@ static struct iommu_group *amd_iommu_device_group(struct device *dev)
 static struct protection_domain *get_domain(struct device *dev)
 {
 	struct protection_domain *domain;
+	struct iommu_domain *io_domain;
 
 	if (!check_device(dev))
 		return ERR_PTR(-EINVAL);
 
 	domain = get_dev_data(dev)->domain;
+	if (domain == NULL && get_dev_data(dev)->defer_attach) {
+		get_dev_data(dev)->defer_attach = false;
+		io_domain = iommu_get_domain_for_dev(dev);
+		domain = to_pdomain(io_domain);
+		attach_device(dev, domain);
+	}
+	if (domain == NULL)
+		return ERR_PTR(-EBUSY);
+
 	if (!dma_ops_domain(domain))
 		return ERR_PTR(-EBUSY);
 
@@ -2530,6 +2310,7 @@ static int dir2prot(enum dma_data_direction direction)
 	else
 		return 0;
 }
+
 /*
  * This function contains common code for mapping of a physically
  * contiguous memory region into DMA address space. It is used by all
@@ -2621,7 +2402,8 @@ static void __unmap_single(struct dma_ops_domain *dma_dom,
 		domain_flush_tlb(&dma_dom->domain);
 		domain_flush_complete(&dma_dom->domain);
 	} else {
-		queue_add(dma_dom, dma_addr, pages);
+		pages = __roundup_pow_of_two(pages);
+		queue_iova(&dma_dom->iovad, dma_addr >> PAGE_SHIFT, pages, 0);
 	}
 }
 
@@ -3375,6 +3157,13 @@ static void amd_iommu_apply_resv_region(struct device *dev,
 	WARN_ON_ONCE(reserve_iova(&dma_dom->iovad, start, end) == NULL);
 }
 
+static bool amd_iommu_is_attach_deferred(struct iommu_domain *domain,
+					 struct device *dev)
+{
+	struct iommu_dev_data *dev_data = dev->archdata.iommu;
+	return dev_data->defer_attach;
+}
+
 const struct iommu_ops amd_iommu_ops = {
 	.capable = amd_iommu_capable,
 	.domain_alloc = amd_iommu_domain_alloc,
@@ -3391,6 +3180,7 @@ const struct iommu_ops amd_iommu_ops = {
 	.get_resv_regions = amd_iommu_get_resv_regions,
 	.put_resv_regions = amd_iommu_put_resv_regions,
 	.apply_resv_region = amd_iommu_apply_resv_region,
+	.is_attach_deferred = amd_iommu_is_attach_deferred,
 	.pgsize_bitmap	= AMD_IOMMU_PGSIZES,
 };
 
@@ -3778,11 +3568,6 @@ EXPORT_SYMBOL(amd_iommu_device_info);
  *****************************************************************************/
 
 static struct irq_chip amd_ir_chip;
-
-#define DTE_IRQ_PHYS_ADDR_MASK	(((1ULL << 45)-1) << 6)
-#define DTE_IRQ_REMAP_INTCTL    (2ULL << 60)
-#define DTE_IRQ_TABLE_LEN       (8ULL << 1)
-#define DTE_IRQ_REMAP_ENABLE    1ULL
 
 static void set_dte_irq_entry(u16 devid, struct irq_remap_table *table)
 {

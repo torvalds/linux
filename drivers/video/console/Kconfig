@@ -117,7 +117,7 @@ config DUMMY_CONSOLE_ROWS
           Select 25 if you use a 640x480 resolution by default.
 
 config FRAMEBUFFER_CONSOLE
-	tristate "Framebuffer Console support"
+	bool "Framebuffer Console support"
 	depends on FB && !UML
 	select VT_HW_CONSOLE_BINDING
 	select CRC32

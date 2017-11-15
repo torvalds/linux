@@ -310,7 +310,7 @@ dump_node:
 	}
 
 	else {
-		acpi_os_printf("Object (%p) Pathname: %s\n",
+		acpi_os_printf("Object %p: Namespace Node - Pathname: %s\n",
 			       node, (char *)ret_buf.pointer);
 	}
 
@@ -326,7 +326,7 @@ dump_node:
 
 	obj_desc = acpi_ns_get_attached_object(node);
 	if (obj_desc) {
-		acpi_os_printf("\nAttached Object (%p):\n", obj_desc);
+		acpi_os_printf("\nAttached Object %p:", obj_desc);
 		if (!acpi_os_readable
 		    (obj_desc, sizeof(union acpi_operand_object))) {
 			acpi_os_printf
@@ -335,9 +335,36 @@ dump_node:
 			return;
 		}
 
-		acpi_ut_debug_dump_buffer((void *)obj_desc,
-					  sizeof(union acpi_operand_object),
-					  display, ACPI_UINT32_MAX);
+		if (ACPI_GET_DESCRIPTOR_TYPE(((struct acpi_namespace_node *)
+					      obj_desc)) ==
+		    ACPI_DESC_TYPE_NAMED) {
+			acpi_os_printf(" Namespace Node - ");
+			status =
+			    acpi_get_name((struct acpi_namespace_node *)
+					  obj_desc,
+					  ACPI_FULL_PATHNAME_NO_TRAILING,
+					  &ret_buf);
+			if (ACPI_FAILURE(status)) {
+				acpi_os_printf
+				    ("Could not convert name to pathname\n");
+			} else {
+				acpi_os_printf("Pathname: %s",
+					       (char *)ret_buf.pointer);
+			}
+
+			acpi_os_printf("\n");
+			acpi_ut_debug_dump_buffer((void *)obj_desc,
+						  sizeof(struct
+							 acpi_namespace_node),
+						  display, ACPI_UINT32_MAX);
+		} else {
+			acpi_os_printf("\n");
+			acpi_ut_debug_dump_buffer((void *)obj_desc,
+						  sizeof(union
+							 acpi_operand_object),
+						  display, ACPI_UINT32_MAX);
+		}
+
 		acpi_ex_dump_object_descriptor(obj_desc, 1);
 	}
 }

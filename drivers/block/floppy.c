@@ -4134,7 +4134,7 @@ static int __floppy_read_block_0(struct block_device *bdev, int drive)
 	cbdata.drive = drive;
 
 	bio_init(&bio, &bio_vec, 1);
-	bio.bi_bdev = bdev;
+	bio_set_dev(&bio, bdev);
 	bio_add_page(&bio, page, size, 0);
 
 	bio.bi_iter.bi_sector = 0;

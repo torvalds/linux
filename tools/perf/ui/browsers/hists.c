@@ -931,12 +931,8 @@ static int hist_browser__show_callchain_list(struct hist_browser *browser,
 				       browser->show_dso);
 
 	if (symbol_conf.show_branchflag_count) {
-		if (need_percent)
-			callchain_list_counts__printf_value(node, chain, NULL,
-							    buf, sizeof(buf));
-		else
-			callchain_list_counts__printf_value(NULL, chain, NULL,
-							    buf, sizeof(buf));
+		callchain_list_counts__printf_value(chain, NULL,
+						    buf, sizeof(buf));
 
 		if (asprintf(&alloc_str2, "%s%s", str, buf) < 0)
 			str = "Not enough memory!";

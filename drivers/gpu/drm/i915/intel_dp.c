@@ -5273,7 +5273,7 @@ intel_dp_init_panel_power_sequencer(struct drm_device *dev,
 	 * seems sufficient to avoid this problem.
 	 */
 	if (dev_priv->quirks & QUIRK_INCREASE_T12_DELAY) {
-		vbt.t11_t12 = max_t(u16, vbt.t11_t12, 800 * 10);
+		vbt.t11_t12 = max_t(u16, vbt.t11_t12, 900 * 10);
 		DRM_DEBUG_KMS("Increasing T12 panel delay as per the quirk to %d\n",
 			      vbt.t11_t12);
 	}

@@ -1038,7 +1038,6 @@ static const struct pv_cpu_ops xen_cpu_ops __initconst = {
 	.read_cr0 = xen_read_cr0,
 	.write_cr0 = xen_write_cr0,
 
-	.read_cr4 = native_read_cr4,
 	.write_cr4 = xen_write_cr4,
 
 #ifdef CONFIG_X86_64
@@ -1073,7 +1072,6 @@ static const struct pv_cpu_ops xen_cpu_ops __initconst = {
 	.alloc_ldt = xen_alloc_ldt,
 	.free_ldt = xen_free_ldt,
 
-	.store_idt = native_store_idt,
 	.store_tr = xen_store_tr,
 
 	.write_ldt_entry = xen_write_ldt_entry,

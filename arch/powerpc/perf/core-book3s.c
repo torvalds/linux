@@ -793,6 +793,11 @@ void perf_event_print_debug(void)
 	u32 pmcs[MAX_HWEVENTS];
 	int i;
 
+	if (!ppmu) {
+		pr_info("Performance monitor hardware not registered.\n");
+		return;
+	}
+
 	if (!ppmu->n_counter)
 		return;
 

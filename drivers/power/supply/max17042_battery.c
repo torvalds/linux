@@ -22,6 +22,7 @@
  * This driver is based on max17040_battery.c
  */
 
+#include <linux/acpi.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -982,6 +983,8 @@ static int max17042_probe(struct i2c_client *client,
 	struct i2c_adapter *adapter = to_i2c_adapter(client->dev.parent);
 	const struct power_supply_desc *max17042_desc = &max17042_psy_desc;
 	struct power_supply_config psy_cfg = {};
+	const struct acpi_device_id *acpi_id = NULL;
+	struct device *dev = &client->dev;
 	struct max17042_chip *chip;
 	int ret;
 	int i;
@@ -995,7 +998,15 @@ static int max17042_probe(struct i2c_client *client,
 		return -ENOMEM;
 
 	chip->client = client;
-	chip->chip_type = id->driver_data;
+	if (id) {
+		chip->chip_type = id->driver_data;
+	} else {
+		acpi_id = acpi_match_device(dev->driver->acpi_match_table, dev);
+		if (!acpi_id)
+			return -ENODEV;
+
+		chip->chip_type = acpi_id->driver_data;
+	}
 	chip->regmap = devm_regmap_init_i2c(client, &max17042_regmap_config);
 	if (IS_ERR(chip->regmap)) {
 		dev_err(&client->dev, "Failed to initialize regmap\n");
@@ -1039,11 +1050,18 @@ static int max17042_probe(struct i2c_client *client,
 	}
 
 	if (client->irq) {
+		unsigned int flags = IRQF_TRIGGER_FALLING | IRQF_ONESHOT;
+
+		/*
+		 * On ACPI systems the IRQ may be handled by ACPI-event code,
+		 * so we need to share (if the ACPI code is willing to share).
+		 */
+		if (acpi_id)
+			flags |= IRQF_SHARED | IRQF_PROBE_SHARED;
+
 		ret = devm_request_threaded_irq(&client->dev, client->irq,
 						NULL,
-						max17042_thread_handler,
-						IRQF_TRIGGER_FALLING |
-						IRQF_ONESHOT,
+						max17042_thread_handler, flags,
 						chip->battery->desc->name,
 						chip);
 		if (!ret) {
@@ -1053,10 +1071,13 @@ static int max17042_probe(struct i2c_client *client,
 			max17042_set_soc_threshold(chip, 1);
 		} else {
 			client->irq = 0;
-			dev_err(&client->dev, "%s(): cannot get IRQ\n",
-				__func__);
+			if (ret != -EBUSY)
+				dev_err(&client->dev, "Failed to get IRQ\n");
 		}
 	}
+	/* Not able to update the charge threshold when exceeded? -> disable */
+	if (!client->irq)
+		regmap_write(chip->regmap, MAX17042_SALRT_Th, 0xff00);
 
 	regmap_read(chip->regmap, MAX17042_STATUS, &val);
 	if (val & STATUS_POR_BIT) {
@@ -1104,6 +1125,14 @@ static int max17042_resume(struct device *dev)
 static SIMPLE_DEV_PM_OPS(max17042_pm_ops, max17042_suspend,
 			max17042_resume);
 
+#ifdef CONFIG_ACPI
+static const struct acpi_device_id max17042_acpi_match[] = {
+	{ "MAX17047", MAXIM_DEVICE_TYPE_MAX17047 },
+	{ }
+};
+MODULE_DEVICE_TABLE(acpi, max17042_acpi_match);
+#endif
+
 #ifdef CONFIG_OF
 static const struct of_device_id max17042_dt_match[] = {
 	{ .compatible = "maxim,max17042" },
@@ -1125,6 +1154,7 @@ MODULE_DEVICE_TABLE(i2c, max17042_id);
 static struct i2c_driver max17042_i2c_driver = {
 	.driver	= {
 		.name	= "max17042",
+		.acpi_match_table = ACPI_PTR(max17042_acpi_match),
 		.of_match_table = of_match_ptr(max17042_dt_match),
 		.pm	= &max17042_pm_ops,
 	},

@@ -377,8 +377,10 @@ more:
 		}
 		/* hints to request -> mds selection code */
 		req->r_direct_mode = USE_AUTH_MDS;
-		req->r_direct_hash = ceph_frag_value(frag);
-		__set_bit(CEPH_MDS_R_DIRECT_IS_HASH, &req->r_req_flags);
+		if (op == CEPH_MDS_OP_READDIR) {
+			req->r_direct_hash = ceph_frag_value(frag);
+			__set_bit(CEPH_MDS_R_DIRECT_IS_HASH, &req->r_req_flags);
+		}
 		if (fi->last_name) {
 			req->r_path2 = kstrdup(fi->last_name, GFP_KERNEL);
 			if (!req->r_path2) {

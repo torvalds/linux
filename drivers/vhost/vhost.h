@@ -71,7 +71,7 @@ struct vhost_umem_node {
 };
 
 struct vhost_umem {
-	struct rb_root umem_tree;
+	struct rb_root_cached umem_tree;
 	struct list_head umem_list;
 	int numem;
 };

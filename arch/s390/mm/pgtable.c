@@ -919,7 +919,7 @@ int pgste_perform_essa(struct mm_struct *mm, unsigned long hva, int orc,
 	case ESSA_GET_STATE:
 		break;
 	case ESSA_SET_STABLE:
-		pgstev &= ~_PGSTE_GPS_USAGE_MASK;
+		pgstev &= ~(_PGSTE_GPS_USAGE_MASK | _PGSTE_GPS_NODAT);
 		pgstev |= _PGSTE_GPS_USAGE_STABLE;
 		break;
 	case ESSA_SET_UNUSED:
@@ -964,6 +964,10 @@ int pgste_perform_essa(struct mm_struct *mm, unsigned long hva, int orc,
 			pgstev &= ~_PGSTE_GPS_USAGE_MASK;
 			pgstev |= _PGSTE_GPS_USAGE_STABLE;
 		}
+		break;
+	case ESSA_SET_STABLE_NODAT:
+		pgstev &= ~_PGSTE_GPS_USAGE_MASK;
+		pgstev |= _PGSTE_GPS_USAGE_STABLE | _PGSTE_GPS_NODAT;
 		break;
 	default:
 		/* we should never get here! */

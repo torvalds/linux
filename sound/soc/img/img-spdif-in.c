@@ -727,7 +727,7 @@ static int img_spdif_in_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	rst = devm_reset_control_get(&pdev->dev, "rst");
+	rst = devm_reset_control_get_exclusive(&pdev->dev, "rst");
 	if (IS_ERR(rst)) {
 		if (PTR_ERR(rst) == -EPROBE_DEFER) {
 			ret = -EPROBE_DEFER;

@@ -882,6 +882,11 @@ void rcu_irq_exit(void)
 
 	RCU_LOCKDEP_WARN(!irqs_disabled(), "rcu_irq_exit() invoked with irqs enabled!!!");
 	rdtp = this_cpu_ptr(&rcu_dynticks);
+
+	/* Page faults can happen in NMI handlers, so check... */
+	if (rdtp->dynticks_nmi_nesting)
+		return;
+
 	WARN_ON_ONCE(IS_ENABLED(CONFIG_RCU_EQS_DEBUG) &&
 		     rdtp->dynticks_nesting < 1);
 	if (rdtp->dynticks_nesting <= 1) {
@@ -1015,6 +1020,11 @@ void rcu_irq_enter(void)
 
 	RCU_LOCKDEP_WARN(!irqs_disabled(), "rcu_irq_enter() invoked with irqs enabled!!!");
 	rdtp = this_cpu_ptr(&rcu_dynticks);
+
+	/* Page faults can happen in NMI handlers, so check... */
+	if (rdtp->dynticks_nmi_nesting)
+		return;
+
 	oldval = rdtp->dynticks_nesting;
 	rdtp->dynticks_nesting++;
 	WARN_ON_ONCE(IS_ENABLED(CONFIG_RCU_EQS_DEBUG) &&
@@ -4091,7 +4101,7 @@ static void __init rcu_init_geometry(void)
 	if (rcu_fanout_leaf == RCU_FANOUT_LEAF &&
 	    nr_cpu_ids == NR_CPUS)
 		return;
-	pr_info("RCU: Adjusting geometry for rcu_fanout_leaf=%d, nr_cpu_ids=%d\n",
+	pr_info("RCU: Adjusting geometry for rcu_fanout_leaf=%d, nr_cpu_ids=%u\n",
 		rcu_fanout_leaf, nr_cpu_ids);
 
 	/*

@@ -2429,7 +2429,7 @@ static int savagefb_resume(struct pci_dev* dev)
 }
 
 
-static struct pci_device_id savagefb_devices[] = {
+static const struct pci_device_id savagefb_devices[] = {
 	{PCI_VENDOR_ID_S3, PCI_CHIP_SUPSAV_MX128,
 	 PCI_ANY_ID, PCI_ANY_ID, 0, 0, FB_ACCEL_SUPERSAVAGE},
 

@@ -2097,7 +2097,7 @@ static int allocate_logical_cpuid(int apicid)
 
 	/* Allocate a new cpuid. */
 	if (nr_logical_cpuids >= nr_cpu_ids) {
-		WARN_ONCE(1, "APIC: NR_CPUS/possible_cpus limit of %i reached. "
+		WARN_ONCE(1, "APIC: NR_CPUS/possible_cpus limit of %u reached. "
 			     "Processor %d/0x%x and the rest are ignored.\n",
 			     nr_cpu_ids, nr_logical_cpuids, apicid);
 		return -EINVAL;
@@ -2130,7 +2130,7 @@ int generic_processor_info(int apicid, int version)
 	 * Since fixing handling of boot_cpu_physical_apicid requires
 	 * another discussion and tests on each platform, we leave it
 	 * for now and here we use read_apic_id() directly in this
-	 * function, __generic_processor_info().
+	 * function, generic_processor_info().
 	 */
 	if (disabled_cpu_apicid != BAD_APICID &&
 	    disabled_cpu_apicid != read_apic_id() &&

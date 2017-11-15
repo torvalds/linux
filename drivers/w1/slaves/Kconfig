@@ -148,10 +148,4 @@ config W1_SLAVE_DS28E04
 
 	  If you are unsure, say N.
 
-config W1_SLAVE_BQ27000
-	tristate "BQ27000 slave support"
-	help
-	  Say Y here if you want to use a hdq
-	  bq27000 slave support.
-
 endmenu

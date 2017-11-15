@@ -268,7 +268,7 @@ static struct scsi_device *scsi_alloc_sdev(struct scsi_target *starget,
 	if (shost_use_blk_mq(shost))
 		sdev->request_queue = scsi_mq_alloc_queue(sdev);
 	else
-		sdev->request_queue = scsi_alloc_queue(sdev);
+		sdev->request_queue = scsi_old_alloc_queue(sdev);
 	if (!sdev->request_queue) {
 		/* release fn is set up in scsi_sysfs_device_initialise, so
 		 * have to free and put manually here */
@@ -955,6 +955,9 @@ static int scsi_add_lun(struct scsi_device *sdev, unsigned char *inq_result,
 
 	if (*bflags & BLIST_NO_DIF)
 		sdev->no_dif = 1;
+
+	if (*bflags & BLIST_UNMAP_LIMIT_WS)
+		sdev->unmap_limit_for_ws = 1;
 
 	sdev->eh_timeout = SCSI_DEFAULT_EH_TIMEOUT;
 

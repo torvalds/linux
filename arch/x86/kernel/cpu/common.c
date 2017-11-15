@@ -169,21 +169,21 @@ static int __init x86_mpx_setup(char *s)
 __setup("nompx", x86_mpx_setup);
 
 #ifdef CONFIG_X86_64
-static int __init x86_pcid_setup(char *s)
+static int __init x86_nopcid_setup(char *s)
 {
-	/* require an exact match without trailing characters */
-	if (strlen(s))
-		return 0;
+	/* nopcid doesn't accept parameters */
+	if (s)
+		return -EINVAL;
 
 	/* do not emit a message if the feature is not present */
 	if (!boot_cpu_has(X86_FEATURE_PCID))
-		return 1;
+		return 0;
 
 	setup_clear_cpu_cap(X86_FEATURE_PCID);
 	pr_info("nopcid: PCID feature disabled\n");
-	return 1;
+	return 0;
 }
-__setup("nopcid", x86_pcid_setup);
+early_param("nopcid", x86_nopcid_setup);
 #endif
 
 static int __init x86_noinvpcid_setup(char *s)
@@ -326,25 +326,6 @@ static __always_inline void setup_smap(struct cpuinfo_x86 *c)
 #else
 		cr4_clear_bits(X86_CR4_SMAP);
 #endif
-	}
-}
-
-static void setup_pcid(struct cpuinfo_x86 *c)
-{
-	if (cpu_has(c, X86_FEATURE_PCID)) {
-		if (cpu_has(c, X86_FEATURE_PGE)) {
-			cr4_set_bits(X86_CR4_PCIDE);
-		} else {
-			/*
-			 * flush_tlb_all(), as currently implemented, won't
-			 * work if PCID is on but PGE is not.  Since that
-			 * combination doesn't exist on real hardware, there's
-			 * no reason to try to fully support it, but it's
-			 * polite to avoid corrupting data if we're on
-			 * an improperly configured VM.
-			 */
-			clear_cpu_cap(c, X86_FEATURE_PCID);
-		}
 	}
 }
 
@@ -923,6 +904,14 @@ static void __init early_identify_cpu(struct cpuinfo_x86 *c)
 
 	setup_force_cpu_cap(X86_FEATURE_ALWAYS);
 	fpu__init_system(c);
+
+#ifdef CONFIG_X86_32
+	/*
+	 * Regardless of whether PCID is enumerated, the SDM says
+	 * that it can't be enabled in 32-bit mode.
+	 */
+	setup_clear_cpu_cap(X86_FEATURE_PCID);
+#endif
 }
 
 void __init early_cpu_init(void)
@@ -1161,9 +1150,6 @@ static void identify_cpu(struct cpuinfo_x86 *c)
 	/* Set up SMEP/SMAP */
 	setup_smep(c);
 	setup_smap(c);
-
-	/* Set up PCID */
-	setup_pcid(c);
 
 	/*
 	 * The vendor-specific functions might have changed features.
@@ -1583,6 +1569,7 @@ void cpu_init(void)
 	mmgrab(&init_mm);
 	me->active_mm = &init_mm;
 	BUG_ON(me->mm);
+	initialize_tlbstate_and_flush();
 	enter_lazy_tlb(&init_mm, me);
 
 	load_sp0(t, &current->thread);
@@ -1637,6 +1624,7 @@ void cpu_init(void)
 	mmgrab(&init_mm);
 	curr->active_mm = &init_mm;
 	BUG_ON(curr->mm);
+	initialize_tlbstate_and_flush();
 	enter_lazy_tlb(&init_mm, curr);
 
 	load_sp0(t, thread);

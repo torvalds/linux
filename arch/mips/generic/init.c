@@ -16,6 +16,7 @@
 #include <linux/of_fdt.h>
 #include <linux/of_platform.h>
 
+#include <asm/bootinfo.h>
 #include <asm/fw/fw.h>
 #include <asm/irq_cpu.h>
 #include <asm/machine.h>
@@ -88,6 +89,8 @@ void __init *plat_get_fdt(void)
 	return (void *)fdt;
 }
 
+#ifdef CONFIG_RELOCATABLE
+
 void __init plat_fdt_relocated(void *new_location)
 {
 	/*
@@ -100,6 +103,8 @@ void __init plat_fdt_relocated(void *new_location)
 	if (fw_arg0 == -2)
 		fw_arg1 = (unsigned long)new_location;
 }
+
+#endif /* CONFIG_RELOCATABLE */
 
 void __init plat_mem_setup(void)
 {

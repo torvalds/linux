@@ -362,24 +362,12 @@ static inline void free_part_stats(struct hd_struct *part)
 #define part_stat_sub(cpu, gendiskp, field, subnd)			\
 	part_stat_add(cpu, gendiskp, field, -subnd)
 
-static inline void part_inc_in_flight(struct hd_struct *part, int rw)
-{
-	atomic_inc(&part->in_flight[rw]);
-	if (part->partno)
-		atomic_inc(&part_to_disk(part)->part0.in_flight[rw]);
-}
-
-static inline void part_dec_in_flight(struct hd_struct *part, int rw)
-{
-	atomic_dec(&part->in_flight[rw]);
-	if (part->partno)
-		atomic_dec(&part_to_disk(part)->part0.in_flight[rw]);
-}
-
-static inline int part_in_flight(struct hd_struct *part)
-{
-	return atomic_read(&part->in_flight[0]) + atomic_read(&part->in_flight[1]);
-}
+void part_in_flight(struct request_queue *q, struct hd_struct *part,
+			unsigned int inflight[2]);
+void part_dec_in_flight(struct request_queue *q, struct hd_struct *part,
+			int rw);
+void part_inc_in_flight(struct request_queue *q, struct hd_struct *part,
+			int rw);
 
 static inline struct partition_meta_info *alloc_part_info(struct gendisk *disk)
 {
@@ -395,7 +383,7 @@ static inline void free_part_info(struct hd_struct *part)
 }
 
 /* block/blk-core.c */
-extern void part_round_stats(int cpu, struct hd_struct *part);
+extern void part_round_stats(struct request_queue *q, int cpu, struct hd_struct *part);
 
 /* block/genhd.c */
 extern void device_add_disk(struct device *parent, struct gendisk *disk);

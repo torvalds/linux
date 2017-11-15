@@ -380,7 +380,8 @@ static int smu7_populate_single_firmware_entry(struct pp_smumgr *smumgr,
 		entry->num_register_entries = 0;
 	}
 
-	if (fw_type == UCODE_ID_RLC_G)
+	if ((fw_type == UCODE_ID_RLC_G)
+		|| (fw_type == UCODE_ID_CP_MEC))
 		entry->flags = 1;
 	else
 		entry->flags = 0;

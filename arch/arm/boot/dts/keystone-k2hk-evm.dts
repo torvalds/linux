@@ -16,6 +16,19 @@
 	compatible =  "ti,k2hk-evm", "ti,k2hk", "ti,keystone";
 	model = "Texas Instruments Keystone 2 Kepler/Hawking EVM";
 
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		dsp_common_memory: dsp-common-memory@81f800000 {
+			compatible = "shared-dma-pool";
+			reg = <0x00000008 0x1f800000 0x00000000 0x800000>;
+			reusable;
+			status = "okay";
+		};
+	};
+
 	soc {
 		clocks {
 			refclksys: refclksys {
@@ -183,4 +196,44 @@
 		compatible = "marvell,88E1111", "ethernet-phy-ieee802.3-c22";
 		reg = <1>;
 	};
+};
+
+&dsp0 {
+	memory-region = <&dsp_common_memory>;
+	status = "okay";
+};
+
+&dsp1 {
+	memory-region = <&dsp_common_memory>;
+	status = "okay";
+};
+
+&dsp2 {
+	memory-region = <&dsp_common_memory>;
+	status = "okay";
+};
+
+&dsp3 {
+	memory-region = <&dsp_common_memory>;
+	status = "okay";
+};
+
+&dsp4 {
+	memory-region = <&dsp_common_memory>;
+	status = "okay";
+};
+
+&dsp5 {
+	memory-region = <&dsp_common_memory>;
+	status = "okay";
+};
+
+&dsp6 {
+	memory-region = <&dsp_common_memory>;
+	status = "okay";
+};
+
+&dsp7 {
+	memory-region = <&dsp_common_memory>;
+	status = "okay";
 };

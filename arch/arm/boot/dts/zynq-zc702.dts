@@ -12,7 +12,7 @@
  * GNU General Public License for more details.
  */
 /dts-v1/;
-/include/ "zynq-7000.dtsi"
+#include "zynq-7000.dtsi"
 
 / {
 	model = "Zynq ZC702 Development Board";
@@ -30,7 +30,7 @@
 	};
 
 	chosen {
-		bootargs = "earlycon";
+		bootargs = "";
 		stdout-path = "serial0:115200n8";
 	};
 
@@ -97,6 +97,7 @@
 
 	ethernet_phy: ethernet-phy@7 {
 		reg = <7>;
+		device_type = "ethernet-phy";
 	};
 };
 
@@ -128,6 +129,21 @@
 				reg = <0x5d>;
 				factory-fout = <156250000>;
 				clock-frequency = <148500000>;
+			};
+		};
+
+		i2c@1 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <1>;
+			adv7511: hdmi-tx@39 {
+				compatible = "adi,adv7511";
+				reg = <0x39>;
+				adi,input-depth = <8>;
+				adi,input-colorspace = "yuv422";
+				adi,input-clock = "1x";
+				adi,input-style = <3>;
+				adi,input-justification = "right";
 			};
 		};
 

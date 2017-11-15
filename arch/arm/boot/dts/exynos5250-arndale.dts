@@ -518,7 +518,6 @@
 
 &mmc_0 {
 	status = "okay";
-	num-slots = <1>;
 	broken-cd;
 	card-detect-delay = <200>;
 	samsung,dw-mshc-ciu-div = <3>;
@@ -533,7 +532,6 @@
 
 &mmc_2 {
 	status = "okay";
-	num-slots = <1>;
 	card-detect-delay = <200>;
 	samsung,dw-mshc-ciu-div = <3>;
 	samsung,dw-mshc-sdr-timing = <2 3>;

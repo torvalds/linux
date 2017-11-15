@@ -41,6 +41,9 @@ static inline void debugfs_add_domain_dir(struct irq_domain *d) { }
 static inline void debugfs_remove_domain_dir(struct irq_domain *d) { }
 #endif
 
+const struct fwnode_operations irqchip_fwnode_ops;
+EXPORT_SYMBOL_GPL(irqchip_fwnode_ops);
+
 /**
  * irq_domain_alloc_fwnode - Allocate a fwnode_handle suitable for
  *                           identifying an irq domain
@@ -86,7 +89,7 @@ struct fwnode_handle *__irq_domain_alloc_fwnode(unsigned int type, int id,
 	fwid->type = type;
 	fwid->name = n;
 	fwid->data = data;
-	fwid->fwnode.type = FWNODE_IRQCHIP;
+	fwid->fwnode.ops = &irqchip_fwnode_ops;
 	return &fwid->fwnode;
 }
 EXPORT_SYMBOL_GPL(__irq_domain_alloc_fwnode);
@@ -193,10 +196,8 @@ struct irq_domain *__irq_domain_add(struct fwnode_handle *fwnode, int size,
 	}
 
 	if (!domain->name) {
-		if (fwnode) {
-			pr_err("Invalid fwnode type (%d) for irqdomain\n",
-			       fwnode->type);
-		}
+		if (fwnode)
+			pr_err("Invalid fwnode type for irqdomain\n");
 		domain->name = kasprintf(GFP_KERNEL, "unknown-%d",
 					 atomic_inc_return(&unknown_domains));
 		if (!domain->name) {
@@ -944,7 +945,7 @@ static int virq_debug_show(struct seq_file *m, void *private)
 	struct irq_desc *desc;
 	struct irq_domain *domain;
 	struct radix_tree_iter iter;
-	void **slot;
+	void __rcu **slot;
 	int i;
 
 	seq_printf(m, " %-16s  %-6s  %-10s  %-10s  %s\n",
@@ -1452,7 +1453,7 @@ out_free_desc:
 /* The irq_data was moved, fix the revmap to refer to the new location */
 static void irq_domain_fix_revmap(struct irq_data *d)
 {
-	void **slot;
+	void __rcu **slot;
 
 	if (d->hwirq < d->domain->revmap_size)
 		return; /* Not using radix tree. */

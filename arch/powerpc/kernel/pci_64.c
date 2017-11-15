@@ -111,7 +111,7 @@ int pcibios_unmap_io_space(struct pci_bus *bus)
 	if (hose->io_base_alloc == NULL)
 		return 0;
 
-	pr_debug("IO unmapping for PHB %s\n", hose->dn->full_name);
+	pr_debug("IO unmapping for PHB %pOF\n", hose->dn);
 	pr_debug("  alloc=0x%p\n", hose->io_base_alloc);
 
 	/* This is a PHB, we fully unmap the IO area */
@@ -151,7 +151,7 @@ static int pcibios_map_phb_io_space(struct pci_controller *hose)
 	hose->io_base_virt = (void __iomem *)(area->addr +
 					      hose->io_base_phys - phys_page);
 
-	pr_debug("IO mapping for PHB %s\n", hose->dn->full_name);
+	pr_debug("IO mapping for PHB %pOF\n", hose->dn);
 	pr_debug("  phys=0x%016llx, virt=0x%p (alloc=0x%p)\n",
 		 hose->io_base_phys, hose->io_base_virt, hose->io_base_alloc);
 	pr_debug("  size=0x%016llx (alloc=0x%016lx)\n",

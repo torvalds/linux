@@ -428,7 +428,7 @@ static void *eeh_add_virt_device(void *data, void *userdata)
 
 	if (!(edev->physfn)) {
 		pr_warn("%s: EEH dev %04x:%02x:%02x.%01x not for VF\n",
-			__func__, edev->phb->global_number, pdn->busno,
+			__func__, pdn->phb->global_number, pdn->busno,
 			PCI_SLOT(pdn->devfn), PCI_FUNC(pdn->devfn));
 		return NULL;
 	}

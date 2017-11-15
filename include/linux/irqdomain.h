@@ -265,9 +265,11 @@ static inline struct fwnode_handle *of_node_to_fwnode(struct device_node *node)
 	return node ? &node->fwnode : NULL;
 }
 
+extern const struct fwnode_operations irqchip_fwnode_ops;
+
 static inline bool is_fwnode_irqchip(struct fwnode_handle *fwnode)
 {
-	return fwnode && fwnode->type == FWNODE_IRQCHIP;
+	return fwnode && fwnode->ops == &irqchip_fwnode_ops;
 }
 
 extern void irq_domain_update_bus_token(struct irq_domain *domain,

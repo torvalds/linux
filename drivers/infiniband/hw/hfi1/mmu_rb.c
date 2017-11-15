@@ -54,7 +54,7 @@
 
 struct mmu_rb_handler {
 	struct mmu_notifier mn;
-	struct rb_root root;
+	struct rb_root_cached root;
 	void *ops_arg;
 	spinlock_t lock;        /* protect the RB tree */
 	struct mmu_rb_ops *ops;
@@ -108,7 +108,7 @@ int hfi1_mmu_rb_register(void *ops_arg, struct mm_struct *mm,
 	if (!handlr)
 		return -ENOMEM;
 
-	handlr->root = RB_ROOT;
+	handlr->root = RB_ROOT_CACHED;
 	handlr->ops = ops;
 	handlr->ops_arg = ops_arg;
 	INIT_HLIST_NODE(&handlr->mn.hlist);
@@ -149,9 +149,9 @@ void hfi1_mmu_rb_unregister(struct mmu_rb_handler *handler)
 	INIT_LIST_HEAD(&del_list);
 
 	spin_lock_irqsave(&handler->lock, flags);
-	while ((node = rb_first(&handler->root))) {
+	while ((node = rb_first_cached(&handler->root))) {
 		rbnode = rb_entry(node, struct mmu_rb_node, node);
-		rb_erase(node, &handler->root);
+		rb_erase_cached(node, &handler->root);
 		/* move from LRU list to delete list */
 		list_move(&rbnode->list, &del_list);
 	}
@@ -300,7 +300,7 @@ static void mmu_notifier_mem_invalidate(struct mmu_notifier *mn,
 {
 	struct mmu_rb_handler *handler =
 		container_of(mn, struct mmu_rb_handler, mn);
-	struct rb_root *root = &handler->root;
+	struct rb_root_cached *root = &handler->root;
 	struct mmu_rb_node *node, *ptr = NULL;
 	unsigned long flags;
 	bool added = false;

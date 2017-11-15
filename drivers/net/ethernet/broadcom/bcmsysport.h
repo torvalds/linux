@@ -449,7 +449,8 @@ struct bcm_rsb {
 /* Uses 2 bits on SYSTEMPORT Lite and shifts everything by 1 bit, we
  * keep the SYSTEMPORT layout here and adjust with tdma_control_bit()
  */
-#define  TSB_SWAP			2
+#define  TSB_SWAP0			2
+#define  TSB_SWAP1			3
 #define  ACB_ALGO			3
 #define  BUF_DATA_OFFSET_SHIFT		4
 #define  BUF_DATA_OFFSET_MASK		0x3ff
@@ -603,6 +604,7 @@ struct bcm_sysport_mib {
 /* HW maintains a large list of counters */
 enum bcm_sysport_stat_type {
 	BCM_SYSPORT_STAT_NETDEV = -1,
+	BCM_SYSPORT_STAT_NETDEV64,
 	BCM_SYSPORT_STAT_MIB_RX,
 	BCM_SYSPORT_STAT_MIB_TX,
 	BCM_SYSPORT_STAT_RUNT,
@@ -617,6 +619,13 @@ enum bcm_sysport_stat_type {
 	.stat_sizeof = sizeof(((struct net_device_stats *)0)->m), \
 	.stat_offset = offsetof(struct net_device_stats, m), \
 	.type = BCM_SYSPORT_STAT_NETDEV, \
+}
+
+#define STAT_NETDEV64(m) { \
+	.stat_string = __stringify(m), \
+	.stat_sizeof = sizeof(((struct bcm_sysport_stats64 *)0)->m), \
+	.stat_offset = offsetof(struct bcm_sysport_stats64, m), \
+	.type = BCM_SYSPORT_STAT_NETDEV64, \
 }
 
 #define STAT_MIB(str, m, _type) { \
@@ -657,6 +666,14 @@ struct bcm_sysport_stats {
 	enum bcm_sysport_stat_type type;
 	/* reg offset from UMAC base for misc counters */
 	u16 reg_offset;
+};
+
+struct bcm_sysport_stats64 {
+	/* 64bit stats on 32bit/64bit Machine */
+	u64	rx_packets;
+	u64	rx_bytes;
+	u64	tx_packets;
+	u64	tx_bytes;
 };
 
 /* Software house keeping helper structure */
@@ -743,5 +760,10 @@ struct bcm_sysport_priv {
 
 	/* Ethtool */
 	u32			msg_enable;
+
+	struct bcm_sysport_stats64	stats64;
+
+	/* For atomic update generic 64bit value on 32bit Machine */
+	struct u64_stats_sync	syncp;
 };
 #endif /* __BCM_SYSPORT_H */

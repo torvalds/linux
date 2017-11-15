@@ -1427,7 +1427,7 @@ int __init ip6_mr_init(void)
 	}
 #endif
 	rtnl_register(RTNL_FAMILY_IP6MR, RTM_GETROUTE, NULL,
-		      ip6mr_rtm_dumproute, NULL);
+		      ip6mr_rtm_dumproute, 0);
 	return 0;
 #ifdef CONFIG_IPV6_PIMSM_V2
 add_proto_fail:

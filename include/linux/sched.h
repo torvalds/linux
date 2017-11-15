@@ -65,25 +65,23 @@ struct task_group;
  */
 
 /* Used in tsk->state: */
-#define TASK_RUNNING			0
-#define TASK_INTERRUPTIBLE		1
-#define TASK_UNINTERRUPTIBLE		2
-#define __TASK_STOPPED			4
-#define __TASK_TRACED			8
+#define TASK_RUNNING			0x0000
+#define TASK_INTERRUPTIBLE		0x0001
+#define TASK_UNINTERRUPTIBLE		0x0002
+#define __TASK_STOPPED			0x0004
+#define __TASK_TRACED			0x0008
 /* Used in tsk->exit_state: */
-#define EXIT_DEAD			16
-#define EXIT_ZOMBIE			32
+#define EXIT_DEAD			0x0010
+#define EXIT_ZOMBIE			0x0020
 #define EXIT_TRACE			(EXIT_ZOMBIE | EXIT_DEAD)
 /* Used in tsk->state again: */
-#define TASK_DEAD			64
-#define TASK_WAKEKILL			128
-#define TASK_WAKING			256
-#define TASK_PARKED			512
-#define TASK_NOLOAD			1024
-#define TASK_NEW			2048
-#define TASK_STATE_MAX			4096
-
-#define TASK_STATE_TO_CHAR_STR		"RSDTtXZxKWPNn"
+#define TASK_PARKED			0x0040
+#define TASK_DEAD			0x0080
+#define TASK_WAKEKILL			0x0100
+#define TASK_WAKING			0x0200
+#define TASK_NOLOAD			0x0400
+#define TASK_NEW			0x0800
+#define TASK_STATE_MAX			0x1000
 
 /* Convenience macros for the sake of set_current_state: */
 #define TASK_KILLABLE			(TASK_WAKEKILL | TASK_UNINTERRUPTIBLE)
@@ -99,7 +97,8 @@ struct task_group;
 /* get_task_state(): */
 #define TASK_REPORT			(TASK_RUNNING | TASK_INTERRUPTIBLE | \
 					 TASK_UNINTERRUPTIBLE | __TASK_STOPPED | \
-					 __TASK_TRACED | EXIT_ZOMBIE | EXIT_DEAD)
+					 __TASK_TRACED | EXIT_DEAD | EXIT_ZOMBIE | \
+					 TASK_PARKED)
 
 #define task_is_traced(task)		((task->state & __TASK_TRACED) != 0)
 
@@ -812,8 +811,7 @@ struct task_struct {
 
 #ifdef CONFIG_RT_MUTEXES
 	/* PI waiters blocked on a rt_mutex held by this task: */
-	struct rb_root			pi_waiters;
-	struct rb_node			*pi_waiters_leftmost;
+	struct rb_root_cached		pi_waiters;
 	/* Updated under owner's pi_lock and rq lock */
 	struct task_struct		*pi_top_task;
 	/* Deadlock detection and priority inheritance handling: */
@@ -1244,17 +1242,34 @@ static inline pid_t task_pgrp_nr(struct task_struct *tsk)
 	return task_pgrp_nr_ns(tsk, &init_pid_ns);
 }
 
-static inline char task_state_to_char(struct task_struct *task)
+#define TASK_REPORT_IDLE	(TASK_REPORT + 1)
+#define TASK_REPORT_MAX		(TASK_REPORT_IDLE << 1)
+
+static inline unsigned int __get_task_state(struct task_struct *tsk)
 {
-	const char stat_nam[] = TASK_STATE_TO_CHAR_STR;
-	unsigned long state = task->state;
+	unsigned int tsk_state = READ_ONCE(tsk->state);
+	unsigned int state = (tsk_state | tsk->exit_state) & TASK_REPORT;
 
-	state = state ? __ffs(state) + 1 : 0;
+	BUILD_BUG_ON_NOT_POWER_OF_2(TASK_REPORT_MAX);
 
-	/* Make sure the string lines up properly with the number of task states: */
-	BUILD_BUG_ON(sizeof(TASK_STATE_TO_CHAR_STR)-1 != ilog2(TASK_STATE_MAX)+1);
+	if (tsk_state == TASK_IDLE)
+		state = TASK_REPORT_IDLE;
 
-	return state < sizeof(stat_nam) - 1 ? stat_nam[state] : '?';
+	return fls(state);
+}
+
+static inline char __task_state_to_char(unsigned int state)
+{
+	static const char state_char[] = "RSDTtXZPI";
+
+	BUILD_BUG_ON(1 + ilog2(TASK_REPORT_MAX) != sizeof(state_char) - 1);
+
+	return state_char[state];
+}
+
+static inline char task_state_to_char(struct task_struct *tsk)
+{
+	return __task_state_to_char(__get_task_state(tsk));
 }
 
 /**

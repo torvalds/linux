@@ -313,6 +313,7 @@ MACHINE_END
 
 #ifdef CONFIG_SOC_DRA7XX
 static const char *const dra74x_boards_compat[] __initconst = {
+	"ti,dra762",
 	"ti,am5728",
 	"ti,am5726",
 	"ti,dra742",

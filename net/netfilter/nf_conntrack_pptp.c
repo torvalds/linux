@@ -113,7 +113,6 @@ static void pptp_expectfn(struct nf_conn *ct,
 	/* Can you see how rusty this code is, compared with the pre-2.6.11
 	 * one? That's what happened to my shiny newnat of 2002 ;( -HW */
 
-	rcu_read_lock();
 	nf_nat_pptp_expectfn = rcu_dereference(nf_nat_pptp_hook_expectfn);
 	if (nf_nat_pptp_expectfn && ct->master->status & IPS_NAT_MASK)
 		nf_nat_pptp_expectfn(ct, exp);
@@ -136,7 +135,6 @@ static void pptp_expectfn(struct nf_conn *ct,
 			pr_debug("not found\n");
 		}
 	}
-	rcu_read_unlock();
 }
 
 static int destroy_sibling_or_exp(struct net *net, struct nf_conn *ct,

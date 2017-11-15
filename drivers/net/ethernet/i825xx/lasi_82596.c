@@ -96,8 +96,6 @@
 
 #define OPT_SWAP_PORT	0x0001	/* Need to wordswp on the MPU port */
 
-#define DMA_ALLOC                        dma_alloc_noncoherent
-#define DMA_FREE                         dma_free_noncoherent
 #define DMA_WBACK(ndev, addr, len) \
 	do { dma_cache_sync((ndev)->dev.parent, (void *)addr, len, DMA_TO_DEVICE); } while (0)
 
@@ -200,8 +198,8 @@ static int __exit lan_remove_chip(struct parisc_device *pdev)
 	struct i596_private *lp = netdev_priv(dev);
 
 	unregister_netdev (dev);
-	DMA_FREE(&pdev->dev, sizeof(struct i596_private),
-		 (void *)lp->dma, lp->dma_addr);
+	dma_free_attrs(&pdev->dev, sizeof(struct i596_private), lp->dma,
+		       lp->dma_addr, DMA_ATTR_NON_CONSISTENT);
 	free_netdev (dev);
 	return 0;
 }

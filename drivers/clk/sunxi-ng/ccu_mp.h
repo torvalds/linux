@@ -14,6 +14,7 @@
 #ifndef _CCU_MP_H_
 #define _CCU_MP_H_
 
+#include <linux/bitops.h>
 #include <linux/clk-provider.h>
 
 #include "ccu_common.h"
@@ -73,5 +74,34 @@ static inline struct ccu_mp *hw_to_ccu_mp(struct clk_hw *hw)
 }
 
 extern const struct clk_ops ccu_mp_ops;
+
+/*
+ * Special class of M-P clock that supports MMC timing modes
+ *
+ * Since the MMC clock registers all follow the same layout, we can
+ * simplify the macro for this particular case. In addition, as
+ * switching modes also affects the output clock rate, we need to
+ * have CLK_GET_RATE_NOCACHE for all these types of clocks.
+ */
+
+#define SUNXI_CCU_MP_MMC_WITH_MUX_GATE(_struct, _name, _parents, _reg,	\
+				       _flags)				\
+	struct ccu_mp _struct = {					\
+		.enable	= BIT(31),					\
+		.m	= _SUNXI_CCU_DIV(0, 4),				\
+		.p	= _SUNXI_CCU_DIV(16, 2),			\
+		.mux	= _SUNXI_CCU_MUX(24, 2),			\
+		.common	= {						\
+			.reg		= _reg,				\
+			.features	= CCU_FEATURE_MMC_TIMING_SWITCH, \
+			.hw.init	= CLK_HW_INIT_PARENTS(_name,	\
+							      _parents, \
+							      &ccu_mp_mmc_ops, \
+							      CLK_GET_RATE_NOCACHE | \
+							      _flags),	\
+		}							\
+	}
+
+extern const struct clk_ops ccu_mp_mmc_ops;
 
 #endif /* _CCU_MP_H_ */

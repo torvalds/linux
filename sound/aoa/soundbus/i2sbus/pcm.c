@@ -778,7 +778,7 @@ static snd_pcm_uframes_t i2sbus_playback_pointer(struct snd_pcm_substream
 	return i2sbus_pcm_pointer(i2sdev, 0);
 }
 
-static struct snd_pcm_ops i2sbus_playback_ops = {
+static const struct snd_pcm_ops i2sbus_playback_ops = {
 	.open =		i2sbus_playback_open,
 	.close =	i2sbus_playback_close,
 	.ioctl =	snd_pcm_lib_ioctl,
@@ -848,7 +848,7 @@ static snd_pcm_uframes_t i2sbus_record_pointer(struct snd_pcm_substream
 	return i2sbus_pcm_pointer(i2sdev, 1);
 }
 
-static struct snd_pcm_ops i2sbus_record_ops = {
+static const struct snd_pcm_ops i2sbus_record_ops = {
 	.open =		i2sbus_record_open,
 	.close =	i2sbus_record_close,
 	.ioctl =	snd_pcm_lib_ioctl,

@@ -2017,7 +2017,7 @@ static const struct snd_soc_codec_driver soc_codec_dev_wm5102 = {
 	},
 };
 
-static struct snd_compr_ops wm5102_compr_ops = {
+static const struct snd_compr_ops wm5102_compr_ops = {
 	.open = wm5102_open,
 	.free = wm_adsp_compr_free,
 	.set_params = wm_adsp_compr_set_params,
@@ -2027,7 +2027,7 @@ static struct snd_compr_ops wm5102_compr_ops = {
 	.copy = wm_adsp_compr_copy,
 };
 
-static struct snd_soc_platform_driver wm5102_compr_platform = {
+static const struct snd_soc_platform_driver wm5102_compr_platform = {
 	.compr_ops = &wm5102_compr_ops,
 };
 

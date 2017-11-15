@@ -231,6 +231,14 @@ enum {
 	TCP_NLA_SNDBUF_LIMITED,	/* Time (usec) limited by send buffer */
 	TCP_NLA_DATA_SEGS_OUT,	/* Data pkts sent including retransmission */
 	TCP_NLA_TOTAL_RETRANS,	/* Data pkts retransmitted */
+	TCP_NLA_PACING_RATE,    /* Pacing rate in bytes per second */
+	TCP_NLA_DELIVERY_RATE,  /* Delivery rate in bytes per second */
+	TCP_NLA_SND_CWND,       /* Sending congestion window */
+	TCP_NLA_REORDERING,     /* Reordering metric */
+	TCP_NLA_MIN_RTT,        /* minimum RTT */
+	TCP_NLA_RECUR_RETRANS,  /* Recurring retransmits for the current pkt */
+	TCP_NLA_DELIVERY_RATE_APP_LMT, /* delivery rate application limited ? */
+
 };
 
 /* for TCP_MD5SIG socket option */
@@ -246,6 +254,15 @@ struct tcp_md5sig {
 	__u16	tcpm_keylen;				/* key length */
 	__u32	__tcpm_pad;				/* zero */
 	__u8	tcpm_key[TCP_MD5SIG_MAXKEYLEN];		/* key (binary) */
+};
+
+/* INET_DIAG_MD5SIG */
+struct tcp_diag_md5sig {
+	__u8	tcpm_family;
+	__u8	tcpm_prefixlen;
+	__u16	tcpm_keylen;
+	__be32	tcpm_addr[4];
+	__u8	tcpm_key[TCP_MD5SIG_MAXKEYLEN];
 };
 
 #endif /* _UAPI_LINUX_TCP_H */

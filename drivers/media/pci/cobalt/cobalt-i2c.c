@@ -301,7 +301,7 @@ static u32 cobalt_func(struct i2c_adapter *adap)
 }
 
 /* template for i2c-bit-algo */
-static struct i2c_adapter cobalt_i2c_adap_template = {
+static const struct i2c_adapter cobalt_i2c_adap_template = {
 	.name = "cobalt i2c driver",
 	.algo = NULL,                   /* set by i2c-algo-bit */
 	.algo_data = NULL,              /* filled from template */

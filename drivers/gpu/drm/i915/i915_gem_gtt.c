@@ -2062,7 +2062,7 @@ int i915_gem_gtt_prepare_pages(struct drm_i915_gem_object *obj,
 		 */
 		GEM_BUG_ON(obj->mm.pages == pages);
 	} while (i915_gem_shrink(to_i915(obj->base.dev),
-				 obj->base.size >> PAGE_SHIFT,
+				 obj->base.size >> PAGE_SHIFT, NULL,
 				 I915_SHRINK_BOUND |
 				 I915_SHRINK_UNBOUND |
 				 I915_SHRINK_ACTIVE));
@@ -2754,10 +2754,10 @@ static void cnl_setup_private_ppat(struct drm_i915_private *dev_priv)
 	I915_WRITE(GEN10_PAT_INDEX(1), GEN8_PPAT_WC | GEN8_PPAT_LLCELLC);
 	I915_WRITE(GEN10_PAT_INDEX(2), GEN8_PPAT_WT | GEN8_PPAT_LLCELLC);
 	I915_WRITE(GEN10_PAT_INDEX(3), GEN8_PPAT_UC);
-	I915_WRITE(GEN10_PAT_INDEX(4), GEN8_PPAT_LLCELLC | GEN8_PPAT_AGE(0));
-	I915_WRITE(GEN10_PAT_INDEX(5), GEN8_PPAT_LLCELLC | GEN8_PPAT_AGE(1));
-	I915_WRITE(GEN10_PAT_INDEX(6), GEN8_PPAT_LLCELLC | GEN8_PPAT_AGE(2));
-	I915_WRITE(GEN10_PAT_INDEX(7), GEN8_PPAT_LLCELLC | GEN8_PPAT_AGE(3));
+	I915_WRITE(GEN10_PAT_INDEX(4), GEN8_PPAT_WB | GEN8_PPAT_LLCELLC | GEN8_PPAT_AGE(0));
+	I915_WRITE(GEN10_PAT_INDEX(5), GEN8_PPAT_WB | GEN8_PPAT_LLCELLC | GEN8_PPAT_AGE(1));
+	I915_WRITE(GEN10_PAT_INDEX(6), GEN8_PPAT_WB | GEN8_PPAT_LLCELLC | GEN8_PPAT_AGE(2));
+	I915_WRITE(GEN10_PAT_INDEX(7), GEN8_PPAT_WB | GEN8_PPAT_LLCELLC | GEN8_PPAT_AGE(3));
 }
 
 /* The GGTT and PPGTT need a private PPAT setup in order to handle cacheability
@@ -3231,7 +3231,7 @@ intel_rotate_pages(struct intel_rotation_info *rot_info,
 	/* Allocate a temporary list of source pages for random access. */
 	page_addr_list = kvmalloc_array(n_pages,
 					sizeof(dma_addr_t),
-					GFP_TEMPORARY);
+					GFP_KERNEL);
 	if (!page_addr_list)
 		return ERR_PTR(ret);
 

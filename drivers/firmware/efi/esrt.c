@@ -230,7 +230,7 @@ static umode_t esrt_attr_is_visible(struct kobject *kobj,
 	return attr->mode;
 }
 
-static struct attribute_group esrt_attr_group = {
+static const struct attribute_group esrt_attr_group = {
 	.attrs = esrt_attrs,
 	.is_visible = esrt_attr_is_visible,
 };

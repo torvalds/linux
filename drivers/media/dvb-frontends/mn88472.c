@@ -377,7 +377,9 @@ static int mn88472_set_frontend(struct dvb_frontend *fe)
 		ret = regmap_write(dev->regmap[1], 0xf6, 0x05);
 		if (ret)
 			goto err;
-		ret = regmap_write(dev->regmap[2], 0x32, c->stream_id);
+		ret = regmap_write(dev->regmap[2], 0x32,
+				(c->stream_id == NO_STREAM_ID_FILTER) ? 0 :
+				c->stream_id );
 		if (ret)
 			goto err;
 		break;

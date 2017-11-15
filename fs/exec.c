@@ -885,23 +885,6 @@ struct file *open_exec(const char *name)
 }
 EXPORT_SYMBOL(open_exec);
 
-int kernel_read(struct file *file, loff_t offset,
-		char *addr, unsigned long count)
-{
-	mm_segment_t old_fs;
-	loff_t pos = offset;
-	int result;
-
-	old_fs = get_fs();
-	set_fs(get_ds());
-	/* The cast to a user pointer is valid due to the set_fs() */
-	result = vfs_read(file, (void __user *)addr, count, &pos);
-	set_fs(old_fs);
-	return result;
-}
-
-EXPORT_SYMBOL(kernel_read);
-
 int kernel_read_file(struct file *file, void **buf, loff_t *size,
 		     loff_t max_size, enum kernel_read_file_id id)
 {
@@ -939,8 +922,7 @@ int kernel_read_file(struct file *file, void **buf, loff_t *size,
 
 	pos = 0;
 	while (pos < i_size) {
-		bytes = kernel_read(file, pos, (char *)(*buf) + pos,
-				    i_size - pos);
+		bytes = kernel_read(file, *buf + pos, i_size - pos, &pos);
 		if (bytes < 0) {
 			ret = bytes;
 			goto out;
@@ -948,7 +930,6 @@ int kernel_read_file(struct file *file, void **buf, loff_t *size,
 
 		if (bytes == 0)
 			break;
-		pos += bytes;
 	}
 
 	if (pos != i_size) {
@@ -974,7 +955,7 @@ out:
 }
 EXPORT_SYMBOL_GPL(kernel_read_file);
 
-int kernel_read_file_from_path(char *path, void **buf, loff_t *size,
+int kernel_read_file_from_path(const char *path, void **buf, loff_t *size,
 			       loff_t max_size, enum kernel_read_file_id id)
 {
 	struct file *file;
@@ -1259,6 +1240,12 @@ void __set_task_comm(struct task_struct *tsk, const char *buf, bool exec)
 	perf_event_comm(tsk, exec);
 }
 
+/*
+ * Calling this is the point of no return. None of the failures will be
+ * seen by userspace since either the process is already taking a fatal
+ * signal (via de_thread() or coredump), or will have SEGV raised
+ * (after exec_mmap()) by search_binary_handlers (see below).
+ */
 int flush_old_exec(struct linux_binprm * bprm)
 {
 	int retval;
@@ -1286,7 +1273,13 @@ int flush_old_exec(struct linux_binprm * bprm)
 	if (retval)
 		goto out;
 
-	bprm->mm = NULL;		/* We're using it now */
+	/*
+	 * After clearing bprm->mm (to mark that current is using the
+	 * prepared mm now), we have nothing left of the original
+	 * process. If anything from here on returns an error, the check
+	 * in search_binary_handler() will SEGV current.
+	 */
+	bprm->mm = NULL;
 
 	set_fs(USER_DS);
 	current->flags &= ~(PF_RANDOMIZE | PF_FORKNOEXEC | PF_KTHREAD |
@@ -1331,15 +1324,38 @@ EXPORT_SYMBOL(would_dump);
 
 void setup_new_exec(struct linux_binprm * bprm)
 {
+	/*
+	 * Once here, prepare_binrpm() will not be called any more, so
+	 * the final state of setuid/setgid/fscaps can be merged into the
+	 * secureexec flag.
+	 */
+	bprm->secureexec |= bprm->cap_elevated;
+
+	if (bprm->secureexec) {
+		/* Make sure parent cannot signal privileged process. */
+		current->pdeath_signal = 0;
+
+		/*
+		 * For secureexec, reset the stack limit to sane default to
+		 * avoid bad behavior from the prior rlimits. This has to
+		 * happen before arch_pick_mmap_layout(), which examines
+		 * RLIMIT_STACK, but after the point of no return to avoid
+		 * needing to clean up the change on failure.
+		 */
+		if (current->signal->rlim[RLIMIT_STACK].rlim_cur > _STK_LIM)
+			current->signal->rlim[RLIMIT_STACK].rlim_cur = _STK_LIM;
+	}
+
 	arch_pick_mmap_layout(current->mm);
 
-	/* This is the point of no return */
 	current->sas_ss_sp = current->sas_ss_size = 0;
 
-	if (uid_eq(current_euid(), current_uid()) && gid_eq(current_egid(), current_gid()))
-		set_dumpable(current->mm, SUID_DUMP_USER);
-	else
+	/* Figure out dumpability. */
+	if (bprm->interp_flags & BINPRM_FLAGS_ENFORCE_NONDUMP ||
+	    bprm->secureexec)
 		set_dumpable(current->mm, suid_dumpable);
+	else
+		set_dumpable(current->mm, SUID_DUMP_USER);
 
 	arch_setup_new_exec();
 	perf_event_exec();
@@ -1350,15 +1366,6 @@ void setup_new_exec(struct linux_binprm * bprm)
 	 * some architectures like powerpc
 	 */
 	current->mm->task_size = TASK_SIZE;
-
-	/* install the new credentials */
-	if (!uid_eq(bprm->cred->uid, current_euid()) ||
-	    !gid_eq(bprm->cred->gid, current_egid())) {
-		current->pdeath_signal = 0;
-	} else {
-		if (bprm->interp_flags & BINPRM_FLAGS_ENFORCE_NONDUMP)
-			set_dumpable(current->mm, suid_dumpable);
-	}
 
 	/* An exec changes our domain. We are no longer part of the thread
 	   group */
@@ -1403,7 +1410,7 @@ static void free_bprm(struct linux_binprm *bprm)
 	kfree(bprm);
 }
 
-int bprm_change_interp(char *interp, struct linux_binprm *bprm)
+int bprm_change_interp(const char *interp, struct linux_binprm *bprm)
 {
 	/* If a binfmt changed the interp, free it first. */
 	if (bprm->interp != bprm->filename)
@@ -1541,6 +1548,7 @@ static void bprm_fill_uid(struct linux_binprm *bprm)
 int prepare_binprm(struct linux_binprm *bprm)
 {
 	int retval;
+	loff_t pos = 0;
 
 	bprm_fill_uid(bprm);
 
@@ -1548,10 +1556,10 @@ int prepare_binprm(struct linux_binprm *bprm)
 	retval = security_bprm_set_creds(bprm);
 	if (retval)
 		return retval;
-	bprm->cred_prepared = 1;
+	bprm->called_set_creds = 1;
 
 	memset(bprm->buf, 0, BINPRM_BUF_SIZE);
-	return kernel_read(bprm->file, 0, bprm->buf, BINPRM_BUF_SIZE);
+	return kernel_read(bprm->file, bprm->buf, BINPRM_BUF_SIZE, &pos);
 }
 
 EXPORT_SYMBOL(prepare_binprm);
@@ -1737,9 +1745,9 @@ static int do_execveat_common(int fd, struct filename *filename,
 		bprm->filename = filename->name;
 	} else {
 		if (filename->name[0] == '\0')
-			pathbuf = kasprintf(GFP_TEMPORARY, "/dev/fd/%d", fd);
+			pathbuf = kasprintf(GFP_KERNEL, "/dev/fd/%d", fd);
 		else
-			pathbuf = kasprintf(GFP_TEMPORARY, "/dev/fd/%d/%s",
+			pathbuf = kasprintf(GFP_KERNEL, "/dev/fd/%d/%s",
 					    fd, filename->name);
 		if (!pathbuf) {
 			retval = -ENOMEM;

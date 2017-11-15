@@ -38,7 +38,7 @@ static int ovl_check_redirect(struct dentry *dentry, struct ovl_lookup_data *d,
 			return 0;
 		goto fail;
 	}
-	buf = kzalloc(prelen + res + strlen(post) + 1, GFP_TEMPORARY);
+	buf = kzalloc(prelen + res + strlen(post) + 1, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
 
@@ -103,7 +103,7 @@ static struct ovl_fh *ovl_get_origin_fh(struct dentry *dentry)
 	if (res == 0)
 		return NULL;
 
-	fh = kzalloc(res, GFP_TEMPORARY);
+	fh  = kzalloc(res, GFP_KERNEL);
 	if (!fh)
 		return ERR_PTR(-ENOMEM);
 
@@ -309,7 +309,7 @@ static int ovl_check_origin(struct dentry *upperdentry,
 
 	BUG_ON(*ctrp);
 	if (!*stackp)
-		*stackp = kmalloc(sizeof(struct path), GFP_TEMPORARY);
+		*stackp = kmalloc(sizeof(struct path), GFP_KERNEL);
 	if (!*stackp) {
 		dput(origin);
 		return -ENOMEM;
@@ -418,7 +418,7 @@ int ovl_verify_index(struct dentry *index, struct path *lowerstack,
 
 	err = -ENOMEM;
 	len = index->d_name.len / 2;
-	fh = kzalloc(len, GFP_TEMPORARY);
+	fh = kzalloc(len, GFP_KERNEL);
 	if (!fh)
 		goto fail;
 
@@ -478,7 +478,7 @@ int ovl_get_index_name(struct dentry *origin, struct qstr *name)
 		return PTR_ERR(fh);
 
 	err = -ENOMEM;
-	n = kzalloc(fh->len * 2, GFP_TEMPORARY);
+	n = kzalloc(fh->len * 2, GFP_KERNEL);
 	if (n) {
 		s  = bin2hex(n, fh, fh->len);
 		*name = (struct qstr) QSTR_INIT(n, s - n);
@@ -506,6 +506,7 @@ static struct dentry *ovl_lookup_index(struct dentry *dentry,
 
 	index = lookup_one_len_unlocked(name.name, ofs->indexdir, name.len);
 	if (IS_ERR(index)) {
+		err = PTR_ERR(index);
 		pr_warn_ratelimited("overlayfs: failed inode index lookup (ino=%lu, key=%*s, err=%i);\n"
 				    "overlayfs: mount with '-o index=off' to disable inodes index.\n",
 				    d_inode(origin)->i_ino, name.len, name.name,
@@ -646,7 +647,7 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 	if (!d.stop && poe->numlower) {
 		err = -ENOMEM;
 		stack = kcalloc(ofs->numlower, sizeof(struct path),
-				GFP_TEMPORARY);
+				GFP_KERNEL);
 		if (!stack)
 			goto out_put_upper;
 	}

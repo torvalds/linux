@@ -47,6 +47,7 @@
 
 /dts-v1/;
 #include "stm32f429.dtsi"
+#include "stm32f429-pinctrl.dtsi"
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/gpio/gpio.h>
 
@@ -55,7 +56,7 @@
 	compatible = "st,stm32429i-eval", "st,stm32f429";
 
 	chosen {
-		bootargs = "root=/dev/ram rdinit=/linuxrc";
+		bootargs = "root=/dev/ram";
 		stdout-path = "serial0:115200n8";
 	};
 
@@ -202,10 +203,8 @@
 	stmpe1600: stmpe1600@42 {
 		compatible = "st,stmpe1600";
 		reg = <0x42>;
-		irq-gpio = <&gpioi 8 0>;
-		irq-trigger = <3>;
 		interrupts = <8 3>;
-		interrupt-parent = <&exti>;
+		interrupt-parent = <&gpioi>;
 		interrupt-controller;
 		wakeup-source;
 

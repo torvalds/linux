@@ -2479,6 +2479,7 @@ void kvm_s390_reinject_machine_check(struct kvm_vcpu *vcpu,
 	struct kvm_s390_mchk_info *mchk;
 	union mci mci;
 	__u64 cr14 = 0;         /* upper bits are not used */
+	int rc;
 
 	mci.val = mcck_info->mcic;
 	if (mci.sr)
@@ -2496,12 +2497,13 @@ void kvm_s390_reinject_machine_check(struct kvm_vcpu *vcpu,
 	if (mci.ck) {
 		/* Inject the floating machine check */
 		inti.type = KVM_S390_MCHK;
-		WARN_ON_ONCE(__inject_vm(vcpu->kvm, &inti));
+		rc = __inject_vm(vcpu->kvm, &inti);
 	} else {
 		/* Inject the machine check to specified vcpu */
 		irq.type = KVM_S390_MCHK;
-		WARN_ON_ONCE(kvm_s390_inject_vcpu(vcpu, &irq));
+		rc = kvm_s390_inject_vcpu(vcpu, &irq);
 	}
+	WARN_ON_ONCE(rc);
 }
 
 int kvm_set_routing_entry(struct kvm *kvm,

@@ -106,7 +106,7 @@ static void sb1250_smp_finish(void)
  * Setup the PC, SP, and GP of a secondary processor and start it
  * running!
  */
-static void sb1250_boot_secondary(int cpu, struct task_struct *idle)
+static int sb1250_boot_secondary(int cpu, struct task_struct *idle)
 {
 	int retval;
 
@@ -115,6 +115,7 @@ static void sb1250_boot_secondary(int cpu, struct task_struct *idle)
 			       (unsigned long)task_thread_info(idle), 0);
 	if (retval != 0)
 		printk("cfe_start_cpu(%i) returned %i\n" , cpu, retval);
+	return retval;
 }
 
 /*
@@ -146,7 +147,7 @@ static void __init sb1250_prepare_cpus(unsigned int max_cpus)
 {
 }
 
-struct plat_smp_ops sb_smp_ops = {
+const struct plat_smp_ops sb_smp_ops = {
 	.send_ipi_single	= sb1250_send_ipi_single,
 	.send_ipi_mask		= sb1250_send_ipi_mask,
 	.init_secondary		= sb1250_init_secondary,

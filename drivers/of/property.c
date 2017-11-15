@@ -55,8 +55,8 @@ int of_property_count_elems_of_size(const struct device_node *np,
 		return -ENODATA;
 
 	if (prop->length % elem_size != 0) {
-		pr_err("size of %s in node %s is not a multiple of %d\n",
-		       propname, np->full_name, elem_size);
+		pr_err("size of %s in node %pOF is not a multiple of %d\n",
+		       propname, np, elem_size);
 		return -EINVAL;
 	}
 
@@ -537,8 +537,8 @@ int of_graph_parse_endpoint(const struct device_node *node,
 {
 	struct device_node *port_node = of_get_parent(node);
 
-	WARN_ONCE(!port_node, "%s(): endpoint %s has no parent node\n",
-		  __func__, node->full_name);
+	WARN_ONCE(!port_node, "%s(): endpoint %pOF has no parent node\n",
+		  __func__, node);
 
 	memset(endpoint, 0, sizeof(*endpoint));
 
@@ -621,14 +621,13 @@ struct device_node *of_graph_get_next_endpoint(const struct device_node *parent,
 		of_node_put(node);
 
 		if (!port) {
-			pr_err("graph: no port node found in %s\n",
-			       parent->full_name);
+			pr_err("graph: no port node found in %pOF\n", parent);
 			return NULL;
 		}
 	} else {
 		port = of_get_parent(prev);
-		if (WARN_ONCE(!port, "%s(): endpoint %s has no parent node\n",
-			      __func__, prev->full_name))
+		if (WARN_ONCE(!port, "%s(): endpoint %pOF has no parent node\n",
+			      __func__, prev))
 			return NULL;
 	}
 
@@ -797,8 +796,8 @@ struct device_node *of_graph_get_remote_node(const struct device_node *node,
 
 	endpoint_node = of_graph_get_endpoint_by_regs(node, port, endpoint);
 	if (!endpoint_node) {
-		pr_debug("no valid endpoint (%d, %d) for node %s\n",
-			 port, endpoint, node->full_name);
+		pr_debug("no valid endpoint (%d, %d) for node %pOF\n",
+			 port, endpoint, node);
 		return NULL;
 	}
 
@@ -828,23 +827,23 @@ static void of_fwnode_put(struct fwnode_handle *fwnode)
 	of_node_put(to_of_node(fwnode));
 }
 
-static bool of_fwnode_device_is_available(struct fwnode_handle *fwnode)
+static bool of_fwnode_device_is_available(const struct fwnode_handle *fwnode)
 {
 	return of_device_is_available(to_of_node(fwnode));
 }
 
-static bool of_fwnode_property_present(struct fwnode_handle *fwnode,
+static bool of_fwnode_property_present(const struct fwnode_handle *fwnode,
 				       const char *propname)
 {
 	return of_property_read_bool(to_of_node(fwnode), propname);
 }
 
-static int of_fwnode_property_read_int_array(struct fwnode_handle *fwnode,
+static int of_fwnode_property_read_int_array(const struct fwnode_handle *fwnode,
 					     const char *propname,
 					     unsigned int elem_size, void *val,
 					     size_t nval)
 {
-	struct device_node *node = to_of_node(fwnode);
+	const struct device_node *node = to_of_node(fwnode);
 
 	if (!val)
 		return of_property_count_elems_of_size(node, propname,
@@ -864,24 +863,26 @@ static int of_fwnode_property_read_int_array(struct fwnode_handle *fwnode,
 	return -ENXIO;
 }
 
-static int of_fwnode_property_read_string_array(struct fwnode_handle *fwnode,
-						const char *propname,
-						const char **val, size_t nval)
+static int
+of_fwnode_property_read_string_array(const struct fwnode_handle *fwnode,
+				     const char *propname, const char **val,
+				     size_t nval)
 {
-	struct device_node *node = to_of_node(fwnode);
+	const struct device_node *node = to_of_node(fwnode);
 
 	return val ?
 		of_property_read_string_array(node, propname, val, nval) :
 		of_property_count_strings(node, propname);
 }
 
-static struct fwnode_handle *of_fwnode_get_parent(struct fwnode_handle *fwnode)
+static struct fwnode_handle *
+of_fwnode_get_parent(const struct fwnode_handle *fwnode)
 {
 	return of_fwnode_handle(of_get_parent(to_of_node(fwnode)));
 }
 
 static struct fwnode_handle *
-of_fwnode_get_next_child_node(struct fwnode_handle *fwnode,
+of_fwnode_get_next_child_node(const struct fwnode_handle *fwnode,
 			      struct fwnode_handle *child)
 {
 	return of_fwnode_handle(of_get_next_available_child(to_of_node(fwnode),
@@ -889,10 +890,10 @@ of_fwnode_get_next_child_node(struct fwnode_handle *fwnode,
 }
 
 static struct fwnode_handle *
-of_fwnode_get_named_child_node(struct fwnode_handle *fwnode,
+of_fwnode_get_named_child_node(const struct fwnode_handle *fwnode,
 			       const char *childname)
 {
-	struct device_node *node = to_of_node(fwnode);
+	const struct device_node *node = to_of_node(fwnode);
 	struct device_node *child;
 
 	for_each_available_child_of_node(node, child)
@@ -902,8 +903,38 @@ of_fwnode_get_named_child_node(struct fwnode_handle *fwnode,
 	return NULL;
 }
 
+static int
+of_fwnode_get_reference_args(const struct fwnode_handle *fwnode,
+			     const char *prop, const char *nargs_prop,
+			     unsigned int nargs, unsigned int index,
+			     struct fwnode_reference_args *args)
+{
+	struct of_phandle_args of_args;
+	unsigned int i;
+	int ret;
+
+	if (nargs_prop)
+		ret = of_parse_phandle_with_args(to_of_node(fwnode), prop,
+						 nargs_prop, index, &of_args);
+	else
+		ret = of_parse_phandle_with_fixed_args(to_of_node(fwnode), prop,
+						       nargs, index, &of_args);
+	if (ret < 0)
+		return ret;
+	if (!args)
+		return 0;
+
+	args->nargs = of_args.args_count;
+	args->fwnode = of_fwnode_handle(of_args.np);
+
+	for (i = 0; i < NR_FWNODE_REFERENCE_ARGS; i++)
+		args->args[i] = i < of_args.args_count ? of_args.args[i] : 0;
+
+	return 0;
+}
+
 static struct fwnode_handle *
-of_fwnode_graph_get_next_endpoint(struct fwnode_handle *fwnode,
+of_fwnode_graph_get_next_endpoint(const struct fwnode_handle *fwnode,
 				  struct fwnode_handle *prev)
 {
 	return of_fwnode_handle(of_graph_get_next_endpoint(to_of_node(fwnode),
@@ -911,10 +942,10 @@ of_fwnode_graph_get_next_endpoint(struct fwnode_handle *fwnode,
 }
 
 static struct fwnode_handle *
-of_fwnode_graph_get_remote_endpoint(struct fwnode_handle *fwnode)
+of_fwnode_graph_get_remote_endpoint(const struct fwnode_handle *fwnode)
 {
-	return of_fwnode_handle(of_parse_phandle(to_of_node(fwnode),
-						 "remote-endpoint", 0));
+	return of_fwnode_handle(
+		of_graph_get_remote_endpoint(to_of_node(fwnode)));
 }
 
 static struct fwnode_handle *
@@ -934,10 +965,10 @@ of_fwnode_graph_get_port_parent(struct fwnode_handle *fwnode)
 	return of_fwnode_handle(of_get_next_parent(np));
 }
 
-static int of_fwnode_graph_parse_endpoint(struct fwnode_handle *fwnode,
+static int of_fwnode_graph_parse_endpoint(const struct fwnode_handle *fwnode,
 					  struct fwnode_endpoint *endpoint)
 {
-	struct device_node *node = to_of_node(fwnode);
+	const struct device_node *node = to_of_node(fwnode);
 	struct device_node *port_node = of_get_parent(node);
 
 	endpoint->local_fwnode = fwnode;
@@ -960,8 +991,10 @@ const struct fwnode_operations of_fwnode_ops = {
 	.get_parent = of_fwnode_get_parent,
 	.get_next_child_node = of_fwnode_get_next_child_node,
 	.get_named_child_node = of_fwnode_get_named_child_node,
+	.get_reference_args = of_fwnode_get_reference_args,
 	.graph_get_next_endpoint = of_fwnode_graph_get_next_endpoint,
 	.graph_get_remote_endpoint = of_fwnode_graph_get_remote_endpoint,
 	.graph_get_port_parent = of_fwnode_graph_get_port_parent,
 	.graph_parse_endpoint = of_fwnode_graph_parse_endpoint,
 };
+EXPORT_SYMBOL_GPL(of_fwnode_ops);

@@ -426,8 +426,7 @@ struct cfs_rq {
 	u64 min_vruntime_copy;
 #endif
 
-	struct rb_root tasks_timeline;
-	struct rb_node *rb_leftmost;
+	struct rb_root_cached tasks_timeline;
 
 	/*
 	 * 'curr' points to currently running entity on this cfs_rq.
@@ -550,8 +549,7 @@ struct rt_rq {
 /* Deadline class' related fields in a runqueue */
 struct dl_rq {
 	/* runqueue is an rbtree, ordered by deadline */
-	struct rb_root rb_root;
-	struct rb_node *rb_leftmost;
+	struct rb_root_cached root;
 
 	unsigned long dl_nr_running;
 
@@ -575,8 +573,7 @@ struct dl_rq {
 	 * an rb-tree, ordered by tasks' deadlines, with caching
 	 * of the leftmost (earliest deadline) element.
 	 */
-	struct rb_root pushable_dl_tasks_root;
-	struct rb_node *pushable_dl_tasks_leftmost;
+	struct rb_root_cached pushable_dl_tasks_root;
 #else
 	struct dl_bw dl_bw;
 #endif
@@ -1954,6 +1951,8 @@ extern struct sched_entity *__pick_first_entity(struct cfs_rq *cfs_rq);
 extern struct sched_entity *__pick_last_entity(struct cfs_rq *cfs_rq);
 
 #ifdef	CONFIG_SCHED_DEBUG
+extern bool sched_debug_enabled;
+
 extern void print_cfs_stats(struct seq_file *m, int cpu);
 extern void print_rt_stats(struct seq_file *m, int cpu);
 extern void print_dl_stats(struct seq_file *m, int cpu);
@@ -2074,19 +2073,13 @@ static inline void cpufreq_update_util(struct rq *rq, unsigned int flags)
 {
 	struct update_util_data *data;
 
-	data = rcu_dereference_sched(*this_cpu_ptr(&cpufreq_update_util_data));
+	data = rcu_dereference_sched(*per_cpu_ptr(&cpufreq_update_util_data,
+						  cpu_of(rq)));
 	if (data)
 		data->func(data, rq_clock(rq), flags);
 }
-
-static inline void cpufreq_update_this_cpu(struct rq *rq, unsigned int flags)
-{
-	if (cpu_of(rq) == smp_processor_id())
-		cpufreq_update_util(rq, flags);
-}
 #else
 static inline void cpufreq_update_util(struct rq *rq, unsigned int flags) {}
-static inline void cpufreq_update_this_cpu(struct rq *rq, unsigned int flags) {}
 #endif /* CONFIG_CPU_FREQ */
 
 #ifdef arch_scale_freq_capacity

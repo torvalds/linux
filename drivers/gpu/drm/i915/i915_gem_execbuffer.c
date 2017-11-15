@@ -285,7 +285,7 @@ static int eb_create(struct i915_execbuffer *eb)
 		 * direct lookup.
 		 */
 		do {
-			unsigned int flags;
+			gfp_t flags;
 
 			/* While we can still reduce the allocation size, don't
 			 * raise a warning and allow the allocation to fail.
@@ -293,7 +293,7 @@ static int eb_create(struct i915_execbuffer *eb)
 			 * as possible to perform the allocation and warn
 			 * if it fails.
 			 */
-			flags = GFP_TEMPORARY;
+			flags = GFP_KERNEL;
 			if (size > 1)
 				flags |= __GFP_NORETRY | __GFP_NOWARN;
 
@@ -720,6 +720,7 @@ static int eb_lookup_vmas(struct i915_execbuffer *eb)
 			goto err_obj;
 		}
 
+		vma->open_count++;
 		list_add(&lut->obj_link, &obj->lut_list);
 		list_add(&lut->ctx_link, &eb->ctx->handles_list);
 		lut->ctx = eb->ctx;
@@ -1070,7 +1071,9 @@ static int __reloc_gpu_alloc(struct i915_execbuffer *eb,
 		return PTR_ERR(obj);
 
 	cmd = i915_gem_object_pin_map(obj,
-				      cache->has_llc ? I915_MAP_WB : I915_MAP_WC);
+				      cache->has_llc ?
+				      I915_MAP_FORCE_WB :
+				      I915_MAP_FORCE_WC);
 	i915_gem_object_unpin_pages(obj);
 	if (IS_ERR(cmd))
 		return PTR_ERR(cmd);
@@ -1512,7 +1515,7 @@ static int eb_copy_relocations(const struct i915_execbuffer *eb)
 		urelocs = u64_to_user_ptr(eb->exec[i].relocs_ptr);
 		size = nreloc * sizeof(*relocs);
 
-		relocs = kvmalloc_array(size, 1, GFP_TEMPORARY);
+		relocs = kvmalloc_array(size, 1, GFP_KERNEL);
 		if (!relocs) {
 			kvfree(relocs);
 			err = -ENOMEM;
@@ -1526,7 +1529,7 @@ static int eb_copy_relocations(const struct i915_execbuffer *eb)
 				min_t(u64, BIT_ULL(31), size - copied);
 
 			if (__copy_from_user((char *)relocs + copied,
-					     (char *)urelocs + copied,
+					     (char __user *)urelocs + copied,
 					     len)) {
 				kvfree(relocs);
 				err = -EFAULT;
@@ -2074,7 +2077,7 @@ get_fence_array(struct drm_i915_gem_execbuffer2 *args,
 		return ERR_PTR(-EFAULT);
 
 	fences = kvmalloc_array(args->num_cliprects, sizeof(*fences),
-				__GFP_NOWARN | GFP_TEMPORARY);
+				__GFP_NOWARN | GFP_KERNEL);
 	if (!fences)
 		return ERR_PTR(-ENOMEM);
 
@@ -2460,9 +2463,9 @@ i915_gem_execbuffer(struct drm_device *dev, void *data,
 
 	/* Copy in the exec list from userland */
 	exec_list = kvmalloc_array(args->buffer_count, sizeof(*exec_list),
-				   __GFP_NOWARN | GFP_TEMPORARY);
+				   __GFP_NOWARN | GFP_KERNEL);
 	exec2_list = kvmalloc_array(args->buffer_count + 1, sz,
-				    __GFP_NOWARN | GFP_TEMPORARY);
+				    __GFP_NOWARN | GFP_KERNEL);
 	if (exec_list == NULL || exec2_list == NULL) {
 		DRM_DEBUG("Failed to allocate exec list for %d buffers\n",
 			  args->buffer_count);
@@ -2540,7 +2543,7 @@ i915_gem_execbuffer2(struct drm_device *dev, void *data,
 
 	/* Allocate an extra slot for use by the command parser */
 	exec2_list = kvmalloc_array(args->buffer_count + 1, sz,
-				    __GFP_NOWARN | GFP_TEMPORARY);
+				    __GFP_NOWARN | GFP_KERNEL);
 	if (exec2_list == NULL) {
 		DRM_DEBUG("Failed to allocate exec list for %d buffers\n",
 			  args->buffer_count);

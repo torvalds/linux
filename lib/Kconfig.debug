@@ -219,7 +219,8 @@ config FRAME_WARN
 	range 0 8192
 	default 0 if KASAN
 	default 2048 if GCC_PLUGIN_LATENT_ENTROPY
-	default 1024 if !64BIT
+	default 1280 if (!64BIT && PARISC)
+	default 1024 if (!64BIT && !PARISC)
 	default 2048 if 64BIT
 	help
 	  Tell gcc to warn at build time for stack frames larger than this.
@@ -1929,6 +1930,17 @@ config TEST_KMOD
 	  tools/testing/selftests/kmod/kmod.sh --help
 
 	  If unsure, say N.
+
+config TEST_DEBUG_VIRTUAL
+	tristate "Test CONFIG_DEBUG_VIRTUAL feature"
+	depends on DEBUG_VIRTUAL
+	help
+	  Test the kernel's ability to detect incorrect calls to
+	  virt_to_phys() done against the non-linear part of the
+	  kernel's virtual address map.
+
+	  If unsure, say N.
+
 
 source "samples/Kconfig"
 

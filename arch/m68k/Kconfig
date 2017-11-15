@@ -24,6 +24,9 @@ config M68K
 	select OLD_SIGSUSPEND3
 	select OLD_SIGACTION
 
+config CPU_BIG_ENDIAN
+	def_bool y
+
 config RWSEM_GENERIC_SPINLOCK
 	bool
 	default y

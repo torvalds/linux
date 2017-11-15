@@ -101,9 +101,6 @@ static inline struct aa_label *aa_get_file_label(struct aa_file_ctx *ctx)
 #define AA_X_INHERIT		0x4000
 #define AA_X_UNCONFINED		0x8000
 
-/* AA_SECURE_X_NEEDED - is passed in the bprm->unsafe field */
-#define AA_SECURE_X_NEEDED	0x8000
-
 /* need to make conditional which ones are being set */
 struct path_cond {
 	kuid_t uid;

@@ -52,7 +52,7 @@ struct inode *ceph_get_inode(struct super_block *sb, struct ceph_vino vino)
 	ino_t t = ceph_vino_to_ino(vino);
 
 	inode = iget5_locked(sb, t, ceph_ino_compare, ceph_set_ino_cb, &vino);
-	if (inode == NULL)
+	if (!inode)
 		return ERR_PTR(-ENOMEM);
 	if (inode->i_state & I_NEW) {
 		dout("get_inode created new inode %p %llx.%llx ino %llx\n",
@@ -133,12 +133,9 @@ static struct ceph_inode_frag *__get_or_create_frag(struct ceph_inode_info *ci,
 	}
 
 	frag = kmalloc(sizeof(*frag), GFP_NOFS);
-	if (!frag) {
-		pr_err("__get_or_create_frag ENOMEM on %p %llx.%llx "
-		       "frag %x\n", &ci->vfs_inode,
-		       ceph_vinop(&ci->vfs_inode), f);
+	if (!frag)
 		return ERR_PTR(-ENOMEM);
-	}
+
 	frag->frag = f;
 	frag->split_by = 0;
 	frag->mds = -1;
@@ -1070,7 +1067,6 @@ out_unlock:
 	spin_unlock(&dentry->d_lock);
 	if (old_lease_session)
 		ceph_put_mds_session(old_lease_session);
-	return;
 }
 
 /*
@@ -1177,7 +1173,7 @@ retry_lookup:
 				dn = d_alloc(parent, &dname);
 				dout("d_alloc %p '%.*s' = %p\n", parent,
 				     dname.len, dname.name, dn);
-				if (dn == NULL) {
+				if (!dn) {
 					dput(parent);
 					err = -ENOMEM;
 					goto done;
@@ -1477,7 +1473,6 @@ int ceph_readdir_prepopulate(struct ceph_mds_request *req,
 	struct dentry *dn;
 	struct inode *in;
 	int err = 0, skipped = 0, ret, i;
-	struct inode *snapdir = NULL;
 	struct ceph_mds_request_head *rhead = req->r_request->front.iov_base;
 	u32 frag = le32_to_cpu(rhead->args.readdir.frag);
 	u32 last_hash = 0;
@@ -1510,8 +1505,6 @@ int ceph_readdir_prepopulate(struct ceph_mds_request *req,
 	}
 
 	if (le32_to_cpu(rinfo->head->op) == CEPH_MDS_OP_LSSNAP) {
-		snapdir = ceph_get_snapdir(d_inode(parent));
-		parent = d_find_alias(snapdir);
 		dout("readdir_prepopulate %d items under SNAPDIR dn %p\n",
 		     rinfo->dir_nr, parent);
 	} else {
@@ -1519,15 +1512,18 @@ int ceph_readdir_prepopulate(struct ceph_mds_request *req,
 		     rinfo->dir_nr, parent);
 		if (rinfo->dir_dir)
 			ceph_fill_dirfrag(d_inode(parent), rinfo->dir_dir);
-	}
 
-	if (ceph_frag_is_leftmost(frag) && req->r_readdir_offset == 2 &&
-	    !(rinfo->hash_order && last_hash)) {
-		/* note dir version at start of readdir so we can tell
-		 * if any dentries get dropped */
-		req->r_dir_release_cnt = atomic64_read(&ci->i_release_count);
-		req->r_dir_ordered_cnt = atomic64_read(&ci->i_ordered_count);
-		req->r_readdir_cache_idx = 0;
+		if (ceph_frag_is_leftmost(frag) &&
+		    req->r_readdir_offset == 2 &&
+		    !(rinfo->hash_order && last_hash)) {
+			/* note dir version at start of readdir so we can
+			 * tell if any dentries get dropped */
+			req->r_dir_release_cnt =
+				atomic64_read(&ci->i_release_count);
+			req->r_dir_ordered_cnt =
+				atomic64_read(&ci->i_ordered_count);
+			req->r_readdir_cache_idx = 0;
+		}
 	}
 
 	cache_ctl.index = req->r_readdir_cache_idx;
@@ -1566,7 +1562,7 @@ retry_lookup:
 			dn = d_alloc(parent, &dname);
 			dout("d_alloc %p '%.*s' = %p\n", parent,
 			     dname.len, dname.name, dn);
-			if (dn == NULL) {
+			if (!dn) {
 				dout("d_alloc badness\n");
 				err = -ENOMEM;
 				goto out;
@@ -1650,10 +1646,6 @@ out:
 		req->r_readdir_cache_idx = cache_ctl.index;
 	}
 	ceph_readdir_cache_release(&cache_ctl);
-	if (snapdir) {
-		iput(snapdir);
-		dput(parent);
-	}
 	dout("readdir_prepopulate done\n");
 	return err;
 }
@@ -1841,9 +1833,20 @@ retry:
 	 * possibly truncate them.. so write AND block!
 	 */
 	if (ci->i_wrbuffer_ref_head < ci->i_wrbuffer_ref) {
+		struct ceph_cap_snap *capsnap;
+		to = ci->i_truncate_size;
+		list_for_each_entry(capsnap, &ci->i_cap_snaps, ci_item) {
+			// MDS should have revoked Frw caps
+			WARN_ON_ONCE(capsnap->writing);
+			if (capsnap->dirty_pages && capsnap->size > to)
+				to = capsnap->size;
+		}
+		spin_unlock(&ci->i_ceph_lock);
 		dout("__do_pending_vmtruncate %p flushing snaps first\n",
 		     inode);
-		spin_unlock(&ci->i_ceph_lock);
+
+		truncate_pagecache(inode, to);
+
 		filemap_write_and_wait_range(&inode->i_data, 0,
 					     inode->i_sb->s_maxbytes);
 		goto retry;

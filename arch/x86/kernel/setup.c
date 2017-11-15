@@ -1178,8 +1178,11 @@ void __init setup_arch(char **cmdline_p)
 	 * with the current CR4 value.  This may not be necessary, but
 	 * auditing all the early-boot CR4 manipulation would be needed to
 	 * rule it out.
+	 *
+	 * Mask off features that don't work outside long mode (just
+	 * PCIDE for now).
 	 */
-	mmu_cr4_features = __read_cr4();
+	mmu_cr4_features = __read_cr4() & ~X86_CR4_PCIDE;
 
 	memblock_set_current_limit(get_max_mapped());
 
@@ -1215,6 +1218,8 @@ void __init setup_arch(char **cmdline_p)
 	vsmp_init();
 
 	io_delay_init();
+
+	early_platform_quirks();
 
 	/*
 	 * Parse the ACPI tables for possible boot-time SMP configuration.

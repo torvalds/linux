@@ -112,7 +112,7 @@ struct ceph_mdsmap *ceph_mdsmap_decode(void **p, void *end)
 	u16 mdsmap_ev;
 
 	m = kzalloc(sizeof(*m), GFP_NOFS);
-	if (m == NULL)
+	if (!m)
 		return ERR_PTR(-ENOMEM);
 
 	ceph_decode_need(p, end, 1 + 1, bad);
@@ -138,7 +138,7 @@ struct ceph_mdsmap *ceph_mdsmap_decode(void **p, void *end)
 	m->m_num_mds = m->m_max_mds;
 
 	m->m_info = kcalloc(m->m_num_mds, sizeof(*m->m_info), GFP_NOFS);
-	if (m->m_info == NULL)
+	if (!m->m_info)
 		goto nomem;
 
 	/* pick out active nodes from mds_info (state > 0) */
@@ -232,7 +232,7 @@ struct ceph_mdsmap *ceph_mdsmap_decode(void **p, void *end)
 		if (num_export_targets) {
 			info->export_targets = kcalloc(num_export_targets,
 						       sizeof(u32), GFP_NOFS);
-			if (info->export_targets == NULL)
+			if (!info->export_targets)
 				goto nomem;
 			for (j = 0; j < num_export_targets; j++)
 				info->export_targets[j] =

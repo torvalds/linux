@@ -520,8 +520,8 @@ static int ocfs2_recover_local_quota_file(struct inode *lqinode,
 				mlog_errno(status);
 				goto out_drop_lock;
 			}
-			mutex_lock(&sb_dqopt(sb)->dqio_mutex);
-			spin_lock(&dq_data_lock);
+			down_write(&sb_dqopt(sb)->dqio_sem);
+			spin_lock(&dquot->dq_dqb_lock);
 			/* Add usage from quota entry into quota changes
 			 * of our node. Auxiliary variables are important
 			 * due to signedness */
@@ -529,7 +529,7 @@ static int ocfs2_recover_local_quota_file(struct inode *lqinode,
 			inodechange = le64_to_cpu(dqblk->dqb_inodemod);
 			dquot->dq_dqb.dqb_curspace += spacechange;
 			dquot->dq_dqb.dqb_curinodes += inodechange;
-			spin_unlock(&dq_data_lock);
+			spin_unlock(&dquot->dq_dqb_lock);
 			/* We want to drop reference held by the crashed
 			 * node. Since we have our own reference we know
 			 * global structure actually won't be freed. */
@@ -553,7 +553,7 @@ static int ocfs2_recover_local_quota_file(struct inode *lqinode,
 			unlock_buffer(qbh);
 			ocfs2_journal_dirty(handle, qbh);
 out_commit:
-			mutex_unlock(&sb_dqopt(sb)->dqio_mutex);
+			up_write(&sb_dqopt(sb)->dqio_sem);
 			ocfs2_commit_trans(OCFS2_SB(sb), handle);
 out_drop_lock:
 			ocfs2_unlock_global_qf(oinfo, 1);
@@ -691,9 +691,6 @@ static int ocfs2_local_read_info(struct super_block *sb, int type)
 	struct ocfs2_quota_recovery *rec;
 	int locked = 0;
 
-	/* We don't need the lock and we have to acquire quota file locks
-	 * which will later depend on this lock */
-	mutex_unlock(&sb_dqopt(sb)->dqio_mutex);
 	info->dqi_max_spc_limit = 0x7fffffffffffffffLL;
 	info->dqi_max_ino_limit = 0x7fffffffffffffffLL;
 	oinfo = kmalloc(sizeof(struct ocfs2_mem_dqinfo), GFP_NOFS);
@@ -772,7 +769,6 @@ static int ocfs2_local_read_info(struct super_block *sb, int type)
 		goto out_err;
 	}
 
-	mutex_lock(&sb_dqopt(sb)->dqio_mutex);
 	return 0;
 out_err:
 	if (oinfo) {
@@ -786,7 +782,6 @@ out_err:
 		kfree(oinfo);
 	}
 	brelse(bh);
-	mutex_lock(&sb_dqopt(sb)->dqio_mutex);
 	return -1;
 }
 
@@ -882,12 +877,12 @@ static void olq_set_dquot(struct buffer_head *bh, void *private)
 
 	dqblk->dqb_id = cpu_to_le64(from_kqid(&init_user_ns,
 					      od->dq_dquot.dq_id));
-	spin_lock(&dq_data_lock);
+	spin_lock(&od->dq_dquot.dq_dqb_lock);
 	dqblk->dqb_spacemod = cpu_to_le64(od->dq_dquot.dq_dqb.dqb_curspace -
 					  od->dq_origspace);
 	dqblk->dqb_inodemod = cpu_to_le64(od->dq_dquot.dq_dqb.dqb_curinodes -
 					  od->dq_originodes);
-	spin_unlock(&dq_data_lock);
+	spin_unlock(&od->dq_dquot.dq_dqb_lock);
 	trace_olq_set_dquot(
 		(unsigned long long)le64_to_cpu(dqblk->dqb_spacemod),
 		(unsigned long long)le64_to_cpu(dqblk->dqb_inodemod),

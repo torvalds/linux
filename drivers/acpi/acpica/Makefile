@@ -18,6 +18,7 @@ acpi-y :=		\
 	dsmthdat.o	\
 	dsobject.o	\
 	dsopcode.o	\
+	dspkginit.o	\
 	dsutils.o	\
 	dswexec.o	\
 	dswload.o	\

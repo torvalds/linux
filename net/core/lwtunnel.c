@@ -44,6 +44,8 @@ static const char *lwtunnel_encap_str(enum lwtunnel_encap_types encap_type)
 		return "SEG6";
 	case LWTUNNEL_ENCAP_BPF:
 		return "BPF";
+	case LWTUNNEL_ENCAP_SEG6_LOCAL:
+		return "SEG6LOCAL";
 	case LWTUNNEL_ENCAP_IP6:
 	case LWTUNNEL_ENCAP_IP:
 	case LWTUNNEL_ENCAP_NONE:
@@ -65,7 +67,7 @@ struct lwtunnel_state *lwtunnel_state_alloc(int encap_len)
 
 	return lws;
 }
-EXPORT_SYMBOL(lwtunnel_state_alloc);
+EXPORT_SYMBOL_GPL(lwtunnel_state_alloc);
 
 static const struct lwtunnel_encap_ops __rcu *
 		lwtun_encaps[LWTUNNEL_ENCAP_MAX + 1] __read_mostly;
@@ -80,7 +82,7 @@ int lwtunnel_encap_add_ops(const struct lwtunnel_encap_ops *ops,
 			&lwtun_encaps[num],
 			NULL, ops) ? 0 : -1;
 }
-EXPORT_SYMBOL(lwtunnel_encap_add_ops);
+EXPORT_SYMBOL_GPL(lwtunnel_encap_add_ops);
 
 int lwtunnel_encap_del_ops(const struct lwtunnel_encap_ops *ops,
 			   unsigned int encap_type)
@@ -99,7 +101,7 @@ int lwtunnel_encap_del_ops(const struct lwtunnel_encap_ops *ops,
 
 	return ret;
 }
-EXPORT_SYMBOL(lwtunnel_encap_del_ops);
+EXPORT_SYMBOL_GPL(lwtunnel_encap_del_ops);
 
 int lwtunnel_build_state(u16 encap_type,
 			 struct nlattr *encap, unsigned int family,
@@ -138,7 +140,7 @@ int lwtunnel_build_state(u16 encap_type,
 
 	return ret;
 }
-EXPORT_SYMBOL(lwtunnel_build_state);
+EXPORT_SYMBOL_GPL(lwtunnel_build_state);
 
 int lwtunnel_valid_encap_type(u16 encap_type, struct netlink_ext_ack *extack)
 {
@@ -175,7 +177,7 @@ int lwtunnel_valid_encap_type(u16 encap_type, struct netlink_ext_ack *extack)
 
 	return ret;
 }
-EXPORT_SYMBOL(lwtunnel_valid_encap_type);
+EXPORT_SYMBOL_GPL(lwtunnel_valid_encap_type);
 
 int lwtunnel_valid_encap_type_attr(struct nlattr *attr, int remaining,
 				   struct netlink_ext_ack *extack)
@@ -205,7 +207,7 @@ int lwtunnel_valid_encap_type_attr(struct nlattr *attr, int remaining,
 
 	return 0;
 }
-EXPORT_SYMBOL(lwtunnel_valid_encap_type_attr);
+EXPORT_SYMBOL_GPL(lwtunnel_valid_encap_type_attr);
 
 void lwtstate_free(struct lwtunnel_state *lws)
 {
@@ -219,7 +221,7 @@ void lwtstate_free(struct lwtunnel_state *lws)
 	}
 	module_put(ops->owner);
 }
-EXPORT_SYMBOL(lwtstate_free);
+EXPORT_SYMBOL_GPL(lwtstate_free);
 
 int lwtunnel_fill_encap(struct sk_buff *skb, struct lwtunnel_state *lwtstate)
 {
@@ -259,7 +261,7 @@ nla_put_failure:
 
 	return (ret == -EOPNOTSUPP ? 0 : ret);
 }
-EXPORT_SYMBOL(lwtunnel_fill_encap);
+EXPORT_SYMBOL_GPL(lwtunnel_fill_encap);
 
 int lwtunnel_get_encap_size(struct lwtunnel_state *lwtstate)
 {
@@ -281,7 +283,7 @@ int lwtunnel_get_encap_size(struct lwtunnel_state *lwtstate)
 
 	return ret;
 }
-EXPORT_SYMBOL(lwtunnel_get_encap_size);
+EXPORT_SYMBOL_GPL(lwtunnel_get_encap_size);
 
 int lwtunnel_cmp_encap(struct lwtunnel_state *a, struct lwtunnel_state *b)
 {
@@ -309,7 +311,7 @@ int lwtunnel_cmp_encap(struct lwtunnel_state *a, struct lwtunnel_state *b)
 
 	return ret;
 }
-EXPORT_SYMBOL(lwtunnel_cmp_encap);
+EXPORT_SYMBOL_GPL(lwtunnel_cmp_encap);
 
 int lwtunnel_output(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
@@ -343,7 +345,7 @@ drop:
 
 	return ret;
 }
-EXPORT_SYMBOL(lwtunnel_output);
+EXPORT_SYMBOL_GPL(lwtunnel_output);
 
 int lwtunnel_xmit(struct sk_buff *skb)
 {
@@ -378,7 +380,7 @@ drop:
 
 	return ret;
 }
-EXPORT_SYMBOL(lwtunnel_xmit);
+EXPORT_SYMBOL_GPL(lwtunnel_xmit);
 
 int lwtunnel_input(struct sk_buff *skb)
 {
@@ -412,4 +414,4 @@ drop:
 
 	return ret;
 }
-EXPORT_SYMBOL(lwtunnel_input);
+EXPORT_SYMBOL_GPL(lwtunnel_input);

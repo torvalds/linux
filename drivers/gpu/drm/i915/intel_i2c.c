@@ -649,7 +649,7 @@ static void gmbus_unlock_bus(struct i2c_adapter *adapter,
 	mutex_unlock(&dev_priv->gmbus_mutex);
 }
 
-const struct i2c_lock_operations gmbus_lock_ops = {
+static const struct i2c_lock_operations gmbus_lock_ops = {
 	.lock_bus =    gmbus_lock_bus,
 	.trylock_bus = gmbus_trylock_bus,
 	.unlock_bus =  gmbus_unlock_bus,

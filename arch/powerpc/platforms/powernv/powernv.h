@@ -7,6 +7,8 @@ extern void pnv_smp_init(void);
 static inline void pnv_smp_init(void) { }
 #endif
 
+extern void pnv_platform_error_reboot(struct pt_regs *regs, const char *msg) __noreturn;
+
 struct pci_dev;
 
 #ifdef CONFIG_PCI

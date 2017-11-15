@@ -1173,6 +1173,10 @@ void set_task_cpu(struct task_struct *p, unsigned int new_cpu)
 	WARN_ON_ONCE(debug_locks && !(lockdep_is_held(&p->pi_lock) ||
 				      lockdep_is_held(&task_rq(p)->lock)));
 #endif
+	/*
+	 * Clearly, migrating tasks to offline CPUs is a fairly daft thing.
+	 */
+	WARN_ON_ONCE(!cpu_online(new_cpu));
 #endif
 
 	trace_sched_migrate_task(p, new_cpu);
@@ -5162,6 +5166,28 @@ void sched_show_task(struct task_struct *p)
 	put_task_stack(p);
 }
 
+static inline bool
+state_filter_match(unsigned long state_filter, struct task_struct *p)
+{
+	/* no filter, everything matches */
+	if (!state_filter)
+		return true;
+
+	/* filter, but doesn't match */
+	if (!(p->state & state_filter))
+		return false;
+
+	/*
+	 * When looking for TASK_UNINTERRUPTIBLE skip TASK_IDLE (allows
+	 * TASK_KILLABLE).
+	 */
+	if (state_filter == TASK_UNINTERRUPTIBLE && p->state == TASK_IDLE)
+		return false;
+
+	return true;
+}
+
+
 void show_state_filter(unsigned long state_filter)
 {
 	struct task_struct *g, *p;
@@ -5184,7 +5210,7 @@ void show_state_filter(unsigned long state_filter)
 		 */
 		touch_nmi_watchdog();
 		touch_all_softlockup_watchdogs();
-		if (!state_filter || (p->state & state_filter))
+		if (state_filter_match(state_filter, p))
 			sched_show_task(p);
 	}
 
@@ -5556,16 +5582,15 @@ static void cpuset_cpu_active(void)
 		 * operation in the resume sequence, just build a single sched
 		 * domain, ignoring cpusets.
 		 */
-		num_cpus_frozen--;
-		if (likely(num_cpus_frozen)) {
-			partition_sched_domains(1, NULL, NULL);
+		partition_sched_domains(1, NULL, NULL);
+		if (--num_cpus_frozen)
 			return;
-		}
 		/*
 		 * This is the last CPU online operation. So fall through and
 		 * restore the original sched domains by considering the
 		 * cpuset configurations.
 		 */
+		cpuset_force_rebuild();
 	}
 	cpuset_update_active_cpus();
 }

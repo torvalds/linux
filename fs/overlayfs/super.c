@@ -70,19 +70,19 @@ static int ovl_check_append_only(struct inode *inode, int flag)
 
 static struct dentry *ovl_d_real(struct dentry *dentry,
 				 const struct inode *inode,
-				 unsigned int open_flags)
+				 unsigned int open_flags, unsigned int flags)
 {
 	struct dentry *real;
 	int err;
+
+	if (flags & D_REAL_UPPER)
+		return ovl_dentry_upper(dentry);
 
 	if (!d_is_reg(dentry)) {
 		if (!inode || inode == d_inode(dentry))
 			return dentry;
 		goto bug;
 	}
-
-	if (d_is_negative(dentry))
-		return dentry;
 
 	if (open_flags) {
 		err = ovl_open_maybe_copy_up(dentry, open_flags);
@@ -105,7 +105,7 @@ static struct dentry *ovl_d_real(struct dentry *dentry,
 		goto bug;
 
 	/* Handle recursion */
-	real = d_real(real, inode, open_flags);
+	real = d_real(real, inode, open_flags, 0);
 
 	if (!inode || inode == d_inode(real))
 		return real;
@@ -198,6 +198,7 @@ static void ovl_destroy_inode(struct inode *inode)
 
 	dput(oi->__upperdentry);
 	kfree(oi->redirect);
+	ovl_dir_cache_free(inode);
 	mutex_destroy(&oi->lock);
 
 	call_rcu(&inode->i_rcu, ovl_i_callback);
@@ -210,9 +211,10 @@ static void ovl_put_super(struct super_block *sb)
 
 	dput(ufs->indexdir);
 	dput(ufs->workdir);
-	ovl_inuse_unlock(ufs->workbasedir);
+	if (ufs->workdir_locked)
+		ovl_inuse_unlock(ufs->workbasedir);
 	dput(ufs->workbasedir);
-	if (ufs->upper_mnt)
+	if (ufs->upper_mnt && ufs->upperdir_locked)
 		ovl_inuse_unlock(ufs->upper_mnt->mnt_root);
 	mntput(ufs->upper_mnt);
 	for (i = 0; i < ufs->numlower; i++)
@@ -869,7 +871,7 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 			goto out_free_config;
 
 		/* Upper fs should not be r/o */
-		if (upperpath.mnt->mnt_sb->s_flags & MS_RDONLY) {
+		if (sb_rdonly(upperpath.mnt->mnt_sb)) {
 			pr_err("overlayfs: upper fs is r/o, try multi-lower layers mount\n");
 			err = -EINVAL;
 			goto out_put_upperpath;
@@ -880,9 +882,13 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 			goto out_put_upperpath;
 
 		err = -EBUSY;
-		if (!ovl_inuse_trylock(upperpath.dentry)) {
-			pr_err("overlayfs: upperdir is in-use by another mount\n");
+		if (ovl_inuse_trylock(upperpath.dentry)) {
+			ufs->upperdir_locked = true;
+		} else if (ufs->config.index) {
+			pr_err("overlayfs: upperdir is in-use by another mount, mount with '-o index=off' to override exclusive upperdir protection.\n");
 			goto out_put_upperpath;
+		} else {
+			pr_warn("overlayfs: upperdir is in-use by another mount, accessing files from both mounts will result in undefined behavior.\n");
 		}
 
 		err = ovl_mount_dir(ufs->config.workdir, &workpath);
@@ -900,9 +906,13 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 		}
 
 		err = -EBUSY;
-		if (!ovl_inuse_trylock(workpath.dentry)) {
-			pr_err("overlayfs: workdir is in-use by another mount\n");
+		if (ovl_inuse_trylock(workpath.dentry)) {
+			ufs->workdir_locked = true;
+		} else if (ufs->config.index) {
+			pr_err("overlayfs: workdir is in-use by another mount, mount with '-o index=off' to override exclusive workdir protection.\n");
 			goto out_put_workpath;
+		} else {
+			pr_warn("overlayfs: workdir is in-use by another mount, accessing files from both mounts will result in undefined behavior.\n");
 		}
 
 		ufs->workbasedir = workpath.dentry;
@@ -1155,11 +1165,13 @@ out_put_lowerpath:
 out_free_lowertmp:
 	kfree(lowertmp);
 out_unlock_workdentry:
-	ovl_inuse_unlock(workpath.dentry);
+	if (ufs->workdir_locked)
+		ovl_inuse_unlock(workpath.dentry);
 out_put_workpath:
 	path_put(&workpath);
 out_unlock_upperdentry:
-	ovl_inuse_unlock(upperpath.dentry);
+	if (ufs->upperdir_locked)
+		ovl_inuse_unlock(upperpath.dentry);
 out_put_upperpath:
 	path_put(&upperpath);
 out_free_config:

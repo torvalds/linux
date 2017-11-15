@@ -3473,7 +3473,7 @@ static struct snd_soc_dai_driver rt5645_dai[] = {
 	},
 };
 
-static struct snd_soc_codec_driver soc_codec_dev_rt5645 = {
+static const struct snd_soc_codec_driver soc_codec_dev_rt5645 = {
 	.probe = rt5645_probe,
 	.remove = rt5645_remove,
 	.suspend = rt5645_suspend,
@@ -3559,7 +3559,7 @@ static const struct acpi_device_id rt5645_acpi_match[] = {
 MODULE_DEVICE_TABLE(acpi, rt5645_acpi_match);
 #endif
 
-static struct rt5645_platform_data general_platform_data = {
+static const struct rt5645_platform_data general_platform_data = {
 	.dmic1_data_pin = RT5645_DMIC1_DISABLE,
 	.dmic2_data_pin = RT5645_DMIC_DATA_IN2P,
 	.jd_mode = 3,
@@ -3593,14 +3593,14 @@ static const struct dmi_system_id dmi_platform_intel_braswell[] = {
 	{ }
 };
 
-static struct rt5645_platform_data buddy_platform_data = {
+static const struct rt5645_platform_data buddy_platform_data = {
 	.dmic1_data_pin = RT5645_DMIC_DATA_GPIO5,
 	.dmic2_data_pin = RT5645_DMIC_DATA_IN2P,
 	.jd_mode = 3,
 	.level_trigger_irq = true,
 };
 
-static struct dmi_system_id dmi_platform_intel_broadwell[] = {
+static const struct dmi_system_id dmi_platform_intel_broadwell[] = {
 	{
 		.ident = "Chrome Buddy",
 		.matches = {
@@ -3610,7 +3610,7 @@ static struct dmi_system_id dmi_platform_intel_broadwell[] = {
 	{ }
 };
 
-static struct rt5645_platform_data gpd_win_platform_data = {
+static const struct rt5645_platform_data gpd_win_platform_data = {
 	.jd_mode = 3,
 	.inv_jd1_1 = true,
 };
@@ -3635,6 +3635,39 @@ static const struct dmi_system_id dmi_platform_gpd_win[] = {
 		},
 	},
 	{}
+};
+
+static struct rt5645_platform_data general_platform_data2 = {
+	.dmic1_data_pin = RT5645_DMIC_DATA_IN2N,
+	.dmic2_data_pin = RT5645_DMIC2_DISABLE,
+	.jd_mode = 3,
+	.inv_jd1_1 = true,
+};
+
+static struct dmi_system_id dmi_platform_asus_t100ha[] = {
+	{
+		.ident = "ASUS T100HAN",
+		.matches = {
+			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "T100HAN"),
+		},
+	},
+	{ }
+};
+
+static struct rt5645_platform_data minix_z83_4_platform_data = {
+	.jd_mode = 3,
+};
+
+static struct dmi_system_id dmi_platform_minix_z83_4[] = {
+	{
+		.ident = "MINIX Z83-4",
+		.matches = {
+			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "MINIX"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Z83-4"),
+		},
+	},
+	{ }
 };
 
 static bool rt5645_check_dp(struct device *dev)
@@ -3689,6 +3722,10 @@ static int rt5645_i2c_probe(struct i2c_client *i2c,
 		rt5645->pdata = general_platform_data;
 	else if (dmi_check_system(dmi_platform_gpd_win))
 		rt5645->pdata = gpd_win_platform_data;
+	else if (dmi_check_system(dmi_platform_asus_t100ha))
+		rt5645->pdata = general_platform_data2;
+	else if (dmi_check_system(dmi_platform_minix_z83_4))
+		rt5645->pdata = minix_z83_4_platform_data;
 
 	if (quirk != -1) {
 		rt5645->pdata.in2_diff = QUIRK_IN2_DIFF(quirk);

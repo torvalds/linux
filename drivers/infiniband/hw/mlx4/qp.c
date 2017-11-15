@@ -150,8 +150,8 @@ static int is_sqp(struct mlx4_ib_dev *dev, struct mlx4_ib_qp *qp)
 	/* VF or PF -- proxy SQP */
 	if (mlx4_is_mfunc(dev->dev)) {
 		for (i = 0; i < dev->dev->caps.num_ports; i++) {
-			if (qp->mqp.qpn == dev->dev->caps.qp0_proxy[i] ||
-			    qp->mqp.qpn == dev->dev->caps.qp1_proxy[i]) {
+			if (qp->mqp.qpn == dev->dev->caps.spec_qps[i].qp0_proxy ||
+			    qp->mqp.qpn == dev->dev->caps.spec_qps[i].qp1_proxy) {
 				proxy_sqp = 1;
 				break;
 			}
@@ -178,7 +178,7 @@ static int is_qp0(struct mlx4_ib_dev *dev, struct mlx4_ib_qp *qp)
 	/* VF or PF -- proxy QP0 */
 	if (mlx4_is_mfunc(dev->dev)) {
 		for (i = 0; i < dev->dev->caps.num_ports; i++) {
-			if (qp->mqp.qpn == dev->dev->caps.qp0_proxy[i]) {
+			if (qp->mqp.qpn == dev->dev->caps.spec_qps[i].qp0_proxy) {
 				proxy_qp0 = 1;
 				break;
 			}
@@ -632,8 +632,8 @@ static int qp0_enabled_vf(struct mlx4_dev *dev, int qpn)
 {
 	int i;
 	for (i = 0; i < dev->caps.num_ports; i++) {
-		if (qpn == dev->caps.qp0_proxy[i])
-			return !!dev->caps.qp0_qkey[i];
+		if (qpn == dev->caps.spec_qps[i].qp0_proxy)
+			return !!dev->caps.spec_qps[i].qp0_qkey;
 	}
 	return 0;
 }
@@ -1521,9 +1521,9 @@ static u32 get_sqp_num(struct mlx4_ib_dev *dev, struct ib_qp_init_attr *attr)
 	}
 	/* PF or VF -- creating proxies */
 	if (attr->qp_type == IB_QPT_SMI)
-		return dev->dev->caps.qp0_proxy[attr->port_num - 1];
+		return dev->dev->caps.spec_qps[attr->port_num - 1].qp0_proxy;
 	else
-		return dev->dev->caps.qp1_proxy[attr->port_num - 1];
+		return dev->dev->caps.spec_qps[attr->port_num - 1].qp1_proxy;
 }
 
 static struct ib_qp *_mlx4_ib_create_qp(struct ib_pd *pd,
@@ -2880,9 +2880,9 @@ static int vf_get_qp0_qkey(struct mlx4_dev *dev, int qpn, u32 *qkey)
 {
 	int i;
 	for (i = 0; i < dev->caps.num_ports; i++) {
-		if (qpn == dev->caps.qp0_proxy[i] ||
-		    qpn == dev->caps.qp0_tunnel[i]) {
-			*qkey = dev->caps.qp0_qkey[i];
+		if (qpn == dev->caps.spec_qps[i].qp0_proxy ||
+		    qpn == dev->caps.spec_qps[i].qp0_tunnel) {
+			*qkey = dev->caps.spec_qps[i].qp0_qkey;
 			return 0;
 		}
 	}
@@ -2943,7 +2943,7 @@ static int build_sriov_qp0_header(struct mlx4_ib_sqp *sqp,
 		sqp->ud_header.bth.destination_qpn = cpu_to_be32(wr->remote_qpn);
 	else
 		sqp->ud_header.bth.destination_qpn =
-			cpu_to_be32(mdev->dev->caps.qp0_tunnel[sqp->qp.port - 1]);
+			cpu_to_be32(mdev->dev->caps.spec_qps[sqp->qp.port - 1].qp0_tunnel);
 
 	sqp->ud_header.bth.psn = cpu_to_be32((sqp->send_psn++) & ((1 << 24) - 1));
 	if (mlx4_is_master(mdev->dev)) {
@@ -3403,9 +3403,9 @@ static void set_tunnel_datagram_seg(struct mlx4_ib_dev *dev,
 
 	memcpy(dseg->av, &sqp_av, sizeof (struct mlx4_av));
 	if (qpt == MLX4_IB_QPT_PROXY_GSI)
-		dseg->dqpn = cpu_to_be32(dev->dev->caps.qp1_tunnel[port - 1]);
+		dseg->dqpn = cpu_to_be32(dev->dev->caps.spec_qps[port - 1].qp1_tunnel);
 	else
-		dseg->dqpn = cpu_to_be32(dev->dev->caps.qp0_tunnel[port - 1]);
+		dseg->dqpn = cpu_to_be32(dev->dev->caps.spec_qps[port - 1].qp0_tunnel);
 	/* Use QKEY from the QP context, which is set by master */
 	dseg->qkey = cpu_to_be32(IB_QP_SET_QKEY);
 }

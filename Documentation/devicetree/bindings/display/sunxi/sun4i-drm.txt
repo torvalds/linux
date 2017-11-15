@@ -278,7 +278,6 @@ hdmi: hdmi@01c16000 {
 	       <&dma SUN4I_DMA_NORMAL 16>,
 	       <&dma SUN4I_DMA_DEDICATED 24>;
 	dma-names = "ddc-tx", "ddc-rx", "audio-tx";
-	status = "disabled";
 
 	ports {
 		#address-cells = <1>;

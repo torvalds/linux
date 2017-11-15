@@ -991,6 +991,7 @@ static int tcp_transmit_skb(struct sock *sk, struct sk_buff *skb, int clone_it,
 	struct tcp_skb_cb *tcb;
 	struct tcp_out_options opts;
 	unsigned int tcp_options_size, tcp_header_size;
+	struct sk_buff *oskb = NULL;
 	struct tcp_md5sig_key *md5;
 	struct tcphdr *th;
 	int err;
@@ -998,12 +999,10 @@ static int tcp_transmit_skb(struct sock *sk, struct sk_buff *skb, int clone_it,
 	BUG_ON(!skb || !tcp_skb_pcount(skb));
 	tp = tcp_sk(sk);
 
-	skb->skb_mstamp = tp->tcp_mstamp;
 	if (clone_it) {
 		TCP_SKB_CB(skb)->tx.in_flight = TCP_SKB_CB(skb)->end_seq
 			- tp->snd_una;
-		tcp_rate_skb_sent(sk, skb);
-
+		oskb = skb;
 		if (unlikely(skb_cloned(skb)))
 			skb = pskb_copy(skb, gfp_mask);
 		else
@@ -1011,6 +1010,7 @@ static int tcp_transmit_skb(struct sock *sk, struct sk_buff *skb, int clone_it,
 		if (unlikely(!skb))
 			return -ENOBUFS;
 	}
+	skb->skb_mstamp = tp->tcp_mstamp;
 
 	inet = inet_sk(sk);
 	tcb = TCP_SKB_CB(skb);
@@ -1122,12 +1122,15 @@ static int tcp_transmit_skb(struct sock *sk, struct sk_buff *skb, int clone_it,
 
 	err = icsk->icsk_af_ops->queue_xmit(sk, skb, &inet->cork.fl);
 
-	if (likely(err <= 0))
-		return err;
-
-	tcp_enter_cwr(sk);
-
-	return net_xmit_eval(err);
+	if (unlikely(err > 0)) {
+		tcp_enter_cwr(sk);
+		err = net_xmit_eval(err);
+	}
+	if (!err && oskb) {
+		oskb->skb_mstamp = tp->tcp_mstamp;
+		tcp_rate_skb_sent(sk, oskb);
+	}
+	return err;
 }
 
 /* This routine just queues the buffer for sending.
@@ -1803,40 +1806,6 @@ static bool tcp_snd_wnd_test(const struct tcp_sock *tp,
 	return !after(end_seq, tcp_wnd_end(tp));
 }
 
-/* This checks if the data bearing packet SKB (usually tcp_send_head(sk))
- * should be put on the wire right now.  If so, it returns the number of
- * packets allowed by the congestion window.
- */
-static unsigned int tcp_snd_test(const struct sock *sk, struct sk_buff *skb,
-				 unsigned int cur_mss, int nonagle)
-{
-	const struct tcp_sock *tp = tcp_sk(sk);
-	unsigned int cwnd_quota;
-
-	tcp_init_tso_segs(skb, cur_mss);
-
-	if (!tcp_nagle_test(tp, skb, cur_mss, nonagle))
-		return 0;
-
-	cwnd_quota = tcp_cwnd_test(tp, skb);
-	if (cwnd_quota && !tcp_snd_wnd_test(tp, skb, cur_mss))
-		cwnd_quota = 0;
-
-	return cwnd_quota;
-}
-
-/* Test if sending is allowed right now. */
-bool tcp_may_send_now(struct sock *sk)
-{
-	const struct tcp_sock *tp = tcp_sk(sk);
-	struct sk_buff *skb = tcp_send_head(sk);
-
-	return skb &&
-		tcp_snd_test(sk, skb, tcp_current_mss(sk),
-			     (tcp_skb_is_last(sk, skb) ?
-			      tp->nonagle : TCP_NAGLE_PUSH));
-}
-
 /* Trim TSO SKB to LEN bytes, put the remaining data into a new packet
  * which is put after SKB on the list.  It is very much like
  * tcp_fragment() except that it may make several kinds of assumptions
@@ -2377,7 +2346,6 @@ bool tcp_schedule_loss_probe(struct sock *sk)
 {
 	struct inet_connection_sock *icsk = inet_csk(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
-	u32 rtt = usecs_to_jiffies(tp->srtt_us >> 3);
 	u32 timeout, rto_delta_us;
 
 	/* Don't do any loss probe on a Fast Open connection before 3WHS
@@ -2398,15 +2366,19 @@ bool tcp_schedule_loss_probe(struct sock *sk)
 	     tcp_send_head(sk))
 		return false;
 
-	/* Probe timeout is at least 1.5*rtt + TCP_DELACK_MAX to account
+	/* Probe timeout is 2*rtt. Add minimum RTO to account
 	 * for delayed ack when there's one outstanding packet. If no RTT
 	 * sample is available then probe after TCP_TIMEOUT_INIT.
 	 */
-	timeout = rtt << 1 ? : TCP_TIMEOUT_INIT;
-	if (tp->packets_out == 1)
-		timeout = max_t(u32, timeout,
-				(rtt + (rtt >> 1) + TCP_DELACK_MAX));
-	timeout = max_t(u32, timeout, msecs_to_jiffies(10));
+	if (tp->srtt_us) {
+		timeout = usecs_to_jiffies(tp->srtt_us >> 2);
+		if (tp->packets_out == 1)
+			timeout += TCP_RTO_MIN;
+		else
+			timeout += TCP_TIMEOUT_MIN;
+	} else {
+		timeout = TCP_TIMEOUT_INIT;
+	}
 
 	/* If the RTO formula yields an earlier time, then use that time. */
 	rto_delta_us = tcp_rto_delta_us(sk);  /* How far in future is RTO? */
@@ -2866,10 +2838,11 @@ int __tcp_retransmit_skb(struct sock *sk, struct sk_buff *skb, int segs)
 		     skb_headroom(skb) >= 0xFFFF)) {
 		struct sk_buff *nskb;
 
-		skb->skb_mstamp = tp->tcp_mstamp;
 		nskb = __pskb_copy(skb, MAX_TCP_HEADER, GFP_ATOMIC);
 		err = nskb ? tcp_transmit_skb(sk, nskb, 0, GFP_ATOMIC) :
 			     -ENOBUFS;
+		if (!err)
+			skb->skb_mstamp = tp->tcp_mstamp;
 	} else {
 		err = tcp_transmit_skb(sk, skb, 1, GFP_ATOMIC);
 	}
@@ -3416,6 +3389,10 @@ static int tcp_send_syn_data(struct sock *sk, struct sk_buff *syn)
 		goto done;
 	}
 
+	/* data was not sent, this is our new send_head */
+	sk->sk_send_head = syn_data;
+	tp->packets_out -= tcp_skb_pcount(syn_data);
+
 fallback:
 	/* Send a regular SYN with Fast Open cookie request option */
 	if (fo->cookie.len > 0)
@@ -3468,6 +3445,11 @@ int tcp_connect(struct sock *sk)
 	 */
 	tp->snd_nxt = tp->write_seq;
 	tp->pushed_seq = tp->write_seq;
+	buff = tcp_send_head(sk);
+	if (unlikely(buff)) {
+		tp->snd_nxt	= TCP_SKB_CB(buff)->seq;
+		tp->pushed_seq	= TCP_SKB_CB(buff)->seq;
+	}
 	TCP_INC_STATS(sock_net(sk), TCP_MIB_ACTIVEOPENS);
 
 	/* Timer for repeating the SYN until an answer. */

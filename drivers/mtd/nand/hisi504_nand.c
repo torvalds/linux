@@ -26,7 +26,7 @@
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
-#include <linux/mtd/nand.h>
+#include <linux/mtd/rawnand.h>
 #include <linux/dma-mapping.h>
 #include <linux/platform_device.h>
 #include <linux/mtd/partitions.h>

@@ -170,6 +170,16 @@ int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 		     unsigned irq_type)
 {
 	int r;
+	int sched_hw_submission = amdgpu_sched_hw_submission;
+
+	/* Set the hw submission limit higher for KIQ because
+	 * it's used for a number of gfx/compute tasks by both
+	 * KFD and KGD which may have outstanding fences and
+	 * it doesn't really use the gpu scheduler anyway;
+	 * KIQ tasks get submitted directly to the ring.
+	 */
+	if (ring->funcs->type == AMDGPU_RING_TYPE_KIQ)
+		sched_hw_submission = max(sched_hw_submission, 256);
 
 	if (ring->adev == NULL) {
 		if (adev->num_rings >= AMDGPU_MAX_RINGS)
@@ -178,8 +188,7 @@ int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 		ring->adev = adev;
 		ring->idx = adev->num_rings++;
 		adev->rings[ring->idx] = ring;
-		r = amdgpu_fence_driver_init_ring(ring,
-			amdgpu_sched_hw_submission);
+		r = amdgpu_fence_driver_init_ring(ring, sched_hw_submission);
 		if (r)
 			return r;
 	}
@@ -218,8 +227,7 @@ int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 		return r;
 	}
 
-	ring->ring_size = roundup_pow_of_two(max_dw * 4 *
-					     amdgpu_sched_hw_submission);
+	ring->ring_size = roundup_pow_of_two(max_dw * 4 * sched_hw_submission);
 
 	ring->buf_mask = (ring->ring_size / 4) - 1;
 	ring->ptr_mask = ring->funcs->support_64bit_ptrs ?

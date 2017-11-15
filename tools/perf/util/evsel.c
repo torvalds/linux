@@ -271,12 +271,17 @@ struct perf_evsel *perf_evsel__new_idx(struct perf_event_attr *attr, int idx)
 	return evsel;
 }
 
+static bool perf_event_can_profile_kernel(void)
+{
+	return geteuid() == 0 || perf_event_paranoid() == -1;
+}
+
 struct perf_evsel *perf_evsel__new_cycles(bool precise)
 {
 	struct perf_event_attr attr = {
 		.type	= PERF_TYPE_HARDWARE,
 		.config	= PERF_COUNT_HW_CPU_CYCLES,
-		.exclude_kernel	= geteuid() != 0,
+		.exclude_kernel	= !perf_event_can_profile_kernel(),
 	};
 	struct perf_evsel *evsel;
 
@@ -955,6 +960,9 @@ void perf_evsel__config(struct perf_evsel *evsel, struct record_opts *opts,
 	if (opts->sample_address)
 		perf_evsel__set_sample_bit(evsel, DATA_SRC);
 
+	if (opts->sample_phys_addr)
+		perf_evsel__set_sample_bit(evsel, PHYS_ADDR);
+
 	if (opts->no_buffering) {
 		attr->watermark = 0;
 		attr->wakeup_events = 1;
@@ -1464,7 +1472,7 @@ static void __p_sample_type(char *buf, size_t size, u64 value)
 		bit_name(PERIOD), bit_name(STREAM_ID), bit_name(RAW),
 		bit_name(BRANCH_STACK), bit_name(REGS_USER), bit_name(STACK_USER),
 		bit_name(IDENTIFIER), bit_name(REGS_INTR), bit_name(DATA_SRC),
-		bit_name(WEIGHT),
+		bit_name(WEIGHT), bit_name(PHYS_ADDR),
 		{ .name = NULL, }
 	};
 #undef bit_name
@@ -2206,6 +2214,12 @@ int perf_evsel__parse_sample(struct perf_evsel *evsel, union perf_event *event,
 		}
 	}
 
+	data->phys_addr = 0;
+	if (type & PERF_SAMPLE_PHYS_ADDR) {
+		data->phys_addr = *array;
+		array++;
+	}
+
 	return 0;
 }
 
@@ -2310,6 +2324,9 @@ size_t perf_event__sample_event_size(const struct perf_sample *sample, u64 type,
 			result += sizeof(u64);
 		}
 	}
+
+	if (type & PERF_SAMPLE_PHYS_ADDR)
+		result += sizeof(u64);
 
 	return result;
 }
@@ -2498,6 +2515,11 @@ int perf_event__synthesize_sample(union perf_event *event, u64 type,
 		} else {
 			*array++ = 0;
 		}
+	}
+
+	if (type & PERF_SAMPLE_PHYS_ADDR) {
+		*array = sample->phys_addr;
+		array++;
 	}
 
 	return 0;

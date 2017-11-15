@@ -2764,6 +2764,15 @@
 			If the dependencies are under your control, you can
 			turn on cpu0_hotplug.
 
+	nps_mtm_hs_ctr= [KNL,ARC]
+			This parameter sets the maximum duration, in
+			cycles, each HW thread of the CTOP can run
+			without interruptions, before HW switches it.
+			The actual maximum duration is 16 times this
+			parameter's value.
+			Format: integer between 1 and 255
+			Default: 255
+
 	nptcg=		[IA-64] Override max number of concurrent global TLB
 			purges which is reported from either PAL_VM_SUMMARY or
 			SAL PALO.
@@ -2783,7 +2792,7 @@
 			Allowed values are enable and disable
 
 	numa_zonelist_order= [KNL, BOOT] Select zonelist order for NUMA.
-			one of ['zone', 'node', 'default'] can be specified
+			'node', 'default' can be specified
 			This can be set from sysctl after boot.
 			See Documentation/sysctl/vm.txt for details.
 

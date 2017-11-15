@@ -667,7 +667,7 @@ static int mlxsw_emad_reg_access(struct mlxsw_core *mlxsw_core,
 	int err;
 
 	dev_dbg(mlxsw_core->bus_info->dev, "EMAD reg access (tid=%llx,reg_id=%x(%s),type=%s)\n",
-		trans->tid, reg->id, mlxsw_reg_id_str(reg->id),
+		tid, reg->id, mlxsw_reg_id_str(reg->id),
 		mlxsw_core_reg_access_type_str(type));
 
 	skb = mlxsw_emad_alloc(mlxsw_core, reg->len);

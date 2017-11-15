@@ -1527,9 +1527,6 @@ static void nfit_test1_setup(struct nfit_test *t)
 	set_bit(ND_CMD_ARS_START, &acpi_desc->bus_cmd_force_en);
 	set_bit(ND_CMD_ARS_STATUS, &acpi_desc->bus_cmd_force_en);
 	set_bit(ND_CMD_CLEAR_ERROR, &acpi_desc->bus_cmd_force_en);
-	set_bit(ND_CMD_GET_CONFIG_SIZE, &acpi_desc->dimm_cmd_force_en);
-	set_bit(ND_CMD_GET_CONFIG_DATA, &acpi_desc->dimm_cmd_force_en);
-	set_bit(ND_CMD_SET_CONFIG_DATA, &acpi_desc->dimm_cmd_force_en);
 }
 
 static int nfit_test_blk_do_io(struct nd_blk_region *ndbr, resource_size_t dpa,
@@ -1546,8 +1543,8 @@ static int nfit_test_blk_do_io(struct nd_blk_region *ndbr, resource_size_t dpa,
 	else {
 		memcpy(iobuf, mmio->addr.base + dpa, len);
 
-		/* give us some some coverage of the mmio_flush_range() API */
-		mmio_flush_range(mmio->addr.base + dpa, len);
+		/* give us some some coverage of the arch_invalidate_pmem() API */
+		arch_invalidate_pmem(mmio->addr.base + dpa, len);
 	}
 	nd_region_release_lane(nd_region, lane);
 

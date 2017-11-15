@@ -77,8 +77,13 @@ void arch_cpu_idle(void)
 			: "=&r" (pstate)
 			: "i" (PSTATE_IE));
 
-		if (!need_resched() && !cpu_is_offline(smp_processor_id()))
+		if (!need_resched() && !cpu_is_offline(smp_processor_id())) {
 			sun4v_cpu_yield();
+			/* If resumed by cpu_poke then we need to explicitly
+			 * call scheduler_ipi().
+			 */
+			scheduler_poke();
+		}
 
 		/* Re-enable interrupts. */
 		__asm__ __volatile__(

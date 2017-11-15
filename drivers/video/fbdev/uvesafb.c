@@ -1666,7 +1666,7 @@ static struct attribute *uvesafb_dev_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group uvesafb_dev_attgrp = {
+static const struct attribute_group uvesafb_dev_attgrp = {
 	.name = NULL,
 	.attrs = uvesafb_dev_attrs,
 };

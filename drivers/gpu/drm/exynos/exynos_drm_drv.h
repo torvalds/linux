@@ -202,6 +202,7 @@ struct drm_exynos_file_private {
  */
 struct exynos_drm_private {
 	struct drm_fb_helper *fb_helper;
+	struct drm_atomic_state *suspend_state;
 
 	struct device *dma_dev;
 	void *mapping;

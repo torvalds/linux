@@ -134,19 +134,19 @@ static inline struct prp_priv *sd_to_priv(struct v4l2_subdev *sd)
 
 static void prp_put_ipu_resources(struct prp_priv *priv)
 {
-	if (!IS_ERR_OR_NULL(priv->ic))
+	if (priv->ic)
 		ipu_ic_put(priv->ic);
 	priv->ic = NULL;
 
-	if (!IS_ERR_OR_NULL(priv->out_ch))
+	if (priv->out_ch)
 		ipu_idmac_put(priv->out_ch);
 	priv->out_ch = NULL;
 
-	if (!IS_ERR_OR_NULL(priv->rot_in_ch))
+	if (priv->rot_in_ch)
 		ipu_idmac_put(priv->rot_in_ch);
 	priv->rot_in_ch = NULL;
 
-	if (!IS_ERR_OR_NULL(priv->rot_out_ch))
+	if (priv->rot_out_ch)
 		ipu_idmac_put(priv->rot_out_ch);
 	priv->rot_out_ch = NULL;
 }
@@ -154,43 +154,46 @@ static void prp_put_ipu_resources(struct prp_priv *priv)
 static int prp_get_ipu_resources(struct prp_priv *priv)
 {
 	struct imx_ic_priv *ic_priv = priv->ic_priv;
+	struct ipu_ic *ic;
+	struct ipuv3_channel *out_ch, *rot_in_ch, *rot_out_ch;
 	int ret, task = ic_priv->task_id;
 
 	priv->ipu = priv->md->ipu[ic_priv->ipu_id];
 
-	priv->ic = ipu_ic_get(priv->ipu, task);
-	if (IS_ERR(priv->ic)) {
+	ic = ipu_ic_get(priv->ipu, task);
+	if (IS_ERR(ic)) {
 		v4l2_err(&ic_priv->sd, "failed to get IC\n");
-		ret = PTR_ERR(priv->ic);
+		ret = PTR_ERR(ic);
 		goto out;
 	}
+	priv->ic = ic;
 
-	priv->out_ch = ipu_idmac_get(priv->ipu,
-				     prp_channel[task].out_ch);
-	if (IS_ERR(priv->out_ch)) {
+	out_ch = ipu_idmac_get(priv->ipu, prp_channel[task].out_ch);
+	if (IS_ERR(out_ch)) {
 		v4l2_err(&ic_priv->sd, "could not get IDMAC channel %u\n",
 			 prp_channel[task].out_ch);
-		ret = PTR_ERR(priv->out_ch);
+		ret = PTR_ERR(out_ch);
 		goto out;
 	}
+	priv->out_ch = out_ch;
 
-	priv->rot_in_ch = ipu_idmac_get(priv->ipu,
-					prp_channel[task].rot_in_ch);
-	if (IS_ERR(priv->rot_in_ch)) {
+	rot_in_ch = ipu_idmac_get(priv->ipu, prp_channel[task].rot_in_ch);
+	if (IS_ERR(rot_in_ch)) {
 		v4l2_err(&ic_priv->sd, "could not get IDMAC channel %u\n",
 			 prp_channel[task].rot_in_ch);
-		ret = PTR_ERR(priv->rot_in_ch);
+		ret = PTR_ERR(rot_in_ch);
 		goto out;
 	}
+	priv->rot_in_ch = rot_in_ch;
 
-	priv->rot_out_ch = ipu_idmac_get(priv->ipu,
-					 prp_channel[task].rot_out_ch);
-	if (IS_ERR(priv->rot_out_ch)) {
+	rot_out_ch = ipu_idmac_get(priv->ipu, prp_channel[task].rot_out_ch);
+	if (IS_ERR(rot_out_ch)) {
 		v4l2_err(&ic_priv->sd, "could not get IDMAC channel %u\n",
 			 prp_channel[task].rot_out_ch);
-		ret = PTR_ERR(priv->rot_out_ch);
+		ret = PTR_ERR(rot_out_ch);
 		goto out;
 	}
+	priv->rot_out_ch = rot_out_ch;
 
 	return 0;
 out:
@@ -373,6 +376,17 @@ static int prp_setup_channel(struct prp_priv *priv,
 
 	image.phys0 = addr0;
 	image.phys1 = addr1;
+
+	if (channel == priv->out_ch || channel == priv->rot_out_ch) {
+		switch (image.pix.pixelformat) {
+		case V4L2_PIX_FMT_YUV420:
+		case V4L2_PIX_FMT_YVU420:
+		case V4L2_PIX_FMT_NV12:
+			/* Skip writing U and V components to odd rows */
+			ipu_cpmem_skip_odd_chroma_rows(channel);
+			break;
+		}
+	}
 
 	ret = ipu_cpmem_set_image(channel, &image);
 	if (ret)
@@ -1278,9 +1292,8 @@ static int prp_init(struct imx_ic_priv *ic_priv)
 	priv->ic_priv = ic_priv;
 
 	spin_lock_init(&priv->irqlock);
-	init_timer(&priv->eof_timeout_timer);
-	priv->eof_timeout_timer.data = (unsigned long)priv;
-	priv->eof_timeout_timer.function = prp_eof_timeout;
+	setup_timer(&priv->eof_timeout_timer, prp_eof_timeout,
+		    (unsigned long)priv);
 
 	priv->vdev = imx_media_capture_device_init(&ic_priv->sd,
 						   PRPENCVF_SRC_PAD);

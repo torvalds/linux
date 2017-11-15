@@ -263,6 +263,7 @@ static inline bool is_nearbranch(int offset)
 #define COND_EQ		(CR0_EQ | COND_CMP_TRUE)
 #define COND_NE		(CR0_EQ | COND_CMP_FALSE)
 #define COND_LT		(CR0_LT | COND_CMP_TRUE)
+#define COND_LE		(CR0_GT | COND_CMP_FALSE)
 
 #endif
 

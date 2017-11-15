@@ -118,7 +118,7 @@ ssize_t ib_uverbs_get_context(struct ib_uverbs_file *file,
 	ucontext->closing = 0;
 
 #ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
-	ucontext->umem_tree = RB_ROOT;
+	ucontext->umem_tree = RB_ROOT_CACHED;
 	init_rwsem(&ucontext->umem_rwsem);
 	ucontext->odp_mrs_count = 0;
 	INIT_LIST_HEAD(&ucontext->no_private_counters);
@@ -3869,15 +3869,15 @@ int ib_uverbs_ex_query_device(struct ib_uverbs_file *file,
 	resp.raw_packet_caps = attr.raw_packet_caps;
 	resp.response_length += sizeof(resp.raw_packet_caps);
 
-	if (ucore->outlen < resp.response_length + sizeof(resp.xrq_caps))
+	if (ucore->outlen < resp.response_length + sizeof(resp.tm_caps))
 		goto end;
 
-	resp.xrq_caps.max_rndv_hdr_size = attr.xrq_caps.max_rndv_hdr_size;
-	resp.xrq_caps.max_num_tags      = attr.xrq_caps.max_num_tags;
-	resp.xrq_caps.max_ops		= attr.xrq_caps.max_ops;
-	resp.xrq_caps.max_sge		= attr.xrq_caps.max_sge;
-	resp.xrq_caps.flags		= attr.xrq_caps.flags;
-	resp.response_length += sizeof(resp.xrq_caps);
+	resp.tm_caps.max_rndv_hdr_size	= attr.tm_caps.max_rndv_hdr_size;
+	resp.tm_caps.max_num_tags	= attr.tm_caps.max_num_tags;
+	resp.tm_caps.max_ops		= attr.tm_caps.max_ops;
+	resp.tm_caps.max_sge		= attr.tm_caps.max_sge;
+	resp.tm_caps.flags		= attr.tm_caps.flags;
+	resp.response_length += sizeof(resp.tm_caps);
 end:
 	err = ib_copy_to_udata(ucore, &resp, resp.response_length);
 	return err;

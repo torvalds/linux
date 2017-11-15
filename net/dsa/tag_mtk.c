@@ -44,8 +44,7 @@ static struct sk_buff *mtk_tag_xmit(struct sk_buff *skb,
 }
 
 static struct sk_buff *mtk_tag_rcv(struct sk_buff *skb, struct net_device *dev,
-				   struct packet_type *pt,
-				   struct net_device *orig_dev)
+				   struct packet_type *pt)
 {
 	struct dsa_switch_tree *dst = dev->dsa_ptr;
 	struct dsa_switch *ds;
@@ -87,7 +86,17 @@ static struct sk_buff *mtk_tag_rcv(struct sk_buff *skb, struct net_device *dev,
 	return skb;
 }
 
+static int mtk_tag_flow_dissect(const struct sk_buff *skb, __be16 *proto,
+				int *offset)
+{
+	*offset = 4;
+	*proto = ((__be16 *)skb->data)[1];
+
+	return 0;
+}
+
 const struct dsa_device_ops mtk_netdev_ops = {
-	.xmit	= mtk_tag_xmit,
-	.rcv	= mtk_tag_rcv,
+	.xmit		= mtk_tag_xmit,
+	.rcv		= mtk_tag_rcv,
+	.flow_dissect	= mtk_tag_flow_dissect,
 };

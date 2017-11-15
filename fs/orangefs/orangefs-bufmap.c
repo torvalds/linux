@@ -244,20 +244,14 @@ orangefs_bufmap_alloc(struct ORANGEFS_dev_map_desc *user_desc)
 
 	bufmap->buffer_index_array =
 		kzalloc(DIV_ROUND_UP(bufmap->desc_count, BITS_PER_LONG), GFP_KERNEL);
-	if (!bufmap->buffer_index_array) {
-		gossip_err("orangefs: could not allocate %d buffer indices\n",
-				bufmap->desc_count);
+	if (!bufmap->buffer_index_array)
 		goto out_free_bufmap;
-	}
 
 	bufmap->desc_array =
 		kcalloc(bufmap->desc_count, sizeof(struct orangefs_bufmap_desc),
 			GFP_KERNEL);
-	if (!bufmap->desc_array) {
-		gossip_err("orangefs: could not allocate %d descriptors\n",
-				bufmap->desc_count);
+	if (!bufmap->desc_array)
 		goto out_free_index_array;
-	}
 
 	bufmap->page_count = bufmap->total_size / PAGE_SIZE;
 

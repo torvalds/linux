@@ -530,7 +530,7 @@ static int bxt_set_dsp_D3(struct sst_dsp *ctx, unsigned int core_id)
 	return 0;
 }
 
-static struct skl_dsp_fw_ops bxt_fw_ops = {
+static const struct skl_dsp_fw_ops bxt_fw_ops = {
 	.set_state_D0 = bxt_set_dsp_D0,
 	.set_state_D3 = bxt_set_dsp_D3,
 	.set_state_D0i3 = bxt_schedule_dsp_D0i3,
@@ -581,10 +581,15 @@ int bxt_sst_dsp_init(struct device *dev, void __iomem *mmio_base, int irq,
 	sst_dsp_mailbox_init(sst, (BXT_ADSP_SRAM0_BASE + SKL_ADSP_W0_STAT_SZ),
 			SKL_ADSP_W0_UP_SZ, BXT_ADSP_SRAM1_BASE, SKL_ADSP_W1_SZ);
 
+	ret = skl_ipc_init(dev, skl);
+	if (ret) {
+		skl_dsp_free(sst);
+		return ret;
+	}
+
 	/* set the D0i3 check */
 	skl->ipc.ops.check_dsp_lp_on = skl_ipc_check_D0i0;
 
-	skl->cores.count = 2;
 	skl->boot_complete = false;
 	init_waitqueue_head(&skl->boot_wait);
 	INIT_DELAYED_WORK(&skl->d0i3.work, bxt_set_dsp_D0i3);
@@ -629,11 +634,6 @@ void bxt_sst_dsp_cleanup(struct device *dev, struct skl_sst *ctx)
 		release_firmware(ctx->dsp->fw);
 	skl_freeup_uuid_list(ctx);
 	skl_ipc_free(&ctx->ipc);
-	ctx->dsp->cl_dev.ops.cl_cleanup_controller(ctx->dsp);
-
-	if (ctx->dsp->addr.lpe)
-		iounmap(ctx->dsp->addr.lpe);
-
 	ctx->dsp->ops->free(ctx->dsp);
 }
 EXPORT_SYMBOL_GPL(bxt_sst_dsp_cleanup);

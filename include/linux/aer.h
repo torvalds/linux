@@ -39,7 +39,7 @@ struct aer_capability_regs {
 };
 
 #if defined(CONFIG_PCIEAER)
-/* pci-e port driver needs this function to enable aer */
+/* PCIe port driver needs this function to enable AER */
 int pci_enable_pcie_error_reporting(struct pci_dev *dev);
 int pci_disable_pcie_error_reporting(struct pci_dev *dev);
 int pci_cleanup_aer_uncorrect_error_status(struct pci_dev *dev);
@@ -67,7 +67,6 @@ void cper_print_aer(struct pci_dev *dev, int aer_severity,
 		    struct aer_capability_regs *aer);
 int cper_severity_to_aer(int cper_severity);
 void aer_recover_queue(int domain, unsigned int bus, unsigned int devfn,
-		       int severity,
-		       struct aer_capability_regs *aer_regs);
+		       int severity, struct aer_capability_regs *aer_regs);
 #endif //_AER_H_
 

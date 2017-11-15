@@ -1618,10 +1618,11 @@ halmac_send_h2c_set_pwr_mode_88xx(struct halmac_adapter *halmac_adapter,
 	void *driver_adapter = NULL;
 	enum halmac_ret_status status = HALMAC_RET_SUCCESS;
 
+	driver_adapter = halmac_adapter->driver_adapter;
+
 	HALMAC_RT_TRACE(driver_adapter, HALMAC_MSG_H2C, DBG_DMESG,
 			"%s!!\n", __func__);
 
-	driver_adapter = halmac_adapter->driver_adapter;
 	h2c_header = h2c_buff;
 	h2c_cmd = h2c_header + HALMAC_H2C_CMD_HDR_SIZE_88XX;
 
@@ -1713,10 +1714,11 @@ halmac_media_status_rpt_88xx(struct halmac_adapter *halmac_adapter, u8 op_mode,
 	void *driver_adapter = NULL;
 	enum halmac_ret_status status = HALMAC_RET_SUCCESS;
 
+	driver_adapter = halmac_adapter->driver_adapter;
+
 	HALMAC_RT_TRACE(driver_adapter, HALMAC_MSG_H2C, DBG_DMESG,
 			"halmac_send_h2c_set_pwr_mode_88xx!!\n");
 
-	driver_adapter = halmac_adapter->driver_adapter;
 	h2c_header = H2c_buff;
 	h2c_cmd = h2c_header + HALMAC_H2C_CMD_HDR_SIZE_88XX;
 
@@ -2143,10 +2145,11 @@ halmac_func_ctrl_ch_switch_88xx(struct halmac_adapter *halmac_adapter,
 	enum halmac_cmd_process_status *process_status =
 		&halmac_adapter->halmac_state.scan_state_set.process_status;
 
+	driver_adapter = halmac_adapter->driver_adapter;
+
 	HALMAC_RT_TRACE(driver_adapter, HALMAC_MSG_H2C, DBG_DMESG,
 			"halmac_ctrl_ch_switch!!\n");
 
-	driver_adapter = halmac_adapter->driver_adapter;
 	halmac_api = (struct halmac_api *)halmac_adapter->halmac_api;
 
 	if (halmac_transition_scan_state_88xx(
@@ -2276,14 +2279,12 @@ enum halmac_ret_status halmac_send_h2c_update_bcn_parse_info_88xx(
 {
 	u8 h2c_buff[HALMAC_H2C_CMD_SIZE_88XX] = {0};
 	u16 h2c_seq_mum = 0;
-	void *driver_adapter = NULL;
+	void *driver_adapter = halmac_adapter->driver_adapter;
 	struct halmac_h2c_header_info h2c_header_info;
 	enum halmac_ret_status status = HALMAC_RET_SUCCESS;
 
 	HALMAC_RT_TRACE(driver_adapter, HALMAC_MSG_H2C, DBG_DMESG,
 			"%s!!\n", __func__);
-
-	driver_adapter = halmac_adapter->driver_adapter;
 
 	UPDATE_BEACON_PARSING_INFO_SET_FUNC_EN(h2c_buff, bcn_ie_info->func_en);
 	UPDATE_BEACON_PARSING_INFO_SET_SIZE_TH(h2c_buff, bcn_ie_info->size_th);
