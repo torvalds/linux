@@ -133,7 +133,7 @@ static void receive_handler(struct ipmi_recv_msg *recv_msg, void *handler_data)
 		complete(comp);
 }
 
-static struct ipmi_user_hndl ipmi_poweroff_handler = {
+static const struct ipmi_user_hndl ipmi_poweroff_handler = {
 	.ipmi_recv_hndl = receive_handler
 };
 

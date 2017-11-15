@@ -22,24 +22,39 @@ config IPMI_DMI_DECODE
 
 if IPMI_HANDLER
 
+config IPMI_PROC_INTERFACE
+       bool 'Provide an interface for IPMI stats in /proc (deprecated)'
+       depends on PROC_FS
+       default y
+       help
+         Do not use this any more, use sysfs for this info.  It will be
+	 removed in future kernel versions.
+
 config IPMI_PANIC_EVENT
        bool 'Generate a panic event to all BMCs on a panic'
        help
-         When a panic occurs, this will cause the IPMI message handler to
-	 generate an IPMI event describing the panic to each interface
-	 registered with the message handler.
+	 When a panic occurs, this will cause the IPMI message handler to,
+	 by default, generate an IPMI event describing the panic to each
+	 interface registered with the message handler.  This is always
+	 available, the module parameter for ipmi_msghandler named
+	 panic_op can be set to "event" to chose this value, this config
+	 simply causes the default value to be set to "event".
 
 config IPMI_PANIC_STRING
 	bool 'Generate OEM events containing the panic string'
 	depends on IPMI_PANIC_EVENT
 	help
-	  When a panic occurs, this will cause the IPMI message handler to
-	  generate IPMI OEM type f0 events holding the IPMB address of the
-	  panic generator (byte 4 of the event), a sequence number for the
-	  string (byte 5 of the event) and part of the string (the rest of the
-	  event).  Bytes 1, 2, and 3 are the normal usage for an OEM event.
-	  You can fetch these events and use the sequence numbers to piece the
-	  string together.
+	  When a panic occurs, this will cause the IPMI message handler to,
+	  by default, generate IPMI OEM type f0 events holding the IPMB
+	  address of the panic generator (byte 4 of the event), a sequence
+	  number for the string (byte 5 of the event) and part of the
+	  string (the rest of the event).  Bytes 1, 2, and 3 are the normal
+	  usage for an OEM event.  You can fetch these events and use the
+	  sequence numbers to piece the string together.  This config
+	  parameter sets the default value to generate these events,
+	  the module parameter for ipmi_msghandler named panic_op can
+	  be set to "string" to chose this value, this config simply
+	  causes the default value to be set to "string".
 
 config IPMI_DEVICE_INTERFACE
        tristate 'Device interface for IPMI'
