@@ -1333,7 +1333,7 @@ static int dax_iomap_pmd_fault(struct vm_fault *vmf, pfn_t *pfnp,
 	 * this is a reliable test.
 	 */
 	pgoff = linear_page_index(vma, pmd_addr);
-	max_pgoff = (i_size_read(inode) - 1) >> PAGE_SHIFT;
+	max_pgoff = DIV_ROUND_UP(i_size_read(inode), PAGE_SIZE);
 
 	trace_dax_pmd_fault(inode, vmf, max_pgoff, 0);
 
@@ -1357,13 +1357,13 @@ static int dax_iomap_pmd_fault(struct vm_fault *vmf, pfn_t *pfnp,
 	if ((pmd_addr + PMD_SIZE) > vma->vm_end)
 		goto fallback;
 
-	if (pgoff > max_pgoff) {
+	if (pgoff >= max_pgoff) {
 		result = VM_FAULT_SIGBUS;
 		goto out;
 	}
 
 	/* If the PMD would extend beyond the file size */
-	if ((pgoff | PG_PMD_COLOUR) > max_pgoff)
+	if ((pgoff | PG_PMD_COLOUR) >= max_pgoff)
 		goto fallback;
 
 	/*
