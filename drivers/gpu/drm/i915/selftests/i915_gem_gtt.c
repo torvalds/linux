@@ -958,7 +958,7 @@ static int exercise_ggtt(struct drm_i915_private *i915,
 	u64 hole_start, hole_end, last = 0;
 	struct drm_mm_node *node;
 	IGT_TIMEOUT(end_time);
-	int err = -ENODEV;
+	int err = 0;
 
 	mutex_lock(&i915->drm.struct_mutex);
 restart:
