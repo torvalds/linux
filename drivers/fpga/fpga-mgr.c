@@ -410,28 +410,19 @@ ATTRIBUTE_GROUPS(fpga_mgr);
 static struct fpga_manager *__fpga_mgr_get(struct device *dev)
 {
 	struct fpga_manager *mgr;
-	int ret = -ENODEV;
 
 	mgr = to_fpga_manager(dev);
 	if (!mgr)
 		goto err_dev;
 
-	/* Get exclusive use of fpga manager */
-	if (!mutex_trylock(&mgr->ref_mutex)) {
-		ret = -EBUSY;
-		goto err_dev;
-	}
-
 	if (!try_module_get(dev->parent->driver->owner))
-		goto err_ll_mod;
+		goto err_dev;
 
 	return mgr;
 
-err_ll_mod:
-	mutex_unlock(&mgr->ref_mutex);
 err_dev:
 	put_device(dev);
-	return ERR_PTR(ret);
+	return ERR_PTR(-ENODEV);
 }
 
 static int fpga_mgr_dev_match(struct device *dev, const void *data)
@@ -440,10 +431,10 @@ static int fpga_mgr_dev_match(struct device *dev, const void *data)
 }
 
 /**
- * fpga_mgr_get - get an exclusive reference to a fpga mgr
+ * fpga_mgr_get - get a reference to a fpga mgr
  * @dev:	parent device that fpga mgr was registered with
  *
- * Given a device, get an exclusive reference to a fpga mgr.
+ * Given a device, get a reference to a fpga mgr.
  *
  * Return: fpga manager struct or IS_ERR() condition containing error code.
  */
@@ -464,10 +455,10 @@ static int fpga_mgr_of_node_match(struct device *dev, const void *data)
 }
 
 /**
- * of_fpga_mgr_get - get an exclusive reference to a fpga mgr
+ * of_fpga_mgr_get - get a reference to a fpga mgr
  * @node:	device node
  *
- * Given a device node, get an exclusive reference to a fpga mgr.
+ * Given a device node, get a reference to a fpga mgr.
  *
  * Return: fpga manager struct or IS_ERR() condition containing error code.
  */
@@ -491,10 +482,39 @@ EXPORT_SYMBOL_GPL(of_fpga_mgr_get);
 void fpga_mgr_put(struct fpga_manager *mgr)
 {
 	module_put(mgr->dev.parent->driver->owner);
-	mutex_unlock(&mgr->ref_mutex);
 	put_device(&mgr->dev);
 }
 EXPORT_SYMBOL_GPL(fpga_mgr_put);
+
+/**
+ * fpga_mgr_lock - Lock FPGA manager for exclusive use
+ * @mgr:	fpga manager
+ *
+ * Given a pointer to FPGA Manager (from fpga_mgr_get() or
+ * of_fpga_mgr_put()) attempt to get the mutex.
+ *
+ * Return: 0 for success or -EBUSY
+ */
+int fpga_mgr_lock(struct fpga_manager *mgr)
+{
+	if (!mutex_trylock(&mgr->ref_mutex)) {
+		dev_err(&mgr->dev, "FPGA manager is in use.\n");
+		return -EBUSY;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(fpga_mgr_lock);
+
+/**
+ * fpga_mgr_unlock - Unlock FPGA manager
+ * @mgr:	fpga manager
+ */
+void fpga_mgr_unlock(struct fpga_manager *mgr)
+{
+	mutex_unlock(&mgr->ref_mutex);
+}
+EXPORT_SYMBOL_GPL(fpga_mgr_unlock);
 
 /**
  * fpga_mgr_register - register a low level fpga manager driver

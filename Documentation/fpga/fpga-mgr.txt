@@ -48,8 +48,20 @@ To get/put a reference to a FPGA manager:
 	struct fpga_manager *fpga_mgr_get(struct device *dev);
 	void fpga_mgr_put(struct fpga_manager *mgr);
 
-Given a DT node or device, get an exclusive reference to a FPGA manager.
-fpga_mgr_put releases the reference.
+Given a DT node or device, get a reference to a FPGA manager.  This pointer
+can be saved until you are ready to program the FPGA.  fpga_mgr_put releases
+the reference.
+
+
+To get exclusive control of a FPGA manager:
+-------------------------------------------
+
+	int fpga_mgr_lock(struct fpga_manager *mgr);
+	void fpga_mgr_unlock(struct fpga_manager *mgr);
+
+The user should call fpga_mgr_lock and verify that it returns 0 before
+attempting to program the FPGA.  Likewise, the user should call
+fpga_mgr_unlock when done programming the FPGA.
 
 
 To register or unregister the low level FPGA-specific driver:
@@ -67,12 +79,20 @@ device."
 
 How to write an image buffer to a supported FPGA
 ================================================
-/* Include to get the API */
 #include <linux/fpga/fpga-mgr.h>
 
 struct fpga_manager *mgr;
 struct fpga_image_info *info;
 int ret;
+
+/*
+ * Get a reference to FPGA manager.  The manager is not locked, so you can
+ * hold onto this reference without it preventing programming.
+ *
+ * This example uses the device node of the manager.  Alternatively, use
+ * fpga_mgr_get(dev) instead if you have the device.
+ */
+mgr = of_fpga_mgr_get(mgr_node);
 
 /* struct with information about the FPGA image to program. */
 info = fpga_image_info_alloc(dev);
@@ -99,17 +119,14 @@ if (image is in a scatter gather table) {
 
 }
 
-/*
- * Get a reference to FPGA manager.  This example uses the  device node of the
- * manager.  You could use fpga_mgr_get() instead if you have the device instead
- * of the device node.
- */
-mgr = of_fpga_mgr_get(mgr_node);
+/* Get exclusive control of FPGA manager */
+ret = fpga_mgr_lock(mgr);
 
 /* Load the buffer to the FPGA */
 ret = fpga_mgr_buf_load(mgr, &info, buf, count);
 
 /* Release the FPGA manager */
+fpga_mgr_unlock(mgr);
 fpga_mgr_put(mgr);
 
 /* Deallocate the image info if you're done with it */
