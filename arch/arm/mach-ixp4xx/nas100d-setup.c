@@ -28,7 +28,7 @@
 #include <linux/leds.h>
 #include <linux/reboot.h>
 #include <linux/i2c.h>
-#include <linux/i2c-gpio.h>
+#include <linux/gpio/machine.h>
 #include <linux/io.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -101,16 +101,21 @@ static struct platform_device nas100d_leds = {
 	.dev.platform_data	= &nas100d_led_data,
 };
 
-static struct i2c_gpio_platform_data nas100d_i2c_gpio_data = {
-	.sda_pin		= NAS100D_SDA_PIN,
-	.scl_pin		= NAS100D_SCL_PIN,
+static struct gpiod_lookup_table nas100d_i2c_gpiod_table = {
+	.dev_id		= "i2c-gpio",
+	.table		= {
+		GPIO_LOOKUP_IDX("IXP4XX_GPIO_CHIP", NAS100D_SDA_PIN,
+				NULL, 0, GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN),
+		GPIO_LOOKUP_IDX("IXP4XX_GPIO_CHIP", NAS100D_SCL_PIN,
+				NULL, 1, GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN),
+	},
 };
 
 static struct platform_device nas100d_i2c_gpio = {
 	.name			= "i2c-gpio",
 	.id			= 0,
 	.dev	 = {
-		.platform_data	= &nas100d_i2c_gpio_data,
+		.platform_data	= NULL,
 	},
 };
 
@@ -281,6 +286,7 @@ static void __init nas100d_init(void)
 	nas100d_flash_resource.end =
 		IXP4XX_EXP_BUS_BASE(0) + ixp4xx_exp_bus_size - 1;
 
+	gpiod_add_lookup_table(&nas100d_i2c_gpiod_table);
 	i2c_register_board_info(0, nas100d_i2c_board_info,
 				ARRAY_SIZE(nas100d_i2c_board_info));
 
