@@ -786,6 +786,9 @@ static int at91_adc_read_raw(struct iio_dev *indio_dev,
 		at91_adc_writel(st, AT91_SAMA5D2_IDR, BIT(chan->channel));
 		at91_adc_writel(st, AT91_SAMA5D2_CHDR, BIT(chan->channel));
 
+		/* Needed to ACK the DRDY interruption */
+		at91_adc_readl(st, AT91_SAMA5D2_LCDR);
+
 		mutex_unlock(&st->lock);
 
 		iio_device_release_direct_mode(indio_dev);
