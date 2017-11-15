@@ -480,8 +480,12 @@ dw_hdmi_rockchip_check_depth(struct drm_display_info *info,
 		colordepth = depth;
 
 	/* Color depth on rockchip platform is limited up to 10bit */
-	if (colordepth > 10)
+	if (colordepth > 10) {
 		colordepth = 10;
+		if (color_format == DRM_HDMI_OUTPUT_YCBCR420 &&
+		    !(info->hdmi.y420_dc_modes & DRM_EDID_YCBCR420_DC_30))
+			return 8;
+	}
 
 	if (mode->flags & DRM_MODE_FLAG_DBLCLK)
 		pixclock *= 2;
@@ -494,6 +498,8 @@ dw_hdmi_rockchip_check_depth(struct drm_display_info *info,
 	else
 		tmdsclock = pixclock * colordepth / 8;
 
+	if (color_format == DRM_HDMI_OUTPUT_YCBCR420)
+		tmdsclock /= 2;
 	/*
 	 * For some display device, max_tmds_clock is 0, we think
 	 * max_tmds_clock is 340MHz. If tmdsclock > max_tmds_clock,
