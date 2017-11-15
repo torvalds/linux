@@ -13,7 +13,7 @@ Optional properties:
 
 Example:
 
-ak8975@0c {
+ak8975@c {
         compatible = "asahi-kasei,ak8975";
         reg = <0x0c>;
         gpios = <&gpj0 7 0>;

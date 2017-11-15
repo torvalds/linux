@@ -62,7 +62,7 @@ Required properties for the following compatibles:
 				   block in the PRCM.
 
 Example:
-codec: codec@01c22c00 {
+codec: codec@1c22c00 {
 	#sound-dai-cells = <0>;
 	compatible = "allwinner,sun7i-a20-codec";
 	reg = <0x01c22c00 0x40>;
@@ -73,7 +73,7 @@ codec: codec@01c22c00 {
 	dma-names = "rx", "tx";
 };
 
-codec: codec@01c22c00 {
+codec: codec@1c22c00 {
 	#sound-dai-cells = <0>;
 	compatible = "allwinner,sun6i-a31-codec";
 	reg = <0x01c22c00 0x98>;

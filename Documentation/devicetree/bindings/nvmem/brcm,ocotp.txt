@@ -10,7 +10,7 @@ Required Properties:
 
 Example:
 
-otp: otp@0301c800 {
+otp: otp@301c800 {
 	compatible = "brcm,ocotp";
 	reg = <0x0301c800 0x2c>;
 	brcm,ocotp-size = <2048>;

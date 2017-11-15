@@ -15,7 +15,7 @@ Optional properties:
 
 Examples:
 
-	gmac: ethernet@01c50000 {
+	gmac: ethernet@1c50000 {
 		compatible = "allwinner,sun7i-a20-gmac";
 		reg = <0x01c50000 0x10000>,
 		      <0x01c20164 0x4>;

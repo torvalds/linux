@@ -18,7 +18,7 @@ par_io@1400 {
 	#size-cells = <0>;
 	device_type = "par_io";
 	num-ports = <7>;
-	ucc_pin@01 {
+	ucc_pin@1 {
 		......
 	};
 

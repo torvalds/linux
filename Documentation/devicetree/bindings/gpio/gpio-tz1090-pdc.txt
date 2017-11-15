@@ -30,7 +30,7 @@ Optional properties:
 
 Example:
 
-	pdc_gpios: gpio-controller@02006500 {
+	pdc_gpios: gpio-controller@2006500 {
 		gpio-controller;
 		#gpio-cells = <2>;
 

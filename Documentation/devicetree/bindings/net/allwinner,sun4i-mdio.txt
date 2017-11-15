@@ -9,7 +9,7 @@ Optional properties:
 - phy-supply: phandle to a regulator if the PHY needs one
 
 Example at the SoC level:
-mdio@01c0b080 {
+mdio@1c0b080 {
 	compatible = "allwinner,sun4i-a10-mdio";
 	reg = <0x01c0b080 0x14>;
 	#address-cells = <1>;
@@ -18,7 +18,7 @@ mdio@01c0b080 {
 
 And at the board level:
 
-mdio@01c0b080 {
+mdio@1c0b080 {
 	phy-supply = <&reg_emac_3v3>;
 
 	phy0: ethernet-phy@0 {

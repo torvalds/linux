@@ -53,7 +53,7 @@ Example: R8A7791 IPMMU-MX and VSP1-D0 bus master
 		#iommu-cells = <1>;
 	};
 
-	vsp1@fe928000 {
+	vsp@fe928000 {
 		...
 		iommus = <&ipmmu_mx 13>;
 		...

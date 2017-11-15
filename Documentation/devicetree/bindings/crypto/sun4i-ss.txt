@@ -14,7 +14,7 @@ Optional properties:
  - reset-names : must contain "ahb"
 
 Example:
-	crypto: crypto-engine@01c15000 {
+	crypto: crypto-engine@1c15000 {
 		compatible = "allwinner,sun4i-a10-crypto";
 		reg = <0x01c15000 0x1000>;
 		interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>;

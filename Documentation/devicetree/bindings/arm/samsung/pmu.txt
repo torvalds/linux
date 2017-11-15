@@ -62,7 +62,7 @@ pmu_system_controller: system-controller@10040000 {
 
 Example of clock consumer :
 
-usb3503: usb3503@08 {
+usb3503: usb3503@8 {
 	/* ... */
 	clock-names = "refclk";
 	clocks = <&pmu_system_controller 0>;

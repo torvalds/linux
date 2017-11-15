@@ -12,7 +12,7 @@ Required properties:
 
 Example:
 
-spi1: spi@01c06000 {
+spi1: spi@1c06000 {
 	compatible = "allwinner,sun4i-a10-spi";
 	reg = <0x01c06000 0x1000>;
 	interrupts = <11>;

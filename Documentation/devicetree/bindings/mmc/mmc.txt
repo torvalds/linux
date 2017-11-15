@@ -146,7 +146,7 @@ sdhci@ab000000 {
 
 Example with sdio function subnode:
 
-mmc3: mmc@01c12000 {
+mmc3: mmc@1c12000 {
 	#address-cells = <1>;
 	#size-cells = <0>;
 

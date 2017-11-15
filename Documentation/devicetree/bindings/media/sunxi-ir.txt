@@ -14,7 +14,7 @@ Optional properties:
 
 Example:
 
-ir0: ir@01c21800 {
+ir0: ir@1c21800 {
 	compatible = "allwinner,sun4i-a10-ir";
 	clocks = <&apb0_gates 6>, <&ir0_clk>;
 	clock-names = "apb", "ir";

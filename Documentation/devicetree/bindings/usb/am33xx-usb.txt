@@ -181,7 +181,7 @@ usb: usb@47400000 {
 			"tx14", "tx15";
 	};
 
-	cppi41dma: dma-controller@07402000 {
+	cppi41dma: dma-controller@7402000 {
 		compatible = "ti,am3359-cppi41";
 		reg =  <0x47400000 0x1000
 			0x47402000 0x1000

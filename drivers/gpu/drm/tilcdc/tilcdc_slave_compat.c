@@ -145,7 +145,6 @@ static struct device_node * __init tilcdc_get_overlay(struct kfree_table *kft)
 		__dtb_tilcdc_slave_compat_begin;
 	static void *overlay_data;
 	struct device_node *overlay;
-	int ret;
 
 	if (!size) {
 		pr_warn("%s: No overlay data\n", __func__);
@@ -164,11 +163,6 @@ static struct device_node * __init tilcdc_get_overlay(struct kfree_table *kft)
 	}
 
 	of_node_set_flag(overlay, OF_DETACHED);
-	ret = of_resolve_phandles(overlay);
-	if (ret) {
-		pr_err("%s: Failed to resolve phandles: %d\n", __func__, ret);
-		return NULL;
-	}
 
 	return overlay;
 }
@@ -204,7 +198,7 @@ static void __init tilcdc_convert_slave_node(void)
 	/* For all memory needed for the overlay tree. This memory can
 	   be freed after the overlay has been applied. */
 	struct kfree_table kft;
-	int ret;
+	int ovcs_id, ret;
 
 	if (kfree_table_init(&kft))
 		return;
@@ -247,9 +241,11 @@ static void __init tilcdc_convert_slave_node(void)
 
 	tilcdc_node_disable(slave);
 
-	ret = of_overlay_create(overlay);
+	ovcs_id = 0;
+	ret = of_overlay_apply(overlay, &ovcs_id);
 	if (ret)
-		pr_err("%s: Creating overlay failed: %d\n", __func__, ret);
+		pr_err("%s: Applying overlay changeset failed: %d\n",
+			__func__, ret);
 	else
 		pr_info("%s: ti,tilcdc,slave node successfully converted\n",
 			__func__);

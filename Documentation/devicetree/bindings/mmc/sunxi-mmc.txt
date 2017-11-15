@@ -29,7 +29,7 @@ Optional properties:
 
 Examples:
 	- Within .dtsi:
-	mmc0: mmc@01c0f000 {
+	mmc0: mmc@1c0f000 {
 		compatible = "allwinner,sun5i-a13-mmc";
 		reg = <0x01c0f000 0x1000>;
 		clocks = <&ahb_gates 8>, <&mmc0_clk>, <&mmc0_output_clk>, <&mmc0_sample_clk>;
@@ -39,7 +39,7 @@ Examples:
 	};
 
 	- Within dts:
-	mmc0: mmc@01c0f000 {
+	mmc0: mmc@1c0f000 {
 		pinctrl-names = "default", "default";
 		pinctrl-0 = <&mmc0_pins_a>;
 		pinctrl-1 = <&mmc0_cd_pin_reference_design>;
