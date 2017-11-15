@@ -163,9 +163,10 @@ config BCM_PDC_MBOX
 config BCM_FLEXRM_MBOX
 	tristate "Broadcom FlexRM Mailbox"
 	depends on ARM64
+	depends on ARCH_BCM_IPROC || COMPILE_TEST
 	depends on HAS_DMA
 	select GENERIC_MSI_IRQ_DOMAIN
-	default ARCH_BCM_IPROC
+	default m if ARCH_BCM_IPROC
 	help
 	  Mailbox implementation of the Broadcom FlexRM ring manager,
 	  which provides access to various offload engines on Broadcom
