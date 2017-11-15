@@ -45,9 +45,9 @@ struct pwrkey_drv_data {
 	struct input_dev *input;
 };
 
-static void imx_imx_snvs_check_for_events(unsigned long data)
+static void imx_imx_snvs_check_for_events(struct timer_list *t)
 {
-	struct pwrkey_drv_data *pdata = (struct pwrkey_drv_data *) data;
+	struct pwrkey_drv_data *pdata = from_timer(pdata, t, check_timer);
 	struct input_dev *input = pdata->input;
 	u32 state;
 
@@ -134,8 +134,7 @@ static int imx_snvs_pwrkey_probe(struct platform_device *pdev)
 	/* clear the unexpected interrupt before driver ready */
 	regmap_write(pdata->snvs, SNVS_LPSR_REG, SNVS_LPSR_SPO);
 
-	setup_timer(&pdata->check_timer,
-		    imx_imx_snvs_check_for_events, (unsigned long) pdata);
+	timer_setup(&pdata->check_timer, imx_imx_snvs_check_for_events, 0);
 
 	input = devm_input_allocate_device(&pdev->dev);
 	if (!input) {
