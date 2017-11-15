@@ -1041,13 +1041,12 @@ int pvcalls_front_release(struct socket *sock)
 		wake_up_interruptible(&map->active.inflight_conn_req);
 
 		/*
-		 * Wait until there are no more waiters on the mutexes.
-		 * We know that no new waiters can be added because sk_send_head
-		 * is set to NULL -- we only need to wait for the existing
-		 * waiters to return.
+		 * We need to make sure that sendmsg/recvmsg on this socket have
+		 * not started before we've cleared sk_send_head here. The
+		 * easiest (though not optimal) way to guarantee this is to see
+		 * that no pvcall (other than us) is in progress.
 		 */
-		while (!mutex_trylock(&map->active.in_mutex) ||
-			   !mutex_trylock(&map->active.out_mutex))
+		while (atomic_read(&pvcalls_refcount) > 1)
 			cpu_relax();
 
 		pvcalls_front_free_map(bedata, map);
