@@ -6291,7 +6291,7 @@ static int nl80211_send_regdom(struct sk_buff *msg, struct netlink_callback *cb,
 	if (!hdr)
 		return -1;
 
-	genl_dump_check_consistent(cb, hdr, &nl80211_fam);
+	genl_dump_check_consistent(cb, hdr);
 
 	if (nl80211_put_regdom(regdom, msg))
 		goto nla_put_failure;
@@ -7722,7 +7722,7 @@ static int nl80211_send_bss(struct sk_buff *msg, struct netlink_callback *cb,
 	if (!hdr)
 		return -1;
 
-	genl_dump_check_consistent(cb, hdr, &nl80211_fam);
+	genl_dump_check_consistent(cb, hdr);
 
 	if (nla_put_u32(msg, NL80211_ATTR_GENERATION, rdev->bss_generation))
 		goto nla_put_failure;
