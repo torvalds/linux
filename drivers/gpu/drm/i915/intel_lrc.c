@@ -1180,7 +1180,7 @@ static int execlists_request_alloc(struct drm_i915_gem_request *request)
 {
 	struct intel_engine_cs *engine = request->engine;
 	struct intel_context *ce = &request->ctx->engine[engine->id];
-	u32 *cs;
+	int ret;
 
 	GEM_BUG_ON(!ce->pin_count);
 
@@ -1190,9 +1190,9 @@ static int execlists_request_alloc(struct drm_i915_gem_request *request)
 	 */
 	request->reserved_space += EXECLISTS_REQUEST_SIZE;
 
-	cs = intel_ring_begin(request, 0);
-	if (IS_ERR(cs))
-		return PTR_ERR(cs);
+	ret = intel_ring_wait_for_space(request->ring, request->reserved_space);
+	if (ret)
+		return ret;
 
 	/* Note that after this point, we have committed to using
 	 * this request as it is being used to both track the

@@ -660,6 +660,7 @@ void intel_legacy_submission_resume(struct drm_i915_private *dev_priv);
 
 int __must_check intel_ring_cacheline_align(struct drm_i915_gem_request *req);
 
+int intel_ring_wait_for_space(struct intel_ring *ring, unsigned int bytes);
 u32 __must_check *intel_ring_begin(struct drm_i915_gem_request *req,
 				   unsigned int n);
 

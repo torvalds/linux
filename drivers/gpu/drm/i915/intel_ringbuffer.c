@@ -1578,7 +1578,7 @@ void intel_legacy_submission_resume(struct drm_i915_private *dev_priv)
 
 static int ring_request_alloc(struct drm_i915_gem_request *request)
 {
-	u32 *cs;
+	int ret;
 
 	GEM_BUG_ON(!request->ctx->engine[request->engine->id].pin_count);
 
@@ -1588,36 +1588,23 @@ static int ring_request_alloc(struct drm_i915_gem_request *request)
 	 */
 	request->reserved_space += LEGACY_REQUEST_SIZE;
 
-	cs = intel_ring_begin(request, 0);
-	if (IS_ERR(cs))
-		return PTR_ERR(cs);
+	ret = intel_ring_wait_for_space(request->ring, request->reserved_space);
+	if (ret)
+		return ret;
 
 	request->reserved_space -= LEGACY_REQUEST_SIZE;
 	return 0;
 }
 
-static noinline int wait_for_space(struct drm_i915_gem_request *req,
-				   unsigned int bytes)
+static noinline int wait_for_space(struct intel_ring *ring, unsigned int bytes)
 {
-	struct intel_ring *ring = req->ring;
 	struct drm_i915_gem_request *target;
 	long timeout;
 
-	lockdep_assert_held(&req->i915->drm.struct_mutex);
+	lockdep_assert_held(&ring->vma->vm->i915->drm.struct_mutex);
 
 	if (intel_ring_update_space(ring) >= bytes)
 		return 0;
-
-	/*
-	 * Space is reserved in the ringbuffer for finalising the request,
-	 * as that cannot be allowed to fail. During request finalisation,
-	 * reserved_space is set to 0 to stop the overallocation and the
-	 * assumption is that then we never need to wait (which has the
-	 * risk of failing with EINTR).
-	 *
-	 * See also i915_gem_request_alloc() and i915_add_request().
-	 */
-	GEM_BUG_ON(!req->reserved_space);
 
 	list_for_each_entry(target, &ring->request_list, ring_link) {
 		/* Would completion of this request free enough space? */
@@ -1638,6 +1625,22 @@ static noinline int wait_for_space(struct drm_i915_gem_request *req,
 	i915_gem_request_retire_upto(target);
 
 	intel_ring_update_space(ring);
+	GEM_BUG_ON(ring->space < bytes);
+	return 0;
+}
+
+int intel_ring_wait_for_space(struct intel_ring *ring, unsigned int bytes)
+{
+	GEM_BUG_ON(bytes > ring->effective_size);
+	if (unlikely(bytes > ring->effective_size - ring->emit))
+		bytes += ring->size - ring->emit;
+
+	if (unlikely(bytes > ring->space)) {
+		int ret = wait_for_space(ring, bytes);
+		if (unlikely(ret))
+			return ret;
+	}
+
 	GEM_BUG_ON(ring->space < bytes);
 	return 0;
 }
@@ -1681,7 +1684,20 @@ u32 *intel_ring_begin(struct drm_i915_gem_request *req,
 	}
 
 	if (unlikely(total_bytes > ring->space)) {
-		int ret = wait_for_space(req, total_bytes);
+		int ret;
+
+		/*
+		 * Space is reserved in the ringbuffer for finalising the
+		 * request, as that cannot be allowed to fail. During request
+		 * finalisation, reserved_space is set to 0 to stop the
+		 * overallocation and the assumption is that then we never need
+		 * to wait (which has the risk of failing with EINTR).
+		 *
+		 * See also i915_gem_request_alloc() and i915_add_request().
+		 */
+		GEM_BUG_ON(!req->reserved_space);
+
+		ret = wait_for_space(ring, total_bytes);
 		if (unlikely(ret))
 			return ERR_PTR(ret);
 	}
