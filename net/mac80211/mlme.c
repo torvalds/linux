@@ -145,7 +145,6 @@ static u32
 ieee80211_determine_chantype(struct ieee80211_sub_if_data *sdata,
 			     struct ieee80211_supported_band *sband,
 			     struct ieee80211_channel *channel,
-			     const struct ieee80211_ht_cap *ht_cap,
 			     const struct ieee80211_ht_operation *ht_oper,
 			     const struct ieee80211_vht_operation *vht_oper,
 			     struct cfg80211_chan_def *chandef, bool tracking)
@@ -163,19 +162,12 @@ ieee80211_determine_chantype(struct ieee80211_sub_if_data *sdata,
 	chandef->center_freq1 = channel->center_freq;
 	chandef->center_freq2 = 0;
 
-	if (!ht_cap || !ht_oper || !sta_ht_cap.ht_supported) {
+	if (!ht_oper || !sta_ht_cap.ht_supported) {
 		ret = IEEE80211_STA_DISABLE_HT | IEEE80211_STA_DISABLE_VHT;
 		goto out;
 	}
 
 	chandef->width = NL80211_CHAN_WIDTH_20;
-
-	if (!(ht_cap->cap_info &
-	      cpu_to_le16(IEEE80211_HT_CAP_SUP_WIDTH_20_40))) {
-		ret = IEEE80211_STA_DISABLE_40MHZ;
-		vht_chandef = *chandef;
-		goto out;
-	}
 
 	ht_cfreq = ieee80211_channel_to_frequency(ht_oper->primary_chan,
 						  channel->band);
@@ -344,7 +336,7 @@ static int ieee80211_config_bw(struct ieee80211_sub_if_data *sdata,
 
 	/* calculate new channel (type) based on HT/VHT operation IEs */
 	flags = ieee80211_determine_chantype(sdata, sband, chan,
-					     ht_cap, ht_oper, vht_oper,
+					     ht_oper, vht_oper,
 					     &chandef, true);
 
 	/*
@@ -780,11 +772,12 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 			WLAN_EID_SUPPORTED_REGULATORY_CLASSES,
 			WLAN_EID_HT_CAPABILITY,
 			WLAN_EID_BSS_COEX_2040,
+			/* luckily this is almost always there */
 			WLAN_EID_EXT_CAPABILITY,
 			WLAN_EID_QOS_TRAFFIC_CAPA,
 			WLAN_EID_TIM_BCAST_REQ,
 			WLAN_EID_INTERWORKING,
-			/* 60GHz doesn't happen right now */
+			/* 60 GHz (Multi-band, DMG, MMS) can't happen */
 			WLAN_EID_VHT_CAPABILITY,
 			WLAN_EID_OPMODE_NOTIF,
 		};
@@ -811,22 +804,16 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 	/* if present, add any custom IEs that go before VHT */
 	if (assoc_data->ie_len) {
 		static const u8 before_vht[] = {
-			WLAN_EID_SSID,
-			WLAN_EID_SUPP_RATES,
-			WLAN_EID_EXT_SUPP_RATES,
-			WLAN_EID_PWR_CAPABILITY,
-			WLAN_EID_SUPPORTED_CHANNELS,
-			WLAN_EID_RSN,
-			WLAN_EID_QOS_CAPA,
-			WLAN_EID_RRM_ENABLED_CAPABILITIES,
-			WLAN_EID_MOBILITY_DOMAIN,
-			WLAN_EID_SUPPORTED_REGULATORY_CLASSES,
-			WLAN_EID_HT_CAPABILITY,
+			/*
+			 * no need to list the ones split off before HT
+			 * or generated here
+			 */
 			WLAN_EID_BSS_COEX_2040,
 			WLAN_EID_EXT_CAPABILITY,
 			WLAN_EID_QOS_TRAFFIC_CAPA,
 			WLAN_EID_TIM_BCAST_REQ,
 			WLAN_EID_INTERWORKING,
+			/* 60 GHz (Multi-band, DMG, MMS) can't happen */
 		};
 
 		/* RIC already taken above, so no need to handle here anymore */
@@ -4317,7 +4304,7 @@ static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
 
 	ifmgd->flags |= ieee80211_determine_chantype(sdata, sband,
 						     cbss->channel,
-						     ht_cap, ht_oper, vht_oper,
+						     ht_oper, vht_oper,
 						     &chandef, false);
 
 	sdata->needed_rx_chains = min(ieee80211_ht_vht_rx_chains(sdata, cbss),

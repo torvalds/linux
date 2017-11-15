@@ -1339,8 +1339,10 @@ int fman_port_config(struct fman_port *port, struct fman_port_params *params)
 	switch (port->port_type) {
 	case FMAN_PORT_TYPE_RX:
 		set_rx_dflt_cfg(port, params);
+		/* fall through */
 	case FMAN_PORT_TYPE_TX:
 		set_tx_dflt_cfg(port, params, &port->dts_params);
+		/* fall through */
 	default:
 		set_dflt_cfg(port, params);
 	}

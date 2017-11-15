@@ -1209,8 +1209,7 @@ static void udp_rmem_release(struct sock *sk, int size, int partial,
 	if (likely(partial)) {
 		up->forward_deficit += size;
 		size = up->forward_deficit;
-		if (size < (sk->sk_rcvbuf >> 2) &&
-		    !skb_queue_empty(&up->reader_queue))
+		if (size < (sk->sk_rcvbuf >> 2))
 			return;
 	} else {
 		size += up->forward_deficit;

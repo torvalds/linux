@@ -3616,9 +3616,8 @@ static int gbe_probe(struct netcp_device *netcp_device, struct device *dev,
 	}
 	spin_unlock_bh(&gbe_dev->hw_stats_lock);
 
-	init_timer(&gbe_dev->timer);
-	gbe_dev->timer.data	 = (unsigned long)gbe_dev;
-	gbe_dev->timer.function = netcp_ethss_timer;
+	setup_timer(&gbe_dev->timer, netcp_ethss_timer,
+		    (unsigned long)gbe_dev);
 	gbe_dev->timer.expires	 = jiffies + GBE_TIMER_INTERVAL;
 	add_timer(&gbe_dev->timer);
 	*inst_priv = gbe_dev;

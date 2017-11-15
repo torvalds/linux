@@ -2747,9 +2747,10 @@ void ixgbevf_update_stats(struct ixgbevf_adapter *adapter)
  * ixgbevf_service_timer - Timer Call-back
  * @data: pointer to adapter cast into an unsigned long
  **/
-static void ixgbevf_service_timer(unsigned long data)
+static void ixgbevf_service_timer(struct timer_list *t)
 {
-	struct ixgbevf_adapter *adapter = (struct ixgbevf_adapter *)data;
+	struct ixgbevf_adapter *adapter = from_timer(adapter, t,
+						     service_timer);
 
 	/* Reset the timer */
 	mod_timer(&adapter->service_timer, (HZ * 2) + jiffies);
@@ -4120,8 +4121,7 @@ static int ixgbevf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_sw_init;
 	}
 
-	setup_timer(&adapter->service_timer, &ixgbevf_service_timer,
-		    (unsigned long)adapter);
+	timer_setup(&adapter->service_timer, ixgbevf_service_timer, 0);
 
 	INIT_WORK(&adapter->service_task, ixgbevf_service_task);
 	set_bit(__IXGBEVF_SERVICE_INITED, &adapter->state);

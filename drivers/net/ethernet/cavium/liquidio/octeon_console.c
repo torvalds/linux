@@ -803,15 +803,18 @@ static int octeon_console_read(struct octeon_device *oct, u32 console_num,
 }
 
 #define FBUF_SIZE	(4 * 1024 * 1024)
+#define MAX_BOOTTIME_SIZE    80
 
 int octeon_download_firmware(struct octeon_device *oct, const u8 *data,
 			     size_t size)
 {
-	int ret = 0;
+	struct octeon_firmware_file_header *h;
+	char boottime[MAX_BOOTTIME_SIZE];
+	struct timespec64 ts;
 	u32 crc32_result;
 	u64 load_addr;
 	u32 image_len;
-	struct octeon_firmware_file_header *h;
+	int ret = 0;
 	u32 i, rem;
 
 	if (size < sizeof(struct octeon_firmware_file_header)) {
@@ -890,11 +893,34 @@ int octeon_download_firmware(struct octeon_device *oct, const u8 *data,
 			load_addr += size;
 		}
 	}
+
+	/* Pass date and time information to NIC at the time of loading
+	 * firmware and periodically update the host time to NIC firmware.
+	 * This is to make NIC firmware use the same time reference as Host,
+	 * so that it is easy to correlate logs from firmware and host for
+	 * debugging.
+	 *
+	 * Octeon always uses UTC time. so timezone information is not sent.
+	 */
+	getnstimeofday64(&ts);
+	ret = snprintf(boottime, MAX_BOOTTIME_SIZE,
+		       " time_sec=%lld time_nsec=%ld",
+		       (s64)ts.tv_sec, ts.tv_nsec);
+	if ((sizeof(h->bootcmd) - strnlen(h->bootcmd, sizeof(h->bootcmd))) <
+		ret) {
+		dev_err(&oct->pci_dev->dev, "Boot command buffer too small\n");
+		return -EINVAL;
+	}
+	strncat(h->bootcmd, boottime,
+		sizeof(h->bootcmd) - strnlen(h->bootcmd, sizeof(h->bootcmd)));
+
 	dev_info(&oct->pci_dev->dev, "Writing boot command: %s\n",
 		 h->bootcmd);
 
 	/* Invoke the bootcmd */
 	ret = octeon_console_send_cmd(oct, h->bootcmd, 50);
+	if (ret)
+		dev_info(&oct->pci_dev->dev, "Boot command send failed\n");
 
-	return 0;
+	return ret;
 }

@@ -60,8 +60,8 @@ struct ena_stats {
 
 static const struct ena_stats ena_stats_global_strings[] = {
 	ENA_STAT_GLOBAL_ENTRY(tx_timeout),
-	ENA_STAT_GLOBAL_ENTRY(io_suspend),
-	ENA_STAT_GLOBAL_ENTRY(io_resume),
+	ENA_STAT_GLOBAL_ENTRY(suspend),
+	ENA_STAT_GLOBAL_ENTRY(resume),
 	ENA_STAT_GLOBAL_ENTRY(wd_expired),
 	ENA_STAT_GLOBAL_ENTRY(interface_up),
 	ENA_STAT_GLOBAL_ENTRY(interface_down),
@@ -81,6 +81,7 @@ static const struct ena_stats ena_stats_tx_strings[] = {
 	ENA_STAT_TX_ENTRY(doorbells),
 	ENA_STAT_TX_ENTRY(prepare_ctx_err),
 	ENA_STAT_TX_ENTRY(bad_req_id),
+	ENA_STAT_TX_ENTRY(missed_tx),
 };
 
 static const struct ena_stats ena_stats_rx_strings[] = {

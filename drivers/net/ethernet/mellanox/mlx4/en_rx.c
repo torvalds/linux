@@ -254,8 +254,7 @@ void mlx4_en_set_num_rx_rings(struct mlx4_en_dev *mdev)
 					 DEF_RX_RINGS));
 
 		num_rx_rings = mlx4_low_memory_profile() ? MIN_RX_RINGS :
-			min_t(int, num_of_eqs,
-			      netif_get_num_default_rss_queues());
+			min_t(int, num_of_eqs, num_online_cpus());
 		mdev->profile.prof[i].rx_ring_num =
 			rounddown_pow_of_two(num_rx_rings);
 	}
@@ -762,6 +761,7 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 
 			xdp.data_hard_start = va - frags[0].page_offset;
 			xdp.data = va;
+			xdp_set_data_meta_invalid(&xdp);
 			xdp.data_end = xdp.data + length;
 			orig_data = xdp.data;
 
@@ -778,7 +778,7 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 			case XDP_PASS:
 				break;
 			case XDP_TX:
-				if (likely(!mlx4_en_xmit_frame(ring, frags, dev,
+				if (likely(!mlx4_en_xmit_frame(ring, frags, priv,
 							length, cq_ring,
 							&doorbell_pending))) {
 					frags[0].page = NULL;

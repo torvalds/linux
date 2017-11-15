@@ -284,14 +284,17 @@ EXPORT_SYMBOL(inet_peer_xrlim_allow);
 
 void inetpeer_invalidate_tree(struct inet_peer_base *base)
 {
-	struct inet_peer *p, *n;
+	struct rb_node *p = rb_first(&base->rb_root);
 
-	rbtree_postorder_for_each_entry_safe(p, n, &base->rb_root, rb_node) {
-		inet_putpeer(p);
+	while (p) {
+		struct inet_peer *peer = rb_entry(p, struct inet_peer, rb_node);
+
+		p = rb_next(p);
+		rb_erase(&peer->rb_node, &base->rb_root);
+		inet_putpeer(peer);
 		cond_resched();
 	}
 
-	base->rb_root = RB_ROOT;
 	base->total = 0;
 }
 EXPORT_SYMBOL(inetpeer_invalidate_tree);

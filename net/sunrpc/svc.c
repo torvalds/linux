@@ -455,7 +455,7 @@ __svc_create(struct svc_program *prog, unsigned int bufsize, int npools,
 	serv->sv_xdrsize   = xdrsize;
 	INIT_LIST_HEAD(&serv->sv_tempsocks);
 	INIT_LIST_HEAD(&serv->sv_permsocks);
-	init_timer(&serv->sv_temptimer);
+	timer_setup(&serv->sv_temptimer, NULL, 0);
 	spin_lock_init(&serv->sv_lock);
 
 	__svc_init_bc(serv);

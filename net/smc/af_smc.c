@@ -390,6 +390,12 @@ static int smc_connect_rdma(struct smc_sock *smc)
 	int rc = 0;
 	u8 ibport;
 
+	if (!tcp_sk(smc->clcsock->sk)->syn_smc) {
+		/* peer has not signalled SMC-capability */
+		smc->use_fallback = true;
+		goto out_connected;
+	}
+
 	/* IPSec connections opt out of SMC-R optimizations */
 	if (using_ipsec(smc)) {
 		reason_code = SMC_CLC_DECL_IPSEC;
@@ -555,6 +561,7 @@ static int smc_connect(struct socket *sock, struct sockaddr *addr,
 	}
 
 	smc_copy_sock_settings_to_clc(smc);
+	tcp_sk(smc->clcsock->sk)->syn_smc = 1;
 	rc = kernel_connect(smc->clcsock, addr, alen, flags);
 	if (rc)
 		goto out;
@@ -759,6 +766,12 @@ static void smc_listen_work(struct work_struct *work)
 	u8 prefix_len;
 	u8 ibport;
 
+	/* check if peer is smc capable */
+	if (!tcp_sk(newclcsock->sk)->syn_smc) {
+		new_smc->use_fallback = true;
+		goto out_connected;
+	}
+
 	/* do inband token exchange -
 	 *wait for and receive SMC Proposal CLC message
 	 */
@@ -808,7 +821,7 @@ static void smc_listen_work(struct work_struct *work)
 		rc = local_contact;
 		if (rc == -ENOMEM)
 			reason_code = SMC_CLC_DECL_MEM;/* insufficient memory*/
-		goto decline_rdma;
+		goto decline_rdma_unlock;
 	}
 	link = &new_smc->conn.lgr->lnk[SMC_SINGLE_LINK];
 
@@ -816,7 +829,7 @@ static void smc_listen_work(struct work_struct *work)
 	rc = smc_buf_create(new_smc);
 	if (rc) {
 		reason_code = SMC_CLC_DECL_MEM;
-		goto decline_rdma;
+		goto decline_rdma_unlock;
 	}
 
 	smc_close_init(new_smc);
@@ -831,7 +844,7 @@ static void smc_listen_work(struct work_struct *work)
 					     buf_desc->mr_rx[SMC_SINGLE_LINK]);
 			if (rc) {
 				reason_code = SMC_CLC_DECL_INTERR;
-				goto decline_rdma;
+				goto decline_rdma_unlock;
 			}
 		}
 	}
@@ -839,15 +852,15 @@ static void smc_listen_work(struct work_struct *work)
 
 	rc = smc_clc_send_accept(new_smc, local_contact);
 	if (rc)
-		goto out_err;
+		goto out_err_unlock;
 
 	/* receive SMC Confirm CLC message */
 	reason_code = smc_clc_wait_msg(new_smc, &cclc, sizeof(cclc),
 				       SMC_CLC_CONFIRM);
 	if (reason_code < 0)
-		goto out_err;
+		goto out_err_unlock;
 	if (reason_code > 0)
-		goto decline_rdma;
+		goto decline_rdma_unlock;
 	smc_conn_save_peer_info(new_smc, &cclc);
 	if (local_contact == SMC_FIRST_CONTACT)
 		smc_link_save_peer_info(link, &cclc);
@@ -855,34 +868,34 @@ static void smc_listen_work(struct work_struct *work)
 	rc = smc_rmb_rtoken_handling(&new_smc->conn, &cclc);
 	if (rc) {
 		reason_code = SMC_CLC_DECL_INTERR;
-		goto decline_rdma;
+		goto decline_rdma_unlock;
 	}
 
 	if (local_contact == SMC_FIRST_CONTACT) {
 		rc = smc_ib_ready_link(link);
 		if (rc) {
 			reason_code = SMC_CLC_DECL_INTERR;
-			goto decline_rdma;
+			goto decline_rdma_unlock;
 		}
 		/* QP confirmation over RoCE fabric */
 		reason_code = smc_serv_conf_first_link(new_smc);
 		if (reason_code < 0) {
 			/* peer is not aware of a problem */
 			rc = reason_code;
-			goto out_err;
+			goto out_err_unlock;
 		}
 		if (reason_code > 0)
-			goto decline_rdma;
+			goto decline_rdma_unlock;
 	}
 
 	smc_tx_init(new_smc);
+	mutex_unlock(&smc_create_lgr_pending);
 
 out_connected:
 	sk_refcnt_debug_inc(newsmcsk);
 	if (newsmcsk->sk_state == SMC_INIT)
 		newsmcsk->sk_state = SMC_ACTIVE;
 enqueue:
-	mutex_unlock(&smc_create_lgr_pending);
 	lock_sock_nested(&lsmc->sk, SINGLE_DEPTH_NESTING);
 	if (lsmc->sk.sk_state == SMC_LISTEN) {
 		smc_accept_enqueue(&lsmc->sk, newsmcsk);
@@ -896,6 +909,8 @@ enqueue:
 	sock_put(&lsmc->sk); /* sock_hold in smc_tcp_listen_work */
 	return;
 
+decline_rdma_unlock:
+	mutex_unlock(&smc_create_lgr_pending);
 decline_rdma:
 	/* RDMA setup failed, switch back to TCP */
 	smc_conn_free(&new_smc->conn);
@@ -907,6 +922,8 @@ decline_rdma:
 	}
 	goto out_connected;
 
+out_err_unlock:
+	mutex_unlock(&smc_create_lgr_pending);
 out_err:
 	newsmcsk->sk_state = SMC_CLOSED;
 	smc_conn_free(&new_smc->conn);
@@ -963,6 +980,7 @@ static int smc_listen(struct socket *sock, int backlog)
 	 * them to the clc socket -- copy smc socket options to clc socket
 	 */
 	smc_copy_sock_settings_to_clc(smc);
+	tcp_sk(smc->clcsock->sk)->syn_smc = 1;
 
 	rc = kernel_listen(smc->clcsock, backlog);
 	if (rc)
@@ -1405,6 +1423,7 @@ static int __init smc_init(void)
 		goto out_sock;
 	}
 
+	static_branch_enable(&tcp_have_smc);
 	return 0;
 
 out_sock:
@@ -1429,6 +1448,7 @@ static void __exit smc_exit(void)
 		list_del_init(&lgr->list);
 		smc_lgr_free(lgr); /* free link group */
 	}
+	static_branch_disable(&tcp_have_smc);
 	smc_ib_unregister_client();
 	sock_unregister(PF_SMC);
 	proto_unregister(&smc_proto);

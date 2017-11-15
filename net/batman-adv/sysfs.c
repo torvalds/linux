@@ -925,8 +925,8 @@ static int batadv_store_mesh_iface_finish(struct net_device *net_dev,
 	if (hard_iface->if_status == status_tmp)
 		goto out;
 
-	if ((hard_iface->soft_iface) &&
-	    (strncmp(hard_iface->soft_iface->name, ifname, IFNAMSIZ) == 0))
+	if (hard_iface->soft_iface &&
+	    strncmp(hard_iface->soft_iface->name, ifname, IFNAMSIZ) == 0)
 		goto out;
 
 	if (status_tmp == BATADV_IF_NOT_IN_USE) {

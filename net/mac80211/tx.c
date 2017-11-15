@@ -1396,6 +1396,40 @@ static void ieee80211_txq_enqueue(struct ieee80211_local *local,
 		       fq_flow_get_default_func);
 }
 
+static bool fq_vlan_filter_func(struct fq *fq, struct fq_tin *tin,
+				struct fq_flow *flow, struct sk_buff *skb,
+				void *data)
+{
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+
+	return info->control.vif == data;
+}
+
+void ieee80211_txq_remove_vlan(struct ieee80211_local *local,
+			       struct ieee80211_sub_if_data *sdata)
+{
+	struct fq *fq = &local->fq;
+	struct txq_info *txqi;
+	struct fq_tin *tin;
+	struct ieee80211_sub_if_data *ap;
+
+	if (WARN_ON(sdata->vif.type != NL80211_IFTYPE_AP_VLAN))
+		return;
+
+	ap = container_of(sdata->bss, struct ieee80211_sub_if_data, u.ap);
+
+	if (!ap->vif.txq)
+		return;
+
+	txqi = to_txq_info(ap->vif.txq);
+	tin = &txqi->tin;
+
+	spin_lock_bh(&fq->lock);
+	fq_tin_filter(fq, tin, fq_vlan_filter_func, &sdata->vif,
+		      fq_skb_free_func);
+	spin_unlock_bh(&fq->lock);
+}
+
 void ieee80211_txq_init(struct ieee80211_sub_if_data *sdata,
 			struct sta_info *sta,
 			struct txq_info *txqi, int tid)

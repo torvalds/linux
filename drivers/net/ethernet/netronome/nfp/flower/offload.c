@@ -52,7 +52,25 @@
 	 BIT(FLOW_DISSECTOR_KEY_PORTS) | \
 	 BIT(FLOW_DISSECTOR_KEY_ETH_ADDRS) | \
 	 BIT(FLOW_DISSECTOR_KEY_VLAN) | \
+	 BIT(FLOW_DISSECTOR_KEY_ENC_KEYID) | \
+	 BIT(FLOW_DISSECTOR_KEY_ENC_IPV4_ADDRS) | \
+	 BIT(FLOW_DISSECTOR_KEY_ENC_IPV6_ADDRS) | \
+	 BIT(FLOW_DISSECTOR_KEY_ENC_CONTROL) | \
+	 BIT(FLOW_DISSECTOR_KEY_ENC_PORTS) | \
+	 BIT(FLOW_DISSECTOR_KEY_MPLS) | \
 	 BIT(FLOW_DISSECTOR_KEY_IP))
+
+#define NFP_FLOWER_WHITELIST_TUN_DISSECTOR \
+	(BIT(FLOW_DISSECTOR_KEY_ENC_CONTROL) | \
+	 BIT(FLOW_DISSECTOR_KEY_ENC_KEYID) | \
+	 BIT(FLOW_DISSECTOR_KEY_ENC_IPV4_ADDRS) | \
+	 BIT(FLOW_DISSECTOR_KEY_ENC_IPV6_ADDRS) | \
+	 BIT(FLOW_DISSECTOR_KEY_ENC_PORTS))
+
+#define NFP_FLOWER_WHITELIST_TUN_DISSECTOR_R \
+	(BIT(FLOW_DISSECTOR_KEY_ENC_CONTROL) | \
+	 BIT(FLOW_DISSECTOR_KEY_ENC_IPV4_ADDRS) | \
+	 BIT(FLOW_DISSECTOR_KEY_ENC_PORTS))
 
 static int
 nfp_flower_xmit_flow(struct net_device *netdev,
@@ -77,7 +95,7 @@ nfp_flower_xmit_flow(struct net_device *netdev,
 	nfp_flow->meta.mask_len >>= NFP_FL_LW_SIZ;
 	nfp_flow->meta.act_len >>= NFP_FL_LW_SIZ;
 
-	skb = nfp_flower_cmsg_alloc(priv->app, tot_len, mtype);
+	skb = nfp_flower_cmsg_alloc(priv->app, tot_len, mtype, GFP_KERNEL);
 	if (!skb)
 		return -ENOMEM;
 
@@ -117,7 +135,6 @@ nfp_flower_calculate_key_layers(struct nfp_fl_key_ls *ret_key_ls,
 {
 	struct flow_dissector_key_basic *mask_basic = NULL;
 	struct flow_dissector_key_basic *key_basic = NULL;
-	struct flow_dissector_key_ip *mask_ip = NULL;
 	u32 key_layer_two;
 	u8 key_layer;
 	int key_size;
@@ -125,15 +142,58 @@ nfp_flower_calculate_key_layers(struct nfp_fl_key_ls *ret_key_ls,
 	if (flow->dissector->used_keys & ~NFP_FLOWER_WHITELIST_DISSECTOR)
 		return -EOPNOTSUPP;
 
+	/* If any tun dissector is used then the required set must be used. */
+	if (flow->dissector->used_keys & NFP_FLOWER_WHITELIST_TUN_DISSECTOR &&
+	    (flow->dissector->used_keys & NFP_FLOWER_WHITELIST_TUN_DISSECTOR_R)
+	    != NFP_FLOWER_WHITELIST_TUN_DISSECTOR_R)
+		return -EOPNOTSUPP;
+
+	key_layer_two = 0;
+	key_layer = NFP_FLOWER_LAYER_PORT | NFP_FLOWER_LAYER_MAC;
+	key_size = sizeof(struct nfp_flower_meta_one) +
+		   sizeof(struct nfp_flower_in_port) +
+		   sizeof(struct nfp_flower_mac_mpls);
+
 	if (dissector_uses_key(flow->dissector,
 			       FLOW_DISSECTOR_KEY_ENC_CONTROL)) {
+		struct flow_dissector_key_ipv4_addrs *mask_ipv4 = NULL;
+		struct flow_dissector_key_ports *mask_enc_ports = NULL;
+		struct flow_dissector_key_ports *enc_ports = NULL;
 		struct flow_dissector_key_control *mask_enc_ctl =
 			skb_flow_dissector_target(flow->dissector,
 						  FLOW_DISSECTOR_KEY_ENC_CONTROL,
 						  flow->mask);
-		/* We are expecting a tunnel. For now we ignore offloading. */
-		if (mask_enc_ctl->addr_type)
+		struct flow_dissector_key_control *enc_ctl =
+			skb_flow_dissector_target(flow->dissector,
+						  FLOW_DISSECTOR_KEY_ENC_CONTROL,
+						  flow->key);
+		if (mask_enc_ctl->addr_type != 0xffff ||
+		    enc_ctl->addr_type != FLOW_DISSECTOR_KEY_IPV4_ADDRS)
 			return -EOPNOTSUPP;
+
+		/* These fields are already verified as used. */
+		mask_ipv4 =
+			skb_flow_dissector_target(flow->dissector,
+						  FLOW_DISSECTOR_KEY_ENC_IPV4_ADDRS,
+						  flow->mask);
+		if (mask_ipv4->dst != cpu_to_be32(~0))
+			return -EOPNOTSUPP;
+
+		mask_enc_ports =
+			skb_flow_dissector_target(flow->dissector,
+						  FLOW_DISSECTOR_KEY_ENC_PORTS,
+						  flow->mask);
+		enc_ports =
+			skb_flow_dissector_target(flow->dissector,
+						  FLOW_DISSECTOR_KEY_ENC_PORTS,
+						  flow->key);
+
+		if (mask_enc_ports->dst != cpu_to_be16(~0) ||
+		    enc_ports->dst != htons(NFP_FL_VXLAN_PORT))
+			return -EOPNOTSUPP;
+
+		key_layer |= NFP_FLOWER_LAYER_VXLAN;
+		key_size += sizeof(struct nfp_flower_vxlan);
 	}
 
 	if (dissector_uses_key(flow->dissector, FLOW_DISSECTOR_KEY_BASIC)) {
@@ -146,34 +206,15 @@ nfp_flower_calculate_key_layers(struct nfp_fl_key_ls *ret_key_ls,
 						      flow->key);
 	}
 
-	if (dissector_uses_key(flow->dissector, FLOW_DISSECTOR_KEY_IP))
-		mask_ip = skb_flow_dissector_target(flow->dissector,
-						    FLOW_DISSECTOR_KEY_IP,
-						    flow->mask);
-
-	key_layer_two = 0;
-	key_layer = NFP_FLOWER_LAYER_PORT | NFP_FLOWER_LAYER_MAC;
-	key_size = sizeof(struct nfp_flower_meta_one) +
-		   sizeof(struct nfp_flower_in_port) +
-		   sizeof(struct nfp_flower_mac_mpls);
-
 	if (mask_basic && mask_basic->n_proto) {
 		/* Ethernet type is present in the key. */
 		switch (key_basic->n_proto) {
 		case cpu_to_be16(ETH_P_IP):
-			if (mask_ip && mask_ip->tos)
-				return -EOPNOTSUPP;
-			if (mask_ip && mask_ip->ttl)
-				return -EOPNOTSUPP;
 			key_layer |= NFP_FLOWER_LAYER_IPV4;
 			key_size += sizeof(struct nfp_flower_ipv4);
 			break;
 
 		case cpu_to_be16(ETH_P_IPV6):
-			if (mask_ip && mask_ip->tos)
-				return -EOPNOTSUPP;
-			if (mask_ip && mask_ip->ttl)
-				return -EOPNOTSUPP;
 			key_layer |= NFP_FLOWER_LAYER_IPV6;
 			key_size += sizeof(struct nfp_flower_ipv6);
 			break;
@@ -182,11 +223,6 @@ nfp_flower_calculate_key_layers(struct nfp_fl_key_ls *ret_key_ls,
 		 * because we rely on it to get to the host.
 		 */
 		case cpu_to_be16(ETH_P_ARP):
-			return -EOPNOTSUPP;
-
-		/* Currently we do not offload MPLS. */
-		case cpu_to_be16(ETH_P_MPLS_UC):
-		case cpu_to_be16(ETH_P_MPLS_MC):
 			return -EOPNOTSUPP;
 
 		/* Will be included in layer 2. */
@@ -252,6 +288,7 @@ nfp_flower_allocate_new(struct nfp_fl_key_ls *key_layer)
 	if (!flow_pay->action_data)
 		goto err_free_mask;
 
+	flow_pay->nfp_tun_ipv4_addr = 0;
 	flow_pay->meta.flags = 0;
 	spin_lock_init(&flow_pay->lock);
 
@@ -361,6 +398,9 @@ nfp_flower_del_offload(struct nfp_app *app, struct net_device *netdev,
 	if (err)
 		goto err_free_flow;
 
+	if (nfp_flow->nfp_tun_ipv4_addr)
+		nfp_tunnel_del_ipv4_off(app, nfp_flow->nfp_tun_ipv4_addr);
+
 	err = nfp_flower_xmit_flow(netdev, nfp_flow,
 				   NFP_FLOWER_CMSG_TYPE_FLOW_DEL);
 	if (err)
@@ -409,6 +449,10 @@ static int
 nfp_flower_repr_offload(struct nfp_app *app, struct net_device *netdev,
 			struct tc_cls_flower_offload *flower)
 {
+	if (!eth_proto_is_802_3(flower->common.protocol) ||
+	    flower->common.chain_index)
+		return -EOPNOTSUPP;
+
 	switch (flower->command) {
 	case TC_CLSFLOWER_REPLACE:
 		return nfp_flower_add_offload(app, netdev, flower);
@@ -421,16 +465,53 @@ nfp_flower_repr_offload(struct nfp_app *app, struct net_device *netdev,
 	return -EOPNOTSUPP;
 }
 
+static int nfp_flower_setup_tc_block_cb(enum tc_setup_type type,
+					void *type_data, void *cb_priv)
+{
+	struct nfp_repr *repr = cb_priv;
+
+	if (!tc_can_offload(repr->netdev))
+		return -EOPNOTSUPP;
+
+	switch (type) {
+	case TC_SETUP_CLSFLOWER:
+		return nfp_flower_repr_offload(repr->app, repr->netdev,
+					       type_data);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static int nfp_flower_setup_tc_block(struct net_device *netdev,
+				     struct tc_block_offload *f)
+{
+	struct nfp_repr *repr = netdev_priv(netdev);
+
+	if (f->binder_type != TCF_BLOCK_BINDER_TYPE_CLSACT_INGRESS)
+		return -EOPNOTSUPP;
+
+	switch (f->command) {
+	case TC_BLOCK_BIND:
+		return tcf_block_cb_register(f->block,
+					     nfp_flower_setup_tc_block_cb,
+					     repr, repr);
+	case TC_BLOCK_UNBIND:
+		tcf_block_cb_unregister(f->block,
+					nfp_flower_setup_tc_block_cb,
+					repr);
+		return 0;
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
 int nfp_flower_setup_tc(struct nfp_app *app, struct net_device *netdev,
 			enum tc_setup_type type, void *type_data)
 {
-	struct tc_cls_flower_offload *cls_flower = type_data;
-
-	if (type != TC_SETUP_CLSFLOWER ||
-	    !is_classid_clsact_ingress(cls_flower->common.classid) ||
-	    !eth_proto_is_802_3(cls_flower->common.protocol) ||
-	    cls_flower->common.chain_index)
+	switch (type) {
+	case TC_SETUP_BLOCK:
+		return nfp_flower_setup_tc_block(netdev, type_data);
+	default:
 		return -EOPNOTSUPP;
-
-	return nfp_flower_repr_offload(app, netdev, cls_flower);
+	}
 }

@@ -696,9 +696,9 @@ xprt_schedule_autodisconnect(struct rpc_xprt *xprt)
 }
 
 static void
-xprt_init_autodisconnect(unsigned long data)
+xprt_init_autodisconnect(struct timer_list *t)
 {
-	struct rpc_xprt *xprt = (struct rpc_xprt *)data;
+	struct rpc_xprt *xprt = from_timer(xprt, t, timer);
 
 	spin_lock(&xprt->transport_lock);
 	if (!list_empty(&xprt->recv))
@@ -1422,10 +1422,9 @@ found:
 		xprt->idle_timeout = 0;
 	INIT_WORK(&xprt->task_cleanup, xprt_autoclose);
 	if (xprt_has_timer(xprt))
-		setup_timer(&xprt->timer, xprt_init_autodisconnect,
-			    (unsigned long)xprt);
+		timer_setup(&xprt->timer, xprt_init_autodisconnect, 0);
 	else
-		init_timer(&xprt->timer);
+		timer_setup(&xprt->timer, NULL, 0);
 
 	if (strlen(args->servername) > RPC_MAXNETNAMELEN) {
 		xprt_destroy(xprt);

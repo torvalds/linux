@@ -38,6 +38,13 @@
 #include "spectrum_router.h"
 #include <net/ip_fib.h>
 
+struct ip_tunnel_parm
+mlxsw_sp_ipip_netdev_parms(const struct net_device *ol_dev);
+
+union mlxsw_sp_l3addr
+mlxsw_sp_ipip_netdev_saddr(enum mlxsw_sp_l3proto proto,
+			   const struct net_device *ol_dev);
+
 enum mlxsw_sp_ipip_type {
 	MLXSW_SP_IPIP_TYPE_GRE4,
 	MLXSW_SP_IPIP_TYPE_MAX,
@@ -47,9 +54,9 @@ struct mlxsw_sp_ipip_entry {
 	enum mlxsw_sp_ipip_type ipipt;
 	struct net_device *ol_dev; /* Overlay. */
 	struct mlxsw_sp_rif_ipip_lb *ol_lb;
-	unsigned int ref_count; /* Number of next hops using the tunnel. */
 	struct mlxsw_sp_fib_entry *decap_fib_entry;
 	struct list_head ipip_list_node;
+	struct ip_tunnel_parm parms;
 };
 
 struct mlxsw_sp_ipip_ops {
@@ -72,6 +79,10 @@ struct mlxsw_sp_ipip_ops {
 			    struct mlxsw_sp_ipip_entry *ipip_entry,
 			    enum mlxsw_reg_ralue_op op,
 			    u32 tunnel_index);
+
+	int (*ol_netdev_change)(struct mlxsw_sp *mlxsw_sp,
+				struct mlxsw_sp_ipip_entry *ipip_entry,
+				struct netlink_ext_ack *extack);
 };
 
 extern const struct mlxsw_sp_ipip_ops *mlxsw_sp_ipip_ops_arr[];

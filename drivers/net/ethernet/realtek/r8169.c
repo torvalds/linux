@@ -399,6 +399,12 @@ enum rtl_registers {
 	RxMaxSize	= 0xda,
 	CPlusCmd	= 0xe0,
 	IntrMitigate	= 0xe2,
+
+#define RTL_COALESCE_MASK	0x0f
+#define RTL_COALESCE_SHIFT	4
+#define RTL_COALESCE_T_MAX	(RTL_COALESCE_MASK)
+#define RTL_COALESCE_FRAME_MAX	(RTL_COALESCE_MASK << 2)
+
 	RxDescAddrLow	= 0xe4,
 	RxDescAddrHigh	= 0xe8,
 	EarlyTxThres	= 0xec,	/* 8169. Unit of 32 bytes. */
@@ -795,6 +801,7 @@ struct rtl8169_private {
 	u16 cp_cmd;
 
 	u16 event_slow;
+	const struct rtl_coalesce_info *coalesce_info;
 
 	struct mdio_ops {
 		void (*write)(struct rtl8169_private *, int, int);
@@ -1975,8 +1982,6 @@ static int rtl8169_set_speed_xmii(struct net_device *dev,
 		rtl_writephy(tp, MII_ADVERTISE, auto_nego);
 		rtl_writephy(tp, MII_CTRL1000, giga_ctrl);
 	} else {
-		giga_ctrl = 0;
-
 		if (speed == SPEED_10)
 			bmcr = 0;
 		else if (speed == SPEED_100)
@@ -2363,10 +2368,229 @@ static int rtl8169_nway_reset(struct net_device *dev)
 	return mii_nway_restart(&tp->mii);
 }
 
+/*
+ * Interrupt coalescing
+ *
+ * > 1 - the availability of the IntrMitigate (0xe2) register through the
+ * >     8169, 8168 and 810x line of chipsets
+ *
+ * 8169, 8168, and 8136(810x) serial chipsets support it.
+ *
+ * > 2 - the Tx timer unit at gigabit speed
+ *
+ * The unit of the timer depends on both the speed and the setting of CPlusCmd
+ * (0xe0) bit 1 and bit 0.
+ *
+ * For 8169
+ * bit[1:0] \ speed        1000M           100M            10M
+ * 0 0                     320ns           2.56us          40.96us
+ * 0 1                     2.56us          20.48us         327.7us
+ * 1 0                     5.12us          40.96us         655.4us
+ * 1 1                     10.24us         81.92us         1.31ms
+ *
+ * For the other
+ * bit[1:0] \ speed        1000M           100M            10M
+ * 0 0                     5us             2.56us          40.96us
+ * 0 1                     40us            20.48us         327.7us
+ * 1 0                     80us            40.96us         655.4us
+ * 1 1                     160us           81.92us         1.31ms
+ */
+
+/* rx/tx scale factors for one particular CPlusCmd[0:1] value */
+struct rtl_coalesce_scale {
+	/* Rx / Tx */
+	u32 nsecs[2];
+};
+
+/* rx/tx scale factors for all CPlusCmd[0:1] cases */
+struct rtl_coalesce_info {
+	u32 speed;
+	struct rtl_coalesce_scale scalev[4];	/* each CPlusCmd[0:1] case */
+};
+
+/* produce (r,t) pairs with each being in series of *1, *8, *8*2, *8*2*2 */
+#define rxtx_x1822(r, t) {		\
+	{{(r),		(t)}},		\
+	{{(r)*8,	(t)*8}},	\
+	{{(r)*8*2,	(t)*8*2}},	\
+	{{(r)*8*2*2,	(t)*8*2*2}},	\
+}
+static const struct rtl_coalesce_info rtl_coalesce_info_8169[] = {
+	/* speed	delays:     rx00   tx00	*/
+	{ SPEED_10,	rxtx_x1822(40960, 40960)	},
+	{ SPEED_100,	rxtx_x1822( 2560,  2560)	},
+	{ SPEED_1000,	rxtx_x1822(  320,   320)	},
+	{ 0 },
+};
+
+static const struct rtl_coalesce_info rtl_coalesce_info_8168_8136[] = {
+	/* speed	delays:     rx00   tx00	*/
+	{ SPEED_10,	rxtx_x1822(40960, 40960)	},
+	{ SPEED_100,	rxtx_x1822( 2560,  2560)	},
+	{ SPEED_1000,	rxtx_x1822( 5000,  5000)	},
+	{ 0 },
+};
+#undef rxtx_x1822
+
+/* get rx/tx scale vector corresponding to current speed */
+static const struct rtl_coalesce_info *rtl_coalesce_info(struct net_device *dev)
+{
+	struct rtl8169_private *tp = netdev_priv(dev);
+	struct ethtool_link_ksettings ecmd;
+	const struct rtl_coalesce_info *ci;
+	int rc;
+
+	rc = rtl8169_get_link_ksettings(dev, &ecmd);
+	if (rc < 0)
+		return ERR_PTR(rc);
+
+	for (ci = tp->coalesce_info; ci->speed != 0; ci++) {
+		if (ecmd.base.speed == ci->speed) {
+			return ci;
+		}
+	}
+
+	return ERR_PTR(-ELNRNG);
+}
+
+static int rtl_get_coalesce(struct net_device *dev, struct ethtool_coalesce *ec)
+{
+	struct rtl8169_private *tp = netdev_priv(dev);
+	void __iomem *ioaddr = tp->mmio_addr;
+	const struct rtl_coalesce_info *ci;
+	const struct rtl_coalesce_scale *scale;
+	struct {
+		u32 *max_frames;
+		u32 *usecs;
+	} coal_settings [] = {
+		{ &ec->rx_max_coalesced_frames, &ec->rx_coalesce_usecs },
+		{ &ec->tx_max_coalesced_frames, &ec->tx_coalesce_usecs }
+	}, *p = coal_settings;
+	int i;
+	u16 w;
+
+	memset(ec, 0, sizeof(*ec));
+
+	/* get rx/tx scale corresponding to current speed and CPlusCmd[0:1] */
+	ci = rtl_coalesce_info(dev);
+	if (IS_ERR(ci))
+		return PTR_ERR(ci);
+
+	scale = &ci->scalev[RTL_R16(CPlusCmd) & 3];
+
+	/* read IntrMitigate and adjust according to scale */
+	for (w = RTL_R16(IntrMitigate); w; w >>= RTL_COALESCE_SHIFT, p++) {
+		*p->max_frames = (w & RTL_COALESCE_MASK) << 2;
+		w >>= RTL_COALESCE_SHIFT;
+		*p->usecs = w & RTL_COALESCE_MASK;
+	}
+
+	for (i = 0; i < 2; i++) {
+		p = coal_settings + i;
+		*p->usecs = (*p->usecs * scale->nsecs[i]) / 1000;
+
+		/*
+		 * ethtool_coalesce says it is illegal to set both usecs and
+		 * max_frames to 0.
+		 */
+		if (!*p->usecs && !*p->max_frames)
+			*p->max_frames = 1;
+	}
+
+	return 0;
+}
+
+/* choose appropriate scale factor and CPlusCmd[0:1] for (speed, nsec) */
+static const struct rtl_coalesce_scale *rtl_coalesce_choose_scale(
+			struct net_device *dev, u32 nsec, u16 *cp01)
+{
+	const struct rtl_coalesce_info *ci;
+	u16 i;
+
+	ci = rtl_coalesce_info(dev);
+	if (IS_ERR(ci))
+		return ERR_CAST(ci);
+
+	for (i = 0; i < 4; i++) {
+		u32 rxtx_maxscale = max(ci->scalev[i].nsecs[0],
+					ci->scalev[i].nsecs[1]);
+		if (nsec <= rxtx_maxscale * RTL_COALESCE_T_MAX) {
+			*cp01 = i;
+			return &ci->scalev[i];
+		}
+	}
+
+	return ERR_PTR(-EINVAL);
+}
+
+static int rtl_set_coalesce(struct net_device *dev, struct ethtool_coalesce *ec)
+{
+	struct rtl8169_private *tp = netdev_priv(dev);
+	void __iomem *ioaddr = tp->mmio_addr;
+	const struct rtl_coalesce_scale *scale;
+	struct {
+		u32 frames;
+		u32 usecs;
+	} coal_settings [] = {
+		{ ec->rx_max_coalesced_frames, ec->rx_coalesce_usecs },
+		{ ec->tx_max_coalesced_frames, ec->tx_coalesce_usecs }
+	}, *p = coal_settings;
+	u16 w = 0, cp01;
+	int i;
+
+	scale = rtl_coalesce_choose_scale(dev,
+			max(p[0].usecs, p[1].usecs) * 1000, &cp01);
+	if (IS_ERR(scale))
+		return PTR_ERR(scale);
+
+	for (i = 0; i < 2; i++, p++) {
+		u32 units;
+
+		/*
+		 * accept max_frames=1 we returned in rtl_get_coalesce.
+		 * accept it not only when usecs=0 because of e.g. the following scenario:
+		 *
+		 * - both rx_usecs=0 & rx_frames=0 in hardware (no delay on RX)
+		 * - rtl_get_coalesce returns rx_usecs=0, rx_frames=1
+		 * - then user does `ethtool -C eth0 rx-usecs 100`
+		 *
+		 * since ethtool sends to kernel whole ethtool_coalesce
+		 * settings, if we do not handle rx_usecs=!0, rx_frames=1
+		 * we'll reject it below in `frames % 4 != 0`.
+		 */
+		if (p->frames == 1) {
+			p->frames = 0;
+		}
+
+		units = p->usecs * 1000 / scale->nsecs[i];
+		if (p->frames > RTL_COALESCE_FRAME_MAX || p->frames % 4)
+			return -EINVAL;
+
+		w <<= RTL_COALESCE_SHIFT;
+		w |= units;
+		w <<= RTL_COALESCE_SHIFT;
+		w |= p->frames >> 2;
+	}
+
+	rtl_lock_work(tp);
+
+	RTL_W16(IntrMitigate, swab16(w));
+
+	tp->cp_cmd = (tp->cp_cmd & ~3) | cp01;
+	RTL_W16(CPlusCmd, tp->cp_cmd);
+	RTL_R16(CPlusCmd);
+
+	rtl_unlock_work(tp);
+
+	return 0;
+}
+
 static const struct ethtool_ops rtl8169_ethtool_ops = {
 	.get_drvinfo		= rtl8169_get_drvinfo,
 	.get_regs_len		= rtl8169_get_regs_len,
 	.get_link		= ethtool_op_get_link,
+	.get_coalesce		= rtl_get_coalesce,
+	.set_coalesce		= rtl_set_coalesce,
 	.set_settings		= rtl8169_set_settings,
 	.get_msglevel		= rtl8169_get_msglevel,
 	.set_msglevel		= rtl8169_set_msglevel,
@@ -4401,10 +4625,9 @@ static void rtl_schedule_task(struct rtl8169_private *tp, enum rtl_flag flag)
 		schedule_work(&tp->wk.work);
 }
 
-static void rtl8169_phy_timer(unsigned long __opaque)
+static void rtl8169_phy_timer(struct timer_list *t)
 {
-	struct net_device *dev = (struct net_device *)__opaque;
-	struct rtl8169_private *tp = netdev_priv(dev);
+	struct rtl8169_private *tp = from_timer(tp, t, timer);
 
 	rtl_schedule_task(tp, RTL_FLAG_TASK_PHY_PENDING);
 }
@@ -8062,6 +8285,7 @@ static const struct rtl_cfg_info {
 	unsigned int align;
 	u16 event_slow;
 	unsigned features;
+	const struct rtl_coalesce_info *coalesce_info;
 	u8 default_ver;
 } rtl_cfg_infos [] = {
 	[RTL_CFG_0] = {
@@ -8070,6 +8294,7 @@ static const struct rtl_cfg_info {
 		.align		= 0,
 		.event_slow	= SYSErr | LinkChg | RxOverflow | RxFIFOOver,
 		.features	= RTL_FEATURE_GMII,
+		.coalesce_info	= rtl_coalesce_info_8169,
 		.default_ver	= RTL_GIGA_MAC_VER_01,
 	},
 	[RTL_CFG_1] = {
@@ -8078,6 +8303,7 @@ static const struct rtl_cfg_info {
 		.align		= 8,
 		.event_slow	= SYSErr | LinkChg | RxOverflow,
 		.features	= RTL_FEATURE_GMII | RTL_FEATURE_MSI,
+		.coalesce_info	= rtl_coalesce_info_8168_8136,
 		.default_ver	= RTL_GIGA_MAC_VER_11,
 	},
 	[RTL_CFG_2] = {
@@ -8087,6 +8313,7 @@ static const struct rtl_cfg_info {
 		.event_slow	= SYSErr | LinkChg | RxOverflow | RxFIFOOver |
 				  PCSTimeout,
 		.features	= RTL_FEATURE_MSI,
+		.coalesce_info	= rtl_coalesce_info_8168_8136,
 		.default_ver	= RTL_GIGA_MAC_VER_13,
 	}
 };
@@ -8450,11 +8677,12 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	tp->hw_start = cfg->hw_start;
 	tp->event_slow = cfg->event_slow;
+	tp->coalesce_info = cfg->coalesce_info;
 
 	tp->opts1_mask = (tp->mac_version != RTL_GIGA_MAC_VER_01) ?
 		~(RxBOVF | RxFOVF) : ~0;
 
-	setup_timer(&tp->timer, rtl8169_phy_timer, (unsigned long)dev);
+	timer_setup(&tp->timer, rtl8169_phy_timer, 0);
 
 	tp->rtl_fw = RTL_FIRMWARE_UNKNOWN;
 

@@ -329,10 +329,12 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 		sta->mesh = kzalloc(sizeof(*sta->mesh), gfp);
 		if (!sta->mesh)
 			goto free;
+		sta->mesh->plink_sta = sta;
 		spin_lock_init(&sta->mesh->plink_lock);
 		if (ieee80211_vif_is_mesh(&sdata->vif) &&
 		    !sdata->u.mesh.user_mpm)
-			init_timer(&sta->mesh->plink_timer);
+			timer_setup(&sta->mesh->plink_timer, mesh_plink_timer,
+				    0);
 		sta->mesh->nonpeer_pm = NL80211_MESH_POWER_ACTIVE;
 	}
 #endif
@@ -515,6 +517,31 @@ static int sta_info_insert_drv_state(struct ieee80211_local *local,
 	return err;
 }
 
+static void
+ieee80211_recalc_p2p_go_ps_allowed(struct ieee80211_sub_if_data *sdata)
+{
+	struct ieee80211_local *local = sdata->local;
+	bool allow_p2p_go_ps = sdata->vif.p2p;
+	struct sta_info *sta;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(sta, &local->sta_list, list) {
+		if (sdata != sta->sdata ||
+		    !test_sta_flag(sta, WLAN_STA_ASSOC))
+			continue;
+		if (!sta->sta.support_p2p_ps) {
+			allow_p2p_go_ps = false;
+			break;
+		}
+	}
+	rcu_read_unlock();
+
+	if (allow_p2p_go_ps != sdata->vif.bss_conf.allow_p2p_go_ps) {
+		sdata->vif.bss_conf.allow_p2p_go_ps = allow_p2p_go_ps;
+		ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_P2P_PS);
+	}
+}
+
 /*
  * should be called with sta_mtx locked
  * this function replaces the mutex lock
@@ -561,6 +588,13 @@ static int sta_info_insert_finish(struct sta_info *sta) __acquires(RCU)
 		goto out_remove;
 
 	set_sta_flag(sta, WLAN_STA_INSERTED);
+
+	if (sta->sta_state >= IEEE80211_STA_ASSOC) {
+		ieee80211_recalc_min_chandef(sta->sdata);
+		if (!sta->sta.support_p2p_ps)
+			ieee80211_recalc_p2p_go_ps_allowed(sta->sdata);
+	}
+
 	/* accept BA sessions now */
 	clear_sta_flag(sta, WLAN_STA_BLOCK_BA);
 
@@ -1787,31 +1821,6 @@ void ieee80211_sta_set_buffered(struct ieee80211_sta *pubsta,
 	sta_info_recalc_tim(sta);
 }
 EXPORT_SYMBOL(ieee80211_sta_set_buffered);
-
-static void
-ieee80211_recalc_p2p_go_ps_allowed(struct ieee80211_sub_if_data *sdata)
-{
-	struct ieee80211_local *local = sdata->local;
-	bool allow_p2p_go_ps = sdata->vif.p2p;
-	struct sta_info *sta;
-
-	rcu_read_lock();
-	list_for_each_entry_rcu(sta, &local->sta_list, list) {
-		if (sdata != sta->sdata ||
-		    !test_sta_flag(sta, WLAN_STA_ASSOC))
-			continue;
-		if (!sta->sta.support_p2p_ps) {
-			allow_p2p_go_ps = false;
-			break;
-		}
-	}
-	rcu_read_unlock();
-
-	if (allow_p2p_go_ps != sdata->vif.bss_conf.allow_p2p_go_ps) {
-		sdata->vif.bss_conf.allow_p2p_go_ps = allow_p2p_go_ps;
-		ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_P2P_PS);
-	}
-}
 
 int sta_info_move_state(struct sta_info *sta,
 			enum ieee80211_sta_state new_state)

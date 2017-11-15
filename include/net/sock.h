@@ -60,7 +60,7 @@
 #include <linux/sched.h>
 #include <linux/wait.h>
 #include <linux/cgroup-defs.h>
-
+#include <linux/rbtree.h>
 #include <linux/filter.h>
 #include <linux/rculist_nulls.h>
 #include <linux/poll.h>
@@ -267,6 +267,7 @@ struct sock_common {
   *	@sk_gso_type: GSO type (e.g. %SKB_GSO_TCPV4)
   *	@sk_gso_max_size: Maximum GSO segment size to build
   *	@sk_gso_max_segs: Maximum number of GSO segments
+  *	@sk_pacing_shift: scaling factor for TCP Small Queues
   *	@sk_lingertime: %SO_LINGER l_linger setting
   *	@sk_backlog: always used with the per-socket spinlock held
   *	@sk_callback_lock: used with the callbacks in the end of this struct
@@ -397,7 +398,10 @@ struct sock {
 	int			sk_wmem_queued;
 	refcount_t		sk_wmem_alloc;
 	unsigned long		sk_tsq_flags;
-	struct sk_buff		*sk_send_head;
+	union {
+		struct sk_buff	*sk_send_head;
+		struct rb_root	tcp_rtx_queue;
+	};
 	struct sk_buff_head	sk_write_queue;
 	__s32			sk_peek_off;
 	int			sk_write_pending;
@@ -448,6 +452,7 @@ struct sock {
 	kmemcheck_bitfield_end(flags);
 
 	u16			sk_gso_max_segs;
+	u8			sk_pacing_shift;
 	unsigned long	        sk_lingertime;
 	struct proto		*sk_prot_creator;
 	rwlock_t		sk_callback_lock;
@@ -734,10 +739,10 @@ static inline void sk_add_bind_node(struct sock *sk,
  *
  */
 #define sk_for_each_entry_offset_rcu(tpos, pos, head, offset)		       \
-	for (pos = rcu_dereference((head)->first);			       \
+	for (pos = rcu_dereference(hlist_first_rcu(head));		       \
 	     pos != NULL &&						       \
 		({ tpos = (typeof(*tpos) *)((void *)pos - offset); 1;});       \
-	     pos = rcu_dereference(pos->next))
+	     pos = rcu_dereference(hlist_next_rcu(pos)))
 
 static inline struct user_namespace *sk_user_ns(struct sock *sk)
 {
@@ -1098,8 +1103,12 @@ struct proto {
 	 */
 	unsigned long		*memory_pressure;
 	long			*sysctl_mem;
+
 	int			*sysctl_wmem;
 	int			*sysctl_rmem;
+	u32			sysctl_wmem_offset;
+	u32			sysctl_rmem_offset;
+
 	int			max_header;
 	bool			no_autobind;
 
@@ -2386,5 +2395,23 @@ extern int sysctl_optmem_max;
 
 extern __u32 sysctl_wmem_default;
 extern __u32 sysctl_rmem_default;
+
+static inline int sk_get_wmem0(const struct sock *sk, const struct proto *proto)
+{
+	/* Does this proto have per netns sysctl_wmem ? */
+	if (proto->sysctl_wmem_offset)
+		return *(int *)((void *)sock_net(sk) + proto->sysctl_wmem_offset);
+
+	return *proto->sysctl_wmem;
+}
+
+static inline int sk_get_rmem0(const struct sock *sk, const struct proto *proto)
+{
+	/* Does this proto have per netns sysctl_rmem ? */
+	if (proto->sysctl_rmem_offset)
+		return *(int *)((void *)sock_net(sk) + proto->sysctl_rmem_offset);
+
+	return *proto->sysctl_rmem;
+}
 
 #endif	/* _SOCK_H */

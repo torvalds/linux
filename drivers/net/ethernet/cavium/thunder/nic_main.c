@@ -361,17 +361,8 @@ static void nic_set_lmac_vf_mapping(struct nicpf *nic)
 	}
 }
 
-static void nic_free_lmacmem(struct nicpf *nic)
+static void nic_get_hw_info(struct nicpf *nic)
 {
-	kfree(nic->vf_lmac_map);
-	kfree(nic->link);
-	kfree(nic->duplex);
-	kfree(nic->speed);
-}
-
-static int nic_get_hw_info(struct nicpf *nic)
-{
-	u8 max_lmac;
 	u16 sdevid;
 	struct hw_info *hw = nic->hw;
 
@@ -419,40 +410,15 @@ static int nic_get_hw_info(struct nicpf *nic)
 		break;
 	}
 	hw->tl4_cnt = MAX_QUEUES_PER_QSET * pci_sriov_get_totalvfs(nic->pdev);
-
-	/* Allocate memory for LMAC tracking elements */
-	max_lmac = hw->bgx_cnt * MAX_LMAC_PER_BGX;
-	nic->vf_lmac_map = kmalloc_array(max_lmac, sizeof(u8), GFP_KERNEL);
-	if (!nic->vf_lmac_map)
-		goto error;
-	nic->link = kmalloc_array(max_lmac, sizeof(u8), GFP_KERNEL);
-	if (!nic->link)
-		goto error;
-	nic->duplex = kmalloc_array(max_lmac, sizeof(u8), GFP_KERNEL);
-	if (!nic->duplex)
-		goto error;
-	nic->speed = kmalloc_array(max_lmac, sizeof(u32), GFP_KERNEL);
-	if (!nic->speed)
-		goto error;
-	return 0;
-
-error:
-	nic_free_lmacmem(nic);
-	return -ENOMEM;
 }
 
 #define BGX0_BLOCK 8
 #define BGX1_BLOCK 9
 
-static int nic_init_hw(struct nicpf *nic)
+static void nic_init_hw(struct nicpf *nic)
 {
-	int i, err;
+	int i;
 	u64 cqm_cfg;
-
-	/* Get HW capability info */
-	err = nic_get_hw_info(nic);
-	if (err)
-		return err;
 
 	/* Enable NIC HW block */
 	nic_reg_write(nic, NIC_PF_CFG, 0x3);
@@ -498,8 +464,6 @@ static int nic_init_hw(struct nicpf *nic)
 	cqm_cfg = nic_reg_read(nic, NIC_PF_CQM_CFG);
 	if (cqm_cfg < NICPF_CQM_MIN_DROP_LEVEL)
 		nic_reg_write(nic, NIC_PF_CQM_CFG, NICPF_CQM_MIN_DROP_LEVEL);
-
-	return 0;
 }
 
 /* Channel parse index configuration */
@@ -584,9 +548,6 @@ static void nic_config_cpi(struct nicpf *nic, struct cpi_cfg_msg *cfg)
 static void nic_send_rss_size(struct nicpf *nic, int vf)
 {
 	union nic_mbx mbx = {};
-	u64  *msg;
-
-	msg = (u64 *)&mbx;
 
 	mbx.rss_size.msg = NIC_MBOX_MSG_RSS_SIZE;
 	mbx.rss_size.ind_tbl_size = nic->hw->rss_ind_tbl_size;
@@ -608,7 +569,6 @@ static void nic_config_rss(struct nicpf *nic, struct rss_cfg_msg *cfg)
 	rssi_base = nic->rssi_base[cfg->vf_id] + cfg->tbl_offset;
 
 	rssi = rssi_base;
-	qset = cfg->vf_id;
 
 	for (; rssi < (rssi_base + cfg->tbl_len); rssi++) {
 		u8 svf = cfg->ind_tbl[idx] >> 3;
@@ -1273,6 +1233,7 @@ static int nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct device *dev = &pdev->dev;
 	struct nicpf *nic;
+	u8     max_lmac;
 	int    err;
 
 	BUILD_BUG_ON(sizeof(union nic_mbx) > 16);
@@ -1282,10 +1243,8 @@ static int nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return -ENOMEM;
 
 	nic->hw = devm_kzalloc(dev, sizeof(struct hw_info), GFP_KERNEL);
-	if (!nic->hw) {
-		devm_kfree(dev, nic);
+	if (!nic->hw)
 		return -ENOMEM;
-	}
 
 	pci_set_drvdata(pdev, nic);
 
@@ -1326,10 +1285,32 @@ static int nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	nic->node = nic_get_node_id(pdev);
 
-	/* Initialize hardware */
-	err = nic_init_hw(nic);
-	if (err)
+	/* Get HW capability info */
+	nic_get_hw_info(nic);
+
+	/* Allocate memory for LMAC tracking elements */
+	err = -ENOMEM;
+	max_lmac = nic->hw->bgx_cnt * MAX_LMAC_PER_BGX;
+
+	nic->vf_lmac_map = devm_kmalloc_array(dev, max_lmac, sizeof(u8),
+					      GFP_KERNEL);
+	if (!nic->vf_lmac_map)
 		goto err_release_regions;
+
+	nic->link = devm_kmalloc_array(dev, max_lmac, sizeof(u8), GFP_KERNEL);
+	if (!nic->link)
+		goto err_release_regions;
+
+	nic->duplex = devm_kmalloc_array(dev, max_lmac, sizeof(u8), GFP_KERNEL);
+	if (!nic->duplex)
+		goto err_release_regions;
+
+	nic->speed = devm_kmalloc_array(dev, max_lmac, sizeof(u32), GFP_KERNEL);
+	if (!nic->speed)
+		goto err_release_regions;
+
+	/* Initialize hardware */
+	nic_init_hw(nic);
 
 	nic_set_lmac_vf_mapping(nic);
 
@@ -1364,9 +1345,6 @@ err_unregister_interrupts:
 err_release_regions:
 	pci_release_regions(pdev);
 err_disable_device:
-	nic_free_lmacmem(nic);
-	devm_kfree(dev, nic->hw);
-	devm_kfree(dev, nic);
 	pci_disable_device(pdev);
 	pci_set_drvdata(pdev, NULL);
 	return err;
@@ -1387,10 +1365,6 @@ static void nic_remove(struct pci_dev *pdev)
 
 	nic_unregister_interrupts(nic);
 	pci_release_regions(pdev);
-
-	nic_free_lmacmem(nic);
-	devm_kfree(&pdev->dev, nic->hw);
-	devm_kfree(&pdev->dev, nic);
 
 	pci_disable_device(pdev);
 	pci_set_drvdata(pdev, NULL);

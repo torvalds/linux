@@ -5,10 +5,12 @@
 #include <linux/ipv6.h>
 #include <linux/if_vlan.h>
 #include <net/dsa.h>
+#include <net/dst_metadata.h>
 #include <net/ip.h>
 #include <net/ipv6.h>
 #include <net/gre.h>
 #include <net/pptp.h>
+#include <net/tipc.h>
 #include <linux/igmp.h>
 #include <linux/icmp.h>
 #include <linux/sctp.h>
@@ -114,6 +116,102 @@ __be32 __skb_flow_get_ports(const struct sk_buff *skb, int thoff, u8 ip_proto,
 	return 0;
 }
 EXPORT_SYMBOL(__skb_flow_get_ports);
+
+static void
+skb_flow_dissect_set_enc_addr_type(enum flow_dissector_key_id type,
+				   struct flow_dissector *flow_dissector,
+				   void *target_container)
+{
+	struct flow_dissector_key_control *ctrl;
+
+	if (!dissector_uses_key(flow_dissector, FLOW_DISSECTOR_KEY_ENC_CONTROL))
+		return;
+
+	ctrl = skb_flow_dissector_target(flow_dissector,
+					 FLOW_DISSECTOR_KEY_ENC_CONTROL,
+					 target_container);
+	ctrl->addr_type = type;
+}
+
+static void
+__skb_flow_dissect_tunnel_info(const struct sk_buff *skb,
+			       struct flow_dissector *flow_dissector,
+			       void *target_container)
+{
+	struct ip_tunnel_info *info;
+	struct ip_tunnel_key *key;
+
+	/* A quick check to see if there might be something to do. */
+	if (!dissector_uses_key(flow_dissector,
+				FLOW_DISSECTOR_KEY_ENC_KEYID) &&
+	    !dissector_uses_key(flow_dissector,
+				FLOW_DISSECTOR_KEY_ENC_IPV4_ADDRS) &&
+	    !dissector_uses_key(flow_dissector,
+				FLOW_DISSECTOR_KEY_ENC_IPV6_ADDRS) &&
+	    !dissector_uses_key(flow_dissector,
+				FLOW_DISSECTOR_KEY_ENC_CONTROL) &&
+	    !dissector_uses_key(flow_dissector,
+				FLOW_DISSECTOR_KEY_ENC_PORTS))
+		return;
+
+	info = skb_tunnel_info(skb);
+	if (!info)
+		return;
+
+	key = &info->key;
+
+	switch (ip_tunnel_info_af(info)) {
+	case AF_INET:
+		skb_flow_dissect_set_enc_addr_type(FLOW_DISSECTOR_KEY_IPV4_ADDRS,
+						   flow_dissector,
+						   target_container);
+		if (dissector_uses_key(flow_dissector,
+				       FLOW_DISSECTOR_KEY_ENC_IPV4_ADDRS)) {
+			struct flow_dissector_key_ipv4_addrs *ipv4;
+
+			ipv4 = skb_flow_dissector_target(flow_dissector,
+							 FLOW_DISSECTOR_KEY_ENC_IPV4_ADDRS,
+							 target_container);
+			ipv4->src = key->u.ipv4.src;
+			ipv4->dst = key->u.ipv4.dst;
+		}
+		break;
+	case AF_INET6:
+		skb_flow_dissect_set_enc_addr_type(FLOW_DISSECTOR_KEY_IPV6_ADDRS,
+						   flow_dissector,
+						   target_container);
+		if (dissector_uses_key(flow_dissector,
+				       FLOW_DISSECTOR_KEY_ENC_IPV6_ADDRS)) {
+			struct flow_dissector_key_ipv6_addrs *ipv6;
+
+			ipv6 = skb_flow_dissector_target(flow_dissector,
+							 FLOW_DISSECTOR_KEY_ENC_IPV6_ADDRS,
+							 target_container);
+			ipv6->src = key->u.ipv6.src;
+			ipv6->dst = key->u.ipv6.dst;
+		}
+		break;
+	}
+
+	if (dissector_uses_key(flow_dissector, FLOW_DISSECTOR_KEY_ENC_KEYID)) {
+		struct flow_dissector_key_keyid *keyid;
+
+		keyid = skb_flow_dissector_target(flow_dissector,
+						  FLOW_DISSECTOR_KEY_ENC_KEYID,
+						  target_container);
+		keyid->keyid = tunnel_id_to_key32(key->tun_id);
+	}
+
+	if (dissector_uses_key(flow_dissector, FLOW_DISSECTOR_KEY_ENC_PORTS)) {
+		struct flow_dissector_key_ports *tp;
+
+		tp = skb_flow_dissector_target(flow_dissector,
+					       FLOW_DISSECTOR_KEY_ENC_PORTS,
+					       target_container);
+		tp->src = key->tp_src;
+		tp->dst = key->tp_dst;
+	}
+}
 
 static enum flow_dissect_ret
 __skb_flow_dissect_mpls(const struct sk_buff *skb,
@@ -478,6 +576,9 @@ bool __skb_flow_dissect(const struct sk_buff *skb,
 					      FLOW_DISSECTOR_KEY_BASIC,
 					      target_container);
 
+	__skb_flow_dissect_tunnel_info(skb, flow_dissector,
+				       target_container);
+
 	if (dissector_uses_key(flow_dissector,
 			       FLOW_DISSECTOR_KEY_ETH_ADDRS)) {
 		struct ethhdr *eth = eth_hdr(skb);
@@ -672,23 +773,22 @@ proto_again:
 		break;
 	}
 	case htons(ETH_P_TIPC): {
-		struct {
-			__be32 pre[3];
-			__be32 srcnode;
-		} *hdr, _hdr;
-		hdr = __skb_header_pointer(skb, nhoff, sizeof(_hdr), data, hlen, &_hdr);
+		struct tipc_basic_hdr *hdr, _hdr;
+
+		hdr = __skb_header_pointer(skb, nhoff, sizeof(_hdr),
+					   data, hlen, &_hdr);
 		if (!hdr) {
 			fdret = FLOW_DISSECT_RET_OUT_BAD;
 			break;
 		}
 
 		if (dissector_uses_key(flow_dissector,
-				       FLOW_DISSECTOR_KEY_TIPC_ADDRS)) {
+				       FLOW_DISSECTOR_KEY_TIPC)) {
 			key_addrs = skb_flow_dissector_target(flow_dissector,
-							      FLOW_DISSECTOR_KEY_TIPC_ADDRS,
+							      FLOW_DISSECTOR_KEY_TIPC,
 							      target_container);
-			key_addrs->tipcaddrs.srcnode = hdr->srcnode;
-			key_control->addr_type = FLOW_DISSECTOR_KEY_TIPC_ADDRS;
+			key_addrs->tipckey.key = tipc_hdr_rps_key(hdr);
+			key_control->addr_type = FLOW_DISSECTOR_KEY_TIPC;
 		}
 		fdret = FLOW_DISSECT_RET_OUT_GOOD;
 		break;
@@ -924,8 +1024,8 @@ static inline size_t flow_keys_hash_length(const struct flow_keys *flow)
 	case FLOW_DISSECTOR_KEY_IPV6_ADDRS:
 		diff -= sizeof(flow->addrs.v6addrs);
 		break;
-	case FLOW_DISSECTOR_KEY_TIPC_ADDRS:
-		diff -= sizeof(flow->addrs.tipcaddrs);
+	case FLOW_DISSECTOR_KEY_TIPC:
+		diff -= sizeof(flow->addrs.tipckey);
 		break;
 	}
 	return (sizeof(*flow) - diff) / sizeof(u32);
@@ -939,8 +1039,8 @@ __be32 flow_get_u32_src(const struct flow_keys *flow)
 	case FLOW_DISSECTOR_KEY_IPV6_ADDRS:
 		return (__force __be32)ipv6_addr_hash(
 			&flow->addrs.v6addrs.src);
-	case FLOW_DISSECTOR_KEY_TIPC_ADDRS:
-		return flow->addrs.tipcaddrs.srcnode;
+	case FLOW_DISSECTOR_KEY_TIPC:
+		return flow->addrs.tipckey.key;
 	default:
 		return 0;
 	}
@@ -1221,8 +1321,8 @@ static const struct flow_dissector_key flow_keys_dissector_keys[] = {
 		.offset = offsetof(struct flow_keys, addrs.v6addrs),
 	},
 	{
-		.key_id = FLOW_DISSECTOR_KEY_TIPC_ADDRS,
-		.offset = offsetof(struct flow_keys, addrs.tipcaddrs),
+		.key_id = FLOW_DISSECTOR_KEY_TIPC,
+		.offset = offsetof(struct flow_keys, addrs.tipckey),
 	},
 	{
 		.key_id = FLOW_DISSECTOR_KEY_PORTS,

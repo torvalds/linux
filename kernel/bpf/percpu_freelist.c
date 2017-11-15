@@ -78,8 +78,10 @@ struct pcpu_freelist_node *pcpu_freelist_pop(struct pcpu_freelist *s)
 {
 	struct pcpu_freelist_head *head;
 	struct pcpu_freelist_node *node;
+	unsigned long flags;
 	int orig_cpu, cpu;
 
+	local_irq_save(flags);
 	orig_cpu = cpu = raw_smp_processor_id();
 	while (1) {
 		head = per_cpu_ptr(s->freelist, cpu);
@@ -87,14 +89,16 @@ struct pcpu_freelist_node *pcpu_freelist_pop(struct pcpu_freelist *s)
 		node = head->first;
 		if (node) {
 			head->first = node->next;
-			raw_spin_unlock(&head->lock);
+			raw_spin_unlock_irqrestore(&head->lock, flags);
 			return node;
 		}
 		raw_spin_unlock(&head->lock);
 		cpu = cpumask_next(cpu, cpu_possible_mask);
 		if (cpu >= nr_cpu_ids)
 			cpu = 0;
-		if (cpu == orig_cpu)
+		if (cpu == orig_cpu) {
+			local_irq_restore(flags);
 			return NULL;
+		}
 	}
 }

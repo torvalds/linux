@@ -482,30 +482,36 @@ struct sk_filter {
 	struct bpf_prog	*prog;
 };
 
-#define BPF_PROG_RUN(filter, ctx)  (*filter->bpf_func)(ctx, filter->insnsi)
+#define BPF_PROG_RUN(filter, ctx)  (*(filter)->bpf_func)(ctx, (filter)->insnsi)
 
 #define BPF_SKB_CB_LEN QDISC_CB_PRIV_LEN
 
 struct bpf_skb_data_end {
 	struct qdisc_skb_cb qdisc_cb;
+	void *data_meta;
 	void *data_end;
 };
 
 struct xdp_buff {
 	void *data;
 	void *data_end;
+	void *data_meta;
 	void *data_hard_start;
 };
 
-/* compute the linear packet data range [data, data_end) which
- * will be accessed by cls_bpf, act_bpf and lwt programs
+/* Compute the linear packet data range [data, data_end) which
+ * will be accessed by various program types (cls_bpf, act_bpf,
+ * lwt, ...). Subsystems allowing direct data access must (!)
+ * ensure that cb[] area can be written to when BPF program is
+ * invoked (otherwise cb[] save/restore is necessary).
  */
-static inline void bpf_compute_data_end(struct sk_buff *skb)
+static inline void bpf_compute_data_pointers(struct sk_buff *skb)
 {
 	struct bpf_skb_data_end *cb = (struct bpf_skb_data_end *)skb->cb;
 
 	BUILD_BUG_ON(sizeof(*cb) > FIELD_SIZEOF(struct sk_buff, cb));
-	cb->data_end = skb->data + skb_headlen(skb);
+	cb->data_meta = skb->data - skb_metadata_len(skb);
+	cb->data_end  = skb->data + skb_headlen(skb);
 }
 
 static inline u8 *bpf_skb_cb(struct sk_buff *skb)
@@ -726,8 +732,22 @@ int xdp_do_redirect(struct net_device *dev,
 		    struct bpf_prog *prog);
 void xdp_do_flush_map(void);
 
+/* Drivers not supporting XDP metadata can use this helper, which
+ * rejects any room expansion for metadata as a result.
+ */
+static __always_inline void
+xdp_set_data_meta_invalid(struct xdp_buff *xdp)
+{
+	xdp->data_meta = xdp->data + 1;
+}
+
+static __always_inline bool
+xdp_data_meta_unsupported(const struct xdp_buff *xdp)
+{
+	return unlikely(xdp->data_meta > xdp->data);
+}
+
 void bpf_warn_invalid_xdp_action(u32 act);
-void bpf_warn_invalid_xdp_redirect(u32 ifindex);
 
 struct sock *do_sk_redirect_map(struct sk_buff *skb);
 

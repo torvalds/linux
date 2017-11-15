@@ -10,6 +10,7 @@
 #include <string.h>
 #include <assert.h>
 #include <stdlib.h>
+#include <time.h>
 
 #include <linux/types.h>
 typedef __u16 __sum16;
@@ -19,6 +20,8 @@ typedef __u16 __sum16;
 #include <linux/ip.h>
 #include <linux/ipv6.h>
 #include <linux/tcp.h>
+#include <linux/filter.h>
+#include <linux/unistd.h>
 
 #include <sys/wait.h>
 #include <sys/resource.h>
@@ -273,16 +276,26 @@ static void test_bpf_obj_id(void)
 	const int nr_iters = 2;
 	const char *file = "./test_obj_id.o";
 	const char *jit_sysctl = "/proc/sys/net/core/bpf_jit_enable";
+	const char *expected_prog_name = "test_obj_id";
+	const char *expected_map_name = "test_map_id";
+	const __u64 nsec_per_sec = 1000000000;
 
 	struct bpf_object *objs[nr_iters];
 	int prog_fds[nr_iters], map_fds[nr_iters];
 	/* +1 to test for the info_len returned by kernel */
 	struct bpf_prog_info prog_infos[nr_iters + 1];
 	struct bpf_map_info map_infos[nr_iters + 1];
+	/* Each prog only uses one map. +1 to test nr_map_ids
+	 * returned by kernel.
+	 */
+	__u32 map_ids[nr_iters + 1];
 	char jited_insns[128], xlated_insns[128], zeros[128];
 	__u32 i, next_id, info_len, nr_id_found, duration = 0;
+	struct timespec real_time_ts, boot_time_ts;
 	int sysctl_fd, jit_enabled = 0, err = 0;
 	__u64 array_value;
+	uid_t my_uid = getuid();
+	time_t now, load_time;
 
 	sysctl_fd = open(jit_sysctl, 0, O_RDONLY);
 	if (sysctl_fd != -1) {
@@ -307,6 +320,7 @@ static void test_bpf_obj_id(void)
 	/* Check bpf_obj_get_info_by_fd() */
 	bzero(zeros, sizeof(zeros));
 	for (i = 0; i < nr_iters; i++) {
+		now = time(NULL);
 		err = bpf_prog_load(file, BPF_PROG_TYPE_SOCKET_FILTER,
 				    &objs[i], &prog_fds[i]);
 		/* test_obj_id.o is a dumb prog. It should never fail
@@ -316,37 +330,7 @@ static void test_bpf_obj_id(void)
 			error_cnt++;
 		assert(!err);
 
-		/* Check getting prog info */
-		info_len = sizeof(struct bpf_prog_info) * 2;
-		bzero(&prog_infos[i], info_len);
-		bzero(jited_insns, sizeof(jited_insns));
-		bzero(xlated_insns, sizeof(xlated_insns));
-		prog_infos[i].jited_prog_insns = ptr_to_u64(jited_insns);
-		prog_infos[i].jited_prog_len = sizeof(jited_insns);
-		prog_infos[i].xlated_prog_insns = ptr_to_u64(xlated_insns);
-		prog_infos[i].xlated_prog_len = sizeof(xlated_insns);
-		err = bpf_obj_get_info_by_fd(prog_fds[i], &prog_infos[i],
-					     &info_len);
-		if (CHECK(err ||
-			  prog_infos[i].type != BPF_PROG_TYPE_SOCKET_FILTER ||
-			  info_len != sizeof(struct bpf_prog_info) ||
-			  (jit_enabled && !prog_infos[i].jited_prog_len) ||
-			  (jit_enabled &&
-			   !memcmp(jited_insns, zeros, sizeof(zeros))) ||
-			  !prog_infos[i].xlated_prog_len ||
-			  !memcmp(xlated_insns, zeros, sizeof(zeros)),
-			  "get-prog-info(fd)",
-			  "err %d errno %d i %d type %d(%d) info_len %u(%lu) jit_enabled %d jited_prog_len %u xlated_prog_len %u jited_prog %d xlated_prog %d\n",
-			  err, errno, i,
-			  prog_infos[i].type, BPF_PROG_TYPE_SOCKET_FILTER,
-			  info_len, sizeof(struct bpf_prog_info),
-			  jit_enabled,
-			  prog_infos[i].jited_prog_len,
-			  prog_infos[i].xlated_prog_len,
-			  !!memcmp(jited_insns, zeros, sizeof(zeros)),
-			  !!memcmp(xlated_insns, zeros, sizeof(zeros))))
-			goto done;
-
+		/* Insert a magic value to the map */
 		map_fds[i] = bpf_find_map(__func__, objs[i], "test_map_id");
 		assert(map_fds[i] >= 0);
 		err = bpf_map_update_elem(map_fds[i], &array_key,
@@ -364,16 +348,67 @@ static void test_bpf_obj_id(void)
 			  map_infos[i].value_size != sizeof(__u64) ||
 			  map_infos[i].max_entries != 1 ||
 			  map_infos[i].map_flags != 0 ||
-			  info_len != sizeof(struct bpf_map_info),
+			  info_len != sizeof(struct bpf_map_info) ||
+			  strcmp((char *)map_infos[i].name, expected_map_name),
 			  "get-map-info(fd)",
-			  "err %d errno %d type %d(%d) info_len %u(%lu) key_size %u value_size %u max_entries %u map_flags %X\n",
+			  "err %d errno %d type %d(%d) info_len %u(%lu) key_size %u value_size %u max_entries %u map_flags %X name %s(%s)\n",
 			  err, errno,
 			  map_infos[i].type, BPF_MAP_TYPE_ARRAY,
 			  info_len, sizeof(struct bpf_map_info),
 			  map_infos[i].key_size,
 			  map_infos[i].value_size,
 			  map_infos[i].max_entries,
-			  map_infos[i].map_flags))
+			  map_infos[i].map_flags,
+			  map_infos[i].name, expected_map_name))
+			goto done;
+
+		/* Check getting prog info */
+		info_len = sizeof(struct bpf_prog_info) * 2;
+		bzero(&prog_infos[i], info_len);
+		bzero(jited_insns, sizeof(jited_insns));
+		bzero(xlated_insns, sizeof(xlated_insns));
+		prog_infos[i].jited_prog_insns = ptr_to_u64(jited_insns);
+		prog_infos[i].jited_prog_len = sizeof(jited_insns);
+		prog_infos[i].xlated_prog_insns = ptr_to_u64(xlated_insns);
+		prog_infos[i].xlated_prog_len = sizeof(xlated_insns);
+		prog_infos[i].map_ids = ptr_to_u64(map_ids + i);
+		prog_infos[i].nr_map_ids = 2;
+		err = clock_gettime(CLOCK_REALTIME, &real_time_ts);
+		assert(!err);
+		err = clock_gettime(CLOCK_BOOTTIME, &boot_time_ts);
+		assert(!err);
+		err = bpf_obj_get_info_by_fd(prog_fds[i], &prog_infos[i],
+					     &info_len);
+		load_time = (real_time_ts.tv_sec - boot_time_ts.tv_sec)
+			+ (prog_infos[i].load_time / nsec_per_sec);
+		if (CHECK(err ||
+			  prog_infos[i].type != BPF_PROG_TYPE_SOCKET_FILTER ||
+			  info_len != sizeof(struct bpf_prog_info) ||
+			  (jit_enabled && !prog_infos[i].jited_prog_len) ||
+			  (jit_enabled &&
+			   !memcmp(jited_insns, zeros, sizeof(zeros))) ||
+			  !prog_infos[i].xlated_prog_len ||
+			  !memcmp(xlated_insns, zeros, sizeof(zeros)) ||
+			  load_time < now - 60 || load_time > now + 60 ||
+			  prog_infos[i].created_by_uid != my_uid ||
+			  prog_infos[i].nr_map_ids != 1 ||
+			  *(int *)prog_infos[i].map_ids != map_infos[i].id ||
+			  strcmp((char *)prog_infos[i].name, expected_prog_name),
+			  "get-prog-info(fd)",
+			  "err %d errno %d i %d type %d(%d) info_len %u(%lu) jit_enabled %d jited_prog_len %u xlated_prog_len %u jited_prog %d xlated_prog %d load_time %lu(%lu) uid %u(%u) nr_map_ids %u(%u) map_id %u(%u) name %s(%s)\n",
+			  err, errno, i,
+			  prog_infos[i].type, BPF_PROG_TYPE_SOCKET_FILTER,
+			  info_len, sizeof(struct bpf_prog_info),
+			  jit_enabled,
+			  prog_infos[i].jited_prog_len,
+			  prog_infos[i].xlated_prog_len,
+			  !!memcmp(jited_insns, zeros, sizeof(zeros)),
+			  !!memcmp(xlated_insns, zeros, sizeof(zeros)),
+			  load_time, now,
+			  prog_infos[i].created_by_uid, my_uid,
+			  prog_infos[i].nr_map_ids, 1,
+			  *(int *)prog_infos[i].map_ids, map_infos[i].id,
+			  prog_infos[i].name, expected_prog_name))
 			goto done;
 	}
 
@@ -382,6 +417,7 @@ static void test_bpf_obj_id(void)
 	next_id = 0;
 	while (!bpf_prog_get_next_id(next_id, &next_id)) {
 		struct bpf_prog_info prog_info = {};
+		__u32 saved_map_id;
 		int prog_fd;
 
 		info_len = sizeof(prog_info);
@@ -404,16 +440,33 @@ static void test_bpf_obj_id(void)
 
 		nr_id_found++;
 
+		/* Negative test:
+		 * prog_info.nr_map_ids = 1
+		 * prog_info.map_ids = NULL
+		 */
+		prog_info.nr_map_ids = 1;
+		err = bpf_obj_get_info_by_fd(prog_fd, &prog_info, &info_len);
+		if (CHECK(!err || errno != EFAULT,
+			  "get-prog-fd-bad-nr-map-ids", "err %d errno %d(%d)",
+			  err, errno, EFAULT))
+			break;
+		bzero(&prog_info, sizeof(prog_info));
+		info_len = sizeof(prog_info);
+
+		saved_map_id = *(int *)(prog_infos[i].map_ids);
+		prog_info.map_ids = prog_infos[i].map_ids;
+		prog_info.nr_map_ids = 2;
 		err = bpf_obj_get_info_by_fd(prog_fd, &prog_info, &info_len);
 		prog_infos[i].jited_prog_insns = 0;
 		prog_infos[i].xlated_prog_insns = 0;
 		CHECK(err || info_len != sizeof(struct bpf_prog_info) ||
-		      memcmp(&prog_info, &prog_infos[i], info_len),
+		      memcmp(&prog_info, &prog_infos[i], info_len) ||
+		      *(int *)prog_info.map_ids != saved_map_id,
 		      "get-prog-info(next_id->fd)",
-		      "err %d errno %d info_len %u(%lu) memcmp %d\n",
+		      "err %d errno %d info_len %u(%lu) memcmp %d map_id %u(%u)\n",
 		      err, errno, info_len, sizeof(struct bpf_prog_info),
-		      memcmp(&prog_info, &prog_infos[i], info_len));
-
+		      memcmp(&prog_info, &prog_infos[i], info_len),
+		      *(int *)prog_info.map_ids, saved_map_id);
 		close(prog_fd);
 	}
 	CHECK(nr_id_found != nr_iters,
@@ -495,6 +548,75 @@ static void test_pkt_md_access(void)
 	bpf_object__close(obj);
 }
 
+static void test_obj_name(void)
+{
+	struct {
+		const char *name;
+		int success;
+		int expected_errno;
+	} tests[] = {
+		{ "", 1, 0 },
+		{ "_123456789ABCDE", 1, 0 },
+		{ "_123456789ABCDEF", 0, EINVAL },
+		{ "_123456789ABCD\n", 0, EINVAL },
+	};
+	struct bpf_insn prog[] = {
+		BPF_ALU64_IMM(BPF_MOV, BPF_REG_0, 0),
+		BPF_EXIT_INSN(),
+	};
+	__u32 duration = 0;
+	int i;
+
+	for (i = 0; i < sizeof(tests) / sizeof(tests[0]); i++) {
+		size_t name_len = strlen(tests[i].name) + 1;
+		union bpf_attr attr;
+		size_t ncopy;
+		int fd;
+
+		/* test different attr.prog_name during BPF_PROG_LOAD */
+		ncopy = name_len < sizeof(attr.prog_name) ?
+			name_len : sizeof(attr.prog_name);
+		bzero(&attr, sizeof(attr));
+		attr.prog_type = BPF_PROG_TYPE_SCHED_CLS;
+		attr.insn_cnt = 2;
+		attr.insns = ptr_to_u64(prog);
+		attr.license = ptr_to_u64("");
+		memcpy(attr.prog_name, tests[i].name, ncopy);
+
+		fd = syscall(__NR_bpf, BPF_PROG_LOAD, &attr, sizeof(attr));
+		CHECK((tests[i].success && fd < 0) ||
+		      (!tests[i].success && fd != -1) ||
+		      (!tests[i].success && errno != tests[i].expected_errno),
+		      "check-bpf-prog-name",
+		      "fd %d(%d) errno %d(%d)\n",
+		       fd, tests[i].success, errno, tests[i].expected_errno);
+
+		if (fd != -1)
+			close(fd);
+
+		/* test different attr.map_name during BPF_MAP_CREATE */
+		ncopy = name_len < sizeof(attr.map_name) ?
+			name_len : sizeof(attr.map_name);
+		bzero(&attr, sizeof(attr));
+		attr.map_type = BPF_MAP_TYPE_ARRAY;
+		attr.key_size = 4;
+		attr.value_size = 4;
+		attr.max_entries = 1;
+		attr.map_flags = 0;
+		memcpy(attr.map_name, tests[i].name, ncopy);
+		fd = syscall(__NR_bpf, BPF_MAP_CREATE, &attr, sizeof(attr));
+		CHECK((tests[i].success && fd < 0) ||
+		      (!tests[i].success && fd != -1) ||
+		      (!tests[i].success && errno != tests[i].expected_errno),
+		      "check-bpf-map-name",
+		      "fd %d(%d) errno %d(%d)\n",
+		      fd, tests[i].success, errno, tests[i].expected_errno);
+
+		if (fd != -1)
+			close(fd);
+	}
+}
+
 int main(void)
 {
 	struct rlimit rinf = { RLIM_INFINITY, RLIM_INFINITY };
@@ -507,6 +629,7 @@ int main(void)
 	test_tcp_estats();
 	test_bpf_obj_id();
 	test_pkt_md_access();
+	test_obj_name();
 
 	printf("Summary: %d PASSED, %d FAILED\n", pass_cnt, error_cnt);
 	return error_cnt ? EXIT_FAILURE : EXIT_SUCCESS;

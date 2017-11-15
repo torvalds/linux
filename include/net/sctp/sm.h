@@ -72,7 +72,7 @@ typedef enum sctp_disposition (sctp_state_fn_t) (
 					const union sctp_subtype type,
 					void *arg,
 					struct sctp_cmd_seq *commands);
-typedef void (sctp_timer_event_t) (unsigned long);
+typedef void (sctp_timer_event_t) (struct timer_list *);
 struct sctp_sm_table_entry {
 	sctp_state_fn_t *fn;
 	const char *name;
@@ -314,10 +314,10 @@ int sctp_do_sm(struct net *net, enum sctp_event event_type,
 	       void *event_arg, gfp_t gfp);
 
 /* 2nd level prototypes */
-void sctp_generate_t3_rtx_event(unsigned long peer);
-void sctp_generate_heartbeat_event(unsigned long peer);
-void sctp_generate_reconf_event(unsigned long peer);
-void sctp_generate_proto_unreach_event(unsigned long peer);
+void sctp_generate_t3_rtx_event(struct timer_list *t);
+void sctp_generate_heartbeat_event(struct timer_list *t);
+void sctp_generate_reconf_event(struct timer_list *t);
+void sctp_generate_proto_unreach_event(struct timer_list *t);
 
 void sctp_ootb_pkt_free(struct sctp_packet *packet);
 

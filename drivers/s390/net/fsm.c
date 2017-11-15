@@ -170,9 +170,7 @@ fsm_addtimer(fsm_timer *this, int millisec, int event, void *arg)
 	       this->fi->name, this, millisec);
 #endif
 
-	init_timer(&this->tl);
-	this->tl.function = (void *)fsm_expire_timer;
-	this->tl.data = (long)this;
+	setup_timer(&this->tl, (void *)fsm_expire_timer, (long)this);
 	this->expire_event = event;
 	this->event_arg = arg;
 	this->tl.expires = jiffies + (millisec * HZ) / 1000;
@@ -191,9 +189,7 @@ fsm_modtimer(fsm_timer *this, int millisec, int event, void *arg)
 #endif
 
 	del_timer(&this->tl);
-	init_timer(&this->tl);
-	this->tl.function = (void *)fsm_expire_timer;
-	this->tl.data = (long)this;
+	setup_timer(&this->tl, (void *)fsm_expire_timer, (long)this);
 	this->expire_event = event;
 	this->event_arg = arg;
 	this->tl.expires = jiffies + (millisec * HZ) / 1000;

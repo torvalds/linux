@@ -6,7 +6,7 @@
 
 struct once_work {
 	struct work_struct work;
-	struct static_key *key;
+	struct static_key_true *key;
 };
 
 static void once_deferred(struct work_struct *w)
@@ -15,11 +15,11 @@ static void once_deferred(struct work_struct *w)
 
 	work = container_of(w, struct once_work, work);
 	BUG_ON(!static_key_enabled(work->key));
-	static_key_slow_dec(work->key);
+	static_branch_disable(work->key);
 	kfree(work);
 }
 
-static void once_disable_jump(struct static_key *key)
+static void once_disable_jump(struct static_key_true *key)
 {
 	struct once_work *w;
 
@@ -52,7 +52,7 @@ bool __do_once_start(bool *done, unsigned long *flags)
 }
 EXPORT_SYMBOL(__do_once_start);
 
-void __do_once_done(bool *done, struct static_key *once_key,
+void __do_once_done(bool *done, struct static_key_true *once_key,
 		    unsigned long *flags)
 	__releases(once_lock)
 {

@@ -85,8 +85,9 @@ FsmChangeState(struct FsmInst *fi, int newstate)
 }
 
 static void
-FsmExpireTimer(struct FsmTimer *ft)
+FsmExpireTimer(struct timer_list *t)
 {
+	struct FsmTimer *ft = from_timer(ft, t, tl);
 #if FSM_TIMER_DEBUG
 	if (ft->fi->debug)
 		ft->fi->printdebug(ft->fi, "FsmExpireTimer %lx", (long) ft);
@@ -102,7 +103,7 @@ FsmInitTimer(struct FsmInst *fi, struct FsmTimer *ft)
 	if (ft->fi->debug)
 		ft->fi->printdebug(ft->fi, "FsmInitTimer %lx", (long) ft);
 #endif
-	setup_timer(&ft->tl, (void *)FsmExpireTimer, (long)ft);
+	timer_setup(&ft->tl, FsmExpireTimer, 0);
 }
 
 void
@@ -131,7 +132,6 @@ FsmAddTimer(struct FsmTimer *ft,
 		ft->fi->printdebug(ft->fi, "FsmAddTimer already active!");
 		return -1;
 	}
-	init_timer(&ft->tl);
 	ft->event = event;
 	ft->arg = arg;
 	ft->tl.expires = jiffies + (millisec * HZ) / 1000;
@@ -152,7 +152,6 @@ FsmRestartTimer(struct FsmTimer *ft,
 
 	if (timer_pending(&ft->tl))
 		del_timer(&ft->tl);
-	init_timer(&ft->tl);
 	ft->event = event;
 	ft->arg = arg;
 	ft->tl.expires = jiffies + (millisec * HZ) / 1000;

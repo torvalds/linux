@@ -59,6 +59,7 @@
 #include "lib/mlx5.h"
 #include "fpga/core.h"
 #include "accel/ipsec.h"
+#include "lib/clock.h"
 
 MODULE_AUTHOR("Eli Cohen <eli@mellanox.com>");
 MODULE_DESCRIPTION("Mellanox Connect-IB, ConnectX-4 core driver");
@@ -889,6 +890,8 @@ static int mlx5_init_once(struct mlx5_core_dev *dev, struct mlx5_priv *priv)
 
 	mlx5_init_reserved_gids(dev);
 
+	mlx5_init_clock(dev);
+
 	err = mlx5_init_rl_table(dev);
 	if (err) {
 		dev_err(&pdev->dev, "Failed to init rate limiting\n");
@@ -949,6 +952,7 @@ static void mlx5_cleanup_once(struct mlx5_core_dev *dev)
 	mlx5_eswitch_cleanup(dev->priv.eswitch);
 	mlx5_mpfs_cleanup(dev);
 	mlx5_cleanup_rl_table(dev);
+	mlx5_cleanup_clock(dev);
 	mlx5_cleanup_reserved_gids(dev);
 	mlx5_cleanup_mkey_table(dev);
 	mlx5_cleanup_srq_table(dev);

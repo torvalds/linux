@@ -200,9 +200,9 @@ static void ath10k_htt_rx_msdu_buff_replenish(struct ath10k_htt *htt)
 	spin_unlock_bh(&htt->rx_ring.lock);
 }
 
-static void ath10k_htt_rx_ring_refill_retry(unsigned long arg)
+static void ath10k_htt_rx_ring_refill_retry(struct timer_list *t)
 {
-	struct ath10k_htt *htt = (struct ath10k_htt *)arg;
+	struct ath10k_htt *htt = from_timer(htt, t, rx_ring.refill_retry_timer);
 
 	ath10k_htt_rx_msdu_buff_replenish(htt);
 }
@@ -507,7 +507,7 @@ int ath10k_htt_rx_alloc(struct ath10k_htt *htt)
 	*htt->rx_ring.alloc_idx.vaddr = 0;
 
 	/* Initialize the Rx refill retry timer */
-	setup_timer(timer, ath10k_htt_rx_ring_refill_retry, (unsigned long)htt);
+	timer_setup(timer, ath10k_htt_rx_ring_refill_retry, 0);
 
 	spin_lock_init(&htt->rx_ring.lock);
 

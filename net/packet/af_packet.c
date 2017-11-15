@@ -201,11 +201,8 @@ static void prb_retire_current_block(struct tpacket_kbdq_core *,
 static int prb_queue_frozen(struct tpacket_kbdq_core *);
 static void prb_open_block(struct tpacket_kbdq_core *,
 		struct tpacket_block_desc *);
-static void prb_retire_rx_blk_timer_expired(unsigned long);
+static void prb_retire_rx_blk_timer_expired(struct timer_list *);
 static void _prb_refresh_rx_retire_blk_timer(struct tpacket_kbdq_core *);
-static void prb_init_blk_timer(struct packet_sock *,
-		struct tpacket_kbdq_core *,
-		void (*func) (unsigned long));
 static void prb_fill_rxhash(struct tpacket_kbdq_core *, struct tpacket3_hdr *);
 static void prb_clear_rxhash(struct tpacket_kbdq_core *,
 		struct tpacket3_hdr *);
@@ -540,22 +537,14 @@ static void prb_shutdown_retire_blk_timer(struct packet_sock *po,
 	prb_del_retire_blk_timer(pkc);
 }
 
-static void prb_init_blk_timer(struct packet_sock *po,
-		struct tpacket_kbdq_core *pkc,
-		void (*func) (unsigned long))
-{
-	init_timer(&pkc->retire_blk_timer);
-	pkc->retire_blk_timer.data = (long)po;
-	pkc->retire_blk_timer.function = func;
-	pkc->retire_blk_timer.expires = jiffies;
-}
-
 static void prb_setup_retire_blk_timer(struct packet_sock *po)
 {
 	struct tpacket_kbdq_core *pkc;
 
 	pkc = GET_PBDQC_FROM_RB(&po->rx_ring);
-	prb_init_blk_timer(po, pkc, prb_retire_rx_blk_timer_expired);
+	timer_setup(&pkc->retire_blk_timer, prb_retire_rx_blk_timer_expired,
+		    0);
+	pkc->retire_blk_timer.expires = jiffies;
 }
 
 static int prb_calc_retire_blk_tmo(struct packet_sock *po,
@@ -673,9 +662,10 @@ static void _prb_refresh_rx_retire_blk_timer(struct tpacket_kbdq_core *pkc)
  * prb_calc_retire_blk_tmo() calculates the tmo.
  *
  */
-static void prb_retire_rx_blk_timer_expired(unsigned long data)
+static void prb_retire_rx_blk_timer_expired(struct timer_list *t)
 {
-	struct packet_sock *po = (struct packet_sock *)data;
+	struct packet_sock *po =
+		from_timer(po, t, rx_ring.prb_bdqc.retire_blk_timer);
 	struct tpacket_kbdq_core *pkc = GET_PBDQC_FROM_RB(&po->rx_ring);
 	unsigned int frozen;
 	struct tpacket_block_desc *pbd;
@@ -4570,6 +4560,7 @@ static int __net_init packet_net_init(struct net *net)
 static void __net_exit packet_net_exit(struct net *net)
 {
 	remove_proc_entry("packet", net->proc_net);
+	WARN_ON_ONCE(!hlist_empty(&net->packet.sklist));
 }
 
 static struct pernet_operations packet_net_ops = {

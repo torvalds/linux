@@ -126,6 +126,7 @@ void rds_ib_dev_put(struct rds_ib_device *rds_ibdev)
 static void rds_ib_add_one(struct ib_device *device)
 {
 	struct rds_ib_device *rds_ibdev;
+	bool has_fr, has_fmr;
 
 	/* Only handle IB (no iWARP) devices */
 	if (device->node_type != RDMA_NODE_IB_CA)
@@ -143,11 +144,11 @@ static void rds_ib_add_one(struct ib_device *device)
 	rds_ibdev->max_wrs = device->attrs.max_qp_wr;
 	rds_ibdev->max_sge = min(device->attrs.max_sge, RDS_IB_MAX_SGE);
 
-	rds_ibdev->has_fr = (device->attrs.device_cap_flags &
-				  IB_DEVICE_MEM_MGT_EXTENSIONS);
-	rds_ibdev->has_fmr = (device->alloc_fmr && device->dealloc_fmr &&
-			    device->map_phys_fmr && device->unmap_fmr);
-	rds_ibdev->use_fastreg = (rds_ibdev->has_fr && !rds_ibdev->has_fmr);
+	has_fr = (device->attrs.device_cap_flags &
+		  IB_DEVICE_MEM_MGT_EXTENSIONS);
+	has_fmr = (device->alloc_fmr && device->dealloc_fmr &&
+		   device->map_phys_fmr && device->unmap_fmr);
+	rds_ibdev->use_fastreg = (has_fr && !has_fmr);
 
 	rds_ibdev->fmr_max_remaps = device->attrs.max_map_per_fmr?: 32;
 	rds_ibdev->max_1m_mrs = device->attrs.max_mr ?

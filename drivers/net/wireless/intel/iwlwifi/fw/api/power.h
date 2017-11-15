@@ -357,8 +357,7 @@ struct iwl_dev_tx_power_cmd {
 	u8 reserved[3];
 } __packed; /* TX_REDUCED_POWER_API_S_VER_4 */
 
-#define IWL_NUM_GEO_PROFILES	3
-#define IWL_GEO_PER_CHAIN_SIZE	3
+#define IWL_NUM_GEO_PROFILES   3
 
 /**
  * enum iwl_geo_per_chain_offset_operation - type of operation

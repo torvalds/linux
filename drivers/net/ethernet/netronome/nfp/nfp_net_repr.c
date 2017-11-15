@@ -390,3 +390,50 @@ struct nfp_reprs *nfp_reprs_alloc(unsigned int num_reprs)
 
 	return reprs;
 }
+
+int nfp_reprs_resync_phys_ports(struct nfp_app *app)
+{
+	struct nfp_reprs *reprs, *old_reprs;
+	struct nfp_repr *repr;
+	int i;
+
+	old_reprs =
+		rcu_dereference_protected(app->reprs[NFP_REPR_TYPE_PHYS_PORT],
+					  lockdep_is_held(&app->pf->lock));
+	if (!old_reprs)
+		return 0;
+
+	reprs = nfp_reprs_alloc(old_reprs->num_reprs);
+	if (!reprs)
+		return -ENOMEM;
+
+	for (i = 0; i < old_reprs->num_reprs; i++) {
+		if (!old_reprs->reprs[i])
+			continue;
+
+		repr = netdev_priv(old_reprs->reprs[i]);
+		if (repr->port->type == NFP_PORT_INVALID)
+			continue;
+
+		reprs->reprs[i] = old_reprs->reprs[i];
+	}
+
+	old_reprs = nfp_app_reprs_set(app, NFP_REPR_TYPE_PHYS_PORT, reprs);
+	synchronize_rcu();
+
+	/* Now we free up removed representors */
+	for (i = 0; i < old_reprs->num_reprs; i++) {
+		if (!old_reprs->reprs[i])
+			continue;
+
+		repr = netdev_priv(old_reprs->reprs[i]);
+		if (repr->port->type != NFP_PORT_INVALID)
+			continue;
+
+		nfp_app_repr_stop(app, repr);
+		nfp_repr_clean(repr);
+	}
+
+	kfree(old_reprs);
+	return 0;
+}

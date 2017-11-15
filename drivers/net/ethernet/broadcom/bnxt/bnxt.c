@@ -61,6 +61,7 @@
 #include "bnxt_xdp.h"
 #include "bnxt_vfr.h"
 #include "bnxt_tc.h"
+#include "bnxt_devlink.h"
 
 #define BNXT_TX_TIMEOUT		(5 * HZ)
 
@@ -107,9 +108,11 @@ enum board_idx {
 	BCM57452,
 	BCM57454,
 	BCM58802,
+	BCM58804,
 	BCM58808,
 	NETXTREME_E_VF,
 	NETXTREME_C_VF,
+	NETXTREME_S_VF,
 };
 
 /* indexed by enum above */
@@ -145,9 +148,11 @@ static const struct {
 	[BCM57452] = { "Broadcom BCM57452 NetXtreme-E 10Gb/25Gb/40Gb/50Gb Ethernet" },
 	[BCM57454] = { "Broadcom BCM57454 NetXtreme-E 10Gb/25Gb/40Gb/50Gb/100Gb Ethernet" },
 	[BCM58802] = { "Broadcom BCM58802 NetXtreme-S 10Gb/25Gb/40Gb/50Gb Ethernet" },
+	[BCM58804] = { "Broadcom BCM58804 NetXtreme-S 10Gb/25Gb/40Gb/50Gb/100Gb Ethernet" },
 	[BCM58808] = { "Broadcom BCM58808 NetXtreme-S 10Gb/25Gb/40Gb/50Gb/100Gb Ethernet" },
 	[NETXTREME_E_VF] = { "Broadcom NetXtreme-E Ethernet Virtual Function" },
 	[NETXTREME_C_VF] = { "Broadcom NetXtreme-C Ethernet Virtual Function" },
+	[NETXTREME_S_VF] = { "Broadcom NetXtreme-S Ethernet Virtual Function" },
 };
 
 static const struct pci_device_id bnxt_pci_tbl[] = {
@@ -185,6 +190,7 @@ static const struct pci_device_id bnxt_pci_tbl[] = {
 	{ PCI_VDEVICE(BROADCOM, 0x16f0), .driver_data = BCM58808 },
 	{ PCI_VDEVICE(BROADCOM, 0x16f1), .driver_data = BCM57452 },
 	{ PCI_VDEVICE(BROADCOM, 0xd802), .driver_data = BCM58802 },
+	{ PCI_VDEVICE(BROADCOM, 0xd804), .driver_data = BCM58804 },
 #ifdef CONFIG_BNXT_SRIOV
 	{ PCI_VDEVICE(BROADCOM, 0x1606), .driver_data = NETXTREME_E_VF },
 	{ PCI_VDEVICE(BROADCOM, 0x1609), .driver_data = NETXTREME_E_VF },
@@ -194,6 +200,7 @@ static const struct pci_device_id bnxt_pci_tbl[] = {
 	{ PCI_VDEVICE(BROADCOM, 0x16dc), .driver_data = NETXTREME_E_VF },
 	{ PCI_VDEVICE(BROADCOM, 0x16e1), .driver_data = NETXTREME_C_VF },
 	{ PCI_VDEVICE(BROADCOM, 0x16e5), .driver_data = NETXTREME_C_VF },
+	{ PCI_VDEVICE(BROADCOM, 0xd800), .driver_data = NETXTREME_S_VF },
 #endif
 	{ 0 }
 };
@@ -218,7 +225,8 @@ static struct workqueue_struct *bnxt_pf_wq;
 
 static bool bnxt_vf_pciid(enum board_idx idx)
 {
-	return (idx == NETXTREME_C_VF || idx == NETXTREME_E_VF);
+	return (idx == NETXTREME_C_VF || idx == NETXTREME_E_VF ||
+		idx == NETXTREME_S_VF);
 }
 
 #define DB_CP_REARM_FLAGS	(DB_KEY_CP | DB_IDX_VALID)
@@ -1509,7 +1517,7 @@ static int bnxt_rx_pkt(struct bnxt *bp, struct bnxt_napi *bnapi, u32 *raw_cons,
 				   (struct rx_tpa_end_cmp *)rxcmp,
 				   (struct rx_tpa_end_cmp_ext *)rxcmp1, event);
 
-		if (unlikely(IS_ERR(skb)))
+		if (IS_ERR(skb))
 			return -EBUSY;
 
 		rc = -ENOMEM;
@@ -2827,7 +2835,8 @@ int bnxt_set_rx_skb_mode(struct bnxt *bp, bool page_mode)
 	if (page_mode) {
 		if (bp->dev->mtu > BNXT_MAX_PAGE_MODE_MTU)
 			return -EOPNOTSUPP;
-		bp->dev->max_mtu = BNXT_MAX_PAGE_MODE_MTU;
+		bp->dev->max_mtu =
+			min_t(u16, bp->max_mtu, BNXT_MAX_PAGE_MODE_MTU);
 		bp->flags &= ~BNXT_FLAG_AGG_RINGS;
 		bp->flags |= BNXT_FLAG_NO_AGG_RINGS | BNXT_FLAG_RX_PAGE_MODE;
 		bp->dev->hw_features &= ~NETIF_F_LRO;
@@ -2835,7 +2844,7 @@ int bnxt_set_rx_skb_mode(struct bnxt *bp, bool page_mode)
 		bp->rx_dir = DMA_BIDIRECTIONAL;
 		bp->rx_skb_func = bnxt_rx_page_skb;
 	} else {
-		bp->dev->max_mtu = BNXT_MAX_MTU;
+		bp->dev->max_mtu = bp->max_mtu;
 		bp->flags &= ~BNXT_FLAG_RX_PAGE_MODE;
 		bp->rx_dir = DMA_FROM_DEVICE;
 		bp->rx_skb_func = bnxt_rx_skb;
@@ -4528,19 +4537,46 @@ static int bnxt_hwrm_check_tx_rings(struct bnxt *bp, int tx_rings)
 	return 0;
 }
 
-static void bnxt_hwrm_set_coal_params(struct bnxt *bp, u32 max_bufs,
-	u32 buf_tmrs, u16 flags,
+static void bnxt_hwrm_set_coal_params(struct bnxt_coal *hw_coal,
 	struct hwrm_ring_cmpl_ring_cfg_aggint_params_input *req)
 {
+	u16 val, tmr, max, flags;
+
+	max = hw_coal->bufs_per_record * 128;
+	if (hw_coal->budget)
+		max = hw_coal->bufs_per_record * hw_coal->budget;
+
+	val = clamp_t(u16, hw_coal->coal_bufs, 1, max);
+	req->num_cmpl_aggr_int = cpu_to_le16(val);
+
+	/* This is a 6-bit value and must not be 0, or we'll get non stop IRQ */
+	val = min_t(u16, val, 63);
+	req->num_cmpl_dma_aggr = cpu_to_le16(val);
+
+	/* This is a 6-bit value and must not be 0, or we'll get non stop IRQ */
+	val = clamp_t(u16, hw_coal->coal_bufs_irq, 1, 63);
+	req->num_cmpl_dma_aggr_during_int = cpu_to_le16(val);
+
+	tmr = BNXT_USEC_TO_COAL_TIMER(hw_coal->coal_ticks);
+	tmr = max_t(u16, tmr, 1);
+	req->int_lat_tmr_max = cpu_to_le16(tmr);
+
+	/* min timer set to 1/2 of interrupt timer */
+	val = tmr / 2;
+	req->int_lat_tmr_min = cpu_to_le16(val);
+
+	/* buf timer set to 1/4 of interrupt timer */
+	val = max_t(u16, tmr / 4, 1);
+	req->cmpl_aggr_dma_tmr = cpu_to_le16(val);
+
+	tmr = BNXT_USEC_TO_COAL_TIMER(hw_coal->coal_ticks_irq);
+	tmr = max_t(u16, tmr, 1);
+	req->cmpl_aggr_dma_tmr_during_int = cpu_to_le16(tmr);
+
+	flags = RING_CMPL_RING_CFG_AGGINT_PARAMS_REQ_FLAGS_TIMER_RESET;
+	if (hw_coal->idle_thresh && hw_coal->coal_ticks < hw_coal->idle_thresh)
+		flags |= RING_CMPL_RING_CFG_AGGINT_PARAMS_REQ_FLAGS_RING_IDLE;
 	req->flags = cpu_to_le16(flags);
-	req->num_cmpl_dma_aggr = cpu_to_le16((u16)max_bufs);
-	req->num_cmpl_dma_aggr_during_int = cpu_to_le16(max_bufs >> 16);
-	req->cmpl_aggr_dma_tmr = cpu_to_le16((u16)buf_tmrs);
-	req->cmpl_aggr_dma_tmr_during_int = cpu_to_le16(buf_tmrs >> 16);
-	/* Minimum time between 2 interrupts set to buf_tmr x 2 */
-	req->int_lat_tmr_min = cpu_to_le16((u16)buf_tmrs * 2);
-	req->int_lat_tmr_max = cpu_to_le16((u16)buf_tmrs * 4);
-	req->num_cmpl_aggr_int = cpu_to_le16((u16)max_bufs * 4);
 }
 
 int bnxt_hwrm_set_coal(struct bnxt *bp)
@@ -4548,51 +4584,14 @@ int bnxt_hwrm_set_coal(struct bnxt *bp)
 	int i, rc = 0;
 	struct hwrm_ring_cmpl_ring_cfg_aggint_params_input req_rx = {0},
 							   req_tx = {0}, *req;
-	u16 max_buf, max_buf_irq;
-	u16 buf_tmr, buf_tmr_irq;
-	u32 flags;
 
 	bnxt_hwrm_cmd_hdr_init(bp, &req_rx,
 			       HWRM_RING_CMPL_RING_CFG_AGGINT_PARAMS, -1, -1);
 	bnxt_hwrm_cmd_hdr_init(bp, &req_tx,
 			       HWRM_RING_CMPL_RING_CFG_AGGINT_PARAMS, -1, -1);
 
-	/* Each rx completion (2 records) should be DMAed immediately.
-	 * DMA 1/4 of the completion buffers at a time.
-	 */
-	max_buf = min_t(u16, bp->rx_coal_bufs / 4, 2);
-	/* max_buf must not be zero */
-	max_buf = clamp_t(u16, max_buf, 1, 63);
-	max_buf_irq = clamp_t(u16, bp->rx_coal_bufs_irq, 1, 63);
-	buf_tmr = BNXT_USEC_TO_COAL_TIMER(bp->rx_coal_ticks);
-	/* buf timer set to 1/4 of interrupt timer */
-	buf_tmr = max_t(u16, buf_tmr / 4, 1);
-	buf_tmr_irq = BNXT_USEC_TO_COAL_TIMER(bp->rx_coal_ticks_irq);
-	buf_tmr_irq = max_t(u16, buf_tmr_irq, 1);
-
-	flags = RING_CMPL_RING_CFG_AGGINT_PARAMS_REQ_FLAGS_TIMER_RESET;
-
-	/* RING_IDLE generates more IRQs for lower latency.  Enable it only
-	 * if coal_ticks is less than 25 us.
-	 */
-	if (bp->rx_coal_ticks < 25)
-		flags |= RING_CMPL_RING_CFG_AGGINT_PARAMS_REQ_FLAGS_RING_IDLE;
-
-	bnxt_hwrm_set_coal_params(bp, max_buf_irq << 16 | max_buf,
-				  buf_tmr_irq << 16 | buf_tmr, flags, &req_rx);
-
-	/* max_buf must not be zero */
-	max_buf = clamp_t(u16, bp->tx_coal_bufs, 1, 63);
-	max_buf_irq = clamp_t(u16, bp->tx_coal_bufs_irq, 1, 63);
-	buf_tmr = BNXT_USEC_TO_COAL_TIMER(bp->tx_coal_ticks);
-	/* buf timer set to 1/4 of interrupt timer */
-	buf_tmr = max_t(u16, buf_tmr / 4, 1);
-	buf_tmr_irq = BNXT_USEC_TO_COAL_TIMER(bp->tx_coal_ticks_irq);
-	buf_tmr_irq = max_t(u16, buf_tmr_irq, 1);
-
-	flags = RING_CMPL_RING_CFG_AGGINT_PARAMS_REQ_FLAGS_TIMER_RESET;
-	bnxt_hwrm_set_coal_params(bp, max_buf_irq << 16 | max_buf,
-				  buf_tmr_irq << 16 | buf_tmr, flags, &req_tx);
+	bnxt_hwrm_set_coal_params(&bp->rx_coal, &req_rx);
+	bnxt_hwrm_set_coal_params(&bp->tx_coal, &req_tx);
 
 	mutex_lock(&bp->hwrm_cmd_lock);
 	for (i = 0; i < bp->cp_nr_rings; i++) {
@@ -4723,6 +4722,10 @@ static int bnxt_hwrm_func_qcfg(struct bnxt *bp)
 		bp->br_mode = BRIDGE_MODE_VEPA;
 	else
 		bp->br_mode = BRIDGE_MODE_UNDEF;
+
+	bp->max_mtu = le16_to_cpu(resp->max_mtu_configured);
+	if (!bp->max_mtu)
+		bp->max_mtu = BNXT_MAX_MTU;
 
 func_qcfg_exit:
 	mutex_unlock(&bp->hwrm_cmd_lock);
@@ -4884,9 +4887,9 @@ static int bnxt_hwrm_ver_get(struct bnxt *bp)
 			    resp->hwrm_intf_upd);
 		netdev_warn(bp->dev, "Please update firmware with HWRM interface 1.0.0 or newer.\n");
 	}
-	snprintf(bp->fw_ver_str, BC_HWRM_STR_LEN, "%d.%d.%d/%d.%d.%d",
+	snprintf(bp->fw_ver_str, BC_HWRM_STR_LEN, "%d.%d.%d.%d",
 		 resp->hwrm_fw_maj, resp->hwrm_fw_min, resp->hwrm_fw_bld,
-		 resp->hwrm_intf_maj, resp->hwrm_intf_min, resp->hwrm_intf_upd);
+		 resp->hwrm_fw_rsvd);
 
 	bp->hwrm_cmd_timeout = le16_to_cpu(resp->def_req_timeout);
 	if (!bp->hwrm_cmd_timeout)
@@ -4912,16 +4915,14 @@ hwrm_ver_get_exit:
 
 int bnxt_hwrm_fw_set_time(struct bnxt *bp)
 {
-#if IS_ENABLED(CONFIG_RTC_LIB)
 	struct hwrm_fw_set_time_input req = {0};
-	struct rtc_time tm;
-	struct timeval tv;
+	struct tm tm;
+	time64_t now = ktime_get_real_seconds();
 
 	if (bp->hwrm_spec_code < 0x10400)
 		return -EOPNOTSUPP;
 
-	do_gettimeofday(&tv);
-	rtc_time_to_tm(tv.tv_sec, &tm);
+	time64_to_tm(now, 0, &tm);
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_FW_SET_TIME, -1, -1);
 	req.year = cpu_to_le16(1900 + tm.tm_year);
 	req.month = 1 + tm.tm_mon;
@@ -4930,9 +4931,6 @@ int bnxt_hwrm_fw_set_time(struct bnxt *bp)
 	req.minute = tm.tm_min;
 	req.second = tm.tm_sec;
 	return hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
-#else
-	return -EOPNOTSUPP;
-#endif
 }
 
 static int bnxt_hwrm_port_qstats(struct bnxt *bp)
@@ -6980,6 +6978,11 @@ static void bnxt_timer(unsigned long data)
 		set_bit(BNXT_PERIODIC_STATS_SP_EVENT, &bp->sp_event);
 		bnxt_queue_sp_work(bp);
 	}
+
+	if (bnxt_tc_flower_enabled(bp)) {
+		set_bit(BNXT_FLOW_STATS_SP_EVENT, &bp->sp_event);
+		bnxt_queue_sp_work(bp);
+	}
 bnxt_restart_timer:
 	mod_timer(&bp->timer, jiffies + bp->current_interval);
 }
@@ -7070,6 +7073,10 @@ static void bnxt_sp_task(struct work_struct *work)
 		bnxt_get_port_module_status(bp);
 		mutex_unlock(&bp->link_lock);
 	}
+
+	if (test_and_clear_bit(BNXT_FLOW_STATS_SP_EVENT, &bp->sp_event))
+		bnxt_tc_flow_stats_work(bp);
+
 	/* These functions below will clear BNXT_STATE_IN_SP_TASK.  They
 	 * must be the last functions to be called before exiting.
 	 */
@@ -7131,6 +7138,32 @@ static void bnxt_cleanup_pci(struct bnxt *bp)
 	bnxt_unmap_bars(bp, bp->pdev);
 	pci_release_regions(bp->pdev);
 	pci_disable_device(bp->pdev);
+}
+
+static void bnxt_init_dflt_coal(struct bnxt *bp)
+{
+	struct bnxt_coal *coal;
+
+	/* Tick values in micro seconds.
+	 * 1 coal_buf x bufs_per_record = 1 completion record.
+	 */
+	coal = &bp->rx_coal;
+	coal->coal_ticks = 14;
+	coal->coal_bufs = 30;
+	coal->coal_ticks_irq = 1;
+	coal->coal_bufs_irq = 2;
+	coal->idle_thresh = 25;
+	coal->bufs_per_record = 2;
+	coal->budget = 64;		/* NAPI budget */
+
+	coal = &bp->tx_coal;
+	coal->coal_ticks = 28;
+	coal->coal_bufs = 30;
+	coal->coal_ticks_irq = 2;
+	coal->coal_bufs_irq = 2;
+	coal->bufs_per_record = 1;
+
+	bp->stats_coal_ticks = BNXT_DEF_STATS_COAL_TICKS;
 }
 
 static int bnxt_init_board(struct pci_dev *pdev, struct net_device *dev)
@@ -7201,22 +7234,9 @@ static int bnxt_init_board(struct pci_dev *pdev, struct net_device *dev)
 	bp->rx_ring_size = BNXT_DEFAULT_RX_RING_SIZE;
 	bp->tx_ring_size = BNXT_DEFAULT_TX_RING_SIZE;
 
-	/* tick values in micro seconds */
-	bp->rx_coal_ticks = 12;
-	bp->rx_coal_bufs = 30;
-	bp->rx_coal_ticks_irq = 1;
-	bp->rx_coal_bufs_irq = 2;
+	bnxt_init_dflt_coal(bp);
 
-	bp->tx_coal_ticks = 25;
-	bp->tx_coal_bufs = 30;
-	bp->tx_coal_ticks_irq = 2;
-	bp->tx_coal_bufs_irq = 2;
-
-	bp->stats_coal_ticks = BNXT_DEF_STATS_COAL_TICKS;
-
-	init_timer(&bp->timer);
-	bp->timer.data = (unsigned long)bp;
-	bp->timer.function = bnxt_timer;
+	setup_timer(&bp->timer, bnxt_timer, (unsigned long)bp);
 	bp->current_interval = BNXT_TIMER_INTERVAL;
 
 	clear_bit(BNXT_STATE_OPEN, &bp->state);
@@ -7243,12 +7263,12 @@ static int bnxt_change_mac_addr(struct net_device *dev, void *p)
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
 
+	if (ether_addr_equal(addr->sa_data, dev->dev_addr))
+		return 0;
+
 	rc = bnxt_approve_mac(bp, addr->sa_data);
 	if (rc)
 		return rc;
-
-	if (ether_addr_equal(addr->sa_data, dev->dev_addr))
-		return 0;
 
 	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
 	if (netif_running(dev)) {
@@ -7321,24 +7341,49 @@ int bnxt_setup_mq_tc(struct net_device *dev, u8 tc)
 	return 0;
 }
 
-static int bnxt_setup_flower(struct net_device *dev,
-			     struct tc_cls_flower_offload *cls_flower)
+static int bnxt_setup_tc_block_cb(enum tc_setup_type type, void *type_data,
+				  void *cb_priv)
+{
+	struct bnxt *bp = cb_priv;
+
+	if (!bnxt_tc_flower_enabled(bp) || !tc_can_offload(bp->dev))
+		return -EOPNOTSUPP;
+
+	switch (type) {
+	case TC_SETUP_CLSFLOWER:
+		return bnxt_tc_setup_flower(bp, bp->pf.fw_fid, type_data);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static int bnxt_setup_tc_block(struct net_device *dev,
+			       struct tc_block_offload *f)
 {
 	struct bnxt *bp = netdev_priv(dev);
 
-	if (BNXT_VF(bp))
+	if (f->binder_type != TCF_BLOCK_BINDER_TYPE_CLSACT_INGRESS)
 		return -EOPNOTSUPP;
 
-	return bnxt_tc_setup_flower(bp, bp->pf.fw_fid, cls_flower);
+	switch (f->command) {
+	case TC_BLOCK_BIND:
+		return tcf_block_cb_register(f->block, bnxt_setup_tc_block_cb,
+					     bp, bp);
+	case TC_BLOCK_UNBIND:
+		tcf_block_cb_unregister(f->block, bnxt_setup_tc_block_cb, bp);
+		return 0;
+	default:
+		return -EOPNOTSUPP;
+	}
 }
 
 static int bnxt_setup_tc(struct net_device *dev, enum tc_setup_type type,
 			 void *type_data)
 {
 	switch (type) {
-	case TC_SETUP_CLSFLOWER:
-		return bnxt_setup_flower(dev, type_data);
-	case TC_SETUP_MQPRIO: {
+	case TC_SETUP_BLOCK:
+		return bnxt_setup_tc_block(dev, type_data);
+	case TC_SETUP_QDISC_MQPRIO: {
 		struct tc_mqprio_qopt *mqprio = type_data;
 
 		mqprio->hw = TC_MQPRIO_HW_OFFLOAD_TCS;
@@ -7725,7 +7770,7 @@ static const struct net_device_ops bnxt_netdev_ops = {
 #endif
 	.ndo_udp_tunnel_add	= bnxt_udp_tunnel_add,
 	.ndo_udp_tunnel_del	= bnxt_udp_tunnel_del,
-	.ndo_xdp		= bnxt_xdp,
+	.ndo_bpf		= bnxt_xdp,
 	.ndo_bridge_getlink	= bnxt_bridge_getlink,
 	.ndo_bridge_setlink	= bnxt_bridge_setlink,
 	.ndo_get_phys_port_name = bnxt_get_phys_port_name
@@ -8064,10 +8109,6 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	dev->features |= dev->hw_features | NETIF_F_HIGHDMA;
 	dev->priv_flags |= IFF_UNICAST_FLT;
 
-	/* MTU range: 60 - 9500 */
-	dev->min_mtu = ETH_ZLEN;
-	dev->max_mtu = BNXT_MAX_MTU;
-
 #ifdef CONFIG_BNXT_SRIOV
 	init_waitqueue_head(&bp->sriov_cfg_wait);
 	mutex_init(&bp->sriov_lock);
@@ -8114,6 +8155,10 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	bnxt_hwrm_port_led_qcaps(bp);
 	bnxt_ethtool_init(bp);
 	bnxt_dcb_init(bp);
+
+	/* MTU range: 60 - FW defined max */
+	dev->min_mtu = ETH_ZLEN;
+	dev->max_mtu = bp->max_mtu;
 
 	rc = bnxt_probe_phy(bp);
 	if (rc)

@@ -381,10 +381,14 @@ static int smc_link_determine_gid(struct smc_link_group *lgr)
 		if (ib_query_gid(lnk->smcibdev->ibdev, lnk->ibport, i, &gid,
 				 &gattr))
 			continue;
-		if (gattr.ndev &&
-		    (vlan_dev_vlan_id(gattr.ndev) == lgr->vlan_id)) {
-			lnk->gid = gid;
-			return 0;
+		if (gattr.ndev) {
+			if (is_vlan_dev(gattr.ndev) &&
+			    vlan_dev_vlan_id(gattr.ndev) == lgr->vlan_id) {
+				lnk->gid = gid;
+				dev_put(gattr.ndev);
+				return 0;
+			}
+			dev_put(gattr.ndev);
 		}
 	}
 	return -ENODEV;

@@ -23,7 +23,6 @@
 #include "ecdh_helper.h"
 
 #include <linux/scatterlist.h>
-#include <crypto/kpp.h>
 #include <crypto/ecdh.h>
 
 struct ecdh_completion {
@@ -50,54 +49,34 @@ static inline void swap_digits(u64 *in, u64 *out, unsigned int ndigits)
 		out[i] = __swab64(in[ndigits - 1 - i]);
 }
 
-bool compute_ecdh_secret(const u8 public_key[64], const u8 private_key[32],
-			 u8 secret[32])
+/* compute_ecdh_secret() - function assumes that the private key was
+ *                         already set.
+ * @tfm:          KPP tfm handle allocated with crypto_alloc_kpp().
+ * @public_key:   pair's ecc public key.
+ * secret:        memory where the ecdh computed shared secret will be saved.
+ *
+ * Return: zero on success; error code in case of error.
+ */
+int compute_ecdh_secret(struct crypto_kpp *tfm, const u8 public_key[64],
+			u8 secret[32])
 {
-	struct crypto_kpp *tfm;
 	struct kpp_request *req;
-	struct ecdh p;
+	u8 *tmp;
 	struct ecdh_completion result;
 	struct scatterlist src, dst;
-	u8 *tmp, *buf;
-	unsigned int buf_len;
-	int err = -ENOMEM;
+	int err;
 
 	tmp = kmalloc(64, GFP_KERNEL);
 	if (!tmp)
-		return false;
+		return -ENOMEM;
 
-	tfm = crypto_alloc_kpp("ecdh", CRYPTO_ALG_INTERNAL, 0);
-	if (IS_ERR(tfm)) {
-		pr_err("alg: kpp: Failed to load tfm for kpp: %ld\n",
-		       PTR_ERR(tfm));
+	req = kpp_request_alloc(tfm, GFP_KERNEL);
+	if (!req) {
+		err = -ENOMEM;
 		goto free_tmp;
 	}
 
-	req = kpp_request_alloc(tfm, GFP_KERNEL);
-	if (!req)
-		goto free_kpp;
-
 	init_completion(&result.completion);
-
-	/* Security Manager Protocol holds digits in litte-endian order
-	 * while ECC API expect big-endian data
-	 */
-	swap_digits((u64 *)private_key, (u64 *)tmp, 4);
-	p.key = (char *)tmp;
-	p.key_size = 32;
-	/* Set curve_id */
-	p.curve_id = ECC_CURVE_NIST_P256;
-	buf_len = crypto_ecdh_key_len(&p);
-	buf = kmalloc(buf_len, GFP_KERNEL);
-	if (!buf)
-		goto free_req;
-
-	crypto_ecdh_encode_key(buf, buf_len, &p);
-
-	/* Set A private Key */
-	err = crypto_kpp_set_secret(tfm, (void *)buf, buf_len);
-	if (err)
-		goto free_all;
 
 	swap_digits((u64 *)public_key, (u64 *)tmp, 4); /* x */
 	swap_digits((u64 *)&public_key[32], (u64 *)&tmp[32], 4); /* y */
@@ -123,104 +102,129 @@ bool compute_ecdh_secret(const u8 public_key[64], const u8 private_key[32],
 	memcpy(secret, tmp, 32);
 
 free_all:
-	kzfree(buf);
-free_req:
 	kpp_request_free(req);
-free_kpp:
-	crypto_free_kpp(tfm);
 free_tmp:
-	kfree(tmp);
-	return (err == 0);
+	kzfree(tmp);
+	return err;
 }
 
-bool generate_ecdh_keys(u8 public_key[64], u8 private_key[32])
+/* set_ecdh_privkey() - set or generate ecc private key.
+ *
+ * Function generates an ecc private key in the crypto subsystem when receiving
+ * a NULL private key or sets the received key when not NULL.
+ *
+ * @tfm:           KPP tfm handle allocated with crypto_alloc_kpp().
+ * @private_key:   user's ecc private key. When not NULL, the key is expected
+ *                 in little endian format.
+ *
+ * Return: zero on success; error code in case of error.
+ */
+int set_ecdh_privkey(struct crypto_kpp *tfm, const u8 private_key[32])
 {
-	struct crypto_kpp *tfm;
-	struct kpp_request *req;
-	struct ecdh p;
-	struct ecdh_completion result;
-	struct scatterlist dst;
-	u8 *tmp, *buf;
+	u8 *buf, *tmp = NULL;
 	unsigned int buf_len;
-	int err = -ENOMEM;
-	const unsigned short max_tries = 16;
-	unsigned short tries = 0;
+	int err;
+	struct ecdh p = {0};
 
-	tmp = kmalloc(64, GFP_KERNEL);
-	if (!tmp)
-		return false;
+	p.curve_id = ECC_CURVE_NIST_P256;
 
-	tfm = crypto_alloc_kpp("ecdh", CRYPTO_ALG_INTERNAL, 0);
-	if (IS_ERR(tfm)) {
-		pr_err("alg: kpp: Failed to load tfm for kpp: %ld\n",
-		       PTR_ERR(tfm));
+	if (private_key) {
+		tmp = kmalloc(32, GFP_KERNEL);
+		if (!tmp)
+			return -ENOMEM;
+		swap_digits((u64 *)private_key, (u64 *)tmp, 4);
+		p.key = tmp;
+		p.key_size = 32;
+	}
+
+	buf_len = crypto_ecdh_key_len(&p);
+	buf = kmalloc(buf_len, GFP_KERNEL);
+	if (!buf) {
+		err = -ENOMEM;
 		goto free_tmp;
 	}
 
+	err = crypto_ecdh_encode_key(buf, buf_len, &p);
+	if (err)
+		goto free_all;
+
+	err = crypto_kpp_set_secret(tfm, buf, buf_len);
+	/* fall through */
+free_all:
+	kzfree(buf);
+free_tmp:
+	kzfree(tmp);
+	return err;
+}
+
+/* generate_ecdh_public_key() - function assumes that the private key was
+ *                              already set.
+ *
+ * @tfm:          KPP tfm handle allocated with crypto_alloc_kpp().
+ * @public_key:   memory where the computed ecc public key will be saved.
+ *
+ * Return: zero on success; error code in case of error.
+ */
+int generate_ecdh_public_key(struct crypto_kpp *tfm, u8 public_key[64])
+{
+	struct kpp_request *req;
+	u8 *tmp;
+	struct ecdh_completion result;
+	struct scatterlist dst;
+	int err;
+
+	tmp = kmalloc(64, GFP_KERNEL);
+	if (!tmp)
+		return -ENOMEM;
+
 	req = kpp_request_alloc(tfm, GFP_KERNEL);
-	if (!req)
-		goto free_kpp;
+	if (!req) {
+		err = -ENOMEM;
+		goto free_tmp;
+	}
 
 	init_completion(&result.completion);
+	sg_init_one(&dst, tmp, 64);
+	kpp_request_set_input(req, NULL, 0);
+	kpp_request_set_output(req, &dst, 64);
+	kpp_request_set_callback(req, CRYPTO_TFM_REQ_MAY_BACKLOG,
+				 ecdh_complete, &result);
 
-	/* Set curve_id */
-	p.curve_id = ECC_CURVE_NIST_P256;
-	p.key_size = 32;
-	buf_len = crypto_ecdh_key_len(&p);
-	buf = kmalloc(buf_len, GFP_KERNEL);
-	if (!buf)
-		goto free_req;
+	err = crypto_kpp_generate_public_key(req);
+	if (err == -EINPROGRESS) {
+		wait_for_completion(&result.completion);
+		err = result.err;
+	}
+	if (err < 0)
+		goto free_all;
 
-	do {
-		if (tries++ >= max_tries)
-			goto free_all;
-
-		/* Set private Key */
-		p.key = (char *)private_key;
-		crypto_ecdh_encode_key(buf, buf_len, &p);
-		err = crypto_kpp_set_secret(tfm, buf, buf_len);
-		if (err)
-			goto free_all;
-
-		sg_init_one(&dst, tmp, 64);
-		kpp_request_set_input(req, NULL, 0);
-		kpp_request_set_output(req, &dst, 64);
-		kpp_request_set_callback(req, CRYPTO_TFM_REQ_MAY_BACKLOG,
-					 ecdh_complete, &result);
-
-		err = crypto_kpp_generate_public_key(req);
-
-		if (err == -EINPROGRESS) {
-			wait_for_completion(&result.completion);
-			err = result.err;
-		}
-
-		/* Private key is not valid. Regenerate */
-		if (err == -EINVAL)
-			continue;
-
-		if (err < 0)
-			goto free_all;
-		else
-			break;
-
-	} while (true);
-
-	/* Keys are handed back in little endian as expected by Security
-	 * Manager Protocol
+	/* The public key is handed back in little endian as expected by
+	 * the Security Manager Protocol.
 	 */
 	swap_digits((u64 *)tmp, (u64 *)public_key, 4); /* x */
 	swap_digits((u64 *)&tmp[32], (u64 *)&public_key[32], 4); /* y */
-	swap_digits((u64 *)private_key, (u64 *)tmp, 4);
-	memcpy(private_key, tmp, 32);
 
 free_all:
-	kzfree(buf);
-free_req:
 	kpp_request_free(req);
-free_kpp:
-	crypto_free_kpp(tfm);
 free_tmp:
 	kfree(tmp);
-	return (err == 0);
+	return err;
+}
+
+/* generate_ecdh_keys() - generate ecc key pair.
+ *
+ * @tfm:          KPP tfm handle allocated with crypto_alloc_kpp().
+ * @public_key:   memory where the computed ecc public key will be saved.
+ *
+ * Return: zero on success; error code in case of error.
+ */
+int generate_ecdh_keys(struct crypto_kpp *tfm, u8 public_key[64])
+{
+	int err;
+
+	err = set_ecdh_privkey(tfm, NULL);
+	if (err)
+		return err;
+
+	return generate_ecdh_public_key(tfm, public_key);
 }

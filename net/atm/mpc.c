@@ -95,7 +95,7 @@ static netdev_tx_t mpc_send_packet(struct sk_buff *skb,
 static int mpoa_event_listener(struct notifier_block *mpoa_notifier,
 			       unsigned long event, void *dev);
 static void mpc_timer_refresh(void);
-static void mpc_cache_check(unsigned long checking_time);
+static void mpc_cache_check(struct timer_list *unused);
 
 static struct llc_snap_hdr llc_snap_mpoa_ctrl = {
 	0xaa, 0xaa, 0x03,
@@ -799,7 +799,6 @@ static int atm_mpoa_mpoad_attach(struct atm_vcc *vcc, int arg)
 	int err;
 
 	if (mpcs == NULL) {
-		init_timer(&mpc_timer);
 		mpc_timer_refresh();
 
 		/* This lets us now how our LECs are doing */
@@ -1408,15 +1407,17 @@ static void clean_up(struct k_message *msg, struct mpoa_client *mpc, int action)
 	msg_to_mpoad(msg, mpc);
 }
 
+static unsigned long checking_time;
+
 static void mpc_timer_refresh(void)
 {
 	mpc_timer.expires = jiffies + (MPC_P2 * HZ);
-	mpc_timer.data = mpc_timer.expires;
-	mpc_timer.function = mpc_cache_check;
+	checking_time = mpc_timer.expires;
+	mpc_timer.function = (TIMER_FUNC_TYPE)mpc_cache_check;
 	add_timer(&mpc_timer);
 }
 
-static void mpc_cache_check(unsigned long checking_time)
+static void mpc_cache_check(struct timer_list *unused)
 {
 	struct mpoa_client *mpc = mpcs;
 	static unsigned long previous_resolving_check_time;

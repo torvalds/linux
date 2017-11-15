@@ -63,7 +63,11 @@ static int mlxsw_sp_flower_parse_actions(struct mlxsw_sp *mlxsw_sp,
 
 	tcf_exts_to_list(exts, &actions);
 	list_for_each_entry(a, &actions, list) {
-		if (is_tcf_gact_shot(a)) {
+		if (is_tcf_gact_ok(a)) {
+			err = mlxsw_sp_acl_rulei_act_continue(rulei);
+			if (err)
+				return err;
+		} else if (is_tcf_gact_shot(a)) {
 			err = mlxsw_sp_acl_rulei_act_drop(rulei);
 			if (err)
 				return err;
@@ -84,7 +88,9 @@ static int mlxsw_sp_flower_parse_actions(struct mlxsw_sp *mlxsw_sp,
 				return PTR_ERR(ruleset);
 
 			group_id = mlxsw_sp_acl_ruleset_group_id(ruleset);
-			mlxsw_sp_acl_rulei_act_jump(rulei, group_id);
+			err = mlxsw_sp_acl_rulei_act_jump(rulei, group_id);
+			if (err)
+				return err;
 		} else if (is_tcf_mirred_egress_redirect(a)) {
 			int ifindex = tcf_mirred_ifindex(a);
 			struct net_device *out_dev;

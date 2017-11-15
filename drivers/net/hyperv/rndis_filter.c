@@ -407,13 +407,13 @@ int rndis_filter_receive(struct net_device *ndev,
 
 	/* Make sure the rndis device state is initialized */
 	if (unlikely(!rndis_dev)) {
-		netif_err(net_device_ctx, rx_err, ndev,
+		netif_dbg(net_device_ctx, rx_err, ndev,
 			  "got rndis message but no rndis device!\n");
 		return NVSP_STAT_FAIL;
 	}
 
 	if (unlikely(rndis_dev->state == RNDIS_DEV_UNINITIALIZED)) {
-		netif_err(net_device_ctx, rx_err, ndev,
+		netif_dbg(net_device_ctx, rx_err, ndev,
 			  "got rndis message uninitialized\n");
 		return NVSP_STAT_FAIL;
 	}
@@ -759,7 +759,7 @@ int rndis_filter_set_rss_param(struct rndis_device *rdev,
 	/* Set indirection table entries */
 	itab = (u32 *)(rssp + 1);
 	for (i = 0; i < ITAB_NUM; i++)
-		itab[i] = rdev->ind_table[i];
+		itab[i] = rdev->rx_table[i];
 
 	/* Set hask key values */
 	keyp = (u8 *)((unsigned long)rssp + rssp->kashkey_offset);
@@ -1114,6 +1114,9 @@ void rndis_set_subchannel(struct work_struct *w)
 	netif_set_real_num_tx_queues(ndev, nvdev->num_chn);
 	netif_set_real_num_rx_queues(ndev, nvdev->num_chn);
 
+	for (i = 0; i < VRSS_SEND_TAB_SIZE; i++)
+		ndev_ctx->tx_table[i] = i % nvdev->num_chn;
+
 	rtnl_unlock();
 	return;
 
@@ -1284,8 +1287,8 @@ struct netvsc_device *rndis_filter_device_add(struct hv_device *dev,
 	net_device->num_chn = min(net_device->max_chn, device_info->num_chn);
 
 	for (i = 0; i < ITAB_NUM; i++)
-		rndis_device->ind_table[i] = ethtool_rxfh_indir_default(i,
-							net_device->num_chn);
+		rndis_device->rx_table[i] = ethtool_rxfh_indir_default(
+						i, net_device->num_chn);
 
 	atomic_set(&net_device->open_chn, 1);
 	vmbus_set_sc_create_callback(dev->channel, netvsc_sc_open);

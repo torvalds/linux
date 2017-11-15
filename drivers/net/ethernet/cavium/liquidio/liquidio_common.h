@@ -27,8 +27,8 @@
 
 #define LIQUIDIO_PACKAGE ""
 #define LIQUIDIO_BASE_MAJOR_VERSION 1
-#define LIQUIDIO_BASE_MINOR_VERSION 6
-#define LIQUIDIO_BASE_MICRO_VERSION 1
+#define LIQUIDIO_BASE_MINOR_VERSION 7
+#define LIQUIDIO_BASE_MICRO_VERSION 0
 #define LIQUIDIO_BASE_VERSION   __stringify(LIQUIDIO_BASE_MAJOR_VERSION) "." \
 				__stringify(LIQUIDIO_BASE_MINOR_VERSION)
 #define LIQUIDIO_MICRO_VERSION  "." __stringify(LIQUIDIO_BASE_MICRO_VERSION)
@@ -84,9 +84,13 @@ enum octeon_tag_type {
 #define OPCODE_NIC_IF_CFG              0x09
 #define OPCODE_NIC_VF_DRV_NOTICE       0x0A
 #define OPCODE_NIC_INTRMOD_PARAMS      0x0B
+#define OPCODE_NIC_SYNC_OCTEON_TIME	0x14
 #define VF_DRV_LOADED                  1
 #define VF_DRV_REMOVED                -1
 #define VF_DRV_MACADDR_CHANGED         2
+
+#define OPCODE_NIC_VF_REP_PKT          0x15
+#define OPCODE_NIC_VF_REP_CMD          0x16
 
 #define CORE_DRV_TEST_SCATTER_OP    0xFFF5
 
@@ -107,6 +111,10 @@ enum octeon_tag_type {
 #define MAX_IOQ_INTERRUPTS_PER_VF   (8 * 2)
 
 #define SCR2_BIT_FW_LOADED	    63
+
+/* App specific capabilities from firmware to pf driver */
+#define LIQUIDIO_TIME_SYNC_CAP 0x1
+#define LIQUIDIO_SWITCHDEV_CAP 0x2
 
 static inline u32 incr_index(u32 index, u32 count, u32 max)
 {
@@ -901,4 +909,60 @@ union oct_nic_if_cfg {
 	} s;
 };
 
+struct lio_time {
+	s64 sec;   /* seconds */
+	s64 nsec;  /* nanoseconds */
+};
+
+struct lio_vf_rep_stats {
+	u64 tx_packets;
+	u64 tx_bytes;
+	u64 tx_dropped;
+
+	u64 rx_packets;
+	u64 rx_bytes;
+	u64 rx_dropped;
+};
+
+enum lio_vf_rep_req_type {
+	LIO_VF_REP_REQ_NONE,
+	LIO_VF_REP_REQ_STATE,
+	LIO_VF_REP_REQ_MTU,
+	LIO_VF_REP_REQ_STATS,
+	LIO_VF_REP_REQ_DEVNAME
+};
+
+enum {
+	LIO_VF_REP_STATE_DOWN,
+	LIO_VF_REP_STATE_UP
+};
+
+#define LIO_IF_NAME_SIZE 16
+struct lio_vf_rep_req {
+	u8 req_type;
+	u8 ifidx;
+	u8 rsvd[6];
+
+	union {
+		struct lio_vf_rep_name {
+			char name[LIO_IF_NAME_SIZE];
+		} rep_name;
+
+		struct lio_vf_rep_mtu {
+			u32 mtu;
+			u32 rsvd;
+		} rep_mtu;
+
+		struct lio_vf_rep_state {
+			u8 state;
+			u8 rsvd[7];
+		} rep_state;
+	};
+};
+
+struct lio_vf_rep_resp {
+	u64 rh;
+	u8  status;
+	u8  rsvd[7];
+};
 #endif

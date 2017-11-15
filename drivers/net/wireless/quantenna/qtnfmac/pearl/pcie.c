@@ -617,9 +617,10 @@ static void qtnf_pcie_data_tx_reclaim(struct qtnf_pcie_bus_priv *priv)
 			if (skb->dev) {
 				skb->dev->stats.tx_packets++;
 				skb->dev->stats.tx_bytes += skb->len;
-
-				if (netif_queue_stopped(skb->dev))
-					netif_wake_queue(skb->dev);
+				if (unlikely(priv->tx_stopped)) {
+					qtnf_wake_all_queues(skb->dev);
+					priv->tx_stopped = 0;
+				}
 			}
 
 			dev_kfree_skb_any(skb);
@@ -643,11 +644,11 @@ static int qtnf_tx_queue_ready(struct qtnf_pcie_bus_priv *priv)
 {
 	if (!CIRC_SPACE(priv->tx_bd_w_index, priv->tx_bd_r_index,
 			priv->tx_bd_num)) {
-		pr_err_ratelimited("reclaim full Tx queue\n");
 		qtnf_pcie_data_tx_reclaim(priv);
 
 		if (!CIRC_SPACE(priv->tx_bd_w_index, priv->tx_bd_r_index,
 				priv->tx_bd_num)) {
+			pr_warn_ratelimited("reclaim full Tx queue\n");
 			priv->tx_full_count++;
 			return 0;
 		}
@@ -669,8 +670,10 @@ static int qtnf_pcie_data_tx(struct qtnf_bus *bus, struct sk_buff *skb)
 	spin_lock_irqsave(&priv->tx0_lock, flags);
 
 	if (!qtnf_tx_queue_ready(priv)) {
-		if (skb->dev)
-			netif_stop_queue(skb->dev);
+		if (skb->dev) {
+			netif_tx_stop_all_queues(skb->dev);
+			priv->tx_stopped = 1;
+		}
 
 		spin_unlock_irqrestore(&priv->tx0_lock, flags);
 		return NETDEV_TX_BUSY;

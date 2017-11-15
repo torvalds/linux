@@ -50,6 +50,7 @@
 
 #include <net/sctp/sctp.h>
 #include <net/sctp/sm.h>
+#include <net/sctp/stream_sched.h>
 
 /* Declare internal functions here.  */
 static int sctp_acked(struct sctp_sackhdr *sack, __u32 tsn);
@@ -72,32 +73,38 @@ static void sctp_outq_flush(struct sctp_outq *q, int rtx_timeout, gfp_t gfp);
 
 /* Add data to the front of the queue. */
 static inline void sctp_outq_head_data(struct sctp_outq *q,
-					struct sctp_chunk *ch)
+				       struct sctp_chunk *ch)
 {
+	struct sctp_stream_out_ext *oute;
+	__u16 stream;
+
 	list_add(&ch->list, &q->out_chunk_list);
 	q->out_qlen += ch->skb->len;
+
+	stream = sctp_chunk_stream_no(ch);
+	oute = q->asoc->stream.out[stream].ext;
+	list_add(&ch->stream_list, &oute->outq);
 }
 
 /* Take data from the front of the queue. */
 static inline struct sctp_chunk *sctp_outq_dequeue_data(struct sctp_outq *q)
 {
-	struct sctp_chunk *ch = NULL;
-
-	if (!list_empty(&q->out_chunk_list)) {
-		struct list_head *entry = q->out_chunk_list.next;
-
-		ch = list_entry(entry, struct sctp_chunk, list);
-		list_del_init(entry);
-		q->out_qlen -= ch->skb->len;
-	}
-	return ch;
+	return q->sched->dequeue(q);
 }
+
 /* Add data chunk to the end of the queue. */
 static inline void sctp_outq_tail_data(struct sctp_outq *q,
 				       struct sctp_chunk *ch)
 {
+	struct sctp_stream_out_ext *oute;
+	__u16 stream;
+
 	list_add_tail(&ch->list, &q->out_chunk_list);
 	q->out_qlen += ch->skb->len;
+
+	stream = sctp_chunk_stream_no(ch);
+	oute = q->asoc->stream.out[stream].ext;
+	list_add_tail(&ch->stream_list, &oute->outq);
 }
 
 /*
@@ -207,6 +214,7 @@ void sctp_outq_init(struct sctp_association *asoc, struct sctp_outq *q)
 	INIT_LIST_HEAD(&q->retransmit);
 	INIT_LIST_HEAD(&q->sacked);
 	INIT_LIST_HEAD(&q->abandoned);
+	sctp_sched_set_sched(asoc, SCTP_SS_FCFS);
 }
 
 /* Free the outqueue structure and any related pending chunks.
@@ -258,6 +266,7 @@ static void __sctp_outq_teardown(struct sctp_outq *q)
 
 	/* Throw away any leftover data chunks. */
 	while ((chunk = sctp_outq_dequeue_data(q)) != NULL) {
+		sctp_sched_dequeue_done(q, chunk);
 
 		/* Mark as send failure. */
 		sctp_chunk_fail(chunk, q->error);
@@ -366,7 +375,7 @@ static int sctp_prsctp_prune_sent(struct sctp_association *asoc,
 		streamout = &asoc->stream.out[chk->sinfo.sinfo_stream];
 		asoc->sent_cnt_removable--;
 		asoc->abandoned_sent[SCTP_PR_INDEX(PRIO)]++;
-		streamout->abandoned_sent[SCTP_PR_INDEX(PRIO)]++;
+		streamout->ext->abandoned_sent[SCTP_PR_INDEX(PRIO)]++;
 
 		if (!chk->tsn_gap_acked) {
 			if (chk->transport)
@@ -391,20 +400,21 @@ static int sctp_prsctp_prune_unsent(struct sctp_association *asoc,
 	struct sctp_outq *q = &asoc->outqueue;
 	struct sctp_chunk *chk, *temp;
 
+	q->sched->unsched_all(&asoc->stream);
+
 	list_for_each_entry_safe(chk, temp, &q->out_chunk_list, list) {
 		if (!SCTP_PR_PRIO_ENABLED(chk->sinfo.sinfo_flags) ||
 		    chk->sinfo.sinfo_timetolive <= sinfo->sinfo_timetolive)
 			continue;
 
-		list_del_init(&chk->list);
-		q->out_qlen -= chk->skb->len;
+		sctp_sched_dequeue_common(q, chk);
 		asoc->sent_cnt_removable--;
 		asoc->abandoned_unsent[SCTP_PR_INDEX(PRIO)]++;
 		if (chk->sinfo.sinfo_stream < asoc->stream.outcnt) {
 			struct sctp_stream_out *streamout =
 				&asoc->stream.out[chk->sinfo.sinfo_stream];
 
-			streamout->abandoned_unsent[SCTP_PR_INDEX(PRIO)]++;
+			streamout->ext->abandoned_unsent[SCTP_PR_INDEX(PRIO)]++;
 		}
 
 		msg_len -= SCTP_DATA_SNDSIZE(chk) +
@@ -414,6 +424,8 @@ static int sctp_prsctp_prune_unsent(struct sctp_association *asoc,
 		if (msg_len <= 0)
 			break;
 	}
+
+	q->sched->sched_all(&asoc->stream);
 
 	return msg_len;
 }
@@ -1033,22 +1045,9 @@ static void sctp_outq_flush(struct sctp_outq *q, int rtx_timeout, gfp_t gfp)
 		while ((chunk = sctp_outq_dequeue_data(q)) != NULL) {
 			__u32 sid = ntohs(chunk->subh.data_hdr->stream);
 
-			/* RFC 2960 6.5 Every DATA chunk MUST carry a valid
-			 * stream identifier.
-			 */
-			if (chunk->sinfo.sinfo_stream >= asoc->stream.outcnt) {
-
-				/* Mark as failed send. */
-				sctp_chunk_fail(chunk, SCTP_ERROR_INV_STRM);
-				if (asoc->peer.prsctp_capable &&
-				    SCTP_PR_PRIO_ENABLED(chunk->sinfo.sinfo_flags))
-					asoc->sent_cnt_removable--;
-				sctp_chunk_free(chunk);
-				continue;
-			}
-
 			/* Has this chunk expired? */
 			if (sctp_chunk_abandoned(chunk)) {
+				sctp_sched_dequeue_done(q, chunk);
 				sctp_chunk_fail(chunk, 0);
 				sctp_chunk_free(chunk);
 				continue;
@@ -1070,6 +1069,7 @@ static void sctp_outq_flush(struct sctp_outq *q, int rtx_timeout, gfp_t gfp)
 				new_transport = asoc->peer.active_path;
 			if (new_transport->state == SCTP_UNCONFIRMED) {
 				WARN_ONCE(1, "Attempt to send packet on unconfirmed path.");
+				sctp_sched_dequeue_done(q, chunk);
 				sctp_chunk_fail(chunk, 0);
 				sctp_chunk_free(chunk);
 				continue;
@@ -1132,6 +1132,11 @@ static void sctp_outq_flush(struct sctp_outq *q, int rtx_timeout, gfp_t gfp)
 					asoc->stats.ouodchunks++;
 				else
 					asoc->stats.oodchunks++;
+
+				/* Only now it's safe to consider this
+				 * chunk as sent, sched-wise.
+				 */
+				sctp_sched_dequeue_done(q, chunk);
 
 				break;
 

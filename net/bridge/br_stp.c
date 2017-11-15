@@ -123,7 +123,7 @@ static void br_root_port_block(const struct net_bridge *br,
 		  (unsigned int) p->port_no, p->dev->name);
 
 	br_set_state(p, BR_STATE_LISTENING);
-	br_ifinfo_notify(RTM_NEWLINK, p);
+	br_ifinfo_notify(RTM_NEWLINK, NULL, p);
 
 	if (br->forward_delay > 0)
 		mod_timer(&p->forward_delay_timer, jiffies + br->forward_delay);
@@ -403,7 +403,7 @@ static void br_make_blocking(struct net_bridge_port *p)
 			br_topology_change_detection(p->br);
 
 		br_set_state(p, BR_STATE_BLOCKING);
-		br_ifinfo_notify(RTM_NEWLINK, p);
+		br_ifinfo_notify(RTM_NEWLINK, NULL, p);
 
 		del_timer(&p->forward_delay_timer);
 	}
@@ -426,7 +426,7 @@ static void br_make_forwarding(struct net_bridge_port *p)
 	else
 		br_set_state(p, BR_STATE_LEARNING);
 
-	br_ifinfo_notify(RTM_NEWLINK, p);
+	br_ifinfo_notify(RTM_NEWLINK, NULL, p);
 
 	if (br->forward_delay != 0)
 		mod_timer(&p->forward_delay_timer, jiffies + br->forward_delay);

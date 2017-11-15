@@ -880,7 +880,7 @@ static void ia_phy_write(struct iadev_priv *iadev,
 
 static void ia_suni_pm7345_init_ds3(struct iadev_priv *iadev)
 {
-	static const struct ia_reg suni_ds3_init [] = {
+	static const struct ia_reg suni_ds3_init[] = {
 		{ SUNI_DS3_FRM_INTR_ENBL,	0x17 },
 		{ SUNI_DS3_FRM_CFG,		0x01 },
 		{ SUNI_DS3_TRAN_CFG,		0x01 },
@@ -898,7 +898,7 @@ static void ia_suni_pm7345_init_ds3(struct iadev_priv *iadev)
 
 static void ia_suni_pm7345_init_e3(struct iadev_priv *iadev)
 {
-	static const struct ia_reg suni_e3_init [] = {
+	static const struct ia_reg suni_e3_init[] = {
 		{ SUNI_E3_FRM_FRAM_OPTIONS,		0x04 },
 		{ SUNI_E3_FRM_MAINT_OPTIONS,		0x20 },
 		{ SUNI_E3_FRM_FRAM_INTR_ENBL,		0x1d },
@@ -918,7 +918,7 @@ static void ia_suni_pm7345_init_e3(struct iadev_priv *iadev)
 
 static void ia_suni_pm7345_init(struct iadev_priv *iadev)
 {
-	static const struct ia_reg suni_init [] = {
+	static const struct ia_reg suni_init[] = {
 		/* Enable RSOP loss of signal interrupt. */
 		{ SUNI_INTR_ENBL,		0x28 },
 		/* Clear error counters. */

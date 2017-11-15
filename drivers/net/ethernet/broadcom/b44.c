@@ -1474,10 +1474,8 @@ static int b44_open(struct net_device *dev)
 		goto out;
 	}
 
-	init_timer(&bp->timer);
+	setup_timer(&bp->timer, b44_timer, (unsigned long)bp);
 	bp->timer.expires = jiffies + HZ;
-	bp->timer.data = (unsigned long) bp;
-	bp->timer.function = b44_timer;
 	add_timer(&bp->timer);
 
 	b44_enable_ints(bp);

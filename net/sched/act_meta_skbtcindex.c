@@ -76,4 +76,4 @@ module_exit(ifetc_index_cleanup_module);
 MODULE_AUTHOR("Jamal Hadi Salim(2016)");
 MODULE_DESCRIPTION("Inter-FE skb tc_index metadata module");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS_IFE_META(IFE_META_SKBTCINDEX);
+MODULE_ALIAS_IFE_META("tcindex");

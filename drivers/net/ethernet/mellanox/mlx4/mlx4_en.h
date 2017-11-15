@@ -399,7 +399,7 @@ struct mlx4_en_profile {
 	u32 active_ports;
 	u32 small_pkt_int;
 	u8 no_reset;
-	u8 num_tx_rings_p_up;
+	u8 max_num_tx_rings_p_up;
 	struct mlx4_en_port_profile prof[MLX4_MAX_PORTS + 1];
 };
 
@@ -693,7 +693,7 @@ u16 mlx4_en_select_queue(struct net_device *dev, struct sk_buff *skb,
 netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev);
 netdev_tx_t mlx4_en_xmit_frame(struct mlx4_en_rx_ring *rx_ring,
 			       struct mlx4_en_rx_alloc *frame,
-			       struct net_device *dev, unsigned int length,
+			       struct mlx4_en_priv *priv, unsigned int length,
 			       int tx_ind, bool *doorbell_pending);
 void mlx4_en_xmit_doorbell(struct mlx4_en_tx_ring *ring);
 bool mlx4_en_rx_recycle(struct mlx4_en_rx_ring *ring,
@@ -705,6 +705,8 @@ int mlx4_en_create_tx_ring(struct mlx4_en_priv *priv,
 			   int node, int queue_index);
 void mlx4_en_destroy_tx_ring(struct mlx4_en_priv *priv,
 			     struct mlx4_en_tx_ring **pring);
+void mlx4_en_init_tx_xdp_ring_descs(struct mlx4_en_priv *priv,
+				    struct mlx4_en_tx_ring *ring);
 int mlx4_en_activate_tx_ring(struct mlx4_en_priv *priv,
 			     struct mlx4_en_tx_ring *ring,
 			     int cq, int user_prio);

@@ -100,6 +100,7 @@ struct afs_call {
 	bool			send_pages;	/* T if data from mapping should be sent */
 	bool			need_attention;	/* T if RxRPC poked us */
 	bool			async;		/* T if asynchronous */
+	bool			upgrade;	/* T to request service upgrade */
 	u16			service_id;	/* RxRPC service ID to call */
 	__be16			port;		/* target UDP port */
 	u32			operation_ID;	/* operation ID for an incoming call */

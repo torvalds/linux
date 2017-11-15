@@ -2263,7 +2263,6 @@ static void hso_serial_common_free(struct hso_serial *serial)
 static int hso_serial_common_create(struct hso_serial *serial, int num_urbs,
 				    int rx_size, int tx_size)
 {
-	struct device *dev;
 	int minor;
 	int i;
 
@@ -2277,7 +2276,6 @@ static int hso_serial_common_create(struct hso_serial *serial, int num_urbs,
 	serial->parent->dev = tty_port_register_device_attr(&serial->port,
 			tty_drv, minor, &serial->parent->interface->dev,
 			serial->parent, hso_serial_dev_groups);
-	dev = serial->parent->dev;
 
 	/* fill in specific data for later use */
 	serial->minor = minor;

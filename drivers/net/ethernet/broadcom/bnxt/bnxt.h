@@ -944,6 +944,22 @@ struct bnxt_test_info {
 #define BNXT_CAG_REG_LEGACY_INT_STATUS	0x4014
 #define BNXT_CAG_REG_BASE		0x300000
 
+struct bnxt_coal {
+	u16			coal_ticks;
+	u16			coal_ticks_irq;
+	u16			coal_bufs;
+	u16			coal_bufs_irq;
+			/* RING_IDLE enabled when coal ticks < idle_thresh  */
+	u16			idle_thresh;
+	u8			bufs_per_record;
+	u8			budget;
+};
+
+struct bnxt_tc_flow_stats {
+	u64		packets;
+	u64		bytes;
+};
+
 struct bnxt_tc_info {
 	bool				enabled;
 
@@ -954,11 +970,28 @@ struct bnxt_tc_info {
 	/* hash table to store L2 keys of TC flows */
 	struct rhashtable		l2_table;
 	struct rhashtable_params	l2_ht_params;
+	/* hash table to store L2 keys for TC tunnel decap */
+	struct rhashtable		decap_l2_table;
+	struct rhashtable_params	decap_l2_ht_params;
+	/* hash table to store tunnel decap entries */
+	struct rhashtable		decap_table;
+	struct rhashtable_params	decap_ht_params;
+	/* hash table to store tunnel encap entries */
+	struct rhashtable		encap_table;
+	struct rhashtable_params	encap_ht_params;
 
 	/* lock to atomically add/del an l2 node when a flow is
 	 * added or deleted.
 	 */
 	struct mutex			lock;
+
+	/* Fields used for batching stats query */
+	struct rhashtable_iter		iter;
+#define BNXT_FLOW_STATS_BATCH_MAX	10
+	struct bnxt_tc_stats_batch {
+		void			  *flow_node;
+		struct bnxt_tc_flow_stats hw_stats;
+	} stats_batch[BNXT_FLOW_STATS_BATCH_MAX];
 
 	/* Stat counter mask (width) */
 	u64				bytes_mask;
@@ -1013,6 +1046,7 @@ struct bnxt {
 #define CHIP_NUM_5745X		0xd730
 
 #define CHIP_NUM_58802		0xd802
+#define CHIP_NUM_58804		0xd804
 #define CHIP_NUM_58808		0xd808
 
 #define BNXT_CHIP_NUM_5730X(chip_num)		\
@@ -1048,6 +1082,7 @@ struct bnxt {
 
 #define BNXT_CHIP_NUM_588XX(chip_num)		\
 	((chip_num) == CHIP_NUM_58802 ||	\
+	 (chip_num) == CHIP_NUM_58804 ||        \
 	 (chip_num) == CHIP_NUM_58808)
 
 	struct net_device	*dev;
@@ -1170,6 +1205,7 @@ struct bnxt {
 	int			nr_vnics;
 	u32			rss_hash_cfg;
 
+	u16			max_mtu;
 	u8			max_tc;
 	u8			max_lltc;	/* lossless TCs */
 	struct bnxt_queue_info	q_info[BNXT_MAX_QUEUE];
@@ -1232,14 +1268,8 @@ struct bnxt {
 	u8			port_count;
 	u16			br_mode;
 
-	u16			rx_coal_ticks;
-	u16			rx_coal_ticks_irq;
-	u16			rx_coal_bufs;
-	u16			rx_coal_bufs_irq;
-	u16			tx_coal_ticks;
-	u16			tx_coal_ticks_irq;
-	u16			tx_coal_bufs;
-	u16			tx_coal_bufs_irq;
+	struct bnxt_coal	rx_coal;
+	struct bnxt_coal	tx_coal;
 
 #define BNXT_USEC_TO_COAL_TIMER(x)	((x) * 25 / 2)
 
@@ -1265,6 +1295,7 @@ struct bnxt {
 #define BNXT_GENEVE_ADD_PORT_SP_EVENT	12
 #define BNXT_GENEVE_DEL_PORT_SP_EVENT	13
 #define BNXT_LINK_SPEED_CHNG_SP_EVENT	14
+#define BNXT_FLOW_STATS_SP_EVENT	15
 
 	struct bnxt_pf_info	pf;
 #ifdef CONFIG_BNXT_SRIOV
@@ -1315,7 +1346,7 @@ struct bnxt {
 	enum devlink_eswitch_mode eswitch_mode;
 	struct bnxt_vf_rep	**vf_reps; /* array of vf-rep ptrs */
 	u16			*cfa_code_map; /* cfa_code -> vf_idx map */
-	struct bnxt_tc_info	tc_info;
+	struct bnxt_tc_info	*tc_info;
 };
 
 #define BNXT_RX_STATS_OFFSET(counter)			\

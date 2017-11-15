@@ -685,9 +685,9 @@ static int is_lucent_phy(struct happy_meal *hp)
 	return ret;
 }
 
-static void happy_meal_timer(unsigned long data)
+static void happy_meal_timer(struct timer_list *t)
 {
-	struct happy_meal *hp = (struct happy_meal *) data;
+	struct happy_meal *hp = from_timer(hp, t, happy_timer);
 	void __iomem *tregs = hp->tcvregs;
 	int restart_timer = 0;
 
@@ -1413,8 +1413,6 @@ force_link:
 
 	hp->timer_ticks = 0;
 	hp->happy_timer.expires = jiffies + (12 * HZ)/10;  /* 1.2 sec. */
-	hp->happy_timer.data = (unsigned long) hp;
-	hp->happy_timer.function = happy_meal_timer;
 	add_timer(&hp->happy_timer);
 }
 
@@ -2819,7 +2817,7 @@ static int happy_meal_sbus_probe_one(struct platform_device *op, int is_qfe)
 	hp->timer_state = asleep;
 	hp->timer_ticks = 0;
 
-	init_timer(&hp->happy_timer);
+	timer_setup(&hp->happy_timer, happy_meal_timer, 0);
 
 	hp->dev = dev;
 	dev->netdev_ops = &hme_netdev_ops;
@@ -3133,7 +3131,7 @@ static int happy_meal_pci_probe(struct pci_dev *pdev,
 	hp->timer_state = asleep;
 	hp->timer_ticks = 0;
 
-	init_timer(&hp->happy_timer);
+	timer_setup(&hp->happy_timer, happy_meal_timer, 0);
 
 	hp->irq = pdev->irq;
 	hp->dev = dev;

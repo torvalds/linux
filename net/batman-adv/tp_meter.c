@@ -1206,7 +1206,7 @@ static int batadv_tp_send_ack(struct batadv_priv *bat_priv, const u8 *dst,
 
 	/* send the ack */
 	r = batadv_send_skb_to_orig(skb, orig_node, NULL);
-	if (unlikely(r < 0) || (r == NET_XMIT_DROP)) {
+	if (unlikely(r < 0) || r == NET_XMIT_DROP) {
 		ret = BATADV_TP_REASON_DST_UNREACHABLE;
 		goto out;
 	}

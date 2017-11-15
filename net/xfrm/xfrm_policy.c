@@ -57,7 +57,7 @@ static __read_mostly seqcount_t xfrm_policy_hash_generation;
 static void xfrm_init_pmtu(struct dst_entry *dst);
 static int stale_bundle(struct dst_entry *dst);
 static int xfrm_bundle_ok(struct xfrm_dst *xdst);
-static void xfrm_policy_queue_process(unsigned long arg);
+static void xfrm_policy_queue_process(struct timer_list *t);
 
 static void __xfrm_policy_link(struct xfrm_policy *pol, int dir);
 static struct xfrm_policy *__xfrm_policy_unlink(struct xfrm_policy *pol,
@@ -179,9 +179,9 @@ static inline unsigned long make_jiffies(long secs)
 		return secs*HZ;
 }
 
-static void xfrm_policy_timer(unsigned long data)
+static void xfrm_policy_timer(struct timer_list *t)
 {
-	struct xfrm_policy *xp = (struct xfrm_policy *)data;
+	struct xfrm_policy *xp = from_timer(xp, t, timer);
 	unsigned long now = get_seconds();
 	long next = LONG_MAX;
 	int warn = 0;
@@ -267,10 +267,9 @@ struct xfrm_policy *xfrm_policy_alloc(struct net *net, gfp_t gfp)
 		rwlock_init(&policy->lock);
 		refcount_set(&policy->refcnt, 1);
 		skb_queue_head_init(&policy->polq.hold_queue);
-		setup_timer(&policy->timer, xfrm_policy_timer,
-				(unsigned long)policy);
-		setup_timer(&policy->polq.hold_timer, xfrm_policy_queue_process,
-			    (unsigned long)policy);
+		timer_setup(&policy->timer, xfrm_policy_timer, 0);
+		timer_setup(&policy->polq.hold_timer,
+			    xfrm_policy_queue_process, 0);
 	}
 	return policy;
 }
@@ -1851,12 +1850,12 @@ xfrm_resolve_and_create_bundle(struct xfrm_policy **pols, int num_pols,
 	return xdst;
 }
 
-static void xfrm_policy_queue_process(unsigned long arg)
+static void xfrm_policy_queue_process(struct timer_list *t)
 {
 	struct sk_buff *skb;
 	struct sock *sk;
 	struct dst_entry *dst;
-	struct xfrm_policy *pol = (struct xfrm_policy *)arg;
+	struct xfrm_policy *pol = from_timer(pol, t, polq.hold_timer);
 	struct net *net = xp_net(pol);
 	struct xfrm_policy_queue *pq = &pol->polq;
 	struct flowi fl;

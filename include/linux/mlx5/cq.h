@@ -35,7 +35,7 @@
 
 #include <rdma/ib_verbs.h>
 #include <linux/mlx5/driver.h>
-
+#include <linux/refcount.h>
 
 struct mlx5_core_cq {
 	u32			cqn;
@@ -43,7 +43,7 @@ struct mlx5_core_cq {
 	__be32		       *set_ci_db;
 	__be32		       *arm_db;
 	struct mlx5_uars_page  *uar;
-	atomic_t		refcount;
+	refcount_t		refcount;
 	struct completion	free;
 	unsigned		vector;
 	unsigned int		irqn;

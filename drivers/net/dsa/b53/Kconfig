@@ -1,6 +1,8 @@
 menuconfig B53
 	tristate "Broadcom BCM53xx managed switch support"
 	depends on NET_DSA
+	select NET_DSA_TAG_BRCM
+	select NET_DSA_TAG_BRCM_PREPEND
 	help
 	  This driver adds support for Broadcom managed switch chips. It supports
 	  BCM5325E, BCM5365, BCM539x, BCM53115 and BCM53125 as well as BCM63XX

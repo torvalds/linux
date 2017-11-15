@@ -331,7 +331,10 @@ static int __net_init phonet_init_net(struct net *net)
 
 static void __net_exit phonet_exit_net(struct net *net)
 {
+	struct phonet_net *pnn = phonet_pernet(net);
+
 	remove_proc_entry("phonet", net->proc_net);
+	WARN_ON_ONCE(!list_empty(&pnn->pndevs.list));
 }
 
 static struct pernet_operations phonet_net_ops = {

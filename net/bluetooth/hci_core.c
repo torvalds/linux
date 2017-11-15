@@ -267,7 +267,7 @@ static int hci_init1_req(struct hci_request *req, unsigned long opt)
 		amp_init1(req);
 		break;
 	default:
-		BT_ERR("Unknown device type %d", hdev->dev_type);
+		bt_dev_err(hdev, "Unknown device type %d", hdev->dev_type);
 		break;
 	}
 
@@ -2150,8 +2150,7 @@ static void hci_error_reset(struct work_struct *work)
 	if (hdev->hw_error)
 		hdev->hw_error(hdev, hdev->hw_error_code);
 	else
-		BT_ERR("%s hardware error 0x%2.2x", hdev->name,
-		       hdev->hw_error_code);
+		bt_dev_err(hdev, "hardware error 0x%2.2x", hdev->hw_error_code);
 
 	if (hci_dev_do_close(hdev))
 		return;
@@ -2524,9 +2523,9 @@ static void hci_cmd_timeout(struct work_struct *work)
 		struct hci_command_hdr *sent = (void *) hdev->sent_cmd->data;
 		u16 opcode = __le16_to_cpu(sent->opcode);
 
-		BT_ERR("%s command 0x%4.4x tx timeout", hdev->name, opcode);
+		bt_dev_err(hdev, "command 0x%4.4x tx timeout", opcode);
 	} else {
-		BT_ERR("%s command tx timeout", hdev->name);
+		bt_dev_err(hdev, "command tx timeout");
 	}
 
 	atomic_set(&hdev->cmd_cnt, 1);
@@ -2858,7 +2857,7 @@ struct hci_conn_params *hci_conn_params_add(struct hci_dev *hdev,
 
 	params = kzalloc(sizeof(*params), GFP_KERNEL);
 	if (!params) {
-		BT_ERR("Out of memory");
+		bt_dev_err(hdev, "out of memory");
 		return NULL;
 	}
 
@@ -3393,7 +3392,7 @@ static void hci_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 
 	err = hdev->send(hdev, skb);
 	if (err < 0) {
-		BT_ERR("%s sending frame failed (%d)", hdev->name, err);
+		bt_dev_err(hdev, "sending frame failed (%d)", err);
 		kfree_skb(skb);
 	}
 }
@@ -3408,7 +3407,7 @@ int hci_send_cmd(struct hci_dev *hdev, __u16 opcode, __u32 plen,
 
 	skb = hci_prepare_cmd(hdev, opcode, plen, param);
 	if (!skb) {
-		BT_ERR("%s no memory for command", hdev->name);
+		bt_dev_err(hdev, "no memory for command");
 		return -ENOMEM;
 	}
 
@@ -3493,7 +3492,7 @@ static void hci_queue_acl(struct hci_chan *chan, struct sk_buff_head *queue,
 		hci_add_acl_hdr(skb, chan->handle, flags);
 		break;
 	default:
-		BT_ERR("%s unknown dev_type %d", hdev->name, hdev->dev_type);
+		bt_dev_err(hdev, "unknown dev_type %d", hdev->dev_type);
 		return;
 	}
 
@@ -3618,7 +3617,7 @@ static struct hci_conn *hci_low_sent(struct hci_dev *hdev, __u8 type,
 			break;
 		default:
 			cnt = 0;
-			BT_ERR("Unknown link type");
+			bt_dev_err(hdev, "unknown link type %d", conn->type);
 		}
 
 		q = cnt / num;
@@ -3635,15 +3634,15 @@ static void hci_link_tx_to(struct hci_dev *hdev, __u8 type)
 	struct hci_conn_hash *h = &hdev->conn_hash;
 	struct hci_conn *c;
 
-	BT_ERR("%s link tx timeout", hdev->name);
+	bt_dev_err(hdev, "link tx timeout");
 
 	rcu_read_lock();
 
 	/* Kill stalled connections */
 	list_for_each_entry_rcu(c, &h->list, list) {
 		if (c->type == type && c->sent) {
-			BT_ERR("%s killing stalled connection %pMR",
-			       hdev->name, &c->dst);
+			bt_dev_err(hdev, "killing stalled connection %pMR",
+				   &c->dst);
 			hci_disconnect(c, HCI_ERROR_REMOTE_USER_TERM);
 		}
 	}
@@ -3724,7 +3723,7 @@ static struct hci_chan *hci_chan_sent(struct hci_dev *hdev, __u8 type,
 		break;
 	default:
 		cnt = 0;
-		BT_ERR("Unknown link type");
+		bt_dev_err(hdev, "unknown link type %d", chan->conn->type);
 	}
 
 	q = cnt / num;
@@ -4066,8 +4065,8 @@ static void hci_acldata_packet(struct hci_dev *hdev, struct sk_buff *skb)
 		l2cap_recv_acldata(conn, skb, flags);
 		return;
 	} else {
-		BT_ERR("%s ACL packet for unknown connection handle %d",
-		       hdev->name, handle);
+		bt_dev_err(hdev, "ACL packet for unknown connection handle %d",
+			   handle);
 	}
 
 	kfree_skb(skb);
@@ -4097,8 +4096,8 @@ static void hci_scodata_packet(struct hci_dev *hdev, struct sk_buff *skb)
 		sco_recv_scodata(conn, skb);
 		return;
 	} else {
-		BT_ERR("%s SCO packet for unknown connection handle %d",
-		       hdev->name, handle);
+		bt_dev_err(hdev, "SCO packet for unknown connection handle %d",
+			   handle);
 	}
 
 	kfree_skb(skb);

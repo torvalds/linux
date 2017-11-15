@@ -492,8 +492,7 @@ static int vnet_port_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 	pr_info("%s: PORT ( remote-mac %pM%s )\n",
 		vp->dev->name, port->raddr, switch_port ? " switch-port" : "");
 
-	setup_timer(&port->clean_timer, sunvnet_clean_timer_expire_common,
-		    (unsigned long)port);
+	timer_setup(&port->clean_timer, sunvnet_clean_timer_expire_common, 0);
 
 	napi_enable(&port->napi);
 	vio_port_up(&port->vio);
