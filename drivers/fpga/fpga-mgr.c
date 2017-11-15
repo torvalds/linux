@@ -569,6 +569,7 @@ int fpga_mgr_register(struct device *dev, const char *name,
 
 	device_initialize(&mgr->dev);
 	mgr->dev.class = fpga_mgr_class;
+	mgr->dev.groups = mops->groups;
 	mgr->dev.parent = dev;
 	mgr->dev.of_node = dev->of_node;
 	mgr->dev.id = id;

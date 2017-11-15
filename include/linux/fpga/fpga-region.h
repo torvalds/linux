@@ -14,6 +14,7 @@
  * @info: FPGA image info
  * @priv: private data
  * @get_bridges: optional function to get bridges to a list
+ * @groups: optional attribute groups.
  */
 struct fpga_region {
 	struct device dev;
@@ -23,6 +24,7 @@ struct fpga_region {
 	struct fpga_image_info *info;
 	void *priv;
 	int (*get_bridges)(struct fpga_region *region);
+	const struct attribute_group **groups;
 };
 
 #define to_fpga_region(d) container_of(d, struct fpga_region, dev)

@@ -367,6 +367,7 @@ int fpga_bridge_register(struct device *dev, const char *name,
 	bridge->priv = priv;
 
 	device_initialize(&bridge->dev);
+	bridge->dev.groups = br_ops->groups;
 	bridge->dev.class = fpga_bridge_class;
 	bridge->dev.parent = dev;
 	bridge->dev.of_node = dev->of_node;

@@ -173,6 +173,7 @@ int fpga_region_register(struct device *dev, struct fpga_region *region)
 	mutex_init(&region->mutex);
 	INIT_LIST_HEAD(&region->bridge_list);
 	device_initialize(&region->dev);
+	region->dev.groups = region->groups;
 	region->dev.class = fpga_region_class;
 	region->dev.parent = dev;
 	region->dev.of_node = dev->of_node;

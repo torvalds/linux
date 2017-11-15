@@ -13,11 +13,13 @@ struct fpga_bridge;
  * @enable_show: returns the FPGA bridge's status
  * @enable_set: set a FPGA bridge as enabled or disabled
  * @fpga_bridge_remove: set FPGA into a specific state during driver remove
+ * @groups: optional attribute groups.
  */
 struct fpga_bridge_ops {
 	int (*enable_show)(struct fpga_bridge *bridge);
 	int (*enable_set)(struct fpga_bridge *bridge, bool enable);
 	void (*fpga_bridge_remove)(struct fpga_bridge *bridge);
+	const struct attribute_group **groups;
 };
 
 /**
