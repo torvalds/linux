@@ -1641,3 +1641,6 @@ void qcom_glink_native_unregister(struct qcom_glink *glink)
 	device_unregister(glink->dev);
 }
 EXPORT_SYMBOL_GPL(qcom_glink_native_unregister);
+
+MODULE_DESCRIPTION("Qualcomm GLINK driver");
+MODULE_LICENSE("GPL v2");
