@@ -31,12 +31,14 @@
  * @dev: FPGA Region device
  * @mutex: enforces exclusive reference to region
  * @bridge_list: list of FPGA bridges specified in region
+ * @mgr: FPGA manager
  * @info: fpga image specific information
  */
 struct fpga_region {
 	struct device dev;
 	struct mutex mutex; /* for exclusive reference to region */
 	struct list_head bridge_list;
+	struct fpga_manager *mgr;
 	struct fpga_image_info *info;
 };
 
@@ -123,7 +125,7 @@ static void fpga_region_put(struct fpga_region *region)
 
 /**
  * fpga_region_get_manager - get reference for FPGA manager
- * @region: FPGA region
+ * @np: device node of FPGA region
  *
  * Get FPGA Manager from "fpga-mgr" property or from ancestor region.
  *
@@ -131,10 +133,8 @@ static void fpga_region_put(struct fpga_region *region)
  *
  * Return: fpga manager struct or IS_ERR() condition containing error code.
  */
-static struct fpga_manager *fpga_region_get_manager(struct fpga_region *region)
+static struct fpga_manager *fpga_region_get_manager(struct device_node *np)
 {
-	struct device *dev = &region->dev;
-	struct device_node *np = dev->of_node;
 	struct device_node  *mgr_node;
 	struct fpga_manager *mgr;
 
@@ -231,7 +231,6 @@ static int fpga_region_program_fpga(struct fpga_region *region,
 				    struct device_node *overlay)
 {
 	struct device *dev = &region->dev;
-	struct fpga_manager *mgr;
 	int ret;
 
 	region = fpga_region_get(region);
@@ -240,17 +239,10 @@ static int fpga_region_program_fpga(struct fpga_region *region,
 		return PTR_ERR(region);
 	}
 
-	mgr = fpga_region_get_manager(region);
-	if (IS_ERR(mgr)) {
-		dev_err(dev, "failed to get FPGA manager\n");
-		ret = PTR_ERR(mgr);
-		goto err_put_region;
-	}
-
-	ret = fpga_mgr_lock(mgr);
+	ret = fpga_mgr_lock(region->mgr);
 	if (ret) {
 		dev_err(dev, "FPGA manager is busy\n");
-		goto err_put_mgr;
+		goto err_put_region;
 	}
 
 	ret = fpga_region_get_bridges(region, overlay);
@@ -265,7 +257,7 @@ static int fpga_region_program_fpga(struct fpga_region *region,
 		goto err_put_br;
 	}
 
-	ret = fpga_mgr_load(mgr, region->info);
+	ret = fpga_mgr_load(region->mgr, region->info);
 	if (ret) {
 		dev_err(dev, "failed to load FPGA image\n");
 		goto err_put_br;
@@ -277,8 +269,7 @@ static int fpga_region_program_fpga(struct fpga_region *region,
 		goto err_put_br;
 	}
 
-	fpga_mgr_unlock(mgr);
-	fpga_mgr_put(mgr);
+	fpga_mgr_unlock(region->mgr);
 	fpga_region_put(region);
 
 	return 0;
@@ -286,9 +277,7 @@ static int fpga_region_program_fpga(struct fpga_region *region,
 err_put_br:
 	fpga_bridges_put(&region->bridge_list);
 err_unlock_mgr:
-	fpga_mgr_unlock(mgr);
-err_put_mgr:
-	fpga_mgr_put(mgr);
+	fpga_mgr_unlock(region->mgr);
 err_put_region:
 	fpga_region_put(region);
 
@@ -517,11 +506,20 @@ static int fpga_region_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
 	struct fpga_region *region;
+	struct fpga_manager *mgr;
 	int id, ret = 0;
 
+	mgr = fpga_region_get_manager(np);
+	if (IS_ERR(mgr))
+		return -EPROBE_DEFER;
+
 	region = kzalloc(sizeof(*region), GFP_KERNEL);
-	if (!region)
-		return -ENOMEM;
+	if (!region) {
+		ret = -ENOMEM;
+		goto err_put_mgr;
+	}
+
+	region->mgr = mgr;
 
 	id = ida_simple_get(&fpga_region_ida, 0, 0, GFP_KERNEL);
 	if (id < 0) {
@@ -557,6 +555,8 @@ err_remove:
 	ida_simple_remove(&fpga_region_ida, id);
 err_kfree:
 	kfree(region);
+err_put_mgr:
+	fpga_mgr_put(mgr);
 
 	return ret;
 }
@@ -566,6 +566,7 @@ static int fpga_region_remove(struct platform_device *pdev)
 	struct fpga_region *region = platform_get_drvdata(pdev);
 
 	device_unregister(&region->dev);
+	fpga_mgr_put(region->mgr);
 
 	return 0;
 }
