@@ -357,13 +357,13 @@ power_enter_stop:
 .Lhandle_esl_ec_set:
 BEGIN_FTR_SECTION
 	/*
-	 * POWER9 DD2 can incorrectly set PMAO when waking up after a
-	 * state-loss idle. Saving and restoring MMCR0 over idle is a
+	 * POWER9 DD2.0 or earlier can incorrectly set PMAO when waking up after
+	 * a state-loss idle. Saving and restoring MMCR0 over idle is a
 	 * workaround.
 	 */
 	mfspr	r4,SPRN_MMCR0
 	std	r4,_MMCR0(r1)
-END_FTR_SECTION_IFSET(CPU_FTR_POWER9_DD1 | CPU_FTR_POWER9_DD20)
+END_FTR_SECTION_IFCLR(CPU_FTR_POWER9_DD2_1)
 
 /*
  * Check if the requested state is a deep idle state.
@@ -554,7 +554,7 @@ BEGIN_FTR_SECTION
 	ld	r1,PACAR1(r13)
 	ld	r4,_MMCR0(r1)
 	mtspr	SPRN_MMCR0,r4
-END_FTR_SECTION_IFSET(CPU_FTR_POWER9_DD1 | CPU_FTR_POWER9_DD20)
+END_FTR_SECTION_IFCLR(CPU_FTR_POWER9_DD2_1)
 	mfspr	r4,SPRN_MMCRA
 	ori	r4,r4,(1 << (63-60))
 	mtspr	SPRN_MMCRA,r4
