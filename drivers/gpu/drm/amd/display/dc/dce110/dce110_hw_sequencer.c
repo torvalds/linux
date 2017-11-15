@@ -991,6 +991,16 @@ void dce110_disable_stream(struct pipe_ctx *pipe_ctx, int option)
 	struct dc_link *link = stream->sink->link;
 	struct dc *dc = pipe_ctx->stream->ctx->dc;
 
+	if (dc_is_hdmi_signal(pipe_ctx->stream->signal))
+		pipe_ctx->stream_res.stream_enc->funcs->stop_hdmi_info_packets(
+			pipe_ctx->stream_res.stream_enc);
+
+	if (dc_is_dp_signal(pipe_ctx->stream->signal))
+		pipe_ctx->stream_res.stream_enc->funcs->stop_dp_info_packets(
+			pipe_ctx->stream_res.stream_enc);
+
+	pipe_ctx->stream_res.stream_enc->funcs->audio_mute_control(
+			pipe_ctx->stream_res.stream_enc, true);
 	if (pipe_ctx->stream_res.audio) {
 		pipe_ctx->stream_res.audio->funcs->az_disable(pipe_ctx->stream_res.audio);
 
@@ -1014,18 +1024,6 @@ void dce110_disable_stream(struct pipe_ctx *pipe_ctx, int option)
 		 * stream->stream_engine_id);
 		 */
 	}
-
-	if (dc_is_hdmi_signal(pipe_ctx->stream->signal))
-		pipe_ctx->stream_res.stream_enc->funcs->stop_hdmi_info_packets(
-			pipe_ctx->stream_res.stream_enc);
-
-	if (dc_is_dp_signal(pipe_ctx->stream->signal))
-		pipe_ctx->stream_res.stream_enc->funcs->stop_dp_info_packets(
-			pipe_ctx->stream_res.stream_enc);
-
-	pipe_ctx->stream_res.stream_enc->funcs->audio_mute_control(
-			pipe_ctx->stream_res.stream_enc, true);
-
 
 	/* blank at encoder level */
 	if (dc_is_dp_signal(pipe_ctx->stream->signal)) {
