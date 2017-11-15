@@ -32,7 +32,7 @@
 #include "vega10/GC/gc_9_0_offset.h"
 #include "vega10/GC/gc_9_0_sh_mask.h"
 #include "vega10/vega10_enum.h"
-#include "vega10/HDP/hdp_4_0_offset.h"
+#include "hdp/hdp_4_0_offset.h"
 
 #include "soc15_common.h"
 #include "clearstate_gfx9.h"

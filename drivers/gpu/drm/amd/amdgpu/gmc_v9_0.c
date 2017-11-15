@@ -26,8 +26,8 @@
 #include "amdgpu_atomfirmware.h"
 
 #include "vega10/soc15ip.h"
-#include "vega10/HDP/hdp_4_0_offset.h"
-#include "vega10/HDP/hdp_4_0_sh_mask.h"
+#include "hdp/hdp_4_0_offset.h"
+#include "hdp/hdp_4_0_sh_mask.h"
 #include "vega10/GC/gc_9_0_sh_mask.h"
 #include "vega10/DC/dce_12_0_offset.h"
 #include "vega10/DC/dce_12_0_sh_mask.h"

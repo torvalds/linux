@@ -31,7 +31,7 @@
 #include "vega10/soc15ip.h"
 #include "raven1/VCN/vcn_1_0_offset.h"
 #include "raven1/VCN/vcn_1_0_sh_mask.h"
-#include "vega10/HDP/hdp_4_0_offset.h"
+#include "hdp/hdp_4_0_offset.h"
 #include "raven1/MMHUB/mmhub_9_1_offset.h"
 #include "raven1/MMHUB/mmhub_9_1_sh_mask.h"
 

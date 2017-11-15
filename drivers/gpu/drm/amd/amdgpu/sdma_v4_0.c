@@ -34,7 +34,7 @@
 #include "sdma1/sdma1_4_0_sh_mask.h"
 #include "vega10/MMHUB/mmhub_1_0_offset.h"
 #include "vega10/MMHUB/mmhub_1_0_sh_mask.h"
-#include "vega10/HDP/hdp_4_0_offset.h"
+#include "hdp/hdp_4_0_offset.h"
 #include "raven1/SDMA0/sdma0_4_1_default.h"
 
 #include "soc15_common.h"
