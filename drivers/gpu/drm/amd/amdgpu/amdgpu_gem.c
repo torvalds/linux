@@ -72,7 +72,7 @@ retry:
 				initial_domain |= AMDGPU_GEM_DOMAIN_GTT;
 				goto retry;
 			}
-			DRM_ERROR("Failed to allocate GEM object (%ld, %d, %u, %d)\n",
+			DRM_DEBUG("Failed to allocate GEM object (%ld, %d, %u, %d)\n",
 				  size, initial_domain, alignment, r);
 		}
 		return r;
