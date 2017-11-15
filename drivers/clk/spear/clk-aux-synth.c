@@ -149,10 +149,8 @@ struct clk *clk_register_aux(const char *aux_name, const char *gate_name,
 	}
 
 	aux = kzalloc(sizeof(*aux), GFP_KERNEL);
-	if (!aux) {
-		pr_err("could not allocate aux clk\n");
+	if (!aux)
 		return ERR_PTR(-ENOMEM);
-	}
 
 	/* struct clk_aux assignments */
 	if (!masks)

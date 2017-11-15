@@ -292,16 +292,12 @@ struct clk *clk_register_vco_pll(const char *vco_name, const char *pll_name,
 	}
 
 	vco = kzalloc(sizeof(*vco), GFP_KERNEL);
-	if (!vco) {
-		pr_err("could not allocate vco clk\n");
+	if (!vco)
 		return ERR_PTR(-ENOMEM);
-	}
 
 	pll = kzalloc(sizeof(*pll), GFP_KERNEL);
-	if (!pll) {
-		pr_err("could not allocate pll clk\n");
+	if (!pll)
 		goto free_vco;
-	}
 
 	/* struct clk_vco assignments */
 	vco->mode_reg = mode_reg;

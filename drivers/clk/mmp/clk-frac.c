@@ -172,10 +172,8 @@ struct clk *mmp_clk_register_factor(const char *name, const char *parent_name,
 	}
 
 	factor = kzalloc(sizeof(*factor), GFP_KERNEL);
-	if (!factor) {
-		pr_err("%s: could not allocate factor  clk\n", __func__);
+	if (!factor)
 		return ERR_PTR(-ENOMEM);
-	}
 
 	/* struct clk_aux assignments */
 	factor->base = base;
