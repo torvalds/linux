@@ -14812,7 +14812,7 @@ static void intel_sanitize_crtc(struct intel_crtc *crtc,
 	enum transcoder cpu_transcoder = crtc->config->cpu_transcoder;
 
 	/* Clear any frame start delays used for debugging left by the BIOS */
-	if (!transcoder_is_dsi(cpu_transcoder)) {
+	if (crtc->active && !transcoder_is_dsi(cpu_transcoder)) {
 		i915_reg_t reg = PIPECONF(cpu_transcoder);
 
 		I915_WRITE(reg,
