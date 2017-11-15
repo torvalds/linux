@@ -592,19 +592,13 @@ static void plane_atomic_disconnect(struct dc *dc, struct pipe_ctx *pipe_ctx)
 		return;
 
 	mpc->funcs->remove_mpcc(mpc, mpc_tree_params, mpcc_to_remove);
+	dc->res_pool->opps[opp_id]->mpcc_disconnect_pending[fe_idx] = true;
 
 	if (hubp->funcs->hubp_disconnect)
 		hubp->funcs->hubp_disconnect(hubp);
 
 	if (dc->debug.sanity_checks)
 		dcn10_verify_allow_pstate_change_high(dc);
-
-	pipe_ctx->stream = NULL;
-	memset(&pipe_ctx->stream_res, 0, sizeof(pipe_ctx->stream_res));
-	memset(&pipe_ctx->plane_res, 0, sizeof(pipe_ctx->plane_res));
-	pipe_ctx->top_pipe = NULL;
-	pipe_ctx->bottom_pipe = NULL;
-	pipe_ctx->plane_state = NULL;
 }
 
 static void plane_atomic_power_down(struct dc *dc, int fe_idx)
@@ -633,16 +627,9 @@ static void plane_atomic_disable(struct dc *dc, struct pipe_ctx *pipe_ctx)
 	int fe_idx = pipe_ctx->pipe_idx;
 	struct dce_hwseq *hws = dc->hwseq;
 	struct hubp *hubp = dc->res_pool->hubps[fe_idx];
-	struct mpc *mpc = dc->res_pool->mpc;
 	int opp_id = hubp->opp_id;
-	struct output_pixel_processor *opp;
 
-	if (opp_id != 0xf) {
-		mpc->funcs->wait_for_idle(mpc, hubp->mpcc_id);
-		opp = dc->res_pool->opps[hubp->opp_id];
-		opp->mpcc_disconnect_pending[hubp->mpcc_id] = false;
-		hubp->funcs->set_blank(hubp, true);
-	}
+	dc->hwss.wait_for_mpcc_disconnect(dc, dc->res_pool, pipe_ctx);
 
 	REG_UPDATE(HUBP_CLK_CNTL[fe_idx],
 			HUBP_CLOCK_ENABLE, 0);
@@ -656,6 +643,13 @@ static void plane_atomic_disable(struct dc *dc, struct pipe_ctx *pipe_ctx)
 	hubp->power_gated = true;
 
 	plane_atomic_power_down(dc, fe_idx);
+
+	pipe_ctx->stream = NULL;
+	memset(&pipe_ctx->stream_res, 0, sizeof(pipe_ctx->stream_res));
+	memset(&pipe_ctx->plane_res, 0, sizeof(pipe_ctx->plane_res));
+	pipe_ctx->top_pipe = NULL;
+	pipe_ctx->bottom_pipe = NULL;
+	pipe_ctx->plane_state = NULL;
 }
 
 static void dcn10_disable_plane(struct dc *dc, struct pipe_ctx *pipe_ctx)
@@ -757,6 +751,9 @@ static void dcn10_init_hw(struct dc *dc)
 		hubp->mpcc_id = i;
 		hubp->opp_id = dc->res_pool->mpc->funcs->get_opp_id(dc->res_pool->mpc, i);
 		hubp->power_gated = false;
+
+		if (hubp->opp_id != 0xf)
+			pipe_ctx->stream_res.opp = dc->res_pool->opps[hubp->opp_id];
 
 		plane_atomic_disconnect(dc, pipe_ctx);
 	}
