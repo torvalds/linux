@@ -94,9 +94,7 @@ static struct fpga_region *fpga_region_get(struct fpga_region *region)
 	}
 
 	get_device(dev);
-	of_node_get(dev->of_node);
 	if (!try_module_get(dev->parent->driver->owner)) {
-		of_node_put(dev->of_node);
 		put_device(dev);
 		mutex_unlock(&region->mutex);
 		return ERR_PTR(-ENODEV);
@@ -119,7 +117,6 @@ static void fpga_region_put(struct fpga_region *region)
 	dev_dbg(dev, "put\n");
 
 	module_put(dev->parent->driver->owner);
-	of_node_put(dev->of_node);
 	put_device(dev);
 	mutex_unlock(&region->mutex);
 }
