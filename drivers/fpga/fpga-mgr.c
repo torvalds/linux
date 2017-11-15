@@ -412,8 +412,6 @@ static struct fpga_manager *__fpga_mgr_get(struct device *dev)
 	struct fpga_manager *mgr;
 
 	mgr = to_fpga_manager(dev);
-	if (!mgr)
-		goto err_dev;
 
 	if (!try_module_get(dev->parent->driver->owner))
 		goto err_dev;
