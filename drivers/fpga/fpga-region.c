@@ -355,6 +355,11 @@ static int fpga_region_notify_pre_apply(struct fpga_region *region,
 	const char *firmware_name;
 	int ret;
 
+	if (region->info) {
+		dev_err(dev, "Region already has overlay applied.\n");
+		return -EINVAL;
+	}
+
 	/*
 	 * Reject overlay if child FPGA Regions added in the overlay have
 	 * firmware-name property (would mean that an FPGA region that has
