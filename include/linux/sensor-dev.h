@@ -198,8 +198,6 @@ struct sensor_platform_data {
 	int z_min;
 	int factory;
 	int layout;
-	int accel_offset[3];
-	int gyro_offset[3];
 	unsigned char address;
 	unsigned long irq_flags;
 	signed char orientation[9];
