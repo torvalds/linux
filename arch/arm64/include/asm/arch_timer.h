@@ -144,6 +144,7 @@ static inline u32 arch_timer_get_cntkctl(void)
 static inline void arch_timer_set_cntkctl(u32 cntkctl)
 {
 	write_sysreg(cntkctl, cntkctl_el1);
+	isb();
 }
 
 static inline u64 arch_counter_get_cntpct(void)
