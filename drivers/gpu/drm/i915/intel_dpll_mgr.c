@@ -2153,6 +2153,8 @@ static void cnl_wrpll_params_populate(struct skl_wrpll_params *params,
 				      u32 dco_freq, u32 ref_freq,
 				      int pdiv, int qdiv, int kdiv)
 {
+	u32 dco;
+
 	switch (kdiv) {
 	case 1:
 		params->kdiv = 1;
@@ -2189,9 +2191,10 @@ static void cnl_wrpll_params_populate(struct skl_wrpll_params *params,
 	params->qdiv_ratio = qdiv;
 	params->qdiv_mode = (qdiv == 1) ? 0 : 1;
 
-	params->dco_integer = div_u64(dco_freq, ref_freq);
-	params->dco_fraction = div_u64((div_u64((uint64_t)dco_freq<<15, (uint64_t)ref_freq) -
-					((uint64_t)params->dco_integer<<15)) * 0x8000, 0x8000);
+	dco = div_u64((u64)dco_freq << 15, ref_freq);
+
+	params->dco_integer = dco >> 15;
+	params->dco_fraction = dco & 0x7fff;
 }
 
 static bool
