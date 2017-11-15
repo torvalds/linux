@@ -143,7 +143,6 @@ static struct fpga_manager *of_fpga_region_get_mgr(struct device_node *np)
 /**
  * of_fpga_region_get_bridges - create a list of bridges
  * @region: FPGA region
- * @info: FPGA image info
  *
  * Create a list of bridges including the parent bridge and the bridges
  * specified by "fpga-bridges" property.  Note that the
@@ -156,11 +155,11 @@ static struct fpga_manager *of_fpga_region_get_mgr(struct device_node *np)
  * Return 0 for success (even if there are no bridges specified)
  * or -EBUSY if any of the bridges are in use.
  */
-static int of_fpga_region_get_bridges(struct fpga_region *region,
-				      struct fpga_image_info *info)
+static int of_fpga_region_get_bridges(struct fpga_region *region)
 {
 	struct device *dev = &region->dev;
 	struct device_node *region_np = dev->of_node;
+	struct fpga_image_info *info = region->info;
 	struct device_node *br, *np, *parent_br = NULL;
 	int i, ret;
 
@@ -192,7 +191,7 @@ static int of_fpga_region_get_bridges(struct fpga_region *region,
 			continue;
 
 		/* If node is a bridge, get it and add to list */
-		ret = of_fpga_bridge_get_to_list(br, region->info,
+		ret = of_fpga_bridge_get_to_list(br, info,
 						 &region->bridge_list);
 
 		/* If any of the bridges are in use, give up */
@@ -229,10 +228,16 @@ int fpga_region_program_fpga(struct fpga_region *region)
 		goto err_put_region;
 	}
 
-	ret = of_fpga_region_get_bridges(region, info);
-	if (ret) {
-		dev_err(dev, "failed to get FPGA bridges\n");
-		goto err_unlock_mgr;
+	/*
+	 * In some cases, we already have a list of bridges in the
+	 * fpga region struct.  Or we don't have any bridges.
+	 */
+	if (region->get_bridges) {
+		ret = region->get_bridges(region);
+		if (ret) {
+			dev_err(dev, "failed to get fpga region bridges\n");
+			goto err_unlock_mgr;
+		}
 	}
 
 	ret = fpga_bridges_disable(&region->bridge_list);
@@ -259,7 +264,8 @@ int fpga_region_program_fpga(struct fpga_region *region)
 	return 0;
 
 err_put_br:
-	fpga_bridges_put(&region->bridge_list);
+	if (region->get_bridges)
+		fpga_bridges_put(&region->bridge_list);
 err_unlock_mgr:
 	fpga_mgr_unlock(region->mgr);
 err_put_region:
@@ -522,39 +528,20 @@ static struct notifier_block fpga_region_of_nb = {
 	.notifier_call = of_fpga_region_notify,
 };
 
-static int of_fpga_region_probe(struct platform_device *pdev)
+int fpga_region_register(struct device *dev, struct fpga_region *region)
 {
-	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
-	struct fpga_region *region;
-	struct fpga_manager *mgr;
 	int id, ret = 0;
 
-	mgr = of_fpga_region_get_mgr(np);
-	if (IS_ERR(mgr))
-		return -EPROBE_DEFER;
-
-	region = kzalloc(sizeof(*region), GFP_KERNEL);
-	if (!region) {
-		ret = -ENOMEM;
-		goto err_put_mgr;
-	}
-
-	region->mgr = mgr;
-
 	id = ida_simple_get(&fpga_region_ida, 0, 0, GFP_KERNEL);
-	if (id < 0) {
-		ret = id;
-		goto err_kfree;
-	}
+	if (id < 0)
+		return id;
 
 	mutex_init(&region->mutex);
 	INIT_LIST_HEAD(&region->bridge_list);
-
 	device_initialize(&region->dev);
 	region->dev.class = fpga_region_class;
 	region->dev.parent = dev;
-	region->dev.of_node = np;
+	region->dev.of_node = dev->of_node;
 	region->dev.id = id;
 	dev_set_drvdata(dev, region);
 
@@ -566,19 +553,58 @@ static int of_fpga_region_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_remove;
 
+	return 0;
+
+err_remove:
+	ida_simple_remove(&fpga_region_ida, id);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(fpga_region_register);
+
+int fpga_region_unregister(struct fpga_region *region)
+{
+	device_unregister(&region->dev);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(fpga_region_unregister);
+
+static int of_fpga_region_probe(struct platform_device *pdev)
+{
+	struct device *dev = &pdev->dev;
+	struct device_node *np = dev->of_node;
+	struct fpga_region *region;
+	struct fpga_manager *mgr;
+	int ret;
+
+	/* Find the FPGA mgr specified by region or parent region. */
+	mgr = of_fpga_region_get_mgr(np);
+	if (IS_ERR(mgr))
+		return -EPROBE_DEFER;
+
+	region = devm_kzalloc(dev, sizeof(*region), GFP_KERNEL);
+	if (!region) {
+		ret = -ENOMEM;
+		goto eprobe_mgr_put;
+	}
+
+	region->mgr = mgr;
+
+	/* Specify how to get bridges for this type of region. */
+	region->get_bridges = of_fpga_region_get_bridges;
+
+	ret = fpga_region_register(dev, region);
+	if (ret)
+		goto eprobe_mgr_put;
+
 	of_platform_populate(np, fpga_region_of_match, NULL, &region->dev);
 
 	dev_info(dev, "FPGA Region probed\n");
 
 	return 0;
 
-err_remove:
-	ida_simple_remove(&fpga_region_ida, id);
-err_kfree:
-	kfree(region);
-err_put_mgr:
+eprobe_mgr_put:
 	fpga_mgr_put(mgr);
-
 	return ret;
 }
 
@@ -586,7 +612,7 @@ static int of_fpga_region_remove(struct platform_device *pdev)
 {
 	struct fpga_region *region = platform_get_drvdata(pdev);
 
-	device_unregister(&region->dev);
+	fpga_region_unregister(region);
 	fpga_mgr_put(region->mgr);
 
 	return 0;
@@ -606,7 +632,6 @@ static void fpga_region_dev_release(struct device *dev)
 	struct fpga_region *region = to_fpga_region(dev);
 
 	ida_simple_remove(&fpga_region_ida, region->dev.id);
-	kfree(region);
 }
 
 /**
