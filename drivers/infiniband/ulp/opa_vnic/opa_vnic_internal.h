@@ -89,9 +89,10 @@ struct __opa_vesw_info {
 	u32  u_mcast_dlid;
 	u32  u_ucast_dlid[OPA_VESW_MAX_NUM_DEF_PORT];
 
-	u8   rsvd3[44];
-	u16  eth_mtu[OPA_VNIC_MAX_NUM_PCP];
-	u16  eth_mtu_non_vlan;
+	u32  rc;
+
+	u8   rsvd3[56];
+	u16  eth_mtu;
 	u8   rsvd4[2];
 } __packed;
 

@@ -156,7 +156,7 @@ int ipoib_transport_dev_init(struct net_device *dev, struct ib_device *ca)
 	};
 	struct ib_cq_init_attr cq_attr = {};
 
-	int ret, size;
+	int ret, size, req_vec;
 	int i;
 
 	size = ipoib_recvq_size + 1;
@@ -171,17 +171,21 @@ int ipoib_transport_dev_init(struct net_device *dev, struct ib_device *ca)
 		if (ret != -ENOSYS)
 			return -ENODEV;
 
+	req_vec = (priv->port - 1) * 2;
+
 	cq_attr.cqe = size;
-	priv->recv_cq = ib_create_cq(priv->ca, ipoib_ib_completion, NULL,
-				     dev, &cq_attr);
+	cq_attr.comp_vector = req_vec % priv->ca->num_comp_vectors;
+	priv->recv_cq = ib_create_cq(priv->ca, ipoib_ib_rx_completion, NULL,
+				     priv, &cq_attr);
 	if (IS_ERR(priv->recv_cq)) {
 		printk(KERN_WARNING "%s: failed to create receive CQ\n", ca->name);
 		goto out_cm_dev_cleanup;
 	}
 
 	cq_attr.cqe = ipoib_sendq_size;
-	priv->send_cq = ib_create_cq(priv->ca, ipoib_send_comp_handler, NULL,
-				     dev, &cq_attr);
+	cq_attr.comp_vector = (req_vec + 1) % priv->ca->num_comp_vectors;
+	priv->send_cq = ib_create_cq(priv->ca, ipoib_ib_tx_completion, NULL,
+				     priv, &cq_attr);
 	if (IS_ERR(priv->send_cq)) {
 		printk(KERN_WARNING "%s: failed to create send CQ\n", ca->name);
 		goto out_free_recv_cq;
@@ -207,6 +211,9 @@ int ipoib_transport_dev_init(struct net_device *dev, struct ib_device *ca)
 		printk(KERN_WARNING "%s: failed to create QP\n", ca->name);
 		goto out_free_send_cq;
 	}
+
+	if (ib_req_notify_cq(priv->send_cq, IB_CQ_NEXT_COMP))
+		goto out_free_send_cq;
 
 	for (i = 0; i < MAX_SKB_FRAGS + 1; ++i)
 		priv->tx_sge[i].lkey = priv->pd->local_dma_lkey;

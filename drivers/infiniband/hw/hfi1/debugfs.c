@@ -165,6 +165,17 @@ static void _opcode_stats_seq_stop(struct seq_file *s, void *v)
 {
 }
 
+static int opcode_stats_show(struct seq_file *s, u8 i, u64 packets, u64 bytes)
+{
+	if (!packets && !bytes)
+		return SEQ_SKIP;
+	seq_printf(s, "%02x %llu/%llu\n", i,
+		   (unsigned long long)packets,
+		   (unsigned long long)bytes);
+
+	return 0;
+}
+
 static int _opcode_stats_seq_show(struct seq_file *s, void *v)
 {
 	loff_t *spos = v;
@@ -182,18 +193,48 @@ static int _opcode_stats_seq_show(struct seq_file *s, void *v)
 		}
 		hfi1_rcd_put(rcd);
 	}
-	if (!n_packets && !n_bytes)
-		return SEQ_SKIP;
-	seq_printf(s, "%02llx %llu/%llu\n", i,
-		   (unsigned long long)n_packets,
-		   (unsigned long long)n_bytes);
-
-	return 0;
+	return opcode_stats_show(s, i, n_packets, n_bytes);
 }
 
 DEBUGFS_SEQ_FILE_OPS(opcode_stats);
 DEBUGFS_SEQ_FILE_OPEN(opcode_stats)
 DEBUGFS_FILE_OPS(opcode_stats);
+
+static void *_tx_opcode_stats_seq_start(struct seq_file *s, loff_t *pos)
+{
+	return _opcode_stats_seq_start(s, pos);
+}
+
+static void *_tx_opcode_stats_seq_next(struct seq_file *s, void *v, loff_t *pos)
+{
+	return _opcode_stats_seq_next(s, v, pos);
+}
+
+static void _tx_opcode_stats_seq_stop(struct seq_file *s, void *v)
+{
+}
+
+static int _tx_opcode_stats_seq_show(struct seq_file *s, void *v)
+{
+	loff_t *spos = v;
+	loff_t i = *spos;
+	int j;
+	u64 n_packets = 0, n_bytes = 0;
+	struct hfi1_ibdev *ibd = (struct hfi1_ibdev *)s->private;
+	struct hfi1_devdata *dd = dd_from_dev(ibd);
+
+	for_each_possible_cpu(j) {
+		struct hfi1_opcode_stats_perctx *s =
+			per_cpu_ptr(dd->tx_opstats, j);
+		n_packets += s->stats[i].n_packets;
+		n_bytes += s->stats[i].n_bytes;
+	}
+	return opcode_stats_show(s, i, n_packets, n_bytes);
+}
+
+DEBUGFS_SEQ_FILE_OPS(tx_opcode_stats);
+DEBUGFS_SEQ_FILE_OPEN(tx_opcode_stats)
+DEBUGFS_FILE_OPS(tx_opcode_stats);
 
 static void *_ctx_stats_seq_start(struct seq_file *s, loff_t *pos)
 {
@@ -243,7 +284,7 @@ static int _ctx_stats_seq_show(struct seq_file *s, void *v)
 	spos = v;
 	i = *spos;
 
-	rcd = hfi1_rcd_get_by_index(dd, i);
+	rcd = hfi1_rcd_get_by_index_safe(dd, i);
 	if (!rcd)
 		return SEQ_SKIP;
 
@@ -402,7 +443,7 @@ static int _rcds_seq_show(struct seq_file *s, void *v)
 	loff_t *spos = v;
 	loff_t i = *spos;
 
-	rcd = hfi1_rcd_get_by_index(dd, i);
+	rcd = hfi1_rcd_get_by_index_safe(dd, i);
 	if (rcd)
 		seqfile_dump_rcd(s, rcd);
 	hfi1_rcd_put(rcd);
@@ -1363,6 +1404,7 @@ void hfi1_dbg_ibdev_init(struct hfi1_ibdev *ibd)
 		return;
 	}
 	DEBUGFS_SEQ_FILE_CREATE(opcode_stats, ibd->hfi1_ibdev_dbg, ibd);
+	DEBUGFS_SEQ_FILE_CREATE(tx_opcode_stats, ibd->hfi1_ibdev_dbg, ibd);
 	DEBUGFS_SEQ_FILE_CREATE(ctx_stats, ibd->hfi1_ibdev_dbg, ibd);
 	DEBUGFS_SEQ_FILE_CREATE(qp_stats, ibd->hfi1_ibdev_dbg, ibd);
 	DEBUGFS_SEQ_FILE_CREATE(sdes, ibd->hfi1_ibdev_dbg, ibd);

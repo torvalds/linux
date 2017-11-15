@@ -136,9 +136,9 @@ static enum ib_wc_opcode wr_to_wc_opcode(enum ib_wr_opcode opcode)
 	}
 }
 
-void retransmit_timer(unsigned long data)
+void retransmit_timer(struct timer_list *t)
 {
-	struct rxe_qp *qp = (struct rxe_qp *)data;
+	struct rxe_qp *qp = from_timer(qp, t, retrans_timer);
 
 	if (qp->valid) {
 		qp->comp.timeout = 1;
@@ -270,8 +270,8 @@ static inline enum comp_state check_ack(struct rxe_qp *qp,
 		if ((syn & AETH_TYPE_MASK) != AETH_ACK)
 			return COMPST_ERROR;
 
-		/* Fall through (IB_OPCODE_RC_RDMA_READ_RESPONSE_MIDDLE
-		 * doesn't have an AETH)
+		/* fall through */
+		/* (IB_OPCODE_RC_RDMA_READ_RESPONSE_MIDDLE doesn't have an AETH)
 		 */
 	case IB_OPCODE_RC_RDMA_READ_RESPONSE_MIDDLE:
 		if (wqe->wr.opcode != IB_WR_RDMA_READ &&

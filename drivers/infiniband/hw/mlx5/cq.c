@@ -124,11 +124,13 @@ static void handle_good_req(struct ib_wc *wc, struct mlx5_cqe64 *cqe,
 	switch (be32_to_cpu(cqe->sop_drop_qpn) >> 24) {
 	case MLX5_OPCODE_RDMA_WRITE_IMM:
 		wc->wc_flags |= IB_WC_WITH_IMM;
+		/* fall through */
 	case MLX5_OPCODE_RDMA_WRITE:
 		wc->opcode    = IB_WC_RDMA_WRITE;
 		break;
 	case MLX5_OPCODE_SEND_IMM:
 		wc->wc_flags |= IB_WC_WITH_IMM;
+		/* fall through */
 	case MLX5_OPCODE_SEND:
 	case MLX5_OPCODE_SEND_INVAL:
 		wc->opcode    = IB_WC_SEND;
@@ -752,13 +754,13 @@ static int create_cq_user(struct mlx5_ib_dev *dev, struct ib_udata *udata,
 	int err;
 
 	ucmdlen = udata->inlen < sizeof(ucmd) ?
-		  (sizeof(ucmd) - sizeof(ucmd.reserved)) : sizeof(ucmd);
+		  (sizeof(ucmd) - sizeof(ucmd.flags)) : sizeof(ucmd);
 
 	if (ib_copy_from_udata(&ucmd, udata, ucmdlen))
 		return -EFAULT;
 
 	if (ucmdlen == sizeof(ucmd) &&
-	    ucmd.reserved != 0)
+	    (ucmd.flags & ~(MLX5_IB_CREATE_CQ_FLAGS_CQE_128B_PAD)))
 		return -EINVAL;
 
 	if (ucmd.cqe_size != 64 && ucmd.cqe_size != 128)
@@ -802,8 +804,10 @@ static int create_cq_user(struct mlx5_ib_dev *dev, struct ib_udata *udata,
 	*index = to_mucontext(context)->bfregi.sys_pages[0];
 
 	if (ucmd.cqe_comp_en == 1) {
-		if (unlikely((*cqe_size != 64) ||
-			     !MLX5_CAP_GEN(dev->mdev, cqe_compression))) {
+		if (!((*cqe_size == 128 &&
+		       MLX5_CAP_GEN(dev->mdev, cqe_compression_128)) ||
+		      (*cqe_size == 64  &&
+		       MLX5_CAP_GEN(dev->mdev, cqe_compression)))) {
 			err = -EOPNOTSUPP;
 			mlx5_ib_warn(dev, "CQE compression is not supported for size %d!\n",
 				     *cqe_size);
@@ -824,6 +828,19 @@ static int create_cq_user(struct mlx5_ib_dev *dev, struct ib_udata *udata,
 		MLX5_SET(cqc, cqc, cqe_comp_en, 1);
 		MLX5_SET(cqc, cqc, mini_cqe_res_format,
 			 ilog2(ucmd.cqe_comp_res_format));
+	}
+
+	if (ucmd.flags & MLX5_IB_CREATE_CQ_FLAGS_CQE_128B_PAD) {
+		if (*cqe_size != 128 ||
+		    !MLX5_CAP_GEN(dev->mdev, cqe_128_always)) {
+			err = -EOPNOTSUPP;
+			mlx5_ib_warn(dev,
+				     "CQE padding is not supported for CQE size of %dB!\n",
+				     *cqe_size);
+			goto err_cqb;
+		}
+
+		cq->private_flags |= MLX5_IB_CQ_PR_FLAGS_CQE_128_PAD;
 	}
 
 	return 0;
@@ -985,7 +1002,10 @@ struct ib_cq *mlx5_ib_create_cq(struct ib_device *ibdev,
 	cq->cqe_size = cqe_size;
 
 	cqc = MLX5_ADDR_OF(create_cq_in, cqb, cq_context);
-	MLX5_SET(cqc, cqc, cqe_sz, cqe_sz_to_mlx_sz(cqe_size));
+	MLX5_SET(cqc, cqc, cqe_sz,
+		 cqe_sz_to_mlx_sz(cqe_size,
+				  cq->private_flags &
+				  MLX5_IB_CQ_PR_FLAGS_CQE_128_PAD));
 	MLX5_SET(cqc, cqc, log_cq_size, ilog2(entries));
 	MLX5_SET(cqc, cqc, uar_page, index);
 	MLX5_SET(cqc, cqc, c_eqn, eqn);
@@ -1128,6 +1148,9 @@ int mlx5_ib_modify_cq(struct ib_cq *cq, u16 cq_count, u16 cq_period)
 
 	if (!MLX5_CAP_GEN(dev->mdev, cq_moderation))
 		return -ENOSYS;
+
+	if (cq_period > MLX5_MAX_CQ_PERIOD)
+		return -EINVAL;
 
 	err = mlx5_core_modify_cq_moderation(dev->mdev, &mcq->mcq,
 					     cq_period, cq_count);
@@ -1335,7 +1358,10 @@ int mlx5_ib_resize_cq(struct ib_cq *ibcq, int entries, struct ib_udata *udata)
 
 	MLX5_SET(cqc, cqc, log_page_size,
 		 page_shift - MLX5_ADAPTER_PAGE_SHIFT);
-	MLX5_SET(cqc, cqc, cqe_sz, cqe_sz_to_mlx_sz(cqe_size));
+	MLX5_SET(cqc, cqc, cqe_sz,
+		 cqe_sz_to_mlx_sz(cqe_size,
+				  cq->private_flags &
+				  MLX5_IB_CQ_PR_FLAGS_CQE_128_PAD));
 	MLX5_SET(cqc, cqc, log_cq_size, ilog2(entries));
 
 	MLX5_SET(modify_cq_in, in, op_mod, MLX5_CQ_OPMOD_RESIZE);

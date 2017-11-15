@@ -488,7 +488,7 @@ static void i40iw_puda_qp_setctx(struct i40iw_puda_rsrc *rsrc)
 		      LS_64(qp->hw_rq_size, I40IWQPC_RQSIZE) |
 		      LS_64(qp->hw_sq_size, I40IWQPC_SQSIZE));
 
-	set_64bit_val(qp_ctx, 48, LS_64(1514, I40IWQPC_SNDMSS));
+	set_64bit_val(qp_ctx, 48, LS_64(rsrc->buf_size, I40IW_UDA_QPC_MAXFRAMESIZE));
 	set_64bit_val(qp_ctx, 56, 0);
 	set_64bit_val(qp_ctx, 64, 1);
 
@@ -611,12 +611,14 @@ static enum i40iw_status_code i40iw_puda_qp_create(struct i40iw_puda_rsrc *rsrc)
 	qp->user_pri = 0;
 	i40iw_qp_add_qos(qp);
 	i40iw_puda_qp_setctx(rsrc);
-	if (rsrc->ceq_valid)
+	if (rsrc->dev->ceq_valid)
 		ret = i40iw_cqp_qp_create_cmd(rsrc->dev, qp);
 	else
 		ret = i40iw_puda_qp_wqe(rsrc->dev, qp);
-	if (ret)
+	if (ret) {
+		i40iw_qp_rem_qos(qp);
 		i40iw_free_dma_mem(rsrc->dev->hw, &rsrc->qpmem);
+	}
 	return ret;
 }
 
@@ -704,7 +706,7 @@ static enum i40iw_status_code i40iw_puda_cq_create(struct i40iw_puda_rsrc *rsrc)
 	ret = dev->iw_priv_cq_ops->cq_init(cq, &info);
 	if (ret)
 		goto error;
-	if (rsrc->ceq_valid)
+	if (rsrc->dev->ceq_valid)
 		ret = i40iw_cqp_cq_create_cmd(dev, cq);
 	else
 		ret = i40iw_puda_cq_wqe(dev, cq);
@@ -724,7 +726,7 @@ static void i40iw_puda_free_qp(struct i40iw_puda_rsrc *rsrc)
 	struct i40iw_ccq_cqe_info compl_info;
 	struct i40iw_sc_dev *dev = rsrc->dev;
 
-	if (rsrc->ceq_valid) {
+	if (rsrc->dev->ceq_valid) {
 		i40iw_cqp_qp_destroy_cmd(dev, &rsrc->qp);
 		return;
 	}
@@ -757,7 +759,7 @@ static void i40iw_puda_free_cq(struct i40iw_puda_rsrc *rsrc)
 	struct i40iw_ccq_cqe_info compl_info;
 	struct i40iw_sc_dev *dev = rsrc->dev;
 
-	if (rsrc->ceq_valid) {
+	if (rsrc->dev->ceq_valid) {
 		i40iw_cqp_cq_destroy_cmd(dev, &rsrc->cq);
 		return;
 	}
@@ -813,6 +815,7 @@ void i40iw_puda_dele_resources(struct i40iw_sc_vsi *vsi,
 	switch (rsrc->completion) {
 	case PUDA_HASH_CRC_COMPLETE:
 		i40iw_free_hash_desc(rsrc->hash_desc);
+		/* fall through */
 	case PUDA_QP_CREATED:
 		if (!reset)
 			i40iw_puda_free_qp(rsrc);
@@ -921,7 +924,6 @@ enum i40iw_status_code i40iw_puda_create_rsrc(struct i40iw_sc_vsi *vsi,
 		rsrc->xmit_complete = i40iw_ieq_tx_compl;
 	}
 
-	rsrc->ceq_valid = info->ceq_valid;
 	rsrc->type = info->type;
 	rsrc->sq_wrtrk_array = (struct i40iw_sq_uk_wr_trk_info *)((u8 *)vmem->va + pudasize);
 	rsrc->rq_wrid_array = (u64 *)((u8 *)vmem->va + pudasize + sqwridsize);
@@ -1400,7 +1402,8 @@ static void i40iw_ieq_handle_exception(struct i40iw_puda_rsrc *ieq,
 		pfpdu->rcv_nxt = fps;
 		pfpdu->fps = fps;
 		pfpdu->mode = true;
-		pfpdu->max_fpdu_data = ieq->vsi->mss;
+		pfpdu->max_fpdu_data = (buf->ipv4) ? (ieq->vsi->mtu - I40IW_MTU_TO_MSS_IPV4) :
+				       (ieq->vsi->mtu - I40IW_MTU_TO_MSS_IPV6);
 		pfpdu->pmode_count++;
 		INIT_LIST_HEAD(rxlist);
 		i40iw_ieq_check_first_buf(buf, fps);

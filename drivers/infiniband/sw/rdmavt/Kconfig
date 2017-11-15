@@ -1,6 +1,7 @@
 config INFINIBAND_RDMAVT
 	tristate "RDMA verbs transport library"
 	depends on 64BIT
+	depends on PCI
 	select DMA_VIRT_OPS
 	---help---
 	This is a common software verbs provider for RDMA networks.

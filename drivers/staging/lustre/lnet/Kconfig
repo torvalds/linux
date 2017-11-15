@@ -34,7 +34,7 @@ config LNET_SELFTEST
 
 config LNET_XPRT_IB
 	tristate "LNET infiniband support"
-	depends on LNET && INFINIBAND && INFINIBAND_ADDR_TRANS
+	depends on LNET && PCI && INFINIBAND && INFINIBAND_ADDR_TRANS
 	default LNET && INFINIBAND
 	help
 	  This option allows the LNET users to use infiniband as an

@@ -2644,7 +2644,7 @@ struct creq_query_func_resp_sb {
 	u8 l2_db_space_size;
 	__le16 max_srq;
 	__le32 max_gid;
-	__le32 tqm_alloc_reqs[8];
+	__le32 tqm_alloc_reqs[12];
 };
 
 /* Set resources command response (16 bytes) */

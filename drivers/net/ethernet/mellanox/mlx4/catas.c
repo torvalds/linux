@@ -231,10 +231,10 @@ static void dump_err_buf(struct mlx4_dev *dev)
 			 i, swab32(readl(priv->catas_err.map + i)));
 }
 
-static void poll_catas(unsigned long dev_ptr)
+static void poll_catas(struct timer_list *t)
 {
-	struct mlx4_dev *dev = (struct mlx4_dev *) dev_ptr;
-	struct mlx4_priv *priv = mlx4_priv(dev);
+	struct mlx4_priv *priv = from_timer(priv, t, catas_err.timer);
+	struct mlx4_dev *dev = &priv->dev;
 	u32 slave_read;
 
 	if (mlx4_is_slave(dev)) {
@@ -277,7 +277,7 @@ void mlx4_start_catas_poll(struct mlx4_dev *dev)
 	phys_addr_t addr;
 
 	INIT_LIST_HEAD(&priv->catas_err.list);
-	setup_timer(&priv->catas_err.timer, poll_catas, (unsigned long)dev);
+	timer_setup(&priv->catas_err.timer, poll_catas, 0);
 	priv->catas_err.map = NULL;
 
 	if (!mlx4_is_slave(dev)) {

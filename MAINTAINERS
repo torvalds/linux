@@ -6805,8 +6805,6 @@ F:	drivers/ipack/
 
 INFINIBAND SUBSYSTEM
 M:	Doug Ledford <dledford@redhat.com>
-M:	Sean Hefty <sean.hefty@intel.com>
-M:	Hal Rosenstock <hal.rosenstock@gmail.com>
 L:	linux-rdma@vger.kernel.org
 W:	http://www.openfabrics.org/
 Q:	http://patchwork.kernel.org/project/linux-rdma/list/
@@ -11116,6 +11114,7 @@ F:	drivers/net/ethernet/qlogic/qede/
 
 QLOGIC QL4xxx RDMA DRIVER
 M:	Ram Amrani <Ram.Amrani@cavium.com>
+M:	Michal Kalderon <Michal.Kalderon@cavium.com>
 M:	Ariel Elior <Ariel.Elior@cavium.com>
 L:	linux-rdma@vger.kernel.org
 S:	Supported

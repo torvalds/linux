@@ -1093,7 +1093,7 @@ static int ocrdma_mbx_cmd(struct ocrdma_dev *dev, struct ocrdma_mqe *mqe)
 		rsp = &mqe->u.rsp;
 
 	if (cqe_status || ext_status) {
-		pr_err("%s() cqe_status=0x%x, ext_status=0x%x,",
+		pr_err("%s() cqe_status=0x%x, ext_status=0x%x,\n",
 		       __func__, cqe_status, ext_status);
 		if (rsp) {
 			/* This is for embedded cmds. */
@@ -1947,7 +1947,7 @@ mbx_err:
 
 int ocrdma_mbx_dealloc_lkey(struct ocrdma_dev *dev, int fr_mr, u32 lkey)
 {
-	int status = -ENOMEM;
+	int status;
 	struct ocrdma_dealloc_lkey *cmd;
 
 	cmd = ocrdma_init_emb_mqe(OCRDMA_CMD_DEALLOC_LKEY, sizeof(*cmd));
@@ -1956,9 +1956,7 @@ int ocrdma_mbx_dealloc_lkey(struct ocrdma_dev *dev, int fr_mr, u32 lkey)
 	cmd->lkey = lkey;
 	cmd->rsvd_frmr = fr_mr ? 1 : 0;
 	status = ocrdma_mbx_cmd(dev, (struct ocrdma_mqe *)cmd);
-	if (status)
-		goto mbx_err;
-mbx_err:
+
 	kfree(cmd);
 	return status;
 }
@@ -3186,8 +3184,8 @@ void ocrdma_eqd_set_task(struct work_struct *work)
 {
 	struct ocrdma_dev *dev =
 		container_of(work, struct ocrdma_dev, eqd_work.work);
-	struct ocrdma_eq *eq = 0;
-	int i, num = 0, status = -EINVAL;
+	struct ocrdma_eq *eq = NULL;
+	int i, num = 0;
 	u64 eq_intr;
 
 	for (i = 0; i < dev->eq_cnt; i++) {
@@ -3209,7 +3207,7 @@ void ocrdma_eqd_set_task(struct work_struct *work)
 	}
 
 	if (num)
-		status = ocrdma_modify_eqd(dev, &dev->eq_tbl[0], num);
+		ocrdma_modify_eqd(dev, &dev->eq_tbl[0], num);
 	schedule_delayed_work(&dev->eqd_work, msecs_to_jiffies(1000));
 }
 

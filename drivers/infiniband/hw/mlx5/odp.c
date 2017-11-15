@@ -32,6 +32,7 @@
 
 #include <rdma/ib_umem.h>
 #include <rdma/ib_umem_odp.h>
+#include <linux/kernel.h>
 
 #include "mlx5_ib.h"
 #include "cmd.h"
@@ -929,9 +930,8 @@ static int mlx5_ib_mr_initiator_pfault_handler(
 		return -EFAULT;
 	}
 
-	if (unlikely(opcode >= sizeof(mlx5_ib_odp_opcode_cap) /
-	    sizeof(mlx5_ib_odp_opcode_cap[0]) ||
-	    !(transport_caps & mlx5_ib_odp_opcode_cap[opcode]))) {
+	if (unlikely(opcode >= ARRAY_SIZE(mlx5_ib_odp_opcode_cap) ||
+		     !(transport_caps & mlx5_ib_odp_opcode_cap[opcode]))) {
 		mlx5_ib_err(dev, "ODP fault on QP of an unsupported opcode 0x%x\n",
 			    opcode);
 		return -EFAULT;

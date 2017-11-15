@@ -560,7 +560,7 @@ do_write:
 	wc.byte_len = wqe->length;
 	wc.qp = &qp->ibqp;
 	wc.src_qp = qp->remote_qpn;
-	wc.slid = rdma_ah_get_dlid(&qp->remote_ah_attr);
+	wc.slid = rdma_ah_get_dlid(&qp->remote_ah_attr) & U16_MAX;
 	wc.sl = rdma_ah_get_sl(&qp->remote_ah_attr);
 	wc.port_num = 1;
 	/* Signal completion event if the solicited bit is set. */
@@ -825,11 +825,9 @@ static inline void hfi1_make_ruc_header_9B(struct rvt_qp *qp,
 {
 	struct hfi1_qp_priv *priv = qp->priv;
 	struct hfi1_ibport *ibp = ps->ibp;
-	struct hfi1_pportdata *ppd = ppd_from_ibp(ibp);
 	u32 bth1 = 0;
 	u16 pkey = hfi1_get_pkey(ibp, qp->s_pkey_index);
 	u16 lrh0 = HFI1_LRH_BTH;
-	u16 slid;
 	u8 extra_bytes = -ps->s_txreq->s_cur_size & 3;
 	u32 nwords = SIZE_OF_CRC + ((ps->s_txreq->s_cur_size +
 					 extra_bytes) >> 2);
@@ -866,13 +864,6 @@ static inline void hfi1_make_ruc_header_9B(struct rvt_qp *qp,
 		bth1 |= (IB_BECN_MASK << IB_BECN_SHIFT);
 	}
 	hfi1_make_ruc_bth(qp, ohdr, bth0, bth1, bth2);
-
-	if (!ppd->lid)
-		slid = be16_to_cpu(IB_LID_PERMISSIVE);
-	else
-		slid = ppd->lid |
-			(rdma_ah_get_path_bits(&qp->remote_ah_attr) &
-			((1 << ppd->lmc) - 1));
 	hfi1_make_ib_hdr(&ps->s_txreq->phdr.hdr.ibh,
 			 lrh0,
 			 qp->s_hdrwords + nwords,

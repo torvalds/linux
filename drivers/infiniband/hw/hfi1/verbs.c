@@ -146,6 +146,9 @@ static int pio_wait(struct rvt_qp *qp,
 /* Length of buffer to create verbs txreq cache name */
 #define TXREQ_NAME_LEN 24
 
+/* 16B trailing buffer */
+static const u8 trail_buf[MAX_16B_PADDING];
+
 static uint wss_threshold;
 module_param(wss_threshold, uint, S_IRUGO);
 MODULE_PARM_DESC(wss_threshold, "Percentage (1-100) of LLC to use as a threshold for a cacheless copy");
@@ -667,9 +670,9 @@ void hfi1_16B_rcv(struct hfi1_packet *packet)
  * This is called from a timer to check for QPs
  * which need kernel memory in order to send a packet.
  */
-static void mem_timer(unsigned long data)
+static void mem_timer(struct timer_list *t)
 {
-	struct hfi1_ibdev *dev = (struct hfi1_ibdev *)data;
+	struct hfi1_ibdev *dev = from_timer(dev, t, mem_timer);
 	struct list_head *list = &dev->memwait;
 	struct rvt_qp *qp = NULL;
 	struct iowait *wait;
@@ -793,6 +796,27 @@ bail_txadd:
 	return ret;
 }
 
+/**
+ * update_tx_opstats - record stats by opcode
+ * @qp; the qp
+ * @ps: transmit packet state
+ * @plen: the plen in dwords
+ *
+ * This is a routine to record the tx opstats after a
+ * packet has been presented to the egress mechanism.
+ */
+static void update_tx_opstats(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
+			      u32 plen)
+{
+#ifdef CONFIG_DEBUG_FS
+	struct hfi1_devdata *dd = dd_from_ibdev(qp->ibqp.device);
+	struct hfi1_opcode_stats_perctx *s = get_cpu_ptr(dd->tx_opstats);
+
+	inc_opstats(plen * 4, &s->stats[ps->opcode]);
+	put_cpu_ptr(s);
+#endif
+}
+
 /*
  * Build the number of DMA descriptors needed to send length bytes of data.
  *
@@ -812,9 +836,7 @@ static int build_verbs_tx_desc(
 	int ret = 0;
 	struct hfi1_sdma_header *phdr = &tx->phdr;
 	u16 hdrbytes = tx->hdr_dwords << 2;
-	u32 *hdr;
 	u8 extra_bytes = 0;
-	static char trail_buf[12]; /* CRC = 4, LT = 1, Pad = 0 to 7 bytes */
 
 	if (tx->phdr.hdr.hdr_type) {
 		/*
@@ -823,9 +845,6 @@ static int build_verbs_tx_desc(
 		 */
 		extra_bytes = hfi1_get_16b_padding(hdrbytes - 8, length) +
 			      (SIZE_OF_CRC << 2) + SIZE_OF_LT;
-		hdr = (u32 *)&phdr->hdr.opah;
-	} else {
-		hdr = (u32 *)&phdr->hdr.ibh;
 	}
 	if (!ahg_info->ahgcount) {
 		ret = sdma_txinit_ahg(
@@ -869,9 +888,9 @@ static int build_verbs_tx_desc(
 	}
 
 	/* add icrc, lt byte, and padding to flit */
-	if (extra_bytes != 0)
+	if (extra_bytes)
 		ret = sdma_txadd_kvaddr(sde->dd, &tx->txreq,
-					trail_buf, extra_bytes);
+					(void *)trail_buf, extra_bytes);
 
 bail_txadd:
 	return ret;
@@ -891,14 +910,12 @@ int hfi1_verbs_send_dma(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 	u8 sc5 = priv->s_sc;
 	int ret;
 	u32 dwords;
-	bool bypass = false;
 
 	if (ps->s_txreq->phdr.hdr.hdr_type) {
 		u8 extra_bytes = hfi1_get_16b_padding((hdrwords << 2), len);
 
 		dwords = (len + extra_bytes + (SIZE_OF_CRC << 2) +
 			  SIZE_OF_LT) >> 2;
-		bypass = true;
 	} else {
 		dwords = (len + 3) >> 2;
 	}
@@ -938,6 +955,8 @@ int hfi1_verbs_send_dma(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 			goto bail_ecomm;
 		return ret;
 	}
+
+	update_tx_opstats(qp, ps, plen);
 	trace_sdma_output_ibhdr(dd_from_ibdev(qp->ibqp.device),
 				&ps->s_txreq->phdr.hdr, ib_is_sc5(sc5));
 	return ret;
@@ -1033,8 +1052,6 @@ int hfi1_verbs_send_pio(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 	int wc_status = IB_WC_SUCCESS;
 	int ret = 0;
 	pio_release_cb cb = NULL;
-	u32 lrh0_16b;
-	bool bypass = false;
 	u8 extra_bytes = 0;
 
 	if (ps->s_txreq->phdr.hdr.hdr_type) {
@@ -1043,8 +1060,6 @@ int hfi1_verbs_send_pio(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 		extra_bytes = pad_size + (SIZE_OF_CRC << 2) + SIZE_OF_LT;
 		dwords = (len + extra_bytes) >> 2;
 		hdr = (u32 *)&ps->s_txreq->phdr.hdr.opah;
-		lrh0_16b = ps->s_txreq->phdr.hdr.opah.lrh[0];
-		bypass = true;
 	} else {
 		dwords = (len + 3) >> 2;
 		hdr = (u32 *)&ps->s_txreq->phdr.hdr.ibh;
@@ -1128,21 +1143,14 @@ int hfi1_verbs_send_pio(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 				len -= slen;
 			}
 		}
-		/*
-		 * Bypass packet will need to copy additional
-		 * bytes to accommodate for CRC and LT bytes
-		 */
-		if (extra_bytes) {
-			u8 *empty_buf;
+		/* add icrc, lt byte, and padding to flit */
+		if (extra_bytes)
+			seg_pio_copy_mid(pbuf, trail_buf, extra_bytes);
 
-			empty_buf = kcalloc(extra_bytes, sizeof(u8),
-					    GFP_KERNEL);
-			seg_pio_copy_mid(pbuf, empty_buf, extra_bytes);
-			kfree(empty_buf);
-		}
 		seg_pio_copy_end(pbuf);
 	}
 
+	update_tx_opstats(qp, ps, plen);
 	trace_pio_output_ibhdr(dd_from_ibdev(qp->ibqp.device),
 			       &ps->s_txreq->phdr.hdr, ib_is_sc5(sc5));
 
@@ -1636,8 +1644,7 @@ static void init_ibport(struct hfi1_pportdata *ppd)
 
 	for (i = 0; i < RVT_MAX_TRAP_LISTS ; i++)
 		INIT_LIST_HEAD(&ibp->rvp.trap_lists[i].list);
-	setup_timer(&ibp->rvp.trap_timer, hfi1_handle_trap_timer,
-		    (unsigned long)ibp);
+	timer_setup(&ibp->rvp.trap_timer, hfi1_handle_trap_timer, 0);
 
 	spin_lock_init(&ibp->rvp.lock);
 	/* Set the prefix to the default value (see ch. 4.1.1) */
@@ -1844,7 +1851,7 @@ int hfi1_register_ib_device(struct hfi1_devdata *dd)
 
 	/* Only need to initialize non-zero fields. */
 
-	setup_timer(&dev->mem_timer, mem_timer, (unsigned long)dev);
+	timer_setup(&dev->mem_timer, mem_timer, 0);
 
 	seqlock_init(&dev->iowait_lock);
 	seqlock_init(&dev->txwait_lock);

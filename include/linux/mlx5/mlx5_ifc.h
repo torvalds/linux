@@ -614,7 +614,9 @@ struct mlx5_ifc_per_protocol_networking_offload_caps_bits {
 	u8         swp[0x1];
 	u8         swp_csum[0x1];
 	u8         swp_lso[0x1];
-	u8         reserved_at_23[0x1d];
+	u8         reserved_at_23[0x1b];
+	u8         max_geneve_opt_len[0x1];
+	u8         tunnel_stateless_geneve_rx[0x1];
 
 	u8         reserved_at_40[0x10];
 	u8         lro_min_mss_size[0x10];
@@ -744,6 +746,7 @@ enum {
 	MLX5_WQ_TYPE_LINKED_LIST  = 0x0,
 	MLX5_WQ_TYPE_CYCLIC       = 0x1,
 	MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ = 0x2,
+	MLX5_WQ_TYPE_CYCLIC_STRIDING_RQ = 0x3,
 };
 
 enum {
@@ -1047,7 +1050,9 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 	u8	   num_of_uars_per_page[0x20];
 	u8         reserved_at_540[0x40];
 
-	u8         reserved_at_580[0x3f];
+	u8         reserved_at_580[0x3d];
+	u8         cqe_128_always[0x1];
+	u8         cqe_compression_128[0x1];
 	u8         cqe_compression[0x1];
 
 	u8         cqe_compression_timeout[0x10];
