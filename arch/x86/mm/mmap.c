@@ -33,6 +33,8 @@
 #include <linux/compat.h>
 #include <asm/elf.h>
 
+#include "physaddr.h"
+
 struct va_alignment __read_mostly va_align = {
 	.flags = -1,
 };
@@ -219,4 +221,18 @@ bool mmap_address_hint_valid(unsigned long addr, unsigned long len)
 		return false;
 
 	return (addr > DEFAULT_MAP_WINDOW) == (addr + len > DEFAULT_MAP_WINDOW);
+}
+
+/* Can we access it for direct reading/writing? Must be RAM: */
+int valid_phys_addr_range(phys_addr_t addr, size_t count)
+{
+	return addr + count <= __pa(high_memory);
+}
+
+/* Can we access it through mmap? Must be a valid physical address: */
+int valid_mmap_phys_addr_range(unsigned long pfn, size_t count)
+{
+	phys_addr_t addr = (phys_addr_t)pfn << PAGE_SHIFT;
+
+	return phys_addr_valid(addr + count - 1);
 }
