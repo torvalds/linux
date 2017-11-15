@@ -2073,16 +2073,17 @@ static int __init dell_init(void)
 	if (ret)
 		goto fail_platform_device2;
 
+	buffer = kzalloc(sizeof(struct calling_interface_buffer), GFP_KERNEL);
+	if (!buffer)
+		goto fail_buffer;
+
+
 	ret = dell_setup_rfkill();
 
 	if (ret) {
 		pr_warn("Unable to setup rfkill\n");
 		goto fail_rfkill;
 	}
-
-	buffer = kzalloc(sizeof(struct calling_interface_buffer), GFP_KERNEL);
-	if (!buffer)
-		goto fail_buffer;
 
 	if (quirks && quirks->touchpad_led)
 		touchpad_led_init(&platform_device->dev);
