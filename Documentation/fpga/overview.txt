@@ -1,0 +1,23 @@
+Linux kernel FPGA support
+
+Alan Tull 2017
+
+The main point of this project has been to separate the out the upper layers
+that know when to reprogram a FPGA from the lower layers that know how to
+reprogram a specific FPGA device.  The intention is to make this manufacturer
+agnostic, understanding that of course the FPGA images are very device specific
+themselves.
+
+The framework in the kernel includes:
+* low level FPGA manager drivers that know how to program a specific device
+* the fpga-mgr framework they are registered with
+* low level FPGA bridge drivers for hard/soft bridges which are intended to
+  be disable during FPGA programming
+* the fpga-bridge framework they are registered with
+* the fpga-region framework which associates and controls managers and bridges
+  as reconfigurable regions
+* the of-fpga-region support for reprogramming FPGAs when device tree overlays
+  are applied.
+
+I would encourage you the user to add code that creates FPGA regions rather
+that trying to control managers and bridges separately.

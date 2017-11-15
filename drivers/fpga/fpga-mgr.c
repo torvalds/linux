@@ -2,6 +2,7 @@
  * FPGA Manager Core
  *
  *  Copyright (C) 2013-2015 Altera Corporation
+ *  Copyright (C) 2017 Intel Corporation
  *
  * With code from the mailing list:
  * Copyright (C) 2013 Xilinx, Inc.
@@ -30,6 +31,40 @@
 
 static DEFINE_IDA(fpga_mgr_ida);
 static struct class *fpga_mgr_class;
+
+struct fpga_image_info *fpga_image_info_alloc(struct device *dev)
+{
+	struct fpga_image_info *info;
+
+	get_device(dev);
+
+	info = devm_kzalloc(dev, sizeof(*info), GFP_KERNEL);
+	if (!info) {
+		put_device(dev);
+		return NULL;
+	}
+
+	info->dev = dev;
+
+	return info;
+}
+EXPORT_SYMBOL_GPL(fpga_image_info_alloc);
+
+void fpga_image_info_free(struct fpga_image_info *info)
+{
+	struct device *dev;
+
+	if (!info)
+		return;
+
+	dev = info->dev;
+	if (info->firmware_name)
+		devm_kfree(dev, info->firmware_name);
+
+	devm_kfree(dev, info);
+	put_device(dev);
+}
+EXPORT_SYMBOL_GPL(fpga_image_info_free);
 
 /*
  * Call the low level driver's write_init function.  This will do the
@@ -137,8 +172,9 @@ static int fpga_mgr_write_complete(struct fpga_manager *mgr,
  *
  * Return: 0 on success, negative error code otherwise.
  */
-int fpga_mgr_buf_load_sg(struct fpga_manager *mgr, struct fpga_image_info *info,
-			 struct sg_table *sgt)
+static int fpga_mgr_buf_load_sg(struct fpga_manager *mgr,
+				struct fpga_image_info *info,
+				struct sg_table *sgt)
 {
 	int ret;
 
@@ -170,7 +206,6 @@ int fpga_mgr_buf_load_sg(struct fpga_manager *mgr, struct fpga_image_info *info,
 
 	return fpga_mgr_write_complete(mgr, info);
 }
-EXPORT_SYMBOL_GPL(fpga_mgr_buf_load_sg);
 
 static int fpga_mgr_buf_load_mapped(struct fpga_manager *mgr,
 				    struct fpga_image_info *info,
@@ -210,8 +245,9 @@ static int fpga_mgr_buf_load_mapped(struct fpga_manager *mgr,
  *
  * Return: 0 on success, negative error code otherwise.
  */
-int fpga_mgr_buf_load(struct fpga_manager *mgr, struct fpga_image_info *info,
-		      const char *buf, size_t count)
+static int fpga_mgr_buf_load(struct fpga_manager *mgr,
+			     struct fpga_image_info *info,
+			     const char *buf, size_t count)
 {
 	struct page **pages;
 	struct sg_table sgt;
@@ -266,7 +302,6 @@ int fpga_mgr_buf_load(struct fpga_manager *mgr, struct fpga_image_info *info,
 
 	return rc;
 }
-EXPORT_SYMBOL_GPL(fpga_mgr_buf_load);
 
 /**
  * fpga_mgr_firmware_load - request firmware and load to fpga
@@ -282,9 +317,9 @@ EXPORT_SYMBOL_GPL(fpga_mgr_buf_load);
  *
  * Return: 0 on success, negative error code otherwise.
  */
-int fpga_mgr_firmware_load(struct fpga_manager *mgr,
-			   struct fpga_image_info *info,
-			   const char *image_name)
+static int fpga_mgr_firmware_load(struct fpga_manager *mgr,
+				  struct fpga_image_info *info,
+				  const char *image_name)
 {
 	struct device *dev = &mgr->dev;
 	const struct firmware *fw;
@@ -307,7 +342,18 @@ int fpga_mgr_firmware_load(struct fpga_manager *mgr,
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(fpga_mgr_firmware_load);
+
+int fpga_mgr_load(struct fpga_manager *mgr, struct fpga_image_info *info)
+{
+	if (info->sgt)
+		return fpga_mgr_buf_load_sg(mgr, info, info->sgt);
+	if (info->buf && info->count)
+		return fpga_mgr_buf_load(mgr, info, info->buf, info->count);
+	if (info->firmware_name)
+		return fpga_mgr_firmware_load(mgr, info, info->firmware_name);
+	return -EINVAL;
+}
+EXPORT_SYMBOL_GPL(fpga_mgr_load);
 
 static const char * const state_str[] = {
 	[FPGA_MGR_STATE_UNKNOWN] =		"unknown",
@@ -578,7 +624,7 @@ static void __exit fpga_mgr_class_exit(void)
 	ida_destroy(&fpga_mgr_ida);
 }
 
-MODULE_AUTHOR("Alan Tull <atull@opensource.altera.com>");
+MODULE_AUTHOR("Alan Tull <atull@kernel.org>");
 MODULE_DESCRIPTION("FPGA manager framework");
 MODULE_LICENSE("GPL v2");
 
