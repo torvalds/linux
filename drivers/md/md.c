@@ -5375,7 +5375,7 @@ static struct kobject *md_probe(dev_t dev, int *part, void *data)
 	return NULL;
 }
 
-static int add_named_array(const char *val, struct kernel_param *kp)
+static int add_named_array(const char *val, const struct kernel_param *kp)
 {
 	/*
 	 * val must be "md_*" or "mdNNN".
@@ -9315,11 +9315,11 @@ static __exit void md_exit(void)
 subsys_initcall(md_init);
 module_exit(md_exit)
 
-static int get_ro(char *buffer, struct kernel_param *kp)
+static int get_ro(char *buffer, const struct kernel_param *kp)
 {
 	return sprintf(buffer, "%d", start_readonly);
 }
-static int set_ro(const char *val, struct kernel_param *kp)
+static int set_ro(const char *val, const struct kernel_param *kp)
 {
 	return kstrtouint(val, 10, (unsigned int *)&start_readonly);
 }

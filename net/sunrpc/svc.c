@@ -50,7 +50,7 @@ EXPORT_SYMBOL_GPL(svc_pool_map);
 static DEFINE_MUTEX(svc_pool_map_mutex);/* protects svc_pool_map.count only */
 
 static int
-param_set_pool_mode(const char *val, struct kernel_param *kp)
+param_set_pool_mode(const char *val, const struct kernel_param *kp)
 {
 	int *ip = (int *)kp->arg;
 	struct svc_pool_map *m = &svc_pool_map;
@@ -80,7 +80,7 @@ out:
 }
 
 static int
-param_get_pool_mode(char *buf, struct kernel_param *kp)
+param_get_pool_mode(char *buf, const struct kernel_param *kp)
 {
 	int *ip = (int *)kp->arg;
 

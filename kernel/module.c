@@ -847,10 +847,8 @@ static int add_module_usage(struct module *a, struct module *b)
 
 	pr_debug("Allocating new usage for %s.\n", a->name);
 	use = kmalloc(sizeof(*use), GFP_ATOMIC);
-	if (!use) {
-		pr_warn("%s: out of memory loading\n", a->name);
+	if (!use)
 		return -ENOMEM;
-	}
 
 	use->source = a;
 	use->target = b;

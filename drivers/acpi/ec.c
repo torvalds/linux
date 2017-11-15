@@ -1941,7 +1941,8 @@ static const struct dev_pm_ops acpi_ec_pm = {
 	SET_SYSTEM_SLEEP_PM_OPS(acpi_ec_suspend, acpi_ec_resume)
 };
 
-static int param_set_event_clearing(const char *val, struct kernel_param *kp)
+static int param_set_event_clearing(const char *val,
+				    const struct kernel_param *kp)
 {
 	int result = 0;
 
@@ -1959,7 +1960,8 @@ static int param_set_event_clearing(const char *val, struct kernel_param *kp)
 	return result;
 }
 
-static int param_get_event_clearing(char *buffer, struct kernel_param *kp)
+static int param_get_event_clearing(char *buffer,
+				    const struct kernel_param *kp)
 {
 	switch (ec_event_clearing) {
 	case ACPI_EC_EVT_TIMING_STATUS:
