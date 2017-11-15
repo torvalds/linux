@@ -87,10 +87,8 @@ static void dce110_update_generic_info_packet(
 	 */
 	uint32_t max_retries = 50;
 
-	REG_GET(AFMT_CNTL, AFMT_AUDIO_CLOCK_EN, &regval);
 	/*we need turn on clock before programming AFMT block*/
-	if (regval != 1)
-		REG_UPDATE(AFMT_CNTL, AFMT_AUDIO_CLOCK_EN, 1);
+	REG_UPDATE(AFMT_CNTL, AFMT_AUDIO_CLOCK_EN, 1);
 
 	if (REG(AFMT_VBI_PACKET_CONTROL1)) {
 		if (packet_index >= 8)
