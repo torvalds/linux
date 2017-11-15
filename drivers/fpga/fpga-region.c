@@ -30,6 +30,20 @@
 static DEFINE_IDA(fpga_region_ida);
 static struct class *fpga_region_class;
 
+struct fpga_region *fpga_region_class_find(
+	struct device *start, const void *data,
+	int (*match)(struct device *, const void *))
+{
+	struct device *dev;
+
+	dev = class_find_device(fpga_region_class, start, data, match);
+	if (!dev)
+		return NULL;
+
+	return to_fpga_region(dev);
+}
+EXPORT_SYMBOL_GPL(fpga_region_class_find);
+
 static const struct of_device_id fpga_region_of_match[] = {
 	{ .compatible = "fpga-region", },
 	{},
@@ -51,14 +65,7 @@ static int fpga_region_of_node_match(struct device *dev, const void *data)
  */
 static struct fpga_region *of_fpga_region_find(struct device_node *np)
 {
-	struct device *dev;
-
-	dev = class_find_device(fpga_region_class, NULL, np,
-				fpga_region_of_node_match);
-	if (!dev)
-		return NULL;
-
-	return to_fpga_region(dev);
+	return fpga_region_class_find(NULL, np, fpga_region_of_node_match);
 }
 
 /**
