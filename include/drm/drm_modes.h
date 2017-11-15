@@ -242,8 +242,6 @@ struct drm_display_mode {
 	 * A bitmask of flags, mostly about the source of a mode. Possible flags
 	 * are:
 	 *
-	 *  - DRM_MODE_TYPE_BUILTIN: Meant for hard-coded modes, effectively
-	 *    unused.
 	 *  - DRM_MODE_TYPE_PREFERRED: Preferred mode, usually the native
 	 *    resolution of an LCD panel. There should only be one preferred
 	 *    mode per connector at any given time.
@@ -253,8 +251,11 @@ struct drm_display_mode {
 	 *  - DRM_MODE_TYPE_USERDEF: Mode defined via kernel command line
 	 *
 	 * Plus a big list of flags which shouldn't be used at all, but are
-	 * still around since these flags are also used in the userspace ABI:
+	 * still around since these flags are also used in the userspace ABI.
+	 * We no longer accept modes with these types though:
 	 *
+	 *  - DRM_MODE_TYPE_BUILTIN: Meant for hard-coded modes, unused.
+	 *    Use DRM_MODE_TYPE_DRIVER instead.
 	 *  - DRM_MODE_TYPE_DEFAULT: Again a leftover, use
 	 *    DRM_MODE_TYPE_PREFERRED instead.
 	 *  - DRM_MODE_TYPE_CLOCK_C and DRM_MODE_TYPE_CRTC_C: Define leftovers
