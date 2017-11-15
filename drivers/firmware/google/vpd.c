@@ -298,8 +298,17 @@ static int vpd_probe(struct platform_device *pdev)
 	return vpd_sections_init(entry.cbmem_addr);
 }
 
+static int vpd_remove(struct platform_device *pdev)
+{
+	vpd_section_destroy(&ro_vpd);
+	vpd_section_destroy(&rw_vpd);
+
+	return 0;
+}
+
 static struct platform_driver vpd_driver = {
 	.probe = vpd_probe,
+	.remove = vpd_remove,
 	.driver = {
 		.name = "vpd",
 	},
@@ -324,8 +333,6 @@ static int __init vpd_platform_init(void)
 
 static void __exit vpd_platform_exit(void)
 {
-	vpd_section_destroy(&ro_vpd);
-	vpd_section_destroy(&rw_vpd);
 	kobject_put(vpd_kobj);
 }
 
