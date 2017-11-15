@@ -410,7 +410,7 @@ void cpqhp_create_debugfs_files(struct controller *ctrl);
 void cpqhp_remove_debugfs_files(struct controller *ctrl);
 
 /* controller functions */
-void cpqhp_pushbutton_thread(unsigned long event_pointer);
+void cpqhp_pushbutton_thread(struct timer_list *t);
 irqreturn_t cpqhp_ctrl_intr(int IRQ, void *data);
 int cpqhp_find_available_resources(struct controller *ctrl,
 				   void __iomem *rom_start);
