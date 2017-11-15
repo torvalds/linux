@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 Broadcom. All Rights Reserved.
+ * Copyright 2017 Broadcom. All Rights Reserved.
  * The term "Broadcom" refers to Broadcom Limited and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or
@@ -230,6 +230,7 @@ struct be_mcc_mailbox {
 #define OPCODE_COMMON_QUERY_FIRMWARE_CONFIG		58
 #define OPCODE_COMMON_FUNCTION_RESET			61
 #define OPCODE_COMMON_GET_PORT_NAME			77
+#define OPCODE_COMMON_SET_HOST_DATA			93
 #define OPCODE_COMMON_SET_FEATURES			191
 
 /**
@@ -737,6 +738,30 @@ struct be_cmd_hba_name {
 	u8 initiator_alias[BE_INI_ALIAS_LEN];
 } __packed;
 
+/******************** COMMON SET HOST DATA *******************/
+#define BE_CMD_SET_HOST_PARAM_ID	0x2
+#define BE_CMD_MAX_DRV_VERSION		0x30
+struct be_sethost_req {
+	u32 param_id;
+	u32 param_len;
+	u32 param_data[32];
+};
+
+struct be_sethost_resp {
+	u32 rsvd0;
+};
+
+struct be_cmd_set_host_data {
+	union {
+		struct be_cmd_req_hdr req_hdr;
+		struct be_cmd_resp_hdr resp_hdr;
+	} h;
+	union {
+		struct be_sethost_req req;
+		struct be_sethost_resp resp;
+	} param;
+} __packed;
+
 /******************** COMMON SET Features *******************/
 #define BE_CMD_SET_FEATURE_UER	0x10
 #define BE_CMD_UER_SUPP_BIT	0x1
@@ -793,8 +818,6 @@ int beiscsi_cmd_mccq_create(struct beiscsi_hba *phba,
 			struct be_queue_info *mccq,
 			struct be_queue_info *cq);
 
-unsigned int be_cmd_get_initname(struct beiscsi_hba *phba);
-
 void free_mcc_wrb(struct be_ctrl_info *ctrl, unsigned int tag);
 
 int beiscsi_modify_eq_delay(struct beiscsi_hba *phba, struct be_set_eqd *,
@@ -847,6 +870,7 @@ int beiscsi_get_fw_config(struct be_ctrl_info *ctrl, struct beiscsi_hba *phba);
 int beiscsi_get_port_name(struct be_ctrl_info *ctrl, struct beiscsi_hba *phba);
 
 int beiscsi_set_uer_feature(struct beiscsi_hba *phba);
+int beiscsi_set_host_data(struct beiscsi_hba *phba);
 
 struct be_default_pdu_context {
 	u32 dw[4];
@@ -1274,19 +1298,9 @@ struct be_cmd_get_port_name {
 						 * a read command
 						 */
 #define TGT_CTX_UPDT_CMD		7	/* Target context update */
-#define TGT_STS_CMD			8	/* Target R2T and other BHS
-						 * where only the status number
-						 * need to be updated
-						 */
-#define TGT_DATAIN_CMD			9	/* Target Data-Ins in response
-						 * to read command
-						 */
-#define TGT_SOS_PDU			10	/* Target:standalone status
-						 * response
-						 */
 #define TGT_DM_CMD			11	/* Indicates that the bhs
-						 *  preparedby
-						 * driver should not be touched
+						 * prepared by driver should not
+						 * be touched.
 						 */
 
 /* Returns the number of items in the field array. */
@@ -1444,9 +1458,9 @@ struct be_cmd_get_port_name {
 						 * the cxn
 						 */
 
-void be_wrb_hdr_prepare(struct be_mcc_wrb *wrb, int payload_len,
+void be_wrb_hdr_prepare(struct be_mcc_wrb *wrb, u32 payload_len,
 			bool embedded, u8 sge_cnt);
 
 void be_cmd_hdr_prepare(struct be_cmd_req_hdr *req_hdr,
-			u8 subsystem, u8 opcode, int cmd_len);
+			u8 subsystem, u8 opcode, u32 cmd_len);
 #endif /* !BEISCSI_CMDS_H */

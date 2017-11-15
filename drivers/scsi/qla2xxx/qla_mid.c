@@ -606,7 +606,7 @@ qla25xx_delete_queues(struct scsi_qla_host *vha)
 	struct qla_hw_data *ha = vha->hw;
 	struct qla_qpair *qpair, *tqpair;
 
-	if (ql2xmqsupport) {
+	if (ql2xmqsupport || ql2xnvmeenable) {
 		list_for_each_entry_safe(qpair, tqpair, &vha->qp_list,
 		    qp_list_elem)
 			qla2xxx_delete_qpair(vha, qpair);

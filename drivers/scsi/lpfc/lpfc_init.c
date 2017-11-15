@@ -3216,6 +3216,9 @@ lpfc_offline_prep(struct lpfc_hba *phba, int mbx_action)
 	lpfc_destroy_vport_work_array(phba, vports);
 
 	lpfc_sli_mbox_sys_shutdown(phba, mbx_action);
+
+	if (phba->wq)
+		flush_workqueue(phba->wq);
 }
 
 /**
@@ -4173,6 +4176,9 @@ void
 lpfc_stop_port(struct lpfc_hba *phba)
 {
 	phba->lpfc_stop_port(phba);
+
+	if (phba->wq)
+		flush_workqueue(phba->wq);
 }
 
 /**
@@ -6363,6 +6369,9 @@ lpfc_setup_driver_resource_phase2(struct lpfc_hba *phba)
 		return error;
 	}
 
+	/* workqueue for deferred irq use */
+	phba->wq = alloc_workqueue("lpfc_wq", WQ_MEM_RECLAIM, 0);
+
 	return 0;
 }
 
@@ -6377,6 +6386,12 @@ lpfc_setup_driver_resource_phase2(struct lpfc_hba *phba)
 static void
 lpfc_unset_driver_resource_phase2(struct lpfc_hba *phba)
 {
+	if (phba->wq) {
+		flush_workqueue(phba->wq);
+		destroy_workqueue(phba->wq);
+		phba->wq = NULL;
+	}
+
 	/* Stop kernel worker thread */
 	kthread_stop(phba->worker_thread);
 }
@@ -11397,14 +11412,6 @@ lpfc_pci_remove_one_s4(struct pci_dev *pdev)
 	/* Remove FC host and then SCSI host with the physical port */
 	fc_remove_host(shost);
 	scsi_remove_host(shost);
-
-	/* Perform ndlp cleanup on the physical port.  The nvme and nvmet
-	 * localports are destroyed after to cleanup all transport memory.
-	 */
-	lpfc_cleanup(vport);
-	lpfc_nvmet_destroy_targetport(phba);
-	lpfc_nvme_destroy_localport(vport);
-
 	/*
 	 * Bring down the SLI Layer. This step disables all interrupts,
 	 * clears the rings, discards all mailbox commands, and resets
@@ -11413,6 +11420,15 @@ lpfc_pci_remove_one_s4(struct pci_dev *pdev)
 	lpfc_debugfs_terminate(vport);
 	lpfc_sli4_hba_unset(phba);
 
+	/* Perform ndlp cleanup on the physical port.  The nvme and nvmet
+	 * localports are destroyed after to cleanup all transport memory.
+	 */
+	lpfc_cleanup(vport);
+	lpfc_nvmet_destroy_targetport(phba);
+	lpfc_nvme_destroy_localport(vport);
+
+
+	lpfc_stop_hba_timers(phba);
 	spin_lock_irq(&phba->hbalock);
 	list_del_init(&vport->listentry);
 	spin_unlock_irq(&phba->hbalock);

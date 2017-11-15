@@ -216,7 +216,7 @@ lpfc_els_abort(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp)
 	pring = lpfc_phba_elsring(phba);
 
 	/* In case of error recovery path, we might have a NULL pring here */
-	if (!pring)
+	if (unlikely(!pring))
 		return;
 
 	/* Abort outstanding I/O on NPort <nlp_DID> */

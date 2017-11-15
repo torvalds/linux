@@ -107,17 +107,6 @@ void sas_hash_addr(u8 *hashed, const u8 *sas_addr)
         hashed[2] = r & 0xFF;
 }
 
-
-/* ---------- HA events ---------- */
-
-void sas_hae_reset(struct work_struct *work)
-{
-	struct sas_ha_event *ev = to_sas_ha_event(work);
-	struct sas_ha_struct *ha = ev->ha;
-
-	clear_bit(HAE_RESET, &ha->pending);
-}
-
 int sas_register_ha(struct sas_ha_struct *sas_ha)
 {
 	int error = 0;
@@ -155,7 +144,6 @@ int sas_register_ha(struct sas_ha_struct *sas_ha)
 	INIT_LIST_HEAD(&sas_ha->eh_ata_q);
 
 	return 0;
-
 Undo_ports:
 	sas_unregister_ports(sas_ha);
 Undo_phys:

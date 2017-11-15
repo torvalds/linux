@@ -53,6 +53,11 @@
 #define HGC_IOMB_PROC1_STATUS	0x104
 #define CFG_1US_TIMER_TRSH		0xcc
 #define CHNL_INT_STATUS			0x148
+#define HGC_AXI_FIFO_ERR_INFO  0x154
+#define AXI_ERR_INFO_OFF               0
+#define AXI_ERR_INFO_MSK               (0xff << AXI_ERR_INFO_OFF)
+#define FIFO_ERR_INFO_OFF              8
+#define FIFO_ERR_INFO_MSK              (0xff << FIFO_ERR_INFO_OFF)
 #define INT_COAL_EN			0x19c
 #define OQ_INT_COAL_TIME		0x1a0
 #define OQ_INT_COAL_CNT			0x1a4
@@ -135,6 +140,7 @@
 #define RX_IDAF_DWORD0			(PORT_BASE + 0xc4)
 #define RXOP_CHECK_CFG_H		(PORT_BASE + 0xfc)
 #define STP_LINK_TIMER			(PORT_BASE + 0x120)
+#define CON_CFG_DRIVER			(PORT_BASE + 0x130)
 #define SAS_SSP_CON_TIMER_CFG		(PORT_BASE + 0x134)
 #define SAS_SMP_CON_TIMER_CFG		(PORT_BASE + 0x138)
 #define SAS_STP_CON_TIMER_CFG		(PORT_BASE + 0x13c)
@@ -154,6 +160,10 @@
 #define CHL_INT1_DMAC_TX_ECC_ERR_MSK	(0x1 << CHL_INT1_DMAC_TX_ECC_ERR_OFF)
 #define CHL_INT1_DMAC_RX_ECC_ERR_OFF	17
 #define CHL_INT1_DMAC_RX_ECC_ERR_MSK	(0x1 << CHL_INT1_DMAC_RX_ECC_ERR_OFF)
+#define CHL_INT1_DMAC_TX_AXI_WR_ERR_OFF	19
+#define CHL_INT1_DMAC_TX_AXI_RD_ERR_OFF	20
+#define CHL_INT1_DMAC_RX_AXI_WR_ERR_OFF	21
+#define CHL_INT1_DMAC_RX_AXI_RD_ERR_OFF	22
 #define CHL_INT2			(PORT_BASE + 0x1bc)
 #define CHL_INT0_MSK			(PORT_BASE + 0x1c0)
 #define CHL_INT1_MSK			(PORT_BASE + 0x1c4)
@@ -171,8 +181,11 @@
 #define DMA_RX_STATUS			(PORT_BASE + 0x2e8)
 #define DMA_RX_STATUS_BUSY_OFF		0
 #define DMA_RX_STATUS_BUSY_MSK		(0x1 << DMA_RX_STATUS_BUSY_OFF)
+#define ERR_CNT_DWS_LOST		(PORT_BASE + 0x380)
+#define ERR_CNT_RESET_PROB		(PORT_BASE + 0x384)
+#define ERR_CNT_INVLD_DW		(PORT_BASE + 0x390)
+#define ERR_CNT_DISP_ERR		(PORT_BASE + 0x398)
 
-#define MAX_ITCT_HW			4096 /* max the hw can support */
 #define DEFAULT_ITCT_HW		2048 /* reset value, not reprogrammed */
 #if (HISI_SAS_MAX_DEVICES > DEFAULT_ITCT_HW)
 #error Max ITCT exceeded
@@ -377,6 +390,7 @@ static void init_reg_v3_hw(struct hisi_hba *hisi_hba)
 	/* Global registers init */
 	hisi_sas_write32(hisi_hba, DLVRY_QUEUE_ENABLE,
 			 (u32)((1ULL << hisi_hba->queue_count) - 1));
+	hisi_sas_write32(hisi_hba, CFG_MAX_TAG, 0xfff0400);
 	hisi_sas_write32(hisi_hba, HGC_SAS_TXFAIL_RETRY_CTRL, 0x108);
 	hisi_sas_write32(hisi_hba, CFG_1US_TIMER_TRSH, 0xd);
 	hisi_sas_write32(hisi_hba, INT_COAL_EN, 0x1);
@@ -388,7 +402,7 @@ static void init_reg_v3_hw(struct hisi_hba *hisi_hba)
 	hisi_sas_write32(hisi_hba, ENT_INT_SRC3, 0xffffffff);
 	hisi_sas_write32(hisi_hba, ENT_INT_SRC_MSK1, 0xfefefefe);
 	hisi_sas_write32(hisi_hba, ENT_INT_SRC_MSK2, 0xfefefefe);
-	hisi_sas_write32(hisi_hba, ENT_INT_SRC_MSK3, 0xffffffff);
+	hisi_sas_write32(hisi_hba, ENT_INT_SRC_MSK3, 0xfffe20ff);
 	hisi_sas_write32(hisi_hba, CHNL_PHYUPDOWN_INT_MSK, 0x0);
 	hisi_sas_write32(hisi_hba, CHNL_ENT_INT_MSK, 0x0);
 	hisi_sas_write32(hisi_hba, HGC_COM_INT_MSK, 0x0);
@@ -407,7 +421,7 @@ static void init_reg_v3_hw(struct hisi_hba *hisi_hba)
 		hisi_sas_phy_write32(hisi_hba, i, CHL_INT1, 0xffffffff);
 		hisi_sas_phy_write32(hisi_hba, i, CHL_INT2, 0xffffffff);
 		hisi_sas_phy_write32(hisi_hba, i, RXOP_CHECK_CFG_H, 0x1000);
-		hisi_sas_phy_write32(hisi_hba, i, CHL_INT1_MSK, 0xffffffff);
+		hisi_sas_phy_write32(hisi_hba, i, CHL_INT1_MSK, 0xff87ffff);
 		hisi_sas_phy_write32(hisi_hba, i, CHL_INT2_MSK, 0x8ffffbff);
 		hisi_sas_phy_write32(hisi_hba, i, PHY_CTRL_RDY_MSK, 0x0);
 		hisi_sas_phy_write32(hisi_hba, i, PHYCTRL_NOT_RDY_MSK, 0x0);
@@ -422,6 +436,8 @@ static void init_reg_v3_hw(struct hisi_hba *hisi_hba)
 				     0xa03e8);
 		hisi_sas_phy_write32(hisi_hba, i, STP_LINK_TIMER,
 				     0x7f7a120);
+		hisi_sas_phy_write32(hisi_hba, i, CON_CFG_DRIVER,
+				     0x2a0a80);
 	}
 	for (i = 0; i < hisi_hba->queue_count; i++) {
 		/* Delivery queue */
@@ -575,10 +591,12 @@ static void setup_itct_v3_hw(struct hisi_hba *hisi_hba,
 static void free_device_v3_hw(struct hisi_hba *hisi_hba,
 			      struct hisi_sas_device *sas_dev)
 {
+	DECLARE_COMPLETION_ONSTACK(completion);
 	u64 dev_id = sas_dev->device_id;
-	struct device *dev = hisi_hba->dev;
 	struct hisi_sas_itct *itct = &hisi_hba->itct[dev_id];
 	u32 reg_val = hisi_sas_read32(hisi_hba, ENT_INT_SRC3);
+
+	sas_dev->completion = &completion;
 
 	/* clear the itct interrupt state */
 	if (ENT_INT_SRC3_ITC_INT_MSK & reg_val)
@@ -586,24 +604,11 @@ static void free_device_v3_hw(struct hisi_hba *hisi_hba,
 				 ENT_INT_SRC3_ITC_INT_MSK);
 
 	/* clear the itct table*/
-	reg_val = hisi_sas_read32(hisi_hba, ITCT_CLR);
-	reg_val |= ITCT_CLR_EN_MSK | (dev_id & ITCT_DEV_MSK);
+	reg_val = ITCT_CLR_EN_MSK | (dev_id & ITCT_DEV_MSK);
 	hisi_sas_write32(hisi_hba, ITCT_CLR, reg_val);
 
-	udelay(10);
-	reg_val = hisi_sas_read32(hisi_hba, ENT_INT_SRC3);
-	if (ENT_INT_SRC3_ITC_INT_MSK & reg_val) {
-		dev_dbg(dev, "got clear ITCT done interrupt\n");
-
-		/* invalid the itct state*/
-		memset(itct, 0, sizeof(struct hisi_sas_itct));
-		hisi_sas_write32(hisi_hba, ENT_INT_SRC3,
-				 ENT_INT_SRC3_ITC_INT_MSK);
-
-		/* clear the itct */
-		hisi_sas_write32(hisi_hba, ITCT_CLR, 0);
-		dev_dbg(dev, "clear ITCT ok\n");
-	}
+	wait_for_completion(sas_dev->completion);
+	memset(itct, 0, sizeof(struct hisi_sas_itct));
 }
 
 static void dereg_device_v3_hw(struct hisi_hba *hisi_hba,
@@ -755,10 +760,12 @@ static int get_wideport_bitmap_v3_hw(struct hisi_hba *hisi_hba, int port_id)
 {
 	int i, bitmap = 0;
 	u32 phy_port_num_ma = hisi_sas_read32(hisi_hba, PHY_PORT_NUM_MA);
+	u32 phy_state = hisi_sas_read32(hisi_hba, PHY_STATE);
 
 	for (i = 0; i < hisi_hba->n_phy; i++)
-		if (((phy_port_num_ma >> (i * 4)) & 0xf) == port_id)
-			bitmap |= 1 << i;
+		if (phy_state & BIT(i))
+			if (((phy_port_num_ma >> (i * 4)) & 0xf) == port_id)
+				bitmap |= BIT(i);
 
 	return bitmap;
 }
@@ -988,20 +995,6 @@ err_out_req:
 	return rc;
 }
 
-static int get_ncq_tag_v3_hw(struct sas_task *task, u32 *tag)
-{
-	struct ata_queued_cmd *qc = task->uldd_task;
-
-	if (qc) {
-		if (qc->tf.command == ATA_CMD_FPDMA_WRITE ||
-			qc->tf.command == ATA_CMD_FPDMA_READ) {
-			*tag = qc->tag;
-			return 1;
-		}
-	}
-	return 0;
-}
-
 static int prep_ata_v3_hw(struct hisi_hba *hisi_hba,
 			  struct hisi_sas_slot *slot)
 {
@@ -1050,7 +1043,7 @@ static int prep_ata_v3_hw(struct hisi_hba *hisi_hba,
 	hdr->dw1 = cpu_to_le32(dw1);
 
 	/* dw2 */
-	if (task->ata_task.use_ncq && get_ncq_tag_v3_hw(task, &hdr_tag)) {
+	if (task->ata_task.use_ncq && hisi_sas_get_ncq_tag(task, &hdr_tag)) {
 		task->ata_task.fis.sector_count |= (u8) (hdr_tag << 3);
 		dw2 |= hdr_tag << CMD_HDR_NCQ_TAG_OFF;
 	}
@@ -1276,6 +1269,25 @@ static irqreturn_t int_phy_up_down_bcast_v3_hw(int irq_no, void *p)
 	return res;
 }
 
+static const struct hisi_sas_hw_error port_axi_error[] = {
+	{
+		.irq_msk = BIT(CHL_INT1_DMAC_TX_AXI_WR_ERR_OFF),
+		.msg = "dma_tx_axi_wr_err",
+	},
+	{
+		.irq_msk = BIT(CHL_INT1_DMAC_TX_AXI_RD_ERR_OFF),
+		.msg = "dma_tx_axi_rd_err",
+	},
+	{
+		.irq_msk = BIT(CHL_INT1_DMAC_RX_AXI_WR_ERR_OFF),
+		.msg = "dma_rx_axi_wr_err",
+	},
+	{
+		.irq_msk = BIT(CHL_INT1_DMAC_RX_AXI_RD_ERR_OFF),
+		.msg = "dma_rx_axi_rd_err",
+	},
+};
+
 static irqreturn_t int_chnl_int_v3_hw(int irq_no, void *p)
 {
 	struct hisi_hba *hisi_hba = p;
@@ -1301,10 +1313,19 @@ static irqreturn_t int_chnl_int_v3_hw(int irq_no, void *p)
 
 		if ((irq_msk & (4 << (phy_no * 4))) &&
 						irq_value1) {
-			if (irq_value1 & (CHL_INT1_DMAC_RX_ECC_ERR_MSK |
-					  CHL_INT1_DMAC_TX_ECC_ERR_MSK))
-				panic("%s: DMAC RX/TX ecc bad error! (0x%x)",
-					dev_name(dev), irq_value1);
+			int i;
+
+			for (i = 0; i < ARRAY_SIZE(port_axi_error); i++) {
+				const struct hisi_sas_hw_error *error =
+						&port_axi_error[i];
+
+				if (!(irq_value1 & error->irq_msk))
+					continue;
+
+				dev_warn(dev, "%s error (phy%d 0x%x) found!\n",
+					error->msg, phy_no, irq_value1);
+				queue_work(hisi_hba->wq, &hisi_hba->rst_work);
+			}
 
 			hisi_sas_phy_write32(hisi_hba, phy_no,
 					     CHL_INT1, irq_value1);
@@ -1327,6 +1348,114 @@ static irqreturn_t int_chnl_int_v3_hw(int irq_no, void *p)
 	}
 
 	hisi_sas_write32(hisi_hba, ENT_INT_SRC_MSK3, ent_tmp);
+
+	return IRQ_HANDLED;
+}
+
+static const struct hisi_sas_hw_error axi_error[] = {
+	{ .msk = BIT(0), .msg = "IOST_AXI_W_ERR" },
+	{ .msk = BIT(1), .msg = "IOST_AXI_R_ERR" },
+	{ .msk = BIT(2), .msg = "ITCT_AXI_W_ERR" },
+	{ .msk = BIT(3), .msg = "ITCT_AXI_R_ERR" },
+	{ .msk = BIT(4), .msg = "SATA_AXI_W_ERR" },
+	{ .msk = BIT(5), .msg = "SATA_AXI_R_ERR" },
+	{ .msk = BIT(6), .msg = "DQE_AXI_R_ERR" },
+	{ .msk = BIT(7), .msg = "CQE_AXI_W_ERR" },
+	{},
+};
+
+static const struct hisi_sas_hw_error fifo_error[] = {
+	{ .msk = BIT(8),  .msg = "CQE_WINFO_FIFO" },
+	{ .msk = BIT(9),  .msg = "CQE_MSG_FIFIO" },
+	{ .msk = BIT(10), .msg = "GETDQE_FIFO" },
+	{ .msk = BIT(11), .msg = "CMDP_FIFO" },
+	{ .msk = BIT(12), .msg = "AWTCTRL_FIFO" },
+	{},
+};
+
+static const struct hisi_sas_hw_error fatal_axi_error[] = {
+	{
+		.irq_msk = BIT(ENT_INT_SRC3_WP_DEPTH_OFF),
+		.msg = "write pointer and depth",
+	},
+	{
+		.irq_msk = BIT(ENT_INT_SRC3_IPTT_SLOT_NOMATCH_OFF),
+		.msg = "iptt no match slot",
+	},
+	{
+		.irq_msk = BIT(ENT_INT_SRC3_RP_DEPTH_OFF),
+		.msg = "read pointer and depth",
+	},
+	{
+		.irq_msk = BIT(ENT_INT_SRC3_AXI_OFF),
+		.reg = HGC_AXI_FIFO_ERR_INFO,
+		.sub = axi_error,
+	},
+	{
+		.irq_msk = BIT(ENT_INT_SRC3_FIFO_OFF),
+		.reg = HGC_AXI_FIFO_ERR_INFO,
+		.sub = fifo_error,
+	},
+	{
+		.irq_msk = BIT(ENT_INT_SRC3_LM_OFF),
+		.msg = "LM add/fetch list",
+	},
+	{
+		.irq_msk = BIT(ENT_INT_SRC3_ABT_OFF),
+		.msg = "SAS_HGC_ABT fetch LM list",
+	},
+};
+
+static irqreturn_t fatal_axi_int_v3_hw(int irq_no, void *p)
+{
+	u32 irq_value, irq_msk;
+	struct hisi_hba *hisi_hba = p;
+	struct device *dev = hisi_hba->dev;
+	int i;
+
+	irq_msk = hisi_sas_read32(hisi_hba, ENT_INT_SRC_MSK3);
+	hisi_sas_write32(hisi_hba, ENT_INT_SRC_MSK3, irq_msk | 0x1df00);
+
+	irq_value = hisi_sas_read32(hisi_hba, ENT_INT_SRC3);
+
+	for (i = 0; i < ARRAY_SIZE(fatal_axi_error); i++) {
+		const struct hisi_sas_hw_error *error = &fatal_axi_error[i];
+
+		if (!(irq_value & error->irq_msk))
+			continue;
+
+		if (error->sub) {
+			const struct hisi_sas_hw_error *sub = error->sub;
+			u32 err_value = hisi_sas_read32(hisi_hba, error->reg);
+
+			for (; sub->msk || sub->msg; sub++) {
+				if (!(err_value & sub->msk))
+					continue;
+
+				dev_warn(dev, "%s error (0x%x) found!\n",
+					sub->msg, irq_value);
+				queue_work(hisi_hba->wq, &hisi_hba->rst_work);
+			}
+		} else {
+			dev_warn(dev, "%s error (0x%x) found!\n",
+				error->msg, irq_value);
+			queue_work(hisi_hba->wq, &hisi_hba->rst_work);
+		}
+	}
+
+	if (irq_value & BIT(ENT_INT_SRC3_ITC_INT_OFF)) {
+		u32 reg_val = hisi_sas_read32(hisi_hba, ITCT_CLR);
+		u32 dev_id = reg_val & ITCT_DEV_MSK;
+		struct hisi_sas_device *sas_dev =
+				&hisi_hba->devices[dev_id];
+
+		hisi_sas_write32(hisi_hba, ITCT_CLR, 0);
+		dev_dbg(dev, "clear ITCT ok\n");
+		complete(sas_dev->completion);
+	}
+
+	hisi_sas_write32(hisi_hba, ENT_INT_SRC3, irq_value & 0x1df00);
+	hisi_sas_write32(hisi_hba, ENT_INT_SRC_MSK3, irq_msk);
 
 	return IRQ_HANDLED;
 }
@@ -1414,7 +1543,9 @@ slot_complete_v3_hw(struct hisi_hba *hisi_hba, struct hisi_sas_slot *slot)
 	ts->resp = SAS_TASK_COMPLETE;
 	if (unlikely(aborted)) {
 		ts->stat = SAS_ABORTED_TASK;
+		spin_lock_irqsave(&hisi_hba->lock, flags);
 		hisi_sas_slot_task_free(hisi_hba, task, slot);
+		spin_unlock_irqrestore(&hisi_hba->lock, flags);
 		return -1;
 	}
 
@@ -1629,6 +1760,15 @@ static int interrupt_init_v3_hw(struct hisi_hba *hisi_hba)
 		goto free_phy_irq;
 	}
 
+	rc = devm_request_irq(dev, pci_irq_vector(pdev, 11),
+			      fatal_axi_int_v3_hw, 0,
+			      DRV_NAME " fatal", hisi_hba);
+	if (rc) {
+		dev_err(dev, "could not request fatal interrupt, rc=%d\n", rc);
+		rc = -ENOENT;
+		goto free_chnl_interrupt;
+	}
+
 	/* Init tasklets for cq only */
 	for (i = 0; i < hisi_hba->queue_count; i++) {
 		struct hisi_sas_cq *cq = &hisi_hba->cq[i];
@@ -1656,6 +1796,8 @@ free_cq_irqs:
 
 		free_irq(pci_irq_vector(pdev, k+16), cq);
 	}
+	free_irq(pci_irq_vector(pdev, 11), hisi_hba);
+free_chnl_interrupt:
 	free_irq(pci_irq_vector(pdev, 2), hisi_hba);
 free_phy_irq:
 	free_irq(pci_irq_vector(pdev, 1), hisi_hba);
@@ -1749,6 +1891,31 @@ static u32 get_phys_state_v3_hw(struct hisi_hba *hisi_hba)
 	return hisi_sas_read32(hisi_hba, PHY_STATE);
 }
 
+static void phy_get_events_v3_hw(struct hisi_hba *hisi_hba, int phy_no)
+{
+	struct hisi_sas_phy *phy = &hisi_hba->phy[phy_no];
+	struct asd_sas_phy *sas_phy = &phy->sas_phy;
+	struct sas_phy *sphy = sas_phy->phy;
+	u32 reg_value;
+
+	/* loss dword sync */
+	reg_value = hisi_sas_phy_read32(hisi_hba, phy_no, ERR_CNT_DWS_LOST);
+	sphy->loss_of_dword_sync_count += reg_value;
+
+	/* phy reset problem */
+	reg_value = hisi_sas_phy_read32(hisi_hba, phy_no, ERR_CNT_RESET_PROB);
+	sphy->phy_reset_problem_count += reg_value;
+
+	/* invalid dword */
+	reg_value = hisi_sas_phy_read32(hisi_hba, phy_no, ERR_CNT_INVLD_DW);
+	sphy->invalid_dword_count += reg_value;
+
+	/* disparity err */
+	reg_value = hisi_sas_phy_read32(hisi_hba, phy_no, ERR_CNT_DISP_ERR);
+	sphy->running_disparity_error_count += reg_value;
+
+}
+
 static int soft_reset_v3_hw(struct hisi_hba *hisi_hba)
 {
 	struct device *dev = hisi_hba->dev;
@@ -1757,6 +1924,7 @@ static int soft_reset_v3_hw(struct hisi_hba *hisi_hba)
 
 	interrupt_disable_v3_hw(hisi_hba);
 	hisi_sas_write32(hisi_hba, DLVRY_QUEUE_ENABLE, 0x0);
+	hisi_sas_kill_tasklets(hisi_hba);
 
 	hisi_sas_stop_phys(hisi_hba);
 
@@ -1793,7 +1961,7 @@ static const struct hisi_sas_hw hisi_sas_v3_hw = {
 	.start_delivery = start_delivery_v3_hw,
 	.slot_complete = slot_complete_v3_hw,
 	.phys_init = phys_init_v3_hw,
-	.phy_enable = enable_phy_v3_hw,
+	.phy_start = start_phy_v3_hw,
 	.phy_disable = disable_phy_v3_hw,
 	.phy_hard_reset = phy_hard_reset_v3_hw,
 	.phy_get_max_linkrate = phy_get_max_linkrate_v3_hw,
@@ -1801,6 +1969,7 @@ static const struct hisi_sas_hw hisi_sas_v3_hw = {
 	.dereg_device = dereg_device_v3_hw,
 	.soft_reset = soft_reset_v3_hw,
 	.get_phys_state = get_phys_state_v3_hw,
+	.get_events = phy_get_events_v3_hw,
 };
 
 static struct Scsi_Host *
@@ -1817,6 +1986,7 @@ hisi_sas_shost_alloc_pci(struct pci_dev *pdev)
 	}
 	hisi_hba = shost_priv(shost);
 
+	INIT_WORK(&hisi_hba->rst_work, hisi_sas_rst_work_handler);
 	hisi_hba->hw = &hisi_sas_v3_hw;
 	hisi_hba->pci_dev = pdev;
 	hisi_hba->dev = dev;
@@ -1960,11 +2130,11 @@ hisi_sas_v3_destroy_irqs(struct pci_dev *pdev, struct hisi_hba *hisi_hba)
 
 	free_irq(pci_irq_vector(pdev, 1), hisi_hba);
 	free_irq(pci_irq_vector(pdev, 2), hisi_hba);
+	free_irq(pci_irq_vector(pdev, 11), hisi_hba);
 	for (i = 0; i < hisi_hba->queue_count; i++) {
 		struct hisi_sas_cq *cq = &hisi_hba->cq[i];
 
 		free_irq(pci_irq_vector(pdev, i+16), cq);
-		tasklet_kill(&cq->tasklet);
 	}
 	pci_free_irq_vectors(pdev);
 }
@@ -1980,6 +2150,7 @@ static void hisi_sas_v3_remove(struct pci_dev *pdev)
 	sas_remove_host(sha->core.shost);
 
 	hisi_sas_v3_destroy_irqs(pdev, hisi_hba);
+	hisi_sas_kill_tasklets(hisi_hba);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
 	hisi_sas_free(hisi_hba);
