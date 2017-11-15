@@ -932,6 +932,8 @@ void mlx5e_set_rx_cq_mode_params(struct mlx5e_params *params,
 				 u8 cq_period_mode);
 void mlx5e_set_rq_type_params(struct mlx5_core_dev *mdev,
 			      struct mlx5e_params *params, u8 rq_type);
+void mlx5e_set_rq_params(struct mlx5_core_dev *mdev,
+			 struct mlx5e_params *params);
 
 static inline
 struct mlx5e_tx_wqe *mlx5e_post_nop(struct mlx5_wq_cyc *wq, u32 sqn, u16 *pc)
