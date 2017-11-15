@@ -1449,11 +1449,16 @@ static struct stream_encoder *find_first_free_match_stream_enc_for_link(
 
 static struct audio *find_first_free_audio(
 		struct resource_context *res_ctx,
-		const struct resource_pool *pool)
+		const struct resource_pool *pool,
+		enum engine_id id)
 {
 	int i;
 	for (i = 0; i < pool->audio_count; i++) {
 		if ((res_ctx->is_audio_acquired[i] == false) && (res_ctx->is_stream_enc_acquired[i] == true)) {
+			/*we have enough audio endpoint, find the matching inst*/
+			if (id != i)
+				continue;
+
 			return pool->audios[i];
 		}
 	}
@@ -1702,7 +1707,7 @@ enum dc_status resource_map_pool_resources(
 	    dc_is_audio_capable_signal(pipe_ctx->stream->signal) &&
 	    stream->audio_info.mode_count) {
 		pipe_ctx->stream_res.audio = find_first_free_audio(
-		&context->res_ctx, pool);
+		&context->res_ctx, pool, pipe_ctx->stream_res.stream_enc->id);
 
 		/*
 		 * Audio assigned in order first come first get.
