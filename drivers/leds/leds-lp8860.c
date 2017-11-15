@@ -98,7 +98,7 @@
  * @enable_gpio - VDDIO/EN gpio to enable communication interface
  * @regulator - LED supply regulator pointer
  * @label - LED label
-**/
+ */
 struct lp8860_led {
 	struct mutex lock;
 	struct i2c_client *client;
