@@ -186,3 +186,9 @@ Date:		August 2017
 Contact:	"Jaegeuk Kim" <jaegeuk@kernel.org>
 Description:
 		 Controls sleep time of GC urgent mode
+
+What:		/sys/fs/f2fs/<disk>/readdir_ra
+Date:		November 2017
+Contact:	"Sheng Yong" <shengyong1@huawei.com>
+Description:
+		 Controls readahead inode block in readdir.
