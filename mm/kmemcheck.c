@@ -18,7 +18,7 @@ void kmemcheck_alloc_shadow(struct page *page, int order, gfp_t flags, int node)
 	 * With kmemcheck enabled, we need to allocate a memory area for the
 	 * shadow bits as well.
 	 */
-	shadow = alloc_pages_node(node, flags | __GFP_NOTRACK, order);
+	shadow = alloc_pages_node(node, flags, order);
 	if (!shadow) {
 		if (printk_ratelimit())
 			pr_err("kmemcheck: failed to allocate shadow bitmap\n");
