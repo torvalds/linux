@@ -58,6 +58,13 @@
 extern struct list_head adapter_list;
 extern struct mutex uld_mutex;
 
+/* Suspend an Ethernet Tx queue with fewer available descriptors than this.
+ * This is the same as calc_tx_descs() for a TSO packet with
+ * nr_frags == MAX_SKB_FRAGS.
+ */
+#define ETHTXQ_STOP_THRES \
+	(1 + DIV_ROUND_UP((3 * MAX_SKB_FRAGS) / 2 + (MAX_SKB_FRAGS & 1), 8))
+
 enum {
 	MAX_NPORTS	= 4,     /* max # of ports */
 	SERNUM_LEN	= 24,    /* Serial # length */
@@ -564,6 +571,7 @@ enum {                                 /* adapter flags */
 
 enum {
 	ULP_CRYPTO_LOOKASIDE = 1 << 0,
+	ULP_CRYPTO_IPSEC_INLINE = 1 << 1,
 };
 
 struct rx_sw_desc;
@@ -966,6 +974,11 @@ enum {
 
 enum {
 	SCHED_CLASS_RATEMODE_ABS = 1,   /* Kb/s */
+};
+
+struct tx_sw_desc {                /* SW state per Tx descriptor */
+	struct sk_buff *skb;
+	struct ulptx_sgl *sgl;
 };
 
 /* Support for "sched_queue" command to allow one or more NIC TX Queues
@@ -1700,4 +1713,14 @@ void free_rspq_fl(struct adapter *adap, struct sge_rspq *rq, struct sge_fl *fl);
 void free_tx_desc(struct adapter *adap, struct sge_txq *q,
 		  unsigned int n, bool unmap);
 void free_txq(struct adapter *adap, struct sge_txq *q);
+void cxgb4_reclaim_completed_tx(struct adapter *adap,
+				struct sge_txq *q, bool unmap);
+int cxgb4_map_skb(struct device *dev, const struct sk_buff *skb,
+		  dma_addr_t *addr);
+void cxgb4_inline_tx_skb(const struct sk_buff *skb, const struct sge_txq *q,
+			 void *pos);
+void cxgb4_write_sgl(const struct sk_buff *skb, struct sge_txq *q,
+		     struct ulptx_sgl *sgl, u64 *end, unsigned int start,
+		     const dma_addr_t *addr);
+void cxgb4_ring_tx_db(struct adapter *adap, struct sge_txq *q, int n);
 #endif /* __CXGB4_H__ */
