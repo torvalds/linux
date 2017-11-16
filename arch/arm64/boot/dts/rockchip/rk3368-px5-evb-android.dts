@@ -43,6 +43,7 @@
 /dts-v1/;
 #include "rk3368.dtsi"
 #include "rk3368-android.dtsi"
+#include "rk3368-cif-sensor.dtsi"
 #include <dt-bindings/pwm/pwm.h>
 #include <dt-bindings/sensor-dev.h>
 
