@@ -85,9 +85,9 @@ int nfs_wait_bit_killable(struct wait_bit_key *key, int mode)
 }
 EXPORT_SYMBOL_GPL(nfs_wait_bit_killable);
 
-int nfs_wait_atomic_killable(atomic_t *p)
+int nfs_wait_atomic_killable(atomic_t *p, unsigned int mode)
 {
-	return nfs_wait_killable(TASK_KILLABLE);
+	return nfs_wait_killable(mode);
 }
 
 /**

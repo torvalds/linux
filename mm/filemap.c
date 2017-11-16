@@ -1139,6 +1139,7 @@ int wait_on_page_bit_killable(struct page *page, int bit_nr)
 	wait_queue_head_t *q = page_waitqueue(page);
 	return wait_on_page_bit_common(q, page, bit_nr, TASK_KILLABLE, false);
 }
+EXPORT_SYMBOL(wait_on_page_bit_killable);
 
 /**
  * add_page_wait_queue - Add an arbitrary waiter to a page's wait queue
