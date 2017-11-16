@@ -1732,8 +1732,7 @@ static int ci_populate_smc_boot_level(struct pp_hwmgr *hwmgr,
 
 	if (0 != result) {
 		smu_data->smc_state_table.GraphicsBootLevel = 0;
-		pr_err("VBIOS did not find boot engine clock value \
-			in dependency table. Using Graphics DPM level 0!");
+		pr_err("VBIOS did not find boot engine clock value in dependency table. Using Graphics DPM level 0!\n");
 		result = 0;
 	}
 
@@ -1743,8 +1742,7 @@ static int ci_populate_smc_boot_level(struct pp_hwmgr *hwmgr,
 
 	if (0 != result) {
 		smu_data->smc_state_table.MemoryBootLevel = 0;
-		pr_err("VBIOS did not find boot engine clock value \
-			in dependency table. Using Memory DPM level 0!");
+		pr_err("VBIOS did not find boot engine clock value in dependency table. Using Memory DPM level 0!\n");
 		result = 0;
 	}
 

@@ -220,8 +220,7 @@ static void dpcd_set_lt_pattern_and_lane_settings(
 		size_in_bytes);
 
 	dm_logger_write(link->ctx->logger, LOG_HW_LINK_TRAINING,
-		"%s:\n %x VS set = %x  PE set = %x \
-		max VS Reached = %x  max PE Reached = %x\n",
+		"%s:\n %x VS set = %x  PE set = %x max VS Reached = %x  max PE Reached = %x\n",
 		__func__,
 		DP_TRAINING_LANE0_SET,
 		dpcd_lane[0].bits.VOLTAGE_SWING_SET,
@@ -558,8 +557,7 @@ static void dpcd_set_lane_settings(
 	*/
 
 	dm_logger_write(link->ctx->logger, LOG_HW_LINK_TRAINING,
-		"%s\n %x VS set = %x  PE set = %x \
-		max VS Reached = %x  max PE Reached = %x\n",
+		"%s\n %x VS set = %x  PE set = %x max VS Reached = %x  max PE Reached = %x\n",
 		__func__,
 		DP_TRAINING_LANE0_SET,
 		dpcd_lane[0].bits.VOLTAGE_SWING_SET,
@@ -872,9 +870,8 @@ static bool perform_clock_recovery_sequence(
 	if (retry_count >= LINK_TRAINING_MAX_CR_RETRY) {
 		ASSERT(0);
 		dm_logger_write(link->ctx->logger, LOG_ERROR,
-			"%s: Link Training Error, could not \
-			 get CR after %d tries. \
-			Possibly voltage swing issue", __func__,
+			"%s: Link Training Error, could not get CR after %d tries. Possibly voltage swing issue",
+			__func__,
 			LINK_TRAINING_MAX_CR_RETRY);
 
 	}

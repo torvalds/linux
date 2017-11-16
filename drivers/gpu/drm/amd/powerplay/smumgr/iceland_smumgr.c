@@ -911,8 +911,7 @@ static int iceland_populate_single_graphic_level(struct pp_hwmgr *hwmgr,
 		hwmgr->dyn_state.vddc_dependency_on_sclk, engine_clock,
 		&graphic_level->MinVddc);
 	PP_ASSERT_WITH_CODE((0 == result),
-		"can not find VDDC voltage value for VDDC	\
-		engine clock dependency table", return result);
+		"can not find VDDC voltage value for VDDC engine clock dependency table", return result);
 
 	/* SCLK frequency in units of 10KHz*/
 	graphic_level->SclkFrequency = engine_clock;
@@ -1678,8 +1677,7 @@ static int iceland_populate_smc_boot_level(struct pp_hwmgr *hwmgr,
 
 	if (0 != result) {
 		smu_data->smc_state_table.GraphicsBootLevel = 0;
-		pr_err("VBIOS did not find boot engine clock value \
-			in dependency table. Using Graphics DPM level 0!");
+		pr_err("VBIOS did not find boot engine clock value in dependency table. Using Graphics DPM level 0!\n");
 		result = 0;
 	}
 
@@ -1689,8 +1687,7 @@ static int iceland_populate_smc_boot_level(struct pp_hwmgr *hwmgr,
 
 	if (0 != result) {
 		smu_data->smc_state_table.MemoryBootLevel = 0;
-		pr_err("VBIOS did not find boot engine clock value \
-			in dependency table. Using Memory DPM level 0!");
+		pr_err("VBIOS did not find boot engine clock value in dependency table. Using Memory DPM level 0!\n");
 		result = 0;
 	}
 
