@@ -420,18 +420,16 @@ static void __filemap_fdatawait_range(struct address_space *mapping,
 		return;
 
 	pagevec_init(&pvec, 0);
-	while ((index <= end) &&
-			(nr_pages = pagevec_lookup_tag(&pvec, mapping, &index,
-			PAGECACHE_TAG_WRITEBACK,
-			min(end - index, (pgoff_t)PAGEVEC_SIZE-1) + 1)) != 0) {
+	while (index <= end) {
 		unsigned i;
+
+		nr_pages = pagevec_lookup_range_tag(&pvec, mapping, &index,
+				end, PAGECACHE_TAG_WRITEBACK, PAGEVEC_SIZE);
+		if (!nr_pages)
+			break;
 
 		for (i = 0; i < nr_pages; i++) {
 			struct page *page = pvec.pages[i];
-
-			/* until radix tree lookup accepts end_index */
-			if (page->index > end)
-				continue;
 
 			wait_on_page_writeback(page);
 			ClearPageError(page);
