@@ -78,12 +78,6 @@
 
 #define SLAB_NOLEAKTRACE	0x00800000UL	/* Avoid kmemleak tracing */
 
-/* Don't track use of uninitialized memory */
-#ifdef CONFIG_KMEMCHECK
-# define SLAB_NOTRACK		0x01000000UL
-#else
-# define SLAB_NOTRACK		0x00000000UL
-#endif
 #ifdef CONFIG_FAILSLAB
 # define SLAB_FAILSLAB		0x02000000UL	/* Fault injection mark */
 #else
