@@ -29,8 +29,6 @@ obj-$(CONFIG_X86_PTDUMP)	+= debug_pagetables.o
 
 obj-$(CONFIG_HIGHMEM)		+= highmem_32.o
 
-obj-$(CONFIG_KMEMCHECK)		+= kmemcheck/
-
 KASAN_SANITIZE_kasan_init_$(BITS).o := n
 obj-$(CONFIG_KASAN)		+= kasan_init_$(BITS).o
 
