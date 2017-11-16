@@ -22,7 +22,6 @@
 #include <linux/of_gpio.h>
 #include <linux/clk.h>
 #include <linux/io.h>
-#include <linux/rockchip/iomap.h>
 #include <linux/rockchip/grf.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
@@ -2102,7 +2101,7 @@ static void hpdet_work_func(struct work_struct *work)
 {
 	unsigned int val = 0;
 
-	val = readl_relaxed(RK_GRF_VIRT + GRF_SOC_STATUS0);
+	regmap_read(rk312x_priv->grf, GRF_SOC_STATUS0, &val);
 	DBG("%s GRF_SOC_STATUS0 -- 0x%x\n", __func__, val);
 	if (val & 0x80000000) {
 		DBG("%s hp det high\n", __func__);
