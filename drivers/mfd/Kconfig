@@ -510,6 +510,19 @@ config INTEL_SOC_PMIC_CHTWC
 	  available before any devices using it are probed. This option also
 	  causes the designware-i2c driver to be builtin for the same reason.
 
+config INTEL_SOC_PMIC_CHTDC_TI
+	tristate "Support for Intel Cherry Trail Dollar Cove TI PMIC"
+	depends on GPIOLIB
+	depends on I2C
+	depends on ACPI
+	depends on X86
+	select MFD_CORE
+	select REGMAP_I2C
+	select REGMAP_IRQ
+	help
+	  Select this option for supporting Dollar Cove (TI version) PMIC
+	  device that is found on some Intel Cherry Trail systems.
+
 config MFD_INTEL_LPSS
 	tristate
 	select COMMON_CLK
@@ -1057,6 +1070,22 @@ config MFD_SMSC
         To compile this driver as a module, choose M here: the
         module will be called smsc.
 
+config MFD_SC27XX_PMIC
+	tristate "Spreadtrum SC27xx PMICs"
+	depends on ARCH_SPRD || COMPILE_TEST
+	depends on SPI_MASTER
+	select MFD_CORE
+	select REGMAP_SPI
+	select REGMAP_IRQ
+	help
+	  This enables support for the Spreadtrum SC27xx PMICs with SPI
+	  interface. The SC27xx series PMICs integrate power management,
+	  audio codec, battery management and user interface support
+	  function (such as RTC, Typec, indicator and so on) in a single chip.
+
+	  This driver provides common support for accessing the SC27xx PMICs,
+	  and it also adds the irq_chip parts for handling the PMIC chip events.
+
 config ABX500_CORE
 	bool "ST-Ericsson ABX500 Mixed Signal Circuit register functions"
 	default y if ARCH_U300 || ARCH_U8500 || COMPILE_TEST
@@ -1338,7 +1367,7 @@ config MFD_TPS65090
 
 config MFD_TPS65217
 	tristate "TI TPS65217 Power Management / White LED chips"
-	depends on I2C
+	depends on I2C && OF
 	select MFD_CORE
 	select REGMAP_I2C
 	select IRQ_DOMAIN
@@ -1400,7 +1429,7 @@ config MFD_TI_LP87565
 
 config MFD_TPS65218
 	tristate "TI TPS65218 Power Management chips"
-	depends on I2C
+	depends on I2C && OF
 	select MFD_CORE
 	select REGMAP_I2C
 	select REGMAP_IRQ
@@ -1408,8 +1437,7 @@ config MFD_TPS65218
 	  If you say yes here you get support for the TPS65218 series of
 	  Power Management chips.
 	  These include voltage regulators, gpio and other features
-	  that are often used in portable devices. Only regulator
-	  component is currently supported.
+	  that are often used in portable devices.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called tps65218.

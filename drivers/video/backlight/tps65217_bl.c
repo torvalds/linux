@@ -275,17 +275,9 @@ static int tps65217_bl_probe(struct platform_device *pdev)
 	struct tps65217_bl_pdata *pdata;
 	struct backlight_properties bl_props;
 
-	if (tps->dev->of_node) {
-		pdata = tps65217_bl_parse_dt(pdev);
-		if (IS_ERR(pdata))
-			return PTR_ERR(pdata);
-	} else {
-		pdata = dev_get_platdata(&pdev->dev);
-		if (!pdata) {
-			dev_err(&pdev->dev, "no platform data provided\n");
-			return -EINVAL;
-		}
-	}
+	pdata = tps65217_bl_parse_dt(pdev);
+	if (IS_ERR(pdata))
+		return PTR_ERR(pdata);
 
 	tps65217_bl = devm_kzalloc(&pdev->dev, sizeof(*tps65217_bl),
 				GFP_KERNEL);
