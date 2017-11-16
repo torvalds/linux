@@ -67,6 +67,7 @@ struct intel_guc_client {
 	u16 doorbell_id;
 	unsigned long doorbell_offset;
 
+	/* Protects GuC client's WQ access */
 	spinlock_t wq_lock;
 	/* Per-engine counts of GuC submissions */
 	u64 submissions[I915_NUM_ENGINES];

@@ -350,10 +350,10 @@ GuC-specific firmware loader
 GuC-based command submission
 ----------------------------
 
-.. kernel-doc:: drivers/gpu/drm/i915/i915_guc_submission.c
+.. kernel-doc:: drivers/gpu/drm/i915/intel_guc_submission.c
    :doc: GuC-based command submission
 
-.. kernel-doc:: drivers/gpu/drm/i915/i915_guc_submission.c
+.. kernel-doc:: drivers/gpu/drm/i915/intel_guc_submission.c
    :internal:
 
 GuC Firmware Layout

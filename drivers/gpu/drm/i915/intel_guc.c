@@ -23,8 +23,8 @@
  */
 
 #include "intel_guc.h"
+#include "intel_guc_submission.h"
 #include "i915_drv.h"
-#include "i915_guc_submission.h"
 
 static void gen8_guc_raise_irq(struct intel_guc *guc)
 {
