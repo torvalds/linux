@@ -146,10 +146,8 @@ void mpc1_remove_mpcc(
 	struct mpc_tree *tree,
 	struct mpcc *mpcc);
 
-void mpc1_reset_mpcc(
-	struct mpc *mpc,
-	int mpcc_id);
-
+void mpc1_mpc_init(
+	struct mpc *mpc);
 
 void mpc1_assert_idle_mpcc(
 	struct mpc *mpc,

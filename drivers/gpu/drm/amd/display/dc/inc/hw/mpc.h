@@ -151,13 +151,10 @@ struct mpc_funcs {
 	 *
 	 * Parameters:
 	 * [in/out] mpc		- MPC context.
-	 * [in]     mpcc_id	- The MPCC physical instance to reset.
 	 *
 	 * Return:  void
 	 */
-	void (*reset_mpcc)(
-		struct mpc *mpc,
-		int mpcc_id);
+	void (*mpc_init)(struct mpc *mpc);
 
 	/*
 	 * Update the blending configuration for a specified MPCC.
@@ -185,8 +182,6 @@ struct mpc_funcs {
 	void (*init_mpcc_list_from_hw)(
 		struct mpc *mpc,
 		struct mpc_tree *tree);
-
-	int (*get_opp_id)(struct mpc *mpc, int mpcc_id);
 
 };
 

@@ -101,16 +101,6 @@ void mpc1_assert_idle_mpcc(struct mpc *mpc, int id)
 			1, 100000);
 }
 
-static int mpc1_get_opp_id(struct mpc *mpc, int mpcc_id)
-{
-	struct dcn10_mpc *mpc10 = TO_DCN10_MPC(mpc);
-	unsigned int opp_id = 0xF;
-
-	REG_GET(MPCC_OPP_ID[mpcc_id], MPCC_OPP_ID, &opp_id);
-
-	return opp_id;
-}
-
 struct mpcc *mpc1_get_mpcc(struct mpc *mpc, int mpcc_id)
 {
 	struct dcn10_mpc *mpc10 = TO_DCN10_MPC(mpc);
@@ -333,24 +323,44 @@ void mpc1_remove_mpcc(
 	}
 }
 
+static void mpc1_init_mpcc(struct mpcc *mpcc, int mpcc_inst)
+{
+	mpcc->mpcc_id = mpcc_inst;
+	mpcc->dpp_id = 0xf;
+	mpcc->mpcc_bot = NULL;
+	mpcc->blnd_cfg.overlap_only = false;
+	mpcc->blnd_cfg.global_alpha = 0xff;
+	mpcc->blnd_cfg.global_gain = 0xff;
+	mpcc->sm_cfg.enable = false;
+}
+
 /*
  * Reset the MPCC HW status by disconnecting all muxes.
  *
  * Parameters:
  * [in/out] mpc		- MPC context.
- * [in]     mpcc_id	- The MPCC physical instance to reset.
  *
  * Return:  void
  */
-void mpc1_reset_mpcc(
-	struct mpc *mpc,
-	int mpcc_id)
+void mpc1_mpc_init(struct mpc *mpc)
 {
 	struct dcn10_mpc *mpc10 = TO_DCN10_MPC(mpc);
+	int mpcc_id;
+	int opp_id;
 
-	REG_SET(MPCC_TOP_SEL[mpcc_id], 0, MPCC_TOP_SEL, 0xf);
-	REG_SET(MPCC_BOT_SEL[mpcc_id], 0, MPCC_BOT_SEL, 0xf);
-	REG_SET(MPCC_OPP_ID[mpcc_id],  0, MPCC_OPP_ID,  0xf);
+	mpc10->mpcc_in_use_mask = 0;
+	for (mpcc_id = 0; mpcc_id < mpc10->num_mpcc; mpcc_id++) {
+		REG_SET(MPCC_TOP_SEL[mpcc_id], 0, MPCC_TOP_SEL, 0xf);
+		REG_SET(MPCC_BOT_SEL[mpcc_id], 0, MPCC_BOT_SEL, 0xf);
+		REG_SET(MPCC_OPP_ID[mpcc_id],  0, MPCC_OPP_ID,  0xf);
+
+		mpc1_init_mpcc(&(mpc->mpcc_array[mpcc_id]), mpcc_id);
+	}
+
+	for (opp_id = 0; opp_id < MAX_OPP; opp_id++) {
+		if (REG(MUX[opp_id]))
+			REG_SET(MUX[opp_id], 0, MPC_OUT_MUX, 0xf);
+	}
 }
 
 void mpc1_init_mpcc_list_from_hw(
@@ -399,27 +409,15 @@ void mpc1_init_mpcc_list_from_hw(
 	}
 }
 
-static void mpc1_init_mpcc(struct mpcc *mpcc, int mpcc_inst)
-{
-	mpcc->mpcc_id = mpcc_inst;
-	mpcc->dpp_id = 0xf;
-	mpcc->mpcc_bot = NULL;
-	mpcc->blnd_cfg.overlap_only = false;
-	mpcc->blnd_cfg.global_alpha = 0xff;
-	mpcc->blnd_cfg.global_gain = 0xff;
-	mpcc->sm_cfg.enable = false;
-}
-
 const struct mpc_funcs dcn10_mpc_funcs = {
 	.insert_plane = mpc1_insert_plane,
 	.remove_mpcc = mpc1_remove_mpcc,
-	.reset_mpcc = mpc1_reset_mpcc,
+	.mpc_init = mpc1_mpc_init,
 	.get_mpcc_for_dpp = mpc1_get_mpcc_for_dpp,
 	.wait_for_idle = mpc1_assert_idle_mpcc,
 	.assert_mpcc_idle_before_connect = mpc1_assert_mpcc_idle_before_connect,
 	.init_mpcc_list_from_hw = mpc1_init_mpcc_list_from_hw,
 	.update_blending = mpc1_update_blending,
-	.get_opp_id = mpc1_get_opp_id,
 };
 
 void dcn10_mpc_construct(struct dcn10_mpc *mpc10,

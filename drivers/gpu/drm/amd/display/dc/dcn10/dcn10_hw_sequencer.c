@@ -702,7 +702,7 @@ static void dcn10_disable_plane(struct dc *dc, struct pipe_ctx *pipe_ctx)
 
 static void dcn10_init_hw(struct dc *dc)
 {
-	int i, opp_id;
+	int i;
 	struct abm *abm = dc->res_pool->abm;
 	struct dmcu *dmcu = dc->res_pool->dmcu;
 	struct dce_hwseq *hws = dc->hwseq;
@@ -765,13 +765,8 @@ static void dcn10_init_hw(struct dc *dc)
 		}
 	}
 
-	/* Initialize MPC tree based on HW values */
-	for (opp_id = 0; opp_id < dc->res_pool->pipe_count; opp_id++) {
-		struct output_pixel_processor *opp = dc->res_pool->opps[opp_id];
-		struct mpc_tree *mpc_tree_params = &(opp->mpc_tree_params);
-
-		dc->res_pool->mpc->funcs->init_mpcc_list_from_hw(dc->res_pool->mpc, mpc_tree_params);
-	}
+	/* Reset all MPCC muxes */
+	dc->res_pool->mpc->funcs->mpc_init(dc->res_pool->mpc);
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct timing_generator *tg = dc->res_pool->timing_generators[i];
@@ -783,7 +778,7 @@ static void dcn10_init_hw(struct dc *dc)
 
 		pipe_ctx->plane_res.hubp = hubp;
 		hubp->mpcc_id = i;
-		hubp->opp_id = dc->res_pool->mpc->funcs->get_opp_id(dc->res_pool->mpc, i);
+		hubp->opp_id = 0xf;
 		hubp->power_gated = false;
 
 		if (hubp->opp_id != 0xf)
