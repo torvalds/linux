@@ -466,7 +466,7 @@ static irqreturn_t mlx5_eq_int(int irq, void *eq_ptr)
 			break;
 		case MLX5_EVENT_TYPE_CQ_ERROR:
 			cqn = be32_to_cpu(eqe->data.cq_err.cqn) & 0xffffff;
-			mlx5_core_warn(dev, "CQ error on CQN 0x%x, syndrom 0x%x\n",
+			mlx5_core_warn(dev, "CQ error on CQN 0x%x, syndrome 0x%x\n",
 				       cqn, eqe->data.cq_err.syndrome);
 			mlx5_cq_event(dev, cqn, eqe->type);
 			break;
