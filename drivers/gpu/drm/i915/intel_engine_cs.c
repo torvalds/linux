@@ -1585,7 +1585,7 @@ void intel_engines_park(struct drm_i915_private *i915)
 	for_each_engine(engine, i915, id) {
 		/* Flush the residual irq tasklets first. */
 		intel_engine_disarm_breadcrumbs(engine);
-		tasklet_kill(&engine->execlists.irq_tasklet);
+		tasklet_kill(&engine->execlists.tasklet);
 
 		/*
 		 * We are committed now to parking the engines, make sure there

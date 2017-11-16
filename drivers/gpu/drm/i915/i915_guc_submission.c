@@ -650,7 +650,7 @@ static void inject_preempt_context(struct work_struct *work)
 	if (WARN_ON(intel_guc_send(guc, data, ARRAY_SIZE(data)))) {
 		execlists_clear_active(&engine->execlists,
 				       EXECLISTS_ACTIVE_PREEMPT);
-		tasklet_schedule(&engine->execlists.irq_tasklet);
+		tasklet_schedule(&engine->execlists.tasklet);
 	}
 }
 
@@ -799,7 +799,7 @@ unlock:
 	spin_unlock_irq(&engine->timeline->lock);
 }
 
-static void i915_guc_irq_handler(unsigned long data)
+static void guc_submission_tasklet(unsigned long data)
 {
 	struct intel_engine_cs * const engine = (struct intel_engine_cs *)data;
 	struct intel_engine_execlists * const execlists = &engine->execlists;
@@ -1439,7 +1439,7 @@ int i915_guc_submission_enable(struct drm_i915_private *dev_priv)
 
 	for_each_engine(engine, dev_priv, id) {
 		struct intel_engine_execlists * const execlists = &engine->execlists;
-		execlists->irq_tasklet.func = i915_guc_irq_handler;
+		execlists->tasklet.func = guc_submission_tasklet;
 		engine->park = i915_guc_submission_park;
 		engine->unpark = i915_guc_submission_unpark;
 	}

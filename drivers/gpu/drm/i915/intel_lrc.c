@@ -781,7 +781,7 @@ static void execlists_cancel_requests(struct intel_engine_cs *engine)
  * Check the unread Context Status Buffers and manage the submission of new
  * contexts to the ELSP accordingly.
  */
-static void intel_lrc_irq_handler(unsigned long data)
+static void execlists_submission_tasklet(unsigned long data)
 {
 	struct intel_engine_cs * const engine = (struct intel_engine_cs *)data;
 	struct intel_engine_execlists * const execlists = &engine->execlists;
@@ -947,7 +947,7 @@ static void insert_request(struct intel_engine_cs *engine,
 
 	list_add_tail(&pt->link, &ptr_mask_bits(p, 1)->requests);
 	if (ptr_unmask_bits(p, 1))
-		tasklet_hi_schedule(&engine->execlists.irq_tasklet);
+		tasklet_hi_schedule(&engine->execlists.tasklet);
 }
 
 static void execlists_submit_request(struct drm_i915_gem_request *request)
@@ -1503,7 +1503,7 @@ static int gen8_init_common_ring(struct intel_engine_cs *engine)
 
 	/* After a GPU reset, we may have requests to replay */
 	if (execlists->first)
-		tasklet_schedule(&execlists->irq_tasklet);
+		tasklet_schedule(&execlists->tasklet);
 
 	return 0;
 }
@@ -1881,8 +1881,9 @@ void intel_logical_ring_cleanup(struct intel_engine_cs *engine)
 	 * Tasklet cannot be active at this point due intel_mark_active/idle
 	 * so this is just for documentation.
 	 */
-	if (WARN_ON(test_bit(TASKLET_STATE_SCHED, &engine->execlists.irq_tasklet.state)))
-		tasklet_kill(&engine->execlists.irq_tasklet);
+	if (WARN_ON(test_bit(TASKLET_STATE_SCHED,
+			     &engine->execlists.tasklet.state)))
+		tasklet_kill(&engine->execlists.tasklet);
 
 	dev_priv = engine->i915;
 
@@ -1906,7 +1907,7 @@ static void execlists_set_default_submission(struct intel_engine_cs *engine)
 	engine->submit_request = execlists_submit_request;
 	engine->cancel_requests = execlists_cancel_requests;
 	engine->schedule = execlists_schedule;
-	engine->execlists.irq_tasklet.func = intel_lrc_irq_handler;
+	engine->execlists.tasklet.func = execlists_submission_tasklet;
 
 	engine->park = NULL;
 	engine->unpark = NULL;
@@ -1968,8 +1969,8 @@ logical_ring_setup(struct intel_engine_cs *engine)
 
 	engine->execlists.fw_domains = fw_domains;
 
-	tasklet_init(&engine->execlists.irq_tasklet,
-		     intel_lrc_irq_handler, (unsigned long)engine);
+	tasklet_init(&engine->execlists.tasklet,
+		     execlists_submission_tasklet, (unsigned long)engine);
 
 	logical_ring_default_vfuncs(engine);
 	logical_ring_default_irqs(engine);

@@ -193,9 +193,9 @@ struct i915_priolist {
  */
 struct intel_engine_execlists {
 	/**
-	 * @irq_tasklet: softirq tasklet for bottom handler
+	 * @tasklet: softirq tasklet for bottom handler
 	 */
-	struct tasklet_struct irq_tasklet;
+	struct tasklet_struct tasklet;
 
 	/**
 	 * @default_priolist: priority list for I915_PRIORITY_NORMAL

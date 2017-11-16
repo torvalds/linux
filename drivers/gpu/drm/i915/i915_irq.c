@@ -1404,7 +1404,7 @@ gen8_cs_irq_handler(struct intel_engine_cs *engine, u32 iir, int test_shift)
 	}
 
 	if (tasklet)
-		tasklet_hi_schedule(&execlists->irq_tasklet);
+		tasklet_hi_schedule(&execlists->tasklet);
 }
 
 static irqreturn_t gen8_gt_irq_ack(struct drm_i915_private *dev_priv,
