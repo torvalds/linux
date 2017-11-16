@@ -141,10 +141,10 @@ static inline slab_flags_t kmem_cache_flags(unsigned long object_size,
 #if defined(CONFIG_SLAB)
 #define SLAB_CACHE_FLAGS (SLAB_MEM_SPREAD | SLAB_NOLEAKTRACE | \
 			  SLAB_RECLAIM_ACCOUNT | SLAB_TEMPORARY | \
-			  SLAB_NOTRACK | SLAB_ACCOUNT)
+			  SLAB_ACCOUNT)
 #elif defined(CONFIG_SLUB)
 #define SLAB_CACHE_FLAGS (SLAB_NOLEAKTRACE | SLAB_RECLAIM_ACCOUNT | \
-			  SLAB_TEMPORARY | SLAB_NOTRACK | SLAB_ACCOUNT)
+			  SLAB_TEMPORARY | SLAB_ACCOUNT)
 #else
 #define SLAB_CACHE_FLAGS (0)
 #endif
@@ -163,7 +163,6 @@ static inline slab_flags_t kmem_cache_flags(unsigned long object_size,
 			      SLAB_NOLEAKTRACE | \
 			      SLAB_RECLAIM_ACCOUNT | \
 			      SLAB_TEMPORARY | \
-			      SLAB_NOTRACK | \
 			      SLAB_ACCOUNT)
 
 int __kmem_cache_shutdown(struct kmem_cache *);

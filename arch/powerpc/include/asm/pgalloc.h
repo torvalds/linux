@@ -18,7 +18,7 @@ static inline gfp_t pgtable_gfp_flags(struct mm_struct *mm, gfp_t gfp)
 }
 #endif /* MODULE */
 
-#define PGALLOC_GFP (GFP_KERNEL | __GFP_NOTRACK | __GFP_ZERO)
+#define PGALLOC_GFP (GFP_KERNEL | __GFP_ZERO)
 
 #ifdef CONFIG_PPC_BOOK3S
 #include <asm/book3s/pgalloc.h>
