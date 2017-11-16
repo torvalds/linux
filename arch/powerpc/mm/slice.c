@@ -96,7 +96,7 @@ static int slice_area_is_free(struct mm_struct *mm, unsigned long addr,
 {
 	struct vm_area_struct *vma;
 
-	if ((mm->task_size - len) < addr)
+	if ((mm->context.slb_addr_limit - len) < addr)
 		return 0;
 	vma = find_vma(mm, addr);
 	return (!vma || (addr + len) <= vm_start_gap(vma));
@@ -133,10 +133,10 @@ static void slice_mask_for_free(struct mm_struct *mm, struct slice_mask *ret)
 		if (!slice_low_has_vma(mm, i))
 			ret->low_slices |= 1u << i;
 
-	if (mm->task_size <= SLICE_LOW_TOP)
+	if (mm->context.slb_addr_limit <= SLICE_LOW_TOP)
 		return;
 
-	for (i = 0; i < GET_HIGH_SLICE_INDEX(mm->context.addr_limit); i++)
+	for (i = 0; i < GET_HIGH_SLICE_INDEX(mm->context.slb_addr_limit); i++)
 		if (!slice_high_has_vma(mm, i))
 			__set_bit(i, ret->high_slices);
 }
@@ -157,7 +157,7 @@ static void slice_mask_for_size(struct mm_struct *mm, int psize, struct slice_ma
 			ret->low_slices |= 1u << i;
 
 	hpsizes = mm->context.high_slices_psize;
-	for (i = 0; i < GET_HIGH_SLICE_INDEX(mm->context.addr_limit); i++) {
+	for (i = 0; i < GET_HIGH_SLICE_INDEX(mm->context.slb_addr_limit); i++) {
 		mask_index = i & 0x1;
 		index = i >> 1;
 		if (((hpsizes[index] >> (mask_index * 4)) & 0xf) == psize)
@@ -169,7 +169,7 @@ static int slice_check_fit(struct mm_struct *mm,
 			   struct slice_mask mask, struct slice_mask available)
 {
 	DECLARE_BITMAP(result, SLICE_NUM_HIGH);
-	unsigned long slice_count = GET_HIGH_SLICE_INDEX(mm->context.addr_limit);
+	unsigned long slice_count = GET_HIGH_SLICE_INDEX(mm->context.slb_addr_limit);
 
 	bitmap_and(result, mask.high_slices,
 		   available.high_slices, slice_count);
@@ -219,7 +219,7 @@ static void slice_convert(struct mm_struct *mm, struct slice_mask mask, int psiz
 	mm->context.low_slices_psize = lpsizes;
 
 	hpsizes = mm->context.high_slices_psize;
-	for (i = 0; i < GET_HIGH_SLICE_INDEX(mm->context.addr_limit); i++) {
+	for (i = 0; i < GET_HIGH_SLICE_INDEX(mm->context.slb_addr_limit); i++) {
 		mask_index = i & 0x1;
 		index = i >> 1;
 		if (test_bit(i, mask.high_slices))
@@ -329,8 +329,8 @@ static unsigned long slice_find_area_topdown(struct mm_struct *mm,
 	 * Only for that request for which high_limit is above
 	 * DEFAULT_MAP_WINDOW we should apply this.
 	 */
-	if (high_limit  > DEFAULT_MAP_WINDOW)
-		addr += mm->context.addr_limit - DEFAULT_MAP_WINDOW;
+	if (high_limit > DEFAULT_MAP_WINDOW)
+		addr += mm->context.slb_addr_limit - DEFAULT_MAP_WINDOW;
 
 	while (addr > PAGE_SIZE) {
 		info.high_limit = addr;
@@ -412,25 +412,31 @@ unsigned long slice_get_unmapped_area(unsigned long addr, unsigned long len,
 	struct slice_mask compat_mask;
 	int fixed = (flags & MAP_FIXED);
 	int pshift = max_t(int, mmu_psize_defs[psize].shift, PAGE_SHIFT);
+	unsigned long page_size = 1UL << pshift;
 	struct mm_struct *mm = current->mm;
 	unsigned long newaddr;
 	unsigned long high_limit;
 
-	/*
-	 * Check if we need to expland slice area.
-	 */
-	if (unlikely(addr > mm->context.addr_limit &&
-		     mm->context.addr_limit != TASK_SIZE)) {
-		mm->context.addr_limit = TASK_SIZE;
+	high_limit = DEFAULT_MAP_WINDOW;
+	if (addr >= high_limit || (fixed && (addr + len > high_limit)))
+		high_limit = TASK_SIZE;
+
+	if (len > high_limit)
+		return -ENOMEM;
+	if (len & (page_size - 1))
+		return -EINVAL;
+	if (fixed) {
+		if (addr & (page_size - 1))
+			return -EINVAL;
+		if (addr > high_limit - len)
+			return -ENOMEM;
+	}
+
+	if (high_limit > mm->context.slb_addr_limit) {
+		mm->context.slb_addr_limit = high_limit;
 		on_each_cpu(slice_flush_segments, mm, 1);
 	}
-	/*
-	 * This mmap request can allocate upt to 512TB
-	 */
-	if (addr > DEFAULT_MAP_WINDOW)
-		high_limit = mm->context.addr_limit;
-	else
-		high_limit = DEFAULT_MAP_WINDOW;
+
 	/*
 	 * init different masks
 	 */
@@ -446,27 +452,19 @@ unsigned long slice_get_unmapped_area(unsigned long addr, unsigned long len,
 
 	/* Sanity checks */
 	BUG_ON(mm->task_size == 0);
+	BUG_ON(mm->context.slb_addr_limit == 0);
 	VM_BUG_ON(radix_enabled());
 
 	slice_dbg("slice_get_unmapped_area(mm=%p, psize=%d...\n", mm, psize);
 	slice_dbg(" addr=%lx, len=%lx, flags=%lx, topdown=%d\n",
 		  addr, len, flags, topdown);
 
-	if (len > mm->task_size)
-		return -ENOMEM;
-	if (len & ((1ul << pshift) - 1))
-		return -EINVAL;
-	if (fixed && (addr & ((1ul << pshift) - 1)))
-		return -EINVAL;
-	if (fixed && addr > (mm->task_size - len))
-		return -ENOMEM;
-
 	/* If hint, make sure it matches our alignment restrictions */
 	if (!fixed && addr) {
-		addr = _ALIGN_UP(addr, 1ul << pshift);
+		addr = _ALIGN_UP(addr, page_size);
 		slice_dbg(" aligned addr=%lx\n", addr);
 		/* Ignore hint if it's too large or overlaps a VMA */
-		if (addr > mm->task_size - len ||
+		if (addr > high_limit - len ||
 		    !slice_area_is_free(mm, addr, len))
 			addr = 0;
 	}

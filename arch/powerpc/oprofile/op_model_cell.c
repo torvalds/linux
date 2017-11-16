@@ -555,9 +555,7 @@ static void cell_virtual_cntr(unsigned long data)
 
 static void start_virt_cntrs(void)
 {
-	init_timer(&timer_virt_cntr);
-	timer_virt_cntr.function = cell_virtual_cntr;
-	timer_virt_cntr.data = 0UL;
+	setup_timer(&timer_virt_cntr, cell_virtual_cntr, 0UL);
 	timer_virt_cntr.expires = jiffies + HZ / 10;
 	add_timer(&timer_virt_cntr);
 }
@@ -679,9 +677,7 @@ static void spu_evnt_swap(unsigned long data)
 
 static void start_spu_event_swap(void)
 {
-	init_timer(&timer_spu_event_swap);
-	timer_spu_event_swap.function = spu_evnt_swap;
-	timer_spu_event_swap.data = 0UL;
+	setup_timer(&timer_spu_event_swap, spu_evnt_swap, 0UL);
 	timer_spu_event_swap.expires = jiffies + HZ / 25;
 	add_timer(&timer_spu_event_swap);
 }

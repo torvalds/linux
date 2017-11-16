@@ -47,6 +47,7 @@
 
 #include <asm/reg.h>
 #include <asm/ppc-opcode.h>
+#include <asm/asm-prototypes.h>
 #include <asm/disassemble.h>
 #include <asm/cputable.h>
 #include <asm/cacheflush.h>
@@ -1089,9 +1090,10 @@ static int kvmppc_handle_exit_hv(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		vcpu->stat.ext_intr_exits++;
 		r = RESUME_GUEST;
 		break;
-	/* HMI is hypervisor interrupt and host has handled it. Resume guest.*/
+	/* SR/HMI/PMI are HV interrupts that host has handled. Resume guest.*/
 	case BOOK3S_INTERRUPT_HMI:
 	case BOOK3S_INTERRUPT_PERFMON:
+	case BOOK3S_INTERRUPT_SYSTEM_RESET:
 		r = RESUME_GUEST;
 		break;
 	case BOOK3S_INTERRUPT_MACHINE_CHECK:
@@ -2117,15 +2119,6 @@ static int kvmppc_grab_hwthread(int cpu)
 	struct paca_struct *tpaca;
 	long timeout = 10000;
 
-	/*
-	 * ISA v3.0 idle routines do not set hwthread_state or test
-	 * hwthread_req, so they can not grab idle threads.
-	 */
-	if (cpu_has_feature(CPU_FTR_ARCH_300)) {
-		WARN(1, "KVM: can not control sibling threads\n");
-		return -EBUSY;
-	}
-
 	tpaca = &paca[cpu];
 
 	/* Ensure the thread won't go into the kernel if it wakes */
@@ -2160,12 +2153,10 @@ static void kvmppc_release_hwthread(int cpu)
 	struct paca_struct *tpaca;
 
 	tpaca = &paca[cpu];
+	tpaca->kvm_hstate.hwthread_req = 0;
 	tpaca->kvm_hstate.kvm_vcpu = NULL;
 	tpaca->kvm_hstate.kvm_vcore = NULL;
 	tpaca->kvm_hstate.kvm_split_mode = NULL;
-	if (!cpu_has_feature(CPU_FTR_ARCH_300))
-		tpaca->kvm_hstate.hwthread_req = 0;
-
 }
 
 static void radix_flush_cpu(struct kvm *kvm, int cpu, struct kvm_vcpu *vcpu)
@@ -2614,6 +2605,9 @@ static void set_irq_happened(int trap)
 		break;
 	case BOOK3S_INTERRUPT_HMI:
 		local_paca->irq_happened |= PACA_IRQ_HMI;
+		break;
+	case BOOK3S_INTERRUPT_SYSTEM_RESET:
+		replay_system_reset();
 		break;
 	}
 }
