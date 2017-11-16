@@ -254,6 +254,23 @@ void __delete_from_page_cache(struct page *page, void *shadow)
 		account_page_cleaned(page, mapping, inode_to_wb(mapping->host));
 }
 
+static void page_cache_free_page(struct address_space *mapping,
+				struct page *page)
+{
+	void (*freepage)(struct page *);
+
+	freepage = mapping->a_ops->freepage;
+	if (freepage)
+		freepage(page);
+
+	if (PageTransHuge(page) && !PageHuge(page)) {
+		page_ref_sub(page, HPAGE_PMD_NR);
+		VM_BUG_ON_PAGE(page_count(page) <= 0, page);
+	} else {
+		put_page(page);
+	}
+}
+
 /**
  * delete_from_page_cache - delete page from page cache
  * @page: the page which the kernel is trying to remove from page cache
@@ -266,25 +283,13 @@ void delete_from_page_cache(struct page *page)
 {
 	struct address_space *mapping = page_mapping(page);
 	unsigned long flags;
-	void (*freepage)(struct page *);
 
 	BUG_ON(!PageLocked(page));
-
-	freepage = mapping->a_ops->freepage;
-
 	spin_lock_irqsave(&mapping->tree_lock, flags);
 	__delete_from_page_cache(page, NULL);
 	spin_unlock_irqrestore(&mapping->tree_lock, flags);
 
-	if (freepage)
-		freepage(page);
-
-	if (PageTransHuge(page) && !PageHuge(page)) {
-		page_ref_sub(page, HPAGE_PMD_NR);
-		VM_BUG_ON_PAGE(page_count(page) <= 0, page);
-	} else {
-		put_page(page);
-	}
+	page_cache_free_page(mapping, page);
 }
 EXPORT_SYMBOL(delete_from_page_cache);
 
