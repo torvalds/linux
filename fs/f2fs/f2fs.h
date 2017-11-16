@@ -1165,6 +1165,8 @@ struct f2fs_sb_info {
 	block_t reserved_blocks;		/* configurable reserved blocks */
 	block_t current_reserved_blocks;	/* current reserved blocks */
 
+	unsigned int nquota_files;		/* # of quota sysfile */
+
 	u32 s_next_generation;			/* for NFS support */
 
 	/* # of pages, see count_type */
