@@ -137,17 +137,26 @@ static int new_mmio_info(struct intel_gvt *gvt,
 	return 0;
 }
 
-static int render_mmio_to_ring_id(struct intel_gvt *gvt, unsigned int reg)
+/**
+ * intel_gvt_render_mmio_to_ring_id - convert a mmio offset into ring id
+ * @gvt: a GVT device
+ * @offset: register offset
+ *
+ * Returns:
+ * Ring ID on success, negative error code if failed.
+ */
+int intel_gvt_render_mmio_to_ring_id(struct intel_gvt *gvt,
+		unsigned int offset)
 {
 	enum intel_engine_id id;
 	struct intel_engine_cs *engine;
 
-	reg &= ~GENMASK(11, 0);
+	offset &= ~GENMASK(11, 0);
 	for_each_engine(engine, gvt->dev_priv, id) {
-		if (engine->mmio_base == reg)
+		if (engine->mmio_base == offset)
 			return id;
 	}
-	return -1;
+	return -ENODEV;
 }
 
 #define offset_to_fence_num(offset) \
@@ -157,7 +166,7 @@ static int render_mmio_to_ring_id(struct intel_gvt *gvt, unsigned int reg)
 	(num * 8 + i915_mmio_reg_offset(FENCE_REG_GEN6_LO(0)))
 
 
-static void enter_failsafe_mode(struct intel_vgpu *vgpu, int reason)
+void enter_failsafe_mode(struct intel_vgpu *vgpu, int reason)
 {
 	switch (reason) {
 	case GVT_FAILSAFE_UNSUPPORTED_GUEST:
@@ -165,6 +174,8 @@ static void enter_failsafe_mode(struct intel_vgpu *vgpu, int reason)
 		break;
 	case GVT_FAILSAFE_INSUFFICIENT_RESOURCE:
 		pr_err("Graphics resource is not enough for the guest\n");
+	case GVT_FAILSAFE_GUEST_ERR:
+		pr_err("GVT Internal error  for the guest\n");
 	default:
 		break;
 	}
@@ -1369,6 +1380,34 @@ static int mailbox_write(struct intel_vgpu *vgpu, unsigned int offset,
 	return intel_vgpu_default_mmio_write(vgpu, offset, &value, bytes);
 }
 
+static int hws_pga_write(struct intel_vgpu *vgpu, unsigned int offset,
+		void *p_data, unsigned int bytes)
+{
+	u32 value = *(u32 *)p_data;
+	int ring_id = intel_gvt_render_mmio_to_ring_id(vgpu->gvt, offset);
+
+	if (!intel_gvt_ggtt_validate_range(vgpu, value, I915_GTT_PAGE_SIZE)) {
+		gvt_vgpu_err("VM(%d) write invalid HWSP address, reg:0x%x, value:0x%x\n",
+			      vgpu->id, offset, value);
+		return -EINVAL;
+	}
+	/*
+	 * Need to emulate all the HWSP register write to ensure host can
+	 * update the VM CSB status correctly. Here listed registers can
+	 * support BDW, SKL or other platforms with same HWSP registers.
+	 */
+	if (unlikely(ring_id < 0 || ring_id > I915_NUM_ENGINES)) {
+		gvt_vgpu_err("VM(%d) access unknown hardware status page register:0x%x\n",
+			     vgpu->id, offset);
+		return -EINVAL;
+	}
+	vgpu->hws_pga[ring_id] = value;
+	gvt_dbg_mmio("VM(%d) write: 0x%x to HWSP: 0x%x\n",
+		     vgpu->id, value, offset);
+
+	return intel_vgpu_default_mmio_write(vgpu, offset, &value, bytes);
+}
+
 static int skl_power_well_ctl_write(struct intel_vgpu *vgpu,
 		unsigned int offset, void *p_data, unsigned int bytes)
 {
@@ -1432,18 +1471,36 @@ static int skl_lcpll_write(struct intel_vgpu *vgpu, unsigned int offset,
 static int mmio_read_from_hw(struct intel_vgpu *vgpu,
 		unsigned int offset, void *p_data, unsigned int bytes)
 {
-	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
+	struct intel_gvt *gvt = vgpu->gvt;
+	struct drm_i915_private *dev_priv = gvt->dev_priv;
+	int ring_id;
+	u32 ring_base;
 
-	mmio_hw_access_pre(dev_priv);
-	vgpu_vreg(vgpu, offset) = I915_READ(_MMIO(offset));
-	mmio_hw_access_post(dev_priv);
+	ring_id = intel_gvt_render_mmio_to_ring_id(gvt, offset);
+	/**
+	 * Read HW reg in following case
+	 * a. the offset isn't a ring mmio
+	 * b. the offset's ring is running on hw.
+	 * c. the offset is ring time stamp mmio
+	 */
+	if (ring_id >= 0)
+		ring_base = dev_priv->engine[ring_id]->mmio_base;
+
+	if (ring_id < 0 || vgpu  == gvt->scheduler.engine_owner[ring_id] ||
+	    offset == i915_mmio_reg_offset(RING_TIMESTAMP(ring_base)) ||
+	    offset == i915_mmio_reg_offset(RING_TIMESTAMP_UDW(ring_base))) {
+		mmio_hw_access_pre(dev_priv);
+		vgpu_vreg(vgpu, offset) = I915_READ(_MMIO(offset));
+		mmio_hw_access_post(dev_priv);
+	}
+
 	return intel_vgpu_default_mmio_read(vgpu, offset, p_data, bytes);
 }
 
 static int elsp_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 		void *p_data, unsigned int bytes)
 {
-	int ring_id = render_mmio_to_ring_id(vgpu->gvt, offset);
+	int ring_id = intel_gvt_render_mmio_to_ring_id(vgpu->gvt, offset);
 	struct intel_vgpu_execlist *execlist;
 	u32 data = *(u32 *)p_data;
 	int ret = 0;
@@ -1451,9 +1508,9 @@ static int elsp_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 	if (WARN_ON(ring_id < 0 || ring_id > I915_NUM_ENGINES - 1))
 		return -EINVAL;
 
-	execlist = &vgpu->execlist[ring_id];
+	execlist = &vgpu->submission.execlist[ring_id];
 
-	execlist->elsp_dwords.data[execlist->elsp_dwords.index] = data;
+	execlist->elsp_dwords.data[3 - execlist->elsp_dwords.index] = data;
 	if (execlist->elsp_dwords.index == 3) {
 		ret = intel_vgpu_submit_execlist(vgpu, ring_id);
 		if(ret)
@@ -1469,9 +1526,11 @@ static int elsp_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 static int ring_mode_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 		void *p_data, unsigned int bytes)
 {
+	struct intel_vgpu_submission *s = &vgpu->submission;
 	u32 data = *(u32 *)p_data;
-	int ring_id = render_mmio_to_ring_id(vgpu->gvt, offset);
+	int ring_id = intel_gvt_render_mmio_to_ring_id(vgpu->gvt, offset);
 	bool enable_execlist;
+	int ret;
 
 	write_vreg(vgpu, offset, p_data, bytes);
 
@@ -1493,8 +1552,18 @@ static int ring_mode_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 				(enable_execlist ? "enabling" : "disabling"),
 				ring_id);
 
-		if (enable_execlist)
-			intel_vgpu_start_schedule(vgpu);
+		if (!enable_execlist)
+			return 0;
+
+		if (s->active)
+			return 0;
+
+		ret = intel_vgpu_select_submission_ops(vgpu,
+				INTEL_VGPU_EXECLIST_SUBMISSION);
+		if (ret)
+			return ret;
+
+		intel_vgpu_start_schedule(vgpu);
 	}
 	return 0;
 }
@@ -1526,7 +1595,7 @@ static int gvt_reg_tlb_control_handler(struct intel_vgpu *vgpu,
 	default:
 		return -EINVAL;
 	}
-	set_bit(id, (void *)vgpu->tlb_handle_pending);
+	set_bit(id, (void *)vgpu->submission.tlb_handle_pending);
 
 	return 0;
 }
@@ -2512,7 +2581,7 @@ static int init_broadwell_mmio_info(struct intel_gvt *gvt)
 	MMIO_RING_F(RING_REG, 32, 0, 0, 0, D_BDW_PLUS, NULL, NULL);
 #undef RING_REG
 
-	MMIO_RING_GM_RDR(RING_HWS_PGA, D_BDW_PLUS, NULL, NULL);
+	MMIO_RING_GM_RDR(RING_HWS_PGA, D_BDW_PLUS, NULL, hws_pga_write);
 
 	MMIO_DFH(HDC_CHICKEN0, D_BDW_PLUS, F_MODE_MASK | F_CMD_ACCESS, NULL, NULL);
 
@@ -2914,14 +2983,46 @@ int intel_gvt_setup_mmio_info(struct intel_gvt *gvt)
 	gvt->mmio.mmio_block = mmio_blocks;
 	gvt->mmio.num_mmio_block = ARRAY_SIZE(mmio_blocks);
 
-	gvt_dbg_mmio("traced %u virtual mmio registers\n",
-		     gvt->mmio.num_tracked_mmio);
 	return 0;
 err:
 	intel_gvt_clean_mmio_info(gvt);
 	return ret;
 }
 
+/**
+ * intel_gvt_for_each_tracked_mmio - iterate each tracked mmio
+ * @gvt: a GVT device
+ * @handler: the handler
+ * @data: private data given to handler
+ *
+ * Returns:
+ * Zero on success, negative error code if failed.
+ */
+int intel_gvt_for_each_tracked_mmio(struct intel_gvt *gvt,
+	int (*handler)(struct intel_gvt *gvt, u32 offset, void *data),
+	void *data)
+{
+	struct gvt_mmio_block *block = gvt->mmio.mmio_block;
+	struct intel_gvt_mmio_info *e;
+	int i, j, ret;
+
+	hash_for_each(gvt->mmio.mmio_info_table, i, e, node) {
+		ret = handler(gvt, e->offset, data);
+		if (ret)
+			return ret;
+	}
+
+	for (i = 0; i < gvt->mmio.num_mmio_block; i++, block++) {
+		for (j = 0; j < block->size; j += 4) {
+			ret = handler(gvt,
+				INTEL_GVT_MMIO_OFFSET(block->offset) + j,
+				data);
+			if (ret)
+				return ret;
+		}
+	}
+	return 0;
+}
 
 /**
  * intel_vgpu_default_mmio_read - default MMIO read handler
