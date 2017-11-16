@@ -304,6 +304,89 @@ void delete_from_page_cache(struct page *page)
 }
 EXPORT_SYMBOL(delete_from_page_cache);
 
+/*
+ * page_cache_tree_delete_batch - delete several pages from page cache
+ * @mapping: the mapping to which pages belong
+ * @pvec: pagevec with pages to delete
+ *
+ * The function walks over mapping->page_tree and removes pages passed in @pvec
+ * from the radix tree. The function expects @pvec to be sorted by page index.
+ * It tolerates holes in @pvec (radix tree entries at those indices are not
+ * modified). The function expects only THP head pages to be present in the
+ * @pvec and takes care to delete all corresponding tail pages from the radix
+ * tree as well.
+ *
+ * The function expects mapping->tree_lock to be held.
+ */
+static void
+page_cache_tree_delete_batch(struct address_space *mapping,
+			     struct pagevec *pvec)
+{
+	struct radix_tree_iter iter;
+	void **slot;
+	int total_pages = 0;
+	int i = 0, tail_pages = 0;
+	struct page *page;
+	pgoff_t start;
+
+	start = pvec->pages[0]->index;
+	radix_tree_for_each_slot(slot, &mapping->page_tree, &iter, start) {
+		if (i >= pagevec_count(pvec) && !tail_pages)
+			break;
+		page = radix_tree_deref_slot_protected(slot,
+						       &mapping->tree_lock);
+		if (radix_tree_exceptional_entry(page))
+			continue;
+		if (!tail_pages) {
+			/*
+			 * Some page got inserted in our range? Skip it. We
+			 * have our pages locked so they are protected from
+			 * being removed.
+			 */
+			if (page != pvec->pages[i])
+				continue;
+			WARN_ON_ONCE(!PageLocked(page));
+			if (PageTransHuge(page) && !PageHuge(page))
+				tail_pages = HPAGE_PMD_NR - 1;
+			page->mapping = NULL;
+			/*
+			 * Leave page->index set: truncation lookup relies
+			 * upon it
+			 */
+			i++;
+		} else {
+			tail_pages--;
+		}
+		radix_tree_clear_tags(&mapping->page_tree, iter.node, slot);
+		__radix_tree_replace(&mapping->page_tree, iter.node, slot, NULL,
+				     workingset_update_node, mapping);
+		total_pages++;
+	}
+	mapping->nrpages -= total_pages;
+}
+
+void delete_from_page_cache_batch(struct address_space *mapping,
+				  struct pagevec *pvec)
+{
+	int i;
+	unsigned long flags;
+
+	if (!pagevec_count(pvec))
+		return;
+
+	spin_lock_irqsave(&mapping->tree_lock, flags);
+	for (i = 0; i < pagevec_count(pvec); i++) {
+		trace_mm_filemap_delete_from_page_cache(pvec->pages[i]);
+
+		unaccount_page_cache_page(mapping, pvec->pages[i]);
+	}
+	page_cache_tree_delete_batch(mapping, pvec);
+	spin_unlock_irqrestore(&mapping->tree_lock, flags);
+
+	for (i = 0; i < pagevec_count(pvec); i++)
+		page_cache_free_page(mapping, pvec->pages[i]);
+}
+
 int filemap_check_errors(struct address_space *mapping)
 {
 	int ret = 0;
