@@ -424,7 +424,7 @@ static void __filemap_fdatawait_range(struct address_space *mapping,
 		unsigned i;
 
 		nr_pages = pagevec_lookup_range_tag(&pvec, mapping, &index,
-				end, PAGECACHE_TAG_WRITEBACK, PAGEVEC_SIZE);
+				end, PAGECACHE_TAG_WRITEBACK);
 		if (!nr_pages)
 			break;
 

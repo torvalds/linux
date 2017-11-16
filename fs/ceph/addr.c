@@ -1162,8 +1162,7 @@ release_pvec_pages:
 			index = 0;
 			while ((index <= end) &&
 			       (nr = pagevec_lookup_tag(&pvec, mapping, &index,
-							PAGECACHE_TAG_WRITEBACK,
-							PAGEVEC_SIZE))) {
+						PAGECACHE_TAG_WRITEBACK))) {
 				for (i = 0; i < nr; i++) {
 					page = pvec.pages[i];
 					if (page_snap_context(page) != snapc)
