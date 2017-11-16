@@ -239,8 +239,7 @@ tps65217_bl_parse_dt(struct platform_device *pdev)
 	}
 
 	if (!of_property_read_u32(node, "default-brightness", &val)) {
-		if (val < 0 ||
-			val > 100) {
+		if (val > 100) {
 			dev_err(&pdev->dev,
 				"invalid 'default-brightness' value in the device tree\n");
 			err = ERR_PTR(-EINVAL);
