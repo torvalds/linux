@@ -565,7 +565,7 @@ static void *dax_insert_mapping_entry(struct address_space *mapping,
 		ret = __radix_tree_lookup(page_tree, index, &node, &slot);
 		WARN_ON_ONCE(ret != entry);
 		__radix_tree_replace(page_tree, node, slot,
-				     new_entry, NULL, NULL);
+				     new_entry, NULL);
 		entry = new_entry;
 	}
 

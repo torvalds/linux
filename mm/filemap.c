@@ -35,6 +35,7 @@
 #include <linux/hugetlb.h>
 #include <linux/memcontrol.h>
 #include <linux/cleancache.h>
+#include <linux/shmem_fs.h>
 #include <linux/rmap.h>
 #include "internal.h"
 
@@ -134,7 +135,7 @@ static int page_cache_tree_insert(struct address_space *mapping,
 			*shadowp = p;
 	}
 	__radix_tree_replace(&mapping->page_tree, node, slot, page,
-			     workingset_update_node, mapping);
+			     workingset_lookup_update(mapping));
 	mapping->nrpages++;
 	return 0;
 }
@@ -162,7 +163,7 @@ static void page_cache_tree_delete(struct address_space *mapping,
 
 		radix_tree_clear_tags(&mapping->page_tree, node, slot);
 		__radix_tree_replace(&mapping->page_tree, node, slot, shadow,
-				     workingset_update_node, mapping);
+				workingset_lookup_update(mapping));
 	}
 
 	page->mapping = NULL;
@@ -359,7 +360,7 @@ page_cache_tree_delete_batch(struct address_space *mapping,
 		}
 		radix_tree_clear_tags(&mapping->page_tree, iter.node, slot);
 		__radix_tree_replace(&mapping->page_tree, iter.node, slot, NULL,
-				     workingset_update_node, mapping);
+				workingset_lookup_update(mapping));
 		total_pages++;
 	}
 	mapping->nrpages -= total_pages;
