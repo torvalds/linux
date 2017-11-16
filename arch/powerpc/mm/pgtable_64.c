@@ -404,7 +404,7 @@ void pte_fragment_free(unsigned long *table, int kernel)
 	if (put_page_testzero(page)) {
 		if (!kernel)
 			pgtable_page_dtor(page);
-		free_hot_cold_page(page, 0);
+		free_unref_page(page);
 	}
 }
 

@@ -2611,7 +2611,7 @@ void mark_free_pages(struct zone *zone)
 }
 #endif /* CONFIG_PM */
 
-static bool free_hot_cold_page_prepare(struct page *page, unsigned long pfn)
+static bool free_unref_page_prepare(struct page *page, unsigned long pfn)
 {
 	int migratetype;
 
@@ -2623,8 +2623,7 @@ static bool free_hot_cold_page_prepare(struct page *page, unsigned long pfn)
 	return true;
 }
 
-static void free_hot_cold_page_commit(struct page *page, unsigned long pfn,
-				bool cold)
+static void free_unref_page_commit(struct page *page, unsigned long pfn)
 {
 	struct zone *zone = page_zone(page);
 	struct per_cpu_pages *pcp;
@@ -2649,10 +2648,7 @@ static void free_hot_cold_page_commit(struct page *page, unsigned long pfn,
 	}
 
 	pcp = &this_cpu_ptr(zone->pageset)->pcp;
-	if (!cold)
-		list_add(&page->lru, &pcp->lists[migratetype]);
-	else
-		list_add_tail(&page->lru, &pcp->lists[migratetype]);
+	list_add(&page->lru, &pcp->lists[migratetype]);
 	pcp->count++;
 	if (pcp->count >= pcp->high) {
 		unsigned long batch = READ_ONCE(pcp->batch);
@@ -2663,25 +2659,24 @@ static void free_hot_cold_page_commit(struct page *page, unsigned long pfn,
 
 /*
  * Free a 0-order page
- * cold == true ? free a cold page : free a hot page
  */
-void free_hot_cold_page(struct page *page, bool cold)
+void free_unref_page(struct page *page)
 {
 	unsigned long flags;
 	unsigned long pfn = page_to_pfn(page);
 
-	if (!free_hot_cold_page_prepare(page, pfn))
+	if (!free_unref_page_prepare(page, pfn))
 		return;
 
 	local_irq_save(flags);
-	free_hot_cold_page_commit(page, pfn, cold);
+	free_unref_page_commit(page, pfn);
 	local_irq_restore(flags);
 }
 
 /*
  * Free a list of 0-order pages
  */
-void free_hot_cold_page_list(struct list_head *list, bool cold)
+void free_unref_page_list(struct list_head *list)
 {
 	struct page *page, *next;
 	unsigned long flags, pfn;
@@ -2689,7 +2684,7 @@ void free_hot_cold_page_list(struct list_head *list, bool cold)
 	/* Prepare pages for freeing */
 	list_for_each_entry_safe(page, next, list, lru) {
 		pfn = page_to_pfn(page);
-		if (!free_hot_cold_page_prepare(page, pfn))
+		if (!free_unref_page_prepare(page, pfn))
 			list_del(&page->lru);
 		set_page_private(page, pfn);
 	}
@@ -2699,8 +2694,8 @@ void free_hot_cold_page_list(struct list_head *list, bool cold)
 		unsigned long pfn = page_private(page);
 
 		set_page_private(page, 0);
-		trace_mm_page_free_batched(page, cold);
-		free_hot_cold_page_commit(page, pfn, cold);
+		trace_mm_page_free_batched(page);
+		free_unref_page_commit(page, pfn);
 	}
 	local_irq_restore(flags);
 }
@@ -4301,7 +4296,7 @@ void __free_pages(struct page *page, unsigned int order)
 {
 	if (put_page_testzero(page)) {
 		if (order == 0)
-			free_hot_cold_page(page, false);
+			free_unref_page(page);
 		else
 			__free_pages_ok(page, order);
 	}
@@ -4359,7 +4354,7 @@ void __page_frag_cache_drain(struct page *page, unsigned int count)
 		unsigned int order = compound_order(page);
 
 		if (order == 0)
-			free_hot_cold_page(page, false);
+			free_unref_page(page);
 		else
 			__free_pages_ok(page, order);
 	}
