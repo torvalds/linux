@@ -224,34 +224,35 @@ void __delete_from_page_cache(struct page *page, void *shadow)
 		}
 	}
 
+	/* hugetlb pages do not participate in page cache accounting. */
+	if (!PageHuge(page)) {
+		__mod_node_page_state(page_pgdat(page), NR_FILE_PAGES, -nr);
+		if (PageSwapBacked(page)) {
+			__mod_node_page_state(page_pgdat(page), NR_SHMEM, -nr);
+			if (PageTransHuge(page))
+				__dec_node_page_state(page, NR_SHMEM_THPS);
+		} else {
+			VM_BUG_ON_PAGE(PageTransHuge(page), page);
+		}
+
+		/*
+		 * At this point page must be either written or cleaned by
+		 * truncate.  Dirty page here signals a bug and loss of
+		 * unwritten data.
+		 *
+		 * This fixes dirty accounting after removing the page entirely
+		 * but leaves PageDirty set: it has no effect for truncated
+		 * page and anyway will be cleared before returning page into
+		 * buddy allocator.
+		 */
+		if (WARN_ON_ONCE(PageDirty(page)))
+			account_page_cleaned(page, mapping,
+					     inode_to_wb(mapping->host));
+	}
 	page_cache_tree_delete(mapping, page, shadow);
 
 	page->mapping = NULL;
 	/* Leave page->index set: truncation lookup relies upon it */
-
-	/* hugetlb pages do not participate in page cache accounting. */
-	if (PageHuge(page))
-		return;
-
-	__mod_node_page_state(page_pgdat(page), NR_FILE_PAGES, -nr);
-	if (PageSwapBacked(page)) {
-		__mod_node_page_state(page_pgdat(page), NR_SHMEM, -nr);
-		if (PageTransHuge(page))
-			__dec_node_page_state(page, NR_SHMEM_THPS);
-	} else {
-		VM_BUG_ON_PAGE(PageTransHuge(page), page);
-	}
-
-	/*
-	 * At this point page must be either written or cleaned by truncate.
-	 * Dirty page here signals a bug and loss of unwritten data.
-	 *
-	 * This fixes dirty accounting after removing the page entirely but
-	 * leaves PageDirty set: it has no effect for truncated page and
-	 * anyway will be cleared before returning page into buddy allocator.
-	 */
-	if (WARN_ON_ONCE(PageDirty(page)))
-		account_page_cleaned(page, mapping, inode_to_wb(mapping->host));
 }
 
 static void page_cache_free_page(struct address_space *mapping,
