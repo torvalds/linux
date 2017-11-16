@@ -187,14 +187,46 @@ static exit_handle_fn kvm_get_exit_handler(struct kvm_vcpu *vcpu)
 }
 
 /*
+ * We may be single-stepping an emulated instruction. If the emulation
+ * has been completed in the kernel, we can return to userspace with a
+ * KVM_EXIT_DEBUG, otherwise userspace needs to complete its
+ * emulation first.
+ */
+static int handle_trap_exceptions(struct kvm_vcpu *vcpu, struct kvm_run *run)
+{
+	int handled;
+
+	/*
+	 * See ARM ARM B1.14.1: "Hyp traps on instructions
+	 * that fail their condition code check"
+	 */
+	if (!kvm_condition_valid(vcpu)) {
+		kvm_skip_instr(vcpu, kvm_vcpu_trap_il_is32bit(vcpu));
+		handled = 1;
+	} else {
+		exit_handle_fn exit_handler;
+
+		exit_handler = kvm_get_exit_handler(vcpu);
+		handled = exit_handler(vcpu, run);
+	}
+
+	/*
+	 * kvm_arm_handle_step_debug() sets the exit_reason on the kvm_run
+	 * structure if we need to return to userspace.
+	 */
+	if (handled > 0 && kvm_arm_handle_step_debug(vcpu, run))
+		handled = 0;
+
+	return handled;
+}
+
+/*
  * Return > 0 to return to guest, < 0 on error, 0 (and set exit_reason) on
  * proper exit to userspace.
  */
 int handle_exit(struct kvm_vcpu *vcpu, struct kvm_run *run,
 		       int exception_index)
 {
-	exit_handle_fn exit_handler;
-
 	if (ARM_SERROR_PENDING(exception_index)) {
 		u8 hsr_ec = ESR_ELx_EC(kvm_vcpu_get_hsr(vcpu));
 
@@ -222,18 +254,7 @@ int handle_exit(struct kvm_vcpu *vcpu, struct kvm_run *run,
 		kvm_inject_vabt(vcpu);
 		return 1;
 	case ARM_EXCEPTION_TRAP:
-		/*
-		 * See ARM ARM B1.14.1: "Hyp traps on instructions
-		 * that fail their condition code check"
-		 */
-		if (!kvm_condition_valid(vcpu)) {
-			kvm_skip_instr(vcpu, kvm_vcpu_trap_il_is32bit(vcpu));
-			return 1;
-		}
-
-		exit_handler = kvm_get_exit_handler(vcpu);
-
-		return exit_handler(vcpu, run);
+		return handle_trap_exceptions(vcpu, run);
 	case ARM_EXCEPTION_HYP_GONE:
 		/*
 		 * EL2 has been reset to the hyp-stub. This happens when a guest
