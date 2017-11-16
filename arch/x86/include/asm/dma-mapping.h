@@ -7,7 +7,6 @@
  * Documentation/DMA-API.txt for documentation.
  */
 
-#include <linux/kmemcheck.h>
 #include <linux/scatterlist.h>
 #include <linux/dma-debug.h>
 #include <asm/io.h>
