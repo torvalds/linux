@@ -1328,6 +1328,13 @@ int page_swapcount(struct page *page)
 	return count;
 }
 
+int __swap_count(struct swap_info_struct *si, swp_entry_t entry)
+{
+	pgoff_t offset = swp_offset(entry);
+
+	return swap_count(si->swap_map[offset]);
+}
+
 static int swap_swapcount(struct swap_info_struct *si, swp_entry_t entry)
 {
 	int count = 0;
