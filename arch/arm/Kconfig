@@ -371,7 +371,7 @@ config ARCH_EBSA110
 
 config ARCH_EP93XX
 	bool "EP93xx-based"
-	select ARCH_HAS_HOLES_MEMORYMODEL
+	select ARCH_SPARSEMEM_ENABLE
 	select ARM_AMBA
 	imply ARM_PATCH_PHYS_VIRT
 	select ARM_VIC

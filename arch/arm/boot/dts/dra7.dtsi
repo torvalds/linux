@@ -457,6 +457,7 @@
 			#dma-cells = <1>;
 			dma-channels = <32>;
 			dma-requests = <127>;
+			ti,hwmods = "dma_system";
 		};
 
 		edma: edma@43300000 {
@@ -1069,6 +1070,13 @@
 			max-frequency = <192000000>;
 		};
 
+		hdqw1w: 1w@480b2000 {
+			compatible = "ti,omap3-1w";
+			reg = <0x480b2000 0x1000>;
+			interrupts = <GIC_SPI 53 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "hdq1w";
+		};
+
 		mmc2: mmc@480b4000 {
 			compatible = "ti,omap4-hsmmc";
 			reg = <0x480b4000 0x400>;
@@ -1487,6 +1495,32 @@
 						"refclk";
 				#phy-cells = <0>;
 			};
+		};
+
+		target-module@4a0dd000 {
+			compatible = "ti,sysc-omap4-sr";
+			ti,hwmods = "smartreflex_core";
+			reg = <0x4a0dd000 0x4>,
+			      <0x4a0dd008 0x4>;
+			reg-names = "rev", "sysc";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x4a0dd000 0x001000>;
+
+			/* SmartReflex child device marked reserved in TRM */
+		};
+
+		target-module@4a0d9000 {
+			compatible = "ti,sysc-omap4-sr";
+			ti,hwmods = "smartreflex_mpu";
+			reg = <0x4a0d9000 0x4>,
+			      <0x4a0d9008 0x4>;
+			reg-names = "rev", "sysc";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x4a0d9000 0x001000>;
+
+			/* SmartReflex child device marked reserved in TRM */
 		};
 
 		omap_dwc3_1: omap_dwc3_1@48880000 {

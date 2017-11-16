@@ -158,6 +158,13 @@ config TEGRA_GMI
 	  Driver for the Tegra Generic Memory Interface bus which can be used
 	  to attach devices such as NOR, UART, FPGA and more.
 
+config TI_SYSC
+	bool "TI sysc interconnect target module driver"
+	depends on ARCH_OMAP2PLUS
+	help
+	  Generic driver for Texas Instruments interconnect target module
+	  found on many TI SoCs.
+
 config UNIPHIER_SYSTEM_BUS
 	tristate "UniPhier System Bus driver"
 	depends on ARCH_UNIPHIER && OF
