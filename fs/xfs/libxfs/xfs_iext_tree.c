@@ -302,7 +302,7 @@ xfs_iext_rec_cmp(
 	xfs_fileoff_t		offset)
 {
 	uint64_t		rec_offset = rec->lo & XFS_IEXT_STARTOFF_MASK;
-	u32			rec_len = rec->hi & XFS_IEXT_LENGTH_MASK;
+	uint32_t		rec_len = rec->hi & XFS_IEXT_LENGTH_MASK;
 
 	if (rec_offset > offset)
 		return 1;
