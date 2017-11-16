@@ -53,12 +53,20 @@ void * __meminit vmemmap_alloc_block(unsigned long size, int node)
 {
 	/* If the main allocator is up use that, fallback to bootmem. */
 	if (slab_is_available()) {
+		gfp_t gfp_mask = GFP_KERNEL|__GFP_RETRY_MAYFAIL|__GFP_NOWARN;
+		int order = get_order(size);
+		static bool warned;
 		struct page *page;
 
-		page = alloc_pages_node(node, GFP_KERNEL | __GFP_RETRY_MAYFAIL,
-					get_order(size));
+		page = alloc_pages_node(node, gfp_mask, order);
 		if (page)
 			return page_address(page);
+
+		if (!warned) {
+			warn_alloc(gfp_mask & ~__GFP_NOWARN, NULL,
+				   "vmemmap alloc failure: order:%u", order);
+			warned = true;
+		}
 		return NULL;
 	} else
 		return __earlyonly_bootmem_alloc(node, size, size,

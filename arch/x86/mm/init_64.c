@@ -1405,7 +1405,6 @@ static int __meminit vmemmap_populate_hugepages(unsigned long start,
 			vmemmap_verify((pte_t *)pmd, node, addr, next);
 			continue;
 		}
-		pr_warn_once("vmemmap: falling back to regular page backing\n");
 		if (vmemmap_populate_basepages(addr, next, node))
 			return -ENOMEM;
 	}
