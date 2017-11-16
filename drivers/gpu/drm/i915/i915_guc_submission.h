@@ -72,9 +72,9 @@ struct i915_guc_client {
 	u64 submissions[I915_NUM_ENGINES];
 };
 
-int i915_guc_submission_init(struct drm_i915_private *dev_priv);
-int i915_guc_submission_enable(struct drm_i915_private *dev_priv);
-void i915_guc_submission_disable(struct drm_i915_private *dev_priv);
-void i915_guc_submission_fini(struct drm_i915_private *dev_priv);
+int intel_guc_submission_init(struct intel_guc *guc);
+int intel_guc_submission_enable(struct intel_guc *guc);
+void intel_guc_submission_disable(struct intel_guc *guc);
+void intel_guc_submission_fini(struct intel_guc *guc);
 
 #endif

@@ -1253,9 +1253,8 @@ static void guc_preempt_work_destroy(struct intel_guc *guc)
  * Set up the memory resources to be shared with the GuC (via the GGTT)
  * at firmware loading time.
  */
-int i915_guc_submission_init(struct drm_i915_private *dev_priv)
+int intel_guc_submission_init(struct intel_guc *guc)
 {
-	struct intel_guc *guc = &dev_priv->guc;
 	int ret;
 
 	if (guc->stage_desc_pool)
@@ -1302,10 +1301,8 @@ err_stage_desc_pool:
 	return ret;
 }
 
-void i915_guc_submission_fini(struct drm_i915_private *dev_priv)
+void intel_guc_submission_fini(struct intel_guc *guc)
 {
-	struct intel_guc *guc = &dev_priv->guc;
-
 	guc_ads_destroy(guc);
 	guc_preempt_work_destroy(guc);
 	intel_guc_log_destroy(guc);
@@ -1391,9 +1388,9 @@ static void guc_submission_unpark(struct intel_engine_cs *engine)
 	intel_engine_pin_breadcrumbs_irq(engine);
 }
 
-int i915_guc_submission_enable(struct drm_i915_private *dev_priv)
+int intel_guc_submission_enable(struct intel_guc *guc)
 {
-	struct intel_guc *guc = &dev_priv->guc;
+	struct drm_i915_private *dev_priv = guc_to_i915(guc);
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 	int err;
@@ -1451,9 +1448,9 @@ err_free_clients:
 	return err;
 }
 
-void i915_guc_submission_disable(struct drm_i915_private *dev_priv)
+void intel_guc_submission_disable(struct intel_guc *guc)
 {
-	struct intel_guc *guc = &dev_priv->guc;
+	struct drm_i915_private *dev_priv = guc_to_i915(guc);
 
 	GEM_BUG_ON(dev_priv->gt.awake); /* GT should be parked first */
 
