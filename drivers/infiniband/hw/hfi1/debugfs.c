@@ -71,13 +71,13 @@ static ssize_t hfi1_seq_read(
 	loff_t *ppos)
 {
 	struct dentry *d = file->f_path.dentry;
-	int srcu_idx;
 	ssize_t r;
 
-	r = debugfs_use_file_start(d, &srcu_idx);
-	if (likely(!r))
-		r = seq_read(file, buf, size, ppos);
-	debugfs_use_file_finish(srcu_idx);
+	r = debugfs_file_get(d);
+	if (unlikely(r))
+		return r;
+	r = seq_read(file, buf, size, ppos);
+	debugfs_file_put(d);
 	return r;
 }
 
@@ -87,13 +87,13 @@ static loff_t hfi1_seq_lseek(
 	int whence)
 {
 	struct dentry *d = file->f_path.dentry;
-	int srcu_idx;
 	loff_t r;
 
-	r = debugfs_use_file_start(d, &srcu_idx);
-	if (likely(!r))
-		r = seq_lseek(file, offset, whence);
-	debugfs_use_file_finish(srcu_idx);
+	r = debugfs_file_get(d);
+	if (unlikely(r))
+		return r;
+	r = seq_lseek(file, offset, whence);
+	debugfs_file_put(d);
 	return r;
 }
 
