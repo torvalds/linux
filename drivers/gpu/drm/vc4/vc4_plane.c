@@ -153,9 +153,19 @@ static const struct hvs_format {
 		.pixel_order = HVS_PIXEL_ORDER_XYCBCR,
 	},
 	{
+		.drm = DRM_FORMAT_NV21,
+		.hvs = HVS_PIXEL_FORMAT_YCBCR_YUV420_2PLANE,
+		.pixel_order = HVS_PIXEL_ORDER_XYCRCB,
+	},
+	{
 		.drm = DRM_FORMAT_NV16,
 		.hvs = HVS_PIXEL_FORMAT_YCBCR_YUV422_2PLANE,
 		.pixel_order = HVS_PIXEL_ORDER_XYCBCR,
+	},
+	{
+		.drm = DRM_FORMAT_NV61,
+		.hvs = HVS_PIXEL_FORMAT_YCBCR_YUV422_2PLANE,
+		.pixel_order = HVS_PIXEL_ORDER_XYCRCB,
 	},
 };
 
