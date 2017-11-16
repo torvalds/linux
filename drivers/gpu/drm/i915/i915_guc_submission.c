@@ -683,13 +683,13 @@ static void wait_for_guc_preempt_report(struct intel_engine_cs *engine)
 }
 
 /**
- * i915_guc_submit() - Submit commands through GuC
+ * guc_submit() - Submit commands through GuC
  * @engine: engine associated with the commands
  *
  * The only error here arises if the doorbell hardware isn't functioning
  * as expected, which really shouln't happen.
  */
-static void i915_guc_submit(struct intel_engine_cs *engine)
+static void guc_submit(struct intel_engine_cs *engine)
 {
 	struct intel_guc *guc = &engine->i915->guc;
 	struct intel_engine_execlists * const execlists = &engine->execlists;
@@ -722,7 +722,7 @@ static void port_assign(struct execlist_port *port,
 	port_set(port, port_pack(i915_gem_request_get(rq), port_count(port)));
 }
 
-static void i915_guc_dequeue(struct intel_engine_cs *engine)
+static void guc_dequeue(struct intel_engine_cs *engine)
 {
 	struct intel_engine_execlists * const execlists = &engine->execlists;
 	struct execlist_port *port = execlists->port;
@@ -793,7 +793,7 @@ done:
 	if (submit) {
 		port_assign(port, last);
 		execlists_set_active(execlists, EXECLISTS_ACTIVE_USER);
-		i915_guc_submit(engine);
+		guc_submit(engine);
 	}
 unlock:
 	spin_unlock_irq(&engine->timeline->lock);
@@ -831,13 +831,13 @@ static void guc_submission_tasklet(unsigned long data)
 	}
 
 	if (!execlists_is_active(execlists, EXECLISTS_ACTIVE_PREEMPT))
-		i915_guc_dequeue(engine);
+		guc_dequeue(engine);
 }
 
 /*
  * Everything below here is concerned with setup & teardown, and is
  * therefore not part of the somewhat time-critical batch-submission
- * path of i915_guc_submit() above.
+ * path of guc_submit() above.
  */
 
 /* Check that a doorbell register is in the expected state */
@@ -1381,12 +1381,12 @@ static void guc_interrupts_release(struct drm_i915_private *dev_priv)
 	rps->pm_intrmsk_mbz &= ~ARAT_EXPIRED_INTRMSK;
 }
 
-static void i915_guc_submission_park(struct intel_engine_cs *engine)
+static void guc_submission_park(struct intel_engine_cs *engine)
 {
 	intel_engine_unpin_breadcrumbs_irq(engine);
 }
 
-static void i915_guc_submission_unpark(struct intel_engine_cs *engine)
+static void guc_submission_unpark(struct intel_engine_cs *engine)
 {
 	intel_engine_pin_breadcrumbs_irq(engine);
 }
@@ -1440,8 +1440,8 @@ int i915_guc_submission_enable(struct drm_i915_private *dev_priv)
 	for_each_engine(engine, dev_priv, id) {
 		struct intel_engine_execlists * const execlists = &engine->execlists;
 		execlists->tasklet.func = guc_submission_tasklet;
-		engine->park = i915_guc_submission_park;
-		engine->unpark = i915_guc_submission_unpark;
+		engine->park = guc_submission_park;
+		engine->unpark = guc_submission_unpark;
 	}
 
 	return 0;
