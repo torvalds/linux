@@ -614,7 +614,7 @@ static int sirfsoc_gpio_request(struct gpio_chip *chip, unsigned offset)
 	struct sirfsoc_gpio_bank *bank = sirfsoc_gpio_to_bank(sgpio, offset);
 	unsigned long flags;
 
-	if (pinctrl_request_gpio(chip->base + offset))
+	if (pinctrl_gpio_request(chip->base + offset))
 		return -ENODEV;
 
 	spin_lock_irqsave(&bank->lock, flags);
@@ -644,7 +644,7 @@ static void sirfsoc_gpio_free(struct gpio_chip *chip, unsigned offset)
 
 	spin_unlock_irqrestore(&bank->lock, flags);
 
-	pinctrl_free_gpio(chip->base + offset);
+	pinctrl_gpio_free(chip->base + offset);
 }
 
 static int sirfsoc_gpio_direction_input(struct gpio_chip *chip, unsigned gpio)

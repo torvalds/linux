@@ -834,15 +834,6 @@ config GPIO_PCF857X
 	  This driver provides an in-kernel interface to those GPIOs using
 	  platform-neutral GPIO calls.
 
-config GPIO_SX150X
-	bool "Semtech SX150x I2C GPIO expander (deprecated)"
-	depends on PINCTRL && I2C=y
-	select PINCTRL_SX150X
-	default n
-	help
-	  Say yes here to provide support for Semtech SX150x-series I2C
-	  GPIO expanders. The GPIO driver was replaced by a Pinctrl version.
-
 config GPIO_TPIC2810
 	tristate "TPIC2810 8-Bit I2C GPO expander"
 	help

@@ -25,6 +25,7 @@
 #define MCP_TYPE_008	2
 #define MCP_TYPE_017	3
 #define MCP_TYPE_S18    4
+#define MCP_TYPE_018    5
 
 #define MCP_MAX_DEV_PER_CS	8
 
@@ -278,8 +279,7 @@ static int mcp_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 {
 	struct mcp23s08 *mcp = pinctrl_dev_get_drvdata(pctldev);
 	enum pin_config_param param;
-	u32 arg, mask;
-	u16 val;
+	u32 arg;
 	int ret = 0;
 	int i;
 
@@ -289,8 +289,6 @@ static int mcp_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 
 		switch (param) {
 		case PIN_CONFIG_BIAS_PULL_UP:
-			val = arg ? 0xFFFF : 0x0000;
-			mask = BIT(pin);
 			ret = mcp_set_bit(mcp, MCP_GPPU, pin, arg);
 			break;
 		default:
@@ -837,6 +835,13 @@ static int mcp23s08_probe_one(struct mcp23s08 *mcp, struct device *dev,
 		mcp->chip.ngpio = 16;
 		mcp->chip.label = "mcp23017";
 		break;
+
+	case MCP_TYPE_018:
+		mcp->regmap = devm_regmap_init_i2c(data, &mcp23x17_regmap);
+		mcp->reg_shift = 1;
+		mcp->chip.ngpio = 16;
+		mcp->chip.label = "mcp23018";
+		break;
 #endif /* CONFIG_I2C */
 
 	default:
@@ -883,7 +888,7 @@ static int mcp23s08_probe_one(struct mcp23s08 *mcp, struct device *dev,
 		if (mirror)
 			status |= IOCON_MIRROR | (IOCON_MIRROR << 8);
 
-		if (type == MCP_TYPE_S18)
+		if (type == MCP_TYPE_S18 || type == MCP_TYPE_018)
 			status |= IOCON_INTCC | (IOCON_INTCC << 8);
 
 		ret = mcp_write(mcp, MCP_IOCON, status);
@@ -964,6 +969,10 @@ static const struct of_device_id mcp23s08_i2c_of_match[] = {
 		.compatible = "microchip,mcp23017",
 		.data = (void *) MCP_TYPE_017,
 	},
+	{
+		.compatible = "microchip,mcp23018",
+		.data = (void *) MCP_TYPE_018,
+	},
 /* NOTE: The use of the mcp prefix is deprecated and will be removed. */
 	{
 		.compatible = "mcp,mcp23008",
@@ -1013,6 +1022,7 @@ static int mcp230xx_probe(struct i2c_client *client,
 static const struct i2c_device_id mcp230xx_id[] = {
 	{ "mcp23008", MCP_TYPE_008 },
 	{ "mcp23017", MCP_TYPE_017 },
+	{ "mcp23018", MCP_TYPE_018 },
 	{ },
 };
 MODULE_DEVICE_TABLE(i2c, mcp230xx_id);
