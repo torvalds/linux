@@ -2608,7 +2608,7 @@ EXPORT_SYMBOL(set_page_dirty_lock);
  * page without actually doing it through the VM. Can you say "ext3 is
  * horribly ugly"? Thought you could.
  */
-void cancel_dirty_page(struct page *page)
+void __cancel_dirty_page(struct page *page)
 {
 	struct address_space *mapping = page_mapping(page);
 
@@ -2629,7 +2629,7 @@ void cancel_dirty_page(struct page *page)
 		ClearPageDirty(page);
 	}
 }
-EXPORT_SYMBOL(cancel_dirty_page);
+EXPORT_SYMBOL(__cancel_dirty_page);
 
 /*
  * Clear a page's dirty flag, while caring for dirty memory accounting.
