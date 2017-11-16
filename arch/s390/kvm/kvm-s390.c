@@ -1084,7 +1084,6 @@ static int kvm_s390_set_processor_feat(struct kvm *kvm,
 				       struct kvm_device_attr *attr)
 {
 	struct kvm_s390_vm_cpu_feat data;
-	int ret = -EBUSY;
 
 	if (copy_from_user(&data, (void __user *)attr->addr, sizeof(data)))
 		return -EFAULT;
@@ -1094,13 +1093,18 @@ static int kvm_s390_set_processor_feat(struct kvm *kvm,
 		return -EINVAL;
 
 	mutex_lock(&kvm->lock);
-	if (!kvm->created_vcpus) {
-		bitmap_copy(kvm->arch.cpu_feat, (unsigned long *) data.feat,
-			    KVM_S390_VM_CPU_FEAT_NR_BITS);
-		ret = 0;
+	if (kvm->created_vcpus) {
+		mutex_unlock(&kvm->lock);
+		return -EBUSY;
 	}
+	bitmap_copy(kvm->arch.cpu_feat, (unsigned long *) data.feat,
+		    KVM_S390_VM_CPU_FEAT_NR_BITS);
 	mutex_unlock(&kvm->lock);
-	return ret;
+	VM_EVENT(kvm, 3, "SET: guest feat: 0x%16.16llx.0x%16.16llx.0x%16.16llx",
+			 data.feat[0],
+			 data.feat[1],
+			 data.feat[2]);
+	return 0;
 }
 
 static int kvm_s390_set_processor_subfunc(struct kvm *kvm,
@@ -1202,6 +1206,10 @@ static int kvm_s390_get_processor_feat(struct kvm *kvm,
 		    KVM_S390_VM_CPU_FEAT_NR_BITS);
 	if (copy_to_user((void __user *)attr->addr, &data, sizeof(data)))
 		return -EFAULT;
+	VM_EVENT(kvm, 3, "GET: guest feat: 0x%16.16llx.0x%16.16llx.0x%16.16llx",
+			 data.feat[0],
+			 data.feat[1],
+			 data.feat[2]);
 	return 0;
 }
 
@@ -1215,6 +1223,10 @@ static int kvm_s390_get_machine_feat(struct kvm *kvm,
 		    KVM_S390_VM_CPU_FEAT_NR_BITS);
 	if (copy_to_user((void __user *)attr->addr, &data, sizeof(data)))
 		return -EFAULT;
+	VM_EVENT(kvm, 3, "GET: host feat:  0x%16.16llx.0x%16.16llx.0x%16.16llx",
+			 data.feat[0],
+			 data.feat[1],
+			 data.feat[2]);
 	return 0;
 }
 
