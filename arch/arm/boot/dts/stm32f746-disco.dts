@@ -61,6 +61,20 @@
 		serial0 = &usart1;
 	};
 
+	usbotg_hs_phy: usb-phy {
+		#phy-cells = <0>;
+		compatible = "usb-nop-xceiv";
+		clocks = <&rcc 0 STM32F7_AHB1_CLOCK(OTGHSULPI)>;
+		clock-names = "main_clk";
+	};
+
+	/* This turns on vbus for otg fs for host mode (dwc2) */
+	vcc5v_otg_fs: vcc5v-otg-fs-regulator {
+		compatible = "regulator-fixed";
+		gpio = <&gpiod 5 0>;
+		regulator-name = "vcc5_host1";
+		regulator-always-on;
+	};
 };
 
 &clk_hse {
@@ -69,6 +83,22 @@
 
 &usart1 {
 	pinctrl-0 = <&usart1_pins_b>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
+&usbotg_fs {
+	dr_mode = "host";
+	pinctrl-0 = <&usbotg_fs_pins_a>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
+&usbotg_hs {
+	dr_mode = "host";
+	phys = <&usbotg_hs_phy>;
+	phy-names = "usb2-phy";
+	pinctrl-0 = <&usbotg_hs_pins_b>;
 	pinctrl-names = "default";
 	status = "okay";
 };

@@ -281,7 +281,7 @@
 		qman: qman@1880000 {
 			compatible = "fsl,qman";
 			reg = <0x0 0x1880000 0x0 0x10000>;
-			interrupts = <0 45 0x4>;
+			interrupts = <GIC_SPI 45 IRQ_TYPE_LEVEL_HIGH>;
 			memory-region = <&qman_fqd &qman_pfdr>;
 
 		};
@@ -289,7 +289,7 @@
 		bman: bman@1890000 {
 			compatible = "fsl,bman";
 			reg = <0x0 0x1890000 0x0 0x10000>;
-			interrupts = <0 45 0x4>;
+			interrupts = <GIC_SPI 45 IRQ_TYPE_LEVEL_HIGH>;
 			memory-region = <&bman_fbpr>;
 
 		};
@@ -762,6 +762,13 @@
 			size = <0 0x2000000>;
 			alignment = <0 0x2000000>;
 			no-map;
+		};
+	};
+
+	firmware {
+		optee {
+			compatible = "linaro,optee-tz";
+			method = "smc";
 		};
 	};
 };

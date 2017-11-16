@@ -987,3 +987,5 @@
 		};
 	};
 };
+
+#include "hi6220-coresight.dtsi"

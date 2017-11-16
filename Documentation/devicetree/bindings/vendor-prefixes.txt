@@ -18,6 +18,7 @@ al	Annapurna Labs
 allwinner	Allwinner Technology Co., Ltd.
 alphascale	AlphaScale Integrated Circuits Systems, Inc.
 altr	Altera Corp.
+amarula	Amarula Solutions
 amazon	Amazon.com, Inc.
 amcc	Applied Micro Circuits Corporation (APM, formally AMCC)
 amd	Advanced Micro Devices (AMD), Inc.
@@ -114,6 +115,7 @@ everspin	Everspin Technologies, Inc.
 exar	Exar Corporation
 excito	Excito
 ezchip	EZchip Semiconductor
+fairphone	Fairphone B.V.
 faraday	Faraday Technology Corporation
 fcs	Fairchild Semiconductor
 firefly	Firefly
@@ -199,6 +201,7 @@ mcube	mCube
 meas	Measurement Specialties
 mediatek	MediaTek Inc.
 megachips	MegaChips
+mele	Shenzhen MeLE Digital Technology Ltd.
 melexis	Melexis N.V.
 melfas	MELFAS Inc.
 mellanox	Mellanox Technologies
@@ -270,6 +273,7 @@ plathome	Plat'Home Co., Ltd.
 plda	PLDA
 poslab	Poslab Technology Co., Ltd.
 powervr	PowerVR (deprecated, use img)
+probox2	PROBOX2 (by W2COMP Co., Ltd.)
 pulsedlight	PulsedLight, Inc
 qca	Qualcomm Atheros, Inc.
 qcom	Qualcomm Technologies, Inc
@@ -338,6 +342,7 @@ swir	Sierra Wireless
 syna	Synaptics Inc.
 synology	Synology, Inc.
 tbs	TBS Technologies
+tbs-biometrics	Touchless Biometric Systems AG
 tcg	Trusted Computing Group
 tcl	Toby Churchill Ltd.
 technexion	TechNexion
@@ -361,6 +366,7 @@ truly	Truly Semiconductors Limited
 tsd	Theobroma Systems Design und Consulting GmbH
 tyan	Tyan Computer Corporation
 ucrobotics	uCRobotics
+ubnt	Ubiquiti Networks
 udoo	Udoo
 uniwest	United Western Technologies Corp (UniWest)
 upisemi	uPI Semiconductor Corp.
