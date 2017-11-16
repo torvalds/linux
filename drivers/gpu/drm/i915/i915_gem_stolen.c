@@ -539,12 +539,18 @@ i915_pages_create_for_stolen(struct drm_device *dev,
 	return st;
 }
 
-static struct sg_table *
-i915_gem_object_get_pages_stolen(struct drm_i915_gem_object *obj)
+static int i915_gem_object_get_pages_stolen(struct drm_i915_gem_object *obj)
 {
-	return i915_pages_create_for_stolen(obj->base.dev,
-					    obj->stolen->start,
-					    obj->stolen->size);
+	struct sg_table *pages =
+		i915_pages_create_for_stolen(obj->base.dev,
+					     obj->stolen->start,
+					     obj->stolen->size);
+	if (IS_ERR(pages))
+		return PTR_ERR(pages);
+
+	__i915_gem_object_set_pages(obj, pages, obj->stolen->size);
+
+	return 0;
 }
 
 static void i915_gem_object_put_pages_stolen(struct drm_i915_gem_object *obj,
@@ -718,8 +724,11 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_i915_private *dev_priv
 	vma->flags |= I915_VMA_GLOBAL_BIND;
 	__i915_vma_set_map_and_fenceable(vma);
 	list_move_tail(&vma->vm_link, &ggtt->base.inactive_list);
-	list_move_tail(&obj->global_link, &dev_priv->mm.bound_list);
+
+	spin_lock(&dev_priv->mm.obj_lock);
+	list_move_tail(&obj->mm.link, &dev_priv->mm.bound_list);
 	obj->bind_count++;
+	spin_unlock(&dev_priv->mm.obj_lock);
 
 	return obj;
 

@@ -111,33 +111,119 @@ nouveau_name(struct drm_device *dev)
 		return nouveau_platform_name(to_platform_device(dev->dev));
 }
 
+static inline bool
+nouveau_cli_work_ready(struct dma_fence *fence, bool wait)
+{
+	if (!dma_fence_is_signaled(fence)) {
+		if (!wait)
+			return false;
+		WARN_ON(dma_fence_wait_timeout(fence, false, 2 * HZ) <= 0);
+	}
+	dma_fence_put(fence);
+	return true;
+}
+
+static void
+nouveau_cli_work_flush(struct nouveau_cli *cli, bool wait)
+{
+	struct nouveau_cli_work *work, *wtmp;
+	mutex_lock(&cli->lock);
+	list_for_each_entry_safe(work, wtmp, &cli->worker, head) {
+		if (!work->fence || nouveau_cli_work_ready(work->fence, wait)) {
+			list_del(&work->head);
+			work->func(work);
+		}
+	}
+	mutex_unlock(&cli->lock);
+}
+
+static void
+nouveau_cli_work_fence(struct dma_fence *fence, struct dma_fence_cb *cb)
+{
+	struct nouveau_cli_work *work = container_of(cb, typeof(*work), cb);
+	schedule_work(&work->cli->work);
+}
+
+void
+nouveau_cli_work_queue(struct nouveau_cli *cli, struct dma_fence *fence,
+		       struct nouveau_cli_work *work)
+{
+	work->fence = dma_fence_get(fence);
+	work->cli = cli;
+	mutex_lock(&cli->lock);
+	list_add_tail(&work->head, &cli->worker);
+	mutex_unlock(&cli->lock);
+	if (dma_fence_add_callback(fence, &work->cb, nouveau_cli_work_fence))
+		nouveau_cli_work_fence(fence, &work->cb);
+}
+
+static void
+nouveau_cli_work(struct work_struct *w)
+{
+	struct nouveau_cli *cli = container_of(w, typeof(*cli), work);
+	nouveau_cli_work_flush(cli, false);
+}
+
 static void
 nouveau_cli_fini(struct nouveau_cli *cli)
 {
-	nvkm_vm_ref(NULL, &nvxx_client(&cli->base)->vm, NULL);
+	nouveau_cli_work_flush(cli, true);
 	usif_client_fini(cli);
+	nouveau_vmm_fini(&cli->vmm);
+	nvif_mmu_fini(&cli->mmu);
 	nvif_device_fini(&cli->device);
+	mutex_lock(&cli->drm->master.lock);
 	nvif_client_fini(&cli->base);
+	mutex_unlock(&cli->drm->master.lock);
 }
 
 static int
 nouveau_cli_init(struct nouveau_drm *drm, const char *sname,
 		 struct nouveau_cli *cli)
 {
+	static const struct nvif_mclass
+	mems[] = {
+		{ NVIF_CLASS_MEM_GF100, -1 },
+		{ NVIF_CLASS_MEM_NV50 , -1 },
+		{ NVIF_CLASS_MEM_NV04 , -1 },
+		{}
+	};
+	static const struct nvif_mclass
+	mmus[] = {
+		{ NVIF_CLASS_MMU_GF100, -1 },
+		{ NVIF_CLASS_MMU_NV50 , -1 },
+		{ NVIF_CLASS_MMU_NV04 , -1 },
+		{}
+	};
+	static const struct nvif_mclass
+	vmms[] = {
+		{ NVIF_CLASS_VMM_GP100, -1 },
+		{ NVIF_CLASS_VMM_GM200, -1 },
+		{ NVIF_CLASS_VMM_GF100, -1 },
+		{ NVIF_CLASS_VMM_NV50 , -1 },
+		{ NVIF_CLASS_VMM_NV04 , -1 },
+		{}
+	};
 	u64 device = nouveau_name(drm->dev);
 	int ret;
 
 	snprintf(cli->name, sizeof(cli->name), "%s", sname);
-	cli->dev = drm->dev;
+	cli->drm = drm;
 	mutex_init(&cli->mutex);
 	usif_client_init(cli);
 
-	if (cli == &drm->client) {
+	INIT_WORK(&cli->work, nouveau_cli_work);
+	INIT_LIST_HEAD(&cli->worker);
+	mutex_init(&cli->lock);
+
+	if (cli == &drm->master) {
 		ret = nvif_driver_init(NULL, nouveau_config, nouveau_debug,
 				       cli->name, device, &cli->base);
 	} else {
-		ret = nvif_client_init(&drm->client.base, cli->name, device,
+		mutex_lock(&drm->master.lock);
+		ret = nvif_client_init(&drm->master.base, cli->name, device,
 				       &cli->base);
+		mutex_unlock(&drm->master.lock);
 	}
 	if (ret) {
 		NV_ERROR(drm, "Client allocation failed: %d\n", ret);
@@ -154,6 +240,38 @@ nouveau_cli_init(struct nouveau_drm *drm, const char *sname,
 		goto done;
 	}
 
+	ret = nvif_mclass(&cli->device.object, mmus);
+	if (ret < 0) {
+		NV_ERROR(drm, "No supported MMU class\n");
+		goto done;
+	}
+
+	ret = nvif_mmu_init(&cli->device.object, mmus[ret].oclass, &cli->mmu);
+	if (ret) {
+		NV_ERROR(drm, "MMU allocation failed: %d\n", ret);
+		goto done;
+	}
+
+	ret = nvif_mclass(&cli->mmu.object, vmms);
+	if (ret < 0) {
+		NV_ERROR(drm, "No supported VMM class\n");
+		goto done;
+	}
+
+	ret = nouveau_vmm_init(cli, vmms[ret].oclass, &cli->vmm);
+	if (ret) {
+		NV_ERROR(drm, "VMM allocation failed: %d\n", ret);
+		goto done;
+	}
+
+	ret = nvif_mclass(&cli->mmu.object, mems);
+	if (ret < 0) {
+		NV_ERROR(drm, "No supported MEM class\n");
+		goto done;
+	}
+
+	cli->mem = &mems[ret];
+	return 0;
 done:
 	if (ret)
 		nouveau_cli_fini(cli);
@@ -433,6 +551,10 @@ nouveau_drm_load(struct drm_device *dev, unsigned long flags)
 	dev->dev_private = drm;
 	drm->dev = dev;
 
+	ret = nouveau_cli_init(drm, "DRM-master", &drm->master);
+	if (ret)
+		return ret;
+
 	ret = nouveau_cli_init(drm, "DRM", &drm->client);
 	if (ret)
 		return ret;
@@ -455,21 +577,6 @@ nouveau_drm_load(struct drm_device *dev, unsigned long flags)
 		nvif_mask(&drm->client.device.object, 0x00088080, 0x00000800, 0x00000000);
 
 	nouveau_vga_init(drm);
-
-	if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_TESLA) {
-		if (!nvxx_device(&drm->client.device)->mmu) {
-			ret = -ENOSYS;
-			goto fail_device;
-		}
-
-		ret = nvkm_vm_new(nvxx_device(&drm->client.device),
-				  0, (1ULL << 40), 0x1000, NULL,
-				  &drm->client.vm);
-		if (ret)
-			goto fail_device;
-
-		nvxx_client(&drm->client.base)->vm = drm->client.vm;
-	}
 
 	ret = nouveau_ttm_init(drm);
 	if (ret)
@@ -516,8 +623,8 @@ fail_bios:
 	nouveau_ttm_fini(drm);
 fail_ttm:
 	nouveau_vga_fini(drm);
-fail_device:
 	nouveau_cli_fini(&drm->client);
+	nouveau_cli_fini(&drm->master);
 	kfree(drm);
 	return ret;
 }
@@ -550,6 +657,7 @@ nouveau_drm_unload(struct drm_device *dev)
 	if (drm->hdmi_device)
 		pci_dev_put(drm->hdmi_device);
 	nouveau_cli_fini(&drm->client);
+	nouveau_cli_fini(&drm->master);
 	kfree(drm);
 }
 
@@ -618,7 +726,7 @@ nouveau_do_suspend(struct drm_device *dev, bool runtime)
 	}
 
 	NV_DEBUG(drm, "suspending object tree...\n");
-	ret = nvif_client_suspend(&drm->client.base);
+	ret = nvif_client_suspend(&drm->master.base);
 	if (ret)
 		goto fail_client;
 
@@ -642,7 +750,7 @@ nouveau_do_resume(struct drm_device *dev, bool runtime)
 	struct nouveau_drm *drm = nouveau_drm(dev);
 
 	NV_DEBUG(drm, "resuming object tree...\n");
-	nvif_client_resume(&drm->client.base);
+	nvif_client_resume(&drm->master.base);
 
 	NV_DEBUG(drm, "resuming fence...\n");
 	if (drm->fence && nouveau_fence(drm)->resume)
@@ -849,15 +957,6 @@ nouveau_drm_open(struct drm_device *dev, struct drm_file *fpriv)
 		goto done;
 
 	cli->base.super = false;
-
-	if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_TESLA) {
-		ret = nvkm_vm_new(nvxx_device(&drm->client.device), 0,
-				  (1ULL << 40), 0x1000, NULL, &cli->vm);
-		if (ret)
-			goto done;
-
-		nvxx_client(&cli->base)->vm = cli->vm;
-	}
 
 	fpriv->driver_priv = cli;
 

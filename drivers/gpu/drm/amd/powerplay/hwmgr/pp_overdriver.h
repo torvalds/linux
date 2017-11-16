@@ -28,7 +28,7 @@
 #include <linux/kernel.h>
 
 struct phm_fuses_default {
-	const char *key;
+	uint64_t key;
 	uint32_t VFT2_m1;
 	uint32_t VFT2_m2;
 	uint32_t VFT2_b;
@@ -40,9 +40,7 @@ struct phm_fuses_default {
 	uint32_t VFT0_b;
 };
 
-extern struct phm_fuses_default vega10_fuses_default[];
 extern int pp_override_get_default_fuse_value(uint64_t key,
-			struct phm_fuses_default list[],
 			struct phm_fuses_default *result);
 
 #endif

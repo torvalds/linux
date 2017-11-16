@@ -46,7 +46,7 @@ static int gr3d_init(struct host1x_client *client)
 	if (!gr3d->channel)
 		return -ENOMEM;
 
-	client->syncpts[0] = host1x_syncpt_request(client->dev, flags);
+	client->syncpts[0] = host1x_syncpt_request(client, flags);
 	if (!client->syncpts[0]) {
 		host1x_channel_put(gr3d->channel);
 		return -ENOMEM;

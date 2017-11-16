@@ -2,8 +2,8 @@
 #define __DRM_GEM_FB_HELPER_H__
 
 struct drm_device;
-struct drm_file;
 struct drm_fb_helper_surface_size;
+struct drm_file;
 struct drm_framebuffer;
 struct drm_framebuffer_funcs;
 struct drm_gem_object;

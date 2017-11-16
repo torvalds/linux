@@ -58,7 +58,7 @@ int rockchip_drm_dma_attach_device(struct drm_device *drm_dev,
 
 	ret = iommu_attach_device(private->domain, dev);
 	if (ret) {
-		dev_err(dev, "Failed to attach iommu device\n");
+		DRM_DEV_ERROR(dev, "Failed to attach iommu device\n");
 		return ret;
 	}
 
@@ -373,8 +373,9 @@ static int rockchip_drm_platform_of_probe(struct device *dev)
 
 		iommu = of_parse_phandle(port->parent, "iommus", 0);
 		if (!iommu || !of_device_is_available(iommu->parent)) {
-			dev_dbg(dev, "no iommu attached for %pOF, using non-iommu buffers\n",
-				port->parent);
+			DRM_DEV_DEBUG(dev,
+				      "no iommu attached for %pOF, using non-iommu buffers\n",
+				      port->parent);
 			/*
 			 * if there is a crtc not support iommu, force set all
 			 * crtc use non-iommu buffer.
@@ -389,12 +390,13 @@ static int rockchip_drm_platform_of_probe(struct device *dev)
 	}
 
 	if (i == 0) {
-		dev_err(dev, "missing 'ports' property\n");
+		DRM_DEV_ERROR(dev, "missing 'ports' property\n");
 		return -ENODEV;
 	}
 
 	if (!found) {
-		dev_err(dev, "No available vop found for display-subsystem.\n");
+		DRM_DEV_ERROR(dev,
+			      "No available vop found for display-subsystem.\n");
 		return -ENODEV;
 	}
 
@@ -453,6 +455,8 @@ static int __init rockchip_drm_init(void)
 
 	num_rockchip_sub_drivers = 0;
 	ADD_ROCKCHIP_SUB_DRIVER(vop_platform_driver, CONFIG_DRM_ROCKCHIP);
+	ADD_ROCKCHIP_SUB_DRIVER(rockchip_lvds_driver,
+				CONFIG_ROCKCHIP_LVDS);
 	ADD_ROCKCHIP_SUB_DRIVER(rockchip_dp_driver,
 				CONFIG_ROCKCHIP_ANALOGIX_DP);
 	ADD_ROCKCHIP_SUB_DRIVER(cdn_dp_driver, CONFIG_ROCKCHIP_CDN_DP);

@@ -26,7 +26,7 @@ amdgpu-y += amdgpu_device.o amdgpu_kms.o \
 	amdgpu_prime.o amdgpu_vm.o amdgpu_ib.o amdgpu_pll.o \
 	amdgpu_ucode.o amdgpu_bo_list.o amdgpu_ctx.o amdgpu_sync.o \
 	amdgpu_gtt_mgr.o amdgpu_vram_mgr.o amdgpu_virt.o amdgpu_atomfirmware.o \
-	amdgpu_queue_mgr.o amdgpu_vf_error.o
+	amdgpu_queue_mgr.o amdgpu_vf_error.o amdgpu_sched.o
 
 # add asic specific block
 amdgpu-$(CONFIG_DRM_AMDGPU_CIK)+= cik.o cik_ih.o kv_smc.o kv_dpm.o \
@@ -134,5 +134,3 @@ include $(FULL_AMD_PATH)/powerplay/Makefile
 amdgpu-y += $(AMD_POWERPLAY_FILES)
 
 obj-$(CONFIG_DRM_AMDGPU)+= amdgpu.o
-
-CFLAGS_amdgpu_trace_points.o := -I$(src)

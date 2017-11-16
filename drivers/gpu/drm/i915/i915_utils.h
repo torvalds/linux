@@ -99,6 +99,11 @@
 	__T;								\
 })
 
+static inline u64 ptr_to_u64(const void *ptr)
+{
+	return (uintptr_t)ptr;
+}
+
 #define u64_to_ptr(T, x) ({						\
 	typecheck(u64, x);						\
 	(T *)(uintptr_t)(x);						\
@@ -117,6 +122,19 @@ static inline void __list_del_many(struct list_head *head,
 {
 	first->prev = head;
 	WRITE_ONCE(head->next, first);
+}
+
+/*
+ * Wait until the work is finally complete, even if it tries to postpone
+ * by requeueing itself. Note, that if the worker never cancels itself,
+ * we will spin forever.
+ */
+static inline void drain_delayed_work(struct delayed_work *dw)
+{
+	do {
+		while (flush_delayed_work(dw))
+			;
+	} while (delayed_work_pending(dw));
 }
 
 #endif /* !__I915_UTILS_H */

@@ -33,6 +33,10 @@
 #include "intel_drv.h"
 #include "i915_trace.h"
 
+I915_SELFTEST_DECLARE(static struct igt_evict_ctl {
+	bool fail_if_busy:1;
+} igt_evict_ctl;)
+
 static bool ggtt_is_idle(struct drm_i915_private *i915)
 {
        struct intel_engine_cs *engine;
@@ -81,7 +85,7 @@ mark_free(struct drm_mm_scan *scan,
 	if (i915_vma_is_pinned(vma))
 		return false;
 
-	if (flags & PIN_NONFAULT && !list_empty(&vma->obj->userfault_link))
+	if (flags & PIN_NONFAULT && i915_vma_has_userfault(vma))
 		return false;
 
 	list_add(&vma->evict_link, unwind);
@@ -205,6 +209,9 @@ search_again:
 	 * the kernel's there is no more we can evict.
 	 */
 	if (!ggtt_is_idle(dev_priv)) {
+		if (I915_SELFTEST_ONLY(igt_evict_ctl.fail_if_busy))
+			return -EBUSY;
+
 		ret = ggtt_flush(dev_priv);
 		if (ret)
 			return ret;
@@ -326,6 +333,11 @@ int i915_gem_evict_for_node(struct i915_address_space *vm,
 
 		if (flags & PIN_NONBLOCK &&
 		    (i915_vma_is_pinned(vma) || i915_vma_is_active(vma))) {
+			ret = -ENOSPC;
+			break;
+		}
+
+		if (flags & PIN_NONFAULT && i915_vma_has_userfault(vma)) {
 			ret = -ENOSPC;
 			break;
 		}

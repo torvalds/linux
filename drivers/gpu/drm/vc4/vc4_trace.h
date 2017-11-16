@@ -59,5 +59,5 @@ TRACE_EVENT(vc4_wait_for_seqno_end,
 
 /* This part must be outside protection */
 #undef TRACE_INCLUDE_PATH
-#define TRACE_INCLUDE_PATH .
+#define TRACE_INCLUDE_PATH ../../drivers/gpu/drm/vc4
 #include <trace/define_trace.h>

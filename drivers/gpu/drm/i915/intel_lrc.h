@@ -25,6 +25,7 @@
 #define _INTEL_LRC_H_
 
 #include "intel_ringbuffer.h"
+#include "i915_gem_context.h"
 
 #define GEN8_LR_CONTEXT_ALIGN I915_GTT_MIN_ALIGNMENT
 
@@ -60,6 +61,7 @@
 enum {
 	INTEL_CONTEXT_SCHEDULE_IN = 0,
 	INTEL_CONTEXT_SCHEDULE_OUT,
+	INTEL_CONTEXT_SCHEDULE_PREEMPTED,
 };
 
 /* Logical Rings */
@@ -69,17 +71,42 @@ int logical_xcs_ring_init(struct intel_engine_cs *engine);
 
 /* Logical Ring Contexts */
 
-/* One extra page is added before LRC for GuC as shared data */
+/*
+ * We allocate a header at the start of the context image for our own
+ * use, therefore the actual location of the logical state is offset
+ * from the start of the VMA. The layout is
+ *
+ * | [guc]          | [hwsp] [logical state] |
+ * |<- our header ->|<- context image      ->|
+ *
+ */
+/* The first page is used for sharing data with the GuC */
 #define LRC_GUCSHR_PN	(0)
-#define LRC_PPHWSP_PN	(LRC_GUCSHR_PN + 1)
-#define LRC_STATE_PN	(LRC_PPHWSP_PN + 1)
+#define LRC_GUCSHR_SZ	(1)
+/* At the start of the context image is its per-process HWS page */
+#define LRC_PPHWSP_PN	(LRC_GUCSHR_PN + LRC_GUCSHR_SZ)
+#define LRC_PPHWSP_SZ	(1)
+/* Finally we have the logical state for the context */
+#define LRC_STATE_PN	(LRC_PPHWSP_PN + LRC_PPHWSP_SZ)
+
+/*
+ * Currently we include the PPHWSP in __intel_engine_context_size() so
+ * the size of the header is synonymous with the start of the PPHWSP.
+ */
+#define LRC_HEADER_PAGES LRC_PPHWSP_PN
 
 struct drm_i915_private;
 struct i915_gem_context;
 
 void intel_lr_context_resume(struct drm_i915_private *dev_priv);
-uint64_t intel_lr_context_descriptor(struct i915_gem_context *ctx,
-				     struct intel_engine_cs *engine);
+
+static inline uint64_t
+intel_lr_context_descriptor(struct i915_gem_context *ctx,
+			    struct intel_engine_cs *engine)
+{
+	return ctx->engine[engine->id].lrc_desc;
+}
+
 
 /* Execlists */
 int intel_sanitize_enable_execlists(struct drm_i915_private *dev_priv,

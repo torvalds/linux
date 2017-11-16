@@ -4292,6 +4292,7 @@ typedef struct _ATOM_DPCD_INFO
 #define ATOM_VRAM_OPERATION_FLAGS_SHIFT        30
 #define   ATOM_VRAM_BLOCK_NEEDS_NO_RESERVATION   0x1
 #define   ATOM_VRAM_BLOCK_NEEDS_RESERVATION      0x0
+#define   ATOM_VRAM_BLOCK_SRIOV_MSG_SHARE_RESERVATION 0x2
 
 /***********************************************************************************/
 // Structure used in VRAM_UsageByFirmwareTable

@@ -1647,14 +1647,13 @@ int intel_vgpu_pin_mm(struct intel_vgpu_mm *mm)
 	if (WARN_ON(mm->type != INTEL_GVT_MM_PPGTT))
 		return 0;
 
-	atomic_inc(&mm->pincount);
-
 	if (!mm->shadowed) {
 		ret = shadow_mm(mm);
 		if (ret)
 			return ret;
 	}
 
+	atomic_inc(&mm->pincount);
 	list_del_init(&mm->lru_list);
 	list_add_tail(&mm->lru_list, &mm->vgpu->gvt->gtt.mm_lru_list_head);
 	return 0;
@@ -1972,7 +1971,7 @@ static int alloc_scratch_pages(struct intel_vgpu *vgpu,
 		 */
 		se.val64 |= _PAGE_PRESENT | _PAGE_RW;
 		if (type == GTT_TYPE_PPGTT_PDE_PT)
-			se.val64 |= PPAT_CACHED_INDEX;
+			se.val64 |= PPAT_CACHED;
 
 		for (i = 0; i < page_entry_num; i++)
 			ops->set_entry(scratch_pt, &se, i, false, 0, vgpu);

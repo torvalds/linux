@@ -155,7 +155,7 @@ static int crtc_crc_open(struct inode *inode, struct file *filep)
 	int ret = 0;
 
 	if (drm_drv_uses_atomic_modeset(crtc->dev)) {
-		ret = drm_modeset_lock_interruptible(&crtc->mutex, NULL);
+		ret = drm_modeset_lock_single_interruptible(&crtc->mutex);
 		if (ret)
 			return ret;
 

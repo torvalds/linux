@@ -735,8 +735,19 @@
 # define DP_PSR_SINK_INTERNAL_ERROR         7
 # define DP_PSR_SINK_STATE_MASK             0x07
 
+#define DP_SYNCHRONIZATION_LATENCY_IN_SINK		0x2009 /* edp 1.4 */
+# define DP_MAX_RESYNC_FRAME_COUNT_MASK			(0xf << 0)
+# define DP_MAX_RESYNC_FRAME_COUNT_SHIFT		0
+# define DP_LAST_ACTUAL_SYNCHRONIZATION_LATENCY_MASK	(0xf << 4)
+# define DP_LAST_ACTUAL_SYNCHRONIZATION_LATENCY_SHIFT	4
+
 #define DP_RECEIVER_ALPM_STATUS		    0x200b  /* eDP 1.4 */
 # define DP_ALPM_LOCK_TIMEOUT_ERROR	    (1 << 0)
+
+#define DP_LANE0_1_STATUS_ESI                  0x200c /* status same as 0x202 */
+#define DP_LANE2_3_STATUS_ESI                  0x200d /* status same as 0x203 */
+#define DP_LANE_ALIGN_STATUS_UPDATED_ESI       0x200e /* status same as 0x204 */
+#define DP_SINK_STATUS_ESI                     0x200f /* status same as 0x205 */
 
 #define DP_DPRX_FEATURE_ENUMERATION_LIST    0x2210  /* DP 1.3 */
 # define DP_GTC_CAP					(1 << 0)  /* DP 1.3 */
@@ -870,6 +881,18 @@ void drm_dp_link_train_channel_eq_delay(const u8 dpcd[DP_RECEIVER_CAP_SIZE]);
 
 u8 drm_dp_link_rate_to_bw_code(int link_rate);
 int drm_dp_bw_code_to_link_rate(u8 link_bw);
+
+#define DP_SDP_AUDIO_TIMESTAMP		0x01
+#define DP_SDP_AUDIO_STREAM		0x02
+#define DP_SDP_EXTENSION		0x04 /* DP 1.1 */
+#define DP_SDP_AUDIO_COPYMANAGEMENT	0x05 /* DP 1.2 */
+#define DP_SDP_ISRC			0x06 /* DP 1.2 */
+#define DP_SDP_VSC			0x07 /* DP 1.2 */
+#define DP_SDP_CAMERA_GENERIC(i)	(0x08 + (i)) /* 0-7, DP 1.3 */
+#define DP_SDP_PPS			0x10 /* DP 1.4 */
+#define DP_SDP_VSC_EXT_VESA		0x20 /* DP 1.4 */
+#define DP_SDP_VSC_EXT_CEA		0x21 /* DP 1.4 */
+/* 0x80+ CEA-861 infoframe types */
 
 struct edp_sdp_header {
 	u8 HB0; /* Secondary Data Packet ID */
