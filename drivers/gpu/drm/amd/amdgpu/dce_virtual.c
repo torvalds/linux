@@ -44,6 +44,9 @@ static void dce_virtual_set_display_funcs(struct amdgpu_device *adev);
 static void dce_virtual_set_irq_funcs(struct amdgpu_device *adev);
 static int dce_virtual_connector_encoder_init(struct amdgpu_device *adev,
 					      int index);
+static void dce_virtual_set_crtc_vblank_interrupt_state(struct amdgpu_device *adev,
+							int crtc,
+							enum amdgpu_interrupt_state state);
 
 /**
  * dce_virtual_vblank_wait - vblank wait asic callback.
@@ -491,6 +494,13 @@ static int dce_virtual_hw_init(void *handle)
 
 static int dce_virtual_hw_fini(void *handle)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	int i = 0;
+
+	for (i = 0; i<adev->mode_info.num_crtc; i++)
+		if (adev->mode_info.crtcs[i])
+			dce_virtual_set_crtc_vblank_interrupt_state(adev, i, AMDGPU_IRQ_STATE_DISABLE);
+
 	return 0;
 }
 
