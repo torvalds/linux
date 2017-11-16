@@ -181,17 +181,11 @@ static void page_cache_tree_delete(struct address_space *mapping,
 	mapping->nrpages -= nr;
 }
 
-/*
- * Delete a page from the page cache and free it. Caller has to make
- * sure the page is locked and that nobody else uses it - or that usage
- * is safe.  The caller must hold the mapping's tree_lock.
- */
-void __delete_from_page_cache(struct page *page, void *shadow)
+static void unaccount_page_cache_page(struct address_space *mapping,
+				      struct page *page)
 {
-	struct address_space *mapping = page->mapping;
-	int nr = hpage_nr_pages(page);
+	int nr;
 
-	trace_mm_filemap_delete_from_page_cache(page);
 	/*
 	 * if we're uptodate, flush out into the cleancache, otherwise
 	 * invalidate any existing cleancache entries.  We can't leave
@@ -228,30 +222,46 @@ void __delete_from_page_cache(struct page *page, void *shadow)
 	}
 
 	/* hugetlb pages do not participate in page cache accounting. */
-	if (!PageHuge(page)) {
-		__mod_node_page_state(page_pgdat(page), NR_FILE_PAGES, -nr);
-		if (PageSwapBacked(page)) {
-			__mod_node_page_state(page_pgdat(page), NR_SHMEM, -nr);
-			if (PageTransHuge(page))
-				__dec_node_page_state(page, NR_SHMEM_THPS);
-		} else {
-			VM_BUG_ON_PAGE(PageTransHuge(page), page);
-		}
+	if (PageHuge(page))
+		return;
 
-		/*
-		 * At this point page must be either written or cleaned by
-		 * truncate.  Dirty page here signals a bug and loss of
-		 * unwritten data.
-		 *
-		 * This fixes dirty accounting after removing the page entirely
-		 * but leaves PageDirty set: it has no effect for truncated
-		 * page and anyway will be cleared before returning page into
-		 * buddy allocator.
-		 */
-		if (WARN_ON_ONCE(PageDirty(page)))
-			account_page_cleaned(page, mapping,
-					     inode_to_wb(mapping->host));
+	nr = hpage_nr_pages(page);
+
+	__mod_node_page_state(page_pgdat(page), NR_FILE_PAGES, -nr);
+	if (PageSwapBacked(page)) {
+		__mod_node_page_state(page_pgdat(page), NR_SHMEM, -nr);
+		if (PageTransHuge(page))
+			__dec_node_page_state(page, NR_SHMEM_THPS);
+	} else {
+		VM_BUG_ON_PAGE(PageTransHuge(page), page);
 	}
+
+	/*
+	 * At this point page must be either written or cleaned by
+	 * truncate.  Dirty page here signals a bug and loss of
+	 * unwritten data.
+	 *
+	 * This fixes dirty accounting after removing the page entirely
+	 * but leaves PageDirty set: it has no effect for truncated
+	 * page and anyway will be cleared before returning page into
+	 * buddy allocator.
+	 */
+	if (WARN_ON_ONCE(PageDirty(page)))
+		account_page_cleaned(page, mapping, inode_to_wb(mapping->host));
+}
+
+/*
+ * Delete a page from the page cache and free it. Caller has to make
+ * sure the page is locked and that nobody else uses it - or that usage
+ * is safe.  The caller must hold the mapping's tree_lock.
+ */
+void __delete_from_page_cache(struct page *page, void *shadow)
+{
+	struct address_space *mapping = page->mapping;
+
+	trace_mm_filemap_delete_from_page_cache(page);
+
+	unaccount_page_cache_page(mapping, page);
 	page_cache_tree_delete(mapping, page, shadow);
 }
 
