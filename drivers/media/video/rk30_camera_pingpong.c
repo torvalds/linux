@@ -41,7 +41,6 @@
 
 #include "../../video/rockchip/rga/rga.h"
 #include "../../../drivers/soc/rockchip/rk30_camera.h"/*yzm*/
-#include <linux/rockchip/cru.h>
 
 /*******yzm*********
 

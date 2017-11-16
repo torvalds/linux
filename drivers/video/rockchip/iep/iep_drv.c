@@ -32,7 +32,6 @@
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
 #include <linux/rockchip/cpu.h>
-#include <linux/rockchip/cru.h>
 #include <asm/cacheflush.h>
 #include "iep_drv.h"
 #include "hw_iep_reg.h"

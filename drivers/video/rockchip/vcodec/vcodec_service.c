@@ -41,7 +41,6 @@
 #include <linux/pm_runtime.h>
 #include <linux/iopoll.h>
 
-#include <linux/rockchip/cru.h>
 #include <linux/rockchip/pmu.h>
 #include <linux/rockchip/grf.h>
 

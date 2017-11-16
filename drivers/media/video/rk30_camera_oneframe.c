@@ -41,7 +41,6 @@
 
 #include "../../video/rockchip/rga/rga.h"
 #include "../../../drivers/soc/rockchip/rk30_camera.h"
-#include <linux/rockchip/cru.h>
 #include <linux/regmap.h>
 #include <linux/pm_runtime.h>
 
