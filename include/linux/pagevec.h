@@ -38,9 +38,16 @@ static inline unsigned pagevec_lookup(struct pagevec *pvec,
 	return pagevec_lookup_range(pvec, mapping, start, (pgoff_t)-1);
 }
 
-unsigned pagevec_lookup_tag(struct pagevec *pvec,
+unsigned pagevec_lookup_range_tag(struct pagevec *pvec,
+		struct address_space *mapping, pgoff_t *index, pgoff_t end,
+		int tag, unsigned nr_pages);
+static inline unsigned pagevec_lookup_tag(struct pagevec *pvec,
 		struct address_space *mapping, pgoff_t *index, int tag,
-		unsigned nr_pages);
+		unsigned nr_pages)
+{
+	return pagevec_lookup_range_tag(pvec, mapping, index, (pgoff_t)-1, tag,
+					nr_pages);
+}
 
 static inline void pagevec_init(struct pagevec *pvec, int cold)
 {
