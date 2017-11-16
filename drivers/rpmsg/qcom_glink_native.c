@@ -1576,6 +1576,7 @@ struct qcom_glink *qcom_glink_native_probe(struct device *dev,
 	idr_init(&glink->rcids);
 
 	glink->mbox_client.dev = dev;
+	glink->mbox_client.knows_txdone = true;
 	glink->mbox_chan = mbox_request_channel(&glink->mbox_client, 0);
 	if (IS_ERR(glink->mbox_chan)) {
 		if (PTR_ERR(glink->mbox_chan) != -EPROBE_DEFER)
