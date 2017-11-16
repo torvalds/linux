@@ -32,7 +32,7 @@
  * DOC: GuC-based command submission
  *
  * GuC client:
- * A i915_guc_client refers to a submission path through GuC. Currently, there
+ * A intel_guc_client refers to a submission path through GuC. Currently, there
  * are two clients. One of them (the execbuf_client) is charged with all
  * submissions to the GuC, the other one (preempt_client) is responsible for
  * preempting the execbuf_client. This struct is the owner of a doorbell, a
@@ -42,7 +42,7 @@
  * GuC stage descriptor:
  * During initialization, the driver allocates a static pool of 1024 such
  * descriptors, and shares them with the GuC.
- * Currently, there exists a 1:1 mapping between a i915_guc_client and a
+ * Currently, there exists a 1:1 mapping between a intel_guc_client and a
  * guc_stage_desc (via the client's stage_id), so effectively only one
  * gets used. This stage descriptor lets the GuC know about the doorbell,
  * workqueue and process descriptor. Theoretically, it also lets the GuC
@@ -82,13 +82,13 @@
  *
  */
 
-static inline bool is_high_priority(struct i915_guc_client* client)
+static inline bool is_high_priority(struct intel_guc_client *client)
 {
 	return (client->priority == GUC_CLIENT_PRIORITY_KMD_HIGH ||
 		client->priority == GUC_CLIENT_PRIORITY_HIGH);
 }
 
-static int __reserve_doorbell(struct i915_guc_client *client)
+static int __reserve_doorbell(struct intel_guc_client *client)
 {
 	unsigned long offset;
 	unsigned long end;
@@ -120,7 +120,7 @@ static int __reserve_doorbell(struct i915_guc_client *client)
 	return 0;
 }
 
-static void __unreserve_doorbell(struct i915_guc_client *client)
+static void __unreserve_doorbell(struct intel_guc_client *client)
 {
 	GEM_BUG_ON(client->doorbell_id == GUC_DOORBELL_INVALID);
 
@@ -152,7 +152,7 @@ static int __guc_deallocate_doorbell(struct intel_guc *guc, u32 stage_id)
 	return intel_guc_send(guc, action, ARRAY_SIZE(action));
 }
 
-static struct guc_stage_desc *__get_stage_desc(struct i915_guc_client *client)
+static struct guc_stage_desc *__get_stage_desc(struct intel_guc_client *client)
 {
 	struct guc_stage_desc *base = client->guc->stage_desc_pool_vaddr;
 
@@ -166,7 +166,7 @@ static struct guc_stage_desc *__get_stage_desc(struct i915_guc_client *client)
  * client object which contains the page being used for the doorbell
  */
 
-static void __update_doorbell_desc(struct i915_guc_client *client, u16 new_id)
+static void __update_doorbell_desc(struct intel_guc_client *client, u16 new_id)
 {
 	struct guc_stage_desc *desc;
 
@@ -175,12 +175,12 @@ static void __update_doorbell_desc(struct i915_guc_client *client, u16 new_id)
 	desc->db_id = new_id;
 }
 
-static struct guc_doorbell_info *__get_doorbell(struct i915_guc_client *client)
+static struct guc_doorbell_info *__get_doorbell(struct intel_guc_client *client)
 {
 	return client->vaddr + client->doorbell_offset;
 }
 
-static bool has_doorbell(struct i915_guc_client *client)
+static bool has_doorbell(struct intel_guc_client *client)
 {
 	if (client->doorbell_id == GUC_DOORBELL_INVALID)
 		return false;
@@ -188,7 +188,7 @@ static bool has_doorbell(struct i915_guc_client *client)
 	return test_bit(client->doorbell_id, client->guc->doorbell_bitmap);
 }
 
-static int __create_doorbell(struct i915_guc_client *client)
+static int __create_doorbell(struct intel_guc_client *client)
 {
 	struct guc_doorbell_info *doorbell;
 	int err;
@@ -207,7 +207,7 @@ static int __create_doorbell(struct i915_guc_client *client)
 	return err;
 }
 
-static int __destroy_doorbell(struct i915_guc_client *client)
+static int __destroy_doorbell(struct intel_guc_client *client)
 {
 	struct drm_i915_private *dev_priv = guc_to_i915(client->guc);
 	struct guc_doorbell_info *doorbell;
@@ -228,7 +228,7 @@ static int __destroy_doorbell(struct i915_guc_client *client)
 	return __guc_deallocate_doorbell(client->guc, client->stage_id);
 }
 
-static int create_doorbell(struct i915_guc_client *client)
+static int create_doorbell(struct intel_guc_client *client)
 {
 	int ret;
 
@@ -250,7 +250,7 @@ err:
 	return ret;
 }
 
-static int destroy_doorbell(struct i915_guc_client *client)
+static int destroy_doorbell(struct intel_guc_client *client)
 {
 	int err;
 
@@ -286,7 +286,7 @@ static unsigned long __select_cacheline(struct intel_guc* guc)
 }
 
 static inline struct guc_process_desc *
-__get_process_desc(struct i915_guc_client *client)
+__get_process_desc(struct intel_guc_client *client)
 {
 	return client->vaddr + client->proc_desc_offset;
 }
@@ -295,7 +295,7 @@ __get_process_desc(struct i915_guc_client *client)
  * Initialise the process descriptor shared with the GuC firmware.
  */
 static void guc_proc_desc_init(struct intel_guc *guc,
-			       struct i915_guc_client *client)
+			       struct intel_guc_client *client)
 {
 	struct guc_process_desc *desc;
 
@@ -355,7 +355,7 @@ static void guc_stage_desc_pool_destroy(struct intel_guc *guc)
  * write queue, etc).
  */
 static void guc_stage_desc_init(struct intel_guc *guc,
-				struct i915_guc_client *client)
+				struct intel_guc_client *client)
 {
 	struct drm_i915_private *dev_priv = guc_to_i915(guc);
 	struct intel_engine_cs *engine;
@@ -436,7 +436,7 @@ static void guc_stage_desc_init(struct intel_guc *guc,
 }
 
 static void guc_stage_desc_fini(struct intel_guc *guc,
-				struct i915_guc_client *client)
+				struct intel_guc_client *client)
 {
 	struct guc_stage_desc *desc;
 
@@ -472,7 +472,7 @@ static void guc_shared_data_destroy(struct intel_guc *guc)
 }
 
 /* Construct a Work Item and append it to the GuC's Work Queue */
-static void guc_wq_item_append(struct i915_guc_client *client,
+static void guc_wq_item_append(struct intel_guc_client *client,
 			       u32 target_engine, u32 context_desc,
 			       u32 ring_tail, u32 fence_id)
 {
@@ -517,7 +517,7 @@ static void guc_wq_item_append(struct i915_guc_client *client,
 	WRITE_ONCE(desc->tail, (wq_off + wqi_size) & (GUC_WQ_SIZE - 1));
 }
 
-static void guc_reset_wq(struct i915_guc_client *client)
+static void guc_reset_wq(struct intel_guc_client *client)
 {
 	struct guc_process_desc *desc = __get_process_desc(client);
 
@@ -525,7 +525,7 @@ static void guc_reset_wq(struct i915_guc_client *client)
 	desc->tail = 0;
 }
 
-static void guc_ring_doorbell(struct i915_guc_client *client)
+static void guc_ring_doorbell(struct intel_guc_client *client)
 {
 	struct guc_doorbell_info *db;
 	u32 cookie;
@@ -549,7 +549,7 @@ static void guc_ring_doorbell(struct i915_guc_client *client)
 static void guc_add_request(struct intel_guc *guc,
 			    struct drm_i915_gem_request *rq)
 {
-	struct i915_guc_client *client = guc->execbuf_client;
+	struct intel_guc_client *client = guc->execbuf_client;
 	struct intel_engine_cs *engine = rq->engine;
 	u32 ctx_desc = lower_32_bits(intel_lr_context_descriptor(rq->ctx, engine));
 	u32 ring_tail = intel_ring_set_tail(rq->ring, rq->tail) / sizeof(u64);
@@ -589,7 +589,7 @@ static void inject_preempt_context(struct work_struct *work)
 	struct intel_engine_cs *engine = preempt_work->engine;
 	struct intel_guc *guc = container_of(preempt_work, typeof(*guc),
 					     preempt_work[engine->id]);
-	struct i915_guc_client *client = guc->preempt_client;
+	struct intel_guc_client *client = guc->preempt_client;
 	struct guc_stage_desc *stage_desc = __get_stage_desc(client);
 	struct intel_ring *ring = client->owner->engine[engine->id].ring;
 	u32 ctx_desc = lower_32_bits(intel_lr_context_descriptor(client->owner,
@@ -866,7 +866,7 @@ static bool doorbell_ok(struct intel_guc *guc, u16 db_id)
  * reloaded the GuC FW) we can use this function to tell the GuC to reassign the
  * doorbell to the rightful owner.
  */
-static int __reset_doorbell(struct i915_guc_client* client, u16 db_id)
+static int __reset_doorbell(struct intel_guc_client *client, u16 db_id)
 {
 	int err;
 
@@ -887,7 +887,7 @@ static int __reset_doorbell(struct i915_guc_client* client, u16 db_id)
  */
 static int guc_init_doorbell_hw(struct intel_guc *guc)
 {
-	struct i915_guc_client *client = guc->execbuf_client;
+	struct intel_guc_client *client = guc->execbuf_client;
 	bool recreate_first_client = false;
 	u16 db_id;
 	int ret;
@@ -937,7 +937,7 @@ static int guc_init_doorbell_hw(struct intel_guc *guc)
 }
 
 /**
- * guc_client_alloc() - Allocate an i915_guc_client
+ * guc_client_alloc() - Allocate an intel_guc_client
  * @dev_priv:	driver private data structure
  * @engines:	The set of engines to enable for this client
  * @priority:	four levels priority _CRITICAL, _HIGH, _NORMAL and _LOW
@@ -947,15 +947,15 @@ static int guc_init_doorbell_hw(struct intel_guc *guc)
  * @ctx:	the context that owns the client (we use the default render
  * 		context)
  *
- * Return:	An i915_guc_client object if success, else NULL.
+ * Return:	An intel_guc_client object if success, else NULL.
  */
-static struct i915_guc_client *
+static struct intel_guc_client *
 guc_client_alloc(struct drm_i915_private *dev_priv,
 		 u32 engines,
 		 u32 priority,
 		 struct i915_gem_context *ctx)
 {
-	struct i915_guc_client *client;
+	struct intel_guc_client *client;
 	struct intel_guc *guc = &dev_priv->guc;
 	struct i915_vma *vma;
 	void *vaddr;
@@ -1033,7 +1033,7 @@ err_client:
 	return ERR_PTR(ret);
 }
 
-static void guc_client_free(struct i915_guc_client *client)
+static void guc_client_free(struct intel_guc_client *client)
 {
 	/*
 	 * XXX: wait for any outstanding submissions before freeing memory.
@@ -1054,7 +1054,7 @@ static void guc_client_free(struct i915_guc_client *client)
 static int guc_clients_create(struct intel_guc *guc)
 {
 	struct drm_i915_private *dev_priv = guc_to_i915(guc);
-	struct i915_guc_client *client;
+	struct intel_guc_client *client;
 
 	GEM_BUG_ON(guc->execbuf_client);
 	GEM_BUG_ON(guc->preempt_client);
@@ -1086,7 +1086,7 @@ static int guc_clients_create(struct intel_guc *guc)
 
 static void guc_clients_destroy(struct intel_guc *guc)
 {
-	struct i915_guc_client *client;
+	struct intel_guc_client *client;
 
 	client = fetch_and_zero(&guc->execbuf_client);
 	guc_client_free(client);

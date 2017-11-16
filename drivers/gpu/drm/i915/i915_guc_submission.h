@@ -52,7 +52,7 @@ struct drm_i915_private;
  * queue (a circular array of work items), again described in the process
  * descriptor. Work queue pages are mapped momentarily as required.
  */
-struct i915_guc_client {
+struct intel_guc_client {
 	struct i915_vma *vma;
 	void *vaddr;
 	struct i915_gem_context *owner;
