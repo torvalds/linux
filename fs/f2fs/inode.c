@@ -235,6 +235,23 @@ static int do_read_inode(struct inode *inode)
 	fi->i_extra_isize = f2fs_has_extra_attr(inode) ?
 					le16_to_cpu(ri->i_extra_isize) : 0;
 
+	if (f2fs_sb_has_flexible_inline_xattr(sbi->sb)) {
+		f2fs_bug_on(sbi, !f2fs_has_extra_attr(inode));
+		fi->i_inline_xattr_size = le16_to_cpu(ri->i_inline_xattr_size);
+	} else if (f2fs_has_inline_xattr(inode) ||
+				f2fs_has_inline_dentry(inode)) {
+		fi->i_inline_xattr_size = DEFAULT_INLINE_XATTR_ADDRS;
+	} else {
+
+		/*
+		 * Previous inline data or directory always reserved 200 bytes
+		 * in inode layout, even if inline_xattr is disabled. In order
+		 * to keep inline_dentry's structure for backward compatibility,
+		 * we get the space back only from inline_data.
+		 */
+		fi->i_inline_xattr_size = 0;
+	}
+
 	/* check data exist */
 	if (f2fs_has_inline_data(inode) && !f2fs_exist_data(inode))
 		__recover_inline_status(inode, node_page);
@@ -387,6 +404,10 @@ int update_inode(struct inode *inode, struct page *node_page)
 	if (f2fs_has_extra_attr(inode)) {
 		ri->i_extra_isize = cpu_to_le16(F2FS_I(inode)->i_extra_isize);
 
+		if (f2fs_sb_has_flexible_inline_xattr(F2FS_I_SB(inode)->sb))
+			ri->i_inline_xattr_size =
+				cpu_to_le16(F2FS_I(inode)->i_inline_xattr_size);
+
 		if (f2fs_sb_has_project_quota(F2FS_I_SB(inode)->sb) &&
 			F2FS_FITS_IN_INODE(ri, F2FS_I(inode)->i_extra_isize,
 								i_projid)) {
@@ -483,6 +504,7 @@ void f2fs_evict_inode(struct inode *inode)
 
 	remove_ino_entry(sbi, inode->i_ino, APPEND_INO);
 	remove_ino_entry(sbi, inode->i_ino, UPDATE_INO);
+	remove_ino_entry(sbi, inode->i_ino, FLUSH_INO);
 
 	sb_start_intwrite(inode->i_sb);
 	set_inode_flag(inode, FI_NO_ALLOC);
@@ -522,8 +544,10 @@ no_delete:
 	stat_dec_inline_dir(inode);
 	stat_dec_inline_inode(inode);
 
-	if (!is_set_ckpt_flags(sbi, CP_ERROR_FLAG))
+	if (likely(!is_set_ckpt_flags(sbi, CP_ERROR_FLAG)))
 		f2fs_bug_on(sbi, is_inode_flag_set(inode, FI_DIRTY_INODE));
+	else
+		f2fs_inode_synced(inode);
 
 	/* ino == 0, if f2fs_new_inode() was failed t*/
 	if (inode->i_ino)
