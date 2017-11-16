@@ -1680,6 +1680,38 @@ static inline void mm_dec_nr_pmds(struct mm_struct *mm)
 }
 #endif
 
+#ifdef CONFIG_MMU
+static inline void mm_nr_ptes_init(struct mm_struct *mm)
+{
+	atomic_long_set(&mm->nr_ptes, 0);
+}
+
+static inline unsigned long mm_nr_ptes(const struct mm_struct *mm)
+{
+	return atomic_long_read(&mm->nr_ptes);
+}
+
+static inline void mm_inc_nr_ptes(struct mm_struct *mm)
+{
+	atomic_long_inc(&mm->nr_ptes);
+}
+
+static inline void mm_dec_nr_ptes(struct mm_struct *mm)
+{
+	atomic_long_dec(&mm->nr_ptes);
+}
+#else
+static inline void mm_nr_ptes_init(struct mm_struct *mm) {}
+
+static inline unsigned long mm_nr_ptes(const struct mm_struct *mm)
+{
+	return 0;
+}
+
+static inline void mm_inc_nr_ptes(struct mm_struct *mm) {}
+static inline void mm_dec_nr_ptes(struct mm_struct *mm) {}
+#endif
+
 int __pte_alloc(struct mm_struct *mm, pmd_t *pmd, unsigned long address);
 int __pte_alloc_kernel(pmd_t *pmd, unsigned long address);
 
