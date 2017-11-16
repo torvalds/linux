@@ -198,4 +198,5 @@ struct service_level {
 int register_service_level(struct service_level *);
 int unregister_service_level(struct service_level *);
 
+int sthyi_fill(void *dst, u64 *rc);
 #endif /* __ASM_S390_SYSINFO_H */
