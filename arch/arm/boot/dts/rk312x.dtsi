@@ -396,6 +396,7 @@
 		interrupt-names = "iep_mmu";
 		clocks = <&cru ACLK_IEP>, <&cru HCLK_IEP>;
 		clock-names = "aclk", "hclk";
+		power-domains = <&power RK3128_PD_VIO>;
 		#iommu-cells = <0>;
 		status = "disabled";
 	};
@@ -420,6 +421,7 @@
 		interrupts = <GIC_SPI 44 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru ACLK_RGA>, <&cru HCLK_RGA>, <&cru SCLK_RGA>;
 		clock-names = "aclk_rga", "hclk_rga", "sclk_rga";
+		power-domains = <&power RK3128_PD_VIO>;
 		dma-coherent;
 		status = "disabled";
 	};
@@ -434,6 +436,7 @@
 		resets = <&cru SRST_VOP_A>, <&cru SRST_VOP_D>, <&cru SRST_VOP_H>;
 		reset-names = "axi", "ahb", "dclk";
 		iommus = <&vop_mmu>;
+		power-domains = <&power RK3128_PD_VIO>;
 		status = "disabled";
 
 		vop_out: port {
@@ -459,6 +462,7 @@
 		interrupt-names = "vop_mmu";
 		clocks = <&cru ACLK_LCDC0>, <&cru HCLK_LCDC0>;
 		clock-names = "aclk", "hclk";
+		power-domains = <&power RK3128_PD_VIO>;
 		#iommu-cells = <0>;
 		status = "disabled";
 	};
@@ -473,6 +477,7 @@
 		reset-names = "apb";
 		phys = <&mipi_dphy>;
 		phy-names = "mipi_dphy";
+		power-domains = <&power RK3128_PD_VIO>;
 		rockchip,grf = <&grf>;
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -731,6 +736,7 @@
 		#clock-cells = <0>;
 		resets = <&cru SRST_MIPIPHY_P>;
 		reset-names = "apb";
+		power-domains = <&power RK3128_PD_VIO>;
 		#phy-cells = <0>;
 		status = "disabled";
 	};
@@ -741,6 +747,7 @@
 		reg-names = "mipi_lvds_phy", "mipi_lvds_ctl";
 		clocks = <&cru PCLK_MIPIPHY>, <&cru PCLK_MIPI>, <&cru HCLK_VIO_H2P>;
 		clock-names = "pclk_lvds", "pclk_lvds_ctl", "hclk_vio_h2p";
+		power-domains = <&power RK3128_PD_VIO>;
 		rockchip,grf = <&grf>;
 		status = "disabled";
 
