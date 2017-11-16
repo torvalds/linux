@@ -324,9 +324,8 @@
 &saradc {
 	compatible = "amlogic,meson8-saradc", "amlogic,meson-saradc";
 	clocks = <&clkc CLKID_XTAL>,
-		<&clkc CLKID_SAR_ADC>,
-		<&clkc CLKID_SANA>;
-	clock-names = "clkin", "core", "sana";
+		<&clkc CLKID_SAR_ADC>;
+	clock-names = "clkin", "core";
 };
 
 &sdio {
