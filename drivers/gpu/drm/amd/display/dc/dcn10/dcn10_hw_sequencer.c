@@ -1923,10 +1923,10 @@ static void update_mpcc(struct dc *dc, struct pipe_ctx *pipe_ctx)
 	/* remove MPCC if being used */
 	if (new_mpcc != NULL)
 		mpc->funcs->remove_mpcc(mpc, mpc_tree_params, new_mpcc);
-
-	if (dc->debug.sanity_checks)
-		mpc->funcs->assert_mpcc_idle_before_connect(
-				dc->res_pool->mpc, mpcc_id);
+	else
+		if (dc->debug.sanity_checks)
+			mpc->funcs->assert_mpcc_idle_before_connect(
+					dc->res_pool->mpc, mpcc_id);
 
 	/* Call MPC to insert new plane */
 	new_mpcc = mpc->funcs->insert_plane(dc->res_pool->mpc,

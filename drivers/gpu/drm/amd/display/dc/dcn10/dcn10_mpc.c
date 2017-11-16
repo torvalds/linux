@@ -300,11 +300,11 @@ void mpc1_remove_mpcc(
 
 		if (temp_mpcc && temp_mpcc->mpcc_bot == mpcc_to_remove) {
 			found = true;
+			temp_mpcc->mpcc_bot = mpcc_to_remove->mpcc_bot;
 			if (mpcc_to_remove->mpcc_bot) {
 				/* remove MPCC in middle of list */
 				REG_SET(MPCC_BOT_SEL[temp_mpcc->mpcc_id], 0,
 						MPCC_BOT_SEL, mpcc_to_remove->mpcc_bot->mpcc_id);
-				temp_mpcc->mpcc_bot = mpcc_to_remove->mpcc_bot;
 			} else {
 				/* remove MPCC from bottom of list */
 				REG_SET(MPCC_BOT_SEL[temp_mpcc->mpcc_id], 0,
@@ -373,6 +373,9 @@ void mpc1_init_mpcc_list_from_hw(
 			REG_GET(MPCC_OPP_ID[mpcc_id],  MPCC_OPP_ID,  &opp_id);
 			REG_GET(MPCC_TOP_SEL[mpcc_id], MPCC_TOP_SEL, &top_sel);
 			REG_GET(MPCC_BOT_SEL[mpcc_id],  MPCC_BOT_SEL, &bot_sel);
+
+			if (bot_sel == mpcc_id)
+				bot_sel = 0xf;
 
 			if ((opp_id == tree->opp_id) && (top_sel != 0xf)) {
 				mpcc = mpc1_get_mpcc(mpc, mpcc_id);
