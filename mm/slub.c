@@ -5635,8 +5635,6 @@ static char *create_unique_id(struct kmem_cache *s)
 		*p++ = 'a';
 	if (s->flags & SLAB_CONSISTENCY_CHECKS)
 		*p++ = 'F';
-	if (!(s->flags & SLAB_NOTRACK))
-		*p++ = 't';
 	if (s->flags & SLAB_ACCOUNT)
 		*p++ = 'A';
 	if (p != name + 1)
