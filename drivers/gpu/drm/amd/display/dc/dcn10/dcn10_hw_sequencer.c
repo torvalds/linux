@@ -594,6 +594,8 @@ static void plane_atomic_disconnect(struct dc *dc, struct pipe_ctx *pipe_ctx)
 	mpc->funcs->remove_mpcc(mpc, mpc_tree_params, mpcc_to_remove);
 	dc->res_pool->opps[opp_id]->mpcc_disconnect_pending[fe_idx] = true;
 
+	dc->optimized_required = true;
+
 	if (hubp->funcs->hubp_disconnect)
 		hubp->funcs->hubp_disconnect(hubp);
 
@@ -641,6 +643,7 @@ static void plane_atomic_disable(struct dc *dc, struct pipe_ctx *pipe_ctx)
 				OPP_PIPE_CLOCK_EN, 0);
 
 	hubp->power_gated = true;
+	dc->optimized_required = false; /* We're powering off, no need to optimize */
 
 	plane_atomic_power_down(dc, fe_idx);
 
