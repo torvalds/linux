@@ -2318,9 +2318,11 @@ void core_link_enable_stream(
 
 			/* Abort stream enable *unless* the failure was due to
 			 * DP link training - some DP monitors will recover and
-			 * show the stream anyway.
+			 * show the stream anyway. But MST displays can't proceed
+			 * without link training.
 			 */
-			if (status != DC_FAIL_DP_LINK_TRAINING) {
+			if (status != DC_FAIL_DP_LINK_TRAINING ||
+					pipe_ctx->stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST) {
 				BREAK_TO_DEBUGGER();
 				return;
 			}

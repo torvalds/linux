@@ -288,7 +288,7 @@ bool dc_stream_set_cursor_position(
 			pos_cpy.enable = false;
 
 
-		if (ipp !=NULL && ipp->funcs->ipp_cursor_set_position != NULL)
+		if (ipp != NULL && ipp->funcs->ipp_cursor_set_position != NULL)
 			ipp->funcs->ipp_cursor_set_position(ipp, &pos_cpy, &param);
 
 		if (mi != NULL && mi->funcs->set_cursor_position != NULL)

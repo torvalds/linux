@@ -202,7 +202,7 @@ static void dcn10_log_hw_state(struct dc *dc)
 	DTN_INFO("OTG:\t v_bs \t v_be \t v_ss \t v_se \t vpol \t vmax \t vmin \t "
 			"h_bs \t h_be \t h_ss \t h_se \t hpol \t htot \t vtot \t underflow\n");
 
-	for (i = 0; i < pool->pipe_count; i++) {
+	for (i = 0; i < pool->res_cap->num_timing_generator; i++) {
 		struct timing_generator *tg = pool->timing_generators[i];
 		struct dcn_otg_state s = {0};
 

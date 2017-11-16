@@ -344,7 +344,7 @@ static void hotplug_notify_work_func(struct work_struct *work)
 	drm_kms_helper_hotplug_event(dev);
 }
 
-#ifdef ENABLE_FBC
+#if defined(CONFIG_DRM_AMD_DC_FBC)
 #include "dal_asic_id.h"
 /* Allocate memory for FBC compressed data  */
 /* TODO: Dynamic allocation */
@@ -422,7 +422,7 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 	else
 		init_data.log_mask = DC_MIN_LOG_MASK;
 
-#ifdef ENABLE_FBC
+#if defined(CONFIG_DRM_AMD_DC_FBC)
 	if (adev->family == FAMILY_CZ)
 		amdgpu_dm_initialize_fbc(adev);
 	init_data.fbc_gpu_addr = adev->dm.compressor.gpu_addr;
@@ -643,6 +643,11 @@ int amdgpu_dm_display_resume(struct amdgpu_device *adev)
 	struct drm_connector *connector;
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *new_crtc_state;
+	struct dm_crtc_state *dm_new_crtc_state;
+	struct drm_plane *plane;
+	struct drm_plane_state *new_plane_state;
+	struct dm_plane_state *dm_new_plane_state;
+
 	int ret = 0;
 	int i;
 
@@ -680,6 +685,29 @@ int amdgpu_dm_display_resume(struct amdgpu_device *adev)
 	/* Force mode set in atomic comit */
 	for_each_new_crtc_in_state(adev->dm.cached_state, crtc, new_crtc_state, i)
 		new_crtc_state->active_changed = true;
+
+	/*
+	 * atomic_check is expected to create the dc states. We need to release
+	 * them here, since they were duplicated as part of the suspend
+	 * procedure.
+	 */
+	for_each_new_crtc_in_state(adev->dm.cached_state, crtc, new_crtc_state, i) {
+		dm_new_crtc_state = to_dm_crtc_state(new_crtc_state);
+		if (dm_new_crtc_state->stream) {
+			WARN_ON(kref_read(&dm_new_crtc_state->stream->refcount) > 1);
+			dc_stream_release(dm_new_crtc_state->stream);
+			dm_new_crtc_state->stream = NULL;
+		}
+	}
+
+	for_each_new_plane_in_state(adev->dm.cached_state, plane, new_plane_state, i) {
+		dm_new_plane_state = to_dm_plane_state(new_plane_state);
+		if (dm_new_plane_state->dc_state) {
+			WARN_ON(kref_read(&dm_new_plane_state->dc_state->refcount) > 1);
+			dc_plane_state_release(dm_new_plane_state->dc_state);
+			dm_new_plane_state->dc_state = NULL;
+		}
+	}
 
 	ret = drm_atomic_helper_resume(ddev, adev->dm.cached_state);
 
@@ -4662,10 +4690,8 @@ static int amdgpu_dm_atomic_check(struct drm_device *dev,
 	bool lock_and_validation_needed = false;
 
 	ret = drm_atomic_helper_check_modeset(dev, state);
-	if (ret) {
-		DRM_ERROR("Atomic state validation failed with error :%d !\n", ret);
-		return ret;
-	}
+	if (ret)
+		goto fail;
 
 	/*
 	 * legacy_cursor_update should be made false for SoC's having
@@ -4782,11 +4808,11 @@ static int amdgpu_dm_atomic_check(struct drm_device *dev,
 
 fail:
 	if (ret == -EDEADLK)
-		DRM_DEBUG_DRIVER("Atomic check stopped due to to deadlock.\n");
+		DRM_DEBUG_DRIVER("Atomic check stopped to avoid deadlock.\n");
 	else if (ret == -EINTR || ret == -EAGAIN || ret == -ERESTARTSYS)
-		DRM_DEBUG_DRIVER("Atomic check stopped due to to signal.\n");
+		DRM_DEBUG_DRIVER("Atomic check stopped due to signal.\n");
 	else
-		DRM_ERROR("Atomic check failed with err: %d \n", ret);
+		DRM_DEBUG_DRIVER("Atomic check failed with err: %d \n", ret);
 
 	return ret;
 }
