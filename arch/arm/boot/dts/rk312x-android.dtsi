@@ -124,7 +124,10 @@
 		ranges;
 
 		cma_region: region@6a000000 {
+			compatible = "shared-dma-pool";
+			no-map;
 			reg = <0x6a000000 0x1000000>;
+			linux,cma-default;
 		};
 
 		ramoops_mem: ramoops@68000000 {
@@ -145,6 +148,8 @@
 		memory-region = <&cma_region>;
 
 		cma-heap {
+		};
+		system-heap {
 		};
 	};
 
