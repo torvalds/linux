@@ -30,7 +30,6 @@
 #include <linux/proc_fs.h>
 #include <linux/security.h>
 #include <linux/ctype.h>
-#include <linux/kmemcheck.h>
 #include <linux/kmemleak.h>
 #include <linux/fs.h>
 #include <linux/init.h>
@@ -1174,15 +1173,6 @@ static struct ctl_table kern_table[] = {
 		.extra2		= &one_thousand,
 	},
 #endif
-#ifdef CONFIG_KMEMCHECK
-	{
-		.procname	= "kmemcheck",
-		.data		= &kmemcheck_enabled,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
-	},
-#endif
 	{
 		.procname	= "panic_on_warn",
 		.data		= &panic_on_warn,
@@ -1365,6 +1355,15 @@ static struct ctl_table vm_table[] = {
 		.maxlen         = sizeof(unsigned long),
 		.mode           = 0644,
 		.proc_handler   = &hugetlb_mempolicy_sysctl_handler,
+	},
+	{
+		.procname		= "numa_stat",
+		.data			= &sysctl_vm_numa_stat,
+		.maxlen			= sizeof(int),
+		.mode			= 0644,
+		.proc_handler	= sysctl_vm_numa_stat_handler,
+		.extra1			= &zero,
+		.extra2			= &one,
 	},
 #endif
 	 {

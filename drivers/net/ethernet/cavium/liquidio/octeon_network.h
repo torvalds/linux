@@ -198,7 +198,7 @@ static inline void
 	struct sk_buff *skb;
 	struct octeon_skb_page_info *skb_pg_info;
 
-	page = alloc_page(GFP_ATOMIC | __GFP_COLD);
+	page = alloc_page(GFP_ATOMIC);
 	if (unlikely(!page))
 		return NULL;
 

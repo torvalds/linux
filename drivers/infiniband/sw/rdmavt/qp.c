@@ -238,7 +238,7 @@ int rvt_driver_qp_init(struct rvt_dev_info *rdi)
 	rdi->qp_dev->qp_table_size = rdi->dparms.qp_table_size;
 	rdi->qp_dev->qp_table_bits = ilog2(rdi->dparms.qp_table_size);
 	rdi->qp_dev->qp_table =
-		kmalloc_node(rdi->qp_dev->qp_table_size *
+		kmalloc_array_node(rdi->qp_dev->qp_table_size,
 			     sizeof(*rdi->qp_dev->qp_table),
 			     GFP_KERNEL, rdi->dparms.node);
 	if (!rdi->qp_dev->qp_table)

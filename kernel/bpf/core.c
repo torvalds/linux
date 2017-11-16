@@ -85,8 +85,6 @@ struct bpf_prog *bpf_prog_alloc(unsigned int size, gfp_t gfp_extra_flags)
 	if (fp == NULL)
 		return NULL;
 
-	kmemcheck_annotate_bitfield(fp, meta);
-
 	aux = kzalloc(sizeof(*aux), GFP_KERNEL | gfp_extra_flags);
 	if (aux == NULL) {
 		vfree(fp);
@@ -127,8 +125,6 @@ struct bpf_prog *bpf_prog_realloc(struct bpf_prog *fp_old, unsigned int size,
 	if (fp == NULL) {
 		__bpf_prog_uncharge(fp_old->aux->user, delta);
 	} else {
-		kmemcheck_annotate_bitfield(fp, meta);
-
 		memcpy(fp, fp_old, fp_old->pages * PAGE_SIZE);
 		fp->pages = pages;
 		fp->aux->prog = fp;
@@ -675,8 +671,6 @@ static struct bpf_prog *bpf_prog_clone_create(struct bpf_prog *fp_other,
 
 	fp = __vmalloc(fp_other->pages * PAGE_SIZE, gfp_flags, PAGE_KERNEL);
 	if (fp != NULL) {
-		kmemcheck_annotate_bitfield(fp, meta);
-
 		/* aux->prog still points to the fp_other one, so
 		 * when promoting the clone to the real program,
 		 * this still needs to be adapted.

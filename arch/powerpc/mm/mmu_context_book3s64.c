@@ -200,7 +200,7 @@ static void destroy_pagetable_page(struct mm_struct *mm)
 	/* We allow PTE_FRAG_NR fragments from a PTE page */
 	if (page_ref_sub_and_test(page, PTE_FRAG_NR - count)) {
 		pgtable_page_dtor(page);
-		free_hot_cold_page(page, 0);
+		free_unref_page(page);
 	}
 }
 

@@ -1185,7 +1185,7 @@ static void *nfp_net_rx_alloc_one(struct nfp_net_dp *dp, dma_addr_t *dma_addr)
 	} else {
 		struct page *page;
 
-		page = alloc_page(GFP_KERNEL | __GFP_COLD);
+		page = alloc_page(GFP_KERNEL);
 		frag = page ? page_address(page) : NULL;
 	}
 	if (!frag) {

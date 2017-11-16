@@ -1349,7 +1349,7 @@ void *zs_map_object(struct zs_pool *pool, unsigned long handle,
 	 * pools/users, we can't allow mapping in interrupt context
 	 * because it can corrupt another users mappings.
 	 */
-	WARN_ON_ONCE(in_interrupt());
+	BUG_ON(in_interrupt());
 
 	/* From now on, migration cannot move the object */
 	pin_tag(handle);

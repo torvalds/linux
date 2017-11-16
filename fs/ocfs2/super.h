@@ -26,9 +26,6 @@
 #ifndef OCFS2_SUPER_H
 #define OCFS2_SUPER_H
 
-int ocfs2_publish_get_mount_state(struct ocfs2_super *osb,
-				  int node_num);
-
 __printf(3, 4)
 int __ocfs2_error(struct super_block *sb, const char *function,
 		   const char *fmt, ...);

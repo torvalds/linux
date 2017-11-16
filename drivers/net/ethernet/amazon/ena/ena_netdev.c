@@ -517,7 +517,7 @@ static int ena_refill_rx_bufs(struct ena_ring *rx_ring, u32 num)
 
 
 		rc = ena_alloc_rx_page(rx_ring, rx_info,
-				       __GFP_COLD | GFP_ATOMIC | __GFP_COMP);
+				       GFP_ATOMIC | __GFP_COMP);
 		if (unlikely(rc < 0)) {
 			netif_warn(rx_ring->adapter, rx_err, rx_ring->netdev,
 				   "failed to alloc buffer for rx queue %d\n",

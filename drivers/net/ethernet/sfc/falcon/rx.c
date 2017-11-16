@@ -163,7 +163,7 @@ static int ef4_init_rx_buffers(struct ef4_rx_queue *rx_queue, bool atomic)
 	do {
 		page = ef4_reuse_page(rx_queue);
 		if (page == NULL) {
-			page = alloc_pages(__GFP_COLD | __GFP_COMP |
+			page = alloc_pages(__GFP_COMP |
 					   (atomic ? GFP_ATOMIC : GFP_KERNEL),
 					   efx->rx_buffer_order);
 			if (unlikely(page == NULL))

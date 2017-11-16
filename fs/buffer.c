@@ -1592,7 +1592,7 @@ void clean_bdev_aliases(struct block_device *bdev, sector_t block, sector_t len)
 	struct buffer_head *head;
 
 	end = (block + len - 1) >> (PAGE_SHIFT - bd_inode->i_blkbits);
-	pagevec_init(&pvec, 0);
+	pagevec_init(&pvec);
 	while (pagevec_lookup_range(&pvec, bd_mapping, &index, end)) {
 		count = pagevec_count(&pvec);
 		for (i = 0; i < count; i++) {
@@ -3514,7 +3514,7 @@ page_cache_seek_hole_data(struct inode *inode, loff_t offset, loff_t length,
 	if (length <= 0)
 		return -ENOENT;
 
-	pagevec_init(&pvec, 0);
+	pagevec_init(&pvec);
 
 	do {
 		unsigned nr_pages, i;

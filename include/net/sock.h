@@ -440,7 +440,6 @@ struct sock {
 #define SK_FL_TYPE_MASK    0xffff0000
 #endif
 
-	kmemcheck_bitfield_begin(flags);
 	unsigned int		sk_padding : 1,
 				sk_kern_sock : 1,
 				sk_no_check_tx : 1,
@@ -449,8 +448,6 @@ struct sock {
 				sk_protocol  : 8,
 				sk_type      : 16;
 #define SK_PROTOCOL_MAX U8_MAX
-	kmemcheck_bitfield_end(flags);
-
 	u16			sk_gso_max_segs;
 	u8			sk_pacing_shift;
 	unsigned long	        sk_lingertime;
@@ -1114,7 +1111,7 @@ struct proto {
 
 	struct kmem_cache	*slab;
 	unsigned int		obj_size;
-	int			slab_flags;
+	slab_flags_t		slab_flags;
 
 	struct percpu_counter	*orphan_count;
 

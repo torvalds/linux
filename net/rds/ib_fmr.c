@@ -139,8 +139,8 @@ static int rds_ib_map_fmr(struct rds_ib_device *rds_ibdev,
 		return -EINVAL;
 	}
 
-	dma_pages = kmalloc_node(sizeof(u64) * page_cnt, GFP_ATOMIC,
-				 rdsibdev_to_node(rds_ibdev));
+	dma_pages = kmalloc_array_node(sizeof(u64), page_cnt, GFP_ATOMIC,
+				       rdsibdev_to_node(rds_ibdev));
 	if (!dma_pages) {
 		ib_dma_unmap_sg(dev, sg, nents, DMA_BIDIRECTIONAL);
 		return -ENOMEM;
