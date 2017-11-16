@@ -510,7 +510,7 @@ static inline struct swap_info_struct *swp_swap_info(swp_entry_t entry)
 #define free_page_and_swap_cache(page) \
 	put_page(page)
 #define free_pages_and_swap_cache(pages, nr) \
-	release_pages((pages), (nr), false);
+	release_pages((pages), (nr));
 
 static inline void show_swap_cache_info(void)
 {

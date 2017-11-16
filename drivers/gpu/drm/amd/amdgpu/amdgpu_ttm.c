@@ -659,7 +659,7 @@ int amdgpu_ttm_tt_get_user_pages(struct ttm_tt *ttm, struct page **pages)
 	return 0;
 
 release_pages:
-	release_pages(pages, pinned, 0);
+	release_pages(pages, pinned);
 	return r;
 }
 

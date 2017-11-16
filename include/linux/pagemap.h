@@ -118,7 +118,7 @@ static inline void mapping_set_gfp_mask(struct address_space *m, gfp_t mask)
 	m->gfp_mask = mask;
 }
 
-void release_pages(struct page **pages, int nr, bool cold);
+void release_pages(struct page **pages, int nr);
 
 /*
  * speculatively take a reference to a page.
