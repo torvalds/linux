@@ -670,7 +670,6 @@ static void __exit exit_dlmfs_fs(void)
 {
 	unregister_filesystem(&dlmfs_fs_type);
 
-	flush_workqueue(user_dlm_worker);
 	destroy_workqueue(user_dlm_worker);
 
 	/*
