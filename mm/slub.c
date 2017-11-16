@@ -1371,7 +1371,7 @@ static inline void *slab_free_hook(struct kmem_cache *s, void *x)
 	 * So in order to make the debug calls that expect irqs to be
 	 * disabled we need to disable interrupts temporarily.
 	 */
-#if defined(CONFIG_KMEMCHECK) || defined(CONFIG_LOCKDEP)
+#ifdef CONFIG_LOCKDEP
 	{
 		unsigned long flags;
 
@@ -1399,8 +1399,7 @@ static inline void slab_free_freelist_hook(struct kmem_cache *s,
  * Compiler cannot detect this function can be removed if slab_free_hook()
  * evaluates to nothing.  Thus, catch all relevant config debug options here.
  */
-#if defined(CONFIG_KMEMCHECK) ||		\
-	defined(CONFIG_LOCKDEP)	||		\
+#if defined(CONFIG_LOCKDEP)	||		\
 	defined(CONFIG_DEBUG_KMEMLEAK) ||	\
 	defined(CONFIG_DEBUG_OBJECTS_FREE) ||	\
 	defined(CONFIG_KASAN)

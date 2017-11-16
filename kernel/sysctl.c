@@ -30,7 +30,6 @@
 #include <linux/proc_fs.h>
 #include <linux/security.h>
 #include <linux/ctype.h>
-#include <linux/kmemcheck.h>
 #include <linux/kmemleak.h>
 #include <linux/fs.h>
 #include <linux/init.h>
@@ -1172,15 +1171,6 @@ static struct ctl_table kern_table[] = {
 		.proc_handler	= perf_event_max_stack_handler,
 		.extra1		= &zero,
 		.extra2		= &one_thousand,
-	},
-#endif
-#ifdef CONFIG_KMEMCHECK
-	{
-		.procname	= "kmemcheck",
-		.data		= &kmemcheck_enabled,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
 	},
 #endif
 	{

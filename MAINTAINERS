@@ -7688,16 +7688,6 @@ F:	include/linux/kdb.h
 F:	include/linux/kgdb.h
 F:	kernel/debug/
 
-KMEMCHECK
-M:	Vegard Nossum <vegardno@ifi.uio.no>
-M:	Pekka Enberg <penberg@kernel.org>
-S:	Maintained
-F:	Documentation/dev-tools/kmemcheck.rst
-F:	arch/x86/include/asm/kmemcheck.h
-F:	arch/x86/mm/kmemcheck/
-F:	include/linux/kmemcheck.h
-F:	mm/kmemcheck.c
-
 KMEMLEAK
 M:	Catalin Marinas <catalin.marinas@arm.com>
 S:	Maintained

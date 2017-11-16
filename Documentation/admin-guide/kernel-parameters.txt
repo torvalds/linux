@@ -1864,13 +1864,6 @@
 			Built with CONFIG_DEBUG_KMEMLEAK_DEFAULT_OFF=y,
 			the default is off.
 
-	kmemcheck=	[X86] Boot-time kmemcheck enable/disable/one-shot mode
-			Valid arguments: 0, 1, 2
-			kmemcheck=0 (disabled)
-			kmemcheck=1 (enabled)
-			kmemcheck=2 (one-shot mode)
-			Default: 2 (one-shot mode)
-
 	kvm.ignore_msrs=[KVM] Ignore guest accesses to unhandled MSRs.
 			Default is 0 (don't ignore, but inject #GP)
 

@@ -163,12 +163,11 @@ static int page_size_mask;
 static void __init probe_page_size_mask(void)
 {
 	/*
-	 * For CONFIG_KMEMCHECK or pagealloc debugging, identity mapping will
-	 * use small pages.
+	 * For pagealloc debugging, identity mapping will use small pages.
 	 * This will simplify cpa(), which otherwise needs to support splitting
 	 * large pages into small in interrupt context, etc.
 	 */
-	if (boot_cpu_has(X86_FEATURE_PSE) && !debug_pagealloc_enabled() && !IS_ENABLED(CONFIG_KMEMCHECK))
+	if (boot_cpu_has(X86_FEATURE_PSE) && !debug_pagealloc_enabled())
 		page_size_mask |= 1 << PG_LEVEL_2M;
 	else
 		direct_gbpages = 0;
