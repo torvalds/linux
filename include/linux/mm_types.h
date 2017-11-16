@@ -405,6 +405,9 @@ struct mm_struct {
 #if CONFIG_PGTABLE_LEVELS > 2
 	atomic_long_t nr_pmds;			/* PMD page table pages */
 #endif
+#if CONFIG_PGTABLE_LEVELS > 3
+	atomic_long_t nr_puds;			/* PUD page table pages */
+#endif
 	int map_count;				/* number of VMAs */
 
 	spinlock_t page_table_lock;		/* Protects page tables and some counters */
