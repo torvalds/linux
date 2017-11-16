@@ -21,13 +21,20 @@
  * Flags to pass to kmem_cache_create().
  * The ones marked DEBUG are only valid if CONFIG_DEBUG_SLAB is set.
  */
-#define SLAB_CONSISTENCY_CHECKS	0x00000100UL	/* DEBUG: Perform (expensive) checks on alloc/free */
-#define SLAB_RED_ZONE		0x00000400UL	/* DEBUG: Red zone objs in a cache */
-#define SLAB_POISON		0x00000800UL	/* DEBUG: Poison objects */
-#define SLAB_HWCACHE_ALIGN	0x00002000UL	/* Align objs on cache lines */
-#define SLAB_CACHE_DMA		0x00004000UL	/* Use GFP_DMA memory */
-#define SLAB_STORE_USER		0x00010000UL	/* DEBUG: Store the last owner for bug hunting */
-#define SLAB_PANIC		0x00040000UL	/* Panic if kmem_cache_create() fails */
+/* DEBUG: Perform (expensive) checks on alloc/free */
+#define SLAB_CONSISTENCY_CHECKS	((slab_flags_t __force)0x00000100UL)
+/* DEBUG: Red zone objs in a cache */
+#define SLAB_RED_ZONE		((slab_flags_t __force)0x00000400UL)
+/* DEBUG: Poison objects */
+#define SLAB_POISON		((slab_flags_t __force)0x00000800UL)
+/* Align objs on cache lines */
+#define SLAB_HWCACHE_ALIGN	((slab_flags_t __force)0x00002000UL)
+/* Use GFP_DMA memory */
+#define SLAB_CACHE_DMA		((slab_flags_t __force)0x00004000UL)
+/* DEBUG: Store the last owner for bug hunting */
+#define SLAB_STORE_USER		((slab_flags_t __force)0x00010000UL)
+/* Panic if kmem_cache_create() fails */
+#define SLAB_PANIC		((slab_flags_t __force)0x00040000UL)
 /*
  * SLAB_TYPESAFE_BY_RCU - **WARNING** READ THIS!
  *
@@ -65,44 +72,51 @@
  *
  * Note that SLAB_TYPESAFE_BY_RCU was originally named SLAB_DESTROY_BY_RCU.
  */
-#define SLAB_TYPESAFE_BY_RCU	0x00080000UL	/* Defer freeing slabs to RCU */
-#define SLAB_MEM_SPREAD		0x00100000UL	/* Spread some memory over cpuset */
-#define SLAB_TRACE		0x00200000UL	/* Trace allocations and frees */
+/* Defer freeing slabs to RCU */
+#define SLAB_TYPESAFE_BY_RCU	((slab_flags_t __force)0x00080000UL)
+/* Spread some memory over cpuset */
+#define SLAB_MEM_SPREAD		((slab_flags_t __force)0x00100000UL)
+/* Trace allocations and frees */
+#define SLAB_TRACE		((slab_flags_t __force)0x00200000UL)
 
 /* Flag to prevent checks on free */
 #ifdef CONFIG_DEBUG_OBJECTS
-# define SLAB_DEBUG_OBJECTS	0x00400000UL
+# define SLAB_DEBUG_OBJECTS	((slab_flags_t __force)0x00400000UL)
 #else
-# define SLAB_DEBUG_OBJECTS	0x00000000UL
+# define SLAB_DEBUG_OBJECTS	((slab_flags_t __force)0x00000000UL)
 #endif
 
-#define SLAB_NOLEAKTRACE	0x00800000UL	/* Avoid kmemleak tracing */
+/* Avoid kmemleak tracing */
+#define SLAB_NOLEAKTRACE	((slab_flags_t __force)0x00800000UL)
 
 /* Don't track use of uninitialized memory */
 #ifdef CONFIG_KMEMCHECK
-# define SLAB_NOTRACK		0x01000000UL
+# define SLAB_NOTRACK		((slab_flags_t __force)0x01000000UL)
 #else
-# define SLAB_NOTRACK		0x00000000UL
+# define SLAB_NOTRACK		((slab_flags_t __force)0x00000000UL)
 #endif
+/* Fault injection mark */
 #ifdef CONFIG_FAILSLAB
-# define SLAB_FAILSLAB		0x02000000UL	/* Fault injection mark */
+# define SLAB_FAILSLAB		((slab_flags_t __force)0x02000000UL)
 #else
-# define SLAB_FAILSLAB		0x00000000UL
+# define SLAB_FAILSLAB		((slab_flags_t __force)0x00000000UL)
 #endif
+/* Account to memcg */
 #if defined(CONFIG_MEMCG) && !defined(CONFIG_SLOB)
-# define SLAB_ACCOUNT		0x04000000UL	/* Account to memcg */
+# define SLAB_ACCOUNT		((slab_flags_t __force)0x04000000UL)
 #else
-# define SLAB_ACCOUNT		0x00000000UL
+# define SLAB_ACCOUNT		((slab_flags_t __force)0x00000000UL)
 #endif
 
 #ifdef CONFIG_KASAN
-#define SLAB_KASAN		0x08000000UL
+#define SLAB_KASAN		((slab_flags_t __force)0x08000000UL)
 #else
-#define SLAB_KASAN		0x00000000UL
+#define SLAB_KASAN		((slab_flags_t __force)0x00000000UL)
 #endif
 
 /* The following flags affect the page allocator grouping pages by mobility */
-#define SLAB_RECLAIM_ACCOUNT	0x00020000UL		/* Objects are reclaimable */
+/* Objects are reclaimable */
+#define SLAB_RECLAIM_ACCOUNT	((slab_flags_t __force)0x00020000UL)
 #define SLAB_TEMPORARY		SLAB_RECLAIM_ACCOUNT	/* Objects are short-lived */
 /*
  * ZERO_SIZE_PTR will be returned for zero sized kmalloc requests.
@@ -128,7 +142,7 @@ void __init kmem_cache_init(void);
 bool slab_is_available(void);
 
 struct kmem_cache *kmem_cache_create(const char *, size_t, size_t,
-			unsigned long,
+			slab_flags_t,
 			void (*)(void *));
 void kmem_cache_destroy(struct kmem_cache *);
 int kmem_cache_shrink(struct kmem_cache *);

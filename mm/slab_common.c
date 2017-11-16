@@ -291,7 +291,7 @@ int slab_unmergeable(struct kmem_cache *s)
 }
 
 struct kmem_cache *find_mergeable(size_t size, size_t align,
-		unsigned long flags, const char *name, void (*ctor)(void *))
+		slab_flags_t flags, const char *name, void (*ctor)(void *))
 {
 	struct kmem_cache *s;
 
@@ -341,7 +341,7 @@ struct kmem_cache *find_mergeable(size_t size, size_t align,
  * Figure out what the alignment of the objects will be given a set of
  * flags, a user specified alignment and the size of the objects.
  */
-unsigned long calculate_alignment(unsigned long flags,
+unsigned long calculate_alignment(slab_flags_t flags,
 		unsigned long align, unsigned long size)
 {
 	/*
@@ -366,7 +366,7 @@ unsigned long calculate_alignment(unsigned long flags,
 
 static struct kmem_cache *create_cache(const char *name,
 		size_t object_size, size_t size, size_t align,
-		unsigned long flags, void (*ctor)(void *),
+		slab_flags_t flags, void (*ctor)(void *),
 		struct mem_cgroup *memcg, struct kmem_cache *root_cache)
 {
 	struct kmem_cache *s;
@@ -431,7 +431,7 @@ out_free_cache:
  */
 struct kmem_cache *
 kmem_cache_create(const char *name, size_t size, size_t align,
-		  unsigned long flags, void (*ctor)(void *))
+		  slab_flags_t flags, void (*ctor)(void *))
 {
 	struct kmem_cache *s = NULL;
 	const char *cache_name;
@@ -879,7 +879,7 @@ bool slab_is_available(void)
 #ifndef CONFIG_SLOB
 /* Create a cache during boot when no slab services are available yet */
 void __init create_boot_cache(struct kmem_cache *s, const char *name, size_t size,
-		unsigned long flags)
+		slab_flags_t flags)
 {
 	int err;
 
@@ -899,7 +899,7 @@ void __init create_boot_cache(struct kmem_cache *s, const char *name, size_t siz
 }
 
 struct kmem_cache *__init create_kmalloc_cache(const char *name, size_t size,
-				unsigned long flags)
+				slab_flags_t flags)
 {
 	struct kmem_cache *s = kmem_cache_zalloc(kmem_cache, GFP_NOWAIT);
 
@@ -1057,7 +1057,7 @@ void __init setup_kmalloc_cache_index_table(void)
 	}
 }
 
-static void __init new_kmalloc_cache(int idx, unsigned long flags)
+static void __init new_kmalloc_cache(int idx, slab_flags_t flags)
 {
 	kmalloc_caches[idx] = create_kmalloc_cache(kmalloc_info[idx].name,
 					kmalloc_info[idx].size, flags);
@@ -1068,7 +1068,7 @@ static void __init new_kmalloc_cache(int idx, unsigned long flags)
  * may already have been created because they were needed to
  * enable allocations for slab creation.
  */
-void __init create_kmalloc_caches(unsigned long flags)
+void __init create_kmalloc_caches(slab_flags_t flags)
 {
 	int i;
 

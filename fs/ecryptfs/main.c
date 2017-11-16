@@ -660,7 +660,7 @@ static struct ecryptfs_cache_info {
 	struct kmem_cache **cache;
 	const char *name;
 	size_t size;
-	unsigned long flags;
+	slab_flags_t flags;
 	void (*ctor)(void *obj);
 } ecryptfs_cache_infos[] = {
 	{

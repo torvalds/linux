@@ -156,6 +156,7 @@ typedef u32 dma_addr_t;
 #endif
 
 typedef unsigned __bitwise gfp_t;
+typedef unsigned long __bitwise slab_flags_t;
 typedef unsigned __bitwise fmode_t;
 
 #ifdef CONFIG_PHYS_ADDR_T_64BIT

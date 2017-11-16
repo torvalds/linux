@@ -21,7 +21,7 @@ struct kmem_cache {
 	unsigned int object_size;/* The original size of the object */
 	unsigned int size;	/* The aligned/padded/added on size  */
 	unsigned int align;	/* Alignment as calculated */
-	unsigned long flags;	/* Active flags on the slab */
+	slab_flags_t flags;	/* Active flags on the slab */
 	const char *name;	/* Slab name for sysfs */
 	int refcount;		/* Use counter */
 	void (*ctor)(void *);	/* Called on object slot creation */
@@ -79,13 +79,13 @@ extern const struct kmalloc_info_struct {
 	unsigned long size;
 } kmalloc_info[];
 
-unsigned long calculate_alignment(unsigned long flags,
+unsigned long calculate_alignment(slab_flags_t flags,
 		unsigned long align, unsigned long size);
 
 #ifndef CONFIG_SLOB
 /* Kmalloc array related functions */
 void setup_kmalloc_cache_index_table(void);
-void create_kmalloc_caches(unsigned long);
+void create_kmalloc_caches(slab_flags_t);
 
 /* Find the kmalloc slab corresponding for a certain size */
 struct kmem_cache *kmalloc_slab(size_t, gfp_t);
@@ -93,32 +93,32 @@ struct kmem_cache *kmalloc_slab(size_t, gfp_t);
 
 
 /* Functions provided by the slab allocators */
-extern int __kmem_cache_create(struct kmem_cache *, unsigned long flags);
+int __kmem_cache_create(struct kmem_cache *, slab_flags_t flags);
 
 extern struct kmem_cache *create_kmalloc_cache(const char *name, size_t size,
-			unsigned long flags);
+			slab_flags_t flags);
 extern void create_boot_cache(struct kmem_cache *, const char *name,
-			size_t size, unsigned long flags);
+			size_t size, slab_flags_t flags);
 
 int slab_unmergeable(struct kmem_cache *s);
 struct kmem_cache *find_mergeable(size_t size, size_t align,
-		unsigned long flags, const char *name, void (*ctor)(void *));
+		slab_flags_t flags, const char *name, void (*ctor)(void *));
 #ifndef CONFIG_SLOB
 struct kmem_cache *
 __kmem_cache_alias(const char *name, size_t size, size_t align,
-		   unsigned long flags, void (*ctor)(void *));
+		   slab_flags_t flags, void (*ctor)(void *));
 
-unsigned long kmem_cache_flags(unsigned long object_size,
-	unsigned long flags, const char *name,
+slab_flags_t kmem_cache_flags(unsigned long object_size,
+	slab_flags_t flags, const char *name,
 	void (*ctor)(void *));
 #else
 static inline struct kmem_cache *
 __kmem_cache_alias(const char *name, size_t size, size_t align,
-		   unsigned long flags, void (*ctor)(void *))
+		   slab_flags_t flags, void (*ctor)(void *))
 { return NULL; }
 
-static inline unsigned long kmem_cache_flags(unsigned long object_size,
-	unsigned long flags, const char *name,
+static inline slab_flags_t kmem_cache_flags(unsigned long object_size,
+	slab_flags_t flags, const char *name,
 	void (*ctor)(void *))
 {
 	return flags;

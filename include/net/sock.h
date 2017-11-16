@@ -1105,7 +1105,7 @@ struct proto {
 
 	struct kmem_cache	*slab;
 	unsigned int		obj_size;
-	int			slab_flags;
+	slab_flags_t		slab_flags;
 
 	struct percpu_counter	*orphan_count;
 
