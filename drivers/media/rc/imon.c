@@ -346,7 +346,7 @@ static const struct imon_usb_dev_descr imon_ir_raw = {
  * devices use the SoundGraph vendor ID (0x15c2). This driver only supports
  * the ffdc and later devices, which do onboard decoding.
  */
-static struct usb_device_id imon_usb_id_table[] = {
+static const struct usb_device_id imon_usb_id_table[] = {
 	/*
 	 * Several devices with this same device ID, all use iMON_PAD.inf
 	 * SoundGraph iMON PAD (IR & VFD)
@@ -602,8 +602,7 @@ static int send_packet(struct imon_context *ictx)
 		ictx->tx_urb->actual_length = 0;
 	} else {
 		/* fill request into kmalloc'ed space: */
-		control_req = kmalloc(sizeof(struct usb_ctrlrequest),
-				      GFP_KERNEL);
+		control_req = kmalloc(sizeof(*control_req), GFP_KERNEL);
 		if (control_req == NULL)
 			return -ENOMEM;
 
@@ -943,7 +942,7 @@ static ssize_t vfd_write(struct file *file, const char __user *buf,
 	int seq;
 	int retval = 0;
 	struct imon_context *ictx;
-	const unsigned char vfd_packet6[] = {
+	static const unsigned char vfd_packet6[] = {
 		0x01, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF };
 
 	ictx = file->private_data;
@@ -1091,9 +1090,9 @@ static void usb_tx_callback(struct urb *urb)
 /**
  * report touchscreen input
  */
-static void imon_touch_display_timeout(unsigned long data)
+static void imon_touch_display_timeout(struct timer_list *t)
 {
-	struct imon_context *ictx = (struct imon_context *)data;
+	struct imon_context *ictx = from_timer(ictx, t, ttimer);
 
 	if (ictx->display_type != IMON_DISPLAY_TYPE_VGA)
 		return;
@@ -2047,8 +2046,8 @@ static struct rc_dev *imon_init_rdev(struct imon_context *ictx)
 {
 	struct rc_dev *rdev;
 	int ret;
-	const unsigned char fp_packet[] = { 0x40, 0x00, 0x00, 0x00,
-					    0x00, 0x00, 0x00, 0x88 };
+	static const unsigned char fp_packet[] = {
+		0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x88 };
 
 	rdev = rc_allocate_device(ictx->dev_descr->flags & IMON_IR_RAW ?
 				  RC_DRIVER_IR_RAW : RC_DRIVER_SCANCODE);
@@ -2310,11 +2309,10 @@ static struct imon_context *imon_init_intf0(struct usb_interface *intf,
 	struct usb_host_interface *iface_desc;
 	int ret = -ENOMEM;
 
-	ictx = kzalloc(sizeof(struct imon_context), GFP_KERNEL);
-	if (!ictx) {
-		dev_err(dev, "%s: kzalloc failed for context", __func__);
+	ictx = kzalloc(sizeof(*ictx), GFP_KERNEL);
+	if (!ictx)
 		goto exit;
-	}
+
 	rx_urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!rx_urb)
 		goto rx_urb_alloc_failed;
@@ -2413,8 +2411,7 @@ static struct imon_context *imon_init_intf1(struct usb_interface *intf,
 	mutex_lock(&ictx->lock);
 
 	if (ictx->display_type == IMON_DISPLAY_TYPE_VGA) {
-		setup_timer(&ictx->ttimer, imon_touch_display_timeout,
-			    (unsigned long)ictx);
+		timer_setup(&ictx->ttimer, imon_touch_display_timeout, 0);
 	}
 
 	ictx->usbdev_intf1 = usb_get_dev(interface_to_usbdev(intf));
@@ -2517,6 +2514,11 @@ static int imon_probe(struct usb_interface *interface,
 	mutex_lock(&driver_lock);
 
 	first_if = usb_ifnum_to_if(usbdev, 0);
+	if (!first_if) {
+		ret = -ENODEV;
+		goto fail;
+	}
+
 	first_if_ctx = usb_get_intfdata(first_if);
 
 	if (ifnum == 0) {

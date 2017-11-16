@@ -72,7 +72,7 @@ static irqreturn_t hopper_irq_handler(int irq, void *dev_id)
 	struct mantis_ca *ca;
 
 	mantis = (struct mantis_pci *) dev_id;
-	if (unlikely(mantis == NULL)) {
+	if (unlikely(!mantis)) {
 		dprintk(MANTIS_ERROR, 1, "Mantis == NULL");
 		return IRQ_NONE;
 	}
@@ -161,11 +161,10 @@ static int hopper_pci_probe(struct pci_dev *pdev,
 	struct mantis_pci_drvdata *drvdata;
 	struct mantis_pci *mantis;
 	struct mantis_hwconfig *config;
-	int err = 0;
+	int err;
 
-	mantis = kzalloc(sizeof(struct mantis_pci), GFP_KERNEL);
-	if (mantis == NULL) {
-		printk(KERN_ERR "%s ERROR: Out of memory\n", __func__);
+	mantis = kzalloc(sizeof(*mantis), GFP_KERNEL);
+	if (!mantis) {
 		err = -ENOMEM;
 		goto fail0;
 	}

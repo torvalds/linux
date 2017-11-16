@@ -330,7 +330,7 @@ static int budget_start_feed(struct dvb_demux_feed *feed)
 		return -EINVAL;
 
 	spin_lock(&budget->feedlock);
-	feed->pusi_seen = 0; /* have a clean section start */
+	feed->pusi_seen = false; /* have a clean section start */
 	if (budget->feeding++ == 0)
 		status = start_ts_capture(budget);
 	spin_unlock(&budget->feedlock);

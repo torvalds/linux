@@ -14,10 +14,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA.
  *
  */
 
@@ -1137,10 +1133,8 @@ static int remove_pad_from_frame(struct atomisp_device *isp,
 	ia_css_ptr store = load;
 
 	buffer = kmalloc(width*sizeof(load), GFP_KERNEL);
-	if (!buffer) {
-		dev_err(isp->dev, "out of memory.\n");
+	if (!buffer)
 		return -ENOMEM;
-	}
 
 	load += ISP_LEFT_PAD;
 	for (i = 0; i < height; i++) {

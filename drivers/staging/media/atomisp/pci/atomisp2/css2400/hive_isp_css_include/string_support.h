@@ -16,7 +16,6 @@
 #define __STRING_SUPPORT_H_INCLUDED__
 #include <platform_support.h>
 #include <type_support.h>
-#include <storage_class.h>
 
 #if !defined(_MSC_VER)
 /*
@@ -34,7 +33,7 @@
  * @return     EINVAL on Invalid arguments
  * @return     ERANGE on Destination size too small
  */
-STORAGE_CLASS_INLINE int memcpy_s(
+static inline int memcpy_s(
 	void* dest_buf,
 	size_t dest_size,
 	const void* src_buf,
@@ -89,7 +88,7 @@ static size_t strnlen_s(
  * @return     Returns EINVAL on invalid arguments
  * @return     Returns ERANGE on destination size too small
  */
-STORAGE_CLASS_INLINE int strncpy_s(
+static inline int strncpy_s(
 	char* dest_str,
 	size_t dest_size,
 	const char* src_str,
@@ -130,7 +129,7 @@ STORAGE_CLASS_INLINE int strncpy_s(
  * @return     Returns EINVAL on invalid arguments
  * @return     Returns ERANGE on destination size too small
  */
-STORAGE_CLASS_INLINE int strcpy_s(
+static inline int strcpy_s(
 	char* dest_str,
 	size_t dest_size,
 	const char* src_str)

@@ -3467,11 +3467,9 @@ static int adv7842_probe(struct i2c_client *client,
 		return -ENODEV;
 	}
 
-	state = devm_kzalloc(&client->dev, sizeof(struct adv7842_state), GFP_KERNEL);
-	if (!state) {
-		v4l_err(client, "Could not allocate adv7842_state memory!\n");
+	state = devm_kzalloc(&client->dev, sizeof(*state), GFP_KERNEL);
+	if (!state)
 		return -ENOMEM;
-	}
 
 	/* platform data */
 	state->pdata = *pdata;

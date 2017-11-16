@@ -43,7 +43,8 @@ static struct rc_map_table avermedia_m135a[] = {
 	{ 0x0213, KEY_RIGHT },		/* -> or L */
 	{ 0x0212, KEY_LEFT },		/* <- or R */
 
-	{ 0x0217, KEY_SLEEP },		/* Capturar Imagem or Snapshot */
+	{ 0x0215, KEY_MENU },
+	{ 0x0217, KEY_CAMERA },		/* Capturar Imagem or Snapshot */
 	{ 0x0210, KEY_SHUFFLE },	/* Amostra or 16 chan prev */
 
 	{ 0x0303, KEY_CHANNELUP },

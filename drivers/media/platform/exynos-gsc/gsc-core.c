@@ -958,6 +958,51 @@ static struct gsc_pix_max gsc_v_100_max = {
 	.target_rot_en_h	= 2016,
 };
 
+static struct gsc_pix_max gsc_v_5250_max = {
+	.org_scaler_bypass_w	= 8192,
+	.org_scaler_bypass_h	= 8192,
+	.org_scaler_input_w	= 4800,
+	.org_scaler_input_h	= 3344,
+	.real_rot_dis_w		= 4800,
+	.real_rot_dis_h		= 3344,
+	.real_rot_en_w		= 2016,
+	.real_rot_en_h		= 2016,
+	.target_rot_dis_w	= 4800,
+	.target_rot_dis_h	= 3344,
+	.target_rot_en_w	= 2016,
+	.target_rot_en_h	= 2016,
+};
+
+static struct gsc_pix_max gsc_v_5420_max = {
+	.org_scaler_bypass_w	= 8192,
+	.org_scaler_bypass_h	= 8192,
+	.org_scaler_input_w	= 4800,
+	.org_scaler_input_h	= 3344,
+	.real_rot_dis_w		= 4800,
+	.real_rot_dis_h		= 3344,
+	.real_rot_en_w		= 2048,
+	.real_rot_en_h		= 2048,
+	.target_rot_dis_w	= 4800,
+	.target_rot_dis_h	= 3344,
+	.target_rot_en_w	= 2016,
+	.target_rot_en_h	= 2016,
+};
+
+static struct gsc_pix_max gsc_v_5433_max = {
+	.org_scaler_bypass_w	= 8192,
+	.org_scaler_bypass_h	= 8192,
+	.org_scaler_input_w	= 4800,
+	.org_scaler_input_h	= 3344,
+	.real_rot_dis_w		= 4800,
+	.real_rot_dis_h		= 3344,
+	.real_rot_en_w		= 2047,
+	.real_rot_en_h		= 2047,
+	.target_rot_dis_w	= 4800,
+	.target_rot_dis_h	= 3344,
+	.target_rot_en_w	= 2016,
+	.target_rot_en_h	= 2016,
+};
+
 static struct gsc_pix_min gsc_v_100_min = {
 	.org_w			= 64,
 	.org_h			= 32,
@@ -992,6 +1037,45 @@ static struct gsc_variant gsc_v_100_variant = {
 	.local_sc_down		= 2,
 };
 
+static struct gsc_variant gsc_v_5250_variant = {
+	.pix_max		= &gsc_v_5250_max,
+	.pix_min		= &gsc_v_100_min,
+	.pix_align		= &gsc_v_100_align,
+	.in_buf_cnt		= 32,
+	.out_buf_cnt		= 32,
+	.sc_up_max		= 8,
+	.sc_down_max		= 16,
+	.poly_sc_down_max	= 4,
+	.pre_sc_down_max	= 4,
+	.local_sc_down		= 2,
+};
+
+static struct gsc_variant gsc_v_5420_variant = {
+	.pix_max		= &gsc_v_5420_max,
+	.pix_min		= &gsc_v_100_min,
+	.pix_align		= &gsc_v_100_align,
+	.in_buf_cnt		= 32,
+	.out_buf_cnt		= 32,
+	.sc_up_max		= 8,
+	.sc_down_max		= 16,
+	.poly_sc_down_max	= 4,
+	.pre_sc_down_max	= 4,
+	.local_sc_down		= 2,
+};
+
+static struct gsc_variant gsc_v_5433_variant = {
+	.pix_max		= &gsc_v_5433_max,
+	.pix_min		= &gsc_v_100_min,
+	.pix_align		= &gsc_v_100_align,
+	.in_buf_cnt		= 32,
+	.out_buf_cnt		= 32,
+	.sc_up_max		= 8,
+	.sc_down_max		= 16,
+	.poly_sc_down_max	= 4,
+	.pre_sc_down_max	= 4,
+	.local_sc_down		= 2,
+};
+
 static struct gsc_driverdata gsc_v_100_drvdata = {
 	.variant = {
 		[0] = &gsc_v_100_variant,
@@ -1004,11 +1088,33 @@ static struct gsc_driverdata gsc_v_100_drvdata = {
 	.num_clocks = 1,
 };
 
+static struct gsc_driverdata gsc_v_5250_drvdata = {
+	.variant = {
+		[0] = &gsc_v_5250_variant,
+		[1] = &gsc_v_5250_variant,
+		[2] = &gsc_v_5250_variant,
+		[3] = &gsc_v_5250_variant,
+	},
+	.num_entities = 4,
+	.clk_names = { "gscl" },
+	.num_clocks = 1,
+};
+
+static struct gsc_driverdata gsc_v_5420_drvdata = {
+	.variant = {
+		[0] = &gsc_v_5420_variant,
+		[1] = &gsc_v_5420_variant,
+	},
+	.num_entities = 2,
+	.clk_names = { "gscl" },
+	.num_clocks = 1,
+};
+
 static struct gsc_driverdata gsc_5433_drvdata = {
 	.variant = {
-		[0] = &gsc_v_100_variant,
-		[1] = &gsc_v_100_variant,
-		[2] = &gsc_v_100_variant,
+		[0] = &gsc_v_5433_variant,
+		[1] = &gsc_v_5433_variant,
+		[2] = &gsc_v_5433_variant,
 	},
 	.num_entities = 3,
 	.clk_names = { "pclk", "aclk", "aclk_xiu", "aclk_gsclbend" },
@@ -1017,12 +1123,20 @@ static struct gsc_driverdata gsc_5433_drvdata = {
 
 static const struct of_device_id exynos_gsc_match[] = {
 	{
-		.compatible = "samsung,exynos5-gsc",
-		.data = &gsc_v_100_drvdata,
+		.compatible = "samsung,exynos5250-gsc",
+		.data = &gsc_v_5250_drvdata,
+	},
+	{
+		.compatible = "samsung,exynos5420-gsc",
+		.data = &gsc_v_5420_drvdata,
 	},
 	{
 		.compatible = "samsung,exynos5433-gsc",
 		.data = &gsc_5433_drvdata,
+	},
+	{
+		.compatible = "samsung,exynos5-gsc",
+		.data = &gsc_v_100_drvdata,
 	},
 	{},
 };
@@ -1044,6 +1158,9 @@ static int gsc_probe(struct platform_device *pdev)
 	ret = of_alias_get_id(pdev->dev.of_node, "gsc");
 	if (ret < 0)
 		return ret;
+
+	if (drv_data == &gsc_v_100_drvdata)
+		dev_info(dev, "compatible 'exynos5-gsc' is deprecated\n");
 
 	gsc->id = ret;
 	if (gsc->id >= drv_data->num_entities) {

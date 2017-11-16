@@ -32,6 +32,7 @@
 
 #include <media/cec-pin.h>
 #include "cec-priv.h"
+#include "cec-pin-priv.h"
 
 static inline struct cec_devnode *cec_devnode_data(struct file *filp)
 {
@@ -529,7 +530,7 @@ static int cec_open(struct inode *inode, struct file *filp)
 	 * Initial events that are automatically sent when the cec device is
 	 * opened.
 	 */
-	struct cec_event ev_state = {
+	struct cec_event ev = {
 		.event = CEC_EVENT_STATE_CHANGE,
 		.flags = CEC_EVENT_FL_INITIAL_STATE,
 	};
@@ -569,9 +570,19 @@ static int cec_open(struct inode *inode, struct file *filp)
 	filp->private_data = fh;
 
 	/* Queue up initial state events */
-	ev_state.state_change.phys_addr = adap->phys_addr;
-	ev_state.state_change.log_addr_mask = adap->log_addrs.log_addr_mask;
-	cec_queue_event_fh(fh, &ev_state, 0);
+	ev.state_change.phys_addr = adap->phys_addr;
+	ev.state_change.log_addr_mask = adap->log_addrs.log_addr_mask;
+	cec_queue_event_fh(fh, &ev, 0);
+#ifdef CONFIG_CEC_PIN
+	if (adap->pin && adap->pin->ops->read_hpd) {
+		err = adap->pin->ops->read_hpd(adap);
+		if (err >= 0) {
+			ev.event = err ? CEC_EVENT_PIN_HPD_HIGH :
+					 CEC_EVENT_PIN_HPD_LOW;
+			cec_queue_event_fh(fh, &ev, 0);
+		}
+	}
+#endif
 
 	list_add(&fh->list, &devnode->fhs);
 	mutex_unlock(&devnode->lock);

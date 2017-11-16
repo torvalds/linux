@@ -961,7 +961,7 @@ struct host_sp_queues {
 
 extern int (*sh_css_printf)(const char *fmt, va_list args);
 
-STORAGE_CLASS_INLINE void
+static inline void
 sh_css_print(const char *fmt, ...)
 {
 	va_list ap;
@@ -973,7 +973,7 @@ sh_css_print(const char *fmt, ...)
 	}
 }
 
-STORAGE_CLASS_INLINE void
+static inline void
 sh_css_vprint(const char *fmt, va_list args)
 {
 	if (sh_css_printf)

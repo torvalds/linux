@@ -91,7 +91,7 @@ struct cec_event_entry {
 };
 
 #define CEC_NUM_CORE_EVENTS 2
-#define CEC_NUM_EVENTS CEC_EVENT_PIN_CEC_HIGH
+#define CEC_NUM_EVENTS CEC_EVENT_PIN_HPD_HIGH
 
 struct cec_fh {
 	struct list_head	list;
@@ -297,6 +297,16 @@ void cec_queue_pin_cec_event(struct cec_adapter *adap,
 			     bool is_high, ktime_t ts);
 
 /**
+ * cec_queue_pin_hpd_event() - queue a pin event with a given timestamp.
+ *
+ * @adap:	pointer to the cec adapter
+ * @is_high:	when true the HPD pin is high, otherwise it is low
+ * @ts:		the timestamp for this event
+ *
+ */
+void cec_queue_pin_hpd_event(struct cec_adapter *adap, bool is_high, ktime_t ts);
+
+/**
  * cec_get_edid_phys_addr() - find and return the physical address
  *
  * @edid:	pointer to the EDID data
@@ -417,6 +427,10 @@ static inline u16 cec_phys_addr_for_input(u16 phys_addr, u8 input)
 
 static inline int cec_phys_addr_validate(u16 phys_addr, u16 *parent, u16 *port)
 {
+	if (parent)
+		*parent = phys_addr;
+	if (port)
+		*port = 0;
 	return 0;
 }
 

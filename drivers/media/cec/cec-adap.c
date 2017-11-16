@@ -86,7 +86,7 @@ void cec_queue_event_fh(struct cec_fh *fh,
 			const struct cec_event *new_ev, u64 ts)
 {
 	static const u8 max_events[CEC_NUM_EVENTS] = {
-		1, 1, 64, 64,
+		1, 1, 64, 64, 8, 8,
 	};
 	struct cec_event_entry *entry;
 	unsigned int ev_idx = new_ev->event - 1;
@@ -169,6 +169,22 @@ void cec_queue_pin_cec_event(struct cec_adapter *adap, bool is_high, ktime_t ts)
 	mutex_unlock(&adap->devnode.lock);
 }
 EXPORT_SYMBOL_GPL(cec_queue_pin_cec_event);
+
+/* Notify userspace that the HPD pin changed state at the given time. */
+void cec_queue_pin_hpd_event(struct cec_adapter *adap, bool is_high, ktime_t ts)
+{
+	struct cec_event ev = {
+		.event = is_high ? CEC_EVENT_PIN_HPD_HIGH :
+				   CEC_EVENT_PIN_HPD_LOW,
+	};
+	struct cec_fh *fh;
+
+	mutex_lock(&adap->devnode.lock);
+	list_for_each_entry(fh, &adap->devnode.fhs, list)
+		cec_queue_event_fh(fh, &ev, ktime_to_ns(ts));
+	mutex_unlock(&adap->devnode.lock);
+}
+EXPORT_SYMBOL_GPL(cec_queue_pin_hpd_event);
 
 /*
  * Queue a new message for this filehandle.
