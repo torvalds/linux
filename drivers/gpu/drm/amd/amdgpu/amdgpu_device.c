@@ -578,41 +578,13 @@ void amdgpu_wb_free(struct amdgpu_device *adev, u32 wb)
  * @base: base address at which to put VRAM
  *
  * Function will try to place VRAM at base address provided
- * as parameter (which is so far either PCI aperture address or
- * for IGP TOM base address).
- *
- * If there is not enough space to fit the unvisible VRAM in the 32bits
- * address space then we limit the VRAM size to the aperture.
- *
- * Note: We don't explicitly enforce VRAM start to be aligned on VRAM size,
- * this shouldn't be a problem as we are using the PCI aperture as a reference.
- * Otherwise this would be needed for rv280, all r3xx, and all r4xx, but
- * not IGP.
- *
- * Note: we use mc_vram_size as on some board we need to program the mc to
- * cover the whole aperture even if VRAM size is inferior to aperture size
- * Novell bug 204882 + along with lots of ubuntu ones
- *
- * Note: when limiting vram it's safe to overwritte real_vram_size because
- * we are not in case where real_vram_size is inferior to mc_vram_size (ie
- * note afected by bogus hw of Novell bug 204882 + along with lots of ubuntu
- * ones)
- *
- * Note: IGP TOM addr should be the same as the aperture addr, we don't
- * explicitly check for that though.
- *
- * FIXME: when reducing VRAM size align new size on power of 2.
+ * as parameter.
  */
 void amdgpu_vram_location(struct amdgpu_device *adev, struct amdgpu_mc *mc, u64 base)
 {
 	uint64_t limit = (uint64_t)amdgpu_vram_limit << 20;
 
 	mc->vram_start = base;
-	if (mc->mc_vram_size > (adev->mc.mc_mask - base + 1)) {
-		dev_warn(adev->dev, "limiting VRAM to PCI aperture size\n");
-		mc->real_vram_size = mc->aper_size;
-		mc->mc_vram_size = mc->aper_size;
-	}
 	mc->vram_end = mc->vram_start + mc->mc_vram_size - 1;
 	if (limit && limit < mc->real_vram_size)
 		mc->real_vram_size = limit;

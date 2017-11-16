@@ -222,11 +222,6 @@ static void gmc_v6_0_vram_gtt_location(struct amdgpu_device *adev,
 	u64 base = RREG32(mmMC_VM_FB_LOCATION) & 0xFFFF;
 	base <<= 24;
 
-	if (mc->mc_vram_size > 0xFFC0000000ULL) {
-		dev_warn(adev->dev, "limiting VRAM\n");
-		mc->real_vram_size = 0xFFC0000000ULL;
-		mc->mc_vram_size = 0xFFC0000000ULL;
-	}
 	amdgpu_vram_location(adev, &adev->mc, base);
 	amdgpu_gart_location(adev, mc);
 }
