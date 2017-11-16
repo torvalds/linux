@@ -622,7 +622,10 @@ void amdgpu_gart_location(struct amdgpu_device *adev, struct amdgpu_mc *mc)
 			dev_warn(adev->dev, "limiting GTT\n");
 			mc->gart_size = size_af;
 		}
-		mc->gart_start = mc->vram_end + 1;
+		/* VCE doesn't like it when BOs cross a 4GB segment, so align
+		 * the GART base on a 4GB boundary as well.
+		 */
+		mc->gart_start = ALIGN(mc->vram_end + 1, 0x100000000ULL);
 	}
 	mc->gart_end = mc->gart_start + mc->gart_size - 1;
 	dev_info(adev->dev, "GTT: %lluM 0x%016llX - 0x%016llX\n",
