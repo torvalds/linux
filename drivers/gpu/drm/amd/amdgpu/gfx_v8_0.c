@@ -299,6 +299,37 @@ static const u32 tonga_mgcg_cgcg_init[] =
 	mmCP_MEM_SLP_CNTL, 0x00000001, 0x00000001,
 };
 
+static const u32 golden_settings_vegam_a11[] =
+{
+	mmCB_HW_CONTROL, 0x0001f3cf, 0x00007208,
+	mmCB_HW_CONTROL_2, 0x0f000000, 0x0d000000,
+	mmCB_HW_CONTROL_3, 0x000001ff, 0x00000040,
+	mmDB_DEBUG2, 0xf00fffff, 0x00000400,
+	mmPA_SC_ENHANCE, 0xffffffff, 0x20000001,
+	mmPA_SC_LINE_STIPPLE_STATE, 0x0000ff0f, 0x00000000,
+	mmPA_SC_RASTER_CONFIG, 0x3f3fffff, 0x3a00161a,
+	mmPA_SC_RASTER_CONFIG_1, 0x0000003f, 0x0000002e,
+	mmRLC_CGCG_CGLS_CTRL, 0x00000003, 0x0001003c,
+	mmRLC_CGCG_CGLS_CTRL_3D, 0xffffffff, 0x0001003c,
+	mmSQ_CONFIG, 0x07f80000, 0x01180000,
+	mmTA_CNTL_AUX, 0x000f000f, 0x000b0000,
+	mmTCC_CTRL, 0x00100000, 0xf31fff7f,
+	mmTCP_ADDR_CONFIG, 0x000003ff, 0x000000f7,
+	mmTCP_CHAN_STEER_HI, 0xffffffff, 0x00000000,
+	mmTCP_CHAN_STEER_LO, 0xffffffff, 0x32761054,
+	mmVGT_RESET_DEBUG, 0x00000004, 0x00000004,
+};
+
+static const u32 vegam_golden_common_all[] =
+{
+	mmGRBM_GFX_INDEX, 0xffffffff, 0xe0000000,
+	mmGB_ADDR_CONFIG, 0xffffffff, 0x22011003,
+	mmSPI_RESOURCE_RESERVE_CU_0, 0xffffffff, 0x00000800,
+	mmSPI_RESOURCE_RESERVE_CU_1, 0xffffffff, 0x00000800,
+	mmSPI_RESOURCE_RESERVE_EN_CU_0, 0xffffffff, 0x00FF7FBF,
+	mmSPI_RESOURCE_RESERVE_EN_CU_1, 0xffffffff, 0x00FF7FAF,
+};
+
 static const u32 golden_settings_polaris11_a11[] =
 {
 	mmCB_HW_CONTROL, 0x0000f3cf, 0x00007208,
@@ -718,6 +749,14 @@ static void gfx_v8_0_init_golden_registers(struct amdgpu_device *adev)
 		amdgpu_device_program_register_sequence(adev,
 							tonga_golden_common_all,
 							ARRAY_SIZE(tonga_golden_common_all));
+		break;
+	case CHIP_VEGAM:
+		amdgpu_device_program_register_sequence(adev,
+							golden_settings_vegam_a11,
+							ARRAY_SIZE(golden_settings_vegam_a11));
+		amdgpu_device_program_register_sequence(adev,
+							vegam_golden_common_all,
+							ARRAY_SIZE(vegam_golden_common_all));
 		break;
 	case CHIP_POLARIS11:
 	case CHIP_POLARIS12:
