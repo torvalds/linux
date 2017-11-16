@@ -33,7 +33,7 @@
 #include "vega10/DC/dce_12_0_sh_mask.h"
 #include "vega10/vega10_enum.h"
 #include "vega10/MMHUB/mmhub_1_0_offset.h"
-#include "vega10/ATHUB/athub_1_0_offset.h"
+#include "athub/athub_1_0_offset.h"
 
 #include "soc15_common.h"
 #include "vega10/UMC/umc_6_0_sh_mask.h"

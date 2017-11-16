@@ -27,9 +27,8 @@
 #include "vega10/MMHUB/mmhub_1_0_offset.h"
 #include "vega10/MMHUB/mmhub_1_0_sh_mask.h"
 #include "vega10/MMHUB/mmhub_1_0_default.h"
-#include "vega10/ATHUB/athub_1_0_offset.h"
-#include "vega10/ATHUB/athub_1_0_sh_mask.h"
-#include "vega10/ATHUB/athub_1_0_default.h"
+#include "athub/athub_1_0_offset.h"
+#include "athub/athub_1_0_sh_mask.h"
 #include "vega10/vega10_enum.h"
 
 #include "soc15_common.h"
