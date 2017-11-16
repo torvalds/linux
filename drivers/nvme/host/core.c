@@ -2961,8 +2961,6 @@ static void nvme_alloc_ns(struct nvme_ctrl *ctrl, unsigned nsid)
 
 static void nvme_ns_remove(struct nvme_ns *ns)
 {
-	struct nvme_ns_head *head = ns->head;
-
 	if (test_and_set_bit(NVME_NS_REMOVING, &ns->flags))
 		return;
 
@@ -2980,15 +2978,14 @@ static void nvme_ns_remove(struct nvme_ns *ns)
 
 	mutex_lock(&ns->ctrl->subsys->lock);
 	nvme_mpath_clear_current_path(ns);
-	if (head)
-		list_del_rcu(&ns->siblings);
+	list_del_rcu(&ns->siblings);
 	mutex_unlock(&ns->ctrl->subsys->lock);
 
 	mutex_lock(&ns->ctrl->namespaces_mutex);
 	list_del_init(&ns->list);
 	mutex_unlock(&ns->ctrl->namespaces_mutex);
 
-	synchronize_srcu(&head->srcu);
+	synchronize_srcu(&ns->head->srcu);
 	nvme_put_ns(ns);
 }
 
