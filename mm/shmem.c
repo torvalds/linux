@@ -3862,12 +3862,11 @@ static void shmem_init_inode(void *foo)
 	inode_init_once(&info->vfs_inode);
 }
 
-static int shmem_init_inodecache(void)
+static void shmem_init_inodecache(void)
 {
 	shmem_inode_cachep = kmem_cache_create("shmem_inode_cache",
 				sizeof(struct shmem_inode_info),
 				0, SLAB_PANIC|SLAB_ACCOUNT, shmem_init_inode);
-	return 0;
 }
 
 static void shmem_destroy_inodecache(void)
@@ -3991,9 +3990,7 @@ int __init shmem_init(void)
 	if (shmem_inode_cachep)
 		return 0;
 
-	error = shmem_init_inodecache();
-	if (error)
-		goto out3;
+	shmem_init_inodecache();
 
 	error = register_filesystem(&shmem_fs_type);
 	if (error) {
@@ -4020,7 +4017,6 @@ out1:
 	unregister_filesystem(&shmem_fs_type);
 out2:
 	shmem_destroy_inodecache();
-out3:
 	shm_mnt = ERR_PTR(error);
 	return error;
 }
