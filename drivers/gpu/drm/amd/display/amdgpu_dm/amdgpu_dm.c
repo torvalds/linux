@@ -716,7 +716,6 @@ int amdgpu_dm_display_resume(struct amdgpu_device *adev)
 
 	ret = drm_atomic_helper_resume(ddev, adev->dm.cached_state);
 
-	drm_atomic_state_put(adev->dm.cached_state);
 	adev->dm.cached_state = NULL;
 
 	amdgpu_dm_irq_resume_late(adev);
