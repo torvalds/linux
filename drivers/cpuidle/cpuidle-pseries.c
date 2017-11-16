@@ -51,8 +51,6 @@ static inline void idle_loop_epilog(unsigned long in_purr)
 	get_lppaca()->wait_state_cycles = cpu_to_be64(wait_cycles);
 	get_lppaca()->idle = 0;
 
-	if (irqs_disabled())
-		local_irq_enable();
 	ppc64_runlatch_on();
 }
 
@@ -86,6 +84,8 @@ static int snooze_loop(struct cpuidle_device *dev,
 
 	HMT_medium();
 	clear_thread_flag(TIF_POLLING_NRFLAG);
+
+	local_irq_disable();
 
 	idle_loop_epilog(in_purr);
 
@@ -121,6 +121,7 @@ static int dedicated_cede_loop(struct cpuidle_device *dev,
 	HMT_medium();
 	check_and_cede_processor();
 
+	local_irq_disable();
 	get_lppaca()->donate_dedicated_cpu = 0;
 
 	idle_loop_epilog(in_purr);
@@ -145,6 +146,7 @@ static int shared_cede_loop(struct cpuidle_device *dev,
 	 */
 	check_and_cede_processor();
 
+	local_irq_disable();
 	idle_loop_epilog(in_purr);
 
 	return index;
