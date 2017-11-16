@@ -284,11 +284,16 @@ int arch_decode_instruction(struct elf *elf, struct section *sec,
 	case 0x8d:
 		if (sib == 0x24 && rex_w && !rex_b && !rex_x) {
 
-			/* lea disp(%rsp), reg */
 			*type = INSN_STACK;
-			op->src.type = OP_SRC_ADD;
+			if (!insn.displacement.value) {
+				/* lea (%rsp), reg */
+				op->src.type = OP_SRC_REG;
+			} else {
+				/* lea disp(%rsp), reg */
+				op->src.type = OP_SRC_ADD;
+				op->src.offset = insn.displacement.value;
+			}
 			op->src.reg = CFI_SP;
-			op->src.offset = insn.displacement.value;
 			op->dest.type = OP_DEST_REG;
 			op->dest.reg = op_to_cfi_reg[modrm_reg][rex_r];
 

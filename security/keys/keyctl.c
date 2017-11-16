@@ -766,12 +766,17 @@ long keyctl_read_key(key_serial_t keyid, char __user *buffer, size_t buflen)
 
 	key = key_ref_to_ptr(key_ref);
 
+	if (test_bit(KEY_FLAG_NEGATIVE, &key->flags)) {
+		ret = -ENOKEY;
+		goto error2;
+	}
+
 	/* see if we can read it directly */
 	ret = key_permission(key_ref, KEY_NEED_READ);
 	if (ret == 0)
 		goto can_read_key;
 	if (ret != -EACCES)
-		goto error;
+		goto error2;
 
 	/* we can't; see if it's searchable from this process's keyrings
 	 * - we automatically take account of the fact that it may be
@@ -1406,11 +1411,9 @@ long keyctl_assume_authority(key_serial_t id)
 	}
 
 	ret = keyctl_change_reqkey_auth(authkey);
-	if (ret < 0)
-		goto error;
+	if (ret == 0)
+		ret = authkey->serial;
 	key_put(authkey);
-
-	ret = authkey->serial;
 error:
 	return ret;
 }

@@ -390,10 +390,10 @@ static void __nvmet_req_complete(struct nvmet_req *req, u16 status)
 	if (status)
 		nvmet_set_status(req, status);
 
-	/* XXX: need to fill in something useful for sq_head */
-	req->rsp->sq_head = 0;
-	if (likely(req->sq)) /* may happen during early failure */
-		req->rsp->sq_id = cpu_to_le16(req->sq->qid);
+	if (req->sq->size)
+		req->sq->sqhd = (req->sq->sqhd + 1) % req->sq->size;
+	req->rsp->sq_head = cpu_to_le16(req->sq->sqhd);
+	req->rsp->sq_id = cpu_to_le16(req->sq->qid);
 	req->rsp->command_id = req->cmd->common.command_id;
 
 	if (req->ns)
@@ -420,6 +420,7 @@ void nvmet_cq_setup(struct nvmet_ctrl *ctrl, struct nvmet_cq *cq,
 void nvmet_sq_setup(struct nvmet_ctrl *ctrl, struct nvmet_sq *sq,
 		u16 qid, u16 size)
 {
+	sq->sqhd = 0;
 	sq->qid = qid;
 	sq->size = size;
 

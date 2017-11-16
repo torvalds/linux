@@ -259,7 +259,6 @@ static int erspan_rcv(struct sk_buff *skb, struct tnl_ptk_info *tpi,
 	struct ip_tunnel *tunnel;
 	struct erspanhdr *ershdr;
 	const struct iphdr *iph;
-	__be32 session_id;
 	__be32 index;
 	int len;
 
@@ -275,8 +274,7 @@ static int erspan_rcv(struct sk_buff *skb, struct tnl_ptk_info *tpi,
 	/* The original GRE header does not have key field,
 	 * Use ERSPAN 10-bit session ID as key.
 	 */
-	session_id = cpu_to_be32(ntohs(ershdr->session_id));
-	tpi->key = session_id;
+	tpi->key = cpu_to_be32(ntohs(ershdr->session_id) & ID_MASK);
 	index = ershdr->md.index;
 	tunnel = ip_tunnel_lookup(itn, skb->dev->ifindex,
 				  tpi->flags | TUNNEL_KEY,
@@ -733,7 +731,7 @@ static netdev_tx_t erspan_xmit(struct sk_buff *skb,
 	if (skb_cow_head(skb, dev->needed_headroom))
 		goto free_skb;
 
-	if (skb->len > dev->mtu) {
+	if (skb->len - dev->hard_header_len > dev->mtu) {
 		pskb_trim(skb, dev->mtu);
 		truncate = true;
 	}
@@ -1223,6 +1221,7 @@ static int gre_tap_init(struct net_device *dev)
 {
 	__gre_tunnel_init(dev);
 	dev->priv_flags |= IFF_LIVE_ADDR_CHANGE;
+	netif_keep_dst(dev);
 
 	return ip_tunnel_init(dev);
 }
@@ -1246,13 +1245,16 @@ static int erspan_tunnel_init(struct net_device *dev)
 
 	tunnel->tun_hlen = 8;
 	tunnel->parms.iph.protocol = IPPROTO_GRE;
-	t_hlen = tunnel->hlen + sizeof(struct iphdr) + sizeof(struct erspanhdr);
+	tunnel->hlen = tunnel->tun_hlen + tunnel->encap_hlen +
+		       sizeof(struct erspanhdr);
+	t_hlen = tunnel->hlen + sizeof(struct iphdr);
 
 	dev->needed_headroom = LL_MAX_HEADER + t_hlen + 4;
 	dev->mtu = ETH_DATA_LEN - t_hlen - 4;
 	dev->features		|= GRE_FEATURES;
 	dev->hw_features	|= GRE_FEATURES;
 	dev->priv_flags		|= IFF_LIVE_ADDR_CHANGE;
+	netif_keep_dst(dev);
 
 	return ip_tunnel_init(dev);
 }

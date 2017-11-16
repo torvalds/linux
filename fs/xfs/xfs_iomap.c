@@ -33,6 +33,7 @@
 #include "xfs_error.h"
 #include "xfs_trans.h"
 #include "xfs_trans_space.h"
+#include "xfs_inode_item.h"
 #include "xfs_iomap.h"
 #include "xfs_trace.h"
 #include "xfs_icache.h"
@@ -829,7 +830,8 @@ int
 xfs_iomap_write_unwritten(
 	xfs_inode_t	*ip,
 	xfs_off_t	offset,
-	xfs_off_t	count)
+	xfs_off_t	count,
+	bool		update_isize)
 {
 	xfs_mount_t	*mp = ip->i_mount;
 	xfs_fileoff_t	offset_fsb;
@@ -840,6 +842,7 @@ xfs_iomap_write_unwritten(
 	xfs_trans_t	*tp;
 	xfs_bmbt_irec_t imap;
 	struct xfs_defer_ops dfops;
+	struct inode	*inode = VFS_I(ip);
 	xfs_fsize_t	i_size;
 	uint		resblks;
 	int		error;
@@ -899,7 +902,8 @@ xfs_iomap_write_unwritten(
 		i_size = XFS_FSB_TO_B(mp, offset_fsb + count_fsb);
 		if (i_size > offset + count)
 			i_size = offset + count;
-
+		if (update_isize && i_size > i_size_read(inode))
+			i_size_write(inode, i_size);
 		i_size = xfs_new_eof(ip, i_size);
 		if (i_size) {
 			ip->i_d.di_size = i_size;
@@ -1082,6 +1086,10 @@ xfs_file_iomap_begin(
 		xfs_iunlock(ip, lockmode);
 		trace_xfs_iomap_found(ip, offset, length, 0, &imap);
 	}
+
+	if (xfs_ipincount(ip) && (ip->i_itemp->ili_fsync_fields
+				& ~XFS_ILOG_TIMESTAMP))
+		iomap->flags |= IOMAP_F_DIRTY;
 
 	xfs_bmbt_to_iomap(ip, iomap, &imap);
 
