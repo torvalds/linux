@@ -17,7 +17,7 @@ struct address_space;
 
 struct pagevec {
 	unsigned long nr;
-	bool drained;
+	bool percpu_pvec_drained;
 	struct page *pages[PAGEVEC_SIZE];
 };
 
@@ -53,7 +53,7 @@ static inline unsigned pagevec_lookup_tag(struct pagevec *pvec,
 static inline void pagevec_init(struct pagevec *pvec)
 {
 	pvec->nr = 0;
-	pvec->drained = false;
+	pvec->percpu_pvec_drained = false;
 }
 
 static inline void pagevec_reinit(struct pagevec *pvec)
