@@ -387,6 +387,7 @@ union surface_update_flags {
 
 	struct {
 		/* Medium updates */
+		uint32_t dcc_change:1;
 		uint32_t color_space_change:1;
 		uint32_t input_tf_change:1;
 		uint32_t horizontal_mirror_change:1;

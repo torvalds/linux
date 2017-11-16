@@ -2066,6 +2066,7 @@ static void update_dchubp_dpp(
 		plane_state->update_flags.bits.horizontal_mirror_change ||
 		plane_state->update_flags.bits.rotation_change ||
 		plane_state->update_flags.bits.swizzle_change ||
+		plane_state->update_flags.bits.dcc_change ||
 		plane_state->update_flags.bits.bpp_change) {
 		hubp->funcs->hubp_program_surface_config(
 			hubp,

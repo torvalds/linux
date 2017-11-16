@@ -985,6 +985,11 @@ static enum surface_update_type get_plane_info_update_type(const struct dc_surfa
 	if (u->plane_info->per_pixel_alpha != u->surface->per_pixel_alpha)
 		update_flags->bits.per_pixel_alpha_change = 1;
 
+	if (u->plane_info->dcc.enable != u->surface->dcc.enable
+			|| u->plane_info->dcc.grph.independent_64b_blks != u->surface->dcc.grph.independent_64b_blks
+			|| u->plane_info->dcc.grph.meta_pitch != u->surface->dcc.grph.meta_pitch)
+		update_flags->bits.dcc_change = 1;
+
 	if (pixel_format_to_bpp(u->plane_info->format) !=
 			pixel_format_to_bpp(u->surface->format))
 		/* different bytes per element will require full bandwidth
