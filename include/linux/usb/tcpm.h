@@ -183,14 +183,14 @@ struct tcpm_port;
 struct tcpm_port *tcpm_register_port(struct device *dev, struct tcpc_dev *tcpc);
 void tcpm_unregister_port(struct tcpm_port *port);
 
-void tcpm_update_source_capabilities(struct tcpm_port *port, const u32 *pdo,
-				     unsigned int nr_pdo);
-void tcpm_update_sink_capabilities(struct tcpm_port *port, const u32 *pdo,
-				   unsigned int nr_pdo,
-				   unsigned int max_snk_mv,
-				   unsigned int max_snk_ma,
-				   unsigned int max_snk_mw,
-				   unsigned int operating_snk_mw);
+int tcpm_update_source_capabilities(struct tcpm_port *port, const u32 *pdo,
+				    unsigned int nr_pdo);
+int tcpm_update_sink_capabilities(struct tcpm_port *port, const u32 *pdo,
+				  unsigned int nr_pdo,
+				  unsigned int max_snk_mv,
+				  unsigned int max_snk_ma,
+				  unsigned int max_snk_mw,
+				  unsigned int operating_snk_mw);
 
 void tcpm_vbus_change(struct tcpm_port *port);
 void tcpm_cc_change(struct tcpm_port *port);
