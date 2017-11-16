@@ -1,3 +1,4 @@
+DTC_FLAGS_testcases := -Wno-interrupts_property
 obj-y += testcases.dtb.o
 
 targets += testcases.dtb testcases.dtb.S
