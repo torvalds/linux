@@ -2350,16 +2350,16 @@ static int rmqueue_bulk(struct zone *zone, unsigned int order,
 			continue;
 
 		/*
-		 * Split buddy pages returned by expand() are received here
-		 * in physical page order. The page is added to the callers and
-		 * list and the list head then moves forward. From the callers
-		 * perspective, the linked list is ordered by page number in
-		 * some conditions. This is useful for IO devices that can
-		 * merge IO requests if the physical pages are ordered
-		 * properly.
+		 * Split buddy pages returned by expand() are received here in
+		 * physical page order. The page is added to the tail of
+		 * caller's list. From the callers perspective, the linked list
+		 * is ordered by page number under some conditions. This is
+		 * useful for IO devices that can forward direction from the
+		 * head, thus also in the physical page order. This is useful
+		 * for IO devices that can merge IO requests if the physical
+		 * pages are ordered properly.
 		 */
-		list_add(&page->lru, list);
-		list = &page->lru;
+		list_add_tail(&page->lru, list);
 		alloced++;
 		if (is_migrate_cma(get_pcppage_migratetype(page)))
 			__mod_zone_page_state(zone, NR_FREE_CMA_PAGES,
