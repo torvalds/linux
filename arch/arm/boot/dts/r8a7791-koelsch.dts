@@ -708,7 +708,7 @@
 	};
 
 	eeprom@50 {
-		compatible = "renesas,24c02", "atmel,24c02";
+		compatible = "renesas,r1ex24002", "atmel,24c02";
 		reg = <0x50>;
 		pagesize = <16>;
 	};
