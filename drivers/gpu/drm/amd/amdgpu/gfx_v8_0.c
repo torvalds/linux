@@ -1819,6 +1819,7 @@ static int gfx_v8_0_gpu_early_init(struct amdgpu_device *adev)
 		gb_addr_config = POLARIS11_GB_ADDR_CONFIG_GOLDEN;
 		break;
 	case CHIP_POLARIS10:
+	case CHIP_VEGAM:
 		ret = amdgpu_atombios_get_gfx_info(adev);
 		if (ret)
 			return ret;
@@ -2006,12 +2007,13 @@ static int gfx_v8_0_sw_init(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	switch (adev->asic_type) {
-	case CHIP_FIJI:
 	case CHIP_TONGA:
+	case CHIP_CARRIZO:
+	case CHIP_FIJI:
+	case CHIP_POLARIS10:
 	case CHIP_POLARIS11:
 	case CHIP_POLARIS12:
-	case CHIP_POLARIS10:
-	case CHIP_CARRIZO:
+	case CHIP_VEGAM:
 		adev->gfx.mec.num_mec = 2;
 		break;
 	case CHIP_TOPAZ:
@@ -2372,6 +2374,7 @@ static void gfx_v8_0_tiling_mode_table_init(struct amdgpu_device *adev)
 
 		break;
 	case CHIP_FIJI:
+	case CHIP_VEGAM:
 		modearray[0] = (ARRAY_MODE(ARRAY_2D_TILED_THIN1) |
 				PIPE_CONFIG(ADDR_SURF_P16_32x32_16x16) |
 				TILE_SPLIT(ADDR_SURF_TILE_SPLIT_64B) |
@@ -3553,6 +3556,7 @@ gfx_v8_0_raster_config(struct amdgpu_device *adev, u32 *rconf, u32 *rconf1)
 {
 	switch (adev->asic_type) {
 	case CHIP_FIJI:
+	case CHIP_VEGAM:
 		*rconf |= RB_MAP_PKR0(2) | RB_MAP_PKR1(2) |
 			  RB_XSEL2(1) | PKR_MAP(2) |
 			  PKR_XSEL(1) | PKR_YSEL(1) |
@@ -4120,7 +4124,8 @@ static void gfx_v8_0_init_pg(struct amdgpu_device *adev)
 		gfx_v8_0_init_power_gating(adev);
 		WREG32(mmRLC_PG_ALWAYS_ON_CU_MASK, adev->gfx.cu_info.ao_cu_mask);
 	} else if ((adev->asic_type == CHIP_POLARIS11) ||
-		   (adev->asic_type == CHIP_POLARIS12)) {
+		   (adev->asic_type == CHIP_POLARIS12) ||
+		   (adev->asic_type == CHIP_VEGAM)) {
 		gfx_v8_0_init_csb(adev);
 		gfx_v8_0_init_save_restore_list(adev);
 		gfx_v8_0_enable_save_restore_machine(adev);
@@ -4195,7 +4200,8 @@ static int gfx_v8_0_rlc_resume(struct amdgpu_device *adev)
 	WREG32(mmRLC_CGCG_CGLS_CTRL, tmp);
 	if (adev->asic_type == CHIP_POLARIS11 ||
 	    adev->asic_type == CHIP_POLARIS10 ||
-	    adev->asic_type == CHIP_POLARIS12) {
+	    adev->asic_type == CHIP_POLARIS12 ||
+	    adev->asic_type == CHIP_VEGAM) {
 		tmp = RREG32(mmRLC_CGCG_CGLS_CTRL_3D);
 		tmp &= ~0x3;
 		WREG32(mmRLC_CGCG_CGLS_CTRL_3D, tmp);
@@ -5547,7 +5553,8 @@ static void gfx_v8_0_enable_gfx_static_mg_power_gating(struct amdgpu_device *ade
 						       bool enable)
 {
 	if ((adev->asic_type == CHIP_POLARIS11) ||
-	    (adev->asic_type == CHIP_POLARIS12))
+	    (adev->asic_type == CHIP_POLARIS12) ||
+	    (adev->asic_type == CHIP_VEGAM))
 		/* Send msg to SMU via Powerplay */
 		amdgpu_device_ip_set_powergating_state(adev,
 						       AMD_IP_BLOCK_TYPE_SMC,
@@ -5637,6 +5644,7 @@ static int gfx_v8_0_set_powergating_state(void *handle,
 		break;
 	case CHIP_POLARIS11:
 	case CHIP_POLARIS12:
+	case CHIP_VEGAM:
 		if ((adev->pg_flags & AMD_PG_SUPPORT_GFX_SMG) && enable)
 			gfx_v8_0_enable_gfx_static_mg_power_gating(adev, true);
 		else
@@ -6203,6 +6211,7 @@ static int gfx_v8_0_set_clockgating_state(void *handle,
 	case CHIP_POLARIS10:
 	case CHIP_POLARIS11:
 	case CHIP_POLARIS12:
+	case CHIP_VEGAM:
 		gfx_v8_0_polaris_update_gfx_clock_gating(adev, state);
 		break;
 	default:
