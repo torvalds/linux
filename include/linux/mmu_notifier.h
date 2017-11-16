@@ -156,7 +156,8 @@ struct mmu_notifier_ops {
 	 * shared page-tables, it not necessary to implement the
 	 * invalidate_range_start()/end() notifiers, as
 	 * invalidate_range() alread catches the points in time when an
-	 * external TLB range needs to be flushed.
+	 * external TLB range needs to be flushed. For more in depth
+	 * discussion on this see Documentation/vm/mmu_notifier.txt
 	 *
 	 * The invalidate_range() function is called under the ptl
 	 * spin-lock and not allowed to sleep.
