@@ -428,7 +428,7 @@ static void put_entry_bdev(struct zram *zram, unsigned long entry)
 	WARN_ON_ONCE(!was_set);
 }
 
-void zram_page_end_io(struct bio *bio)
+static void zram_page_end_io(struct bio *bio)
 {
 	struct page *page = bio->bi_io_vec[0].bv_page;
 
