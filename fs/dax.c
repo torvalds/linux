@@ -794,7 +794,7 @@ int dax_writeback_mapping_range(struct address_space *mapping,
 
 	tag_pages_for_writeback(mapping, start_index, end_index);
 
-	pagevec_init(&pvec, 0);
+	pagevec_init(&pvec);
 	while (!done) {
 		pvec.nr = find_get_entries_tag(mapping, start_index,
 				PAGECACHE_TAG_TOWRITE, PAGEVEC_SIZE,

@@ -680,7 +680,7 @@ static void ceph_release_pages(struct page **pages, int num)
 	struct pagevec pvec;
 	int i;
 
-	pagevec_init(&pvec, 0);
+	pagevec_init(&pvec);
 	for (i = 0; i < num; i++) {
 		if (pagevec_add(&pvec, pages[i]) == 0)
 			pagevec_release(&pvec);
@@ -811,7 +811,7 @@ static int ceph_writepages_start(struct address_space *mapping,
 	if (fsc->mount_options->wsize < wsize)
 		wsize = fsc->mount_options->wsize;
 
-	pagevec_init(&pvec, 0);
+	pagevec_init(&pvec);
 
 	start_index = wbc->range_cyclic ? mapping->writeback_index : 0;
 	index = start_index;

@@ -255,7 +255,7 @@ int nilfs_copy_dirty_pages(struct address_space *dmap,
 	pgoff_t index = 0;
 	int err = 0;
 
-	pagevec_init(&pvec, 0);
+	pagevec_init(&pvec);
 repeat:
 	if (!pagevec_lookup_tag(&pvec, smap, &index, PAGECACHE_TAG_DIRTY))
 		return 0;
@@ -309,7 +309,7 @@ void nilfs_copy_back_pages(struct address_space *dmap,
 	pgoff_t index = 0;
 	int err;
 
-	pagevec_init(&pvec, 0);
+	pagevec_init(&pvec);
 repeat:
 	n = pagevec_lookup(&pvec, smap, &index);
 	if (!n)
@@ -373,7 +373,7 @@ void nilfs_clear_dirty_pages(struct address_space *mapping, bool silent)
 	unsigned int i;
 	pgoff_t index = 0;
 
-	pagevec_init(&pvec, 0);
+	pagevec_init(&pvec);
 
 	while (pagevec_lookup_tag(&pvec, mapping, &index,
 					PAGECACHE_TAG_DIRTY)) {
@@ -518,7 +518,7 @@ unsigned long nilfs_find_uncommitted_extent(struct inode *inode,
 	index = start_blk >> (PAGE_SHIFT - inode->i_blkbits);
 	nblocks_in_page = 1U << (PAGE_SHIFT - inode->i_blkbits);
 
-	pagevec_init(&pvec, 0);
+	pagevec_init(&pvec);
 
 repeat:
 	pvec.nr = find_get_pages_contig(inode->i_mapping, index, PAGEVEC_SIZE,

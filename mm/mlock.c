@@ -289,7 +289,7 @@ static void __munlock_pagevec(struct pagevec *pvec, struct zone *zone)
 	struct pagevec pvec_putback;
 	int pgrescued = 0;
 
-	pagevec_init(&pvec_putback, 0);
+	pagevec_init(&pvec_putback);
 
 	/* Phase 1: page isolation */
 	spin_lock_irq(zone_lru_lock(zone));
@@ -448,7 +448,7 @@ void munlock_vma_pages_range(struct vm_area_struct *vma,
 		struct pagevec pvec;
 		struct zone *zone;
 
-		pagevec_init(&pvec, 0);
+		pagevec_init(&pvec);
 		/*
 		 * Although FOLL_DUMP is intended for get_dump_page(),
 		 * it just so happens that its special treatment of the

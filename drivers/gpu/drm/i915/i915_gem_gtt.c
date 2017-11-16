@@ -1859,7 +1859,7 @@ static void i915_address_space_init(struct i915_address_space *vm,
 	INIT_LIST_HEAD(&vm->unbound_list);
 
 	list_add_tail(&vm->global_link, &dev_priv->vm_list);
-	pagevec_init(&vm->free_pages, false);
+	pagevec_init(&vm->free_pages);
 }
 
 static void i915_address_space_fini(struct i915_address_space *vm)

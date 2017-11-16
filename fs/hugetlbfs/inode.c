@@ -407,7 +407,7 @@ static void remove_inode_hugepages(struct inode *inode, loff_t lstart,
 
 	memset(&pseudo_vma, 0, sizeof(struct vm_area_struct));
 	pseudo_vma.vm_flags = (VM_HUGETLB | VM_MAYSHARE | VM_SHARED);
-	pagevec_init(&pvec, 0);
+	pagevec_init(&pvec);
 	next = start;
 	while (next < end) {
 		/*

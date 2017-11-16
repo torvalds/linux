@@ -710,7 +710,7 @@ int cachefiles_read_or_alloc_pages(struct fscache_retrieval *op,
 	/* calculate the shift required to use bmap */
 	shift = PAGE_SHIFT - inode->i_sb->s_blocksize_bits;
 
-	pagevec_init(&pagevec, 0);
+	pagevec_init(&pagevec);
 
 	op->op.flags &= FSCACHE_OP_KEEP_FLAGS;
 	op->op.flags |= FSCACHE_OP_ASYNC;
@@ -844,7 +844,7 @@ int cachefiles_allocate_pages(struct fscache_retrieval *op,
 
 	ret = cachefiles_has_space(cache, 0, *nr_pages);
 	if (ret == 0) {
-		pagevec_init(&pagevec, 0);
+		pagevec_init(&pagevec);
 
 		list_for_each_entry(page, pages, lru) {
 			if (pagevec_add(&pagevec, page) == 0)

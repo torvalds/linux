@@ -210,7 +210,7 @@ static void pagevec_lru_move_fn(struct pagevec *pvec,
 	}
 	if (pgdat)
 		spin_unlock_irqrestore(&pgdat->lru_lock, flags);
-	release_pages(pvec->pages, pvec->nr, pvec->cold);
+	release_pages(pvec->pages, pvec->nr, 0);
 	pagevec_reinit(pvec);
 }
 
@@ -837,7 +837,7 @@ void __pagevec_release(struct pagevec *pvec)
 		lru_add_drain();
 		pvec->drained = true;
 	}
-	release_pages(pvec->pages, pagevec_count(pvec), pvec->cold);
+	release_pages(pvec->pages, pagevec_count(pvec), 0);
 	pagevec_reinit(pvec);
 }
 EXPORT_SYMBOL(__pagevec_release);
