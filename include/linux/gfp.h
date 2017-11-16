@@ -24,7 +24,6 @@ struct vm_area_struct;
 #define ___GFP_HIGH		0x20u
 #define ___GFP_IO		0x40u
 #define ___GFP_FS		0x80u
-#define ___GFP_COLD		0x100u
 #define ___GFP_NOWARN		0x200u
 #define ___GFP_RETRY_MAYFAIL	0x400u
 #define ___GFP_NOFAIL		0x800u
@@ -192,16 +191,12 @@ struct vm_area_struct;
 /*
  * Action modifiers
  *
- * __GFP_COLD indicates that the caller does not expect to be used in the near
- *   future. Where possible, a cache-cold page will be returned.
- *
  * __GFP_NOWARN suppresses allocation failure reports.
  *
  * __GFP_COMP address compound page metadata.
  *
  * __GFP_ZERO returns a zeroed page on success.
  */
-#define __GFP_COLD	((__force gfp_t)___GFP_COLD)
 #define __GFP_NOWARN	((__force gfp_t)___GFP_NOWARN)
 #define __GFP_COMP	((__force gfp_t)___GFP_COMP)
 #define __GFP_ZERO	((__force gfp_t)___GFP_ZERO)

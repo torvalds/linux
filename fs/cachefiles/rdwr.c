@@ -256,8 +256,7 @@ static int cachefiles_read_backing_file_one(struct cachefiles_object *object,
 			goto backing_page_already_present;
 
 		if (!newpage) {
-			newpage = __page_cache_alloc(cachefiles_gfp |
-						     __GFP_COLD);
+			newpage = __page_cache_alloc(cachefiles_gfp);
 			if (!newpage)
 				goto nomem_monitor;
 		}
@@ -493,8 +492,7 @@ static int cachefiles_read_backing_file(struct cachefiles_object *object,
 				goto backing_page_already_present;
 
 			if (!newpage) {
-				newpage = __page_cache_alloc(cachefiles_gfp |
-							     __GFP_COLD);
+				newpage = __page_cache_alloc(cachefiles_gfp);
 				if (!newpage)
 					goto nomem;
 			}
