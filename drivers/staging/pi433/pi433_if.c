@@ -716,7 +716,8 @@ pi433_write(struct file *filp, const char __user *buf,
 {
 	struct pi433_instance	*instance;
 	struct pi433_device	*device;
-	int                     copied, retval;
+	int                     retval;
+	unsigned int		copied;
 
 	instance = filp->private_data;
 	device = instance->device;
