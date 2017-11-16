@@ -122,7 +122,7 @@ struct crashtype {
 	}
 
 /* Define the possible types of crashes that can be triggered. */
-struct crashtype crashtypes[] = {
+static const struct crashtype crashtypes[] = {
 	CRASHTYPE(PANIC),
 	CRASHTYPE(BUG),
 	CRASHTYPE(WARNING),
@@ -188,8 +188,8 @@ struct crashtype crashtypes[] = {
 
 /* Global kprobe entry and crashtype. */
 static struct kprobe *lkdtm_kprobe;
-struct crashpoint *lkdtm_crashpoint;
-struct crashtype *lkdtm_crashtype;
+static struct crashpoint *lkdtm_crashpoint;
+static const struct crashtype *lkdtm_crashtype;
 
 /* Module parameters */
 static int recur_count = -1;
@@ -212,7 +212,7 @@ MODULE_PARM_DESC(cpoint_count, " Crash Point Count, number of times the "\
 
 
 /* Return the crashtype number or NULL if the name is invalid */
-static struct crashtype *find_crashtype(const char *name)
+static const struct crashtype *find_crashtype(const char *name)
 {
 	int i;
 
@@ -228,7 +228,7 @@ static struct crashtype *find_crashtype(const char *name)
  * This is forced noinline just so it distinctly shows up in the stackdump
  * which makes validation of expected lkdtm crashes easier.
  */
-static noinline void lkdtm_do_action(struct crashtype *crashtype)
+static noinline void lkdtm_do_action(const struct crashtype *crashtype)
 {
 	if (WARN_ON(!crashtype || !crashtype->func))
 		return;
@@ -236,7 +236,7 @@ static noinline void lkdtm_do_action(struct crashtype *crashtype)
 }
 
 static int lkdtm_register_cpoint(struct crashpoint *crashpoint,
-				 struct crashtype *crashtype)
+				 const struct crashtype *crashtype)
 {
 	int ret;
 
@@ -300,7 +300,7 @@ static ssize_t lkdtm_debugfs_entry(struct file *f,
 				   size_t count, loff_t *off)
 {
 	struct crashpoint *crashpoint = file_inode(f)->i_private;
-	struct crashtype *crashtype = NULL;
+	const struct crashtype *crashtype = NULL;
 	char *buf;
 	int err;
 
@@ -368,7 +368,7 @@ static int lkdtm_debugfs_open(struct inode *inode, struct file *file)
 static ssize_t direct_entry(struct file *f, const char __user *user_buf,
 		size_t count, loff_t *off)
 {
-	struct crashtype *crashtype;
+	const struct crashtype *crashtype;
 	char *buf;
 
 	if (count >= PAGE_SIZE)
@@ -404,7 +404,7 @@ static struct dentry *lkdtm_debugfs_root;
 static int __init lkdtm_module_init(void)
 {
 	struct crashpoint *crashpoint = NULL;
-	struct crashtype *crashtype = NULL;
+	const struct crashtype *crashtype = NULL;
 	int ret = -EINVAL;
 	int i;
 
