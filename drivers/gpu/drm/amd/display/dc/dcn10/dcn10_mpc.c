@@ -372,7 +372,7 @@ void mpc1_init_mpcc_list_from_hw(
 		for (mpcc_id = 0; mpcc_id < mpc10->num_mpcc; mpcc_id++) {
 			REG_GET(MPCC_OPP_ID[mpcc_id],  MPCC_OPP_ID,  &opp_id);
 			REG_GET(MPCC_TOP_SEL[mpcc_id], MPCC_TOP_SEL, &top_sel);
-			REG_GET(MPCC_STATUS[mpcc_id],  MPCC_BOT_SEL, &bot_sel);
+			REG_GET(MPCC_BOT_SEL[mpcc_id],  MPCC_BOT_SEL, &bot_sel);
 
 			if ((opp_id == tree->opp_id) && (top_sel != 0xf)) {
 				mpcc = mpc1_get_mpcc(mpc, mpcc_id);
