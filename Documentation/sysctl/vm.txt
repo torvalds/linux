@@ -58,6 +58,7 @@ Currently, these files are in /proc/sys/vm:
 - percpu_pagelist_fraction
 - stat_interval
 - stat_refresh
+- numa_stat
 - swappiness
 - user_reserve_kbytes
 - vfs_cache_pressure
@@ -796,6 +797,21 @@ As a side-effect, it also checks for negative totals (elsewhere reported
 as 0) and "fails" with EINVAL if any are found, with a warning in dmesg.
 (At time of writing, a few stats are known sometimes to be found negative,
 with no ill effects: errors and warnings on these stats are suppressed.)
+
+==============================================================
+
+numa_stat
+
+This interface allows runtime configuration of numa statistics.
+
+When page allocation performance becomes a bottleneck and you can tolerate
+some possible tool breakage and decreased numa counter precision, you can
+do:
+	echo 0 > /proc/sys/vm/numa_stat
+
+When page allocation performance is not a bottleneck and you want all
+tooling to work, you can do:
+	echo 1 > /proc/sys/vm/numa_stat
 
 ==============================================================
 
