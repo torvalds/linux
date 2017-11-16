@@ -121,6 +121,14 @@ static const struct hvs_format {
 		.pixel_order = HVS_PIXEL_ORDER_ABGR, .has_alpha = false,
 	},
 	{
+		.drm = DRM_FORMAT_RGB888, .hvs = HVS_PIXEL_FORMAT_RGB888,
+		.pixel_order = HVS_PIXEL_ORDER_XRGB, .has_alpha = false,
+	},
+	{
+		.drm = DRM_FORMAT_BGR888, .hvs = HVS_PIXEL_FORMAT_RGB888,
+		.pixel_order = HVS_PIXEL_ORDER_XBGR, .has_alpha = false,
+	},
+	{
 		.drm = DRM_FORMAT_YUV422,
 		.hvs = HVS_PIXEL_FORMAT_YCBCR_YUV422_3PLANE,
 	},
