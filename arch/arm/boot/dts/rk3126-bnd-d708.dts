@@ -487,6 +487,14 @@
 	status = "okay";
 };
 
+&iep {
+	status = "okay";
+};
+
+&iep_mmu {
+	status = "okay";
+};
+
 &mipi_dphy {
 	status = "okay";
 };
