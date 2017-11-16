@@ -87,7 +87,7 @@ EXPORT_SYMBOL_GPL(pkcs7_free_message);
 static int pkcs7_check_authattrs(struct pkcs7_message *msg)
 {
 	struct pkcs7_signed_info *sinfo;
-	bool want;
+	bool want = false;
 
 	sinfo = msg->signed_infos;
 	if (!sinfo)
