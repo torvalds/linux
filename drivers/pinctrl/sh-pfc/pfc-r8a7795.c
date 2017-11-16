@@ -20,7 +20,7 @@
 
 #define CPU_ALL_PORT(fn, sfx)						\
 	PORT_GP_CFG_16(0, fn, sfx, CFG_FLAGS),	\
-	PORT_GP_CFG_28(1, fn, sfx, CFG_FLAGS),	\
+	PORT_GP_CFG_29(1, fn, sfx, CFG_FLAGS),	\
 	PORT_GP_CFG_15(2, fn, sfx, CFG_FLAGS),	\
 	PORT_GP_CFG_12(3, fn, sfx, CFG_FLAGS | SH_PFC_PIN_CFG_IO_VOLTAGE),	\
 	PORT_GP_CFG_1(3, 12, fn, sfx, CFG_FLAGS),	\
@@ -55,6 +55,7 @@
 #define GPSR0_0		F_(D0,			IP5_15_12)
 
 /* GPSR1 */
+#define GPSR1_28	FM(CLKOUT)
 #define GPSR1_27	F_(EX_WAIT0_A,		IP5_11_8)
 #define GPSR1_26	F_(WE1_N,		IP5_7_4)
 #define GPSR1_25	F_(WE0_N,		IP5_3_0)
@@ -368,7 +369,7 @@
 												GPSR6_31 \
 												GPSR6_30 \
 												GPSR6_29 \
-												GPSR6_28 \
+		GPSR1_28									GPSR6_28 \
 		GPSR1_27									GPSR6_27 \
 		GPSR1_26									GPSR6_26 \
 		GPSR1_25							GPSR5_25	GPSR6_25 \
@@ -548,7 +549,7 @@ MOD_SEL0_4_3		MOD_SEL1_4 \
 	FM(AVB_TX_CTL) FM(AVB_TXC) FM(AVB_TD0) FM(AVB_TD1) FM(AVB_TD2) FM(AVB_TD3) \
 	FM(AVB_RX_CTL) FM(AVB_RXC) FM(AVB_RD0) FM(AVB_RD1) FM(AVB_RD2) FM(AVB_RD3) \
 	FM(AVB_TXCREFCLK) FM(AVB_MDIO) \
-	FM(CLKOUT) FM(PRESETOUT) \
+	FM(PRESETOUT) \
 	FM(DU_DOTCLKIN0) FM(DU_DOTCLKIN1) FM(DU_DOTCLKIN2) FM(DU_DOTCLKIN3) \
 	FM(TMS) FM(TDO) FM(ASEBRK) FM(MLB_REF) FM(TDI) FM(TCK) FM(TRST) FM(EXTALR)
 
@@ -587,6 +588,7 @@ static const u16 pinmux_data[] = {
 
 	PINMUX_SINGLE(AVS1),
 	PINMUX_SINGLE(AVS2),
+	PINMUX_SINGLE(CLKOUT),
 	PINMUX_SINGLE(HDMI0_CEC),
 	PINMUX_SINGLE(HDMI1_CEC),
 	PINMUX_SINGLE(I2C_SEL_0_1),
@@ -4733,7 +4735,7 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		0, 0,
 		0, 0,
 		0, 0,
-		0, 0,
+		GP_1_28_FN,	GPSR1_28,
 		GP_1_27_FN,	GPSR1_27,
 		GP_1_26_FN,	GPSR1_26,
 		GP_1_25_FN,	GPSR1_25,
@@ -5335,7 +5337,7 @@ static const struct pinmux_drive_reg pinmux_drive_regs[] = {
 		{ RCAR_GP_PIN(1, 19),  0, 3 },	/* A19 */
 	} },
 	{ PINMUX_DRIVE_REG("DRVCTRL8", 0xe6060320) {
-		{ PIN_NUMBER('F', 1), 28, 3 },	/* CLKOUT */
+		{ RCAR_GP_PIN(1, 28), 28, 3 },	/* CLKOUT */
 		{ RCAR_GP_PIN(1, 20), 24, 3 },	/* CS0 */
 		{ RCAR_GP_PIN(1, 21), 20, 3 },	/* CS1_A26 */
 		{ RCAR_GP_PIN(1, 22), 16, 3 },	/* BS */
@@ -5596,7 +5598,7 @@ static const struct pinmux_bias_reg pinmux_bias_regs[] = {
 		[31] = RCAR_GP_PIN(1, 19),	/* A19 */
 	} },
 	{ PINMUX_BIAS_REG("PUEN2", 0xe6060408, "PUD2", 0xe6060448) {
-		[ 0] = PIN_NUMBER('F', 1),	/* CLKOUT */
+		[ 0] = RCAR_GP_PIN(1, 28),	/* CLKOUT */
 		[ 1] = RCAR_GP_PIN(1, 20),	/* CS0_N */
 		[ 2] = RCAR_GP_PIN(1, 21),	/* CS1_N */
 		[ 3] = RCAR_GP_PIN(1, 22),	/* BS_N */
