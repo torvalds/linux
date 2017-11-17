@@ -216,7 +216,7 @@ acpi_ds_exec_end_control_op(struct acpi_walk_state *walk_state,
 			if (ACPI_TIME_AFTER(acpi_os_get_timer(),
 					    control_state->control.
 					    loop_timeout)) {
-				status = AE_AML_INFINITE_LOOP;
+				status = AE_AML_LOOP_TIMEOUT;
 				break;
 			}
 
