@@ -24,6 +24,7 @@
 #include <drm/drm_of.h>
 #include <drm/drm_panel.h>
 #include <drm/drmP.h>
+#include <uapi/linux/videodev2.h>
 #include <video/mipi_display.h>
 #include <asm/unaligned.h>
 
@@ -1211,6 +1212,8 @@ dw_mipi_dsi_encoder_atomic_check(struct drm_encoder *encoder,
 	else
 		s->bus_format = MEDIA_BUS_FMT_RGB888_1X24;
 	s->tv_state = &conn_state->tv;
+	s->eotf = TRADITIONAL_GAMMA_SDR;
+	s->color_space = V4L2_COLORSPACE_DEFAULT;
 
 	if (dsi->slave)
 		s->output_flags = ROCKCHIP_OUTPUT_DSI_DUAL_CHANNEL;

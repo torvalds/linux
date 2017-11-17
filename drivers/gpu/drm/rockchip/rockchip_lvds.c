@@ -27,6 +27,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 #include <linux/reset.h>
+#include <uapi/linux/videodev2.h>
 
 #include <video/display_timing.h>
 
@@ -697,6 +698,8 @@ rockchip_lvds_encoder_atomic_check(struct drm_encoder *encoder,
 	else
 		s->output_mode = ROCKCHIP_OUT_MODE_P888;
 	s->tv_state = &conn_state->tv;
+	s->eotf = TRADITIONAL_GAMMA_SDR;
+	s->color_space = V4L2_COLORSPACE_DEFAULT;
 
 	return 0;
 }
