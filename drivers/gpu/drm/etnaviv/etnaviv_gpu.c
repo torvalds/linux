@@ -958,7 +958,7 @@ static void recover_worker(struct work_struct *work)
 	pm_runtime_put_autosuspend(gpu->dev);
 
 	/* Retire the buffer objects in a work */
-	etnaviv_queue_work(gpu->drm, &gpu->retire_work);
+	queue_work(gpu->wq, &gpu->retire_work);
 }
 
 static void hangcheck_timer_reset(struct etnaviv_gpu *gpu)
@@ -994,7 +994,7 @@ static void hangcheck_handler(struct timer_list *t)
 		dev_err(gpu->dev, "     completed fence: %u\n", fence);
 		dev_err(gpu->dev, "     active fence: %u\n",
 			gpu->active_fence);
-		etnaviv_queue_work(gpu->drm, &gpu->recover_work);
+		queue_work(gpu->wq, &gpu->recover_work);
 	}
 
 	/* if still more pending work, reset the hangcheck timer: */
@@ -1526,7 +1526,7 @@ static irqreturn_t irq_handler(int irq, void *data)
 
 			if (gpu->event[event].sync_point) {
 				gpu->sync_point_event = event;
-				etnaviv_queue_work(gpu->drm, &gpu->sync_point_work);
+				queue_work(gpu->wq, &gpu->sync_point_work);
 			}
 
 			fence = gpu->event[event].fence;
@@ -1552,7 +1552,7 @@ static irqreturn_t irq_handler(int irq, void *data)
 		}
 
 		/* Retire the buffer objects in a work */
-		etnaviv_queue_work(gpu->drm, &gpu->retire_work);
+		queue_work(gpu->wq, &gpu->retire_work);
 
 		ret = IRQ_HANDLED;
 	}
@@ -1721,12 +1721,20 @@ static int etnaviv_gpu_bind(struct device *dev, struct device *master,
 			return PTR_ERR(gpu->cooling);
 	}
 
+	gpu->wq = alloc_ordered_workqueue(dev_name(dev), 0);
+	if (!gpu->wq) {
+		if (IS_ENABLED(CONFIG_DRM_ETNAVIV_THERMAL))
+			thermal_cooling_device_unregister(gpu->cooling);
+		return -ENOMEM;
+	}
+
 #ifdef CONFIG_PM
 	ret = pm_runtime_get_sync(gpu->dev);
 #else
 	ret = etnaviv_gpu_clk_enable(gpu);
 #endif
 	if (ret < 0) {
+		destroy_workqueue(gpu->wq);
 		if (IS_ENABLED(CONFIG_DRM_ETNAVIV_THERMAL))
 			thermal_cooling_device_unregister(gpu->cooling);
 		return ret;
@@ -1760,6 +1768,9 @@ static void etnaviv_gpu_unbind(struct device *dev, struct device *master,
 	DBG("%s", dev_name(gpu->dev));
 
 	hangcheck_disable(gpu);
+
+	flush_workqueue(gpu->wq);
+	destroy_workqueue(gpu->wq);
 
 #ifdef CONFIG_PM
 	pm_runtime_get_sync(gpu->dev);

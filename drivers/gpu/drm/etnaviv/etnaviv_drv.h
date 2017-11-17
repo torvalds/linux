@@ -56,17 +56,7 @@ struct etnaviv_drm_private {
 	/* list of GEM objects: */
 	struct mutex gem_lock;
 	struct list_head gem_list;
-
-	struct workqueue_struct *wq;
 };
-
-static inline void etnaviv_queue_work(struct drm_device *dev,
-	struct work_struct *w)
-{
-	struct etnaviv_drm_private *priv = dev->dev_private;
-
-	queue_work(priv->wq, w);
-}
 
 int etnaviv_ioctl_gem_submit(struct drm_device *dev, void *data,
 		struct drm_file *file);

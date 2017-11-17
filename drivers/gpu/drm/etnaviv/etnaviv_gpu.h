@@ -106,6 +106,7 @@ struct etnaviv_gpu {
 	struct mutex lock;
 	struct etnaviv_chip_identity identity;
 	struct etnaviv_file_private *lastctx;
+	struct workqueue_struct *wq;
 
 	/* 'ring'-buffer: */
 	struct etnaviv_cmdbuf *buffer;
