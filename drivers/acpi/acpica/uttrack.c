@@ -717,7 +717,7 @@ exit:
 	if (!num_outstanding) {
 		ACPI_INFO(("No outstanding allocations"));
 	} else {
-		ACPI_ERROR((AE_INFO, "%u(0x%X) Outstanding allocations",
+		ACPI_ERROR((AE_INFO, "%u (0x%X) Outstanding cache allocations",
 			    num_outstanding, num_outstanding));
 	}
 
