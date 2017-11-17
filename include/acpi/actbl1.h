@@ -1441,6 +1441,20 @@ struct acpi_pptt_cache {
 #define ACPI_PPTT_MASK_CACHE_TYPE           (0x0C)	/* Cache type */
 #define ACPI_PPTT_MASK_WRITE_POLICY         (0x10)	/* Write policy */
 
+/* Attributes describing cache */
+#define ACPI_PPTT_CACHE_READ_ALLOCATE       (0x0)	/* Cache line is allocated on read */
+#define ACPI_PPTT_CACHE_WRITE_ALLOCATE      (0x01)	/* Cache line is allocated on write */
+#define ACPI_PPTT_CACHE_RW_ALLOCATE         (0x02)	/* Cache line is allocated on read and write */
+#define ACPI_PPTT_CACHE_RW_ALLOCATE_ALT     (0x03)	/* Alternate representation of above */
+
+#define ACPI_PPTT_CACHE_TYPE_DATA           (0x0)	/* Data cache */
+#define ACPI_PPTT_CACHE_TYPE_INSTR          (1<<2)	/* Instruction cache */
+#define ACPI_PPTT_CACHE_TYPE_UNIFIED        (2<<2)	/* Unified I & D cache */
+#define ACPI_PPTT_CACHE_TYPE_UNIFIED_ALT    (3<<2)	/* Alternate representation of above */
+
+#define ACPI_PPTT_CACHE_POLICY_WB           (0x0)	/* Cache is write back */
+#define ACPI_PPTT_CACHE_POLICY_WT           (1<<4)	/* Cache is write through */
+
 /* 2: ID Structure */
 
 struct acpi_pptt_id {
