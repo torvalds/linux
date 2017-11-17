@@ -100,6 +100,8 @@ static void etnaviv_cmd_select_pipe(struct etnaviv_gpu *gpu,
 {
 	u32 flush = 0;
 
+	lockdep_assert_held(&gpu->lock);
+
 	/*
 	 * This assumes that if we're switching to 2D, we're switching
 	 * away from 3D, and vice versa.  Hence, if we're switching to
@@ -166,6 +168,8 @@ u16 etnaviv_buffer_init(struct etnaviv_gpu *gpu)
 {
 	struct etnaviv_cmdbuf *buffer = gpu->buffer;
 
+	lockdep_assert_held(&gpu->lock);
+
 	/* initialize buffer */
 	buffer->user_size = 0;
 
@@ -179,6 +183,8 @@ u16 etnaviv_buffer_init(struct etnaviv_gpu *gpu)
 u16 etnaviv_buffer_config_mmuv2(struct etnaviv_gpu *gpu, u32 mtlb_addr, u32 safe_addr)
 {
 	struct etnaviv_cmdbuf *buffer = gpu->buffer;
+
+	lockdep_assert_held(&gpu->lock);
 
 	buffer->user_size = 0;
 
@@ -214,6 +220,8 @@ void etnaviv_buffer_end(struct etnaviv_gpu *gpu)
 	struct etnaviv_cmdbuf *buffer = gpu->buffer;
 	unsigned int waitlink_offset = buffer->user_size - 16;
 	u32 link_target, flush = 0;
+
+	lockdep_assert_held(&gpu->lock);
 
 	if (gpu->exec_state == ETNA_PIPE_2D)
 		flush = VIVS_GL_FLUSH_CACHE_PE2D;
@@ -257,6 +265,8 @@ void etnaviv_sync_point_queue(struct etnaviv_gpu *gpu, unsigned int event)
 	unsigned int waitlink_offset = buffer->user_size - 16;
 	u32 dwords, target;
 
+	lockdep_assert_held(&gpu->lock);
+
 	/*
 	 * We need at most 3 dwords in the return target:
 	 * 1 event + 1 end + 1 wait + 1 link.
@@ -295,6 +305,8 @@ void etnaviv_buffer_queue(struct etnaviv_gpu *gpu, unsigned int event,
 	u32 return_target, return_dwords;
 	u32 link_target, link_dwords;
 	bool switch_context = gpu->exec_state != cmdbuf->exec_state;
+
+	lockdep_assert_held(&gpu->lock);
 
 	if (drm_debug & DRM_UT_DRIVER)
 		etnaviv_buffer_dump(gpu, buffer, 0, 0x50);
