@@ -1850,6 +1850,15 @@ config TEST_BPF
 
 	  If unsure, say N.
 
+config TEST_FIND_BIT
+	tristate "Test find_bit functions"
+	default n
+	help
+	  This builds the "test_find_bit" module that measure find_*_bit()
+	  functions performance.
+
+	  If unsure, say N.
+
 config TEST_FIRMWARE
 	tristate "Test firmware loading via userspace interface"
 	default n
