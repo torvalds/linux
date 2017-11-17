@@ -27,6 +27,8 @@
 #include <linux/console.h>
 #include <linux/bug.h>
 #include <linux/ratelimit.h>
+#include <linux/debugfs.h>
+#include <asm/sections.h>
 
 #define PANIC_TIMER_STEP 100
 #define PANIC_BLINK_SPD 18
@@ -585,6 +587,32 @@ void warn_slowpath_null(const char *file, int line)
 	__warn(file, line, __builtin_return_address(0), TAINT_WARN, NULL, NULL);
 }
 EXPORT_SYMBOL(warn_slowpath_null);
+#endif
+
+#ifdef CONFIG_BUG
+
+/* Support resetting WARN*_ONCE state */
+
+static int clear_warn_once_set(void *data, u64 val)
+{
+	memset(__start_once, 0, __end_once - __start_once);
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(clear_warn_once_fops,
+			NULL,
+			clear_warn_once_set,
+			"%lld\n");
+
+static __init int register_warn_debugfs(void)
+{
+	/* Don't care about failure */
+	debugfs_create_file("clear_warn_once", 0644, NULL,
+			    NULL, &clear_warn_once_fops);
+	return 0;
+}
+
+device_initcall(register_warn_debugfs);
 #endif
 
 #ifdef CONFIG_CC_STACKPROTECTOR
