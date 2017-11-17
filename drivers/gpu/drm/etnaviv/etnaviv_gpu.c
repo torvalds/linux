@@ -1631,7 +1631,9 @@ static int etnaviv_gpu_hw_suspend(struct etnaviv_gpu *gpu)
 {
 	if (gpu->buffer) {
 		/* Replace the last WAIT with END */
+		mutex_lock(&gpu->lock);
 		etnaviv_buffer_end(gpu);
+		mutex_unlock(&gpu->lock);
 
 		/*
 		 * We know that only the FE is busy here, this should
