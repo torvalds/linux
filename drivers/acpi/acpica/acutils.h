@@ -230,9 +230,9 @@ u64 acpi_ut_implicit_strtoul64(char *string);
  */
 acpi_status acpi_ut_init_globals(void);
 
-#if defined(ACPI_DEBUG_OUTPUT) || defined(ACPI_DEBUGGER)
-
 const char *acpi_ut_get_mutex_name(u32 mutex_id);
+
+#if defined(ACPI_DEBUG_OUTPUT) || defined(ACPI_DEBUGGER)
 
 const char *acpi_ut_get_notify_name(u32 notify_value, acpi_object_type type);
 #endif
