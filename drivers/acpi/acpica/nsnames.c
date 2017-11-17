@@ -377,7 +377,7 @@ char *acpi_ns_build_prefixed_pathname(union acpi_generic_state *prefix_scope,
 {
 	acpi_status status;
 	char *full_path = NULL;
-	char *external_path;
+	char *external_path = NULL;
 	char *prefix_path = NULL;
 	u32 prefix_path_length = 0;
 
@@ -422,6 +422,9 @@ char *acpi_ns_build_prefixed_pathname(union acpi_generic_state *prefix_scope,
 cleanup:
 	if (prefix_path) {
 		ACPI_FREE(prefix_path);
+	}
+	if (external_path) {
+		ACPI_FREE(external_path);
 	}
 
 	return (full_path);
