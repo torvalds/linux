@@ -5738,8 +5738,8 @@ int btrfs_block_rsv_refill(struct btrfs_root *root,
  * or return if we already have enough space.  This will also handle the resreve
  * tracepoint for the reserved amount.
  */
-int btrfs_inode_rsv_refill(struct btrfs_inode *inode,
-			   enum btrfs_reserve_flush_enum flush)
+static int btrfs_inode_rsv_refill(struct btrfs_inode *inode,
+				  enum btrfs_reserve_flush_enum flush)
 {
 	struct btrfs_root *root = inode->root;
 	struct btrfs_block_rsv *block_rsv = &inode->block_rsv;
