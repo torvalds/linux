@@ -117,7 +117,7 @@ OPTIONS
         Comma separated list of fields to print. Options are:
         comm, tid, pid, time, cpu, event, trace, ip, sym, dso, addr, symoff,
         srcline, period, iregs, uregs, brstack, brstacksym, flags, bpf-output, brstackinsn,
-        brstackoff, callindent, insn, insnlen, synth, phys_addr.
+	brstackoff, callindent, insn, insnlen, synth, phys_addr, metric.
         Field list can be prepended with the type, trace, sw or hw,
         to indicate to which event type the field list applies.
         e.g., -F sw:comm,tid,time,ip,sym  and -F trace:time,cpu,trace
@@ -216,6 +216,14 @@ OPTIONS
 	sample was recorded with perf record -b or -j any.
 
 	The brstackoff field will print an offset into a specific dso/binary.
+
+	With the metric option perf script can compute metrics for
+	sampling periods, similar to perf stat. This requires
+	specifying a group with multiple metrics with the :S option
+	for perf record. perf will sample on the first event, and
+	compute metrics for all the events in the group. Please note
+	that the metric computed is averaged over the whole sampling
+	period, not just for the sample point.
 
 -k::
 --vmlinux=<file>::

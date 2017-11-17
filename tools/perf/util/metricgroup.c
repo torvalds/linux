@@ -38,6 +38,10 @@ struct metric_event *metricgroup__lookup(struct rblist *metric_events,
 	struct metric_event me = {
 		.evsel = evsel
 	};
+
+	if (!metric_events)
+		return NULL;
+
 	nd = rblist__find(metric_events, &me);
 	if (nd)
 		return container_of(nd, struct metric_event, nd);
