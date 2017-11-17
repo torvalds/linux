@@ -196,5 +196,7 @@ void nfp_tunnel_del_ipv4_off(struct nfp_app *app, __be32 ipv4);
 void nfp_tunnel_add_ipv4_off(struct nfp_app *app, __be32 ipv4);
 void nfp_tunnel_request_route(struct nfp_app *app, struct sk_buff *skb);
 void nfp_tunnel_keep_alive(struct nfp_app *app, struct sk_buff *skb);
+int nfp_flower_setup_tc_egress_cb(enum tc_setup_type type, void *type_data,
+				  void *cb_priv);
 
 #endif

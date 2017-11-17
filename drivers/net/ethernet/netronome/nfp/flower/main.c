@@ -125,6 +125,21 @@ nfp_flower_repr_netdev_stop(struct nfp_app *app, struct nfp_repr *repr)
 	return nfp_flower_cmsg_portmod(repr, false);
 }
 
+static int
+nfp_flower_repr_netdev_init(struct nfp_app *app, struct net_device *netdev)
+{
+	return tc_setup_cb_egdev_register(netdev,
+					  nfp_flower_setup_tc_egress_cb,
+					  netdev_priv(netdev));
+}
+
+static void
+nfp_flower_repr_netdev_clean(struct nfp_app *app, struct net_device *netdev)
+{
+	tc_setup_cb_egdev_unregister(netdev, nfp_flower_setup_tc_egress_cb,
+				     netdev_priv(netdev));
+}
+
 static void nfp_flower_sriov_disable(struct nfp_app *app)
 {
 	struct nfp_flower_priv *priv = app->priv;
@@ -451,6 +466,9 @@ const struct nfp_app_type app_flower = {
 	.vnic_alloc	= nfp_flower_vnic_alloc,
 	.vnic_init	= nfp_flower_vnic_init,
 	.vnic_clean	= nfp_flower_vnic_clean,
+
+	.repr_init	= nfp_flower_repr_netdev_init,
+	.repr_clean	= nfp_flower_repr_netdev_clean,
 
 	.repr_open	= nfp_flower_repr_netdev_open,
 	.repr_stop	= nfp_flower_repr_netdev_stop,
