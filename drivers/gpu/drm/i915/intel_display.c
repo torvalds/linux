@@ -7404,14 +7404,16 @@ i9xx_get_initial_plane_config(struct intel_crtc *crtc,
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct intel_plane *plane = to_intel_plane(crtc->base.primary);
+	enum i9xx_plane_id i9xx_plane = plane->i9xx_plane;
+	enum pipe pipe = crtc->pipe;
 	u32 val, base, offset;
-	int pipe = crtc->pipe, plane = crtc->i9xx_plane;
 	int fourcc, pixel_format;
 	unsigned int aligned_height;
 	struct drm_framebuffer *fb;
 	struct intel_framebuffer *intel_fb;
 
-	val = I915_READ(DSPCNTR(plane));
+	val = I915_READ(DSPCNTR(i9xx_plane));
 	if (!(val & DISPLAY_PLANE_ENABLE))
 		return;
 
@@ -7438,12 +7440,12 @@ i9xx_get_initial_plane_config(struct intel_crtc *crtc,
 
 	if (INTEL_GEN(dev_priv) >= 4) {
 		if (plane_config->tiling)
-			offset = I915_READ(DSPTILEOFF(plane));
+			offset = I915_READ(DSPTILEOFF(i9xx_plane));
 		else
-			offset = I915_READ(DSPLINOFF(plane));
-		base = I915_READ(DSPSURF(plane)) & 0xfffff000;
+			offset = I915_READ(DSPLINOFF(i9xx_plane));
+		base = I915_READ(DSPSURF(i9xx_plane)) & 0xfffff000;
 	} else {
-		base = I915_READ(DSPADDR(plane));
+		base = I915_READ(DSPADDR(i9xx_plane));
 	}
 	plane_config->base = base;
 
@@ -7451,15 +7453,15 @@ i9xx_get_initial_plane_config(struct intel_crtc *crtc,
 	fb->width = ((val >> 16) & 0xfff) + 1;
 	fb->height = ((val >> 0) & 0xfff) + 1;
 
-	val = I915_READ(DSPSTRIDE(pipe));
+	val = I915_READ(DSPSTRIDE(i9xx_plane));
 	fb->pitches[0] = val & 0xffffffc0;
 
 	aligned_height = intel_fb_align_height(fb, 0, fb->height);
 
 	plane_config->size = fb->pitches[0] * aligned_height;
 
-	DRM_DEBUG_KMS("pipe/plane %c/%d with fb: size=%dx%d@%d, offset=%x, pitch %d, size 0x%x\n",
-		      pipe_name(pipe), plane, fb->width, fb->height,
+	DRM_DEBUG_KMS("%s/%s with fb: size=%dx%d@%d, offset=%x, pitch %d, size 0x%x\n",
+		      crtc->base.name, plane->base.name, fb->width, fb->height,
 		      fb->format->cpp[0] * 8, base, fb->pitches[0],
 		      plane_config->size);
 
@@ -8428,8 +8430,10 @@ skylake_get_initial_plane_config(struct intel_crtc *crtc,
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct intel_plane *plane = to_intel_plane(crtc->base.primary);
+	enum plane_id plane_id = plane->id;
+	enum pipe pipe = crtc->pipe;
 	u32 val, base, offset, stride_mult, tiling, alpha;
-	int pipe = crtc->pipe;
 	int fourcc, pixel_format;
 	unsigned int aligned_height;
 	struct drm_framebuffer *fb;
@@ -8445,14 +8449,14 @@ skylake_get_initial_plane_config(struct intel_crtc *crtc,
 
 	fb->dev = dev;
 
-	val = I915_READ(PLANE_CTL(pipe, 0));
+	val = I915_READ(PLANE_CTL(pipe, plane_id));
 	if (!(val & PLANE_CTL_ENABLE))
 		goto error;
 
 	pixel_format = val & PLANE_CTL_FORMAT_MASK;
 
 	if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv)) {
-		alpha = I915_READ(PLANE_COLOR_CTL(pipe, 0));
+		alpha = I915_READ(PLANE_COLOR_CTL(pipe, plane_id));
 		alpha &= PLANE_COLOR_ALPHA_MASK;
 	} else {
 		alpha = val & PLANE_CTL_ALPHA_MASK;
@@ -8488,16 +8492,16 @@ skylake_get_initial_plane_config(struct intel_crtc *crtc,
 		goto error;
 	}
 
-	base = I915_READ(PLANE_SURF(pipe, 0)) & 0xfffff000;
+	base = I915_READ(PLANE_SURF(pipe, plane_id)) & 0xfffff000;
 	plane_config->base = base;
 
-	offset = I915_READ(PLANE_OFFSET(pipe, 0));
+	offset = I915_READ(PLANE_OFFSET(pipe, plane_id));
 
-	val = I915_READ(PLANE_SIZE(pipe, 0));
+	val = I915_READ(PLANE_SIZE(pipe, plane_id));
 	fb->height = ((val >> 16) & 0xfff) + 1;
 	fb->width = ((val >> 0) & 0x1fff) + 1;
 
-	val = I915_READ(PLANE_STRIDE(pipe, 0));
+	val = I915_READ(PLANE_STRIDE(pipe, plane_id));
 	stride_mult = intel_fb_stride_alignment(fb, 0);
 	fb->pitches[0] = (val & 0x3ff) * stride_mult;
 
@@ -8505,8 +8509,8 @@ skylake_get_initial_plane_config(struct intel_crtc *crtc,
 
 	plane_config->size = fb->pitches[0] * aligned_height;
 
-	DRM_DEBUG_KMS("pipe %c with fb: size=%dx%d@%d, offset=%x, pitch %d, size 0x%x\n",
-		      pipe_name(pipe), fb->width, fb->height,
+	DRM_DEBUG_KMS("%s/%s with fb: size=%dx%d@%d, offset=%x, pitch %d, size 0x%x\n",
+		      crtc->base.name, plane->base.name, fb->width, fb->height,
 		      fb->format->cpp[0] * 8, base, fb->pitches[0],
 		      plane_config->size);
 
@@ -8547,14 +8551,16 @@ ironlake_get_initial_plane_config(struct intel_crtc *crtc,
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct intel_plane *plane = to_intel_plane(crtc->base.primary);
+	enum i9xx_plane_id i9xx_plane = plane->i9xx_plane;
+	enum pipe pipe = crtc->pipe;
 	u32 val, base, offset;
-	int pipe = crtc->pipe;
 	int fourcc, pixel_format;
 	unsigned int aligned_height;
 	struct drm_framebuffer *fb;
 	struct intel_framebuffer *intel_fb;
 
-	val = I915_READ(DSPCNTR(pipe));
+	val = I915_READ(DSPCNTR(i9xx_plane));
 	if (!(val & DISPLAY_PLANE_ENABLE))
 		return;
 
@@ -8579,14 +8585,14 @@ ironlake_get_initial_plane_config(struct intel_crtc *crtc,
 	fourcc = i9xx_format_to_fourcc(pixel_format);
 	fb->format = drm_format_info(fourcc);
 
-	base = I915_READ(DSPSURF(pipe)) & 0xfffff000;
+	base = I915_READ(DSPSURF(i9xx_plane)) & 0xfffff000;
 	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv)) {
-		offset = I915_READ(DSPOFFSET(pipe));
+		offset = I915_READ(DSPOFFSET(i9xx_plane));
 	} else {
 		if (plane_config->tiling)
-			offset = I915_READ(DSPTILEOFF(pipe));
+			offset = I915_READ(DSPTILEOFF(i9xx_plane));
 		else
-			offset = I915_READ(DSPLINOFF(pipe));
+			offset = I915_READ(DSPLINOFF(i9xx_plane));
 	}
 	plane_config->base = base;
 
@@ -8594,15 +8600,15 @@ ironlake_get_initial_plane_config(struct intel_crtc *crtc,
 	fb->width = ((val >> 16) & 0xfff) + 1;
 	fb->height = ((val >> 0) & 0xfff) + 1;
 
-	val = I915_READ(DSPSTRIDE(pipe));
+	val = I915_READ(DSPSTRIDE(i9xx_plane));
 	fb->pitches[0] = val & 0xffffffc0;
 
 	aligned_height = intel_fb_align_height(fb, 0, fb->height);
 
 	plane_config->size = fb->pitches[0] * aligned_height;
 
-	DRM_DEBUG_KMS("pipe %c with fb: size=%dx%d@%d, offset=%x, pitch %d, size 0x%x\n",
-		      pipe_name(pipe), fb->width, fb->height,
+	DRM_DEBUG_KMS("%s/%s with fb: size=%dx%d@%d, offset=%x, pitch %d, size 0x%x\n",
+		      crtc->base.name, plane->base.name, fb->width, fb->height,
 		      fb->format->cpp[0] * 8, base, fb->pitches[0],
 		      plane_config->size);
 
