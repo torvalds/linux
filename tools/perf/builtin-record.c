@@ -793,6 +793,21 @@ static int record__synthesize(struct record *rec, bool tail)
 	if (err)
 		goto out;
 
+	err = perf_event__synthesize_thread_map2(&rec->tool, rec->evlist->threads,
+						 process_synthesized_event,
+						NULL);
+	if (err < 0) {
+		pr_err("Couldn't synthesize thread map.\n");
+		return err;
+	}
+
+	err = perf_event__synthesize_cpu_map(&rec->tool, rec->evlist->cpus,
+					     process_synthesized_event, NULL);
+	if (err < 0) {
+		pr_err("Couldn't synthesize cpu map.\n");
+		return err;
+	}
+
 	err = __machine__synthesize_threads(machine, tool, &opts->target, rec->evlist->threads,
 					    process_synthesized_event, opts->sample_address,
 					    opts->proc_map_timeout, 1);
