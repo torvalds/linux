@@ -2100,11 +2100,12 @@ static int sm501fb_suspend_fb(struct sm501fb_info *info,
 			      enum sm501_controller head)
 {
 	struct fb_info *fbi = info->fb[head];
-	struct sm501fb_par *par = fbi->par;
+	struct sm501fb_par *par;
 
 	if (!fbi)
 		return 0;
 
+	par = fbi->par;
 	if (par->screen.size == 0)
 		return 0;
 
@@ -2150,11 +2151,12 @@ static void sm501fb_resume_fb(struct sm501fb_info *info,
 			      enum sm501_controller head)
 {
 	struct fb_info *fbi = info->fb[head];
-	struct sm501fb_par *par = fbi->par;
+	struct sm501fb_par *par;
 
 	if (!fbi)
 		return;
 
+	par = fbi->par;
 	if (par->screen.size == 0)
 		return;
 
