@@ -7438,7 +7438,10 @@ i9xx_get_initial_plane_config(struct intel_crtc *crtc,
 	fourcc = i9xx_format_to_fourcc(pixel_format);
 	fb->format = drm_format_info(fourcc);
 
-	if (INTEL_GEN(dev_priv) >= 4) {
+	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv)) {
+		offset = I915_READ(DSPOFFSET(i9xx_plane));
+		base = I915_READ(DSPSURF(i9xx_plane)) & 0xfffff000;
+	} else if (INTEL_GEN(dev_priv) >= 4) {
 		if (plane_config->tiling)
 			offset = I915_READ(DSPTILEOFF(i9xx_plane));
 		else
@@ -8543,76 +8546,6 @@ static void ironlake_get_pfit_config(struct intel_crtc *crtc,
 				PF_PIPE_SEL_IVB(crtc->pipe));
 		}
 	}
-}
-
-static void
-ironlake_get_initial_plane_config(struct intel_crtc *crtc,
-				  struct intel_initial_plane_config *plane_config)
-{
-	struct drm_device *dev = crtc->base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct intel_plane *plane = to_intel_plane(crtc->base.primary);
-	enum i9xx_plane_id i9xx_plane = plane->i9xx_plane;
-	enum pipe pipe = crtc->pipe;
-	u32 val, base, offset;
-	int fourcc, pixel_format;
-	unsigned int aligned_height;
-	struct drm_framebuffer *fb;
-	struct intel_framebuffer *intel_fb;
-
-	val = I915_READ(DSPCNTR(i9xx_plane));
-	if (!(val & DISPLAY_PLANE_ENABLE))
-		return;
-
-	intel_fb = kzalloc(sizeof(*intel_fb), GFP_KERNEL);
-	if (!intel_fb) {
-		DRM_DEBUG_KMS("failed to alloc fb\n");
-		return;
-	}
-
-	fb = &intel_fb->base;
-
-	fb->dev = dev;
-
-	if (INTEL_GEN(dev_priv) >= 4) {
-		if (val & DISPPLANE_TILED) {
-			plane_config->tiling = I915_TILING_X;
-			fb->modifier = I915_FORMAT_MOD_X_TILED;
-		}
-	}
-
-	pixel_format = val & DISPPLANE_PIXFORMAT_MASK;
-	fourcc = i9xx_format_to_fourcc(pixel_format);
-	fb->format = drm_format_info(fourcc);
-
-	base = I915_READ(DSPSURF(i9xx_plane)) & 0xfffff000;
-	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv)) {
-		offset = I915_READ(DSPOFFSET(i9xx_plane));
-	} else {
-		if (plane_config->tiling)
-			offset = I915_READ(DSPTILEOFF(i9xx_plane));
-		else
-			offset = I915_READ(DSPLINOFF(i9xx_plane));
-	}
-	plane_config->base = base;
-
-	val = I915_READ(PIPESRC(pipe));
-	fb->width = ((val >> 16) & 0xfff) + 1;
-	fb->height = ((val >> 0) & 0xfff) + 1;
-
-	val = I915_READ(DSPSTRIDE(i9xx_plane));
-	fb->pitches[0] = val & 0xffffffc0;
-
-	aligned_height = intel_fb_align_height(fb, 0, fb->height);
-
-	plane_config->size = fb->pitches[0] * aligned_height;
-
-	DRM_DEBUG_KMS("%s/%s with fb: size=%dx%d@%d, offset=%x, pitch %d, size 0x%x\n",
-		      crtc->base.name, plane->base.name, fb->width, fb->height,
-		      fb->format->cpp[0] * 8, base, fb->pitches[0],
-		      plane_config->size);
-
-	plane_config->fb = intel_fb;
 }
 
 static bool ironlake_get_pipe_config(struct intel_crtc *crtc,
@@ -14217,7 +14150,7 @@ void intel_init_display_hooks(struct drm_i915_private *dev_priv)
 	} else if (HAS_DDI(dev_priv)) {
 		dev_priv->display.get_pipe_config = haswell_get_pipe_config;
 		dev_priv->display.get_initial_plane_config =
-			ironlake_get_initial_plane_config;
+			i9xx_get_initial_plane_config;
 		dev_priv->display.crtc_compute_clock =
 			haswell_crtc_compute_clock;
 		dev_priv->display.crtc_enable = haswell_crtc_enable;
@@ -14225,7 +14158,7 @@ void intel_init_display_hooks(struct drm_i915_private *dev_priv)
 	} else if (HAS_PCH_SPLIT(dev_priv)) {
 		dev_priv->display.get_pipe_config = ironlake_get_pipe_config;
 		dev_priv->display.get_initial_plane_config =
-			ironlake_get_initial_plane_config;
+			i9xx_get_initial_plane_config;
 		dev_priv->display.crtc_compute_clock =
 			ironlake_crtc_compute_clock;
 		dev_priv->display.crtc_enable = ironlake_crtc_enable;
