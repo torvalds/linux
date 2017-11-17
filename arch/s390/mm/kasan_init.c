@@ -214,8 +214,6 @@ void __init kasan_early_init(void)
 
 	memsize = min(max_physmem_end, KASAN_SHADOW_START);
 	shadow_alloc_size = memsize >> KASAN_SHADOW_SCALE_SHIFT;
-	if (IS_ENABLED(CONFIG_MODULES))
-		shadow_alloc_size += MODULES_LEN >> KASAN_SHADOW_SCALE_SHIFT;
 	pgalloc_low = round_up((unsigned long)_end, _SEGMENT_SIZE);
 	if (IS_ENABLED(CONFIG_BLK_DEV_INITRD)) {
 		initrd_end =
@@ -239,18 +237,15 @@ void __init kasan_early_init(void)
 	 * +- shadow end    -+	 |	mapping	  |
 	 * | ... gap ...     |\  |    (untracked) |
 	 * +- modules vaddr -+ \ +----------------+
-	 * | 2Gb	     |	\| 256Mb	  |
+	 * | 2Gb	     |	\|	unmapped  | allocated per module
 	 * +-----------------+	 +- shadow end ---+
 	 */
 	/* populate identity mapping */
 	kasan_early_vmemmap_populate(0, memsize, POPULATE_ONE2ONE);
-	/* populate kasan shadow (for identity mapping / modules / zero page) */
+	/* populate kasan shadow (for identity mapping and zero page mapping) */
 	kasan_early_vmemmap_populate(__sha(0), __sha(memsize), POPULATE_MAP);
-	if (IS_ENABLED(CONFIG_MODULES)) {
+	if (IS_ENABLED(CONFIG_MODULES))
 		untracked_mem_end = vmax - MODULES_LEN;
-		kasan_early_vmemmap_populate(__sha(untracked_mem_end),
-					     __sha(vmax), POPULATE_MAP);
-	}
 	kasan_early_vmemmap_populate(__sha(memsize), __sha(untracked_mem_end),
 				     POPULATE_ZERO_SHADOW);
 	kasan_set_pgd(early_pg_dir, asce_type);
