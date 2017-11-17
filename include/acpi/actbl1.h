@@ -1373,7 +1373,7 @@ struct acpi_pdtt_channel {
 /* Flags for above */
 
 #define ACPI_PDTT_RUNTIME_TRIGGER           (1)
-#define ACPI_PPTT_WAIT_COMPLETION           (1<<1)
+#define ACPI_PDTT_WAIT_COMPLETION           (1<<1)
 
 /*******************************************************************************
  *
