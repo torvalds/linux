@@ -116,13 +116,15 @@ int ipc_init_ids(struct ipc_ids *ids)
 	int err;
 	ids->in_use = 0;
 	ids->seq = 0;
-	ids->next_id = -1;
 	init_rwsem(&ids->rwsem);
 	err = rhashtable_init(&ids->key_ht, &ipc_kht_params);
 	if (err)
 		return err;
 	idr_init(&ids->ipcs_idr);
 	ids->tables_initialized = true;
+#ifdef CONFIG_CHECKPOINT_RESTORE
+	ids->next_id = -1;
+#endif
 	return 0;
 }
 
@@ -216,6 +218,46 @@ int ipc_get_maxid(struct ipc_ids *ids)
 	return max_id;
 }
 
+#ifdef CONFIG_CHECKPOINT_RESTORE
+/*
+ * Specify desired id for next allocated IPC object.
+ */
+#define ipc_idr_alloc(ids, new)						\
+	idr_alloc(&(ids)->ipcs_idr, (new),				\
+		  (ids)->next_id < 0 ? 0 : ipcid_to_idx((ids)->next_id),\
+		  0, GFP_NOWAIT)
+
+static inline int ipc_buildid(int id, struct ipc_ids *ids,
+			      struct kern_ipc_perm *new)
+{
+	if (ids->next_id < 0) { /* default, behave as !CHECKPOINT_RESTORE */
+		new->seq = ids->seq++;
+		if (ids->seq > IPCID_SEQ_MAX)
+			ids->seq = 0;
+	} else {
+		new->seq = ipcid_to_seqx(ids->next_id);
+		ids->next_id = -1;
+	}
+
+	return SEQ_MULTIPLIER * new->seq + id;
+}
+
+#else
+#define ipc_idr_alloc(ids, new)					\
+	idr_alloc(&(ids)->ipcs_idr, (new), 0, 0, GFP_NOWAIT)
+
+static inline int ipc_buildid(int id, struct ipc_ids *ids,
+			      struct kern_ipc_perm *new)
+{
+	new->seq = ids->seq++;
+	if (ids->seq > IPCID_SEQ_MAX)
+		ids->seq = 0;
+
+	return SEQ_MULTIPLIER * new->seq + id;
+}
+
+#endif /* CONFIG_CHECKPOINT_RESTORE */
+
 /**
  * ipc_addid - add an ipc identifier
  * @ids: ipc identifier set
@@ -234,7 +276,6 @@ int ipc_addid(struct ipc_ids *ids, struct kern_ipc_perm *new, int size)
 	kuid_t euid;
 	kgid_t egid;
 	int id, err;
-	int next_id = ids->next_id;
 
 	if (size > IPCMNI)
 		size = IPCMNI;
@@ -254,9 +295,7 @@ int ipc_addid(struct ipc_ids *ids, struct kern_ipc_perm *new, int size)
 	new->cuid = new->uid = euid;
 	new->gid = new->cgid = egid;
 
-	id = idr_alloc(&ids->ipcs_idr, new,
-		       (next_id < 0) ? 0 : ipcid_to_idx(next_id), 0,
-		       GFP_NOWAIT);
+	id = ipc_idr_alloc(ids, new);
 	idr_preload_end();
 
 	if (id >= 0 && new->key != IPC_PRIVATE) {
@@ -274,17 +313,8 @@ int ipc_addid(struct ipc_ids *ids, struct kern_ipc_perm *new, int size)
 	}
 
 	ids->in_use++;
+	new->id = ipc_buildid(id, ids, new);
 
-	if (next_id < 0) {
-		new->seq = ids->seq++;
-		if (ids->seq > IPCID_SEQ_MAX)
-			ids->seq = 0;
-	} else {
-		new->seq = ipcid_to_seqx(next_id);
-		ids->next_id = -1;
-	}
-
-	new->id = ipc_buildid(id, new->seq);
 	return id;
 }
 

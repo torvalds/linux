@@ -19,7 +19,9 @@ struct ipc_ids {
 	bool tables_initialized;
 	struct rw_semaphore rwsem;
 	struct idr ipcs_idr;
+#ifdef CONFIG_CHECKPOINT_RESTORE
 	int next_id;
+#endif
 	struct rhashtable key_ht;
 };
 
