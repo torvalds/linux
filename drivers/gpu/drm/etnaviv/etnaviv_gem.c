@@ -804,6 +804,8 @@ static int etnaviv_gem_userptr_get_pages(struct etnaviv_gem_object *etnaviv_obj)
 	struct mm_struct *mm;
 	int ret, pinned, npages = etnaviv_obj->base.size >> PAGE_SHIFT;
 
+	might_lock_read(&current->mm->mmap_sem);
+
 	if (etnaviv_obj->userptr.work) {
 		if (IS_ERR(etnaviv_obj->userptr.work)) {
 			ret = PTR_ERR(etnaviv_obj->userptr.work);
