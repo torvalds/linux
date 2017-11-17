@@ -158,10 +158,10 @@ union acpi_parse_object *acpi_ps_alloc_op(u16 opcode, u8 *aml)
 		if (opcode == AML_SCOPE_OP) {
 			acpi_gbl_current_scope = op;
 		}
-	}
 
-	if (gbl_capture_comments) {
-		ASL_CV_TRANSFER_COMMENTS(op);
+		if (gbl_capture_comments) {
+			ASL_CV_TRANSFER_COMMENTS(op);
+		}
 	}
 
 	return (op);
