@@ -276,9 +276,6 @@ static DEFINE_MUTEX(epmutex);
 /* Used to check for epoll file descriptor inclusion loops */
 static struct nested_calls poll_loop_ncalls;
 
-/* Used for safe wake up implementation */
-static struct nested_calls poll_safewake_ncalls;
-
 /* Used to call file's f_op->poll() under the nested calls boundaries */
 static struct nested_calls poll_readywalk_ncalls;
 
@@ -551,40 +548,21 @@ out_unlock:
  * this special case of epoll.
  */
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
-static inline void ep_wake_up_nested(wait_queue_head_t *wqueue,
-				     unsigned long events, int subclass)
-{
-	unsigned long flags;
 
-	spin_lock_irqsave_nested(&wqueue->lock, flags, subclass);
-	wake_up_locked_poll(wqueue, events);
-	spin_unlock_irqrestore(&wqueue->lock, flags);
-}
-#else
-static inline void ep_wake_up_nested(wait_queue_head_t *wqueue,
-				     unsigned long events, int subclass)
-{
-	wake_up_poll(wqueue, events);
-}
-#endif
+static struct nested_calls poll_safewake_ncalls;
 
 static int ep_poll_wakeup_proc(void *priv, void *cookie, int call_nests)
 {
-	ep_wake_up_nested((wait_queue_head_t *) cookie, POLLIN,
-			  1 + call_nests);
+	unsigned long flags;
+	wait_queue_head_t *wqueue = (wait_queue_head_t *)cookie;
+
+	spin_lock_irqsave_nested(&wqueue->lock, flags, call_nests + 1);
+	wake_up_locked_poll(wqueue, POLLIN);
+	spin_unlock_irqrestore(&wqueue->lock, flags);
+
 	return 0;
 }
 
-/*
- * Perform a safe wake up of the poll wait list. The problem is that
- * with the new callback'd wake up system, it is possible that the
- * poll callback is reentered from inside the call to wake_up() done
- * on the poll wait queue head. The rule is that we cannot reenter the
- * wake up code from the same task more than EP_MAX_NESTS times,
- * and we cannot reenter the same wait queue head at all. This will
- * enable to have a hierarchy of epoll file descriptor of no more than
- * EP_MAX_NESTS deep.
- */
 static void ep_poll_safewake(wait_queue_head_t *wq)
 {
 	int this_cpu = get_cpu();
@@ -594,6 +572,15 @@ static void ep_poll_safewake(wait_queue_head_t *wq)
 
 	put_cpu();
 }
+
+#else
+
+static void ep_poll_safewake(wait_queue_head_t *wq)
+{
+	wake_up_poll(wq, POLLIN);
+}
+
+#endif
 
 static void ep_remove_wait_queue(struct eppoll_entry *pwq)
 {
@@ -2315,8 +2302,10 @@ static int __init eventpoll_init(void)
 	 */
 	ep_nested_calls_init(&poll_loop_ncalls);
 
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
 	/* Initialize the structure used to perform safe poll wait head wake ups */
 	ep_nested_calls_init(&poll_safewake_ncalls);
+#endif
 
 	/* Initialize the structure used to perform file's f_op->poll() calls */
 	ep_nested_calls_init(&poll_readywalk_ncalls);
