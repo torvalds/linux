@@ -491,55 +491,6 @@ static void dw_hdmi_rockchip_encoder_enable(struct drm_encoder *encoder)
 		      ret ? "LIT" : "BIG");
 }
 
-static unsigned int
-dw_hdmi_rockchip_check_depth(struct drm_display_info *info,
-			     struct drm_display_mode *mode,
-			     int color_format, int depth)
-{
-	unsigned long tmdsclock, pixclock = mode->crtc_clock;
-	int colordepth = 8;
-
-	if (color_format == DRM_HDMI_OUTPUT_YCBCR444 &&
-	    !(info->edid_hdmi_dc_modes & DRM_EDID_HDMI_DC_Y444))
-		return colordepth;
-	else if (!depth)
-		colordepth = info->bpc;
-	else
-		colordepth = depth;
-
-	/* Color depth on rockchip platform is limited up to 10bit */
-	if (colordepth > 10) {
-		colordepth = 10;
-		if (color_format == DRM_HDMI_OUTPUT_YCBCR420 &&
-		    !(info->hdmi.y420_dc_modes & DRM_EDID_YCBCR420_DC_30))
-			return 8;
-	}
-
-	if (mode->flags & DRM_MODE_FLAG_DBLCLK)
-		pixclock *= 2;
-	if ((mode->flags & DRM_MODE_FLAG_3D_MASK) ==
-		DRM_MODE_FLAG_3D_FRAME_PACKING)
-		pixclock *= 2;
-
-	if (color_format == DRM_HDMI_OUTPUT_YCBCR422 || colordepth == 8)
-		tmdsclock = pixclock;
-	else
-		tmdsclock = pixclock * colordepth / 8;
-
-	if (color_format == DRM_HDMI_OUTPUT_YCBCR420)
-		tmdsclock /= 2;
-	/*
-	 * For some display device, max_tmds_clock is 0, we think
-	 * max_tmds_clock is 340MHz. If tmdsclock > max_tmds_clock,
-	 * fallback to 8bit.
-	 */
-	if ((!info->max_tmds_clock && tmdsclock > 340000) ||
-	    (info->max_tmds_clock && tmdsclock > info->max_tmds_clock))
-		colordepth = 8;
-
-	return colordepth;
-}
-
 static void
 dw_hdmi_rockchip_select_output(struct drm_connector_state *conn_state,
 			       struct drm_crtc_state *crtc_state,
@@ -553,6 +504,7 @@ dw_hdmi_rockchip_select_output(struct drm_connector_state *conn_state,
 	struct drm_display_mode *mode = &crtc_state->mode;
 	struct hdr_static_metadata *hdr_metadata;
 	u32 vic = drm_match_cea_mode(mode);
+	unsigned long tmdsclock, pixclock = mode->crtc_clock;
 
 	*color_format = DRM_HDMI_OUTPUT_DEFAULT_RGB;
 
@@ -593,15 +545,22 @@ dw_hdmi_rockchip_select_output(struct drm_connector_state *conn_state,
 		break;
 	}
 
-	/* RK3368 should limit 4K 50/60 to YCbCr420 mode */
-	if (hdmi->max_tmdsclk <= 340000 &&
-	    mode->crtc_clock > 340000 &&
-	    drm_mode_is_420(info, mode))
-		*color_format = DRM_HDMI_OUTPUT_YCBCR420;
+	if (*color_format == DRM_HDMI_OUTPUT_YCBCR444 &&
+	    !(info->edid_hdmi_dc_modes & DRM_EDID_HDMI_DC_Y444))
+		*color_depth = 8;
+	else if (!hdmi->colordepth)
+		*color_depth = info->bpc;
+	else
+		*color_depth = hdmi->colordepth;
 
-	*color_depth = dw_hdmi_rockchip_check_depth(info, mode,
-						    *color_format,
-						    hdmi->colordepth);
+	/* Color depth on rockchip platform is limited up to 10bit */
+	if (*color_depth > 10) {
+		*color_depth = 10;
+		if (*color_format == DRM_HDMI_OUTPUT_YCBCR420 &&
+		    !(info->hdmi.y420_dc_modes & DRM_EDID_YCBCR420_DC_30))
+			*color_depth = 8;
+	}
+
 	*eotf = HDMI_EOTF_TRADITIONAL_GAMMA_SDR;
 	if (conn_state->hdr_output_metadata) {
 		hdr_metadata = (struct hdr_static_metadata *)
@@ -626,6 +585,32 @@ dw_hdmi_rockchip_select_output(struct drm_connector_state *conn_state,
 		*color_depth = 10;
 		if (info->color_formats & DRM_COLOR_FORMAT_YCRCB422)
 			*color_format = DRM_HDMI_OUTPUT_YCBCR422;
+	}
+
+	if (mode->flags & DRM_MODE_FLAG_DBLCLK)
+		pixclock *= 2;
+	if ((mode->flags & DRM_MODE_FLAG_3D_MASK) ==
+		DRM_MODE_FLAG_3D_FRAME_PACKING)
+		pixclock *= 2;
+
+	if (*color_format == DRM_HDMI_OUTPUT_YCBCR422 || *color_depth == 8)
+		tmdsclock = pixclock;
+	else
+		tmdsclock = pixclock * (*color_depth) / 8;
+
+	if (*color_format == DRM_HDMI_OUTPUT_YCBCR420)
+		tmdsclock /= 2;
+	/*
+	 * For some display device, max_tmds_clock is 0, we think
+	 * max_tmds_clock is 340MHz. If tmdsclock > max_tmds_clock,
+	 * fallback to 8bit. If mode support YCBCR420, use YCBCR420.
+	 */
+	if ((!info->max_tmds_clock && tmdsclock > 340000) ||
+	    (info->max_tmds_clock && tmdsclock > info->max_tmds_clock) ||
+	    tmdsclock > hdmi->max_tmdsclk) {
+		*color_depth = 8;
+		if (drm_mode_is_420(info, mode))
+			*color_format = DRM_HDMI_OUTPUT_YCBCR420;
 	}
 }
 
