@@ -1101,6 +1101,12 @@ static int rockchip_drm_create_properties(struct drm_device *dev)
 		return -ENOMEM;
 	private->eotf_prop = prop;
 
+	prop = drm_property_create_range(dev, DRM_MODE_PROP_ATOMIC,
+					 "COLOR_SPACE", 0, 12);
+	if (!prop)
+		return -ENOMEM;
+	private->color_space_prop = prop;
+
 	return drm_mode_create_tv_properties(dev, 0, NULL);
 }
 

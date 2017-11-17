@@ -40,6 +40,7 @@
 #include <linux/sort.h>
 #include <soc/rockchip/rockchip-system-status.h>
 #include <uapi/drm/rockchip_drm.h>
+#include <uapi/linux/videodev2.h>
 
 #include "rockchip_drm_drv.h"
 #include "rockchip_drm_gem.h"
@@ -159,6 +160,11 @@ struct vop_plane_state {
 	const uint32_t *r2r_table;
 	const uint32_t *r2y_table;
 	int eotf;
+	bool y2r_en;
+	bool r2r_en;
+	bool r2y_en;
+	int color_space;
+	unsigned int csc_mode;
 	bool enable;
 };
 
@@ -396,7 +402,11 @@ static void vop_load_csc_table(struct vop *vop, u32 offset, const u32 *table)
 {
 	int i;
 
-	if (!table)
+	/*
+	 * so far the csc offset is not 0 and in the feature the csc offset
+	 * impossible be 0, so when the offset is 0, should return here.
+	 */
+	if (!table || offset == 0)
 		return;
 
 	for (i = 0; i < 8; i++)
@@ -716,7 +726,7 @@ static int vop_hdr_atomic_check(struct drm_crtc *crtc,
 	struct vop *vop = to_vop(crtc);
 	int pre_sdr2hdr_state = 0, post_sdr2hdr_state = 0;
 	int pre_sdr2hdr_mode = 0, post_sdr2hdr_mode = 0, sdr2hdr_func = 0;
-	bool pre_overlay = 0;
+	bool pre_overlay = false;
 	int hdr2sdr_en = 0, plane_id = 0;
 
 	if (!vop->data->hdr_table)
@@ -747,11 +757,60 @@ static int vop_hdr_atomic_check(struct drm_crtc *crtc,
 	}
 
 	if (pre_sdr2hdr_state || post_sdr2hdr_state || hdr2sdr_en) {
-		pre_overlay = 1;
+		pre_overlay = true;
 		pre_sdr2hdr_mode = BT709_TO_BT2020;
 		post_sdr2hdr_mode = BT709_TO_BT2020;
 		sdr2hdr_func = SDR2HDR_FOR_HDR;
+		goto exit_hdr_conver;
 	}
+
+	/* overlay mode */
+	plane_id = 0;
+	pre_overlay = false;
+	pre_sdr2hdr_mode = 0;
+	post_sdr2hdr_mode = 0;
+	pre_sdr2hdr_state = 0;
+	post_sdr2hdr_state = 0;
+	drm_atomic_crtc_state_for_each_plane(plane, crtc_state) {
+		struct vop_plane_state *vop_plane_state;
+		struct vop_win *win = to_vop_win(plane);
+
+		pstate = drm_atomic_get_plane_state(state, plane);
+		if (IS_ERR(pstate))
+			return PTR_ERR(pstate);
+		vop_plane_state = to_vop_plane_state(pstate);
+		if (!pstate->fb)
+			continue;
+
+		if (vop_plane_state->color_space == V4L2_COLORSPACE_BT2020 &&
+		    vop_plane_state->color_space > s->color_space) {
+			if (win->feature & WIN_FEATURE_PRE_OVERLAY) {
+				pre_sdr2hdr_mode = BT2020_TO_BT709;
+				pre_sdr2hdr_state |= BIT(plane_id);
+			} else {
+				post_sdr2hdr_mode = BT2020_TO_BT709;
+				post_sdr2hdr_state |= BIT(plane_id);
+			}
+		}
+		if (s->color_space == V4L2_COLORSPACE_BT2020 &&
+		    vop_plane_state->color_space < s->color_space) {
+			if (win->feature & WIN_FEATURE_PRE_OVERLAY) {
+				pre_sdr2hdr_mode = BT709_TO_BT2020;
+				pre_sdr2hdr_state |= BIT(plane_id);
+			} else {
+				post_sdr2hdr_mode = BT709_TO_BT2020;
+				post_sdr2hdr_state |= BIT(plane_id);
+			}
+		}
+		plane_id++;
+	}
+
+	if (pre_sdr2hdr_state || post_sdr2hdr_state) {
+		pre_overlay = true;
+		sdr2hdr_func = SDR2HDR_FOR_BT2020;
+	}
+
+exit_hdr_conver:
 	s->hdr.pre_overlay = pre_overlay;
 	s->hdr.hdr2sdr_en = hdr2sdr_en;
 	if (s->hdr.pre_overlay)
@@ -769,6 +828,23 @@ static int vop_hdr_atomic_check(struct drm_crtc *crtc,
 	s->hdr.sdr2hdr_state.sdr2hdr_func = sdr2hdr_func;
 
 	return 0;
+}
+
+static int to_vop_csc_mode(int csc_mode)
+{
+	switch (csc_mode) {
+	case V4L2_COLORSPACE_SMPTE170M:
+		return CSC_BT601L;
+	case V4L2_COLORSPACE_REC709:
+	case V4L2_COLORSPACE_DEFAULT:
+		return CSC_BT709L;
+	case V4L2_COLORSPACE_JPEG:
+		return CSC_BT601F;
+	case V4L2_COLORSPACE_BT2020:
+		return CSC_BT2020;
+	default:
+		return CSC_BT709L;
+	}
 }
 
 /*
@@ -803,34 +879,38 @@ static int vop_hdr_atomic_check(struct drm_crtc *crtc,
  *
  * 11. RGB       --> bypass                --> RGB_OUTPUT(709)
  */
-static int vop_csc_setup(const struct vop_csc_table *csc_table,
-			 bool is_input_yuv, bool is_output_yuv,
-			 int input_csc, int output_csc,
-			 const uint32_t **y2r_table,
-			 const uint32_t **r2r_table,
-			 const uint32_t **r2y_table)
+static int vop_setup_csc_table(const struct vop_csc_table *csc_table,
+			       bool is_input_yuv, bool is_output_yuv,
+			       int input_csc, int output_csc,
+			       const uint32_t **y2r_table,
+			       const uint32_t **r2r_table,
+			       const uint32_t **r2y_table)
 {
 	*y2r_table = NULL;
 	*r2r_table = NULL;
 	*r2y_table = NULL;
 
+	if (!csc_table)
+		return 0;
+
 	if (is_output_yuv) {
-		if (output_csc == CSC_BT2020) {
+		if (output_csc == V4L2_COLORSPACE_BT2020) {
 			if (is_input_yuv) {
-				if (input_csc == CSC_BT2020)
+				if (input_csc == V4L2_COLORSPACE_BT2020)
 					return 0;
 				*y2r_table = csc_table->y2r_bt709;
 			}
-			if (input_csc != CSC_BT2020)
+			if (input_csc != V4L2_COLORSPACE_BT2020)
 				*r2r_table = csc_table->r2r_bt709_to_bt2020;
 			*r2y_table = csc_table->r2y_bt2020;
 		} else {
-			if (is_input_yuv && input_csc == CSC_BT2020)
+			if (is_input_yuv && input_csc == V4L2_COLORSPACE_BT2020)
 				*y2r_table = csc_table->y2r_bt2020;
-			if (input_csc == CSC_BT2020)
+			if (input_csc == V4L2_COLORSPACE_BT2020)
 				*r2r_table = csc_table->r2r_bt2020_to_bt709;
 			if (!is_input_yuv || *y2r_table) {
-				if (output_csc == CSC_BT709)
+				if (output_csc == V4L2_COLORSPACE_REC709 ||
+				    output_csc == V4L2_COLORSPACE_DEFAULT)
 					*r2y_table = csc_table->r2y_bt709;
 				else
 					*r2y_table = csc_table->r2y_bt601;
@@ -843,17 +923,18 @@ static int vop_csc_setup(const struct vop_csc_table *csc_table,
 		/*
 		 * is possible use bt2020 on rgb mode?
 		 */
-		if (WARN_ON(output_csc == CSC_BT2020))
+		if (WARN_ON(output_csc == V4L2_COLORSPACE_BT2020))
 			return -EINVAL;
 
-		if (input_csc == CSC_BT2020)
+		if (input_csc == V4L2_COLORSPACE_BT2020)
 			*y2r_table = csc_table->y2r_bt2020;
-		else if (input_csc == CSC_BT709)
+		else if ((input_csc == V4L2_COLORSPACE_REC709) ||
+			 (input_csc == V4L2_COLORSPACE_DEFAULT))
 			*y2r_table = csc_table->y2r_bt709;
 		else
 			*y2r_table = csc_table->y2r_bt601;
 
-		if (input_csc == CSC_BT2020)
+		if (input_csc == V4L2_COLORSPACE_BT2020)
 			/*
 			 * We don't have bt601 to bt709 table, force use bt709.
 			 */
@@ -861,6 +942,19 @@ static int vop_csc_setup(const struct vop_csc_table *csc_table,
 	}
 
 	return 0;
+}
+
+static void vop_setup_csc_mode(bool is_input_yuv, bool is_output_yuv,
+			       int input_csc, int output_csc,
+			       bool *y2r_en, bool *r2y_en, int *csc_mode)
+{
+	if (is_input_yuv && !is_output_yuv) {
+		*y2r_en = true;
+		*csc_mode =  to_vop_csc_mode(input_csc);
+	} else if (!is_input_yuv && is_output_yuv) {
+		*r2y_en = true;
+		*csc_mode = to_vop_csc_mode(output_csc);
+	}
 }
 
 static int vop_csc_atomic_check(struct drm_crtc *crtc,
@@ -875,13 +969,11 @@ static int vop_csc_atomic_check(struct drm_crtc *crtc,
 	bool is_input_yuv, is_output_yuv;
 	int ret;
 
-	if (!csc_table)
-		return 0;
-
 	is_output_yuv = is_yuv_output(s->bus_format);
 
 	drm_atomic_crtc_state_for_each_plane(plane, crtc_state) {
 		struct vop_plane_state *vop_plane_state;
+		struct vop_win *win = to_vop_win(plane);
 
 		pstate = drm_atomic_get_plane_state(state, plane);
 		if (IS_ERR(pstate))
@@ -891,17 +983,39 @@ static int vop_csc_atomic_check(struct drm_crtc *crtc,
 		if (!pstate->fb)
 			continue;
 		is_input_yuv = is_yuv_support(pstate->fb->pixel_format);
+		vop_plane_state->y2r_en = false;
+		vop_plane_state->r2r_en = false;
+		vop_plane_state->r2y_en = false;
 
-		/*
-		 * TODO: force set input and output csc mode.
-		 */
-		ret = vop_csc_setup(csc_table, is_input_yuv, is_output_yuv,
-				    CSC_BT709, CSC_BT709,
-				    &vop_plane_state->y2r_table,
-				    &vop_plane_state->r2r_table,
-				    &vop_plane_state->r2y_table);
+		ret = vop_setup_csc_table(csc_table, is_input_yuv,
+					  is_output_yuv,
+					  vop_plane_state->color_space,
+					  s->color_space,
+					  &vop_plane_state->y2r_table,
+					  &vop_plane_state->r2r_table,
+					  &vop_plane_state->r2y_table);
 		if (ret)
 			return ret;
+
+		if (csc_table) {
+			vop_plane_state->y2r_en = !!vop_plane_state->y2r_table;
+			vop_plane_state->r2r_en = !!vop_plane_state->r2r_table;
+			vop_plane_state->r2y_en = !!vop_plane_state->r2y_table;
+			continue;
+		}
+
+		vop_setup_csc_mode(is_input_yuv, s->yuv_overlay,
+				   vop_plane_state->color_space, s->color_space,
+				   &vop_plane_state->y2r_en,
+				   &vop_plane_state->r2y_en,
+				   &vop_plane_state->csc_mode);
+
+		if (win->feature & WIN_FEATURE_PRE_OVERLAY)
+			vop_plane_state->r2r_en =
+				s->hdr.sdr2hdr_state.rgb2rgb_pre_conv_en;
+		else if (win->feature & WIN_FEATURE_HDR2SDR)
+			vop_plane_state->r2r_en =
+				s->hdr.sdr2hdr_state.rgb2rgb_post_conv_en;
 	}
 
 	return 0;
@@ -1496,13 +1610,14 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 		VOP_WIN_SET(vop, win, alpha_en, 0);
 	}
 
+	VOP_WIN_SET(vop, win, csc_mode, vop_plane_state->csc_mode);
 	if (win->csc) {
 		vop_load_csc_table(vop, win->csc->y2r_offset, y2r_table);
 		vop_load_csc_table(vop, win->csc->r2r_offset, r2r_table);
 		vop_load_csc_table(vop, win->csc->r2y_offset, r2y_table);
-		VOP_WIN_SET_EXT(vop, win, csc, y2r_en, !!y2r_table);
-		VOP_WIN_SET_EXT(vop, win, csc, r2r_en, !!r2r_table);
-		VOP_WIN_SET_EXT(vop, win, csc, r2y_en, !!r2y_table);
+		VOP_WIN_SET_EXT(vop, win, csc, y2r_en, vop_plane_state->y2r_en);
+		VOP_WIN_SET_EXT(vop, win, csc, r2r_en, vop_plane_state->r2r_en);
+		VOP_WIN_SET_EXT(vop, win, csc, r2y_en, vop_plane_state->r2y_en);
 	}
 	VOP_WIN_SET(vop, win, enable, 1);
 	spin_unlock(&vop->reg_lock);
@@ -1596,6 +1711,12 @@ static int vop_atomic_plane_set_property(struct drm_plane *plane,
 		plane_state->eotf = val;
 		return 0;
 	}
+
+	if (property == private->color_space_prop) {
+		plane_state->color_space = val;
+		return 0;
+	}
+
 	DRM_ERROR("failed to set vop plane property\n");
 	return -EINVAL;
 }
@@ -1621,6 +1742,11 @@ static int vop_atomic_plane_get_property(struct drm_plane *plane,
 
 	if (property == private->eotf_prop) {
 		*val = plane_state->eotf;
+		return 0;
+	}
+
+	if (property == private->color_space_prop) {
+		*val = plane_state->color_space;
 		return 0;
 	}
 
@@ -2135,13 +2261,10 @@ static void vop_update_csc(struct drm_crtc *crtc)
 		     s->output_mode == ROCKCHIP_OUT_MODE_YUV420 ? 1 : 0);
 	VOP_CTRL_SET(vop, hdmi_dclk_out_en,
 		     s->output_mode == ROCKCHIP_OUT_MODE_YUV420 ? 1 : 0);
-	s->yuv_overlay = is_yuv_output(s->bus_format);
+	s->yuv_overlay = 0;
 	if (VOP_CTRL_SUPPORT(vop, overlay_mode)) {
+		s->yuv_overlay = is_yuv_output(s->bus_format);
 		VOP_CTRL_SET(vop, overlay_mode, s->yuv_overlay);
-		VOP_CTRL_SET(vop, bcsh_r2y_en, !s->yuv_overlay);
-		VOP_CTRL_SET(vop, bcsh_y2r_en, !s->yuv_overlay);
-	} else {
-		VOP_CTRL_SET(vop, bcsh_r2y_en, s->yuv_overlay);
 	}
 	VOP_CTRL_SET(vop, dsp_out_yuv, is_yuv_output(s->bus_format));
 
@@ -2289,6 +2412,7 @@ static void vop_crtc_enable(struct drm_crtc *crtc)
 	VOP_CTRL_SET(vop, cabc_scale_cfg_value, 1);
 	VOP_CTRL_SET(vop, cabc_scale_cfg_enable, 0);
 	VOP_CTRL_SET(vop, cabc_global_dn_limit_en, 1);
+	VOP_CTRL_SET(vop, win_csc_mode_sel, 1);
 
 	clk_set_rate(vop->dclk, adjusted_mode->crtc_clock * 1000);
 
@@ -2700,12 +2824,36 @@ static void vop_tv_config_update(struct drm_crtc *crtc,
 		return;
 
 	memcpy(&vop->active_tv_state, s->tv_state, sizeof(*s->tv_state));
+	/* post BCSH CSC */
+	s->post_r2y_en = 0;
+	s->post_y2r_en = 0;
+	s->bcsh_en = 0;
+	if (s->tv_state) {
+		if (s->tv_state->brightness != 50 ||
+		    s->tv_state->contrast != 50 ||
+		    s->tv_state->saturation != 50 || s->tv_state->hue != 50)
+			s->bcsh_en = 1;
+	}
 
-	if (s->tv_state->brightness == 50 &&
-	    s->tv_state->contrast == 50 &&
-	    s->tv_state->saturation == 50 &&
-	    s->tv_state->hue == 50) {
-		VOP_CTRL_SET(vop, bcsh_en, 0);
+	if (s->bcsh_en) {
+		if (!s->yuv_overlay)
+			s->post_r2y_en = 1;
+		if (!is_yuv_output(s->bus_format))
+			s->post_y2r_en = 1;
+	} else {
+		if (!s->yuv_overlay && is_yuv_output(s->bus_format))
+			s->post_r2y_en = 1;
+		if (s->yuv_overlay && !is_yuv_output(s->bus_format))
+			s->post_y2r_en = 1;
+	}
+
+	s->post_csc_mode = to_vop_csc_mode(s->color_space);
+	VOP_CTRL_SET(vop, bcsh_r2y_en, s->post_r2y_en);
+	VOP_CTRL_SET(vop, bcsh_y2r_en, s->post_y2r_en);
+	VOP_CTRL_SET(vop, bcsh_r2y_csc_mode, s->post_csc_mode);
+	VOP_CTRL_SET(vop, bcsh_y2r_csc_mode, s->post_csc_mode);
+	if (!s->bcsh_en) {
+		VOP_CTRL_SET(vop, bcsh_en, s->bcsh_en);
 		return;
 	}
 
@@ -2734,7 +2882,7 @@ static void vop_tv_config_update(struct drm_crtc *crtc,
 	VOP_CTRL_SET(vop, bcsh_sat_con, saturation * contrast / 0x100);
 	VOP_CTRL_SET(vop, bcsh_sin_hue, sin_hue);
 	VOP_CTRL_SET(vop, bcsh_cos_hue, cos_hue);
-	VOP_CTRL_SET(vop, bcsh_en, 1);
+	VOP_CTRL_SET(vop, bcsh_en, s->bcsh_en);
 }
 
 static void vop_cfg_update(struct drm_crtc *crtc,
@@ -3284,6 +3432,8 @@ static int vop_plane_init(struct vop *vop, struct vop_win *win,
 	drm_object_attach_property(&win->base.base, vop->plane_feature_prop,
 				   feature);
 	drm_object_attach_property(&win->base.base, private->eotf_prop, 0);
+	drm_object_attach_property(&win->base.base,
+				   private->color_space_prop, 0);
 
 	return 0;
 }

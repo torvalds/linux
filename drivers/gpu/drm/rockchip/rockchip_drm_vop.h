@@ -47,8 +47,9 @@ enum cabc_stage_up_mode {
 #define DSP_DELTA_SWAP		0x8
 
 enum vop_csc_format {
-	CSC_BT601,
-	CSC_BT709,
+	CSC_BT601L,
+	CSC_BT709L,
+	CSC_BT601F,
 	CSC_BT2020,
 };
 
@@ -357,6 +358,7 @@ struct vop_win_phy {
 	struct vop_reg enable;
 	struct vop_reg format;
 	struct vop_reg fmt_10;
+	struct vop_reg csc_mode;
 	struct vop_reg xmirror;
 	struct vop_reg ymirror;
 	struct vop_reg rb_swap;

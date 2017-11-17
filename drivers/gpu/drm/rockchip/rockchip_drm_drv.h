@@ -120,7 +120,12 @@ struct rockchip_crtc_state {
 	int output_mode;
 	int output_flags;
 	int bus_format;
-	bool yuv_overlay;
+	int yuv_overlay;
+	int post_r2y_en;
+	int post_y2r_en;
+	int post_csc_mode;
+	int bcsh_en;
+	int color_space;
 	int eotf;
 	struct rockchip_hdr_state hdr;
 };
@@ -166,6 +171,7 @@ struct rockchip_drm_private {
 	struct drm_property *cabc_global_dn_property;
 	struct drm_property *cabc_calc_pixel_num_property;
 	struct drm_property *eotf_prop;
+	struct drm_property *color_space_prop;
 	void *backlight;
 	struct drm_fb_helper *fbdev_helper;
 	struct drm_gem_object *fbdev_bo;

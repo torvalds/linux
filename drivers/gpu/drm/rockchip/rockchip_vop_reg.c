@@ -108,6 +108,7 @@ static const struct vop_win_phy rk3288_win01_data = {
 	.enable = VOP_REG(RK3288_WIN0_CTRL0, 0x1, 0),
 	.format = VOP_REG(RK3288_WIN0_CTRL0, 0x7, 1),
 	.fmt_10 = VOP_REG(RK3288_WIN0_CTRL0, 0x7, 4),
+	.csc_mode = VOP_REG(RK3288_WIN0_CTRL0, 0x3, 10),
 	.rb_swap = VOP_REG(RK3288_WIN0_CTRL0, 0x1, 12),
 	.xmirror = VOP_REG_VER(RK3368_WIN0_CTRL0, 0x1, 21, 3, 2, -1),
 	.ymirror = VOP_REG_VER(RK3368_WIN0_CTRL0, 0x1, 22, 3, 2, -1),
@@ -533,16 +534,28 @@ static const struct vop_csc rk3399_win1_csc = {
 	.r2y_offset = RK3399_WIN1_YUV2YUV_R2Y,
 };
 
+static const struct vop_csc rk3399_win2_csc = {
+	.r2r_en = VOP_REG(RK3399_YUV2YUV_WIN, 0x1, 16),
+	.r2y_en = VOP_REG(RK3399_YUV2YUV_WIN, 0x1, 18),
+	.r2r_offset = RK3399_WIN2_YUV2YUV_3X3,
+};
+
+static const struct vop_csc rk3399_win3_csc = {
+	.r2r_en = VOP_REG(RK3399_YUV2YUV_WIN, 0x1, 24),
+	.r2y_en = VOP_REG(RK3399_YUV2YUV_WIN, 0x1, 26),
+	.r2r_offset = RK3399_WIN3_YUV2YUV_3X3,
+};
+
 static const struct vop_win_data rk3399_vop_win_data[] = {
 	{ .base = 0x00, .phy = &rk3288_win01_data, .csc = &rk3399_win0_csc,
 	  .type = DRM_PLANE_TYPE_PRIMARY },
 	{ .base = 0x40, .phy = &rk3288_win01_data, .csc = &rk3399_win1_csc,
 	  .type = DRM_PLANE_TYPE_OVERLAY },
-	{ .base = 0x00, .phy = &rk3368_win23_data,
+	{ .base = 0x00, .phy = &rk3368_win23_data, .csc = &rk3399_win2_csc,
 	  .type = DRM_PLANE_TYPE_OVERLAY,
 	  .area = rk3368_area_data,
 	  .area_size = ARRAY_SIZE(rk3368_area_data), },
-	{ .base = 0x50, .phy = &rk3368_win23_data,
+	{ .base = 0x50, .phy = &rk3368_win23_data, .csc = &rk3399_win3_csc,
 	  .type = DRM_PLANE_TYPE_CURSOR,
 	  .area = rk3368_area_data,
 	  .area_size = ARRAY_SIZE(rk3368_area_data), },
