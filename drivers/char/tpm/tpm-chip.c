@@ -27,7 +27,7 @@
 #include <linux/freezer.h>
 #include <linux/major.h>
 #include <linux/tpm_eventlog.h>
-
+#include <linux/hw_random.h>
 #include "tpm.h"
 
 DEFINE_IDR(dev_nums_idr);
@@ -392,6 +392,26 @@ static int tpm_add_legacy_sysfs(struct tpm_chip *chip)
 
 	return 0;
 }
+
+static int tpm_hwrng_read(struct hwrng *rng, void *data, size_t max, bool wait)
+{
+	struct tpm_chip *chip = container_of(rng, struct tpm_chip, hwrng);
+
+	return tpm_get_random(chip, data, max);
+}
+
+static int tpm_add_hwrng(struct tpm_chip *chip)
+{
+	if (!IS_ENABLED(CONFIG_HW_RANDOM_TPM))
+		return 0;
+
+	snprintf(chip->hwrng_name, sizeof(chip->hwrng_name),
+		 "tpm-rng-%d", chip->dev_num);
+	chip->hwrng.name = chip->hwrng_name;
+	chip->hwrng.read = tpm_hwrng_read;
+	return hwrng_register(&chip->hwrng);
+}
+
 /*
  * tpm_chip_register() - create a character device for the TPM chip
  * @chip: TPM chip to use.
@@ -424,11 +444,13 @@ int tpm_chip_register(struct tpm_chip *chip)
 
 	tpm_add_ppi(chip);
 
+	rc = tpm_add_hwrng(chip);
+	if (rc)
+		goto out_ppi;
+
 	rc = tpm_add_char_device(chip);
-	if (rc) {
-		tpm_bios_log_teardown(chip);
-		return rc;
-	}
+	if (rc)
+		goto out_hwrng;
 
 	rc = tpm_add_legacy_sysfs(chip);
 	if (rc) {
@@ -437,6 +459,14 @@ int tpm_chip_register(struct tpm_chip *chip)
 	}
 
 	return 0;
+
+out_hwrng:
+	if (IS_ENABLED(CONFIG_HW_RANDOM_TPM))
+		hwrng_unregister(&chip->hwrng);
+out_ppi:
+	tpm_bios_log_teardown(chip);
+
+	return rc;
 }
 EXPORT_SYMBOL_GPL(tpm_chip_register);
 
@@ -456,6 +486,8 @@ EXPORT_SYMBOL_GPL(tpm_chip_register);
 void tpm_chip_unregister(struct tpm_chip *chip)
 {
 	tpm_del_legacy_sysfs(chip);
+	if (IS_ENABLED(CONFIG_HW_RANDOM_TPM))
+		hwrng_unregister(&chip->hwrng);
 	tpm_bios_log_teardown(chip);
 	if (chip->flags & TPM_CHIP_FLAG_TPM2)
 		cdev_device_del(&chip->cdevs, &chip->devs);
