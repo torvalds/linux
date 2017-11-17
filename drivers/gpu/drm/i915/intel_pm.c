@@ -6602,9 +6602,10 @@ static void gen9_enable_rps(struct drm_i915_private *dev_priv)
 {
 	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
 
-	/* Program defaults and thresholds for RPS*/
-	I915_WRITE(GEN6_RC_VIDEO_FREQ,
-		GEN9_FREQUENCY(dev_priv->gt_pm.rps.rp1_freq));
+	/* Program defaults and thresholds for RPS */
+	if (IS_GEN9(dev_priv))
+		I915_WRITE(GEN6_RC_VIDEO_FREQ,
+			GEN9_FREQUENCY(dev_priv->gt_pm.rps.rp1_freq));
 
 	/* 1 second timeout*/
 	I915_WRITE(GEN6_RP_DOWN_TIMEOUT,
