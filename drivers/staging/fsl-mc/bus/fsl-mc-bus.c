@@ -284,9 +284,9 @@ static int mc_get_version(struct fsl_mc_io *mc_io,
 static void fsl_mc_get_root_dprc(struct device *dev,
 				 struct device **root_dprc_dev)
 {
-	if (WARN_ON(!dev)) {
+	if (!dev) {
 		*root_dprc_dev = NULL;
-	} else if (WARN_ON(!dev_is_fsl_mc(dev))) {
+	} else if (!dev_is_fsl_mc(dev)) {
 		*root_dprc_dev = NULL;
 	} else {
 		*root_dprc_dev = dev;
@@ -532,7 +532,7 @@ int fsl_mc_device_add(struct fsl_mc_obj_desc *obj_desc,
 			/*
 			 * device being added is the root DPRC device
 			 */
-			if (WARN_ON(!mc_io)) {
+			if (!mc_io) {
 				error = -EINVAL;
 				goto error_cleanup_dev;
 			}
@@ -814,7 +814,7 @@ static int fsl_mc_bus_remove(struct platform_device *pdev)
 {
 	struct fsl_mc *mc = platform_get_drvdata(pdev);
 
-	if (WARN_ON(!fsl_mc_is_root_dprc(&mc->root_mc_bus_dev->dev)))
+	if (!fsl_mc_is_root_dprc(&mc->root_mc_bus_dev->dev))
 		return -EINVAL;
 
 	fsl_mc_device_remove(mc->root_mc_bus_dev);

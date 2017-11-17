@@ -42,13 +42,10 @@ static int fsl_mc_io_set_dpmcp(struct fsl_mc_io *mc_io,
 {
 	int error;
 
-	if (WARN_ON(!dpmcp_dev))
+	if (mc_io->dpmcp_dev)
 		return -EINVAL;
 
-	if (WARN_ON(mc_io->dpmcp_dev))
-		return -EINVAL;
-
-	if (WARN_ON(dpmcp_dev->mc_io))
+	if (dpmcp_dev->mc_io)
 		return -EINVAL;
 
 	error = dpmcp_open(mc_io,
@@ -204,7 +201,7 @@ int __must_check fsl_mc_portal_allocate(struct fsl_mc_device *mc_dev,
 	if (mc_dev->flags & FSL_MC_IS_DPRC) {
 		mc_bus_dev = mc_dev;
 	} else {
-		if (WARN_ON(!dev_is_fsl_mc(mc_dev->dev.parent)))
+		if (!dev_is_fsl_mc(mc_dev->dev.parent))
 			return error;
 
 		mc_bus_dev = to_fsl_mc_device(mc_dev->dev.parent);
@@ -267,10 +264,10 @@ void fsl_mc_portal_free(struct fsl_mc_io *mc_io)
 	dpmcp_dev = mc_io->dpmcp_dev;
 
 	resource = dpmcp_dev->resource;
-	if (WARN_ON(!resource || resource->type != FSL_MC_POOL_DPMCP))
+	if (!resource || resource->type != FSL_MC_POOL_DPMCP)
 		return;
 
-	if (WARN_ON(resource->data != dpmcp_dev))
+	if (resource->data != dpmcp_dev)
 		return;
 
 	fsl_destroy_mc_io(mc_io);

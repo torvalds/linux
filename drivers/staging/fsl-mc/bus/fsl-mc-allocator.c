@@ -41,25 +41,25 @@ static int __must_check fsl_mc_resource_pool_add_device(struct fsl_mc_bus
 	struct fsl_mc_device *mc_bus_dev = &mc_bus->mc_dev;
 	int error = -EINVAL;
 
-	if (WARN_ON(pool_type < 0 || pool_type >= FSL_MC_NUM_POOL_TYPES))
+	if (pool_type < 0 || pool_type >= FSL_MC_NUM_POOL_TYPES)
 		goto out;
-	if (WARN_ON(!fsl_mc_is_allocatable(mc_dev->obj_desc.type)))
+	if (!fsl_mc_is_allocatable(mc_dev->obj_desc.type))
 		goto out;
-	if (WARN_ON(mc_dev->resource))
+	if (mc_dev->resource)
 		goto out;
 
 	res_pool = &mc_bus->resource_pools[pool_type];
-	if (WARN_ON(res_pool->type != pool_type))
+	if (res_pool->type != pool_type)
 		goto out;
-	if (WARN_ON(res_pool->mc_bus != mc_bus))
+	if (res_pool->mc_bus != mc_bus)
 		goto out;
 
 	mutex_lock(&res_pool->mutex);
 
-	if (WARN_ON(res_pool->max_count < 0))
+	if (res_pool->max_count < 0)
 		goto out_unlock;
-	if (WARN_ON(res_pool->free_count < 0 ||
-		    res_pool->free_count > res_pool->max_count))
+	if (res_pool->free_count < 0 ||
+	    res_pool->free_count > res_pool->max_count)
 		goto out_unlock;
 
 	resource = devm_kzalloc(&mc_bus_dev->dev, sizeof(*resource),
@@ -105,25 +105,25 @@ static int __must_check fsl_mc_resource_pool_remove_device(struct fsl_mc_device
 	struct fsl_mc_resource *resource;
 	int error = -EINVAL;
 
-	if (WARN_ON(!fsl_mc_is_allocatable(mc_dev->obj_desc.type)))
+	if (!fsl_mc_is_allocatable(mc_dev->obj_desc.type))
 		goto out;
 
 	resource = mc_dev->resource;
-	if (WARN_ON(!resource || resource->data != mc_dev))
+	if (!resource || resource->data != mc_dev)
 		goto out;
 
 	mc_bus_dev = to_fsl_mc_device(mc_dev->dev.parent);
 	mc_bus = to_fsl_mc_bus(mc_bus_dev);
 	res_pool = resource->parent_pool;
-	if (WARN_ON(res_pool != &mc_bus->resource_pools[resource->type]))
+	if (res_pool != &mc_bus->resource_pools[resource->type])
 		goto out;
 
 	mutex_lock(&res_pool->mutex);
 
-	if (WARN_ON(res_pool->max_count <= 0))
+	if (res_pool->max_count <= 0)
 		goto out_unlock;
-	if (WARN_ON(res_pool->free_count <= 0 ||
-		    res_pool->free_count > res_pool->max_count))
+	if (res_pool->free_count <= 0 ||
+	    res_pool->free_count > res_pool->max_count)
 		goto out_unlock;
 
 	/*
@@ -187,11 +187,11 @@ int __must_check fsl_mc_resource_allocate(struct fsl_mc_bus *mc_bus,
 		     FSL_MC_NUM_POOL_TYPES);
 
 	*new_resource = NULL;
-	if (WARN_ON(pool_type < 0 || pool_type >= FSL_MC_NUM_POOL_TYPES))
+	if (pool_type < 0 || pool_type >= FSL_MC_NUM_POOL_TYPES)
 		goto out;
 
 	res_pool = &mc_bus->resource_pools[pool_type];
-	if (WARN_ON(res_pool->mc_bus != mc_bus))
+	if (res_pool->mc_bus != mc_bus)
 		goto out;
 
 	mutex_lock(&res_pool->mutex);
@@ -206,12 +206,12 @@ int __must_check fsl_mc_resource_allocate(struct fsl_mc_bus *mc_bus,
 		goto out_unlock;
 	}
 
-	if (WARN_ON(resource->type != pool_type))
+	if (resource->type != pool_type)
 		goto out_unlock;
-	if (WARN_ON(resource->parent_pool != res_pool))
+	if (resource->parent_pool != res_pool)
 		goto out_unlock;
-	if (WARN_ON(res_pool->free_count <= 0 ||
-		    res_pool->free_count > res_pool->max_count))
+	if (res_pool->free_count <= 0 ||
+	    res_pool->free_count > res_pool->max_count)
 		goto out_unlock;
 
 	list_del_init(&resource->node);
@@ -231,15 +231,15 @@ void fsl_mc_resource_free(struct fsl_mc_resource *resource)
 	struct fsl_mc_resource_pool *res_pool;
 
 	res_pool = resource->parent_pool;
-	if (WARN_ON(resource->type != res_pool->type))
+	if (resource->type != res_pool->type)
 		return;
 
 	mutex_lock(&res_pool->mutex);
-	if (WARN_ON(res_pool->free_count < 0 ||
-		    res_pool->free_count >= res_pool->max_count))
+	if (res_pool->free_count < 0 ||
+	    res_pool->free_count >= res_pool->max_count)
 		goto out_unlock;
 
-	if (WARN_ON(!list_empty(&resource->node)))
+	if (!list_empty(&resource->node))
 		goto out_unlock;
 
 	list_add_tail(&resource->node, &res_pool->free_list);
@@ -278,13 +278,13 @@ int __must_check fsl_mc_object_allocate(struct fsl_mc_device *mc_dev,
 	struct fsl_mc_resource *resource = NULL;
 
 	*new_mc_adev = NULL;
-	if (WARN_ON(mc_dev->flags & FSL_MC_IS_DPRC))
+	if (mc_dev->flags & FSL_MC_IS_DPRC)
 		goto error;
 
-	if (WARN_ON(!dev_is_fsl_mc(mc_dev->dev.parent)))
+	if (!dev_is_fsl_mc(mc_dev->dev.parent))
 		goto error;
 
-	if (WARN_ON(pool_type == FSL_MC_POOL_DPMCP))
+	if (pool_type == FSL_MC_POOL_DPMCP)
 		goto error;
 
 	mc_bus_dev = to_fsl_mc_device(mc_dev->dev.parent);
@@ -294,7 +294,7 @@ int __must_check fsl_mc_object_allocate(struct fsl_mc_device *mc_dev,
 		goto error;
 
 	mc_adev = resource->data;
-	if (WARN_ON(!mc_adev))
+	if (!mc_adev)
 		goto error;
 
 	*new_mc_adev = mc_adev;
@@ -317,9 +317,9 @@ void fsl_mc_object_free(struct fsl_mc_device *mc_adev)
 	struct fsl_mc_resource *resource;
 
 	resource = mc_adev->resource;
-	if (WARN_ON(resource->type == FSL_MC_POOL_DPMCP))
+	if (resource->type == FSL_MC_POOL_DPMCP)
 		return;
-	if (WARN_ON(resource->data != mc_adev))
+	if (resource->data != mc_adev)
 		return;
 
 	fsl_mc_resource_free(resource);
@@ -348,8 +348,8 @@ int fsl_mc_populate_irq_pool(struct fsl_mc_bus *mc_bus,
 	struct fsl_mc_resource_pool *res_pool =
 			&mc_bus->resource_pools[FSL_MC_POOL_IRQ];
 
-	if (WARN_ON(irq_count == 0 ||
-		    irq_count > FSL_MC_IRQ_POOL_MAX_TOTAL_IRQS))
+	if (irq_count == 0 ||
+	    irq_count > FSL_MC_IRQ_POOL_MAX_TOTAL_IRQS)
 		return -EINVAL;
 
 	error = fsl_mc_msi_domain_alloc_irqs(&mc_bus_dev->dev, irq_count);
@@ -405,13 +405,13 @@ void fsl_mc_cleanup_irq_pool(struct fsl_mc_bus *mc_bus)
 	struct fsl_mc_resource_pool *res_pool =
 			&mc_bus->resource_pools[FSL_MC_POOL_IRQ];
 
-	if (WARN_ON(!mc_bus->irq_resources))
+	if (!mc_bus->irq_resources)
 		return;
 
-	if (WARN_ON(res_pool->max_count == 0))
+	if (res_pool->max_count == 0)
 		return;
 
-	if (WARN_ON(res_pool->free_count != res_pool->max_count))
+	if (res_pool->free_count != res_pool->max_count)
 		return;
 
 	INIT_LIST_HEAD(&res_pool->free_list);
@@ -435,11 +435,11 @@ int __must_check fsl_mc_allocate_irqs(struct fsl_mc_device *mc_dev)
 	struct fsl_mc_bus *mc_bus;
 	struct fsl_mc_resource_pool *res_pool;
 
-	if (WARN_ON(mc_dev->irqs))
+	if (mc_dev->irqs)
 		return -EINVAL;
 
 	irq_count = mc_dev->obj_desc.irq_count;
-	if (WARN_ON(irq_count == 0))
+	if (irq_count == 0)
 		return -EINVAL;
 
 	if (strcmp(mc_dev->obj_desc.type, "dprc") == 0)
@@ -447,7 +447,7 @@ int __must_check fsl_mc_allocate_irqs(struct fsl_mc_device *mc_dev)
 	else
 		mc_bus = to_fsl_mc_bus(to_fsl_mc_device(mc_dev->dev.parent));
 
-	if (WARN_ON(!mc_bus->irq_resources))
+	if (!mc_bus->irq_resources)
 		return -EINVAL;
 
 	res_pool = &mc_bus->resource_pools[FSL_MC_POOL_IRQ];
@@ -500,7 +500,7 @@ void fsl_mc_free_irqs(struct fsl_mc_device *mc_dev)
 	struct fsl_mc_bus *mc_bus;
 	struct fsl_mc_device_irq **irqs = mc_dev->irqs;
 
-	if (WARN_ON(!irqs))
+	if (!irqs)
 		return;
 
 	irq_count = mc_dev->obj_desc.irq_count;
@@ -510,7 +510,7 @@ void fsl_mc_free_irqs(struct fsl_mc_device *mc_dev)
 	else
 		mc_bus = to_fsl_mc_bus(to_fsl_mc_device(mc_dev->dev.parent));
 
-	if (WARN_ON(!mc_bus->irq_resources))
+	if (!mc_bus->irq_resources)
 		return;
 
 	for (i = 0; i < irq_count; i++) {
@@ -575,11 +575,11 @@ static int fsl_mc_allocator_probe(struct fsl_mc_device *mc_dev)
 	struct fsl_mc_bus *mc_bus;
 	int error;
 
-	if (WARN_ON(!fsl_mc_is_allocatable(mc_dev->obj_desc.type)))
+	if (!fsl_mc_is_allocatable(mc_dev->obj_desc.type))
 		return -EINVAL;
 
 	mc_bus_dev = to_fsl_mc_device(mc_dev->dev.parent);
-	if (WARN_ON(!dev_is_fsl_mc(&mc_bus_dev->dev)))
+	if (!dev_is_fsl_mc(&mc_bus_dev->dev))
 		return -EINVAL;
 
 	mc_bus = to_fsl_mc_bus(mc_bus_dev);
@@ -604,7 +604,7 @@ static int fsl_mc_allocator_remove(struct fsl_mc_device *mc_dev)
 {
 	int error;
 
-	if (WARN_ON(!fsl_mc_is_allocatable(mc_dev->obj_desc.type)))
+	if (!fsl_mc_is_allocatable(mc_dev->obj_desc.type))
 		return -EINVAL;
 
 	if (mc_dev->resource) {

@@ -85,7 +85,7 @@ static int mc_status_to_error(enum mc_cmd_status status)
 		[MC_CMD_STATUS_INVALID_STATE] = -ENODEV,
 	};
 
-	if (WARN_ON((u32)status >= ARRAY_SIZE(mc_status_to_error_map)))
+	if ((u32)status >= ARRAY_SIZE(mc_status_to_error_map))
 		return -EINVAL;
 
 	return mc_status_to_error_map[status];
@@ -273,8 +273,7 @@ int mc_send_command(struct fsl_mc_io *mc_io, struct mc_command *cmd)
 	enum mc_cmd_status status;
 	unsigned long irq_flags = 0;
 
-	if (WARN_ON(in_irq() &&
-		    !(mc_io->flags & FSL_MC_IO_ATOMIC_CONTEXT_PORTAL)))
+	if (in_irq() && !(mc_io->flags & FSL_MC_IO_ATOMIC_CONTEXT_PORTAL))
 		return -EINVAL;
 
 	if (mc_io->flags & FSL_MC_IO_ATOMIC_CONTEXT_PORTAL)
