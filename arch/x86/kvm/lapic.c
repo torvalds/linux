@@ -266,9 +266,14 @@ static inline void kvm_apic_set_ldr(struct kvm_lapic *apic, u32 id)
 	recalculate_apic_map(apic->vcpu->kvm);
 }
 
+static inline u32 kvm_apic_calc_x2apic_ldr(u32 id)
+{
+	return ((id >> 4) << 16) | (1 << (id & 0xf));
+}
+
 static inline void kvm_apic_set_x2apic_id(struct kvm_lapic *apic, u32 id)
 {
-	u32 ldr = ((id >> 4) << 16) | (1 << (id & 0xf));
+	u32 ldr = kvm_apic_calc_x2apic_ldr(id);
 
 	WARN_ON_ONCE(id != apic->vcpu->vcpu_id);
 
