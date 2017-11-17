@@ -126,10 +126,10 @@ extern const char *acpi_gbl_ptyp_decode[];
 #endif
 
 #ifndef ACPI_MSG_BIOS_ERROR
-#define ACPI_MSG_BIOS_ERROR     "ACPI BIOS Error (bug): "
+#define ACPI_MSG_BIOS_ERROR     "Firmware Error (ACPI): "
 #endif
 #ifndef ACPI_MSG_BIOS_WARNING
-#define ACPI_MSG_BIOS_WARNING   "ACPI BIOS Warning (bug): "
+#define ACPI_MSG_BIOS_WARNING   "Firmware Warning (ACPI): "
 #endif
 
 /*
@@ -734,9 +734,11 @@ acpi_ut_predefined_bios_error(const char *module_name,
 			      u8 node_flags, const char *format, ...);
 
 void
-acpi_ut_namespace_error(const char *module_name,
-			u32 line_number,
-			const char *internal_name, acpi_status lookup_status);
+acpi_ut_prefixed_namespace_error(const char *module_name,
+				 u32 line_number,
+				 union acpi_generic_state *prefix_scope,
+				 const char *internal_name,
+				 acpi_status lookup_status);
 
 void
 acpi_ut_method_error(const char *module_name,
