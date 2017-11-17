@@ -823,13 +823,14 @@ void vgic_kick_vcpus(struct kvm *kvm)
 
 bool kvm_vgic_map_is_active(struct kvm_vcpu *vcpu, unsigned int vintid)
 {
-	struct vgic_irq *irq = vgic_get_irq(vcpu->kvm, vcpu, vintid);
+	struct vgic_irq *irq;
 	bool map_is_active;
 	unsigned long flags;
 
 	if (!vgic_initialized(vcpu->kvm))
 		return false;
 
+	irq = vgic_get_irq(vcpu->kvm, vcpu, vintid);
 	spin_lock_irqsave(&irq->irq_lock, flags);
 	map_is_active = irq->hw && irq->active;
 	spin_unlock_irqrestore(&irq->irq_lock, flags);
