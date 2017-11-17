@@ -8,6 +8,7 @@
  */
 
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/gpio/uniphier-gpio.h>
 
 /memreserve/ 0x80000000 0x02000000;
 
@@ -100,7 +101,7 @@
 
 	emmc_pwrseq: emmc-pwrseq {
 		compatible = "mmc-pwrseq-emmc";
-		reset-gpios = <&gpio 26 GPIO_ACTIVE_LOW>;
+		reset-gpios = <&gpio UNIPHIER_GPIO_PORT(3, 2) GPIO_ACTIVE_LOW>;
 	};
 
 	timer {
