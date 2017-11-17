@@ -581,7 +581,8 @@ static void *parser_name_get(struct parser_context *ctx)
 	struct visor_controlvm_parameters_header *phdr;
 
 	phdr = &ctx->data;
-	if (phdr->name_offset + phdr->name_length > ctx->param_bytes)
+	if ((unsigned long)phdr->name_offset +
+	    (unsigned long)phdr->name_length > ctx->param_bytes)
 		return NULL;
 	ctx->curr = (char *)&phdr + phdr->name_offset;
 	ctx->bytes_remaining = phdr->name_length;
@@ -1308,13 +1309,13 @@ static void parser_done(struct parser_context *ctx)
 static struct parser_context *parser_init_stream(u64 addr, u32 bytes,
 						 bool *retry)
 {
-	int allocbytes;
+	unsigned long allocbytes;
 	struct parser_context *ctx;
 	void *mapping;
 
 	*retry = false;
 	/* alloc an extra byte to ensure payload is \0 terminated */
-	allocbytes = bytes + 1 + (sizeof(struct parser_context) -
+	allocbytes = (unsigned long)bytes + 1 + (sizeof(struct parser_context) -
 		     sizeof(struct visor_controlvm_parameters_header));
 	if ((chipset_dev->controlvm_payload_bytes_buffered + bytes) >
 	     MAX_CONTROLVM_PAYLOAD_BYTES) {
