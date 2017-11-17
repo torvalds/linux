@@ -1181,6 +1181,7 @@ static inline pte_t mk_pte(struct page *page, pgprot_t pgprot)
 
 #define pgd_offset(mm, address) ((mm)->pgd + pgd_index(address))
 #define pgd_offset_k(address) pgd_offset(&init_mm, address)
+#define pgd_offset_raw(pgd, addr) ((pgd) + pgd_index(addr))
 
 #define pmd_deref(pmd) (pmd_val(pmd) & _SEGMENT_ENTRY_ORIGIN)
 #define pud_deref(pud) (pud_val(pud) & _REGION_ENTRY_ORIGIN)

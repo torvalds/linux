@@ -14,6 +14,7 @@
 #include <asm/sections.h>
 #include <asm/lowcore.h>
 #include <asm/timex.h>
+#include <asm/kasan.h>
 #include "entry.h"
 
 static void __init reset_tod_clock(void)
@@ -40,4 +41,5 @@ void __init startup_init_nobss(void)
 {
 	reset_tod_clock();
 	clear_bss_section();
+	kasan_early_init();
 }

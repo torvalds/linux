@@ -531,14 +531,19 @@ static void __init setup_memory_end(void)
 {
 	unsigned long vmax, vmalloc_size, tmp;
 
-	/* Choose kernel address space layout: 2, 3, or 4 levels. */
+	/* Choose kernel address space layout: 3 or 4 levels. */
 	vmalloc_size = VMALLOC_END ?: (128UL << 30) - MODULES_LEN;
-	tmp = (memory_end ?: max_physmem_end) / PAGE_SIZE;
-	tmp = tmp * (sizeof(struct page) + PAGE_SIZE);
-	if (tmp + vmalloc_size + MODULES_LEN <= _REGION2_SIZE)
+	if (IS_ENABLED(CONFIG_KASAN)) {
 		vmax = _REGION2_SIZE; /* 3-level kernel page table */
-	else
-		vmax = _REGION1_SIZE; /* 4-level kernel page table */
+	} else {
+		tmp = (memory_end ?: max_physmem_end) / PAGE_SIZE;
+		tmp = tmp * (sizeof(struct page) + PAGE_SIZE);
+		if (tmp + vmalloc_size + MODULES_LEN <= _REGION2_SIZE)
+			vmax = _REGION2_SIZE; /* 3-level kernel page table */
+		else
+			vmax = _REGION1_SIZE; /* 4-level kernel page table */
+	}
+
 	/* module area is at the end of the kernel address space. */
 	MODULES_END = vmax;
 	MODULES_VADDR = MODULES_END - MODULES_LEN;
@@ -556,6 +561,11 @@ static void __init setup_memory_end(void)
 
 	/* Take care that memory_end is set and <= vmemmap */
 	memory_end = min(memory_end ?: max_physmem_end, tmp);
+#ifdef CONFIG_KASAN
+	/* fit in kasan shadow memory region between 1:1 and vmemmap */
+	memory_end = min(memory_end, KASAN_SHADOW_START);
+	vmemmap = max(vmemmap, (struct page *)KASAN_SHADOW_END);
+#endif
 	max_pfn = max_low_pfn = PFN_DOWN(memory_end);
 	memblock_remove(memory_end, ULONG_MAX);
 
