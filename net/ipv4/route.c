@@ -678,10 +678,9 @@ static void update_or_create_fnhe(struct fib_nh *nh, __be32 daddr, __be32 gw,
 	if (fnhe) {
 		if (gw)
 			fnhe->fnhe_gw = gw;
-		if (pmtu) {
+		if (pmtu)
 			fnhe->fnhe_pmtu = pmtu;
-			fnhe->fnhe_expires = max(1UL, expires);
-		}
+		fnhe->fnhe_expires = max(1UL, expires);
 		/* Update all cached dsts too */
 		rt = rcu_dereference(fnhe->fnhe_rth_input);
 		if (rt)
