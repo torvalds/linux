@@ -1886,8 +1886,14 @@ static int vop_plane_info_dump(struct seq_file *s, struct drm_plane *plane)
 	src = &pstate->src;
 	dest = &pstate->dest;
 
-	DEBUG_PRINT("\tformat: %s%s\n", drm_get_format_name(fb->pixel_format),
-		    fb->modifier[0] == DRM_FORMAT_MOD_ARM_AFBC ? "[AFBC]" : "");
+	DEBUG_PRINT("\tformat: %s%s%s[%d] color_space[%d]\n",
+		    drm_get_format_name(fb->pixel_format),
+		    fb->modifier[0] == DRM_FORMAT_MOD_ARM_AFBC ? "[AFBC]" : "",
+		    pstate->eotf ? " HDR" : " SDR", pstate->eotf,
+		    pstate->color_space);
+	DEBUG_PRINT("\tcsc: y2r[%d] r2r[%d] r2y[%d] csc mode[%d]\n",
+		    pstate->y2r_en, pstate->r2r_en, pstate->r2y_en,
+		    pstate->csc_mode);
 	DEBUG_PRINT("\tzpos: %d\n", pstate->zpos);
 	DEBUG_PRINT("\tsrc: pos[%dx%d] rect[%dx%d]\n", src->x1 >> 16,
 		    src->y1 >> 16, drm_rect_width(src) >> 16,
@@ -1922,8 +1928,10 @@ static int vop_crtc_debugfs_dump(struct drm_crtc *crtc, struct seq_file *s)
 
 	DEBUG_PRINT("    Connector: %s\n",
 		    drm_get_connector_name(state->output_type));
-	DEBUG_PRINT("\tbus_format[%x] output_mode[%x]\n",
-		    state->bus_format, state->output_mode);
+	DEBUG_PRINT("\toverlay_mode[%d] bus_format[%x] output_mode[%x]",
+		    state->yuv_overlay, state->bus_format, state->output_mode);
+	DEBUG_PRINT(" color_space[%d]\n",
+		    state->color_space);
 	DEBUG_PRINT("    Display mode: %dx%d%s%d\n",
 		    mode->hdisplay, mode->vdisplay, interlaced ? "i" : "p",
 		    drm_mode_vrefresh(mode));
@@ -1938,6 +1946,14 @@ static int vop_crtc_debugfs_dump(struct drm_crtc *crtc, struct seq_file *s)
 		plane = &vop->win[i].base;
 		vop_plane_info_dump(s, plane);
 	}
+	DEBUG_PRINT("    post: sdr2hdr[%d] hdr2sdr[%d]\n",
+		    state->hdr.sdr2hdr_state.bt1886eotf_post_conv_en,
+		    state->hdr.hdr2sdr_en);
+	DEBUG_PRINT("    pre : sdr2hdr[%d]\n",
+		    state->hdr.sdr2hdr_state.bt1886eotf_pre_conv_en);
+	DEBUG_PRINT("    post CSC: r2y[%d] y2r[%d] CSC mode[%d]\n",
+		    state->post_r2y_en, state->post_y2r_en,
+		    state->post_csc_mode);
 
 	return 0;
 }
