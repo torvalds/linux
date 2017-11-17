@@ -465,6 +465,39 @@ static noinline void check_find(struct xarray *xa)
 	check_multi_find_2(xa);
 }
 
+static noinline void check_destroy(struct xarray *xa)
+{
+	unsigned long index;
+
+	XA_BUG_ON(xa, !xa_empty(xa));
+
+	/* Destroying an empty array is a no-op */
+	xa_destroy(xa);
+	XA_BUG_ON(xa, !xa_empty(xa));
+
+	/* Destroying an array with a single entry */
+	for (index = 0; index < 1000; index++) {
+		xa_store_index(xa, index, GFP_KERNEL);
+		XA_BUG_ON(xa, xa_empty(xa));
+		xa_destroy(xa);
+		XA_BUG_ON(xa, !xa_empty(xa));
+	}
+
+	/* Destroying an array with a single entry at ULONG_MAX */
+	xa_store(xa, ULONG_MAX, xa, GFP_KERNEL);
+	XA_BUG_ON(xa, xa_empty(xa));
+	xa_destroy(xa);
+	XA_BUG_ON(xa, !xa_empty(xa));
+
+#ifdef CONFIG_XARRAY_MULTI
+	/* Destroying an array with a multi-index entry */
+	xa_store_order(xa, 1 << 11, 11, xa, GFP_KERNEL);
+	XA_BUG_ON(xa, xa_empty(xa));
+	xa_destroy(xa);
+	XA_BUG_ON(xa, !xa_empty(xa));
+#endif
+}
+
 static DEFINE_XARRAY(array);
 
 static int xarray_checks(void)
@@ -478,6 +511,7 @@ static int xarray_checks(void)
 	check_cmpxchg(&array);
 	check_multi_store(&array);
 	check_find(&array);
+	check_destroy(&array);
 
 	printk("XArray: %u of %u tests passed\n", tests_passed, tests_run);
 	return (tests_run == tests_passed) ? 0 : -EINVAL;
