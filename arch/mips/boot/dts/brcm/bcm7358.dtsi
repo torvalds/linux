@@ -217,6 +217,13 @@
 			status = "disabled";
 		};
 
+		watchdog: watchdog@4066a8 {
+			clocks = <&upg_clk>;
+			compatible = "brcm,bcm7038-wdt";
+			reg = <0x4066a8 0x14>;
+			status = "disabled";
+		};
+
 		aon_pm_l2_intc: interrupt-controller@408240 {
 			compatible = "brcm,l2-intc";
 			reg = <0x408240 0x30>;

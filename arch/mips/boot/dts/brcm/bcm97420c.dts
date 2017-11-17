@@ -60,6 +60,10 @@
 	status = "okay";
 };
 
+&watchdog {
+	status = "okay";
+};
+
 /* FIXME: MAC driver comes up but cannot attach to PHY */
 &enet0 {
 	status = "disabled";
