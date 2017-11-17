@@ -219,17 +219,21 @@ static void reset_cached_positions(struct zone *zone)
 }
 
 /*
- * Hugetlbfs pages should consistenly be skipped until updated by the hugetlb
- * subsystem.  It is always pointless to compact pages of pageblock_order and
- * the free scanner can reconsider when no longer huge.
+ * Compound pages of >= pageblock_order should consistenly be skipped until
+ * released. It is always pointless to compact pages of such order (if they are
+ * migratable), and the pageblocks they occupy cannot contain any free pages.
  */
-static bool pageblock_skip_persistent(struct page *page, unsigned int order)
+static bool pageblock_skip_persistent(struct page *page)
 {
-	if (!PageHuge(page))
+	if (!PageCompound(page))
 		return false;
-	if (order != pageblock_order)
-		return false;
-	return true;
+
+	page = compound_head(page);
+
+	if (compound_order(page) >= pageblock_order)
+		return true;
+
+	return false;
 }
 
 /*
@@ -256,7 +260,7 @@ static void __reset_isolation_suitable(struct zone *zone)
 			continue;
 		if (zone != page_zone(page))
 			continue;
-		if (pageblock_skip_persistent(page, compound_order(page)))
+		if (pageblock_skip_persistent(page))
 			continue;
 
 		clear_pageblock_skip(page);
@@ -323,8 +327,7 @@ static inline bool isolation_suitable(struct compact_control *cc,
 	return true;
 }
 
-static inline bool pageblock_skip_persistent(struct page *page,
-					     unsigned int order)
+static inline bool pageblock_skip_persistent(struct page *page)
 {
 	return false;
 }
