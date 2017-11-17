@@ -468,6 +468,8 @@ typedef void *acpi_handle;	/* Actually a ptr to a NS Node */
 #define ACPI_NSEC_PER_MSEC              1000000L
 #define ACPI_NSEC_PER_SEC               1000000000L
 
+#define ACPI_TIME_AFTER(a, b)           ((s64)((b) - (a)) < 0)
+
 /* Owner IDs are used to track namespace nodes for selective deletion */
 
 typedef u8 acpi_owner_id;

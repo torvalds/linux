@@ -260,11 +260,11 @@ ACPI_INIT_GLOBAL(u8, acpi_gbl_osi_data, 0);
 ACPI_INIT_GLOBAL(u8, acpi_gbl_reduced_hardware, FALSE);
 
 /*
- * Maximum number of While() loop iterations before forced method abort.
+ * Maximum timeout for While() loop iterations before forced method abort.
  * This mechanism is intended to prevent infinite loops during interpreter
  * execution within a host kernel.
  */
-ACPI_INIT_GLOBAL(u32, acpi_gbl_max_loop_iterations, ACPI_MAX_LOOP_COUNT);
+ACPI_INIT_GLOBAL(u32, acpi_gbl_max_loop_iterations, ACPI_MAX_LOOP_TIMEOUT);
 
 /*
  * This mechanism is used to trace a specified AML method. The method is

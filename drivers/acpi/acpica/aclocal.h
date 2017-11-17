@@ -622,7 +622,7 @@ struct acpi_control_state {
 	union acpi_parse_object *predicate_op;
 	u8 *aml_predicate_start;	/* Start of if/while predicate */
 	u8 *package_end;	/* End of if/while block */
-	u32 loop_count;		/* While() loop counter */
+	u64 loop_timeout;	/* While() loop timeout */
 };
 
 /*
