@@ -376,9 +376,7 @@ config MTD_NAND_GPMI_NAND
 	 Enables NAND Flash support for IMX23, IMX28 or IMX6.
 	 The GPMI controller is very powerful, with the help of BCH
 	 module, it can do the hardware ECC. The GPMI supports several
-	 NAND flashs at the same time. The GPMI may conflicts with other
-	 block, such as SD card. So pay attention to it when you enable
-	 the GPMI.
+	 NAND flashs at the same time.
 
 config MTD_NAND_BRCMNAND
 	tristate "Broadcom STB NAND controller"
