@@ -382,6 +382,7 @@ acpi_ps_create_op(struct acpi_walk_state *walk_state,
 			     walk_state->aml -
 			     walk_state->parser_state.aml_start);
 			walk_state->aml = walk_state->parser_state.aml + 2;
+			walk_state->parser_state.aml = walk_state->aml;
 			return_ACPI_STATUS(AE_CTRL_PARSE_CONTINUE);
 		}
 #endif
