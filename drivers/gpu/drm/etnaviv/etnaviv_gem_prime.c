@@ -142,9 +142,7 @@ struct drm_gem_object *etnaviv_gem_prime_import_sg_table(struct drm_device *dev,
 	if (ret)
 		goto fail;
 
-	ret = etnaviv_gem_obj_add(dev, &etnaviv_obj->base);
-	if (ret)
-		goto fail;
+	etnaviv_gem_obj_add(dev, &etnaviv_obj->base);
 
 	return &etnaviv_obj->base;
 

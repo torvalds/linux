@@ -586,7 +586,7 @@ void etnaviv_gem_free_object(struct drm_gem_object *obj)
 	kfree(etnaviv_obj);
 }
 
-int etnaviv_gem_obj_add(struct drm_device *dev, struct drm_gem_object *obj)
+void etnaviv_gem_obj_add(struct drm_device *dev, struct drm_gem_object *obj)
 {
 	struct etnaviv_drm_private *priv = dev->dev_private;
 	struct etnaviv_gem_object *etnaviv_obj = to_etnaviv_bo(obj);
@@ -594,8 +594,6 @@ int etnaviv_gem_obj_add(struct drm_device *dev, struct drm_gem_object *obj)
 	mutex_lock(&priv->gem_lock);
 	list_add_tail(&etnaviv_obj->gem_node, &priv->gem_list);
 	mutex_unlock(&priv->gem_lock);
-
-	return 0;
 }
 
 static int etnaviv_gem_new_impl(struct drm_device *dev, u32 size, u32 flags,
@@ -678,11 +676,7 @@ int etnaviv_gem_new_handle(struct drm_device *dev, struct drm_file *file,
 	if (ret)
 		goto fail;
 
-	ret = etnaviv_gem_obj_add(dev, obj);
-	if (ret < 0) {
-		drm_gem_object_put_unlocked(obj);
-		return ret;
-	}
+	etnaviv_gem_obj_add(dev, obj);
 
 	ret = drm_gem_handle_create(file, obj, handle);
 
@@ -895,12 +889,10 @@ int etnaviv_gem_new_userptr(struct drm_device *dev, struct drm_file *file,
 	etnaviv_obj->userptr.ro = !(flags & ETNA_USERPTR_WRITE);
 	get_task_struct(current);
 
-	ret = etnaviv_gem_obj_add(dev, &etnaviv_obj->base);
-	if (ret)
-		goto unreference;
+	etnaviv_gem_obj_add(dev, &etnaviv_obj->base);
 
 	ret = drm_gem_handle_create(file, &etnaviv_obj->base, handle);
-unreference:
+
 	/* drop reference from allocate - handle holds it now */
 	drm_gem_object_put_unlocked(&etnaviv_obj->base);
 	return ret;
