@@ -295,7 +295,7 @@ static void update_pageblock_skip(struct compact_control *cc,
 	struct zone *zone = cc->zone;
 	unsigned long pfn;
 
-	if (cc->ignore_skip_hint)
+	if (cc->no_set_skip_hint)
 		return;
 
 	if (!page)
