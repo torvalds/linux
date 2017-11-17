@@ -1416,12 +1416,6 @@ int etnaviv_gpu_submit(struct etnaviv_gpu *gpu,
 	submit->fence = dma_fence_get(fence);
 	gpu->active_fence = submit->fence->seqno;
 
-	if (gpu->lastctx != cmdbuf->ctx) {
-		gpu->mmu->need_flush = true;
-		gpu->switch_context = true;
-		gpu->lastctx = cmdbuf->ctx;
-	}
-
 	if (cmdbuf->nr_pmrs) {
 		gpu->event[event[1]].sync_point = &sync_point_perfmon_sample_pre;
 		gpu->event[event[1]].cmdbuf = cmdbuf;
@@ -1662,7 +1656,7 @@ static int etnaviv_gpu_hw_resume(struct etnaviv_gpu *gpu)
 	etnaviv_gpu_update_clock(gpu);
 	etnaviv_gpu_hw_init(gpu);
 
-	gpu->switch_context = true;
+	gpu->lastctx = NULL;
 	gpu->exec_state = -1;
 
 	mutex_unlock(&gpu->lock);

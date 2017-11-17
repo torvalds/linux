@@ -294,6 +294,7 @@ void etnaviv_buffer_queue(struct etnaviv_gpu *gpu, unsigned int event,
 	unsigned int waitlink_offset = buffer->user_size - 16;
 	u32 return_target, return_dwords;
 	u32 link_target, link_dwords;
+	bool switch_context = gpu->exec_state != cmdbuf->exec_state;
 
 	if (drm_debug & DRM_UT_DRIVER)
 		etnaviv_buffer_dump(gpu, buffer, 0, 0x50);
@@ -306,7 +307,7 @@ void etnaviv_buffer_queue(struct etnaviv_gpu *gpu, unsigned int event,
 	 * need to append a mmu flush load state, followed by a new
 	 * link to this buffer - a total of four additional words.
 	 */
-	if (gpu->mmu->need_flush || gpu->switch_context) {
+	if (gpu->mmu->need_flush || switch_context) {
 		u32 target, extra_dwords;
 
 		/* link command */
@@ -321,7 +322,7 @@ void etnaviv_buffer_queue(struct etnaviv_gpu *gpu, unsigned int event,
 		}
 
 		/* pipe switch commands */
-		if (gpu->switch_context)
+		if (switch_context)
 			extra_dwords += 4;
 
 		target = etnaviv_buffer_reserve(gpu, buffer, extra_dwords);
@@ -349,10 +350,9 @@ void etnaviv_buffer_queue(struct etnaviv_gpu *gpu, unsigned int event,
 			gpu->mmu->need_flush = false;
 		}
 
-		if (gpu->switch_context) {
+		if (switch_context) {
 			etnaviv_cmd_select_pipe(gpu, buffer, cmdbuf->exec_state);
 			gpu->exec_state = cmdbuf->exec_state;
-			gpu->switch_context = false;
 		}
 
 		/* And the link to the submitted buffer */
@@ -421,4 +421,6 @@ void etnaviv_buffer_queue(struct etnaviv_gpu *gpu, unsigned int event,
 
 	if (drm_debug & DRM_UT_DRIVER)
 		etnaviv_buffer_dump(gpu, buffer, 0, 0x50);
+
+	gpu->lastctx = cmdbuf->ctx;
 }
