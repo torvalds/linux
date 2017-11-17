@@ -156,7 +156,6 @@ struct dpaa2_io *dpaa2_io_create(const struct dpaa2_io_desc *desc)
 
 	return obj;
 }
-EXPORT_SYMBOL(dpaa2_io_create);
 
 /**
  * dpaa2_io_down() - release the dpaa2_io object.
@@ -171,7 +170,6 @@ void dpaa2_io_down(struct dpaa2_io *d)
 {
 	kfree(d);
 }
-EXPORT_SYMBOL(dpaa2_io_down);
 
 #define DPAA_POLL_MAX 32
 
@@ -218,7 +216,6 @@ done:
 	qbman_swp_interrupt_set_inhibit(swp, 0);
 	return IRQ_HANDLED;
 }
-EXPORT_SYMBOL(dpaa2_io_irq);
 
 /**
  * dpaa2_io_service_register() - Prepare for servicing of FQDAN or CDAN
