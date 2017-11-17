@@ -284,7 +284,10 @@ struct opp_funcs {
 
 	void (*opp_set_test_pattern)(
 			struct output_pixel_processor *opp,
-			bool enable);
+			enum controller_dp_test_pattern test_pattern,
+			enum dc_color_depth color_depth,
+			int width,
+			int height);
 
 	void (*opp_dpg_blank_enable)(
 			struct output_pixel_processor *opp,
