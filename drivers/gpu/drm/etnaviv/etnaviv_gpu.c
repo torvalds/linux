@@ -1295,17 +1295,12 @@ int etnaviv_gpu_wait_obj_inactive(struct etnaviv_gpu *gpu,
 	ret = wait_event_interruptible_timeout(gpu->fence_event,
 					       !is_active(etnaviv_obj),
 					       remaining);
-	if (ret > 0) {
-		struct etnaviv_drm_private *priv = gpu->drm->dev_private;
-
-		/* Synchronise with the retire worker */
-		flush_workqueue(priv->wq);
+	if (ret > 0)
 		return 0;
-	} else if (ret == -ERESTARTSYS) {
+	else if (ret == -ERESTARTSYS)
 		return -ERESTARTSYS;
-	} else {
+	else
 		return -ETIMEDOUT;
-	}
 }
 
 int etnaviv_gpu_pm_get_sync(struct etnaviv_gpu *gpu)
