@@ -304,9 +304,9 @@ static inline bool transcoder_is_dsi(enum transcoder transcoder)
 
 /*
  * Global legacy plane identifier. Valid only for primary/sprite
- * planes on pre-g4x, and only for primary planes on g4x+.
+ * planes on pre-g4x, and only for primary planes on g4x-bdw.
  */
-enum plane {
+enum i9xx_plane_id {
 	PLANE_A,
 	PLANE_B,
 	PLANE_C,
@@ -1144,7 +1144,7 @@ struct intel_fbc {
 
 		struct {
 			enum pipe pipe;
-			enum plane plane;
+			enum i9xx_plane_id i9xx_plane;
 			unsigned int fence_y_offset;
 		} crtc;
 
