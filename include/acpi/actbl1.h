@@ -1163,7 +1163,7 @@ struct acpi_nfit_system_address {
 	struct acpi_nfit_header header;
 	u16 range_index;
 	u16 flags;
-	u32 reserved;		/* Reseved, must be zero */
+	u32 reserved;		/* Reserved, must be zero */
 	u32 proximity_domain;
 	u8 range_guid[16];
 	u64 address;
