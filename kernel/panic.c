@@ -520,7 +520,8 @@ void __warn(const char *file, int line, void *caller, unsigned taint,
 {
 	disable_trace_on_warning();
 
-	pr_warn(CUT_HERE);
+	if (args)
+		pr_warn(CUT_HERE);
 
 	if (file)
 		pr_warn("WARNING: CPU: %d PID: %d at %s:%d %pS\n",
@@ -584,9 +585,22 @@ EXPORT_SYMBOL(warn_slowpath_fmt_taint);
 
 void warn_slowpath_null(const char *file, int line)
 {
+	pr_warn(CUT_HERE);
 	__warn(file, line, __builtin_return_address(0), TAINT_WARN, NULL, NULL);
 }
 EXPORT_SYMBOL(warn_slowpath_null);
+#else
+void __warn_printk(const char *fmt, ...)
+{
+	va_list args;
+
+	pr_warn(CUT_HERE);
+
+	va_start(args, fmt);
+	vprintk(fmt, args);
+	va_end(args);
+}
+EXPORT_SYMBOL(__warn_printk);
 #endif
 
 #ifdef CONFIG_BUG
