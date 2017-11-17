@@ -10,6 +10,7 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/delay.h>
 #include <linux/dma-mapping.h>
 #include <linux/dmaengine.h>
 #include <linux/interrupt.h>
@@ -741,6 +742,24 @@ static int rcar_dmac_fill_hwdesc(struct rcar_dmac_chan *chan,
 /* -----------------------------------------------------------------------------
  * Stop and reset
  */
+static void rcar_dmac_chcr_de_barrier(struct rcar_dmac_chan *chan)
+{
+	u32 chcr;
+	unsigned int i;
+
+	/*
+	 * Ensure that the setting of the DE bit is actually 0 after
+	 * clearing it.
+	 */
+	for (i = 0; i < 1024; i++) {
+		chcr = rcar_dmac_chan_read(chan, RCAR_DMACHCR);
+		if (!(chcr & RCAR_DMACHCR_DE))
+			return;
+		udelay(1);
+	}
+
+	dev_err(chan->chan.device->dev, "CHCR DE check error\n");
+}
 
 static void rcar_dmac_chan_halt(struct rcar_dmac_chan *chan)
 {
@@ -749,6 +768,7 @@ static void rcar_dmac_chan_halt(struct rcar_dmac_chan *chan)
 	chcr &= ~(RCAR_DMACHCR_DSE | RCAR_DMACHCR_DSIE | RCAR_DMACHCR_IE |
 		  RCAR_DMACHCR_TE | RCAR_DMACHCR_DE);
 	rcar_dmac_chan_write(chan, RCAR_DMACHCR, chcr);
+	rcar_dmac_chcr_de_barrier(chan);
 }
 
 static void rcar_dmac_chan_reinit(struct rcar_dmac_chan *chan)
@@ -1481,6 +1501,8 @@ static irqreturn_t rcar_dmac_isr_channel(int irq, void *dev)
 	if (chcr & RCAR_DMACHCR_TE)
 		mask |= RCAR_DMACHCR_DE;
 	rcar_dmac_chan_write(chan, RCAR_DMACHCR, chcr & ~mask);
+	if (mask & RCAR_DMACHCR_DE)
+		rcar_dmac_chcr_de_barrier(chan);
 
 	if (chcr & RCAR_DMACHCR_DSE)
 		ret |= rcar_dmac_isr_desc_stage_end(chan);
