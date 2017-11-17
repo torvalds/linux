@@ -3,6 +3,7 @@
 #include <linux/debugfs.h>
 #include <linux/sched.h>
 #include <linux/mm.h>
+#include <asm/kasan.h>
 #include <asm/sections.h>
 #include <asm/pgtable.h>
 
@@ -17,18 +18,26 @@ enum address_markers_idx {
 	IDENTITY_NR = 0,
 	KERNEL_START_NR,
 	KERNEL_END_NR,
+#ifdef CONFIG_KASAN
+	KASAN_SHADOW_START_NR,
+	KASAN_SHADOW_END_NR,
+#endif
 	VMEMMAP_NR,
 	VMALLOC_NR,
 	MODULES_NR,
 };
 
 static struct addr_marker address_markers[] = {
-	[IDENTITY_NR]	  = {0, "Identity Mapping"},
-	[KERNEL_START_NR] = {(unsigned long)_stext, "Kernel Image Start"},
-	[KERNEL_END_NR]	  = {(unsigned long)_end, "Kernel Image End"},
-	[VMEMMAP_NR]	  = {0, "vmemmap Area"},
-	[VMALLOC_NR]	  = {0, "vmalloc Area"},
-	[MODULES_NR]	  = {0, "Modules Area"},
+	[IDENTITY_NR]		= {0, "Identity Mapping"},
+	[KERNEL_START_NR]	= {(unsigned long)_stext, "Kernel Image Start"},
+	[KERNEL_END_NR]		= {(unsigned long)_end, "Kernel Image End"},
+#ifdef CONFIG_KASAN
+	[KASAN_SHADOW_START_NR]	= {KASAN_SHADOW_START, "Kasan Shadow Start"},
+	[KASAN_SHADOW_END_NR]	= {KASAN_SHADOW_END, "Kasan Shadow End"},
+#endif
+	[VMEMMAP_NR]		= {0, "vmemmap Area"},
+	[VMALLOC_NR]		= {0, "vmalloc Area"},
+	[MODULES_NR]		= {0, "Modules Area"},
 	{ -1, NULL }
 };
 
