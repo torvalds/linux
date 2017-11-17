@@ -440,6 +440,7 @@ struct dc_plane_state {
 	enum dc_rotation_angle rotation;
 	enum plane_stereo_format stereo_format;
 
+	bool is_tiling_rotated;
 	bool per_pixel_alpha;
 	bool visible;
 	bool flip_immediate;
