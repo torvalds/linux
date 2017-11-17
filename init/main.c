@@ -669,7 +669,7 @@ asmlinkage __visible void __init start_kernel(void)
 	if (late_time_init)
 		late_time_init();
 	calibrate_delay();
-	pidmap_init();
+	pid_idr_init();
 	anon_vma_init();
 #ifdef CONFIG_X86
 	if (efi_enabled(EFI_RUNTIME_SERVICES))
