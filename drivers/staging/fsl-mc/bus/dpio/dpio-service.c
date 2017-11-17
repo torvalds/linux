@@ -43,7 +43,6 @@
 #include "qbman-portal.h"
 
 struct dpaa2_io {
-	atomic_t refs;
 	struct dpaa2_io_desc dpio_desc;
 	struct qbman_swp_desc swp_desc;
 	struct qbman_swp *swp;
@@ -126,7 +125,6 @@ struct dpaa2_io *dpaa2_io_create(const struct dpaa2_io_desc *desc)
 		return NULL;
 	}
 
-	atomic_set(&obj->refs, 1);
 	obj->dpio_desc = *desc;
 	obj->swp_desc.cena_bar = obj->dpio_desc.regs_cena;
 	obj->swp_desc.cinh_bar = obj->dpio_desc.regs_cinh;
@@ -171,8 +169,6 @@ EXPORT_SYMBOL(dpaa2_io_create);
  */
 void dpaa2_io_down(struct dpaa2_io *d)
 {
-	if (!atomic_dec_and_test(&d->refs))
-		return;
 	kfree(d);
 }
 EXPORT_SYMBOL(dpaa2_io_down);
