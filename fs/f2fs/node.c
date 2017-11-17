@@ -1930,9 +1930,6 @@ static void scan_nat_page(struct f2fs_sb_info *sbi,
 	unsigned int nat_ofs = NAT_BLOCK_OFFSET(start_nid);
 	int i;
 
-	if (test_bit_le(nat_ofs, nm_i->nat_block_bitmap))
-		return;
-
 	__set_bit_le(nat_ofs, nm_i->nat_block_bitmap);
 
 	i = start_nid % NAT_ENTRY_PER_BLOCK;
@@ -2037,10 +2034,13 @@ static void __build_free_nids(struct f2fs_sb_info *sbi, bool sync, bool mount)
 	down_read(&nm_i->nat_tree_lock);
 
 	while (1) {
-		struct page *page = get_current_nat_page(sbi, nid);
+		if (!test_bit_le(NAT_BLOCK_OFFSET(nid),
+						nm_i->nat_block_bitmap)) {
+			struct page *page = get_current_nat_page(sbi, nid);
 
-		scan_nat_page(sbi, page, nid);
-		f2fs_put_page(page, 1);
+			scan_nat_page(sbi, page, nid);
+			f2fs_put_page(page, 1);
+		}
 
 		nid += (NAT_ENTRY_PER_BLOCK - (nid % NAT_ENTRY_PER_BLOCK));
 		if (unlikely(nid >= nm_i->max_nid))
