@@ -512,38 +512,41 @@ static void vlv_get_fifo_size(struct intel_crtc_state *crtc_state)
 	fifo_state->plane[PLANE_CURSOR] = 63;
 }
 
-static int i9xx_get_fifo_size(struct drm_i915_private *dev_priv, int plane)
+static int i9xx_get_fifo_size(struct drm_i915_private *dev_priv,
+			      enum i9xx_plane_id i9xx_plane)
 {
 	uint32_t dsparb = I915_READ(DSPARB);
 	int size;
 
 	size = dsparb & 0x7f;
-	if (plane)
+	if (i9xx_plane == PLANE_B)
 		size = ((dsparb >> DSPARB_CSTART_SHIFT) & 0x7f) - size;
 
-	DRM_DEBUG_KMS("FIFO size - (0x%08x) %s: %d\n", dsparb,
-		      plane ? "B" : "A", size);
+	DRM_DEBUG_KMS("FIFO size - (0x%08x) %c: %d\n",
+		      dsparb, plane_name(i9xx_plane), size);
 
 	return size;
 }
 
-static int i830_get_fifo_size(struct drm_i915_private *dev_priv, int plane)
+static int i830_get_fifo_size(struct drm_i915_private *dev_priv,
+			      enum i9xx_plane_id i9xx_plane)
 {
 	uint32_t dsparb = I915_READ(DSPARB);
 	int size;
 
 	size = dsparb & 0x1ff;
-	if (plane)
+	if (i9xx_plane == PLANE_B)
 		size = ((dsparb >> DSPARB_BEND_SHIFT) & 0x1ff) - size;
 	size >>= 1; /* Convert to cachelines */
 
-	DRM_DEBUG_KMS("FIFO size - (0x%08x) %s: %d\n", dsparb,
-		      plane ? "B" : "A", size);
+	DRM_DEBUG_KMS("FIFO size - (0x%08x) %c: %d\n",
+		      dsparb, plane_name(i9xx_plane), size);
 
 	return size;
 }
 
-static int i845_get_fifo_size(struct drm_i915_private *dev_priv, int plane)
+static int i845_get_fifo_size(struct drm_i915_private *dev_priv,
+			      enum i9xx_plane_id i9xx_plane)
 {
 	uint32_t dsparb = I915_READ(DSPARB);
 	int size;
@@ -551,9 +554,8 @@ static int i845_get_fifo_size(struct drm_i915_private *dev_priv, int plane)
 	size = dsparb & 0x7f;
 	size >>= 2; /* Convert to cachelines */
 
-	DRM_DEBUG_KMS("FIFO size - (0x%08x) %s: %d\n", dsparb,
-		      plane ? "B" : "A",
-		      size);
+	DRM_DEBUG_KMS("FIFO size - (0x%08x) %c: %d\n",
+		      dsparb, plane_name(i9xx_plane), size);
 
 	return size;
 }
@@ -2277,8 +2279,8 @@ static void i9xx_update_wm(struct intel_crtc *unused_crtc)
 	else
 		wm_info = &i830_a_wm_info;
 
-	fifo_size = dev_priv->display.get_fifo_size(dev_priv, 0);
-	crtc = intel_get_crtc_for_plane(dev_priv, 0);
+	fifo_size = dev_priv->display.get_fifo_size(dev_priv, PLANE_A);
+	crtc = intel_get_crtc_for_plane(dev_priv, PLANE_A);
 	if (intel_crtc_active(crtc)) {
 		const struct drm_display_mode *adjusted_mode =
 			&crtc->config->base.adjusted_mode;
@@ -2304,8 +2306,8 @@ static void i9xx_update_wm(struct intel_crtc *unused_crtc)
 	if (IS_GEN2(dev_priv))
 		wm_info = &i830_bc_wm_info;
 
-	fifo_size = dev_priv->display.get_fifo_size(dev_priv, 1);
-	crtc = intel_get_crtc_for_plane(dev_priv, 1);
+	fifo_size = dev_priv->display.get_fifo_size(dev_priv, PLANE_B);
+	crtc = intel_get_crtc_for_plane(dev_priv, PLANE_B);
 	if (intel_crtc_active(crtc)) {
 		const struct drm_display_mode *adjusted_mode =
 			&crtc->config->base.adjusted_mode;
@@ -2417,7 +2419,7 @@ static void i845_update_wm(struct intel_crtc *unused_crtc)
 	adjusted_mode = &crtc->config->base.adjusted_mode;
 	planea_wm = intel_calculate_wm(adjusted_mode->crtc_clock,
 				       &i845_wm_info,
-				       dev_priv->display.get_fifo_size(dev_priv, 0),
+				       dev_priv->display.get_fifo_size(dev_priv, PLANE_A),
 				       4, pessimal_latency_ns);
 	fwater_lo = I915_READ(FW_BLC) & ~0xfff;
 	fwater_lo |= (3<<8) | planea_wm;
