@@ -520,6 +520,16 @@
 			interrupt-names = "mspi_done";
 			status = "disabled";
 		};
+
+		waketimer: waketimer@409580 {
+			compatible = "brcm,brcmstb-waketimer";
+			reg = <0x409580 0x14>;
+			interrupts = <0x3>;
+			interrupt-parent = <&aon_pm_l2_intc>;
+			interrupt-names = "timer";
+			clocks = <&upg_clk>;
+			status = "disabled";
+		};
 	};
 
 	memory_controllers {

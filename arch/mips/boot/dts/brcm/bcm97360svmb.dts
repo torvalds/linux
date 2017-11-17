@@ -109,3 +109,7 @@
 &mspi {
 	status = "okay";
 };
+
+&waketimer {
+	status = "okay";
+};
