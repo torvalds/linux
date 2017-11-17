@@ -71,7 +71,7 @@ int dprc_open(struct fsl_mc_io *mc_io,
 
 	return 0;
 }
-EXPORT_SYMBOL(dprc_open);
+EXPORT_SYMBOL_GPL(dprc_open);
 
 /**
  * dprc_close() - Close the control session of the object
@@ -97,7 +97,7 @@ int dprc_close(struct fsl_mc_io *mc_io,
 	/* send command to mc*/
 	return mc_send_command(mc_io, &cmd);
 }
-EXPORT_SYMBOL(dprc_close);
+EXPORT_SYMBOL_GPL(dprc_close);
 
 /**
  * dprc_get_irq() - Get IRQ information from the DPRC.
@@ -475,7 +475,7 @@ int dprc_get_obj_count(struct fsl_mc_io *mc_io,
 
 	return 0;
 }
-EXPORT_SYMBOL(dprc_get_obj_count);
+EXPORT_SYMBOL_GPL(dprc_get_obj_count);
 
 /**
  * dprc_get_obj() - Get general information on an object
@@ -531,7 +531,7 @@ int dprc_get_obj(struct fsl_mc_io *mc_io,
 	obj_desc->label[15] = '\0';
 	return 0;
 }
-EXPORT_SYMBOL(dprc_get_obj);
+EXPORT_SYMBOL_GPL(dprc_get_obj);
 
 /**
  * dprc_set_obj_irq() - Set IRQ information for object to trigger an interrupt.
@@ -572,7 +572,7 @@ int dprc_set_obj_irq(struct fsl_mc_io *mc_io,
 	/* send command to mc*/
 	return mc_send_command(mc_io, &cmd);
 }
-EXPORT_SYMBOL(dprc_set_obj_irq);
+EXPORT_SYMBOL_GPL(dprc_set_obj_irq);
 
 /**
  * dprc_get_obj_irq() - Get IRQ information from object.
@@ -626,7 +626,7 @@ int dprc_get_obj_irq(struct fsl_mc_io *mc_io,
 
 	return 0;
 }
-EXPORT_SYMBOL(dprc_get_obj_irq);
+EXPORT_SYMBOL_GPL(dprc_get_obj_irq);
 
 /**
  * dprc_get_res_count() - Obtains the number of free resources that are assigned
@@ -669,7 +669,7 @@ int dprc_get_res_count(struct fsl_mc_io *mc_io,
 
 	return 0;
 }
-EXPORT_SYMBOL(dprc_get_res_count);
+EXPORT_SYMBOL_GPL(dprc_get_res_count);
 
 /**
  * dprc_get_obj_region() - Get region information for a specified object.
@@ -717,7 +717,7 @@ int dprc_get_obj_region(struct fsl_mc_io *mc_io,
 
 	return 0;
 }
-EXPORT_SYMBOL(dprc_get_obj_region);
+EXPORT_SYMBOL_GPL(dprc_get_obj_region);
 
 /**
  * dprc_get_api_version - Get Data Path Resource Container API version

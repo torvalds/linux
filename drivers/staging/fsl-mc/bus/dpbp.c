@@ -77,7 +77,7 @@ int dpbp_open(struct fsl_mc_io *mc_io,
 
 	return err;
 }
-EXPORT_SYMBOL(dpbp_open);
+EXPORT_SYMBOL_GPL(dpbp_open);
 
 /**
  * dpbp_close() - Close the control session of the object
@@ -103,7 +103,7 @@ int dpbp_close(struct fsl_mc_io *mc_io,
 	/* send command to mc*/
 	return mc_send_command(mc_io, &cmd);
 }
-EXPORT_SYMBOL(dpbp_close);
+EXPORT_SYMBOL_GPL(dpbp_close);
 
 /**
  * dpbp_enable() - Enable the DPBP.
@@ -126,7 +126,7 @@ int dpbp_enable(struct fsl_mc_io *mc_io,
 	/* send command to mc*/
 	return mc_send_command(mc_io, &cmd);
 }
-EXPORT_SYMBOL(dpbp_enable);
+EXPORT_SYMBOL_GPL(dpbp_enable);
 
 /**
  * dpbp_disable() - Disable the DPBP.
@@ -149,7 +149,7 @@ int dpbp_disable(struct fsl_mc_io *mc_io,
 	/* send command to mc*/
 	return mc_send_command(mc_io, &cmd);
 }
-EXPORT_SYMBOL(dpbp_disable);
+EXPORT_SYMBOL_GPL(dpbp_disable);
 
 /**
  * dpbp_is_enabled() - Check if the DPBP is enabled.
@@ -183,7 +183,7 @@ int dpbp_is_enabled(struct fsl_mc_io *mc_io,
 
 	return 0;
 }
-EXPORT_SYMBOL(dpbp_is_enabled);
+EXPORT_SYMBOL_GPL(dpbp_is_enabled);
 
 /**
  * dpbp_reset() - Reset the DPBP, returns the object to initial state.
@@ -206,7 +206,7 @@ int dpbp_reset(struct fsl_mc_io *mc_io,
 	/* send command to mc*/
 	return mc_send_command(mc_io, &cmd);
 }
-EXPORT_SYMBOL(dpbp_reset);
+EXPORT_SYMBOL_GPL(dpbp_reset);
 
 /**
  * dpbp_get_attributes - Retrieve DPBP attributes.
@@ -243,7 +243,7 @@ int dpbp_get_attributes(struct fsl_mc_io *mc_io,
 
 	return 0;
 }
-EXPORT_SYMBOL(dpbp_get_attributes);
+EXPORT_SYMBOL_GPL(dpbp_get_attributes);
 
 /**
  * dpbp_get_api_version - Get Data Path Buffer Pool API version
@@ -276,4 +276,4 @@ int dpbp_get_api_version(struct fsl_mc_io *mc_io,
 
 	return 0;
 }
-EXPORT_SYMBOL(dpbp_get_api_version);
+EXPORT_SYMBOL_GPL(dpbp_get_api_version);

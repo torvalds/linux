@@ -78,7 +78,7 @@ int dpcon_open(struct fsl_mc_io *mc_io,
 
 	return 0;
 }
-EXPORT_SYMBOL(dpcon_open);
+EXPORT_SYMBOL_GPL(dpcon_open);
 
 /**
  * dpcon_close() - Close the control session of the object
@@ -105,7 +105,7 @@ int dpcon_close(struct fsl_mc_io *mc_io,
 	/* send command to mc*/
 	return mc_send_command(mc_io, &cmd);
 }
-EXPORT_SYMBOL(dpcon_close);
+EXPORT_SYMBOL_GPL(dpcon_close);
 
 /**
  * dpcon_enable() - Enable the DPCON
@@ -129,7 +129,7 @@ int dpcon_enable(struct fsl_mc_io *mc_io,
 	/* send command to mc*/
 	return mc_send_command(mc_io, &cmd);
 }
-EXPORT_SYMBOL(dpcon_enable);
+EXPORT_SYMBOL_GPL(dpcon_enable);
 
 /**
  * dpcon_disable() - Disable the DPCON
@@ -153,7 +153,7 @@ int dpcon_disable(struct fsl_mc_io *mc_io,
 	/* send command to mc*/
 	return mc_send_command(mc_io, &cmd);
 }
-EXPORT_SYMBOL(dpcon_disable);
+EXPORT_SYMBOL_GPL(dpcon_disable);
 
 /**
  * dpcon_reset() - Reset the DPCON, returns the object to initial state.
@@ -176,7 +176,7 @@ int dpcon_reset(struct fsl_mc_io *mc_io,
 	/* send command to mc*/
 	return mc_send_command(mc_io, &cmd);
 }
-EXPORT_SYMBOL(dpcon_reset);
+EXPORT_SYMBOL_GPL(dpcon_reset);
 
 /**
  * dpcon_get_attributes() - Retrieve DPCON attributes.
@@ -214,7 +214,7 @@ int dpcon_get_attributes(struct fsl_mc_io *mc_io,
 
 	return 0;
 }
-EXPORT_SYMBOL(dpcon_get_attributes);
+EXPORT_SYMBOL_GPL(dpcon_get_attributes);
 
 /**
  * dpcon_set_notification() - Set DPCON notification destination
@@ -245,4 +245,4 @@ int dpcon_set_notification(struct fsl_mc_io *mc_io,
 	/* send command to mc*/
 	return mc_send_command(mc_io, &cmd);
 }
-EXPORT_SYMBOL(dpcon_set_notification);
+EXPORT_SYMBOL_GPL(dpcon_set_notification);

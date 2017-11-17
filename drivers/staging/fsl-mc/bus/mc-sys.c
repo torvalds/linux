@@ -320,4 +320,4 @@ common_exit:
 
 	return error;
 }
-EXPORT_SYMBOL(mc_send_command);
+EXPORT_SYMBOL_GPL(mc_send_command);
