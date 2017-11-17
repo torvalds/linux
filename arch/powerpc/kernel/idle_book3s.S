@@ -325,12 +325,6 @@ enter_winkle:
  * r3 - PSSCR value corresponding to the requested stop state.
  */
 power_enter_stop:
-#ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
-	/* Tell KVM we're entering idle */
-	li	r4,KVM_HWTHREAD_IN_IDLE
-	/* DO THIS IN REAL MODE!  See comment above. */
-	stb	r4,HSTATE_HWTHREAD_STATE(r13)
-#endif
 /*
  * Check if we are executing the lite variant with ESL=EC=0
  */
@@ -424,6 +418,24 @@ ALT_FTR_SECTION_END_NESTED_IFSET(CPU_FTR_ARCH_207S, 66);		\
 	nop;								\
 	ld	r3,ORIG_GPR3(r1);	/* Restore original r3 */	\
 20:	nop;
+
+/*
+ * Entered with MSR[EE]=0 and no soft-masked interrupts pending.
+ * r3 contains desired PSSCR register value.
+ */
+_GLOBAL(power9_offline_stop)
+	std	r3, PACA_REQ_PSSCR(r13)
+	mtspr 	SPRN_PSSCR,r3
+#ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
+	/* Tell KVM we're entering idle */
+	li	r4,KVM_HWTHREAD_IN_IDLE
+	/* DO THIS IN REAL MODE!  See comment above. */
+	stb	r4,HSTATE_HWTHREAD_STATE(r13)
+#endif
+	LOAD_REG_ADDR(r4,power_enter_stop)
+	b	pnv_powersave_common
+	/* No return */
+
 
 /*
  * Entered with MSR[EE]=0 and no soft-masked interrupts pending.
