@@ -262,7 +262,7 @@ static inline int ipc_buildid(int id, struct ipc_ids *ids,
  * ipc_addid - add an ipc identifier
  * @ids: ipc identifier set
  * @new: new ipc permission set
- * @size: limit for the number of used ids
+ * @limit: limit for the number of used ids
  *
  * Add an entry 'new' to the ipc ids idr. The permissions object is
  * initialised and the first free entry is set up and the id assigned
@@ -271,16 +271,16 @@ static inline int ipc_buildid(int id, struct ipc_ids *ids,
  *
  * Called with writer ipc_ids.rwsem held.
  */
-int ipc_addid(struct ipc_ids *ids, struct kern_ipc_perm *new, int size)
+int ipc_addid(struct ipc_ids *ids, struct kern_ipc_perm *new, int limit)
 {
 	kuid_t euid;
 	kgid_t egid;
 	int id, err;
 
-	if (size > IPCMNI)
-		size = IPCMNI;
+	if (limit > IPCMNI)
+		limit = IPCMNI;
 
-	if (!ids->tables_initialized || ids->in_use >= size)
+	if (!ids->tables_initialized || ids->in_use >= limit)
 		return -ENOSPC;
 
 	idr_preload(GFP_KERNEL);
