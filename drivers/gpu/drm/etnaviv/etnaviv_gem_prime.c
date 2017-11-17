@@ -19,6 +19,7 @@
 #include "etnaviv_drv.h"
 #include "etnaviv_gem.h"
 
+static struct lock_class_key etnaviv_prime_lock_class;
 
 struct sg_table *etnaviv_gem_prime_get_sg_table(struct drm_gem_object *obj)
 {
@@ -124,6 +125,8 @@ struct drm_gem_object *etnaviv_gem_prime_import_sg_table(struct drm_device *dev,
 				      &etnaviv_gem_prime_ops, &etnaviv_obj);
 	if (ret < 0)
 		return ERR_PTR(ret);
+
+	lockdep_set_class(&etnaviv_obj->lock, &etnaviv_prime_lock_class);
 
 	npages = size / PAGE_SIZE;
 

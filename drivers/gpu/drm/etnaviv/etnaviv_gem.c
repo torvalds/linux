@@ -24,6 +24,9 @@
 #include "etnaviv_gpu.h"
 #include "etnaviv_mmu.h"
 
+static struct lock_class_key etnaviv_shm_lock_class;
+static struct lock_class_key etnaviv_userptr_lock_class;
+
 static void etnaviv_gem_scatter_map(struct etnaviv_gem_object *etnaviv_obj)
 {
 	struct drm_device *dev = etnaviv_obj->base.dev;
@@ -653,6 +656,8 @@ static struct drm_gem_object *__etnaviv_gem_new(struct drm_device *dev,
 	if (ret)
 		goto fail;
 
+	lockdep_set_class(&to_etnaviv_bo(obj)->lock, &etnaviv_shm_lock_class);
+
 	ret = drm_gem_object_init(dev, obj, size);
 	if (ret == 0) {
 		struct address_space *mapping;
@@ -896,6 +901,8 @@ int etnaviv_gem_new_userptr(struct drm_device *dev, struct drm_file *file,
 				      &etnaviv_gem_userptr_ops, &etnaviv_obj);
 	if (ret)
 		return ret;
+
+	lockdep_set_class(&etnaviv_obj->lock, &etnaviv_userptr_lock_class);
 
 	etnaviv_obj->userptr.ptr = ptr;
 	etnaviv_obj->userptr.task = current;
