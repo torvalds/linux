@@ -6038,8 +6038,8 @@ static int i40e_validate_and_set_switch_mode(struct i40e_vsi *vsi)
 	/* Set Bit 7 to be valid */
 	mode = I40E_AQ_SET_SWITCH_BIT7_VALID;
 
-	/* Set L4type to both TCP and UDP support */
-	mode |= I40E_AQ_SET_SWITCH_L4_TYPE_BOTH;
+	/* Set L4type for TCP support */
+	mode |= I40E_AQ_SET_SWITCH_L4_TYPE_TCP;
 
 	/* Set cloud filter mode */
 	mode |= I40E_AQ_SET_SWITCH_MODE_NON_TUNNEL;
@@ -6969,18 +6969,18 @@ static int i40e_add_del_cloud_filter_big_buf(struct i40e_vsi *vsi,
 	     is_valid_ether_addr(filter->src_mac)) ||
 	    (is_multicast_ether_addr(filter->dst_mac) &&
 	     is_multicast_ether_addr(filter->src_mac)))
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
-	/* Make sure port is specified, otherwise bail out, for channel
-	 * specific cloud filter needs 'L4 port' to be non-zero
+	/* Big buffer cloud filter needs 'L4 port' to be non-zero. Also, UDP
+	 * ports are not supported via big buffer now.
 	 */
-	if (!filter->dst_port)
-		return -EINVAL;
+	if (!filter->dst_port || filter->ip_proto == IPPROTO_UDP)
+		return -EOPNOTSUPP;
 
 	/* adding filter using src_port/src_ip is not supported at this stage */
 	if (filter->src_port || filter->src_ipv4 ||
 	    !ipv6_addr_any(&filter->ip.v6.src_ip6))
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	/* copy element needed to add cloud filter from filter */
 	i40e_set_cld_element(filter, &cld_filter.element);
@@ -6991,7 +6991,7 @@ static int i40e_add_del_cloud_filter_big_buf(struct i40e_vsi *vsi,
 	    is_multicast_ether_addr(filter->src_mac)) {
 		/* MAC + IP : unsupported mode */
 		if (filter->dst_ipv4)
-			return -EINVAL;
+			return -EOPNOTSUPP;
 
 		/* since we validated that L4 port must be valid before
 		 * we get here, start with respective "flags" value
