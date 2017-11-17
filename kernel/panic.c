@@ -595,6 +595,7 @@ EXPORT_SYMBOL(warn_slowpath_null);
 
 static int clear_warn_once_set(void *data, u64 val)
 {
+	generic_bug_clear_once();
 	memset(__start_once, 0, __end_once - __start_once);
 	return 0;
 }
@@ -607,7 +608,7 @@ DEFINE_SIMPLE_ATTRIBUTE(clear_warn_once_fops,
 static __init int register_warn_debugfs(void)
 {
 	/* Don't care about failure */
-	debugfs_create_file("clear_warn_once", 0644, NULL,
+	debugfs_create_file("clear_warn_once", 0200, NULL,
 			    NULL, &clear_warn_once_fops);
 	return 0;
 }
