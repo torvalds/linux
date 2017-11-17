@@ -216,13 +216,21 @@ static int lowlevel_hole(struct drm_i915_private *i915,
 		hole_size = (hole_end - hole_start) >> size;
 		if (hole_size > KMALLOC_MAX_SIZE / sizeof(u32))
 			hole_size = KMALLOC_MAX_SIZE / sizeof(u32);
-		count = hole_size;
-		do {
-			count >>= 1;
-			order = i915_random_order(count, &prng);
-		} while (!order && count);
-		if (!order)
+		count = hole_size >> 1;
+		if (!count) {
+			pr_debug("%s: hole is too small [%llx - %llx] >> %d: %lld\n",
+				 __func__, hole_start, hole_end, size, hole_size);
 			break;
+		}
+
+		do {
+			order = i915_random_order(count, &prng);
+			if (order)
+				break;
+		} while (count >>= 1);
+		if (!count)
+			return -ENOMEM;
+		GEM_BUG_ON(!order);
 
 		GEM_BUG_ON(count * BIT_ULL(size) > vm->total);
 		GEM_BUG_ON(hole_start + count * BIT_ULL(size) > hole_end);
@@ -704,13 +712,21 @@ static int drunk_hole(struct drm_i915_private *i915,
 		hole_size = (hole_end - hole_start) >> size;
 		if (hole_size > KMALLOC_MAX_SIZE / sizeof(u32))
 			hole_size = KMALLOC_MAX_SIZE / sizeof(u32);
-		count = hole_size;
-		do {
-			count >>= 1;
-			order = i915_random_order(count, &prng);
-		} while (!order && count);
-		if (!order)
+		count = hole_size >> 1;
+		if (!count) {
+			pr_debug("%s: hole is too small [%llx - %llx] >> %d: %lld\n",
+				 __func__, hole_start, hole_end, size, hole_size);
 			break;
+		}
+
+		do {
+			order = i915_random_order(count, &prng);
+			if (order)
+				break;
+		} while (count >>= 1);
+		if (!count)
+			return -ENOMEM;
+		GEM_BUG_ON(!order);
 
 		/* Ignore allocation failures (i.e. don't report them as
 		 * a test failure) as we are purposefully allocating very
