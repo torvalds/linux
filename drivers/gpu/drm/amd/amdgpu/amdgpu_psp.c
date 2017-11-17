@@ -442,8 +442,6 @@ static int psp_hw_fini(void *handle)
 	if (adev->firmware.load_type != AMDGPU_FW_LOAD_PSP)
 		return 0;
 
-	amdgpu_ucode_fini_bo(adev);
-
 	psp_ring_destroy(psp, PSP_RING_TYPE__KM);
 
 	amdgpu_bo_free_kernel(&psp->tmr_bo, &psp->tmr_mc_addr, &psp->tmr_buf);
