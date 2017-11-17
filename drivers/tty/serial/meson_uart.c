@@ -35,9 +35,9 @@
 #define AML_UART_TX_EN			BIT(12)
 #define AML_UART_RX_EN			BIT(13)
 #define AML_UART_TWO_WIRE_EN		BIT(15)
-#define AML_UART_STOP_BIN_LEN_MASK	(0x03 << 16)
-#define AML_UART_STOP_BIN_1SB		(0x00 << 16)
-#define AML_UART_STOP_BIN_2SB		(0x01 << 16)
+#define AML_UART_STOP_BIT_LEN_MASK	(0x03 << 16)
+#define AML_UART_STOP_BIT_1SB		(0x00 << 16)
+#define AML_UART_STOP_BIT_2SB		(0x01 << 16)
 #define AML_UART_PARITY_TYPE		BIT(18)
 #define AML_UART_PARITY_EN		BIT(19)
 #define AML_UART_TX_RST			BIT(22)
@@ -351,11 +351,11 @@ static void meson_uart_set_termios(struct uart_port *port,
 	else
 		val &= ~AML_UART_PARITY_TYPE;
 
-	val &= ~AML_UART_STOP_BIN_LEN_MASK;
+	val &= ~AML_UART_STOP_BIT_LEN_MASK;
 	if (cflags & CSTOPB)
-		val |= AML_UART_STOP_BIN_2SB;
+		val |= AML_UART_STOP_BIT_2SB;
 	else
-		val |= AML_UART_STOP_BIN_1SB;
+		val |= AML_UART_STOP_BIT_1SB;
 
 	if (cflags & CRTSCTS)
 		val &= ~AML_UART_TWO_WIRE_EN;
