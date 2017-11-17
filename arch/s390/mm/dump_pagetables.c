@@ -3,6 +3,7 @@
 #include <linux/debugfs.h>
 #include <linux/sched.h>
 #include <linux/mm.h>
+#include <linux/kasan.h>
 #include <asm/kasan.h>
 #include <asm/sections.h>
 #include <asm/pgtable.h>
@@ -89,7 +90,7 @@ static void note_page(struct seq_file *m, struct pg_state *st,
 	} else if (prot != cur || level != st->level ||
 		   st->current_address >= st->marker[1].start_address) {
 		/* Print the actual finished series */
-		seq_printf(m, "0x%0*lx-0x%0*lx",
+		seq_printf(m, "0x%0*lx-0x%0*lx ",
 			   width, st->start_address,
 			   width, st->current_address);
 		delta = (st->current_address - st->start_address) >> 10;
@@ -108,6 +109,17 @@ static void note_page(struct seq_file *m, struct pg_state *st,
 		st->level = level;
 	}
 }
+
+#ifdef CONFIG_KASAN
+static void note_kasan_zero_page(struct seq_file *m, struct pg_state *st)
+{
+	unsigned int prot;
+
+	prot = pte_val(*kasan_zero_pte) &
+		(_PAGE_PROTECT | _PAGE_INVALID | _PAGE_NOEXEC);
+	note_page(m, st, prot, 4);
+}
+#endif
 
 /*
  * The actual page table walker functions. In order to keep the
@@ -141,6 +153,13 @@ static void walk_pmd_level(struct seq_file *m, struct pg_state *st,
 	pmd_t *pmd;
 	int i;
 
+#ifdef CONFIG_KASAN
+	if ((pud_val(*pud) & PAGE_MASK) == __pa(kasan_zero_pmd)) {
+		note_kasan_zero_page(m, st);
+		return;
+	}
+#endif
+
 	for (i = 0; i < PTRS_PER_PMD && addr < max_addr; i++) {
 		st->current_address = addr;
 		pmd = pmd_offset(pud, addr);
@@ -165,6 +184,13 @@ static void walk_pud_level(struct seq_file *m, struct pg_state *st,
 	pud_t *pud;
 	int i;
 
+#ifdef CONFIG_KASAN
+	if ((p4d_val(*p4d) & PAGE_MASK) == __pa(kasan_zero_pud)) {
+		note_kasan_zero_page(m, st);
+		return;
+	}
+#endif
+
 	for (i = 0; i < PTRS_PER_PUD && addr < max_addr; i++) {
 		st->current_address = addr;
 		pud = pud_offset(p4d, addr);
@@ -187,6 +213,13 @@ static void walk_p4d_level(struct seq_file *m, struct pg_state *st,
 {
 	p4d_t *p4d;
 	int i;
+
+#ifdef CONFIG_KASAN
+	if ((pgd_val(*pgd) & PAGE_MASK) == __pa(kasan_zero_p4d)) {
+		note_kasan_zero_page(m, st);
+		return;
+	}
+#endif
 
 	for (i = 0; i < PTRS_PER_P4D && addr < max_addr; i++) {
 		st->current_address = addr;
