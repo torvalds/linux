@@ -534,14 +534,6 @@ int etnaviv_ioctl_gem_submit(struct drm_device *dev, void *data,
 out:
 	submit_unpin_objects(submit);
 
-	/*
-	 * If we're returning -EAGAIN, it may be due to the userptr code
-	 * wanting to run its workqueue outside of any locks. Flush our
-	 * workqueue to ensure that it is run in a timely manner.
-	 */
-	if (ret == -EAGAIN)
-		flush_workqueue(priv->wq);
-
 err_submit_objects:
 	if (in_fence)
 		dma_fence_put(in_fence);
