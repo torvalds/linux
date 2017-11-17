@@ -133,7 +133,7 @@ static struct pid_namespace *create_pid_namespace(struct user_namespace *user_ns
 	ns->parent = get_pid_ns(parent_pid_ns);
 	ns->user_ns = get_user_ns(user_ns);
 	ns->ucounts = ucounts;
-	ns->nr_hashed = PIDNS_HASH_ADDING;
+	ns->pid_allocated = PIDNS_ADDING;
 	INIT_WORK(&ns->proc_work, proc_cleanup_work);
 
 	return ns;
@@ -254,7 +254,7 @@ void zap_pid_ns_processes(struct pid_namespace *pid_ns)
 	 * sys_wait4() above can't reap the EXIT_DEAD children but we do not
 	 * really care, we could reparent them to the global init. We could
 	 * exit and reap ->child_reaper even if it is not the last thread in
-	 * this pid_ns, free_pid(nr_hashed == 0) calls proc_cleanup_work(),
+	 * this pid_ns, free_pid(pid_allocated == 0) calls proc_cleanup_work(),
 	 * pid_ns can not go away until proc_kill_sb() drops the reference.
 	 *
 	 * But this ns can also have other tasks injected by setns()+fork().
@@ -268,7 +268,7 @@ void zap_pid_ns_processes(struct pid_namespace *pid_ns)
 	 */
 	for (;;) {
 		set_current_state(TASK_INTERRUPTIBLE);
-		if (pid_ns->nr_hashed == init_pids)
+		if (pid_ns->pid_allocated == init_pids)
 			break;
 		schedule();
 	}

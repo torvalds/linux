@@ -25,7 +25,7 @@ struct pid_namespace {
 	struct kref kref;
 	struct idr idr;
 	struct rcu_head rcu;
-	unsigned int nr_hashed;
+	unsigned int pid_allocated;
 	struct task_struct *child_reaper;
 	struct kmem_cache *pid_cachep;
 	unsigned int level;
@@ -49,7 +49,7 @@ struct pid_namespace {
 
 extern struct pid_namespace init_pid_ns;
 
-#define PIDNS_HASH_ADDING (1U << 31)
+#define PIDNS_ADDING (1U << 31)
 
 #ifdef CONFIG_PID_NS
 static inline struct pid_namespace *get_pid_ns(struct pid_namespace *ns)

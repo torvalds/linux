@@ -41,10 +41,6 @@
 #include <linux/sched/task.h>
 #include <linux/idr.h>
 
-#define pid_hashfn(nr, ns)	\
-	hash_long((unsigned long)nr + (unsigned long)ns, pidhash_shift)
-static struct hlist_head *pid_hash;
-static unsigned int pidhash_shift = 4;
 struct pid init_struct_pid = INIT_STRUCT_PID;
 
 int pid_max = PID_MAX_DEFAULT;
@@ -53,7 +49,6 @@ int pid_max = PID_MAX_DEFAULT;
 
 int pid_max_min = RESERVED_PIDS + 1;
 int pid_max_max = PID_MAX_LIMIT;
-
 
 /*
  * PID-map pages start out as NULL, they get allocated upon
@@ -64,7 +59,7 @@ int pid_max_max = PID_MAX_LIMIT;
 struct pid_namespace init_pid_ns = {
 	.kref = KREF_INIT(2),
 	.idr = IDR_INIT,
-	.nr_hashed = PIDNS_HASH_ADDING,
+	.pid_allocated = PIDNS_ADDING,
 	.level = 0,
 	.child_reaper = &init_task,
 	.user_ns = &init_user_ns,
@@ -123,8 +118,7 @@ void free_pid(struct pid *pid)
 	for (i = 0; i <= pid->level; i++) {
 		struct upid *upid = pid->numbers + i;
 		struct pid_namespace *ns = upid->ns;
-		hlist_del_rcu(&upid->pid_chain);
-		switch (--ns->nr_hashed) {
+		switch (--ns->pid_allocated) {
 		case 2:
 		case 1:
 			/* When all that is left in the pid namespace
@@ -133,10 +127,10 @@ void free_pid(struct pid *pid)
 			 */
 			wake_up_process(ns->child_reaper);
 			break;
-		case PIDNS_HASH_ADDING:
+		case PIDNS_ADDING:
 			/* Handle a fork failure of the first process */
 			WARN_ON(ns->child_reaper);
-			ns->nr_hashed = 0;
+			ns->pid_allocated = 0;
 			/* fall through */
 		case 0:
 			schedule_work(&ns->proc_work);
@@ -212,14 +206,12 @@ struct pid *alloc_pid(struct pid_namespace *ns)
 
 	upid = pid->numbers + ns->level;
 	spin_lock_irq(&pidmap_lock);
-	if (!(ns->nr_hashed & PIDNS_HASH_ADDING))
+	if (!(ns->pid_allocated & PIDNS_ADDING))
 		goto out_unlock;
 	for ( ; upid >= pid->numbers; --upid) {
-		hlist_add_head_rcu(&upid->pid_chain,
-				&pid_hash[pid_hashfn(upid->nr, upid->ns)]);
 		/* Make the PID visible to find_pid_ns. */
 		idr_replace(&upid->ns->idr, pid, upid->nr);
-		upid->ns->nr_hashed++;
+		upid->ns->pid_allocated++;
 	}
 	spin_unlock_irq(&pidmap_lock);
 
@@ -243,21 +235,13 @@ out_free:
 void disable_pid_allocation(struct pid_namespace *ns)
 {
 	spin_lock_irq(&pidmap_lock);
-	ns->nr_hashed &= ~PIDNS_HASH_ADDING;
+	ns->pid_allocated &= ~PIDNS_ADDING;
 	spin_unlock_irq(&pidmap_lock);
 }
 
 struct pid *find_pid_ns(int nr, struct pid_namespace *ns)
 {
-	struct upid *pnr;
-
-	hlist_for_each_entry_rcu(pnr,
-			&pid_hash[pid_hashfn(nr, ns)], pid_chain)
-		if (pnr->nr == nr && pnr->ns == ns)
-			return container_of(pnr, struct pid,
-					numbers[ns->level]);
-
-	return NULL;
+	return idr_find(&ns->idr, nr);
 }
 EXPORT_SYMBOL_GPL(find_pid_ns);
 
@@ -413,6 +397,7 @@ pid_t __task_pid_nr_ns(struct task_struct *task, enum pid_type type,
 		if (type != PIDTYPE_PID) {
 			if (type == __PIDTYPE_TGID)
 				type = PIDTYPE_PID;
+
 			task = task->group_leader;
 		}
 		nr = pid_nr_ns(rcu_dereference(task->pids[type].pid), ns);
@@ -439,23 +424,10 @@ struct pid *find_ge_pid(int nr, struct pid_namespace *ns)
 	return idr_get_next(&ns->idr, &nr);
 }
 
-/*
- * The pid hash table is scaled according to the amount of memory in the
- * machine.  From a minimum of 16 slots up to 4096 slots at one gigabyte or
- * more.
- */
-void __init pidhash_init(void)
-{
-	pid_hash = alloc_large_system_hash("PID", sizeof(*pid_hash), 0, 18,
-					   HASH_EARLY | HASH_SMALL | HASH_ZERO,
-					   &pidhash_shift, NULL,
-					   0, 4096);
-}
-
 void __init pid_idr_init(void)
 {
 	/* Verify no one has done anything silly: */
-	BUILD_BUG_ON(PID_MAX_LIMIT >= PIDNS_HASH_ADDING);
+	BUILD_BUG_ON(PID_MAX_LIMIT >= PIDNS_ADDING);
 
 	/* bump default and minimum pid_max based on number of cpus */
 	pid_max = min(pid_max_max, max_t(int, pid_max,
