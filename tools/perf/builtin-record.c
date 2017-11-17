@@ -372,6 +372,8 @@ try_again:
 			ui__error("%s\n", msg);
 			goto out;
 		}
+
+		pos->supported = true;
 	}
 
 	if (perf_evlist__apply_filters(evlist, &pos)) {
@@ -783,6 +785,13 @@ static int record__synthesize(struct record *rec, bool tail)
 		machines__process_guests(&session->machines,
 					 perf_event__synthesize_guest_os, tool);
 	}
+
+	err = perf_event__synthesize_extra_attr(&rec->tool,
+						rec->evlist,
+						process_synthesized_event,
+						data->is_pipe);
+	if (err)
+		goto out;
 
 	err = __machine__synthesize_threads(machine, tool, &opts->target, rec->evlist->threads,
 					    process_synthesized_event, opts->sample_address,

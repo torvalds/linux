@@ -107,6 +107,11 @@ int perf_event__synthesize_features(struct perf_tool *tool,
 				    struct perf_evlist *evlist,
 				    perf_event__handler_t process);
 
+int perf_event__synthesize_extra_attr(struct perf_tool *tool,
+				      struct perf_evlist *evsel_list,
+				      perf_event__handler_t process,
+				      bool is_pipe);
+
 int perf_event__process_feature(struct perf_tool *tool,
 				union perf_event *event,
 				struct perf_session *session);
