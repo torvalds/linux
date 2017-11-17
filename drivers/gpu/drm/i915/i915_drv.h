@@ -560,13 +560,13 @@ struct i915_hotplug {
 	for_each_power_well_rev(__dev_priv, __power_well)		        \
 		for_each_if ((__power_well)->domains & (__domain_mask))
 
-#define for_each_intel_plane_in_state(__state, plane, plane_state, __i) \
+#define for_each_new_intel_plane_in_state(__state, plane, new_plane_state, __i) \
 	for ((__i) = 0; \
 	     (__i) < (__state)->base.dev->mode_config.num_total_plane && \
 		     ((plane) = to_intel_plane((__state)->base.planes[__i].ptr), \
-		      (plane_state) = to_intel_plane_state((__state)->base.planes[__i].state), 1); \
+		      (new_plane_state) = to_intel_plane_state((__state)->base.planes[__i].new_state), 1); \
 	     (__i)++) \
-		for_each_if (plane_state)
+		for_each_if (plane)
 
 #define for_each_new_intel_crtc_in_state(__state, crtc, new_crtc_state, __i) \
 	for ((__i) = 0; \
@@ -575,7 +575,6 @@ struct i915_hotplug {
 		      (new_crtc_state) = to_intel_crtc_state((__state)->base.crtcs[__i].new_state), 1); \
 	     (__i)++) \
 		for_each_if (crtc)
-
 
 #define for_each_oldnew_intel_plane_in_state(__state, plane, old_plane_state, new_plane_state, __i) \
 	for ((__i) = 0; \
