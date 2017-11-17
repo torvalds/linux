@@ -1194,10 +1194,10 @@ static int copy_compat_shmid_from_user(struct shmid64_ds *out, void __user *buf,
 {
 	memset(out, 0, sizeof(*out));
 	if (version == IPC_64) {
-		struct compat_shmid64_ds *p = buf;
+		struct compat_shmid64_ds __user *p = buf;
 		return get_compat_ipc64_perm(&out->shm_perm, &p->shm_perm);
 	} else {
-		struct compat_shmid_ds *p = buf;
+		struct compat_shmid_ds __user *p = buf;
 		return get_compat_ipc_perm(&out->shm_perm, &p->shm_perm);
 	}
 }

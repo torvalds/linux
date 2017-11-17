@@ -1637,10 +1637,10 @@ static int copy_compat_semid_from_user(struct semid64_ds *out, void __user *buf,
 {
 	memset(out, 0, sizeof(*out));
 	if (version == IPC_64) {
-		struct compat_semid64_ds *p = buf;
+		struct compat_semid64_ds __user *p = buf;
 		return get_compat_ipc64_perm(&out->sem_perm, &p->sem_perm);
 	} else {
-		struct compat_semid_ds *p = buf;
+		struct compat_semid_ds __user *p = buf;
 		return get_compat_ipc_perm(&out->sem_perm, &p->sem_perm);
 	}
 }

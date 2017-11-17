@@ -651,7 +651,7 @@ static int pstore_write_user_compat(struct pstore_record *record,
 		return -EINVAL;
 
 	record->buf = memdup_user(buf, record->size);
-	if (unlikely(IS_ERR(record->buf))) {
+	if (IS_ERR(record->buf)) {
 		ret = PTR_ERR(record->buf);
 		goto out;
 	}

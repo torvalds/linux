@@ -3459,7 +3459,7 @@ static int do_tmpfile(struct nameidata *nd, unsigned flags,
 		goto out;
 	child = vfs_tmpfile(path.dentry, op->mode, op->open_flag);
 	error = PTR_ERR(child);
-	if (unlikely(IS_ERR(child)))
+	if (IS_ERR(child))
 		goto out2;
 	dput(path.dentry);
 	path.dentry = child;
