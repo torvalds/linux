@@ -146,6 +146,7 @@ static struct amiga_floppy_struct unit[FD_MAX_UNITS];
 
 static struct timer_list flush_track_timer[FD_MAX_UNITS];
 static struct timer_list post_write_timer;
+static unsigned long post_write_timer_drive;
 static struct timer_list motor_on_timer;
 static struct timer_list motor_off_timer[FD_MAX_UNITS];
 static int on_attempts;
@@ -323,7 +324,7 @@ static void fd_deselect (int drive)
 
 }
 
-static void motor_on_callback(unsigned long ignored)
+static void motor_on_callback(struct timer_list *unused)
 {
 	if (!(ciaa.pra & DSKRDY) || --on_attempts == 0) {
 		complete_all(&motor_on_completion);
@@ -355,7 +356,7 @@ static int fd_motor_on(int nr)
 		on_attempts = -1;
 #if 0
 		printk (KERN_ERR "motor_on failed, turning motor off\n");
-		fd_motor_off (nr);
+		fd_motor_off (motor_off_timer + nr);
 		return 0;
 #else
 		printk (KERN_WARNING "DSKRDY not set after 1.5 seconds - assuming drive is spinning notwithstanding\n");
@@ -365,20 +366,17 @@ static int fd_motor_on(int nr)
 	return 1;
 }
 
-static void fd_motor_off(unsigned long drive)
+static void fd_motor_off(struct timer_list *timer)
 {
-	long calledfromint;
-#ifdef MODULE
-	long decusecount;
+	unsigned long drive = ((unsigned long)timer -
+			       (unsigned long)&motor_off_timer[0]) /
+					sizeof(motor_off_timer[0]);
 
-	decusecount = drive & 0x40000000;
-#endif
-	calledfromint = drive & 0x80000000;
 	drive&=3;
-	if (calledfromint && !try_fdc(drive)) {
+	if (!try_fdc(drive)) {
 		/* We would be blocked in an interrupt, so try again later */
-		motor_off_timer[drive].expires = jiffies + 1;
-		add_timer(motor_off_timer + drive);
+		timer->expires = jiffies + 1;
+		add_timer(timer);
 		return;
 	}
 	unit[drive].motor = 0;
@@ -392,8 +390,6 @@ static void floppy_off (unsigned int nr)
 	int drive;
 
 	drive = nr & 3;
-	/* called this way it is always from interrupt */
-	motor_off_timer[drive].data = nr | 0x80000000;
 	mod_timer(motor_off_timer + drive, jiffies + 3*HZ);
 }
 
@@ -435,7 +431,7 @@ static int fd_calibrate(int drive)
 			break;
 		if (--n == 0) {
 			printk (KERN_ERR "fd%d: calibrate failed, turning motor off\n", drive);
-			fd_motor_off (drive);
+			fd_motor_off (motor_off_timer + drive);
 			unit[drive].track = -1;
 			rel_fdc();
 			return 0;
@@ -564,7 +560,7 @@ static irqreturn_t fd_block_done(int irq, void *dummy)
 	if (block_flag == 2) { /* writing */
 		writepending = 2;
 		post_write_timer.expires = jiffies + 1; /* at least 2 ms */
-		post_write_timer.data = selected;
+		post_write_timer_drive = selected;
 		add_timer(&post_write_timer);
 	}
 	else {                /* reading */
@@ -651,6 +647,10 @@ static void post_write (unsigned long drive)
 	rel_fdc(); /* corresponds to get_fdc() in raw_write */
 }
 
+static void post_write_callback(struct timer_list *timer)
+{
+	post_write(post_write_timer_drive);
+}
 
 /*
  * The following functions are to convert the block contents into raw data
@@ -1244,8 +1244,12 @@ static void dos_write(int disk)
 /* FIXME: this assumes the drive is still spinning -
  * which is only true if we complete writing a track within three seconds
  */
-static void flush_track_callback(unsigned long nr)
+static void flush_track_callback(struct timer_list *timer)
 {
+	unsigned long nr = ((unsigned long)timer -
+			       (unsigned long)&flush_track_timer[0]) /
+					sizeof(flush_track_timer[0]);
+
 	nr&=3;
 	writefromint = 1;
 	if (!try_fdc(nr)) {
@@ -1649,8 +1653,7 @@ static void floppy_release(struct gendisk *disk, fmode_t mode)
 		fd_ref[drive] = 0;
 	}
 #ifdef MODULE
-/* the mod_use counter is handled this way */
-	floppy_off (drive | 0x40000000);
+	floppy_off (drive);
 #endif
 	mutex_unlock(&amiflop_mutex);
 }
@@ -1791,27 +1794,19 @@ static int __init amiga_floppy_probe(struct platform_device *pdev)
 				floppy_find, NULL, NULL);
 
 	/* initialize variables */
-	init_timer(&motor_on_timer);
+	timer_setup(&motor_on_timer, motor_on_callback, 0);
 	motor_on_timer.expires = 0;
-	motor_on_timer.data = 0;
-	motor_on_timer.function = motor_on_callback;
 	for (i = 0; i < FD_MAX_UNITS; i++) {
-		init_timer(&motor_off_timer[i]);
+		timer_setup(&motor_off_timer[i], fd_motor_off, 0);
 		motor_off_timer[i].expires = 0;
-		motor_off_timer[i].data = i|0x80000000;
-		motor_off_timer[i].function = fd_motor_off;
-		init_timer(&flush_track_timer[i]);
+		timer_setup(&flush_track_timer[i], flush_track_callback, 0);
 		flush_track_timer[i].expires = 0;
-		flush_track_timer[i].data = i;
-		flush_track_timer[i].function = flush_track_callback;
 
 		unit[i].track = -1;
 	}
 
-	init_timer(&post_write_timer);
+	timer_setup(&post_write_timer, post_write_callback, 0);
 	post_write_timer.expires = 0;
-	post_write_timer.data = 0;
-	post_write_timer.function = post_write;
   
 	for (i = 0; i < 128; i++)
 		mfmdecode[i]=255;
