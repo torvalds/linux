@@ -186,6 +186,11 @@ static void cache_associativity(struct cacheinfo *this_leaf)
 		this_leaf->ways_of_associativity = (size / nr_sets) / line_size;
 }
 
+static bool cache_node_is_unified(struct cacheinfo *this_leaf)
+{
+	return of_property_read_bool(this_leaf->of_node, "cache-unified");
+}
+
 static void cache_of_override_properties(unsigned int cpu)
 {
 	int index;
@@ -194,6 +199,14 @@ static void cache_of_override_properties(unsigned int cpu)
 
 	for (index = 0; index < cache_leaves(cpu); index++) {
 		this_leaf = this_cpu_ci->info_list + index;
+		/*
+		 * init_cache_level must setup the cache level correctly
+		 * overriding the architecturally specified levels, so
+		 * if type is NONE at this stage, it should be unified
+		 */
+		if (this_leaf->type == CACHE_TYPE_NOCACHE &&
+		    cache_node_is_unified(this_leaf))
+			this_leaf->type = CACHE_TYPE_UNIFIED;
 		cache_size(this_leaf);
 		cache_get_line_size(this_leaf);
 		cache_nr_sets(this_leaf);
