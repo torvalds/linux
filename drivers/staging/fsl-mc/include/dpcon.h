@@ -62,11 +62,6 @@ int dpcon_disable(struct fsl_mc_io *mc_io,
 		  u32 cmd_flags,
 		  u16 token);
 
-int dpcon_is_enabled(struct fsl_mc_io *mc_io,
-		     u32 cmd_flags,
-		     u16 token,
-		     int *en);
-
 int dpcon_reset(struct fsl_mc_io *mc_io,
 		u32 cmd_flags,
 		u16 token);
@@ -106,10 +101,5 @@ int dpcon_set_notification(struct fsl_mc_io *mc_io,
 			   u32 cmd_flags,
 			   u16 token,
 			   struct dpcon_notification_cfg *cfg);
-
-int dpcon_get_api_version(struct fsl_mc_io *mc_io,
-			  u32 cmd_flags,
-			  u16 *major_ver,
-			  u16 *minor_ver);
 
 #endif /* __FSL_DPCON_H */

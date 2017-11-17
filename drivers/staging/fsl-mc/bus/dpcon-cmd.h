@@ -45,13 +45,11 @@
 /* Command IDs */
 #define DPCON_CMDID_CLOSE			DPCON_CMD(0x800)
 #define DPCON_CMDID_OPEN			DPCON_CMD(0x808)
-#define DPCON_CMDID_GET_API_VERSION		DPCON_CMD(0xa08)
 
 #define DPCON_CMDID_ENABLE			DPCON_CMD(0x002)
 #define DPCON_CMDID_DISABLE			DPCON_CMD(0x003)
 #define DPCON_CMDID_GET_ATTR			DPCON_CMD(0x004)
 #define DPCON_CMDID_RESET			DPCON_CMD(0x005)
-#define DPCON_CMDID_IS_ENABLED			DPCON_CMD(0x006)
 
 #define DPCON_CMDID_SET_NOTIFICATION		DPCON_CMD(0x100)
 
@@ -60,10 +58,6 @@ struct dpcon_cmd_open {
 };
 
 #define DPCON_ENABLE			1
-
-struct dpcon_rsp_is_enabled {
-	u8 enabled;
-};
 
 struct dpcon_rsp_get_attr {
 	/* response word 0 */
