@@ -122,6 +122,7 @@ int ipc_init_ids(struct ipc_ids *ids)
 		return err;
 	idr_init(&ids->ipcs_idr);
 	ids->tables_initialized = true;
+	ids->max_id = -1;
 #ifdef CONFIG_CHECKPOINT_RESTORE
 	ids->next_id = -1;
 #endif
@@ -186,36 +187,6 @@ static struct kern_ipc_perm *ipc_findkey(struct ipc_ids *ids, key_t key)
 	}
 
 	return NULL;
-}
-
-/**
- * ipc_get_maxid - get the last assigned id
- * @ids: ipc identifier set
- *
- * Called with ipc_ids.rwsem held.
- */
-int ipc_get_maxid(struct ipc_ids *ids)
-{
-	struct kern_ipc_perm *ipc;
-	int max_id = -1;
-	int total, id;
-
-	if (ids->in_use == 0)
-		return -1;
-
-	if (ids->in_use == IPCMNI)
-		return IPCMNI - 1;
-
-	/* Look for the last assigned id */
-	total = 0;
-	for (id = 0; id < IPCMNI && total < ids->in_use; id++) {
-		ipc = idr_find(&ids->ipcs_idr, id);
-		if (ipc != NULL) {
-			max_id = id;
-			total++;
-		}
-	}
-	return max_id;
 }
 
 #ifdef CONFIG_CHECKPOINT_RESTORE
@@ -313,6 +284,9 @@ int ipc_addid(struct ipc_ids *ids, struct kern_ipc_perm *new, int limit)
 	}
 
 	ids->in_use++;
+	if (id > ids->max_id)
+		ids->max_id = id;
+
 	new->id = ipc_buildid(id, ids, new);
 
 	return id;
@@ -459,6 +433,15 @@ void ipc_rmid(struct ipc_ids *ids, struct kern_ipc_perm *ipcp)
 	ipc_kht_remove(ids, ipcp);
 	ids->in_use--;
 	ipcp->deleted = true;
+
+	if (unlikely(lid == ids->max_id)) {
+		do {
+			lid--;
+			if (lid == -1)
+				break;
+		} while (!idr_find(&ids->ipcs_idr, lid));
+		ids->max_id = lid;
+	}
 }
 
 /**

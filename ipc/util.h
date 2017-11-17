@@ -13,6 +13,7 @@
 
 #include <linux/unistd.h>
 #include <linux/err.h>
+#include <linux/ipc_namespace.h>
 
 #define SEQ_MULTIPLIER	(IPCMNI)
 
@@ -99,9 +100,6 @@ void __init ipc_init_proc_interface(const char *path, const char *header,
 /* must be called with ids->rwsem acquired for writing */
 int ipc_addid(struct ipc_ids *, struct kern_ipc_perm *, int);
 
-/* must be called with ids->rwsem acquired for reading */
-int ipc_get_maxid(struct ipc_ids *);
-
 /* must be called with both locks acquired. */
 void ipc_rmid(struct ipc_ids *, struct kern_ipc_perm *);
 
@@ -110,6 +108,23 @@ void ipc_set_key_private(struct ipc_ids *, struct kern_ipc_perm *);
 
 /* must be called with ipcp locked */
 int ipcperms(struct ipc_namespace *ns, struct kern_ipc_perm *ipcp, short flg);
+
+/**
+ * ipc_get_maxid - get the last assigned id
+ * @ids: ipc identifier set
+ *
+ * Called with ipc_ids.rwsem held for reading.
+ */
+static inline int ipc_get_maxid(struct ipc_ids *ids)
+{
+	if (ids->in_use == 0)
+		return -1;
+
+	if (ids->in_use == IPCMNI)
+		return IPCMNI - 1;
+
+	return ids->max_id;
+}
 
 /*
  * For allocation that need to be freed by RCU.
