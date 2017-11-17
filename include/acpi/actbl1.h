@@ -69,9 +69,10 @@
 #define ACPI_SIG_HEST           "HEST"	/* Hardware Error Source Table */
 #define ACPI_SIG_MADT           "APIC"	/* Multiple APIC Description Table */
 #define ACPI_SIG_MSCT           "MSCT"	/* Maximum System Characteristics Table */
-#define ACPI_SIG_PDTT           "PDTT"	/* Processor Debug Trigger Table */
+#define ACPI_SIG_PDTT           "PDTT"	/* Platform Debug Trigger Table */
 #define ACPI_SIG_PPTT           "PPTT"	/* Processor Properties Topology Table */
 #define ACPI_SIG_SBST           "SBST"	/* Smart Battery Specification Table */
+#define ACPI_SIG_SDEV           "SDEV"	/* Secure Devices table */
 #define ACPI_SIG_SLIT           "SLIT"	/* System Locality Distance Information Table */
 #define ACPI_SIG_SRAT           "SRAT"	/* System Resource Affinity Table */
 #define ACPI_SIG_NFIT           "NFIT"	/* NVDIMM Firmware Interface Table */
@@ -1283,7 +1284,7 @@ struct acpi_nfit_flush_address {
 
 /*******************************************************************************
  *
- * PDTT - Processor Debug Trigger Table (ACPI 6.2)
+ * PDTT - Platform Debug Trigger Table (ACPI 6.2)
  *        Version 0
  *
  ******************************************************************************/
@@ -1301,14 +1302,14 @@ struct acpi_table_pdtt {
  * starting at array_offset.
  */
 struct acpi_pdtt_channel {
-	u16 sub_channel_id;
+	u8 subchannel_id;
+	u8 flags;
 };
 
-/* Mask and Flags for above */
+/* Flags for above */
 
-#define ACPI_PDTT_SUBCHANNEL_ID_MASK        0x00FF
-#define ACPI_PDTT_RUNTIME_TRIGGER           (1<<8)
-#define ACPI_PPTT_WAIT_COMPLETION           (1<<9)
+#define ACPI_PDTT_RUNTIME_TRIGGER           (1)
+#define ACPI_PPTT_WAIT_COMPLETION           (1<<1)
 
 /*******************************************************************************
  *
@@ -1401,6 +1402,68 @@ struct acpi_table_sbst {
 	u32 warning_level;
 	u32 low_level;
 	u32 critical_level;
+};
+
+/*******************************************************************************
+ *
+ * SDEV - Secure Devices Table (ACPI 6.2)
+ *        Version 1
+ *
+ ******************************************************************************/
+
+struct acpi_table_sdev {
+	struct acpi_table_header header;	/* Common ACPI table header */
+};
+
+struct acpi_sdev_header {
+	u8 type;
+	u8 flags;
+	u16 length;
+};
+
+/* Values for subtable type above */
+
+enum acpi_sdev_type {
+	ACPI_SDEV_TYPE_NAMESPACE_DEVICE = 0,
+	ACPI_SDEV_TYPE_PCIE_ENDPOINT_DEVICE = 1,
+	ACPI_SDEV_TYPE_RESERVED = 2	/* 2 and greater are reserved */
+};
+
+/* Values for flags above */
+
+#define ACPI_SDEV_HANDOFF_TO_UNSECURE_OS    (1)
+
+/*
+ * SDEV subtables
+ */
+
+/* 0: Namespace Device Based Secure Device Structure */
+
+struct acpi_sdev_namespace {
+	struct acpi_sdev_header header;
+	u16 device_id_offset;
+	u16 device_id_length;
+	u16 vendor_data_offset;
+	u16 vendor_data_length;
+};
+
+/* 1: PCIe Endpoint Device Based Device Structure */
+
+struct acpi_sdev_pcie {
+	struct acpi_sdev_header header;
+	u16 segment;
+	u16 start_bus;
+	u16 path_offset;
+	u16 path_length;
+	u16 vendor_data_offset;
+	u16 vendor_data_length;
+};
+
+/* 1a: PCIe Endpoint path entry */
+
+struct acpi_sdev_pcie_path {
+	u8 device;
+	u8 function;
 };
 
 /*******************************************************************************
