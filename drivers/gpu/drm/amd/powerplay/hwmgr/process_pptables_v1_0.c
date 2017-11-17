@@ -850,9 +850,9 @@ static int init_over_drive_limits(
 		const ATOM_Tonga_POWERPLAYTABLE *powerplay_table)
 {
 	hwmgr->platform_descriptor.overdriveLimit.engineClock =
-		le16_to_cpu(powerplay_table->ulMaxODEngineClock);
+		le32_to_cpu(powerplay_table->ulMaxODEngineClock);
 	hwmgr->platform_descriptor.overdriveLimit.memoryClock =
-		le16_to_cpu(powerplay_table->ulMaxODMemoryClock);
+		le32_to_cpu(powerplay_table->ulMaxODMemoryClock);
 
 	hwmgr->platform_descriptor.minOverdriveVDDC = 0;
 	hwmgr->platform_descriptor.maxOverdriveVDDC = 0;
