@@ -1391,15 +1391,6 @@ int etnaviv_gpu_submit(struct etnaviv_gpu *gpu,
 		return ret;
 
 	/*
-	 * TODO
-	 *
-	 * - flush
-	 * - data endian
-	 * - prefetch
-	 *
-	 */
-
-	/*
 	 * if there are performance monitor requests we need to have
 	 * - a sync point to re-configure gpu and process ETNA_PM_PROCESS_PRE
 	 *   requests.
