@@ -1098,6 +1098,22 @@ static const unsigned int can_clk_mux[] = {
 	CAN_CLK_MARK,
 };
 
+/* - CAN FD ----------------------------------------------------------------- */
+static const unsigned int canfd0_data_pins[] = {
+	/* TX, RX */
+	RCAR_GP_PIN(4, 28), RCAR_GP_PIN(4, 31),
+};
+static const unsigned int canfd0_data_mux[] = {
+	CANFD0_TX_MARK, CANFD0_RX_MARK,
+};
+static const unsigned int canfd1_data_pins[] = {
+	/* TX, RX */
+	RCAR_GP_PIN(4, 30), RCAR_GP_PIN(4, 29),
+};
+static const unsigned int canfd1_data_mux[] = {
+	CANFD1_TX_MARK, CANFD1_RX_MARK,
+};
+
 /* - I2C -------------------------------------------------------------------- */
 static const unsigned int i2c0_pins[] = {
 	/* SCL, SDA */
@@ -1550,6 +1566,8 @@ static const struct sh_pfc_pin_group pinmux_groups[] = {
 	SH_PFC_PIN_GROUP(can1_data_a),
 	SH_PFC_PIN_GROUP(can1_data_b),
 	SH_PFC_PIN_GROUP(can_clk),
+	SH_PFC_PIN_GROUP(canfd0_data),
+	SH_PFC_PIN_GROUP(canfd1_data),
 	SH_PFC_PIN_GROUP(i2c0),
 	SH_PFC_PIN_GROUP(i2c1),
 	SH_PFC_PIN_GROUP(i2c2_a),
@@ -1637,6 +1655,13 @@ static const char * const can1_groups[] = {
 };
 static const char * const can_clk_groups[] = {
 	"can_clk",
+};
+
+static const char * const canfd0_groups[] = {
+	"canfd0_data",
+};
+static const char * const canfd1_groups[] = {
+	"canfd1_data",
 };
 
 static const char * const i2c0_groups[] = {
@@ -1752,6 +1777,8 @@ static const struct sh_pfc_function pinmux_functions[] = {
 	SH_PFC_FUNCTION(can0),
 	SH_PFC_FUNCTION(can1),
 	SH_PFC_FUNCTION(can_clk),
+	SH_PFC_FUNCTION(canfd0),
+	SH_PFC_FUNCTION(canfd1),
 	SH_PFC_FUNCTION(i2c0),
 	SH_PFC_FUNCTION(i2c1),
 	SH_PFC_FUNCTION(i2c2),
