@@ -100,7 +100,7 @@ static void note_page(struct seq_file *m, struct pg_state *st,
 		}
 		seq_printf(m, "%9lu%c ", delta, *unit);
 		print_prot(m, st->current_prot, st->level);
-		if (st->current_address >= st->marker[1].start_address) {
+		while (st->current_address >= st->marker[1].start_address) {
 			st->marker++;
 			seq_printf(m, "---[ %s ]---\n", st->marker->name);
 		}
