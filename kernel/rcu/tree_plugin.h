@@ -61,7 +61,6 @@ DEFINE_PER_CPU(char, rcu_cpu_has_work);
 
 #ifdef CONFIG_RCU_NOCB_CPU
 static cpumask_var_t rcu_nocb_mask; /* CPUs to have callbacks offloaded. */
-static bool have_rcu_nocb_mask;	    /* Was rcu_nocb_mask allocated? */
 static bool __read_mostly rcu_nocb_poll;    /* Offload kthread are to poll. */
 #endif /* #ifdef CONFIG_RCU_NOCB_CPU */
 
@@ -1752,7 +1751,6 @@ static void increment_cpu_stall_ticks(void)
 static int __init rcu_nocb_setup(char *str)
 {
 	alloc_bootmem_cpumask_var(&rcu_nocb_mask);
-	have_rcu_nocb_mask = true;
 	cpulist_parse(str, rcu_nocb_mask);
 	return 1;
 }
@@ -1801,7 +1799,7 @@ static void rcu_init_one_nocb(struct rcu_node *rnp)
 /* Is the specified CPU a no-CBs CPU? */
 bool rcu_is_nocb_cpu(int cpu)
 {
-	if (have_rcu_nocb_mask)
+	if (cpumask_available(rcu_nocb_mask))
 		return cpumask_test_cpu(cpu, rcu_nocb_mask);
 	return false;
 }
@@ -2295,14 +2293,13 @@ void __init rcu_init_nohz(void)
 		need_rcu_nocb_mask = true;
 #endif /* #if defined(CONFIG_NO_HZ_FULL) */
 
-	if (!have_rcu_nocb_mask && need_rcu_nocb_mask) {
+	if (!cpumask_available(rcu_nocb_mask) && need_rcu_nocb_mask) {
 		if (!zalloc_cpumask_var(&rcu_nocb_mask, GFP_KERNEL)) {
 			pr_info("rcu_nocb_mask allocation failed, callback offloading disabled.\n");
 			return;
 		}
-		have_rcu_nocb_mask = true;
 	}
-	if (!have_rcu_nocb_mask)
+	if (!cpumask_available(rcu_nocb_mask))
 		return;
 
 #if defined(CONFIG_NO_HZ_FULL)
@@ -2428,7 +2425,7 @@ static void __init rcu_organize_nocb_kthreads(struct rcu_state *rsp)
 	struct rcu_data *rdp_leader = NULL;  /* Suppress misguided gcc warn. */
 	struct rcu_data *rdp_prev = NULL;
 
-	if (!have_rcu_nocb_mask)
+	if (!cpumask_available(rcu_nocb_mask))
 		return;
 	if (ls == -1) {
 		ls = int_sqrt(nr_cpu_ids);
