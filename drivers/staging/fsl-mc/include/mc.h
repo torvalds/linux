@@ -398,4 +398,59 @@ void fsl_mc_free_irqs(struct fsl_mc_device *mc_dev);
 
 extern struct bus_type fsl_mc_bus_type;
 
+extern struct device_type fsl_mc_bus_dprc_type;
+extern struct device_type fsl_mc_bus_dpni_type;
+extern struct device_type fsl_mc_bus_dpio_type;
+extern struct device_type fsl_mc_bus_dpsw_type;
+extern struct device_type fsl_mc_bus_dpbp_type;
+extern struct device_type fsl_mc_bus_dpcon_type;
+extern struct device_type fsl_mc_bus_dpmcp_type;
+extern struct device_type fsl_mc_bus_dpmac_type;
+extern struct device_type fsl_mc_bus_dprtc_type;
+
+static inline bool is_fsl_mc_bus_dprc(const struct fsl_mc_device *mc_dev)
+{
+	return mc_dev->dev.type == &fsl_mc_bus_dprc_type;
+}
+
+static inline bool is_fsl_mc_bus_dpni(const struct fsl_mc_device *mc_dev)
+{
+	return mc_dev->dev.type == &fsl_mc_bus_dpni_type;
+}
+
+static inline bool is_fsl_mc_bus_dpio(const struct fsl_mc_device *mc_dev)
+{
+	return mc_dev->dev.type == &fsl_mc_bus_dpio_type;
+}
+
+static inline bool is_fsl_mc_bus_dpsw(const struct fsl_mc_device *mc_dev)
+{
+	return mc_dev->dev.type == &fsl_mc_bus_dpsw_type;
+}
+
+static inline bool is_fsl_mc_bus_dpbp(const struct fsl_mc_device *mc_dev)
+{
+	return mc_dev->dev.type == &fsl_mc_bus_dpbp_type;
+}
+
+static inline bool is_fsl_mc_bus_dpcon(const struct fsl_mc_device *mc_dev)
+{
+	return mc_dev->dev.type == &fsl_mc_bus_dpcon_type;
+}
+
+static inline bool is_fsl_mc_bus_dpmcp(const struct fsl_mc_device *mc_dev)
+{
+	return mc_dev->dev.type == &fsl_mc_bus_dpmcp_type;
+}
+
+static inline bool is_fsl_mc_bus_dpmac(const struct fsl_mc_device *mc_dev)
+{
+	return mc_dev->dev.type == &fsl_mc_bus_dpmac_type;
+}
+
+static inline bool is_fsl_mc_bus_dprtc(const struct fsl_mc_device *mc_dev)
+{
+	return mc_dev->dev.type == &fsl_mc_bus_dprtc_type;
+}
+
 #endif /* _FSL_MC_H_ */
