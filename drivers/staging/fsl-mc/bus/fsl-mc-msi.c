@@ -124,7 +124,6 @@ static void fsl_mc_msi_write_msg(struct irq_data *irq_data,
 	struct fsl_mc_device_irq *mc_dev_irq =
 		&mc_bus->irq_resources[msi_desc->fsl_mc.msi_index];
 
-	WARN_ON(mc_dev_irq->msi_desc != msi_desc);
 	msi_desc->msg = *msg;
 
 	/*

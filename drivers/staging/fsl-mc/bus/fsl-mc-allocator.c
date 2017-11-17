@@ -199,7 +199,6 @@ int __must_check fsl_mc_resource_allocate(struct fsl_mc_bus *mc_bus,
 					    struct fsl_mc_resource, node);
 
 	if (!resource) {
-		WARN_ON(res_pool->free_count != 0);
 		error = -ENXIO;
 		dev_err(&mc_bus_dev->dev,
 			"No more resources of type %s left\n",
@@ -474,7 +473,6 @@ int __must_check fsl_mc_allocate_irqs(struct fsl_mc_device *mc_dev)
 		irqs[i] = to_fsl_mc_irq(resource);
 		res_allocated_count++;
 
-		WARN_ON(irqs[i]->mc_dev);
 		irqs[i]->mc_dev = mc_dev;
 		irqs[i]->dev_irq_index = i;
 	}
@@ -516,7 +514,6 @@ void fsl_mc_free_irqs(struct fsl_mc_device *mc_dev)
 		return;
 
 	for (i = 0; i < irq_count; i++) {
-		WARN_ON(!irqs[i]->mc_dev);
 		irqs[i]->mc_dev = NULL;
 		fsl_mc_resource_free(&irqs[i]->resource);
 	}
@@ -553,17 +550,10 @@ static void fsl_mc_cleanup_resource_pool(struct fsl_mc_device *mc_bus_dev,
 					&mc_bus->resource_pools[pool_type];
 	int free_count = 0;
 
-	WARN_ON(res_pool->type != pool_type);
-	WARN_ON(res_pool->free_count != res_pool->max_count);
-
 	list_for_each_entry_safe(resource, next, &res_pool->free_list, node) {
 		free_count++;
-		WARN_ON(resource->type != res_pool->type);
-		WARN_ON(resource->parent_pool != res_pool);
 		devm_kfree(&mc_bus_dev->dev, resource);
 	}
-
-	WARN_ON(free_count != res_pool->free_count);
 }
 
 void fsl_mc_cleanup_all_resource_pools(struct fsl_mc_device *mc_bus_dev)

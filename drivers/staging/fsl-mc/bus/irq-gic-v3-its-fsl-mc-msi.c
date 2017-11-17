@@ -93,9 +93,6 @@ int __init its_fsl_mc_msi_init(void)
 			continue;
 		}
 
-		WARN_ON(mc_msi_domain->host_data !=
-			&its_fsl_mc_msi_domain_info);
-
 		pr_info("fsl-mc MSI: %pOF domain created\n", np);
 	}
 

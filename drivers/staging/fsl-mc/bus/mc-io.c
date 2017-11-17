@@ -68,12 +68,6 @@ static void fsl_mc_io_unset_dpmcp(struct fsl_mc_io *mc_io)
 	int error;
 	struct fsl_mc_device *dpmcp_dev = mc_io->dpmcp_dev;
 
-	if (WARN_ON(!dpmcp_dev))
-		return;
-
-	if (WARN_ON(dpmcp_dev->mc_io != mc_io))
-		return;
-
 	error = dpmcp_close(mc_io,
 			    0,
 			    dpmcp_dev->mc_handle);
@@ -224,8 +218,6 @@ int __must_check fsl_mc_portal_allocate(struct fsl_mc_device *mc_dev,
 
 	error = -EINVAL;
 	dpmcp_dev = resource->data;
-	if (WARN_ON(!dpmcp_dev))
-		goto error_cleanup_resource;
 
 	if (dpmcp_dev->obj_desc.ver_major < DPMCP_MIN_VER_MAJOR ||
 	    (dpmcp_dev->obj_desc.ver_major == DPMCP_MIN_VER_MAJOR &&
@@ -238,14 +230,8 @@ int __must_check fsl_mc_portal_allocate(struct fsl_mc_device *mc_dev,
 		goto error_cleanup_resource;
 	}
 
-	if (WARN_ON(dpmcp_dev->obj_desc.region_count == 0))
-		goto error_cleanup_resource;
-
 	mc_portal_phys_addr = dpmcp_dev->regions[0].start;
 	mc_portal_size = resource_size(dpmcp_dev->regions);
-
-	if (WARN_ON(mc_portal_size != mc_bus_dev->mc_io->portal_size))
-		goto error_cleanup_resource;
 
 	error = fsl_create_mc_io(&mc_bus_dev->dev,
 				 mc_portal_phys_addr,
@@ -279,8 +265,6 @@ void fsl_mc_portal_free(struct fsl_mc_io *mc_io)
 	 * to have a DPMCP object associated with.
 	 */
 	dpmcp_dev = mc_io->dpmcp_dev;
-	if (WARN_ON(!dpmcp_dev))
-		return;
 
 	resource = dpmcp_dev->resource;
 	if (WARN_ON(!resource || resource->type != FSL_MC_POOL_DPMCP))
@@ -303,9 +287,6 @@ int fsl_mc_portal_reset(struct fsl_mc_io *mc_io)
 {
 	int error;
 	struct fsl_mc_device *dpmcp_dev = mc_io->dpmcp_dev;
-
-	if (WARN_ON(!dpmcp_dev))
-		return -EINVAL;
 
 	error = dpmcp_reset(mc_io, 0, dpmcp_dev->mc_handle);
 	if (error < 0) {

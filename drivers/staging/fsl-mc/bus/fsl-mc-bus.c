@@ -162,12 +162,7 @@ static int fsl_mc_driver_probe(struct device *dev)
 	struct fsl_mc_device *mc_dev = to_fsl_mc_device(dev);
 	int error;
 
-	if (WARN_ON(!dev->driver))
-		return -EINVAL;
-
 	mc_drv = to_fsl_mc_driver(dev->driver);
-	if (WARN_ON(!mc_drv->probe))
-		return -EINVAL;
 
 	error = mc_drv->probe(mc_dev);
 	if (error < 0) {
@@ -183,9 +178,6 @@ static int fsl_mc_driver_remove(struct device *dev)
 	struct fsl_mc_driver *mc_drv = to_fsl_mc_driver(dev->driver);
 	struct fsl_mc_device *mc_dev = to_fsl_mc_device(dev);
 	int error;
-
-	if (WARN_ON(!dev->driver))
-		return -EINVAL;
 
 	error = mc_drv->remove(mc_dev);
 	if (error < 0) {
@@ -352,8 +344,6 @@ static int translate_mc_addr(struct fsl_mc_device *mc_dev,
 	struct fsl_mc *mc;
 
 	fsl_mc_get_root_dprc(&mc_dev->dev, &root_dprc_dev);
-	if (WARN_ON(!root_dprc_dev))
-		return -EINVAL;
 	mc = dev_get_drvdata(root_dprc_dev->parent);
 
 	if (mc->num_translation_ranges == 0) {
@@ -401,7 +391,6 @@ static int fsl_mc_device_get_mmio_regions(struct fsl_mc_device *mc_dev,
 		 * type, as this object type is not supposed to have MMIO
 		 * regions
 		 */
-		WARN_ON(true);
 		return -EINVAL;
 	}
 
@@ -424,7 +413,6 @@ static int fsl_mc_device_get_mmio_regions(struct fsl_mc_device *mc_dev,
 			goto error_cleanup_regions;
 		}
 
-		WARN_ON(region_desc.size == 0);
 		error = translate_mc_addr(mc_dev, mc_region_type,
 					  region_desc.base_offset,
 					  &regions[i].start);

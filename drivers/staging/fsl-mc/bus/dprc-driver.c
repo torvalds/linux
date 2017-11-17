@@ -39,8 +39,6 @@ static int __fsl_mc_device_remove_if_not_in_mc(struct device *dev, void *data)
 	struct fsl_mc_child_objs *objs;
 	struct fsl_mc_device *mc_dev;
 
-	WARN_ON(!dev);
-	WARN_ON(!data);
 	mc_dev = to_fsl_mc_device(dev);
 	objs = data;
 
@@ -60,8 +58,6 @@ static int __fsl_mc_device_remove_if_not_in_mc(struct device *dev, void *data)
 
 static int __fsl_mc_device_remove(struct device *dev, void *data)
 {
-	WARN_ON(!dev);
-	WARN_ON(data);
 	fsl_mc_device_remove(to_fsl_mc_device(dev));
 	return 0;
 }
@@ -453,8 +449,6 @@ static int disable_dprc_irq(struct fsl_mc_device *mc_dev)
 	int error;
 	struct fsl_mc_io *mc_io = mc_dev->mc_io;
 
-	WARN_ON(mc_dev->obj_desc.irq_count != 1);
-
 	/*
 	 * Disable generation of interrupt, while we configure it:
 	 */
@@ -495,8 +489,6 @@ static int register_dprc_irq_handler(struct fsl_mc_device *mc_dev)
 {
 	int error;
 	struct fsl_mc_device_irq *irq = mc_dev->irqs[0];
-
-	WARN_ON(mc_dev->obj_desc.irq_count != 1);
 
 	/*
 	 * NOTE: devm_request_threaded_irq() invokes the device-specific
