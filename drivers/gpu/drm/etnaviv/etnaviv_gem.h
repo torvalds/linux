@@ -26,8 +26,7 @@ struct etnaviv_gem_object;
 
 struct etnaviv_gem_userptr {
 	uintptr_t ptr;
-	struct task_struct *task;
-	struct work_struct *work;
+	struct mm_struct *mm;
 	bool ro;
 };
 
