@@ -174,6 +174,11 @@ enum trace_reg {
 	TRACE_REG_PERF_UNREGISTER,
 	TRACE_REG_PERF_OPEN,
 	TRACE_REG_PERF_CLOSE,
+	/*
+	 * These (ADD/DEL) use a 'boolean' return value, where 1 (true) means a
+	 * custom action was taken and the default action is not to be
+	 * performed.
+	 */
 	TRACE_REG_PERF_ADD,
 	TRACE_REG_PERF_DEL,
 #endif
@@ -542,9 +547,9 @@ void perf_trace_run_bpf_submit(void *raw_data, int size, int rctx,
 static inline void
 perf_trace_buf_submit(void *raw_data, int size, int rctx, u16 type,
 		       u64 count, struct pt_regs *regs, void *head,
-		       struct task_struct *task, struct perf_event *event)
+		       struct task_struct *task)
 {
-	perf_tp_event(type, count, raw_data, size, regs, head, rctx, task, event);
+	perf_tp_event(type, count, raw_data, size, regs, head, rctx, task);
 }
 
 #endif

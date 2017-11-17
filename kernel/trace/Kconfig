@@ -160,6 +160,17 @@ config FUNCTION_GRAPH_TRACER
 	  address on the current task structure into a stack of calls.
 
 
+config PREEMPTIRQ_EVENTS
+	bool "Enable trace events for preempt and irq disable/enable"
+	select TRACE_IRQFLAGS
+	depends on DEBUG_PREEMPT || !PROVE_LOCKING
+	default n
+	help
+	  Enable tracing of disable and enable events for preemption and irqs.
+	  For tracing preempt disable/enable events, DEBUG_PREEMPT must be
+	  enabled. For tracing irq disable/enable events, PROVE_LOCKING must
+	  be disabled.
+
 config IRQSOFF_TRACER
 	bool "Interrupts-off Latency Tracer"
 	default n

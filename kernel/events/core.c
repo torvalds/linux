@@ -7874,15 +7874,16 @@ void perf_trace_run_bpf_submit(void *raw_data, int size, int rctx,
 		}
 	}
 	perf_tp_event(call->event.type, count, raw_data, size, regs, head,
-		      rctx, task, NULL);
+		      rctx, task);
 }
 EXPORT_SYMBOL_GPL(perf_trace_run_bpf_submit);
 
 void perf_tp_event(u16 event_type, u64 count, void *record, int entry_size,
 		   struct pt_regs *regs, struct hlist_head *head, int rctx,
-		   struct task_struct *task, struct perf_event *event)
+		   struct task_struct *task)
 {
 	struct perf_sample_data data;
+	struct perf_event *event;
 
 	struct perf_raw_record raw = {
 		.frag = {
@@ -7896,15 +7897,9 @@ void perf_tp_event(u16 event_type, u64 count, void *record, int entry_size,
 
 	perf_trace_buf_update(record, event_type);
 
-	/* Use the given event instead of the hlist */
-	if (event) {
+	hlist_for_each_entry_rcu(event, head, hlist_entry) {
 		if (perf_tp_event_match(event, &data, regs))
 			perf_swevent_event(event, count, &data, regs);
-	} else {
-		hlist_for_each_entry_rcu(event, head, hlist_entry) {
-			if (perf_tp_event_match(event, &data, regs))
-				perf_swevent_event(event, count, &data, regs);
-		}
 	}
 
 	/*

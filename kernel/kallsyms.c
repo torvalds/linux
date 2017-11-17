@@ -24,6 +24,7 @@
 #include <linux/ctype.h>
 #include <linux/slab.h>
 #include <linux/filter.h>
+#include <linux/ftrace.h>
 #include <linux/compiler.h>
 
 #include <asm/sections.h>
@@ -337,6 +338,10 @@ const char *kallsyms_lookup(unsigned long addr,
 	if (!ret)
 		ret = bpf_address_lookup(addr, symbolsize,
 					 offset, modname, namebuf);
+
+	if (!ret)
+		ret = ftrace_mod_address_lookup(addr, symbolsize,
+						offset, modname, namebuf);
 	return ret;
 }
 
@@ -474,6 +479,7 @@ EXPORT_SYMBOL(__print_symbol);
 struct kallsym_iter {
 	loff_t pos;
 	loff_t pos_mod_end;
+	loff_t pos_ftrace_mod_end;
 	unsigned long value;
 	unsigned int nameoff; /* If iterating in core kernel symbols. */
 	char type;
@@ -497,11 +503,25 @@ static int get_ksymbol_mod(struct kallsym_iter *iter)
 	return 1;
 }
 
+static int get_ksymbol_ftrace_mod(struct kallsym_iter *iter)
+{
+	int ret = ftrace_mod_get_kallsym(iter->pos - iter->pos_mod_end,
+					 &iter->value, &iter->type,
+					 iter->name, iter->module_name,
+					 &iter->exported);
+	if (ret < 0) {
+		iter->pos_ftrace_mod_end = iter->pos;
+		return 0;
+	}
+
+	return 1;
+}
+
 static int get_ksymbol_bpf(struct kallsym_iter *iter)
 {
 	iter->module_name[0] = '\0';
 	iter->exported = 0;
-	return bpf_get_kallsym(iter->pos - iter->pos_mod_end,
+	return bpf_get_kallsym(iter->pos - iter->pos_ftrace_mod_end,
 			       &iter->value, &iter->type,
 			       iter->name) < 0 ? 0 : 1;
 }
@@ -526,20 +546,31 @@ static void reset_iter(struct kallsym_iter *iter, loff_t new_pos)
 	iter->name[0] = '\0';
 	iter->nameoff = get_symbol_offset(new_pos);
 	iter->pos = new_pos;
-	if (new_pos == 0)
+	if (new_pos == 0) {
 		iter->pos_mod_end = 0;
+		iter->pos_ftrace_mod_end = 0;
+	}
 }
 
 static int update_iter_mod(struct kallsym_iter *iter, loff_t pos)
 {
 	iter->pos = pos;
 
-	if (iter->pos_mod_end > 0 &&
-	    iter->pos_mod_end < iter->pos)
+	if (iter->pos_ftrace_mod_end > 0 &&
+	    iter->pos_ftrace_mod_end < iter->pos)
 		return get_ksymbol_bpf(iter);
 
-	if (!get_ksymbol_mod(iter))
-		return get_ksymbol_bpf(iter);
+	if (iter->pos_mod_end > 0 &&
+	    iter->pos_mod_end < iter->pos) {
+		if (!get_ksymbol_ftrace_mod(iter))
+			return get_ksymbol_bpf(iter);
+		return 1;
+	}
+
+	if (!get_ksymbol_mod(iter)) {
+		if (!get_ksymbol_ftrace_mod(iter))
+			return get_ksymbol_bpf(iter);
+	}
 
 	return 1;
 }
