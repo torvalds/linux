@@ -65,6 +65,7 @@
 #define OLDMEM_SIZE	(*(unsigned long *)  (OLDMEM_SIZE_OFFSET))
 #define COMMAND_LINE	((char *)	     (COMMAND_LINE_OFFSET))
 
+extern int noexec_disabled;
 extern int memory_end_set;
 extern unsigned long memory_end;
 extern unsigned long max_physmem_end;

@@ -468,6 +468,12 @@ static inline int is_module_addr(void *addr)
 				 _SEGMENT_ENTRY_YOUNG |	\
 				 _SEGMENT_ENTRY_PROTECT | \
 				 _SEGMENT_ENTRY_NOEXEC)
+#define SEGMENT_KERNEL_EXEC __pgprot(_SEGMENT_ENTRY |	\
+				 _SEGMENT_ENTRY_LARGE |	\
+				 _SEGMENT_ENTRY_READ |	\
+				 _SEGMENT_ENTRY_WRITE | \
+				 _SEGMENT_ENTRY_YOUNG |	\
+				 _SEGMENT_ENTRY_DIRTY)
 
 /*
  * Region3 entry (large page) protection definitions.

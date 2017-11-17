@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/ctype.h>
 #include <linux/kernel.h>
+#include <linux/errno.h>
 #include "../lib/string.c"
 
 int strncmp(const char *cs, const char *ct, size_t count)
@@ -97,4 +98,41 @@ long simple_strtol(const char *cp, char **endp, unsigned int base)
 		return -simple_strtoull(cp + 1, endp, base);
 
 	return simple_strtoull(cp, endp, base);
+}
+
+int kstrtobool(const char *s, bool *res)
+{
+	if (!s)
+		return -EINVAL;
+
+	switch (s[0]) {
+	case 'y':
+	case 'Y':
+	case '1':
+		*res = true;
+		return 0;
+	case 'n':
+	case 'N':
+	case '0':
+		*res = false;
+		return 0;
+	case 'o':
+	case 'O':
+		switch (s[1]) {
+		case 'n':
+		case 'N':
+			*res = true;
+			return 0;
+		case 'f':
+		case 'F':
+			*res = false;
+			return 0;
+		default:
+			break;
+		}
+	default:
+		break;
+	}
+
+	return -EINVAL;
 }

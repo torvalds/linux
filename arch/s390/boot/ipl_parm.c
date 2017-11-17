@@ -13,6 +13,7 @@ int __bootdata(early_ipl_block_valid);
 
 unsigned long __bootdata(memory_end);
 int __bootdata(memory_end_set);
+int __bootdata(noexec_disabled);
 
 static inline int __diag308(unsigned long subcode, void *addr)
 {
@@ -145,8 +146,10 @@ void setup_boot_command_line(void)
 static char command_line_buf[COMMAND_LINE_SIZE] __section(.data);
 static void parse_mem_opt(void)
 {
-	char *args;
 	char *param, *val;
+	bool enabled;
+	char *args;
+	int rc;
 
 	args = strcpy(command_line_buf, early_command_line);
 	while (*args) {
@@ -155,6 +158,12 @@ static void parse_mem_opt(void)
 		if (!strcmp(param, "mem")) {
 			memory_end = memparse(val, NULL);
 			memory_end_set = 1;
+		}
+
+		if (!strcmp(param, "noexec")) {
+			rc = kstrtobool(val, &enabled);
+			if (!rc && !enabled)
+				noexec_disabled = 1;
 		}
 	}
 }

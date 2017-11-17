@@ -7,11 +7,16 @@
 #include <asm/kasan.h>
 #include <asm/processor.h>
 #include <asm/sclp.h>
+#include <asm/facility.h>
 #include <asm/sections.h>
 #include <asm/setup.h>
 
+static unsigned long segment_pos __initdata;
+static unsigned long segment_low __initdata;
 static unsigned long pgalloc_pos __initdata;
 static unsigned long pgalloc_low __initdata;
+static bool has_edat __initdata;
+static bool has_nx __initdata;
 
 #define __sha(x) ((unsigned long)kasan_mem_to_shadow((void *)x))
 
@@ -22,6 +27,16 @@ static void __init kasan_early_panic(const char *reason)
 	sclp_early_printk("The Linux kernel failed to boot with the KernelAddressSanitizer:\n");
 	sclp_early_printk(reason);
 	disabled_wait(0);
+}
+
+static void * __init kasan_early_alloc_segment(void)
+{
+	segment_pos -= _SEGMENT_SIZE;
+
+	if (segment_pos < segment_low)
+		kasan_early_panic("out of memory during initialisation\n");
+
+	return (void *)segment_pos;
 }
 
 static void * __init kasan_early_alloc_pages(unsigned int order)
@@ -71,7 +86,7 @@ static void __init kasan_early_vmemmap_populate(unsigned long address,
 						unsigned long end,
 						enum populate_mode mode)
 {
-	unsigned long pgt_prot_zero, pgt_prot;
+	unsigned long pgt_prot_zero, pgt_prot, sgt_prot;
 	pgd_t *pg_dir;
 	p4d_t *p4_dir;
 	pud_t *pu_dir;
@@ -79,8 +94,10 @@ static void __init kasan_early_vmemmap_populate(unsigned long address,
 	pte_t *pt_dir;
 
 	pgt_prot_zero = pgprot_val(PAGE_KERNEL_RO);
-	pgt_prot_zero &= ~_PAGE_NOEXEC;
+	if (!has_nx)
+		pgt_prot_zero &= ~_PAGE_NOEXEC;
 	pgt_prot = pgprot_val(PAGE_KERNEL_EXEC);
+	sgt_prot = pgprot_val(SEGMENT_KERNEL_EXEC);
 
 	while (address < end) {
 		pg_dir = pgd_offset_k(address);
@@ -131,8 +148,27 @@ static void __init kasan_early_vmemmap_populate(unsigned long address,
 				address = (address + PMD_SIZE) & PMD_MASK;
 				continue;
 			}
+			/* the first megabyte of 1:1 is mapped with 4k pages */
+			if (has_edat && address && end - address >= PMD_SIZE &&
+			    mode != POPULATE_ZERO_SHADOW) {
+				void *page;
+
+				if (mode == POPULATE_ONE2ONE) {
+					page = (void *)address;
+				} else {
+					page = kasan_early_alloc_segment();
+					memset(page, 0, _SEGMENT_SIZE);
+				}
+				pmd_val(*pm_dir) = __pa(page) | sgt_prot;
+				address = (address + PMD_SIZE) & PMD_MASK;
+				continue;
+			}
+
 			pt_dir = kasan_early_pte_alloc();
 			pmd_populate(&init_mm, pm_dir, pt_dir);
+		} else if (pmd_large(*pm_dir)) {
+			address = (address + PMD_SIZE) & PMD_MASK;
+			continue;
 		}
 
 		pt_dir = pte_offset_kernel(pm_dir, address);
@@ -182,6 +218,20 @@ static void __init kasan_enable_dat(void)
 	__load_psw_mask(psw.mask);
 }
 
+static void __init kasan_early_detect_facilities(void)
+{
+	stfle(S390_lowcore.stfle_fac_list,
+	      ARRAY_SIZE(S390_lowcore.stfle_fac_list));
+	if (test_facility(8)) {
+		has_edat = true;
+		__ctl_set_bit(0, 23);
+	}
+	if (!noexec_disabled && test_facility(130)) {
+		has_nx = true;
+		__ctl_set_bit(0, 20);
+	}
+}
+
 void __init kasan_early_init(void)
 {
 	unsigned long untracked_mem_end;
@@ -196,7 +246,9 @@ void __init kasan_early_init(void)
 	pud_t pud_z = __pud(__pa(kasan_zero_pmd) | _REGION3_ENTRY);
 	p4d_t p4d_z = __p4d(__pa(kasan_zero_pud) | _REGION2_ENTRY);
 
-	pgt_prot &= ~_PAGE_NOEXEC;
+	kasan_early_detect_facilities();
+	if (!has_nx)
+		pgt_prot &= ~_PAGE_NOEXEC;
 	pte_z = __pte(__pa(kasan_zero_page) | pgt_prot);
 
 	/* 3 level paging */
@@ -224,7 +276,13 @@ void __init kasan_early_init(void)
 	if (pgalloc_low + shadow_alloc_size > memsize)
 		kasan_early_panic("out of memory during initialisation\n");
 
-	pgalloc_pos = memsize;
+	if (has_edat) {
+		segment_pos = round_down(memsize, _SEGMENT_SIZE);
+		segment_low = segment_pos - shadow_alloc_size;
+		pgalloc_pos = segment_low;
+	} else {
+		pgalloc_pos = memsize;
+	}
 	init_mm.pgd = early_pg_dir;
 	/*
 	 * Current memory layout:
