@@ -49,12 +49,11 @@
 #define DRIVER_VERSION "1.02"
 #define DRIVER_AUTHOR "Wim Van Sebroeck <wim@iguana.be>"
 #define DRIVER_DESC "Berkshire USB-PC Watchdog driver"
-#define DRIVER_LICENSE "GPL"
 #define DRIVER_NAME "pcwd_usb"
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
-MODULE_LICENSE(DRIVER_LICENSE);
+MODULE_LICENSE("GPL");
 
 #define WATCHDOG_HEARTBEAT 0	/* default heartbeat =
 						delay-time from dip-switches */
