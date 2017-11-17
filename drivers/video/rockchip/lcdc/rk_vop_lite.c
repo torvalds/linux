@@ -33,7 +33,6 @@
 #include <linux/uaccess.h>
 #include <linux/rockchip/cpu.h>
 #include <linux/rockchip/grf.h>
-#include <linux/rockchip/common.h>
 #include <dt-bindings/clock/rk_system_status.h>
 
 #include "rk_vop_lite.h"

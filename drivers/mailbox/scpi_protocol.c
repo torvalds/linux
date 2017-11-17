@@ -748,34 +748,6 @@ int scpi_ddr_set_auto_self_refresh(u32 en)
 }
 EXPORT_SYMBOL_GPL(scpi_ddr_set_auto_self_refresh);
 
-int scpi_ddr_bandwidth_get(struct ddr_bw_info *ddr_bw_ch0,
-			   struct ddr_bw_info *ddr_bw_ch1)
-{
-	struct scpi_data_buf sdata;
-	struct rk3368_mbox_msg mdata;
-	struct __packed1 {
-		u32 status;
-	} tx_buf;
-	struct __packed2 {
-		u32 status;
-		struct ddr_bw_info ddr_bw_ch0;
-		struct ddr_bw_info ddr_bw_ch1;
-	} rx_buf;
-
-	tx_buf.status = 0;
-
-	SCPI_SETUP_DBUF(sdata, mdata, SCPI_CL_DDR,
-			SCPI_DDR_BANDWIDTH_GET, tx_buf, rx_buf);
-	if (scpi_execute_cmd(&sdata))
-		return 0;
-
-	memcpy(ddr_bw_ch0, &(rx_buf.ddr_bw_ch0), sizeof(rx_buf.ddr_bw_ch0));
-	memcpy(ddr_bw_ch1, &(rx_buf.ddr_bw_ch1), sizeof(rx_buf.ddr_bw_ch1));
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(scpi_ddr_bandwidth_get);
-
 int scpi_ddr_get_clk_rate(void)
 {
 	struct scpi_data_buf sdata;

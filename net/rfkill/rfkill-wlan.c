@@ -35,7 +35,6 @@
 #include <linux/skbuff.h>
 #include <linux/fb.h>
 #include <linux/rockchip/grf.h>
-#include <linux/rockchip/common.h>
 #include <linux/regmap.h>
 #include <linux/mfd/syscon.h>
 #include <linux/mmc/host.h>

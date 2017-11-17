@@ -2,7 +2,6 @@
 #include "camsys_soc_priv.h"
 #include "camsys_gpio.h"
 
-#include <linux/rockchip/common.h>
 #include <dt-bindings/soc/rockchip-system-status.h>
 #include <soc/rockchip/rockchip-system-status.h>
 #include <linux/rockchip_ion.h>

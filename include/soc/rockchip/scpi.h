@@ -14,8 +14,6 @@
 #ifndef __SOC_ROCKCHIP_SCPI_H
 #define __SOC_ROCKCHIP_SCPI_H
 
-#include <linux/rockchip/common.h>
-
 #ifdef CONFIG_RK3368_SCPI_PROTOCOL
 struct scpi_opp_entry {
 	u32 freq_hz;
@@ -46,8 +44,6 @@ int scpi_ddr_set_clk_rate(u32 rate, u32 lcdc_type);
 int scpi_ddr_send_timing(u32 *p, u32 size);
 int scpi_ddr_round_rate(u32 m_hz);
 int scpi_ddr_set_auto_self_refresh(u32 en);
-int scpi_ddr_bandwidth_get(struct ddr_bw_info *ddr_bw_ch0,
-			   struct ddr_bw_info *ddr_bw_ch1);
 int scpi_ddr_get_clk_rate(void);
 int scpi_thermal_get_temperature(void);
 int scpi_thermal_set_clk_cycle(u32 cycle);
@@ -129,12 +125,6 @@ static inline int scpi_ddr_round_rate(u32 m_hz)
 }
 
 static inline int scpi_ddr_set_auto_self_refresh(u32 en)
-{
-	return -EPERM;
-}
-
-static inline int scpi_ddr_bandwidth_get(struct ddr_bw_info *ddr_bw_ch0,
-					 struct ddr_bw_info *ddr_bw_ch1)
 {
 	return -EPERM;
 }

@@ -60,7 +60,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 4, 0))
 #include <linux/rockchip/dvfs.h>
 #endif
-#include <linux/rockchip/common.h>
 #include "power.h"
 #include "rk_init_v2.h"
 #include "pvrsrv_device.h"

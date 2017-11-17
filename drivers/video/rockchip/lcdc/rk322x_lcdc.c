@@ -33,7 +33,6 @@
 #include <asm/div64.h>
 #include <linux/uaccess.h>
 #include <linux/rockchip/grf.h>
-#include <linux/rockchip/common.h>
 #include <dt-bindings/clock/rk_system_status.h>
 #include <soc/rockchip/rkfb_dmc.h>
 #include <linux/of_gpio.h>
