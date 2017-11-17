@@ -1059,6 +1059,45 @@ static const unsigned int avb0_avtp_capture_b_mux[] = {
 	AVB0_AVTP_CAPTURE_B_MARK,
 };
 
+/* - CAN ------------------------------------------------------------------ */
+static const unsigned int can0_data_a_pins[] = {
+	/* TX, RX */
+	RCAR_GP_PIN(4, 28), RCAR_GP_PIN(4, 31),
+};
+static const unsigned int can0_data_a_mux[] = {
+	CAN0_TX_A_MARK, CAN0_RX_A_MARK,
+};
+static const unsigned int can0_data_b_pins[] = {
+	/* TX, RX */
+	RCAR_GP_PIN(4, 22), RCAR_GP_PIN(4, 5),
+};
+static const unsigned int can0_data_b_mux[] = {
+	CAN0_TX_B_MARK, CAN0_RX_B_MARK,
+};
+static const unsigned int can1_data_a_pins[] = {
+	/* TX, RX */
+	RCAR_GP_PIN(4, 30), RCAR_GP_PIN(4, 29),
+};
+static const unsigned int can1_data_a_mux[] = {
+	CAN1_TX_A_MARK, CAN1_RX_A_MARK,
+};
+static const unsigned int can1_data_b_pins[] = {
+	/* TX, RX */
+	RCAR_GP_PIN(4, 7), RCAR_GP_PIN(4, 6),
+};
+static const unsigned int can1_data_b_mux[] = {
+	CAN1_TX_B_MARK, CAN1_RX_B_MARK,
+};
+
+/* - CAN Clock -------------------------------------------------------------- */
+static const unsigned int can_clk_pins[] = {
+	/* CLK */
+	RCAR_GP_PIN(5, 2),
+};
+static const unsigned int can_clk_mux[] = {
+	CAN_CLK_MARK,
+};
+
 /* - I2C -------------------------------------------------------------------- */
 static const unsigned int i2c0_pins[] = {
 	/* SCL, SDA */
@@ -1506,6 +1545,11 @@ static const struct sh_pfc_pin_group pinmux_groups[] = {
 	SH_PFC_PIN_GROUP(avb0_avtp_pps_b),
 	SH_PFC_PIN_GROUP(avb0_avtp_match_b),
 	SH_PFC_PIN_GROUP(avb0_avtp_capture_b),
+	SH_PFC_PIN_GROUP(can0_data_a),
+	SH_PFC_PIN_GROUP(can0_data_b),
+	SH_PFC_PIN_GROUP(can1_data_a),
+	SH_PFC_PIN_GROUP(can1_data_b),
+	SH_PFC_PIN_GROUP(can_clk),
 	SH_PFC_PIN_GROUP(i2c0),
 	SH_PFC_PIN_GROUP(i2c1),
 	SH_PFC_PIN_GROUP(i2c2_a),
@@ -1581,6 +1625,18 @@ static const char * const avb0_groups[] = {
 	"avb0_avtp_pps_b",
 	"avb0_avtp_match_b",
 	"avb0_avtp_capture_b",
+};
+
+static const char * const can0_groups[] = {
+	"can0_data_a",
+	"can0_data_b",
+};
+static const char * const can1_groups[] = {
+	"can1_data_a",
+	"can1_data_b",
+};
+static const char * const can_clk_groups[] = {
+	"can_clk",
 };
 
 static const char * const i2c0_groups[] = {
@@ -1693,6 +1749,9 @@ static const char * const usb0_groups[] = {
 static const struct sh_pfc_function pinmux_functions[] = {
 	SH_PFC_FUNCTION(audio_clk),
 	SH_PFC_FUNCTION(avb0),
+	SH_PFC_FUNCTION(can0),
+	SH_PFC_FUNCTION(can1),
+	SH_PFC_FUNCTION(can_clk),
 	SH_PFC_FUNCTION(i2c0),
 	SH_PFC_FUNCTION(i2c1),
 	SH_PFC_FUNCTION(i2c2),
