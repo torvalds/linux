@@ -26,7 +26,6 @@
 #include <linux/sched.h>
 #include <linux/sched/stat.h>
 #include <linux/slab.h>
-#include <linux/hardirq.h>
 
 #define MCRYPTD_MAX_CPU_QLEN 100
 #define MCRYPTD_BATCH 9

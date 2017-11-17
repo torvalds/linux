@@ -26,7 +26,6 @@
 #include <linux/crypto.h>
 #include <linux/init.h>
 #include <linux/module.h>
-#include <linux/hardirq.h>
 #include <crypto/algapi.h>
 #include <crypto/cryptd.h>
 #include <crypto/ablk_helper.h>
