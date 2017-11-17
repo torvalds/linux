@@ -7,6 +7,8 @@
  * SPDX-License-Identifier: (GPL-2.0+ OR MIT)
  */
 
+#include <dt-bindings/gpio/uniphier-gpio.h>
+
 / {
 	compatible = "socionext,uniphier-ld4";
 	#address-cells = <1>;
