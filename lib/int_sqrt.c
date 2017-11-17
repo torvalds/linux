@@ -11,10 +11,10 @@
 #include <linux/bitops.h>
 
 /**
- * int_sqrt - rough approximation to sqrt
+ * int_sqrt - computes the integer square root
  * @x: integer of which to calculate the sqrt
  *
- * A very rough approximation to the sqrt() function.
+ * Computes: floor(sqrt(x))
  */
 unsigned long int_sqrt(unsigned long x)
 {
