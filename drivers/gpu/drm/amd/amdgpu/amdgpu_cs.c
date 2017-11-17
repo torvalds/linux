@@ -1498,7 +1498,7 @@ out:
 	wait->out.status = (r > 0);
 	wait->out.first_signaled = first;
 
-	if (array[first])
+	if (first < fence_count && array[first])
 		r = array[first]->error;
 	else
 		r = 0;
