@@ -783,7 +783,7 @@ EXPORT_SYMBOL_GPL(nfs_getattr);
 
 static void nfs_init_lock_context(struct nfs_lock_context *l_ctx)
 {
-	atomic_set(&l_ctx->count, 1);
+	refcount_set(&l_ctx->count, 1);
 	l_ctx->lockowner = current->files;
 	INIT_LIST_HEAD(&l_ctx->list);
 	atomic_set(&l_ctx->io_count, 0);
@@ -797,7 +797,7 @@ static struct nfs_lock_context *__nfs_find_lock_context(struct nfs_open_context 
 	do {
 		if (pos->lockowner != current->files)
 			continue;
-		atomic_inc(&pos->count);
+		refcount_inc(&pos->count);
 		return pos;
 	} while ((pos = list_entry(pos->list.next, typeof(*pos), list)) != head);
 	return NULL;
@@ -836,7 +836,7 @@ void nfs_put_lock_context(struct nfs_lock_context *l_ctx)
 	struct nfs_open_context *ctx = l_ctx->open_context;
 	struct inode *inode = d_inode(ctx->dentry);
 
-	if (!atomic_dec_and_lock(&l_ctx->count, &inode->i_lock))
+	if (!refcount_dec_and_lock(&l_ctx->count, &inode->i_lock))
 		return;
 	list_del(&l_ctx->list);
 	spin_unlock(&inode->i_lock);
@@ -913,7 +913,7 @@ EXPORT_SYMBOL_GPL(alloc_nfs_open_context);
 struct nfs_open_context *get_nfs_open_context(struct nfs_open_context *ctx)
 {
 	if (ctx != NULL)
-		atomic_inc(&ctx->lock_context.count);
+		refcount_inc(&ctx->lock_context.count);
 	return ctx;
 }
 EXPORT_SYMBOL_GPL(get_nfs_open_context);
@@ -924,11 +924,11 @@ static void __put_nfs_open_context(struct nfs_open_context *ctx, int is_sync)
 	struct super_block *sb = ctx->dentry->d_sb;
 
 	if (!list_empty(&ctx->list)) {
-		if (!atomic_dec_and_lock(&ctx->lock_context.count, &inode->i_lock))
+		if (!refcount_dec_and_lock(&ctx->lock_context.count, &inode->i_lock))
 			return;
 		list_del(&ctx->list);
 		spin_unlock(&inode->i_lock);
-	} else if (!atomic_dec_and_test(&ctx->lock_context.count))
+	} else if (!refcount_dec_and_test(&ctx->lock_context.count))
 		return;
 	if (inode != NULL)
 		NFS_PROTO(inode)->close_context(ctx, is_sync);
@@ -2084,8 +2084,12 @@ static int nfs_net_init(struct net *net)
 
 static void nfs_net_exit(struct net *net)
 {
+	struct nfs_net *nn = net_generic(net, nfs_net_id);
+
 	nfs_fs_proc_net_exit(net);
 	nfs_cleanup_cb_ident_idr(net);
+	WARN_ON_ONCE(!list_empty(&nn->nfs_client_list));
+	WARN_ON_ONCE(!list_empty(&nn->nfs_volume_list));
 }
 
 static struct pernet_operations nfs_net_ops = {

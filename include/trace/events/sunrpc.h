@@ -71,6 +71,36 @@ TRACE_EVENT(rpc_connect_status,
 		__entry->status)
 );
 
+TRACE_EVENT(rpc_request,
+	TP_PROTO(const struct rpc_task *task),
+
+	TP_ARGS(task),
+
+	TP_STRUCT__entry(
+		__field(unsigned int, task_id)
+		__field(unsigned int, client_id)
+		__field(int, version)
+		__field(bool, async)
+		__string(progname, task->tk_client->cl_program->name)
+		__string(procname, rpc_proc_name(task))
+	),
+
+	TP_fast_assign(
+		__entry->task_id = task->tk_pid;
+		__entry->client_id = task->tk_client->cl_clid;
+		__entry->version = task->tk_client->cl_vers;
+		__entry->async = RPC_IS_ASYNC(task);
+		__assign_str(progname, task->tk_client->cl_program->name)
+		__assign_str(procname, rpc_proc_name(task))
+	),
+
+	TP_printk("task:%u@%u %sv%d %s (%ssync)",
+		__entry->task_id, __entry->client_id,
+		__get_str(progname), __entry->version,
+		__get_str(procname), __entry->async ? "a": ""
+		)
+);
+
 DECLARE_EVENT_CLASS(rpc_task_running,
 
 	TP_PROTO(const struct rpc_clnt *clnt, const struct rpc_task *task, const void *action),
@@ -342,21 +372,21 @@ DECLARE_EVENT_CLASS(rpc_xprt_event,
 	TP_ARGS(xprt, xid, status),
 
 	TP_STRUCT__entry(
-		__field(__be32, xid)
+		__field(u32, xid)
 		__field(int, status)
 		__string(addr, xprt->address_strings[RPC_DISPLAY_ADDR])
 		__string(port, xprt->address_strings[RPC_DISPLAY_PORT])
 	),
 
 	TP_fast_assign(
-		__entry->xid = xid;
+		__entry->xid = be32_to_cpu(xid);
 		__entry->status = status;
 		__assign_str(addr, xprt->address_strings[RPC_DISPLAY_ADDR]);
 		__assign_str(port, xprt->address_strings[RPC_DISPLAY_PORT]);
 	),
 
-	TP_printk("peer=[%s]:%s xid=0x%x status=%d", __get_str(addr),
-			__get_str(port), be32_to_cpu(__entry->xid),
+	TP_printk("peer=[%s]:%s xid=0x%08x status=%d", __get_str(addr),
+			__get_str(port), __entry->xid,
 			__entry->status)
 );
 
@@ -417,7 +447,7 @@ TRACE_EVENT(xs_tcp_data_recv,
 	TP_STRUCT__entry(
 		__string(addr, xs->xprt.address_strings[RPC_DISPLAY_ADDR])
 		__string(port, xs->xprt.address_strings[RPC_DISPLAY_PORT])
-		__field(__be32, xid)
+		__field(u32, xid)
 		__field(unsigned long, flags)
 		__field(unsigned long, copied)
 		__field(unsigned int, reclen)
@@ -427,15 +457,15 @@ TRACE_EVENT(xs_tcp_data_recv,
 	TP_fast_assign(
 		__assign_str(addr, xs->xprt.address_strings[RPC_DISPLAY_ADDR]);
 		__assign_str(port, xs->xprt.address_strings[RPC_DISPLAY_PORT]);
-		__entry->xid = xs->tcp_xid;
+		__entry->xid = be32_to_cpu(xs->tcp_xid);
 		__entry->flags = xs->tcp_flags;
 		__entry->copied = xs->tcp_copied;
 		__entry->reclen = xs->tcp_reclen;
 		__entry->offset = xs->tcp_offset;
 	),
 
-	TP_printk("peer=[%s]:%s xid=0x%x flags=%s copied=%lu reclen=%u offset=%lu",
-			__get_str(addr), __get_str(port), be32_to_cpu(__entry->xid),
+	TP_printk("peer=[%s]:%s xid=0x%08x flags=%s copied=%lu reclen=%u offset=%lu",
+			__get_str(addr), __get_str(port), __entry->xid,
 			rpc_show_sock_xprt_flags(__entry->flags),
 			__entry->copied, __entry->reclen, __entry->offset)
 );
@@ -457,20 +487,20 @@ TRACE_EVENT(svc_recv,
 
 	TP_STRUCT__entry(
 		__field(struct sockaddr *, addr)
-		__field(__be32, xid)
+		__field(u32, xid)
 		__field(int, status)
 		__field(unsigned long, flags)
 	),
 
 	TP_fast_assign(
 		__entry->addr = (struct sockaddr *)&rqst->rq_addr;
-		__entry->xid = status > 0 ? rqst->rq_xid : 0;
+		__entry->xid = status > 0 ? be32_to_cpu(rqst->rq_xid) : 0;
 		__entry->status = status;
 		__entry->flags = rqst->rq_flags;
 	),
 
-	TP_printk("addr=%pIScp xid=0x%x status=%d flags=%s", __entry->addr,
-			be32_to_cpu(__entry->xid), __entry->status,
+	TP_printk("addr=%pIScp xid=0x%08x status=%d flags=%s", __entry->addr,
+			__entry->xid, __entry->status,
 			show_rqstp_flags(__entry->flags))
 );
 
@@ -481,21 +511,21 @@ DECLARE_EVENT_CLASS(svc_rqst_event,
 	TP_ARGS(rqst),
 
 	TP_STRUCT__entry(
-		__field(__be32, xid)
+		__field(u32, xid)
 		__field(unsigned long, flags)
 		__dynamic_array(unsigned char, addr, rqst->rq_addrlen)
 	),
 
 	TP_fast_assign(
-		__entry->xid = rqst->rq_xid;
+		__entry->xid = be32_to_cpu(rqst->rq_xid);
 		__entry->flags = rqst->rq_flags;
 		memcpy(__get_dynamic_array(addr),
 			&rqst->rq_addr, rqst->rq_addrlen);
 	),
 
-	TP_printk("addr=%pIScp rq_xid=0x%x flags=%s",
+	TP_printk("addr=%pIScp rq_xid=0x%08x flags=%s",
 		(struct sockaddr *)__get_dynamic_array(addr),
-		be32_to_cpu(__entry->xid),
+		__entry->xid,
 		show_rqstp_flags(__entry->flags))
 );
 
@@ -515,7 +545,7 @@ DECLARE_EVENT_CLASS(svc_rqst_status,
 
 	TP_STRUCT__entry(
 		__field(struct sockaddr *, addr)
-		__field(__be32, xid)
+		__field(u32, xid)
 		__field(int, dropme)
 		__field(int, status)
 		__field(unsigned long, flags)
@@ -523,13 +553,13 @@ DECLARE_EVENT_CLASS(svc_rqst_status,
 
 	TP_fast_assign(
 		__entry->addr = (struct sockaddr *)&rqst->rq_addr;
-		__entry->xid = rqst->rq_xid;
+		__entry->xid = be32_to_cpu(rqst->rq_xid);
 		__entry->status = status;
 		__entry->flags = rqst->rq_flags;
 	),
 
-	TP_printk("addr=%pIScp rq_xid=0x%x status=%d flags=%s",
-		__entry->addr, be32_to_cpu(__entry->xid),
+	TP_printk("addr=%pIScp rq_xid=0x%08x status=%d flags=%s",
+		__entry->addr, __entry->xid,
 		__entry->status, show_rqstp_flags(__entry->flags))
 );
 
@@ -678,18 +708,19 @@ DECLARE_EVENT_CLASS(svc_deferred_event,
 	TP_ARGS(dr),
 
 	TP_STRUCT__entry(
-		__field(__be32, xid)
+		__field(u32, xid)
 		__dynamic_array(unsigned char, addr, dr->addrlen)
 	),
 
 	TP_fast_assign(
-		__entry->xid = *(__be32 *)(dr->args + (dr->xprt_hlen>>2));
+		__entry->xid = be32_to_cpu(*(__be32 *)(dr->args +
+						       (dr->xprt_hlen>>2)));
 		memcpy(__get_dynamic_array(addr), &dr->addr, dr->addrlen);
 	),
 
-	TP_printk("addr=%pIScp xid=0x%x",
+	TP_printk("addr=%pIScp xid=0x%08x",
 		(struct sockaddr *)__get_dynamic_array(addr),
-		be32_to_cpu(__entry->xid))
+		__entry->xid)
 );
 
 DEFINE_EVENT(svc_deferred_event, svc_drop_deferred,
