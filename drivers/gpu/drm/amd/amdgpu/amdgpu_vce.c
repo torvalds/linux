@@ -544,6 +544,54 @@ err:
 }
 
 /**
+ * amdgpu_vce_cs_validate_bo - make sure not to cross 4GB boundary
+ *
+ * @p: parser context
+ * @lo: address of lower dword
+ * @hi: address of higher dword
+ * @size: minimum size
+ * @index: bs/fb index
+ *
+ * Make sure that no BO cross a 4GB boundary.
+ */
+static int amdgpu_vce_validate_bo(struct amdgpu_cs_parser *p, uint32_t ib_idx,
+				  int lo, int hi, unsigned size, int32_t index)
+{
+	int64_t offset = ((uint64_t)size) * ((int64_t)index);
+	struct amdgpu_bo_va_mapping *mapping;
+	unsigned i, fpfn, lpfn;
+	struct amdgpu_bo *bo;
+	uint64_t addr;
+	int r;
+
+	addr = ((uint64_t)amdgpu_get_ib_value(p, ib_idx, lo)) |
+	       ((uint64_t)amdgpu_get_ib_value(p, ib_idx, hi)) << 32;
+	if (index >= 0) {
+		addr += offset;
+		fpfn = PAGE_ALIGN(offset) >> PAGE_SHIFT;
+		lpfn = 0x100000000ULL >> PAGE_SHIFT;
+	} else {
+		fpfn = 0;
+		lpfn = (0x100000000ULL - PAGE_ALIGN(offset)) >> PAGE_SHIFT;
+	}
+
+	r = amdgpu_cs_find_mapping(p, addr, &bo, &mapping);
+	if (r) {
+		DRM_ERROR("Can't find BO for addr 0x%010Lx %d %d %d %d\n",
+			  addr, lo, hi, size, index);
+		return r;
+	}
+
+	for (i = 0; i < bo->placement.num_placement; ++i) {
+		bo->placements[i].fpfn = max(bo->placements[i].fpfn, fpfn);
+		bo->placements[i].lpfn = bo->placements[i].fpfn ?
+			min(bo->placements[i].fpfn, lpfn) : lpfn;
+	}
+	return ttm_bo_validate(&bo->tbo, &bo->placement, false, false);
+}
+
+
+/**
  * amdgpu_vce_cs_reloc - command submission relocation
  *
  * @p: parser context
@@ -648,12 +696,13 @@ int amdgpu_vce_ring_parse_cs(struct amdgpu_cs_parser *p, uint32_t ib_idx)
 	uint32_t allocated = 0;
 	uint32_t tmp, handle = 0;
 	uint32_t *size = &tmp;
-	int i, r = 0, idx = 0;
+	unsigned idx;
+	int i, r = 0;
 
 	p->job->vm = NULL;
 	ib->gpu_addr = amdgpu_sa_bo_gpu_addr(ib->sa_bo);
 
-	while (idx < ib->length_dw) {
+	for (idx = 0; idx < ib->length_dw;) {
 		uint32_t len = amdgpu_get_ib_value(p, ib_idx, idx);
 		uint32_t cmd = amdgpu_get_ib_value(p, ib_idx, idx + 1);
 
@@ -662,6 +711,54 @@ int amdgpu_vce_ring_parse_cs(struct amdgpu_cs_parser *p, uint32_t ib_idx)
 			r = -EINVAL;
 			goto out;
 		}
+
+		switch (cmd) {
+		case 0x00000002: /* task info */
+			fb_idx = amdgpu_get_ib_value(p, ib_idx, idx + 6);
+			bs_idx = amdgpu_get_ib_value(p, ib_idx, idx + 7);
+			break;
+
+		case 0x03000001: /* encode */
+			r = amdgpu_vce_validate_bo(p, ib_idx, idx + 10,
+						   idx + 9, 0, 0);
+			if (r)
+				goto out;
+
+			r = amdgpu_vce_validate_bo(p, ib_idx, idx + 12,
+						   idx + 11, 0, 0);
+			if (r)
+				goto out;
+			break;
+
+		case 0x05000001: /* context buffer */
+			r = amdgpu_vce_validate_bo(p, ib_idx, idx + 3,
+						   idx + 2, 0, 0);
+			if (r)
+				goto out;
+			break;
+
+		case 0x05000004: /* video bitstream buffer */
+			tmp = amdgpu_get_ib_value(p, ib_idx, idx + 4);
+			r = amdgpu_vce_validate_bo(p, ib_idx, idx + 3, idx + 2,
+						   tmp, bs_idx);
+			if (r)
+				goto out;
+			break;
+
+		case 0x05000005: /* feedback buffer */
+			r = amdgpu_vce_validate_bo(p, ib_idx, idx + 3, idx + 2,
+						   4096, fb_idx);
+			if (r)
+				goto out;
+			break;
+		}
+
+		idx += len / 4;
+	}
+
+	for (idx = 0; idx < ib->length_dw;) {
+		uint32_t len = amdgpu_get_ib_value(p, ib_idx, idx);
+		uint32_t cmd = amdgpu_get_ib_value(p, ib_idx, idx + 1);
 
 		switch (cmd) {
 		case 0x00000001: /* session */
