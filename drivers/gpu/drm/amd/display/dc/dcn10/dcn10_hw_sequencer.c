@@ -2297,7 +2297,7 @@ static void dcn10_apply_ctx_for_surface(
 			pipe_ctx->plane_state->update_flags.bits.full_update)
 			program_water_mark = true;
 
-		if (removed_pipe[i] && num_planes == 0)
+		if (removed_pipe[i])
 			dcn10_disable_plane(dc, old_pipe_ctx);
 	}
 
@@ -2306,6 +2306,7 @@ static void dcn10_apply_ctx_for_surface(
 			/* pstate stuck check after watermark update */
 			dcn10_verify_allow_pstate_change_high(dc);
 		}
+
 		/* watermark is for all pipes */
 		hubbub1_program_watermarks(dc->res_pool->hubbub,
 				&context->bw.dcn.watermarks, ref_clk_mhz);
