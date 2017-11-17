@@ -14,11 +14,11 @@
 
 #include "fsl-mc-private.h"
 
-static bool __must_check fsl_mc_is_allocatable(const char *obj_type)
+static bool __must_check fsl_mc_is_allocatable(struct fsl_mc_device *mc_dev)
 {
-	return strcmp(obj_type, "dpbp") == 0 ||
-	       strcmp(obj_type, "dpmcp") == 0 ||
-	       strcmp(obj_type, "dpcon") == 0;
+	return is_fsl_mc_bus_dpbp(mc_dev) ||
+	       is_fsl_mc_bus_dpmcp(mc_dev) ||
+	       is_fsl_mc_bus_dpcon(mc_dev);
 }
 
 /**
@@ -43,7 +43,7 @@ static int __must_check fsl_mc_resource_pool_add_device(struct fsl_mc_bus
 
 	if (pool_type < 0 || pool_type >= FSL_MC_NUM_POOL_TYPES)
 		goto out;
-	if (!fsl_mc_is_allocatable(mc_dev->obj_desc.type))
+	if (!fsl_mc_is_allocatable(mc_dev))
 		goto out;
 	if (mc_dev->resource)
 		goto out;
@@ -105,7 +105,7 @@ static int __must_check fsl_mc_resource_pool_remove_device(struct fsl_mc_device
 	struct fsl_mc_resource *resource;
 	int error = -EINVAL;
 
-	if (!fsl_mc_is_allocatable(mc_dev->obj_desc.type))
+	if (!fsl_mc_is_allocatable(mc_dev))
 		goto out;
 
 	resource = mc_dev->resource;
@@ -442,7 +442,7 @@ int __must_check fsl_mc_allocate_irqs(struct fsl_mc_device *mc_dev)
 	if (irq_count == 0)
 		return -EINVAL;
 
-	if (strcmp(mc_dev->obj_desc.type, "dprc") == 0)
+	if (is_fsl_mc_bus_dprc(mc_dev))
 		mc_bus = to_fsl_mc_bus(mc_dev);
 	else
 		mc_bus = to_fsl_mc_bus(to_fsl_mc_device(mc_dev->dev.parent));
@@ -505,7 +505,7 @@ void fsl_mc_free_irqs(struct fsl_mc_device *mc_dev)
 
 	irq_count = mc_dev->obj_desc.irq_count;
 
-	if (strcmp(mc_dev->obj_desc.type, "dprc") == 0)
+	if (is_fsl_mc_bus_dprc(mc_dev))
 		mc_bus = to_fsl_mc_bus(mc_dev);
 	else
 		mc_bus = to_fsl_mc_bus(to_fsl_mc_device(mc_dev->dev.parent));
@@ -575,7 +575,7 @@ static int fsl_mc_allocator_probe(struct fsl_mc_device *mc_dev)
 	struct fsl_mc_bus *mc_bus;
 	int error;
 
-	if (!fsl_mc_is_allocatable(mc_dev->obj_desc.type))
+	if (!fsl_mc_is_allocatable(mc_dev))
 		return -EINVAL;
 
 	mc_bus_dev = to_fsl_mc_device(mc_dev->dev.parent);
@@ -604,7 +604,7 @@ static int fsl_mc_allocator_remove(struct fsl_mc_device *mc_dev)
 {
 	int error;
 
-	if (!fsl_mc_is_allocatable(mc_dev->obj_desc.type))
+	if (!fsl_mc_is_allocatable(mc_dev))
 		return -EINVAL;
 
 	if (mc_dev->resource) {

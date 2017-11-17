@@ -442,10 +442,10 @@ static int fsl_mc_device_get_mmio_regions(struct fsl_mc_device *mc_dev,
 	struct device *parent_dev = mc_dev->dev.parent;
 	enum dprc_region_type mc_region_type;
 
-	if (strcmp(obj_desc->type, "dprc") == 0 ||
-	    strcmp(obj_desc->type, "dpmcp") == 0) {
+	if (is_fsl_mc_bus_dprc(mc_dev) ||
+	    is_fsl_mc_bus_dpmcp(mc_dev)) {
 		mc_region_type = DPRC_REGION_TYPE_MC_PORTAL;
-	} else if (strcmp(obj_desc->type, "dpio") == 0) {
+	} else if (is_fsl_mc_bus_dpio(mc_dev)) {
 		mc_region_type = DPRC_REGION_TYPE_QBMAN_PORTAL;
 	} else {
 		/*
@@ -520,7 +520,7 @@ static void fsl_mc_device_release(struct device *dev)
 
 	kfree(mc_dev->regions);
 
-	if (strcmp(mc_dev->obj_desc.type, "dprc") == 0)
+	if (is_fsl_mc_bus_dprc(mc_dev))
 		kfree(to_fsl_mc_bus(mc_dev));
 	else
 		kfree(mc_dev);

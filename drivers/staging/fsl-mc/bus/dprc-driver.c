@@ -593,7 +593,7 @@ static int dprc_probe(struct fsl_mc_device *mc_dev)
 	bool msi_domain_set = false;
 	u16 major_ver, minor_ver;
 
-	if (strcmp(mc_dev->obj_desc.type, "dprc") != 0)
+	if (!is_fsl_mc_bus_dprc(mc_dev))
 		return -EINVAL;
 
 	if (dev_get_msi_domain(&mc_dev->dev))
@@ -745,7 +745,7 @@ static int dprc_remove(struct fsl_mc_device *mc_dev)
 	int error;
 	struct fsl_mc_bus *mc_bus = to_fsl_mc_bus(mc_dev);
 
-	if (strcmp(mc_dev->obj_desc.type, "dprc") != 0)
+	if (!is_fsl_mc_bus_dprc(mc_dev))
 		return -EINVAL;
 	if (!mc_dev->mc_io)
 		return -EINVAL;
