@@ -643,8 +643,9 @@ static int etnaviv_gem_new_impl(struct drm_device *dev, u32 size, u32 flags,
 	return 0;
 }
 
-static struct drm_gem_object *__etnaviv_gem_new(struct drm_device *dev,
-		u32 size, u32 flags)
+/* convenience method to construct a GEM buffer object, and userspace handle */
+int etnaviv_gem_new_handle(struct drm_device *dev, struct drm_file *file,
+	u32 size, u32 flags, u32 *handle)
 {
 	struct drm_gem_object *obj = NULL;
 	int ret;
@@ -665,7 +666,7 @@ static struct drm_gem_object *__etnaviv_gem_new(struct drm_device *dev,
 		/*
 		 * Our buffers are kept pinned, so allocating them
 		 * from the MOVABLE zone is a really bad idea, and
-		 * conflicts with CMA.  See coments above new_inode()
+		 * conflicts with CMA. See comments above new_inode()
 		 * why this is required _and_ expected if you're
 		 * going to pin these pages.
 		 */
@@ -677,24 +678,6 @@ static struct drm_gem_object *__etnaviv_gem_new(struct drm_device *dev,
 	if (ret)
 		goto fail;
 
-	return obj;
-
-fail:
-	drm_gem_object_put_unlocked(obj);
-	return ERR_PTR(ret);
-}
-
-/* convenience method to construct a GEM buffer object, and userspace handle */
-int etnaviv_gem_new_handle(struct drm_device *dev, struct drm_file *file,
-		u32 size, u32 flags, u32 *handle)
-{
-	struct drm_gem_object *obj;
-	int ret;
-
-	obj = __etnaviv_gem_new(dev, size, flags);
-	if (IS_ERR(obj))
-		return PTR_ERR(obj);
-
 	ret = etnaviv_gem_obj_add(dev, obj);
 	if (ret < 0) {
 		drm_gem_object_put_unlocked(obj);
@@ -704,6 +687,7 @@ int etnaviv_gem_new_handle(struct drm_device *dev, struct drm_file *file,
 	ret = drm_gem_handle_create(file, obj, handle);
 
 	/* drop reference from allocate - handle holds it now */
+fail:
 	drm_gem_object_put_unlocked(obj);
 
 	return ret;
