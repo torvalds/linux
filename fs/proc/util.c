@@ -8,7 +8,7 @@ unsigned name_to_int(const struct qstr *qstr)
 
 	if (len > 1 && *name == '0')
 		goto out;
-	while (len-- > 0) {
+	do {
 		unsigned c = *name++ - '0';
 		if (c > 9)
 			goto out;
@@ -16,7 +16,7 @@ unsigned name_to_int(const struct qstr *qstr)
 			goto out;
 		n *= 10;
 		n += c;
-	}
+	} while (--len > 0);
 	return n;
 out:
 	return ~0U;
