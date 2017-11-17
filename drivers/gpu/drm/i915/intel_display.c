@@ -11601,6 +11601,18 @@ verify_crtc_state(struct drm_crtc *crtc,
 }
 
 static void
+intel_verify_planes(struct intel_atomic_state *state)
+{
+	struct intel_plane *plane;
+	const struct intel_plane_state *plane_state;
+	int i;
+
+	for_each_new_intel_plane_in_state(state, plane,
+					  plane_state, i)
+		assert_plane(plane, plane_state->base.visible);
+}
+
+static void
 verify_single_dpll_state(struct drm_i915_private *dev_priv,
 			 struct intel_shared_dpll *pll,
 			 struct drm_crtc *crtc,
@@ -12392,6 +12404,9 @@ static void intel_atomic_commit_tail(struct drm_atomic_state *state)
 
 		intel_modeset_verify_crtc(crtc, state, old_crtc_state, new_crtc_state);
 	}
+
+	if (intel_state->modeset)
+		intel_verify_planes(intel_state);
 
 	if (intel_state->modeset && intel_can_enable_sagv(state))
 		intel_enable_sagv(dev_priv);
