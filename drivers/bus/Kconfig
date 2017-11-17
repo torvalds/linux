@@ -165,6 +165,14 @@ config TI_SYSC
 	  Generic driver for Texas Instruments interconnect target module
 	  found on many TI SoCs.
 
+config TS_NBUS
+	tristate "Technologic Systems NBUS Driver"
+	depends on SOC_IMX28
+	depends on OF_GPIO && PWM
+	help
+	  Driver for the Technologic Systems NBUS which is used to interface
+	  with the peripherals in the FPGA of the TS-4600 SoM.
+
 config UNIPHIER_SYSTEM_BUS
 	tristate "UniPhier System Bus driver"
 	depends on ARCH_UNIPHIER && OF
