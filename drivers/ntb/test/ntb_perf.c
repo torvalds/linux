@@ -63,7 +63,6 @@
 #define DRIVER_NAME		"ntb_perf"
 #define DRIVER_DESCRIPTION	"PCIe NTB Performance Measurement Tool"
 
-#define DRIVER_LICENSE		"Dual BSD/GPL"
 #define DRIVER_VERSION		"1.0"
 #define DRIVER_AUTHOR		"Dave Jiang <dave.jiang@intel.com>"
 
@@ -78,7 +77,7 @@
 #define MAX_SEG_ORDER		20 /* no larger than 1M for kmalloc buffer */
 #define PIDX			NTB_DEF_PEER_IDX
 
-MODULE_LICENSE(DRIVER_LICENSE);
+MODULE_LICENSE("Dual BSD/GPL");
 MODULE_VERSION(DRIVER_VERSION);
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESCRIPTION);
