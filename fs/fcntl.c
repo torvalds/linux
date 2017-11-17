@@ -563,6 +563,9 @@ static int put_compat_flock64(const struct flock *kfl, struct compat_flock64 __u
 {
 	struct compat_flock64 fl;
 
+	BUILD_BUG_ON(sizeof(kfl->l_start) > sizeof(ufl->l_start));
+	BUILD_BUG_ON(sizeof(kfl->l_len) > sizeof(ufl->l_len));
+
 	memset(&fl, 0, sizeof(struct compat_flock64));
 	copy_flock_fields(&fl, kfl);
 	if (copy_to_user(ufl, &fl, sizeof(struct compat_flock64)))
@@ -632,9 +635,8 @@ COMPAT_SYSCALL_DEFINE3(fcntl64, unsigned int, fd, unsigned int, cmd,
 		if (err)
 			break;
 		err = fixup_compat_flock(&flock);
-		if (err)
-			return err;
-		err = put_compat_flock(&flock, compat_ptr(arg));
+		if (!err)
+			err = put_compat_flock(&flock, compat_ptr(arg));
 		break;
 	case F_GETLK64:
 	case F_OFD_GETLK:
@@ -642,12 +644,8 @@ COMPAT_SYSCALL_DEFINE3(fcntl64, unsigned int, fd, unsigned int, cmd,
 		if (err)
 			break;
 		err = fcntl_getlk(f.file, convert_fcntl_cmd(cmd), &flock);
-		if (err)
-			break;
-		err = fixup_compat_flock(&flock);
-		if (err)
-			return err;
-		err = put_compat_flock64(&flock, compat_ptr(arg));
+		if (!err)
+			err = put_compat_flock64(&flock, compat_ptr(arg));
 		break;
 	case F_SETLK:
 	case F_SETLKW:
