@@ -461,7 +461,7 @@ static int ip6gre_rcv(struct sk_buff *skb, const struct tnl_ptk_info *tpi)
 				      &ipv6h->saddr, &ipv6h->daddr, tpi->key,
 				      tpi->proto);
 	if (tunnel) {
-		ip6_tnl_rcv(tunnel, skb, tpi, NULL, false);
+		ip6_tnl_rcv(tunnel, skb, tpi, NULL, log_ecn_error);
 
 		return PACKET_RCVD;
 	}
