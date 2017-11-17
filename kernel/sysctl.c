@@ -2576,12 +2576,13 @@ static int do_proc_douintvec_minmax_conv(unsigned long *lvalp,
 	if (write) {
 		unsigned int val = *lvalp;
 
+		if (*lvalp > UINT_MAX)
+			return -EINVAL;
+
 		if ((param->min && *param->min > val) ||
 		    (param->max && *param->max < val))
 			return -ERANGE;
 
-		if (*lvalp > UINT_MAX)
-			return -EINVAL;
 		*valp = val;
 	} else {
 		unsigned int val = *valp;
@@ -2632,16 +2633,17 @@ static int do_proc_dopipe_max_size_conv(unsigned long *lvalp,
 	struct do_proc_dopipe_max_size_conv_param *param = data;
 
 	if (write) {
-		unsigned int val = round_pipe_size(*lvalp);
+		unsigned int val;
 
+		if (*lvalp > UINT_MAX)
+			return -EINVAL;
+
+		val = round_pipe_size(*lvalp);
 		if (val == 0)
 			return -EINVAL;
 
 		if (param->min && *param->min > val)
 			return -ERANGE;
-
-		if (*lvalp > UINT_MAX)
-			return -EINVAL;
 
 		*valp = val;
 	} else {
