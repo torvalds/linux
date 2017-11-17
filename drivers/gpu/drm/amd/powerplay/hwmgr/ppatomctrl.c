@@ -23,6 +23,7 @@
 #include "pp_debug.h"
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/delay.h>
 #include "atom.h"
 #include "ppatomctrl.h"
 #include "atombios.h"
@@ -310,6 +311,36 @@ int atomctrl_get_memory_pll_dividers_vi(struct pp_hwmgr *hwmgr,
 	if (!result)
 		mpll_param->mpll_post_divider =
 				(uint32_t)mpll_parameters.ulClock.ucPostDiv;
+
+	return result;
+}
+
+int atomctrl_get_memory_pll_dividers_ai(struct pp_hwmgr *hwmgr,
+					uint32_t clock_value,
+					pp_atomctrl_memory_clock_param_ai *mpll_param)
+{
+	struct amdgpu_device *adev = hwmgr->adev;
+	COMPUTE_MEMORY_CLOCK_PARAM_PARAMETERS_V2_3 mpll_parameters = {0};
+	int result;
+
+	mpll_parameters.ulClock.ulClock = cpu_to_le32(clock_value);
+
+	result = amdgpu_atom_execute_table(adev->mode_info.atom_context,
+			GetIndexIntoMasterTable(COMMAND, ComputeMemoryClockParam),
+			(uint32_t *)&mpll_parameters);
+
+	/* VEGAM's mpll takes sometime to finish computing */
+	udelay(10);
+
+	if (!result) {
+		mpll_param->ulMclk_fcw_int =
+			le16_to_cpu(mpll_parameters.usMclk_fcw_int);
+		mpll_param->ulMclk_fcw_frac =
+			le16_to_cpu(mpll_parameters.usMclk_fcw_frac);
+		mpll_param->ulClock =
+			le32_to_cpu(mpll_parameters.ulClock.ulClock);
+		mpll_param->ulPostDiv = mpll_parameters.ulClock.ucPostDiv;
+	}
 
 	return result;
 }
