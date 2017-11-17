@@ -431,6 +431,7 @@ static struct rockchip_clk_branch rk3036_clk_branches[] __initdata = {
 };
 
 static const char *const rk3036_critical_clocks[] __initconst = {
+	"armclk",
 	"aclk_cpu",
 	"aclk_peri",
 	"hclk_peri",
@@ -497,13 +498,13 @@ static void __init rk3036_clk_init(struct device_node *np)
 				   RK3036_GRF_SOC_STATUS0);
 	rockchip_clk_register_branches(ctx, rk3036_clk_branches,
 				  ARRAY_SIZE(rk3036_clk_branches));
-	rockchip_clk_protect_critical(rk3036_critical_clocks,
-				      ARRAY_SIZE(rk3036_critical_clocks));
-
 	rockchip_clk_register_armclk(ctx, ARMCLK, "armclk",
 			mux_armclk_p, ARRAY_SIZE(mux_armclk_p),
 			&rk3036_cpuclk_data, rk3036_cpuclk_rates,
 			ARRAY_SIZE(rk3036_cpuclk_rates));
+
+	rockchip_clk_protect_critical(rk3036_critical_clocks,
+				      ARRAY_SIZE(rk3036_critical_clocks));
 
 	rockchip_register_softrst(np, 9, reg_base + RK2928_SOFTRST_CON(0),
 				  ROCKCHIP_SOFTRST_HIWORD_MASK);
