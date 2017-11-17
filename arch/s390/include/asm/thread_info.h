@@ -13,7 +13,11 @@
 /*
  * General size of kernel stacks
  */
+#ifdef CONFIG_KASAN
+#define THREAD_SIZE_ORDER 3
+#else
 #define THREAD_SIZE_ORDER 2
+#endif
 #define THREAD_SIZE (PAGE_SIZE << THREAD_SIZE_ORDER)
 
 #ifndef __ASSEMBLY__
