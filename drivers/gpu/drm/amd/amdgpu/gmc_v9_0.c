@@ -571,11 +571,11 @@ static int gmc_v9_0_ecc_available(struct amdgpu_device *adev)
 			  reg_val, field_val, fv2);
 
 		if (!field_val) {
-			DRM_ERROR("ecc: WrEccEn is not set\n");
+			DRM_DEBUG("ecc: WrEccEn is not set\n");
 			++lost_sheep;
 		}
 		if (!fv2) {
-			DRM_ERROR("ecc: RdEccEn is not set\n");
+			DRM_DEBUG("ecc: RdEccEn is not set\n");
 			++lost_sheep;
 		}
 	}
