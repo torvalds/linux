@@ -1646,3 +1646,20 @@ create_id_failed:
 	kfree(info);
 	return NULL;
 }
+
+struct smbd_connection *smbd_get_connection(
+	struct TCP_Server_Info *server, struct sockaddr *dstaddr)
+{
+	struct smbd_connection *ret;
+	int port = SMBD_PORT;
+
+try_again:
+	ret = _smbd_get_connection(server, dstaddr, port);
+
+	/* Try SMB_PORT if SMBD_PORT doesn't work */
+	if (!ret && port == SMBD_PORT) {
+		port = SMB_PORT;
+		goto try_again;
+	}
+	return ret;
+}

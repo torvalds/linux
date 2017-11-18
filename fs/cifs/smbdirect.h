@@ -243,9 +243,15 @@ struct smbd_response {
 	u8 packet[];
 };
 
+/* Create a SMBDirect session */
+struct smbd_connection *smbd_get_connection(
+	struct TCP_Server_Info *server, struct sockaddr *dstaddr);
+
 #else
 #define cifs_rdma_enabled(server)	0
 struct smbd_connection {};
+static inline void *smbd_get_connection(
+	struct TCP_Server_Info *server, struct sockaddr *dstaddr) {return NULL;}
 #endif
 
 #endif
