@@ -76,7 +76,6 @@
 
 #define MOD_AUTHOR			"Option Wireless"
 #define MOD_DESCRIPTION			"USB High Speed Option driver"
-#define MOD_LICENSE			"GPL"
 
 #define HSO_MAX_NET_DEVICES		10
 #define HSO__MAX_MTU			2048
@@ -3286,7 +3285,7 @@ module_exit(hso_exit);
 
 MODULE_AUTHOR(MOD_AUTHOR);
 MODULE_DESCRIPTION(MOD_DESCRIPTION);
-MODULE_LICENSE(MOD_LICENSE);
+MODULE_LICENSE("GPL");
 
 /* change the debug level (eg: insmod hso.ko debug=0x04) */
 MODULE_PARM_DESC(debug, "debug level mask [0x01 | 0x02 | 0x04 | 0x08 | 0x10]");

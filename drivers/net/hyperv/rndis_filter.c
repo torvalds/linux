@@ -1131,69 +1131,20 @@ unlock:
 	rtnl_unlock();
 }
 
-struct netvsc_device *rndis_filter_device_add(struct hv_device *dev,
-				      struct netvsc_device_info *device_info)
+static int rndis_netdev_set_hwcaps(struct rndis_device *rndis_device,
+				   struct netvsc_device *nvdev)
 {
-	struct net_device *net = hv_get_drvdata(dev);
+	struct net_device *net = rndis_device->ndev;
 	struct net_device_context *net_device_ctx = netdev_priv(net);
-	struct netvsc_device *net_device;
-	struct rndis_device *rndis_device;
 	struct ndis_offload hwcaps;
 	struct ndis_offload_params offloads;
-	struct ndis_recv_scale_cap rsscap;
-	u32 rsscap_size = sizeof(struct ndis_recv_scale_cap);
 	unsigned int gso_max_size = GSO_MAX_SIZE;
-	u32 mtu, size;
-	const struct cpumask *node_cpu_mask;
-	u32 num_possible_rss_qs;
-	int i, ret;
-
-	rndis_device = get_rndis_device();
-	if (!rndis_device)
-		return ERR_PTR(-ENODEV);
-
-	/*
-	 * Let the inner driver handle this first to create the netvsc channel
-	 * NOTE! Once the channel is created, we may get a receive callback
-	 * (RndisFilterOnReceive()) before this call is completed
-	 */
-	net_device = netvsc_device_add(dev, device_info);
-	if (IS_ERR(net_device)) {
-		kfree(rndis_device);
-		return net_device;
-	}
-
-	/* Initialize the rndis device */
-	net_device->max_chn = 1;
-	net_device->num_chn = 1;
-
-	net_device->extension = rndis_device;
-	rndis_device->ndev = net;
-
-	/* Send the rndis initialization message */
-	ret = rndis_filter_init_device(rndis_device, net_device);
-	if (ret != 0)
-		goto err_dev_remv;
-
-	/* Get the MTU from the host */
-	size = sizeof(u32);
-	ret = rndis_filter_query_device(rndis_device, net_device,
-					RNDIS_OID_GEN_MAXIMUM_FRAME_SIZE,
-					&mtu, &size);
-	if (ret == 0 && size == sizeof(u32) && mtu < net->mtu)
-		net->mtu = mtu;
-
-	/* Get the mac address */
-	ret = rndis_filter_query_device_mac(rndis_device, net_device);
-	if (ret != 0)
-		goto err_dev_remv;
-
-	memcpy(device_info->mac_adr, rndis_device->hw_mac_adr, ETH_ALEN);
+	int ret;
 
 	/* Find HW offload capabilities */
-	ret = rndis_query_hwcaps(rndis_device, net_device, &hwcaps);
+	ret = rndis_query_hwcaps(rndis_device, nvdev, &hwcaps);
 	if (ret != 0)
-		goto err_dev_remv;
+		return ret;
 
 	/* A value of zero means "no change"; now turn on what we want. */
 	memset(&offloads, 0, sizeof(struct ndis_offload_params));
@@ -1201,8 +1152,12 @@ struct netvsc_device *rndis_filter_device_add(struct hv_device *dev,
 	/* Linux does not care about IP checksum, always does in kernel */
 	offloads.ip_v4_csum = NDIS_OFFLOAD_PARAMETERS_TX_RX_DISABLED;
 
+	/* Reset previously set hw_features flags */
+	net->hw_features &= ~NETVSC_SUPPORTED_HW_FEATURES;
+	net_device_ctx->tx_checksum_mask = 0;
+
 	/* Compute tx offload settings based on hw capabilities */
-	net->hw_features = NETIF_F_RXCSUM;
+	net->hw_features |= NETIF_F_RXCSUM;
 
 	if ((hwcaps.csum.ip4_txcsum & NDIS_TXCSUM_ALL_TCP4) == NDIS_TXCSUM_ALL_TCP4) {
 		/* Can checksum TCP */
@@ -1246,10 +1201,75 @@ struct netvsc_device *rndis_filter_device_add(struct hv_device *dev,
 		}
 	}
 
+	/* In case some hw_features disappeared we need to remove them from
+	 * net->features list as they're no longer supported.
+	 */
+	net->features &= ~NETVSC_SUPPORTED_HW_FEATURES | net->hw_features;
+
 	netif_set_gso_max_size(net, gso_max_size);
 
-	ret = rndis_filter_set_offload_params(net, net_device, &offloads);
-	if (ret)
+	ret = rndis_filter_set_offload_params(net, nvdev, &offloads);
+
+	return ret;
+}
+
+struct netvsc_device *rndis_filter_device_add(struct hv_device *dev,
+				      struct netvsc_device_info *device_info)
+{
+	struct net_device *net = hv_get_drvdata(dev);
+	struct netvsc_device *net_device;
+	struct rndis_device *rndis_device;
+	struct ndis_recv_scale_cap rsscap;
+	u32 rsscap_size = sizeof(struct ndis_recv_scale_cap);
+	u32 mtu, size;
+	const struct cpumask *node_cpu_mask;
+	u32 num_possible_rss_qs;
+	int i, ret;
+
+	rndis_device = get_rndis_device();
+	if (!rndis_device)
+		return ERR_PTR(-ENODEV);
+
+	/* Let the inner driver handle this first to create the netvsc channel
+	 * NOTE! Once the channel is created, we may get a receive callback
+	 * (RndisFilterOnReceive()) before this call is completed
+	 */
+	net_device = netvsc_device_add(dev, device_info);
+	if (IS_ERR(net_device)) {
+		kfree(rndis_device);
+		return net_device;
+	}
+
+	/* Initialize the rndis device */
+	net_device->max_chn = 1;
+	net_device->num_chn = 1;
+
+	net_device->extension = rndis_device;
+	rndis_device->ndev = net;
+
+	/* Send the rndis initialization message */
+	ret = rndis_filter_init_device(rndis_device, net_device);
+	if (ret != 0)
+		goto err_dev_remv;
+
+	/* Get the MTU from the host */
+	size = sizeof(u32);
+	ret = rndis_filter_query_device(rndis_device, net_device,
+					RNDIS_OID_GEN_MAXIMUM_FRAME_SIZE,
+					&mtu, &size);
+	if (ret == 0 && size == sizeof(u32) && mtu < net->mtu)
+		net->mtu = mtu;
+
+	/* Get the mac address */
+	ret = rndis_filter_query_device_mac(rndis_device, net_device);
+	if (ret != 0)
+		goto err_dev_remv;
+
+	memcpy(device_info->mac_adr, rndis_device->hw_mac_adr, ETH_ALEN);
+
+	/* Query and set hardware capabilities */
+	ret = rndis_netdev_set_hwcaps(rndis_device, net_device);
+	if (ret != 0)
 		goto err_dev_remv;
 
 	rndis_filter_query_device_link_status(rndis_device, net_device);

@@ -646,6 +646,10 @@ struct nvsp_message {
 #define NETVSC_RECEIVE_BUFFER_ID		0xcafe
 #define NETVSC_SEND_BUFFER_ID			0
 
+#define NETVSC_SUPPORTED_HW_FEATURES (NETIF_F_RXCSUM | NETIF_F_IP_CSUM | \
+				      NETIF_F_TSO | NETIF_F_IPV6_CSUM | \
+				      NETIF_F_TSO6)
+
 #define VRSS_SEND_TAB_SIZE 16  /* must be power of 2 */
 #define VRSS_CHANNEL_MAX 64
 #define VRSS_CHANNEL_DEFAULT 8

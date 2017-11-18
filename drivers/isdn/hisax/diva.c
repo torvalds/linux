@@ -1093,7 +1093,7 @@ static int setup_diva_isapnp(struct IsdnCard *card)
 				}
 				card->para[1] = pnp_port_start(pnp_d, 0);
 				card->para[0] = pnp_irq(pnp_d, 0);
-				if (!card->para[0] || !card->para[1]) {
+				if (card->para[0] == -1 || !card->para[1]) {
 					printk(KERN_ERR "Diva PnP:some resources are missing %ld/%lx\n",
 					       card->para[0], card->para[1]);
 					pnp_disable_dev(pnp_d);

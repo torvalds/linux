@@ -2805,7 +2805,7 @@ static int mac80211_hwsim_get_radio(struct sk_buff *skb,
 		return -EMSGSIZE;
 
 	if (cb)
-		genl_dump_check_consistent(cb, hdr, &hwsim_genl_family);
+		genl_dump_check_consistent(cb, hdr);
 
 	if (data->alpha2[0] && data->alpha2[1])
 		param.reg_alpha2 = data->alpha2;

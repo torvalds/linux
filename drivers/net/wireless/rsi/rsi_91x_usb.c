@@ -162,12 +162,12 @@ static int rsi_usb_reg_read(struct usb_device *usbdev,
 	u8 *buf;
 	int status = -ENOMEM;
 
+	if (len > RSI_USB_CTRL_BUF_SIZE)
+		return -EINVAL;
+
 	buf  = kmalloc(RSI_USB_CTRL_BUF_SIZE, GFP_KERNEL);
 	if (!buf)
 		return status;
-
-	if (len > RSI_USB_CTRL_BUF_SIZE)
-		return -EINVAL;
 
 	status = usb_control_msg(usbdev,
 				 usb_rcvctrlpipe(usbdev, 0),
@@ -207,12 +207,12 @@ static int rsi_usb_reg_write(struct usb_device *usbdev,
 	u8 *usb_reg_buf;
 	int status = -ENOMEM;
 
+	if (len > RSI_USB_CTRL_BUF_SIZE)
+		return -EINVAL;
+
 	usb_reg_buf  = kmalloc(RSI_USB_CTRL_BUF_SIZE, GFP_KERNEL);
 	if (!usb_reg_buf)
 		return status;
-
-	if (len > RSI_USB_CTRL_BUF_SIZE)
-		return -EINVAL;
 
 	usb_reg_buf[0] = (value & 0x00ff);
 	usb_reg_buf[1] = (value & 0xff00) >> 8;

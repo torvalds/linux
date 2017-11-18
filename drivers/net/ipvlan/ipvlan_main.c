@@ -107,16 +107,6 @@ static int ipvlan_port_create(struct net_device *dev)
 	struct ipvl_port *port;
 	int err, idx;
 
-	if (dev->type != ARPHRD_ETHER || dev->flags & IFF_LOOPBACK) {
-		netdev_err(dev, "Master is either lo or non-ether device\n");
-		return -EINVAL;
-	}
-
-	if (netdev_is_rx_handler_busy(dev)) {
-		netdev_err(dev, "Device is already in use.\n");
-		return -EBUSY;
-	}
-
 	port = kzalloc(sizeof(struct ipvl_port), GFP_KERNEL);
 	if (!port)
 		return -ENOMEM;
@@ -179,8 +169,9 @@ static void ipvlan_port_destroy(struct net_device *dev)
 static int ipvlan_init(struct net_device *dev)
 {
 	struct ipvl_dev *ipvlan = netdev_priv(dev);
-	const struct net_device *phy_dev = ipvlan->phy_dev;
-	struct ipvl_port *port = ipvlan->port;
+	struct net_device *phy_dev = ipvlan->phy_dev;
+	struct ipvl_port *port;
+	int err;
 
 	dev->state = (dev->state & ~IPVLAN_STATE_MASK) |
 		     (phy_dev->state & IPVLAN_STATE_MASK);
@@ -196,18 +187,27 @@ static int ipvlan_init(struct net_device *dev)
 	if (!ipvlan->pcpu_stats)
 		return -ENOMEM;
 
+	if (!netif_is_ipvlan_port(phy_dev)) {
+		err = ipvlan_port_create(phy_dev);
+		if (err < 0) {
+			free_percpu(ipvlan->pcpu_stats);
+			return err;
+		}
+	}
+	port = ipvlan_port_get_rtnl(phy_dev);
 	port->count += 1;
-
 	return 0;
 }
 
 static void ipvlan_uninit(struct net_device *dev)
 {
 	struct ipvl_dev *ipvlan = netdev_priv(dev);
-	struct ipvl_port *port = ipvlan->port;
+	struct net_device *phy_dev = ipvlan->phy_dev;
+	struct ipvl_port *port;
 
 	free_percpu(ipvlan->pcpu_stats);
 
+	port = ipvlan_port_get_rtnl(phy_dev);
 	port->count -= 1;
 	if (!port->count)
 		ipvlan_port_destroy(port->dev);
@@ -554,7 +554,6 @@ int ipvlan_link_new(struct net *src_net, struct net_device *dev,
 	struct net_device *phy_dev;
 	int err;
 	u16 mode = IPVLAN_MODE_L3;
-	bool create = false;
 
 	if (!tb[IFLA_LINK])
 		return -EINVAL;
@@ -568,28 +567,41 @@ int ipvlan_link_new(struct net *src_net, struct net_device *dev,
 
 		phy_dev = tmp->phy_dev;
 	} else if (!netif_is_ipvlan_port(phy_dev)) {
-		err = ipvlan_port_create(phy_dev);
-		if (err < 0)
-			return err;
-		create = true;
+		/* Exit early if the underlying link is invalid or busy */
+		if (phy_dev->type != ARPHRD_ETHER ||
+		    phy_dev->flags & IFF_LOOPBACK) {
+			netdev_err(phy_dev,
+				   "Master is either lo or non-ether device\n");
+			return -EINVAL;
+		}
+
+		if (netdev_is_rx_handler_busy(phy_dev)) {
+			netdev_err(phy_dev, "Device is already in use.\n");
+			return -EBUSY;
+		}
 	}
 
-	if (data && data[IFLA_IPVLAN_MODE])
-		mode = nla_get_u16(data[IFLA_IPVLAN_MODE]);
-
-	port = ipvlan_port_get_rtnl(phy_dev);
 	ipvlan->phy_dev = phy_dev;
 	ipvlan->dev = dev;
-	ipvlan->port = port;
 	ipvlan->sfeatures = IPVLAN_FEATURES;
 	ipvlan_adjust_mtu(ipvlan, phy_dev);
 	INIT_LIST_HEAD(&ipvlan->addrs);
 
-	/* Flags are per port and latest update overrides. User has
-	 * to be consistent in setting it just like the mode attribute.
+	/* TODO Probably put random address here to be presented to the
+	 * world but keep using the physical-dev address for the outgoing
+	 * packets.
 	 */
-	if (data && data[IFLA_IPVLAN_FLAGS])
-		ipvlan->port->flags = nla_get_u16(data[IFLA_IPVLAN_FLAGS]);
+	memcpy(dev->dev_addr, phy_dev->dev_addr, ETH_ALEN);
+
+	dev->priv_flags |= IFF_IPVLAN_SLAVE;
+
+	err = register_netdevice(dev);
+	if (err < 0)
+		return err;
+
+	/* ipvlan_init() would have created the port, if required */
+	port = ipvlan_port_get_rtnl(phy_dev);
+	ipvlan->port = port;
 
 	/* If the port-id base is at the MAX value, then wrap it around and
 	 * begin from 0x1 again. This may be due to a busy system where lots
@@ -609,31 +621,28 @@ int ipvlan_link_new(struct net *src_net, struct net_device *dev,
 		err = ida_simple_get(&port->ida, 0x1, port->dev_id_start,
 				     GFP_KERNEL);
 	if (err < 0)
-		goto destroy_ipvlan_port;
+		goto unregister_netdev;
 	dev->dev_id = err;
+
 	/* Increment id-base to the next slot for the future assignment */
 	port->dev_id_start = err + 1;
 
-	/* TODO Probably put random address here to be presented to the
-	 * world but keep using the physical-dev address for the outgoing
-	 * packets.
-	 */
-	memcpy(dev->dev_addr, phy_dev->dev_addr, ETH_ALEN);
-
-	dev->priv_flags |= IFF_IPVLAN_SLAVE;
-
-	err = register_netdevice(dev);
-	if (err < 0)
+	err = netdev_upper_dev_link(phy_dev, dev, extack);
+	if (err)
 		goto remove_ida;
 
-	err = netdev_upper_dev_link(phy_dev, dev, extack);
-	if (err) {
-		goto unregister_netdev;
-	}
+	/* Flags are per port and latest update overrides. User has
+	 * to be consistent in setting it just like the mode attribute.
+	 */
+	if (data && data[IFLA_IPVLAN_FLAGS])
+		port->flags = nla_get_u16(data[IFLA_IPVLAN_FLAGS]);
+
+	if (data && data[IFLA_IPVLAN_MODE])
+		mode = nla_get_u16(data[IFLA_IPVLAN_MODE]);
+
 	err = ipvlan_set_port_mode(port, mode);
-	if (err) {
+	if (err)
 		goto unlink_netdev;
-	}
 
 	list_add_tail_rcu(&ipvlan->pnode, &port->ipvlans);
 	netif_stacked_transfer_operstate(phy_dev, dev);
@@ -641,13 +650,10 @@ int ipvlan_link_new(struct net *src_net, struct net_device *dev,
 
 unlink_netdev:
 	netdev_upper_dev_unlink(phy_dev, dev);
-unregister_netdev:
-	unregister_netdevice(dev);
 remove_ida:
 	ida_simple_remove(&port->ida, dev->dev_id);
-destroy_ipvlan_port:
-	if (create)
-		ipvlan_port_destroy(phy_dev);
+unregister_netdev:
+	unregister_netdevice(dev);
 	return err;
 }
 EXPORT_SYMBOL_GPL(ipvlan_link_new);
