@@ -216,7 +216,7 @@ The following are the list of keys to describe a JSON file.
   value type: string
 
   Setting it causes some debug information (both from the kernel and the
-  LKL library) to be enabled.
+  LKL library) to be enabled.  If zero' is specified it is disabled.
   It is also used as a bit mask to turn on specific debugging facilities.
   E.g., setting it to "0x100" will cause the LKL kernel to pause after
   the hijack'ed app exits. This allows one to debug or collect info from

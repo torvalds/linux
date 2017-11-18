@@ -418,12 +418,14 @@ hijack_init(void)
 		return;
 	for (i = 0; i < LKL_IF_MAX; i++)
 		nd_id[i] = -1;
-	if (!cfg->debug) {
-		lkl_host_ops.print = NULL;
-	} else {
+
+	if (cfg->debug) {
 		lkl_register_dbg_handler();
 		lkl_debug = strtol(cfg->debug, NULL, 0);
 	}
+
+	if (!cfg->debug || (lkl_debug == 0))
+		lkl_host_ops.print = NULL;
 
 	if (lkl_debug & 0x200) {
 		char c;

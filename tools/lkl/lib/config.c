@@ -322,35 +322,11 @@ int load_config_env(struct lkl_config *cfg)
 
 int init_config(struct lkl_config *cfg)
 {
-	int i;
-
 	if (!cfg)
 		return -1;
-	for (i = 0; i < LKL_IF_MAX; i++) {
-		cfg->iftap[i] = NULL;
-		cfg->iftype[i] = NULL;
-		cfg->ifparams[i] = NULL;
-		cfg->ifmtu_str[i] = NULL;
-		cfg->ifip[i] = NULL;
-		cfg->ifipv6[i] = NULL;
-		cfg->ifgateway[i] = NULL;
-		cfg->ifgateway6[i] = NULL;
-		cfg->ifmac_str[i] = NULL;
-		cfg->ifnetmask_len[i] = NULL;
-		cfg->ifnetmask6_len[i] = NULL;
-		cfg->ifoffload_str[i] = NULL;
-		cfg->ifneigh_entries[i] = NULL;
-		cfg->ifqdisc_entries[i] = NULL;
-	}
-	cfg->gateway = NULL;
-	cfg->gateway6 = NULL;
-	cfg->debug = NULL;
-	cfg->mount = NULL;
-	cfg->single_cpu = NULL;
-	cfg->sysctls = NULL;
-	cfg->boot_cmdline = NULL;
-	cfg->dump = NULL;
-	cfg->delay_main = NULL;
+
+	memset(cfg, 0, sizeof(struct lkl_config));
+
 	return 0;
 }
 

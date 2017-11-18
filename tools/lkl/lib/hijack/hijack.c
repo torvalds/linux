@@ -179,7 +179,7 @@ int getsockopt(int fd, int level, int optname, void *optval, socklen_t *optlen)
 {
 	CHECK_HOST_CALL(getsockopt);
 	if (!is_lklfd(fd))
-		return host_setsockopt(fd, level, optname, optval, optlen);
+		return host_getsockopt(fd, level, optname, optval, optlen);
 	return lkl_call(__lkl__NR_getsockopt, 5, fd, lkl_solevel_xlate(level),
 			lkl_soname_xlate(optname), optval, (int*)optlen);
 }
