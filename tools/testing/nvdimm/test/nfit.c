@@ -440,39 +440,50 @@ static int nfit_test_cmd_translate_spa(struct nvdimm_bus *bus,
 	return 0;
 }
 
-static int nfit_test_cmd_smart(struct nd_cmd_smart *smart, unsigned int buf_len)
+static int nfit_test_cmd_smart(struct nd_intel_smart *smart, unsigned int buf_len)
 {
-	static const struct nd_smart_payload smart_data = {
-		.flags = ND_SMART_HEALTH_VALID | ND_SMART_TEMP_VALID
-			| ND_SMART_SPARES_VALID | ND_SMART_ALARM_VALID
-			| ND_SMART_USED_VALID | ND_SMART_SHUTDOWN_VALID,
-		.health = ND_SMART_NON_CRITICAL_HEALTH,
-		.temperature = 23 * 16,
+	static const struct nd_intel_smart smart_data = {
+		.flags = ND_INTEL_SMART_HEALTH_VALID
+			| ND_INTEL_SMART_SPARES_VALID
+			| ND_INTEL_SMART_ALARM_VALID
+			| ND_INTEL_SMART_USED_VALID
+			| ND_INTEL_SMART_SHUTDOWN_VALID
+			| ND_INTEL_SMART_MTEMP_VALID,
+		.health = ND_INTEL_SMART_NON_CRITICAL_HEALTH,
+		.media_temperature = 23 * 16,
+		.ctrl_temperature = 30 * 16,
+		.pmic_temperature = 40 * 16,
 		.spares = 75,
-		.alarm_flags = ND_SMART_SPARE_TRIP | ND_SMART_TEMP_TRIP,
+		.alarm_flags = ND_INTEL_SMART_SPARE_TRIP
+			| ND_INTEL_SMART_TEMP_TRIP,
+		.ait_status = 1,
 		.life_used = 5,
 		.shutdown_state = 0,
 		.vendor_size = 0,
+		.shutdown_count = 100,
 	};
 
 	if (buf_len < sizeof(*smart))
 		return -EINVAL;
-	memcpy(smart->data, &smart_data, sizeof(smart_data));
+	memcpy(smart, &smart_data, sizeof(smart_data));
 	return 0;
 }
 
-static int nfit_test_cmd_smart_threshold(struct nd_cmd_smart_threshold *smart_t,
+static int nfit_test_cmd_smart_threshold(
+		struct nd_intel_smart_threshold *smart_t,
 		unsigned int buf_len)
 {
-	static const struct nd_smart_threshold_payload smart_t_data = {
-		.alarm_control = ND_SMART_SPARE_TRIP | ND_SMART_TEMP_TRIP,
-		.temperature = 40 * 16,
+	static const struct nd_intel_smart_threshold smart_t_data = {
+		.alarm_control = ND_INTEL_SMART_SPARE_TRIP
+			| ND_INTEL_SMART_TEMP_TRIP,
+		.media_temperature = 40 * 16,
+		.ctrl_temperature = 30 * 16,
 		.spares = 5,
 	};
 
 	if (buf_len < sizeof(*smart_t))
 		return -EINVAL;
-	memcpy(smart_t->data, &smart_t_data, sizeof(smart_t_data));
+	memcpy(smart_t, &smart_t_data, sizeof(smart_t_data));
 	return 0;
 }
 
