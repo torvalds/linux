@@ -172,6 +172,9 @@ void machine__exit(struct machine *machine)
 {
 	int i;
 
+	if (machine == NULL)
+		return;
+
 	machine__destroy_kernel_maps(machine);
 	map_groups__exit(&machine->kmaps);
 	dsos__exit(&machine->dsos);
@@ -2201,7 +2204,7 @@ int thread__resolve_callchain(struct thread *thread,
 {
 	int ret = 0;
 
-	callchain_cursor_reset(&callchain_cursor);
+	callchain_cursor_reset(cursor);
 
 	if (callchain_param.order == ORDER_CALLEE) {
 		ret = thread__resolve_callchain_sample(thread, cursor,

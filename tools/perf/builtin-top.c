@@ -77,6 +77,7 @@
 #include "sane_ctype.h"
 
 static volatile int done;
+static volatile int resize;
 
 #define HEADER_LINE_NR  5
 
@@ -85,17 +86,20 @@ static void perf_top__update_print_entries(struct perf_top *top)
 	top->print_entries = top->winsize.ws_row - HEADER_LINE_NR;
 }
 
-static void perf_top__sig_winch(int sig __maybe_unused,
-				siginfo_t *info __maybe_unused, void *arg)
+static void winch_sig(int sig __maybe_unused)
 {
-	struct perf_top *top = arg;
+	resize = 1;
+}
 
+static void perf_top__resize(struct perf_top *top)
+{
 	get_term_dimensions(&top->winsize);
 	perf_top__update_print_entries(top);
 }
 
 static int perf_top__parse_source(struct perf_top *top, struct hist_entry *he)
 {
+	struct perf_evsel *evsel = hists_to_evsel(he->hists);
 	struct symbol *sym;
 	struct annotation *notes;
 	struct map *map;
@@ -134,7 +138,7 @@ static int perf_top__parse_source(struct perf_top *top, struct hist_entry *he)
 		return err;
 	}
 
-	err = symbol__disassemble(sym, map, NULL, 0, NULL, NULL);
+	err = symbol__annotate(sym, map, evsel, 0, NULL, NULL);
 	if (err == 0) {
 out_assign:
 		top->sym_filter_entry = he;
@@ -226,6 +230,7 @@ static void perf_top__record_precise_ip(struct perf_top *top,
 static void perf_top__show_details(struct perf_top *top)
 {
 	struct hist_entry *he = top->sym_filter_entry;
+	struct perf_evsel *evsel = hists_to_evsel(he->hists);
 	struct annotation *notes;
 	struct symbol *symbol;
 	int more;
@@ -237,6 +242,8 @@ static void perf_top__show_details(struct perf_top *top)
 	notes = symbol__annotation(symbol);
 
 	pthread_mutex_lock(&notes->lock);
+
+	symbol__calc_percent(symbol, evsel);
 
 	if (notes->src == NULL)
 		goto out_unlock;
@@ -409,7 +416,7 @@ static void perf_top__print_mapped_keys(struct perf_top *top)
 	fprintf(stdout, "\t[S]     stop annotation.\n");
 
 	fprintf(stdout,
-		"\t[K]     hide kernel_symbols symbols.     \t(%s)\n",
+		"\t[K]     hide kernel symbols.             \t(%s)\n",
 		top->hide_kernel_symbols ? "yes" : "no");
 	fprintf(stdout,
 		"\t[U]     hide user symbols.               \t(%s)\n",
@@ -473,12 +480,8 @@ static bool perf_top__handle_keypress(struct perf_top *top, int c)
 		case 'e':
 			prompt_integer(&top->print_entries, "Enter display entries (lines)");
 			if (top->print_entries == 0) {
-				struct sigaction act = {
-					.sa_sigaction = perf_top__sig_winch,
-					.sa_flags     = SA_SIGINFO,
-				};
-				perf_top__sig_winch(SIGWINCH, NULL, top);
-				sigaction(SIGWINCH, &act, NULL);
+				perf_top__resize(top);
+				signal(SIGWINCH, winch_sig);
 			} else {
 				signal(SIGWINCH, SIG_DFL);
 			}
@@ -732,14 +735,16 @@ static void perf_event__process_sample(struct perf_tool *tool,
 	if (!machine->kptr_restrict_warned &&
 	    symbol_conf.kptr_restrict &&
 	    al.cpumode == PERF_RECORD_MISC_KERNEL) {
-		ui__warning(
+		if (!perf_evlist__exclude_kernel(top->session->evlist)) {
+			ui__warning(
 "Kernel address maps (/proc/{kallsyms,modules}) are restricted.\n\n"
 "Check /proc/sys/kernel/kptr_restrict.\n\n"
 "Kernel%s samples will not be resolved.\n",
 			  al.map && !RB_EMPTY_ROOT(&al.map->dso->symbols[MAP__FUNCTION]) ?
 			  " modules" : "");
-		if (use_browser <= 0)
-			sleep(5);
+			if (use_browser <= 0)
+				sleep(5);
+		}
 		machine->kptr_restrict_warned = true;
 	}
 
@@ -1030,6 +1035,11 @@ static int __cmd_top(struct perf_top *top)
 
 		if (hits == top->samples)
 			ret = perf_evlist__poll(top->evlist, 100);
+
+		if (resize) {
+			perf_top__resize(top);
+			resize = 0;
+		}
 	}
 
 	ret = 0;
@@ -1352,12 +1362,8 @@ int cmd_top(int argc, const char **argv)
 
 	get_term_dimensions(&top.winsize);
 	if (top.print_entries == 0) {
-		struct sigaction act = {
-			.sa_sigaction = perf_top__sig_winch,
-			.sa_flags     = SA_SIGINFO,
-		};
 		perf_top__update_print_entries(&top);
-		sigaction(SIGWINCH, &act, NULL);
+		signal(SIGWINCH, winch_sig);
 	}
 
 	status = __cmd_top(&top);

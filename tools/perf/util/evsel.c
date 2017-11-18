@@ -733,12 +733,16 @@ static void apply_config_terms(struct perf_evsel *evsel,
 	list_for_each_entry(term, config_terms, list) {
 		switch (term->type) {
 		case PERF_EVSEL__CONFIG_TERM_PERIOD:
-			attr->sample_period = term->val.period;
-			attr->freq = 0;
+			if (!(term->weak && opts->user_interval != ULLONG_MAX)) {
+				attr->sample_period = term->val.period;
+				attr->freq = 0;
+			}
 			break;
 		case PERF_EVSEL__CONFIG_TERM_FREQ:
-			attr->sample_freq = term->val.freq;
-			attr->freq = 1;
+			if (!(term->weak && opts->user_freq != UINT_MAX)) {
+				attr->sample_freq = term->val.freq;
+				attr->freq = 1;
+			}
 			break;
 		case PERF_EVSEL__CONFIG_TERM_TIME:
 			if (term->val.time)
@@ -775,6 +779,8 @@ static void apply_config_terms(struct perf_evsel *evsel,
 		case PERF_EVSEL__CONFIG_TERM_OVERWRITE:
 			attr->write_backward = term->val.overwrite ? 1 : 0;
 			break;
+		case PERF_EVSEL__CONFIG_TERM_DRV_CFG:
+			BUG_ON(1);
 		default:
 			break;
 		}
@@ -1371,7 +1377,7 @@ perf_evsel__process_group_data(struct perf_evsel *leader,
 static int
 perf_evsel__read_group(struct perf_evsel *leader, int cpu, int thread)
 {
-	struct perf_stat_evsel *ps = leader->priv;
+	struct perf_stat_evsel *ps = leader->stats;
 	u64 read_format = leader->attr.read_format;
 	int size = perf_evsel__read_size(leader);
 	u64 *data = ps->group_data;
@@ -1956,6 +1962,20 @@ static inline bool overflow(const void *endp, u16 max_size, const void *offset,
 #define OVERFLOW_CHECK_u64(offset) \
 	OVERFLOW_CHECK(offset, sizeof(u64), sizeof(u64))
 
+static int
+perf_event__check_size(union perf_event *event, unsigned int sample_size)
+{
+	/*
+	 * The evsel's sample_size is based on PERF_SAMPLE_MASK which includes
+	 * up to PERF_SAMPLE_PERIOD.  After that overflow() must be used to
+	 * check the format does not go past the end of the event.
+	 */
+	if (sample_size + sizeof(event->header) > event->header.size)
+		return -EFAULT;
+
+	return 0;
+}
+
 int perf_evsel__parse_sample(struct perf_evsel *evsel, union perf_event *event,
 			     struct perf_sample *data)
 {
@@ -1977,6 +1997,8 @@ int perf_evsel__parse_sample(struct perf_evsel *evsel, union perf_event *event,
 	data->stream_id = data->id = data->time = -1ULL;
 	data->period = evsel->attr.sample_period;
 	data->cpumode = event->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
+	data->id = -1ULL;
+	data->data_src = PERF_MEM_DATA_SRC_NONE;
 
 	if (event->header.type != PERF_RECORD_SAMPLE) {
 		if (!evsel->attr.sample_id_all)
@@ -1986,15 +2008,9 @@ int perf_evsel__parse_sample(struct perf_evsel *evsel, union perf_event *event,
 
 	array = event->sample.array;
 
-	/*
-	 * The evsel's sample_size is based on PERF_SAMPLE_MASK which includes
-	 * up to PERF_SAMPLE_PERIOD.  After that overflow() must be used to
-	 * check the format does not go past the end of the event.
-	 */
-	if (evsel->sample_size + sizeof(event->header) > event->header.size)
+	if (perf_event__check_size(event, evsel->sample_size))
 		return -EFAULT;
 
-	data->id = -1ULL;
 	if (type & PERF_SAMPLE_IDENTIFIER) {
 		data->id = *array;
 		array++;
@@ -2024,7 +2040,6 @@ int perf_evsel__parse_sample(struct perf_evsel *evsel, union perf_event *event,
 		array++;
 	}
 
-	data->addr = 0;
 	if (type & PERF_SAMPLE_ADDR) {
 		data->addr = *array;
 		array++;
@@ -2188,14 +2203,12 @@ int perf_evsel__parse_sample(struct perf_evsel *evsel, union perf_event *event,
 		array++;
 	}
 
-	data->data_src = PERF_MEM_DATA_SRC_NONE;
 	if (type & PERF_SAMPLE_DATA_SRC) {
 		OVERFLOW_CHECK_u64(array);
 		data->data_src = *array;
 		array++;
 	}
 
-	data->transaction = 0;
 	if (type & PERF_SAMPLE_TRANSACTION) {
 		OVERFLOW_CHECK_u64(array);
 		data->transaction = *array;
@@ -2224,6 +2237,50 @@ int perf_evsel__parse_sample(struct perf_evsel *evsel, union perf_event *event,
 		data->phys_addr = *array;
 		array++;
 	}
+
+	return 0;
+}
+
+int perf_evsel__parse_sample_timestamp(struct perf_evsel *evsel,
+				       union perf_event *event,
+				       u64 *timestamp)
+{
+	u64 type = evsel->attr.sample_type;
+	const u64 *array;
+
+	if (!(type & PERF_SAMPLE_TIME))
+		return -1;
+
+	if (event->header.type != PERF_RECORD_SAMPLE) {
+		struct perf_sample data = {
+			.time = -1ULL,
+		};
+
+		if (!evsel->attr.sample_id_all)
+			return -1;
+		if (perf_evsel__parse_id_sample(evsel, event, &data))
+			return -1;
+
+		*timestamp = data.time;
+		return 0;
+	}
+
+	array = event->sample.array;
+
+	if (perf_event__check_size(event, evsel->sample_size))
+		return -EFAULT;
+
+	if (type & PERF_SAMPLE_IDENTIFIER)
+		array++;
+
+	if (type & PERF_SAMPLE_IP)
+		array++;
+
+	if (type & PERF_SAMPLE_TID)
+		array++;
+
+	if (type & PERF_SAMPLE_TIME)
+		*timestamp = *array;
 
 	return 0;
 }
@@ -2739,8 +2796,9 @@ int perf_evsel__open_strerror(struct perf_evsel *evsel, struct target *target,
 		break;
 	case EOPNOTSUPP:
 		if (evsel->attr.sample_period != 0)
-			return scnprintf(msg, size, "%s",
-	"PMU Hardware doesn't support sampling/overflow-interrupts.");
+			return scnprintf(msg, size,
+	"%s: PMU Hardware doesn't support sampling/overflow-interrupts. Try 'perf stat'",
+					 perf_evsel__name(evsel));
 		if (evsel->attr.precise_ip)
 			return scnprintf(msg, size, "%s",
 	"\'precise\' request may not be supported. Try removing 'p' modifier.");

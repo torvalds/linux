@@ -2224,9 +2224,9 @@ static int perf_c2c__browse_cacheline(struct hist_entry *he)
 	struct hist_browser *browser;
 	int key = -1;
 	const char help[] =
-	" ENTER         Togle callchains (if present) \n"
-	" n             Togle Node details info \n"
-	" s             Togle full lenght of symbol and source line columns \n"
+	" ENTER         Toggle callchains (if present) \n"
+	" n             Toggle Node details info \n"
+	" s             Toggle full length of symbol and source line columns \n"
 	" q             Return back to cacheline list \n";
 
 	/* Display compact version first. */
@@ -2303,7 +2303,7 @@ static int perf_c2c__hists_browse(struct hists *hists)
 	int key = -1;
 	const char help[] =
 	" d             Display cacheline details \n"
-	" ENTER         Togle callchains (if present) \n"
+	" ENTER         Toggle callchains (if present) \n"
 	" q             Quit \n";
 
 	browser = perf_c2c_browser__new(hists);

@@ -205,6 +205,10 @@ u16 perf_evlist__id_hdr_size(struct perf_evlist *evlist);
 int perf_evlist__parse_sample(struct perf_evlist *evlist, union perf_event *event,
 			      struct perf_sample *sample);
 
+int perf_evlist__parse_sample_timestamp(struct perf_evlist *evlist,
+					union perf_event *event,
+					u64 *timestamp);
+
 bool perf_evlist__valid_sample_type(struct perf_evlist *evlist);
 bool perf_evlist__valid_sample_id_all(struct perf_evlist *evlist);
 bool perf_evlist__valid_read_format(struct perf_evlist *evlist);
@@ -312,4 +316,6 @@ perf_evlist__find_evsel_by_str(struct perf_evlist *evlist, const char *str);
 
 struct perf_evsel *perf_evlist__event2evsel(struct perf_evlist *evlist,
 					    union perf_event *event);
+
+bool perf_evlist__exclude_kernel(struct perf_evlist *evlist);
 #endif /* __PERF_EVLIST_H */
