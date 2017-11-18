@@ -93,12 +93,33 @@ config ASUS_LAPTOP
 
 config DELL_SMBIOS
 	tristate
-	select DCDBAS
-	---help---
-	This module provides common functions for kernel modules using
-	Dell SMBIOS.
 
-	If you have a Dell laptop, say Y or M here.
+config DELL_SMBIOS_WMI
+	tristate "Dell SMBIOS calling interface (WMI implementation)"
+	depends on ACPI_WMI
+	select DELL_WMI_DESCRIPTOR
+	default ACPI_WMI
+	select DELL_SMBIOS
+	---help---
+	This provides an implementation for the Dell SMBIOS calling interface
+	communicated over ACPI-WMI.
+
+	If you have a Dell computer from >2007 you should say Y or M here.
+	If you aren't sure and this module doesn't work for your computer
+	it just won't load.
+
+config DELL_SMBIOS_SMM
+	tristate "Dell SMBIOS calling interface (SMM implementation)"
+	depends on DCDBAS
+	default DCDBAS
+	select DELL_SMBIOS
+	---help---
+	This provides an implementation for the Dell SMBIOS calling interface
+	communicated over SMI/SMM.
+
+	If you have a Dell computer from <=2017 you should say Y or M here.
+	If you aren't sure and this module doesn't work for your computer
+	it just won't load.
 
 config DELL_LAPTOP
 	tristate "Dell Laptop Extras"
@@ -116,11 +137,12 @@ config DELL_LAPTOP
 	laptops (except for some models covered by the Compal driver).
 
 config DELL_WMI
-	tristate "Dell WMI extras"
+	tristate "Dell WMI notifications"
 	depends on ACPI_WMI
 	depends on DMI
 	depends on INPUT
 	depends on ACPI_VIDEO || ACPI_VIDEO = n
+	select DELL_WMI_DESCRIPTOR
 	select DELL_SMBIOS
 	select INPUT_SPARSEKMAP
 	---help---
@@ -128,6 +150,10 @@ config DELL_WMI
 
 	  To compile this driver as a module, choose M here: the module will
 	  be called dell-wmi.
+
+config DELL_WMI_DESCRIPTOR
+	tristate
+	depends on ACPI_WMI
 
 config DELL_WMI_AIO
 	tristate "WMI Hotkeys for Dell All-In-One series"
@@ -658,6 +684,19 @@ config WMI_BMOF
 	  To compile this driver as a module, choose M here: the module will
 	  be called wmi-bmof.
 
+config INTEL_WMI_THUNDERBOLT
+	tristate "Intel WMI thunderbolt force power driver"
+	depends on ACPI_WMI
+	default ACPI_WMI
+	---help---
+	  Say Y here if you want to be able to use the WMI interface on select
+	  systems to force the power control of Intel Thunderbolt controllers.
+	  This is useful for updating the firmware when devices are not plugged
+	  into the controller.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called intel-wmi-thunderbolt.
+
 config MSI_WMI
 	tristate "MSI WMI extras"
 	depends on ACPI_WMI
@@ -793,7 +832,7 @@ config ACPI_CMPC
 
 config INTEL_CHT_INT33FE
 	tristate "Intel Cherry Trail ACPI INT33FE Driver"
-	depends on X86 && ACPI && I2C
+	depends on X86 && ACPI && I2C && REGULATOR
 	---help---
 	  This driver add support for the INT33FE ACPI device found on
 	  some Intel Cherry Trail devices.
@@ -803,6 +842,10 @@ config INTEL_CHT_INT33FE
 	  FUSB302 USB Type-C Controller and PI3USB30532 USB switch.
 	  This driver instantiates i2c-clients for these, so that standard
 	  i2c drivers for these chips can bind to the them.
+
+	  If you enable this driver it is advised to also select
+	  CONFIG_TYPEC_FUSB302=m, CONFIG_CHARGER_BQ24190=m and
+	  CONFIG_BATTERY_MAX17042=m.
 
 config INTEL_INT0002_VGPIO
 	tristate "Intel ACPI INT0002 Virtual GPIO driver"
@@ -1088,7 +1131,6 @@ config INTEL_PUNIT_IPC
 
 config INTEL_TELEMETRY
 	tristate "Intel SoC Telemetry Driver"
-	default n
 	depends on INTEL_PMC_IPC && INTEL_PUNIT_IPC && X86_64
 	---help---
 	  This driver provides interfaces to configure and use
