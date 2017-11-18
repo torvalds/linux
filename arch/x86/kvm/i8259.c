@@ -425,14 +425,16 @@ static u32 pic_ioport_read(void *opaque, u32 addr)
 	if (s->poll) {
 		ret = pic_poll_read(s, addr);
 		s->poll = 0;
-	} else
-		if ((addr & 1) == 0)
+	} else {
+		if ((addr & 1) == 0) {
 			if (s->read_reg_select)
 				ret = s->isr;
 			else
 				ret = s->irr;
-		else
+		} else {
 			ret = s->imr;
+		}
+	}
 	return ret;
 }
 
