@@ -2,6 +2,7 @@
 /// and data fields
 // Confidence: High
 // Copyright: (C) 2016 Vaishali Thakkar, Oracle. GPLv2
+// Copyright: (C) 2017 Kees Cook, Google. GPLv2
 // Options: --no-includes --include-headers
 // Keywords: init_timer, setup_timer
 
@@ -10,60 +11,123 @@ virtual context
 virtual org
 virtual report
 
+// Match the common cases first to avoid Coccinelle parsing loops with
+// "... when" clauses.
+
 @match_immediate_function_data_after_init_timer
 depends on patch && !context && !org && !report@
 expression e, func, da;
 @@
 
--init_timer (&e);
-+setup_timer (&e, func, da);
+-init_timer
++setup_timer
+ ( \(&e\|e\)
++, func, da
+ );
+(
+-\(e.function\|e->function\) = func;
+-\(e.data\|e->data\) = da;
+|
+-\(e.data\|e->data\) = da;
+-\(e.function\|e->function\) = func;
+)
+
+@match_immediate_function_data_before_init_timer
+depends on patch && !context && !org && !report@
+expression e, func, da;
+@@
 
 (
--e.function = func;
--e.data = da;
+-\(e.function\|e->function\) = func;
+-\(e.data\|e->data\) = da;
 |
--e.data = da;
--e.function = func;
+-\(e.data\|e->data\) = da;
+-\(e.function\|e->function\) = func;
 )
+-init_timer
++setup_timer
+ ( \(&e\|e\)
++, func, da
+ );
 
 @match_function_and_data_after_init_timer
 depends on patch && !context && !org && !report@
-expression e1, e2, e3, e4, e5, a, b;
+expression e, e2, e3, e4, e5, func, da;
 @@
 
--init_timer (&e1);
-+setup_timer (&e1, a, b);
-
-... when != a = e2
-    when != b = e3
+-init_timer
++setup_timer
+ ( \(&e\|e\)
++, func, da
+ );
+ ... when != func = e2
+     when != da = e3
 (
--e1.function = a;
-... when != b = e4
--e1.data = b;
+-e.function = func;
+... when != da = e4
+-e.data = da;
 |
--e1.data = b;
-... when != a = e5
--e1.function = a;
+-e->function = func;
+... when != da = e4
+-e->data = da;
+|
+-e.data = da;
+... when != func = e5
+-e.function = func;
+|
+-e->data = da;
+... when != func = e5
+-e->function = func;
 )
 
+@match_function_and_data_before_init_timer
+depends on patch && !context && !org && !report@
+expression e, e2, e3, e4, e5, func, da;
+@@
+(
+-e.function = func;
+... when != da = e4
+-e.data = da;
+|
+-e->function = func;
+... when != da = e4
+-e->data = da;
+|
+-e.data = da;
+... when != func = e5
+-e.function = func;
+|
+-e->data = da;
+... when != func = e5
+-e->function = func;
+)
+... when != func = e2
+    when != da = e3
+-init_timer
++setup_timer
+ ( \(&e\|e\)
++, func, da
+ );
+
 @r1 exists@
+expression t;
 identifier f;
 position p;
 @@
 
 f(...) { ... when any
-  init_timer@p(...)
+  init_timer@p(\(&t\|t\))
   ... when any
 }
 
 @r2 exists@
+expression r1.t;
 identifier g != r1.f;
-struct timer_list t;
 expression e8;
 @@
 
 g(...) { ... when any
-  t.data = e8
+  \(t.data\|t->data\) = e8
   ... when any
 }
 
@@ -77,14 +141,31 @@ p << r1.p;
 cocci.include_match(False)
 
 @r3 depends on patch && !context && !org && !report@
-expression e6, e7, c;
+expression r1.t, func, e7;
 position r1.p;
 @@
 
--init_timer@p (&e6);
-+setup_timer (&e6, c, 0UL);
-... when != c = e7
--e6.function = c;
+(
+-init_timer@p(&t);
++setup_timer(&t, func, 0UL);
+... when != func = e7
+-t.function = func;
+|
+-t.function = func;
+... when != func = e7
+-init_timer@p(&t);
++setup_timer(&t, func, 0UL);
+|
+-init_timer@p(t);
++setup_timer(t, func, 0UL);
+... when != func = e7
+-t->function = func;
+|
+-t->function = func;
+... when != func = e7
+-init_timer@p(t);
++setup_timer(t, func, 0UL);
+)
 
 // ----------------------------------------------------------------------------
 
@@ -104,11 +185,9 @@ position j0, j1, j2;
 )
 
 @match_function_and_data_after_init_timer_context
-depends on !patch &&
-!match_immediate_function_data_after_init_timer_context &&
- (context || org || report)@
+depends on !patch && (context || org || report)@
 expression a, b, e1, e2, e3, e4, e5;
-position j0, j1, j2;
+position j0 != match_immediate_function_data_after_init_timer_context.j0,j1,j2;
 @@
 
 * init_timer@j0 (&e1);
@@ -124,13 +203,12 @@ position j0, j1, j2;
 * e1@j2.function = a;
 )
 
-@r3_context depends on !patch &&
-!match_immediate_function_data_after_init_timer_context &&
-!match_function_and_data_after_init_timer_context &&
- (context || org || report)@
+@r3_context depends on !patch && (context || org || report)@
 expression c, e6, e7;
 position r1.p;
-position j0, j1;
+position j0 !=
+  {match_immediate_function_data_after_init_timer_context.j0,
+   match_function_and_data_after_init_timer_context.j0}, j1;
 @@
 
 * init_timer@j0@p (&e6);
