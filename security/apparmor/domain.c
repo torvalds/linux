@@ -325,8 +325,10 @@ static struct aa_profile *__attach_match(const char *name,
 	struct aa_profile *profile, *candidate = NULL;
 
 	list_for_each_entry_rcu(profile, head, base.list) {
-		if (profile->label.flags & FLAG_NULL)
+		if (profile->label.flags & FLAG_NULL &&
+		    &profile->label == ns_unconfined(profile->ns))
 			continue;
+
 		if (profile->xmatch) {
 			if (profile->xmatch_len == len) {
 				conflict = true;
