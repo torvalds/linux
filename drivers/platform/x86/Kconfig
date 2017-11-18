@@ -98,7 +98,6 @@ config DELL_SMBIOS_WMI
 	tristate "Dell SMBIOS calling interface (WMI implementation)"
 	depends on ACPI_WMI
 	select DELL_WMI_DESCRIPTOR
-	default ACPI_WMI
 	select DELL_SMBIOS
 	---help---
 	This provides an implementation for the Dell SMBIOS calling interface
@@ -111,7 +110,6 @@ config DELL_SMBIOS_WMI
 config DELL_SMBIOS_SMM
 	tristate "Dell SMBIOS calling interface (SMM implementation)"
 	depends on DCDBAS
-	default DCDBAS
 	select DELL_SMBIOS
 	---help---
 	This provides an implementation for the Dell SMBIOS calling interface
@@ -452,7 +450,6 @@ config THINKPAD_ACPI_ALSA_SUPPORT
 config THINKPAD_ACPI_DEBUGFACILITIES
 	bool "Maintainer debug facilities"
 	depends on THINKPAD_ACPI
-	default n
 	---help---
 	  Enables extra stuff in the thinkpad-acpi which is completely useless
 	  for normal use.  Read the driver source to find out what it does.
@@ -463,7 +460,6 @@ config THINKPAD_ACPI_DEBUGFACILITIES
 config THINKPAD_ACPI_DEBUG
 	bool "Verbose debug mode"
 	depends on THINKPAD_ACPI
-	default n
 	---help---
 	  Enables extra debugging information, at the expense of a slightly
 	  increase in driver size.
@@ -473,7 +469,6 @@ config THINKPAD_ACPI_DEBUG
 config THINKPAD_ACPI_UNSAFE_LEDS
 	bool "Allow control of important LEDs (unsafe)"
 	depends on THINKPAD_ACPI
-	default n
 	---help---
 	  Overriding LED state on ThinkPads can mask important
 	  firmware alerts (like critical battery condition), or misled
@@ -541,7 +536,6 @@ config SENSORS_HDAPS
 	tristate "Thinkpad Hard Drive Active Protection System (hdaps)"
 	depends on INPUT
 	select INPUT_POLLDEV
-	default n
 	help
 	  This driver provides support for the IBM Hard Drive Active Protection
 	  System (hdaps), which provides an accelerometer and other misc. data.
@@ -687,7 +681,6 @@ config WMI_BMOF
 config INTEL_WMI_THUNDERBOLT
 	tristate "Intel WMI thunderbolt force power driver"
 	depends on ACPI_WMI
-	default ACPI_WMI
 	---help---
 	  Say Y here if you want to be able to use the WMI interface on select
 	  systems to force the power control of Intel Thunderbolt controllers.
@@ -802,7 +795,6 @@ config TOSHIBA_HAPS
 
 config TOSHIBA_WMI
 	tristate "Toshiba WMI Hotkeys Driver (EXPERIMENTAL)"
-	default n
 	depends on ACPI_WMI
 	depends on INPUT
 	select INPUT_SPARSEKMAP
@@ -824,7 +816,6 @@ config ACPI_CMPC
 	depends on RFKILL || RFKILL=n
 	select INPUT
 	select BACKLIGHT_CLASS_DEVICE
-	default n
 	help
 	  Support for Intel Classmate PC ACPI devices, including some
 	  keys as input device, backlight device, tablet and accelerometer
@@ -935,7 +926,6 @@ config INTEL_IPS
 
 config INTEL_IMR
 	bool "Intel Isolated Memory Region support"
-	default n
 	depends on X86_INTEL_QUARK && IOSF_MBI
 	---help---
 	  This option provides a means to manipulate Isolated Memory Regions.
@@ -1153,7 +1143,6 @@ config MLX_PLATFORM
 
 config MLX_CPLD_PLATFORM
 	tristate "Mellanox platform hotplug driver support"
-	default n
 	select HWMON
 	select I2C
 	---help---
