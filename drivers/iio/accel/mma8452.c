@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * mma8452.c - Support for following Freescale / NXP 3-axis accelerometers:
  *
@@ -13,9 +14,6 @@
  * Copyright 2015 Martin Kepplinger <martink@posteo.de>
  * Copyright 2014 Peter Meerwald <pmeerw@pmeerw.net>
  *
- * This file is subject to the terms and conditions of version 2 of
- * the GNU General Public License.  See the file COPYING in the main
- * directory of this archive for more details.
  *
  * TODO: orientation events
  */
