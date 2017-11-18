@@ -994,6 +994,17 @@ into D0 going forward), but if it is in runtime suspend in pci_pm_thaw_noirq(),
 the function will set the power.direct_complete flag for it (to make the PM core
 skip the subsequent "thaw" callbacks for it) and return.
 
+Setting the DPM_FLAG_LEAVE_SUSPENDED flag means that the driver prefers the
+device to be left in suspend after system-wide transitions to the working state.
+This flag is checked by the PM core, but the PCI bus type informs the PM core
+which devices may be left in suspend from its perspective (that happens during
+the "noirq" phase of system-wide suspend and analogous transitions) and next it
+uses the dev_pm_may_skip_resume() helper to decide whether or not to return from
+pci_pm_resume_noirq() early, as the PM core will skip the remaining resume
+callbacks for the device during the transition under way and will set its
+runtime PM status to "suspended" if dev_pm_may_skip_resume() returns "true" for
+it.
+
 3.2. Device Runtime Power Management
 ------------------------------------
 In addition to providing device power management callbacks PCI device drivers
