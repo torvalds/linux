@@ -500,10 +500,9 @@ static int stuffed_readpage(struct gfs2_inode *ip, struct page *page)
  * @file: The file to read a page for
  * @page: The page to read
  *
- * This is the core of gfs2's readpage. Its used by the internal file
- * reading code as in that case we already hold the glock. Also its
+ * This is the core of gfs2's readpage. It's used by the internal file
+ * reading code as in that case we already hold the glock. Also it's
  * called by gfs2_readpage() once the required lock has been granted.
- *
  */
 
 static int __gfs2_readpage(void *file, struct page *page)
