@@ -103,28 +103,7 @@ static inline struct task_struct *get_proc_task(struct inode *inode)
 void task_dump_owner(struct task_struct *task, mode_t mode,
 		     kuid_t *ruid, kgid_t *rgid);
 
-static inline unsigned name_to_int(const struct qstr *qstr)
-{
-	const char *name = qstr->name;
-	int len = qstr->len;
-	unsigned n = 0;
-
-	if (len > 1 && *name == '0')
-		goto out;
-	while (len-- > 0) {
-		unsigned c = *name++ - '0';
-		if (c > 9)
-			goto out;
-		if (n >= (~0U-9)/10)
-			goto out;
-		n *= 10;
-		n += c;
-	}
-	return n;
-out:
-	return ~0U;
-}
-
+unsigned name_to_int(const struct qstr *qstr);
 /*
  * Offset of the first process in the /proc root directory..
  */

@@ -515,6 +515,7 @@ static int newary(struct ipc_namespace *ns, struct ipc_params *params)
 	sma->sem_nsems = nsems;
 	sma->sem_ctime = ktime_get_real_seconds();
 
+	/* ipc_addid() locks sma upon success. */
 	retval = ipc_addid(&sem_ids(ns), &sma->sem_perm, ns->sc_semmni);
 	if (retval < 0) {
 		call_rcu(&sma->sem_perm.rcu, sem_rcu_free);

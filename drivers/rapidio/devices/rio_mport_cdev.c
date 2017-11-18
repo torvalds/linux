@@ -959,9 +959,10 @@ rio_dma_transfer(struct file *filp, u32 transfer_mode,
 
 	nents = dma_map_sg(chan->device->dev,
 			   req->sgt.sgl, req->sgt.nents, dir);
-	if (nents == -EFAULT) {
+	if (nents == 0) {
 		rmcd_error("Failed to map SG list");
-		return -EFAULT;
+		ret = -EFAULT;
+		goto err_pg;
 	}
 
 	ret = do_dma_request(req, xfer, sync, nents);

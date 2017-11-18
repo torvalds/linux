@@ -756,6 +756,16 @@ config KCOV
 
 	  For more details, see Documentation/dev-tools/kcov.rst.
 
+config KCOV_ENABLE_COMPARISONS
+	bool "Enable comparison operands collection by KCOV"
+	depends on KCOV
+	default n
+	help
+	  KCOV also exposes operands of every comparison in the instrumented
+	  code along with operand sizes and PCs of the comparison instructions.
+	  These operands can be used by fuzzing engines to improve the quality
+	  of fuzzing coverage.
+
 config KCOV_INSTRUMENT_ALL
 	bool "Instrument all code by default"
 	depends on KCOV
@@ -1847,6 +1857,15 @@ config TEST_BPF
 	  development, but also to run regression tests against changes in
 	  the interpreter code. It also enables test stubs for eBPF maps and
 	  verifier used by user space verifier testsuite.
+
+	  If unsure, say N.
+
+config TEST_FIND_BIT
+	tristate "Test find_bit functions"
+	default n
+	help
+	  This builds the "test_find_bit" module that measure find_*_bit()
+	  functions performance.
 
 	  If unsure, say N.
 
