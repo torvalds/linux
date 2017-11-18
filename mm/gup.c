@@ -965,30 +965,6 @@ long get_user_pages_locked(unsigned long start, unsigned long nr_pages,
 EXPORT_SYMBOL(get_user_pages_locked);
 
 /*
- * Same as get_user_pages_unlocked(...., FOLL_TOUCH) but it allows for
- * tsk, mm to be specified.
- *
- * NOTE: here FOLL_TOUCH is not set implicitly and must be set by the
- * caller if required (just like with __get_user_pages). "FOLL_GET"
- * is set implicitly if "pages" is non-NULL.
- */
-static __always_inline long __get_user_pages_unlocked(struct task_struct *tsk,
-		struct mm_struct *mm, unsigned long start,
-		unsigned long nr_pages, struct page **pages,
-		unsigned int gup_flags)
-{
-	long ret;
-	int locked = 1;
-
-	down_read(&mm->mmap_sem);
-	ret = __get_user_pages_locked(tsk, mm, start, nr_pages, pages, NULL,
-				      &locked, false, gup_flags);
-	if (locked)
-		up_read(&mm->mmap_sem);
-	return ret;
-}
-
-/*
  * get_user_pages_unlocked() is suitable to replace the form:
  *
  *      down_read(&mm->mmap_sem);
@@ -1006,8 +982,16 @@ static __always_inline long __get_user_pages_unlocked(struct task_struct *tsk,
 long get_user_pages_unlocked(unsigned long start, unsigned long nr_pages,
 			     struct page **pages, unsigned int gup_flags)
 {
-	return __get_user_pages_unlocked(current, current->mm, start, nr_pages,
-					 pages, gup_flags | FOLL_TOUCH);
+	struct mm_struct *mm = current->mm;
+	int locked = 1;
+	long ret;
+
+	down_read(&mm->mmap_sem);
+	ret = __get_user_pages_locked(current, mm, start, nr_pages, pages, NULL,
+				      &locked, false, gup_flags | FOLL_TOUCH);
+	if (locked)
+		up_read(&mm->mmap_sem);
+	return ret;
 }
 EXPORT_SYMBOL(get_user_pages_unlocked);
 
