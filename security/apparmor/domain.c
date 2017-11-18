@@ -305,6 +305,7 @@ static int change_profile_perms(struct aa_profile *profile,
  * __attach_match_ - find an attachment match
  * @name - to match against  (NOT NULL)
  * @head - profile list to walk  (NOT NULL)
+ * @info - info message if there was an error (NOT NULL)
  *
  * Do a linear search on the profiles in the list.  There is a matching
  * preference where an exact match is preferred over a name which uses
@@ -316,26 +317,42 @@ static int change_profile_perms(struct aa_profile *profile,
  * Returns: profile or NULL if no match found
  */
 static struct aa_profile *__attach_match(const char *name,
-					 struct list_head *head)
+					 struct list_head *head,
+					 const char **info)
 {
 	int len = 0;
+	bool conflict = false;
 	struct aa_profile *profile, *candidate = NULL;
 
 	list_for_each_entry_rcu(profile, head, base.list) {
 		if (profile->label.flags & FLAG_NULL)
 			continue;
-		if (profile->xmatch && profile->xmatch_len > len) {
-			unsigned int state = aa_dfa_match(profile->xmatch,
-							  DFA_START, name);
-			u32 perm = dfa_user_allow(profile->xmatch, state);
-			/* any accepting state means a valid match. */
-			if (perm & MAY_EXEC) {
-				candidate = profile;
-				len = profile->xmatch_len;
+		if (profile->xmatch) {
+			if (profile->xmatch_len == len) {
+				conflict = true;
+				continue;
+			} else if (profile->xmatch_len > len) {
+				unsigned int state;
+				u32 perm;
+
+				state = aa_dfa_match(profile->xmatch,
+						     DFA_START, name);
+				perm = dfa_user_allow(profile->xmatch, state);
+				/* any accepting state means a valid match. */
+				if (perm & MAY_EXEC) {
+					candidate = profile;
+					len = profile->xmatch_len;
+					conflict = false;
+				}
 			}
 		} else if (!strcmp(profile->base.name, name))
 			/* exact non-re match, no more searching required */
 			return profile;
+	}
+
+	if (conflict) {
+		*info = "conflicting profile attachments";
+		return NULL;
 	}
 
 	return candidate;
@@ -346,16 +363,17 @@ static struct aa_profile *__attach_match(const char *name,
  * @ns: the current namespace  (NOT NULL)
  * @list: list to search  (NOT NULL)
  * @name: the executable name to match against  (NOT NULL)
+ * @info: info message if there was an error
  *
  * Returns: label or NULL if no match found
  */
 static struct aa_label *find_attach(struct aa_ns *ns, struct list_head *list,
-				    const char *name)
+				    const char *name, const char **info)
 {
 	struct aa_profile *profile;
 
 	rcu_read_lock();
-	profile = aa_get_profile(__attach_match(name, list));
+	profile = aa_get_profile(__attach_match(name, list, info));
 	rcu_read_unlock();
 
 	return profile ? &profile->label : NULL;
@@ -448,11 +466,11 @@ static struct aa_label *x_to_label(struct aa_profile *profile,
 		if (xindex & AA_X_CHILD)
 			/* released by caller */
 			new = find_attach(ns, &profile->base.profiles,
-						name);
+					  name, info);
 		else
 			/* released by caller */
 			new = find_attach(ns, &ns->base.profiles,
-						name);
+					  name, info);
 		*lookupname = name;
 		break;
 	}
@@ -516,7 +534,7 @@ static struct aa_label *profile_transition(struct aa_profile *profile,
 
 	if (profile_unconfined(profile)) {
 		new = find_attach(profile->ns, &profile->ns->base.profiles,
-				  name);
+				  name, &info);
 		if (new) {
 			AA_DEBUG("unconfined attached to new label");
 			return new;
