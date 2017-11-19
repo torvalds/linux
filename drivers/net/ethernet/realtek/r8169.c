@@ -3810,6 +3810,11 @@ static void rtl8168e_2_hw_phy_config(struct rtl8169_private *tp)
 	rtl_w0w1_phy(tp, 0x19, 0x0001, 0x0000);
 	rtl_w0w1_phy(tp, 0x10, 0x0400, 0x0000);
 	rtl_writephy(tp, 0x1f, 0x0000);
+	rtl_writephy(tp, 0x1f, 0x0005);
+	rtl_w0w1_phy(tp, 0x01, 0x0100, 0x0000);
+	rtl_writephy(tp, 0x1f, 0x0000);
+	/* soft-reset phy */
+	rtl_writephy(tp, MII_BMCR, BMCR_RESET | BMCR_ANENABLE | BMCR_ANRESTART);
 
 	/* Broken BIOS workaround: feed GigaMAC registers with MAC address. */
 	rtl_rar_exgmac_set(tp, tp->dev->dev_addr);
