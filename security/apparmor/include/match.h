@@ -138,6 +138,25 @@ unsigned int aa_dfa_matchn_until(struct aa_dfa *dfa, unsigned int start,
 
 void aa_dfa_free_kref(struct kref *kref);
 
+#define WB_HISTORY_SIZE 8
+struct match_workbuf {
+	unsigned int count;
+	unsigned int pos;
+	unsigned int len;
+	unsigned int size;	/* power of 2, same as history size */
+	unsigned int history[WB_HISTORY_SIZE];
+};
+#define DEFINE_MATCH_WB(N)		\
+struct match_workbuf N = {		\
+	.count = 0,			\
+	.pos = 0,			\
+	.len = 0,			\
+	.size = WB_HISTORY_SIZE,			\
+}
+
+unsigned int aa_dfa_leftmatch(struct aa_dfa *dfa, unsigned int start,
+			      const char *str, unsigned int *count);
+
 /**
  * aa_get_dfa - increment refcount on dfa @p
  * @dfa: dfa  (MAYBE NULL)

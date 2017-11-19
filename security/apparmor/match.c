@@ -556,7 +556,6 @@ unsigned int aa_dfa_match_until(struct aa_dfa *dfa, unsigned int start,
 	return state;
 }
 
-
 /**
  * aa_dfa_matchn_until - traverse @dfa until accept or @n bytes consumed
  * @dfa: the dfa to match @str against  (NOT NULL)
@@ -617,4 +616,125 @@ unsigned int aa_dfa_matchn_until(struct aa_dfa *dfa, unsigned int start,
 
 	*retpos = str;
 	return state;
+}
+
+#define inc_wb_pos(wb)						\
+do {								\
+	wb->pos = (wb->pos + 1) & (wb->size - 1);		\
+	wb->len = (wb->len + 1) & (wb->size - 1);		\
+} while (0)
+
+/* For DFAs that don't support extended tagging of states */
+static bool is_loop(struct match_workbuf *wb, unsigned int state,
+		    unsigned int *adjust)
+{
+	unsigned int pos = wb->pos;
+	unsigned int i;
+
+	if (wb->history[pos] < state)
+		return false;
+
+	for (i = 0; i <= wb->len; i++) {
+		if (wb->history[pos] == state) {
+			*adjust = i;
+			return true;
+		}
+		if (pos == 0)
+			pos = wb->size;
+		pos--;
+	}
+
+	*adjust = i;
+	return true;
+}
+
+static unsigned int leftmatch_fb(struct aa_dfa *dfa, unsigned int start,
+				 const char *str, struct match_workbuf *wb,
+				 unsigned int *count)
+{
+	u16 *def = DEFAULT_TABLE(dfa);
+	u32 *base = BASE_TABLE(dfa);
+	u16 *next = NEXT_TABLE(dfa);
+	u16 *check = CHECK_TABLE(dfa);
+	unsigned int state = start, pos;
+
+	AA_BUG(!dfa);
+	AA_BUG(!str);
+	AA_BUG(!wb);
+	AA_BUG(!count);
+
+	*count = 0;
+	if (state == 0)
+		return 0;
+
+	/* current state is <state>, matching character *str */
+	if (dfa->tables[YYTD_ID_EC]) {
+		/* Equivalence class table defined */
+		u8 *equiv = EQUIV_TABLE(dfa);
+		/* default is direct to next state */
+		while (*str) {
+			unsigned int adjust;
+
+			wb->history[wb->pos] = state;
+			pos = base_idx(base[state]) + equiv[(u8) *str++];
+			if (check[pos] == state)
+				state = next[pos];
+			else
+				state = def[state];
+			if (is_loop(wb, state, &adjust)) {
+				state = aa_dfa_match(dfa, state, str);
+				*count -= adjust;
+				goto out;
+			}
+			inc_wb_pos(wb);
+			(*count)++;
+		}
+	} else {
+		/* default is direct to next state */
+		while (*str) {
+			unsigned int adjust;
+
+			wb->history[wb->pos] = state;
+			pos = base_idx(base[state]) + (u8) *str++;
+			if (check[pos] == state)
+				state = next[pos];
+			else
+				state = def[state];
+			if (is_loop(wb, state, &adjust)) {
+				state = aa_dfa_match(dfa, state, str);
+				*count -= adjust;
+				goto out;
+			}
+			inc_wb_pos(wb);
+			(*count)++;
+		}
+	}
+
+out:
+	if (!state)
+		*count = 0;
+	return state;
+}
+
+/**
+ * aa_dfa_leftmatch - traverse @dfa to find state @str stops at
+ * @dfa: the dfa to match @str against  (NOT NULL)
+ * @start: the state of the dfa to start matching in
+ * @str: the null terminated string of bytes to match against the dfa (NOT NULL)
+ * @count: current count of longest left.
+ *
+ * aa_dfa_match will match @str against the dfa and return the state it
+ * finished matching in. The final state can be used to look up the accepting
+ * label, or as the start state of a continuing match.
+ *
+ * Returns: final state reached after input is consumed
+ */
+unsigned int aa_dfa_leftmatch(struct aa_dfa *dfa, unsigned int start,
+			      const char *str, unsigned int *count)
+{
+	DEFINE_MATCH_WB(wb);
+
+	/* TODO: match for extended state dfas */
+
+	return leftmatch_fb(dfa, start, str, &wb, count);
 }

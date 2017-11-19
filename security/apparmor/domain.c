@@ -385,9 +385,12 @@ static struct aa_profile *__attach_match(const struct linux_binprm *bprm,
 					 struct list_head *head,
 					 const char **info)
 {
-	int len = 0, xattrs = 0;
+	int candidate_len = 0, candidate_xattrs = 0;
 	bool conflict = false;
 	struct aa_profile *profile, *candidate = NULL;
+
+	AA_BUG(!name);
+	AA_BUG(!head);
 
 	list_for_each_entry_rcu(profile, head, base.list) {
 		if (profile->label.flags & FLAG_NULL &&
@@ -406,19 +409,20 @@ static struct aa_profile *__attach_match(const struct linux_binprm *bprm,
 		 * match.
 		 */
 		if (profile->xmatch) {
-			unsigned int state;
+			unsigned int state, count;
 			u32 perm;
 
-			if (profile->xmatch_len < len)
-				continue;
-
-			state = aa_dfa_match(profile->xmatch,
-					     DFA_START, name);
+			state = aa_dfa_leftmatch(profile->xmatch, DFA_START,
+						 name, &count);
 			perm = dfa_user_allow(profile->xmatch, state);
 			/* any accepting state means a valid match. */
 			if (perm & MAY_EXEC) {
-				int ret = aa_xattrs_match(bprm, profile, state);
+				int ret;
 
+				if (count < candidate_len)
+					continue;
+
+				ret = aa_xattrs_match(bprm, profile, state);
 				/* Fail matching if the xattrs don't match */
 				if (ret < 0)
 					continue;
@@ -429,10 +433,10 @@ static struct aa_profile *__attach_match(const struct linux_binprm *bprm,
 				 * The new match isn't more specific
 				 * than the current best match
 				 */
-				if (profile->xmatch_len == len &&
-				    ret <= xattrs) {
+				if (count == candidate_len &&
+				    ret <= candidate_xattrs) {
 					/* Match is equivalent, so conflict */
-					if (ret == xattrs)
+					if (ret == candidate_xattrs)
 						conflict = true;
 					continue;
 				}
@@ -441,8 +445,8 @@ static struct aa_profile *__attach_match(const struct linux_binprm *bprm,
 				 * xattrs, or a longer match
 				 */
 				candidate = profile;
-				len = profile->xmatch_len;
-				xattrs = ret;
+				candidate_len = profile->xmatch_len;
+				candidate_xattrs = ret;
 				conflict = false;
 			}
 		} else if (!strcmp(profile->base.name, name))
