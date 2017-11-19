@@ -988,7 +988,7 @@ long get_user_pages_unlocked(unsigned long start, unsigned long nr_pages,
 
 	down_read(&mm->mmap_sem);
 	ret = __get_user_pages_locked(current, mm, start, nr_pages, pages, NULL,
-				      &locked, false, gup_flags | FOLL_TOUCH);
+				      &locked, true, gup_flags | FOLL_TOUCH);
 	if (locked)
 		up_read(&mm->mmap_sem);
 	return ret;
