@@ -24,8 +24,8 @@
 #include <linux/cache.h>
 #include <linux/errno.h>
 #include <linux/export.h>
-#include <linux/fs.h>
 #include <linux/genetlink.h>
+#include <linux/gfp.h>
 #include <linux/if_ether.h>
 #include <linux/init.h>
 #include <linux/kernel.h>

@@ -26,7 +26,7 @@
 #include <linux/compiler.h>
 #include <linux/err.h>
 #include <linux/etherdevice.h>
-#include <linux/fs.h>
+#include <linux/gfp.h>
 #include <linux/if_ether.h>
 #include <linux/init.h>
 #include <linux/jiffies.h>
