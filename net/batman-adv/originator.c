@@ -30,10 +30,12 @@
 #include <linux/netdevice.h>
 #include <linux/netlink.h>
 #include <linux/rculist.h>
+#include <linux/rcupdate.h>
 #include <linux/seq_file.h>
 #include <linux/skbuff.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
+#include <linux/stddef.h>
 #include <linux/workqueue.h>
 #include <net/sock.h>
 #include <uapi/linux/batman_adv.h>
@@ -54,6 +56,36 @@
 
 /* hash class keys */
 static struct lock_class_key batadv_orig_hash_lock_class_key;
+
+struct batadv_orig_node *
+batadv_orig_hash_find(struct batadv_priv *bat_priv, const void *data)
+{
+	struct batadv_hashtable *hash = bat_priv->orig_hash;
+	struct hlist_head *head;
+	struct batadv_orig_node *orig_node, *orig_node_tmp = NULL;
+	int index;
+
+	if (!hash)
+		return NULL;
+
+	index = batadv_choose_orig(data, hash->size);
+	head = &hash->table[index];
+
+	rcu_read_lock();
+	hlist_for_each_entry_rcu(orig_node, head, hash_entry) {
+		if (!batadv_compare_eth(orig_node, data))
+			continue;
+
+		if (!kref_get_unless_zero(&orig_node->refcount))
+			continue;
+
+		orig_node_tmp = orig_node;
+		break;
+	}
+	rcu_read_unlock();
+
+	return orig_node_tmp;
+}
 
 static void batadv_purge_orig(struct work_struct *work);
 
