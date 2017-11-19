@@ -535,7 +535,9 @@ static void __init setup_memory_end(void)
 	/* Choose kernel address space layout: 3 or 4 levels. */
 	vmalloc_size = VMALLOC_END ?: (128UL << 30) - MODULES_LEN;
 	if (IS_ENABLED(CONFIG_KASAN)) {
-		vmax = _REGION2_SIZE; /* 3-level kernel page table */
+		vmax = IS_ENABLED(CONFIG_KASAN_S390_4_LEVEL_PAGING)
+			   ? _REGION1_SIZE
+			   : _REGION2_SIZE;
 	} else {
 		tmp = (memory_end ?: max_physmem_end) / PAGE_SIZE;
 		tmp = tmp * (sizeof(struct page) + PAGE_SIZE);

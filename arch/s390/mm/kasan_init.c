@@ -252,12 +252,23 @@ void __init kasan_early_init(void)
 		pgt_prot &= ~_PAGE_NOEXEC;
 	pte_z = __pte(__pa(kasan_zero_page) | pgt_prot);
 
-	/* 3 level paging */
-	BUILD_BUG_ON(!IS_ALIGNED(KASAN_SHADOW_START, PUD_SIZE));
-	BUILD_BUG_ON(!IS_ALIGNED(KASAN_SHADOW_END, PUD_SIZE));
-	crst_table_init((unsigned long *)early_pg_dir, _REGION3_ENTRY_EMPTY);
-	untracked_mem_end = vmax = _REGION2_SIZE;
-	asce_type = _ASCE_TYPE_REGION3;
+	if (IS_ENABLED(CONFIG_KASAN_S390_4_LEVEL_PAGING)) {
+		/* 4 level paging */
+		BUILD_BUG_ON(!IS_ALIGNED(KASAN_SHADOW_START, P4D_SIZE));
+		BUILD_BUG_ON(!IS_ALIGNED(KASAN_SHADOW_END, P4D_SIZE));
+		crst_table_init((unsigned long *)early_pg_dir,
+				_REGION2_ENTRY_EMPTY);
+		untracked_mem_end = vmax = _REGION1_SIZE;
+		asce_type = _ASCE_TYPE_REGION2;
+	} else {
+		/* 3 level paging */
+		BUILD_BUG_ON(!IS_ALIGNED(KASAN_SHADOW_START, PUD_SIZE));
+		BUILD_BUG_ON(!IS_ALIGNED(KASAN_SHADOW_END, PUD_SIZE));
+		crst_table_init((unsigned long *)early_pg_dir,
+				_REGION3_ENTRY_EMPTY);
+		untracked_mem_end = vmax = _REGION2_SIZE;
+		asce_type = _ASCE_TYPE_REGION3;
+	}
 
 	/* init kasan zero shadow */
 	crst_table_init((unsigned long *)kasan_zero_p4d, p4d_val(p4d_z));
