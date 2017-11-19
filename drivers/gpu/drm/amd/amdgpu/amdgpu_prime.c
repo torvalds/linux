@@ -169,10 +169,14 @@ struct dma_buf *amdgpu_gem_prime_export(struct drm_device *dev,
 					int flags)
 {
 	struct amdgpu_bo *bo = gem_to_amdgpu_bo(gobj);
+	struct dma_buf *buf;
 
 	if (amdgpu_ttm_tt_get_usermm(bo->tbo.ttm) ||
 	    bo->flags & AMDGPU_GEM_CREATE_VM_ALWAYS_VALID)
 		return ERR_PTR(-EPERM);
 
-	return drm_gem_prime_export(dev, gobj, flags);
+	buf = drm_gem_prime_export(dev, gobj, flags);
+	if (!IS_ERR(buf))
+		buf->file->f_mapping = dev->anon_inode->i_mapping;
+	return buf;
 }

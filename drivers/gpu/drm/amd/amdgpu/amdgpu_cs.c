@@ -1497,8 +1497,11 @@ out:
 	memset(wait, 0, sizeof(*wait));
 	wait->out.status = (r > 0);
 	wait->out.first_signaled = first;
-	/* set return value 0 to indicate success */
-	r = array[first]->error;
+
+	if (array[first])
+		r = array[first]->error;
+	else
+		r = 0;
 
 err_free_fence_array:
 	for (i = 0; i < fence_count; i++)

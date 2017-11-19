@@ -3188,9 +3188,9 @@ static ssize_t amdgpu_debugfs_regs_read(struct file *f, char __user *buf,
 	pm_pg_lock = (*pos >> 23) & 1;
 
 	if (*pos & (1ULL << 62)) {
-		se_bank = (*pos >> 24) & 0x3FF;
-		sh_bank = (*pos >> 34) & 0x3FF;
-		instance_bank = (*pos >> 44) & 0x3FF;
+		se_bank = (*pos & GENMASK_ULL(33, 24)) >> 24;
+		sh_bank = (*pos & GENMASK_ULL(43, 34)) >> 34;
+		instance_bank = (*pos & GENMASK_ULL(53, 44)) >> 44;
 
 		if (se_bank == 0x3FF)
 			se_bank = 0xFFFFFFFF;
@@ -3264,9 +3264,9 @@ static ssize_t amdgpu_debugfs_regs_write(struct file *f, const char __user *buf,
 	pm_pg_lock = (*pos >> 23) & 1;
 
 	if (*pos & (1ULL << 62)) {
-		se_bank = (*pos >> 24) & 0x3FF;
-		sh_bank = (*pos >> 34) & 0x3FF;
-		instance_bank = (*pos >> 44) & 0x3FF;
+		se_bank = (*pos & GENMASK_ULL(33, 24)) >> 24;
+		sh_bank = (*pos & GENMASK_ULL(43, 34)) >> 34;
+		instance_bank = (*pos & GENMASK_ULL(53, 44)) >> 44;
 
 		if (se_bank == 0x3FF)
 			se_bank = 0xFFFFFFFF;
@@ -3614,12 +3614,12 @@ static ssize_t amdgpu_debugfs_wave_read(struct file *f, char __user *buf,
 		return -EINVAL;
 
 	/* decode offset */
-	offset = (*pos & 0x7F);
-	se = ((*pos >> 7) & 0xFF);
-	sh = ((*pos >> 15) & 0xFF);
-	cu = ((*pos >> 23) & 0xFF);
-	wave = ((*pos >> 31) & 0xFF);
-	simd = ((*pos >> 37) & 0xFF);
+	offset = (*pos & GENMASK_ULL(6, 0));
+	se = (*pos & GENMASK_ULL(14, 7)) >> 7;
+	sh = (*pos & GENMASK_ULL(22, 15)) >> 15;
+	cu = (*pos & GENMASK_ULL(30, 23)) >> 23;
+	wave = (*pos & GENMASK_ULL(36, 31)) >> 31;
+	simd = (*pos & GENMASK_ULL(44, 37)) >> 37;
 
 	/* switch to the specific se/sh/cu */
 	mutex_lock(&adev->grbm_idx_mutex);
@@ -3664,14 +3664,14 @@ static ssize_t amdgpu_debugfs_gpr_read(struct file *f, char __user *buf,
 		return -EINVAL;
 
 	/* decode offset */
-	offset = (*pos & 0xFFF);       /* in dwords */
-	se = ((*pos >> 12) & 0xFF);
-	sh = ((*pos >> 20) & 0xFF);
-	cu = ((*pos >> 28) & 0xFF);
-	wave = ((*pos >> 36) & 0xFF);
-	simd = ((*pos >> 44) & 0xFF);
-	thread = ((*pos >> 52) & 0xFF);
-	bank = ((*pos >> 60) & 1);
+	offset = *pos & GENMASK_ULL(11, 0);
+	se = (*pos & GENMASK_ULL(19, 12)) >> 12;
+	sh = (*pos & GENMASK_ULL(27, 20)) >> 20;
+	cu = (*pos & GENMASK_ULL(35, 28)) >> 28;
+	wave = (*pos & GENMASK_ULL(43, 36)) >> 36;
+	simd = (*pos & GENMASK_ULL(51, 44)) >> 44;
+	thread = (*pos & GENMASK_ULL(59, 52)) >> 52;
+	bank = (*pos & GENMASK_ULL(61, 60)) >> 60;
 
 	data = kmalloc_array(1024, sizeof(*data), GFP_KERNEL);
 	if (!data)
