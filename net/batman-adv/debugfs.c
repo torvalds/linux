@@ -26,7 +26,6 @@
 #include <linux/fs.h>
 #include <linux/netdevice.h>
 #include <linux/printk.h>
-#include <linux/sched.h> /* for linux/wait.h */
 #include <linux/seq_file.h>
 #include <linux/stat.h>
 #include <linux/stddef.h>
