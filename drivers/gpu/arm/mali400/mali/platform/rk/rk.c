@@ -34,6 +34,7 @@
 #include <linux/workqueue.h>
 #include <linux/dma-mapping.h>
 #include <linux/pm_runtime.h>
+#include <linux/delay.h>
 #include <linux/rockchip/cpu.h>
 
 #include <linux/mali/mali_utgard.h>
@@ -46,6 +47,8 @@ u32 mali_group_error;
 
 /*---------------------------------------------------------------------------*/
 
+#define DEFAULT_UTILISATION_PERIOD_IN_MS (100)
+
 /*
  * rk_platform_context_of_mali_device.
  */
@@ -54,20 +57,115 @@ struct rk_context {
 	struct device *dev;
 	/* is the GPU powered on?  */
 	bool is_powered;
+	/* debug only, the period in ms to count gpu_utilisation. */
+	unsigned int utilisation_period;
 };
 
 struct rk_context *s_rk_context;
 
-/*-------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+#ifdef CONFIG_MALI_DEVFREQ
+static ssize_t utilisation_period_show(struct device *dev,
+				       struct device_attribute *attr,
+				       char *buf)
+{
+	struct rk_context *platform = s_rk_context;
+	ssize_t ret = 0;
+
+	ret += snprintf(buf, PAGE_SIZE, "%u\n", platform->utilisation_period);
+
+	return ret;
+}
+
+static ssize_t utilisation_period_store(struct device *dev,
+					struct device_attribute *attr,
+					const char *buf,
+					size_t count)
+{
+	struct rk_context *platform = s_rk_context;
+	int ret = 0;
+
+	ret = kstrtouint(buf, 0, &platform->utilisation_period);
+	if (ret) {
+		E("invalid input period : %s.", buf);
+		return ret;
+	}
+	D("set utilisation_period to '%d'.", platform->utilisation_period);
+
+	return count;
+}
+
+static ssize_t utilisation_show(struct device *dev,
+				struct device_attribute *attr,
+				char *buf)
+{
+	struct rk_context *platform = s_rk_context;
+	struct mali_device *mdev = dev_get_drvdata(dev);
+	ssize_t ret = 0;
+	unsigned long period_in_us = platform->utilisation_period * 1000;
+	unsigned long total_time;
+	unsigned long busy_time;
+	unsigned long utilisation;
+
+	mali_pm_reset_dvfs_utilisation(mdev);
+	usleep_range(period_in_us, period_in_us + 100);
+	mali_pm_get_dvfs_utilisation(mdev, &total_time, &busy_time);
+
+	/* 'devfreq_dev_profile' instance registered to devfreq
+	 * also uses mali_pm_reset_dvfs_utilisation()
+	 * and mali_pm_get_dvfs_utilisation().
+	 * So, it's better to disable GPU DVFS before reading this node.
+	 */
+	D("total_time : %lu, busy_time : %lu.", total_time, busy_time);
+
+	utilisation = busy_time / (total_time / 100);
+	ret += snprintf(buf, PAGE_SIZE, "%lu\n", utilisation);
+
+	return ret;
+}
+
+static DEVICE_ATTR_RW(utilisation_period);
+static DEVICE_ATTR_RO(utilisation);
+#endif
 
 static int rk_context_create_sysfs_files(struct device *dev)
 {
+#ifdef CONFIG_MALI_DEVFREQ
+	int ret;
+
+	ret = device_create_file(dev, &dev_attr_utilisation_period);
+	if (ret) {
+		E("fail to create sysfs file 'utilisation_period'.");
+		goto out;
+	}
+
+	ret = device_create_file(dev, &dev_attr_utilisation);
+	if (ret) {
+		E("fail to create sysfs file 'utilisation'.");
+		goto remove_utilisation_period;
+	}
+
 	return 0;
+
+remove_utilisation_period:
+	device_remove_file(dev, &dev_attr_utilisation_period);
+out:
+	return ret;
+#else
+	return 0;
+#endif
 }
 
 static void rk_context_remove_sysfs_files(struct device *dev)
 {
+#ifdef CONFIG_MALI_DEVFREQ
+	device_remove_file(dev, &dev_attr_utilisation_period);
+	device_remove_file(dev, &dev_attr_utilisation);
+#endif
 }
+
+/*---------------------------------------------------------------------------*/
 
 /*
  * Init rk_platform_context of mali_device.
@@ -86,6 +184,8 @@ static int rk_context_init(struct platform_device *pdev)
 
 	platform->dev = dev;
 	platform->is_powered = false;
+
+	platform->utilisation_period = DEFAULT_UTILISATION_PERIOD_IN_MS;
 
 	ret = rk_context_create_sysfs_files(dev);
 	if (ret) {
