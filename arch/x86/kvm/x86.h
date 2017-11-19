@@ -12,6 +12,7 @@
 
 static inline void kvm_clear_exception_queue(struct kvm_vcpu *vcpu)
 {
+	vcpu->arch.exception.pending = false;
 	vcpu->arch.exception.injected = false;
 }
 

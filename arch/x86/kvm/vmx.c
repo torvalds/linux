@@ -11246,7 +11246,6 @@ static int vmx_check_nested_events(struct kvm_vcpu *vcpu, bool external_intr)
 		if (block_nested_events)
 			return -EBUSY;
 		nested_vmx_inject_exception_vmexit(vcpu, exit_qual);
-		vcpu->arch.exception.pending = false;
 		return 0;
 	}
 
