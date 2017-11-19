@@ -150,6 +150,7 @@ i2se	I2SE GmbH
 ibm	International Business Machines (IBM)
 idt	Integrated Device Technologies, Inc.
 ifi	Ingenieurburo Fur Ic-Technologie (I/F/I)
+ilitek	ILI Technology Corporation (ILITEK)
 img	Imagination Technologies Ltd.
 infineon Infineon Technologies
 inforce	Inforce Computing
