@@ -2015,7 +2015,8 @@ static const char * const sflashgrps[] = { "sflashgrp" };
 static const char * const gpio0grps[] = { "gpio0agrp", "gpio0bgrp", "gpio0cgrp",
 					  "gpio0dgrp", "gpio0egrp", "gpio0fgrp",
 					  "gpio0ggrp", "gpio0hgrp", "gpio0igrp",
-					  "gpio0jgrp", "gpio0kgrp" };
+					  "gpio0jgrp", "gpio0kgrp", "gpio0lgrp",
+					  "gpio0mgrp" };
 static const char * const gpio1grps[] = { "gpio1agrp", "gpio1bgrp", "gpio1cgrp",
 					  "gpio1dgrp" };
 static const char * const gpio2grps[] = { "gpio2agrp", "gpio2bgrp", "gpio2cgrp" };
