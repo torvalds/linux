@@ -1392,7 +1392,7 @@ struct gendisk *__alloc_disk_node(int minors, int node_id)
 
 	if (minors > DISK_MAX_PARTS) {
 		printk(KERN_ERR
-			"block: can't allocated more than %d partitions\n",
+			"block: can't allocate more than %d partitions\n",
 			DISK_MAX_PARTS);
 		minors = DISK_MAX_PARTS;
 	}
