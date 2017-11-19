@@ -82,7 +82,7 @@ int p9_show_client_options(struct seq_file *m, struct p9_client *clnt)
 {
 	if (clnt->msize != 8192)
 		seq_printf(m, ",msize=%u", clnt->msize);
-	seq_printf(m, "trans=%s", clnt->trans_mod->name);
+	seq_printf(m, ",trans=%s", clnt->trans_mod->name);
 
 	switch (clnt->proto_version) {
 	case p9_proto_legacy:
