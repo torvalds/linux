@@ -1314,17 +1314,6 @@ unsigned long kvm_vcpu_gfn_to_hva_prot(struct kvm_vcpu *vcpu, gfn_t gfn, bool *w
 	return gfn_to_hva_memslot_prot(slot, gfn, writable);
 }
 
-static int get_user_page_nowait(unsigned long start, int write,
-		struct page **page)
-{
-	int flags = FOLL_NOWAIT | FOLL_HWPOISON;
-
-	if (write)
-		flags |= FOLL_WRITE;
-
-	return get_user_pages(start, 1, flags, page, NULL);
-}
-
 static inline int check_user_page_hwpoison(unsigned long addr)
 {
 	int rc, flags = FOLL_HWPOISON | FOLL_WRITE;
@@ -1373,7 +1362,8 @@ static bool hva_to_pfn_fast(unsigned long addr, bool atomic, bool *async,
 static int hva_to_pfn_slow(unsigned long addr, bool *async, bool write_fault,
 			   bool *writable, kvm_pfn_t *pfn)
 {
-	struct page *page[1];
+	unsigned int flags = FOLL_HWPOISON;
+	struct page *page;
 	int npages = 0;
 
 	might_sleep();
@@ -1381,35 +1371,26 @@ static int hva_to_pfn_slow(unsigned long addr, bool *async, bool write_fault,
 	if (writable)
 		*writable = write_fault;
 
-	if (async) {
-		down_read(&current->mm->mmap_sem);
-		npages = get_user_page_nowait(addr, write_fault, page);
-		up_read(&current->mm->mmap_sem);
-	} else {
-		unsigned int flags = FOLL_HWPOISON;
+	if (write_fault)
+		flags |= FOLL_WRITE;
+	if (async)
+		flags |= FOLL_NOWAIT;
 
-		if (write_fault)
-			flags |= FOLL_WRITE;
-
-		npages = get_user_pages_unlocked(addr, 1, page, flags);
-	}
+	npages = get_user_pages_unlocked(addr, 1, &page, flags);
 	if (npages != 1)
 		return npages;
 
 	/* map read fault as writable if possible */
 	if (unlikely(!write_fault) && writable) {
-		struct page *wpage[1];
+		struct page *wpage;
 
-		npages = __get_user_pages_fast(addr, 1, 1, wpage);
-		if (npages == 1) {
+		if (__get_user_pages_fast(addr, 1, 1, &wpage) == 1) {
 			*writable = true;
-			put_page(page[0]);
-			page[0] = wpage[0];
+			put_page(page);
+			page = wpage;
 		}
-
-		npages = 1;
 	}
-	*pfn = page_to_pfn(page[0]);
+	*pfn = page_to_pfn(page);
 	return npages;
 }
 
