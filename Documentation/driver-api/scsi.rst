@@ -332,5 +332,5 @@ todo
 ~~~~
 
 Parallel (fast/wide/ultra) SCSI, USB, SATA, SAS, Fibre Channel,
-FireWire, ATAPI devices, Infiniband, I20, iSCSI, Parallel ports,
+FireWire, ATAPI devices, Infiniband, I2O, iSCSI, Parallel ports,
 netlink...
