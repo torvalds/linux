@@ -27,6 +27,7 @@
 #include <linux/if.h>
 #include <linux/if_vlan.h>
 #include <linux/kernel.h>
+#include <linux/kobject.h>
 #include <linux/kref.h>
 #include <linux/netdevice.h>
 #include <linux/printk.h>
