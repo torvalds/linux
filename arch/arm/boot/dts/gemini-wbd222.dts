@@ -136,6 +136,13 @@
 						"gpio0bgrp";
 					};
 				};
+				pinctrl-gmii {
+					/* This platform use both the ethernet ports */
+					mux {
+						function = "gmii";
+						groups = "gmii_gmac0_grp", "gmii_gmac1_grp";
+					};
+				};
 			};
 		};
 
@@ -164,6 +171,19 @@
 				<0x6000 0 0 2 &pci_intc 0>,
 				<0x6000 0 0 3 &pci_intc 1>,
 				<0x6000 0 0 4 &pci_intc 2>;
+		};
+
+		ethernet@60000000 {
+			status = "okay";
+
+			ethernet-port@0 {
+				phy-mode = "rgmii";
+				phy-handle = <&phy0>;
+			};
+			ethernet-port@1 {
+				phy-mode = "rgmii";
+				phy-handle = <&phy1>;
+			};
 		};
 	};
 };
