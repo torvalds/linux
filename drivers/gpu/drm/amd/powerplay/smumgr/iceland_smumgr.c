@@ -2549,9 +2549,9 @@ static int iceland_set_mc_special_registers(struct pp_hwmgr *hwmgr,
 					((table->mc_reg_table_entry[k].mc_data[i] & 0xffff0000) >> 16);
 			}
 			j++;
+
 			PP_ASSERT_WITH_CODE((j < SMU71_DISCRETE_MC_REGISTER_ARRAY_SIZE),
 				"Invalid VramInfo table.", return -EINVAL);
-
 			temp_reg = cgs_read_register(hwmgr->device, mmMC_PMG_CMD_MRS);
 			table->mc_reg_address[j].s1 = mmMC_PMG_CMD_MRS;
 			table->mc_reg_address[j].s0 = mmMC_SEQ_PMG_CMD_MRS_LP;
@@ -2565,10 +2565,10 @@ static int iceland_set_mc_special_registers(struct pp_hwmgr *hwmgr,
 				}
 			}
 			j++;
-			PP_ASSERT_WITH_CODE((j <= SMU71_DISCRETE_MC_REGISTER_ARRAY_SIZE),
-				"Invalid VramInfo table.", return -EINVAL);
 
-			if (!data->is_memory_gddr5 && j < SMU71_DISCRETE_MC_REGISTER_ARRAY_SIZE) {
+			if (!data->is_memory_gddr5) {
+				PP_ASSERT_WITH_CODE((j < SMU71_DISCRETE_MC_REGISTER_ARRAY_SIZE),
+					"Invalid VramInfo table.", return -EINVAL);
 				table->mc_reg_address[j].s1 = mmMC_PMG_AUTO_CMD;
 				table->mc_reg_address[j].s0 = mmMC_PMG_AUTO_CMD;
 				for (k = 0; k < table->num_entries; k++) {
@@ -2576,8 +2576,6 @@ static int iceland_set_mc_special_registers(struct pp_hwmgr *hwmgr,
 						(table->mc_reg_table_entry[k].mc_data[i] & 0xffff0000) >> 16;
 				}
 				j++;
-				PP_ASSERT_WITH_CODE((j <= SMU71_DISCRETE_MC_REGISTER_ARRAY_SIZE),
-					"Invalid VramInfo table.", return -EINVAL);
 			}
 
 			break;
@@ -2592,8 +2590,6 @@ static int iceland_set_mc_special_registers(struct pp_hwmgr *hwmgr,
 					(table->mc_reg_table_entry[k].mc_data[i] & 0x0000ffff);
 			}
 			j++;
-			PP_ASSERT_WITH_CODE((j <= SMU71_DISCRETE_MC_REGISTER_ARRAY_SIZE),
-				"Invalid VramInfo table.", return -EINVAL);
 			break;
 
 		default:
