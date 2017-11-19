@@ -1,0 +1,25 @@
+Ilitek ILI9225 display panels
+
+This binding is for display panels using an Ilitek ILI9225 controller in SPI
+mode.
+
+Required properties:
+- compatible:	"ilitek,ili9225-2.2in-176x220"
+- rs-gpios:	Register select signal
+- reset-gpios:	Reset pin
+
+The node for this driver must be a child node of a SPI controller, hence
+all mandatory properties described in ../spi/spi-bus.txt must be specified.
+
+Optional properties:
+- rotation:	panel rotation in degrees counter clockwise (0,90,180,270)
+
+Example:
+	display@0{
+		compatible = "ilitek,ili9225-2.2in-176x220";
+		reg = <0>;
+		spi-max-frequency = <12000000>;
+		rs-gpios = <&gpio0 9 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio0 8 GPIO_ACTIVE_HIGH>;
+		rotation = <270>;
+	};
