@@ -41,71 +41,12 @@ MODULE_AUTHOR("Manuel Estrada Sainz");
 MODULE_DESCRIPTION("Multi purpose firmware loading support");
 MODULE_LICENSE("GPL");
 
-/* Builtin firmware support */
-
-#ifdef CONFIG_FW_LOADER
-
-extern struct builtin_fw __start_builtin_fw[];
-extern struct builtin_fw __end_builtin_fw[];
-
-static bool fw_get_builtin_firmware(struct firmware *fw, const char *name,
-				    void *buf, size_t size)
-{
-	struct builtin_fw *b_fw;
-
-	for (b_fw = __start_builtin_fw; b_fw != __end_builtin_fw; b_fw++) {
-		if (strcmp(name, b_fw->name) == 0) {
-			fw->size = b_fw->size;
-			fw->data = b_fw->data;
-
-			if (buf && fw->size <= size)
-				memcpy(buf, fw->data, fw->size);
-			return true;
-		}
-	}
-
-	return false;
-}
-
-static bool fw_is_builtin_firmware(const struct firmware *fw)
-{
-	struct builtin_fw *b_fw;
-
-	for (b_fw = __start_builtin_fw; b_fw != __end_builtin_fw; b_fw++)
-		if (fw->data == b_fw->data)
-			return true;
-
-	return false;
-}
-
-#else /* Module case - no builtin firmware support */
-
-static inline bool fw_get_builtin_firmware(struct firmware *fw,
-					   const char *name, void *buf,
-					   size_t size)
-{
-	return false;
-}
-
-static inline bool fw_is_builtin_firmware(const struct firmware *fw)
-{
-	return false;
-}
-#endif
-
 enum fw_status {
 	FW_STATUS_UNKNOWN,
 	FW_STATUS_LOADING,
 	FW_STATUS_DONE,
 	FW_STATUS_ABORTED,
 };
-
-static int loading_timeout = 60;	/* In seconds */
-
-static inline long firmware_loading_timeout(void)
-{
-	return loading_timeout > 0 ? loading_timeout * HZ : MAX_JIFFY_OFFSET;
-}
 
 /*
  * Concurrent request_firmware() for the same firmware need to be
@@ -116,69 +57,6 @@ struct fw_state {
 	struct completion completion;
 	enum fw_status status;
 };
-
-static void fw_state_init(struct fw_state *fw_st)
-{
-	init_completion(&fw_st->completion);
-	fw_st->status = FW_STATUS_UNKNOWN;
-}
-
-static inline bool __fw_state_is_done(enum fw_status status)
-{
-	return status == FW_STATUS_DONE || status == FW_STATUS_ABORTED;
-}
-
-static int __fw_state_wait_common(struct fw_state *fw_st, long timeout)
-{
-	long ret;
-
-	ret = wait_for_completion_killable_timeout(&fw_st->completion, timeout);
-	if (ret != 0 && fw_st->status == FW_STATUS_ABORTED)
-		return -ENOENT;
-	if (!ret)
-		return -ETIMEDOUT;
-
-	return ret < 0 ? ret : 0;
-}
-
-static void __fw_state_set(struct fw_state *fw_st,
-			   enum fw_status status)
-{
-	WRITE_ONCE(fw_st->status, status);
-
-	if (status == FW_STATUS_DONE || status == FW_STATUS_ABORTED)
-		complete_all(&fw_st->completion);
-}
-
-#define fw_state_start(fw_st)					\
-	__fw_state_set(fw_st, FW_STATUS_LOADING)
-#define fw_state_done(fw_st)					\
-	__fw_state_set(fw_st, FW_STATUS_DONE)
-#define fw_state_aborted(fw_st)					\
-	__fw_state_set(fw_st, FW_STATUS_ABORTED)
-#define fw_state_wait(fw_st)					\
-	__fw_state_wait_common(fw_st, MAX_SCHEDULE_TIMEOUT)
-
-static int __fw_state_check(struct fw_state *fw_st, enum fw_status status)
-{
-	return fw_st->status == status;
-}
-
-#define fw_state_is_aborted(fw_st)				\
-	__fw_state_check(fw_st, FW_STATUS_ABORTED)
-
-#ifdef CONFIG_FW_LOADER_USER_HELPER
-
-#define fw_state_aborted(fw_st)					\
-	__fw_state_set(fw_st, FW_STATUS_ABORTED)
-#define fw_state_is_done(fw_st)					\
-	__fw_state_check(fw_st, FW_STATUS_DONE)
-#define fw_state_is_loading(fw_st)				\
-	__fw_state_check(fw_st, FW_STATUS_LOADING)
-#define fw_state_wait_timeout(fw_st, timeout)			\
-	__fw_state_wait_common(fw_st, timeout)
-
-#endif /* CONFIG_FW_LOADER_USER_HELPER */
 
 /* firmware behavior options */
 #define FW_OPT_UEVENT	(1U << 0)
@@ -252,13 +130,135 @@ struct fw_name_devm {
 #define	FW_LOADER_NO_CACHE	0
 #define	FW_LOADER_START_CACHE	1
 
-static int fw_cache_piggyback_on_request(const char *name);
-
 /* fw_lock could be moved to 'struct fw_sysfs' but since it is just
  * guarding for corner cases a global lock should be OK */
 static DEFINE_MUTEX(fw_lock);
 
 static struct firmware_cache fw_cache;
+
+/* Builtin firmware support */
+
+#ifdef CONFIG_FW_LOADER
+
+extern struct builtin_fw __start_builtin_fw[];
+extern struct builtin_fw __end_builtin_fw[];
+
+static bool fw_get_builtin_firmware(struct firmware *fw, const char *name,
+				    void *buf, size_t size)
+{
+	struct builtin_fw *b_fw;
+
+	for (b_fw = __start_builtin_fw; b_fw != __end_builtin_fw; b_fw++) {
+		if (strcmp(name, b_fw->name) == 0) {
+			fw->size = b_fw->size;
+			fw->data = b_fw->data;
+
+			if (buf && fw->size <= size)
+				memcpy(buf, fw->data, fw->size);
+			return true;
+		}
+	}
+
+	return false;
+}
+
+static bool fw_is_builtin_firmware(const struct firmware *fw)
+{
+	struct builtin_fw *b_fw;
+
+	for (b_fw = __start_builtin_fw; b_fw != __end_builtin_fw; b_fw++)
+		if (fw->data == b_fw->data)
+			return true;
+
+	return false;
+}
+
+#else /* Module case - no builtin firmware support */
+
+static inline bool fw_get_builtin_firmware(struct firmware *fw,
+					   const char *name, void *buf,
+					   size_t size)
+{
+	return false;
+}
+
+static inline bool fw_is_builtin_firmware(const struct firmware *fw)
+{
+	return false;
+}
+#endif
+
+static int loading_timeout = 60;	/* In seconds */
+
+static inline long firmware_loading_timeout(void)
+{
+	return loading_timeout > 0 ? loading_timeout * HZ : MAX_JIFFY_OFFSET;
+}
+
+static void fw_state_init(struct fw_state *fw_st)
+{
+	init_completion(&fw_st->completion);
+	fw_st->status = FW_STATUS_UNKNOWN;
+}
+
+static inline bool __fw_state_is_done(enum fw_status status)
+{
+	return status == FW_STATUS_DONE || status == FW_STATUS_ABORTED;
+}
+
+static int __fw_state_wait_common(struct fw_state *fw_st, long timeout)
+{
+	long ret;
+
+	ret = wait_for_completion_killable_timeout(&fw_st->completion, timeout);
+	if (ret != 0 && fw_st->status == FW_STATUS_ABORTED)
+		return -ENOENT;
+	if (!ret)
+		return -ETIMEDOUT;
+
+	return ret < 0 ? ret : 0;
+}
+
+static void __fw_state_set(struct fw_state *fw_st,
+			   enum fw_status status)
+{
+	WRITE_ONCE(fw_st->status, status);
+
+	if (status == FW_STATUS_DONE || status == FW_STATUS_ABORTED)
+		complete_all(&fw_st->completion);
+}
+
+#define fw_state_start(fw_st)					\
+	__fw_state_set(fw_st, FW_STATUS_LOADING)
+#define fw_state_done(fw_st)					\
+	__fw_state_set(fw_st, FW_STATUS_DONE)
+#define fw_state_aborted(fw_st)					\
+	__fw_state_set(fw_st, FW_STATUS_ABORTED)
+#define fw_state_wait(fw_st)					\
+	__fw_state_wait_common(fw_st, MAX_SCHEDULE_TIMEOUT)
+
+static int __fw_state_check(struct fw_state *fw_st, enum fw_status status)
+{
+	return fw_st->status == status;
+}
+
+#define fw_state_is_aborted(fw_st)				\
+	__fw_state_check(fw_st, FW_STATUS_ABORTED)
+
+#ifdef CONFIG_FW_LOADER_USER_HELPER
+
+#define fw_state_aborted(fw_st)					\
+	__fw_state_set(fw_st, FW_STATUS_ABORTED)
+#define fw_state_is_done(fw_st)					\
+	__fw_state_check(fw_st, FW_STATUS_DONE)
+#define fw_state_is_loading(fw_st)				\
+	__fw_state_check(fw_st, FW_STATUS_LOADING)
+#define fw_state_wait_timeout(fw_st, timeout)			\
+	__fw_state_wait_common(fw_st, timeout)
+
+#endif /* CONFIG_FW_LOADER_USER_HELPER */
+
+static int fw_cache_piggyback_on_request(const char *name);
 
 static struct fw_priv *__allocate_fw_priv(const char *fw_name,
 					  struct firmware_cache *fwc,
