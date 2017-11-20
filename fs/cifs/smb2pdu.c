@@ -2670,8 +2670,6 @@ SMB2_read(const unsigned int xid, struct cifs_io_parms *io_parms,
 	struct kvec iov[1];
 	struct kvec rsp_iov;
 	unsigned int total_len;
-	struct smb_rqst rqst = { .rq_iov = iov,
-				 .rq_nvec = 2 };
 	int flags = CIFS_LOG_ERROR;
 	struct cifs_ses *ses = io_parms->tcon->ses;
 
