@@ -516,7 +516,7 @@ void rk_serial_debug_init(void __iomem *base, phys_addr_t phy_base,
 	}
 
 #ifdef CONFIG_RK_CONSOLE_THREAD
-	t->console_task = kthread_create(console_thread, pdev, "kconsole");
+	t->console_task = kthread_run(console_thread, pdev, "kconsole");
 	if (!IS_ERR(t->console_task))
 		t->pdata.console_write = console_write;
 #endif
