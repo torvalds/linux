@@ -30,7 +30,7 @@
  * The stack trace can start at any of the three stacks and can potentially
  * touch all of them. The order is: panic stack, async stack, sync stack.
  */
-static unsigned long
+static unsigned long __no_sanitize_address
 __dump_trace(dump_trace_func_t func, void *data, unsigned long sp,
 	     unsigned long low, unsigned long high)
 {
