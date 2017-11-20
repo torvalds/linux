@@ -28,8 +28,6 @@ enum as3711_bl_type {
 
 struct as3711_bl_data {
 	bool powered;
-	const char *fb_name;
-	struct device *fb_dev;
 	enum as3711_bl_type type;
 	int brightness;
 	struct backlight_device *bl;
@@ -273,7 +271,9 @@ static int as3711_backlight_parse_dt(struct device *dev)
 
 	fb = of_parse_phandle(bl, "su1-dev", 0);
 	if (fb) {
-		pdata->su1_fb = fb->full_name;
+		of_node_put(fb);
+
+		pdata->su1_fb = true;
 
 		ret = of_property_read_u32(bl, "su1-max-uA", &pdata->su1_max_uA);
 		if (pdata->su1_max_uA <= 0)
@@ -286,7 +286,9 @@ static int as3711_backlight_parse_dt(struct device *dev)
 	if (fb) {
 		int count = 0;
 
-		pdata->su2_fb = fb->full_name;
+		of_node_put(fb);
+
+		pdata->su2_fb = true;
 
 		ret = of_property_read_u32(bl, "su2-max-uA", &pdata->su2_max_uA);
 		if (pdata->su2_max_uA <= 0)
@@ -425,7 +427,6 @@ static int as3711_backlight_probe(struct platform_device *pdev)
 
 	if (pdata->su1_fb) {
 		su = &supply->su1;
-		su->fb_name = pdata->su1_fb;
 		su->type = AS3711_BL_SU1;
 
 		max_brightness = min(pdata->su1_max_uA, 31);
@@ -436,7 +437,6 @@ static int as3711_backlight_probe(struct platform_device *pdev)
 
 	if (pdata->su2_fb) {
 		su = &supply->su2;
-		su->fb_name = pdata->su2_fb;
 		su->type = AS3711_BL_SU2;
 
 		switch (pdata->su2_fbprot) {
