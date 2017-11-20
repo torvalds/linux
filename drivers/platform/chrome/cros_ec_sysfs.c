@@ -34,8 +34,6 @@
 #include <linux/types.h>
 #include <linux/uaccess.h>
 
-#include "cros_ec_dev.h"
-
 /* Accessor functions */
 
 static ssize_t show_ec_reboot(struct device *dev,

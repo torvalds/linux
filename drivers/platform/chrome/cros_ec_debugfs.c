@@ -29,9 +29,6 @@
 #include <linux/slab.h>
 #include <linux/wait.h>
 
-#include "cros_ec_dev.h"
-#include "cros_ec_debugfs.h"
-
 #define LOG_SHIFT		14
 #define LOG_SIZE		(1 << LOG_SHIFT)
 #define LOG_POLL_SEC		10
