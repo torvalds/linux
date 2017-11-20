@@ -482,10 +482,13 @@ static int __maybe_unused rt5514_resume(struct device *dev)
 	if (device_may_wakeup(dev))
 		disable_irq_wake(irq);
 
-	if (rt5514_dsp->substream) {
-		rt5514_spi_burst_read(RT5514_IRQ_CTRL, (u8 *)&buf, sizeof(buf));
-		if (buf[0] & RT5514_IRQ_STATUS_BIT)
-			rt5514_schedule_copy(rt5514_dsp);
+	if (rt5514_dsp) {
+		if (rt5514_dsp->substream) {
+			rt5514_spi_burst_read(RT5514_IRQ_CTRL, (u8 *)&buf,
+				sizeof(buf));
+			if (buf[0] & RT5514_IRQ_STATUS_BIT)
+				rt5514_schedule_copy(rt5514_dsp);
+		}
 	}
 
 	return 0;
