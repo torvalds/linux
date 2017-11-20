@@ -29,7 +29,7 @@ int bpf_prog_offload_init(struct bpf_prog *prog, union bpf_attr *attr)
 	init_waitqueue_head(&offload->verifier_done);
 
 	rtnl_lock();
-	offload->netdev = __dev_get_by_index(net, attr->prog_target_ifindex);
+	offload->netdev = __dev_get_by_index(net, attr->prog_ifindex);
 	if (!offload->netdev) {
 		rtnl_unlock();
 		kfree(offload);
