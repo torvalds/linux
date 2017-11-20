@@ -874,6 +874,9 @@ static void execlists_submission_tasklet(unsigned long data)
 			if (!(status & GEN8_CTX_STATUS_COMPLETED_MASK))
 				continue;
 
+			/* We should never get a COMPLETED | IDLE_ACTIVE! */
+			GEM_BUG_ON(status & GEN8_CTX_STATUS_IDLE_ACTIVE);
+
 			if (status & GEN8_CTX_STATUS_COMPLETE &&
 			    buf[2*head + 1] == PREEMPT_ID) {
 				execlists_cancel_port_requests(execlists);
