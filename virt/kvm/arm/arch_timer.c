@@ -479,9 +479,6 @@ void kvm_timer_vcpu_load(struct kvm_vcpu *vcpu)
 
 	vtimer_restore_state(vcpu);
 
-	if (has_vhe())
-		disable_el1_phys_timer_access();
-
 	/* Set the background timer for the physical timer emulation. */
 	phys_timer_emulate(vcpu);
 }
@@ -509,9 +506,6 @@ void kvm_timer_vcpu_put(struct kvm_vcpu *vcpu)
 
 	if (unlikely(!timer->enabled))
 		return;
-
-	if (has_vhe())
-		enable_el1_phys_timer_access();
 
 	vtimer_save_state(vcpu);
 

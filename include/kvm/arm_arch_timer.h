@@ -93,7 +93,4 @@ void kvm_timer_init_vhe(void);
 #define vcpu_vtimer(v)	(&(v)->arch.timer_cpu.vtimer)
 #define vcpu_ptimer(v)	(&(v)->arch.timer_cpu.ptimer)
 
-void enable_el1_phys_timer_access(void);
-void disable_el1_phys_timer_access(void);
-
 #endif
