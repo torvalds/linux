@@ -125,7 +125,10 @@ struct fw_name_devm {
 	const char *name;
 };
 
-#define to_fw_priv(d) container_of(d, struct fw_priv, ref)
+static inline struct fw_priv *to_fw_priv(struct kref *ref)
+{
+	return container_of(ref, struct fw_priv, ref);
+}
 
 #define	FW_LOADER_NO_CACHE	0
 #define	FW_LOADER_START_CACHE	1
