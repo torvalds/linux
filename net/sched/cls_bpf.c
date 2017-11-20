@@ -382,15 +382,13 @@ static int cls_bpf_prog_from_efd(struct nlattr **tb, struct cls_bpf_prog *prog,
 {
 	struct bpf_prog *fp;
 	char *name = NULL;
+	bool skip_sw;
 	u32 bpf_fd;
 
 	bpf_fd = nla_get_u32(tb[TCA_BPF_FD]);
+	skip_sw = gen_flags & TCA_CLS_FLAGS_SKIP_SW;
 
-	if (gen_flags & TCA_CLS_FLAGS_SKIP_SW)
-		fp = bpf_prog_get_type_dev(bpf_fd, BPF_PROG_TYPE_SCHED_CLS,
-					   qdisc_dev(tp->q));
-	else
-		fp = bpf_prog_get_type(bpf_fd, BPF_PROG_TYPE_SCHED_CLS);
+	fp = bpf_prog_get_type_dev(bpf_fd, BPF_PROG_TYPE_SCHED_CLS, skip_sw);
 	if (IS_ERR(fp))
 		return PTR_ERR(fp);
 
