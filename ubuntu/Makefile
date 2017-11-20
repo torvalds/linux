@@ -25,7 +25,7 @@ obj-$(CONFIG_HIO)             += hio/
 ##
 ##
 ##
-ifneq ($(filter $(ARCH), i386 x86_64),)
+ifeq ($(ARCH),x86)
 obj-y				+= xr-usb-serial/
 endif
 ##
