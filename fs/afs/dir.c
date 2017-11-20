@@ -765,6 +765,8 @@ static void afs_vnode_new_inode(struct afs_fs_cursor *fc,
 	if (fc->ac.error < 0)
 		return;
 
+	d_drop(new_dentry);
+
 	inode = afs_iget(fc->vnode->vfs_inode.i_sb, fc->key,
 			 newfid, newstatus, newcb, fc->cbi);
 	if (IS_ERR(inode)) {
@@ -775,9 +777,7 @@ static void afs_vnode_new_inode(struct afs_fs_cursor *fc,
 		return;
 	}
 
-	d_instantiate(new_dentry, inode);
-	if (d_unhashed(new_dentry))
-		d_rehash(new_dentry);
+	d_add(new_dentry, inode);
 }
 
 /*
@@ -1053,7 +1053,7 @@ static int afs_link(struct dentry *from, struct inode *dir,
 	if (afs_begin_vnode_operation(&fc, dvnode, key)) {
 		if (mutex_lock_interruptible_nested(&vnode->io_lock, 1) < 0) {
 			afs_end_vnode_operation(&fc);
-			return -ERESTARTSYS;
+			goto error_key;
 		}
 
 		while (afs_select_fileserver(&fc)) {
@@ -1180,7 +1180,7 @@ static int afs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		if (orig_dvnode != new_dvnode) {
 			if (mutex_lock_interruptible_nested(&new_dvnode->io_lock, 1) < 0) {
 				afs_end_vnode_operation(&fc);
-				return -ERESTARTSYS;
+				goto error_key;
 			}
 		}
 		while (afs_select_fileserver(&fc)) {
@@ -1199,14 +1199,9 @@ static int afs_rename(struct inode *old_dir, struct dentry *old_dentry,
 			goto error_key;
 	}
 
-	key_put(key);
-	_leave(" = 0");
-	return 0;
-
 error_key:
 	key_put(key);
 error:
-	d_drop(new_dentry);
 	_leave(" = %d", ret);
 	return ret;
 }
