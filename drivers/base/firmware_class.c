@@ -247,8 +247,6 @@ static int __fw_state_check(struct fw_state *fw_st, enum fw_status status)
 
 #ifdef CONFIG_FW_LOADER_USER_HELPER
 
-#define fw_state_aborted(fw_st)					\
-	__fw_state_set(fw_st, FW_STATUS_ABORTED)
 #define fw_state_is_done(fw_st)					\
 	__fw_state_check(fw_st, FW_STATUS_DONE)
 #define fw_state_is_loading(fw_st)				\
