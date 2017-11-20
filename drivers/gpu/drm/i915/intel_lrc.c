@@ -477,6 +477,7 @@ static void execlists_submit_ports(struct intel_engine_cs *engine)
 
 		elsp_write(desc, elsp);
 	}
+	execlists_clear_active(&engine->execlists, EXECLISTS_ACTIVE_HWACK);
 }
 
 static bool ctx_single_port_submission(const struct i915_gem_context *ctx)
@@ -529,6 +530,7 @@ static void inject_preempt_context(struct intel_engine_cs *engine)
 		elsp_write(0, elsp);
 
 	elsp_write(ce->lrc_desc, elsp);
+	execlists_clear_active(&engine->execlists, EXECLISTS_ACTIVE_HWACK);
 }
 
 static void execlists_dequeue(struct intel_engine_cs *engine)
@@ -575,7 +577,18 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 		 * know the next preemption status we see corresponds
 		 * to this ELSP update.
 		 */
+		GEM_BUG_ON(!port_count(&port[0]));
 		if (port_count(&port[0]) > 1)
+			goto unlock;
+
+		/*
+		 * If we write to ELSP a second time before the HW has had
+		 * a chance to respond to the previous write, we can confuse
+		 * the HW and hit "undefined behaviour". After writing to ELSP,
+		 * we must then wait until we see a context-switch event from
+		 * the HW to indicate that it has had a chance to respond.
+		 */
+		if (!execlists_is_active(execlists, EXECLISTS_ACTIVE_HWACK))
 			goto unlock;
 
 		if (HAS_LOGICAL_RING_PREEMPTION(engine->i915) &&
@@ -871,6 +884,15 @@ static void execlists_submission_tasklet(unsigned long data)
 			GEM_TRACE("%s csb[%dd]: status=0x%08x:0x%08x\n",
 				  engine->name, head,
 				  status, buf[2*head + 1]);
+
+			if (status & (GEN8_CTX_STATUS_IDLE_ACTIVE |
+				      GEN8_CTX_STATUS_PREEMPTED))
+				execlists_set_active(execlists,
+						     EXECLISTS_ACTIVE_HWACK);
+			if (status & GEN8_CTX_STATUS_ACTIVE_IDLE)
+				execlists_clear_active(execlists,
+						       EXECLISTS_ACTIVE_HWACK);
+
 			if (!(status & GEN8_CTX_STATUS_COMPLETED_MASK))
 				continue;
 
