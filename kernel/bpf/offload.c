@@ -149,18 +149,6 @@ int bpf_prog_offload_compile(struct bpf_prog *prog)
 	return bpf_prog_offload_translate(prog);
 }
 
-u32 bpf_prog_offload_ifindex(struct bpf_prog *prog)
-{
-	struct bpf_dev_offload *offload = prog->aux->offload;
-	u32 ifindex;
-
-	rtnl_lock();
-	ifindex = offload->netdev ? offload->netdev->ifindex : 0;
-	rtnl_unlock();
-
-	return ifindex;
-}
-
 const struct bpf_prog_ops bpf_offload_prog_ops = {
 };
 
