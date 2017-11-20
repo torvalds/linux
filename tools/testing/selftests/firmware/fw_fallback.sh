@@ -212,37 +212,51 @@ test_syfs_timeout()
 	fi
 }
 
-test_syfs_timeout
+run_sysfs_main_tests()
+{
+	test_syfs_timeout
+	# Put timeout high enough for us to do work but not so long that failures
+	# slow down this test too much.
+	echo 4 >/sys/class/firmware/timeout
 
-# Put timeout high enough for us to do work but not so long that failures
-# slow down this test too much.
-echo 4 >/sys/class/firmware/timeout
+	# Load this script instead of the desired firmware.
+	load_fw "$NAME" "$0"
+	if diff -q "$FW" /dev/test_firmware >/dev/null ; then
+		echo "$0: firmware was not expected to match" >&2
+		exit 1
+	else
+		echo "$0: firmware comparison works"
+	fi
 
-# Load this script instead of the desired firmware.
-load_fw "$NAME" "$0"
-if diff -q "$FW" /dev/test_firmware >/dev/null ; then
-	echo "$0: firmware was not expected to match" >&2
-	exit 1
-else
-	echo "$0: firmware comparison works"
-fi
+	# Do a proper load, which should work correctly.
+	load_fw "$NAME" "$FW"
+	if ! diff -q "$FW" /dev/test_firmware >/dev/null ; then
+		echo "$0: firmware was not loaded" >&2
+		exit 1
+	else
+		echo "$0: fallback mechanism works"
+	fi
 
-# Do a proper load, which should work correctly.
-load_fw "$NAME" "$FW"
-if ! diff -q "$FW" /dev/test_firmware >/dev/null ; then
-	echo "$0: firmware was not loaded" >&2
-	exit 1
-else
-	echo "$0: fallback mechanism works"
-fi
+	load_fw_cancel "nope-$NAME" "$FW"
+	if diff -q "$FW" /dev/test_firmware >/dev/null ; then
+		echo "$0: firmware was expected to be cancelled" >&2
+		exit 1
+	else
+		echo "$0: cancelling fallback mechanism works"
+	fi
 
-load_fw_cancel "nope-$NAME" "$FW"
-if diff -q "$FW" /dev/test_firmware >/dev/null ; then
-	echo "$0: firmware was expected to be cancelled" >&2
-	exit 1
-else
-	echo "$0: cancelling fallback mechanism works"
-fi
+	set +e
+	load_fw_fallback_with_child "nope-signal-$NAME" "$FW"
+	if [ "$?" -eq 0 ]; then
+		echo "$0: SIGCHLD on sync ignored as expected" >&2
+	else
+		echo "$0: error - sync firmware request cancelled due to SIGCHLD" >&2
+		exit 1
+	fi
+	set -e
+}
+
+run_sysfs_main_tests
 
 if load_fw_custom "$NAME" "$FW" ; then
 	if ! diff -q "$FW" /dev/test_firmware >/dev/null ; then
@@ -261,15 +275,5 @@ if load_fw_custom_cancel "nope-$NAME" "$FW" ; then
 		echo "$0: cancelling custom fallback mechanism works"
 	fi
 fi
-
-set +e
-load_fw_fallback_with_child "nope-signal-$NAME" "$FW"
-if [ "$?" -eq 0 ]; then
-	echo "$0: SIGCHLD on sync ignored as expected" >&2
-else
-	echo "$0: error - sync firmware request cancelled due to SIGCHLD" >&2
-	exit 1
-fi
-set -e
 
 exit 0
