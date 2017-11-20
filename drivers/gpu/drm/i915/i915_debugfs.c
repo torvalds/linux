@@ -3363,7 +3363,10 @@ static void drrs_status_per_crtc(struct seq_file *m,
 
 		/* disable_drrs() will make drrs->dp NULL */
 		if (!drrs->dp) {
-			seq_puts(m, "Idleness DRRS: Disabled");
+			seq_puts(m, "Idleness DRRS: Disabled\n");
+			if (dev_priv->psr.enabled)
+				seq_puts(m,
+				"\tAs PSR is enabled, DRRS is not enabled\n");
 			mutex_unlock(&drrs->mutex);
 			return;
 		}
