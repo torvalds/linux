@@ -245,7 +245,7 @@ static int copy_workload_to_ring_buffer(struct intel_vgpu_workload *workload)
 	return 0;
 }
 
-void release_shadow_wa_ctx(struct intel_shadow_wa_ctx *wa_ctx)
+static void release_shadow_wa_ctx(struct intel_shadow_wa_ctx *wa_ctx)
 {
 	if (!wa_ctx->indirect_ctx.obj)
 		return;
