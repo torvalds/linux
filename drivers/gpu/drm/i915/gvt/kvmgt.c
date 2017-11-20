@@ -53,11 +53,23 @@ static const struct intel_gvt_ops *intel_gvt_ops;
 #define VFIO_PCI_INDEX_TO_OFFSET(index) ((u64)(index) << VFIO_PCI_OFFSET_SHIFT)
 #define VFIO_PCI_OFFSET_MASK    (((u64)(1) << VFIO_PCI_OFFSET_SHIFT) - 1)
 
+#define OPREGION_SIGNATURE "IntelGraphicsMem"
+
+struct vfio_region;
+struct intel_vgpu_regops {
+	size_t (*rw)(struct intel_vgpu *vgpu, char *buf,
+			size_t count, loff_t *ppos, bool iswrite);
+	void (*release)(struct intel_vgpu *vgpu,
+			struct vfio_region *region);
+};
+
 struct vfio_region {
 	u32				type;
 	u32				subtype;
 	size_t				size;
 	u32				flags;
+	const struct intel_vgpu_regops	*ops;
+	void				*data;
 };
 
 struct kvmgt_pgfn {
@@ -316,6 +328,87 @@ static void kvmgt_protect_table_del(struct kvmgt_guest_info *info,
 	}
 }
 
+static size_t intel_vgpu_reg_rw_opregion(struct intel_vgpu *vgpu, char *buf,
+		size_t count, loff_t *ppos, bool iswrite)
+{
+	unsigned int i = VFIO_PCI_OFFSET_TO_INDEX(*ppos) -
+			VFIO_PCI_NUM_REGIONS;
+	void *base = vgpu->vdev.region[i].data;
+	loff_t pos = *ppos & VFIO_PCI_OFFSET_MASK;
+
+	if (pos >= vgpu->vdev.region[i].size || iswrite) {
+		gvt_vgpu_err("invalid op or offset for Intel vgpu OpRegion\n");
+		return -EINVAL;
+	}
+	count = min(count, (size_t)(vgpu->vdev.region[i].size - pos));
+	memcpy(buf, base + pos, count);
+
+	return count;
+}
+
+static void intel_vgpu_reg_release_opregion(struct intel_vgpu *vgpu,
+		struct vfio_region *region)
+{
+}
+
+static const struct intel_vgpu_regops intel_vgpu_regops_opregion = {
+	.rw = intel_vgpu_reg_rw_opregion,
+	.release = intel_vgpu_reg_release_opregion,
+};
+
+static int intel_vgpu_register_reg(struct intel_vgpu *vgpu,
+		unsigned int type, unsigned int subtype,
+		const struct intel_vgpu_regops *ops,
+		size_t size, u32 flags, void *data)
+{
+	struct vfio_region *region;
+
+	region = krealloc(vgpu->vdev.region,
+			(vgpu->vdev.num_regions + 1) * sizeof(*region),
+			GFP_KERNEL);
+	if (!region)
+		return -ENOMEM;
+
+	vgpu->vdev.region = region;
+	vgpu->vdev.region[vgpu->vdev.num_regions].type = type;
+	vgpu->vdev.region[vgpu->vdev.num_regions].subtype = subtype;
+	vgpu->vdev.region[vgpu->vdev.num_regions].ops = ops;
+	vgpu->vdev.region[vgpu->vdev.num_regions].size = size;
+	vgpu->vdev.region[vgpu->vdev.num_regions].flags = flags;
+	vgpu->vdev.region[vgpu->vdev.num_regions].data = data;
+	vgpu->vdev.num_regions++;
+
+	return 0;
+}
+
+static int kvmgt_set_opregion(void *p_vgpu)
+{
+	struct intel_vgpu *vgpu = (struct intel_vgpu *)p_vgpu;
+	void *base;
+	int ret;
+
+	/* Each vgpu has its own opregion, although VFIO would create another
+	 * one later. This one is used to expose opregion to VFIO. And the
+	 * other one created by VFIO later, is used by guest actually.
+	 */
+	base = vgpu_opregion(vgpu)->va;
+	if (!base)
+		return -ENOMEM;
+
+	if (memcmp(base, OPREGION_SIGNATURE, 16)) {
+		memunmap(base);
+		return -EINVAL;
+	}
+
+	ret = intel_vgpu_register_reg(vgpu,
+			PCI_VENDOR_ID_INTEL | VFIO_REGION_TYPE_PCI_VENDOR_TYPE,
+			VFIO_REGION_SUBTYPE_INTEL_IGD_OPREGION,
+			&intel_vgpu_regops_opregion, OPREGION_SIZE,
+			VFIO_REGION_INFO_FLAG_READ, base);
+
+	return ret;
+}
+
 static int intel_vgpu_create(struct kobject *kobj, struct mdev_device *mdev)
 {
 	struct intel_vgpu *vgpu = NULL;
@@ -546,7 +639,7 @@ static ssize_t intel_vgpu_rw(struct mdev_device *mdev, char *buf,
 	int ret = -EINVAL;
 
 
-	if (index >= VFIO_PCI_NUM_REGIONS) {
+	if (index >= VFIO_PCI_NUM_REGIONS + vgpu->vdev.num_regions) {
 		gvt_vgpu_err("invalid index: %u\n", index);
 		return -EINVAL;
 	}
@@ -574,8 +667,14 @@ static ssize_t intel_vgpu_rw(struct mdev_device *mdev, char *buf,
 	case VFIO_PCI_BAR5_REGION_INDEX:
 	case VFIO_PCI_VGA_REGION_INDEX:
 	case VFIO_PCI_ROM_REGION_INDEX:
+		break;
 	default:
-		gvt_vgpu_err("unsupported region: %u\n", index);
+		if (index >= VFIO_PCI_NUM_REGIONS + vgpu->vdev.num_regions)
+			return -EINVAL;
+
+		index -= VFIO_PCI_NUM_REGIONS;
+		return vgpu->vdev.region[index].ops->rw(vgpu, buf, count,
+				ppos, is_write);
 	}
 
 	return ret == 0 ? count : ret;
@@ -838,7 +937,8 @@ static long intel_vgpu_ioctl(struct mdev_device *mdev, unsigned int cmd,
 
 		info.flags = VFIO_DEVICE_FLAGS_PCI;
 		info.flags |= VFIO_DEVICE_FLAGS_RESET;
-		info.num_regions = VFIO_PCI_NUM_REGIONS;
+		info.num_regions = VFIO_PCI_NUM_REGIONS +
+				vgpu->vdev.num_regions;
 		info.num_irqs = VFIO_PCI_NUM_IRQS;
 
 		return copy_to_user((void __user *)arg, &info, minsz) ?
@@ -959,6 +1059,7 @@ static long intel_vgpu_ioctl(struct mdev_device *mdev, unsigned int cmd,
 		}
 
 		if (caps.size) {
+			info.flags |= VFIO_REGION_INFO_FLAG_CAPS;
 			if (info.argsz < sizeof(info) + caps.size) {
 				info.argsz = sizeof(info) + caps.size;
 				info.cap_offset = 0;
@@ -1426,6 +1527,7 @@ struct intel_gvt_mpt kvmgt_mpt = {
 	.read_gpa = kvmgt_read_gpa,
 	.write_gpa = kvmgt_write_gpa,
 	.gfn_to_mfn = kvmgt_gfn_to_pfn,
+	.set_opregion = kvmgt_set_opregion,
 };
 EXPORT_SYMBOL_GPL(kvmgt_mpt);
 

@@ -294,4 +294,19 @@ static inline int intel_gvt_hypervisor_set_trap_area(
 	return intel_gvt_host.mpt->set_trap_area(vgpu->handle, start, end, map);
 }
 
+/**
+ * intel_gvt_hypervisor_set_opregion - Set opregion for guest
+ * @vgpu: a vGPU
+ *
+ * Returns:
+ * Zero on success, negative error code if failed.
+ */
+static inline int intel_gvt_hypervisor_set_opregion(struct intel_vgpu *vgpu)
+{
+	if (!intel_gvt_host.mpt->set_opregion)
+		return 0;
+
+	return intel_gvt_host.mpt->set_opregion(vgpu);
+}
+
 #endif /* _GVT_MPT_H_ */

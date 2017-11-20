@@ -297,19 +297,41 @@ static int map_vgpu_opregion(struct intel_vgpu *vgpu, bool map)
  */
 int intel_vgpu_opregion_base_write_handler(struct intel_vgpu *vgpu, u32 gpa)
 {
-	int i, ret;
 
-	/**
-	 * Wins guest on Xengt will write this register twice: xen hvmloader and
-	 * windows graphic driver.
-	 */
-	if (vgpu_opregion(vgpu)->mapped)
-		map_vgpu_opregion(vgpu, false);
+	int i, ret = 0;
+	unsigned long pfn;
 
-	for (i = 0; i < INTEL_GVT_OPREGION_PAGES; i++)
-		vgpu_opregion(vgpu)->gfn[i] = (gpa >> PAGE_SHIFT) + i;
+	gvt_dbg_core("emulate opregion from kernel\n");
 
-	ret = map_vgpu_opregion(vgpu, true);
+	switch (intel_gvt_host.hypervisor_type) {
+	case INTEL_GVT_HYPERVISOR_KVM:
+		pfn = intel_gvt_hypervisor_gfn_to_mfn(vgpu, gpa >> PAGE_SHIFT);
+		vgpu_opregion(vgpu)->va_gopregion = memremap(pfn << PAGE_SHIFT,
+						INTEL_GVT_OPREGION_SIZE,
+						MEMREMAP_WB);
+		if (!vgpu_opregion(vgpu)->va_gopregion) {
+			gvt_vgpu_err("failed to map guest opregion\n");
+			ret = -EFAULT;
+		}
+		vgpu_opregion(vgpu)->mapped = true;
+		break;
+	case INTEL_GVT_HYPERVISOR_XEN:
+		/**
+		 * Wins guest on Xengt will write this register twice: xen
+		 * hvmloader and windows graphic driver.
+		 */
+		if (vgpu_opregion(vgpu)->mapped)
+			map_vgpu_opregion(vgpu, false);
+
+		for (i = 0; i < INTEL_GVT_OPREGION_PAGES; i++)
+			vgpu_opregion(vgpu)->gfn[i] = (gpa >> PAGE_SHIFT) + i;
+
+		ret = map_vgpu_opregion(vgpu, true);
+		break;
+	default:
+		ret = -EINVAL;
+		gvt_vgpu_err("not supported hypervisor\n");
+	}
 
 	return ret;
 }
@@ -326,13 +348,20 @@ void intel_vgpu_clean_opregion(struct intel_vgpu *vgpu)
 	if (!vgpu_opregion(vgpu)->va)
 		return;
 
-	if (vgpu_opregion(vgpu)->mapped)
-		map_vgpu_opregion(vgpu, false);
-
+	if (intel_gvt_host.hypervisor_type == INTEL_GVT_HYPERVISOR_XEN) {
+		if (vgpu_opregion(vgpu)->mapped)
+			map_vgpu_opregion(vgpu, false);
+	} else if (intel_gvt_host.hypervisor_type == INTEL_GVT_HYPERVISOR_KVM) {
+		if (vgpu_opregion(vgpu)->mapped) {
+			memunmap(vgpu_opregion(vgpu)->va_gopregion);
+			vgpu_opregion(vgpu)->va_gopregion = NULL;
+		}
+	}
 	free_pages((unsigned long)vgpu_opregion(vgpu)->va,
-			get_order(INTEL_GVT_OPREGION_SIZE));
+		   get_order(INTEL_GVT_OPREGION_SIZE));
 
 	vgpu_opregion(vgpu)->va = NULL;
+
 }
 
 
@@ -454,8 +483,21 @@ int intel_vgpu_emulate_opregion_request(struct intel_vgpu *vgpu, u32 swsci)
 	u32 *scic, *parm;
 	u32 func, subfunc;
 
-	scic = vgpu_opregion(vgpu)->va + INTEL_GVT_OPREGION_SCIC;
-	parm = vgpu_opregion(vgpu)->va + INTEL_GVT_OPREGION_PARM;
+	switch (intel_gvt_host.hypervisor_type) {
+	case INTEL_GVT_HYPERVISOR_XEN:
+		scic = vgpu_opregion(vgpu)->va + INTEL_GVT_OPREGION_SCIC;
+		parm = vgpu_opregion(vgpu)->va + INTEL_GVT_OPREGION_PARM;
+		break;
+	case INTEL_GVT_HYPERVISOR_KVM:
+		scic = vgpu_opregion(vgpu)->va_gopregion +
+						INTEL_GVT_OPREGION_SCIC;
+		parm = vgpu_opregion(vgpu)->va_gopregion +
+						INTEL_GVT_OPREGION_PARM;
+		break;
+	default:
+		gvt_vgpu_err("not supported hypervisor\n");
+		return -EINVAL;
+	}
 
 	if (!(swsci & SWSCI_SCI_SELECT)) {
 		gvt_vgpu_err("requesting SMI service\n");
