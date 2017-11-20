@@ -38,4 +38,7 @@ config PINCTRL_MESON_GXL
 config PINCTRL_MESON8_PMX
 	bool
 
+config PINCTRL_MESON_AXG_PMX
+	bool
+
 endif
