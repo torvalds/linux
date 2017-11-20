@@ -103,7 +103,6 @@ EXPORT_SYMBOL(slash_name);
  * information, yet avoid using a prime hash-size or similar.
  */
 
-static unsigned int d_hash_mask __read_mostly;
 static unsigned int d_hash_shift __read_mostly;
 
 static struct hlist_bl_head *dentry_hashtable __read_mostly;
@@ -3590,7 +3589,7 @@ static void __init dcache_init_early(void)
 					13,
 					HASH_EARLY | HASH_ZERO,
 					&d_hash_shift,
-					&d_hash_mask,
+					NULL,
 					0,
 					0);
 	d_hash_shift = 32 - d_hash_shift;
@@ -3617,7 +3616,7 @@ static void __init dcache_init(void)
 					13,
 					HASH_ZERO,
 					&d_hash_shift,
-					&d_hash_mask,
+					NULL,
 					0,
 					0);
 	d_hash_shift = 32 - d_hash_shift;
