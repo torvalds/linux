@@ -3790,12 +3790,12 @@ _base_release_memory_pools(struct MPT3SAS_ADAPTER *ioc)
 	if (ioc->pcie_sgl_dma_pool) {
 		for (i = 0; i < ioc->scsiio_depth; i++) {
 			if (ioc->scsi_lookup[i].pcie_sg_list.pcie_sgl)
-				pci_pool_free(ioc->pcie_sgl_dma_pool,
+				dma_pool_free(ioc->pcie_sgl_dma_pool,
 				ioc->scsi_lookup[i].pcie_sg_list.pcie_sgl,
 				ioc->scsi_lookup[i].pcie_sg_list.pcie_sgl_dma);
 		}
 		if (ioc->pcie_sgl_dma_pool)
-			pci_pool_destroy(ioc->pcie_sgl_dma_pool);
+			dma_pool_destroy(ioc->pcie_sgl_dma_pool);
 	}
 
 	if (ioc->config_page) {
@@ -4204,21 +4204,21 @@ _base_allocate_memory_pools(struct MPT3SAS_ADAPTER *ioc)
 
 		sz = nvme_blocks_needed * ioc->page_size;
 		ioc->pcie_sgl_dma_pool =
-			pci_pool_create("PCIe SGL pool", ioc->pdev, sz, 16, 0);
+			dma_pool_create("PCIe SGL pool", &ioc->pdev->dev, sz, 16, 0);
 		if (!ioc->pcie_sgl_dma_pool) {
 			pr_info(MPT3SAS_FMT
-			    "PCIe SGL pool: pci_pool_create failed\n",
+			    "PCIe SGL pool: dma_pool_create failed\n",
 			    ioc->name);
 			goto out;
 		}
 		for (i = 0; i < ioc->scsiio_depth; i++) {
 			ioc->scsi_lookup[i].pcie_sg_list.pcie_sgl =
-					pci_pool_alloc(ioc->pcie_sgl_dma_pool,
+					dma_pool_alloc(ioc->pcie_sgl_dma_pool,
 					GFP_KERNEL,
 				&ioc->scsi_lookup[i].pcie_sg_list.pcie_sgl_dma);
 			if (!ioc->scsi_lookup[i].pcie_sg_list.pcie_sgl) {
 				pr_info(MPT3SAS_FMT
-				    "PCIe SGL pool: pci_pool_alloc failed\n",
+				    "PCIe SGL pool: dma_pool_alloc failed\n",
 				    ioc->name);
 				goto out;
 			}
