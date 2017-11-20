@@ -1111,7 +1111,8 @@ static int pi433_probe(struct spi_device *spi)
 				    &spi->dev,
 				    device->devt,
 				    device,
-				    "pi433");
+				    "pi433.%d",
+				    device->minor);
 	if (IS_ERR(device->dev)) {
 		pr_err("pi433: device register failed\n");
 		retval = PTR_ERR(device->dev);
@@ -1127,7 +1128,8 @@ static int pi433_probe(struct spi_device *spi)
 	/* start tx thread */
 	device->tx_task_struct = kthread_run(pi433_tx_thread,
 					     device,
-					     "pi433_tx_task");
+					     "pi433.%d_tx_task",
+					     device->minor);
 	if (IS_ERR(device->tx_task_struct)) {
 		dev_dbg(device->dev, "start of send thread failed");
 		goto send_thread_failed;
