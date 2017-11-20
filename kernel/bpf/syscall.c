@@ -1057,22 +1057,23 @@ struct bpf_prog *bpf_prog_inc_not_zero(struct bpf_prog *prog)
 }
 EXPORT_SYMBOL_GPL(bpf_prog_inc_not_zero);
 
-static bool bpf_prog_can_attach(struct bpf_prog *prog,
-				enum bpf_prog_type *attach_type,
-				struct net_device *netdev)
+static bool bpf_prog_get_ok(struct bpf_prog *prog,
+			    enum bpf_prog_type *attach_type, bool attach_drv)
 {
-	struct bpf_dev_offload *offload = prog->aux->offload;
+	/* not an attachment, just a refcount inc, always allow */
+	if (!attach_type)
+		return true;
 
 	if (prog->type != *attach_type)
 		return false;
-	if (offload && offload->netdev != netdev)
+	if (bpf_prog_is_dev_bound(prog->aux) && !attach_drv)
 		return false;
 
 	return true;
 }
 
 static struct bpf_prog *__bpf_prog_get(u32 ufd, enum bpf_prog_type *attach_type,
-				       struct net_device *netdev)
+				       bool attach_drv)
 {
 	struct fd f = fdget(ufd);
 	struct bpf_prog *prog;
@@ -1080,7 +1081,7 @@ static struct bpf_prog *__bpf_prog_get(u32 ufd, enum bpf_prog_type *attach_type,
 	prog = ____bpf_prog_get(f);
 	if (IS_ERR(prog))
 		return prog;
-	if (attach_type && !bpf_prog_can_attach(prog, attach_type, netdev)) {
+	if (!bpf_prog_get_ok(prog, attach_type, attach_drv)) {
 		prog = ERR_PTR(-EINVAL);
 		goto out;
 	}
@@ -1093,12 +1094,12 @@ out:
 
 struct bpf_prog *bpf_prog_get(u32 ufd)
 {
-	return __bpf_prog_get(ufd, NULL, NULL);
+	return __bpf_prog_get(ufd, NULL, false);
 }
 
 struct bpf_prog *bpf_prog_get_type(u32 ufd, enum bpf_prog_type type)
 {
-	struct bpf_prog *prog = __bpf_prog_get(ufd, &type, NULL);
+	struct bpf_prog *prog = __bpf_prog_get(ufd, &type, false);
 
 	if (!IS_ERR(prog))
 		trace_bpf_prog_get_type(prog);
@@ -1107,9 +1108,9 @@ struct bpf_prog *bpf_prog_get_type(u32 ufd, enum bpf_prog_type type)
 EXPORT_SYMBOL_GPL(bpf_prog_get_type);
 
 struct bpf_prog *bpf_prog_get_type_dev(u32 ufd, enum bpf_prog_type type,
-				       struct net_device *netdev)
+				       bool attach_drv)
 {
-	struct bpf_prog *prog = __bpf_prog_get(ufd, &type, netdev);
+	struct bpf_prog *prog = __bpf_prog_get(ufd, &type, attach_drv);
 
 	if (!IS_ERR(prog))
 		trace_bpf_prog_get_type(prog);

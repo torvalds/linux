@@ -7139,11 +7139,8 @@ int dev_change_xdp_fd(struct net_device *dev, struct netlink_ext_ack *extack,
 		    __dev_xdp_attached(dev, bpf_op, NULL))
 			return -EBUSY;
 
-		if (bpf_op == ops->ndo_bpf)
-			prog = bpf_prog_get_type_dev(fd, BPF_PROG_TYPE_XDP,
-						     dev);
-		else
-			prog = bpf_prog_get_type(fd, BPF_PROG_TYPE_XDP);
+		prog = bpf_prog_get_type_dev(fd, BPF_PROG_TYPE_XDP,
+					     bpf_op == ops->ndo_bpf);
 		if (IS_ERR(prog))
 			return PTR_ERR(prog);
 	}

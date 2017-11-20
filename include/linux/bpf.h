@@ -336,7 +336,7 @@ extern const struct bpf_verifier_ops xdp_analyzer_ops;
 struct bpf_prog *bpf_prog_get(u32 ufd);
 struct bpf_prog *bpf_prog_get_type(u32 ufd, enum bpf_prog_type type);
 struct bpf_prog *bpf_prog_get_type_dev(u32 ufd, enum bpf_prog_type type,
-				       struct net_device *netdev);
+				       bool attach_drv);
 struct bpf_prog * __must_check bpf_prog_add(struct bpf_prog *prog, int i);
 void bpf_prog_sub(struct bpf_prog *prog, int i);
 struct bpf_prog * __must_check bpf_prog_inc(struct bpf_prog *prog);
@@ -433,7 +433,7 @@ static inline struct bpf_prog *bpf_prog_get_type(u32 ufd,
 
 static inline struct bpf_prog *bpf_prog_get_type_dev(u32 ufd,
 						     enum bpf_prog_type type,
-						     struct net_device *netdev)
+						     bool attach_drv)
 {
 	return ERR_PTR(-EOPNOTSUPP);
 }
