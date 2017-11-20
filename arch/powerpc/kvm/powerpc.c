@@ -1101,11 +1101,9 @@ int kvmppc_handle_vsx_load(struct kvm_run *run, struct kvm_vcpu *vcpu,
 {
 	enum emulation_result emulated = EMULATE_DONE;
 
-	/* Currently, mmio_vsx_copy_nums only allowed to be less than 4 */
-	if ( (vcpu->arch.mmio_vsx_copy_nums > 4) ||
-		(vcpu->arch.mmio_vsx_copy_nums < 0) ) {
+	/* Currently, mmio_vsx_copy_nums only allowed to be 4 or less */
+	if (vcpu->arch.mmio_vsx_copy_nums > 4)
 		return EMULATE_FAIL;
-	}
 
 	while (vcpu->arch.mmio_vsx_copy_nums) {
 		emulated = __kvmppc_handle_load(run, vcpu, rt, bytes,
@@ -1247,11 +1245,9 @@ int kvmppc_handle_vsx_store(struct kvm_run *run, struct kvm_vcpu *vcpu,
 
 	vcpu->arch.io_gpr = rs;
 
-	/* Currently, mmio_vsx_copy_nums only allowed to be less than 4 */
-	if ( (vcpu->arch.mmio_vsx_copy_nums > 4) ||
-		(vcpu->arch.mmio_vsx_copy_nums < 0) ) {
+	/* Currently, mmio_vsx_copy_nums only allowed to be 4 or less */
+	if (vcpu->arch.mmio_vsx_copy_nums > 4)
 		return EMULATE_FAIL;
-	}
 
 	while (vcpu->arch.mmio_vsx_copy_nums) {
 		if (kvmppc_get_vsr_data(vcpu, rs, &val) == -1)
