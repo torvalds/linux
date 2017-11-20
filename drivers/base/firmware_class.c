@@ -234,7 +234,7 @@ struct fw_priv {
 	int page_array_size;
 	struct list_head pending_list;
 #endif
-	const char *fw_id;
+	const char *fw_name;
 };
 
 struct fw_cache_entry {
@@ -270,8 +270,8 @@ static struct fw_priv *__allocate_fw_priv(const char *fw_name,
 	if (!fw_priv)
 		return NULL;
 
-	fw_priv->fw_id = kstrdup_const(fw_name, GFP_ATOMIC);
-	if (!fw_priv->fw_id) {
+	fw_priv->fw_name = kstrdup_const(fw_name, GFP_ATOMIC);
+	if (!fw_priv->fw_name) {
 		kfree(fw_priv);
 		return NULL;
 	}
@@ -296,7 +296,7 @@ static struct fw_priv *__lookup_fw_priv(const char *fw_name)
 	struct firmware_cache *fwc = &fw_cache;
 
 	list_for_each_entry(tmp, &fwc->head, list)
-		if (!strcmp(tmp->fw_id, fw_name))
+		if (!strcmp(tmp->fw_name, fw_name))
 			return tmp;
 	return NULL;
 }
@@ -335,7 +335,7 @@ static void __free_fw_priv(struct kref *ref)
 	struct firmware_cache *fwc = fw_priv->fwc;
 
 	pr_debug("%s: fw-%s fw_priv=%p data=%p size=%u\n",
-		 __func__, fw_priv->fw_id, fw_priv, fw_priv->data,
+		 __func__, fw_priv->fw_name, fw_priv, fw_priv->data,
 		 (unsigned int)fw_priv->size);
 
 	list_del(&fw_priv->list);
@@ -352,7 +352,7 @@ static void __free_fw_priv(struct kref *ref)
 #endif
 	if (!fw_priv->allocated_size)
 		vfree(fw_priv->data);
-	kfree_const(fw_priv->fw_id);
+	kfree_const(fw_priv->fw_name);
 	kfree(fw_priv);
 }
 
@@ -408,7 +408,7 @@ fw_get_filesystem_firmware(struct device *device, struct fw_priv *fw_priv)
 			continue;
 
 		len = snprintf(path, PATH_MAX, "%s/%s",
-			       fw_path[i], fw_priv->fw_id);
+			       fw_path[i], fw_priv->fw_name);
 		if (len >= PATH_MAX) {
 			rc = -ENAMETOOLONG;
 			break;
@@ -426,7 +426,7 @@ fw_get_filesystem_firmware(struct device *device, struct fw_priv *fw_priv)
 					 path, rc);
 			continue;
 		}
-		dev_dbg(device, "direct-loading %s\n", fw_priv->fw_id);
+		dev_dbg(device, "direct-loading %s\n", fw_priv->fw_name);
 		fw_priv->size = size;
 		fw_state_done(&fw_priv->fw_st);
 		break;
@@ -458,7 +458,7 @@ static void fw_set_page_data(struct fw_priv *fw_priv, struct firmware *fw)
 	fw->data = fw_priv->data;
 
 	pr_debug("%s: fw-%s fw_priv=%p data=%p size=%u\n",
-		 __func__, fw_priv->fw_id, fw_priv, fw_priv->data,
+		 __func__, fw_priv->fw_name, fw_priv, fw_priv->data,
 		 (unsigned int)fw_priv->size);
 }
 
@@ -544,7 +544,7 @@ static int assign_fw(struct firmware *fw, struct device *device,
 	/* don't cache firmware handled without uevent */
 	if (device && (opt_flags & FW_OPT_UEVENT) &&
 	    !(opt_flags & FW_OPT_NOCACHE))
-		fw_add_devm_name(device, fw_priv->fw_id);
+		fw_add_devm_name(device, fw_priv->fw_name);
 
 	/*
 	 * After caching firmware image is started, let it piggyback
@@ -552,7 +552,7 @@ static int assign_fw(struct firmware *fw, struct device *device,
 	 */
 	if (!(opt_flags & FW_OPT_NOCACHE) &&
 	    fw_priv->fwc->state == FW_LOADER_START_CACHE) {
-		if (fw_cache_piggyback_on_request(fw_priv->fw_id))
+		if (fw_cache_piggyback_on_request(fw_priv->fw_name))
 			kref_get(&fw_priv->ref);
 	}
 
@@ -659,7 +659,7 @@ static void fw_dev_release(struct device *dev)
 
 static int do_firmware_uevent(struct fw_sysfs *fw_sysfs, struct kobj_uevent_env *env)
 {
-	if (add_uevent_var(env, "FIRMWARE=%s", fw_sysfs->fw_priv->fw_id))
+	if (add_uevent_var(env, "FIRMWARE=%s", fw_sysfs->fw_priv->fw_name))
 		return -ENOMEM;
 	if (add_uevent_var(env, "TIMEOUT=%i", loading_timeout))
 		return -ENOMEM;
@@ -1056,7 +1056,7 @@ static int _request_firmware_load(struct fw_sysfs *fw_sysfs,
 	if (opt_flags & FW_OPT_UEVENT) {
 		fw_priv->need_uevent = true;
 		dev_set_uevent_suppress(f_dev, false);
-		dev_dbg(f_dev, "firmware: requesting %s\n", fw_priv->fw_id);
+		dev_dbg(f_dev, "firmware: requesting %s\n", fw_priv->fw_name);
 		kobject_uevent(&fw_sysfs->dev.kobj, KOBJ_ADD);
 	} else {
 		timeout = MAX_JIFFY_OFFSET;
