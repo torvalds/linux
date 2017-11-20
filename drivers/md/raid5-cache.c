@@ -2448,7 +2448,6 @@ static void r5c_recovery_flush_data_only_stripes(struct r5l_log *log,
 		raid5_release_stripe(sh);
 	}
 
-	md_wakeup_thread(conf->mddev->thread);
 	/* reuse conf->wait_for_quiescent in recovery */
 	wait_event(conf->wait_for_quiescent,
 		   atomic_read(&conf->active_stripes) == 0);
@@ -3036,6 +3035,23 @@ ioerr:
 	return ret;
 }
 
+int r5l_start(struct r5l_log *log)
+{
+	int ret;
+
+	if (!log)
+		return 0;
+
+	ret = r5l_load_log(log);
+	if (ret) {
+		struct mddev *mddev = log->rdev->mddev;
+		struct r5conf *conf = mddev->private;
+
+		r5l_exit_log(conf);
+	}
+	return ret;
+}
+
 void r5c_update_on_rdev_error(struct mddev *mddev, struct md_rdev *rdev)
 {
 	struct r5conf *conf = mddev->private;
@@ -3138,13 +3154,9 @@ int r5l_init_log(struct r5conf *conf, struct md_rdev *rdev)
 
 	rcu_assign_pointer(conf->log, log);
 
-	if (r5l_load_log(log))
-		goto error;
-
 	set_bit(MD_HAS_JOURNAL, &conf->mddev->flags);
 	return 0;
 
-error:
 	rcu_assign_pointer(conf->log, NULL);
 	md_unregister_thread(&log->reclaim_thread);
 reclaim_thread:

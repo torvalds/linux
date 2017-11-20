@@ -32,6 +32,7 @@ extern struct md_sysfs_entry r5c_journal_mode;
 extern void r5c_update_on_rdev_error(struct mddev *mddev,
 				     struct md_rdev *rdev);
 extern bool r5c_big_stripe_cached(struct r5conf *conf, sector_t sect);
+extern int r5l_start(struct r5l_log *log);
 
 extern struct dma_async_tx_descriptor *
 ops_run_partial_parity(struct stripe_head *sh, struct raid5_percpu *percpu,

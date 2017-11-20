@@ -3151,6 +3151,14 @@ static int raid_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		goto bad;
 	}
 
+	r = md_start(&rs->md);
+
+	if (r) {
+		ti->error = "Failed to start raid array";
+		mddev_unlock(&rs->md);
+		goto bad_md_start;
+	}
+
 	rs->callbacks.congested_fn = raid_is_congested;
 	dm_table_add_target_callbacks(ti->table, &rs->callbacks);
 
@@ -3198,6 +3206,7 @@ static int raid_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	mddev_unlock(&rs->md);
 	return 0;
 
+bad_md_start:
 bad_journal_mode_set:
 bad_stripe_cache:
 bad_check_reshape:
