@@ -707,8 +707,8 @@ s32 RGA_set_dst(u8 *base, const struct rga_req *msg)
     {
         case RK_FORMAT_YCbCr_422_SP :
             *bRGA_PRESCL_CB_MST = (u32)msg->dst.uv_addr + ((y_off) * stride) + ((x_off) * pw);
-            *bRGA_DST_UV_MST = (u32)msg->dst.uv_addr + ((y_off) * stride) + ((x_off));
-            *bRGA_YUV_OUT_CFG |= (0 << 3) | 1 | (((msg->yuv2rgb_mode >> 4) & 3) << 4);
+			*bRGA_DST_UV_MST = (u32)msg->dst.uv_addr;
+			*bRGA_YUV_OUT_CFG |= (((msg->yuv2rgb_mode >> 4) & 3) << 4) | (0 << 3) | (0 << 1) | 1;
             break;
         case RK_FORMAT_YCbCr_422_P  :
             *bRGA_PRESCL_CB_MST = (u32)msg->dst.uv_addr + ((y_off) * stride) + ((x_off>>1) * pw);
@@ -716,8 +716,8 @@ s32 RGA_set_dst(u8 *base, const struct rga_req *msg)
             break;
         case RK_FORMAT_YCbCr_420_SP :
             *bRGA_PRESCL_CB_MST = (u32)msg->dst.uv_addr + ((y_off>>1) * stride) + ((x_off) * pw);
-            *bRGA_DST_UV_MST = (u32)msg->dst.uv_addr + ((y_off>>1) * stride) + ((x_off));
-            *bRGA_YUV_OUT_CFG |= (0 << 3)|(1 << 1) | 1 | (((msg->yuv2rgb_mode >> 4) & 3) << 4);
+			*bRGA_DST_UV_MST = (u32)msg->dst.uv_addr;
+			*bRGA_YUV_OUT_CFG |= (((msg->yuv2rgb_mode >> 4) & 3) << 4) | (0 << 3) | (1 << 1) | 1;
             break;
         case RK_FORMAT_YCbCr_420_P :
             *bRGA_PRESCL_CB_MST = (u32)msg->dst.uv_addr + ((y_off>>1) * stride) + ((x_off>>1) * pw);
@@ -725,8 +725,8 @@ s32 RGA_set_dst(u8 *base, const struct rga_req *msg)
             break;
         case RK_FORMAT_YCrCb_422_SP :
             *bRGA_PRESCL_CB_MST = (u32)msg->dst.uv_addr + ((y_off) * stride) + ((x_off) * pw);
-            *bRGA_DST_UV_MST = (u32)msg->dst.uv_addr + ((y_off) * stride) + ((x_off));
-            *bRGA_YUV_OUT_CFG |= (1 << 3)|(0 << 1) | 1 | (((msg->yuv2rgb_mode >> 4) & 3) << 4);
+			*bRGA_DST_UV_MST = (u32)msg->dst.uv_addr;
+			*bRGA_YUV_OUT_CFG |= (((msg->yuv2rgb_mode >> 4) & 3) << 4) | (1 << 3) | (0 << 1) | 1;
             break;
         case RK_FORMAT_YCrCb_422_P  :
             *bRGA_PRESCL_CB_MST = (u32)msg->dst.uv_addr + ((y_off) * stride) + ((x_off>>1) * pw);
@@ -734,8 +734,8 @@ s32 RGA_set_dst(u8 *base, const struct rga_req *msg)
             break;
         case RK_FORMAT_YCrCb_420_SP :
             *bRGA_PRESCL_CB_MST = (u32)msg->dst.uv_addr + ((y_off>>1) * stride) + ((x_off) * pw);
-            *bRGA_DST_UV_MST = (u32)msg->dst.uv_addr + ((y_off>>1) * stride) + ((x_off));
-            *bRGA_YUV_OUT_CFG |= (1 << 3)|(1 << 1) | 1 | (((msg->yuv2rgb_mode >> 4) & 3) << 4);
+			*bRGA_DST_UV_MST = (u32)msg->dst.uv_addr;
+			*bRGA_YUV_OUT_CFG |= (((msg->yuv2rgb_mode >> 4) & 3) << 4) | (1 << 3) | (1 << 1) | 1;
             break;
         case RK_FORMAT_YCrCb_420_P :
             *bRGA_PRESCL_CB_MST = (u32)msg->dst.uv_addr + ((y_off>>1) * stride) + ((x_off>>1) * pw);
