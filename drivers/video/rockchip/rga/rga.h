@@ -19,6 +19,7 @@
 #define RGA_OUT_OF_RESOURCES    -10
 #define RGA_MALLOC_ERROR        -11
 
+#define RGA_BUF_GEM_TYPE_MASK	0xC0
 
 #define rgaIS_ERROR(status)			(status < 0)
 #define rgaNO_ERROR(status)			(status >= 0)

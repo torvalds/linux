@@ -1029,7 +1029,7 @@ static int rga_blit(rga_session *session, struct rga_req *req)
         printk("RGA : DMA buf copy error\n");
         return -EFAULT;
     }
-
+	req->render_mode &= (~RGA_BUF_GEM_TYPE_MASK);
     do {
         if((req->render_mode == bitblt_mode) && (((saw>>1) >= daw) || ((sah>>1) >= dah))) {
             /* generate 2 cmd for pre scale */
