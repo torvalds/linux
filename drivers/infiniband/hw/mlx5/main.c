@@ -4160,7 +4160,7 @@ static void *mlx5_ib_add(struct mlx5_core_dev *mdev)
 		goto err_cnt;
 
 	dev->mdev->priv.uar = mlx5_get_uars_page(dev->mdev);
-	if (!dev->mdev->priv.uar)
+	if (IS_ERR(dev->mdev->priv.uar))
 		goto err_cong;
 
 	err = mlx5_alloc_bfreg(dev->mdev, &dev->bfreg, false, false);
