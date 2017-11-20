@@ -61,11 +61,7 @@ struct fw_state {
 /* firmware behavior options */
 #define FW_OPT_UEVENT	(1U << 0)
 #define FW_OPT_NOWAIT	(1U << 1)
-#ifdef CONFIG_FW_LOADER_USER_HELPER
 #define FW_OPT_USERHELPER	(1U << 2)
-#else
-#define FW_OPT_USERHELPER	0
-#endif
 #ifdef CONFIG_FW_LOADER_USER_HELPER_FALLBACK
 #define FW_OPT_FALLBACK		FW_OPT_USERHELPER
 #else
@@ -1158,12 +1154,25 @@ out_unlock:
 	return ret;
 }
 
-#else /* CONFIG_FW_LOADER_USER_HELPER */
-static inline int
-fw_load_from_user_helper(struct firmware *firmware, const char *name,
-			 struct device *device, unsigned int opt_flags)
+static int fw_sysfs_fallback(struct firmware *fw, const char *name,
+			    struct device *device,
+			    unsigned int opt_flags,
+			    int ret)
 {
-	return -ENOENT;
+	if (!(opt_flags & FW_OPT_USERHELPER))
+		return ret;
+
+	dev_warn(device, "Falling back to user helper\n");
+	return fw_load_from_user_helper(fw, name, device, opt_flags);
+}
+#else /* CONFIG_FW_LOADER_USER_HELPER */
+static int fw_sysfs_fallback(struct firmware *fw, const char *name,
+			     struct device *device,
+			     unsigned int opt_flags,
+			     int ret)
+{
+	/* Keep carrying over the same error */
+	return ret;
 }
 
 static inline void kill_pending_fw_fallback_reqs(bool only_kill_custom) { }
@@ -1273,11 +1282,7 @@ _request_firmware(const struct firmware **firmware_p, const char *name,
 			dev_warn(device,
 				 "Direct firmware load for %s failed with error %d\n",
 				 name, ret);
-		if (opt_flags & FW_OPT_USERHELPER) {
-			dev_warn(device, "Falling back to user helper\n");
-			ret = fw_load_from_user_helper(fw, name, device,
-						       opt_flags);
-		}
+		ret = fw_sysfs_fallback(fw, name, device, opt_flags, ret);
 	} else
 		ret = assign_fw(fw, device, opt_flags);
 
