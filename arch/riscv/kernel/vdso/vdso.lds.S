@@ -70,8 +70,6 @@ VERSION
 	LINUX_4.15 {
 	global:
 		__vdso_rt_sigreturn;
-		__vdso_cmpxchg32;
-		__vdso_cmpxchg64;
 	local: *;
 	};
 }
