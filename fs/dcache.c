@@ -110,7 +110,7 @@ static struct hlist_bl_head *dentry_hashtable __read_mostly;
 
 static inline struct hlist_bl_head *d_hash(unsigned int hash)
 {
-	return dentry_hashtable + (hash >> (32 - d_hash_shift));
+	return dentry_hashtable + (hash >> d_hash_shift);
 }
 
 #define IN_LOOKUP_SHIFT 10
@@ -3593,6 +3593,7 @@ static void __init dcache_init_early(void)
 					&d_hash_mask,
 					0,
 					0);
+	d_hash_shift = 32 - d_hash_shift;
 }
 
 static void __init dcache_init(void)
@@ -3619,6 +3620,7 @@ static void __init dcache_init(void)
 					&d_hash_mask,
 					0,
 					0);
+	d_hash_shift = 32 - d_hash_shift;
 }
 
 /* SLAB cache for __getname() consumers */
