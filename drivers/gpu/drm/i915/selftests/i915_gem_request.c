@@ -459,10 +459,6 @@ empty_request(struct intel_engine_cs *engine,
 	if (IS_ERR(request))
 		return request;
 
-	err = i915_switch_context(request);
-	if (err)
-		goto out_request;
-
 	err = engine->emit_bb_start(request,
 				    batch->node.start,
 				    batch->node.size,
@@ -671,9 +667,6 @@ static int live_all_engines(void *arg)
 			goto out_request;
 		}
 
-		err = i915_switch_context(request[id]);
-		GEM_BUG_ON(err);
-
 		err = engine->emit_bb_start(request[id],
 					    batch->node.start,
 					    batch->node.size,
@@ -789,9 +782,6 @@ static int live_sequential_engines(void *arg)
 				goto out_request;
 			}
 		}
-
-		err = i915_switch_context(request[id]);
-		GEM_BUG_ON(err);
 
 		err = engine->emit_bb_start(request[id],
 					    batch->node.start,

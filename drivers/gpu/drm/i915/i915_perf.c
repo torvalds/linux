@@ -1726,10 +1726,9 @@ static int gen8_switch_to_updated_kernel_context(struct drm_i915_private *dev_pr
 							 GFP_KERNEL);
 	}
 
-	ret = i915_switch_context(req);
 	i915_add_request(req);
 
-	return ret;
+	return 0;
 }
 
 /*

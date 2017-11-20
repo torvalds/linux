@@ -5045,7 +5045,7 @@ static int __intel_engines_record_defaults(struct drm_i915_private *i915)
 			goto out_ctx;
 		}
 
-		err = i915_switch_context(rq);
+		err = 0;
 		if (engine->init_context)
 			err = engine->init_context(rq);
 

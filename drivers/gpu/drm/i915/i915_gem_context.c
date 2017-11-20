@@ -842,8 +842,7 @@ int i915_switch_context(struct drm_i915_gem_request *req)
 	struct intel_engine_cs *engine = req->engine;
 
 	lockdep_assert_held(&req->i915->drm.struct_mutex);
-	if (i915_modparams.enable_execlists)
-		return 0;
+	GEM_BUG_ON(i915_modparams.enable_execlists);
 
 	if (!req->ctx->engine[engine->id].state) {
 		struct i915_gem_context *to = req->ctx;
@@ -899,7 +898,6 @@ int i915_gem_switch_to_kernel_context(struct drm_i915_private *dev_priv)
 
 	for_each_engine(engine, dev_priv, id) {
 		struct drm_i915_gem_request *req;
-		int ret;
 
 		if (engine_has_idle_kernel_context(engine))
 			continue;
@@ -922,10 +920,7 @@ int i915_gem_switch_to_kernel_context(struct drm_i915_private *dev_priv)
 								 GFP_KERNEL);
 		}
 
-		ret = i915_switch_context(req);
 		i915_add_request(req);
-		if (ret)
-			return ret;
 	}
 
 	return 0;

@@ -624,6 +624,10 @@ i915_gem_request_alloc(struct intel_engine_cs *engine,
 	if (ret)
 		goto err_unpin;
 
+	ret = intel_ring_wait_for_space(ring, MIN_SPACE_FOR_ADD_REQUEST);
+	if (ret)
+		goto err_unreserve;
+
 	/* Move the oldest request to the slab-cache (if not in use!) */
 	req = list_first_entry_or_null(&engine->timeline->requests,
 				       typeof(*req), link);

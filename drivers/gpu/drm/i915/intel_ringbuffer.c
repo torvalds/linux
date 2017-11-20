@@ -1592,6 +1592,10 @@ static int ring_request_alloc(struct drm_i915_gem_request *request)
 	if (ret)
 		return ret;
 
+	ret = i915_switch_context(request);
+	if (ret)
+		return ret;
+
 	request->reserved_space -= LEGACY_REQUEST_SIZE;
 	return 0;
 }

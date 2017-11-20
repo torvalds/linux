@@ -158,10 +158,6 @@ static int gpu_fill(struct drm_i915_gem_object *obj,
 		goto err_batch;
 	}
 
-	err = i915_switch_context(rq);
-	if (err)
-		goto err_request;
-
 	flags = 0;
 	if (INTEL_GEN(vm->i915) <= 5)
 		flags |= I915_DISPATCH_SECURE;
