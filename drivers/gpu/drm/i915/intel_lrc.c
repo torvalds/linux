@@ -154,7 +154,7 @@
 #define GEN8_CTX_STATUS_LITE_RESTORE	(1 << 15)
 
 #define GEN8_CTX_STATUS_COMPLETED_MASK \
-	 (GEN8_CTX_STATUS_ACTIVE_IDLE | \
+	 (GEN8_CTX_STATUS_COMPLETE | \
 	  GEN8_CTX_STATUS_PREEMPTED | \
 	  GEN8_CTX_STATUS_ELEMENT_SWITCH)
 
@@ -876,7 +876,7 @@ static void execlists_submission_tasklet(unsigned long data)
 			if (!(status & GEN8_CTX_STATUS_COMPLETED_MASK))
 				continue;
 
-			if (status & GEN8_CTX_STATUS_ACTIVE_IDLE &&
+			if (status & GEN8_CTX_STATUS_COMPLETE &&
 			    buf[2*head + 1] == PREEMPT_ID) {
 				execlists_cancel_port_requests(execlists);
 				execlists_unwind_incomplete_requests(execlists);
