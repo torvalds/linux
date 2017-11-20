@@ -1013,7 +1013,7 @@ struct smb2_query_info_rsp {
 } __packed;
 
 struct smb2_set_info_req {
-	struct smb2_hdr hdr;
+	struct smb2_sync_hdr sync_hdr;
 	__le16 StructureSize; /* Must be 33 */
 	__u8   InfoType;
 	__u8   FileInfoClass;
