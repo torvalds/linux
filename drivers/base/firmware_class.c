@@ -195,14 +195,17 @@ static inline long firmware_loading_timeout(void)
 	return loading_timeout > 0 ? loading_timeout * HZ : MAX_JIFFY_OFFSET;
 }
 
-static void fw_state_init(struct fw_state *fw_st)
+static void fw_state_init(struct fw_priv *fw_priv)
 {
+	struct fw_state *fw_st = &fw_priv->fw_st;
+
 	init_completion(&fw_st->completion);
 	fw_st->status = FW_STATUS_UNKNOWN;
 }
 
-static int __fw_state_wait_common(struct fw_state *fw_st, long timeout)
+static int __fw_state_wait_common(struct fw_priv *fw_priv, long timeout)
 {
+	struct fw_state *fw_st = &fw_priv->fw_st;
 	long ret;
 
 	ret = wait_for_completion_killable_timeout(&fw_st->completion, timeout);
@@ -214,40 +217,66 @@ static int __fw_state_wait_common(struct fw_state *fw_st, long timeout)
 	return ret < 0 ? ret : 0;
 }
 
-static void __fw_state_set(struct fw_state *fw_st,
+static void __fw_state_set(struct fw_priv *fw_priv,
 			   enum fw_status status)
 {
+	struct fw_state *fw_st = &fw_priv->fw_st;
+
 	WRITE_ONCE(fw_st->status, status);
 
 	if (status == FW_STATUS_DONE || status == FW_STATUS_ABORTED)
 		complete_all(&fw_st->completion);
 }
 
-#define fw_state_start(fw_st)					\
-	__fw_state_set(fw_st, FW_STATUS_LOADING)
-#define fw_state_done(fw_st)					\
-	__fw_state_set(fw_st, FW_STATUS_DONE)
-#define fw_state_aborted(fw_st)					\
-	__fw_state_set(fw_st, FW_STATUS_ABORTED)
-#define fw_state_wait(fw_st)					\
-	__fw_state_wait_common(fw_st, MAX_SCHEDULE_TIMEOUT)
-
-static int __fw_state_check(struct fw_state *fw_st, enum fw_status status)
+static inline void fw_state_start(struct fw_priv *fw_priv)
 {
+	__fw_state_set(fw_priv, FW_STATUS_LOADING);
+}
+
+static inline void fw_state_done(struct fw_priv *fw_priv)
+{
+	__fw_state_set(fw_priv, FW_STATUS_DONE);
+}
+
+static inline void fw_state_aborted(struct fw_priv *fw_priv)
+{
+	__fw_state_set(fw_priv, FW_STATUS_ABORTED);
+}
+
+static inline int fw_state_wait(struct fw_priv *fw_priv)
+{
+	return __fw_state_wait_common(fw_priv, MAX_SCHEDULE_TIMEOUT);
+}
+
+static bool __fw_state_check(struct fw_priv *fw_priv,
+			     enum fw_status status)
+{
+	struct fw_state *fw_st = &fw_priv->fw_st;
+
 	return fw_st->status == status;
 }
 
-#define fw_state_is_aborted(fw_st)				\
-	__fw_state_check(fw_st, FW_STATUS_ABORTED)
+static inline bool fw_state_is_aborted(struct fw_priv *fw_priv)
+{
+	return __fw_state_check(fw_priv, FW_STATUS_ABORTED);
+}
 
 #ifdef CONFIG_FW_LOADER_USER_HELPER
 
-#define fw_state_is_done(fw_st)					\
-	__fw_state_check(fw_st, FW_STATUS_DONE)
-#define fw_state_is_loading(fw_st)				\
-	__fw_state_check(fw_st, FW_STATUS_LOADING)
-#define fw_state_wait_timeout(fw_st, timeout)			\
-	__fw_state_wait_common(fw_st, timeout)
+static inline bool fw_state_is_done(struct fw_priv *fw_priv)
+{
+	return __fw_state_check(fw_priv, FW_STATUS_DONE);
+}
+
+static inline bool fw_state_is_loading(struct fw_priv *fw_priv)
+{
+	return __fw_state_check(fw_priv, FW_STATUS_LOADING);
+}
+
+static inline int fw_state_wait_timeout(struct fw_priv *fw_priv,  long timeout)
+{
+	return __fw_state_wait_common(fw_priv, timeout);
+}
 
 #endif /* CONFIG_FW_LOADER_USER_HELPER */
 
@@ -273,7 +302,7 @@ static struct fw_priv *__allocate_fw_priv(const char *fw_name,
 	fw_priv->fwc = fwc;
 	fw_priv->data = dbuf;
 	fw_priv->allocated_size = size;
-	fw_state_init(&fw_priv->fw_st);
+	fw_state_init(fw_priv);
 #ifdef CONFIG_FW_LOADER_USER_HELPER
 	INIT_LIST_HEAD(&fw_priv->pending_list);
 #endif
@@ -421,7 +450,7 @@ fw_get_filesystem_firmware(struct device *device, struct fw_priv *fw_priv)
 		}
 		dev_dbg(device, "direct-loading %s\n", fw_priv->fw_name);
 		fw_priv->size = size;
-		fw_state_done(&fw_priv->fw_st);
+		fw_state_done(fw_priv);
 		break;
 	}
 	__putname(path);
@@ -522,7 +551,7 @@ static int assign_fw(struct firmware *fw, struct device *device,
 	struct fw_priv *fw_priv = fw->priv;
 
 	mutex_lock(&fw_lock);
-	if (!fw_priv->size || fw_state_is_aborted(&fw_priv->fw_st)) {
+	if (!fw_priv->size || fw_state_is_aborted(fw_priv)) {
 		mutex_unlock(&fw_lock);
 		return -ENOENT;
 	}
@@ -577,11 +606,11 @@ static void __fw_load_abort(struct fw_priv *fw_priv)
 	 * There is a small window in which user can write to 'loading'
 	 * between loading done and disappearance of 'loading'
 	 */
-	if (fw_state_is_done(&fw_priv->fw_st))
+	if (fw_state_is_done(fw_priv))
 		return;
 
 	list_del_init(&fw_priv->pending_list);
-	fw_state_aborted(&fw_priv->fw_st);
+	fw_state_aborted(fw_priv);
 }
 
 static void fw_load_abort(struct fw_sysfs *fw_sysfs)
@@ -699,7 +728,7 @@ static ssize_t firmware_loading_show(struct device *dev,
 
 	mutex_lock(&fw_lock);
 	if (fw_sysfs->fw_priv)
-		loading = fw_state_is_loading(&fw_sysfs->fw_priv->fw_st);
+		loading = fw_state_is_loading(fw_sysfs->fw_priv);
 	mutex_unlock(&fw_lock);
 
 	return sprintf(buf, "%d\n", loading);
@@ -749,24 +778,24 @@ static ssize_t firmware_loading_store(struct device *dev,
 
 	mutex_lock(&fw_lock);
 	fw_priv = fw_sysfs->fw_priv;
-	if (fw_state_is_aborted(&fw_priv->fw_st))
+	if (fw_state_is_aborted(fw_priv))
 		goto out;
 
 	switch (loading) {
 	case 1:
 		/* discarding any previous partial load */
-		if (!fw_state_is_done(&fw_priv->fw_st)) {
+		if (!fw_state_is_done(fw_priv)) {
 			for (i = 0; i < fw_priv->nr_pages; i++)
 				__free_page(fw_priv->pages[i]);
 			vfree(fw_priv->pages);
 			fw_priv->pages = NULL;
 			fw_priv->page_array_size = 0;
 			fw_priv->nr_pages = 0;
-			fw_state_start(&fw_priv->fw_st);
+			fw_state_start(fw_priv);
 		}
 		break;
 	case 0:
-		if (fw_state_is_loading(&fw_priv->fw_st)) {
+		if (fw_state_is_loading(fw_priv)) {
 			int rc;
 
 			/*
@@ -790,10 +819,10 @@ static ssize_t firmware_loading_store(struct device *dev,
 			 */
 			list_del_init(&fw_priv->pending_list);
 			if (rc) {
-				fw_state_aborted(&fw_priv->fw_st);
+				fw_state_aborted(fw_priv);
 				written = rc;
 			} else {
-				fw_state_done(&fw_priv->fw_st);
+				fw_state_done(fw_priv);
 			}
 			break;
 		}
@@ -855,7 +884,7 @@ static ssize_t firmware_data_read(struct file *filp, struct kobject *kobj,
 
 	mutex_lock(&fw_lock);
 	fw_priv = fw_sysfs->fw_priv;
-	if (!fw_priv || fw_state_is_done(&fw_priv->fw_st)) {
+	if (!fw_priv || fw_state_is_done(fw_priv)) {
 		ret_count = -ENODEV;
 		goto out;
 	}
@@ -942,7 +971,7 @@ static ssize_t firmware_data_write(struct file *filp, struct kobject *kobj,
 
 	mutex_lock(&fw_lock);
 	fw_priv = fw_sysfs->fw_priv;
-	if (!fw_priv || fw_state_is_done(&fw_priv->fw_st)) {
+	if (!fw_priv || fw_state_is_done(fw_priv)) {
 		retval = -ENODEV;
 		goto out;
 	}
@@ -1055,14 +1084,14 @@ static int _request_firmware_load(struct fw_sysfs *fw_sysfs,
 		timeout = MAX_JIFFY_OFFSET;
 	}
 
-	retval = fw_state_wait_timeout(&fw_priv->fw_st, timeout);
+	retval = fw_state_wait_timeout(fw_priv, timeout);
 	if (retval < 0) {
 		mutex_lock(&fw_lock);
 		fw_load_abort(fw_sysfs);
 		mutex_unlock(&fw_lock);
 	}
 
-	if (fw_state_is_aborted(&fw_priv->fw_st)) {
+	if (fw_state_is_aborted(fw_priv)) {
 		if (retval == -ERESTARTSYS)
 			retval = -EINTR;
 		else
@@ -1173,7 +1202,7 @@ _request_firmware_prepare(struct firmware **firmware_p, const char *name,
 	firmware->priv = fw_priv;
 
 	if (ret > 0) {
-		ret = fw_state_wait(&fw_priv->fw_st);
+		ret = fw_state_wait(fw_priv);
 		if (!ret) {
 			fw_set_page_data(fw_priv, firmware);
 			return 0; /* assigned */
@@ -1203,8 +1232,8 @@ static void fw_abort_batch_reqs(struct firmware *fw)
 		return;
 
 	fw_priv = fw->priv;
-	if (!fw_state_is_aborted(&fw_priv->fw_st))
-		fw_state_aborted(&fw_priv->fw_st);
+	if (!fw_state_is_aborted(fw_priv))
+		fw_state_aborted(fw_priv);
 }
 
 /* called from request_firmware() and request_firmware_work_func() */
