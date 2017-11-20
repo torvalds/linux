@@ -1097,16 +1097,6 @@ struct bpf_prog *bpf_prog_get(u32 ufd)
 	return __bpf_prog_get(ufd, NULL, false);
 }
 
-struct bpf_prog *bpf_prog_get_type(u32 ufd, enum bpf_prog_type type)
-{
-	struct bpf_prog *prog = __bpf_prog_get(ufd, &type, false);
-
-	if (!IS_ERR(prog))
-		trace_bpf_prog_get_type(prog);
-	return prog;
-}
-EXPORT_SYMBOL_GPL(bpf_prog_get_type);
-
 struct bpf_prog *bpf_prog_get_type_dev(u32 ufd, enum bpf_prog_type type,
 				       bool attach_drv)
 {
