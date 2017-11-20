@@ -708,7 +708,7 @@ atc_prep_dma_interleaved(struct dma_chan *chan,
 			 unsigned long flags)
 {
 	struct at_dma_chan	*atchan = to_at_dma_chan(chan);
-	struct data_chunk	*first = xt->sgl;
+	struct data_chunk	*first;
 	struct at_desc		*desc = NULL;
 	size_t			xfer_count;
 	unsigned int		dwidth;
@@ -719,6 +719,8 @@ atc_prep_dma_interleaved(struct dma_chan *chan,
 
 	if (unlikely(!xt || xt->numf != 1 || !xt->frame_size))
 		return NULL;
+
+	first = xt->sgl;
 
 	dev_info(chan2dev(chan),
 		 "%s: src=%pad, dest=%pad, numf=%d, frame_size=%d, flags=0x%lx\n",
