@@ -45,4 +45,48 @@ extern u64 module_alloc_base;
 #define module_alloc_base	((u64)_etext - MODULES_VSIZE)
 #endif
 
+struct plt_entry {
+	/*
+	 * A program that conforms to the AArch64 Procedure Call Standard
+	 * (AAPCS64) must assume that a veneer that alters IP0 (x16) and/or
+	 * IP1 (x17) may be inserted at any branch instruction that is
+	 * exposed to a relocation that supports long branches. Since that
+	 * is exactly what we are dealing with here, we are free to use x16
+	 * as a scratch register in the PLT veneers.
+	 */
+	__le32	mov0;	/* movn	x16, #0x....			*/
+	__le32	mov1;	/* movk	x16, #0x...., lsl #16		*/
+	__le32	mov2;	/* movk	x16, #0x...., lsl #32		*/
+	__le32	br;	/* br	x16				*/
+};
+
+static inline struct plt_entry get_plt_entry(u64 val)
+{
+	/*
+	 * MOVK/MOVN/MOVZ opcode:
+	 * +--------+------------+--------+-----------+-------------+---------+
+	 * | sf[31] | opc[30:29] | 100101 | hw[22:21] | imm16[20:5] | Rd[4:0] |
+	 * +--------+------------+--------+-----------+-------------+---------+
+	 *
+	 * Rd     := 0x10 (x16)
+	 * hw     := 0b00 (no shift), 0b01 (lsl #16), 0b10 (lsl #32)
+	 * opc    := 0b11 (MOVK), 0b00 (MOVN), 0b10 (MOVZ)
+	 * sf     := 1 (64-bit variant)
+	 */
+	return (struct plt_entry){
+		cpu_to_le32(0x92800010 | (((~val      ) & 0xffff)) << 5),
+		cpu_to_le32(0xf2a00010 | ((( val >> 16) & 0xffff)) << 5),
+		cpu_to_le32(0xf2c00010 | ((( val >> 32) & 0xffff)) << 5),
+		cpu_to_le32(0xd61f0200)
+	};
+}
+
+static inline bool plt_entries_equal(const struct plt_entry *a,
+				     const struct plt_entry *b)
+{
+	return a->mov0 == b->mov0 &&
+	       a->mov1 == b->mov1 &&
+	       a->mov2 == b->mov2;
+}
+
 #endif /* __ASM_MODULE_H */

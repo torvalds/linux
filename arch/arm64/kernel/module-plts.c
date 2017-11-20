@@ -11,21 +11,6 @@
 #include <linux/module.h>
 #include <linux/sort.h>
 
-struct plt_entry {
-	/*
-	 * A program that conforms to the AArch64 Procedure Call Standard
-	 * (AAPCS64) must assume that a veneer that alters IP0 (x16) and/or
-	 * IP1 (x17) may be inserted at any branch instruction that is
-	 * exposed to a relocation that supports long branches. Since that
-	 * is exactly what we are dealing with here, we are free to use x16
-	 * as a scratch register in the PLT veneers.
-	 */
-	__le32	mov0;	/* movn	x16, #0x....			*/
-	__le32	mov1;	/* movk	x16, #0x...., lsl #16		*/
-	__le32	mov2;	/* movk	x16, #0x...., lsl #32		*/
-	__le32	br;	/* br	x16				*/
-};
-
 static bool in_init(const struct module *mod, void *loc)
 {
 	return (u64)loc - (u64)mod->init_layout.base < mod->init_layout.size;
@@ -40,33 +25,14 @@ u64 module_emit_plt_entry(struct module *mod, void *loc, const Elf64_Rela *rela,
 	int i = pltsec->plt_num_entries;
 	u64 val = sym->st_value + rela->r_addend;
 
-	/*
-	 * MOVK/MOVN/MOVZ opcode:
-	 * +--------+------------+--------+-----------+-------------+---------+
-	 * | sf[31] | opc[30:29] | 100101 | hw[22:21] | imm16[20:5] | Rd[4:0] |
-	 * +--------+------------+--------+-----------+-------------+---------+
-	 *
-	 * Rd     := 0x10 (x16)
-	 * hw     := 0b00 (no shift), 0b01 (lsl #16), 0b10 (lsl #32)
-	 * opc    := 0b11 (MOVK), 0b00 (MOVN), 0b10 (MOVZ)
-	 * sf     := 1 (64-bit variant)
-	 */
-	plt[i] = (struct plt_entry){
-		cpu_to_le32(0x92800010 | (((~val      ) & 0xffff)) << 5),
-		cpu_to_le32(0xf2a00010 | ((( val >> 16) & 0xffff)) << 5),
-		cpu_to_le32(0xf2c00010 | ((( val >> 32) & 0xffff)) << 5),
-		cpu_to_le32(0xd61f0200)
-	};
+	plt[i] = get_plt_entry(val);
 
 	/*
 	 * Check if the entry we just created is a duplicate. Given that the
 	 * relocations are sorted, this will be the last entry we allocated.
 	 * (if one exists).
 	 */
-	if (i > 0 &&
-	    plt[i].mov0 == plt[i - 1].mov0 &&
-	    plt[i].mov1 == plt[i - 1].mov1 &&
-	    plt[i].mov2 == plt[i - 1].mov2)
+	if (i > 0 && plt_entries_equal(plt + i, plt + i - 1))
 		return (u64)&plt[i - 1];
 
 	pltsec->plt_num_entries++;
