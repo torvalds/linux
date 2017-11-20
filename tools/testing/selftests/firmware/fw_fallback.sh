@@ -256,24 +256,37 @@ run_sysfs_main_tests()
 	set -e
 }
 
+run_sysfs_custom_load_tests()
+{
+	if load_fw_custom "$NAME" "$FW" ; then
+		if ! diff -q "$FW" /dev/test_firmware >/dev/null ; then
+			echo "$0: firmware was not loaded" >&2
+			exit 1
+		else
+			echo "$0: custom fallback loading mechanism works"
+		fi
+	fi
+
+	if load_fw_custom "$NAME" "$FW" ; then
+		if ! diff -q "$FW" /dev/test_firmware >/dev/null ; then
+			echo "$0: firmware was not loaded" >&2
+			exit 1
+		else
+			echo "$0: custom fallback loading mechanism works"
+		fi
+	fi
+
+	if load_fw_custom_cancel "nope-$NAME" "$FW" ; then
+		if diff -q "$FW" /dev/test_firmware >/dev/null ; then
+			echo "$0: firmware was expected to be cancelled" >&2
+			exit 1
+		else
+			echo "$0: cancelling custom fallback mechanism works"
+		fi
+	fi
+}
+
 run_sysfs_main_tests
-
-if load_fw_custom "$NAME" "$FW" ; then
-	if ! diff -q "$FW" /dev/test_firmware >/dev/null ; then
-		echo "$0: firmware was not loaded" >&2
-		exit 1
-	else
-		echo "$0: custom fallback loading mechanism works"
-	fi
-fi
-
-if load_fw_custom_cancel "nope-$NAME" "$FW" ; then
-	if diff -q "$FW" /dev/test_firmware >/dev/null ; then
-		echo "$0: firmware was expected to be cancelled" >&2
-		exit 1
-	else
-		echo "$0: cancelling custom fallback mechanism works"
-	fi
-fi
+run_sysfs_custom_load_tests
 
 exit 0
