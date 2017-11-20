@@ -20,8 +20,136 @@ enum max31785_regs {
 
 #define MAX31785_NR_PAGES		23
 
+static int max31785_get_pwm(struct i2c_client *client, int page)
+{
+	int rv;
+
+	rv = pmbus_get_fan_rate_device(client, page, 0, percent);
+	if (rv < 0)
+		return rv;
+	else if (rv >= 0x8000)
+		return 0;
+	else if (rv >= 0x2711)
+		return 0x2710;
+
+	return rv;
+}
+
+static int max31785_get_pwm_mode(struct i2c_client *client, int page)
+{
+	int config;
+	int command;
+
+	config = pmbus_read_byte_data(client, page, PMBUS_FAN_CONFIG_12);
+	if (config < 0)
+		return config;
+
+	command = pmbus_read_word_data(client, page, PMBUS_FAN_COMMAND_1);
+	if (command < 0)
+		return command;
+
+	if (config & PB_FAN_1_RPM)
+		return (command >= 0x8000) ? 3 : 2;
+
+	if (command >= 0x8000)
+		return 3;
+	else if (command >= 0x2711)
+		return 0;
+
+	return 1;
+}
+
+static int max31785_read_word_data(struct i2c_client *client, int page,
+				   int reg)
+{
+	int rv;
+
+	switch (reg) {
+	case PMBUS_VIRT_PWM_1:
+		rv = max31785_get_pwm(client, page);
+		break;
+	case PMBUS_VIRT_PWM_ENABLE_1:
+		rv = max31785_get_pwm_mode(client, page);
+		break;
+	default:
+		rv = -ENODATA;
+		break;
+	}
+
+	return rv;
+}
+
+static inline u32 max31785_scale_pwm(u32 sensor_val)
+{
+	/*
+	 * The datasheet describes the accepted value range for manual PWM as
+	 * [0, 0x2710], while the hwmon pwmX sysfs interface accepts values in
+	 * [0, 255]. The MAX31785 uses DIRECT mode to scale the FAN_COMMAND
+	 * registers and in PWM mode the coefficients are m=1, b=0, R=2. The
+	 * important observation here is that 0x2710 == 10000 == 100 * 100.
+	 *
+	 * R=2 (== 10^2 == 100) accounts for scaling the value provided at the
+	 * sysfs interface into the required hardware resolution, but it does
+	 * not yet yield a value that we can write to the device (this initial
+	 * scaling is handled by pmbus_data2reg()). Multiplying by 100 below
+	 * translates the parameter value into the percentage units required by
+	 * PMBus, and then we scale back by 255 as required by the hwmon pwmX
+	 * interface to yield the percentage value at the appropriate
+	 * resolution for hardware.
+	 */
+	return (sensor_val * 100) / 255;
+}
+
+static int max31785_pwm_enable(struct i2c_client *client, int page,
+				    u16 word)
+{
+	int config = 0;
+	int rate;
+
+	switch (word) {
+	case 0:
+		rate = 0x7fff;
+		break;
+	case 1:
+		rate = pmbus_get_fan_rate_cached(client, page, 0, percent);
+		if (rate < 0)
+			return rate;
+		rate = max31785_scale_pwm(rate);
+		break;
+	case 2:
+		config = PB_FAN_1_RPM;
+		rate = pmbus_get_fan_rate_cached(client, page, 0, rpm);
+		if (rate < 0)
+			return rate;
+		break;
+	case 3:
+		rate = 0xffff;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return pmbus_update_fan(client, page, 0, config, PB_FAN_1_RPM, rate);
+}
+
+static int max31785_write_word_data(struct i2c_client *client, int page,
+				    int reg, u16 word)
+{
+	switch (reg) {
+	case PMBUS_VIRT_PWM_1:
+		return pmbus_update_fan(client, page, 0, 0, PB_FAN_1_RPM,
+					max31785_scale_pwm(word));
+	case PMBUS_VIRT_PWM_ENABLE_1:
+		return max31785_pwm_enable(client, page, word);
+	default:
+		break;
+	}
+
+	return -ENODATA;
+}
+
 #define MAX31785_FAN_FUNCS \
-	(PMBUS_HAVE_FAN12 | PMBUS_HAVE_STATUS_FAN12)
+	(PMBUS_HAVE_FAN12 | PMBUS_HAVE_STATUS_FAN12 | PMBUS_HAVE_PWM12)
 
 #define MAX31785_TEMP_FUNCS \
 	(PMBUS_HAVE_TEMP | PMBUS_HAVE_STATUS_TEMP)
@@ -32,11 +160,19 @@ enum max31785_regs {
 static const struct pmbus_driver_info max31785_info = {
 	.pages = MAX31785_NR_PAGES,
 
+	.write_word_data = max31785_write_word_data,
+	.read_word_data = max31785_read_word_data,
+
 	/* RPM */
 	.format[PSC_FAN] = direct,
 	.m[PSC_FAN] = 1,
 	.b[PSC_FAN] = 0,
 	.R[PSC_FAN] = 0,
+	/* PWM */
+	.format[PSC_PWM] = direct,
+	.m[PSC_PWM] = 1,
+	.b[PSC_PWM] = 0,
+	.R[PSC_PWM] = 2,
 	.func[0] = MAX31785_FAN_FUNCS,
 	.func[1] = MAX31785_FAN_FUNCS,
 	.func[2] = MAX31785_FAN_FUNCS,
