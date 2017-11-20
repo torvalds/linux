@@ -1774,6 +1774,10 @@ static enum dc_status validate_fbc(struct dc *dc,
 	if (pipe_ctx->stream->sink->link->psr_enabled)
 		return DC_ERROR_UNEXPECTED;
 
+	/* Nothing to compress */
+	if (!pipe_ctx->plane_state)
+		return DC_ERROR_UNEXPECTED;
+
 	/* Only for non-linear tiling */
 	if (pipe_ctx->plane_state->tiling_info.gfx8.array_mode == DC_ARRAY_LINEAR_GENERAL)
 		return DC_ERROR_UNEXPECTED;
