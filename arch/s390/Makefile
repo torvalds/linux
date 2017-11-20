@@ -88,10 +88,13 @@ KBUILD_CFLAGS	+= -DCC_USING_HOTPATCH
 endif
 endif
 
+# Test CFI features of binutils
+cfi := $(call as-instr,.cfi_startproc\n.cfi_val_offset 15$(comma)-160\n.cfi_endproc,-DCONFIG_AS_CFI_VAL_OFFSET=1)
+
 KBUILD_CFLAGS	+= -mbackchain -msoft-float $(cflags-y)
 KBUILD_CFLAGS	+= -pipe -fno-strength-reduce -Wno-sign-compare
-KBUILD_CFLAGS	+= -fno-asynchronous-unwind-tables
-KBUILD_AFLAGS	+= $(aflags-y)
+KBUILD_CFLAGS	+= -fno-asynchronous-unwind-tables $(cfi)
+KBUILD_AFLAGS	+= $(aflags-y) $(cfi)
 
 OBJCOPYFLAGS	:= -O binary
 
