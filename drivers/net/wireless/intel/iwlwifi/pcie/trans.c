@@ -166,6 +166,7 @@ static void iwl_trans_pcie_dump_regs(struct iwl_trans *trans)
 		print_hex_dump(KERN_ERR, prefix, DUMP_PREFIX_OFFSET, 32,
 			       4, buf, i, 0);
 	}
+	goto out;
 
 err_read:
 	print_hex_dump(KERN_ERR, prefix, DUMP_PREFIX_OFFSET, 32, 4, buf, i, 0);
