@@ -197,14 +197,15 @@ static struct tcf_chain *tcf_chain_create(struct tcf_block *block,
 
 static void tcf_chain_flush(struct tcf_chain *chain)
 {
-	struct tcf_proto *tp;
+	struct tcf_proto *tp = rtnl_dereference(chain->filter_chain);
 
 	if (chain->p_filter_chain)
 		RCU_INIT_POINTER(*chain->p_filter_chain, NULL);
-	while ((tp = rtnl_dereference(chain->filter_chain)) != NULL) {
+	while (tp) {
 		RCU_INIT_POINTER(chain->filter_chain, tp->next);
-		tcf_chain_put(chain);
 		tcf_proto_destroy(tp);
+		tp = rtnl_dereference(chain->filter_chain);
+		tcf_chain_put(chain);
 	}
 }
 
