@@ -204,6 +204,16 @@ static inline kgid_t xfs_gid_to_kgid(uint32_t gid)
 	return make_kgid(&init_user_ns, gid);
 }
 
+static inline dev_t xfs_to_linux_dev_t(xfs_dev_t dev)
+{
+	return MKDEV(sysv_major(dev) & 0x1ff, sysv_minor(dev));
+}
+
+static inline xfs_dev_t linux_to_xfs_dev_t(dev_t dev)
+{
+	return sysv_encode_dev(dev);
+}
+
 /*
  * Various platform dependent calls that don't fit anywhere else
  */
