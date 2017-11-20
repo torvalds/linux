@@ -989,10 +989,6 @@ static int gpu_write(struct i915_vma *vma,
 	i915_vma_unpin(batch);
 	i915_vma_close(batch);
 
-	err = rq->engine->emit_flush(rq, EMIT_INVALIDATE);
-	if (err)
-		goto err_request;
-
 	err = i915_switch_context(rq);
 	if (err)
 		goto err_request;

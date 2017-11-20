@@ -208,10 +208,6 @@ int i915_gem_render_state_emit(struct drm_i915_gem_request *rq)
 	if (err)
 		goto err_unpin;
 
-	err = engine->emit_flush(rq, EMIT_INVALIDATE);
-	if (err)
-		goto err_unpin;
-
 	err = engine->emit_bb_start(rq,
 				    so.batch_offset, so.batch_size,
 				    I915_DISPATCH_SECURE);

@@ -1111,10 +1111,6 @@ static int __reloc_gpu_alloc(struct i915_execbuffer *eb,
 	if (err)
 		goto err_request;
 
-	err = eb->engine->emit_flush(rq, EMIT_INVALIDATE);
-	if (err)
-		goto err_request;
-
 	err = i915_switch_context(rq);
 	if (err)
 		goto err_request;
@@ -1818,8 +1814,7 @@ static int eb_move_to_gpu(struct i915_execbuffer *eb)
 	/* Unconditionally flush any chipset caches (for streaming writes). */
 	i915_gem_chipset_flush(eb->i915);
 
-	/* Unconditionally invalidate GPU caches and TLBs. */
-	return eb->engine->emit_flush(eb->request, EMIT_INVALIDATE);
+	return 0;
 }
 
 static bool i915_gem_check_execbuffer(struct drm_i915_gem_execbuffer2 *exec)

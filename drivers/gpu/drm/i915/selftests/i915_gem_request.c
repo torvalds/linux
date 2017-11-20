@@ -459,10 +459,6 @@ empty_request(struct intel_engine_cs *engine,
 	if (IS_ERR(request))
 		return request;
 
-	err = engine->emit_flush(request, EMIT_INVALIDATE);
-	if (err)
-		goto out_request;
-
 	err = i915_switch_context(request);
 	if (err)
 		goto out_request;
@@ -675,9 +671,6 @@ static int live_all_engines(void *arg)
 			goto out_request;
 		}
 
-		err = engine->emit_flush(request[id], EMIT_INVALIDATE);
-		GEM_BUG_ON(err);
-
 		err = i915_switch_context(request[id]);
 		GEM_BUG_ON(err);
 
@@ -796,9 +789,6 @@ static int live_sequential_engines(void *arg)
 				goto out_request;
 			}
 		}
-
-		err = engine->emit_flush(request[id], EMIT_INVALIDATE);
-		GEM_BUG_ON(err);
 
 		err = i915_switch_context(request[id]);
 		GEM_BUG_ON(err);

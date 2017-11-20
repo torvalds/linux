@@ -114,10 +114,6 @@ static int emit_recurse_batch(struct hang *h,
 	if (err)
 		goto unpin_vma;
 
-	err = rq->engine->emit_flush(rq, EMIT_INVALIDATE);
-	if (err)
-		goto unpin_hws;
-
 	err = i915_switch_context(rq);
 	if (err)
 		goto unpin_hws;

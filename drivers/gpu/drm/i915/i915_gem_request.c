@@ -703,16 +703,30 @@ i915_gem_request_alloc(struct intel_engine_cs *engine,
 	req->reserved_space = MIN_SPACE_FOR_ADD_REQUEST;
 	GEM_BUG_ON(req->reserved_space < engine->emit_breadcrumb_sz);
 
-	ret = engine->request_alloc(req);
-	if (ret)
-		goto err_ctx;
-
-	/* Record the position of the start of the request so that
+	/*
+	 * Record the position of the start of the request so that
 	 * should we detect the updated seqno part-way through the
 	 * GPU processing the request, we never over-estimate the
 	 * position of the head.
 	 */
 	req->head = req->ring->emit;
+
+	/* Unconditionally invalidate GPU caches and TLBs. */
+	ret = engine->emit_flush(req, EMIT_INVALIDATE);
+	if (ret)
+		goto err_ctx;
+
+	ret = engine->request_alloc(req);
+	if (ret) {
+		/*
+		 * Past the point-of-no-return. Since we may have updated
+		 * global state after partially completing the request alloc,
+		 * we need to commit any commands so far emitted in the
+		 * request to the HW.
+		 */
+		__i915_add_request(req, false);
+		return ERR_PTR(ret);
+	}
 
 	/* Check that we didn't interrupt ourselves with a new request */
 	GEM_BUG_ON(req->timeline->seqno != req->fence.seqno);
