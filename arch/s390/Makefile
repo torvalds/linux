@@ -90,6 +90,7 @@ endif
 
 KBUILD_CFLAGS	+= -mbackchain -msoft-float $(cflags-y)
 KBUILD_CFLAGS	+= -pipe -fno-strength-reduce -Wno-sign-compare
+KBUILD_CFLAGS	+= -fno-asynchronous-unwind-tables
 KBUILD_AFLAGS	+= $(aflags-y)
 
 OBJCOPYFLAGS	:= -O binary

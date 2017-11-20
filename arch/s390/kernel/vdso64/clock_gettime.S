@@ -9,6 +9,7 @@
 #include <asm/vdso.h>
 #include <asm/asm-offsets.h>
 #include <asm/unistd.h>
+#include <asm/dwarf.h>
 
 	.text
 	.align 4
