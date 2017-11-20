@@ -6946,7 +6946,6 @@ struct extent_map *btrfs_get_extent(struct btrfs_inode *inode,
 	struct btrfs_trans_handle *trans = NULL;
 	const bool new_inline = !page || create;
 
-again:
 	read_lock(&em_tree->lock);
 	em = lookup_extent_mapping(em_tree, start, len);
 	if (em)
@@ -7087,7 +7086,7 @@ next:
 		em->orig_block_len = em->len;
 		em->orig_start = em->start;
 		ptr = btrfs_file_extent_inline_start(item) + extent_offset;
-		if (create == 0 && !PageUptodate(page)) {
+		if (!PageUptodate(page)) {
 			if (btrfs_file_extent_compression(leaf, item) !=
 			    BTRFS_COMPRESS_NONE) {
 				ret = uncompress_inline(path, page, pg_offset,
@@ -7108,25 +7107,6 @@ next:
 				kunmap(page);
 			}
 			flush_dcache_page(page);
-		} else if (create && PageUptodate(page)) {
-			BUG();
-			if (!trans) {
-				kunmap(page);
-				free_extent_map(em);
-				em = NULL;
-
-				btrfs_release_path(path);
-				trans = btrfs_join_transaction(root);
-
-				if (IS_ERR(trans))
-					return ERR_CAST(trans);
-				goto again;
-			}
-			map = kmap(page);
-			write_extent_buffer(leaf, map + pg_offset, ptr,
-					    copy_size);
-			kunmap(page);
-			btrfs_mark_buffer_dirty(leaf);
 		}
 		set_extent_uptodate(io_tree, em->start,
 				    extent_map_end(em) - 1, NULL, GFP_NOFS);
