@@ -37,8 +37,6 @@
  * Resource Streamer, is 66944 bytes, which rounds to 17 pages.
  */
 #define HSW_CXT_TOTAL_SIZE		(17 * PAGE_SIZE)
-/* Same as Haswell, but 72064 bytes now. */
-#define GEN8_CXT_TOTAL_SIZE		(18 * PAGE_SIZE)
 
 #define GEN8_LR_CONTEXT_RENDER_SIZE	(20 * PAGE_SIZE)
 #define GEN9_LR_CONTEXT_RENDER_SIZE	(22 * PAGE_SIZE)
@@ -363,18 +361,6 @@ void intel_engine_init_global_seqno(struct intel_engine_cs *engine, u32 seqno)
 		I915_WRITE(RING_SYNC_1(engine->mmio_base), 0);
 		if (HAS_VEBOX(dev_priv))
 			I915_WRITE(RING_SYNC_2(engine->mmio_base), 0);
-	}
-	if (dev_priv->semaphore) {
-		struct page *page = i915_vma_first_page(dev_priv->semaphore);
-		void *semaphores;
-
-		/* Semaphores are in noncoherent memory, flush to be safe */
-		semaphores = kmap_atomic(page);
-		memset(semaphores + GEN8_SEMAPHORE_OFFSET(engine->id, 0),
-		       0, I915_NUM_ENGINES * gen8_semaphore_seqno_size);
-		drm_clflush_virt_range(semaphores + GEN8_SEMAPHORE_OFFSET(engine->id, 0),
-				       I915_NUM_ENGINES * gen8_semaphore_seqno_size);
-		kunmap_atomic(semaphores);
 	}
 
 	intel_write_status_page(engine, I915_GEM_HWS_INDEX, seqno);

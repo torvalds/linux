@@ -574,21 +574,21 @@ mi_set_context(struct drm_i915_gem_request *req, u32 flags)
 	enum intel_engine_id id;
 	const int num_rings =
 		/* Use an extended w/a on gen7 if signalling from other rings */
-		(i915_modparams.semaphores && INTEL_GEN(dev_priv) == 7) ?
+		(i915_modparams.semaphores && IS_GEN7(dev_priv)) ?
 		INTEL_INFO(dev_priv)->num_rings - 1 :
 		0;
 	int len;
 	u32 *cs;
 
 	flags |= MI_MM_SPACE_GTT;
-	if (IS_HASWELL(dev_priv) || INTEL_GEN(dev_priv) >= 8)
+	if (IS_HASWELL(dev_priv))
 		/* These flags are for resource streamer on HSW+ */
 		flags |= HSW_MI_RS_SAVE_STATE_EN | HSW_MI_RS_RESTORE_STATE_EN;
 	else
 		flags |= MI_SAVE_EXT_STATE_EN | MI_RESTORE_EXT_STATE_EN;
 
 	len = 4;
-	if (INTEL_GEN(dev_priv) >= 7)
+	if (IS_GEN7(dev_priv))
 		len += 2 + (num_rings ? 4*num_rings + 6 : 0);
 
 	cs = intel_ring_begin(req, len);
@@ -596,7 +596,7 @@ mi_set_context(struct drm_i915_gem_request *req, u32 flags)
 		return PTR_ERR(cs);
 
 	/* WaProgramMiArbOnOffAroundMiSetContext:ivb,vlv,hsw,bdw,chv */
-	if (INTEL_GEN(dev_priv) >= 7) {
+	if (IS_GEN7(dev_priv)) {
 		*cs++ = MI_ARB_ON_OFF | MI_ARB_DISABLE;
 		if (num_rings) {
 			struct intel_engine_cs *signaller;
@@ -623,7 +623,7 @@ mi_set_context(struct drm_i915_gem_request *req, u32 flags)
 	 */
 	*cs++ = MI_NOOP;
 
-	if (INTEL_GEN(dev_priv) >= 7) {
+	if (IS_GEN7(dev_priv)) {
 		if (num_rings) {
 			struct intel_engine_cs *signaller;
 			i915_reg_t last_reg = {}; /* keep gcc quiet */
@@ -714,27 +714,7 @@ needs_pd_load_pre(struct i915_hw_ppgtt *ppgtt, struct intel_engine_cs *engine)
 	if (engine->id != RCS)
 		return true;
 
-	if (INTEL_GEN(engine->i915) < 8)
-		return true;
-
-	return false;
-}
-
-static bool
-needs_pd_load_post(struct i915_hw_ppgtt *ppgtt,
-		   struct i915_gem_context *to,
-		   u32 hw_flags)
-{
-	if (!ppgtt)
-		return false;
-
-	if (!IS_GEN8(to->i915))
-		return false;
-
-	if (hw_flags & MI_RESTORE_INHIBIT)
-		return true;
-
-	return false;
+	return true;
 }
 
 static int do_rcs_switch(struct drm_i915_gem_request *req)
@@ -782,21 +762,6 @@ static int do_rcs_switch(struct drm_i915_gem_request *req)
 			return ret;
 
 		engine->legacy_active_context = to;
-	}
-
-	/* GEN8 does *not* require an explicit reload if the PDPs have been
-	 * setup, and we do not wish to move them.
-	 */
-	if (needs_pd_load_post(ppgtt, to, hw_flags)) {
-		trace_switch_mm(engine, to);
-		ret = ppgtt->switch_mm(ppgtt, req);
-		/* The hardware context switch is emitted, but we haven't
-		 * actually changed the state - so it's probably safe to bail
-		 * here. Still, let the user know something dangerous has
-		 * happened.
-		 */
-		if (ret)
-			return ret;
 	}
 
 	if (ppgtt)

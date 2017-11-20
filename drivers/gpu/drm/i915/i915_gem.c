@@ -4999,7 +4999,7 @@ out:
 
 bool intel_sanitize_semaphores(struct drm_i915_private *dev_priv, int value)
 {
-	if (INTEL_INFO(dev_priv)->gen < 6)
+	if (INTEL_GEN(dev_priv) < 6)
 		return false;
 
 	/* TODO: make semaphores and Execlists play nicely together */

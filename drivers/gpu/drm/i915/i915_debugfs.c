@@ -3254,44 +3254,12 @@ static int i915_semaphore_status(struct seq_file *m, void *unused)
 		return ret;
 	intel_runtime_pm_get(dev_priv);
 
-	if (IS_BROADWELL(dev_priv)) {
-		struct page *page;
-		uint64_t *seqno;
-
-		page = i915_gem_object_get_page(dev_priv->semaphore->obj, 0);
-
-		seqno = (uint64_t *)kmap_atomic(page);
-		for_each_engine(engine, dev_priv, id) {
-			uint64_t offset;
-
-			seq_printf(m, "%s\n", engine->name);
-
-			seq_puts(m, "  Last signal:");
-			for (j = 0; j < num_rings; j++) {
-				offset = id * I915_NUM_ENGINES + j;
-				seq_printf(m, "0x%08llx (0x%02llx) ",
-					   seqno[offset], offset * 8);
-			}
-			seq_putc(m, '\n');
-
-			seq_puts(m, "  Last wait:  ");
-			for (j = 0; j < num_rings; j++) {
-				offset = id + (j * I915_NUM_ENGINES);
-				seq_printf(m, "0x%08llx (0x%02llx) ",
-					   seqno[offset], offset * 8);
-			}
-			seq_putc(m, '\n');
-
-		}
-		kunmap_atomic(seqno);
-	} else {
-		seq_puts(m, "  Last signal:");
-		for_each_engine(engine, dev_priv, id)
-			for (j = 0; j < num_rings; j++)
-				seq_printf(m, "0x%08x\n",
-					   I915_READ(engine->semaphore.mbox.signal[j]));
-		seq_putc(m, '\n');
-	}
+	seq_puts(m, "  Last signal:");
+	for_each_engine(engine, dev_priv, id)
+		for (j = 0; j < num_rings; j++)
+			seq_printf(m, "0x%08x\n",
+				   I915_READ(engine->semaphore.mbox.signal[j]));
+	seq_putc(m, '\n');
 
 	intel_runtime_pm_put(dev_priv);
 	mutex_unlock(&dev->struct_mutex);

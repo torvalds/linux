@@ -46,16 +46,6 @@ struct intel_hw_status_page {
 /* seqno size is actually only a uint32, but since we plan to use MI_FLUSH_DW to
  * do the writes, and that must have qw aligned offsets, simply pretend it's 8b.
  */
-#define gen8_semaphore_seqno_size sizeof(uint64_t)
-#define GEN8_SEMAPHORE_OFFSET(__from, __to)			     \
-	(((__from) * I915_NUM_ENGINES  + (__to)) * gen8_semaphore_seqno_size)
-#define GEN8_SIGNAL_OFFSET(__ring, to)			     \
-	(dev_priv->semaphore->node.start + \
-	 GEN8_SEMAPHORE_OFFSET((__ring)->id, (to)))
-#define GEN8_WAIT_OFFSET(__ring, from)			     \
-	(dev_priv->semaphore->node.start + \
-	 GEN8_SEMAPHORE_OFFSET(from, (__ring)->id))
-
 enum intel_engine_hangcheck_action {
 	ENGINE_IDLE = 0,
 	ENGINE_WAIT,
@@ -467,18 +457,15 @@ struct intel_engine_cs {
 	 *  ie. transpose of f(x, y)
 	 */
 	struct {
-		union {
 #define GEN6_SEMAPHORE_LAST	VECS_HW
 #define GEN6_NUM_SEMAPHORES	(GEN6_SEMAPHORE_LAST + 1)
 #define GEN6_SEMAPHORES_MASK	GENMASK(GEN6_SEMAPHORE_LAST, 0)
-			struct {
-				/* our mbox written by others */
-				u32		wait[GEN6_NUM_SEMAPHORES];
-				/* mboxes this ring signals to */
-				i915_reg_t	signal[GEN6_NUM_SEMAPHORES];
-			} mbox;
-			u64		signal_ggtt[I915_NUM_ENGINES];
-		};
+		struct {
+			/* our mbox written by others */
+			u32		wait[GEN6_NUM_SEMAPHORES];
+			/* mboxes this ring signals to */
+			i915_reg_t	signal[GEN6_NUM_SEMAPHORES];
+		} mbox;
 
 		/* AKA wait() */
 		int	(*sync_to)(struct drm_i915_gem_request *req,

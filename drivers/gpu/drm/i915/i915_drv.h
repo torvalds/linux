@@ -942,7 +942,6 @@ struct i915_gpu_state {
 	u64 fence[I915_MAX_NUM_FENCES];
 	struct intel_overlay_error_state *overlay;
 	struct intel_display_error_state *display;
-	struct drm_i915_error_object *semaphore;
 
 	struct drm_i915_error_engine {
 		int engine_id;
@@ -2291,7 +2290,6 @@ struct drm_i915_private {
 	struct i915_gem_context *kernel_context;
 	/* Context only to be used for injecting preemption commands */
 	struct i915_gem_context *preempt_context;
-	struct i915_vma *semaphore;
 
 	struct drm_dma_handle *status_page_dmah;
 	struct resource mch_res;

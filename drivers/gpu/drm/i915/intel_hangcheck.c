@@ -27,13 +27,9 @@
 static bool
 ipehr_is_semaphore_wait(struct intel_engine_cs *engine, u32 ipehr)
 {
-	if (INTEL_GEN(engine->i915) >= 8) {
-		return (ipehr >> 23) == 0x1c;
-	} else {
-		ipehr &= ~MI_SEMAPHORE_SYNC_MASK;
-		return ipehr == (MI_SEMAPHORE_MBOX | MI_SEMAPHORE_COMPARE |
-				 MI_SEMAPHORE_REGISTER);
-	}
+	ipehr &= ~MI_SEMAPHORE_SYNC_MASK;
+	return ipehr == (MI_SEMAPHORE_MBOX | MI_SEMAPHORE_COMPARE |
+			 MI_SEMAPHORE_REGISTER);
 }
 
 static struct intel_engine_cs *
@@ -41,31 +37,20 @@ semaphore_wait_to_signaller_ring(struct intel_engine_cs *engine, u32 ipehr,
 				 u64 offset)
 {
 	struct drm_i915_private *dev_priv = engine->i915;
+	u32 sync_bits = ipehr & MI_SEMAPHORE_SYNC_MASK;
 	struct intel_engine_cs *signaller;
 	enum intel_engine_id id;
 
-	if (INTEL_GEN(dev_priv) >= 8) {
-		for_each_engine(signaller, dev_priv, id) {
-			if (engine == signaller)
-				continue;
+	for_each_engine(signaller, dev_priv, id) {
+		if (engine == signaller)
+			continue;
 
-			if (offset == signaller->semaphore.signal_ggtt[engine->hw_id])
-				return signaller;
-		}
-	} else {
-		u32 sync_bits = ipehr & MI_SEMAPHORE_SYNC_MASK;
-
-		for_each_engine(signaller, dev_priv, id) {
-			if(engine == signaller)
-				continue;
-
-			if (sync_bits == signaller->semaphore.mbox.wait[engine->hw_id])
-				return signaller;
-		}
+		if (sync_bits == signaller->semaphore.mbox.wait[engine->hw_id])
+			return signaller;
 	}
 
-	DRM_DEBUG_DRIVER("No signaller ring found for %s, ipehr 0x%08x, offset 0x%016llx\n",
-			 engine->name, ipehr, offset);
+	DRM_DEBUG_DRIVER("No signaller ring found for %s, ipehr 0x%08x\n",
+			 engine->name, ipehr);
 
 	return ERR_PTR(-ENODEV);
 }
@@ -135,11 +120,6 @@ semaphore_waits_for(struct intel_engine_cs *engine, u32 *seqno)
 		return NULL;
 
 	*seqno = ioread32(vaddr + head + 4) + 1;
-	if (INTEL_GEN(dev_priv) >= 8) {
-		offset = ioread32(vaddr + head + 12);
-		offset <<= 32;
-		offset |= ioread32(vaddr + head + 8);
-	}
 	return semaphore_wait_to_signaller_ring(engine, ipehr, offset);
 }
 
@@ -273,7 +253,7 @@ engine_stuck(struct intel_engine_cs *engine, u64 acthd)
 		return ENGINE_WAIT_KICK;
 	}
 
-	if (INTEL_GEN(dev_priv) >= 6 && tmp & RING_WAIT_SEMAPHORE) {
+	if (IS_GEN(dev_priv, 6, 7) && tmp & RING_WAIT_SEMAPHORE) {
 		switch (semaphore_passed(engine)) {
 		default:
 			return ENGINE_DEAD;
