@@ -21,18 +21,31 @@
 #include <media/v4l2-fwnode.h>
 #include <media/v4l2-image-sizes.h>
 #include <media/v4l2-mediabus.h>
-#include <media/v4l2-of.h>
 
 /* IMX219 supported geometry */
-#define IMX219_WIDTH			3280	//3280
+#define IMX219_WIDTH			3280
 #define IMX219_HEIGHT			2464
+#define IMX219_HTS			3448
+#define IMX219_VTS			2500
+
 #define IMX219_TABLE_END		0xffff
 #define IMX219_ANALOGUE_GAIN_MULTIPLIER	256
 #define IMX219_ANALOGUE_GAIN_MIN	(1 * IMX219_ANALOGUE_GAIN_MULTIPLIER)
 #define IMX219_ANALOGUE_GAIN_MAX	(8 * IMX219_ANALOGUE_GAIN_MULTIPLIER)
+
 /* In dB*256 */
 #define IMX219_DIGITAL_GAIN_MIN		256
 #define IMX219_DIGITAL_GAIN_MAX		4095
+
+#define IMX219_DIGITAL_EXPOSURE_MIN	0
+#define IMX219_DIGITAL_EXPOSURE_MAX	4095
+
+#define IMX219_LANES			2
+#define IMX219_BITS_PER_SAMPLE		10
+
+static const s64 link_freq_menu_items[] = {
+	456000000,
+};
 
 struct imx219_reg {
 	u16 addr;
@@ -143,6 +156,7 @@ struct imx219 {
 	int vflip;
 	u8 analogue_gain;
 	u16 digital_gain;	/* bits 11:0 */
+	u16 exposure_time;
 	u16 test_pattern;
 	u16 test_pattern_solid_color_r;
 	u16 test_pattern_solid_color_gr;
@@ -287,6 +301,12 @@ static int imx219_s_stream(struct v4l2_subdev *sd, int enable)
 	if (ret)
 		return ret;
 
+	/* Handle exposure time */
+	ret = reg_write(client, 0x015a, priv->exposure_time >> 8);
+	ret |= reg_write(client, 0x015b, priv->exposure_time & 0xff);
+	if (ret)
+		return ret;
+
 	/* Handle test pattern */
 	if (priv->test_pattern) {
 		ret = reg_write(client, 0x0600, priv->test_pattern >> 8);
@@ -324,54 +344,6 @@ static int imx219_s_stream(struct v4l2_subdev *sd, int enable)
 		return ret;
 
 	return reg_write_table(client, start);
-}
-
-static int imx219_cropcap(struct v4l2_subdev *sd, struct v4l2_cropcap *crop)
-{
-	if (crop->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		return -EINVAL;
-
-	crop->bounds.left = 0;
-	crop->bounds.top = 0;
-	crop->bounds.width = IMX219_WIDTH;
-	crop->bounds.height = IMX219_HEIGHT;
-	crop->defrect = crop->bounds;
-	crop->pixelaspect.numerator = 1;
-	crop->pixelaspect.denominator = 1;
-
-	return 0;
-}
-
-static int imx219_g_crop(struct v4l2_subdev *sd, struct v4l2_crop *crop)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	struct imx219 *priv = to_imx219(client);
-
-	crop->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-	crop->c = priv->crop_rect;
-
-	return 0;
-}
-
-static int imx219_s_crop(struct v4l2_subdev *sd, const struct v4l2_crop *crop)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	struct imx219 *priv = to_imx219(client);
-	struct v4l2_rect rect = crop->c;
-	u8 reg;
-
-	rect.left = ALIGN(rect.left, 2);
-	rect.width = ALIGN(rect.width, 2);
-	rect.top = ALIGN(rect.top, 2);
-	rect.height = ALIGN(rect.height, 2);
-	priv->crop_rect = rect;
-
-	/* If enabled, apply settings immediately */
-	reg = reg_read(client, 0x0100);
-	if ((reg & 0x1f) == 0x01)
-		imx219_s_stream(sd, 1);
-
-	return 0;
 }
 
 static int imx219_enum_mbus_fmt(struct v4l2_subdev *sd, unsigned int index,
@@ -558,6 +530,9 @@ static int imx219_s_ctrl(struct v4l2_ctrl *ctrl)
 		 */
 		priv->digital_gain = ctrl->val;
 		break;
+	case V4L2_CID_EXPOSURE:
+		priv->exposure_time = ctrl->val;
+		break;
 	case V4L2_CID_TEST_PATTERN:
 		return imx219_s_ctrl_test_pattern(ctrl);
 	default:
@@ -598,9 +573,6 @@ static int imx219_get_fmt(struct v4l2_subdev *sd,
 /* Various V4L2 operations tables */
 static struct v4l2_subdev_video_ops imx219_subdev_video_ops = {
 	.s_stream = imx219_s_stream,
-	.cropcap = imx219_cropcap,
-	.g_crop = imx219_g_crop,
-	.s_crop = imx219_s_crop,
 };
 
 static struct v4l2_subdev_core_ops imx219_subdev_core_ops = {
@@ -703,6 +675,7 @@ static int imx219_ctrls_init(struct v4l2_subdev *sd)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct imx219 *priv = to_imx219(client);
+	u32 pixel_rate, h_blank, v_blank;
 	int ret;
 
 	v4l2_ctrl_handler_init(&priv->ctrl_handler, 10);
@@ -710,6 +683,8 @@ static int imx219_ctrls_init(struct v4l2_subdev *sd)
 			  V4L2_CID_HFLIP, 0, 1, 1, 0);
 	v4l2_ctrl_new_std(&priv->ctrl_handler, &imx219_ctrl_ops,
 			  V4L2_CID_VFLIP, 0, 1, 1, 0);
+
+	/* exposure */
 	v4l2_ctrl_new_std(&priv->ctrl_handler, &imx219_ctrl_ops,
 			  V4L2_CID_ANALOGUE_GAIN,
 			  IMX219_ANALOGUE_GAIN_MIN,
@@ -718,7 +693,30 @@ static int imx219_ctrls_init(struct v4l2_subdev *sd)
 	v4l2_ctrl_new_std(&priv->ctrl_handler, &imx219_ctrl_ops,
 			  V4L2_CID_GAIN,
 			  IMX219_DIGITAL_GAIN_MIN,
-			  IMX219_DIGITAL_GAIN_MAX, 1, IMX219_DIGITAL_GAIN_MIN);
+			  IMX219_DIGITAL_GAIN_MAX, 1,
+			  IMX219_DIGITAL_GAIN_MIN);
+	v4l2_ctrl_new_std(&priv->ctrl_handler, &imx219_ctrl_ops,
+			  V4L2_CID_EXPOSURE,
+			  IMX219_DIGITAL_EXPOSURE_MIN,
+			  IMX219_DIGITAL_EXPOSURE_MAX, 1,
+			  IMX219_DIGITAL_EXPOSURE_MIN);
+
+	/* blank */
+	h_blank = IMX219_HTS - IMX219_WIDTH;
+	v4l2_ctrl_new_std(&priv->ctrl_handler, NULL, V4L2_CID_HBLANK,
+			  h_blank, h_blank, 1, h_blank);
+	v_blank = IMX219_VTS - IMX219_HEIGHT;
+	v4l2_ctrl_new_std(&priv->ctrl_handler, NULL, V4L2_CID_VBLANK,
+			  v_blank, v_blank, 1, v_blank);
+
+	/* freq */
+	v4l2_ctrl_new_int_menu(&priv->ctrl_handler, NULL, V4L2_CID_LINK_FREQ,
+			       0, 0, link_freq_menu_items);
+	pixel_rate = (link_freq_menu_items[0] * 2 * IMX219_LANES) /
+		IMX219_BITS_PER_SAMPLE;
+	v4l2_ctrl_new_std(&priv->ctrl_handler, NULL, V4L2_CID_PIXEL_RATE,
+			  0, pixel_rate, 1, pixel_rate);
+
 	v4l2_ctrl_new_std_menu_items(&priv->ctrl_handler, &imx219_ctrl_ops,
 				     V4L2_CID_TEST_PATTERN,
 				     ARRAY_SIZE(tp_qmenu) - 1, 0, 0, tp_qmenu);
