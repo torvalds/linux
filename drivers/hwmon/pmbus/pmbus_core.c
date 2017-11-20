@@ -162,18 +162,27 @@ EXPORT_SYMBOL_GPL(pmbus_clear_cache);
 int pmbus_set_page(struct i2c_client *client, int page)
 {
 	struct pmbus_data *data = i2c_get_clientdata(client);
-	int rv = 0;
-	int newpage;
+	int rv;
 
-	if (page >= 0 && page != data->currpage) {
+	if (page < 0 || page == data->currpage)
+		return 0;
+
+	if (!(data->info->func[page] & PMBUS_PAGE_VIRTUAL)) {
 		rv = i2c_smbus_write_byte_data(client, PMBUS_PAGE, page);
-		newpage = i2c_smbus_read_byte_data(client, PMBUS_PAGE);
-		if (newpage != page)
-			rv = -EIO;
-		else
-			data->currpage = page;
+		if (rv < 0)
+			return rv;
+
+		rv = i2c_smbus_read_byte_data(client, PMBUS_PAGE);
+		if (rv < 0)
+			return rv;
+
+		if (rv != page)
+			return -EIO;
 	}
-	return rv;
+
+	data->currpage = page;
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(pmbus_set_page);
 
