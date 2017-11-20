@@ -27,7 +27,7 @@
 /* max doorbell number + negative test for each client type */
 #define ATTEMPTS (GUC_NUM_DOORBELLS + GUC_CLIENT_PRIORITY_NUM)
 
-struct intel_guc_client *clients[ATTEMPTS];
+static struct intel_guc_client *clients[ATTEMPTS];
 
 static bool available_dbs(struct intel_guc *guc, u32 priority)
 {
