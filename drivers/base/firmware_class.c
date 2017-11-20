@@ -62,13 +62,9 @@ struct fw_state {
 #define FW_OPT_UEVENT	(1U << 0)
 #define FW_OPT_NOWAIT	(1U << 1)
 #define FW_OPT_USERHELPER	(1U << 2)
-#ifdef CONFIG_FW_LOADER_USER_HELPER_FALLBACK
-#define FW_OPT_FALLBACK		FW_OPT_USERHELPER
-#else
-#define FW_OPT_FALLBACK		0
-#endif
 #define FW_OPT_NO_WARN	(1U << 3)
 #define FW_OPT_NOCACHE	(1U << 4)
+#define FW_OPT_NOFALLBACK (1U << 5)
 
 struct firmware_cache {
 	/* firmware_buf instance will be added into the below list */
@@ -1154,12 +1150,34 @@ out_unlock:
 	return ret;
 }
 
+#ifdef CONFIG_FW_LOADER_USER_HELPER_FALLBACK
+static bool fw_force_sysfs_fallback(unsigned int opt_flags)
+{
+	return true;
+}
+#else
+static bool fw_force_sysfs_fallback(unsigned int opt_flags)
+{
+	if (!(opt_flags & FW_OPT_USERHELPER))
+		return false;
+	return true;
+}
+#endif
+
+static bool fw_run_sysfs_fallback(unsigned int opt_flags)
+{
+	if ((opt_flags & FW_OPT_NOFALLBACK))
+		return false;
+
+	return fw_force_sysfs_fallback(opt_flags);
+}
+
 static int fw_sysfs_fallback(struct firmware *fw, const char *name,
 			    struct device *device,
 			    unsigned int opt_flags,
 			    int ret)
 {
-	if (!(opt_flags & FW_OPT_USERHELPER))
+	if (!fw_run_sysfs_fallback(opt_flags))
 		return ret;
 
 	dev_warn(device, "Falling back to user helper\n");
@@ -1326,7 +1344,7 @@ request_firmware(const struct firmware **firmware_p, const char *name,
 	/* Need to pin this module until return */
 	__module_get(THIS_MODULE);
 	ret = _request_firmware(firmware_p, name, device, NULL, 0,
-				FW_OPT_UEVENT | FW_OPT_FALLBACK);
+				FW_OPT_UEVENT);
 	module_put(THIS_MODULE);
 	return ret;
 }
@@ -1350,7 +1368,8 @@ int request_firmware_direct(const struct firmware **firmware_p,
 
 	__module_get(THIS_MODULE);
 	ret = _request_firmware(firmware_p, name, device, NULL, 0,
-				FW_OPT_UEVENT | FW_OPT_NO_WARN);
+				FW_OPT_UEVENT | FW_OPT_NO_WARN |
+				FW_OPT_NOFALLBACK);
 	module_put(THIS_MODULE);
 	return ret;
 }
@@ -1379,8 +1398,7 @@ request_firmware_into_buf(const struct firmware **firmware_p, const char *name,
 
 	__module_get(THIS_MODULE);
 	ret = _request_firmware(firmware_p, name, device, buf, size,
-				FW_OPT_UEVENT | FW_OPT_FALLBACK |
-				FW_OPT_NOCACHE);
+				FW_OPT_UEVENT | FW_OPT_NOCACHE);
 	module_put(THIS_MODULE);
 	return ret;
 }
@@ -1472,7 +1490,7 @@ request_firmware_nowait(
 	fw_work->device = device;
 	fw_work->context = context;
 	fw_work->cont = cont;
-	fw_work->opt_flags = FW_OPT_NOWAIT | FW_OPT_FALLBACK |
+	fw_work->opt_flags = FW_OPT_NOWAIT |
 		(uevent ? FW_OPT_UEVENT : FW_OPT_USERHELPER);
 
 	if (!try_module_get(module)) {
