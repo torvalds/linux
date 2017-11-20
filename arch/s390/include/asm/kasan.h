@@ -15,9 +15,11 @@
 
 extern void kasan_early_init(void);
 extern void kasan_copy_shadow(pgd_t *dst);
+extern void kasan_free_early_identity(void);
 #else
 static inline void kasan_early_init(void) { }
 static inline void kasan_copy_shadow(pgd_t *dst) { }
+static inline void kasan_free_early_identity(void) { }
 #endif
 
 #endif

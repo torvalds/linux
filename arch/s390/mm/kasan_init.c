@@ -15,6 +15,7 @@ static unsigned long segment_pos __initdata;
 static unsigned long segment_low __initdata;
 static unsigned long pgalloc_pos __initdata;
 static unsigned long pgalloc_low __initdata;
+static unsigned long pgalloc_freeable __initdata;
 static bool has_edat __initdata;
 static bool has_nx __initdata;
 
@@ -298,14 +299,16 @@ void __init kasan_early_init(void)
 	 * | 2Gb	     |	\|	unmapped  | allocated per module
 	 * +-----------------+	 +- shadow end ---+
 	 */
-	/* populate identity mapping */
-	kasan_early_vmemmap_populate(0, memsize, POPULATE_ONE2ONE);
 	/* populate kasan shadow (for identity mapping and zero page mapping) */
 	kasan_early_vmemmap_populate(__sha(0), __sha(memsize), POPULATE_MAP);
 	if (IS_ENABLED(CONFIG_MODULES))
 		untracked_mem_end = vmax - MODULES_LEN;
 	kasan_early_vmemmap_populate(__sha(memsize), __sha(untracked_mem_end),
 				     POPULATE_ZERO_SHADOW);
+	/* memory allocated for identity mapping structs will be freed later */
+	pgalloc_freeable = pgalloc_pos;
+	/* populate identity mapping */
+	kasan_early_vmemmap_populate(0, memsize, POPULATE_ONE2ONE);
 	kasan_set_pgd(early_pg_dir, asce_type);
 	kasan_enable_dat();
 	/* enable kasan */
@@ -344,4 +347,9 @@ void __init kasan_copy_shadow(pgd_t *pg_dir)
 	pu_dir_dst = pud_offset(p4_dir_dst, KASAN_SHADOW_START);
 	memcpy(pu_dir_dst, pu_dir_src,
 	       (KASAN_SHADOW_SIZE >> PUD_SHIFT) * sizeof(pud_t));
+}
+
+void __init kasan_free_early_identity(void)
+{
+	memblock_free(pgalloc_pos, pgalloc_freeable - pgalloc_pos);
 }

@@ -109,6 +109,7 @@ void __init paging_init(void)
 	psw_bits(psw).dat = 1;
 	psw_bits(psw).as = PSW_BITS_AS_HOME;
 	__load_psw_mask(psw.mask);
+	kasan_free_early_identity();
 
 	sparse_memory_present_with_active_regions(MAX_NUMNODES);
 	sparse_init();
