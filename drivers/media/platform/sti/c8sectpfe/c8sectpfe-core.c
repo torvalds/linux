@@ -83,13 +83,15 @@ static void c8sectpfe_timer_interrupt(struct timer_list *t)
 static void channel_swdemux_tsklet(unsigned long data)
 {
 	struct channel_info *channel = (struct channel_info *)data;
-	struct c8sectpfei *fei = channel->fei;
+	struct c8sectpfei *fei;
 	unsigned long wp, rp;
 	int pos, num_packets, n, size;
 	u8 *buf;
 
 	if (unlikely(!channel || !channel->irec))
 		return;
+
+	fei = channel->fei;
 
 	wp = readl(channel->irec + DMA_PRDS_BUSWP_TP(0));
 	rp = readl(channel->irec + DMA_PRDS_BUSRP_TP(0));
