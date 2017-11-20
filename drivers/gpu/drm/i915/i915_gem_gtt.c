@@ -178,7 +178,7 @@ int intel_sanitize_enable_ppgtt(struct drm_i915_private *dev_priv,
 		return 0;
 	}
 
-	if (INTEL_GEN(dev_priv) >= 8 && i915_modparams.enable_execlists) {
+	if (HAS_LOGICAL_RING_CONTEXTS(dev_priv)) {
 		if (has_full_48bit_ppgtt)
 			return 3;
 
@@ -2162,7 +2162,7 @@ int i915_ppgtt_init_hw(struct drm_i915_private *dev_priv)
 	/* In the case of execlists, PPGTT is enabled by the context descriptor
 	 * and the PDPs are contained within the context itself.  We don't
 	 * need to do anything here. */
-	if (i915_modparams.enable_execlists)
+	if (HAS_LOGICAL_RING_CONTEXTS(dev_priv))
 		return 0;
 
 	if (!USES_PPGTT(dev_priv))

@@ -164,9 +164,7 @@ __intel_engine_context_size(struct drm_i915_private *dev_priv, u8 class)
 		case 9:
 			return GEN9_LR_CONTEXT_RENDER_SIZE;
 		case 8:
-			return i915_modparams.enable_execlists ?
-			       GEN8_LR_CONTEXT_RENDER_SIZE :
-			       GEN8_CXT_TOTAL_SIZE;
+			return GEN8_LR_CONTEXT_RENDER_SIZE;
 		case 7:
 			if (IS_HASWELL(dev_priv))
 				return HSW_CXT_TOTAL_SIZE;
@@ -316,7 +314,7 @@ int intel_engines_init(struct drm_i915_private *dev_priv)
 			&intel_engine_classes[engine->class];
 		int (*init)(struct intel_engine_cs *engine);
 
-		if (i915_modparams.enable_execlists)
+		if (HAS_EXECLISTS(dev_priv))
 			init = class_info->init_execlists;
 		else
 			init = class_info->init_legacy;
@@ -1739,7 +1737,7 @@ void intel_engine_dump(struct intel_engine_cs *engine, struct drm_printer *m)
 	drm_printf(m, "\tBBADDR: 0x%08x_%08x\n",
 		   upper_32_bits(addr), lower_32_bits(addr));
 
-	if (i915_modparams.enable_execlists) {
+	if (HAS_EXECLISTS(dev_priv)) {
 		const u32 *hws = &engine->status_page.page_addr[I915_HWS_CSB_BUF0_INDEX];
 		u32 ptr, read, write;
 		unsigned int idx;

@@ -460,14 +460,6 @@ int i915_gem_contexts_init(struct drm_i915_private *dev_priv)
 	INIT_WORK(&dev_priv->contexts.free_work, contexts_free_worker);
 	init_llist_head(&dev_priv->contexts.free_list);
 
-	if (intel_vgpu_active(dev_priv) &&
-	    HAS_LOGICAL_RING_CONTEXTS(dev_priv)) {
-		if (!i915_modparams.enable_execlists) {
-			DRM_INFO("Only EXECLIST mode is supported in vgpu.\n");
-			return -EINVAL;
-		}
-	}
-
 	/* Using the simple ida interface, the max is limited by sizeof(int) */
 	BUILD_BUG_ON(MAX_CONTEXT_HW_ID > INT_MAX);
 	ida_init(&dev_priv->contexts.hw_ida);
@@ -842,7 +834,7 @@ int i915_switch_context(struct drm_i915_gem_request *req)
 	struct intel_engine_cs *engine = req->engine;
 
 	lockdep_assert_held(&req->i915->drm.struct_mutex);
-	GEM_BUG_ON(i915_modparams.enable_execlists);
+	GEM_BUG_ON(HAS_EXECLISTS(req->i915));
 
 	if (!req->ctx->engine[engine->id].state) {
 		struct i915_gem_context *to = req->ctx;

@@ -3153,6 +3153,9 @@ intel_info(const struct drm_i915_private *dev_priv)
 		((dev_priv)->info.has_logical_ring_contexts)
 #define HAS_LOGICAL_RING_PREEMPTION(dev_priv) \
 		((dev_priv)->info.has_logical_ring_preemption)
+
+#define HAS_EXECLISTS(dev_priv) HAS_LOGICAL_RING_CONTEXTS(dev_priv)
+
 #define USES_PPGTT(dev_priv)		(i915_modparams.enable_ppgtt)
 #define USES_FULL_PPGTT(dev_priv)	(i915_modparams.enable_ppgtt >= 2)
 #define USES_FULL_48BIT_PPGTT(dev_priv)	(i915_modparams.enable_ppgtt == 3)

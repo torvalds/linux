@@ -371,9 +371,7 @@ static int i915_getparam(struct drm_device *dev, void *data,
 		if (dev_priv->engine[RCS] && dev_priv->engine[RCS]->schedule) {
 			value |= I915_SCHEDULER_CAP_ENABLED;
 			value |= I915_SCHEDULER_CAP_PRIORITY;
-
-			if (HAS_LOGICAL_RING_PREEMPTION(dev_priv) &&
-			    i915_modparams.enable_execlists)
+			if (HAS_LOGICAL_RING_PREEMPTION(dev_priv))
 				value |= I915_SCHEDULER_CAP_PREEMPTION;
 		}
 		break;
@@ -1054,10 +1052,6 @@ static void i915_driver_cleanup_mmio(struct drm_i915_private *dev_priv)
 
 static void intel_sanitize_options(struct drm_i915_private *dev_priv)
 {
-	i915_modparams.enable_execlists =
-		intel_sanitize_enable_execlists(dev_priv,
-						i915_modparams.enable_execlists);
-
 	/*
 	 * i915.enable_ppgtt is read-only, so do an early pass to validate the
 	 * user's requested state against the hardware/driver capabilities.  We

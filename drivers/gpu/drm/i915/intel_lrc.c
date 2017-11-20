@@ -219,37 +219,6 @@ static void execlists_init_reg_state(u32 *reg_state,
 				     struct intel_ring *ring);
 
 /**
- * intel_sanitize_enable_execlists() - sanitize i915.enable_execlists
- * @dev_priv: i915 device private
- * @enable_execlists: value of i915.enable_execlists module parameter.
- *
- * Only certain platforms support Execlists (the prerequisites being
- * support for Logical Ring Contexts and Aliasing PPGTT or better).
- *
- * Return: 1 if Execlists is supported and has to be enabled.
- */
-int intel_sanitize_enable_execlists(struct drm_i915_private *dev_priv, int enable_execlists)
-{
-	/* On platforms with execlist available, vGPU will only
-	 * support execlist mode, no ring buffer mode.
-	 */
-	if (HAS_LOGICAL_RING_CONTEXTS(dev_priv) && intel_vgpu_active(dev_priv))
-		return 1;
-
-	if (INTEL_GEN(dev_priv) >= 9)
-		return 1;
-
-	if (enable_execlists == 0)
-		return 0;
-
-	if (HAS_LOGICAL_RING_CONTEXTS(dev_priv) &&
-	    USES_PPGTT(dev_priv))
-		return 1;
-
-	return 0;
-}
-
-/**
  * intel_lr_context_descriptor_update() - calculate & cache the descriptor
  * 					  descriptor for a pinned context
  * @ctx: Context to work on

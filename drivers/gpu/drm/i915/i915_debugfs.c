@@ -1989,75 +1989,6 @@ static int i915_context_status(struct seq_file *m, void *unused)
 	return 0;
 }
 
-static void i915_dump_lrc_obj(struct seq_file *m,
-			      struct i915_gem_context *ctx,
-			      struct intel_engine_cs *engine)
-{
-	struct i915_vma *vma = ctx->engine[engine->id].state;
-	struct page *page;
-	int j;
-
-	seq_printf(m, "CONTEXT: %s %u\n", engine->name, ctx->hw_id);
-
-	if (!vma) {
-		seq_puts(m, "\tFake context\n");
-		return;
-	}
-
-	if (vma->flags & I915_VMA_GLOBAL_BIND)
-		seq_printf(m, "\tBound in GGTT at 0x%08x\n",
-			   i915_ggtt_offset(vma));
-
-	if (i915_gem_object_pin_pages(vma->obj)) {
-		seq_puts(m, "\tFailed to get pages for context object\n\n");
-		return;
-	}
-
-	page = i915_gem_object_get_page(vma->obj, LRC_STATE_PN);
-	if (page) {
-		u32 *reg_state = kmap_atomic(page);
-
-		for (j = 0; j < 0x600 / sizeof(u32) / 4; j += 4) {
-			seq_printf(m,
-				   "\t[0x%04x] 0x%08x 0x%08x 0x%08x 0x%08x\n",
-				   j * 4,
-				   reg_state[j], reg_state[j + 1],
-				   reg_state[j + 2], reg_state[j + 3]);
-		}
-		kunmap_atomic(reg_state);
-	}
-
-	i915_gem_object_unpin_pages(vma->obj);
-	seq_putc(m, '\n');
-}
-
-static int i915_dump_lrc(struct seq_file *m, void *unused)
-{
-	struct drm_i915_private *dev_priv = node_to_i915(m->private);
-	struct drm_device *dev = &dev_priv->drm;
-	struct intel_engine_cs *engine;
-	struct i915_gem_context *ctx;
-	enum intel_engine_id id;
-	int ret;
-
-	if (!i915_modparams.enable_execlists) {
-		seq_printf(m, "Logical Ring Contexts are disabled\n");
-		return 0;
-	}
-
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
-	if (ret)
-		return ret;
-
-	list_for_each_entry(ctx, &dev_priv->contexts.list, link)
-		for_each_engine(engine, dev_priv, id)
-			i915_dump_lrc_obj(m, ctx, engine);
-
-	mutex_unlock(&dev->struct_mutex);
-
-	return 0;
-}
-
 static const char *swizzle_string(unsigned swizzle)
 {
 	switch (swizzle) {
@@ -4833,7 +4764,6 @@ static const struct drm_info_list i915_debugfs_list[] = {
 	{"i915_vbt", i915_vbt, 0},
 	{"i915_gem_framebuffer", i915_gem_framebuffer_info, 0},
 	{"i915_context_status", i915_context_status, 0},
-	{"i915_dump_lrc", i915_dump_lrc, 0},
 	{"i915_forcewake_domains", i915_forcewake_domains, 0},
 	{"i915_swizzle_info", i915_swizzle_info, 0},
 	{"i915_ppgtt_info", i915_ppgtt_info, 0},

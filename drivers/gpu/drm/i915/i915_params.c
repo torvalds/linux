@@ -99,10 +99,6 @@ i915_param_named_unsafe(enable_ppgtt, int, 0400,
 	"Override PPGTT usage. "
 	"(-1=auto [default], 0=disabled, 1=aliasing, 2=full, 3=full with extended address space)");
 
-i915_param_named_unsafe(enable_execlists, int, 0400,
-	"Override execlists usage. "
-	"(-1=auto [default], 0=disabled, 1=enabled)");
-
 i915_param_named_unsafe(enable_psr, int, 0600,
 	"Enable PSR "
 	"(0=disabled, 1=enabled - link mode chosen per-platform, 2=force link-standby mode, 3=force link-off mode) "

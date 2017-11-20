@@ -5003,7 +5003,7 @@ bool intel_sanitize_semaphores(struct drm_i915_private *dev_priv, int value)
 		return false;
 
 	/* TODO: make semaphores and Execlists play nicely together */
-	if (i915_modparams.enable_execlists)
+	if (HAS_EXECLISTS(dev_priv))
 		return false;
 
 	if (value >= 0)
@@ -5147,12 +5147,12 @@ int i915_gem_init(struct drm_i915_private *dev_priv)
 
 	dev_priv->mm.unordered_timeline = dma_fence_context_alloc(1);
 
-	if (!i915_modparams.enable_execlists) {
-		dev_priv->gt.resume = intel_legacy_submission_resume;
-		dev_priv->gt.cleanup_engine = intel_engine_cleanup;
-	} else {
+	if (HAS_LOGICAL_RING_CONTEXTS(dev_priv)) {
 		dev_priv->gt.resume = intel_lr_context_resume;
 		dev_priv->gt.cleanup_engine = intel_logical_ring_cleanup;
+	} else {
+		dev_priv->gt.resume = intel_legacy_submission_resume;
+		dev_priv->gt.cleanup_engine = intel_engine_cleanup;
 	}
 
 	/* This is just a security blanket to placate dragons.
