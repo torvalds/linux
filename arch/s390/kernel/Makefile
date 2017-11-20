@@ -24,6 +24,8 @@ UBSAN_SANITIZE_early.o		:= n
 UBSAN_SANITIZE_early_nobss.o	:= n
 
 KASAN_SANITIZE_early_nobss.o	:= n
+KASAN_SANITIZE_ipl.o		:= n
+KASAN_SANITIZE_machine_kexec.o	:= n
 
 #
 # Passing null pointers is ok for smp code, since we access the lowcore here.

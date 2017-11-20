@@ -242,7 +242,7 @@ static inline unsigned long current_stack_pointer(void)
 	return sp;
 }
 
-static inline unsigned short stap(void)
+static __no_sanitize_address_or_inline unsigned short stap(void)
 {
 	unsigned short cpu_address;
 

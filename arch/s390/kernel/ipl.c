@@ -156,6 +156,8 @@ static inline int __diag308(unsigned long subcode, void *addr)
 
 int diag308(unsigned long subcode, void *addr)
 {
+	if (IS_ENABLED(CONFIG_KASAN))
+		__arch_local_irq_stosm(0x04); /* enable DAT */
 	diag_stat_inc(DIAG_STAT_X308);
 	return __diag308(subcode, addr);
 }
