@@ -1768,6 +1768,26 @@ static struct syscore_ops fw_syscore_ops = {
 	.suspend = fw_suspend,
 };
 
+static int __init register_fw_pm_ops(void)
+{
+	int ret;
+
+	spin_lock_init(&fw_cache.name_lock);
+	INIT_LIST_HEAD(&fw_cache.fw_names);
+
+	INIT_DELAYED_WORK(&fw_cache.work,
+			  device_uncache_fw_images_work);
+
+	fw_cache.pm_notify.notifier_call = fw_pm_notify;
+	ret = register_pm_notifier(&fw_cache.pm_notify);
+	if (ret)
+		return ret;
+
+	register_syscore_ops(&fw_syscore_ops);
+
+	return ret;
+}
+
 static inline void unregister_fw_pm_ops(void)
 {
 	unregister_syscore_ops(&fw_syscore_ops);
@@ -1775,6 +1795,10 @@ static inline void unregister_fw_pm_ops(void)
 }
 #else
 static int fw_cache_piggyback_on_request(const char *name)
+{
+	return 0;
+}
+static inline int register_fw_pm_ops(void)
 {
 	return 0;
 }
@@ -1788,19 +1812,6 @@ static void __init fw_cache_init(void)
 	spin_lock_init(&fw_cache.lock);
 	INIT_LIST_HEAD(&fw_cache.head);
 	fw_cache.state = FW_LOADER_NO_CACHE;
-
-#ifdef CONFIG_PM_SLEEP
-	spin_lock_init(&fw_cache.name_lock);
-	INIT_LIST_HEAD(&fw_cache.fw_names);
-
-	INIT_DELAYED_WORK(&fw_cache.work,
-			  device_uncache_fw_images_work);
-
-	fw_cache.pm_notify.notifier_call = fw_pm_notify;
-	register_pm_notifier(&fw_cache.pm_notify);
-
-	register_syscore_ops(&fw_syscore_ops);
-#endif
 }
 
 static int fw_shutdown_notify(struct notifier_block *unused1,
@@ -1821,7 +1832,15 @@ static struct notifier_block fw_shutdown_nb = {
 
 static int __init firmware_class_init(void)
 {
+	int ret;
+
+	/* No need to unfold these on exit */
 	fw_cache_init();
+
+	ret = register_fw_pm_ops();
+	if (ret)
+		return ret;
+
 	register_reboot_notifier(&fw_shutdown_nb);
 #ifdef CONFIG_FW_LOADER_USER_HELPER
 	return class_register(&firmware_class);
