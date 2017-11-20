@@ -131,6 +131,8 @@ static int igt_guc_init_doorbell_hw(void *args)
 		pr_err("Failed to create clients\n");
 		goto unlock;
 	}
+	GEM_BUG_ON(!guc->execbuf_client);
+	GEM_BUG_ON(!guc->preempt_client);
 
 	err = validate_client(guc->execbuf_client,
 			      GUC_CLIENT_PRIORITY_KMD_NORMAL, false);
