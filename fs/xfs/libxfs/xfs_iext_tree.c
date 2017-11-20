@@ -850,9 +850,9 @@ static void
 xfs_iext_free_last_leaf(
 	struct xfs_ifork	*ifp)
 {
-	ifp->if_u1.if_root = NULL;
 	ifp->if_height--;
 	kmem_free(ifp->if_u1.if_root);
+	ifp->if_u1.if_root = NULL;
 }
 
 void
