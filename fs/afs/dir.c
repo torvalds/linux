@@ -818,6 +818,8 @@ static int afs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 		ret = afs_end_vnode_operation(&fc);
 		if (ret < 0)
 			goto error_key;
+	} else {
+		goto error_key;
 	}
 
 	key_put(key);
@@ -1006,6 +1008,8 @@ static int afs_create(struct inode *dir, struct dentry *dentry, umode_t mode,
 		ret = afs_end_vnode_operation(&fc);
 		if (ret < 0)
 			goto error_key;
+	} else {
+		goto error_key;
 	}
 
 	key_put(key);
@@ -1071,6 +1075,8 @@ static int afs_link(struct dentry *from, struct inode *dir,
 		ret = afs_end_vnode_operation(&fc);
 		if (ret < 0)
 			goto error_key;
+	} else {
+		goto error_key;
 	}
 
 	key_put(key);
@@ -1130,6 +1136,8 @@ static int afs_symlink(struct inode *dir, struct dentry *dentry,
 		ret = afs_end_vnode_operation(&fc);
 		if (ret < 0)
 			goto error_key;
+	} else {
+		goto error_key;
 	}
 
 	key_put(key);
