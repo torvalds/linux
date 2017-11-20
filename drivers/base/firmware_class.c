@@ -1767,10 +1767,19 @@ static int fw_suspend(void)
 static struct syscore_ops fw_syscore_ops = {
 	.suspend = fw_suspend,
 };
+
+static inline void unregister_fw_pm_ops(void)
+{
+	unregister_syscore_ops(&fw_syscore_ops);
+	unregister_pm_notifier(&fw_cache.pm_notify);
+}
 #else
 static int fw_cache_piggyback_on_request(const char *name)
 {
 	return 0;
+}
+static inline void unregister_fw_pm_ops(void)
+{
 }
 #endif
 
@@ -1823,10 +1832,7 @@ static int __init firmware_class_init(void)
 
 static void __exit firmware_class_exit(void)
 {
-#ifdef CONFIG_PM_SLEEP
-	unregister_syscore_ops(&fw_syscore_ops);
-	unregister_pm_notifier(&fw_cache.pm_notify);
-#endif
+	unregister_fw_pm_ops();
 	unregister_reboot_notifier(&fw_shutdown_nb);
 #ifdef CONFIG_FW_LOADER_USER_HELPER
 	class_unregister(&firmware_class);
