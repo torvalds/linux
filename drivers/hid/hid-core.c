@@ -830,31 +830,6 @@ static int hid_scan_report(struct hid_device *hid)
 		break;
 	}
 
-	/* fall back to generic driver in case specific driver doesn't exist */
-	switch (hid->group) {
-	case HID_GROUP_MULTITOUCH_WIN_8:
-		/* fall-through */
-	case HID_GROUP_MULTITOUCH:
-		if (!IS_ENABLED(CONFIG_HID_MULTITOUCH))
-			hid->group = HID_GROUP_GENERIC;
-		break;
-	case HID_GROUP_SENSOR_HUB:
-		if (!IS_ENABLED(CONFIG_HID_SENSOR_HUB))
-			hid->group = HID_GROUP_GENERIC;
-		break;
-	case HID_GROUP_RMI:
-		if (!IS_ENABLED(CONFIG_HID_RMI))
-			hid->group = HID_GROUP_GENERIC;
-		break;
-	case HID_GROUP_WACOM:
-		if (!IS_ENABLED(CONFIG_HID_WACOM))
-			hid->group = HID_GROUP_GENERIC;
-		break;
-	case HID_GROUP_LOGITECH_DJ_DEVICE:
-		if (!IS_ENABLED(CONFIG_HID_LOGITECH_DJ))
-			hid->group = HID_GROUP_GENERIC;
-		break;
-	}
 	vfree(parser);
 	return 0;
 }
@@ -1928,8 +1903,8 @@ static void hid_free_dynids(struct hid_driver *hdrv)
 	spin_unlock(&hdrv->dyn_lock);
 }
 
-static const struct hid_device_id *hid_match_device(struct hid_device *hdev,
-		struct hid_driver *hdrv)
+const struct hid_device_id *hid_match_device(struct hid_device *hdev,
+					     struct hid_driver *hdrv)
 {
 	struct hid_dynid *dynid;
 
@@ -1944,6 +1919,7 @@ static const struct hid_device_id *hid_match_device(struct hid_device *hdev,
 
 	return hid_match_id(hdev, hdrv->id_table);
 }
+EXPORT_SYMBOL_GPL(hid_match_device);
 
 static int hid_bus_match(struct device *dev, struct device_driver *drv)
 {
@@ -1971,6 +1947,23 @@ static int hid_device_probe(struct device *dev)
 		if (id == NULL) {
 			ret = -ENODEV;
 			goto unlock;
+		}
+
+		if (hdrv->match) {
+			if (!hdrv->match(hdev, hid_ignore_special_drivers)) {
+				ret = -ENODEV;
+				goto unlock;
+			}
+		} else {
+			/*
+			 * hid-generic implements .match(), so if
+			 * hid_ignore_special_drivers is set, we can safely
+			 * return.
+			 */
+			if (hid_ignore_special_drivers) {
+				ret = -ENODEV;
+				goto unlock;
+			}
 		}
 
 		hdev->driver = hdrv;
@@ -2069,7 +2062,7 @@ static int hid_uevent(struct device *dev, struct kobj_uevent_env *env)
 	return 0;
 }
 
-static struct bus_type hid_bus_type = {
+struct bus_type hid_bus_type = {
 	.name		= "hid",
 	.dev_groups	= hid_dev_groups,
 	.drv_groups	= hid_drv_groups,
@@ -2203,6 +2196,29 @@ void hid_destroy_device(struct hid_device *hdev)
 }
 EXPORT_SYMBOL_GPL(hid_destroy_device);
 
+
+static int __bus_add_driver(struct device_driver *drv, void *data)
+{
+	struct hid_driver *added_hdrv = data;
+	struct hid_driver *hdrv = to_hid_driver(drv);
+
+	if (hdrv->bus_add_driver)
+		hdrv->bus_add_driver(added_hdrv);
+
+	return 0;
+}
+
+static int __bus_removed_driver(struct device_driver *drv, void *data)
+{
+	struct hid_driver *removed_hdrv = data;
+	struct hid_driver *hdrv = to_hid_driver(drv);
+
+	if (hdrv->bus_removed_driver)
+		hdrv->bus_removed_driver(removed_hdrv);
+
+	return 0;
+}
+
 int __hid_register_driver(struct hid_driver *hdrv, struct module *owner,
 		const char *mod_name)
 {
@@ -2214,6 +2230,8 @@ int __hid_register_driver(struct hid_driver *hdrv, struct module *owner,
 	INIT_LIST_HEAD(&hdrv->dyn_list);
 	spin_lock_init(&hdrv->dyn_lock);
 
+	bus_for_each_drv(&hid_bus_type, NULL, hdrv, __bus_add_driver);
+
 	return driver_register(&hdrv->driver);
 }
 EXPORT_SYMBOL_GPL(__hid_register_driver);
@@ -2222,6 +2240,8 @@ void hid_unregister_driver(struct hid_driver *hdrv)
 {
 	driver_unregister(&hdrv->driver);
 	hid_free_dynids(hdrv);
+
+	bus_for_each_drv(&hid_bus_type, NULL, hdrv, __bus_removed_driver);
 }
 EXPORT_SYMBOL_GPL(hid_unregister_driver);
 
