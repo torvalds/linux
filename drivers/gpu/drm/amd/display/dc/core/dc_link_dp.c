@@ -1512,7 +1512,7 @@ static bool hpd_rx_irq_check_link_loss_status(
 	struct dc_link *link,
 	union hpd_irq_data *hpd_irq_dpcd_data)
 {
-	uint8_t irq_reg_rx_power_state;
+	uint8_t irq_reg_rx_power_state = 0;
 	enum dc_status dpcd_result = DC_ERROR_UNEXPECTED;
 	union lane_status lane_status;
 	uint32_t lane;
@@ -1524,60 +1524,55 @@ static bool hpd_rx_irq_check_link_loss_status(
 
 	if (link->cur_link_settings.lane_count == 0)
 		return return_code;
-	/*1. Check that we can handle interrupt: Not in FS DOS,
-	 *  Not in "Display Timeout" state, Link is trained.
-	 */
 
-	dpcd_result = core_link_read_dpcd(link,
-		DP_SET_POWER,
-		&irq_reg_rx_power_state,
-		sizeof(irq_reg_rx_power_state));
+	/*1. Check that Link Status changed, before re-training.*/
 
-	if (dpcd_result != DC_OK) {
-		irq_reg_rx_power_state = DP_SET_POWER_D0;
-		dm_logger_write(link->ctx->logger, LOG_HW_HPD_IRQ,
-			"%s: DPCD read failed to obtain power state.\n",
-			__func__);
+	/*parse lane status*/
+	for (lane = 0; lane < link->cur_link_settings.lane_count; lane++) {
+		/* check status of lanes 0,1
+		 * changed DpcdAddress_Lane01Status (0x202)
+		 */
+		lane_status.raw = get_nibble_at_index(
+			&hpd_irq_dpcd_data->bytes.lane01_status.raw,
+			lane);
+
+		if (!lane_status.bits.CHANNEL_EQ_DONE_0 ||
+			!lane_status.bits.CR_DONE_0 ||
+			!lane_status.bits.SYMBOL_LOCKED_0) {
+			/* if one of the channel equalization, clock
+			 * recovery or symbol lock is dropped
+			 * consider it as (link has been
+			 * dropped) dp sink status has changed
+			 */
+			sink_status_changed = true;
+			break;
+		}
 	}
 
-	if (irq_reg_rx_power_state == DP_SET_POWER_D0) {
+	/* Check interlane align.*/
+	if (sink_status_changed ||
+		!hpd_irq_dpcd_data->bytes.lane_status_updated.bits.INTERLANE_ALIGN_DONE) {
 
-		/*2. Check that Link Status changed, before re-training.*/
+		dm_logger_write(link->ctx->logger, LOG_HW_HPD_IRQ,
+			"%s: Link Status changed.\n", __func__);
 
-		/*parse lane status*/
-		for (lane = 0;
-			lane < link->cur_link_settings.lane_count;
-			lane++) {
+		return_code = true;
 
-			/* check status of lanes 0,1
-			 * changed DpcdAddress_Lane01Status (0x202)*/
-			lane_status.raw = get_nibble_at_index(
-				&hpd_irq_dpcd_data->bytes.lane01_status.raw,
-				lane);
+		/*2. Check that we can handle interrupt: Not in FS DOS,
+		 *  Not in "Display Timeout" state, Link is trained.
+		 */
+		dpcd_result = core_link_read_dpcd(link,
+			DP_SET_POWER,
+			&irq_reg_rx_power_state,
+			sizeof(irq_reg_rx_power_state));
 
-			if (!lane_status.bits.CHANNEL_EQ_DONE_0 ||
-				!lane_status.bits.CR_DONE_0 ||
-				!lane_status.bits.SYMBOL_LOCKED_0) {
-				/* if one of the channel equalization, clock
-				 * recovery or symbol lock is dropped
-				 * consider it as (link has been
-				 * dropped) dp sink status has changed*/
-				sink_status_changed = true;
-				break;
-			}
-
-		}
-
-		/* Check interlane align.*/
-		if (sink_status_changed ||
-			!hpd_irq_dpcd_data->bytes.lane_status_updated.bits.
-			INTERLANE_ALIGN_DONE) {
-
+		if (dpcd_result != DC_OK) {
 			dm_logger_write(link->ctx->logger, LOG_HW_HPD_IRQ,
-				"%s: Link Status changed.\n",
+				"%s: DPCD read failed to obtain power state.\n",
 				__func__);
-
-			return_code = true;
+		} else {
+			if (irq_reg_rx_power_state != DP_SET_POWER_D0)
+				return_code = false;
 		}
 	}
 
