@@ -263,17 +263,17 @@ static inline bool fw_state_is_aborted(struct fw_priv *fw_priv)
 
 #ifdef CONFIG_FW_LOADER_USER_HELPER
 
-static inline bool fw_state_is_done(struct fw_priv *fw_priv)
+static inline bool fw_sysfs_done(struct fw_priv *fw_priv)
 {
 	return __fw_state_check(fw_priv, FW_STATUS_DONE);
 }
 
-static inline bool fw_state_is_loading(struct fw_priv *fw_priv)
+static inline bool fw_sysfs_loading(struct fw_priv *fw_priv)
 {
 	return __fw_state_check(fw_priv, FW_STATUS_LOADING);
 }
 
-static inline int fw_state_wait_timeout(struct fw_priv *fw_priv,  long timeout)
+static inline int fw_sysfs_wait_timeout(struct fw_priv *fw_priv,  long timeout)
 {
 	return __fw_state_wait_common(fw_priv, timeout);
 }
@@ -606,7 +606,7 @@ static void __fw_load_abort(struct fw_priv *fw_priv)
 	 * There is a small window in which user can write to 'loading'
 	 * between loading done and disappearance of 'loading'
 	 */
-	if (fw_state_is_done(fw_priv))
+	if (fw_sysfs_done(fw_priv))
 		return;
 
 	list_del_init(&fw_priv->pending_list);
@@ -728,7 +728,7 @@ static ssize_t firmware_loading_show(struct device *dev,
 
 	mutex_lock(&fw_lock);
 	if (fw_sysfs->fw_priv)
-		loading = fw_state_is_loading(fw_sysfs->fw_priv);
+		loading = fw_sysfs_loading(fw_sysfs->fw_priv);
 	mutex_unlock(&fw_lock);
 
 	return sprintf(buf, "%d\n", loading);
@@ -784,7 +784,7 @@ static ssize_t firmware_loading_store(struct device *dev,
 	switch (loading) {
 	case 1:
 		/* discarding any previous partial load */
-		if (!fw_state_is_done(fw_priv)) {
+		if (!fw_sysfs_done(fw_priv)) {
 			for (i = 0; i < fw_priv->nr_pages; i++)
 				__free_page(fw_priv->pages[i]);
 			vfree(fw_priv->pages);
@@ -795,7 +795,7 @@ static ssize_t firmware_loading_store(struct device *dev,
 		}
 		break;
 	case 0:
-		if (fw_state_is_loading(fw_priv)) {
+		if (fw_sysfs_loading(fw_priv)) {
 			int rc;
 
 			/*
@@ -884,7 +884,7 @@ static ssize_t firmware_data_read(struct file *filp, struct kobject *kobj,
 
 	mutex_lock(&fw_lock);
 	fw_priv = fw_sysfs->fw_priv;
-	if (!fw_priv || fw_state_is_done(fw_priv)) {
+	if (!fw_priv || fw_sysfs_done(fw_priv)) {
 		ret_count = -ENODEV;
 		goto out;
 	}
@@ -971,7 +971,7 @@ static ssize_t firmware_data_write(struct file *filp, struct kobject *kobj,
 
 	mutex_lock(&fw_lock);
 	fw_priv = fw_sysfs->fw_priv;
-	if (!fw_priv || fw_state_is_done(fw_priv)) {
+	if (!fw_priv || fw_sysfs_done(fw_priv)) {
 		retval = -ENODEV;
 		goto out;
 	}
@@ -1084,7 +1084,7 @@ static int _request_firmware_load(struct fw_sysfs *fw_sysfs,
 		timeout = MAX_JIFFY_OFFSET;
 	}
 
-	retval = fw_state_wait_timeout(fw_priv, timeout);
+	retval = fw_sysfs_wait_timeout(fw_priv, timeout);
 	if (retval < 0) {
 		mutex_lock(&fw_lock);
 		fw_load_abort(fw_sysfs);
