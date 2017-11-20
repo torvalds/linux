@@ -4999,19 +4999,11 @@ out:
 
 bool intel_sanitize_semaphores(struct drm_i915_private *dev_priv, int value)
 {
-	if (INTEL_GEN(dev_priv) < 6)
-		return false;
-
-	/* TODO: make semaphores and Execlists play nicely together */
-	if (HAS_EXECLISTS(dev_priv))
+	if (!IS_GEN7(dev_priv))
 		return false;
 
 	if (value >= 0)
 		return value;
-
-	/* Enable semaphores on SNB when IO remapping is off */
-	if (IS_GEN6(dev_priv) && intel_vtd_active())
-		return false;
 
 	return true;
 }
