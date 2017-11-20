@@ -166,17 +166,17 @@ static unsigned amdgpu_vm_level_shift(struct amdgpu_device *adev,
 static unsigned amdgpu_vm_num_entries(struct amdgpu_device *adev,
 				      unsigned level)
 {
+	unsigned shift = amdgpu_vm_level_shift(adev, 0);
+
 	if (level == 0)
 		/* For the root directory */
-		return adev->vm_manager.max_pfn >>
-			(adev->vm_manager.block_size *
-			 adev->vm_manager.num_level);
-	else if (level == adev->vm_manager.num_level)
+		return round_up(adev->vm_manager.max_pfn, 1 << shift) >> shift;
+	else if (level != adev->vm_manager.num_level)
+		/* Everything in between */
+		return 512;
+	else
 		/* For the page tables on the leaves */
 		return AMDGPU_VM_PTE_COUNT(adev);
-	else
-		/* Everything in between */
-		return 1 << adev->vm_manager.block_size;
 }
 
 /**
