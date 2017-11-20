@@ -990,7 +990,7 @@ static int pi433_get_minor(struct pi433_device *device)
 		device->minor = retval;
 		retval = 0;
 	} else if (retval == -ENOSPC) {
-		dev_err(device->dev, "too many pi433 devices\n");
+		dev_err(&device->spi->dev, "too many pi433 devices\n");
 		retval = -EINVAL;
 	}
 	mutex_unlock(&minor_lock);
@@ -1098,19 +1098,10 @@ static int pi433_probe(struct spi_device *spi)
 	SET_CHECKED(rf69_set_output_power_level	(spi, 13));
 	SET_CHECKED(rf69_set_antenna_impedance	(spi, fiftyOhm));
 
-	/* start tx thread */
-	device->tx_task_struct = kthread_run(pi433_tx_thread,
-					     device,
-					     "pi433_tx_task");
-	if (IS_ERR(device->tx_task_struct)) {
-		dev_dbg(device->dev, "start of send thread failed");
-		goto send_thread_failed;
-	}
-
 	/* determ minor number */
 	retval = pi433_get_minor(device);
 	if (retval) {
-		dev_dbg(device->dev, "get of minor number failed");
+		dev_dbg(&spi->dev, "get of minor number failed");
 		goto minor_failed;
 	}
 
@@ -1133,6 +1124,15 @@ static int pi433_probe(struct spi_device *spi)
 			device->minor);
 	}
 
+	/* start tx thread */
+	device->tx_task_struct = kthread_run(pi433_tx_thread,
+					     device,
+					     "pi433_tx_task");
+	if (IS_ERR(device->tx_task_struct)) {
+		dev_dbg(device->dev, "start of send thread failed");
+		goto send_thread_failed;
+	}
+
 	/* create cdev */
 	device->cdev = cdev_alloc();
 	device->cdev->owner = THIS_MODULE;
@@ -1149,12 +1149,12 @@ static int pi433_probe(struct spi_device *spi)
 	return 0;
 
 cdev_failed:
+	kthread_stop(device->tx_task_struct);
+send_thread_failed:
 	device_destroy(pi433_class, device->devt);
 device_create_failed:
 	pi433_free_minor(device);
 minor_failed:
-	kthread_stop(device->tx_task_struct);
-send_thread_failed:
 	free_GPIOs(device);
 GPIO_failed:
 	kfree(device);
