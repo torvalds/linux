@@ -804,6 +804,8 @@ static void smp_init_secondary(void)
 {
 	int cpu = smp_processor_id();
 
+	S390_lowcore.last_update_clock = get_tod_clock();
+	restore_access_regs(S390_lowcore.access_regs_save_area);
 	cpu_init();
 	preempt_disable();
 	init_cpu_timer();
@@ -823,14 +825,12 @@ static void smp_init_secondary(void)
 /*
  *	Activate a secondary processor.
  */
-static void smp_start_secondary(void *cpuvoid)
+static void __no_sanitize_address smp_start_secondary(void *cpuvoid)
 {
-	S390_lowcore.last_update_clock = get_tod_clock();
 	S390_lowcore.restart_stack = (unsigned long) restart_stack;
 	S390_lowcore.restart_fn = (unsigned long) do_restart;
 	S390_lowcore.restart_data = 0;
 	S390_lowcore.restart_source = -1UL;
-	restore_access_regs(S390_lowcore.access_regs_save_area);
 	__ctl_load(S390_lowcore.cregs_save_area, 0, 15);
 	__load_psw_mask(PSW_KERNEL_BITS | PSW_MASK_DAT);
 	CALL_ON_STACK(smp_init_secondary, S390_lowcore.kernel_stack, 0);
