@@ -2433,13 +2433,14 @@ SMB2_flush(const unsigned int xid, struct cifs_tcon *tcon, u64 persistent_fid,
 	int resp_buftype;
 	int rc = 0;
 	int flags = 0;
+	unsigned int total_len;
 
 	cifs_dbg(FYI, "Flush\n");
 
 	if (!ses || !(ses->server))
 		return -EIO;
 
-	rc = small_smb2_init(SMB2_FLUSH, tcon, (void **) &req);
+	rc = smb2_plain_req_init(SMB2_FLUSH, tcon, (void **) &req, &total_len);
 	if (rc)
 		return rc;
 
@@ -2450,10 +2451,9 @@ SMB2_flush(const unsigned int xid, struct cifs_tcon *tcon, u64 persistent_fid,
 	req->VolatileFileId = volatile_fid;
 
 	iov[0].iov_base = (char *)req;
-	/* 4 for rfc1002 length field */
-	iov[0].iov_len = get_rfc1002_length(req) + 4;
+	iov[0].iov_len = total_len;
 
-	rc = SendReceive2(xid, ses, iov, 1, &resp_buftype, flags, &rsp_iov);
+	rc = smb2_send_recv(xid, ses, iov, 1, &resp_buftype, flags, &rsp_iov);
 	cifs_small_buf_release(req);
 
 	if (rc != 0)

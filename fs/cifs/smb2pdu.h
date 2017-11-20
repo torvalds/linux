@@ -812,7 +812,7 @@ struct smb2_close_rsp {
 } __packed;
 
 struct smb2_flush_req {
-	struct smb2_hdr hdr;
+	struct smb2_sync_hdr sync_hdr;
 	__le16 StructureSize;	/* Must be 24 */
 	__le16 Reserved1;
 	__le32 Reserved2;
