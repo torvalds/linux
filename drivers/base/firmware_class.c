@@ -687,6 +687,16 @@ static struct class firmware_class = {
 	.dev_release	= fw_dev_release,
 };
 
+static inline int register_sysfs_loader(void)
+{
+	return class_register(&firmware_class);
+}
+
+static inline void unregister_sysfs_loader(void)
+{
+	class_unregister(&firmware_class);
+}
+
 static ssize_t firmware_loading_show(struct device *dev,
 				     struct device_attribute *attr, char *buf)
 {
@@ -1123,6 +1133,15 @@ fw_load_from_user_helper(struct firmware *firmware, const char *name,
 }
 
 static inline void kill_pending_fw_fallback_reqs(bool only_kill_custom) { }
+
+static inline int register_sysfs_loader(void)
+{
+	return 0;
+}
+
+static inline void unregister_sysfs_loader(void)
+{
+}
 
 #endif /* CONFIG_FW_LOADER_USER_HELPER */
 
@@ -1842,20 +1861,14 @@ static int __init firmware_class_init(void)
 		return ret;
 
 	register_reboot_notifier(&fw_shutdown_nb);
-#ifdef CONFIG_FW_LOADER_USER_HELPER
-	return class_register(&firmware_class);
-#else
-	return 0;
-#endif
+	return register_sysfs_loader();
 }
 
 static void __exit firmware_class_exit(void)
 {
 	unregister_fw_pm_ops();
 	unregister_reboot_notifier(&fw_shutdown_nb);
-#ifdef CONFIG_FW_LOADER_USER_HELPER
-	class_unregister(&firmware_class);
-#endif
+	unregister_sysfs_loader();
 }
 
 fs_initcall(firmware_class_init);
