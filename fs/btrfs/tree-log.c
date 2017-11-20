@@ -5403,11 +5403,10 @@ static int btrfs_log_inode_parent(struct btrfs_trans_handle *trans,
 				  struct dentry *parent,
 				  const loff_t start,
 				  const loff_t end,
-				  int exists_only,
+				  int inode_only,
 				  struct btrfs_log_ctx *ctx)
 {
 	struct btrfs_fs_info *fs_info = root->fs_info;
-	int inode_only = exists_only ? LOG_INODE_EXISTS : LOG_INODE_ALL;
 	struct super_block *sb;
 	struct dentry *old_parent = NULL;
 	int ret = 0;
@@ -5573,7 +5572,7 @@ int btrfs_log_dentry_safe(struct btrfs_trans_handle *trans,
 	int ret;
 
 	ret = btrfs_log_inode_parent(trans, root, BTRFS_I(d_inode(dentry)),
-			parent, start, end, 0, ctx);
+			parent, start, end, LOG_INODE_ALL, ctx);
 	dput(parent);
 
 	return ret;
@@ -5836,6 +5835,6 @@ int btrfs_log_new_name(struct btrfs_trans_handle *trans,
 		return 0;
 
 	return btrfs_log_inode_parent(trans, root, inode, parent, 0,
-				      LLONG_MAX, 1, NULL);
+				      LLONG_MAX, LOG_INODE_EXISTS, NULL);
 }
 
