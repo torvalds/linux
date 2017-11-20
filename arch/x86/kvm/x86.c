@@ -1798,10 +1798,13 @@ u64 get_kvmclock_ns(struct kvm *kvm)
 	/* both __this_cpu_read() and rdtsc() should be on the same cpu */
 	get_cpu();
 
-	kvm_get_time_scale(NSEC_PER_SEC, __this_cpu_read(cpu_tsc_khz) * 1000LL,
-			   &hv_clock.tsc_shift,
-			   &hv_clock.tsc_to_system_mul);
-	ret = __pvclock_read_cycles(&hv_clock, rdtsc());
+	if (__this_cpu_read(cpu_tsc_khz)) {
+		kvm_get_time_scale(NSEC_PER_SEC, __this_cpu_read(cpu_tsc_khz) * 1000LL,
+				   &hv_clock.tsc_shift,
+				   &hv_clock.tsc_to_system_mul);
+		ret = __pvclock_read_cycles(&hv_clock, rdtsc());
+	} else
+		ret = ktime_get_boot_ns() + ka->kvmclock_offset;
 
 	put_cpu();
 
