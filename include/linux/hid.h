@@ -860,7 +860,9 @@ int hid_open_report(struct hid_device *device);
 int hid_check_keys_pressed(struct hid_device *hid);
 int hid_connect(struct hid_device *hid, unsigned int connect_mask);
 void hid_disconnect(struct hid_device *hid);
-const struct hid_device_id *hid_match_id(struct hid_device *hdev,
+bool hid_match_one_id(const struct hid_device *hdev,
+		      const struct hid_device_id *id);
+const struct hid_device_id *hid_match_id(const struct hid_device *hdev,
 					 const struct hid_device_id *id);
 s32 hid_snto32(__u32 value, unsigned n);
 __u32 hid_field_extract(const struct hid_device *hid, __u8 *report,
@@ -1098,9 +1100,9 @@ int hid_report_raw_event(struct hid_device *hid, int type, u8 *data, int size,
 		int interrupt);
 
 /* HID quirks API */
-u32 usbhid_lookup_quirk(const u16 idVendor, const u16 idProduct);
-int usbhid_quirks_init(char **quirks_param);
-void usbhid_quirks_exit(void);
+unsigned long hid_lookup_quirk(const struct hid_device *hdev);
+int hid_quirks_init(char **quirks_param, __u16 bus, int count);
+void hid_quirks_exit(__u16 bus);
 
 #ifdef CONFIG_HID_PID
 int hid_pidff_init(struct hid_device *hid);
