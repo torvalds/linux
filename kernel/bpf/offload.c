@@ -85,6 +85,10 @@ static void __bpf_prog_offload_destroy(struct bpf_prog *prog)
 	struct bpf_dev_offload *offload = prog->aux->offload;
 	struct netdev_bpf data = {};
 
+	/* Caution - if netdev is destroyed before the program, this function
+	 * will be called twice.
+	 */
+
 	data.offload.prog = prog;
 
 	if (offload->verifier_running)
