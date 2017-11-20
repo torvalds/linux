@@ -974,7 +974,7 @@ static int afs_create(struct inode *dir, struct dentry *dentry, umode_t mode,
 	struct afs_fs_cursor fc;
 	struct afs_file_status newstatus;
 	struct afs_callback newcb;
-	struct afs_vnode *dvnode = dvnode = AFS_FS_I(dir);
+	struct afs_vnode *dvnode = AFS_FS_I(dir);
 	struct afs_fid newfid;
 	struct key *key;
 	int ret;
