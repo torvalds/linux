@@ -3139,6 +3139,8 @@ intel_info(const struct drm_i915_private *dev_priv)
 #define HAS_BLT(dev_priv)	HAS_ENGINE(dev_priv, BCS)
 #define HAS_VEBOX(dev_priv)	HAS_ENGINE(dev_priv, VECS)
 
+#define HAS_LEGACY_SEMAPHORES(dev_priv) IS_GEN7(dev_priv)
+
 #define HAS_LLC(dev_priv)	((dev_priv)->info.has_llc)
 #define HAS_SNOOP(dev_priv)	((dev_priv)->info.has_snoop)
 #define HAS_EDRAM(dev_priv)	(!!((dev_priv)->edram_cap & EDRAM_ENABLED))
@@ -3301,8 +3303,6 @@ intel_ggtt_update_needs_vtd_wa(struct drm_i915_private *dev_priv)
 
 int intel_sanitize_enable_ppgtt(struct drm_i915_private *dev_priv,
 				int enable_ppgtt);
-
-bool intel_sanitize_semaphores(struct drm_i915_private *dev_priv, int value);
 
 /* i915_drv.c */
 void __printf(3, 4)

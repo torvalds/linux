@@ -4997,17 +4997,6 @@ out:
 	return ret;
 }
 
-bool intel_sanitize_semaphores(struct drm_i915_private *dev_priv, int value)
-{
-	if (!IS_GEN7(dev_priv))
-		return false;
-
-	if (value >= 0)
-		return value;
-
-	return true;
-}
-
 static int __intel_engines_record_defaults(struct drm_i915_private *i915)
 {
 	struct i915_gem_context *ctx;

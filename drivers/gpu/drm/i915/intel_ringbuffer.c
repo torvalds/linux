@@ -1712,7 +1712,7 @@ static void intel_ring_init_semaphores(struct drm_i915_private *dev_priv,
 {
 	int i;
 
-	if (!i915_modparams.semaphores)
+	if (!HAS_LEGACY_SEMAPHORES(dev_priv))
 		return;
 
 	GEM_BUG_ON(INTEL_GEN(dev_priv) < 6);
@@ -1823,7 +1823,7 @@ static void intel_ring_default_vfuncs(struct drm_i915_private *dev_priv,
 
 	engine->emit_breadcrumb = i9xx_emit_breadcrumb;
 	engine->emit_breadcrumb_sz = i9xx_emit_breadcrumb_sz;
-	if (i915_modparams.semaphores) {
+	if (HAS_LEGACY_SEMAPHORES(dev_priv)) {
 		int num_rings;
 
 		engine->emit_breadcrumb = gen6_sema_emit_breadcrumb;

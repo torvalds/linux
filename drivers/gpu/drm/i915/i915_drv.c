@@ -321,7 +321,7 @@ static int i915_getparam(struct drm_device *dev, void *data,
 		value = USES_PPGTT(dev_priv);
 		break;
 	case I915_PARAM_HAS_SEMAPHORES:
-		value = i915_modparams.semaphores;
+		value = HAS_LEGACY_SEMAPHORES(dev_priv);
 		break;
 	case I915_PARAM_HAS_SECURE_BATCHES:
 		value = capable(CAP_SYS_ADMIN);
@@ -1062,11 +1062,6 @@ static void intel_sanitize_options(struct drm_i915_private *dev_priv)
 		intel_sanitize_enable_ppgtt(dev_priv,
 					    i915_modparams.enable_ppgtt);
 	DRM_DEBUG_DRIVER("ppgtt mode: %i\n", i915_modparams.enable_ppgtt);
-
-	i915_modparams.semaphores =
-		intel_sanitize_semaphores(dev_priv, i915_modparams.semaphores);
-	DRM_DEBUG_DRIVER("use GPU semaphores? %s\n",
-			 yesno(i915_modparams.semaphores));
 
 	intel_uc_sanitize_options(dev_priv);
 

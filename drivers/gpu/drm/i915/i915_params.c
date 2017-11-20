@@ -46,10 +46,6 @@ i915_param_named_unsafe(panel_ignore_lid, int, 0600,
 	"Override lid status (0=autodetect, 1=autodetect disabled [default], "
 	"-1=force lid closed, -2=force lid open)");
 
-i915_param_named_unsafe(semaphores, int, 0400,
-	"Use semaphores for inter-ring sync "
-	"(default: -1 (use per-chip defaults))");
-
 i915_param_named_unsafe(enable_rc6, int, 0400,
 	"Enable power-saving render C-state 6. "
 	"Different stages can be selected via bitmask values "

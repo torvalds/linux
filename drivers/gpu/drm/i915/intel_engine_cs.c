@@ -1713,7 +1713,7 @@ void intel_engine_dump(struct intel_engine_cs *engine, struct drm_printer *m)
 			   I915_READ(RING_MI_MODE(engine->mmio_base)),
 			   I915_READ(RING_MI_MODE(engine->mmio_base)) & (MODE_IDLE) ? " [idle]" : "");
 	}
-	if (i915_modparams.semaphores) {
+	if (HAS_LEGACY_SEMAPHORES(dev_priv)) {
 		drm_printf(m, "\tSYNC_0: 0x%08x\n",
 			   I915_READ(RING_SYNC_0(engine->mmio_base)));
 		drm_printf(m, "\tSYNC_1: 0x%08x\n",
