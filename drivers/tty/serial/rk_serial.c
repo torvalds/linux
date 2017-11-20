@@ -1852,7 +1852,7 @@ static int __init serial_rk_console_setup(struct console *co, char *options)
 
 #ifdef CONFIG_RK_CONSOLE_THREAD
 	if (!console_task) {
-		console_task = kthread_create(console_thread, up, "kconsole");
+		console_task = kthread_run(console_thread, up, "kconsole");
 		if (!IS_ERR(console_task))
 			co->write = console_write;
 	}
