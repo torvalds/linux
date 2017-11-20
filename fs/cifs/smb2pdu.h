@@ -1031,7 +1031,19 @@ struct smb2_set_info_rsp {
 	__le16 StructureSize; /* Must be 2 */
 } __packed;
 
-struct smb2_oplock_break {
+/* oplock break without an rfc1002 header */
+struct smb2_oplock_break_req {
+	struct smb2_sync_hdr sync_hdr;
+	__le16 StructureSize; /* Must be 24 */
+	__u8   OplockLevel;
+	__u8   Reserved;
+	__le32 Reserved2;
+	__u64  PersistentFid;
+	__u64  VolatileFid;
+} __packed;
+
+/* oplock break with an rfc1002 header */
+struct smb2_oplock_break_rsp {
 	struct smb2_hdr hdr;
 	__le16 StructureSize; /* Must be 24 */
 	__u8   OplockLevel;
