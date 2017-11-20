@@ -201,11 +201,6 @@ static void fw_state_init(struct fw_state *fw_st)
 	fw_st->status = FW_STATUS_UNKNOWN;
 }
 
-static inline bool __fw_state_is_done(enum fw_status status)
-{
-	return status == FW_STATUS_DONE || status == FW_STATUS_ABORTED;
-}
-
 static int __fw_state_wait_common(struct fw_state *fw_st, long timeout)
 {
 	long ret;
