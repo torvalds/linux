@@ -907,7 +907,7 @@ struct smb2_lock_element {
 } __packed;
 
 struct smb2_lock_req {
-	struct smb2_hdr hdr;
+	struct smb2_sync_hdr sync_hdr;
 	__le16 StructureSize; /* Must be 48 */
 	__le16 LockCount;
 	__le32 Reserved;
