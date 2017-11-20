@@ -1066,6 +1066,57 @@ static int mlx5e_get_rxnfc(struct net_device *netdev,
 	return err;
 }
 
+#define MLX5E_PFC_PREVEN_AUTO_TOUT_MSEC		100
+#define MLX5E_PFC_PREVEN_TOUT_MAX_MSEC		8000
+#define MLX5E_PFC_PREVEN_MINOR_PRECENT		85
+#define MLX5E_PFC_PREVEN_TOUT_MIN_MSEC		80
+#define MLX5E_DEVICE_STALL_MINOR_WATERMARK(critical_tout) \
+	max_t(u16, MLX5E_PFC_PREVEN_TOUT_MIN_MSEC, \
+	      (critical_tout * MLX5E_PFC_PREVEN_MINOR_PRECENT) / 100)
+
+static int mlx5e_get_pfc_prevention_tout(struct net_device *netdev,
+					 u16 *pfc_prevention_tout)
+{
+	struct mlx5e_priv *priv    = netdev_priv(netdev);
+	struct mlx5_core_dev *mdev = priv->mdev;
+
+	if (!MLX5_CAP_PCAM_FEATURE((priv)->mdev, pfcc_mask) ||
+	    !MLX5_CAP_DEBUG((priv)->mdev, stall_detect))
+		return -EOPNOTSUPP;
+
+	return mlx5_query_port_stall_watermark(mdev, pfc_prevention_tout, NULL);
+}
+
+static int mlx5e_set_pfc_prevention_tout(struct net_device *netdev,
+					 u16 pfc_preven)
+{
+	struct mlx5e_priv *priv = netdev_priv(netdev);
+	struct mlx5_core_dev *mdev = priv->mdev;
+	u16 critical_tout;
+	u16 minor;
+
+	if (!MLX5_CAP_PCAM_FEATURE((priv)->mdev, pfcc_mask) ||
+	    !MLX5_CAP_DEBUG((priv)->mdev, stall_detect))
+		return -EOPNOTSUPP;
+
+	critical_tout = (pfc_preven == PFC_STORM_PREVENTION_AUTO) ?
+			MLX5E_PFC_PREVEN_AUTO_TOUT_MSEC :
+			pfc_preven;
+
+	if (critical_tout != PFC_STORM_PREVENTION_DISABLE &&
+	    (critical_tout > MLX5E_PFC_PREVEN_TOUT_MAX_MSEC ||
+	     critical_tout < MLX5E_PFC_PREVEN_TOUT_MIN_MSEC)) {
+		netdev_info(netdev, "%s: pfc prevention tout not in range (%d-%d)\n",
+			    __func__, MLX5E_PFC_PREVEN_TOUT_MIN_MSEC,
+			    MLX5E_PFC_PREVEN_TOUT_MAX_MSEC);
+		return -EINVAL;
+	}
+
+	minor = MLX5E_DEVICE_STALL_MINOR_WATERMARK(critical_tout);
+	return mlx5_set_port_stall_watermark(mdev, critical_tout,
+					     minor);
+}
+
 static int mlx5e_get_tunable(struct net_device *dev,
 			     const struct ethtool_tunable *tuna,
 			     void *data)
@@ -1076,6 +1127,9 @@ static int mlx5e_get_tunable(struct net_device *dev,
 	switch (tuna->id) {
 	case ETHTOOL_TX_COPYBREAK:
 		*(u32 *)data = priv->channels.params.tx_max_inline;
+		break;
+	case ETHTOOL_PFC_PREVENTION_TOUT:
+		err = mlx5e_get_pfc_prevention_tout(dev, data);
 		break;
 	default:
 		err = -EINVAL;
@@ -1118,6 +1172,9 @@ static int mlx5e_set_tunable(struct net_device *dev,
 			break;
 		mlx5e_switch_priv_channels(priv, &new_channels, NULL);
 
+		break;
+	case ETHTOOL_PFC_PREVENTION_TOUT:
+		err = mlx5e_set_pfc_prevention_tout(dev, *(u16 *)data);
 		break;
 	default:
 		err = -EINVAL;

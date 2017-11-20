@@ -7833,7 +7833,11 @@ struct mlx5_ifc_pifr_reg_bits {
 struct mlx5_ifc_pfcc_reg_bits {
 	u8         reserved_at_0[0x8];
 	u8         local_port[0x8];
-	u8         reserved_at_10[0x10];
+	u8         reserved_at_10[0xb];
+	u8         ppan_mask_n[0x1];
+	u8         minor_stall_mask[0x1];
+	u8         critical_stall_mask[0x1];
+	u8         reserved_at_1e[0x2];
 
 	u8         ppan[0x4];
 	u8         reserved_at_24[0x4];
@@ -7843,17 +7847,22 @@ struct mlx5_ifc_pfcc_reg_bits {
 
 	u8         pptx[0x1];
 	u8         aptx[0x1];
-	u8         reserved_at_42[0x6];
+	u8         pptx_mask_n[0x1];
+	u8         reserved_at_43[0x5];
 	u8         pfctx[0x8];
 	u8         reserved_at_50[0x10];
 
 	u8         pprx[0x1];
 	u8         aprx[0x1];
-	u8         reserved_at_62[0x6];
+	u8         pprx_mask_n[0x1];
+	u8         reserved_at_63[0x5];
 	u8         pfcrx[0x8];
 	u8         reserved_at_70[0x10];
 
-	u8         reserved_at_80[0x80];
+	u8         device_stall_minor_watermark[0x10];
+	u8         device_stall_critical_watermark[0x10];
+
+	u8         reserved_at_a0[0x60];
 };
 
 struct mlx5_ifc_pelc_reg_bits {
