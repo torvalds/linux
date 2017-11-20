@@ -4463,7 +4463,6 @@ void dwc_otg_ep_start_zl_transfer(dwc_otg_core_if_t *core_if, dwc_ep_t *ep)
 	gintmsk_data_t intr_mask = {.d32 = 0 };
 
 	DWC_DEBUGPL((DBG_PCDV | DBG_CILV), "%s()\n", __func__);
-	DWC_PRINTF("zero length transfer is called\n");
 
 	/* IN endpoint */
 	if (ep->is_in == 1) {
