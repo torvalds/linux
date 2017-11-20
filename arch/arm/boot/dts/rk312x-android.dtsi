@@ -123,11 +123,10 @@
 		#size-cells = <1>;
 		ranges;
 
-		cma_region: region@6a000000 {
+		cma_region: cma-region {
 			compatible = "shared-dma-pool";
-			no-map;
-			reg = <0x6a000000 0x1000000>;
-			linux,cma-default;
+			reusable;
+			size = <0x1000000>;
 		};
 
 		ramoops_mem: ramoops@68000000 {
