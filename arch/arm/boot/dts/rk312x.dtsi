@@ -687,6 +687,8 @@
 			clock-names = "phyclk";
 			#clock-cells = <0>;
 			clock-output-names = "usb480m_phy";
+			assigned-clocks = <&cru SCLK_USB480M>;
+			assigned-clock-parents = <&u2phy>;
 			status = "disabled";
 
 			u2phy_otg: otg-port {
