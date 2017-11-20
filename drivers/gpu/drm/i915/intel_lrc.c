@@ -154,9 +154,7 @@
 #define GEN8_CTX_STATUS_LITE_RESTORE	(1 << 15)
 
 #define GEN8_CTX_STATUS_COMPLETED_MASK \
-	 (GEN8_CTX_STATUS_COMPLETE | \
-	  GEN8_CTX_STATUS_PREEMPTED | \
-	  GEN8_CTX_STATUS_ELEMENT_SWITCH)
+	 (GEN8_CTX_STATUS_COMPLETE | GEN8_CTX_STATUS_PREEMPTED)
 
 #define CTX_LRI_HEADER_0		0x01
 #define CTX_CONTEXT_CONTROL		0x02
@@ -907,6 +905,8 @@ static void execlists_submission_tasklet(unsigned long data)
 			GEM_BUG_ON(count == 0);
 			if (--count == 0) {
 				GEM_BUG_ON(status & GEN8_CTX_STATUS_PREEMPTED);
+				GEM_BUG_ON(port_isset(&port[1]) &&
+					   !(status & GEN8_CTX_STATUS_ELEMENT_SWITCH));
 				GEM_BUG_ON(!i915_gem_request_completed(rq));
 				execlists_context_status_change(rq, INTEL_CONTEXT_SCHEDULE_OUT);
 
