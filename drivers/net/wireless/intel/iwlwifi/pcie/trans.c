@@ -1227,6 +1227,15 @@ static void _iwl_trans_pcie_stop_device(struct iwl_trans *trans, bool low_power)
 
 	trans_pcie->is_down = true;
 
+	/* Stop dbgc before stopping device */
+	if (trans->cfg->device_family == IWL_DEVICE_FAMILY_7000) {
+		iwl_set_bits_prph(trans, MON_BUFF_SAMPLE_CTL, 0x100);
+	} else {
+		iwl_write_prph(trans, DBGC_IN_SAMPLE, 0);
+		udelay(100);
+		iwl_write_prph(trans, DBGC_OUT_CTRL, 0);
+	}
+
 	/* tell the device to stop sending interrupts */
 	iwl_disable_interrupts(trans);
 

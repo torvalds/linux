@@ -209,8 +209,6 @@ static inline void iwl_fw_dbg_stop_recording(struct iwl_fw_runtime *fwrt)
 
 static inline void iwl_fw_dump_conf_clear(struct iwl_fw_runtime *fwrt)
 {
-	iwl_fw_dbg_stop_recording(fwrt);
-
 	fwrt->dump.conf = FW_DBG_INVALID;
 }
 
