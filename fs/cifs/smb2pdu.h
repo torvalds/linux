@@ -282,7 +282,7 @@ struct smb2_negotiate_rsp {
 #define SMB2_SESSION_REQ_FLAG_ENCRYPT_DATA	0x04
 
 struct smb2_sess_setup_req {
-	struct smb2_hdr hdr;
+	struct smb2_sync_hdr sync_hdr;
 	__le16 StructureSize; /* Must be 25 */
 	__u8   Flags;
 	__u8   SecurityMode;

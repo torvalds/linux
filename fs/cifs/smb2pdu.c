@@ -808,20 +808,22 @@ SMB2_sess_alloc_buffer(struct SMB2_sess_data *sess_data)
 	struct cifs_ses *ses = sess_data->ses;
 	struct smb2_sess_setup_req *req;
 	struct TCP_Server_Info *server = ses->server;
+	unsigned int total_len;
 
-	rc = small_smb2_init(SMB2_SESSION_SETUP, NULL, (void **) &req);
+	rc = smb2_plain_req_init(SMB2_SESSION_SETUP, NULL, (void **) &req,
+			     &total_len);
 	if (rc)
 		return rc;
 
 	/* First session, not a reauthenticate */
-	req->hdr.sync_hdr.SessionId = 0;
+	req->sync_hdr.SessionId = 0;
 
 	/* if reconnect, we need to send previous sess id, otherwise it is 0 */
 	req->PreviousSessionId = sess_data->previous_session;
 
 	req->Flags = 0; /* MBZ */
 	/* to enable echos and oplocks */
-	req->hdr.sync_hdr.CreditRequest = cpu_to_le16(3);
+	req->sync_hdr.CreditRequest = cpu_to_le16(3);
 
 	/* only one of SMB2 signing flags may be set in SMB2 request */
 	if (server->sign)
@@ -835,8 +837,8 @@ SMB2_sess_alloc_buffer(struct SMB2_sess_data *sess_data)
 	req->Channel = 0; /* MBZ */
 
 	sess_data->iov[0].iov_base = (char *)req;
-	/* 4 for rfc1002 length field and 1 for pad */
-	sess_data->iov[0].iov_len = get_rfc1002_length(req) + 4 - 1;
+	/* 1 for pad */
+	sess_data->iov[0].iov_len = total_len - 1;
 	/*
 	 * This variable will be used to clear the buffer
 	 * allocated above in case of any error in the calling function.
@@ -862,18 +864,15 @@ SMB2_sess_sendreceive(struct SMB2_sess_data *sess_data)
 
 	/* Testing shows that buffer offset must be at location of Buffer[0] */
 	req->SecurityBufferOffset =
-		cpu_to_le16(sizeof(struct smb2_sess_setup_req) -
-			1 /* pad */ - 4 /* rfc1001 len */);
+		cpu_to_le16(sizeof(struct smb2_sess_setup_req) - 1 /* pad */);
 	req->SecurityBufferLength = cpu_to_le16(sess_data->iov[1].iov_len);
-
-	inc_rfc1001_len(req, sess_data->iov[1].iov_len - 1 /* pad */);
 
 	/* BB add code to build os and lm fields */
 
-	rc = SendReceive2(sess_data->xid, sess_data->ses,
-				sess_data->iov, 2,
-				&sess_data->buf0_type,
-				CIFS_LOG_ERROR | CIFS_NEG_OP, &rsp_iov);
+	rc = smb2_send_recv(sess_data->xid, sess_data->ses,
+			    sess_data->iov, 2,
+			    &sess_data->buf0_type,
+			    CIFS_LOG_ERROR | CIFS_NEG_OP, &rsp_iov);
 	cifs_small_buf_release(sess_data->iov[0].iov_base);
 	memcpy(&sess_data->iov[0], &rsp_iov, sizeof(struct kvec));
 
@@ -1094,7 +1093,7 @@ SMB2_sess_auth_rawntlmssp_authenticate(struct SMB2_sess_data *sess_data)
 		goto out;
 
 	req = (struct smb2_sess_setup_req *) sess_data->iov[0].iov_base;
-	req->hdr.sync_hdr.SessionId = ses->Suid;
+	req->sync_hdr.SessionId = ses->Suid;
 
 	rc = build_ntlmssp_auth_blob(&ntlmssp_blob, &blob_length, ses,
 					sess_data->nls_cp);
