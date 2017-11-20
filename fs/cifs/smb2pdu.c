@@ -2993,13 +2993,15 @@ SMB2_query_directory(const unsigned int xid, struct cifs_tcon *tcon,
 	unsigned int output_size = CIFSMaxBufSize;
 	size_t info_buf_size;
 	int flags = 0;
+	unsigned int total_len;
 
 	if (ses && (ses->server))
 		server = ses->server;
 	else
 		return -EIO;
 
-	rc = small_smb2_init(SMB2_QUERY_DIRECTORY, tcon, (void **) &req);
+	rc = smb2_plain_req_init(SMB2_QUERY_DIRECTORY, tcon, (void **) &req,
+			     &total_len);
 	if (rc)
 		return rc;
 
@@ -3031,7 +3033,7 @@ SMB2_query_directory(const unsigned int xid, struct cifs_tcon *tcon,
 	memcpy(bufptr, &asteriks, len);
 
 	req->FileNameOffset =
-		cpu_to_le16(sizeof(struct smb2_query_directory_req) - 1 - 4);
+		cpu_to_le16(sizeof(struct smb2_query_directory_req) - 1);
 	req->FileNameLength = cpu_to_le16(len);
 	/*
 	 * BB could be 30 bytes or so longer if we used SMB2 specific
@@ -3042,15 +3044,13 @@ SMB2_query_directory(const unsigned int xid, struct cifs_tcon *tcon,
 	req->OutputBufferLength = cpu_to_le32(output_size);
 
 	iov[0].iov_base = (char *)req;
-	/* 4 for RFC1001 length and 1 for Buffer */
-	iov[0].iov_len = get_rfc1002_length(req) + 4 - 1;
+	/* 1 for Buffer */
+	iov[0].iov_len = total_len - 1;
 
 	iov[1].iov_base = (char *)(req->Buffer);
 	iov[1].iov_len = len;
 
-	inc_rfc1001_len(req, len - 1 /* Buffer */);
-
-	rc = SendReceive2(xid, ses, iov, 2, &resp_buftype, flags, &rsp_iov);
+	rc = smb2_send_recv(xid, ses, iov, 2, &resp_buftype, flags, &rsp_iov);
 	cifs_small_buf_release(req);
 	rsp = (struct smb2_query_directory_rsp *)rsp_iov.iov_base;
 

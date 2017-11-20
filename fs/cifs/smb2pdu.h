@@ -942,7 +942,7 @@ struct smb2_echo_rsp {
 #define SMB2_REOPEN			0x10
 
 struct smb2_query_directory_req {
-	struct smb2_hdr hdr;
+	struct smb2_sync_hdr sync_hdr;
 	__le16 StructureSize; /* Must be 33 */
 	__u8   FileInformationClass;
 	__u8   Flags;
