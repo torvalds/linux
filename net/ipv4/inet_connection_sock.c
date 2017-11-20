@@ -412,8 +412,10 @@ struct dst_entry *inet_csk_route_req(const struct sock *sk,
 {
 	const struct inet_request_sock *ireq = inet_rsk(req);
 	struct net *net = read_pnet(&ireq->ireq_net);
-	struct ip_options_rcu *opt = ireq->opt;
+	struct ip_options_rcu *opt;
 	struct rtable *rt;
+
+	opt = ireq_opt_deref(ireq);
 
 	flowi4_init_output(fl4, ireq->ir_iif, ireq->ir_mark,
 			   RT_CONN_FLAGS(sk), RT_SCOPE_UNIVERSE,
@@ -448,10 +450,9 @@ struct dst_entry *inet_csk_route_child_sock(const struct sock *sk,
 	struct flowi4 *fl4;
 	struct rtable *rt;
 
+	opt = rcu_dereference(ireq->ireq_opt);
 	fl4 = &newinet->cork.fl.u.ip4;
 
-	rcu_read_lock();
-	opt = rcu_dereference(newinet->inet_opt);
 	flowi4_init_output(fl4, ireq->ir_iif, ireq->ir_mark,
 			   RT_CONN_FLAGS(sk), RT_SCOPE_UNIVERSE,
 			   sk->sk_protocol, inet_sk_flowi_flags(sk),
@@ -464,13 +465,11 @@ struct dst_entry *inet_csk_route_child_sock(const struct sock *sk,
 		goto no_route;
 	if (opt && opt->opt.is_strictroute && rt->rt_uses_gateway)
 		goto route_err;
-	rcu_read_unlock();
 	return &rt->dst;
 
 route_err:
 	ip_rt_put(rt);
 no_route:
-	rcu_read_unlock();
 	IP_INC_STATS_BH(net, IPSTATS_MIB_OUTNOROUTES);
 	return NULL;
 }

@@ -407,7 +407,7 @@ static void keyring_describe(const struct key *keyring, struct seq_file *m)
 	else
 		seq_puts(m, "[anon]");
 
-	if (key_is_instantiated(keyring)) {
+	if (key_is_positive(keyring)) {
 		if (keyring->keys.nr_leaves_on_tree != 0)
 			seq_printf(m, ": %lu", keyring->keys.nr_leaves_on_tree);
 		else
@@ -452,34 +452,33 @@ static long keyring_read(const struct key *keyring,
 			 char __user *buffer, size_t buflen)
 {
 	struct keyring_read_iterator_context ctx;
-	unsigned long nr_keys;
-	int ret;
+	long ret;
 
 	kenter("{%d},,%zu", key_serial(keyring), buflen);
 
 	if (buflen & (sizeof(key_serial_t) - 1))
 		return -EINVAL;
 
-	nr_keys = keyring->keys.nr_leaves_on_tree;
-	if (nr_keys == 0)
-		return 0;
-
-	/* Calculate how much data we could return */
-	if (!buffer || !buflen)
-		return nr_keys * sizeof(key_serial_t);
-
-	/* Copy the IDs of the subscribed keys into the buffer */
-	ctx.buffer = (key_serial_t __user *)buffer;
-	ctx.buflen = buflen;
-	ctx.count = 0;
-	ret = assoc_array_iterate(&keyring->keys, keyring_read_iterator, &ctx);
-	if (ret < 0) {
-		kleave(" = %d [iterate]", ret);
-		return ret;
+	/* Copy as many key IDs as fit into the buffer */
+	if (buffer && buflen) {
+		ctx.buffer = (key_serial_t __user *)buffer;
+		ctx.buflen = buflen;
+		ctx.count = 0;
+		ret = assoc_array_iterate(&keyring->keys,
+					  keyring_read_iterator, &ctx);
+		if (ret < 0) {
+			kleave(" = %ld [iterate]", ret);
+			return ret;
+		}
 	}
 
-	kleave(" = %zu [ok]", ctx.count);
-	return ctx.count;
+	/* Return the size of the buffer needed */
+	ret = keyring->keys.nr_leaves_on_tree * sizeof(key_serial_t);
+	if (ret <= buflen)
+		kleave("= %ld [ok]", ret);
+	else
+		kleave("= %ld [buffer too small]", ret);
+	return ret;
 }
 
 /*
@@ -522,7 +521,8 @@ static int keyring_search_iterator(const void *object, void *iterator_data)
 {
 	struct keyring_search_context *ctx = iterator_data;
 	const struct key *key = keyring_ptr_to_key(object);
-	unsigned long kflags = key->flags;
+	unsigned long kflags = READ_ONCE(key->flags);
+	short state = READ_ONCE(key->state);
 
 	kenter("{%d}", key->serial);
 
@@ -566,9 +566,8 @@ static int keyring_search_iterator(const void *object, void *iterator_data)
 
 	if (ctx->flags & KEYRING_SEARCH_DO_STATE_CHECK) {
 		/* we set a different error code if we pass a negative key */
-		if (kflags & (1 << KEY_FLAG_NEGATIVE)) {
-			smp_rmb();
-			ctx->result = ERR_PTR(key->reject_error);
+		if (state < 0) {
+			ctx->result = ERR_PTR(state);
 			kleave(" = %d [neg]", ctx->skipped_ret);
 			goto skipped;
 		}

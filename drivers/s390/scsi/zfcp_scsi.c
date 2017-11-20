@@ -115,9 +115,14 @@ static int zfcp_scsi_slave_alloc(struct scsi_device *sdev)
 	struct zfcp_unit *unit;
 	int npiv = adapter->connection_features & FSF_FEATURE_NPIV_MODE;
 
+	zfcp_sdev->erp_action.adapter = adapter;
+	zfcp_sdev->erp_action.sdev = sdev;
+
 	port = zfcp_get_port_by_wwpn(adapter, rport->port_name);
 	if (!port)
 		return -ENXIO;
+
+	zfcp_sdev->erp_action.port = port;
 
 	unit = zfcp_unit_find(port, zfcp_scsi_dev_lun(sdev));
 	if (unit)

@@ -141,6 +141,13 @@ static irqreturn_t handle_threaded_wake_irq(int irq, void *_wirq)
 	struct wake_irq *wirq = _wirq;
 	int res;
 
+	/* Maybe abort suspend? */
+	if (irqd_is_wakeup_set(irq_get_irq_data(irq))) {
+		pm_wakeup_event(wirq->dev, 0);
+
+		return IRQ_HANDLED;
+	}
+
 	/* We don't want RPM_ASYNC or RPM_NOWAIT here */
 	res = pm_runtime_resume(wirq->dev);
 	if (res < 0)
