@@ -3235,37 +3235,6 @@ static int i915_shrinker_info(struct seq_file *m, void *unused)
 	return 0;
 }
 
-static int i915_semaphore_status(struct seq_file *m, void *unused)
-{
-	struct drm_i915_private *dev_priv = node_to_i915(m->private);
-	struct drm_device *dev = &dev_priv->drm;
-	struct intel_engine_cs *engine;
-	int num_rings = INTEL_INFO(dev_priv)->num_rings;
-	enum intel_engine_id id;
-	int j, ret;
-
-	if (!i915_modparams.semaphores) {
-		seq_puts(m, "Semaphores are disabled\n");
-		return 0;
-	}
-
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
-	if (ret)
-		return ret;
-	intel_runtime_pm_get(dev_priv);
-
-	seq_puts(m, "  Last signal:");
-	for_each_engine(engine, dev_priv, id)
-		for (j = 0; j < num_rings; j++)
-			seq_printf(m, "0x%08x\n",
-				   I915_READ(engine->semaphore.mbox.signal[j]));
-	seq_putc(m, '\n');
-
-	intel_runtime_pm_put(dev_priv);
-	mutex_unlock(&dev->struct_mutex);
-	return 0;
-}
-
 static int i915_shared_dplls_info(struct seq_file *m, void *unused)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
@@ -4745,7 +4714,6 @@ static const struct drm_info_list i915_debugfs_list[] = {
 	{"i915_display_info", i915_display_info, 0},
 	{"i915_engine_info", i915_engine_info, 0},
 	{"i915_shrinker_info", i915_shrinker_info, 0},
-	{"i915_semaphore_status", i915_semaphore_status, 0},
 	{"i915_shared_dplls_info", i915_shared_dplls_info, 0},
 	{"i915_dp_mst_info", i915_dp_mst_info, 0},
 	{"i915_wa_registers", i915_wa_registers, 0},
