@@ -135,6 +135,7 @@ int chip_to_vas_id(int chipid)
 	}
 	return -1;
 }
+EXPORT_SYMBOL(chip_to_vas_id);
 
 static int vas_probe(struct platform_device *pdev)
 {
