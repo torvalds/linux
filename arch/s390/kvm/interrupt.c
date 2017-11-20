@@ -1569,7 +1569,6 @@ static void __floating_irq_kick(struct kvm *kvm, u64 type)
 
 	/* make the VCPU drop out of the SIE, or wake it up if sleeping */
 	li = &dst_vcpu->arch.local_int;
-	spin_lock(&li->lock);
 	switch (type) {
 	case KVM_S390_MCHK:
 		atomic_or(CPUSTAT_STOP_INT, li->cpuflags);
@@ -1581,7 +1580,6 @@ static void __floating_irq_kick(struct kvm *kvm, u64 type)
 		atomic_or(CPUSTAT_EXT_INT, li->cpuflags);
 		break;
 	}
-	spin_unlock(&li->lock);
 	kvm_s390_vcpu_wakeup(dst_vcpu);
 }
 
