@@ -414,7 +414,6 @@ static unsigned int regmap_parse_64_native(const void *buf)
 }
 #endif
 
-#ifdef REGMAP_HWSPINLOCK
 static void regmap_lock_hwlock(void *__map)
 {
 	struct regmap *map = __map;
@@ -457,7 +456,6 @@ static void regmap_unlock_hwlock_irqrestore(void *__map)
 
 	hwspin_unlock_irqrestore(map->hwlock, &map->spinlock_flags);
 }
-#endif
 
 static void regmap_lock_mutex(void *__map)
 {
@@ -674,7 +672,6 @@ struct regmap *__regmap_init(struct device *dev,
 		map->unlock = config->unlock;
 		map->lock_arg = config->lock_arg;
 	} else if (config->hwlock_id) {
-#ifdef REGMAP_HWSPINLOCK
 		map->hwlock = hwspin_lock_request_specific(config->hwlock_id);
 		if (!map->hwlock) {
 			ret = -ENXIO;
@@ -697,10 +694,6 @@ struct regmap *__regmap_init(struct device *dev,
 		}
 
 		map->lock_arg = map;
-#else
-		ret = -EINVAL;
-		goto err_map;
-#endif
 	} else {
 		if ((bus && bus->fast_io) ||
 		    config->fast_io) {
@@ -1116,7 +1109,7 @@ err_range:
 	regmap_range_exit(map);
 	kfree(map->work_buf);
 err_hwlock:
-	if (IS_ENABLED(REGMAP_HWSPINLOCK) && map->hwlock)
+	if (map->hwlock)
 		hwspin_lock_free(map->hwlock);
 err_map:
 	kfree(map);
@@ -1305,7 +1298,7 @@ void regmap_exit(struct regmap *map)
 		kfree(async->work_buf);
 		kfree(async);
 	}
-	if (IS_ENABLED(REGMAP_HWSPINLOCK) && map->hwlock)
+	if (map->hwlock)
 		hwspin_lock_free(map->hwlock);
 	kfree(map);
 }
