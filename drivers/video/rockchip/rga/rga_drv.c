@@ -975,10 +975,9 @@ static int rga_get_dma_buf(struct rga_req *req)
 
 	req->sg_src = NULL;
 	req->sg_dst = NULL;
-	req->sg_els = NULL;
 	req->attach_src = NULL;
 	req->attach_dst = NULL;
-	mmu_flag = req->mmu_info.mmu_flag;
+	mmu_flag = (req->mmu_info.mmu_flag >> 8) & 1;
 	ret = rga_get_img_info(&req->src, mmu_flag, &req->sg_src,
 				&req->attach_src);
 	if (ret) {
@@ -986,7 +985,7 @@ static int rga_get_dma_buf(struct rga_req *req)
 		goto err_src;
 	}
 
-	mmu_flag = req->mmu_info.mmu_flag;
+	mmu_flag = (req->mmu_info.mmu_flag >> 10) & 1;
 	ret = rga_get_img_info(&req->dst, mmu_flag, &req->sg_dst,
 				&req->attach_dst);
 	if (ret) {
