@@ -1860,8 +1860,15 @@ static int __init firmware_class_init(void)
 	if (ret)
 		return ret;
 
-	register_reboot_notifier(&fw_shutdown_nb);
+	ret = register_reboot_notifier(&fw_shutdown_nb);
+	if (ret)
+		goto out;
+
 	return register_sysfs_loader();
+
+out:
+	unregister_fw_pm_ops();
+	return ret;
 }
 
 static void __exit firmware_class_exit(void)
