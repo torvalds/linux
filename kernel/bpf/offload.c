@@ -174,6 +174,10 @@ static int bpf_offload_notification(struct notifier_block *notifier,
 
 	switch (event) {
 	case NETDEV_UNREGISTER:
+		/* ignore namespace changes */
+		if (netdev->reg_state != NETREG_UNREGISTERING)
+			break;
+
 		list_for_each_entry_safe(offload, tmp, &bpf_prog_offload_devs,
 					 offloads) {
 			if (offload->netdev == netdev)
