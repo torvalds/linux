@@ -9726,12 +9726,11 @@ S:	Supported
 F:	drivers/ntb/hw/idt/
 
 NTB INTEL DRIVER
-M:	Jon Mason <jdmason@kudzu.us>
 M:	Dave Jiang <dave.jiang@intel.com>
 L:	linux-ntb@googlegroups.com
 S:	Supported
-W:	https://github.com/jonmason/ntb/wiki
-T:	git git://github.com/jonmason/ntb.git
+W:	https://github.com/davejiang/linux/wiki
+T:	git https://github.com/davejiang/linux.git
 F:	drivers/ntb/hw/intel/
 
 NTFS FILESYSTEM
@@ -10443,6 +10442,8 @@ F:	Documentation/switchtec.txt
 F:	Documentation/ABI/testing/sysfs-class-switchtec
 F:	drivers/pci/switch/switchtec*
 F:	include/uapi/linux/switchtec_ioctl.h
+F:	include/linux/switchtec.h
+F:	drivers/ntb/hw/mscc/
 
 PCI DRIVER FOR MVEBU (Marvell Armada 370 and Armada XP SOC support)
 M:	Thomas Petazzoni <thomas.petazzoni@free-electrons.com>
