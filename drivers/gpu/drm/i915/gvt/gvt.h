@@ -123,6 +123,7 @@ struct intel_vgpu_irq {
 };
 
 struct intel_vgpu_opregion {
+	bool mapped;
 	void *va;
 	u32 gfn[INTEL_GVT_OPREGION_PAGES];
 };
@@ -505,7 +506,8 @@ static inline u64 intel_vgpu_get_bar_gpa(struct intel_vgpu *vgpu, int bar)
 }
 
 void intel_vgpu_clean_opregion(struct intel_vgpu *vgpu);
-int intel_vgpu_init_opregion(struct intel_vgpu *vgpu, u32 gpa);
+int intel_vgpu_init_opregion(struct intel_vgpu *vgpu);
+int intel_vgpu_opregion_base_write_handler(struct intel_vgpu *vgpu, u32 gpa);
 
 int intel_vgpu_emulate_opregion_request(struct intel_vgpu *vgpu, u32 swsci);
 void populate_pvinfo_page(struct intel_vgpu *vgpu);

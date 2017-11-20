@@ -213,7 +213,15 @@ static void virt_vbt_generation(struct vbt *v)
 	v->driver_features.lvds_config = BDB_DRIVER_FEATURE_NO_LVDS;
 }
 
-static int alloc_and_init_virt_opregion(struct intel_vgpu *vgpu)
+/**
+ * intel_vgpu_init_opregion - initialize the stuff used to emulate opregion
+ * @vgpu: a vGPU
+ * @gpa: guest physical address of opregion
+ *
+ * Returns:
+ * Zero on success, negative error code if failed.
+ */
+int intel_vgpu_init_opregion(struct intel_vgpu *vgpu)
 {
 	u8 *buf;
 	struct opregion_header *header;
@@ -251,25 +259,6 @@ static int alloc_and_init_virt_opregion(struct intel_vgpu *vgpu)
 	return 0;
 }
 
-static int init_vgpu_opregion(struct intel_vgpu *vgpu, u32 gpa)
-{
-	int i, ret;
-
-	if (WARN((vgpu_opregion(vgpu)->va),
-			"vgpu%d: opregion has been initialized already.\n",
-			vgpu->id))
-		return -EINVAL;
-
-	ret = alloc_and_init_virt_opregion(vgpu);
-	if (ret < 0)
-		return ret;
-
-	for (i = 0; i < INTEL_GVT_OPREGION_PAGES; i++)
-		vgpu_opregion(vgpu)->gfn[i] = (gpa >> PAGE_SHIFT) + i;
-
-	return 0;
-}
-
 static int map_vgpu_opregion(struct intel_vgpu *vgpu, bool map)
 {
 	u64 mfn;
@@ -291,7 +280,38 @@ static int map_vgpu_opregion(struct intel_vgpu *vgpu, bool map)
 			return ret;
 		}
 	}
+
+	vgpu_opregion(vgpu)->mapped = map;
+
 	return 0;
+}
+
+/**
+ * intel_vgpu_opregion_base_write_handler - Opregion base register write handler
+ *
+ * @vgpu: a vGPU
+ * @gpa: guest physical address of opregion
+ *
+ * Returns:
+ * Zero on success, negative error code if failed.
+ */
+int intel_vgpu_opregion_base_write_handler(struct intel_vgpu *vgpu, u32 gpa)
+{
+	int i, ret;
+
+	/**
+	 * Wins guest on Xengt will write this register twice: xen hvmloader and
+	 * windows graphic driver.
+	 */
+	if (vgpu_opregion(vgpu)->mapped)
+		map_vgpu_opregion(vgpu, false);
+
+	for (i = 0; i < INTEL_GVT_OPREGION_PAGES; i++)
+		vgpu_opregion(vgpu)->gfn[i] = (gpa >> PAGE_SHIFT) + i;
+
+	ret = map_vgpu_opregion(vgpu, true);
+
+	return ret;
 }
 
 /**
@@ -306,43 +326,15 @@ void intel_vgpu_clean_opregion(struct intel_vgpu *vgpu)
 	if (!vgpu_opregion(vgpu)->va)
 		return;
 
-	if (intel_gvt_host.hypervisor_type == INTEL_GVT_HYPERVISOR_XEN) {
+	if (vgpu_opregion(vgpu)->mapped)
 		map_vgpu_opregion(vgpu, false);
-		free_pages((unsigned long)vgpu_opregion(vgpu)->va,
-				get_order(INTEL_GVT_OPREGION_SIZE));
 
-		vgpu_opregion(vgpu)->va = NULL;
-	}
+	free_pages((unsigned long)vgpu_opregion(vgpu)->va,
+			get_order(INTEL_GVT_OPREGION_SIZE));
+
+	vgpu_opregion(vgpu)->va = NULL;
 }
 
-/**
- * intel_vgpu_init_opregion - initialize the stuff used to emulate opregion
- * @vgpu: a vGPU
- * @gpa: guest physical address of opregion
- *
- * Returns:
- * Zero on success, negative error code if failed.
- */
-int intel_vgpu_init_opregion(struct intel_vgpu *vgpu, u32 gpa)
-{
-	int ret;
-
-	gvt_dbg_core("vgpu%d: init vgpu opregion\n", vgpu->id);
-
-	if (intel_gvt_host.hypervisor_type == INTEL_GVT_HYPERVISOR_XEN) {
-		gvt_dbg_core("emulate opregion from kernel\n");
-
-		ret = init_vgpu_opregion(vgpu, gpa);
-		if (ret)
-			return ret;
-
-		ret = map_vgpu_opregion(vgpu, true);
-		if (ret)
-			return ret;
-	}
-
-	return 0;
-}
 
 #define GVT_OPREGION_FUNC(scic)					\
 	({							\
