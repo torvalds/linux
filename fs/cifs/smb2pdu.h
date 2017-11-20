@@ -496,7 +496,7 @@ struct smb2_tree_disconnect_rsp {
 #define SVHDX_OPEN_DEVICE_CONTEXT	0x83CE6F1AD851E0986E34401CC9BCFCE9
 
 struct smb2_create_req {
-	struct smb2_hdr hdr;
+	struct smb2_sync_hdr sync_hdr;
 	__le16 StructureSize;	/* Must be 57 */
 	__u8   SecurityFlags;
 	__u8   RequestedOplockLevel;
