@@ -232,7 +232,7 @@ struct most_interface {
 	struct module *mod;
 	enum most_interface_type interface;
 	const char *description;
-	int num_channels;
+	unsigned int num_channels;
 	struct most_channel_capability *channel_vector;
 	int (*configure)(struct most_interface *iface, int channel_idx,
 			 struct most_channel_config *channel_config);
