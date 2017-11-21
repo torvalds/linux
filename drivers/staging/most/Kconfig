@@ -17,7 +17,7 @@ menuconfig MOST
 
 if MOST
 
-source "drivers/staging/most/aim-cdev/Kconfig"
+source "drivers/staging/most/cdev/Kconfig"
 
 source "drivers/staging/most/aim-network/Kconfig"
 
