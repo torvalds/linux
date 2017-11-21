@@ -272,7 +272,6 @@ struct most_aim {
 				  int channel_idx);
 	int (*rx_completion)(struct mbo *mbo);
 	int (*tx_completion)(struct most_interface *iface, int channel_idx);
-	void *context;
 };
 
 #define to_most_aim(d) container_of(d, struct most_aim, dev)
