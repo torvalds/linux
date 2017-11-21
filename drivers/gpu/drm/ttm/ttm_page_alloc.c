@@ -296,13 +296,23 @@ static struct ttm_page_pool *ttm_get_pool(int flags, bool huge,
 }
 
 /* set memory back to wb and free the pages. */
-static void ttm_pages_put(struct page *pages[], unsigned npages)
+static void ttm_pages_put(struct page *pages[], unsigned npages,
+		unsigned int order)
 {
-	unsigned i;
-	if (set_pages_array_wb(pages, npages))
-		pr_err("Failed to set %d pages to wb!\n", npages);
-	for (i = 0; i < npages; ++i)
-		__free_page(pages[i]);
+	unsigned int i, pages_nr = (1 << order);
+
+	if (order == 0) {
+		if (set_pages_array_wb(pages, npages))
+			pr_err("Failed to set %d pages to wb!\n", npages);
+	}
+
+	for (i = 0; i < npages; ++i) {
+		if (order > 0) {
+			if (set_pages_wb(pages[i], pages_nr))
+				pr_err("Failed to set %d pages to wb!\n", pages_nr);
+		}
+		__free_pages(pages[i], order);
+	}
 }
 
 static void ttm_pool_update_free_locked(struct ttm_page_pool *pool,
@@ -365,7 +375,7 @@ restart:
 			 */
 			spin_unlock_irqrestore(&pool->lock, irq_flags);
 
-			ttm_pages_put(pages_to_free, freed_pages);
+			ttm_pages_put(pages_to_free, freed_pages, pool->order);
 			if (likely(nr_free != FREE_ALL_PAGES))
 				nr_free -= freed_pages;
 
@@ -400,7 +410,7 @@ restart:
 	spin_unlock_irqrestore(&pool->lock, irq_flags);
 
 	if (freed_pages)
-		ttm_pages_put(pages_to_free, freed_pages);
+		ttm_pages_put(pages_to_free, freed_pages, pool->order);
 out:
 	if (pages_to_free != static_buf)
 		kfree(pages_to_free);
