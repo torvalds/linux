@@ -157,6 +157,9 @@ static int mmc_bus_suspend(struct device *dev)
 		return ret;
 
 	ret = host->bus_ops->suspend(host);
+	if (ret)
+		pm_generic_resume(dev);
+
 	return ret;
 }
 
