@@ -17,8 +17,8 @@
 #define __MOST_CORE_H__
 
 #include <linux/types.h>
+#include <linux/device.h>
 
-struct kobject;
 struct module;
 
 /**
@@ -232,6 +232,7 @@ struct mbo {
  * @priv Private field used by mostcore to store context information.
  */
 struct most_interface {
+	struct device dev;
 	struct module *mod;
 	enum most_interface_type interface;
 	const char *description;
@@ -249,6 +250,8 @@ struct most_interface {
 	void *priv;
 };
 
+#define to_most_interface(d) container_of(d, struct most_interface, dev)
+
 /**
  * struct most_aim - identifies MOST device driver to mostcore
  * @name: Driver name
@@ -259,16 +262,18 @@ struct most_interface {
  * @context: context pointer to be used by mostcore
  */
 struct most_aim {
+	struct device dev;
 	const char *name;
 	int (*probe_channel)(struct most_interface *iface, int channel_idx,
-			     struct most_channel_config *cfg,
-			     struct kobject *parent, char *name);
+			     struct most_channel_config *cfg, char *name);
 	int (*disconnect_channel)(struct most_interface *iface,
 				  int channel_idx);
 	int (*rx_completion)(struct mbo *mbo);
 	int (*tx_completion)(struct most_interface *iface, int channel_idx);
 	void *context;
 };
+
+#define to_most_aim(d) container_of(d, struct most_aim, dev)
 
 /**
  * most_register_interface - Registers instance of the interface.
@@ -279,7 +284,7 @@ struct most_aim {
  * Note: HDM has to ensure that any reference held on the kobj is
  * released before deregistering the interface.
  */
-struct kobject *most_register_interface(struct most_interface *iface);
+int most_register_interface(struct most_interface *iface);
 
 /**
  * Deregisters instance of the interface.

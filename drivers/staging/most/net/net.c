@@ -291,8 +291,7 @@ static struct net_dev_context *get_net_dev_hold(struct most_interface *iface)
 }
 
 static int aim_probe_channel(struct most_interface *iface, int channel_idx,
-			     struct most_channel_config *ccfg,
-			     struct kobject *parent, char *name)
+			     struct most_channel_config *ccfg, char *name)
 {
 	struct net_dev_context *nd;
 	struct net_dev_channel *ch;

@@ -16,10 +16,10 @@ struct medialb_bus {
 	struct kobject kobj_group;
 };
 
-struct dim2_hdm;
+struct device;
 
-int dim2_sysfs_probe(struct medialb_bus *bus, struct kobject *parent_kobj);
-void dim2_sysfs_destroy(struct medialb_bus *bus);
+int dim2_sysfs_probe(struct device *dev);
+void dim2_sysfs_destroy(struct device *dev);
 
 /*
  * callback,

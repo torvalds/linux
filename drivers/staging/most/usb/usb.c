@@ -64,12 +64,12 @@
  * @reg_addr: register address for arbitrary DCI access
  */
 struct most_dci_obj {
-	struct kobject kobj;
+	struct device dev;
 	struct usb_device *usb_device;
 	u16 reg_addr;
 };
 
-#define to_dci_obj(p) container_of(p, struct most_dci_obj, kobj)
+#define to_dci_obj(p) container_of(p, struct most_dci_obj, dev)
 
 struct most_dev;
 
@@ -84,7 +84,6 @@ struct clear_hold_work {
 
 /**
  * struct most_dev - holds all usb interface specific stuff
- * @parent: parent object in sysfs
  * @usb_device: pointer to usb device
  * @iface: hardware interface
  * @cap: channel capabilities
@@ -102,7 +101,6 @@ struct clear_hold_work {
  * @poll_work_obj: work for polling link status
  */
 struct most_dev {
-	struct kobject *parent;
 	struct usb_device *usb_device;
 	struct most_interface iface;
 	struct most_channel_capability *cap;
@@ -834,94 +832,6 @@ static const struct usb_device_id usbid[] = {
 	{ } /* Terminating entry */
 };
 
-#define MOST_DCI_RO_ATTR(_name) \
-	struct most_dci_attribute most_dci_attr_##_name = \
-		__ATTR(_name, 0444, show_value, NULL)
-
-#define MOST_DCI_ATTR(_name) \
-	struct most_dci_attribute most_dci_attr_##_name = \
-		__ATTR(_name, 0644, show_value, store_value)
-
-#define MOST_DCI_WO_ATTR(_name) \
-	struct most_dci_attribute most_dci_attr_##_name = \
-		__ATTR(_name, 0200, NULL, store_value)
-
-/**
- * struct most_dci_attribute - to access the attributes of a dci object
- * @attr: attributes of a dci object
- * @show: pointer to the show function
- * @store: pointer to the store function
- */
-struct most_dci_attribute {
-	struct attribute attr;
-	ssize_t (*show)(struct most_dci_obj *d,
-			struct most_dci_attribute *attr,
-			char *buf);
-	ssize_t (*store)(struct most_dci_obj *d,
-			 struct most_dci_attribute *attr,
-			 const char *buf,
-			 size_t count);
-};
-
-#define to_dci_attr(a) container_of(a, struct most_dci_attribute, attr)
-
-/**
- * dci_attr_show - show function for dci object
- * @kobj: pointer to kobject
- * @attr: pointer to attribute struct
- * @buf: buffer
- */
-static ssize_t dci_attr_show(struct kobject *kobj, struct attribute *attr,
-			     char *buf)
-{
-	struct most_dci_attribute *dci_attr = to_dci_attr(attr);
-	struct most_dci_obj *dci_obj = to_dci_obj(kobj);
-
-	if (!dci_attr->show)
-		return -EIO;
-
-	return dci_attr->show(dci_obj, dci_attr, buf);
-}
-
-/**
- * dci_attr_store - store function for dci object
- * @kobj: pointer to kobject
- * @attr: pointer to attribute struct
- * @buf: buffer
- * @len: length of buffer
- */
-static ssize_t dci_attr_store(struct kobject *kobj,
-			      struct attribute *attr,
-			      const char *buf,
-			      size_t len)
-{
-	struct most_dci_attribute *dci_attr = to_dci_attr(attr);
-	struct most_dci_obj *dci_obj = to_dci_obj(kobj);
-
-	if (!dci_attr->store)
-		return -EIO;
-
-	return dci_attr->store(dci_obj, dci_attr, buf, len);
-}
-
-static const struct sysfs_ops most_dci_sysfs_ops = {
-	.show = dci_attr_show,
-	.store = dci_attr_store,
-};
-
-/**
- * most_dci_release - release function for dci object
- * @kobj: pointer to kobject
- *
- * This frees the memory allocated for the dci object
- */
-static void most_dci_release(struct kobject *kobj)
-{
-	struct most_dci_obj *dci_obj = to_dci_obj(kobj);
-
-	kfree(dci_obj);
-}
-
 struct regs {
 	const char *name;
 	u16 reg;
@@ -962,10 +872,11 @@ static int get_stat_reg_addr(const struct regs *regs, int size,
 #define get_static_reg_addr(regs, name, reg_addr) \
 	get_stat_reg_addr(regs, ARRAY_SIZE(regs), name, reg_addr)
 
-static ssize_t show_value(struct most_dci_obj *dci_obj,
-			  struct most_dci_attribute *attr, char *buf)
+static ssize_t show_value(struct device *dev, struct device_attribute *attr,
+			  char *buf)
 {
 	const char *name = attr->attr.name;
+	struct most_dci_obj *dci_obj = to_dci_obj(dev);
 	u16 val;
 	u16 reg_addr;
 	int err;
@@ -986,13 +897,13 @@ static ssize_t show_value(struct most_dci_obj *dci_obj,
 	return snprintf(buf, PAGE_SIZE, "%04x\n", val);
 }
 
-static ssize_t store_value(struct most_dci_obj *dci_obj,
-			   struct most_dci_attribute *attr,
+static ssize_t store_value(struct device *dev, struct device_attribute *attr,
 			   const char *buf, size_t count)
 {
 	u16 val;
 	u16 reg_addr;
 	const char *name = attr->attr.name;
+	struct most_dci_obj *dci_obj = to_dci_obj(dev);
 	struct usb_device *usb_dev = dci_obj->usb_device;
 	int err = kstrtou16(buf, 16, &val);
 
@@ -1019,86 +930,49 @@ static ssize_t store_value(struct most_dci_obj *dci_obj,
 	return count;
 }
 
-static MOST_DCI_RO_ATTR(ni_state);
-static MOST_DCI_RO_ATTR(packet_bandwidth);
-static MOST_DCI_RO_ATTR(node_address);
-static MOST_DCI_RO_ATTR(node_position);
-static MOST_DCI_WO_ATTR(sync_ep);
-static MOST_DCI_ATTR(mep_filter);
-static MOST_DCI_ATTR(mep_hash0);
-static MOST_DCI_ATTR(mep_hash1);
-static MOST_DCI_ATTR(mep_hash2);
-static MOST_DCI_ATTR(mep_hash3);
-static MOST_DCI_ATTR(mep_eui48_hi);
-static MOST_DCI_ATTR(mep_eui48_mi);
-static MOST_DCI_ATTR(mep_eui48_lo);
-static MOST_DCI_ATTR(arb_address);
-static MOST_DCI_ATTR(arb_value);
+DEVICE_ATTR(ni_state, 0444, show_value, NULL);
+DEVICE_ATTR(packet_bandwidth, 0444, show_value, NULL);
+DEVICE_ATTR(node_address, 0444, show_value, NULL);
+DEVICE_ATTR(node_position, 0444, show_value, NULL);
+DEVICE_ATTR(sync_ep, 0200, NULL, store_value);
+DEVICE_ATTR(mep_filter, 0644, show_value, store_value);
+DEVICE_ATTR(mep_hash0, 0644, show_value, store_value);
+DEVICE_ATTR(mep_hash1, 0644, show_value, store_value);
+DEVICE_ATTR(mep_hash2, 0644, show_value, store_value);
+DEVICE_ATTR(mep_hash3, 0644, show_value, store_value);
+DEVICE_ATTR(mep_eui48_hi, 0644, show_value, store_value);
+DEVICE_ATTR(mep_eui48_mi, 0644, show_value, store_value);
+DEVICE_ATTR(mep_eui48_lo, 0644, show_value, store_value);
+DEVICE_ATTR(arb_address, 0644, show_value, store_value);
+DEVICE_ATTR(arb_value, 0644, show_value, store_value);
 
-/**
- * most_dci_def_attrs - array of default attribute files of the dci object
- */
-static struct attribute *most_dci_def_attrs[] = {
-	&most_dci_attr_ni_state.attr,
-	&most_dci_attr_packet_bandwidth.attr,
-	&most_dci_attr_node_address.attr,
-	&most_dci_attr_node_position.attr,
-	&most_dci_attr_sync_ep.attr,
-	&most_dci_attr_mep_filter.attr,
-	&most_dci_attr_mep_hash0.attr,
-	&most_dci_attr_mep_hash1.attr,
-	&most_dci_attr_mep_hash2.attr,
-	&most_dci_attr_mep_hash3.attr,
-	&most_dci_attr_mep_eui48_hi.attr,
-	&most_dci_attr_mep_eui48_mi.attr,
-	&most_dci_attr_mep_eui48_lo.attr,
-	&most_dci_attr_arb_address.attr,
-	&most_dci_attr_arb_value.attr,
+static struct attribute *dci_attrs[] = {
+	&dev_attr_ni_state.attr,
+	&dev_attr_packet_bandwidth.attr,
+	&dev_attr_node_address.attr,
+	&dev_attr_node_position.attr,
+	&dev_attr_sync_ep.attr,
+	&dev_attr_mep_filter.attr,
+	&dev_attr_mep_hash0.attr,
+	&dev_attr_mep_hash1.attr,
+	&dev_attr_mep_hash2.attr,
+	&dev_attr_mep_hash3.attr,
+	&dev_attr_mep_eui48_hi.attr,
+	&dev_attr_mep_eui48_mi.attr,
+	&dev_attr_mep_eui48_lo.attr,
+	&dev_attr_arb_address.attr,
+	&dev_attr_arb_value.attr,
 	NULL,
 };
 
-/**
- * DCI ktype
- */
-static struct kobj_type most_dci_ktype = {
-	.sysfs_ops = &most_dci_sysfs_ops,
-	.release = most_dci_release,
-	.default_attrs = most_dci_def_attrs,
+static struct attribute_group dci_attr_group = {
+	.attrs = dci_attrs,
 };
 
-/**
- * create_most_dci_obj - allocates a dci object
- * @parent: parent kobject
- *
- * This creates a dci object and registers it with sysfs.
- * Returns a pointer to the object or NULL when something went wrong.
- */
-static struct
-most_dci_obj *create_most_dci_obj(struct kobject *parent)
-{
-	struct most_dci_obj *most_dci = kzalloc(sizeof(*most_dci), GFP_KERNEL);
-	int retval;
-
-	if (!most_dci)
-		return NULL;
-
-	retval = kobject_init_and_add(&most_dci->kobj, &most_dci_ktype, parent,
-				      "dci");
-	if (retval) {
-		kobject_put(&most_dci->kobj);
-		return NULL;
-	}
-	return most_dci;
-}
-
-/**
- * destroy_most_dci_obj - DCI object release function
- * @p: pointer to dci object
- */
-static void destroy_most_dci_obj(struct most_dci_obj *p)
-{
-	kobject_put(&p->kobj);
-}
+static const struct attribute_group *dci_attr_groups[] = {
+	&dci_attr_group,
+	NULL,
+};
 
 /**
  * hdm_probe - probe function of USB device driver
@@ -1211,20 +1085,15 @@ hdm_probe(struct usb_interface *interface, const struct usb_device_id *id)
 		   usb_dev->config->desc.bConfigurationValue,
 		   usb_iface_desc->desc.bInterfaceNumber);
 
-	mdev->parent = most_register_interface(&mdev->iface);
-	if (IS_ERR(mdev->parent)) {
-		ret = PTR_ERR(mdev->parent);
+	ret = most_register_interface(&mdev->iface);
+	if (ret)
 		goto exit_free4;
-	}
 
 	mutex_lock(&mdev->io_mutex);
 	if (le16_to_cpu(usb_dev->descriptor.idProduct) == USB_DEV_ID_OS81118 ||
 	    le16_to_cpu(usb_dev->descriptor.idProduct) == USB_DEV_ID_OS81119 ||
 	    le16_to_cpu(usb_dev->descriptor.idProduct) == USB_DEV_ID_OS81210) {
-		/* this increments the reference count of the instance
-		 * object of the core
-		 */
-		mdev->dci = create_most_dci_obj(mdev->parent);
+		mdev->dci = kzalloc(sizeof(*mdev->dci), GFP_KERNEL);
 		if (!mdev->dci) {
 			mutex_unlock(&mdev->io_mutex);
 			most_deregister_interface(&mdev->iface);
@@ -1232,12 +1101,21 @@ hdm_probe(struct usb_interface *interface, const struct usb_device_id *id)
 			goto exit_free4;
 		}
 
-		kobject_uevent(&mdev->dci->kobj, KOBJ_ADD);
+		mdev->dci->dev.init_name = "dci";
+		mdev->dci->dev.parent = &mdev->iface.dev;
+		mdev->dci->dev.groups = dci_attr_groups;
+		if (device_register(&mdev->dci->dev)) {
+			mutex_unlock(&mdev->io_mutex);
+			most_deregister_interface(&mdev->iface);
+			ret = -ENOMEM;
+			goto exit_free5;
+		}
 		mdev->dci->usb_device = mdev->usb_device;
 	}
 	mutex_unlock(&mdev->io_mutex);
 	return 0;
-
+exit_free5:
+	kfree(mdev->dci);
 exit_free4:
 	kfree(mdev->busy_urbs);
 exit_free3:
@@ -1277,7 +1155,8 @@ static void hdm_disconnect(struct usb_interface *interface)
 	del_timer_sync(&mdev->link_stat_timer);
 	cancel_work_sync(&mdev->poll_work_obj);
 
-	destroy_most_dci_obj(mdev->dci);
+	device_unregister(&mdev->dci->dev);
+	kfree(mdev->dci);
 	most_deregister_interface(&mdev->iface);
 
 	kfree(mdev->busy_urbs);

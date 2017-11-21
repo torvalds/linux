@@ -412,7 +412,6 @@ static int aim_tx_completion(struct most_interface *iface, int channel_id)
  * @iface: pointer to interface instance
  * @channel_id: channel index/ID
  * @cfg: pointer to actual channel configuration
- * @parent: pointer to kobject (needed for sysfs hook-up)
  * @name: name of the device to be created
  *
  * This allocates achannel object and creates the device node in /dev
@@ -420,15 +419,14 @@ static int aim_tx_completion(struct most_interface *iface, int channel_id)
  * Returns 0 on success or error code otherwise.
  */
 static int aim_probe(struct most_interface *iface, int channel_id,
-		     struct most_channel_config *cfg,
-		     struct kobject *parent, char *name)
+		     struct most_channel_config *cfg, char *name)
 {
 	struct aim_channel *c;
 	unsigned long cl_flags;
 	int retval;
 	int current_minor;
 
-	if ((!iface) || (!cfg) || (!parent) || (!name)) {
+	if ((!iface) || (!cfg) || (!name)) {
 		pr_info("Probing AIM with bad arguments");
 		return -EINVAL;
 	}

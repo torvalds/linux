@@ -480,8 +480,7 @@ static void aim_v4l2_dev_release(struct v4l2_device *v4l2_dev)
 }
 
 static int aim_probe_channel(struct most_interface *iface, int channel_idx,
-			     struct most_channel_config *ccfg,
-			     struct kobject *parent, char *name)
+			     struct most_channel_config *ccfg, char *name)
 {
 	int ret;
 	struct most_video_dev *mdev = get_aim_dev(iface, channel_idx);

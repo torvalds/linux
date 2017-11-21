@@ -303,7 +303,6 @@ static int i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
 	struct hdm_i2c *dev;
 	int ret, i;
-	struct kobject *kobj;
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev)
@@ -341,11 +340,11 @@ static int i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	dev->client = client;
 	i2c_set_clientdata(client, dev);
 
-	kobj = most_register_interface(&dev->most_iface);
-	if (IS_ERR(kobj)) {
+	ret = most_register_interface(&dev->most_iface);
+	if (ret) {
 		pr_err("Failed to register i2c as a MOST interface\n");
 		kfree(dev);
-		return PTR_ERR(kobj);
+		return ret;
 	}
 
 	dev->polling_mode = polling_req || client->irq <= 0;

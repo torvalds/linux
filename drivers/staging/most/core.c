@@ -27,7 +27,7 @@
 #define STRING_SIZE	80
 
 static struct class *most_class;
-static struct device *core_dev;
+static struct device core_dev;
 static struct ida mdev_id;
 static int dummy_num_buffers;
 
@@ -38,7 +38,7 @@ struct most_c_aim_obj {
 };
 
 struct most_c_obj {
-	struct kobject kobj;
+	struct device dev;
 	struct completion cleanup;
 	atomic_t mbo_ref;
 	atomic_t mbo_nq_level;
@@ -63,14 +63,13 @@ struct most_c_obj {
 	wait_queue_head_t hdm_fifo_wq;
 };
 
-#define to_c_obj(d) container_of(d, struct most_c_obj, kobj)
+#define to_c_obj(d) container_of(d, struct most_c_obj, dev)
 
 struct most_inst_obj {
 	int dev_id;
 	struct most_interface *iface;
 	struct list_head channel_list;
 	struct most_c_obj *channel[MAX_CHANNELS];
-	struct kobject kobj;
 	struct list_head list;
 };
 
@@ -84,8 +83,6 @@ static const struct {
 	{ MOST_CH_ISOC, "isoc\n"},
 	{ MOST_CH_ISOC, "isoc_avp\n"},
 };
-
-#define to_inst_obj(d) container_of(d, struct most_inst_obj, kobj)
 
 /**
  * list_pop_mbo - retrieves the first MBO of the list and removes it
@@ -101,68 +98,6 @@ static const struct {
 /*		     ___	     ___
  *		     ___C H A N N E L___
  */
-
-/**
- * struct most_c_attr - to access the attributes of a channel object
- * @attr: attributes of a channel
- * @show: pointer to the show function
- * @store: pointer to the store function
- */
-struct most_c_attr {
-	struct attribute attr;
-	ssize_t (*show)(struct most_c_obj *d,
-			struct most_c_attr *attr,
-			char *buf);
-	ssize_t (*store)(struct most_c_obj *d,
-			 struct most_c_attr *attr,
-			 const char *buf,
-			 size_t count);
-};
-
-#define to_channel_attr(a) container_of(a, struct most_c_attr, attr)
-
-/**
- * channel_attr_show - show function of channel object
- * @kobj: pointer to its kobject
- * @attr: pointer to its attributes
- * @buf: buffer
- */
-static ssize_t channel_attr_show(struct kobject *kobj, struct attribute *attr,
-				 char *buf)
-{
-	struct most_c_attr *channel_attr = to_channel_attr(attr);
-	struct most_c_obj *c_obj = to_c_obj(kobj);
-
-	if (!channel_attr->show)
-		return -EIO;
-
-	return channel_attr->show(c_obj, channel_attr, buf);
-}
-
-/**
- * channel_attr_store - store function of channel object
- * @kobj: pointer to its kobject
- * @attr: pointer to its attributes
- * @buf: buffer
- * @len: length of buffer
- */
-static ssize_t channel_attr_store(struct kobject *kobj,
-				  struct attribute *attr,
-				  const char *buf,
-				  size_t len)
-{
-	struct most_c_attr *channel_attr = to_channel_attr(attr);
-	struct most_c_obj *c_obj = to_c_obj(kobj);
-
-	if (!channel_attr->store)
-		return -EIO;
-	return channel_attr->store(c_obj, channel_attr, buf, len);
-}
-
-static const struct sysfs_ops most_channel_sysfs_ops = {
-	.show = channel_attr_show,
-	.store = channel_attr_store,
-};
 
 /**
  * most_free_mbo_coherent - free an MBO and its coherent buffer
@@ -235,21 +170,11 @@ static int flush_trash_fifo(struct most_c_obj *c)
 	return 0;
 }
 
-/**
- * most_channel_release - release function of channel object
- * @kobj: pointer to channel's kobject
- */
-static void most_channel_release(struct kobject *kobj)
-{
-	struct most_c_obj *c = to_c_obj(kobj);
-
-	kfree(c);
-}
-
-static ssize_t available_directions_show(struct most_c_obj *c,
-					 struct most_c_attr *attr,
+static ssize_t available_directions_show(struct device *dev,
+					 struct device_attribute *attr,
 					 char *buf)
 {
+	struct most_c_obj *c = to_c_obj(dev);
 	unsigned int i = c->channel_id;
 
 	strcpy(buf, "");
@@ -261,10 +186,11 @@ static ssize_t available_directions_show(struct most_c_obj *c,
 	return strlen(buf);
 }
 
-static ssize_t available_datatypes_show(struct most_c_obj *c,
-					struct most_c_attr *attr,
+static ssize_t available_datatypes_show(struct device *dev,
+					struct device_attribute *attr,
 					char *buf)
 {
+	struct most_c_obj *c = to_c_obj(dev);
 	unsigned int i = c->channel_id;
 
 	strcpy(buf, "");
@@ -280,65 +206,75 @@ static ssize_t available_datatypes_show(struct most_c_obj *c,
 	return strlen(buf);
 }
 
-static ssize_t number_of_packet_buffers_show(struct most_c_obj *c,
-					     struct most_c_attr *attr,
+static ssize_t number_of_packet_buffers_show(struct device *dev,
+					     struct device_attribute *attr,
 					     char *buf)
 {
+	struct most_c_obj *c = to_c_obj(dev);
 	unsigned int i = c->channel_id;
 
 	return snprintf(buf, PAGE_SIZE, "%d\n",
 			c->iface->channel_vector[i].num_buffers_packet);
 }
 
-static ssize_t number_of_stream_buffers_show(struct most_c_obj *c,
-					     struct most_c_attr *attr,
+static ssize_t number_of_stream_buffers_show(struct device *dev,
+					     struct device_attribute *attr,
 					     char *buf)
 {
+	struct most_c_obj *c = to_c_obj(dev);
 	unsigned int i = c->channel_id;
 
 	return snprintf(buf, PAGE_SIZE, "%d\n",
 			c->iface->channel_vector[i].num_buffers_streaming);
 }
 
-static ssize_t size_of_packet_buffer_show(struct most_c_obj *c,
-					  struct most_c_attr *attr,
+static ssize_t size_of_packet_buffer_show(struct device *dev,
+					  struct device_attribute *attr,
 					  char *buf)
 {
+	struct most_c_obj *c = to_c_obj(dev);
 	unsigned int i = c->channel_id;
 
 	return snprintf(buf, PAGE_SIZE, "%d\n",
 			c->iface->channel_vector[i].buffer_size_packet);
 }
 
-static ssize_t size_of_stream_buffer_show(struct most_c_obj *c,
-					  struct most_c_attr *attr,
+static ssize_t size_of_stream_buffer_show(struct device *dev,
+					  struct device_attribute *attr,
 					  char *buf)
 {
+	struct most_c_obj *c = to_c_obj(dev);
 	unsigned int i = c->channel_id;
 
 	return snprintf(buf, PAGE_SIZE, "%d\n",
 			c->iface->channel_vector[i].buffer_size_streaming);
 }
 
-static ssize_t channel_starving_show(struct most_c_obj *c,
-				     struct most_c_attr *attr,
+static ssize_t channel_starving_show(struct device *dev,
+				     struct device_attribute *attr,
 				     char *buf)
 {
+	struct most_c_obj *c = to_c_obj(dev);
+
 	return snprintf(buf, PAGE_SIZE, "%d\n", c->is_starving);
 }
 
-static ssize_t set_number_of_buffers_show(struct most_c_obj *c,
-					  struct most_c_attr *attr,
+static ssize_t set_number_of_buffers_show(struct device *dev,
+					  struct device_attribute *attr,
 					  char *buf)
 {
+	struct most_c_obj *c = to_c_obj(dev);
+
 	return snprintf(buf, PAGE_SIZE, "%d\n", c->cfg.num_buffers);
 }
 
-static ssize_t set_number_of_buffers_store(struct most_c_obj *c,
-					   struct most_c_attr *attr,
+static ssize_t set_number_of_buffers_store(struct device *dev,
+					   struct device_attribute *attr,
 					   const char *buf,
 					   size_t count)
 {
+	struct most_c_obj *c = to_c_obj(dev);
+
 	int ret = kstrtou16(buf, 0, &c->cfg.num_buffers);
 
 	if (ret)
@@ -346,18 +282,21 @@ static ssize_t set_number_of_buffers_store(struct most_c_obj *c,
 	return count;
 }
 
-static ssize_t set_buffer_size_show(struct most_c_obj *c,
-				    struct most_c_attr *attr,
+static ssize_t set_buffer_size_show(struct device *dev,
+				    struct device_attribute *attr,
 				    char *buf)
 {
+	struct most_c_obj *c = to_c_obj(dev);
+
 	return snprintf(buf, PAGE_SIZE, "%d\n", c->cfg.buffer_size);
 }
 
-static ssize_t set_buffer_size_store(struct most_c_obj *c,
-				     struct most_c_attr *attr,
+static ssize_t set_buffer_size_store(struct device *dev,
+				     struct device_attribute *attr,
 				     const char *buf,
 				     size_t count)
 {
+	struct most_c_obj *c = to_c_obj(dev);
 	int ret = kstrtou16(buf, 0, &c->cfg.buffer_size);
 
 	if (ret)
@@ -365,10 +304,12 @@ static ssize_t set_buffer_size_store(struct most_c_obj *c,
 	return count;
 }
 
-static ssize_t set_direction_show(struct most_c_obj *c,
-				  struct most_c_attr *attr,
+static ssize_t set_direction_show(struct device *dev,
+				  struct device_attribute *attr,
 				  char *buf)
 {
+	struct most_c_obj *c = to_c_obj(dev);
+
 	if (c->cfg.direction & MOST_CH_TX)
 		return snprintf(buf, PAGE_SIZE, "tx\n");
 	else if (c->cfg.direction & MOST_CH_RX)
@@ -376,11 +317,13 @@ static ssize_t set_direction_show(struct most_c_obj *c,
 	return snprintf(buf, PAGE_SIZE, "unconfigured\n");
 }
 
-static ssize_t set_direction_store(struct most_c_obj *c,
-				   struct most_c_attr *attr,
+static ssize_t set_direction_store(struct device *dev,
+				   struct device_attribute *attr,
 				   const char *buf,
 				   size_t count)
 {
+	struct most_c_obj *c = to_c_obj(dev);
+
 	if (!strcmp(buf, "dir_rx\n")) {
 		c->cfg.direction = MOST_CH_RX;
 	} else if (!strcmp(buf, "rx\n")) {
@@ -396,11 +339,12 @@ static ssize_t set_direction_store(struct most_c_obj *c,
 	return count;
 }
 
-static ssize_t set_datatype_show(struct most_c_obj *c,
-				 struct most_c_attr *attr,
+static ssize_t set_datatype_show(struct device *dev,
+				 struct device_attribute *attr,
 				 char *buf)
 {
 	int i;
+	struct most_c_obj *c = to_c_obj(dev);
 
 	for (i = 0; i < ARRAY_SIZE(ch_data_type); i++) {
 		if (c->cfg.data_type & ch_data_type[i].most_ch_data_type)
@@ -409,12 +353,13 @@ static ssize_t set_datatype_show(struct most_c_obj *c,
 	return snprintf(buf, PAGE_SIZE, "unconfigured\n");
 }
 
-static ssize_t set_datatype_store(struct most_c_obj *c,
-				  struct most_c_attr *attr,
+static ssize_t set_datatype_store(struct device *dev,
+				  struct device_attribute *attr,
 				  const char *buf,
 				  size_t count)
 {
 	int i;
+	struct most_c_obj *c = to_c_obj(dev);
 
 	for (i = 0; i < ARRAY_SIZE(ch_data_type); i++) {
 		if (!strcmp(buf, ch_data_type[i].name)) {
@@ -430,18 +375,21 @@ static ssize_t set_datatype_store(struct most_c_obj *c,
 	return count;
 }
 
-static ssize_t set_subbuffer_size_show(struct most_c_obj *c,
-				       struct most_c_attr *attr,
+static ssize_t set_subbuffer_size_show(struct device *dev,
+				       struct device_attribute *attr,
 				       char *buf)
 {
+	struct most_c_obj *c = to_c_obj(dev);
+
 	return snprintf(buf, PAGE_SIZE, "%d\n", c->cfg.subbuffer_size);
 }
 
-static ssize_t set_subbuffer_size_store(struct most_c_obj *c,
-					struct most_c_attr *attr,
+static ssize_t set_subbuffer_size_store(struct device *dev,
+					struct device_attribute *attr,
 					const char *buf,
 					size_t count)
 {
+	struct most_c_obj *c = to_c_obj(dev);
 	int ret = kstrtou16(buf, 0, &c->cfg.subbuffer_size);
 
 	if (ret)
@@ -449,18 +397,21 @@ static ssize_t set_subbuffer_size_store(struct most_c_obj *c,
 	return count;
 }
 
-static ssize_t set_packets_per_xact_show(struct most_c_obj *c,
-					 struct most_c_attr *attr,
+static ssize_t set_packets_per_xact_show(struct device *dev,
+					 struct device_attribute *attr,
 					 char *buf)
 {
+	struct most_c_obj *c = to_c_obj(dev);
+
 	return snprintf(buf, PAGE_SIZE, "%d\n", c->cfg.packets_per_xact);
 }
 
-static ssize_t set_packets_per_xact_store(struct most_c_obj *c,
-					  struct most_c_attr *attr,
+static ssize_t set_packets_per_xact_store(struct device *dev,
+					  struct device_attribute *attr,
 					  const char *buf,
 					  size_t count)
 {
+	struct most_c_obj *c = to_c_obj(dev);
 	int ret = kstrtou16(buf, 0, &c->cfg.packets_per_xact);
 
 	if (ret)
@@ -468,77 +419,47 @@ static ssize_t set_packets_per_xact_store(struct most_c_obj *c,
 	return count;
 }
 
-static struct most_c_attr most_c_attrs[] = {
-	__ATTR_RO(available_directions),
-	__ATTR_RO(available_datatypes),
-	__ATTR_RO(number_of_packet_buffers),
-	__ATTR_RO(number_of_stream_buffers),
-	__ATTR_RO(size_of_stream_buffer),
-	__ATTR_RO(size_of_packet_buffer),
-	__ATTR_RO(channel_starving),
-	__ATTR_RW(set_buffer_size),
-	__ATTR_RW(set_number_of_buffers),
-	__ATTR_RW(set_direction),
-	__ATTR_RW(set_datatype),
-	__ATTR_RW(set_subbuffer_size),
-	__ATTR_RW(set_packets_per_xact),
-};
+#define DEV_ATTR(_name)  (&dev_attr_##_name.attr)
 
-/**
- * most_channel_def_attrs - array of default attributes of channel object
- */
-static struct attribute *most_channel_def_attrs[] = {
-	&most_c_attrs[0].attr,
-	&most_c_attrs[1].attr,
-	&most_c_attrs[2].attr,
-	&most_c_attrs[3].attr,
-	&most_c_attrs[4].attr,
-	&most_c_attrs[5].attr,
-	&most_c_attrs[6].attr,
-	&most_c_attrs[7].attr,
-	&most_c_attrs[8].attr,
-	&most_c_attrs[9].attr,
-	&most_c_attrs[10].attr,
-	&most_c_attrs[11].attr,
-	&most_c_attrs[12].attr,
+static DEVICE_ATTR_RO(available_directions);
+static DEVICE_ATTR_RO(available_datatypes);
+static DEVICE_ATTR_RO(number_of_packet_buffers);
+static DEVICE_ATTR_RO(number_of_stream_buffers);
+static DEVICE_ATTR_RO(size_of_stream_buffer);
+static DEVICE_ATTR_RO(size_of_packet_buffer);
+static DEVICE_ATTR_RO(channel_starving);
+static DEVICE_ATTR_RW(set_buffer_size);
+static DEVICE_ATTR_RW(set_number_of_buffers);
+static DEVICE_ATTR_RW(set_direction);
+static DEVICE_ATTR_RW(set_datatype);
+static DEVICE_ATTR_RW(set_subbuffer_size);
+static DEVICE_ATTR_RW(set_packets_per_xact);
+
+static struct attribute *channel_attrs[] = {
+	DEV_ATTR(available_directions),
+	DEV_ATTR(available_datatypes),
+	DEV_ATTR(number_of_packet_buffers),
+	DEV_ATTR(number_of_stream_buffers),
+	DEV_ATTR(size_of_stream_buffer),
+	DEV_ATTR(size_of_packet_buffer),
+	DEV_ATTR(channel_starving),
+	DEV_ATTR(set_buffer_size),
+	DEV_ATTR(set_number_of_buffers),
+	DEV_ATTR(set_direction),
+	DEV_ATTR(set_datatype),
+	DEV_ATTR(set_subbuffer_size),
+	DEV_ATTR(set_packets_per_xact),
 	NULL,
 };
 
-static struct kobj_type most_channel_ktype = {
-	.sysfs_ops = &most_channel_sysfs_ops,
-	.release = most_channel_release,
-	.default_attrs = most_channel_def_attrs,
+static struct attribute_group channel_attr_group = {
+	.attrs = channel_attrs,
 };
 
-static struct kset *most_channel_kset;
-
-/**
- * create_most_c_obj - allocates a channel object
- * @name: name of the channel object
- * @parent: parent kobject
- *
- * This create a channel object and registers it with sysfs.
- * Returns a pointer to the object or NULL when something went wrong.
- */
-static struct most_c_obj *
-create_most_c_obj(const char *name, struct kobject *parent)
-{
-	struct most_c_obj *c;
-	int retval;
-
-	c = kzalloc(sizeof(*c), GFP_KERNEL);
-	if (!c)
-		return NULL;
-	c->kobj.kset = most_channel_kset;
-	retval = kobject_init_and_add(&c->kobj, &most_channel_ktype, parent,
-				      "%s", name);
-	if (retval) {
-		kobject_put(&c->kobj);
-		return NULL;
-	}
-	kobject_uevent(&c->kobj, KOBJ_ADD);
-	return c;
-}
+static const struct attribute_group *channel_attr_groups[] = {
+	&channel_attr_group,
+	NULL,
+};
 
 /*		     ___	       ___
  *		     ___I N S T A N C E___
@@ -546,103 +467,22 @@ create_most_c_obj(const char *name, struct kobject *parent)
 
 static struct list_head instance_list;
 
-/**
- * struct most_inst_attribute - to access the attributes of instance object
- * @attr: attributes of an instance
- * @show: pointer to the show function
- * @store: pointer to the store function
- */
-struct most_inst_attribute {
-	struct attribute attr;
-	ssize_t (*show)(struct most_inst_obj *d,
-			struct most_inst_attribute *attr,
-			char *buf);
-	ssize_t (*store)(struct most_inst_obj *d,
-			 struct most_inst_attribute *attr,
-			 const char *buf,
-			 size_t count);
-};
-
-#define to_instance_attr(a) \
-	container_of(a, struct most_inst_attribute, attr)
-
-/**
- * instance_attr_show - show function for an instance object
- * @kobj: pointer to kobject
- * @attr: pointer to attribute struct
- * @buf: buffer
- */
-static ssize_t instance_attr_show(struct kobject *kobj,
-				  struct attribute *attr,
-				  char *buf)
-{
-	struct most_inst_attribute *instance_attr;
-	struct most_inst_obj *instance_obj;
-
-	instance_attr = to_instance_attr(attr);
-	instance_obj = to_inst_obj(kobj);
-
-	if (!instance_attr->show)
-		return -EIO;
-
-	return instance_attr->show(instance_obj, instance_attr, buf);
-}
-
-/**
- * instance_attr_store - store function for an instance object
- * @kobj: pointer to kobject
- * @attr: pointer to attribute struct
- * @buf: buffer
- * @len: length of buffer
- */
-static ssize_t instance_attr_store(struct kobject *kobj,
-				   struct attribute *attr,
-				   const char *buf,
-				   size_t len)
-{
-	struct most_inst_attribute *instance_attr;
-	struct most_inst_obj *instance_obj;
-
-	instance_attr = to_instance_attr(attr);
-	instance_obj = to_inst_obj(kobj);
-
-	if (!instance_attr->store)
-		return -EIO;
-
-	return instance_attr->store(instance_obj, instance_attr, buf, len);
-}
-
-static const struct sysfs_ops most_inst_sysfs_ops = {
-	.show = instance_attr_show,
-	.store = instance_attr_store,
-};
-
-/**
- * most_inst_release - release function for instance object
- * @kobj: pointer to instance's kobject
- *
- * This frees the allocated memory for the instance object
- */
-static void most_inst_release(struct kobject *kobj)
-{
-	struct most_inst_obj *inst = to_inst_obj(kobj);
-
-	kfree(inst);
-}
-
-static ssize_t description_show(struct most_inst_obj *instance_obj,
-				struct most_inst_attribute *attr,
+static ssize_t description_show(struct device *dev,
+				struct device_attribute *attr,
 				char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%s\n",
-			instance_obj->iface->description);
+	struct most_interface *iface = to_most_interface(dev);
+
+	return snprintf(buf, PAGE_SIZE, "%s\n", iface->description);
 }
 
-static ssize_t interface_show(struct most_inst_obj *instance_obj,
-			      struct most_inst_attribute *attr,
+static ssize_t interface_show(struct device *dev,
+			      struct device_attribute *attr,
 			      char *buf)
 {
-	switch (instance_obj->iface->interface) {
+	struct most_interface *iface = to_most_interface(dev);
+
+	switch (iface->interface) {
 	case ITYPE_LOOPBACK:
 		return snprintf(buf, PAGE_SIZE, "loopback\n");
 	case ITYPE_I2C:
@@ -665,182 +505,42 @@ static ssize_t interface_show(struct most_inst_obj *instance_obj,
 	return snprintf(buf, PAGE_SIZE, "unknown\n");
 }
 
-static struct most_inst_attribute most_inst_attr_description =
-	__ATTR_RO(description);
+static DEVICE_ATTR_RO(description);
+static DEVICE_ATTR_RO(interface);
 
-static struct most_inst_attribute most_inst_attr_interface =
-	__ATTR_RO(interface);
-
-static struct attribute *most_inst_def_attrs[] = {
-	&most_inst_attr_description.attr,
-	&most_inst_attr_interface.attr,
+static struct attribute *interface_attrs[] = {
+	DEV_ATTR(description),
+	DEV_ATTR(interface),
 	NULL,
 };
 
-static struct kobj_type most_inst_ktype = {
-	.sysfs_ops = &most_inst_sysfs_ops,
-	.release = most_inst_release,
-	.default_attrs = most_inst_def_attrs,
+static struct attribute_group interface_attr_group = {
+	.attrs = interface_attrs,
 };
 
-static struct kset *most_inst_kset;
-
-/**
- * create_most_inst_obj - creates an instance object
- * @name: name of the object to be created
- *
- * This allocates memory for an instance structure, assigns the proper kset
- * and registers it with sysfs.
- *
- * Returns a pointer to the instance object or NULL when something went wrong.
- */
-static struct most_inst_obj *create_most_inst_obj(const char *name)
-{
-	struct most_inst_obj *inst;
-	int retval;
-
-	inst = kzalloc(sizeof(*inst), GFP_KERNEL);
-	if (!inst)
-		return NULL;
-	inst->kobj.kset = most_inst_kset;
-	retval = kobject_init_and_add(&inst->kobj, &most_inst_ktype, NULL,
-				      "%s", name);
-	if (retval) {
-		kobject_put(&inst->kobj);
-		return NULL;
-	}
-	kobject_uevent(&inst->kobj, KOBJ_ADD);
-	return inst;
-}
-
-/**
- * destroy_most_inst_obj - MOST instance release function
- * @inst: pointer to the instance object
- *
- * This decrements the reference counter of the instance object.
- * If the reference count turns zero, its release function is called
- */
-static void destroy_most_inst_obj(struct most_inst_obj *inst)
-{
-	struct most_c_obj *c, *tmp;
-
-	list_for_each_entry_safe(c, tmp, &inst->channel_list, list) {
-		flush_trash_fifo(c);
-		flush_channel_fifos(c);
-		kobject_put(&c->kobj);
-	}
-	kobject_put(&inst->kobj);
-}
+static const struct attribute_group *interface_attr_groups[] = {
+	&interface_attr_group,
+	NULL,
+};
 
 /*		     ___     ___
  *		     ___A I M___
  */
-struct most_aim_obj {
-	struct kobject kobj;
-	struct list_head list;
-	struct most_aim *driver;
-};
-
-#define to_aim_obj(d) container_of(d, struct most_aim_obj, kobj)
-
-static struct list_head aim_list;
-
-/**
- * struct most_aim_attribute - to access the attributes of AIM object
- * @attr: attributes of an AIM
- * @show: pointer to the show function
- * @store: pointer to the store function
- */
-struct most_aim_attribute {
-	struct attribute attr;
-	ssize_t (*show)(struct most_aim_obj *d,
-			struct most_aim_attribute *attr,
-			char *buf);
-	ssize_t (*store)(struct most_aim_obj *d,
-			 struct most_aim_attribute *attr,
-			 const char *buf,
-			 size_t count);
-};
-
-#define to_aim_attr(a) container_of(a, struct most_aim_attribute, attr)
-
-/**
- * aim_attr_show - show function of an AIM object
- * @kobj: pointer to kobject
- * @attr: pointer to attribute struct
- * @buf: buffer
- */
-static ssize_t aim_attr_show(struct kobject *kobj,
-			     struct attribute *attr,
-			     char *buf)
-{
-	struct most_aim_attribute *aim_attr;
-	struct most_aim_obj *aim_obj;
-
-	aim_attr = to_aim_attr(attr);
-	aim_obj = to_aim_obj(kobj);
-
-	if (!aim_attr->show)
-		return -EIO;
-
-	return aim_attr->show(aim_obj, aim_attr, buf);
-}
-
-/**
- * aim_attr_store - store function of an AIM object
- * @kobj: pointer to kobject
- * @attr: pointer to attribute struct
- * @buf: buffer
- * @len: length of buffer
- */
-static ssize_t aim_attr_store(struct kobject *kobj,
-			      struct attribute *attr,
-			      const char *buf,
-			      size_t len)
-{
-	struct most_aim_attribute *aim_attr;
-	struct most_aim_obj *aim_obj;
-
-	aim_attr = to_aim_attr(attr);
-	aim_obj = to_aim_obj(kobj);
-
-	if (!aim_attr->store)
-		return -EIO;
-	return aim_attr->store(aim_obj, aim_attr, buf, len);
-}
-
-static const struct sysfs_ops most_aim_sysfs_ops = {
-	.show = aim_attr_show,
-	.store = aim_attr_store,
-};
-
-/**
- * most_aim_release - AIM release function
- * @kobj: pointer to AIM's kobject
- */
-static void most_aim_release(struct kobject *kobj)
-{
-	struct most_aim_obj *aim_obj = to_aim_obj(kobj);
-
-	kfree(aim_obj);
-}
-
-static ssize_t links_show(struct most_aim_obj *aim_obj,
-			  struct most_aim_attribute *attr,
+static ssize_t links_show(struct device *dev, struct device_attribute *attr,
 			  char *buf)
 {
 	struct most_c_obj *c;
 	struct most_inst_obj *i;
+	struct most_aim *aim = to_most_aim(dev);
 	int offs = 0;
 
 	list_for_each_entry(i, &instance_list, list) {
 		list_for_each_entry(c, &i->channel_list, list) {
-			if (c->aim0.ptr == aim_obj->driver ||
-			    c->aim1.ptr == aim_obj->driver) {
+			if (c->aim0.ptr == aim || c->aim1.ptr == aim) {
 				offs += snprintf(buf + offs, PAGE_SIZE - offs,
 						 "%s:%s\n",
-						 kobject_name(&i->kobj),
-						 kobject_name(&c->kobj));
+						 dev_name(&i->iface->dev),
+						 dev_name(&c->dev));
 			}
 		}
 	}
@@ -901,7 +601,7 @@ most_c_obj *get_channel_by_name(char *mdev, char *mdev_ch)
 	int found = 0;
 
 	list_for_each_entry_safe(i, i_tmp, &instance_list, list) {
-		if (!strcmp(kobject_name(&i->kobj), mdev)) {
+		if (!strcmp(dev_name(&i->iface->dev), mdev)) {
 			found++;
 			break;
 		}
@@ -910,7 +610,7 @@ most_c_obj *get_channel_by_name(char *mdev, char *mdev_ch)
 		return ERR_PTR(-EIO);
 
 	list_for_each_entry_safe(c, tmp, &i->channel_list, list) {
-		if (!strcmp(kobject_name(&c->kobj), mdev_ch)) {
+		if (!strcmp(dev_name(&c->dev), mdev_ch)) {
 			found++;
 			break;
 		}
@@ -942,13 +642,14 @@ most_c_obj *get_channel_by_name(char *mdev, char *mdev_ch)
  * (1) would create the device node /dev/my_rxchannel
  * (2) would create the device node /dev/mdev1-ep81
  */
-static ssize_t add_link_store(struct most_aim_obj *aim_obj,
-			      struct most_aim_attribute *attr,
+static ssize_t add_link_store(struct device *dev,
+			      struct device_attribute *attr,
 			      const char *buf,
 			      size_t len)
 {
 	struct most_c_obj *c;
 	struct most_aim **aim_ptr;
+	struct most_aim *aim = to_most_aim(dev);
 	char buffer[STRING_SIZE];
 	char *mdev;
 	char *mdev_ch;
@@ -980,9 +681,8 @@ static ssize_t add_link_store(struct most_aim_obj *aim_obj,
 	else
 		return -ENOSPC;
 
-	*aim_ptr = aim_obj->driver;
-	ret = aim_obj->driver->probe_channel(c->iface, c->channel_id,
-					     &c->cfg, &c->kobj, mdev_devnod);
+	*aim_ptr = aim;
+	ret = aim->probe_channel(c->iface, c->channel_id, &c->cfg, mdev_devnod);
 	if (ret) {
 		*aim_ptr = NULL;
 		return ret;
@@ -1001,12 +701,13 @@ static ssize_t add_link_store(struct most_aim_obj *aim_obj,
  * Example:
  * echo "mdev0:ep81" >remove_link
  */
-static ssize_t remove_link_store(struct most_aim_obj *aim_obj,
-				 struct most_aim_attribute *attr,
+static ssize_t remove_link_store(struct device *dev,
+				 struct device_attribute *attr,
 				 const char *buf,
 				 size_t len)
 {
 	struct most_c_obj *c;
+	struct most_aim *aim = to_most_aim(dev);
 	char buffer[STRING_SIZE];
 	char *mdev;
 	char *mdev_ch;
@@ -1022,74 +723,34 @@ static ssize_t remove_link_store(struct most_aim_obj *aim_obj,
 	if (IS_ERR(c))
 		return -ENODEV;
 
-	if (aim_obj->driver->disconnect_channel(c->iface, c->channel_id))
+	if (aim->disconnect_channel(c->iface, c->channel_id))
 		return -EIO;
-	if (c->aim0.ptr == aim_obj->driver)
+	if (c->aim0.ptr == aim)
 		c->aim0.ptr = NULL;
-	if (c->aim1.ptr == aim_obj->driver)
+	if (c->aim1.ptr == aim)
 		c->aim1.ptr = NULL;
 	return len;
 }
 
-static struct most_aim_attribute most_aim_attrs[] = {
-	__ATTR_RO(links),
-	__ATTR_WO(add_link),
-	__ATTR_WO(remove_link),
-};
+static DEVICE_ATTR_RO(links);
+static DEVICE_ATTR_WO(add_link);
+static DEVICE_ATTR_WO(remove_link);
 
-static struct attribute *most_aim_def_attrs[] = {
-	&most_aim_attrs[0].attr,
-	&most_aim_attrs[1].attr,
-	&most_aim_attrs[2].attr,
+static struct attribute *aim_attrs[] = {
+	DEV_ATTR(links),
+	DEV_ATTR(add_link),
+	DEV_ATTR(remove_link),
 	NULL,
 };
 
-static struct kobj_type most_aim_ktype = {
-	.sysfs_ops = &most_aim_sysfs_ops,
-	.release = most_aim_release,
-	.default_attrs = most_aim_def_attrs,
+static struct attribute_group aim_attr_group = {
+	.attrs = aim_attrs,
 };
 
-static struct kset *most_aim_kset;
-
-/**
- * create_most_aim_obj - creates an AIM object
- * @name: name of the AIM
- *
- * This creates an AIM object assigns the proper kset and registers
- * it with sysfs.
- * Returns a pointer to the object or NULL if something went wrong.
- */
-static struct most_aim_obj *create_most_aim_obj(const char *name)
-{
-	struct most_aim_obj *most_aim;
-	int retval;
-
-	most_aim = kzalloc(sizeof(*most_aim), GFP_KERNEL);
-	if (!most_aim)
-		return NULL;
-	most_aim->kobj.kset = most_aim_kset;
-	retval = kobject_init_and_add(&most_aim->kobj, &most_aim_ktype,
-				      NULL, "%s", name);
-	if (retval) {
-		kobject_put(&most_aim->kobj);
-		return NULL;
-	}
-	kobject_uevent(&most_aim->kobj, KOBJ_ADD);
-	return most_aim;
-}
-
-/**
- * destroy_most_aim_obj - AIM release function
- * @p: pointer to AIM object
- *
- * This decrements the reference counter of the AIM object. If the
- * reference count turns zero, its release function will be called.
- */
-static void destroy_most_aim_obj(struct most_aim_obj *p)
-{
-	kobject_put(&p->kobj);
-}
+static const struct attribute_group *aim_attr_groups[] = {
+	&aim_attr_group,
+	NULL,
+};
 
 /*		     ___       ___
  *		     ___C O R E___
@@ -1615,28 +1276,35 @@ out:
 }
 EXPORT_SYMBOL_GPL(most_stop_channel);
 
+void release_aim(struct device *dev)
+{
+	pr_info("releasing aim %s\n", dev_name(dev));
+}
+
 /**
  * most_register_aim - registers an AIM (driver) with the core
  * @aim: instance of AIM to be registered
  */
 int most_register_aim(struct most_aim *aim)
 {
-	struct most_aim_obj *aim_obj;
+	int ret;
 
 	if (!aim) {
 		pr_err("Bad driver\n");
 		return -EINVAL;
 	}
-	aim_obj = create_most_aim_obj(aim->name);
-	if (!aim_obj) {
-		pr_info("failed to alloc driver object\n");
-		return -ENOMEM;
+	aim->dev.init_name = aim->name;
+	aim->dev.bus = &most_bus;
+	aim->dev.parent = &core_dev;
+	aim->dev.groups = aim_attr_groups;
+	aim->dev.release = release_aim;
+	ret = device_register(&aim->dev);
+	if (ret) {
+		pr_err("registering device %s failed\n", aim->name);
+		return ret;
 	}
-	aim_obj->driver = aim;
-	aim->context = aim_obj;
 	pr_info("registered new application interfacing module %s\n",
 		aim->name);
-	list_add_tail(&aim_obj->list, &aim_list);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(most_register_aim);
@@ -1647,7 +1315,6 @@ EXPORT_SYMBOL_GPL(most_register_aim);
  */
 int most_deregister_aim(struct most_aim *aim)
 {
-	struct most_aim_obj *aim_obj;
 	struct most_c_obj *c, *tmp;
 	struct most_inst_obj *i, *i_tmp;
 
@@ -1656,11 +1323,6 @@ int most_deregister_aim(struct most_aim *aim)
 		return -EINVAL;
 	}
 
-	aim_obj = aim->context;
-	if (!aim_obj) {
-		pr_info("driver not registered.\n");
-		return -EINVAL;
-	}
 	list_for_each_entry_safe(i, i_tmp, &instance_list, list) {
 		list_for_each_entry_safe(c, tmp, &i->channel_list, list) {
 			if (c->aim0.ptr == aim || c->aim1.ptr == aim)
@@ -1672,12 +1334,21 @@ int most_deregister_aim(struct most_aim *aim)
 				c->aim1.ptr = NULL;
 		}
 	}
-	list_del(&aim_obj->list);
-	destroy_most_aim_obj(aim_obj);
+	device_unregister(&aim->dev);
 	pr_info("deregistering application interfacing module %s\n", aim->name);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(most_deregister_aim);
+
+static void release_interface(struct device *dev)
+{
+	pr_info("releasing interface dev %s...\n", dev_name(dev));
+}
+
+static void release_channel(struct device *dev)
+{
+	pr_info("releasing channel dev %s...\n", dev_name(dev));
+}
 
 /**
  * most_register_interface - registers an interface with core
@@ -1686,7 +1357,7 @@ EXPORT_SYMBOL_GPL(most_deregister_aim);
  * Allocates and initializes a new interface instance and all of its channels.
  * Returns a pointer to kobject or an error pointer.
  */
-struct kobject *most_register_interface(struct most_interface *iface)
+int most_register_interface(struct most_interface *iface)
 {
 	unsigned int i;
 	int id;
@@ -1698,21 +1369,20 @@ struct kobject *most_register_interface(struct most_interface *iface)
 	if (!iface || !iface->enqueue || !iface->configure ||
 	    !iface->poison_channel || (iface->num_channels > MAX_CHANNELS)) {
 		pr_err("Bad interface or channel overflow\n");
-		return ERR_PTR(-EINVAL);
+		return -EINVAL;
 	}
 
 	id = ida_simple_get(&mdev_id, 0, 0, GFP_KERNEL);
 	if (id < 0) {
 		pr_info("Failed to alloc mdev ID\n");
-		return ERR_PTR(id);
+		return id;
 	}
-	snprintf(name, STRING_SIZE, "mdev%d", id);
 
-	inst = create_most_inst_obj(name);
+	inst = kzalloc(sizeof(*inst), GFP_KERNEL);
 	if (!inst) {
 		pr_info("Failed to allocate interface instance\n");
 		ida_simple_remove(&mdev_id, id);
-		return ERR_PTR(-ENOMEM);
+		return -ENOMEM;
 	}
 
 	iface->priv = inst;
@@ -1720,6 +1390,18 @@ struct kobject *most_register_interface(struct most_interface *iface)
 	inst->iface = iface;
 	inst->dev_id = id;
 	list_add_tail(&inst->list, &instance_list);
+	snprintf(name, STRING_SIZE, "mdev%d", id);
+	iface->dev.init_name = name;
+	iface->dev.bus = &most_bus;
+	iface->dev.parent = &core_dev;
+	iface->dev.groups = interface_attr_groups;
+	iface->dev.release = release_interface;
+	if (device_register(&iface->dev)) {
+		pr_err("registering iface->dev failed\n");
+		kfree(inst);
+		ida_simple_remove(&mdev_id, id);
+		return -ENOMEM;
+	}
 
 	for (i = 0; i < iface->num_channels; i++) {
 		const char *name_suffix = iface->channel_vector[i].name_suffix;
@@ -1730,9 +1412,17 @@ struct kobject *most_register_interface(struct most_interface *iface)
 			snprintf(channel_name, STRING_SIZE, "%s", name_suffix);
 
 		/* this increments the reference count of this instance */
-		c = create_most_c_obj(channel_name, &inst->kobj);
+		c = kzalloc(sizeof(*c), GFP_KERNEL);
 		if (!c)
 			goto free_instance;
+		c->dev.init_name = channel_name;
+		c->dev.parent = &iface->dev;
+		c->dev.groups = channel_attr_groups;
+		c->dev.release = release_channel;
+		if (device_register(&c->dev)) {
+			pr_err("registering c->dev failed\n");
+			goto free_instance;
+		}
 		inst->channel[i] = c;
 		c->is_starving = 0;
 		c->iface = iface;
@@ -1758,15 +1448,14 @@ struct kobject *most_register_interface(struct most_interface *iface)
 		list_add_tail(&c->list, &inst->channel_list);
 	}
 	pr_info("registered new MOST device mdev%d (%s)\n",
-		inst->dev_id, iface->description);
-	return &inst->kobj;
+		id, iface->description);
+	return 0;
 
 free_instance:
 	pr_info("Failed allocate channel(s)\n");
-	list_del(&inst->list);
+	device_unregister(&iface->dev);
 	ida_simple_remove(&mdev_id, id);
-	destroy_most_inst_obj(inst);
-	return ERR_PTR(-ENOMEM);
+	return -ENOMEM;
 }
 EXPORT_SYMBOL_GPL(most_register_interface);
 
@@ -1779,17 +1468,14 @@ EXPORT_SYMBOL_GPL(most_register_interface);
  */
 void most_deregister_interface(struct most_interface *iface)
 {
-	struct most_inst_obj *i = iface->priv;
+	int i;
 	struct most_c_obj *c;
+	struct most_inst_obj *inst;
 
-	if (unlikely(!i)) {
-		pr_info("Bad Interface\n");
-		return;
-	}
-	pr_info("deregistering MOST device %s (%s)\n", i->kobj.name,
-		iface->description);
-
-	list_for_each_entry(c, &i->channel_list, list) {
+	pr_info("deregistering MOST device %s (%s)\n", dev_name(&iface->dev), iface->description);
+	inst = iface->priv;
+	for (i = 0; i < iface->num_channels; i++) {
+		c = inst->channel[i];
 		if (c->aim0.ptr)
 			c->aim0.ptr->disconnect_channel(c->iface,
 							c->channel_id);
@@ -1798,11 +1484,14 @@ void most_deregister_interface(struct most_interface *iface)
 							c->channel_id);
 		c->aim0.ptr = NULL;
 		c->aim1.ptr = NULL;
+		list_del(&c->list);
+		device_unregister(&c->dev);
+		kfree(c);
 	}
 
-	ida_simple_remove(&mdev_id, i->dev_id);
-	list_del(&i->list);
-	destroy_most_inst_obj(i);
+	ida_simple_remove(&mdev_id, inst->dev_id);
+	kfree(inst);
+	device_unregister(&iface->dev);
 }
 EXPORT_SYMBOL_GPL(most_deregister_interface);
 
@@ -1852,13 +1541,17 @@ void most_resume_enqueue(struct most_interface *iface, int id)
 }
 EXPORT_SYMBOL_GPL(most_resume_enqueue);
 
+static void release_most_sub(struct device *dev)
+{
+	pr_info("releasing most_subsystem\n");
+}
+
 static int __init most_init(void)
 {
 	int err;
 
 	pr_info("init()\n");
 	INIT_LIST_HEAD(&instance_list);
-	INIT_LIST_HEAD(&aim_list);
 	ida_init(&mdev_id);
 
 	err = bus_register(&most_bus);
@@ -1880,30 +1573,15 @@ static int __init most_init(void)
 		goto exit_class;
 	}
 
-	core_dev = device_create(most_class, NULL, 0, NULL, "mostcore");
-	if (IS_ERR(core_dev)) {
-		err = PTR_ERR(core_dev);
+	core_dev.init_name = "most_bus";
+	core_dev.release = release_most_sub;
+	if (device_register(&core_dev)) {
+		err = -ENOMEM;
 		goto exit_driver;
-	}
-
-	most_aim_kset = kset_create_and_add("aims", NULL, &core_dev->kobj);
-	if (!most_aim_kset) {
-		err = -ENOMEM;
-		goto exit_class_container;
-	}
-
-	most_inst_kset = kset_create_and_add("devices", NULL, &core_dev->kobj);
-	if (!most_inst_kset) {
-		err = -ENOMEM;
-		goto exit_driver_kset;
 	}
 
 	return 0;
 
-exit_driver_kset:
-	kset_unregister(most_aim_kset);
-exit_class_container:
-	device_destroy(most_class, 0);
 exit_driver:
 	driver_unregister(&mostcore);
 exit_class:
@@ -1915,21 +1593,8 @@ exit_bus:
 
 static void __exit most_exit(void)
 {
-	struct most_inst_obj *i, *i_tmp;
-	struct most_aim_obj *d, *d_tmp;
-
 	pr_info("exit core module\n");
-	list_for_each_entry_safe(d, d_tmp, &aim_list, list) {
-		destroy_most_aim_obj(d);
-	}
-
-	list_for_each_entry_safe(i, i_tmp, &instance_list, list) {
-		list_del(&i->list);
-		destroy_most_inst_obj(i);
-	}
-	kset_unregister(most_inst_kset);
-	kset_unregister(most_aim_kset);
-	device_destroy(most_class, 0);
+	device_unregister(&core_dev);
 	driver_unregister(&mostcore);
 	class_destroy(most_class);
 	bus_unregister(&most_bus);
