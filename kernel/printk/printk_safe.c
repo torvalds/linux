@@ -72,7 +72,7 @@ static void queue_flush_work(struct printk_safe_seq_buf *s)
  * have dedicated buffers, because otherwise printk-safe preempted by
  * NMI-printk would have overwritten the NMI messages.
  *
- * The messages are fushed from irq work (or from panic()), possibly,
+ * The messages are flushed from irq work (or from panic()), possibly,
  * from other CPU, concurrently with printk_safe_log_store(). Should this
  * happen, printk_safe_log_store() will notice the buffer->len mismatch
  * and repeat the write.
