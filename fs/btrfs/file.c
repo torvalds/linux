@@ -2057,6 +2057,8 @@ int btrfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 	len = (u64)end - (u64)start + 1;
 	trace_btrfs_sync_file(file, datasync);
 
+	btrfs_init_log_ctx(&ctx, inode);
+
 	/*
 	 * We write the dirty pages in the range and wait until they complete
 	 * out of the ->i_mutex. If so, we can flush the dirty pages by
@@ -2203,8 +2205,6 @@ int btrfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 	}
 	trans->sync = true;
 
-	btrfs_init_log_ctx(&ctx, inode);
-
 	ret = btrfs_log_dentry_safe(trans, root, dentry, start, end, &ctx);
 	if (ret < 0) {
 		/* Fallthrough and commit/free transaction. */
@@ -2262,6 +2262,7 @@ int btrfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 		ret = btrfs_end_transaction(trans);
 	}
 out:
+	ASSERT(list_empty(&ctx.list));
 	err = file_check_and_advance_wb_err(file);
 	if (!ret)
 		ret = err;
