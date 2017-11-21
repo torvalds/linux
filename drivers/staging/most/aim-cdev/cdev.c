@@ -16,7 +16,7 @@
 #include <linux/kfifo.h>
 #include <linux/uaccess.h>
 #include <linux/idr.h>
-#include "mostcore.h"
+#include "most/core.h"
 
 static dev_t aim_devno;
 static struct class *aim_class;

@@ -19,7 +19,7 @@
 #include <linux/sched.h>
 #include <linux/kthread.h>
 
-#include <mostcore.h>
+#include "most/core.h"
 #include "dim2_hal.h"
 #include "dim2_hdm.h"
 #include "dim2_errors.h"

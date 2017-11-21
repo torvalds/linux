@@ -16,7 +16,7 @@
 #include <sound/pcm_params.h>
 #include <linux/sched.h>
 #include <linux/kthread.h>
-#include <mostcore.h>
+#include <most/core.h>
 
 #define DRIVER_NAME "sound"
 

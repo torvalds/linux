@@ -21,7 +21,7 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-fh.h>
 
-#include "mostcore.h"
+#include "most/core.h"
 
 #define V4L2_AIM_MAX_INPUT  1
 

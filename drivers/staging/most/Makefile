@@ -1,5 +1,8 @@
 # SPDX-License-Identifier: GPL-2.0
-obj-$(CONFIG_MOSTCORE)	+= mostcore/
+obj-$(CONFIG_MOST) += most_core.o
+most_core-y := core.o
+ccflags-y += -Idrivers/staging/
+
 obj-$(CONFIG_AIM_CDEV)	+= aim-cdev/
 obj-$(CONFIG_AIM_NETWORK)	+= aim-network/
 obj-$(CONFIG_AIM_SOUND)	+= aim-sound/
