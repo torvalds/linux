@@ -118,6 +118,17 @@
 		gpios = <&gpio2 6 GPIO_ACTIVE_LOW>;
 	};
 
+	reg_pcie_gpio: regulator-pcie-gpio {
+		compatible = "regulator-fixed";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_pcie_reg>;
+		regulator-name = "MPCIE_3V3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&gpio2 1 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
 	sound {
 		compatible = "fsl,imx6sx-sdb-wm8962", "fsl,imx-audio-wm8962";
 		model = "wm8962-audio";
@@ -197,6 +208,14 @@
 		SPKVDD1-supply = <&reg_psu_5v>;
 		SPKVDD2-supply = <&reg_psu_5v>;
 	};
+};
+
+&pcie {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pcie>;
+	reset-gpio = <&gpio2 0 GPIO_ACTIVE_LOW>;
+	vpcie-supply = <&reg_pcie_gpio>;
+	status = "okay";
 };
 
 &lcdif1 {
@@ -437,6 +456,18 @@
 				MX6SX_PAD_LCD1_VSYNC__LCDIF1_VSYNC 0x4001b0b0
 				MX6SX_PAD_LCD1_HSYNC__LCDIF1_HSYNC 0x4001b0b0
 				MX6SX_PAD_LCD1_RESET__GPIO3_IO_27 0x4001b0b0
+			>;
+		};
+
+		pinctrl_pcie: pciegrp {
+			fsl,pins = <
+				MX6SX_PAD_ENET1_COL__GPIO2_IO_0 0x10b0
+			>;
+		};
+
+		pinctrl_pcie_reg: pciereggrp {
+			fsl,pins = <
+				MX6SX_PAD_ENET1_CRS__GPIO2_IO_1	0x10b0
 			>;
 		};
 
