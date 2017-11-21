@@ -43,6 +43,11 @@
 / {
 	compatible = "rockchip,rk3128";
 
+	qos_ebc: qos@1012f080 {
+		compatible = "syscon";
+		reg = <0x1012f080 0x20>;
+	};
+
 	cru: clock-controller@20000000 {
 		compatible = "rockchip,rk3128-cru";
 		reg = <0x20000000 0x1000>;
@@ -50,6 +55,14 @@
 		#clock-cells = <1>;
 		#reset-cells = <1>;
 	};
+};
+
+&pd_vio {
+	pm_qos = <&qos_rga>,
+		 <&qos_ebc>,
+		 <&qos_iep>,
+		 <&qos_lcdc0>,
+		 <&qos_vip0>;
 };
 
 &vop_mmu {

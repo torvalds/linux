@@ -288,7 +288,7 @@
 			#size-cells = <0>;
 			status = "okay";
 
-			pd_vio@RK3128_PD_VIO {
+			pd_vio: pd_vio@RK3128_PD_VIO {
 				reg = <RK3128_PD_VIO>;
 				clocks = <&cru ACLK_RGA>,
 					 <&cru ACLK_LCDC0>,
@@ -309,7 +309,6 @@
 					 <&cru PCLK_MIPIPHY>,
 					 <&cru SCLK_VOP>;
 				pm_qos = <&qos_rga>,
-					 <&qos_ebc>,
 					 <&qos_iep>,
 					 <&qos_lcdc0>,
 					 <&qos_vip0>;
@@ -505,11 +504,6 @@
 	qos_rga: qos@1012f000 {
 		compatible = "syscon";
 		reg = <0x1012f000 0x20>;
-	};
-
-	qos_ebc: qos@1012f080 {
-		compatible = "syscon";
-		reg = <0x1012f080 0x20>;
 	};
 
 	qos_iep: qos@1012f100 {
