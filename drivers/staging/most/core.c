@@ -520,7 +520,7 @@ static const struct attribute_group *interface_attr_groups[] = {
 	NULL,
 };
 
-static struct core_component *match_module(char *name)
+static struct core_component *match_component(char *name)
 {
 	struct core_component *comp;
 
@@ -565,7 +565,7 @@ static ssize_t links_show(struct device_driver *drv, char *buf)
 	return strlen(buf);
 }
 
-static ssize_t modules_show(struct device_driver *drv, char *buf)
+static ssize_t components_show(struct device_driver *drv, char *buf)
 {
 	struct core_component *comp;
 	int offs = 0;
@@ -714,7 +714,7 @@ static ssize_t add_link_store(struct device_driver *drv,
 	ret = split_string(buffer, &mdev, &mdev_ch, &comp_name, &comp_param);
 	if (ret)
 		return ret;
-	comp = match_module(comp_name);
+	comp = match_component(comp_name);
 	if (!comp_param || *comp_param == 0) {
 		snprintf(devnod_buf, sizeof(devnod_buf), "%s-%s", mdev,
 			 mdev_ch);
@@ -758,7 +758,7 @@ static ssize_t remove_link_store(struct device_driver *drv,
 	ret = split_string(buffer, &mdev, &mdev_ch, &comp_name, NULL);
 	if (ret)
 		return ret;
-	comp = match_module(comp_name);
+	comp = match_component(comp_name);
 	c = get_channel(mdev, mdev_ch);
 	if (!c)
 		return -ENODEV;
@@ -775,24 +775,24 @@ static ssize_t remove_link_store(struct device_driver *drv,
 #define DRV_ATTR(_name)  (&driver_attr_##_name.attr)
 
 static DRIVER_ATTR_RO(links);
-static DRIVER_ATTR_RO(modules);
+static DRIVER_ATTR_RO(components);
 static DRIVER_ATTR_WO(add_link);
 static DRIVER_ATTR_WO(remove_link);
 
-static struct attribute *module_attrs[] = {
+static struct attribute *mc_attrs[] = {
 	DRV_ATTR(links),
-	DRV_ATTR(modules),
+	DRV_ATTR(components),
 	DRV_ATTR(add_link),
 	DRV_ATTR(remove_link),
 	NULL,
 };
 
-static struct attribute_group module_attr_group = {
-	.attrs = module_attrs,
+static struct attribute_group mc_attr_group = {
+	.attrs = mc_attrs,
 };
 
-static const struct attribute_group *module_attr_groups[] = {
-	&module_attr_group,
+static const struct attribute_group *mc_attr_groups[] = {
+	&mc_attr_group,
 	NULL,
 };
 
@@ -1552,7 +1552,7 @@ static int __init most_init(void)
 	mc.bus.match = most_match,
 	mc.drv.name = "most_core",
 	mc.drv.bus = &mc.bus,
-	mc.drv.groups = module_attr_groups;
+	mc.drv.groups = mc_attr_groups;
 
 	err = bus_register(&mc.bus);
 	if (err) {
