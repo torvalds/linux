@@ -26,10 +26,18 @@
 #define MAX_CHANNELS	64
 #define STRING_SIZE	80
 
-static struct class *most_class;
-static struct device core_dev;
 static struct ida mdev_id;
 static int dummy_num_buffers;
+
+static struct mostcore {
+	struct device dev;
+	struct device_driver drv;
+	struct bus_type bus;
+	struct class *class;
+	struct list_head mod_list;
+} mc;
+
+#define to_driver(d) container_of(d, struct mostcore, drv);
 
 struct pipe {
 	struct most_aim *aim;
@@ -777,22 +785,6 @@ int most_match(struct device *dev, struct device_driver *drv)
 		return 1;
 }
 
-/**
- * Instantiation of the MOST bus
- */
-static struct bus_type most_bus = {
-	.name = "most",
-	.match = most_match,
-};
-
-/**
- * Instantiation of the core driver
- */
-static struct device_driver mostcore = {
-	.name = "mostcore",
-	.bus = &most_bus,
-};
-
 static inline void trash_mbo(struct mbo *mbo)
 {
 	unsigned long flags;
@@ -1293,8 +1285,8 @@ int most_register_aim(struct most_aim *aim)
 		return -EINVAL;
 	}
 	aim->dev.init_name = aim->name;
-	aim->dev.bus = &most_bus;
-	aim->dev.parent = &core_dev;
+	aim->dev.bus = &mc.bus;
+	aim->dev.parent = &mc.dev;
 	aim->dev.groups = aim_attr_groups;
 	aim->dev.release = release_aim;
 	ret = device_register(&aim->dev);
@@ -1391,8 +1383,8 @@ int most_register_interface(struct most_interface *iface)
 	list_add_tail(&inst->list, &instance_list);
 	snprintf(name, STRING_SIZE, "mdev%d", id);
 	iface->dev.init_name = name;
-	iface->dev.bus = &most_bus;
-	iface->dev.parent = &core_dev;
+	iface->dev.bus = &mc.bus;
+	iface->dev.parent = &mc.dev;
 	iface->dev.groups = interface_attr_groups;
 	iface->dev.release = release_interface;
 	if (device_register(&iface->dev)) {
@@ -1555,28 +1547,31 @@ static int __init most_init(void)
 	INIT_LIST_HEAD(&instance_list);
 	ida_init(&mdev_id);
 
-	err = bus_register(&most_bus);
+	mc.bus.name = "most",
+	mc.bus.match = most_match,
+	mc.drv.name = "most_core",
+	mc.drv.bus = &mc.bus,
+
+	err = bus_register(&mc.bus);
 	if (err) {
 		pr_info("Cannot register most bus\n");
 		return err;
 	}
-
-	most_class = class_create(THIS_MODULE, "most");
-	if (IS_ERR(most_class)) {
+	mc.class = class_create(THIS_MODULE, "most");
+	if (IS_ERR(mc.class)) {
 		pr_info("No udev support.\n");
-		err = PTR_ERR(most_class);
+		err = PTR_ERR(mc.class);
 		goto exit_bus;
 	}
 
-	err = driver_register(&mostcore);
+	err = driver_register(&mc.drv);
 	if (err) {
 		pr_info("Cannot register core driver\n");
 		goto exit_class;
 	}
-
-	core_dev.init_name = "most_bus";
-	core_dev.release = release_most_sub;
-	if (device_register(&core_dev)) {
+	mc.dev.init_name = "most_bus";
+	mc.dev.release = release_most_sub;
+	if (device_register(&mc.dev)) {
 		err = -ENOMEM;
 		goto exit_driver;
 	}
@@ -1584,21 +1579,21 @@ static int __init most_init(void)
 	return 0;
 
 exit_driver:
-	driver_unregister(&mostcore);
+	driver_unregister(&mc.drv);
 exit_class:
-	class_destroy(most_class);
+	class_destroy(mc.class);
 exit_bus:
-	bus_unregister(&most_bus);
+	bus_unregister(&mc.bus);
 	return err;
 }
 
 static void __exit most_exit(void)
 {
 	pr_info("exit core module\n");
-	device_unregister(&core_dev);
-	driver_unregister(&mostcore);
-	class_destroy(most_class);
-	bus_unregister(&most_bus);
+	device_unregister(&mc.dev);
+	driver_unregister(&mc.drv);
+	class_destroy(mc.class);
+	bus_unregister(&mc.bus);
 	ida_destroy(&mdev_id);
 }
 
