@@ -56,7 +56,6 @@ struct most_channel {
 	struct mutex nq_mutex; /* nq thread synchronization */
 	int is_starving;
 	struct most_interface *iface;
-	struct most_inst_obj *inst;
 	struct most_channel_config cfg;
 	bool keep_mbo;
 	bool enqueue_halt;
@@ -73,12 +72,11 @@ struct most_channel {
 
 #define to_channel(d) container_of(d, struct most_channel, dev)
 
-struct most_inst_obj {
+struct interface_private {
 	int dev_id;
-	struct most_interface *iface;
-	struct list_head channel_list;
+	char name[STRING_SIZE];
 	struct most_channel *channel[MAX_CHANNELS];
-	struct list_head list;
+	struct list_head channel_list;
 };
 
 static const struct {
@@ -472,9 +470,6 @@ static const struct attribute_group *channel_attr_groups[] = {
 /*		     ___	       ___
  *		     ___I N S T A N C E___
  */
-
-static struct list_head instance_list;
-
 static ssize_t description_show(struct device *dev,
 				struct device_attribute *attr,
 				char *buf)
@@ -545,33 +540,38 @@ static struct most_aim *match_module(char *name)
 	return NULL;
 }
 
-static ssize_t links_show(struct device_driver *drv, char *buf)
+int print_links(struct device *dev, void *data)
 {
-	struct most_channel *c;
-	struct most_inst_obj *i;
 	int offs = 0;
+	char *buf = data;
+	struct most_channel *c;
+	struct most_interface *iface = to_most_interface(dev);
 
-	list_for_each_entry(i, &instance_list, list) {
-		list_for_each_entry(c, &i->channel_list, list) {
-			if (c->pipe0.aim) {
-				offs += snprintf(buf + offs,
-						 PAGE_SIZE - offs,
-						 "%s:%s:%s\n",
-						 c->pipe0.aim->name,
-						 dev_name(&i->iface->dev),
-						 dev_name(&c->dev));
-			}
-			if (c->pipe1.aim) {
-				offs += snprintf(buf + offs,
-						 PAGE_SIZE - offs,
-						 "%s:%s:%s\n",
-						 c->pipe1.aim->name,
-						 dev_name(&i->iface->dev),
-						 dev_name(&c->dev));
-			}
+	list_for_each_entry(c, &iface->p->channel_list, list) {
+		if (c->pipe0.aim) {
+			offs += snprintf(buf + offs,
+					 PAGE_SIZE - offs,
+					 "%s:%s:%s\n",
+					 c->pipe0.aim->name,
+					 dev_name(&iface->dev),
+					 dev_name(&c->dev));
+		}
+		if (c->pipe1.aim) {
+			offs += snprintf(buf + offs,
+					 PAGE_SIZE - offs,
+					 "%s:%s:%s\n",
+					 c->pipe1.aim->name,
+					 dev_name(&iface->dev),
+					 dev_name(&c->dev));
 		}
 	}
-	return offs;
+	return 0;
+}
+
+static ssize_t links_show(struct device_driver *drv, char *buf)
+{
+	bus_for_each_dev(&mc.bus, NULL, buf, print_links);
+	return strlen(buf);
 }
 
 static ssize_t modules_show(struct device_driver *drv, char *buf)
@@ -627,6 +627,13 @@ static int split_string(char *buf, char **a, char **b, char **c, char **d)
 	return 0;
 }
 
+static int match_bus_dev(struct device *dev, void *data)
+{
+	char *mdev_name = data;
+
+	return !strcmp(dev_name(dev), mdev_name);
+}
+
 /**
  * get_channel - get pointer to channel object
  * @mdev: name of the device instance
@@ -636,28 +643,19 @@ static int split_string(char *buf, char **a, char **b, char **c, char **d)
  */
 static struct most_channel *get_channel(char *mdev, char *mdev_ch)
 {
+	struct device *dev = NULL;
+	struct most_interface *iface;
 	struct most_channel *c, *tmp;
-	struct most_inst_obj *i, *i_tmp;
-	int found = 0;
 
-	list_for_each_entry_safe(i, i_tmp, &instance_list, list) {
-		if (!strcmp(dev_name(&i->iface->dev), mdev)) {
-			found++;
-			break;
-		}
+	dev = bus_find_device(&mc.bus, NULL, mdev, match_bus_dev);
+	if (!dev)
+		return NULL;
+	iface = to_most_interface(dev);
+	list_for_each_entry_safe(c, tmp, &iface->p->channel_list, list) {
+		if (!strcmp(dev_name(&c->dev), mdev_ch))
+			return c;
 	}
-	if (unlikely(!found))
-		return ERR_PTR(-EIO);
-
-	list_for_each_entry_safe(c, tmp, &i->channel_list, list) {
-		if (!strcmp(dev_name(&c->dev), mdev_ch)) {
-			found++;
-			break;
-		}
-	}
-	if (unlikely(found < 2))
-		return ERR_PTR(-EIO);
-	return c;
+	return NULL;
 }
 
 static
@@ -735,7 +733,7 @@ static ssize_t add_link_store(struct device_driver *drv,
 	}
 
 	c = get_channel(mdev, mdev_ch);
-	if (IS_ERR(c))
+	if (!c)
 		return -ENODEV;
 
 	ret = link_channel_to_aim(c, aim, aim_param);
@@ -774,7 +772,7 @@ static ssize_t remove_link_store(struct device_driver *drv,
 		return ret;
 	aim = match_module(aim_name);
 	c = get_channel(mdev, mdev_ch);
-	if (IS_ERR(c))
+	if (!c)
 		return -ENODEV;
 
 	if (aim->disconnect_channel(c->iface, c->channel_id))
@@ -1042,8 +1040,7 @@ static void most_write_completion(struct mbo *mbo)
 
 int channel_has_mbo(struct most_interface *iface, int id, struct most_aim *aim)
 {
-	struct most_inst_obj *inst = iface->priv;
-	struct most_channel *c = inst->channel[id];
+	struct most_channel *c = iface->p->channel[id];
 	unsigned long flags;
 	int empty;
 
@@ -1075,11 +1072,10 @@ struct mbo *most_get_mbo(struct most_interface *iface, int id,
 {
 	struct mbo *mbo;
 	struct most_channel *c;
-	struct most_inst_obj *inst = iface->priv;
 	unsigned long flags;
 	int *num_buffers_ptr;
 
-	c = inst->channel[id];
+	c = iface->p->channel[id];
 	if (unlikely(!c))
 		return NULL;
 
@@ -1181,8 +1177,7 @@ int most_start_channel(struct most_interface *iface, int id,
 {
 	int num_buffer;
 	int ret;
-	struct most_inst_obj *inst = iface->priv;
-	struct most_channel *c = inst->channel[id];
+	struct most_channel *c = iface->p->channel[id];
 
 	if (unlikely(!c))
 		return -EINVAL;
@@ -1250,15 +1245,13 @@ EXPORT_SYMBOL_GPL(most_start_channel);
 int most_stop_channel(struct most_interface *iface, int id,
 		      struct most_aim *aim)
 {
-	struct most_inst_obj *inst;
 	struct most_channel *c;
 
 	if (unlikely((!iface) || (id >= iface->num_channels) || (id < 0))) {
 		pr_err("Bad interface or index out of range\n");
 		return -EINVAL;
 	}
-	inst = iface->priv;
-	c = inst->channel[id];
+	c = iface->p->channel[id];
 	if (unlikely(!c))
 		return -EINVAL;
 
@@ -1320,33 +1313,38 @@ int most_register_aim(struct most_aim *aim)
 }
 EXPORT_SYMBOL_GPL(most_register_aim);
 
+static int disconnect_channels(struct device *dev, void *data)
+{
+	struct most_interface *iface;
+	struct most_channel *c, *tmp;
+	struct most_aim *aim = data;
+
+	iface = to_most_interface(dev);
+	list_for_each_entry_safe(c, tmp, &iface->p->channel_list, list) {
+		if (c->pipe0.aim == aim || c->pipe1.aim == aim)
+			aim->disconnect_channel(c->iface, c->channel_id);
+		if (c->pipe0.aim == aim)
+			c->pipe0.aim = NULL;
+		if (c->pipe1.aim == aim)
+			c->pipe1.aim = NULL;
+	}
+	return 0;
+}
+
 /**
  * most_deregister_aim - deregisters an AIM (driver) with the core
  * @aim: AIM to be removed
  */
 int most_deregister_aim(struct most_aim *aim)
 {
-	struct most_channel *c, *tmp;
-	struct most_inst_obj *i, *i_tmp;
-
 	if (!aim) {
 		pr_err("Bad driver\n");
 		return -EINVAL;
 	}
 
-	list_for_each_entry_safe(i, i_tmp, &instance_list, list) {
-		list_for_each_entry_safe(c, tmp, &i->channel_list, list) {
-			if (c->pipe0.aim == aim || c->pipe1.aim == aim)
-				aim->disconnect_channel(
-					c->iface, c->channel_id);
-			if (c->pipe0.aim == aim)
-				c->pipe0.aim = NULL;
-			if (c->pipe1.aim == aim)
-				c->pipe1.aim = NULL;
-		}
-	}
+	bus_for_each_dev(&mc.bus, NULL, aim, disconnect_channels);
 	list_del(&aim->list);
-	pr_info("deregistering application interfacing module %s\n", aim->name);
+	pr_info("deregistering module %s\n", aim->name);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(most_deregister_aim);
@@ -1372,10 +1370,8 @@ int most_register_interface(struct most_interface *iface)
 {
 	unsigned int i;
 	int id;
-	char name[STRING_SIZE];
 	char channel_name[STRING_SIZE];
 	struct most_channel *c;
-	struct most_inst_obj *inst;
 
 	if (!iface || !iface->enqueue || !iface->configure ||
 	    !iface->poison_channel || (iface->num_channels > MAX_CHANNELS)) {
@@ -1389,27 +1385,24 @@ int most_register_interface(struct most_interface *iface)
 		return id;
 	}
 
-	inst = kzalloc(sizeof(*inst), GFP_KERNEL);
-	if (!inst) {
+	iface->p = kzalloc(sizeof(*iface->p), GFP_KERNEL);
+	if (!iface->p) {
 		pr_info("Failed to allocate interface instance\n");
 		ida_simple_remove(&mdev_id, id);
 		return -ENOMEM;
 	}
 
-	iface->priv = inst;
-	INIT_LIST_HEAD(&inst->channel_list);
-	inst->iface = iface;
-	inst->dev_id = id;
-	list_add_tail(&inst->list, &instance_list);
-	snprintf(name, STRING_SIZE, "mdev%d", id);
-	iface->dev.init_name = name;
+	INIT_LIST_HEAD(&iface->p->channel_list);
+	iface->p->dev_id = id;
+	snprintf(iface->p->name, STRING_SIZE, "mdev%d", id);
+	iface->dev.init_name = iface->p->name;
 	iface->dev.bus = &mc.bus;
 	iface->dev.parent = &mc.dev;
 	iface->dev.groups = interface_attr_groups;
 	iface->dev.release = release_interface;
 	if (device_register(&iface->dev)) {
 		pr_err("registering iface->dev failed\n");
-		kfree(inst);
+		kfree(iface->p);
 		ida_simple_remove(&mdev_id, id);
 		return -ENOMEM;
 	}
@@ -1422,7 +1415,6 @@ int most_register_interface(struct most_interface *iface)
 		else
 			snprintf(channel_name, STRING_SIZE, "%s", name_suffix);
 
-		/* this increments the reference count of this instance */
 		c = kzalloc(sizeof(*c), GFP_KERNEL);
 		if (!c)
 			goto free_instance;
@@ -1432,12 +1424,11 @@ int most_register_interface(struct most_interface *iface)
 		c->dev.release = release_channel;
 		if (device_register(&c->dev)) {
 			pr_err("registering c->dev failed\n");
-			goto free_instance;
+			goto free_instance_nodev;
 		}
-		inst->channel[i] = c;
+		iface->p->channel[i] = c;
 		c->is_starving = 0;
 		c->iface = iface;
-		c->inst = inst;
 		c->channel_id = i;
 		c->keep_mbo = false;
 		c->enqueue_halt = false;
@@ -1456,14 +1447,22 @@ int most_register_interface(struct most_interface *iface)
 		atomic_set(&c->mbo_ref, 0);
 		mutex_init(&c->start_mutex);
 		mutex_init(&c->nq_mutex);
-		list_add_tail(&c->list, &inst->channel_list);
+		list_add_tail(&c->list, &iface->p->channel_list);
 	}
 	pr_info("registered new MOST device mdev%d (%s)\n",
 		id, iface->description);
 	return 0;
 
+free_instance_nodev:
+	kfree(c);
+
 free_instance:
-	pr_info("Failed allocate channel(s)\n");
+	while (i > 0) {
+		c = iface->p->channel[--i];
+		device_unregister(&c->dev);
+		kfree(c);
+	}
+	kfree(iface->p);
 	device_unregister(&iface->dev);
 	ida_simple_remove(&mdev_id, id);
 	return -ENOMEM;
@@ -1481,12 +1480,10 @@ void most_deregister_interface(struct most_interface *iface)
 {
 	int i;
 	struct most_channel *c;
-	struct most_inst_obj *inst;
 
 	pr_info("deregistering MOST device %s (%s)\n", dev_name(&iface->dev), iface->description);
-	inst = iface->priv;
 	for (i = 0; i < iface->num_channels; i++) {
-		c = inst->channel[i];
+		c = iface->p->channel[i];
 		if (c->pipe0.aim)
 			c->pipe0.aim->disconnect_channel(c->iface,
 							c->channel_id);
@@ -1500,8 +1497,8 @@ void most_deregister_interface(struct most_interface *iface)
 		kfree(c);
 	}
 
-	ida_simple_remove(&mdev_id, inst->dev_id);
-	kfree(inst);
+	ida_simple_remove(&mdev_id, iface->p->dev_id);
+	kfree(iface->p);
 	device_unregister(&iface->dev);
 }
 EXPORT_SYMBOL_GPL(most_deregister_interface);
@@ -1518,8 +1515,7 @@ EXPORT_SYMBOL_GPL(most_deregister_interface);
  */
 void most_stop_enqueue(struct most_interface *iface, int id)
 {
-	struct most_inst_obj *inst = iface->priv;
-	struct most_channel *c = inst->channel[id];
+	struct most_channel *c = iface->p->channel[id];
 
 	if (!c)
 		return;
@@ -1540,8 +1536,7 @@ EXPORT_SYMBOL_GPL(most_stop_enqueue);
  */
 void most_resume_enqueue(struct most_interface *iface, int id)
 {
-	struct most_inst_obj *inst = iface->priv;
-	struct most_channel *c = inst->channel[id];
+	struct most_channel *c = iface->p->channel[id];
 
 	if (!c)
 		return;
@@ -1564,7 +1559,6 @@ static int __init most_init(void)
 	int err;
 
 	pr_info("init()\n");
-	INIT_LIST_HEAD(&instance_list);
 	INIT_LIST_HEAD(&mc.mod_list);
 	ida_init(&mdev_id);
 

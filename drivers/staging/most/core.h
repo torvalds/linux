@@ -20,6 +20,7 @@
 #include <linux/device.h>
 
 struct module;
+struct interface_private;
 
 /**
  * Interface type
@@ -248,6 +249,7 @@ struct most_interface {
 						   unsigned char link_stat,
 						   unsigned char *mac_addr));
 	void *priv;
+	struct interface_private *p;
 };
 
 #define to_most_interface(d) container_of(d, struct most_interface, dev)
