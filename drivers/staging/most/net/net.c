@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Networking AIM - Networking Application Interface Module for MostCore
+ * Networking component - Networking Application Interface Module for MostCore
  *
  * Copyright (C) 2015, Microchip Technology Germany II GmbH & Co. KG
  */
@@ -68,7 +68,7 @@ struct net_dev_context {
 static struct list_head net_devices = LIST_HEAD_INIT(net_devices);
 static struct mutex probe_disc_mt; /* ch->linked = true, most_nd_open */
 static struct spinlock list_lock; /* list_head, ch->linked = false, dev_hold */
-static struct core_component aim;
+static struct core_component comp;
 
 static int skb_to_mamac(const struct sk_buff *skb, struct mbo *mbo)
 {
@@ -178,15 +178,15 @@ static int most_nd_open(struct net_device *dev)
 
 	mutex_lock(&probe_disc_mt);
 
-	if (most_start_channel(nd->iface, nd->rx.ch_id, &aim)) {
+	if (most_start_channel(nd->iface, nd->rx.ch_id, &comp)) {
 		netdev_err(dev, "most_start_channel() failed\n");
 		ret = -EBUSY;
 		goto unlock;
 	}
 
-	if (most_start_channel(nd->iface, nd->tx.ch_id, &aim)) {
+	if (most_start_channel(nd->iface, nd->tx.ch_id, &comp)) {
 		netdev_err(dev, "most_start_channel() failed\n");
-		most_stop_channel(nd->iface, nd->rx.ch_id, &aim);
+		most_stop_channel(nd->iface, nd->rx.ch_id, &comp);
 		ret = -EBUSY;
 		goto unlock;
 	}
@@ -212,8 +212,8 @@ static int most_nd_stop(struct net_device *dev)
 	netif_stop_queue(dev);
 	if (nd->iface->request_netinfo)
 		nd->iface->request_netinfo(nd->iface, nd->tx.ch_id, NULL);
-	most_stop_channel(nd->iface, nd->rx.ch_id, &aim);
-	most_stop_channel(nd->iface, nd->tx.ch_id, &aim);
+	most_stop_channel(nd->iface, nd->rx.ch_id, &comp);
+	most_stop_channel(nd->iface, nd->tx.ch_id, &comp);
 
 	return 0;
 }
@@ -225,7 +225,7 @@ static netdev_tx_t most_nd_start_xmit(struct sk_buff *skb,
 	struct mbo *mbo;
 	int ret;
 
-	mbo = most_get_mbo(nd->iface, nd->tx.ch_id, &aim);
+	mbo = most_get_mbo(nd->iface, nd->tx.ch_id, &comp);
 
 	if (!mbo) {
 		netif_stop_queue(dev);
@@ -290,8 +290,8 @@ static struct net_dev_context *get_net_dev_hold(struct most_interface *iface)
 	return nd;
 }
 
-static int aim_probe_channel(struct most_interface *iface, int channel_idx,
-			     struct most_channel_config *ccfg, char *name)
+static int comp_probe_channel(struct most_interface *iface, int channel_idx,
+			      struct most_channel_config *ccfg, char *name)
 {
 	struct net_dev_context *nd;
 	struct net_dev_channel *ch;
@@ -346,8 +346,8 @@ unlock:
 	return ret;
 }
 
-static int aim_disconnect_channel(struct most_interface *iface,
-				  int channel_idx)
+static int comp_disconnect_channel(struct most_interface *iface,
+				   int channel_idx)
 {
 	struct net_dev_context *nd;
 	struct net_dev_channel *ch;
@@ -393,8 +393,8 @@ unlock:
 	return ret;
 }
 
-static int aim_resume_tx_channel(struct most_interface *iface,
-				 int channel_idx)
+static int comp_resume_tx_channel(struct most_interface *iface,
+				  int channel_idx)
 {
 	struct net_dev_context *nd;
 
@@ -412,7 +412,7 @@ put_nd:
 	return 0;
 }
 
-static int aim_rx_data(struct mbo *mbo)
+static int comp_rx_data(struct mbo *mbo)
 {
 	const u32 zero = 0;
 	struct net_dev_context *nd;
@@ -494,24 +494,24 @@ put_nd:
 	return ret;
 }
 
-static struct core_component aim = {
+static struct core_component comp = {
 	.name = "net",
-	.probe_channel = aim_probe_channel,
-	.disconnect_channel = aim_disconnect_channel,
-	.tx_completion = aim_resume_tx_channel,
-	.rx_completion = aim_rx_data,
+	.probe_channel = comp_probe_channel,
+	.disconnect_channel = comp_disconnect_channel,
+	.tx_completion = comp_resume_tx_channel,
+	.rx_completion = comp_rx_data,
 };
 
 static int __init most_net_init(void)
 {
 	spin_lock_init(&list_lock);
 	mutex_init(&probe_disc_mt);
-	return most_register_component(&aim);
+	return most_register_component(&comp);
 }
 
 static void __exit most_net_exit(void)
 {
-	most_deregister_component(&aim);
+	most_deregister_component(&comp);
 }
 
 /**
