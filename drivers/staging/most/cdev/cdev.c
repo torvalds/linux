@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * cdev.c - Application interfacing module for character devices
+ * cdev.c - Character device component for Mostcore
  *
  * Copyright (C) 2013-2015 Microchip Technology Germany II GmbH & Co. KG
  */
@@ -553,4 +553,4 @@ module_init(mod_init);
 module_exit(mod_exit);
 MODULE_AUTHOR("Christian Gromm <christian.gromm@microchip.com>");
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("character device AIM for mostcore");
+MODULE_DESCRIPTION("character device component for mostcore");

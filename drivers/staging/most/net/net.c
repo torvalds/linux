@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Networking component - Networking Application Interface Module for MostCore
+ * net.c - Networking component for Mostcore
  *
  * Copyright (C) 2015, Microchip Technology Germany II GmbH & Co. KG
  */
@@ -557,4 +557,4 @@ module_init(most_net_init);
 module_exit(most_net_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Andrey Shvetsov <andrey.shvetsov@k2l.de>");
-MODULE_DESCRIPTION("Networking Application Interface Module for MostCore");
+MODULE_DESCRIPTION("Networking Component Module for Mostcore");

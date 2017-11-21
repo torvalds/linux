@@ -103,14 +103,9 @@ static const struct {
 	_mbo;								\
 })
 
-/*		     ___	     ___
- *		     ___C H A N N E L___
- */
-
 /**
  * most_free_mbo_coherent - free an MBO and its coherent buffer
- * @mbo: buffer to be released
- *
+ * @mbo: most buffer
  */
 static void most_free_mbo_coherent(struct mbo *mbo)
 {
@@ -469,9 +464,6 @@ static const struct attribute_group *channel_attr_groups[] = {
 	NULL,
 };
 
-/*		     ___	       ___
- *		     ___I N S T A N C E___
- */
 static ssize_t description_show(struct device *dev,
 				struct device_attribute *attr,
 				char *buf)
@@ -528,9 +520,6 @@ static const struct attribute_group *interface_attr_groups[] = {
 	NULL,
 };
 
-/*		     ___     ___
- *		     ___A I M___
- */
 static struct core_component *match_module(char *name)
 {
 	struct core_component *comp;
@@ -588,26 +577,26 @@ static ssize_t modules_show(struct device_driver *drv, char *buf)
 	return offs;
 }
 /**
- * split_string - parses and changes string in the buffer buf and
- * splits it into two mandatory and one optional substrings.
+ * split_string - parses buf and extracts ':' separated substrings.
  *
  * @buf: complete string from attribute 'add_channel'
- * @a: address of pointer to 1st substring (=instance name)
- * @b: address of pointer to 2nd substring (=channel name)
- * @c: optional address of pointer to 3rd substring (=user defined name)
+ * @a: storage for 1st substring (=interface name)
+ * @b: storage for 2nd substring (=channel name)
+ * @c: storage for 3rd substring (=component name)
+ * @d: storage optional 4th substring (=user defined name)
  *
  * Examples:
  *
- * Input: "mdev0:ch6:my_channel\n" or
- *        "mdev0:ch6:my_channel"
+ * Input: "mdev0:ch6:cdev:my_channel\n" or
+ *        "mdev0:ch6:cdev:my_channel"
  *
- * Output: *a -> "mdev0", *b -> "ch6", *c -> "my_channel"
+ * Output: *a -> "mdev0", *b -> "ch6", *c -> "cdev" *d -> "my_channel"
  *
- * Input: "mdev1:ep81\n"
- * Output: *a -> "mdev1", *b -> "ep81", *c -> ""
+ * Input: "mdev1:ep81:cdev\n"
+ * Output: *a -> "mdev1", *b -> "ep81", *c -> "cdev" *d -> ""
  *
  * Input: "mdev1:ep81"
- * Output: *a -> "mdev1", *b -> "ep81", *c == NULL
+ * Output: *a -> "mdev1", *b -> "ep81", *c -> "cdev" *d == NULL
  */
 static int split_string(char *buf, char **a, char **b, char **c, char **d)
 {
@@ -637,11 +626,9 @@ static int match_bus_dev(struct device *dev, void *data)
 }
 
 /**
- * get_channel - get pointer to channel object
- * @mdev: name of the device instance
- * @mdev_ch: name of the respective channel
- *
- * This retrieves the pointer to a channel object.
+ * get_channel - get pointer to channel
+ * @mdev: name of the device interface
+ * @mdev_ch: name of channel
  */
 static struct most_channel *get_channel(char *mdev, char *mdev_ch)
 {
@@ -687,23 +674,22 @@ inline int link_channel_to_component(struct most_channel *c,
 }
 
 /**
- * add_link_store - store() function for add_link attribute
- * @aim_obj: pointer to AIM object
- * @attr: its attributes
+ * add_link_store - store function for add_link attribute
+ * @drv: device driver
  * @buf: buffer
  * @len: buffer length
  *
  * This parses the string given by buf and splits it into
- * three substrings. Note: third substring is optional. In case a cdev
- * AIM is loaded the optional 3rd substring will make up the name of
+ * four substrings. Note: last substring is optional. In case a cdev
+ * component is loaded the optional 4th substring will make up the name of
  * device node in the /dev directory. If omitted, the device node will
  * inherit the channel's name within sysfs.
  *
- * Searches for a pair of device and channel and probes the AIM
+ * Searches for (device, channel) pair and probes the component
  *
  * Example:
- * (1) echo "mdev0:ch6:my_rxchannel" >add_link
- * (2) echo "mdev1:ep81" >add_link
+ * (1) echo "mdev0:ch6:cdev:my_rxchannel" >add_link
+ * (2) echo "mdev1:ep81:cdev" >add_link
  *
  * (1) would create the device node /dev/my_rxchannel
  * (2) would create the device node /dev/mdev1-ep81
@@ -748,8 +734,7 @@ static ssize_t add_link_store(struct device_driver *drv,
 
 /**
  * remove_link_store - store function for remove_link attribute
- * @aim_obj: pointer to AIM object
- * @attr: its attributes
+ * @drv: device driver
  * @buf: buffer
  * @len: buffer length
  *
@@ -810,10 +795,6 @@ static const struct attribute_group *module_attr_groups[] = {
 	&module_attr_group,
 	NULL,
 };
-
-/*		     ___       ___
- *		     ___C O R E___
- */
 
 int most_match(struct device *dev, struct device_driver *drv)
 {
@@ -913,14 +894,14 @@ static int run_enqueue_thread(struct most_channel *c, int channel_id)
 
 /**
  * arm_mbo - recycle MBO for further usage
- * @mbo: buffer object
+ * @mbo: most buffer
  *
  * This puts an MBO back to the list to have it ready for up coming
  * tx transactions.
  *
  * In case the MBO belongs to a channel that recently has been
  * poisoned, the MBO is scheduled to be trashed.
- * Calls the completion handler of an attached AIM.
+ * Calls the completion handler of an attached component.
  */
 static void arm_mbo(struct mbo *mbo)
 {
@@ -1007,7 +988,7 @@ _exit:
 
 /**
  * most_submit_mbo - submits an MBO to fifo
- * @mbo: pointer to the MBO
+ * @mbo: most buffer
  */
 void most_submit_mbo(struct mbo *mbo)
 {
@@ -1021,7 +1002,7 @@ EXPORT_SYMBOL_GPL(most_submit_mbo);
 
 /**
  * most_write_completion - write completion handler
- * @mbo: pointer to MBO
+ * @mbo: most buffer
  *
  * This recycles the MBO for further usage. In case the channel has been
  * poisoned, the MBO is scheduled to be trashed.
@@ -1067,6 +1048,7 @@ EXPORT_SYMBOL_GPL(channel_has_mbo);
  * most_get_mbo - get pointer to an MBO of pool
  * @iface: pointer to interface instance
  * @id: channel ID
+ * @comp: driver component
  *
  * This attempts to get a free buffer out of the channel fifo.
  * Returns a pointer to MBO on success or NULL otherwise.
@@ -1112,7 +1094,7 @@ EXPORT_SYMBOL_GPL(most_get_mbo);
 
 /**
  * most_put_mbo - return buffer to pool
- * @mbo: buffer object
+ * @mbo: most buffer
  */
 void most_put_mbo(struct mbo *mbo)
 {
@@ -1129,13 +1111,13 @@ EXPORT_SYMBOL_GPL(most_put_mbo);
 
 /**
  * most_read_completion - read completion handler
- * @mbo: pointer to MBO
+ * @mbo: most buffer
  *
  * This function is called by the HDM when data has been received from the
  * hardware and copied to the buffer of the MBO.
  *
  * In case the channel has been poisoned it puts the buffer in the trash queue.
- * Otherwise, it passes the buffer to an AIM for further processing.
+ * Otherwise, it passes the buffer to an component for further processing.
  */
 static void most_read_completion(struct mbo *mbo)
 {
@@ -1170,6 +1152,7 @@ static void most_read_completion(struct mbo *mbo)
  * most_start_channel - prepares a channel for communication
  * @iface: pointer to interface instance
  * @id: channel ID
+ * @comp: driver component
  *
  * This prepares the channel for usage. Cross-checks whether the
  * channel's been properly configured.
@@ -1188,7 +1171,7 @@ int most_start_channel(struct most_interface *iface, int id,
 
 	mutex_lock(&c->start_mutex);
 	if (c->pipe0.refs + c->pipe1.refs > 0)
-		goto out; /* already started by other comp */
+		goto out; /* already started by another component */
 
 	if (!try_module_get(iface->mod)) {
 		pr_info("failed to acquire HDM lock\n");
@@ -1245,6 +1228,7 @@ EXPORT_SYMBOL_GPL(most_start_channel);
  * most_stop_channel - stops a running channel
  * @iface: pointer to interface instance
  * @id: channel ID
+ * @comp: driver component
  */
 int most_stop_channel(struct most_interface *iface, int id,
 		      struct core_component *comp)
@@ -1302,17 +1286,17 @@ out:
 EXPORT_SYMBOL_GPL(most_stop_channel);
 
 /**
- * most_register_component - registers an AIM (driver) with the core
- * @aim: instance of AIM to be registered
+ * most_register_component - registers a driver component with the core
+ * @comp: driver component
  */
 int most_register_component(struct core_component *comp)
 {
 	if (!comp) {
-		pr_err("Bad driver\n");
+		pr_err("Bad component\n");
 		return -EINVAL;
 	}
 	list_add_tail(&comp->list, &mc.comp_list);
-	pr_info("registered new application interfacing module %s\n", comp->name);
+	pr_info("registered new core component %s\n", comp->name);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(most_register_component);
@@ -1336,19 +1320,19 @@ static int disconnect_channels(struct device *dev, void *data)
 }
 
 /**
- * most_deregister_component - deregisters an AIM (driver) with the core
- * @aim: AIM to be removed
+ * most_deregister_component - deregisters a driver component with the core
+ * @comp: driver component
  */
 int most_deregister_component(struct core_component *comp)
 {
 	if (!comp) {
-		pr_err("Bad driver\n");
+		pr_err("Bad component\n");
 		return -EINVAL;
 	}
 
 	bus_for_each_dev(&mc.bus, NULL, comp, disconnect_channels);
 	list_del(&comp->list);
-	pr_info("deregistering module %s\n", comp->name);
+	pr_info("deregistering component %s\n", comp->name);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(most_deregister_component);
@@ -1365,7 +1349,7 @@ static void release_channel(struct device *dev)
 
 /**
  * most_register_interface - registers an interface with core
- * @iface: pointer to the instance of the interface description.
+ * @iface: device interface
  *
  * Allocates and initializes a new interface instance and all of its channels.
  * Returns a pointer to kobject or an error pointer.
@@ -1451,7 +1435,7 @@ int most_register_interface(struct most_interface *iface)
 		mutex_init(&c->nq_mutex);
 		list_add_tail(&c->list, &iface->p->channel_list);
 	}
-	pr_info("registered new MOST device mdev%d (%s)\n",
+	pr_info("registered new device mdev%d (%s)\n",
 		id, iface->description);
 	return 0;
 
@@ -1473,7 +1457,7 @@ EXPORT_SYMBOL_GPL(most_register_interface);
 
 /**
  * most_deregister_interface - deregisters an interface with core
- * @iface: pointer to the interface instance description.
+ * @iface: device interface
  *
  * Before removing an interface instance from the list, all running
  * channels are stopped and poisoned.
@@ -1483,7 +1467,7 @@ void most_deregister_interface(struct most_interface *iface)
 	int i;
 	struct most_channel *c;
 
-	pr_info("deregistering MOST device %s (%s)\n", dev_name(&iface->dev), iface->description);
+	pr_info("deregistering device %s (%s)\n", dev_name(&iface->dev), iface->description);
 	for (i = 0; i < iface->num_channels; i++) {
 		c = iface->p->channel[i];
 		if (c->pipe0.comp)

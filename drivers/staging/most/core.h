@@ -1,16 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * most.h - Interface between MostCore,
- *   Hardware Dependent Module (HDM) and Application Interface Module (AIM).
+ * most.h - API for component and adapter drivers
  *
  * Copyright (C) 2013-2015, Microchip Technology Germany II GmbH & Co. KG
- */
-
-/*
- * Authors:
- *   Andrey Shvetsov <andrey.shvetsov@k2l.de>
- *   Christian Gromm <christian.gromm@microchip.com>
- *   Sebastian Graf
  */
 
 #ifndef __MOST_CORE_H__
@@ -74,22 +66,22 @@ enum mbo_status_flags {
  * The value is bitwise OR-combination of the values from the
  * enumeration most_channel_data_type. Zero is allowed value and means
  * "channel may not be used".
- * @num_buffer_packet: Maximum number of buffers supported by this channel
+ * @num_buffers_packet: Maximum number of buffers supported by this channel
  * for packet data types (Async,Control,QoS)
  * @buffer_size_packet: Maximum buffer size supported by this channel
  * for packet data types (Async,Control,QoS)
- * @num_buffer_streaming: Maximum number of buffers supported by this channel
+ * @num_buffers_streaming: Maximum number of buffers supported by this channel
  * for streaming data types (Sync,AV Packetized)
  * @buffer_size_streaming: Maximum buffer size supported by this channel
  * for streaming data types (Sync,AV Packetized)
  * @name_suffix: Optional suffix providean by an HDM that is attached to the
  * regular channel name.
  *
- * Describes the capabilities of a MostCore channel like supported Data Types
+ * Describes the capabilities of a MOST channel like supported Data Types
  * and directions. This information is provided by an HDM for the MostCore.
  *
  * The Core creates read only sysfs attribute files in
- * /sys/devices/virtual/most/mostcore/devices/mdev-#/mdev#-ch#/ with the
+ * /sys/devices/most/mdev#/<channel>/ with the
  * following attributes:
  *	-available_directions
  *	-available_datatypes
@@ -124,7 +116,7 @@ struct most_channel_capability {
  * @packets_per_xact: number of MOST frames that are packet inside one USB
  *		      packet. This is USB specific
  *
- * Describes the configuration for a MostCore channel. This information is
+ * Describes the configuration for a MOST channel. This information is
  * provided from the MostCore to a HDM (like the Medusa PCIe Interface) as a
  * parameter of the "configure" function call.
  */
@@ -148,6 +140,7 @@ struct most_channel_config {
  *
  * @list: list head for use by the mbo's current owner
  * @ifp: (in) associated interface instance
+ * @num_buffers_ptr: amount of pool buffers
  * @hdm_channel_id: (in) HDM channel instance
  * @virt_address: (in) kernel virtual address of the buffer
  * @bus_address: (in) bus address of the buffer
@@ -156,15 +149,15 @@ struct most_channel_config {
  * @status: (out) transfer status
  * @complete: (in) completion routine
  *
- * The MostCore allocates and initializes the MBO.
+ * The core allocates and initializes the MBO.
  *
- * The HDM receives MBO for transfer from MostCore with the call to enqueue().
+ * The HDM receives MBO for transfer from the core with the call to enqueue().
  * The HDM copies the data to- or from the buffer depending on configured
  * channel direction, set "processed_length" and "status" and completes
  * the transfer procedure by calling the completion routine.
  *
- * At the end the MostCore deallocates the MBO or recycles it for further
- * transfers for the same or different HDM.
+ * Finally, the MBO is being deallocated or recycled for further
+ * transfers of the same or a different HDM.
  *
  * Directions of usage:
  * The core driver should never access any MBO fields (even if marked
@@ -197,10 +190,12 @@ struct mbo {
 /**
  * Interface instance description.
  *
- * Describes one instance of an interface like Medusa PCIe or Vantage USB.
+ * Describes an interface of a MOST device the core driver is bound to.
  * This structure is allocated and initialized in the HDM. MostCore may not
  * modify this structure.
  *
+ * @dev: the actual device
+ * @mod: module
  * @interface Interface type. \sa most_interface_type.
  * @description PRELIMINARY.
  *   Unique description of the device instance from point of view of the
@@ -255,13 +250,13 @@ struct most_interface {
 #define to_most_interface(d) container_of(d, struct most_interface, dev)
 
 /**
- * struct most_aim - identifies MOST device driver to mostcore
- * @name: Driver name
+ * struct core_component - identifies a loadable component for the mostcore
+ * @list: list_head
+ * @name: component name
  * @probe_channel: function for core to notify driver about channel connection
  * @disconnect_channel: callback function to disconnect a certain channel
  * @rx_completion: completion handler for received packets
  * @tx_completion: completion handler for transmitted packets
- * @context: context pointer to be used by mostcore
  */
 struct core_component {
 	struct list_head list;

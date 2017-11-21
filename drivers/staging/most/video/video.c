@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * V4L2 Component - V4L2 Application Interface Module for MostCore
+ * video.c - V4L2 component for Mostcore
  *
  * Copyright (C) 2015, Microchip Technology Germany II GmbH & Co. KG
  */
@@ -604,6 +604,6 @@ static void __exit comp_exit(void)
 module_init(comp_init);
 module_exit(comp_exit);
 
-MODULE_DESCRIPTION("V4L2 Component Module for MostCore");
+MODULE_DESCRIPTION("V4L2 Component Module for Mostcore");
 MODULE_AUTHOR("Andrey Shvetsov <andrey.shvetsov@k2l.de>");
 MODULE_LICENSE("GPL");
