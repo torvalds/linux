@@ -887,7 +887,7 @@ static int get_stat_reg_addr(const struct regs *regs, int size,
 #define get_static_reg_addr(regs, name, reg_addr) \
 	get_stat_reg_addr(regs, ARRAY_SIZE(regs), name, reg_addr)
 
-static ssize_t show_value(struct device *dev, struct device_attribute *attr,
+static ssize_t value_show(struct device *dev, struct device_attribute *attr,
 			  char *buf)
 {
 	const char *name = attr->attr.name;
@@ -912,7 +912,7 @@ static ssize_t show_value(struct device *dev, struct device_attribute *attr,
 	return snprintf(buf, PAGE_SIZE, "%04x\n", val);
 }
 
-static ssize_t store_value(struct device *dev, struct device_attribute *attr,
+static ssize_t value_store(struct device *dev, struct device_attribute *attr,
 			   const char *buf, size_t count)
 {
 	u16 val;
@@ -945,21 +945,21 @@ static ssize_t store_value(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
-DEVICE_ATTR(ni_state, 0444, show_value, NULL);
-DEVICE_ATTR(packet_bandwidth, 0444, show_value, NULL);
-DEVICE_ATTR(node_address, 0444, show_value, NULL);
-DEVICE_ATTR(node_position, 0444, show_value, NULL);
-DEVICE_ATTR(sync_ep, 0200, NULL, store_value);
-DEVICE_ATTR(mep_filter, 0644, show_value, store_value);
-DEVICE_ATTR(mep_hash0, 0644, show_value, store_value);
-DEVICE_ATTR(mep_hash1, 0644, show_value, store_value);
-DEVICE_ATTR(mep_hash2, 0644, show_value, store_value);
-DEVICE_ATTR(mep_hash3, 0644, show_value, store_value);
-DEVICE_ATTR(mep_eui48_hi, 0644, show_value, store_value);
-DEVICE_ATTR(mep_eui48_mi, 0644, show_value, store_value);
-DEVICE_ATTR(mep_eui48_lo, 0644, show_value, store_value);
-DEVICE_ATTR(arb_address, 0644, show_value, store_value);
-DEVICE_ATTR(arb_value, 0644, show_value, store_value);
+DEVICE_ATTR(ni_state, 0444, value_show, NULL);
+DEVICE_ATTR(packet_bandwidth, 0444, value_show, NULL);
+DEVICE_ATTR(node_address, 0444, value_show, NULL);
+DEVICE_ATTR(node_position, 0444, value_show, NULL);
+DEVICE_ATTR(sync_ep, 0200, NULL, value_store);
+DEVICE_ATTR(mep_filter, 0644, value_show, value_store);
+DEVICE_ATTR(mep_hash0, 0644, value_show, value_store);
+DEVICE_ATTR(mep_hash1, 0644, value_show, value_store);
+DEVICE_ATTR(mep_hash2, 0644, value_show, value_store);
+DEVICE_ATTR(mep_hash3, 0644, value_show, value_store);
+DEVICE_ATTR(mep_eui48_hi, 0644, value_show, value_store);
+DEVICE_ATTR(mep_eui48_mi, 0644, value_show, value_store);
+DEVICE_ATTR(mep_eui48_lo, 0644, value_show, value_store);
+DEVICE_ATTR(arb_address, 0644, value_show, value_store);
+DEVICE_ATTR(arb_value, 0644, value_show, value_store);
 
 static struct attribute *dci_attrs[] = {
 	&dev_attr_ni_state.attr,
