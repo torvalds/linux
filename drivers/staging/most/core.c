@@ -34,7 +34,7 @@ static struct mostcore {
 	struct device_driver drv;
 	struct bus_type bus;
 	struct class *class;
-	struct list_head mod_list;
+	struct list_head comp_list;
 } mc;
 
 #define to_driver(d) container_of(d, struct mostcore, drv);
@@ -535,7 +535,7 @@ static struct core_component *match_module(char *name)
 {
 	struct core_component *aim;
 
-	list_for_each_entry(aim, &mc.mod_list, list) {
+	list_for_each_entry(aim, &mc.comp_list, list) {
 		if (!strcmp(aim->name, name))
 			return aim;
 	}
@@ -581,7 +581,7 @@ static ssize_t modules_show(struct device_driver *drv, char *buf)
 	struct core_component *aim;
 	int offs = 0;
 
-	list_for_each_entry(aim, &mc.mod_list, list) {
+	list_for_each_entry(aim, &mc.comp_list, list) {
 		offs += snprintf(buf + offs, PAGE_SIZE - offs, "%s\n",
 				 aim->name);
 	}
@@ -1309,7 +1309,7 @@ int most_register_component(struct core_component *aim)
 		pr_err("Bad driver\n");
 		return -EINVAL;
 	}
-	list_add_tail(&aim->list, &mc.mod_list);
+	list_add_tail(&aim->list, &mc.comp_list);
 	pr_info("registered new application interfacing module %s\n", aim->name);
 	return 0;
 }
@@ -1559,7 +1559,7 @@ static int __init most_init(void)
 	int err;
 
 	pr_info("init()\n");
-	INIT_LIST_HEAD(&mc.mod_list);
+	INIT_LIST_HEAD(&mc.comp_list);
 	ida_init(&mdev_id);
 
 	mc.bus.name = "most",
