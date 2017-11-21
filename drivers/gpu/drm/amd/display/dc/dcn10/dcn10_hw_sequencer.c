@@ -1992,21 +1992,8 @@ static void dcn10_apply_ctx_for_surface(
 		}
 	}
 
-	if (num_planes > 0) {
+	if (num_planes > 0)
 		program_all_pipe_in_tree(dc, top_pipe_to_program, context);
-
-		/* TODO: this is a hack w/a for switching from mpo to pipe split */
-		if (stream->cursor_attributes.address.quad_part != 0) {
-			struct dc_cursor_position position = { 0 };
-
-			dc_stream_set_cursor_position(
-				(struct dc_stream_state *)stream,
-				&position);
-			dc_stream_set_cursor_attributes(
-				(struct dc_stream_state *)stream,
-				&stream->cursor_attributes);
-		}
-	}
 
 	tg->funcs->unlock(tg);
 
