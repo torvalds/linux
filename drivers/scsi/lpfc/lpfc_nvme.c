@@ -88,6 +88,9 @@ lpfc_nvme_create_queue(struct nvme_fc_local_port *pnvme_lport,
 	struct lpfc_nvme_qhandle *qhandle;
 	char *str;
 
+	if (!pnvme_lport->private)
+		return -ENOMEM;
+
 	lport = (struct lpfc_nvme_lport *)pnvme_lport->private;
 	vport = lport->vport;
 	qhandle = kzalloc(sizeof(struct lpfc_nvme_qhandle), GFP_KERNEL);
@@ -139,6 +142,9 @@ lpfc_nvme_delete_queue(struct nvme_fc_local_port *pnvme_lport,
 {
 	struct lpfc_nvme_lport *lport;
 	struct lpfc_vport *vport;
+
+	if (!pnvme_lport->private)
+		return;
 
 	lport = (struct lpfc_nvme_lport *)pnvme_lport->private;
 	vport = lport->vport;
@@ -1265,13 +1271,29 @@ lpfc_nvme_fcp_io_submit(struct nvme_fc_local_port *pnvme_lport,
 	struct lpfc_nvme_buf *lpfc_ncmd;
 	struct lpfc_nvme_rport *rport;
 	struct lpfc_nvme_qhandle *lpfc_queue_info;
-	struct lpfc_nvme_fcpreq_priv *freqpriv = pnvme_fcreq->private;
+	struct lpfc_nvme_fcpreq_priv *freqpriv;
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
 	uint64_t start = 0;
 #endif
 
+	/* Validate pointers. LLDD fault handling with transport does
+	 * have timing races.
+	 */
 	lport = (struct lpfc_nvme_lport *)pnvme_lport->private;
+	if (unlikely(!lport)) {
+		ret = -EINVAL;
+		goto out_fail;
+	}
+
 	vport = lport->vport;
+
+	if (unlikely(!hw_queue_handle)) {
+		lpfc_printf_vlog(vport, KERN_INFO, LOG_NVME_ABTS,
+				 "6129 Fail Abort, NULL hw_queue_handle\n");
+		ret = -EINVAL;
+		goto out_fail;
+	}
+
 	phba = vport->phba;
 
 	if (vport->load_flag & FC_UNLOADING) {
@@ -1284,13 +1306,9 @@ lpfc_nvme_fcp_io_submit(struct nvme_fc_local_port *pnvme_lport,
 		goto out_fail;
 	}
 
-	/* Validate pointers. */
-	if (!pnvme_lport || !pnvme_rport || !freqpriv) {
-		lpfc_printf_vlog(vport, KERN_INFO, LOG_NVME_IOERR | LOG_NODE,
-				 "6117 No Send:IO submit ptrs NULL, lport %p, "
-				 "rport %p fcreq_priv %p\n",
-				 pnvme_lport, pnvme_rport, freqpriv);
-		ret = -ENODEV;
+	freqpriv = pnvme_fcreq->private;
+	if (unlikely(!freqpriv)) {
+		ret = -EINVAL;
 		goto out_fail;
 	}
 
@@ -1497,20 +1515,34 @@ lpfc_nvme_fcp_abort(struct nvme_fc_local_port *pnvme_lport,
 	struct lpfc_nvme_lport *lport;
 	struct lpfc_vport *vport;
 	struct lpfc_hba *phba;
-	struct lpfc_nvme_rport *rport;
 	struct lpfc_nvme_buf *lpfc_nbuf;
 	struct lpfc_iocbq *abts_buf;
 	struct lpfc_iocbq *nvmereq_wqe;
-	struct lpfc_nvme_fcpreq_priv *freqpriv = pnvme_fcreq->private;
+	struct lpfc_nvme_fcpreq_priv *freqpriv;
 	union lpfc_wqe *abts_wqe;
 	unsigned long flags;
 	int ret_val;
 
+	/* Validate pointers. LLDD fault handling with transport does
+	 * have timing races.
+	 */
 	lport = (struct lpfc_nvme_lport *)pnvme_lport->private;
-	rport = (struct lpfc_nvme_rport *)pnvme_rport->private;
-	vport = lport->vport;
-	phba = vport->phba;
+	if (unlikely(!lport))
+		return;
 
+	vport = lport->vport;
+
+	if (unlikely(!hw_queue_handle)) {
+		lpfc_printf_vlog(vport, KERN_INFO, LOG_NVME_ABTS,
+				 "6129 Fail Abort, HW Queue Handle NULL.\n");
+		return;
+	}
+
+	phba = vport->phba;
+	freqpriv = pnvme_fcreq->private;
+
+	if (unlikely(!freqpriv))
+		return;
 	if (vport->load_flag & FC_UNLOADING)
 		return;
 
@@ -2676,4 +2708,46 @@ lpfc_sli4_nvme_xri_aborted(struct lpfc_hba *phba,
 	lpfc_printf_log(phba, KERN_INFO, LOG_NVME_ABTS,
 			"6312 XRI Aborted xri x%x not found\n", xri);
 
+}
+
+/**
+ * lpfc_nvme_wait_for_io_drain - Wait for all NVME wqes to complete
+ * @phba: Pointer to HBA context object.
+ *
+ * This function flushes all wqes in the nvme rings and frees all resources
+ * in the txcmplq. This function does not issue abort wqes for the IO
+ * commands in txcmplq, they will just be returned with
+ * IOERR_SLI_DOWN. This function is invoked with EEH when device's PCI
+ * slot has been permanently disabled.
+ **/
+void
+lpfc_nvme_wait_for_io_drain(struct lpfc_hba *phba)
+{
+	struct lpfc_sli_ring  *pring;
+	u32 i, wait_cnt = 0;
+
+	if (phba->sli_rev < LPFC_SLI_REV4)
+		return;
+
+	/* Cycle through all NVME rings and make sure all outstanding
+	 * WQEs have been removed from the txcmplqs.
+	 */
+	for (i = 0; i < phba->cfg_nvme_io_channel; i++) {
+		pring = phba->sli4_hba.nvme_wq[i]->pring;
+
+		/* Retrieve everything on the txcmplq */
+		while (!list_empty(&pring->txcmplq)) {
+			msleep(LPFC_XRI_EXCH_BUSY_WAIT_T1);
+			wait_cnt++;
+
+			/* The sleep is 10mS.  Every ten seconds,
+			 * dump a message.  Something is wrong.
+			 */
+			if ((wait_cnt % 1000) == 0) {
+				lpfc_printf_log(phba, KERN_ERR, LOG_NVME_IOERR,
+						"6178 NVME IO not empty, "
+						"cnt %d\n", wait_cnt);
+			}
+		}
+	}
 }
