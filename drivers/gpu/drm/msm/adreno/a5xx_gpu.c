@@ -597,6 +597,9 @@ static int a5xx_hw_init(struct msm_gpu *gpu)
 	/* Turn on performance counters */
 	gpu_write(gpu, REG_A5XX_RBBM_PERFCTR_CNTL, 0x01);
 
+	/* Select CP0 to always count cycles */
+	gpu_write(gpu, REG_A5XX_CP_PERFCTR_CP_SEL_0, PERF_CP_ALWAYS_COUNT);
+
 	/* Increase VFD cache access so LRZ and other data gets evicted less */
 	gpu_write(gpu, REG_A5XX_UCHE_CACHE_WAYS, 0x02);
 
