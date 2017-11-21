@@ -341,7 +341,7 @@ int main(int argc, char **argv)
 			return 0;
 		case 'n':
 			t = atoi(optarg);
-			if (t > ARRAY_SIZE(test_cases))
+			if (t >= ARRAY_SIZE(test_cases))
 				error(1, 0, "Invalid test case: %d", t);
 			all_tests = false;
 			test_cases[t].enabled = true;

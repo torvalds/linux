@@ -42,6 +42,28 @@ struct amdgpu_cgs_device {
 	struct amdgpu_device *adev =					\
 		((struct amdgpu_cgs_device *)cgs_device)->adev
 
+static void *amdgpu_cgs_register_pp_handle(struct cgs_device *cgs_device,
+			int (*call_back_func)(struct amd_pp_init *, void **))
+{
+	CGS_FUNC_ADEV;
+	struct amd_pp_init pp_init;
+	struct amd_powerplay *amd_pp;
+
+	if (call_back_func == NULL)
+		return NULL;
+
+	amd_pp = &(adev->powerplay);
+	pp_init.chip_family = adev->family;
+	pp_init.chip_id = adev->asic_type;
+	pp_init.pm_en = (amdgpu_dpm != 0 && !amdgpu_sriov_vf(adev)) ? true : false;
+	pp_init.feature_mask = amdgpu_pp_feature_mask;
+	pp_init.device = cgs_device;
+	if (call_back_func(&pp_init, &(amd_pp->pp_handle)))
+		return NULL;
+
+	return adev->powerplay.pp_handle;
+}
+
 static int amdgpu_cgs_alloc_gpu_mem(struct cgs_device *cgs_device,
 				    enum cgs_gpu_mem_type type,
 				    uint64_t size, uint64_t align,
@@ -1179,6 +1201,7 @@ static const struct cgs_ops amdgpu_cgs_ops = {
 	.is_virtualization_enabled = amdgpu_cgs_is_virtualization_enabled,
 	.enter_safe_mode = amdgpu_cgs_enter_safe_mode,
 	.lock_grbm_idx = amdgpu_cgs_lock_grbm_idx,
+	.register_pp_handle = amdgpu_cgs_register_pp_handle,
 };
 
 static const struct cgs_os_ops amdgpu_cgs_os_ops = {

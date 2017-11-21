@@ -95,16 +95,19 @@
 #define KERNEL_END        _end
 
 /*
- * The size of the KASAN shadow region. This should be 1/8th of the
- * size of the entire kernel virtual address space.
+ * KASAN requires 1/8th of the kernel virtual address space for the shadow
+ * region. KASAN can bloat the stack significantly, so double the (minimum)
+ * stack size when KASAN is in use.
  */
 #ifdef CONFIG_KASAN
 #define KASAN_SHADOW_SIZE	(UL(1) << (VA_BITS - 3))
+#define KASAN_THREAD_SHIFT	1
 #else
 #define KASAN_SHADOW_SIZE	(0)
+#define KASAN_THREAD_SHIFT	0
 #endif
 
-#define MIN_THREAD_SHIFT	14
+#define MIN_THREAD_SHIFT	(14 + KASAN_THREAD_SHIFT)
 
 /*
  * VMAP'd stacks are allocated at page granularity, so we must ensure that such

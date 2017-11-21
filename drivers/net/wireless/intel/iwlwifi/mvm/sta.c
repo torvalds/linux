@@ -1285,7 +1285,7 @@ static int iwl_mvm_add_int_sta_common(struct iwl_mvm *mvm,
 {
 	struct iwl_mvm_add_sta_cmd cmd;
 	int ret;
-	u32 status;
+	u32 status = ADD_STA_SUCCESS;
 
 	lockdep_assert_held(&mvm->mutex);
 
@@ -2385,8 +2385,10 @@ int iwl_mvm_sta_tx_agg_start(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	if (WARN_ON_ONCE(tid >= IWL_MAX_TID_COUNT))
 		return -EINVAL;
 
-	if (mvmsta->tid_data[tid].state != IWL_AGG_OFF) {
-		IWL_ERR(mvm, "Start AGG when state is not IWL_AGG_OFF %d!\n",
+	if (mvmsta->tid_data[tid].state != IWL_AGG_QUEUED &&
+	    mvmsta->tid_data[tid].state != IWL_AGG_OFF) {
+		IWL_ERR(mvm,
+			"Start AGG when state is not IWL_AGG_QUEUED or IWL_AGG_OFF %d!\n",
 			mvmsta->tid_data[tid].state);
 		return -ENXIO;
 	}

@@ -84,6 +84,13 @@ struct audio_substream_data {
 	void __iomem *acp_mmio;
 };
 
+struct audio_drv_data {
+	struct snd_pcm_substream *play_stream;
+	struct snd_pcm_substream *capture_stream;
+	void __iomem *acp_mmio;
+	u32 asic_type;
+};
+
 enum {
 	ACP_TILE_P1 = 0,
 	ACP_TILE_P2,

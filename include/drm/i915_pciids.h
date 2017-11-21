@@ -339,7 +339,6 @@
 #define INTEL_KBL_GT1_IDS(info)	\
 	INTEL_VGA_DEVICE(0x5913, info), /* ULT GT1.5 */ \
 	INTEL_VGA_DEVICE(0x5915, info), /* ULX GT1.5 */ \
-	INTEL_VGA_DEVICE(0x5917, info), /* DT  GT1.5 */ \
 	INTEL_VGA_DEVICE(0x5906, info), /* ULT GT1 */ \
 	INTEL_VGA_DEVICE(0x590E, info), /* ULX GT1 */ \
 	INTEL_VGA_DEVICE(0x5902, info), /* DT  GT1 */ \
@@ -349,6 +348,7 @@
 
 #define INTEL_KBL_GT2_IDS(info)	\
 	INTEL_VGA_DEVICE(0x5916, info), /* ULT GT2 */ \
+	INTEL_VGA_DEVICE(0x5917, info), /* Mobile GT2 */ \
 	INTEL_VGA_DEVICE(0x5921, info), /* ULT GT2F */ \
 	INTEL_VGA_DEVICE(0x591E, info), /* ULX GT2 */ \
 	INTEL_VGA_DEVICE(0x5912, info), /* DT  GT2 */ \

@@ -325,7 +325,7 @@ struct drm_driver {
 	 */
 	bool (*get_vblank_timestamp) (struct drm_device *dev, unsigned int pipe,
 				     int *max_error,
-				     struct timeval *vblank_time,
+				     ktime_t *vblank_time,
 				     bool in_vblank_irq);
 
 	/**

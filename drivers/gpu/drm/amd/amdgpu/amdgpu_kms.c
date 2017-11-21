@@ -28,6 +28,7 @@
 #include <drm/drmP.h>
 #include "amdgpu.h"
 #include <drm/amdgpu_drm.h>
+#include "amdgpu_sched.h"
 #include "amdgpu_uvd.h"
 #include "amdgpu_vce.h"
 
@@ -269,7 +270,6 @@ static int amdgpu_firmware_info(struct drm_amdgpu_info_firmware *fw_info,
 static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 {
 	struct amdgpu_device *adev = dev->dev_private;
-	struct amdgpu_fpriv *fpriv = filp->driver_priv;
 	struct drm_amdgpu_info *info = data;
 	struct amdgpu_mode_info *minfo = &adev->mode_info;
 	void __user *out = (void __user *)(uintptr_t)info->return_pointer;
@@ -282,8 +282,6 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 
 	if (!info->return_size || !info->return_pointer)
 		return -EINVAL;
-	if (amdgpu_kms_vram_lost(adev, fpriv))
-		return -ENODEV;
 
 	switch (info->query) {
 	case AMDGPU_INFO_ACCEL_WORKING:
@@ -765,6 +763,9 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		}
 		return copy_to_user(out, &ui32, min(size, 4u)) ? -EFAULT : 0;
 	}
+	case AMDGPU_INFO_VRAM_LOST_COUNTER:
+		ui32 = atomic_read(&adev->vram_lost_counter);
+		return copy_to_user(out, &ui32, min(size, 4u)) ? -EFAULT : 0;
 	default:
 		DRM_DEBUG_KMS("Invalid request %d\n", info->query);
 		return -EINVAL;
@@ -789,12 +790,6 @@ void amdgpu_driver_lastclose_kms(struct drm_device *dev)
 
 	amdgpu_fbdev_restore_mode(adev);
 	vga_switcheroo_process_delayed_switch();
-}
-
-bool amdgpu_kms_vram_lost(struct amdgpu_device *adev,
-			  struct amdgpu_fpriv *fpriv)
-{
-	return fpriv->vram_lost_counter != atomic_read(&adev->vram_lost_counter);
 }
 
 /**
@@ -853,7 +848,6 @@ int amdgpu_driver_open_kms(struct drm_device *dev, struct drm_file *file_priv)
 
 	amdgpu_ctx_mgr_init(&fpriv->ctx_mgr);
 
-	fpriv->vram_lost_counter = atomic_read(&adev->vram_lost_counter);
 	file_priv->driver_priv = fpriv;
 
 out_suspend:
@@ -1023,7 +1017,9 @@ const struct drm_ioctl_desc amdgpu_ioctls_kms[] = {
 	DRM_IOCTL_DEF_DRV(AMDGPU_GEM_CREATE, amdgpu_gem_create_ioctl, DRM_AUTH|DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(AMDGPU_CTX, amdgpu_ctx_ioctl, DRM_AUTH|DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(AMDGPU_VM, amdgpu_vm_ioctl, DRM_AUTH|DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(AMDGPU_SCHED, amdgpu_sched_ioctl, DRM_MASTER),
 	DRM_IOCTL_DEF_DRV(AMDGPU_BO_LIST, amdgpu_bo_list_ioctl, DRM_AUTH|DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(AMDGPU_FENCE_TO_HANDLE, amdgpu_cs_fence_to_handle_ioctl, DRM_AUTH|DRM_RENDER_ALLOW),
 	/* KMS */
 	DRM_IOCTL_DEF_DRV(AMDGPU_GEM_MMAP, amdgpu_gem_mmap_ioctl, DRM_AUTH|DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(AMDGPU_GEM_WAIT_IDLE, amdgpu_gem_wait_idle_ioctl, DRM_AUTH|DRM_RENDER_ALLOW),

@@ -66,7 +66,13 @@ int intel_usecs_to_scanlines(const struct drm_display_mode *adjusted_mode,
 			    1000 * adjusted_mode->crtc_htotal);
 }
 
+/* FIXME: We should instead only take spinlocks once for the entire update
+ * instead of once per mmio. */
+#if IS_ENABLED(CONFIG_PROVE_LOCKING)
+#define VBLANK_EVASION_TIME_US 250
+#else
 #define VBLANK_EVASION_TIME_US 100
+#endif
 
 /**
  * intel_pipe_update_start() - start update of a set of display registers
@@ -224,7 +230,7 @@ void intel_pipe_update_end(struct intel_crtc_state *new_crtc_state)
 #endif
 }
 
-static void
+void
 skl_update_plane(struct intel_plane *plane,
 		 const struct intel_crtc_state *crtc_state,
 		 const struct intel_plane_state *plane_state)
@@ -305,7 +311,7 @@ skl_update_plane(struct intel_plane *plane,
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
 
-static void
+void
 skl_disable_plane(struct intel_plane *plane, struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
@@ -994,7 +1000,7 @@ int intel_sprite_set_colorkey(struct drm_device *dev, void *data,
 	    set->flags & I915_SET_COLORKEY_DESTINATION)
 		return -EINVAL;
 
-	plane = drm_plane_find(dev, set->plane_id);
+	plane = drm_plane_find(dev, file_priv, set->plane_id);
 	if (!plane || plane->type != DRM_PLANE_TYPE_OVERLAY)
 		return -ENOENT;
 

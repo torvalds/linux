@@ -133,7 +133,7 @@ static const struct iwl_ht_params iwl_a000_ht_params = {
 	.use_tfh = true,						\
 	.rf_id = true,							\
 	.gen2 = true,							\
-	.ext_nvm = true,						\
+	.nvm_type = IWL_NVM_EXT,					\
 	.dbgc_supported = true
 
 const struct iwl_cfg iwla000_2ac_cfg_hr = {

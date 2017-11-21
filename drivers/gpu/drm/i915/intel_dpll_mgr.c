@@ -1996,7 +1996,7 @@ static void cnl_ddi_pll_enable(struct drm_i915_private *dev_priv,
 
 	/* 3. Configure DPLL_CFGCR0 */
 	/* Avoid touch CFGCR1 if HDMI mode is not enabled */
-	if (pll->state.hw_state.cfgcr0 & DPLL_CTRL1_HDMI_MODE(pll->id)) {
+	if (pll->state.hw_state.cfgcr0 & DPLL_CFGCR0_HDMI_MODE) {
 		val = pll->state.hw_state.cfgcr1;
 		I915_WRITE(CNL_DPLL_CFGCR1(pll->id), val);
 		/* 4. Reab back to ensure writes completed */

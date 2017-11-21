@@ -815,7 +815,7 @@ uint32_t smu7_get_xclk(struct pp_hwmgr *hwmgr)
 {
 	uint32_t reference_clock, tmp;
 	struct cgs_display_info info = {0};
-	struct cgs_mode_info mode_info;
+	struct cgs_mode_info mode_info = {0};
 
 	info.mode_info = &mode_info;
 
@@ -3825,14 +3825,11 @@ static int smu7_notify_link_speed_change_after_state_change(
 static int smu7_notify_smc_display(struct pp_hwmgr *hwmgr)
 {
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
-	int ret = 0;
 
-	if (hwmgr->feature_mask & PP_VBI_TIME_SUPPORT_MASK) {
+	if (hwmgr->feature_mask & PP_VBI_TIME_SUPPORT_MASK)
 		smum_send_msg_to_smc_with_parameter(hwmgr,
 			(PPSMC_Msg)PPSMC_MSG_SetVBITimeout, data->frame_time_x2);
-		ret = (smum_send_msg_to_smc(hwmgr, (PPSMC_Msg)PPSMC_HasDisplay) == 0) ?  0 : -EINVAL;
-	}
-	return ret;
+	return (smum_send_msg_to_smc(hwmgr, (PPSMC_Msg)PPSMC_HasDisplay) == 0) ?  0 : -EINVAL;
 }
 
 static int smu7_set_power_state_tasks(struct pp_hwmgr *hwmgr, const void *input)
@@ -3951,10 +3948,9 @@ static int smu7_program_display_gap(struct pp_hwmgr *hwmgr)
 	uint32_t ref_clock;
 	uint32_t refresh_rate = 0;
 	struct cgs_display_info info = {0};
-	struct cgs_mode_info mode_info;
+	struct cgs_mode_info mode_info = {0};
 
 	info.mode_info = &mode_info;
-
 	cgs_get_active_displays_info(hwmgr->device, &info);
 	num_active_displays = info.display_count;
 
@@ -3970,6 +3966,7 @@ static int smu7_program_display_gap(struct pp_hwmgr *hwmgr)
 	frame_time_in_us = 1000000 / refresh_rate;
 
 	pre_vbi_time_in_us = frame_time_in_us - 200 - mode_info.vblank_time_us;
+
 	data->frame_time_x2 = frame_time_in_us * 2 / 100;
 
 	display_gap2 = pre_vbi_time_in_us * (ref_clock / 100);
@@ -4648,6 +4645,47 @@ static int smu7_avfs_control(struct pp_hwmgr *hwmgr, bool enable)
 	return 0;
 }
 
+static int smu7_notify_cac_buffer_info(struct pp_hwmgr *hwmgr,
+					uint32_t virtual_addr_low,
+					uint32_t virtual_addr_hi,
+					uint32_t mc_addr_low,
+					uint32_t mc_addr_hi,
+					uint32_t size)
+{
+	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
+
+	cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC,
+					data->soft_regs_start +
+					smum_get_offsetof(hwmgr,
+					SMU_SoftRegisters, DRAM_LOG_ADDR_H),
+					mc_addr_hi);
+
+	cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC,
+					data->soft_regs_start +
+					smum_get_offsetof(hwmgr,
+					SMU_SoftRegisters, DRAM_LOG_ADDR_L),
+					mc_addr_low);
+
+	cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC,
+					data->soft_regs_start +
+					smum_get_offsetof(hwmgr,
+					SMU_SoftRegisters, DRAM_LOG_PHY_ADDR_H),
+					virtual_addr_hi);
+
+	cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC,
+					data->soft_regs_start +
+					smum_get_offsetof(hwmgr,
+					SMU_SoftRegisters, DRAM_LOG_PHY_ADDR_L),
+					virtual_addr_low);
+
+	cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC,
+					data->soft_regs_start +
+					smum_get_offsetof(hwmgr,
+					SMU_SoftRegisters, DRAM_LOG_BUFF_SIZE),
+					size);
+	return 0;
+}
+
 static const struct pp_hwmgr_func smu7_hwmgr_funcs = {
 	.backend_init = &smu7_hwmgr_backend_init,
 	.backend_fini = &smu7_hwmgr_backend_fini,
@@ -4699,6 +4737,7 @@ static const struct pp_hwmgr_func smu7_hwmgr_funcs = {
 	.avfs_control = smu7_avfs_control,
 	.disable_smc_firmware_ctf = smu7_thermal_disable_alert,
 	.start_thermal_controller = smu7_start_thermal_controller,
+	.notify_cac_buffer_info = smu7_notify_cac_buffer_info,
 };
 
 uint8_t smu7_get_sleep_divider_id_from_clock(uint32_t clock,

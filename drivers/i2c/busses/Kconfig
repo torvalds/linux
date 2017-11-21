@@ -131,6 +131,7 @@ config I2C_I801
 	    Gemini Lake (SOC)
 	    Cannon Lake-H (PCH)
 	    Cannon Lake-LP (PCH)
+	    Cedar Fork (PCH)
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-i801.

@@ -264,8 +264,14 @@ void drm_syncobj_free(struct kref *kref)
 }
 EXPORT_SYMBOL(drm_syncobj_free);
 
-static int drm_syncobj_create(struct drm_file *file_private,
-			      u32 *handle, uint32_t flags)
+/**
+ * drm_syncobj_create - create a new syncobj
+ * @out_syncobj: returned syncobj
+ * @flags: DRM_SYNCOBJ_* flags
+ * @fence: if non-NULL, the syncobj will represent this fence
+ */
+int drm_syncobj_create(struct drm_syncobj **out_syncobj, uint32_t flags,
+		       struct dma_fence *fence)
 {
 	int ret;
 	struct drm_syncobj *syncobj;
@@ -286,6 +292,25 @@ static int drm_syncobj_create(struct drm_file *file_private,
 		}
 	}
 
+	if (fence)
+		drm_syncobj_replace_fence(syncobj, fence);
+
+	*out_syncobj = syncobj;
+	return 0;
+}
+EXPORT_SYMBOL(drm_syncobj_create);
+
+/**
+ * drm_syncobj_get_handle - get a handle from a syncobj
+ */
+int drm_syncobj_get_handle(struct drm_file *file_private,
+			   struct drm_syncobj *syncobj, u32 *handle)
+{
+	int ret;
+
+	/* take a reference to put in the idr */
+	drm_syncobj_get(syncobj);
+
 	idr_preload(GFP_KERNEL);
 	spin_lock(&file_private->syncobj_table_lock);
 	ret = idr_alloc(&file_private->syncobj_idr, syncobj, 1, 0, GFP_NOWAIT);
@@ -300,6 +325,22 @@ static int drm_syncobj_create(struct drm_file *file_private,
 
 	*handle = ret;
 	return 0;
+}
+EXPORT_SYMBOL(drm_syncobj_get_handle);
+
+static int drm_syncobj_create_as_handle(struct drm_file *file_private,
+					u32 *handle, uint32_t flags)
+{
+	int ret;
+	struct drm_syncobj *syncobj;
+
+	ret = drm_syncobj_create(&syncobj, flags, NULL);
+	if (ret)
+		return ret;
+
+	ret = drm_syncobj_get_handle(file_private, syncobj, handle);
+	drm_syncobj_put(syncobj);
+	return ret;
 }
 
 static int drm_syncobj_destroy(struct drm_file *file_private,
@@ -347,33 +388,38 @@ static int drm_syncobj_alloc_file(struct drm_syncobj *syncobj)
 	return 0;
 }
 
+int drm_syncobj_get_fd(struct drm_syncobj *syncobj, int *p_fd)
+{
+	int ret;
+	int fd;
+
+	fd = get_unused_fd_flags(O_CLOEXEC);
+	if (fd < 0)
+		return fd;
+
+	if (!syncobj->file) {
+		ret = drm_syncobj_alloc_file(syncobj);
+		if (ret) {
+			put_unused_fd(fd);
+			return ret;
+		}
+	}
+	fd_install(fd, syncobj->file);
+	*p_fd = fd;
+	return 0;
+}
+EXPORT_SYMBOL(drm_syncobj_get_fd);
+
 static int drm_syncobj_handle_to_fd(struct drm_file *file_private,
 				    u32 handle, int *p_fd)
 {
 	struct drm_syncobj *syncobj = drm_syncobj_find(file_private, handle);
 	int ret;
-	int fd;
 
 	if (!syncobj)
 		return -EINVAL;
 
-	fd = get_unused_fd_flags(O_CLOEXEC);
-	if (fd < 0) {
-		drm_syncobj_put(syncobj);
-		return fd;
-	}
-
-	if (!syncobj->file) {
-		ret = drm_syncobj_alloc_file(syncobj);
-		if (ret)
-			goto out_put_fd;
-	}
-	fd_install(fd, syncobj->file);
-	drm_syncobj_put(syncobj);
-	*p_fd = fd;
-	return 0;
-out_put_fd:
-	put_unused_fd(fd);
+	ret = drm_syncobj_get_fd(syncobj, p_fd);
 	drm_syncobj_put(syncobj);
 	return ret;
 }
@@ -524,8 +570,8 @@ drm_syncobj_create_ioctl(struct drm_device *dev, void *data,
 	if (args->flags & ~DRM_SYNCOBJ_CREATE_SIGNALED)
 		return -EINVAL;
 
-	return drm_syncobj_create(file_private,
-				  &args->handle, args->flags);
+	return drm_syncobj_create_as_handle(file_private,
+					    &args->handle, args->flags);
 }
 
 int

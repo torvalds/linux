@@ -169,7 +169,8 @@ static int amdgpu_gtt_mgr_new(struct ttm_mem_type_manager *man,
 	int r;
 
 	spin_lock(&mgr->lock);
-	if (atomic64_read(&mgr->available) < mem->num_pages) {
+	if ((&tbo->mem == mem || tbo->mem.mem_type != TTM_PL_TT) &&
+	    atomic64_read(&mgr->available) < mem->num_pages) {
 		spin_unlock(&mgr->lock);
 		return 0;
 	}
@@ -244,8 +245,9 @@ static void amdgpu_gtt_mgr_del(struct ttm_mem_type_manager *man,
 uint64_t amdgpu_gtt_mgr_usage(struct ttm_mem_type_manager *man)
 {
 	struct amdgpu_gtt_mgr *mgr = man->priv;
+	s64 result = man->size - atomic64_read(&mgr->available);
 
-	return (u64)(man->size - atomic64_read(&mgr->available)) * PAGE_SIZE;
+	return (result > 0 ? result : 0) * PAGE_SIZE;
 }
 
 /**
@@ -265,7 +267,7 @@ static void amdgpu_gtt_mgr_debug(struct ttm_mem_type_manager *man,
 	drm_mm_print(&mgr->mm, printer);
 	spin_unlock(&mgr->lock);
 
-	drm_printf(printer, "man size:%llu pages, gtt available:%llu pages, usage:%lluMB\n",
+	drm_printf(printer, "man size:%llu pages, gtt available:%lld pages, usage:%lluMB\n",
 		   man->size, (u64)atomic64_read(&mgr->available),
 		   amdgpu_gtt_mgr_usage(man) >> 20);
 }

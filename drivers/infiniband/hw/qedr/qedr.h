@@ -387,7 +387,7 @@ struct qedr_qp {
 		u8 wqe_size;
 
 		u8 smac[ETH_ALEN];
-		u16 vlan_id;
+		u16 vlan;
 		int rc;
 	} *rqe_wr_id;
 

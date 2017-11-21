@@ -284,6 +284,11 @@ int snd_hdac_bus_parse_capabilities(struct hdac_bus *bus)
 		dev_dbg(bus->dev, "HDA capability ID: 0x%x\n",
 			(cur_cap & AZX_CAP_HDR_ID_MASK) >> AZX_CAP_HDR_ID_OFF);
 
+		if (cur_cap == -1) {
+			dev_dbg(bus->dev, "Invalid capability reg read\n");
+			break;
+		}
+
 		switch ((cur_cap & AZX_CAP_HDR_ID_MASK) >> AZX_CAP_HDR_ID_OFF) {
 		case AZX_ML_CAP_ID:
 			dev_dbg(bus->dev, "Found ML capability\n");

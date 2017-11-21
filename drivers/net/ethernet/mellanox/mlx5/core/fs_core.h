@@ -52,6 +52,7 @@ enum fs_flow_table_type {
 	FS_FT_FDB             = 0X4,
 	FS_FT_SNIFFER_RX	= 0X5,
 	FS_FT_SNIFFER_TX	= 0X6,
+	FS_FT_MAX_TYPE = FS_FT_SNIFFER_TX,
 };
 
 enum fs_flow_table_op_mod {
@@ -259,5 +260,15 @@ void mlx5_cleanup_fs(struct mlx5_core_dev *dev);
 
 #define fs_for_each_dst(pos, fte)			\
 	fs_list_for_each_entry(pos, &(fte)->node.children)
+
+#define MLX5_CAP_FLOWTABLE_TYPE(mdev, cap, type) (		\
+	(type == FS_FT_NIC_RX) ? MLX5_CAP_FLOWTABLE_NIC_RX(mdev, cap) :		\
+	(type == FS_FT_ESW_EGRESS_ACL) ? MLX5_CAP_ESW_EGRESS_ACL(mdev, cap) :		\
+	(type == FS_FT_ESW_INGRESS_ACL) ? MLX5_CAP_ESW_INGRESS_ACL(mdev, cap) :		\
+	(type == FS_FT_FDB) ? MLX5_CAP_ESW_FLOWTABLE_FDB(mdev, cap) :		\
+	(type == FS_FT_SNIFFER_RX) ? MLX5_CAP_FLOWTABLE_SNIFFER_RX(mdev, cap) :		\
+	(type == FS_FT_SNIFFER_TX) ? MLX5_CAP_FLOWTABLE_SNIFFER_TX(mdev, cap) :		\
+	(BUILD_BUG_ON_ZERO(FS_FT_SNIFFER_TX != FS_FT_MAX_TYPE))\
+	)
 
 #endif

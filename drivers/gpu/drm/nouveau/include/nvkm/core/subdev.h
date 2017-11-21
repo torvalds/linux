@@ -33,7 +33,7 @@ void nvkm_subdev_intr(struct nvkm_subdev *);
 /* subdev logging */
 #define nvkm_printk_(s,l,p,f,a...) do {                                        \
 	const struct nvkm_subdev *_subdev = (s);                               \
-	if (_subdev->debug >= (l)) {                                           \
+	if (CONFIG_NOUVEAU_DEBUG >= (l) && _subdev->debug >= (l)) {            \
 		dev_##p(_subdev->device->dev, "%s: "f,                         \
 			nvkm_subdev_name[_subdev->index], ##a);                \
 	}                                                                      \

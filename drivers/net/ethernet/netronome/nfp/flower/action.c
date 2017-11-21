@@ -110,6 +110,8 @@ nfp_fl_output(struct nfp_fl_output *output, const struct tc_action *action,
 	 */
 	if (!switchdev_port_same_parent_id(in_dev, out_dev))
 		return -EOPNOTSUPP;
+	if (!nfp_netdev_is_nfp_repr(out_dev))
+		return -EOPNOTSUPP;
 
 	output->port = cpu_to_be32(nfp_repr_get_port_id(out_dev));
 	if (!output->port)

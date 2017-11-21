@@ -379,32 +379,15 @@ static const struct drm_encoder_funcs intel_dvo_enc_funcs = {
  * chip being on DVOB/C and having multiple pipes.
  */
 static struct drm_display_mode *
-intel_dvo_get_current_mode(struct drm_connector *connector)
+intel_dvo_get_current_mode(struct intel_encoder *encoder)
 {
-	struct drm_device *dev = connector->dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct intel_dvo *intel_dvo = intel_attached_dvo(connector);
-	uint32_t dvo_val = I915_READ(intel_dvo->dev.dvo_reg);
-	struct drm_display_mode *mode = NULL;
+	struct drm_display_mode *mode;
 
-	/* If the DVO port is active, that'll be the LVDS, so we can pull out
-	 * its timings to get how the BIOS set up the panel.
-	 */
-	if (dvo_val & DVO_ENABLE) {
-		struct intel_crtc *crtc;
-		int pipe = (dvo_val & DVO_PIPE_B_SELECT) ? 1 : 0;
-
-		crtc = intel_get_crtc_for_pipe(dev_priv, pipe);
-		if (crtc) {
-			mode = intel_crtc_mode_get(dev, &crtc->base);
-			if (mode) {
-				mode->type |= DRM_MODE_TYPE_PREFERRED;
-				if (dvo_val & DVO_HSYNC_ACTIVE_HIGH)
-					mode->flags |= DRM_MODE_FLAG_PHSYNC;
-				if (dvo_val & DVO_VSYNC_ACTIVE_HIGH)
-					mode->flags |= DRM_MODE_FLAG_PVSYNC;
-			}
-		}
+	mode = intel_encoder_current_mode(encoder);
+	if (mode) {
+		DRM_DEBUG_KMS("using current (BIOS) mode: ");
+		drm_mode_debug_printmodeline(mode);
+		mode->type |= DRM_MODE_TYPE_PREFERRED;
 	}
 
 	return mode;
@@ -551,7 +534,7 @@ void intel_dvo_init(struct drm_i915_private *dev_priv)
 			 * mode being output through DVO.
 			 */
 			intel_panel_init(&intel_connector->panel,
-					 intel_dvo_get_current_mode(connector),
+					 intel_dvo_get_current_mode(intel_encoder),
 					 NULL, NULL);
 			intel_dvo->panel_wants_dither = true;
 		}

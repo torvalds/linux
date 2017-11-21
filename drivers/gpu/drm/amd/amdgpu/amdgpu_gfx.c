@@ -109,9 +109,26 @@ void amdgpu_gfx_parse_disable_cu(unsigned *mask, unsigned max_se, unsigned max_s
 	}
 }
 
+static bool amdgpu_gfx_is_multipipe_capable(struct amdgpu_device *adev)
+{
+	if (amdgpu_compute_multipipe != -1) {
+		DRM_INFO("amdgpu: forcing compute pipe policy %d\n",
+			 amdgpu_compute_multipipe);
+		return amdgpu_compute_multipipe == 1;
+	}
+
+	/* FIXME: spreading the queues across pipes causes perf regressions
+	 * on POLARIS11 compute workloads */
+	if (adev->asic_type == CHIP_POLARIS11)
+		return false;
+
+	return adev->gfx.mec.num_mec > 1;
+}
+
 void amdgpu_gfx_compute_queue_acquire(struct amdgpu_device *adev)
 {
 	int i, queue, pipe, mec;
+	bool multipipe_policy = amdgpu_gfx_is_multipipe_capable(adev);
 
 	/* policy for amdgpu compute queue ownership */
 	for (i = 0; i < AMDGPU_MAX_COMPUTE_QUEUES; ++i) {
@@ -125,8 +142,7 @@ void amdgpu_gfx_compute_queue_acquire(struct amdgpu_device *adev)
 		if (mec >= adev->gfx.mec.num_mec)
 			break;
 
-		/* FIXME: spreading the queues across pipes causes perf regressions */
-		if (0) {
+		if (multipipe_policy) {
 			/* policy: amdgpu owns the first two queues of the first MEC */
 			if (mec == 0 && queue < 2)
 				set_bit(i, adev->gfx.mec.queue_bitmap);
@@ -185,7 +201,7 @@ int amdgpu_gfx_kiq_init_ring(struct amdgpu_device *adev,
 	struct amdgpu_kiq *kiq = &adev->gfx.kiq;
 	int r = 0;
 
-	mutex_init(&kiq->ring_mutex);
+	spin_lock_init(&kiq->ring_lock);
 
 	r = amdgpu_wb_get(adev, &adev->virt.reg_val_offs);
 	if (r)

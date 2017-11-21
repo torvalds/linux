@@ -716,7 +716,7 @@ static int drm_atomic_plane_set_property(struct drm_plane *plane,
 	struct drm_mode_config *config = &dev->mode_config;
 
 	if (property == config->prop_fb_id) {
-		struct drm_framebuffer *fb = drm_framebuffer_lookup(dev, val);
+		struct drm_framebuffer *fb = drm_framebuffer_lookup(dev, NULL, val);
 		drm_atomic_set_fb_for_plane(state, fb);
 		if (fb)
 			drm_framebuffer_put(fb);
@@ -732,7 +732,7 @@ static int drm_atomic_plane_set_property(struct drm_plane *plane,
 			return -EINVAL;
 
 	} else if (property == config->prop_crtc_id) {
-		struct drm_crtc *crtc = drm_crtc_find(dev, val);
+		struct drm_crtc *crtc = drm_crtc_find(dev, NULL, val);
 		return drm_atomic_set_crtc_for_plane(state, crtc);
 	} else if (property == config->prop_crtc_x) {
 		state->crtc_x = U642I64(val);
@@ -1135,7 +1135,7 @@ static int drm_atomic_connector_set_property(struct drm_connector *connector,
 	struct drm_mode_config *config = &dev->mode_config;
 
 	if (property == config->prop_crtc_id) {
-		struct drm_crtc *crtc = drm_crtc_find(dev, val);
+		struct drm_crtc *crtc = drm_crtc_find(dev, NULL, val);
 		return drm_atomic_set_crtc_for_connector(state, crtc);
 	} else if (property == config->dpms_property) {
 		/* setting DPMS property requires special handling, which
@@ -1801,7 +1801,7 @@ int drm_atomic_debugfs_init(struct drm_minor *minor)
  */
 
 static struct drm_pending_vblank_event *create_vblank_event(
-		struct drm_device *dev, uint64_t user_data)
+		struct drm_crtc *crtc, uint64_t user_data)
 {
 	struct drm_pending_vblank_event *e = NULL;
 
@@ -1811,7 +1811,8 @@ static struct drm_pending_vblank_event *create_vblank_event(
 
 	e->event.base.type = DRM_EVENT_FLIP_COMPLETE;
 	e->event.base.length = sizeof(e->event);
-	e->event.user_data = user_data;
+	e->event.vbl.crtc_id = crtc->base.id;
+	e->event.vbl.user_data = user_data;
 
 	return e;
 }
@@ -2065,7 +2066,7 @@ static int prepare_crtc_signaling(struct drm_device *dev,
 		if (arg->flags & DRM_MODE_PAGE_FLIP_EVENT || fence_ptr) {
 			struct drm_pending_vblank_event *e;
 
-			e = create_vblank_event(dev, arg->user_data);
+			e = create_vblank_event(crtc, arg->user_data);
 			if (!e)
 				return -ENOMEM;
 
@@ -2245,7 +2246,7 @@ retry:
 			goto out;
 		}
 
-		obj = drm_mode_object_find(dev, obj_id, DRM_MODE_OBJECT_ANY);
+		obj = drm_mode_object_find(dev, file_priv, obj_id, DRM_MODE_OBJECT_ANY);
 		if (!obj) {
 			ret = -ENOENT;
 			goto out;

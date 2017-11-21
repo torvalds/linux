@@ -296,6 +296,7 @@ static void dwmac4_pmt(struct mac_device_info *hw, unsigned long mode)
 {
 	void __iomem *ioaddr = hw->pcsr;
 	unsigned int pmt = 0;
+	u32 config;
 
 	if (mode & WAKE_MAGIC) {
 		pr_debug("GMAC: WOL Magic frame\n");
@@ -306,6 +307,12 @@ static void dwmac4_pmt(struct mac_device_info *hw, unsigned long mode)
 		pmt |= power_down | global_unicast | wake_up_frame_en;
 	}
 
+	if (pmt) {
+		/* The receiver must be enabled for WOL before powering down */
+		config = readl(ioaddr + GMAC_CONFIG);
+		config |= GMAC_CONFIG_RE;
+		writel(config, ioaddr + GMAC_CONFIG);
+	}
 	writel(pmt, ioaddr + GMAC_PMT);
 }
 

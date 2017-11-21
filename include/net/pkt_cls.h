@@ -2,6 +2,7 @@
 #define __NET_PKT_CLS_H
 
 #include <linux/pkt_cls.h>
+#include <linux/workqueue.h>
 #include <net/sch_generic.h>
 #include <net/act_api.h>
 
@@ -16,6 +17,8 @@ struct tcf_walker {
 
 int register_tcf_proto_ops(struct tcf_proto_ops *ops);
 int unregister_tcf_proto_ops(struct tcf_proto_ops *ops);
+
+bool tcf_queue_work(struct work_struct *work);
 
 #ifdef CONFIG_NET_CLS
 struct tcf_chain *tcf_chain_get(struct tcf_block *block, u32 chain_index,

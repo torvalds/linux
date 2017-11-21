@@ -328,9 +328,10 @@ static int amdgpu_vm_alloc_levels(struct amdgpu_device *adev,
 				AMDGPU_GEM_CREATE_SHADOW);
 
 	if (vm->pte_support_ats) {
-		init_value = AMDGPU_PTE_SYSTEM;
+		init_value = AMDGPU_PTE_DEFAULT_ATC;
 		if (level != adev->vm_manager.num_level - 1)
 			init_value |= AMDGPU_PDE_PTE;
+
 	}
 
 	/* walk over the address space and allocate the page tables */
@@ -1034,7 +1035,7 @@ static int amdgpu_vm_wait_pd(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 	int r;
 
 	amdgpu_sync_create(&sync);
-	amdgpu_sync_resv(adev, &sync, vm->root.base.bo->tbo.resv, owner);
+	amdgpu_sync_resv(adev, &sync, vm->root.base.bo->tbo.resv, owner, false);
 	r = amdgpu_sync_wait(&sync, true);
 	amdgpu_sync_free(&sync);
 
@@ -1175,11 +1176,11 @@ static int amdgpu_vm_update_level(struct amdgpu_device *adev,
 			amdgpu_ring_pad_ib(ring, params.ib);
 			amdgpu_sync_resv(adev, &job->sync,
 					 parent->base.bo->tbo.resv,
-					 AMDGPU_FENCE_OWNER_VM);
+					 AMDGPU_FENCE_OWNER_VM, false);
 			if (shadow)
 				amdgpu_sync_resv(adev, &job->sync,
 						 shadow->tbo.resv,
-						 AMDGPU_FENCE_OWNER_VM);
+						 AMDGPU_FENCE_OWNER_VM, false);
 
 			WARN_ON(params.ib->length_dw > ndw);
 			r = amdgpu_job_submit(job, ring, &vm->entity,
@@ -1243,7 +1244,7 @@ static void amdgpu_vm_invalidate_level(struct amdgpu_vm *vm,
 int amdgpu_vm_update_directories(struct amdgpu_device *adev,
 				 struct amdgpu_vm *vm)
 {
-	int r;
+	int r = 0;
 
 	spin_lock(&vm->status_lock);
 	while (!list_empty(&vm->relocated)) {
@@ -1643,7 +1644,7 @@ static int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 		goto error_free;
 
 	r = amdgpu_sync_resv(adev, &job->sync, vm->root.base.bo->tbo.resv,
-			     owner);
+			     owner, false);
 	if (r)
 		goto error_free;
 
@@ -1698,6 +1699,7 @@ static int amdgpu_vm_bo_split_mapping(struct amdgpu_device *adev,
 				      struct drm_mm_node *nodes,
 				      struct dma_fence **fence)
 {
+	unsigned min_linear_pages = 1 << adev->vm_manager.fragment_size;
 	uint64_t pfn, start = mapping->start;
 	int r;
 
@@ -1732,6 +1734,7 @@ static int amdgpu_vm_bo_split_mapping(struct amdgpu_device *adev,
 	}
 
 	do {
+		dma_addr_t *dma_addr = NULL;
 		uint64_t max_entries;
 		uint64_t addr, last;
 
@@ -1745,15 +1748,32 @@ static int amdgpu_vm_bo_split_mapping(struct amdgpu_device *adev,
 		}
 
 		if (pages_addr) {
+			uint64_t count;
+
 			max_entries = min(max_entries, 16ull * 1024ull);
-			addr = 0;
+			for (count = 1; count < max_entries; ++count) {
+				uint64_t idx = pfn + count;
+
+				if (pages_addr[idx] !=
+				    (pages_addr[idx - 1] + PAGE_SIZE))
+					break;
+			}
+
+			if (count < min_linear_pages) {
+				addr = pfn << PAGE_SHIFT;
+				dma_addr = pages_addr;
+			} else {
+				addr = pages_addr[pfn];
+				max_entries = count;
+			}
+
 		} else if (flags & AMDGPU_PTE_VALID) {
 			addr += adev->vm_manager.vram_base_offset;
+			addr += pfn << PAGE_SHIFT;
 		}
-		addr += pfn << PAGE_SHIFT;
 
 		last = min((uint64_t)mapping->last, start + max_entries - 1);
-		r = amdgpu_vm_bo_update_mapping(adev, exclusive, pages_addr, vm,
+		r = amdgpu_vm_bo_update_mapping(adev, exclusive, dma_addr, vm,
 						start, last, flags, addr,
 						fence);
 		if (r)
@@ -2017,7 +2037,7 @@ int amdgpu_vm_clear_freed(struct amdgpu_device *adev,
 		list_del(&mapping->list);
 
 		if (vm->pte_support_ats)
-			init_pte_value = AMDGPU_PTE_SYSTEM;
+			init_pte_value = AMDGPU_PTE_DEFAULT_ATC;
 
 		r = amdgpu_vm_bo_update_mapping(adev, NULL, NULL, vm,
 						mapping->start, mapping->last,
@@ -2541,7 +2561,8 @@ static uint32_t amdgpu_vm_get_block_size(uint64_t vm_size)
  * @adev: amdgpu_device pointer
  * @fragment_size_default: the default fragment size if it's set auto
  */
-void amdgpu_vm_set_fragment_size(struct amdgpu_device *adev, uint32_t fragment_size_default)
+void amdgpu_vm_set_fragment_size(struct amdgpu_device *adev,
+				 uint32_t fragment_size_default)
 {
 	if (amdgpu_vm_fragment_size == -1)
 		adev->vm_manager.fragment_size = fragment_size_default;
@@ -2555,7 +2576,8 @@ void amdgpu_vm_set_fragment_size(struct amdgpu_device *adev, uint32_t fragment_s
  * @adev: amdgpu_device pointer
  * @vm_size: the default vm size if it's set auto
  */
-void amdgpu_vm_adjust_size(struct amdgpu_device *adev, uint64_t vm_size, uint32_t fragment_size_default)
+void amdgpu_vm_adjust_size(struct amdgpu_device *adev, uint64_t vm_size,
+			   uint32_t fragment_size_default)
 {
 	/* adjust vm size firstly */
 	if (amdgpu_vm_size == -1)
@@ -2627,7 +2649,9 @@ int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 
 		if (adev->asic_type == CHIP_RAVEN) {
 			vm->pte_support_ats = true;
-			init_pde_value = AMDGPU_PTE_SYSTEM | AMDGPU_PDE_PTE;
+			init_pde_value = AMDGPU_PTE_DEFAULT_ATC
+					| AMDGPU_PDE_PTE;
+
 		}
 	} else
 		vm->use_cpu_for_update = !!(adev->vm_manager.vm_update_mode &
@@ -2682,6 +2706,7 @@ int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 	}
 
 	INIT_KFIFO(vm->faults);
+	vm->fault_credit = 16;
 
 	return 0;
 
@@ -2734,8 +2759,9 @@ void amdgpu_vm_fini(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 {
 	struct amdgpu_bo_va_mapping *mapping, *tmp;
 	bool prt_fini_needed = !!adev->gart.gart_funcs->set_prt;
+	struct amdgpu_bo *root;
 	u64 fault;
-	int i;
+	int i, r;
 
 	/* Clear pending page faults from IH when the VM is destroyed */
 	while (kfifo_get(&vm->faults, &fault))
@@ -2770,10 +2796,48 @@ void amdgpu_vm_fini(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 		amdgpu_vm_free_mapping(adev, vm, mapping, NULL);
 	}
 
-	amdgpu_vm_free_levels(&vm->root);
+	root = amdgpu_bo_ref(vm->root.base.bo);
+	r = amdgpu_bo_reserve(root, true);
+	if (r) {
+		dev_err(adev->dev, "Leaking page tables because BO reservation failed\n");
+	} else {
+		amdgpu_vm_free_levels(&vm->root);
+		amdgpu_bo_unreserve(root);
+	}
+	amdgpu_bo_unref(&root);
 	dma_fence_put(vm->last_update);
 	for (i = 0; i < AMDGPU_MAX_VMHUBS; i++)
 		amdgpu_vm_free_reserved_vmid(adev, vm, i);
+}
+
+/**
+ * amdgpu_vm_pasid_fault_credit - Check fault credit for given PASID
+ *
+ * @adev: amdgpu_device pointer
+ * @pasid: PASID do identify the VM
+ *
+ * This function is expected to be called in interrupt context. Returns
+ * true if there was fault credit, false otherwise
+ */
+bool amdgpu_vm_pasid_fault_credit(struct amdgpu_device *adev,
+				  unsigned int pasid)
+{
+	struct amdgpu_vm *vm;
+
+	spin_lock(&adev->vm_manager.pasid_lock);
+	vm = idr_find(&adev->vm_manager.pasid_idr, pasid);
+	spin_unlock(&adev->vm_manager.pasid_lock);
+	if (!vm)
+		/* VM not found, can't track fault credit */
+		return true;
+
+	/* No lock needed. only accessed by IRQ handler */
+	if (!vm->fault_credit)
+		/* Too many faults in this VM */
+		return false;
+
+	vm->fault_credit--;
+	return true;
 }
 
 /**

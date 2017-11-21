@@ -880,8 +880,8 @@ static bool compute_is_dual_link_lvds(struct intel_lvds_encoder *lvds_encoder)
 	struct drm_i915_private *dev_priv = to_i915(dev);
 
 	/* use the module option value if specified */
-	if (i915.lvds_channel_mode > 0)
-		return i915.lvds_channel_mode == 2;
+	if (i915_modparams.lvds_channel_mode > 0)
+		return i915_modparams.lvds_channel_mode == 2;
 
 	/* single channel LVDS is limited to 112 MHz */
 	if (lvds_encoder->attached_connector->base.panel.fixed_mode->clock
@@ -939,10 +939,8 @@ void intel_lvds_init(struct drm_i915_private *dev_priv)
 	struct drm_display_mode *fixed_mode = NULL;
 	struct drm_display_mode *downclock_mode = NULL;
 	struct edid *edid;
-	struct intel_crtc *crtc;
 	i915_reg_t lvds_reg;
 	u32 lvds;
-	int pipe;
 	u8 pin;
 	u32 allowed_scalers;
 
@@ -1113,22 +1111,11 @@ void intel_lvds_init(struct drm_i915_private *dev_priv)
 	 * on.  If so, assume that whatever is currently programmed is the
 	 * correct mode.
 	 */
-
-	/* Ironlake: FIXME if still fail, not try pipe mode now */
-	if (HAS_PCH_SPLIT(dev_priv))
-		goto failed;
-
-	pipe = (lvds & LVDS_PIPEB_SELECT) ? 1 : 0;
-	crtc = intel_get_crtc_for_pipe(dev_priv, pipe);
-
-	if (crtc && (lvds & LVDS_PORT_EN)) {
-		fixed_mode = intel_crtc_mode_get(dev, &crtc->base);
-		if (fixed_mode) {
-			DRM_DEBUG_KMS("using current (BIOS) mode: ");
-			drm_mode_debug_printmodeline(fixed_mode);
-			fixed_mode->type |= DRM_MODE_TYPE_PREFERRED;
-			goto out;
-		}
+	fixed_mode = intel_encoder_current_mode(intel_encoder);
+	if (fixed_mode) {
+		DRM_DEBUG_KMS("using current (BIOS) mode: ");
+		drm_mode_debug_printmodeline(fixed_mode);
+		fixed_mode->type |= DRM_MODE_TYPE_PREFERRED;
 	}
 
 	/* If we still don't have a mode after all that, give up. */

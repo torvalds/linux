@@ -102,8 +102,7 @@ radeon-y += \
 radeon-y += \
 	radeon_vce.o \
 	vce_v1_0.o \
-	vce_v2_0.o \
-	radeon_kfd.o
+	vce_v2_0.o
 
 radeon-$(CONFIG_VGA_SWITCHEROO) += radeon_atpx_handler.o
 radeon-$(CONFIG_ACPI) += radeon_acpi.o

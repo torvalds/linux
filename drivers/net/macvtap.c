@@ -204,8 +204,8 @@ static int macvtap_init(void)
 {
 	int err;
 
-	err = tap_create_cdev(&macvtap_cdev, &macvtap_major, "macvtap");
-
+	err = tap_create_cdev(&macvtap_cdev, &macvtap_major, "macvtap",
+			      THIS_MODULE);
 	if (err)
 		goto out1;
 

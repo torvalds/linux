@@ -145,11 +145,12 @@
 		};
 
 		watchdog@41000000 {
-			compatible = "cortina,gemini-watchdog";
+			compatible = "cortina,gemini-watchdog", "faraday,ftwdt010";
 			reg = <0x41000000 0x1000>;
 			interrupts = <3 IRQ_TYPE_LEVEL_HIGH>;
 			resets = <&syscon GEMINI_RESET_WDOG>;
 			clocks = <&syscon GEMINI_CLK_APB>;
+			clock-names = "PCLK";
 		};
 
 		uart0: serial@42000000 {

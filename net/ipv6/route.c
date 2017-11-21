@@ -1325,7 +1325,7 @@ struct dst_entry *ip6_blackhole_route(struct net *net, struct dst_entry *dst_ori
 	struct dst_entry *new = NULL;
 
 	rt = dst_alloc(&ip6_dst_blackhole_ops, loopback_dev, 1,
-		       DST_OBSOLETE_NONE, 0);
+		       DST_OBSOLETE_DEAD, 0);
 	if (rt) {
 		rt6_info_init(rt);
 

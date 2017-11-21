@@ -1385,7 +1385,7 @@ intel_tv_get_modes(struct drm_connector *connector)
 			mode_ptr->vsync_end = mode_ptr->vsync_start  + 1;
 		mode_ptr->vtotal = vactive_s + 33;
 
-		tmp = (u64) tv_mode->refresh * mode_ptr->vtotal;
+		tmp = mul_u32_u32(tv_mode->refresh, mode_ptr->vtotal);
 		tmp *= mode_ptr->htotal;
 		tmp = div_u64(tmp, 1000000);
 		mode_ptr->clock = (int) tmp;

@@ -572,12 +572,13 @@ void mlx5_rdma_netdev_free(struct net_device *netdev)
 {
 	struct mlx5e_priv          *priv    = mlx5i_epriv(netdev);
 	const struct mlx5e_profile *profile = priv->profile;
+	struct mlx5_core_dev       *mdev    = priv->mdev;
 
 	mlx5e_detach_netdev(priv);
 	profile->cleanup(priv);
 	destroy_workqueue(priv->wq);
 	free_netdev(netdev);
 
-	mlx5e_destroy_mdev_resources(priv->mdev);
+	mlx5e_destroy_mdev_resources(mdev);
 }
 EXPORT_SYMBOL(mlx5_rdma_netdev_free);

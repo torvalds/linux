@@ -502,12 +502,17 @@ static int bnxt_sriov_enable(struct bnxt *bp, int *num_vfs)
 	int rc = 0, vfs_supported;
 	int min_rx_rings, min_tx_rings, min_rss_ctxs;
 	int tx_ok = 0, rx_ok = 0, rss_ok = 0;
+	int avail_cp, avail_stat;
 
 	/* Check if we can enable requested num of vf's. At a mininum
 	 * we require 1 RX 1 TX rings for each VF. In this minimum conf
 	 * features like TPA will not be available.
 	 */
 	vfs_supported = *num_vfs;
+
+	avail_cp = bp->pf.max_cp_rings - bp->cp_nr_rings;
+	avail_stat = bp->pf.max_stat_ctxs - bp->num_stat_ctxs;
+	avail_cp = min_t(int, avail_cp, avail_stat);
 
 	while (vfs_supported) {
 		min_rx_rings = vfs_supported;
@@ -523,10 +528,12 @@ static int bnxt_sriov_enable(struct bnxt *bp, int *num_vfs)
 			    min_rx_rings)
 				rx_ok = 1;
 		}
-		if (bp->pf.max_vnics - bp->nr_vnics < min_rx_rings)
+		if (bp->pf.max_vnics - bp->nr_vnics < min_rx_rings ||
+		    avail_cp < min_rx_rings)
 			rx_ok = 0;
 
-		if (bp->pf.max_tx_rings - bp->tx_nr_rings >= min_tx_rings)
+		if (bp->pf.max_tx_rings - bp->tx_nr_rings >= min_tx_rings &&
+		    avail_cp >= min_tx_rings)
 			tx_ok = 1;
 
 		if (bp->pf.max_rsscos_ctxs - bp->rsscos_nr_ctxs >= min_rss_ctxs)

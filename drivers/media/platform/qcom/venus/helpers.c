@@ -682,6 +682,7 @@ void venus_helper_vb2_stop_streaming(struct vb2_queue *q)
 			hfi_session_abort(inst);
 
 		load_scale_clocks(core);
+		INIT_LIST_HEAD(&inst->registeredbufs);
 	}
 
 	venus_helper_buffers_done(inst, VB2_BUF_STATE_ERROR);

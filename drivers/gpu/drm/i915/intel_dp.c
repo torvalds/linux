@@ -42,6 +42,7 @@
 #include "i915_drv.h"
 
 #define DP_LINK_CHECK_TIMEOUT	(10 * 1000)
+#define DP_DPRX_ESI_LEN 14
 
 /* Compliance test status bits  */
 #define INTEL_DP_RESOLUTION_SHIFT_MASK	0
@@ -136,32 +137,20 @@ static void vlv_steal_power_sequencer(struct drm_device *dev,
 				      enum pipe pipe);
 static void intel_dp_unset_edid(struct intel_dp *intel_dp);
 
-static int intel_dp_num_rates(u8 link_bw_code)
-{
-	switch (link_bw_code) {
-	default:
-		WARN(1, "invalid max DP link bw val %x, using 1.62Gbps\n",
-		     link_bw_code);
-	case DP_LINK_BW_1_62:
-		return 1;
-	case DP_LINK_BW_2_7:
-		return 2;
-	case DP_LINK_BW_5_4:
-		return 3;
-	}
-}
-
 /* update sink rates from dpcd */
 static void intel_dp_set_sink_rates(struct intel_dp *intel_dp)
 {
-	int i, num_rates;
+	int i, max_rate;
 
-	num_rates = intel_dp_num_rates(intel_dp->dpcd[DP_MAX_LINK_RATE]);
+	max_rate = drm_dp_bw_code_to_link_rate(intel_dp->dpcd[DP_MAX_LINK_RATE]);
 
-	for (i = 0; i < num_rates; i++)
+	for (i = 0; i < ARRAY_SIZE(default_rates); i++) {
+		if (default_rates[i] > max_rate)
+			break;
 		intel_dp->sink_rates[i] = default_rates[i];
+	}
 
-	intel_dp->num_sink_rates = num_rates;
+	intel_dp->num_sink_rates = i;
 }
 
 /* Theoretical max between source and sink */
@@ -253,14 +242,14 @@ intel_dp_set_source_rates(struct intel_dp *intel_dp)
 	} else if (IS_GEN9_BC(dev_priv)) {
 		source_rates = skl_rates;
 		size = ARRAY_SIZE(skl_rates);
-	} else {
+	} else if ((IS_HASWELL(dev_priv) && !IS_HSW_ULX(dev_priv)) ||
+		   IS_BROADWELL(dev_priv)) {
 		source_rates = default_rates;
 		size = ARRAY_SIZE(default_rates);
+	} else {
+		source_rates = default_rates;
+		size = ARRAY_SIZE(default_rates) - 1;
 	}
-
-	/* This depends on the fact that 5.4 is last value in the array */
-	if (!intel_dp_source_supports_hbr2(intel_dp))
-		size--;
 
 	intel_dp->source_rates = source_rates;
 	intel_dp->num_source_rates = size;
@@ -1018,7 +1007,7 @@ static uint32_t g4x_get_aux_send_ctl(struct intel_dp *intel_dp,
 	else
 		precharge = 5;
 
-	if (IS_BROADWELL(dev_priv) && intel_dig_port->port == PORT_A)
+	if (IS_BROADWELL(dev_priv))
 		timeout = DP_AUX_CH_CTL_TIME_OUT_600us;
 	else
 		timeout = DP_AUX_CH_CTL_TIME_OUT_400us;
@@ -1043,7 +1032,7 @@ static uint32_t skl_get_aux_send_ctl(struct intel_dp *intel_dp,
 	       DP_AUX_CH_CTL_DONE |
 	       (has_aux_irq ? DP_AUX_CH_CTL_INTERRUPT : 0) |
 	       DP_AUX_CH_CTL_TIME_OUT_ERROR |
-	       DP_AUX_CH_CTL_TIME_OUT_1600us |
+	       DP_AUX_CH_CTL_TIME_OUT_MAX |
 	       DP_AUX_CH_CTL_RECEIVE_ERROR |
 	       (send_bytes << DP_AUX_CH_CTL_MESSAGE_SIZE_SHIFT) |
 	       DP_AUX_CH_CTL_FW_SYNC_PULSE_SKL(32) |
@@ -1481,14 +1470,9 @@ intel_dp_aux_init(struct intel_dp *intel_dp)
 
 bool intel_dp_source_supports_hbr2(struct intel_dp *intel_dp)
 {
-	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
-	struct drm_i915_private *dev_priv = to_i915(dig_port->base.base.dev);
+	int max_rate = intel_dp->source_rates[intel_dp->num_source_rates - 1];
 
-	if ((IS_HASWELL(dev_priv) && !IS_HSW_ULX(dev_priv)) ||
-	    IS_BROADWELL(dev_priv) || (INTEL_GEN(dev_priv) >= 9))
-		return true;
-	else
-		return false;
+	return max_rate >= 540000;
 }
 
 static void
@@ -1847,6 +1831,8 @@ found:
 
 	if (!HAS_DDI(dev_priv))
 		intel_dp_set_clock(encoder, pipe_config);
+
+	intel_psr_compute_config(intel_dp, pipe_config);
 
 	return true;
 }
@@ -2307,8 +2293,8 @@ static void edp_panel_off(struct intel_dp *intel_dp)
 	I915_WRITE(pp_ctrl_reg, pp);
 	POSTING_READ(pp_ctrl_reg);
 
-	intel_dp->panel_power_off_time = ktime_get_boottime();
 	wait_panel_off(intel_dp);
+	intel_dp->panel_power_off_time = ktime_get_boottime();
 
 	/* We got a reference when we enabled the VDD. */
 	intel_display_power_put(dev_priv, intel_dp->aux_power_domain);
@@ -2692,13 +2678,9 @@ static void intel_disable_dp(struct intel_encoder *encoder,
 			     const struct drm_connector_state *old_conn_state)
 {
 	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 
 	if (old_crtc_state->has_audio)
 		intel_audio_codec_disable(encoder);
-
-	if (HAS_PSR(dev_priv) && !HAS_DDI(dev_priv))
-		intel_psr_disable(intel_dp, old_crtc_state);
 
 	/* Make sure the panel is off before trying to change the mode. But also
 	 * ensure that we have vdd while we switch off the panel. */
@@ -2706,10 +2688,36 @@ static void intel_disable_dp(struct intel_encoder *encoder,
 	intel_edp_backlight_off(old_conn_state);
 	intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_OFF);
 	intel_edp_panel_off(intel_dp);
+}
+
+static void g4x_disable_dp(struct intel_encoder *encoder,
+			   const struct intel_crtc_state *old_crtc_state,
+			   const struct drm_connector_state *old_conn_state)
+{
+	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
+
+	intel_disable_dp(encoder, old_crtc_state, old_conn_state);
 
 	/* disable the port before the pipe on g4x */
-	if (INTEL_GEN(dev_priv) < 5)
-		intel_dp_link_down(intel_dp);
+	intel_dp_link_down(intel_dp);
+}
+
+static void ilk_disable_dp(struct intel_encoder *encoder,
+			   const struct intel_crtc_state *old_crtc_state,
+			   const struct drm_connector_state *old_conn_state)
+{
+	intel_disable_dp(encoder, old_crtc_state, old_conn_state);
+}
+
+static void vlv_disable_dp(struct intel_encoder *encoder,
+			   const struct intel_crtc_state *old_crtc_state,
+			   const struct drm_connector_state *old_conn_state)
+{
+	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
+
+	intel_psr_disable(intel_dp, old_crtc_state);
+
+	intel_disable_dp(encoder, old_crtc_state, old_conn_state);
 }
 
 static void ilk_post_disable_dp(struct intel_encoder *encoder,
@@ -3147,9 +3155,7 @@ intel_dp_voltage_max(struct intel_dp *intel_dp)
 	struct drm_i915_private *dev_priv = to_i915(intel_dp_to_dev(intel_dp));
 	enum port port = dp_to_dig_port(intel_dp)->port;
 
-	if (IS_GEN9_LP(dev_priv))
-		return DP_TRAIN_VOLTAGE_SWING_LEVEL_3;
-	else if (INTEL_GEN(dev_priv) >= 9) {
+	if (INTEL_GEN(dev_priv) >= 9) {
 		struct intel_encoder *encoder = &dp_to_dig_port(intel_dp)->base;
 		return intel_ddi_dp_voltage_max(encoder);
 	} else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
@@ -3826,7 +3832,7 @@ intel_dp_can_mst(struct intel_dp *intel_dp)
 {
 	u8 mstm_cap;
 
-	if (!i915.enable_dp_mst)
+	if (!i915_modparams.enable_dp_mst)
 		return false;
 
 	if (!intel_dp->can_mst)
@@ -3844,7 +3850,7 @@ intel_dp_can_mst(struct intel_dp *intel_dp)
 static void
 intel_dp_configure_mst(struct intel_dp *intel_dp)
 {
-	if (!i915.enable_dp_mst)
+	if (!i915_modparams.enable_dp_mst)
 		return;
 
 	if (!intel_dp->can_mst)
@@ -3991,15 +3997,9 @@ intel_dp_get_sink_irq(struct intel_dp *intel_dp, u8 *sink_irq_vector)
 static bool
 intel_dp_get_sink_irq_esi(struct intel_dp *intel_dp, u8 *sink_irq_vector)
 {
-	int ret;
-
-	ret = drm_dp_dpcd_read(&intel_dp->aux,
-					     DP_SINK_COUNT_ESI,
-					     sink_irq_vector, 14);
-	if (ret != 14)
-		return false;
-
-	return true;
+	return drm_dp_dpcd_read(&intel_dp->aux, DP_SINK_COUNT_ESI,
+				sink_irq_vector, DP_DPRX_ESI_LEN) ==
+		DP_DPRX_ESI_LEN;
 }
 
 static uint8_t intel_dp_autotest_link_training(struct intel_dp *intel_dp)
@@ -4199,7 +4199,7 @@ intel_dp_check_mst_status(struct intel_dp *intel_dp)
 	bool bret;
 
 	if (intel_dp->is_mst) {
-		u8 esi[16] = { 0 };
+		u8 esi[DP_DPRX_ESI_LEN] = { 0 };
 		int ret = 0;
 		int retry;
 		bool handled;
@@ -4736,10 +4736,6 @@ intel_dp_long_pulse(struct intel_connector *intel_connector)
 	if (intel_encoder->type != INTEL_OUTPUT_EDP)
 		intel_encoder->type = INTEL_OUTPUT_DP;
 
-	DRM_DEBUG_KMS("Display Port TPS3 support: source %s, sink %s\n",
-		      yesno(intel_dp_source_supports_hbr2(intel_dp)),
-		      yesno(drm_dp_tps3_supported(intel_dp->dpcd)));
-
 	if (intel_dp->reset_link_params) {
 		/* Initial max link lane count */
 		intel_dp->max_link_lane_count = intel_dp_max_common_lane_count(intel_dp);
@@ -5273,7 +5269,7 @@ intel_dp_init_panel_power_sequencer(struct drm_device *dev,
 	 * seems sufficient to avoid this problem.
 	 */
 	if (dev_priv->quirks & QUIRK_INCREASE_T12_DELAY) {
-		vbt.t11_t12 = max_t(u16, vbt.t11_t12, 900 * 10);
+		vbt.t11_t12 = max_t(u16, vbt.t11_t12, 1300 * 10);
 		DRM_DEBUG_KMS("Increasing T12 panel delay as per the quirk to %d\n",
 			      vbt.t11_t12);
 	}
@@ -5467,11 +5463,6 @@ static void intel_dp_set_drrs_state(struct drm_i915_private *dev_priv,
 		return;
 	}
 
-	/*
-	 * FIXME: This needs proper synchronization with psr state for some
-	 * platforms that cannot have PSR and DRRS enabled at the same time.
-	 */
-
 	dig_port = dp_to_dig_port(intel_dp);
 	encoder = &dig_port->base;
 	intel_crtc = to_intel_crtc(encoder->base.crtc);
@@ -5552,6 +5543,11 @@ void intel_edp_drrs_enable(struct intel_dp *intel_dp,
 
 	if (!crtc_state->has_drrs) {
 		DRM_DEBUG_KMS("Panel doesn't support DRRS\n");
+		return;
+	}
+
+	if (dev_priv->psr.enabled) {
+		DRM_DEBUG_KMS("PSR enabled. Not enabling DRRS.\n");
 		return;
 	}
 
@@ -6144,7 +6140,6 @@ bool intel_dp_init(struct drm_i915_private *dev_priv,
 		goto err_encoder_init;
 
 	intel_encoder->compute_config = intel_dp_compute_config;
-	intel_encoder->disable = intel_disable_dp;
 	intel_encoder->get_hw_state = intel_dp_get_hw_state;
 	intel_encoder->get_config = intel_dp_get_config;
 	intel_encoder->suspend = intel_dp_encoder_suspend;
@@ -6152,18 +6147,24 @@ bool intel_dp_init(struct drm_i915_private *dev_priv,
 		intel_encoder->pre_pll_enable = chv_dp_pre_pll_enable;
 		intel_encoder->pre_enable = chv_pre_enable_dp;
 		intel_encoder->enable = vlv_enable_dp;
+		intel_encoder->disable = vlv_disable_dp;
 		intel_encoder->post_disable = chv_post_disable_dp;
 		intel_encoder->post_pll_disable = chv_dp_post_pll_disable;
 	} else if (IS_VALLEYVIEW(dev_priv)) {
 		intel_encoder->pre_pll_enable = vlv_dp_pre_pll_enable;
 		intel_encoder->pre_enable = vlv_pre_enable_dp;
 		intel_encoder->enable = vlv_enable_dp;
+		intel_encoder->disable = vlv_disable_dp;
 		intel_encoder->post_disable = vlv_post_disable_dp;
+	} else if (INTEL_GEN(dev_priv) >= 5) {
+		intel_encoder->pre_enable = g4x_pre_enable_dp;
+		intel_encoder->enable = g4x_enable_dp;
+		intel_encoder->disable = ilk_disable_dp;
+		intel_encoder->post_disable = ilk_post_disable_dp;
 	} else {
 		intel_encoder->pre_enable = g4x_pre_enable_dp;
 		intel_encoder->enable = g4x_enable_dp;
-		if (INTEL_GEN(dev_priv) >= 5)
-			intel_encoder->post_disable = ilk_post_disable_dp;
+		intel_encoder->disable = g4x_disable_dp;
 	}
 
 	intel_dig_port->port = port;

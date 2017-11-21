@@ -261,7 +261,7 @@ struct sctp_chunk *sctp_make_fwdtsn(const struct sctp_association *asoc,
 				    struct sctp_fwdtsn_skip *skiplist);
 struct sctp_chunk *sctp_make_auth(const struct sctp_association *asoc);
 struct sctp_chunk *sctp_make_strreset_req(const struct sctp_association *asoc,
-					  __u16 stream_num, __u16 *stream_list,
+					  __u16 stream_num, __be16 *stream_list,
 					  bool out, bool in);
 struct sctp_chunk *sctp_make_strreset_tsnreq(
 					const struct sctp_association *asoc);

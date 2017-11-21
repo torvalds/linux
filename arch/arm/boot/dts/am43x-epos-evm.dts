@@ -388,6 +388,7 @@
 	pinctrl-0 = <&cpsw_default>;
 	pinctrl-1 = <&cpsw_sleep>;
 	status = "okay";
+	slaves = <1>;
 };
 
 &davinci_mdio {
@@ -399,11 +400,6 @@
 
 &cpsw_emac0 {
 	phy_id = <&davinci_mdio>, <16>;
-	phy-mode = "rmii";
-};
-
-&cpsw_emac1 {
-	phy_id = <&davinci_mdio>, <1>;
 	phy-mode = "rmii";
 };
 

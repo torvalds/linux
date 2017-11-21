@@ -74,7 +74,7 @@
 #define I9XX_CSC_COEFF_1_0		\
 	((7 << 12) | I9XX_CSC_COEFF_FP(CTM_COEFF_1_0, 8))
 
-static bool crtc_state_is_legacy(struct drm_crtc_state *state)
+static bool crtc_state_is_legacy_gamma(struct drm_crtc_state *state)
 {
 	return !state->degamma_lut &&
 		!state->ctm &&
@@ -288,7 +288,7 @@ static void cherryview_load_csc_matrix(struct drm_crtc_state *state)
 	}
 
 	mode = (state->ctm ? CGM_PIPE_MODE_CSC : 0);
-	if (!crtc_state_is_legacy(state)) {
+	if (!crtc_state_is_legacy_gamma(state)) {
 		mode |= (state->degamma_lut ? CGM_PIPE_MODE_DEGAMMA : 0) |
 			(state->gamma_lut ? CGM_PIPE_MODE_GAMMA : 0);
 	}
@@ -469,7 +469,7 @@ static void broadwell_load_luts(struct drm_crtc_state *state)
 	struct intel_crtc_state *intel_state = to_intel_crtc_state(state);
 	enum pipe pipe = to_intel_crtc(state->crtc)->pipe;
 
-	if (crtc_state_is_legacy(state)) {
+	if (crtc_state_is_legacy_gamma(state)) {
 		haswell_load_luts(state);
 		return;
 	}
@@ -529,7 +529,7 @@ static void glk_load_luts(struct drm_crtc_state *state)
 
 	glk_load_degamma_lut(state);
 
-	if (crtc_state_is_legacy(state)) {
+	if (crtc_state_is_legacy_gamma(state)) {
 		haswell_load_luts(state);
 		return;
 	}
@@ -551,7 +551,7 @@ static void cherryview_load_luts(struct drm_crtc_state *state)
 	uint32_t i, lut_size;
 	uint32_t word0, word1;
 
-	if (crtc_state_is_legacy(state)) {
+	if (crtc_state_is_legacy_gamma(state)) {
 		/* Turn off degamma/gamma on CGM block. */
 		I915_WRITE(CGM_PIPE_MODE(pipe),
 			   (state->ctm ? CGM_PIPE_MODE_CSC : 0));
@@ -632,12 +632,10 @@ int intel_color_check(struct drm_crtc *crtc,
 		return 0;
 
 	/*
-	 * We also allow no degamma lut and a gamma lut at the legacy
+	 * We also allow no degamma lut/ctm and a gamma lut at the legacy
 	 * size (256 entries).
 	 */
-	if (!crtc_state->degamma_lut &&
-	    crtc_state->gamma_lut &&
-	    crtc_state->gamma_lut->length == LEGACY_LUT_LENGTH)
+	if (crtc_state_is_legacy_gamma(crtc_state))
 		return 0;
 
 	return -EINVAL;

@@ -127,7 +127,7 @@ Description:
 
 What;		/sys/power/pm_trace_dev_match
 Date:		October 2010
-Contact:	James Hogan <james@albanarts.com>
+Contact:	James Hogan <jhogan@kernel.org>
 Description:
 		The /sys/power/pm_trace_dev_match file contains the name of the
 		device associated with the last PM event point saved in the RTC

@@ -2652,7 +2652,8 @@ static int hclge_rss_init_hw(struct hclge_dev *hdev)
 		dev_err(&hdev->pdev->dev,
 			"Configure rss tc size failed, invalid TC_SIZE = %d\n",
 			rss_size);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto err;
 	}
 
 	roundup_size = roundup_pow_of_two(rss_size);

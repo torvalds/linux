@@ -87,7 +87,10 @@ struct cls_fl_filter {
 	struct list_head list;
 	u32 handle;
 	u32 flags;
-	struct rcu_head	rcu;
+	union {
+		struct work_struct work;
+		struct rcu_head	rcu;
+	};
 	struct net_device *hw_dev;
 };
 
@@ -215,12 +218,22 @@ static int fl_init(struct tcf_proto *tp)
 	return 0;
 }
 
+static void fl_destroy_filter_work(struct work_struct *work)
+{
+	struct cls_fl_filter *f = container_of(work, struct cls_fl_filter, work);
+
+	rtnl_lock();
+	tcf_exts_destroy(&f->exts);
+	kfree(f);
+	rtnl_unlock();
+}
+
 static void fl_destroy_filter(struct rcu_head *head)
 {
 	struct cls_fl_filter *f = container_of(head, struct cls_fl_filter, rcu);
 
-	tcf_exts_destroy(&f->exts);
-	kfree(f);
+	INIT_WORK(&f->work, fl_destroy_filter_work);
+	tcf_queue_work(&f->work);
 }
 
 static void fl_hw_destroy_filter(struct tcf_proto *tp, struct cls_fl_filter *f)
@@ -234,6 +247,7 @@ static void fl_hw_destroy_filter(struct tcf_proto *tp, struct cls_fl_filter *f)
 	tc_cls_common_offload_init(&cls_flower.common, tp);
 	cls_flower.command = TC_CLSFLOWER_DESTROY;
 	cls_flower.cookie = (unsigned long) f;
+	cls_flower.egress_dev = f->hw_dev != tp->q->dev_queue->dev;
 
 	dev->netdev_ops->ndo_setup_tc(dev, TC_SETUP_CLSFLOWER, &cls_flower);
 }
@@ -289,6 +303,7 @@ static void fl_hw_update_stats(struct tcf_proto *tp, struct cls_fl_filter *f)
 	cls_flower.command = TC_CLSFLOWER_STATS;
 	cls_flower.cookie = (unsigned long) f;
 	cls_flower.exts = &f->exts;
+	cls_flower.egress_dev = f->hw_dev != tp->q->dev_queue->dev;
 
 	dev->netdev_ops->ndo_setup_tc(dev, TC_SETUP_CLSFLOWER,
 				      &cls_flower);

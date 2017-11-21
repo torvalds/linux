@@ -126,13 +126,7 @@ static inline void switch_ldt(struct mm_struct *prev, struct mm_struct *next)
 	DEBUG_LOCKS_WARN_ON(preemptible());
 }
 
-static inline void enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk)
-{
-	int cpu = smp_processor_id();
-
-	if (cpumask_test_cpu(cpu, mm_cpumask(mm)))
-		cpumask_clear_cpu(cpu, mm_cpumask(mm));
-}
+void enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk);
 
 static inline int init_new_context(struct task_struct *tsk,
 				   struct mm_struct *mm)

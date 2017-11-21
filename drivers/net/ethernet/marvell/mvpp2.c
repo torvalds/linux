@@ -333,7 +333,7 @@
 #define     MVPP2_GMAC_INBAND_AN_MASK		BIT(0)
 #define     MVPP2_GMAC_FLOW_CTRL_MASK		GENMASK(2, 1)
 #define     MVPP2_GMAC_PCS_ENABLE_MASK		BIT(3)
-#define     MVPP2_GMAC_PORT_RGMII_MASK		BIT(4)
+#define     MVPP2_GMAC_INTERNAL_CLK_MASK	BIT(4)
 #define     MVPP2_GMAC_DISABLE_PADDING		BIT(5)
 #define     MVPP2_GMAC_PORT_RESET_MASK		BIT(6)
 #define MVPP2_GMAC_AUTONEG_CONFIG		0xc
@@ -676,6 +676,7 @@ enum mvpp2_tag_type {
 #define MVPP2_PRS_RI_L3_MCAST			BIT(15)
 #define MVPP2_PRS_RI_L3_BCAST			(BIT(15) | BIT(16))
 #define MVPP2_PRS_RI_IP_FRAG_MASK		0x20000
+#define MVPP2_PRS_RI_IP_FRAG_TRUE		BIT(17)
 #define MVPP2_PRS_RI_UDF3_MASK			0x300000
 #define MVPP2_PRS_RI_UDF3_RX_SPECIAL		BIT(21)
 #define MVPP2_PRS_RI_L4_PROTO_MASK		0x1c00000
@@ -792,6 +793,7 @@ struct mvpp2 {
 	struct clk *pp_clk;
 	struct clk *gop_clk;
 	struct clk *mg_clk;
+	struct clk *axi_clk;
 
 	/* List of pointers to port structures */
 	struct mvpp2_port **port_list;
@@ -1165,6 +1167,11 @@ struct mvpp2_bm_pool {
 	u32 port_map;
 };
 
+#define IS_TSO_HEADER(txq_pcpu, addr) \
+	((addr) >= (txq_pcpu)->tso_headers_dma && \
+	 (addr) < (txq_pcpu)->tso_headers_dma + \
+	 (txq_pcpu)->size * TSO_HEADER_SIZE)
+
 /* Queue modes */
 #define MVPP2_QDIST_SINGLE_MODE	0
 #define MVPP2_QDIST_MULTI_MODE	1
@@ -1532,7 +1539,7 @@ static bool mvpp2_prs_tcam_data_cmp(struct mvpp2_prs_entry *pe, int offs,
 	int off = MVPP2_PRS_TCAM_DATA_BYTE(offs);
 	u16 tcam_data;
 
-	tcam_data = (8 << pe->tcam.byte[off + 1]) | pe->tcam.byte[off];
+	tcam_data = (pe->tcam.byte[off + 1] << 8) | pe->tcam.byte[off];
 	if (tcam_data != data)
 		return false;
 	return true;
@@ -2315,7 +2322,7 @@ static int mvpp2_prs_ip4_proto(struct mvpp2 *priv, unsigned short proto,
 	    (proto != IPPROTO_IGMP))
 		return -EINVAL;
 
-	/* Fragmented packet */
+	/* Not fragmented packet */
 	tid = mvpp2_prs_tcam_first_free(priv, MVPP2_PE_FIRST_FREE_TID,
 					MVPP2_PE_LAST_FREE_TID);
 	if (tid < 0)
@@ -2334,8 +2341,12 @@ static int mvpp2_prs_ip4_proto(struct mvpp2 *priv, unsigned short proto,
 				  MVPP2_PRS_SRAM_OP_SEL_UDF_ADD);
 	mvpp2_prs_sram_ai_update(&pe, MVPP2_PRS_IPV4_DIP_AI_BIT,
 				 MVPP2_PRS_IPV4_DIP_AI_BIT);
-	mvpp2_prs_sram_ri_update(&pe, ri | MVPP2_PRS_RI_IP_FRAG_MASK,
-				 ri_mask | MVPP2_PRS_RI_IP_FRAG_MASK);
+	mvpp2_prs_sram_ri_update(&pe, ri, ri_mask | MVPP2_PRS_RI_IP_FRAG_MASK);
+
+	mvpp2_prs_tcam_data_byte_set(&pe, 2, 0x00,
+				     MVPP2_PRS_TCAM_PROTO_MASK_L);
+	mvpp2_prs_tcam_data_byte_set(&pe, 3, 0x00,
+				     MVPP2_PRS_TCAM_PROTO_MASK);
 
 	mvpp2_prs_tcam_data_byte_set(&pe, 5, proto, MVPP2_PRS_TCAM_PROTO_MASK);
 	mvpp2_prs_tcam_ai_update(&pe, 0, MVPP2_PRS_IPV4_DIP_AI_BIT);
@@ -2346,7 +2357,7 @@ static int mvpp2_prs_ip4_proto(struct mvpp2 *priv, unsigned short proto,
 	mvpp2_prs_shadow_set(priv, pe.index, MVPP2_PRS_LU_IP4);
 	mvpp2_prs_hw_write(priv, &pe);
 
-	/* Not fragmented packet */
+	/* Fragmented packet */
 	tid = mvpp2_prs_tcam_first_free(priv, MVPP2_PE_FIRST_FREE_TID,
 					MVPP2_PE_LAST_FREE_TID);
 	if (tid < 0)
@@ -2358,8 +2369,11 @@ static int mvpp2_prs_ip4_proto(struct mvpp2 *priv, unsigned short proto,
 	pe.sram.word[MVPP2_PRS_SRAM_RI_CTRL_WORD] = 0x0;
 	mvpp2_prs_sram_ri_update(&pe, ri, ri_mask);
 
-	mvpp2_prs_tcam_data_byte_set(&pe, 2, 0x00, MVPP2_PRS_TCAM_PROTO_MASK_L);
-	mvpp2_prs_tcam_data_byte_set(&pe, 3, 0x00, MVPP2_PRS_TCAM_PROTO_MASK);
+	mvpp2_prs_sram_ri_update(&pe, ri | MVPP2_PRS_RI_IP_FRAG_TRUE,
+				 ri_mask | MVPP2_PRS_RI_IP_FRAG_MASK);
+
+	mvpp2_prs_tcam_data_byte_set(&pe, 2, 0x00, 0x0);
+	mvpp2_prs_tcam_data_byte_set(&pe, 3, 0x00, 0x0);
 
 	/* Update shadow table and hw entry */
 	mvpp2_prs_shadow_set(priv, pe.index, MVPP2_PRS_LU_IP4);
@@ -2600,8 +2614,8 @@ static void mvpp2_prs_mac_init(struct mvpp2 *priv)
 	/* place holders only - no ports */
 	mvpp2_prs_mac_drop_all_set(priv, 0, false);
 	mvpp2_prs_mac_promisc_set(priv, 0, false);
-	mvpp2_prs_mac_multi_set(priv, MVPP2_PE_MAC_MC_ALL, 0, false);
-	mvpp2_prs_mac_multi_set(priv, MVPP2_PE_MAC_MC_IP6, 0, false);
+	mvpp2_prs_mac_multi_set(priv, 0, MVPP2_PE_MAC_MC_ALL, false);
+	mvpp2_prs_mac_multi_set(priv, 0, MVPP2_PE_MAC_MC_IP6, false);
 }
 
 /* Set default entries for various types of dsa packets */
@@ -3382,7 +3396,7 @@ mvpp2_prs_mac_da_range_find(struct mvpp2 *priv, int pmap, const u8 *da,
 	struct mvpp2_prs_entry *pe;
 	int tid;
 
-	pe = kzalloc(sizeof(*pe), GFP_KERNEL);
+	pe = kzalloc(sizeof(*pe), GFP_ATOMIC);
 	if (!pe)
 		return NULL;
 	mvpp2_prs_tcam_lu_set(pe, MVPP2_PRS_LU_MAC);
@@ -3444,7 +3458,7 @@ static int mvpp2_prs_mac_da_accept(struct mvpp2 *priv, int port,
 		if (tid < 0)
 			return tid;
 
-		pe = kzalloc(sizeof(*pe), GFP_KERNEL);
+		pe = kzalloc(sizeof(*pe), GFP_ATOMIC);
 		if (!pe)
 			return -ENOMEM;
 		mvpp2_prs_tcam_lu_set(pe, MVPP2_PRS_LU_MAC);
@@ -4591,7 +4605,6 @@ static void mvpp2_port_mii_gmac_configure(struct mvpp2_port *port)
 	        val |= MVPP2_GMAC_INBAND_AN_MASK | MVPP2_GMAC_PCS_ENABLE_MASK;
 	} else if (phy_interface_mode_is_rgmii(port->phy_interface)) {
 		val &= ~MVPP2_GMAC_PCS_ENABLE_MASK;
-		val |= MVPP2_GMAC_PORT_RGMII_MASK;
 	}
 	writel(val, port->base + MVPP2_GMAC_CTRL_2_REG);
 
@@ -5313,8 +5326,9 @@ static void mvpp2_txq_bufs_free(struct mvpp2_port *port,
 		struct mvpp2_txq_pcpu_buf *tx_buf =
 			txq_pcpu->buffs + txq_pcpu->txq_get_index;
 
-		dma_unmap_single(port->dev->dev.parent, tx_buf->dma,
-				 tx_buf->size, DMA_TO_DEVICE);
+		if (!IS_TSO_HEADER(txq_pcpu, tx_buf->dma))
+			dma_unmap_single(port->dev->dev.parent, tx_buf->dma,
+					 tx_buf->size, DMA_TO_DEVICE);
 		if (tx_buf->skb)
 			dev_kfree_skb_any(tx_buf->skb);
 
@@ -5601,7 +5615,7 @@ static int mvpp2_txq_init(struct mvpp2_port *port,
 
 		txq_pcpu->tso_headers =
 			dma_alloc_coherent(port->dev->dev.parent,
-					   MVPP2_AGGR_TXQ_SIZE * TSO_HEADER_SIZE,
+					   txq_pcpu->size * TSO_HEADER_SIZE,
 					   &txq_pcpu->tso_headers_dma,
 					   GFP_KERNEL);
 		if (!txq_pcpu->tso_headers)
@@ -5615,7 +5629,7 @@ cleanup:
 		kfree(txq_pcpu->buffs);
 
 		dma_free_coherent(port->dev->dev.parent,
-				  MVPP2_AGGR_TXQ_SIZE * MVPP2_DESC_ALIGNED_SIZE,
+				  txq_pcpu->size * TSO_HEADER_SIZE,
 				  txq_pcpu->tso_headers,
 				  txq_pcpu->tso_headers_dma);
 	}
@@ -5639,7 +5653,7 @@ static void mvpp2_txq_deinit(struct mvpp2_port *port,
 		kfree(txq_pcpu->buffs);
 
 		dma_free_coherent(port->dev->dev.parent,
-				  MVPP2_AGGR_TXQ_SIZE * MVPP2_DESC_ALIGNED_SIZE,
+				  txq_pcpu->size * TSO_HEADER_SIZE,
 				  txq_pcpu->tso_headers,
 				  txq_pcpu->tso_headers_dma);
 	}
@@ -6204,12 +6218,15 @@ static inline void
 tx_desc_unmap_put(struct mvpp2_port *port, struct mvpp2_tx_queue *txq,
 		  struct mvpp2_tx_desc *desc)
 {
+	struct mvpp2_txq_pcpu *txq_pcpu = this_cpu_ptr(txq->pcpu);
+
 	dma_addr_t buf_dma_addr =
 		mvpp2_txdesc_dma_addr_get(port, desc);
 	size_t buf_sz =
 		mvpp2_txdesc_size_get(port, desc);
-	dma_unmap_single(port->dev->dev.parent, buf_dma_addr,
-			 buf_sz, DMA_TO_DEVICE);
+	if (!IS_TSO_HEADER(txq_pcpu, buf_dma_addr))
+		dma_unmap_single(port->dev->dev.parent, buf_dma_addr,
+				 buf_sz, DMA_TO_DEVICE);
 	mvpp2_txq_desc_put(txq);
 }
 
@@ -6482,7 +6499,7 @@ out:
 	}
 
 	/* Finalize TX processing */
-	if (txq_pcpu->count >= txq->done_pkts_coal)
+	if (!port->has_tx_irqs && txq_pcpu->count >= txq->done_pkts_coal)
 		mvpp2_txq_done(port, txq, txq_pcpu);
 
 	/* Set the timer in case not all frags were processed */
@@ -7496,7 +7513,7 @@ static void mvpp2_port_copy_mac_addr(struct net_device *dev, struct mvpp2 *priv,
 /* Ports initialization */
 static int mvpp2_port_probe(struct platform_device *pdev,
 			    struct device_node *port_node,
-			    struct mvpp2 *priv)
+			    struct mvpp2 *priv, int index)
 {
 	struct device_node *phy_node;
 	struct phy *comphy;
@@ -7670,7 +7687,7 @@ static int mvpp2_port_probe(struct platform_device *pdev,
 	}
 	netdev_info(dev, "Using %s mac address %pM\n", mac_from, dev->dev_addr);
 
-	priv->port_list[id] = port;
+	priv->port_list[index] = port;
 	return 0;
 
 err_free_port_pcpu:
@@ -7963,6 +7980,18 @@ static int mvpp2_probe(struct platform_device *pdev)
 		err = clk_prepare_enable(priv->mg_clk);
 		if (err < 0)
 			goto err_gop_clk;
+
+		priv->axi_clk = devm_clk_get(&pdev->dev, "axi_clk");
+		if (IS_ERR(priv->axi_clk)) {
+			err = PTR_ERR(priv->axi_clk);
+			if (err == -EPROBE_DEFER)
+				goto err_gop_clk;
+			priv->axi_clk = NULL;
+		} else {
+			err = clk_prepare_enable(priv->axi_clk);
+			if (err < 0)
+				goto err_gop_clk;
+		}
 	}
 
 	/* Get system's tclk rate */
@@ -8005,16 +8034,19 @@ static int mvpp2_probe(struct platform_device *pdev)
 	}
 
 	/* Initialize ports */
+	i = 0;
 	for_each_available_child_of_node(dn, port_node) {
-		err = mvpp2_port_probe(pdev, port_node, priv);
+		err = mvpp2_port_probe(pdev, port_node, priv, i);
 		if (err < 0)
 			goto err_mg_clk;
+		i++;
 	}
 
 	platform_set_drvdata(pdev, priv);
 	return 0;
 
 err_mg_clk:
+	clk_disable_unprepare(priv->axi_clk);
 	if (priv->hw_version == MVPP22)
 		clk_disable_unprepare(priv->mg_clk);
 err_gop_clk:
@@ -8052,6 +8084,7 @@ static int mvpp2_remove(struct platform_device *pdev)
 				  aggr_txq->descs_dma);
 	}
 
+	clk_disable_unprepare(priv->axi_clk);
 	clk_disable_unprepare(priv->mg_clk);
 	clk_disable_unprepare(priv->pp_clk);
 	clk_disable_unprepare(priv->gop_clk);

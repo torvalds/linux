@@ -494,6 +494,8 @@ struct intel_crtc_scaler_state {
 
 /* drm_mode->private_flags */
 #define I915_MODE_FLAG_INHERITED 1
+/* Flag to get scanline using frame time stamps */
+#define I915_MODE_FLAG_GET_SCANLINE_FROM_TIMESTAMP (1<<1)
 
 struct intel_pipe_wm {
 	struct intel_wm_level wm[5];
@@ -716,6 +718,9 @@ struct intel_crtc_state {
 	struct intel_link_m_n dp_m2_n2;
 	bool has_drrs;
 
+	bool has_psr;
+	bool has_psr2;
+
 	/*
 	 * Frequence the dpll for the port should run at. Differs from the
 	 * adjusted dotclock e.g. for DP or 12bpc hdmi mode. This is also
@@ -798,17 +803,9 @@ struct intel_crtc {
 	 * some outputs connected to this crtc.
 	 */
 	bool active;
-	bool lowfreq_avail;
 	u8 plane_ids_mask;
 	unsigned long long enabled_power_domains;
 	struct intel_overlay *overlay;
-
-	/* Display surface base address adjustement for pageflips. Note that on
-	 * gen4+ this only adjusts up to a tile, offsets within a tile are
-	 * handled in the hw itself (with the TILEOFF register). */
-	u32 dspaddr_offset;
-	int adjusted_x;
-	int adjusted_y;
 
 	struct intel_crtc_state *config;
 
@@ -1064,7 +1061,7 @@ struct intel_digital_port {
 
 	void (*write_infoframe)(struct drm_encoder *encoder,
 				const struct intel_crtc_state *crtc_state,
-				enum hdmi_infoframe_type type,
+				unsigned int type,
 				const void *frame, ssize_t len);
 	void (*set_infoframes)(struct drm_encoder *encoder,
 			       bool enable,
@@ -1241,7 +1238,7 @@ void gen6_disable_rps_interrupts(struct drm_i915_private *dev_priv);
 static inline u32 gen6_sanitize_rps_pm_mask(const struct drm_i915_private *i915,
 					    u32 mask)
 {
-	return mask & ~i915->rps.pm_intrmsk_mbz;
+	return mask & ~i915->gt_pm.rps.pm_intrmsk_mbz;
 }
 
 void intel_runtime_pm_disable_interrupts(struct drm_i915_private *dev_priv);
@@ -1252,7 +1249,7 @@ static inline bool intel_irqs_enabled(struct drm_i915_private *dev_priv)
 	 * We only use drm_irq_uninstall() at unload and VT switch, so
 	 * this is the only thing we need to check.
 	 */
-	return dev_priv->pm.irqs_enabled;
+	return dev_priv->runtime_pm.irqs_enabled;
 }
 
 int intel_get_crtc_scanline(struct intel_crtc *crtc);
@@ -1358,11 +1355,13 @@ void intel_pps_unlock_regs_wa(struct drm_i915_private *dev_priv);
 void intel_encoder_destroy(struct drm_encoder *encoder);
 int intel_connector_init(struct intel_connector *);
 struct intel_connector *intel_connector_alloc(void);
+void intel_connector_free(struct intel_connector *connector);
 bool intel_connector_get_hw_state(struct intel_connector *connector);
 void intel_connector_attach_encoder(struct intel_connector *connector,
 				    struct intel_encoder *encoder);
-struct drm_display_mode *intel_crtc_mode_get(struct drm_device *dev,
-					     struct drm_crtc *crtc);
+struct drm_display_mode *
+intel_encoder_current_mode(struct intel_encoder *encoder);
+
 enum pipe intel_get_pipe_from_connector(struct intel_connector *connector);
 int intel_get_pipe_from_crtc_id(struct drm_device *dev, void *data,
 				struct drm_file *file_priv);
@@ -1761,6 +1760,8 @@ void intel_psr_flush(struct drm_i915_private *dev_priv,
 void intel_psr_init(struct drm_i915_private *dev_priv);
 void intel_psr_single_frame_update(struct drm_i915_private *dev_priv,
 				   unsigned frontbuffer_bits);
+void intel_psr_compute_config(struct intel_dp *intel_dp,
+			      struct intel_crtc_state *crtc_state);
 
 /* intel_runtime_pm.c */
 int intel_power_domains_init(struct drm_i915_private *);
@@ -1788,7 +1789,7 @@ void intel_display_power_put(struct drm_i915_private *dev_priv,
 static inline void
 assert_rpm_device_not_suspended(struct drm_i915_private *dev_priv)
 {
-	WARN_ONCE(dev_priv->pm.suspended,
+	WARN_ONCE(dev_priv->runtime_pm.suspended,
 		  "Device suspended during HW access\n");
 }
 
@@ -1796,7 +1797,7 @@ static inline void
 assert_rpm_wakelock_held(struct drm_i915_private *dev_priv)
 {
 	assert_rpm_device_not_suspended(dev_priv);
-	WARN_ONCE(!atomic_read(&dev_priv->pm.wakeref_count),
+	WARN_ONCE(!atomic_read(&dev_priv->runtime_pm.wakeref_count),
 		  "RPM wakelock ref not held during HW access");
 }
 
@@ -1821,7 +1822,7 @@ assert_rpm_wakelock_held(struct drm_i915_private *dev_priv)
 static inline void
 disable_rpm_wakeref_asserts(struct drm_i915_private *dev_priv)
 {
-	atomic_inc(&dev_priv->pm.wakeref_count);
+	atomic_inc(&dev_priv->runtime_pm.wakeref_count);
 }
 
 /**
@@ -1838,7 +1839,7 @@ disable_rpm_wakeref_asserts(struct drm_i915_private *dev_priv)
 static inline void
 enable_rpm_wakeref_asserts(struct drm_i915_private *dev_priv)
 {
-	atomic_dec(&dev_priv->pm.wakeref_count);
+	atomic_dec(&dev_priv->runtime_pm.wakeref_count);
 }
 
 void intel_runtime_pm_get(struct drm_i915_private *dev_priv);
@@ -1891,16 +1892,19 @@ int intel_enable_sagv(struct drm_i915_private *dev_priv);
 int intel_disable_sagv(struct drm_i915_private *dev_priv);
 bool skl_wm_level_equals(const struct skl_wm_level *l1,
 			 const struct skl_wm_level *l2);
-bool skl_ddb_allocation_overlaps(const struct skl_ddb_entry **entries,
+bool skl_ddb_allocation_overlaps(struct drm_i915_private *dev_priv,
+				 const struct skl_ddb_entry **entries,
 				 const struct skl_ddb_entry *ddb,
 				 int ignore);
 bool ilk_disable_lp_wm(struct drm_device *dev);
 int sanitize_rc6_option(struct drm_i915_private *dev_priv, int enable_rc6);
 int skl_check_pipe_max_pixel_rate(struct intel_crtc *intel_crtc,
 				  struct intel_crtc_state *cstate);
-static inline int intel_enable_rc6(void)
+void intel_init_ipc(struct drm_i915_private *dev_priv);
+void intel_enable_ipc(struct drm_i915_private *dev_priv);
+static inline int intel_rc6_enabled(void)
 {
-	return i915.enable_rc6;
+	return i915_modparams.enable_rc6;
 }
 
 /* intel_sdvo.c */
@@ -1917,6 +1921,10 @@ int intel_sprite_set_colorkey(struct drm_device *dev, void *data,
 			      struct drm_file *file_priv);
 void intel_pipe_update_start(const struct intel_crtc_state *new_crtc_state);
 void intel_pipe_update_end(struct intel_crtc_state *new_crtc_state);
+void skl_update_plane(struct intel_plane *plane,
+		      const struct intel_crtc_state *crtc_state,
+		      const struct intel_plane_state *plane_state);
+void skl_disable_plane(struct intel_plane *plane, struct intel_crtc *crtc);
 
 /* intel_tv.c */
 void intel_tv_init(struct drm_i915_private *dev_priv);

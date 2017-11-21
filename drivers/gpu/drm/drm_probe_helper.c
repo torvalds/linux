@@ -99,7 +99,7 @@ drm_mode_validate_pipeline(struct drm_display_mode *mode,
 
 	/* Step 2: Validate against encoders and crtcs */
 	for (i = 0; i < DRM_CONNECTOR_MAX_ENCODER; i++) {
-		struct drm_encoder *encoder = drm_encoder_find(dev, ids[i]);
+		struct drm_encoder *encoder = drm_encoder_find(dev, NULL, ids[i]);
 		struct drm_crtc *crtc;
 
 		if (!encoder)

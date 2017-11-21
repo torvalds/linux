@@ -601,16 +601,18 @@ int drm_mode_plane_set_obj_prop(struct drm_plane *plane,
 /**
  * drm_plane_find - find a &drm_plane
  * @dev: DRM device
+ * @file_priv: drm file to check for lease against.
  * @id: plane id
  *
  * Returns the plane with @id, NULL if it doesn't exist. Simple wrapper around
  * drm_mode_object_find().
  */
 static inline struct drm_plane *drm_plane_find(struct drm_device *dev,
+		struct drm_file *file_priv,
 		uint32_t id)
 {
 	struct drm_mode_object *mo;
-	mo = drm_mode_object_find(dev, id, DRM_MODE_OBJECT_PLANE);
+	mo = drm_mode_object_find(dev, file_priv, id, DRM_MODE_OBJECT_PLANE);
 	return mo ? obj_to_plane(mo) : NULL;
 }
 

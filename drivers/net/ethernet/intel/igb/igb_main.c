@@ -5326,7 +5326,7 @@ dma_error:
 				       DMA_TO_DEVICE);
 		dma_unmap_len_set(tx_buffer, len, 0);
 
-		if (i--)
+		if (i-- == 0)
 			i += tx_ring->count;
 		tx_buffer = &tx_ring->tx_buffer_info[i];
 	}

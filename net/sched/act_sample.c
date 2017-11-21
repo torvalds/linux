@@ -264,6 +264,7 @@ static int __init sample_init_module(void)
 
 static void __exit sample_cleanup_module(void)
 {
+	rcu_barrier();
 	tcf_unregister_action(&act_sample_ops, &sample_net_ops);
 }
 

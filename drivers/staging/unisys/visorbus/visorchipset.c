@@ -1826,7 +1826,7 @@ static __init int visorutil_spar_detect(void)
 	return 0;
 }
 
-static int init_unisys(void)
+static int __init init_unisys(void)
 {
 	int result;
 
@@ -1841,7 +1841,7 @@ static int init_unisys(void)
 	return 0;
 };
 
-static void exit_unisys(void)
+static void __exit exit_unisys(void)
 {
 	acpi_bus_unregister_driver(&unisys_acpi_driver);
 }

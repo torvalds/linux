@@ -24,6 +24,7 @@
 #include <linux/lockdep.h>
 #include <linux/tick.h>
 #include <linux/irq.h>
+#include <linux/nmi.h>
 #include <linux/smpboot.h>
 #include <linux/relay.h>
 #include <linux/slab.h>
@@ -631,6 +632,11 @@ cpuhp_invoke_ap_callback(int cpu, enum cpuhp_state state, bool bringup,
 		__cpuhp_kick_ap(st);
 	}
 
+	/*
+	 * Clean up the leftovers so the next hotplug operation wont use stale
+	 * data.
+	 */
+	st->node = st->last = NULL;
 	return ret;
 }
 
@@ -897,6 +903,11 @@ static int __ref _cpu_down(unsigned int cpu, int tasks_frozen,
 
 out:
 	cpus_write_unlock();
+	/*
+	 * Do post unplug cleanup. This is still protected against
+	 * concurrent CPU hotplug via cpu_add_remove_lock.
+	 */
+	lockup_detector_cleanup();
 	return ret;
 }
 

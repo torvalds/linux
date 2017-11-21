@@ -25,12 +25,13 @@
 #include "pp_debug.h"
 #include "smumgr.h"
 #include "smu_ucode_xfer_vi.h"
-#include "smu/smu_7_1_3_d.h"
-#include "smu/smu_7_1_3_sh_mask.h"
 #include "ppatomctrl.h"
 #include "cgs_common.h"
 #include "smu7_ppsmc.h"
 #include "smu7_smumgr.h"
+#include "smu7_common.h"
+
+#include "polaris10_pwrvirus.h"
 
 #define SMU7_SMC_SIZE 0x20000
 
@@ -513,7 +514,7 @@ static int smu7_upload_smc_firmware_data(struct pp_hwmgr *hwmgr, uint32_t length
 
 	PHM_WRITE_FIELD(hwmgr->device, SMC_IND_ACCESS_CNTL, AUTO_INCREMENT_IND_11, 0);
 
-	PP_ASSERT_WITH_CODE((0 == byte_count), "SMC size must be dividable by 4.", return -EINVAL);
+	PP_ASSERT_WITH_CODE((0 == byte_count), "SMC size must be divisible by 4.", return -EINVAL);
 
 	return 0;
 }
@@ -538,6 +539,47 @@ int smu7_upload_smu_firmware_image(struct pp_hwmgr *hwmgr)
 	result = smu7_upload_smc_firmware_data(hwmgr, info.image_size, (uint32_t *)info.kptr, SMU7_SMC_SIZE);
 
 	return result;
+}
+
+static void execute_pwr_table(struct pp_hwmgr *hwmgr, const PWR_Command_Table *pvirus, int size)
+{
+	int i;
+	uint32_t reg, data;
+
+	for (i = 0; i < size; i++) {
+		reg  = pvirus->reg;
+		data = pvirus->data;
+		if (reg != 0xffffffff)
+			cgs_write_register(hwmgr->device, reg, data);
+		else
+			break;
+		pvirus++;
+	}
+}
+
+static void execute_pwr_dfy_table(struct pp_hwmgr *hwmgr, const PWR_DFY_Section *section)
+{
+	int i;
+
+	cgs_write_register(hwmgr->device, mmCP_DFY_CNTL, section->dfy_cntl);
+	cgs_write_register(hwmgr->device, mmCP_DFY_ADDR_HI, section->dfy_addr_hi);
+	cgs_write_register(hwmgr->device, mmCP_DFY_ADDR_LO, section->dfy_addr_lo);
+	for (i = 0; i < section->dfy_size; i++)
+		cgs_write_register(hwmgr->device, mmCP_DFY_DATA_0, section->dfy_data[i]);
+}
+
+int smu7_setup_pwr_virus(struct pp_hwmgr *hwmgr)
+{
+	execute_pwr_table(hwmgr, pwr_virus_table_pre, ARRAY_SIZE(pwr_virus_table_pre));
+	execute_pwr_dfy_table(hwmgr, &pwr_virus_section1);
+	execute_pwr_dfy_table(hwmgr, &pwr_virus_section2);
+	execute_pwr_dfy_table(hwmgr, &pwr_virus_section3);
+	execute_pwr_dfy_table(hwmgr, &pwr_virus_section4);
+	execute_pwr_dfy_table(hwmgr, &pwr_virus_section5);
+	execute_pwr_dfy_table(hwmgr, &pwr_virus_section6);
+	execute_pwr_table(hwmgr, pwr_virus_table_post, ARRAY_SIZE(pwr_virus_table_post));
+
+	return 0;
 }
 
 int smu7_init(struct pp_hwmgr *hwmgr)

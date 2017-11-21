@@ -73,6 +73,16 @@ struct amdgpu_bo_list_entry;
 #define AMDGPU_PTE_MTYPE(a)    ((uint64_t)a << 57)
 #define AMDGPU_PTE_MTYPE_MASK	AMDGPU_PTE_MTYPE(3ULL)
 
+/* For Raven */
+#define AMDGPU_MTYPE_CC 2
+
+#define AMDGPU_PTE_DEFAULT_ATC  (AMDGPU_PTE_SYSTEM      \
+                                | AMDGPU_PTE_SNOOPED    \
+                                | AMDGPU_PTE_EXECUTABLE \
+                                | AMDGPU_PTE_READABLE   \
+                                | AMDGPU_PTE_WRITEABLE  \
+                                | AMDGPU_PTE_MTYPE(AMDGPU_MTYPE_CC))
+
 /* How to programm VM fault handling */
 #define AMDGPU_VM_FAULT_STOP_NEVER	0
 #define AMDGPU_VM_FAULT_STOP_FIRST	1
@@ -165,8 +175,11 @@ struct amdgpu_vm {
 	/* Flag to indicate ATS support from PTE for GFX9 */
 	bool			pte_support_ats;
 
-	/* Up to 128 pending page faults */
+	/* Up to 128 pending retry page faults */
 	DECLARE_KFIFO(faults, u64, 128);
+
+	/* Limit non-retry fault storms */
+	unsigned int		fault_credit;
 };
 
 struct amdgpu_vm_id {
@@ -244,6 +257,8 @@ void amdgpu_vm_manager_fini(struct amdgpu_device *adev);
 int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 		   int vm_context, unsigned int pasid);
 void amdgpu_vm_fini(struct amdgpu_device *adev, struct amdgpu_vm *vm);
+bool amdgpu_vm_pasid_fault_credit(struct amdgpu_device *adev,
+				  unsigned int pasid);
 void amdgpu_vm_get_pd_bo(struct amdgpu_vm *vm,
 			 struct list_head *validated,
 			 struct amdgpu_bo_list_entry *entry);

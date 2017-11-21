@@ -390,8 +390,7 @@ static int bcm2835_audio_open_connection(struct bcm2835_alsa_stream *alsa_stream
 			__func__, instance);
 		instance->alsa_stream = alsa_stream;
 		alsa_stream->instance = instance;
-		ret = 0; // xxx todo -1;
-		goto err_free_mem;
+		return 0;
 	}
 
 	/* Initialize and create a VCHI connection */
@@ -401,16 +400,15 @@ static int bcm2835_audio_open_connection(struct bcm2835_alsa_stream *alsa_stream
 			LOG_ERR("%s: failed to initialise VCHI instance (ret=%d)\n",
 				__func__, ret);
 
-			ret = -EIO;
-			goto err_free_mem;
+			return -EIO;
 		}
 		ret = vchi_connect(NULL, 0, vchi_instance);
 		if (ret) {
 			LOG_ERR("%s: failed to connect VCHI instance (ret=%d)\n",
 				__func__, ret);
 
-			ret = -EIO;
-			goto err_free_mem;
+			kfree(vchi_instance);
+			return -EIO;
 		}
 		initted = 1;
 	}
@@ -421,19 +419,16 @@ static int bcm2835_audio_open_connection(struct bcm2835_alsa_stream *alsa_stream
 	if (IS_ERR(instance)) {
 		LOG_ERR("%s: failed to initialize audio service\n", __func__);
 
-		ret = PTR_ERR(instance);
-		goto err_free_mem;
+		/* vchi_instance is retained for use the next time. */
+		return PTR_ERR(instance);
 	}
 
 	instance->alsa_stream = alsa_stream;
 	alsa_stream->instance = instance;
 
 	LOG_DBG(" success !\n");
-	ret = 0;
-err_free_mem:
-	kfree(vchi_instance);
 
-	return ret;
+	return 0;
 }
 
 int bcm2835_audio_open(struct bcm2835_alsa_stream *alsa_stream)

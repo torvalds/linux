@@ -2723,6 +2723,7 @@ static void mlxsw_sp_nexthop_type_fini(struct mlxsw_sp *mlxsw_sp,
 		mlxsw_sp_nexthop_rif_fini(nh);
 		break;
 	case MLXSW_SP_NEXTHOP_TYPE_IPIP:
+		mlxsw_sp_nexthop_rif_fini(nh);
 		mlxsw_sp_nexthop_ipip_fini(mlxsw_sp, nh);
 		break;
 	}
@@ -2742,7 +2743,11 @@ static int mlxsw_sp_nexthop4_type_init(struct mlxsw_sp *mlxsw_sp,
 	    router->ipip_ops_arr[ipipt]->can_offload(mlxsw_sp, dev,
 						     MLXSW_SP_L3_PROTO_IPV4)) {
 		nh->type = MLXSW_SP_NEXTHOP_TYPE_IPIP;
-		return mlxsw_sp_nexthop_ipip_init(mlxsw_sp, ipipt, nh, dev);
+		err = mlxsw_sp_nexthop_ipip_init(mlxsw_sp, ipipt, nh, dev);
+		if (err)
+			return err;
+		mlxsw_sp_nexthop_rif_init(nh, &nh->ipip_entry->ol_lb->common);
+		return 0;
 	}
 
 	nh->type = MLXSW_SP_NEXTHOP_TYPE_ETH;
@@ -3500,20 +3505,6 @@ static int mlxsw_sp_fib_lpm_tree_link(struct mlxsw_sp *mlxsw_sp,
 static void mlxsw_sp_fib_lpm_tree_unlink(struct mlxsw_sp *mlxsw_sp,
 					 struct mlxsw_sp_fib *fib)
 {
-	struct mlxsw_sp_prefix_usage req_prefix_usage = {{ 0 } };
-	struct mlxsw_sp_lpm_tree *lpm_tree;
-
-	/* Aggregate prefix lengths across all virtual routers to make
-	 * sure we only have used prefix lengths in the LPM tree.
-	 */
-	mlxsw_sp_vrs_prefixes(mlxsw_sp, fib->proto, &req_prefix_usage);
-	lpm_tree = mlxsw_sp_lpm_tree_get(mlxsw_sp, &req_prefix_usage,
-					 fib->proto);
-	if (IS_ERR(lpm_tree))
-		goto err_tree_get;
-	mlxsw_sp_vrs_lpm_tree_replace(mlxsw_sp, fib, lpm_tree);
-
-err_tree_get:
 	if (!mlxsw_sp_prefix_usage_none(&fib->prefix_usage))
 		return;
 	mlxsw_sp_vr_lpm_tree_unbind(mlxsw_sp, fib);
@@ -4009,7 +4000,11 @@ static int mlxsw_sp_nexthop6_type_init(struct mlxsw_sp *mlxsw_sp,
 	    router->ipip_ops_arr[ipipt]->can_offload(mlxsw_sp, dev,
 						     MLXSW_SP_L3_PROTO_IPV6)) {
 		nh->type = MLXSW_SP_NEXTHOP_TYPE_IPIP;
-		return mlxsw_sp_nexthop_ipip_init(mlxsw_sp, ipipt, nh, dev);
+		err = mlxsw_sp_nexthop_ipip_init(mlxsw_sp, ipipt, nh, dev);
+		if (err)
+			return err;
+		mlxsw_sp_nexthop_rif_init(nh, &nh->ipip_entry->ol_lb->common);
+		return 0;
 	}
 
 	nh->type = MLXSW_SP_NEXTHOP_TYPE_ETH;
@@ -5068,6 +5063,7 @@ mlxsw_sp_rif_create(struct mlxsw_sp *mlxsw_sp,
 	vr = mlxsw_sp_vr_get(mlxsw_sp, tb_id ? : RT_TABLE_MAIN);
 	if (IS_ERR(vr))
 		return ERR_CAST(vr);
+	vr->rif_count++;
 
 	err = mlxsw_sp_rif_index_alloc(mlxsw_sp, &rif_index);
 	if (err)
@@ -5099,7 +5095,6 @@ mlxsw_sp_rif_create(struct mlxsw_sp *mlxsw_sp,
 
 	mlxsw_sp_rif_counters_alloc(rif);
 	mlxsw_sp->router->rifs[rif_index] = rif;
-	vr->rif_count++;
 
 	return rif;
 
@@ -5110,6 +5105,7 @@ err_fid_get:
 	kfree(rif);
 err_rif_alloc:
 err_rif_index_alloc:
+	vr->rif_count--;
 	mlxsw_sp_vr_put(vr);
 	return ERR_PTR(err);
 }
@@ -5124,7 +5120,6 @@ void mlxsw_sp_rif_destroy(struct mlxsw_sp_rif *rif)
 	mlxsw_sp_router_rif_gone_sync(mlxsw_sp, rif);
 	vr = &mlxsw_sp->router->vrs[rif->vr_id];
 
-	vr->rif_count--;
 	mlxsw_sp->router->rifs[rif->rif_index] = NULL;
 	mlxsw_sp_rif_counters_free(rif);
 	ops->deconfigure(rif);
@@ -5132,6 +5127,7 @@ void mlxsw_sp_rif_destroy(struct mlxsw_sp_rif *rif)
 		/* Loopback RIFs are not associated with a FID. */
 		mlxsw_sp_fid_put(fid);
 	kfree(rif);
+	vr->rif_count--;
 	mlxsw_sp_vr_put(vr);
 }
 
@@ -5900,11 +5896,20 @@ static void mlxsw_sp_rifs_fini(struct mlxsw_sp *mlxsw_sp)
 	kfree(mlxsw_sp->router->rifs);
 }
 
+static int
+mlxsw_sp_ipip_config_tigcr(struct mlxsw_sp *mlxsw_sp)
+{
+	char tigcr_pl[MLXSW_REG_TIGCR_LEN];
+
+	mlxsw_reg_tigcr_pack(tigcr_pl, true, 0);
+	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(tigcr), tigcr_pl);
+}
+
 static int mlxsw_sp_ipips_init(struct mlxsw_sp *mlxsw_sp)
 {
 	mlxsw_sp->router->ipip_ops_arr = mlxsw_sp_ipip_ops_arr;
 	INIT_LIST_HEAD(&mlxsw_sp->router->ipip_list);
-	return 0;
+	return mlxsw_sp_ipip_config_tigcr(mlxsw_sp);
 }
 
 static void mlxsw_sp_ipips_fini(struct mlxsw_sp *mlxsw_sp)

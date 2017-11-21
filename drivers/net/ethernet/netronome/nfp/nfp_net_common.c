@@ -1180,10 +1180,14 @@ static void *nfp_net_rx_alloc_one(struct nfp_net_dp *dp, dma_addr_t *dma_addr)
 {
 	void *frag;
 
-	if (!dp->xdp_prog)
+	if (!dp->xdp_prog) {
 		frag = netdev_alloc_frag(dp->fl_bufsz);
-	else
-		frag = page_address(alloc_page(GFP_KERNEL | __GFP_COLD));
+	} else {
+		struct page *page;
+
+		page = alloc_page(GFP_KERNEL | __GFP_COLD);
+		frag = page ? page_address(page) : NULL;
+	}
 	if (!frag) {
 		nn_dp_warn(dp, "Failed to alloc receive page frag\n");
 		return NULL;
@@ -1203,10 +1207,14 @@ static void *nfp_net_napi_alloc_one(struct nfp_net_dp *dp, dma_addr_t *dma_addr)
 {
 	void *frag;
 
-	if (!dp->xdp_prog)
+	if (!dp->xdp_prog) {
 		frag = napi_alloc_frag(dp->fl_bufsz);
-	else
-		frag = page_address(alloc_page(GFP_ATOMIC | __GFP_COLD));
+	} else {
+		struct page *page;
+
+		page = alloc_page(GFP_ATOMIC | __GFP_COLD);
+		frag = page ? page_address(page) : NULL;
+	}
 	if (!frag) {
 		nn_dp_warn(dp, "Failed to alloc receive page frag\n");
 		return NULL;

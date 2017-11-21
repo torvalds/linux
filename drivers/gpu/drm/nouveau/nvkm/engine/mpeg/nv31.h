@@ -18,6 +18,7 @@ struct nv31_mpeg_func {
 };
 
 #define nv31_mpeg_chan(p) container_of((p), struct nv31_mpeg_chan, object)
+#include <core/object.h>
 
 struct nv31_mpeg_chan {
 	struct nvkm_object object;

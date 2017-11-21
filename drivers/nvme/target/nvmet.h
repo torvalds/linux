@@ -74,7 +74,7 @@ struct nvmet_sq {
 	struct percpu_ref	ref;
 	u16			qid;
 	u16			size;
-	u16			sqhd;
+	u32			sqhd;
 	struct completion	free_done;
 	struct completion	confirm_done;
 };

@@ -292,7 +292,6 @@ int hwmgr_hw_fini(struct pp_instance *handle)
 
 	phm_stop_thermal_controller(hwmgr);
 	psm_set_boot_states(hwmgr);
-	phm_display_configuration_changed(hwmgr);
 	psm_adjust_power_state_dynamic(hwmgr, false, NULL);
 	phm_disable_dynamic_state_management(hwmgr);
 	phm_disable_clock_power_gatings(hwmgr);

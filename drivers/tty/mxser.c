@@ -246,11 +246,11 @@ struct mxser_port {
 	unsigned char err_shadow;
 
 	struct async_icount icount; /* kernel counters for 4 input interrupts */
-	int timeout;
+	unsigned int timeout;
 
 	int read_status_mask;
 	int ignore_status_mask;
-	int xmit_fifo_size;
+	unsigned int xmit_fifo_size;
 	int xmit_head;
 	int xmit_tail;
 	int xmit_cnt;
@@ -572,8 +572,9 @@ static void mxser_dtr_rts(struct tty_port *port, int on)
 static int mxser_set_baud(struct tty_struct *tty, long newspd)
 {
 	struct mxser_port *info = tty->driver_data;
-	int quot = 0, baud;
+	unsigned int quot = 0, baud;
 	unsigned char cval;
+	u64 timeout;
 
 	if (!info->ioaddr)
 		return -1;
@@ -594,8 +595,13 @@ static int mxser_set_baud(struct tty_struct *tty, long newspd)
 		quot = 0;
 	}
 
-	info->timeout = ((info->xmit_fifo_size * HZ * 10 * quot) / info->baud_base);
-	info->timeout += HZ / 50;	/* Add .02 seconds of slop */
+	/*
+	 * worst case (128 * 1000 * 10 * 18432) needs 35 bits, so divide in the
+	 * u64 domain
+	 */
+	timeout = (u64)info->xmit_fifo_size * HZ * 10 * quot;
+	do_div(timeout, info->baud_base);
+	info->timeout = timeout + HZ / 50; /* Add .02 seconds of slop */
 
 	if (quot) {
 		info->MCR |= UART_MCR_DTR;

@@ -4,7 +4,8 @@ menu "AMD Library routines"
 # Closed hash table
 #
 config CHASH
-	tristate "Closed hash table"
+	tristate
+	default DRM_AMDGPU
 	help
 	 Statically sized closed hash table implementation with low
 	 memory and CPU overhead.

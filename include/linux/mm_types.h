@@ -445,6 +445,9 @@ struct mm_struct {
 	unsigned long flags; /* Must use atomic bitops to access the bits */
 
 	struct core_state *core_state; /* coredumping support */
+#ifdef CONFIG_MEMBARRIER
+	atomic_t membarrier_state;
+#endif
 #ifdef CONFIG_AIO
 	spinlock_t			ioctx_lock;
 	struct kioctx_table __rcu	*ioctx_table;

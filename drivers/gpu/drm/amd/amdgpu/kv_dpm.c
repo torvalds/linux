@@ -2969,15 +2969,9 @@ static int kv_dpm_late_init(void *handle)
 {
 	/* powerdown unused blocks for now */
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	int ret;
 
 	if (!amdgpu_dpm)
 		return 0;
-
-	/* init the sysfs and debugfs files late */
-	ret = amdgpu_pm_sysfs_init(adev);
-	if (ret)
-		return ret;
 
 	kv_dpm_powergate_acp(adev, true);
 	kv_dpm_powergate_samu(adev, true);
@@ -3040,7 +3034,6 @@ static int kv_dpm_sw_fini(void *handle)
 	flush_work(&adev->pm.dpm.thermal.work);
 
 	mutex_lock(&adev->pm.mutex);
-	amdgpu_pm_sysfs_fini(adev);
 	kv_dpm_fini(adev);
 	mutex_unlock(&adev->pm.mutex);
 

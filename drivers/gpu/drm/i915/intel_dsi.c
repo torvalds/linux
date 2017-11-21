@@ -263,7 +263,7 @@ static int dpi_send_cmd(struct intel_dsi *intel_dsi, u32 cmd, bool hs,
 
 	/* XXX: old code skips write if control unchanged */
 	if (cmd == I915_READ(MIPI_DPI_CONTROL(port)))
-		DRM_ERROR("Same special packet %02x twice in a row.\n", cmd);
+		DRM_DEBUG_KMS("Same special packet %02x twice in a row.\n", cmd);
 
 	I915_WRITE(MIPI_DPI_CONTROL(port), cmd);
 
@@ -330,6 +330,10 @@ static bool intel_dsi_compute_config(struct intel_encoder *encoder,
 	adjusted_mode->flags = 0;
 
 	if (IS_GEN9_LP(dev_priv)) {
+		/* Enable Frame time stamp based scanline reporting */
+		adjusted_mode->private_flags |=
+			I915_MODE_FLAG_GET_SCANLINE_FROM_TIMESTAMP;
+
 		/* Dual link goes to DSI transcoder A. */
 		if (intel_dsi->ports == BIT(PORT_C))
 			pipe_config->cpu_transcoder = TRANSCODER_DSI_C;
@@ -786,13 +790,18 @@ static void intel_dsi_pre_enable(struct intel_encoder *encoder,
 				 const struct intel_crtc_state *pipe_config,
 				 const struct drm_connector_state *conn_state)
 {
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
+	struct drm_crtc *crtc = pipe_config->base.crtc;
+	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	int pipe = intel_crtc->pipe;
 	enum port port;
 	u32 val;
 	bool glk_cold_boot = false;
 
 	DRM_DEBUG_KMS("\n");
+
+	intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, true);
 
 	/*
 	 * The BIOS may leave the PLL in a wonky state where it doesn't
@@ -1101,6 +1110,10 @@ static void bxt_dsi_get_pipe_config(struct intel_encoder *encoder,
 			mipi_dsi_pixel_format_to_bpp(
 				pixel_format_from_register_bits(fmt));
 	bpp = pipe_config->pipe_bpp;
+
+	/* Enable Frame time stamo based scanline reporting */
+	adjusted_mode->private_flags |=
+			I915_MODE_FLAG_GET_SCANLINE_FROM_TIMESTAMP;
 
 	/* In terms of pixels */
 	adjusted_mode->crtc_hdisplay =
@@ -1738,42 +1751,13 @@ void intel_dsi_init(struct drm_i915_private *dev_priv)
 	else
 		intel_encoder->crtc_mask = BIT(PIPE_B);
 
-	if (dev_priv->vbt.dsi.config->dual_link) {
+	if (dev_priv->vbt.dsi.config->dual_link)
 		intel_dsi->ports = BIT(PORT_A) | BIT(PORT_C);
-
-		switch (dev_priv->vbt.dsi.config->dl_dcs_backlight_ports) {
-		case DL_DCS_PORT_A:
-			intel_dsi->dcs_backlight_ports = BIT(PORT_A);
-			break;
-		case DL_DCS_PORT_C:
-			intel_dsi->dcs_backlight_ports = BIT(PORT_C);
-			break;
-		default:
-		case DL_DCS_PORT_A_AND_C:
-			intel_dsi->dcs_backlight_ports = BIT(PORT_A) | BIT(PORT_C);
-			break;
-		}
-
-		switch (dev_priv->vbt.dsi.config->dl_dcs_cabc_ports) {
-		case DL_DCS_PORT_A:
-			intel_dsi->dcs_cabc_ports = BIT(PORT_A);
-			break;
-		case DL_DCS_PORT_C:
-			intel_dsi->dcs_cabc_ports = BIT(PORT_C);
-			break;
-		default:
-		case DL_DCS_PORT_A_AND_C:
-			intel_dsi->dcs_cabc_ports = BIT(PORT_A) | BIT(PORT_C);
-			break;
-		}
-	} else {
+	else
 		intel_dsi->ports = BIT(port);
-		intel_dsi->dcs_backlight_ports = BIT(port);
-		intel_dsi->dcs_cabc_ports = BIT(port);
-	}
 
-	if (!dev_priv->vbt.dsi.config->cabc_supported)
-		intel_dsi->dcs_cabc_ports = 0;
+	intel_dsi->dcs_backlight_ports = dev_priv->vbt.dsi.bl_ports;
+	intel_dsi->dcs_cabc_ports = dev_priv->vbt.dsi.cabc_ports;
 
 	/* Create a DSI host (and a device) for each port. */
 	for_each_dsi_port(port, intel_dsi->ports) {

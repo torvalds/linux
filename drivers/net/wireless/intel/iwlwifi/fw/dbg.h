@@ -68,6 +68,8 @@
 #include <linux/workqueue.h>
 #include <net/cfg80211.h>
 #include "runtime.h"
+#include "iwl-prph.h"
+#include "iwl-io.h"
 #include "file.h"
 #include "error-dump.h"
 
@@ -194,8 +196,21 @@ _iwl_fw_dbg_trigger_simple_stop(struct iwl_fw_runtime *fwrt,
 					iwl_fw_dbg_get_trigger((fwrt)->fw,\
 							       (trig)))
 
+static inline void iwl_fw_dbg_stop_recording(struct iwl_fw_runtime *fwrt)
+{
+	if (fwrt->trans->cfg->device_family == IWL_DEVICE_FAMILY_7000) {
+		iwl_set_bits_prph(fwrt->trans, MON_BUFF_SAMPLE_CTL, 0x100);
+	} else {
+		iwl_write_prph(fwrt->trans, DBGC_IN_SAMPLE, 0);
+		udelay(100);
+		iwl_write_prph(fwrt->trans, DBGC_OUT_CTRL, 0);
+	}
+}
+
 static inline void iwl_fw_dump_conf_clear(struct iwl_fw_runtime *fwrt)
 {
+	iwl_fw_dbg_stop_recording(fwrt);
+
 	fwrt->dump.conf = FW_DBG_INVALID;
 }
 

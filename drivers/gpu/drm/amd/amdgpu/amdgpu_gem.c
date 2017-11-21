@@ -212,7 +212,9 @@ int amdgpu_gem_create_ioctl(struct drm_device *dev, void *data,
 		      AMDGPU_GEM_CREATE_NO_CPU_ACCESS |
 		      AMDGPU_GEM_CREATE_CPU_GTT_USWC |
 		      AMDGPU_GEM_CREATE_VRAM_CLEARED |
-		      AMDGPU_GEM_CREATE_VM_ALWAYS_VALID))
+		      AMDGPU_GEM_CREATE_VM_ALWAYS_VALID |
+		      AMDGPU_GEM_CREATE_EXPLICIT_SYNC))
+
 		return -EINVAL;
 
 	/* reject invalid gem domains */
@@ -576,11 +578,6 @@ int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 		dev_err(&dev->pdev->dev, "unsupported operation %d\n",
 			args->operation);
 		return -EINVAL;
-	}
-	if ((args->operation == AMDGPU_VA_OP_MAP) ||
-	    (args->operation == AMDGPU_VA_OP_REPLACE)) {
-		if (amdgpu_kms_vram_lost(adev, fpriv))
-			return -ENODEV;
 	}
 
 	INIT_LIST_HEAD(&list);

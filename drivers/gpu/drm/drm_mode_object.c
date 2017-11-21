@@ -104,7 +104,27 @@ void drm_mode_object_unregister(struct drm_device *dev,
 	mutex_unlock(&dev->mode_config.idr_mutex);
 }
 
+/**
+ * drm_lease_required - check types which must be leased to be used
+ * @type: type of object
+ *
+ * Returns whether the provided type of drm_mode_object must
+ * be owned or leased to be used by a process.
+ */
+bool drm_mode_object_lease_required(uint32_t type)
+{
+	switch(type) {
+	case DRM_MODE_OBJECT_CRTC:
+	case DRM_MODE_OBJECT_CONNECTOR:
+	case DRM_MODE_OBJECT_PLANE:
+		return true;
+	default:
+		return false;
+	}
+}
+
 struct drm_mode_object *__drm_mode_object_find(struct drm_device *dev,
+					       struct drm_file *file_priv,
 					       uint32_t id, uint32_t type)
 {
 	struct drm_mode_object *obj = NULL;
@@ -114,6 +134,10 @@ struct drm_mode_object *__drm_mode_object_find(struct drm_device *dev,
 	if (obj && type != DRM_MODE_OBJECT_ANY && obj->type != type)
 		obj = NULL;
 	if (obj && obj->id != id)
+		obj = NULL;
+
+	if (obj && drm_mode_object_lease_required(obj->type) &&
+	    !_drm_lease_held(file_priv, obj->id))
 		obj = NULL;
 
 	if (obj && obj->free_cb) {
@@ -128,6 +152,7 @@ struct drm_mode_object *__drm_mode_object_find(struct drm_device *dev,
 /**
  * drm_mode_object_find - look up a drm object with static lifetime
  * @dev: drm device
+ * @file_priv: drm file
  * @id: id of the mode object
  * @type: type of the mode object
  *
@@ -136,11 +161,12 @@ struct drm_mode_object *__drm_mode_object_find(struct drm_device *dev,
  * by callind drm_mode_object_put().
  */
 struct drm_mode_object *drm_mode_object_find(struct drm_device *dev,
+		struct drm_file *file_priv,
 		uint32_t id, uint32_t type)
 {
 	struct drm_mode_object *obj = NULL;
 
-	obj = __drm_mode_object_find(dev, id, type);
+	obj = __drm_mode_object_find(dev, file_priv, id, type);
 	return obj;
 }
 EXPORT_SYMBOL(drm_mode_object_find);
@@ -359,7 +385,7 @@ int drm_mode_obj_get_properties_ioctl(struct drm_device *dev, void *data,
 
 	drm_modeset_lock_all(dev);
 
-	obj = drm_mode_object_find(dev, arg->obj_id, arg->obj_type);
+	obj = drm_mode_object_find(dev, file_priv, arg->obj_id, arg->obj_type);
 	if (!obj) {
 		ret = -ENOENT;
 		goto out;
@@ -481,7 +507,7 @@ int drm_mode_obj_set_property_ioctl(struct drm_device *dev, void *data,
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		return -EINVAL;
 
-	arg_obj = drm_mode_object_find(dev, arg->obj_id, arg->obj_type);
+	arg_obj = drm_mode_object_find(dev, file_priv, arg->obj_id, arg->obj_type);
 	if (!arg_obj)
 		return -ENOENT;
 

@@ -473,7 +473,7 @@ static long seccomp_attach_filter(unsigned int flags,
 	return 0;
 }
 
-void __get_seccomp_filter(struct seccomp_filter *filter)
+static void __get_seccomp_filter(struct seccomp_filter *filter)
 {
 	/* Reference count is bounded by the number of total processes. */
 	refcount_inc(&filter->usage);

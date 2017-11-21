@@ -212,17 +212,19 @@ static inline bool drm_encoder_crtc_ok(struct drm_encoder *encoder,
 /**
  * drm_encoder_find - find a &drm_encoder
  * @dev: DRM device
+ * @file_priv: drm file to check for lease against.
  * @id: encoder id
  *
  * Returns the encoder with @id, NULL if it doesn't exist. Simple wrapper around
  * drm_mode_object_find().
  */
 static inline struct drm_encoder *drm_encoder_find(struct drm_device *dev,
+						   struct drm_file *file_priv,
 						   uint32_t id)
 {
 	struct drm_mode_object *mo;
 
-	mo = drm_mode_object_find(dev, id, DRM_MODE_OBJECT_ENCODER);
+	mo = drm_mode_object_find(dev, file_priv, id, DRM_MODE_OBJECT_ENCODER);
 
 	return mo ? obj_to_encoder(mo) : NULL;
 }

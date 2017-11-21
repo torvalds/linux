@@ -1052,6 +1052,7 @@ static int bnxt_get_link_ksettings(struct net_device *dev,
 	u32 ethtool_speed;
 
 	ethtool_link_ksettings_zero_link_mode(lk_ksettings, supported);
+	mutex_lock(&bp->link_lock);
 	bnxt_fw_to_ethtool_support_spds(link_info, lk_ksettings);
 
 	ethtool_link_ksettings_zero_link_mode(lk_ksettings, advertising);
@@ -1099,6 +1100,7 @@ static int bnxt_get_link_ksettings(struct net_device *dev,
 			base->port = PORT_FIBRE;
 	}
 	base->phy_address = link_info->phy_addr;
+	mutex_unlock(&bp->link_lock);
 
 	return 0;
 }
@@ -1190,6 +1192,7 @@ static int bnxt_set_link_ksettings(struct net_device *dev,
 	if (!BNXT_SINGLE_PF(bp))
 		return -EOPNOTSUPP;
 
+	mutex_lock(&bp->link_lock);
 	if (base->autoneg == AUTONEG_ENABLE) {
 		BNXT_ETHTOOL_TO_FW_SPDS(fw_advertising, lk_ksettings,
 					advertising);
@@ -1234,6 +1237,7 @@ static int bnxt_set_link_ksettings(struct net_device *dev,
 		rc = bnxt_hwrm_set_link_setting(bp, set_pause, false);
 
 set_setting_exit:
+	mutex_unlock(&bp->link_lock);
 	return rc;
 }
 
@@ -1805,7 +1809,8 @@ static int bnxt_find_nvram_item(struct net_device *dev, u16 type, u16 ordinal,
 	req.dir_ordinal = cpu_to_le16(ordinal);
 	req.dir_ext = cpu_to_le16(ext);
 	req.opt_ordinal = NVM_FIND_DIR_ENTRY_REQ_OPT_ORDINAL_EQ;
-	rc = hwrm_send_message_silent(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+	mutex_lock(&bp->hwrm_cmd_lock);
+	rc = _hwrm_send_message_silent(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
 	if (rc == 0) {
 		if (index)
 			*index = le16_to_cpu(output->dir_idx);
@@ -1814,6 +1819,7 @@ static int bnxt_find_nvram_item(struct net_device *dev, u16 type, u16 ordinal,
 		if (data_length)
 			*data_length = le32_to_cpu(output->dir_data_length);
 	}
+	mutex_unlock(&bp->hwrm_cmd_lock);
 	return rc;
 }
 

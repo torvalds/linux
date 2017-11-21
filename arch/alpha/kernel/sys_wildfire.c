@@ -288,10 +288,10 @@ wildfire_device_interrupt(unsigned long vector)
  *   7	 64 bit PCI 1 option slot 7
  */
 
-static int __init
+static int
 wildfire_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
-	static char irq_tab[8][5] __initdata = {
+	static char irq_tab[8][5] = {
 		/*INT    INTA   INTB   INTC   INTD */
 		{ -1,    -1,    -1,    -1,    -1}, /* IdSel 0 ISA Bridge */
 		{ 36,    36,    36+1, 36+2, 36+3}, /* IdSel 1 SCSI builtin */

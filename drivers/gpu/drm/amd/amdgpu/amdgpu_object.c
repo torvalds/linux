@@ -40,9 +40,7 @@
 static void amdgpu_ttm_bo_destroy(struct ttm_buffer_object *tbo)
 {
 	struct amdgpu_device *adev = amdgpu_ttm_adev(tbo->bdev);
-	struct amdgpu_bo *bo;
-
-	bo = container_of(tbo, struct amdgpu_bo, tbo);
+	struct amdgpu_bo *bo = ttm_to_amdgpu_bo(tbo);
 
 	amdgpu_bo_kunmap(bo);
 
@@ -371,6 +369,9 @@ static int amdgpu_bo_do_create(struct amdgpu_device *adev,
 	r = ttm_bo_init_reserved(&adev->mman.bdev, &bo->tbo, size, type,
 				 &bo->placement, page_align, !kernel, NULL,
 				 acc_size, sg, resv, &amdgpu_ttm_bo_destroy);
+	if (unlikely(r != 0))
+		return r;
+
 	bytes_moved = atomic64_read(&adev->num_bytes_moved) -
 		      initial_bytes_moved;
 	if (adev->mc.visible_vram_size < adev->mc.real_vram_size &&
@@ -379,9 +380,6 @@ static int amdgpu_bo_do_create(struct amdgpu_device *adev,
 		amdgpu_cs_report_moved_bytes(adev, bytes_moved, bytes_moved);
 	else
 		amdgpu_cs_report_moved_bytes(adev, bytes_moved, 0);
-
-	if (unlikely(r != 0))
-		return r;
 
 	if (kernel)
 		bo->tbo.priority = 1;
@@ -884,7 +882,7 @@ void amdgpu_bo_move_notify(struct ttm_buffer_object *bo,
 	if (!amdgpu_ttm_bo_is_amdgpu_bo(bo))
 		return;
 
-	abo = container_of(bo, struct amdgpu_bo, tbo);
+	abo = ttm_to_amdgpu_bo(bo);
 	amdgpu_vm_bo_invalidate(adev, abo, evict);
 
 	amdgpu_bo_kunmap(abo);
@@ -911,7 +909,7 @@ int amdgpu_bo_fault_reserve_notify(struct ttm_buffer_object *bo)
 	if (!amdgpu_ttm_bo_is_amdgpu_bo(bo))
 		return 0;
 
-	abo = container_of(bo, struct amdgpu_bo, tbo);
+	abo = ttm_to_amdgpu_bo(bo);
 
 	/* Remember that this BO was accessed by the CPU */
 	abo->flags |= AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED;

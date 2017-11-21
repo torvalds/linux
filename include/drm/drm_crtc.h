@@ -952,6 +952,7 @@ struct drm_crtc *drm_crtc_from_index(struct drm_device *dev, int idx);
 /**
  * drm_crtc_find - look up a CRTC object from its ID
  * @dev: DRM device
+ * @file_priv: drm file to check for lease against.
  * @id: &drm_mode_object ID
  *
  * This can be used to look up a CRTC from its userspace ID. Only used by
@@ -959,10 +960,11 @@ struct drm_crtc *drm_crtc_from_index(struct drm_device *dev, int idx);
  * userspace interface should be done using &drm_property.
  */
 static inline struct drm_crtc *drm_crtc_find(struct drm_device *dev,
-	uint32_t id)
+		struct drm_file *file_priv,
+		uint32_t id)
 {
 	struct drm_mode_object *mo;
-	mo = drm_mode_object_find(dev, id, DRM_MODE_OBJECT_CRTC);
+	mo = drm_mode_object_find(dev, file_priv, id, DRM_MODE_OBJECT_CRTC);
 	return mo ? obj_to_crtc(mo) : NULL;
 }
 

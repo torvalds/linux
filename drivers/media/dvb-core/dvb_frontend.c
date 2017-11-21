@@ -141,22 +141,39 @@ struct dvb_frontend_private {
 static void dvb_frontend_invoke_release(struct dvb_frontend *fe,
 					void (*release)(struct dvb_frontend *fe));
 
-static void dvb_frontend_free(struct kref *ref)
+static void __dvb_frontend_free(struct dvb_frontend *fe)
 {
-	struct dvb_frontend *fe =
-		container_of(ref, struct dvb_frontend, refcount);
 	struct dvb_frontend_private *fepriv = fe->frontend_priv;
+
+	if (!fepriv)
+		return;
 
 	dvb_free_device(fepriv->dvbdev);
 
 	dvb_frontend_invoke_release(fe, fe->ops.release);
 
 	kfree(fepriv);
+	fe->frontend_priv = NULL;
+}
+
+static void dvb_frontend_free(struct kref *ref)
+{
+	struct dvb_frontend *fe =
+		container_of(ref, struct dvb_frontend, refcount);
+
+	__dvb_frontend_free(fe);
 }
 
 static void dvb_frontend_put(struct dvb_frontend *fe)
 {
-	kref_put(&fe->refcount, dvb_frontend_free);
+	/*
+	 * Check if the frontend was registered, as otherwise
+	 * kref was not initialized yet.
+	 */
+	if (fe->frontend_priv)
+		kref_put(&fe->refcount, dvb_frontend_free);
+	else
+		__dvb_frontend_free(fe);
 }
 
 static void dvb_frontend_get(struct dvb_frontend *fe)

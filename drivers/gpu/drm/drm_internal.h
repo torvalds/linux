@@ -55,7 +55,6 @@ int drm_clients_info(struct seq_file *m, void* data);
 int drm_gem_name_info(struct seq_file *m, void *data);
 
 /* drm_vblank.c */
-extern unsigned int drm_timestamp_monotonic;
 void drm_vblank_disable_and_save(struct drm_device *dev, unsigned int pipe);
 void drm_vblank_cleanup(struct drm_device *dev);
 
@@ -70,6 +69,12 @@ int drm_legacy_modeset_ctl_ioctl(struct drm_device *dev, void *data,
 /* IOCTLS */
 int drm_legacy_irq_control(struct drm_device *dev, void *data,
 			   struct drm_file *file_priv);
+
+int drm_crtc_get_sequence_ioctl(struct drm_device *dev, void *data,
+				struct drm_file *filp);
+
+int drm_crtc_queue_sequence_ioctl(struct drm_device *dev, void *data,
+				  struct drm_file *filp);
 
 /* drm_auth.c */
 int drm_getmagic(struct drm_device *dev, void *data,

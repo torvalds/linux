@@ -2773,14 +2773,16 @@ int __init amd_iommu_init_api(void)
 
 int __init amd_iommu_init_dma_ops(void)
 {
-	swiotlb        = iommu_pass_through ? 1 : 0;
+	swiotlb        = (iommu_pass_through || sme_me_mask) ? 1 : 0;
 	iommu_detected = 1;
 
 	/*
 	 * In case we don't initialize SWIOTLB (actually the common case
-	 * when AMD IOMMU is enabled), make sure there are global
-	 * dma_ops set as a fall-back for devices not handled by this
-	 * driver (for example non-PCI devices).
+	 * when AMD IOMMU is enabled and SME is not active), make sure there
+	 * are global dma_ops set as a fall-back for devices not handled by
+	 * this driver (for example non-PCI devices). When SME is active,
+	 * make sure that swiotlb variable remains set so the global dma_ops
+	 * continue to be SWIOTLB.
 	 */
 	if (!swiotlb)
 		dma_ops = &nommu_dma_ops;
@@ -3046,6 +3048,7 @@ static size_t amd_iommu_unmap(struct iommu_domain *dom, unsigned long iova,
 	mutex_unlock(&domain->api_lock);
 
 	domain_flush_tlb_pde(domain);
+	domain_flush_complete(domain);
 
 	return unmap_size;
 }

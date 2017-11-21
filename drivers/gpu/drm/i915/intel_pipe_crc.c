@@ -206,11 +206,11 @@ static const char *pipe_crc_source_name(enum intel_pipe_crc_source source)
 static int display_crc_ctl_show(struct seq_file *m, void *data)
 {
 	struct drm_i915_private *dev_priv = m->private;
-	int i;
+	enum pipe pipe;
 
-	for (i = 0; i < I915_MAX_PIPES; i++)
-		seq_printf(m, "%c %s\n", pipe_name(i),
-			   pipe_crc_source_name(dev_priv->pipe_crc[i].source));
+	for_each_pipe(dev_priv, pipe)
+		seq_printf(m, "%c %s\n", pipe_name(pipe),
+			   pipe_crc_source_name(dev_priv->pipe_crc[pipe].source));
 
 	return 0;
 }
@@ -775,11 +775,12 @@ display_crc_ctl_parse_object(const char *buf, enum intel_pipe_crc_object *o)
 	return -EINVAL;
 }
 
-static int display_crc_ctl_parse_pipe(const char *buf, enum pipe *pipe)
+static int display_crc_ctl_parse_pipe(struct drm_i915_private *dev_priv,
+				      const char *buf, enum pipe *pipe)
 {
 	const char name = buf[0];
 
-	if (name < 'A' || name >= pipe_name(I915_MAX_PIPES))
+	if (name < 'A' || name >= pipe_name(INTEL_INFO(dev_priv)->num_pipes))
 		return -EINVAL;
 
 	*pipe = name - 'A';
@@ -828,7 +829,7 @@ static int display_crc_ctl_parse(struct drm_i915_private *dev_priv,
 		return -EINVAL;
 	}
 
-	if (display_crc_ctl_parse_pipe(words[1], &pipe) < 0) {
+	if (display_crc_ctl_parse_pipe(dev_priv, words[1], &pipe) < 0) {
 		DRM_DEBUG_DRIVER("unknown pipe %s\n", words[1]);
 		return -EINVAL;
 	}

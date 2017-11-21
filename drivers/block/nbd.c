@@ -243,7 +243,6 @@ static void nbd_size_set(struct nbd_device *nbd, loff_t blocksize,
 	struct nbd_config *config = nbd->config;
 	config->blksize = blocksize;
 	config->bytesize = blocksize * nr_blocks;
-	nbd_size_update(nbd);
 }
 
 static void nbd_complete_rq(struct request *req)
@@ -387,6 +386,15 @@ static int sock_xmit(struct nbd_device *nbd, int index, int send,
 	return result;
 }
 
+/*
+ * Different settings for sk->sk_sndtimeo can result in different return values
+ * if there is a signal pending when we enter sendmsg, because reasons?
+ */
+static inline int was_interrupted(int result)
+{
+	return result == -ERESTARTSYS || result == -EINTR;
+}
+
 /* always call with the tx_lock held */
 static int nbd_send_cmd(struct nbd_device *nbd, struct nbd_cmd *cmd, int index)
 {
@@ -459,7 +467,7 @@ static int nbd_send_cmd(struct nbd_device *nbd, struct nbd_cmd *cmd, int index)
 	result = sock_xmit(nbd, index, 1, &from,
 			(type == NBD_CMD_WRITE) ? MSG_MORE : 0, &sent);
 	if (result <= 0) {
-		if (result == -ERESTARTSYS) {
+		if (was_interrupted(result)) {
 			/* If we havne't sent anything we can just return BUSY,
 			 * however if we have sent something we need to make
 			 * sure we only allow this req to be sent until we are
@@ -503,7 +511,7 @@ send_pages:
 			}
 			result = sock_xmit(nbd, index, 1, &from, flags, &sent);
 			if (result <= 0) {
-				if (result == -ERESTARTSYS) {
+				if (was_interrupted(result)) {
 					/* We've already sent the header, we
 					 * have no choice but to set pending and
 					 * return BUSY.
@@ -820,9 +828,13 @@ static blk_status_t nbd_queue_rq(struct blk_mq_hw_ctx *hctx,
 	 * appropriate.
 	 */
 	ret = nbd_handle_cmd(cmd, hctx->queue_num);
+	if (ret < 0)
+		ret = BLK_STS_IOERR;
+	else if (!ret)
+		ret = BLK_STS_OK;
 	complete(&cmd->send_complete);
 
-	return ret < 0 ? BLK_STS_IOERR : BLK_STS_OK;
+	return ret;
 }
 
 static int nbd_add_socket(struct nbd_device *nbd, unsigned long arg,
@@ -1090,6 +1102,7 @@ static int nbd_start_device(struct nbd_device *nbd)
 		args->index = i;
 		queue_work(recv_workqueue, &args->work);
 	}
+	nbd_size_update(nbd);
 	return error;
 }
 

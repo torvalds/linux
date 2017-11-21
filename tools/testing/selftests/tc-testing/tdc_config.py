@@ -12,6 +12,8 @@ NAMES = {
           # Name of veth devices to be created for the namespace
           'DEV0': 'v0p0',
           'DEV1': 'v0p1',
+          'DEV2': '',
+          'BATCH_FILE': './batch.txt',
           # Name of the namespace to use
           'NS': 'tcut'
         }

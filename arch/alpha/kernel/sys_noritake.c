@@ -193,10 +193,10 @@ noritake_init_irq(void)
  * comes in on.  This makes interrupt processing much easier.
  */
 
-static int __init
+static int
 noritake_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
-	static char irq_tab[15][5] __initdata = {
+	static char irq_tab[15][5] = {
 		/*INT    INTA   INTB   INTC   INTD */
 		/* note: IDSELs 16, 17, and 25 are CORELLE only */
 		{ 16+1,  16+1,  16+1,  16+1,  16+1},  /* IdSel 16,  QLOGIC */
@@ -221,7 +221,7 @@ noritake_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 	return COMMON_TABLE_LOOKUP;
 }
 
-static u8 __init
+static u8
 noritake_swizzle(struct pci_dev *dev, u8 *pinp)
 {
 	int slot, pin = *pinp;

@@ -211,7 +211,9 @@ Description:
 		device, after it has been suspended at run time, from a resume
 		request to the moment the device will be ready to process I/O,
 		in microseconds.  If it is equal to 0, however, this means that
-		the PM QoS resume latency may be arbitrary.
+		the PM QoS resume latency may be arbitrary and the special value
+		"n/a" means that user space cannot accept any resume latency at
+		all for the given device.
 
 		Not all drivers support this attribute.  If it isn't supported,
 		it is not present.

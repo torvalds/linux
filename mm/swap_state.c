@@ -39,10 +39,6 @@ struct address_space *swapper_spaces[MAX_SWAPFILES];
 static unsigned int nr_swapper_spaces[MAX_SWAPFILES];
 bool swap_vma_readahead = true;
 
-#define SWAP_RA_MAX_ORDER_DEFAULT	3
-
-static int swap_ra_max_order = SWAP_RA_MAX_ORDER_DEFAULT;
-
 #define SWAP_RA_WIN_SHIFT	(PAGE_SHIFT / 2)
 #define SWAP_RA_HITS_MASK	((1UL << SWAP_RA_WIN_SHIFT) - 1)
 #define SWAP_RA_HITS_MAX	SWAP_RA_HITS_MASK
@@ -242,6 +238,17 @@ int add_to_swap(struct page *page)
 		 * clear SWAP_HAS_CACHE flag.
 		 */
 		goto fail;
+	/*
+	 * Normally the page will be dirtied in unmap because its pte should be
+	 * dirty. A special case is MADV_FREE page. The page'e pte could have
+	 * dirty bit cleared but the page's SwapBacked bit is still set because
+	 * clearing the dirty bit and SwapBacked bit has no lock protected. For
+	 * such page, unmap will not set dirty bit for it, so page reclaim will
+	 * not write the page out. This can cause data corruption when the page
+	 * is swap in later. Always setting the dirty bit for the page solves
+	 * the problem.
+	 */
+	set_page_dirty(page);
 
 	return 1;
 
@@ -653,6 +660,13 @@ struct page *swap_readahead_detect(struct vm_fault *vmf,
 	pte_t *tpte;
 #endif
 
+	max_win = 1 << min_t(unsigned int, READ_ONCE(page_cluster),
+			     SWAP_RA_ORDER_CEILING);
+	if (max_win == 1) {
+		swap_ra->win = 1;
+		return NULL;
+	}
+
 	faddr = vmf->address;
 	entry = pte_to_swp_entry(vmf->orig_pte);
 	if ((unlikely(non_swap_entry(entry))))
@@ -660,12 +674,6 @@ struct page *swap_readahead_detect(struct vm_fault *vmf,
 	page = lookup_swap_cache(entry, vma, faddr);
 	if (page)
 		return page;
-
-	max_win = 1 << READ_ONCE(swap_ra_max_order);
-	if (max_win == 1) {
-		swap_ra->win = 1;
-		return NULL;
-	}
 
 	fpfn = PFN_DOWN(faddr);
 	swap_ra_info = GET_SWAP_RA_VAL(vma);
@@ -775,32 +783,8 @@ static struct kobj_attribute vma_ra_enabled_attr =
 	__ATTR(vma_ra_enabled, 0644, vma_ra_enabled_show,
 	       vma_ra_enabled_store);
 
-static ssize_t vma_ra_max_order_show(struct kobject *kobj,
-				     struct kobj_attribute *attr, char *buf)
-{
-	return sprintf(buf, "%d\n", swap_ra_max_order);
-}
-static ssize_t vma_ra_max_order_store(struct kobject *kobj,
-				      struct kobj_attribute *attr,
-				      const char *buf, size_t count)
-{
-	int err, v;
-
-	err = kstrtoint(buf, 10, &v);
-	if (err || v > SWAP_RA_ORDER_CEILING || v <= 0)
-		return -EINVAL;
-
-	swap_ra_max_order = v;
-
-	return count;
-}
-static struct kobj_attribute vma_ra_max_order_attr =
-	__ATTR(vma_ra_max_order, 0644, vma_ra_max_order_show,
-	       vma_ra_max_order_store);
-
 static struct attribute *swap_attrs[] = {
 	&vma_ra_enabled_attr.attr,
-	&vma_ra_max_order_attr.attr,
 	NULL,
 };
 

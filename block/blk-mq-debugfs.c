@@ -815,10 +815,14 @@ int blk_mq_debugfs_register(struct request_queue *q)
 		goto err;
 
 	/*
-	 * blk_mq_init_hctx() attempted to do this already, but q->debugfs_dir
+	 * blk_mq_init_sched() attempted to do this already, but q->debugfs_dir
 	 * didn't exist yet (because we don't know what to name the directory
 	 * until the queue is registered to a gendisk).
 	 */
+	if (q->elevator && !q->sched_debugfs_dir)
+		blk_mq_debugfs_register_sched(q);
+
+	/* Similarly, blk_mq_init_hctx() couldn't do this previously. */
 	queue_for_each_hw_ctx(q, hctx, i) {
 		if (!hctx->debugfs_dir && blk_mq_debugfs_register_hctx(q, hctx))
 			goto err;

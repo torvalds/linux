@@ -187,7 +187,7 @@ static struct ncsi_aen_handler {
 } ncsi_aen_handlers[] = {
 	{ NCSI_PKT_AEN_LSC,    12, ncsi_aen_handler_lsc    },
 	{ NCSI_PKT_AEN_CR,      4, ncsi_aen_handler_cr     },
-	{ NCSI_PKT_AEN_HNCDSC,  4, ncsi_aen_handler_hncdsc }
+	{ NCSI_PKT_AEN_HNCDSC,  8, ncsi_aen_handler_hncdsc }
 };
 
 int ncsi_aen_handler(struct ncsi_dev_priv *ndp, struct sk_buff *skb)
