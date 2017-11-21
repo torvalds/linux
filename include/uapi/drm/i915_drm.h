@@ -139,7 +139,9 @@ enum drm_i915_pmu_engine_sample {
 #define I915_PMU_ACTUAL_FREQUENCY	__I915_PMU_OTHER(0)
 #define I915_PMU_REQUESTED_FREQUENCY	__I915_PMU_OTHER(1)
 
-#define I915_PMU_LAST I915_PMU_REQUESTED_FREQUENCY
+#define I915_PMU_INTERRUPTS		__I915_PMU_OTHER(2)
+
+#define I915_PMU_LAST I915_PMU_INTERRUPTS
 
 /* Each region is a minimum of 16k, and there are at most 255 of them.
  */

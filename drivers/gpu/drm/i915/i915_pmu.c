@@ -277,6 +277,22 @@ static enum hrtimer_restart i915_sample(struct hrtimer *hrtimer)
 	return HRTIMER_RESTART;
 }
 
+static u64 count_interrupts(struct drm_i915_private *i915)
+{
+	/* open-coded kstat_irqs() */
+	struct irq_desc *desc = irq_to_desc(i915->drm.pdev->irq);
+	u64 sum = 0;
+	int cpu;
+
+	if (!desc || !desc->kstat_irqs)
+		return 0;
+
+	for_each_possible_cpu(cpu)
+		sum += *per_cpu_ptr(desc->kstat_irqs, cpu);
+
+	return sum;
+}
+
 static void i915_pmu_event_destroy(struct perf_event *event)
 {
 	WARN_ON(event->parent);
@@ -343,6 +359,8 @@ static int i915_pmu_event_init(struct perf_event *event)
 			if (INTEL_GEN(i915) < 6)
 				ret = -ENODEV;
 			break;
+		case I915_PMU_INTERRUPTS:
+			break;
 		default:
 			ret = -ENOENT;
 			break;
@@ -391,6 +409,9 @@ static u64 __i915_pmu_event_read(struct perf_event *event)
 			val =
 			   div_u64(i915->pmu.sample[__I915_SAMPLE_FREQ_REQ].cur,
 				   FREQUENCY);
+			break;
+		case I915_PMU_INTERRUPTS:
+			val = count_interrupts(i915);
 			break;
 		}
 	}
@@ -653,6 +674,8 @@ static struct attribute *i915_pmu_events_attrs[] = {
 
 	I915_EVENT(actual-frequency,    I915_PMU_ACTUAL_FREQUENCY,    "MHz"),
 	I915_EVENT(requested-frequency, I915_PMU_REQUESTED_FREQUENCY, "MHz"),
+
+	I915_EVENT_ATTR(interrupts, I915_PMU_INTERRUPTS),
 
 	NULL,
 };
