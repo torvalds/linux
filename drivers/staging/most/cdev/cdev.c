@@ -22,7 +22,7 @@ static dev_t comp_devno;
 static struct class *comp_class;
 static struct ida minor_id;
 static unsigned int major;
-static struct core_component cdev_aim;
+static struct core_component cdev_comp;
 
 struct comp_channel {
 	wait_queue_head_t wq;
@@ -46,13 +46,13 @@ static spinlock_t ch_list_lock;
 
 static inline bool ch_has_mbo(struct comp_channel *c)
 {
-	return channel_has_mbo(c->iface, c->channel_id, &cdev_aim) > 0;
+	return channel_has_mbo(c->iface, c->channel_id, &cdev_comp) > 0;
 }
 
 static inline bool ch_get_mbo(struct comp_channel *c, struct mbo **mbo)
 {
 	if (!kfifo_peek(&c->fifo, mbo)) {
-		*mbo = most_get_mbo(c->iface, c->channel_id, &cdev_aim);
+		*mbo = most_get_mbo(c->iface, c->channel_id, &cdev_comp);
 		if (*mbo)
 			kfifo_in(&c->fifo, mbo, 1);
 	}
@@ -84,7 +84,7 @@ static void stop_channel(struct comp_channel *c)
 
 	while (kfifo_out((struct kfifo *)&c->fifo, &mbo, 1))
 		most_put_mbo(mbo);
-	most_stop_channel(c->iface, c->channel_id, &cdev_aim);
+	most_stop_channel(c->iface, c->channel_id, &cdev_comp);
 }
 
 static void destroy_cdev(struct comp_channel *c)
@@ -143,7 +143,7 @@ static int aim_open(struct inode *inode, struct file *filp)
 	}
 
 	c->mbo_offs = 0;
-	ret = most_start_channel(c->iface, c->channel_id, &cdev_aim);
+	ret = most_start_channel(c->iface, c->channel_id, &cdev_comp);
 	if (!ret)
 		c->access_ref = 1;
 	mutex_unlock(&c->io_mutex);
@@ -489,7 +489,7 @@ error_alloc_channel:
 	return retval;
 }
 
-static struct core_component cdev_aim = {
+static struct core_component cdev_comp = {
 	.name = "cdev",
 	.probe_channel = aim_probe,
 	.disconnect_channel = aim_disconnect_channel,
@@ -512,13 +512,13 @@ static int __init mod_init(void)
 		goto dest_ida;
 	major = MAJOR(comp_devno);
 
-	comp_class = class_create(THIS_MODULE, "most_cdev_aim");
+	comp_class = class_create(THIS_MODULE, "most_cdev_comp");
 	if (IS_ERR(comp_class)) {
 		pr_err("no udev support\n");
 		err = PTR_ERR(comp_class);
 		goto free_cdev;
 	}
-	err = most_register_component(&cdev_aim);
+	err = most_register_component(&cdev_comp);
 	if (err)
 		goto dest_class;
 	return 0;
@@ -538,7 +538,7 @@ static void __exit mod_exit(void)
 
 	pr_info("exit module\n");
 
-	most_deregister_component(&cdev_aim);
+	most_deregister_component(&cdev_comp);
 
 	list_for_each_entry_safe(c, tmp, &channel_list, list) {
 		destroy_cdev(c);
