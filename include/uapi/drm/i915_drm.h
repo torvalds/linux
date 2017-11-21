@@ -141,7 +141,11 @@ enum drm_i915_pmu_engine_sample {
 
 #define I915_PMU_INTERRUPTS		__I915_PMU_OTHER(2)
 
-#define I915_PMU_LAST I915_PMU_INTERRUPTS
+#define I915_PMU_RC6_RESIDENCY		__I915_PMU_OTHER(3)
+#define I915_PMU_RC6p_RESIDENCY		__I915_PMU_OTHER(4)
+#define I915_PMU_RC6pp_RESIDENCY	__I915_PMU_OTHER(5)
+
+#define I915_PMU_LAST I915_PMU_RC6pp_RESIDENCY
 
 /* Each region is a minimum of 16k, and there are at most 255 of them.
  */

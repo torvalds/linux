@@ -361,6 +361,15 @@ static int i915_pmu_event_init(struct perf_event *event)
 			break;
 		case I915_PMU_INTERRUPTS:
 			break;
+		case I915_PMU_RC6_RESIDENCY:
+			if (!HAS_RC6(i915))
+				ret = -ENODEV;
+			break;
+		case I915_PMU_RC6p_RESIDENCY:
+		case I915_PMU_RC6pp_RESIDENCY:
+			if (!HAS_RC6p(i915))
+				ret = -ENODEV;
+			break;
 		default:
 			ret = -ENOENT;
 			break;
@@ -412,6 +421,24 @@ static u64 __i915_pmu_event_read(struct perf_event *event)
 			break;
 		case I915_PMU_INTERRUPTS:
 			val = count_interrupts(i915);
+			break;
+		case I915_PMU_RC6_RESIDENCY:
+			intel_runtime_pm_get(i915);
+			val = intel_rc6_residency_ns(i915,
+						     IS_VALLEYVIEW(i915) ?
+						     VLV_GT_RENDER_RC6 :
+						     GEN6_GT_GFX_RC6);
+			intel_runtime_pm_put(i915);
+			break;
+		case I915_PMU_RC6p_RESIDENCY:
+			intel_runtime_pm_get(i915);
+			val = intel_rc6_residency_ns(i915, GEN6_GT_GFX_RC6p);
+			intel_runtime_pm_put(i915);
+			break;
+		case I915_PMU_RC6pp_RESIDENCY:
+			intel_runtime_pm_get(i915);
+			val = intel_rc6_residency_ns(i915, GEN6_GT_GFX_RC6pp);
+			intel_runtime_pm_put(i915);
 			break;
 		}
 	}
@@ -676,6 +703,10 @@ static struct attribute *i915_pmu_events_attrs[] = {
 	I915_EVENT(requested-frequency, I915_PMU_REQUESTED_FREQUENCY, "MHz"),
 
 	I915_EVENT_ATTR(interrupts, I915_PMU_INTERRUPTS),
+
+	I915_EVENT(rc6-residency,   I915_PMU_RC6_RESIDENCY,   "ns"),
+	I915_EVENT(rc6p-residency,  I915_PMU_RC6p_RESIDENCY,  "ns"),
+	I915_EVENT(rc6pp-residency, I915_PMU_RC6pp_RESIDENCY, "ns"),
 
 	NULL,
 };
