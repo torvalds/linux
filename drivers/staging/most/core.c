@@ -628,13 +628,13 @@ static int split_string(char *buf, char **a, char **b, char **c, char **d)
 }
 
 /**
- * get_channel_by_name - get pointer to channel object
+ * get_channel - get pointer to channel object
  * @mdev: name of the device instance
  * @mdev_ch: name of the respective channel
  *
  * This retrieves the pointer to a channel object.
  */
-static struct most_channel *get_channel_by_name(char *mdev, char *mdev_ch)
+static struct most_channel *get_channel(char *mdev, char *mdev_ch)
 {
 	struct most_channel *c, *tmp;
 	struct most_inst_obj *i, *i_tmp;
@@ -734,7 +734,7 @@ static ssize_t add_link_store(struct device_driver *drv,
 		aim_param = devnod_buf;
 	}
 
-	c = get_channel_by_name(mdev, mdev_ch);
+	c = get_channel(mdev, mdev_ch);
 	if (IS_ERR(c))
 		return -ENODEV;
 
@@ -773,7 +773,7 @@ static ssize_t remove_link_store(struct device_driver *drv,
 	if (ret)
 		return ret;
 	aim = match_module(aim_name);
-	c = get_channel_by_name(mdev, mdev_ch);
+	c = get_channel(mdev, mdev_ch);
 	if (IS_ERR(c))
 		return -ENODEV;
 
