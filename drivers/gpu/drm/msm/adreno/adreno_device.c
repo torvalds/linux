@@ -161,39 +161,45 @@ static void set_gpu_pdev(struct drm_device *dev,
 	priv->gpu_pdev = pdev;
 }
 
-static int find_chipid(struct device *dev, u32 *chipid)
+static int find_chipid(struct device *dev, struct adreno_rev *rev)
 {
 	struct device_node *node = dev->of_node;
 	const char *compat;
 	int ret;
+	u32 chipid;
 
 	/* first search the compat strings for qcom,adreno-XYZ.W: */
 	ret = of_property_read_string_index(node, "compatible", 0, &compat);
 	if (ret == 0) {
-		unsigned rev, patch;
+		unsigned int r, patch;
 
-		if (sscanf(compat, "qcom,adreno-%u.%u", &rev, &patch) == 2) {
-			*chipid = 0;
-			*chipid |= (rev / 100) << 24;  /* core */
-			rev %= 100;
-			*chipid |= (rev / 10) << 16;   /* major */
-			rev %= 10;
-			*chipid |= rev << 8;           /* minor */
-			*chipid |= patch;
+		if (sscanf(compat, "qcom,adreno-%u.%u", &r, &patch) == 2) {
+			rev->core = r / 100;
+			r %= 100;
+			rev->major = r / 10;
+			r %= 10;
+			rev->minor = r;
+			rev->patchid = patch;
 
 			return 0;
 		}
 	}
 
 	/* and if that fails, fall back to legacy "qcom,chipid" property: */
-	ret = of_property_read_u32(node, "qcom,chipid", chipid);
-	if (ret)
+	ret = of_property_read_u32(node, "qcom,chipid", &chipid);
+	if (ret) {
+		dev_err(dev, "could not parse qcom,chipid: %d\n", ret);
 		return ret;
+	}
+
+	rev->core = (chipid >> 24) & 0xff;
+	rev->major = (chipid >> 16) & 0xff;
+	rev->minor = (chipid >> 8) & 0xff;
+	rev->patchid = (chipid & 0xff);
 
 	dev_warn(dev, "Using legacy qcom,chipid binding!\n");
 	dev_warn(dev, "Use compatible qcom,adreno-%u%u%u.%u instead.\n",
-			(*chipid >> 24) & 0xff, (*chipid >> 16) & 0xff,
-			(*chipid >> 8) & 0xff, *chipid & 0xff);
+		rev->core, rev->major, rev->minor, rev->patchid);
 
 	return 0;
 }
@@ -268,17 +274,11 @@ static int adreno_bind(struct device *dev, struct device *master, void *data)
 	const struct adreno_info *info;
 	struct drm_device *drm = dev_get_drvdata(master);
 	struct msm_gpu *gpu;
-	u32 val;
 	int ret;
 
-	ret = find_chipid(dev, &val);
-	if (ret) {
-		dev_err(dev, "could not find chipid: %d\n", ret);
+	ret = find_chipid(dev, &config.rev);
+	if (ret)
 		return ret;
-	}
-
-	config.rev = ADRENO_REV((val >> 24) & 0xff,
-			(val >> 16) & 0xff, (val >> 8) & 0xff, val & 0xff);
 
 	/* find clock rates: */
 	config.fast_rate = 0;
