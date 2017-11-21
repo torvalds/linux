@@ -315,6 +315,7 @@ err_free_flow:
  * @app:	Pointer to the APP handle
  * @netdev:	netdev structure.
  * @flow:	TC flower classifier offload structure.
+ * @egress:	NFP netdev is the egress.
  *
  * Adds a new flow to the repeated hash structure and action payload.
  *
