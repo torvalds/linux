@@ -1476,9 +1476,9 @@ static int parse_audio_feature_unit(struct mixer_build *state, int unitid,
 			return -EINVAL;
 		}
 		csize = hdr->bControlSize;
-		if (!csize) {
+		if (csize <= 1) {
 			usb_audio_dbg(state->chip,
-				      "unit %u: invalid bControlSize == 0\n",
+				      "unit %u: invalid bControlSize <= 1\n",
 				      unitid);
 			return -EINVAL;
 		}
