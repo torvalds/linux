@@ -202,10 +202,6 @@
 	};
 };
 
-&uart2 {
-	status = "okay";
-};
-
 &iep {
 	status = "okay";
 };
