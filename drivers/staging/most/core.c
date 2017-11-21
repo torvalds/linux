@@ -534,28 +534,57 @@ static const struct attribute_group *interface_attr_groups[] = {
 /*		     ___     ___
  *		     ___A I M___
  */
-static ssize_t links_show(struct device *dev, struct device_attribute *attr,
-			  char *buf)
+static struct most_aim *match_module(char *name)
+{
+	struct most_aim *aim;
+
+	list_for_each_entry(aim, &mc.mod_list, list) {
+		if (!strcmp(aim->name, name))
+			return aim;
+	}
+	return NULL;
+}
+
+static ssize_t links_show(struct device_driver *drv, char *buf)
 {
 	struct most_channel *c;
 	struct most_inst_obj *i;
-	struct most_aim *aim = to_most_aim(dev);
 	int offs = 0;
 
 	list_for_each_entry(i, &instance_list, list) {
 		list_for_each_entry(c, &i->channel_list, list) {
-			if (c->pipe0.aim == aim || c->pipe1.aim == aim) {
-				offs += snprintf(buf + offs, PAGE_SIZE - offs,
-						 "%s:%s\n",
+			if (c->pipe0.aim) {
+				offs += snprintf(buf + offs,
+						 PAGE_SIZE - offs,
+						 "%s:%s:%s\n",
+						 c->pipe0.aim->name,
+						 dev_name(&i->iface->dev),
+						 dev_name(&c->dev));
+			}
+			if (c->pipe1.aim) {
+				offs += snprintf(buf + offs,
+						 PAGE_SIZE - offs,
+						 "%s:%s:%s\n",
+						 c->pipe1.aim->name,
 						 dev_name(&i->iface->dev),
 						 dev_name(&c->dev));
 			}
 		}
 	}
-
 	return offs;
 }
 
+static ssize_t modules_show(struct device_driver *drv, char *buf)
+{
+	struct most_aim *aim;
+	int offs = 0;
+
+	list_for_each_entry(aim, &mc.mod_list, list) {
+		offs += snprintf(buf + offs, PAGE_SIZE - offs, "%s\n",
+				 aim->name);
+	}
+	return offs;
+}
 /**
  * split_string - parses and changes string in the buffer buf and
  * splits it into two mandatory and one optional substrings.
@@ -578,7 +607,7 @@ static ssize_t links_show(struct device *dev, struct device_attribute *attr,
  * Input: "mdev1:ep81"
  * Output: *a -> "mdev1", *b -> "ep81", *c == NULL
  */
-static int split_string(char *buf, char **a, char **b, char **c)
+static int split_string(char *buf, char **a, char **b, char **c, char **d)
 {
 	*a = strsep(&buf, ":");
 	if (!*a)
@@ -588,8 +617,12 @@ static int split_string(char *buf, char **a, char **b, char **c)
 	if (!*b)
 		return -EIO;
 
-	if (c)
-		*c = strsep(&buf, ":\n");
+	*c = strsep(&buf, ":\n");
+	if (!*c)
+		return -EIO;
+
+	if (d)
+		*d = strsep(&buf, ":\n");
 
 	return 0;
 }
@@ -674,38 +707,38 @@ inline int link_channel_to_aim(struct most_channel *c, struct most_aim *aim,
  * (1) would create the device node /dev/my_rxchannel
  * (2) would create the device node /dev/mdev1-ep81
  */
-static ssize_t add_link_store(struct device *dev,
-			      struct device_attribute *attr,
+static ssize_t add_link_store(struct device_driver *drv,
 			      const char *buf,
 			      size_t len)
 {
 	struct most_channel *c;
-	struct most_aim *aim = to_most_aim(dev);
+	struct most_aim *aim;
 	char buffer[STRING_SIZE];
 	char *mdev;
 	char *mdev_ch;
-	char *mdev_devnod;
+	char *aim_name;
+	char *aim_param;
 	char devnod_buf[STRING_SIZE];
 	int ret;
 	size_t max_len = min_t(size_t, len + 1, STRING_SIZE);
 
 	strlcpy(buffer, buf, max_len);
 
-	ret = split_string(buffer, &mdev, &mdev_ch, &mdev_devnod);
+	ret = split_string(buffer, &mdev, &mdev_ch, &aim_name, &aim_param);
 	if (ret)
 		return ret;
-
-	if (!mdev_devnod || *mdev_devnod == 0) {
+	aim = match_module(aim_name);
+	if (!aim_param || *aim_param == 0) {
 		snprintf(devnod_buf, sizeof(devnod_buf), "%s-%s", mdev,
 			 mdev_ch);
-		mdev_devnod = devnod_buf;
+		aim_param = devnod_buf;
 	}
 
 	c = get_channel_by_name(mdev, mdev_ch);
 	if (IS_ERR(c))
 		return -ENODEV;
 
-	ret = link_channel_to_aim(c, aim, mdev_devnod);
+	ret = link_channel_to_aim(c, aim, aim_param);
 	if (ret)
 		return ret;
 
@@ -722,24 +755,24 @@ static ssize_t add_link_store(struct device *dev,
  * Example:
  * echo "mdev0:ep81" >remove_link
  */
-static ssize_t remove_link_store(struct device *dev,
-				 struct device_attribute *attr,
+static ssize_t remove_link_store(struct device_driver *drv,
 				 const char *buf,
 				 size_t len)
 {
 	struct most_channel *c;
-	struct most_aim *aim = to_most_aim(dev);
+	struct most_aim *aim;
 	char buffer[STRING_SIZE];
 	char *mdev;
 	char *mdev_ch;
+	char *aim_name;
 	int ret;
 	size_t max_len = min_t(size_t, len + 1, STRING_SIZE);
 
 	strlcpy(buffer, buf, max_len);
-	ret = split_string(buffer, &mdev, &mdev_ch, NULL);
+	ret = split_string(buffer, &mdev, &mdev_ch, &aim_name, NULL);
 	if (ret)
 		return ret;
-
+	aim = match_module(aim_name);
 	c = get_channel_by_name(mdev, mdev_ch);
 	if (IS_ERR(c))
 		return -ENODEV;
@@ -753,23 +786,27 @@ static ssize_t remove_link_store(struct device *dev,
 	return len;
 }
 
-static DEVICE_ATTR_RO(links);
-static DEVICE_ATTR_WO(add_link);
-static DEVICE_ATTR_WO(remove_link);
+#define DRV_ATTR(_name)  (&driver_attr_##_name.attr)
 
-static struct attribute *aim_attrs[] = {
-	DEV_ATTR(links),
-	DEV_ATTR(add_link),
-	DEV_ATTR(remove_link),
+static DRIVER_ATTR_RO(links);
+static DRIVER_ATTR_RO(modules);
+static DRIVER_ATTR_WO(add_link);
+static DRIVER_ATTR_WO(remove_link);
+
+static struct attribute *module_attrs[] = {
+	DRV_ATTR(links),
+	DRV_ATTR(modules),
+	DRV_ATTR(add_link),
+	DRV_ATTR(remove_link),
 	NULL,
 };
 
-static struct attribute_group aim_attr_group = {
-	.attrs = aim_attrs,
+static struct attribute_group module_attr_group = {
+	.attrs = module_attrs,
 };
 
-static const struct attribute_group *aim_attr_groups[] = {
-	&aim_attr_group,
+static const struct attribute_group *module_attr_groups[] = {
+	&module_attr_group,
 	NULL,
 };
 
@@ -1287,7 +1324,6 @@ int most_register_aim(struct most_aim *aim)
 	aim->dev.init_name = aim->name;
 	aim->dev.bus = &mc.bus;
 	aim->dev.parent = &mc.dev;
-	aim->dev.groups = aim_attr_groups;
 	aim->dev.release = release_aim;
 	ret = device_register(&aim->dev);
 	if (ret) {
@@ -1553,6 +1589,7 @@ static int __init most_init(void)
 	mc.bus.match = most_match,
 	mc.drv.name = "most_core",
 	mc.drv.bus = &mc.bus,
+	mc.drv.groups = module_attr_groups;
 
 	err = bus_register(&mc.bus);
 	if (err) {
