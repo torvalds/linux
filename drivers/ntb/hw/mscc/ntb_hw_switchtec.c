@@ -172,7 +172,7 @@ static int switchtec_ntb_part_op(struct switchtec_ntb *sndev,
 
 	if (ps == status) {
 		dev_err(&sndev->stdev->dev,
-			"Timed out while peforming %s (%d). (%08x)",
+			"Timed out while performing %s (%d). (%08x)",
 			op_text[op], op,
 			ioread32(&ctl->partition_status));
 
