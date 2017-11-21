@@ -1572,18 +1572,14 @@ struct amdgpu_device {
 	/* sdma */
 	struct amdgpu_sdma		sdma;
 
-	union {
-		struct {
-			/* uvd */
-			struct amdgpu_uvd		uvd;
+	/* uvd */
+	struct amdgpu_uvd		uvd;
 
-			/* vce */
-			struct amdgpu_vce		vce;
-		};
+	/* vce */
+	struct amdgpu_vce		vce;
 
-		/* vcn */
-		struct amdgpu_vcn		vcn;
-	};
+	/* vcn */
+	struct amdgpu_vcn		vcn;
 
 	/* firmwares */
 	struct amdgpu_firmware		firmware;
