@@ -3246,7 +3246,7 @@ __lpfc_idiag_print_eq(struct lpfc_queue *qp, char *eqtype,
 
 	len += snprintf(pbuffer + len, LPFC_QUE_INFO_GET_BUF_SIZE - len,
 			"\n%s EQ info: EQ-STAT[max:x%x noE:x%x "
-			"bs:x%x proc:x%llx eqd %d]\n",
+			"cqe_proc:x%x eqe_proc:x%llx eqd %d]\n",
 			eqtype, qp->q_cnt_1, qp->q_cnt_2, qp->q_cnt_3,
 			(unsigned long long)qp->q_cnt_4, qp->q_mode);
 	len += snprintf(pbuffer + len, LPFC_QUE_INFO_GET_BUF_SIZE - len,
@@ -3366,6 +3366,12 @@ lpfc_idiag_queinfo_read(struct file *file, char __user *buf, size_t nbytes,
 		if (len >= max_cnt)
 			goto too_big;
 
+		qp = phba->sli4_hba.hdr_rq;
+		len = __lpfc_idiag_print_rqpair(qp, phba->sli4_hba.dat_rq,
+						"ELS RQpair", pbuffer, len);
+		if (len >= max_cnt)
+			goto too_big;
+
 		/* Slow-path NVME LS response CQ */
 		qp = phba->sli4_hba.nvmels_cq;
 		len = __lpfc_idiag_print_cq(qp, "NVME LS",
@@ -3380,12 +3386,6 @@ lpfc_idiag_queinfo_read(struct file *file, char __user *buf, size_t nbytes,
 		qp = phba->sli4_hba.nvmels_wq;
 		len = __lpfc_idiag_print_wq(qp, "NVME LS",
 						pbuffer, len);
-		if (len >= max_cnt)
-			goto too_big;
-
-		qp = phba->sli4_hba.hdr_rq;
-		len = __lpfc_idiag_print_rqpair(qp, phba->sli4_hba.dat_rq,
-				"RQpair", pbuffer, len);
 		if (len >= max_cnt)
 			goto too_big;
 
