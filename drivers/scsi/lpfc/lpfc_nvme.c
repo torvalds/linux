@@ -62,6 +62,7 @@ lpfc_get_nvme_buf(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp);
 static void
 lpfc_release_nvme_buf(struct lpfc_hba *, struct lpfc_nvme_buf *);
 
+static struct nvme_fc_port_template lpfc_nvme_template;
 
 /**
  * lpfc_nvme_create_queue -
@@ -1174,7 +1175,7 @@ lpfc_nvme_prep_io_dma(struct lpfc_vport *vport,
 
 		first_data_sgl = sgl;
 		lpfc_ncmd->seg_cnt = nCmd->sg_cnt;
-		if (lpfc_ncmd->seg_cnt > phba->cfg_nvme_seg_cnt + 1) {
+		if (lpfc_ncmd->seg_cnt > lpfc_nvme_template.max_sgl_segments) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_NVME_IOERR,
 					"6058 Too many sg segments from "
 					"NVME Transport.  Max %d, "

@@ -2003,7 +2003,7 @@ lpfc_nvmet_prep_fcp_wqe(struct lpfc_hba *phba,
 		return NULL;
 	}
 
-	if (rsp->sg_cnt > phba->cfg_nvme_seg_cnt) {
+	if (rsp->sg_cnt > lpfc_tgttemplate.max_sgl_segments) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_NVME_IOERR,
 				"6109 NVMET prep FCP wqe: seg cnt err: "
 				"NPORT x%x oxid x%x ste %d cnt %d\n",

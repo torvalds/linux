@@ -5806,6 +5806,7 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 	struct lpfc_mqe *mqe;
 	int longs;
 	int fof_vectors = 0;
+	int extra;
 	uint64_t wwn;
 
 	phba->sli4_hba.num_online_cpu = num_online_cpus();
@@ -5860,13 +5861,21 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 	 */
 
 	/*
+	 * 1 for cmd, 1 for rsp, NVME adds an extra one
+	 * for boundary conditions in its max_sgl_segment template.
+	 */
+	extra = 2;
+	if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME)
+		extra++;
+
+	/*
 	 * It doesn't matter what family our adapter is in, we are
 	 * limited to 2 Pages, 512 SGEs, for our SGL.
 	 * There are going to be 2 reserved SGEs: 1 FCP cmnd + 1 FCP rsp
 	 */
 	max_buf_size = (2 * SLI4_PAGE_SIZE);
-	if (phba->cfg_sg_seg_cnt > LPFC_MAX_SGL_SEG_CNT - 2)
-		phba->cfg_sg_seg_cnt = LPFC_MAX_SGL_SEG_CNT - 2;
+	if (phba->cfg_sg_seg_cnt > LPFC_MAX_SGL_SEG_CNT - extra)
+		phba->cfg_sg_seg_cnt = LPFC_MAX_SGL_SEG_CNT - extra;
 
 	/*
 	 * Since lpfc_sg_seg_cnt is module param, the sg_dma_buf_size
@@ -5899,14 +5908,14 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 		 */
 		phba->cfg_sg_dma_buf_size = sizeof(struct fcp_cmnd) +
 				sizeof(struct fcp_rsp) +
-				((phba->cfg_sg_seg_cnt + 2) *
+				((phba->cfg_sg_seg_cnt + extra) *
 				sizeof(struct sli4_sge));
 
 		/* Total SGEs for scsi_sg_list */
-		phba->cfg_total_seg_cnt = phba->cfg_sg_seg_cnt + 2;
+		phba->cfg_total_seg_cnt = phba->cfg_sg_seg_cnt + extra;
 
 		/*
-		 * NOTE: if (phba->cfg_sg_seg_cnt + 2) <= 256 we only
+		 * NOTE: if (phba->cfg_sg_seg_cnt + extra) <= 256 we only
 		 * need to post 1 page for the SGL.
 		 */
 	}
