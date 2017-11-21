@@ -303,26 +303,26 @@ static const struct mfd_cell rk816s[] = {
 
 static const struct rk808_reg_data rk816_pre_init_reg[] = {
 	/* buck4 Max ILMIT*/
-	{RK816_BUCK4_CONFIG_REG, BUCK4_MAX_ILIMIT, REG_WRITE_MSK},
+	{ RK816_BUCK4_CONFIG_REG, REG_WRITE_MSK, BUCK4_MAX_ILIMIT },
 	/* hotdie temperature: 105c*/
-	{RK816_THERMAL_REG, TEMP105C, REG_WRITE_MSK},
+	{ RK816_THERMAL_REG, REG_WRITE_MSK, TEMP105C },
 	/* set buck 12.5mv/us */
-	{RK816_BUCK1_CONFIG_REG, BUCK_RATE_12_5MV_US, BUCK_RATE_MSK},
-	{RK816_BUCK2_CONFIG_REG, BUCK_RATE_12_5MV_US, BUCK_RATE_MSK},
+	{ RK816_BUCK1_CONFIG_REG, BUCK_RATE_MSK, BUCK_RATE_12_5MV_US },
+	{ RK816_BUCK2_CONFIG_REG, BUCK_RATE_MSK, BUCK_RATE_12_5MV_US },
 	/* enable RTC_PERIOD & RTC_ALARM int */
-	{RK816_INT_STS_MSK_REG2, RTC_PERIOD_ALARM_INT_EN, REG_WRITE_MSK},
+	{ RK816_INT_STS_MSK_REG2, REG_WRITE_MSK, RTC_PERIOD_ALARM_INT_EN },
 	/* set bat 3.0 low and act shutdown */
-	{RK816_VB_MON_REG, RK816_VBAT_LOW_3V0 | EN_VABT_LOW_SHUT_DOWN,
-	VBAT_LOW_VOL_MASK | VBAT_LOW_ACT_MASK},
+	{ RK816_VB_MON_REG, VBAT_LOW_VOL_MASK | VBAT_LOW_ACT_MASK,
+	  RK816_VBAT_LOW_3V0 | EN_VABT_LOW_SHUT_DOWN },
 	/* enable PWRON rising/faling int */
-	{RK816_INT_STS_MSK_REG1, RK816_PWRON_FALL_RISE_INT_EN, REG_WRITE_MSK},
+	{ RK816_INT_STS_MSK_REG1, REG_WRITE_MSK, RK816_PWRON_FALL_RISE_INT_EN },
 	/* enable PLUG IN/OUT int */
-	{RK816_INT_STS_MSK_REG3, PLUGIN_OUT_INT_EN, REG_WRITE_MSK},
+	{ RK816_INT_STS_MSK_REG3, REG_WRITE_MSK, PLUGIN_OUT_INT_EN },
 	/* clear int flags */
-	{RK816_INT_STS_REG1, ALL_INT_FLAGS_ST, REG_WRITE_MSK},
-	{RK816_INT_STS_REG2, ALL_INT_FLAGS_ST, REG_WRITE_MSK},
-	{RK816_INT_STS_REG3, ALL_INT_FLAGS_ST, REG_WRITE_MSK},
-	{RK816_DCDC_EN_REG2, BOOST_DISABLE, BOOST_EN_MASK},
+	{ RK816_INT_STS_REG1, REG_WRITE_MSK, ALL_INT_FLAGS_ST },
+	{ RK816_INT_STS_REG2, REG_WRITE_MSK, ALL_INT_FLAGS_ST },
+	{ RK816_INT_STS_REG3, REG_WRITE_MSK, ALL_INT_FLAGS_ST },
+	{ RK816_DCDC_EN_REG2, BOOST_EN_MASK, BOOST_DISABLE },
 };
 
 static const struct regmap_irq rk816_irqs[] = {
@@ -667,7 +667,7 @@ static ssize_t rk8xx_dbg_store(struct device *dev,
 		if (ret != 3) {
 			pr_err("erro! cmd format: echo w [addr] [value]\n");
 			goto out;
-		};
+		}
 		addr = input[0] & 0xff;
 		data = input[1] & 0xff;
 		pr_info("cmd : %c %x %x\n\n", cmd, input[0], input[1]);
@@ -680,7 +680,7 @@ static ssize_t rk8xx_dbg_store(struct device *dev,
 		if (ret != 2) {
 			pr_err("erro! cmd format: echo r [addr]\n");
 			goto out;
-		};
+		}
 		pr_info("cmd : %c %x\n\n", cmd, input[0]);
 		addr = input[0] & 0xff;
 		regmap_read(rk808->regmap, addr, &data);
