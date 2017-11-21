@@ -156,7 +156,7 @@ int cap_ptrace_access_check(struct task_struct *child, unsigned int mode)
 			rcu_read_unlock();
 			return ret;
 
-		} 
+	} 
 
 	ret = -EPERM;
 	rcu_read_unlock();
