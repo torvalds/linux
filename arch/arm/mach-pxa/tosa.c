@@ -673,24 +673,6 @@ static int tosa_tc6393xb_suspend(struct platform_device *dev)
 	return 0;
 }
 
-static struct mtd_partition tosa_nand_partition[] = {
-	{
-		.name	= "smf",
-		.offset	= 0,
-		.size	= 7 * 1024 * 1024,
-	},
-	{
-		.name	= "root",
-		.offset	= MTDPART_OFS_APPEND,
-		.size	= 28 * 1024 * 1024,
-	},
-	{
-		.name	= "home",
-		.offset	= MTDPART_OFS_APPEND,
-		.size	= MTDPART_SIZ_FULL,
-	},
-};
-
 static uint8_t scan_ff_pattern[] = { 0xff, 0xff };
 
 static struct nand_bbt_descr tosa_tc6393xb_nand_bbt = {
@@ -700,10 +682,16 @@ static struct nand_bbt_descr tosa_tc6393xb_nand_bbt = {
 	.pattern	= scan_ff_pattern
 };
 
+static const char * const probes[] = {
+	"cmdlinepart",
+	"ofpart",
+	"sharpslpart",
+	NULL,
+};
+
 static struct tmio_nand_data tosa_tc6393xb_nand_config = {
-	.num_partitions	= ARRAY_SIZE(tosa_nand_partition),
-	.partition	= tosa_nand_partition,
 	.badblock_pattern = &tosa_tc6393xb_nand_bbt,
+	.part_parsers = probes,
 };
 
 static int tosa_tc6393xb_setup(struct platform_device *dev)
