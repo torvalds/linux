@@ -43,6 +43,8 @@
 #include <linux/fb.h>
 #include <linux/wakelock.h>
 #include <linux/dma-buf.h>
+#include <linux/pm_runtime.h>
+#include <linux/version.h>
 #if defined(CONFIG_ION_ROCKCHIP)
 #include <linux/rockchip_ion.h>
 #endif
@@ -282,6 +284,11 @@ static void rga_power_on(void)
 	clk_prepare_enable(drvdata->aclk_rga);
 	clk_prepare_enable(drvdata->hclk_rga);
 	//clk_prepare_enable(drvdata->pd_rga);
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0))
+	pm_runtime_get_sync(drvdata->dev);
+#endif
+
 	wake_lock(&drvdata->wake_lock);
 	rga_service.enable = true;
 }
@@ -302,6 +309,11 @@ static void rga_power_off(void)
 		pr_err("delay 50 ms for running task\n");
 		rga_dump();
 	}
+
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0))
+	pm_runtime_put(drvdata->dev);
+#endif
 
 	//clk_disable_unprepare(drvdata->pd_rga);
 	clk_disable_unprepare(drvdata->aclk_rga);
@@ -1425,6 +1437,10 @@ static int rga_drv_probe(struct platform_device *pdev)
 		goto err_misc_register;
 	}
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0))
+	pm_runtime_enable(&pdev->dev);
+#endif
+
 	pr_info("Driver loaded succesfully\n");
 
 	return 0;
@@ -1454,6 +1470,10 @@ static int rga_drv_remove(struct platform_device *pdev)
 	//clk_put(data->pd_rga);
 	devm_clk_put(&pdev->dev, data->aclk_rga);
 	devm_clk_put(&pdev->dev, data->hclk_rga);
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0))
+	pm_runtime_disable(&pdev->dev);
+#endif
 
 	//kfree(data);
 	return 0;
