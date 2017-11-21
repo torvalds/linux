@@ -264,6 +264,23 @@ out_unmap:
 	return err;
 }
 
+static int file_add_object(struct drm_file *file,
+			    struct drm_i915_gem_object *obj)
+{
+	int err;
+
+	GEM_BUG_ON(obj->base.handle_count);
+
+	/* tie the object to the drm_file for easy reaping */
+	err = idr_alloc(&file->object_idr, &obj->base, 1, 0, GFP_KERNEL);
+	if (err < 0)
+		return  err;
+
+	i915_gem_object_get(obj);
+	obj->base.handle_count++;
+	return 0;
+}
+
 static struct drm_i915_gem_object *
 create_test_object(struct i915_gem_context *ctx,
 		   struct drm_file *file,
@@ -273,7 +290,6 @@ create_test_object(struct i915_gem_context *ctx,
 	struct i915_address_space *vm =
 		ctx->ppgtt ? &ctx->ppgtt->base : &ctx->i915->ggtt.base;
 	u64 size;
-	u32 handle;
 	int err;
 
 	size = min(vm->total / 2, 1024ull * DW_PER_PAGE * PAGE_SIZE);
@@ -283,8 +299,7 @@ create_test_object(struct i915_gem_context *ctx,
 	if (IS_ERR(obj))
 		return obj;
 
-	/* tie the handle to the drm_file for easy reaping */
-	err = drm_gem_handle_create(file, &obj->base, &handle);
+	err = file_add_object(file, obj);
 	i915_gem_object_put(obj);
 	if (err)
 		return ERR_PTR(err);
