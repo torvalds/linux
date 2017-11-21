@@ -38,6 +38,9 @@
 #include "cifsproto.h"
 #include "cifs_debug.h"
 
+/* Max number of iovectors we can use off the stack when sending requests. */
+#define CIFS_MAX_IOV_SIZE 8
+
 void
 cifs_wake_up_task(struct mid_q_entry *mid)
 {
@@ -803,12 +806,16 @@ SendReceive2(const unsigned int xid, struct cifs_ses *ses,
 	     const int flags, struct kvec *resp_iov)
 {
 	struct smb_rqst rqst;
-	struct kvec *new_iov;
+	struct kvec s_iov[CIFS_MAX_IOV_SIZE], *new_iov;
 	int rc;
 
-	new_iov = kmalloc(sizeof(struct kvec) * (n_vec + 1), GFP_KERNEL);
-	if (!new_iov)
-		return -ENOMEM;
+	if (n_vec + 1 > CIFS_MAX_IOV_SIZE) {
+		new_iov = kmalloc(sizeof(struct kvec) * (n_vec + 1),
+				  GFP_KERNEL);
+		if (!new_iov)
+			return -ENOMEM;
+	} else
+		new_iov = s_iov;
 
 	/* 1st iov is a RFC1001 length followed by the rest of the packet */
 	memcpy(new_iov + 1, iov, (sizeof(struct kvec) * n_vec));
@@ -823,7 +830,8 @@ SendReceive2(const unsigned int xid, struct cifs_ses *ses,
 	rqst.rq_nvec = n_vec + 1;
 
 	rc = cifs_send_recv(xid, ses, &rqst, resp_buf_type, flags, resp_iov);
-	kfree(new_iov);
+	if (n_vec + 1 > CIFS_MAX_IOV_SIZE)
+		kfree(new_iov);
 	return rc;
 }
 
@@ -834,15 +842,19 @@ smb2_send_recv(const unsigned int xid, struct cifs_ses *ses,
 	       const int flags, struct kvec *resp_iov)
 {
 	struct smb_rqst rqst;
-	struct kvec *new_iov;
+	struct kvec s_iov[CIFS_MAX_IOV_SIZE], *new_iov;
 	int rc;
 	int i;
 	__u32 count;
 	__be32 rfc1002_marker;
 
-	new_iov = kmalloc(sizeof(struct kvec) * (n_vec + 1), GFP_KERNEL);
-	if (!new_iov)
-		return -ENOMEM;
+	if (n_vec + 1 > CIFS_MAX_IOV_SIZE) {
+		new_iov = kmalloc(sizeof(struct kvec) * (n_vec + 1),
+				  GFP_KERNEL);
+		if (!new_iov)
+			return -ENOMEM;
+	} else
+		new_iov = s_iov;
 
 	/* 1st iov is an RFC1002 Session Message length */
 	memcpy(new_iov + 1, iov, (sizeof(struct kvec) * n_vec));
@@ -861,7 +873,8 @@ smb2_send_recv(const unsigned int xid, struct cifs_ses *ses,
 	rqst.rq_nvec = n_vec + 1;
 
 	rc = cifs_send_recv(xid, ses, &rqst, resp_buf_type, flags, resp_iov);
-	kfree(new_iov);
+	if (n_vec + 1 > CIFS_MAX_IOV_SIZE)
+		kfree(new_iov);
 	return rc;
 }
 
