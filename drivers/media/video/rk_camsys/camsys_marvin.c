@@ -713,6 +713,7 @@ static irqreturn_t camsys_mrv_irq(int irq, void *data)
 	camsys_irqpool_t *irqpool;
 	unsigned int isp_mis, mipi_mis, mi_mis, *mis, jpg_mis, jpg_err_mis;
 	unsigned int mi_ris, mi_imis;
+	static unsigned int mipi_frame;
 
 	isp_mis = __raw_readl((void volatile *)
 				(camsys_dev->devmems.registermem->vir_base +
@@ -749,6 +750,13 @@ static irqreturn_t camsys_mrv_irq(int irq, void *data)
 	mi_imis = __raw_readl((void volatile *)
 				(camsys_dev->devmems.registermem->vir_base +
 				MRV_MI_IMIS));
+	}
+
+	if (isp_mis & MIS_V_START) {
+		mipi_frame = __raw_readl((void *)
+				(camsys_dev->devmems.registermem->vir_base +
+				 MRV_MIPI_FRAME));
+		camsys_trace(2, "mipi_frame: 0x%08x \r\n", mipi_frame);
 	}
 
 	__raw_writel(isp_mis, (void volatile *)
@@ -819,6 +827,11 @@ static irqreturn_t camsys_mrv_irq(int irq, void *data)
 							camsys_irqstas_t,
 							list);
 						irqsta->sta.mis = *mis;
+						irqsta->sta.fs_id =
+							mipi_frame & 0xFFFF;
+						irqsta->sta.fe_id =
+							(mipi_frame >> 16)
+							& 0xFFFF;
 						list_del_init(&irqsta->list);
 						list_add_tail(&irqsta->list,
 							&irqpool->active);

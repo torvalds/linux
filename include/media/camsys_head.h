@@ -33,8 +33,10 @@
 	1) support sensor powerup sequence configurable.
 *v0.d.0:
 	1) powerup sequence type moved to common_head.h.
+*v0.e.0:
+	1) add fs_id, fe_id and some reserved bytes in struct camsys_irqsta_s.
 */
-#define CAMSYS_HEAD_VERSION           KERNEL_VERSION(0,0xd,0)
+#define CAMSYS_HEAD_VERSION           KERNEL_VERSION(0, 0xe, 0)
 
 #define CAMSYS_MARVIN_DEVNAME         "camsys_marvin"
 #define CAMSYS_CIF0_DEVNAME           "camsys_cif0"
@@ -60,6 +62,9 @@
 typedef struct camsys_irqsta_s {
     unsigned int ris;                 //Raw interrupt status
     unsigned int mis;                 //Masked interrupt status
+	unsigned int fs_id; // frame number from Frame Start (FS) short packet
+	unsigned int fe_id; // frame number from Frame End (FE) short packet
+	unsigned int reserved[4];
 } camsys_irqsta_t;
 
 typedef struct camsys_irqcnnt_s {
@@ -67,7 +72,7 @@ typedef struct camsys_irqcnnt_s {
     unsigned int timeout;             //us
 
     unsigned int mis;
-    unsigned int icr;                 
+	unsigned int icr;
 } camsys_irqcnnt_t;
 
 typedef enum camsys_mmap_type_e {     //this type can be filled in mmap offset argument      
