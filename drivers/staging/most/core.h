@@ -263,6 +263,7 @@ struct most_interface {
  */
 struct most_aim {
 	struct device dev;
+	struct list_head list;
 	const char *name;
 	int (*probe_channel)(struct most_interface *iface, int channel_idx,
 			     struct most_channel_config *cfg, char *name);
