@@ -454,6 +454,18 @@ static const struct rk808_reg_data rk818_pre_init_reg[] = {
 	{ RK808_RTC_CTRL_REG, RTC_STOP, RTC_STOP},
 };
 
+static struct rk808_reg_data rk818_suspend_reg[] = {
+	/* set bat 3.4v low and act irq */
+	{ RK808_VB_MON_REG, VBAT_LOW_VOL_MASK | VBAT_LOW_ACT_MASK,
+	  RK808_VBAT_LOW_3V4 | EN_VBAT_LOW_IRQ },
+};
+
+static struct rk808_reg_data rk818_resume_reg[] = {
+	/* set bat 3.0v low and act shutdown*/
+	{ RK808_VB_MON_REG, VBAT_LOW_VOL_MASK | VBAT_LOW_ACT_MASK,
+	  RK808_VBAT_LOW_3V0 | EN_VABT_LOW_SHUT_DOWN },
+};
+
 static const struct regmap_irq rk818_irqs[] = {
 	/* INT_STS */
 	[RK818_IRQ_VOUT_LO] = {
@@ -776,6 +788,10 @@ static int rk808_probe(struct i2c_client *client,
 		pm_shutdown_fn = rk818_shutdown;
 		on_source = RK818_ON_SOURCE_REG;
 		off_source = RK818_OFF_SOURCE_REG;
+		suspend_reg = rk818_suspend_reg;
+		suspend_reg_num = ARRAY_SIZE(rk818_suspend_reg);
+		resume_reg = rk818_resume_reg;
+		resume_reg_num = ARRAY_SIZE(rk818_resume_reg);
 		break;
 	case RK816_ID:
 		cell = rk816s;
