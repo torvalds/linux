@@ -27,37 +27,6 @@
  * Power Management:
  */
 
-#ifdef DOWNSTREAM_CONFIG_MSM_BUS_SCALING
-#include <mach/board.h>
-static void bs_init(struct msm_gpu *gpu)
-{
-	if (gpu->bus_scale_table) {
-		gpu->bsc = msm_bus_scale_register_client(gpu->bus_scale_table);
-		DBG("bus scale client: %08x", gpu->bsc);
-	}
-}
-
-static void bs_fini(struct msm_gpu *gpu)
-{
-	if (gpu->bsc) {
-		msm_bus_scale_unregister_client(gpu->bsc);
-		gpu->bsc = 0;
-	}
-}
-
-static void bs_set(struct msm_gpu *gpu, int idx)
-{
-	if (gpu->bsc) {
-		DBG("set bus scaling: %d", idx);
-		msm_bus_scale_client_update_request(gpu->bsc, idx);
-	}
-}
-#else
-static void bs_init(struct msm_gpu *gpu) {}
-static void bs_fini(struct msm_gpu *gpu) {}
-static void bs_set(struct msm_gpu *gpu, int idx) {}
-#endif
-
 static int enable_pwrrail(struct msm_gpu *gpu)
 {
 	struct drm_device *dev = gpu->dev;
@@ -143,8 +112,6 @@ static int enable_axi(struct msm_gpu *gpu)
 {
 	if (gpu->ebi1_clk)
 		clk_prepare_enable(gpu->ebi1_clk);
-	if (gpu->bus_freq)
-		bs_set(gpu, gpu->bus_freq);
 	return 0;
 }
 
@@ -152,8 +119,6 @@ static int disable_axi(struct msm_gpu *gpu)
 {
 	if (gpu->ebi1_clk)
 		clk_disable_unprepare(gpu->ebi1_clk);
-	if (gpu->bus_freq)
-		bs_set(gpu, 0);
 	return 0;
 }
 
@@ -755,8 +720,6 @@ int msm_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 	gpu->pdev = pdev;
 	platform_set_drvdata(pdev, gpu);
 
-	bs_init(gpu);
-
 	gpu->aspace = msm_gpu_create_address_space(gpu, pdev,
 		config->va_start, config->va_end);
 
@@ -825,8 +788,6 @@ void msm_gpu_cleanup(struct msm_gpu *gpu)
 	DBG("%s", gpu->name);
 
 	WARN_ON(!list_empty(&gpu->active_list));
-
-	bs_fini(gpu);
 
 	for (i = 0; i < ARRAY_SIZE(gpu->rb); i++) {
 		msm_ringbuffer_destroy(gpu->rb[i]);

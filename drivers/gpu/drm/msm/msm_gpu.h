@@ -108,12 +108,7 @@ struct msm_gpu {
 	struct clk **grp_clks;
 	int nr_clocks;
 	struct clk *ebi1_clk, *core_clk, *rbbmtimer_clk;
-	uint32_t fast_rate, bus_freq;
-
-#ifdef DOWNSTREAM_CONFIG_MSM_BUS_SCALING
-	struct msm_bus_scale_pdata *bus_scale_table;
-	uint32_t bsc;
-#endif
+	uint32_t fast_rate;
 
 	/* Hang and Inactivity Detection:
 	 */
