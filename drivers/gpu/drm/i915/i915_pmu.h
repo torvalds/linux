@@ -83,6 +83,10 @@ struct i915_pmu {
 	 */
 	unsigned int enable_count[I915_PMU_MASK_BITS];
 	/**
+	 * @timer_enabled: Should the internal sampling timer be running.
+	 */
+	bool timer_enabled;
+	/**
 	 * @sample: Current and previous (raw) counters for sampling events.
 	 *
 	 * These counters are updated from the i915 PMU sampling timer.
@@ -96,9 +100,13 @@ struct i915_pmu {
 #ifdef CONFIG_PERF_EVENTS
 void i915_pmu_register(struct drm_i915_private *i915);
 void i915_pmu_unregister(struct drm_i915_private *i915);
+void i915_pmu_gt_parked(struct drm_i915_private *i915);
+void i915_pmu_gt_unparked(struct drm_i915_private *i915);
 #else
 static inline void i915_pmu_register(struct drm_i915_private *i915) {}
 static inline void i915_pmu_unregister(struct drm_i915_private *i915) {}
+static inline void i915_pmu_gt_parked(struct drm_i915_private *i915) {}
+static inline void i915_pmu_gt_unparked(struct drm_i915_private *i915) {}
 #endif
 
 #endif

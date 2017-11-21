@@ -90,6 +90,75 @@ static unsigned int event_enabled_bit(struct perf_event *event)
 	return config_enabled_bit(event->attr.config);
 }
 
+static bool pmu_needs_timer(struct drm_i915_private *i915, bool gpu_active)
+{
+	u64 enable;
+
+	/*
+	 * Only some counters need the sampling timer.
+	 *
+	 * We start with a bitmask of all currently enabled events.
+	 */
+	enable = i915->pmu.enable;
+
+	/*
+	 * Mask out all the ones which do not need the timer, or in
+	 * other words keep all the ones that could need the timer.
+	 */
+	enable &= config_enabled_mask(I915_PMU_ACTUAL_FREQUENCY) |
+		  config_enabled_mask(I915_PMU_REQUESTED_FREQUENCY) |
+		  ENGINE_SAMPLE_MASK;
+
+	/*
+	 * When the GPU is idle per-engine counters do not need to be
+	 * running so clear those bits out.
+	 */
+	if (!gpu_active)
+		enable &= ~ENGINE_SAMPLE_MASK;
+
+	/*
+	 * If some bits remain it means we need the sampling timer running.
+	 */
+	return enable;
+}
+
+void i915_pmu_gt_parked(struct drm_i915_private *i915)
+{
+	if (!i915->pmu.base.event_init)
+		return;
+
+	spin_lock_irq(&i915->pmu.lock);
+	/*
+	 * Signal sampling timer to stop if only engine events are enabled and
+	 * GPU went idle.
+	 */
+	i915->pmu.timer_enabled = pmu_needs_timer(i915, false);
+	spin_unlock_irq(&i915->pmu.lock);
+}
+
+static void __i915_pmu_maybe_start_timer(struct drm_i915_private *i915)
+{
+	if (!i915->pmu.timer_enabled && pmu_needs_timer(i915, true)) {
+		i915->pmu.timer_enabled = true;
+		hrtimer_start_range_ns(&i915->pmu.timer,
+				       ns_to_ktime(PERIOD), 0,
+				       HRTIMER_MODE_REL_PINNED);
+	}
+}
+
+void i915_pmu_gt_unparked(struct drm_i915_private *i915)
+{
+	if (!i915->pmu.base.event_init)
+		return;
+
+	spin_lock_irq(&i915->pmu.lock);
+	/*
+	 * Re-enable sampling timer when GPU goes active.
+	 */
+	__i915_pmu_maybe_start_timer(i915);
+	spin_unlock_irq(&i915->pmu.lock);
+}
+
 static bool grab_forcewake(struct drm_i915_private *i915, bool fw)
 {
 	if (!fw)
@@ -187,7 +256,7 @@ static enum hrtimer_restart i915_sample(struct hrtimer *hrtimer)
 	struct drm_i915_private *i915 =
 		container_of(hrtimer, struct drm_i915_private, pmu.timer);
 
-	if (i915->pmu.enable == 0)
+	if (!READ_ONCE(i915->pmu.timer_enabled))
 		return HRTIMER_NORESTART;
 
 	engines_sample(i915);
@@ -340,14 +409,6 @@ static void i915_pmu_enable(struct perf_event *event)
 	spin_lock_irqsave(&i915->pmu.lock, flags);
 
 	/*
-	 * Start the sampling timer when enabling the first event.
-	 */
-	if (i915->pmu.enable == 0)
-		hrtimer_start_range_ns(&i915->pmu.timer,
-				       ns_to_ktime(PERIOD), 0,
-				       HRTIMER_MODE_REL_PINNED);
-
-	/*
 	 * Update the bitmask of enabled events and increment
 	 * the event reference counter.
 	 */
@@ -355,6 +416,11 @@ static void i915_pmu_enable(struct perf_event *event)
 	GEM_BUG_ON(i915->pmu.enable_count[bit] == ~0);
 	i915->pmu.enable |= BIT_ULL(bit);
 	i915->pmu.enable_count[bit]++;
+
+	/*
+	 * Start the sampling timer if needed and not already enabled.
+	 */
+	__i915_pmu_maybe_start_timer(i915);
 
 	/*
 	 * For per-engine events the bitmask and reference counting
@@ -418,8 +484,10 @@ static void i915_pmu_disable(struct perf_event *event)
 	 * Decrement the reference count and clear the enabled
 	 * bitmask when the last listener on an event goes away.
 	 */
-	if (--i915->pmu.enable_count[bit] == 0)
+	if (--i915->pmu.enable_count[bit] == 0) {
 		i915->pmu.enable &= ~BIT_ULL(bit);
+		i915->pmu.timer_enabled &= pmu_needs_timer(i915, true);
+	}
 
 	spin_unlock_irqrestore(&i915->pmu.lock, flags);
 }

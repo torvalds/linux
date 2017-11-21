@@ -258,6 +258,7 @@ static void mark_busy(struct drm_i915_private *i915)
 	i915_update_gfx_val(i915);
 	if (INTEL_GEN(i915) >= 6)
 		gen6_rps_busy(i915);
+	i915_pmu_gt_unparked(i915);
 
 	intel_engines_unpark(i915);
 
