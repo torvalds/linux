@@ -379,6 +379,18 @@ execlists_context_status_change(struct drm_i915_gem_request *rq,
 				   status, rq);
 }
 
+static inline void
+execlists_context_schedule_in(struct drm_i915_gem_request *rq)
+{
+	execlists_context_status_change(rq, INTEL_CONTEXT_SCHEDULE_IN);
+}
+
+static inline void
+execlists_context_schedule_out(struct drm_i915_gem_request *rq)
+{
+	execlists_context_status_change(rq, INTEL_CONTEXT_SCHEDULE_OUT);
+}
+
 static void
 execlists_update_context_pdps(struct i915_hw_ppgtt *ppgtt, u32 *reg_state)
 {
@@ -430,7 +442,7 @@ static void execlists_submit_ports(struct intel_engine_cs *engine)
 		if (rq) {
 			GEM_BUG_ON(count > !n);
 			if (!count++)
-				execlists_context_status_change(rq, INTEL_CONTEXT_SCHEDULE_IN);
+				execlists_context_schedule_in(rq);
 			port_set(&port[n], port_pack(rq, count));
 			desc = execlists_update_context(rq);
 			GEM_DEBUG_EXEC(port[n].context_id = upper_32_bits(desc));
@@ -902,8 +914,7 @@ static void execlists_submission_tasklet(unsigned long data)
 				GEM_BUG_ON(port_isset(&port[1]) &&
 					   !(status & GEN8_CTX_STATUS_ELEMENT_SWITCH));
 				GEM_BUG_ON(!i915_gem_request_completed(rq));
-				execlists_context_status_change(rq, INTEL_CONTEXT_SCHEDULE_OUT);
-
+				execlists_context_schedule_out(rq);
 				trace_i915_gem_request_out(rq);
 				i915_gem_request_put(rq);
 
