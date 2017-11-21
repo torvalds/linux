@@ -12814,6 +12814,7 @@ lpfc_sli4_sp_handle_abort_xri_wcqe(struct lpfc_hba *phba,
 		spin_unlock_irqrestore(&phba->hbalock, iflags);
 		workposted = true;
 		break;
+	case LPFC_NVME_LS: /* NVME LS uses ELS resources */
 	case LPFC_ELS:
 		cq_event = lpfc_cq_event_setup(
 			phba, wcqe, sizeof(struct sli4_wcqe_xri_aborted));
