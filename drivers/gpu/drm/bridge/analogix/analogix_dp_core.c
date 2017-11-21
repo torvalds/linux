@@ -819,12 +819,12 @@ static int analogix_dp_get_modes(struct drm_connector *connector)
 	struct edid *edid;
 	int num_modes = 0;
 
-	pm_runtime_get_sync(dp->dev);
-
 	if (dp->plat_data->panel) {
 		num_modes += drm_panel_get_modes(dp->plat_data->panel);
 	} else {
+		pm_runtime_get_sync(dp->dev);
 		edid = drm_get_edid(connector, &dp->aux.ddc);
+		pm_runtime_put(dp->dev);
 		if (edid) {
 			drm_mode_connector_update_edid_property(&dp->connector,
 								edid);
@@ -835,8 +835,6 @@ static int analogix_dp_get_modes(struct drm_connector *connector)
 
 	if (dp->plat_data->get_modes)
 		num_modes += dp->plat_data->get_modes(dp->plat_data, connector);
-
-	pm_runtime_put(dp->dev);
 
 	return num_modes;
 }
