@@ -262,7 +262,6 @@ struct most_interface {
  * @context: context pointer to be used by mostcore
  */
 struct most_aim {
-	struct device dev;
 	struct list_head list;
 	const char *name;
 	int (*probe_channel)(struct most_interface *iface, int channel_idx,

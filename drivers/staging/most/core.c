@@ -1304,31 +1304,15 @@ out:
 }
 EXPORT_SYMBOL_GPL(most_stop_channel);
 
-void release_aim(struct device *dev)
-{
-	pr_info("releasing aim %s\n", dev_name(dev));
-}
-
 /**
  * most_register_aim - registers an AIM (driver) with the core
  * @aim: instance of AIM to be registered
  */
 int most_register_aim(struct most_aim *aim)
 {
-	int ret;
-
 	if (!aim) {
 		pr_err("Bad driver\n");
 		return -EINVAL;
-	}
-	aim->dev.init_name = aim->name;
-	aim->dev.bus = &mc.bus;
-	aim->dev.parent = &mc.dev;
-	aim->dev.release = release_aim;
-	ret = device_register(&aim->dev);
-	if (ret) {
-		pr_err("registering device %s failed\n", aim->name);
-		return ret;
 	}
 	list_add_tail(&aim->list, &mc.mod_list);
 	pr_info("registered new application interfacing module %s\n", aim->name);
@@ -1361,7 +1345,6 @@ int most_deregister_aim(struct most_aim *aim)
 				c->pipe1.aim = NULL;
 		}
 	}
-	device_unregister(&aim->dev);
 	list_del(&aim->list);
 	pr_info("deregistering application interfacing module %s\n", aim->name);
 	return 0;
