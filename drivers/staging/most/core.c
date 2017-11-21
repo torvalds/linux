@@ -51,6 +51,7 @@ struct most_channel {
 	atomic_t mbo_ref;
 	atomic_t mbo_nq_level;
 	u16 channel_id;
+	char name[STRING_SIZE];
 	bool is_poisoned;
 	struct mutex start_mutex;
 	struct mutex nq_mutex; /* nq thread synchronization */
@@ -1370,7 +1371,6 @@ int most_register_interface(struct most_interface *iface)
 {
 	unsigned int i;
 	int id;
-	char channel_name[STRING_SIZE];
 	struct most_channel *c;
 
 	if (!iface || !iface->enqueue || !iface->configure ||
@@ -1410,15 +1410,14 @@ int most_register_interface(struct most_interface *iface)
 	for (i = 0; i < iface->num_channels; i++) {
 		const char *name_suffix = iface->channel_vector[i].name_suffix;
 
-		if (!name_suffix)
-			snprintf(channel_name, STRING_SIZE, "ch%d", i);
-		else
-			snprintf(channel_name, STRING_SIZE, "%s", name_suffix);
-
 		c = kzalloc(sizeof(*c), GFP_KERNEL);
 		if (!c)
 			goto free_instance;
-		c->dev.init_name = channel_name;
+		if (!name_suffix)
+			snprintf(c->name, STRING_SIZE, "ch%d", i);
+		else
+			snprintf(c->name, STRING_SIZE, "%s", name_suffix);
+		c->dev.init_name = c->name;
 		c->dev.parent = &iface->dev;
 		c->dev.groups = channel_attr_groups;
 		c->dev.release = release_channel;
