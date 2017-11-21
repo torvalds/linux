@@ -117,7 +117,10 @@ static void flush_context(unsigned int cpu)
 		per_cpu(reserved_asids, i) = asid;
 	}
 
-	/* Queue a TLB invalidate and flush the I-cache if necessary. */
+	/*
+	 * Queue a TLB invalidation for each CPU to perform on next
+	 * context-switch
+	 */
 	cpumask_setall(&tlb_flush_pending);
 }
 
