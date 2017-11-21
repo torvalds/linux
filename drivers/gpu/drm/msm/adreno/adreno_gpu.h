@@ -129,7 +129,6 @@ struct adreno_gpu {
 /* platform config data (ie. from DT, or pdata) */
 struct adreno_platform_config {
 	struct adreno_rev rev;
-	uint32_t fast_rate;
 };
 
 #define ADRENO_IDLE_TIMEOUT msecs_to_jiffies(1000)

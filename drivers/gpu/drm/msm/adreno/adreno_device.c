@@ -17,7 +17,6 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <linux/pm_opp.h>
 #include "adreno_gpu.h"
 
 #define ANY_ID 0xff
@@ -204,70 +203,6 @@ static int find_chipid(struct device *dev, struct adreno_rev *rev)
 	return 0;
 }
 
-/* Get legacy powerlevels from qcom,gpu-pwrlevels and populate the opp table */
-static int adreno_get_legacy_pwrlevels(struct device *dev)
-{
-	struct device_node *child, *node;
-	int ret;
-
-	node = of_find_compatible_node(dev->of_node, NULL,
-		"qcom,gpu-pwrlevels");
-	if (!node) {
-		dev_err(dev, "Could not find the GPU powerlevels\n");
-		return -ENXIO;
-	}
-
-	for_each_child_of_node(node, child) {
-		unsigned int val;
-
-		ret = of_property_read_u32(child, "qcom,gpu-freq", &val);
-		if (ret)
-			continue;
-
-		/*
-		 * Skip the intentionally bogus clock value found at the bottom
-		 * of most legacy frequency tables
-		 */
-		if (val != 27000000)
-			dev_pm_opp_add(dev, val, 0);
-	}
-
-	return 0;
-}
-
-static int adreno_get_pwrlevels(struct device *dev,
-		struct adreno_platform_config *config)
-{
-	unsigned long freq = ULONG_MAX;
-	struct dev_pm_opp *opp;
-	int ret;
-
-	/* You down with OPP? */
-	if (!of_find_property(dev->of_node, "operating-points-v2", NULL))
-		ret = adreno_get_legacy_pwrlevels(dev);
-	else
-		ret = dev_pm_opp_of_add_table(dev);
-
-	if (ret)
-		return ret;
-
-	/* Find the fastest defined rate */
-	opp = dev_pm_opp_find_freq_floor(dev, &freq);
-	if (!IS_ERR(opp)) {
-		config->fast_rate = freq;
-		dev_pm_opp_put(opp);
-	}
-
-	if (!config->fast_rate) {
-		DRM_DEV_INFO(dev,
-			"Could not find clock rate. Using default\n");
-		/* Pick a suitably safe clock speed for any target */
-		config->fast_rate = 200000000;
-	}
-
-	return 0;
-}
-
 static int adreno_bind(struct device *dev, struct device *master, void *data)
 {
 	static struct adreno_platform_config config = {};
@@ -277,13 +212,6 @@ static int adreno_bind(struct device *dev, struct device *master, void *data)
 	int ret;
 
 	ret = find_chipid(dev, &config.rev);
-	if (ret)
-		return ret;
-
-	/* find clock rates: */
-	config.fast_rate = 0;
-
-	ret = adreno_get_pwrlevels(dev, &config);
 	if (ret)
 		return ret;
 
