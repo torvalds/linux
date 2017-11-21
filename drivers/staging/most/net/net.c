@@ -496,7 +496,7 @@ put_nd:
 }
 
 static struct most_aim aim = {
-	.name = "networking",
+	.name = "net",
 	.probe_channel = aim_probe_channel,
 	.disconnect_channel = aim_disconnect_channel,
 	.tx_completion = aim_resume_tx_channel,

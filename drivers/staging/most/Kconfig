@@ -19,7 +19,7 @@ if MOST
 
 source "drivers/staging/most/cdev/Kconfig"
 
-source "drivers/staging/most/aim-network/Kconfig"
+source "drivers/staging/most/net/Kconfig"
 
 source "drivers/staging/most/aim-sound/Kconfig"
 
