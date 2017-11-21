@@ -3186,21 +3186,18 @@ static int kvm_dev_ioctl_create_vm(unsigned long type)
 		return PTR_ERR(kvm);
 #ifdef CONFIG_KVM_MMIO
 	r = kvm_coalesced_mmio_init(kvm);
-	if (r < 0) {
-		kvm_put_kvm(kvm);
-		return r;
-	}
+	if (r < 0)
+		goto put_kvm;
 #endif
 	r = get_unused_fd_flags(O_CLOEXEC);
-	if (r < 0) {
-		kvm_put_kvm(kvm);
-		return r;
-	}
+	if (r < 0)
+		goto put_kvm;
+
 	file = anon_inode_getfile("kvm-vm", &kvm_vm_fops, kvm, O_RDWR);
 	if (IS_ERR(file)) {
 		put_unused_fd(r);
-		kvm_put_kvm(kvm);
-		return PTR_ERR(file);
+		r = PTR_ERR(file);
+		goto put_kvm;
 	}
 
 	/*
@@ -3217,6 +3214,10 @@ static int kvm_dev_ioctl_create_vm(unsigned long type)
 	kvm_uevent_notify_change(KVM_EVENT_CREATE_VM, kvm);
 
 	fd_install(r, file);
+	return r;
+
+put_kvm:
+	kvm_put_kvm(kvm);
 	return r;
 }
 
