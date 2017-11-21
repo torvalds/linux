@@ -209,7 +209,7 @@ sub is_false_positive
 		return 1;
 	}
 
-	if (is_x86_64) {
+	if (is_x86_64()) {
 		# vsyscall memory region, we should probably check against a range here.
 		if ($match =~ '\bf{10}600000\b' or
 		    $match =~ '\bf{10}601000\b') {
