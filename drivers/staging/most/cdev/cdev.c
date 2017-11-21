@@ -106,14 +106,14 @@ static void destroy_channel(struct comp_channel *c)
 }
 
 /**
- * aim_open - implements the syscall to open the device
+ * comp_open - implements the syscall to open the device
  * @inode: inode pointer
  * @filp: file pointer
  *
  * This stores the channel pointer in the private data field of
  * the file structure and activates the channel within the core.
  */
-static int aim_open(struct inode *inode, struct file *filp)
+static int comp_open(struct inode *inode, struct file *filp)
 {
 	struct comp_channel *c;
 	int ret;
@@ -151,13 +151,13 @@ static int aim_open(struct inode *inode, struct file *filp)
 }
 
 /**
- * aim_close - implements the syscall to close the device
+ * comp_close - implements the syscall to close the device
  * @inode: inode pointer
  * @filp: file pointer
  *
  * This stops the channel within the core.
  */
-static int aim_close(struct inode *inode, struct file *filp)
+static int comp_close(struct inode *inode, struct file *filp)
 {
 	struct comp_channel *c = to_channel(inode->i_cdev);
 
@@ -176,14 +176,14 @@ static int aim_close(struct inode *inode, struct file *filp)
 }
 
 /**
- * aim_write - implements the syscall to write to the device
+ * comp_write - implements the syscall to write to the device
  * @filp: file pointer
  * @buf: pointer to user buffer
  * @count: number of bytes to write
  * @offset: offset from where to start writing
  */
-static ssize_t aim_write(struct file *filp, const char __user *buf,
-			 size_t count, loff_t *offset)
+static ssize_t comp_write(struct file *filp, const char __user *buf,
+			  size_t count, loff_t *offset)
 {
 	int ret;
 	size_t to_copy, left;
@@ -230,14 +230,14 @@ unlock:
 }
 
 /**
- * aim_read - implements the syscall to read from the device
+ * comp_read - implements the syscall to read from the device
  * @filp: file pointer
  * @buf: pointer to user buffer
  * @count: number of bytes to read
  * @offset: offset from where to start reading
  */
 static ssize_t
-aim_read(struct file *filp, char __user *buf, size_t count, loff_t *offset)
+comp_read(struct file *filp, char __user *buf, size_t count, loff_t *offset)
 {
 	size_t to_copy, not_copied, copied;
 	struct mbo *mbo;
@@ -281,7 +281,7 @@ aim_read(struct file *filp, char __user *buf, size_t count, loff_t *offset)
 	return copied;
 }
 
-static unsigned int aim_poll(struct file *filp, poll_table *wait)
+static unsigned int comp_poll(struct file *filp, poll_table *wait)
 {
 	struct comp_channel *c = filp->private_data;
 	unsigned int mask = 0;
@@ -303,22 +303,22 @@ static unsigned int aim_poll(struct file *filp, poll_table *wait)
  */
 static const struct file_operations channel_fops = {
 	.owner = THIS_MODULE,
-	.read = aim_read,
-	.write = aim_write,
-	.open = aim_open,
-	.release = aim_close,
-	.poll = aim_poll,
+	.read = comp_read,
+	.write = comp_write,
+	.open = comp_open,
+	.release = comp_close,
+	.poll = comp_poll,
 };
 
 /**
- * aim_disconnect_channel - disconnect a channel
+ * comp_disconnect_channel - disconnect a channel
  * @iface: pointer to interface instance
  * @channel_id: channel index
  *
  * This frees allocated memory and removes the cdev that represents this
  * channel in user space.
  */
-static int aim_disconnect_channel(struct most_interface *iface, int channel_id)
+static int comp_disconnect_channel(struct most_interface *iface, int channel_id)
 {
 	struct comp_channel *c;
 
@@ -348,13 +348,13 @@ static int aim_disconnect_channel(struct most_interface *iface, int channel_id)
 }
 
 /**
- * aim_rx_completion - completion handler for rx channels
+ * comp_rx_completion - completion handler for rx channels
  * @mbo: pointer to buffer object that has completed
  *
  * This searches for the channel linked to this MBO and stores it in the local
  * fifo buffer.
  */
-static int aim_rx_completion(struct mbo *mbo)
+static int comp_rx_completion(struct mbo *mbo)
 {
 	struct comp_channel *c;
 
@@ -381,13 +381,13 @@ static int aim_rx_completion(struct mbo *mbo)
 }
 
 /**
- * aim_tx_completion - completion handler for tx channels
+ * comp_tx_completion - completion handler for tx channels
  * @iface: pointer to interface instance
  * @channel_id: channel index/ID
  *
  * This wakes sleeping processes in the wait-queue.
  */
-static int aim_tx_completion(struct most_interface *iface, int channel_id)
+static int comp_tx_completion(struct most_interface *iface, int channel_id)
 {
 	struct comp_channel *c;
 
@@ -408,7 +408,7 @@ static int aim_tx_completion(struct most_interface *iface, int channel_id)
 }
 
 /**
- * aim_probe - probe function of the driver module
+ * comp_probe - probe function of the driver module
  * @iface: pointer to interface instance
  * @channel_id: channel index/ID
  * @cfg: pointer to actual channel configuration
@@ -418,8 +418,8 @@ static int aim_tx_completion(struct most_interface *iface, int channel_id)
  *
  * Returns 0 on success or error code otherwise.
  */
-static int aim_probe(struct most_interface *iface, int channel_id,
-		     struct most_channel_config *cfg, char *name)
+static int comp_probe(struct most_interface *iface, int channel_id,
+		      struct most_channel_config *cfg, char *name)
 {
 	struct comp_channel *c;
 	unsigned long cl_flags;
@@ -427,7 +427,7 @@ static int aim_probe(struct most_interface *iface, int channel_id,
 	int current_minor;
 
 	if ((!iface) || (!cfg) || (!name)) {
-		pr_info("Probing AIM with bad arguments");
+		pr_info("Probing component with bad arguments");
 		return -EINVAL;
 	}
 	c = get_channel(iface, channel_id);
@@ -491,10 +491,10 @@ error_alloc_channel:
 
 static struct core_component cdev_comp = {
 	.name = "cdev",
-	.probe_channel = aim_probe,
-	.disconnect_channel = aim_disconnect_channel,
-	.rx_completion = aim_rx_completion,
-	.tx_completion = aim_tx_completion,
+	.probe_channel = comp_probe,
+	.disconnect_channel = comp_disconnect_channel,
+	.rx_completion = comp_rx_completion,
+	.tx_completion = comp_tx_completion,
 };
 
 static int __init mod_init(void)
