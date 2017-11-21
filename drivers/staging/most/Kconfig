@@ -23,7 +23,7 @@ source "drivers/staging/most/net/Kconfig"
 
 source "drivers/staging/most/sound/Kconfig"
 
-source "drivers/staging/most/aim-v4l2/Kconfig"
+source "drivers/staging/most/video/Kconfig"
 
 source "drivers/staging/most/dim2/Kconfig"
 
