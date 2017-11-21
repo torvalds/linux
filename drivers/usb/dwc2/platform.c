@@ -622,8 +622,9 @@ static int dwc2_driver_probe(struct platform_device *dev)
 
 	dwc2_debugfs_init(hsotg);
 
-	/* Gadget code manages lowlevel hw on its own */
-	if (hsotg->dr_mode == USB_DR_MODE_PERIPHERAL)
+	/* Gadget and otg code manages lowlevel hw on its own */
+	if (hsotg->dr_mode == USB_DR_MODE_PERIPHERAL ||
+	    hsotg->dr_mode == USB_DR_MODE_OTG)
 		dwc2_lowlevel_hw_disable(hsotg);
 
 	return 0;
