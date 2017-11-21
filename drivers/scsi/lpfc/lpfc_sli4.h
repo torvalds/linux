@@ -161,7 +161,6 @@ struct lpfc_queue {
 #define LPFC_RELEASE_NOTIFICATION_INTERVAL	32  /* For WQs */
 	uint32_t queue_id;	/* Queue ID assigned by the hardware */
 	uint32_t assoc_qid;     /* Queue ID associated with, for CQ/WQ/MQ */
-	uint32_t page_count;	/* Number of pages allocated for this queue */
 	uint32_t host_index;	/* The host's index for putting or getting */
 	uint32_t hba_index;	/* The last known hba index for get or put */
 
@@ -169,6 +168,11 @@ struct lpfc_queue {
 	struct lpfc_rqb *rqbp;	/* ptr to RQ buffers */
 
 	uint32_t q_mode;
+	uint16_t page_count;	/* Number of pages allocated for this queue */
+	uint16_t page_size;	/* size of page allocated for this queue */
+#define LPFC_NVME_PAGE_SIZE	16384
+#define LPFC_DEFAULT_PAGE_SIZE	4096
+	uint16_t chann;		/* IO channel this queue is associated with */
 	uint16_t db_format;
 #define LPFC_DB_RING_FORMAT	0x01
 #define LPFC_DB_LIST_FORMAT	0x02
@@ -769,7 +773,7 @@ int lpfc_sli4_mbx_read_fcf_rec(struct lpfc_hba *, struct lpfcMboxq *,
 
 void lpfc_sli4_hba_reset(struct lpfc_hba *);
 struct lpfc_queue *lpfc_sli4_queue_alloc(struct lpfc_hba *, uint32_t,
-			uint32_t);
+					 uint32_t, uint32_t);
 void lpfc_sli4_queue_free(struct lpfc_queue *);
 int lpfc_eq_create(struct lpfc_hba *, struct lpfc_queue *, uint32_t);
 int lpfc_modify_hba_eq_delay(struct lpfc_hba *phba, uint32_t startq,
