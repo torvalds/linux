@@ -561,9 +561,21 @@ static struct aa_label *profile_transition(struct aa_profile *profile,
 		}
 	} else if (COMPLAIN_MODE(profile)) {
 		/* no exec permission - learning mode */
-		struct aa_profile *new_profile = aa_new_null_profile(profile,
-							      false, name,
-							      GFP_ATOMIC);
+		struct aa_profile *new_profile = NULL;
+		char *n = kstrdup(name, GFP_ATOMIC);
+
+		if (n) {
+			/* name is ptr into buffer */
+			long pos = name - buffer;
+			/* break per cpu buffer hold */
+			put_buffers(buffer);
+			new_profile = aa_new_null_profile(profile, false, n,
+							  GFP_KERNEL);
+			get_buffers(buffer);
+			name = buffer + pos;
+			strcpy((char *)name, n);
+			kfree(n);
+		}
 		if (!new_profile) {
 			error = -ENOMEM;
 			info = "could not create null profile";
