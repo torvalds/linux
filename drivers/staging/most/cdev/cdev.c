@@ -18,7 +18,7 @@
 #include <linux/idr.h>
 #include "most/core.h"
 
-static dev_t aim_devno;
+static dev_t comp_devno;
 static struct class *aim_class;
 static struct ida minor_id;
 static unsigned int major;
@@ -507,10 +507,10 @@ static int __init mod_init(void)
 	spin_lock_init(&ch_list_lock);
 	ida_init(&minor_id);
 
-	err = alloc_chrdev_region(&aim_devno, 0, 50, "cdev");
+	err = alloc_chrdev_region(&comp_devno, 0, 50, "cdev");
 	if (err < 0)
 		goto dest_ida;
-	major = MAJOR(aim_devno);
+	major = MAJOR(comp_devno);
 
 	aim_class = class_create(THIS_MODULE, "most_cdev_aim");
 	if (IS_ERR(aim_class)) {
@@ -526,7 +526,7 @@ static int __init mod_init(void)
 dest_class:
 	class_destroy(aim_class);
 free_cdev:
-	unregister_chrdev_region(aim_devno, 1);
+	unregister_chrdev_region(comp_devno, 1);
 dest_ida:
 	ida_destroy(&minor_id);
 	return err;
@@ -545,7 +545,7 @@ static void __exit mod_exit(void)
 		destroy_channel(c);
 	}
 	class_destroy(aim_class);
-	unregister_chrdev_region(aim_devno, 1);
+	unregister_chrdev_region(comp_devno, 1);
 	ida_destroy(&minor_id);
 }
 
