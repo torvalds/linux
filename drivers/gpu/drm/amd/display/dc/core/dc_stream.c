@@ -301,6 +301,8 @@ bool dc_stream_set_cursor_position(
 
 	}
 
+	stream->cursor_position = *position;
+
 	return true;
 }
 
