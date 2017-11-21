@@ -264,7 +264,7 @@ static const struct dmi_system_id byt_rt5651_quirk_table[] = {
 			DMI_MATCH(DMI_SYS_VENDOR, "KIANO"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "KIANO SlimNote 14.2"),
 		},
-		.driver_data = (void *)(BYT_RT5651_IN2_MAP),
+		.driver_data = (void *)(BYT_RT5651_IN1_IN2_MAP),
 	},
 	{}
 };
