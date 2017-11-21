@@ -18,11 +18,13 @@
 #include <linux/idr.h>
 #include "most/core.h"
 
-static dev_t comp_devno;
-static struct class *comp_class;
-static struct ida minor_id;
-static unsigned int major;
-static struct core_component cdev_comp;
+static struct cdev_component {
+	dev_t devno;
+	struct ida minor_id;
+	unsigned int major;
+	struct class *class;
+	struct core_component cc;
+} comp;
 
 struct comp_channel {
 	wait_queue_head_t wq;
@@ -46,13 +48,13 @@ static spinlock_t ch_list_lock;
 
 static inline bool ch_has_mbo(struct comp_channel *c)
 {
-	return channel_has_mbo(c->iface, c->channel_id, &cdev_comp) > 0;
+	return channel_has_mbo(c->iface, c->channel_id, &comp.cc) > 0;
 }
 
 static inline bool ch_get_mbo(struct comp_channel *c, struct mbo **mbo)
 {
 	if (!kfifo_peek(&c->fifo, mbo)) {
-		*mbo = most_get_mbo(c->iface, c->channel_id, &cdev_comp);
+		*mbo = most_get_mbo(c->iface, c->channel_id, &comp.cc);
 		if (*mbo)
 			kfifo_in(&c->fifo, mbo, 1);
 	}
@@ -84,14 +86,14 @@ static void stop_channel(struct comp_channel *c)
 
 	while (kfifo_out((struct kfifo *)&c->fifo, &mbo, 1))
 		most_put_mbo(mbo);
-	most_stop_channel(c->iface, c->channel_id, &cdev_comp);
+	most_stop_channel(c->iface, c->channel_id, &comp.cc);
 }
 
 static void destroy_cdev(struct comp_channel *c)
 {
 	unsigned long flags;
 
-	device_destroy(comp_class, c->devno);
+	device_destroy(comp.class, c->devno);
 	cdev_del(&c->cdev);
 	spin_lock_irqsave(&ch_list_lock, flags);
 	list_del(&c->list);
@@ -100,7 +102,7 @@ static void destroy_cdev(struct comp_channel *c)
 
 static void destroy_channel(struct comp_channel *c)
 {
-	ida_simple_remove(&minor_id, MINOR(c->devno));
+	ida_simple_remove(&comp.minor_id, MINOR(c->devno));
 	kfifo_free(&c->fifo);
 	kfree(c);
 }
@@ -143,7 +145,7 @@ static int comp_open(struct inode *inode, struct file *filp)
 	}
 
 	c->mbo_offs = 0;
-	ret = most_start_channel(c->iface, c->channel_id, &cdev_comp);
+	ret = most_start_channel(c->iface, c->channel_id, &comp.cc);
 	if (!ret)
 		c->access_ref = 1;
 	mutex_unlock(&c->io_mutex);
@@ -434,7 +436,7 @@ static int comp_probe(struct most_interface *iface, int channel_id,
 	if (c)
 		return -EEXIST;
 
-	current_minor = ida_simple_get(&minor_id, 0, 0, GFP_KERNEL);
+	current_minor = ida_simple_get(&comp.minor_id, 0, 0, GFP_KERNEL);
 	if (current_minor < 0)
 		return current_minor;
 
@@ -444,7 +446,7 @@ static int comp_probe(struct most_interface *iface, int channel_id,
 		goto error_alloc_channel;
 	}
 
-	c->devno = MKDEV(major, current_minor);
+	c->devno = MKDEV(comp.major, current_minor);
 	cdev_init(&c->cdev, &channel_fops);
 	c->cdev.owner = THIS_MODULE;
 	cdev_add(&c->cdev, c->devno, 1);
@@ -464,11 +466,7 @@ static int comp_probe(struct most_interface *iface, int channel_id,
 	spin_lock_irqsave(&ch_list_lock, cl_flags);
 	list_add_tail(&c->list, &channel_list);
 	spin_unlock_irqrestore(&ch_list_lock, cl_flags);
-	c->dev = device_create(comp_class,
-				     NULL,
-				     c->devno,
-				     NULL,
-				     "%s", name);
+	c->dev = device_create(comp.class, NULL, c->devno, NULL, "%s", name);
 
 	if (IS_ERR(c->dev)) {
 		retval = PTR_ERR(c->dev);
@@ -485,16 +483,18 @@ error_alloc_kfifo:
 	cdev_del(&c->cdev);
 	kfree(c);
 error_alloc_channel:
-	ida_simple_remove(&minor_id, current_minor);
+	ida_simple_remove(&comp.minor_id, current_minor);
 	return retval;
 }
 
-static struct core_component cdev_comp = {
-	.name = "cdev",
-	.probe_channel = comp_probe,
-	.disconnect_channel = comp_disconnect_channel,
-	.rx_completion = comp_rx_completion,
-	.tx_completion = comp_tx_completion,
+static struct cdev_component comp = {
+	.cc = {
+		.name = "cdev",
+		.probe_channel = comp_probe,
+		.disconnect_channel = comp_disconnect_channel,
+		.rx_completion = comp_rx_completion,
+		.tx_completion = comp_tx_completion,
+	},
 };
 
 static int __init mod_init(void)
@@ -503,32 +503,30 @@ static int __init mod_init(void)
 
 	pr_info("init()\n");
 
+	comp.class = class_create(THIS_MODULE, "most_cdev");
+	if (IS_ERR(comp.class)) {
+		pr_info("No udev support.\n");
+		return PTR_ERR(comp.class);
+	}
+
 	INIT_LIST_HEAD(&channel_list);
 	spin_lock_init(&ch_list_lock);
-	ida_init(&minor_id);
+	ida_init(&comp.minor_id);
 
-	err = alloc_chrdev_region(&comp_devno, 0, 50, "cdev");
+	err = alloc_chrdev_region(&comp.devno, 0, 50, "cdev");
 	if (err < 0)
 		goto dest_ida;
-	major = MAJOR(comp_devno);
-
-	comp_class = class_create(THIS_MODULE, "most_cdev_comp");
-	if (IS_ERR(comp_class)) {
-		pr_err("no udev support\n");
-		err = PTR_ERR(comp_class);
-		goto free_cdev;
-	}
-	err = most_register_component(&cdev_comp);
+	comp.major = MAJOR(comp.devno);
+	err = most_register_component(&comp.cc);
 	if (err)
-		goto dest_class;
+		goto free_cdev;
 	return 0;
 
-dest_class:
-	class_destroy(comp_class);
 free_cdev:
-	unregister_chrdev_region(comp_devno, 1);
+	unregister_chrdev_region(comp.devno, 1);
 dest_ida:
-	ida_destroy(&minor_id);
+	ida_destroy(&comp.minor_id);
+	class_destroy(comp.class);
 	return err;
 }
 
@@ -538,15 +536,15 @@ static void __exit mod_exit(void)
 
 	pr_info("exit module\n");
 
-	most_deregister_component(&cdev_comp);
+	most_deregister_component(&comp.cc);
 
 	list_for_each_entry_safe(c, tmp, &channel_list, list) {
 		destroy_cdev(c);
 		destroy_channel(c);
 	}
-	class_destroy(comp_class);
-	unregister_chrdev_region(comp_devno, 1);
-	ida_destroy(&minor_id);
+	unregister_chrdev_region(comp.devno, 1);
+	ida_destroy(&comp.minor_id);
+	class_destroy(comp.class);
 }
 
 module_init(mod_init);
