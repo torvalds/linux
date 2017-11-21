@@ -277,7 +277,6 @@ static ssize_t set_number_of_buffers_store(struct device *dev,
 					   size_t count)
 {
 	struct most_channel *c = to_channel(dev);
-
 	int ret = kstrtou16(buf, 0, &c->cfg.num_buffers);
 
 	if (ret)
@@ -663,13 +662,11 @@ inline int link_channel_to_component(struct most_channel *c,
 		return -ENOSPC;
 
 	*comp_ptr = comp;
-	ret = comp->probe_channel(c->iface, c->channel_id,
-				 &c->cfg, comp_param);
+	ret = comp->probe_channel(c->iface, c->channel_id, &c->cfg, comp_param);
 	if (ret) {
 		*comp_ptr = NULL;
 		return ret;
 	}
-
 	return 0;
 }
 
@@ -710,7 +707,6 @@ static ssize_t add_link_store(struct device_driver *drv,
 	size_t max_len = min_t(size_t, len + 1, STRING_SIZE);
 
 	strlcpy(buffer, buf, max_len);
-
 	ret = split_string(buffer, &mdev, &mdev_ch, &comp_name, &comp_param);
 	if (ret)
 		return ret;
@@ -728,7 +724,6 @@ static ssize_t add_link_store(struct device_driver *drv,
 	ret = link_channel_to_component(c, comp, comp_param);
 	if (ret)
 		return ret;
-
 	return len;
 }
 

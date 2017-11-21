@@ -541,7 +541,7 @@ err_unreg:
 }
 
 static int comp_disconnect_channel(struct most_interface *iface,
-				  int channel_idx)
+				   int channel_idx)
 {
 	struct most_video_dev *mdev = get_comp_dev(iface, channel_idx);
 
