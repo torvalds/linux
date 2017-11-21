@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * V4L2 AIM - V4L2 Application Interface Module for MostCore
+ * V4L2 Component - V4L2 Application Interface Module for MostCore
  *
  * Copyright (C) 2015, Microchip Technology Germany II GmbH & Co. KG
  */
@@ -23,9 +23,9 @@
 
 #include "most/core.h"
 
-#define V4L2_AIM_MAX_INPUT  1
+#define V4L2_CMP_MAX_INPUT  1
 
-static struct core_component aim_info;
+static struct core_component comp;
 
 struct most_video_dev {
 	struct most_interface *iface;
@@ -46,7 +46,7 @@ struct most_video_dev {
 	wait_queue_head_t wait_data;
 };
 
-struct aim_fh {
+struct comp_fh {
 	/* must be the first field of this struct! */
 	struct v4l2_fh fh;
 	struct most_video_dev *mdev;
@@ -66,14 +66,14 @@ static inline struct mbo *get_top_mbo(struct most_video_dev *mdev)
 	return list_first_entry(&mdev->pending_mbos, struct mbo, list);
 }
 
-static int aim_vdev_open(struct file *filp)
+static int comp_vdev_open(struct file *filp)
 {
 	int ret;
 	struct video_device *vdev = video_devdata(filp);
 	struct most_video_dev *mdev = video_drvdata(filp);
-	struct aim_fh *fh;
+	struct comp_fh *fh;
 
-	v4l2_info(&mdev->v4l2_dev, "aim_vdev_open()\n");
+	v4l2_info(&mdev->v4l2_dev, "comp_vdev_open()\n");
 
 	switch (vdev->vfl_type) {
 	case VFL_TYPE_GRABBER:
@@ -98,7 +98,7 @@ static int aim_vdev_open(struct file *filp)
 
 	v4l2_fh_add(&fh->fh);
 
-	ret = most_start_channel(mdev->iface, mdev->ch_idx, &aim_info);
+	ret = most_start_channel(mdev->iface, mdev->ch_idx, &comp);
 	if (ret) {
 		v4l2_err(&mdev->v4l2_dev, "most_start_channel() failed\n");
 		goto err_rm;
@@ -116,13 +116,13 @@ err_dec:
 	return ret;
 }
 
-static int aim_vdev_close(struct file *filp)
+static int comp_vdev_close(struct file *filp)
 {
-	struct aim_fh *fh = filp->private_data;
+	struct comp_fh *fh = filp->private_data;
 	struct most_video_dev *mdev = fh->mdev;
 	struct mbo *mbo, *tmp;
 
-	v4l2_info(&mdev->v4l2_dev, "aim_vdev_close()\n");
+	v4l2_info(&mdev->v4l2_dev, "comp_vdev_close()\n");
 
 	/*
 	 * We need to put MBOs back before we call most_stop_channel()
@@ -142,7 +142,7 @@ static int aim_vdev_close(struct file *filp)
 		spin_lock_irq(&mdev->list_lock);
 	}
 	spin_unlock_irq(&mdev->list_lock);
-	most_stop_channel(mdev->iface, mdev->ch_idx, &aim_info);
+	most_stop_channel(mdev->iface, mdev->ch_idx, &comp);
 	mdev->mute = false;
 
 	v4l2_fh_del(&fh->fh);
@@ -153,10 +153,10 @@ static int aim_vdev_close(struct file *filp)
 	return 0;
 }
 
-static ssize_t aim_vdev_read(struct file *filp, char __user *buf,
-			     size_t count, loff_t *pos)
+static ssize_t comp_vdev_read(struct file *filp, char __user *buf,
+			      size_t count, loff_t *pos)
 {
-	struct aim_fh *fh = filp->private_data;
+	struct comp_fh *fh = filp->private_data;
 	struct most_video_dev *mdev = fh->mdev;
 	int ret = 0;
 
@@ -203,9 +203,9 @@ static ssize_t aim_vdev_read(struct file *filp, char __user *buf,
 	return ret;
 }
 
-static unsigned int aim_vdev_poll(struct file *filp, poll_table *wait)
+static unsigned int comp_vdev_poll(struct file *filp, poll_table *wait)
 {
-	struct aim_fh *fh = filp->private_data;
+	struct comp_fh *fh = filp->private_data;
 	struct most_video_dev *mdev = fh->mdev;
 	unsigned int mask = 0;
 
@@ -218,7 +218,7 @@ static unsigned int aim_vdev_poll(struct file *filp, poll_table *wait)
 	return mask;
 }
 
-static void aim_set_format_struct(struct v4l2_format *f)
+static void comp_set_format_struct(struct v4l2_format *f)
 {
 	f->fmt.pix.width = 8;
 	f->fmt.pix.height = 8;
@@ -230,8 +230,8 @@ static void aim_set_format_struct(struct v4l2_format *f)
 	f->fmt.pix.priv = 0;
 }
 
-static int aim_set_format(struct most_video_dev *mdev, unsigned int cmd,
-			  struct v4l2_format *format)
+static int comp_set_format(struct most_video_dev *mdev, unsigned int cmd,
+			   struct v4l2_format *format)
 {
 	if (format->fmt.pix.pixelformat != V4L2_PIX_FMT_MPEG)
 		return -EINVAL;
@@ -239,7 +239,7 @@ static int aim_set_format(struct most_video_dev *mdev, unsigned int cmd,
 	if (cmd == VIDIOC_TRY_FMT)
 		return 0;
 
-	aim_set_format_struct(format);
+	comp_set_format_struct(format);
 
 	return 0;
 }
@@ -247,12 +247,12 @@ static int aim_set_format(struct most_video_dev *mdev, unsigned int cmd,
 static int vidioc_querycap(struct file *file, void *priv,
 			   struct v4l2_capability *cap)
 {
-	struct aim_fh *fh = priv;
+	struct comp_fh *fh = priv;
 	struct most_video_dev *mdev = fh->mdev;
 
 	v4l2_info(&mdev->v4l2_dev, "vidioc_querycap()\n");
 
-	strlcpy(cap->driver, "v4l2_most_aim", sizeof(cap->driver));
+	strlcpy(cap->driver, "v4l2_component", sizeof(cap->driver));
 	strlcpy(cap->card, "MOST", sizeof(cap->card));
 	snprintf(cap->bus_info, sizeof(cap->bus_info),
 		 "%s", mdev->iface->description);
@@ -267,7 +267,7 @@ static int vidioc_querycap(struct file *file, void *priv,
 static int vidioc_enum_fmt_vid_cap(struct file *file, void *priv,
 				   struct v4l2_fmtdesc *f)
 {
-	struct aim_fh *fh = priv;
+	struct comp_fh *fh = priv;
 	struct most_video_dev *mdev = fh->mdev;
 
 	v4l2_info(&mdev->v4l2_dev, "vidioc_enum_fmt_vid_cap() %d\n", f->index);
@@ -286,36 +286,36 @@ static int vidioc_enum_fmt_vid_cap(struct file *file, void *priv,
 static int vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 				struct v4l2_format *f)
 {
-	struct aim_fh *fh = priv;
+	struct comp_fh *fh = priv;
 	struct most_video_dev *mdev = fh->mdev;
 
 	v4l2_info(&mdev->v4l2_dev, "vidioc_g_fmt_vid_cap()\n");
 
-	aim_set_format_struct(f);
+	comp_set_format_struct(f);
 	return 0;
 }
 
 static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 				  struct v4l2_format *f)
 {
-	struct aim_fh *fh = priv;
+	struct comp_fh *fh = priv;
 	struct most_video_dev *mdev = fh->mdev;
 
-	return aim_set_format(mdev, VIDIOC_TRY_FMT, f);
+	return comp_set_format(mdev, VIDIOC_TRY_FMT, f);
 }
 
 static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 				struct v4l2_format *f)
 {
-	struct aim_fh *fh = priv;
+	struct comp_fh *fh = priv;
 	struct most_video_dev *mdev = fh->mdev;
 
-	return aim_set_format(mdev, VIDIOC_S_FMT, f);
+	return comp_set_format(mdev, VIDIOC_S_FMT, f);
 }
 
 static int vidioc_g_std(struct file *file, void *priv, v4l2_std_id *norm)
 {
-	struct aim_fh *fh = priv;
+	struct comp_fh *fh = priv;
 	struct most_video_dev *mdev = fh->mdev;
 
 	v4l2_info(&mdev->v4l2_dev, "vidioc_g_std()\n");
@@ -327,10 +327,10 @@ static int vidioc_g_std(struct file *file, void *priv, v4l2_std_id *norm)
 static int vidioc_enum_input(struct file *file, void *priv,
 			     struct v4l2_input *input)
 {
-	struct aim_fh *fh = priv;
+	struct comp_fh *fh = priv;
 	struct most_video_dev *mdev = fh->mdev;
 
-	if (input->index >= V4L2_AIM_MAX_INPUT)
+	if (input->index >= V4L2_CMP_MAX_INPUT)
 		return -EINVAL;
 
 	strcpy(input->name, "MOST Video");
@@ -344,7 +344,7 @@ static int vidioc_enum_input(struct file *file, void *priv,
 
 static int vidioc_g_input(struct file *file, void *priv, unsigned int *i)
 {
-	struct aim_fh *fh = priv;
+	struct comp_fh *fh = priv;
 	struct most_video_dev *mdev = fh->mdev;
 	*i = mdev->ctrl_input;
 	return 0;
@@ -352,23 +352,23 @@ static int vidioc_g_input(struct file *file, void *priv, unsigned int *i)
 
 static int vidioc_s_input(struct file *file, void *priv, unsigned int index)
 {
-	struct aim_fh *fh = priv;
+	struct comp_fh *fh = priv;
 	struct most_video_dev *mdev = fh->mdev;
 
 	v4l2_info(&mdev->v4l2_dev, "vidioc_s_input(%d)\n", index);
 
-	if (index >= V4L2_AIM_MAX_INPUT)
+	if (index >= V4L2_CMP_MAX_INPUT)
 		return -EINVAL;
 	mdev->ctrl_input = index;
 	return 0;
 }
 
-static const struct v4l2_file_operations aim_fops = {
+static const struct v4l2_file_operations comp_fops = {
 	.owner      = THIS_MODULE,
-	.open       = aim_vdev_open,
-	.release    = aim_vdev_close,
-	.read       = aim_vdev_read,
-	.poll       = aim_vdev_poll,
+	.open       = comp_vdev_open,
+	.release    = comp_vdev_close,
+	.read       = comp_vdev_read,
+	.poll       = comp_vdev_poll,
 	.unlocked_ioctl = video_ioctl2,
 };
 
@@ -384,8 +384,8 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_s_input             = vidioc_s_input,
 };
 
-static const struct video_device aim_videodev_template = {
-	.fops = &aim_fops,
+static const struct video_device comp_videodev_template = {
+	.fops = &comp_fops,
 	.release = video_device_release,
 	.ioctl_ops = &video_ioctl_ops,
 	.tvnorms = V4L2_STD_UNKNOWN,
@@ -393,7 +393,7 @@ static const struct video_device aim_videodev_template = {
 
 /**************************************************************************/
 
-static struct most_video_dev *get_aim_dev(
+static struct most_video_dev *get_comp_dev(
 	struct most_interface *iface, int channel_idx)
 {
 	struct most_video_dev *mdev;
@@ -410,11 +410,11 @@ static struct most_video_dev *get_aim_dev(
 	return NULL;
 }
 
-static int aim_rx_data(struct mbo *mbo)
+static int comp_rx_data(struct mbo *mbo)
 {
 	unsigned long flags;
 	struct most_video_dev *mdev =
-		get_aim_dev(mbo->ifp, mbo->hdm_channel_id);
+		get_comp_dev(mbo->ifp, mbo->hdm_channel_id);
 
 	if (!mdev)
 		return -EIO;
@@ -431,11 +431,11 @@ static int aim_rx_data(struct mbo *mbo)
 	return 0;
 }
 
-static int aim_register_videodev(struct most_video_dev *mdev)
+static int comp_register_videodev(struct most_video_dev *mdev)
 {
 	int ret;
 
-	v4l2_info(&mdev->v4l2_dev, "aim_register_videodev()\n");
+	v4l2_info(&mdev->v4l2_dev, "comp_register_videodev()\n");
 
 	init_waitqueue_head(&mdev->wait_data);
 
@@ -445,7 +445,7 @@ static int aim_register_videodev(struct most_video_dev *mdev)
 		return -ENOMEM;
 
 	/* Fill the video capture device struct */
-	*mdev->vdev = aim_videodev_template;
+	*mdev->vdev = comp_videodev_template;
 	mdev->vdev->v4l2_dev = &mdev->v4l2_dev;
 	mdev->vdev->lock = &mdev->lock;
 	snprintf(mdev->vdev->name, sizeof(mdev->vdev->name), "MOST: %s",
@@ -463,14 +463,14 @@ static int aim_register_videodev(struct most_video_dev *mdev)
 	return ret;
 }
 
-static void aim_unregister_videodev(struct most_video_dev *mdev)
+static void comp_unregister_videodev(struct most_video_dev *mdev)
 {
-	v4l2_info(&mdev->v4l2_dev, "aim_unregister_videodev()\n");
+	v4l2_info(&mdev->v4l2_dev, "comp_unregister_videodev()\n");
 
 	video_unregister_device(mdev->vdev);
 }
 
-static void aim_v4l2_dev_release(struct v4l2_device *v4l2_dev)
+static void comp_v4l2_dev_release(struct v4l2_device *v4l2_dev)
 {
 	struct most_video_dev *mdev =
 		container_of(v4l2_dev, struct most_video_dev, v4l2_dev);
@@ -479,13 +479,13 @@ static void aim_v4l2_dev_release(struct v4l2_device *v4l2_dev)
 	kfree(mdev);
 }
 
-static int aim_probe_channel(struct most_interface *iface, int channel_idx,
-			     struct most_channel_config *ccfg, char *name)
+static int comp_probe_channel(struct most_interface *iface, int channel_idx,
+			      struct most_channel_config *ccfg, char *name)
 {
 	int ret;
-	struct most_video_dev *mdev = get_aim_dev(iface, channel_idx);
+	struct most_video_dev *mdev = get_comp_dev(iface, channel_idx);
 
-	pr_info("aim_probe_channel(%s)\n", name);
+	pr_info("comp_probe_channel(%s)\n", name);
 
 	if (mdev) {
 		pr_err("channel already linked\n");
@@ -513,7 +513,7 @@ static int aim_probe_channel(struct most_interface *iface, int channel_idx,
 	INIT_LIST_HEAD(&mdev->pending_mbos);
 	mdev->iface = iface;
 	mdev->ch_idx = channel_idx;
-	mdev->v4l2_dev.release = aim_v4l2_dev_release;
+	mdev->v4l2_dev.release = comp_v4l2_dev_release;
 
 	/* Create the v4l2_device */
 	strlcpy(mdev->v4l2_dev.name, name, sizeof(mdev->v4l2_dev.name));
@@ -524,14 +524,14 @@ static int aim_probe_channel(struct most_interface *iface, int channel_idx,
 		return ret;
 	}
 
-	ret = aim_register_videodev(mdev);
+	ret = comp_register_videodev(mdev);
 	if (ret)
 		goto err_unreg;
 
 	spin_lock_irq(&list_lock);
 	list_add(&mdev->list, &video_devices);
 	spin_unlock_irq(&list_lock);
-	v4l2_info(&mdev->v4l2_dev, "aim_probe_channel() done\n");
+	v4l2_info(&mdev->v4l2_dev, "comp_probe_channel() done\n");
 	return 0;
 
 err_unreg:
@@ -540,42 +540,42 @@ err_unreg:
 	return ret;
 }
 
-static int aim_disconnect_channel(struct most_interface *iface,
+static int comp_disconnect_channel(struct most_interface *iface,
 				  int channel_idx)
 {
-	struct most_video_dev *mdev = get_aim_dev(iface, channel_idx);
+	struct most_video_dev *mdev = get_comp_dev(iface, channel_idx);
 
 	if (!mdev) {
 		pr_err("no such channel is linked\n");
 		return -ENOENT;
 	}
 
-	v4l2_info(&mdev->v4l2_dev, "aim_disconnect_channel()\n");
+	v4l2_info(&mdev->v4l2_dev, "comp_disconnect_channel()\n");
 
 	spin_lock_irq(&list_lock);
 	list_del(&mdev->list);
 	spin_unlock_irq(&list_lock);
 
-	aim_unregister_videodev(mdev);
+	comp_unregister_videodev(mdev);
 	v4l2_device_disconnect(&mdev->v4l2_dev);
 	v4l2_device_put(&mdev->v4l2_dev);
 	return 0;
 }
 
-static struct core_component aim_info = {
-	.name = "v4l",
-	.probe_channel = aim_probe_channel,
-	.disconnect_channel = aim_disconnect_channel,
-	.rx_completion = aim_rx_data,
+static struct core_component comp_info = {
+	.name = "video",
+	.probe_channel = comp_probe_channel,
+	.disconnect_channel = comp_disconnect_channel,
+	.rx_completion = comp_rx_data,
 };
 
-static int __init aim_init(void)
+static int __init comp_init(void)
 {
 	spin_lock_init(&list_lock);
-	return most_register_component(&aim_info);
+	return most_register_component(&comp);
 }
 
-static void __exit aim_exit(void)
+static void __exit comp_exit(void)
 {
 	struct most_video_dev *mdev, *tmp;
 
@@ -590,20 +590,20 @@ static void __exit aim_exit(void)
 		list_del(&mdev->list);
 		spin_unlock_irq(&list_lock);
 
-		aim_unregister_videodev(mdev);
+		comp_unregister_videodev(mdev);
 		v4l2_device_disconnect(&mdev->v4l2_dev);
 		v4l2_device_put(&mdev->v4l2_dev);
 		spin_lock_irq(&list_lock);
 	}
 	spin_unlock_irq(&list_lock);
 
-	most_deregister_component(&aim_info);
+	most_deregister_component(&comp_info);
 	BUG_ON(!list_empty(&video_devices));
 }
 
-module_init(aim_init);
-module_exit(aim_exit);
+module_init(comp_init);
+module_exit(comp_exit);
 
-MODULE_DESCRIPTION("V4L2 Application Interface Module for MostCore");
+MODULE_DESCRIPTION("V4L2 Component Module for MostCore");
 MODULE_AUTHOR("Andrey Shvetsov <andrey.shvetsov@k2l.de>");
 MODULE_LICENSE("GPL");
