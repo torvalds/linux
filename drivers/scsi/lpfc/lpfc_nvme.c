@@ -2473,7 +2473,8 @@ lpfc_nvme_unregister_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 	/* Sanity check ndlp type.  Only call for NVME ports. Don't
 	 * clear any rport state until the transport calls back.
 	 */
-	if (ndlp->nlp_type & (NLP_NVME_TARGET | NLP_NVME_INITIATOR)) {
+
+	if (ndlp->nlp_type & NLP_NVME_TARGET) {
 		init_completion(&rport->rport_unreg_done);
 
 		/* No concern about the role change on the nvme remoteport.
