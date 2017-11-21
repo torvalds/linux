@@ -119,6 +119,10 @@ struct mmc_blk_data {
 	struct device_attribute force_ro;
 	struct device_attribute power_ro_lock;
 	int	area_type;
+
+	/* debugfs files (only in main mmc_blk_data) */
+	struct dentry *status_dentry;
+	struct dentry *ext_csd_dentry;
 };
 
 static DEFINE_MUTEX(open_lock);
@@ -2417,7 +2421,7 @@ static const struct file_operations mmc_dbg_ext_csd_fops = {
 	.llseek		= default_llseek,
 };
 
-static int mmc_blk_add_debugfs(struct mmc_card *card)
+static int mmc_blk_add_debugfs(struct mmc_card *card, struct mmc_blk_data *md)
 {
 	struct dentry *root;
 
@@ -2427,26 +2431,51 @@ static int mmc_blk_add_debugfs(struct mmc_card *card)
 	root = card->debugfs_root;
 
 	if (mmc_card_mmc(card) || mmc_card_sd(card)) {
-		if (!debugfs_create_file("status", S_IRUSR, root, card,
-					 &mmc_dbg_card_status_fops))
+		md->status_dentry =
+			debugfs_create_file("status", S_IRUSR, root, card,
+					    &mmc_dbg_card_status_fops);
+		if (!md->status_dentry)
 			return -EIO;
 	}
 
 	if (mmc_card_mmc(card)) {
-		if (!debugfs_create_file("ext_csd", S_IRUSR, root, card,
-					 &mmc_dbg_ext_csd_fops))
+		md->ext_csd_dentry =
+			debugfs_create_file("ext_csd", S_IRUSR, root, card,
+					    &mmc_dbg_ext_csd_fops);
+		if (!md->ext_csd_dentry)
 			return -EIO;
 	}
 
 	return 0;
 }
 
+static void mmc_blk_remove_debugfs(struct mmc_card *card,
+				   struct mmc_blk_data *md)
+{
+	if (!card->debugfs_root)
+		return;
+
+	if (!IS_ERR_OR_NULL(md->status_dentry)) {
+		debugfs_remove(md->status_dentry);
+		md->status_dentry = NULL;
+	}
+
+	if (!IS_ERR_OR_NULL(md->ext_csd_dentry)) {
+		debugfs_remove(md->ext_csd_dentry);
+		md->ext_csd_dentry = NULL;
+	}
+}
 
 #else
 
-static int mmc_blk_add_debugfs(struct mmc_card *card)
+static int mmc_blk_add_debugfs(struct mmc_card *card, struct mmc_blk_data *md)
 {
 	return 0;
+}
+
+static void mmc_blk_remove_debugfs(struct mmc_card *card,
+				   struct mmc_blk_data *md)
+{
 }
 
 #endif /* CONFIG_DEBUG_FS */
@@ -2488,7 +2517,7 @@ static int mmc_blk_probe(struct mmc_card *card)
 	}
 
 	/* Add two debugfs entries */
-	mmc_blk_add_debugfs(card);
+	mmc_blk_add_debugfs(card, md);
 
 	pm_runtime_set_autosuspend_delay(&card->dev, 3000);
 	pm_runtime_use_autosuspend(&card->dev);
@@ -2514,6 +2543,7 @@ static void mmc_blk_remove(struct mmc_card *card)
 {
 	struct mmc_blk_data *md = dev_get_drvdata(&card->dev);
 
+	mmc_blk_remove_debugfs(card, md);
 	mmc_blk_remove_parts(card, md);
 	pm_runtime_get_sync(&card->dev);
 	mmc_claim_host(card->host);
