@@ -53,6 +53,14 @@
 			console-size	= <0x00020000>;
 			ftrace-size	= <0x00020000>;
 		};
+
+		/* global autoconfigured region for contiguous allocations */
+		linux,cma {
+			compatible = "shared-dma-pool";
+			reg = <0x0 0x20C00000 0x0 0x4000000>;
+			reusable;
+			linux,cma-default;
+		};
 	};
 
 	reboot-mode-syscon@32100000 {
