@@ -620,6 +620,30 @@ most_c_obj *get_channel_by_name(char *mdev, char *mdev_ch)
 	return c;
 }
 
+static inline int link_channel_to_aim(struct most_c_obj *c,
+				      struct most_aim *aim, char *aim_param)
+{
+	int ret;
+	struct most_aim **aim_ptr;
+
+	if (!c->aim0.ptr)
+		aim_ptr = &c->aim0.ptr;
+	else if (!c->aim1.ptr)
+		aim_ptr = &c->aim1.ptr;
+	else
+		return -ENOSPC;
+
+	*aim_ptr = aim;
+	ret = aim->probe_channel(c->iface, c->channel_id,
+				 &c->cfg, aim_param);
+	if (ret) {
+		*aim_ptr = NULL;
+		return ret;
+	}
+
+	return 0;
+}
+
 /**
  * add_link_store - store() function for add_link attribute
  * @aim_obj: pointer to AIM object
@@ -648,7 +672,6 @@ static ssize_t add_link_store(struct device *dev,
 			      size_t len)
 {
 	struct most_c_obj *c;
-	struct most_aim **aim_ptr;
 	struct most_aim *aim = to_most_aim(dev);
 	char buffer[STRING_SIZE];
 	char *mdev;
@@ -674,19 +697,9 @@ static ssize_t add_link_store(struct device *dev,
 	if (IS_ERR(c))
 		return -ENODEV;
 
-	if (!c->aim0.ptr)
-		aim_ptr = &c->aim0.ptr;
-	else if (!c->aim1.ptr)
-		aim_ptr = &c->aim1.ptr;
-	else
-		return -ENOSPC;
-
-	*aim_ptr = aim;
-	ret = aim->probe_channel(c->iface, c->channel_id, &c->cfg, mdev_devnod);
-	if (ret) {
-		*aim_ptr = NULL;
+	ret = link_channel_to_aim(c, aim, mdev_devnod);
+	if (ret)
 		return ret;
-	}
 
 	return len;
 }
