@@ -48,10 +48,6 @@ nfs_encode_fh(struct inode *inode, __u32 *p, int *max_len, struct inode *parent)
 		*max_len = len;
 		return FILEID_INVALID;
 	}
-	if (IS_AUTOMOUNT(inode)) {
-		*max_len = FILEID_INVALID;
-		goto out;
-	}
 
 	p[FILEID_HIGH_OFF] = NFS_FILEID(inode) >> 32;
 	p[FILEID_LOW_OFF] = NFS_FILEID(inode);
