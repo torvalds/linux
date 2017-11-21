@@ -2947,8 +2947,6 @@ static struct i40iw_cm_node *i40iw_create_cm_node(
 			loopback_remotenode->tcp_cntxt.snd_wnd = cm_node->tcp_cntxt.rcv_wnd;
 			cm_node->tcp_cntxt.snd_wscale = loopback_remotenode->tcp_cntxt.rcv_wscale;
 			loopback_remotenode->tcp_cntxt.snd_wscale = cm_node->tcp_cntxt.rcv_wscale;
-			loopback_remotenode->state = I40IW_CM_STATE_MPAREQ_RCVD;
-			i40iw_create_event(loopback_remotenode, I40IW_CM_EVENT_MPA_REQ);
 		}
 		return cm_node;
 	}
@@ -3862,6 +3860,12 @@ int i40iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 		ret = i40iw_send_syn(cm_node, 0);
 		if (ret)
 			goto err;
+	}
+
+	if (cm_node->loopbackpartner) {
+		cm_node->loopbackpartner->state = I40IW_CM_STATE_MPAREQ_RCVD;
+		i40iw_create_event(cm_node->loopbackpartner,
+				   I40IW_CM_EVENT_MPA_REQ);
 	}
 
 	i40iw_debug(cm_node->dev,
