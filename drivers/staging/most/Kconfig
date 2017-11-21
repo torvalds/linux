@@ -27,7 +27,7 @@ source "drivers/staging/most/aim-v4l2/Kconfig"
 
 source "drivers/staging/most/hdm-dim2/Kconfig"
 
-source "drivers/staging/most/hdm-i2c/Kconfig"
+source "drivers/staging/most/i2c/Kconfig"
 
 source "drivers/staging/most/hdm-usb/Kconfig"
 

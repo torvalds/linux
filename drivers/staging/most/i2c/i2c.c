@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * hdm_i2c.c - Hardware Dependent Module for I2C Interface
+ * i2c.c - Hardware Dependent Module for I2C Interface
  *
  * Copyright (C) 2013-2015, Microchip Technology Germany II GmbH & Co. KG
  */
