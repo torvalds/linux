@@ -42,8 +42,13 @@ static inline struct drm_i915_private *kdev_minor_to_i915(struct device *kdev)
 static u32 calc_residency(struct drm_i915_private *dev_priv,
 			  i915_reg_t reg)
 {
-	return DIV_ROUND_CLOSEST_ULL(intel_rc6_residency_us(dev_priv, reg),
-				     1000);
+	u64 res;
+
+	intel_runtime_pm_get(dev_priv);
+	res = intel_rc6_residency_us(dev_priv, reg);
+	intel_runtime_pm_put(dev_priv);
+
+	return DIV_ROUND_CLOSEST_ULL(res, 1000);
 }
 
 static ssize_t

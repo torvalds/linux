@@ -9437,36 +9437,35 @@ static u64 vlv_residency_raw(struct drm_i915_private *dev_priv,
 	return lower | (u64)upper << 8;
 }
 
-u64 intel_rc6_residency_us(struct drm_i915_private *dev_priv,
+u64 intel_rc6_residency_ns(struct drm_i915_private *dev_priv,
 			   const i915_reg_t reg)
 {
-	u64 time_hw, units, div;
+	u64 time_hw;
+	u32 mul, div;
 
 	if (!intel_rc6_enabled())
 		return 0;
 
-	intel_runtime_pm_get(dev_priv);
-
 	/* On VLV and CHV, residency time is in CZ units rather than 1.28us */
 	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
-		units = 1000;
+		mul = 1000000;
 		div = dev_priv->czclk_freq;
-
 		time_hw = vlv_residency_raw(dev_priv, reg);
-	} else if (IS_GEN9_LP(dev_priv)) {
-		units = 1000;
-		div = 1200;		/* 833.33ns */
 
-		time_hw = I915_READ(reg);
 	} else {
-		units = 128000; /* 1.28us */
-		div = 100000;
+		/* 833.33ns units on Gen9LP, 1.28us elsewhere. */
+		if (IS_GEN9_LP(dev_priv)) {
+			mul = 10000;
+			div = 12;
+		} else {
+			mul = 1280;
+			div = 1;
+		}
 
 		time_hw = I915_READ(reg);
 	}
 
-	intel_runtime_pm_put(dev_priv);
-	return DIV_ROUND_UP_ULL(time_hw * units, div);
+	return DIV_ROUND_UP_ULL(time_hw * mul, div);
 }
 
 u32 intel_get_cagf(struct drm_i915_private *dev_priv, u32 rpstat)
