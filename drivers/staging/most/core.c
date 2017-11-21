@@ -711,6 +711,8 @@ static ssize_t add_link_store(struct device_driver *drv,
 	if (ret)
 		return ret;
 	comp = match_component(comp_name);
+	if (!comp)
+		return -ENODEV;
 	if (!comp_param || *comp_param == 0) {
 		snprintf(devnod_buf, sizeof(devnod_buf), "%s-%s", mdev,
 			 mdev_ch);
@@ -754,6 +756,8 @@ static ssize_t remove_link_store(struct device_driver *drv,
 	if (ret)
 		return ret;
 	comp = match_component(comp_name);
+	if (!comp)
+		return -ENODEV;
 	c = get_channel(mdev, mdev_ch);
 	if (!c)
 		return -ENODEV;
