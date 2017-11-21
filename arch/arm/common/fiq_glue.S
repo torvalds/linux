@@ -33,7 +33,7 @@ ENTRY(fiq_glue)
 
 		/* store r8-r14 from previous mode */
 		sub	sp, sp, #(7 * 4)
-		stmia	sp, {r8-r14}^
+	ARM(	stmia	sp, {r8-r14}^	)
 		nop
 
 		/* store r0-r7 from previous mode */
@@ -54,6 +54,11 @@ ENTRY(fiq_glue)
 		mov	r7, sp
 		orr	r4, r4, #(PSR_I_BIT | PSR_F_BIT)
 		msr	cpsr_c, r4
+
+	THUMB(	add	r7, r7, #(4 * 8)	)
+	THUMB(	stmia	r7, {r8-r12}		)
+	THUMB(	sub	r7, r7, #(4 * 8)	)
+
 		str	sp, [r7, #(4 * 13)]
 		str	lr, [r7, #(4 * 14)]
 		mrs	r5, spsr
@@ -61,12 +66,18 @@ ENTRY(fiq_glue)
 
 		cmp	r4, #(SVC_MODE | PSR_I_BIT | PSR_F_BIT)
 		/* use fiq stack if we reenter this mode */
-		subne	sp, r7, #(4 * 3)
+	THUMB(	subne	r6, r7, #(4 * 3)	)
+	THUMB(	movne	sp, r6			)
+	ARM(	subne	sp, r7, #(4 * 3)	)
 
 fiq_from_usr_mode:
-		msr	cpsr_c, #(SVC_MODE | PSR_I_BIT | PSR_F_BIT)
+	THUMB(	mov	r6, #(SVC_MODE | PSR_I_BIT | PSR_F_BIT)		)
+	THUMB(	msr	cpsr_c, r6					)
+	ARM(	msr	cpsr_c, #(SVC_MODE | PSR_I_BIT | PSR_F_BIT)	)
 		mov	r2, sp
-		sub	sp, r7, #12
+	THUMB(	sub	r6, r7, #12	)
+	THUMB(	mov	sp, r6		)
+	ARM(	sub	sp, r7, #12	)
 		stmfd	sp!, {r2, ip, lr}
 		/* call func(data,regs) */
 		blx	r3
@@ -83,7 +94,9 @@ fiq_from_usr_mode:
 		msr	spsr_cxsf, r5
 
 fiq_from_usr_mode_exit:
-		msr	cpsr_c, #(FIQ_MODE | PSR_I_BIT | PSR_F_BIT)
+	THUMB(	mov	r6, #(FIQ_MODE | PSR_I_BIT | PSR_F_BIT)		)
+	THUMB(	msr	cpsr_c, r6					)
+	ARM(	msr	cpsr_c, #(FIQ_MODE | PSR_I_BIT | PSR_F_BIT)	)
 
 		ldmfd	sp!, {r0-r7}
 		ldr	lr, [sp, #(4 * 7)]
@@ -105,7 +118,9 @@ fiq_glue_end:
 ENTRY(fiq_glue_setup) /* func, data, sp, smc call number */
 		stmfd		sp!, {r4}
 		mrs		r4, cpsr
-		msr		cpsr_c, #(FIQ_MODE | PSR_I_BIT | PSR_F_BIT)
+	THUMB(	mov		r6, #(FIQ_MODE | PSR_I_BIT | PSR_F_BIT)		)
+	THUMB(	msr		cpsr_c, r6					)
+	ARM(	msr		cpsr_c, #(FIQ_MODE | PSR_I_BIT | PSR_F_BIT)	)
 		movs		r8, r0
 		mov		r9, r1
 		mov		sp, r2
