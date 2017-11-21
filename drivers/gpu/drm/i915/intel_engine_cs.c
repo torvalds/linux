@@ -205,6 +205,15 @@ intel_engine_setup(struct drm_i915_private *dev_priv,
 	GEM_BUG_ON(info->class >= ARRAY_SIZE(intel_engine_classes));
 	class_info = &intel_engine_classes[info->class];
 
+	if (GEM_WARN_ON(info->class > MAX_ENGINE_CLASS))
+		return -EINVAL;
+
+	if (GEM_WARN_ON(info->instance > MAX_ENGINE_INSTANCE))
+		return -EINVAL;
+
+	if (GEM_WARN_ON(dev_priv->engine_class[info->class][info->instance]))
+		return -EINVAL;
+
 	GEM_BUG_ON(dev_priv->engine[id]);
 	engine = kzalloc(sizeof(*engine), GFP_KERNEL);
 	if (!engine)
@@ -234,6 +243,7 @@ intel_engine_setup(struct drm_i915_private *dev_priv,
 
 	ATOMIC_INIT_NOTIFIER_HEAD(&engine->context_status_notifier);
 
+	dev_priv->engine_class[info->class][info->instance] = engine;
 	dev_priv->engine[id] = engine;
 	return 0;
 }
@@ -1814,6 +1824,29 @@ void intel_engine_dump(struct intel_engine_cs *engine, struct drm_printer *m)
 
 	drm_printf(m, "Idle? %s\n", yesno(intel_engine_is_idle(engine)));
 	drm_printf(m, "\n");
+}
+
+static u8 user_class_map[] = {
+	[I915_ENGINE_CLASS_RENDER] = RENDER_CLASS,
+	[I915_ENGINE_CLASS_COPY] = COPY_ENGINE_CLASS,
+	[I915_ENGINE_CLASS_VIDEO] = VIDEO_DECODE_CLASS,
+	[I915_ENGINE_CLASS_VIDEO_ENHANCE] = VIDEO_ENHANCEMENT_CLASS,
+};
+
+struct intel_engine_cs *
+intel_engine_lookup_user(struct drm_i915_private *i915, u8 class, u8 instance)
+{
+	if (class >= ARRAY_SIZE(user_class_map))
+		return NULL;
+
+	class = user_class_map[class];
+
+	GEM_BUG_ON(class > MAX_ENGINE_CLASS);
+
+	if (instance > MAX_ENGINE_INSTANCE)
+		return NULL;
+
+	return i915->engine_class[class][instance];
 }
 
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)

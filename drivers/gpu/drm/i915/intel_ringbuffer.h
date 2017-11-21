@@ -5,6 +5,7 @@
 #include "i915_gem_batch_pool.h"
 #include "i915_gem_request.h"
 #include "i915_gem_timeline.h"
+#include "i915_pmu.h"
 #include "i915_selftest.h"
 
 struct drm_printer;
@@ -337,6 +338,28 @@ struct intel_engine_cs {
 		bool irq_armed : 1;
 		I915_SELFTEST_DECLARE(bool mock : 1);
 	} breadcrumbs;
+
+	struct {
+		/**
+		 * @enable: Bitmask of enable sample events on this engine.
+		 *
+		 * Bits correspond to sample event types, for instance
+		 * I915_SAMPLE_QUEUED is bit 0 etc.
+		 */
+		u32 enable;
+		/**
+		 * @enable_count: Reference count for the enabled samplers.
+		 *
+		 * Index number corresponds to the bit number from @enable.
+		 */
+		unsigned int enable_count[I915_PMU_SAMPLE_BITS];
+		/**
+		 * @sample: Counter values for sampling events.
+		 *
+		 * Our internal timer stores the current counters in this field.
+		 */
+		struct i915_pmu_sample sample[I915_ENGINE_SAMPLE_MAX];
+	} pmu;
 
 	/*
 	 * A pool of objects to use as shadow copies of client batch buffers
@@ -925,5 +948,8 @@ unsigned int intel_engines_has_context_isolation(struct drm_i915_private *i915);
 bool intel_engine_can_store_dword(struct intel_engine_cs *engine);
 
 void intel_engine_dump(struct intel_engine_cs *engine, struct drm_printer *p);
+
+struct intel_engine_cs *
+intel_engine_lookup_user(struct drm_i915_private *i915, u8 class, u8 instance);
 
 #endif /* _INTEL_RINGBUFFER_H_ */
