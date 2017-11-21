@@ -472,6 +472,11 @@ static struct rt6_info *rt6_multipath_select(struct rt6_info *match,
 				&match->rt6i_siblings, rt6i_siblings) {
 			route_choosen--;
 			if (route_choosen == 0) {
+				struct inet6_dev *idev = sibling->rt6i_idev;
+
+				if (!netif_carrier_ok(sibling->dst.dev) &&
+				    idev->cnf.ignore_routes_with_linkdown)
+					break;
 				if (rt6_score_route(sibling, oif, strict) < 0)
 					break;
 				match = sibling;
