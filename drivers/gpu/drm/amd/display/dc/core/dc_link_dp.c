@@ -2393,6 +2393,10 @@ bool detect_dp_sink_caps(struct dc_link *link)
 void detect_edp_sink_caps(struct dc_link *link)
 {
 	retrieve_link_cap(link);
+
+	if (link->reported_link_cap.link_rate == LINK_RATE_UNKNOWN)
+		link->reported_link_cap.link_rate = LINK_RATE_HIGH2;
+
 	link->verified_link_cap = link->reported_link_cap;
 }
 
