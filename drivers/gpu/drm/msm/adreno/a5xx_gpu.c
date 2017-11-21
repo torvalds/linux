@@ -17,6 +17,8 @@
 #include <linux/dma-mapping.h>
 #include <linux/of_address.h>
 #include <linux/soc/qcom/mdt_loader.h>
+#include <linux/pm_opp.h>
+#include <linux/nvmem-consumer.h>
 #include "msm_gem.h"
 #include "msm_mmu.h"
 #include "a5xx_gpu.h"
@@ -1184,6 +1186,25 @@ static const struct adreno_gpu_funcs funcs = {
 	.get_timestamp = a5xx_get_timestamp,
 };
 
+static void check_speed_bin(struct device *dev)
+{
+	struct nvmem_cell *cell;
+	u32 bin, val;
+
+	cell = nvmem_cell_get(dev, "speed_bin");
+
+	/* If a nvmem cell isn't defined, nothing to do */
+	if (IS_ERR(cell))
+		return;
+
+	bin = *((u32 *) nvmem_cell_read(cell, NULL));
+	nvmem_cell_put(cell);
+
+	val = (1 << bin);
+
+	dev_pm_opp_set_supported_hw(dev, &val, 1);
+}
+
 struct msm_gpu *a5xx_gpu_init(struct drm_device *dev)
 {
 	struct msm_drm_private *priv = dev->dev_private;
@@ -1209,6 +1230,8 @@ struct msm_gpu *a5xx_gpu_init(struct drm_device *dev)
 	adreno_gpu->reg_offsets = a5xx_register_offsets;
 
 	a5xx_gpu->lm_leakage = 0x4E001A;
+
+	check_speed_bin(&pdev->dev);
 
 	ret = adreno_gpu_init(dev, pdev, adreno_gpu, &funcs, 4);
 	if (ret) {
