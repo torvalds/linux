@@ -31,7 +31,7 @@ static struct device core_dev;
 static struct ida mdev_id;
 static int dummy_num_buffers;
 
-struct most_c_aim_obj {
+struct pipe {
 	struct most_aim *ptr;
 	int refs;
 	int num_buffers;
@@ -56,8 +56,8 @@ struct most_channel {
 	spinlock_t fifo_lock;
 	struct list_head halt_fifo;
 	struct list_head list;
-	struct most_c_aim_obj aim0;
-	struct most_c_aim_obj aim1;
+	struct pipe aim0;
+	struct pipe aim1;
 	struct list_head trash_fifo;
 	struct task_struct *hdm_enqueue_task;
 	wait_queue_head_t hdm_fifo_wq;
