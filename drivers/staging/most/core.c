@@ -756,11 +756,20 @@ static const struct attribute_group *aim_attr_groups[] = {
  *		     ___C O R E___
  */
 
+int most_match(struct device *dev, struct device_driver *drv)
+{
+	if (!strcmp(dev_name(dev), "most"))
+		return 0;
+	else
+		return 1;
+}
+
 /**
  * Instantiation of the MOST bus
  */
 static struct bus_type most_bus = {
 	.name = "most",
+	.match = most_match,
 };
 
 /**
