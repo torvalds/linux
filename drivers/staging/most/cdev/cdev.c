@@ -19,7 +19,7 @@
 #include "most/core.h"
 
 static dev_t comp_devno;
-static struct class *aim_class;
+static struct class *comp_class;
 static struct ida minor_id;
 static unsigned int major;
 static struct core_component cdev_aim;
@@ -91,7 +91,7 @@ static void destroy_cdev(struct comp_channel *c)
 {
 	unsigned long flags;
 
-	device_destroy(aim_class, c->devno);
+	device_destroy(comp_class, c->devno);
 	cdev_del(&c->cdev);
 	spin_lock_irqsave(&ch_list_lock, flags);
 	list_del(&c->list);
@@ -464,7 +464,7 @@ static int aim_probe(struct most_interface *iface, int channel_id,
 	spin_lock_irqsave(&ch_list_lock, cl_flags);
 	list_add_tail(&c->list, &channel_list);
 	spin_unlock_irqrestore(&ch_list_lock, cl_flags);
-	c->dev = device_create(aim_class,
+	c->dev = device_create(comp_class,
 				     NULL,
 				     c->devno,
 				     NULL,
@@ -512,10 +512,10 @@ static int __init mod_init(void)
 		goto dest_ida;
 	major = MAJOR(comp_devno);
 
-	aim_class = class_create(THIS_MODULE, "most_cdev_aim");
-	if (IS_ERR(aim_class)) {
+	comp_class = class_create(THIS_MODULE, "most_cdev_aim");
+	if (IS_ERR(comp_class)) {
 		pr_err("no udev support\n");
-		err = PTR_ERR(aim_class);
+		err = PTR_ERR(comp_class);
 		goto free_cdev;
 	}
 	err = most_register_component(&cdev_aim);
@@ -524,7 +524,7 @@ static int __init mod_init(void)
 	return 0;
 
 dest_class:
-	class_destroy(aim_class);
+	class_destroy(comp_class);
 free_cdev:
 	unregister_chrdev_region(comp_devno, 1);
 dest_ida:
@@ -544,7 +544,7 @@ static void __exit mod_exit(void)
 		destroy_cdev(c);
 		destroy_channel(c);
 	}
-	class_destroy(aim_class);
+	class_destroy(comp_class);
 	unregister_chrdev_region(comp_devno, 1);
 	ida_destroy(&minor_id);
 }
