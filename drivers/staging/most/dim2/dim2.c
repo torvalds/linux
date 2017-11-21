@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * dim2_hdm.c - MediaLB DIM2 Hardware Dependent Module
+ * dim2.c - MediaLB DIM2 Hardware Dependent Module
  *
  * Copyright (C) 2015-2016, Microchip Technology Germany II GmbH & Co. KG
  */
@@ -20,10 +20,10 @@
 #include <linux/kthread.h>
 
 #include "most/core.h"
-#include "dim2_hal.h"
-#include "dim2_hdm.h"
-#include "dim2_errors.h"
-#include "dim2_sysfs.h"
+#include "hal.h"
+#include "dim2.h"
+#include "errors.h"
+#include "sysfs.h"
 
 #define DMA_CHANNELS (32 - 1)  /* channel 0 is a system channel */
 

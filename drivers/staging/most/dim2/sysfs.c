@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * dim2_sysfs.c - MediaLB sysfs information
+ * sysfs.c - MediaLB sysfs information
  *
  * Copyright (C) 2015, Microchip Technology Germany II GmbH & Co. KG
  */
@@ -10,7 +10,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/kernel.h>
-#include "dim2_sysfs.h"
+#include "sysfs.h"
 
 struct bus_attr {
 	struct attribute attr;

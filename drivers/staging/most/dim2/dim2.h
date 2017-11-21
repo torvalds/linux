@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * dim2_hdm.h - MediaLB DIM2 HDM Header
+ * dim2.h - MediaLB DIM2 HDM Header
  *
  * Copyright (C) 2015, Microchip Technology Germany II GmbH & Co. KG
  */

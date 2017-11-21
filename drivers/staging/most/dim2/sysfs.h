@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * dim2_sysfs.h - MediaLB sysfs information
+ * sysfs.h - MediaLB sysfs information
  *
  * Copyright (C) 2015, Microchip Technology Germany II GmbH & Co. KG
  */

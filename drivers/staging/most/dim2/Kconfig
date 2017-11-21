@@ -2,8 +2,8 @@
 # MediaLB configuration
 #
 
-config HDM_DIM2
-	tristate "DIM2 HDM"
+config MOST_DIM2
+	tristate "DIM2"
 	depends on HAS_IOMEM
 
 	---help---
@@ -13,4 +13,4 @@ config HDM_DIM2
 	  maintainer of this driver.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called hdm_dim2.
+	  module will be called most_dim2.
