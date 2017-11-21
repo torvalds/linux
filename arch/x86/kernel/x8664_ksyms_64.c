@@ -42,6 +42,9 @@ EXPORT_SYMBOL(clear_page);
 
 EXPORT_SYMBOL(csum_partial);
 
+EXPORT_SYMBOL(__sw_hweight32);
+EXPORT_SYMBOL(__sw_hweight64);
+
 /*
  * Export string functions. We normally rely on gcc builtin for most of these,
  * but gcc sometimes decides not to inline them.

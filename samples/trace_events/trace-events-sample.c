@@ -78,28 +78,36 @@ static int simple_thread_fn(void *arg)
 }
 
 static DEFINE_MUTEX(thread_mutex);
+static int simple_thread_cnt;
 
 void foo_bar_reg(void)
 {
+	mutex_lock(&thread_mutex);
+	if (simple_thread_cnt++)
+		goto out;
+
 	pr_info("Starting thread for foo_bar_fn\n");
 	/*
 	 * We shouldn't be able to start a trace when the module is
 	 * unloading (there's other locks to prevent that). But
 	 * for consistency sake, we still take the thread_mutex.
 	 */
-	mutex_lock(&thread_mutex);
 	simple_tsk_fn = kthread_run(simple_thread_fn, NULL, "event-sample-fn");
+ out:
 	mutex_unlock(&thread_mutex);
 }
 
 void foo_bar_unreg(void)
 {
-	pr_info("Killing thread for foo_bar_fn\n");
-	/* protect against module unloading */
 	mutex_lock(&thread_mutex);
+	if (--simple_thread_cnt)
+		goto out;
+
+	pr_info("Killing thread for foo_bar_fn\n");
 	if (simple_tsk_fn)
 		kthread_stop(simple_tsk_fn);
 	simple_tsk_fn = NULL;
+ out:
 	mutex_unlock(&thread_mutex);
 }
 

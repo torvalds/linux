@@ -16,6 +16,15 @@
 #include "ctype.h"
 #include "string.h"
 
+/*
+ * Undef these macros so that the functions that we provide
+ * here will have the correct names regardless of how string.h
+ * may have chosen to #define them.
+ */
+#undef memcpy
+#undef memset
+#undef memcmp
+
 int memcmp(const void *s1, const void *s2, size_t len)
 {
 	u8 diff;

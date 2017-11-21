@@ -284,6 +284,10 @@ static void amdgpu_vce_idle_work_handler(struct work_struct *work)
 			amdgpu_dpm_enable_vce(adev, false);
 		} else {
 			amdgpu_asic_set_vce_clocks(adev, 0, 0);
+			amdgpu_set_powergating_state(adev, AMD_IP_BLOCK_TYPE_VCE,
+							    AMD_PG_STATE_GATE);
+			amdgpu_set_clockgating_state(adev, AMD_IP_BLOCK_TYPE_VCE,
+							    AMD_CG_STATE_GATE);
 		}
 	} else {
 		schedule_delayed_work(&adev->vce.idle_work,
@@ -315,6 +319,11 @@ static void amdgpu_vce_note_usage(struct amdgpu_device *adev)
 			amdgpu_dpm_enable_vce(adev, true);
 		} else {
 			amdgpu_asic_set_vce_clocks(adev, 53300, 40000);
+			amdgpu_set_clockgating_state(adev, AMD_IP_BLOCK_TYPE_VCE,
+							    AMD_CG_STATE_UNGATE);
+			amdgpu_set_powergating_state(adev, AMD_IP_BLOCK_TYPE_VCE,
+							    AMD_PG_STATE_UNGATE);
+
 		}
 	}
 }

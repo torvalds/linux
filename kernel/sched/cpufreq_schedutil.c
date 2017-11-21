@@ -216,8 +216,9 @@ static void sugov_get_util(unsigned long *util, unsigned long *max, u64 time)
 
 	*util = boosted_cpu_util(cpu);
 	if (likely(use_pelt()))
-		*util = min((*util + rt), max_cap);
+		*util = *util + rt;
 
+	*util = min(*util, max_cap);
 	*max = max_cap;
 }
 

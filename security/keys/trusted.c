@@ -69,7 +69,7 @@ static int TSS_sha1(const unsigned char *data, unsigned int datalen,
 	}
 
 	ret = crypto_shash_digest(&sdesc->shash, data, datalen, digest);
-	kfree(sdesc);
+	kzfree(sdesc);
 	return ret;
 }
 
@@ -113,7 +113,7 @@ static int TSS_rawhmac(unsigned char *digest, const unsigned char *key,
 	if (!ret)
 		ret = crypto_shash_final(&sdesc->shash, digest);
 out:
-	kfree(sdesc);
+	kzfree(sdesc);
 	return ret;
 }
 
@@ -164,7 +164,7 @@ static int TSS_authhmac(unsigned char *digest, const unsigned char *key,
 				  paramdigest, TPM_NONCE_SIZE, h1,
 				  TPM_NONCE_SIZE, h2, 1, &c, 0, 0);
 out:
-	kfree(sdesc);
+	kzfree(sdesc);
 	return ret;
 }
 
@@ -245,7 +245,7 @@ static int TSS_checkhmac1(unsigned char *buffer,
 	if (memcmp(testhmac, authdata, SHA1_DIGEST_SIZE))
 		ret = -EINVAL;
 out:
-	kfree(sdesc);
+	kzfree(sdesc);
 	return ret;
 }
 
@@ -346,7 +346,7 @@ static int TSS_checkhmac2(unsigned char *buffer,
 	if (memcmp(testhmac2, authdata2, SHA1_DIGEST_SIZE))
 		ret = -EINVAL;
 out:
-	kfree(sdesc);
+	kzfree(sdesc);
 	return ret;
 }
 
@@ -563,7 +563,7 @@ static int tpm_seal(struct tpm_buf *tb, uint16_t keytype,
 		*bloblen = storedsize;
 	}
 out:
-	kfree(td);
+	kzfree(td);
 	return ret;
 }
 
@@ -677,7 +677,7 @@ static int key_seal(struct trusted_key_payload *p,
 	if (ret < 0)
 		pr_info("trusted_key: srkseal failed (%d)\n", ret);
 
-	kfree(tb);
+	kzfree(tb);
 	return ret;
 }
 
@@ -702,7 +702,7 @@ static int key_unseal(struct trusted_key_payload *p,
 		/* pull migratable flag out of sealed key */
 		p->migratable = p->key[--p->key_len];
 
-	kfree(tb);
+	kzfree(tb);
 	return ret;
 }
 
@@ -984,12 +984,12 @@ static int trusted_instantiate(struct key *key,
 	if (!ret && options->pcrlock)
 		ret = pcrlock(options->pcrlock);
 out:
-	kfree(datablob);
-	kfree(options);
+	kzfree(datablob);
+	kzfree(options);
 	if (!ret)
 		rcu_assign_keypointer(key, payload);
 	else
-		kfree(payload);
+		kzfree(payload);
 	return ret;
 }
 
@@ -998,8 +998,7 @@ static void trusted_rcu_free(struct rcu_head *rcu)
 	struct trusted_key_payload *p;
 
 	p = container_of(rcu, struct trusted_key_payload, rcu);
-	memset(p->key, 0, p->key_len);
-	kfree(p);
+	kzfree(p);
 }
 
 /*
@@ -1014,7 +1013,7 @@ static int trusted_update(struct key *key, struct key_preparsed_payload *prep)
 	char *datablob;
 	int ret = 0;
 
-	if (test_bit(KEY_FLAG_NEGATIVE, &key->flags))
+	if (key_is_negative(key))
 		return -ENOKEY;
 	p = key->payload.data[0];
 	if (!p->migratable)
@@ -1041,13 +1040,13 @@ static int trusted_update(struct key *key, struct key_preparsed_payload *prep)
 	ret = datablob_parse(datablob, new_p, new_o);
 	if (ret != Opt_update) {
 		ret = -EINVAL;
-		kfree(new_p);
+		kzfree(new_p);
 		goto out;
 	}
 
 	if (!new_o->keyhandle) {
 		ret = -EINVAL;
-		kfree(new_p);
+		kzfree(new_p);
 		goto out;
 	}
 
@@ -1061,22 +1060,22 @@ static int trusted_update(struct key *key, struct key_preparsed_payload *prep)
 	ret = key_seal(new_p, new_o);
 	if (ret < 0) {
 		pr_info("trusted_key: key_seal failed (%d)\n", ret);
-		kfree(new_p);
+		kzfree(new_p);
 		goto out;
 	}
 	if (new_o->pcrlock) {
 		ret = pcrlock(new_o->pcrlock);
 		if (ret < 0) {
 			pr_info("trusted_key: pcrlock failed (%d)\n", ret);
-			kfree(new_p);
+			kzfree(new_p);
 			goto out;
 		}
 	}
 	rcu_assign_keypointer(key, new_p);
 	call_rcu(&p->rcu, trusted_rcu_free);
 out:
-	kfree(datablob);
-	kfree(new_o);
+	kzfree(datablob);
+	kzfree(new_o);
 	return ret;
 }
 
@@ -1095,34 +1094,30 @@ static long trusted_read(const struct key *key, char __user *buffer,
 	p = rcu_dereference_key(key);
 	if (!p)
 		return -EINVAL;
-	if (!buffer || buflen <= 0)
-		return 2 * p->blob_len;
-	ascii_buf = kmalloc(2 * p->blob_len, GFP_KERNEL);
-	if (!ascii_buf)
-		return -ENOMEM;
 
-	bufp = ascii_buf;
-	for (i = 0; i < p->blob_len; i++)
-		bufp = hex_byte_pack(bufp, p->blob[i]);
-	if ((copy_to_user(buffer, ascii_buf, 2 * p->blob_len)) != 0) {
-		kfree(ascii_buf);
-		return -EFAULT;
+	if (buffer && buflen >= 2 * p->blob_len) {
+		ascii_buf = kmalloc(2 * p->blob_len, GFP_KERNEL);
+		if (!ascii_buf)
+			return -ENOMEM;
+
+		bufp = ascii_buf;
+		for (i = 0; i < p->blob_len; i++)
+			bufp = hex_byte_pack(bufp, p->blob[i]);
+		if (copy_to_user(buffer, ascii_buf, 2 * p->blob_len) != 0) {
+			kzfree(ascii_buf);
+			return -EFAULT;
+		}
+		kzfree(ascii_buf);
 	}
-	kfree(ascii_buf);
 	return 2 * p->blob_len;
 }
 
 /*
- * trusted_destroy - before freeing the key, clear the decrypted data
+ * trusted_destroy - clear and free the key's payload
  */
 static void trusted_destroy(struct key *key)
 {
-	struct trusted_key_payload *p = key->payload.data[0];
-
-	if (!p)
-		return;
-	memset(p->key, 0, p->key_len);
-	kfree(key->payload.data[0]);
+	kzfree(key->payload.data[0]);
 }
 
 struct key_type key_type_trusted = {

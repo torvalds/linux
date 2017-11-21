@@ -398,6 +398,12 @@ static struct uart_driver sunhv_reg = {
 
 static struct uart_port *sunhv_port;
 
+void sunhv_migrate_hvcons_irq(int cpu)
+{
+	/* Migrate hvcons irq to param cpu */
+	irq_force_affinity(sunhv_port->irq, cpumask_of(cpu));
+}
+
 /* Copy 's' into the con_write_page, decoding "\n" into
  * "\r\n" along the way.  We have to return two lengths
  * because the caller needs to know how much to advance
