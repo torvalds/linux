@@ -2579,6 +2579,7 @@ static int ena_restore_device(struct ena_adapter *adapter)
 	bool wd_state;
 	int rc;
 
+	set_bit(ENA_FLAG_ONGOING_RESET, &adapter->flags);
 	rc = ena_device_init(ena_dev, adapter->pdev, &get_feat_ctx, &wd_state);
 	if (rc) {
 		dev_err(&pdev->dev, "Can not initialize device\n");
@@ -2591,6 +2592,11 @@ static int ena_restore_device(struct ena_adapter *adapter)
 		dev_err(&pdev->dev, "Validation of device parameters failed\n");
 		goto err_device_destroy;
 	}
+
+	clear_bit(ENA_FLAG_ONGOING_RESET, &adapter->flags);
+	/* Make sure we don't have a race with AENQ Links state handler */
+	if (test_bit(ENA_FLAG_LINK_UP, &adapter->flags))
+		netif_carrier_on(adapter->netdev);
 
 	rc = ena_enable_msix_and_set_admin_interrupts(adapter,
 						      adapter->num_queues);
@@ -2618,7 +2624,7 @@ err_device_destroy:
 	ena_com_admin_destroy(ena_dev);
 err:
 	clear_bit(ENA_FLAG_DEVICE_RUNNING, &adapter->flags);
-
+	clear_bit(ENA_FLAG_ONGOING_RESET, &adapter->flags);
 	dev_err(&pdev->dev,
 		"Reset attempt failed. Can not reset the device\n");
 
@@ -3495,7 +3501,8 @@ static void ena_update_on_link_change(void *adapter_data,
 	if (status) {
 		netdev_dbg(adapter->netdev, "%s\n", __func__);
 		set_bit(ENA_FLAG_LINK_UP, &adapter->flags);
-		netif_carrier_on(adapter->netdev);
+		if (!test_bit(ENA_FLAG_ONGOING_RESET, &adapter->flags))
+			netif_carrier_on(adapter->netdev);
 	} else {
 		clear_bit(ENA_FLAG_LINK_UP, &adapter->flags);
 		netif_carrier_off(adapter->netdev);

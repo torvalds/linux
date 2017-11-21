@@ -1194,9 +1194,9 @@ endlookup:
 	return err;
 }
 
-void mesh_path_timer(unsigned long data)
+void mesh_path_timer(struct timer_list *t)
 {
-	struct mesh_path *mpath = (void *) data;
+	struct mesh_path *mpath = from_timer(mpath, t, timer);
 	struct ieee80211_sub_if_data *sdata = mpath->sdata;
 	int ret;
 

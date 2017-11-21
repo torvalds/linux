@@ -539,8 +539,8 @@ void tipc_group_filter_msg(struct tipc_group *grp, struct sk_buff_head *inputq,
 			tipc_group_proto_xmit(grp, m, GRP_ACK_MSG, xmitq);
 
 		if (leave) {
-			tipc_group_delete_member(grp, m);
 			__skb_queue_purge(defq);
+			tipc_group_delete_member(grp, m);
 			break;
 		}
 		if (!update)

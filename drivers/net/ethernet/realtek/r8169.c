@@ -3789,27 +3789,32 @@ static void rtl8168e_2_hw_phy_config(struct rtl8169_private *tp)
 	rtl_writephy(tp, 0x1f, 0x0000);
 
 	/* EEE setting */
-	rtl_w0w1_eri(tp, 0x1b0, ERIAR_MASK_1111, 0x0000, 0x0003, ERIAR_EXGMAC);
+	rtl_w0w1_eri(tp, 0x1b0, ERIAR_MASK_1111, 0x0003, 0x0000, ERIAR_EXGMAC);
 	rtl_writephy(tp, 0x1f, 0x0005);
 	rtl_writephy(tp, 0x05, 0x8b85);
-	rtl_w0w1_phy(tp, 0x06, 0x0000, 0x2000);
+	rtl_w0w1_phy(tp, 0x06, 0x2000, 0x0000);
 	rtl_writephy(tp, 0x1f, 0x0004);
 	rtl_writephy(tp, 0x1f, 0x0007);
 	rtl_writephy(tp, 0x1e, 0x0020);
-	rtl_w0w1_phy(tp, 0x15, 0x0000, 0x0100);
+	rtl_w0w1_phy(tp, 0x15, 0x0100, 0x0000);
 	rtl_writephy(tp, 0x1f, 0x0002);
 	rtl_writephy(tp, 0x1f, 0x0000);
 	rtl_writephy(tp, 0x0d, 0x0007);
 	rtl_writephy(tp, 0x0e, 0x003c);
 	rtl_writephy(tp, 0x0d, 0x4007);
-	rtl_writephy(tp, 0x0e, 0x0000);
+	rtl_writephy(tp, 0x0e, 0x0006);
 	rtl_writephy(tp, 0x0d, 0x0000);
 
 	/* Green feature */
 	rtl_writephy(tp, 0x1f, 0x0003);
-	rtl_w0w1_phy(tp, 0x19, 0x0000, 0x0001);
-	rtl_w0w1_phy(tp, 0x10, 0x0000, 0x0400);
+	rtl_w0w1_phy(tp, 0x19, 0x0001, 0x0000);
+	rtl_w0w1_phy(tp, 0x10, 0x0400, 0x0000);
 	rtl_writephy(tp, 0x1f, 0x0000);
+	rtl_writephy(tp, 0x1f, 0x0005);
+	rtl_w0w1_phy(tp, 0x01, 0x0100, 0x0000);
+	rtl_writephy(tp, 0x1f, 0x0000);
+	/* soft-reset phy */
+	rtl_writephy(tp, MII_BMCR, BMCR_RESET | BMCR_ANENABLE | BMCR_ANRESTART);
 
 	/* Broken BIOS workaround: feed GigaMAC registers with MAC address. */
 	rtl_rar_exgmac_set(tp, tp->dev->dev_addr);
