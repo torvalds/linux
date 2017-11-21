@@ -233,6 +233,10 @@ static ssize_t power_ro_lock_store(struct device *dev,
 
 	/* Dispatch locking to the block layer */
 	req = blk_get_request(mq->queue, REQ_OP_DRV_OUT, __GFP_RECLAIM);
+	if (IS_ERR(req)) {
+		count = PTR_ERR(req);
+		goto out_put;
+	}
 	req_to_mmc_queue_req(req)->drv_op = MMC_DRV_OP_BOOT_WP;
 	blk_execute_rq(mq->queue, NULL, req, 0);
 	ret = req_to_mmc_queue_req(req)->drv_op_result;
@@ -249,7 +253,7 @@ static ssize_t power_ro_lock_store(struct device *dev,
 				set_disk_ro(part_md->disk, 1);
 			}
 	}
-
+out_put:
 	mmc_blk_put(md);
 	return count;
 }
@@ -625,6 +629,10 @@ static int mmc_blk_ioctl_cmd(struct mmc_blk_data *md,
 	req = blk_get_request(mq->queue,
 		idata->ic.write_flag ? REQ_OP_DRV_OUT : REQ_OP_DRV_IN,
 		__GFP_RECLAIM);
+	if (IS_ERR(req)) {
+		err = PTR_ERR(req);
+		goto cmd_done;
+	}
 	idatas[0] = idata;
 	req_to_mmc_queue_req(req)->drv_op =
 		rpmb ? MMC_DRV_OP_IOCTL_RPMB : MMC_DRV_OP_IOCTL;
@@ -692,6 +700,10 @@ static int mmc_blk_ioctl_multi_cmd(struct mmc_blk_data *md,
 	req = blk_get_request(mq->queue,
 		idata[0]->ic.write_flag ? REQ_OP_DRV_OUT : REQ_OP_DRV_IN,
 		__GFP_RECLAIM);
+	if (IS_ERR(req)) {
+		err = PTR_ERR(req);
+		goto cmd_err;
+	}
 	req_to_mmc_queue_req(req)->drv_op =
 		rpmb ? MMC_DRV_OP_IOCTL_RPMB : MMC_DRV_OP_IOCTL;
 	req_to_mmc_queue_req(req)->drv_op_data = idata;
@@ -2551,6 +2563,8 @@ static int mmc_dbg_card_status_get(void *data, u64 *val)
 
 	/* Ask the block layer about the card status */
 	req = blk_get_request(mq->queue, REQ_OP_DRV_IN, __GFP_RECLAIM);
+	if (IS_ERR(req))
+		return PTR_ERR(req);
 	req_to_mmc_queue_req(req)->drv_op = MMC_DRV_OP_GET_CARD_STATUS;
 	blk_execute_rq(mq->queue, NULL, req, 0);
 	ret = req_to_mmc_queue_req(req)->drv_op_result;
@@ -2585,6 +2599,10 @@ static int mmc_ext_csd_open(struct inode *inode, struct file *filp)
 
 	/* Ask the block layer for the EXT CSD */
 	req = blk_get_request(mq->queue, REQ_OP_DRV_IN, __GFP_RECLAIM);
+	if (IS_ERR(req)) {
+		err = PTR_ERR(req);
+		goto out_free;
+	}
 	req_to_mmc_queue_req(req)->drv_op = MMC_DRV_OP_GET_EXT_CSD;
 	req_to_mmc_queue_req(req)->drv_op_data = &ext_csd;
 	blk_execute_rq(mq->queue, NULL, req, 0);
