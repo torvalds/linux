@@ -209,36 +209,9 @@ struct orangefs_inode_s {
 	struct inode vfs_inode;
 	sector_t last_failed_block_index_read;
 
-	/*
-	 * State of in-memory attributes not yet flushed to disk associated
-	 * with this object
-	 */
-	unsigned long pinode_flags;
-
 	unsigned long getattr_time;
 	u32 getattr_mask;
 };
-
-#define P_ATIME_FLAG 0
-#define P_MTIME_FLAG 1
-#define P_CTIME_FLAG 2
-#define P_MODE_FLAG  3
-
-#define ClearAtimeFlag(pinode) clear_bit(P_ATIME_FLAG, &(pinode)->pinode_flags)
-#define SetAtimeFlag(pinode)   set_bit(P_ATIME_FLAG, &(pinode)->pinode_flags)
-#define AtimeFlag(pinode)      test_bit(P_ATIME_FLAG, &(pinode)->pinode_flags)
-
-#define ClearMtimeFlag(pinode) clear_bit(P_MTIME_FLAG, &(pinode)->pinode_flags)
-#define SetMtimeFlag(pinode)   set_bit(P_MTIME_FLAG, &(pinode)->pinode_flags)
-#define MtimeFlag(pinode)      test_bit(P_MTIME_FLAG, &(pinode)->pinode_flags)
-
-#define ClearCtimeFlag(pinode) clear_bit(P_CTIME_FLAG, &(pinode)->pinode_flags)
-#define SetCtimeFlag(pinode)   set_bit(P_CTIME_FLAG, &(pinode)->pinode_flags)
-#define CtimeFlag(pinode)      test_bit(P_CTIME_FLAG, &(pinode)->pinode_flags)
-
-#define ClearModeFlag(pinode) clear_bit(P_MODE_FLAG, &(pinode)->pinode_flags)
-#define SetModeFlag(pinode)   set_bit(P_MODE_FLAG, &(pinode)->pinode_flags)
-#define ModeFlag(pinode)      test_bit(P_MODE_FLAG, &(pinode)->pinode_flags)
 
 /* per superblock private orangefs info */
 struct orangefs_sb_info_s {
@@ -436,6 +409,8 @@ int orangefs_getattr(const struct path *path, struct kstat *stat,
 
 int orangefs_permission(struct inode *inode, int mask);
 
+int orangefs_update_time(struct inode *, struct timespec *, int);
+
 /*
  * defined in xattr.c
  */
@@ -477,8 +452,6 @@ bool __is_daemon_in_service(void);
  * defined in orangefs-utils.c
  */
 __s32 fsid_of_op(struct orangefs_kernel_op_s *op);
-
-int orangefs_flush_inode(struct inode *inode);
 
 ssize_t orangefs_inode_getxattr(struct inode *inode,
 			     const char *name,
