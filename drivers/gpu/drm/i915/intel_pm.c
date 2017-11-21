@@ -9468,3 +9468,17 @@ u64 intel_rc6_residency_us(struct drm_i915_private *dev_priv,
 	intel_runtime_pm_put(dev_priv);
 	return DIV_ROUND_UP_ULL(time_hw * units, div);
 }
+
+u32 intel_get_cagf(struct drm_i915_private *dev_priv, u32 rpstat)
+{
+	u32 cagf;
+
+	if (INTEL_GEN(dev_priv) >= 9)
+		cagf = (rpstat & GEN9_CAGF_MASK) >> GEN9_CAGF_SHIFT;
+	else if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
+		cagf = (rpstat & HSW_CAGF_MASK) >> HSW_CAGF_SHIFT;
+	else
+		cagf = (rpstat & GEN6_CAGF_MASK) >> GEN6_CAGF_SHIFT;
+
+	return  cagf;
+}

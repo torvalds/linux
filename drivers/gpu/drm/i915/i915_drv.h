@@ -4226,6 +4226,8 @@ int intel_freq_opcode(struct drm_i915_private *dev_priv, int val);
 u64 intel_rc6_residency_us(struct drm_i915_private *dev_priv,
 			   const i915_reg_t reg);
 
+u32 intel_get_cagf(struct drm_i915_private *dev_priv, u32 rpstat1);
+
 #define I915_READ8(reg)		dev_priv->uncore.funcs.mmio_readb(dev_priv, (reg), true)
 #define I915_WRITE8(reg, val)	dev_priv->uncore.funcs.mmio_writeb(dev_priv, (reg), (val), true)
 
