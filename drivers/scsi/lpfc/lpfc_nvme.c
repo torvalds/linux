@@ -154,6 +154,10 @@ lpfc_nvme_localport_delete(struct nvme_fc_local_port *localport)
 {
 	struct lpfc_nvme_lport *lport = localport->private;
 
+	lpfc_printf_vlog(lport->vport, KERN_INFO, LOG_NVME,
+			 "6173 localport %p delete complete\n",
+			 lport);
+
 	/* release any threads waiting for the unreg to complete */
 	complete(&lport->lport_unreg_done);
 }
@@ -946,10 +950,19 @@ out_err:
 	freqpriv->nvme_buf = NULL;
 
 	/* NVME targets need completion held off until the abort exchange
-	 * completes.
+	 * completes unless the NVME Rport is getting unregistered.
 	 */
-	if (!(lpfc_ncmd->flags & LPFC_SBUF_XBUSY))
+	if (!(lpfc_ncmd->flags & LPFC_SBUF_XBUSY) ||
+	    ndlp->upcall_flags & NLP_WAIT_FOR_UNREG) {
+		/* Clear the XBUSY flag to prevent double completions.
+		 * The nvme rport is getting unregistered and there is
+		 * no need to defer the IO.
+		 */
+		if (lpfc_ncmd->flags & LPFC_SBUF_XBUSY)
+			lpfc_ncmd->flags &= ~LPFC_SBUF_XBUSY;
+
 		nCmd->done(nCmd);
+	}
 
 	spin_lock_irqsave(&phba->hbalock, flags);
 	lpfc_ncmd->nrport = NULL;
@@ -2234,6 +2247,47 @@ lpfc_nvme_create_localport(struct lpfc_vport *vport)
 	return ret;
 }
 
+/* lpfc_nvme_lport_unreg_wait - Wait for the host to complete an lport unreg.
+ *
+ * The driver has to wait for the host nvme transport to callback
+ * indicating the localport has successfully unregistered all
+ * resources.  Since this is an uninterruptible wait, loop every ten
+ * seconds and print a message indicating no progress.
+ *
+ * An uninterruptible wait is used because of the risk of transport-to-
+ * driver state mismatch.
+ */
+void
+lpfc_nvme_lport_unreg_wait(struct lpfc_vport *vport,
+			   struct lpfc_nvme_lport *lport)
+{
+#if (IS_ENABLED(CONFIG_NVME_FC))
+	u32 wait_tmo;
+	int ret;
+
+	/* Host transport has to clean up and confirm requiring an indefinite
+	 * wait. Print a message if a 10 second wait expires and renew the
+	 * wait. This is unexpected.
+	 */
+	wait_tmo = msecs_to_jiffies(LPFC_NVME_WAIT_TMO * 1000);
+	while (true) {
+		ret = wait_for_completion_timeout(&lport->lport_unreg_done,
+						  wait_tmo);
+		if (unlikely(!ret)) {
+			lpfc_printf_vlog(vport, KERN_ERR, LOG_NVME_IOERR,
+					 "6176 Lport %p Localport %p wait "
+					 "timed out. Renewing.\n",
+					 lport, vport->localport);
+			continue;
+		}
+		break;
+	}
+	lpfc_printf_vlog(vport, KERN_INFO, LOG_NVME_IOERR,
+			 "6177 Lport %p Localport %p Complete Success\n",
+			 lport, vport->localport);
+#endif
+}
+
 /**
  * lpfc_nvme_destroy_localport - Destroy lpfc_nvme bound to nvme transport.
  * @pnvme: pointer to lpfc nvme data structure.
@@ -2268,7 +2322,11 @@ lpfc_nvme_destroy_localport(struct lpfc_vport *vport)
 	 */
 	init_completion(&lport->lport_unreg_done);
 	ret = nvme_fc_unregister_localport(localport);
-	wait_for_completion_timeout(&lport->lport_unreg_done, 5);
+
+	/* Wait for completion.  This either blocks
+	 * indefinitely or succeeds
+	 */
+	lpfc_nvme_lport_unreg_wait(vport, lport);
 
 	/* Regardless of the unregister upcall response, clear
 	 * nvmei_support.  All rports are unregistered and the
@@ -2424,6 +2482,47 @@ lpfc_nvme_register_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 #endif
 }
 
+/* lpfc_nvme_rport_unreg_wait - Wait for the host to complete an rport unreg.
+ *
+ * The driver has to wait for the host nvme transport to callback
+ * indicating the remoteport has successfully unregistered all
+ * resources.  Since this is an uninterruptible wait, loop every ten
+ * seconds and print a message indicating no progress.
+ *
+ * An uninterruptible wait is used because of the risk of transport-to-
+ * driver state mismatch.
+ */
+void
+lpfc_nvme_rport_unreg_wait(struct lpfc_vport *vport,
+			   struct lpfc_nvme_rport *rport)
+{
+#if (IS_ENABLED(CONFIG_NVME_FC))
+	u32 wait_tmo;
+	int ret;
+
+	/* Host transport has to clean up and confirm requiring an indefinite
+	 * wait. Print a message if a 10 second wait expires and renew the
+	 * wait. This is unexpected.
+	 */
+	wait_tmo = msecs_to_jiffies(LPFC_NVME_WAIT_TMO * 1000);
+	while (true) {
+		ret = wait_for_completion_timeout(&rport->rport_unreg_done,
+						  wait_tmo);
+		if (unlikely(!ret)) {
+			lpfc_printf_vlog(vport, KERN_ERR, LOG_NVME_IOERR,
+					 "6174 Rport %p Remoteport %p wait "
+					 "timed out. Renewing.\n",
+					 rport, rport->remoteport);
+			continue;
+		}
+		break;
+	}
+	lpfc_printf_vlog(vport, KERN_INFO, LOG_NVME_IOERR,
+			 "6175 Rport %p Remoteport %p Complete Success\n",
+			 rport, rport->remoteport);
+#endif
+}
+
 /* lpfc_nvme_unregister_port - unbind the DID and port_role from this rport.
  *
  * There is no notion of Devloss or rport recovery from the current
@@ -2480,14 +2579,19 @@ lpfc_nvme_unregister_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 		/* No concern about the role change on the nvme remoteport.
 		 * The transport will update it.
 		 */
+		ndlp->upcall_flags |= NLP_WAIT_FOR_UNREG;
 		ret = nvme_fc_unregister_remoteport(remoteport);
-		if (ret != 0) {
+		if (ret != 0)
 			lpfc_printf_vlog(vport, KERN_ERR, LOG_NVME_DISC,
 					 "6167 NVME unregister failed %d "
 					 "port_state x%x\n",
 					 ret, remoteport->port_state);
-		}
-
+		else
+			/* Wait for completion.  This either blocks
+			 * indefinitely or succeeds
+			 */
+			lpfc_nvme_rport_unreg_wait(vport, rport);
+		ndlp->upcall_flags &= ~NLP_WAIT_FOR_UNREG;
 	}
 	return;
 

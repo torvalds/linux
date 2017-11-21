@@ -27,6 +27,8 @@
 
 #define LPFC_NVME_ERSP_LEN		0x20
 
+#define LPFC_NVME_WAIT_TMO              10
+
 struct lpfc_nvme_qhandle {
 	uint32_t index;		/* WQ index to use */
 	uint32_t qidx;		/* queue index passed to create */
