@@ -248,7 +248,7 @@ static int adreno_get_pwrlevels(struct device *dev,
 	/* Find the fastest defined rate */
 	opp = dev_pm_opp_find_freq_floor(dev, &freq);
 	if (!IS_ERR(opp)) {
-		config->fast_rate = dev_pm_opp_get_freq(opp);
+		config->fast_rate = freq;
 		dev_pm_opp_put(opp);
 	}
 
