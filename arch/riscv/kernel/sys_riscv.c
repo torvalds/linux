@@ -14,7 +14,6 @@
  */
 
 #include <linux/syscalls.h>
-#include <asm/cmpxchg.h>
 #include <asm/unistd.h>
 #include <asm/cacheflush.h>
 
