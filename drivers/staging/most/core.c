@@ -661,9 +661,9 @@ static struct most_channel *get_channel(char *mdev, char *mdev_ch)
 }
 
 static
-inline int link_channel_to_aim(struct most_channel *c,
-			       struct core_component *comp,
-			       char *comp_param)
+inline int link_channel_to_component(struct most_channel *c,
+				     struct core_component *comp,
+				     char *comp_param)
 {
 	int ret;
 	struct core_component **comp_ptr;
@@ -739,7 +739,7 @@ static ssize_t add_link_store(struct device_driver *drv,
 	if (!c)
 		return -ENODEV;
 
-	ret = link_channel_to_aim(c, comp, comp_param);
+	ret = link_channel_to_component(c, comp, comp_param);
 	if (ret)
 		return ret;
 
