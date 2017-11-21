@@ -813,6 +813,7 @@ static int kvaser_usb_simple_msg_async(struct kvaser_usb_net_priv *priv,
 	if (err) {
 		netdev_err(netdev, "Error transmitting URB\n");
 		usb_unanchor_urb(urb);
+		kfree(buf);
 		usb_free_urb(urb);
 		return err;
 	}
@@ -1768,6 +1769,7 @@ static netdev_tx_t kvaser_usb_start_xmit(struct sk_buff *skb,
 		spin_unlock_irqrestore(&priv->tx_contexts_lock, flags);
 
 		usb_unanchor_urb(urb);
+		kfree(buf);
 
 		stats->tx_dropped++;
 
