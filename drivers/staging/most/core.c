@@ -529,10 +529,16 @@ static struct core_component *match_component(char *name)
 	return NULL;
 }
 
+struct show_links_data {
+	int offs;
+	char *buf;
+};
+
 int print_links(struct device *dev, void *data)
 {
-	int offs = 0;
-	char *buf = data;
+	struct show_links_data *d = data;
+	int offs = d->offs;
+	char *buf = d->buf;
 	struct most_channel *c;
 	struct most_interface *iface = to_most_interface(dev);
 
@@ -554,13 +560,16 @@ int print_links(struct device *dev, void *data)
 					 dev_name(&c->dev));
 		}
 	}
+	d->offs = offs;
 	return 0;
 }
 
 static ssize_t links_show(struct device_driver *drv, char *buf)
 {
-	bus_for_each_dev(&mc.bus, NULL, buf, print_links);
-	return strlen(buf);
+	struct show_links_data d = { .buf = buf };
+
+	bus_for_each_dev(&mc.bus, NULL, &d, print_links);
+	return d.offs;
 }
 
 static ssize_t components_show(struct device_driver *drv, char *buf)
