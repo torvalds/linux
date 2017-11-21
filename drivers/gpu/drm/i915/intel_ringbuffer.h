@@ -359,6 +359,20 @@ struct intel_engine_cs {
 		 * Our internal timer stores the current counters in this field.
 		 */
 		struct i915_pmu_sample sample[I915_ENGINE_SAMPLE_MAX];
+		/**
+		 * @busy_stats: Has enablement of engine stats tracking been
+		 * 		requested.
+		 */
+		bool busy_stats;
+		/**
+		 * @disable_busy_stats: Work item for busy stats disabling.
+		 *
+		 * Same as with @enable_busy_stats action, with the difference
+		 * that we delay it in case there are rapid enable-disable
+		 * actions, which can happen during tool startup (like perf
+		 * stat).
+		 */
+		struct delayed_work disable_busy_stats;
 	} pmu;
 
 	/*

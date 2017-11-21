@@ -90,6 +90,11 @@ static unsigned int event_enabled_bit(struct perf_event *event)
 	return config_enabled_bit(event->attr.config);
 }
 
+static bool supports_busy_stats(struct drm_i915_private *i915)
+{
+	return INTEL_GEN(i915) >= 8;
+}
+
 static bool pmu_needs_timer(struct drm_i915_private *i915, bool gpu_active)
 {
 	u64 enable;
@@ -115,6 +120,12 @@ static bool pmu_needs_timer(struct drm_i915_private *i915, bool gpu_active)
 	 */
 	if (!gpu_active)
 		enable &= ~ENGINE_SAMPLE_MASK;
+	/*
+	 * Also there is software busyness tracking available we do not
+	 * need the timer for I915_SAMPLE_BUSY counter.
+	 */
+	else if (supports_busy_stats(i915))
+		enable &= ~BIT(I915_SAMPLE_BUSY);
 
 	/*
 	 * If some bits remain it means we need the sampling timer running.
@@ -363,6 +374,9 @@ static u64 __i915_pmu_event_read(struct perf_event *event)
 
 		if (WARN_ON_ONCE(!engine)) {
 			/* Do nothing */
+		} else if (sample == I915_SAMPLE_BUSY &&
+			   engine->pmu.busy_stats) {
+			val = ktime_to_ns(intel_engine_get_busy_time(engine));
 		} else {
 			val = engine->pmu.sample[sample].cur;
 		}
@@ -397,6 +411,12 @@ again:
 		goto again;
 
 	local64_add(new - prev, &event->count);
+}
+
+static bool engine_needs_busy_stats(struct intel_engine_cs *engine)
+{
+	return supports_busy_stats(engine->i915) &&
+	       (engine->pmu.enable & BIT(I915_SAMPLE_BUSY));
 }
 
 static void i915_pmu_enable(struct perf_event *event)
@@ -438,7 +458,21 @@ static void i915_pmu_enable(struct perf_event *event)
 
 		GEM_BUG_ON(sample >= I915_PMU_SAMPLE_BITS);
 		GEM_BUG_ON(engine->pmu.enable_count[sample] == ~0);
-		engine->pmu.enable_count[sample]++;
+		if (engine->pmu.enable_count[sample]++ == 0) {
+			/*
+			 * Enable engine busy stats tracking if needed or
+			 * alternatively cancel the scheduled disable.
+			 *
+			 * If the delayed disable was pending, cancel it and
+			 * in this case do not enable since it already is.
+			 */
+			if (engine_needs_busy_stats(engine) &&
+			    !engine->pmu.busy_stats) {
+				engine->pmu.busy_stats = true;
+				if (!cancel_delayed_work(&engine->pmu.disable_busy_stats))
+					intel_enable_engine_stats(engine);
+			}
+		}
 	}
 
 	/*
@@ -449,6 +483,14 @@ static void i915_pmu_enable(struct perf_event *event)
 	local64_set(&event->hw.prev_count, __i915_pmu_event_read(event));
 
 	spin_unlock_irqrestore(&i915->pmu.lock, flags);
+}
+
+static void __disable_busy_stats(struct work_struct *work)
+{
+	struct intel_engine_cs *engine =
+	       container_of(work, typeof(*engine), pmu.disable_busy_stats.work);
+
+	intel_disable_engine_stats(engine);
 }
 
 static void i915_pmu_disable(struct perf_event *event)
@@ -474,8 +516,26 @@ static void i915_pmu_disable(struct perf_event *event)
 		 * Decrement the reference count and clear the enabled
 		 * bitmask when the last listener on an event goes away.
 		 */
-		if (--engine->pmu.enable_count[sample] == 0)
+		if (--engine->pmu.enable_count[sample] == 0) {
 			engine->pmu.enable &= ~BIT(sample);
+			if (!engine_needs_busy_stats(engine) &&
+			    engine->pmu.busy_stats) {
+				engine->pmu.busy_stats = false;
+				/*
+				 * We request a delayed disable to handle the
+				 * rapid on/off cycles on events, which can
+				 * happen when tools like perf stat start, in a
+				 * nicer way.
+				 *
+				 * In addition, this also helps with busy stats
+				 * accuracy with background CPU offline/online
+				 * migration events.
+				 */
+				queue_delayed_work(system_wq,
+						   &engine->pmu.disable_busy_stats,
+						   round_jiffies_up_relative(HZ));
+			}
+		}
 	}
 
 	GEM_BUG_ON(bit >= I915_PMU_MASK_BITS);
@@ -702,6 +762,8 @@ static void i915_pmu_unregister_cpuhp_state(struct drm_i915_private *i915)
 
 void i915_pmu_register(struct drm_i915_private *i915)
 {
+	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
 	int ret;
 
 	if (INTEL_GEN(i915) <= 2) {
@@ -723,6 +785,10 @@ void i915_pmu_register(struct drm_i915_private *i915)
 	hrtimer_init(&i915->pmu.timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	i915->pmu.timer.function = i915_sample;
 
+	for_each_engine(engine, i915, id)
+		INIT_DELAYED_WORK(&engine->pmu.disable_busy_stats,
+				  __disable_busy_stats);
+
 	ret = perf_pmu_register(&i915->pmu.base, "i915", -1);
 	if (ret)
 		goto err;
@@ -742,12 +808,20 @@ err:
 
 void i915_pmu_unregister(struct drm_i915_private *i915)
 {
+	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
+
 	if (!i915->pmu.base.event_init)
 		return;
 
 	WARN_ON(i915->pmu.enable);
 
 	hrtimer_cancel(&i915->pmu.timer);
+
+	for_each_engine(engine, i915, id) {
+		GEM_BUG_ON(engine->pmu.busy_stats);
+		flush_delayed_work(&engine->pmu.disable_busy_stats);
+	}
 
 	i915_pmu_unregister_cpuhp_state(i915);
 
