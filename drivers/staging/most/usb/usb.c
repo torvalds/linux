@@ -1036,8 +1036,6 @@ hdm_probe(struct usb_interface *interface, const struct usb_device_id *id)
 		goto exit_free1;
 
 	mdev->iface.channel_vector = mdev->cap;
-	mdev->iface.priv = NULL;
-
 	mdev->ep_address =
 		kcalloc(num_endpoints, sizeof(*mdev->ep_address), GFP_KERNEL);
 	if (!mdev->ep_address)
