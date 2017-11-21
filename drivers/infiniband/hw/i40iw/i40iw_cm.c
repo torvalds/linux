@@ -1043,7 +1043,7 @@ negotiate_done:
  * i40iw_schedule_cm_timer
  * @@cm_node: connection's node
  * @sqbuf: buffer to send
- * @type: if it es send ot close
+ * @type: if it is send or close
  * @send_retrans: if rexmits to be done
  * @close_when_complete: is cm_node to be removed
  *
@@ -1067,7 +1067,8 @@ int i40iw_schedule_cm_timer(struct i40iw_cm_node *cm_node,
 
 	new_send = kzalloc(sizeof(*new_send), GFP_ATOMIC);
 	if (!new_send) {
-		i40iw_free_sqbuf(vsi, (void *)sqbuf);
+		if (type != I40IW_TIMER_TYPE_CLOSE)
+			i40iw_free_sqbuf(vsi, (void *)sqbuf);
 		return -ENOMEM;
 	}
 	new_send->retrycount = I40IW_DEFAULT_RETRYS;
@@ -1082,7 +1083,6 @@ int i40iw_schedule_cm_timer(struct i40iw_cm_node *cm_node,
 		new_send->timetosend += (HZ / 10);
 		if (cm_node->close_entry) {
 			kfree(new_send);
-			i40iw_free_sqbuf(vsi, (void *)sqbuf);
 			i40iw_pr_err("already close entry\n");
 			return -EINVAL;
 		}
