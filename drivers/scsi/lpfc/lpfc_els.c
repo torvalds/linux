@@ -858,6 +858,9 @@ lpfc_cmpl_els_flogi_nport(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	vport->fc_flag |= FC_PT2PT;
 	spin_unlock_irq(shost->host_lock);
 
+	/* If we are pt2pt with another NPort, force NPIV off! */
+	phba->sli3_options &= ~LPFC_SLI3_NPIV_ENABLED;
+
 	/* If physical FC port changed, unreg VFI and ALL VPIs / RPIs */
 	if ((phba->sli_rev == LPFC_SLI_REV4) && phba->fc_topology_changed) {
 		lpfc_unregister_fcf_prep(phba);
@@ -916,28 +919,29 @@ lpfc_cmpl_els_flogi_nport(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		spin_lock_irq(shost->host_lock);
 		ndlp->nlp_flag |= NLP_NPR_2B_DISC;
 		spin_unlock_irq(shost->host_lock);
-	} else
+
+		mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
+		if (!mbox)
+			goto fail;
+
+		lpfc_config_link(phba, mbox);
+
+		mbox->mbox_cmpl = lpfc_mbx_cmpl_local_config_link;
+		mbox->vport = vport;
+		rc = lpfc_sli_issue_mbox(phba, mbox, MBX_NOWAIT);
+		if (rc == MBX_NOT_FINISHED) {
+			mempool_free(mbox, phba->mbox_mem_pool);
+			goto fail;
+		}
+	} else {
 		/* This side will wait for the PLOGI, decrement ndlp reference
 		 * count indicating that ndlp can be released when other
 		 * references to it are done.
 		 */
 		lpfc_nlp_put(ndlp);
 
-	/* If we are pt2pt with another NPort, force NPIV off! */
-	phba->sli3_options &= ~LPFC_SLI3_NPIV_ENABLED;
-
-	mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
-	if (!mbox)
-		goto fail;
-
-	lpfc_config_link(phba, mbox);
-
-	mbox->mbox_cmpl = lpfc_mbx_cmpl_local_config_link;
-	mbox->vport = vport;
-	rc = lpfc_sli_issue_mbox(phba, mbox, MBX_NOWAIT);
-	if (rc == MBX_NOT_FINISHED) {
-		mempool_free(mbox, phba->mbox_mem_pool);
-		goto fail;
+		/* Start discovery - this should just do CLEAR_LA */
+		lpfc_disc_start(vport);
 	}
 
 	return 0;
