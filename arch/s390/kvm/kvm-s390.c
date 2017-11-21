@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * hosting zSeries kernel virtual machines
+ * hosting IBM Z kernel virtual machines (s390x)
  *
- * Copyright IBM Corp. 2008, 2009
+ * Copyright IBM Corp. 2008, 2017
  *
  *    Author(s): Carsten Otte <cotte@de.ibm.com>
  *               Christian Borntraeger <borntraeger@de.ibm.com>
@@ -3808,6 +3808,7 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 			r = -EINVAL;
 			break;
 		}
+		/* do not use irq_state.flags, it will break old QEMUs */
 		r = kvm_s390_set_irq_state(vcpu,
 					   (void __user *) irq_state.buf,
 					   irq_state.len);
@@ -3823,6 +3824,7 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 			r = -EINVAL;
 			break;
 		}
+		/* do not use irq_state.flags, it will break old QEMUs */
 		r = kvm_s390_get_irq_state(vcpu,
 					   (__u8 __user *)  irq_state.buf,
 					   irq_state.len);
