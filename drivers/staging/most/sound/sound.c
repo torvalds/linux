@@ -733,7 +733,7 @@ static int __init audio_init(void)
 
 	INIT_LIST_HEAD(&dev_list);
 
-	return most_register_aim(&audio_aim);
+	return most_register_component(&audio_aim);
 }
 
 static void __exit audio_exit(void)
@@ -747,7 +747,7 @@ static void __exit audio_exit(void)
 		snd_card_free(channel->card);
 	}
 
-	most_deregister_aim(&audio_aim);
+	most_deregister_component(&audio_aim);
 }
 
 module_init(audio_init);

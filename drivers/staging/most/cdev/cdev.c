@@ -518,7 +518,7 @@ static int __init mod_init(void)
 		err = PTR_ERR(aim_class);
 		goto free_cdev;
 	}
-	err = most_register_aim(&cdev_aim);
+	err = most_register_component(&cdev_aim);
 	if (err)
 		goto dest_class;
 	return 0;
@@ -538,7 +538,7 @@ static void __exit mod_exit(void)
 
 	pr_info("exit module\n");
 
-	most_deregister_aim(&cdev_aim);
+	most_deregister_component(&cdev_aim);
 
 	list_for_each_entry_safe(c, tmp, &channel_list, list) {
 		destroy_cdev(c);

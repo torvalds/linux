@@ -69,6 +69,7 @@ struct most_channel {
 	struct list_head trash_fifo;
 	struct task_struct *hdm_enqueue_task;
 	wait_queue_head_t hdm_fifo_wq;
+
 };
 
 #define to_channel(d) container_of(d, struct most_channel, dev)
@@ -1299,10 +1300,10 @@ out:
 EXPORT_SYMBOL_GPL(most_stop_channel);
 
 /**
- * most_register_aim - registers an AIM (driver) with the core
+ * most_register_component - registers an AIM (driver) with the core
  * @aim: instance of AIM to be registered
  */
-int most_register_aim(struct core_component *aim)
+int most_register_component(struct core_component *aim)
 {
 	if (!aim) {
 		pr_err("Bad driver\n");
@@ -1312,7 +1313,7 @@ int most_register_aim(struct core_component *aim)
 	pr_info("registered new application interfacing module %s\n", aim->name);
 	return 0;
 }
-EXPORT_SYMBOL_GPL(most_register_aim);
+EXPORT_SYMBOL_GPL(most_register_component);
 
 static int disconnect_channels(struct device *dev, void *data)
 {
@@ -1333,10 +1334,10 @@ static int disconnect_channels(struct device *dev, void *data)
 }
 
 /**
- * most_deregister_aim - deregisters an AIM (driver) with the core
+ * most_deregister_component - deregisters an AIM (driver) with the core
  * @aim: AIM to be removed
  */
-int most_deregister_aim(struct core_component *aim)
+int most_deregister_component(struct core_component *aim)
 {
 	if (!aim) {
 		pr_err("Bad driver\n");
@@ -1348,7 +1349,7 @@ int most_deregister_aim(struct core_component *aim)
 	pr_info("deregistering module %s\n", aim->name);
 	return 0;
 }
-EXPORT_SYMBOL_GPL(most_deregister_aim);
+EXPORT_SYMBOL_GPL(most_deregister_component);
 
 static void release_interface(struct device *dev)
 {

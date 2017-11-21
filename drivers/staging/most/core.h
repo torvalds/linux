@@ -308,8 +308,8 @@ void most_stop_enqueue(struct most_interface *iface, int channel_idx);
  * in wait fifo.
  */
 void most_resume_enqueue(struct most_interface *iface, int channel_idx);
-int most_register_aim(struct core_component *comp);
-int most_deregister_aim(struct core_component *comp);
+int most_register_component(struct core_component *comp);
+int most_deregister_component(struct core_component *comp);
 struct mbo *most_get_mbo(struct most_interface *iface, int channel_idx,
 			 struct core_component *comp);
 void most_put_mbo(struct mbo *mbo);

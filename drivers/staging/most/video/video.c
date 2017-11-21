@@ -572,7 +572,7 @@ static struct core_component aim_info = {
 static int __init aim_init(void)
 {
 	spin_lock_init(&list_lock);
-	return most_register_aim(&aim_info);
+	return most_register_component(&aim_info);
 }
 
 static void __exit aim_exit(void)
@@ -581,7 +581,7 @@ static void __exit aim_exit(void)
 
 	/*
 	 * As the mostcore currently doesn't call disconnect_channel()
-	 * for linked channels while we call most_deregister_aim()
+	 * for linked channels while we call most_deregister_component()
 	 * we simulate this call here.
 	 * This must be fixed in core.
 	 */
@@ -597,7 +597,7 @@ static void __exit aim_exit(void)
 	}
 	spin_unlock_irq(&list_lock);
 
-	most_deregister_aim(&aim_info);
+	most_deregister_component(&aim_info);
 	BUG_ON(!list_empty(&video_devices));
 }
 

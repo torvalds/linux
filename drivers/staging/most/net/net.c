@@ -506,12 +506,12 @@ static int __init most_net_init(void)
 {
 	spin_lock_init(&list_lock);
 	mutex_init(&probe_disc_mt);
-	return most_register_aim(&aim);
+	return most_register_component(&aim);
 }
 
 static void __exit most_net_exit(void)
 {
-	most_deregister_aim(&aim);
+	most_deregister_component(&aim);
 }
 
 /**
