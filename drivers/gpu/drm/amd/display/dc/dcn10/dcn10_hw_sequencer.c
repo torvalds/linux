@@ -1726,7 +1726,7 @@ static void update_dchubp_dpp(
 	union plane_size size = plane_state->plane_size;
 
 	/* depends on DML calculation, DPP clock value may change dynamically */
-	if (pipe_ctx->plane_state->update_flags.raw != 0) {
+	if (plane_state->update_flags.bits.full_update) {
 		enable_dppclk(
 			dc->hwseq,
 			pipe_ctx->pipe_idx,
@@ -1770,7 +1770,8 @@ static void update_dchubp_dpp(
 	}
 
 	if (plane_state->update_flags.bits.full_update ||
-		plane_state->update_flags.bits.scaling_change) {
+		plane_state->update_flags.bits.scaling_change ||
+		plane_state->update_flags.bits.position_change) {
 		hubp->funcs->mem_program_viewport(
 			hubp,
 			&pipe_ctx->plane_res.scl_data.viewport,
