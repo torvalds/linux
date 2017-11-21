@@ -809,6 +809,21 @@ static void wq_clear_halt(struct work_struct *wq_obj)
 	if (usb_clear_halt(mdev->usb_device, pipe))
 		dev_warn(&mdev->usb_device->dev, "Failed to reset endpoint.\n");
 
+	/* If the functional Stall condition has been set on an
+	 * asynchronous rx channel, we need to clear the tx channel
+	 * too, since the hardware runs its clean-up sequence on both
+	 * channels, as they are physically one on the network.
+	 *
+	 * The USB interface that exposes the asynchronous channels
+	 * contains always two endpoints, and two only.
+	 */
+	if (mdev->conf[channel].data_type == MOST_CH_ASYNC &&
+	    mdev->conf[channel].direction == MOST_CH_RX) {
+		int peer = 1 - channel;
+		int snd_pipe = usb_sndbulkpipe(mdev->usb_device,
+					       mdev->ep_address[peer]);
+		usb_clear_halt(mdev->usb_device, snd_pipe);
+	}
 	mdev->is_channel_healthy[channel] = true;
 	most_resume_enqueue(&mdev->iface, channel);
 	mutex_unlock(&mdev->io_mutex);
