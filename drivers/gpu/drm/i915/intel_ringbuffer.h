@@ -547,6 +547,38 @@ struct intel_engine_cs {
 	 * certain bits to encode the command length in the header).
 	 */
 	u32 (*get_cmd_length_mask)(u32 cmd_header);
+
+	struct {
+		/**
+		 * @lock: Lock protecting the below fields.
+		 */
+		spinlock_t lock;
+		/**
+		 * @enabled: Reference count indicating number of listeners.
+		 */
+		unsigned int enabled;
+		/**
+		 * @active: Number of contexts currently scheduled in.
+		 */
+		unsigned int active;
+		/**
+		 * @enabled_at: Timestamp when busy stats were enabled.
+		 */
+		ktime_t enabled_at;
+		/**
+		 * @start: Timestamp of the last idle to active transition.
+		 *
+		 * Idle is defined as active == 0, active is active > 0.
+		 */
+		ktime_t start;
+		/**
+		 * @total: Total time this engine was busy.
+		 *
+		 * Accumulated time not counting the most recent block in cases
+		 * where engine is currently busy (active > 0).
+		 */
+		ktime_t total;
+	} stats;
 };
 
 static inline void
@@ -951,5 +983,65 @@ void intel_engine_dump(struct intel_engine_cs *engine, struct drm_printer *p);
 
 struct intel_engine_cs *
 intel_engine_lookup_user(struct drm_i915_private *i915, u8 class, u8 instance);
+
+static inline void intel_engine_context_in(struct intel_engine_cs *engine)
+{
+	unsigned long flags;
+
+	if (READ_ONCE(engine->stats.enabled) == 0)
+		return;
+
+	spin_lock_irqsave(&engine->stats.lock, flags);
+
+	if (engine->stats.enabled > 0) {
+		if (engine->stats.active++ == 0)
+			engine->stats.start = ktime_get();
+		GEM_BUG_ON(engine->stats.active == 0);
+	}
+
+	spin_unlock_irqrestore(&engine->stats.lock, flags);
+}
+
+static inline void intel_engine_context_out(struct intel_engine_cs *engine)
+{
+	unsigned long flags;
+
+	if (READ_ONCE(engine->stats.enabled) == 0)
+		return;
+
+	spin_lock_irqsave(&engine->stats.lock, flags);
+
+	if (engine->stats.enabled > 0) {
+		ktime_t last;
+
+		if (engine->stats.active && --engine->stats.active == 0) {
+			/*
+			 * Decrement the active context count and in case GPU
+			 * is now idle add up to the running total.
+			 */
+			last = ktime_sub(ktime_get(), engine->stats.start);
+
+			engine->stats.total = ktime_add(engine->stats.total,
+							last);
+		} else if (engine->stats.active == 0) {
+			/*
+			 * After turning on engine stats, context out might be
+			 * the first event in which case we account from the
+			 * time stats gathering was turned on.
+			 */
+			last = ktime_sub(ktime_get(), engine->stats.enabled_at);
+
+			engine->stats.total = ktime_add(engine->stats.total,
+							last);
+		}
+	}
+
+	spin_unlock_irqrestore(&engine->stats.lock, flags);
+}
+
+int intel_enable_engine_stats(struct intel_engine_cs *engine);
+void intel_disable_engine_stats(struct intel_engine_cs *engine);
+
+ktime_t intel_engine_get_busy_time(struct intel_engine_cs *engine);
 
 #endif /* _INTEL_RINGBUFFER_H_ */

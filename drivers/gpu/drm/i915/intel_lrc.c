@@ -383,11 +383,13 @@ static inline void
 execlists_context_schedule_in(struct drm_i915_gem_request *rq)
 {
 	execlists_context_status_change(rq, INTEL_CONTEXT_SCHEDULE_IN);
+	intel_engine_context_in(rq->engine);
 }
 
 static inline void
 execlists_context_schedule_out(struct drm_i915_gem_request *rq)
 {
+	intel_engine_context_out(rq->engine);
 	execlists_context_status_change(rq, INTEL_CONTEXT_SCHEDULE_OUT);
 }
 
@@ -705,6 +707,7 @@ execlists_cancel_port_requests(struct intel_engine_execlists * const execlists)
 		struct drm_i915_gem_request *rq = port_request(port);
 
 		GEM_BUG_ON(!execlists->active);
+		intel_engine_context_out(rq->engine);
 		execlists_context_status_change(rq, INTEL_CONTEXT_SCHEDULE_PREEMPTED);
 		i915_gem_request_put(rq);
 

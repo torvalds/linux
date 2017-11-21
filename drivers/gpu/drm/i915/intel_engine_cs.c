@@ -241,6 +241,8 @@ intel_engine_setup(struct drm_i915_private *dev_priv,
 	/* Nothing to do here, execute in order of dependencies */
 	engine->schedule = NULL;
 
+	spin_lock_init(&engine->stats.lock);
+
 	ATOMIC_INIT_NOTIFIER_HEAD(&engine->context_status_notifier);
 
 	dev_priv->engine_class[info->class][info->instance] = engine;
@@ -1847,6 +1849,91 @@ intel_engine_lookup_user(struct drm_i915_private *i915, u8 class, u8 instance)
 		return NULL;
 
 	return i915->engine_class[class][instance];
+}
+
+/**
+ * intel_enable_engine_stats() - Enable engine busy tracking on engine
+ * @engine: engine to enable stats collection
+ *
+ * Start collecting the engine busyness data for @engine.
+ *
+ * Returns 0 on success or a negative error code.
+ */
+int intel_enable_engine_stats(struct intel_engine_cs *engine)
+{
+	unsigned long flags;
+
+	if (INTEL_GEN(engine->i915) < 8)
+		return -ENODEV;
+
+	spin_lock_irqsave(&engine->stats.lock, flags);
+	if (engine->stats.enabled == ~0)
+		goto busy;
+	if (engine->stats.enabled++ == 0)
+		engine->stats.enabled_at = ktime_get();
+	spin_unlock_irqrestore(&engine->stats.lock, flags);
+
+	return 0;
+
+busy:
+	spin_unlock_irqrestore(&engine->stats.lock, flags);
+
+	return -EBUSY;
+}
+
+static ktime_t __intel_engine_get_busy_time(struct intel_engine_cs *engine)
+{
+	ktime_t total = engine->stats.total;
+
+	/*
+	 * If the engine is executing something at the moment
+	 * add it to the total.
+	 */
+	if (engine->stats.active)
+		total = ktime_add(total,
+				  ktime_sub(ktime_get(), engine->stats.start));
+
+	return total;
+}
+
+/**
+ * intel_engine_get_busy_time() - Return current accumulated engine busyness
+ * @engine: engine to report on
+ *
+ * Returns accumulated time @engine was busy since engine stats were enabled.
+ */
+ktime_t intel_engine_get_busy_time(struct intel_engine_cs *engine)
+{
+	ktime_t total;
+	unsigned long flags;
+
+	spin_lock_irqsave(&engine->stats.lock, flags);
+	total = __intel_engine_get_busy_time(engine);
+	spin_unlock_irqrestore(&engine->stats.lock, flags);
+
+	return total;
+}
+
+/**
+ * intel_disable_engine_stats() - Disable engine busy tracking on engine
+ * @engine: engine to disable stats collection
+ *
+ * Stops collecting the engine busyness data for @engine.
+ */
+void intel_disable_engine_stats(struct intel_engine_cs *engine)
+{
+	unsigned long flags;
+
+	if (INTEL_GEN(engine->i915) < 8)
+		return;
+
+	spin_lock_irqsave(&engine->stats.lock, flags);
+	WARN_ON_ONCE(engine->stats.enabled == 0);
+	if (--engine->stats.enabled == 0) {
+		engine->stats.total = __intel_engine_get_busy_time(engine);
+		engine->stats.active = 0;
+	}
+	spin_unlock_irqrestore(&engine->stats.lock, flags);
 }
 
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
