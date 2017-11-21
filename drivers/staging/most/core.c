@@ -40,7 +40,7 @@ static struct mostcore {
 #define to_driver(d) container_of(d, struct mostcore, drv);
 
 struct pipe {
-	struct most_aim *aim;
+	struct core_component *aim;
 	int refs;
 	int num_buffers;
 };
@@ -530,9 +530,9 @@ static const struct attribute_group *interface_attr_groups[] = {
 /*		     ___     ___
  *		     ___A I M___
  */
-static struct most_aim *match_module(char *name)
+static struct core_component *match_module(char *name)
 {
-	struct most_aim *aim;
+	struct core_component *aim;
 
 	list_for_each_entry(aim, &mc.mod_list, list) {
 		if (!strcmp(aim->name, name))
@@ -577,7 +577,7 @@ static ssize_t links_show(struct device_driver *drv, char *buf)
 
 static ssize_t modules_show(struct device_driver *drv, char *buf)
 {
-	struct most_aim *aim;
+	struct core_component *aim;
 	int offs = 0;
 
 	list_for_each_entry(aim, &mc.mod_list, list) {
@@ -660,11 +660,11 @@ static struct most_channel *get_channel(char *mdev, char *mdev_ch)
 }
 
 static
-inline int link_channel_to_aim(struct most_channel *c, struct most_aim *aim,
+inline int link_channel_to_aim(struct most_channel *c, struct core_component *aim,
 			       char *aim_param)
 {
 	int ret;
-	struct most_aim **aim_ptr;
+	struct core_component **aim_ptr;
 
 	if (!c->pipe0.aim)
 		aim_ptr = &c->pipe0.aim;
@@ -711,7 +711,7 @@ static ssize_t add_link_store(struct device_driver *drv,
 			      size_t len)
 {
 	struct most_channel *c;
-	struct most_aim *aim;
+	struct core_component *aim;
 	char buffer[STRING_SIZE];
 	char *mdev;
 	char *mdev_ch;
@@ -759,7 +759,7 @@ static ssize_t remove_link_store(struct device_driver *drv,
 				 size_t len)
 {
 	struct most_channel *c;
-	struct most_aim *aim;
+	struct core_component *aim;
 	char buffer[STRING_SIZE];
 	char *mdev;
 	char *mdev_ch;
@@ -1039,7 +1039,7 @@ static void most_write_completion(struct mbo *mbo)
 		arm_mbo(mbo);
 }
 
-int channel_has_mbo(struct most_interface *iface, int id, struct most_aim *aim)
+int channel_has_mbo(struct most_interface *iface, int id, struct core_component *aim)
 {
 	struct most_channel *c = iface->p->channel[id];
 	unsigned long flags;
@@ -1069,7 +1069,7 @@ EXPORT_SYMBOL_GPL(channel_has_mbo);
  * Returns a pointer to MBO on success or NULL otherwise.
  */
 struct mbo *most_get_mbo(struct most_interface *iface, int id,
-			 struct most_aim *aim)
+			 struct core_component *aim)
 {
 	struct mbo *mbo;
 	struct most_channel *c;
@@ -1174,7 +1174,7 @@ static void most_read_completion(struct mbo *mbo)
  * Returns 0 on success or error code otherwise.
  */
 int most_start_channel(struct most_interface *iface, int id,
-		       struct most_aim *aim)
+		       struct core_component *aim)
 {
 	int num_buffer;
 	int ret;
@@ -1244,7 +1244,7 @@ EXPORT_SYMBOL_GPL(most_start_channel);
  * @id: channel ID
  */
 int most_stop_channel(struct most_interface *iface, int id,
-		      struct most_aim *aim)
+		      struct core_component *aim)
 {
 	struct most_channel *c;
 
@@ -1302,7 +1302,7 @@ EXPORT_SYMBOL_GPL(most_stop_channel);
  * most_register_aim - registers an AIM (driver) with the core
  * @aim: instance of AIM to be registered
  */
-int most_register_aim(struct most_aim *aim)
+int most_register_aim(struct core_component *aim)
 {
 	if (!aim) {
 		pr_err("Bad driver\n");
@@ -1318,7 +1318,7 @@ static int disconnect_channels(struct device *dev, void *data)
 {
 	struct most_interface *iface;
 	struct most_channel *c, *tmp;
-	struct most_aim *aim = data;
+	struct core_component *aim = data;
 
 	iface = to_most_interface(dev);
 	list_for_each_entry_safe(c, tmp, &iface->p->channel_list, list) {
@@ -1336,7 +1336,7 @@ static int disconnect_channels(struct device *dev, void *data)
  * most_deregister_aim - deregisters an AIM (driver) with the core
  * @aim: AIM to be removed
  */
-int most_deregister_aim(struct most_aim *aim)
+int most_deregister_aim(struct core_component *aim)
 {
 	if (!aim) {
 		pr_err("Bad driver\n");

@@ -68,7 +68,7 @@ struct net_dev_context {
 static struct list_head net_devices = LIST_HEAD_INIT(net_devices);
 static struct mutex probe_disc_mt; /* ch->linked = true, most_nd_open */
 static struct spinlock list_lock; /* list_head, ch->linked = false, dev_hold */
-static struct most_aim aim;
+static struct core_component aim;
 
 static int skb_to_mamac(const struct sk_buff *skb, struct mbo *mbo)
 {
@@ -494,7 +494,7 @@ put_nd:
 	return ret;
 }
 
-static struct most_aim aim = {
+static struct core_component aim = {
 	.name = "net",
 	.probe_channel = aim_probe_channel,
 	.disconnect_channel = aim_disconnect_channel,

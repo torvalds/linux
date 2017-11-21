@@ -22,7 +22,7 @@ static dev_t aim_devno;
 static struct class *aim_class;
 static struct ida minor_id;
 static unsigned int major;
-static struct most_aim cdev_aim;
+static struct core_component cdev_aim;
 
 struct aim_channel {
 	wait_queue_head_t wq;
@@ -489,7 +489,7 @@ error_alloc_channel:
 	return retval;
 }
 
-static struct most_aim cdev_aim = {
+static struct core_component cdev_aim = {
 	.name = "cdev",
 	.probe_channel = aim_probe,
 	.disconnect_channel = aim_disconnect_channel,

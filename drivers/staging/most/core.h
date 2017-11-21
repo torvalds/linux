@@ -263,7 +263,7 @@ struct most_interface {
  * @tx_completion: completion handler for transmitted packets
  * @context: context pointer to be used by mostcore
  */
-struct most_aim {
+struct core_component {
 	struct list_head list;
 	const char *name;
 	int (*probe_channel)(struct most_interface *iface, int channel_idx,
@@ -273,8 +273,6 @@ struct most_aim {
 	int (*rx_completion)(struct mbo *mbo);
 	int (*tx_completion)(struct most_interface *iface, int channel_idx);
 };
-
-#define to_most_aim(d) container_of(d, struct most_aim, dev)
 
 /**
  * most_register_interface - Registers instance of the interface.
@@ -310,16 +308,16 @@ void most_stop_enqueue(struct most_interface *iface, int channel_idx);
  * in wait fifo.
  */
 void most_resume_enqueue(struct most_interface *iface, int channel_idx);
-int most_register_aim(struct most_aim *aim);
-int most_deregister_aim(struct most_aim *aim);
+int most_register_aim(struct core_component *comp);
+int most_deregister_aim(struct core_component *comp);
 struct mbo *most_get_mbo(struct most_interface *iface, int channel_idx,
-			 struct most_aim *);
+			 struct core_component *comp);
 void most_put_mbo(struct mbo *mbo);
 int channel_has_mbo(struct most_interface *iface, int channel_idx,
-		    struct most_aim *aim);
+		    struct core_component *comp);
 int most_start_channel(struct most_interface *iface, int channel_idx,
-		       struct most_aim *);
+		       struct core_component *comp);
 int most_stop_channel(struct most_interface *iface, int channel_idx,
-		      struct most_aim *);
+		      struct core_component *comp);
 
 #endif /* MOST_CORE_H_ */

@@ -21,7 +21,7 @@
 #define DRIVER_NAME "sound"
 
 static struct list_head dev_list;
-static struct most_aim audio_aim;
+static struct core_component audio_aim;
 
 /**
  * struct channel - private structure to keep channel specific data
@@ -717,9 +717,9 @@ static int audio_tx_completion(struct most_interface *iface, int channel_id)
 }
 
 /**
- * Initialization of the struct most_aim
+ * Initialization of the struct core_component
  */
-static struct most_aim audio_aim = {
+static struct core_component audio_aim = {
 	.name = DRIVER_NAME,
 	.probe_channel = audio_probe_channel,
 	.disconnect_channel = audio_disconnect_channel,

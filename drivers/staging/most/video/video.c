@@ -25,7 +25,7 @@
 
 #define V4L2_AIM_MAX_INPUT  1
 
-static struct most_aim aim_info;
+static struct core_component aim_info;
 
 struct most_video_dev {
 	struct most_interface *iface;
@@ -562,7 +562,7 @@ static int aim_disconnect_channel(struct most_interface *iface,
 	return 0;
 }
 
-static struct most_aim aim_info = {
+static struct core_component aim_info = {
 	.name = "v4l",
 	.probe_channel = aim_probe_channel,
 	.disconnect_channel = aim_disconnect_channel,
