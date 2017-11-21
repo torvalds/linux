@@ -1334,7 +1334,7 @@ static void kvaser_usb_read_bulk_callback(struct urb *urb)
 		goto resubmit_urb;
 	}
 
-	while (pos <= urb->actual_length - MSG_HEADER_LEN) {
+	while (pos <= (int)(urb->actual_length - MSG_HEADER_LEN)) {
 		msg = urb->transfer_buffer + pos;
 
 		/* The Kvaser firmware can only read and write messages that
