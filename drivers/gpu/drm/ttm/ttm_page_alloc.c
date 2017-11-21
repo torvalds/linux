@@ -510,8 +510,7 @@ static int ttm_alloc_new_pages(struct list_head *pages, gfp_t gfp_flags,
 	int r = 0;
 	unsigned i, j, cpages;
 	unsigned npages = 1 << order;
-	unsigned max_cpages = min(count,
-			(unsigned)(PAGE_SIZE/sizeof(struct page *)));
+	unsigned max_cpages = min(count, (unsigned)NUM_PAGES_TO_ALLOC);
 
 	/* allocate array for page caching change */
 	caching_array = kmalloc(max_cpages*sizeof(struct page *), GFP_KERNEL);
