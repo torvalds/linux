@@ -36,6 +36,20 @@ config ACER_WMI
 	  If you have an ACPI-WMI compatible Acer/ Wistron laptop, say Y or M
 	  here.
 
+config ACER_WIRELESS
+        tristate "Acer Wireless Radio Control Driver"
+        depends on ACPI
+        depends on INPUT
+        ---help---
+          The Acer Wireless Radio Control handles the airplane mode hotkey
+          present on new Acer laptops.
+
+          Say Y or M here if you have an Acer notebook with an airplane mode
+          hotkey.
+
+          If you choose to compile this driver as a module the module will be
+          called acer-wireless.
+
 config ACERHDF
 	tristate "Acer Aspire One temperature and fan driver"
 	depends on ACPI && THERMAL
