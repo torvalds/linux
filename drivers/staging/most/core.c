@@ -989,37 +989,10 @@ static void most_write_completion(struct mbo *mbo)
 		arm_mbo(mbo);
 }
 
-/**
- * get_channel_by_iface - get pointer to channel object
- * @iface: pointer to interface instance
- * @id: channel ID
- *
- * This retrieves a pointer to a channel of the given interface and channel ID.
- */
-static struct
-most_c_obj *get_channel_by_iface(struct most_interface *iface, int id)
-{
-	struct most_inst_obj *i;
-
-	if (unlikely(!iface)) {
-		pr_err("Bad interface\n");
-		return NULL;
-	}
-	if (unlikely((id < 0) || (id >= iface->num_channels))) {
-		pr_err("Channel index (%d) out of range\n", id);
-		return NULL;
-	}
-	i = iface->priv;
-	if (unlikely(!i)) {
-		pr_err("interface is not registered\n");
-		return NULL;
-	}
-	return i->channel[id];
-}
-
 int channel_has_mbo(struct most_interface *iface, int id, struct most_aim *aim)
 {
-	struct most_c_obj *c = get_channel_by_iface(iface, id);
+	struct most_inst_obj *inst = iface->priv;
+	struct most_c_obj *c = inst->channel[id];
 	unsigned long flags;
 	int empty;
 
@@ -1051,10 +1024,11 @@ struct mbo *most_get_mbo(struct most_interface *iface, int id,
 {
 	struct mbo *mbo;
 	struct most_c_obj *c;
+	struct most_inst_obj *inst = iface->priv;
 	unsigned long flags;
 	int *num_buffers_ptr;
 
-	c = get_channel_by_iface(iface, id);
+	c = inst->channel[id];
 	if (unlikely(!c))
 		return NULL;
 
@@ -1156,7 +1130,8 @@ int most_start_channel(struct most_interface *iface, int id,
 {
 	int num_buffer;
 	int ret;
-	struct most_c_obj *c = get_channel_by_iface(iface, id);
+	struct most_inst_obj *inst = iface->priv;
+	struct most_c_obj *c = inst->channel[id];
 
 	if (unlikely(!c))
 		return -EINVAL;
@@ -1224,13 +1199,15 @@ EXPORT_SYMBOL_GPL(most_start_channel);
 int most_stop_channel(struct most_interface *iface, int id,
 		      struct most_aim *aim)
 {
+	struct most_inst_obj *inst;
 	struct most_c_obj *c;
 
 	if (unlikely((!iface) || (id >= iface->num_channels) || (id < 0))) {
 		pr_err("Bad interface or index out of range\n");
 		return -EINVAL;
 	}
-	c = get_channel_by_iface(iface, id);
+	inst = iface->priv;
+	c = inst->channel[id];
 	if (unlikely(!c))
 		return -EINVAL;
 
@@ -1507,7 +1484,8 @@ EXPORT_SYMBOL_GPL(most_deregister_interface);
  */
 void most_stop_enqueue(struct most_interface *iface, int id)
 {
-	struct most_c_obj *c = get_channel_by_iface(iface, id);
+	struct most_inst_obj *inst = iface->priv;
+	struct most_c_obj *c = inst->channel[id];
 
 	if (!c)
 		return;
@@ -1528,7 +1506,8 @@ EXPORT_SYMBOL_GPL(most_stop_enqueue);
  */
 void most_resume_enqueue(struct most_interface *iface, int id)
 {
-	struct most_c_obj *c = get_channel_by_iface(iface, id);
+	struct most_inst_obj *inst = iface->priv;
+	struct most_c_obj *c = inst->channel[id];
 
 	if (!c)
 		return;
