@@ -40,7 +40,7 @@ static struct mostcore {
 #define to_driver(d) container_of(d, struct mostcore, drv);
 
 struct pipe {
-	struct core_component *aim;
+	struct core_component *comp;
 	int refs;
 	int num_buffers;
 };
@@ -533,11 +533,11 @@ static const struct attribute_group *interface_attr_groups[] = {
  */
 static struct core_component *match_module(char *name)
 {
-	struct core_component *aim;
+	struct core_component *comp;
 
-	list_for_each_entry(aim, &mc.comp_list, list) {
-		if (!strcmp(aim->name, name))
-			return aim;
+	list_for_each_entry(comp, &mc.comp_list, list) {
+		if (!strcmp(comp->name, name))
+			return comp;
 	}
 	return NULL;
 }
@@ -550,19 +550,19 @@ int print_links(struct device *dev, void *data)
 	struct most_interface *iface = to_most_interface(dev);
 
 	list_for_each_entry(c, &iface->p->channel_list, list) {
-		if (c->pipe0.aim) {
+		if (c->pipe0.comp) {
 			offs += snprintf(buf + offs,
 					 PAGE_SIZE - offs,
 					 "%s:%s:%s\n",
-					 c->pipe0.aim->name,
+					 c->pipe0.comp->name,
 					 dev_name(&iface->dev),
 					 dev_name(&c->dev));
 		}
-		if (c->pipe1.aim) {
+		if (c->pipe1.comp) {
 			offs += snprintf(buf + offs,
 					 PAGE_SIZE - offs,
 					 "%s:%s:%s\n",
-					 c->pipe1.aim->name,
+					 c->pipe1.comp->name,
 					 dev_name(&iface->dev),
 					 dev_name(&c->dev));
 		}
@@ -578,12 +578,12 @@ static ssize_t links_show(struct device_driver *drv, char *buf)
 
 static ssize_t modules_show(struct device_driver *drv, char *buf)
 {
-	struct core_component *aim;
+	struct core_component *comp;
 	int offs = 0;
 
-	list_for_each_entry(aim, &mc.comp_list, list) {
+	list_for_each_entry(comp, &mc.comp_list, list) {
 		offs += snprintf(buf + offs, PAGE_SIZE - offs, "%s\n",
-				 aim->name);
+				 comp->name);
 	}
 	return offs;
 }
@@ -661,24 +661,25 @@ static struct most_channel *get_channel(char *mdev, char *mdev_ch)
 }
 
 static
-inline int link_channel_to_aim(struct most_channel *c, struct core_component *aim,
-			       char *aim_param)
+inline int link_channel_to_aim(struct most_channel *c,
+			       struct core_component *comp,
+			       char *comp_param)
 {
 	int ret;
-	struct core_component **aim_ptr;
+	struct core_component **comp_ptr;
 
-	if (!c->pipe0.aim)
-		aim_ptr = &c->pipe0.aim;
-	else if (!c->pipe1.aim)
-		aim_ptr = &c->pipe1.aim;
+	if (!c->pipe0.comp)
+		comp_ptr = &c->pipe0.comp;
+	else if (!c->pipe1.comp)
+		comp_ptr = &c->pipe1.comp;
 	else
 		return -ENOSPC;
 
-	*aim_ptr = aim;
-	ret = aim->probe_channel(c->iface, c->channel_id,
-				 &c->cfg, aim_param);
+	*comp_ptr = comp;
+	ret = comp->probe_channel(c->iface, c->channel_id,
+				 &c->cfg, comp_param);
 	if (ret) {
-		*aim_ptr = NULL;
+		*comp_ptr = NULL;
 		return ret;
 	}
 
@@ -712,33 +713,33 @@ static ssize_t add_link_store(struct device_driver *drv,
 			      size_t len)
 {
 	struct most_channel *c;
-	struct core_component *aim;
+	struct core_component *comp;
 	char buffer[STRING_SIZE];
 	char *mdev;
 	char *mdev_ch;
-	char *aim_name;
-	char *aim_param;
+	char *comp_name;
+	char *comp_param;
 	char devnod_buf[STRING_SIZE];
 	int ret;
 	size_t max_len = min_t(size_t, len + 1, STRING_SIZE);
 
 	strlcpy(buffer, buf, max_len);
 
-	ret = split_string(buffer, &mdev, &mdev_ch, &aim_name, &aim_param);
+	ret = split_string(buffer, &mdev, &mdev_ch, &comp_name, &comp_param);
 	if (ret)
 		return ret;
-	aim = match_module(aim_name);
-	if (!aim_param || *aim_param == 0) {
+	comp = match_module(comp_name);
+	if (!comp_param || *comp_param == 0) {
 		snprintf(devnod_buf, sizeof(devnod_buf), "%s-%s", mdev,
 			 mdev_ch);
-		aim_param = devnod_buf;
+		comp_param = devnod_buf;
 	}
 
 	c = get_channel(mdev, mdev_ch);
 	if (!c)
 		return -ENODEV;
 
-	ret = link_channel_to_aim(c, aim, aim_param);
+	ret = link_channel_to_aim(c, comp, comp_param);
 	if (ret)
 		return ret;
 
@@ -760,29 +761,29 @@ static ssize_t remove_link_store(struct device_driver *drv,
 				 size_t len)
 {
 	struct most_channel *c;
-	struct core_component *aim;
+	struct core_component *comp;
 	char buffer[STRING_SIZE];
 	char *mdev;
 	char *mdev_ch;
-	char *aim_name;
+	char *comp_name;
 	int ret;
 	size_t max_len = min_t(size_t, len + 1, STRING_SIZE);
 
 	strlcpy(buffer, buf, max_len);
-	ret = split_string(buffer, &mdev, &mdev_ch, &aim_name, NULL);
+	ret = split_string(buffer, &mdev, &mdev_ch, &comp_name, NULL);
 	if (ret)
 		return ret;
-	aim = match_module(aim_name);
+	comp = match_module(comp_name);
 	c = get_channel(mdev, mdev_ch);
 	if (!c)
 		return -ENODEV;
 
-	if (aim->disconnect_channel(c->iface, c->channel_id))
+	if (comp->disconnect_channel(c->iface, c->channel_id))
 		return -EIO;
-	if (c->pipe0.aim == aim)
-		c->pipe0.aim = NULL;
-	if (c->pipe1.aim == aim)
-		c->pipe1.aim = NULL;
+	if (c->pipe0.comp == comp)
+		c->pipe0.comp = NULL;
+	if (c->pipe1.comp == comp)
+		c->pipe1.comp = NULL;
 	return len;
 }
 
@@ -939,11 +940,11 @@ static void arm_mbo(struct mbo *mbo)
 	list_add_tail(&mbo->list, &c->fifo);
 	spin_unlock_irqrestore(&c->fifo_lock, flags);
 
-	if (c->pipe0.refs && c->pipe0.aim->tx_completion)
-		c->pipe0.aim->tx_completion(c->iface, c->channel_id);
+	if (c->pipe0.refs && c->pipe0.comp->tx_completion)
+		c->pipe0.comp->tx_completion(c->iface, c->channel_id);
 
-	if (c->pipe1.refs && c->pipe1.aim->tx_completion)
-		c->pipe1.aim->tx_completion(c->iface, c->channel_id);
+	if (c->pipe1.refs && c->pipe1.comp->tx_completion)
+		c->pipe1.comp->tx_completion(c->iface, c->channel_id);
 }
 
 /**
@@ -1040,7 +1041,8 @@ static void most_write_completion(struct mbo *mbo)
 		arm_mbo(mbo);
 }
 
-int channel_has_mbo(struct most_interface *iface, int id, struct core_component *aim)
+int channel_has_mbo(struct most_interface *iface, int id,
+		    struct core_component *comp)
 {
 	struct most_channel *c = iface->p->channel[id];
 	unsigned long flags;
@@ -1050,8 +1052,8 @@ int channel_has_mbo(struct most_interface *iface, int id, struct core_component 
 		return -EINVAL;
 
 	if (c->pipe0.refs && c->pipe1.refs &&
-	    ((aim == c->pipe0.aim && c->pipe0.num_buffers <= 0) ||
-	     (aim == c->pipe1.aim && c->pipe1.num_buffers <= 0)))
+	    ((comp == c->pipe0.comp && c->pipe0.num_buffers <= 0) ||
+	     (comp == c->pipe1.comp && c->pipe1.num_buffers <= 0)))
 		return 0;
 
 	spin_lock_irqsave(&c->fifo_lock, flags);
@@ -1070,7 +1072,7 @@ EXPORT_SYMBOL_GPL(channel_has_mbo);
  * Returns a pointer to MBO on success or NULL otherwise.
  */
 struct mbo *most_get_mbo(struct most_interface *iface, int id,
-			 struct core_component *aim)
+			 struct core_component *comp)
 {
 	struct mbo *mbo;
 	struct most_channel *c;
@@ -1082,13 +1084,13 @@ struct mbo *most_get_mbo(struct most_interface *iface, int id,
 		return NULL;
 
 	if (c->pipe0.refs && c->pipe1.refs &&
-	    ((aim == c->pipe0.aim && c->pipe0.num_buffers <= 0) ||
-	     (aim == c->pipe1.aim && c->pipe1.num_buffers <= 0)))
+	    ((comp == c->pipe0.comp && c->pipe0.num_buffers <= 0) ||
+	     (comp == c->pipe1.comp && c->pipe1.num_buffers <= 0)))
 		return NULL;
 
-	if (aim == c->pipe0.aim)
+	if (comp == c->pipe0.comp)
 		num_buffers_ptr = &c->pipe0.num_buffers;
-	else if (aim == c->pipe1.aim)
+	else if (comp == c->pipe1.comp)
 		num_buffers_ptr = &c->pipe1.num_buffers;
 	else
 		num_buffers_ptr = &dummy_num_buffers;
@@ -1153,12 +1155,12 @@ static void most_read_completion(struct mbo *mbo)
 	if (atomic_sub_and_test(1, &c->mbo_nq_level))
 		c->is_starving = 1;
 
-	if (c->pipe0.refs && c->pipe0.aim->rx_completion &&
-	    c->pipe0.aim->rx_completion(mbo) == 0)
+	if (c->pipe0.refs && c->pipe0.comp->rx_completion &&
+	    c->pipe0.comp->rx_completion(mbo) == 0)
 		return;
 
-	if (c->pipe1.refs && c->pipe1.aim->rx_completion &&
-	    c->pipe1.aim->rx_completion(mbo) == 0)
+	if (c->pipe1.refs && c->pipe1.comp->rx_completion &&
+	    c->pipe1.comp->rx_completion(mbo) == 0)
 		return;
 
 	most_put_mbo(mbo);
@@ -1175,7 +1177,7 @@ static void most_read_completion(struct mbo *mbo)
  * Returns 0 on success or error code otherwise.
  */
 int most_start_channel(struct most_interface *iface, int id,
-		       struct core_component *aim)
+		       struct core_component *comp)
 {
 	int num_buffer;
 	int ret;
@@ -1186,7 +1188,7 @@ int most_start_channel(struct most_interface *iface, int id,
 
 	mutex_lock(&c->start_mutex);
 	if (c->pipe0.refs + c->pipe1.refs > 0)
-		goto out; /* already started by other aim */
+		goto out; /* already started by other comp */
 
 	if (!try_module_get(iface->mod)) {
 		pr_info("failed to acquire HDM lock\n");
@@ -1225,9 +1227,9 @@ int most_start_channel(struct most_interface *iface, int id,
 	atomic_set(&c->mbo_ref, num_buffer);
 
 out:
-	if (aim == c->pipe0.aim)
+	if (comp == c->pipe0.comp)
 		c->pipe0.refs++;
-	if (aim == c->pipe1.aim)
+	if (comp == c->pipe1.comp)
 		c->pipe1.refs++;
 	mutex_unlock(&c->start_mutex);
 	return 0;
@@ -1245,7 +1247,7 @@ EXPORT_SYMBOL_GPL(most_start_channel);
  * @id: channel ID
  */
 int most_stop_channel(struct most_interface *iface, int id,
-		      struct core_component *aim)
+		      struct core_component *comp)
 {
 	struct most_channel *c;
 
@@ -1290,9 +1292,9 @@ int most_stop_channel(struct most_interface *iface, int id,
 	c->is_poisoned = false;
 
 out:
-	if (aim == c->pipe0.aim)
+	if (comp == c->pipe0.comp)
 		c->pipe0.refs--;
-	if (aim == c->pipe1.aim)
+	if (comp == c->pipe1.comp)
 		c->pipe1.refs--;
 	mutex_unlock(&c->start_mutex);
 	return 0;
@@ -1303,14 +1305,14 @@ EXPORT_SYMBOL_GPL(most_stop_channel);
  * most_register_component - registers an AIM (driver) with the core
  * @aim: instance of AIM to be registered
  */
-int most_register_component(struct core_component *aim)
+int most_register_component(struct core_component *comp)
 {
-	if (!aim) {
+	if (!comp) {
 		pr_err("Bad driver\n");
 		return -EINVAL;
 	}
-	list_add_tail(&aim->list, &mc.comp_list);
-	pr_info("registered new application interfacing module %s\n", aim->name);
+	list_add_tail(&comp->list, &mc.comp_list);
+	pr_info("registered new application interfacing module %s\n", comp->name);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(most_register_component);
@@ -1319,16 +1321,16 @@ static int disconnect_channels(struct device *dev, void *data)
 {
 	struct most_interface *iface;
 	struct most_channel *c, *tmp;
-	struct core_component *aim = data;
+	struct core_component *comp = data;
 
 	iface = to_most_interface(dev);
 	list_for_each_entry_safe(c, tmp, &iface->p->channel_list, list) {
-		if (c->pipe0.aim == aim || c->pipe1.aim == aim)
-			aim->disconnect_channel(c->iface, c->channel_id);
-		if (c->pipe0.aim == aim)
-			c->pipe0.aim = NULL;
-		if (c->pipe1.aim == aim)
-			c->pipe1.aim = NULL;
+		if (c->pipe0.comp == comp || c->pipe1.comp == comp)
+			comp->disconnect_channel(c->iface, c->channel_id);
+		if (c->pipe0.comp == comp)
+			c->pipe0.comp = NULL;
+		if (c->pipe1.comp == comp)
+			c->pipe1.comp = NULL;
 	}
 	return 0;
 }
@@ -1337,16 +1339,16 @@ static int disconnect_channels(struct device *dev, void *data)
  * most_deregister_component - deregisters an AIM (driver) with the core
  * @aim: AIM to be removed
  */
-int most_deregister_component(struct core_component *aim)
+int most_deregister_component(struct core_component *comp)
 {
-	if (!aim) {
+	if (!comp) {
 		pr_err("Bad driver\n");
 		return -EINVAL;
 	}
 
-	bus_for_each_dev(&mc.bus, NULL, aim, disconnect_channels);
-	list_del(&aim->list);
-	pr_info("deregistering module %s\n", aim->name);
+	bus_for_each_dev(&mc.bus, NULL, comp, disconnect_channels);
+	list_del(&comp->list);
+	pr_info("deregistering module %s\n", comp->name);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(most_deregister_component);
@@ -1484,14 +1486,14 @@ void most_deregister_interface(struct most_interface *iface)
 	pr_info("deregistering MOST device %s (%s)\n", dev_name(&iface->dev), iface->description);
 	for (i = 0; i < iface->num_channels; i++) {
 		c = iface->p->channel[i];
-		if (c->pipe0.aim)
-			c->pipe0.aim->disconnect_channel(c->iface,
+		if (c->pipe0.comp)
+			c->pipe0.comp->disconnect_channel(c->iface,
 							c->channel_id);
-		if (c->pipe1.aim)
-			c->pipe1.aim->disconnect_channel(c->iface,
+		if (c->pipe1.comp)
+			c->pipe1.comp->disconnect_channel(c->iface,
 							c->channel_id);
-		c->pipe0.aim = NULL;
-		c->pipe1.aim = NULL;
+		c->pipe0.comp = NULL;
+		c->pipe1.comp = NULL;
 		list_del(&c->list);
 		device_unregister(&c->dev);
 		kfree(c);
