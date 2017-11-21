@@ -473,6 +473,10 @@ bool ovl_need_index(struct dentry *dentry)
 	if (!lower || !ovl_indexdir(dentry->d_sb))
 		return false;
 
+	/* Index all files for NFS export and consistency verification */
+	if (!d_is_dir(lower) && ovl_index_all(dentry->d_sb))
+		return true;
+
 	/* Index only lower hardlinks on copy up */
 	if (!d_is_dir(lower) && d_inode(lower)->i_nlink > 1)
 		return true;
