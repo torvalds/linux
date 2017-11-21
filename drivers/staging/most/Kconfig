@@ -21,7 +21,7 @@ source "drivers/staging/most/cdev/Kconfig"
 
 source "drivers/staging/most/net/Kconfig"
 
-source "drivers/staging/most/aim-sound/Kconfig"
+source "drivers/staging/most/sound/Kconfig"
 
 source "drivers/staging/most/aim-v4l2/Kconfig"
 
