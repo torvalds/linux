@@ -37,7 +37,7 @@ struct most_c_aim_obj {
 	int num_buffers;
 };
 
-struct most_c_obj {
+struct most_channel {
 	struct device dev;
 	struct completion cleanup;
 	atomic_t mbo_ref;
@@ -63,13 +63,13 @@ struct most_c_obj {
 	wait_queue_head_t hdm_fifo_wq;
 };
 
-#define to_c_obj(d) container_of(d, struct most_c_obj, dev)
+#define to_channel(d) container_of(d, struct most_channel, dev)
 
 struct most_inst_obj {
 	int dev_id;
 	struct most_interface *iface;
 	struct list_head channel_list;
-	struct most_c_obj *channel[MAX_CHANNELS];
+	struct most_channel *channel[MAX_CHANNELS];
 	struct list_head list;
 };
 
@@ -106,7 +106,7 @@ static const struct {
  */
 static void most_free_mbo_coherent(struct mbo *mbo)
 {
-	struct most_c_obj *c = mbo->context;
+	struct most_channel *c = mbo->context;
 	u16 const coherent_buf_size = c->cfg.buffer_size + c->cfg.extra_len;
 
 	dma_free_coherent(NULL, coherent_buf_size, mbo->virt_address,
@@ -120,7 +120,7 @@ static void most_free_mbo_coherent(struct mbo *mbo)
  * flush_channel_fifos - clear the channel fifos
  * @c: pointer to channel object
  */
-static void flush_channel_fifos(struct most_c_obj *c)
+static void flush_channel_fifos(struct most_channel *c)
 {
 	unsigned long flags, hf_flags;
 	struct mbo *mbo, *tmp;
@@ -154,7 +154,7 @@ static void flush_channel_fifos(struct most_c_obj *c)
  * flush_trash_fifo - clear the trash fifo
  * @c: pointer to channel object
  */
-static int flush_trash_fifo(struct most_c_obj *c)
+static int flush_trash_fifo(struct most_channel *c)
 {
 	struct mbo *mbo, *tmp;
 	unsigned long flags;
@@ -174,7 +174,7 @@ static ssize_t available_directions_show(struct device *dev,
 					 struct device_attribute *attr,
 					 char *buf)
 {
-	struct most_c_obj *c = to_c_obj(dev);
+	struct most_channel *c = to_channel(dev);
 	unsigned int i = c->channel_id;
 
 	strcpy(buf, "");
@@ -190,7 +190,7 @@ static ssize_t available_datatypes_show(struct device *dev,
 					struct device_attribute *attr,
 					char *buf)
 {
-	struct most_c_obj *c = to_c_obj(dev);
+	struct most_channel *c = to_channel(dev);
 	unsigned int i = c->channel_id;
 
 	strcpy(buf, "");
@@ -210,7 +210,7 @@ static ssize_t number_of_packet_buffers_show(struct device *dev,
 					     struct device_attribute *attr,
 					     char *buf)
 {
-	struct most_c_obj *c = to_c_obj(dev);
+	struct most_channel *c = to_channel(dev);
 	unsigned int i = c->channel_id;
 
 	return snprintf(buf, PAGE_SIZE, "%d\n",
@@ -221,7 +221,7 @@ static ssize_t number_of_stream_buffers_show(struct device *dev,
 					     struct device_attribute *attr,
 					     char *buf)
 {
-	struct most_c_obj *c = to_c_obj(dev);
+	struct most_channel *c = to_channel(dev);
 	unsigned int i = c->channel_id;
 
 	return snprintf(buf, PAGE_SIZE, "%d\n",
@@ -232,7 +232,7 @@ static ssize_t size_of_packet_buffer_show(struct device *dev,
 					  struct device_attribute *attr,
 					  char *buf)
 {
-	struct most_c_obj *c = to_c_obj(dev);
+	struct most_channel *c = to_channel(dev);
 	unsigned int i = c->channel_id;
 
 	return snprintf(buf, PAGE_SIZE, "%d\n",
@@ -243,7 +243,7 @@ static ssize_t size_of_stream_buffer_show(struct device *dev,
 					  struct device_attribute *attr,
 					  char *buf)
 {
-	struct most_c_obj *c = to_c_obj(dev);
+	struct most_channel *c = to_channel(dev);
 	unsigned int i = c->channel_id;
 
 	return snprintf(buf, PAGE_SIZE, "%d\n",
@@ -254,7 +254,7 @@ static ssize_t channel_starving_show(struct device *dev,
 				     struct device_attribute *attr,
 				     char *buf)
 {
-	struct most_c_obj *c = to_c_obj(dev);
+	struct most_channel *c = to_channel(dev);
 
 	return snprintf(buf, PAGE_SIZE, "%d\n", c->is_starving);
 }
@@ -263,7 +263,7 @@ static ssize_t set_number_of_buffers_show(struct device *dev,
 					  struct device_attribute *attr,
 					  char *buf)
 {
-	struct most_c_obj *c = to_c_obj(dev);
+	struct most_channel *c = to_channel(dev);
 
 	return snprintf(buf, PAGE_SIZE, "%d\n", c->cfg.num_buffers);
 }
@@ -273,7 +273,7 @@ static ssize_t set_number_of_buffers_store(struct device *dev,
 					   const char *buf,
 					   size_t count)
 {
-	struct most_c_obj *c = to_c_obj(dev);
+	struct most_channel *c = to_channel(dev);
 
 	int ret = kstrtou16(buf, 0, &c->cfg.num_buffers);
 
@@ -286,7 +286,7 @@ static ssize_t set_buffer_size_show(struct device *dev,
 				    struct device_attribute *attr,
 				    char *buf)
 {
-	struct most_c_obj *c = to_c_obj(dev);
+	struct most_channel *c = to_channel(dev);
 
 	return snprintf(buf, PAGE_SIZE, "%d\n", c->cfg.buffer_size);
 }
@@ -296,7 +296,7 @@ static ssize_t set_buffer_size_store(struct device *dev,
 				     const char *buf,
 				     size_t count)
 {
-	struct most_c_obj *c = to_c_obj(dev);
+	struct most_channel *c = to_channel(dev);
 	int ret = kstrtou16(buf, 0, &c->cfg.buffer_size);
 
 	if (ret)
@@ -308,7 +308,7 @@ static ssize_t set_direction_show(struct device *dev,
 				  struct device_attribute *attr,
 				  char *buf)
 {
-	struct most_c_obj *c = to_c_obj(dev);
+	struct most_channel *c = to_channel(dev);
 
 	if (c->cfg.direction & MOST_CH_TX)
 		return snprintf(buf, PAGE_SIZE, "tx\n");
@@ -322,7 +322,7 @@ static ssize_t set_direction_store(struct device *dev,
 				   const char *buf,
 				   size_t count)
 {
-	struct most_c_obj *c = to_c_obj(dev);
+	struct most_channel *c = to_channel(dev);
 
 	if (!strcmp(buf, "dir_rx\n")) {
 		c->cfg.direction = MOST_CH_RX;
@@ -344,7 +344,7 @@ static ssize_t set_datatype_show(struct device *dev,
 				 char *buf)
 {
 	int i;
-	struct most_c_obj *c = to_c_obj(dev);
+	struct most_channel *c = to_channel(dev);
 
 	for (i = 0; i < ARRAY_SIZE(ch_data_type); i++) {
 		if (c->cfg.data_type & ch_data_type[i].most_ch_data_type)
@@ -359,7 +359,7 @@ static ssize_t set_datatype_store(struct device *dev,
 				  size_t count)
 {
 	int i;
-	struct most_c_obj *c = to_c_obj(dev);
+	struct most_channel *c = to_channel(dev);
 
 	for (i = 0; i < ARRAY_SIZE(ch_data_type); i++) {
 		if (!strcmp(buf, ch_data_type[i].name)) {
@@ -379,7 +379,7 @@ static ssize_t set_subbuffer_size_show(struct device *dev,
 				       struct device_attribute *attr,
 				       char *buf)
 {
-	struct most_c_obj *c = to_c_obj(dev);
+	struct most_channel *c = to_channel(dev);
 
 	return snprintf(buf, PAGE_SIZE, "%d\n", c->cfg.subbuffer_size);
 }
@@ -389,7 +389,7 @@ static ssize_t set_subbuffer_size_store(struct device *dev,
 					const char *buf,
 					size_t count)
 {
-	struct most_c_obj *c = to_c_obj(dev);
+	struct most_channel *c = to_channel(dev);
 	int ret = kstrtou16(buf, 0, &c->cfg.subbuffer_size);
 
 	if (ret)
@@ -401,7 +401,7 @@ static ssize_t set_packets_per_xact_show(struct device *dev,
 					 struct device_attribute *attr,
 					 char *buf)
 {
-	struct most_c_obj *c = to_c_obj(dev);
+	struct most_channel *c = to_channel(dev);
 
 	return snprintf(buf, PAGE_SIZE, "%d\n", c->cfg.packets_per_xact);
 }
@@ -411,7 +411,7 @@ static ssize_t set_packets_per_xact_store(struct device *dev,
 					  const char *buf,
 					  size_t count)
 {
-	struct most_c_obj *c = to_c_obj(dev);
+	struct most_channel *c = to_channel(dev);
 	int ret = kstrtou16(buf, 0, &c->cfg.packets_per_xact);
 
 	if (ret)
@@ -529,7 +529,7 @@ static const struct attribute_group *interface_attr_groups[] = {
 static ssize_t links_show(struct device *dev, struct device_attribute *attr,
 			  char *buf)
 {
-	struct most_c_obj *c;
+	struct most_channel *c;
 	struct most_inst_obj *i;
 	struct most_aim *aim = to_most_aim(dev);
 	int offs = 0;
@@ -593,10 +593,9 @@ static int split_string(char *buf, char **a, char **b, char **c)
  *
  * This retrieves the pointer to a channel object.
  */
-static struct
-most_c_obj *get_channel_by_name(char *mdev, char *mdev_ch)
+static struct most_channel *get_channel_by_name(char *mdev, char *mdev_ch)
 {
-	struct most_c_obj *c, *tmp;
+	struct most_channel *c, *tmp;
 	struct most_inst_obj *i, *i_tmp;
 	int found = 0;
 
@@ -620,8 +619,9 @@ most_c_obj *get_channel_by_name(char *mdev, char *mdev_ch)
 	return c;
 }
 
-static inline int link_channel_to_aim(struct most_c_obj *c,
-				      struct most_aim *aim, char *aim_param)
+static
+inline int link_channel_to_aim(struct most_channel *c, struct most_aim *aim,
+			       char *aim_param)
 {
 	int ret;
 	struct most_aim **aim_ptr;
@@ -671,7 +671,7 @@ static ssize_t add_link_store(struct device *dev,
 			      const char *buf,
 			      size_t len)
 {
-	struct most_c_obj *c;
+	struct most_channel *c;
 	struct most_aim *aim = to_most_aim(dev);
 	char buffer[STRING_SIZE];
 	char *mdev;
@@ -719,7 +719,7 @@ static ssize_t remove_link_store(struct device *dev,
 				 const char *buf,
 				 size_t len)
 {
-	struct most_c_obj *c;
+	struct most_channel *c;
 	struct most_aim *aim = to_most_aim(dev);
 	char buffer[STRING_SIZE];
 	char *mdev;
@@ -796,14 +796,14 @@ static struct device_driver mostcore = {
 static inline void trash_mbo(struct mbo *mbo)
 {
 	unsigned long flags;
-	struct most_c_obj *c = mbo->context;
+	struct most_channel *c = mbo->context;
 
 	spin_lock_irqsave(&c->fifo_lock, flags);
 	list_add(&mbo->list, &c->trash_fifo);
 	spin_unlock_irqrestore(&c->fifo_lock, flags);
 }
 
-static bool hdm_mbo_ready(struct most_c_obj *c)
+static bool hdm_mbo_ready(struct most_channel *c)
 {
 	bool empty;
 
@@ -820,7 +820,7 @@ static bool hdm_mbo_ready(struct most_c_obj *c)
 static void nq_hdm_mbo(struct mbo *mbo)
 {
 	unsigned long flags;
-	struct most_c_obj *c = mbo->context;
+	struct most_channel *c = mbo->context;
 
 	spin_lock_irqsave(&c->fifo_lock, flags);
 	list_add_tail(&mbo->list, &c->halt_fifo);
@@ -830,7 +830,7 @@ static void nq_hdm_mbo(struct mbo *mbo)
 
 static int hdm_enqueue_thread(void *data)
 {
-	struct most_c_obj *c = data;
+	struct most_channel *c = data;
 	struct mbo *mbo;
 	int ret;
 	typeof(c->iface->enqueue) enqueue = c->iface->enqueue;
@@ -868,7 +868,7 @@ static int hdm_enqueue_thread(void *data)
 	return 0;
 }
 
-static int run_enqueue_thread(struct most_c_obj *c, int channel_id)
+static int run_enqueue_thread(struct most_channel *c, int channel_id)
 {
 	struct task_struct *task =
 		kthread_run(hdm_enqueue_thread, c, "hdm_fifo_%d",
@@ -895,7 +895,7 @@ static int run_enqueue_thread(struct most_c_obj *c, int channel_id)
 static void arm_mbo(struct mbo *mbo)
 {
 	unsigned long flags;
-	struct most_c_obj *c;
+	struct most_channel *c;
 
 	BUG_ON((!mbo) || (!mbo->context));
 	c = mbo->context;
@@ -930,7 +930,7 @@ static void arm_mbo(struct mbo *mbo)
  *
  * Returns the number of allocated and enqueued MBOs.
  */
-static int arm_mbo_chain(struct most_c_obj *c, int dir,
+static int arm_mbo_chain(struct most_channel *c, int dir,
 			 void (*compl)(struct mbo *))
 {
 	unsigned int i;
@@ -998,7 +998,7 @@ EXPORT_SYMBOL_GPL(most_submit_mbo);
  */
 static void most_write_completion(struct mbo *mbo)
 {
-	struct most_c_obj *c;
+	struct most_channel *c;
 
 	BUG_ON((!mbo) || (!mbo->context));
 
@@ -1014,7 +1014,7 @@ static void most_write_completion(struct mbo *mbo)
 int channel_has_mbo(struct most_interface *iface, int id, struct most_aim *aim)
 {
 	struct most_inst_obj *inst = iface->priv;
-	struct most_c_obj *c = inst->channel[id];
+	struct most_channel *c = inst->channel[id];
 	unsigned long flags;
 	int empty;
 
@@ -1045,7 +1045,7 @@ struct mbo *most_get_mbo(struct most_interface *iface, int id,
 			 struct most_aim *aim)
 {
 	struct mbo *mbo;
-	struct most_c_obj *c;
+	struct most_channel *c;
 	struct most_inst_obj *inst = iface->priv;
 	unsigned long flags;
 	int *num_buffers_ptr;
@@ -1087,7 +1087,7 @@ EXPORT_SYMBOL_GPL(most_get_mbo);
  */
 void most_put_mbo(struct mbo *mbo)
 {
-	struct most_c_obj *c = mbo->context;
+	struct most_channel *c = mbo->context;
 
 	if (c->cfg.direction == MOST_CH_TX) {
 		arm_mbo(mbo);
@@ -1110,7 +1110,7 @@ EXPORT_SYMBOL_GPL(most_put_mbo);
  */
 static void most_read_completion(struct mbo *mbo)
 {
-	struct most_c_obj *c = mbo->context;
+	struct most_channel *c = mbo->context;
 
 	if (unlikely(c->is_poisoned || (mbo->status == MBO_E_CLOSE))) {
 		trash_mbo(mbo);
@@ -1153,7 +1153,7 @@ int most_start_channel(struct most_interface *iface, int id,
 	int num_buffer;
 	int ret;
 	struct most_inst_obj *inst = iface->priv;
-	struct most_c_obj *c = inst->channel[id];
+	struct most_channel *c = inst->channel[id];
 
 	if (unlikely(!c))
 		return -EINVAL;
@@ -1222,7 +1222,7 @@ int most_stop_channel(struct most_interface *iface, int id,
 		      struct most_aim *aim)
 {
 	struct most_inst_obj *inst;
-	struct most_c_obj *c;
+	struct most_channel *c;
 
 	if (unlikely((!iface) || (id >= iface->num_channels) || (id < 0))) {
 		pr_err("Bad interface or index out of range\n");
@@ -1314,7 +1314,7 @@ EXPORT_SYMBOL_GPL(most_register_aim);
  */
 int most_deregister_aim(struct most_aim *aim)
 {
-	struct most_c_obj *c, *tmp;
+	struct most_channel *c, *tmp;
 	struct most_inst_obj *i, *i_tmp;
 
 	if (!aim) {
@@ -1362,7 +1362,7 @@ int most_register_interface(struct most_interface *iface)
 	int id;
 	char name[STRING_SIZE];
 	char channel_name[STRING_SIZE];
-	struct most_c_obj *c;
+	struct most_channel *c;
 	struct most_inst_obj *inst;
 
 	if (!iface || !iface->enqueue || !iface->configure ||
@@ -1468,7 +1468,7 @@ EXPORT_SYMBOL_GPL(most_register_interface);
 void most_deregister_interface(struct most_interface *iface)
 {
 	int i;
-	struct most_c_obj *c;
+	struct most_channel *c;
 	struct most_inst_obj *inst;
 
 	pr_info("deregistering MOST device %s (%s)\n", dev_name(&iface->dev), iface->description);
@@ -1507,7 +1507,7 @@ EXPORT_SYMBOL_GPL(most_deregister_interface);
 void most_stop_enqueue(struct most_interface *iface, int id)
 {
 	struct most_inst_obj *inst = iface->priv;
-	struct most_c_obj *c = inst->channel[id];
+	struct most_channel *c = inst->channel[id];
 
 	if (!c)
 		return;
@@ -1529,7 +1529,7 @@ EXPORT_SYMBOL_GPL(most_stop_enqueue);
 void most_resume_enqueue(struct most_interface *iface, int id)
 {
 	struct most_inst_obj *inst = iface->priv;
-	struct most_c_obj *c = inst->channel[id];
+	struct most_channel *c = inst->channel[id];
 
 	if (!c)
 		return;
