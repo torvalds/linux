@@ -1035,6 +1035,8 @@ static void rockchip_usb2phy_otg_sm_work(struct work_struct *work)
 			dev_dbg(&rport->phy->dev, "usb disconnect\n");
 			rport->state = OTG_STATE_B_IDLE;
 			rport->perip_connected = false;
+			rphy->chg_state = USB_CHG_STATE_UNDEFINED;
+			rphy->chg_type = POWER_SUPPLY_TYPE_UNKNOWN;
 			delay = OTG_SCHEDULE_DELAY * 2;
 			wake_unlock(&rport->wakelock);
 		}
