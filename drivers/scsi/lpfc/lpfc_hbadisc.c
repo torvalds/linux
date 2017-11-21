@@ -5836,9 +5836,12 @@ __lpfc_find_node(struct lpfc_vport *vport, node_filter filter, void *param)
 		if (filter(ndlp, param)) {
 			lpfc_printf_vlog(vport, KERN_INFO, LOG_NODE,
 					 "3185 FIND node filter %p DID "
-					 "Data: x%p x%x x%x\n",
+					 "ndlp %p did x%x flg x%x st x%x "
+					 "xri x%x type x%x rpi x%x\n",
 					 filter, ndlp, ndlp->nlp_DID,
-					 ndlp->nlp_flag);
+					 ndlp->nlp_flag, ndlp->nlp_state,
+					 ndlp->nlp_xri, ndlp->nlp_type,
+					 ndlp->nlp_rpi);
 			return ndlp;
 		}
 	}
