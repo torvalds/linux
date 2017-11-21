@@ -782,8 +782,8 @@ static void dcn10_init_hw(struct dc *dc)
 		hubp->opp_id = 0xf;
 		hubp->power_gated = false;
 
-		if (hubp->opp_id != 0xf)
-			pipe_ctx->stream_res.opp = dc->res_pool->opps[hubp->opp_id];
+		dc->res_pool->opps[i]->mpcc_disconnect_pending[i] = true;
+		pipe_ctx->stream_res.opp = dc->res_pool->opps[i];
 
 		plane_atomic_disconnect(dc, pipe_ctx);
 	}
