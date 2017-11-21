@@ -29,6 +29,6 @@ source "drivers/staging/most/dim2/Kconfig"
 
 source "drivers/staging/most/i2c/Kconfig"
 
-source "drivers/staging/most/hdm-usb/Kconfig"
+source "drivers/staging/most/usb/Kconfig"
 
 endif

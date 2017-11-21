@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * hdm_usb.c - Hardware dependent module for USB
+ * usb.c - Hardware dependent module for USB
  *
  * Copyright (C) 2013-2015 Microchip Technology Germany II GmbH & Co. KG
  */
