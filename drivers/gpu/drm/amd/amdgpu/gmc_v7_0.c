@@ -582,14 +582,16 @@ static void gmc_v7_0_set_prt(struct amdgpu_device *adev, bool enable)
  */
 static int gmc_v7_0_gart_enable(struct amdgpu_device *adev)
 {
-	int i;
+	int r, i;
 	u32 tmp, field;
 
 	if (adev->gart.robj == NULL) {
 		dev_err(adev->dev, "No VRAM object for PCIE GART.\n");
 		return -EINVAL;
 	}
-
+	r = amdgpu_gart_table_vram_pin(adev);
+	if (r)
+		return r;
 	/* Setup TLB control */
 	tmp = RREG32(mmMC_VM_MX_L1_TLB_CNTL);
 	tmp = REG_SET_FIELD(tmp, MC_VM_MX_L1_TLB_CNTL, ENABLE_L1_TLB, 1);
@@ -722,6 +724,7 @@ static void gmc_v7_0_gart_disable(struct amdgpu_device *adev)
 	tmp = REG_SET_FIELD(tmp, VM_L2_CNTL, ENABLE_L2_CACHE, 0);
 	WREG32(mmVM_L2_CNTL, tmp);
 	WREG32(mmVM_L2_CNTL2, 0);
+	amdgpu_gart_table_vram_unpin(adev);
 }
 
 /**
