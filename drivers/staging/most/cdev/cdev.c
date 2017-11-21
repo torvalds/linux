@@ -24,7 +24,7 @@ static struct ida minor_id;
 static unsigned int major;
 static struct core_component cdev_aim;
 
-struct aim_channel {
+struct comp_channel {
 	wait_queue_head_t wq;
 	spinlock_t unlink;	/* synchronization lock to unlink channels */
 	struct cdev cdev;
@@ -40,16 +40,16 @@ struct aim_channel {
 	struct list_head list;
 };
 
-#define to_channel(d) container_of(d, struct aim_channel, cdev)
+#define to_channel(d) container_of(d, struct comp_channel, cdev)
 static struct list_head channel_list;
 static spinlock_t ch_list_lock;
 
-static inline bool ch_has_mbo(struct aim_channel *c)
+static inline bool ch_has_mbo(struct comp_channel *c)
 {
 	return channel_has_mbo(c->iface, c->channel_id, &cdev_aim) > 0;
 }
 
-static inline bool ch_get_mbo(struct aim_channel *c, struct mbo **mbo)
+static inline bool ch_get_mbo(struct comp_channel *c, struct mbo **mbo)
 {
 	if (!kfifo_peek(&c->fifo, mbo)) {
 		*mbo = most_get_mbo(c->iface, c->channel_id, &cdev_aim);
@@ -59,9 +59,9 @@ static inline bool ch_get_mbo(struct aim_channel *c, struct mbo **mbo)
 	return *mbo;
 }
 
-static struct aim_channel *get_channel(struct most_interface *iface, int id)
+static struct comp_channel *get_channel(struct most_interface *iface, int id)
 {
-	struct aim_channel *c, *tmp;
+	struct comp_channel *c, *tmp;
 	unsigned long flags;
 	int found_channel = 0;
 
@@ -78,7 +78,7 @@ static struct aim_channel *get_channel(struct most_interface *iface, int id)
 	return c;
 }
 
-static void stop_channel(struct aim_channel *c)
+static void stop_channel(struct comp_channel *c)
 {
 	struct mbo *mbo;
 
@@ -87,7 +87,7 @@ static void stop_channel(struct aim_channel *c)
 	most_stop_channel(c->iface, c->channel_id, &cdev_aim);
 }
 
-static void destroy_cdev(struct aim_channel *c)
+static void destroy_cdev(struct comp_channel *c)
 {
 	unsigned long flags;
 
@@ -98,7 +98,7 @@ static void destroy_cdev(struct aim_channel *c)
 	spin_unlock_irqrestore(&ch_list_lock, flags);
 }
 
-static void destroy_channel(struct aim_channel *c)
+static void destroy_channel(struct comp_channel *c)
 {
 	ida_simple_remove(&minor_id, MINOR(c->devno));
 	kfifo_free(&c->fifo);
@@ -115,7 +115,7 @@ static void destroy_channel(struct aim_channel *c)
  */
 static int aim_open(struct inode *inode, struct file *filp)
 {
-	struct aim_channel *c;
+	struct comp_channel *c;
 	int ret;
 
 	c = to_channel(inode->i_cdev);
@@ -159,7 +159,7 @@ static int aim_open(struct inode *inode, struct file *filp)
  */
 static int aim_close(struct inode *inode, struct file *filp)
 {
-	struct aim_channel *c = to_channel(inode->i_cdev);
+	struct comp_channel *c = to_channel(inode->i_cdev);
 
 	mutex_lock(&c->io_mutex);
 	spin_lock(&c->unlink);
@@ -188,7 +188,7 @@ static ssize_t aim_write(struct file *filp, const char __user *buf,
 	int ret;
 	size_t to_copy, left;
 	struct mbo *mbo = NULL;
-	struct aim_channel *c = filp->private_data;
+	struct comp_channel *c = filp->private_data;
 
 	mutex_lock(&c->io_mutex);
 	while (c->dev && !ch_get_mbo(c, &mbo)) {
@@ -241,7 +241,7 @@ aim_read(struct file *filp, char __user *buf, size_t count, loff_t *offset)
 {
 	size_t to_copy, not_copied, copied;
 	struct mbo *mbo;
-	struct aim_channel *c = filp->private_data;
+	struct comp_channel *c = filp->private_data;
 
 	mutex_lock(&c->io_mutex);
 	while (c->dev && !kfifo_peek(&c->fifo, &mbo)) {
@@ -283,7 +283,7 @@ aim_read(struct file *filp, char __user *buf, size_t count, loff_t *offset)
 
 static unsigned int aim_poll(struct file *filp, poll_table *wait)
 {
-	struct aim_channel *c = filp->private_data;
+	struct comp_channel *c = filp->private_data;
 	unsigned int mask = 0;
 
 	poll_wait(filp, &c->wq, wait);
@@ -320,7 +320,7 @@ static const struct file_operations channel_fops = {
  */
 static int aim_disconnect_channel(struct most_interface *iface, int channel_id)
 {
-	struct aim_channel *c;
+	struct comp_channel *c;
 
 	if (!iface) {
 		pr_info("Bad interface pointer\n");
@@ -356,7 +356,7 @@ static int aim_disconnect_channel(struct most_interface *iface, int channel_id)
  */
 static int aim_rx_completion(struct mbo *mbo)
 {
-	struct aim_channel *c;
+	struct comp_channel *c;
 
 	if (!mbo)
 		return -EINVAL;
@@ -389,7 +389,7 @@ static int aim_rx_completion(struct mbo *mbo)
  */
 static int aim_tx_completion(struct most_interface *iface, int channel_id)
 {
-	struct aim_channel *c;
+	struct comp_channel *c;
 
 	if (!iface) {
 		pr_info("Bad interface pointer\n");
@@ -421,7 +421,7 @@ static int aim_tx_completion(struct most_interface *iface, int channel_id)
 static int aim_probe(struct most_interface *iface, int channel_id,
 		     struct most_channel_config *cfg, char *name)
 {
-	struct aim_channel *c;
+	struct comp_channel *c;
 	unsigned long cl_flags;
 	int retval;
 	int current_minor;
@@ -534,7 +534,7 @@ dest_ida:
 
 static void __exit mod_exit(void)
 {
-	struct aim_channel *c, *tmp;
+	struct comp_channel *c, *tmp;
 
 	pr_info("exit module\n");
 
