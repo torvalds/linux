@@ -1537,10 +1537,10 @@ do {									\
 	"	.set	push					\n"	\
 	"	.set	mips32r2				\n"	\
 	_ASM_SET_XPA							\
-	"	mthc0	%0, $%1					\n"	\
+	"	mthc0	%z0, $%1				\n"	\
 	"	.set	pop					\n"	\
 	:								\
-	: "r" (value), "i" (register));					\
+	: "Jr" (value), "i" (register));				\
 } while (0)
 
 #define read_c0_index()		__read_32bit_c0_register($0, 0)
