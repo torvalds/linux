@@ -5116,8 +5116,6 @@ int i915_gem_init(struct drm_i915_private *dev_priv)
 {
 	int ret;
 
-	mutex_lock(&dev_priv->drm.struct_mutex);
-
 	/*
 	 * We need to fallback to 4K pages since gvt gtt handling doesn't
 	 * support huge page entries - we will need to check either hypervisor
@@ -5137,17 +5135,18 @@ int i915_gem_init(struct drm_i915_private *dev_priv)
 		dev_priv->gt.cleanup_engine = intel_engine_cleanup;
 	}
 
+	ret = i915_gem_init_userptr(dev_priv);
+	if (ret)
+		return ret;
+
 	/* This is just a security blanket to placate dragons.
 	 * On some systems, we very sporadically observe that the first TLBs
 	 * used by the CS may be stale, despite us poking the TLB reset. If
 	 * we hold the forcewake during initialisation these problems
 	 * just magically go away.
 	 */
+	mutex_lock(&dev_priv->drm.struct_mutex);
 	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
-
-	ret = i915_gem_init_userptr(dev_priv);
-	if (ret)
-		goto out_unlock;
 
 	ret = i915_gem_init_ggtt(dev_priv);
 	if (ret)
