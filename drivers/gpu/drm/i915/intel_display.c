@@ -6246,13 +6246,8 @@ static bool hsw_compute_ips_config(struct intel_crtc_state *crtc_state)
 	if (crtc_state->ips_force_disable)
 		return false;
 
-	/*
-	 * FIXME IPS should be fine as long as one plane is
-	 * enabled, but in practice it seems to have problems
-	 * when going from primary only to sprite only and vice
-	 * versa.
-	 */
-	if (!(crtc_state->active_planes & BIT(PLANE_PRIMARY)))
+	/* IPS should be fine as long as at least one plane is enabled. */
+	if (!(crtc_state->active_planes & ~BIT(PLANE_CURSOR)))
 		return false;
 
 	/* pixel rate mustn't exceed 95% of cdclk with IPS on BDW */
