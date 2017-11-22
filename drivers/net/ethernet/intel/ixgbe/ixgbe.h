@@ -333,7 +333,6 @@ struct ixgbe_ring {
 	struct net_device *netdev;	/* netdev ring belongs to */
 	struct bpf_prog *xdp_prog;
 	struct device *dev;		/* device for DMA mapping */
-	struct ixgbe_fwd_adapter *l2_accel_priv;
 	void *desc;			/* descriptor ring memory */
 	union {
 		struct ixgbe_tx_buffer *tx_buffer_info;

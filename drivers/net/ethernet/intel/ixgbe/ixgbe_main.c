@@ -192,6 +192,13 @@ static struct workqueue_struct *ixgbe_wq;
 static bool ixgbe_check_cfg_remove(struct ixgbe_hw *hw, struct pci_dev *pdev);
 static void ixgbe_watchdog_link_is_down(struct ixgbe_adapter *);
 
+static const struct net_device_ops ixgbe_netdev_ops;
+
+static bool netif_is_ixgbe(struct net_device *dev)
+{
+	return dev && (dev->netdev_ops == &ixgbe_netdev_ops);
+}
+
 static int ixgbe_read_pci_cfg_word_parent(struct ixgbe_adapter *adapter,
 					  u32 reg, u16 *value)
 {
@@ -4481,8 +4488,9 @@ static void ixgbe_vlan_strip_disable(struct ixgbe_adapter *adapter)
 		for (i = 0; i < adapter->num_rx_queues; i++) {
 			struct ixgbe_ring *ring = adapter->rx_ring[i];
 
-			if (ring->l2_accel_priv)
+			if (!netif_is_ixgbe(ring->netdev))
 				continue;
+
 			j = ring->reg_idx;
 			vlnctrl = IXGBE_READ_REG(hw, IXGBE_RXDCTL(j));
 			vlnctrl &= ~IXGBE_RXDCTL_VME;
@@ -4518,8 +4526,9 @@ static void ixgbe_vlan_strip_enable(struct ixgbe_adapter *adapter)
 		for (i = 0; i < adapter->num_rx_queues; i++) {
 			struct ixgbe_ring *ring = adapter->rx_ring[i];
 
-			if (ring->l2_accel_priv)
+			if (!netif_is_ixgbe(ring->netdev))
 				continue;
+
 			j = ring->reg_idx;
 			vlnctrl = IXGBE_READ_REG(hw, IXGBE_RXDCTL(j));
 			vlnctrl |= IXGBE_RXDCTL_VME;
@@ -5333,7 +5342,6 @@ static void ixgbe_disable_fwd_ring(struct ixgbe_fwd_adapter *vadapter,
 	usleep_range(10000, 20000);
 	ixgbe_irq_disable_queues(adapter, BIT_ULL(index));
 	ixgbe_clean_rx_ring(rx_ring);
-	rx_ring->l2_accel_priv = NULL;
 }
 
 static int ixgbe_fwd_ring_down(struct net_device *vdev,
@@ -5351,10 +5359,8 @@ static int ixgbe_fwd_ring_down(struct net_device *vdev,
 		adapter->rx_ring[rxbase + i]->netdev = adapter->netdev;
 	}
 
-	for (i = 0; i < adapter->num_rx_queues_per_pool; i++) {
-		adapter->tx_ring[txbase + i]->l2_accel_priv = NULL;
+	for (i = 0; i < adapter->num_rx_queues_per_pool; i++)
 		adapter->tx_ring[txbase + i]->netdev = adapter->netdev;
-	}
 
 
 	return 0;
@@ -5384,14 +5390,11 @@ static int ixgbe_fwd_ring_up(struct net_device *vdev,
 
 	for (i = 0; i < adapter->num_rx_queues_per_pool; i++) {
 		adapter->rx_ring[rxbase + i]->netdev = vdev;
-		adapter->rx_ring[rxbase + i]->l2_accel_priv = accel;
 		ixgbe_configure_rx_ring(adapter, adapter->rx_ring[rxbase + i]);
 	}
 
-	for (i = 0; i < adapter->num_rx_queues_per_pool; i++) {
+	for (i = 0; i < adapter->num_rx_queues_per_pool; i++)
 		adapter->tx_ring[txbase + i]->netdev = vdev;
-		adapter->tx_ring[txbase + i]->l2_accel_priv = accel;
-	}
 
 	queues = min_t(unsigned int,
 		       adapter->num_rx_queues_per_pool, vdev->num_tx_queues);
