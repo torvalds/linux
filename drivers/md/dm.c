@@ -1114,65 +1114,10 @@ void dm_remap_zone_report(struct dm_target *ti, struct bio *bio, sector_t start)
 }
 EXPORT_SYMBOL_GPL(dm_remap_zone_report);
 
-/*
- * Flush current->bio_list when the target map method blocks.
- * This fixes deadlocks in snapshot and possibly in other targets.
- */
-struct dm_offload {
-	struct blk_plug plug;
-	struct blk_plug_cb cb;
-};
-
-static void flush_current_bio_list(struct blk_plug_cb *cb, bool from_schedule)
-{
-	struct dm_offload *o = container_of(cb, struct dm_offload, cb);
-	struct bio_list list;
-	struct bio *bio;
-	int i;
-
-	INIT_LIST_HEAD(&o->cb.list);
-
-	if (unlikely(!current->bio_list))
-		return;
-
-	for (i = 0; i < 2; i++) {
-		list = current->bio_list[i];
-		bio_list_init(&current->bio_list[i]);
-
-		while ((bio = bio_list_pop(&list))) {
-			struct bio_set *bs = bio->bi_pool;
-			if (unlikely(!bs) || bs == fs_bio_set ||
-			    !bs->rescue_workqueue) {
-				bio_list_add(&current->bio_list[i], bio);
-				continue;
-			}
-
-			spin_lock(&bs->rescue_lock);
-			bio_list_add(&bs->rescue_list, bio);
-			queue_work(bs->rescue_workqueue, &bs->rescue_work);
-			spin_unlock(&bs->rescue_lock);
-		}
-	}
-}
-
-static void dm_offload_start(struct dm_offload *o)
-{
-	blk_start_plug(&o->plug);
-	o->cb.callback = flush_current_bio_list;
-	list_add(&o->cb.list, &current->plug->cb_list);
-}
-
-static void dm_offload_end(struct dm_offload *o)
-{
-	list_del(&o->cb.list);
-	blk_finish_plug(&o->plug);
-}
-
 static void __map_bio(struct dm_target_io *tio)
 {
 	int r;
 	sector_t sector;
-	struct dm_offload o;
 	struct bio *clone = &tio->clone;
 	struct dm_target *ti = tio->ti;
 
@@ -1186,10 +1131,7 @@ static void __map_bio(struct dm_target_io *tio)
 	atomic_inc(&tio->io->io_count);
 	sector = clone->bi_iter.bi_sector;
 
-	dm_offload_start(&o);
 	r = ti->type->map(ti, clone);
-	dm_offload_end(&o);
-
 	switch (r) {
 	case DM_MAPIO_SUBMITTED:
 		break;
@@ -2814,7 +2756,7 @@ struct dm_md_mempools *dm_alloc_md_mempools(struct mapped_device *md, enum dm_qu
 		BUG();
 	}
 
-	pools->bs = bioset_create(pool_size, front_pad, BIOSET_NEED_RESCUER);
+	pools->bs = bioset_create(pool_size, front_pad, 0);
 	if (!pools->bs)
 		goto out;
 
