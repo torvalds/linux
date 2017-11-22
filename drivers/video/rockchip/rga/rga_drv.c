@@ -507,6 +507,11 @@ static struct rga_reg * rga_reg_init(rga_session *session, struct rga_req *req)
         return NULL;
     }
 
+	reg->sg_src = req->sg_src;
+	reg->sg_dst = req->sg_dst;
+	reg->attach_src = req->attach_src;
+	reg->attach_dst = req->attach_dst;
+
     mutex_lock(&rga_service.lock);
 	list_add_tail(&reg->status_link, &rga_service.waiting);
 	list_add_tail(&reg->session_link, &session->waiting);
@@ -703,7 +708,37 @@ static void rga_try_set_reg(void)
 }
 
 
+static int rga_put_dma_buf(struct rga_req *req, struct rga_reg *reg)
+{
+	struct dma_buf_attachment *attach = NULL;
+	struct sg_table *sgt = NULL;
+	struct dma_buf *dma_buf = NULL;
 
+	if (!req && !reg)
+		return -EINVAL;
+
+	attach = (!reg) ? req->attach_src : reg->attach_src;
+	sgt = (!reg) ? req->sg_src : reg->sg_src;
+	if (attach && sgt)
+		dma_buf_unmap_attachment(attach, sgt, DMA_BIDIRECTIONAL);
+	if (attach) {
+		dma_buf = attach->dmabuf;
+		dma_buf_detach(dma_buf, attach);
+		dma_buf_put(dma_buf);
+	}
+
+	attach = (!reg) ? req->attach_dst : reg->attach_dst;
+	sgt = (!reg) ? req->sg_dst : reg->sg_dst;
+	if (attach && sgt)
+		dma_buf_unmap_attachment(attach, sgt, DMA_BIDIRECTIONAL);
+	if (attach) {
+		dma_buf = attach->dmabuf;
+		dma_buf_detach(dma_buf, attach);
+		dma_buf_put(dma_buf);
+	}
+
+	return 0;
+}
 
 /* Caller must hold rga_service.lock */
 static void rga_del_running_list(void)
@@ -721,6 +756,8 @@ static void rga_del_running_list(void)
             else
                 rga_mmu_buf.back += reg->MMU_len;
         }
+
+		rga_put_dma_buf(NULL, reg);
 
         atomic_sub(1, &reg->session->task_running);
         atomic_sub(1, &rga_service.total_running);
@@ -751,6 +788,8 @@ static void rga_del_running_list_timeout(void)
             else
                 rga_mmu_buf.back += reg->MMU_len;
         }
+
+		rga_put_dma_buf(NULL, reg);
 
         atomic_sub(1, &reg->session->task_running);
         atomic_sub(1, &rga_service.total_running);

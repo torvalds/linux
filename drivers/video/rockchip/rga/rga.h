@@ -390,6 +390,12 @@ struct rga_reg {
     //atomic_t int_enable;
 
     //struct rga_req      req;
+
+	struct sg_table *sg_src;
+	struct sg_table *sg_dst;
+
+	struct dma_buf_attachment *attach_src;
+	struct dma_buf_attachment *attach_dst;
 };
 
 
