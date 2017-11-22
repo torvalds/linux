@@ -1226,7 +1226,7 @@ static void sii8620_start_video(struct sii8620 *ctx)
 		int clk = ctx->pixel_clock * (ctx->use_packed_pixel ? 2 : 3);
 		int i;
 
-		for (i = 0; i < ARRAY_SIZE(clk_spec); ++i)
+		for (i = 0; i < ARRAY_SIZE(clk_spec) - 1; ++i)
 			if (clk < clk_spec[i].max_clk)
 				break;
 
