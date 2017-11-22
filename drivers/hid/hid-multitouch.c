@@ -122,6 +122,7 @@ struct mt_device {
 	int scantime_index;	/* scantime field index in the report */
 	int scantime_val_index;	/* scantime value index in the field */
 	int prev_scantime;	/* scantime reported in the previous packet */
+	int left_button_state;	/* left button state */
 	unsigned last_slot_field;	/* the last field of a slot */
 	unsigned mt_report_id;	/* the report ID of the multitouch device */
 	unsigned long initial_quirks;	/* initial quirks state */
@@ -743,10 +744,16 @@ static void mt_complete_slot(struct mt_device *td, struct input_dev *input)
  */
 static void mt_sync_frame(struct mt_device *td, struct input_dev *input)
 {
+	__s32 cls = td->mtclass.name;
+
+	if (cls == MT_CLS_WIN_8 || cls == MT_CLS_WIN_8_DUAL)
+		input_event(input, EV_KEY, BTN_LEFT, td->left_button_state);
+
 	input_mt_sync_frame(input);
 	input_event(input, EV_MSC, MSC_TIMESTAMP, td->timestamp);
 	input_sync(input);
 	td->num_received = 0;
+	td->left_button_state = 0;
 	if (test_bit(MT_IO_FLAGS_ACTIVE_SLOTS, &td->mt_io_flags))
 		set_bit(MT_IO_FLAGS_PENDING_SLOTS, &td->mt_io_flags);
 	else
@@ -856,6 +863,19 @@ static void mt_process_mt_event(struct hid_device *hid, struct hid_field *field,
 			if ((cls == MT_CLS_WIN_8 || cls == MT_CLS_WIN_8_DUAL) &&
 			    !first_packet)
 				return;
+
+			/*
+			 * For Win8 PTP touchpads we map both the clickpad click
+			 * and any "external" left buttons to BTN_LEFT if a
+			 * device claims to have both we need to report 1 for
+			 * BTN_LEFT if either is pressed, so we or all values
+			 * together and report the result in mt_sync_frame().
+			 */
+			if ((cls == MT_CLS_WIN_8 || cls == MT_CLS_WIN_8_DUAL) &&
+			    usage->type == EV_KEY && usage->code == BTN_LEFT) {
+				td->left_button_state |= value;
+				return;
+			}
 
 			if (usage->type)
 				input_event(input, usage->type, usage->code,
