@@ -12,5 +12,6 @@ void klp_start_transition(void);
 void klp_try_complete_transition(void);
 void klp_reverse_transition(void);
 void klp_send_signals(void);
+void klp_force_transition(void);
 
 #endif /* _LIVEPATCH_TRANSITION_H */

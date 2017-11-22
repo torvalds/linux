@@ -455,6 +455,7 @@ EXPORT_SYMBOL_GPL(klp_enable_patch);
  * /sys/kernel/livepatch/<patch>/enabled
  * /sys/kernel/livepatch/<patch>/transition
  * /sys/kernel/livepatch/<patch>/signal
+ * /sys/kernel/livepatch/<patch>/force
  * /sys/kernel/livepatch/<patch>/<object>
  * /sys/kernel/livepatch/<patch>/<object>/<function,sympos>
  */
@@ -556,13 +557,42 @@ static ssize_t signal_store(struct kobject *kobj, struct kobj_attribute *attr,
 	return count;
 }
 
+static ssize_t force_store(struct kobject *kobj, struct kobj_attribute *attr,
+			   const char *buf, size_t count)
+{
+	struct klp_patch *patch;
+	int ret;
+	bool val;
+
+	patch = container_of(kobj, struct klp_patch, kobj);
+
+	/*
+	 * klp_mutex lock is not grabbed here intentionally. It is not really
+	 * needed. The race window is harmless and grabbing the lock would only
+	 * hold the action back.
+	 */
+	if (patch != klp_transition_patch)
+		return -EINVAL;
+
+	ret = kstrtobool(buf, &val);
+	if (ret)
+		return ret;
+
+	if (val)
+		klp_force_transition();
+
+	return count;
+}
+
 static struct kobj_attribute enabled_kobj_attr = __ATTR_RW(enabled);
 static struct kobj_attribute transition_kobj_attr = __ATTR_RO(transition);
 static struct kobj_attribute signal_kobj_attr = __ATTR_WO(signal);
+static struct kobj_attribute force_kobj_attr = __ATTR_WO(force);
 static struct attribute *klp_patch_attrs[] = {
 	&enabled_kobj_attr.attr,
 	&transition_kobj_attr.attr,
 	&signal_kobj_attr.attr,
+	&force_kobj_attr.attr,
 	NULL
 };
 

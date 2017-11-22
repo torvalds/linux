@@ -33,6 +33,8 @@ struct klp_patch *klp_transition_patch;
 
 static int klp_target_state = KLP_UNDEFINED;
 
+static bool klp_forced = false;
+
 /*
  * This work can be performed periodically to finish patching or unpatching any
  * "straggler" tasks which failed to transition in the first attempt.
@@ -146,9 +148,12 @@ done:
 	/*
 	 * See complementary comment in __klp_enable_patch() for why we
 	 * keep the module reference for immediate patches.
+	 *
+	 * klp_forced or immediate_func set implies unbounded increase of
+	 * module's ref count if the module is disabled/enabled in a loop.
 	 */
-	if (!klp_transition_patch->immediate && !immediate_func &&
-	    klp_target_state == KLP_UNPATCHED) {
+	if (!klp_forced && !klp_transition_patch->immediate &&
+		!immediate_func && klp_target_state == KLP_UNPATCHED) {
 		module_put(klp_transition_patch->mod);
 	}
 
@@ -648,4 +653,31 @@ void klp_send_signals(void)
 		}
 	}
 	read_unlock(&tasklist_lock);
+}
+
+/*
+ * Drop TIF_PATCH_PENDING of all tasks on admin's request. This forces an
+ * existing transition to finish.
+ *
+ * NOTE: klp_update_patch_state(task) requires the task to be inactive or
+ * 'current'. This is not the case here and the consistency model could be
+ * broken. Administrator, who is the only one to execute the
+ * klp_force_transitions(), has to be aware of this.
+ */
+void klp_force_transition(void)
+{
+	struct task_struct *g, *task;
+	unsigned int cpu;
+
+	pr_warn("forcing remaining tasks to the patched state\n");
+
+	read_lock(&tasklist_lock);
+	for_each_process_thread(g, task)
+		klp_update_patch_state(task);
+	read_unlock(&tasklist_lock);
+
+	for_each_possible_cpu(cpu)
+		klp_update_patch_state(idle_task(cpu));
+
+	klp_forced = true;
 }

@@ -183,6 +183,20 @@ tasks. No proper signal is actually delivered (there is no data in signal
 pending structures). Tasks are interrupted or woken up, and forced to change
 their patched state.
 
+Administrator can also affect a transition through
+/sys/kernel/livepatch/<patch>/force attribute. Writing 1 there clears
+TIF_PATCH_PENDING flag of all tasks and thus forces the tasks to the patched
+state. Important note! The force attribute is intended for cases when the
+transition gets stuck for a long time because of a blocking task. Administrator
+is expected to collect all necessary data (namely stack traces of such blocking
+tasks) and request a clearance from a patch distributor to force the transition.
+Unauthorized usage may cause harm to the system. It depends on the nature of the
+patch, which functions are (un)patched, and which functions the blocking tasks
+are sleeping in (/proc/<pid>/stack may help here). Removal (rmmod) of patch
+modules is permanently disabled when the force feature is used. It cannot be
+guaranteed there is no task sleeping in such module. It implies unbounded
+reference count if a patch module is disabled and enabled in a loop.
+
 3.1 Adding consistency model support to new architectures
 ---------------------------------------------------------
 
@@ -439,8 +453,8 @@ Information about the registered patches can be found under
 /sys/kernel/livepatch. The patches could be enabled and disabled
 by writing there.
 
-/sys/kernel/livepatch/<patch>/signal attribute allows administrator to affect a
-patching operation.
+/sys/kernel/livepatch/<patch>/signal and /sys/kernel/livepatch/<patch>/force
+attributes allow administrator to affect a patching operation.
 
 See Documentation/ABI/testing/sysfs-kernel-livepatch for more details.
 

@@ -45,6 +45,20 @@ Description:
 		signal pending structures). Tasks are interrupted or woken up,
 		and forced to change their patched state.
 
+What:		/sys/kernel/livepatch/<patch>/force
+Date:		Nov 2017
+KernelVersion:	4.15.0
+Contact:	live-patching@vger.kernel.org
+Description:
+		A writable attribute that allows administrator to affect the
+		course of an existing transition. Writing 1 clears
+		TIF_PATCH_PENDING flag of all tasks and thus forces the tasks to
+		the patched or unpatched state. Administrator should not
+		use this feature without a clearance from a patch
+		distributor. Removal (rmmod) of patch modules is permanently
+		disabled when the feature is used. See
+		Documentation/livepatch/livepatch.txt for more information.
+
 What:		/sys/kernel/livepatch/<patch>/<object>
 Date:		Nov 2014
 KernelVersion:	3.19.0
