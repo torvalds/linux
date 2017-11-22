@@ -216,7 +216,7 @@ module_param_named(exp_hw_support, amdgpu_exp_hw_support, int, 0444);
 MODULE_PARM_DESC(dc, "Display Core driver (1 = enable, 0 = disable, -1 = auto (default))");
 module_param_named(dc, amdgpu_dc, int, 0444);
 
-MODULE_PARM_DESC(dc, "Display Core Log Level (0 = minimal (default), 1 = chatty");
+MODULE_PARM_DESC(dc_log, "Display Core Log Level (0 = minimal (default), 1 = chatty");
 module_param_named(dc_log, amdgpu_dc_log, int, 0444);
 
 MODULE_PARM_DESC(sched_jobs, "the max number of jobs supported in the sw queue (default 32)");
