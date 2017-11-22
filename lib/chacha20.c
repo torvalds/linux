@@ -21,7 +21,7 @@ static inline u32 rotl32(u32 v, u8 n)
 	return (v << n) | (v >> (sizeof(v) * 8 - n));
 }
 
-extern void chacha20_block(u32 *state, void *stream)
+void chacha20_block(u32 *state, u32 *stream)
 {
 	u32 x[16], *out = stream;
 	int i;
