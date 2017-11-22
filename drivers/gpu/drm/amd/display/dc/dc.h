@@ -250,6 +250,8 @@ struct dc {
 	 */
 	struct dm_pp_display_configuration prev_display_config;
 
+	bool optimized_required;
+
 	/* FBC compressor */
 #if defined(CONFIG_DRM_AMD_DC_FBC)
 	struct compressor *fbc_compressor;
