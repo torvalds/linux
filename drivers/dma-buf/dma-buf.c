@@ -1179,8 +1179,7 @@ static int dma_buf_init_debugfs(void)
 
 static void dma_buf_uninit_debugfs(void)
 {
-	if (dma_buf_debugfs_dir)
-		debugfs_remove_recursive(dma_buf_debugfs_dir);
+	debugfs_remove_recursive(dma_buf_debugfs_dir);
 }
 #else
 static inline int dma_buf_init_debugfs(void)
