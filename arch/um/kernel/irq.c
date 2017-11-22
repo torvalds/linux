@@ -328,6 +328,7 @@ void free_irq_by_fd(int fd)
 	garbage_collect_irq_entries();
 	spin_unlock_irqrestore(&irq_lock, flags);
 }
+EXPORT_SYMBOL(free_irq_by_fd);
 
 static void free_irq_by_irq_and_dev(unsigned int irq, void *dev)
 {
