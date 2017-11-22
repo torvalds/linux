@@ -49,7 +49,8 @@ Pointer Types
 
 Pointers printed without a specifier extension (i.e unadorned %p) are
 hashed to give a unique identifier without leaking kernel addresses to user
-space. On 64 bit machines the first 32 bits are zeroed.
+space. On 64 bit machines the first 32 bits are zeroed. If you _really_
+want the address see %px below.
 
 ::
 
@@ -105,6 +106,21 @@ Kernel Pointers
 For printing kernel pointers which should be hidden from unprivileged
 users. The behaviour of ``%pK`` depends on the ``kptr_restrict sysctl`` - see
 Documentation/sysctl/kernel.txt for more details.
+
+Unmodified Addresses
+====================
+
+::
+
+	%px	01234567 or 0123456789abcdef
+
+For printing pointers when you _really_ want to print the address. Please
+consider whether or not you are leaking sensitive information about the
+Kernel layout in memory before printing pointers with %px. %px is
+functionally equivalent to %lx. %px is preferred to %lx because it is more
+uniquely grep'able. If, in the future, we need to modify the way the Kernel
+handles printing pointers it will be nice to be able to find the call
+sites.
 
 Struct Resources
 ================
