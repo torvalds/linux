@@ -92,7 +92,7 @@ static int apq8016_sbc_dai_init(struct snd_soc_pcm_runtime *rtd)
 
 		jack = pdata->jack.jack;
 
-		snd_jack_set_key(jack, SND_JACK_BTN_0, KEY_MEDIA);
+		snd_jack_set_key(jack, SND_JACK_BTN_0, KEY_PLAYPAUSE);
 		snd_jack_set_key(jack, SND_JACK_BTN_1, KEY_VOICECOMMAND);
 		snd_jack_set_key(jack, SND_JACK_BTN_2, KEY_VOLUMEUP);
 		snd_jack_set_key(jack, SND_JACK_BTN_3, KEY_VOLUMEDOWN);
