@@ -36,7 +36,7 @@
 #include "athub/athub_1_0_offset.h"
 
 #include "soc15_common.h"
-#include "vega10/UMC/umc_6_0_sh_mask.h"
+#include "umc/umc_6_0_sh_mask.h"
 
 #include "nbio_v6_1.h"
 #include "nbio_v7_0.h"
