@@ -403,7 +403,7 @@ static const struct bpf_func_proto bpf_perf_event_output_proto = {
 	.arg2_type	= ARG_CONST_MAP_PTR,
 	.arg3_type	= ARG_ANYTHING,
 	.arg4_type	= ARG_PTR_TO_MEM,
-	.arg5_type	= ARG_CONST_SIZE,
+	.arg5_type	= ARG_CONST_SIZE_OR_ZERO,
 };
 
 static DEFINE_PER_CPU(struct pt_regs, bpf_pt_regs);
@@ -605,7 +605,7 @@ static const struct bpf_func_proto bpf_perf_event_output_proto_tp = {
 	.arg2_type	= ARG_CONST_MAP_PTR,
 	.arg3_type	= ARG_ANYTHING,
 	.arg4_type	= ARG_PTR_TO_MEM,
-	.arg5_type	= ARG_CONST_SIZE,
+	.arg5_type	= ARG_CONST_SIZE_OR_ZERO,
 };
 
 BPF_CALL_3(bpf_get_stackid_tp, void *, tp_buff, struct bpf_map *, map,
