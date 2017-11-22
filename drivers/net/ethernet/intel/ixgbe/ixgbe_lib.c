@@ -701,7 +701,7 @@ static void ixgbe_set_num_queues(struct ixgbe_adapter *adapter)
 	adapter->num_rx_queues = 1;
 	adapter->num_tx_queues = 1;
 	adapter->num_xdp_queues = 0;
-	adapter->num_rx_pools = adapter->num_rx_queues;
+	adapter->num_rx_pools = 1;
 	adapter->num_rx_queues_per_pool = 1;
 
 #ifdef CONFIG_IXGBE_DCB
