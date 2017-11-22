@@ -9,15 +9,11 @@
  * (at your option) any later version.
  */
 
+#include <asm/unaligned.h>
 #include <crypto/algapi.h>
 #include <crypto/chacha20.h>
 #include <crypto/internal/skcipher.h>
 #include <linux/module.h>
-
-static inline u32 le32_to_cpuvp(const void *p)
-{
-	return le32_to_cpup(p);
-}
 
 static void chacha20_docrypt(u32 *state, u8 *dst, const u8 *src,
 			     unsigned int bytes)
@@ -53,10 +49,10 @@ void crypto_chacha20_init(u32 *state, struct chacha20_ctx *ctx, u8 *iv)
 	state[9]  = ctx->key[5];
 	state[10] = ctx->key[6];
 	state[11] = ctx->key[7];
-	state[12] = le32_to_cpuvp(iv +  0);
-	state[13] = le32_to_cpuvp(iv +  4);
-	state[14] = le32_to_cpuvp(iv +  8);
-	state[15] = le32_to_cpuvp(iv + 12);
+	state[12] = get_unaligned_le32(iv +  0);
+	state[13] = get_unaligned_le32(iv +  4);
+	state[14] = get_unaligned_le32(iv +  8);
+	state[15] = get_unaligned_le32(iv + 12);
 }
 EXPORT_SYMBOL_GPL(crypto_chacha20_init);
 
@@ -70,7 +66,7 @@ int crypto_chacha20_setkey(struct crypto_skcipher *tfm, const u8 *key,
 		return -EINVAL;
 
 	for (i = 0; i < ARRAY_SIZE(ctx->key); i++)
-		ctx->key[i] = le32_to_cpuvp(key + i * sizeof(u32));
+		ctx->key[i] = get_unaligned_le32(key + i * sizeof(u32));
 
 	return 0;
 }
