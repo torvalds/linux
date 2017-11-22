@@ -1504,18 +1504,27 @@ do {									\
 	local_irq_restore(__flags);					\
 } while (0)
 
+#ifndef TOOLCHAIN_SUPPORTS_XPA
+_ASM_MACRO_2R_1S(mfhc0, rt, rs, sel,
+	_ASM_INSN_IF_MIPS(0x40400000 | __rt << 16 | __rs << 11 | \\sel)
+	_ASM_INSN32_IF_MM(0x000000f4 | __rt << 21 | __rs << 16 | \\sel << 11));
+_ASM_MACRO_2R_1S(mthc0, rt, rd, sel,
+	_ASM_INSN_IF_MIPS(0x40c00000 | __rt << 16 | __rd << 11 | \\sel)
+	_ASM_INSN32_IF_MM(0x000002f4 | __rt << 21 | __rd << 16 | \\sel << 11));
+#define _ASM_SET_XPA ""
+#else	/* !TOOLCHAIN_SUPPORTS_XPA */
+#define _ASM_SET_XPA ".set\txpa\n\t"
+#endif
+
 #define __readx_32bit_c0_register(source)				\
 ({									\
 	unsigned int __res;						\
 									\
 	__asm__ __volatile__(						\
 	"	.set	push					\n"	\
-	"	.set	noat					\n"	\
 	"	.set	mips32r2				\n"	\
-	"	# mfhc0 $1, %1					\n"	\
-	_ASM_INSN_IF_MIPS(0x40410000 | ((%1 & 0x1f) << 11))		\
-	_ASM_INSN32_IF_MM(0x002000f4 | ((%1 & 0x1f) << 16))		\
-	"	move	%0, $1					\n"	\
+	_ASM_SET_XPA							\
+	"	mfhc0	%0, $%1					\n"	\
 	"	.set	pop					\n"	\
 	: "=r" (__res)							\
 	: "i" (source));						\
@@ -1526,12 +1535,9 @@ do {									\
 do {									\
 	__asm__ __volatile__(						\
 	"	.set	push					\n"	\
-	"	.set	noat					\n"	\
 	"	.set	mips32r2				\n"	\
-	"	move	$1, %0					\n"	\
-	"	# mthc0 $1, %1					\n"	\
-	_ASM_INSN_IF_MIPS(0x40c10000 | ((%1 & 0x1f) << 11))		\
-	_ASM_INSN32_IF_MM(0x002002f4 | ((%1 & 0x1f) << 16))		\
+	_ASM_SET_XPA							\
+	"	mthc0	%0, $%1					\n"	\
 	"	.set	pop					\n"	\
 	:								\
 	: "r" (value), "i" (register));					\
