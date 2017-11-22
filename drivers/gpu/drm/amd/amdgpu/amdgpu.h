@@ -717,7 +717,7 @@ int amdgpu_queue_mgr_fini(struct amdgpu_device *adev,
 			  struct amdgpu_queue_mgr *mgr);
 int amdgpu_queue_mgr_map(struct amdgpu_device *adev,
 			 struct amdgpu_queue_mgr *mgr,
-			 int hw_ip, int instance, int ring,
+			 u32 hw_ip, u32 instance, u32 ring,
 			 struct amdgpu_ring **out_ring);
 
 /*
