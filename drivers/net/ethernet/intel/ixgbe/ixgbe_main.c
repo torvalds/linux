@@ -5406,12 +5406,16 @@ static int ixgbe_fwd_ring_up(struct net_device *vdev,
 	if (err)
 		goto fwd_queue_err;
 
-	if (is_valid_ether_addr(vdev->dev_addr))
-		ixgbe_add_mac_filter(adapter, vdev->dev_addr,
-				     VMDQ_P(accel->pool));
+	/* ixgbe_add_mac_filter will return an index if it succeeds, so we
+	 * need to only treat it as an error value if it is negative.
+	 */
+	err = ixgbe_add_mac_filter(adapter, vdev->dev_addr,
+				   VMDQ_P(accel->pool));
+	if (err < 0)
+		goto fwd_queue_err;
 
 	ixgbe_macvlan_set_rx_mode(vdev, VMDQ_P(accel->pool), adapter);
-	return err;
+	return 0;
 fwd_queue_err:
 	ixgbe_fwd_ring_down(vdev, accel);
 	return err;
