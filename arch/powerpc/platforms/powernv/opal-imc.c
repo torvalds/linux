@@ -191,8 +191,10 @@ static int opal_imc_counters_probe(struct platform_device *pdev)
 			break;
 		}
 
-		if (!imc_pmu_create(imc_dev, pmu_count, domain))
-			pmu_count++;
+		if (!imc_pmu_create(imc_dev, pmu_count, domain)) {
+			if (domain == IMC_DOMAIN_NEST)
+				pmu_count++;
+		}
 	}
 
 	return 0;
