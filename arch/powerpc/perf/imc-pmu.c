@@ -26,7 +26,7 @@
  */
 static DEFINE_MUTEX(nest_init_lock);
 static DEFINE_PER_CPU(struct imc_pmu_ref *, local_nest_imc_refc);
-static struct imc_pmu *per_nest_pmu_arr[IMC_MAX_PMUS];
+static struct imc_pmu **per_nest_pmu_arr;
 static cpumask_t nest_imc_cpumask;
 struct imc_pmu_ref *nest_imc_refc;
 static int nest_pmus;
@@ -286,13 +286,14 @@ static struct imc_pmu_ref *get_nest_pmu_ref(int cpu)
 static void nest_change_cpu_context(int old_cpu, int new_cpu)
 {
 	struct imc_pmu **pn = per_nest_pmu_arr;
-	int i;
 
 	if (old_cpu < 0 || new_cpu < 0)
 		return;
 
-	for (i = 0; *pn && i < IMC_MAX_PMUS; i++, pn++)
+	while (*pn) {
 		perf_pmu_migrate_context(&(*pn)->pmu, old_cpu, new_cpu);
+		pn++;
+	}
 }
 
 static int ppc_nest_imc_cpu_offline(unsigned int cpu)
@@ -1194,6 +1195,7 @@ static void imc_common_cpuhp_mem_free(struct imc_pmu *pmu_ptr)
 		kfree(pmu_ptr->attr_groups[IMC_EVENT_ATTR]->attrs);
 	kfree(pmu_ptr->attr_groups[IMC_EVENT_ATTR]);
 	kfree(pmu_ptr);
+	kfree(per_nest_pmu_arr);
 	return;
 }
 
@@ -1218,6 +1220,13 @@ static int imc_mem_init(struct imc_pmu *pmu_ptr, struct device_node *parent,
 			return -ENOMEM;
 
 		/* Needed for hotplug/migration */
+		if (!per_nest_pmu_arr) {
+			per_nest_pmu_arr = kcalloc(get_max_nest_dev() + 1,
+						sizeof(struct imc_pmu *),
+						GFP_KERNEL);
+			if (!per_nest_pmu_arr)
+				return -ENOMEM;
+		}
 		per_nest_pmu_arr[pmu_index] = pmu_ptr;
 		break;
 	case IMC_DOMAIN_CORE:

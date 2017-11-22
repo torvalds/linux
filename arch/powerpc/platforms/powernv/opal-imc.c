@@ -153,6 +153,22 @@ static void disable_core_pmu_counters(void)
 	put_online_cpus();
 }
 
+int get_max_nest_dev(void)
+{
+	struct device_node *node;
+	u32 pmu_units = 0, type;
+
+	for_each_compatible_node(node, NULL, IMC_DTB_UNIT_COMPAT) {
+		if (of_property_read_u32(node, "type", &type))
+			continue;
+
+		if (type == IMC_TYPE_CHIP)
+			pmu_units++;
+	}
+
+	return pmu_units;
+}
+
 static int opal_imc_counters_probe(struct platform_device *pdev)
 {
 	struct device_node *imc_dev = pdev->dev.of_node;
