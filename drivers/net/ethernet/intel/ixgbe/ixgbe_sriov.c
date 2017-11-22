@@ -311,7 +311,7 @@ static int ixgbe_pci_sriov_enable(struct pci_dev *dev, int num_vfs)
 	 * than we have available pools. The PCI bus driver already checks for
 	 * other values out of range.
 	 */
-	num_tc = netdev_get_num_tc(adapter->netdev);
+	num_tc = adapter->hw_tcs;
 	num_rx_pools = adapter->num_rx_pools;
 	limit = (num_tc > 4) ? IXGBE_MAX_VFS_8TC :
 		(num_tc > 1) ? IXGBE_MAX_VFS_4TC : IXGBE_MAX_VFS_1TC;
@@ -713,7 +713,7 @@ static inline void ixgbe_vf_reset_event(struct ixgbe_adapter *adapter, u32 vf)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
 	struct vf_data_storage *vfinfo = &adapter->vfinfo[vf];
-	u8 num_tcs = netdev_get_num_tc(adapter->netdev);
+	u8 num_tcs = adapter->hw_tcs;
 
 	/* remove VLAN filters beloning to this VF */
 	ixgbe_clear_vf_vlans(adapter, vf);
@@ -921,7 +921,7 @@ static int ixgbe_set_vf_vlan_msg(struct ixgbe_adapter *adapter,
 {
 	u32 add = (msgbuf[0] & IXGBE_VT_MSGINFO_MASK) >> IXGBE_VT_MSGINFO_SHIFT;
 	u32 vid = (msgbuf[1] & IXGBE_VLVF_VLANID_MASK);
-	u8 tcs = netdev_get_num_tc(adapter->netdev);
+	u8 tcs = adapter->hw_tcs;
 
 	if (adapter->vfinfo[vf].pf_vlan || tcs) {
 		e_warn(drv,
@@ -1009,7 +1009,7 @@ static int ixgbe_get_vf_queues(struct ixgbe_adapter *adapter,
 	struct net_device *dev = adapter->netdev;
 	struct ixgbe_ring_feature *vmdq = &adapter->ring_feature[RING_F_VMDQ];
 	unsigned int default_tc = 0;
-	u8 num_tcs = netdev_get_num_tc(dev);
+	u8 num_tcs = adapter->hw_tcs;
 
 	/* verify the PF is supporting the correct APIs */
 	switch (adapter->vfinfo[vf].vf_api) {

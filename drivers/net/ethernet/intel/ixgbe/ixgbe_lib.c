@@ -47,7 +47,7 @@ static bool ixgbe_cache_ring_dcb_sriov(struct ixgbe_adapter *adapter)
 	struct ixgbe_ring_feature *vmdq = &adapter->ring_feature[RING_F_VMDQ];
 	int i;
 	u16 reg_idx;
-	u8 tcs = netdev_get_num_tc(adapter->netdev);
+	u8 tcs = adapter->hw_tcs;
 
 	/* verify we have DCB queueing enabled before proceeding */
 	if (tcs <= 1)
@@ -111,9 +111,8 @@ static bool ixgbe_cache_ring_dcb_sriov(struct ixgbe_adapter *adapter)
 static void ixgbe_get_first_reg_idx(struct ixgbe_adapter *adapter, u8 tc,
 				    unsigned int *tx, unsigned int *rx)
 {
-	struct net_device *dev = adapter->netdev;
 	struct ixgbe_hw *hw = &adapter->hw;
-	u8 num_tcs = netdev_get_num_tc(dev);
+	u8 num_tcs = adapter->hw_tcs;
 
 	*tx = 0;
 	*rx = 0;
@@ -168,10 +167,9 @@ static void ixgbe_get_first_reg_idx(struct ixgbe_adapter *adapter, u8 tc,
  **/
 static bool ixgbe_cache_ring_dcb(struct ixgbe_adapter *adapter)
 {
-	struct net_device *dev = adapter->netdev;
+	u8 num_tcs = adapter->hw_tcs;
 	unsigned int tx_idx, rx_idx;
 	int tc, offset, rss_i, i;
-	u8 num_tcs = netdev_get_num_tc(dev);
 
 	/* verify we have DCB queueing enabled before proceeding */
 	if (num_tcs <= 1)
@@ -340,7 +338,7 @@ static bool ixgbe_set_dcb_sriov_queues(struct ixgbe_adapter *adapter)
 #ifdef IXGBE_FCOE
 	u16 fcoe_i = 0;
 #endif
-	u8 tcs = netdev_get_num_tc(adapter->netdev);
+	u8 tcs = adapter->hw_tcs;
 
 	/* verify we have DCB queueing enabled before proceeding */
 	if (tcs <= 1)
@@ -440,7 +438,7 @@ static bool ixgbe_set_dcb_queues(struct ixgbe_adapter *adapter)
 	int tcs;
 
 	/* Map queue offset and counts onto allocated tx queues */
-	tcs = netdev_get_num_tc(dev);
+	tcs = adapter->hw_tcs;
 
 	/* verify we have DCB queueing enabled before proceeding */
 	if (tcs <= 1)
@@ -839,7 +837,7 @@ static int ixgbe_alloc_q_vector(struct ixgbe_adapter *adapter,
 	int node = NUMA_NO_NODE;
 	int cpu = -1;
 	int ring_count, size;
-	u8 tcs = netdev_get_num_tc(adapter->netdev);
+	u8 tcs = adapter->hw_tcs;
 
 	ring_count = txr_count + rxr_count + xdp_count;
 	size = sizeof(struct ixgbe_q_vector) +
@@ -1176,7 +1174,7 @@ static void ixgbe_set_interrupt_capability(struct ixgbe_adapter *adapter)
 	 */
 
 	/* Disable DCB unless we only have a single traffic class */
-	if (netdev_get_num_tc(adapter->netdev) > 1) {
+	if (adapter->hw_tcs > 1) {
 		e_dev_warn("Number of DCB TCs exceeds number of available queues. Disabling DCB support.\n");
 		netdev_reset_tc(adapter->netdev);
 
@@ -1188,6 +1186,7 @@ static void ixgbe_set_interrupt_capability(struct ixgbe_adapter *adapter)
 		adapter->dcb_cfg.pfc_mode_enable = false;
 	}
 
+	adapter->hw_tcs = 0;
 	adapter->dcb_cfg.num_tcs.pg_tcs = 1;
 	adapter->dcb_cfg.num_tcs.pfc_tcs = 1;
 

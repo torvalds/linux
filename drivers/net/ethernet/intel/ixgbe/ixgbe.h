@@ -674,6 +674,7 @@ struct ixgbe_adapter {
 	struct ieee_ets *ixgbe_ieee_ets;
 	struct ixgbe_dcb_config dcb_cfg;
 	struct ixgbe_dcb_config temp_dcb_cfg;
+	u8 hw_tcs;
 	u8 dcb_set_bitmap;
 	u8 dcbx_cap;
 	enum ixgbe_fc_mode last_lfc_mode;

@@ -3574,7 +3574,7 @@ static void ixgbe_setup_mtqc(struct ixgbe_adapter *adapter)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
 	u32 rttdcs, mtqc;
-	u8 tcs = netdev_get_num_tc(adapter->netdev);
+	u8 tcs = adapter->hw_tcs;
 
 	if (hw->mac.type == ixgbe_mac_82598EB)
 		return;
@@ -3929,7 +3929,7 @@ static void ixgbe_setup_mrqc(struct ixgbe_adapter *adapter)
 		if (adapter->ring_feature[RING_F_RSS].mask)
 			mrqc = IXGBE_MRQC_RSSEN;
 	} else {
-		u8 tcs = netdev_get_num_tc(adapter->netdev);
+		u8 tcs = adapter->hw_tcs;
 
 		if (adapter->flags & IXGBE_FLAG_SRIOV_ENABLED) {
 			if (tcs > 4)
@@ -5197,7 +5197,7 @@ static int ixgbe_lpbthresh(struct ixgbe_adapter *adapter, int pb)
 static void ixgbe_pbthresh_setup(struct ixgbe_adapter *adapter)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
-	int num_tc = netdev_get_num_tc(adapter->netdev);
+	int num_tc = adapter->hw_tcs;
 	int i;
 
 	if (!num_tc)
@@ -5220,7 +5220,7 @@ static void ixgbe_configure_pb(struct ixgbe_adapter *adapter)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
 	int hdrm;
-	u8 tc = netdev_get_num_tc(adapter->netdev);
+	u8 tc = adapter->hw_tcs;
 
 	if (adapter->flags & IXGBE_FLAG_FDIR_HASH_CAPABLE ||
 	    adapter->flags & IXGBE_FLAG_FDIR_PERFECT_CAPABLE)
@@ -8875,6 +8875,7 @@ int ixgbe_setup_tc(struct net_device *dev, u8 tc)
 		netdev_set_num_tc(dev, tc);
 		ixgbe_set_prio_tc_map(adapter);
 
+		adapter->hw_tcs = tc;
 		adapter->flags |= IXGBE_FLAG_DCB_ENABLED;
 
 		if (adapter->hw.mac.type == ixgbe_mac_82598EB) {
@@ -8888,6 +8889,7 @@ int ixgbe_setup_tc(struct net_device *dev, u8 tc)
 			adapter->hw.fc.requested_mode = adapter->last_lfc_mode;
 
 		adapter->flags &= ~IXGBE_FLAG_DCB_ENABLED;
+		adapter->hw_tcs = tc;
 
 		adapter->temp_dcb_cfg.pfc_mode_enable = false;
 		adapter->dcb_cfg.pfc_mode_enable = false;
@@ -9420,7 +9422,7 @@ void ixgbe_sriov_reinit(struct ixgbe_adapter *adapter)
 	struct net_device *netdev = adapter->netdev;
 
 	rtnl_lock();
-	ixgbe_setup_tc(netdev, netdev_get_num_tc(netdev));
+	ixgbe_setup_tc(netdev, adapter->hw_tcs);
 	rtnl_unlock();
 }
 
@@ -9496,7 +9498,7 @@ static int ixgbe_set_features(struct net_device *netdev,
 		/* We cannot enable ATR if SR-IOV is enabled */
 		if (adapter->flags & IXGBE_FLAG_SRIOV_ENABLED ||
 		    /* We cannot enable ATR if we have 2 or more tcs */
-		    (netdev_get_num_tc(netdev) > 1) ||
+		    (adapter->hw_tcs > 1) ||
 		    /* We cannot enable ATR if RSS is disabled */
 		    (adapter->ring_feature[RING_F_RSS].limit <= 1) ||
 		    /* A sample rate of 0 indicates ATR disabled */
@@ -9797,7 +9799,7 @@ static void *ixgbe_fwd_add(struct net_device *pdev, struct net_device *vdev)
 	struct ixgbe_fwd_adapter *fwd_adapter = NULL;
 	struct ixgbe_adapter *adapter = netdev_priv(pdev);
 	int used_pools = adapter->num_vfs + adapter->num_rx_pools;
-	int tcs = netdev_get_num_tc(pdev) ? : 1;
+	int tcs = adapter->hw_tcs ? : 1;
 	unsigned int limit;
 	int pool, err;
 
@@ -9843,7 +9845,7 @@ static void *ixgbe_fwd_add(struct net_device *pdev, struct net_device *vdev)
 	adapter->ring_feature[RING_F_RSS].limit = vdev->num_tx_queues;
 
 	/* Force reinit of ring allocation with VMDQ enabled */
-	err = ixgbe_setup_tc(pdev, netdev_get_num_tc(pdev));
+	err = ixgbe_setup_tc(pdev, adapter->hw_tcs);
 	if (err)
 		goto fwd_add_err;
 	fwd_adapter->pool = pool;
@@ -9888,7 +9890,7 @@ static void ixgbe_fwd_del(struct net_device *pdev, void *priv)
 		adapter->ring_feature[RING_F_RSS].limit = rss;
 	}
 
-	ixgbe_setup_tc(pdev, netdev_get_num_tc(pdev));
+	ixgbe_setup_tc(pdev, adapter->hw_tcs);
 	netdev_dbg(pdev, "pool %i:%i queues %i:%i\n",
 		   fwd_adapter->pool, adapter->num_rx_pools,
 		   fwd_adapter->rx_base_queue,
@@ -9961,7 +9963,7 @@ static int ixgbe_xdp_setup(struct net_device *dev, struct bpf_prog *prog)
 
 	/* If transitioning XDP modes reconfigure rings */
 	if (!!prog != !!old_prog) {
-		int err = ixgbe_setup_tc(dev, netdev_get_num_tc(dev));
+		int err = ixgbe_setup_tc(dev, adapter->hw_tcs);
 
 		if (err) {
 			rcu_assign_pointer(adapter->xdp_prog, old_prog);
