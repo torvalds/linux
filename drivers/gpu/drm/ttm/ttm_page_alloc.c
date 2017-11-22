@@ -223,6 +223,17 @@ static struct kobj_type ttm_pool_kobj_type = {
 static struct ttm_pool_manager *_manager;
 
 #ifndef CONFIG_X86
+static int set_pages_wb(struct page *page, int numpages)
+{
+#if IS_ENABLED(CONFIG_AGP)
+	int i;
+
+	for (i = 0; i < numpages; i++)
+		unmap_page_from_agp(page++);
+#endif
+	return 0;
+}
+
 static int set_pages_array_wb(struct page **pages, int addrinarray)
 {
 #if IS_ENABLED(CONFIG_AGP)
