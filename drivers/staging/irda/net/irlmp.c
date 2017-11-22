@@ -1668,7 +1668,7 @@ static int irlmp_slsap_inuse(__u8 slsap_sel)
 			IRDA_ASSERT(self->magic == LMP_LSAP_MAGIC,
 				    goto errlsap;);
 
-			if ((self->slsap_sel == slsap_sel)) {
+			if (self->slsap_sel == slsap_sel) {
 				pr_debug("Source LSAP selector=%02x in use\n",
 					 self->slsap_sel);
 				goto errlsap;
@@ -1693,7 +1693,7 @@ static int irlmp_slsap_inuse(__u8 slsap_sel)
 	self = (struct lsap_cb *) hashbin_get_first(irlmp->unconnected_lsaps);
 	while (self != NULL) {
 		IRDA_ASSERT(self->magic == LMP_LSAP_MAGIC, goto erruncon;);
-		if ((self->slsap_sel == slsap_sel)) {
+		if (self->slsap_sel == slsap_sel) {
 			pr_debug("Source LSAP selector=%02x in use (unconnected)\n",
 				 self->slsap_sel);
 			goto erruncon;
