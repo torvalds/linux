@@ -5379,14 +5379,13 @@ static int ixgbe_fwd_ring_up(struct net_device *vdev,
 	unsigned int rxbase, txbase, queues;
 	int i, baseq, err = 0;
 
-	if (!test_bit(accel->pool, &adapter->fwd_bitmask))
+	if (!test_bit(accel->pool, adapter->fwd_bitmask))
 		return 0;
 
 	baseq = accel->pool * adapter->num_rx_queues_per_pool;
-	netdev_dbg(vdev, "pool %i:%i queues %i:%i VSI bitmask %lx\n",
+	netdev_dbg(vdev, "pool %i:%i queues %i:%i\n",
 		   accel->pool, adapter->num_rx_pools,
-		   baseq, baseq + adapter->num_rx_queues_per_pool,
-		   adapter->fwd_bitmask);
+		   baseq, baseq + adapter->num_rx_queues_per_pool);
 
 	accel->netdev = vdev;
 	accel->rx_base_queue = rxbase = baseq;
@@ -6284,7 +6283,7 @@ static int ixgbe_sw_init(struct ixgbe_adapter *adapter,
 	}
 
 	/* PF holds first pool slot */
-	set_bit(0, &adapter->fwd_bitmask);
+	set_bit(0, adapter->fwd_bitmask);
 	set_bit(__IXGBE_DOWN, &adapter->state);
 
 	return 0;
@@ -8856,7 +8855,6 @@ int ixgbe_setup_tc(struct net_device *dev, u8 tc)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(dev);
 	struct ixgbe_hw *hw = &adapter->hw;
-	bool pools;
 
 	/* Hardware supports up to 8 traffic classes */
 	if (tc > adapter->dcb_cfg.num_tcs.pg_tcs)
@@ -8864,10 +8862,6 @@ int ixgbe_setup_tc(struct net_device *dev, u8 tc)
 
 	if (hw->mac.type == ixgbe_mac_82598EB && tc && tc < MAX_TRAFFIC_CLASS)
 		return -EINVAL;
-
-	pools = (find_first_zero_bit(&adapter->fwd_bitmask, 32) > 1);
-	if (tc && pools && adapter->num_rx_pools > IXGBE_MAX_DCBMACVLANS)
-		return -EBUSY;
 
 	/* Hardware has to reinitialize queues and interrupts to
 	 * match packet buffer alignment. Unfortunately, the
@@ -9807,6 +9801,7 @@ static void *ixgbe_fwd_add(struct net_device *pdev, struct net_device *vdev)
 	struct ixgbe_fwd_adapter *fwd_adapter = NULL;
 	struct ixgbe_adapter *adapter = netdev_priv(pdev);
 	int used_pools = adapter->num_vfs + adapter->num_rx_pools;
+	int tcs = netdev_get_num_tc(pdev) ? : 1;
 	unsigned int limit;
 	int pool, err;
 
@@ -9834,7 +9829,7 @@ static void *ixgbe_fwd_add(struct net_device *pdev, struct net_device *vdev)
 	}
 
 	if (((adapter->flags & IXGBE_FLAG_DCB_ENABLED) &&
-	      adapter->num_rx_pools > IXGBE_MAX_DCBMACVLANS - 1) ||
+	      adapter->num_rx_pools >= (MAX_TX_QUEUES / tcs)) ||
 	    (adapter->num_rx_pools > IXGBE_MAX_MACVLANS))
 		return ERR_PTR(-EBUSY);
 
@@ -9842,9 +9837,9 @@ static void *ixgbe_fwd_add(struct net_device *pdev, struct net_device *vdev)
 	if (!fwd_adapter)
 		return ERR_PTR(-ENOMEM);
 
-	pool = find_first_zero_bit(&adapter->fwd_bitmask, 32);
-	set_bit(pool, &adapter->fwd_bitmask);
-	limit = find_last_bit(&adapter->fwd_bitmask, 32);
+	pool = find_first_zero_bit(adapter->fwd_bitmask, adapter->num_rx_pools);
+	set_bit(pool, adapter->fwd_bitmask);
+	limit = find_last_bit(adapter->fwd_bitmask, adapter->num_rx_pools + 1);
 
 	/* Enable VMDq flag so device will be set in VM mode */
 	adapter->flags |= IXGBE_FLAG_VMDQ_ENABLED | IXGBE_FLAG_SRIOV_ENABLED;
@@ -9870,7 +9865,7 @@ fwd_add_err:
 	/* unwind counter and free adapter struct */
 	netdev_info(pdev,
 		    "%s: dfwd hardware acceleration failed\n", vdev->name);
-	clear_bit(pool, &adapter->fwd_bitmask);
+	clear_bit(pool, adapter->fwd_bitmask);
 	kfree(fwd_adapter);
 	return ERR_PTR(err);
 }
@@ -9881,9 +9876,9 @@ static void ixgbe_fwd_del(struct net_device *pdev, void *priv)
 	struct ixgbe_adapter *adapter = fwd_adapter->real_adapter;
 	unsigned int limit;
 
-	clear_bit(fwd_adapter->pool, &adapter->fwd_bitmask);
+	clear_bit(fwd_adapter->pool, adapter->fwd_bitmask);
 
-	limit = find_last_bit(&adapter->fwd_bitmask, 32);
+	limit = find_last_bit(adapter->fwd_bitmask, adapter->num_rx_pools);
 	adapter->ring_feature[RING_F_VMDQ].limit = limit + 1;
 	ixgbe_fwd_ring_down(fwd_adapter->netdev, fwd_adapter);
 
@@ -9898,11 +9893,11 @@ static void ixgbe_fwd_del(struct net_device *pdev, void *priv)
 	}
 
 	ixgbe_setup_tc(pdev, netdev_get_num_tc(pdev));
-	netdev_dbg(pdev, "pool %i:%i queues %i:%i VSI bitmask %lx\n",
+	netdev_dbg(pdev, "pool %i:%i queues %i:%i\n",
 		   fwd_adapter->pool, adapter->num_rx_pools,
 		   fwd_adapter->rx_base_queue,
-		   fwd_adapter->rx_base_queue + adapter->num_rx_queues_per_pool,
-		   adapter->fwd_bitmask);
+		   fwd_adapter->rx_base_queue +
+		   adapter->num_rx_queues_per_pool);
 	kfree(fwd_adapter);
 }
 

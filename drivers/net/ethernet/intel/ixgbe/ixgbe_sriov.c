@@ -290,10 +290,9 @@ static int ixgbe_pci_sriov_enable(struct pci_dev *dev, int num_vfs)
 {
 #ifdef CONFIG_PCI_IOV
 	struct ixgbe_adapter *adapter = pci_get_drvdata(dev);
-	int err = 0;
-	u8 num_tc;
-	int i;
 	int pre_existing_vfs = pci_num_vf(dev);
+	int err = 0, num_rx_pools, i, limit;
+	u8 num_tc;
 
 	if (pre_existing_vfs && pre_existing_vfs != num_vfs)
 		err = ixgbe_disable_sriov(adapter);
@@ -316,22 +315,14 @@ static int ixgbe_pci_sriov_enable(struct pci_dev *dev, int num_vfs)
 	 * other values out of range.
 	 */
 	num_tc = netdev_get_num_tc(adapter->netdev);
+	num_rx_pools = adapter->num_rx_pools;
+	limit = (num_tc > 4) ? IXGBE_MAX_VFS_8TC :
+		(num_tc > 1) ? IXGBE_MAX_VFS_4TC : IXGBE_MAX_VFS_1TC;
 
-	if (num_tc > 4) {
-		if ((num_vfs + adapter->num_rx_pools) > IXGBE_MAX_VFS_8TC) {
-			e_dev_err("Currently the device is configured with %d TCs, Creating more than %d VFs is not allowed\n", num_tc, IXGBE_MAX_VFS_8TC);
-			return -EPERM;
-		}
-	} else if ((num_tc > 1) && (num_tc <= 4)) {
-		if ((num_vfs + adapter->num_rx_pools) > IXGBE_MAX_VFS_4TC) {
-			e_dev_err("Currently the device is configured with %d TCs, Creating more than %d VFs is not allowed\n", num_tc, IXGBE_MAX_VFS_4TC);
-			return -EPERM;
-		}
-	} else {
-		if ((num_vfs + adapter->num_rx_pools) > IXGBE_MAX_VFS_1TC) {
-			e_dev_err("Currently the device is configured with %d TCs, Creating more than %d VFs is not allowed\n", num_tc, IXGBE_MAX_VFS_1TC);
-			return -EPERM;
-		}
+	if (num_vfs > (limit - num_rx_pools)) {
+		e_dev_err("Currently configured with %d TCs, and %d offloaded macvlans. Creating more than %d VFs is not allowed\n",
+			  num_tc, num_rx_pools - 1, limit - num_rx_pools);
+		return -EPERM;
 	}
 
 	err = __ixgbe_enable_sriov(adapter, num_vfs);

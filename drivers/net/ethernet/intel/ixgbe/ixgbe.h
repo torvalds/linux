@@ -397,8 +397,7 @@ enum ixgbe_ring_f_enum {
 #define MAX_XDP_QUEUES			(IXGBE_MAX_FDIR_INDICES + 1)
 #define IXGBE_MAX_L2A_QUEUES		4
 #define IXGBE_BAD_L2A_QUEUE		3
-#define IXGBE_MAX_MACVLANS		31
-#define IXGBE_MAX_DCBMACVLANS		8
+#define IXGBE_MAX_MACVLANS		63
 
 struct ixgbe_ring_feature {
 	u16 limit;	/* upper limit on feature indices */
@@ -767,7 +766,8 @@ struct ixgbe_adapter {
 #endif /*CONFIG_DEBUG_FS*/
 
 	u8 default_up;
-	unsigned long fwd_bitmask; /* Bitmask indicating in use pools */
+	/* Bitmask indicating in use pools */
+	DECLARE_BITMAP(fwd_bitmask, IXGBE_MAX_MACVLANS + 1);
 
 #define IXGBE_MAX_LINK_HANDLE 10
 	struct ixgbe_jump_table *jump_tables[IXGBE_MAX_LINK_HANDLE];
