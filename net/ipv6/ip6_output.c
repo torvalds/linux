@@ -1201,11 +1201,11 @@ static int ip6_setup_cork(struct sock *sk, struct inet_cork_full *cork,
 		if (WARN_ON(v6_cork->opt))
 			return -EINVAL;
 
-		v6_cork->opt = kzalloc(opt->tot_len, sk->sk_allocation);
+		v6_cork->opt = kzalloc(sizeof(*opt), sk->sk_allocation);
 		if (unlikely(!v6_cork->opt))
 			return -ENOBUFS;
 
-		v6_cork->opt->tot_len = opt->tot_len;
+		v6_cork->opt->tot_len = sizeof(*opt);
 		v6_cork->opt->opt_flen = opt->opt_flen;
 		v6_cork->opt->opt_nflen = opt->opt_nflen;
 

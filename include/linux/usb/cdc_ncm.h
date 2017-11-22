@@ -82,6 +82,7 @@
 
 /* Driver flags */
 #define CDC_NCM_FLAG_NDP_TO_END	0x02		/* NDP is placed at end of frame */
+#define CDC_NCM_FLAG_RESET_NTB16 0x08	/* set NDP16 one more time after altsetting switch */
 
 #define cdc_ncm_comm_intf_is_mbim(x)  ((x)->desc.bInterfaceSubClass == USB_CDC_SUBCLASS_MBIM && \
 				       (x)->desc.bInterfaceProtocol == USB_CDC_PROTO_NONE)

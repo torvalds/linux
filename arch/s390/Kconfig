@@ -346,9 +346,6 @@ config COMPAT
 config SYSVIPC_COMPAT
 	def_bool y if COMPAT && SYSVIPC
 
-config KEYS_COMPAT
-	def_bool y if COMPAT && KEYS
-
 config SMP
 	def_bool y
 	prompt "Symmetric multi-processing support"
