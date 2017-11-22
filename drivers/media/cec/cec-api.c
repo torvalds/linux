@@ -46,12 +46,11 @@ static inline struct cec_devnode *cec_devnode_data(struct file *filp)
 static unsigned int cec_poll(struct file *filp,
 			     struct poll_table_struct *poll)
 {
-	struct cec_devnode *devnode = cec_devnode_data(filp);
 	struct cec_fh *fh = filp->private_data;
 	struct cec_adapter *adap = fh->adap;
 	unsigned int res = 0;
 
-	if (!devnode->registered)
+	if (!cec_is_registered(adap))
 		return POLLERR | POLLHUP;
 	mutex_lock(&adap->lock);
 	if (adap->is_configured &&
@@ -486,13 +485,12 @@ static long cec_s_mode(struct cec_adapter *adap, struct cec_fh *fh,
 
 static long cec_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
-	struct cec_devnode *devnode = cec_devnode_data(filp);
 	struct cec_fh *fh = filp->private_data;
 	struct cec_adapter *adap = fh->adap;
 	bool block = !(filp->f_flags & O_NONBLOCK);
 	void __user *parg = (void __user *)arg;
 
-	if (!devnode->registered)
+	if (!cec_is_registered(adap))
 		return -ENODEV;
 
 	switch (cmd) {
@@ -626,9 +624,8 @@ static int cec_release(struct inode *inode, struct file *filp)
 
 	mutex_lock(&devnode->lock);
 	list_del(&fh->list);
-	if (list_empty(&devnode->fhs) &&
-	    !adap->needs_hpd &&
-	    adap->phys_addr == CEC_PHYS_ADDR_INVALID) {
+	if (cec_is_registered(adap) && list_empty(&devnode->fhs) &&
+	    !adap->needs_hpd && adap->phys_addr == CEC_PHYS_ADDR_INVALID) {
 		WARN_ON(adap->ops->adap_enable(adap, false));
 	}
 	mutex_unlock(&devnode->lock);

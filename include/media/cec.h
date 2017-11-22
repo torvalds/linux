@@ -230,6 +230,18 @@ static inline bool cec_is_sink(const struct cec_adapter *adap)
 	return adap->phys_addr == 0;
 }
 
+/**
+ * cec_is_registered() - is the CEC adapter registered?
+ *
+ * @adap:	the CEC adapter, may be NULL.
+ *
+ * Return: true if the adapter is registered, false otherwise.
+ */
+static inline bool cec_is_registered(const struct cec_adapter *adap)
+{
+	return adap && adap->devnode.registered;
+}
+
 #define cec_phys_addr_exp(pa) \
 	((pa) >> 12), ((pa) >> 8) & 0xf, ((pa) >> 4) & 0xf, (pa) & 0xf
 
