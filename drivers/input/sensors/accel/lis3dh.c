@@ -32,10 +32,10 @@
 #include <linux/sensor-dev.h>
 
 #define LIS3DH_INT_COUNT		(0x0E)
-#define LIS3DH_WHO_AM_I		(0x0F)
+#define LIS3DH_WHO_AM_I			(0x0F)
 
 /* full scale setting - register & mask */
-#define LIS3DH_TEMP_CFG_REG	(0x1F)
+#define LIS3DH_TEMP_CFG_REG		(0x1F)
 #define LIS3DH_CTRL_REG1		(0x20)
 #define LIS3DH_CTRL_REG2		(0x21)
 #define LIS3DH_CTRL_REG3		(0x22)
@@ -50,12 +50,18 @@
 #define LIS3DH_OUT_Y_H			(0x2b)
 #define LIS3DH_OUT_Z_L			(0x2c)
 #define LIS3DH_OUT_Z_H			(0x2d)
-#define LIS3DH_FIFO_CTRL_REG	(0x2E)
+#define LIS3DH_FIFO_CTRL_REG		(0x2E)
 
 #define LIS3DH_INT1_CFG			(0x30)
 #define LIS3DH_INT1_SRC			(0x31)
 #define LIS3DH_INT1_THS			(0x32)
-#define LIS3DH_INT1_DURATION	(0x33)
+#define LIS3DH_INT1_DURATION		(0x33)
+#define LIS3DH_TT_CFG			(0x38)
+#define LIS3DH_TT_THS			(0x3a)
+#define LIS3DH_TT_LIM			(0x3b)
+#define LIS3DH_TT_TLAT			(0x3c)
+#define LIS3DH_TT_TW			(0x3d)
+
 
 #define LIS3DH_DEVID			(0x33)
 #define LIS3DH_ACC_DISABLE		(0x08)
@@ -65,6 +71,15 @@
 /* LIS3DH */
 #define LIS3DH_PRECISION		16
 
+#define LIS3DH_ACC_ODR1			0x10  /* 1Hz output data rate */
+#define LIS3DH_ACC_ODR10		0x20  /* 10Hz output data rate */
+#define LIS3DH_ACC_ODR25		0x30  /* 25Hz output data rate */
+#define LIS3DH_ACC_ODR50		0x40  /* 50Hz output data rate */
+#define LIS3DH_ACC_ODR100		0x50  /* 100Hz output data rate */
+#define LIS3DH_ACC_ODR200		0x60  /* 200Hz output data rate */
+#define LIS3DH_ACC_ODR400		0x70  /* 400Hz output data rate */
+#define LIS3DH_ACC_ODR1250		0x90  /* 1250Hz output data rate */
+
 struct sensor_reg_data {
 	char reg;
 	char data;
@@ -72,24 +87,37 @@ struct sensor_reg_data {
 
 /****************operate according to sensor chip:start************/
 /* odr table, hz */
-static const int odr_table[7] = {
-	1, 10, 25, 50, 100, 200, 400
+struct odr_table {
+	unsigned int cutoff_ms;
+	unsigned int mask;
+};
+
+static struct odr_table lis3dh_acc_odr_table[] = {
+		{1,	LIS3DH_ACC_ODR1250},
+		{3,	LIS3DH_ACC_ODR400},
+		{5,	LIS3DH_ACC_ODR200},
+		{10,	LIS3DH_ACC_ODR100},
+		{20,	LIS3DH_ACC_ODR50},
+		{40,	LIS3DH_ACC_ODR25},
+		{100,	LIS3DH_ACC_ODR10},
+		{1000,	LIS3DH_ACC_ODR1},
 };
 
 static int lis3dh_select_odr(int want)
 {
 	int i;
-	int max_index = ARRAY_SIZE(odr_table);
+	int max_index = ARRAY_SIZE(lis3dh_acc_odr_table);
 
-	for (i = 0; i < max_index; i++) {
-		if (want <= odr_table[i])
-			return i + 1;
+	for (i = max_index - 1; i >= 0; i--) {
+		if ((lis3dh_acc_odr_table[i].cutoff_ms <= want) ||
+		    (i == 0))
+			break;
 	}
 
-	return max_index;
+	return lis3dh_acc_odr_table[i].mask;
 }
 
-static int sensor_active(struct i2c_client *client, int enable, int rate)
+static int sensor_active(struct i2c_client *client, int enable, int rate/*ms*/)
 {
 	struct sensor_private_data *sensor =
 	    (struct sensor_private_data *) i2c_get_clientdata(client);
@@ -101,17 +129,16 @@ static int sensor_active(struct i2c_client *client, int enable, int rate)
 		dev_err(&client->dev, "%s: rate == 0!!!\n", __func__);
 		return -1;
 	}
-	odr_rate = 1000 / rate;
 
 	sensor->ops->ctrl_data = sensor_read_reg(client, sensor->ops->ctrl_reg);
 	result = lis3dh_select_odr(odr_rate);
-	sensor->ops->ctrl_data &= 0x0f;
-	sensor->ops->ctrl_data |= (result << 4);
+	sensor->ops->ctrl_data |= result;
 
 	if (!enable) {
 		status = LIS3DH_ACC_DISABLE;
 		sensor->ops->ctrl_data |= status;
 	} else {
+		sensor->ops->init(client);
 		status = ~LIS3DH_ACC_DISABLE;
 		sensor->ops->ctrl_data &= status;
 	}
@@ -125,48 +152,32 @@ static int sensor_active(struct i2c_client *client, int enable, int rate)
 
 static int sensor_init(struct i2c_client *client)
 {
-	struct sensor_private_data *sensor =
-	    (struct sensor_private_data *) i2c_get_clientdata(client);
 	int result = 0;
 	int i;
 
 	struct sensor_reg_data reg_data[] = {
-		{LIS3DH_CTRL_REG2, 0X00},
-		{LIS3DH_CTRL_REG4, 0x08},
-		{LIS3DH_CTRL_REG6, 0x40},
+		{LIS3DH_CTRL_REG1, 0x07},
 		{LIS3DH_TEMP_CFG_REG, 0x00},
 		{LIS3DH_FIFO_CTRL_REG, 0x00},
-		{LIS3DH_INT1_CFG, 0xFF},
-		{LIS3DH_INT1_THS, 0x7F},
-		{LIS3DH_INT1_DURATION, 0x7F},
+		{LIS3DH_TT_THS, 0x00},
+		{LIS3DH_TT_LIM, 0x00},
+		{LIS3DH_TT_TLAT, 0x00},
+		{LIS3DH_TT_TW, 0x00},
+		{LIS3DH_TT_CFG, 0x00},
+		{LIS3DH_INT1_THS, 0x7f},
+		{LIS3DH_INT1_DURATION, 0x7f},
+		{LIS3DH_INT1_CFG, 0xff},
+		{LIS3DH_CTRL_REG2, 0x00},
+		{LIS3DH_CTRL_REG3, 0x40},
+		{LIS3DH_CTRL_REG4, 0x08},
+		{LIS3DH_CTRL_REG5, 0x08},
+		{LIS3DH_CTRL_REG6, 0x40},
 	};
-
-	result = sensor->ops->active(client, 0, sensor->pdata->poll_delay_ms);
-	if (result) {
-		dev_err(&client->dev, "%s:line=%d,error\n", __func__, __LINE__);
-		return result;
-	}
-
-	sensor->status_cur = SENSOR_OFF;
 
 	for (i = 0; i < (sizeof(reg_data) / sizeof(struct sensor_reg_data)); i++) {
 		result = sensor_write_reg(client, reg_data[i].reg, reg_data[i].data);
 		if (result) {
 			dev_err(&client->dev, "%s:line=%d,i=%d,error\n", __func__, __LINE__, i);
-			return result;
-		}
-	}
-
-	if (sensor->pdata->irq_enable) {
-		result = sensor_write_reg(client, LIS3DH_CTRL_REG3, 0x40);
-		if (result) {
-			dev_err(&client->dev, "%s:line=%d,error\n", __func__, __LINE__);
-			return result;
-		}
-
-		result = sensor_write_reg(client, LIS3DH_CTRL_REG5, 0x08);
-		if (result) {
-			dev_err(&client->dev, "%s:line=%d,error\n", __func__, __LINE__);
 			return result;
 		}
 	}
@@ -199,7 +210,6 @@ static int sensor_report_value(struct i2c_client *client)
 	short x, y, z;
 	struct sensor_axis axis;
 	char buffer[6] = {0};
-	char value = 0;
 
 	if (sensor->ops->read_len < 6) {
 		dev_err(&client->dev, "%s:lenth is error,len=%d\n", __func__, sensor->ops->read_len);
@@ -208,18 +218,14 @@ static int sensor_report_value(struct i2c_client *client)
 
 	memset(buffer, 0, 6);
 
-	value = sensor_read_reg(client, LIS3DH_STATUS_REG);
-	if ((value & 0x0f) == 0) {
-		dev_err(&client->dev, "%s:line=%d,value=0x%x,data is not ready\n", __func__, __LINE__, value);
-		return -1;
-	}
-
 	/* Data bytes from hardware xL, xH, yL, yH, zL, zH */
 	do {
-		*buffer = sensor->ops->read_reg;
+		*buffer = sensor->ops->read_reg | 0x80;
 		ret = sensor_rx_data(client, buffer, sensor->ops->read_len);
-		if (ret < 0)
+		if (ret < 0) {
+			dev_err(&client->dev, "lis3dh read data failed, ret = %d\n", ret);
 			return ret;
+		}
 	} while (0);
 
 	x = ((buffer[1] << 8) & 0xff00) + (buffer[0] & 0xFF);
@@ -237,7 +243,7 @@ static int sensor_report_value(struct i2c_client *client)
 	mutex_unlock(&(sensor->data_mutex));
 
 	if ((sensor->pdata->irq_enable) && (sensor->ops->int_status_reg >= 0))
-		value = sensor_read_reg(client, sensor->ops->int_status_reg);
+		sensor_read_reg(client, sensor->ops->int_status_reg);
 
 	return ret;
 }
@@ -246,7 +252,7 @@ struct sensor_operate gsensor_lis3dh_ops = {
 	.name				= "lis3dh",
 	.type				= SENSOR_TYPE_ACCEL,
 	.id_i2c				= ACCEL_ID_LIS3DH,
-	.read_reg				= (LIS3DH_OUT_X_L | 0x80),
+	.read_reg				= LIS3DH_OUT_X_L,
 	.read_len				= 6,
 	.id_reg				= LIS3DH_WHO_AM_I,
 	.id_data 				= LIS3DH_DEVID,
