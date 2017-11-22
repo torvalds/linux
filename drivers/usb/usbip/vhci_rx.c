@@ -31,7 +31,7 @@ struct urb *pickup_urb_and_free_priv(struct vhci_device *vdev, __u32 seqnum)
 			/* fall through */
 		case -ECONNRESET:
 			dev_info(&urb->dev->dev,
-				 "urb %p was unlinked %ssynchronuously.\n", urb,
+				 "urb %p was unlinked %ssynchronously.\n", urb,
 				 status == -ENOENT ? "" : "a");
 			break;
 		case -EINPROGRESS:
