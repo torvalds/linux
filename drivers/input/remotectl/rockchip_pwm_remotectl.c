@@ -390,6 +390,7 @@ static int rk_pwm_probe(struct platform_device *pdev)
 	struct resource *r;
 	struct input_dev *input;
 	struct clk *clk;
+	struct clk *p_clk;
 	struct cpumask cpumask;
 	struct irq_desc *desc;
 	int num;
@@ -400,6 +401,7 @@ static int rk_pwm_probe(struct platform_device *pdev)
 	int cpu_id;
 	int pwm_id;
 	int pwm_freq;
+	int count;
 
 	pr_err(".. rk pwm remotectl v1.1 init\n");
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -418,11 +420,24 @@ static int rk_pwm_probe(struct platform_device *pdev)
 	ddata->base = devm_ioremap_resource(&pdev->dev, r);
 	if (IS_ERR(ddata->base))
 		return PTR_ERR(ddata->base);
-	clk = devm_clk_get(&pdev->dev, NULL);
+	count = of_property_count_strings(np, "clock-names");
+	if (count == 2) {
+		clk = devm_clk_get(&pdev->dev, "pwm");
+		p_clk = devm_clk_get(&pdev->dev, "pclk");
+	} else {
+		clk = devm_clk_get(&pdev->dev, "pclk_pwm");
+		p_clk = clk;
+	}
 	if (IS_ERR(clk)) {
 		ret = PTR_ERR(clk);
 		if (ret != -EPROBE_DEFER)
 			dev_err(&pdev->dev, "Can't get bus clk: %d\n", ret);
+		return ret;
+	}
+	if (IS_ERR(p_clk)) {
+		ret = PTR_ERR(p_clk);
+		if (ret != -EPROBE_DEFER)
+			dev_err(&pdev->dev, "Can't get periph clk: %d\n", ret);
 		return ret;
 	}
 	ret = clk_prepare_enable(clk);
@@ -430,12 +445,17 @@ static int rk_pwm_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Can't enable bus clk: %d\n", ret);
 		return ret;
 	}
+	ret = clk_prepare_enable(p_clk);
+	if (ret) {
+		dev_err(&pdev->dev, "Can't enable bus periph clk: %d\n", ret);
+		goto error_clk;
+	}
 	platform_set_drvdata(pdev, ddata);
 	num = rk_remotectl_get_irkeybd_count(pdev);
 	if (num == 0) {
 		pr_err("remotectl: no ir keyboard add in dts!!\n");
 		ret = -EINVAL;
-		goto error_clk;
+		goto error_pclk;
 	}
 	ddata->maxkeybdnum = num;
 	remotectl_button = devm_kzalloc(&pdev->dev,
@@ -444,13 +464,13 @@ static int rk_pwm_probe(struct platform_device *pdev)
 	if (!remotectl_button) {
 		pr_err("failed to malloc remote button memory\n");
 		ret = -ENOMEM;
-		goto error_clk;
+		goto error_pclk;
 	}
 	input = devm_input_allocate_device(&pdev->dev);
 	if (!input) {
 		pr_err("failed to allocate input device\n");
 		ret = -ENOMEM;
-		goto error_clk;
+		goto error_pclk;
 	}
 	input->name = pdev->name;
 	input->phys = "gpio-keys/remotectl";
@@ -464,7 +484,7 @@ static int rk_pwm_probe(struct platform_device *pdev)
 	irq = platform_get_irq(pdev, 0);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "cannot find IRQ\n");
-		goto error_clk;
+		goto error_pclk;
 	}
 	ddata->irq = irq;
 	ddata->wakeup = 1;
@@ -553,6 +573,8 @@ end:
 	return 0;
 error_irq:
 	wake_lock_destroy(&ddata->remotectl_wake_lock);
+error_pclk:
+	clk_unprepare(p_clk);
 error_clk:
 	clk_unprepare(clk);
 	return ret;
