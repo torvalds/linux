@@ -1516,7 +1516,7 @@ _ASM_MACRO_2R_1S(mthc0, rt, rd, sel,
 #define _ASM_SET_XPA ".set\txpa\n\t"
 #endif
 
-#define __readx_32bit_c0_register(source)				\
+#define __readx_32bit_c0_register(source, sel)				\
 ({									\
 	unsigned int __res;						\
 									\
@@ -1524,23 +1524,23 @@ _ASM_MACRO_2R_1S(mthc0, rt, rd, sel,
 	"	.set	push					\n"	\
 	"	.set	mips32r2				\n"	\
 	_ASM_SET_XPA							\
-	"	mfhc0	%0, $%1					\n"	\
+	"	mfhc0	%0, " #source ", %1			\n"	\
 	"	.set	pop					\n"	\
 	: "=r" (__res)							\
-	: "i" (source));						\
+	: "i" (sel));							\
 	__res;								\
 })
 
-#define __writex_32bit_c0_register(register, value)			\
+#define __writex_32bit_c0_register(register, sel, value)		\
 do {									\
 	__asm__ __volatile__(						\
 	"	.set	push					\n"	\
 	"	.set	mips32r2				\n"	\
 	_ASM_SET_XPA							\
-	"	mthc0	%z0, $%1				\n"	\
+	"	mthc0	%z0, " #register ", %1			\n"	\
 	"	.set	pop					\n"	\
 	:								\
-	: "Jr" (value), "i" (register));				\
+	: "Jr" (value), "i" (sel));					\
 } while (0)
 
 #define read_c0_index()		__read_32bit_c0_register($0, 0)
@@ -1552,14 +1552,14 @@ do {									\
 #define read_c0_entrylo0()	__read_ulong_c0_register($2, 0)
 #define write_c0_entrylo0(val)	__write_ulong_c0_register($2, 0, val)
 
-#define readx_c0_entrylo0()	__readx_32bit_c0_register(2)
-#define writex_c0_entrylo0(val)	__writex_32bit_c0_register(2, val)
+#define readx_c0_entrylo0()	__readx_32bit_c0_register($2, 0)
+#define writex_c0_entrylo0(val)	__writex_32bit_c0_register($2, 0, val)
 
 #define read_c0_entrylo1()	__read_ulong_c0_register($3, 0)
 #define write_c0_entrylo1(val)	__write_ulong_c0_register($3, 0, val)
 
-#define readx_c0_entrylo1()	__readx_32bit_c0_register(3)
-#define writex_c0_entrylo1(val)	__writex_32bit_c0_register(3, val)
+#define readx_c0_entrylo1()	__readx_32bit_c0_register($3, 0)
+#define writex_c0_entrylo1(val)	__writex_32bit_c0_register($3, 0, val)
 
 #define read_c0_conf()		__read_32bit_c0_register($3, 0)
 #define write_c0_conf(val)	__write_32bit_c0_register($3, 0, val)
