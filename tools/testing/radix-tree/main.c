@@ -236,63 +236,6 @@ void copy_tag_check(void)
 	item_kill_tree(&tree);
 }
 
-static void __locate_check(struct radix_tree_root *tree, unsigned long index,
-			unsigned order)
-{
-	struct item *item;
-	unsigned long index2;
-
-	item_insert_order(tree, index, order);
-	item = item_lookup(tree, index);
-	index2 = find_item(tree, item);
-	if (index != index2) {
-		printv(2, "index %ld order %d inserted; found %ld\n",
-			index, order, index2);
-		abort();
-	}
-}
-
-static void __order_0_locate_check(void)
-{
-	RADIX_TREE(tree, GFP_KERNEL);
-	int i;
-
-	for (i = 0; i < 50; i++)
-		__locate_check(&tree, rand() % INT_MAX, 0);
-
-	item_kill_tree(&tree);
-}
-
-static void locate_check(void)
-{
-	RADIX_TREE(tree, GFP_KERNEL);
-	unsigned order;
-	unsigned long offset, index;
-
-	__order_0_locate_check();
-
-	for (order = 0; order < 20; order++) {
-		for (offset = 0; offset < (1 << (order + 3));
-		     offset += (1UL << order)) {
-			for (index = 0; index < (1UL << (order + 5));
-			     index += (1UL << order)) {
-				__locate_check(&tree, index + offset, order);
-			}
-			if (find_item(&tree, &tree) != -1)
-				abort();
-
-			item_kill_tree(&tree);
-		}
-	}
-
-	if (find_item(&tree, &tree) != -1)
-		abort();
-	__locate_check(&tree, -1, 0);
-	if (find_item(&tree, &tree) != -1)
-		abort();
-	item_kill_tree(&tree);
-}
-
 static void single_thread_tests(bool long_run)
 {
 	int i;
@@ -302,10 +245,6 @@ static void single_thread_tests(bool long_run)
 	multiorder_checks();
 	rcu_barrier();
 	printv(2, "after multiorder_check: %d allocated, preempt %d\n",
-		nr_allocated, preempt_count);
-	locate_check();
-	rcu_barrier();
-	printv(2, "after locate_check: %d allocated, preempt %d\n",
 		nr_allocated, preempt_count);
 	tag_check();
 	rcu_barrier();

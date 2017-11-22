@@ -631,6 +631,61 @@ static noinline void check_find(struct xarray *xa)
 	check_multi_find_2(xa);
 }
 
+/* See find_swap_entry() in mm/shmem.c */
+static noinline unsigned long xa_find_entry(struct xarray *xa, void *item)
+{
+	XA_STATE(xas, xa, 0);
+	unsigned int checked = 0;
+	void *entry;
+
+	rcu_read_lock();
+	xas_for_each(&xas, entry, ULONG_MAX) {
+		if (xas_retry(&xas, entry))
+			continue;
+		if (entry == item)
+			break;
+		checked++;
+		if ((checked % 4) != 0)
+			continue;
+		xas_pause(&xas);
+	}
+	rcu_read_unlock();
+
+	return entry ? xas.xa_index : -1;
+}
+
+static noinline void check_find_entry(struct xarray *xa)
+{
+#ifdef CONFIG_XARRAY_MULTI
+	unsigned int order;
+	unsigned long offset, index;
+
+	for (order = 0; order < 20; order++) {
+		for (offset = 0; offset < (1UL << (order + 3));
+		     offset += (1UL << order)) {
+			for (index = 0; index < (1UL << (order + 5));
+			     index += (1UL << order)) {
+				xa_store_order(xa, index, order,
+						xa_mk_value(index), GFP_KERNEL);
+				XA_BUG_ON(xa, xa_load(xa, index) !=
+						xa_mk_value(index));
+				XA_BUG_ON(xa, xa_find_entry(xa,
+						xa_mk_value(index)) != index);
+			}
+			XA_BUG_ON(xa, xa_find_entry(xa, xa) != -1);
+			xa_destroy(xa);
+		}
+	}
+#endif
+
+	XA_BUG_ON(xa, xa_find_entry(xa, xa) != -1);
+	xa_store_index(xa, ULONG_MAX, GFP_KERNEL);
+	XA_BUG_ON(xa, xa_find_entry(xa, xa) != -1);
+	XA_BUG_ON(xa, xa_find_entry(xa, xa_mk_value(LONG_MAX)) != -1);
+	xa_erase_index(xa, ULONG_MAX);
+	XA_BUG_ON(xa, !xa_empty(xa));
+}
+
 static noinline void check_move_small(struct xarray *xa, unsigned long idx)
 {
 	XA_STATE(xas, xa, 0);
@@ -972,6 +1027,7 @@ static int xarray_checks(void)
 	check_multi_store(&array);
 	check_xa_alloc();
 	check_find(&array);
+	check_find_entry(&array);
 	check_destroy(&array);
 	check_move(&array);
 	check_create_range(&array);
