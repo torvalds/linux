@@ -41,12 +41,10 @@ static void chacha20_docrypt(u32 *state, u8 *dst, const u8 *src,
 
 void crypto_chacha20_init(u32 *state, struct chacha20_ctx *ctx, u8 *iv)
 {
-	static const char constant[16] = "expand 32-byte k";
-
-	state[0]  = le32_to_cpuvp(constant +  0);
-	state[1]  = le32_to_cpuvp(constant +  4);
-	state[2]  = le32_to_cpuvp(constant +  8);
-	state[3]  = le32_to_cpuvp(constant + 12);
+	state[0]  = 0x61707865; /* "expa" */
+	state[1]  = 0x3320646e; /* "nd 3" */
+	state[2]  = 0x79622d32; /* "2-by" */
+	state[3]  = 0x6b206574; /* "te k" */
 	state[4]  = ctx->key[0];
 	state[5]  = ctx->key[1];
 	state[6]  = ctx->key[2];
