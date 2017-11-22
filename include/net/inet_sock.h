@@ -95,7 +95,7 @@ struct inet_request_sock {
 	kmemcheck_bitfield_end(flags);
 	u32                     ir_mark;
 	union {
-		struct ip_options_rcu	*opt;
+		struct ip_options_rcu __rcu	*ireq_opt;
 		struct sk_buff		*pktopts;
 	};
 };
@@ -111,6 +111,12 @@ static inline u32 inet_request_mark(const struct sock *sk, struct sk_buff *skb)
 		return skb->mark;
 
 	return sk->sk_mark;
+}
+
+static inline struct ip_options_rcu *ireq_opt_deref(const struct inet_request_sock *ireq)
+{
+	return rcu_dereference_check(ireq->ireq_opt,
+				     atomic_read(&ireq->req.rsk_refcnt) > 0);
 }
 
 struct inet_cork {

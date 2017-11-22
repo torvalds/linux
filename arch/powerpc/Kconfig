@@ -1082,11 +1082,6 @@ source "arch/powerpc/Kconfig.debug"
 
 source "security/Kconfig"
 
-config KEYS_COMPAT
-	bool
-	depends on COMPAT && KEYS
-	default y
-
 source "crypto/Kconfig"
 
 config PPC_LIB_RHEAP
