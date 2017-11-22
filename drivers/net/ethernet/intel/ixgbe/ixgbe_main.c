@@ -1749,9 +1749,15 @@ static void ixgbe_process_skb_fields(struct ixgbe_ring *rx_ring,
 		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), vid);
 	}
 
-	skb_record_rx_queue(skb, rx_ring->queue_index);
-
 	skb->protocol = eth_type_trans(skb, dev);
+
+	/* record Rx queue, or update MACVLAN statistics */
+	if (netif_is_ixgbe(dev))
+		skb_record_rx_queue(skb, rx_ring->queue_index);
+	else
+		macvlan_count_rx(netdev_priv(dev), skb->len + ETH_HLEN, true,
+				 (skb->pkt_type == PACKET_BROADCAST) ||
+				 (skb->pkt_type == PACKET_MULTICAST));
 }
 
 static void ixgbe_rx_skb(struct ixgbe_q_vector *q_vector,
