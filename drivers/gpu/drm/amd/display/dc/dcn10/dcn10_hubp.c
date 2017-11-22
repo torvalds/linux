@@ -42,13 +42,14 @@ void hubp1_set_blank(struct hubp *hubp, bool blank)
 {
 	struct dcn10_hubp *hubp1 = TO_DCN10_HUBP(hubp);
 	uint32_t blank_en = blank ? 1 : 0;
-	uint32_t reg_val = 0;
 
-	reg_val = REG_UPDATE_2(DCHUBP_CNTL,
+	REG_UPDATE_2(DCHUBP_CNTL,
 			HUBP_BLANK_EN, blank_en,
 			HUBP_TTU_DISABLE, blank_en);
 
 	if (blank) {
+		uint32_t reg_val = REG_READ(DCHUBP_CNTL);
+
 		if (reg_val) {
 			/* init sequence workaround: in case HUBP is
 			 * power gated, this wait would timeout.
