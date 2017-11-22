@@ -227,9 +227,6 @@ void ixgbe_enable_sriov(struct ixgbe_adapter *adapter, unsigned int max_vfs)
 int ixgbe_disable_sriov(struct ixgbe_adapter *adapter)
 {
 	unsigned int num_vfs = adapter->num_vfs, vf;
-	struct ixgbe_hw *hw = &adapter->hw;
-	u32 gpie;
-	u32 vmdctl;
 	int rss;
 
 	/* set num VFs to 0 to prevent access to vfinfo */
@@ -270,18 +267,6 @@ int ixgbe_disable_sriov(struct ixgbe_adapter *adapter)
 	/* disable iov and allow time for transactions to clear */
 	pci_disable_sriov(adapter->pdev);
 #endif
-
-	/* turn off device IOV mode */
-	IXGBE_WRITE_REG(hw, IXGBE_GCR_EXT, 0);
-	gpie = IXGBE_READ_REG(hw, IXGBE_GPIE);
-	gpie &= ~IXGBE_GPIE_VTMODE_MASK;
-	IXGBE_WRITE_REG(hw, IXGBE_GPIE, gpie);
-
-	/* set default pool back to 0 */
-	vmdctl = IXGBE_READ_REG(hw, IXGBE_VT_CTL);
-	vmdctl &= ~IXGBE_VT_CTL_POOL_MASK;
-	IXGBE_WRITE_REG(hw, IXGBE_VT_CTL, vmdctl);
-	IXGBE_WRITE_FLUSH(hw);
 
 	/* Disable VMDq flag so device will be set in VM mode */
 	if (adapter->ring_feature[RING_F_VMDQ].limit == 1) {
@@ -378,13 +363,15 @@ static int ixgbe_pci_sriov_disable(struct pci_dev *dev)
 	int err;
 #ifdef CONFIG_PCI_IOV
 	u32 current_flags = adapter->flags;
+	int prev_num_vf = pci_num_vf(dev);
 #endif
 
 	err = ixgbe_disable_sriov(adapter);
 
 	/* Only reinit if no error and state changed */
 #ifdef CONFIG_PCI_IOV
-	if (!err && current_flags != adapter->flags)
+	if (!err && (current_flags != adapter->flags ||
+		     prev_num_vf != pci_num_vf(dev)))
 		ixgbe_sriov_reinit(adapter);
 #endif
 
