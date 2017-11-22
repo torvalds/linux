@@ -30,6 +30,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+/memreserve/ 0x81000000 0x00200000;
+
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 
 /memreserve/ 0x84b00000 0x00000008;
