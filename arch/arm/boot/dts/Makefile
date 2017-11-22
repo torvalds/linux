@@ -543,6 +543,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += \
 	rk3288-miqi.dtb \
 	rk3288-phycore-rdk.dtb \
 	rk3288-popmetal.dtb \
+	rk3288-popmetal-android.dtb \
 	rk3288-r89.dtb \
 	rk3288-rock2-square.dtb \
 	rk3288-veyron-jaq.dtb \
