@@ -210,6 +210,8 @@ static int acpi_lid_notify_state(struct acpi_device *device, int state)
 	}
 	/* Send the platform triggered reliable event */
 	if (do_update) {
+		acpi_handle_debug(device->handle, "ACPI LID %s\n",
+				  state ? "open" : "closed");
 		input_report_switch(button->input, SW_LID, !state);
 		input_sync(button->input);
 		button->last_state = !!state;
