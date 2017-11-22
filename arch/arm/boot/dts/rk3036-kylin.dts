@@ -191,7 +191,8 @@
 				regulator-max-microvolt = <1350000>;
 				regulator-name = "vdd_arm";
 				regulator-state-mem {
-					regulator-off-in-suspend;
+					regulator-on-in-suspend;
+					regulator-suspend-microvolt = <1050000>;
 				};
 			};
 
