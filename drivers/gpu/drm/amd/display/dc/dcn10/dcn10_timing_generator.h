@@ -29,7 +29,7 @@
 #include "timing_generator.h"
 
 #define DCN10TG_FROM_TG(tg)\
-	container_of(tg, struct dcn10_timing_generator, base)
+	container_of(tg, struct optc, base)
 
 #define TG_COMMON_REG_LIST_DCN(inst) \
 	SRI(OTG_VSTARTUP_PARAM, OTG, inst),\
@@ -84,7 +84,7 @@
 	SRI(OTG_TEST_PATTERN_COLOR, OTG, inst)
 
 
-struct dcn_tg_registers {
+struct dcn_optc_registers {
 	uint32_t OTG_VERT_SYNC_CONTROL;
 	uint32_t OTG_MASTER_UPDATE_MODE;
 	uint32_t OTG_GSL_CONTROL;
@@ -348,20 +348,20 @@ struct dcn_tg_registers {
 	type OTG_GSL_FORCE_DELAY;\
 	type OTG_GSL_CHECK_ALL_FIELDS;
 
-struct dcn_tg_shift {
+struct dcn_optc_shift {
 	TG_REG_FIELD_LIST(uint8_t)
 };
 
-struct dcn_tg_mask {
+struct dcn_optc_mask {
 	TG_REG_FIELD_LIST(uint32_t)
 };
 
-struct dcn10_timing_generator {
+struct optc {
 	struct timing_generator base;
 
-	const struct dcn_tg_registers *tg_regs;
-	const struct dcn_tg_shift *tg_shift;
-	const struct dcn_tg_mask *tg_mask;
+	const struct dcn_optc_registers *tg_regs;
+	const struct dcn_optc_shift *tg_shift;
+	const struct dcn_optc_mask *tg_mask;
 
 	enum controller_id controller_id;
 
@@ -376,7 +376,7 @@ struct dcn10_timing_generator {
 	uint32_t min_v_blank_interlace;
 };
 
-void dcn10_timing_generator_init(struct dcn10_timing_generator *tg);
+void dcn10_timing_generator_init(struct optc *optc);
 
 struct dcn_otg_state {
 	uint32_t v_blank_start;
@@ -397,7 +397,77 @@ struct dcn_otg_state {
 	uint32_t otg_enabled;
 };
 
-void tgn10_read_otg_state(struct dcn10_timing_generator *tgn10,
+void optc1_read_otg_state(struct optc *optc1,
 		struct dcn_otg_state *s);
+
+bool optc1_validate_timing(
+	struct timing_generator *optc,
+	const struct dc_crtc_timing *timing);
+
+void optc1_program_timing(
+	struct timing_generator *optc,
+	const struct dc_crtc_timing *dc_crtc_timing,
+	bool use_vbios);
+
+void optc1_program_global_sync(
+		struct timing_generator *optc);
+
+bool optc1_disable_crtc(struct timing_generator *optc);
+
+bool optc1_is_counter_moving(struct timing_generator *optc);
+
+void optc1_get_position(struct timing_generator *optc,
+		struct crtc_position *position);
+
+uint32_t optc1_get_vblank_counter(struct timing_generator *optc);
+
+void optc1_get_crtc_scanoutpos(
+	struct timing_generator *optc,
+	uint32_t *v_blank_start,
+	uint32_t *v_blank_end,
+	uint32_t *h_position,
+	uint32_t *v_position);
+
+void optc1_set_early_control(
+	struct timing_generator *optc,
+	uint32_t early_cntl);
+
+void optc1_wait_for_state(struct timing_generator *optc,
+		enum crtc_state state);
+
+void optc1_set_blank(struct timing_generator *optc,
+		bool enable_blanking);
+
+bool optc1_is_blanked(struct timing_generator *optc);
+
+void optc1_program_blank_color(
+		struct timing_generator *optc,
+		const struct tg_color *black_color);
+
+bool optc1_did_triggered_reset_occur(
+	struct timing_generator *optc);
+
+void optc1_enable_reset_trigger(struct timing_generator *optc, int source_tg_inst);
+
+void optc1_disable_reset_trigger(struct timing_generator *optc);
+
+void optc1_lock(struct timing_generator *optc);
+
+void optc1_unlock(struct timing_generator *optc);
+
+void optc1_enable_optc_clock(struct timing_generator *optc, bool enable);
+
+void optc1_set_drr(
+	struct timing_generator *optc,
+	const struct drr_params *params);
+
+void optc1_set_static_screen_control(
+	struct timing_generator *optc,
+	uint32_t value);
+
+void optc1_program_stereo(struct timing_generator *optc,
+	const struct dc_crtc_timing *timing, struct crtc_stereo_flags *flags);
+
+bool optc1_is_stereo_left_eye(struct timing_generator *optc);
 
 #endif /* __DC_TIMING_GENERATOR_DCN10_H__ */

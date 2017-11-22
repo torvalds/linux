@@ -348,18 +348,18 @@ static const struct dcn_mpc_mask mpc_mask = {
 #define tg_regs(id)\
 [id] = {TG_COMMON_REG_LIST_DCN1_0(id)}
 
-static const struct dcn_tg_registers tg_regs[] = {
+static const struct dcn_optc_registers tg_regs[] = {
 	tg_regs(0),
 	tg_regs(1),
 	tg_regs(2),
 	tg_regs(3),
 };
 
-static const struct dcn_tg_shift tg_shift = {
+static const struct dcn_optc_shift tg_shift = {
 	TG_COMMON_MASK_SH_LIST_DCN1_0(__SHIFT)
 };
 
-static const struct dcn_tg_mask tg_mask = {
+static const struct dcn_optc_mask tg_mask = {
 	TG_COMMON_MASK_SH_LIST_DCN1_0(_MASK)
 };
 
@@ -553,8 +553,8 @@ static struct timing_generator *dcn10_timing_generator_create(
 		struct dc_context *ctx,
 		uint32_t instance)
 {
-	struct dcn10_timing_generator *tgn10 =
-		kzalloc(sizeof(struct dcn10_timing_generator), GFP_KERNEL);
+	struct optc *tgn10 =
+		kzalloc(sizeof(struct optc), GFP_KERNEL);
 
 	if (!tgn10)
 		return NULL;

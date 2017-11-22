@@ -159,7 +159,7 @@ void dcn10_log_hw_state(struct dc *dc)
 		struct timing_generator *tg = pool->timing_generators[i];
 		struct dcn_otg_state s = {0};
 
-		tgn10_read_otg_state(DCN10TG_FROM_TG(tg), &s);
+		optc1_read_otg_state(DCN10TG_FROM_TG(tg), &s);
 
 		//only print if OTG master is enabled
 		if ((s.otg_enabled & 1) == 0)
