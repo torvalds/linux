@@ -2461,8 +2461,7 @@ void amdgpu_device_fini(struct amdgpu_device *adev)
 	adev->shutdown = true;
 	if (adev->mode_info.mode_config_initialized)
 		drm_crtc_force_disable_all(adev->ddev);
-	/* evict vram memory */
-	amdgpu_bo_evict_vram(adev);
+
 	amdgpu_ib_pool_fini(adev);
 	amdgpu_fence_driver_fini(adev);
 	amdgpu_fbdev_fini(adev);
