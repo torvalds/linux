@@ -5428,10 +5428,11 @@ static int ixgbe_fwd_ring_up(struct net_device *vdev,
 		goto fwd_queue_err;
 
 	if (is_valid_ether_addr(vdev->dev_addr))
-		ixgbe_add_mac_filter(adapter, vdev->dev_addr, accel->pool);
+		ixgbe_add_mac_filter(adapter, vdev->dev_addr,
+				     VMDQ_P(accel->pool));
 
 	ixgbe_fwd_psrtype(accel);
-	ixgbe_macvlan_set_rx_mode(vdev, accel->pool, adapter);
+	ixgbe_macvlan_set_rx_mode(vdev, VMDQ_P(accel->pool), adapter);
 	return err;
 fwd_queue_err:
 	ixgbe_fwd_ring_down(vdev, accel);
@@ -9042,6 +9043,7 @@ static int get_macvlan_queue(struct net_device *upper, void *_data)
 static int handle_redirect_action(struct ixgbe_adapter *adapter, int ifindex,
 				  u8 *queue, u64 *action)
 {
+	struct ixgbe_ring_feature *vmdq = &adapter->ring_feature[RING_F_VMDQ];
 	unsigned int num_vfs = adapter->num_vfs, vf;
 	struct upper_walk_data data;
 	struct net_device *upper;
@@ -9050,11 +9052,7 @@ static int handle_redirect_action(struct ixgbe_adapter *adapter, int ifindex,
 	for (vf = 0; vf < num_vfs; ++vf) {
 		upper = pci_get_drvdata(adapter->vfinfo[vf].vfdev);
 		if (upper->ifindex == ifindex) {
-			if (adapter->num_rx_pools > 1)
-				*queue = vf * 2;
-			else
-				*queue = vf * adapter->num_rx_queues_per_pool;
-
+			*queue = vf * __ALIGN_MASK(1, ~vmdq->mask);
 			*action = vf + 1;
 			*action <<= ETHTOOL_RX_FLOW_SPEC_RING_VF_OFF;
 			return 0;
