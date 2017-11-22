@@ -9396,12 +9396,13 @@ static u64 vlv_residency_raw(struct drm_i915_private *dev_priv,
 			     const i915_reg_t reg)
 {
 	u32 lower, upper, tmp;
+	unsigned long flags;
 	int loop = 2;
 
 	/* The register accessed do not need forcewake. We borrow
 	 * uncore lock to prevent concurrent access to range reg.
 	 */
-	spin_lock_irq(&dev_priv->uncore.lock);
+	spin_lock_irqsave(&dev_priv->uncore.lock, flags);
 
 	/* vlv and chv residency counters are 40 bits in width.
 	 * With a control bit, we can choose between upper or lower
@@ -9432,7 +9433,7 @@ static u64 vlv_residency_raw(struct drm_i915_private *dev_priv,
 	 * now.
 	 */
 
-	spin_unlock_irq(&dev_priv->uncore.lock);
+	spin_unlock_irqrestore(&dev_priv->uncore.lock, flags);
 
 	return lower | (u64)upper << 8;
 }
@@ -9451,7 +9452,6 @@ u64 intel_rc6_residency_ns(struct drm_i915_private *dev_priv,
 		mul = 1000000;
 		div = dev_priv->czclk_freq;
 		time_hw = vlv_residency_raw(dev_priv, reg);
-
 	} else {
 		/* 833.33ns units on Gen9LP, 1.28us elsewhere. */
 		if (IS_GEN9_LP(dev_priv)) {
