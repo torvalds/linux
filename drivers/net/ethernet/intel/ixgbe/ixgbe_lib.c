@@ -920,11 +920,7 @@ static int ixgbe_alloc_q_vector(struct ixgbe_adapter *adapter,
 
 		/* apply Tx specific ring traits */
 		ring->count = adapter->tx_ring_count;
-		if (adapter->num_rx_pools > 1)
-			ring->queue_index =
-				txr_idx % adapter->num_rx_queues_per_pool;
-		else
-			ring->queue_index = txr_idx;
+		ring->queue_index = txr_idx;
 
 		/* assign ring to adapter */
 		adapter->tx_ring[txr_idx] = ring;
@@ -994,11 +990,7 @@ static int ixgbe_alloc_q_vector(struct ixgbe_adapter *adapter,
 #endif /* IXGBE_FCOE */
 		/* apply Rx specific ring traits */
 		ring->count = adapter->rx_ring_count;
-		if (adapter->num_rx_pools > 1)
-			ring->queue_index =
-				rxr_idx % adapter->num_rx_queues_per_pool;
-		else
-			ring->queue_index = rxr_idx;
+		ring->queue_index = rxr_idx;
 
 		/* assign ring to adapter */
 		adapter->rx_ring[rxr_idx] = ring;
