@@ -187,10 +187,6 @@ static const char *rcu_torture_writer_state_getname(void)
 	return rcu_torture_writer_state_names[i];
 }
 
-static int torture_runnable = IS_ENABLED(MODULE);
-module_param(torture_runnable, int, 0444);
-MODULE_PARM_DESC(torture_runnable, "Start rcutorture at boot");
-
 #if defined(CONFIG_RCU_BOOST) && !defined(CONFIG_HOTPLUG_CPU)
 #define rcu_can_boost() 1
 #else /* #if defined(CONFIG_RCU_BOOST) && !defined(CONFIG_HOTPLUG_CPU) */
@@ -1729,7 +1725,7 @@ rcu_torture_init(void)
 		&sched_ops, &tasks_ops,
 	};
 
-	if (!torture_init_begin(torture_type, verbose, &torture_runnable))
+	if (!torture_init_begin(torture_type, verbose))
 		return -EBUSY;
 
 	/* Process args and tell the world that the torturer is on the job. */

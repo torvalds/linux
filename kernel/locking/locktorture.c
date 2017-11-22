@@ -77,10 +77,6 @@ struct lock_stress_stats {
 	long n_lock_acquired;
 };
 
-int torture_runnable = IS_ENABLED(MODULE);
-module_param(torture_runnable, int, 0444);
-MODULE_PARM_DESC(torture_runnable, "Start locktorture at module init");
-
 /* Forward reference. */
 static void lock_torture_cleanup(void);
 
@@ -866,7 +862,7 @@ static int __init lock_torture_init(void)
 		&percpu_rwsem_lock_ops,
 	};
 
-	if (!torture_init_begin(torture_type, verbose, &torture_runnable))
+	if (!torture_init_begin(torture_type, verbose))
 		return -EBUSY;
 
 	/* Process args and tell the world that the torturer is on the job. */
