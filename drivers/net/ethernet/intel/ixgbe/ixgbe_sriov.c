@@ -78,12 +78,9 @@ static int __ixgbe_enable_sriov(struct ixgbe_adapter *adapter,
 	struct ixgbe_hw *hw = &adapter->hw;
 	int i;
 
-	adapter->flags |= IXGBE_FLAG_SRIOV_ENABLED;
-
 	/* Enable VMDq flag so device will be set in VM mode */
-	adapter->flags |= IXGBE_FLAG_VMDQ_ENABLED;
-	if (!adapter->ring_feature[RING_F_VMDQ].limit)
-		adapter->ring_feature[RING_F_VMDQ].limit = 1;
+	adapter->flags |= IXGBE_FLAG_SRIOV_ENABLED |
+			  IXGBE_FLAG_VMDQ_ENABLED;
 
 	/* Allocate memory for per VF control structures */
 	adapter->vfinfo = kcalloc(num_vfs, sizeof(struct vf_data_storage),

@@ -6129,6 +6129,7 @@ static int ixgbe_sw_init(struct ixgbe_adapter *adapter,
 	fdir = min_t(int, IXGBE_MAX_FDIR_INDICES, num_online_cpus());
 	adapter->ring_feature[RING_F_FDIR].limit = fdir;
 	adapter->fdir_pballoc = IXGBE_FDIR_PBALLOC_64K;
+	adapter->ring_feature[RING_F_VMDQ].limit = 1;
 #ifdef CONFIG_IXGBE_DCA
 	adapter->flags |= IXGBE_FLAG_DCA_CAPABLE;
 #endif
