@@ -6571,20 +6571,12 @@ int ixgbe_open(struct net_device *netdev)
 		goto err_req_irq;
 
 	/* Notify the stack of the actual queue counts. */
-	if (adapter->num_rx_pools > 1)
-		queues = adapter->num_rx_queues_per_pool;
-	else
-		queues = adapter->num_tx_queues;
-
+	queues = adapter->num_tx_queues;
 	err = netif_set_real_num_tx_queues(netdev, queues);
 	if (err)
 		goto err_set_queues;
 
-	if (adapter->num_rx_pools > 1 &&
-	    adapter->num_rx_queues > IXGBE_MAX_L2A_QUEUES)
-		queues = IXGBE_MAX_L2A_QUEUES;
-	else
-		queues = adapter->num_rx_queues;
+	queues = adapter->num_rx_queues;
 	err = netif_set_real_num_rx_queues(netdev, queues);
 	if (err)
 		goto err_set_queues;
@@ -8813,6 +8805,14 @@ int ixgbe_setup_tc(struct net_device *dev, u8 tc)
 		}
 	} else {
 		netdev_reset_tc(dev);
+
+		/* To support macvlan offload we have to use num_tc to
+		 * restrict the queues that can be used by the device.
+		 * By doing this we can avoid reporting a false number of
+		 * queues.
+		 */
+		if (!tc && adapter->num_rx_pools > 1)
+			netdev_set_num_tc(dev, 1);
 
 		if (adapter->hw.mac.type == ixgbe_mac_82598EB)
 			adapter->hw.fc.requested_mode = adapter->last_lfc_mode;

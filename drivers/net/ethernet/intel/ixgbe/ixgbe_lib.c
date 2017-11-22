@@ -619,6 +619,10 @@ static bool ixgbe_set_sriov_queues(struct ixgbe_adapter *adapter)
 	}
 
 #endif
+	/* populate TC0 for use by pool 0 */
+	netdev_set_tc_queue(adapter->netdev, 0,
+			    adapter->num_rx_queues_per_pool, 0);
+
 	return true;
 }
 
