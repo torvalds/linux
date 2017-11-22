@@ -1617,6 +1617,9 @@ static int i801_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	/* Default timeout in interrupt mode: 200 ms */
 	priv->adapter.timeout = HZ / 5;
 
+	if (dev->irq == IRQ_NOTCONNECTED)
+		priv->features &= ~FEATURE_IRQ;
+
 	if (priv->features & FEATURE_IRQ) {
 		u16 pcictl, pcists;
 
