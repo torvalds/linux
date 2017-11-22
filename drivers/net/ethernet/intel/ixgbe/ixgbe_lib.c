@@ -46,7 +46,7 @@ static bool ixgbe_cache_ring_dcb_sriov(struct ixgbe_adapter *adapter)
 #endif /* IXGBE_FCOE */
 	struct ixgbe_ring_feature *vmdq = &adapter->ring_feature[RING_F_VMDQ];
 	int i;
-	u16 reg_idx;
+	u16 reg_idx, pool;
 	u8 tcs = adapter->hw_tcs;
 
 	/* verify we have DCB queueing enabled before proceeding */
@@ -58,12 +58,16 @@ static bool ixgbe_cache_ring_dcb_sriov(struct ixgbe_adapter *adapter)
 		return false;
 
 	/* start at VMDq register offset for SR-IOV enabled setups */
+	pool = 0;
 	reg_idx = vmdq->offset * __ALIGN_MASK(1, ~vmdq->mask);
-	for (i = 0; i < adapter->num_rx_queues; i++, reg_idx++) {
+	for (i = 0, pool = 0; i < adapter->num_rx_queues; i++, reg_idx++) {
 		/* If we are greater than indices move to next pool */
-		if ((reg_idx & ~vmdq->mask) >= tcs)
+		if ((reg_idx & ~vmdq->mask) >= tcs) {
+			pool++;
 			reg_idx = __ALIGN_MASK(reg_idx, ~vmdq->mask);
+		}
 		adapter->rx_ring[i]->reg_idx = reg_idx;
+		adapter->rx_ring[i]->netdev = pool ? NULL : adapter->netdev;
 	}
 
 	reg_idx = vmdq->offset * __ALIGN_MASK(1, ~vmdq->mask);
@@ -92,6 +96,7 @@ static bool ixgbe_cache_ring_dcb_sriov(struct ixgbe_adapter *adapter)
 		for (i = fcoe->offset; i < adapter->num_rx_queues; i++) {
 			reg_idx = __ALIGN_MASK(reg_idx, ~vmdq->mask) + fcoe_tc;
 			adapter->rx_ring[i]->reg_idx = reg_idx;
+			adapter->rx_ring[i]->netdev = adapter->netdev;
 			reg_idx++;
 		}
 
@@ -182,6 +187,7 @@ static bool ixgbe_cache_ring_dcb(struct ixgbe_adapter *adapter)
 		for (i = 0; i < rss_i; i++, tx_idx++, rx_idx++) {
 			adapter->tx_ring[offset + i]->reg_idx = tx_idx;
 			adapter->rx_ring[offset + i]->reg_idx = rx_idx;
+			adapter->rx_ring[offset + i]->netdev = adapter->netdev;
 			adapter->tx_ring[offset + i]->dcb_tc = tc;
 			adapter->rx_ring[offset + i]->dcb_tc = tc;
 		}
@@ -206,14 +212,15 @@ static bool ixgbe_cache_ring_sriov(struct ixgbe_adapter *adapter)
 #endif /* IXGBE_FCOE */
 	struct ixgbe_ring_feature *vmdq = &adapter->ring_feature[RING_F_VMDQ];
 	struct ixgbe_ring_feature *rss = &adapter->ring_feature[RING_F_RSS];
+	u16 reg_idx, pool;
 	int i;
-	u16 reg_idx;
 
 	/* only proceed if VMDq is enabled */
 	if (!(adapter->flags & IXGBE_FLAG_VMDQ_ENABLED))
 		return false;
 
 	/* start at VMDq register offset for SR-IOV enabled setups */
+	pool = 0;
 	reg_idx = vmdq->offset * __ALIGN_MASK(1, ~vmdq->mask);
 	for (i = 0; i < adapter->num_rx_queues; i++, reg_idx++) {
 #ifdef IXGBE_FCOE
@@ -222,15 +229,20 @@ static bool ixgbe_cache_ring_sriov(struct ixgbe_adapter *adapter)
 			break;
 #endif
 		/* If we are greater than indices move to next pool */
-		if ((reg_idx & ~vmdq->mask) >= rss->indices)
+		if ((reg_idx & ~vmdq->mask) >= rss->indices) {
+			pool++;
 			reg_idx = __ALIGN_MASK(reg_idx, ~vmdq->mask);
+		}
 		adapter->rx_ring[i]->reg_idx = reg_idx;
+		adapter->rx_ring[i]->netdev = pool ? NULL : adapter->netdev;
 	}
 
 #ifdef IXGBE_FCOE
 	/* FCoE uses a linear block of queues so just assigning 1:1 */
-	for (; i < adapter->num_rx_queues; i++, reg_idx++)
+	for (; i < adapter->num_rx_queues; i++, reg_idx++) {
 		adapter->rx_ring[i]->reg_idx = reg_idx;
+		adapter->rx_ring[i]->netdev = adapter->netdev;
+	}
 
 #endif
 	reg_idx = vmdq->offset * __ALIGN_MASK(1, ~vmdq->mask);
@@ -267,8 +279,10 @@ static bool ixgbe_cache_ring_rss(struct ixgbe_adapter *adapter)
 {
 	int i, reg_idx;
 
-	for (i = 0; i < adapter->num_rx_queues; i++)
+	for (i = 0; i < adapter->num_rx_queues; i++) {
 		adapter->rx_ring[i]->reg_idx = i;
+		adapter->rx_ring[i]->netdev = adapter->netdev;
+	}
 	for (i = 0, reg_idx = 0; i < adapter->num_tx_queues; i++, reg_idx++)
 		adapter->tx_ring[i]->reg_idx = reg_idx;
 	for (i = 0; i < adapter->num_xdp_queues; i++, reg_idx++)
