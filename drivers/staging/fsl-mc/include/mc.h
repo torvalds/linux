@@ -325,7 +325,7 @@ static inline void mc_cmd_read_api_version(struct mc_command *cmd,
 struct fsl_mc_io {
 	struct device *dev;
 	u16 flags;
-	u16 portal_size;
+	u32 portal_size;
 	phys_addr_t portal_phys_addr;
 	void __iomem *portal_virt_addr;
 	struct fsl_mc_device *dpmcp_dev;
