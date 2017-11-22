@@ -206,7 +206,8 @@ static int rockchip_sound_da7219_init(struct snd_soc_pcm_runtime *rtd)
 		return ret;
 	}
 
-	snd_jack_set_key(rockchip_sound_jack.jack, SND_JACK_BTN_0, KEY_MEDIA);
+	snd_jack_set_key(
+		rockchip_sound_jack.jack, SND_JACK_BTN_0, KEY_PLAYPAUSE);
 	snd_jack_set_key(
 		rockchip_sound_jack.jack, SND_JACK_BTN_1, KEY_VOLUMEUP);
 	snd_jack_set_key(
