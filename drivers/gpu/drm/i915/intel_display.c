@@ -489,7 +489,7 @@ static const struct intel_limit intel_limits_bxt = {
 };
 
 static bool
-needs_modeset(struct drm_crtc_state *state)
+needs_modeset(const struct drm_crtc_state *state)
 {
 	return drm_atomic_crtc_needs_modeset(state);
 }
@@ -4833,7 +4833,7 @@ void hsw_enable_ips(const struct intel_crtc_state *crtc_state)
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 
-	if (!crtc->config->ips_enabled)
+	if (!crtc_state->ips_enabled)
 		return;
 
 	/*
@@ -4841,8 +4841,7 @@ void hsw_enable_ips(const struct intel_crtc_state *crtc_state)
 	 * This function is called from post_plane_update, which is run after
 	 * a vblank wait.
 	 */
-
-	assert_plane_enabled(to_intel_plane(crtc->base.primary));
+	WARN_ON(!(crtc_state->active_planes & ~BIT(PLANE_CURSOR)));
 
 	if (IS_BROADWELL(dev_priv)) {
 		mutex_lock(&dev_priv->pcu_lock);
@@ -4876,8 +4875,6 @@ void hsw_disable_ips(const struct intel_crtc_state *crtc_state)
 
 	if (!crtc_state->ips_enabled)
 		return;
-
-	assert_plane_enabled(to_intel_plane(crtc->base.primary));
 
 	if (IS_BROADWELL(dev_priv)) {
 		mutex_lock(&dev_priv->pcu_lock);
@@ -4932,14 +4929,6 @@ intel_post_enable_primary(struct drm_crtc *crtc,
 	int pipe = intel_crtc->pipe;
 
 	/*
-	 * FIXME IPS should be fine as long as one plane is
-	 * enabled, but in practice it seems to have problems
-	 * when going from primary only to sprite only and vice
-	 * versa.
-	 */
-	hsw_enable_ips(new_crtc_state);
-
-	/*
 	 * Gen2 reports pipe underruns whenever all planes are disabled.
 	 * So don't enable underrun reporting before at least some planes
 	 * are enabled.
@@ -4954,34 +4943,6 @@ intel_post_enable_primary(struct drm_crtc *crtc,
 	intel_check_pch_fifo_underruns(dev_priv);
 }
 
-/* FIXME move all this to pre_plane_update() with proper state tracking */
-static void
-intel_pre_disable_primary(struct drm_crtc *crtc,
-			  const struct intel_crtc_state *old_crtc_state)
-{
-	struct drm_device *dev = crtc->dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	int pipe = intel_crtc->pipe;
-
-	/*
-	 * Gen2 reports pipe underruns whenever all planes are disabled.
-	 * So diasble underrun reporting before all the planes get disabled.
-	 * FIXME: Need to fix the logic to work when we turn off all planes
-	 * but leave the pipe running.
-	 */
-	if (IS_GEN2(dev_priv))
-		intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, false);
-
-	/*
-	 * FIXME IPS should be fine as long as one plane is
-	 * enabled, but in practice it seems to have problems
-	 * when going from primary only to sprite only and vice
-	 * versa.
-	 */
-	hsw_disable_ips(old_crtc_state);
-}
-
 /* FIXME get rid of this and use pre_plane_update */
 static void
 intel_pre_disable_primary_noatomic(struct drm_crtc *crtc)
@@ -4991,7 +4952,14 @@ intel_pre_disable_primary_noatomic(struct drm_crtc *crtc)
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int pipe = intel_crtc->pipe;
 
-	intel_pre_disable_primary(crtc, to_intel_crtc_state(crtc->state));
+	/*
+	 * Gen2 reports pipe underruns whenever all planes are disabled.
+	 * So disable underrun reporting before all the planes get disabled.
+	 */
+	if (IS_GEN2(dev_priv))
+		intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, false);
+
+	hsw_disable_ips(to_intel_crtc_state(crtc->state));
 
 	/*
 	 * Vblank time updates from the shadow to live plane control register
@@ -5005,6 +4973,38 @@ intel_pre_disable_primary_noatomic(struct drm_crtc *crtc)
 	if (HAS_GMCH_DISPLAY(dev_priv) &&
 	    intel_set_memory_cxsr(dev_priv, false))
 		intel_wait_for_vblank(dev_priv, pipe);
+}
+
+static bool hsw_pre_update_disable_ips(const struct intel_crtc_state *old_crtc_state,
+				       const struct intel_crtc_state *new_crtc_state)
+{
+	if (!old_crtc_state->ips_enabled)
+		return false;
+
+	if (needs_modeset(&new_crtc_state->base))
+		return true;
+
+	return !new_crtc_state->ips_enabled;
+}
+
+static bool hsw_post_update_enable_ips(const struct intel_crtc_state *old_crtc_state,
+				       const struct intel_crtc_state *new_crtc_state)
+{
+	if (!new_crtc_state->ips_enabled)
+		return false;
+
+	if (needs_modeset(&new_crtc_state->base))
+		return true;
+
+	/*
+	 * We can't read out IPS on broadwell, assume the worst and
+	 * forcibly enable IPS on the first fastset.
+	 */
+	if (new_crtc_state->update_pipe &&
+	    old_crtc_state->base.adjusted_mode.private_flags & I915_MODE_FLAG_INHERITED)
+		return true;
+
+	return !old_crtc_state->ips_enabled;
 }
 
 static void intel_post_plane_update(struct intel_crtc_state *old_crtc_state)
@@ -5022,6 +5022,9 @@ static void intel_post_plane_update(struct intel_crtc_state *old_crtc_state)
 
 	if (pipe_config->update_wm_post && pipe_config->base.active)
 		intel_update_watermarks(crtc);
+
+	if (hsw_post_update_enable_ips(old_crtc_state, pipe_config))
+		hsw_enable_ips(pipe_config);
 
 	if (old_pri_state) {
 		struct intel_plane_state *primary_state =
@@ -5053,6 +5056,9 @@ static void intel_pre_plane_update(struct intel_crtc_state *old_crtc_state,
 	struct intel_atomic_state *old_intel_state =
 		to_intel_atomic_state(old_state);
 
+	if (hsw_pre_update_disable_ips(old_crtc_state, pipe_config))
+		hsw_disable_ips(old_crtc_state);
+
 	if (old_pri_state) {
 		struct intel_plane_state *primary_state =
 			intel_atomic_get_new_plane_state(old_intel_state,
@@ -5061,10 +5067,13 @@ static void intel_pre_plane_update(struct intel_crtc_state *old_crtc_state,
 			to_intel_plane_state(old_pri_state);
 
 		intel_fbc_pre_update(crtc, pipe_config, primary_state);
-
-		if (old_primary_state->base.visible &&
+		/*
+		 * Gen2 reports pipe underruns whenever all planes are disabled.
+		 * So disable underrun reporting before all the planes get disabled.
+		 */
+		if (IS_GEN2(dev_priv) && old_primary_state->base.visible &&
 		    (modeset || !primary_state->base.visible))
-			intel_pre_disable_primary(&crtc->base, old_crtc_state);
+			intel_set_cpu_fifo_underrun_reporting(dev_priv, crtc->pipe, false);
 	}
 
 	/*
@@ -6195,18 +6204,20 @@ retry:
 	return ret;
 }
 
-static bool pipe_config_supports_ips(struct drm_i915_private *dev_priv,
-				     struct intel_crtc_state *pipe_config)
+bool hsw_crtc_state_ips_capable(const struct intel_crtc_state *crtc_state)
 {
-	if (pipe_config->ips_force_disable)
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+
+	/* IPS only exists on ULT machines and is tied to pipe A. */
+	if (!hsw_crtc_supports_ips(crtc))
 		return false;
 
-	if (pipe_config->pipe_bpp > 24)
+	if (!i915_modparams.enable_ips)
 		return false;
 
-	/* HSW can handle pixel rate up to cdclk? */
-	if (IS_HASWELL(dev_priv))
-		return true;
+	if (crtc_state->pipe_bpp > 24)
+		return false;
 
 	/*
 	 * We compare against max which means we must take
@@ -6215,19 +6226,41 @@ static bool pipe_config_supports_ips(struct drm_i915_private *dev_priv,
 	 *
 	 * Should measure whether using a lower cdclk w/o IPS
 	 */
-	return pipe_config->pixel_rate <=
-		dev_priv->max_cdclk_freq * 95 / 100;
+	if (IS_BROADWELL(dev_priv) &&
+	    crtc_state->pixel_rate > dev_priv->max_cdclk_freq * 95 / 100)
+		return false;
+
+	return true;
 }
 
-static void hsw_compute_ips_config(struct intel_crtc *crtc,
-				   struct intel_crtc_state *pipe_config)
+static bool hsw_compute_ips_config(struct intel_crtc_state *crtc_state)
 {
-	struct drm_device *dev = crtc->base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct drm_i915_private *dev_priv =
+		to_i915(crtc_state->base.crtc->dev);
+	struct intel_atomic_state *intel_state =
+		to_intel_atomic_state(crtc_state->base.state);
 
-	pipe_config->ips_enabled = i915_modparams.enable_ips &&
-		hsw_crtc_supports_ips(crtc) &&
-		pipe_config_supports_ips(dev_priv, pipe_config);
+	if (!hsw_crtc_state_ips_capable(crtc_state))
+		return false;
+
+	if (crtc_state->ips_force_disable)
+		return false;
+
+	/*
+	 * FIXME IPS should be fine as long as one plane is
+	 * enabled, but in practice it seems to have problems
+	 * when going from primary only to sprite only and vice
+	 * versa.
+	 */
+	if (!(crtc_state->active_planes & BIT(PLANE_PRIMARY)))
+		return false;
+
+	/* pixel rate mustn't exceed 95% of cdclk with IPS on BDW */
+	if (IS_BROADWELL(dev_priv) &&
+	    crtc_state->pixel_rate > intel_state->cdclk.logical.cdclk * 95 / 100)
+		return false;
+
+	return true;
 }
 
 static bool intel_crtc_supports_double_wide(const struct intel_crtc *crtc)
@@ -6344,9 +6377,6 @@ static int intel_crtc_compute_config(struct intel_crtc *crtc,
 		return -EINVAL;
 
 	intel_crtc_compute_pixel_rate(pipe_config);
-
-	if (HAS_IPS(dev_priv))
-		hsw_compute_ips_config(crtc, pipe_config);
 
 	if (pipe_config->has_pch_encoder)
 		return ironlake_fdi_compute_config(crtc, pipe_config);
@@ -9183,6 +9213,19 @@ static bool haswell_get_pipe_config(struct intel_crtc *crtc,
 			ironlake_get_pfit_config(crtc, pipe_config);
 	}
 
+	if (hsw_crtc_supports_ips(crtc)) {
+		if (IS_HASWELL(dev_priv))
+			pipe_config->ips_enabled = I915_READ(IPS_CTL) & IPS_ENABLE;
+		else {
+			/*
+			 * We cannot readout IPS state on broadwell, set to
+			 * true so we can set it to a defined state on first
+			 * commit.
+			 */
+			pipe_config->ips_enabled = true;
+		}
+	}
+
 	if (pipe_config->cpu_transcoder != TRANSCODER_EDP &&
 	    !transcoder_is_dsi(pipe_config->cpu_transcoder)) {
 		pipe_config->pixel_multiplier =
@@ -10434,6 +10477,9 @@ static int intel_crtc_atomic_check(struct drm_crtc *crtc,
 			ret = intel_atomic_setup_scalers(dev_priv, intel_crtc,
 							 pipe_config);
 	}
+
+	if (HAS_IPS(dev_priv))
+		pipe_config->ips_enabled = hsw_compute_ips_config(pipe_config);
 
 	return ret;
 }
