@@ -221,14 +221,6 @@ struct target_type {
 #define dm_target_is_wildcard(type)	((type)->features & DM_TARGET_WILDCARD)
 
 /*
- * Some targets need to be sent the same WRITE bio severals times so
- * that they can send copies of it to different devices.  This function
- * examines any supplied bio and returns the number of copies of it the
- * target requires.
- */
-typedef unsigned (*dm_num_write_bios_fn) (struct dm_target *ti, struct bio *bio);
-
-/*
  * A target implements own bio data integrity.
  */
 #define DM_TARGET_INTEGRITY		0x00000010
@@ -290,13 +282,6 @@ struct dm_target {
 	 * target to use.
 	 */
 	unsigned per_io_data_size;
-
-	/*
-	 * If defined, this function is called to find out how many
-	 * duplicate bios should be sent to the target when writing
-	 * data.
-	 */
-	dm_num_write_bios_fn num_write_bios;
 
 	/* target specific data */
 	void *private;
