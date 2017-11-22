@@ -528,6 +528,33 @@ tsd_get(uint_t key)
 EXPORT_SYMBOL(tsd_get);
 
 /*
+ * tsd_get_by_thread - get thread specific data for specified thread
+ * @key: lookup key
+ * @thread: thread to lookup
+ *
+ * Caller must prevent racing tsd_create() or tsd_destroy().  This
+ * implementation is designed to be fast and scalable, it does not
+ * lock the entire table only a single hash bin.
+ */
+void *
+tsd_get_by_thread(uint_t key, kthread_t *thread)
+{
+	tsd_hash_entry_t *entry;
+
+	ASSERT3P(tsd_hash_table, !=, NULL);
+
+	if ((key == 0) || (key > TSD_KEYS_MAX))
+		return (NULL);
+
+	entry = tsd_hash_search(tsd_hash_table, key, thread->pid);
+	if (entry == NULL)
+		return (NULL);
+
+	return (entry->he_value);
+}
+EXPORT_SYMBOL(tsd_get_by_thread);
+
+/*
  * tsd_create - create thread specific data key
  * @keyp: lookup key address
  * @dtor: destructor called during tsd_destroy() or tsd_exit()

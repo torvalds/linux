@@ -33,7 +33,6 @@
 #include <sys/zfs_vfsops.h>
 #endif
 #include <sys/avl.h>
-#include <sys/list.h>
 
 #ifdef	__cplusplus
 extern "C" {
@@ -100,24 +99,24 @@ typedef struct zfs_fuid_info {
 
 #ifdef _KERNEL
 struct znode;
-extern uid_t zfs_fuid_map_id(zfs_sb_t *, uint64_t, cred_t *, zfs_fuid_type_t);
+extern uid_t zfs_fuid_map_id(zfsvfs_t *, uint64_t, cred_t *, zfs_fuid_type_t);
 extern void zfs_fuid_node_add(zfs_fuid_info_t **, const char *, uint32_t,
     uint64_t, uint64_t, zfs_fuid_type_t);
-extern void zfs_fuid_destroy(zfs_sb_t *);
-extern uint64_t zfs_fuid_create_cred(zfs_sb_t *, zfs_fuid_type_t,
+extern void zfs_fuid_destroy(zfsvfs_t *);
+extern uint64_t zfs_fuid_create_cred(zfsvfs_t *, zfs_fuid_type_t,
     cred_t *, zfs_fuid_info_t **);
-extern uint64_t zfs_fuid_create(zfs_sb_t *, uint64_t, cred_t *, zfs_fuid_type_t,
+extern uint64_t zfs_fuid_create(zfsvfs_t *, uint64_t, cred_t *, zfs_fuid_type_t,
     zfs_fuid_info_t **);
 extern void zfs_fuid_map_ids(struct znode *zp, cred_t *cr,
     uid_t *uid, uid_t *gid);
 extern zfs_fuid_info_t *zfs_fuid_info_alloc(void);
 extern void zfs_fuid_info_free(zfs_fuid_info_t *);
-extern boolean_t zfs_groupmember(zfs_sb_t *, uint64_t, cred_t *);
-void zfs_fuid_sync(zfs_sb_t *, dmu_tx_t *);
-extern int zfs_fuid_find_by_domain(zfs_sb_t *, const char *domain,
+extern boolean_t zfs_groupmember(zfsvfs_t *, uint64_t, cred_t *);
+void zfs_fuid_sync(zfsvfs_t *, dmu_tx_t *);
+extern int zfs_fuid_find_by_domain(zfsvfs_t *, const char *domain,
     char **retdomain, boolean_t addok);
-extern const char *zfs_fuid_find_by_idx(zfs_sb_t *zsb, uint32_t idx);
-extern void zfs_fuid_txhold(zfs_sb_t *zsb, dmu_tx_t *tx);
+extern const char *zfs_fuid_find_by_idx(zfsvfs_t *zfsvfs, uint32_t idx);
+extern void zfs_fuid_txhold(zfsvfs_t *zfsvfs, dmu_tx_t *tx);
 #endif
 
 char *zfs_fuid_idx_domain(avl_tree_t *, uint32_t);

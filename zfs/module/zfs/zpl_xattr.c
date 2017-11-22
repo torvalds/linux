@@ -50,7 +50,7 @@
  * are the security.selinux xattrs which are less than 100 bytes and
  * exist for every file when xattr labeling is enabled.
  *
- * The Linux xattr implemenation has been written to take advantage of
+ * The Linux xattr implementation has been written to take advantage of
  * this typical usage.  When the dataset property 'xattr=sa' is set,
  * then xattrs will be preferentially stored as System Attributes (SA).
  * This allows tiny xattrs (~100 bytes) to be stored with the dnode and
@@ -237,7 +237,7 @@ ssize_t
 zpl_xattr_list(struct dentry *dentry, char *buffer, size_t buffer_size)
 {
 	znode_t *zp = ITOZ(dentry->d_inode);
-	zfs_sb_t *zsb = ZTOZSB(zp);
+	zfsvfs_t *zfsvfs = ZTOZSB(zp);
 	xattr_filldir_t xf = { buffer_size, 0, buffer, dentry };
 	cred_t *cr = CRED();
 	fstrans_cookie_t cookie;
@@ -245,10 +245,10 @@ zpl_xattr_list(struct dentry *dentry, char *buffer, size_t buffer_size)
 
 	crhold(cr);
 	cookie = spl_fstrans_mark();
-	rrm_enter_read(&(zsb)->z_teardown_lock, FTAG);
+	rrm_enter_read(&(zfsvfs)->z_teardown_lock, FTAG);
 	rw_enter(&zp->z_xattr_lock, RW_READER);
 
-	if (zsb->z_use_sa && zp->z_is_sa) {
+	if (zfsvfs->z_use_sa && zp->z_is_sa) {
 		error = zpl_xattr_list_sa(&xf);
 		if (error)
 			goto out;
@@ -262,7 +262,7 @@ zpl_xattr_list(struct dentry *dentry, char *buffer, size_t buffer_size)
 out:
 
 	rw_exit(&zp->z_xattr_lock);
-	rrm_exit(&(zsb)->z_teardown_lock, FTAG);
+	rrm_exit(&(zfsvfs)->z_teardown_lock, FTAG);
 	spl_fstrans_unmark(cookie);
 	crfree(cr);
 
@@ -349,12 +349,12 @@ __zpl_xattr_get(struct inode *ip, const char *name, void *value, size_t size,
     cred_t *cr)
 {
 	znode_t *zp = ITOZ(ip);
-	zfs_sb_t *zsb = ZTOZSB(zp);
+	zfsvfs_t *zfsvfs = ZTOZSB(zp);
 	int error;
 
 	ASSERT(RW_LOCK_HELD(&zp->z_xattr_lock));
 
-	if (zsb->z_use_sa && zp->z_is_sa) {
+	if (zfsvfs->z_use_sa && zp->z_is_sa) {
 		error = zpl_xattr_get_sa(ip, name, value, size);
 		if (error != -ENOENT)
 			goto out;
@@ -376,14 +376,14 @@ static int
 __zpl_xattr_where(struct inode *ip, const char *name, int *where, cred_t *cr)
 {
 	znode_t *zp = ITOZ(ip);
-	zfs_sb_t *zsb = ZTOZSB(zp);
+	zfsvfs_t *zfsvfs = ZTOZSB(zp);
 	int error;
 
 	ASSERT(where);
 	ASSERT(RW_LOCK_HELD(&zp->z_xattr_lock));
 
 	*where = XATTR_NOENT;
-	if (zsb->z_use_sa && zp->z_is_sa) {
+	if (zfsvfs->z_use_sa && zp->z_is_sa) {
 		error = zpl_xattr_get_sa(ip, name, NULL, 0);
 		if (error >= 0)
 			*where |= XATTR_IN_SA;
@@ -411,18 +411,18 @@ static int
 zpl_xattr_get(struct inode *ip, const char *name, void *value, size_t size)
 {
 	znode_t *zp = ITOZ(ip);
-	zfs_sb_t *zsb = ZTOZSB(zp);
+	zfsvfs_t *zfsvfs = ZTOZSB(zp);
 	cred_t *cr = CRED();
 	fstrans_cookie_t cookie;
 	int error;
 
 	crhold(cr);
 	cookie = spl_fstrans_mark();
-	rrm_enter_read(&(zsb)->z_teardown_lock, FTAG);
+	rrm_enter_read(&(zfsvfs)->z_teardown_lock, FTAG);
 	rw_enter(&zp->z_xattr_lock, RW_READER);
 	error = __zpl_xattr_get(ip, name, value, size, cr);
 	rw_exit(&zp->z_xattr_lock);
-	rrm_exit(&(zsb)->z_teardown_lock, FTAG);
+	rrm_exit(&(zfsvfs)->z_teardown_lock, FTAG);
 	spl_fstrans_unmark(cookie);
 	crfree(cr);
 
@@ -465,7 +465,7 @@ zpl_xattr_set_dir(struct inode *ip, const char *name, const void *value,
 	/* Remove a specific name xattr when value is set to NULL. */
 	if (value == NULL) {
 		if (xip)
-			error = -zfs_remove(dxip, (char *)name, cr);
+			error = -zfs_remove(dxip, (char *)name, cr, 0);
 
 		goto out;
 	}
@@ -495,6 +495,12 @@ zpl_xattr_set_dir(struct inode *ip, const char *name, const void *value,
 		error = wrote;
 
 out:
+
+	if (error == 0) {
+		ip->i_ctime = current_time(ip);
+		zfs_mark_inode_dirty(ip);
+	}
+
 	if (vap)
 		kmem_free(vap, sizeof (vattr_t));
 
@@ -576,7 +582,7 @@ zpl_xattr_set(struct inode *ip, const char *name, const void *value,
     size_t size, int flags)
 {
 	znode_t *zp = ITOZ(ip);
-	zfs_sb_t *zsb = ZTOZSB(zp);
+	zfsvfs_t *zfsvfs = ZTOZSB(zp);
 	cred_t *cr = CRED();
 	fstrans_cookie_t cookie;
 	int where;
@@ -584,7 +590,7 @@ zpl_xattr_set(struct inode *ip, const char *name, const void *value,
 
 	crhold(cr);
 	cookie = spl_fstrans_mark();
-	rrm_enter_read(&(zsb)->z_teardown_lock, FTAG);
+	rrm_enter_read(&(zfsvfs)->z_teardown_lock, FTAG);
 	rw_enter(&ITOZ(ip)->z_xattr_lock, RW_WRITER);
 
 	/*
@@ -615,8 +621,8 @@ zpl_xattr_set(struct inode *ip, const char *name, const void *value,
 	}
 
 	/* Preferentially store the xattr as a SA for better performance */
-	if (zsb->z_use_sa && zp->z_is_sa &&
-	    (zsb->z_xattr_sa || (value == NULL && where & XATTR_IN_SA))) {
+	if (zfsvfs->z_use_sa && zp->z_is_sa &&
+	    (zfsvfs->z_xattr_sa || (value == NULL && where & XATTR_IN_SA))) {
 		error = zpl_xattr_set_sa(ip, name, value, size, flags, cr);
 		if (error == 0) {
 			/*
@@ -637,7 +643,7 @@ zpl_xattr_set(struct inode *ip, const char *name, const void *value,
 		zpl_xattr_set_sa(ip, name, NULL, 0, 0, cr);
 out:
 	rw_exit(&ITOZ(ip)->z_xattr_lock);
-	rrm_exit(&(zsb)->z_teardown_lock, FTAG);
+	rrm_exit(&(zfsvfs)->z_teardown_lock, FTAG);
 	spl_fstrans_unmark(cookie);
 	crfree(cr);
 	ASSERT3S(error, <=, 0);
@@ -1510,8 +1516,8 @@ zpl_posix_acl_free(void *arg)
 	}
 
 	if (refire)
-		taskq_dispatch_delay(system_taskq, zpl_posix_acl_free, NULL,
-		    TQ_SLEEP, new_time);
+		taskq_dispatch_delay(system_delay_taskq, zpl_posix_acl_free,
+		    NULL, TQ_SLEEP, new_time);
 
 	while (freelist) {
 		a = freelist;
@@ -1536,7 +1542,7 @@ zpl_posix_acl_release_impl(struct posix_acl *acl)
 	*prev = a;
 	/* if it was empty before, schedule the free task */
 	if (prev == &acl_rel_head)
-		taskq_dispatch_delay(system_taskq, zpl_posix_acl_free, NULL,
-		    TQ_SLEEP, ddi_get_lbolt() + ACL_REL_SCHED);
+		taskq_dispatch_delay(system_delay_taskq, zpl_posix_acl_free,
+		    NULL, TQ_SLEEP, ddi_get_lbolt() + ACL_REL_SCHED);
 }
 #endif

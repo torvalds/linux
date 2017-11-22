@@ -29,6 +29,7 @@ KERNEL_H = \
 	$(top_srcdir)/include/sys/dirent.h \
 	$(top_srcdir)/include/sys/disp.h \
 	$(top_srcdir)/include/sys/dkio.h \
+	$(top_srcdir)/include/sys/dkioc_free_util.h \
 	$(top_srcdir)/include/sys/dklabel.h \
 	$(top_srcdir)/include/sys/dnlc.h \
 	$(top_srcdir)/include/sys/dumphdr.h \

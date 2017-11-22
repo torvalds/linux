@@ -40,6 +40,7 @@
 #include <sys/int_limits.h>
 #include <sys/nvpair.h>
 #include "zfs_comutil.h"
+#include <sys/zfs_ratelimit.h>
 
 /*
  * Are there allocatable vdevs?
@@ -206,10 +207,85 @@ const char *zfs_history_event_names[ZFS_NUM_LEGACY_HISTORY_EVENTS] = {
 	"pool split",
 };
 
+/*
+ * Initialize rate limit struct
+ *
+ * rl:		zfs_ratelimit_t struct
+ * burst:	Number to allow in an interval before rate limiting
+ * interval:	Interval time in seconds
+ */
+void
+zfs_ratelimit_init(zfs_ratelimit_t *rl, unsigned int burst,
+    unsigned int interval)
+{
+	rl->count = 0;
+	rl->start = 0;
+	rl->interval = interval;
+	rl->burst = burst;
+	mutex_init(&rl->lock, NULL, MUTEX_DEFAULT, NULL);
+}
+
+/*
+ * Finalize rate limit struct
+ *
+ * rl:		zfs_ratelimit_t struct
+ */
+void
+zfs_ratelimit_fini(zfs_ratelimit_t *rl)
+{
+	mutex_destroy(&rl->lock);
+}
+
+/*
+ * Re-implementation of the kernel's __ratelimit() function
+ *
+ * We had to write our own rate limiter because the kernel's __ratelimit()
+ * function annoyingly prints out how many times it rate limited to the kernel
+ * logs (and there's no way to turn it off):
+ *
+ * 	__ratelimit: 59 callbacks suppressed
+ *
+ * If the kernel ever allows us to disable these prints, we should go back to
+ * using __ratelimit() instead.
+ *
+ * Return values are the same as __ratelimit():
+ *
+ * 0: If we're rate limiting
+ * 1: If we're not rate limiting.
+ */
+int
+zfs_ratelimit(zfs_ratelimit_t *rl)
+{
+	hrtime_t now;
+	hrtime_t elapsed;
+	int rc = 1;
+
+	mutex_enter(&rl->lock);
+
+	now = gethrtime();
+	elapsed = now - rl->start;
+
+	rl->count++;
+	if (NSEC2SEC(elapsed) >= rl->interval) {
+		rl->start = now;
+		rl->count = 0;
+	} else {
+		if (rl->count >= rl->burst) {
+			rc = 0;	/* We're ratelimiting */
+		}
+	}
+	mutex_exit(&rl->lock);
+
+	return (rc);
+}
+
 #if defined(_KERNEL) && defined(HAVE_SPL)
 EXPORT_SYMBOL(zfs_allocatable_devs);
 EXPORT_SYMBOL(zpool_get_rewind_policy);
 EXPORT_SYMBOL(zfs_zpl_version_map);
 EXPORT_SYMBOL(zfs_spa_version_map);
 EXPORT_SYMBOL(zfs_history_event_names);
+EXPORT_SYMBOL(zfs_ratelimit_init);
+EXPORT_SYMBOL(zfs_ratelimit_fini);
+EXPORT_SYMBOL(zfs_ratelimit);
 #endif

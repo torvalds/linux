@@ -63,6 +63,14 @@ AC_DEFUN([SPL_AC_META], [
 			if test -n "${_release}"; then
 				SPL_META_RELEASE=${_release}
 				_spl_ac_meta_type="git describe"
+			else
+				_match="${SPL_META_NAME}-${SPL_META_VERSION}-${SPL_META_RELEASE}"
+	                        _alias=$(git describe --match=${_match} 2>/dev/null)
+	                        _release=$(echo ${_alias}|cut -f3- -d'-'|sed 's/-/_/g')
+				if test -n "${_release}"; then
+					SPL_META_RELEASE=${_release}
+					_spl_ac_meta_type="git describe"
+				fi
 			fi
 		fi
 

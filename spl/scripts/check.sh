@@ -28,7 +28,7 @@
 prog=check.sh
 spl_module=../module/spl/spl.ko
 splat_module=../module/splat/splat.ko
-splat_cmd=../cmd/splat
+splat_cmd=../cmd/splat/splat
 verbose=
 
 die() {

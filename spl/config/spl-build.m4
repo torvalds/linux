@@ -50,10 +50,12 @@ AC_DEFUN([SPL_AC_CONFIG_KERNEL], [
 	SPL_AC_KMEM_CACHE_ALLOCFLAGS
 	SPL_AC_WAIT_ON_BIT
 	SPL_AC_INODE_LOCK
-	SPL_AC_MUTEX_OWNER
 	SPL_AC_GROUP_INFO_GID
+	SPL_AC_KMEM_CACHE_CREATE_USERCOPY
 	SPL_AC_WAIT_QUEUE_ENTRY_T
 	SPL_AC_WAIT_QUEUE_HEAD_ENTRY
+	SPL_AC_KERNEL_WRITE
+	SPL_AC_KERNEL_READ
 ])
 
 AC_DEFUN([SPL_AC_MODULE_SYMVERS], [
@@ -114,6 +116,7 @@ AC_DEFUN([SPL_AC_KERNEL], [
 		if test "$kernelsrc" = "NONE"; then
 			kernsrcver=NONE
 		fi
+		withlinux=yes
 	fi
 
 	AC_MSG_RESULT([$kernelsrc])
@@ -126,7 +129,7 @@ AC_DEFUN([SPL_AC_KERNEL], [
 
 	AC_MSG_CHECKING([kernel build directory])
 	if test -z "$kernelbuild"; then
-		if test -e "/lib/modules/$(uname -r)/build"; then
+		if test x$withlinux != xyes -a -e "/lib/modules/$(uname -r)/build"; then
 			kernelbuild=`readlink -f /lib/modules/$(uname -r)/build`
 		elif test -d ${kernelsrc}-obj/${target_cpu}/${target_cpu}; then
 			kernelbuild=${kernelsrc}-obj/${target_cpu}/${target_cpu}
@@ -1585,35 +1588,6 @@ AC_DEFUN([SPL_AC_INODE_LOCK], [
 ])
 
 dnl #
-dnl # Check whether mutex has owner with task_struct type.
-dnl #
-dnl # Note that before Linux 3.0, mutex owner is of type thread_info.
-dnl #
-dnl # Note that in Linux 3.18, the condition for owner is changed from
-dnl # defined(CONFIG_DEBUG_MUTEXES) || defined(CONFIG_SMP) to
-dnl # defined(CONFIG_DEBUG_MUTEXES) || defined(CONFIG_MUTEX_SPIN_ON_OWNER)
-dnl #
-AC_DEFUN([SPL_AC_MUTEX_OWNER], [
-	AC_MSG_CHECKING([whether mutex has owner])
-	tmp_flags="$EXTRA_KCFLAGS"
-	EXTRA_KCFLAGS="-Werror"
-	SPL_LINUX_TRY_COMPILE([
-		#include <linux/mutex.h>
-		#include <linux/spinlock.h>
-	],[
-		DEFINE_MUTEX(m);
-		struct task_struct *t __attribute__ ((unused));
-		t = m.owner;
-	],[
-		AC_MSG_RESULT(yes)
-		AC_DEFINE(HAVE_MUTEX_OWNER, 1, [yes])
-	],[
-		AC_MSG_RESULT(no)
-	])
-	EXTRA_KCFLAGS="$tmp_flags"
-])
-
-dnl #
 dnl # 4.9 API change
 dnl # group_info changed from 2d array via >blocks to 1d array via ->gid
 dnl #
@@ -1629,6 +1603,42 @@ AC_DEFUN([SPL_AC_GROUP_INFO_GID], [
 	],[
 		AC_MSG_RESULT(yes)
 		AC_DEFINE(HAVE_GROUP_INFO_GID, 1, [group_info->gid exists])
+	],[
+		AC_MSG_RESULT(no)
+	])
+	EXTRA_KCFLAGS="$tmp_flags"
+])
+
+dnl #
+dnl # grsecurity API change,
+dnl # kmem_cache_create() with SLAB_USERCOPY flag replaced by
+dnl # kmem_cache_create_usercopy().
+dnl #
+AC_DEFUN([SPL_AC_KMEM_CACHE_CREATE_USERCOPY], [
+	AC_MSG_CHECKING([whether kmem_cache_create_usercopy() exists])
+	tmp_flags="$EXTRA_KCFLAGS"
+	EXTRA_KCFLAGS="-Werror"
+	SPL_LINUX_TRY_COMPILE([
+		#include <linux/slab.h>
+		static void ctor(void *foo)
+		{
+			// fake ctor
+		}
+	],[
+		struct kmem_cache *skc_linux_cache;
+		const char *name = "test";
+		size_t size = 4096;
+		size_t align = 8;
+		unsigned long flags = 0;
+		size_t useroffset = 0;
+		size_t usersize = size - useroffset;
+
+		skc_linux_cache = kmem_cache_create_usercopy(
+			name, size, align, flags, useroffset, usersize, ctor);
+	],[
+		AC_MSG_RESULT(yes)
+		AC_DEFINE(HAVE_KMEM_CACHE_CREATE_USERCOPY, 1,
+				[kmem_cache_create_usercopy() exists])
 	],[
 		AC_MSG_RESULT(no)
 	])
@@ -1686,4 +1696,62 @@ AC_DEFUN([SPL_AC_WAIT_QUEUE_HEAD_ENTRY], [
 	],[
 		AC_MSG_RESULT(no)
 	])
+])
+
+dnl #
+dnl # 4.14 API change
+dnl # kernel_write() which was introduced in 3.9 was updated to take
+dnl # the offset as a pointer which is needed by vn_rdwr().
+dnl #
+AC_DEFUN([SPL_AC_KERNEL_WRITE], [
+	AC_MSG_CHECKING([whether kernel_write() takes loff_t pointer])
+	tmp_flags="$EXTRA_KCFLAGS"
+	EXTRA_KCFLAGS="-Werror"
+	SPL_LINUX_TRY_COMPILE([
+		#include <linux/fs.h>
+	],[
+		struct file *file = NULL;
+		const void *buf = NULL;
+		size_t count = 0;
+		loff_t *pos = NULL;
+		ssize_t ret;
+
+		ret = kernel_write(file, buf, count, pos);
+	],[
+		AC_MSG_RESULT(yes)
+		AC_DEFINE(HAVE_KERNEL_WRITE_PPOS, 1,
+		    [kernel_write() take loff_t pointer])
+	],[
+		AC_MSG_RESULT(no)
+	])
+	EXTRA_KCFLAGS="$tmp_flags"
+])
+
+dnl #
+dnl # 4.14 API change
+dnl # kernel_read() which has existed for forever was updated to take
+dnl # the offset as a pointer which is needed by vn_rdwr().
+dnl #
+AC_DEFUN([SPL_AC_KERNEL_READ], [
+	AC_MSG_CHECKING([whether kernel_read() takes loff_t pointer])
+	tmp_flags="$EXTRA_KCFLAGS"
+	EXTRA_KCFLAGS="-Werror"
+	SPL_LINUX_TRY_COMPILE([
+		#include <linux/fs.h>
+	],[
+		struct file *file = NULL;
+		void *buf = NULL;
+		size_t count = 0;
+		loff_t *pos = NULL;
+		ssize_t ret;
+
+		ret = kernel_read(file, buf, count, pos);
+	],[
+		AC_MSG_RESULT(yes)
+		AC_DEFINE(HAVE_KERNEL_READ_PPOS, 1,
+		    [kernel_read() take loff_t pointer])
+	],[
+		AC_MSG_RESULT(no)
+	])
+	EXTRA_KCFLAGS="$tmp_flags"
 ])

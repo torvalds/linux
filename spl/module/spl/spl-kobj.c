@@ -57,10 +57,15 @@ kobj_close_file(struct _buf *file)
 EXPORT_SYMBOL(kobj_close_file);
 
 int
-kobj_read_file(struct _buf *file, char *buf, ssize_t size, offset_t off)
+kobj_read_file(struct _buf *file, char *buf, unsigned size, unsigned off)
 {
-	return (vn_rdwr(UIO_READ, file->vp, buf, size, off,
-	       UIO_SYSSPACE, 0, RLIM64_INFINITY, 0, NULL));
+	ssize_t resid;
+
+	if (vn_rdwr(UIO_READ, file->vp, buf, size, (offset_t)off,
+	    UIO_SYSSPACE, 0, 0, 0, &resid) != 0)
+		return (-1);
+
+	return (size - resid);
 } /* kobj_read_file() */
 EXPORT_SYMBOL(kobj_read_file);
 

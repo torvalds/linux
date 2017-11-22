@@ -31,6 +31,7 @@
 
 #include <linux/blkdev.h>
 #include <linux/elevator.h>
+#include <linux/backing-dev.h>
 
 #ifndef HAVE_FMODE_T
 typedef unsigned __bitwise__ fmode_t;
@@ -128,6 +129,16 @@ __blk_queue_max_segments(struct request_queue *q, unsigned short max_segments)
 }
 #endif
 
+static inline void
+blk_queue_set_read_ahead(struct request_queue *q, unsigned long ra_pages)
+{
+#ifdef HAVE_BLK_QUEUE_BDI_DYNAMIC
+	q->backing_dev_info->ra_pages = ra_pages;
+#else
+	q->backing_dev_info.ra_pages = ra_pages;
+#endif
+}
+
 #ifndef HAVE_GET_DISK_RO
 static inline int
 get_disk_ro(struct gendisk *disk)
@@ -145,6 +156,7 @@ get_disk_ro(struct gendisk *disk)
 #define	BIO_BI_SECTOR(bio)	(bio)->bi_iter.bi_sector
 #define	BIO_BI_SIZE(bio)	(bio)->bi_iter.bi_size
 #define	BIO_BI_IDX(bio)		(bio)->bi_iter.bi_idx
+#define	BIO_BI_SKIP(bio)	(bio)->bi_iter.bi_bvec_done
 #define	bio_for_each_segment4(bv, bvp, b, i)	\
 	bio_for_each_segment((bv), (b), (i))
 typedef struct bvec_iter bvec_iterator_t;
@@ -152,6 +164,7 @@ typedef struct bvec_iter bvec_iterator_t;
 #define	BIO_BI_SECTOR(bio)	(bio)->bi_sector
 #define	BIO_BI_SIZE(bio)	(bio)->bi_size
 #define	BIO_BI_IDX(bio)		(bio)->bi_idx
+#define	BIO_BI_SKIP(bio)	(0)
 #define	bio_for_each_segment4(bv, bvp, b, i)	\
 	bio_for_each_segment((bvp), (b), (i))
 typedef int bvec_iterator_t;
@@ -439,8 +452,6 @@ bio_set_flush(struct bio *bio)
 	bio_set_op_attrs(bio, 0, WRITE_BARRIER);
 #else
 #error	"Allowing the build will cause bio_set_flush requests to be ignored."
-	"Please file an issue report at: "
-	"https://github.com/zfsonlinux/zfs/issues/new"
 #endif
 }
 
@@ -478,8 +489,7 @@ bio_is_flush(struct bio *bio)
 #elif defined(HAVE_BIO_RW_BARRIER)
 	return (bio->bi_rw & (1 << BIO_RW_BARRIER));
 #else
-#error	"Allowing the build will cause flush requests to be ignored. Please "
-	"file an issue report at: https://github.com/zfsonlinux/zfs/issues/new"
+#error	"Allowing the build will cause flush requests to be ignored."
 #endif
 }
 
@@ -498,8 +508,7 @@ bio_is_fua(struct bio *bio)
 #elif defined(REQ_FUA)
 	return (bio->bi_rw & REQ_FUA);
 #else
-#error	"Allowing the build will cause fua requests to be ignored. Please "
-	"file an issue report at: https://github.com/zfsonlinux/zfs/issues/new"
+#error	"Allowing the build will cause fua requests to be ignored."
 #endif
 }
 
@@ -530,9 +539,8 @@ bio_is_discard(struct bio *bio)
 #elif defined(REQ_DISCARD)
 	return (bio->bi_rw & REQ_DISCARD);
 #else
-#error	"Allowing the build will cause discard requests to become writes "
-	"potentially triggering the DMU_MAX_ACCESS assertion. Please file "
-	"an issue report at: https://github.com/zfsonlinux/zfs/issues/new"
+/* potentially triggering the DMU_MAX_ACCESS assertion.  */
+#error	"Allowing the build will cause discard requests to become writes."
 #endif
 }
 
@@ -590,9 +598,26 @@ blk_queue_discard_granularity(struct request_queue *q, unsigned int dg)
  */
 #define	VDEV_HOLDER			((void *)0x2401de7)
 
-#ifndef HAVE_GENERIC_IO_ACCT
-#define	generic_start_io_acct(rw, slen, part)		((void)0)
-#define	generic_end_io_acct(rw, part, start_jiffies)	((void)0)
+static inline void
+blk_generic_start_io_acct(struct request_queue *q, int rw,
+    unsigned long sectors, struct hd_struct *part)
+{
+#if defined(HAVE_GENERIC_IO_ACCT_3ARG)
+	generic_start_io_acct(rw, sectors, part);
+#elif defined(HAVE_GENERIC_IO_ACCT_4ARG)
+	generic_start_io_acct(q, rw, sectors, part);
 #endif
+}
+
+static inline void
+blk_generic_end_io_acct(struct request_queue *q, int rw,
+    struct hd_struct *part, unsigned long start_time)
+{
+#if defined(HAVE_GENERIC_IO_ACCT_3ARG)
+	generic_end_io_acct(rw, part, start_time);
+#elif defined(HAVE_GENERIC_IO_ACCT_4ARG)
+	generic_end_io_acct(q, rw, part, start_time);
+#endif
+}
 
 #endif /* _ZFS_BLKDEV_H */

@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012, 2014 by Delphix. All rights reserved.
+ * Copyright (c) 2012, 2015 by Delphix. All rights reserved.
  * Copyright (c) 2013 Steven Hartland. All rights reserved.
  */
 
@@ -181,7 +181,7 @@ dsl_dataset_user_hold_sync_one_impl(nvlist_t *tmpholds, dsl_dataset_t *ds,
 }
 
 typedef struct zfs_hold_cleanup_arg {
-	char zhca_spaname[MAXNAMELEN];
+	char zhca_spaname[ZFS_MAX_DATASET_NAME_LEN];
 	uint64_t zhca_spa_load_guid;
 	nvlist_t *zhca_holds;
 } zfs_hold_cleanup_arg_t;
@@ -342,7 +342,7 @@ static int
 dsl_dataset_hold_obj_string(dsl_pool_t *dp, const char *dsobj, void *tag,
     dsl_dataset_t **dsp)
 {
-	return (dsl_dataset_hold_obj(dp, strtonum(dsobj, NULL), tag, dsp));
+	return (dsl_dataset_hold_obj(dp, zfs_strtonum(dsobj, NULL), tag, dsp));
 }
 
 static int
@@ -580,7 +580,7 @@ dsl_dataset_user_release_impl(nvlist_t *holds, nvlist_t *errlist,
 			error = dsl_dataset_hold_obj_string(tmpdp,
 			    nvpair_name(pair), FTAG, &ds);
 			if (error == 0) {
-				char name[MAXNAMELEN];
+				char name[ZFS_MAX_DATASET_NAME_LEN];
 				dsl_dataset_name(ds, name);
 				dsl_pool_config_exit(tmpdp, FTAG);
 				dsl_dataset_rele(ds, FTAG);

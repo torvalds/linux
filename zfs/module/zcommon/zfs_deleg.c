@@ -22,6 +22,7 @@
  * Copyright (c) 2007, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright 2010 Nexenta Systems, Inc. All rights reserved.
  * Copyright (c) 2013 by Delphix. All rights reserved.
+ * Copyright 2016 Igor Kozhukhov <ikozhukhov@gmail.com>
  */
 
 #include <sys/zfs_context.h>
@@ -62,6 +63,10 @@ zfs_deleg_perm_tab_t zfs_deleg_perm_tab[] = {
 	{ZFS_DELEG_PERM_GROUPQUOTA},
 	{ZFS_DELEG_PERM_USERUSED},
 	{ZFS_DELEG_PERM_GROUPUSED},
+	{ZFS_DELEG_PERM_USEROBJQUOTA},
+	{ZFS_DELEG_PERM_GROUPOBJQUOTA},
+	{ZFS_DELEG_PERM_USEROBJUSED},
+	{ZFS_DELEG_PERM_GROUPOBJUSED},
 	{ZFS_DELEG_PERM_HOLD},
 	{ZFS_DELEG_PERM_RELEASE},
 	{NULL}
@@ -177,8 +182,9 @@ zfs_deleg_verify_nvlist(nvlist_t *nvp)
 			    nvpair_name(perm_name));
 			if (error)
 				return (-1);
-		} while ((perm_name = nvlist_next_nvpair(perms, perm_name)));
-	} while ((who = nvlist_next_nvpair(nvp, who)));
+		} while ((perm_name = nvlist_next_nvpair(perms, perm_name))
+		    != NULL);
+	} while ((who = nvlist_next_nvpair(nvp, who)) != NULL);
 	return (0);
 }
 

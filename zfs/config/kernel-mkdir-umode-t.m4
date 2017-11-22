@@ -4,7 +4,7 @@ dnl # The VFS .create, .mkdir and .mknod callbacks were updated to take a
 dnl # umode_t type rather than an int.  The expectation is that any backport
 dnl # would also change all three prototypes.  However, if it turns out that
 dnl # some distribution doesn't backport the whole thing this could be
-dnl # broken apart in to three seperate checks.
+dnl # broken apart in to three separate checks.
 dnl #
 AC_DEFUN([ZFS_AC_KERNEL_MKDIR_UMODE_T], [
 	AC_MSG_CHECKING([whether iops->create()/mkdir()/mknod() take umode_t])

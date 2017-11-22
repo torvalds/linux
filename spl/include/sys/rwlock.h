@@ -30,55 +30,86 @@
 #include <linux/rwsem_compat.h>
 
 typedef enum {
-        RW_DRIVER  = 2,
-        RW_DEFAULT = 4
+	RW_DRIVER	= 2,
+	RW_DEFAULT	= 4,
+	RW_NOLOCKDEP	= 5
 } krw_type_t;
 
 typedef enum {
-        RW_NONE   = 0,
-        RW_WRITER = 1,
-        RW_READER = 2
+	RW_NONE		= 0,
+	RW_WRITER	= 1,
+	RW_READER	= 2
 } krw_t;
 
+/*
+ * If CONFIG_RWSEM_SPIN_ON_OWNER is defined, rw_semaphore will have an owner
+ * field, so we don't need our own.
+ */
 typedef struct {
-        struct rw_semaphore rw_rwlock;
-        kthread_t *rw_owner;
+	struct rw_semaphore rw_rwlock;
+#ifndef CONFIG_RWSEM_SPIN_ON_OWNER
+	kthread_t *rw_owner;
+#endif
+#ifdef CONFIG_LOCKDEP
+	krw_type_t	rw_type;
+#endif /* CONFIG_LOCKDEP */
 } krwlock_t;
 
-#define SEM(rwp)                        ((struct rw_semaphore *)(rwp))
+#define SEM(rwp)	(&(rwp)->rw_rwlock)
 
 static inline void
 spl_rw_set_owner(krwlock_t *rwp)
 {
-        unsigned long flags;
-
-        spl_rwsem_lock_irqsave(&SEM(rwp)->wait_lock, flags);
-        rwp->rw_owner = current;
-        spl_rwsem_unlock_irqrestore(&SEM(rwp)->wait_lock, flags);
+/*
+ * If CONFIG_RWSEM_SPIN_ON_OWNER is defined, down_write, up_write,
+ * downgrade_write and __init_rwsem will set/clear owner for us.
+ */
+#ifndef CONFIG_RWSEM_SPIN_ON_OWNER
+	rwp->rw_owner = current;
+#endif
 }
 
 static inline void
 spl_rw_clear_owner(krwlock_t *rwp)
 {
-        unsigned long flags;
-
-        spl_rwsem_lock_irqsave(&SEM(rwp)->wait_lock, flags);
-        rwp->rw_owner = NULL;
-        spl_rwsem_unlock_irqrestore(&SEM(rwp)->wait_lock, flags);
+#ifndef CONFIG_RWSEM_SPIN_ON_OWNER
+	rwp->rw_owner = NULL;
+#endif
 }
 
 static inline kthread_t *
 rw_owner(krwlock_t *rwp)
 {
-        unsigned long flags;
-        kthread_t *owner;
-
-        spl_rwsem_lock_irqsave(&SEM(rwp)->wait_lock, flags);
-        owner = rwp->rw_owner;
-        spl_rwsem_unlock_irqrestore(&SEM(rwp)->wait_lock, flags);
-
-        return owner;
+#ifdef CONFIG_RWSEM_SPIN_ON_OWNER
+	return SEM(rwp)->owner;
+#else
+	return rwp->rw_owner;
+#endif
 }
+
+#ifdef CONFIG_LOCKDEP
+static inline void
+spl_rw_set_type(krwlock_t *rwp, krw_type_t type)
+{
+	rwp->rw_type = type;
+}
+static inline void
+spl_rw_lockdep_off_maybe(krwlock_t *rwp)		\
+{							\
+	if (rwp && rwp->rw_type == RW_NOLOCKDEP)	\
+		lockdep_off();				\
+}
+static inline void
+spl_rw_lockdep_on_maybe(krwlock_t *rwp)			\
+{							\
+	if (rwp && rwp->rw_type == RW_NOLOCKDEP)	\
+		lockdep_on();				\
+}
+#else  /* CONFIG_LOCKDEP */
+#define spl_rw_set_type(rwp, type)
+#define spl_rw_lockdep_off_maybe(rwp)
+#define spl_rw_lockdep_on_maybe(rwp)
+#endif /* CONFIG_LOCKDEP */
 
 static inline int
 RW_READ_HELD(krwlock_t *rwp)
@@ -94,7 +125,7 @@ RW_READ_HELD(krwlock_t *rwp)
 static inline int
 RW_WRITE_HELD(krwlock_t *rwp)
 {
-	return (spl_rwsem_is_locked(SEM(rwp)) && rw_owner(rwp) == current);
+	return (rw_owner(rwp) == current);
 }
 
 static inline int
@@ -109,77 +140,79 @@ RW_LOCK_HELD(krwlock_t *rwp)
  * will be correctly located in the users code which is important
  * for the built in kernel lock analysis tools
  */
-#define rw_init(rwp, name, type, arg)                                   \
-({                                                                      \
-        static struct lock_class_key __key;                             \
-                                                                        \
-        __init_rwsem(SEM(rwp), #rwp, &__key);                           \
-        spl_rw_clear_owner(rwp);                                        \
+#define rw_init(rwp, name, type, arg)					\
+({									\
+	static struct lock_class_key __key;				\
+	ASSERT(type == RW_DEFAULT || type == RW_NOLOCKDEP);		\
+									\
+	__init_rwsem(SEM(rwp), #rwp, &__key);				\
+	spl_rw_clear_owner(rwp);					\
+	spl_rw_set_type(rwp, type);					\
 })
 
-#define rw_destroy(rwp)                                                 \
-({                                                                      \
-        VERIFY(!RW_LOCK_HELD(rwp));                                     \
+#define rw_destroy(rwp)							\
+({									\
+	VERIFY(!RW_LOCK_HELD(rwp));					\
 })
 
-#define rw_tryenter(rwp, rw)                                            \
-({                                                                      \
-        int _rc_ = 0;                                                   \
-                                                                        \
-        switch (rw) {                                                   \
-        case RW_READER:                                                 \
-                _rc_ = down_read_trylock(SEM(rwp));                     \
-                break;                                                  \
-        case RW_WRITER:                                                 \
-                if ((_rc_ = down_write_trylock(SEM(rwp))))              \
-                        spl_rw_set_owner(rwp);                          \
-                break;                                                  \
-        default:                                                        \
-                VERIFY(0);                                              \
-        }                                                               \
-        _rc_;                                                           \
+#define rw_tryenter(rwp, rw)						\
+({									\
+	int _rc_ = 0;							\
+									\
+	spl_rw_lockdep_off_maybe(rwp);					\
+	switch (rw) {							\
+	case RW_READER:							\
+		_rc_ = down_read_trylock(SEM(rwp));			\
+		break;							\
+	case RW_WRITER:							\
+		if ((_rc_ = down_write_trylock(SEM(rwp))))		\
+			spl_rw_set_owner(rwp);				\
+		break;							\
+	default:							\
+		VERIFY(0);						\
+	}								\
+	spl_rw_lockdep_on_maybe(rwp);					\
+	_rc_;								\
 })
 
-#define rw_enter(rwp, rw)                                               \
-({                                                                      \
-        switch (rw) {                                                   \
-        case RW_READER:                                                 \
-                down_read(SEM(rwp));                                    \
-                break;                                                  \
-        case RW_WRITER:                                                 \
-                down_write(SEM(rwp));                                   \
-                spl_rw_set_owner(rwp);                                  \
-                break;                                                  \
-        default:                                                        \
-                VERIFY(0);                                              \
-        }                                                               \
+#define rw_enter(rwp, rw)						\
+({									\
+	spl_rw_lockdep_off_maybe(rwp);					\
+	switch (rw) {							\
+	case RW_READER:							\
+		down_read(SEM(rwp));					\
+		break;							\
+	case RW_WRITER:							\
+		down_write(SEM(rwp));					\
+		spl_rw_set_owner(rwp);					\
+		break;							\
+	default:							\
+		VERIFY(0);						\
+	}								\
+	spl_rw_lockdep_on_maybe(rwp);					\
 })
 
-#define rw_exit(rwp)                                                    \
-({                                                                      \
-        if (RW_WRITE_HELD(rwp)) {                                       \
-                spl_rw_clear_owner(rwp);                                \
-                up_write(SEM(rwp));                                     \
-        } else {                                                        \
-                ASSERT(RW_READ_HELD(rwp));                              \
-                up_read(SEM(rwp));                                      \
-        }                                                               \
+#define rw_exit(rwp)							\
+({									\
+	spl_rw_lockdep_off_maybe(rwp);					\
+	if (RW_WRITE_HELD(rwp)) {					\
+		spl_rw_clear_owner(rwp);				\
+		up_write(SEM(rwp));					\
+	} else {							\
+		ASSERT(RW_READ_HELD(rwp));				\
+		up_read(SEM(rwp));					\
+	}								\
+	spl_rw_lockdep_on_maybe(rwp);					\
 })
 
-#define rw_downgrade(rwp)                                               \
-({                                                                      \
-        spl_rw_clear_owner(rwp);                                        \
-        downgrade_write(SEM(rwp));                                      \
+#define rw_downgrade(rwp)						\
+({									\
+	spl_rw_lockdep_off_maybe(rwp);					\
+	spl_rw_clear_owner(rwp);					\
+	downgrade_write(SEM(rwp));					\
+	spl_rw_lockdep_on_maybe(rwp);					\
 })
 
-/*
- * This implementation of rw_tryupgrade() behaves slightly differently
- * from its counterparts on other platforms.  It drops the RW_READER lock
- * and then acquires the RW_WRITER lock leaving a small window where no
- * lock is held.  On other platforms the lock is never released during
- * the upgrade process.  This is necessary under Linux because the kernel
- * does not provide an upgrade function.
- */
 #define rw_tryupgrade(rwp)						\
 ({									\
 	int _rc_ = 0;							\
@@ -187,8 +220,10 @@ RW_LOCK_HELD(krwlock_t *rwp)
 	if (RW_WRITE_HELD(rwp)) {					\
 		_rc_ = 1;						\
 	} else {							\
+		spl_rw_lockdep_off_maybe(rwp);				\
 		if ((_rc_ = rwsem_tryupgrade(SEM(rwp))))		\
 			spl_rw_set_owner(rwp);				\
+		spl_rw_lockdep_on_maybe(rwp);				\
 	}								\
 	_rc_;								\
 })

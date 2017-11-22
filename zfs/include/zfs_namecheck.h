@@ -38,7 +38,7 @@ typedef enum {
 	NAME_ERR_EMPTY_COMPONENT,	/* name contains an empty component */
 	NAME_ERR_TRAILING_SLASH,	/* name ends with a slash */
 	NAME_ERR_INVALCHAR,		/* invalid character found */
-	NAME_ERR_MULTIPLE_AT,		/* multiple '@' characters found */
+	NAME_ERR_MULTIPLE_DELIMITERS,	/* multiple '@'/'#' delimiters found */
 	NAME_ERR_NOLETTER,		/* pool doesn't begin with a letter */
 	NAME_ERR_RESERVED,		/* entire name is reserved */
 	NAME_ERR_DISKLIKE,		/* reserved disk name (c[0-9].*) */
@@ -49,6 +49,7 @@ typedef enum {
 #define	ZFS_PERMSET_MAXLEN	64
 
 int pool_namecheck(const char *, namecheck_err_t *, char *);
+int entity_namecheck(const char *, namecheck_err_t *, char *);
 int dataset_namecheck(const char *, namecheck_err_t *, char *);
 int mountpoint_namecheck(const char *, namecheck_err_t *);
 int zfs_component_namecheck(const char *, namecheck_err_t *, char *);

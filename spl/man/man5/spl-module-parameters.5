@@ -44,6 +44,20 @@ Default value: \fB0x02\fR
 .sp
 .ne 2
 .na
+\fBspl_kmem_cache_kmem_threads\fR (uint)
+.ad
+.RS 12n
+The number of threads created for the spl_kmem_cache task queue.  This task
+queue is responsible for allocating new slabs for use by the kmem caches.
+For the majority of systems and workloads only a small number of threads are
+required.
+.sp
+Default value: \fB4\fR
+.RE
+
+.sp
+.ne 2
+.na
 \fBspl_kmem_cache_reclaim\fR (uint)
 .ad
 .RS 12n
@@ -239,6 +253,20 @@ Default value: \fB/etc/hostid\fR
 .sp
 .ne 2
 .na
+\fBspl_taskq_kick\fR (uint)
+.ad
+.RS 12n
+Kick stuck taskq to spawn threads. When writing a non-zero value to it, it will
+scan all the taskqs. If any of them have a pending task more than 5 seconds old,
+it will kick it to spawn more threads. This can be used if you find a rare
+deadlock occurs because one or more taskqs didn't spawn a thread when it should.
+.sp
+Default value: \fB0\fR
+.RE
+
+.sp
+.ne 2
+.na
 \fBspl_taskq_thread_bind\fR (int)
 .ad
 .RS 12n
@@ -297,4 +325,19 @@ result in a slower thread creation rate which may be preferable for some
 configurations.
 .sp
 Default value: \fB4\fR
+.RE
+
+.sp
+.ne 2
+.na
+\fBspl_max_show_tasks\fR (uint)
+.ad
+.RS 12n
+The maximum number of tasks per pending list in each taskq shown in
+/proc/spl/{taskq,taskq-all}. Write 0 to turn off the limit. The proc file will
+walk the lists with lock held, reading it could cause a lock up if the list
+grow too large without limiting the output. "(truncated)" will be shown if the
+list is larger than the limit.
+.sp
+Default value: \fB512\fR
 .RE

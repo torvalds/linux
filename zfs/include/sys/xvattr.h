@@ -73,7 +73,7 @@ typedef struct xoptattr {
  * - a 32 bit quantity (xva_mapsize) that specifies the size of the
  *   attribute bitmaps in 32 bit words.
  * - A pointer to the returned attribute bitmap (needed because the
- *   previous element, the requested attribute bitmap) is variable lenth.
+ *   previous element, the requested attribute bitmap) is variable length.
  * - The requested attribute bitmap, which is an array of 32 bit words.
  *   Callers use the XVA_SET_REQ() macro to set the bits corresponding to
  *   the attributes that are being requested.
@@ -97,7 +97,7 @@ typedef struct xoptattr {
  * attributes to be requested/returned.  File systems may or may not support
  * optional attributes.  They do so at their own discretion but if they do
  * support optional attributes, they must register the VFSFT_XVATTR feature
- * so that the optional attributes can be set/retrived.
+ * so that the optional attributes can be set/retrieved.
  *
  * The fields of the xvattr structure are:
  *

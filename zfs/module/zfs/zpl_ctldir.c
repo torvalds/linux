@@ -52,10 +52,10 @@ zpl_common_open(struct inode *ip, struct file *filp)
 static int
 zpl_root_iterate(struct file *filp, struct dir_context *ctx)
 {
-	zfs_sb_t *zsb = ITOZSB(filp->f_path.dentry->d_inode);
+	zfsvfs_t *zfsvfs = ITOZSB(file_inode(filp));
 	int error = 0;
 
-	ZFS_ENTER(zsb);
+	ZFS_ENTER(zfsvfs);
 
 	if (!dir_emit_dots(filp, ctx))
 		goto out;
@@ -76,7 +76,7 @@ zpl_root_iterate(struct file *filp, struct dir_context *ctx)
 		ctx->pos++;
 	}
 out:
-	ZFS_EXIT(zsb);
+	ZFS_EXIT(zfsvfs);
 
 	return (error);
 }
@@ -250,14 +250,14 @@ zpl_snapdir_lookup(struct inode *dip, struct dentry *dentry,
 static int
 zpl_snapdir_iterate(struct file *filp, struct dir_context *ctx)
 {
-	zfs_sb_t *zsb = ITOZSB(filp->f_path.dentry->d_inode);
+	zfsvfs_t *zfsvfs = ITOZSB(file_inode(filp));
 	fstrans_cookie_t cookie;
 	char snapname[MAXNAMELEN];
 	boolean_t case_conflict;
 	uint64_t id, pos;
 	int error = 0;
 
-	ZFS_ENTER(zsb);
+	ZFS_ENTER(zfsvfs);
 	cookie = spl_fstrans_mark();
 
 	if (!dir_emit_dots(filp, ctx))
@@ -265,10 +265,10 @@ zpl_snapdir_iterate(struct file *filp, struct dir_context *ctx)
 
 	pos = ctx->pos;
 	while (error == 0) {
-		dsl_pool_config_enter(dmu_objset_pool(zsb->z_os), FTAG);
-		error = -dmu_snapshot_list_next(zsb->z_os, MAXNAMELEN,
+		dsl_pool_config_enter(dmu_objset_pool(zfsvfs->z_os), FTAG);
+		error = -dmu_snapshot_list_next(zfsvfs->z_os, MAXNAMELEN,
 		    snapname, &id, &pos, &case_conflict);
-		dsl_pool_config_exit(dmu_objset_pool(zsb->z_os), FTAG);
+		dsl_pool_config_exit(dmu_objset_pool(zfsvfs->z_os), FTAG);
 		if (error)
 			goto out;
 
@@ -280,7 +280,7 @@ zpl_snapdir_iterate(struct file *filp, struct dir_context *ctx)
 	}
 out:
 	spl_fstrans_unmark(cookie);
-	ZFS_EXIT(zsb);
+	ZFS_EXIT(zfsvfs);
 
 	if (error == -ENOENT)
 		return (0);
@@ -380,14 +380,15 @@ zpl_snapdir_getattr_impl(const struct path *path, struct kstat *stat,
     u32 request_mask, unsigned int query_flags)
 {
 	struct inode *ip = path->dentry->d_inode;
-	zfs_sb_t *zsb = ITOZSB(path->dentry->d_inode);
+	zfsvfs_t *zfsvfs = ITOZSB(ip);
 
-	ZFS_ENTER(zsb);
-	generic_fillattr(path->dentry->d_inode, stat);
+	ZFS_ENTER(zfsvfs);
+	generic_fillattr(ip, stat);
+
 	stat->nlink = stat->size = 2;
-	stat->ctime = stat->mtime = dmu_objset_snap_cmtime(zsb->z_os);
+	stat->ctime = stat->mtime = dmu_objset_snap_cmtime(zfsvfs->z_os);
 	stat->atime = current_time(ip);
-	ZFS_EXIT(zsb);
+	ZFS_EXIT(zfsvfs);
 
 	return (0);
 }
@@ -466,19 +467,19 @@ zpl_shares_iterate(struct file *filp, struct dir_context *ctx)
 {
 	fstrans_cookie_t cookie;
 	cred_t *cr = CRED();
-	zfs_sb_t *zsb = ITOZSB(filp->f_path.dentry->d_inode);
+	zfsvfs_t *zfsvfs = ITOZSB(file_inode(filp));
 	znode_t *dzp;
 	int error = 0;
 
-	ZFS_ENTER(zsb);
+	ZFS_ENTER(zfsvfs);
 	cookie = spl_fstrans_mark();
 
-	if (zsb->z_shares_dir == 0) {
+	if (zfsvfs->z_shares_dir == 0) {
 		dir_emit_dots(filp, ctx);
 		goto out;
 	}
 
-	error = -zfs_zget(zsb, zsb->z_shares_dir, &dzp);
+	error = -zfs_zget(zfsvfs, zfsvfs->z_shares_dir, &dzp);
 	if (error)
 		goto out;
 
@@ -489,7 +490,7 @@ zpl_shares_iterate(struct file *filp, struct dir_context *ctx)
 	iput(ZTOI(dzp));
 out:
 	spl_fstrans_unmark(cookie);
-	ZFS_EXIT(zsb);
+	ZFS_EXIT(zfsvfs);
 	ASSERT3S(error, <=, 0);
 
 	return (error);
@@ -515,27 +516,27 @@ zpl_shares_getattr_impl(const struct path *path, struct kstat *stat,
     u32 request_mask, unsigned int query_flags)
 {
 	struct inode *ip = path->dentry->d_inode;
-	zfs_sb_t *zsb = ITOZSB(ip);
+	zfsvfs_t *zfsvfs = ITOZSB(ip);
 	znode_t *dzp;
 	int error;
 
-	ZFS_ENTER(zsb);
+	ZFS_ENTER(zfsvfs);
 
-	if (zsb->z_shares_dir == 0) {
+	if (zfsvfs->z_shares_dir == 0) {
 		generic_fillattr(path->dentry->d_inode, stat);
 		stat->nlink = stat->size = 2;
 		stat->atime = current_time(ip);
-		ZFS_EXIT(zsb);
+		ZFS_EXIT(zfsvfs);
 		return (0);
 	}
 
-	error = -zfs_zget(zsb, zsb->z_shares_dir, &dzp);
+	error = -zfs_zget(zfsvfs, zfsvfs->z_shares_dir, &dzp);
 	if (error == 0) {
 		error = -zfs_getattr_fast(ZTOI(dzp), stat);
 		iput(ZTOI(dzp));
 	}
 
-	ZFS_EXIT(zsb);
+	ZFS_EXIT(zfsvfs);
 	ASSERT3S(error, <=, 0);
 
 	return (error);

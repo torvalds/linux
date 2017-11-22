@@ -44,6 +44,9 @@
 #define _LP64
 #endif
 
+#define _ALIGNMENT_REQUIRED            1
+
+
 /* i386 arch specific defines */
 #elif defined(__i386) || defined(__i386__)
 
@@ -58,6 +61,8 @@
 #if !defined(_ILP32)
 #define _ILP32
 #endif
+
+#define _ALIGNMENT_REQUIRED            0
 
 /* powerpc (ppc64) arch specific defines */
 #elif defined(__powerpc) || defined(__powerpc__) || defined(__powerpc64__)
@@ -79,6 +84,12 @@
 #define _ILP32
 #endif
 #endif
+
+/*
+ * Illumos doesn't define _ALIGNMENT_REQUIRED for PPC, so default to 1
+ * out of paranoia.
+ */
+#define _ALIGNMENT_REQUIRED            1
 
 /* arm arch specific defines */
 #elif defined(__arm) || defined(__arm__) || defined(__aarch64__)
@@ -107,6 +118,12 @@
 #define _BIG_ENDIAN
 #endif
 
+/*
+ * Illumos doesn't define _ALIGNMENT_REQUIRED for ARM, so default to 1
+ * out of paranoia.
+ */
+#define _ALIGNMENT_REQUIRED            1
+
 /* sparc arch specific defines */
 #elif defined(__sparc) || defined(__sparc__)
 
@@ -130,6 +147,7 @@
 
 #define _BIG_ENDIAN
 #define _SUNOS_VTOC_16
+#define _ALIGNMENT_REQUIRED            1
 
 /* s390 arch specific defines */
 #elif defined(__s390__)
@@ -144,6 +162,12 @@
 #endif
 
 #define	_BIG_ENDIAN
+
+/*
+ * Illumos doesn't define _ALIGNMENT_REQUIRED for s390, so default to 1
+ * out of paranoia.
+ */
+#define _ALIGNMENT_REQUIRED            1
 
 /* MIPS arch specific defines */
 #elif defined(__mips__)
@@ -161,6 +185,12 @@
 #endif
 
 #define	_SUNOS_VTOC_16
+
+/*
+ * Illumos doesn't define _ALIGNMENT_REQUIRED for MIPS, so default to 1
+ * out of paranoia.
+ */
+#define _ALIGNMENT_REQUIRED            1
 
 #else
 /*

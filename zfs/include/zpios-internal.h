@@ -1,7 +1,7 @@
 /*
  *  ZPIOS is a heavily modified version of the original PIOS test code.
  *  It is designed to have the test code running in the Linux kernel
- *  against ZFS while still being flexibly controled from user space.
+ *  against ZFS while still being flexibly controlled from user space.
  *
  *  Copyright (C) 2008-2010 Lawrence Livermore National Security, LLC.
  *  Produced at Lawrence Livermore National Laboratory (cf, DISCLAIMER).
@@ -29,6 +29,8 @@
  *
  *  You should have received a copy of the GNU General Public License along
  *  with ZPIOS.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ *  Copyright (c) 2015, Intel Corporation.
  */
 
 #ifndef _ZPIOS_INTERNAL_H
@@ -79,6 +81,7 @@ typedef struct run_args {
 	__u32 chunk_noise;
 	__u32 thread_delay;
 	__u32 flags;
+	__u32 block_size;
 	char pre[ZPIOS_PATH_SIZE];
 	char post[ZPIOS_PATH_SIZE];
 	char log[ZPIOS_PATH_SIZE];

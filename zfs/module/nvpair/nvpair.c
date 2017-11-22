@@ -1260,6 +1260,8 @@ nvpair_type_is_array(nvpair_t *nvp)
 static int
 nvpair_value_common(nvpair_t *nvp, data_type_t type, uint_t *nelem, void *data)
 {
+	int value_sz;
+
 	if (nvp == NULL || nvpair_type(nvp) != type)
 		return (EINVAL);
 
@@ -1289,8 +1291,9 @@ nvpair_value_common(nvpair_t *nvp, data_type_t type, uint_t *nelem, void *data)
 #endif
 		if (data == NULL)
 			return (EINVAL);
-		bcopy(NVP_VALUE(nvp), data,
-		    (size_t)i_get_value_size(type, NULL, 1));
+		if ((value_sz = i_get_value_size(type, NULL, 1)) < 0)
+			return (EINVAL);
+		bcopy(NVP_VALUE(nvp), data, (size_t)value_sz);
 		if (nelem != NULL)
 			*nelem = 1;
 		break;
@@ -2029,7 +2032,7 @@ typedef struct {
 /*
  * nvs operations are:
  *   - nvs_nvlist
- *     encoding / decoding of a nvlist header (nvlist_t)
+ *     encoding / decoding of an nvlist header (nvlist_t)
  *     calculates the size used for header and end detection
  *
  *   - nvs_nvpair
@@ -2392,7 +2395,7 @@ nvlist_xpack(nvlist_t *nvl, char **bufp, size_t *buflen, int encoding,
 	 * 1. The nvlist has fixed allocator properties.
 	 *    All other nvlist routines (like nvlist_add_*, ...) use
 	 *    these properties.
-	 * 2. When using nvlist_pack() the user can specify his own
+	 * 2. When using nvlist_pack() the user can specify their own
 	 *    allocator properties (e.g. by using KM_NOSLEEP).
 	 *
 	 * We use the user specified properties (2). A clearer solution

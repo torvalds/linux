@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012 by Delphix. All rights reserved.
+ * Copyright (c) 2012, 2017 by Delphix. All rights reserved.
  */
 
 /* Portions Copyright 2010 Robert Milkowski */
@@ -93,6 +93,15 @@ typedef struct zil_chain {
 } zil_chain_t;
 
 #define	ZIL_MIN_BLKSZ	4096ULL
+
+/*
+ * ziltest is by and large an ugly hack, but very useful in
+ * checking replay without tedious work.
+ * When running ziltest we want to keep all itx's and so maintain
+ * a single list in the zl_itxg[] that uses a high txg: ZILTEST_TXG
+ * We subtract TXG_CONCURRENT_STATES to allow for common code.
+ */
+#define	ZILTEST_TXG (UINT64_MAX - TXG_CONCURRENT_STATES)
 
 /*
  * The words of a log block checksum.
@@ -171,6 +180,19 @@ typedef enum zil_create {
 	(txtype) == TX_ACL_V0 ||	\
 	(txtype) == TX_ACL ||		\
 	(txtype) == TX_WRITE2)
+
+/*
+ * The number of dnode slots consumed by the object is stored in the 8
+ * unused upper bits of the object ID. We subtract 1 from the value
+ * stored on disk for compatibility with implementations that don't
+ * support large dnodes. The slot count for a single-slot dnode will
+ * contain 0 for those bits to preserve the log record format for
+ * "small" dnodes.
+ */
+#define	LR_FOID_GET_SLOTS(oid) (BF64_GET((oid), 56, 8) + 1)
+#define	LR_FOID_SET_SLOTS(oid, x) BF64_SET((oid), 56, 8, (x) - 1)
+#define	LR_FOID_GET_OBJ(oid) BF64_GET((oid), 0, DN_MAX_OBJECT_SHIFT)
+#define	LR_FOID_SET_OBJ(oid, x) BF64_SET((oid), 0, DN_MAX_OBJECT_SHIFT, (x))
 
 /*
  * Format of log records.
@@ -348,7 +370,7 @@ typedef struct {
  *	- the write occupies only one block
  * WR_COPIED:
  *    If we know we'll immediately be committing the
- *    transaction (FSYNC or FDSYNC), the we allocate a larger
+ *    transaction (FSYNC or FDSYNC), then we allocate a larger
  *    log record here for the data and copy the data in.
  * WR_NEED_COPY:
  *    Otherwise we don't allocate a buffer, and *if* we need to
@@ -372,7 +394,6 @@ typedef struct itx {
 	uint8_t		itx_sync;	/* synchronous transaction */
 	zil_callback_t	itx_callback;   /* Called when the itx is persistent */
 	void		*itx_callback_data; /* User data for the callback */
-	uint64_t	itx_sod;	/* record size on disk */
 	uint64_t	itx_oid;	/* object id */
 	lr_t		itx_lr;		/* common part of log record */
 	/* followed by type-specific part of lr_xx_t and its immediate data */

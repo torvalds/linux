@@ -40,7 +40,7 @@
  *     dsl_pool_t *, ...,
  *     uint64_t, ...);
  */
-
+/* BEGIN CSTYLED */
 DECLARE_EVENT_CLASS(zfs_txg_class,
 	TP_PROTO(dsl_pool_t *dp, uint64_t txg),
 	TP_ARGS(dp, txg),
@@ -52,11 +52,14 @@ DECLARE_EVENT_CLASS(zfs_txg_class,
 	),
 	TP_printk("txg %llu", __entry->txg)
 );
+/* END CSTYLED */
 
+/* BEGIN CSTYLED */
 #define	DEFINE_TXG_EVENT(name) \
 DEFINE_EVENT(zfs_txg_class, name, \
 	TP_PROTO(dsl_pool_t *dp, uint64_t txg), \
 	TP_ARGS(dp, txg))
+/* END CSTYLED */
 DEFINE_TXG_EVENT(zfs_dsl_pool_sync__done);
 DEFINE_TXG_EVENT(zfs_txg__quiescing);
 DEFINE_TXG_EVENT(zfs_txg__opened);

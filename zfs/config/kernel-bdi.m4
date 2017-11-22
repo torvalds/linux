@@ -11,8 +11,9 @@ AC_DEFUN([ZFS_AC_KERNEL_BDI], [
 		struct super_block sb;
 	], [
 		char *name = "bdi";
+		atomic_long_t zfs_bdi_seq;
 		int error __attribute__((unused)) =
-		    super_setup_bdi_name(&sb, name);
+		    super_setup_bdi_name(&sb, "%.28s-%ld", name, atomic_long_inc_return(&zfs_bdi_seq));
 	], [super_setup_bdi_name], [fs/super.c], [
 		AC_MSG_RESULT(yes)
 		AC_DEFINE(HAVE_SUPER_SETUP_BDI_NAME, 1,

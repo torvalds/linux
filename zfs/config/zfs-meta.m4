@@ -98,6 +98,14 @@ AC_DEFUN([ZFS_AC_META], [
 			if test -n "${_release}"; then
 				ZFS_META_RELEASE=${_release}
 				_zfs_ac_meta_type="git describe"
+			else
+				_match="${ZFS_META_NAME}-${ZFS_META_VERSION}-${ZFS_META_RELEASE}"
+	                        _alias=$(git describe --match=${_match} 2>/dev/null)
+	                        _release=$(echo ${_alias}|cut -f3- -d'-'|sed 's/-/_/g')
+				if test -n "${_release}"; then
+					ZFS_META_RELEASE=${_release}
+					_zfs_ac_meta_type="git describe"
+				fi
 			fi
 		fi
 

@@ -78,8 +78,17 @@
 /* Define to 1 if you have the <inttypes.h> header file. */
 #undef HAVE_INTTYPES_H
 
+/* kernel_read() take loff_t pointer */
+#undef HAVE_KERNEL_READ_PPOS
+
+/* kernel_write() take loff_t pointer */
+#undef HAVE_KERNEL_WRITE_PPOS
+
 /* struct kmem_cache has allocflags */
 #undef HAVE_KMEM_CACHE_ALLOCFLAGS
+
+/* kmem_cache_create_usercopy() exists */
+#undef HAVE_KMEM_CACHE_CREATE_USERCOPY
 
 /* struct kmem_cache has gfpflags */
 #undef HAVE_KMEM_CACHE_GFPFLAGS
@@ -89,9 +98,6 @@
 
 /* Define to 1 if you have the <memory.h> header file. */
 #undef HAVE_MEMORY_H
-
-/* yes */
-#undef HAVE_MUTEX_OWNER
 
 /* yes */
 #undef HAVE_PDE_DATA

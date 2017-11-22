@@ -33,10 +33,10 @@
  *  the kmem interfaces have been implemented correctly.  When the splat
  *  module is loaded splat_*_init() will be called for each subsystems
  *  tests.  It is the responsibility of splat_*_init() to register all
- *  the tests for this subsystem using the SPLAT_TEST_INIT() macro.
+ *  the tests for this subsystem using the splat_test_init().
  *  Similarly splat_*_fini() is called when the splat module is removed
- *  and is responsible for unregistering its tests via the SPLAT_TEST_FINI
- *  macro.  Once a test is registered it can then be run with an ioctl()
+ *  and is responsible for unregistering its tests via the splat_test_fini.
+ *  Once a test is registered it can then be run with an ioctl()
  *  call which specifies the subsystem and test to be run.  The provided
  *  splat command line tool can be used to display all available
  *  subsystems and tests.  It can also be used to run the full suite
@@ -598,6 +598,88 @@ static struct miscdevice splat_misc = {
 	.name		= SPLAT_NAME,
 	.fops		= &splat_fops,
 };
+
+static void splat_subsystem_init(const char *name,
+    splat_subsystem_t *(*init)(void))
+{
+	splat_subsystem_t *sub;
+	sub = init();
+	if (sub == NULL) {
+		printk(KERN_ERR "splat: Error initializing: %s\n", name);
+		return;
+	}
+	spin_lock(&splat_module_lock);
+	list_add_tail(&sub->subsystem_list, &splat_module_list);
+	spin_unlock(&splat_module_lock);
+}
+
+static void splat_subsystem_fini(const char *name,
+    int (*id_func)(void), void (*fini)(splat_subsystem_t *))
+{
+	splat_subsystem_t *sub, *tmp;
+	int id, flag = 0;
+
+	id = id_func();
+	spin_lock(&splat_module_lock);
+	list_for_each_entry_safe(sub, tmp, &splat_module_list, subsystem_list) {
+		if (sub->desc.id == id) {
+			list_del_init(&sub->subsystem_list);
+			flag = 1;
+			break;
+		}
+	}
+	spin_unlock(&splat_module_lock);
+	if (flag == 0)
+		printk(KERN_ERR "splat: Error finalizing: %s\n", name);
+	else
+		fini(sub);
+}
+
+#define SPLAT_SUBSYSTEM_INIT(type) \
+	splat_subsystem_init(#type, splat_##type##_init)
+#define SPLAT_SUBSYSTEM_FINI(type) \
+	splat_subsystem_fini(#type, splat_##type##_id, splat_##type##_fini)
+
+void splat_test_init(splat_subsystem_t *sub, const char *name,
+    const char *desc, unsigned int tid, splat_test_func_t func)
+{
+	splat_test_t *test;
+	test = kmalloc(sizeof (splat_test_t), GFP_KERNEL);
+	if (test == NULL) {
+		printk(KERN_ERR "splat: Error initializing: %s/%u\n",
+		    name, tid);
+		return;
+	}
+	memset(test, 0, sizeof (splat_test_t));
+	strncpy(test->desc.name, name, SPLAT_NAME_SIZE-1);
+	strncpy(test->desc.desc, desc, SPLAT_DESC_SIZE-1);
+	test->desc.id = tid;
+	test->test = func;
+	INIT_LIST_HEAD(&test->test_list);
+	spin_lock(&sub->test_lock);
+	list_add_tail(&test->test_list, &sub->test_list);
+	spin_unlock(&sub->test_lock);
+}
+
+void splat_test_fini(splat_subsystem_t *sub, unsigned int tid)
+{
+	splat_test_t *test, *tmp;
+	int flag = 0;
+
+	spin_lock(&sub->test_lock);
+	list_for_each_entry_safe(test, tmp, &sub->test_list, test_list) {
+		if (test->desc.id == tid) {
+			list_del_init(&test->test_list);
+			kfree(test);
+			flag = 1;
+			break;
+		}
+	}
+	spin_unlock(&sub->test_lock);
+
+	if (flag == 0)
+		printk(KERN_ERR "splat: Error finalizing: %u\n", tid);
+}
 
 static int __init
 splat_init(void)

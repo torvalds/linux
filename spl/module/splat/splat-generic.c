@@ -329,17 +329,17 @@ splat_generic_init(void)
         spin_lock_init(&sub->test_lock);
         sub->desc.id = SPLAT_SUBSYSTEM_GENERIC;
 
-        SPLAT_TEST_INIT(sub, SPLAT_GENERIC_TEST1_NAME, SPLAT_GENERIC_TEST1_DESC,
+        splat_test_init(sub, SPLAT_GENERIC_TEST1_NAME, SPLAT_GENERIC_TEST1_DESC,
 	                SPLAT_GENERIC_TEST1_ID, splat_generic_test_strtoul);
-        SPLAT_TEST_INIT(sub, SPLAT_GENERIC_TEST2_NAME, SPLAT_GENERIC_TEST2_DESC,
+        splat_test_init(sub, SPLAT_GENERIC_TEST2_NAME, SPLAT_GENERIC_TEST2_DESC,
 	                SPLAT_GENERIC_TEST2_ID, splat_generic_test_strtol);
-        SPLAT_TEST_INIT(sub, SPLAT_GENERIC_TEST3_NAME, SPLAT_GENERIC_TEST3_DESC,
+        splat_test_init(sub, SPLAT_GENERIC_TEST3_NAME, SPLAT_GENERIC_TEST3_DESC,
 	                SPLAT_GENERIC_TEST3_ID, splat_generic_test_strtoull);
-        SPLAT_TEST_INIT(sub, SPLAT_GENERIC_TEST4_NAME, SPLAT_GENERIC_TEST4_DESC,
+        splat_test_init(sub, SPLAT_GENERIC_TEST4_NAME, SPLAT_GENERIC_TEST4_DESC,
 	                SPLAT_GENERIC_TEST4_ID, splat_generic_test_strtoll);
-        SPLAT_TEST_INIT(sub, SPLAT_GENERIC_TEST5_NAME, SPLAT_GENERIC_TEST5_DESC,
+        splat_test_init(sub, SPLAT_GENERIC_TEST5_NAME, SPLAT_GENERIC_TEST5_DESC,
 	                SPLAT_GENERIC_TEST5_ID, splat_generic_test_udivdi3);
-        SPLAT_TEST_INIT(sub, SPLAT_GENERIC_TEST6_NAME, SPLAT_GENERIC_TEST6_DESC,
+        splat_test_init(sub, SPLAT_GENERIC_TEST6_NAME, SPLAT_GENERIC_TEST6_DESC,
 	                SPLAT_GENERIC_TEST6_ID, splat_generic_test_divdi3);
 
         return sub;
@@ -350,12 +350,12 @@ splat_generic_fini(splat_subsystem_t *sub)
 {
         ASSERT(sub);
 
-        SPLAT_TEST_FINI(sub, SPLAT_GENERIC_TEST6_ID);
-        SPLAT_TEST_FINI(sub, SPLAT_GENERIC_TEST5_ID);
-        SPLAT_TEST_FINI(sub, SPLAT_GENERIC_TEST4_ID);
-        SPLAT_TEST_FINI(sub, SPLAT_GENERIC_TEST3_ID);
-        SPLAT_TEST_FINI(sub, SPLAT_GENERIC_TEST2_ID);
-        SPLAT_TEST_FINI(sub, SPLAT_GENERIC_TEST1_ID);
+        splat_test_fini(sub, SPLAT_GENERIC_TEST6_ID);
+        splat_test_fini(sub, SPLAT_GENERIC_TEST5_ID);
+        splat_test_fini(sub, SPLAT_GENERIC_TEST4_ID);
+        splat_test_fini(sub, SPLAT_GENERIC_TEST3_ID);
+        splat_test_fini(sub, SPLAT_GENERIC_TEST2_ID);
+        splat_test_fini(sub, SPLAT_GENERIC_TEST1_ID);
 
         kfree(sub);
 }

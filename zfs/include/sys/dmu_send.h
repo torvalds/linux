@@ -36,26 +36,32 @@ struct vnode;
 struct dsl_dataset;
 struct drr_begin;
 struct avl_tree;
+struct dmu_replay_record;
 
-int dmu_send(const char *tosnap, const char *fromsnap,
-    boolean_t embedok, boolean_t large_block_ok,
-    int outfd, struct vnode *vp, offset_t *off);
+extern const char *recv_clone_name;
+
+int dmu_send(const char *tosnap, const char *fromsnap, boolean_t embedok,
+    boolean_t large_block_ok, boolean_t compressok, int outfd,
+    uint64_t resumeobj, uint64_t resumeoff, struct vnode *vp, offset_t *off);
 int dmu_send_estimate(struct dsl_dataset *ds, struct dsl_dataset *fromds,
-    uint64_t *sizep);
+    boolean_t stream_compressed, uint64_t *sizep);
 int dmu_send_estimate_from_txg(struct dsl_dataset *ds, uint64_t fromtxg,
-    uint64_t *sizep);
+    boolean_t stream_compressed, uint64_t *sizep);
 int dmu_send_obj(const char *pool, uint64_t tosnap, uint64_t fromsnap,
-    boolean_t embedok, boolean_t large_block_ok,
+    boolean_t embedok, boolean_t large_block_ok, boolean_t compressok,
     int outfd, struct vnode *vp, offset_t *off);
 
 typedef struct dmu_recv_cookie {
 	struct dsl_dataset *drc_ds;
+	struct dmu_replay_record *drc_drr_begin;
 	struct drr_begin *drc_drrb;
 	const char *drc_tofs;
 	const char *drc_tosnap;
 	boolean_t drc_newfs;
 	boolean_t drc_byteswap;
 	boolean_t drc_force;
+	boolean_t drc_resumable;
+	boolean_t drc_clone;
 	struct avl_tree *drc_guid_to_ds_map;
 	zio_cksum_t drc_cksum;
 	uint64_t drc_newsnapobj;
@@ -63,8 +69,9 @@ typedef struct dmu_recv_cookie {
 	cred_t *drc_cred;
 } dmu_recv_cookie_t;
 
-int dmu_recv_begin(char *tofs, char *tosnap, struct drr_begin *drrb,
-    boolean_t force, char *origin, dmu_recv_cookie_t *drc);
+int dmu_recv_begin(char *tofs, char *tosnap,
+    struct dmu_replay_record *drr_begin,
+    boolean_t force, boolean_t resumable, char *origin, dmu_recv_cookie_t *drc);
 int dmu_recv_stream(dmu_recv_cookie_t *drc, struct vnode *vp, offset_t *voffp,
     int cleanup_fd, uint64_t *action_handlep);
 int dmu_recv_end(dmu_recv_cookie_t *drc, void *owner);

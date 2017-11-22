@@ -54,6 +54,8 @@ AC_CONFIG_FILES([
 	man/man5/Makefile
 	lib/Makefile
 	cmd/Makefile
+	cmd/splat/Makefile
+	cmd/splslab/Makefile
 	module/Makefile
 	module/spl/Makefile
 	module/splat/Makefile

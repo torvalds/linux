@@ -28,6 +28,7 @@
 #define	_ZFS_VFS_H
 
 #include <sys/taskq.h>
+#include <sys/cred.h>
 #include <linux/backing-dev.h>
 
 /*
@@ -294,7 +295,8 @@ zpl_posix_acl_release(struct posix_acl *acl)
 #define	zpl_forget_cached_acl(ip, ty)		forget_cached_acl(ip, ty)
 #else
 static inline void
-zpl_set_cached_acl(struct inode *ip, int type, struct posix_acl *newer) {
+zpl_set_cached_acl(struct inode *ip, int type, struct posix_acl *newer)
+{
 	struct posix_acl *older = NULL;
 
 	spin_lock(&ip->i_lock);
@@ -319,7 +321,8 @@ zpl_set_cached_acl(struct inode *ip, int type, struct posix_acl *newer) {
 }
 
 static inline void
-zpl_forget_cached_acl(struct inode *ip, int type) {
+zpl_forget_cached_acl(struct inode *ip, int type)
+{
 	zpl_set_cached_acl(ip, type, (struct posix_acl *)ACL_NOT_CACHED);
 }
 #endif /* HAVE_SET_CACHED_ACL_USABLE */
@@ -330,7 +333,8 @@ zpl_forget_cached_acl(struct inode *ip, int type) {
 #define	__posix_acl_create(acl, gfp, mode)	posix_acl_create(acl, gfp, mode)
 #else
 static inline int
-__posix_acl_chmod(struct posix_acl **acl, int flags, umode_t umode) {
+__posix_acl_chmod(struct posix_acl **acl, int flags, umode_t umode)
+{
 	struct posix_acl *oldacl = *acl;
 	mode_t mode = umode;
 	int error;
@@ -351,7 +355,8 @@ __posix_acl_chmod(struct posix_acl **acl, int flags, umode_t umode) {
 }
 
 static inline int
-__posix_acl_create(struct posix_acl **acl, int flags, umode_t *umodep) {
+__posix_acl_create(struct posix_acl **acl, int flags, umode_t *umodep)
+{
 	struct posix_acl *oldacl = *acl;
 	mode_t mode = *umodep;
 	int error;
@@ -415,6 +420,87 @@ static inline struct inode *file_inode(const struct file *f)
 	return (f->f_dentry->d_inode);
 }
 #endif /* HAVE_FILE_INODE */
+
+/*
+ * 4.1 API change
+ * struct access file->f_path.dentry was replaced by accessor function
+ * file_dentry(f)
+ */
+#ifndef HAVE_FILE_DENTRY
+static inline struct dentry *file_dentry(const struct file *f)
+{
+	return (f->f_path.dentry);
+}
+#endif /* HAVE_FILE_DENTRY */
+
+#ifdef HAVE_KUID_HELPERS
+static inline uid_t zfs_uid_read_impl(struct inode *ip)
+{
+#ifdef HAVE_SUPER_USER_NS
+	return (from_kuid(ip->i_sb->s_user_ns, ip->i_uid));
+#else
+	return (from_kuid(kcred->user_ns, ip->i_uid));
+#endif
+}
+
+static inline uid_t zfs_uid_read(struct inode *ip)
+{
+	return (zfs_uid_read_impl(ip));
+}
+
+static inline gid_t zfs_gid_read_impl(struct inode *ip)
+{
+#ifdef HAVE_SUPER_USER_NS
+	return (from_kgid(ip->i_sb->s_user_ns, ip->i_gid));
+#else
+	return (from_kgid(kcred->user_ns, ip->i_gid));
+#endif
+}
+
+static inline gid_t zfs_gid_read(struct inode *ip)
+{
+	return (zfs_gid_read_impl(ip));
+}
+
+static inline void zfs_uid_write(struct inode *ip, uid_t uid)
+{
+#ifdef HAVE_SUPER_USER_NS
+	ip->i_uid = make_kuid(ip->i_sb->s_user_ns, uid);
+#else
+	ip->i_uid = make_kuid(kcred->user_ns, uid);
+#endif
+}
+
+static inline void zfs_gid_write(struct inode *ip, gid_t gid)
+{
+#ifdef HAVE_SUPER_USER_NS
+	ip->i_gid = make_kgid(ip->i_sb->s_user_ns, gid);
+#else
+	ip->i_gid = make_kgid(kcred->user_ns, gid);
+#endif
+}
+
+#else
+static inline uid_t zfs_uid_read(struct inode *ip)
+{
+	return (ip->i_uid);
+}
+
+static inline gid_t zfs_gid_read(struct inode *ip)
+{
+	return (ip->i_gid);
+}
+
+static inline void zfs_uid_write(struct inode *ip, uid_t uid)
+{
+	ip->i_uid = uid;
+}
+
+static inline void zfs_gid_write(struct inode *ip, gid_t gid)
+{
+	ip->i_gid = gid;
+}
+#endif
 
 /*
  * 2.6.38 API change

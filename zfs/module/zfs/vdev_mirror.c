@@ -24,13 +24,14 @@
  */
 
 /*
- * Copyright (c) 2012, 2014 by Delphix. All rights reserved.
+ * Copyright (c) 2012, 2015 by Delphix. All rights reserved.
  */
 
 #include <sys/zfs_context.h>
 #include <sys/spa.h>
 #include <sys/vdev_impl.h>
 #include <sys/zio.h>
+#include <sys/abd.h>
 #include <sys/fs/zfs.h>
 
 /*
@@ -41,44 +42,70 @@ typedef struct mirror_child {
 	vdev_t		*mc_vd;
 	uint64_t	mc_offset;
 	int		mc_error;
-	int		mc_pending;
+	int		mc_load;
 	uint8_t		mc_tried;
 	uint8_t		mc_skipped;
 	uint8_t		mc_speculative;
 } mirror_child_t;
 
 typedef struct mirror_map {
+	int		*mm_preferred;
+	int		mm_preferred_cnt;
 	int		mm_children;
-	int		mm_replacing;
-	int		mm_preferred;
-	int		mm_root;
-	mirror_child_t	mm_child[1];
+	boolean_t	mm_replacing;
+	boolean_t	mm_root;
+	mirror_child_t	mm_child[];
 } mirror_map_t;
 
+static int vdev_mirror_shift = 21;
+
 /*
- * When the children are equally busy queue incoming requests to a single
- * child for N microseconds.  This is done to maximize the likelihood that
- * the Linux elevator will be able to merge requests while it is plugged.
- * Otherwise, requests are queued to the least busy device.
+ * The load configuration settings below are tuned by default for
+ * the case where all devices are of the same rotational type.
  *
- * For rotational disks the Linux elevator will plug for 10ms which is
- * why zfs_vdev_mirror_switch_us is set to 10ms by default.  For non-
- * rotational disks the elevator will not plug, but 10ms is still a small
- * enough value that the requests will get spread over all the children.
- *
- * For fast SSDs it may make sense to decrease zfs_vdev_mirror_switch_us
- * significantly to bound the worst case latencies.  It would probably be
- * ideal to calculate a decaying average of the last observed latencies and
- * use that to dynamically adjust the zfs_vdev_mirror_switch_us time.
+ * If there is a mixture of rotating and non-rotating media, setting
+ * zfs_vdev_mirror_non_rotating_seek_inc to 0 may well provide better results
+ * as it will direct more reads to the non-rotating vdevs which are more likely
+ * to have a higher performance.
  */
-int zfs_vdev_mirror_switch_us = 10000;
+
+/* Rotating media load calculation configuration. */
+static int zfs_vdev_mirror_rotating_inc = 0;
+static int zfs_vdev_mirror_rotating_seek_inc = 5;
+static int zfs_vdev_mirror_rotating_seek_offset = 1 * 1024 * 1024;
+
+/* Non-rotating media load calculation configuration. */
+static int zfs_vdev_mirror_non_rotating_inc = 0;
+static int zfs_vdev_mirror_non_rotating_seek_inc = 1;
+
+static inline size_t
+vdev_mirror_map_size(int children)
+{
+	return (offsetof(mirror_map_t, mm_child[children]) +
+	    sizeof (int) * children);
+}
+
+static inline mirror_map_t *
+vdev_mirror_map_alloc(int children, boolean_t replacing, boolean_t root)
+{
+	mirror_map_t *mm;
+
+	mm = kmem_zalloc(vdev_mirror_map_size(children), KM_SLEEP);
+	mm->mm_children = children;
+	mm->mm_replacing = replacing;
+	mm->mm_root = root;
+	mm->mm_preferred = (int *)((uintptr_t)mm +
+	    offsetof(mirror_map_t, mm_child[children]));
+
+	return (mm);
+}
 
 static void
 vdev_mirror_map_free(zio_t *zio)
 {
 	mirror_map_t *mm = zio->io_vsd;
 
-	kmem_free(mm, offsetof(mirror_map_t, mm_child[mm->mm_children]));
+	kmem_free(mm, vdev_mirror_map_size(mm->mm_children));
 }
 
 static const zio_vsd_ops_t vdev_mirror_vsd_ops = {
@@ -87,9 +114,54 @@ static const zio_vsd_ops_t vdev_mirror_vsd_ops = {
 };
 
 static int
-vdev_mirror_pending(vdev_t *vd)
+vdev_mirror_load(mirror_map_t *mm, vdev_t *vd, uint64_t zio_offset)
 {
-	return (avl_numnodes(&vd->vdev_queue.vq_active_tree));
+	uint64_t lastoffset;
+	int load;
+
+	/* All DVAs have equal weight at the root. */
+	if (mm->mm_root)
+		return (INT_MAX);
+
+	/*
+	 * We don't return INT_MAX if the device is resilvering i.e.
+	 * vdev_resilver_txg != 0 as when tested performance was slightly
+	 * worse overall when resilvering with compared to without.
+	 */
+
+	/* Standard load based on pending queue length. */
+	load = vdev_queue_length(vd);
+	lastoffset = vdev_queue_lastoffset(vd);
+
+	if (vd->vdev_nonrot) {
+		/* Non-rotating media. */
+		if (lastoffset == zio_offset)
+			return (load + zfs_vdev_mirror_non_rotating_inc);
+
+		/*
+		 * Apply a seek penalty even for non-rotating devices as
+		 * sequential I/O's can be aggregated into fewer operations on
+		 * the device, thus avoiding unnecessary per-command overhead
+		 * and boosting performance.
+		 */
+		return (load + zfs_vdev_mirror_non_rotating_seek_inc);
+	}
+
+	/* Rotating media I/O's which directly follow the last I/O. */
+	if (lastoffset == zio_offset)
+		return (load + zfs_vdev_mirror_rotating_inc);
+
+	/*
+	 * Apply half the seek increment to I/O's within seek offset
+	 * of the last I/O queued to this vdev as they should incur less
+	 * of a seek increment.
+	 */
+	if (ABS(lastoffset - zio_offset) <
+	    zfs_vdev_mirror_rotating_seek_offset)
+		return (load + (zfs_vdev_mirror_rotating_seek_inc / 2));
+
+	/* Apply the full seek increment to all other I/O's. */
+	return (load + zfs_vdev_mirror_rotating_seek_inc);
 }
 
 /*
@@ -97,38 +169,19 @@ vdev_mirror_pending(vdev_t *vd)
  * is this functions only caller, as small as possible on the stack.
  */
 noinline static mirror_map_t *
-vdev_mirror_map_alloc(zio_t *zio)
+vdev_mirror_map_init(zio_t *zio)
 {
 	mirror_map_t *mm = NULL;
 	mirror_child_t *mc;
 	vdev_t *vd = zio->io_vd;
-	int c, d;
+	int c;
 
 	if (vd == NULL) {
 		dva_t *dva = zio->io_bp->blk_dva;
 		spa_t *spa = zio->io_spa;
 
-		c = BP_GET_NDVAS(zio->io_bp);
-
-		mm = kmem_zalloc(offsetof(mirror_map_t, mm_child[c]),
-		    KM_SLEEP);
-		mm->mm_children = c;
-		mm->mm_replacing = B_FALSE;
-		mm->mm_preferred = spa_get_random(c);
-		mm->mm_root = B_TRUE;
-
-		/*
-		 * Check the other, lower-index DVAs to see if they're on
-		 * the same vdev as the child we picked.  If they are, use
-		 * them since they are likely to have been allocated from
-		 * the primary metaslab in use at the time, and hence are
-		 * more likely to have locality with single-copy data.
-		 */
-		for (c = mm->mm_preferred, d = c - 1; d >= 0; d--) {
-			if (DVA_GET_VDEV(&dva[d]) == DVA_GET_VDEV(&dva[c]))
-				mm->mm_preferred = d;
-		}
-
+		mm = vdev_mirror_map_alloc(BP_GET_NDVAS(zio->io_bp), B_FALSE,
+		    B_TRUE);
 		for (c = 0; c < mm->mm_children; c++) {
 			mc = &mm->mm_child[c];
 
@@ -136,56 +189,13 @@ vdev_mirror_map_alloc(zio_t *zio)
 			mc->mc_offset = DVA_GET_OFFSET(&dva[c]);
 		}
 	} else {
-		int lowest_pending = INT_MAX;
-		int lowest_nr = 1;
-
-		c = vd->vdev_children;
-
-		mm = kmem_zalloc(offsetof(mirror_map_t, mm_child[c]),
-		    KM_SLEEP);
-		mm->mm_children = c;
-		mm->mm_replacing = (vd->vdev_ops == &vdev_replacing_ops ||
-		    vd->vdev_ops == &vdev_spare_ops);
-		mm->mm_preferred = 0;
-		mm->mm_root = B_FALSE;
-
+		mm = vdev_mirror_map_alloc(vd->vdev_children,
+		    (vd->vdev_ops == &vdev_replacing_ops ||
+		    vd->vdev_ops == &vdev_spare_ops), B_FALSE);
 		for (c = 0; c < mm->mm_children; c++) {
 			mc = &mm->mm_child[c];
 			mc->mc_vd = vd->vdev_child[c];
 			mc->mc_offset = zio->io_offset;
-
-			if (mm->mm_replacing)
-				continue;
-
-			if (!vdev_readable(mc->mc_vd)) {
-				mc->mc_error = SET_ERROR(ENXIO);
-				mc->mc_tried = 1;
-				mc->mc_skipped = 1;
-				mc->mc_pending = INT_MAX;
-				continue;
-			}
-
-			mc->mc_pending = vdev_mirror_pending(mc->mc_vd);
-			if (mc->mc_pending < lowest_pending) {
-				lowest_pending = mc->mc_pending;
-				lowest_nr = 1;
-			} else if (mc->mc_pending == lowest_pending) {
-				lowest_nr++;
-			}
-		}
-
-		d = gethrtime() / (NSEC_PER_USEC * zfs_vdev_mirror_switch_us);
-		d = (d % lowest_nr) + 1;
-
-		for (c = 0; c < mm->mm_children; c++) {
-			mc = &mm->mm_child[c];
-
-			if (mm->mm_child[c].mc_pending == lowest_pending) {
-				if (--d == 0) {
-					mm->mm_preferred = c;
-					break;
-				}
-			}
 		}
 	}
 
@@ -257,18 +267,19 @@ vdev_mirror_scrub_done(zio_t *zio)
 
 	if (zio->io_error == 0) {
 		zio_t *pio;
+		zio_link_t *zl = NULL;
 
 		mutex_enter(&zio->io_lock);
-		while ((pio = zio_walk_parents(zio)) != NULL) {
+		while ((pio = zio_walk_parents(zio, &zl)) != NULL) {
 			mutex_enter(&pio->io_lock);
 			ASSERT3U(zio->io_size, >=, pio->io_size);
-			bcopy(zio->io_data, pio->io_data, pio->io_size);
+			abd_copy(pio->io_abd, zio->io_abd, pio->io_size);
 			mutex_exit(&pio->io_lock);
 		}
 		mutex_exit(&zio->io_lock);
 	}
 
-	zio_buf_free(zio->io_data, zio->io_size);
+	abd_free(zio->io_abd);
 
 	mc->mc_error = zio->io_error;
 	mc->mc_tried = 1;
@@ -276,6 +287,54 @@ vdev_mirror_scrub_done(zio_t *zio)
 }
 
 /*
+ * Check the other, lower-index DVAs to see if they're on the same
+ * vdev as the child we picked.  If they are, use them since they
+ * are likely to have been allocated from the primary metaslab in
+ * use at the time, and hence are more likely to have locality with
+ * single-copy data.
+ */
+static int
+vdev_mirror_dva_select(zio_t *zio, int p)
+{
+	dva_t *dva = zio->io_bp->blk_dva;
+	mirror_map_t *mm = zio->io_vsd;
+	int preferred;
+	int c;
+
+	preferred = mm->mm_preferred[p];
+	for (p--; p >= 0; p--) {
+		c = mm->mm_preferred[p];
+		if (DVA_GET_VDEV(&dva[c]) == DVA_GET_VDEV(&dva[preferred]))
+			preferred = c;
+	}
+	return (preferred);
+}
+
+static int
+vdev_mirror_preferred_child_randomize(zio_t *zio)
+{
+	mirror_map_t *mm = zio->io_vsd;
+	int p;
+
+	if (mm->mm_root) {
+		p = spa_get_random(mm->mm_preferred_cnt);
+		return (vdev_mirror_dva_select(zio, p));
+	}
+
+	/*
+	 * To ensure we don't always favour the first matching vdev,
+	 * which could lead to wear leveling issues on SSD's, we
+	 * use the I/O offset as a pseudo random seed into the vdevs
+	 * which have the lowest load.
+	 */
+	p = (zio->io_offset >> vdev_mirror_shift) % mm->mm_preferred_cnt;
+	return (mm->mm_preferred[p]);
+}
+
+/*
+ * Try to find a vdev whose DTL doesn't contain the block we want to read
+ * prefering vdevs based on determined load.
+ *
  * Try to find a child whose DTL doesn't contain the block we want to read.
  * If we can't, try the read on any vdev we haven't already tried.
  */
@@ -283,43 +342,70 @@ static int
 vdev_mirror_child_select(zio_t *zio)
 {
 	mirror_map_t *mm = zio->io_vsd;
-	mirror_child_t *mc;
 	uint64_t txg = zio->io_txg;
-	int i, c;
+	int c, lowest_load;
 
 	ASSERT(zio->io_bp == NULL || BP_PHYSICAL_BIRTH(zio->io_bp) == txg);
 
-	/*
-	 * Try to find a child whose DTL doesn't contain the block to read.
-	 * If a child is known to be completely inaccessible (indicated by
-	 * vdev_readable() returning B_FALSE), don't even try.
-	 */
-	for (i = 0, c = mm->mm_preferred; i < mm->mm_children; i++, c++) {
-		if (c >= mm->mm_children)
-			c = 0;
+	lowest_load = INT_MAX;
+	mm->mm_preferred_cnt = 0;
+	for (c = 0; c < mm->mm_children; c++) {
+		mirror_child_t *mc;
+
 		mc = &mm->mm_child[c];
 		if (mc->mc_tried || mc->mc_skipped)
 			continue;
+
 		if (mc->mc_vd == NULL || !vdev_readable(mc->mc_vd)) {
 			mc->mc_error = SET_ERROR(ENXIO);
 			mc->mc_tried = 1;	/* don't even try */
 			mc->mc_skipped = 1;
 			continue;
 		}
-		if (!vdev_dtl_contains(mc->mc_vd, DTL_MISSING, txg, 1))
-			return (c);
-		mc->mc_error = SET_ERROR(ESTALE);
-		mc->mc_skipped = 1;
-		mc->mc_speculative = 1;
+
+		if (vdev_dtl_contains(mc->mc_vd, DTL_MISSING, txg, 1)) {
+			mc->mc_error = SET_ERROR(ESTALE);
+			mc->mc_skipped = 1;
+			mc->mc_speculative = 1;
+			continue;
+		}
+
+		mc->mc_load = vdev_mirror_load(mm, mc->mc_vd, mc->mc_offset);
+		if (mc->mc_load > lowest_load)
+			continue;
+
+		if (mc->mc_load < lowest_load) {
+			lowest_load = mc->mc_load;
+			mm->mm_preferred_cnt = 0;
+		}
+		mm->mm_preferred[mm->mm_preferred_cnt] = c;
+		mm->mm_preferred_cnt++;
+	}
+
+	if (mm->mm_preferred_cnt == 1) {
+		vdev_queue_register_lastoffset(
+		    mm->mm_child[mm->mm_preferred[0]].mc_vd, zio);
+		return (mm->mm_preferred[0]);
+	}
+
+	if (mm->mm_preferred_cnt > 1) {
+		int c = vdev_mirror_preferred_child_randomize(zio);
+
+		vdev_queue_register_lastoffset(mm->mm_child[c].mc_vd, zio);
+		return (c);
 	}
 
 	/*
 	 * Every device is either missing or has this txg in its DTL.
 	 * Look for any child we haven't already tried before giving up.
 	 */
-	for (c = 0; c < mm->mm_children; c++)
-		if (!mm->mm_child[c].mc_tried)
+	for (c = 0; c < mm->mm_children; c++) {
+		if (!mm->mm_child[c].mc_tried) {
+			vdev_queue_register_lastoffset(mm->mm_child[c].mc_vd,
+			    zio);
 			return (c);
+		}
+	}
 
 	/*
 	 * Every child failed.  There's no place left to look.
@@ -334,7 +420,7 @@ vdev_mirror_io_start(zio_t *zio)
 	mirror_child_t *mc;
 	int c, children;
 
-	mm = vdev_mirror_map_alloc(zio);
+	mm = vdev_mirror_map_init(zio);
 
 	if (zio->io_type == ZIO_TYPE_READ) {
 		if ((zio->io_flags & ZIO_FLAG_SCRUB) && !mm->mm_replacing) {
@@ -348,7 +434,8 @@ vdev_mirror_io_start(zio_t *zio)
 				mc = &mm->mm_child[c];
 				zio_nowait(zio_vdev_child_io(zio, zio->io_bp,
 				    mc->mc_vd, mc->mc_offset,
-				    zio_buf_alloc(zio->io_size), zio->io_size,
+				    abd_alloc_sametype(zio->io_abd,
+				    zio->io_size), zio->io_size,
 				    zio->io_type, zio->io_priority, 0,
 				    vdev_mirror_scrub_done, mc));
 			}
@@ -373,7 +460,7 @@ vdev_mirror_io_start(zio_t *zio)
 	while (children--) {
 		mc = &mm->mm_child[c];
 		zio_nowait(zio_vdev_child_io(zio, zio->io_bp,
-		    mc->mc_vd, mc->mc_offset, zio->io_data, zio->io_size,
+		    mc->mc_vd, mc->mc_offset, zio->io_abd, zio->io_size,
 		    zio->io_type, zio->io_priority, 0,
 		    vdev_mirror_child_done, mc));
 		c++;
@@ -458,7 +545,7 @@ vdev_mirror_io_done(zio_t *zio)
 		mc = &mm->mm_child[c];
 		zio_vdev_io_redone(zio);
 		zio_nowait(zio_vdev_child_io(zio, zio->io_bp,
-		    mc->mc_vd, mc->mc_offset, zio->io_data, zio->io_size,
+		    mc->mc_vd, mc->mc_offset, zio->io_abd, zio->io_size,
 		    ZIO_TYPE_READ, zio->io_priority, 0,
 		    vdev_mirror_child_done, mc));
 		return;
@@ -499,7 +586,7 @@ vdev_mirror_io_done(zio_t *zio)
 
 			zio_nowait(zio_vdev_child_io(zio, zio->io_bp,
 			    mc->mc_vd, mc->mc_offset,
-			    zio->io_data, zio->io_size,
+			    zio->io_abd, zio->io_size,
 			    ZIO_TYPE_WRITE, ZIO_PRIORITY_ASYNC_WRITE,
 			    ZIO_FLAG_IO_REPAIR | (unexpected_errors ?
 			    ZIO_FLAG_SELF_HEAL : 0), NULL, NULL));
@@ -528,6 +615,7 @@ vdev_ops_t vdev_mirror_ops = {
 	vdev_mirror_state_change,
 	NULL,
 	NULL,
+	NULL,
 	VDEV_TYPE_MIRROR,	/* name of this vdev type */
 	B_FALSE			/* not a leaf vdev */
 };
@@ -539,6 +627,7 @@ vdev_ops_t vdev_replacing_ops = {
 	vdev_mirror_io_start,
 	vdev_mirror_io_done,
 	vdev_mirror_state_change,
+	NULL,
 	NULL,
 	NULL,
 	VDEV_TYPE_REPLACING,	/* name of this vdev type */
@@ -554,11 +643,33 @@ vdev_ops_t vdev_spare_ops = {
 	vdev_mirror_state_change,
 	NULL,
 	NULL,
+	NULL,
 	VDEV_TYPE_SPARE,	/* name of this vdev type */
 	B_FALSE			/* not a leaf vdev */
 };
 
 #if defined(_KERNEL) && defined(HAVE_SPL)
-module_param(zfs_vdev_mirror_switch_us, int, 0644);
-MODULE_PARM_DESC(zfs_vdev_mirror_switch_us, "Switch mirrors every N usecs");
+/* BEGIN CSTYLED */
+module_param(zfs_vdev_mirror_rotating_inc, int, 0644);
+MODULE_PARM_DESC(zfs_vdev_mirror_rotating_inc,
+	"Rotating media load increment for non-seeking I/O's");
+
+module_param(zfs_vdev_mirror_rotating_seek_inc, int, 0644);
+MODULE_PARM_DESC(zfs_vdev_mirror_rotating_seek_inc,
+	"Rotating media load increment for seeking I/O's");
+
+module_param(zfs_vdev_mirror_rotating_seek_offset, int, 0644);
+
+MODULE_PARM_DESC(zfs_vdev_mirror_rotating_seek_offset,
+	"Offset in bytes from the last I/O which "
+	"triggers a reduced rotating media seek increment");
+
+module_param(zfs_vdev_mirror_non_rotating_inc, int, 0644);
+MODULE_PARM_DESC(zfs_vdev_mirror_non_rotating_inc,
+	"Non-rotating media load increment for non-seeking I/O's");
+
+module_param(zfs_vdev_mirror_non_rotating_seek_inc, int, 0644);
+MODULE_PARM_DESC(zfs_vdev_mirror_non_rotating_seek_inc,
+	"Non-rotating media load increment for seeking I/O's");
+/* END CSTYLED */
 #endif

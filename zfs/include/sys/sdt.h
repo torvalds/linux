@@ -34,13 +34,8 @@
 #define	ZFS_PROBE2(a, c, e)		((void) 0)
 #define	ZFS_PROBE3(a, c, e, g)		((void) 0)
 #define	ZFS_PROBE4(a, c, e, g, i)	((void) 0)
-#define	ZFS_SET_ERROR(err)		((void) 0)
 
-#else
-
-#if defined(HAVE_DECLARE_EVENT_CLASS)
-
-#include <sys/trace.h>
+#endif /* _KERNEL */
 
 /*
  * The set-error SDT probe is extra static, in that we declare its fake
@@ -55,16 +50,9 @@
  * twice, so it should not have side effects (e.g. something like:
  * "return (SET_ERROR(log_error(EINVAL, info)));" would log the error twice).
  */
-#define	SET_ERROR(err) \
-	(trace_zfs_set__error(__FILE__, __func__, __LINE__, err), err)
-
-#else
-
+extern void __set_error(const char *file, const char *func, int line, int err);
 #undef SET_ERROR
-#define	SET_ERROR(err) (err)
-
-#endif /* HAVE_DECLARE_EVENT_CLASS */
-
-#endif /* _KERNEL */
+#define	SET_ERROR(err) \
+	(__set_error(__FILE__, __func__, __LINE__, err), err)
 
 #endif /* _SYS_SDT_H */

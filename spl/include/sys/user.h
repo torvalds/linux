@@ -30,8 +30,8 @@
  * about the Linux task_struct. Since this is internal to our compatibility
  * layer, we make it an opaque type.
  *
- * XXX: If the descriptor changes under us, we would get an incorrect
- * reference.
+ * XXX: If the descriptor changes under us and we do not do a getf() between
+ * the change and using it, we would get an incorrect reference.
  */
 
 struct uf_info;

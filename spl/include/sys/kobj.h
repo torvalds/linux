@@ -35,8 +35,8 @@ typedef struct _buf buf_t;
 
 extern struct _buf *kobj_open_file(const char *name);
 extern void kobj_close_file(struct _buf *file);
-extern int kobj_read_file(struct _buf *file, char *buf,
-			  ssize_t size, offset_t off);
+extern int kobj_read_file(struct _buf *file, char *buf, unsigned size,
+    unsigned off);
 extern int kobj_get_filesize(struct _buf *file, uint64_t *size);
 
 #endif /* SPL_KOBJ_H */

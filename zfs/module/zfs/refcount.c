@@ -20,13 +20,11 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012 by Delphix. All rights reserved.
+ * Copyright (c) 2012, 2015 by Delphix. All rights reserved.
  */
 
 #include <sys/zfs_context.h>
 #include <sys/refcount.h>
-
-#ifdef	ZFS_DEBUG
 
 #ifdef _KERNEL
 int reference_tracking_enable = FALSE; /* runs out of memory too easily */
@@ -35,6 +33,7 @@ int reference_tracking_enable = TRUE;
 #endif
 int reference_history = 3; /* tunable */
 
+#ifdef	ZFS_DEBUG
 static kmem_cache_t *reference_cache;
 static kmem_cache_t *reference_history_cache;
 
@@ -66,6 +65,13 @@ refcount_create(refcount_t *rc)
 	rc->rc_count = 0;
 	rc->rc_removed_count = 0;
 	rc->rc_tracked = reference_tracking_enable;
+}
+
+void
+refcount_create_tracked(refcount_t *rc)
+{
+	refcount_create(rc);
+	rc->rc_tracked = B_TRUE;
 }
 
 void
@@ -227,4 +233,84 @@ refcount_transfer(refcount_t *dst, refcount_t *src)
 	list_destroy(&removed);
 }
 
+void
+refcount_transfer_ownership(refcount_t *rc, void *current_holder,
+    void *new_holder)
+{
+	reference_t *ref;
+	boolean_t found = B_FALSE;
+
+	mutex_enter(&rc->rc_mtx);
+	if (!rc->rc_tracked) {
+		mutex_exit(&rc->rc_mtx);
+		return;
+	}
+
+	for (ref = list_head(&rc->rc_list); ref;
+	    ref = list_next(&rc->rc_list, ref)) {
+		if (ref->ref_holder == current_holder) {
+			ref->ref_holder = new_holder;
+			found = B_TRUE;
+			break;
+		}
+	}
+	ASSERT(found);
+	mutex_exit(&rc->rc_mtx);
+}
+
+/*
+ * If tracking is enabled, return true if a reference exists that matches
+ * the "holder" tag. If tracking is disabled, then return true if a reference
+ * might be held.
+ */
+boolean_t
+refcount_held(refcount_t *rc, void *holder)
+{
+	reference_t *ref;
+
+	mutex_enter(&rc->rc_mtx);
+
+	if (!rc->rc_tracked) {
+		mutex_exit(&rc->rc_mtx);
+		return (rc->rc_count > 0);
+	}
+
+	for (ref = list_head(&rc->rc_list); ref;
+	    ref = list_next(&rc->rc_list, ref)) {
+		if (ref->ref_holder == holder) {
+			mutex_exit(&rc->rc_mtx);
+			return (B_TRUE);
+		}
+	}
+	mutex_exit(&rc->rc_mtx);
+	return (B_FALSE);
+}
+
+/*
+ * If tracking is enabled, return true if a reference does not exist that
+ * matches the "holder" tag. If tracking is disabled, always return true
+ * since the reference might not be held.
+ */
+boolean_t
+refcount_not_held(refcount_t *rc, void *holder)
+{
+	reference_t *ref;
+
+	mutex_enter(&rc->rc_mtx);
+
+	if (!rc->rc_tracked) {
+		mutex_exit(&rc->rc_mtx);
+		return (B_TRUE);
+	}
+
+	for (ref = list_head(&rc->rc_list); ref;
+	    ref = list_next(&rc->rc_list, ref)) {
+		if (ref->ref_holder == holder) {
+			mutex_exit(&rc->rc_mtx);
+			return (B_FALSE);
+		}
+	}
+	mutex_exit(&rc->rc_mtx);
+	return (B_TRUE);
+}
 #endif	/* ZFS_DEBUG */

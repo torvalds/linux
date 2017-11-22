@@ -44,6 +44,7 @@
 #include <string.h>
 #endif
 
+#include <sys/dsl_dir.h>
 #include <sys/param.h>
 #include <sys/nvpair.h>
 #include "zfs_namecheck.h"
@@ -69,7 +70,7 @@ zfs_component_namecheck(const char *path, namecheck_err_t *why, char *what)
 {
 	const char *loc;
 
-	if (strlen(path) >= MAXNAMELEN) {
+	if (strlen(path) >= ZFS_MAX_DATASET_NAME_LEN) {
 		if (why)
 			*why = NAME_ERR_TOOLONG;
 		return (-1);
@@ -120,9 +121,9 @@ permset_namecheck(const char *path, namecheck_err_t *why, char *what)
 }
 
 /*
- * Dataset names must be of the following form:
+ * Entity names must be of the following form:
  *
- * 	[component][/]*[component][@component]
+ * 	[component/]*[component][(@|#)component]?
  *
  * Where each component is made up of alphanumeric characters plus the following
  * characters:
@@ -133,34 +134,15 @@ permset_namecheck(const char *path, namecheck_err_t *why, char *what)
  * names for temporary clones (for online recv).
  */
 int
-dataset_namecheck(const char *path, namecheck_err_t *why, char *what)
+entity_namecheck(const char *path, namecheck_err_t *why, char *what)
 {
-	const char *loc, *end;
-	int found_snapshot;
+	const char *start, *end, *loc;
+	int found_delim;
 
 	/*
 	 * Make sure the name is not too long.
-	 *
-	 * ZFS_MAXNAMELEN is the maximum dataset length used in the userland
-	 * which is the same as MAXNAMELEN used in the kernel.
-	 * If ZFS_MAXNAMELEN value is changed, make sure to cleanup all
-	 * places using MAXNAMELEN.
-	 *
-	 * When HAVE_KOBJ_NAME_LEN is defined the maximum safe kobject name
-	 * length is 20 bytes.  This 20 bytes is broken down as follows to
-	 * provide a maximum safe <pool>/<dataset>[@snapshot] length of only
-	 * 18 bytes.  To ensure bytes are left for <dataset>[@snapshot] the
-	 * <pool> portition is futher limited to 9 bytes.  For 2.6.27 and
-	 * newer kernels this limit is set to MAXNAMELEN.
-	 *
-	 *   <pool>/<dataset> + <partition> + <newline>
-	 *   (18)             + (1)         + (1)
 	 */
-#ifdef HAVE_KOBJ_NAME_LEN
-	if (strlen(path) > 18) {
-#else
-	if (strlen(path) >= MAXNAMELEN) {
-#endif /* HAVE_KOBJ_NAME_LEN */
+	if (strlen(path) >= ZFS_MAX_DATASET_NAME_LEN) {
 		if (why)
 			*why = NAME_ERR_TOOLONG;
 		return (-1);
@@ -179,12 +161,13 @@ dataset_namecheck(const char *path, namecheck_err_t *why, char *what)
 		return (-1);
 	}
 
-	loc = path;
-	found_snapshot = 0;
+	start = path;
+	found_delim = 0;
 	for (;;) {
 		/* Find the end of this component */
-		end = loc;
-		while (*end != '/' && *end != '@' && *end != '\0')
+		end = start;
+		while (*end != '/' && *end != '@' && *end != '#' &&
+		    *end != '\0')
 			end++;
 
 		if (*end == '\0' && end[-1] == '/') {
@@ -194,25 +177,8 @@ dataset_namecheck(const char *path, namecheck_err_t *why, char *what)
 			return (-1);
 		}
 
-		/* Zero-length components are not allowed */
-		if (loc == end) {
-			if (why) {
-				/*
-				 * Make sure this is really a zero-length
-				 * component and not a '@@'.
-				 */
-				if (*end == '@' && found_snapshot) {
-					*why = NAME_ERR_MULTIPLE_AT;
-				} else {
-					*why = NAME_ERR_EMPTY_COMPONENT;
-				}
-			}
-
-			return (-1);
-		}
-
 		/* Validate the contents of this component */
-		while (loc != end) {
+		for (loc = start; loc != end; loc++) {
 			if (!valid_char(*loc) && *loc != '%') {
 				if (why) {
 					*why = NAME_ERR_INVALCHAR;
@@ -220,43 +186,64 @@ dataset_namecheck(const char *path, namecheck_err_t *why, char *what)
 				}
 				return (-1);
 			}
-			loc++;
+		}
+
+		/* Snapshot or bookmark delimiter found */
+		if (*end == '@' || *end == '#') {
+			/* Multiple delimiters are not allowed */
+			if (found_delim != 0) {
+				if (why)
+					*why = NAME_ERR_MULTIPLE_DELIMITERS;
+				return (-1);
+			}
+
+			found_delim = 1;
+		}
+
+		/* Zero-length components are not allowed */
+		if (start == end) {
+			if (why)
+				*why = NAME_ERR_EMPTY_COMPONENT;
+			return (-1);
 		}
 
 		/* If we've reached the end of the string, we're OK */
 		if (*end == '\0')
 			return (0);
 
-		if (*end == '@') {
-			/*
-			 * If we've found an @ symbol, indicate that we're in
-			 * the snapshot component, and report a second '@'
-			 * character as an error.
-			 */
-			if (found_snapshot) {
-				if (why)
-					*why = NAME_ERR_MULTIPLE_AT;
-				return (-1);
-			}
-
-			found_snapshot = 1;
-		}
-
 		/*
-		 * If there is a '/' in a snapshot name
+		 * If there is a '/' in a snapshot or bookmark name
 		 * then report an error
 		 */
-		if (*end == '/' && found_snapshot) {
+		if (*end == '/' && found_delim != 0) {
 			if (why)
 				*why = NAME_ERR_TRAILING_SLASH;
 			return (-1);
 		}
 
 		/* Update to the next component */
-		loc = end + 1;
+		start = end + 1;
 	}
 }
 
+/*
+ * Dataset is any entity, except bookmark
+ */
+int
+dataset_namecheck(const char *path, namecheck_err_t *why, char *what)
+{
+	int ret = entity_namecheck(path, why, what);
+
+	if (ret == 0 && strchr(path, '#') != NULL) {
+		if (why != NULL) {
+			*why = NAME_ERR_INVALCHAR;
+			*what = '#';
+		}
+		return (-1);
+	}
+
+	return (ret);
+}
 
 /*
  * mountpoint names must be of the following form:
@@ -289,7 +276,7 @@ mountpoint_namecheck(const char *path, namecheck_err_t *why)
 		while (*end != '/' && *end != '\0')
 			end++;
 
-		if (end - start >= MAXNAMELEN) {
+		if (end - start >= ZFS_MAX_DATASET_NAME_LEN) {
 			if (why)
 				*why = NAME_ERR_TOOLONG;
 			return (-1);
@@ -314,27 +301,14 @@ pool_namecheck(const char *pool, namecheck_err_t *why, char *what)
 
 	/*
 	 * Make sure the name is not too long.
-	 *
-	 * ZPOOL_MAXNAMELEN is the maximum pool length used in the userland
-	 * which is the same as MAXNAMELEN used in the kernel.
-	 * If ZPOOL_MAXNAMELEN value is changed, make sure to cleanup all
-	 * places using MAXNAMELEN.
-	 *
-	 * When HAVE_KOBJ_NAME_LEN is defined the maximum safe kobject name
-	 * length is 20 bytes.  This 20 bytes is broken down as follows to
-	 * provide a maximum safe <pool>/<dataset>[@snapshot] length of only
-	 * 18 bytes.  To ensure bytes are left for <dataset>[@snapshot] the
-	 * <pool> portition is futher limited to 8 bytes.  For 2.6.27 and
-	 * newer kernels this limit is set to MAXNAMELEN.
-	 *
-	 *   <pool>/<dataset> + <partition> + <newline>
-	 *   (18)             + (1)         + (1)
+	 * If we're creating a pool with version >= SPA_VERSION_DSL_SCRUB (v11)
+	 * we need to account for additional space needed by the origin ds which
+	 * will also be snapshotted: "poolname"+"/"+"$ORIGIN"+"@"+"$ORIGIN".
+	 * Play it safe and enforce this limit even if the pool version is < 11
+	 * so it can be upgraded without issues.
 	 */
-#ifdef HAVE_KOBJ_NAME_LEN
-	if (strlen(pool) > 8) {
-#else
-	if (strlen(pool) >= MAXNAMELEN) {
-#endif /* HAVE_KOBJ_NAME_LEN */
+	if (strlen(pool) >= (ZFS_MAX_DATASET_NAME_LEN - 2 -
+	    strlen(ORIGIN_DIR_NAME) * 2)) {
 		if (why)
 			*why = NAME_ERR_TOOLONG;
 		return (-1);

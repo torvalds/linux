@@ -39,27 +39,46 @@ dist-hook:
 	sed -i 's/Release:[[:print:]]*/Release:      $(RELEASE)/' \
 		$(distdir)/META
 
-checkstyle: cstyle shellcheck
+checkstyle: cstyle shellcheck flake8 commitcheck
+
+commitcheck:
+	@if git rev-parse --git-dir > /dev/null 2>&1; then \
+		scripts/commitcheck.sh; \
+	fi
 
 cstyle:
 	@find ${top_srcdir} -name '*.[hc]' ! -name 'zfs_config.*' \
-		! -name '*.mod.c' -type f -exec scripts/cstyle.pl {} \+
+		! -name '*.mod.c' -type f -exec scripts/cstyle.pl -cpP {} \+
 
 shellcheck:
 	@if type shellcheck > /dev/null 2>&1; then \
-		(find ${top_srcdir} -type f -name '*.sh.in' -o -type f \
-		 -name '*.sh'; find etc/init.d/zfs*.in -type f) | \
-		 grep -v 'zfs-script-config' | \
-		 while read file; do \
-			shellcheck --format gcc "$$file"; \
-		 done; \
-	 fi
+		shellcheck --exclude=SC1090 --format=gcc scripts/paxcheck.sh \
+			scripts/zloop.sh \
+			scripts/zfs-tests.sh \
+			scripts/zfs.sh \
+			scripts/commitcheck.sh \
+			$$(find cmd/zed/zed.d/*.sh -type f) \
+			$$(find cmd/zpool/zpool.d/* -executable); \
+	fi
 
-lint: cppcheck
+lint: cppcheck paxcheck
 
 cppcheck:
 	@if type cppcheck > /dev/null 2>&1; then \
-		cppcheck --quiet --force ${top_srcdir}; \
+		cppcheck --quiet --force --error-exitcode=2 \
+			--suppressions-list=.github/suppressions.txt \
+			-UHAVE_SSE2 -UHAVE_AVX512F \
+			${top_srcdir}; \
+	fi
+
+paxcheck:
+	@if type scanelf > /dev/null 2>&1; then \
+		scripts/paxcheck.sh ${top_srcdir}; \
+	fi
+
+flake8:
+	@if type flake8 > /dev/null 2>&1; then \
+		flake8 ${top_srcdir}; \
 	fi
 
 ctags:
@@ -73,5 +92,6 @@ etags:
 tags: ctags etags
 
 pkg: @DEFAULT_PACKAGE@
+pkg-dkms: @DEFAULT_PACKAGE@-dkms
 pkg-kmod: @DEFAULT_PACKAGE@-kmod
 pkg-utils: @DEFAULT_PACKAGE@-utils

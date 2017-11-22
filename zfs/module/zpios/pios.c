@@ -1,7 +1,7 @@
 /*
  *  ZPIOS is a heavily modified version of the original PIOS test code.
  *  It is designed to have the test code running in the Linux kernel
- *  against ZFS while still being flexibly controled from user space.
+ *  against ZFS while still being flexibly controlled from user space.
  *
  *  Copyright (C) 2008-2010 Lawrence Livermore National Security, LLC.
  *  Produced at Lawrence Livermore National Laboratory (cf, DISCLAIMER).
@@ -29,10 +29,13 @@
  *
  *  You should have received a copy of the GNU General Public License along
  *  with ZPIOS.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ *  Copyright (c) 2015, Intel Corporation.
  */
 
 #include <sys/zfs_context.h>
 #include <sys/dmu.h>
+#include <sys/spa.h>
 #include <sys/txg.h>
 #include <sys/dsl_destroy.h>
 #include <linux/miscdevice.h>
@@ -129,7 +132,16 @@ zpios_dmu_object_create(run_args_t *run_args, objset_t *os)
 {
 	struct dmu_tx *tx;
 	uint64_t obj = 0ULL;
+	uint64_t blksize = run_args->block_size;
 	int rc;
+
+	if (blksize < SPA_MINBLOCKSIZE ||
+	    blksize > spa_maxblocksize(dmu_objset_spa(os)) ||
+	    !ISP2(blksize)) {
+		zpios_print(run_args->file,
+		    "invalid block size for pool: %d\n", (int)blksize);
+		return (obj);
+	}
 
 	tx = dmu_tx_create(os);
 	dmu_tx_hold_write(tx, DMU_NEW_OBJECT, 0, OBJ_SIZE);
@@ -142,10 +154,11 @@ zpios_dmu_object_create(run_args_t *run_args, objset_t *os)
 	}
 
 	obj = dmu_object_alloc(os, DMU_OT_UINT64_OTHER, 0, DMU_OT_NONE, 0, tx);
-	rc = dmu_object_set_blocksize(os, obj, 128ULL << 10, 0, tx);
+	rc = dmu_object_set_blocksize(os, obj, blksize, 0, tx);
 	if (rc) {
 		zpios_print(run_args->file,
-			    "dmu_object_set_blocksize() failed: %d\n", rc);
+		    "dmu_object_set_blocksize to %d failed: %d\n",
+		    (int)blksize, rc);
 		dmu_tx_abort(tx);
 		return (obj);
 	}
@@ -166,7 +179,7 @@ zpios_dmu_object_free(run_args_t *run_args, objset_t *os, uint64_t obj)
 	rc = dmu_tx_assign(tx, TXG_WAIT);
 	if (rc) {
 		zpios_print(run_args->file,
-			    "dmu_tx_assign() failed: %d\n", rc);
+		    "dmu_tx_assign() failed: %d\n", rc);
 		dmu_tx_abort(tx);
 		return (rc);
 	}
@@ -174,7 +187,7 @@ zpios_dmu_object_free(run_args_t *run_args, objset_t *os, uint64_t obj)
 	rc = dmu_object_free(os, obj, tx);
 	if (rc) {
 		zpios_print(run_args->file,
-			    "dmu_object_free() failed: %d\n", rc);
+		    "dmu_object_free() failed: %d\n", rc);
 		dmu_tx_abort(tx);
 		return (rc);
 	}
@@ -200,14 +213,14 @@ zpios_dmu_setup(run_args_t *run_args)
 	rc = dmu_objset_create(name, DMU_OST_OTHER, 0, NULL, NULL);
 	if (rc) {
 		zpios_print(run_args->file, "Error dmu_objset_create(%s, ...) "
-			    "failed: %d\n", name, rc);
+		    "failed: %d\n", name, rc);
 		goto out;
 	}
 
 	rc = dmu_objset_own(name, DMU_OST_OTHER, 0, zpios_tag, &os);
 	if (rc) {
 		zpios_print(run_args->file, "Error dmu_objset_own(%s, ...) "
-			    "failed: %d\n", name, rc);
+		    "failed: %d\n", name, rc);
 		goto out_destroy;
 	}
 
@@ -216,7 +229,7 @@ zpios_dmu_setup(run_args_t *run_args)
 		if (obj == 0) {
 			rc = -EBADF;
 			zpios_print(run_args->file, "Error zpios_dmu_"
-				    "object_create() failed, %d\n", rc);
+			    "object_create() failed, %d\n", rc);
 			goto out_destroy;
 		}
 	}
@@ -255,7 +268,7 @@ out_destroy:
 		rc2 = dsl_destroy_head(name);
 		if (rc2)
 			zpios_print(run_args->file, "Error dsl_destroy_head"
-				    "(%s, ...) failed: %d\n", name, rc2);
+			    "(%s, ...) failed: %d\n", name, rc2);
 	}
 out:
 	t->stop  = zpios_timespec_now();
@@ -274,11 +287,6 @@ zpios_setup_run(run_args_t **run_args, zpios_cmd_t *kcmd, struct file *file)
 	size = sizeof (*ra) + kcmd->cmd_region_count * sizeof (zpios_region_t);
 
 	ra = vmem_zalloc(size, KM_SLEEP);
-	if (ra == NULL) {
-		zpios_print(file, "Unable to vmem_zalloc() %d bytes "
-			    "for regions\n", size);
-		return (-ENOMEM);
-	}
 
 	*run_args = ra;
 	strncpy(ra->pool, kcmd->cmd_pool, ZPIOS_NAME_SIZE - 1);
@@ -295,6 +303,7 @@ zpios_setup_run(run_args_t **run_args, zpios_cmd_t *kcmd, struct file *file)
 	ra->chunk_noise		= kcmd->cmd_chunk_noise;
 	ra->thread_delay	= kcmd->cmd_thread_delay;
 	ra->flags		= kcmd->cmd_flags;
+	ra->block_size		= kcmd->cmd_block_size;
 	ra->stats.wr_data	= 0;
 	ra->stats.wr_chunks	= 0;
 	ra->stats.rd_data	= 0;
@@ -319,7 +328,7 @@ zpios_setup_run(run_args_t **run_args, zpios_cmd_t *kcmd, struct file *file)
 
 static int
 zpios_get_work_item(run_args_t *run_args, dmu_obj_t *obj, __u64 *offset,
-		    __u32 *chunk_size, zpios_region_t **region, __u32 flags)
+    __u32 *chunk_size, zpios_region_t **region, __u32 flags)
 {
 	int i, j, count = 0;
 	unsigned int random_int;
@@ -467,7 +476,7 @@ zpios_cleanup_run(run_args_t *run_args)
 
 static int
 zpios_dmu_write(run_args_t *run_args, objset_t *os, uint64_t object,
-		uint64_t offset, uint64_t size, const void *buf)
+    uint64_t offset, uint64_t size, const void *buf)
 {
 	struct dmu_tx *tx;
 	int rc, how = TXG_WAIT;
@@ -488,7 +497,7 @@ zpios_dmu_write(run_args_t *run_args, objset_t *os, uint64_t object,
 				continue;
 			}
 			zpios_print(run_args->file,
-				    "Error in dmu_tx_assign(), %d", rc);
+			    "Error in dmu_tx_assign(), %d", rc);
 			dmu_tx_abort(tx);
 			return (rc);
 		}
@@ -579,7 +588,7 @@ zpios_thread_main(void *data)
 
 		if (rc) {
 			zpios_print(run_args->file, "IO error while doing "
-				    "dmu_write(): %d\n", rc);
+			    "dmu_write(): %d\n", rc);
 			break;
 		}
 
@@ -642,13 +651,13 @@ zpios_thread_main(void *data)
 
 		t.start = zpios_timespec_now();
 		rc = zpios_dmu_read(run_args, obj.os, obj.obj,
-				    offset, chunk_size, buf);
+		    offset, chunk_size, buf);
 		t.stop  = zpios_timespec_now();
 		t.delta = zpios_timespec_sub(t.stop, t.start);
 
 		if (rc) {
 			zpios_print(run_args->file, "IO error while doing "
-				    "dmu_read(): %d\n", rc);
+			    "dmu_read(): %d\n", rc);
 			break;
 		}
 
@@ -720,16 +729,8 @@ zpios_threads_run(run_args_t *run_args)
 	int i, rc = 0, tc = run_args->thread_count;
 
 	tsks = kmem_zalloc(sizeof (struct task_struct *) * tc, KM_SLEEP);
-	if (tsks == NULL) {
-		rc = -ENOMEM;
-		goto cleanup2;
-	}
 
 	run_args->threads = kmem_zalloc(sizeof (thread_data_t *)*tc, KM_SLEEP);
-	if (run_args->threads == NULL) {
-		rc = -ENOMEM;
-		goto cleanup;
-	}
 
 	init_waitqueue_head(&run_args->waitq);
 	run_args->threads_done = 0;
@@ -737,10 +738,6 @@ zpios_threads_run(run_args_t *run_args)
 	/* Create all the needed threads which will sleep until awoken */
 	for (i = 0; i < tc; i++) {
 		thr = kmem_zalloc(sizeof (thread_data_t), KM_SLEEP);
-		if (thr == NULL) {
-			rc = -ENOMEM;
-			goto taskerr;
-		}
 
 		thr->thread_no = i;
 		thr->run_args = run_args;
@@ -832,8 +829,6 @@ out:
 
 cleanup:
 	kmem_free(tsks, sizeof (struct task_struct *) * tc);
-cleanup2:
-	/* Returns first encountered thread error (if any) */
 	return (rc);
 
 taskerr:
@@ -929,17 +924,11 @@ zpios_open(struct inode *inode, struct file *file)
 	zpios_info_t *info;
 
 	info = (zpios_info_t *)kmem_alloc(sizeof (*info), KM_SLEEP);
-	if (info == NULL)
-		return (-ENOMEM);
 
 	spin_lock_init(&info->info_lock);
 	info->info_size = ZPIOS_INFO_BUFFER_SIZE;
 	info->info_buffer =
-	    (char *) vmem_alloc(ZPIOS_INFO_BUFFER_SIZE, KM_SLEEP);
-	if (info->info_buffer == NULL) {
-		kmem_free(info, sizeof (*info));
-		return (-ENOMEM);
-	}
+	    (char *)vmem_alloc(ZPIOS_INFO_BUFFER_SIZE, KM_SLEEP);
 
 	info->info_head = info->info_buffer;
 	file->private_data = (void *)info;
@@ -992,10 +981,6 @@ zpios_buffer_size(struct file *file, zpios_cfg_t *kcfg, unsigned long arg)
 
 		size = kcfg->cfg_arg1;
 		buf = (char *)vmem_alloc(size, KM_SLEEP);
-		if (buf == NULL) {
-			rc = -ENOMEM;
-			goto out;
-		}
 
 		/* Zero fill and truncate contents when coping buffer */
 		min = ((size < info->info_size) ? size : info->info_size);
@@ -1012,7 +997,7 @@ zpios_buffer_size(struct file *file, zpios_cfg_t *kcfg, unsigned long arg)
 	if (copy_to_user((struct zpios_cfg_t __user *)arg,
 	    kcfg, sizeof (*kcfg)))
 		rc = -EFAULT;
-out:
+
 	spin_unlock(&info->info_lock);
 
 	return (rc);
@@ -1050,7 +1035,7 @@ zpios_ioctl_cfg(struct file *file, unsigned long arg)
 			break;
 		default:
 			zpios_print(file, "Bad config command %d\n",
-				    kcfg.cfg_cmd);
+			    kcfg.cfg_cmd);
 			rc = -EINVAL;
 			break;
 	}
@@ -1066,16 +1051,11 @@ zpios_ioctl_cmd(struct file *file, unsigned long arg)
 	int rc = -EINVAL;
 
 	kcmd = kmem_alloc(sizeof (zpios_cmd_t), KM_SLEEP);
-	if (kcmd == NULL) {
-		zpios_print(file, "Unable to kmem_alloc() %ld byte for "
-			    "zpios_cmd_t\n", (long int)sizeof (zpios_cmd_t));
-		return (-ENOMEM);
-	}
 
 	rc = copy_from_user(kcmd, (zpios_cfg_t *)arg, sizeof (zpios_cmd_t));
 	if (rc) {
 		zpios_print(file, "Unable to copy command structure "
-			    "from user to kernel memory, %d\n", rc);
+		    "from user to kernel memory, %d\n", rc);
 		goto out_cmd;
 	}
 
@@ -1089,19 +1069,12 @@ zpios_ioctl_cmd(struct file *file, unsigned long arg)
 	/* Allocate memory for any opaque data the caller needed to pass on */
 	if (kcmd->cmd_data_size > 0) {
 		data = (void *)vmem_alloc(kcmd->cmd_data_size, KM_SLEEP);
-		if (data == NULL) {
-			zpios_print(file, "Unable to vmem_alloc() %ld "
-				    "bytes for data buffer\n",
-				    (long)kcmd->cmd_data_size);
-			rc = -ENOMEM;
-			goto out_cmd;
-		}
 
 		rc = copy_from_user(data, (void *)(arg + offsetof(zpios_cmd_t,
 		    cmd_data_str)), kcmd->cmd_data_size);
 		if (rc) {
 			zpios_print(file, "Unable to copy data buffer "
-				    "from user to kernel memory, %d\n", rc);
+			    "from user to kernel memory, %d\n", rc);
 			goto out_data;
 		}
 	}
@@ -1117,7 +1090,7 @@ zpios_ioctl_cmd(struct file *file, unsigned long arg)
 		    cmd_data_str)), data, kcmd->cmd_data_size);
 		if (rc) {
 			zpios_print(file, "Unable to copy data buffer "
-				    "from kernel to user memory, %d\n", rc);
+			    "from kernel to user memory, %d\n", rc);
 			rc = -EFAULT;
 		}
 

@@ -567,7 +567,7 @@ do_case_conv(int uv, uchar_t *u8s, uchar_t *s, int sz, boolean_t is_it_toupper)
  */
 static int
 do_case_compare(size_t uv, uchar_t *s1, uchar_t *s2, size_t n1,
-	size_t n2, boolean_t is_it_toupper, int *errnum)
+    size_t n2, boolean_t is_it_toupper, int *errnum)
 {
 	int f;
 	int sz1;
@@ -745,7 +745,7 @@ combining_class(size_t uv, uchar_t *s, size_t sz)
  */
 static size_t
 do_decomp(size_t uv, uchar_t *u8s, uchar_t *s, int sz,
-	boolean_t canonical_decomposition, u8_normalization_states_t *state)
+    boolean_t canonical_decomposition, u8_normalization_states_t *state)
 {
 	uint16_t b1 = 0;
 	uint16_t b2 = 0;
@@ -842,7 +842,7 @@ do_decomp(size_t uv, uchar_t *u8s, uchar_t *s, int sz,
 	}
 
 	/*
-	 * At this point, this rountine does not know what it would get.
+	 * At this point, this routine does not know what it would get.
 	 * The caller should sort it out if the state isn't a Hangul one.
 	 */
 	*state = U8_STATE_START;
@@ -1057,10 +1057,10 @@ blocked(uchar_t *comb_class, size_t last)
  */
 static size_t
 do_composition(size_t uv, uchar_t *s, uchar_t *comb_class, uchar_t *start,
-	uchar_t *disp, size_t last, uchar_t **os, uchar_t *oslast)
+    uchar_t *disp, size_t last, uchar_t **os, uchar_t *oslast)
 {
 	uchar_t t[U8_STREAM_SAFE_TEXT_MAX + 1];
-	uchar_t tc[U8_MB_CUR_MAX];
+	uchar_t tc[U8_MB_CUR_MAX] = { '\0' };
 	uint8_t saved_marks[U8_MAX_CHARS_A_SEQ];
 	size_t saved_marks_count;
 	uchar_t *p;
@@ -1379,12 +1379,10 @@ SAFE_RETURN:
  */
 static size_t
 collect_a_seq(size_t uv, uchar_t *u8s, uchar_t **source, uchar_t *slast,
-	boolean_t is_it_toupper,
-	boolean_t is_it_tolower,
-	boolean_t canonical_decomposition,
-	boolean_t compatibility_decomposition,
-	boolean_t canonical_composition,
-	int *errnum, u8_normalization_states_t *state)
+    boolean_t is_it_toupper, boolean_t is_it_tolower,
+    boolean_t canonical_decomposition, boolean_t compatibility_decomposition,
+    boolean_t canonical_composition,
+    int *errnum, u8_normalization_states_t *state)
 {
 	uchar_t *s;
 	int sz;
@@ -1396,7 +1394,7 @@ collect_a_seq(size_t uv, uchar_t *u8s, uchar_t **source, uchar_t *slast,
 	uchar_t comb_class[U8_MAX_CHARS_A_SEQ];
 	uchar_t disp[U8_MAX_CHARS_A_SEQ];
 	uchar_t start[U8_MAX_CHARS_A_SEQ];
-	uchar_t u8t[U8_MB_CUR_MAX];
+	uchar_t u8t[U8_MB_CUR_MAX] = { '\0' };
 	uchar_t uts[U8_STREAM_SAFE_TEXT_MAX + 1];
 	uchar_t tc;
 	size_t last;
@@ -1727,7 +1725,7 @@ TURN_STREAM_SAFE:
  */
 static int
 do_norm_compare(size_t uv, uchar_t *s1, uchar_t *s2, size_t n1, size_t n2,
-	int flag, int *errnum)
+    int flag, int *errnum)
 {
 	int result;
 	size_t sz1;
@@ -1843,7 +1841,7 @@ do_norm_compare(size_t uv, uchar_t *s1, uchar_t *s2, size_t n1, size_t n2,
  */
 int
 u8_strcmp(const char *s1, const char *s2, size_t n, int flag, size_t uv,
-		int *errnum)
+    int *errnum)
 {
 	int f;
 	size_t n1;
@@ -1913,7 +1911,7 @@ u8_strcmp(const char *s1, const char *s2, size_t n, int flag, size_t uv,
 
 size_t
 u8_textprep_str(char *inarray, size_t *inlen, char *outarray, size_t *outlen,
-	int flag, size_t unicode_version, int *errnum)
+    int flag, size_t unicode_version, int *errnum)
 {
 	int f;
 	int sz;
@@ -2134,7 +2132,8 @@ u8_textprep_str(char *inarray, size_t *inlen, char *outarray, size_t *outlen,
 
 #if defined(_KERNEL) && defined(HAVE_SPL)
 static int __init
-unicode_init(void) {
+unicode_init(void)
+{
 	return (0);
 }
 

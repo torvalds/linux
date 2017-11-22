@@ -88,7 +88,7 @@ MODULE_PARM_DESC(spl_kmem_cache_expire, "By age (0x1) or low memory (0x2)");
 unsigned int spl_kmem_cache_magazine_size = 0;
 module_param(spl_kmem_cache_magazine_size, uint, 0444);
 MODULE_PARM_DESC(spl_kmem_cache_magazine_size,
-	"Default magazine size (2-256), set automatically (0)\n");
+	"Default magazine size (2-256), set automatically (0)");
 
 /*
  * The default behavior is to report the number of objects remaining in the
@@ -1001,8 +1001,17 @@ spl_kmem_cache_create(char *name, size_t size, size_t align,
 		slabflags |= SLAB_USERCOPY;
 #endif
 
-		skc->skc_linux_cache = kmem_cache_create(
-		    skc->skc_name, size, align, slabflags, NULL);
+#if defined(HAVE_KMEM_CACHE_CREATE_USERCOPY)
+        /*
+         * Newer grsec patchset uses kmem_cache_create_usercopy()
+         * instead of SLAB_USERCOPY flag
+         */
+        skc->skc_linux_cache = kmem_cache_create_usercopy(
+            skc->skc_name, size, align, slabflags, 0, size, NULL);
+#else
+        skc->skc_linux_cache = kmem_cache_create(
+            skc->skc_name, size, align, slabflags, NULL);
+#endif
 		if (skc->skc_linux_cache == NULL) {
 			rc = ENOMEM;
 			goto out;
@@ -1149,15 +1158,13 @@ spl_cache_obj(spl_kmem_cache_t *skc, spl_kmem_slab_t *sks)
  * It is responsible for allocating a new slab, linking it in to the list
  * of partial slabs, and then waking any waiters.
  */
-static void
-spl_cache_grow_work(void *data)
+static int
+__spl_cache_grow(spl_kmem_cache_t *skc, int flags)
 {
-	spl_kmem_alloc_t *ska = (spl_kmem_alloc_t *)data;
-	spl_kmem_cache_t *skc = ska->ska_cache;
 	spl_kmem_slab_t *sks;
 
 	fstrans_cookie_t cookie = spl_fstrans_mark();
-	sks = spl_slab_alloc(skc, ska->ska_flags);
+	sks = spl_slab_alloc(skc, flags);
 	spl_fstrans_unmark(cookie);
 
 	spin_lock(&skc->skc_lock);
@@ -1165,15 +1172,29 @@ spl_cache_grow_work(void *data)
 		skc->skc_slab_total++;
 		skc->skc_obj_total += sks->sks_objs;
 		list_add_tail(&sks->sks_list, &skc->skc_partial_list);
+
+		smp_mb__before_atomic();
+		clear_bit(KMC_BIT_DEADLOCKED, &skc->skc_flags);
+		smp_mb__after_atomic();
+		wake_up_all(&skc->skc_waitq);
 	}
+	spin_unlock(&skc->skc_lock);
+
+	return (sks == NULL ? -ENOMEM : 0);
+}
+
+static void
+spl_cache_grow_work(void *data)
+{
+	spl_kmem_alloc_t *ska = (spl_kmem_alloc_t *)data;
+	spl_kmem_cache_t *skc = ska->ska_cache;
+
+	(void)__spl_cache_grow(skc, ska->ska_flags);
 
 	atomic_dec(&skc->skc_ref);
 	smp_mb__before_atomic();
 	clear_bit(KMC_BIT_GROWING, &skc->skc_flags);
-	clear_bit(KMC_BIT_DEADLOCKED, &skc->skc_flags);
 	smp_mb__after_atomic();
-	wake_up_all(&skc->skc_waitq);
-	spin_unlock(&skc->skc_lock);
 
 	kfree(ska);
 }
@@ -1211,6 +1232,21 @@ spl_cache_grow(spl_kmem_cache_t *skc, int flags, void **obj)
 		rc = spl_wait_on_bit(&skc->skc_flags, KMC_BIT_REAPING,
 		    TASK_UNINTERRUPTIBLE);
 		return (rc ? rc : -EAGAIN);
+	}
+
+	/*
+	 * To reduce the overhead of context switch and improve NUMA locality,
+	 * it tries to allocate a new slab in the current process context with
+	 * KM_NOSLEEP flag. If it fails, it will launch a new taskq to do the
+	 * allocation.
+	 *
+	 * However, this can't be applied to KVM_VMEM due to a bug that
+	 * __vmalloc() doesn't honor gfp flags in page table allocation.
+	 */
+	if (!(skc->skc_flags & KMC_VMEM)) {
+		rc = __spl_cache_grow(skc, flags | KM_NOSLEEP);
+		if (rc == 0)
+			return (0);
 	}
 
 	/*

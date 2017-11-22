@@ -32,7 +32,41 @@
 
 #define DEBUG_SUBSYSTEM S_RWLOCK
 
-#if defined(CONFIG_RWSEM_GENERIC_SPINLOCK)
+#if defined(CONFIG_PREEMPT_RT_FULL)
+
+#include <linux/rtmutex.h>
+#define	RT_MUTEX_OWNER_MASKALL	1UL
+
+static int
+__rwsem_tryupgrade(struct rw_semaphore *rwsem)
+{
+
+	ASSERT((struct task_struct *)
+	    ((unsigned long)rwsem->lock.owner & ~RT_MUTEX_OWNER_MASKALL) ==
+	    current);
+
+	/*
+	 * Under the realtime patch series, rwsem is implemented as a
+	 * single mutex held by readers and writers alike. However,
+	 * this implementation would prevent a thread from taking a
+	 * read lock twice, as the mutex would already be locked on
+	 * the second attempt. Therefore the implementation allows a
+	 * single thread to take a rwsem as read lock multiple times
+	 * tracking that nesting as read_depth counter.
+	 */
+	if (rwsem->read_depth <= 1) {
+		/*
+		 * In case, the current thread has not taken the lock
+		 * more than once as read lock, we can allow an
+		 * upgrade to a write lock. rwsem_rt.h implements
+		 * write locks as read_depth == 0.
+		 */
+		rwsem->read_depth = 0;
+		return (1);
+	}
+	return (0);
+}
+#elif defined(CONFIG_RWSEM_GENERIC_SPINLOCK)
 static int
 __rwsem_tryupgrade(struct rw_semaphore *rwsem)
 {

@@ -363,11 +363,11 @@ splat_thread_init(void)
         spin_lock_init(&sub->test_lock);
         sub->desc.id = SPLAT_SUBSYSTEM_THREAD;
 
-        SPLAT_TEST_INIT(sub, SPLAT_THREAD_TEST1_NAME, SPLAT_THREAD_TEST1_DESC,
+        splat_test_init(sub, SPLAT_THREAD_TEST1_NAME, SPLAT_THREAD_TEST1_DESC,
                       SPLAT_THREAD_TEST1_ID, splat_thread_test1);
-        SPLAT_TEST_INIT(sub, SPLAT_THREAD_TEST2_NAME, SPLAT_THREAD_TEST2_DESC,
+        splat_test_init(sub, SPLAT_THREAD_TEST2_NAME, SPLAT_THREAD_TEST2_DESC,
                       SPLAT_THREAD_TEST2_ID, splat_thread_test2);
-        SPLAT_TEST_INIT(sub, SPLAT_THREAD_TEST3_NAME, SPLAT_THREAD_TEST3_DESC,
+        splat_test_init(sub, SPLAT_THREAD_TEST3_NAME, SPLAT_THREAD_TEST3_DESC,
                       SPLAT_THREAD_TEST3_ID, splat_thread_test3);
 
         return sub;
@@ -377,9 +377,9 @@ void
 splat_thread_fini(splat_subsystem_t *sub)
 {
         ASSERT(sub);
-        SPLAT_TEST_FINI(sub, SPLAT_THREAD_TEST3_ID);
-        SPLAT_TEST_FINI(sub, SPLAT_THREAD_TEST2_ID);
-        SPLAT_TEST_FINI(sub, SPLAT_THREAD_TEST1_ID);
+        splat_test_fini(sub, SPLAT_THREAD_TEST3_ID);
+        splat_test_fini(sub, SPLAT_THREAD_TEST2_ID);
+        splat_test_fini(sub, SPLAT_THREAD_TEST1_ID);
 
         kfree(sub);
 }

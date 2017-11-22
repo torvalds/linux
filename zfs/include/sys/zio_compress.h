@@ -22,16 +22,37 @@
 /*
  * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
+ * Copyright (c) 2015, 2016 by Delphix. All rights reserved.
  */
 
 #ifndef _SYS_ZIO_COMPRESS_H
 #define	_SYS_ZIO_COMPRESS_H
 
-#include <sys/zio.h>
+#include <sys/abd.h>
 
 #ifdef	__cplusplus
 extern "C" {
 #endif
+
+enum zio_compress {
+	ZIO_COMPRESS_INHERIT = 0,
+	ZIO_COMPRESS_ON,
+	ZIO_COMPRESS_OFF,
+	ZIO_COMPRESS_LZJB,
+	ZIO_COMPRESS_EMPTY,
+	ZIO_COMPRESS_GZIP_1,
+	ZIO_COMPRESS_GZIP_2,
+	ZIO_COMPRESS_GZIP_3,
+	ZIO_COMPRESS_GZIP_4,
+	ZIO_COMPRESS_GZIP_5,
+	ZIO_COMPRESS_GZIP_6,
+	ZIO_COMPRESS_GZIP_7,
+	ZIO_COMPRESS_GZIP_8,
+	ZIO_COMPRESS_GZIP_9,
+	ZIO_COMPRESS_ZLE,
+	ZIO_COMPRESS_LZ4,
+	ZIO_COMPRESS_FUNCTIONS
+};
 
 /* Common signature for all zio compress functions. */
 typedef size_t zio_compress_func_t(void *src, void *dst,
@@ -41,13 +62,20 @@ typedef int zio_decompress_func_t(void *src, void *dst,
     size_t s_len, size_t d_len, int);
 
 /*
+ * Common signature for all zio decompress functions using an ABD as input.
+ * This is helpful if you have both compressed ARC and scatter ABDs enabled,
+ * but is not a requirement for all compression algorithms.
+ */
+typedef int zio_decompress_abd_func_t(abd_t *src, void *dst,
+    size_t s_len, size_t d_len, int);
+/*
  * Information about each compression function.
  */
 typedef const struct zio_compress_info {
-	zio_compress_func_t	*ci_compress;	/* compression function */
-	zio_decompress_func_t	*ci_decompress;	/* decompression function */
-	int			ci_level;	/* level parameter */
-	char			*ci_name;	/* algorithm name */
+	char				*ci_name;
+	int				ci_level;
+	zio_compress_func_t		*ci_compress;
+	zio_decompress_func_t		*ci_decompress;
 } zio_compress_info_t;
 
 extern zio_compress_info_t zio_compress_table[ZIO_COMPRESS_FUNCTIONS];
@@ -77,13 +105,16 @@ extern size_t lz4_compress_zfs(void *src, void *dst, size_t s_len, size_t d_len,
     int level);
 extern int lz4_decompress_zfs(void *src, void *dst, size_t s_len, size_t d_len,
     int level);
-
+extern int lz4_decompress_abd(abd_t *src, void *dst, size_t s_len, size_t d_len,
+    int level);
 /*
  * Compress and decompress data if necessary.
  */
-extern size_t zio_compress_data(enum zio_compress c, void *src, void *dst,
+extern size_t zio_compress_data(enum zio_compress c, abd_t *src, void *dst,
     size_t s_len);
-extern int zio_decompress_data(enum zio_compress c, void *src, void *dst,
+extern int zio_decompress_data(enum zio_compress c, abd_t *src, void *dst,
+    size_t s_len, size_t d_len);
+extern int zio_decompress_data_buf(enum zio_compress c, void *src, void *dst,
     size_t s_len, size_t d_len);
 
 #ifdef	__cplusplus

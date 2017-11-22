@@ -59,6 +59,8 @@ extern clock_t __cv_timedwait(kcondvar_t *, kmutex_t *, clock_t);
 extern clock_t __cv_timedwait_sig(kcondvar_t *, kmutex_t *, clock_t);
 extern clock_t cv_timedwait_hires(kcondvar_t *, kmutex_t *, hrtime_t,
     hrtime_t res, int flag);
+extern clock_t cv_timedwait_sig_hires(kcondvar_t *, kmutex_t *, hrtime_t,
+    hrtime_t res, int flag);
 extern void __cv_signal(kcondvar_t *);
 extern void __cv_broadcast(kcondvar_t *c);
 

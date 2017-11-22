@@ -29,23 +29,27 @@ deb-local:
 	fi)
 
 deb-kmod: deb-local rpm-kmod
-if CONFIG_KERNEL
 	name=${PACKAGE}; \
 	version=${VERSION}-${RELEASE}; \
 	arch=`$(RPM) -qp $${name}-kmod-$${version}.src.rpm --qf %{arch} | tail -1`; \
 	pkg1=kmod-$${name}*$${version}.$${arch}.rpm; \
 	fakeroot $(ALIEN) --bump=0 --scripts --to-deb $$pkg1; \
 	$(RM) $$pkg1
-endif
+
+deb-dkms: deb-local rpm-dkms
+	name=${PACKAGE}; \
+	version=${VERSION}-${RELEASE}; \
+	arch=`$(RPM) -qp $${name}-dkms-$${version}.src.rpm --qf %{arch} | tail -1`; \
+	pkg1=$${name}-dkms-$${version}.$${arch}.rpm; \
+	fakeroot $(ALIEN) --bump=0 --scripts --to-deb $$pkg1; \
+	$(RM) $$pkg1
 
 deb-utils: deb-local rpm-utils
-if CONFIG_USER
 	name=${PACKAGE}; \
 	version=${VERSION}-${RELEASE}; \
 	arch=`$(RPM) -qp $${name}-$${version}.src.rpm --qf %{arch} | tail -1`; \
 	pkg1=$${name}-$${version}.$${arch}.rpm; \
 	fakeroot $(ALIEN) --bump=0 --scripts --to-deb $$pkg1; \
 	$(RM) $$pkg1
-endif
 
-deb: deb-kmod deb-utils
+deb: deb-kmod deb-dkms deb-utils

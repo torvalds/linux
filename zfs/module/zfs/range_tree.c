@@ -111,20 +111,13 @@ range_tree_stat_decr(range_tree_t *rt, range_seg_t *rs)
 static int
 range_tree_seg_compare(const void *x1, const void *x2)
 {
-	const range_seg_t *r1 = x1;
-	const range_seg_t *r2 = x2;
+	const range_seg_t *r1 = (const range_seg_t *)x1;
+	const range_seg_t *r2 = (const range_seg_t *)x2;
 
-	if (r1->rs_start < r2->rs_start) {
-		if (r1->rs_end > r2->rs_start)
-			return (0);
-		return (-1);
-	}
-	if (r1->rs_start > r2->rs_start) {
-		if (r1->rs_start < r2->rs_end)
-			return (0);
-		return (1);
-	}
-	return (0);
+	ASSERT3U(r1->rs_start, <=, r1->rs_end);
+	ASSERT3U(r2->rs_start, <=, r2->rs_end);
+
+	return ((r1->rs_start >= r2->rs_end) - (r1->rs_end <= r2->rs_start));
 }
 
 range_tree_t *

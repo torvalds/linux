@@ -42,14 +42,10 @@ typedef struct unique {
 static int
 unique_compare(const void *a, const void *b)
 {
-	const unique_t *una = a;
-	const unique_t *unb = b;
+	const unique_t *una = (const unique_t *)a;
+	const unique_t *unb = (const unique_t *)b;
 
-	if (una->un_value < unb->un_value)
-		return (-1);
-	if (una->un_value > unb->un_value)
-		return (+1);
-	return (0);
+	return (AVL_CMP(una->un_value, unb->un_value));
 }
 
 void

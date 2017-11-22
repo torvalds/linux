@@ -184,211 +184,15 @@ zpl_statfs(struct dentry *dentry, struct kstatfs *statp)
 	return (error);
 }
 
-enum {
-	TOKEN_RO,
-	TOKEN_RW,
-	TOKEN_SETUID,
-	TOKEN_NOSETUID,
-	TOKEN_EXEC,
-	TOKEN_NOEXEC,
-	TOKEN_DEVICES,
-	TOKEN_NODEVICES,
-	TOKEN_DIRXATTR,
-	TOKEN_SAXATTR,
-	TOKEN_XATTR,
-	TOKEN_NOXATTR,
-	TOKEN_ATIME,
-	TOKEN_NOATIME,
-	TOKEN_RELATIME,
-	TOKEN_NORELATIME,
-	TOKEN_NBMAND,
-	TOKEN_NONBMAND,
-	TOKEN_MNTPOINT,
-	TOKEN_LAST,
-};
-
-static const match_table_t zpl_tokens = {
-	{ TOKEN_RO,		MNTOPT_RO },
-	{ TOKEN_RW,		MNTOPT_RW },
-	{ TOKEN_SETUID,		MNTOPT_SETUID },
-	{ TOKEN_NOSETUID,	MNTOPT_NOSETUID },
-	{ TOKEN_EXEC,		MNTOPT_EXEC },
-	{ TOKEN_NOEXEC,		MNTOPT_NOEXEC },
-	{ TOKEN_DEVICES,	MNTOPT_DEVICES },
-	{ TOKEN_NODEVICES,	MNTOPT_NODEVICES },
-	{ TOKEN_DIRXATTR,	MNTOPT_DIRXATTR },
-	{ TOKEN_SAXATTR,	MNTOPT_SAXATTR },
-	{ TOKEN_XATTR,		MNTOPT_XATTR },
-	{ TOKEN_NOXATTR,	MNTOPT_NOXATTR },
-	{ TOKEN_ATIME,		MNTOPT_ATIME },
-	{ TOKEN_NOATIME,	MNTOPT_NOATIME },
-	{ TOKEN_RELATIME,	MNTOPT_RELATIME },
-	{ TOKEN_NORELATIME,	MNTOPT_NORELATIME },
-	{ TOKEN_NBMAND,		MNTOPT_NBMAND },
-	{ TOKEN_NONBMAND,	MNTOPT_NONBMAND },
-	{ TOKEN_MNTPOINT,	MNTOPT_MNTPOINT "=%s" },
-	{ TOKEN_LAST,		NULL },
-};
-
-static int
-zpl_parse_option(char *option, int token, substring_t *args, zfs_mntopts_t *zmo)
-{
-	switch (token) {
-	case TOKEN_RO:
-		zmo->z_readonly = B_TRUE;
-		zmo->z_do_readonly = B_TRUE;
-		break;
-	case TOKEN_RW:
-		zmo->z_readonly = B_FALSE;
-		zmo->z_do_readonly = B_TRUE;
-		break;
-	case TOKEN_SETUID:
-		zmo->z_setuid = B_TRUE;
-		zmo->z_do_setuid = B_TRUE;
-		break;
-	case TOKEN_NOSETUID:
-		zmo->z_setuid = B_FALSE;
-		zmo->z_do_setuid = B_TRUE;
-		break;
-	case TOKEN_EXEC:
-		zmo->z_exec = B_TRUE;
-		zmo->z_do_exec = B_TRUE;
-		break;
-	case TOKEN_NOEXEC:
-		zmo->z_exec = B_FALSE;
-		zmo->z_do_exec = B_TRUE;
-		break;
-	case TOKEN_DEVICES:
-		zmo->z_devices = B_TRUE;
-		zmo->z_do_devices = B_TRUE;
-		break;
-	case TOKEN_NODEVICES:
-		zmo->z_devices = B_FALSE;
-		zmo->z_do_devices = B_TRUE;
-		break;
-	case TOKEN_DIRXATTR:
-		zmo->z_xattr = ZFS_XATTR_DIR;
-		zmo->z_do_xattr = B_TRUE;
-		break;
-	case TOKEN_SAXATTR:
-		zmo->z_xattr = ZFS_XATTR_SA;
-		zmo->z_do_xattr = B_TRUE;
-		break;
-	case TOKEN_XATTR:
-		zmo->z_xattr = ZFS_XATTR_DIR;
-		zmo->z_do_xattr = B_TRUE;
-		break;
-	case TOKEN_NOXATTR:
-		zmo->z_xattr = ZFS_XATTR_OFF;
-		zmo->z_do_xattr = B_TRUE;
-		break;
-	case TOKEN_ATIME:
-		zmo->z_atime = B_TRUE;
-		zmo->z_do_atime = B_TRUE;
-		break;
-	case TOKEN_NOATIME:
-		zmo->z_atime = B_FALSE;
-		zmo->z_do_atime = B_TRUE;
-		break;
-	case TOKEN_RELATIME:
-		zmo->z_relatime = B_TRUE;
-		zmo->z_do_relatime = B_TRUE;
-		break;
-	case TOKEN_NORELATIME:
-		zmo->z_relatime = B_FALSE;
-		zmo->z_do_relatime = B_TRUE;
-		break;
-	case TOKEN_NBMAND:
-		zmo->z_nbmand = B_TRUE;
-		zmo->z_do_nbmand = B_TRUE;
-		break;
-	case TOKEN_NONBMAND:
-		zmo->z_nbmand = B_FALSE;
-		zmo->z_do_nbmand = B_TRUE;
-		break;
-	case TOKEN_MNTPOINT:
-		zmo->z_mntpoint = match_strdup(&args[0]);
-		if (zmo->z_mntpoint == NULL)
-			return (-ENOMEM);
-
-		break;
-	default:
-		break;
-	}
-
-	return (0);
-}
-
-/*
- * Parse the mntopts string storing the results in provided zmo argument.
- * If an error occurs the zmo argument will not be modified.  The caller
- * needs to set isremount when recycling an existing zfs_mntopts_t.
- */
-static int
-zpl_parse_options(char *osname, char *mntopts, zfs_mntopts_t *zmo,
-    boolean_t isremount)
-{
-	zfs_mntopts_t *tmp_zmo;
-	int error;
-
-	tmp_zmo = zfs_mntopts_alloc();
-	tmp_zmo->z_osname = strdup(osname);
-
-	if (mntopts) {
-		substring_t args[MAX_OPT_ARGS];
-		char *tmp_mntopts, *p, *t;
-		int token;
-
-		t = tmp_mntopts = strdup(mntopts);
-
-		while ((p = strsep(&t, ",")) != NULL) {
-			if (!*p)
-				continue;
-
-			args[0].to = args[0].from = NULL;
-			token = match_token(p, zpl_tokens, args);
-			error = zpl_parse_option(p, token, args, tmp_zmo);
-			if (error) {
-				zfs_mntopts_free(tmp_zmo);
-				strfree(tmp_mntopts);
-				return (error);
-			}
-		}
-
-		strfree(tmp_mntopts);
-	}
-
-	if (isremount == B_TRUE) {
-		if (zmo->z_osname)
-			strfree(zmo->z_osname);
-
-		if (zmo->z_mntpoint)
-			strfree(zmo->z_mntpoint);
-	} else {
-		ASSERT3P(zmo->z_osname, ==, NULL);
-		ASSERT3P(zmo->z_mntpoint, ==, NULL);
-	}
-
-	memcpy(zmo, tmp_zmo, sizeof (zfs_mntopts_t));
-	kmem_free(tmp_zmo, sizeof (zfs_mntopts_t));
-
-	return (0);
-}
-
 static int
 zpl_remount_fs(struct super_block *sb, int *flags, char *data)
 {
-	zfs_sb_t *zsb = sb->s_fs_info;
+	zfs_mnt_t zm = { .mnt_osname = NULL, .mnt_data = data };
 	fstrans_cookie_t cookie;
 	int error;
 
-	error = zpl_parse_options(zsb->z_mntopts->z_osname, data,
-	    zsb->z_mntopts, B_TRUE);
-	if (error)
-		return (error);
-
 	cookie = spl_fstrans_mark();
-	error = -zfs_remount(sb, flags, zsb->z_mntopts);
+	error = -zfs_remount(sb, flags, &zm);
 	spl_fstrans_unmark(cookie);
 	ASSERT3S(error, <=, 0);
 
@@ -396,12 +200,13 @@ zpl_remount_fs(struct super_block *sb, int *flags, char *data)
 }
 
 static int
-__zpl_show_options(struct seq_file *seq, zfs_sb_t *zsb)
+__zpl_show_options(struct seq_file *seq, zfsvfs_t *zfsvfs)
 {
-	seq_printf(seq, ",%s", zsb->z_flags & ZSB_XATTR ? "xattr" : "noxattr");
+	seq_printf(seq, ",%s",
+	    zfsvfs->z_flags & ZSB_XATTR ? "xattr" : "noxattr");
 
 #ifdef CONFIG_FS_POSIX_ACL
-	switch (zsb->z_acl_type) {
+	switch (zfsvfs->z_acl_type) {
 	case ZFS_ACLTYPE_POSIXACL:
 		seq_puts(seq, ",posixacl");
 		break;
@@ -431,12 +236,12 @@ zpl_show_options(struct seq_file *seq, struct vfsmount *vfsp)
 static int
 zpl_fill_super(struct super_block *sb, void *data, int silent)
 {
-	zfs_mntopts_t *zmo = (zfs_mntopts_t *)data;
+	zfs_mnt_t *zm = (zfs_mnt_t *)data;
 	fstrans_cookie_t cookie;
 	int error;
 
 	cookie = spl_fstrans_mark();
-	error = -zfs_domount(sb, zmo, silent);
+	error = -zfs_domount(sb, zm, silent);
 	spl_fstrans_unmark(cookie);
 	ASSERT3S(error, <=, 0);
 
@@ -448,32 +253,18 @@ static struct dentry *
 zpl_mount(struct file_system_type *fs_type, int flags,
     const char *osname, void *data)
 {
-	zfs_mntopts_t *zmo = zfs_mntopts_alloc();
-	int error;
+	zfs_mnt_t zm = { .mnt_osname = osname, .mnt_data = data };
 
-	error = zpl_parse_options((char *)osname, (char *)data, zmo, B_FALSE);
-	if (error) {
-		zfs_mntopts_free(zmo);
-		return (ERR_PTR(error));
-	}
-
-	return (mount_nodev(fs_type, flags, zmo, zpl_fill_super));
+	return (mount_nodev(fs_type, flags, &zm, zpl_fill_super));
 }
 #else
 static int
 zpl_get_sb(struct file_system_type *fs_type, int flags,
     const char *osname, void *data, struct vfsmount *mnt)
 {
-	zfs_mntopts_t *zmo = zfs_mntopts_alloc();
-	int error;
+	zfs_mnt_t zm = { .mnt_osname = osname, .mnt_data = data };
 
-	error = zpl_parse_options((char *)osname, (char *)data, zmo, B_FALSE);
-	if (error) {
-		zfs_mntopts_free(zmo);
-		return (error);
-	}
-
-	return (get_sb_nodev(fs_type, flags, zmo, zpl_fill_super, mnt));
+	return (get_sb_nodev(fs_type, flags, &zm, zpl_fill_super, mnt));
 }
 #endif /* HAVE_MOUNT_NODEV */
 
@@ -494,7 +285,7 @@ zpl_prune_sb(int64_t nr_to_scan, void *arg)
 	struct super_block *sb = (struct super_block *)arg;
 	int objects = 0;
 
-	(void) -zfs_sb_prune(sb, nr_to_scan, &objects);
+	(void) -zfs_prune(sb, nr_to_scan, &objects);
 }
 
 #ifdef HAVE_NR_CACHED_OBJECTS

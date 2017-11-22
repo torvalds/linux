@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2013 by Delphix. All rights reserved.
+ * Copyright (c) 2012, 2016 by Delphix. All rights reserved.
  * Copyright (c) 2014, Joyent, Inc. All rights reserved.
  * Copyright (c) 2014 Spectra Logic Corporation, All rights reserved.
  */
@@ -102,7 +102,7 @@ struct dsl_dir {
 
 	/* Protected by dd_lock */
 	kmutex_t dd_lock;
-	list_t dd_prop_cbs; /* list of dsl_prop_cb_record_t's */
+	list_t dd_props; /* list of dsl_prop_record_t's */
 	timestruc_t dd_snap_cmtime; /* last time snapshot namespace changed */
 	uint64_t dd_origin_txg;
 
@@ -112,7 +112,7 @@ struct dsl_dir {
 	int64_t dd_space_towrite[TXG_SIZE];
 
 	/* protected by dd_lock; keep at end of struct for better locality */
-	char dd_myname[MAXNAMELEN];
+	char dd_myname[ZFS_MAX_DATASET_NAME_LEN];
 };
 
 static inline dsl_dir_phys_t *
@@ -137,8 +137,7 @@ uint64_t dsl_dir_space_available(dsl_dir_t *dd,
 void dsl_dir_dirty(dsl_dir_t *dd, dmu_tx_t *tx);
 void dsl_dir_sync(dsl_dir_t *dd, dmu_tx_t *tx);
 int dsl_dir_tempreserve_space(dsl_dir_t *dd, uint64_t mem,
-    uint64_t asize, uint64_t fsize, uint64_t usize, void **tr_cookiep,
-    dmu_tx_t *tx);
+    uint64_t asize, boolean_t netfree, void **tr_cookiep, dmu_tx_t *tx);
 void dsl_dir_tempreserve_clear(void *tr_cookie, dmu_tx_t *tx);
 void dsl_dir_willuse_space(dsl_dir_t *dd, int64_t space, dmu_tx_t *tx);
 void dsl_dir_diduse_space(dsl_dir_t *dd, dd_used_t type,
@@ -176,11 +175,10 @@ boolean_t dsl_dir_is_zapified(dsl_dir_t *dd);
 #ifdef ZFS_DEBUG
 #define	dprintf_dd(dd, fmt, ...) do { \
 	if (zfs_flags & ZFS_DEBUG_DPRINTF) { \
-	char *__ds_name = kmem_alloc(MAXNAMELEN + strlen(MOS_DIR_NAME) + 1, \
-	    KM_SLEEP); \
+	char *__ds_name = kmem_alloc(ZFS_MAX_DATASET_NAME_LEN, KM_SLEEP); \
 	dsl_dir_name(dd, __ds_name); \
 	dprintf("dd=%s " fmt, __ds_name, __VA_ARGS__); \
-	kmem_free(__ds_name, MAXNAMELEN + strlen(MOS_DIR_NAME) + 1); \
+	kmem_free(__ds_name, ZFS_MAX_DATASET_NAME_LEN); \
 	} \
 _NOTE(CONSTCOND) } while (0)
 #else

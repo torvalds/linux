@@ -1,8 +1,5 @@
 /* zfs_config.h.in.  Generated from configure.ac by autoheader.  */
 
-/* Define to 1 to enabled dmu tx validation */
-#undef DEBUG_DMU_TX
-
 /* bio_end_io_t wants 1 arg */
 #undef HAVE_1ARG_BIO_END_IO_T
 
@@ -39,6 +36,39 @@
 /* dops->automount() exists */
 #undef HAVE_AUTOMOUNT
 
+/* Define if host toolchain supports AVX */
+#undef HAVE_AVX
+
+/* Define if host toolchain supports AVX2 */
+#undef HAVE_AVX2
+
+/* Define if host toolchain supports AVX512BW */
+#undef HAVE_AVX512BW
+
+/* Define if host toolchain supports AVX512CD */
+#undef HAVE_AVX512CD
+
+/* Define if host toolchain supports AVX512DQ */
+#undef HAVE_AVX512DQ
+
+/* Define if host toolchain supports AVX512ER */
+#undef HAVE_AVX512ER
+
+/* Define if host toolchain supports AVX512F */
+#undef HAVE_AVX512F
+
+/* Define if host toolchain supports AVX512IFMA */
+#undef HAVE_AVX512IFMA
+
+/* Define if host toolchain supports AVX512PF */
+#undef HAVE_AVX512PF
+
+/* Define if host toolchain supports AVX512VBMI */
+#undef HAVE_AVX512VBMI
+
+/* Define if host toolchain supports AVX512VL */
+#undef HAVE_AVX512VL
+
 /* struct block_device_operations use bdevs */
 #undef HAVE_BDEV_BLOCK_DEVICE_OPERATIONS
 
@@ -66,11 +96,17 @@
 /* BIO_RW_FAILFAST_* are defined */
 #undef HAVE_BIO_RW_FAILFAST_DTD
 
+/* bio_set_dev() exists */
+#undef HAVE_BIO_SET_DEV
+
 /* bio_set_op_attrs is available */
 #undef HAVE_BIO_SET_OP_ATTRS
 
 /* blkdev_get_by_path() is available */
 #undef HAVE_BLKDEV_GET_BY_PATH
+
+/* blk queue backing_dev_info is dynamic */
+#undef HAVE_BLK_QUEUE_BDI_DYNAMIC
 
 /* blk_queue_flush() is available */
 #undef HAVE_BLK_QUEUE_FLUSH
@@ -107,9 +143,6 @@
 
 /* iops->check_acl() wants flags */
 #undef HAVE_CHECK_ACL_WITH_FLAGS
-
-/* check_disk_size_change() is available */
-#undef HAVE_CHECK_DISK_SIZE_CHANGE
 
 /* clear_inode() is available */
 #undef HAVE_CLEAR_INODE
@@ -174,6 +207,9 @@
 /* fops->aio_fsync() exists */
 #undef HAVE_FILE_AIO_FSYNC
 
+/* file_dentry() is available */
+#undef HAVE_FILE_DENTRY
+
 /* fops->fallocate() exists */
 #undef HAVE_FILE_FALLOCATE
 
@@ -192,6 +228,9 @@
 /* iops->follow_link() nameidata */
 #undef HAVE_FOLLOW_LINK_NAMEIDATA
 
+/* kernel has <asm/fpu/api.h> interface */
+#undef HAVE_FPU_API_H
+
 /* sops->free_cached_objects() exists */
 #undef HAVE_FREE_CACHED_OBJECTS
 
@@ -204,8 +243,11 @@
 /* fops->fsync() with dentry */
 #undef HAVE_FSYNC_WITH_DENTRY
 
-/* generic_start_io_acct()/generic_end_io_acct() avaliable */
-#undef HAVE_GENERIC_IO_ACCT
+/* generic_start_io_acct()/generic_end_io_acct() available */
+#undef HAVE_GENERIC_IO_ACCT_3ARG
+
+/* generic_start_io_acct()/generic_end_io_acct() 4 arg available */
+#undef HAVE_GENERIC_IO_ACCT_4ARG
 
 /* generic_readlink is global */
 #undef HAVE_GENERIC_READLINK
@@ -237,6 +279,9 @@
 /* inode_owner_or_capable() exists */
 #undef HAVE_INODE_OWNER_OR_CAPABLE
 
+/* inode_set_flags() exists */
+#undef HAVE_INODE_SET_FLAGS
+
 /* iops->truncate_range() exists */
 #undef HAVE_INODE_TRUNCATE_RANGE
 
@@ -252,20 +297,32 @@
 /* uncached_acl_sentinel() exists */
 #undef HAVE_KERNEL_GET_ACL_HANDLE_CACHE
 
-/* kernel defines KOBJ_NAME_LEN */
-#undef HAVE_KOBJ_NAME_LEN
+/* kernel does stack verification */
+#undef HAVE_KERNEL_OBJTOOL
+
+/* i_(uid|gid)_(read|write) exist */
+#undef HAVE_KUID_HELPERS
 
 /* kernel has large stacks */
 #undef HAVE_LARGE_STACKS
 
+/* Define if you have libattr */
+#undef HAVE_LIBATTR
+
 /* Define if you have libblkid */
 #undef HAVE_LIBBLKID
 
+/* Define if you have libtirpc */
+#undef HAVE_LIBTIRPC
+
+/* Define if you have libudev */
+#undef HAVE_LIBUDEV
+
+/* Define if udev_device_get_is_initialized is available */
+#undef HAVE_LIBUDEV_UDEV_DEVICE_GET_IS_INITIALIZED
+
 /* Define if you have libuuid */
 #undef HAVE_LIBUUID
-
-/* Define to 1 if you have the `z' library (-lz). */
-#undef HAVE_LIBZ
 
 /* iops->lookup() passes nameidata */
 #undef HAVE_LOOKUP_NAMEIDATA
@@ -342,6 +399,9 @@
 /* iops->put_link() nameidata */
 #undef HAVE_PUT_LINK_NAMEIDATA
 
+/* qat is enabled and existed */
+#undef HAVE_QAT
+
 /* iops->rename() wants flags */
 #undef HAVE_RENAME_WANTS_FLAGS
 
@@ -375,6 +435,24 @@
 /* struct super_block has s_shrink */
 #undef HAVE_SHRINK
 
+/* Define if host toolchain supports SSE */
+#undef HAVE_SSE
+
+/* Define if host toolchain supports SSE2 */
+#undef HAVE_SSE2
+
+/* Define if host toolchain supports SSE3 */
+#undef HAVE_SSE3
+
+/* Define if host toolchain supports SSE4.1 */
+#undef HAVE_SSE4_1
+
+/* Define if host toolchain supports SSE4.2 */
+#undef HAVE_SSE4_2
+
+/* Define if host toolchain supports SSSE3 */
+#undef HAVE_SSSE3
+
 /* Define to 1 if you have the <stdint.h> header file. */
 #undef HAVE_STDINT_H
 
@@ -390,6 +468,9 @@
 /* super_setup_bdi_name() exits */
 #undef HAVE_SUPER_SETUP_BDI_NAME
 
+/* super_block->s_user_ns exists */
+#undef HAVE_SUPER_USER_NS
+
 /* Define to 1 if you have the <sys/stat.h> header file. */
 #undef HAVE_SYS_STAT_H
 
@@ -401,6 +482,9 @@
 
 /* struct super_block has s_instances list_head */
 #undef HAVE_S_INSTANCES_LIST_HEAD
+
+/* i_op->tmpfile() exists */
+#undef HAVE_TMPFILE
 
 /* truncate_setsize() is available */
 #undef HAVE_TRUNCATE_SETSIZE
@@ -474,6 +558,9 @@
 /* make_request_fn() returns blk_qc_t */
 #undef MAKE_REQUEST_FN_RET
 
+/* hardened module_param_call */
+#undef MODULE_PARAM_CALL_CONST
+
 /* Name of package */
 #undef PACKAGE
 
@@ -506,6 +593,9 @@
 
 /* zfs debugging enabled */
 #undef ZFS_DEBUG
+
+/* using global_node_page_state() */
+#undef ZFS_GLOBAL_NODE_PAGE_STATE
 
 /* Define to 1 if GPL-only symbols can be used */
 #undef ZFS_IS_GPL_COMPATIBLE

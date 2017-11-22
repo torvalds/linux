@@ -99,15 +99,13 @@ zpool_prop_init(void)
 	    PROP_READONLY, ZFS_TYPE_POOL, "<1.00x or higher if deduped>",
 	    "DEDUP");
 
-	/* readonly onetime number properties */
-	zprop_register_number(ZPOOL_PROP_ASHIFT, "ashift", 0, PROP_ONETIME,
-	    ZFS_TYPE_POOL, "<ashift, 9-13, or 0=default>", "ASHIFT");
-
 	/* default number properties */
 	zprop_register_number(ZPOOL_PROP_VERSION, "version", SPA_VERSION,
 	    PROP_DEFAULT, ZFS_TYPE_POOL, "<version>", "VERSION");
 	zprop_register_number(ZPOOL_PROP_DEDUPDITTO, "dedupditto", 0,
 	    PROP_DEFAULT, ZFS_TYPE_POOL, "<threshold (min 100)>", "DEDUPDITTO");
+	zprop_register_number(ZPOOL_PROP_ASHIFT, "ashift", 0, PROP_DEFAULT,
+	    ZFS_TYPE_POOL, "<ashift, 9-16, or 0=default>", "ASHIFT");
 
 	/* default index (boolean) properties */
 	zprop_register_index(ZPOOL_PROP_DELEGATION, "delegation", 1,
@@ -122,6 +120,9 @@ zpool_prop_init(void)
 	    PROP_DEFAULT, ZFS_TYPE_POOL, "on | off", "EXPAND", boolean_table);
 	zprop_register_index(ZPOOL_PROP_READONLY, "readonly", 0,
 	    PROP_DEFAULT, ZFS_TYPE_POOL, "on | off", "RDONLY", boolean_table);
+	zprop_register_index(ZPOOL_PROP_MULTIHOST, "multihost", 0,
+	    PROP_DEFAULT, ZFS_TYPE_POOL, "on | off", "MULTIHOST",
+	    boolean_table);
 
 	/* default index properties */
 	zprop_register_index(ZPOOL_PROP_FAILUREMODE, "failmode",
@@ -135,6 +136,8 @@ zpool_prop_init(void)
 	    PROP_TYPE_NUMBER, PROP_READONLY, ZFS_TYPE_POOL, "MAXBLOCKSIZE");
 	zprop_register_hidden(ZPOOL_PROP_TNAME, "tname", PROP_TYPE_STRING,
 	    PROP_ONETIME, ZFS_TYPE_POOL, "TNAME");
+	zprop_register_hidden(ZPOOL_PROP_MAXDNODESIZE, "maxdnodesize",
+	    PROP_TYPE_NUMBER, PROP_READONLY, ZFS_TYPE_POOL, "MAXDNODESIZE");
 }
 
 /*

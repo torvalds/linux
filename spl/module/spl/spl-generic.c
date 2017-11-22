@@ -41,6 +41,8 @@
 #include <sys/kstat.h>
 #include <sys/file.h>
 #include <linux/ctype.h>
+#include <sys/disp.h>
+#include <sys/random.h>
 #include <linux/kmod.h>
 #include <linux/math64_compat.h>
 #include <linux/proc_compat.h>
@@ -55,6 +57,112 @@ MODULE_PARM_DESC(spl_hostid, "The system hostid.");
 
 proc_t p0;
 EXPORT_SYMBOL(p0);
+
+/*
+ * Xorshift Pseudo Random Number Generator based on work by Sebastiano Vigna
+ *
+ * "Further scramblings of Marsaglia's xorshift generators"
+ * http://vigna.di.unimi.it/ftp/papers/xorshiftplus.pdf
+ *
+ * random_get_pseudo_bytes() is an API function on Illumos whose sole purpose
+ * is to provide bytes containing random numbers. It is mapped to /dev/urandom
+ * on Illumos, which uses a "FIPS 186-2 algorithm". No user of the SPL's
+ * random_get_pseudo_bytes() needs bytes that are of cryptographic quality, so
+ * we can implement it using a fast PRNG that we seed using Linux' actual
+ * equivalent to random_get_pseudo_bytes(). We do this by providing each CPU
+ * with an independent seed so that all calls to random_get_pseudo_bytes() are
+ * free of atomic instructions.
+ *
+ * A consequence of using a fast PRNG is that using random_get_pseudo_bytes()
+ * to generate words larger than 128 bits will paradoxically be limited to
+ * `2^128 - 1` possibilities. This is because we have a sequence of `2^128 - 1`
+ * 128-bit words and selecting the first will implicitly select the second. If
+ * a caller finds this behavior undesireable, random_get_bytes() should be used
+ * instead.
+ *
+ * XXX: Linux interrupt handlers that trigger within the critical section
+ * formed by `s[1] = xp[1];` and `xp[0] = s[0];` and call this function will
+ * see the same numbers. Nothing in the code currently calls this in an
+ * interrupt handler, so this is considered to be okay. If that becomes a
+ * problem, we could create a set of per-cpu variables for interrupt handlers
+ * and use them when in_interrupt() from linux/preempt_mask.h evaluates to
+ * true.
+ */
+static DEFINE_PER_CPU(uint64_t[2], spl_pseudo_entropy);
+
+/*
+ * spl_rand_next()/spl_rand_jump() are copied from the following CC-0 licensed
+ * file:
+ *
+ * http://xorshift.di.unimi.it/xorshift128plus.c
+ */
+
+static inline uint64_t
+spl_rand_next(uint64_t *s) {
+	uint64_t s1 = s[0];
+	const uint64_t s0 = s[1];
+	s[0] = s0;
+	s1 ^= s1 << 23; // a
+	s[1] = s1 ^ s0 ^ (s1 >> 18) ^ (s0 >> 5); // b, c
+	return (s[1] + s0);
+}
+
+static inline void
+spl_rand_jump(uint64_t *s) {
+	static const uint64_t JUMP[] = { 0x8a5cd789635d2dff, 0x121fd2155c472f96 };
+
+	uint64_t s0 = 0;
+	uint64_t s1 = 0;
+	int i, b;
+	for(i = 0; i < sizeof JUMP / sizeof *JUMP; i++)
+		for(b = 0; b < 64; b++) {
+			if (JUMP[i] & 1ULL << b) {
+				s0 ^= s[0];
+				s1 ^= s[1];
+			}
+			(void) spl_rand_next(s);
+		}
+
+	s[0] = s0;
+	s[1] = s1;
+}
+
+int
+random_get_pseudo_bytes(uint8_t *ptr, size_t len)
+{
+	uint64_t *xp, s[2];
+
+	ASSERT(ptr);
+
+	xp = get_cpu_var(spl_pseudo_entropy);
+
+	s[0] = xp[0];
+	s[1] = xp[1];
+
+	while (len) {
+		union {
+			uint64_t ui64;
+			uint8_t byte[sizeof (uint64_t)];
+		}entropy;
+		int i = MIN(len, sizeof (uint64_t));
+
+		len -= i;
+		entropy.ui64 = spl_rand_next(s);
+
+		while (i--)
+			*ptr++ = entropy.byte[i];
+	}
+
+	xp[0] = s[0];
+	xp[1] = s[1];
+
+	put_cpu_var(spl_pseudo_entropy);
+
+	return (0);
+}
+
+
+EXPORT_SYMBOL(random_get_pseudo_bytes);
 
 #if BITS_PER_LONG == 32
 /*
@@ -168,6 +276,49 @@ __umoddi3(uint64_t dividend, uint64_t divisor)
 	return (dividend - (divisor * __udivdi3(dividend, divisor)));
 }
 EXPORT_SYMBOL(__umoddi3);
+
+/*
+ * Implementation of 64-bit unsigned division/modulo for 32-bit machines.
+ */
+uint64_t
+__udivmoddi4(uint64_t n, uint64_t d, uint64_t *r)
+{
+	uint64_t q = __udivdi3(n, d);
+	if (r)
+		*r = n - d * q;
+	return (q);
+}
+EXPORT_SYMBOL(__udivmoddi4);
+
+/*
+ * Implementation of 64-bit signed division/modulo for 32-bit machines.
+ */
+int64_t
+__divmoddi4(int64_t n, int64_t d, int64_t *r)
+{
+	int64_t q, rr;
+	boolean_t nn = B_FALSE;
+	boolean_t nd = B_FALSE;
+	if (n < 0) {
+		nn = B_TRUE;
+		n = -n;
+	}
+	if (d < 0) {
+		nd = B_TRUE;
+		d = -d;
+	}
+
+	q = __udivmoddi4(n, d, (uint64_t *)&rr);
+
+	if (nn != nd)
+		q = -q;
+	if (nn)
+		rr = -rr;
+	if (r)
+		*r = rr;
+	return (q);
+}
+EXPORT_SYMBOL(__divmoddi4);
 
 #if defined(__arm) || defined(__arm__)
 /*
@@ -391,80 +542,63 @@ module_param(spl_hostid_path, charp, 0444);
 MODULE_PARM_DESC(spl_hostid_path, "The system hostid file (/etc/hostid)");
 
 static int
-hostid_read(void)
+hostid_read(uint32_t *hostid)
 {
-	int result;
 	uint64_t size;
 	struct _buf *file;
-	uint32_t hostid = 0;
+	uint32_t value = 0;
+	int error;
 
 	file = kobj_open_file(spl_hostid_path);
-
 	if (file == (struct _buf *)-1)
-		return -1;
+		return (ENOENT);
 
-	result = kobj_get_filesize(file, &size);
-
-	if (result != 0) {
-		printk(KERN_WARNING
-		       "SPL: kobj_get_filesize returned %i on %s\n",
-		       result, spl_hostid_path);
+	error = kobj_get_filesize(file, &size);
+	if (error) {
 		kobj_close_file(file);
-		return -2;
+		return (error);
 	}
 
 	if (size < sizeof(HW_HOSTID_MASK)) {
-		printk(KERN_WARNING
-		       "SPL: Ignoring the %s file because it is %llu bytes; "
-		       "expecting %lu bytes instead.\n", spl_hostid_path,
-		       size, (unsigned long)sizeof(HW_HOSTID_MASK));
 		kobj_close_file(file);
-		return -3;
+		return (EINVAL);
 	}
 
-	/* Read directly into the variable like eglibc does. */
-	/* Short reads are okay; native behavior is preserved. */
-	result = kobj_read_file(file, (char *)&hostid, sizeof(hostid), 0);
-
-	if (result < 0) {
-		printk(KERN_WARNING
-		       "SPL: kobj_read_file returned %i on %s\n",
-		       result, spl_hostid_path);
+	/*
+	 * Read directly into the variable like eglibc does.
+	 * Short reads are okay; native behavior is preserved.
+	 */
+	error = kobj_read_file(file, (char *)&value, sizeof(value), 0);
+	if (error < 0) {
 		kobj_close_file(file);
-		return -4;
+		return (EIO);
 	}
 
 	/* Mask down to 32 bits like coreutils does. */
-	spl_hostid = hostid & HW_HOSTID_MASK;
+	*hostid = (value & HW_HOSTID_MASK);
 	kobj_close_file(file);
+
 	return 0;
 }
 
+/*
+ * Return the system hostid.  Preferentially use the spl_hostid module option
+ * when set, otherwise use the value in the /etc/hostid file.
+ */
 uint32_t
 zone_get_hostid(void *zone)
 {
-	static int first = 1;
+	uint32_t hostid;
 
-	/* Only the global zone is supported */
-	ASSERT(zone == NULL);
+	ASSERT3P(zone, ==, NULL);
 
-	if (first) {
-		first = 0;
+	if (spl_hostid != 0)
+		return ((uint32_t)(spl_hostid & HW_HOSTID_MASK));
 
-		spl_hostid &= HW_HOSTID_MASK;
-		/*
-		 * Get the hostid if it was not passed as a module parameter.
-		 * Try reading the /etc/hostid file directly.
-		 */
-		if (spl_hostid == 0 && hostid_read())
-			spl_hostid = 0;
+	if (hostid_read(&hostid) == 0)
+		return (hostid);
 
-
-		printk(KERN_NOTICE "SPL: using hostid 0x%08x\n",
-			(unsigned int) spl_hostid);
-	}
-
-	return spl_hostid;
+	return (0);
 }
 EXPORT_SYMBOL(zone_get_hostid);
 
@@ -475,29 +609,58 @@ spl_kvmem_init(void)
 
 	rc = spl_kmem_init();
 	if (rc)
-		goto out1;
+		return (rc);
 
 	rc = spl_vmem_init();
-	if (rc)
-		goto out2;
-
-	rc = spl_kmem_cache_init();
-	if (rc)
-		goto out3;
+	if (rc) {
+		spl_kmem_fini();
+		return (rc);
+	}
 
 	return (rc);
-out3:
-	spl_vmem_fini();
-out2:
-	spl_kmem_fini();
-out1:
-	return (rc);
+}
+
+/*
+ * We initialize the random number generator with 128 bits of entropy from the
+ * system random number generator. In the improbable case that we have a zero
+ * seed, we fallback to the system jiffies, unless it is also zero, in which
+ * situation we use a preprogrammed seed. We step forward by 2^64 iterations to
+ * initialize each of the per-cpu seeds so that the sequences generated on each
+ * CPU are guaranteed to never overlap in practice.
+ */
+static void __init
+spl_random_init(void)
+{
+	uint64_t s[2];
+	int i;
+
+	get_random_bytes(s, sizeof (s));
+
+	if (s[0] == 0 && s[1] == 0) {
+		if (jiffies != 0) {
+			s[0] = jiffies;
+			s[1] = ~0 - jiffies;
+		} else {
+			(void) memcpy(s, "improbable seed", sizeof (s));
+		}
+		printk("SPL: get_random_bytes() returned 0 "
+		    "when generating random seed. Setting initial seed to "
+		    "0x%016llx%016llx.", cpu_to_be64(s[0]), cpu_to_be64(s[1]));
+	}
+
+	for_each_possible_cpu(i) {
+		uint64_t *wordp = per_cpu(spl_pseudo_entropy, i);
+
+		spl_rand_jump(s);
+
+		wordp[0] = s[0];
+		wordp[1] = s[1];
+	}
 }
 
 static void
 spl_kvmem_fini(void)
 {
-	spl_kmem_cache_fini();
 	spl_vmem_fini();
 	spl_kmem_fini();
 }
@@ -508,6 +671,7 @@ spl_init(void)
 	int rc = 0;
 
 	bzero(&p0, sizeof (proc_t));
+	spl_random_init();
 
 	if ((rc = spl_kvmem_init()))
 		goto out1;
@@ -518,38 +682,43 @@ spl_init(void)
 	if ((rc = spl_rw_init()))
 		goto out3;
 
-	if ((rc = spl_taskq_init()))
+	if ((rc = spl_tsd_init()))
 		goto out4;
 
-	if ((rc = spl_vn_init()))
+	if ((rc = spl_taskq_init()))
 		goto out5;
 
-	if ((rc = spl_proc_init()))
+	if ((rc = spl_kmem_cache_init()))
 		goto out6;
 
-	if ((rc = spl_kstat_init()))
+	if ((rc = spl_vn_init()))
 		goto out7;
 
-	if ((rc = spl_tsd_init()))
+	if ((rc = spl_proc_init()))
 		goto out8;
 
-	if ((rc = spl_zlib_init()))
+	if ((rc = spl_kstat_init()))
 		goto out9;
+
+	if ((rc = spl_zlib_init()))
+		goto out10;
 
 	printk(KERN_NOTICE "SPL: Loaded module v%s-%s%s\n", SPL_META_VERSION,
 	       SPL_META_RELEASE, SPL_DEBUG_STR);
 	return (rc);
 
-out9:
-	spl_tsd_fini();
-out8:
+out10:
 	spl_kstat_fini();
-out7:
+out9:
 	spl_proc_fini();
-out6:
+out8:
 	spl_vn_fini();
-out5:
+out7:
+	spl_kmem_cache_fini();
+out6:
 	spl_taskq_fini();
+out5:
+	spl_tsd_fini();
 out4:
 	spl_rw_fini();
 out3:
@@ -570,11 +739,12 @@ spl_fini(void)
 	printk(KERN_NOTICE "SPL: Unloaded module v%s-%s%s\n",
 	       SPL_META_VERSION, SPL_META_RELEASE, SPL_DEBUG_STR);
 	spl_zlib_fini();
-	spl_tsd_fini();
 	spl_kstat_fini();
 	spl_proc_fini();
 	spl_vn_fini();
+	spl_kmem_cache_fini();
 	spl_taskq_fini();
+	spl_tsd_fini();
 	spl_rw_fini();
 	spl_mutex_fini();
 	spl_kvmem_fini();

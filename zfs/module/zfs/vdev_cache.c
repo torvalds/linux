@@ -23,7 +23,7 @@
  * Use is subject to license terms.
  */
 /*
- * Copyright (c) 2013 by Delphix. All rights reserved.
+ * Copyright (c) 2013, 2016 by Delphix. All rights reserved.
  */
 
 #include <sys/zfs_context.h>
@@ -31,6 +31,7 @@
 #include <sys/vdev_impl.h>
 #include <sys/zio.h>
 #include <sys/kstat.h>
+#include <sys/abd.h>
 
 /*
  * Virtual device read-ahead caching.
@@ -102,31 +103,26 @@ static vdc_stats_t vdc_stats = {
 	{ "misses",		KSTAT_DATA_UINT64 }
 };
 
-#define	VDCSTAT_BUMP(stat)	atomic_add_64(&vdc_stats.stat.value.ui64, 1);
+#define	VDCSTAT_BUMP(stat)	atomic_inc_64(&vdc_stats.stat.value.ui64);
 
-static int
+static inline int
 vdev_cache_offset_compare(const void *a1, const void *a2)
 {
-	const vdev_cache_entry_t *ve1 = a1;
-	const vdev_cache_entry_t *ve2 = a2;
+	const vdev_cache_entry_t *ve1 = (const vdev_cache_entry_t *)a1;
+	const vdev_cache_entry_t *ve2 = (const vdev_cache_entry_t *)a2;
 
-	if (ve1->ve_offset < ve2->ve_offset)
-		return (-1);
-	if (ve1->ve_offset > ve2->ve_offset)
-		return (1);
-	return (0);
+	return (AVL_CMP(ve1->ve_offset, ve2->ve_offset));
 }
 
 static int
 vdev_cache_lastused_compare(const void *a1, const void *a2)
 {
-	const vdev_cache_entry_t *ve1 = a1;
-	const vdev_cache_entry_t *ve2 = a2;
+	const vdev_cache_entry_t *ve1 = (const vdev_cache_entry_t *)a1;
+	const vdev_cache_entry_t *ve2 = (const vdev_cache_entry_t *)a2;
 
-	if (ddi_time_before(ve1->ve_lastused, ve2->ve_lastused))
-		return (-1);
-	if (ddi_time_after(ve1->ve_lastused, ve2->ve_lastused))
-		return (1);
+	int cmp = AVL_CMP(ve1->ve_lastused, ve2->ve_lastused);
+	if (likely(cmp))
+		return (cmp);
 
 	/*
 	 * Among equally old entries, sort by offset to ensure uniqueness.
@@ -141,12 +137,12 @@ static void
 vdev_cache_evict(vdev_cache_t *vc, vdev_cache_entry_t *ve)
 {
 	ASSERT(MUTEX_HELD(&vc->vc_lock));
-	ASSERT(ve->ve_fill_io == NULL);
-	ASSERT(ve->ve_data != NULL);
+	ASSERT3P(ve->ve_fill_io, ==, NULL);
+	ASSERT3P(ve->ve_abd, !=, NULL);
 
 	avl_remove(&vc->vc_lastused_tree, ve);
 	avl_remove(&vc->vc_offset_tree, ve);
-	zio_buf_free(ve->ve_data, VCBS);
+	abd_free(ve->ve_abd);
 	kmem_free(ve, sizeof (vdev_cache_entry_t));
 }
 
@@ -176,14 +172,14 @@ vdev_cache_allocate(zio_t *zio)
 		ve = avl_first(&vc->vc_lastused_tree);
 		if (ve->ve_fill_io != NULL)
 			return (NULL);
-		ASSERT(ve->ve_hits != 0);
+		ASSERT3U(ve->ve_hits, !=, 0);
 		vdev_cache_evict(vc, ve);
 	}
 
 	ve = kmem_zalloc(sizeof (vdev_cache_entry_t), KM_SLEEP);
 	ve->ve_offset = offset;
 	ve->ve_lastused = ddi_get_lbolt();
-	ve->ve_data = zio_buf_alloc(VCBS);
+	ve->ve_abd = abd_alloc_for_io(VCBS, B_TRUE);
 
 	avl_add(&vc->vc_offset_tree, ve);
 	avl_add(&vc->vc_lastused_tree, ve);
@@ -197,7 +193,7 @@ vdev_cache_hit(vdev_cache_t *vc, vdev_cache_entry_t *ve, zio_t *zio)
 	uint64_t cache_phase = P2PHASE(zio->io_offset, VCBS);
 
 	ASSERT(MUTEX_HELD(&vc->vc_lock));
-	ASSERT(ve->ve_fill_io == NULL);
+	ASSERT3P(ve->ve_fill_io, ==, NULL);
 
 	if (ve->ve_lastused != ddi_get_lbolt()) {
 		avl_remove(&vc->vc_lastused_tree, ve);
@@ -206,7 +202,7 @@ vdev_cache_hit(vdev_cache_t *vc, vdev_cache_entry_t *ve, zio_t *zio)
 	}
 
 	ve->ve_hits++;
-	bcopy(ve->ve_data + cache_phase, zio->io_data, zio->io_size);
+	abd_copy_off(zio->io_abd, ve->ve_abd, 0, cache_phase, zio->io_size);
 }
 
 /*
@@ -219,17 +215,18 @@ vdev_cache_fill(zio_t *fio)
 	vdev_cache_t *vc = &vd->vdev_cache;
 	vdev_cache_entry_t *ve = fio->io_private;
 	zio_t *pio;
+	zio_link_t *zl;
 
-	ASSERT(fio->io_size == VCBS);
+	ASSERT3U(fio->io_size, ==, VCBS);
 
 	/*
 	 * Add data to the cache.
 	 */
 	mutex_enter(&vc->vc_lock);
 
-	ASSERT(ve->ve_fill_io == fio);
-	ASSERT(ve->ve_offset == fio->io_offset);
-	ASSERT(ve->ve_data == fio->io_data);
+	ASSERT3P(ve->ve_fill_io, ==, fio);
+	ASSERT3U(ve->ve_offset, ==, fio->io_offset);
+	ASSERT3P(ve->ve_abd, ==, fio->io_abd);
 
 	ve->ve_fill_io = NULL;
 
@@ -238,7 +235,8 @@ vdev_cache_fill(zio_t *fio)
 	 * any reads that were queued up before the missed update are still
 	 * valid, so we can satisfy them from this line before we evict it.
 	 */
-	while ((pio = zio_walk_parents(fio)) != NULL)
+	zl = NULL;
+	while ((pio = zio_walk_parents(fio, &zl)) != NULL)
 		vdev_cache_hit(vc, ve, pio);
 
 	if (fio->io_error || ve->ve_missed_update)
@@ -259,7 +257,7 @@ vdev_cache_read(zio_t *zio)
 	zio_t *fio;
 	ASSERTV(uint64_t cache_phase = P2PHASE(zio->io_offset, VCBS));
 
-	ASSERT(zio->io_type == ZIO_TYPE_READ);
+	ASSERT3U(zio->io_type, ==, ZIO_TYPE_READ);
 
 	if (zio->io_flags & ZIO_FLAG_DONT_CACHE)
 		return (B_FALSE);
@@ -273,7 +271,7 @@ vdev_cache_read(zio_t *zio)
 	if (P2BOUNDARY(zio->io_offset, zio->io_size, VCBS))
 		return (B_FALSE);
 
-	ASSERT(cache_phase + zio->io_size <= VCBS);
+	ASSERT3U(cache_phase + zio->io_size, <=, VCBS);
 
 	mutex_enter(&vc->vc_lock);
 
@@ -312,7 +310,7 @@ vdev_cache_read(zio_t *zio)
 	}
 
 	fio = zio_vdev_delegated_io(zio->io_vd, cache_offset,
-	    ve->ve_data, VCBS, ZIO_TYPE_READ, ZIO_PRIORITY_NOW,
+	    ve->ve_abd, VCBS, ZIO_TYPE_READ, ZIO_PRIORITY_NOW,
 	    ZIO_FLAG_DONT_CACHE, vdev_cache_fill, ve);
 
 	ve->ve_fill_io = fio;
@@ -340,7 +338,7 @@ vdev_cache_write(zio_t *zio)
 	uint64_t max_offset = P2ROUNDUP(io_end, VCBS);
 	avl_index_t where;
 
-	ASSERT(zio->io_type == ZIO_TYPE_WRITE);
+	ASSERT3U(zio->io_type, ==, ZIO_TYPE_WRITE);
 
 	mutex_enter(&vc->vc_lock);
 
@@ -357,8 +355,9 @@ vdev_cache_write(zio_t *zio)
 		if (ve->ve_fill_io != NULL) {
 			ve->ve_missed_update = 1;
 		} else {
-			bcopy((char *)zio->io_data + start - io_start,
-			    ve->ve_data + start - ve->ve_offset, end - start);
+			abd_copy_off(ve->ve_abd, zio->io_abd,
+			    start - ve->ve_offset, start - io_start,
+			    end - start);
 		}
 		ve = AVL_NEXT(&vc->vc_offset_tree, ve);
 	}

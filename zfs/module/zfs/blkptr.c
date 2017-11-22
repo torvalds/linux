@@ -14,7 +14,7 @@
  */
 
 /*
- * Copyright (c) 2013 by Delphix. All rights reserved.
+ * Copyright (c) 2013, 2016 by Delphix. All rights reserved.
  */
 
 #include <sys/zfs_context.h>
@@ -118,4 +118,37 @@ decode_embedded_bp_compressed(const blkptr_t *bp, void *buf)
 		}
 		buf8[i] = BF64_GET(w, (i % sizeof (w)) * NBBY, NBBY);
 	}
+}
+
+/*
+ * Fill in the buffer with the (decompressed) payload of the embedded
+ * blkptr_t.  Takes into account compression and byteorder (the payload is
+ * treated as a stream of bytes).
+ * Return 0 on success, or ENOSPC if it won't fit in the buffer.
+ */
+int
+decode_embedded_bp(const blkptr_t *bp, void *buf, int buflen)
+{
+	int lsize, psize;
+
+	ASSERT(BP_IS_EMBEDDED(bp));
+
+	lsize = BPE_GET_LSIZE(bp);
+	psize = BPE_GET_PSIZE(bp);
+
+	if (lsize > buflen)
+		return (ENOSPC);
+	ASSERT3U(lsize, ==, buflen);
+
+	if (BP_GET_COMPRESS(bp) != ZIO_COMPRESS_OFF) {
+		uint8_t dstbuf[BPE_PAYLOAD_SIZE];
+		decode_embedded_bp_compressed(bp, dstbuf);
+		VERIFY0(zio_decompress_data_buf(BP_GET_COMPRESS(bp),
+		    dstbuf, buf, psize, buflen));
+	} else {
+		ASSERT3U(lsize, ==, psize);
+		decode_embedded_bp_compressed(bp, buf);
+	}
+
+	return (0);
 }

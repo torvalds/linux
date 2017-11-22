@@ -35,7 +35,7 @@
  * rate limited warning will be printed to the console for any kmem_alloc()
  * which exceeds a reasonable threshold.
  *
- * The default warning threshold is set to eight pages but capped at 32K to
+ * The default warning threshold is set to sixteen pages but capped at 64K to
  * accommodate systems using large pages.  This value was selected to be small
  * enough to ensure the largest allocations are quickly noticed and fixed.
  * But large enough to avoid logging any warnings when a allocation size is
@@ -44,7 +44,7 @@
  * allocations are quickly caught.  These warnings may be disabled by setting
  * the threshold to zero.
  */
-unsigned int spl_kmem_alloc_warn = MAX(8 * PAGE_SIZE, 32 * 1024);
+unsigned int spl_kmem_alloc_warn = MIN(16 * PAGE_SIZE, 64 * 1024);
 module_param(spl_kmem_alloc_warn, uint, 0644);
 MODULE_PARM_DESC(spl_kmem_alloc_warn,
 	"Warning threshold in bytes for a kmem_alloc()");

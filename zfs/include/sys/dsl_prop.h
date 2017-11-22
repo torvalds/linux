@@ -41,10 +41,17 @@ struct dsl_dir;
 /* The callback func may not call into the DMU or DSL! */
 typedef void (dsl_prop_changed_cb_t)(void *arg, uint64_t newval);
 
+typedef struct dsl_prop_record {
+	list_node_t pr_node; /* link on dd_props */
+	const char *pr_propname;
+	list_t pr_cbs;
+} dsl_prop_record_t;
+
 typedef struct dsl_prop_cb_record {
-	list_node_t cbr_node; /* link on dd_prop_cbs */
+	list_node_t cbr_pr_node; /* link on pr_cbs */
+	list_node_t cbr_ds_node; /* link on ds_prop_cbs */
+	dsl_prop_record_t *cbr_pr;
 	struct dsl_dataset *cbr_ds;
-	const char *cbr_propname;
 	dsl_prop_changed_cb_t *cbr_func;
 	void *cbr_arg;
 } dsl_prop_cb_record_t;
@@ -54,10 +61,13 @@ typedef struct dsl_props_arg {
 	zprop_source_t pa_source;
 } dsl_props_arg_t;
 
+void dsl_prop_init(dsl_dir_t *dd);
+void dsl_prop_fini(dsl_dir_t *dd);
 int dsl_prop_register(struct dsl_dataset *ds, const char *propname,
     dsl_prop_changed_cb_t *callback, void *cbarg);
 int dsl_prop_unregister(struct dsl_dataset *ds, const char *propname,
     dsl_prop_changed_cb_t *callback, void *cbarg);
+void dsl_prop_unregister_all(struct dsl_dataset *ds, void *cbarg);
 void dsl_prop_notify_all(struct dsl_dir *dd);
 boolean_t dsl_prop_hascb(struct dsl_dataset *ds);
 

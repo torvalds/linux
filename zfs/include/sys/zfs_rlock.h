@@ -30,11 +30,14 @@
 extern "C" {
 #endif
 
-#ifdef _KERNEL
-
 #include <sys/list.h>
 #include <sys/avl.h>
+
+#ifdef _KERNEL
 #include <sys/condvar.h>
+#else
+#include <sys/zfs_context.h>
+#endif
 
 typedef enum {
 	RL_READER,
@@ -47,7 +50,7 @@ typedef struct zfs_rlock {
 	avl_tree_t zr_avl;	/* avl tree of range locks */
 	uint64_t *zr_size;	/* points to znode->z_size */
 	uint_t *zr_blksz;	/* points to znode->z_blksz */
-	uint64_t *zr_max_blksz; /* points to zsb->z_max_blksz */
+	uint64_t *zr_max_blksz; /* points to zfsvfs->z_max_blksz */
 } zfs_rlock_t;
 
 typedef struct rl {
@@ -106,7 +109,6 @@ zfs_rlock_destroy(zfs_rlock_t *zrl)
 	avl_destroy(&zrl->zr_avl);
 	mutex_destroy(&zrl->zr_mutex);
 }
-#endif /* _KERNEL */
 
 #ifdef	__cplusplus
 }

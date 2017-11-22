@@ -16,26 +16,27 @@ AC_DEFUN([ZFS_AC_KERNEL_POSIX_ACL_RELEASE], [
 		AC_MSG_RESULT(yes)
 		AC_DEFINE(HAVE_POSIX_ACL_RELEASE, 1,
 		    [posix_acl_release() is available])
+
+		AC_MSG_CHECKING([whether posix_acl_release() is GPL-only])
+		ZFS_LINUX_TRY_COMPILE([
+			#include <linux/module.h>
+			#include <linux/cred.h>
+			#include <linux/fs.h>
+			#include <linux/posix_acl.h>
+
+			MODULE_LICENSE("$ZFS_META_LICENSE");
+		],[
+			struct posix_acl* tmp = posix_acl_alloc(1, 0);
+			posix_acl_release(tmp);
+		],[
+			AC_MSG_RESULT(no)
+		],[
+			AC_MSG_RESULT(yes)
+			AC_DEFINE(HAVE_POSIX_ACL_RELEASE_GPL_ONLY, 1,
+			    [posix_acl_release() is GPL-only])
+		])
 	],[
 		AC_MSG_RESULT(no)
-	])
-
-	AC_MSG_CHECKING([whether posix_acl_release() is GPL-only])
-	ZFS_LINUX_TRY_COMPILE([
-		#include <linux/cred.h>
-		#include <linux/fs.h>
-		#include <linux/posix_acl.h>
-
-		MODULE_LICENSE("$ZFS_META_LICENSE");
-	],[
-		struct posix_acl* tmp = posix_acl_alloc(1, 0);
-		posix_acl_release(tmp);
-	],[
-		AC_MSG_RESULT(no)
-	],[
-		AC_MSG_RESULT(yes)
-		AC_DEFINE(HAVE_POSIX_ACL_RELEASE_GPL_ONLY, 1,
-		    [posix_acl_release() is GPL-only])
 	])
 ])
 

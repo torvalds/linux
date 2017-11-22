@@ -34,6 +34,7 @@
 #include <sys/vdev.h>
 #include <sys/dkio.h>
 #include <sys/uberblock_impl.h>
+#include <sys/zfs_ratelimit.h>
 
 #ifdef	__cplusplus
 extern "C" {
@@ -52,6 +53,10 @@ extern "C" {
 typedef struct vdev_queue vdev_queue_t;
 typedef struct vdev_cache vdev_cache_t;
 typedef struct vdev_cache_entry vdev_cache_entry_t;
+struct abd;
+
+extern int zfs_vdev_queue_depth_pct;
+extern uint32_t zfs_vdev_async_write_max_active;
 
 /*
  * Virtual device operations
@@ -63,6 +68,7 @@ typedef uint64_t vdev_asize_func_t(vdev_t *vd, uint64_t psize);
 typedef void	vdev_io_start_func_t(zio_t *zio);
 typedef void	vdev_io_done_func_t(zio_t *zio);
 typedef void	vdev_state_change_func_t(vdev_t *vd, int, int);
+typedef boolean_t vdev_need_resilver_func_t(vdev_t *vd, uint64_t, size_t);
 typedef void	vdev_hold_func_t(vdev_t *vd);
 typedef void	vdev_rele_func_t(vdev_t *vd);
 
@@ -73,6 +79,7 @@ typedef const struct vdev_ops {
 	vdev_io_start_func_t		*vdev_op_io_start;
 	vdev_io_done_func_t		*vdev_op_io_done;
 	vdev_state_change_func_t	*vdev_op_state_change;
+	vdev_need_resilver_func_t	*vdev_op_need_resilver;
 	vdev_hold_func_t		*vdev_op_hold;
 	vdev_rele_func_t		*vdev_op_rele;
 	char				vdev_op_type[16];
@@ -83,7 +90,7 @@ typedef const struct vdev_ops {
  * Virtual device properties
  */
 struct vdev_cache_entry {
-	char		*ve_data;
+	struct abd	*ve_abd;
 	uint64_t	ve_offset;
 	clock_t		ve_lastused;
 	avl_node_t	ve_offset_node;
@@ -120,6 +127,7 @@ struct vdev_queue {
 	hrtime_t	vq_io_delta_ts;
 	zio_t		vq_io_search; /* used as local for stack reduction */
 	kmutex_t	vq_lock;
+	uint64_t	vq_lastoffset;
 };
 
 /*
@@ -149,6 +157,7 @@ struct vdev {
 	vdev_t		**vdev_child;	/* array of children		*/
 	uint64_t	vdev_children;	/* number of children		*/
 	vdev_stat_t	vdev_stat;	/* virtual device statistics	*/
+	vdev_stat_ex_t	vdev_stat_ex;	/* extended statistics		*/
 	boolean_t	vdev_expanding;	/* expand the vdev?		*/
 	boolean_t	vdev_reopening;	/* reopen in progress?		*/
 	boolean_t	vdev_nonrot;	/* true if solid state		*/
@@ -175,7 +184,19 @@ struct vdev {
 	uint64_t	vdev_deflate_ratio; /* deflation ratio (x512)	*/
 	uint64_t	vdev_islog;	/* is an intent log device	*/
 	uint64_t	vdev_removing;	/* device is being removed?	*/
-	boolean_t	vdev_ishole;	/* is a hole in the namespace 	*/
+	boolean_t	vdev_ishole;	/* is a hole in the namespace	*/
+	kmutex_t	vdev_queue_lock; /* protects vdev_queue_depth	*/
+	uint64_t	vdev_top_zap;
+
+	/*
+	 * The queue depth parameters determine how many async writes are
+	 * still pending (i.e. allocated by net yet issued to disk) per
+	 * top-level (vdev_async_write_queue_depth) and the maximum allowed
+	 * (vdev_max_async_write_queue_depth). These values only apply to
+	 * top-level vdevs.
+	 */
+	uint64_t	vdev_async_write_queue_depth;
+	uint64_t	vdev_max_async_write_queue_depth;
 
 	/*
 	 * Leaf vdev state.
@@ -195,6 +216,7 @@ struct vdev {
 	char		*vdev_path;	/* vdev path (if any)		*/
 	char		*vdev_devid;	/* vdev devid (if any)		*/
 	char		*vdev_physpath;	/* vdev device path (if any)	*/
+	char		*vdev_enc_sysfs_path;	/* enclosure sysfs path */
 	char		*vdev_fru;	/* physical FRU location	*/
 	uint64_t	vdev_not_present; /* not present during import	*/
 	uint64_t	vdev_unspare;	/* unspare when resilvering done */
@@ -209,11 +231,14 @@ struct vdev {
 	boolean_t	vdev_cant_write; /* vdev is failing all writes	*/
 	boolean_t	vdev_isspare;	/* was a hot spare		*/
 	boolean_t	vdev_isl2cache;	/* was a l2cache device		*/
+	boolean_t	vdev_copy_uberblocks;  /* post expand copy uberblocks */
 	vdev_queue_t	vdev_queue;	/* I/O deadline schedule queue	*/
 	vdev_cache_t	vdev_cache;	/* physical block cache		*/
 	spa_aux_vdev_t	*vdev_aux;	/* for l2cache and spares vdevs	*/
 	zio_t		*vdev_probe_zio; /* root of current probe	*/
 	vdev_aux_t	vdev_label_aux;	/* on-disk aux state		*/
+	uint64_t	vdev_leaf_zap;
+	hrtime_t	vdev_mmp_pending; /* 0 if write finished	*/
 
 	/*
 	 * For DTrace to work in userland (libzpool) context, these fields must
@@ -225,6 +250,15 @@ struct vdev {
 	kmutex_t	vdev_dtl_lock;	/* vdev_dtl_{map,resilver}	*/
 	kmutex_t	vdev_stat_lock;	/* vdev_stat			*/
 	kmutex_t	vdev_probe_lock; /* protects vdev_probe_zio	*/
+
+	/*
+	 * We rate limit ZIO delay and ZIO checksum events, since they
+	 * can flood ZED with tons of events when a drive is acting up.
+	 */
+#define	DELAYS_PER_SECOND 5
+#define	CHECKSUMS_PER_SECOND 5
+	zfs_ratelimit_t vdev_delay_rl;
+	zfs_ratelimit_t vdev_checksum_rl;
 };
 
 #define	VDEV_RAIDZ_MAXPARITY	3
@@ -234,6 +268,12 @@ struct vdev {
 #define	VDEV_SKIP_SIZE		VDEV_PAD_SIZE * 2
 #define	VDEV_PHYS_SIZE		(112 << 10)
 #define	VDEV_UBERBLOCK_RING	(128 << 10)
+
+/*
+ * MMP blocks occupy the last MMP_BLOCKS_PER_LABEL slots in the uberblock
+ * ring when MMP is enabled.
+ */
+#define	MMP_BLOCKS_PER_LABEL	1
 
 /* The largest uberblock we support is 8k. */
 #define	MAX_UBERBLOCK_SHIFT (13)

@@ -37,75 +37,29 @@
  */
 
 /*
- * Generic support for four argument tracepoints of the form:
+ * Generic support for one argument tracepoints of the form:
  *
- * DTRACE_PROBE4(...,
- *     const char *, ...,
- *     const char *, ...,
- *     int, ...,
+ * DTRACE_PROBE1(...,
  *     const char *, ...);
  */
-
+/* BEGIN CSTYLED */
 DECLARE_EVENT_CLASS(zfs_dprintf_class,
-	TP_PROTO(const char *file, const char *function, int line,
-	    const char *msg),
-	TP_ARGS(file, function, line, msg),
+	TP_PROTO(const char *msg),
+	TP_ARGS(msg),
 	TP_STRUCT__entry(
-	    __field(const char *,	file)
-	    __field(const char *,	function)
-	    __field(int,		line)
 	    __string(msg, msg)
 	),
 	TP_fast_assign(
-	    __entry->file		= file;
-	    __entry->function		= function;
-	    __entry->line		= line;
 	    __assign_str(msg, msg);
 	),
-	TP_printk("%s:%d:%s(): %s", __entry->file, __entry->line,
-	    __entry->function, __get_str(msg))
+	TP_printk("%s", __get_str(msg))
 );
+/* END CSTYLED */
 
+/* BEGIN CSTYLED */
 #define	DEFINE_DPRINTF_EVENT(name) \
 DEFINE_EVENT(zfs_dprintf_class, name, \
-	TP_PROTO(const char *file, const char *function, int line, \
-	    const char *msg), \
-	TP_ARGS(file, function, line, msg))
+	TP_PROTO(const char *msg), \
+	TP_ARGS(msg))
+/* END CSTYLED */
 DEFINE_DPRINTF_EVENT(zfs_zfs__dprintf);
-
-/*
- * Generic support for four argument tracepoints of the form:
- *
- * DTRACE_PROBE4(...,
- *     const char *, ...,
- *     const char *, ...,
- *     int, ...,
- *     uintptr_t, ...);
- */
-
-DECLARE_EVENT_CLASS(zfs_set_error_class,
-	TP_PROTO(const char *file, const char *function, int line,
-	    uintptr_t error),
-	TP_ARGS(file, function, line, error),
-	TP_STRUCT__entry(
-	    __field(const char *,	file)
-	    __field(const char *,	function)
-	    __field(int,		line)
-	    __field(uintptr_t,		error)
-	),
-	TP_fast_assign(
-	    __entry->file = strchr(file, '/') ? strrchr(file, '/') + 1 : file;
-	    __entry->function		= function;
-	    __entry->line		= line;
-	    __entry->error		= error;
-	),
-	TP_printk("%s:%d:%s(): error 0x%lx", __entry->file, __entry->line,
-	    __entry->function, __entry->error)
-);
-
-#define	DEFINE_SET_ERROR_EVENT(name) \
-DEFINE_EVENT(zfs_set_error_class, name, \
-	TP_PROTO(const char *file, const char *function, int line, \
-	    uintptr_t error), \
-	TP_ARGS(file, function, line, error))
-DEFINE_SET_ERROR_EVENT(zfs_set__error);

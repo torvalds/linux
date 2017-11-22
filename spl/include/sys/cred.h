@@ -41,18 +41,6 @@ typedef struct cred cred_t;
 
 #ifdef HAVE_KUIDGID_T
 
-/*
- * Linux 3.8+ uses typedefs to redefine uid_t and gid_t. We have to rename the
- * typedefs to recover the original types. We then can use them provided that
- * we are careful about translating from k{g,u}id_t to the original versions
- * and vice versa.
- */
-#define	uid_t		xuid_t
-#define	gid_t		xgid_t
-#include <linux/uidgid.h>
-#undef uid_t
-#undef gid_t
-
 #define	KUID_TO_SUID(x)		(__kuid_val(x))
 #define	KGID_TO_SGID(x)		(__kgid_val(x))
 #define	SUID_TO_KUID(x)		(KUIDT_INIT(x))

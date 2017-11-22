@@ -65,7 +65,7 @@
  * Otherwise, the proxy lock is split into smaller lock ranges and
  * new proxy locks created for non overlapping ranges.
  * The reference counts are adjusted accordingly.
- * Meanwhile, the orginal lock is kept around (this is the callers handle)
+ * Meanwhile, the original lock is kept around (this is the callers handle)
  * and its offset and length are used when releasing the lock.
  *
  * Thread coordination
@@ -87,7 +87,7 @@
  *
  * Grow block handling
  * -------------------
- * ZFS supports multiple block sizes currently upto 128K. The smallest
+ * ZFS supports multiple block sizes currently up to 128K. The smallest
  * block size is used for the file which is grown as needed. During this
  * growth all other writers and readers must be excluded.
  * So if the block size needs to be grown then the whole file is
@@ -617,14 +617,10 @@ zfs_range_reduce(rl_t *rl, uint64_t off, uint64_t len)
 int
 zfs_range_compare(const void *arg1, const void *arg2)
 {
-	const rl_t *rl1 = arg1;
-	const rl_t *rl2 = arg2;
+	const rl_t *rl1 = (const rl_t *)arg1;
+	const rl_t *rl2 = (const rl_t *)arg2;
 
-	if (rl1->r_off > rl2->r_off)
-		return (1);
-	if (rl1->r_off < rl2->r_off)
-		return (-1);
-	return (0);
+	return (AVL_CMP(rl1->r_off, rl2->r_off));
 }
 
 #ifdef _KERNEL

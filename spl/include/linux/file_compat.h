@@ -26,6 +26,7 @@
 #define _SPL_FILE_COMPAT_H
 
 #include <linux/fs.h>
+#include <linux/uaccess.h>
 #ifdef HAVE_FDTABLE_HEADER
 #include <linux/fdtable.h>
 #endif
@@ -68,6 +69,46 @@ spl_filp_fallocate(struct file *fp, int mode, loff_t offset, loff_t len)
 #endif /*HAVE_FILE_FALLOCATE */
 
 	return (error);
+}
+
+static inline ssize_t
+spl_kernel_write(struct file *file, const void *buf, size_t count, loff_t *pos)
+{
+#if defined(HAVE_KERNEL_WRITE_PPOS)
+	return (kernel_write(file, buf, count, pos));
+#else
+	mm_segment_t saved_fs;
+	ssize_t ret;
+
+	saved_fs = get_fs();
+	set_fs(get_ds());
+
+	ret = vfs_write(file, (__force const char __user *)buf, count, pos);
+
+	set_fs(saved_fs);
+
+	return (ret);
+#endif
+}
+
+static inline ssize_t
+spl_kernel_read(struct file *file, void *buf, size_t count, loff_t *pos)
+{
+#if defined(HAVE_KERNEL_READ_PPOS)
+	return (kernel_read(file, buf, count, pos));
+#else
+	mm_segment_t saved_fs;
+	ssize_t ret;
+
+	saved_fs = get_fs();
+	set_fs(get_ds());
+
+	ret = vfs_read(file, (void __user *)buf, count, pos);
+
+	set_fs(saved_fs);
+
+	return (ret);
+#endif
 }
 
 #ifdef HAVE_2ARGS_VFS_FSYNC

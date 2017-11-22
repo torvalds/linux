@@ -65,7 +65,7 @@ extern "C" {
  * grab all tc_open_locks, increment the tx_open_txg, and drop the locks.
  * The tc_open_lock is held until the transaction is assigned into the
  * transaction group. Typically, this is a short operation but if throttling
- * is occuring it may be held for longer periods of time.
+ * is occurring it may be held for longer periods of time.
  */
 struct tx_cpu {
 	kmutex_t	tc_open_lock;	/* protects tx_open_txg */

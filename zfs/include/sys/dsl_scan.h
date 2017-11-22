@@ -21,6 +21,7 @@
 /*
  * Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2012, 2014 by Delphix. All rights reserved.
+ * Copyright (c) 2017 Datto Inc.
  */
 
 #ifndef	_SYS_DSL_SCAN_H
@@ -70,6 +71,7 @@ typedef struct dsl_scan_phys {
 
 typedef enum dsl_scan_flags {
 	DSF_VISIT_DS_AGAIN = 1<<0,
+	DSF_SCRUB_PAUSED = 1<<1,
 } dsl_scan_flags_t;
 
 #define	DSL_SCAN_FLAGS_MASK (DSF_VISIT_DS_AGAIN)
@@ -84,8 +86,8 @@ typedef enum dsl_scan_flags {
  *
  * The following members of this structure direct the behavior of the scan:
  *
- * scn_pausing -	a scan that cannot be completed in a single txg or
- *			has exceeded its allotted time will need to pause.
+ * scn_suspending -	a scan that cannot be completed in a single txg or
+ *			has exceeded its allotted time will need to suspend.
  *			When this flag is set the scanner will stop traversing
  *			the pool and write out the current state to disk.
  *
@@ -107,7 +109,7 @@ typedef enum dsl_scan_flags {
 typedef struct dsl_scan {
 	struct dsl_pool *scn_dp;
 
-	boolean_t scn_pausing;
+	boolean_t scn_suspending;
 	uint64_t scn_restart_txg;
 	uint64_t scn_done_txg;
 	uint64_t scn_sync_start_time;
@@ -117,8 +119,6 @@ typedef struct dsl_scan {
 	boolean_t scn_is_bptree;
 	boolean_t scn_async_destroying;
 	boolean_t scn_async_stalled;
-
-	/* for debugging / information */
 	uint64_t scn_visited_this_txg;
 
 	dsl_scan_phys_t scn_phys;
@@ -129,6 +129,8 @@ void dsl_scan_fini(struct dsl_pool *dp);
 void dsl_scan_sync(struct dsl_pool *, dmu_tx_t *);
 int dsl_scan_cancel(struct dsl_pool *);
 int dsl_scan(struct dsl_pool *, pool_scan_func_t);
+boolean_t dsl_scan_scrubbing(const struct dsl_pool *dp);
+int dsl_scrub_set_pause_resume(const struct dsl_pool *dp, pool_scrub_cmd_t cmd);
 void dsl_resilver_restart(struct dsl_pool *, uint64_t txg);
 boolean_t dsl_scan_resilvering(struct dsl_pool *dp);
 boolean_t dsl_dataset_unstable(struct dsl_dataset *ds);
@@ -139,6 +141,7 @@ void dsl_scan_ds_snapshotted(struct dsl_dataset *ds, struct dmu_tx *tx);
 void dsl_scan_ds_clone_swapped(struct dsl_dataset *ds1, struct dsl_dataset *ds2,
     struct dmu_tx *tx);
 boolean_t dsl_scan_active(dsl_scan_t *scn);
+boolean_t dsl_scan_is_paused_scrub(const dsl_scan_t *scn);
 
 #ifdef	__cplusplus
 }

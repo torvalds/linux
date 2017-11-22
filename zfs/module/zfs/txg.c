@@ -21,7 +21,7 @@
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Portions Copyright 2011 Martin Matuska
- * Copyright (c) 2012, 2014 by Delphix. All rights reserved.
+ * Copyright (c) 2012, 2017 by Delphix. All rights reserved.
  */
 
 #include <sys/zfs_context.h>
@@ -31,6 +31,7 @@
 #include <sys/dmu_tx.h>
 #include <sys/dsl_pool.h>
 #include <sys/dsl_scan.h>
+#include <sys/zil.h>
 #include <sys/callb.h>
 #include <sys/trace_txg.h>
 
@@ -128,7 +129,7 @@ txg_init(dsl_pool_t *dp, uint64_t txg)
 		int i;
 
 		mutex_init(&tx->tx_cpu[c].tc_lock, NULL, MUTEX_DEFAULT, NULL);
-		mutex_init(&tx->tx_cpu[c].tc_open_lock, NULL, MUTEX_DEFAULT,
+		mutex_init(&tx->tx_cpu[c].tc_open_lock, NULL, MUTEX_NOLOCKDEP,
 		    NULL);
 		for (i = 0; i < TXG_SIZE; i++) {
 			cv_init(&tx->tx_cpu[c].tc_cv[i], NULL, CV_DEFAULT,
@@ -212,7 +213,7 @@ txg_sync_start(dsl_pool_t *dp)
 	 * 32-bit x86.  This is due in part to nested pools and
 	 * scrub_visitbp() recursion.
 	 */
-	tx->tx_sync_thread = thread_create(NULL, 32<<10, txg_sync_thread,
+	tx->tx_sync_thread = thread_create(NULL, 0, txg_sync_thread,
 	    dp, 0, &p0, TS_RUN, defclsyspri);
 
 	mutex_exit(&tx->tx_sync_lock);
@@ -365,6 +366,7 @@ static void
 txg_quiesce(dsl_pool_t *dp, uint64_t txg)
 {
 	tx_state_t *tx = &dp->dp_tx;
+	uint64_t tx_open_time;
 	int g = txg & TXG_MASK;
 	int c;
 
@@ -376,10 +378,7 @@ txg_quiesce(dsl_pool_t *dp, uint64_t txg)
 
 	ASSERT(txg == tx->tx_open_txg);
 	tx->tx_open_txg++;
-	tx->tx_open_time = gethrtime();
-
-	spa_txg_history_set(dp->dp_spa, txg, TXG_STATE_OPEN, tx->tx_open_time);
-	spa_txg_history_add(dp->dp_spa, tx->tx_open_txg, tx->tx_open_time);
+	tx->tx_open_time = tx_open_time = gethrtime();
 
 	DTRACE_PROBE2(txg__quiescing, dsl_pool_t *, dp, uint64_t, txg);
 	DTRACE_PROBE2(txg__opened, dsl_pool_t *, dp, uint64_t, tx->tx_open_txg);
@@ -390,6 +389,9 @@ txg_quiesce(dsl_pool_t *dp, uint64_t txg)
 	 */
 	for (c = 0; c < max_ncpus; c++)
 		mutex_exit(&tx->tx_cpu[c].tc_open_lock);
+
+	spa_txg_history_set(dp->dp_spa, txg, TXG_STATE_OPEN, tx_open_time);
+	spa_txg_history_add(dp->dp_spa, txg + 1, tx_open_time);
 
 	/*
 	 * Quiesce the transaction group by waiting for everyone to txg_exit().
@@ -480,22 +482,17 @@ txg_sync_thread(dsl_pool_t *dp)
 	spa_t *spa = dp->dp_spa;
 	tx_state_t *tx = &dp->dp_tx;
 	callb_cpr_t cpr;
-	vdev_stat_t *vs1, *vs2;
 	clock_t start, delta;
 
 	(void) spl_fstrans_mark();
 	txg_thread_enter(tx, &cpr);
 
-	vs1 = kmem_alloc(sizeof (vdev_stat_t), KM_SLEEP);
-	vs2 = kmem_alloc(sizeof (vdev_stat_t), KM_SLEEP);
-
 	start = delta = 0;
 	for (;;) {
-		clock_t timer, timeout;
+		clock_t timeout = zfs_txg_timeout * hz;
+		clock_t timer;
 		uint64_t txg;
-		uint64_t ndirty;
-
-		timeout = zfs_txg_timeout * hz;
+		txg_stat_t *ts;
 
 		/*
 		 * We sync when we're scanning, there's someone waiting
@@ -526,15 +523,8 @@ txg_sync_thread(dsl_pool_t *dp)
 			txg_thread_wait(tx, &cpr, &tx->tx_quiesce_done_cv, 0);
 		}
 
-		if (tx->tx_exiting) {
-			kmem_free(vs2, sizeof (vdev_stat_t));
-			kmem_free(vs1, sizeof (vdev_stat_t));
+		if (tx->tx_exiting)
 			txg_thread_exit(tx, &cpr, &tx->tx_sync_thread);
-		}
-
-		spa_config_enter(spa, SCL_ALL, FTAG, RW_READER);
-		vdev_get_stats(spa->spa_root_vdev, vs1);
-		spa_config_exit(spa, SCL_ALL, FTAG);
 
 		/*
 		 * Consume the quiesced txg which has been handed off to
@@ -545,15 +535,12 @@ txg_sync_thread(dsl_pool_t *dp)
 		tx->tx_quiesced_txg = 0;
 		tx->tx_syncing_txg = txg;
 		DTRACE_PROBE2(txg__syncing, dsl_pool_t *, dp, uint64_t, txg);
+		ts = spa_txg_history_init_io(spa, txg, dp);
 		cv_broadcast(&tx->tx_quiesce_more_cv);
 
 		dprintf("txg=%llu quiesce_txg=%llu sync_txg=%llu\n",
 		    txg, tx->tx_quiesce_txg_waiting, tx->tx_sync_txg_waiting);
 		mutex_exit(&tx->tx_sync_lock);
-
-		spa_txg_history_set(spa, txg, TXG_STATE_WAIT_FOR_SYNC,
-		    gethrtime());
-		ndirty = dp->dp_dirty_pertxg[txg & TXG_MASK];
 
 		start = ddi_get_lbolt();
 		spa_sync(spa, txg);
@@ -563,23 +550,13 @@ txg_sync_thread(dsl_pool_t *dp)
 		tx->tx_synced_txg = txg;
 		tx->tx_syncing_txg = 0;
 		DTRACE_PROBE2(txg__synced, dsl_pool_t *, dp, uint64_t, txg);
+		spa_txg_history_fini_io(spa, ts);
 		cv_broadcast(&tx->tx_sync_done_cv);
 
 		/*
 		 * Dispatch commit callbacks to worker threads.
 		 */
 		txg_dispatch_callbacks(dp, txg);
-
-		spa_config_enter(spa, SCL_ALL, FTAG, RW_READER);
-		vdev_get_stats(spa->spa_root_vdev, vs2);
-		spa_config_exit(spa, SCL_ALL, FTAG);
-		spa_txg_history_set_io(spa, txg,
-		    vs2->vs_bytes[ZIO_TYPE_READ]-vs1->vs_bytes[ZIO_TYPE_READ],
-		    vs2->vs_bytes[ZIO_TYPE_WRITE]-vs1->vs_bytes[ZIO_TYPE_WRITE],
-		    vs2->vs_ops[ZIO_TYPE_READ]-vs1->vs_ops[ZIO_TYPE_READ],
-		    vs2->vs_ops[ZIO_TYPE_WRITE]-vs1->vs_ops[ZIO_TYPE_WRITE],
-		    ndirty);
-		spa_txg_history_set(spa, txg, TXG_STATE_SYNCED, gethrtime());
 	}
 }
 
@@ -747,16 +724,32 @@ txg_sync_waiting(dsl_pool_t *dp)
 }
 
 /*
+ * Verify that this txg is active (open, quiescing, syncing).  Non-active
+ * txg's should not be manipulated.
+ */
+void
+txg_verify(spa_t *spa, uint64_t txg)
+{
+	ASSERTV(dsl_pool_t *dp = spa_get_dsl(spa));
+	if (txg <= TXG_INITIAL || txg == ZILTEST_TXG)
+		return;
+	ASSERT3U(txg, <=, dp->dp_tx.tx_open_txg);
+	ASSERT3U(txg, >=, dp->dp_tx.tx_synced_txg);
+	ASSERT3U(txg, >=, dp->dp_tx.tx_open_txg - TXG_CONCURRENT_STATES);
+}
+
+/*
  * Per-txg object lists.
  */
 void
-txg_list_create(txg_list_t *tl, size_t offset)
+txg_list_create(txg_list_t *tl, spa_t *spa, size_t offset)
 {
 	int t;
 
 	mutex_init(&tl->tl_lock, NULL, MUTEX_DEFAULT, NULL);
 
 	tl->tl_offset = offset;
+	tl->tl_spa = spa;
 
 	for (t = 0; t < TXG_SIZE; t++)
 		tl->tl_head[t] = NULL;
@@ -776,6 +769,7 @@ txg_list_destroy(txg_list_t *tl)
 boolean_t
 txg_list_empty(txg_list_t *tl, uint64_t txg)
 {
+	txg_verify(tl->tl_spa, txg);
 	return (tl->tl_head[txg & TXG_MASK] == NULL);
 }
 
@@ -810,6 +804,7 @@ txg_list_add(txg_list_t *tl, void *p, uint64_t txg)
 	txg_node_t *tn = (txg_node_t *)((char *)p + tl->tl_offset);
 	boolean_t add;
 
+	txg_verify(tl->tl_spa, txg);
 	mutex_enter(&tl->tl_lock);
 	add = (tn->tn_member[t] == 0);
 	if (add) {
@@ -834,6 +829,7 @@ txg_list_add_tail(txg_list_t *tl, void *p, uint64_t txg)
 	txg_node_t *tn = (txg_node_t *)((char *)p + tl->tl_offset);
 	boolean_t add;
 
+	txg_verify(tl->tl_spa, txg);
 	mutex_enter(&tl->tl_lock);
 	add = (tn->tn_member[t] == 0);
 	if (add) {
@@ -861,6 +857,7 @@ txg_list_remove(txg_list_t *tl, uint64_t txg)
 	txg_node_t *tn;
 	void *p = NULL;
 
+	txg_verify(tl->tl_spa, txg);
 	mutex_enter(&tl->tl_lock);
 	if ((tn = tl->tl_head[t]) != NULL) {
 		p = (char *)tn - tl->tl_offset;
@@ -882,6 +879,7 @@ txg_list_remove_this(txg_list_t *tl, void *p, uint64_t txg)
 	int t = txg & TXG_MASK;
 	txg_node_t *tn, **tp;
 
+	txg_verify(tl->tl_spa, txg);
 	mutex_enter(&tl->tl_lock);
 
 	for (tp = &tl->tl_head[t]; (tn = *tp) != NULL; tp = &tn->tn_next[t]) {
@@ -905,6 +903,7 @@ txg_list_member(txg_list_t *tl, void *p, uint64_t txg)
 	int t = txg & TXG_MASK;
 	txg_node_t *tn = (txg_node_t *)((char *)p + tl->tl_offset);
 
+	txg_verify(tl->tl_spa, txg);
 	return (tn->tn_member[t] != 0);
 }
 
@@ -917,6 +916,7 @@ txg_list_head(txg_list_t *tl, uint64_t txg)
 	int t = txg & TXG_MASK;
 	txg_node_t *tn = tl->tl_head[t];
 
+	txg_verify(tl->tl_spa, txg);
 	return (tn == NULL ? NULL : (char *)tn - tl->tl_offset);
 }
 
@@ -926,6 +926,7 @@ txg_list_next(txg_list_t *tl, void *p, uint64_t txg)
 	int t = txg & TXG_MASK;
 	txg_node_t *tn = (txg_node_t *)((char *)p + tl->tl_offset);
 
+	txg_verify(tl->tl_spa, txg);
 	tn = tn->tn_next[t];
 
 	return (tn == NULL ? NULL : (char *)tn - tl->tl_offset);

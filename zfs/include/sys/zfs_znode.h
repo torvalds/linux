@@ -20,7 +20,8 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012 by Delphix. All rights reserved.
+ * Copyright (c) 2012, 2015 by Delphix. All rights reserved.
+ * Copyright 2016 Nexenta Systems, Inc. All rights reserved.
  */
 
 #ifndef	_SYS_FS_ZFS_ZNODE_H
@@ -139,17 +140,6 @@ extern "C" {
 #define	ZFS_SA_ATTRS		"SA_ATTRS"
 
 /*
- * Path component length
- *
- * The generic fs code uses MAXNAMELEN to represent
- * what the largest component length is.  Unfortunately,
- * this length includes the terminating NULL.  ZFS needs
- * to tell the users via pathconf() and statvfs() what the
- * true maximum length of a component is, excluding the NULL.
- */
-#define	ZFS_MAXNAMELEN	(MAXNAMELEN - 1)
-
-/*
  * Convert mode bits (zp_mode) to BSD-style DT_* values for storing in
  * the directory entries.  On Linux systems this value is already
  * defined correctly as part of the /usr/include/dirent.h header file.
@@ -196,18 +186,16 @@ typedef struct znode {
 	uint_t		z_blksz;	/* block size in bytes */
 	uint_t		z_seq;		/* modification sequence number */
 	uint64_t	z_mapcnt;	/* number of pages mapped to file */
-	uint64_t	z_gen;		/* generation (cached) */
+	uint64_t	z_dnodesize;	/* dnode size */
 	uint64_t	z_size;		/* file size (cached) */
-	uint64_t	z_links;	/* file links (cached) */
 	uint64_t	z_pflags;	/* pflags (cached) */
-	uint64_t	z_uid;		/* uid fuid (cached) */
-	uint64_t	z_gid;		/* gid fuid (cached) */
 	uint32_t	z_sync_cnt;	/* synchronous open count */
 	mode_t		z_mode;		/* mode (cached) */
 	kmutex_t	z_acl_lock;	/* acl data lock */
 	zfs_acl_t	*z_acl_cached;	/* cached acl */
 	krwlock_t	z_xattr_lock;	/* xattr data lock */
 	nvlist_t	*z_xattr_cached; /* cached xattrs */
+	uint64_t	z_xattr_parent;	/* parent obj for this xattr */
 	list_node_t	z_link_node;	/* all znodes in fs link */
 	sa_handle_t	*z_sa_hdl;	/* handle to sa data */
 	boolean_t	z_is_sa;	/* are we native sa? */
@@ -245,25 +233,25 @@ typedef struct znode_hold {
  */
 #define	ZTOI(znode)	(&((znode)->z_inode))
 #define	ITOZ(inode)	(container_of((inode), znode_t, z_inode))
-#define	ZTOZSB(znode)	((zfs_sb_t *)(ZTOI(znode)->i_sb->s_fs_info))
-#define	ITOZSB(inode)	((zfs_sb_t *)((inode)->i_sb->s_fs_info))
+#define	ZTOZSB(znode)	((zfsvfs_t *)(ZTOI(znode)->i_sb->s_fs_info))
+#define	ITOZSB(inode)	((zfsvfs_t *)((inode)->i_sb->s_fs_info))
 
 #define	S_ISDEV(mode)	(S_ISCHR(mode) || S_ISBLK(mode) || S_ISFIFO(mode))
 
 /* Called on entry to each ZFS vnode and vfs operation  */
-#define	ZFS_ENTER(zsb) \
+#define	ZFS_ENTER(zfsvfs) \
 	{ \
-		rrm_enter_read(&(zsb)->z_teardown_lock, FTAG); \
-		if ((zsb)->z_unmounted) { \
-			ZFS_EXIT(zsb); \
+		rrm_enter_read(&(zfsvfs)->z_teardown_lock, FTAG); \
+		if ((zfsvfs)->z_unmounted) { \
+			ZFS_EXIT(zfsvfs); \
 			return (EIO); \
 		} \
 	}
 
 /* Must be called before exiting the vop */
-#define	ZFS_EXIT(zsb) \
+#define	ZFS_EXIT(zfsvfs) \
 	{ \
-		rrm_exit(&(zsb)->z_teardown_lock, FTAG); \
+		rrm_exit(&(zfsvfs)->z_teardown_lock, FTAG); \
 	}
 
 /* Verifies the znode is valid */
@@ -278,7 +266,7 @@ typedef struct znode_hold {
  */
 #define	ZFS_OBJ_MTX_SZ		64
 #define	ZFS_OBJ_MTX_MAX		(1024 * 1024)
-#define	ZFS_OBJ_HASH(zsb, obj)	((obj) & ((zsb->z_hold_size) - 1))
+#define	ZFS_OBJ_HASH(zfsvfs, obj)	((obj) & ((zfsvfs->z_hold_size) - 1))
 
 extern unsigned int zfs_object_mutex_size;
 
@@ -303,7 +291,7 @@ extern unsigned int zfs_object_mutex_size;
 #define	STATE_CHANGED		(ATTR_CTIME)
 #define	CONTENT_MODIFIED	(ATTR_MTIME | ATTR_CTIME)
 
-extern int	zfs_init_fs(zfs_sb_t *, znode_t **);
+extern int	zfs_init_fs(zfsvfs_t *, znode_t **);
 extern void	zfs_set_dataprop(objset_t *);
 extern void	zfs_create_fs(objset_t *os, cred_t *cr, nvlist_t *,
     dmu_tx_t *tx);
@@ -314,7 +302,7 @@ extern int	zfs_freesp(znode_t *, uint64_t, uint64_t, int, boolean_t);
 extern void	zfs_znode_init(void);
 extern void	zfs_znode_fini(void);
 extern int	zfs_znode_hold_compare(const void *, const void *);
-extern int	zfs_zget(zfs_sb_t *, uint64_t, znode_t **);
+extern int	zfs_zget(zfsvfs_t *, uint64_t, znode_t **);
 extern int	zfs_rezget(znode_t *);
 extern void	zfs_zinactive(znode_t *);
 extern void	zfs_znode_delete(znode_t *, dmu_tx_t *);
@@ -324,6 +312,7 @@ extern int	zfs_sync(struct super_block *, int, cred_t *);
 extern dev_t	zfs_cmpldev(uint64_t);
 extern int	zfs_get_zplprop(objset_t *os, zfs_prop_t prop, uint64_t *value);
 extern int	zfs_get_stats(objset_t *os, nvlist_t *nv);
+extern boolean_t zfs_get_vfs_flag_unmounted(objset_t *os);
 extern void	zfs_znode_dmu_fini(znode_t *);
 extern int	zfs_inode_alloc(struct super_block *, struct inode **ip);
 extern void	zfs_inode_destroy(struct inode *);
@@ -354,8 +343,8 @@ extern void zfs_log_setattr(zilog_t *zilog, dmu_tx_t *tx, int txtype,
 extern void zfs_log_acl(zilog_t *zilog, dmu_tx_t *tx, znode_t *zp,
     vsecattr_t *vsecp, zfs_fuid_info_t *fuidp);
 extern void zfs_xvattr_set(znode_t *zp, xvattr_t *xvap, dmu_tx_t *tx);
-extern void zfs_upgrade(zfs_sb_t *zsb, dmu_tx_t *tx);
-extern int zfs_create_share_dir(zfs_sb_t *zsb, dmu_tx_t *tx);
+extern void zfs_upgrade(zfsvfs_t *zfsvfs, dmu_tx_t *tx);
+extern int zfs_create_share_dir(zfsvfs_t *zfsvfs, dmu_tx_t *tx);
 
 #if defined(HAVE_UIO_RW)
 extern caddr_t zfs_map_page(page_t *, enum seg_rw);

@@ -22,8 +22,8 @@ BuildRoot:      %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 Requires:       @PACKAGE@ = %{version}\n\
 Conflicts:      @PACKAGE@-dkms\n\n" > %{_sourcedir}/kmod-preamble)
 
-# LDFLAGS are not sanitized by arch/powerpc/Makefile (unlike other arches)
-%ifarch ppc ppc64 ppc64le
+# LDFLAGS are not sanitized by arch/*/Makefile for these architectures.
+%ifarch ppc ppc64 ppc64le aarch64
 %global __global_ldflags %{nil}
 %endif
 

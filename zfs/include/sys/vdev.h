@@ -65,11 +65,16 @@ extern void vdev_dtl_dirty(vdev_t *vd, vdev_dtl_type_t d,
 extern boolean_t vdev_dtl_contains(vdev_t *vd, vdev_dtl_type_t d,
     uint64_t txg, uint64_t size);
 extern boolean_t vdev_dtl_empty(vdev_t *vd, vdev_dtl_type_t d);
+extern boolean_t vdev_dtl_need_resilver(vdev_t *vd, uint64_t off, size_t size);
 extern void vdev_dtl_reassess(vdev_t *vd, uint64_t txg, uint64_t scrub_txg,
     int scrub_done);
 extern boolean_t vdev_dtl_required(vdev_t *vd);
 extern boolean_t vdev_resilver_needed(vdev_t *vd,
     uint64_t *minp, uint64_t *maxp);
+extern void vdev_destroy_unlink_zap(vdev_t *vd, uint64_t zapobj,
+    dmu_tx_t *tx);
+extern uint64_t vdev_create_link_zap(vdev_t *vd, dmu_tx_t *tx);
+extern void vdev_construct_zaps(vdev_t *vd, dmu_tx_t *tx);
 
 extern void vdev_hold(vdev_t *);
 extern void vdev_rele(vdev_t *);
@@ -81,7 +86,7 @@ extern void vdev_expand(vdev_t *vd, uint64_t txg);
 extern void vdev_split(vdev_t *vd);
 extern void vdev_deadman(vdev_t *vd);
 
-
+extern void vdev_get_stats_ex(vdev_t *vd, vdev_stat_t *vs, vdev_stat_ex_t *vsx);
 extern void vdev_get_stats(vdev_t *vd, vdev_stat_t *vs);
 extern void vdev_clear_stats(vdev_t *vd);
 extern void vdev_stat_update(zio_t *zio, uint64_t psize);
@@ -119,10 +124,13 @@ extern void vdev_queue_fini(vdev_t *vd);
 extern zio_t *vdev_queue_io(zio_t *zio);
 extern void vdev_queue_io_done(zio_t *zio);
 
+extern int vdev_queue_length(vdev_t *vd);
+extern uint64_t vdev_queue_lastoffset(vdev_t *vd);
+extern void vdev_queue_register_lastoffset(vdev_t *vd, zio_t *zio);
+
 extern void vdev_config_dirty(vdev_t *vd);
 extern void vdev_config_clean(vdev_t *vd);
-extern int vdev_config_sync(vdev_t **svd, int svdcount, uint64_t txg,
-    boolean_t);
+extern int vdev_config_sync(vdev_t **svd, int svdcount, uint64_t txg);
 
 extern void vdev_state_dirty(vdev_t *vd);
 extern void vdev_state_clean(vdev_t *vd);
@@ -130,7 +138,8 @@ extern void vdev_state_clean(vdev_t *vd);
 typedef enum vdev_config_flag {
 	VDEV_CONFIG_SPARE = 1 << 0,
 	VDEV_CONFIG_L2CACHE = 1 << 1,
-	VDEV_CONFIG_REMOVING = 1 << 2
+	VDEV_CONFIG_REMOVING = 1 << 2,
+	VDEV_CONFIG_MOS = 1 << 3
 } vdev_config_flag_t;
 
 extern void vdev_top_config_generate(spa_t *spa, nvlist_t *config);
@@ -145,6 +154,9 @@ extern uint64_t vdev_label_offset(uint64_t psize, int l, uint64_t offset);
 extern int vdev_label_number(uint64_t psise, uint64_t offset);
 extern nvlist_t *vdev_label_read_config(vdev_t *vd, uint64_t txg);
 extern void vdev_uberblock_load(vdev_t *, struct uberblock *, nvlist_t **);
+extern void vdev_config_generate_stats(vdev_t *vd, nvlist_t *nv);
+extern void vdev_label_write(zio_t *zio, vdev_t *vd, int l, abd_t *buf, uint64_t
+    offset, uint64_t size, zio_done_func_t *done, void *private, int flags);
 
 typedef enum {
 	VDEV_LABEL_CREATE,	/* create/add a new device */

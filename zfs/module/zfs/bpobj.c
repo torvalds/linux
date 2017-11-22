@@ -20,7 +20,8 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2011, 2014 by Delphix. All rights reserved.
+ * Copyright (c) 2011, 2016 by Delphix. All rights reserved.
+ * Copyright (c) 2017 Datto Inc.
  */
 
 #include <sys/bpobj.h>
@@ -211,6 +212,9 @@ bpobj_iterate_impl(bpobj_t *bpo, bpobj_itor_t func, void *arg, dmu_tx_t *tx,
 
 	mutex_enter(&bpo->bpo_lock);
 
+	if (!bpobj_hasentries(bpo))
+		goto out;
+
 	if (free)
 		dmu_buf_will_dirty(bpo->bpo_dbuf, tx);
 
@@ -395,6 +399,7 @@ bpobj_enqueue_subobj(bpobj_t *bpo, uint64_t subobj, dmu_tx_t *tx)
 		return;
 	}
 
+	mutex_enter(&bpo->bpo_lock);
 	dmu_buf_will_dirty(bpo->bpo_dbuf, tx);
 	if (bpo->bpo_phys->bpo_subobjs == 0) {
 		bpo->bpo_phys->bpo_subobjs = dmu_object_alloc(bpo->bpo_os,
@@ -405,7 +410,6 @@ bpobj_enqueue_subobj(bpobj_t *bpo, uint64_t subobj, dmu_tx_t *tx)
 	ASSERT0(dmu_object_info(bpo->bpo_os, bpo->bpo_phys->bpo_subobjs, &doi));
 	ASSERT3U(doi.doi_type, ==, DMU_OT_BPOBJ_SUBOBJ);
 
-	mutex_enter(&bpo->bpo_lock);
 	dmu_write(bpo->bpo_os, bpo->bpo_phys->bpo_subobjs,
 	    bpo->bpo_phys->bpo_num_subobjs * sizeof (subobj),
 	    sizeof (subobj), &subobj, tx);

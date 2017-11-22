@@ -18,19 +18,21 @@
  *
  * CDDL HEADER END
  */
+
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012, 2014 by Delphix. All rights reserved.
+ * Copyright (c) 2012, 2017 by Delphix. All rights reserved.
  * Copyright (c) 2013 by Saso Kiselkov. All rights reserved.
  * Copyright (c) 2013, Joyent, Inc. All rights reserved.
  * Copyright (c) 2014 Spectra Logic Corporation, All rights reserved.
- * Copyright (c) 2015 Nexenta Systems, Inc. All rights reserved.
  * Copyright (c) 2015, STRATO AG, Inc. All rights reserved.
  * Copyright (c) 2016 Actifio, Inc. All rights reserved.
+ * Copyright 2017 Nexenta Systems, Inc.
  */
 
 /* Portions Copyright 2010 Robert Milkowski */
 
+#include <sys/zfeature.h>
 #include <sys/cred.h>
 #include <sys/zfs_context.h>
 #include <sys/dmu_objset.h>
@@ -52,6 +54,8 @@
 #include <sys/zfs_onexit.h>
 #include <sys/dsl_destroy.h>
 #include <sys/vdev.h>
+#include <sys/policy.h>
+#include <sys/spa_impl.h>
 
 /*
  * Needed to close a window in dnode_move() that allows the objset to be freed
@@ -60,14 +64,24 @@
 krwlock_t os_lock;
 
 /*
- * Tunable to overwrite the maximum number of threads for the parallization
+ * Tunable to overwrite the maximum number of threads for the parallelization
  * of dmu_objset_find_dp, needed to speed up the import of pools with many
  * datasets.
  * Default is 4 times the number of leaf vdevs.
  */
 int dmu_find_threads = 0;
 
+/*
+ * Backfill lower metadnode objects after this many have been freed.
+ * Backfilling negatively impacts object creation rates, so only do it
+ * if there are enough holes to fill.
+ */
+int dmu_rescan_dnode_threshold = 1 << DN_MAX_INDBLKSHIFT;
+
 static void dmu_objset_find_dp_cb(void *arg);
+
+static void dmu_objset_upgrade(objset_t *os, dmu_objset_upgrade_cb_t cb);
+static void dmu_objset_upgrade_stop(objset_t *os);
 
 void
 dmu_objset_init(void)
@@ -128,6 +142,12 @@ dmu_objset_id(objset_t *os)
 	dsl_dataset_t *ds = os->os_dsl_dataset;
 
 	return (ds ? ds->ds_object : 0);
+}
+
+uint64_t
+dmu_objset_dnodesize(objset_t *os)
+{
+	return (os->os_dnodesize);
 }
 
 zfs_sync_type_t
@@ -260,6 +280,34 @@ redundant_metadata_changed_cb(void *arg, uint64_t newval)
 }
 
 static void
+dnodesize_changed_cb(void *arg, uint64_t newval)
+{
+	objset_t *os = arg;
+
+	switch (newval) {
+	case ZFS_DNSIZE_LEGACY:
+		os->os_dnodesize = DNODE_MIN_SIZE;
+		break;
+	case ZFS_DNSIZE_AUTO:
+		/*
+		 * Choose a dnode size that will work well for most
+		 * workloads if the user specified "auto". Future code
+		 * improvements could dynamically select a dnode size
+		 * based on observed workload patterns.
+		 */
+		os->os_dnodesize = DNODE_MIN_SIZE * 2;
+		break;
+	case ZFS_DNSIZE_1K:
+	case ZFS_DNSIZE_2K:
+	case ZFS_DNSIZE_4K:
+	case ZFS_DNSIZE_8K:
+	case ZFS_DNSIZE_16K:
+		os->os_dnodesize = newval;
+		break;
+	}
+}
+
+static void
 logbias_changed_cb(void *arg, uint64_t newval)
 {
 	objset_t *os = arg;
@@ -295,6 +343,38 @@ dmu_objset_byteswap(void *buf, size_t size)
 	}
 }
 
+/*
+ * The hash is a CRC-based hash of the objset_t pointer and the object number.
+ */
+static uint64_t
+dnode_hash(const objset_t *os, uint64_t obj)
+{
+	uintptr_t osv = (uintptr_t)os;
+	uint64_t crc = -1ULL;
+
+	ASSERT(zfs_crc64_table[128] == ZFS_CRC64_POLY);
+	/*
+	 * The low 6 bits of the pointer don't have much entropy, because
+	 * the objset_t is larger than 2^6 bytes long.
+	 */
+	crc = (crc >> 8) ^ zfs_crc64_table[(crc ^ (osv >> 6)) & 0xFF];
+	crc = (crc >> 8) ^ zfs_crc64_table[(crc ^ (obj >> 0)) & 0xFF];
+	crc = (crc >> 8) ^ zfs_crc64_table[(crc ^ (obj >> 8)) & 0xFF];
+	crc = (crc >> 8) ^ zfs_crc64_table[(crc ^ (obj >> 16)) & 0xFF];
+
+	crc ^= (osv>>14) ^ (obj>>24);
+
+	return (crc);
+}
+
+unsigned int
+dnode_multilist_index_func(multilist_t *ml, void *obj)
+{
+	dnode_t *dn = obj;
+	return (dnode_hash(dn->dn_objset, dn->dn_object) %
+	    multilist_get_num_sublists(ml));
+}
+
 int
 dmu_objset_open_impl(spa_t *spa, dsl_dataset_t *ds, blkptr_t *bp,
     objset_t **osp)
@@ -316,8 +396,6 @@ dmu_objset_open_impl(spa_t *spa, dsl_dataset_t *ds, blkptr_t *bp,
 
 		if (DMU_OS_IS_L2CACHEABLE(os))
 			aflags |= ARC_FLAG_L2CACHE;
-		if (DMU_OS_IS_L2COMPRESSIBLE(os))
-			aflags |= ARC_FLAG_L2COMPRESS;
 
 		dprintf_bp(os->os_rootbp, "reading %s", "");
 		err = arc_read(NULL, spa, os->os_rootbp,
@@ -334,14 +412,12 @@ dmu_objset_open_impl(spa_t *spa, dsl_dataset_t *ds, blkptr_t *bp,
 		/* Increase the blocksize if we are permitted. */
 		if (spa_version(spa) >= SPA_VERSION_USERSPACE &&
 		    arc_buf_size(os->os_phys_buf) < sizeof (objset_phys_t)) {
-			arc_buf_t *buf = arc_buf_alloc(spa,
-			    sizeof (objset_phys_t), &os->os_phys_buf,
-			    ARC_BUFC_METADATA);
+			arc_buf_t *buf = arc_alloc_buf(spa, &os->os_phys_buf,
+			    ARC_BUFC_METADATA, sizeof (objset_phys_t));
 			bzero(buf->b_data, sizeof (objset_phys_t));
 			bcopy(os->os_phys_buf->b_data, buf->b_data,
 			    arc_buf_size(os->os_phys_buf));
-			(void) arc_buf_remove_ref(os->os_phys_buf,
-			    &os->os_phys_buf);
+			arc_buf_destroy(os->os_phys_buf, &os->os_phys_buf);
 			os->os_phys_buf = buf;
 		}
 
@@ -350,8 +426,8 @@ dmu_objset_open_impl(spa_t *spa, dsl_dataset_t *ds, blkptr_t *bp,
 	} else {
 		int size = spa_version(spa) >= SPA_VERSION_USERSPACE ?
 		    sizeof (objset_phys_t) : OBJSET_OLD_PHYS_SIZE;
-		os->os_phys_buf = arc_buf_alloc(spa, size,
-		    &os->os_phys_buf, ARC_BUFC_METADATA);
+		os->os_phys_buf = arc_alloc_buf(spa, &os->os_phys_buf,
+		    ARC_BUFC_METADATA, size);
 		os->os_phys = os->os_phys_buf->b_data;
 		bzero(os->os_phys, size);
 	}
@@ -363,6 +439,17 @@ dmu_objset_open_impl(spa_t *spa, dsl_dataset_t *ds, blkptr_t *bp,
 	 * checksum/compression/copies.
 	 */
 	if (ds != NULL) {
+		boolean_t needlock = B_FALSE;
+
+		/*
+		 * Note: it's valid to open the objset if the dataset is
+		 * long-held, in which case the pool_config lock will not
+		 * be held.
+		 */
+		if (!dsl_pool_config_held(dmu_objset_pool(os))) {
+			needlock = B_TRUE;
+			dsl_pool_config_enter(dmu_objset_pool(os), FTAG);
+		}
 		err = dsl_prop_register(ds,
 		    zfs_prop_to_name(ZFS_PROP_PRIMARYCACHE),
 		    primary_cache_changed_cb, os);
@@ -413,10 +500,16 @@ dmu_objset_open_impl(spa_t *spa, dsl_dataset_t *ds, blkptr_t *bp,
 				    zfs_prop_to_name(ZFS_PROP_RECORDSIZE),
 				    recordsize_changed_cb, os);
 			}
+			if (err == 0) {
+				err = dsl_prop_register(ds,
+				    zfs_prop_to_name(ZFS_PROP_DNODESIZE),
+				    dnodesize_changed_cb, os);
+			}
 		}
+		if (needlock)
+			dsl_pool_config_exit(dmu_objset_pool(os), FTAG);
 		if (err != 0) {
-			VERIFY(arc_buf_remove_ref(os->os_phys_buf,
-			    &os->os_phys_buf));
+			arc_buf_destroy(os->os_phys_buf, &os->os_phys_buf);
 			kmem_free(os, sizeof (objset_t));
 			return (err);
 		}
@@ -431,6 +524,7 @@ dmu_objset_open_impl(spa_t *spa, dsl_dataset_t *ds, blkptr_t *bp,
 		os->os_sync = ZFS_SYNC_STANDARD;
 		os->os_primary_cache = ZFS_CACHE_ALL;
 		os->os_secondary_cache = ZFS_CACHE_ALL;
+		os->os_dnodesize = DNODE_MIN_SIZE;
 	}
 
 	if (ds == NULL || !ds->ds_is_snapshot)
@@ -438,10 +532,9 @@ dmu_objset_open_impl(spa_t *spa, dsl_dataset_t *ds, blkptr_t *bp,
 	os->os_zil = zil_alloc(os, &os->os_zil_header);
 
 	for (i = 0; i < TXG_SIZE; i++) {
-		list_create(&os->os_dirty_dnodes[i], sizeof (dnode_t),
-		    offsetof(dnode_t, dn_dirty_link[i]));
-		list_create(&os->os_free_dnodes[i], sizeof (dnode_t),
-		    offsetof(dnode_t, dn_dirty_link[i]));
+		os->os_dirty_dnodes[i] = multilist_create(sizeof (dnode_t),
+		    offsetof(dnode_t, dn_dirty_link[i]),
+		    dnode_multilist_index_func);
 	}
 	list_create(&os->os_dnodes, sizeof (dnode_t),
 	    offsetof(dnode_t, dn_link));
@@ -451,8 +544,12 @@ dmu_objset_open_impl(spa_t *spa, dsl_dataset_t *ds, blkptr_t *bp,
 	list_link_init(&os->os_evicting_node);
 
 	mutex_init(&os->os_lock, NULL, MUTEX_DEFAULT, NULL);
+	mutex_init(&os->os_userused_lock, NULL, MUTEX_DEFAULT, NULL);
 	mutex_init(&os->os_obj_lock, NULL, MUTEX_DEFAULT, NULL);
 	mutex_init(&os->os_user_ptr_lock, NULL, MUTEX_DEFAULT, NULL);
+	os->os_obj_next_percpu_len = boot_ncpus;
+	os->os_obj_next_percpu = kmem_zalloc(os->os_obj_next_percpu_len *
+	    sizeof (os->os_obj_next_percpu[0]), KM_SLEEP);
 
 	dnode_special_open(os, &os->os_phys->os_meta_dnode,
 	    DMU_META_DNODE_OBJECT, &os->os_meta_dnode);
@@ -463,6 +560,8 @@ dmu_objset_open_impl(spa_t *spa, dsl_dataset_t *ds, blkptr_t *bp,
 		    DMU_GROUPUSED_OBJECT, &os->os_groupused_dnode);
 	}
 
+	mutex_init(&os->os_upgrade_lock, NULL, MUTEX_DEFAULT, NULL);
+
 	*osp = os;
 	return (0);
 }
@@ -472,11 +571,20 @@ dmu_objset_from_ds(dsl_dataset_t *ds, objset_t **osp)
 {
 	int err = 0;
 
+	/*
+	 * We shouldn't be doing anything with dsl_dataset_t's unless the
+	 * pool_config lock is held, or the dataset is long-held.
+	 */
+	ASSERT(dsl_pool_config_held(ds->ds_dir->dd_pool) ||
+	    dsl_dataset_long_held(ds));
+
 	mutex_enter(&ds->ds_opening_lock);
 	if (ds->ds_objset == NULL) {
 		objset_t *os;
+		rrw_enter(&ds->ds_bp_rwlock, RW_READER, FTAG);
 		err = dmu_objset_open_impl(dsl_dataset_get_spa(ds),
 		    ds, dsl_dataset_get_blkptr(ds), &os);
+		rrw_exit(&ds->ds_bp_rwlock, FTAG);
 
 		if (err == 0) {
 			mutex_enter(&ds->ds_lock);
@@ -562,6 +670,9 @@ dmu_objset_own(const char *name, dmu_objset_type_t type,
 	err = dmu_objset_own_impl(ds, type, readonly, tag, osp);
 	dsl_pool_rele(dp, FTAG);
 
+	if (err == 0 && dmu_objset_userobjspace_upgradable(*osp))
+		dmu_objset_userobjspace_upgrade(*osp);
+
 	return (err);
 }
 
@@ -603,7 +714,7 @@ dmu_objset_refresh_ownership(objset_t *os, void *tag)
 {
 	dsl_pool_t *dp;
 	dsl_dataset_t *ds, *newds;
-	char name[MAXNAMELEN];
+	char name[ZFS_MAX_DATASET_NAME_LEN];
 
 	ds = os->os_dsl_dataset;
 	VERIFY3P(ds, !=, NULL);
@@ -622,6 +733,10 @@ dmu_objset_refresh_ownership(objset_t *os, void *tag)
 void
 dmu_objset_disown(objset_t *os, void *tag)
 {
+	/*
+	 * Stop upgrading thread
+	 */
+	dmu_objset_upgrade_stop(os);
 	dsl_dataset_disown(os->os_dsl_dataset, tag);
 }
 
@@ -689,40 +804,8 @@ dmu_objset_evict(objset_t *os)
 	for (t = 0; t < TXG_SIZE; t++)
 		ASSERT(!dmu_objset_is_dirty(os, t));
 
-	if (ds) {
-		if (!ds->ds_is_snapshot) {
-			VERIFY0(dsl_prop_unregister(ds,
-			    zfs_prop_to_name(ZFS_PROP_CHECKSUM),
-			    checksum_changed_cb, os));
-			VERIFY0(dsl_prop_unregister(ds,
-			    zfs_prop_to_name(ZFS_PROP_COMPRESSION),
-			    compression_changed_cb, os));
-			VERIFY0(dsl_prop_unregister(ds,
-			    zfs_prop_to_name(ZFS_PROP_COPIES),
-			    copies_changed_cb, os));
-			VERIFY0(dsl_prop_unregister(ds,
-			    zfs_prop_to_name(ZFS_PROP_DEDUP),
-			    dedup_changed_cb, os));
-			VERIFY0(dsl_prop_unregister(ds,
-			    zfs_prop_to_name(ZFS_PROP_LOGBIAS),
-			    logbias_changed_cb, os));
-			VERIFY0(dsl_prop_unregister(ds,
-			    zfs_prop_to_name(ZFS_PROP_SYNC),
-			    sync_changed_cb, os));
-			VERIFY0(dsl_prop_unregister(ds,
-			    zfs_prop_to_name(ZFS_PROP_REDUNDANT_METADATA),
-			    redundant_metadata_changed_cb, os));
-			VERIFY0(dsl_prop_unregister(ds,
-			    zfs_prop_to_name(ZFS_PROP_RECORDSIZE),
-			    recordsize_changed_cb, os));
-		}
-		VERIFY0(dsl_prop_unregister(ds,
-		    zfs_prop_to_name(ZFS_PROP_PRIMARYCACHE),
-		    primary_cache_changed_cb, os));
-		VERIFY0(dsl_prop_unregister(ds,
-		    zfs_prop_to_name(ZFS_PROP_SECONDARYCACHE),
-		    secondary_cache_changed_cb, os));
-	}
+	if (ds)
+		dsl_prop_unregister_all(ds, os);
 
 	if (os->os_sa)
 		sa_tear_down(os);
@@ -751,7 +834,7 @@ dmu_objset_evict_done(objset_t *os)
 	}
 	zil_free(os->os_zil);
 
-	VERIFY(arc_buf_remove_ref(os->os_phys_buf, &os->os_phys_buf));
+	arc_buf_destroy(os->os_phys_buf, &os->os_phys_buf);
 
 	/*
 	 * This is a barrier to prevent the objset from going away in
@@ -762,9 +845,17 @@ dmu_objset_evict_done(objset_t *os)
 	rw_enter(&os_lock, RW_READER);
 	rw_exit(&os_lock);
 
+	kmem_free(os->os_obj_next_percpu,
+	    os->os_obj_next_percpu_len * sizeof (os->os_obj_next_percpu[0]));
+
 	mutex_destroy(&os->os_lock);
+	mutex_destroy(&os->os_userused_lock);
 	mutex_destroy(&os->os_obj_lock);
 	mutex_destroy(&os->os_user_ptr_lock);
+	mutex_destroy(&os->os_upgrade_lock);
+	for (int i = 0; i < TXG_SIZE; i++) {
+		multilist_destroy(os->os_dirty_dnodes[i]);
+	}
 	spa_evicting_os_deregister(os->os_spa, os);
 	kmem_free(os, sizeof (objset_t));
 }
@@ -792,8 +883,8 @@ dmu_objset_create_impl(spa_t *spa, dsl_dataset_t *ds, blkptr_t *bp,
 
 	mdn = DMU_META_DNODE(os);
 
-	dnode_allocate(mdn, DMU_OT_DNODE, 1 << DNODE_BLOCK_SHIFT,
-	    DN_MAX_INDBLKSHIFT, DMU_OT_NONE, 0, tx);
+	dnode_allocate(mdn, DMU_OT_DNODE, DNODE_BLOCK_SIZE, DN_MAX_INDBLKSHIFT,
+	    DMU_OT_NONE, 0, DNODE_MIN_SLOTS, tx);
 
 	/*
 	 * We don't want to have to increase the meta-dnode's nlevels
@@ -811,11 +902,17 @@ dmu_objset_create_impl(spa_t *spa, dsl_dataset_t *ds, blkptr_t *bp,
 
 		/*
 		 * Determine the number of levels necessary for the meta-dnode
-		 * to contain DN_MAX_OBJECT dnodes.
+		 * to contain DN_MAX_OBJECT dnodes.  Note that in order to
+		 * ensure that we do not overflow 64 bits, there has to be
+		 * a nlevels that gives us a number of blocks > DN_MAX_OBJECT
+		 * but < 2^64.  Therefore,
+		 * (mdn->dn_indblkshift - SPA_BLKPTRSHIFT) (10) must be
+		 * less than (64 - log2(DN_MAX_OBJECT)) (16).
 		 */
-		while ((uint64_t)mdn->dn_nblkptr << (mdn->dn_datablkshift +
+		while ((uint64_t)mdn->dn_nblkptr <<
+		    (mdn->dn_datablkshift - DNODE_SHIFT +
 		    (levels - 1) * (mdn->dn_indblkshift - SPA_BLKPTRSHIFT)) <
-		    DN_MAX_OBJECT * sizeof (dnode_phys_t))
+		    DN_MAX_OBJECT)
 			levels++;
 
 		mdn->dn_next_nlevels[tx->tx_txg & TXG_MASK] =
@@ -828,6 +925,12 @@ dmu_objset_create_impl(spa_t *spa, dsl_dataset_t *ds, blkptr_t *bp,
 	os->os_phys->os_type = type;
 	if (dmu_objset_userused_enabled(os)) {
 		os->os_phys->os_flags |= OBJSET_FLAG_USERACCOUNTING_COMPLETE;
+		if (dmu_objset_userobjused_enabled(os)) {
+			ds->ds_feature_activation_needed[
+			    SPA_FEATURE_USEROBJ_ACCOUNTING] = B_TRUE;
+			os->os_phys->os_flags |=
+			    OBJSET_FLAG_USEROBJACCOUNTING_COMPLETE;
+		}
 		os->os_flags = os->os_phys->os_flags;
 	}
 
@@ -858,6 +961,9 @@ dmu_objset_create_check(void *arg, dmu_tx_t *tx)
 
 	if (strchr(doca->doca_name, '@') != NULL)
 		return (SET_ERROR(EINVAL));
+
+	if (strlen(doca->doca_name) >= ZFS_MAX_DATASET_NAME_LEN)
+		return (SET_ERROR(ENAMETOOLONG));
 
 	error = dsl_dir_hold(dp, doca->doca_name, FTAG, &pdd, &tail);
 	if (error != 0)
@@ -891,9 +997,11 @@ dmu_objset_create_sync(void *arg, dmu_tx_t *tx)
 	    doca->doca_cred, tx);
 
 	VERIFY0(dsl_dataset_hold_obj(pdd->dd_pool, obj, FTAG, &ds));
+	rrw_enter(&ds->ds_bp_rwlock, RW_READER, FTAG);
 	bp = dsl_dataset_get_blkptr(ds);
 	os = dmu_objset_create_impl(pdd->dd_pool->dp_spa,
 	    ds, bp, doca->doca_type, tx);
+	rrw_exit(&ds->ds_bp_rwlock, FTAG);
 
 	if (doca->doca_userfunc != NULL) {
 		doca->doca_userfunc(os, doca->doca_userarg,
@@ -945,6 +1053,9 @@ dmu_objset_clone_check(void *arg, dmu_tx_t *tx)
 	if (strchr(doca->doca_clone, '@') != NULL)
 		return (SET_ERROR(EINVAL));
 
+	if (strlen(doca->doca_clone) >= ZFS_MAX_DATASET_NAME_LEN)
+		return (SET_ERROR(ENAMETOOLONG));
+
 	error = dsl_dir_hold(dp, doca->doca_clone, FTAG, &pdd, &tail);
 	if (error != 0)
 		return (error);
@@ -984,7 +1095,7 @@ dmu_objset_clone_sync(void *arg, dmu_tx_t *tx)
 	const char *tail;
 	dsl_dataset_t *origin, *ds;
 	uint64_t obj;
-	char namebuf[MAXNAMELEN];
+	char namebuf[ZFS_MAX_DATASET_NAME_LEN];
 
 	VERIFY0(dsl_dir_hold(dp, doca->doca_clone, FTAG, &pdd, &tail));
 	VERIFY0(dsl_dataset_hold(dp, doca->doca_origin, FTAG, &origin));
@@ -1031,11 +1142,65 @@ dmu_objset_snapshot_one(const char *fsname, const char *snapname)
 }
 
 static void
-dmu_objset_sync_dnodes(list_t *list, list_t *newlist, dmu_tx_t *tx)
+dmu_objset_upgrade_task_cb(void *data)
+{
+	objset_t *os = data;
+
+	mutex_enter(&os->os_upgrade_lock);
+	os->os_upgrade_status = EINTR;
+	if (!os->os_upgrade_exit) {
+		mutex_exit(&os->os_upgrade_lock);
+
+		os->os_upgrade_status = os->os_upgrade_cb(os);
+		mutex_enter(&os->os_upgrade_lock);
+	}
+	os->os_upgrade_exit = B_TRUE;
+	os->os_upgrade_id = 0;
+	mutex_exit(&os->os_upgrade_lock);
+}
+
+static void
+dmu_objset_upgrade(objset_t *os, dmu_objset_upgrade_cb_t cb)
+{
+	if (os->os_upgrade_id != 0)
+		return;
+
+	mutex_enter(&os->os_upgrade_lock);
+	if (os->os_upgrade_id == 0 && os->os_upgrade_status == 0) {
+		os->os_upgrade_exit = B_FALSE;
+		os->os_upgrade_cb = cb;
+		os->os_upgrade_id = taskq_dispatch(
+		    os->os_spa->spa_upgrade_taskq,
+		    dmu_objset_upgrade_task_cb, os, TQ_SLEEP);
+		if (os->os_upgrade_id == TASKQID_INVALID)
+			os->os_upgrade_status = ENOMEM;
+	}
+	mutex_exit(&os->os_upgrade_lock);
+}
+
+static void
+dmu_objset_upgrade_stop(objset_t *os)
+{
+	mutex_enter(&os->os_upgrade_lock);
+	os->os_upgrade_exit = B_TRUE;
+	if (os->os_upgrade_id != 0) {
+		taskqid_t id = os->os_upgrade_id;
+
+		os->os_upgrade_id = 0;
+		mutex_exit(&os->os_upgrade_lock);
+
+		taskq_cancel_id(os->os_spa->spa_upgrade_taskq, id);
+	} else {
+		mutex_exit(&os->os_upgrade_lock);
+	}
+}
+
+static void
+dmu_objset_sync_dnodes(multilist_sublist_t *list, dmu_tx_t *tx)
 {
 	dnode_t *dn;
 
-	while ((dn = list_head(list))) {
+	while ((dn = multilist_sublist_head(list)) != NULL) {
 		ASSERT(dn->dn_object != DMU_META_DNODE_OBJECT);
 		ASSERT(dn->dn_dbuf->db_data_pending);
 		/*
@@ -1046,11 +1211,12 @@ dmu_objset_sync_dnodes(list_t *list, list_t *newlist, dmu_tx_t *tx)
 		ASSERT(dn->dn_zio);
 
 		ASSERT3U(dn->dn_nlevels, <=, DN_MAX_LEVELS);
-		list_remove(list, dn);
+		multilist_sublist_remove(list, dn);
 
-		if (newlist) {
+		multilist_t *newlist = dn->dn_objset->os_synced_dnodes;
+		if (newlist != NULL) {
 			(void) dnode_add_ref(dn, newlist);
-			list_insert_tail(newlist, dn);
+			multilist_insert(newlist, dn);
 		}
 
 		dnode_sync(dn, tx);
@@ -1068,7 +1234,6 @@ dmu_objset_write_ready(zio_t *zio, arc_buf_t *abuf, void *arg)
 	dnode_phys_t *dnp = &os->os_phys->os_meta_dnode;
 
 	ASSERT(!BP_IS_EMBEDDED(bp));
-	ASSERT3P(bp, ==, os->os_rootbp);
 	ASSERT3U(BP_GET_TYPE(bp), ==, DMU_OT_OBJSET);
 	ASSERT0(BP_GET_LEVEL(bp));
 
@@ -1081,6 +1246,11 @@ dmu_objset_write_ready(zio_t *zio, arc_buf_t *abuf, void *arg)
 	bp->blk_fill = 0;
 	for (i = 0; i < dnp->dn_nblkptr; i++)
 		bp->blk_fill += BP_GET_FILL(&dnp->dn_blkptr[i]);
+	if (os->os_dsl_dataset != NULL)
+		rrw_enter(&os->os_dsl_dataset->ds_bp_rwlock, RW_WRITER, FTAG);
+	*os->os_rootbp = *bp;
+	if (os->os_dsl_dataset != NULL)
+		rrw_exit(&os->os_dsl_dataset->ds_bp_rwlock, FTAG);
 }
 
 /* ARGSUSED */
@@ -1100,7 +1270,31 @@ dmu_objset_write_done(zio_t *zio, arc_buf_t *abuf, void *arg)
 		(void) dsl_dataset_block_kill(ds, bp_orig, tx, B_TRUE);
 		dsl_dataset_block_born(ds, bp, tx);
 	}
+	kmem_free(bp, sizeof (*bp));
 }
+
+typedef struct sync_dnodes_arg {
+	multilist_t *sda_list;
+	int sda_sublist_idx;
+	multilist_t *sda_newlist;
+	dmu_tx_t *sda_tx;
+} sync_dnodes_arg_t;
+
+static void
+sync_dnodes_task(void *arg)
+{
+	sync_dnodes_arg_t *sda = arg;
+
+	multilist_sublist_t *ms =
+	    multilist_sublist_lock(sda->sda_list, sda->sda_sublist_idx);
+
+	dmu_objset_sync_dnodes(ms, sda->sda_tx);
+
+	multilist_sublist_unlock(ms);
+
+	kmem_free(sda, sizeof (*sda));
+}
+
 
 /* called from dsl */
 void
@@ -1111,8 +1305,9 @@ dmu_objset_sync(objset_t *os, zio_t *pio, dmu_tx_t *tx)
 	zio_prop_t zp;
 	zio_t *zio;
 	list_t *list;
-	list_t *newlist = NULL;
 	dbuf_dirty_record_t *dr;
+	blkptr_t *blkptr_copy = kmem_alloc(sizeof (*os->os_rootbp), KM_SLEEP);
+	*blkptr_copy = *os->os_rootbp;
 
 	dprintf_ds(os->os_dsl_dataset, "txg=%llu\n", tx->tx_txg);
 
@@ -1140,10 +1335,9 @@ dmu_objset_sync(objset_t *os, zio_t *pio, dmu_tx_t *tx)
 	dmu_write_policy(os, NULL, 0, 0, &zp);
 
 	zio = arc_write(pio, os->os_spa, tx->tx_txg,
-	    os->os_rootbp, os->os_phys_buf, DMU_OS_IS_L2CACHEABLE(os),
-	    DMU_OS_IS_L2COMPRESSIBLE(os), &zp, dmu_objset_write_ready,
-	    NULL, dmu_objset_write_done, os, ZIO_PRIORITY_ASYNC_WRITE,
-	    ZIO_FLAG_MUSTSUCCEED, &zb);
+	    blkptr_copy, os->os_phys_buf, DMU_OS_IS_L2CACHEABLE(os),
+	    &zp, dmu_objset_write_ready, NULL, NULL, dmu_objset_write_done,
+	    os, ZIO_PRIORITY_ASYNC_WRITE, ZIO_FLAG_MUSTSUCCEED, &zb);
 
 	/*
 	 * Sync special dnodes - the parent IO for the sync is the root block
@@ -1164,25 +1358,48 @@ dmu_objset_sync(objset_t *os, zio_t *pio, dmu_tx_t *tx)
 	txgoff = tx->tx_txg & TXG_MASK;
 
 	if (dmu_objset_userused_enabled(os)) {
-		newlist = &os->os_synced_dnodes;
 		/*
 		 * We must create the list here because it uses the
-		 * dn_dirty_link[] of this txg.
+		 * dn_dirty_link[] of this txg.  But it may already
+		 * exist because we call dsl_dataset_sync() twice per txg.
 		 */
-		list_create(newlist, sizeof (dnode_t),
-		    offsetof(dnode_t, dn_dirty_link[txgoff]));
+		if (os->os_synced_dnodes == NULL) {
+			os->os_synced_dnodes =
+			    multilist_create(sizeof (dnode_t),
+			    offsetof(dnode_t, dn_dirty_link[txgoff]),
+			    dnode_multilist_index_func);
+		} else {
+			ASSERT3U(os->os_synced_dnodes->ml_offset, ==,
+			    offsetof(dnode_t, dn_dirty_link[txgoff]));
+		}
 	}
 
-	dmu_objset_sync_dnodes(&os->os_free_dnodes[txgoff], newlist, tx);
-	dmu_objset_sync_dnodes(&os->os_dirty_dnodes[txgoff], newlist, tx);
+	for (int i = 0;
+	    i < multilist_get_num_sublists(os->os_dirty_dnodes[txgoff]); i++) {
+		sync_dnodes_arg_t *sda = kmem_alloc(sizeof (*sda), KM_SLEEP);
+		sda->sda_list = os->os_dirty_dnodes[txgoff];
+		sda->sda_sublist_idx = i;
+		sda->sda_tx = tx;
+		(void) taskq_dispatch(dmu_objset_pool(os)->dp_sync_taskq,
+		    sync_dnodes_task, sda, 0);
+		/* callback frees sda */
+	}
+	taskq_wait(dmu_objset_pool(os)->dp_sync_taskq);
 
 	list = &DMU_META_DNODE(os)->dn_dirty_records[txgoff];
-	while ((dr = list_head(list))) {
+	while ((dr = list_head(list)) != NULL) {
 		ASSERT0(dr->dr_dbuf->db_level);
 		list_remove(list, dr);
 		if (dr->dr_zio)
 			zio_nowait(dr->dr_zio);
 	}
+
+	/* Enable dnode backfill if enough objects have been freed. */
+	if (os->os_freed_dnodes >= dmu_rescan_dnode_threshold) {
+		os->os_rescan_dnodes = B_TRUE;
+		os->os_freed_dnodes = 0;
+	}
+
 	/*
 	 * Free intent log blocks up to this tx.
 	 */
@@ -1194,8 +1411,7 @@ dmu_objset_sync(objset_t *os, zio_t *pio, dmu_tx_t *tx)
 boolean_t
 dmu_objset_is_dirty(objset_t *os, uint64_t txg)
 {
-	return (!list_is_empty(&os->os_dirty_dnodes[txg & TXG_MASK]) ||
-	    !list_is_empty(&os->os_free_dnodes[txg & TXG_MASK]));
+	return (!multilist_is_empty(os->os_dirty_dnodes[txg & TXG_MASK]));
 }
 
 static objset_used_cb_t *used_cbs[DMU_OST_NUMTYPES];
@@ -1214,64 +1430,182 @@ dmu_objset_userused_enabled(objset_t *os)
 	    DMU_USERUSED_DNODE(os) != NULL);
 }
 
+boolean_t
+dmu_objset_userobjused_enabled(objset_t *os)
+{
+	return (dmu_objset_userused_enabled(os) &&
+	    spa_feature_is_enabled(os->os_spa, SPA_FEATURE_USEROBJ_ACCOUNTING));
+}
+
+typedef struct userquota_node {
+	/* must be in the first filed, see userquota_update_cache() */
+	char		uqn_id[20 + DMU_OBJACCT_PREFIX_LEN];
+	int64_t		uqn_delta;
+	avl_node_t	uqn_node;
+} userquota_node_t;
+
+typedef struct userquota_cache {
+	avl_tree_t uqc_user_deltas;
+	avl_tree_t uqc_group_deltas;
+} userquota_cache_t;
+
+static int
+userquota_compare(const void *l, const void *r)
+{
+	const userquota_node_t *luqn = l;
+	const userquota_node_t *ruqn = r;
+	int rv;
+
+	/*
+	 * NB: can only access uqn_id because userquota_update_cache() doesn't
+	 * pass in an entire userquota_node_t.
+	 */
+	rv = strcmp(luqn->uqn_id, ruqn->uqn_id);
+
+	return (AVL_ISIGN(rv));
+}
+
 static void
-do_userquota_update(objset_t *os, uint64_t used, uint64_t flags,
-    uint64_t user, uint64_t group, boolean_t subtract, dmu_tx_t *tx)
+do_userquota_cacheflush(objset_t *os, userquota_cache_t *cache, dmu_tx_t *tx)
+{
+	void *cookie;
+	userquota_node_t *uqn;
+
+	ASSERT(dmu_tx_is_syncing(tx));
+
+	cookie = NULL;
+	while ((uqn = avl_destroy_nodes(&cache->uqc_user_deltas,
+	    &cookie)) != NULL) {
+		/*
+		 * os_userused_lock protects against concurrent calls to
+		 * zap_increment_int().  It's needed because zap_increment_int()
+		 * is not thread-safe (i.e. not atomic).
+		 */
+		mutex_enter(&os->os_userused_lock);
+		VERIFY0(zap_increment(os, DMU_USERUSED_OBJECT,
+		    uqn->uqn_id, uqn->uqn_delta, tx));
+		mutex_exit(&os->os_userused_lock);
+		kmem_free(uqn, sizeof (*uqn));
+	}
+	avl_destroy(&cache->uqc_user_deltas);
+
+	cookie = NULL;
+	while ((uqn = avl_destroy_nodes(&cache->uqc_group_deltas,
+	    &cookie)) != NULL) {
+		mutex_enter(&os->os_userused_lock);
+		VERIFY0(zap_increment(os, DMU_GROUPUSED_OBJECT,
+		    uqn->uqn_id, uqn->uqn_delta, tx));
+		mutex_exit(&os->os_userused_lock);
+		kmem_free(uqn, sizeof (*uqn));
+	}
+	avl_destroy(&cache->uqc_group_deltas);
+}
+
+static void
+userquota_update_cache(avl_tree_t *avl, const char *id, int64_t delta)
+{
+	userquota_node_t *uqn;
+	avl_index_t idx;
+
+	ASSERT(strlen(id) < sizeof (uqn->uqn_id));
+	/*
+	 * Use id directly for searching because uqn_id is the first field of
+	 * userquota_node_t and fields after uqn_id won't be accessed in
+	 * avl_find().
+	 */
+	uqn = avl_find(avl, (const void *)id, &idx);
+	if (uqn == NULL) {
+		uqn = kmem_zalloc(sizeof (*uqn), KM_SLEEP);
+		strlcpy(uqn->uqn_id, id, sizeof (uqn->uqn_id));
+		avl_insert(avl, uqn, idx);
+	}
+	uqn->uqn_delta += delta;
+}
+
+static void
+do_userquota_update(userquota_cache_t *cache, uint64_t used, uint64_t flags,
+    uint64_t user, uint64_t group, boolean_t subtract)
 {
 	if ((flags & DNODE_FLAG_USERUSED_ACCOUNTED)) {
-		int64_t delta = DNODE_SIZE + used;
+		int64_t delta = DNODE_MIN_SIZE + used;
+		char name[20];
+
 		if (subtract)
 			delta = -delta;
-		VERIFY3U(0, ==, zap_increment_int(os, DMU_USERUSED_OBJECT,
-		    user, delta, tx));
-		VERIFY3U(0, ==, zap_increment_int(os, DMU_GROUPUSED_OBJECT,
-		    group, delta, tx));
+
+		(void) sprintf(name, "%llx", (longlong_t)user);
+		userquota_update_cache(&cache->uqc_user_deltas, name, delta);
+
+		(void) sprintf(name, "%llx", (longlong_t)group);
+		userquota_update_cache(&cache->uqc_group_deltas, name, delta);
 	}
 }
 
-void
-dmu_objset_do_userquota_updates(objset_t *os, dmu_tx_t *tx)
+static void
+do_userobjquota_update(userquota_cache_t *cache, uint64_t flags,
+    uint64_t user, uint64_t group, boolean_t subtract)
 {
+	if (flags & DNODE_FLAG_USEROBJUSED_ACCOUNTED) {
+		char name[20 + DMU_OBJACCT_PREFIX_LEN];
+		int delta = subtract ? -1 : 1;
+
+		(void) snprintf(name, sizeof (name), DMU_OBJACCT_PREFIX "%llx",
+		    (longlong_t)user);
+		userquota_update_cache(&cache->uqc_user_deltas, name, delta);
+
+		(void) snprintf(name, sizeof (name), DMU_OBJACCT_PREFIX "%llx",
+		    (longlong_t)group);
+		userquota_update_cache(&cache->uqc_group_deltas, name, delta);
+	}
+}
+
+typedef struct userquota_updates_arg {
+	objset_t *uua_os;
+	int uua_sublist_idx;
+	dmu_tx_t *uua_tx;
+} userquota_updates_arg_t;
+
+static void
+userquota_updates_task(void *arg)
+{
+	userquota_updates_arg_t *uua = arg;
+	objset_t *os = uua->uua_os;
+	dmu_tx_t *tx = uua->uua_tx;
 	dnode_t *dn;
-	list_t *list = &os->os_synced_dnodes;
+	userquota_cache_t cache = { { 0 } };
 
-	ASSERT(list_head(list) == NULL || dmu_objset_userused_enabled(os));
+	multilist_sublist_t *list =
+	    multilist_sublist_lock(os->os_synced_dnodes, uua->uua_sublist_idx);
 
-	while ((dn = list_head(list))) {
+	ASSERT(multilist_sublist_head(list) == NULL ||
+	    dmu_objset_userused_enabled(os));
+	avl_create(&cache.uqc_user_deltas, userquota_compare,
+	    sizeof (userquota_node_t), offsetof(userquota_node_t, uqn_node));
+	avl_create(&cache.uqc_group_deltas, userquota_compare,
+	    sizeof (userquota_node_t), offsetof(userquota_node_t, uqn_node));
+
+	while ((dn = multilist_sublist_head(list)) != NULL) {
 		int flags;
 		ASSERT(!DMU_OBJECT_IS_SPECIAL(dn->dn_object));
 		ASSERT(dn->dn_phys->dn_type == DMU_OT_NONE ||
 		    dn->dn_phys->dn_flags &
 		    DNODE_FLAG_USERUSED_ACCOUNTED);
 
-		/* Allocate the user/groupused objects if necessary. */
-		if (DMU_USERUSED_DNODE(os)->dn_type == DMU_OT_NONE) {
-			VERIFY(0 == zap_create_claim(os,
-			    DMU_USERUSED_OBJECT,
-			    DMU_OT_USERGROUP_USED, DMU_OT_NONE, 0, tx));
-			VERIFY(0 == zap_create_claim(os,
-			    DMU_GROUPUSED_OBJECT,
-			    DMU_OT_USERGROUP_USED, DMU_OT_NONE, 0, tx));
-		}
-
-		/*
-		 * We intentionally modify the zap object even if the
-		 * net delta is zero.  Otherwise
-		 * the block of the zap obj could be shared between
-		 * datasets but need to be different between them after
-		 * a bprewrite.
-		 */
-
 		flags = dn->dn_id_flags;
 		ASSERT(flags);
 		if (flags & DN_ID_OLD_EXIST)  {
-			do_userquota_update(os, dn->dn_oldused, dn->dn_oldflags,
-			    dn->dn_olduid, dn->dn_oldgid, B_TRUE, tx);
+			do_userquota_update(&cache,
+			    dn->dn_oldused, dn->dn_oldflags,
+			    dn->dn_olduid, dn->dn_oldgid, B_TRUE);
+			do_userobjquota_update(&cache, dn->dn_oldflags,
+			    dn->dn_olduid, dn->dn_oldgid, B_TRUE);
 		}
 		if (flags & DN_ID_NEW_EXIST) {
-			do_userquota_update(os, DN_USED_BYTES(dn->dn_phys),
-			    dn->dn_phys->dn_flags,  dn->dn_newuid,
-			    dn->dn_newgid, B_FALSE, tx);
+			do_userquota_update(&cache,
+			    DN_USED_BYTES(dn->dn_phys), dn->dn_phys->dn_flags,
+			    dn->dn_newuid, dn->dn_newgid, B_FALSE);
+			do_userobjquota_update(&cache, dn->dn_phys->dn_flags,
+			    dn->dn_newuid, dn->dn_newgid, B_FALSE);
 		}
 
 		mutex_enter(&dn->dn_mtx);
@@ -1289,8 +1623,41 @@ dmu_objset_do_userquota_updates(objset_t *os, dmu_tx_t *tx)
 		dn->dn_id_flags &= ~(DN_ID_NEW_EXIST);
 		mutex_exit(&dn->dn_mtx);
 
-		list_remove(list, dn);
-		dnode_rele(dn, list);
+		multilist_sublist_remove(list, dn);
+		dnode_rele(dn, os->os_synced_dnodes);
+	}
+	do_userquota_cacheflush(os, &cache, tx);
+	multilist_sublist_unlock(list);
+	kmem_free(uua, sizeof (*uua));
+}
+
+void
+dmu_objset_do_userquota_updates(objset_t *os, dmu_tx_t *tx)
+{
+	if (!dmu_objset_userused_enabled(os))
+		return;
+
+	/* Allocate the user/groupused objects if necessary. */
+	if (DMU_USERUSED_DNODE(os)->dn_type == DMU_OT_NONE) {
+		VERIFY0(zap_create_claim(os,
+		    DMU_USERUSED_OBJECT,
+		    DMU_OT_USERGROUP_USED, DMU_OT_NONE, 0, tx));
+		VERIFY0(zap_create_claim(os,
+		    DMU_GROUPUSED_OBJECT,
+		    DMU_OT_USERGROUP_USED, DMU_OT_NONE, 0, tx));
+	}
+
+	for (int i = 0;
+	    i < multilist_get_num_sublists(os->os_synced_dnodes); i++) {
+		userquota_updates_arg_t *uua =
+		    kmem_alloc(sizeof (*uua), KM_SLEEP);
+		uua->uua_os = os;
+		uua->uua_sublist_idx = i;
+		uua->uua_tx = tx;
+		/* note: caller does taskq_wait() */
+		(void) taskq_dispatch(dmu_objset_pool(os)->dp_sync_taskq,
+		    userquota_updates_task, uua, 0);
+		/* callback frees uua */
 	}
 }
 
@@ -1443,18 +1810,18 @@ dmu_objset_userspace_present(objset_t *os)
 	    OBJSET_FLAG_USERACCOUNTING_COMPLETE);
 }
 
-int
-dmu_objset_userspace_upgrade(objset_t *os)
+boolean_t
+dmu_objset_userobjspace_present(objset_t *os)
+{
+	return (os->os_phys->os_flags &
+	    OBJSET_FLAG_USEROBJACCOUNTING_COMPLETE);
+}
+
+static int
+dmu_objset_space_upgrade(objset_t *os)
 {
 	uint64_t obj;
 	int err = 0;
-
-	if (dmu_objset_userspace_present(os))
-		return (0);
-	if (!dmu_objset_userused_enabled(os))
-		return (SET_ERROR(ENOTSUP));
-	if (dmu_objset_is_snapshot(os))
-		return (SET_ERROR(EINVAL));
 
 	/*
 	 * We simply need to mark every object dirty, so that it will be
@@ -1468,6 +1835,13 @@ dmu_objset_userspace_upgrade(objset_t *os)
 		dmu_tx_t *tx;
 		dmu_buf_t *db;
 		int objerr;
+
+		mutex_enter(&os->os_upgrade_lock);
+		if (os->os_upgrade_exit)
+			err = SET_ERROR(EINTR);
+		mutex_exit(&os->os_upgrade_lock);
+		if (err != 0)
+			return (err);
 
 		if (issig(JUSTLOOKING) && issig(FORREAL))
 			return (SET_ERROR(EINTR));
@@ -1486,10 +1860,67 @@ dmu_objset_userspace_upgrade(objset_t *os)
 		dmu_buf_rele(db, FTAG);
 		dmu_tx_commit(tx);
 	}
+	return (0);
+}
+
+int
+dmu_objset_userspace_upgrade(objset_t *os)
+{
+	int err = 0;
+
+	if (dmu_objset_userspace_present(os))
+		return (0);
+	if (dmu_objset_is_snapshot(os))
+		return (SET_ERROR(EINVAL));
+	if (!dmu_objset_userused_enabled(os))
+		return (SET_ERROR(ENOTSUP));
+
+	err = dmu_objset_space_upgrade(os);
+	if (err)
+		return (err);
 
 	os->os_flags |= OBJSET_FLAG_USERACCOUNTING_COMPLETE;
 	txg_wait_synced(dmu_objset_pool(os), 0);
 	return (0);
+}
+
+static int
+dmu_objset_userobjspace_upgrade_cb(objset_t *os)
+{
+	int err = 0;
+
+	if (dmu_objset_userobjspace_present(os))
+		return (0);
+	if (dmu_objset_is_snapshot(os))
+		return (SET_ERROR(EINVAL));
+	if (!dmu_objset_userobjused_enabled(os))
+		return (SET_ERROR(ENOTSUP));
+
+	dmu_objset_ds(os)->ds_feature_activation_needed[
+	    SPA_FEATURE_USEROBJ_ACCOUNTING] = B_TRUE;
+
+	err = dmu_objset_space_upgrade(os);
+	if (err)
+		return (err);
+
+	os->os_flags |= OBJSET_FLAG_USEROBJACCOUNTING_COMPLETE;
+	txg_wait_synced(dmu_objset_pool(os), 0);
+	return (0);
+}
+
+void
+dmu_objset_userobjspace_upgrade(objset_t *os)
+{
+	dmu_objset_upgrade(os, dmu_objset_userobjspace_upgrade_cb);
+}
+
+boolean_t
+dmu_objset_userobjspace_upgradable(objset_t *os)
+{
+	return (dmu_objset_type(os) == DMU_OST_ZFS &&
+	    !dmu_objset_is_snapshot(os) &&
+	    dmu_objset_userobjused_enabled(os) &&
+	    !dmu_objset_userobjspace_present(os));
 }
 
 void
@@ -1550,7 +1981,7 @@ dmu_snapshot_realname(objset_t *os, char *name, char *real, int maxlen,
 
 	return (zap_lookup_norm(ds->ds_dir->dd_pool->dp_meta_objset,
 	    dsl_dataset_phys(ds)->ds_snapnames_zapobj, name, 8, 1, &ignored,
-	    MT_FIRST, real, maxlen, conflict));
+	    MT_NORMALIZE, real, maxlen, conflict));
 }
 
 int
@@ -1639,6 +2070,7 @@ typedef struct dmu_objset_find_ctx {
 	taskq_t		*dc_tq;
 	dsl_pool_t	*dc_dp;
 	uint64_t	dc_ddobj;
+	char		*dc_ddname; /* last component of ddobj's name */
 	int		(*dc_func)(dsl_pool_t *, dsl_dataset_t *, void *);
 	void		*dc_arg;
 	int		dc_flags;
@@ -1662,7 +2094,12 @@ dmu_objset_find_dp_impl(dmu_objset_find_ctx_t *dcp)
 	if (*dcp->dc_error != 0)
 		goto out;
 
-	err = dsl_dir_hold_obj(dp, dcp->dc_ddobj, NULL, FTAG, &dd);
+	/*
+	 * Note: passing the name (dc_ddname) here is optional, but it
+	 * improves performance because we don't need to call
+	 * zap_value_search() to determine the name.
+	 */
+	err = dsl_dir_hold_obj(dp, dcp->dc_ddobj, dcp->dc_ddname, FTAG, &dd);
 	if (err != 0)
 		goto out;
 
@@ -1687,9 +2124,11 @@ dmu_objset_find_dp_impl(dmu_objset_find_ctx_t *dcp)
 			    sizeof (uint64_t));
 			ASSERT3U(attr->za_num_integers, ==, 1);
 
-			child_dcp = kmem_alloc(sizeof (*child_dcp), KM_SLEEP);
+			child_dcp =
+			    kmem_alloc(sizeof (*child_dcp), KM_SLEEP);
 			*child_dcp = *dcp;
 			child_dcp->dc_ddobj = attr->za_first_integer;
+			child_dcp->dc_ddname = spa_strdup(attr->za_name);
 			if (dcp->dc_tq != NULL)
 				(void) taskq_dispatch(dcp->dc_tq,
 				    dmu_objset_find_dp_cb, child_dcp, TQ_SLEEP);
@@ -1732,16 +2171,25 @@ dmu_objset_find_dp_impl(dmu_objset_find_ctx_t *dcp)
 		}
 	}
 
-	dsl_dir_rele(dd, FTAG);
 	kmem_free(attr, sizeof (zap_attribute_t));
 
-	if (err != 0)
+	if (err != 0) {
+		dsl_dir_rele(dd, FTAG);
 		goto out;
+	}
 
 	/*
 	 * Apply to self.
 	 */
 	err = dsl_dataset_hold_obj(dp, thisobj, FTAG, &ds);
+
+	/*
+	 * Note: we hold the dir while calling dsl_dataset_hold_obj() so
+	 * that the dir will remain cached, and we won't have to re-instantiate
+	 * it (which could be expensive due to finding its name via
+	 * zap_value_search()).
+	 */
+	dsl_dir_rele(dd, FTAG);
 	if (err != 0)
 		goto out;
 	err = dcp->dc_func(dp, ds, dcp->dc_arg);
@@ -1756,6 +2204,8 @@ out:
 		mutex_exit(dcp->dc_error_lock);
 	}
 
+	if (dcp->dc_ddname != NULL)
+		spa_strfree(dcp->dc_ddname);
 	kmem_free(dcp, sizeof (*dcp));
 }
 
@@ -1800,6 +2250,7 @@ dmu_objset_find_dp(dsl_pool_t *dp, uint64_t ddobj,
 	dcp->dc_tq = NULL;
 	dcp->dc_dp = dp;
 	dcp->dc_ddobj = ddobj;
+	dcp->dc_ddname = NULL;
 	dcp->dc_func = func;
 	dcp->dc_arg = arg;
 	dcp->dc_flags = flags;
@@ -1821,6 +2272,7 @@ dmu_objset_find_dp(dsl_pool_t *dp, uint64_t ddobj,
 		 * thread suffices. For now, stay single threaded.
 		 */
 		dmu_objset_find_dp_impl(dcp);
+		mutex_destroy(&err_lock);
 
 		return (error);
 	}
@@ -1832,6 +2284,8 @@ dmu_objset_find_dp(dsl_pool_t *dp, uint64_t ddobj,
 	    INT_MAX, 0);
 	if (tq == NULL) {
 		kmem_free(dcp, sizeof (*dcp));
+		mutex_destroy(&err_lock);
+
 		return (SET_ERROR(ENOMEM));
 	}
 	dcp->dc_tq = tq;
@@ -2001,7 +2455,7 @@ dmu_objset_get_user(objset_t *os)
 
 /*
  * Determine name of filesystem, given name of snapshot.
- * buf must be at least MAXNAMELEN bytes
+ * buf must be at least ZFS_MAX_DATASET_NAME_LEN bytes
  */
 int
 dmu_fsname(const char *snapname, char *buf)
@@ -2009,10 +2463,27 @@ dmu_fsname(const char *snapname, char *buf)
 	char *atp = strchr(snapname, '@');
 	if (atp == NULL)
 		return (SET_ERROR(EINVAL));
-	if (atp - snapname >= MAXNAMELEN)
+	if (atp - snapname >= ZFS_MAX_DATASET_NAME_LEN)
 		return (SET_ERROR(ENAMETOOLONG));
 	(void) strlcpy(buf, snapname, atp - snapname + 1);
 	return (0);
+}
+
+/*
+ * Call when we think we're going to write/free space in open context to track
+ * the amount of dirty data in the open txg, which is also the amount
+ * of memory that can not be evicted until this txg syncs.
+ */
+void
+dmu_objset_willuse_space(objset_t *os, int64_t space, dmu_tx_t *tx)
+{
+	dsl_dataset_t *ds = os->os_dsl_dataset;
+	int64_t aspace = spa_get_worst_case_asize(os->os_spa, space);
+
+	if (ds != NULL) {
+		dsl_dir_willuse_space(ds->ds_dir, aspace, tx);
+		dsl_pool_dirty_space(dmu_tx_pool(tx), space, tx);
+	}
 }
 
 #if defined(_KERNEL) && defined(HAVE_SPL)
@@ -2037,6 +2508,7 @@ EXPORT_SYMBOL(dmu_objset_find);
 EXPORT_SYMBOL(dmu_objset_byteswap);
 EXPORT_SYMBOL(dmu_objset_evict_dbufs);
 EXPORT_SYMBOL(dmu_objset_snap_cmtime);
+EXPORT_SYMBOL(dmu_objset_dnodesize);
 
 EXPORT_SYMBOL(dmu_objset_sync);
 EXPORT_SYMBOL(dmu_objset_is_dirty);
@@ -2049,4 +2521,8 @@ EXPORT_SYMBOL(dmu_objset_userquota_get_ids);
 EXPORT_SYMBOL(dmu_objset_userused_enabled);
 EXPORT_SYMBOL(dmu_objset_userspace_upgrade);
 EXPORT_SYMBOL(dmu_objset_userspace_present);
+EXPORT_SYMBOL(dmu_objset_userobjused_enabled);
+EXPORT_SYMBOL(dmu_objset_userobjspace_upgrade);
+EXPORT_SYMBOL(dmu_objset_userobjspace_upgradable);
+EXPORT_SYMBOL(dmu_objset_userobjspace_present);
 #endif

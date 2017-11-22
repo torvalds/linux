@@ -27,6 +27,7 @@
 #include <linux/seq_file.h>
 #include <sys/kstat.h>
 #include <sys/vmem.h>
+#include <sys/cmn_err.h>
 
 #ifndef HAVE_PDE_DATA
 #define PDE_DATA(x) (PDE(x)->data)
@@ -608,6 +609,29 @@ __kstat_create(const char *ks_module, int ks_instance, const char *ks_name,
 }
 EXPORT_SYMBOL(__kstat_create);
 
+static int
+kstat_detect_collision(kstat_t *ksp)
+{
+	kstat_module_t *module;
+	kstat_t *tmp;
+	char parent[KSTAT_STRLEN+1];
+	char *cp;
+
+	(void) strlcpy(parent, ksp->ks_module, sizeof(parent));
+
+	if ((cp = strrchr(parent, '/')) == NULL)
+		return (0);
+
+	cp[0] = '\0';
+	if ((module = kstat_find_module(parent)) != NULL) {
+		list_for_each_entry(tmp, &module->ksm_kstat_list, ks_list)
+			if (strncmp(tmp->ks_name, cp+1, KSTAT_STRLEN) == 0)
+				return (EEXIST);
+	}
+
+	return (0);
+}
+
 void
 __kstat_install(kstat_t *ksp)
 {
@@ -620,6 +644,11 @@ __kstat_install(kstat_t *ksp)
 
 	module = kstat_find_module(ksp->ks_module);
 	if (module == NULL) {
+		if (kstat_detect_collision(ksp) != 0) {
+			cmn_err(CE_WARN, "kstat_create('%s', '%s'): namespace" \
+			    " collision", ksp->ks_module, ksp->ks_name);
+			goto out;
+		}
 		module = kstat_create_module(ksp->ks_module);
 		if (module == NULL)
 			goto out;

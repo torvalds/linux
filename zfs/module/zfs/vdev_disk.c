@@ -23,13 +23,14 @@
  * Produced at Lawrence Livermore National Laboratory (cf, DISCLAIMER).
  * Rewritten for Linux by Brian Behlendorf <behlendorf1@llnl.gov>.
  * LLNL-CODE-403049.
- * Copyright (c) 2012, 2014 by Delphix. All rights reserved.
+ * Copyright (c) 2012, 2015 by Delphix. All rights reserved.
  */
 
 #include <sys/zfs_context.h>
 #include <sys/spa.h>
 #include <sys/vdev_disk.h>
 #include <sys/vdev_impl.h>
+#include <sys/abd.h>
 #include <sys/fs/zfs.h>
 #include <sys/zio.h>
 #include <sys/sunldi.h>
@@ -98,9 +99,9 @@ vdev_disk_error(zio_t *zio)
 {
 #ifdef ZFS_DEBUG
 	printk("ZFS: zio error=%d type=%d offset=%llu size=%llu "
-	    "flags=%x delay=%llu\n", zio->io_error, zio->io_type,
+	    "flags=%x\n", zio->io_error, zio->io_type,
 	    (u_longlong_t)zio->io_offset, (u_longlong_t)zio->io_size,
-	    zio->io_flags, (u_longlong_t)zio->io_delay);
+	    zio->io_flags);
 #endif
 }
 
@@ -407,12 +408,12 @@ vdev_disk_dio_put(dio_request_t *dr)
 		vdev_disk_dio_free(dr);
 
 		if (zio) {
-			zio->io_delay = jiffies_64 - zio->io_delay;
 			zio->io_error = error;
 			ASSERT3S(zio->io_error, >=, 0);
 			if (zio->io_error)
 				vdev_disk_error(zio);
-			zio_interrupt(zio);
+
+			zio_delay_interrupt(zio);
 		}
 	}
 
@@ -435,15 +436,8 @@ BIO_END_IO_PROTO(vdev_disk_physio_completion, bio, error)
 #endif
 	}
 
-	/* Drop reference aquired by __vdev_disk_physio */
+	/* Drop reference acquired by __vdev_disk_physio */
 	rc = vdev_disk_dio_put(dr);
-}
-
-static inline unsigned long
-bio_nr_pages(void *bio_ptr, unsigned int bio_size)
-{
-	return ((((unsigned long)bio_ptr + bio_size + PAGE_SIZE - 1) >>
-	    PAGE_SHIFT) - ((unsigned long)bio_ptr >> PAGE_SHIFT));
 }
 
 static unsigned int
@@ -485,6 +479,15 @@ bio_map(struct bio *bio, void *bio_ptr, unsigned int bio_size)
 	return (bio_size);
 }
 
+static unsigned int
+bio_map_abd_off(struct bio *bio, abd_t *abd, unsigned int size, size_t off)
+{
+	if (abd_is_linear(abd))
+		return (bio_map(bio, ((char *)abd_to_buf(abd)) + off, size));
+
+	return (abd_scatter_bio_map_off(bio, abd, size, off));
+}
+
 static inline void
 vdev_submit_bio_impl(struct bio *bio)
 {
@@ -494,6 +497,14 @@ vdev_submit_bio_impl(struct bio *bio)
 	submit_bio(0, bio);
 #endif
 }
+
+#ifndef HAVE_BIO_SET_DEV
+static inline void
+bio_set_dev(struct bio *bio, struct block_device *bdev)
+{
+	bio->bi_bdev = bdev;
+}
+#endif /* !HAVE_BIO_SET_DEV */
 
 static inline void
 vdev_submit_bio(struct bio *bio)
@@ -512,11 +523,11 @@ vdev_submit_bio(struct bio *bio)
 }
 
 static int
-__vdev_disk_physio(struct block_device *bdev, zio_t *zio, caddr_t kbuf_ptr,
-    size_t kbuf_size, uint64_t kbuf_offset, int rw, int flags)
+__vdev_disk_physio(struct block_device *bdev, zio_t *zio,
+    size_t io_size, uint64_t io_offset, int rw, int flags)
 {
 	dio_request_t *dr;
-	caddr_t bio_ptr;
+	uint64_t abd_offset;
 	uint64_t bio_offset;
 	int bio_size, bio_count = 16;
 	int i = 0, error = 0;
@@ -524,7 +535,8 @@ __vdev_disk_physio(struct block_device *bdev, zio_t *zio, caddr_t kbuf_ptr,
 	struct blk_plug plug;
 #endif
 
-	ASSERT3U(kbuf_offset + kbuf_size, <=, bdev->bd_inode->i_size);
+	ASSERT(zio != NULL);
+	ASSERT3U(io_offset + io_size, <=, bdev->bd_inode->i_size);
 
 retry:
 	dr = vdev_disk_dio_alloc(bio_count);
@@ -543,9 +555,10 @@ retry:
 	 * their volume block size to match the maximum request size and
 	 * the common case will be one bio per vdev IO request.
 	 */
-	bio_ptr    = kbuf_ptr;
-	bio_offset = kbuf_offset;
-	bio_size   = kbuf_size;
+
+	abd_offset = 0;
+	bio_offset = io_offset;
+	bio_size   = io_size;
 	for (i = 0; i <= dr->dr_bio_count; i++) {
 
 		/* Finished constructing bio's for given buffer */
@@ -565,7 +578,8 @@ retry:
 
 		/* bio_alloc() with __GFP_WAIT never returns NULL */
 		dr->dr_bio[i] = bio_alloc(GFP_NOIO,
-		    MIN(bio_nr_pages(bio_ptr, bio_size), BIO_MAX_PAGES));
+		    MIN(abd_nr_pages_off(zio->io_abd, bio_size, abd_offset),
+		    BIO_MAX_PAGES));
 		if (unlikely(dr->dr_bio[i] == NULL)) {
 			vdev_disk_dio_free(dr);
 			return (ENOMEM);
@@ -574,28 +588,23 @@ retry:
 		/* Matching put called by vdev_disk_physio_completion */
 		vdev_disk_dio_get(dr);
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4,14,0)
-		dr->dr_bio[i]->bi_bdev = bdev;
-#else
 		bio_set_dev(dr->dr_bio[i], bdev);
-#endif
 		BIO_BI_SECTOR(dr->dr_bio[i]) = bio_offset >> 9;
 		dr->dr_bio[i]->bi_end_io = vdev_disk_physio_completion;
 		dr->dr_bio[i]->bi_private = dr;
 		bio_set_op_attrs(dr->dr_bio[i], rw, flags);
 
 		/* Remaining size is returned to become the new size */
-		bio_size = bio_map(dr->dr_bio[i], bio_ptr, bio_size);
+		bio_size = bio_map_abd_off(dr->dr_bio[i], zio->io_abd,
+		    bio_size, abd_offset);
 
 		/* Advance in buffer and construct another bio if needed */
-		bio_ptr    += BIO_BI_SIZE(dr->dr_bio[i]);
+		abd_offset += BIO_BI_SIZE(dr->dr_bio[i]);
 		bio_offset += BIO_BI_SIZE(dr->dr_bio[i]);
 	}
 
 	/* Extra reference to protect dio_request during vdev_submit_bio */
 	vdev_disk_dio_get(dr);
-	if (zio)
-		zio->io_delay = jiffies_64;
 
 #if defined(HAVE_BLK_QUEUE_HAVE_BLK_PLUG)
 	if (dr->dr_bio_count > 1)
@@ -626,7 +635,6 @@ BIO_END_IO_PROTO(vdev_disk_io_flush_completion, bio, error)
 	zio->io_error = -error;
 #endif
 
-	zio->io_delay = jiffies_64 - zio->io_delay;
 	if (zio->io_error && (zio->io_error == EOPNOTSUPP))
 		zio->io_vd->vdev_nowritecache = B_TRUE;
 
@@ -654,12 +662,7 @@ vdev_disk_io_flush(struct block_device *bdev, zio_t *zio)
 
 	bio->bi_end_io = vdev_disk_io_flush_completion;
 	bio->bi_private = zio;
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4,14,0)
-	bio->bi_bdev = bdev;
-#else
 	bio_set_dev(bio, bdev);
-#endif
-	zio->io_delay = jiffies_64;
 	bio_set_flush(bio);
 	vdev_submit_bio(bio);
 	invalidate_bdev(bdev);
@@ -699,8 +702,6 @@ vdev_disk_io_start(zio_t *zio)
 				return;
 
 			zio->io_error = error;
-			if (error == ENOTSUP)
-				v->vdev_nowritecache = B_TRUE;
 
 			break;
 
@@ -738,7 +739,8 @@ vdev_disk_io_start(zio_t *zio)
 		return;
 	}
 
-	error = __vdev_disk_physio(vd->vd_bdev, zio, zio->io_data,
+	zio->io_target_timestamp = zio_handle_io_delay(zio);
+	error = __vdev_disk_physio(vd->vd_bdev, zio,
 	    zio->io_size, zio->io_offset, rw, flags);
 	if (error) {
 		zio->io_error = error;
@@ -802,6 +804,7 @@ vdev_ops_t vdev_disk_ops = {
 	vdev_default_asize,
 	vdev_disk_io_start,
 	vdev_disk_io_done,
+	NULL,
 	NULL,
 	vdev_disk_hold,
 	vdev_disk_rele,

@@ -23,7 +23,7 @@
  * Use is subject to license terms.
  */
 /*
- * Copyright (c) 2012, 2014 by Delphix. All rights reserved.
+ * Copyright (c) 2012, 2017 by Delphix. All rights reserved.
  */
 
 #ifndef _SYS_TXG_H
@@ -60,6 +60,7 @@ typedef struct txg_node {
 typedef struct txg_list {
 	kmutex_t	tl_lock;
 	size_t		tl_offset;
+	spa_t		*tl_spa;
 	txg_node_t	*tl_head[TXG_SIZE];
 } txg_list_t;
 
@@ -103,6 +104,8 @@ extern boolean_t txg_stalled(struct dsl_pool *dp);
 /* returns TRUE if someone is waiting for the next txg to sync */
 extern boolean_t txg_sync_waiting(struct dsl_pool *dp);
 
+extern void txg_verify(spa_t *spa, uint64_t txg);
+
 /*
  * Wait for pending commit callbacks of already-synced transactions to finish
  * processing.
@@ -115,7 +118,7 @@ extern void txg_wait_callbacks(struct dsl_pool *dp);
 
 #define	TXG_CLEAN(txg)	((txg) - 1)
 
-extern void txg_list_create(txg_list_t *tl, size_t offset);
+extern void txg_list_create(txg_list_t *tl, spa_t *spa, size_t offset);
 extern void txg_list_destroy(txg_list_t *tl);
 extern boolean_t txg_list_empty(txg_list_t *tl, uint64_t txg);
 extern boolean_t txg_all_lists_empty(txg_list_t *tl);

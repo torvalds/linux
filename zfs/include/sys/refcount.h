@@ -20,6 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2015 by Delphix. All rights reserved.
  */
 
 #ifndef	_SYS_REFCOUNT_H
@@ -64,14 +65,15 @@ typedef struct refcount {
 	boolean_t rc_tracked;
 	list_t rc_list;
 	list_t rc_removed;
-	int64_t rc_count;
-	int64_t rc_removed_count;
+	uint64_t rc_count;
+	uint64_t rc_removed_count;
 } zfs_refcount_t;
 
 /* Note: refcount_t must be initialized with refcount_create[_untracked]() */
 
 void refcount_create(refcount_t *rc);
 void refcount_create_untracked(refcount_t *rc);
+void refcount_create_tracked(refcount_t *rc);
 void refcount_destroy(refcount_t *rc);
 void refcount_destroy_many(refcount_t *rc, uint64_t number);
 int refcount_is_zero(refcount_t *rc);
@@ -81,6 +83,9 @@ int64_t refcount_remove(refcount_t *rc, void *holder_tag);
 int64_t refcount_add_many(refcount_t *rc, uint64_t number, void *holder_tag);
 int64_t refcount_remove_many(refcount_t *rc, uint64_t number, void *holder_tag);
 void refcount_transfer(refcount_t *dst, refcount_t *src);
+void refcount_transfer_ownership(refcount_t *, void *, void *);
+boolean_t refcount_held(refcount_t *, void *);
+boolean_t refcount_not_held(refcount_t *, void *);
 
 void refcount_init(void);
 void refcount_fini(void);
@@ -93,12 +98,13 @@ typedef struct refcount {
 
 #define	refcount_create(rc) ((rc)->rc_count = 0)
 #define	refcount_create_untracked(rc) ((rc)->rc_count = 0)
+#define	refcount_create_tracked(rc) ((rc)->rc_count = 0)
 #define	refcount_destroy(rc) ((rc)->rc_count = 0)
 #define	refcount_destroy_many(rc, number) ((rc)->rc_count = 0)
 #define	refcount_is_zero(rc) ((rc)->rc_count == 0)
 #define	refcount_count(rc) ((rc)->rc_count)
-#define	zfs_refcount_add(rc, holder) atomic_add_64_nv(&(rc)->rc_count, 1)
-#define	refcount_remove(rc, holder) atomic_add_64_nv(&(rc)->rc_count, -1)
+#define	zfs_refcount_add(rc, holder) atomic_inc_64_nv(&(rc)->rc_count)
+#define	refcount_remove(rc, holder) atomic_dec_64_nv(&(rc)->rc_count)
 #define	refcount_add_many(rc, number, holder) \
 	atomic_add_64_nv(&(rc)->rc_count, number)
 #define	refcount_remove_many(rc, number, holder) \
@@ -108,6 +114,9 @@ typedef struct refcount {
 	atomic_add_64(&(src)->rc_count, -__tmp); \
 	atomic_add_64(&(dst)->rc_count, __tmp); \
 }
+#define	refcount_transfer_ownership(rc, current_holder, new_holder)	(void)0
+#define	refcount_held(rc, holder)		((rc)->rc_count > 0)
+#define	refcount_not_held(rc, holder)		(B_TRUE)
 
 #define	refcount_init()
 #define	refcount_fini()

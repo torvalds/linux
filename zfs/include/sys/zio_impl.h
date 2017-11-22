@@ -24,14 +24,11 @@
  */
 
 /*
- * Copyright (c) 2013 by Delphix. All rights reserved.
+ * Copyright (c) 2012, 2015 by Delphix. All rights reserved.
  */
 
 #ifndef _ZIO_IMPL_H
 #define	_ZIO_IMPL_H
-
-#include <sys/zfs_context.h>
-#include <sys/zio.h>
 
 #ifdef	__cplusplus
 extern "C" {
@@ -108,35 +105,37 @@ enum zio_stage {
 	ZIO_STAGE_OPEN			= 1 << 0,	/* RWFCI */
 
 	ZIO_STAGE_READ_BP_INIT		= 1 << 1,	/* R---- */
-	ZIO_STAGE_FREE_BP_INIT		= 1 << 2,	/* --F-- */
-	ZIO_STAGE_ISSUE_ASYNC		= 1 << 3,	/* RWF-- */
-	ZIO_STAGE_WRITE_BP_INIT		= 1 << 4,	/* -W--- */
+	ZIO_STAGE_WRITE_BP_INIT		= 1 << 2,	/* -W--- */
+	ZIO_STAGE_FREE_BP_INIT		= 1 << 3,	/* --F-- */
+	ZIO_STAGE_ISSUE_ASYNC		= 1 << 4,	/* RWF-- */
+	ZIO_STAGE_WRITE_COMPRESS	= 1 << 5,	/* -W--- */
 
-	ZIO_STAGE_CHECKSUM_GENERATE	= 1 << 5,	/* -W--- */
+	ZIO_STAGE_CHECKSUM_GENERATE	= 1 << 6,	/* -W--- */
 
-	ZIO_STAGE_NOP_WRITE		= 1 << 6,	/* -W--- */
+	ZIO_STAGE_NOP_WRITE		= 1 << 7,	/* -W--- */
 
-	ZIO_STAGE_DDT_READ_START	= 1 << 7,	/* R---- */
-	ZIO_STAGE_DDT_READ_DONE		= 1 << 8,	/* R---- */
-	ZIO_STAGE_DDT_WRITE		= 1 << 9,	/* -W--- */
-	ZIO_STAGE_DDT_FREE		= 1 << 10,	/* --F-- */
+	ZIO_STAGE_DDT_READ_START	= 1 << 8,	/* R---- */
+	ZIO_STAGE_DDT_READ_DONE		= 1 << 9,	/* R---- */
+	ZIO_STAGE_DDT_WRITE		= 1 << 10,	/* -W--- */
+	ZIO_STAGE_DDT_FREE		= 1 << 11,	/* --F-- */
 
-	ZIO_STAGE_GANG_ASSEMBLE		= 1 << 11,	/* RWFC- */
-	ZIO_STAGE_GANG_ISSUE		= 1 << 12,	/* RWFC- */
+	ZIO_STAGE_GANG_ASSEMBLE		= 1 << 12,	/* RWFC- */
+	ZIO_STAGE_GANG_ISSUE		= 1 << 13,	/* RWFC- */
 
-	ZIO_STAGE_DVA_ALLOCATE		= 1 << 13,	/* -W--- */
-	ZIO_STAGE_DVA_FREE		= 1 << 14,	/* --F-- */
-	ZIO_STAGE_DVA_CLAIM		= 1 << 15,	/* ---C- */
+	ZIO_STAGE_DVA_THROTTLE		= 1 << 14,	/* -W--- */
+	ZIO_STAGE_DVA_ALLOCATE		= 1 << 15,	/* -W--- */
+	ZIO_STAGE_DVA_FREE		= 1 << 16,	/* --F-- */
+	ZIO_STAGE_DVA_CLAIM		= 1 << 17,	/* ---C- */
 
-	ZIO_STAGE_READY			= 1 << 16,	/* RWFCI */
+	ZIO_STAGE_READY			= 1 << 18,	/* RWFCI */
 
-	ZIO_STAGE_VDEV_IO_START		= 1 << 17,	/* RW--I */
-	ZIO_STAGE_VDEV_IO_DONE		= 1 << 18,	/* RW--I */
-	ZIO_STAGE_VDEV_IO_ASSESS	= 1 << 19,	/* RW--I */
+	ZIO_STAGE_VDEV_IO_START		= 1 << 19,	/* RW--I */
+	ZIO_STAGE_VDEV_IO_DONE		= 1 << 20,	/* RW--I */
+	ZIO_STAGE_VDEV_IO_ASSESS	= 1 << 21,	/* RW--I */
 
-	ZIO_STAGE_CHECKSUM_VERIFY	= 1 << 20,	/* R---- */
+	ZIO_STAGE_CHECKSUM_VERIFY	= 1 << 22,	/* R---- */
 
-	ZIO_STAGE_DONE			= 1 << 21	/* RWFCI */
+	ZIO_STAGE_DONE			= 1 << 23	/* RWFCI */
 };
 
 #define	ZIO_INTERLOCK_STAGES			\
@@ -187,22 +186,27 @@ enum zio_stage {
 
 #define	ZIO_REWRITE_PIPELINE			\
 	(ZIO_WRITE_COMMON_STAGES |		\
+	ZIO_STAGE_WRITE_COMPRESS |		\
 	ZIO_STAGE_WRITE_BP_INIT)
 
 #define	ZIO_WRITE_PIPELINE			\
 	(ZIO_WRITE_COMMON_STAGES |		\
 	ZIO_STAGE_WRITE_BP_INIT |		\
+	ZIO_STAGE_WRITE_COMPRESS |		\
+	ZIO_STAGE_DVA_THROTTLE |		\
 	ZIO_STAGE_DVA_ALLOCATE)
 
 #define	ZIO_DDT_CHILD_WRITE_PIPELINE		\
 	(ZIO_INTERLOCK_STAGES |			\
 	ZIO_VDEV_IO_STAGES |			\
+	ZIO_STAGE_DVA_THROTTLE |		\
 	ZIO_STAGE_DVA_ALLOCATE)
 
 #define	ZIO_DDT_WRITE_PIPELINE			\
 	(ZIO_INTERLOCK_STAGES |			\
-	ZIO_STAGE_ISSUE_ASYNC |			\
 	ZIO_STAGE_WRITE_BP_INIT |		\
+	ZIO_STAGE_ISSUE_ASYNC |			\
+	ZIO_STAGE_WRITE_COMPRESS |		\
 	ZIO_STAGE_CHECKSUM_GENERATE |		\
 	ZIO_STAGE_DDT_WRITE)
 

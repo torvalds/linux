@@ -81,7 +81,8 @@ splat_mutex_test1(struct file *file, void *arg)
 {
         mutex_priv_t *mp;
         taskq_t *tq;
-        int id, rc = 0;
+	taskqid_t id;
+        int rc = 0;
 
         mp = (mutex_priv_t *)kmalloc(sizeof(*mp), GFP_KERNEL);
         if (mp == NULL)
@@ -105,8 +106,8 @@ splat_mutex_test1(struct file *file, void *arg)
          * function will indicate this status in the passed private data.
          */
         mp->mp_rc = -EINVAL;
-        id = taskq_dispatch(tq, splat_mutex_test1_func, mp, TQ_SLEEP);
-        if (id == 0) {
+	id = taskq_dispatch(tq, splat_mutex_test1_func, mp, TQ_SLEEP);
+	if (id == TASKQID_INVALID) {
                 mutex_exit(&mp->mp_mtx);
                 splat_vprint(file, SPLAT_MUTEX_TEST1_NAME, "%s",
                              "taskq_dispatch() failed\n");
@@ -120,8 +121,8 @@ splat_mutex_test1(struct file *file, void *arg)
         /* Task function successfully acquired mutex, very bad! */
         if (mp->mp_rc != -EBUSY) {
                 splat_vprint(file, SPLAT_MUTEX_TEST1_NAME,
-                             "mutex_trylock() incorrectly succeeded when "
-                             "the mutex was held, %d/%d\n", id, mp->mp_rc);
+		    "mutex_trylock() incorrectly succeeded when "
+		    "the mutex was held, %d/%d\n", (int)id, mp->mp_rc);
                 rc = -EINVAL;
                 goto out;
         } else {
@@ -136,8 +137,8 @@ splat_mutex_test1(struct file *file, void *arg)
          * can be verified by checking the private data.
          */
         mp->mp_rc = -EINVAL;
-        id = taskq_dispatch(tq, splat_mutex_test1_func, mp, TQ_SLEEP);
-        if (id == 0) {
+	id = taskq_dispatch(tq, splat_mutex_test1_func, mp, TQ_SLEEP);
+	if (id == TASKQID_INVALID) {
                 splat_vprint(file, SPLAT_MUTEX_TEST1_NAME, "%s",
                              "taskq_dispatch() failed\n");
                 rc = -EINVAL;
@@ -149,8 +150,8 @@ splat_mutex_test1(struct file *file, void *arg)
         /* Task function failed to acquire mutex, very bad! */
         if (mp->mp_rc != 0) {
                 splat_vprint(file, SPLAT_MUTEX_TEST1_NAME,
-                             "mutex_trylock() incorrectly failed when "
-                             "the mutex was not held, %d/%d\n", id, mp->mp_rc);
+		    "mutex_trylock() incorrectly failed when the mutex "
+		    "was not held, %d/%d\n", (int)id, mp->mp_rc);
                 rc = -EINVAL;
         } else {
                 splat_vprint(file, SPLAT_MUTEX_TEST1_NAME, "%s",
@@ -188,6 +189,7 @@ splat_mutex_test2(struct file *file, void *arg)
 {
         mutex_priv_t *mp;
         taskq_t *tq;
+	taskqid_t id;
         int i, rc = 0;
 
         mp = (mutex_priv_t *)kmalloc(sizeof(*mp), GFP_KERNEL);
@@ -218,7 +220,8 @@ splat_mutex_test2(struct file *file, void *arg)
          * mutex is implemented right this will never happy, that's a pass.
          */
         for (i = 0; i < SPLAT_MUTEX_TEST_COUNT; i++) {
-                if (!taskq_dispatch(tq, splat_mutex_test2_func, mp, TQ_SLEEP)) {
+		id = taskq_dispatch(tq, splat_mutex_test2_func, mp, TQ_SLEEP);
+		if (id == TASKQID_INVALID) {
                         splat_vprint(file, SPLAT_MUTEX_TEST2_NAME,
                                      "Failed to queue task %d\n", i);
                         rc = -EINVAL;
@@ -260,6 +263,7 @@ splat_mutex_test3(struct file *file, void *arg)
 {
         mutex_priv_t mp;
         taskq_t *tq;
+	taskqid_t id;
         int rc = 0;
 
         mp.mp_magic = SPLAT_MUTEX_TEST_MAGIC;
@@ -283,7 +287,8 @@ splat_mutex_test3(struct file *file, void *arg)
                 goto out_exit;
         }
 
-        if (taskq_dispatch(tq, splat_mutex_owned, &mp, TQ_SLEEP) == 0) {
+	id = taskq_dispatch(tq, splat_mutex_owned, &mp, TQ_SLEEP);
+	if (id == TASKQID_INVALID) {
                 splat_vprint(file, SPLAT_MUTEX_TEST3_NAME, "Failed to "
                              "dispatch function '%s' to taskq\n",
                              sym2str(splat_mutex_owned));
@@ -310,7 +315,8 @@ splat_mutex_test3(struct file *file, void *arg)
                 goto out;
         }
 
-        if (taskq_dispatch(tq, splat_mutex_owned, &mp, TQ_SLEEP) == 0) {
+	id = taskq_dispatch(tq, splat_mutex_owned, &mp, TQ_SLEEP);
+	if (id == TASKQID_INVALID) {
                 splat_vprint(file, SPLAT_MUTEX_TEST3_NAME, "Failed to "
                              "dispatch function '%s' to taskq\n",
                              sym2str(splat_mutex_owned));
@@ -411,13 +417,13 @@ splat_mutex_init(void)
         spin_lock_init(&sub->test_lock);
         sub->desc.id = SPLAT_SUBSYSTEM_MUTEX;
 
-        SPLAT_TEST_INIT(sub, SPLAT_MUTEX_TEST1_NAME, SPLAT_MUTEX_TEST1_DESC,
+        splat_test_init(sub, SPLAT_MUTEX_TEST1_NAME, SPLAT_MUTEX_TEST1_DESC,
                       SPLAT_MUTEX_TEST1_ID, splat_mutex_test1);
-        SPLAT_TEST_INIT(sub, SPLAT_MUTEX_TEST2_NAME, SPLAT_MUTEX_TEST2_DESC,
+        splat_test_init(sub, SPLAT_MUTEX_TEST2_NAME, SPLAT_MUTEX_TEST2_DESC,
                       SPLAT_MUTEX_TEST2_ID, splat_mutex_test2);
-        SPLAT_TEST_INIT(sub, SPLAT_MUTEX_TEST3_NAME, SPLAT_MUTEX_TEST3_DESC,
+        splat_test_init(sub, SPLAT_MUTEX_TEST3_NAME, SPLAT_MUTEX_TEST3_DESC,
                       SPLAT_MUTEX_TEST3_ID, splat_mutex_test3);
-        SPLAT_TEST_INIT(sub, SPLAT_MUTEX_TEST4_NAME, SPLAT_MUTEX_TEST4_DESC,
+        splat_test_init(sub, SPLAT_MUTEX_TEST4_NAME, SPLAT_MUTEX_TEST4_DESC,
                       SPLAT_MUTEX_TEST4_ID, splat_mutex_test4);
 
         return sub;
@@ -427,10 +433,10 @@ void
 splat_mutex_fini(splat_subsystem_t *sub)
 {
         ASSERT(sub);
-        SPLAT_TEST_FINI(sub, SPLAT_MUTEX_TEST4_ID);
-        SPLAT_TEST_FINI(sub, SPLAT_MUTEX_TEST3_ID);
-        SPLAT_TEST_FINI(sub, SPLAT_MUTEX_TEST2_ID);
-        SPLAT_TEST_FINI(sub, SPLAT_MUTEX_TEST1_ID);
+        splat_test_fini(sub, SPLAT_MUTEX_TEST4_ID);
+        splat_test_fini(sub, SPLAT_MUTEX_TEST3_ID);
+        splat_test_fini(sub, SPLAT_MUTEX_TEST2_ID);
+        splat_test_fini(sub, SPLAT_MUTEX_TEST1_ID);
 
         kfree(sub);
 }

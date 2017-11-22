@@ -42,7 +42,7 @@
  *  - it uses a pre-allocated buffer for memory allocations.
  *  - it does _not_ free memory in the pre-allocated buffer.
  *
- * The reason for the selected implemention is simplicity.
+ * The reason for the selected implementation is simplicity.
  * This allocator is designed for the usage in interrupt context when
  * the caller may not wait for free memory.
  */

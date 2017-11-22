@@ -29,6 +29,7 @@
 #include <sys/kmem.h>
 #include <sys/kmem_cache.h>
 #include <sys/vmem.h>
+#include <sys/taskq.h>
 #include <linux/ctype.h>
 #include <linux/kmod.h>
 #include <linux/seq_file.h>
@@ -49,6 +50,8 @@ static struct ctl_table_header *spl_header = NULL;
 static struct proc_dir_entry *proc_spl = NULL;
 static struct proc_dir_entry *proc_spl_kmem = NULL;
 static struct proc_dir_entry *proc_spl_kmem_slab = NULL;
+static struct proc_dir_entry *proc_spl_taskq_all = NULL;
+static struct proc_dir_entry *proc_spl_taskq = NULL;
 struct proc_dir_entry *proc_spl_kstat = NULL;
 
 static int
@@ -200,7 +203,8 @@ proc_dohostid(struct ctl_table *table, int write,
                         return (-EINVAL);
 
         } else {
-                len = snprintf(str, sizeof(str), "%lx", spl_hostid);
+                len = snprintf(str, sizeof(str), "%lx",
+		    (unsigned long) zone_get_hostid(NULL));
                 if (*ppos >= len)
                         rc = 0;
                 else
@@ -213,6 +217,193 @@ proc_dohostid(struct ctl_table *table, int write,
         }
 
         return (rc);
+}
+
+static void
+taskq_seq_show_headers(struct seq_file *f)
+{
+	seq_printf(f, "%-25s %5s %5s %5s %5s %5s %5s %12s %5s %10s\n",
+	    "taskq", "act", "nthr", "spwn", "maxt", "pri",
+	    "mina", "maxa", "cura", "flags");
+}
+
+/* indices into the lheads array below */
+#define	LHEAD_PEND	0
+#define LHEAD_PRIO	1
+#define LHEAD_DELAY	2
+#define LHEAD_WAIT	3
+#define LHEAD_ACTIVE	4
+#define LHEAD_SIZE	5
+
+static unsigned int spl_max_show_tasks = 512;
+module_param(spl_max_show_tasks, uint, 0644);
+MODULE_PARM_DESC(spl_max_show_tasks, "Max number of tasks shown in taskq proc");
+
+static int
+taskq_seq_show_impl(struct seq_file *f, void *p, boolean_t allflag)
+{
+	taskq_t *tq = p;
+	taskq_thread_t *tqt;
+	spl_wait_queue_entry_t *wq;
+	struct task_struct *tsk;
+	taskq_ent_t *tqe;
+	char name[100];
+	struct list_head *lheads[LHEAD_SIZE], *lh;
+	static char *list_names[LHEAD_SIZE] =
+	    {"pend", "prio", "delay", "wait", "active" };
+	int i, j, have_lheads = 0;
+	unsigned long wflags, flags;
+
+	spin_lock_irqsave_nested(&tq->tq_lock, flags, tq->tq_lock_class);
+	spin_lock_irqsave(&tq->tq_wait_waitq.lock, wflags);
+
+	/* get the various lists and check whether they're empty */
+	lheads[LHEAD_PEND] = &tq->tq_pend_list;
+	lheads[LHEAD_PRIO] = &tq->tq_prio_list;
+	lheads[LHEAD_DELAY] = &tq->tq_delay_list;
+#ifdef HAVE_WAIT_QUEUE_HEAD_ENTRY
+	lheads[LHEAD_WAIT] = &tq->tq_wait_waitq.head;
+#else
+	lheads[LHEAD_WAIT] = &tq->tq_wait_waitq.task_list;
+#endif
+	lheads[LHEAD_ACTIVE] = &tq->tq_active_list;
+
+	for (i = 0; i < LHEAD_SIZE; ++i) {
+		if (list_empty(lheads[i]))
+			lheads[i] = NULL;
+		else
+			++have_lheads;
+	}
+
+	/* early return in non-"all" mode if lists are all empty */
+	if (!allflag && !have_lheads) {
+		spin_unlock_irqrestore(&tq->tq_wait_waitq.lock, wflags);
+		spin_unlock_irqrestore(&tq->tq_lock, flags);
+		return (0);
+	}
+
+	/* unlock the waitq quickly */
+	if (!lheads[LHEAD_WAIT])
+		spin_unlock_irqrestore(&tq->tq_wait_waitq.lock, wflags);
+
+	/* show the base taskq contents */
+	snprintf(name, sizeof(name), "%s/%d", tq->tq_name, tq->tq_instance);
+	seq_printf(f, "%-25s ", name);
+	seq_printf(f, "%5d %5d %5d %5d %5d %5d %12d %5d %10x\n",
+	    tq->tq_nactive, tq->tq_nthreads, tq->tq_nspawn,
+	    tq->tq_maxthreads, tq->tq_pri, tq->tq_minalloc, tq->tq_maxalloc,
+	    tq->tq_nalloc, tq->tq_flags);
+
+	/* show the active list */
+	if (lheads[LHEAD_ACTIVE]) {
+		j = 0;
+		list_for_each_entry(tqt, &tq->tq_active_list, tqt_active_list) {
+			if (j == 0)
+				seq_printf(f, "\t%s:", list_names[LHEAD_ACTIVE]);
+			else if (j == 2) {
+				seq_printf(f, "\n\t       ");
+				j = 0;
+			}
+			seq_printf(f, " [%d]%pf(%ps)",
+			    tqt->tqt_thread->pid,
+			    tqt->tqt_task->tqent_func,
+			    tqt->tqt_task->tqent_arg);
+			++j;
+		}
+		seq_printf(f, "\n");
+	}
+
+	for (i = LHEAD_PEND; i <= LHEAD_WAIT; ++i)
+		if (lheads[i]) {
+			j = 0;
+			list_for_each(lh, lheads[i]) {
+				if (spl_max_show_tasks != 0 &&
+				    j >= spl_max_show_tasks) {
+					seq_printf(f, "\n\t(truncated)");
+					break;
+				}
+				/* show the wait waitq list */
+				if (i == LHEAD_WAIT) {
+#ifdef HAVE_WAIT_QUEUE_HEAD_ENTRY
+					wq = list_entry(lh,
+					    spl_wait_queue_entry_t, entry);
+#else
+					wq = list_entry(lh,
+					    spl_wait_queue_entry_t, task_list);
+#endif
+					if (j == 0)
+						seq_printf(f, "\t%s:",
+						    list_names[i]);
+					else if (j % 8 == 0)
+						seq_printf(f, "\n\t     ");
+
+					tsk = wq->private;
+					seq_printf(f, " %d", tsk->pid);
+				/* pend, prio and delay lists */
+				} else {
+					tqe = list_entry(lh, taskq_ent_t,
+					    tqent_list);
+					if (j == 0)
+						seq_printf(f, "\t%s:",
+						    list_names[i]);
+					else if (j % 2 == 0)
+						seq_printf(f, "\n\t     ");
+
+					seq_printf(f, " %pf(%ps)",
+					    tqe->tqent_func,
+					    tqe->tqent_arg);
+				}
+				++j;
+			}
+			seq_printf(f, "\n");
+		}
+	if (lheads[LHEAD_WAIT])
+		spin_unlock_irqrestore(&tq->tq_wait_waitq.lock, wflags);
+	spin_unlock_irqrestore(&tq->tq_lock, flags);
+
+	return (0);
+}
+
+static int
+taskq_all_seq_show(struct seq_file *f, void *p)
+{
+	return (taskq_seq_show_impl(f, p, B_TRUE));
+}
+
+static int
+taskq_seq_show(struct seq_file *f, void *p)
+{
+	return (taskq_seq_show_impl(f, p, B_FALSE));
+}
+
+static void *
+taskq_seq_start(struct seq_file *f, loff_t *pos)
+{
+	struct list_head *p;
+	loff_t n = *pos;
+
+	down_read(&tq_list_sem);
+	if (!n)
+		taskq_seq_show_headers(f);
+
+	p = tq_list.next;
+	while (n--) {
+		p = p->next;
+		if (p == &tq_list)
+		return (NULL);
+	}
+
+	return (list_entry(p, taskq_t, tq_taskqs));
+}
+
+static void *
+taskq_seq_next(struct seq_file *f, void *p, loff_t *pos)
+{
+	taskq_t *tq = p;
+
+	++*pos;
+	return ((tq->tq_taskqs.next == &tq_list) ?
+	       NULL : list_entry(tq->tq_taskqs.next, taskq_t, tq_taskqs));
 }
 
 static void
@@ -323,6 +514,52 @@ static struct file_operations proc_slab_operations = {
         .read           = seq_read,
         .llseek         = seq_lseek,
         .release        = seq_release,
+};
+
+static void
+taskq_seq_stop(struct seq_file *f, void *v)
+{
+	up_read(&tq_list_sem);
+}
+
+static struct seq_operations taskq_all_seq_ops = {
+	.show  = taskq_all_seq_show,
+	.start = taskq_seq_start,
+	.next  = taskq_seq_next,
+	.stop  = taskq_seq_stop,
+};
+
+static struct seq_operations taskq_seq_ops = {
+	.show  = taskq_seq_show,
+	.start = taskq_seq_start,
+	.next  = taskq_seq_next,
+	.stop  = taskq_seq_stop,
+};
+
+static int
+proc_taskq_all_open(struct inode *inode, struct file *filp)
+{
+	return seq_open(filp, &taskq_all_seq_ops);
+}
+
+static int
+proc_taskq_open(struct inode *inode, struct file *filp)
+{
+	return seq_open(filp, &taskq_seq_ops);
+}
+
+static struct file_operations proc_taskq_all_operations = {
+	.open           = proc_taskq_all_open,
+	.read           = seq_read,
+	.llseek         = seq_lseek,
+	.release        = seq_release,
+};
+
+static struct file_operations proc_taskq_operations = {
+	.open           = proc_taskq_open,
+	.read           = seq_read,
+	.llseek         = seq_lseek,
+	.release        = seq_release,
 };
 
 static struct ctl_table spl_kmem_table[] = {
@@ -476,6 +713,20 @@ spl_proc_init(void)
 		goto out;
 	}
 
+	proc_spl_taskq_all = proc_create_data("taskq-all", 0444,
+		proc_spl, &proc_taskq_all_operations, NULL);
+	if (proc_spl_taskq_all == NULL) {
+		rc = -EUNATCH;
+		goto out;
+	}
+
+	proc_spl_taskq = proc_create_data("taskq", 0444,
+		proc_spl, &proc_taskq_operations, NULL);
+	if (proc_spl_taskq == NULL) {
+		rc = -EUNATCH;
+		goto out;
+	}
+
         proc_spl_kmem = proc_mkdir("kmem", proc_spl);
         if (proc_spl_kmem == NULL) {
                 rc = -EUNATCH;
@@ -499,6 +750,8 @@ out:
 		remove_proc_entry("kstat", proc_spl);
 	        remove_proc_entry("slab", proc_spl_kmem);
 		remove_proc_entry("kmem", proc_spl);
+		remove_proc_entry("taskq-all", proc_spl);
+		remove_proc_entry("taskq", proc_spl);
 		remove_proc_entry("spl", NULL);
 	        unregister_sysctl_table(spl_header);
 	}
@@ -512,6 +765,8 @@ spl_proc_fini(void)
 	remove_proc_entry("kstat", proc_spl);
         remove_proc_entry("slab", proc_spl_kmem);
 	remove_proc_entry("kmem", proc_spl);
+	remove_proc_entry("taskq-all", proc_spl);
+	remove_proc_entry("taskq", proc_spl);
 	remove_proc_entry("spl", NULL);
 
         ASSERT(spl_header != NULL);

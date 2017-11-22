@@ -23,7 +23,7 @@
  * Use is subject to license terms.
  */
 /*
- * Copyright (c) 2013 by Delphix. All rights reserved.
+ * Copyright (c) 2013, 2015 by Delphix. All rights reserved.
  */
 
 #include <sys/zfs_context.h>
@@ -54,20 +54,14 @@
 static int
 space_reftree_compare(const void *x1, const void *x2)
 {
-	const space_ref_t *sr1 = x1;
-	const space_ref_t *sr2 = x2;
+	const space_ref_t *sr1 = (const space_ref_t *)x1;
+	const space_ref_t *sr2 = (const space_ref_t *)x2;
 
-	if (sr1->sr_offset < sr2->sr_offset)
-		return (-1);
-	if (sr1->sr_offset > sr2->sr_offset)
-		return (1);
+	int cmp = AVL_CMP(sr1->sr_offset, sr2->sr_offset);
+	if (likely(cmp))
+		return (cmp);
 
-	if (sr1 < sr2)
-		return (-1);
-	if (sr1 > sr2)
-		return (1);
-
-	return (0);
+	return (AVL_PCMP(sr1, sr2));
 }
 
 void
@@ -103,7 +97,7 @@ space_reftree_add_node(avl_tree_t *t, uint64_t offset, int64_t refcnt)
 
 void
 space_reftree_add_seg(avl_tree_t *t, uint64_t start, uint64_t end,
-	int64_t refcnt)
+    int64_t refcnt)
 {
 	space_reftree_add_node(t, start, refcnt);
 	space_reftree_add_node(t, end, -refcnt);

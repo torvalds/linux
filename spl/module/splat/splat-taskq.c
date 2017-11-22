@@ -160,7 +160,7 @@ splat_taskq_test1_impl(struct file *file, void *arg, boolean_t prealloc)
 				    &tq_arg, TQ_SLEEP);
 	}
 
-	if (id == 0) {
+	if (id == TASKQID_INVALID) {
 		splat_vprint(file, SPLAT_TASKQ_TEST1_NAME,
 		             "Taskq '%s' function '%s' dispatch failed\n",
 		             tq_arg.name, sym2str(splat_taskq_test13_func));
@@ -296,7 +296,7 @@ splat_taskq_test2_impl(struct file *file, void *arg, boolean_t prealloc) {
 			    tq_args[i], TQ_SLEEP);
 		}
 
-		if (id == 0) {
+		if (id == TASKQID_INVALID) {
 			splat_vprint(file, SPLAT_TASKQ_TEST2_NAME,
 			           "Taskq '%s/%d' function '%s' dispatch "
 			           "failed\n", tq_args[i]->name, tq_args[i]->id,
@@ -318,7 +318,7 @@ splat_taskq_test2_impl(struct file *file, void *arg, boolean_t prealloc) {
 			    tq_args[i], TQ_SLEEP);
 		}
 
-		if (id == 0) {
+		if (id == TASKQID_INVALID) {
 			splat_vprint(file, SPLAT_TASKQ_TEST2_NAME, "Taskq "
 				     "'%s/%d' function '%s' dispatch failed\n",
 			             tq_args[i]->name, tq_args[i]->id,
@@ -420,7 +420,7 @@ splat_taskq_test3_impl(struct file *file, void *arg, boolean_t prealloc)
 				    tq_arg, TQ_SLEEP);
 	}
 
-	if (id == 0) {
+	if (id == TASKQID_INVALID) {
 		splat_vprint(file, SPLAT_TASKQ_TEST3_NAME,
 		           "Taskq '%s' function '%s' dispatch failed\n",
 		           tq_arg->name, sym2str(splat_taskq_test13_func));
@@ -525,7 +525,7 @@ splat_taskq_test4_common(struct file *file, void *arg, int minalloc,
 						    &tq_arg, TQ_SLEEP);
 			}
 
-			if (id == 0) {
+			if (id == TASKQID_INVALID) {
 				splat_vprint(file, SPLAT_TASKQ_TEST4_NAME,
 				        "Taskq '%s' function '%s' dispatch "
 					"%d failed\n", tq_arg.name,
@@ -741,7 +741,7 @@ splat_taskq_test5_impl(struct file *file, void *arg, boolean_t prealloc)
 					    &tq_id[i], TQ_SLEEP);
 		}
 
-		if (id == 0) {
+		if (id == TASKQID_INVALID) {
 			splat_vprint(file, SPLAT_TASKQ_TEST5_NAME,
 			        "Taskq '%s' function '%s' dispatch failed\n",
 				tq_arg.name, sym2str(splat_taskq_test5_func));
@@ -905,7 +905,7 @@ splat_taskq_test6_impl(struct file *file, void *arg, boolean_t prealloc)
 					    &tq_id[i], tflags);
 		}
 
-		if (id == 0) {
+		if (id == TASKQID_INVALID) {
 			splat_vprint(file, SPLAT_TASKQ_TEST6_NAME,
 			        "Taskq '%s' function '%s' dispatch failed\n",
 				tq_arg.name, sym2str(splat_taskq_test6_func));
@@ -983,7 +983,7 @@ splat_taskq_test7_func(void *arg)
 		                    tq_arg, TQ_SLEEP);
 	}
 
-	if (id == 0) {
+	if (id == TASKQID_INVALID) {
 		splat_vprint(tq_arg->file, SPLAT_TASKQ_TEST7_NAME,
 		             "Taskq '%s' function '%s' dispatch failed "
 		             "(depth = %u)\n", tq_arg->name,
@@ -1040,11 +1040,12 @@ splat_taskq_test7_impl(struct file *file, void *arg, boolean_t prealloc)
 
 	error = (tq_arg->depth == SPLAT_TASKQ_DEPTH_MAX ? 0 : -EINVAL);
 
+	splat_vprint(file, SPLAT_TASKQ_TEST7_NAME,
+	              "Taskq '%s' destroying\n", tq_arg->name);
+
 	kmem_free(tqe, sizeof (taskq_ent_t));
 	kmem_free(tq_arg, sizeof (splat_taskq_arg_t));
 
-	splat_vprint(file, SPLAT_TASKQ_TEST7_NAME,
-	              "Taskq '%s' destroying\n", tq_arg->name);
 	taskq_destroy(tq);
 
 	return (error);
@@ -1120,7 +1121,7 @@ splat_taskq_throughput(struct file *file, void *arg, const char *name,
 		    &tq_arg, TQ_SLEEP, tqes[i]);
 		id = tqes[i]->tqent_id;
 
-		if (id == 0) {
+		if (id == TASKQID_INVALID) {
 			splat_vprint(file, name, "Taskq '%s' function '%s' "
 			    "dispatch %d failed\n", tq_arg.name,
 			    sym2str(splat_taskq_throughput_func), i);
@@ -1234,7 +1235,7 @@ splat_taskq_test9(struct file *file, void *arg)
 		id = taskq_dispatch_delay(tq, splat_taskq_test9_func,
 		    tq_arg, TQ_SLEEP, ddi_get_lbolt() + rnd);
 
-		if (id == 0) {
+		if (id == TASKQID_INVALID) {
 			splat_vprint(file, SPLAT_TASKQ_TEST9_NAME,
 			   "Taskq '%s' delay dispatch failed\n",
 			   SPLAT_TASKQ_TEST9_NAME);
@@ -1343,7 +1344,7 @@ splat_taskq_test10(struct file *file, void *arg)
 			    tq_arg, TQ_SLEEP, ddi_get_lbolt() + rnd);
 		}
 
-		if (tq_arg->id == 0) {
+		if (tq_arg->id == TASKQID_INVALID) {
 			splat_vprint(file, SPLAT_TASKQ_TEST10_NAME,
 			   "Taskq '%s' dispatch failed\n",
 			   SPLAT_TASKQ_TEST10_NAME);
@@ -1472,8 +1473,8 @@ splat_taskq_test11(struct file *file, void *arg)
 	    dynamic.tv_sec, dynamic.tv_nsec);
 
 	/* A 10x increase in runtime is used to indicate a core problem. */
-	if ((dynamic.tv_sec * NANOSEC + dynamic.tv_nsec) >
-	    ((normal.tv_sec * NANOSEC + normal.tv_nsec) * 10))
+	if (((int64_t)dynamic.tv_sec * NANOSEC + (int64_t)dynamic.tv_nsec) >
+	    (((int64_t)normal.tv_sec * NANOSEC + (int64_t)normal.tv_nsec) * 10))
 		error = -ETIME;
 
 	return (error);
@@ -1496,27 +1497,27 @@ splat_taskq_init(void)
 	spin_lock_init(&sub->test_lock);
         sub->desc.id = SPLAT_SUBSYSTEM_TASKQ;
 
-	SPLAT_TEST_INIT(sub, SPLAT_TASKQ_TEST1_NAME, SPLAT_TASKQ_TEST1_DESC,
+	splat_test_init(sub, SPLAT_TASKQ_TEST1_NAME, SPLAT_TASKQ_TEST1_DESC,
 	              SPLAT_TASKQ_TEST1_ID, splat_taskq_test1);
-	SPLAT_TEST_INIT(sub, SPLAT_TASKQ_TEST2_NAME, SPLAT_TASKQ_TEST2_DESC,
+	splat_test_init(sub, SPLAT_TASKQ_TEST2_NAME, SPLAT_TASKQ_TEST2_DESC,
 	              SPLAT_TASKQ_TEST2_ID, splat_taskq_test2);
-	SPLAT_TEST_INIT(sub, SPLAT_TASKQ_TEST3_NAME, SPLAT_TASKQ_TEST3_DESC,
+	splat_test_init(sub, SPLAT_TASKQ_TEST3_NAME, SPLAT_TASKQ_TEST3_DESC,
 	              SPLAT_TASKQ_TEST3_ID, splat_taskq_test3);
-	SPLAT_TEST_INIT(sub, SPLAT_TASKQ_TEST4_NAME, SPLAT_TASKQ_TEST4_DESC,
+	splat_test_init(sub, SPLAT_TASKQ_TEST4_NAME, SPLAT_TASKQ_TEST4_DESC,
 	              SPLAT_TASKQ_TEST4_ID, splat_taskq_test4);
-	SPLAT_TEST_INIT(sub, SPLAT_TASKQ_TEST5_NAME, SPLAT_TASKQ_TEST5_DESC,
+	splat_test_init(sub, SPLAT_TASKQ_TEST5_NAME, SPLAT_TASKQ_TEST5_DESC,
 	              SPLAT_TASKQ_TEST5_ID, splat_taskq_test5);
-	SPLAT_TEST_INIT(sub, SPLAT_TASKQ_TEST6_NAME, SPLAT_TASKQ_TEST6_DESC,
+	splat_test_init(sub, SPLAT_TASKQ_TEST6_NAME, SPLAT_TASKQ_TEST6_DESC,
 	              SPLAT_TASKQ_TEST6_ID, splat_taskq_test6);
-	SPLAT_TEST_INIT(sub, SPLAT_TASKQ_TEST7_NAME, SPLAT_TASKQ_TEST7_DESC,
+	splat_test_init(sub, SPLAT_TASKQ_TEST7_NAME, SPLAT_TASKQ_TEST7_DESC,
 	              SPLAT_TASKQ_TEST7_ID, splat_taskq_test7);
-	SPLAT_TEST_INIT(sub, SPLAT_TASKQ_TEST8_NAME, SPLAT_TASKQ_TEST8_DESC,
+	splat_test_init(sub, SPLAT_TASKQ_TEST8_NAME, SPLAT_TASKQ_TEST8_DESC,
 	              SPLAT_TASKQ_TEST8_ID, splat_taskq_test8);
-	SPLAT_TEST_INIT(sub, SPLAT_TASKQ_TEST9_NAME, SPLAT_TASKQ_TEST9_DESC,
+	splat_test_init(sub, SPLAT_TASKQ_TEST9_NAME, SPLAT_TASKQ_TEST9_DESC,
 	              SPLAT_TASKQ_TEST9_ID, splat_taskq_test9);
-	SPLAT_TEST_INIT(sub, SPLAT_TASKQ_TEST10_NAME, SPLAT_TASKQ_TEST10_DESC,
+	splat_test_init(sub, SPLAT_TASKQ_TEST10_NAME, SPLAT_TASKQ_TEST10_DESC,
 	              SPLAT_TASKQ_TEST10_ID, splat_taskq_test10);
-	SPLAT_TEST_INIT(sub, SPLAT_TASKQ_TEST11_NAME, SPLAT_TASKQ_TEST11_DESC,
+	splat_test_init(sub, SPLAT_TASKQ_TEST11_NAME, SPLAT_TASKQ_TEST11_DESC,
 	              SPLAT_TASKQ_TEST11_ID, splat_taskq_test11);
 
         return sub;
@@ -1526,17 +1527,17 @@ void
 splat_taskq_fini(splat_subsystem_t *sub)
 {
         ASSERT(sub);
-	SPLAT_TEST_FINI(sub, SPLAT_TASKQ_TEST11_ID);
-	SPLAT_TEST_FINI(sub, SPLAT_TASKQ_TEST10_ID);
-	SPLAT_TEST_FINI(sub, SPLAT_TASKQ_TEST9_ID);
-	SPLAT_TEST_FINI(sub, SPLAT_TASKQ_TEST8_ID);
-	SPLAT_TEST_FINI(sub, SPLAT_TASKQ_TEST7_ID);
-	SPLAT_TEST_FINI(sub, SPLAT_TASKQ_TEST6_ID);
-	SPLAT_TEST_FINI(sub, SPLAT_TASKQ_TEST5_ID);
-	SPLAT_TEST_FINI(sub, SPLAT_TASKQ_TEST4_ID);
-	SPLAT_TEST_FINI(sub, SPLAT_TASKQ_TEST3_ID);
-	SPLAT_TEST_FINI(sub, SPLAT_TASKQ_TEST2_ID);
-	SPLAT_TEST_FINI(sub, SPLAT_TASKQ_TEST1_ID);
+	splat_test_fini(sub, SPLAT_TASKQ_TEST11_ID);
+	splat_test_fini(sub, SPLAT_TASKQ_TEST10_ID);
+	splat_test_fini(sub, SPLAT_TASKQ_TEST9_ID);
+	splat_test_fini(sub, SPLAT_TASKQ_TEST8_ID);
+	splat_test_fini(sub, SPLAT_TASKQ_TEST7_ID);
+	splat_test_fini(sub, SPLAT_TASKQ_TEST6_ID);
+	splat_test_fini(sub, SPLAT_TASKQ_TEST5_ID);
+	splat_test_fini(sub, SPLAT_TASKQ_TEST4_ID);
+	splat_test_fini(sub, SPLAT_TASKQ_TEST3_ID);
+	splat_test_fini(sub, SPLAT_TASKQ_TEST2_ID);
+	splat_test_fini(sub, SPLAT_TASKQ_TEST1_ID);
 
         kfree(sub);
 }

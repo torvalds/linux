@@ -73,13 +73,13 @@ bookmark_to_name(zbookmark_phys_t *zb, char *buf, size_t len)
 static void
 name_to_bookmark(char *buf, zbookmark_phys_t *zb)
 {
-	zb->zb_objset = strtonum(buf, &buf);
+	zb->zb_objset = zfs_strtonum(buf, &buf);
 	ASSERT(*buf == ':');
-	zb->zb_object = strtonum(buf + 1, &buf);
+	zb->zb_object = zfs_strtonum(buf + 1, &buf);
 	ASSERT(*buf == ':');
-	zb->zb_level = (int)strtonum(buf + 1, &buf);
+	zb->zb_level = (int)zfs_strtonum(buf + 1, &buf);
 	ASSERT(*buf == ':');
-	zb->zb_blkid = strtonum(buf + 1, &buf);
+	zb->zb_blkid = zfs_strtonum(buf + 1, &buf);
 	ASSERT(*buf == '\0');
 }
 #endif

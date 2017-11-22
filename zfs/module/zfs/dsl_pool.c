@@ -20,9 +20,10 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2011, 2014 by Delphix. All rights reserved.
+ * Copyright (c) 2011, 2017 by Delphix. All rights reserved.
  * Copyright (c) 2013 Steven Hartland. All rights reserved.
  * Copyright (c) 2014 Spectra Logic Corporation, All rights reserved.
+ * Copyright 2016 Nexenta Systems, Inc.  All rights reserved.
  */
 
 #include <sys/dsl_pool.h>
@@ -47,6 +48,7 @@
 #include <sys/zil_impl.h>
 #include <sys/dsl_userhold.h>
 #include <sys/trace_txg.h>
+#include <sys/mmp.h>
 
 /*
  * ZFS Write Throttle
@@ -128,8 +130,10 @@ int zfs_delay_min_dirty_percent = 60;
  */
 unsigned long zfs_delay_scale = 1000 * 1000 * 1000 / 2000;
 
-hrtime_t zfs_throttle_delay = MSEC2NSEC(10);
-hrtime_t zfs_throttle_resolution = MSEC2NSEC(10);
+/*
+ * This determines the number of threads used by the dp_sync_taskq.
+ */
+int zfs_sync_taskq_batch_pct = 75;
 
 int
 dsl_pool_open_special_dir(dsl_pool_t *dp, const char *name, dsl_dir_t **ddp)
@@ -157,15 +161,20 @@ dsl_pool_open_impl(spa_t *spa, uint64_t txg)
 	dp->dp_meta_rootbp = *bp;
 	rrw_init(&dp->dp_config_rwlock, B_TRUE);
 	txg_init(dp, txg);
+	mmp_init(spa);
 
-	txg_list_create(&dp->dp_dirty_datasets,
+	txg_list_create(&dp->dp_dirty_datasets, spa,
 	    offsetof(dsl_dataset_t, ds_dirty_link));
-	txg_list_create(&dp->dp_dirty_zilogs,
+	txg_list_create(&dp->dp_dirty_zilogs, spa,
 	    offsetof(zilog_t, zl_dirty_link));
-	txg_list_create(&dp->dp_dirty_dirs,
+	txg_list_create(&dp->dp_dirty_dirs, spa,
 	    offsetof(dsl_dir_t, dd_dirty_link));
-	txg_list_create(&dp->dp_sync_tasks,
+	txg_list_create(&dp->dp_sync_tasks, spa,
 	    offsetof(dsl_sync_task_t, dst_node));
+
+	dp->dp_sync_taskq = taskq_create("dp_sync_taskq",
+	    zfs_sync_taskq_batch_pct, minclsyspri, 1, INT_MAX,
+	    TASKQ_THREADS_CPU_PCT);
 
 	mutex_init(&dp->dp_lock, NULL, MUTEX_DEFAULT, NULL);
 	cv_init(&dp->dp_spaceavail_cv, NULL, CV_DEFAULT, NULL);
@@ -325,6 +334,8 @@ dsl_pool_close(dsl_pool_t *dp)
 	txg_list_destroy(&dp->dp_sync_tasks);
 	txg_list_destroy(&dp->dp_dirty_dirs);
 
+	taskq_destroy(dp->dp_sync_taskq);
+
 	/*
 	 * We can't set retry to TRUE since we're explicitly specifying
 	 * a spa to flush. This is good enough; any missed buffers for
@@ -333,12 +344,14 @@ dsl_pool_close(dsl_pool_t *dp)
 	 */
 	arc_flush(dp->dp_spa, FALSE);
 
+	mmp_fini(dp->dp_spa);
 	txg_fini(dp);
 	dsl_scan_fini(dp);
 	dmu_buf_user_evict_wait();
 
 	rrw_destroy(&dp->dp_config_rwlock);
 	mutex_destroy(&dp->dp_lock);
+	cv_destroy(&dp->dp_spaceavail_cv);
 	taskq_destroy(dp->dp_iput_taskq);
 	if (dp->dp_blkstats)
 		vmem_free(dp->dp_blkstats, sizeof (zfs_all_blkstats_t));
@@ -402,8 +415,10 @@ dsl_pool_create(spa_t *spa, nvlist_t *zplprops, uint64_t txg)
 
 	/* create the root objset */
 	VERIFY0(dsl_dataset_hold_obj(dp, obj, FTAG, &ds));
+	rrw_enter(&ds->ds_bp_rwlock, RW_READER, FTAG);
 	VERIFY(NULL != (os = dmu_objset_create_impl(dp->dp_spa, ds,
 	    dsl_dataset_get_blkptr(ds), DMU_OST_ZFS, tx)));
+	rrw_exit(&ds->ds_bp_rwlock, FTAG);
 #ifdef _KERNEL
 	zfs_create_fs(os, kcred, zplprops, tx);
 #endif
@@ -431,14 +446,6 @@ dsl_pool_mos_diduse_space(dsl_pool_t *dp,
 	mutex_exit(&dp->dp_lock);
 }
 
-static int
-deadlist_enqueue_cb(void *arg, const blkptr_t *bp, dmu_tx_t *tx)
-{
-	dsl_deadlist_t *dl = arg;
-	dsl_deadlist_insert(dl, bp, tx);
-	return (0);
-}
-
 static void
 dsl_pool_sync_mos(dsl_pool_t *dp, dmu_tx_t *tx)
 {
@@ -463,7 +470,7 @@ dsl_pool_dirty_delta(dsl_pool_t *dp, int64_t delta)
 	 * Note: we signal even when increasing dp_dirty_total.
 	 * This ensures forward progress -- each thread wakes the next waiter.
 	 */
-	if (dp->dp_dirty_total <= zfs_dirty_data_max)
+	if (dp->dp_dirty_total < zfs_dirty_data_max)
 		cv_signal(&dp->dp_spaceavail_cv);
 }
 
@@ -508,13 +515,26 @@ dsl_pool_sync(dsl_pool_t *dp, uint64_t txg)
 	dsl_pool_undirty_space(dp, dp->dp_dirty_pertxg[txg & TXG_MASK], txg);
 
 	/*
+	 * Update the long range free counter after
+	 * we're done syncing user data
+	 */
+	mutex_enter(&dp->dp_lock);
+	ASSERT(spa_sync_pass(dp->dp_spa) == 1 ||
+	    dp->dp_long_free_dirty_pertxg[txg & TXG_MASK] == 0);
+	dp->dp_long_free_dirty_pertxg[txg & TXG_MASK] = 0;
+	mutex_exit(&dp->dp_lock);
+
+	/*
 	 * After the data blocks have been written (ensured by the zio_wait()
-	 * above), update the user/group space accounting.
+	 * above), update the user/group space accounting.  This happens
+	 * in tasks dispatched to dp_sync_taskq, so wait for them before
+	 * continuing.
 	 */
 	for (ds = list_head(&synced_datasets); ds != NULL;
 	    ds = list_next(&synced_datasets, ds)) {
 		dmu_objset_do_userquota_updates(ds->ds_objset, tx);
 	}
+	taskq_wait(dp->dp_sync_taskq);
 
 	/*
 	 * Sync the datasets again to push out the changes due to
@@ -539,11 +559,7 @@ dsl_pool_sync(dsl_pool_t *dp, uint64_t txg)
 	 *  - release hold from dsl_dataset_dirty()
 	 */
 	while ((ds = list_remove_head(&synced_datasets)) != NULL) {
-		ASSERTV(objset_t *os = ds->ds_objset);
-		bplist_iterate(&ds->ds_pending_deadlist,
-		    deadlist_enqueue_cb, &ds->ds_deadlist, tx);
-		ASSERT(!dmu_objset_is_dirty(os, txg));
-		dmu_buf_rele(ds->ds_dbuf, ds);
+		dsl_dataset_sync_done(ds, tx);
 	}
 
 	while ((dd = txg_list_remove(&dp->dp_dirty_dirs, txg)) != NULL) {
@@ -566,8 +582,7 @@ dsl_pool_sync(dsl_pool_t *dp, uint64_t txg)
 		dp->dp_mos_uncompressed_delta = 0;
 	}
 
-	if (list_head(&mos->os_dirty_dnodes[txg & TXG_MASK]) != NULL ||
-	    list_head(&mos->os_free_dnodes[txg & TXG_MASK]) != NULL) {
+	if (!multilist_is_empty(mos->os_dirty_dnodes[txg & TXG_MASK])) {
 		dsl_pool_sync_mos(dp, tx);
 	}
 
@@ -601,9 +616,16 @@ dsl_pool_sync_done(dsl_pool_t *dp, uint64_t txg)
 {
 	zilog_t *zilog;
 
-	while ((zilog = txg_list_remove(&dp->dp_dirty_zilogs, txg))) {
+	while ((zilog = txg_list_head(&dp->dp_dirty_zilogs, txg))) {
 		dsl_dataset_t *ds = dmu_objset_ds(zilog->zl_os);
+		/*
+		 * We don't remove the zilog from the dp_dirty_zilogs
+		 * list until after we've cleaned it. This ensures that
+		 * callers of zilog_is_dirty() receive an accurate
+		 * answer when they are racing with the spa sync thread.
+		 */
 		zil_clean(zilog, txg);
+		(void) txg_list_remove_this(&dp->dp_dirty_zilogs, zilog, txg);
 		ASSERT(!dmu_objset_is_dirty(zilog->zl_os, txg));
 		dmu_buf_rele(ds->ds_dbuf, zilog);
 	}
@@ -618,7 +640,8 @@ int
 dsl_pool_sync_context(dsl_pool_t *dp)
 {
 	return (curthread == dp->dp_tx.tx_sync_thread ||
-	    spa_is_initializing(dp->dp_spa));
+	    spa_is_initializing(dp->dp_spa) ||
+	    taskq_member(dp->dp_sync_taskq, curthread));
 }
 
 uint64_t
@@ -718,7 +741,9 @@ upgrade_clones_cb(dsl_pool_t *dp, dsl_dataset_t *hds, void *arg)
 		 * The $ORIGIN can't have any data, or the accounting
 		 * will be wrong.
 		 */
+		rrw_enter(&ds->ds_bp_rwlock, RW_READER, FTAG);
 		ASSERT0(dsl_dataset_phys(prev)->ds_bp.blk_birth);
+		rrw_exit(&ds->ds_bp_rwlock, FTAG);
 
 		/* The origin doesn't get attached to itself */
 		if (ds->ds_object == prev->ds_object) {
@@ -1087,6 +1112,7 @@ dsl_pool_config_held_writer(dsl_pool_t *dp)
 EXPORT_SYMBOL(dsl_pool_config_enter);
 EXPORT_SYMBOL(dsl_pool_config_exit);
 
+/* BEGIN CSTYLED */
 /* zfs_dirty_data_max_percent only applied at module load in arc_init(). */
 module_param(zfs_dirty_data_max_percent, int, 0444);
 MODULE_PARM_DESC(zfs_dirty_data_max_percent, "percent of ram can be dirty");
@@ -1112,4 +1138,9 @@ MODULE_PARM_DESC(zfs_dirty_data_sync, "sync txg when this much dirty data");
 
 module_param(zfs_delay_scale, ulong, 0644);
 MODULE_PARM_DESC(zfs_delay_scale, "how quickly delay approaches infinity");
+
+module_param(zfs_sync_taskq_batch_pct, int, 0644);
+MODULE_PARM_DESC(zfs_sync_taskq_batch_pct,
+	"max percent of CPUs that are used to sync dirty data");
+/* END CSTYLED */
 #endif

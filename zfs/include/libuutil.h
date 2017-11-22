@@ -99,12 +99,6 @@ extern int *uu_exit_fatal(void);
 extern int *uu_exit_usage(void);
 
 /*
- * string->number conversions
- */
-extern int uu_strtoint(const char *, void *, size_t, int, int64_t, int64_t);
-extern int uu_strtouint(const char *, void *, size_t, int, uint64_t, uint64_t);
-
-/*
  * Debug print facility functions.
  */
 typedef struct uu_dprintf uu_dprintf_t;
