@@ -324,10 +324,8 @@ struct amdgpu_bo_va_mapping *amdgpu_vm_bo_lookup_mapping(struct amdgpu_vm *vm,
 							 uint64_t addr);
 void amdgpu_vm_bo_rmv(struct amdgpu_device *adev,
 		      struct amdgpu_bo_va *bo_va);
-void amdgpu_vm_set_fragment_size(struct amdgpu_device *adev,
-				 uint32_t fragment_size_default);
 void amdgpu_vm_adjust_size(struct amdgpu_device *adev, uint32_t vm_size,
-			   uint32_t fragment_size_default);
+			   uint32_t fragment_size_default, unsigned max_level);
 int amdgpu_vm_ioctl(struct drm_device *dev, void *data, struct drm_file *filp);
 bool amdgpu_vm_need_pipeline_sync(struct amdgpu_ring *ring,
 				  struct amdgpu_job *job);

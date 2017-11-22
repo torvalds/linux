@@ -832,7 +832,7 @@ static int gmc_v6_0_sw_init(void *handle)
 	if (r)
 		return r;
 
-	amdgpu_vm_adjust_size(adev, 64, 9);
+	amdgpu_vm_adjust_size(adev, 64, 9, 1);
 
 	adev->mc.mc_mask = 0xffffffffffULL;
 
@@ -877,7 +877,6 @@ static int gmc_v6_0_sw_init(void *handle)
 	 * amdkfd will use VMIDs 8-15
 	 */
 	adev->vm_manager.id_mgr[0].num_ids = AMDGPU_NUM_OF_VMIDS;
-	adev->vm_manager.num_level = 1;
 	amdgpu_vm_manager_init(adev);
 
 	/* base offset of vram pages */

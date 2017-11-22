@@ -769,16 +769,11 @@ static int gmc_v9_0_sw_init(void *handle)
 	switch (adev->asic_type) {
 	case CHIP_RAVEN:
 		adev->mc.vram_type = AMDGPU_VRAM_TYPE_UNKNOWN;
-		if (adev->rev_id == 0x0 || adev->rev_id == 0x1) {
-			adev->vm_manager.max_pfn = 1ULL << 36;
-			adev->vm_manager.block_size = 9;
-			adev->vm_manager.num_level = 3;
-			amdgpu_vm_set_fragment_size(adev, 9);
-		} else {
+		if (adev->rev_id == 0x0 || adev->rev_id == 0x1)
+			amdgpu_vm_adjust_size(adev, 256 * 1024, 9, 3);
+		else
 			/* vm_size is 64GB for legacy 2-level page support */
-			amdgpu_vm_adjust_size(adev, 64, 9);
-			adev->vm_manager.num_level = 1;
-		}
+			amdgpu_vm_adjust_size(adev, 64, 9, 1);
 		break;
 	case CHIP_VEGA10:
 		/* XXX Don't know how to get VRAM type yet. */
@@ -788,18 +783,11 @@ static int gmc_v9_0_sw_init(void *handle)
 		 * vm size is 256TB (48bit), maximum size of Vega10,
 		 * block size 512 (9bit)
 		 */
-		adev->vm_manager.max_pfn = 1ULL << 36;
-		adev->vm_manager.block_size = 9;
-		adev->vm_manager.num_level = 3;
-		amdgpu_vm_set_fragment_size(adev, 9);
+		amdgpu_vm_adjust_size(adev, 256 * 1024, 9, 3);
 		break;
 	default:
 		break;
 	}
-
-	DRM_INFO("vm size is %llu GB, block size is %u-bit, fragment size is %u-bit\n",
-		 adev->vm_manager.max_pfn >> 18, adev->vm_manager.block_size,
-		 adev->vm_manager.fragment_size);
 
 	/* This interrupt is VMC page fault.*/
 	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_VMC, 0,

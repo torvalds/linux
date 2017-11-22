@@ -2574,43 +2574,35 @@ static uint32_t amdgpu_vm_get_block_size(uint64_t vm_size)
 }
 
 /**
- * amdgpu_vm_set_fragment_size - adjust fragment size in PTE
- *
- * @adev: amdgpu_device pointer
- * @fragment_size_default: the default fragment size if it's set auto
- */
-void amdgpu_vm_set_fragment_size(struct amdgpu_device *adev,
-				 uint32_t fragment_size_default)
-{
-	if (amdgpu_vm_fragment_size == -1)
-		adev->vm_manager.fragment_size = fragment_size_default;
-	else
-		adev->vm_manager.fragment_size = amdgpu_vm_fragment_size;
-}
-
-/**
  * amdgpu_vm_adjust_size - adjust vm size, block size and fragment size
  *
  * @adev: amdgpu_device pointer
  * @vm_size: the default vm size if it's set auto
  */
 void amdgpu_vm_adjust_size(struct amdgpu_device *adev, uint32_t vm_size,
-			   uint32_t fragment_size_default)
+			   uint32_t fragment_size_default, unsigned max_level)
 {
-	/* adjust vm size firstly */
-	if (amdgpu_vm_size != -1)
+	/* adjust vm size first, but only for two level setups for now */
+	if (amdgpu_vm_size != -1 && max_level == 1)
 		vm_size = amdgpu_vm_size;
 
 	adev->vm_manager.max_pfn = (uint64_t)vm_size << 18;
+	adev->vm_manager.num_level = max_level;
 
-	/* block size depends on vm size */
-	if (amdgpu_vm_block_size == -1)
+	/* block size depends on vm size and hw setup*/
+	if (adev->vm_manager.num_level > 1)
+		/* Use fixed block_size for multi level page tables */
+		adev->vm_manager.block_size = 9;
+	else if (amdgpu_vm_block_size == -1)
 		adev->vm_manager.block_size =
 			amdgpu_vm_get_block_size(vm_size);
 	else
 		adev->vm_manager.block_size = amdgpu_vm_block_size;
 
-	amdgpu_vm_set_fragment_size(adev, fragment_size_default);
+	if (amdgpu_vm_fragment_size == -1)
+		adev->vm_manager.fragment_size = fragment_size_default;
+	else
+		adev->vm_manager.fragment_size = amdgpu_vm_fragment_size;
 
 	DRM_INFO("vm size is %u GB, block size is %u-bit, fragment size is %u-bit\n",
 		 vm_size, adev->vm_manager.block_size,

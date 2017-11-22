@@ -1068,7 +1068,7 @@ static int gmc_v8_0_sw_init(void *handle)
 	 * Currently set to 4GB ((1 << 20) 4k pages).
 	 * Max GPUVM size for cayman and SI is 40 bits.
 	 */
-	amdgpu_vm_adjust_size(adev, 64, 9);
+	amdgpu_vm_adjust_size(adev, 64, 9, 1);
 
 	/* Set the internal MC address mask
 	 * This is the max address of the GPU's
@@ -1123,7 +1123,6 @@ static int gmc_v8_0_sw_init(void *handle)
 	 * amdkfd will use VMIDs 8-15
 	 */
 	adev->vm_manager.id_mgr[0].num_ids = AMDGPU_NUM_OF_VMIDS;
-	adev->vm_manager.num_level = 1;
 	amdgpu_vm_manager_init(adev);
 
 	/* base offset of vram pages */
