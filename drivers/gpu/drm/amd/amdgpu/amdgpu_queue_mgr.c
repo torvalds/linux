@@ -63,7 +63,7 @@ static int amdgpu_update_cached_map(struct amdgpu_queue_mapper *mapper,
 
 static int amdgpu_identity_map(struct amdgpu_device *adev,
 			       struct amdgpu_queue_mapper *mapper,
-			       int ring,
+			       u32 ring,
 			       struct amdgpu_ring **out_ring)
 {
 	switch (mapper->hw_ip) {
@@ -121,7 +121,7 @@ static enum amdgpu_ring_type amdgpu_hw_ip_to_ring_type(int hw_ip)
 
 static int amdgpu_lru_map(struct amdgpu_device *adev,
 			  struct amdgpu_queue_mapper *mapper,
-			  int user_ring,
+			  u32 user_ring,
 			  struct amdgpu_ring **out_ring)
 {
 	int r, i, j;
@@ -208,7 +208,7 @@ int amdgpu_queue_mgr_fini(struct amdgpu_device *adev,
  */
 int amdgpu_queue_mgr_map(struct amdgpu_device *adev,
 			 struct amdgpu_queue_mgr *mgr,
-			 int hw_ip, int instance, int ring,
+			 u32 hw_ip, u32 instance, u32 ring,
 			 struct amdgpu_ring **out_ring)
 {
 	int r, ip_num_rings;
