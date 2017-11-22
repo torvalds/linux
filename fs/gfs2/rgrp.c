@@ -2453,12 +2453,12 @@ void gfs2_unlink_di(struct inode *inode)
 	update_rgrp_lvb_unlinked(rgd, 1);
 }
 
-static void gfs2_free_uninit_di(struct gfs2_rgrpd *rgd, u64 blkno)
+void gfs2_free_di(struct gfs2_rgrpd *rgd, struct gfs2_inode *ip)
 {
 	struct gfs2_sbd *sdp = rgd->rd_sbd;
 	struct gfs2_rgrpd *tmp_rgd;
 
-	tmp_rgd = rgblk_free(sdp, blkno, 1, GFS2_BLKST_FREE);
+	tmp_rgd = rgblk_free(sdp, ip->i_no_addr, 1, GFS2_BLKST_FREE);
 	if (!tmp_rgd)
 		return;
 	gfs2_assert_withdraw(sdp, rgd == tmp_rgd);
@@ -2474,12 +2474,6 @@ static void gfs2_free_uninit_di(struct gfs2_rgrpd *rgd, u64 blkno)
 	update_rgrp_lvb_unlinked(rgd, -1);
 
 	gfs2_statfs_change(sdp, 0, +1, -1);
-}
-
-
-void gfs2_free_di(struct gfs2_rgrpd *rgd, struct gfs2_inode *ip)
-{
-	gfs2_free_uninit_di(rgd, ip->i_no_addr);
 	trace_gfs2_block_alloc(ip, rgd, ip->i_no_addr, 1, GFS2_BLKST_FREE);
 	gfs2_quota_change(ip, -1, ip->i_inode.i_uid, ip->i_inode.i_gid);
 	gfs2_meta_wipe(ip, ip->i_no_addr, 1);
