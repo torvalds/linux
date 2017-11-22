@@ -862,8 +862,14 @@ int f2fs_preallocate_blocks(struct kiocb *iocb, struct iov_iter *from)
 		if (err)
 			return err;
 	}
-	if (!f2fs_has_inline_data(inode))
-		return f2fs_map_blocks(inode, &map, 1, F2FS_GET_BLOCK_PRE_AIO);
+	if (!f2fs_has_inline_data(inode)) {
+		err = f2fs_map_blocks(inode, &map, 1, F2FS_GET_BLOCK_PRE_AIO);
+		if (map.m_len > 0 && err == -ENOSPC) {
+			set_inode_flag(inode, FI_NO_PREALLOC);
+			err = 0;
+		}
+		return err;
+	}
 	return err;
 }
 
