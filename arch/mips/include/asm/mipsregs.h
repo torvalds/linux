@@ -1181,6 +1181,89 @@ static inline int mm_insn_16bit(u16 insn)
 #endif
 
 /*
+ * parse_r var, r - Helper assembler macro for parsing register names.
+ *
+ * This converts the register name in $n form provided in \r to the
+ * corresponding register number, which is assigned to the variable \var. It is
+ * needed to allow explicit encoding of instructions in inline assembly where
+ * registers are chosen by the compiler in $n form, allowing us to avoid using
+ * fixed register numbers.
+ *
+ * It also allows newer instructions (not implemented by the assembler) to be
+ * transparently implemented using assembler macros, instead of needing separate
+ * cases depending on toolchain support.
+ *
+ * Simple usage example:
+ * __asm__ __volatile__("parse_r __rt, %0\n\t"
+ *			".insn\n\t"
+ *			"# di    %0\n\t"
+ *			".word   (0x41606000 | (__rt << 16))"
+ *			: "=r" (status);
+ */
+
+/* Match an individual register number and assign to \var */
+#define _IFC_REG(n)				\
+	".ifc	\\r, $" #n "\n\t"		\
+	"\\var	= " #n "\n\t"			\
+	".endif\n\t"
+
+__asm__(".macro	parse_r var r\n\t"
+	"\\var	= -1\n\t"
+	_IFC_REG(0)  _IFC_REG(1)  _IFC_REG(2)  _IFC_REG(3)
+	_IFC_REG(4)  _IFC_REG(5)  _IFC_REG(6)  _IFC_REG(7)
+	_IFC_REG(8)  _IFC_REG(9)  _IFC_REG(10) _IFC_REG(11)
+	_IFC_REG(12) _IFC_REG(13) _IFC_REG(14) _IFC_REG(15)
+	_IFC_REG(16) _IFC_REG(17) _IFC_REG(18) _IFC_REG(19)
+	_IFC_REG(20) _IFC_REG(21) _IFC_REG(22) _IFC_REG(23)
+	_IFC_REG(24) _IFC_REG(25) _IFC_REG(26) _IFC_REG(27)
+	_IFC_REG(28) _IFC_REG(29) _IFC_REG(30) _IFC_REG(31)
+	".iflt	\\var\n\t"
+	".error	\"Unable to parse register name \\r\"\n\t"
+	".endif\n\t"
+	".endm");
+
+#undef _IFC_REG
+
+/*
+ * C macros for generating assembler macros for common instruction formats.
+ *
+ * The names of the operands can be chosen by the caller, and the encoding of
+ * register operand \<Rn> is assigned to __<Rn> where it can be accessed from
+ * the ENC encodings.
+ */
+
+/* Instructions with no operands */
+#define _ASM_MACRO_0(OP, ENC)						\
+	__asm__(".macro	" #OP "\n\t"					\
+		ENC							\
+		".endm")
+
+/* Instructions with 2 register operands */
+#define _ASM_MACRO_2R(OP, R1, R2, ENC)					\
+	__asm__(".macro	" #OP " " #R1 ", " #R2 "\n\t"			\
+		"parse_r __" #R1 ", \\" #R1 "\n\t"			\
+		"parse_r __" #R2 ", \\" #R2 "\n\t"			\
+		ENC							\
+		".endm")
+
+/* Instructions with 3 register operands */
+#define _ASM_MACRO_3R(OP, R1, R2, R3, ENC)				\
+	__asm__(".macro	" #OP " " #R1 ", " #R2 ", " #R3 "\n\t"		\
+		"parse_r __" #R1 ", \\" #R1 "\n\t"			\
+		"parse_r __" #R2 ", \\" #R2 "\n\t"			\
+		"parse_r __" #R3 ", \\" #R3 "\n\t"			\
+		ENC							\
+		".endm")
+
+/* Instructions with 2 register operands and 1 optional select operand */
+#define _ASM_MACRO_2R_1S(OP, R1, R2, SEL3, ENC)				\
+	__asm__(".macro	" #OP " " #R1 ", " #R2 ", " #SEL3 " = 0\n\t"	\
+		"parse_r __" #R1 ", \\" #R1 "\n\t"			\
+		"parse_r __" #R2 ", \\" #R2 "\n\t"			\
+		ENC							\
+		".endm")
+
+/*
  * TLB Invalidate Flush
  */
 static inline void tlbinvf(void)
