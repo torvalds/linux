@@ -313,6 +313,10 @@ struct iwl_pwr_tx_backoff {
  * @flag_master_dis: disable master
  * @flag_stop_master: stop master
  * @addr_sw_reset: address for resetting the device
+ * @mac_addr0_otp: first part of MAC address from OTP
+ * @mac_addr1_otp: second part of MAC address from OTP
+ * @mac_addr0_strap: first part of MAC address from strap
+ * @mac_addr1_strap: second part of MAC address from strap
  */
 struct iwl_csr_params {
 	u8 flag_sw_reset;
@@ -323,6 +327,10 @@ struct iwl_csr_params {
 	u8 flag_master_dis;
 	u8 flag_stop_master;
 	u8 addr_sw_reset;
+	u32 mac_addr0_otp;
+	u32 mac_addr1_otp;
+	u32 mac_addr0_strap;
+	u32 mac_addr1_strap;
 };
 
 /**
@@ -451,7 +459,11 @@ static const struct iwl_csr_params iwl_csr_v1 = {
 	.flag_sw_reset = 7,
 	.flag_master_dis = 8,
 	.flag_stop_master = 9,
-	.addr_sw_reset = (CSR_BASE + 0x020)
+	.addr_sw_reset = (CSR_BASE + 0x020),
+	.mac_addr0_otp = 0x380,
+	.mac_addr1_otp = 0x384,
+	.mac_addr0_strap = 0x388,
+	.mac_addr1_strap = 0x38C
 };
 
 static const struct iwl_csr_params iwl_csr_v2 = {
@@ -462,7 +474,11 @@ static const struct iwl_csr_params iwl_csr_v2 = {
 	.flag_master_dis = 28,
 	.flag_stop_master = 29,
 	.flag_sw_reset = 31,
-	.addr_sw_reset = (CSR_BASE + 0x024)
+	.addr_sw_reset = (CSR_BASE + 0x024),
+	.mac_addr0_otp = 0x30,
+	.mac_addr1_otp = 0x34,
+	.mac_addr0_strap = 0x38,
+	.mac_addr1_strap = 0x3C
 };
 
 /*
