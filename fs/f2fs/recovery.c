@@ -404,7 +404,7 @@ truncate_out:
 }
 
 static int do_recover_data(struct f2fs_sb_info *sbi, struct inode *inode,
-					struct page *page, block_t blkaddr)
+					struct page *page)
 {
 	struct dnode_of_data dn;
 	struct node_info ni;
@@ -415,7 +415,7 @@ static int do_recover_data(struct f2fs_sb_info *sbi, struct inode *inode,
 	if (IS_INODE(page)) {
 		recover_inline_xattr(inode, page);
 	} else if (f2fs_has_xattr_block(ofs_of_node(page))) {
-		err = recover_xattr_data(inode, page, blkaddr);
+		err = recover_xattr_data(inode, page);
 		if (!err)
 			recovered++;
 		goto out;
@@ -568,7 +568,7 @@ static int recover_data(struct f2fs_sb_info *sbi, struct list_head *inode_list,
 				break;
 			}
 		}
-		err = do_recover_data(sbi, entry->inode, page, blkaddr);
+		err = do_recover_data(sbi, entry->inode, page);
 		if (err) {
 			f2fs_put_page(page, 1);
 			break;
