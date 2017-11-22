@@ -1064,24 +1064,12 @@ static u64 ixgbe_get_tx_completed(struct ixgbe_ring *ring)
 
 static u64 ixgbe_get_tx_pending(struct ixgbe_ring *ring)
 {
-	struct ixgbe_adapter *adapter;
-	struct ixgbe_hw *hw;
-	u32 head, tail;
+	unsigned int head, tail;
 
-	if (ring->l2_accel_priv)
-		adapter = ring->l2_accel_priv->real_adapter;
-	else
-		adapter = netdev_priv(ring->netdev);
+	head = ring->next_to_clean;
+	tail = ring->next_to_use;
 
-	hw = &adapter->hw;
-	head = IXGBE_READ_REG(hw, IXGBE_TDH(ring->reg_idx));
-	tail = IXGBE_READ_REG(hw, IXGBE_TDT(ring->reg_idx));
-
-	if (head != tail)
-		return (head < tail) ?
-			tail - head : (tail + ring->count - head);
-
-	return 0;
+	return ((head <= tail) ? tail : tail + ring->count) - head;
 }
 
 static inline bool ixgbe_check_tx_hang(struct ixgbe_ring *tx_ring)
