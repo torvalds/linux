@@ -36,8 +36,8 @@
 #include "vce/vce_4_0_offset.h"
 #include "vce/vce_4_0_default.h"
 #include "vce/vce_4_0_sh_mask.h"
-#include "vega10/MMHUB/mmhub_1_0_offset.h"
-#include "vega10/MMHUB/mmhub_1_0_sh_mask.h"
+#include "mmhub/mmhub_1_0_offset.h"
+#include "mmhub/mmhub_1_0_sh_mask.h"
 
 #define VCE_STATUS_VCPU_REPORT_FW_LOADED_MASK	0x02
 

@@ -32,8 +32,8 @@
 #include "sdma0/sdma0_4_0_sh_mask.h"
 #include "sdma1/sdma1_4_0_offset.h"
 #include "sdma1/sdma1_4_0_sh_mask.h"
-#include "vega10/MMHUB/mmhub_1_0_offset.h"
-#include "vega10/MMHUB/mmhub_1_0_sh_mask.h"
+#include "mmhub/mmhub_1_0_offset.h"
+#include "mmhub/mmhub_1_0_sh_mask.h"
 #include "hdp/hdp_4_0_offset.h"
 #include "raven1/SDMA0/sdma0_4_1_default.h"
 

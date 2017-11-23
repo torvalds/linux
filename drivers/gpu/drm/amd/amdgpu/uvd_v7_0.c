@@ -37,8 +37,8 @@
 #include "vce/vce_4_0_sh_mask.h"
 #include "vega10/NBIF/nbif_6_1_offset.h"
 #include "hdp/hdp_4_0_offset.h"
-#include "vega10/MMHUB/mmhub_1_0_offset.h"
-#include "vega10/MMHUB/mmhub_1_0_sh_mask.h"
+#include "mmhub/mmhub_1_0_offset.h"
+#include "mmhub/mmhub_1_0_sh_mask.h"
 
 static void uvd_v7_0_set_ring_funcs(struct amdgpu_device *adev);
 static void uvd_v7_0_set_enc_ring_funcs(struct amdgpu_device *adev);
