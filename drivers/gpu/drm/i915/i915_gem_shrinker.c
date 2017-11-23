@@ -494,12 +494,12 @@ out:
 }
 
 /**
- * i915_gem_shrinker_init - Initialize i915 shrinker
+ * i915_gem_shrinker_register - Register the i915 shrinker
  * @dev_priv: i915 device
  *
  * This function registers and sets up the i915 shrinker and OOM handler.
  */
-void i915_gem_shrinker_init(struct drm_i915_private *dev_priv)
+void i915_gem_shrinker_register(struct drm_i915_private *dev_priv)
 {
 	dev_priv->mm.shrinker.scan_objects = i915_gem_shrinker_scan;
 	dev_priv->mm.shrinker.count_objects = i915_gem_shrinker_count;
@@ -515,12 +515,12 @@ void i915_gem_shrinker_init(struct drm_i915_private *dev_priv)
 }
 
 /**
- * i915_gem_shrinker_cleanup - Clean up i915 shrinker
+ * i915_gem_shrinker_unregister - Unregisters the i915 shrinker
  * @dev_priv: i915 device
  *
  * This function unregisters the i915 shrinker and OOM handler.
  */
-void i915_gem_shrinker_cleanup(struct drm_i915_private *dev_priv)
+void i915_gem_shrinker_unregister(struct drm_i915_private *dev_priv)
 {
 	WARN_ON(unregister_vmap_purge_notifier(&dev_priv->mm.vmap_notifier));
 	WARN_ON(unregister_oom_notifier(&dev_priv->mm.oom_notifier));

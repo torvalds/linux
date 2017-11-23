@@ -1215,7 +1215,7 @@ static void i915_driver_register(struct drm_i915_private *dev_priv)
 {
 	struct drm_device *dev = &dev_priv->drm;
 
-	i915_gem_shrinker_init(dev_priv);
+	i915_gem_shrinker_register(dev_priv);
 	i915_pmu_register(dev_priv);
 
 	/*
@@ -1277,7 +1277,7 @@ static void i915_driver_unregister(struct drm_i915_private *dev_priv)
 	i915_guc_log_unregister(dev_priv);
 	drm_dev_unregister(&dev_priv->drm);
 
-	i915_gem_shrinker_cleanup(dev_priv);
+	i915_gem_shrinker_unregister(dev_priv);
 }
 
 /**
