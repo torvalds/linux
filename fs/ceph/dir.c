@@ -381,6 +381,7 @@ more:
 		if (op == CEPH_MDS_OP_READDIR) {
 			req->r_direct_hash = ceph_frag_value(frag);
 			__set_bit(CEPH_MDS_R_DIRECT_IS_HASH, &req->r_req_flags);
+			req->r_inode_drop = CEPH_CAP_FILE_EXCL;
 		}
 		if (fi->last_name) {
 			req->r_path2 = kstrdup(fi->last_name, GFP_KERNEL);
