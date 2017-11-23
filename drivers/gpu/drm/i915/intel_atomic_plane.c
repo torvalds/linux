@@ -129,14 +129,6 @@ int intel_plane_atomic_check_with_state(const struct intel_crtc_state *old_crtc_
 	if (!intel_state->base.crtc && !old_plane_state->base.crtc)
 		return 0;
 
-	/* Clip all planes to CRTC size, or 0x0 if CRTC is disabled */
-	intel_state->clip.x1 = 0;
-	intel_state->clip.y1 = 0;
-	intel_state->clip.x2 =
-		crtc_state->base.enable ? crtc_state->pipe_src_w : 0;
-	intel_state->clip.y2 =
-		crtc_state->base.enable ? crtc_state->pipe_src_h : 0;
-
 	if (state->fb && drm_rotation_90_or_270(state->rotation)) {
 		struct drm_format_name_buf format_name;
 

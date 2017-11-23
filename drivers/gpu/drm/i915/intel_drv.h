@@ -406,7 +406,6 @@ struct intel_atomic_state {
 
 struct intel_plane_state {
 	struct drm_plane_state base;
-	struct drm_rect clip;
 	struct i915_vma *vma;
 
 	struct {
