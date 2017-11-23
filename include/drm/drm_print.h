@@ -81,6 +81,21 @@ __printf(2, 3)
 void drm_printf(struct drm_printer *p, const char *f, ...);
 
 /**
+ * drm_vprintf - print to a &drm_printer stream
+ * @p: the &drm_printer
+ * @fmt: format string
+ * @va: the va_list
+ */
+__printf(2, 0)
+static inline void
+drm_vprintf(struct drm_printer *p, const char *fmt, va_list *va)
+{
+	struct va_format vaf = { .fmt = fmt, .va = va };
+
+	p->printfn(p, &vaf);
+}
+
+/**
  * drm_printf_indent - Print to a &drm_printer stream with indentation
  * @printer: DRM printer
  * @indent: Tab indentation level (max 5)

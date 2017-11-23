@@ -55,13 +55,10 @@ EXPORT_SYMBOL(__drm_printfn_debug);
  */
 void drm_printf(struct drm_printer *p, const char *f, ...)
 {
-	struct va_format vaf;
 	va_list args;
 
 	va_start(args, f);
-	vaf.fmt = f;
-	vaf.va = &args;
-	p->printfn(p, &vaf);
+	drm_vprintf(p, f, &args);
 	va_end(args);
 }
 EXPORT_SYMBOL(drm_printf);
