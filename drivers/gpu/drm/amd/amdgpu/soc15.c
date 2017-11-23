@@ -44,8 +44,8 @@
 #include "hdp/hdp_4_0_sh_mask.h"
 #include "mp/mp_9_0_offset.h"
 #include "mp/mp_9_0_sh_mask.h"
-#include "vega10/SMUIO/smuio_9_0_offset.h"
-#include "vega10/SMUIO/smuio_9_0_sh_mask.h"
+#include "smuio/smuio_9_0_offset.h"
+#include "smuio/smuio_9_0_sh_mask.h"
 
 #include "soc15.h"
 #include "soc15_common.h"
