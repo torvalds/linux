@@ -236,6 +236,7 @@ void intel_gvt_deactivate_vgpu(struct intel_vgpu *vgpu)
 	}
 
 	intel_vgpu_stop_schedule(vgpu);
+	intel_vgpu_dmabuf_cleanup(vgpu);
 
 	mutex_unlock(&gvt->lock);
 }
@@ -265,6 +266,7 @@ void intel_gvt_destroy_vgpu(struct intel_vgpu *vgpu)
 	intel_gvt_hypervisor_detach_vgpu(vgpu);
 	intel_vgpu_free_resource(vgpu);
 	intel_vgpu_clean_mmio(vgpu);
+	intel_vgpu_dmabuf_cleanup(vgpu);
 	vfree(vgpu);
 
 	intel_gvt_update_vgpu_types(gvt);
@@ -349,7 +351,8 @@ static struct intel_vgpu *__intel_gvt_create_vgpu(struct intel_gvt *gvt,
 	vgpu->handle = param->handle;
 	vgpu->gvt = gvt;
 	vgpu->sched_ctl.weight = param->weight;
-
+	INIT_LIST_HEAD(&vgpu->dmabuf_obj_list_head);
+	idr_init(&vgpu->object_idr);
 	intel_vgpu_init_cfg_space(vgpu, param->primary);
 
 	ret = intel_vgpu_init_mmio(vgpu);
