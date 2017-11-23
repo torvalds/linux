@@ -650,19 +650,24 @@ static int i915_pmu_event_event_idx(struct perf_event *event)
 	return 0;
 }
 
+struct i915_str_attribute {
+	struct device_attribute attr;
+	const char *str;
+};
+
 static ssize_t i915_pmu_format_show(struct device *dev,
 				    struct device_attribute *attr, char *buf)
 {
-	struct dev_ext_attribute *eattr;
+	struct i915_str_attribute *eattr;
 
-	eattr = container_of(attr, struct dev_ext_attribute, attr);
-	return sprintf(buf, "%s\n", (char *)eattr->var);
+	eattr = container_of(attr, struct i915_str_attribute, attr);
+	return sprintf(buf, "%s\n", eattr->str);
 }
 
 #define I915_PMU_FORMAT_ATTR(_name, _config) \
-	(&((struct dev_ext_attribute[]) { \
+	(&((struct i915_str_attribute[]) { \
 		{ .attr = __ATTR(_name, 0444, i915_pmu_format_show, NULL), \
-		  .var = (void *)_config, } \
+		  .str = _config, } \
 	})[0].attr.attr)
 
 static struct attribute *i915_pmu_format_attrs[] = {
@@ -675,19 +680,24 @@ static const struct attribute_group i915_pmu_format_attr_group = {
 	.attrs = i915_pmu_format_attrs,
 };
 
+struct i915_ext_attribute {
+	struct device_attribute attr;
+	unsigned long val;
+};
+
 static ssize_t i915_pmu_event_show(struct device *dev,
 				   struct device_attribute *attr, char *buf)
 {
-	struct dev_ext_attribute *eattr;
+	struct i915_ext_attribute *eattr;
 
-	eattr = container_of(attr, struct dev_ext_attribute, attr);
-	return sprintf(buf, "config=0x%lx\n", (unsigned long)eattr->var);
+	eattr = container_of(attr, struct i915_ext_attribute, attr);
+	return sprintf(buf, "config=0x%lx\n", eattr->val);
 }
 
 #define I915_EVENT_ATTR(_name, _config) \
-	(&((struct dev_ext_attribute[]) { \
+	(&((struct i915_ext_attribute[]) { \
 		{ .attr = __ATTR(_name, 0444, i915_pmu_event_show, NULL), \
-		  .var = (void *)_config, } \
+		  .val = _config, } \
 	})[0].attr.attr)
 
 #define I915_EVENT_STR(_name, _str) \
