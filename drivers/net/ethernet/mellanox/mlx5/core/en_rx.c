@@ -807,9 +807,9 @@ static inline bool mlx5e_xmit_xdp_frame(struct mlx5e_rq *rq,
 }
 
 /* returns true if packet was consumed by xdp */
-static inline int mlx5e_xdp_handle(struct mlx5e_rq *rq,
-				   struct mlx5e_dma_info *di,
-				   void *va, u16 *rx_headroom, u32 *len)
+static inline bool mlx5e_xdp_handle(struct mlx5e_rq *rq,
+				    struct mlx5e_dma_info *di,
+				    void *va, u16 *rx_headroom, u32 *len)
 {
 	struct bpf_prog *prog = READ_ONCE(rq->xdp_prog);
 	struct xdp_buff xdp;
