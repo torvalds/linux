@@ -269,7 +269,7 @@ static int mlx5e_hairpin_create_transport(struct mlx5e_hairpin *hp)
 	tirc = MLX5_ADDR_OF(create_tir_in, in, ctx);
 
 	MLX5_SET(tirc, tirc, disp_type, MLX5_TIRC_DISP_TYPE_DIRECT);
-	MLX5_SET(tirc, tirc, inline_rqn, hp->pair->rqn);
+	MLX5_SET(tirc, tirc, inline_rqn, hp->pair->rqn[0]);
 	MLX5_SET(tirc, tirc, transport_domain, hp->tdn);
 
 	err = mlx5_core_create_tir(hp->func_mdev, in, MLX5_ST_SZ_BYTES(create_tir_in), &hp->tirn);
@@ -440,8 +440,8 @@ static int mlx5e_hairpin_flow_add(struct mlx5e_priv *priv,
 	}
 
 	netdev_dbg(priv->netdev, "add hairpin: tirn %x rqn %x peer %s sqn %x prio %d log data size %d\n",
-		   hp->tirn, hp->pair->rqn, hp->pair->peer_mdev->priv.name,
-		   hp->pair->sqn, match_prio, params.log_data_size);
+		   hp->tirn, hp->pair->rqn[0], hp->pair->peer_mdev->priv.name,
+		   hp->pair->sqn[0], match_prio, params.log_data_size);
 
 	hpe->hp = hp;
 	hash_add(priv->fs.tc.hairpin_tbl, &hpe->hairpin_hlist,
