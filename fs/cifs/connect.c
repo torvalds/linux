@@ -704,7 +704,10 @@ static void clean_demultiplex_info(struct TCP_Server_Info *server)
 	wake_up_all(&server->request_q);
 	/* give those requests time to exit */
 	msleep(125);
-
+	if (cifs_rdma_enabled(server) && server->smbd_conn) {
+		smbd_destroy(server->smbd_conn);
+		server->smbd_conn = NULL;
+	}
 	if (server->ssocket) {
 		sock_release(server->ssocket);
 		server->ssocket = NULL;
