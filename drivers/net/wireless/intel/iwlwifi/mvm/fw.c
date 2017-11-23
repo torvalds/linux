@@ -923,11 +923,11 @@ static int iwl_mvm_load_rt_fw(struct iwl_mvm *mvm)
 
 	ret = iwl_run_init_mvm_ucode(mvm, false);
 
-	if (iwlmvm_mod_params.init_dbg)
-		return 0;
-
 	if (ret) {
 		IWL_ERR(mvm, "Failed to run INIT ucode: %d\n", ret);
+
+		if (iwlmvm_mod_params.init_dbg)
+			return 0;
 		return ret;
 	}
 
@@ -1111,7 +1111,7 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 	IWL_DEBUG_INFO(mvm, "RT uCode started.\n");
 	return 0;
  error:
-	if (!iwlmvm_mod_params.init_dbg)
+	if (!iwlmvm_mod_params.init_dbg || !ret)
 		iwl_mvm_stop_device(mvm);
 	return ret;
 }
