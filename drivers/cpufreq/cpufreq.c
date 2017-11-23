@@ -604,16 +604,15 @@ static struct cpufreq_governor *find_governor(const char *str_governor)
 static int cpufreq_parse_governor(char *str_governor, unsigned int *policy,
 				struct cpufreq_governor **governor)
 {
-	int err = -EINVAL;
-
 	if (cpufreq_driver->setpolicy) {
 		if (!strncasecmp(str_governor, "performance", CPUFREQ_NAME_LEN)) {
 			*policy = CPUFREQ_POLICY_PERFORMANCE;
-			err = 0;
-		} else if (!strncasecmp(str_governor, "powersave",
-						CPUFREQ_NAME_LEN)) {
+			return 0;
+		}
+
+		if (!strncasecmp(str_governor, "powersave", CPUFREQ_NAME_LEN)) {
 			*policy = CPUFREQ_POLICY_POWERSAVE;
-			err = 0;
+			return 0;
 		}
 	} else {
 		struct cpufreq_governor *t;
@@ -621,26 +620,29 @@ static int cpufreq_parse_governor(char *str_governor, unsigned int *policy,
 		mutex_lock(&cpufreq_governor_mutex);
 
 		t = find_governor(str_governor);
-
-		if (t == NULL) {
+		if (!t) {
 			int ret;
 
 			mutex_unlock(&cpufreq_governor_mutex);
+
 			ret = request_module("cpufreq_%s", str_governor);
+			if (ret)
+				return -EINVAL;
+
 			mutex_lock(&cpufreq_governor_mutex);
 
-			if (ret == 0)
-				t = find_governor(str_governor);
-		}
-
-		if (t != NULL) {
-			*governor = t;
-			err = 0;
+			t = find_governor(str_governor);
 		}
 
 		mutex_unlock(&cpufreq_governor_mutex);
+
+		if (t) {
+			*governor = t;
+			return 0;
+		}
 	}
-	return err;
+
+	return -EINVAL;
 }
 
 /**
