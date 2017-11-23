@@ -1300,6 +1300,24 @@
 		status = "disabled";
 	};
 
+	cif: cif@ff950000 {
+		compatible = "rockchip,cif";
+		reg = <0x0 0xff950000 0x0 0x400>;
+		interrupts = <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru ACLK_VIP>, <&cru HCLK_VIP>,
+			<&cru PCLK_VIP_IN>, <&cru SCLK_VIP_OUT>;
+		clock-names = "aclk_cif0", "hclk_cif0",
+				"cif0_in", "cif0_out";
+		resets = <&cru SRST_VIP>;
+		reset-names = "rst_cif";
+		pinctrl-names = "cif_pin_all";
+		pinctrl-0 = <&isp_mipi &isp_dvp_d2d9 &isp_dvp_d10d11>;
+		rockchip,grf = <&grf>;
+		rockchip,cru = <&cru>;
+		power-domains = <&power RK3288_PD_VIO>;
+		status = "disabled";
+	};
+
 	dsi0: dsi@ff960000 {
 		compatible = "rockchip,rk3288-mipi-dsi", "snps,dw-mipi-dsi";
 		reg = <0x0 0xff960000 0x0 0x4000>;
