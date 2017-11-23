@@ -319,7 +319,7 @@ bool fixup_umip_exception(struct pt_regs *regs)
 	unsigned char buf[MAX_INSN_SIZE];
 	void __user *uaddr;
 	struct insn insn;
-	char seg_defs;
+	int seg_defs;
 
 	if (!regs)
 		return false;
