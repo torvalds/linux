@@ -33,8 +33,8 @@
 #include "include/gpio_types.h"
 #include "../hw_translate.h"
 
-#include "vega10/DC/dce_12_0_offset.h"
-#include "vega10/DC/dce_12_0_sh_mask.h"
+#include "dce/dce_12_0_offset.h"
+#include "dce/dce_12_0_sh_mask.h"
 #include "vega10/soc15ip.h"
 
 /* begin *********************
