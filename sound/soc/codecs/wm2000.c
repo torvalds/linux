@@ -902,7 +902,6 @@ static int wm2000_i2c_probe(struct i2c_client *i2c,
 					    wm2000->anc_download_size,
 					    GFP_KERNEL);
 	if (wm2000->anc_download == NULL) {
-		dev_err(&i2c->dev, "Out of memory\n");
 		ret = -ENOMEM;
 		goto err_supplies;
 	}
