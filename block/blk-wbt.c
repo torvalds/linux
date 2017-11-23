@@ -723,8 +723,6 @@ int wbt_init(struct request_queue *q)
 		init_waitqueue_head(&rwb->rq_wait[i].wait);
 	}
 
-	rwb->wc = 1;
-	rwb->queue_depth = RWB_DEF_DEPTH;
 	rwb->last_comp = rwb->last_issue = jiffies;
 	rwb->queue = q;
 	rwb->win_nsec = RWB_WINDOW_NSEC;
