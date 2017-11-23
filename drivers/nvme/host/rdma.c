@@ -59,6 +59,9 @@ struct nvme_rdma_request {
 	struct nvme_request	req;
 	struct ib_mr		*mr;
 	struct nvme_rdma_qe	sqe;
+	union nvme_result	result;
+	__le16			status;
+	refcount_t		ref;
 	struct ib_sge		sge[1 + NVME_RDMA_MAX_INLINE_SEGMENTS];
 	u32			num_sge;
 	int			nents;
@@ -1162,6 +1165,7 @@ static int nvme_rdma_map_data(struct nvme_rdma_queue *queue,
 	req->num_sge = 1;
 	req->inline_data = false;
 	req->mr->need_inval = false;
+	refcount_set(&req->ref, 2); /* send and recv completions */
 
 	c->common.flags |= NVME_CMD_SGL_METABUF;
 
@@ -1198,8 +1202,19 @@ static int nvme_rdma_map_data(struct nvme_rdma_queue *queue,
 
 static void nvme_rdma_send_done(struct ib_cq *cq, struct ib_wc *wc)
 {
-	if (unlikely(wc->status != IB_WC_SUCCESS))
+	struct nvme_rdma_qe *qe =
+		container_of(wc->wr_cqe, struct nvme_rdma_qe, cqe);
+	struct nvme_rdma_request *req =
+		container_of(qe, struct nvme_rdma_request, sqe);
+	struct request *rq = blk_mq_rq_from_pdu(req);
+
+	if (unlikely(wc->status != IB_WC_SUCCESS)) {
 		nvme_rdma_wr_error(cq, wc, "SEND");
+		return;
+	}
+
+	if (refcount_dec_and_test(&req->ref))
+		nvme_end_request(rq, req->status, req->result);
 }
 
 static int nvme_rdma_post_send(struct nvme_rdma_queue *queue,
@@ -1318,14 +1333,19 @@ static int nvme_rdma_process_nvme_rsp(struct nvme_rdma_queue *queue,
 	}
 	req = blk_mq_rq_to_pdu(rq);
 
-	if (rq->tag == tag)
-		ret = 1;
+	req->status = cqe->status;
+	req->result = cqe->result;
 
 	if ((wc->wc_flags & IB_WC_WITH_INVALIDATE) &&
 	    wc->ex.invalidate_rkey == req->mr->rkey)
 		req->mr->need_inval = false;
 
-	nvme_end_request(rq, cqe->status, cqe->result);
+	if (refcount_dec_and_test(&req->ref)) {
+		if (rq->tag == tag)
+			ret = 1;
+		nvme_end_request(rq, req->status, req->result);
+	}
+
 	return ret;
 }
 
