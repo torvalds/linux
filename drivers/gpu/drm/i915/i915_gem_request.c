@@ -719,25 +719,19 @@ i915_gem_request_alloc(struct intel_engine_cs *engine,
 	/* Unconditionally invalidate GPU caches and TLBs. */
 	ret = engine->emit_flush(req, EMIT_INVALIDATE);
 	if (ret)
-		goto err_ctx;
+		goto err_unwind;
 
 	ret = engine->request_alloc(req);
-	if (ret) {
-		/*
-		 * Past the point-of-no-return. Since we may have updated
-		 * global state after partially completing the request alloc,
-		 * we need to commit any commands so far emitted in the
-		 * request to the HW.
-		 */
-		__i915_add_request(req, false);
-		return ERR_PTR(ret);
-	}
+	if (ret)
+		goto err_unwind;
 
 	/* Check that we didn't interrupt ourselves with a new request */
 	GEM_BUG_ON(req->timeline->seqno != req->fence.seqno);
 	return req;
 
-err_ctx:
+err_unwind:
+	req->ring->emit = req->head;
+
 	/* Make sure we didn't add ourselves to external state before freeing */
 	GEM_BUG_ON(!list_empty(&req->active_list));
 	GEM_BUG_ON(!list_empty(&req->priotree.signalers_list));

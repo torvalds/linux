@@ -531,6 +531,7 @@ struct intel_engine_cs {
 	 * stream (ring).
 	 */
 	struct i915_gem_context *legacy_active_context;
+	struct i915_hw_ppgtt *legacy_active_ppgtt;
 
 	/* status_notifier: list of callbacks for context-switch changes */
 	struct atomic_notifier_head context_status_notifier;

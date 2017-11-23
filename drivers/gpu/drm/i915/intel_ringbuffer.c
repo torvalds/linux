@@ -591,6 +591,7 @@ static void reset_ring_common(struct intel_engine_cs *engine,
 			request->ring->head = request->postfix;
 	} else {
 		engine->legacy_active_context = NULL;
+		engine->legacy_active_ppgtt = NULL;
 	}
 }
 

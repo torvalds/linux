@@ -507,6 +507,7 @@ void i915_gem_contexts_lost(struct drm_i915_private *dev_priv)
 
 	for_each_engine(engine, dev_priv, id) {
 		engine->legacy_active_context = NULL;
+		engine->legacy_active_ppgtt = NULL;
 
 		if (!engine->last_retired_context)
 			continue;
@@ -681,112 +682,12 @@ static int remap_l3(struct drm_i915_gem_request *req, int slice)
 	return 0;
 }
 
-static inline bool skip_rcs_switch(struct i915_hw_ppgtt *ppgtt,
-				   struct intel_engine_cs *engine,
-				   struct i915_gem_context *to)
-{
-	if (to->remap_slice)
-		return false;
-
-	if (ppgtt && (intel_engine_flag(engine) & ppgtt->pd_dirty_rings))
-		return false;
-
-	return to == engine->legacy_active_context;
-}
-
-static bool
-needs_pd_load_pre(struct i915_hw_ppgtt *ppgtt, struct intel_engine_cs *engine)
-{
-	struct i915_gem_context *from = engine->legacy_active_context;
-
-	if (!ppgtt)
-		return false;
-
-	/* Always load the ppgtt on first use */
-	if (!from)
-		return true;
-
-	/* Same context without new entries, skip */
-	if ((!from->ppgtt || from->ppgtt == ppgtt) &&
-	    !(intel_engine_flag(engine) & ppgtt->pd_dirty_rings))
-		return false;
-
-	if (engine->id != RCS)
-		return true;
-
-	return true;
-}
-
-static int do_rcs_switch(struct drm_i915_gem_request *req)
-{
-	struct i915_gem_context *to = req->ctx;
-	struct intel_engine_cs *engine = req->engine;
-	struct i915_hw_ppgtt *ppgtt = to->ppgtt ?: req->i915->mm.aliasing_ppgtt;
-	struct i915_gem_context *from = engine->legacy_active_context;
-	u32 hw_flags;
-	int ret, i;
-
-	GEM_BUG_ON(engine->id != RCS);
-
-	if (skip_rcs_switch(ppgtt, engine, to))
-		return 0;
-
-	if (needs_pd_load_pre(ppgtt, engine)) {
-		/* Older GENs and non render rings still want the load first,
-		 * "PP_DCLV followed by PP_DIR_BASE register through Load
-		 * Register Immediate commands in Ring Buffer before submitting
-		 * a context."*/
-		trace_switch_mm(engine, to);
-		ret = ppgtt->switch_mm(ppgtt, req);
-		if (ret)
-			return ret;
-	}
-
-	if (i915_gem_context_is_kernel(to))
-		/*
-		 * The kernel context(s) is treated as pure scratch and is not
-		 * expected to retain any state (as we sacrifice it during
-		 * suspend and on resume it may be corrupted). This is ok,
-		 * as nothing actually executes using the kernel context; it
-		 * is purely used for flushing user contexts.
-		 */
-		hw_flags = MI_RESTORE_INHIBIT;
-	else if (ppgtt && intel_engine_flag(engine) & ppgtt->pd_dirty_rings)
-		hw_flags = MI_FORCE_RESTORE;
-	else
-		hw_flags = 0;
-
-	if (to != from || (hw_flags & MI_FORCE_RESTORE)) {
-		ret = mi_set_context(req, hw_flags);
-		if (ret)
-			return ret;
-
-		engine->legacy_active_context = to;
-	}
-
-	if (ppgtt)
-		ppgtt->pd_dirty_rings &= ~intel_engine_flag(engine);
-
-	for (i = 0; i < MAX_L3_SLICES; i++) {
-		if (!(to->remap_slice & (1<<i)))
-			continue;
-
-		ret = remap_l3(req, i);
-		if (ret)
-			return ret;
-
-		to->remap_slice &= ~(1<<i);
-	}
-
-	return 0;
-}
-
 /**
  * i915_switch_context() - perform a GPU context switch.
- * @req: request for which we'll execute the context switch
+ * @rq: request for which we'll execute the context switch
  *
  * The context life cycle is simple. The context refcount is incremented and
- * decremented by 1 and create and destroy. If the context is in use by the GPU,
+ * decremented by 1 on create and destroy. If the context is in use by the GPU,
  * it will have a refcount > 1. This allows us to destroy the context abstract
  * object while letting the normal object tracking destroy the backing BO.
  *
@@ -794,34 +695,74 @@ static int do_rcs_switch(struct drm_i915_gem_request *req)
  * switched by writing to the ELSP and requests keep a reference to their
  * context.
  */
-int i915_switch_context(struct drm_i915_gem_request *req)
+int i915_switch_context(struct drm_i915_gem_request *rq)
 {
-	struct intel_engine_cs *engine = req->engine;
+	struct intel_engine_cs *engine = rq->engine;
+	struct i915_gem_context *to_ctx = rq->ctx;
+	struct i915_hw_ppgtt *to_mm =
+		to_ctx->ppgtt ?: rq->i915->mm.aliasing_ppgtt;
+	struct i915_gem_context *from_ctx = engine->legacy_active_context;
+	struct i915_hw_ppgtt *from_mm = engine->legacy_active_ppgtt;
+	u32 hw_flags = 0;
+	int ret, i;
 
-	lockdep_assert_held(&req->i915->drm.struct_mutex);
-	GEM_BUG_ON(HAS_EXECLISTS(req->i915));
+	lockdep_assert_held(&rq->i915->drm.struct_mutex);
+	GEM_BUG_ON(HAS_EXECLISTS(rq->i915));
 
-	if (!req->ctx->engine[engine->id].state) {
-		struct i915_gem_context *to = req->ctx;
-		struct i915_hw_ppgtt *ppgtt =
-			to->ppgtt ?: req->i915->mm.aliasing_ppgtt;
+	if (to_mm != from_mm ||
+	    (to_mm && intel_engine_flag(engine) & to_mm->pd_dirty_rings)) {
+		trace_switch_mm(engine, to_ctx);
+		ret = to_mm->switch_mm(to_mm, rq);
+		if (ret)
+			goto err;
 
-		if (needs_pd_load_pre(ppgtt, engine)) {
-			int ret;
-
-			trace_switch_mm(engine, to);
-			ret = ppgtt->switch_mm(ppgtt, req);
-			if (ret)
-				return ret;
-
-			ppgtt->pd_dirty_rings &= ~intel_engine_flag(engine);
-		}
-
-		engine->legacy_active_context = to;
-		return 0;
+		to_mm->pd_dirty_rings &= ~intel_engine_flag(engine);
+		engine->legacy_active_ppgtt = to_mm;
+		hw_flags = MI_FORCE_RESTORE;
 	}
 
-	return do_rcs_switch(req);
+	if (to_ctx->engine[engine->id].state &&
+	    (to_ctx != from_ctx || hw_flags & MI_FORCE_RESTORE)) {
+		GEM_BUG_ON(engine->id != RCS);
+
+		/*
+		 * The kernel context(s) is treated as pure scratch and is not
+		 * expected to retain any state (as we sacrifice it during
+		 * suspend and on resume it may be corrupted). This is ok,
+		 * as nothing actually executes using the kernel context; it
+		 * is purely used for flushing user contexts.
+		 */
+		if (i915_gem_context_is_kernel(to_ctx))
+			hw_flags = MI_RESTORE_INHIBIT;
+
+		ret = mi_set_context(rq, hw_flags);
+		if (ret)
+			goto err_mm;
+
+		engine->legacy_active_context = to_ctx;
+	}
+
+	if (to_ctx->remap_slice) {
+		for (i = 0; i < MAX_L3_SLICES; i++) {
+			if (!(to_ctx->remap_slice & BIT(i)))
+				continue;
+
+			ret = remap_l3(rq, i);
+			if (ret)
+				goto err_ctx;
+		}
+
+		to_ctx->remap_slice = 0;
+	}
+
+	return 0;
+
+err_ctx:
+	engine->legacy_active_context = from_ctx;
+err_mm:
+	engine->legacy_active_ppgtt = from_mm;
+err:
+	return ret;
 }
 
 static bool engine_has_idle_kernel_context(struct intel_engine_cs *engine)
