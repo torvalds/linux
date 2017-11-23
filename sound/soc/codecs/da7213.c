@@ -1654,10 +1654,8 @@ static struct da7213_platform_data
 	u32 fw_val32;
 
 	pdata = devm_kzalloc(codec->dev, sizeof(*pdata), GFP_KERNEL);
-	if (!pdata) {
-		dev_warn(codec->dev, "Failed to allocate memory for pdata\n");
+	if (!pdata)
 		return NULL;
-	}
 
 	if (device_property_read_u32(dev, "dlg,micbias1-lvl", &fw_val32) >= 0)
 		pdata->micbias1_lvl = da7213_of_micbias_lvl(codec, fw_val32);
