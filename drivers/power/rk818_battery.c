@@ -174,6 +174,8 @@ struct rk818_battery {
 	bool				is_initialized;
 	bool				is_first_power_on;
 	u8				res_div;
+	int				current_max;
+	int				voltage_max;
 	int				current_avg;
 	int				voltage_avg;
 	int				voltage_ocv;
@@ -250,6 +252,8 @@ struct rk818_battery {
 	int				dbg_calc_rsoc;
 	u8				ac_in;
 	u8				usb_in;
+	int				is_charging;
+	unsigned long			charge_count;
 };
 
 #define DIV(x)	((x) ? (x) : 1)
@@ -877,6 +881,9 @@ static enum power_supply_property rk818_bat_props[] = {
 	POWER_SUPPLY_PROP_CAPACITY,
 	POWER_SUPPLY_PROP_TEMP,
 	POWER_SUPPLY_PROP_STATUS,
+	POWER_SUPPLY_PROP_CHARGE_COUNTER,
+	POWER_SUPPLY_PROP_VOLTAGE_MAX,
+	POWER_SUPPLY_PROP_CURRENT_MAX,
 };
 
 static int rk818_bat_get_usb_psy(struct device *dev, void *data)
@@ -990,6 +997,15 @@ static int rk818_battery_get_property(struct power_supply *psy,
 			val->intval = POWER_SUPPLY_STATUS_CHARGING;
 		else
 			val->intval = POWER_SUPPLY_STATUS_DISCHARGING;
+		break;
+	case POWER_SUPPLY_PROP_CHARGE_COUNTER:
+		val->intval = di->charge_count;
+		break;
+	case POWER_SUPPLY_PROP_VOLTAGE_MAX:
+		val->intval = di->voltage_max;
+		break;
+	case POWER_SUPPLY_PROP_CURRENT_MAX:
+		val->intval = di->current_max;
 		break;
 	default:
 		return -EINVAL;
@@ -2555,12 +2571,24 @@ static void rk818_bat_rsoc_daemon(struct rk818_battery *di)
 
 static void rk818_bat_update_info(struct rk818_battery *di)
 {
+	int is_charging;
+
 	di->voltage_avg = rk818_bat_get_avg_voltage(di);
 	di->current_avg = rk818_bat_get_avg_current(di);
 	di->voltage_relax = rk818_bat_get_relax_voltage(di);
 	di->rsoc = rk818_bat_get_rsoc(di);
 	di->remain_cap = rk818_bat_get_coulomb_cap(di);
 	di->chrg_status = rk818_bat_get_chrg_status(di);
+	is_charging = rk818_bat_get_charge_state(di);
+	if (is_charging != di->is_charging) {
+		di->is_charging = is_charging;
+		if (is_charging)
+			di->charge_count++;
+	}
+	if (di->voltage_avg > di->voltage_max)
+		di->voltage_max = di->voltage_avg;
+	if (di->current_avg > di->current_max)
+		di->current_max = di->current_avg;
 
 	/* smooth charge */
 	if (di->remain_cap > di->fcc) {
