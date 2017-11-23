@@ -344,7 +344,7 @@ static int i915_pmu_event_init(struct perf_event *event)
 {
 	struct drm_i915_private *i915 =
 		container_of(event->pmu, typeof(*i915), pmu.base);
-	int cpu, ret;
+	int ret;
 
 	if (event->attr.type != event->pmu->type)
 		return -ENOENT;
@@ -359,9 +359,8 @@ static int i915_pmu_event_init(struct perf_event *event)
 	if (event->cpu < 0)
 		return -EINVAL;
 
-	cpu = cpumask_any_and(&i915_pmu_cpumask,
-			      topology_sibling_cpumask(event->cpu));
-	if (cpu >= nr_cpu_ids)
+	/* only allow running on one cpu at a time */
+	if (!cpumask_test_cpu(event->cpu, &i915_pmu_cpumask))
 		return -ENODEV;
 
 	if (is_engine_event(event)) {
@@ -396,7 +395,6 @@ static int i915_pmu_event_init(struct perf_event *event)
 	if (ret)
 		return ret;
 
-	event->cpu = cpu;
 	if (!event->parent)
 		event->destroy = i915_pmu_event_destroy;
 
@@ -773,13 +771,11 @@ static const struct attribute_group *i915_pmu_attr_groups[] = {
 static int i915_pmu_cpu_online(unsigned int cpu, struct hlist_node *node)
 {
 	struct i915_pmu *pmu = hlist_entry_safe(node, typeof(*pmu), node);
-	unsigned int target;
 
 	GEM_BUG_ON(!pmu->base.event_init);
 
-	target = cpumask_any_and(&i915_pmu_cpumask, &i915_pmu_cpumask);
 	/* Select the first online CPU as a designated reader. */
-	if (target >= nr_cpu_ids)
+	if (!cpumask_weight(&i915_pmu_cpumask))
 		cpumask_set_cpu(cpu, &i915_pmu_cpumask);
 
 	return 0;
