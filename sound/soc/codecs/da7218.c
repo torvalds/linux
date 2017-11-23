@@ -2455,10 +2455,8 @@ static struct da7218_pdata *da7218_of_to_pdata(struct snd_soc_codec *codec)
 	u32 of_val32;
 
 	pdata = devm_kzalloc(codec->dev, sizeof(*pdata), GFP_KERNEL);
-	if (!pdata) {
-		dev_warn(codec->dev, "Failed to allocate memory for pdata\n");
+	if (!pdata)
 		return NULL;
-	}
 
 	if (of_property_read_u32(np, "dlg,micbias1-lvl-millivolt", &of_val32) >= 0)
 		pdata->micbias1_lvl = da7218_of_micbias_lvl(codec, of_val32);
@@ -2527,8 +2525,6 @@ static struct da7218_pdata *da7218_of_to_pdata(struct snd_soc_codec *codec)
 		hpldet_pdata = devm_kzalloc(codec->dev, sizeof(*hpldet_pdata),
 					    GFP_KERNEL);
 		if (!hpldet_pdata) {
-			dev_warn(codec->dev,
-				 "Failed to allocate memory for hpldet pdata\n");
 			of_node_put(hpldet_np);
 			return pdata;
 		}
