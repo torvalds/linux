@@ -46,10 +46,6 @@ config GENERIC_IOMAP
 	bool
 	select GENERIC_PCI_IOMAP
 
-config GENERIC_IO
-	bool
-	default n
-
 config STMP_DEVICE
 	bool
 
