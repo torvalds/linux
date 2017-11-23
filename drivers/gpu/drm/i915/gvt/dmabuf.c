@@ -88,19 +88,26 @@ static void dmabuf_gem_object_free(struct kref *kref)
 		container_of(kref, struct intel_vgpu_dmabuf_obj, kref);
 	struct intel_vgpu *vgpu = obj->vgpu;
 	struct list_head *pos;
-
 	struct intel_vgpu_dmabuf_obj *dmabuf_obj;
 
-	list_for_each(pos, &vgpu->dmabuf_obj_list_head) {
-		dmabuf_obj = container_of(pos, struct intel_vgpu_dmabuf_obj,
-						list);
-		if (dmabuf_obj == obj) {
-			idr_remove(&vgpu->object_idr, dmabuf_obj->dmabuf_id);
-			kfree(dmabuf_obj->info);
-			kfree(dmabuf_obj);
-			list_del(pos);
-			break;
+	if (vgpu) {
+		list_for_each(pos, &vgpu->dmabuf_obj_list_head) {
+			dmabuf_obj = container_of(pos,
+					struct intel_vgpu_dmabuf_obj, list);
+			if (dmabuf_obj == obj) {
+				intel_gvt_hypervisor_put_vfio_device(vgpu);
+				idr_remove(&vgpu->object_idr,
+					   dmabuf_obj->dmabuf_id);
+				kfree(dmabuf_obj->info);
+				kfree(dmabuf_obj);
+				list_del(pos);
+				break;
+			}
 		}
+	} else {
+		/* Free the orphan dmabuf_objs here */
+		kfree(obj->info);
+		kfree(obj);
 	}
 }
 
@@ -122,11 +129,16 @@ static void vgpu_gem_release(struct drm_i915_gem_object *gem_obj)
 	struct intel_vgpu_dmabuf_obj *obj = fb_info->obj;
 	struct intel_vgpu *vgpu = obj->vgpu;
 
-	mutex_lock(&vgpu->dmabuf_lock);
-	gem_obj->base.dma_buf = NULL;
-	dmabuf_obj_put(obj);
-	intel_gvt_hypervisor_put_vfio_device(vgpu);
-	mutex_unlock(&vgpu->dmabuf_lock);
+	if (vgpu) {
+		mutex_lock(&vgpu->dmabuf_lock);
+		gem_obj->base.dma_buf = NULL;
+		dmabuf_obj_put(obj);
+		mutex_unlock(&vgpu->dmabuf_lock);
+	} else {
+		/* vgpu is NULL, as it has been removed already */
+		gem_obj->base.dma_buf = NULL;
+		dmabuf_obj_put(obj);
+	}
 }
 
 static const struct drm_i915_gem_object_ops intel_vgpu_gem_ops = {
@@ -471,12 +483,6 @@ int intel_vgpu_get_dmabuf(struct intel_vgpu *vgpu, unsigned int dmabuf_id)
 	}
 	dmabuf_fd = ret;
 
-	if (intel_gvt_hypervisor_get_vfio_device(vgpu)) {
-		gvt_vgpu_err("get vfio device failed\n");
-		put_unused_fd(ret);
-		goto out_free_dmabuf;
-	}
-
 	dmabuf_obj_get(dmabuf_obj);
 
 	if (dmabuf_obj->initref) {
@@ -518,6 +524,14 @@ void intel_vgpu_dmabuf_cleanup(struct intel_vgpu *vgpu)
 			dmabuf_obj->initref = false;
 			dmabuf_obj_put(dmabuf_obj);
 		}
+
+		idr_remove(&vgpu->object_idr, dmabuf_obj->dmabuf_id);
+
+		if (dmabuf_obj->vgpu)
+			intel_gvt_hypervisor_put_vfio_device(vgpu);
+
+		dmabuf_obj->vgpu = NULL;
+
 	}
 	mutex_unlock(&vgpu->dmabuf_lock);
 }
