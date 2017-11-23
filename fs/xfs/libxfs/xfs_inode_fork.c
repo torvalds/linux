@@ -42,11 +42,6 @@ STATIC int xfs_iformat_local(xfs_inode_t *, xfs_dinode_t *, int, int);
 STATIC int xfs_iformat_extents(xfs_inode_t *, xfs_dinode_t *, int);
 STATIC int xfs_iformat_btree(xfs_inode_t *, xfs_dinode_t *, int);
 
-static inline dev_t xfs_to_linux_dev_t(xfs_dev_t dev)
-{
-	return MKDEV(sysv_major(dev) & 0x1ff, sysv_minor(dev));
-}
-
 /*
  * Copy inode type and data and attr format specific information from the
  * on-disk inode to the in-core inode and fork structures.  For fifos, devices,
@@ -792,7 +787,8 @@ xfs_iflush_fork(
 	case XFS_DINODE_FMT_DEV:
 		if (iip->ili_fields & XFS_ILOG_DEV) {
 			ASSERT(whichfork == XFS_DATA_FORK);
-			xfs_dinode_put_rdev(dip, sysv_encode_dev(VFS_I(ip)->i_rdev));
+			xfs_dinode_put_rdev(dip,
+					linux_to_xfs_dev_t(VFS_I(ip)->i_rdev));
 		}
 		break;
 
