@@ -449,10 +449,9 @@ int vmw_du_primary_plane_atomic_check(struct drm_plane *plane,
 	if (state->crtc)
 		crtc_state = drm_atomic_get_new_crtc_state(state->state, state->crtc);
 
-	if (crtc_state && crtc_state->enable) {
-		clip.x2 = crtc_state->adjusted_mode.hdisplay;
-		clip.y2 = crtc_state->adjusted_mode.vdisplay;
-	}
+	if (crtc_state && crtc_state->enable)
+		drm_mode_get_hv_timing(&crtc_state->mode,
+				       &clip.x2, &clip.y2);
 
 	ret = drm_atomic_helper_check_plane_state(state, crtc_state, &clip,
 						  DRM_PLANE_HELPER_NO_SCALING,
