@@ -601,17 +601,17 @@ static struct cpufreq_governor *find_governor(const char *str_governor)
 /**
  * cpufreq_parse_governor - parse a governor string
  */
-static int cpufreq_parse_governor(char *str_governor, unsigned int *policy,
-				struct cpufreq_governor **governor)
+static int cpufreq_parse_governor(char *str_governor,
+				  struct cpufreq_policy *policy)
 {
 	if (cpufreq_driver->setpolicy) {
 		if (!strncasecmp(str_governor, "performance", CPUFREQ_NAME_LEN)) {
-			*policy = CPUFREQ_POLICY_PERFORMANCE;
+			policy->policy = CPUFREQ_POLICY_PERFORMANCE;
 			return 0;
 		}
 
 		if (!strncasecmp(str_governor, "powersave", CPUFREQ_NAME_LEN)) {
-			*policy = CPUFREQ_POLICY_POWERSAVE;
+			policy->policy = CPUFREQ_POLICY_POWERSAVE;
 			return 0;
 		}
 	} else {
@@ -637,7 +637,7 @@ static int cpufreq_parse_governor(char *str_governor, unsigned int *policy,
 		mutex_unlock(&cpufreq_governor_mutex);
 
 		if (t) {
-			*governor = t;
+			policy->governor = t;
 			return 0;
 		}
 	}
@@ -762,8 +762,7 @@ static ssize_t store_scaling_governor(struct cpufreq_policy *policy,
 	if (ret != 1)
 		return -EINVAL;
 
-	if (cpufreq_parse_governor(str_governor, &new_policy.policy,
-						&new_policy.governor))
+	if (cpufreq_parse_governor(str_governor, &new_policy))
 		return -EINVAL;
 
 	ret = cpufreq_set_policy(policy, &new_policy);
@@ -1046,8 +1045,7 @@ static int cpufreq_init_policy(struct cpufreq_policy *policy)
 		if (policy->last_policy)
 			new_policy.policy = policy->last_policy;
 		else
-			cpufreq_parse_governor(gov->name, &new_policy.policy,
-					       NULL);
+			cpufreq_parse_governor(gov->name, &new_policy);
 	}
 	/* set default policy */
 	return cpufreq_set_policy(policy, &new_policy);
