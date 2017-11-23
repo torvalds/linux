@@ -30,8 +30,8 @@
 #include "mmsch_v1_0.h"
 
 #include "vega10/soc15ip.h"
-#include "vega10/UVD/uvd_7_0_offset.h"
-#include "vega10/UVD/uvd_7_0_sh_mask.h"
+#include "uvd/uvd_7_0_offset.h"
+#include "uvd/uvd_7_0_sh_mask.h"
 #include "vega10/VCE/vce_4_0_offset.h"
 #include "vega10/VCE/vce_4_0_default.h"
 #include "vega10/VCE/vce_4_0_sh_mask.h"
