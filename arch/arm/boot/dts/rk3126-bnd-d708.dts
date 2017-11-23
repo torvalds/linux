@@ -396,7 +396,7 @@
 				regulator-boot-on;
 				regulator-state-mem {
 					regulator-on-in-suspend;
-					regulator-suspend-microvolt = <1000000>;
+					regulator-suspend-microvolt = <900000>;
 				};
 			};
 
