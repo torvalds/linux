@@ -262,13 +262,31 @@ static void frequency_sample(struct drm_i915_private *dev_priv)
 	}
 }
 
+static void pmu_init_previous_samples(struct drm_i915_private *i915)
+{
+	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
+	unsigned int i;
+
+	for_each_engine(engine, i915, id) {
+		for (i = 0; i < ARRAY_SIZE(engine->pmu.sample); i++)
+			engine->pmu.sample[i].prev = 0;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(i915->pmu.sample); i++)
+		i915->pmu.sample[i].prev = i915->gt_pm.rps.idle_freq;
+}
+
 static enum hrtimer_restart i915_sample(struct hrtimer *hrtimer)
 {
 	struct drm_i915_private *i915 =
 		container_of(hrtimer, struct drm_i915_private, pmu.timer);
 
-	if (!READ_ONCE(i915->pmu.timer_enabled))
+	if (!READ_ONCE(i915->pmu.timer_enabled)) {
+		pmu_init_previous_samples(i915);
+
 		return HRTIMER_NORESTART;
+	}
 
 	engines_sample(i915);
 	frequency_sample(i915);
@@ -838,6 +856,8 @@ void i915_pmu_register(struct drm_i915_private *i915)
 	spin_lock_init(&i915->pmu.lock);
 	hrtimer_init(&i915->pmu.timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	i915->pmu.timer.function = i915_sample;
+
+	pmu_init_previous_samples(i915);
 
 	for_each_engine(engine, i915, id)
 		INIT_DELAYED_WORK(&engine->pmu.disable_busy_stats,
