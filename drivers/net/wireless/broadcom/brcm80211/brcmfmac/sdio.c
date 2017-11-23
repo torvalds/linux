@@ -260,10 +260,11 @@ struct rte_console {
 #define I_HMB_HOST_INT	I_HMB_SW3	/* Miscellaneous Interrupt */
 
 /* tohostmailboxdata */
-#define HMB_DATA_NAKHANDLED	1	/* retransmit NAK'd frame */
-#define HMB_DATA_DEVREADY	2	/* talk to host after enable */
-#define HMB_DATA_FC		4	/* per prio flowcontrol update flag */
-#define HMB_DATA_FWREADY	8	/* fw ready for protocol activity */
+#define HMB_DATA_NAKHANDLED	0x0001	/* retransmit NAK'd frame */
+#define HMB_DATA_DEVREADY	0x0002	/* talk to host after enable */
+#define HMB_DATA_FC		0x0004	/* per prio flowcontrol update flag */
+#define HMB_DATA_FWREADY	0x0008	/* fw ready for protocol activity */
+#define HMB_DATA_FWHALT		0x0010	/* firmware halted */
 
 #define HMB_DATA_FCDATA_MASK	0xff000000
 #define HMB_DATA_FCDATA_SHIFT	24
@@ -1094,6 +1095,10 @@ static u32 brcmf_sdio_hostmail(struct brcmf_sdio *bus)
 			  offsetof(struct sdpcmd_regs, tosbmailbox));
 	bus->sdcnt.f1regdata += 2;
 
+	/* dongle indicates the firmware has halted/crashed */
+	if (hmb_data & HMB_DATA_FWHALT)
+		brcmf_err("mailbox indicates firmware halted\n");
+
 	/* Dongle recomposed rx frames, accept them again */
 	if (hmb_data & HMB_DATA_NAKHANDLED) {
 		brcmf_dbg(SDIO, "Dongle reports NAK handled, expect rtx of %d\n",
@@ -1151,6 +1156,7 @@ static u32 brcmf_sdio_hostmail(struct brcmf_sdio *bus)
 			 HMB_DATA_NAKHANDLED |
 			 HMB_DATA_FC |
 			 HMB_DATA_FWREADY |
+			 HMB_DATA_FWHALT |
 			 HMB_DATA_FCDATA_MASK | HMB_DATA_VERSION_MASK))
 		brcmf_err("Unknown mailbox data content: 0x%02x\n",
 			  hmb_data);
@@ -3966,9 +3972,9 @@ brcmf_sdio_watchdog_thread(void *data)
 }
 
 static void
-brcmf_sdio_watchdog(unsigned long data)
+brcmf_sdio_watchdog(struct timer_list *t)
 {
-	struct brcmf_sdio *bus = (struct brcmf_sdio *)data;
+	struct brcmf_sdio *bus = from_timer(bus, t, timer);
 
 	if (bus->watchdog_tsk) {
 		complete(&bus->watchdog_wait);
@@ -3977,6 +3983,24 @@ brcmf_sdio_watchdog(unsigned long data)
 			mod_timer(&bus->timer,
 				  jiffies + BRCMF_WD_POLL);
 	}
+}
+
+static int brcmf_sdio_get_fwname(struct device *dev, u32 chip, u32 chiprev,
+				 u8 *fw_name)
+{
+	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
+	struct brcmf_sdio_dev *sdiodev = bus_if->bus_priv.sdio;
+	int ret = 0;
+
+	if (sdiodev->fw_name[0] != '\0')
+		strlcpy(fw_name, sdiodev->fw_name, BRCMF_FW_NAME_LEN);
+	else
+		ret = brcmf_fw_map_chip_to_name(chip, chiprev,
+						brcmf_sdio_fwnames,
+						ARRAY_SIZE(brcmf_sdio_fwnames),
+						fw_name, NULL);
+
+	return ret;
 }
 
 static const struct brcmf_bus_ops brcmf_sdio_bus_ops = {
@@ -3989,6 +4013,7 @@ static const struct brcmf_bus_ops brcmf_sdio_bus_ops = {
 	.wowl_config = brcmf_sdio_wowl_config,
 	.get_ramsize = brcmf_sdio_bus_get_ramsize,
 	.get_memdump = brcmf_sdio_bus_get_memdump,
+	.get_fwname = brcmf_sdio_get_fwname,
 };
 
 static void brcmf_sdio_firmware_callback(struct device *dev, int err,
@@ -4144,10 +4169,7 @@ struct brcmf_sdio *brcmf_sdio_probe(struct brcmf_sdio_dev *sdiodev)
 	init_waitqueue_head(&bus->dcmd_resp_wait);
 
 	/* Set up the watchdog timer */
-	init_timer(&bus->timer);
-	bus->timer.data = (unsigned long)bus;
-	bus->timer.function = brcmf_sdio_watchdog;
-
+	timer_setup(&bus->timer, brcmf_sdio_watchdog, 0);
 	/* Initialize watchdog thread */
 	init_completion(&bus->watchdog_wait);
 	bus->watchdog_tsk = kthread_run(brcmf_sdio_watchdog_thread,

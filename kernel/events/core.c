@@ -3601,7 +3601,6 @@ int perf_event_read_local(struct perf_event *event, u64 *value,
 		goto out;
 	}
 
-
 	/*
 	 * If the event is currently on this CPU, its either a per-task event,
 	 * or local to this CPU. Furthermore it means its ACTIVE (otherwise
@@ -7867,25 +7866,24 @@ void perf_trace_run_bpf_submit(void *raw_data, int size, int rctx,
 			       struct pt_regs *regs, struct hlist_head *head,
 			       struct task_struct *task)
 {
-	struct bpf_prog *prog = call->prog;
-
-	if (prog) {
+	if (bpf_prog_array_valid(call)) {
 		*(struct pt_regs **)raw_data = regs;
-		if (!trace_call_bpf(prog, raw_data) || hlist_empty(head)) {
+		if (!trace_call_bpf(call, raw_data) || hlist_empty(head)) {
 			perf_swevent_put_recursion_context(rctx);
 			return;
 		}
 	}
 	perf_tp_event(call->event.type, count, raw_data, size, regs, head,
-		      rctx, task, NULL);
+		      rctx, task);
 }
 EXPORT_SYMBOL_GPL(perf_trace_run_bpf_submit);
 
 void perf_tp_event(u16 event_type, u64 count, void *record, int entry_size,
 		   struct pt_regs *regs, struct hlist_head *head, int rctx,
-		   struct task_struct *task, struct perf_event *event)
+		   struct task_struct *task)
 {
 	struct perf_sample_data data;
+	struct perf_event *event;
 
 	struct perf_raw_record raw = {
 		.frag = {
@@ -7899,15 +7897,9 @@ void perf_tp_event(u16 event_type, u64 count, void *record, int entry_size,
 
 	perf_trace_buf_update(record, event_type);
 
-	/* Use the given event instead of the hlist */
-	if (event) {
+	hlist_for_each_entry_rcu(event, head, hlist_entry) {
 		if (perf_tp_event_match(event, &data, regs))
 			perf_swevent_event(event, count, &data, regs);
-	} else {
-		hlist_for_each_entry_rcu(event, head, hlist_entry) {
-			if (perf_tp_event_match(event, &data, regs))
-				perf_swevent_event(event, count, &data, regs);
-		}
 	}
 
 	/*
@@ -8060,12 +8052,10 @@ static int perf_event_set_bpf_prog(struct perf_event *event, u32 prog_fd)
 {
 	bool is_kprobe, is_tracepoint, is_syscall_tp;
 	struct bpf_prog *prog;
+	int ret;
 
 	if (event->attr.type != PERF_TYPE_TRACEPOINT)
 		return perf_event_set_bpf_handler(event, prog_fd);
-
-	if (event->tp_event->prog)
-		return -EEXIST;
 
 	is_kprobe = event->tp_event->flags & TRACE_EVENT_FL_UKPROBE;
 	is_tracepoint = event->tp_event->flags & TRACE_EVENT_FL_TRACEPOINT;
@@ -8094,26 +8084,20 @@ static int perf_event_set_bpf_prog(struct perf_event *event, u32 prog_fd)
 			return -EACCES;
 		}
 	}
-	event->tp_event->prog = prog;
-	event->tp_event->bpf_prog_owner = event;
 
-	return 0;
+	ret = perf_event_attach_bpf_prog(event, prog);
+	if (ret)
+		bpf_prog_put(prog);
+	return ret;
 }
 
 static void perf_event_free_bpf_prog(struct perf_event *event)
 {
-	struct bpf_prog *prog;
-
-	perf_event_free_bpf_handler(event);
-
-	if (!event->tp_event)
+	if (event->attr.type != PERF_TYPE_TRACEPOINT) {
+		perf_event_free_bpf_handler(event);
 		return;
-
-	prog = event->tp_event->prog;
-	if (prog && event->tp_event->bpf_prog_owner == event) {
-		event->tp_event->prog = NULL;
-		bpf_prog_put(prog);
 	}
+	perf_event_detach_bpf_prog(event);
 }
 
 #else

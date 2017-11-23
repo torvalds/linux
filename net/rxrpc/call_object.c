@@ -45,9 +45,9 @@ const char *const rxrpc_call_completions[NR__RXRPC_CALL_COMPLETIONS] = {
 
 struct kmem_cache *rxrpc_call_jar;
 
-static void rxrpc_call_timer_expired(unsigned long _call)
+static void rxrpc_call_timer_expired(struct timer_list *t)
 {
-	struct rxrpc_call *call = (struct rxrpc_call *)_call;
+	struct rxrpc_call *call = from_timer(call, t, timer);
 
 	_enter("%d", call->debug_id);
 
@@ -114,8 +114,7 @@ struct rxrpc_call *rxrpc_alloc_call(gfp_t gfp)
 		goto nomem_2;
 
 	mutex_init(&call->user_mutex);
-	setup_timer(&call->timer, rxrpc_call_timer_expired,
-		    (unsigned long)call);
+	timer_setup(&call->timer, rxrpc_call_timer_expired, 0);
 	INIT_WORK(&call->processor, &rxrpc_process_call);
 	INIT_LIST_HEAD(&call->link);
 	INIT_LIST_HEAD(&call->chan_wait_link);
@@ -124,6 +123,7 @@ struct rxrpc_call *rxrpc_alloc_call(gfp_t gfp)
 	INIT_LIST_HEAD(&call->sock_link);
 	init_waitqueue_head(&call->waitq);
 	spin_lock_init(&call->lock);
+	spin_lock_init(&call->notify_lock);
 	rwlock_init(&call->state_lock);
 	atomic_set(&call->usage, 1);
 	call->debug_id = atomic_inc_return(&rxrpc_debug_id);

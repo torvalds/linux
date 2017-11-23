@@ -29,27 +29,13 @@
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
+#include <sound/soc-acpi.h>
 #include "../atom/sst-atom-controls.h"
-#include "../common/sst-acpi.h"
 #include "../common/sst-dsp.h"
 
 struct byt_cht_es8316_private {
 	struct clk *mclk;
 };
-
-#define CODEC_DAI1	"ES8316 HiFi"
-
-static inline struct snd_soc_dai *get_codec_dai(struct snd_soc_card *card)
-{
-	struct snd_soc_pcm_runtime *rtd;
-
-	list_for_each_entry(rtd, &card->rtd_list, list) {
-		if (!strncmp(rtd->codec_dai->name, CODEC_DAI1,
-			     strlen(CODEC_DAI1)))
-			return rtd->codec_dai;
-	}
-	return NULL;
-}
 
 static const struct snd_soc_dapm_widget byt_cht_es8316_widgets[] = {
 	SND_SOC_DAPM_HP("Headphone", NULL),
@@ -208,22 +194,13 @@ static struct snd_soc_dai_link byt_cht_es8316_dais[] = {
 		.ops = &byt_cht_es8316_aif1_ops,
 	},
 
-	[MERR_DPCM_COMPR] = {
-		.name = "Compressed Port",
-		.stream_name = "Compress",
-		.cpu_dai_name = "compress-cpu-dai",
-		.codec_dai_name = "snd-soc-dummy-dai",
-		.codec_name = "snd-soc-dummy",
-		.platform_name = "sst-mfld-platform",
-	},
-
 		/* back ends */
 	{
 		/* Only SSP2 has been tested here, so BYT-CR platforms that
 		 * require SSP0 will not work.
 		 */
 		.name = "SSP2-Codec",
-		.id = 1,
+		.id = 0,
 		.cpu_dai_name = "ssp2-port",
 		.platform_name = "sst-mfld-platform",
 		.no_pcm = 1,

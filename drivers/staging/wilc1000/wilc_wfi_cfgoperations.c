@@ -267,7 +267,7 @@ static void update_scan_time(void)
 		last_scanned_shadow[i].time_scan = jiffies;
 }
 
-static void remove_network_from_shadow(unsigned long unused)
+static void remove_network_from_shadow(struct timer_list *unused)
 {
 	unsigned long now = jiffies;
 	int i, j;
@@ -292,7 +292,7 @@ static void remove_network_from_shadow(unsigned long unused)
 	}
 }
 
-static void clear_duringIP(unsigned long arg)
+static void clear_duringIP(struct timer_list *unused)
 {
 	wilc_optaining_ip = false;
 }
@@ -1110,7 +1110,6 @@ static int del_key(struct wiphy *wiphy, struct net_device *netdev,
 		g_key_gtk_params.key = NULL;
 		kfree(g_key_gtk_params.seq);
 		g_key_gtk_params.seq = NULL;
-
 	}
 
 	if (key_index >= 0 && key_index <= 3) {
@@ -1616,7 +1615,7 @@ static int mgmt_tx(struct wiphy *wiphy,
 
 	*cookie = (unsigned long)buf;
 	priv->u64tx_cookie = *cookie;
-	mgmt = (const struct ieee80211_mgmt *) buf;
+	mgmt = (const struct ieee80211_mgmt *)buf;
 
 	if (ieee80211_is_mgmt(mgmt->frame_control)) {
 		mgmt_tx = kmalloc(sizeof(struct p2p_mgmt_data), GFP_KERNEL);
@@ -2279,8 +2278,8 @@ int wilc_init_host_int(struct net_device *net)
 
 	priv = wdev_priv(net->ieee80211_ptr);
 	if (op_ifcs == 0) {
-		setup_timer(&hAgingTimer, remove_network_from_shadow, 0);
-		setup_timer(&wilc_during_ip_timer, clear_duringIP, 0);
+		timer_setup(&hAgingTimer, remove_network_from_shadow, 0);
+		timer_setup(&wilc_during_ip_timer, clear_duringIP, 0);
 	}
 	op_ifcs++;
 

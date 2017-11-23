@@ -32,7 +32,7 @@
 		#clock-cells = <0>;
 	};
 
-	firmware@02037000 {
+	firmware@2037000 {
 		compatible = "samsung,secure-firmware";
 		reg = <0x02037000 0x1000>;
 	};

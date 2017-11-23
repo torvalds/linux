@@ -615,7 +615,6 @@ static const struct drm_prop_enum_list drm_link_status_enum_list[] = {
 	{ DRM_MODE_LINK_STATUS_GOOD, "Good" },
 	{ DRM_MODE_LINK_STATUS_BAD, "Bad" },
 };
-DRM_ENUM_NAME_FN(drm_get_link_status_name, drm_link_status_enum_list)
 
 /**
  * drm_display_info_set_bus_formats - set the supported bus formats
@@ -720,6 +719,29 @@ DRM_ENUM_NAME_FN(drm_get_tv_subconnector_name,
  * 	callback. For atomic drivers the remapping to the "ACTIVE" property is
  * 	implemented in the DRM core.  This is the only standard connector
  * 	property that userspace can change.
+ *
+ * 	Note that this property cannot be set through the MODE_ATOMIC ioctl,
+ * 	userspace must use "ACTIVE" on the CRTC instead.
+ *
+ * 	WARNING:
+ *
+ * 	For userspace also running on legacy drivers the "DPMS" semantics are a
+ * 	lot more complicated. First, userspace cannot rely on the "DPMS" value
+ * 	returned by the GETCONNECTOR actually reflecting reality, because many
+ * 	drivers fail to update it. For atomic drivers this is taken care of in
+ * 	drm_atomic_helper_update_legacy_modeset_state().
+ *
+ * 	The second issue is that the DPMS state is only well-defined when the
+ * 	connector is connected to a CRTC. In atomic the DRM core enforces that
+ * 	"ACTIVE" is off in such a case, no such checks exists for "DPMS".
+ *
+ * 	Finally, when enabling an output using the legacy SETCONFIG ioctl then
+ * 	"DPMS" is forced to ON. But see above, that might not be reflected in
+ * 	the software value on legacy drivers.
+ *
+ * 	Summarizing: Only set "DPMS" when the connector is known to be enabled,
+ * 	assume that a successful SETCONFIG call also sets "DPMS" to on, and
+ * 	never read back the value of "DPMS" because it can be incorrect.
  * PATH:
  * 	Connector path property to identify how this sink is physically
  * 	connected. Used by DP MST. This should be set by calling
@@ -1288,7 +1310,7 @@ int drm_mode_getconnector(struct drm_device *dev, void *data,
 
 	memset(&u_mode, 0, sizeof(struct drm_mode_modeinfo));
 
-	connector = drm_connector_lookup(dev, out_resp->connector_id);
+	connector = drm_connector_lookup(dev, file_priv, out_resp->connector_id);
 	if (!connector)
 		return -ENOENT;
 

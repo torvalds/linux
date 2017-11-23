@@ -515,6 +515,7 @@ static int newary(struct ipc_namespace *ns, struct ipc_params *params)
 	sma->sem_nsems = nsems;
 	sma->sem_ctime = ktime_get_real_seconds();
 
+	/* ipc_addid() locks sma upon success. */
 	retval = ipc_addid(&sem_ids(ns), &sma->sem_perm, ns->sc_semmni);
 	if (retval < 0) {
 		call_rcu(&sma->sem_perm.rcu, sem_rcu_free);
@@ -1637,10 +1638,10 @@ static int copy_compat_semid_from_user(struct semid64_ds *out, void __user *buf,
 {
 	memset(out, 0, sizeof(*out));
 	if (version == IPC_64) {
-		struct compat_semid64_ds *p = buf;
+		struct compat_semid64_ds __user *p = buf;
 		return get_compat_ipc64_perm(&out->sem_perm, &p->sem_perm);
 	} else {
-		struct compat_semid_ds *p = buf;
+		struct compat_semid_ds __user *p = buf;
 		return get_compat_ipc_perm(&out->sem_perm, &p->sem_perm);
 	}
 }

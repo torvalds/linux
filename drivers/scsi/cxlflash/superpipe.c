@@ -165,7 +165,7 @@ struct ctx_info *get_context(struct cxlflash_cfg *cfg, u64 rctxid,
 	struct llun_info *lli = arg;
 	u64 ctxid = DECODE_CTXID(rctxid);
 	int rc;
-	pid_t pid = current->tgid, ctxpid = 0;
+	pid_t pid = task_tgid_nr(current), ctxpid = 0;
 
 	if (ctx_ctrl & CTX_CTRL_FILE) {
 		lli = NULL;
@@ -173,7 +173,7 @@ struct ctx_info *get_context(struct cxlflash_cfg *cfg, u64 rctxid,
 	}
 
 	if (ctx_ctrl & CTX_CTRL_CLONE)
-		pid = current->parent->tgid;
+		pid = task_ppid_nr(current);
 
 	if (likely(ctxid < MAX_CONTEXT)) {
 		while (true) {
@@ -824,7 +824,7 @@ static void init_context(struct ctx_info *ctxi, struct cxlflash_cfg *cfg,
 	ctxi->rht_perms = perms;
 	ctxi->ctrl_map = &afu->afu_map->ctrls[ctxid].ctrl;
 	ctxi->ctxid = ENCODE_CTXID(ctxi, ctxid);
-	ctxi->pid = current->tgid; /* tgid = pid */
+	ctxi->pid = task_tgid_nr(current); /* tgid = pid */
 	ctxi->ctx = ctx;
 	ctxi->cfg = cfg;
 	ctxi->file = file;

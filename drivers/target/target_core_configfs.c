@@ -307,7 +307,7 @@ static struct configfs_attribute *target_core_fabric_item_attrs[] = {
 /*
  * Provides Fabrics Groups and Item Attributes for /sys/kernel/config/target/
  */
-static struct config_item_type target_core_fabrics_item = {
+static const struct config_item_type target_core_fabrics_item = {
 	.ct_group_ops	= &target_core_fabric_group_ops,
 	.ct_attrs	= target_core_fabric_item_attrs,
 	.ct_owner	= THIS_MODULE,
@@ -2376,7 +2376,7 @@ static struct configfs_item_operations target_core_alua_lu_gp_ops = {
 	.release		= target_core_alua_lu_gp_release,
 };
 
-static struct config_item_type target_core_alua_lu_gp_cit = {
+static const struct config_item_type target_core_alua_lu_gp_cit = {
 	.ct_item_ops		= &target_core_alua_lu_gp_ops,
 	.ct_attrs		= target_core_alua_lu_gp_attrs,
 	.ct_owner		= THIS_MODULE,
@@ -2434,7 +2434,7 @@ static struct configfs_group_operations target_core_alua_lu_gps_group_ops = {
 	.drop_item		= &target_core_alua_drop_lu_gp,
 };
 
-static struct config_item_type target_core_alua_lu_gps_cit = {
+static const struct config_item_type target_core_alua_lu_gps_cit = {
 	.ct_item_ops		= NULL,
 	.ct_group_ops		= &target_core_alua_lu_gps_group_ops,
 	.ct_owner		= THIS_MODULE,
@@ -2813,7 +2813,7 @@ static struct configfs_item_operations target_core_alua_tg_pt_gp_ops = {
 	.release		= target_core_alua_tg_pt_gp_release,
 };
 
-static struct config_item_type target_core_alua_tg_pt_gp_cit = {
+static const struct config_item_type target_core_alua_tg_pt_gp_cit = {
 	.ct_item_ops		= &target_core_alua_tg_pt_gp_ops,
 	.ct_attrs		= target_core_alua_tg_pt_gp_attrs,
 	.ct_owner		= THIS_MODULE,
@@ -2884,7 +2884,7 @@ TB_CIT_SETUP(dev_alua_tg_pt_gps, NULL, &target_core_alua_tg_pt_gps_group_ops, NU
  * core/alua/lu_gps and core/alua/tg_pt_gps that are attached to
  * target_core_alua_cit in target_core_init_configfs() below.
  */
-static struct config_item_type target_core_alua_cit = {
+static const struct config_item_type target_core_alua_cit = {
 	.ct_item_ops		= NULL,
 	.ct_attrs		= NULL,
 	.ct_owner		= THIS_MODULE,
@@ -3105,7 +3105,7 @@ static struct configfs_item_operations target_core_hba_item_ops = {
 	.release		= target_core_hba_release,
 };
 
-static struct config_item_type target_core_hba_cit = {
+static const struct config_item_type target_core_hba_cit = {
 	.ct_item_ops		= &target_core_hba_item_ops,
 	.ct_group_ops		= &target_core_hba_group_ops,
 	.ct_attrs		= target_core_hba_attrs,
@@ -3188,7 +3188,7 @@ static struct configfs_group_operations target_core_group_ops = {
 	.drop_item	= target_core_call_delhbafromtarget,
 };
 
-static struct config_item_type target_core_cit = {
+static const struct config_item_type target_core_cit = {
 	.ct_item_ops	= NULL,
 	.ct_group_ops	= &target_core_group_ops,
 	.ct_attrs	= NULL,

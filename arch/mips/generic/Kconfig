@@ -43,4 +43,10 @@ config FIT_IMAGE_FDT_NI169445
 	  Enable this to include the FDT for the 169445 platform from
 	  National Instruments in the FIT kernel image.
 
+config FIT_IMAGE_FDT_XILFPGA
+	bool "Include FDT for Xilfpga"
+	help
+	  Enable this to include the FDT for the MIPSfpga platform
+	  from Imagination Technologies in the FIT kernel image.
+
 endif

@@ -1068,8 +1068,6 @@ static int wm8997_codec_probe(struct snd_soc_codec *codec)
 	if (ret < 0)
 		return ret;
 
-	arizona_init_notifiers(codec);
-
 	snd_soc_component_disable_pin(component, "HAPTICS");
 
 	priv->core.arizona->dapm = dapm;
@@ -1136,6 +1134,14 @@ static int wm8997_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, wm8997);
 
+	if (IS_ENABLED(CONFIG_OF)) {
+		if (!dev_get_platdata(arizona->dev)) {
+			ret = arizona_of_get_audio_pdata(arizona);
+			if (ret < 0)
+				return ret;
+		}
+	}
+
 	wm8997->core.arizona = arizona;
 	wm8997->core.num_inputs = 4;
 
@@ -1168,6 +1174,11 @@ static int wm8997_probe(struct platform_device *pdev)
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_idle(&pdev->dev);
 
+	arizona_init_common(arizona);
+
+	ret = arizona_init_vol_limit(arizona);
+	if (ret < 0)
+		return ret;
 	ret = arizona_init_spk_irqs(arizona);
 	if (ret < 0)
 		return ret;

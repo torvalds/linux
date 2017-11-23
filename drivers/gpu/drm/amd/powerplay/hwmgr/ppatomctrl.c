@@ -470,7 +470,7 @@ uint32_t atomctrl_get_reference_clock(struct pp_hwmgr *hwmgr)
  * SET_VOLTAGE_TYPE_ASIC_MVDDC, SET_VOLTAGE_TYPE_ASIC_MVDDQ.
  * voltage_mode is one of ATOM_SET_VOLTAGE, ATOM_SET_VOLTAGE_PHASE
  */
-bool atomctrl_is_voltage_controled_by_gpio_v3(
+bool atomctrl_is_voltage_controlled_by_gpio_v3(
 		struct pp_hwmgr *hwmgr,
 		uint8_t voltage_type,
 		uint8_t voltage_mode)
@@ -1100,10 +1100,10 @@ int atomctrl_get_voltage_evv(struct pp_hwmgr *hwmgr,
 		}
 	}
 
-	PP_ASSERT_WITH_CODE(entry_id < hwmgr->dyn_state.vddc_dependency_on_sclk->count,
-	        "Can't find requested voltage id in vddc_dependency_on_sclk table!",
+	if (entry_id >= hwmgr->dyn_state.vddc_dependency_on_sclk->count) {
+	        pr_debug("Can't find requested voltage id in vddc_dependency_on_sclk table!\n");
 	        return -EINVAL;
-	);
+	}
 
 	get_voltage_info_param_space.ucVoltageType = VOLTAGE_TYPE_VDDC;
 	get_voltage_info_param_space.ucVoltageMode = ATOM_GET_VOLTAGE_EVV_VOLTAGE;
@@ -1415,6 +1415,86 @@ int  atomctrl_get_svi2_info(struct pp_hwmgr *hwmgr, uint8_t voltage_type,
 	*svd_gpio_id = voltage_object->asSVID2Obj.ucSVDGpioId;
 	*svc_gpio_id = voltage_object->asSVID2Obj.ucSVCGpioId;
 	*load_line = voltage_object->asSVID2Obj.usLoadLine_PSI;
+
+	return 0;
+}
+
+int atomctrl_get_leakage_id_from_efuse(struct pp_hwmgr *hwmgr, uint16_t *virtual_voltage_id)
+{
+	int result;
+	SET_VOLTAGE_PS_ALLOCATION allocation;
+	SET_VOLTAGE_PARAMETERS_V1_3 *voltage_parameters =
+			(SET_VOLTAGE_PARAMETERS_V1_3 *)&allocation.sASICSetVoltage;
+
+	voltage_parameters->ucVoltageMode = ATOM_GET_LEAKAGE_ID;
+
+	result = cgs_atom_exec_cmd_table(hwmgr->device,
+			GetIndexIntoMasterTable(COMMAND, SetVoltage),
+			voltage_parameters);
+
+	*virtual_voltage_id = voltage_parameters->usVoltageLevel;
+
+	return result;
+}
+
+int atomctrl_get_leakage_vddc_base_on_leakage(struct pp_hwmgr *hwmgr,
+					uint16_t *vddc, uint16_t *vddci,
+					uint16_t virtual_voltage_id,
+					uint16_t efuse_voltage_id)
+{
+	int i, j;
+	int ix;
+	u16 *leakage_bin, *vddc_id_buf, *vddc_buf, *vddci_id_buf, *vddci_buf;
+	ATOM_ASIC_PROFILING_INFO_V2_1 *profile;
+
+	*vddc = 0;
+	*vddci = 0;
+
+	ix = GetIndexIntoMasterTable(DATA, ASIC_ProfilingInfo);
+
+	profile = (ATOM_ASIC_PROFILING_INFO_V2_1 *)
+			cgs_atom_get_data_table(hwmgr->device,
+					ix,
+					NULL, NULL, NULL);
+	if (!profile)
+		return -EINVAL;
+
+	if ((profile->asHeader.ucTableFormatRevision >= 2) &&
+		(profile->asHeader.ucTableContentRevision >= 1) &&
+		(profile->asHeader.usStructureSize >= sizeof(ATOM_ASIC_PROFILING_INFO_V2_1))) {
+		leakage_bin = (u16 *)((char *)profile + profile->usLeakageBinArrayOffset);
+		vddc_id_buf = (u16 *)((char *)profile + profile->usElbVDDC_IdArrayOffset);
+		vddc_buf = (u16 *)((char *)profile + profile->usElbVDDC_LevelArrayOffset);
+		if (profile->ucElbVDDC_Num > 0) {
+			for (i = 0; i < profile->ucElbVDDC_Num; i++) {
+				if (vddc_id_buf[i] == virtual_voltage_id) {
+					for (j = 0; j < profile->ucLeakageBinNum; j++) {
+						if (efuse_voltage_id <= leakage_bin[j]) {
+							*vddc = vddc_buf[j * profile->ucElbVDDC_Num + i];
+							break;
+						}
+					}
+					break;
+				}
+			}
+		}
+
+		vddci_id_buf = (u16 *)((char *)profile + profile->usElbVDDCI_IdArrayOffset);
+		vddci_buf   = (u16 *)((char *)profile + profile->usElbVDDCI_LevelArrayOffset);
+		if (profile->ucElbVDDCI_Num > 0) {
+			for (i = 0; i < profile->ucElbVDDCI_Num; i++) {
+				if (vddci_id_buf[i] == virtual_voltage_id) {
+					for (j = 0; j < profile->ucLeakageBinNum; j++) {
+						if (efuse_voltage_id <= leakage_bin[j]) {
+							*vddci = vddci_buf[j * profile->ucElbVDDC_Num + i];
+							break;
+						}
+					}
+					break;
+				}
+			}
+		}
+	}
 
 	return 0;
 }

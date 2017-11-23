@@ -333,6 +333,8 @@ struct iwl_pwr_tx_backoff {
  * @gen2: a000 and on transport operation
  * @cdb: CDB support
  * @nvm_type: see &enum iwl_nvm_type
+ * @tx_cmd_queue_size: size of the cmd queue. If zero, use the same value as
+ *	the regular queues
  *
  * We enable the driver to be backward compatible wrt. hardware features.
  * API differences in uCode shouldn't be handled here but through TLVs
@@ -383,6 +385,7 @@ struct iwl_cfg {
 	    gen2:1,
 	    cdb:1,
 	    dbgc_supported:1;
+	u16 tx_cmd_queue_size;
 	u8 valid_tx_ant;
 	u8 valid_rx_ant;
 	u8 non_shared_ant;
@@ -393,6 +396,7 @@ struct iwl_cfg {
 	u8 max_vht_ampdu_exponent;
 	u8 ucode_api_max;
 	u8 ucode_api_min;
+	u32 min_umac_error_event_table;
 };
 
 /*
@@ -463,9 +467,6 @@ extern const struct iwl_cfg iwl8260_2ac_cfg;
 extern const struct iwl_cfg iwl8265_2ac_cfg;
 extern const struct iwl_cfg iwl8275_2ac_cfg;
 extern const struct iwl_cfg iwl4165_2ac_cfg;
-extern const struct iwl_cfg iwl8260_2ac_sdio_cfg;
-extern const struct iwl_cfg iwl8265_2ac_sdio_cfg;
-extern const struct iwl_cfg iwl4165_2ac_sdio_cfg;
 extern const struct iwl_cfg iwl9160_2ac_cfg;
 extern const struct iwl_cfg iwl9260_2ac_cfg;
 extern const struct iwl_cfg iwl9270_2ac_cfg;

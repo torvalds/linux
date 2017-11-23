@@ -241,7 +241,7 @@ void ap_flush_queue(struct ap_queue *aq);
 
 void *ap_airq_ptr(void);
 void ap_wait(enum ap_wait wait);
-void ap_request_timeout(unsigned long data);
+void ap_request_timeout(struct timer_list *t);
 void ap_bus_force_rescan(void);
 
 void ap_queue_init_reply(struct ap_queue *aq, struct ap_message *ap_msg);

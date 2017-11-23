@@ -961,6 +961,39 @@ dev_pm_ops to indicate that one suspend routine is to be pointed to by the
 .suspend(), .freeze(), and .poweroff() members and one resume routine is to
 be pointed to by the .resume(), .thaw(), and .restore() members.
 
+3.1.19. Driver Flags for Power Management
+
+The PM core allows device drivers to set flags that influence the handling of
+power management for the devices by the core itself and by middle layer code
+including the PCI bus type.  The flags should be set once at the driver probe
+time with the help of the dev_pm_set_driver_flags() function and they should not
+be updated directly afterwards.
+
+The DPM_FLAG_NEVER_SKIP flag prevents the PM core from using the direct-complete
+mechanism allowing device suspend/resume callbacks to be skipped if the device
+is in runtime suspend when the system suspend starts.  That also affects all of
+the ancestors of the device, so this flag should only be used if absolutely
+necessary.
+
+The DPM_FLAG_SMART_PREPARE flag instructs the PCI bus type to only return a
+positive value from pci_pm_prepare() if the ->prepare callback provided by the
+driver of the device returns a positive value.  That allows the driver to opt
+out from using the direct-complete mechanism dynamically.
+
+The DPM_FLAG_SMART_SUSPEND flag tells the PCI bus type that from the driver's
+perspective the device can be safely left in runtime suspend during system
+suspend.  That causes pci_pm_suspend(), pci_pm_freeze() and pci_pm_poweroff()
+to skip resuming the device from runtime suspend unless there are PCI-specific
+reasons for doing that.  Also, it causes pci_pm_suspend_late/noirq(),
+pci_pm_freeze_late/noirq() and pci_pm_poweroff_late/noirq() to return early
+if the device remains in runtime suspend in the beginning of the "late" phase
+of the system-wide transition under way.  Moreover, if the device is in
+runtime suspend in pci_pm_resume_noirq() or pci_pm_restore_noirq(), its runtime
+power management status will be changed to "active" (as it is going to be put
+into D0 going forward), but if it is in runtime suspend in pci_pm_thaw_noirq(),
+the function will set the power.direct_complete flag for it (to make the PM core
+skip the subsequent "thaw" callbacks for it) and return.
+
 3.2. Device Runtime Power Management
 ------------------------------------
 In addition to providing device power management callbacks PCI device drivers

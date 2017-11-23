@@ -60,7 +60,7 @@
 		};
 	};
 
-	sram: sram@00300000 {
+	sram: sram@300000 {
 		compatible = "mmio-sram";
 		reg = <0x00300000 0x28000>;
 	};
@@ -71,7 +71,7 @@
 		#size-cells = <1>;
 		ranges;
 
-		usb0: ohci@00500000 {
+		usb0: ohci@500000 {
 			compatible = "atmel,at91rm9200-ohci", "usb-ohci";
 			reg = <0x00500000 0x100000>;
 			interrupts = <20 IRQ_TYPE_LEVEL_HIGH 2>;

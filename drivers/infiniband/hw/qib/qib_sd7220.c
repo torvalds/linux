@@ -755,7 +755,6 @@ static int qib_sd7220_ram_xfer(struct qib_devdata *dd, int sdnum, u32 loc,
 	int addr;
 	int ret;
 	unsigned long flags;
-	const char *op;
 
 	/* Pick appropriate transaction reg and "Chip select" for this serdes */
 	switch (sdnum) {
@@ -775,7 +774,6 @@ static int qib_sd7220_ram_xfer(struct qib_devdata *dd, int sdnum, u32 loc,
 		return -1;
 	}
 
-	op = rd_notwr ? "Rd" : "Wr";
 	spin_lock_irqsave(&dd->cspec->sdepb_lock, flags);
 
 	owned = epb_access(dd, sdnum, 1);
@@ -1390,11 +1388,11 @@ module_param_named(relock_by_timer, qib_relock_by_timer, uint,
 		   S_IWUSR | S_IRUGO);
 MODULE_PARM_DESC(relock_by_timer, "Allow relock attempt if link not up");
 
-static void qib_run_relock(unsigned long opaque)
+static void qib_run_relock(struct timer_list *t)
 {
-	struct qib_devdata *dd = (struct qib_devdata *)opaque;
+	struct qib_chip_specific *cs = from_timer(cs, t, relock_timer);
+	struct qib_devdata *dd = cs->dd;
 	struct qib_pportdata *ppd = dd->pport;
-	struct qib_chip_specific *cs = dd->cspec;
 	int timeoff;
 
 	/*
@@ -1440,9 +1438,7 @@ void set_7220_relock_poll(struct qib_devdata *dd, int ibup)
 		/* If timer has not yet been started, do so. */
 		if (!cs->relock_timer_active) {
 			cs->relock_timer_active = 1;
-			init_timer(&cs->relock_timer);
-			cs->relock_timer.function = qib_run_relock;
-			cs->relock_timer.data = (unsigned long) dd;
+			timer_setup(&cs->relock_timer, qib_run_relock, 0);
 			cs->relock_interval = timeout;
 			cs->relock_timer.expires = jiffies + timeout;
 			add_timer(&cs->relock_timer);

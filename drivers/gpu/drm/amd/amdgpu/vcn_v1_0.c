@@ -812,7 +812,7 @@ static void vcn_v1_0_dec_ring_emit_fence(struct amdgpu_ring *ring, u64 addr, u64
  */
 static void vcn_v1_0_dec_ring_emit_hdp_invalidate(struct amdgpu_ring *ring)
 {
-	amdgpu_ring_write(ring, PACKET0(SOC15_REG_OFFSET(HDP, 0, mmHDP_DEBUG0), 0));
+	amdgpu_ring_write(ring, PACKET0(SOC15_REG_OFFSET(HDP, 0, mmHDP_READ_CACHE_INVALIDATE), 0));
 	amdgpu_ring_write(ring, 1);
 }
 

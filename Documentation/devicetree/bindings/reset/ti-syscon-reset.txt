@@ -67,7 +67,7 @@ using the syscon node, and a consumer (a DSP device) on the TI Keystone 2
 
 / {
 	soc {
-		psc: power-sleep-controller@02350000 {
+		psc: power-sleep-controller@2350000 {
 			compatible = "syscon", "simple-mfd";
 			reg = <0x02350000 0x1000>;
 

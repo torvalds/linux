@@ -409,7 +409,7 @@ static int ipvlan_process_v6_outbound(struct sk_buff *skb)
 	struct dst_entry *dst;
 	int err, ret = NET_XMIT_DROP;
 	struct flowi6 fl6 = {
-		.flowi6_iif = dev->ifindex,
+		.flowi6_oif = dev->ifindex,
 		.daddr = ip6h->daddr,
 		.saddr = ip6h->saddr,
 		.flowi6_flags = FLOWI_FLAG_ANYSRC,
@@ -514,10 +514,16 @@ static int ipvlan_xmit_mode_l3(struct sk_buff *skb, struct net_device *dev)
 	if (!lyr3h)
 		goto out;
 
-	addr = ipvlan_addr_lookup(ipvlan->port, lyr3h, addr_type, true);
-	if (addr)
-		return ipvlan_rcv_frame(addr, &skb, true);
-
+	if (!ipvlan_is_vepa(ipvlan->port)) {
+		addr = ipvlan_addr_lookup(ipvlan->port, lyr3h, addr_type, true);
+		if (addr) {
+			if (ipvlan_is_private(ipvlan->port)) {
+				consume_skb(skb);
+				return NET_XMIT_DROP;
+			}
+			return ipvlan_rcv_frame(addr, &skb, true);
+		}
+	}
 out:
 	ipvlan_skb_crossing_ns(skb, ipvlan->phy_dev);
 	return ipvlan_process_outbound(skb);
@@ -531,12 +537,18 @@ static int ipvlan_xmit_mode_l2(struct sk_buff *skb, struct net_device *dev)
 	void *lyr3h;
 	int addr_type;
 
-	if (ether_addr_equal(eth->h_dest, eth->h_source)) {
+	if (!ipvlan_is_vepa(ipvlan->port) &&
+	    ether_addr_equal(eth->h_dest, eth->h_source)) {
 		lyr3h = ipvlan_get_L3_hdr(skb, &addr_type);
 		if (lyr3h) {
 			addr = ipvlan_addr_lookup(ipvlan->port, lyr3h, addr_type, true);
-			if (addr)
+			if (addr) {
+				if (ipvlan_is_private(ipvlan->port)) {
+					consume_skb(skb);
+					return NET_XMIT_DROP;
+				}
 				return ipvlan_rcv_frame(addr, &skb, true);
+			}
 		}
 		skb = skb_share_check(skb, GFP_ATOMIC);
 		if (!skb)

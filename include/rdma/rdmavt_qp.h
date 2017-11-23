@@ -282,7 +282,6 @@ struct rvt_qp {
 	u32 remote_qpn;
 	u32 qkey;               /* QKEY for this QP (for UD or RD) */
 	u32 s_size;             /* send work queue size */
-	u32 s_ahgpsn;           /* set to the psn in the copy of the header */
 
 	u16 pmtu;		/* decoded from path_mtu */
 	u8 log_pmtu;		/* shift for pmtu */
@@ -344,7 +343,6 @@ struct rvt_qp {
 	struct rvt_swqe *s_wqe;
 	struct rvt_sge_state s_sge;     /* current send request data */
 	struct rvt_mregion *s_rdma_mr;
-	u32 s_cur_size;         /* size of send packet in bytes */
 	u32 s_len;              /* total length of s_sge */
 	u32 s_rdma_read_len;    /* total length of s_rdma_read_sge */
 	u32 s_last_psn;         /* last response PSN processed */
@@ -358,8 +356,10 @@ struct rvt_qp {
 	u32 s_acked;            /* last un-ACK'ed entry */
 	u32 s_last;             /* last completed entry */
 	u32 s_lsn;              /* limit sequence number (credit) */
-	u16 s_hdrwords;         /* size of s_hdr in 32 bit words */
+	u32 s_ahgpsn;           /* set to the psn in the copy of the header */
+	u16 s_cur_size;         /* size of send packet in bytes */
 	u16 s_rdma_ack_cnt;
+	u8 s_hdrwords;         /* size of s_hdr in 32 bit words */
 	s8 s_ahgidx;
 	u8 s_state;             /* opcode of last packet sent */
 	u8 s_ack_state;         /* opcode of packet to ACK */

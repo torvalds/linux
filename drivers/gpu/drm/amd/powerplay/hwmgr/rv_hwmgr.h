@@ -283,6 +283,8 @@ struct rv_hwmgr {
 	uint32_t                        vclk_soft_min;
 	uint32_t                        dclk_soft_min;
 	uint32_t                        gfx_actual_soft_min_freq;
+	uint32_t                        gfx_min_freq_limit;
+	uint32_t                        gfx_max_freq_limit;
 
 	bool                           vcn_power_gated;
 	bool                           vcn_dpg_mode;
@@ -293,7 +295,9 @@ struct rv_hwmgr {
 	DpmClocks_t                       clock_table;
 
 	uint32_t active_process_mask;
-	bool need_min_deep_sleep_dcefclk; /* disabled by default */
+	bool need_min_deep_sleep_dcefclk;
+	uint32_t                             deep_sleep_dcefclk;
+	uint32_t                             num_active_display;
 };
 
 struct pp_hwmgr;

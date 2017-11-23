@@ -857,7 +857,7 @@
 			The filter can be disabled or changed to another
 			driver later using sysfs.
 
-	drm_kms_helper.edid_firmware=[<connector>:]<file>[,[<connector>:]<file>]
+	drm.edid_firmware=[<connector>:]<file>[,[<connector>:]<file>]
 			Broken monitors, graphic adapters, KVMs and EDIDless
 			panels may send no or incorrect EDID data sets.
 			This parameter allows to specify an EDID data sets
@@ -1863,13 +1863,6 @@
 			Default: on
 			Built with CONFIG_DEBUG_KMEMLEAK_DEFAULT_OFF=y,
 			the default is off.
-
-	kmemcheck=	[X86] Boot-time kmemcheck enable/disable/one-shot mode
-			Valid arguments: 0, 1, 2
-			kmemcheck=0 (disabled)
-			kmemcheck=1 (enabled)
-			kmemcheck=2 (one-shot mode)
-			Default: 2 (one-shot mode)
 
 	kvm.ignore_msrs=[KVM] Ignore guest accesses to unhandled MSRs.
 			Default is 0 (don't ignore, but inject #GP)
@@ -3210,6 +3203,10 @@
 			Altivec, VSX and SPE outside of regions specifically
 			allowed (eg kernel_enable_fpu()/kernel_disable_fpu()).
 			There is some performance impact when enabling this.
+
+	ppc_tm=		[PPC]
+			Format: {"off"}
+			Disable Hardware Transactional Memory
 
 	print-fatal-signals=
 			[KNL] debug: print fatal signals

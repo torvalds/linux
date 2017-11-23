@@ -182,7 +182,21 @@ config CHARGER_SBS
         tristate "SBS Compliant charger"
         depends on I2C
         help
-	  Say Y to include support for SBS compilant battery chargers.
+	  Say Y to include support for SBS compliant battery chargers.
+
+config MANAGER_SBS
+	tristate "Smart Battery System Manager"
+	depends on I2C && I2C_MUX && GPIOLIB
+	select I2C_SMBUS
+	help
+	  Say Y here to include support for Smart Battery System Manager
+	  ICs. The driver reports online and charging status via sysfs.
+	  It presents itself also as I2C mux which allows to bind
+	  smart battery driver to its ports.
+	  Supported is for example LTC1760.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called sbs-manager.
 
 config BATTERY_BQ27XXX
 	tristate "BQ27xxx battery driver"

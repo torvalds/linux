@@ -17,7 +17,7 @@
 #include "driver.h"
 #include "pcm.h"
 
-extern struct snd_pcm_ops snd_line6_capture_ops;
+extern const struct snd_pcm_ops snd_line6_capture_ops;
 
 extern void line6_capture_copy(struct snd_line6_pcm *line6pcm, char *fbuf,
 			       int fsize);

@@ -531,6 +531,7 @@ static struct stm32_adc_trig_info stm32h7_adc_trigs[] = {
 	{ TIM2_TRGO, STM32_EXT11 },
 	{ TIM4_TRGO, STM32_EXT12 },
 	{ TIM6_TRGO, STM32_EXT13 },
+	{ TIM15_TRGO, STM32_EXT14 },
 	{ TIM3_CH4, STM32_EXT15 },
 	{ LPTIM1_OUT, STM32_EXT18 },
 	{ LPTIM2_OUT, STM32_EXT19 },
@@ -1385,7 +1386,6 @@ static const struct iio_info stm32_adc_iio_info = {
 	.update_scan_mode = stm32_adc_update_scan_mode,
 	.debugfs_reg_access = stm32_adc_debugfs_reg_access,
 	.of_xlate = stm32_adc_of_xlate,
-	.driver_module = THIS_MODULE,
 };
 
 static unsigned int stm32_adc_dma_residue(struct stm32_adc *adc)

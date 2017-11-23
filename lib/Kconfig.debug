@@ -280,7 +280,6 @@ config PAGE_OWNER
 
 config DEBUG_FS
 	bool "Debug Filesystem"
-	select SRCU
 	help
 	  debugfs is a virtual file system that kernel developers use to put
 	  debugging files into.  Enable this option to be able to read and
@@ -504,7 +503,7 @@ config DEBUG_OBJECTS_ENABLE_DEFAULT
 
 config DEBUG_SLAB
 	bool "Debug slab memory allocations"
-	depends on DEBUG_KERNEL && SLAB && !KMEMCHECK
+	depends on DEBUG_KERNEL && SLAB
 	help
 	  Say Y here to have the kernel do limited verification on memory
 	  allocation as well as poisoning memory on free to catch use of freed
@@ -516,7 +515,7 @@ config DEBUG_SLAB_LEAK
 
 config SLUB_DEBUG_ON
 	bool "SLUB debugging on by default"
-	depends on SLUB && SLUB_DEBUG && !KMEMCHECK
+	depends on SLUB && SLUB_DEBUG
 	default n
 	help
 	  Boot with debugging on by default. SLUB boots by default with
@@ -730,8 +729,6 @@ config DEBUG_STACKOVERFLOW
 
 	  If in doubt, say "N".
 
-source "lib/Kconfig.kmemcheck"
-
 source "lib/Kconfig.kasan"
 
 endmenu # "Memory Debugging"
@@ -758,6 +755,16 @@ config KCOV
 	  disable RANDOMIZE_BASE.
 
 	  For more details, see Documentation/dev-tools/kcov.rst.
+
+config KCOV_ENABLE_COMPARISONS
+	bool "Enable comparison operands collection by KCOV"
+	depends on KCOV
+	default n
+	help
+	  KCOV also exposes operands of every comparison in the instrumented
+	  code along with operand sizes and PCs of the comparison instructions.
+	  These operands can be used by fuzzing engines to improve the quality
+	  of fuzzing coverage.
 
 config KCOV_INSTRUMENT_ALL
 	bool "Instrument all code by default"
@@ -1850,6 +1857,15 @@ config TEST_BPF
 	  development, but also to run regression tests against changes in
 	  the interpreter code. It also enables test stubs for eBPF maps and
 	  verifier used by user space verifier testsuite.
+
+	  If unsure, say N.
+
+config TEST_FIND_BIT
+	tristate "Test find_bit functions"
+	default n
+	help
+	  This builds the "test_find_bit" module that measure find_*_bit()
+	  functions performance.
 
 	  If unsure, say N.
 

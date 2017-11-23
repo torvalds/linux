@@ -23,6 +23,18 @@
 			reg = <0xfffee000 0x2000>;
 		};
 	};
+	dsp: dsp@11800000 {
+		compatible = "ti,da850-dsp";
+		reg = <0x11800000 0x40000>,
+		      <0x11e00000 0x8000>,
+		      <0x11f00000 0x8000>,
+		      <0x01c14044 0x4>,
+		      <0x01c14174 0x8>;
+		reg-names = "l2sram", "l1pram", "l1dram", "host1cfg", "chipsig";
+		interrupt-parent = <&intc>;
+		interrupts = <28>;
+		status = "disabled";
+	};
 	soc@1c00000 {
 		compatible = "simple-bus";
 		model = "da850";

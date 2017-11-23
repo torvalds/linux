@@ -184,9 +184,10 @@ static int dbgdev_register_diq(struct kfd_dbgdev *dbgdev)
 	struct kernel_queue *kq = NULL;
 	int status;
 
+	properties.type = KFD_QUEUE_TYPE_DIQ;
+
 	status = pqm_create_queue(dbgdev->pqm, dbgdev->dev, NULL,
-				&properties, 0, KFD_QUEUE_TYPE_DIQ,
-				&qid);
+				&properties, &qid);
 
 	if (status) {
 		pr_err("Failed to create DIQ\n");
@@ -769,13 +770,8 @@ int dbgdev_wave_reset_wavefronts(struct kfd_dev *dev, struct kfd_process *p)
 	union GRBM_GFX_INDEX_BITS reg_gfx_index;
 	struct kfd_process_device *pdd;
 	struct dbg_wave_control_info wac_info;
-	int temp;
-	int first_vmid_to_scan = 8;
-	int last_vmid_to_scan = 15;
-
-	first_vmid_to_scan = ffs(dev->shared_resources.compute_vmid_bitmap) - 1;
-	temp = dev->shared_resources.compute_vmid_bitmap >> first_vmid_to_scan;
-	last_vmid_to_scan = first_vmid_to_scan + ffz(temp);
+	int first_vmid_to_scan = dev->vm_info.first_vmid_kfd;
+	int last_vmid_to_scan = dev->vm_info.last_vmid_kfd;
 
 	reg_sq_cmd.u32All = 0;
 	status = 0;

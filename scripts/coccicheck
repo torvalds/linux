@@ -123,15 +123,8 @@ run_cmd_parmap() {
 	if [ $VERBOSE -ne 0 ] ; then
 		echo "Running ($NPROC in parallel): $@"
 	fi
-	if [ "$DEBUG_FILE" != "/dev/null" -a "$DEBUG_FILE" != "" ]; then
-		if [ -f $DEBUG_FILE ]; then
-			echo "Debug file $DEBUG_FILE exists, bailing"
-			exit
-		fi
-	else
-		DEBUG_FILE="/dev/null"
-	fi
-	$@ 2>$DEBUG_FILE
+	echo $@ >>$DEBUG_FILE
+	$@ 2>>$DEBUG_FILE
 	if [[ $? -ne 0 ]]; then
 		echo "coccicheck failed"
 		exit $?
@@ -176,8 +169,8 @@ OPTIONS="$OPTIONS $SPFLAGS"
 coccinelle () {
     COCCI="$1"
 
-    OPT=`grep "Option" $COCCI | cut -d':' -f2`
-    REQ=`grep "Requires" $COCCI | cut -d':' -f2 | sed "s| ||"`
+    OPT=`grep "Options:" $COCCI | cut -d':' -f2`
+    REQ=`grep "Requires:" $COCCI | cut -d':' -f2 | sed "s| ||"`
     REQ_NUM=$(echo $REQ | ${DIR}/scripts/ld-version.sh)
     if [ "$REQ_NUM" != "0" ] ; then
 	    if [ "$SPATCH_VERSION_NUM" -lt "$REQ_NUM" ] ; then
@@ -194,7 +187,7 @@ coccinelle () {
 
     if [ $VERBOSE -ne 0 -a $ONLINE -eq 0 ] ; then
 
-	FILE=`echo $COCCI | sed "s|$srctree/||"`
+	FILE=${COCCI#$srctree/}
 
 	echo "Processing `basename $COCCI`"
 	echo "with option(s) \"$OPT\""
@@ -246,6 +239,15 @@ coccinelle () {
     fi
 
 }
+
+if [ "$DEBUG_FILE" != "/dev/null" -a "$DEBUG_FILE" != "" ]; then
+	if [ -f $DEBUG_FILE ]; then
+		echo "Debug file $DEBUG_FILE exists, bailing"
+		exit
+	fi
+else
+	DEBUG_FILE="/dev/null"
+fi
 
 if [ "$COCCI" = "" ] ; then
     for f in `find $srctree/scripts/coccinelle/ -name '*.cocci' -type f | sort`; do

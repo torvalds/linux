@@ -31,37 +31,6 @@ static u32 __ipv6_select_ident(struct net *net, u32 hashrnd,
 	return id;
 }
 
-/* This function exists only for tap drivers that must support broken
- * clients requesting UFO without specifying an IPv6 fragment ID.
- *
- * This is similar to ipv6_select_ident() but we use an independent hash
- * seed to limit information leakage.
- *
- * The network header must be set before calling this.
- */
-void ipv6_proxy_select_ident(struct net *net, struct sk_buff *skb)
-{
-	static u32 ip6_proxy_idents_hashrnd __read_mostly;
-	struct in6_addr buf[2];
-	struct in6_addr *addrs;
-	u32 id;
-
-	addrs = skb_header_pointer(skb,
-				   skb_network_offset(skb) +
-				   offsetof(struct ipv6hdr, saddr),
-				   sizeof(buf), buf);
-	if (!addrs)
-		return;
-
-	net_get_random_once(&ip6_proxy_idents_hashrnd,
-			    sizeof(ip6_proxy_idents_hashrnd));
-
-	id = __ipv6_select_ident(net, ip6_proxy_idents_hashrnd,
-				 &addrs[1], &addrs[0]);
-	skb_shinfo(skb)->ip6_frag_id = htonl(id);
-}
-EXPORT_SYMBOL_GPL(ipv6_proxy_select_ident);
-
 __be32 ipv6_select_ident(struct net *net,
 			 const struct in6_addr *daddr,
 			 const struct in6_addr *saddr)

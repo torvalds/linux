@@ -41,6 +41,9 @@
 #include <net/strparser.h>
 #include <net/tcp.h>
 
+#define SOCK_CREATE_FLAG_MASK \
+	(BPF_F_NUMA_NODE | BPF_F_RDONLY | BPF_F_WRONLY)
+
 struct bpf_stab {
 	struct bpf_map map;
 	struct sock **sock_map;
@@ -122,7 +125,7 @@ static int smap_verdict_func(struct smap_psock *psock, struct sk_buff *skb)
 	 */
 	TCP_SKB_CB(skb)->bpf.map = NULL;
 	skb->sk = psock->sock;
-	bpf_compute_data_end_sk_skb(skb);
+	bpf_compute_data_pointers(skb);
 	preempt_disable();
 	rc = (*prog->bpf_func)(skb, prog->insnsi);
 	preempt_enable();
@@ -385,7 +388,7 @@ static int smap_parse_func_strparser(struct strparser *strp,
 	 * any socket yet.
 	 */
 	skb->sk = psock->sock;
-	bpf_compute_data_end_sk_skb(skb);
+	bpf_compute_data_pointers(skb);
 	rc = (*prog->bpf_func)(skb, prog->insnsi);
 	skb->sk = NULL;
 	rcu_read_unlock();
@@ -508,7 +511,7 @@ static struct bpf_map *sock_map_alloc(union bpf_attr *attr)
 
 	/* check sanity of attributes */
 	if (attr->max_entries == 0 || attr->key_size != 4 ||
-	    attr->value_size != 4 || attr->map_flags & ~BPF_F_NUMA_NODE)
+	    attr->value_size != 4 || attr->map_flags & ~SOCK_CREATE_FLAG_MASK)
 		return ERR_PTR(-EINVAL);
 
 	if (attr->value_size > KMALLOC_MAX_SIZE)

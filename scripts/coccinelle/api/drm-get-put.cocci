@@ -51,6 +51,9 @@ expression object;
 |
 - drm_property_unreference_blob(object)
 + drm_property_blob_put(object)
+|
+- drm_dev_unref(object)
++ drm_dev_put(object)
 )
 
 @r depends on report@
@@ -82,6 +85,8 @@ drm_gem_object_unreference_unlocked(object)
 drm_property_unreference_blob@p(object)
 |
 drm_property_reference_blob@p(object)
+|
+drm_dev_unref@p(object)
 )
 
 @script:python depends on report@

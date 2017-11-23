@@ -1301,14 +1301,42 @@ static void update_divide_count(struct kvm_lapic *apic)
 				   apic->divide_count);
 }
 
+static void limit_periodic_timer_frequency(struct kvm_lapic *apic)
+{
+	/*
+	 * Do not allow the guest to program periodic timers with small
+	 * interval, since the hrtimers are not throttled by the host
+	 * scheduler.
+	 */
+	if (apic_lvtt_period(apic) && apic->lapic_timer.period) {
+		s64 min_period = min_timer_period_us * 1000LL;
+
+		if (apic->lapic_timer.period < min_period) {
+			pr_info_ratelimited(
+			    "kvm: vcpu %i: requested %lld ns "
+			    "lapic timer period limited to %lld ns\n",
+			    apic->vcpu->vcpu_id,
+			    apic->lapic_timer.period, min_period);
+			apic->lapic_timer.period = min_period;
+		}
+	}
+}
+
 static void apic_update_lvtt(struct kvm_lapic *apic)
 {
 	u32 timer_mode = kvm_lapic_get_reg(apic, APIC_LVTT) &
 			apic->lapic_timer.timer_mode_mask;
 
 	if (apic->lapic_timer.timer_mode != timer_mode) {
+		if (apic_lvtt_tscdeadline(apic) != (timer_mode ==
+				APIC_LVT_TIMER_TSCDEADLINE)) {
+			hrtimer_cancel(&apic->lapic_timer.timer);
+			kvm_lapic_set_reg(apic, APIC_TMICT, 0);
+			apic->lapic_timer.period = 0;
+			apic->lapic_timer.tscdeadline = 0;
+		}
 		apic->lapic_timer.timer_mode = timer_mode;
-		hrtimer_cancel(&apic->lapic_timer.timer);
+		limit_periodic_timer_frequency(apic);
 	}
 }
 
@@ -1430,6 +1458,30 @@ static void start_sw_period(struct kvm_lapic *apic)
 		HRTIMER_MODE_ABS_PINNED);
 }
 
+static void update_target_expiration(struct kvm_lapic *apic, uint32_t old_divisor)
+{
+	ktime_t now, remaining;
+	u64 ns_remaining_old, ns_remaining_new;
+
+	apic->lapic_timer.period = (u64)kvm_lapic_get_reg(apic, APIC_TMICT)
+		* APIC_BUS_CYCLE_NS * apic->divide_count;
+	limit_periodic_timer_frequency(apic);
+
+	now = ktime_get();
+	remaining = ktime_sub(apic->lapic_timer.target_expiration, now);
+	if (ktime_to_ns(remaining) < 0)
+		remaining = 0;
+
+	ns_remaining_old = ktime_to_ns(remaining);
+	ns_remaining_new = mul_u64_u32_div(ns_remaining_old,
+	                                   apic->divide_count, old_divisor);
+
+	apic->lapic_timer.tscdeadline +=
+		nsec_to_cycles(apic->vcpu, ns_remaining_new) -
+		nsec_to_cycles(apic->vcpu, ns_remaining_old);
+	apic->lapic_timer.target_expiration = ktime_add_ns(now, ns_remaining_new);
+}
+
 static bool set_target_expiration(struct kvm_lapic *apic)
 {
 	ktime_t now;
@@ -1439,26 +1491,12 @@ static bool set_target_expiration(struct kvm_lapic *apic)
 	apic->lapic_timer.period = (u64)kvm_lapic_get_reg(apic, APIC_TMICT)
 		* APIC_BUS_CYCLE_NS * apic->divide_count;
 
-	if (!apic->lapic_timer.period)
+	if (!apic->lapic_timer.period) {
+		apic->lapic_timer.tscdeadline = 0;
 		return false;
-
-	/*
-	 * Do not allow the guest to program periodic timers with small
-	 * interval, since the hrtimers are not throttled by the host
-	 * scheduler.
-	 */
-	if (apic_lvtt_period(apic)) {
-		s64 min_period = min_timer_period_us * 1000LL;
-
-		if (apic->lapic_timer.period < min_period) {
-			pr_info_ratelimited(
-			    "kvm: vcpu %i: requested %lld ns "
-			    "lapic timer period limited to %lld ns\n",
-			    apic->vcpu->vcpu_id,
-			    apic->lapic_timer.period, min_period);
-			apic->lapic_timer.period = min_period;
-		}
 	}
+
+	limit_periodic_timer_frequency(apic);
 
 	apic_debug("%s: bus cycle is %" PRId64 "ns, now 0x%016"
 		   PRIx64 ", "
@@ -1513,6 +1551,9 @@ static bool start_hv_timer(struct kvm_lapic *apic)
 		return false;
 
 	if (!apic_lvtt_period(apic) && atomic_read(&ktimer->pending))
+		return false;
+
+	if (!ktimer->tscdeadline)
 		return false;
 
 	r = kvm_x86_ops->set_hv_timer(apic->vcpu, ktimer->tscdeadline);
@@ -1738,13 +1779,21 @@ int kvm_lapic_reg_write(struct kvm_lapic *apic, u32 reg, u32 val)
 		start_apic_timer(apic);
 		break;
 
-	case APIC_TDCR:
+	case APIC_TDCR: {
+		uint32_t old_divisor = apic->divide_count;
+
 		if (val & 4)
 			apic_debug("KVM_WRITE:TDCR %x\n", val);
 		kvm_lapic_set_reg(apic, APIC_TDCR, val);
 		update_divide_count(apic);
+		if (apic->divide_count != old_divisor &&
+				apic->lapic_timer.period) {
+			hrtimer_cancel(&apic->lapic_timer.timer);
+			update_target_expiration(apic, old_divisor);
+			restart_apic_timer(apic);
+		}
 		break;
-
+	}
 	case APIC_ESR:
 		if (apic_x2apic_mode(apic) && val != 0) {
 			apic_debug("KVM_WRITE:ESR not zero %x\n", val);

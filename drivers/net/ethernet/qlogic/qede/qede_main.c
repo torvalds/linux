@@ -556,7 +556,7 @@ static const struct net_device_ops qede_netdev_ops = {
 	.ndo_udp_tunnel_add = qede_udp_tunnel_add,
 	.ndo_udp_tunnel_del = qede_udp_tunnel_del,
 	.ndo_features_check = qede_features_check,
-	.ndo_xdp = qede_xdp,
+	.ndo_bpf = qede_xdp,
 #ifdef CONFIG_RFS_ACCEL
 	.ndo_rx_flow_steer = qede_rx_flow_steer,
 #endif
@@ -594,7 +594,7 @@ static const struct net_device_ops qede_netdev_vf_xdp_ops = {
 	.ndo_udp_tunnel_add = qede_udp_tunnel_add,
 	.ndo_udp_tunnel_del = qede_udp_tunnel_del,
 	.ndo_features_check = qede_features_check,
-	.ndo_xdp = qede_xdp,
+	.ndo_bpf = qede_xdp,
 };
 
 /* -------------------------------------------------------------------------

@@ -69,6 +69,14 @@ const nfs4_stateid zero_stateid = {
 	{ .data = { 0 } },
 	.type = NFS4_SPECIAL_STATEID_TYPE,
 };
+const nfs4_stateid invalid_stateid = {
+	{
+		.seqid = cpu_to_be32(0xffffffffU),
+		.other = { 0 },
+	},
+	.type = NFS4_INVALID_STATEID_TYPE,
+};
+
 static DEFINE_MUTEX(nfs_clid_init_mutex);
 
 int nfs4_init_clientid(struct nfs_client *clp, struct rpc_cred *cred)
@@ -645,6 +653,7 @@ nfs4_alloc_open_state(void)
 	INIT_LIST_HEAD(&state->lock_states);
 	spin_lock_init(&state->state_lock);
 	seqlock_init(&state->seqlock);
+	init_waitqueue_head(&state->waitq);
 	return state;
 }
 
@@ -825,7 +834,7 @@ __nfs4_find_lock_state(struct nfs4_state *state,
 			ret = pos;
 	}
 	if (ret)
-		atomic_inc(&ret->ls_count);
+		refcount_inc(&ret->ls_count);
 	return ret;
 }
 
@@ -843,7 +852,7 @@ static struct nfs4_lock_state *nfs4_alloc_lock_state(struct nfs4_state *state, f
 	if (lsp == NULL)
 		return NULL;
 	nfs4_init_seqid_counter(&lsp->ls_seqid);
-	atomic_set(&lsp->ls_count, 1);
+	refcount_set(&lsp->ls_count, 1);
 	lsp->ls_state = state;
 	lsp->ls_owner = fl_owner;
 	lsp->ls_seqid.owner_id = ida_simple_get(&server->lockowner_id, 0, 0, GFP_NOFS);
@@ -907,7 +916,7 @@ void nfs4_put_lock_state(struct nfs4_lock_state *lsp)
 	if (lsp == NULL)
 		return;
 	state = lsp->ls_state;
-	if (!atomic_dec_and_lock(&lsp->ls_count, &state->state_lock))
+	if (!refcount_dec_and_lock(&lsp->ls_count, &state->state_lock))
 		return;
 	list_del(&lsp->ls_locks);
 	if (list_empty(&state->lock_states))
@@ -927,7 +936,7 @@ static void nfs4_fl_copy_lock(struct file_lock *dst, struct file_lock *src)
 	struct nfs4_lock_state *lsp = src->fl_u.nfs4_fl.owner;
 
 	dst->fl_u.nfs4_fl.owner = lsp;
-	atomic_inc(&lsp->ls_count);
+	refcount_inc(&lsp->ls_count);
 }
 
 static void nfs4_fl_release_lock(struct file_lock *fl)
@@ -985,18 +994,39 @@ out:
 	return ret;
 }
 
-static void nfs4_copy_open_stateid(nfs4_stateid *dst, struct nfs4_state *state)
+bool nfs4_refresh_open_stateid(nfs4_stateid *dst, struct nfs4_state *state)
 {
+	bool ret;
+	int seq;
+
+	do {
+		ret = false;
+		seq = read_seqbegin(&state->seqlock);
+		if (nfs4_state_match_open_stateid_other(state, dst)) {
+			dst->seqid = state->open_stateid.seqid;
+			ret = true;
+		}
+	} while (read_seqretry(&state->seqlock, seq));
+	return ret;
+}
+
+bool nfs4_copy_open_stateid(nfs4_stateid *dst, struct nfs4_state *state)
+{
+	bool ret;
 	const nfs4_stateid *src;
 	int seq;
 
 	do {
+		ret = false;
 		src = &zero_stateid;
 		seq = read_seqbegin(&state->seqlock);
-		if (test_bit(NFS_OPEN_STATE, &state->flags))
+		if (test_bit(NFS_OPEN_STATE, &state->flags)) {
 			src = &state->open_stateid;
+			ret = true;
+		}
 		nfs4_stateid_copy(dst, src);
 	} while (read_seqretry(&state->seqlock, seq));
+	return ret;
 }
 
 /*
@@ -1177,7 +1207,7 @@ void nfs4_schedule_state_manager(struct nfs_client *clp)
 	if (test_and_set_bit(NFS4CLNT_MANAGER_RUNNING, &clp->cl_state) != 0)
 		return;
 	__module_get(THIS_MODULE);
-	atomic_inc(&clp->cl_count);
+	refcount_inc(&clp->cl_count);
 
 	/* The rcu_read_lock() is not strictly necessary, as the state
 	 * manager is the only thread that ever changes the rpc_xprt
@@ -1269,7 +1299,7 @@ int nfs4_wait_clnt_recover(struct nfs_client *clp)
 
 	might_sleep();
 
-	atomic_inc(&clp->cl_count);
+	refcount_inc(&clp->cl_count);
 	res = wait_on_bit_action(&clp->cl_state, NFS4CLNT_MANAGER_RUNNING,
 				 nfs_wait_bit_killable, TASK_KILLABLE);
 	if (res)
@@ -1405,6 +1435,11 @@ void nfs_inode_find_state_and_recover(struct inode *inode,
 		if (state == NULL)
 			continue;
 		if (nfs4_stateid_match_other(&state->stateid, stateid) &&
+		    nfs4_state_mark_reclaim_nograce(clp, state)) {
+			found = true;
+			continue;
+		}
+		if (nfs4_stateid_match_other(&state->open_stateid, stateid) &&
 		    nfs4_state_mark_reclaim_nograce(clp, state)) {
 			found = true;
 			continue;
@@ -2510,7 +2545,7 @@ static void nfs4_state_manager(struct nfs_client *clp)
 			break;
 		if (test_and_set_bit(NFS4CLNT_MANAGER_RUNNING, &clp->cl_state) != 0)
 			break;
-	} while (atomic_read(&clp->cl_count) > 1);
+	} while (refcount_read(&clp->cl_count) > 1);
 	return;
 out_error:
 	if (strlen(section))

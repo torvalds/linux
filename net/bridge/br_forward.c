@@ -204,7 +204,7 @@ void br_flood(struct net_bridge *br, struct sk_buff *skb,
 		/* Do not flood to ports that enable proxy ARP */
 		if (p->flags & BR_PROXYARP)
 			continue;
-		if ((p->flags & BR_PROXYARP_WIFI) &&
+		if ((p->flags & (BR_PROXYARP_WIFI | BR_NEIGH_SUPPRESS)) &&
 		    BR_INPUT_SKB_CB(skb)->proxyarp_replied)
 			continue;
 

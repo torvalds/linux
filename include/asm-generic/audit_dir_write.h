@@ -31,3 +31,6 @@ __NR_renameat,
 __NR_linkat,
 __NR_symlinkat,
 #endif
+#ifdef __NR_renameat2
+__NR_renameat2,
+#endif

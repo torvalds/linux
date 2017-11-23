@@ -802,6 +802,10 @@ static int snd_seq_deliver_event(struct snd_seq_client *client, struct snd_seq_e
 		return -EMLINK;
 	}
 
+	if (snd_seq_ev_is_variable(event) &&
+	    snd_BUG_ON(atomic && (event->data.ext.len & SNDRV_SEQ_EXT_USRPTR)))
+		return -EINVAL;
+
 	if (event->queue == SNDRV_SEQ_ADDRESS_SUBSCRIBERS ||
 	    event->dest.client == SNDRV_SEQ_ADDRESS_SUBSCRIBERS)
 		result = deliver_to_subscribers(client, event, atomic, hop);

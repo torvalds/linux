@@ -129,18 +129,6 @@ static inline void *bio_data(struct bio *bio)
 #define bvec_to_phys(bv)	(page_to_phys((bv)->bv_page) + (unsigned long) (bv)->bv_offset)
 
 /*
- * queues that have highmem support enabled may still need to revert to
- * PIO transfers occasionally and thus map high pages temporarily. For
- * permanent PIO fall back, user is probably better off disabling highmem
- * I/O completely on that queue (see ide-dma for example)
- */
-#define __bio_kmap_atomic(bio, iter)				\
-	(kmap_atomic(bio_iter_iovec((bio), (iter)).bv_page) +	\
-		bio_iter_iovec((bio), (iter)).bv_offset)
-
-#define __bio_kunmap_atomic(addr)	kunmap_atomic(addr)
-
-/*
  * merge helpers etc
  */
 
@@ -462,7 +450,7 @@ extern int bio_add_pc_page(struct request_queue *, struct bio *, struct page *,
 int bio_iov_iter_get_pages(struct bio *bio, struct iov_iter *iter);
 struct rq_map_data;
 extern struct bio *bio_map_user_iov(struct request_queue *,
-				    const struct iov_iter *, gfp_t);
+				    struct iov_iter *, gfp_t);
 extern void bio_unmap_user(struct bio *);
 extern struct bio *bio_map_kern(struct request_queue *, void *, unsigned int,
 				gfp_t);
@@ -494,7 +482,7 @@ extern void bio_free_pages(struct bio *bio);
 
 extern struct bio *bio_copy_user_iov(struct request_queue *,
 				     struct rq_map_data *,
-				     const struct iov_iter *,
+				     struct iov_iter *,
 				     gfp_t);
 extern int bio_uncopy_user(struct bio *);
 void zero_fill_bio(struct bio *bio);
@@ -522,13 +510,11 @@ do {						\
 
 #ifdef CONFIG_BLK_CGROUP
 int bio_associate_blkcg(struct bio *bio, struct cgroup_subsys_state *blkcg_css);
-int bio_associate_current(struct bio *bio);
 void bio_disassociate_task(struct bio *bio);
 void bio_clone_blkcg_association(struct bio *dst, struct bio *src);
 #else	/* CONFIG_BLK_CGROUP */
 static inline int bio_associate_blkcg(struct bio *bio,
 			struct cgroup_subsys_state *blkcg_css) { return 0; }
-static inline int bio_associate_current(struct bio *bio) { return -ENOENT; }
 static inline void bio_disassociate_task(struct bio *bio) { }
 static inline void bio_clone_blkcg_association(struct bio *dst,
 			struct bio *src) { }
@@ -574,17 +560,6 @@ static inline void bvec_kunmap_irq(char *buffer, unsigned long *flags)
 	*flags = 0;
 }
 #endif
-
-static inline char *__bio_kmap_irq(struct bio *bio, struct bvec_iter iter,
-				   unsigned long *flags)
-{
-	return bvec_kmap_irq(&bio_iter_iovec(bio, iter), flags);
-}
-#define __bio_kunmap_irq(buf, flags)	bvec_kunmap_irq(buf, flags)
-
-#define bio_kmap_irq(bio, flags) \
-	__bio_kmap_irq((bio), (bio)->bi_iter, (flags))
-#define bio_kunmap_irq(buf,flags)	__bio_kunmap_irq(buf, flags)
 
 /*
  * BIO list management for use by remapping drivers (e.g. DM or MD) and loop.

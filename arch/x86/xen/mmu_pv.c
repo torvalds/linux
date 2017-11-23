@@ -315,7 +315,7 @@ void xen_ptep_modify_prot_commit(struct mm_struct *mm, unsigned long addr,
 static pteval_t pte_mfn_to_pfn(pteval_t val)
 {
 	if (val & _PAGE_PRESENT) {
-		unsigned long mfn = (val & PTE_PFN_MASK) >> PAGE_SHIFT;
+		unsigned long mfn = (val & XEN_PTE_MFN_MASK) >> PAGE_SHIFT;
 		unsigned long pfn = mfn_to_pfn(mfn);
 
 		pteval_t flags = val & PTE_FLAGS_MASK;
@@ -1721,7 +1721,7 @@ static unsigned long __init m2p(phys_addr_t maddr)
 {
 	phys_addr_t paddr;
 
-	maddr &= PTE_PFN_MASK;
+	maddr &= XEN_PTE_MFN_MASK;
 	paddr = mfn_to_pfn(maddr >> PAGE_SHIFT) << PAGE_SHIFT;
 
 	return paddr;

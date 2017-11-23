@@ -4,6 +4,8 @@
  * Copyright (C) 2012 David S. Miller <davem@davemloft.net>
  */
 
+#include <linux/linkage.h>
+
 #define BRANCH_ALWAYS	0x10680000
 #define NOP		0x01000000
 #define NG_DO_PATCH(OLD, NEW)	\
@@ -53,3 +55,10 @@ niagara4_patch_pageops:
 	retl
 	 nop
 	.size	niagara4_patch_pageops,.-niagara4_patch_pageops
+
+ENTRY(niagara4_patch_fls)
+	NG_DO_PATCH(fls, NG4fls)
+	NG_DO_PATCH(__fls, __NG4fls)
+	retl
+	 nop
+ENDPROC(niagara4_patch_fls)

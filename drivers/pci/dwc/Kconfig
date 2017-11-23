@@ -169,4 +169,14 @@ config PCIE_KIRIN
 	  Say Y here if you want PCIe controller support
 	  on HiSilicon Kirin series SoCs.
 
+config PCIE_HISI_STB
+	bool "HiSilicon STB SoCs PCIe controllers"
+	depends on ARCH_HISI
+	depends on PCI
+	depends on PCI_MSI_IRQ_DOMAIN
+	select PCIEPORTBUS
+	select PCIE_DW_HOST
+	help
+          Say Y here if you want PCIe controller support on HiSilicon STB SoCs
+
 endmenu
