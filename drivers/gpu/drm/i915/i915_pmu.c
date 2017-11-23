@@ -40,7 +40,7 @@
 
 #define ENGINE_SAMPLE_BITS (1 << I915_PMU_SAMPLE_BITS)
 
-static cpumask_t i915_pmu_cpumask = CPU_MASK_NONE;
+static cpumask_t i915_pmu_cpumask;
 
 static u8 engine_config_sample(u64 config)
 {
@@ -770,7 +770,6 @@ static const struct attribute_group *i915_pmu_attr_groups[] = {
 	NULL
 };
 
-#ifdef CONFIG_HOTPLUG_CPU
 static int i915_pmu_cpu_online(unsigned int cpu, struct hlist_node *node)
 {
 	struct i915_pmu *pmu = hlist_entry_safe(node, typeof(*pmu), node);
@@ -806,11 +805,9 @@ static int i915_pmu_cpu_offline(unsigned int cpu, struct hlist_node *node)
 }
 
 static enum cpuhp_state cpuhp_slot = CPUHP_INVALID;
-#endif
 
 static int i915_pmu_register_cpuhp_state(struct drm_i915_private *i915)
 {
-#ifdef CONFIG_HOTPLUG_CPU
 	enum cpuhp_state slot;
 	int ret;
 
@@ -829,17 +826,14 @@ static int i915_pmu_register_cpuhp_state(struct drm_i915_private *i915)
 	}
 
 	cpuhp_slot = slot;
-#endif
 	return 0;
 }
 
 static void i915_pmu_unregister_cpuhp_state(struct drm_i915_private *i915)
 {
-#ifdef CONFIG_HOTPLUG_CPU
 	WARN_ON(cpuhp_slot == CPUHP_INVALID);
 	WARN_ON(cpuhp_state_remove_instance(cpuhp_slot, &i915->pmu.node));
 	cpuhp_remove_multi_state(cpuhp_slot);
-#endif
 }
 
 void i915_pmu_register(struct drm_i915_private *i915)
