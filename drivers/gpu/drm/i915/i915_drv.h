@@ -3911,7 +3911,7 @@ i915_gem_object_create_internal(struct drm_i915_private *dev_priv,
 				phys_addr_t size);
 
 /* i915_gem_shrinker.c */
-unsigned long i915_gem_shrink(struct drm_i915_private *dev_priv,
+unsigned long i915_gem_shrink(struct drm_i915_private *i915,
 			      unsigned long target,
 			      unsigned long *nr_scanned,
 			      unsigned flags);
@@ -3920,9 +3920,9 @@ unsigned long i915_gem_shrink(struct drm_i915_private *dev_priv,
 #define I915_SHRINK_BOUND 0x4
 #define I915_SHRINK_ACTIVE 0x8
 #define I915_SHRINK_VMAPS 0x10
-unsigned long i915_gem_shrink_all(struct drm_i915_private *dev_priv);
-void i915_gem_shrinker_register(struct drm_i915_private *dev_priv);
-void i915_gem_shrinker_unregister(struct drm_i915_private *dev_priv);
+unsigned long i915_gem_shrink_all(struct drm_i915_private *i915);
+void i915_gem_shrinker_register(struct drm_i915_private *i915);
+void i915_gem_shrinker_unregister(struct drm_i915_private *i915);
 
 
 /* i915_gem_tiling.c */
