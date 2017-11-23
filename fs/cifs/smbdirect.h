@@ -249,6 +249,8 @@ struct smbd_connection *smbd_get_connection(
 
 /* Reconnect SMBDirect session */
 int smbd_reconnect(struct TCP_Server_Info *server);
+/* Destroy SMBDirect session */
+void smbd_destroy(struct smbd_connection *info);
 
 #else
 #define cifs_rdma_enabled(server)	0
@@ -256,6 +258,7 @@ struct smbd_connection {};
 static inline void *smbd_get_connection(
 	struct TCP_Server_Info *server, struct sockaddr *dstaddr) {return NULL;}
 static inline int smbd_reconnect(struct TCP_Server_Info *server) {return -1; }
+static inline void smbd_destroy(struct smbd_connection *info) {}
 #endif
 
 #endif
