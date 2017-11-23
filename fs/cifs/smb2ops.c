@@ -957,9 +957,13 @@ smb2_read_data_offset(char *buf)
 }
 
 static unsigned int
-smb2_read_data_length(char *buf)
+smb2_read_data_length(char *buf, bool in_remaining)
 {
 	struct smb2_read_rsp *rsp = (struct smb2_read_rsp *)buf;
+
+	if (in_remaining)
+		return le32_to_cpu(rsp->DataRemaining);
+
 	return le32_to_cpu(rsp->DataLength);
 }
 
@@ -2421,6 +2425,7 @@ handle_read_data(struct TCP_Server_Info *server, struct mid_q_entry *mid,
 	struct iov_iter iter;
 	struct kvec iov;
 	int length;
+	bool use_rdma_mr = false;
 
 	if (shdr->Command != SMB2_READ) {
 		cifs_dbg(VFS, "only big read responses are supported\n");
@@ -2447,7 +2452,10 @@ handle_read_data(struct TCP_Server_Info *server, struct mid_q_entry *mid,
 	}
 
 	data_offset = server->ops->read_data_offset(buf) + 4;
-	data_len = server->ops->read_data_length(buf);
+#ifdef CONFIG_CIFS_SMB_DIRECT
+	use_rdma_mr = rdata->mr;
+#endif
+	data_len = server->ops->read_data_length(buf, use_rdma_mr);
 
 	if (data_offset < server->vals->read_rsp_size) {
 		/*
