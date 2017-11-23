@@ -207,19 +207,6 @@ static void submit_attach_object_fences(struct etnaviv_gem_submit *submit)
 	}
 }
 
-static void submit_unpin_objects(struct etnaviv_gem_submit *submit)
-{
-	int i;
-
-	for (i = 0; i < submit->nr_bos; i++) {
-		if (submit->bos[i].flags & BO_PINNED)
-			etnaviv_gem_mapping_unreference(submit->bos[i].mapping);
-
-		submit->bos[i].mapping = NULL;
-		submit->bos[i].flags &= ~BO_PINNED;
-	}
-}
-
 static int submit_pin_objects(struct etnaviv_gem_submit *submit)
 {
 	int i, ret = 0;
@@ -361,6 +348,13 @@ static void submit_cleanup(struct etnaviv_gem_submit *submit)
 
 	for (i = 0; i < submit->nr_bos; i++) {
 		struct etnaviv_gem_object *etnaviv_obj = submit->bos[i].obj;
+
+		/* unpin all objects */
+		if (submit->bos[i].flags & BO_PINNED) {
+			etnaviv_gem_mapping_unreference(submit->bos[i].mapping);
+			submit->bos[i].mapping = NULL;
+			submit->bos[i].flags &= ~BO_PINNED;
+		}
 
 		/* if the GPU submit failed, objects might still be locked */
 		submit_unlock_object(submit, i);
@@ -508,23 +502,23 @@ int etnaviv_ioctl_gem_submit(struct drm_device *dev, void *data,
 
 	ret = submit_pin_objects(submit);
 	if (ret)
-		goto out;
+		goto err_submit_objects;
 
 	ret = submit_reloc(submit, stream, args->stream_size / 4,
 			   relocs, args->nr_relocs);
 	if (ret)
-		goto out;
+		goto err_submit_objects;
 
 	ret = submit_perfmon_validate(submit, cmdbuf, pmrs, args->nr_pmrs);
 	if (ret)
-		goto out;
+		goto err_submit_objects;
 
 	memcpy(cmdbuf->vaddr, stream, args->stream_size);
 	cmdbuf->user_size = ALIGN(args->stream_size, 8);
 
 	ret = etnaviv_gpu_submit(gpu, submit, cmdbuf);
 	if (ret)
-		goto out;
+		goto err_submit_objects;
 
 	submit_attach_object_fences(submit);
 
@@ -540,16 +534,13 @@ int etnaviv_ioctl_gem_submit(struct drm_device *dev, void *data,
 		sync_file = sync_file_create(submit->out_fence);
 		if (!sync_file) {
 			ret = -ENOMEM;
-			goto out;
+			goto err_submit_objects;
 		}
 		fd_install(out_fence_fd, sync_file->file);
 	}
 
 	args->fence_fd = out_fence_fd;
 	args->fence = submit->out_fence->seqno;
-
-out:
-	submit_unpin_objects(submit);
 
 err_submit_objects:
 	submit_cleanup(submit);
