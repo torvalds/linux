@@ -393,8 +393,8 @@ int main(void)
 	OFFSET(CFG_DCACHE_LOGBLOCKSZ, vdso_data, dcache_log_block_size);
 #ifdef CONFIG_PPC64
 	OFFSET(CFG_SYSCALL_MAP64, vdso_data, syscall_map_64);
-	OFFSET(TVAL64_TV_SEC, timeval, tv_sec);
-	OFFSET(TVAL64_TV_USEC, timeval, tv_usec);
+	OFFSET(TVAL64_TV_SEC, __kernel_old_timeval, tv_sec);
+	OFFSET(TVAL64_TV_USEC, __kernel_old_timeval, tv_usec);
 	OFFSET(TVAL32_TV_SEC, old_timeval32, tv_sec);
 	OFFSET(TVAL32_TV_USEC, old_timeval32, tv_usec);
 	OFFSET(TSPC64_TV_SEC, timespec, tv_sec);
@@ -402,8 +402,8 @@ int main(void)
 	OFFSET(TSPC32_TV_SEC, old_timespec32, tv_sec);
 	OFFSET(TSPC32_TV_NSEC, old_timespec32, tv_nsec);
 #else
-	OFFSET(TVAL32_TV_SEC, timeval, tv_sec);
-	OFFSET(TVAL32_TV_USEC, timeval, tv_usec);
+	OFFSET(TVAL32_TV_SEC, __kernel_old_timeval, tv_sec);
+	OFFSET(TVAL32_TV_USEC, __kernel_old_timeval, tv_usec);
 	OFFSET(TSPC32_TV_SEC, timespec, tv_sec);
 	OFFSET(TSPC32_TV_NSEC, timespec, tv_nsec);
 #endif
