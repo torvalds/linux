@@ -67,7 +67,7 @@ static int edp_pipe_is_enabled(struct intel_vgpu *vgpu)
 	return 1;
 }
 
-static int pipe_is_enabled(struct intel_vgpu *vgpu, int pipe)
+int pipe_is_enabled(struct intel_vgpu *vgpu, int pipe)
 {
 	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
 
