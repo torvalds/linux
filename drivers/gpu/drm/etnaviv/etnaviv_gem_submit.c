@@ -189,10 +189,10 @@ static void submit_attach_object_fences(struct etnaviv_gem_submit *submit)
 
 		if (submit->bos[i].flags & ETNA_SUBMIT_BO_WRITE)
 			reservation_object_add_excl_fence(etnaviv_obj->resv,
-							  submit->fence);
+							  submit->out_fence);
 		else
 			reservation_object_add_shared_fence(etnaviv_obj->resv,
-							    submit->fence);
+							    submit->out_fence);
 
 		submit_unlock_object(submit, i);
 	}
@@ -359,8 +359,8 @@ static void submit_cleanup(struct etnaviv_gem_submit *submit)
 	}
 
 	ww_acquire_fini(&submit->ticket);
-	if (submit->fence)
-		dma_fence_put(submit->fence);
+	if (submit->out_fence)
+		dma_fence_put(submit->out_fence);
 	kfree(submit);
 }
 
@@ -537,7 +537,7 @@ int etnaviv_ioctl_gem_submit(struct drm_device *dev, void *data,
 		 * fence to the sync file here, eliminating the ENOMEM
 		 * possibility at this stage.
 		 */
-		sync_file = sync_file_create(submit->fence);
+		sync_file = sync_file_create(submit->out_fence);
 		if (!sync_file) {
 			ret = -ENOMEM;
 			goto out;
@@ -546,7 +546,7 @@ int etnaviv_ioctl_gem_submit(struct drm_device *dev, void *data,
 	}
 
 	args->fence_fd = out_fence_fd;
-	args->fence = submit->fence->seqno;
+	args->fence = submit->out_fence->seqno;
 
 out:
 	submit_unpin_objects(submit);

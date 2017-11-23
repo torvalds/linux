@@ -1413,8 +1413,8 @@ int etnaviv_gpu_submit(struct etnaviv_gpu *gpu,
 	}
 
 	gpu->event[event[0]].fence = fence;
-	submit->fence = dma_fence_get(fence);
-	gpu->active_fence = submit->fence->seqno;
+	submit->out_fence = dma_fence_get(fence);
+	gpu->active_fence = submit->out_fence->seqno;
 
 	if (cmdbuf->nr_pmrs) {
 		gpu->event[event[1]].sync_point = &sync_point_perfmon_sample_pre;
