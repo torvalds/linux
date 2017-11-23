@@ -134,6 +134,8 @@ struct lirc_fh {
  * @keypressed: whether a key is currently pressed
  * @keyup_jiffies: time (in jiffies) when the current keypress should be released
  * @timer_keyup: timer for releasing a keypress
+ * @timer_repeat: timer for autorepeat events. This is needed for CEC, which
+ *	has non-standard repeats.
  * @last_keycode: keycode of last keypress
  * @last_protocol: protocol of last keypress
  * @last_scancode: scancode of last keypress
@@ -202,6 +204,7 @@ struct rc_dev {
 	bool				keypressed;
 	unsigned long			keyup_jiffies;
 	struct timer_list		timer_keyup;
+	struct timer_list		timer_repeat;
 	u32				last_keycode;
 	enum rc_proto			last_protocol;
 	u32				last_scancode;
