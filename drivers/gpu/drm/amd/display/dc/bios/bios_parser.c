@@ -2254,6 +2254,52 @@ static enum bp_result get_gpio_i2c_info(struct bios_parser *bp,
 	return BP_RESULT_OK;
 }
 
+static bool dal_graphics_object_id_is_valid(struct graphics_object_id id)
+{
+	bool rc = true;
+
+	switch (id.type) {
+	case OBJECT_TYPE_UNKNOWN:
+		rc = false;
+		break;
+	case OBJECT_TYPE_GPU:
+	case OBJECT_TYPE_ENGINE:
+		/* do NOT check for id.id == 0 */
+		if (id.enum_id == ENUM_ID_UNKNOWN)
+			rc = false;
+		break;
+	default:
+		if (id.id == 0 || id.enum_id == ENUM_ID_UNKNOWN)
+			rc = false;
+		break;
+	}
+
+	return rc;
+}
+
+static bool dal_graphics_object_id_is_equal(
+	struct graphics_object_id id1,
+	struct graphics_object_id id2)
+{
+	if (false == dal_graphics_object_id_is_valid(id1)) {
+		dm_output_to_console(
+		"%s: Warning: comparing invalid object 'id1'!\n", __func__);
+		return false;
+	}
+
+	if (false == dal_graphics_object_id_is_valid(id2)) {
+		dm_output_to_console(
+		"%s: Warning: comparing invalid object 'id2'!\n", __func__);
+		return false;
+	}
+
+	if (id1.id == id2.id && id1.enum_id == id2.enum_id
+		&& id1.type == id2.type)
+		return true;
+
+	return false;
+}
+
 static ATOM_OBJECT *get_bios_object(struct bios_parser *bp,
 	struct graphics_object_id id)
 {
