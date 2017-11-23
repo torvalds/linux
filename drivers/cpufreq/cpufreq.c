@@ -2160,7 +2160,6 @@ void cpufreq_unregister_governor(struct cpufreq_governor *governor)
 	mutex_lock(&cpufreq_governor_mutex);
 	list_del(&governor->governor_list);
 	mutex_unlock(&cpufreq_governor_mutex);
-	return;
 }
 EXPORT_SYMBOL_GPL(cpufreq_unregister_governor);
 
