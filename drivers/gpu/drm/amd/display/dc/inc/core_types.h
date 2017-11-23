@@ -212,7 +212,6 @@ struct pipe_ctx {
 	struct _vcs_dpi_display_rq_regs_st rq_regs;
 	struct _vcs_dpi_display_pipe_dest_params_st pipe_dlg_param;
 #endif
-	struct dwbc *dwbc;
 };
 
 struct resource_context {
