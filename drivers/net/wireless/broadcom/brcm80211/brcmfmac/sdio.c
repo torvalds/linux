@@ -2070,7 +2070,7 @@ static int brcmf_sdio_txpkt_hdalign(struct brcmf_sdio *bus, struct sk_buff *pkt)
 	return head_pad;
 }
 
-/**
+/*
  * struct brcmf_skbuff_cb reserves first two bytes in sk_buff::cb for
  * bus layer usage.
  */
