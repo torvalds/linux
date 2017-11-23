@@ -109,6 +109,10 @@
 	};
 };
 
+&gpio1 {
+	gpio-ranges = <&pfc 0 32 28>;
+};
+
 &ipmmu_vi0 {
 	renesas,ipmmu-main = <&ipmmu_mm 11>;
 };
