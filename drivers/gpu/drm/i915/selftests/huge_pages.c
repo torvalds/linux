@@ -1040,6 +1040,62 @@ static int cpu_check(struct drm_i915_gem_object *obj, u32 dword, u32 val)
 	return err;
 }
 
+static int __igt_write_huge(struct i915_gem_context *ctx,
+			    struct intel_engine_cs *engine,
+			    struct drm_i915_gem_object *obj,
+			    u64 size, u64 offset,
+			    u32 dword, u32 val)
+{
+	struct drm_i915_private *i915 = to_i915(obj->base.dev);
+	struct i915_address_space *vm = ctx->ppgtt ? &ctx->ppgtt->base : &i915->ggtt.base;
+	unsigned int flags = PIN_USER | PIN_OFFSET_FIXED;
+	struct i915_vma *vma;
+	int err;
+
+	vma = i915_vma_instance(obj, vm, NULL);
+	if (IS_ERR(vma))
+		return PTR_ERR(vma);
+
+	err = i915_vma_unbind(vma);
+	if (err)
+		goto out_vma_close;
+
+	err = i915_vma_pin(vma, size, 0, flags | offset);
+	if (err) {
+		/*
+		 * The ggtt may have some pages reserved so
+		 * refrain from erroring out.
+		 */
+		if (err == -ENOSPC && i915_is_ggtt(vm))
+			err = 0;
+
+		goto out_vma_close;
+	}
+
+	err = igt_check_page_sizes(vma);
+	if (err)
+		goto out_vma_unpin;
+
+	err = gpu_write(vma, ctx, engine, dword, val);
+	if (err) {
+		pr_err("gpu-write failed at offset=%llx\n", offset);
+		goto out_vma_unpin;
+	}
+
+	err = cpu_check(obj, dword, val);
+	if (err) {
+		pr_err("cpu-check failed at offset=%llx\n", offset);
+		goto out_vma_unpin;
+	}
+
+out_vma_unpin:
+	i915_vma_unpin(vma);
+out_vma_close:
+	i915_vma_close(vma);
+
+	return err;
+}
+
 static int igt_write_huge(struct i915_gem_context *ctx,
 			  struct drm_i915_gem_object *obj)
 {
@@ -1049,8 +1105,6 @@ static int igt_write_huge(struct i915_gem_context *ctx,
 	struct intel_engine_cs *engine;
 	I915_RND_STATE(prng);
 	IGT_TIMEOUT(end_time);
-	struct i915_vma *vma;
-	unsigned int flags = PIN_USER | PIN_OFFSET_FIXED;
 	unsigned int max_page_size;
 	unsigned int id;
 	u64 max;
@@ -1068,10 +1122,6 @@ static int igt_write_huge(struct i915_gem_context *ctx,
 
 	max_page_size = rounddown_pow_of_two(obj->mm.page_sizes.sg);
 	max = div_u64((vm->total - size), max_page_size);
-
-	vma = i915_vma_instance(obj, vm, NULL);
-	if (IS_ERR(vma))
-		return PTR_ERR(vma);
 
 	n = 0;
 	for_each_engine(engine, i915, id) {
@@ -1095,66 +1145,33 @@ static int igt_write_huge(struct i915_gem_context *ctx,
 		return -ENOMEM;
 
 	/*
-	 * Try various offsets until we timeout -- we want to avoid
-	 * issues hidden by effectively always using offset = 0.
+	 * Try various offsets in an ascending/descending fashion until we
+	 * timeout -- we want to avoid issues hidden by effectively always using
+	 * offset = 0.
 	 */
 	i = 0;
 	for_each_prime_number_from(num, 0, max) {
-		u64 offset = num * max_page_size;
-		u32 dword;
-
-		err = i915_vma_unbind(vma);
-		if (err)
-			goto out_vma_close;
-
-		err = i915_vma_pin(vma, size, max_page_size, flags | offset);
-		if (err) {
-			/*
-			 * The ggtt may have some pages reserved so
-			 * refrain from erroring out.
-			 */
-			if (err == -ENOSPC && i915_is_ggtt(vm)) {
-				err = 0;
-				continue;
-			}
-
-			goto out_vma_close;
-		}
-
-		err = igt_check_page_sizes(vma);
-		if (err)
-			goto out_vma_unpin;
-
-		dword = offset_in_page(num) / 4;
+		u64 offset_low = num * max_page_size;
+		u64 offset_high = (max - num) * max_page_size;
+		u32 dword = offset_in_page(num) / 4;
 
 		engine = engines[order[i] % n];
 		i = (i + 1) % (n * I915_NUM_ENGINES);
 
-		err = gpu_write(vma, ctx, engine, dword, num + 1);
-		if (err) {
-			pr_err("gpu-write failed at offset=%llx", offset);
-			goto out_vma_unpin;
-		}
+		err = __igt_write_huge(ctx, engine, obj, size, offset_low, dword, num + 1);
+		if (err)
+			break;
 
-		err = cpu_check(obj, dword, num + 1);
-		if (err) {
-			pr_err("cpu-check failed at offset=%llx", offset);
-			goto out_vma_unpin;
-		}
-
-		i915_vma_unpin(vma);
+		err = __igt_write_huge(ctx, engine, obj, size, offset_high, dword, num + 1);
+		if (err)
+			break;
 
 		if (igt_timeout(end_time,
-				"%s timed out on engine=%u at offset=%llx, max_page_size=%x\n",
-				__func__, engine->id, offset, max_page_size))
+				"%s timed out on engine=%u, offset_low=%llx offset_high=%llx, max_page_size=%x\n",
+				__func__, engine->id, offset_low, offset_high, max_page_size))
 			break;
 	}
 
-out_vma_unpin:
-	if (i915_vma_is_pinned(vma))
-		i915_vma_unpin(vma);
-out_vma_close:
-	i915_vma_close(vma);
 	kfree(order);
 
 	return err;
