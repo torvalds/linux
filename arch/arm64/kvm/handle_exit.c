@@ -28,6 +28,7 @@
 #include <asm/kvm_emulate.h>
 #include <asm/kvm_mmu.h>
 #include <asm/kvm_psci.h>
+#include <asm/debug-monitors.h>
 
 #define CREATE_TRACE_POINTS
 #include "trace.h"
@@ -252,7 +253,12 @@ int handle_exit(struct kvm_vcpu *vcpu, struct kvm_run *run,
 		return 1;
 	case ARM_EXCEPTION_EL1_SERROR:
 		kvm_inject_vabt(vcpu);
-		return 1;
+		/* We may still need to return for single-step */
+		if (!(*vcpu_cpsr(vcpu) & DBG_SPSR_SS)
+			&& kvm_arm_handle_step_debug(vcpu, run))
+			return 0;
+		else
+			return 1;
 	case ARM_EXCEPTION_TRAP:
 		return handle_trap_exceptions(vcpu, run);
 	case ARM_EXCEPTION_HYP_GONE:
