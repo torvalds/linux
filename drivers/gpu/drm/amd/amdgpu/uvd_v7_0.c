@@ -35,7 +35,7 @@
 #include "vce/vce_4_0_offset.h"
 #include "vce/vce_4_0_default.h"
 #include "vce/vce_4_0_sh_mask.h"
-#include "vega10/NBIF/nbif_6_1_offset.h"
+#include "nbif/nbif_6_1_offset.h"
 #include "hdp/hdp_4_0_offset.h"
 #include "mmhub/mmhub_1_0_offset.h"
 #include "mmhub/mmhub_1_0_sh_mask.h"
