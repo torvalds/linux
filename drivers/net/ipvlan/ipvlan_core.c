@@ -165,8 +165,26 @@ static void *ipvlan_get_L3_hdr(struct ipvl_port *port, struct sk_buff *skb, int 
 		/* Only Neighbour Solicitation pkts need different treatment */
 		if (ipv6_addr_any(&ip6h->saddr) &&
 		    ip6h->nexthdr == NEXTHDR_ICMP) {
+			struct icmp6hdr	*icmph;
+
+			if (unlikely(!pskb_may_pull(skb, sizeof(*ip6h) + sizeof(*icmph))))
+				return NULL;
+
+			ip6h = ipv6_hdr(skb);
+			icmph = (struct icmp6hdr *)(ip6h + 1);
+
+			if (icmph->icmp6_type == NDISC_NEIGHBOUR_SOLICITATION) {
+				/* Need to access the ipv6 address in body */
+				if (unlikely(!pskb_may_pull(skb, sizeof(*ip6h) + sizeof(*icmph)
+						+ sizeof(struct in6_addr))))
+					return NULL;
+
+				ip6h = ipv6_hdr(skb);
+				icmph = (struct icmp6hdr *)(ip6h + 1);
+			}
+
 			*type = IPVL_ICMPV6;
-			lyr3h = ip6h + 1;
+			lyr3h = icmph;
 		}
 		break;
 	}
