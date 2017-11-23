@@ -72,7 +72,6 @@ maxim,ds1050		5 Bit Programmable, Pulse-Width Modulator
 maxim,max1237		Low-Power, 4-/12-Channel, 2-Wire Serial, 12-Bit ADCs
 maxim,max6621		PECI-to-I2C translator for PECI-to-SMBus/I2C protocol conversion
 maxim,max6625		9-Bit/12-Bit Temperature Sensors with I²C-Compatible Serial Interface
-mc,rv3029c2		Real Time Clock Module with I2C-Bus
 mcube,mc3230		mCube 3-axis 8-bit digital accelerometer
 memsic,mxc6225		MEMSIC 2-axis 8-bit digital accelerometer
 microchip,mcp4531-502	Microchip 7-bit Single I2C Digital Potentiometer (5k)
@@ -141,6 +140,7 @@ microchip,mcp4662-503	Microchip 8-bit Dual I2C Digital Potentiometer with NV Mem
 microchip,mcp4662-104	Microchip 8-bit Dual I2C Digital Potentiometer with NV Memory (100k)
 microchip,tc654		PWM Fan Speed Controller With Fan Fault Detection
 microchip,tc655		PWM Fan Speed Controller With Fan Fault Detection
+microcrystal,rv3029	Real Time Clock Module with I2C-Bus
 miramems,da226		MiraMEMS DA226 2-axis 14-bit digital accelerometer
 miramems,da280		MiraMEMS DA280 3-axis 14-bit digital accelerometer
 miramems,da311		MiraMEMS DA311 3-axis 12-bit digital accelerometer
