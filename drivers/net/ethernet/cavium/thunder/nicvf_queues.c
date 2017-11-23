@@ -1355,7 +1355,6 @@ nicvf_sq_add_hdr_subdesc(struct nicvf *nic, struct snd_queue *sq, int qentry,
 
 	/* Offload checksum calculation to HW */
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
-		hdr->csum_l3 = 1; /* Enable IP csum calculation */
 		hdr->l3_offset = skb_network_offset(skb);
 		hdr->l4_offset = skb_transport_offset(skb);
 
