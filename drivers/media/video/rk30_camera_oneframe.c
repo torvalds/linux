@@ -253,8 +253,10 @@ static inline unsigned int read_grf_reg(unsigned int addr)
 		1. support rk3368.
 *v0.3.0:
 *       1. supprot rk3228h
+*v0.4.0:
+*       1.cif uses dmabuf,in this case,vb->boff is buffer fd.
 */
-#define RK_CAM_VERSION_CODE KERNEL_VERSION(0, 3, 0)
+#define RK_CAM_VERSION_CODE KERNEL_VERSION(0, 4, 0)
 static int version = RK_CAM_VERSION_CODE;
 module_param(version, int, S_IRUGO);
 
@@ -290,6 +292,18 @@ struct rk_camera_buffer
     u32	code;
     int			inwork;
 };
+
+#define RK_CAMERA_MODE_DMA_SG
+#ifdef RK_CAMERA_MODE_DMA_SG
+#define DMABUF_MAX_FRAME  32
+struct rk_camera_dma_buf_s {
+	struct dma_buf *dma_buf;
+	struct dma_buf_attachment *attach;
+	struct sg_table *sgt;
+	dma_addr_t dma_addr;
+	int fd;
+};
+#endif
 enum rk_camera_reg_state
 {
 	Reg_Invalidate,
@@ -442,8 +456,11 @@ struct rk_camera_dev
 	wait_queue_head_t cif_stop_done;
 	volatile  bool cif_stopped;
     struct timeval first_tv;
-    
     int chip_id;
+    #ifdef RK_CAMERA_MODE_DMA_SG
+		struct rk_camera_dma_buf_s dma_buffer[DMABUF_MAX_FRAME];
+		int dma_buf_cnt;
+    #endif
 };
 
 static const struct v4l2_queryctrl rk_camera_controls[] =
@@ -540,6 +557,118 @@ static void rk_camera_cif_reset(struct rk_camera_dev *pcdev, int only_rst)
 	return;
 }
 
+#ifdef RK_CAMERA_MODE_DMA_SG
+static int rk_camera_dma_attach_device(struct rk_camera_dev *pcdev)
+{
+	struct device *dev = pcdev->dev;
+	int ret;
+	//to do something iommu future
+	ret = dma_set_coherent_mask(dev, DMA_BIT_MASK(32));
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static void rk_camera_dma_detach_device(struct rk_camera_dev *pcdev)
+{
+	//to do something iommu future
+}
+
+static int rk_camera_dmabuf_cb(struct rk_camera_dev *pcdev,
+				struct videobuf_buffer *vb,
+				bool on)
+{
+	struct dma_buf *dma_buffer;
+	struct dma_buf_attachment *attach;
+	struct sg_table *sgt;
+	dma_addr_t dma_addr;
+	int index = 0;
+	int ret = 0;
+
+	if (on) {
+		index = vb->i;
+		if (index >= DMABUF_MAX_FRAME) {
+			RKCAMERA_TR("index (%d) is wrong, max support is %d.\n", index, DMABUF_MAX_FRAME);
+			return -EINVAL;
+		}
+		if (pcdev->dma_buf_cnt == 0) {
+			ret = rk_camera_dma_attach_device(pcdev);
+			if (ret) {
+				RKCAMERA_TR("rk_camera_dma_attach_device fail\n");
+				return ret;
+			}
+		}
+
+		dma_buffer = dma_buf_get(vb->boff);
+		if (IS_ERR(dma_buffer)) {
+			RKCAMERA_TR("dma_buf_get fail\n");
+			return PTR_ERR(dma_buffer);
+		}
+		attach = dma_buf_attach(dma_buffer, pcdev->dev);
+		if (IS_ERR(attach)) {
+			RKCAMERA_TR("dma_buf_attach fail\n");
+			dma_buf_put(dma_buffer);
+			return PTR_ERR(attach);
+		}
+		sgt = dma_buf_map_attachment(attach, DMA_BIDIRECTIONAL);
+		if (IS_ERR(sgt)) {
+			RKCAMERA_TR("dma_buf_map_attachment fail\n");
+			dma_buf_detach(dma_buffer, attach);
+			dma_buf_put(dma_buffer);
+			return PTR_ERR(sgt);
+		}
+		dma_addr = sg_dma_address(sgt->sgl);
+
+		pcdev->dma_buffer[index].dma_addr = dma_addr;
+		pcdev->dma_buffer[index].attach    = attach;
+		pcdev->dma_buffer[index].dma_buf = dma_buffer;
+		pcdev->dma_buffer[index].sgt = sgt;
+		pcdev->dma_buffer[index].fd = vb->boff;
+		pcdev->dma_buf_cnt++;
+
+		RKCAMERA_DG1
+			("dma buf map: dma_addr 0x%lx, attach %p, dma_buf %p,sgt %p,fd 0x%x,buf_cnt %d, index %d\n",
+			(unsigned long)dma_addr,
+			attach,
+			dma_buffer,
+			sgt,
+			(int)vb->boff,
+			pcdev->dma_buf_cnt,
+			index);
+	} else {
+		index = vb->i;
+		if (index >= DMABUF_MAX_FRAME) {
+			RKCAMERA_TR("index (%d) is wrong, max support is %d.\n", index, DMABUF_MAX_FRAME);
+			return -EINVAL;
+		}
+		if (pcdev->dma_buf_cnt == 0) {
+			RKCAMERA_DG1("dma_buf_cnt is %d.\n", pcdev->dma_buf_cnt);
+			return ret;
+		}
+		attach = pcdev->dma_buffer[index].attach;
+		dma_buffer = pcdev->dma_buffer[index].dma_buf;
+		sgt = pcdev->dma_buffer[index].sgt;
+		RKCAMERA_DG1
+			("dma buf unmap: attach %p,dma_buf %p,sgt %p,fd 0x%x,buf_cnt %d,index %d\n",
+			attach,
+			dma_buffer,
+			sgt,
+			(int)vb->boff,
+			pcdev->dma_buf_cnt,
+			index);
+		dma_buf_unmap_attachment(attach, sgt, DMA_BIDIRECTIONAL);
+		dma_buf_detach(dma_buffer, attach);
+		dma_buf_put(dma_buffer);
+		if (pcdev->dma_buf_cnt == 1)
+			rk_camera_dma_detach_device(pcdev);
+		pcdev->dma_buf_cnt--;
+		pcdev->dma_buffer[index].fd = -1;
+	}
+
+	return ret;
+}
+#endif
 
 /*
  *  Videobuf operations
@@ -628,6 +757,11 @@ static int rk_videobuf_setup(struct videobuf_queue *vq, unsigned int *count,
         }
 #endif        
 	}
+	#ifdef RK_CAMERA_MODE_DMA_SG
+	pcdev->dma_buf_cnt = 0;
+	for (i = 0; i < DMABUF_MAX_FRAME; i++)
+		pcdev->dma_buffer[i].fd = -1;
+	#endif
     pcdev->video_vq = vq;
     RKCAMERA_DG1("videobuf size:%d, vipmem_buf size:%d, count:%d \n",*size,pcdev->vipmem_size, *count);
 
@@ -661,6 +795,8 @@ static void rk_videobuf_free(struct videobuf_queue *vq, struct rk_camera_buffer 
 static int rk_videobuf_prepare(struct videobuf_queue *vq, struct videobuf_buffer *vb, enum v4l2_field field)
 {
     struct soc_camera_device *icd = vq->priv_data;
+	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
+	struct rk_camera_dev *pcdev = ici->priv;
     struct rk_camera_buffer *buf;
     int ret;
     int bytes_per_line = soc_mbus_bytes_per_line(icd->user_width,
@@ -668,7 +804,7 @@ static int rk_videobuf_prepare(struct videobuf_queue *vq, struct videobuf_buffer
 
 	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE__, __LINE__,__FUNCTION__);
 
-	if ((bytes_per_line < 0) || (vb->boff == 0))
+	if ((bytes_per_line < 0) || (vb->boff == 0) || (vb->boff == -1))
 		return -EINVAL;
 
     buf = container_of(vb, struct rk_camera_buffer, vb);
@@ -700,9 +836,11 @@ static int rk_videobuf_prepare(struct videobuf_queue *vq, struct videobuf_buffer
         if (ret) {
             goto fail;
         }
+	#ifdef RK_CAMERA_MODE_DMA_SG
+	rk_camera_dmabuf_cb(pcdev, vb, true);
+	#endif
         vb->state = VIDEOBUF_PREPARED;
     }
-    
     return 0;
 fail:
     rk_videobuf_free(vq, buf);
@@ -728,8 +866,13 @@ static inline void rk_videobuf_capture(struct videobuf_buffer *vb,struct rk_came
 				BUG();
 			}
 		} else {
+		#ifdef RK_CAMERA_MODE_DMA_SG
+			y_addr = (unsigned long)pcdev->dma_buffer[vb->i].dma_addr;
+			uv_addr = y_addr + vb->width * vb->height;
+		#else
 			y_addr = vb->boff;
 			uv_addr = y_addr + vb->width * vb->height;
+		#endif
 		}
 #if defined(CONFIG_ARCH_RK3188)
 		rk_camera_cif_reset(pcdev,false);
@@ -1373,10 +1516,12 @@ static void rk_videobuf_release(struct videobuf_queue *vq,
     }
 #endif
 
-    flush_workqueue(pcdev->camera_wq); 
-    
+	flush_workqueue(pcdev->camera_wq);
+	#ifdef RK_CAMERA_MODE_DMA_SG
+	rk_camera_dmabuf_cb(pcdev, vb, false);
+	#endif
     rk_videobuf_free(vq, buf);
-    
+
 #if CAMERA_VIDEOBUF_ARM_ACCESS
     if ((pcdev->vbinfo) && (vb->i < pcdev->vbinfo_count)) {
         vb_info = pcdev->vbinfo + vb->i;
