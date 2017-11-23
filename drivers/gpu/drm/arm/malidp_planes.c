@@ -148,8 +148,10 @@ static int malidp_se_check_scaling(struct malidp_plane *mp,
 	if (!crtc_state)
 		return -EINVAL;
 
-	clip.x2 = crtc_state->adjusted_mode.hdisplay;
-	clip.y2 = crtc_state->adjusted_mode.vdisplay;
+	if (crtc_state->enable)
+		drm_mode_get_hv_timing(&crtc_state->mode,
+				       &clip.x2, &clip.y2);
+
 	ret = drm_atomic_helper_check_plane_state(state, crtc_state, &clip,
 						  0, INT_MAX, true, true);
 	if (ret)
