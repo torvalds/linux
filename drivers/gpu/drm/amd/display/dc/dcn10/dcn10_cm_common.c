@@ -168,8 +168,10 @@ bool cm_helper_convert_to_custom_float(
 		return false;
 	}
 
-	if (!convert_to_custom_float_format(arr_points[1].y, &fmt,
-					    &arr_points[1].custom_float_y)) {
+	if (fixpoint == true)
+		arr_points[1].custom_float_y = dal_fixed31_32_u0d14(arr_points[1].y);
+	else if (!convert_to_custom_float_format(arr_points[1].y, &fmt,
+		&arr_points[1].custom_float_y)) {
 		BREAK_TO_DEBUGGER();
 		return false;
 	}

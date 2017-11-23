@@ -343,7 +343,6 @@ enum dc_transfer_func_type {
 	TF_TYPE_PREDEFINED,
 	TF_TYPE_DISTRIBUTED_POINTS,
 	TF_TYPE_BYPASS,
-	TF_TYPE_UNITY
 };
 
 struct dc_transfer_func_distributed_points {
@@ -362,6 +361,7 @@ enum dc_transfer_func_predefined {
 	TRANSFER_FUNCTION_BT709,
 	TRANSFER_FUNCTION_PQ,
 	TRANSFER_FUNCTION_LINEAR,
+	TRANSFER_FUNCTION_UNITY,
 };
 
 struct dc_transfer_func {
