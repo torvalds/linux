@@ -25,9 +25,9 @@
 #include "nbio_v6_1.h"
 
 #include "vega10/soc15ip.h"
-#include "vega10/NBIO/nbio_6_1_default.h"
-#include "vega10/NBIO/nbio_6_1_offset.h"
-#include "vega10/NBIO/nbio_6_1_sh_mask.h"
+#include "nbio/nbio_6_1_default.h"
+#include "nbio/nbio_6_1_offset.h"
+#include "nbio/nbio_6_1_sh_mask.h"
 #include "vega10/vega10_enum.h"
 
 #define smnCPM_CONTROL                                                                                  0x11180460

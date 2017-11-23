@@ -36,7 +36,7 @@
 #include "mp/mp_9_0_sh_mask.h"
 #include "gc/gc_9_0_offset.h"
 #include "sdma0/sdma0_4_0_offset.h"
-#include "vega10/NBIO/nbio_6_1_offset.h"
+#include "nbio/nbio_6_1_offset.h"
 
 MODULE_FIRMWARE("amdgpu/vega10_sos.bin");
 MODULE_FIRMWARE("amdgpu/vega10_asd.bin");
