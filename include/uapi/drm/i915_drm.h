@@ -110,8 +110,7 @@ enum drm_i915_gem_engine_class {
 enum drm_i915_pmu_engine_sample {
 	I915_SAMPLE_BUSY = 0,
 	I915_SAMPLE_WAIT = 1,
-	I915_SAMPLE_SEMA = 2,
-	I915_ENGINE_SAMPLE_MAX /* non-ABI */
+	I915_SAMPLE_SEMA = 2
 };
 
 #define I915_PMU_SAMPLE_BITS (4)
