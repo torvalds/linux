@@ -303,7 +303,7 @@ err_sgt_free:
 	kfree(sgt);
 err_dma_free:
 	dma_free_attrs(drm->dev, obj->size, rk_obj->cookie,
-		       rk_obj->dma_addr, &rk_obj->dma_attrs);
+		       rk_obj->dma_handle, &rk_obj->dma_attrs);
 
 	return ret;
 }
@@ -317,7 +317,7 @@ static void rockchip_gem_free_cma(struct rockchip_gem_object *rk_obj)
 	sg_free_table(rk_obj->sgt);
 	kfree(rk_obj->sgt);
 	dma_free_attrs(drm->dev, obj->size, rk_obj->cookie,
-		       rk_obj->dma_addr, &rk_obj->dma_attrs);
+		       rk_obj->dma_handle, &rk_obj->dma_attrs);
 }
 
 static int rockchip_gem_alloc_secure(struct rockchip_gem_object *rk_obj)
