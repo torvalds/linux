@@ -1731,24 +1731,24 @@ static int init_gpio(struct fusb302_chip *chip)
 	chip->gpio_int_n = of_get_named_gpio(node, "fcs,int_n", 0);
 	if (!gpio_is_valid(chip->gpio_int_n)) {
 		ret = chip->gpio_int_n;
-		fusb302_log(chip, "cannot get named GPIO Int_N, ret=%d", ret);
+		dev_err(chip->dev, "cannot get named GPIO Int_N, ret=%d", ret);
 		return ret;
 	}
 	ret = devm_gpio_request(chip->dev, chip->gpio_int_n, "fcs,int_n");
 	if (ret < 0) {
-		fusb302_log(chip, "cannot request GPIO Int_N, ret=%d", ret);
+		dev_err(chip->dev, "cannot request GPIO Int_N, ret=%d", ret);
 		return ret;
 	}
 	ret = gpio_direction_input(chip->gpio_int_n);
 	if (ret < 0) {
-		fusb302_log(chip,
-			    "cannot set GPIO Int_N to input, ret=%d", ret);
+		dev_err(chip->dev,
+			"cannot set GPIO Int_N to input, ret=%d", ret);
 		return ret;
 	}
 	ret = gpio_to_irq(chip->gpio_int_n);
 	if (ret < 0) {
-		fusb302_log(chip,
-			    "cannot request IRQ for GPIO Int_N, ret=%d", ret);
+		dev_err(chip->dev,
+			"cannot request IRQ for GPIO Int_N, ret=%d", ret);
 		return ret;
 	}
 	chip->gpio_int_n_irq = ret;
@@ -1845,7 +1845,7 @@ static int fusb302_probe(struct i2c_client *client,
 	chip->tcpm_port = tcpm_register_port(&client->dev, &chip->tcpc_dev);
 	if (IS_ERR(chip->tcpm_port)) {
 		ret = PTR_ERR(chip->tcpm_port);
-		fusb302_log(chip, "cannot register tcpm port, ret=%d", ret);
+		dev_err(dev, "cannot register tcpm port, ret=%d", ret);
 		goto destroy_workqueue;
 	}
 
@@ -1854,8 +1854,7 @@ static int fusb302_probe(struct i2c_client *client,
 					IRQF_ONESHOT | IRQF_TRIGGER_LOW,
 					"fsc_interrupt_int_n", chip);
 	if (ret < 0) {
-		fusb302_log(chip,
-			    "cannot request IRQ for GPIO Int_N, ret=%d", ret);
+		dev_err(dev, "cannot request IRQ for GPIO Int_N, ret=%d", ret);
 		goto tcpm_unregister_port;
 	}
 	enable_irq_wake(chip->gpio_int_n_irq);
