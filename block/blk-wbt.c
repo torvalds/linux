@@ -178,12 +178,11 @@ void wbt_done(struct rq_wb *rwb, struct blk_issue_stat *stat)
 
 		if (wbt_is_read(stat))
 			wb_timestamp(rwb, &rwb->last_comp);
-		wbt_clear_state(stat);
 	} else {
 		WARN_ON_ONCE(stat == rwb->sync_cookie);
 		__wbt_done(rwb, wbt_stat_to_mask(stat));
-		wbt_clear_state(stat);
 	}
+	wbt_clear_state(stat);
 }
 
 /*
