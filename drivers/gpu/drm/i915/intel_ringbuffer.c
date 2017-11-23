@@ -1385,6 +1385,190 @@ void intel_legacy_submission_resume(struct drm_i915_private *dev_priv)
 		intel_ring_reset(engine->buffer, 0);
 }
 
+static inline int mi_set_context(struct drm_i915_gem_request *rq, u32 flags)
+{
+	struct drm_i915_private *i915 = rq->i915;
+	struct intel_engine_cs *engine = rq->engine;
+	enum intel_engine_id id;
+	const int num_rings =
+		/* Use an extended w/a on gen7 if signalling from other rings */
+		(HAS_LEGACY_SEMAPHORES(i915) && IS_GEN7(i915)) ?
+		INTEL_INFO(i915)->num_rings - 1 :
+		0;
+	int len;
+	u32 *cs;
+
+	flags |= MI_MM_SPACE_GTT;
+	if (IS_HASWELL(i915))
+		/* These flags are for resource streamer on HSW+ */
+		flags |= HSW_MI_RS_SAVE_STATE_EN | HSW_MI_RS_RESTORE_STATE_EN;
+	else
+		flags |= MI_SAVE_EXT_STATE_EN | MI_RESTORE_EXT_STATE_EN;
+
+	len = 4;
+	if (IS_GEN7(i915))
+		len += 2 + (num_rings ? 4*num_rings + 6 : 0);
+
+	cs = intel_ring_begin(rq, len);
+	if (IS_ERR(cs))
+		return PTR_ERR(cs);
+
+	/* WaProgramMiArbOnOffAroundMiSetContext:ivb,vlv,hsw,bdw,chv */
+	if (IS_GEN7(i915)) {
+		*cs++ = MI_ARB_ON_OFF | MI_ARB_DISABLE;
+		if (num_rings) {
+			struct intel_engine_cs *signaller;
+
+			*cs++ = MI_LOAD_REGISTER_IMM(num_rings);
+			for_each_engine(signaller, i915, id) {
+				if (signaller == engine)
+					continue;
+
+				*cs++ = i915_mmio_reg_offset(
+					   RING_PSMI_CTL(signaller->mmio_base));
+				*cs++ = _MASKED_BIT_ENABLE(
+						GEN6_PSMI_SLEEP_MSG_DISABLE);
+			}
+		}
+	}
+
+	*cs++ = MI_NOOP;
+	*cs++ = MI_SET_CONTEXT;
+	*cs++ = i915_ggtt_offset(rq->ctx->engine[RCS].state) | flags;
+	/*
+	 * w/a: MI_SET_CONTEXT must always be followed by MI_NOOP
+	 * WaMiSetContext_Hang:snb,ivb,vlv
+	 */
+	*cs++ = MI_NOOP;
+
+	if (IS_GEN7(i915)) {
+		if (num_rings) {
+			struct intel_engine_cs *signaller;
+			i915_reg_t last_reg = {}; /* keep gcc quiet */
+
+			*cs++ = MI_LOAD_REGISTER_IMM(num_rings);
+			for_each_engine(signaller, i915, id) {
+				if (signaller == engine)
+					continue;
+
+				last_reg = RING_PSMI_CTL(signaller->mmio_base);
+				*cs++ = i915_mmio_reg_offset(last_reg);
+				*cs++ = _MASKED_BIT_DISABLE(
+						GEN6_PSMI_SLEEP_MSG_DISABLE);
+			}
+
+			/* Insert a delay before the next switch! */
+			*cs++ = MI_STORE_REGISTER_MEM | MI_SRM_LRM_GLOBAL_GTT;
+			*cs++ = i915_mmio_reg_offset(last_reg);
+			*cs++ = i915_ggtt_offset(engine->scratch);
+			*cs++ = MI_NOOP;
+		}
+		*cs++ = MI_ARB_ON_OFF | MI_ARB_ENABLE;
+	}
+
+	intel_ring_advance(rq, cs);
+
+	return 0;
+}
+
+static int remap_l3(struct drm_i915_gem_request *rq, int slice)
+{
+	u32 *cs, *remap_info = rq->i915->l3_parity.remap_info[slice];
+	int i;
+
+	if (!remap_info)
+		return 0;
+
+	cs = intel_ring_begin(rq, GEN7_L3LOG_SIZE/4 * 2 + 2);
+	if (IS_ERR(cs))
+		return PTR_ERR(cs);
+
+	/*
+	 * Note: We do not worry about the concurrent register cacheline hang
+	 * here because no other code should access these registers other than
+	 * at initialization time.
+	 */
+	*cs++ = MI_LOAD_REGISTER_IMM(GEN7_L3LOG_SIZE/4);
+	for (i = 0; i < GEN7_L3LOG_SIZE/4; i++) {
+		*cs++ = i915_mmio_reg_offset(GEN7_L3LOG(slice, i));
+		*cs++ = remap_info[i];
+	}
+	*cs++ = MI_NOOP;
+	intel_ring_advance(rq, cs);
+
+	return 0;
+}
+
+static int switch_context(struct drm_i915_gem_request *rq)
+{
+	struct intel_engine_cs *engine = rq->engine;
+	struct i915_gem_context *to_ctx = rq->ctx;
+	struct i915_hw_ppgtt *to_mm =
+		to_ctx->ppgtt ?: rq->i915->mm.aliasing_ppgtt;
+	struct i915_gem_context *from_ctx = engine->legacy_active_context;
+	struct i915_hw_ppgtt *from_mm = engine->legacy_active_ppgtt;
+	u32 hw_flags = 0;
+	int ret, i;
+
+	lockdep_assert_held(&rq->i915->drm.struct_mutex);
+	GEM_BUG_ON(HAS_EXECLISTS(rq->i915));
+
+	if (to_mm != from_mm ||
+	    (to_mm && intel_engine_flag(engine) & to_mm->pd_dirty_rings)) {
+		trace_switch_mm(engine, to_ctx);
+		ret = to_mm->switch_mm(to_mm, rq);
+		if (ret)
+			goto err;
+
+		to_mm->pd_dirty_rings &= ~intel_engine_flag(engine);
+		engine->legacy_active_ppgtt = to_mm;
+		hw_flags = MI_FORCE_RESTORE;
+	}
+
+	if (to_ctx->engine[engine->id].state &&
+	    (to_ctx != from_ctx || hw_flags & MI_FORCE_RESTORE)) {
+		GEM_BUG_ON(engine->id != RCS);
+
+		/*
+		 * The kernel context(s) is treated as pure scratch and is not
+		 * expected to retain any state (as we sacrifice it during
+		 * suspend and on resume it may be corrupted). This is ok,
+		 * as nothing actually executes using the kernel context; it
+		 * is purely used for flushing user contexts.
+		 */
+		if (i915_gem_context_is_kernel(to_ctx))
+			hw_flags = MI_RESTORE_INHIBIT;
+
+		ret = mi_set_context(rq, hw_flags);
+		if (ret)
+			goto err_mm;
+
+		engine->legacy_active_context = to_ctx;
+	}
+
+	if (to_ctx->remap_slice) {
+		for (i = 0; i < MAX_L3_SLICES; i++) {
+			if (!(to_ctx->remap_slice & BIT(i)))
+				continue;
+
+			ret = remap_l3(rq, i);
+			if (ret)
+				goto err_ctx;
+		}
+
+		to_ctx->remap_slice = 0;
+	}
+
+	return 0;
+
+err_ctx:
+	engine->legacy_active_context = from_ctx;
+err_mm:
+	engine->legacy_active_ppgtt = from_mm;
+err:
+	return ret;
+}
+
 static int ring_request_alloc(struct drm_i915_gem_request *request)
 {
 	int ret;
@@ -1401,7 +1585,7 @@ static int ring_request_alloc(struct drm_i915_gem_request *request)
 	if (ret)
 		return ret;
 
-	ret = i915_switch_context(request);
+	ret = switch_context(request);
 	if (ret)
 		return ret;
 
