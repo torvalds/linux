@@ -177,6 +177,15 @@ static int submit_fence_sync(const struct etnaviv_gem_submit *submit)
 			break;
 	}
 
+	if (submit->flags & ETNA_SUBMIT_FENCE_FD_IN) {
+		/*
+		 * Wait if the fence is from a foreign context, or if the fence
+		 * array contains any fence from a foreign context.
+		 */
+		if (!dma_fence_match_context(submit->in_fence, context))
+			ret = dma_fence_wait(submit->in_fence, true);
+	}
+
 	return ret;
 }
 
@@ -359,6 +368,8 @@ static void submit_cleanup(struct etnaviv_gem_submit *submit)
 	}
 
 	ww_acquire_fini(&submit->ticket);
+	if (submit->in_fence)
+		dma_fence_put(submit->in_fence);
 	if (submit->out_fence)
 		dma_fence_put(submit->out_fence);
 	kfree(submit);
@@ -375,7 +386,6 @@ int etnaviv_ioctl_gem_submit(struct drm_device *dev, void *data,
 	struct etnaviv_gem_submit *submit;
 	struct etnaviv_cmdbuf *cmdbuf;
 	struct etnaviv_gpu *gpu;
-	struct dma_fence *in_fence = NULL;
 	struct sync_file *sync_file = NULL;
 	int out_fence_fd = -1;
 	void *stream;
@@ -485,20 +495,10 @@ int etnaviv_ioctl_gem_submit(struct drm_device *dev, void *data,
 	}
 
 	if (args->flags & ETNA_SUBMIT_FENCE_FD_IN) {
-		in_fence = sync_file_get_fence(args->fence_fd);
-		if (!in_fence) {
+		submit->in_fence = sync_file_get_fence(args->fence_fd);
+		if (!submit->in_fence) {
 			ret = -EINVAL;
 			goto err_submit_objects;
-		}
-
-		/*
-		 * Wait if the fence is from a foreign context, or if the fence
-		 * array contains any fence from a foreign context.
-		 */
-		if (!dma_fence_match_context(in_fence, gpu->fence_context)) {
-			ret = dma_fence_wait(in_fence, true);
-			if (ret)
-				goto err_submit_objects;
 		}
 	}
 
@@ -552,8 +552,6 @@ out:
 	submit_unpin_objects(submit);
 
 err_submit_objects:
-	if (in_fence)
-		dma_fence_put(in_fence);
 	submit_cleanup(submit);
 
 err_submit_cmds:
