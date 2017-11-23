@@ -182,6 +182,14 @@ static struct resource rtc_resources[] = {
 	}
 };
 
+static struct resource rk816_rtc_resources[] = {
+	{
+		.start  = RK816_IRQ_RTC_ALARM,
+		.end    = RK816_IRQ_RTC_ALARM,
+		.flags  = IORESOURCE_IRQ,
+	}
+};
+
 static struct resource pwrkey_resources[] = {
 	{
 		.start  = RK805_IRQ_PWRON_RISE,
@@ -296,8 +304,8 @@ static const struct mfd_cell rk816s[] = {
 	},
 	{
 		.name = "rk808-rtc",
-		.num_resources = ARRAY_SIZE(rtc_resources),
-		.resources = &rtc_resources[0],
+		.num_resources = ARRAY_SIZE(rk816_rtc_resources),
+		.resources = &rk816_rtc_resources[0],
 	},
 };
 
