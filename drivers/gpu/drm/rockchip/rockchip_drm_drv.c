@@ -34,6 +34,7 @@
 #include <linux/fence.h>
 #include <linux/console.h>
 #include <linux/iommu.h>
+#include <linux/of_reserved_mem.h>
 
 #include <drm/rockchip_drm.h>
 
@@ -1324,6 +1325,9 @@ static int rockchip_drm_bind(struct device *dev)
 #ifndef MODULE
 	show_loader_logo(drm_dev);
 #endif
+	ret = of_reserved_mem_device_init(drm_dev->dev);
+	if (ret)
+		DRM_DEBUG_KMS("No reserved memory region assign to drm\n");
 
 	ret = rockchip_drm_fbdev_init(drm_dev);
 	if (ret)
