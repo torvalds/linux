@@ -247,11 +247,15 @@ struct smbd_response {
 struct smbd_connection *smbd_get_connection(
 	struct TCP_Server_Info *server, struct sockaddr *dstaddr);
 
+/* Reconnect SMBDirect session */
+int smbd_reconnect(struct TCP_Server_Info *server);
+
 #else
 #define cifs_rdma_enabled(server)	0
 struct smbd_connection {};
 static inline void *smbd_get_connection(
 	struct TCP_Server_Info *server, struct sockaddr *dstaddr) {return NULL;}
+static inline int smbd_reconnect(struct TCP_Server_Info *server) {return -1; }
 #endif
 
 #endif
