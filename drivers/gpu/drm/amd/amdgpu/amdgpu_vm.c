@@ -2580,13 +2580,22 @@ static uint32_t amdgpu_vm_get_block_size(uint64_t vm_size)
  * @vm_size: the default vm size if it's set auto
  */
 void amdgpu_vm_adjust_size(struct amdgpu_device *adev, uint32_t vm_size,
-			   uint32_t fragment_size_default, unsigned max_level)
+			   uint32_t fragment_size_default, unsigned max_level,
+			   unsigned max_bits)
 {
 	uint64_t tmp;
 
 	/* adjust vm size first */
-	if (amdgpu_vm_size != -1)
+	if (amdgpu_vm_size != -1) {
+		unsigned max_size = 1 << (max_bits - 30);
+
 		vm_size = amdgpu_vm_size;
+		if (vm_size > max_size) {
+			dev_warn(adev->dev, "VM size (%d) too large, max is %u GB\n",
+				 amdgpu_vm_size, max_size);
+			vm_size = max_size;
+		}
+	}
 
 	adev->vm_manager.max_pfn = (uint64_t)vm_size << 18;
 
