@@ -388,7 +388,8 @@
 	sd-uhs-sdr25;
 	sd-uhs-sdr50;
 	sd-uhs-sdr104;
-	supports-sdio;
+	no-mmc;
+	no-sd;
 };
 
 &sdmmc {
@@ -399,6 +400,8 @@
 	disable-wp;
 	pinctrl-names = "default";
 	pinctrl-0 = <&sdmmc_clk>, <&sdmmc_cmd>, <&sdmmc_cd>, <&sdmmc_bus4>;
+	no-mmc;
+	no-sdio;
 };
 
 &uart0 {
