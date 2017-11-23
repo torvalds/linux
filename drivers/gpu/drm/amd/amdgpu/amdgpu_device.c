@@ -1184,12 +1184,6 @@ static void amdgpu_check_vm_size(struct amdgpu_device *adev)
 	if (amdgpu_vm_size == -1)
 		return;
 
-	if (!is_power_of_2(amdgpu_vm_size)) {
-		dev_warn(adev->dev, "VM size (%d) must be a power of 2\n",
-			 amdgpu_vm_size);
-		goto def_value;
-	}
-
 	if (amdgpu_vm_size < 1) {
 		dev_warn(adev->dev, "VM size (%d) too small, min is 1GB\n",
 			 amdgpu_vm_size);
