@@ -66,6 +66,10 @@ MODULE_LICENSE("GPL");
 
 #define POLL_INTERVAL_MS	1000
 
+static const s64 link_freq_menu_items[] = {
+	300000000,
+};
+
 static const struct v4l2_dv_timings_cap tc35874x_timings_cap = {
 	.type = V4L2_DV_BT_656_1120,
 	/* keep this initialization for compatibility with GCC < 4.4.6 */
@@ -1925,6 +1929,9 @@ static int tc35874x_probe(struct i2c_client *client,
 
 	state->audio_present_ctrl = v4l2_ctrl_new_custom(&state->hdl,
 			&tc35874x_ctrl_audio_present, NULL);
+
+	v4l2_ctrl_new_int_menu(&state->hdl, NULL, V4L2_CID_LINK_FREQ,
+			       0, 0, link_freq_menu_items);
 
 	sd->ctrl_handler = &state->hdl;
 	if (state->hdl.error) {
