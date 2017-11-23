@@ -1443,13 +1443,6 @@ int etnaviv_gpu_submit(struct etnaviv_gpu *gpu,
 		etnaviv_gem_mapping_reference(submit->bos[i].mapping);
 		cmdbuf->bo_map[i] = submit->bos[i].mapping;
 		atomic_inc(&etnaviv_obj->gpu_active);
-
-		if (submit->bos[i].flags & ETNA_SUBMIT_BO_WRITE)
-			reservation_object_add_excl_fence(etnaviv_obj->resv,
-							  fence);
-		else
-			reservation_object_add_shared_fence(etnaviv_obj->resv,
-							    fence);
 	}
 	cmdbuf->nr_bos = submit->nr_bos;
 	hangcheck_timer_reset(gpu);

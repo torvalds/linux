@@ -180,6 +180,24 @@ static int submit_fence_sync(const struct etnaviv_gem_submit *submit)
 	return ret;
 }
 
+static void submit_attach_object_fences(struct etnaviv_gem_submit *submit)
+{
+	int i;
+
+	for (i = 0; i < submit->nr_bos; i++) {
+		struct etnaviv_gem_object *etnaviv_obj = submit->bos[i].obj;
+
+		if (submit->bos[i].flags & ETNA_SUBMIT_BO_WRITE)
+			reservation_object_add_excl_fence(etnaviv_obj->resv,
+							  submit->fence);
+		else
+			reservation_object_add_shared_fence(etnaviv_obj->resv,
+							    submit->fence);
+
+		submit_unlock_object(submit, i);
+	}
+}
+
 static void submit_unpin_objects(struct etnaviv_gem_submit *submit)
 {
 	int i;
@@ -335,6 +353,7 @@ static void submit_cleanup(struct etnaviv_gem_submit *submit)
 	for (i = 0; i < submit->nr_bos; i++) {
 		struct etnaviv_gem_object *etnaviv_obj = submit->bos[i].obj;
 
+		/* if the GPU submit failed, objects might still be locked */
 		submit_unlock_object(submit, i);
 		drm_gem_object_put_unlocked(&etnaviv_obj->base);
 	}
@@ -506,6 +525,8 @@ int etnaviv_ioctl_gem_submit(struct drm_device *dev, void *data,
 	ret = etnaviv_gpu_submit(gpu, submit, cmdbuf);
 	if (ret)
 		goto out;
+
+	submit_attach_object_fences(submit);
 
 	cmdbuf = NULL;
 
