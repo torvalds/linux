@@ -90,14 +90,14 @@ static const struct adreno_info gpulist[] = {
 	},
 };
 
-MODULE_FIRMWARE("a300_pm4.fw");
-MODULE_FIRMWARE("a300_pfp.fw");
-MODULE_FIRMWARE("a330_pm4.fw");
-MODULE_FIRMWARE("a330_pfp.fw");
-MODULE_FIRMWARE("a420_pm4.fw");
-MODULE_FIRMWARE("a420_pfp.fw");
-MODULE_FIRMWARE("a530_fm4.fw");
-MODULE_FIRMWARE("a530_pfp.fw");
+MODULE_FIRMWARE("qcom/a300_pm4.fw");
+MODULE_FIRMWARE("qcom/a300_pfp.fw");
+MODULE_FIRMWARE("qcom/a330_pm4.fw");
+MODULE_FIRMWARE("qcom/a330_pfp.fw");
+MODULE_FIRMWARE("qcom/a420_pm4.fw");
+MODULE_FIRMWARE("qcom/a420_pfp.fw");
+MODULE_FIRMWARE("qcom/a530_fm4.fw");
+MODULE_FIRMWARE("qcom/a530_pfp.fw");
 
 static inline bool _rev_match(uint8_t entry, uint8_t id)
 {
