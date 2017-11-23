@@ -247,6 +247,24 @@
 		#size-cells = <1>;
 		ranges = <0x0 0x0 0x0 0x18000000>;
 
+		arm_a53_pmu {
+			compatible = "arm,cortex-a53-pmu", "arm,armv8-pmuv3";
+			interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 33 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 35 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-affinity = <&cpu0>, <&cpu1>, <&cpu2>, <&cpu3>;
+		};
+
+		arm_a57_pmu {
+			compatible = "arm,cortex-a57-pmu", "arm,armv8-pmuv3";
+			interrupts = <GIC_SPI 52 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 53 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-affinity = <&cpu4>, <&cpu5>, <&cpu6>, <&cpu7>;
+		};
+
 		chipid@10000000 {
 			compatible = "samsung,exynos4210-chipid";
 			reg = <0x10000000 0x100>;
