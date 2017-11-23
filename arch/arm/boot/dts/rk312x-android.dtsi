@@ -163,7 +163,7 @@
 };
 
 &display_subsystem {
-	memory-region = <&drm_logo>;
+	logo-memory-region = <&drm_logo>;
 	status = "okay";
 
 	route {
