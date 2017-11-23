@@ -6372,9 +6372,18 @@ static int intel_crtc_compute_config(struct intel_crtc *crtc,
 	 * - LVDS dual channel mode
 	 * - Double wide pipe
 	 */
-	if ((intel_crtc_has_type(pipe_config, INTEL_OUTPUT_LVDS) &&
-	     intel_is_dual_link_lvds(dev)) || pipe_config->double_wide)
-		pipe_config->pipe_src_w &= ~1;
+	if (pipe_config->pipe_src_w & 1) {
+		if (pipe_config->double_wide) {
+			DRM_DEBUG_KMS("Odd pipe source width not supported with double wide pipe\n");
+			return -EINVAL;
+		}
+
+		if (intel_crtc_has_type(pipe_config, INTEL_OUTPUT_LVDS) &&
+		    intel_is_dual_link_lvds(dev)) {
+			DRM_DEBUG_KMS("Odd pipe source width not supported with dual link LVDS\n");
+			return -EINVAL;
+		}
+	}
 
 	/* Cantiga+ cannot handle modes with a hsync front porch of 0.
 	 * WaPruneModeWithIncorrectHsyncOffset:ctg,elk,ilk,snb,ivb,vlv,hsw.
