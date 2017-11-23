@@ -419,7 +419,7 @@
 	status = "okay";
 
 	ports = <&vopb_out>, <&vopl_out>;
-	memory-region = <&drm_logo>;
+	logo-memory-region = <&drm_logo>;
 
 	route {
 		route_hdmi: route-hdmi {

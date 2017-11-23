@@ -58,7 +58,7 @@
 &display_subsystem {
 	status = "okay";
 
-	memory-region = <&drm_logo>;
+	logo-memory-region = <&drm_logo>;
 
 	route {
 		route_dsi: route-dsi {
