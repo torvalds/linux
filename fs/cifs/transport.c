@@ -37,6 +37,7 @@
 #include "cifsglob.h"
 #include "cifsproto.h"
 #include "cifs_debug.h"
+#include "smbdirect.h"
 
 /* Max number of iovectors we can use off the stack when sending requests. */
 #define CIFS_MAX_IOV_SIZE 8
@@ -232,7 +233,10 @@ __smb_send_rqst(struct TCP_Server_Info *server, struct smb_rqst *rqst)
 	struct socket *ssocket = server->ssocket;
 	struct msghdr smb_msg;
 	int val = 1;
-
+	if (cifs_rdma_enabled(server) && server->smbd_conn) {
+		rc = smbd_send(server->smbd_conn, rqst);
+		goto smbd_done;
+	}
 	if (ssocket == NULL)
 		return -ENOTSOCK;
 
@@ -301,7 +305,7 @@ uncork:
 		 */
 		server->tcpStatus = CifsNeedReconnect;
 	}
-
+smbd_done:
 	if (rc < 0 && rc != -EINTR)
 		cifs_dbg(VFS, "Error %d sending data on socket to server\n",
 			 rc);
