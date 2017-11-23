@@ -100,7 +100,7 @@ static inline struct task_struct *get_proc_task(struct inode *inode)
 	return get_pid_task(proc_pid(inode), PIDTYPE_PID);
 }
 
-void task_dump_owner(struct task_struct *task, mode_t mode,
+void task_dump_owner(struct task_struct *task, umode_t mode,
 		     kuid_t *ruid, kgid_t *rgid);
 
 unsigned name_to_int(const struct qstr *qstr);
