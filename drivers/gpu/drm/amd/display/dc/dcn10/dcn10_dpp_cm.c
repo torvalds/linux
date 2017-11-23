@@ -49,6 +49,8 @@
 #define FN(reg_name, field_name) \
 	dpp->tf_shift->field_name, dpp->tf_mask->field_name
 
+#define NUM_ELEMENTS(a) (sizeof(a) / sizeof((a)[0]))
+
 struct dcn10_input_csc_matrix {
 	enum dc_color_space color_space;
 	uint16_t regval[12];
@@ -270,7 +272,7 @@ void dpp1_cm_set_output_csc_default(
 	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
 	struct out_csc_color_matrix tbl_entry;
 	int i, j;
-	int arr_size = sizeof(output_csc_matrix) / sizeof(struct output_csc_matrix);
+	int arr_size = NUM_ELEMENTS(output_csc_matrix);
 	uint32_t ocsc_mode = 4;
 
 	tbl_entry.color_space = colorspace;

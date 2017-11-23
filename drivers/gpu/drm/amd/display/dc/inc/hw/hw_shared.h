@@ -131,12 +131,7 @@ struct out_csc_color_matrix {
 	uint16_t regval[12];
 };
 
-struct output_csc_matrix {
-	enum dc_color_space color_space;
-	uint16_t regval[12];
-};
-
-static const struct output_csc_matrix output_csc_matrix[] = {
+static const struct out_csc_color_matrix output_csc_matrix[] = {
 	{ COLOR_SPACE_SRGB,
 		{ 0x2000, 0, 0, 0, 0, 0x2000, 0, 0, 0, 0, 0x2000, 0} },
 	{ COLOR_SPACE_SRGB_LIMITED,
