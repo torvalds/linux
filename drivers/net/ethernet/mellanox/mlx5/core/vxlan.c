@@ -71,9 +71,9 @@ struct mlx5e_vxlan *mlx5e_vxlan_lookup_port(struct mlx5e_priv *priv, u16 port)
 	struct mlx5e_vxlan_db *vxlan_db = &priv->vxlan;
 	struct mlx5e_vxlan *vxlan;
 
-	spin_lock(&vxlan_db->lock);
+	spin_lock_bh(&vxlan_db->lock);
 	vxlan = radix_tree_lookup(&vxlan_db->tree, port);
-	spin_unlock(&vxlan_db->lock);
+	spin_unlock_bh(&vxlan_db->lock);
 
 	return vxlan;
 }
@@ -100,9 +100,9 @@ static void mlx5e_vxlan_add_port(struct work_struct *work)
 
 	vxlan->udp_port = port;
 
-	spin_lock_irq(&vxlan_db->lock);
+	spin_lock_bh(&vxlan_db->lock);
 	err = radix_tree_insert(&vxlan_db->tree, vxlan->udp_port, vxlan);
-	spin_unlock_irq(&vxlan_db->lock);
+	spin_unlock_bh(&vxlan_db->lock);
 	if (err)
 		goto err_free;
 
@@ -121,9 +121,9 @@ static void __mlx5e_vxlan_core_del_port(struct mlx5e_priv *priv, u16 port)
 	struct mlx5e_vxlan_db *vxlan_db = &priv->vxlan;
 	struct mlx5e_vxlan *vxlan;
 
-	spin_lock_irq(&vxlan_db->lock);
+	spin_lock_bh(&vxlan_db->lock);
 	vxlan = radix_tree_delete(&vxlan_db->tree, port);
-	spin_unlock_irq(&vxlan_db->lock);
+	spin_unlock_bh(&vxlan_db->lock);
 
 	if (!vxlan)
 		return;
@@ -171,12 +171,12 @@ void mlx5e_vxlan_cleanup(struct mlx5e_priv *priv)
 	struct mlx5e_vxlan *vxlan;
 	unsigned int port = 0;
 
-	spin_lock_irq(&vxlan_db->lock);
+	spin_lock_bh(&vxlan_db->lock);
 	while (radix_tree_gang_lookup(&vxlan_db->tree, (void **)&vxlan, port, 1)) {
 		port = vxlan->udp_port;
-		spin_unlock_irq(&vxlan_db->lock);
+		spin_unlock_bh(&vxlan_db->lock);
 		__mlx5e_vxlan_core_del_port(priv, (u16)port);
-		spin_lock_irq(&vxlan_db->lock);
+		spin_lock_bh(&vxlan_db->lock);
 	}
-	spin_unlock_irq(&vxlan_db->lock);
+	spin_unlock_bh(&vxlan_db->lock);
 }
