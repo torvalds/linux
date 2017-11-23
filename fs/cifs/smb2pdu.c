@@ -616,6 +616,11 @@ int smb3_validate_negotiate(const unsigned int xid, struct cifs_tcon *tcon)
 
 	cifs_dbg(FYI, "validate negotiate\n");
 
+#ifdef CONFIG_CIFS_SMB_DIRECT
+	if (tcon->ses->server->rdma)
+		return 0;
+#endif
+
 	/*
 	 * validation ioctl must be signed, so no point sending this if we
 	 * can not sign it (ie are not known user).  Even if signing is not
