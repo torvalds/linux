@@ -32,3 +32,4 @@ Order by the overhead of source file name and line number: perf report -s srclin
 System-wide collection from all CPUs: perf record -a
 Show current config key-value pairs: perf config --list
 Show user configuration overrides: perf config --user --list
+To add Node.js USDT(User-Level Statically Defined Tracing): perf buildid-cache --add `which node`
