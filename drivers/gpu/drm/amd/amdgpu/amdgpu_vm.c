@@ -2582,12 +2582,17 @@ static uint32_t amdgpu_vm_get_block_size(uint64_t vm_size)
 void amdgpu_vm_adjust_size(struct amdgpu_device *adev, uint32_t vm_size,
 			   uint32_t fragment_size_default, unsigned max_level)
 {
-	/* adjust vm size first, but only for two level setups for now */
-	if (amdgpu_vm_size != -1 && max_level == 1)
+	uint64_t tmp;
+
+	/* adjust vm size first */
+	if (amdgpu_vm_size != -1)
 		vm_size = amdgpu_vm_size;
 
 	adev->vm_manager.max_pfn = (uint64_t)vm_size << 18;
-	adev->vm_manager.num_level = max_level;
+
+	tmp = roundup_pow_of_two(adev->vm_manager.max_pfn);
+	tmp = DIV_ROUND_UP(fls64(tmp) - 1, 9) - 1;
+	adev->vm_manager.num_level = min(max_level, (unsigned)tmp);
 
 	/* block size depends on vm size and hw setup*/
 	if (adev->vm_manager.num_level > 1)
@@ -2604,8 +2609,9 @@ void amdgpu_vm_adjust_size(struct amdgpu_device *adev, uint32_t vm_size,
 	else
 		adev->vm_manager.fragment_size = amdgpu_vm_fragment_size;
 
-	DRM_INFO("vm size is %u GB, block size is %u-bit, fragment size is %u-bit\n",
-		 vm_size, adev->vm_manager.block_size,
+	DRM_INFO("vm size is %u GB, %u levels, block size is %u-bit, fragment size is %u-bit\n",
+		 vm_size, adev->vm_manager.num_level + 1,
+		 adev->vm_manager.block_size,
 		 adev->vm_manager.fragment_size);
 }
 
