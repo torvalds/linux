@@ -4311,10 +4311,8 @@ static struct extent_map *get_extent_skip_holes(struct inode *inode,
 			return em;
 
 		/* if this isn't a hole return it */
-		if (!test_bit(EXTENT_FLAG_VACANCY, &em->flags) &&
-		    em->block_start != EXTENT_MAP_HOLE) {
+		if (em->block_start != EXTENT_MAP_HOLE)
 			return em;
-		}
 
 		/* this is a hole, advance to the next extent */
 		offset = extent_map_end(em);

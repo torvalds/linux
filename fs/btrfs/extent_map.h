@@ -13,7 +13,6 @@
 /* bits for the flags field */
 #define EXTENT_FLAG_PINNED 0 /* this entry not yet on disk, don't free it */
 #define EXTENT_FLAG_COMPRESSED 1
-#define EXTENT_FLAG_VACANCY 2 /* no file extent item found */
 #define EXTENT_FLAG_PREALLOC 3 /* pre-allocated extent */
 #define EXTENT_FLAG_LOGGING 4 /* Logging this extent */
 #define EXTENT_FLAG_FILLING 5 /* Filling in a preallocated extent */

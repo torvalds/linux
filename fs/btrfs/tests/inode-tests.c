@@ -288,10 +288,6 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 		test_msg("Expected a hole, got %llu\n", em->block_start);
 		goto out;
 	}
-	if (!test_bit(EXTENT_FLAG_VACANCY, &em->flags)) {
-		test_msg("Vacancy flag wasn't set properly\n");
-		goto out;
-	}
 	free_extent_map(em);
 	btrfs_drop_extent_cache(BTRFS_I(inode), 0, (u64)-1, 0);
 
@@ -1130,7 +1126,6 @@ int btrfs_test_inodes(u32 sectorsize, u32 nodesize)
 	int ret;
 
 	set_bit(EXTENT_FLAG_COMPRESSED, &compressed_only);
-	set_bit(EXTENT_FLAG_VACANCY, &vacancy_only);
 	set_bit(EXTENT_FLAG_PREALLOC, &prealloc_only);
 
 	test_msg("Running btrfs_get_extent tests\n");

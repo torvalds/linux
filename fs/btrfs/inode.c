@@ -7118,7 +7118,6 @@ not_found:
 	em->len = len;
 not_found_em:
 	em->block_start = EXTENT_MAP_HOLE;
-	set_bit(EXTENT_FLAG_VACANCY, &em->flags);
 insert:
 	btrfs_release_path(path);
 	if (em->start > start || extent_map_end(em) <= start) {
