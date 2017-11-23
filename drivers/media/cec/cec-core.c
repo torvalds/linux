@@ -286,7 +286,6 @@ struct cec_adapter *cec_allocate_adapter(const struct cec_adap_ops *ops,
 	adap->rc->priv = adap;
 	adap->rc->map_name = RC_MAP_CEC;
 	adap->rc->timeout = MS_TO_NS(100);
-	adap->rc_last_scancode = -1;
 #endif
 	return adap;
 }
@@ -318,17 +317,6 @@ int cec_register_adapter(struct cec_adapter *adap,
 			adap->rc = NULL;
 			return res;
 		}
-		/*
-		 * The REP_DELAY for CEC is really the time between the initial
-		 * 'User Control Pressed' message and the second. The first
-		 * keypress is always seen as non-repeating, the second
-		 * (provided it has the same UI Command) will start the 'Press
-		 * and Hold' (aka repeat) behavior. By setting REP_DELAY to the
-		 * same value as REP_PERIOD the expected CEC behavior is
-		 * reproduced.
-		 */
-		adap->rc->input_dev->rep[REP_DELAY] =
-			adap->rc->input_dev->rep[REP_PERIOD];
 	}
 #endif
 

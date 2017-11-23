@@ -597,6 +597,7 @@ static void ir_do_keyup(struct rc_dev *dev, bool sync)
 		return;
 
 	IR_dprintk(1, "keyup key 0x%04x\n", dev->last_keycode);
+	del_timer_sync(&dev->timer_repeat);
 	input_report_key(dev->input_dev, dev->last_keycode, 0);
 	led_trigger_event(led_feedback, LED_OFF);
 	if (sync)
@@ -647,6 +648,31 @@ static void ir_timer_keyup(struct timer_list *t)
 	spin_lock_irqsave(&dev->keylock, flags);
 	if (time_is_before_eq_jiffies(dev->keyup_jiffies))
 		ir_do_keyup(dev, true);
+	spin_unlock_irqrestore(&dev->keylock, flags);
+}
+
+/**
+ * ir_timer_repeat() - generates a repeat event after a timeout
+ *
+ * @t:		a pointer to the struct timer_list
+ *
+ * This routine will generate a soft repeat event every REP_PERIOD
+ * milliseconds.
+ */
+static void ir_timer_repeat(struct timer_list *t)
+{
+	struct rc_dev *dev = from_timer(dev, t, timer_repeat);
+	struct input_dev *input = dev->input_dev;
+	unsigned long flags;
+
+	spin_lock_irqsave(&dev->keylock, flags);
+	if (dev->keypressed) {
+		input_event(input, EV_KEY, dev->last_keycode, 2);
+		input_sync(input);
+		if (input->rep[REP_PERIOD])
+			mod_timer(&dev->timer_repeat, jiffies +
+				  msecs_to_jiffies(input->rep[REP_PERIOD]));
+	}
 	spin_unlock_irqrestore(&dev->keylock, flags);
 }
 
@@ -730,6 +756,22 @@ static void ir_do_keydown(struct rc_dev *dev, enum rc_proto protocol,
 		input_report_key(dev->input_dev, keycode, 1);
 
 		led_trigger_event(led_feedback, LED_FULL);
+	}
+
+	/*
+	 * For CEC, start sending repeat messages as soon as the first
+	 * repeated message is sent, as long as REP_DELAY = 0 and REP_PERIOD
+	 * is non-zero. Otherwise, the input layer will generate repeat
+	 * messages.
+	 */
+	if (!new_event && keycode != KEY_RESERVED &&
+	    dev->allowed_protocols == RC_PROTO_BIT_CEC &&
+	    !timer_pending(&dev->timer_repeat) &&
+	    dev->input_dev->rep[REP_PERIOD] &&
+	    !dev->input_dev->rep[REP_DELAY]) {
+		input_event(dev->input_dev, EV_KEY, keycode, 2);
+		mod_timer(&dev->timer_repeat, jiffies +
+			  msecs_to_jiffies(dev->input_dev->rep[REP_PERIOD]));
 	}
 
 	input_sync(dev->input_dev);
@@ -1599,6 +1641,7 @@ struct rc_dev *rc_allocate_device(enum rc_driver_type type)
 		input_set_drvdata(dev->input_dev, dev);
 
 		timer_setup(&dev->timer_keyup, ir_timer_keyup, 0);
+		timer_setup(&dev->timer_repeat, ir_timer_repeat, 0);
 
 		spin_lock_init(&dev->rc_map.lock);
 		spin_lock_init(&dev->keylock);
@@ -1732,7 +1775,10 @@ static int rc_setup_rx_device(struct rc_dev *dev)
 	 * to avoid wrong repetition of the keycodes. Note that this must be
 	 * set after the call to input_register_device().
 	 */
-	dev->input_dev->rep[REP_DELAY] = 500;
+	if (dev->allowed_protocols == RC_PROTO_BIT_CEC)
+		dev->input_dev->rep[REP_DELAY] = 0;
+	else
+		dev->input_dev->rep[REP_DELAY] = 500;
 
 	/*
 	 * As a repeat event on protocols like RC-5 and NEC take as long as
@@ -1884,6 +1930,7 @@ void rc_unregister_device(struct rc_dev *dev)
 		return;
 
 	del_timer_sync(&dev->timer_keyup);
+	del_timer_sync(&dev->timer_repeat);
 
 	if (dev->driver_type == RC_DRIVER_IR_RAW)
 		ir_raw_event_unregister(dev);
