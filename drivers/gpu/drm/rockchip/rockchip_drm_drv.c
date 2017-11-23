@@ -216,7 +216,7 @@ static int init_loader_memory(struct drm_device *drm_dev)
 	struct resource res;
 	int i, ret;
 
-	node = of_parse_phandle(np, "memory-region", 0);
+	node = of_parse_phandle(np, "logo-memory-region", 0);
 	if (!node)
 		return -ENOMEM;
 
