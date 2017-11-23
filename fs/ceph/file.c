@@ -396,7 +396,7 @@ int ceph_atomic_open(struct inode *dir, struct dentry *dentry,
 	req->r_dentry = dget(dentry);
 	req->r_num_caps = 2;
 	if (flags & O_CREAT) {
-		req->r_dentry_drop = CEPH_CAP_FILE_SHARED;
+		req->r_dentry_drop = CEPH_CAP_FILE_SHARED | CEPH_CAP_AUTH_EXCL;
 		req->r_dentry_unless = CEPH_CAP_FILE_EXCL;
 		if (acls.pagelist) {
 			req->r_pagelist = acls.pagelist;

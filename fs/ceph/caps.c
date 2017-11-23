@@ -3939,11 +3939,20 @@ int ceph_encode_inode_release(void **p, struct inode *inode,
 
 	cap = __get_cap_for_mds(ci, mds);
 	if (cap && __cap_is_valid(cap)) {
-		if (force ||
-		    ((cap->issued & drop) &&
-		     (cap->issued & unless) == 0)) {
-			if ((cap->issued & drop) &&
-			    (cap->issued & unless) == 0) {
+		unless &= cap->issued;
+		if (unless) {
+			if (unless & CEPH_CAP_AUTH_EXCL)
+				drop &= ~CEPH_CAP_AUTH_SHARED;
+			if (unless & CEPH_CAP_LINK_EXCL)
+				drop &= ~CEPH_CAP_LINK_SHARED;
+			if (unless & CEPH_CAP_XATTR_EXCL)
+				drop &= ~CEPH_CAP_XATTR_SHARED;
+			if (unless & CEPH_CAP_FILE_EXCL)
+				drop &= ~CEPH_CAP_FILE_SHARED;
+		}
+
+		if (force || (cap->issued & drop)) {
+			if (cap->issued & drop) {
 				int wanted = __ceph_caps_wanted(ci);
 				if ((ci->i_ceph_flags & CEPH_I_NODELAY) == 0)
 					wanted |= cap->mds_wanted;
@@ -3975,7 +3984,7 @@ int ceph_encode_inode_release(void **p, struct inode *inode,
 			*p += sizeof(*rel);
 			ret = 1;
 		} else {
-			dout("encode_inode_release %p cap %p %s\n",
+			dout("encode_inode_release %p cap %p %s (noop)\n",
 			     inode, cap, ceph_cap_string(cap->issued));
 		}
 	}
