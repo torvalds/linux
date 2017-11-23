@@ -90,7 +90,6 @@
 #define I40E_AQ_LEN			256
 #define I40E_AQ_WORK_LIMIT		66 /* max number of VFs + a little */
 #define I40E_MAX_USER_PRIORITY		8
-#define I40E_MAX_QUEUES_PER_CH		64
 #define I40E_DEFAULT_TRAFFIC_CLASS	BIT(0)
 #define I40E_DEFAULT_MSG_ENABLE		4
 #define I40E_QUEUE_WAIT_RETRY_LIMIT	10

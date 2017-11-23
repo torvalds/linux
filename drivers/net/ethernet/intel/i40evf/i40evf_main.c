@@ -2110,6 +2110,11 @@ static void i40evf_client_task(struct work_struct *work)
 		adapter->flags &= ~I40EVF_FLAG_SERVICE_CLIENT_REQUESTED;
 		goto out;
 	}
+	if (adapter->flags & I40EVF_FLAG_CLIENT_NEEDS_L2_PARAMS) {
+		i40evf_notify_client_l2_params(&adapter->vsi);
+		adapter->flags &= ~I40EVF_FLAG_CLIENT_NEEDS_L2_PARAMS;
+		goto out;
+	}
 	if (adapter->flags & I40EVF_FLAG_CLIENT_NEEDS_CLOSE) {
 		i40evf_notify_client_close(&adapter->vsi, false);
 		adapter->flags &= ~I40EVF_FLAG_CLIENT_NEEDS_CLOSE;
@@ -2118,11 +2123,6 @@ static void i40evf_client_task(struct work_struct *work)
 	if (adapter->flags & I40EVF_FLAG_CLIENT_NEEDS_OPEN) {
 		i40evf_notify_client_open(&adapter->vsi);
 		adapter->flags &= ~I40EVF_FLAG_CLIENT_NEEDS_OPEN;
-		goto out;
-	}
-	if (adapter->flags & I40EVF_FLAG_CLIENT_NEEDS_L2_PARAMS) {
-		i40evf_notify_client_l2_params(&adapter->vsi);
-		adapter->flags &= ~I40EVF_FLAG_CLIENT_NEEDS_L2_PARAMS;
 	}
 out:
 	clear_bit(__I40EVF_IN_CLIENT_TASK, &adapter->crit_section);
