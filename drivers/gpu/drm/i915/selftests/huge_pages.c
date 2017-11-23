@@ -27,6 +27,7 @@
 #include <linux/prime_numbers.h>
 
 #include "mock_drm.h"
+#include "i915_random.h"
 
 static const unsigned int page_sizes[] = {
 	I915_GTT_PAGE_SIZE_2M,
@@ -1044,7 +1045,10 @@ static int igt_write_huge(struct i915_gem_context *ctx,
 {
 	struct drm_i915_private *i915 = to_i915(obj->base.dev);
 	struct i915_address_space *vm = ctx->ppgtt ? &ctx->ppgtt->base : &i915->ggtt.base;
+	static struct intel_engine_cs *engines[I915_NUM_ENGINES];
 	struct intel_engine_cs *engine;
+	I915_RND_STATE(prng);
+	IGT_TIMEOUT(end_time);
 	struct i915_vma *vma;
 	unsigned int flags = PIN_USER | PIN_OFFSET_FIXED;
 	unsigned int max_page_size;
@@ -1052,6 +1056,8 @@ static int igt_write_huge(struct i915_gem_context *ctx,
 	u64 max;
 	u64 num;
 	u64 size;
+	int *order;
+	int i, n;
 	int err = 0;
 
 	GEM_BUG_ON(!i915_gem_object_has_pinned_pages(obj));
@@ -1067,67 +1073,81 @@ static int igt_write_huge(struct i915_gem_context *ctx,
 	if (IS_ERR(vma))
 		return PTR_ERR(vma);
 
+	n = 0;
 	for_each_engine(engine, i915, id) {
-		IGT_TIMEOUT(end_time);
-
 		if (!intel_engine_can_store_dword(engine)) {
-			pr_info("store-dword-imm not supported on engine=%u\n",
-				id);
+			pr_info("store-dword-imm not supported on engine=%u\n", id);
 			continue;
 		}
+		engines[n++] = engine;
+	}
 
-		/*
-		 * Try various offsets until we timeout -- we want to avoid
-		 * issues hidden by effectively always using offset = 0.
-		 */
-		for_each_prime_number_from(num, 0, max) {
-			u64 offset = num * max_page_size;
-			u32 dword;
+	if (!n)
+		return 0;
 
-			err = i915_vma_unbind(vma);
-			if (err)
-				goto out_vma_close;
+	/*
+	 * To keep things interesting when alternating between engines in our
+	 * randomized order, lets also make feeding to the same engine a few
+	 * times in succession a possibility by enlarging the permutation array.
+	 */
+	order = i915_random_order(n * I915_NUM_ENGINES, &prng);
+	if (!order)
+		return -ENOMEM;
 
-			err = i915_vma_pin(vma, size, max_page_size, flags | offset);
-			if (err) {
-				/*
-				 * The ggtt may have some pages reserved so
-				 * refrain from erroring out.
-				 */
-				if (err == -ENOSPC && i915_is_ggtt(vm)) {
-					err = 0;
-					continue;
-				}
+	/*
+	 * Try various offsets until we timeout -- we want to avoid
+	 * issues hidden by effectively always using offset = 0.
+	 */
+	i = 0;
+	for_each_prime_number_from(num, 0, max) {
+		u64 offset = num * max_page_size;
+		u32 dword;
 
-				goto out_vma_close;
+		err = i915_vma_unbind(vma);
+		if (err)
+			goto out_vma_close;
+
+		err = i915_vma_pin(vma, size, max_page_size, flags | offset);
+		if (err) {
+			/*
+			 * The ggtt may have some pages reserved so
+			 * refrain from erroring out.
+			 */
+			if (err == -ENOSPC && i915_is_ggtt(vm)) {
+				err = 0;
+				continue;
 			}
 
-			err = igt_check_page_sizes(vma);
-			if (err)
-				goto out_vma_unpin;
-
-			dword = offset_in_page(num) / 4;
-
-			err = gpu_write(vma, ctx, engine, dword, num + 1);
-			if (err) {
-				pr_err("gpu-write failed at offset=%llx", offset);
-				goto out_vma_unpin;
-			}
-
-			err = cpu_check(obj, dword, num + 1);
-			if (err) {
-				pr_err("cpu-check failed at offset=%llx", offset);
-				goto out_vma_unpin;
-			}
-
-			i915_vma_unpin(vma);
-
-			if (num > 0 &&
-			    igt_timeout(end_time,
-					"%s timed out on engine=%u at offset=%llx, max_page_size=%x\n",
-					__func__, id, offset, max_page_size))
-				break;
+			goto out_vma_close;
 		}
+
+		err = igt_check_page_sizes(vma);
+		if (err)
+			goto out_vma_unpin;
+
+		dword = offset_in_page(num) / 4;
+
+		engine = engines[order[i] % n];
+		i = (i + 1) % (n * I915_NUM_ENGINES);
+
+		err = gpu_write(vma, ctx, engine, dword, num + 1);
+		if (err) {
+			pr_err("gpu-write failed at offset=%llx", offset);
+			goto out_vma_unpin;
+		}
+
+		err = cpu_check(obj, dword, num + 1);
+		if (err) {
+			pr_err("cpu-check failed at offset=%llx", offset);
+			goto out_vma_unpin;
+		}
+
+		i915_vma_unpin(vma);
+
+		if (igt_timeout(end_time,
+				"%s timed out on engine=%u at offset=%llx, max_page_size=%x\n",
+				__func__, engine->id, offset, max_page_size))
+			break;
 	}
 
 out_vma_unpin:
@@ -1135,6 +1155,7 @@ out_vma_unpin:
 		i915_vma_unpin(vma);
 out_vma_close:
 	i915_vma_close(vma);
+	kfree(order);
 
 	return err;
 }
