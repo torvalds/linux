@@ -115,7 +115,7 @@ struct bpf_insn_aux_data {
 		struct bpf_map *map_ptr;	/* pointer for call insn into lookup_elem */
 	};
 	int ctx_field_size; /* the ctx field size for load insn, maybe 0 */
-	int converted_op_size; /* the valid value width after perceived conversion */
+	bool seen; /* this insn was processed by the verifier */
 };
 
 #define MAX_USED_MAPS 64 /* max number of maps accessed by one eBPF program */
@@ -171,7 +171,7 @@ static inline struct bpf_reg_state *cur_regs(struct bpf_verifier_env *env)
 #if defined(CONFIG_NET) && defined(CONFIG_BPF_SYSCALL)
 int bpf_prog_offload_verifier_prep(struct bpf_verifier_env *env);
 #else
-int bpf_prog_offload_verifier_prep(struct bpf_verifier_env *env)
+static inline int bpf_prog_offload_verifier_prep(struct bpf_verifier_env *env)
 {
 	return -EOPNOTSUPP;
 }
