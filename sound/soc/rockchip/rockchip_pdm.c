@@ -24,7 +24,7 @@
 
 #include "rockchip_pdm.h"
 
-#define PDM_DMA_BURST_SIZE	(16) /* size * width: 16*4 = 64 bytes */
+#define PDM_DMA_BURST_SIZE	(8) /* size * width: 8*4 = 32 bytes */
 
 struct rk_pdm_dev {
 	struct device *dev;
