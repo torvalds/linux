@@ -1423,7 +1423,7 @@ int etnaviv_gpu_submit(struct etnaviv_gpu *gpu,
 		etnaviv_sync_point_queue(gpu, event[1]);
 	}
 
-	etnaviv_buffer_queue(gpu, event[0], cmdbuf);
+	etnaviv_buffer_queue(gpu, submit->exec_state, event[0], cmdbuf);
 
 	if (submit->nr_pmrs) {
 		gpu->event[event[2]].sync_point = &sync_point_perfmon_sample_post;

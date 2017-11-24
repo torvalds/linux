@@ -297,14 +297,14 @@ void etnaviv_sync_point_queue(struct etnaviv_gpu *gpu, unsigned int event)
 }
 
 /* Append a command buffer to the ring buffer. */
-void etnaviv_buffer_queue(struct etnaviv_gpu *gpu, unsigned int event,
-	struct etnaviv_cmdbuf *cmdbuf)
+void etnaviv_buffer_queue(struct etnaviv_gpu *gpu, u32 exec_state,
+	unsigned int event, struct etnaviv_cmdbuf *cmdbuf)
 {
 	struct etnaviv_cmdbuf *buffer = gpu->buffer;
 	unsigned int waitlink_offset = buffer->user_size - 16;
 	u32 return_target, return_dwords;
 	u32 link_target, link_dwords;
-	bool switch_context = gpu->exec_state != cmdbuf->exec_state;
+	bool switch_context = gpu->exec_state != exec_state;
 
 	lockdep_assert_held(&gpu->lock);
 
@@ -363,8 +363,8 @@ void etnaviv_buffer_queue(struct etnaviv_gpu *gpu, unsigned int event,
 		}
 
 		if (switch_context) {
-			etnaviv_cmd_select_pipe(gpu, buffer, cmdbuf->exec_state);
-			gpu->exec_state = cmdbuf->exec_state;
+			etnaviv_cmd_select_pipe(gpu, buffer, exec_state);
+			gpu->exec_state = exec_state;
 		}
 
 		/* And the link to the submitted buffer */

@@ -87,8 +87,8 @@ u16 etnaviv_buffer_init(struct etnaviv_gpu *gpu);
 u16 etnaviv_buffer_config_mmuv2(struct etnaviv_gpu *gpu, u32 mtlb_addr, u32 safe_addr);
 void etnaviv_buffer_end(struct etnaviv_gpu *gpu);
 void etnaviv_sync_point_queue(struct etnaviv_gpu *gpu, unsigned int event);
-void etnaviv_buffer_queue(struct etnaviv_gpu *gpu, unsigned int event,
-	struct etnaviv_cmdbuf *cmdbuf);
+void etnaviv_buffer_queue(struct etnaviv_gpu *gpu, u32 exec_state,
+	unsigned int event, struct etnaviv_cmdbuf *cmdbuf);
 void etnaviv_validate_init(void);
 bool etnaviv_cmd_validate_one(struct etnaviv_gpu *gpu,
 	u32 *stream, unsigned int size,

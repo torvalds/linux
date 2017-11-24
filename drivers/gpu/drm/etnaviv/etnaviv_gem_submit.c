@@ -440,7 +440,6 @@ int etnaviv_ioctl_gem_submit(struct drm_device *dev, void *data,
 		goto err_submit_cmds;
 	}
 
-	cmdbuf->exec_state = args->exec_state;
 	cmdbuf->ctx = file->driver_priv;
 
 	ret = copy_from_user(bos, u64_to_user_ptr(args->bos),
@@ -487,6 +486,7 @@ int etnaviv_ioctl_gem_submit(struct drm_device *dev, void *data,
 		goto err_submit_ww_acquire;
 	}
 
+	submit->exec_state = args->exec_state;
 	submit->flags = args->flags;
 
 	ret = submit_lookup_objects(submit, file, bos, args->nr_bos);
