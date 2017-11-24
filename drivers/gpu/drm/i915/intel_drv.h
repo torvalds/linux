@@ -48,8 +48,9 @@
  * having timed out, since the timeout could be due to preemption or similar and
  * we've never had a chance to check the condition before the timeout.
  */
-#define _wait_for(COND, US, W) ({ \
+#define _wait_for(COND, US, Wmin, Wmax) ({ \
 	unsigned long timeout__ = jiffies + usecs_to_jiffies(US) + 1;	\
+	long wait__ = (Wmin); /* recommended min for usleep is 10 us */	\
 	int ret__;							\
 	might_sleep();							\
 	for (;;) {							\
@@ -62,12 +63,14 @@
 			ret__ = -ETIMEDOUT;				\
 			break;						\
 		}							\
-		usleep_range((W), (W) * 2);				\
+		usleep_range(wait__, wait__ * 2);			\
+		if (wait__ < (Wmax))					\
+			wait__ <<= 1;					\
 	}								\
 	ret__;								\
 })
 
-#define wait_for(COND, MS)	  	_wait_for((COND), (MS) * 1000, 1000)
+#define wait_for(COND, MS)	_wait_for((COND), (MS) * 1000, 10, 1000)
 
 /* If CONFIG_PREEMPT_COUNT is disabled, in_atomic() always reports false. */
 #if defined(CONFIG_DRM_I915_DEBUG) && defined(CONFIG_PREEMPT_COUNT)
@@ -116,7 +119,7 @@
 	int ret__; \
 	BUILD_BUG_ON(!__builtin_constant_p(US)); \
 	if ((US) > 10) \
-		ret__ = _wait_for((COND), (US), 10); \
+		ret__ = _wait_for((COND), (US), 10, 10); \
 	else \
 		ret__ = _wait_for_atomic((COND), (US), 0); \
 	ret__; \

@@ -9294,7 +9294,7 @@ int skl_pcode_request(struct drm_i915_private *dev_priv, u32 mbox, u32 request,
 		ret = 0;
 		goto out;
 	}
-	ret = _wait_for(COND, timeout_base_ms * 1000, 10);
+	ret = _wait_for(COND, timeout_base_ms * 1000, 10, 10);
 	if (!ret)
 		goto out;
 
