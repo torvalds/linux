@@ -100,6 +100,10 @@ ifneq ($(KBUILD_CHECKSRC),0)
   endif
 endif
 
+ifneq ($(KBUILD_ENABLE_EXTRA_GCC_CHECKS),)
+  cmd_checkdoc = $(srctree)/scripts/kernel-doc -none $< ;
+endif
+
 # Do section mismatch analysis for each module/built-in.o
 ifdef CONFIG_DEBUG_SECTION_MISMATCH
   cmd_secanalysis = ; scripts/mod/modpost $@
@@ -283,6 +287,7 @@ define rule_cc_o_c
 	$(call echo-cmd,checksrc) $(cmd_checksrc)			  \
 	$(call cmd_and_fixdep,cc_o_c)					  \
 	$(cmd_modversions_c)						  \
+	$(cmd_checkdoc)							  \
 	$(call echo-cmd,objtool) $(cmd_objtool)				  \
 	$(call echo-cmd,record_mcount) $(cmd_record_mcount)
 endef

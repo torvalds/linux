@@ -3246,13 +3246,15 @@
 			instead using the legacy FADT method
 
 	profile=	[KNL] Enable kernel profiling via /proc/profile
-			Format: [schedule,]<number>
+			Format: [<profiletype>,]<number>
+			Param: <profiletype>: "schedule", "sleep", or "kvm"
+				[defaults to kernel profiling]
 			Param: "schedule" - profile schedule points.
-			Param: <number> - step/bucket size as a power of 2 for
-				statistical time based profiling.
 			Param: "sleep" - profile D-state sleeping (millisecs).
 				Requires CONFIG_SCHEDSTATS
 			Param: "kvm" - profile VM exits.
+			Param: <number> - step/bucket size as a power of 2 for
+				statistical time based profiling.
 
 	prompt_ramdisk=	[RAM] List of RAM disks to prompt for floppy disk
 			before loading.
