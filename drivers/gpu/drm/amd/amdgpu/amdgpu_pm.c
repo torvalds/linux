@@ -946,6 +946,10 @@ static umode_t hwmon_attributes_visible(struct kobject *kobj,
 	struct amdgpu_device *adev = dev_get_drvdata(dev);
 	umode_t effective_mode = attr->mode;
 
+	/* no skipping for powerplay */
+	if (adev->powerplay.cgs_device)
+		return effective_mode;
+
 	/* Skip limit attributes if DPM is not enabled */
 	if (!adev->pm.dpm_enabled &&
 	    (attr == &sensor_dev_attr_temp1_crit.dev_attr.attr ||

@@ -164,9 +164,6 @@ static int amdgpu_pp_hw_fini(void *handle)
 		ret = adev->powerplay.ip_funcs->hw_fini(
 					adev->powerplay.pp_handle);
 
-	if (adev->firmware.load_type == AMDGPU_FW_LOAD_SMU)
-		amdgpu_ucode_fini_bo(adev);
-
 	return ret;
 }
 
