@@ -4,10 +4,6 @@
  *
  * Copyright IBM Corp. 2008, 2009
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License (version 2 only)
- * as published by the Free Software Foundation.
- *
  *    Author(s): Carsten Otte <cotte@de.ibm.com>
  *               Christian Borntraeger <borntraeger@de.ibm.com>
  *               Christian Ehrhardt <ehrhardt@de.ibm.com>
