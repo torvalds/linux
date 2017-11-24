@@ -38,17 +38,13 @@ static struct etnaviv_gem_submit *submit_create(struct drm_device *dev,
 	struct etnaviv_gem_submit *submit;
 	size_t sz = size_vstruct(nr, sizeof(submit->bos[0]), sizeof(*submit));
 
-	submit = kmalloc(sz, GFP_KERNEL | __GFP_NOWARN | __GFP_NORETRY);
-	if (submit) {
-		submit->dev = dev;
-		submit->gpu = gpu;
+	submit = kzalloc(sz, GFP_KERNEL);
+	if (!submit)
+		return NULL;
 
-		/* initially, until copy_from_user() and bo lookup succeeds: */
-		submit->nr_bos = 0;
-		submit->fence = NULL;
+	submit->gpu = gpu;
 
-		ww_acquire_init(&submit->ticket, &reservation_ww_class);
-	}
+	ww_acquire_init(&submit->ticket, &reservation_ww_class);
 
 	return submit;
 }

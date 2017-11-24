@@ -101,7 +101,6 @@ struct etnaviv_gem_submit_bo {
  * lasts for the duration of the submit-ioctl.
  */
 struct etnaviv_gem_submit {
-	struct drm_device *dev;
 	struct etnaviv_gpu *gpu;
 	struct ww_acquire_ctx ticket;
 	struct dma_fence *fence;
