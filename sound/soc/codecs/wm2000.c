@@ -826,8 +826,7 @@ static int wm2000_i2c_probe(struct i2c_client *i2c,
 	int reg;
 	u16 id;
 
-	wm2000 = devm_kzalloc(&i2c->dev, sizeof(struct wm2000_priv),
-			      GFP_KERNEL);
+	wm2000 = devm_kzalloc(&i2c->dev, sizeof(*wm2000), GFP_KERNEL);
 	if (!wm2000)
 		return -ENOMEM;
 
