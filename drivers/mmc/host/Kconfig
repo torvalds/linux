@@ -596,7 +596,6 @@ config MMC_TMIO
 
 config MMC_SDHI
 	tristate "Renesas SDHI SD/SDIO controller support"
-	depends on SUPERH || ARM || ARM64
 	depends on SUPERH || ARCH_RENESAS || COMPILE_TEST
 	select MMC_TMIO_CORE
 	help
