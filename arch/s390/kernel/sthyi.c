@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * store hypervisor information instruction emulation functions.
  *
