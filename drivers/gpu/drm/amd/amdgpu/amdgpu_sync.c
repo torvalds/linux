@@ -194,9 +194,6 @@ int amdgpu_sync_resv(struct amdgpu_device *adev,
 	f = reservation_object_get_excl(resv);
 	r = amdgpu_sync_fence(adev, sync, f, false);
 
-	if (explicit_sync)
-		return r;
-
 	flist = reservation_object_get_list(resv);
 	if (!flist || r)
 		return r;
@@ -215,11 +212,11 @@ int amdgpu_sync_resv(struct amdgpu_device *adev,
 			     (fence_owner == AMDGPU_FENCE_OWNER_VM)))
 				continue;
 
-			/* Ignore fence from the same owner as
+			/* Ignore fence from the same owner and explicit one as
 			 * long as it isn't undefined.
 			 */
 			if (owner != AMDGPU_FENCE_OWNER_UNDEFINED &&
-			    fence_owner == owner)
+			    (fence_owner == owner || explicit_sync))
 				continue;
 		}
 
