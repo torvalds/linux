@@ -1930,11 +1930,17 @@ bool dc_link_set_backlight_level(const struct dc_link *link, uint32_t level,
 {
 	struct dc  *core_dc = link->ctx->dc;
 	struct abm *abm = core_dc->res_pool->abm;
+	struct dmcu *dmcu = core_dc->res_pool->dmcu;
 	unsigned int controller_id = 0;
+	bool use_smooth_brightness = true;
 	int i;
 
-	if ((abm == NULL) || (abm->funcs->set_backlight_level == NULL))
+	if ((dmcu == NULL) ||
+		(abm == NULL) ||
+		(abm->funcs->set_backlight_level == NULL))
 		return false;
+
+	use_smooth_brightness = dmcu->funcs->is_dmcu_initialized(dmcu);
 
 	dm_logger_write(link->ctx->logger, LOG_BACKLIGHT,
 			"New Backlight level: %d (0x%X)\n", level, level);
@@ -1958,7 +1964,8 @@ bool dc_link_set_backlight_level(const struct dc_link *link, uint32_t level,
 				abm,
 				level,
 				frame_ramp,
-				controller_id);
+				controller_id,
+				use_smooth_brightness);
 	}
 
 	return true;
