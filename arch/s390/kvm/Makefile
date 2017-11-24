@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 # Makefile for kernel virtual machines on s390
 #
 # Copyright IBM Corp. 2008
