@@ -247,7 +247,8 @@ static int rockchip_gem_alloc_cma(struct rockchip_gem_object *rk_obj)
 	struct drm_gem_object *obj = &rk_obj->base;
 	struct drm_device *drm = obj->dev;
 	struct sg_table *sgt;
-	int ret;
+	int ret, i;
+	struct scatterlist *s;
 
 	init_dma_attrs(&rk_obj->dma_attrs);
 	dma_set_attr(DMA_ATTR_WRITE_COMBINE, &rk_obj->dma_attrs);
@@ -274,6 +275,9 @@ static int rockchip_gem_alloc_cma(struct rockchip_gem_object *rk_obj)
 		DRM_ERROR("failed to allocate sgt, %d\n", ret);
 		goto err_sgt_free;
 	}
+
+	for_each_sg(sgt->sgl, s, sgt->nents, i)
+		sg_dma_address(s) = sg_phys(s);
 
 	rk_obj->num_pages = rk_obj->base.size >> PAGE_SHIFT;
 
