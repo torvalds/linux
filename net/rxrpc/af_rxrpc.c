@@ -895,6 +895,8 @@ static int rxrpc_release_sock(struct sock *sk)
 	rxrpc_release_calls_on_socket(rx);
 	flush_workqueue(rxrpc_workqueue);
 	rxrpc_purge_queue(&sk->sk_receive_queue);
+	rxrpc_queue_work(&rx->local->rxnet->service_conn_reaper);
+	rxrpc_queue_work(&rx->local->rxnet->client_conn_reaper);
 
 	rxrpc_put_local(rx->local);
 	rx->local = NULL;

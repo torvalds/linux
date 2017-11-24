@@ -79,7 +79,8 @@ struct rxrpc_net {
 	struct list_head	conn_proc_list;	/* List of conns in this namespace for proc */
 	struct list_head	service_conns;	/* Service conns in this namespace */
 	rwlock_t		conn_lock;	/* Lock for ->conn_proc_list, ->service_conns */
-	struct delayed_work	service_conn_reaper;
+	struct work_struct	service_conn_reaper;
+	struct timer_list	service_conn_reap_timer;
 
 	unsigned int		nr_client_conns;
 	unsigned int		nr_active_client_conns;
@@ -90,7 +91,8 @@ struct rxrpc_net {
 	struct list_head	waiting_client_conns;
 	struct list_head	active_client_conns;
 	struct list_head	idle_client_conns;
-	struct delayed_work	client_conn_reaper;
+	struct work_struct	client_conn_reaper;
+	struct timer_list	client_conn_reap_timer;
 
 	struct list_head	local_endpoints;
 	struct mutex		local_mutex;	/* Lock for ->local_endpoints */
