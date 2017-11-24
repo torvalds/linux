@@ -219,9 +219,9 @@ static void rxrpc_rotate_rx_window(struct rxrpc_call *call)
 		    after_eq(top, call->ackr_seen + 2) ||
 		    (hard_ack == top && after(hard_ack, call->ackr_consumed)))
 			rxrpc_propose_ACK(call, RXRPC_ACK_DELAY, 0, serial,
-					  true, false,
+					  true, true,
 					  rxrpc_propose_ack_rotate_rx);
-		if (call->ackr_reason)
+		if (call->ackr_reason && call->ackr_reason != RXRPC_ACK_DELAY)
 			rxrpc_send_ack_packet(call, false);
 	}
 }
