@@ -314,10 +314,9 @@ static void pl011_write(unsigned int val, const struct uart_amba_port *uap,
 static int pl011_fifo_to_tty(struct uart_amba_port *uap)
 {
 	u16 status;
-	unsigned int ch, flag, max_count = 256;
-	int fifotaken = 0;
+	unsigned int ch, flag, fifotaken;
 
-	while (max_count--) {
+	for (fifotaken = 0; fifotaken != 256; fifotaken++) {
 		status = pl011_read(uap, REG_FR);
 		if (status & UART01x_FR_RXFE)
 			break;
@@ -326,7 +325,6 @@ static int pl011_fifo_to_tty(struct uart_amba_port *uap)
 		ch = pl011_read(uap, REG_DR) | UART_DUMMY_DR_RX;
 		flag = TTY_NORMAL;
 		uap->port.icount.rx++;
-		fifotaken++;
 
 		if (unlikely(ch & UART_DR_ERROR)) {
 			if (ch & UART011_DR_BE) {
