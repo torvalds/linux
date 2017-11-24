@@ -17,6 +17,7 @@
 #include <string.h>
 #include <assert.h>
 #include <unistd.h>
+#include <stdarg.h>
 
 #define unlikely(cond) (cond)
 
@@ -48,8 +49,19 @@ static void usage(void)
 
 static void malformed_line(const char *line, int line_nr)
 {
-	fprintf(stderr, "%s: malformed line %d:\n%s", prog, line_nr, line);
+	fprintf(stderr, "%s: error: malformed line %d:\n%s",
+		prog, line_nr, line);
 	exit(3);
+}
+
+static void pr_warn(const char *fmt, ...)
+{
+	va_list ap;
+
+	fprintf(stderr, "%s: warning: ", prog);
+	va_start(ap, fmt);
+	vfprintf(stderr, fmt, ap);
+	va_end(ap);
 }
 
 static void dump_field(FILE *fp, const char *name, const char *indent,
@@ -149,21 +161,20 @@ int main(int argc, char **argv)
 		insn_get_length(&insn);
 		if (insn.length != nb) {
 			warnings++;
-			fprintf(stderr, "Warning: %s found difference at %s\n",
-				prog, sym);
-			fprintf(stderr, "Warning: %s", line);
-			fprintf(stderr, "Warning: objdump says %d bytes, but "
-				"insn_get_length() says %d\n", nb,
-				insn.length);
+			pr_warn("Found an x86 instruction decoder bug, "
+				"please report this.\n", sym);
+			pr_warn("%s", line);
+			pr_warn("objdump says %d bytes, but insn_get_length() "
+				"says %d\n", nb, insn.length);
 			if (verbose)
 				dump_insn(stderr, &insn);
 		}
 	}
 	if (warnings)
-		fprintf(stderr, "Warning: decoded and checked %d"
-			" instructions with %d warnings\n", insns, warnings);
+		pr_warn("Decoded and checked %d instructions with %d "
+			"failures\n", insns, warnings);
 	else
-		fprintf(stdout, "Success: decoded and checked %d"
-			" instructions\n", insns);
+		fprintf(stdout, "%s: success: Decoded and checked %d"
+			" instructions\n", prog, insns);
 	return 0;
 }
