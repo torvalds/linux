@@ -49,6 +49,7 @@ enum rxrpc_conn_trace {
 	rxrpc_conn_put_client,
 	rxrpc_conn_put_service,
 	rxrpc_conn_queued,
+	rxrpc_conn_reap_service,
 	rxrpc_conn_seen,
 };
 
@@ -221,6 +222,7 @@ enum rxrpc_congest_change {
 	EM(rxrpc_conn_put_client,		"PTc") \
 	EM(rxrpc_conn_put_service,		"PTs") \
 	EM(rxrpc_conn_queued,			"QUE") \
+	EM(rxrpc_conn_reap_service,		"RPs") \
 	E_(rxrpc_conn_seen,			"SEE")
 
 #define rxrpc_client_traces \

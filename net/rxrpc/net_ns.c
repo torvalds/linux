@@ -22,6 +22,7 @@ static __net_init int rxrpc_init_net(struct net *net)
 	struct rxrpc_net *rxnet = rxrpc_net(net);
 	int ret;
 
+	rxnet->live = true;
 	get_random_bytes(&rxnet->epoch, sizeof(rxnet->epoch));
 	rxnet->epoch |= RXRPC_RANDOM_EPOCH;
 
@@ -60,6 +61,7 @@ static __net_init int rxrpc_init_net(struct net *net)
 	return 0;
 
 err_proc:
+	rxnet->live = false;
 	return ret;
 }
 
@@ -70,6 +72,7 @@ static __net_exit void rxrpc_exit_net(struct net *net)
 {
 	struct rxrpc_net *rxnet = rxrpc_net(net);
 
+	rxnet->live = false;
 	rxrpc_destroy_all_calls(rxnet);
 	rxrpc_destroy_all_connections(rxnet);
 	rxrpc_destroy_all_locals(rxnet);

@@ -84,6 +84,7 @@ struct rxrpc_net {
 	unsigned int		nr_client_conns;
 	unsigned int		nr_active_client_conns;
 	bool			kill_all_client_conns;
+	bool			live;
 	spinlock_t		client_conn_cache_lock; /* Lock for ->*_client_conns */
 	spinlock_t		client_conn_discard_lock; /* Prevent multiple discarders */
 	struct list_head	waiting_client_conns;
@@ -265,6 +266,7 @@ struct rxrpc_local {
 	rwlock_t		services_lock;	/* lock for services list */
 	int			debug_id;	/* debug ID for printks */
 	bool			dead;
+	bool			service_closed;	/* Service socket closed */
 	struct sockaddr_rxrpc	srx;		/* local address */
 };
 
@@ -881,6 +883,7 @@ void rxrpc_process_connection(struct work_struct *);
  * conn_object.c
  */
 extern unsigned int rxrpc_connection_expiry;
+extern unsigned int rxrpc_closed_conn_expiry;
 
 struct rxrpc_connection *rxrpc_alloc_connection(gfp_t);
 struct rxrpc_connection *rxrpc_find_connection_rcu(struct rxrpc_local *,

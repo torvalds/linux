@@ -1079,6 +1079,8 @@ next:
 		expiry = rxrpc_conn_idle_client_expiry;
 		if (nr_conns > rxrpc_reap_client_connections)
 			expiry = rxrpc_conn_idle_client_fast_expiry;
+		if (conn->params.local->service_closed)
+			expiry = rxrpc_closed_conn_expiry * HZ;
 
 		conn_expires_at = conn->idle_timestamp + expiry;
 
