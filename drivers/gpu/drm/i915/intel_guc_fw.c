@@ -130,14 +130,14 @@ static int guc_xfer_rsa(struct intel_guc *guc, struct i915_vma *vma)
 	struct drm_i915_private *dev_priv = guc_to_i915(guc);
 	struct intel_uc_fw *guc_fw = &guc->fw;
 	struct sg_table *sg = vma->pages;
-	u32 rsa[UOS_RSA_SCRATCH_MAX_COUNT];
+	u32 rsa[UOS_RSA_SCRATCH_COUNT];
 	int i;
 
 	if (sg_pcopy_to_buffer(sg->sgl, sg->nents, rsa, sizeof(rsa),
 			       guc_fw->rsa_offset) != sizeof(rsa))
 		return -EINVAL;
 
-	for (i = 0; i < UOS_RSA_SCRATCH_MAX_COUNT; i++)
+	for (i = 0; i < UOS_RSA_SCRATCH_COUNT; i++)
 		I915_WRITE(UOS_RSA_SCRATCH(i), rsa[i]);
 
 	return 0;
