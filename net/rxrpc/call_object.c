@@ -51,9 +51,13 @@ static void rxrpc_call_timer_expired(unsigned long _call)
 
 	_enter("%d", call->debug_id);
 
-	if (call->state < RXRPC_CALL_COMPLETE)
-		rxrpc_set_timer(call, rxrpc_timer_expired, ktime_get_real());
+	if (call->state < RXRPC_CALL_COMPLETE) {
+		trace_rxrpc_timer(call, rxrpc_timer_expired, jiffies);
+		rxrpc_queue_call(call);
+	}
 }
+
+static struct lock_class_key rxrpc_call_user_mutex_lock_class_key;
 
 /*
  * find an extant server call
@@ -95,7 +99,7 @@ found_extant_call:
 /*
  * allocate a new call
  */
-struct rxrpc_call *rxrpc_alloc_call(gfp_t gfp)
+struct rxrpc_call *rxrpc_alloc_call(struct rxrpc_sock *rx, gfp_t gfp)
 {
 	struct rxrpc_call *call;
 
@@ -114,6 +118,14 @@ struct rxrpc_call *rxrpc_alloc_call(gfp_t gfp)
 		goto nomem_2;
 
 	mutex_init(&call->user_mutex);
+
+	/* Prevent lockdep reporting a deadlock false positive between the afs
+	 * filesystem and sys_sendmsg() via the mmap sem.
+	 */
+	if (rx->sk.sk_kern_sock)
+		lockdep_set_class(&call->user_mutex,
+				  &rxrpc_call_user_mutex_lock_class_key);
+
 	setup_timer(&call->timer, rxrpc_call_timer_expired,
 		    (unsigned long)call);
 	INIT_WORK(&call->processor, &rxrpc_process_call);
@@ -129,6 +141,8 @@ struct rxrpc_call *rxrpc_alloc_call(gfp_t gfp)
 	atomic_set(&call->usage, 1);
 	call->debug_id = atomic_inc_return(&rxrpc_debug_id);
 	call->tx_total_len = -1;
+	call->next_rx_timo = 20 * HZ;
+	call->next_req_timo = 1 * HZ;
 
 	memset(&call->sock_node, 0xed, sizeof(call->sock_node));
 
@@ -151,7 +165,8 @@ nomem:
 /*
  * Allocate a new client call.
  */
-static struct rxrpc_call *rxrpc_alloc_client_call(struct sockaddr_rxrpc *srx,
+static struct rxrpc_call *rxrpc_alloc_client_call(struct rxrpc_sock *rx,
+						  struct sockaddr_rxrpc *srx,
 						  gfp_t gfp)
 {
 	struct rxrpc_call *call;
@@ -159,7 +174,7 @@ static struct rxrpc_call *rxrpc_alloc_client_call(struct sockaddr_rxrpc *srx,
 
 	_enter("");
 
-	call = rxrpc_alloc_call(gfp);
+	call = rxrpc_alloc_call(rx, gfp);
 	if (!call)
 		return ERR_PTR(-ENOMEM);
 	call->state = RXRPC_CALL_CLIENT_AWAIT_CONN;
@@ -178,15 +193,17 @@ static struct rxrpc_call *rxrpc_alloc_client_call(struct sockaddr_rxrpc *srx,
  */
 static void rxrpc_start_call_timer(struct rxrpc_call *call)
 {
-	ktime_t now = ktime_get_real(), expire_at;
+	unsigned long now = jiffies;
+	unsigned long j = now + MAX_JIFFY_OFFSET;
 
-	expire_at = ktime_add_ms(now, rxrpc_max_call_lifetime);
-	call->expire_at = expire_at;
-	call->ack_at = expire_at;
-	call->ping_at = expire_at;
-	call->resend_at = expire_at;
-	call->timer.expires = jiffies + LONG_MAX / 2;
-	rxrpc_set_timer(call, rxrpc_timer_begin, now);
+	call->ack_at = j;
+	call->ack_lost_at = j;
+	call->resend_at = j;
+	call->ping_at = j;
+	call->expect_rx_by = j;
+	call->expect_req_by = j;
+	call->expect_term_by = j;
+	call->timer.expires = now;
 }
 
 /*
@@ -197,8 +214,7 @@ static void rxrpc_start_call_timer(struct rxrpc_call *call)
 struct rxrpc_call *rxrpc_new_client_call(struct rxrpc_sock *rx,
 					 struct rxrpc_conn_parameters *cp,
 					 struct sockaddr_rxrpc *srx,
-					 unsigned long user_call_ID,
-					 s64 tx_total_len,
+					 struct rxrpc_call_params *p,
 					 gfp_t gfp)
 	__releases(&rx->sk.sk_lock.slock)
 {
@@ -208,18 +224,18 @@ struct rxrpc_call *rxrpc_new_client_call(struct rxrpc_sock *rx,
 	const void *here = __builtin_return_address(0);
 	int ret;
 
-	_enter("%p,%lx", rx, user_call_ID);
+	_enter("%p,%lx", rx, p->user_call_ID);
 
-	call = rxrpc_alloc_client_call(srx, gfp);
+	call = rxrpc_alloc_client_call(rx, srx, gfp);
 	if (IS_ERR(call)) {
 		release_sock(&rx->sk);
 		_leave(" = %ld", PTR_ERR(call));
 		return call;
 	}
 
-	call->tx_total_len = tx_total_len;
+	call->tx_total_len = p->tx_total_len;
 	trace_rxrpc_call(call, rxrpc_call_new_client, atomic_read(&call->usage),
-			 here, (const void *)user_call_ID);
+			 here, (const void *)p->user_call_ID);
 
 	/* We need to protect a partially set up call against the user as we
 	 * will be acting outside the socket lock.
@@ -235,16 +251,16 @@ struct rxrpc_call *rxrpc_new_client_call(struct rxrpc_sock *rx,
 		parent = *pp;
 		xcall = rb_entry(parent, struct rxrpc_call, sock_node);
 
-		if (user_call_ID < xcall->user_call_ID)
+		if (p->user_call_ID < xcall->user_call_ID)
 			pp = &(*pp)->rb_left;
-		else if (user_call_ID > xcall->user_call_ID)
+		else if (p->user_call_ID > xcall->user_call_ID)
 			pp = &(*pp)->rb_right;
 		else
 			goto error_dup_user_ID;
 	}
 
 	rcu_assign_pointer(call->socket, rx);
-	call->user_call_ID = user_call_ID;
+	call->user_call_ID = p->user_call_ID;
 	__set_bit(RXRPC_CALL_HAS_USERID, &call->flags);
 	rxrpc_get_call(call, rxrpc_call_got_userid);
 	rb_link_node(&call->sock_node, parent, pp);
