@@ -24,6 +24,14 @@ unsigned int rxrpc_connection_expiry = 10 * 60;
 
 static void rxrpc_destroy_connection(struct rcu_head *);
 
+static void rxrpc_connection_timer(struct timer_list *timer)
+{
+	struct rxrpc_connection *conn =
+		container_of(timer, struct rxrpc_connection, timer);
+
+	rxrpc_queue_conn(conn);
+}
+
 /*
  * allocate a new connection
  */
@@ -38,6 +46,7 @@ struct rxrpc_connection *rxrpc_alloc_connection(gfp_t gfp)
 		INIT_LIST_HEAD(&conn->cache_link);
 		spin_lock_init(&conn->channel_lock);
 		INIT_LIST_HEAD(&conn->waiting_calls);
+		timer_setup(&conn->timer, &rxrpc_connection_timer, 0);
 		INIT_WORK(&conn->processor, &rxrpc_process_connection);
 		INIT_LIST_HEAD(&conn->proc_link);
 		INIT_LIST_HEAD(&conn->link);
@@ -332,6 +341,7 @@ static void rxrpc_destroy_connection(struct rcu_head *rcu)
 
 	_net("DESTROY CONN %d", conn->debug_id);
 
+	del_timer_sync(&conn->timer);
 	rxrpc_purge_queue(&conn->rx_queue);
 
 	conn->security->clear(conn);

@@ -144,11 +144,13 @@ static void rxrpc_end_rx_phase(struct rxrpc_call *call, rxrpc_serial_t serial)
 	trace_rxrpc_receive(call, rxrpc_receive_end, 0, call->rx_top);
 	ASSERTCMP(call->rx_hard_ack, ==, call->rx_top);
 
+#if 0 // TODO: May want to transmit final ACK under some circumstances anyway
 	if (call->state == RXRPC_CALL_CLIENT_RECV_REPLY) {
 		rxrpc_propose_ACK(call, RXRPC_ACK_IDLE, 0, serial, true, false,
 				  rxrpc_propose_ack_terminal_ack);
 		rxrpc_send_ack_packet(call, false);
 	}
+#endif
 
 	write_lock_bh(&call->state_lock);
 

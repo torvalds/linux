@@ -338,7 +338,16 @@ enum rxrpc_conn_flag {
 	RXRPC_CONN_DONT_REUSE,		/* Don't reuse this connection */
 	RXRPC_CONN_COUNTED,		/* Counted by rxrpc_nr_client_conns */
 	RXRPC_CONN_PROBING_FOR_UPGRADE,	/* Probing for service upgrade */
+	RXRPC_CONN_FINAL_ACK_0,		/* Need final ACK for channel 0 */
+	RXRPC_CONN_FINAL_ACK_1,		/* Need final ACK for channel 1 */
+	RXRPC_CONN_FINAL_ACK_2,		/* Need final ACK for channel 2 */
+	RXRPC_CONN_FINAL_ACK_3,		/* Need final ACK for channel 3 */
 };
+
+#define RXRPC_CONN_FINAL_ACK_MASK ((1UL << RXRPC_CONN_FINAL_ACK_0) |	\
+				   (1UL << RXRPC_CONN_FINAL_ACK_1) |	\
+				   (1UL << RXRPC_CONN_FINAL_ACK_2) |	\
+				   (1UL << RXRPC_CONN_FINAL_ACK_3))
 
 /*
  * Events that can be raised upon a connection.
@@ -393,6 +402,7 @@ struct rxrpc_connection {
 #define RXRPC_ACTIVE_CHANS_MASK	((1 << RXRPC_MAXCALLS) - 1)
 	struct list_head	waiting_calls;	/* Calls waiting for channels */
 	struct rxrpc_channel {
+		unsigned long		final_ack_at;	/* Time at which to issue final ACK */
 		struct rxrpc_call __rcu	*call;		/* Active call */
 		u32			call_id;	/* ID of current call */
 		u32			call_counter;	/* Call ID counter */
@@ -404,6 +414,7 @@ struct rxrpc_connection {
 		};
 	} channels[RXRPC_MAXCALLS];
 
+	struct timer_list	timer;		/* Conn event timer */
 	struct work_struct	processor;	/* connection event processor */
 	union {
 		struct rb_node	client_node;	/* Node in local->client_conns */
@@ -859,6 +870,12 @@ static inline void rxrpc_put_connection(struct rxrpc_connection *conn)
 		rxrpc_put_client_conn(conn);
 	else
 		rxrpc_put_service_conn(conn);
+}
+
+static inline void rxrpc_reduce_conn_timer(struct rxrpc_connection *conn,
+					   unsigned long expire_at)
+{
+	timer_reduce(&conn->timer, expire_at);
 }
 
 /*

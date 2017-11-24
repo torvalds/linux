@@ -554,6 +554,11 @@ static void rxrpc_activate_one_channel(struct rxrpc_connection *conn,
 
 	trace_rxrpc_client(conn, channel, rxrpc_client_chan_activate);
 
+	/* Cancel the final ACK on the previous call if it hasn't been sent yet
+	 * as the DATA packet will implicitly ACK it.
+	 */
+	clear_bit(RXRPC_CONN_FINAL_ACK_0 + channel, &conn->flags);
+
 	write_lock_bh(&call->state_lock);
 	if (!test_bit(RXRPC_CALL_TX_LASTQ, &call->flags))
 		call->state = RXRPC_CALL_CLIENT_SEND_REQUEST;
@@ -811,6 +816,19 @@ void rxrpc_disconnect_client_call(struct rxrpc_call *call)
 		trace_rxrpc_client(conn, channel, rxrpc_client_chan_pass);
 		rxrpc_activate_one_channel(conn, channel);
 		goto out_2;
+	}
+
+	/* Schedule the final ACK to be transmitted in a short while so that it
+	 * can be skipped if we find a follow-on call.  The first DATA packet
+	 * of the follow on call will implicitly ACK this call.
+	 */
+	if (test_bit(RXRPC_CALL_EXPOSED, &call->flags)) {
+		unsigned long final_ack_at = jiffies + 2;
+
+		WRITE_ONCE(chan->final_ack_at, final_ack_at);
+		smp_wmb(); /* vs rxrpc_process_delayed_final_acks() */
+		set_bit(RXRPC_CONN_FINAL_ACK_0 + channel, &conn->flags);
+		rxrpc_reduce_conn_timer(conn, final_ack_at);
 	}
 
 	/* Things are more complex and we need the cache lock.  We might be
