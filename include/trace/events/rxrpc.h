@@ -138,10 +138,20 @@ enum rxrpc_rtt_rx_trace {
 
 enum rxrpc_timer_trace {
 	rxrpc_timer_begin,
+	rxrpc_timer_exp_ack,
+	rxrpc_timer_exp_hard,
+	rxrpc_timer_exp_idle,
+	rxrpc_timer_exp_normal,
+	rxrpc_timer_exp_ping,
+	rxrpc_timer_exp_resend,
 	rxrpc_timer_expired,
 	rxrpc_timer_init_for_reply,
 	rxrpc_timer_init_for_send_reply,
+	rxrpc_timer_restart,
 	rxrpc_timer_set_for_ack,
+	rxrpc_timer_set_for_hard,
+	rxrpc_timer_set_for_idle,
+	rxrpc_timer_set_for_normal,
 	rxrpc_timer_set_for_ping,
 	rxrpc_timer_set_for_resend,
 	rxrpc_timer_set_for_send,
@@ -296,12 +306,22 @@ enum rxrpc_congest_change {
 #define rxrpc_timer_traces \
 	EM(rxrpc_timer_begin,			"Begin ") \
 	EM(rxrpc_timer_expired,			"*EXPR*") \
+	EM(rxrpc_timer_exp_ack,			"ExpAck") \
+	EM(rxrpc_timer_exp_hard,		"ExpHrd") \
+	EM(rxrpc_timer_exp_idle,		"ExpIdl") \
+	EM(rxrpc_timer_exp_normal,		"ExpNml") \
+	EM(rxrpc_timer_exp_ping,		"ExpPng") \
+	EM(rxrpc_timer_exp_resend,		"ExpRsn") \
 	EM(rxrpc_timer_init_for_reply,		"IniRpl") \
 	EM(rxrpc_timer_init_for_send_reply,	"SndRpl") \
+	EM(rxrpc_timer_restart,			"Restrt") \
 	EM(rxrpc_timer_set_for_ack,		"SetAck") \
+	EM(rxrpc_timer_set_for_hard,		"SetHrd") \
+	EM(rxrpc_timer_set_for_idle,		"SetIdl") \
+	EM(rxrpc_timer_set_for_normal,		"SetNml") \
 	EM(rxrpc_timer_set_for_ping,		"SetPng") \
 	EM(rxrpc_timer_set_for_resend,		"SetRTx") \
-	E_(rxrpc_timer_set_for_send,		"SetTx ")
+	E_(rxrpc_timer_set_for_send,		"SetSnd")
 
 #define rxrpc_propose_ack_traces \
 	EM(rxrpc_propose_ack_client_tx_end,	"ClTxEnd") \
@@ -932,39 +952,44 @@ TRACE_EVENT(rxrpc_rtt_rx,
 
 TRACE_EVENT(rxrpc_timer,
 	    TP_PROTO(struct rxrpc_call *call, enum rxrpc_timer_trace why,
-		     ktime_t now, unsigned long now_j),
+		     unsigned long now),
 
-	    TP_ARGS(call, why, now, now_j),
+	    TP_ARGS(call, why, now),
 
 	    TP_STRUCT__entry(
 		    __field(struct rxrpc_call *,		call		)
 		    __field(enum rxrpc_timer_trace,		why		)
-		    __field_struct(ktime_t,			now		)
-		    __field_struct(ktime_t,			expire_at	)
-		    __field_struct(ktime_t,			ack_at		)
-		    __field_struct(ktime_t,			resend_at	)
-		    __field(unsigned long,			now_j		)
-		    __field(unsigned long,			timer		)
+		    __field(long,				now		)
+		    __field(long,				ack_at		)
+		    __field(long,				resend_at	)
+		    __field(long,				ping_at		)
+		    __field(long,				expect_rx_by	)
+		    __field(long,				expect_req_by	)
+		    __field(long,				expect_term_by	)
+		    __field(long,				timer		)
 			     ),
 
 	    TP_fast_assign(
-		    __entry->call	= call;
-		    __entry->why	= why;
-		    __entry->now	= now;
-		    __entry->expire_at	= call->expire_at;
-		    __entry->ack_at	= call->ack_at;
-		    __entry->resend_at	= call->resend_at;
-		    __entry->now_j	= now_j;
-		    __entry->timer	= call->timer.expires;
+		    __entry->call		= call;
+		    __entry->why		= why;
+		    __entry->now		= now;
+		    __entry->ack_at		= call->ack_at;
+		    __entry->resend_at		= call->resend_at;
+		    __entry->expect_rx_by	= call->expect_rx_by;
+		    __entry->expect_req_by	= call->expect_req_by;
+		    __entry->expect_term_by	= call->expect_term_by;
+		    __entry->timer		= call->timer.expires;
 			   ),
 
-	    TP_printk("c=%p %s x=%lld a=%lld r=%lld t=%ld",
+	    TP_printk("c=%p %s a=%ld r=%ld xr=%ld xq=%ld xt=%ld t=%ld",
 		      __entry->call,
 		      __print_symbolic(__entry->why, rxrpc_timer_traces),
-		      ktime_to_ns(ktime_sub(__entry->expire_at, __entry->now)),
-		      ktime_to_ns(ktime_sub(__entry->ack_at, __entry->now)),
-		      ktime_to_ns(ktime_sub(__entry->resend_at, __entry->now)),
-		      __entry->timer - __entry->now_j)
+		      __entry->ack_at - __entry->now,
+		      __entry->resend_at - __entry->now,
+		      __entry->expect_rx_by - __entry->now,
+		      __entry->expect_req_by - __entry->now,
+		      __entry->expect_term_by - __entry->now,
+		      __entry->timer - __entry->now)
 	    );
 
 TRACE_EVENT(rxrpc_rx_lose,

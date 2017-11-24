@@ -85,8 +85,8 @@
 
 __read_mostly unsigned int rxrpc_max_client_connections = 1000;
 __read_mostly unsigned int rxrpc_reap_client_connections = 900;
-__read_mostly unsigned int rxrpc_conn_idle_client_expiry = 2 * 60 * HZ;
-__read_mostly unsigned int rxrpc_conn_idle_client_fast_expiry = 2 * HZ;
+__read_mostly unsigned long rxrpc_conn_idle_client_expiry = 2 * 60 * HZ;
+__read_mostly unsigned long rxrpc_conn_idle_client_fast_expiry = 2 * HZ;
 
 /*
  * We use machine-unique IDs for our client connections.

@@ -318,16 +318,18 @@ bad_state:
 static bool rxrpc_receiving_reply(struct rxrpc_call *call)
 {
 	struct rxrpc_ack_summary summary = { 0 };
+	unsigned long now, timo;
 	rxrpc_seq_t top = READ_ONCE(call->tx_top);
 
 	if (call->ackr_reason) {
 		spin_lock_bh(&call->lock);
 		call->ackr_reason = 0;
-		call->resend_at = call->expire_at;
-		call->ack_at = call->expire_at;
 		spin_unlock_bh(&call->lock);
-		rxrpc_set_timer(call, rxrpc_timer_init_for_reply,
-				ktime_get_real());
+		now = jiffies;
+		timo = now + MAX_JIFFY_OFFSET;
+		WRITE_ONCE(call->resend_at, timo);
+		WRITE_ONCE(call->ack_at, timo);
+		trace_rxrpc_timer(call, rxrpc_timer_init_for_reply, now);
 	}
 
 	if (!test_bit(RXRPC_CALL_TX_LAST, &call->flags))
@@ -436,6 +438,19 @@ static void rxrpc_input_data(struct rxrpc_call *call, struct sk_buff *skb,
 	state = READ_ONCE(call->state);
 	if (state >= RXRPC_CALL_COMPLETE)
 		return;
+
+	if (call->state == RXRPC_CALL_SERVER_RECV_REQUEST) {
+		unsigned long timo = READ_ONCE(call->next_req_timo);
+		unsigned long now, expect_req_by;
+
+		if (timo) {
+			now = jiffies;
+			expect_req_by = now + timo;
+			WRITE_ONCE(call->expect_req_by, expect_req_by);
+			rxrpc_reduce_call_timer(call, expect_req_by, now,
+						rxrpc_timer_set_for_idle);
+		}
+	}
 
 	/* Received data implicitly ACKs all of the request packets we sent
 	 * when we're acting as a client.
@@ -908,9 +923,20 @@ static void rxrpc_input_call_packet(struct rxrpc_call *call,
 				    struct sk_buff *skb, u16 skew)
 {
 	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
+	unsigned long timo;
 
 	_enter("%p,%p", call, skb);
 
+	timo = READ_ONCE(call->next_rx_timo);
+	if (timo) {
+		unsigned long now = jiffies, expect_rx_by;
+
+		expect_rx_by = jiffies + timo;
+		WRITE_ONCE(call->expect_rx_by, expect_rx_by);
+		rxrpc_reduce_call_timer(call, expect_rx_by, now,
+					rxrpc_timer_set_for_normal);
+	}
+	
 	switch (sp->hdr.type) {
 	case RXRPC_PACKET_TYPE_DATA:
 		rxrpc_input_data(call, skb, skew);

@@ -468,9 +468,9 @@ enum rxrpc_call_flag {
 enum rxrpc_call_event {
 	RXRPC_CALL_EV_ACK,		/* need to generate ACK */
 	RXRPC_CALL_EV_ABORT,		/* need to generate abort */
-	RXRPC_CALL_EV_TIMER,		/* Timer expired */
 	RXRPC_CALL_EV_RESEND,		/* Tx resend required */
 	RXRPC_CALL_EV_PING,		/* Ping send required */
+	RXRPC_CALL_EV_EXPIRED,		/* Expiry occurred */
 };
 
 /*
@@ -514,10 +514,14 @@ struct rxrpc_call {
 	struct rxrpc_peer	*peer;		/* Peer record for remote address */
 	struct rxrpc_sock __rcu	*socket;	/* socket responsible */
 	struct mutex		user_mutex;	/* User access mutex */
-	ktime_t			ack_at;		/* When deferred ACK needs to happen */
-	ktime_t			resend_at;	/* When next resend needs to happen */
-	ktime_t			ping_at;	/* When next to send a ping */
-	ktime_t			expire_at;	/* When the call times out */
+	unsigned long		ack_at;		/* When deferred ACK needs to happen */
+	unsigned long		resend_at;	/* When next resend needs to happen */
+	unsigned long		ping_at;	/* When next to send a ping */
+	unsigned long		expect_rx_by;	/* When we expect to get a packet by */
+	unsigned long		expect_req_by;	/* When we expect to get a request DATA packet by */
+	unsigned long		expect_term_by;	/* When we expect call termination by */
+	u32			next_rx_timo;	/* Timeout for next Rx packet (jif) */
+	u32			next_req_timo;	/* Timeout for next Rx request packet (jif) */
 	struct timer_list	timer;		/* Combined event timer */
 	struct work_struct	processor;	/* Event processor */
 	rxrpc_notify_rx_t	notify_rx;	/* kernel service Rx notification function */
@@ -697,11 +701,18 @@ int rxrpc_reject_call(struct rxrpc_sock *);
 /*
  * call_event.c
  */
-void __rxrpc_set_timer(struct rxrpc_call *, enum rxrpc_timer_trace, ktime_t);
-void rxrpc_set_timer(struct rxrpc_call *, enum rxrpc_timer_trace, ktime_t);
 void rxrpc_propose_ACK(struct rxrpc_call *, u8, u16, u32, bool, bool,
 		       enum rxrpc_propose_ack_trace);
 void rxrpc_process_call(struct work_struct *);
+
+static inline void rxrpc_reduce_call_timer(struct rxrpc_call *call,
+					   unsigned long expire_at,
+					   unsigned long now,
+					   enum rxrpc_timer_trace why)
+{
+	trace_rxrpc_timer(call, why, now);
+	timer_reduce(&call->timer, expire_at);
+}
 
 /*
  * call_object.c
@@ -843,8 +854,8 @@ static inline bool __rxrpc_abort_eproto(struct rxrpc_call *call,
  */
 extern unsigned int rxrpc_max_client_connections;
 extern unsigned int rxrpc_reap_client_connections;
-extern unsigned int rxrpc_conn_idle_client_expiry;
-extern unsigned int rxrpc_conn_idle_client_fast_expiry;
+extern unsigned long rxrpc_conn_idle_client_expiry;
+extern unsigned long rxrpc_conn_idle_client_fast_expiry;
 extern struct idr rxrpc_client_conn_ids;
 
 void rxrpc_destroy_client_conn_ids(void);
@@ -976,13 +987,13 @@ static inline void rxrpc_queue_local(struct rxrpc_local *local)
  * misc.c
  */
 extern unsigned int rxrpc_max_backlog __read_mostly;
-extern unsigned int rxrpc_requested_ack_delay;
-extern unsigned int rxrpc_soft_ack_delay;
-extern unsigned int rxrpc_idle_ack_delay;
+extern unsigned long rxrpc_requested_ack_delay;
+extern unsigned long rxrpc_soft_ack_delay;
+extern unsigned long rxrpc_idle_ack_delay;
 extern unsigned int rxrpc_rx_window_size;
 extern unsigned int rxrpc_rx_mtu;
 extern unsigned int rxrpc_rx_jumbo_max;
-extern unsigned int rxrpc_resend_timeout;
+extern unsigned long rxrpc_resend_timeout;
 
 extern const s8 rxrpc_ack_priority[];
 

@@ -51,8 +51,10 @@ static void rxrpc_call_timer_expired(unsigned long _call)
 
 	_enter("%d", call->debug_id);
 
-	if (call->state < RXRPC_CALL_COMPLETE)
-		rxrpc_set_timer(call, rxrpc_timer_expired, ktime_get_real());
+	if (call->state < RXRPC_CALL_COMPLETE) {
+		trace_rxrpc_timer(call, rxrpc_timer_expired, jiffies);
+		rxrpc_queue_call(call);
+	}
 }
 
 static struct lock_class_key rxrpc_call_user_mutex_lock_class_key;
@@ -139,6 +141,8 @@ struct rxrpc_call *rxrpc_alloc_call(struct rxrpc_sock *rx, gfp_t gfp)
 	atomic_set(&call->usage, 1);
 	call->debug_id = atomic_inc_return(&rxrpc_debug_id);
 	call->tx_total_len = -1;
+	call->next_rx_timo = 20 * HZ;
+	call->next_req_timo = 1 * HZ;
 
 	memset(&call->sock_node, 0xed, sizeof(call->sock_node));
 
@@ -189,15 +193,16 @@ static struct rxrpc_call *rxrpc_alloc_client_call(struct rxrpc_sock *rx,
  */
 static void rxrpc_start_call_timer(struct rxrpc_call *call)
 {
-	ktime_t now = ktime_get_real(), expire_at;
+	unsigned long now = jiffies;
+	unsigned long j = now + MAX_JIFFY_OFFSET;
 
-	expire_at = ktime_add_ms(now, rxrpc_max_call_lifetime);
-	call->expire_at = expire_at;
-	call->ack_at = expire_at;
-	call->ping_at = expire_at;
-	call->resend_at = expire_at;
-	call->timer.expires = jiffies + LONG_MAX / 2;
-	rxrpc_set_timer(call, rxrpc_timer_begin, now);
+	call->ack_at = j;
+	call->resend_at = j;
+	call->ping_at = j;
+	call->expect_rx_by = j;
+	call->expect_req_by = j;
+	call->expect_term_by = j;
+	call->timer.expires = now;
 }
 
 /*
