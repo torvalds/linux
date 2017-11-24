@@ -234,6 +234,16 @@ static int venc_v4l2_to_hfi(int id, int value)
 		case 3:
 			return HFI_VPX_PROFILE_VERSION_3;
 		}
+	case V4L2_CID_MPEG_VIDEO_H264_LOOP_FILTER_MODE:
+		switch (value) {
+		case V4L2_MPEG_VIDEO_H264_LOOP_FILTER_MODE_ENABLED:
+		default:
+			return HFI_H264_DB_MODE_ALL_BOUNDARY;
+		case V4L2_MPEG_VIDEO_H264_LOOP_FILTER_MODE_DISABLED:
+			return HFI_H264_DB_MODE_DISABLE;
+		case V4L2_MPEG_VIDEO_H264_LOOP_FILTER_MODE_DISABLED_AT_SLICE_BOUNDARY:
+			return HFI_H264_DB_MODE_SKIP_SLICE_BOUNDARY;
+		}
 	}
 
 	return 0;
@@ -642,6 +652,7 @@ static int venc_set_properties(struct venus_inst *inst)
 	if (inst->fmt_cap->pixfmt == V4L2_PIX_FMT_H264) {
 		struct hfi_h264_vui_timing_info info;
 		struct hfi_h264_entropy_control entropy;
+		struct hfi_h264_db_control deblock;
 
 		ptype = HFI_PROPERTY_PARAM_VENC_H264_VUI_TIMING_INFO;
 		info.enable = 1;
@@ -659,6 +670,17 @@ static int venc_set_properties(struct venus_inst *inst)
 		entropy.cabac_model = HFI_H264_CABAC_MODEL_0;
 
 		ret = hfi_session_set_property(inst, ptype, &entropy);
+		if (ret)
+			return ret;
+
+		ptype = HFI_PROPERTY_PARAM_VENC_H264_DEBLOCK_CONTROL;
+		deblock.mode = venc_v4l2_to_hfi(
+				      V4L2_CID_MPEG_VIDEO_H264_LOOP_FILTER_MODE,
+				      ctr->h264_loop_filter_mode);
+		deblock.slice_alpha_offset = ctr->h264_loop_filter_alpha;
+		deblock.slice_beta_offset = ctr->h264_loop_filter_beta;
+
+		ret = hfi_session_set_property(inst, ptype, &deblock);
 		if (ret)
 			return ret;
 	}
