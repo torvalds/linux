@@ -159,6 +159,17 @@
 		regulator-max-microvolt = <5000000>;
 	};
 
+	vcc_sd: vcc-sd {
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpio = <&gpio0 1 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&vcc_sd_h>;
+		regulator-name = "vcc_sd";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+	};
+
 	vcc_phy: vcc-phy-regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_phy";
@@ -383,12 +394,12 @@
 				};
 			};
 
-			vcc_sd: LDO_REG4 {
+			vccio_sd: LDO_REG4 {
 				regulator-always-on;
 				regulator-boot-on;
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <3000000>;
-				regulator-name = "vcc_sd";
+				regulator-name = "vccio_sd";
 				regulator-state-mem {
 					regulator-on-in-suspend;
 					regulator-suspend-microvolt = <3000000>;
@@ -496,7 +507,7 @@
 
 	bt656-supply = <&vcc_3v0>;		/* bt656_gpio2ab_ms */
 	audio-supply = <&vcca1v8_codec>;	/* audio_gpio3d4a_ms */
-	sdmmc-supply = <&vcc_sd>;		/* sdmmc_gpio4b_ms */
+	sdmmc-supply = <&vccio_sd>;		/* sdmmc_gpio4b_ms */
 	gpio1830-supply = <&vcc_3v0>;		/* gpio1833_gpio4cd_ms */
 };
 
@@ -563,7 +574,8 @@
 	disable-wp;
 	num-slots = <1>;
 	//sd-uhs-sdr104;
-	vqmmc-supply = <&vcc_sd>;
+	vmmc-supply = <&vcc_sd>;
+	vqmmc-supply = <&vccio_sd>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&sdmmc_clk &sdmmc_cmd &sdmmc_cd &sdmmc_bus4>;
 	status = "okay";
@@ -680,6 +692,13 @@
 		host_vbus_drv: host-vbus-drv {
 			rockchip,pins =
 				<4 25 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	vcc_sd {
+		vcc_sd_h: vcc-sd-h {
+			rockchip,pins =
+				<0 1 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 
