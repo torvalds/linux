@@ -1613,10 +1613,13 @@ static int serial_omap_probe_rs485(struct uart_omap_port *up,
 
 	uart_get_rs485_mode(up->dev, rs485conf);
 
-	if (of_property_read_bool(np, "rs485-rts-active-high"))
+	if (of_property_read_bool(np, "rs485-rts-active-high")) {
 		rs485conf->flags |= SER_RS485_RTS_ON_SEND;
-	else
+		rs485conf->flags &= ~SER_RS485_RTS_AFTER_SEND;
+	} else {
+		rs485conf->flags &= ~SER_RS485_RTS_ON_SEND;
 		rs485conf->flags |= SER_RS485_RTS_AFTER_SEND;
+	}
 
 	/* check for tx enable gpio */
 	up->rts_gpio = of_get_named_gpio_flags(np, "rts-gpio", 0, &flags);
