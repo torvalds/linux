@@ -360,8 +360,8 @@ static void renesas_sdhi_sys_dmac_request_dma(struct tmio_mmc_host *host,
 					      struct tmio_mmc_data *pdata)
 {
 	/* We can only either use DMA for both Tx and Rx or not use it at all */
-	if (!host->dma || (!host->pdev->dev.of_node &&
-			   (!pdata->chan_priv_tx || !pdata->chan_priv_rx)))
+	if (!host->pdev->dev.of_node &&
+	    (!pdata->chan_priv_tx || !pdata->chan_priv_rx))
 		return;
 
 	if (!host->chan_tx && !host->chan_rx) {
