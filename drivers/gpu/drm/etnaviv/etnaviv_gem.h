@@ -102,7 +102,6 @@ struct etnaviv_gem_submit_bo {
  */
 struct etnaviv_gem_submit {
 	struct etnaviv_gpu *gpu;
-	struct ww_acquire_ctx ticket;
 	struct dma_fence *out_fence, *in_fence;
 	u32 flags;
 	unsigned int nr_bos;

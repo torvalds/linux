@@ -44,8 +44,6 @@ static struct etnaviv_gem_submit *submit_create(struct drm_device *dev,
 
 	submit->gpu = gpu;
 
-	ww_acquire_init(&submit->ticket, &reservation_ww_class);
-
 	return submit;
 }
 
@@ -107,7 +105,8 @@ static void submit_unlock_object(struct etnaviv_gem_submit *submit, int i)
 	}
 }
 
-static int submit_lock_objects(struct etnaviv_gem_submit *submit)
+static int submit_lock_objects(struct etnaviv_gem_submit *submit,
+		struct ww_acquire_ctx *ticket)
 {
 	int contended, slow_locked = -1, i, ret = 0;
 
@@ -122,7 +121,7 @@ retry:
 
 		if (!(submit->bos[i].flags & BO_LOCKED)) {
 			ret = ww_mutex_lock_interruptible(&etnaviv_obj->resv->lock,
-					&submit->ticket);
+							  ticket);
 			if (ret == -EALREADY)
 				DRM_ERROR("BO at index %u already on submit list\n",
 					  i);
@@ -132,7 +131,7 @@ retry:
 		}
 	}
 
-	ww_acquire_done(&submit->ticket);
+	ww_acquire_done(ticket);
 
 	return 0;
 
@@ -150,7 +149,7 @@ fail:
 
 		/* we lost out in a seqno race, lock and retry.. */
 		ret = ww_mutex_lock_slow_interruptible(&etnaviv_obj->resv->lock,
-				&submit->ticket);
+						       ticket);
 		if (!ret) {
 			submit->bos[contended].flags |= BO_LOCKED;
 			slow_locked = contended;
@@ -361,7 +360,6 @@ static void submit_cleanup(struct etnaviv_gem_submit *submit)
 		drm_gem_object_put_unlocked(&etnaviv_obj->base);
 	}
 
-	ww_acquire_fini(&submit->ticket);
 	if (submit->in_fence)
 		dma_fence_put(submit->in_fence);
 	if (submit->out_fence)
@@ -381,6 +379,7 @@ int etnaviv_ioctl_gem_submit(struct drm_device *dev, void *data,
 	struct etnaviv_cmdbuf *cmdbuf;
 	struct etnaviv_gpu *gpu;
 	struct sync_file *sync_file = NULL;
+	struct ww_acquire_ctx ticket;
 	int out_fence_fd = -1;
 	void *stream;
 	int ret;
@@ -466,10 +465,12 @@ int etnaviv_ioctl_gem_submit(struct drm_device *dev, void *data,
 		}
 	}
 
+	ww_acquire_init(&ticket, &reservation_ww_class);
+
 	submit = submit_create(dev, gpu, args->nr_bos);
 	if (!submit) {
 		ret = -ENOMEM;
-		goto err_submit_cmds;
+		goto err_submit_ww_acquire;
 	}
 
 	submit->flags = args->flags;
@@ -478,7 +479,7 @@ int etnaviv_ioctl_gem_submit(struct drm_device *dev, void *data,
 	if (ret)
 		goto err_submit_objects;
 
-	ret = submit_lock_objects(submit);
+	ret = submit_lock_objects(submit, &ticket);
 	if (ret)
 		goto err_submit_objects;
 
@@ -544,6 +545,9 @@ int etnaviv_ioctl_gem_submit(struct drm_device *dev, void *data,
 
 err_submit_objects:
 	submit_cleanup(submit);
+
+err_submit_ww_acquire:
+	ww_acquire_fini(&ticket);
 
 err_submit_cmds:
 	if (ret && (out_fence_fd >= 0))
