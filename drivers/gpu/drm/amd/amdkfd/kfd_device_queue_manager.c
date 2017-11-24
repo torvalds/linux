@@ -149,8 +149,7 @@ static void deallocate_vmid(struct device_queue_manager *dqm,
 
 static int create_queue_nocpsch(struct device_queue_manager *dqm,
 				struct queue *q,
-				struct qcm_process_device *qpd,
-				int *allocated_vmid)
+				struct qcm_process_device *qpd)
 {
 	int retval;
 
@@ -170,7 +169,6 @@ static int create_queue_nocpsch(struct device_queue_manager *dqm,
 		if (retval)
 			goto out_unlock;
 	}
-	*allocated_vmid = qpd->vmid;
 	q->properties.vmid = qpd->vmid;
 
 	q->properties.tba_addr = qpd->tba_addr;
@@ -184,10 +182,8 @@ static int create_queue_nocpsch(struct device_queue_manager *dqm,
 		retval = -EINVAL;
 
 	if (retval) {
-		if (list_empty(&qpd->queues_list)) {
+		if (list_empty(&qpd->queues_list))
 			deallocate_vmid(dqm, qpd, q);
-			*allocated_vmid = 0;
-		}
 		goto out_unlock;
 	}
 
@@ -812,15 +808,12 @@ static void destroy_kernel_queue_cpsch(struct device_queue_manager *dqm,
 }
 
 static int create_queue_cpsch(struct device_queue_manager *dqm, struct queue *q,
-			struct qcm_process_device *qpd, int *allocate_vmid)
+			struct qcm_process_device *qpd)
 {
 	int retval;
 	struct mqd_manager *mqd;
 
 	retval = 0;
-
-	if (allocate_vmid)
-		*allocate_vmid = 0;
 
 	mutex_lock(&dqm->lock);
 

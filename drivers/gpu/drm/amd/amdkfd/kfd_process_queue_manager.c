@@ -201,8 +201,7 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 			goto err_create_queue;
 		pqn->q = q;
 		pqn->kq = NULL;
-		retval = dev->dqm->ops.create_queue(dev->dqm, q, &pdd->qpd,
-						&q->properties.vmid);
+		retval = dev->dqm->ops.create_queue(dev->dqm, q, &pdd->qpd);
 		pr_debug("DQM returned %d for create_queue\n", retval);
 		print_queue(q);
 		break;
@@ -222,8 +221,7 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 			goto err_create_queue;
 		pqn->q = q;
 		pqn->kq = NULL;
-		retval = dev->dqm->ops.create_queue(dev->dqm, q, &pdd->qpd,
-						&q->properties.vmid);
+		retval = dev->dqm->ops.create_queue(dev->dqm, q, &pdd->qpd);
 		pr_debug("DQM returned %d for create_queue\n", retval);
 		print_queue(q);
 		break;
