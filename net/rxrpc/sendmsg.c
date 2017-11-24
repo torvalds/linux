@@ -619,8 +619,8 @@ int rxrpc_do_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg, size_t len)
 		/* The socket is now unlocked. */
 		if (IS_ERR(call))
 			return PTR_ERR(call);
-		rxrpc_put_call(call, rxrpc_call_put);
-		return 0;
+		ret = 0;
+		goto out_put_unlock;
 	}
 
 	call = rxrpc_find_call_by_user_ID(rx, p.user_call_ID);
@@ -689,6 +689,7 @@ int rxrpc_do_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg, size_t len)
 		ret = rxrpc_send_data(rx, call, msg, len, NULL);
 	}
 
+out_put_unlock:
 	mutex_unlock(&call->user_mutex);
 error_put:
 	rxrpc_put_call(call, rxrpc_call_put);
