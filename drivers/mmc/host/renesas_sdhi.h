@@ -35,6 +35,25 @@ struct renesas_sdhi_of_data {
 	unsigned short max_segs;
 };
 
+struct tmio_mmc_dma {
+	enum dma_slave_buswidth dma_buswidth;
+	bool (*filter)(struct dma_chan *chan, void *arg);
+	void (*enable)(struct tmio_mmc_host *host, bool enable);
+};
+
+struct renesas_sdhi {
+	struct clk *clk;
+	struct clk *clk_cd;
+	struct tmio_mmc_data mmc_data;
+	struct tmio_mmc_dma dma_priv;
+	struct pinctrl *pinctrl;
+	struct pinctrl_state *pins_default, *pins_uhs;
+	void __iomem *scc_ctl;
+};
+
+#define host_to_priv(host) \
+	container_of((host)->pdata, struct renesas_sdhi, mmc_data)
+
 int renesas_sdhi_probe(struct platform_device *pdev,
 		       const struct tmio_mmc_dma_ops *dma_ops);
 int renesas_sdhi_remove(struct platform_device *pdev);

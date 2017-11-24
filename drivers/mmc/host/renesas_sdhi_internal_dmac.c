@@ -103,6 +103,8 @@ renesas_sdhi_internal_dmac_dm_write(struct tmio_mmc_host *host,
 static void
 renesas_sdhi_internal_dmac_enable_dma(struct tmio_mmc_host *host, bool enable)
 {
+	struct renesas_sdhi *priv = host_to_priv(host);
+
 	if (!host->chan_tx || !host->chan_rx)
 		return;
 
@@ -110,8 +112,8 @@ renesas_sdhi_internal_dmac_enable_dma(struct tmio_mmc_host *host, bool enable)
 		renesas_sdhi_internal_dmac_dm_write(host, DM_CM_INFO1,
 						    INFO1_CLEAR);
 
-	if (host->dma->enable)
-		host->dma->enable(host, enable);
+	if (priv->dma_priv.enable)
+		priv->dma_priv.enable(host, enable);
 }
 
 static void

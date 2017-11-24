@@ -112,12 +112,6 @@
 struct tmio_mmc_data;
 struct tmio_mmc_host;
 
-struct tmio_mmc_dma {
-	enum dma_slave_buswidth dma_buswidth;
-	bool (*filter)(struct dma_chan *chan, void *arg);
-	void (*enable)(struct tmio_mmc_host *host, bool enable);
-};
-
 struct tmio_mmc_dma_ops {
 	void (*start)(struct tmio_mmc_host *host, struct mmc_data *data);
 	void (*enable)(struct tmio_mmc_host *host, bool enable);
@@ -149,7 +143,6 @@ struct tmio_mmc_host {
 
 	struct platform_device *pdev;
 	struct tmio_mmc_data *pdata;
-	struct tmio_mmc_dma	*dma;
 
 	/* DMA support */
 	bool			force_pio;
