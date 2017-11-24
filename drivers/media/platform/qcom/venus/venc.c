@@ -641,6 +641,7 @@ static int venc_set_properties(struct venus_inst *inst)
 
 	if (inst->fmt_cap->pixfmt == V4L2_PIX_FMT_H264) {
 		struct hfi_h264_vui_timing_info info;
+		struct hfi_h264_entropy_control entropy;
 
 		ptype = HFI_PROPERTY_PARAM_VENC_H264_VUI_TIMING_INFO;
 		info.enable = 1;
@@ -648,6 +649,16 @@ static int venc_set_properties(struct venus_inst *inst)
 		info.time_scale = NSEC_PER_SEC;
 
 		ret = hfi_session_set_property(inst, ptype, &info);
+		if (ret)
+			return ret;
+
+		ptype = HFI_PROPERTY_PARAM_VENC_H264_ENTROPY_CONTROL;
+		entropy.entropy_mode = venc_v4l2_to_hfi(
+					  V4L2_CID_MPEG_VIDEO_H264_ENTROPY_MODE,
+					  ctr->h264_entropy_mode);
+		entropy.cabac_model = HFI_H264_CABAC_MODEL_0;
+
+		ret = hfi_session_set_property(inst, ptype, &entropy);
 		if (ret)
 			return ret;
 	}
