@@ -354,6 +354,9 @@ static void submit_cleanup(struct kref *kref)
 			container_of(kref, struct etnaviv_gem_submit, refcount);
 	unsigned i;
 
+	if (submit->cmdbuf.suballoc)
+		etnaviv_cmdbuf_free(&submit->cmdbuf);
+
 	for (i = 0; i < submit->nr_bos; i++) {
 		struct etnaviv_gem_object *etnaviv_obj = submit->bos[i].obj;
 
@@ -391,7 +394,6 @@ int etnaviv_ioctl_gem_submit(struct drm_device *dev, void *data,
 	struct drm_etnaviv_gem_submit_pmr *pmrs;
 	struct drm_etnaviv_gem_submit_bo *bos;
 	struct etnaviv_gem_submit *submit;
-	struct etnaviv_cmdbuf *cmdbuf;
 	struct etnaviv_gpu *gpu;
 	struct sync_file *sync_file = NULL;
 	struct ww_acquire_ctx ticket;
@@ -432,15 +434,10 @@ int etnaviv_ioctl_gem_submit(struct drm_device *dev, void *data,
 	relocs = kvmalloc_array(args->nr_relocs, sizeof(*relocs), GFP_KERNEL);
 	pmrs = kvmalloc_array(args->nr_pmrs, sizeof(*pmrs), GFP_KERNEL);
 	stream = kvmalloc_array(1, args->stream_size, GFP_KERNEL);
-	cmdbuf = etnaviv_cmdbuf_new(gpu->cmdbuf_suballoc,
-				    ALIGN(args->stream_size, 8) + 8,
-				    args->nr_bos);
-	if (!bos || !relocs || !pmrs || !stream || !cmdbuf) {
+	if (!bos || !relocs || !pmrs || !stream) {
 		ret = -ENOMEM;
 		goto err_submit_cmds;
 	}
-
-	cmdbuf->ctx = file->driver_priv;
 
 	ret = copy_from_user(bos, u64_to_user_ptr(args->bos),
 			     args->nr_bos * sizeof(*bos));
@@ -486,6 +483,12 @@ int etnaviv_ioctl_gem_submit(struct drm_device *dev, void *data,
 		goto err_submit_ww_acquire;
 	}
 
+	ret = etnaviv_cmdbuf_init(gpu->cmdbuf_suballoc, &submit->cmdbuf,
+				  ALIGN(args->stream_size, 8) + 8);
+	if (ret)
+		goto err_submit_objects;
+
+	submit->cmdbuf.ctx = file->driver_priv;
 	submit->exec_state = args->exec_state;
 	submit->flags = args->flags;
 
@@ -528,16 +531,14 @@ int etnaviv_ioctl_gem_submit(struct drm_device *dev, void *data,
 	if (ret)
 		goto err_submit_objects;
 
-	memcpy(cmdbuf->vaddr, stream, args->stream_size);
-	cmdbuf->user_size = ALIGN(args->stream_size, 8);
+	memcpy(submit->cmdbuf.vaddr, stream, args->stream_size);
+	submit->cmdbuf.user_size = ALIGN(args->stream_size, 8);
 
-	ret = etnaviv_gpu_submit(gpu, submit, cmdbuf);
+	ret = etnaviv_gpu_submit(gpu, submit);
 	if (ret)
 		goto err_submit_objects;
 
 	submit_attach_object_fences(submit);
-
-	cmdbuf = NULL;
 
 	if (args->flags & ETNA_SUBMIT_FENCE_FD_OUT) {
 		/*
@@ -566,9 +567,6 @@ err_submit_ww_acquire:
 err_submit_cmds:
 	if (ret && (out_fence_fd >= 0))
 		put_unused_fd(out_fence_fd);
-	/* if we still own the cmdbuf */
-	if (cmdbuf)
-		etnaviv_cmdbuf_free(cmdbuf);
 	if (stream)
 		kvfree(stream);
 	if (bos)

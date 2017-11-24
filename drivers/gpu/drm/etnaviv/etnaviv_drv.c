@@ -172,7 +172,7 @@ static int etnaviv_mmu_show(struct etnaviv_gpu *gpu, struct seq_file *m)
 
 static void etnaviv_buffer_dump(struct etnaviv_gpu *gpu, struct seq_file *m)
 {
-	struct etnaviv_cmdbuf *buf = gpu->buffer;
+	struct etnaviv_cmdbuf *buf = &gpu->buffer;
 	u32 size = buf->size;
 	u32 *ptr = buf->vaddr;
 	u32 i;

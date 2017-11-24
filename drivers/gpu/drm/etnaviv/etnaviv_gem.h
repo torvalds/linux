@@ -18,6 +18,7 @@
 #define __ETNAVIV_GEM_H__
 
 #include <linux/reservation.h>
+#include "etnaviv_cmdbuf.h"
 #include "etnaviv_drv.h"
 
 struct dma_fence;
@@ -103,6 +104,8 @@ struct etnaviv_gem_submit {
 	struct kref refcount;
 	struct etnaviv_gpu *gpu;
 	struct dma_fence *out_fence, *in_fence;
+	struct list_head node; /* GPU active submit list */
+	struct etnaviv_cmdbuf cmdbuf;
 	u32 exec_state;
 	u32 flags;
 	unsigned int nr_pmrs;

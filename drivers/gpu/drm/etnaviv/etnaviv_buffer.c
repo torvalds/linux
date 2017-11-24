@@ -166,7 +166,7 @@ static u32 etnaviv_buffer_reserve(struct etnaviv_gpu *gpu,
 
 u16 etnaviv_buffer_init(struct etnaviv_gpu *gpu)
 {
-	struct etnaviv_cmdbuf *buffer = gpu->buffer;
+	struct etnaviv_cmdbuf *buffer = &gpu->buffer;
 
 	lockdep_assert_held(&gpu->lock);
 
@@ -182,7 +182,7 @@ u16 etnaviv_buffer_init(struct etnaviv_gpu *gpu)
 
 u16 etnaviv_buffer_config_mmuv2(struct etnaviv_gpu *gpu, u32 mtlb_addr, u32 safe_addr)
 {
-	struct etnaviv_cmdbuf *buffer = gpu->buffer;
+	struct etnaviv_cmdbuf *buffer = &gpu->buffer;
 
 	lockdep_assert_held(&gpu->lock);
 
@@ -217,7 +217,7 @@ u16 etnaviv_buffer_config_mmuv2(struct etnaviv_gpu *gpu, u32 mtlb_addr, u32 safe
 
 void etnaviv_buffer_end(struct etnaviv_gpu *gpu)
 {
-	struct etnaviv_cmdbuf *buffer = gpu->buffer;
+	struct etnaviv_cmdbuf *buffer = &gpu->buffer;
 	unsigned int waitlink_offset = buffer->user_size - 16;
 	u32 link_target, flush = 0;
 
@@ -261,7 +261,7 @@ void etnaviv_buffer_end(struct etnaviv_gpu *gpu)
 /* Append a 'sync point' to the ring buffer. */
 void etnaviv_sync_point_queue(struct etnaviv_gpu *gpu, unsigned int event)
 {
-	struct etnaviv_cmdbuf *buffer = gpu->buffer;
+	struct etnaviv_cmdbuf *buffer = &gpu->buffer;
 	unsigned int waitlink_offset = buffer->user_size - 16;
 	u32 dwords, target;
 
@@ -300,7 +300,7 @@ void etnaviv_sync_point_queue(struct etnaviv_gpu *gpu, unsigned int event)
 void etnaviv_buffer_queue(struct etnaviv_gpu *gpu, u32 exec_state,
 	unsigned int event, struct etnaviv_cmdbuf *cmdbuf)
 {
-	struct etnaviv_cmdbuf *buffer = gpu->buffer;
+	struct etnaviv_cmdbuf *buffer = &gpu->buffer;
 	unsigned int waitlink_offset = buffer->user_size - 16;
 	u32 return_target, return_dwords;
 	u32 link_target, link_dwords;
