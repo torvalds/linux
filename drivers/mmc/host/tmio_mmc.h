@@ -166,7 +166,6 @@ struct tmio_mmc_host {
 	struct mutex		ios_lock;	/* protect set_ios() context */
 	bool			native_hotplug;
 	bool			sdio_irq_enabled;
-	u32			scc_tappos;
 
 	/* Mandatory callback */
 	int (*clk_enable)(struct tmio_mmc_host *host);

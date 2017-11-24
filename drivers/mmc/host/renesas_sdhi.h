@@ -51,6 +51,7 @@ struct renesas_sdhi {
 	struct pinctrl *pinctrl;
 	struct pinctrl_state *pins_default, *pins_uhs;
 	void __iomem *scc_ctl;
+	u32 scc_tappos;
 };
 
 #define host_to_priv(host) \
