@@ -4,7 +4,6 @@
  *
  *    Copyright IBM Corp. 2006, 2008
  *    Author(s): Michael Holzheu <holzheu@de.ibm.com>
- *    License: GPL
  */
 
 #define KMSG_COMPONENT "hypfs"
