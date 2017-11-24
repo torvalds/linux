@@ -106,6 +106,7 @@ struct etnaviv_gem_submit {
 	struct dma_fence *out_fence, *in_fence;
 	struct list_head node; /* GPU active submit list */
 	struct etnaviv_cmdbuf cmdbuf;
+	bool runtime_resumed;
 	u32 exec_state;
 	u32 flags;
 	unsigned int nr_pmrs;

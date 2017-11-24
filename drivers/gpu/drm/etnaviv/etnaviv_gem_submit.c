@@ -355,6 +355,9 @@ static void submit_cleanup(struct kref *kref)
 			container_of(kref, struct etnaviv_gem_submit, refcount);
 	unsigned i;
 
+	if (submit->runtime_resumed)
+		pm_runtime_put_autosuspend(submit->gpu->dev);
+
 	if (submit->cmdbuf.suballoc)
 		etnaviv_cmdbuf_free(&submit->cmdbuf);
 

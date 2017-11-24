@@ -1210,14 +1210,6 @@ static void retire_worker(struct work_struct *work)
 		list_del(&submit->node);
 
 		etnaviv_submit_put(submit);
-		/*
-		 * We need to balance the runtime PM count caused by
-		 * each submission.  Upon submission, we increment
-		 * the runtime PM counter, and allocate one event.
-		 * So here, we put the runtime PM count for each
-		 * completed event.
-		 */
-		pm_runtime_put_autosuspend(gpu->dev);
 	}
 
 	gpu->retired_fence = fence;
@@ -1289,17 +1281,6 @@ int etnaviv_gpu_wait_obj_inactive(struct etnaviv_gpu *gpu,
 		return -ETIMEDOUT;
 }
 
-int etnaviv_gpu_pm_get_sync(struct etnaviv_gpu *gpu)
-{
-	return pm_runtime_get_sync(gpu->dev);
-}
-
-void etnaviv_gpu_pm_put(struct etnaviv_gpu *gpu)
-{
-	pm_runtime_mark_last_busy(gpu->dev);
-	pm_runtime_put_autosuspend(gpu->dev);
-}
-
 static void sync_point_perfmon_sample(struct etnaviv_gpu *gpu,
 	struct etnaviv_event *event, unsigned int flags)
 {
@@ -1366,9 +1347,10 @@ int etnaviv_gpu_submit(struct etnaviv_gpu *gpu,
 	unsigned int i, nr_events = 1, event[3];
 	int ret;
 
-	ret = etnaviv_gpu_pm_get_sync(gpu);
+	ret = pm_runtime_get_sync(gpu->dev);
 	if (ret < 0)
 		return ret;
+	submit->runtime_resumed = true;
 
 	/*
 	 * if there are performance monitor requests we need to have
@@ -1383,7 +1365,7 @@ int etnaviv_gpu_submit(struct etnaviv_gpu *gpu,
 	ret = event_alloc(gpu, nr_events, event);
 	if (ret) {
 		DRM_ERROR("no free events\n");
-		goto out_pm_put;
+		return ret;
 	}
 
 	mutex_lock(&gpu->lock);
@@ -1420,17 +1402,11 @@ int etnaviv_gpu_submit(struct etnaviv_gpu *gpu,
 
 	list_add_tail(&submit->node, &gpu->active_submit_list);
 
-	/* We're committed to adding this command buffer, hold a PM reference */
-	pm_runtime_get_noresume(gpu->dev);
-
 	hangcheck_timer_reset(gpu);
 	ret = 0;
 
 out_unlock:
 	mutex_unlock(&gpu->lock);
-
-out_pm_put:
-	etnaviv_gpu_pm_put(gpu);
 
 	return ret;
 }
