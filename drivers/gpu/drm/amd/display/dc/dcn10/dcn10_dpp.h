@@ -1283,6 +1283,10 @@ enum dcn10_input_csc_select {
 	INPUT_CSC_SELECT_COMA
 };
 
+void dpp1_set_cursor_attributes(
+		struct dpp *dpp_base,
+		enum dc_cursor_color_format color_format);
+
 bool dpp1_dscl_is_lb_conf_valid(
 		int ceil_vratio,
 		int num_partitions,
