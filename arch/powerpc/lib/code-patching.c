@@ -39,7 +39,7 @@ static int __patch_instruction(unsigned int *exec_addr, unsigned int instr,
 	return 0;
 }
 
-static int raw_patch_instruction(unsigned int *addr, unsigned int instr)
+int raw_patch_instruction(unsigned int *addr, unsigned int instr)
 {
 	return __patch_instruction(addr, instr, addr);
 }
@@ -156,7 +156,7 @@ static int do_patch_instruction(unsigned int *addr, unsigned int instr)
 	 * when text_poke_area is not ready, but we still need
 	 * to allow patching. We just do the plain old patching
 	 */
-	if (!this_cpu_read(*PTRRELOC(&text_poke_area)))
+	if (!this_cpu_read(text_poke_area))
 		return raw_patch_instruction(addr, instr);
 
 	local_irq_save(flags);
