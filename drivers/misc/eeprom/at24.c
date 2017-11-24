@@ -507,6 +507,9 @@ static int at24_read(void *priv, unsigned int off, void *val, size_t count)
 	if (unlikely(!count))
 		return count;
 
+	if (off + count > at24->chip.byte_len)
+		return -EINVAL;
+
 	/*
 	 * Read data from chip, protecting against concurrent updates
 	 * from this host, but not from other I2C masters.
@@ -537,6 +540,9 @@ static int at24_write(void *priv, unsigned int off, void *val, size_t count)
 	char *buf = val;
 
 	if (unlikely(!count))
+		return -EINVAL;
+
+	if (off + count > at24->chip.byte_len)
 		return -EINVAL;
 
 	/*
