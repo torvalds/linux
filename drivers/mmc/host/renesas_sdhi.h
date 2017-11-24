@@ -39,6 +39,8 @@ struct tmio_mmc_dma {
 	enum dma_slave_buswidth dma_buswidth;
 	bool (*filter)(struct dma_chan *chan, void *arg);
 	void (*enable)(struct tmio_mmc_host *host, bool enable);
+	struct completion	dma_dataend;
+	struct tasklet_struct	dma_complete;
 };
 
 struct renesas_sdhi {

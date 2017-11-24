@@ -132,7 +132,9 @@ renesas_sdhi_internal_dmac_abort_dma(struct tmio_mmc_host *host) {
 
 static void
 renesas_sdhi_internal_dmac_dataend_dma(struct tmio_mmc_host *host) {
-	tasklet_schedule(&host->dma_complete);
+	struct renesas_sdhi *priv = host_to_priv(host);
+
+	tasklet_schedule(&priv->dma_priv.dma_complete);
 }
 
 static void
@@ -222,10 +224,12 @@ static void
 renesas_sdhi_internal_dmac_request_dma(struct tmio_mmc_host *host,
 				       struct tmio_mmc_data *pdata)
 {
+	struct renesas_sdhi *priv = host_to_priv(host);
+
 	/* Each value is set to non-zero to assume "enabling" each DMA */
 	host->chan_rx = host->chan_tx = (void *)0xdeadbeaf;
 
-	tasklet_init(&host->dma_complete,
+	tasklet_init(&priv->dma_priv.dma_complete,
 		     renesas_sdhi_internal_dmac_complete_tasklet_fn,
 		     (unsigned long)host);
 	tasklet_init(&host->dma_issue,
