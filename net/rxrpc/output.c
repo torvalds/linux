@@ -95,7 +95,8 @@ static size_t rxrpc_fill_out_ack(struct rxrpc_connection *conn,
 /*
  * Send an ACK call packet.
  */
-int rxrpc_send_ack_packet(struct rxrpc_call *call, bool ping)
+int rxrpc_send_ack_packet(struct rxrpc_call *call, bool ping,
+			  rxrpc_serial_t *_serial)
 {
 	struct rxrpc_connection *conn = NULL;
 	struct rxrpc_ack_buffer *pkt;
@@ -165,6 +166,8 @@ int rxrpc_send_ack_packet(struct rxrpc_call *call, bool ping)
 			   ntohl(pkt->ack.firstPacket),
 			   ntohl(pkt->ack.serial),
 			   pkt->ack.reason, pkt->ack.nAcks);
+	if (_serial)
+		*_serial = serial;
 
 	if (ping) {
 		call->ping_serial = serial;
@@ -323,7 +326,8 @@ int rxrpc_send_data_packet(struct rxrpc_call *call, struct sk_buff *skb,
 	 * ACKs if a DATA packet appears to have been lost.
 	 */
 	if (!(sp->hdr.flags & RXRPC_LAST_PACKET) &&
-	    (retrans ||
+	    (test_and_clear_bit(RXRPC_CALL_EV_ACK_LOST, &call->events) ||
+	     retrans ||
 	     call->cong_mode == RXRPC_CALL_SLOW_START ||
 	     (call->peer->rtt_usage < 3 && sp->hdr.seq & 1) ||
 	     ktime_before(ktime_add_ms(call->peer->rtt_last_req, 1000),
@@ -370,6 +374,18 @@ done:
 		if (whdr.flags & RXRPC_REQUEST_ACK) {
 			call->peer->rtt_last_req = now;
 			trace_rxrpc_rtt_tx(call, rxrpc_rtt_tx_data, serial);
+			if (call->peer->rtt_usage > 1) {
+				unsigned long nowj = jiffies, ack_lost_at;
+
+				ack_lost_at = nsecs_to_jiffies(2 * call->peer->rtt);
+				if (ack_lost_at < 1)
+					ack_lost_at = 1;
+
+				ack_lost_at += nowj;
+				WRITE_ONCE(call->ack_lost_at, ack_lost_at);
+				rxrpc_reduce_call_timer(call, ack_lost_at, nowj,
+							rxrpc_timer_set_for_lost_ack);
+			}
 		}
 	}
 	_leave(" = %d [%u]", ret, call->peer->maxdata);

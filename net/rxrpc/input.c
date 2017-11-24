@@ -631,6 +631,43 @@ found:
 }
 
 /*
+ * Process the response to a ping that we sent to find out if we lost an ACK.
+ *
+ * If we got back a ping response that indicates a lower tx_top than what we
+ * had at the time of the ping transmission, we adjudge all the DATA packets
+ * sent between the response tx_top and the ping-time tx_top to have been lost.
+ */
+static void rxrpc_input_check_for_lost_ack(struct rxrpc_call *call)
+{
+	rxrpc_seq_t top, bottom, seq;
+	bool resend = false;
+
+	spin_lock_bh(&call->lock);
+
+	bottom = call->tx_hard_ack + 1;
+	top = call->acks_lost_top;
+	if (before(bottom, top)) {
+		for (seq = bottom; before_eq(seq, top); seq++) {
+			int ix = seq & RXRPC_RXTX_BUFF_MASK;
+			u8 annotation = call->rxtx_annotations[ix];
+			u8 anno_type = annotation & RXRPC_TX_ANNO_MASK;
+
+			if (anno_type != RXRPC_TX_ANNO_UNACK)
+				continue;
+			annotation &= ~RXRPC_TX_ANNO_MASK;
+			annotation |= RXRPC_TX_ANNO_RETRANS;
+			call->rxtx_annotations[ix] = annotation;
+			resend = true;
+		}
+	}
+
+	spin_unlock_bh(&call->lock);
+
+	if (resend && !test_and_set_bit(RXRPC_CALL_EV_RESEND, &call->events))
+		rxrpc_queue_call(call);
+}
+
+/*
  * Process a ping response.
  */
 static void rxrpc_input_ping_response(struct rxrpc_call *call,
@@ -644,6 +681,9 @@ static void rxrpc_input_ping_response(struct rxrpc_call *call,
 	ping_time = call->ping_time;
 	smp_rmb();
 	ping_serial = call->ping_serial;
+
+	if (orig_serial == call->acks_lost_ping)
+		rxrpc_input_check_for_lost_ack(call);
 
 	if (!test_bit(RXRPC_CALL_PINGING, &call->flags) ||
 	    before(orig_serial, ping_serial))

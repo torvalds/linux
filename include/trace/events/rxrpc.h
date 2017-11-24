@@ -141,6 +141,7 @@ enum rxrpc_timer_trace {
 	rxrpc_timer_exp_ack,
 	rxrpc_timer_exp_hard,
 	rxrpc_timer_exp_idle,
+	rxrpc_timer_exp_lost_ack,
 	rxrpc_timer_exp_normal,
 	rxrpc_timer_exp_ping,
 	rxrpc_timer_exp_resend,
@@ -151,6 +152,7 @@ enum rxrpc_timer_trace {
 	rxrpc_timer_set_for_ack,
 	rxrpc_timer_set_for_hard,
 	rxrpc_timer_set_for_idle,
+	rxrpc_timer_set_for_lost_ack,
 	rxrpc_timer_set_for_normal,
 	rxrpc_timer_set_for_ping,
 	rxrpc_timer_set_for_resend,
@@ -309,6 +311,7 @@ enum rxrpc_congest_change {
 	EM(rxrpc_timer_exp_ack,			"ExpAck") \
 	EM(rxrpc_timer_exp_hard,		"ExpHrd") \
 	EM(rxrpc_timer_exp_idle,		"ExpIdl") \
+	EM(rxrpc_timer_exp_lost_ack,		"ExpLoA") \
 	EM(rxrpc_timer_exp_normal,		"ExpNml") \
 	EM(rxrpc_timer_exp_ping,		"ExpPng") \
 	EM(rxrpc_timer_exp_resend,		"ExpRsn") \
@@ -318,6 +321,7 @@ enum rxrpc_congest_change {
 	EM(rxrpc_timer_set_for_ack,		"SetAck") \
 	EM(rxrpc_timer_set_for_hard,		"SetHrd") \
 	EM(rxrpc_timer_set_for_idle,		"SetIdl") \
+	EM(rxrpc_timer_set_for_lost_ack,	"SetLoA") \
 	EM(rxrpc_timer_set_for_normal,		"SetNml") \
 	EM(rxrpc_timer_set_for_ping,		"SetPng") \
 	EM(rxrpc_timer_set_for_resend,		"SetRTx") \
@@ -961,6 +965,7 @@ TRACE_EVENT(rxrpc_timer,
 		    __field(enum rxrpc_timer_trace,		why		)
 		    __field(long,				now		)
 		    __field(long,				ack_at		)
+		    __field(long,				ack_lost_at	)
 		    __field(long,				resend_at	)
 		    __field(long,				ping_at		)
 		    __field(long,				expect_rx_by	)
@@ -974,6 +979,7 @@ TRACE_EVENT(rxrpc_timer,
 		    __entry->why		= why;
 		    __entry->now		= now;
 		    __entry->ack_at		= call->ack_at;
+		    __entry->ack_lost_at	= call->ack_lost_at;
 		    __entry->resend_at		= call->resend_at;
 		    __entry->expect_rx_by	= call->expect_rx_by;
 		    __entry->expect_req_by	= call->expect_req_by;
@@ -981,10 +987,11 @@ TRACE_EVENT(rxrpc_timer,
 		    __entry->timer		= call->timer.expires;
 			   ),
 
-	    TP_printk("c=%p %s a=%ld r=%ld xr=%ld xq=%ld xt=%ld t=%ld",
+	    TP_printk("c=%p %s a=%ld la=%ld r=%ld xr=%ld xq=%ld xt=%ld t=%ld",
 		      __entry->call,
 		      __print_symbolic(__entry->why, rxrpc_timer_traces),
 		      __entry->ack_at - __entry->now,
+		      __entry->ack_lost_at - __entry->now,
 		      __entry->resend_at - __entry->now,
 		      __entry->expect_rx_by - __entry->now,
 		      __entry->expect_req_by - __entry->now,
@@ -1105,7 +1112,7 @@ TRACE_EVENT(rxrpc_congest,
 		    memcpy(&__entry->sum, summary, sizeof(__entry->sum));
 			   ),
 
-	    TP_printk("c=%p %08x %s %08x %s cw=%u ss=%u nr=%u,%u nw=%u,%u r=%u b=%u u=%u d=%u l=%x%s%s%s",
+	    TP_printk("c=%p r=%08x %s q=%08x %s cw=%u ss=%u nr=%u,%u nw=%u,%u r=%u b=%u u=%u d=%u l=%x%s%s%s",
 		      __entry->call,
 		      __entry->ack_serial,
 		      __print_symbolic(__entry->sum.ack_reason, rxrpc_ack_names),

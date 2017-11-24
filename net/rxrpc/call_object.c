@@ -197,6 +197,7 @@ static void rxrpc_start_call_timer(struct rxrpc_call *call)
 	unsigned long j = now + MAX_JIFFY_OFFSET;
 
 	call->ack_at = j;
+	call->ack_lost_at = j;
 	call->resend_at = j;
 	call->ping_at = j;
 	call->expect_rx_by = j;

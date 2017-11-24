@@ -245,7 +245,7 @@ static void rxrpc_resend(struct rxrpc_call *call, unsigned long now_j)
 			goto out;
 		rxrpc_propose_ACK(call, RXRPC_ACK_PING, 0, 0, true, false,
 				  rxrpc_propose_ack_ping_for_lost_ack);
-		rxrpc_send_ack_packet(call, true);
+		rxrpc_send_ack_packet(call, true, NULL);
 		goto out;
 	}
 
@@ -310,6 +310,7 @@ void rxrpc_process_call(struct work_struct *work)
 {
 	struct rxrpc_call *call =
 		container_of(work, struct rxrpc_call, processor);
+	rxrpc_serial_t *send_ack;
 	unsigned long now, next, t;
 
 	rxrpc_see_call(call);
@@ -358,6 +359,13 @@ recheck_state:
 		set_bit(RXRPC_CALL_EV_ACK, &call->events);
 	}
 
+	t = READ_ONCE(call->ack_lost_at);
+	if (time_after_eq(now, t)) {
+		trace_rxrpc_timer(call, rxrpc_timer_exp_lost_ack, now);
+		cmpxchg(&call->ack_lost_at, t, now + MAX_JIFFY_OFFSET);
+		set_bit(RXRPC_CALL_EV_ACK_LOST, &call->events);
+	}
+
 	t = READ_ONCE(call->ping_at);
 	if (time_after_eq(now, t)) {
 		trace_rxrpc_timer(call, rxrpc_timer_exp_ping, now);
@@ -379,15 +387,24 @@ recheck_state:
 		goto recheck_state;
 	}
 
-	if (test_and_clear_bit(RXRPC_CALL_EV_ACK, &call->events)) {
+	send_ack = NULL;
+	if (test_and_clear_bit(RXRPC_CALL_EV_ACK_LOST, &call->events)) {
+		call->acks_lost_top = call->tx_top;
+		rxrpc_propose_ACK(call, RXRPC_ACK_PING, 0, 0, true, false,
+				  rxrpc_propose_ack_ping_for_lost_ack);
+		send_ack = &call->acks_lost_ping;
+	}
+
+	if (test_and_clear_bit(RXRPC_CALL_EV_ACK, &call->events) ||
+	    send_ack) {
 		if (call->ackr_reason) {
-			rxrpc_send_ack_packet(call, false);
+			rxrpc_send_ack_packet(call, false, send_ack);
 			goto recheck_state;
 		}
 	}
 
 	if (test_and_clear_bit(RXRPC_CALL_EV_PING, &call->events)) {
-		rxrpc_send_ack_packet(call, true);
+		rxrpc_send_ack_packet(call, true, NULL);
 		goto recheck_state;
 	}
 
@@ -404,6 +421,7 @@ recheck_state:
 	set(call->expect_req_by);
 	set(call->expect_term_by);
 	set(call->ack_at);
+	set(call->ack_lost_at);
 	set(call->resend_at);
 	set(call->ping_at);
 

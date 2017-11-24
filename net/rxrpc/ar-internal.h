@@ -471,6 +471,7 @@ enum rxrpc_call_event {
 	RXRPC_CALL_EV_RESEND,		/* Tx resend required */
 	RXRPC_CALL_EV_PING,		/* Ping send required */
 	RXRPC_CALL_EV_EXPIRED,		/* Expiry occurred */
+	RXRPC_CALL_EV_ACK_LOST,		/* ACK may be lost, send ping */
 };
 
 /*
@@ -515,6 +516,7 @@ struct rxrpc_call {
 	struct rxrpc_sock __rcu	*socket;	/* socket responsible */
 	struct mutex		user_mutex;	/* User access mutex */
 	unsigned long		ack_at;		/* When deferred ACK needs to happen */
+	unsigned long		ack_lost_at;	/* When ACK is figured as lost */
 	unsigned long		resend_at;	/* When next resend needs to happen */
 	unsigned long		ping_at;	/* When next to send a ping */
 	unsigned long		expect_rx_by;	/* When we expect to get a packet by */
@@ -624,6 +626,8 @@ struct rxrpc_call {
 	ktime_t			acks_latest_ts;	/* Timestamp of latest ACK received */
 	rxrpc_serial_t		acks_latest;	/* serial number of latest ACK received */
 	rxrpc_seq_t		acks_lowest_nak; /* Lowest NACK in the buffer (or ==tx_hard_ack) */
+	rxrpc_seq_t		acks_lost_top;	/* tx_top at the time lost-ack ping sent */
+	rxrpc_serial_t		acks_lost_ping;	/* Serial number of probe ACK */
 };
 
 /*
@@ -1011,7 +1015,7 @@ static inline struct rxrpc_net *rxrpc_net(struct net *net)
 /*
  * output.c
  */
-int rxrpc_send_ack_packet(struct rxrpc_call *, bool);
+int rxrpc_send_ack_packet(struct rxrpc_call *, bool, rxrpc_serial_t *);
 int rxrpc_send_abort_packet(struct rxrpc_call *);
 int rxrpc_send_data_packet(struct rxrpc_call *, struct sk_buff *, bool);
 void rxrpc_reject_packets(struct rxrpc_local *);
