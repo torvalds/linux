@@ -18,7 +18,8 @@ static struct ins_ops *s390__associate_ins_ops(struct arch *arch, const char *na
 	if (!strcmp(name, "br"))
 		ops = &ret_ops;
 
-	arch__associate_ins_ops(arch, name, ops);
+	if (ops)
+		arch__associate_ins_ops(arch, name, ops);
 	return ops;
 }
 
