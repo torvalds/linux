@@ -163,6 +163,7 @@
 };
 
 &display_subsystem {
+	memory-region = <&cma_region>;
 	logo-memory-region = <&drm_logo>;
 	status = "okay";
 
