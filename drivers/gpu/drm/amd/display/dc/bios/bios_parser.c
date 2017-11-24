@@ -190,6 +190,7 @@ static struct graphics_object_id bios_parser_get_connector_id(
 	struct bios_parser *bp = BP_FROM_DCB(dcb);
 	struct graphics_object_id object_id = dal_graphics_object_id_init(
 		0, ENUM_ID_UNKNOWN, OBJECT_TYPE_UNKNOWN);
+	uint16_t id;
 
 	uint32_t connector_table_offset = bp->object_info_tbl_offset
 		+ le16_to_cpu(bp->object_info_tbl.v1_1->usConnectorObjectTableOffset);
@@ -197,12 +198,19 @@ static struct graphics_object_id bios_parser_get_connector_id(
 	ATOM_OBJECT_TABLE *tbl =
 		GET_IMAGE(ATOM_OBJECT_TABLE, connector_table_offset);
 
-	if (tbl && tbl->ucNumberOfObjects > i) {
-		const uint16_t id = le16_to_cpu(tbl->asObjects[i].usObjectID);
-
-		object_id = object_id_from_bios_object_id(id);
+	if (!tbl) {
+		dm_error("Can't get connector table from atom bios.\n");
+		return object_id;
 	}
 
+	if (tbl->ucNumberOfObjects <= i) {
+		dm_error("Can't find connector id %d in connector table of size %d.\n",
+			 i, tbl->ucNumberOfObjects);
+		return object_id;
+	}
+
+	id = le16_to_cpu(tbl->asObjects[i].usObjectID);
+	object_id = object_id_from_bios_object_id(id);
 	return object_id;
 }
 
