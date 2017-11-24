@@ -181,12 +181,7 @@ static bool grab_forcewake(struct drm_i915_private *i915, bool fw)
 static void
 update_sample(struct i915_pmu_sample *sample, u32 unit, u32 val)
 {
-	/*
-	 * Since we are doing stochastic sampling for these counters,
-	 * average the delta with the previous value for better accuracy.
-	 */
-	sample->cur += div_u64(mul_u32_u32(sample->prev + val, unit), 2);
-	sample->prev = val;
+	sample->cur += mul_u32_u32(val, unit);
 }
 
 static void engines_sample(struct drm_i915_private *dev_priv)
@@ -262,31 +257,13 @@ static void frequency_sample(struct drm_i915_private *dev_priv)
 	}
 }
 
-static void pmu_init_previous_samples(struct drm_i915_private *i915)
-{
-	struct intel_engine_cs *engine;
-	enum intel_engine_id id;
-	unsigned int i;
-
-	for_each_engine(engine, i915, id) {
-		for (i = 0; i < ARRAY_SIZE(engine->pmu.sample); i++)
-			engine->pmu.sample[i].prev = 0;
-	}
-
-	for (i = 0; i < ARRAY_SIZE(i915->pmu.sample); i++)
-		i915->pmu.sample[i].prev = i915->gt_pm.rps.idle_freq;
-}
-
 static enum hrtimer_restart i915_sample(struct hrtimer *hrtimer)
 {
 	struct drm_i915_private *i915 =
 		container_of(hrtimer, struct drm_i915_private, pmu.timer);
 
-	if (!READ_ONCE(i915->pmu.timer_enabled)) {
-		pmu_init_previous_samples(i915);
-
+	if (!READ_ONCE(i915->pmu.timer_enabled))
 		return HRTIMER_NORESTART;
-	}
 
 	engines_sample(i915);
 	frequency_sample(i915);
@@ -856,8 +833,6 @@ void i915_pmu_register(struct drm_i915_private *i915)
 	spin_lock_init(&i915->pmu.lock);
 	hrtimer_init(&i915->pmu.timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	i915->pmu.timer.function = i915_sample;
-
-	pmu_init_previous_samples(i915);
 
 	for_each_engine(engine, i915, id)
 		INIT_DELAYED_WORK(&engine->pmu.disable_busy_stats,

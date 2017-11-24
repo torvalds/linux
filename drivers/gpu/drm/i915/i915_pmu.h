@@ -41,7 +41,6 @@ enum {
 
 struct i915_pmu_sample {
 	u64 cur;
-	u32 prev;
 };
 
 struct i915_pmu {
