@@ -1287,7 +1287,7 @@ static void nvme_config_discard(struct nvme_ctrl *ctrl,
 	BUILD_BUG_ON(PAGE_SIZE / sizeof(struct nvme_dsm_range) <
 			NVME_DSM_MAX_RANGES);
 
-	queue->limits.discard_alignment = size;
+	queue->limits.discard_alignment = 0;
 	queue->limits.discard_granularity = size;
 
 	blk_queue_max_discard_sectors(queue, UINT_MAX);
