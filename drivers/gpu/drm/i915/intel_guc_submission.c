@@ -718,12 +718,9 @@ static void guc_submit(struct intel_engine_cs *engine)
 static void port_assign(struct execlist_port *port,
 			struct drm_i915_gem_request *rq)
 {
-	GEM_BUG_ON(rq == port_request(port));
+	GEM_BUG_ON(port_isset(port));
 
-	if (port_isset(port))
-		i915_gem_request_put(port_request(port));
-
-	port_set(port, port_pack(i915_gem_request_get(rq), port_count(port)));
+	port_set(port, i915_gem_request_get(rq));
 }
 
 static void guc_dequeue(struct intel_engine_cs *engine)
