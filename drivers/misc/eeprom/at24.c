@@ -569,6 +569,9 @@ static int at24_read(void *priv, unsigned int off, void *val, size_t count)
 	if (unlikely(!count))
 		return count;
 
+	if (off + count > at24->chip.byte_len)
+		return -EINVAL;
+
 	client = at24_translate_offset(at24, &off);
 
 	ret = pm_runtime_get_sync(&client->dev);
@@ -612,6 +615,9 @@ static int at24_write(void *priv, unsigned int off, void *val, size_t count)
 	int ret;
 
 	if (unlikely(!count))
+		return -EINVAL;
+
+	if (off + count > at24->chip.byte_len)
 		return -EINVAL;
 
 	client = at24_translate_offset(at24, &off);
