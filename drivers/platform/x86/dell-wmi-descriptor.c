@@ -27,6 +27,7 @@ struct descriptor_priv {
 	struct list_head list;
 	u32 interface_version;
 	u32 size;
+	u32 hotfix;
 };
 static int descriptor_valid = -EPROBE_DEFER;
 static LIST_HEAD(wmi_list);
@@ -77,6 +78,24 @@ bool dell_wmi_get_size(u32 *size)
 }
 EXPORT_SYMBOL_GPL(dell_wmi_get_size);
 
+bool dell_wmi_get_hotfix(u32 *hotfix)
+{
+	struct descriptor_priv *priv;
+	bool ret = false;
+
+	mutex_lock(&list_mutex);
+	priv = list_first_entry_or_null(&wmi_list,
+					struct descriptor_priv,
+					list);
+	if (priv) {
+		*hotfix = priv->hotfix;
+		ret = true;
+	}
+	mutex_unlock(&list_mutex);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(dell_wmi_get_hotfix);
+
 /*
  * Descriptor buffer is 128 byte long and contains:
  *
@@ -85,6 +104,7 @@ EXPORT_SYMBOL_GPL(dell_wmi_get_size);
  * Object Signature          4       4    " WMI"
  * WMI Interface Version     8       4    <version>
  * WMI buffer length        12       4    <length>
+ * WMI hotfix number        16       4    <hotfix>
  */
 static int dell_wmi_descriptor_probe(struct wmi_device *wdev)
 {
@@ -144,15 +164,17 @@ static int dell_wmi_descriptor_probe(struct wmi_device *wdev)
 
 	priv->interface_version = buffer[2];
 	priv->size = buffer[3];
+	priv->hotfix = buffer[4];
 	ret = 0;
 	dev_set_drvdata(&wdev->dev, priv);
 	mutex_lock(&list_mutex);
 	list_add_tail(&priv->list, &wmi_list);
 	mutex_unlock(&list_mutex);
 
-	dev_dbg(&wdev->dev, "Detected Dell WMI interface version %lu and buffer size %lu\n",
+	dev_dbg(&wdev->dev, "Detected Dell WMI interface version %lu, buffer size %lu, hotfix %lu\n",
 		(unsigned long) priv->interface_version,
-		(unsigned long) priv->size);
+		(unsigned long) priv->size,
+		(unsigned long) priv->hotfix);
 
 out:
 	kfree(obj);
