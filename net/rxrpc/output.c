@@ -33,6 +33,24 @@ struct rxrpc_abort_buffer {
 };
 
 /*
+ * Arrange for a keepalive ping a certain time after we last transmitted.  This
+ * lets the far side know we're still interested in this call and helps keep
+ * the route through any intervening firewall open.
+ *
+ * Receiving a response to the ping will prevent the ->expect_rx_by timer from
+ * expiring.
+ */
+static void rxrpc_set_keepalive(struct rxrpc_call *call)
+{
+	unsigned long now = jiffies, keepalive_at = call->next_rx_timo / 6;
+
+	keepalive_at += now;
+	WRITE_ONCE(call->keepalive_at, keepalive_at);
+	rxrpc_reduce_call_timer(call, keepalive_at, now,
+				rxrpc_timer_set_for_keepalive);
+}
+
+/*
  * Fill out an ACK packet.
  */
 static size_t rxrpc_fill_out_ack(struct rxrpc_connection *conn,
@@ -205,6 +223,8 @@ int rxrpc_send_ack_packet(struct rxrpc_call *call, bool ping,
 				call->ackr_seen = top;
 			spin_unlock_bh(&call->lock);
 		}
+
+		rxrpc_set_keepalive(call);
 	}
 
 out:
@@ -388,6 +408,9 @@ done:
 			}
 		}
 	}
+
+	rxrpc_set_keepalive(call);
+
 	_leave(" = %d [%u]", ret, call->peer->maxdata);
 	return ret;
 

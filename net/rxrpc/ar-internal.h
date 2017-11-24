@@ -519,6 +519,7 @@ struct rxrpc_call {
 	unsigned long		ack_lost_at;	/* When ACK is figured as lost */
 	unsigned long		resend_at;	/* When next resend needs to happen */
 	unsigned long		ping_at;	/* When next to send a ping */
+	unsigned long		keepalive_at;	/* When next to send a keepalive ping */
 	unsigned long		expect_rx_by;	/* When we expect to get a packet by */
 	unsigned long		expect_req_by;	/* When we expect to get a request DATA packet by */
 	unsigned long		expect_term_by;	/* When we expect call termination by */

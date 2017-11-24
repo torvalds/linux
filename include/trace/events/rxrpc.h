@@ -141,6 +141,7 @@ enum rxrpc_timer_trace {
 	rxrpc_timer_exp_ack,
 	rxrpc_timer_exp_hard,
 	rxrpc_timer_exp_idle,
+	rxrpc_timer_exp_keepalive,
 	rxrpc_timer_exp_lost_ack,
 	rxrpc_timer_exp_normal,
 	rxrpc_timer_exp_ping,
@@ -152,6 +153,7 @@ enum rxrpc_timer_trace {
 	rxrpc_timer_set_for_ack,
 	rxrpc_timer_set_for_hard,
 	rxrpc_timer_set_for_idle,
+	rxrpc_timer_set_for_keepalive,
 	rxrpc_timer_set_for_lost_ack,
 	rxrpc_timer_set_for_normal,
 	rxrpc_timer_set_for_ping,
@@ -162,6 +164,7 @@ enum rxrpc_timer_trace {
 enum rxrpc_propose_ack_trace {
 	rxrpc_propose_ack_client_tx_end,
 	rxrpc_propose_ack_input_data,
+	rxrpc_propose_ack_ping_for_keepalive,
 	rxrpc_propose_ack_ping_for_lost_ack,
 	rxrpc_propose_ack_ping_for_lost_reply,
 	rxrpc_propose_ack_ping_for_params,
@@ -311,6 +314,7 @@ enum rxrpc_congest_change {
 	EM(rxrpc_timer_exp_ack,			"ExpAck") \
 	EM(rxrpc_timer_exp_hard,		"ExpHrd") \
 	EM(rxrpc_timer_exp_idle,		"ExpIdl") \
+	EM(rxrpc_timer_exp_keepalive,		"ExpKA ") \
 	EM(rxrpc_timer_exp_lost_ack,		"ExpLoA") \
 	EM(rxrpc_timer_exp_normal,		"ExpNml") \
 	EM(rxrpc_timer_exp_ping,		"ExpPng") \
@@ -321,6 +325,7 @@ enum rxrpc_congest_change {
 	EM(rxrpc_timer_set_for_ack,		"SetAck") \
 	EM(rxrpc_timer_set_for_hard,		"SetHrd") \
 	EM(rxrpc_timer_set_for_idle,		"SetIdl") \
+	EM(rxrpc_timer_set_for_keepalive,	"KeepAl") \
 	EM(rxrpc_timer_set_for_lost_ack,	"SetLoA") \
 	EM(rxrpc_timer_set_for_normal,		"SetNml") \
 	EM(rxrpc_timer_set_for_ping,		"SetPng") \
@@ -330,6 +335,7 @@ enum rxrpc_congest_change {
 #define rxrpc_propose_ack_traces \
 	EM(rxrpc_propose_ack_client_tx_end,	"ClTxEnd") \
 	EM(rxrpc_propose_ack_input_data,	"DataIn ") \
+	EM(rxrpc_propose_ack_ping_for_keepalive, "KeepAlv") \
 	EM(rxrpc_propose_ack_ping_for_lost_ack,	"LostAck") \
 	EM(rxrpc_propose_ack_ping_for_lost_reply, "LostRpl") \
 	EM(rxrpc_propose_ack_ping_for_params,	"Params ") \

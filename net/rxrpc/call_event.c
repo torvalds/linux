@@ -366,6 +366,15 @@ recheck_state:
 		set_bit(RXRPC_CALL_EV_ACK_LOST, &call->events);
 	}
 
+	t = READ_ONCE(call->keepalive_at);
+	if (time_after_eq(now, t)) {
+		trace_rxrpc_timer(call, rxrpc_timer_exp_keepalive, now);
+		cmpxchg(&call->keepalive_at, t, now + MAX_JIFFY_OFFSET);
+		rxrpc_propose_ACK(call, RXRPC_ACK_PING, 0, 0, true, true,
+				  rxrpc_propose_ack_ping_for_keepalive);
+		set_bit(RXRPC_CALL_EV_PING, &call->events);
+	}
+
 	t = READ_ONCE(call->ping_at);
 	if (time_after_eq(now, t)) {
 		trace_rxrpc_timer(call, rxrpc_timer_exp_ping, now);
@@ -423,6 +432,7 @@ recheck_state:
 	set(call->ack_at);
 	set(call->ack_lost_at);
 	set(call->resend_at);
+	set(call->keepalive_at);
 	set(call->ping_at);
 
 	now = jiffies;
