@@ -1098,7 +1098,7 @@ static int tmio_multi_io_quirk(struct mmc_card *card,
 	return blk_size;
 }
 
-static struct mmc_host_ops tmio_mmc_ops = {
+static const struct mmc_host_ops tmio_mmc_ops = {
 	.request	= tmio_mmc_request,
 	.set_ios	= tmio_mmc_set_ios,
 	.get_ro         = tmio_mmc_get_ro,
@@ -1158,6 +1158,8 @@ tmio_mmc_host_alloc(struct platform_device *pdev)
 	host = mmc_priv(mmc);
 	host->mmc = mmc;
 	host->pdev = pdev;
+	host->ops = tmio_mmc_ops;
+	mmc->ops = &host->ops;
 
 	return host;
 }
@@ -1203,10 +1205,9 @@ int tmio_mmc_host_probe(struct tmio_mmc_host *_host,
 	if (ret < 0)
 		return ret;
 
-	tmio_mmc_ops.card_busy = _host->card_busy;
-	tmio_mmc_ops.start_signal_voltage_switch =
+	_host->ops.card_busy = _host->card_busy;
+	_host->ops.start_signal_voltage_switch =
 		_host->start_signal_voltage_switch;
-	mmc->ops = &tmio_mmc_ops;
 
 	mmc->caps |= MMC_CAP_4_BIT_DATA | pdata->capabilities;
 	mmc->caps2 |= pdata->capabilities2;
