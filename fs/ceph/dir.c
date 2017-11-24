@@ -1107,16 +1107,7 @@ static int ceph_rename(struct inode *old_dir, struct dentry *old_dentry,
 		 * do_request, above).  If there is no trace, we need
 		 * to do it here.
 		 */
-
-		/* d_move screws up sibling dentries' offsets */
-		ceph_dir_clear_complete(old_dir);
-		ceph_dir_clear_complete(new_dir);
-
 		d_move(old_dentry, new_dentry);
-
-		/* ensure target dentry is invalidated, despite
-		   rehashing bug in vfs_rename_dir */
-		ceph_invalidate_dentry_lease(new_dentry);
 	}
 	ceph_mdsc_put_request(req);
 	return err;

@@ -2438,11 +2438,14 @@ out:
  */
 void ceph_invalidate_dir_request(struct ceph_mds_request *req)
 {
-	struct inode *inode = req->r_parent;
+	struct inode *dir = req->r_parent;
+	struct inode *old_dir = req->r_old_dentry_dir;
 
-	dout("invalidate_dir_request %p (complete, lease(s))\n", inode);
+	dout("invalidate_dir_request %p %p (complete, lease(s))\n", dir, old_dir);
 
-	ceph_dir_clear_complete(inode);
+	ceph_dir_clear_complete(dir);
+	if (old_dir)
+		ceph_dir_clear_complete(old_dir);
 	if (req->r_dentry)
 		ceph_invalidate_dentry_lease(req->r_dentry);
 	if (req->r_old_dentry)
