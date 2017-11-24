@@ -139,7 +139,7 @@ struct tmio_mmc_host {
 	struct scatterlist      *sg_orig;
 	unsigned int            sg_len;
 	unsigned int            sg_off;
-	unsigned long		bus_shift;
+	unsigned int		bus_shift;
 
 	struct platform_device *pdev;
 	struct tmio_mmc_data *pdata;
