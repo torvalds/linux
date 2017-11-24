@@ -97,9 +97,15 @@
 		compatible = "operating-points-v2";
 		opp-shared;
 
+		rockchip,leakage-scaling-sel = <
+			1   13   18
+			14  254  0
+		>;
+		clocks = <&cru PLL_APLL>;
 		rockchip,leakage-voltage-sel = <
-			1   18   0
-			18  254  1
+			1   13   0
+			14  18   1
+			18  254  2
 		>;
 		nvmem-cells = <&cpu_leakage>;
 		nvmem-cell-names = "cpu_leakage";
@@ -109,6 +115,7 @@
 			opp-microvolt = <950000>;
 			opp-microvolt-L0 = <950000>;
 			opp-microvolt-L1 = <950000>;
+			opp-microvolt-L2 = <950000>;
 			clock-latency-ns = <40000>;
 		};
 		opp-408000000 {
@@ -116,42 +123,48 @@
 			opp-microvolt = <950000>;
 			opp-microvolt-L0 = <950000>;
 			opp-microvolt-L1 = <950000>;
+			opp-microvolt-L2 = <950000>;
 			clock-latency-ns = <40000>;
 		};
 		opp-600000000 {
 			opp-hz = /bits/ 64 <600000000>;
-			opp-microvolt = <1025000>;
-			opp-microvolt-L0 = <1025000>;
-			opp-microvolt-L1 = <975000>;
+			opp-microvolt = <1075000>;
+			opp-microvolt-L0 = <1075000>;
+			opp-microvolt-L1 = <1025000>;
+			opp-microvolt-L2 = <975000>;
 			clock-latency-ns = <40000>;
 		};
 		opp-696000000 {
 			opp-hz = /bits/ 64 <696000000>;
-			opp-microvolt = <1100000>;
-			opp-microvolt-L0 = <1100000>;
-			opp-microvolt-L1 = <1050000>;
+			opp-microvolt = <1150000>;
+			opp-microvolt-L0 = <1150000>;
+			opp-microvolt-L1 = <1100000>;
+			opp-microvolt-L2 = <1050000>;
 			clock-latency-ns = <40000>;
 		};
 		opp-816000000 {
 			opp-hz = /bits/ 64 <816000000>;
-			opp-microvolt = <1150000>;
-			opp-microvolt-L0 = <1150000>;
-			opp-microvolt-L1 = <1100000>;
+			opp-microvolt = <1200000>;
+			opp-microvolt-L0 = <1200000>;
+			opp-microvolt-L1 = <1150000>;
+			opp-microvolt-L2 = <1100000>;
 			clock-latency-ns = <40000>;
 			opp-suspend;
 		};
 		opp-1008000000 {
 			opp-hz = /bits/ 64 <1008000000>;
-			opp-microvolt = <1275000>;
-			opp-microvolt-L0 = <1275000>;
-			opp-microvolt-L1 = <1225000>;
+			opp-microvolt = <1325000>;
+			opp-microvolt-L0 = <1325000>;
+			opp-microvolt-L1 = <1275000>;
+			opp-microvolt-L2 = <1225000>;
 			clock-latency-ns = <40000>;
 		};
 		opp-1200000000 {
 			opp-hz = /bits/ 64 <1200000000>;
 			opp-microvolt = <1425000>;
 			opp-microvolt-L0 = <1425000>;
-			opp-microvolt-L1 = <1375000>;
+			opp-microvolt-L1 = <1425000>;
+			opp-microvolt-L2 = <1375000>;
 			clock-latency-ns = <40000>;
 		};
 	};
