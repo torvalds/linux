@@ -602,7 +602,7 @@ int rxrpc_do_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg, size_t len)
 		.abort_code	= 0,
 		.command	= RXRPC_CMD_SEND_DATA,
 		.exclusive	= false,
-		.upgrade	= true,
+		.upgrade	= false,
 	};
 
 	_enter("");
