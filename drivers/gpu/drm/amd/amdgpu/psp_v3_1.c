@@ -34,7 +34,7 @@
 #include "vega10/soc15ip.h"
 #include "mp/mp_9_0_offset.h"
 #include "mp/mp_9_0_sh_mask.h"
-#include "vega10/GC/gc_9_0_offset.h"
+#include "gc/gc_9_0_offset.h"
 #include "sdma0/sdma0_4_0_offset.h"
 #include "vega10/NBIO/nbio_6_1_offset.h"
 

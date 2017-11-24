@@ -29,8 +29,8 @@
 #include "soc15d.h"
 
 #include "vega10/soc15ip.h"
-#include "vega10/GC/gc_9_0_offset.h"
-#include "vega10/GC/gc_9_0_sh_mask.h"
+#include "gc/gc_9_0_offset.h"
+#include "gc/gc_9_0_sh_mask.h"
 #include "vega10/vega10_enum.h"
 #include "hdp/hdp_4_0_offset.h"
 

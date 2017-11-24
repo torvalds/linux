@@ -31,9 +31,9 @@
 #include "asic_reg/mp/mp_9_0_offset.h"
 #include "asic_reg/mp/mp_9_0_sh_mask.h"
 
-#include "asic_reg/vega10/GC/gc_9_0_default.h"
-#include "asic_reg/vega10/GC/gc_9_0_offset.h"
-#include "asic_reg/vega10/GC/gc_9_0_sh_mask.h"
+#include "asic_reg/gc/gc_9_0_default.h"
+#include "asic_reg/gc/gc_9_0_offset.h"
+#include "asic_reg/gc/gc_9_0_sh_mask.h"
 
 #include "asic_reg/vega10/NBIO/nbio_6_1_default.h"
 #include "asic_reg/vega10/NBIO/nbio_6_1_offset.h"
