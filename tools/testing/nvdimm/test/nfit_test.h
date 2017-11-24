@@ -86,6 +86,7 @@ struct nd_cmd_ars_err_inj_stat {
 
 #define ND_INTEL_SMART 1
 #define ND_INTEL_SMART_THRESHOLD 2
+#define ND_INTEL_SMART_SET_THRESHOLD 17
 
 #define ND_INTEL_SMART_HEALTH_VALID             (1 << 0)
 #define ND_INTEL_SMART_SPARES_VALID             (1 << 1)
@@ -141,6 +142,14 @@ struct nd_intel_smart_threshold {
 		} __packed;
 		__u8 data[8];
 	};
+} __packed;
+
+struct nd_intel_smart_set_threshold {
+	__u16 alarm_control;
+	__u8 spares;
+	__u16 media_temperature;
+	__u16 ctrl_temperature;
+	__u32 status;
 } __packed;
 
 union acpi_object;
