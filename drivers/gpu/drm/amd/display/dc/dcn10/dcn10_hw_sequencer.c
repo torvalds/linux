@@ -782,6 +782,8 @@ static void dcn10_init_hw(struct dc *dc)
 		hubp->opp_id = 0xf;
 		hubp->power_gated = false;
 
+		dc->res_pool->opps[i]->mpc_tree_params.opp_id = dc->res_pool->opps[i]->inst;
+		dc->res_pool->opps[i]->mpc_tree_params.opp_list = NULL;
 		dc->res_pool->opps[i]->mpcc_disconnect_pending[i] = true;
 		pipe_ctx->stream_res.opp = dc->res_pool->opps[i];
 

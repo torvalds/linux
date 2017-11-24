@@ -300,6 +300,7 @@ struct opp_funcs {
 		struct output_pixel_processor *opp,
 		bool enable,
 		bool polarity);
+
 };
 
 #endif
