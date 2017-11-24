@@ -1205,10 +1205,6 @@ int tmio_mmc_host_probe(struct tmio_mmc_host *_host,
 	if (ret < 0)
 		return ret;
 
-	_host->ops.card_busy = _host->card_busy;
-	_host->ops.start_signal_voltage_switch =
-		_host->start_signal_voltage_switch;
-
 	mmc->caps |= MMC_CAP_4_BIT_DATA | pdata->capabilities;
 	mmc->caps2 |= pdata->capabilities2;
 	mmc->max_segs = pdata->max_segs ? : 32;
