@@ -101,6 +101,7 @@ struct etnaviv_gem_submit_bo {
  * lasts for the duration of the submit-ioctl.
  */
 struct etnaviv_gem_submit {
+	struct kref refcount;
 	struct etnaviv_gpu *gpu;
 	struct dma_fence *out_fence, *in_fence;
 	u32 flags;
@@ -108,6 +109,8 @@ struct etnaviv_gem_submit {
 	struct etnaviv_gem_submit_bo bos[0];
 	/* No new members here, the previous one is variable-length! */
 };
+
+void etnaviv_submit_put(struct etnaviv_gem_submit * submit);
 
 int etnaviv_gem_wait_bo(struct etnaviv_gpu *gpu, struct drm_gem_object *obj,
 	struct timespec *timeout);

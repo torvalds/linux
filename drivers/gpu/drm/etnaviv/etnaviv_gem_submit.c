@@ -43,6 +43,7 @@ static struct etnaviv_gem_submit *submit_create(struct drm_device *dev,
 		return NULL;
 
 	submit->gpu = gpu;
+	kref_init(&submit->refcount);
 
 	return submit;
 }
@@ -341,8 +342,10 @@ static int submit_perfmon_validate(struct etnaviv_gem_submit *submit,
 	return 0;
 }
 
-static void submit_cleanup(struct etnaviv_gem_submit *submit)
+static void submit_cleanup(struct kref *kref)
 {
+	struct etnaviv_gem_submit *submit =
+			container_of(kref, struct etnaviv_gem_submit, refcount);
 	unsigned i;
 
 	for (i = 0; i < submit->nr_bos; i++) {
@@ -365,6 +368,11 @@ static void submit_cleanup(struct etnaviv_gem_submit *submit)
 	if (submit->out_fence)
 		dma_fence_put(submit->out_fence);
 	kfree(submit);
+}
+
+void etnaviv_submit_put(struct etnaviv_gem_submit *submit)
+{
+	kref_put(&submit->refcount, submit_cleanup);
 }
 
 int etnaviv_ioctl_gem_submit(struct drm_device *dev, void *data,
@@ -544,7 +552,7 @@ int etnaviv_ioctl_gem_submit(struct drm_device *dev, void *data,
 	args->fence = submit->out_fence->seqno;
 
 err_submit_objects:
-	submit_cleanup(submit);
+	etnaviv_submit_put(submit);
 
 err_submit_ww_acquire:
 	ww_acquire_fini(&ticket);
