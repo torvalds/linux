@@ -1185,8 +1185,9 @@ int tmio_mmc_host_probe(struct tmio_mmc_host *_host,
 		_host->write16_hook = NULL;
 
 	res_ctl = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res_ctl)
-		return -EINVAL;
+	_host->ctl = devm_ioremap_resource(&pdev->dev, res_ctl);
+	if (IS_ERR(_host->ctl))
+		return PTR_ERR(_host->ctl);
 
 	ret = mmc_of_parse(mmc);
 	if (ret < 0)
@@ -1201,11 +1202,6 @@ int tmio_mmc_host_probe(struct tmio_mmc_host *_host,
 	ret = tmio_mmc_init_ocr(_host);
 	if (ret < 0)
 		return ret;
-
-	_host->ctl = devm_ioremap(&pdev->dev,
-				  res_ctl->start, resource_size(res_ctl));
-	if (!_host->ctl)
-		return -ENOMEM;
 
 	tmio_mmc_ops.card_busy = _host->card_busy;
 	tmio_mmc_ops.start_signal_voltage_switch =
