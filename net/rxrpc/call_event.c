@@ -52,7 +52,7 @@ static void __rxrpc_propose_ACK(struct rxrpc_call *call, u8 ack_reason,
 				enum rxrpc_propose_ack_trace why)
 {
 	enum rxrpc_propose_ack_outcome outcome = rxrpc_propose_ack_use;
-	unsigned long now, ack_at, expiry = rxrpc_soft_ack_delay;
+	unsigned long expiry = rxrpc_soft_ack_delay;
 	s8 prior = rxrpc_ack_priority[ack_reason];
 
 	/* Pings are handled specially because we don't want to accidentally
@@ -116,7 +116,13 @@ static void __rxrpc_propose_ACK(struct rxrpc_call *call, u8 ack_reason,
 		    background)
 			rxrpc_queue_call(call);
 	} else {
-		now = jiffies;
+		unsigned long now = jiffies, ack_at;
+
+		if (call->peer->rtt_usage > 0)
+			ack_at = nsecs_to_jiffies(call->peer->rtt);
+		else
+			ack_at = expiry;
+
 		ack_at = jiffies + expiry;
 		if (time_before(ack_at, call->ack_at)) {
 			WRITE_ONCE(call->ack_at, ack_at);
@@ -160,14 +166,22 @@ static void rxrpc_resend(struct rxrpc_call *call, unsigned long now_j)
 	struct sk_buff *skb;
 	unsigned long resend_at;
 	rxrpc_seq_t cursor, seq, top;
-	ktime_t now, max_age, oldest, ack_ts;
+	ktime_t now, max_age, oldest, ack_ts, timeout, min_timeo;
 	int ix;
 	u8 annotation, anno_type, retrans = 0, unacked = 0;
 
 	_enter("{%d,%d}", call->tx_hard_ack, call->tx_top);
 
+	if (call->peer->rtt_usage > 1)
+		timeout = ns_to_ktime(call->peer->rtt * 3 / 2);
+	else
+		timeout = ms_to_ktime(rxrpc_resend_timeout);
+	min_timeo = ns_to_ktime((1000000000 / HZ) * 4);
+	if (ktime_before(timeout, min_timeo))
+		timeout = min_timeo;
+
 	now = ktime_get_real();
-	max_age = ktime_sub_ms(now, rxrpc_resend_timeout * 1000 / HZ);
+	max_age = ktime_sub(now, timeout);
 
 	spin_lock_bh(&call->lock);
 

@@ -226,6 +226,13 @@ static void rxrpc_queue_packet(struct rxrpc_sock *rx, struct rxrpc_call *call,
 	} else {
 		unsigned long now = jiffies, resend_at;
 
+		if (call->peer->rtt_usage > 1)
+			resend_at = nsecs_to_jiffies(call->peer->rtt * 3 / 2);
+		else
+			resend_at = rxrpc_resend_timeout;
+		if (resend_at < 1)
+			resend_at = 1;
+
 		resend_at = now + rxrpc_resend_timeout;
 		WRITE_ONCE(call->resend_at, resend_at);
 		rxrpc_reduce_call_timer(call, resend_at, now,
