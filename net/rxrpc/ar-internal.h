@@ -643,6 +643,35 @@ struct rxrpc_ack_summary {
 	u8			cumulative_acks;
 };
 
+/*
+ * sendmsg() cmsg-specified parameters.
+ */
+enum rxrpc_command {
+	RXRPC_CMD_SEND_DATA,		/* send data message */
+	RXRPC_CMD_SEND_ABORT,		/* request abort generation */
+	RXRPC_CMD_ACCEPT,		/* [server] accept incoming call */
+	RXRPC_CMD_REJECT_BUSY,		/* [server] reject a call as busy */
+};
+
+struct rxrpc_call_params {
+	s64			tx_total_len;	/* Total Tx data length (if send data) */
+	unsigned long		user_call_ID;	/* User's call ID */
+	struct {
+		u32		hard;		/* Maximum lifetime (sec) */
+		u32		idle;		/* Max time since last data packet (msec) */
+		u32		normal;		/* Max time since last call packet (msec) */
+	} timeouts;
+	u8			nr_timeouts;	/* Number of timeouts specified */
+};
+
+struct rxrpc_send_params {
+	struct rxrpc_call_params call;
+	u32			abort_code;	/* Abort code to Tx (if abort) */
+	enum rxrpc_command	command : 8;	/* The command to implement */
+	bool			exclusive;	/* Shared or exclusive call */
+	bool			upgrade;	/* If the connection is upgradeable */
+};
+
 #include <trace/events/rxrpc.h>
 
 /*
@@ -687,7 +716,7 @@ struct rxrpc_call *rxrpc_alloc_call(struct rxrpc_sock *, gfp_t);
 struct rxrpc_call *rxrpc_new_client_call(struct rxrpc_sock *,
 					 struct rxrpc_conn_parameters *,
 					 struct sockaddr_rxrpc *,
-					 unsigned long, s64, gfp_t);
+					 struct rxrpc_call_params *, gfp_t);
 int rxrpc_retry_client_call(struct rxrpc_sock *,
 			    struct rxrpc_call *,
 			    struct rxrpc_conn_parameters *,

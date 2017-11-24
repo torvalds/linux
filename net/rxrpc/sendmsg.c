@@ -21,22 +21,6 @@
 #include <net/af_rxrpc.h>
 #include "ar-internal.h"
 
-enum rxrpc_command {
-	RXRPC_CMD_SEND_DATA,		/* send data message */
-	RXRPC_CMD_SEND_ABORT,		/* request abort generation */
-	RXRPC_CMD_ACCEPT,		/* [server] accept incoming call */
-	RXRPC_CMD_REJECT_BUSY,		/* [server] reject a call as busy */
-};
-
-struct rxrpc_send_params {
-	s64			tx_total_len;	/* Total Tx data length (if send data) */
-	unsigned long		user_call_ID;	/* User's call ID */
-	u32			abort_code;	/* Abort code to Tx (if abort) */
-	enum rxrpc_command	command : 8;	/* The command to implement */
-	bool			exclusive;	/* Shared or exclusive call */
-	bool			upgrade;	/* If the connection is upgradeable */
-};
-
 /*
  * Wait for space to appear in the Tx queue or a signal to occur.
  */
@@ -480,11 +464,11 @@ static int rxrpc_sendmsg_cmsg(struct msghdr *msg, struct rxrpc_send_params *p)
 			if (msg->msg_flags & MSG_CMSG_COMPAT) {
 				if (len != sizeof(u32))
 					return -EINVAL;
-				p->user_call_ID = *(u32 *)CMSG_DATA(cmsg);
+				p->call.user_call_ID = *(u32 *)CMSG_DATA(cmsg);
 			} else {
 				if (len != sizeof(unsigned long))
 					return -EINVAL;
-				p->user_call_ID = *(unsigned long *)
+				p->call.user_call_ID = *(unsigned long *)
 					CMSG_DATA(cmsg);
 			}
 			got_user_ID = true;
@@ -522,10 +506,10 @@ static int rxrpc_sendmsg_cmsg(struct msghdr *msg, struct rxrpc_send_params *p)
 			break;
 
 		case RXRPC_TX_LENGTH:
-			if (p->tx_total_len != -1 || len != sizeof(__s64))
+			if (p->call.tx_total_len != -1 || len != sizeof(__s64))
 				return -EINVAL;
-			p->tx_total_len = *(__s64 *)CMSG_DATA(cmsg);
-			if (p->tx_total_len < 0)
+			p->call.tx_total_len = *(__s64 *)CMSG_DATA(cmsg);
+			if (p->call.tx_total_len < 0)
 				return -EINVAL;
 			break;
 
@@ -536,7 +520,7 @@ static int rxrpc_sendmsg_cmsg(struct msghdr *msg, struct rxrpc_send_params *p)
 
 	if (!got_user_ID)
 		return -EINVAL;
-	if (p->tx_total_len != -1 && p->command != RXRPC_CMD_SEND_DATA)
+	if (p->call.tx_total_len != -1 && p->command != RXRPC_CMD_SEND_DATA)
 		return -EINVAL;
 	_leave(" = 0");
 	return 0;
@@ -576,8 +560,7 @@ rxrpc_new_client_call_for_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg,
 	cp.exclusive		= rx->exclusive | p->exclusive;
 	cp.upgrade		= p->upgrade;
 	cp.service_id		= srx->srx_service;
-	call = rxrpc_new_client_call(rx, &cp, srx, p->user_call_ID,
-				     p->tx_total_len, GFP_KERNEL);
+	call = rxrpc_new_client_call(rx, &cp, srx, &p->call, GFP_KERNEL);
 	/* The socket is now unlocked */
 
 	_leave(" = %p\n", call);
@@ -597,12 +580,12 @@ int rxrpc_do_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg, size_t len)
 	int ret;
 
 	struct rxrpc_send_params p = {
-		.tx_total_len	= -1,
-		.user_call_ID	= 0,
-		.abort_code	= 0,
-		.command	= RXRPC_CMD_SEND_DATA,
-		.exclusive	= false,
-		.upgrade	= false,
+		.call.tx_total_len	= -1,
+		.call.user_call_ID	= 0,
+		.abort_code		= 0,
+		.command		= RXRPC_CMD_SEND_DATA,
+		.exclusive		= false,
+		.upgrade		= false,
 	};
 
 	_enter("");
@@ -615,7 +598,7 @@ int rxrpc_do_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg, size_t len)
 		ret = -EINVAL;
 		if (rx->sk.sk_state != RXRPC_SERVER_LISTENING)
 			goto error_release_sock;
-		call = rxrpc_accept_call(rx, p.user_call_ID, NULL);
+		call = rxrpc_accept_call(rx, p.call.user_call_ID, NULL);
 		/* The socket is now unlocked. */
 		if (IS_ERR(call))
 			return PTR_ERR(call);
@@ -623,7 +606,7 @@ int rxrpc_do_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg, size_t len)
 		goto out_put_unlock;
 	}
 
-	call = rxrpc_find_call_by_user_ID(rx, p.user_call_ID);
+	call = rxrpc_find_call_by_user_ID(rx, p.call.user_call_ID);
 	if (!call) {
 		ret = -EBADSLT;
 		if (p.command != RXRPC_CMD_SEND_DATA)
@@ -653,13 +636,13 @@ int rxrpc_do_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg, size_t len)
 			goto error_put;
 		}
 
-		if (p.tx_total_len != -1) {
+		if (p.call.tx_total_len != -1) {
 			ret = -EINVAL;
 			if (call->tx_total_len != -1 ||
 			    call->tx_pending ||
 			    call->tx_top != 0)
 				goto error_put;
-			call->tx_total_len = p.tx_total_len;
+			call->tx_total_len = p.call.tx_total_len;
 		}
 	}
 

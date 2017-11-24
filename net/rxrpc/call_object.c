@@ -208,8 +208,7 @@ static void rxrpc_start_call_timer(struct rxrpc_call *call)
 struct rxrpc_call *rxrpc_new_client_call(struct rxrpc_sock *rx,
 					 struct rxrpc_conn_parameters *cp,
 					 struct sockaddr_rxrpc *srx,
-					 unsigned long user_call_ID,
-					 s64 tx_total_len,
+					 struct rxrpc_call_params *p,
 					 gfp_t gfp)
 	__releases(&rx->sk.sk_lock.slock)
 {
@@ -219,7 +218,7 @@ struct rxrpc_call *rxrpc_new_client_call(struct rxrpc_sock *rx,
 	const void *here = __builtin_return_address(0);
 	int ret;
 
-	_enter("%p,%lx", rx, user_call_ID);
+	_enter("%p,%lx", rx, p->user_call_ID);
 
 	call = rxrpc_alloc_client_call(rx, srx, gfp);
 	if (IS_ERR(call)) {
@@ -228,9 +227,9 @@ struct rxrpc_call *rxrpc_new_client_call(struct rxrpc_sock *rx,
 		return call;
 	}
 
-	call->tx_total_len = tx_total_len;
+	call->tx_total_len = p->tx_total_len;
 	trace_rxrpc_call(call, rxrpc_call_new_client, atomic_read(&call->usage),
-			 here, (const void *)user_call_ID);
+			 here, (const void *)p->user_call_ID);
 
 	/* We need to protect a partially set up call against the user as we
 	 * will be acting outside the socket lock.
@@ -246,16 +245,16 @@ struct rxrpc_call *rxrpc_new_client_call(struct rxrpc_sock *rx,
 		parent = *pp;
 		xcall = rb_entry(parent, struct rxrpc_call, sock_node);
 
-		if (user_call_ID < xcall->user_call_ID)
+		if (p->user_call_ID < xcall->user_call_ID)
 			pp = &(*pp)->rb_left;
-		else if (user_call_ID > xcall->user_call_ID)
+		else if (p->user_call_ID > xcall->user_call_ID)
 			pp = &(*pp)->rb_right;
 		else
 			goto error_dup_user_ID;
 	}
 
 	rcu_assign_pointer(call->socket, rx);
-	call->user_call_ID = user_call_ID;
+	call->user_call_ID = p->user_call_ID;
 	__set_bit(RXRPC_CALL_HAS_USERID, &call->flags);
 	rxrpc_get_call(call, rxrpc_call_got_userid);
 	rb_link_node(&call->sock_node, parent, pp);
