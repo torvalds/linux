@@ -416,6 +416,11 @@ struct nft_set {
 		__attribute__((aligned(__alignof__(u64))));
 };
 
+static inline bool nft_set_is_anonymous(const struct nft_set *set)
+{
+	return set->flags & NFT_SET_ANONYMOUS;
+}
+
 static inline void *nft_set_priv(const struct nft_set *set)
 {
 	return (void *)set->data;
