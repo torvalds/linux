@@ -2020,10 +2020,8 @@ static int wm8903_i2c_probe(struct i2c_client *i2c,
 		wm8903->pdata = devm_kzalloc(&i2c->dev,
 					sizeof(struct wm8903_platform_data),
 					GFP_KERNEL);
-		if (wm8903->pdata == NULL) {
-			dev_err(&i2c->dev, "Failed to allocate pdata\n");
+		if (!wm8903->pdata)
 			return -ENOMEM;
-		}
 
 		if (i2c->irq) {
 			ret = wm8903_set_pdata_irq_trigger(i2c, wm8903->pdata);
