@@ -1480,12 +1480,10 @@ static irqreturn_t pl011_int(int irq, void *dev_id)
 	struct uart_amba_port *uap = dev_id;
 	unsigned long flags;
 	unsigned int status, pass_counter = AMBA_ISR_PASS_LIMIT;
-	u16 imsc;
 	int handled = 0;
 
 	spin_lock_irqsave(&uap->port.lock, flags);
-	imsc = pl011_read(uap, REG_IMSC);
-	status = pl011_read(uap, REG_RIS) & imsc;
+	status = pl011_read(uap, REG_RIS) & uap->im;
 	if (status) {
 		do {
 			check_apply_cts_event_workaround(uap);
@@ -1509,7 +1507,7 @@ static irqreturn_t pl011_int(int irq, void *dev_id)
 			if (pass_counter-- == 0)
 				break;
 
-			status = pl011_read(uap, REG_RIS) & imsc;
+			status = pl011_read(uap, REG_RIS) & uap->im;
 		} while (status != 0);
 		handled = 1;
 	}
