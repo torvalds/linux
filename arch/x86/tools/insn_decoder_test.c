@@ -29,7 +29,7 @@
  * particular.  See if insn_get_length() and the disassembler agree
  * on the length of each instruction in an elf disassembly.
  *
- * Usage: objdump -d a.out | awk -f distill.awk | ./insn_decoder_test
+ * Usage: objdump -d a.out | awk -f objdump_reformat.awk | ./insn_decoder_test
  */
 
 const char *prog;
@@ -38,8 +38,8 @@ static int x86_64;
 
 static void usage(void)
 {
-	fprintf(stderr, "Usage: objdump -d a.out | awk -f distill.awk |"
-		" %s [-y|-n] [-v]\n", prog);
+	fprintf(stderr, "Usage: objdump -d a.out | awk -f objdump_reformat.awk"
+		" | %s [-y|-n] [-v]\n", prog);
 	fprintf(stderr, "\t-y	64bit mode\n");
 	fprintf(stderr, "\t-n	32bit mode\n");
 	fprintf(stderr, "\t-v	verbose mode\n");
