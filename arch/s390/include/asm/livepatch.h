@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * livepatch.h - s390-specific Kernel Live Patching Core
  *
