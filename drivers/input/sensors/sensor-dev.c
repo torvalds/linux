@@ -126,20 +126,38 @@ static ssize_t accel_calibration_show(struct class *class,
 
 #define ACCEL_CAPTURE_TIMES 20
 #define ACCEL_SENSITIVE 16384
-static void accel_do_calibration(struct sensor_private_data *sensor)
+/* +-0.6 * 16384 / 9.8 */
+#define ACCEL_OFFSET_MAX 1000
+static int accel_do_calibration(struct sensor_private_data *sensor)
 {
 	int i;
 	int ret;
+	int max_try_times = 20;
 	long int sum_accel[3] = {0, 0, 0};
 
 	mutex_lock(&sensor->operation_mutex);
-	for (i = 0; i < ACCEL_CAPTURE_TIMES; i++) {
+	for (i = 0; i < ACCEL_CAPTURE_TIMES; ) {
 		ret = sensor->ops->report(sensor->client);
 		if (ret < 0)
 			dev_err(&sensor->client->dev, "in %s read accel data error\n", __func__);
-		sum_accel[0] += sensor->axis.x;
-		sum_accel[1] += sensor->axis.y;
-		sum_accel[2] += sensor->axis.z;
+		if (abs(sensor->axis.x) > ACCEL_OFFSET_MAX ||
+			abs(sensor->axis.y) > ACCEL_OFFSET_MAX ||
+			abs(abs(sensor->axis.z) - ACCEL_SENSITIVE) > ACCEL_OFFSET_MAX) {
+			sum_accel[0] = 0;
+			sum_accel[1] = 0;
+			sum_accel[2] = 0;
+			i = 0;
+			max_try_times--;
+		} else {
+			sum_accel[0] += sensor->axis.x;
+			sum_accel[1] += sensor->axis.y;
+			sum_accel[2] += sensor->axis.z;
+			i++;
+		}
+		if (max_try_times == 0) {
+			mutex_unlock(&sensor->operation_mutex);
+			return -1;
+		}
 		dev_info(&sensor->client->dev, "%d times, read accel data is %d, %d, %d\n",
 			i, sensor->axis.x, sensor->axis.y, sensor->axis.z);
 		msleep(sensor->pdata->poll_delay_ms);
@@ -157,6 +175,8 @@ static void accel_do_calibration(struct sensor_private_data *sensor)
 
 	dev_info(&sensor->client->dev, "accel offset is %d, %d, %d\n", sensor_cali_data.accel_offset[0],
 		sensor_cali_data.accel_offset[1], sensor_cali_data.accel_offset[2]);
+
+	return 0;
 }
 
 static ssize_t accel_calibration_store(struct class *class,
@@ -167,20 +187,23 @@ static ssize_t accel_calibration_store(struct class *class,
 	int pre_status;
 
 	if (sensor == NULL)
-		return count;
+		return -1;
 
 	ret = kstrtoint(buf, 10, &val);
-	if (ret)
+	if (ret) {
 		dev_err(&sensor->client->dev, "%s: kstrtoint error return %d\n", __func__, ret);
-	if (val != 1)
-		return count;
-
+		return -1;
+	}
+	if (val != 1) {
+		dev_err(&sensor->client->dev, "%s: error value\n", __func__);
+		return -1;
+	}
 	atomic_set(&sensor->is_factory, 1);
 
 	pre_status = sensor->status_cur;
 	if (pre_status == SENSOR_OFF) {
 		mutex_lock(&sensor->operation_mutex);
-		ret = sensor->ops->active(sensor->client, SENSOR_ON, sensor->pdata->poll_delay_ms);
+		sensor->ops->active(sensor->client, SENSOR_ON, sensor->pdata->poll_delay_ms);
 		mutex_unlock(&sensor->operation_mutex);
 	} else {
 		sensor->stop_work = 1;
@@ -190,12 +213,16 @@ static ssize_t accel_calibration_store(struct class *class,
 			cancel_delayed_work_sync(&sensor->delaywork);
 	}
 
-	accel_do_calibration(sensor);
-
+	ret = accel_do_calibration(sensor);
+	if (ret < 0) {
+		dev_err(&sensor->client->dev, "accel do calibration failed\n");
+		goto OUT;
+	}
 	ret = sensor_calibration_data_write(&sensor_cali_data);
 	if (ret)
 		dev_err(&sensor->client->dev, "write accel sensor calibration data failed\n");
 
+OUT:
 	if (pre_status == SENSOR_ON) {
 		sensor->stop_work = 0;
 		if (sensor->pdata->irq_enable)
@@ -204,14 +231,14 @@ static ssize_t accel_calibration_store(struct class *class,
 			schedule_delayed_work(&sensor->delaywork, msecs_to_jiffies(sensor->pdata->poll_delay_ms));
 	} else {
 		mutex_lock(&sensor->operation_mutex);
-		ret = sensor->ops->active(sensor->client, SENSOR_OFF, sensor->pdata->poll_delay_ms);
+		sensor->ops->active(sensor->client, SENSOR_OFF, sensor->pdata->poll_delay_ms);
 		mutex_unlock(&sensor->operation_mutex);
 	}
 
 	atomic_set(&sensor->is_factory, 0);
 	wake_up(&sensor->is_factory_ok);
 
-	return count;
+	return ret ? ret : count;
 }
 
 static CLASS_ATTR(accel_calibration, 0664, accel_calibration_show, accel_calibration_store);
@@ -243,7 +270,7 @@ static ssize_t gyro_calibration_show(struct class *class,
 }
 
 #define GYRO_CAPTURE_TIMES 20
-static void gyro_do_calibration(struct sensor_private_data *sensor)
+static int gyro_do_calibration(struct sensor_private_data *sensor)
 {
 	int i;
 	int ret;
@@ -252,8 +279,11 @@ static void gyro_do_calibration(struct sensor_private_data *sensor)
 	mutex_lock(&sensor->operation_mutex);
 	for (i = 0; i < GYRO_CAPTURE_TIMES; i++) {
 		ret = sensor->ops->report(sensor->client);
-		if (ret < 0)
+		if (ret < 0) {
 			dev_err(&sensor->client->dev, "in %s read gyro data error\n", __func__);
+			mutex_unlock(&sensor->operation_mutex);
+			return -1;
+		}
 		sum_gyro[0] += sensor->axis.x;
 		sum_gyro[1] += sensor->axis.y;
 		sum_gyro[2] += sensor->axis.z;
@@ -270,6 +300,8 @@ static void gyro_do_calibration(struct sensor_private_data *sensor)
 
 	dev_info(&sensor->client->dev, "gyro offset is %d, %d, %d\n", sensor_cali_data.gyro_offset[0],
 		sensor_cali_data.gyro_offset[1], sensor_cali_data.gyro_offset[2]);
+
+	return 0;
 }
 
 static ssize_t gyro_calibration_store(struct class *class,
@@ -280,20 +312,23 @@ static ssize_t gyro_calibration_store(struct class *class,
 	int pre_status;
 
 	if (sensor == NULL)
-		return count;
+		return -1;
 
 	ret = kstrtoint(buf, 10, &val);
-	if (ret)
+	if (ret) {
 		dev_err(&sensor->client->dev, "%s: kstrtoint error return %d\n", __func__, ret);
-	if (val != 1)
-		return count;
-
+		return -1;
+	}
+	if (val != 1) {
+		dev_err(&sensor->client->dev, "%s error value\n", __func__);
+		return -1;
+	}
 	atomic_set(&sensor->is_factory, 1);
 
 	pre_status = sensor->status_cur;
 	if (pre_status == SENSOR_OFF) {
 		mutex_lock(&sensor->operation_mutex);
-		ret = sensor->ops->active(sensor->client, SENSOR_ON, sensor->pdata->poll_delay_ms);
+		sensor->ops->active(sensor->client, SENSOR_ON, sensor->pdata->poll_delay_ms);
 		mutex_unlock(&sensor->operation_mutex);
 	} else {
 		sensor->stop_work = 1;
@@ -303,12 +338,17 @@ static ssize_t gyro_calibration_store(struct class *class,
 			cancel_delayed_work_sync(&sensor->delaywork);
 	}
 
-	gyro_do_calibration(sensor);
+	ret = gyro_do_calibration(sensor);
+	if (ret < 0) {
+		dev_err(&sensor->client->dev, "gyro do calibration failed\n");
+		goto OUT;
+	}
 
 	ret = sensor_calibration_data_write(&sensor_cali_data);
 	if (ret)
 		dev_err(&sensor->client->dev, "write gyro sensor calibration data failed\n");
 
+OUT:
 	if (pre_status == SENSOR_ON) {
 		sensor->stop_work = 0;
 		if (sensor->pdata->irq_enable)
@@ -317,14 +357,14 @@ static ssize_t gyro_calibration_store(struct class *class,
 			schedule_delayed_work(&sensor->delaywork, msecs_to_jiffies(sensor->pdata->poll_delay_ms));
 	} else {
 		mutex_lock(&sensor->operation_mutex);
-		ret = sensor->ops->active(sensor->client, SENSOR_OFF, sensor->pdata->poll_delay_ms);
+		sensor->ops->active(sensor->client, SENSOR_OFF, sensor->pdata->poll_delay_ms);
 		mutex_unlock(&sensor->operation_mutex);
 	}
 
 	atomic_set(&sensor->is_factory, 0);
 	wake_up(&sensor->is_factory_ok);
 
-	return count;
+	return ret ? ret : count;
 }
 
 static CLASS_ATTR(gyro_calibration, 0664, gyro_calibration_show, gyro_calibration_store);
