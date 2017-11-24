@@ -890,6 +890,31 @@ static int pm_suspend_exit_cb(void)
 		goto out;
 	}
 
+	/*
+	 * Due to some design limitations in the firmware, sometimes the
+	 * counters do not get updated by the time we reach here. As a
+	 * workaround, we try to see if this was a genuine case of sleep
+	 * failure or not by cross-checking from PMC GCR registers directly.
+	 */
+	if (suspend_shlw_ctr_exit == suspend_shlw_ctr_temp &&
+	    suspend_deep_ctr_exit == suspend_deep_ctr_temp) {
+		ret = intel_pmc_gcr_read64(PMC_GCR_TELEM_SHLW_S0IX_REG,
+					  &suspend_shlw_res_exit);
+		if (ret < 0)
+			goto out;
+
+		ret = intel_pmc_gcr_read64(PMC_GCR_TELEM_DEEP_S0IX_REG,
+					  &suspend_deep_res_exit);
+		if (ret < 0)
+			goto out;
+
+		if (suspend_shlw_res_exit > suspend_shlw_res_temp)
+			suspend_shlw_ctr_exit++;
+
+		if (suspend_deep_res_exit > suspend_deep_res_temp)
+			suspend_deep_ctr_exit++;
+	}
+
 	suspend_shlw_ctr_exit -= suspend_shlw_ctr_temp;
 	suspend_deep_ctr_exit -= suspend_deep_ctr_temp;
 	suspend_shlw_res_exit -= suspend_shlw_res_temp;
