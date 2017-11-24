@@ -32,7 +32,7 @@
 
 #include "dce/dce_12_0_offset.h"
 #include "dce/dce_12_0_sh_mask.h"
-#include "vega10/soc15ip.h"
+#include "soc15ip.h"
 
 #include "ivsrcid/ivsrcid_vislands30.h"
 

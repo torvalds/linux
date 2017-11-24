@@ -29,7 +29,7 @@
 #include "soc15_common.h"
 #include "mmsch_v1_0.h"
 
-#include "vega10/soc15ip.h"
+#include "soc15ip.h"
 #include "uvd/uvd_7_0_offset.h"
 #include "uvd/uvd_7_0_sh_mask.h"
 #include "vce/vce_4_0_offset.h"

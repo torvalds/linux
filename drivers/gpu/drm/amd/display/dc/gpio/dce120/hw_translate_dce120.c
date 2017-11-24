@@ -35,7 +35,7 @@
 
 #include "dce/dce_12_0_offset.h"
 #include "dce/dce_12_0_sh_mask.h"
-#include "vega10/soc15ip.h"
+#include "soc15ip.h"
 
 /* begin *********************
  * macros to expend register list macro defined in HW object header file */

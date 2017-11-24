@@ -25,13 +25,13 @@
 #include "gmc_v9_0.h"
 #include "amdgpu_atomfirmware.h"
 
-#include "vega10/soc15ip.h"
+#include "soc15ip.h"
 #include "hdp/hdp_4_0_offset.h"
 #include "hdp/hdp_4_0_sh_mask.h"
 #include "gc/gc_9_0_sh_mask.h"
 #include "dce/dce_12_0_offset.h"
 #include "dce/dce_12_0_sh_mask.h"
-#include "vega10/vega10_enum.h"
+#include "vega10_enum.h"
 #include "mmhub/mmhub_1_0_offset.h"
 #include "athub/athub_1_0_offset.h"
 

@@ -30,7 +30,7 @@
 #include "soc15_common.h"
 #include "psp_v10_0.h"
 
-#include "vega10/soc15ip.h"
+#include "soc15ip.h"
 #include "raven1/MP/mp_10_0_offset.h"
 #include "raven1/GC/gc_9_1_offset.h"
 #include "raven1/SDMA0/sdma0_4_1_offset.h"

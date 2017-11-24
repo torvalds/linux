@@ -33,7 +33,7 @@
 
 #include "dce/dce_12_0_offset.h"
 #include "dce/dce_12_0_sh_mask.h"
-#include "vega10/soc15ip.h"
+#include "soc15ip.h"
 #include "reg_helper.h"
 
 #define CTX \

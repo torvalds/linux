@@ -31,7 +31,7 @@
 #include "soc15_common.h"
 #include "psp_v3_1.h"
 
-#include "vega10/soc15ip.h"
+#include "soc15ip.h"
 #include "mp/mp_9_0_offset.h"
 #include "mp/mp_9_0_sh_mask.h"
 #include "gc/gc_9_0_offset.h"

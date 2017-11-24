@@ -34,7 +34,7 @@
 #include "atom.h"
 #include "amd_pcie.h"
 
-#include "vega10/soc15ip.h"
+#include "soc15ip.h"
 #include "uvd/uvd_7_0_offset.h"
 #include "gc/gc_9_0_offset.h"
 #include "gc/gc_9_0_sh_mask.h"
