@@ -128,15 +128,11 @@ out:
 static int tmio_mmc_remove(struct platform_device *pdev)
 {
 	const struct mfd_cell *cell = mfd_get_cell(pdev);
-	struct mmc_host *mmc = platform_get_drvdata(pdev);
+	struct tmio_mmc_host *host = platform_get_drvdata(pdev);
 
-	if (mmc) {
-		struct tmio_mmc_host *host = mmc_priv(mmc);
-
-		tmio_mmc_host_remove(host);
-		if (cell->disable)
-			cell->disable(pdev);
-	}
+	tmio_mmc_host_remove(host);
+	if (cell->disable)
+		cell->disable(pdev);
 
 	return 0;
 }

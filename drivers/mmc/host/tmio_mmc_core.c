@@ -1193,7 +1193,7 @@ int tmio_mmc_host_probe(struct tmio_mmc_host *_host,
 		return ret;
 
 	_host->pdata = pdata;
-	platform_set_drvdata(pdev, mmc);
+	platform_set_drvdata(pdev, _host);
 
 	_host->set_pwr = pdata->set_pwr;
 	_host->set_clk_div = pdata->set_clk_div;
@@ -1351,8 +1351,7 @@ EXPORT_SYMBOL_GPL(tmio_mmc_host_remove);
 #ifdef CONFIG_PM
 int tmio_mmc_host_runtime_suspend(struct device *dev)
 {
-	struct mmc_host *mmc = dev_get_drvdata(dev);
-	struct tmio_mmc_host *host = mmc_priv(mmc);
+	struct tmio_mmc_host *host = dev_get_drvdata(dev);
 
 	tmio_mmc_disable_mmc_irqs(host, TMIO_MASK_ALL);
 
@@ -1372,8 +1371,7 @@ static bool tmio_mmc_can_retune(struct tmio_mmc_host *host)
 
 int tmio_mmc_host_runtime_resume(struct device *dev)
 {
-	struct mmc_host *mmc = dev_get_drvdata(dev);
-	struct tmio_mmc_host *host = mmc_priv(mmc);
+	struct tmio_mmc_host *host = dev_get_drvdata(dev);
 
 	tmio_mmc_reset(host);
 	tmio_mmc_clk_enable(host);
