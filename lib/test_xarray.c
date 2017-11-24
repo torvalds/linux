@@ -863,6 +863,67 @@ static noinline void check_create_range(struct xarray *xa)
 	check_create_range_3();
 }
 
+static LIST_HEAD(shadow_nodes);
+
+static void test_update_node(struct xa_node *node)
+{
+	if (node->count && node->count == node->nr_values) {
+		if (list_empty(&node->private_list))
+			list_add(&shadow_nodes, &node->private_list);
+	} else {
+		if (!list_empty(&node->private_list))
+			list_del_init(&node->private_list);
+	}
+}
+
+static noinline void shadow_remove(struct xarray *xa)
+{
+	struct xa_node *node;
+
+	xa_lock(xa);
+	while ((node = list_first_entry_or_null(&shadow_nodes,
+					struct xa_node, private_list))) {
+		XA_STATE(xas, node->array, 0);
+		XA_BUG_ON(xa, node->array != xa);
+		list_del_init(&node->private_list);
+		xas.xa_node = xa_parent_locked(node->array, node);
+		xas.xa_offset = node->offset;
+		xas.xa_shift = node->shift + XA_CHUNK_SHIFT;
+		xas_set_update(&xas, test_update_node);
+		xas_store(&xas, NULL);
+	}
+	xa_unlock(xa);
+}
+
+static noinline void check_workingset(struct xarray *xa, unsigned long index)
+{
+	XA_STATE(xas, xa, index);
+	xas_set_update(&xas, test_update_node);
+
+	do {
+		xas_lock(&xas);
+		xas_store(&xas, xa_mk_value(0));
+		xas_next(&xas);
+		xas_store(&xas, xa_mk_value(1));
+		xas_unlock(&xas);
+	} while (xas_nomem(&xas, GFP_KERNEL));
+
+	XA_BUG_ON(xa, list_empty(&shadow_nodes));
+
+	xas_lock(&xas);
+	xas_next(&xas);
+	xas_store(&xas, &xas);
+	XA_BUG_ON(xa, !list_empty(&shadow_nodes));
+
+	xas_store(&xas, xa_mk_value(2));
+	xas_unlock(&xas);
+	XA_BUG_ON(xa, list_empty(&shadow_nodes));
+
+	shadow_remove(xa);
+	XA_BUG_ON(xa, !list_empty(&shadow_nodes));
+	XA_BUG_ON(xa, !xa_empty(xa));
+}
+
 static noinline void check_destroy(struct xarray *xa)
 {
 	unsigned long index;
@@ -915,6 +976,10 @@ static int xarray_checks(void)
 	check_move(&array);
 	check_create_range(&array);
 	check_store_iter(&array);
+
+	check_workingset(&array, 0);
+	check_workingset(&array, 64);
+	check_workingset(&array, 4096);
 
 	printk("XArray: %u of %u tests passed\n", tests_passed, tests_run);
 	return (tests_run == tests_passed) ? 0 : -EINVAL;
