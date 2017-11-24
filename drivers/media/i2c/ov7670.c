@@ -1820,7 +1820,7 @@ static int ov7670_remove(struct i2c_client *client)
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct ov7670_info *info = to_state(sd);
 
-	v4l2_device_unregister_subdev(sd);
+	v4l2_async_unregister_subdev(sd);
 	v4l2_ctrl_handler_free(&info->hdl);
 	clk_disable_unprepare(info->clk);
 #if defined(CONFIG_MEDIA_CONTROLLER)
