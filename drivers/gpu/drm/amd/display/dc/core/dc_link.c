@@ -1271,6 +1271,24 @@ static enum dc_status enable_link_dp(
 	return status;
 }
 
+static enum dc_status enable_link_edp(
+		struct dc_state *state,
+		struct pipe_ctx *pipe_ctx)
+{
+	enum dc_status status;
+	struct dc_stream_state *stream = pipe_ctx->stream;
+	struct dc_link *link = stream->sink->link;
+
+	link->dc->hwss.edp_power_control(link, true);
+	link->dc->hwss.edp_wait_for_hpd_ready(link, true);
+
+	status = enable_link_dp(state, pipe_ctx);
+
+	link->dc->hwss.edp_backlight_control(link, true);
+
+	return status;
+}
+
 static enum dc_status enable_link_dp_mst(
 		struct dc_state *state,
 		struct pipe_ctx *pipe_ctx)
@@ -1746,8 +1764,10 @@ static enum dc_status enable_link(
 	enum dc_status status = DC_ERROR_UNEXPECTED;
 	switch (pipe_ctx->stream->signal) {
 	case SIGNAL_TYPE_DISPLAY_PORT:
-	case SIGNAL_TYPE_EDP:
 		status = enable_link_dp(state, pipe_ctx);
+		break;
+	case SIGNAL_TYPE_EDP:
+		status = enable_link_edp(state, pipe_ctx);
 		break;
 	case SIGNAL_TYPE_DISPLAY_PORT_MST:
 		status = enable_link_dp_mst(state, pipe_ctx);
@@ -2281,6 +2301,9 @@ void core_link_disable_stream(struct pipe_ctx *pipe_ctx, int option)
 
 	if (pipe_ctx->stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST)
 		deallocate_mst_payload(pipe_ctx);
+
+	if (pipe_ctx->stream->signal == SIGNAL_TYPE_EDP)
+		core_dc->hwss.edp_backlight_control(pipe_ctx->stream->sink->link, false);
 
 	core_dc->hwss.disable_stream(pipe_ctx, option);
 

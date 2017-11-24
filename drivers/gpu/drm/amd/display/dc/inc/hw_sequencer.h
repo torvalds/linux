@@ -199,6 +199,7 @@ struct hw_sequencer_funcs {
 	void (*edp_backlight_control)(
 			struct dc_link *link,
 			bool enable);
+	void (*edp_wait_for_hpd_ready)(struct dc_link *link, bool power_up);
 
 };
 
