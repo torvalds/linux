@@ -98,10 +98,6 @@ static u32 suspend_shlw_ctr_temp, suspend_deep_ctr_temp;
 static u64 suspend_shlw_res_temp, suspend_deep_res_temp;
 
 struct telemetry_susp_stats {
-	u32 shlw_swake_ctr;
-	u32 deep_swake_ctr;
-	u64 shlw_swake_res;
-	u64 deep_swake_res;
 	u32 shlw_ctr;
 	u32 deep_ctr;
 	u64 shlw_res;
@@ -598,19 +594,15 @@ static int telem_soc_states_show(struct seq_file *s, void *unused)
 
 	seq_printf(s, "S0IX Shallow\t\t\t %10u\t %10llu\n",
 		   s0ix_shlw_ctr -
-		   conf->suspend_stats.shlw_ctr -
-		   conf->suspend_stats.shlw_swake_ctr,
+		   conf->suspend_stats.shlw_ctr,
 		   (u64)((s0ix_shlw_res -
-		   conf->suspend_stats.shlw_res -
-		   conf->suspend_stats.shlw_swake_res)*10/192));
+		   conf->suspend_stats.shlw_res)*10/192));
 
 	seq_printf(s, "S0IX Deep\t\t\t %10u\t %10llu\n",
 		   s0ix_deep_ctr -
-		   conf->suspend_stats.deep_ctr -
-		   conf->suspend_stats.deep_swake_ctr,
+		   conf->suspend_stats.deep_ctr,
 		   (u64)((s0ix_deep_res -
-		   conf->suspend_stats.deep_res -
-		   conf->suspend_stats.deep_swake_res)*10/192));
+		   conf->suspend_stats.deep_res)*10/192));
 
 	seq_printf(s, "Suspend(With S0ixShallow)\t %10u\t %10llu\n",
 		   conf->suspend_stats.shlw_ctr,
@@ -620,13 +612,7 @@ static int telem_soc_states_show(struct seq_file *s, void *unused)
 		   conf->suspend_stats.deep_ctr,
 		   (u64)(conf->suspend_stats.deep_res*10)/192);
 
-	seq_printf(s, "Suspend(With Shallow-Wakes)\t %10u\t %10llu\n",
-		   conf->suspend_stats.shlw_swake_ctr +
-		   conf->suspend_stats.deep_swake_ctr,
-		   (u64)((conf->suspend_stats.shlw_swake_res +
-		   conf->suspend_stats.deep_swake_res)*10/192));
-
-	seq_printf(s, "S0IX+Suspend Total\t\t %10u\t %10llu\n", s0ix_total_ctr,
+	seq_printf(s, "TOTAL S0IX\t\t\t %10u\t %10llu\n", s0ix_total_ctr,
 				(u64)(s0ix_total_res*10/192));
 	seq_puts(s, "\n-------------------------------------------------\n");
 	seq_puts(s, "\t\tDEVICE STATES\n");
@@ -920,36 +906,19 @@ static int pm_suspend_exit_cb(void)
 	suspend_shlw_res_exit -= suspend_shlw_res_temp;
 	suspend_deep_res_exit -= suspend_deep_res_temp;
 
-	if (suspend_shlw_ctr_exit == 1) {
+	if (suspend_shlw_ctr_exit != 0) {
 		conf->suspend_stats.shlw_ctr +=
 		suspend_shlw_ctr_exit;
 
 		conf->suspend_stats.shlw_res +=
 		suspend_shlw_res_exit;
 	}
-	/* Shallow Wakes Case */
-	else if (suspend_shlw_ctr_exit > 1) {
-		conf->suspend_stats.shlw_swake_ctr +=
-		suspend_shlw_ctr_exit;
 
-		conf->suspend_stats.shlw_swake_res +=
-		suspend_shlw_res_exit;
-	}
-
-	if (suspend_deep_ctr_exit == 1) {
+	if (suspend_deep_ctr_exit != 0) {
 		conf->suspend_stats.deep_ctr +=
 		suspend_deep_ctr_exit;
 
 		conf->suspend_stats.deep_res +=
-		suspend_deep_res_exit;
-	}
-
-	/* Shallow Wakes Case */
-	else if (suspend_deep_ctr_exit > 1) {
-		conf->suspend_stats.deep_swake_ctr +=
-		suspend_deep_ctr_exit;
-
-		conf->suspend_stats.deep_swake_res +=
 		suspend_deep_res_exit;
 	}
 
