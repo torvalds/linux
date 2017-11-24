@@ -21,8 +21,8 @@
  * IN THE SOFTWARE.
  *
  */
-#ifndef _I915_GUC_REG_H_
-#define _I915_GUC_REG_H_
+#ifndef _INTEL_GUC_REG_H_
+#define _INTEL_GUC_REG_H_
 
 /* Definitions of GuC H/W registers, bits, etc */
 

@@ -30,8 +30,8 @@
 #include "intel_guc_fwif.h"
 #include "intel_guc_ct.h"
 #include "intel_guc_log.h"
+#include "intel_guc_reg.h"
 #include "intel_uc_fw.h"
-#include "i915_guc_reg.h"
 #include "i915_vma.h"
 
 struct guc_preempt_work {
