@@ -2,10 +2,6 @@
 /*
  * store hypervisor information instruction emulation functions.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License (version 2 only)
- * as published by the Free Software Foundation.
- *
  * Copyright IBM Corp. 2016
  * Author(s): Janosch Frank <frankja@linux.vnet.ibm.com>
  */
