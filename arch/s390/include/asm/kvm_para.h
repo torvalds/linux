@@ -4,10 +4,6 @@
  *
  * Copyright IBM Corp. 2008
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License (version 2 only)
- * as published by the Free Software Foundation.
- *
  *    Author(s): Christian Borntraeger <borntraeger@de.ibm.com>
  */
 /*
@@ -21,8 +17,6 @@
  *
  * Copyright IBM Corp. 2007,2008
  * Author(s): Christian Borntraeger <borntraeger@de.ibm.com>
- *
- * This work is licensed under the terms of the GNU GPL, version 2.
  */
 #ifndef __S390_KVM_PARA_H
 #define __S390_KVM_PARA_H
