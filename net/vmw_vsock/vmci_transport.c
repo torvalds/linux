@@ -797,9 +797,13 @@ static void vmci_transport_handle_detach(struct sock *sk)
 
 		/* We should not be sending anymore since the peer won't be
 		 * there to receive, but we can still receive if there is data
-		 * left in our consume queue.
+		 * left in our consume queue. If the local endpoint is a host,
+		 * we can't call vsock_stream_has_data, since that may block,
+		 * but a host endpoint can't read data once the VM has
+		 * detached, so there is no available data in that case.
 		 */
-		if (vsock_stream_has_data(vsk) <= 0) {
+		if (vsk->local_addr.svm_cid == VMADDR_CID_HOST ||
+		    vsock_stream_has_data(vsk) <= 0) {
 			sk->sk_state = TCP_CLOSE;
 
 			if (sk->sk_state == TCP_SYN_SENT) {
@@ -2144,7 +2148,7 @@ module_exit(vmci_transport_exit);
 
 MODULE_AUTHOR("VMware, Inc.");
 MODULE_DESCRIPTION("VMCI transport for Virtual Sockets");
-MODULE_VERSION("1.0.4.0-k");
+MODULE_VERSION("1.0.5.0-k");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("vmware_vsock");
 MODULE_ALIAS_NETPROTO(PF_VSOCK);
