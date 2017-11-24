@@ -1232,7 +1232,7 @@ int tmio_mmc_host_probe(struct tmio_mmc_host *_host,
 	}
 	mmc->max_seg_size = mmc->max_req_size;
 
-	_host->native_hotplug = !(pdata->flags & TMIO_MMC_USE_GPIO_CD ||
+	_host->native_hotplug = !(mmc_can_gpio_cd(mmc) ||
 				  mmc->caps & MMC_CAP_NEEDS_POLL ||
 				  !mmc_card_is_removable(mmc));
 
