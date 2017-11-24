@@ -97,14 +97,15 @@ struct etnaviv_gem_submit_bo {
 
 /* Created per submit-ioctl, to track bo's and cmdstream bufs, etc,
  * associated with the cmdstream submission for synchronization (and
- * make it easier to unwind when things go wrong, etc).  This only
- * lasts for the duration of the submit-ioctl.
+ * make it easier to unwind when things go wrong, etc).
  */
 struct etnaviv_gem_submit {
 	struct kref refcount;
 	struct etnaviv_gpu *gpu;
 	struct dma_fence *out_fence, *in_fence;
 	u32 flags;
+	unsigned int nr_pmrs;
+	struct etnaviv_perfmon_request *pmrs;
 	unsigned int nr_bos;
 	struct etnaviv_gem_submit_bo bos[0];
 	/* No new members here, the previous one is variable-length! */

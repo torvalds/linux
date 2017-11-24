@@ -33,14 +33,22 @@
 #define BO_PINNED   0x2000
 
 static struct etnaviv_gem_submit *submit_create(struct drm_device *dev,
-		struct etnaviv_gpu *gpu, size_t nr)
+		struct etnaviv_gpu *gpu, size_t nr_bos, size_t nr_pmrs)
 {
 	struct etnaviv_gem_submit *submit;
-	size_t sz = size_vstruct(nr, sizeof(submit->bos[0]), sizeof(*submit));
+	size_t sz = size_vstruct(nr_bos, sizeof(submit->bos[0]), sizeof(*submit));
 
 	submit = kzalloc(sz, GFP_KERNEL);
 	if (!submit)
 		return NULL;
+
+	submit->pmrs = kcalloc(nr_pmrs, sizeof(struct etnaviv_perfmon_request),
+			       GFP_KERNEL);
+	if (!submit->pmrs) {
+		kfree(submit);
+		return NULL;
+	}
+	submit->nr_pmrs = nr_pmrs;
 
 	submit->gpu = gpu;
 	kref_init(&submit->refcount);
@@ -295,13 +303,11 @@ static int submit_reloc(struct etnaviv_gem_submit *submit, void *stream,
 }
 
 static int submit_perfmon_validate(struct etnaviv_gem_submit *submit,
-		struct etnaviv_cmdbuf *cmdbuf,
-		const struct drm_etnaviv_gem_submit_pmr *pmrs,
-		u32 nr_pms)
+		u32 exec_state, const struct drm_etnaviv_gem_submit_pmr *pmrs)
 {
 	u32 i;
 
-	for (i = 0; i < nr_pms; i++) {
+	for (i = 0; i < submit->nr_pmrs; i++) {
 		const struct drm_etnaviv_gem_submit_pmr *r = pmrs + i;
 		struct etnaviv_gem_submit_bo *bo;
 		int ret;
@@ -326,17 +332,17 @@ static int submit_perfmon_validate(struct etnaviv_gem_submit *submit,
 			return -EINVAL;
 		}
 
-		if (etnaviv_pm_req_validate(r, cmdbuf->exec_state)) {
+		if (etnaviv_pm_req_validate(r, exec_state)) {
 			DRM_ERROR("perfmon request: domain or signal not valid");
 			return -EINVAL;
 		}
 
-		cmdbuf->pmrs[i].flags = r->flags;
-		cmdbuf->pmrs[i].domain = r->domain;
-		cmdbuf->pmrs[i].signal = r->signal;
-		cmdbuf->pmrs[i].sequence = r->sequence;
-		cmdbuf->pmrs[i].offset = r->read_offset;
-		cmdbuf->pmrs[i].bo_vma = etnaviv_gem_vmap(&bo->obj->base);
+		submit->pmrs[i].flags = r->flags;
+		submit->pmrs[i].domain = r->domain;
+		submit->pmrs[i].signal = r->signal;
+		submit->pmrs[i].sequence = r->sequence;
+		submit->pmrs[i].offset = r->read_offset;
+		submit->pmrs[i].bo_vma = etnaviv_gem_vmap(&bo->obj->base);
 	}
 
 	return 0;
@@ -367,6 +373,7 @@ static void submit_cleanup(struct kref *kref)
 		dma_fence_put(submit->in_fence);
 	if (submit->out_fence)
 		dma_fence_put(submit->out_fence);
+	kfree(submit->pmrs);
 	kfree(submit);
 }
 
@@ -427,7 +434,7 @@ int etnaviv_ioctl_gem_submit(struct drm_device *dev, void *data,
 	stream = kvmalloc_array(1, args->stream_size, GFP_KERNEL);
 	cmdbuf = etnaviv_cmdbuf_new(gpu->cmdbuf_suballoc,
 				    ALIGN(args->stream_size, 8) + 8,
-				    args->nr_bos, args->nr_pmrs);
+				    args->nr_bos);
 	if (!bos || !relocs || !pmrs || !stream || !cmdbuf) {
 		ret = -ENOMEM;
 		goto err_submit_cmds;
@@ -456,7 +463,6 @@ int etnaviv_ioctl_gem_submit(struct drm_device *dev, void *data,
 		ret = -EFAULT;
 		goto err_submit_cmds;
 	}
-	cmdbuf->nr_pmrs = args->nr_pmrs;
 
 	ret = copy_from_user(stream, u64_to_user_ptr(args->stream),
 			     args->stream_size);
@@ -475,7 +481,7 @@ int etnaviv_ioctl_gem_submit(struct drm_device *dev, void *data,
 
 	ww_acquire_init(&ticket, &reservation_ww_class);
 
-	submit = submit_create(dev, gpu, args->nr_bos);
+	submit = submit_create(dev, gpu, args->nr_bos, args->nr_pmrs);
 	if (!submit) {
 		ret = -ENOMEM;
 		goto err_submit_ww_acquire;
@@ -518,7 +524,7 @@ int etnaviv_ioctl_gem_submit(struct drm_device *dev, void *data,
 	if (ret)
 		goto err_submit_objects;
 
-	ret = submit_perfmon_validate(submit, cmdbuf, pmrs, args->nr_pmrs);
+	ret = submit_perfmon_validate(submit, args->exec_state, pmrs);
 	if (ret)
 		goto err_submit_objects;
 

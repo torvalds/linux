@@ -39,9 +39,6 @@ struct etnaviv_cmdbuf {
 	u32 exec_state;
 	/* per GPU in-flight list */
 	struct list_head node;
-	/* perfmon requests */
-	unsigned int nr_pmrs;
-	struct etnaviv_perfmon_request *pmrs;
 	/* BOs attached to this command buffer */
 	unsigned int nr_bos;
 	struct etnaviv_vram_mapping *bo_map[0];
@@ -53,7 +50,7 @@ void etnaviv_cmdbuf_suballoc_destroy(struct etnaviv_cmdbuf_suballoc *suballoc);
 
 struct etnaviv_cmdbuf *
 etnaviv_cmdbuf_new(struct etnaviv_cmdbuf_suballoc *suballoc, u32 size,
-		   size_t nr_bos, size_t nr_pmrs);
+		   size_t nr_bos);
 void etnaviv_cmdbuf_free(struct etnaviv_cmdbuf *cmdbuf);
 
 u32 etnaviv_cmdbuf_get_va(struct etnaviv_cmdbuf *buf);
