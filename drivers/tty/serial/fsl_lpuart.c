@@ -2206,7 +2206,7 @@ static int lpuart_probe(struct platform_device *pdev)
 	if (ret)
 		goto failed_attach_port;
 
-	of_get_rs485_mode(np, &sport->port.rs485);
+	uart_get_rs485_mode(&pdev->dev, &sport->port.rs485);
 
 	if (sport->port.rs485.flags & SER_RS485_RX_DURING_TX) {
 		dev_err(&pdev->dev, "driver doesn't support RX during TX\n");

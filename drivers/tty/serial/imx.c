@@ -1999,8 +1999,6 @@ static int serial_imx_probe_dt(struct imx_port *sport,
 	if (of_get_property(np, "rts-gpios", NULL))
 		sport->have_rtsgpio = 1;
 
-	of_get_rs485_mode(np, &sport->port.rs485);
-
 	return 0;
 }
 #else
@@ -2092,6 +2090,8 @@ static int serial_imx_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to enable per clk: %d\n", ret);
 		return ret;
 	}
+
+	uart_get_rs485_mode(&pdev->dev, &sport->port.rs485);
 
 	/* Disable interrupts before requesting them */
 	reg = readl_relaxed(sport->port.membase + UCR1);
