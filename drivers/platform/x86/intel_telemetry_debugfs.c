@@ -23,7 +23,6 @@
  */
 #include <linux/debugfs.h>
 #include <linux/device.h>
-#include <linux/io.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/seq_file.h>
@@ -32,11 +31,10 @@
 #include <asm/cpu_device_id.h>
 #include <asm/intel-family.h>
 #include <asm/intel_pmc_ipc.h>
-#include <asm/intel_punit_ipc.h>
 #include <asm/intel_telemetry.h>
 
-#define DRIVER_NAME	"telemetry_soc_debugfs"
-#define DRIVER_VERSION	"1.0.0"
+#define DRIVER_NAME			"telemetry_soc_debugfs"
+#define DRIVER_VERSION			"1.0.0"
 
 /* ApolloLake SoC Event-IDs */
 #define TELEM_APL_PSS_PSTATES_ID	0x2802
@@ -246,7 +244,6 @@ static struct telem_ioss_pg_info telem_apl_ioss_pg_data[] = {
 	{"PRTC",	25},
 };
 
-
 struct telemetry_debugfs_conf {
 	struct telemetry_susp_stats suspend_stats;
 	struct dentry *telemetry_dbg_dir;
@@ -381,7 +378,6 @@ static int telem_pss_states_show(struct seq_file *s, void *unused)
 			TELEM_APL_MASK_PCS_STATE;
 		}
 
-
 		TELEM_CHECK_AND_PARSE_EVTS(conf->pss_idle_id,
 					   conf->pss_idle_evts - 1,
 					   pss_idle, evtlog[index].telem_evtlog,
@@ -400,7 +396,6 @@ static int telem_pss_states_show(struct seq_file *s, void *unused)
 					   evtlog[index].telem_evtlog,
 					   conf->pcs_s0ix_blkd_data,
 					   TELEM_MASK_BYTE);
-
 
 		TELEM_CHECK_AND_PARSE_EVTS(conf->pss_wakeup_id,
 					   conf->pss_wakeup_evts,
@@ -493,7 +488,6 @@ static const struct file_operations telem_pss_ops = {
 	.llseek		= seq_lseek,
 	.release	= single_release,
 };
-
 
 static int telem_ioss_states_show(struct seq_file *s, void *unused)
 {
@@ -613,7 +607,7 @@ static int telem_soc_states_show(struct seq_file *s, void *unused)
 		   (u64)(conf->suspend_stats.deep_res*10)/192);
 
 	seq_printf(s, "TOTAL S0IX\t\t\t %10u\t %10llu\n", s0ix_total_ctr,
-				(u64)(s0ix_total_res*10/192));
+		   (u64)(s0ix_total_res*10/192));
 	seq_puts(s, "\n-------------------------------------------------\n");
 	seq_puts(s, "\t\tDEVICE STATES\n");
 	seq_puts(s, "-------------------------------------------------\n");
@@ -757,7 +751,6 @@ static const struct file_operations telem_pss_trc_verb_ops = {
 	.llseek		= seq_lseek,
 	.release	= single_release,
 };
-
 
 static int telem_ioss_trc_verb_show(struct seq_file *s, void *unused)
 {
