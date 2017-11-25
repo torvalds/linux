@@ -563,7 +563,7 @@ struct sctp_chunk *sctp_process_strreset_outreq(
 		flags = SCTP_STREAM_RESET_INCOMING_SSN;
 	}
 
-	nums = (ntohs(param.p->length) - sizeof(*outreq)) / 2;
+	nums = (ntohs(param.p->length) - sizeof(*outreq)) / sizeof(__u16);
 	if (nums) {
 		str_p = outreq->list_of_streams;
 		for (i = 0; i < nums; i++) {
@@ -627,7 +627,7 @@ struct sctp_chunk *sctp_process_strreset_inreq(
 		goto out;
 	}
 
-	nums = (ntohs(param.p->length) - sizeof(*inreq)) / 2;
+	nums = (ntohs(param.p->length) - sizeof(*inreq)) / sizeof(__u16);
 	str_p = inreq->list_of_streams;
 	for (i = 0; i < nums; i++) {
 		if (ntohs(str_p[i]) >= stream->outcnt) {
@@ -927,7 +927,8 @@ struct sctp_chunk *sctp_process_strreset_resp(
 
 		outreq = (struct sctp_strreset_outreq *)req;
 		str_p = outreq->list_of_streams;
-		nums = (ntohs(outreq->param_hdr.length) - sizeof(*outreq)) / 2;
+		nums = (ntohs(outreq->param_hdr.length) - sizeof(*outreq)) /
+		       sizeof(__u16);
 
 		if (result == SCTP_STRRESET_PERFORMED) {
 			if (nums) {
@@ -956,7 +957,8 @@ struct sctp_chunk *sctp_process_strreset_resp(
 
 		inreq = (struct sctp_strreset_inreq *)req;
 		str_p = inreq->list_of_streams;
-		nums = (ntohs(inreq->param_hdr.length) - sizeof(*inreq)) / 2;
+		nums = (ntohs(inreq->param_hdr.length) - sizeof(*inreq)) /
+		       sizeof(__u16);
 
 		*evp = sctp_ulpevent_make_stream_reset_event(asoc, flags,
 			nums, str_p, GFP_ATOMIC);
