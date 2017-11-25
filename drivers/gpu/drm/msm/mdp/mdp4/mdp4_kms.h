@@ -234,10 +234,6 @@ static inline struct clk *mpd4_lvds_pll_init(struct drm_device *dev)
 #endif
 
 #ifdef DOWNSTREAM_CONFIG_MSM_BUS_SCALING
-static inline int match_dev_name(struct device *dev, void *data)
-{
-	return !strcmp(dev_name(dev), data);
-}
 /* bus scaling data is associated with extra pointless platform devices,
  * "dtv", etc.. this is a bit of a hack, but we need a way for encoders
  * to find their pdata to make the bus-scaling stuff work.
@@ -245,8 +241,7 @@ static inline int match_dev_name(struct device *dev, void *data)
 static inline void *mdp4_find_pdata(const char *devname)
 {
 	struct device *dev;
-	dev = bus_find_device(&platform_bus_type, NULL,
-			(void *)devname, match_dev_name);
+	dev = bus_find_device_by_name(&platform_bus_type, NULL, devname);
 	return dev ? dev->platform_data : NULL;
 }
 #endif
