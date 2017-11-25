@@ -285,6 +285,10 @@ int vgic_init(struct kvm *kvm)
 	if (ret)
 		goto out;
 
+	ret = vgic_v4_init(kvm);
+	if (ret)
+		goto out;
+
 	kvm_for_each_vcpu(i, vcpu, kvm)
 		kvm_vgic_vcpu_enable(vcpu);
 
@@ -320,6 +324,9 @@ static void kvm_vgic_dist_destroy(struct kvm *kvm)
 
 	kfree(dist->spis);
 	dist->nr_spis = 0;
+
+	if (vgic_supports_direct_msis(kvm))
+		vgic_v4_teardown(kvm);
 }
 
 void kvm_vgic_vcpu_destroy(struct kvm_vcpu *vcpu)
