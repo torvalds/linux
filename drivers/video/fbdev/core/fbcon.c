@@ -969,7 +969,7 @@ static const char *fbcon_startup(void)
 	if (p->con_rotate == -1)
 		p->con_rotate = info->fbcon_rotate_hint;
 	if (p->con_rotate == -1)
-		p->con_rotate = fbcon_platform_get_rotate(info);
+		p->con_rotate = FB_ROTATE_UR;
 
 	set_blitting_type(vc, info);
 
@@ -1112,7 +1112,7 @@ static void fbcon_init(struct vc_data *vc, int init)
 	if (p->con_rotate == -1)
 		p->con_rotate = info->fbcon_rotate_hint;
 	if (p->con_rotate == -1)
-		p->con_rotate = fbcon_platform_get_rotate(info);
+		p->con_rotate = FB_ROTATE_UR;
 
 	set_blitting_type(vc, info);
 
