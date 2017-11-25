@@ -162,8 +162,11 @@ static void sys_free_dir(struct sys_dir *sys_dir)
 
 	kfree(sys_dir->sys_dir_attr_list);
 
-	if (sys_dir->sys_dir_kobj)
+	if (sys_dir->sys_dir_kobj) {
+		sysfs_remove_group(sys_dir->sys_dir_kobj,
+				   &sys_dir->sys_dir_attr_group);
 		kobject_put(sys_dir->sys_dir_kobj);
+	}
 }
 
 int ssi_sysfs_init(struct kobject *sys_dev_obj, struct ssi_drvdata *drvdata)
