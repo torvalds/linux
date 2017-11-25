@@ -26,6 +26,9 @@ config DRM_MIPI_DSI
 	bool
 	depends on DRM
 
+config DRM_PANEL_ORIENTATION_QUIRKS
+	tristate
+
 config DRM_DP_AUX_CHARDEV
 	bool "DRM DP AUX Interface"
 	depends on DRM
