@@ -284,8 +284,8 @@ someone_else_changed_it:
  * permitted to be accessed with this authorisation, and if so, what access it
  * is granted
  */
-static int afs_check_permit(struct afs_vnode *vnode, struct key *key,
-			    afs_access_t *_access)
+int afs_check_permit(struct afs_vnode *vnode, struct key *key,
+		     afs_access_t *_access)
 {
 	struct afs_permits *permits;
 	bool valid = false;

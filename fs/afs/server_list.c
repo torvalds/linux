@@ -17,7 +17,7 @@ void afs_put_serverlist(struct afs_net *net, struct afs_server_list *slist)
 {
 	int i;
 
-	if (refcount_dec_and_test(&slist->usage)) {
+	if (slist && refcount_dec_and_test(&slist->usage)) {
 		for (i = 0; i < slist->nr_servers; i++) {
 			afs_put_cb_interest(net, slist->servers[i].cb_interest);
 			afs_put_server(net, slist->servers[i].server);
