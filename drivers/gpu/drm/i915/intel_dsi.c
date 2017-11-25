@@ -1666,6 +1666,27 @@ static const struct drm_connector_funcs intel_dsi_connector_funcs = {
 	.atomic_duplicate_state = intel_digital_connector_duplicate_state,
 };
 
+static int intel_dsi_get_panel_orientation(struct intel_connector *connector)
+{
+	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
+	int orientation = DRM_MODE_PANEL_ORIENTATION_NORMAL;
+	enum plane plane;
+	u32 val;
+
+	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
+		if (connector->encoder->crtc_mask == BIT(PIPE_B))
+			plane = PLANE_B;
+		else
+			plane = PLANE_A;
+
+		val = I915_READ(DSPCNTR(plane));
+		if (val & DISPPLANE_ROTATE_180)
+			orientation = DRM_MODE_PANEL_ORIENTATION_BOTTOM_UP;
+	}
+
+	return orientation;
+}
+
 static void intel_dsi_add_properties(struct intel_connector *connector)
 {
 	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
@@ -1681,6 +1702,13 @@ static void intel_dsi_add_properties(struct intel_connector *connector)
 								allowed_scalers);
 
 		connector->base.state->scaling_mode = DRM_MODE_SCALE_ASPECT;
+
+		connector->base.display_info.panel_orientation =
+			intel_dsi_get_panel_orientation(connector);
+		drm_connector_init_panel_orientation_property(
+				&connector->base,
+				connector->panel.fixed_mode->hdisplay,
+				connector->panel.fixed_mode->vdisplay);
 	}
 }
 
