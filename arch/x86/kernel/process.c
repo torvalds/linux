@@ -299,7 +299,7 @@ void __switch_to_xtra(struct task_struct *prev_p, struct task_struct *next_p,
 	}
 
 	if ((tifp ^ tifn) & _TIF_NOTSC)
-		cr4_toggle_bits(X86_CR4_TSD);
+		cr4_toggle_bits_irqsoff(X86_CR4_TSD);
 
 	if ((tifp ^ tifn) & _TIF_NOCPUID)
 		set_cpuid_faulting(!!(tifn & _TIF_NOCPUID));

@@ -175,6 +175,7 @@ static inline void cr4_init_shadow(void)
 
 static inline void __cr4_set(unsigned long cr4)
 {
+	lockdep_assert_irqs_disabled();
 	this_cpu_write(cpu_tlbstate.cr4, cr4);
 	__write_cr4(cr4);
 }
@@ -182,24 +183,28 @@ static inline void __cr4_set(unsigned long cr4)
 /* Set in this cpu's CR4. */
 static inline void cr4_set_bits(unsigned long mask)
 {
-	unsigned long cr4;
+	unsigned long cr4, flags;
 
+	local_irq_save(flags);
 	cr4 = this_cpu_read(cpu_tlbstate.cr4);
 	if ((cr4 | mask) != cr4)
 		__cr4_set(cr4 | mask);
+	local_irq_restore(flags);
 }
 
 /* Clear in this cpu's CR4. */
 static inline void cr4_clear_bits(unsigned long mask)
 {
-	unsigned long cr4;
+	unsigned long cr4, flags;
 
+	local_irq_save(flags);
 	cr4 = this_cpu_read(cpu_tlbstate.cr4);
 	if ((cr4 & ~mask) != cr4)
 		__cr4_set(cr4 & ~mask);
+	local_irq_restore(flags);
 }
 
-static inline void cr4_toggle_bits(unsigned long mask)
+static inline void cr4_toggle_bits_irqsoff(unsigned long mask)
 {
 	unsigned long cr4;
 
