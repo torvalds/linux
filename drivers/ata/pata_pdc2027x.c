@@ -649,7 +649,7 @@ static long pdc_detect_pll_input_clock(struct ata_host *host)
  * @host: target ATA host
  * @board_idx: board identifier
  */
-static int pdc_hardware_init(struct ata_host *host, unsigned int board_idx)
+static void pdc_hardware_init(struct ata_host *host, unsigned int board_idx)
 {
 	long pll_clock;
 
@@ -665,8 +665,6 @@ static int pdc_hardware_init(struct ata_host *host, unsigned int board_idx)
 
 	/* Adjust PLL control register */
 	pdc_adjust_pll(host, pll_clock, board_idx);
-
-	return 0;
 }
 
 /**
@@ -753,8 +751,7 @@ static int pdc2027x_init_one(struct pci_dev *pdev,
 	//pci_enable_intx(pdev);
 
 	/* initialize adapter */
-	if (pdc_hardware_init(host, board_idx) != 0)
-		return -EIO;
+	pdc_hardware_init(host, board_idx);
 
 	pci_set_master(pdev);
 	return ata_host_activate(host, pdev->irq, ata_bmdma_interrupt,
@@ -778,8 +775,7 @@ static int pdc2027x_reinit_one(struct pci_dev *pdev)
 	else
 		board_idx = PDC_UDMA_133;
 
-	if (pdc_hardware_init(host, board_idx))
-		return -EIO;
+	pdc_hardware_init(host, board_idx);
 
 	ata_host_resume(host);
 	return 0;
