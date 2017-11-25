@@ -254,6 +254,30 @@ static int sctp_send_reconf(struct sctp_association *asoc,
 	return retval;
 }
 
+static bool sctp_stream_outq_is_empty(struct sctp_stream *stream,
+				      __u16 str_nums, __be16 *str_list)
+{
+	struct sctp_association *asoc;
+	__u16 i;
+
+	asoc = container_of(stream, struct sctp_association, stream);
+	if (!asoc->outqueue.out_qlen)
+		return true;
+
+	if (!str_nums)
+		return false;
+
+	for (i = 0; i < str_nums; i++) {
+		__u16 sid = ntohs(str_list[i]);
+
+		if (stream->out[sid].ext &&
+		    !list_empty(&stream->out[sid].ext->outq))
+			return false;
+	}
+
+	return true;
+}
+
 int sctp_send_reset_streams(struct sctp_association *asoc,
 			    struct sctp_reset_streams *params)
 {
@@ -316,6 +340,11 @@ int sctp_send_reset_streams(struct sctp_association *asoc,
 
 	for (i = 0; i < str_nums; i++)
 		nstr_list[i] = htons(str_list[i]);
+
+	if (out && !sctp_stream_outq_is_empty(stream, str_nums, nstr_list)) {
+		retval = -EAGAIN;
+		goto out;
+	}
 
 	chunk = sctp_make_strreset_req(asoc, str_nums, nstr_list, out, in);
 
@@ -634,6 +663,12 @@ struct sctp_chunk *sctp_process_strreset_inreq(
 			result = SCTP_STRRESET_ERR_WRONG_SSN;
 			goto out;
 		}
+	}
+
+	if (!sctp_stream_outq_is_empty(stream, nums, str_p)) {
+		result = SCTP_STRRESET_IN_PROGRESS;
+		asoc->strreset_inseq--;
+		goto err;
 	}
 
 	chunk = sctp_make_strreset_req(asoc, nums, str_p, 1, 0);
