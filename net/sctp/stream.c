@@ -725,7 +725,7 @@ struct sctp_chunk *sctp_process_strreset_tsnreq(
 		i = asoc->strreset_inseq - request_seq - 1;
 		result = asoc->strreset_result[i];
 		if (result == SCTP_STRRESET_PERFORMED) {
-			next_tsn = asoc->next_tsn;
+			next_tsn = asoc->ctsn_ack_point + 1;
 			init_tsn =
 				sctp_tsnmap_get_ctsn(&asoc->peer.tsn_map) + 1;
 		}
