@@ -41,6 +41,7 @@
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 
+#include "drm_crtc_internal.h"
 #include "drm_crtc_helper_internal.h"
 
 static bool drm_fbdev_emulation = true;
@@ -356,6 +357,7 @@ EXPORT_SYMBOL(drm_fb_helper_debug_leave);
 static int restore_fbdev_mode_atomic(struct drm_fb_helper *fb_helper, bool active)
 {
 	struct drm_device *dev = fb_helper->dev;
+	struct drm_plane_state *plane_state;
 	struct drm_plane *plane;
 	struct drm_atomic_state *state;
 	int i, ret;
@@ -374,8 +376,6 @@ static int restore_fbdev_mode_atomic(struct drm_fb_helper *fb_helper, bool activ
 retry:
 	plane_mask = 0;
 	drm_for_each_plane(plane, dev) {
-		struct drm_plane_state *plane_state;
-
 		plane_state = drm_atomic_get_plane_state(state, plane);
 		if (IS_ERR(plane_state)) {
 			ret = PTR_ERR(plane_state);
@@ -398,6 +398,11 @@ retry:
 
 	for (i = 0; i < fb_helper->crtc_count; i++) {
 		struct drm_mode_set *mode_set = &fb_helper->crtc_info[i].mode_set;
+		struct drm_plane *primary = mode_set->crtc->primary;
+
+		/* Cannot fail as we've already gotten the plane state above */
+		plane_state = drm_atomic_get_new_plane_state(state, primary);
+		plane_state->rotation = fb_helper->crtc_info[i].rotation;
 
 		ret = __drm_atomic_helper_set_config(mode_set, state);
 		if (ret != 0)
@@ -829,6 +834,7 @@ int drm_fb_helper_init(struct drm_device *dev,
 		if (!fb_helper->crtc_info[i].mode_set.connectors)
 			goto out_free;
 		fb_helper->crtc_info[i].mode_set.num_connectors = 0;
+		fb_helper->crtc_info[i].rotation = DRM_MODE_ROTATE_0;
 	}
 
 	i = 0;
@@ -2357,6 +2363,62 @@ out:
 	return best_score;
 }
 
+/*
+ * This function checks if rotation is necessary because of panel orientation
+ * and if it is, if it is supported.
+ * If rotation is necessary and supported, its gets set in fb_crtc.rotation.
+ * If rotation is necessary but not supported, a DRM_MODE_ROTATE_* flag gets
+ * or-ed into fb_helper->sw_rotations. In drm_setup_crtcs_fb() we check if only
+ * one bit is set and then we set fb_info.fbcon_rotate_hint to make fbcon do
+ * the unsupported rotation.
+ */
+static void drm_setup_crtc_rotation(struct drm_fb_helper *fb_helper,
+				    struct drm_fb_helper_crtc *fb_crtc,
+				    struct drm_connector *connector)
+{
+	struct drm_plane *plane = fb_crtc->mode_set.crtc->primary;
+	uint64_t valid_mask = 0;
+	int i, rotation;
+
+	fb_crtc->rotation = DRM_MODE_ROTATE_0;
+
+	switch (connector->display_info.panel_orientation) {
+	case DRM_MODE_PANEL_ORIENTATION_BOTTOM_UP:
+		rotation = DRM_MODE_ROTATE_180;
+		break;
+	case DRM_MODE_PANEL_ORIENTATION_LEFT_UP:
+		rotation = DRM_MODE_ROTATE_90;
+		break;
+	case DRM_MODE_PANEL_ORIENTATION_RIGHT_UP:
+		rotation = DRM_MODE_ROTATE_270;
+		break;
+	default:
+		rotation = DRM_MODE_ROTATE_0;
+	}
+
+	/*
+	 * TODO: support 90 / 270 degree hardware rotation,
+	 * depending on the hardware this may require the framebuffer
+	 * to be in a specific tiling format.
+	 */
+	if (rotation != DRM_MODE_ROTATE_180 || !plane->rotation_property) {
+		fb_helper->sw_rotations |= rotation;
+		return;
+	}
+
+	for (i = 0; i < plane->rotation_property->num_values; i++)
+		valid_mask |= (1ULL << plane->rotation_property->values[i]);
+
+	if (!(rotation & valid_mask)) {
+		fb_helper->sw_rotations |= rotation;
+		return;
+	}
+
+	fb_crtc->rotation = rotation;
+	/* Rotating in hardware, fbcon should not rotate */
+	fb_helper->sw_rotations |= DRM_MODE_ROTATE_0;
+}
+
 static void drm_setup_crtcs(struct drm_fb_helper *fb_helper,
 			    u32 width, u32 height)
 {
@@ -2416,6 +2478,7 @@ static void drm_setup_crtcs(struct drm_fb_helper *fb_helper,
 		drm_fb_helper_modeset_release(fb_helper,
 					      &fb_helper->crtc_info[i].mode_set);
 
+	fb_helper->sw_rotations = 0;
 	drm_fb_helper_for_each_connector(fb_helper, i) {
 		struct drm_display_mode *mode = modes[i];
 		struct drm_fb_helper_crtc *fb_crtc = crtcs[i];
@@ -2435,6 +2498,7 @@ static void drm_setup_crtcs(struct drm_fb_helper *fb_helper,
 			modeset->mode = drm_mode_duplicate(dev,
 							   fb_crtc->desired_mode);
 			drm_connector_get(connector);
+			drm_setup_crtc_rotation(fb_helper, fb_crtc, connector);
 			modeset->connectors[modeset->num_connectors++] = connector;
 			modeset->x = offset->x;
 			modeset->y = offset->y;
@@ -2476,6 +2540,28 @@ static void drm_setup_crtcs_fb(struct drm_fb_helper *fb_helper)
 		}
 	}
 	mutex_unlock(&fb_helper->dev->mode_config.mutex);
+
+	switch (fb_helper->sw_rotations) {
+	case DRM_MODE_ROTATE_0:
+		info->fbcon_rotate_hint = FB_ROTATE_UR;
+		break;
+	case DRM_MODE_ROTATE_90:
+		info->fbcon_rotate_hint = FB_ROTATE_CCW;
+		break;
+	case DRM_MODE_ROTATE_180:
+		info->fbcon_rotate_hint = FB_ROTATE_UD;
+		break;
+	case DRM_MODE_ROTATE_270:
+		info->fbcon_rotate_hint = FB_ROTATE_CW;
+		break;
+	default:
+		/*
+		 * Multiple bits are set / multiple rotations requested
+		 * fbcon cannot handle separate rotation settings per
+		 * output, so fallback to unrotated.
+		 */
+		info->fbcon_rotate_hint = FB_ROTATE_UR;
+	}
 }
 
 /* Note: Drops fb_helper->lock before returning. */
