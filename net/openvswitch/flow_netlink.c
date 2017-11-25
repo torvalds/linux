@@ -1672,14 +1672,11 @@ int ovs_nla_put_mask(const struct sw_flow *flow, struct sk_buff *skb)
 
 #define MAX_ACTIONS_BUFSIZE	(32 * 1024)
 
-static struct sw_flow_actions *nla_alloc_flow_actions(int size, bool log)
+static struct sw_flow_actions *nla_alloc_flow_actions(int size)
 {
 	struct sw_flow_actions *sfa;
 
-	if (size > MAX_ACTIONS_BUFSIZE) {
-		OVS_NLERR(log, "Flow action size %u bytes exceeds max", size);
-		return ERR_PTR(-EINVAL);
-	}
+	WARN_ON_ONCE(size > MAX_ACTIONS_BUFSIZE);
 
 	sfa = kmalloc(sizeof(*sfa) + size, GFP_KERNEL);
 	if (!sfa)
@@ -1752,12 +1749,15 @@ static struct nlattr *reserve_sfa_size(struct sw_flow_actions **sfa,
 	new_acts_size = ksize(*sfa) * 2;
 
 	if (new_acts_size > MAX_ACTIONS_BUFSIZE) {
-		if ((MAX_ACTIONS_BUFSIZE - next_offset) < req_size)
+		if ((MAX_ACTIONS_BUFSIZE - next_offset) < req_size) {
+			OVS_NLERR(log, "Flow action size exceeds max %u",
+				  MAX_ACTIONS_BUFSIZE);
 			return ERR_PTR(-EMSGSIZE);
+		}
 		new_acts_size = MAX_ACTIONS_BUFSIZE;
 	}
 
-	acts = nla_alloc_flow_actions(new_acts_size, log);
+	acts = nla_alloc_flow_actions(new_acts_size);
 	if (IS_ERR(acts))
 		return (void *)acts;
 
@@ -2369,7 +2369,7 @@ int ovs_nla_copy_actions(struct net *net, const struct nlattr *attr,
 {
 	int err;
 
-	*sfa = nla_alloc_flow_actions(nla_len(attr), log);
+	*sfa = nla_alloc_flow_actions(min(nla_len(attr), MAX_ACTIONS_BUFSIZE));
 	if (IS_ERR(*sfa))
 		return PTR_ERR(*sfa);
 
