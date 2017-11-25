@@ -407,7 +407,8 @@ static int sctp_prsctp_prune_unsent(struct sctp_association *asoc,
 
 	list_for_each_entry_safe(chk, temp, &q->out_chunk_list, list) {
 		if (!chk->msg->abandoned &&
-		    (!SCTP_PR_PRIO_ENABLED(chk->sinfo.sinfo_flags) ||
+		    (!(chk->chunk_hdr->flags & SCTP_DATA_FIRST_FRAG) ||
+		     !SCTP_PR_PRIO_ENABLED(chk->sinfo.sinfo_flags) ||
 		     chk->sinfo.sinfo_timetolive <= sinfo->sinfo_timetolive))
 			continue;
 

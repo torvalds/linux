@@ -308,6 +308,10 @@ int sctp_chunk_abandoned(struct sctp_chunk *chunk)
 	if (chunk->msg->abandoned)
 		return 1;
 
+	if (!chunk->has_tsn &&
+	    !(chunk->chunk_hdr->flags & SCTP_DATA_FIRST_FRAG))
+		return 0;
+
 	if (SCTP_PR_TTL_ENABLED(chunk->sinfo.sinfo_flags) &&
 	    time_after(jiffies, chunk->msg->expires_at)) {
 		struct sctp_stream_out *streamout =
