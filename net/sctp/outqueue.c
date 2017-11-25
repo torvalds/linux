@@ -377,7 +377,8 @@ static int sctp_prsctp_prune_sent(struct sctp_association *asoc,
 		asoc->abandoned_sent[SCTP_PR_INDEX(PRIO)]++;
 		streamout->ext->abandoned_sent[SCTP_PR_INDEX(PRIO)]++;
 
-		if (!chk->tsn_gap_acked) {
+		if (queue != &asoc->outqueue.retransmit &&
+		    !chk->tsn_gap_acked) {
 			if (chk->transport)
 				chk->transport->flight_size -=
 						sctp_data_size(chk);
@@ -1434,7 +1435,8 @@ static void sctp_check_transmitted(struct sctp_outq *q,
 			/* If this chunk has not been acked, stop
 			 * considering it as 'outstanding'.
 			 */
-			if (!tchunk->tsn_gap_acked) {
+			if (transmitted_queue != &q->retransmit &&
+			    !tchunk->tsn_gap_acked) {
 				if (tchunk->transport)
 					tchunk->transport->flight_size -=
 							sctp_data_size(tchunk);
