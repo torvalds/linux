@@ -406,6 +406,9 @@ int sctp_send_reset_assoc(struct sctp_association *asoc)
 	if (asoc->strreset_outstanding)
 		return -EINPROGRESS;
 
+	if (!sctp_outq_is_empty(&asoc->outqueue))
+		return -EAGAIN;
+
 	chunk = sctp_make_strreset_tsnreq(asoc);
 	if (!chunk)
 		return -ENOMEM;
@@ -728,6 +731,12 @@ struct sctp_chunk *sctp_process_strreset_tsnreq(
 		}
 		goto err;
 	}
+
+	if (!sctp_outq_is_empty(&asoc->outqueue)) {
+		result = SCTP_STRRESET_IN_PROGRESS;
+		goto err;
+	}
+
 	asoc->strreset_inseq++;
 
 	if (!(asoc->strreset_enable & SCTP_ENABLE_RESET_ASSOC_REQ))
