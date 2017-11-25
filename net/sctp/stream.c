@@ -747,9 +747,10 @@ struct sctp_chunk *sctp_process_strreset_tsnreq(
 		goto out;
 	}
 
-	/* G3: The same processing as though a SACK chunk with no gap report
-	 *     and a cumulative TSN ACK of the Sender's Next TSN minus 1 were
-	 *     received MUST be performed.
+	/* G4: The same processing as though a FWD-TSN chunk (as defined in
+	 *     [RFC3758]) with all streams affected and a new cumulative TSN
+	 *     ACK of the Receiver's Next TSN minus 1 were received MUST be
+	 *     performed.
 	 */
 	max_tsn_seen = sctp_tsnmap_get_max_tsn_seen(&asoc->peer.tsn_map);
 	sctp_ulpq_reasm_flushtsn(&asoc->ulpq, max_tsn_seen);
@@ -764,10 +765,9 @@ struct sctp_chunk *sctp_process_strreset_tsnreq(
 	sctp_tsnmap_init(&asoc->peer.tsn_map, SCTP_TSN_MAP_INITIAL,
 			 init_tsn, GFP_ATOMIC);
 
-	/* G4: The same processing as though a FWD-TSN chunk (as defined in
-	 *     [RFC3758]) with all streams affected and a new cumulative TSN
-	 *     ACK of the Receiver's Next TSN minus 1 were received MUST be
-	 *     performed.
+	/* G3: The same processing as though a SACK chunk with no gap report
+	 *     and a cumulative TSN ACK of the Sender's Next TSN minus 1 were
+	 *     received MUST be performed.
 	 */
 	sctp_outq_free(&asoc->outqueue);
 
@@ -1021,6 +1021,7 @@ struct sctp_chunk *sctp_process_strreset_resp(
 		if (result == SCTP_STRRESET_PERFORMED) {
 			__u32 mtsn = sctp_tsnmap_get_max_tsn_seen(
 						&asoc->peer.tsn_map);
+			LIST_HEAD(temp);
 
 			sctp_ulpq_reasm_flushtsn(&asoc->ulpq, mtsn);
 			sctp_ulpq_abort_pd(&asoc->ulpq, GFP_ATOMIC);
@@ -1029,7 +1030,13 @@ struct sctp_chunk *sctp_process_strreset_resp(
 					 SCTP_TSN_MAP_INITIAL,
 					 stsn, GFP_ATOMIC);
 
+			/* Clean up sacked and abandoned queues only. As the
+			 * out_chunk_list may not be empty, splice it to temp,
+			 * then get it back after sctp_outq_free is done.
+			 */
+			list_splice_init(&asoc->outqueue.out_chunk_list, &temp);
 			sctp_outq_free(&asoc->outqueue);
+			list_splice_init(&temp, &asoc->outqueue.out_chunk_list);
 
 			asoc->next_tsn = rtsn;
 			asoc->ctsn_ack_point = asoc->next_tsn - 1;
