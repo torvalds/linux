@@ -24,6 +24,7 @@
 #include <drm/drm_connector.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_encoder.h>
+#include <drm/drm_utils.h>
 
 #include "drm_crtc_internal.h"
 #include "drm_internal.h"
@@ -212,6 +213,8 @@ int drm_connector_init(struct drm_device *dev,
 	mutex_init(&connector->mutex);
 	connector->edid_blob_ptr = NULL;
 	connector->status = connector_status_unknown;
+	connector->display_info.panel_orientation =
+		DRM_MODE_PANEL_ORIENTATION_UNKNOWN;
 
 	drm_connector_get_cmdline_mode(connector);
 
@@ -668,6 +671,13 @@ static const struct drm_prop_enum_list drm_aspect_ratio_enum_list[] = {
 	{ DRM_MODE_PICTURE_ASPECT_16_9, "16:9" },
 };
 
+static const struct drm_prop_enum_list drm_panel_orientation_enum_list[] = {
+	{ DRM_MODE_PANEL_ORIENTATION_NORMAL,	"Normal"	},
+	{ DRM_MODE_PANEL_ORIENTATION_BOTTOM_UP,	"Upside Down"	},
+	{ DRM_MODE_PANEL_ORIENTATION_LEFT_UP,	"Left Side Up"	},
+	{ DRM_MODE_PANEL_ORIENTATION_RIGHT_UP,	"Right Side Up"	},
+};
+
 static const struct drm_prop_enum_list drm_dvi_i_select_enum_list[] = {
 	{ DRM_MODE_SUBCONNECTOR_Automatic, "Automatic" }, /* DVI-I and TV-out */
 	{ DRM_MODE_SUBCONNECTOR_DVID,      "DVI-D"     }, /* DVI-I  */
@@ -776,6 +786,18 @@ DRM_ENUM_NAME_FN(drm_get_tv_subconnector_name,
  *
  * CRTC_ID:
  * 	Mode object ID of the &drm_crtc this connector should be connected to.
+ *
+ * Connectors for LCD panels may also have one standardized property:
+ *
+ * panel orientation:
+ *	On some devices the LCD panel is mounted in the casing in such a way
+ *	that the up/top side of the panel does not match with the top side of
+ *	the device. Userspace can use this property to check for this.
+ *	Note that input coordinates from touchscreens (input devices with
+ *	INPUT_PROP_DIRECT) will still map 1:1 to the actual LCD panel
+ *	coordinates, so if userspace rotates the picture to adjust for
+ *	the orientation it must also apply the same transformation to the
+ *	touchscreen input coordinates.
  */
 
 int drm_connector_create_standard_properties(struct drm_device *dev)
@@ -1250,6 +1272,57 @@ void drm_mode_connector_set_link_status_property(struct drm_connector *connector
 	drm_modeset_unlock(&dev->mode_config.connection_mutex);
 }
 EXPORT_SYMBOL(drm_mode_connector_set_link_status_property);
+
+/**
+ * drm_connector_init_panel_orientation_property -
+ *	initialize the connecters panel_orientation property
+ * @connector: connector for which to init the panel-orientation property.
+ * @width: width in pixels of the panel, used for panel quirk detection
+ * @height: height in pixels of the panel, used for panel quirk detection
+ *
+ * This function should only be called for built-in panels, after setting
+ * connector->display_info.panel_orientation first (if known).
+ *
+ * This function will check for platform specific (e.g. DMI based) quirks
+ * overriding display_info.panel_orientation first, then if panel_orientation
+ * is not DRM_MODE_PANEL_ORIENTATION_UNKNOWN it will attach the
+ * "panel orientation" property to the connector.
+ *
+ * Returns:
+ * Zero on success, negative errno on failure.
+ */
+int drm_connector_init_panel_orientation_property(
+	struct drm_connector *connector, int width, int height)
+{
+	struct drm_device *dev = connector->dev;
+	struct drm_display_info *info = &connector->display_info;
+	struct drm_property *prop;
+	int orientation_quirk;
+
+	orientation_quirk = drm_get_panel_orientation_quirk(width, height);
+	if (orientation_quirk != DRM_MODE_PANEL_ORIENTATION_UNKNOWN)
+		info->panel_orientation = orientation_quirk;
+
+	if (info->panel_orientation == DRM_MODE_PANEL_ORIENTATION_UNKNOWN)
+		return 0;
+
+	prop = dev->mode_config.panel_orientation_property;
+	if (!prop) {
+		prop = drm_property_create_enum(dev, DRM_MODE_PROP_IMMUTABLE,
+				"panel orientation",
+				drm_panel_orientation_enum_list,
+				ARRAY_SIZE(drm_panel_orientation_enum_list));
+		if (!prop)
+			return -ENOMEM;
+
+		dev->mode_config.panel_orientation_property = prop;
+	}
+
+	drm_object_attach_property(&connector->base, prop,
+				   info->panel_orientation);
+	return 0;
+}
+EXPORT_SYMBOL(drm_connector_init_panel_orientation_property);
 
 int drm_mode_connector_set_obj_prop(struct drm_mode_object *obj,
 				    struct drm_property *property,
