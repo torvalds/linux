@@ -364,10 +364,12 @@ static int sctp_prsctp_prune_sent(struct sctp_association *asoc,
 	list_for_each_entry_safe(chk, temp, queue, transmitted_list) {
 		struct sctp_stream_out *streamout;
 
-		if (!SCTP_PR_PRIO_ENABLED(chk->sinfo.sinfo_flags) ||
-		    chk->sinfo.sinfo_timetolive <= sinfo->sinfo_timetolive)
+		if (!chk->msg->abandoned &&
+		    (!SCTP_PR_PRIO_ENABLED(chk->sinfo.sinfo_flags) ||
+		     chk->sinfo.sinfo_timetolive <= sinfo->sinfo_timetolive))
 			continue;
 
+		chk->msg->abandoned = 1;
 		list_del_init(&chk->transmitted_list);
 		sctp_insert_list(&asoc->outqueue.abandoned,
 				 &chk->transmitted_list);
@@ -404,10 +406,12 @@ static int sctp_prsctp_prune_unsent(struct sctp_association *asoc,
 	q->sched->unsched_all(&asoc->stream);
 
 	list_for_each_entry_safe(chk, temp, &q->out_chunk_list, list) {
-		if (!SCTP_PR_PRIO_ENABLED(chk->sinfo.sinfo_flags) ||
-		    chk->sinfo.sinfo_timetolive <= sinfo->sinfo_timetolive)
+		if (!chk->msg->abandoned &&
+		    (!SCTP_PR_PRIO_ENABLED(chk->sinfo.sinfo_flags) ||
+		     chk->sinfo.sinfo_timetolive <= sinfo->sinfo_timetolive))
 			continue;
 
+		chk->msg->abandoned = 1;
 		sctp_sched_dequeue_common(q, chk);
 		asoc->sent_cnt_removable--;
 		asoc->abandoned_unsent[SCTP_PR_INDEX(PRIO)]++;
