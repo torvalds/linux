@@ -335,7 +335,7 @@ static int queue_gso_packets(struct datapath *dp, struct sk_buff *skb,
 			     const struct dp_upcall_info *upcall_info,
 				 uint32_t cutlen)
 {
-	unsigned short gso_type = skb_shinfo(skb)->gso_type;
+	unsigned int gso_type = skb_shinfo(skb)->gso_type;
 	struct sw_flow_key later_key;
 	struct sk_buff *segs, *nskb;
 	int err;
