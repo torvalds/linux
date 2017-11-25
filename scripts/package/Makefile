@@ -39,14 +39,13 @@ if test "$(objtree)" != "$(srctree)"; then \
 	false; \
 fi ; \
 $(srctree)/scripts/setlocalversion --save-scmversion; \
-ln -sf $(srctree) $(2); \
 tar -cz $(RCS_TAR_IGNORE) -f $(2).tar.gz \
-	$(addprefix $(2)/,$(TAR_CONTENT) $(3)); \
-rm -f $(2) $(objtree)/.scmversion
+	--transform 's:^:$(2)/:S' $(TAR_CONTENT) $(3); \
+rm -f $(objtree)/.scmversion
 
 # rpm-pkg
 # ---------------------------------------------------------------------------
-rpm-pkg rpm: FORCE
+rpm-pkg: FORCE
 	$(MAKE) clean
 	$(CONFIG_SHELL) $(MKSPEC) >$(objtree)/kernel.spec
 	$(call cmd,src_tar,$(KERNELPATH),kernel.spec)
