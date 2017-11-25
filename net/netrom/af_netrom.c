@@ -284,7 +284,7 @@ void nr_destroy_socket(struct sock *sk)
 
 	if (sk_has_allocations(sk)) {
 		/* Defer: outstanding buffers */
-		sk->sk_timer.function = (TIMER_FUNC_TYPE)nr_destroy_timer;
+		sk->sk_timer.function = nr_destroy_timer;
 		sk->sk_timer.expires  = jiffies + 2 * HZ;
 		add_timer(&sk->sk_timer);
 	} else

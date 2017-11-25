@@ -551,9 +551,9 @@ static void start_get(struct ssif_info *ssif_info)
 	}
 }
 
-static void retry_timeout(unsigned long data)
+static void retry_timeout(struct timer_list *t)
 {
-	struct ssif_info *ssif_info = (void *) data;
+	struct ssif_info *ssif_info = from_timer(ssif_info, t, retry_timer);
 	unsigned long oflags, *flags;
 	bool waiting;
 
@@ -1691,8 +1691,7 @@ static int ssif_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 	spin_lock_init(&ssif_info->lock);
 	ssif_info->ssif_state = SSIF_NORMAL;
-	setup_timer(&ssif_info->retry_timer, retry_timeout,
-		    (unsigned long)ssif_info);
+	timer_setup(&ssif_info->retry_timer, retry_timeout, 0);
 
 	for (i = 0; i < SSIF_NUM_STATS; i++)
 		atomic_set(&ssif_info->stats[i], 0);

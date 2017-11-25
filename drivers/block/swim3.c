@@ -397,7 +397,7 @@ static void set_timeout(struct floppy_state *fs, int nticks,
 	if (fs->timeout_pending)
 		del_timer(&fs->timeout);
 	fs->timeout.expires = jiffies + nticks;
-	fs->timeout.function = (TIMER_FUNC_TYPE)proc;
+	fs->timeout.function = proc;
 	add_timer(&fs->timeout);
 	fs->timeout_pending = 1;
 }

@@ -288,7 +288,7 @@ static struct qtnf_wmac *qtnf_core_mac_alloc(struct qtnf_bus *bus,
 		mac->iflist[i].vifid = i;
 		qtnf_sta_list_init(&mac->iflist[i].sta_list);
 		mutex_init(&mac->mac_lock);
-		setup_timer(&mac->scan_timeout, NULL, 0);
+		timer_setup(&mac->scan_timeout, NULL, 0);
 	}
 
 	qtnf_mac_init_primary_intf(mac);

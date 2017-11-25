@@ -367,9 +367,9 @@ static const struct file_operations bt_bmc_fops = {
 	.unlocked_ioctl	= bt_bmc_ioctl,
 };
 
-static void poll_timer(unsigned long data)
+static void poll_timer(struct timer_list *t)
 {
-	struct bt_bmc *bt_bmc = (void *)data;
+	struct bt_bmc *bt_bmc = from_timer(bt_bmc, t, poll_timer);
 
 	bt_bmc->poll_timer.expires += msecs_to_jiffies(500);
 	wake_up(&bt_bmc->queue);
@@ -487,8 +487,7 @@ static int bt_bmc_probe(struct platform_device *pdev)
 		dev_info(dev, "Using IRQ %d\n", bt_bmc->irq);
 	} else {
 		dev_info(dev, "No IRQ; using timer\n");
-		setup_timer(&bt_bmc->poll_timer, poll_timer,
-			    (unsigned long)bt_bmc);
+		timer_setup(&bt_bmc->poll_timer, poll_timer, 0);
 		bt_bmc->poll_timer.expires = jiffies + msecs_to_jiffies(10);
 		add_timer(&bt_bmc->poll_timer);
 	}

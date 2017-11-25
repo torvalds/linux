@@ -2983,10 +2983,10 @@ static void brcmf_cfg80211_escan_timeout_worker(struct work_struct *work)
 	brcmf_notify_escan_complete(cfg, cfg->escan_info.ifp, true, true);
 }
 
-static void brcmf_escan_timeout(unsigned long data)
+static void brcmf_escan_timeout(struct timer_list *t)
 {
 	struct brcmf_cfg80211_info *cfg =
-			(struct brcmf_cfg80211_info *)data;
+			from_timer(cfg, t, escan_timeout);
 
 	if (cfg->int_escan_map || cfg->scan_request) {
 		brcmf_err("timer expired\n");
@@ -3150,8 +3150,7 @@ static void brcmf_init_escan(struct brcmf_cfg80211_info *cfg)
 			    brcmf_cfg80211_escan_handler);
 	cfg->escan_info.escan_state = WL_ESCAN_STATE_IDLE;
 	/* Init scan_timeout timer */
-	setup_timer(&cfg->escan_timeout, brcmf_escan_timeout,
-		    (unsigned long)cfg);
+	timer_setup(&cfg->escan_timeout, brcmf_escan_timeout, 0);
 	INIT_WORK(&cfg->escan_timeout_work,
 		  brcmf_cfg80211_escan_timeout_worker);
 }

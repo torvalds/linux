@@ -745,7 +745,7 @@ static void svc_add_new_temp_xprt(struct svc_serv *serv, struct svc_xprt *newxpt
 	serv->sv_tmpcnt++;
 	if (serv->sv_temptimer.function == NULL) {
 		/* setup timer to age temp transports */
-		serv->sv_temptimer.function = (TIMER_FUNC_TYPE)svc_age_temp_xprts;
+		serv->sv_temptimer.function = svc_age_temp_xprts;
 		mod_timer(&serv->sv_temptimer,
 			  jiffies + svc_conn_age_period * HZ);
 	}

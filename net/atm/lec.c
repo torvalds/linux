@@ -1798,7 +1798,7 @@ static struct atm_vcc *lec_arp_resolve(struct lec_priv *priv,
 		else
 			send_to_lecd(priv, l_arp_xmt, mac_to_find, NULL, NULL);
 		entry->timer.expires = jiffies + (1 * HZ);
-		entry->timer.function = (TIMER_FUNC_TYPE)lec_arp_expire_arp;
+		entry->timer.function = lec_arp_expire_arp;
 		add_timer(&entry->timer);
 		found = priv->mcast_vcc;
 	}
@@ -1998,7 +1998,7 @@ lec_vcc_added(struct lec_priv *priv, const struct atmlec_ioc *ioc_data,
 		entry->old_recv_push = old_push;
 		entry->status = ESI_UNKNOWN;
 		entry->timer.expires = jiffies + priv->vcc_timeout_period;
-		entry->timer.function = (TIMER_FUNC_TYPE)lec_arp_expire_vcc;
+		entry->timer.function = lec_arp_expire_vcc;
 		hlist_add_head(&entry->next, &priv->lec_no_forward);
 		add_timer(&entry->timer);
 		dump_arp_table(priv);
@@ -2082,7 +2082,7 @@ lec_vcc_added(struct lec_priv *priv, const struct atmlec_ioc *ioc_data,
 	entry->status = ESI_UNKNOWN;
 	hlist_add_head(&entry->next, &priv->lec_arp_empty_ones);
 	entry->timer.expires = jiffies + priv->vcc_timeout_period;
-	entry->timer.function = (TIMER_FUNC_TYPE)lec_arp_expire_vcc;
+	entry->timer.function = lec_arp_expire_vcc;
 	add_timer(&entry->timer);
 	pr_debug("After vcc was added\n");
 	dump_arp_table(priv);

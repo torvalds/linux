@@ -1268,7 +1268,7 @@ static void link_timeout_enable_link(struct timer_list *t)
 		}
 	}
 
-	hisi_hba->timer.function = (TIMER_FUNC_TYPE)link_timeout_disable_link;
+	hisi_hba->timer.function = link_timeout_disable_link;
 	mod_timer(&hisi_hba->timer, jiffies + msecs_to_jiffies(900));
 }
 
@@ -1289,13 +1289,13 @@ static void link_timeout_disable_link(struct timer_list *t)
 		}
 	}
 
-	hisi_hba->timer.function = (TIMER_FUNC_TYPE)link_timeout_enable_link;
+	hisi_hba->timer.function = link_timeout_enable_link;
 	mod_timer(&hisi_hba->timer, jiffies + msecs_to_jiffies(100));
 }
 
 static void set_link_timer_quirk(struct hisi_hba *hisi_hba)
 {
-	hisi_hba->timer.function = (TIMER_FUNC_TYPE)link_timeout_disable_link;
+	hisi_hba->timer.function = link_timeout_disable_link;
 	hisi_hba->timer.expires = jiffies + msecs_to_jiffies(1000);
 	add_timer(&hisi_hba->timer);
 }

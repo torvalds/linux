@@ -270,9 +270,9 @@ static void pblk_write_kick(struct pblk *pblk)
 	mod_timer(&pblk->wtimer, jiffies + msecs_to_jiffies(1000));
 }
 
-void pblk_write_timer_fn(unsigned long data)
+void pblk_write_timer_fn(struct timer_list *t)
 {
-	struct pblk *pblk = (struct pblk *)data;
+	struct pblk *pblk = from_timer(pblk, t, wtimer);
 
 	/* kick the write thread every tick to flush outstanding data */
 	pblk_write_kick(pblk);

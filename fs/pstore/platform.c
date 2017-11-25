@@ -61,7 +61,7 @@ MODULE_PARM_DESC(update_ms, "milliseconds before pstore updates its content "
 
 static int pstore_new_entry;
 
-static void pstore_timefunc(unsigned long);
+static void pstore_timefunc(struct timer_list *);
 static DEFINE_TIMER(pstore_timer, pstore_timefunc);
 
 static void pstore_dowork(struct work_struct *);
@@ -890,7 +890,7 @@ static void pstore_dowork(struct work_struct *work)
 	pstore_get_records(1);
 }
 
-static void pstore_timefunc(unsigned long dummy)
+static void pstore_timefunc(struct timer_list *unused)
 {
 	if (pstore_new_entry) {
 		pstore_new_entry = 0;

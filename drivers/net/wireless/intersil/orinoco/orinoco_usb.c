@@ -319,9 +319,9 @@ static inline void ezusb_mod_timer(struct ezusb_priv *upriv,
 	mod_timer(timer, expire);
 }
 
-static void ezusb_request_timerfn(u_long _ctx)
+static void ezusb_request_timerfn(struct timer_list *t)
 {
-	struct request_context *ctx = (void *) _ctx;
+	struct request_context *ctx = from_timer(ctx, t, timer);
 
 	ctx->outurb->transfer_flags |= URB_ASYNC_UNLINK;
 	if (usb_unlink_urb(ctx->outurb) == -EINPROGRESS) {
@@ -365,7 +365,7 @@ static struct request_context *ezusb_alloc_ctx(struct ezusb_priv *upriv,
 	refcount_set(&ctx->refcount, 1);
 	init_completion(&ctx->done);
 
-	setup_timer(&ctx->timer, ezusb_request_timerfn, (u_long)ctx);
+	timer_setup(&ctx->timer, ezusb_request_timerfn, 0);
 	return ctx;
 }
 

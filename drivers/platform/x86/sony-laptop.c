@@ -363,7 +363,7 @@ static int sony_laptop_input_keycode_map[] = {
 };
 
 /* release buttons after a short delay if pressed */
-static void do_sony_laptop_release_key(unsigned long unused)
+static void do_sony_laptop_release_key(struct timer_list *unused)
 {
 	struct sony_laptop_keypress kp;
 	unsigned long flags;
@@ -470,7 +470,7 @@ static int sony_laptop_setup_input(struct acpi_device *acpi_device)
 		goto err_dec_users;
 	}
 
-	setup_timer(&sony_laptop_input.release_key_timer,
+	timer_setup(&sony_laptop_input.release_key_timer,
 		    do_sony_laptop_release_key, 0);
 
 	/* input keys */

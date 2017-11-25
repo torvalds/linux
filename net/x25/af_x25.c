@@ -415,7 +415,7 @@ static void __x25_destroy_socket(struct sock *sk)
 	if (sk_has_allocations(sk)) {
 		/* Defer: outstanding buffers */
 		sk->sk_timer.expires  = jiffies + 10 * HZ;
-		sk->sk_timer.function = (TIMER_FUNC_TYPE)x25_destroy_timer;
+		sk->sk_timer.function = x25_destroy_timer;
 		add_timer(&sk->sk_timer);
 	} else {
 		/* drop last reference so sock_put will free */

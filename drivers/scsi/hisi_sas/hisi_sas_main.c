@@ -839,7 +839,7 @@ static int hisi_sas_exec_internal_tmf_task(struct domain_device *device,
 		}
 		task->task_done = hisi_sas_task_done;
 
-		task->slow_task->timer.function = (TIMER_FUNC_TYPE)hisi_sas_tmf_timedout;
+		task->slow_task->timer.function = hisi_sas_tmf_timedout;
 		task->slow_task->timer.expires = jiffies + TASK_TIMEOUT*HZ;
 		add_timer(&task->slow_task->timer);
 
@@ -1451,7 +1451,7 @@ hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 	task->dev = device;
 	task->task_proto = device->tproto;
 	task->task_done = hisi_sas_task_done;
-	task->slow_task->timer.function = (TIMER_FUNC_TYPE)hisi_sas_tmf_timedout;
+	task->slow_task->timer.function = hisi_sas_tmf_timedout;
 	task->slow_task->timer.expires = jiffies + msecs_to_jiffies(110);
 	add_timer(&task->slow_task->timer);
 

@@ -37,7 +37,7 @@ void rose_start_ftimer(struct rose_neigh *neigh)
 {
 	del_timer(&neigh->ftimer);
 
-	neigh->ftimer.function = (TIMER_FUNC_TYPE)rose_ftimer_expiry;
+	neigh->ftimer.function = rose_ftimer_expiry;
 	neigh->ftimer.expires  =
 		jiffies + msecs_to_jiffies(sysctl_rose_link_fail_timeout);
 
@@ -48,7 +48,7 @@ static void rose_start_t0timer(struct rose_neigh *neigh)
 {
 	del_timer(&neigh->t0timer);
 
-	neigh->t0timer.function = (TIMER_FUNC_TYPE)rose_t0timer_expiry;
+	neigh->t0timer.function = rose_t0timer_expiry;
 	neigh->t0timer.expires  =
 		jiffies + msecs_to_jiffies(sysctl_rose_restart_request_timeout);
 

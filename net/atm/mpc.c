@@ -121,7 +121,7 @@ static struct notifier_block mpoa_notifier = {
 
 struct mpoa_client *mpcs = NULL; /* FIXME */
 static struct atm_mpoa_qos *qos_head = NULL;
-static DEFINE_TIMER(mpc_timer, NULL);
+static DEFINE_TIMER(mpc_timer, mpc_cache_check);
 
 
 static struct mpoa_client *find_mpc_by_itfnum(int itf)
@@ -1413,7 +1413,6 @@ static void mpc_timer_refresh(void)
 {
 	mpc_timer.expires = jiffies + (MPC_P2 * HZ);
 	checking_time = mpc_timer.expires;
-	mpc_timer.function = (TIMER_FUNC_TYPE)mpc_cache_check;
 	add_timer(&mpc_timer);
 }
 

@@ -158,7 +158,7 @@ static inline void
 __sclp_set_request_timer(unsigned long time, void (*cb)(struct timer_list *))
 {
 	del_timer(&sclp_request_timer);
-	sclp_request_timer.function = (TIMER_FUNC_TYPE)cb;
+	sclp_request_timer.function = cb;
 	sclp_request_timer.expires = jiffies + time;
 	add_timer(&sclp_request_timer);
 }
@@ -566,7 +566,7 @@ sclp_sync_wait(void)
 		if (timer_pending(&sclp_request_timer) &&
 		    get_tod_clock_fast() > timeout &&
 		    del_timer(&sclp_request_timer))
-			sclp_request_timer.function((TIMER_DATA_TYPE)&sclp_request_timer);
+			sclp_request_timer.function(&sclp_request_timer);
 		cpu_relax();
 	}
 	local_irq_disable();

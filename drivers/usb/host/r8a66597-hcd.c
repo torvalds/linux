@@ -1798,9 +1798,9 @@ static void r8a66597_td_timer(struct timer_list *t)
 	spin_unlock_irqrestore(&r8a66597->lock, flags);
 }
 
-static void r8a66597_timer(unsigned long _r8a66597)
+static void r8a66597_timer(struct timer_list *t)
 {
-	struct r8a66597 *r8a66597 = (struct r8a66597 *)_r8a66597;
+	struct r8a66597 *r8a66597 = from_timer(r8a66597, t, rh_timer);
 	unsigned long flags;
 	int port;
 
@@ -2472,8 +2472,7 @@ static int r8a66597_probe(struct platform_device *pdev)
 		r8a66597->max_root_hub = 2;
 
 	spin_lock_init(&r8a66597->lock);
-	setup_timer(&r8a66597->rh_timer, r8a66597_timer,
-		    (unsigned long)r8a66597);
+	timer_setup(&r8a66597->rh_timer, r8a66597_timer, 0);
 	r8a66597->reg = reg;
 
 	/* make sure no interrupts are pending */

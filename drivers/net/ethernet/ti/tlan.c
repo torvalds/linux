@@ -254,7 +254,7 @@ tlan_set_timer(struct net_device *dev, u32 ticks, u32 type)
 			spin_unlock_irqrestore(&priv->lock, flags);
 		return;
 	}
-	priv->timer.function = (TIMER_FUNC_TYPE)tlan_timer;
+	priv->timer.function = tlan_timer;
 	if (!in_irq())
 		spin_unlock_irqrestore(&priv->lock, flags);
 
@@ -1425,7 +1425,7 @@ static u32 tlan_handle_tx_eof(struct net_device *dev, u16 host_int)
 		tlan_dio_write8(dev->base_addr,
 				TLAN_LED_REG, TLAN_LED_LINK | TLAN_LED_ACT);
 		if (priv->timer.function == NULL) {
-			priv->timer.function = (TIMER_FUNC_TYPE)tlan_timer;
+			priv->timer.function = tlan_timer;
 			priv->timer.expires = jiffies + TLAN_TIMER_ACT_DELAY;
 			priv->timer_set_at = jiffies;
 			priv->timer_type = TLAN_TIMER_ACTIVITY;
@@ -1576,7 +1576,7 @@ drop_and_reuse:
 		tlan_dio_write8(dev->base_addr,
 				TLAN_LED_REG, TLAN_LED_LINK | TLAN_LED_ACT);
 		if (priv->timer.function == NULL)  {
-			priv->timer.function = (TIMER_FUNC_TYPE)tlan_timer;
+			priv->timer.function = tlan_timer;
 			priv->timer.expires = jiffies + TLAN_TIMER_ACT_DELAY;
 			priv->timer_set_at = jiffies;
 			priv->timer_type = TLAN_TIMER_ACTIVITY;

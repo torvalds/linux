@@ -29,7 +29,7 @@ DECLARE_WORK(key_gc_work, key_garbage_collector);
 /*
  * Reaper for links from keyrings to dead keys.
  */
-static void key_gc_timer_func(unsigned long);
+static void key_gc_timer_func(struct timer_list *);
 static DEFINE_TIMER(key_gc_timer, key_gc_timer_func);
 
 static time64_t key_gc_next_run = TIME64_MAX;
@@ -84,7 +84,7 @@ void key_schedule_gc_links(void)
  * Some key's cleanup time was met after it expired, so we need to get the
  * reaper to go through a cycle finding expired keys.
  */
-static void key_gc_timer_func(unsigned long data)
+static void key_gc_timer_func(struct timer_list *unused)
 {
 	kenter("");
 	key_gc_next_run = TIME64_MAX;

@@ -555,9 +555,9 @@ static void mos7840_set_led_sync(struct usb_serial_port *port, __u16 reg,
 			val, reg, NULL, 0, MOS_WDR_TIMEOUT);
 }
 
-static void mos7840_led_off(unsigned long arg)
+static void mos7840_led_off(struct timer_list *t)
 {
-	struct moschip_port *mcs = (struct moschip_port *) arg;
+	struct moschip_port *mcs = from_timer(mcs, t, led_timer1);
 
 	/* Turn off LED */
 	mos7840_set_led_async(mcs, 0x0300, MODEM_CONTROL_REGISTER);
@@ -565,9 +565,9 @@ static void mos7840_led_off(unsigned long arg)
 				jiffies + msecs_to_jiffies(LED_OFF_MS));
 }
 
-static void mos7840_led_flag_off(unsigned long arg)
+static void mos7840_led_flag_off(struct timer_list *t)
 {
-	struct moschip_port *mcs = (struct moschip_port *) arg;
+	struct moschip_port *mcs = from_timer(mcs, t, led_timer2);
 
 	clear_bit_unlock(MOS7840_FLAG_LED_BUSY, &mcs->flags);
 }
@@ -2289,12 +2289,11 @@ static int mos7840_port_probe(struct usb_serial_port *port)
 			goto error;
 		}
 
-		setup_timer(&mos7840_port->led_timer1, mos7840_led_off,
-			    (unsigned long)mos7840_port);
+		timer_setup(&mos7840_port->led_timer1, mos7840_led_off, 0);
 		mos7840_port->led_timer1.expires =
 			jiffies + msecs_to_jiffies(LED_ON_MS);
-		setup_timer(&mos7840_port->led_timer2, mos7840_led_flag_off,
-			    (unsigned long)mos7840_port);
+		timer_setup(&mos7840_port->led_timer2, mos7840_led_flag_off,
+			    0);
 		mos7840_port->led_timer2.expires =
 			jiffies + msecs_to_jiffies(LED_OFF_MS);
 
