@@ -23,6 +23,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/blkdev.h>
+#include <linux/blk-mq.h>
 #include <linux/ata.h>
 #include <linux/hdreg.h>
 #include <linux/cdrom.h>
@@ -142,7 +143,6 @@ struct cow {
 #define MAX_SG 64
 
 struct ubd {
-	struct list_head restart;
 	/* name (and fd, below) of the file opened for writing, either the
 	 * backing or the cow file. */
 	char *file;
@@ -156,9 +156,12 @@ struct ubd {
 	struct cow cow;
 	struct platform_device pdev;
 	struct request_queue *queue;
+	struct blk_mq_tag_set tag_set;
 	spinlock_t lock;
+};
+
+struct ubd_pdu {
 	struct scatterlist sg[MAX_SG];
-	struct request *request;
 	int start_sg, end_sg;
 	sector_t rq_pos;
 };
@@ -182,10 +185,6 @@ struct ubd {
 	.shared =		0, \
 	.cow =			DEFAULT_COW, \
 	.lock =			__SPIN_LOCK_UNLOCKED(ubd_devs.lock), \
-	.request =		NULL, \
-	.start_sg =		0, \
-	.end_sg =		0, \
-	.rq_pos =		0, \
 }
 
 /* Protected by ubd_lock */
@@ -195,6 +194,12 @@ static struct ubd ubd_devs[MAX_DEV] = { [0 ... MAX_DEV - 1] = DEFAULT_UBD };
 static int fake_ide = 0;
 static struct proc_dir_entry *proc_ide_root = NULL;
 static struct proc_dir_entry *proc_ide = NULL;
+
+static blk_status_t ubd_queue_rq(struct blk_mq_hw_ctx *hctx,
+				 const struct blk_mq_queue_data *bd);
+static int ubd_init_request(struct blk_mq_tag_set *set,
+			    struct request *req, unsigned int hctx_idx,
+			    unsigned int numa_node);
 
 static void make_proc_ide(void)
 {
@@ -436,11 +441,8 @@ __uml_help(udb_setup,
 "    in the boot output.\n\n"
 );
 
-static void do_ubd_request(struct request_queue * q);
-
 /* Only changed by ubd_init, which is an initcall. */
 static int thread_fd = -1;
-static LIST_HEAD(restart);
 
 /* Function to read several request pointers at a time
 * handling fractional reads if (and as) needed
@@ -498,9 +500,6 @@ static int bulk_req_safe_read(
 /* Called without dev->lock held, and only in interrupt context. */
 static void ubd_handler(void)
 {
-	struct ubd *ubd;
-	struct list_head *list, *next_ele;
-	unsigned long flags;
 	int n;
 	int count;
 
@@ -520,23 +519,17 @@ static void ubd_handler(void)
 			return;
 		}
 		for (count = 0; count < n/sizeof(struct io_thread_req *); count++) {
-			blk_end_request(
-				(*irq_req_buffer)[count]->req,
-				BLK_STS_OK,
-				(*irq_req_buffer)[count]->length
-			);
-			kfree((*irq_req_buffer)[count]);
+			struct io_thread_req *io_req = (*irq_req_buffer)[count];
+			int err = io_req->error ? BLK_STS_IOERR : BLK_STS_OK;
+
+			if (!blk_update_request(io_req->req, err, io_req->length))
+				__blk_mq_end_request(io_req->req, err);
+
+			kfree(io_req);
 		}
 	}
-	reactivate_fd(thread_fd, UBD_IRQ);
 
-	list_for_each_safe(list, next_ele, &restart){
-		ubd = container_of(list, struct ubd, restart);
-		list_del_init(&ubd->restart);
-		spin_lock_irqsave(&ubd->lock, flags);
-		do_ubd_request(ubd->queue);
-		spin_unlock_irqrestore(&ubd->lock, flags);
-	}
+	reactivate_fd(thread_fd, UBD_IRQ);
 }
 
 static irqreturn_t ubd_intr(int irq, void *dev)
@@ -857,6 +850,7 @@ static void ubd_device_release(struct device *dev)
 	struct ubd *ubd_dev = dev_get_drvdata(dev);
 
 	blk_cleanup_queue(ubd_dev->queue);
+	blk_mq_free_tag_set(&ubd_dev->tag_set);
 	*ubd_dev = ((struct ubd) DEFAULT_UBD);
 }
 
@@ -899,6 +893,11 @@ static int ubd_disk_register(int major, u64 size, int unit,
 
 #define ROUND_BLOCK(n) ((n + ((1 << 9) - 1)) & (-1 << 9))
 
+static const struct blk_mq_ops ubd_mq_ops = {
+	.queue_rq = ubd_queue_rq,
+	.init_request = ubd_init_request,
+};
+
 static int ubd_add(int n, char **error_out)
 {
 	struct ubd *ubd_dev = &ubd_devs[n];
@@ -915,15 +914,24 @@ static int ubd_add(int n, char **error_out)
 
 	ubd_dev->size = ROUND_BLOCK(ubd_dev->size);
 
-	INIT_LIST_HEAD(&ubd_dev->restart);
-	sg_init_table(ubd_dev->sg, MAX_SG);
+	ubd_dev->tag_set.ops = &ubd_mq_ops;
+	ubd_dev->tag_set.queue_depth = 64;
+	ubd_dev->tag_set.numa_node = NUMA_NO_NODE;
+	ubd_dev->tag_set.flags = BLK_MQ_F_SHOULD_MERGE;
+	ubd_dev->tag_set.cmd_size = sizeof(struct ubd_pdu);
+	ubd_dev->tag_set.driver_data = ubd_dev;
+	ubd_dev->tag_set.nr_hw_queues = 1;
 
-	err = -ENOMEM;
-	ubd_dev->queue = blk_init_queue(do_ubd_request, &ubd_dev->lock);
-	if (ubd_dev->queue == NULL) {
-		*error_out = "Failed to initialize device queue";
+	err = blk_mq_alloc_tag_set(&ubd_dev->tag_set);
+	if (err)
 		goto out;
+
+	ubd_dev->queue = blk_mq_init_queue(&ubd_dev->tag_set);
+	if (IS_ERR(ubd_dev->queue)) {
+		err = PTR_ERR(ubd_dev->queue);
+		goto out_cleanup;
 	}
+
 	ubd_dev->queue->queuedata = ubd_dev;
 	blk_queue_write_cache(ubd_dev->queue, true, false);
 
@@ -931,7 +939,7 @@ static int ubd_add(int n, char **error_out)
 	err = ubd_disk_register(UBD_MAJOR, ubd_dev->size, n, &ubd_gendisk[n]);
 	if(err){
 		*error_out = "Failed to register device";
-		goto out_cleanup;
+		goto out_cleanup_tags;
 	}
 
 	if (fake_major != UBD_MAJOR)
@@ -949,6 +957,8 @@ static int ubd_add(int n, char **error_out)
 out:
 	return err;
 
+out_cleanup_tags:
+	blk_mq_free_tag_set(&ubd_dev->tag_set);
 out_cleanup:
 	blk_cleanup_queue(ubd_dev->queue);
 	goto out;
@@ -1333,80 +1343,78 @@ static void prepare_flush_request(struct request *req,
 	io_req->op = UBD_FLUSH;
 }
 
-static bool submit_request(struct io_thread_req *io_req, struct ubd *dev)
+static void submit_request(struct io_thread_req *io_req, struct ubd *dev)
 {
 	int n = os_write_file(thread_fd, &io_req,
 			     sizeof(io_req));
+
 	if (n != sizeof(io_req)) {
 		if (n != -EAGAIN)
-			printk("write to io thread failed, "
-			       "errno = %d\n", -n);
-		else if (list_empty(&dev->restart))
-			list_add(&dev->restart, &restart);
+			pr_err("write to io thread failed: %d\n", -n);
 
+		blk_mq_requeue_request(io_req->req, true);
 		kfree(io_req);
-		return false;
 	}
-	return true;
 }
 
-/* Called with dev->lock held */
-static void do_ubd_request(struct request_queue *q)
+static blk_status_t ubd_queue_rq(struct blk_mq_hw_ctx *hctx,
+				 const struct blk_mq_queue_data *bd)
 {
+	struct request *req = bd->rq;
+	struct ubd *dev = hctx->queue->queuedata;
+	struct ubd_pdu *pdu = blk_mq_rq_to_pdu(req);
 	struct io_thread_req *io_req;
-	struct request *req;
 
-	while(1){
-		struct ubd *dev = q->queuedata;
-		if(dev->request == NULL){
-			struct request *req = blk_fetch_request(q);
-			if(req == NULL)
-				return;
+	blk_mq_start_request(req);
 
-			dev->request = req;
-			dev->rq_pos = blk_rq_pos(req);
-			dev->start_sg = 0;
-			dev->end_sg = blk_rq_map_sg(q, req, dev->sg);
+	pdu->rq_pos = blk_rq_pos(req);
+	pdu->start_sg = 0;
+	pdu->end_sg = blk_rq_map_sg(req->q, req, pdu->sg);
+
+	if (req_op(req) == REQ_OP_FLUSH) {
+		io_req = kmalloc(sizeof(struct io_thread_req), GFP_ATOMIC);
+		if (io_req == NULL) {
+			blk_mq_requeue_request(req, true);
+			goto done;
 		}
+		prepare_flush_request(req, io_req);
+		submit_request(io_req, dev);
 
-		req = dev->request;
-
-		if (req_op(req) == REQ_OP_FLUSH) {
-			io_req = kmalloc(sizeof(struct io_thread_req),
-					 GFP_ATOMIC);
-			if (io_req == NULL) {
-				if (list_empty(&dev->restart))
-					list_add(&dev->restart, &restart);
-				return;
-			}
-			prepare_flush_request(req, io_req);
-			if (submit_request(io_req, dev) == false)
-				return;
-		}
-
-		while(dev->start_sg < dev->end_sg){
-			struct scatterlist *sg = &dev->sg[dev->start_sg];
-
-			io_req = kmalloc(sizeof(struct io_thread_req),
-					 GFP_ATOMIC);
-			if(io_req == NULL){
-				if(list_empty(&dev->restart))
-					list_add(&dev->restart, &restart);
-				return;
-			}
-			prepare_request(req, io_req,
-					(unsigned long long)dev->rq_pos << 9,
-					sg->offset, sg->length, sg_page(sg));
-
-			if (submit_request(io_req, dev) == false)
-				return;
-
-			dev->rq_pos += sg->length >> 9;
-			dev->start_sg++;
-		}
-		dev->end_sg = 0;
-		dev->request = NULL;
+		goto done;
 	}
+
+	while (pdu->start_sg < pdu->end_sg) {
+		struct scatterlist *sg = &pdu->sg[pdu->start_sg];
+
+		io_req = kmalloc(sizeof(struct io_thread_req),
+				 GFP_ATOMIC);
+		if (io_req == NULL) {
+			blk_mq_requeue_request(req, true);
+			goto done;
+		}
+		prepare_request(req, io_req,
+				(unsigned long long)pdu->rq_pos << 9,
+				sg->offset, sg->length, sg_page(sg));
+
+		submit_request(io_req, dev);
+
+		pdu->rq_pos += sg->length >> 9;
+		pdu->start_sg++;
+	}
+
+done:
+	return BLK_STS_OK;
+}
+
+static int ubd_init_request(struct blk_mq_tag_set *set,
+			    struct request *req, unsigned int hctx_idx,
+			    unsigned int numa_node)
+{
+	struct ubd_pdu *pdu = blk_mq_rq_to_pdu(req);
+
+	sg_init_table(pdu->sg, MAX_SG);
+
+	return 0;
 }
 
 static int ubd_getgeo(struct block_device *bdev, struct hd_geometry *geo)
