@@ -1241,7 +1241,8 @@ static int gate_ctrl(struct dvb_frontend *fe, int enable)
 	if (write_reg(state, state->nr ? RSTV0910_P2_I2CRPT :
 		      RSTV0910_P1_I2CRPT, i2crpt) < 0) {
 		/* don't hold the I2C bus lock on failure */
-		mutex_unlock(&state->base->i2c_lock);
+		if (!WARN_ON(!mutex_is_locked(&state->base->i2c_lock)))
+			mutex_unlock(&state->base->i2c_lock);
 		dev_err(&state->base->i2c->dev,
 			"%s() write_reg failure (enable=%d)\n",
 			__func__, enable);
@@ -1251,7 +1252,8 @@ static int gate_ctrl(struct dvb_frontend *fe, int enable)
 	state->i2crpt = i2crpt;
 
 	if (!enable)
-		mutex_unlock(&state->base->i2c_lock);
+		if (!WARN_ON(!mutex_is_locked(&state->base->i2c_lock)))
+			mutex_unlock(&state->base->i2c_lock);
 	return 0;
 }
 
