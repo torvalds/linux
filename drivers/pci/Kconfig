@@ -80,15 +80,6 @@ config XEN_PCIDEV_FRONTEND
           The PCI device frontend driver allows the kernel to import arbitrary
           PCI devices from a PCI backend to support PCI driver domains.
 
-config HT_IRQ
-	bool "Interrupts on hypertransport devices"
-	default y
-	depends on PCI && X86_LOCAL_APIC
-	help
-	   This allows native hypertransport devices to use interrupts.
-
-	   If unsure say Y.
-
 config PCI_ATS
 	bool
 
