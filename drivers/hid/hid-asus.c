@@ -26,6 +26,7 @@
  * any later version.
  */
 
+#include <linux/dmi.h>
 #include <linux/hid.h>
 #include <linux/module.h>
 #include <linux/input/mt.h>
@@ -115,6 +116,15 @@ static const struct asus_touchpad_info asus_t100ta_tp = {
 	.max_y = 1120,
 	.res_x = 30, /* units/mm */
 	.res_y = 27, /* units/mm */
+	.contact_size = 5,
+	.max_contacts = 5,
+};
+
+static const struct asus_touchpad_info asus_t100ha_tp = {
+	.max_x = 2640,
+	.max_y = 1320,
+	.res_x = 30, /* units/mm */
+	.res_y = 29, /* units/mm */
 	.contact_size = 5,
 	.max_contacts = 5,
 };
@@ -606,7 +616,14 @@ static int asus_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 		if (intf->altsetting->desc.bInterfaceNumber == T100_TPAD_INTF) {
 			drvdata->quirks = QUIRK_SKIP_INPUT_MAPPING;
-			drvdata->tp = &asus_t100ta_tp;
+			/*
+			 * The T100HA uses the same USB-ids as the T100TAF,
+			 * but has different max_x / max_y values.
+			 */
+			if (dmi_match(DMI_PRODUCT_NAME, "T100HAN"))
+				drvdata->tp = &asus_t100ha_tp;
+			else
+				drvdata->tp = &asus_t100ta_tp;
 		}
 	}
 
@@ -751,7 +768,10 @@ static const struct hid_device_id asus_devices[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_ASUSTEK,
 		USB_DEVICE_ID_ASUSTEK_ROG_KEYBOARD3), QUIRK_G752_KEYBOARD },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_ASUSTEK,
-		USB_DEVICE_ID_ASUSTEK_T100_KEYBOARD),
+		USB_DEVICE_ID_ASUSTEK_T100TA_KEYBOARD),
+	  QUIRK_T100_KEYBOARD | QUIRK_NO_CONSUMER_USAGES },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_ASUSTEK,
+		USB_DEVICE_ID_ASUSTEK_T100TAF_KEYBOARD),
 	  QUIRK_T100_KEYBOARD | QUIRK_NO_CONSUMER_USAGES },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_CHICONY, USB_DEVICE_ID_ASUS_AK1D) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_TURBOX, USB_DEVICE_ID_ASUS_MD_5110) },
