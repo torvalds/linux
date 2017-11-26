@@ -620,7 +620,14 @@ int i915_gem_switch_to_kernel_context(struct drm_i915_private *dev_priv)
 								 GFP_KERNEL);
 		}
 
-		i915_add_request(req);
+		/*
+		 * Force a flush after the switch to ensure that all rendering
+		 * and operations prior to switching to the kernel context hits
+		 * memory. This should be guaranteed by the previous request,
+		 * but an extra layer of paranoia before we declare the system
+		 * idle (on suspend etc) is advisable!
+		 */
+		__i915_add_request(req, true);
 	}
 
 	return 0;
