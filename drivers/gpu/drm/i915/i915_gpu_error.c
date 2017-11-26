@@ -791,6 +791,9 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 
 		print_error_obj(m, dev_priv->engine[i],
 				"WA batchbuffer", ee->wa_batchbuffer);
+
+		print_error_obj(m, dev_priv->engine[i],
+				"NULL context", ee->default_state);
 	}
 
 	if (error->overlay)
@@ -1414,6 +1417,23 @@ static void request_record_user_bo(struct drm_i915_gem_request *request,
 	ee->user_bo_count = count;
 }
 
+static struct drm_i915_error_object *
+capture_object(struct drm_i915_private *dev_priv,
+	       struct drm_i915_gem_object *obj)
+{
+	if (obj && i915_gem_object_has_pages(obj)) {
+		struct i915_vma fake = {
+			.node = { .start = U64_MAX, .size = obj->base.size },
+			.pages = obj->mm.pages,
+			.obj = obj,
+		};
+
+		return i915_error_object_create(dev_priv, &fake);
+	} else {
+		return NULL;
+	}
+}
+
 static void i915_gem_record_rings(struct drm_i915_private *dev_priv,
 				  struct i915_gpu_state *error)
 {
@@ -1485,6 +1505,9 @@ static void i915_gem_record_rings(struct drm_i915_private *dev_priv,
 
 		ee->wa_ctx =
 			i915_error_object_create(dev_priv, engine->wa_ctx.vma);
+
+		ee->default_state =
+			capture_object(dev_priv, engine->default_state);
 	}
 }
 

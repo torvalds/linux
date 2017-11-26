@@ -1009,6 +1009,7 @@ struct i915_gpu_state {
 		long user_bo_count;
 
 		struct drm_i915_error_object *wa_ctx;
+		struct drm_i915_error_object *default_state;
 
 		struct drm_i915_error_request {
 			long jiffies;
