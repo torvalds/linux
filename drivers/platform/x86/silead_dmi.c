@@ -67,6 +67,21 @@ static const struct silead_ts_dmi_data dexp_ursus_7w_data = {
 	.properties	= dexp_ursus_7w_props,
 };
 
+static const struct property_entry surftab_twin_10_1_st10432_8_props[] = {
+	PROPERTY_ENTRY_U32("touchscreen-size-x", 1900),
+	PROPERTY_ENTRY_U32("touchscreen-size-y", 1280),
+	PROPERTY_ENTRY_U32("touchscreen-inverted-y", 1),
+	PROPERTY_ENTRY_STRING("firmware-name",
+			      "gsl3670-surftab-twin-10-1-st10432-8.fw"),
+	PROPERTY_ENTRY_U32("silead,max-fingers", 10),
+	{ }
+};
+
+static const struct silead_ts_dmi_data surftab_twin_10_1_st10432_8_data = {
+	.acpi_name	= "MSSL1680:00",
+	.properties	= surftab_twin_10_1_st10432_8_props,
+};
+
 static const struct property_entry surftab_wintron70_st70416_6_props[] = {
 	PROPERTY_ENTRY_U32("touchscreen-size-x", 884),
 	PROPERTY_ENTRY_U32("touchscreen-size-y", 632),
@@ -196,6 +211,14 @@ static const struct dmi_system_id silead_ts_dmi_table[] = {
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Insyde"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "7W"),
+		},
+	},
+	{
+		/* TrekStor SurfTab twin 10.1 ST10432-8 */
+		.driver_data = (void *)&surftab_twin_10_1_st10432_8_data,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "TrekStor"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "SurfTab twin 10.1"),
 		},
 	},
 	{
