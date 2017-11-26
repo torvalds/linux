@@ -533,10 +533,8 @@ static int get_signal_parameters(struct stv *state)
 
 static int tracking_optimization(struct stv *state)
 {
-	u32 symbol_rate = 0;
 	u8 tmp;
 
-	get_cur_symbol_rate(state, &symbol_rate);
 	read_reg(state, RSTV0910_P2_DMDCFGMD + state->regoff, &tmp);
 	tmp &= ~0xC0;
 
