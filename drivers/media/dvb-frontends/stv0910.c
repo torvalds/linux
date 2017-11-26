@@ -1539,6 +1539,7 @@ static int get_frontend(struct dvb_frontend *fe,
 {
 	struct stv *state = fe->demodulator_priv;
 	u8 tmp;
+	u32 symbolrate;
 
 	if (state->receive_mode == RCVMODE_DVBS2) {
 		u32 mc;
@@ -1592,6 +1593,10 @@ static int get_frontend(struct dvb_frontend *fe,
 		p->rolloff = ROLLOFF_35;
 	}
 
+	if (state->receive_mode != RCVMODE_NONE) {
+		get_cur_symbol_rate(state, &symbolrate);
+		p->symbol_rate = symbolrate;
+	}
 	return 0;
 }
 
