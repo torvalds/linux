@@ -2219,7 +2219,7 @@ static int mlx5e_rx_hash_fn(int hfunc)
 	       MLX5_RX_HASH_FN_INVERTED_XOR8;
 }
 
-static int mlx5e_bits_invert(unsigned long a, int size)
+int mlx5e_bits_invert(unsigned long a, int size)
 {
 	int inv = 0;
 	int i;

@@ -697,6 +697,11 @@ enum {
 	MLX5E_ARFS_FT_LEVEL
 };
 
+enum {
+	MLX5E_TC_FT_LEVEL = 0,
+	MLX5E_TC_TTC_FT_LEVEL,
+};
+
 struct mlx5e_ethtool_table {
 	struct mlx5_flow_table *ft;
 	int                    num_rules;
@@ -1056,6 +1061,8 @@ int mlx5e_close(struct net_device *netdev);
 int mlx5e_open(struct net_device *netdev);
 void mlx5e_update_stats_work(struct work_struct *work);
 u32 mlx5e_choose_lro_timeout(struct mlx5_core_dev *mdev, u32 wanted_timeout);
+
+int mlx5e_bits_invert(unsigned long a, int size);
 
 /* ethtool helpers */
 void mlx5e_ethtool_get_drvinfo(struct mlx5e_priv *priv,
