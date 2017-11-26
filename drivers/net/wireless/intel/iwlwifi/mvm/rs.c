@@ -3579,7 +3579,7 @@ static void rs_free_sta(void *mvm_r, struct ieee80211_sta *sta, void *mvm_sta)
 }
 
 #ifdef CONFIG_MAC80211_DEBUGFS
-int rs_pretty_print_rate(char *buf, const u32 rate)
+int rs_pretty_print_rate(char *buf, int bufsz, const u32 rate)
 {
 
 	char *type, *bw;
@@ -3590,10 +3590,10 @@ int rs_pretty_print_rate(char *buf, const u32 rate)
 	    !(rate & RATE_MCS_VHT_MSK)) {
 		int index = iwl_hwrate_to_plcp_idx(rate);
 
-		return sprintf(buf, "Legacy | ANT: %s Rate: %s Mbps\n",
-			       rs_pretty_ant(ant),
-			       index == IWL_RATE_INVALID ? "BAD" :
-			       iwl_rate_mcs[index].mbps);
+		return scnprintf(buf, bufsz, "Legacy | ANT: %s Rate: %s Mbps\n",
+				 rs_pretty_ant(ant),
+				 index == IWL_RATE_INVALID ? "BAD" :
+				 iwl_rate_mcs[index].mbps);
 	}
 
 	if (rate & RATE_MCS_VHT_MSK) {
@@ -3627,12 +3627,13 @@ int rs_pretty_print_rate(char *buf, const u32 rate)
 		bw = "BAD BW";
 	}
 
-	return sprintf(buf, "%s | ANT: %s BW: %s MCS: %d NSS: %d %s%s%s%s\n",
-		       type, rs_pretty_ant(ant), bw, mcs, nss,
-		       (rate & RATE_MCS_SGI_MSK) ? "SGI " : "NGI ",
-		       (rate & RATE_MCS_STBC_MSK) ? "STBC " : "",
-		       (rate & RATE_MCS_LDPC_MSK) ? "LDPC " : "",
-		       (rate & RATE_MCS_BF_MSK) ? "BF " : "");
+	return scnprintf(buf, bufsz,
+			 "%s | ANT: %s BW: %s MCS: %d NSS: %d %s%s%s%s\n",
+			 type, rs_pretty_ant(ant), bw, mcs, nss,
+			 (rate & RATE_MCS_SGI_MSK) ? "SGI " : "NGI ",
+			 (rate & RATE_MCS_STBC_MSK) ? "STBC " : "",
+			 (rate & RATE_MCS_LDPC_MSK) ? "LDPC " : "",
+			 (rate & RATE_MCS_BF_MSK) ? "BF " : "");
 }
 
 /**
@@ -3689,6 +3690,7 @@ static ssize_t rs_sta_dbgfs_scale_table_read(struct file *file,
 	int desc = 0;
 	int i = 0;
 	ssize_t ret;
+	static const size_t bufsz = 2048;
 
 	struct iwl_lq_sta *lq_sta = file->private_data;
 	struct iwl_mvm_sta *mvmsta =
@@ -3699,55 +3701,59 @@ static ssize_t rs_sta_dbgfs_scale_table_read(struct file *file,
 	u32 ss_params;
 
 	mvm = lq_sta->pers.drv;
-	buff = kmalloc(2048, GFP_KERNEL);
+	buff = kmalloc(bufsz, GFP_KERNEL);
 	if (!buff)
 		return -ENOMEM;
 
-	desc += sprintf(buff+desc, "sta_id %d\n", lq_sta->lq.sta_id);
-	desc += sprintf(buff+desc, "failed=%d success=%d rate=0%lX\n",
-			lq_sta->total_failed, lq_sta->total_success,
-			lq_sta->active_legacy_rate);
-	desc += sprintf(buff+desc, "fixed rate 0x%X\n",
-			lq_sta->pers.dbg_fixed_rate);
-	desc += sprintf(buff+desc, "valid_tx_ant %s%s%s\n",
+	desc += scnprintf(buff + desc, bufsz - desc,
+			  "sta_id %d\n", lq_sta->lq.sta_id);
+	desc += scnprintf(buff + desc, bufsz - desc,
+			  "failed=%d success=%d rate=0%lX\n",
+			  lq_sta->total_failed, lq_sta->total_success,
+			  lq_sta->active_legacy_rate);
+	desc += scnprintf(buff + desc, bufsz - desc, "fixed rate 0x%X\n",
+			  lq_sta->pers.dbg_fixed_rate);
+	desc += scnprintf(buff + desc, bufsz - desc, "valid_tx_ant %s%s%s\n",
 	    (iwl_mvm_get_valid_tx_ant(mvm) & ANT_A) ? "ANT_A," : "",
 	    (iwl_mvm_get_valid_tx_ant(mvm) & ANT_B) ? "ANT_B," : "",
 	    (iwl_mvm_get_valid_tx_ant(mvm) & ANT_C) ? "ANT_C" : "");
-	desc += sprintf(buff+desc, "lq type %s\n",
-			(is_legacy(rate)) ? "legacy" :
-			is_vht(rate) ? "VHT" : "HT");
+	desc += scnprintf(buff + desc, bufsz - desc, "lq type %s\n",
+			  (is_legacy(rate)) ? "legacy" :
+			  is_vht(rate) ? "VHT" : "HT");
 	if (!is_legacy(rate)) {
-		desc += sprintf(buff + desc, " %s",
+		desc += scnprintf(buff + desc, bufsz - desc, " %s",
 		   (is_siso(rate)) ? "SISO" : "MIMO2");
-		desc += sprintf(buff + desc, " %s",
+		desc += scnprintf(buff + desc, bufsz - desc, " %s",
 				(is_ht20(rate)) ? "20MHz" :
 				(is_ht40(rate)) ? "40MHz" :
 				(is_ht80(rate)) ? "80MHz" :
 				(is_ht160(rate)) ? "160MHz" : "BAD BW");
-		desc += sprintf(buff + desc, " %s %s %s %s\n",
+		desc += scnprintf(buff + desc, bufsz - desc, " %s %s %s %s\n",
 				(rate->sgi) ? "SGI" : "NGI",
 				(rate->ldpc) ? "LDPC" : "BCC",
 				(lq_sta->is_agg) ? "AGG on" : "",
 				(mvmsta->tlc_amsdu) ? "AMSDU on" : "");
 	}
-	desc += sprintf(buff+desc, "last tx rate=0x%X\n",
+	desc += scnprintf(buff + desc, bufsz - desc, "last tx rate=0x%X\n",
 			lq_sta->last_rate_n_flags);
-	desc += sprintf(buff+desc,
+	desc += scnprintf(buff + desc, bufsz - desc,
 			"general: flags=0x%X mimo-d=%d s-ant=0x%x d-ant=0x%x\n",
 			lq_sta->lq.flags,
 			lq_sta->lq.mimo_delim,
 			lq_sta->lq.single_stream_ant_msk,
 			lq_sta->lq.dual_stream_ant_msk);
 
-	desc += sprintf(buff+desc,
+	desc += scnprintf(buff + desc, bufsz - desc,
 			"agg: time_limit=%d dist_start_th=%d frame_cnt_limit=%d\n",
 			le16_to_cpu(lq_sta->lq.agg_time_limit),
 			lq_sta->lq.agg_disable_start_th,
 			lq_sta->lq.agg_frame_cnt_limit);
 
-	desc += sprintf(buff+desc, "reduced tpc=%d\n", lq_sta->lq.reduced_tpc);
+	desc += scnprintf(buff + desc, bufsz - desc, "reduced tpc=%d\n",
+			  lq_sta->lq.reduced_tpc);
 	ss_params = le32_to_cpu(lq_sta->lq.ss_params);
-	desc += sprintf(buff+desc, "single stream params: %s%s%s%s\n",
+	desc += scnprintf(buff + desc, bufsz - desc,
+			"single stream params: %s%s%s%s\n",
 			(ss_params & LQ_SS_PARAMS_VALID) ?
 			"VALID" : "INVALID",
 			(ss_params & LQ_SS_BFER_ALLOWED) ?
@@ -3756,7 +3762,7 @@ static ssize_t rs_sta_dbgfs_scale_table_read(struct file *file,
 			", STBC" : "",
 			(ss_params & LQ_SS_FORCE) ?
 			", FORCE" : "");
-	desc += sprintf(buff+desc,
+	desc += scnprintf(buff + desc, bufsz - desc,
 			"Start idx [0]=0x%x [1]=0x%x [2]=0x%x [3]=0x%x\n",
 			lq_sta->lq.initial_rate_index[0],
 			lq_sta->lq.initial_rate_index[1],
@@ -3766,8 +3772,9 @@ static ssize_t rs_sta_dbgfs_scale_table_read(struct file *file,
 	for (i = 0; i < LINK_QUAL_MAX_RETRY_NUM; i++) {
 		u32 r = le32_to_cpu(lq_sta->lq.rs_table[i]);
 
-		desc += sprintf(buff+desc, " rate[%d] 0x%X ", i, r);
-		desc += rs_pretty_print_rate(buff+desc, r);
+		desc += scnprintf(buff + desc, bufsz - desc,
+				  " rate[%d] 0x%X ", i, r);
+		desc += rs_pretty_print_rate(buff + desc, bufsz - desc, r);
 	}
 
 	ret = simple_read_from_buffer(user_buf, count, ppos, buff, desc);
