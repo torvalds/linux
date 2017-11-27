@@ -1818,7 +1818,7 @@ The Linux kernel has eight basic CPU memory barriers:
 	GENERAL		mb()			smp_mb()
 	WRITE		wmb()			smp_wmb()
 	READ		rmb()			smp_rmb()
-	DATA DEPENDENCY	read_barrier_depends()	smp_read_barrier_depends()
+	DATA DEPENDENCY				READ_ONCE()
 
 
 All memory barriers except the data dependency barriers imply a compiler
@@ -2867,7 +2867,10 @@ access depends on a read, not all do, so it may not be relied on.
 
 Other CPUs may also have split caches, but must coordinate between the various
 cachelets for normal memory accesses.  The semantics of the Alpha removes the
-need for coordination in the absence of memory barriers.
+need for hardware coordination in the absence of memory barriers, which
+permitted Alpha to sport higher CPU clock rates back in the day.  However,
+please note that smp_read_barrier_depends() should not be used except in
+Alpha arch-specific code and within the READ_ONCE() macro.
 
 
 CACHE COHERENCY VS DMA

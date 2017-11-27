@@ -581,7 +581,8 @@ This guarantee was only partially premeditated.
 DYNIX/ptx used an explicit memory barrier for publication, but had nothing
 resembling <tt>rcu_dereference()</tt> for subscription, nor did it
 have anything resembling the <tt>smp_read_barrier_depends()</tt>
-that was later subsumed into <tt>rcu_dereference()</tt>.
+that was later subsumed into <tt>rcu_dereference()</tt> and later
+still into <tt>READ_ONCE()</tt>.
 The need for these operations made itself known quite suddenly at a
 late-1990s meeting with the DEC Alpha architects, back in the days when
 DEC was still a free-standing company.
