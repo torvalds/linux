@@ -25,9 +25,9 @@
 #define RAVEN_INC_H
 
 
-#include "asic_reg/raven1/MP/mp_10_0_default.h"
-#include "asic_reg/raven1/MP/mp_10_0_offset.h"
-#include "asic_reg/raven1/MP/mp_10_0_sh_mask.h"
+#include "asic_reg/mp/mp_10_0_default.h"
+#include "asic_reg/mp/mp_10_0_offset.h"
+#include "asic_reg/mp/mp_10_0_sh_mask.h"
 
 #include "asic_reg/raven1/NBIO/nbio_7_0_default.h"
 #include "asic_reg/raven1/NBIO/nbio_7_0_offset.h"
