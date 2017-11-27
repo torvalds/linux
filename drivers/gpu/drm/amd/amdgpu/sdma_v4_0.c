@@ -35,7 +35,7 @@
 #include "mmhub/mmhub_1_0_offset.h"
 #include "mmhub/mmhub_1_0_sh_mask.h"
 #include "hdp/hdp_4_0_offset.h"
-#include "raven1/SDMA0/sdma0_4_1_default.h"
+#include "sdma0/sdma0_4_1_default.h"
 
 #include "soc15_common.h"
 #include "soc15.h"
