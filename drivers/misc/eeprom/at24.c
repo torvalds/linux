@@ -730,6 +730,16 @@ static int at24_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		dev_warn(&client->dev,
 			"page_size looks suspicious (no power of 2)!\n");
 
+	/*
+	 * REVISIT: the size of the EUI-48 byte array is 6 in at24mac402, while
+	 * the call to ilog2() in AT24_DEVICE_MAGIC() rounds it down to 4.
+	 *
+	 * Eventually we'll get rid of the magic values altoghether in favor of
+	 * real structs, but for now just manually set the right size.
+	 */
+	if (chip.flags & AT24_FLAG_MAC && chip.byte_len == 4)
+		chip.byte_len = 6;
+
 	/* Use I2C operations unless we're stuck with SMBus extensions. */
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
 		if (chip.flags & AT24_FLAG_ADDR16)
