@@ -88,6 +88,12 @@ extern int max_num_of_queues_per_device;
 /* Kernel module parameter to specify the scheduling policy */
 extern int sched_policy;
 
+/*
+ * Kernel module parameter to specify the maximum process
+ * number per HW scheduler
+ */
+extern int hws_max_conc_proc;
+
 extern int cwsr_enable;
 
 /*
@@ -213,6 +219,9 @@ struct kfd_dev {
 
 	/* Debug manager */
 	struct kfd_dbgmgr           *dbgmgr;
+
+	/* Maximum process number mapped to HW scheduler */
+	unsigned int max_proc_per_quantum;
 
 	/* CWSR */
 	bool cwsr_enabled;
