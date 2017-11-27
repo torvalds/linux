@@ -8,7 +8,7 @@
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/proc_fs.h>
-#include <linux/time.h>
+#include <linux/ktime.h>
 #include <linux/seq_file.h>
 #include <linux/uaccess.h>
 #include <linux/atmmpc.h>
@@ -138,7 +138,7 @@ static int mpc_show(struct seq_file *m, void *v)
 	int i;
 	in_cache_entry *in_entry;
 	eg_cache_entry *eg_entry;
-	struct timeval now;
+	time64_t now;
 	unsigned char ip_string[16];
 
 	if (v == SEQ_START_TOKEN) {
@@ -148,15 +148,17 @@ static int mpc_show(struct seq_file *m, void *v)
 
 	seq_printf(m, "\nInterface %d:\n\n", mpc->dev_num);
 	seq_printf(m, "Ingress Entries:\nIP address      State      Holding time  Packets fwded  VPI  VCI\n");
-	do_gettimeofday(&now);
+	now = ktime_get_seconds();
 
 	for (in_entry = mpc->in_cache; in_entry; in_entry = in_entry->next) {
+		unsigned long seconds_delta = now - in_entry->time;
+
 		sprintf(ip_string, "%pI4", &in_entry->ctrl_info.in_dst_ip);
 		seq_printf(m, "%-16s%s%-14lu%-12u",
 			   ip_string,
 			   ingress_state_string(in_entry->entry_state),
 			   in_entry->ctrl_info.holding_time -
-			   (now.tv_sec-in_entry->tv.tv_sec),
+			   seconds_delta,
 			   in_entry->packets_fwded);
 		if (in_entry->shortcut)
 			seq_printf(m, "   %-3d  %-3d",
@@ -169,13 +171,14 @@ static int mpc_show(struct seq_file *m, void *v)
 	seq_printf(m, "Egress Entries:\nIngress MPC ATM addr\nCache-id        State      Holding time  Packets recvd  Latest IP addr   VPI VCI\n");
 	for (eg_entry = mpc->eg_cache; eg_entry; eg_entry = eg_entry->next) {
 		unsigned char *p = eg_entry->ctrl_info.in_MPC_data_ATM_addr;
+		unsigned long seconds_delta = now - eg_entry->time;
+
 		for (i = 0; i < ATM_ESA_LEN; i++)
 			seq_printf(m, "%02x", p[i]);
 		seq_printf(m, "\n%-16lu%s%-14lu%-15u",
 			   (unsigned long)ntohl(eg_entry->ctrl_info.cache_id),
 			   egress_state_string(eg_entry->entry_state),
-			   (eg_entry->ctrl_info.holding_time -
-			    (now.tv_sec-eg_entry->tv.tv_sec)),
+			   (eg_entry->ctrl_info.holding_time - seconds_delta),
 			   eg_entry->packets_rcvd);
 
 		/* latest IP address */
