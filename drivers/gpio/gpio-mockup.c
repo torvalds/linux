@@ -68,6 +68,7 @@ struct gpio_mockup_platform_data {
 	int base;
 	int ngpio;
 	int index;
+	bool named_lines;
 };
 
 static int gpio_mockup_ranges[GPIO_MOCKUP_MAX_RANGES];
@@ -272,7 +273,7 @@ static int gpio_mockup_probe(struct platform_device *pdev)
 	if (!chip->lines)
 		return -ENOMEM;
 
-	if (gpio_mockup_named_lines) {
+	if (pdata->named_lines) {
 		rv = gpio_mockup_name_lines(dev, chip);
 		if (rv)
 			return rv;
@@ -344,6 +345,7 @@ static int __init gpio_mockup_init(void)
 		pdata.ngpio = pdata.base < 0
 				? gpio_mockup_ranges[i * 2 + 1]
 				: gpio_mockup_ranges[i * 2 + 1] - pdata.base;
+		pdata.named_lines = gpio_mockup_named_lines;
 
 		pdev = platform_device_register_resndata(NULL,
 							 GPIO_MOCKUP_NAME,
