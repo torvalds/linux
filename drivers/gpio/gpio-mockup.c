@@ -231,54 +231,11 @@ err:
 	dev_err(dev, "error creating debugfs directory\n");
 }
 
-static int gpio_mockup_add(struct device *dev,
-			   struct gpio_mockup_chip *chip,
-			   const char *name, int base, int ngpio)
-{
-	struct gpio_chip *gc = &chip->gc;
-	int ret;
-
-	gc->base = base;
-	gc->ngpio = ngpio;
-	gc->label = name;
-	gc->owner = THIS_MODULE;
-	gc->parent = dev;
-	gc->get = gpio_mockup_get;
-	gc->set = gpio_mockup_set;
-	gc->direction_output = gpio_mockup_dirout;
-	gc->direction_input = gpio_mockup_dirin;
-	gc->get_direction = gpio_mockup_get_direction;
-	gc->to_irq = gpio_mockup_to_irq;
-
-	chip->lines = devm_kcalloc(dev, gc->ngpio,
-				   sizeof(*chip->lines), GFP_KERNEL);
-	if (!chip->lines)
-		return -ENOMEM;
-
-	if (gpio_mockup_named_lines) {
-		ret = gpio_mockup_name_lines(dev, chip);
-		if (ret)
-			return ret;
-	}
-
-	ret = devm_irq_sim_init(dev, &chip->irqsim, gc->ngpio);
-	if (ret)
-		return ret;
-
-	ret = devm_gpiochip_add_data(dev, &chip->gc, chip);
-	if (ret)
-		return ret;
-
-	if (gpio_mockup_dbg_dir)
-		gpio_mockup_debugfs_setup(dev, chip);
-
-	return 0;
-}
-
 static int gpio_mockup_probe(struct platform_device *pdev)
 {
 	struct gpio_mockup_platform_data *pdata;
 	struct gpio_mockup_chip *chip;
+	struct gpio_chip *gc;
 	int rv, base, ngpio;
 	struct device *dev;
 	char *name;
@@ -297,13 +254,40 @@ static int gpio_mockup_probe(struct platform_device *pdev)
 	if (!name)
 		return -ENOMEM;
 
-	rv = gpio_mockup_add(dev, chip, name, base, ngpio);
-	if (rv) {
-		dev_err(dev,
-			"adding gpiochip failed (base: %d, ngpio: %d)\n",
-			base, base < 0 ? ngpio : base + ngpio);
-		return rv;
+	gc = &chip->gc;
+	gc->base = base;
+	gc->ngpio = ngpio;
+	gc->label = name;
+	gc->owner = THIS_MODULE;
+	gc->parent = dev;
+	gc->get = gpio_mockup_get;
+	gc->set = gpio_mockup_set;
+	gc->direction_output = gpio_mockup_dirout;
+	gc->direction_input = gpio_mockup_dirin;
+	gc->get_direction = gpio_mockup_get_direction;
+	gc->to_irq = gpio_mockup_to_irq;
+
+	chip->lines = devm_kcalloc(dev, gc->ngpio,
+				   sizeof(*chip->lines), GFP_KERNEL);
+	if (!chip->lines)
+		return -ENOMEM;
+
+	if (gpio_mockup_named_lines) {
+		rv = gpio_mockup_name_lines(dev, chip);
+		if (rv)
+			return rv;
 	}
+
+	rv = devm_irq_sim_init(dev, &chip->irqsim, gc->ngpio);
+	if (rv)
+		return rv;
+
+	rv = devm_gpiochip_add_data(dev, &chip->gc, chip);
+	if (rv)
+		return rv;
+
+	if (gpio_mockup_dbg_dir)
+		gpio_mockup_debugfs_setup(dev, chip);
 
 	return 0;
 }
