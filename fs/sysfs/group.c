@@ -406,6 +406,6 @@ int __compat_only_sysfs_link_entry_to_kobj(struct kobject *kobj,
 
 	kernfs_put(entry);
 	kernfs_put(target);
-	return IS_ERR(link) ? PTR_ERR(link) : 0;
+	return PTR_ERR_OR_ZERO(link);
 }
 EXPORT_SYMBOL_GPL(__compat_only_sysfs_link_entry_to_kobj);
