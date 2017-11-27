@@ -510,7 +510,7 @@ struct vivid_dev {
 
 	/* Shared between radio receiver and transmitter */
 	bool				radio_rds_loop;
-	struct timespec			radio_rds_init_ts;
+	ktime_t				radio_rds_init_time;
 
 	/* CEC */
 	struct cec_adapter		*cec_rx_adap;

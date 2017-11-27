@@ -995,7 +995,7 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 
 	dev->edid_max_blocks = dev->edid_blocks = 2;
 	memcpy(dev->edid, vivid_hdmi_edid, sizeof(vivid_hdmi_edid));
-	ktime_get_ts(&dev->radio_rds_init_ts);
+	dev->radio_rds_init_time = ktime_get();
 
 	/* create all controls */
 	ret = vivid_create_controls(dev, ccs_cap == -1, ccs_out == -1, no_error_inj,
