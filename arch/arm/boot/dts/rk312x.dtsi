@@ -286,6 +286,10 @@
 			opp-hz = /bits/ 64 <400000000>;
 			opp-microvolt = <1150000>;
 		};
+		opp-480000000 {
+			opp-hz = /bits/ 64 <480000000>;
+			opp-microvolt = <1250000>;
+		};
 	};
 
 	pmu: syscon@100a0000 {
