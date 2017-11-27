@@ -121,7 +121,7 @@ void reiserfs_schedule_old_flush(struct super_block *s)
 	 * Avoid scheduling flush when sb is being shut down. It can race
 	 * with journal shutdown and free still queued delayed work.
 	 */
-	if (sb_rdonly(s) || !(s->s_flags & MS_ACTIVE))
+	if (sb_rdonly(s) || !(s->s_flags & SB_ACTIVE))
 		return;
 
 	spin_lock(&sbi->old_work_lock);
@@ -252,11 +252,11 @@ static int finish_unfinished(struct super_block *s)
 
 #ifdef CONFIG_QUOTA
 	/* Needed for iput() to work correctly and not trash data */
-	if (s->s_flags & MS_ACTIVE) {
+	if (s->s_flags & SB_ACTIVE) {
 		ms_active_set = 0;
 	} else {
 		ms_active_set = 1;
-		s->s_flags |= MS_ACTIVE;
+		s->s_flags |= SB_ACTIVE;
 	}
 	/* Turn on quotas so that they are updated correctly */
 	for (i = 0; i < REISERFS_MAXQUOTAS; i++) {
@@ -411,7 +411,7 @@ static int finish_unfinished(struct super_block *s)
 	reiserfs_write_lock(s);
 	if (ms_active_set)
 		/* Restore the flag back */
-		s->s_flags &= ~MS_ACTIVE;
+		s->s_flags &= ~SB_ACTIVE;
 #endif
 	pathrelse(&path);
 	if (done)
@@ -1521,7 +1521,7 @@ static int reiserfs_remount(struct super_block *s, int *mount_flags, char *arg)
 			goto out_err_unlock;
 	}
 
-	if (*mount_flags & MS_RDONLY) {
+	if (*mount_flags & SB_RDONLY) {
 		reiserfs_write_unlock(s);
 		reiserfs_xattr_init(s, *mount_flags);
 		/* remount read-only */
@@ -1567,7 +1567,7 @@ static int reiserfs_remount(struct super_block *s, int *mount_flags, char *arg)
 		REISERFS_SB(s)->s_mount_state = sb_umount_state(rs);
 
 		/* now it is safe to call journal_begin */
-		s->s_flags &= ~MS_RDONLY;
+		s->s_flags &= ~SB_RDONLY;
 		err = journal_begin(&th, s, 10);
 		if (err)
 			goto out_err_unlock;
@@ -1575,7 +1575,7 @@ static int reiserfs_remount(struct super_block *s, int *mount_flags, char *arg)
 		/* Mount a partition which is read-only, read-write */
 		reiserfs_prepare_for_journal(s, SB_BUFFER_WITH_SB(s), 1);
 		REISERFS_SB(s)->s_mount_state = sb_umount_state(rs);
-		s->s_flags &= ~MS_RDONLY;
+		s->s_flags &= ~SB_RDONLY;
 		set_sb_umount_state(rs, REISERFS_ERROR_FS);
 		if (!old_format_only(s))
 			set_sb_mnt_count(rs, sb_mnt_count(rs) + 1);
@@ -1590,7 +1590,7 @@ static int reiserfs_remount(struct super_block *s, int *mount_flags, char *arg)
 		goto out_err_unlock;
 
 	reiserfs_write_unlock(s);
-	if (!(*mount_flags & MS_RDONLY)) {
+	if (!(*mount_flags & SB_RDONLY)) {
 		dquot_resume(s, -1);
 		reiserfs_write_lock(s);
 		finish_unfinished(s);
@@ -2055,7 +2055,7 @@ static int reiserfs_fill_super(struct super_block *s, void *data, int silent)
 	if (bdev_read_only(s->s_bdev) && !sb_rdonly(s)) {
 		SWARN(silent, s, "clm-7000",
 		      "Detected readonly device, marking FS readonly");
-		s->s_flags |= MS_RDONLY;
+		s->s_flags |= SB_RDONLY;
 	}
 	args.objectid = REISERFS_ROOT_OBJECTID;
 	args.dirid = REISERFS_ROOT_PARENT_OBJECTID;
