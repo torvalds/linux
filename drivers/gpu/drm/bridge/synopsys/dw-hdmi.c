@@ -3684,6 +3684,139 @@ static void dw_hdmi_init_hw(struct dw_hdmi *hdmi)
 		hdmi->phy.ops->setup_hpd(hdmi, hdmi->phy.data);
 }
 
+static int dw_hdmi_status_show(struct seq_file *s, void *v)
+{
+	struct dw_hdmi *hdmi = s->private;
+	u32 val;
+
+	seq_puts(s, "PHY: ");
+	if (!hdmi->phy.enabled) {
+		seq_puts(s, "disabled\n");
+		return 0;
+	}
+	seq_puts(s, "enabled\t\t\tMode: ");
+	if (hdmi->sink_is_hdmi)
+		seq_puts(s, "HDMI\n");
+	else
+		seq_puts(s, "DVI\n");
+	if (hdmi->hdmi_data.video_mode.mtmdsclock > 340000000)
+		val = hdmi->hdmi_data.video_mode.mtmdsclock / 4;
+	else
+		val = hdmi->hdmi_data.video_mode.mtmdsclock;
+	seq_printf(s, "Pixel Clk: %uHz\t\tTMDS Clk: %uHz\n",
+		   hdmi->hdmi_data.video_mode.mpixelclock, val);
+	seq_puts(s, "Color Format: ");
+	if (hdmi_bus_fmt_is_rgb(hdmi->hdmi_data.enc_out_bus_format))
+		seq_puts(s, "RGB");
+	else if (hdmi_bus_fmt_is_yuv444(hdmi->hdmi_data.enc_out_bus_format))
+		seq_puts(s, "YUV444");
+	else if (hdmi_bus_fmt_is_yuv422(hdmi->hdmi_data.enc_out_bus_format))
+		seq_puts(s, "YUV422");
+	else if (hdmi_bus_fmt_is_yuv420(hdmi->hdmi_data.enc_out_bus_format))
+		seq_puts(s, "YUV420");
+	else
+		seq_puts(s, "UNKNOWN");
+	val =  hdmi_bus_fmt_color_depth(hdmi->hdmi_data.enc_out_bus_format);
+	seq_printf(s, "\t\tColor Depth: %d bit\n", val);
+	seq_puts(s, "Colorimetry: ");
+	switch (hdmi->hdmi_data.enc_out_encoding) {
+	case V4L2_YCBCR_ENC_601:
+		seq_puts(s, "ITU.BT601");
+		break;
+	case V4L2_YCBCR_ENC_709:
+		seq_puts(s, "ITU.BT709");
+		break;
+	case V4L2_YCBCR_ENC_BT2020:
+		seq_puts(s, "ITU.BT2020");
+		break;
+	default: /* Carries no data */
+		seq_puts(s, "ITU.BT601");
+		break;
+	}
+
+	seq_puts(s, "\t\tEOTF: ");
+
+	if (hdmi->version < 0x211a) {
+		seq_puts(s, "Unsupported\n");
+		return 0;
+	}
+
+	val = hdmi_readb(hdmi, HDMI_FC_PACKET_TX_EN);
+	if (!(val & HDMI_FC_PACKET_TX_EN_DRM_MASK)) {
+		seq_puts(s, "Off\n");
+		return 0;
+	}
+
+	switch (hdmi_readb(hdmi, HDMI_FC_DRM_PB0)) {
+	case HDMI_EOTF_TRADITIONAL_GAMMA_SDR:
+		seq_puts(s, "SDR");
+		break;
+	case HDMI_EOTF_TRADITIONAL_GAMMA_HDR:
+		seq_puts(s, "HDR");
+		break;
+	case HDMI_EOTF_SMPTE_ST2084:
+		seq_puts(s, "ST2084");
+		break;
+	case HDMI_EOTF_BT_2100_HLG:
+		seq_puts(s, "HLG");
+		break;
+	default:
+		seq_puts(s, "Not Defined\n");
+		return 0;
+	}
+
+	val = hdmi_readb(hdmi, HDMI_FC_DRM_PB3) << 8;
+	val |= hdmi_readb(hdmi, HDMI_FC_DRM_PB2);
+	seq_printf(s, "\nx0: %d", val);
+	val = hdmi_readb(hdmi, HDMI_FC_DRM_PB5) << 8;
+	val |= hdmi_readb(hdmi, HDMI_FC_DRM_PB4);
+	seq_printf(s, "\t\t\t\ty0: %d\n", val);
+	val = hdmi_readb(hdmi, HDMI_FC_DRM_PB7) << 8;
+	val |= hdmi_readb(hdmi, HDMI_FC_DRM_PB6);
+	seq_printf(s, "x1: %d", val);
+	val = hdmi_readb(hdmi, HDMI_FC_DRM_PB9) << 8;
+	val |= hdmi_readb(hdmi, HDMI_FC_DRM_PB8);
+	seq_printf(s, "\t\t\t\ty1: %d\n", val);
+	val = hdmi_readb(hdmi, HDMI_FC_DRM_PB11) << 8;
+	val |= hdmi_readb(hdmi, HDMI_FC_DRM_PB10);
+	seq_printf(s, "x2: %d", val);
+	val = hdmi_readb(hdmi, HDMI_FC_DRM_PB13) << 8;
+	val |= hdmi_readb(hdmi, HDMI_FC_DRM_PB12);
+	seq_printf(s, "\t\t\t\ty2: %d\n", val);
+	val = hdmi_readb(hdmi, HDMI_FC_DRM_PB15) << 8;
+	val |= hdmi_readb(hdmi, HDMI_FC_DRM_PB14);
+	seq_printf(s, "white x: %d", val);
+	val = hdmi_readb(hdmi, HDMI_FC_DRM_PB17) << 8;
+	val |= hdmi_readb(hdmi, HDMI_FC_DRM_PB16);
+	seq_printf(s, "\t\t\twhite y: %d\n", val);
+	val = hdmi_readb(hdmi, HDMI_FC_DRM_PB19) << 8;
+	val |= hdmi_readb(hdmi, HDMI_FC_DRM_PB18);
+	seq_printf(s, "max lum: %d", val);
+	val = hdmi_readb(hdmi, HDMI_FC_DRM_PB21) << 8;
+	val |= hdmi_readb(hdmi, HDMI_FC_DRM_PB20);
+	seq_printf(s, "\t\t\tmin lum: %d\n", val);
+	val = hdmi_readb(hdmi, HDMI_FC_DRM_PB23) << 8;
+	val |= hdmi_readb(hdmi, HDMI_FC_DRM_PB22);
+	seq_printf(s, "max cll: %d", val);
+	val = hdmi_readb(hdmi, HDMI_FC_DRM_PB25) << 8;
+	val |= hdmi_readb(hdmi, HDMI_FC_DRM_PB24);
+	seq_printf(s, "\t\t\tmax fall: %d\n", val);
+	return 0;
+}
+
+static int dw_hdmi_status_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, dw_hdmi_status_show, inode->i_private);
+}
+
+static const struct file_operations dw_hdmi_status_fops = {
+	.owner = THIS_MODULE,
+	.open = dw_hdmi_status_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
 #include <linux/fs.h>
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
@@ -3830,6 +3963,8 @@ static void dw_hdmi_register_debugfs(struct device *dev, struct dw_hdmi *hdmi)
 		dev_err(dev, "failed to create debugfs dir!\n");
 		return;
 	}
+	debugfs_create_file("status", 0400, debugfs_dir,
+			    hdmi, &dw_hdmi_status_fops);
 	debugfs_create_file("ctrl", 0400, debugfs_dir,
 			    hdmi, &dw_hdmi_ctrl_fops);
 	debugfs_create_file("phy", 0400, debugfs_dir,
