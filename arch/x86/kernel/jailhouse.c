@@ -10,10 +10,12 @@
 
 #include <linux/acpi_pmtmr.h>
 #include <linux/kernel.h>
+#include <linux/reboot.h>
 #include <asm/apic.h>
 #include <asm/cpu.h>
 #include <asm/hypervisor.h>
 #include <asm/i8259.h>
+#include <asm/reboot.h>
 #include <asm/setup.h>
 
 static __initdata struct jailhouse_setup_data setup_data;
@@ -77,6 +79,12 @@ static void __init jailhouse_get_smp_config(unsigned int early)
 	smp_found_config = 1;
 }
 
+static void jailhouse_no_restart(void)
+{
+	pr_notice("Jailhouse: Restart not supported, halting\n");
+	machine_halt();
+}
+
 static void __init jailhouse_init_platform(void)
 {
 	u64 pa_data = boot_params.hdr.setup_data;
@@ -95,6 +103,8 @@ static void __init jailhouse_init_platform(void)
 	x86_platform.legacy.i8042	= X86_LEGACY_I8042_PLATFORM_ABSENT;
 
 	legacy_pic			= &null_legacy_pic;
+
+	machine_ops.emergency_restart	= jailhouse_no_restart;
 
 	while (pa_data) {
 		mapping = early_memremap(pa_data, sizeof(header));
