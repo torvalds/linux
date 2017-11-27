@@ -396,3 +396,6 @@ ii) Status
 	If the pool has encountered device errors and failed, the status
 	will just contain the string 'Fail'.  The userspace recovery
 	tools should then be used.
+
+    In the case where <nr mapped sectors> is 0, there is no highest
+    mapped sector and the value of <highest mapped sector> is unspecified.
