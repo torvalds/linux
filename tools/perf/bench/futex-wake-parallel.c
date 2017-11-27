@@ -7,7 +7,17 @@
  * for each individual thread to service its share of work. Ultimately
  * it can be used to measure futex_wake() changes.
  */
+#include "bench.h"
+#include <linux/compiler.h>
+#include "../util/debug.h"
 
+#ifndef HAVE_PTHREAD_BARRIER
+int bench_futex_wake_parallel(int argc __maybe_unused, const char **argv __maybe_unused)
+{
+	pr_err("%s: pthread_barrier_t unavailable, disabling this test...\n", __func__);
+	return 0;
+}
+#else /* HAVE_PTHREAD_BARRIER */
 /* For the CLR_() macros */
 #include <string.h>
 #include <pthread.h>
@@ -15,11 +25,9 @@
 #include <signal.h>
 #include "../util/stat.h"
 #include <subcmd/parse-options.h>
-#include <linux/compiler.h>
 #include <linux/kernel.h>
 #include <linux/time64.h>
 #include <errno.h>
-#include "bench.h"
 #include "futex.h"
 #include "cpumap.h"
 
@@ -43,6 +51,7 @@ static bool done = false, silent = false, fshared = false;
 static unsigned int nblocked_threads = 0, nwaking_threads = 0;
 static pthread_mutex_t thread_lock;
 static pthread_cond_t thread_parent, thread_worker;
+static pthread_barrier_t barrier;
 static struct stats waketime_stats, wakeup_stats;
 static unsigned int threads_starting;
 static int futex_flag = 0;
@@ -65,6 +74,8 @@ static void *waking_workerfn(void *arg)
 	struct thread_data *waker = (struct thread_data *) arg;
 	struct timeval start, end;
 
+	pthread_barrier_wait(&barrier);
+
 	gettimeofday(&start, NULL);
 
 	waker->nwoken = futex_wake(&futex, nwakes, futex_flag);
@@ -85,6 +96,8 @@ static void wakeup_threads(struct thread_data *td, pthread_attr_t thread_attr)
 
 	pthread_attr_setdetachstate(&thread_attr, PTHREAD_CREATE_JOINABLE);
 
+	pthread_barrier_init(&barrier, NULL, nwaking_threads + 1);
+
 	/* create and block all threads */
 	for (i = 0; i < nwaking_threads; i++) {
 		/*
@@ -97,9 +110,13 @@ static void wakeup_threads(struct thread_data *td, pthread_attr_t thread_attr)
 			err(EXIT_FAILURE, "pthread_create");
 	}
 
+	pthread_barrier_wait(&barrier);
+
 	for (i = 0; i < nwaking_threads; i++)
 		if (pthread_join(td[i].worker, NULL))
 			err(EXIT_FAILURE, "pthread_join");
+
+	pthread_barrier_destroy(&barrier);
 }
 
 static void *blocked_workerfn(void *arg __maybe_unused)
@@ -303,3 +320,4 @@ int bench_futex_wake_parallel(int argc, const char **argv)
 	free(blocked_worker);
 	return ret;
 }
+#endif /* HAVE_PTHREAD_BARRIER */
