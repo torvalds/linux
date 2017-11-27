@@ -570,6 +570,7 @@ int fsl_mc_device_add(struct fsl_mc_obj_desc *obj_desc,
 	mc_dev->dev.release = fsl_mc_device_release;
 	mc_dev->dev.type = fsl_mc_get_device_type(obj_desc->type);
 	if (!mc_dev->dev.type) {
+		error = -ENODEV;
 		dev_err(parent_dev, "unknown device type %s\n", obj_desc->type);
 		goto error_cleanup_dev;
 	}
