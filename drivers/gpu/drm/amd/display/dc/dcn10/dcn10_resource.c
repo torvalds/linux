@@ -57,8 +57,8 @@
 
 #include "raven1/NBIO/nbio_7_0_offset.h"
 
-#include "raven1/MMHUB/mmhub_9_1_offset.h"
-#include "raven1/MMHUB/mmhub_9_1_sh_mask.h"
+#include "mmhub/mmhub_9_1_offset.h"
+#include "mmhub/mmhub_9_1_sh_mask.h"
 
 #include "reg_helper.h"
 #include "dce/dce_abm.h"

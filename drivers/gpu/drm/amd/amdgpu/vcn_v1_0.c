@@ -32,8 +32,8 @@
 #include "raven1/VCN/vcn_1_0_offset.h"
 #include "raven1/VCN/vcn_1_0_sh_mask.h"
 #include "hdp/hdp_4_0_offset.h"
-#include "raven1/MMHUB/mmhub_9_1_offset.h"
-#include "raven1/MMHUB/mmhub_9_1_sh_mask.h"
+#include "mmhub/mmhub_9_1_offset.h"
+#include "mmhub/mmhub_9_1_sh_mask.h"
 
 static int vcn_v1_0_start(struct amdgpu_device *adev);
 static int vcn_v1_0_stop(struct amdgpu_device *adev);
