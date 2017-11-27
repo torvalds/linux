@@ -41,11 +41,6 @@ enum supported_socs {
 	S3C2450,
 };
 
-/* list of PLLs to be registered */
-enum s3c2443_plls {
-	mpll, epll,
-};
-
 static void __iomem *reg_base;
 
 #ifdef CONFIG_PM_SLEEP
@@ -225,10 +220,8 @@ struct samsung_clock_alias s3c2443_common_aliases[] __initdata = {
 /* S3C2416 specific clocks */
 
 static struct samsung_pll_clock s3c2416_pll_clks[] __initdata = {
-	[mpll] = PLL(pll_6552_s3c2416, MPLL, "mpll", "mpllref",
-						LOCKCON0, MPLLCON, NULL),
-	[epll] = PLL(pll_6553, EPLL, "epll", "epllref",
-						LOCKCON1, EPLLCON, NULL),
+	PLL(pll_6552_s3c2416, MPLL, "mpll", "mpllref", LOCKCON0, MPLLCON, NULL),
+	PLL(pll_6553, EPLL, "epll", "epllref", LOCKCON1, EPLLCON, NULL),
 };
 
 PNAME(s3c2416_hsmmc0_p) = { "sclk_hsmmc0", "sclk_hsmmcext" };
@@ -279,10 +272,8 @@ struct samsung_clock_alias s3c2416_aliases[] __initdata = {
 /* S3C2443 specific clocks */
 
 static struct samsung_pll_clock s3c2443_pll_clks[] __initdata = {
-	[mpll] = PLL(pll_3000, MPLL, "mpll", "mpllref",
-						LOCKCON0, MPLLCON, NULL),
-	[epll] = PLL(pll_2126, EPLL, "epll", "epllref",
-						LOCKCON1, EPLLCON, NULL),
+	PLL(pll_3000, MPLL, "mpll", "mpllref", LOCKCON0, MPLLCON, NULL),
+	PLL(pll_2126, EPLL, "epll", "epllref", LOCKCON1, EPLLCON, NULL),
 };
 
 static struct clk_div_table armdiv_s3c2443_d[] = {
