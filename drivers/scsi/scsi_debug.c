@@ -4085,10 +4085,7 @@ static int schedule_resp(struct scsi_cmnd *cmnd, struct sdebug_dev_info *devip,
 		ktime_t kt;
 
 		if (delta_jiff > 0) {
-			struct timespec ts;
-
-			jiffies_to_timespec(delta_jiff, &ts);
-			kt = ktime_set(ts.tv_sec, ts.tv_nsec);
+			kt = ns_to_ktime((u64)delta_jiff * (NSEC_PER_SEC / HZ));
 		} else
 			kt = sdebug_ndelay;
 		if (NULL == sd_dp) {
