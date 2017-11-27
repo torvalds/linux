@@ -3371,7 +3371,8 @@ i915_gem_idle_work_handler(struct work_struct *work)
 	synchronize_irq(dev_priv->drm.irq);
 
 	intel_engines_park(dev_priv);
-	i915_gem_timelines_mark_idle(dev_priv);
+	i915_gem_timelines_park(dev_priv);
+
 	i915_pmu_gt_parked(dev_priv);
 
 	GEM_BUG_ON(!dev_priv->gt.awake);
