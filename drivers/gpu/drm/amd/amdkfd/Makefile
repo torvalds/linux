@@ -37,4 +37,6 @@ amdkfd-y	:= kfd_module.o kfd_device.o kfd_chardev.o kfd_topology.o \
 		kfd_interrupt.o kfd_events.o cik_event_interrupt.o \
 		kfd_dbgdev.o kfd_dbgmgr.o
 
+amdkfd-$(CONFIG_DEBUG_FS) += kfd_debugfs.o
+
 obj-$(CONFIG_HSA_AMD)	+= amdkfd.o

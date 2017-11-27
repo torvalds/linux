@@ -620,3 +620,32 @@ int kfd_reserved_mem_mmap(struct kfd_process *process,
 			       PFN_DOWN(__pa(qpd->cwsr_kaddr)),
 			       KFD_CWSR_TBA_TMA_SIZE, vma->vm_page_prot);
 }
+
+#if defined(CONFIG_DEBUG_FS)
+
+int kfd_debugfs_mqds_by_process(struct seq_file *m, void *data)
+{
+	struct kfd_process *p;
+	unsigned int temp;
+	int r = 0;
+
+	int idx = srcu_read_lock(&kfd_processes_srcu);
+
+	hash_for_each_rcu(kfd_processes_table, temp, p, kfd_processes) {
+		seq_printf(m, "Process %d PASID %d:\n",
+			   p->lead_thread->tgid, p->pasid);
+
+		mutex_lock(&p->mutex);
+		r = pqm_debugfs_mqds(m, &p->pqm);
+		mutex_unlock(&p->mutex);
+
+		if (r)
+			break;
+	}
+
+	srcu_read_unlock(&kfd_processes_srcu, idx);
+
+	return r;
+}
+
+#endif

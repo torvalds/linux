@@ -33,6 +33,7 @@
 #include <linux/kfd_ioctl.h>
 #include <linux/idr.h>
 #include <linux/kfifo.h>
+#include <linux/seq_file.h>
 #include <kgd_kfd_interface.h>
 
 #include "amd_shared.h"
@@ -735,6 +736,7 @@ struct packet_manager {
 	struct mutex lock;
 	bool allocated;
 	struct kfd_mem_obj *ib_buffer_obj;
+	unsigned int ib_size_bytes;
 };
 
 int pm_init(struct packet_manager *pm, struct device_queue_manager *dqm);
@@ -780,5 +782,24 @@ int kfd_event_create(struct file *devkfd, struct kfd_process *p,
 int kfd_event_destroy(struct kfd_process *p, uint32_t event_id);
 
 int dbgdev_wave_reset_wavefronts(struct kfd_dev *dev, struct kfd_process *p);
+
+/* Debugfs */
+#if defined(CONFIG_DEBUG_FS)
+
+void kfd_debugfs_init(void);
+void kfd_debugfs_fini(void);
+int kfd_debugfs_mqds_by_process(struct seq_file *m, void *data);
+int pqm_debugfs_mqds(struct seq_file *m, void *data);
+int kfd_debugfs_hqds_by_device(struct seq_file *m, void *data);
+int dqm_debugfs_hqds(struct seq_file *m, void *data);
+int kfd_debugfs_rls_by_device(struct seq_file *m, void *data);
+int pm_debugfs_runlist(struct seq_file *m, void *data);
+
+#else
+
+static inline void kfd_debugfs_init(void) {}
+static inline void kfd_debugfs_fini(void) {}
+
+#endif
 
 #endif

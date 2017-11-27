@@ -278,6 +278,7 @@ static int pm_create_runlist_ib(struct packet_manager *pm,
 		return retval;
 
 	*rl_size_bytes = alloc_size_bytes;
+	pm->ib_size_bytes = alloc_size_bytes;
 
 	pr_debug("Building runlist ib process count: %d queues count %d\n",
 		pm->dqm->processes_count, pm->dqm->queue_count);
@@ -591,3 +592,26 @@ void pm_release_ib(struct packet_manager *pm)
 	}
 	mutex_unlock(&pm->lock);
 }
+
+#if defined(CONFIG_DEBUG_FS)
+
+int pm_debugfs_runlist(struct seq_file *m, void *data)
+{
+	struct packet_manager *pm = data;
+
+	mutex_lock(&pm->lock);
+
+	if (!pm->allocated) {
+		seq_puts(m, "  No active runlist\n");
+		goto out;
+	}
+
+	seq_hex_dump(m, "  ", DUMP_PREFIX_OFFSET, 32, 4,
+		     pm->ib_buffer_obj->cpu_ptr, pm->ib_size_bytes, false);
+
+out:
+	mutex_unlock(&pm->lock);
+	return 0;
+}
+
+#endif

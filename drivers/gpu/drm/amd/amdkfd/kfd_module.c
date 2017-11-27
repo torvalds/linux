@@ -123,6 +123,8 @@ static int __init kfd_module_init(void)
 
 	kfd_process_create_wq();
 
+	kfd_debugfs_init();
+
 	amdkfd_init_completed = 1;
 
 	dev_info(kfd_device, "Initialized module\n");
@@ -139,6 +141,7 @@ static void __exit kfd_module_exit(void)
 {
 	amdkfd_init_completed = 0;
 
+	kfd_debugfs_fini();
 	kfd_process_destroy_wq();
 	kfd_topology_shutdown();
 	kfd_chardev_exit();
