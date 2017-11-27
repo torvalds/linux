@@ -24,6 +24,7 @@
 #include <linux/skbuff.h>
 #include <net/route.h>
 #include <net/ip6_route.h>
+#include <linux/netfilter_ipv6.h>
 
 #include <net/netfilter/nf_conntrack.h>
 #include <net/netfilter/nf_conntrack_core.h>
@@ -721,13 +722,7 @@ static int callforward_do_filter(struct net *net,
 				 const union nf_inet_addr *dst,
 				 u_int8_t family)
 {
-	const struct nf_afinfo *afinfo;
 	int ret = 0;
-
-	/* rcu_read_lock()ed by nf_hook_thresh */
-	afinfo = nf_get_afinfo(family);
-	if (!afinfo)
-		return 0;
 
 	switch (family) {
 	case AF_INET: {
@@ -739,10 +734,10 @@ static int callforward_do_filter(struct net *net,
 
 		memset(&fl2, 0, sizeof(fl2));
 		fl2.daddr = dst->ip;
-		if (!afinfo->route(net, (struct dst_entry **)&rt1,
-				   flowi4_to_flowi(&fl1), false)) {
-			if (!afinfo->route(net, (struct dst_entry **)&rt2,
-					   flowi4_to_flowi(&fl2), false)) {
+		if (!nf_ip_route(net, (struct dst_entry **)&rt1,
+				 flowi4_to_flowi(&fl1), false)) {
+			if (!nf_ip_route(net, (struct dst_entry **)&rt2,
+					 flowi4_to_flowi(&fl2), false)) {
 				if (rt_nexthop(rt1, fl1.daddr) ==
 				    rt_nexthop(rt2, fl2.daddr) &&
 				    rt1->dst.dev  == rt2->dst.dev)
@@ -755,18 +750,23 @@ static int callforward_do_filter(struct net *net,
 	}
 #if IS_ENABLED(CONFIG_NF_CONNTRACK_IPV6)
 	case AF_INET6: {
-		struct flowi6 fl1, fl2;
+		const struct nf_ipv6_ops *v6ops;
 		struct rt6_info *rt1, *rt2;
+		struct flowi6 fl1, fl2;
+
+		v6ops = nf_get_ipv6_ops();
+		if (!v6ops)
+			return 0;
 
 		memset(&fl1, 0, sizeof(fl1));
 		fl1.daddr = src->in6;
 
 		memset(&fl2, 0, sizeof(fl2));
 		fl2.daddr = dst->in6;
-		if (!afinfo->route(net, (struct dst_entry **)&rt1,
-				   flowi6_to_flowi(&fl1), false)) {
-			if (!afinfo->route(net, (struct dst_entry **)&rt2,
-					   flowi6_to_flowi(&fl2), false)) {
+		if (!v6ops->route(net, (struct dst_entry **)&rt1,
+				  flowi6_to_flowi(&fl1), false)) {
+			if (!v6ops->route(net, (struct dst_entry **)&rt2,
+					  flowi6_to_flowi(&fl2), false)) {
 				if (ipv6_addr_equal(rt6_nexthop(rt1, &fl1.daddr),
 						    rt6_nexthop(rt2, &fl2.daddr)) &&
 				    rt1->dst.dev == rt2->dst.dev)

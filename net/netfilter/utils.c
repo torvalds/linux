@@ -48,3 +48,24 @@ __sum16 nf_checksum_partial(struct sk_buff *skb, unsigned int hook,
 	return csum;
 }
 EXPORT_SYMBOL_GPL(nf_checksum_partial);
+
+int nf_route(struct net *net, struct dst_entry **dst, struct flowi *fl,
+	     bool strict, unsigned short family)
+{
+	const struct nf_ipv6_ops *v6ops;
+	int ret = 0;
+
+	switch (family) {
+	case AF_INET:
+		ret = nf_ip_route(net, dst, fl, strict);
+		break;
+	case AF_INET6:
+		v6ops = rcu_dereference(nf_ipv6_ops);
+		if (v6ops)
+			ret = v6ops->route(net, dst, fl, strict);
+		break;
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(nf_route);

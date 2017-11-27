@@ -150,8 +150,8 @@ __sum16 nf_ip_checksum_partial(struct sk_buff *skb, unsigned int hook,
 }
 EXPORT_SYMBOL_GPL(nf_ip_checksum_partial);
 
-static int nf_ip_route(struct net *net, struct dst_entry **dst,
-		       struct flowi *fl, bool strict __always_unused)
+int nf_ip_route(struct net *net, struct dst_entry **dst, struct flowi *fl,
+		bool strict __always_unused)
 {
 	struct rtable *rt = ip_route_output_key(net, &fl->u.ip4);
 	if (IS_ERR(rt))
@@ -159,10 +159,10 @@ static int nf_ip_route(struct net *net, struct dst_entry **dst,
 	*dst = &rt->dst;
 	return 0;
 }
+EXPORT_SYMBOL_GPL(nf_ip_route);
 
 static const struct nf_afinfo nf_ip_afinfo = {
 	.family			= AF_INET,
-	.route			= nf_ip_route,
 	.reroute		= nf_ip_reroute,
 	.route_key_size		= sizeof(struct ip_rt_info),
 };

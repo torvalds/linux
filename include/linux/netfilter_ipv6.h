@@ -33,6 +33,8 @@ struct nf_ipv6_ops {
 	__sum16 (*checksum_partial)(struct sk_buff *skb, unsigned int hook,
 				    unsigned int dataoff, unsigned int len,
 				    u_int8_t protocol);
+	int (*route)(struct net *net, struct dst_entry **dst, struct flowi *fl,
+		     bool strict);
 };
 
 #ifdef CONFIG_NETFILTER

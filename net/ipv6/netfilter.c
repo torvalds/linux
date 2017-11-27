@@ -170,11 +170,11 @@ static const struct nf_ipv6_ops ipv6ops = {
 	.fragment		= ip6_fragment,
 	.checksum		= nf_ip6_checksum,
 	.checksum_partial	= nf_ip6_checksum_partial,
+	.route			= nf_ip6_route,
 };
 
 static const struct nf_afinfo nf_ip6_afinfo = {
 	.family			= AF_INET6,
-	.route			= nf_ip6_route,
 	.reroute		= nf_ip6_reroute,
 	.route_key_size		= sizeof(struct ip6_rt_info),
 };

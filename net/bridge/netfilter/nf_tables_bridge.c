@@ -101,15 +101,8 @@ static int nf_br_reroute(struct net *net, struct sk_buff *skb,
 	return 0;
 }
 
-static int nf_br_route(struct net *net, struct dst_entry **dst,
-		       struct flowi *fl, bool strict __always_unused)
-{
-	return 0;
-}
-
 static const struct nf_afinfo nf_br_afinfo = {
 	.family                 = AF_BRIDGE,
-	.route                  = nf_br_route,
 	.reroute                = nf_br_reroute,
 	.route_key_size         = 0,
 };

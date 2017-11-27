@@ -24,6 +24,8 @@ __sum16 nf_ip_checksum(struct sk_buff *skb, unsigned int hook,
 __sum16 nf_ip_checksum_partial(struct sk_buff *skb, unsigned int hook,
 			       unsigned int dataoff, unsigned int len,
 			       u_int8_t protocol);
+int nf_ip_route(struct net *net, struct dst_entry **dst, struct flowi *fl,
+		bool strict);
 #else
 static inline __sum16 nf_ip_checksum(struct sk_buff *skb, unsigned int hook,
 				     unsigned int dataoff, u_int8_t protocol)
@@ -37,6 +39,11 @@ static inline __sum16 nf_ip_checksum_partial(struct sk_buff *skb,
 					     u_int8_t protocol)
 {
 	return 0;
+}
+static inline int nf_ip_route(struct net *net, struct dst_entry **dst,
+			      struct flowi *fl, bool strict)
+{
+	return -EOPNOTSUPP;
 }
 #endif /* CONFIG_INET */
 
