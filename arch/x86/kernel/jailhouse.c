@@ -16,6 +16,7 @@
 #include <asm/setup.h>
 
 static __initdata struct jailhouse_setup_data setup_data;
+static unsigned int precalibrated_tsc_khz;
 
 static uint32_t jailhouse_cpuid_base(void)
 {
@@ -29,6 +30,16 @@ static uint32_t jailhouse_cpuid_base(void)
 static uint32_t __init jailhouse_detect(void)
 {
 	return jailhouse_cpuid_base();
+}
+
+static void __init jailhouse_timer_init(void)
+{
+	lapic_timer_frequency = setup_data.apic_khz * (1000 / HZ);
+}
+
+static unsigned long jailhouse_get_tsc(void)
+{
+	return precalibrated_tsc_khz;
 }
 
 static void __init jailhouse_get_smp_config(unsigned int early)
@@ -66,7 +77,11 @@ static void __init jailhouse_init_platform(void)
 	struct setup_data header;
 	void *mapping;
 
+	x86_init.timers.timer_init	= jailhouse_timer_init;
 	x86_init.mpparse.get_smp_config	= jailhouse_get_smp_config;
+
+	x86_platform.calibrate_cpu	= jailhouse_get_tsc;
+	x86_platform.calibrate_tsc	= jailhouse_get_tsc;
 
 	while (pa_data) {
 		mapping = early_memremap(pa_data, sizeof(header));
@@ -95,6 +110,8 @@ static void __init jailhouse_init_platform(void)
 
 	pmtmr_ioport = setup_data.pm_timer_address;
 	pr_debug("Jailhouse: PM-Timer IO Port: %#x\n", pmtmr_ioport);
+
+	precalibrated_tsc_khz = setup_data.tsc_khz;
 }
 
 bool jailhouse_paravirt(void)
