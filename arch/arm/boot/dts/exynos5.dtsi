@@ -204,5 +204,11 @@
 			#size-cells = <0>;
 			status = "disabled";
 		};
+
+		sss: sss@10830000 {
+			compatible = "samsung,exynos4210-secss";
+			reg = <0x10830000 0x300>;
+			interrupts = <GIC_SPI 112 IRQ_TYPE_LEVEL_HIGH>;
+		};
 	};
 };

@@ -739,14 +739,6 @@
 			status = "disabled";
 		};
 
-		sss@10830000 {
-			compatible = "samsung,exynos4210-secss";
-			reg = <0x10830000 0x300>;
-			interrupts = <GIC_SPI 112 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&clock CLK_SSS>;
-			clock-names = "secss";
-		};
-
 		sysmmu_g2d: sysmmu@10A60000 {
 			compatible = "samsung,exynos-sysmmu";
 			reg = <0x10A60000 0x1000>;
@@ -1090,6 +1082,11 @@
 	clock-names = "uart", "clk_uart_baud0";
 	dmas = <&pdma1 17>, <&pdma1 18>;
 	dma-names = "rx", "tx";
+};
+
+&sss {
+	clocks = <&clock CLK_SSS>;
+	clock-names = "secss";
 };
 
 #include "exynos5250-pinctrl.dtsi"
