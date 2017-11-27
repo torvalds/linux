@@ -1,0 +1,280 @@
+/*
+ * Copyright (c) 2017 Fuzhou Rockchip Electronics Co., Ltd
+ *
+ * This file is dual-licensed: you can use it either under the terms
+ * of the GPL or the X11 license, at your option. Note that this dual
+ * licensing only applies to this file, and not this project as a
+ * whole.
+ *
+ *  a) This file is free software; you can redistribute it and/or
+ *     modify it under the terms of the GNU General Public License as
+ *     published by the Free Software Foundation; either version 2 of the
+ *     License, or (at your option) any later version.
+ *
+ *     This file is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ * Or, alternatively,
+ *
+ *  b) Permission is hereby granted, free of charge, to any person
+ *     obtaining a copy of this software and associated documentation
+ *     files (the "Software"), to deal in the Software without
+ *     restriction, including without limitation the rights to use,
+ *     copy, modify, merge, publish, distribute, sublicense, and/or
+ *     sell copies of the Software, and to permit persons to whom the
+ *     Software is furnished to do so, subject to the following
+ *     conditions:
+ *
+ *     The above copyright notice and this permission notice shall be
+ *     included in all copies or substantial portions of the Software.
+ *
+ *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ *     OTHER DEALINGS IN THE SOFTWARE.
+ */
+
+#include "rk3288-evb-act8846.dts"
+#include <dt-bindings/display/media-bus-format.h>
+
+&edp {
+	status = "disabled";
+	vcc-supply = <&vdd10_lcd>;
+	vccio-supply = <&vcc18_lcd>;
+};
+
+&hdmi {
+	status = "disabled";
+};
+
+&dsi0 {
+	status = "okay";
+	panel: panel {
+		status = "okay";
+		compatible = "simple-panel-dsi";
+		reg = <0>;
+		backlight = <&backlight>;
+		enable-gpios = <&gpio7 6 GPIO_ACTIVE_HIGH>;
+		supply = <&vcc_lcd>;
+		bus-format = <MEDIA_BUS_FMT_RGB888_1X24>;
+		dsi,flags = <(MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST)>;
+		dsi,format = <MIPI_DSI_FMT_RGB888>;
+		dsi,lanes = <4>;
+		delay,prepare = <120>;
+		delay,enable = <100>;
+		delay,reset = <100>;
+		delay,init = <1>;
+		panel-init-sequence = [
+			15 00 02 FF 05
+			15 00 02 FB 01
+			15 78 02 C5 01
+			15 00 02 FF EE
+			15 00 02 FB 01
+			15 00 02 1F 45
+			15 00 02 24 45
+			15 00 02 38 C8
+			15 00 02 39 27
+			15 00 02 1E 77
+			15 00 02 1D 0F
+			15 00 02 7E 71
+			15 00 02 7C 03
+			15 00 02 FF 01
+			15 00 02 FB 01
+			15 00 02 00 01
+			15 00 02 01 55
+			15 00 02 02 40
+			15 00 02 05 40
+			15 00 02 06 4A
+			15 00 02 07 24
+			15 00 02 08 0C
+			15 00 02 0B 7D
+			15 00 02 0C 7D
+			15 00 02 0E B0
+			15 00 02 0F AE
+			15 00 02 11 10
+			15 00 02 12 10
+			15 00 02 13 03
+			15 00 02 14 4A
+			15 00 02 15 12
+			15 00 02 16 12
+			15 00 02 18 00
+			15 00 02 19 77
+			15 00 02 1A 55
+			15 00 02 1B 13
+			15 00 02 1C 00
+			15 00 02 1D 00
+			15 00 02 1E 13
+			15 00 02 1F 00
+			15 00 02 23 00
+			15 00 02 24 00
+			15 00 02 25 00
+			15 00 02 26 00
+			15 00 02 27 00
+			15 00 02 28 00
+			15 00 02 35 00
+			15 00 02 66 00
+			15 00 02 58 82
+			15 00 02 59 02
+			15 00 02 5A 02
+			15 00 02 5B 02
+			15 00 02 5C 82
+			15 00 02 5D 82
+			15 00 02 5E 02
+			15 00 02 5F 02
+			15 00 02 72 31
+			15 00 02 FF 05
+			15 00 02 FB 01
+			15 00 02 00 01
+			15 00 02 01 0B
+			15 00 02 02 0C
+			15 00 02 03 09
+			15 00 02 04 0A
+			15 00 02 05 00
+			15 00 02 06 0F
+			15 00 02 07 10
+			15 00 02 08 00
+			15 00 02 09 00
+			15 00 02 0A 00
+			15 00 02 0B 00
+			15 00 02 0C 00
+			15 00 02 0D 13
+			15 00 02 0E 15
+			15 00 02 0F 17
+			15 00 02 10 01
+			15 00 02 11 0B
+			15 00 02 12 0C
+			15 00 02 13 09
+			15 00 02 14 0A
+			15 00 02 15 00
+			15 00 02 16 0F
+			15 00 02 17 10
+			15 00 02 18 00
+			15 00 02 19 00
+			15 00 02 1A 00
+			15 00 02 1B 00
+			15 00 02 1C 00
+			15 00 02 1D 13
+			15 00 02 1E 15
+			15 00 02 1F 17
+			15 00 02 20 00
+			15 00 02 21 03
+			15 00 02 22 01
+			15 00 02 23 40
+			15 00 02 24 40
+			15 00 02 25 ED
+			15 00 02 29 58
+			15 00 02 2A 12
+			15 00 02 2B 01
+			15 00 02 4B 06
+			15 00 02 4C 11
+			15 00 02 4D 20
+			15 00 02 4E 02
+			15 00 02 4F 02
+			15 00 02 50 20
+			15 00 02 51 61
+			15 00 02 52 01
+			15 00 02 53 63
+			15 00 02 54 77
+			15 00 02 55 ED
+			15 00 02 5B 00
+			15 00 02 5C 00
+			15 00 02 5D 00
+			15 00 02 5E 00
+			15 00 02 5F 15
+			15 00 02 60 75
+			15 00 02 61 00
+			15 00 02 62 00
+			15 00 02 63 00
+			15 00 02 64 00
+			15 00 02 65 00
+			15 00 02 66 00
+			15 00 02 67 00
+			15 00 02 68 04
+			15 00 02 69 00
+			15 00 02 6A 00
+			15 00 02 6C 40
+			15 00 02 68 04
+			15 00 02 69 00
+			15 00 02 6A 00
+			15 00 02 6C 40
+			15 00 02 75 01
+			15 00 02 76 01
+			15 00 02 7A 80
+			15 00 02 7B A3
+			15 00 02 7C D8
+			15 00 02 7D 60
+			15 00 02 7F 15
+			15 00 02 80 81
+			15 00 02 83 05
+			15 00 02 93 08
+			15 00 02 94 10
+			15 00 02 8A 00
+			15 00 02 9B 0F
+			15 00 02 FF 01
+			15 00 02 FB 01
+			15 00 02 FF 02
+			15 00 02 FB 01
+			15 00 02 FF 04
+			15 00 02 FB 01
+			15 00 02 FF 00
+			15 00 02 D3 06
+			15 00 02 D4 04
+			05 78 01 11
+			15 00 02 FF 00
+			15 00 02 35 00
+			05 00 01 29
+			15 78 02 FF 00
+		];
+
+		panel-exit-sequence = [
+			05 00 01 28
+			05 78 01 10
+		];
+
+		display-timings {
+			native-mode = <&timing0>;
+			compatible = "rockchip,display-timings";
+			timing0: timing0 {
+				    clock-frequency = <130000000>;
+				    hactive = <1080>;
+				    vactive = <1920>;
+
+				    hsync-len = <10>;
+				    hback-porch = <8>;
+				    hfront-porch = <40>;
+
+				    vsync-len = <3>;
+				    vback-porch = <2>;
+				    vfront-porch = <4>;
+
+				    hsync-active = <0>;
+				    vsync-active = <0>;
+				    de-active = <0>;
+				    pixelclk-active = <0>;
+			};
+		};
+	};
+};
+
+&i2c5 {
+	status = "okay";
+	i2c-scl-rising-time-ns = <150>;
+	i2c-scl-falling-time-ns = <30>;
+	clock-frequency = <400000>;
+	tp-supply = <&vcca_tp>;
+	gt9xx: gt9xx@5d {
+		compatible = "goodix,gt9xx";
+		reg = <0x5d>;
+		tp-size = <970>;
+		touch-gpio = <&gpio6 6 IRQ_TYPE_LEVEL_LOW>;
+		reset-gpio = <&gpio6 5 GPIO_ACTIVE_LOW>;
+		max-x = <1080>;
+		max-y = <1920>;
+	};
+};
