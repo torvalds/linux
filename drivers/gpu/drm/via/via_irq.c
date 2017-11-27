@@ -343,7 +343,7 @@ void via_driver_irq_uninstall(struct drm_device *dev)
 int via_wait_irq(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
 	drm_via_irqwait_t *irqwait = data;
-	struct timeval now;
+	struct timespec64 now;
 	int ret = 0;
 	drm_via_private_t *dev_priv = (drm_via_private_t *) dev->dev_private;
 	drm_via_irq_t *cur_irq = dev_priv->via_irqs;
@@ -377,9 +377,9 @@ int via_wait_irq(struct drm_device *dev, void *data, struct drm_file *file_priv)
 
 	ret = via_driver_irq_wait(dev, irqwait->request.irq, force_sequence,
 				  &irqwait->request.sequence);
-	do_gettimeofday(&now);
+	ktime_get_ts64(&now);
 	irqwait->reply.tval_sec = now.tv_sec;
-	irqwait->reply.tval_usec = now.tv_usec;
+	irqwait->reply.tval_usec = now.tv_nsec / NSEC_PER_USEC;
 
 	return ret;
 }
