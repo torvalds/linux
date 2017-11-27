@@ -452,7 +452,7 @@ static irqreturn_t falcon_legacy_interrupt_a1(int irq, void *dev_id)
 		   "IRQ %d on CPU %d status " EF4_OWORD_FMT "\n",
 		   irq, raw_smp_processor_id(), EF4_OWORD_VAL(*int_ker));
 
-	if (!likely(ACCESS_ONCE(efx->irq_soft_enabled)))
+	if (!likely(READ_ONCE(efx->irq_soft_enabled)))
 		return IRQ_HANDLED;
 
 	/* Check to see if we have a serious error condition */
@@ -1372,7 +1372,7 @@ static void falcon_reconfigure_mac_wrapper(struct ef4_nic *efx)
 	ef4_oword_t reg;
 	int link_speed, isolate;
 
-	isolate = !!ACCESS_ONCE(efx->reset_pending);
+	isolate = !!READ_ONCE(efx->reset_pending);
 
 	switch (link_state->speed) {
 	case 10000: link_speed = 3; break;
@@ -1454,10 +1454,11 @@ static void falcon_stats_complete(struct ef4_nic *efx)
 	}
 }
 
-static void falcon_stats_timer_func(unsigned long context)
+static void falcon_stats_timer_func(struct timer_list *t)
 {
-	struct ef4_nic *efx = (struct ef4_nic *)context;
-	struct falcon_nic_data *nic_data = efx->nic_data;
+	struct falcon_nic_data *nic_data = from_timer(nic_data, t,
+						      stats_timer);
+	struct ef4_nic *efx = nic_data->efx;
 
 	spin_lock(&efx->stats_lock);
 
@@ -2295,6 +2296,7 @@ static int falcon_probe_nic(struct ef4_nic *efx)
 	if (!nic_data)
 		return -ENOMEM;
 	efx->nic_data = nic_data;
+	nic_data->efx = efx;
 
 	rc = -ENODEV;
 
@@ -2402,8 +2404,7 @@ static int falcon_probe_nic(struct ef4_nic *efx)
 	}
 
 	nic_data->stats_disable_count = 1;
-	setup_timer(&nic_data->stats_timer, &falcon_stats_timer_func,
-		    (unsigned long)efx);
+	timer_setup(&nic_data->stats_timer, falcon_stats_timer_func, 0);
 
 	return 0;
 

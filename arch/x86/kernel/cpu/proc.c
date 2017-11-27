@@ -5,6 +5,8 @@
 #include <linux/seq_file.h>
 #include <linux/cpufreq.h>
 
+#include "cpu.h"
+
 /*
  *	Get CPU information for use by the procfs.
  */
@@ -78,7 +80,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		seq_printf(m, "microcode\t: 0x%x\n", c->microcode);
 
 	if (cpu_has(c, X86_FEATURE_TSC)) {
-		unsigned int freq = arch_freq_get_on_cpu(cpu);
+		unsigned int freq = aperfmperf_get_khz(cpu);
 
 		if (!freq)
 			freq = cpufreq_quick_get(cpu);

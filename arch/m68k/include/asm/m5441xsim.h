@@ -278,4 +278,10 @@
 #define MCFGPIO_IRQ_VECBASE	(MCFINT_VECBASE - MCFGPIO_IRQ_MIN)
 #define MCFGPIO_PIN_MAX		87
 
+/*
+ *  DSPI module.
+ */
+#define MCFDSPI_BASE0		0xfc05c000
+#define MCF_IRQ_DSPI0		(MCFINT0_VECBASE + MCFINT0_DSPI0)
+
 #endif /* m5441xsim_h */

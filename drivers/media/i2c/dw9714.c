@@ -21,6 +21,11 @@
 #define DW9714_NAME		"dw9714"
 #define DW9714_MAX_FOCUS_POS	1023
 /*
+ * This sets the minimum granularity for the focus positions.
+ * A value of 1 gives maximum accuracy for a desired focus position
+ */
+#define DW9714_FOCUS_STEPS	1
+/*
  * This acts as the minimum granularity of lens movement.
  * Keep this value power of 2, so the control steps can be
  * uniformly adjusted for gradual lens movement, with desired
@@ -137,7 +142,7 @@ static int dw9714_init_controls(struct dw9714_device *dev_vcm)
 	v4l2_ctrl_handler_init(hdl, 1);
 
 	v4l2_ctrl_new_std(hdl, ops, V4L2_CID_FOCUS_ABSOLUTE,
-			  0, DW9714_MAX_FOCUS_POS, DW9714_CTRL_STEPS, 0);
+			  0, DW9714_MAX_FOCUS_POS, DW9714_FOCUS_STEPS, 0);
 
 	if (hdl->error)
 		dev_err(&client->dev, "%s fail error: 0x%x\n",

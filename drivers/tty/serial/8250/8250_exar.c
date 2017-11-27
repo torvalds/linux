@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  Probe module for 8250/16550-type Exar chips PCI serial ports.
  *
  *  Based on drivers/tty/serial/8250/8250_pci.c,
  *
  *  Copyright (C) 2017 Sudip Mukherjee, All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License.
  */
 #include <linux/acpi.h>
 #include <linux/dmi.h>

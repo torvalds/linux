@@ -96,6 +96,7 @@ struct ipvl_port {
 	struct hlist_head	hlhead[IPVLAN_HASH_SIZE];
 	struct list_head	ipvlans;
 	u16			mode;
+	u16			flags;
 	u16			dev_id_start;
 	struct work_struct	wq;
 	struct sk_buff_head	backlog;
@@ -121,6 +122,36 @@ static inline struct ipvl_port *ipvlan_port_get_rcu_bh(const struct net_device *
 static inline struct ipvl_port *ipvlan_port_get_rtnl(const struct net_device *d)
 {
 	return rtnl_dereference(d->rx_handler_data);
+}
+
+static inline bool ipvlan_is_private(const struct ipvl_port *port)
+{
+	return !!(port->flags & IPVLAN_F_PRIVATE);
+}
+
+static inline void ipvlan_mark_private(struct ipvl_port *port)
+{
+	port->flags |= IPVLAN_F_PRIVATE;
+}
+
+static inline void ipvlan_clear_private(struct ipvl_port *port)
+{
+	port->flags &= ~IPVLAN_F_PRIVATE;
+}
+
+static inline bool ipvlan_is_vepa(const struct ipvl_port *port)
+{
+	return !!(port->flags & IPVLAN_F_VEPA);
+}
+
+static inline void ipvlan_mark_vepa(struct ipvl_port *port)
+{
+	port->flags |= IPVLAN_F_VEPA;
+}
+
+static inline void ipvlan_clear_vepa(struct ipvl_port *port)
+{
+	port->flags &= ~IPVLAN_F_VEPA;
 }
 
 void ipvlan_init_secret(void);

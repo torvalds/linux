@@ -92,12 +92,10 @@ static struct ib_ah *create_iboe_ah(struct ib_pd *pd,
 	int ret;
 
 	memcpy(&in6, grh->dgid.raw, sizeof(in6));
-	if (rdma_is_multicast_addr(&in6)) {
+	if (rdma_is_multicast_addr(&in6))
 		is_mcast = 1;
-		rdma_get_mcast_mac(&in6, ah->av.eth.mac);
-	} else {
-		memcpy(ah->av.eth.mac, ah_attr->roce.dmac, ETH_ALEN);
-	}
+
+	memcpy(ah->av.eth.mac, ah_attr->roce.dmac, ETH_ALEN);
 	ret = ib_get_cached_gid(pd->device, rdma_ah_get_port_num(ah_attr),
 				grh->sgid_index, &sgid, &gid_attr);
 	if (ret)

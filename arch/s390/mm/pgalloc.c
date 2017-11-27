@@ -71,10 +71,8 @@ static void __crst_table_upgrade(void *arg)
 {
 	struct mm_struct *mm = arg;
 
-	if (current->active_mm == mm) {
-		clear_user_asce();
+	if (current->active_mm == mm)
 		set_user_asce(mm);
-	}
 	__tlb_flush_local();
 }
 
@@ -159,13 +157,13 @@ static inline unsigned int atomic_xor_bits(atomic_t *v, unsigned int bits)
 struct page *page_table_alloc_pgste(struct mm_struct *mm)
 {
 	struct page *page;
-	unsigned long *table;
+	u64 *table;
 
 	page = alloc_page(GFP_KERNEL);
 	if (page) {
-		table = (unsigned long *) page_to_phys(page);
-		clear_table(table, _PAGE_INVALID, PAGE_SIZE/2);
-		clear_table(table + PTRS_PER_PTE, 0, PAGE_SIZE/2);
+		table = (u64 *)page_to_phys(page);
+		memset64(table, _PAGE_INVALID, PTRS_PER_PTE);
+		memset64(table + PTRS_PER_PTE, 0, PTRS_PER_PTE);
 	}
 	return page;
 }
@@ -222,12 +220,12 @@ unsigned long *page_table_alloc(struct mm_struct *mm)
 	if (mm_alloc_pgste(mm)) {
 		/* Return 4K page table with PGSTEs */
 		atomic_set(&page->_mapcount, 3);
-		clear_table(table, _PAGE_INVALID, PAGE_SIZE/2);
-		clear_table(table + PTRS_PER_PTE, 0, PAGE_SIZE/2);
+		memset64((u64 *)table, _PAGE_INVALID, PTRS_PER_PTE);
+		memset64((u64 *)table + PTRS_PER_PTE, 0, PTRS_PER_PTE);
 	} else {
 		/* Return the first 2K fragment of the page */
 		atomic_set(&page->_mapcount, 1);
-		clear_table(table, _PAGE_INVALID, PAGE_SIZE);
+		memset64((u64 *)table, _PAGE_INVALID, 2 * PTRS_PER_PTE);
 		spin_lock_bh(&mm->context.lock);
 		list_add(&page->lru, &mm->context.pgtable_list);
 		spin_unlock_bh(&mm->context.lock);

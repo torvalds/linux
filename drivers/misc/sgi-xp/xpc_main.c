@@ -172,9 +172,9 @@ struct xpc_arch_operations xpc_arch_ops;
  * Timer function to enforce the timelimit on the partition disengage.
  */
 static void
-xpc_timeout_partition_disengage(unsigned long data)
+xpc_timeout_partition_disengage(struct timer_list *t)
 {
-	struct xpc_partition *part = (struct xpc_partition *)data;
+	struct xpc_partition *part = from_timer(part, t, disengage_timer);
 
 	DBUG_ON(time_is_after_jiffies(part->disengage_timeout));
 
@@ -190,7 +190,7 @@ xpc_timeout_partition_disengage(unsigned long data)
  * specify when the next timeout should occur.
  */
 static void
-xpc_hb_beater(unsigned long dummy)
+xpc_hb_beater(struct timer_list *unused)
 {
 	xpc_arch_ops.increment_heartbeat();
 
@@ -205,8 +205,7 @@ static void
 xpc_start_hb_beater(void)
 {
 	xpc_arch_ops.heartbeat_init();
-	init_timer(&xpc_hb_timer);
-	xpc_hb_timer.function = xpc_hb_beater;
+	timer_setup(&xpc_hb_timer, xpc_hb_beater, 0);
 	xpc_hb_beater(0);
 }
 
@@ -931,10 +930,8 @@ xpc_setup_partitions(void)
 		part->act_state = XPC_P_AS_INACTIVE;
 		XPC_SET_REASON(part, 0, 0);
 
-		init_timer(&part->disengage_timer);
-		part->disengage_timer.function =
-		    xpc_timeout_partition_disengage;
-		part->disengage_timer.data = (unsigned long)part;
+		timer_setup(&part->disengage_timer,
+			    xpc_timeout_partition_disengage, 0);
 
 		part->setup_state = XPC_P_SS_UNSET;
 		init_waitqueue_head(&part->teardown_wq);

@@ -115,7 +115,7 @@ static struct vpfe_config_params config_params = {
 };
 
 /* ccdc device registered */
-static struct ccdc_hw_device *ccdc_dev;
+static const struct ccdc_hw_device *ccdc_dev;
 /* lock for accessing ccdc information */
 static DEFINE_MUTEX(ccdc_lock);
 /* ccdc configuration */
@@ -203,7 +203,7 @@ static const struct vpfe_pixel_format *vpfe_lookup_pix_format(u32 pix_format)
  * vpfe_register_ccdc_device. CCDC module calls this to
  * register with vpfe capture
  */
-int vpfe_register_ccdc_device(struct ccdc_hw_device *dev)
+int vpfe_register_ccdc_device(const struct ccdc_hw_device *dev)
 {
 	int ret = 0;
 	printk(KERN_NOTICE "vpfe_register_ccdc_device: %s\n", dev->name);
@@ -259,7 +259,7 @@ EXPORT_SYMBOL(vpfe_register_ccdc_device);
  * vpfe_unregister_ccdc_device. CCDC module calls this to
  * unregister with vpfe capture
  */
-void vpfe_unregister_ccdc_device(struct ccdc_hw_device *dev)
+void vpfe_unregister_ccdc_device(const struct ccdc_hw_device *dev)
 {
 	if (!dev) {
 		printk(KERN_ERR "invalid ccdc device ptr\n");

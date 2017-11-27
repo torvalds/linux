@@ -82,9 +82,9 @@
 
 extern bool static_key_initialized;
 
-#define STATIC_KEY_CHECK_USE() WARN(!static_key_initialized,		      \
-				    "%s used before call to jump_label_init", \
-				    __func__)
+#define STATIC_KEY_CHECK_USE(key) WARN(!static_key_initialized,		      \
+				    "%s(): static key '%pS' used before call to jump_label_init()", \
+				    __func__, (key))
 
 #ifdef HAVE_JUMP_LABEL
 
@@ -212,13 +212,13 @@ static __always_inline bool static_key_true(struct static_key *key)
 
 static inline void static_key_slow_inc(struct static_key *key)
 {
-	STATIC_KEY_CHECK_USE();
+	STATIC_KEY_CHECK_USE(key);
 	atomic_inc(&key->enabled);
 }
 
 static inline void static_key_slow_dec(struct static_key *key)
 {
-	STATIC_KEY_CHECK_USE();
+	STATIC_KEY_CHECK_USE(key);
 	atomic_dec(&key->enabled);
 }
 
@@ -237,7 +237,7 @@ static inline int jump_label_apply_nops(struct module *mod)
 
 static inline void static_key_enable(struct static_key *key)
 {
-	STATIC_KEY_CHECK_USE();
+	STATIC_KEY_CHECK_USE(key);
 
 	if (atomic_read(&key->enabled) != 0) {
 		WARN_ON_ONCE(atomic_read(&key->enabled) != 1);
@@ -248,7 +248,7 @@ static inline void static_key_enable(struct static_key *key)
 
 static inline void static_key_disable(struct static_key *key)
 {
-	STATIC_KEY_CHECK_USE();
+	STATIC_KEY_CHECK_USE(key);
 
 	if (atomic_read(&key->enabled) != 1) {
 		WARN_ON_ONCE(atomic_read(&key->enabled) != 0);

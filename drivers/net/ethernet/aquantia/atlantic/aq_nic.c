@@ -163,9 +163,9 @@ static int aq_nic_update_link_status(struct aq_nic_s *self)
 	return 0;
 }
 
-static void aq_nic_service_timer_cb(unsigned long param)
+static void aq_nic_service_timer_cb(struct timer_list *t)
 {
-	struct aq_nic_s *self = (struct aq_nic_s *)param;
+	struct aq_nic_s *self = from_timer(self, t, service_timer);
 	struct net_device *ndev = aq_nic_get_ndev(self);
 	int err = 0;
 	unsigned int i = 0U;
@@ -201,9 +201,9 @@ err_exit:
 		  jiffies + AQ_CFG_SERVICE_TIMER_INTERVAL);
 }
 
-static void aq_nic_polling_timer_cb(unsigned long param)
+static void aq_nic_polling_timer_cb(struct timer_list *t)
 {
-	struct aq_nic_s *self = (struct aq_nic_s *)param;
+	struct aq_nic_s *self = from_timer(self, t, polling_timer);
 	struct aq_vec_s *aq_vec = NULL;
 	unsigned int i = 0U;
 
@@ -440,14 +440,12 @@ int aq_nic_start(struct aq_nic_s *self)
 	err = aq_nic_update_interrupt_moderation_settings(self);
 	if (err)
 		goto err_exit;
-	setup_timer(&self->service_timer, &aq_nic_service_timer_cb,
-		    (unsigned long)self);
+	timer_setup(&self->service_timer, aq_nic_service_timer_cb, 0);
 	mod_timer(&self->service_timer, jiffies +
 			AQ_CFG_SERVICE_TIMER_INTERVAL);
 
 	if (self->aq_nic_cfg.is_polling) {
-		setup_timer(&self->polling_timer, &aq_nic_polling_timer_cb,
-			    (unsigned long)self);
+		timer_setup(&self->polling_timer, aq_nic_polling_timer_cb, 0);
 		mod_timer(&self->polling_timer, jiffies +
 			  AQ_CFG_POLLING_TIMER_INTERVAL);
 	} else {

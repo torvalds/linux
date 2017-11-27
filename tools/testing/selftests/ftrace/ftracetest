@@ -222,7 +222,14 @@ SIG_RESULT=
 SIG_BASE=36	# Use realtime signals
 SIG_PID=$$
 
+exit_pass () {
+  exit 0
+}
+
 SIG_FAIL=$((SIG_BASE + FAIL))
+exit_fail () {
+  exit 1
+}
 trap 'SIG_RESULT=$FAIL' $SIG_FAIL
 
 SIG_UNRESOLVED=$((SIG_BASE + UNRESOLVED))

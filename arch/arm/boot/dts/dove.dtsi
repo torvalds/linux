@@ -457,25 +457,25 @@
 					};
 				};
 
-				thermal: thermal-diode@001c {
+				thermal: thermal-diode@1c {
 					compatible = "marvell,dove-thermal";
 					reg = <0x001c 0x0c>, <0x005c 0x08>;
 				};
 
-				gate_clk: clock-gating-ctrl@0038 {
+				gate_clk: clock-gating-ctrl@38 {
 					compatible = "marvell,dove-gating-clock";
 					reg = <0x0038 0x4>;
 					clocks = <&core_clk 0>;
 					#clock-cells = <1>;
 				};
 
-				divider_clk: core-clock@0064 {
+				divider_clk: core-clock@64 {
 					compatible = "marvell,dove-divider-clock";
 					reg = <0x0064 0x8>;
 					#clock-cells = <1>;
 				};
 
-				pinctrl: pin-ctrl@0200 {
+				pinctrl: pin-ctrl@200 {
 					compatible = "marvell,dove-pinctrl";
 					reg = <0x0200 0x14>,
 					      <0x0440 0x04>;
@@ -719,13 +719,13 @@
 					};
 				};
 
-				core_clk: core-clocks@0214 {
+				core_clk: core-clocks@214 {
 					compatible = "marvell,dove-core-clock";
 					reg = <0x0214 0x4>;
 					#clock-cells = <1>;
 				};
 
-				gpio0: gpio-ctrl@0400 {
+				gpio0: gpio-ctrl@400 {
 					compatible = "marvell,orion-gpio";
 					#gpio-cells = <2>;
 					gpio-controller;
@@ -737,7 +737,7 @@
 					interrupts = <12>, <13>, <14>, <60>;
 				};
 
-				gpio1: gpio-ctrl@0420 {
+				gpio1: gpio-ctrl@420 {
 					compatible = "marvell,orion-gpio";
 					#gpio-cells = <2>;
 					gpio-controller;

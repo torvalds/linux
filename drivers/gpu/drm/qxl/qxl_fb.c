@@ -240,18 +240,15 @@ static int qxlfb_create(struct qxl_fbdev *qfbdev,
 		return ret;
 
 	qbo = gem_to_qxl_bo(gobj);
-	QXL_INFO(qdev, "%s: %dx%d %d\n", __func__, mode_cmd.width,
-		 mode_cmd.height, mode_cmd.pitches[0]);
+	DRM_DEBUG_DRIVER("%dx%d %d\n", mode_cmd.width,
+			 mode_cmd.height, mode_cmd.pitches[0]);
 
 	shadow = vmalloc(mode_cmd.pitches[0] * mode_cmd.height);
 	/* TODO: what's the usual response to memory allocation errors? */
 	BUG_ON(!shadow);
-	QXL_INFO(qdev,
-	"surface0 at gpu offset %lld, mmap_offset %lld (virt %p, shadow %p)\n",
-		 qxl_bo_gpu_offset(qbo),
-		 qxl_bo_mmap_offset(qbo),
-		 qbo->kptr,
-		 shadow);
+	DRM_DEBUG_DRIVER("surface0 at gpu offset %lld, mmap_offset %lld (virt %p, shadow %p)\n",
+			 qxl_bo_gpu_offset(qbo), qxl_bo_mmap_offset(qbo),
+			 qbo->kptr, shadow);
 	size = mode_cmd.pitches[0] * mode_cmd.height;
 
 	info = drm_fb_helper_alloc_fbi(&qfbdev->helper);

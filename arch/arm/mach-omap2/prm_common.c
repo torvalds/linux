@@ -218,10 +218,7 @@ void omap_prcm_irq_cleanup(void)
 	kfree(prcm_irq_setup->priority_mask);
 	prcm_irq_setup->priority_mask = NULL;
 
-	if (prcm_irq_setup->xlate_irq)
-		irq = prcm_irq_setup->xlate_irq(prcm_irq_setup->irq);
-	else
-		irq = prcm_irq_setup->irq;
+	irq = prcm_irq_setup->irq;
 	irq_set_chained_handler(irq, NULL);
 
 	if (prcm_irq_setup->base_irq > 0)
@@ -307,10 +304,7 @@ int omap_prcm_register_chain_handler(struct omap_prcm_irq_setup *irq_setup)
 				1 << (offset & 0x1f);
 	}
 
-	if (irq_setup->xlate_irq)
-		irq = irq_setup->xlate_irq(irq_setup->irq);
-	else
-		irq = irq_setup->irq;
+	irq = irq_setup->irq;
 	irq_set_chained_handler(irq, omap_prcm_irq_handler);
 
 	irq_setup->base_irq = irq_alloc_descs(-1, 0, irq_setup->nr_regs * 32,
@@ -671,7 +665,7 @@ static struct omap_prcm_init_data omap4_prm_data __initdata = {
 	.index = TI_CLKM_PRM,
 	.init = omap44xx_prm_init,
 	.device_inst_offset = OMAP4430_PRM_DEVICE_INST,
-	.flags = PRM_HAS_IO_WAKEUP | PRM_HAS_VOLTAGE | PRM_IRQ_DEFAULT,
+	.flags = PRM_HAS_IO_WAKEUP | PRM_HAS_VOLTAGE,
 };
 #endif
 

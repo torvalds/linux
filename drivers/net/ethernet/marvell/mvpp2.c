@@ -38,11 +38,12 @@
 #include <net/ipv6.h>
 #include <net/tso.h>
 
-/* RX Fifo Registers */
+/* Fifo Registers */
 #define MVPP2_RX_DATA_FIFO_SIZE_REG(port)	(0x00 + 4 * (port))
 #define MVPP2_RX_ATTR_FIFO_SIZE_REG(port)	(0x20 + 4 * (port))
 #define MVPP2_RX_MIN_PKT_SIZE_REG		0x60
 #define MVPP2_RX_FIFO_INIT_REG			0x64
+#define MVPP22_TX_FIFO_SIZE_REG(port)		(0x8860 + 4 * (port))
 
 /* RX DMA Top Registers */
 #define MVPP2_RX_CTRL_REG(port)			(0x140 + 4 * (port))
@@ -81,6 +82,16 @@
 #define MVPP2_PRS_SRAM_DATA_REG(idx)		(0x1204 + (idx) * 4)
 #define MVPP2_PRS_TCAM_CTRL_REG			0x1230
 #define     MVPP2_PRS_TCAM_EN_MASK		BIT(0)
+
+/* RSS Registers */
+#define MVPP22_RSS_INDEX			0x1500
+#define     MVPP22_RSS_INDEX_TABLE_ENTRY(idx)	((idx) << 8)
+#define     MVPP22_RSS_INDEX_TABLE(idx)		((idx) << 8)
+#define     MVPP22_RSS_INDEX_QUEUE(idx)		((idx) << 16)
+#define MVPP22_RSS_TABLE_ENTRY			0x1508
+#define MVPP22_RSS_TABLE			0x1510
+#define     MVPP22_RSS_TABLE_POINTER(p)		(p)
+#define MVPP22_RSS_WIDTH			0x150c
 
 /* Classifier Registers */
 #define MVPP2_CLS_MODE_REG			0x1800
@@ -482,6 +493,13 @@
 /* Maximum number of TXQs used by single port */
 #define MVPP2_MAX_TXQ			8
 
+/* MVPP2_MAX_TSO_SEGS is the maximum number of fragments to allow in the GSO
+ * skb. As we need a maxium of two descriptors per fragments (1 header, 1 data),
+ * multiply this value by two to count the maximum number of skb descs needed.
+ */
+#define MVPP2_MAX_TSO_SEGS		300
+#define MVPP2_MAX_SKB_DESCS		(MVPP2_MAX_TSO_SEGS * 2 + MAX_SKB_FRAGS)
+
 /* Dfault number of RXQs in use */
 #define MVPP2_DEFAULT_RXQ		4
 
@@ -504,9 +522,17 @@
 #define MVPP2_TX_DESC_ALIGN		(MVPP2_DESC_ALIGNED_SIZE - 1)
 
 /* RX FIFO constants */
-#define MVPP2_RX_FIFO_PORT_DATA_SIZE	0x2000
-#define MVPP2_RX_FIFO_PORT_ATTR_SIZE	0x80
-#define MVPP2_RX_FIFO_PORT_MIN_PKT	0x80
+#define MVPP2_RX_FIFO_PORT_DATA_SIZE_32KB	0x8000
+#define MVPP2_RX_FIFO_PORT_DATA_SIZE_8KB	0x2000
+#define MVPP2_RX_FIFO_PORT_DATA_SIZE_4KB	0x1000
+#define MVPP2_RX_FIFO_PORT_ATTR_SIZE_32KB	0x200
+#define MVPP2_RX_FIFO_PORT_ATTR_SIZE_8KB	0x80
+#define MVPP2_RX_FIFO_PORT_ATTR_SIZE_4KB	0x40
+#define MVPP2_RX_FIFO_PORT_MIN_PKT		0x80
+
+/* TX FIFO constants */
+#define MVPP22_TX_FIFO_DATA_SIZE_10KB		0xa
+#define MVPP22_TX_FIFO_DATA_SIZE_3KB		0x3
 
 /* RX buffer constants */
 #define MVPP2_SKB_SHINFO_SIZE \
@@ -737,6 +763,10 @@ enum mvpp2_prs_l3_cast {
 #define MVPP2_CLS_FLOWS_TBL_SIZE	512
 #define MVPP2_CLS_FLOWS_TBL_DATA_WORDS	3
 #define MVPP2_CLS_LKP_TBL_SIZE		64
+#define MVPP2_CLS_RX_QUEUES		256
+
+/* RSS constants */
+#define MVPP22_RSS_TABLE_ENTRIES	32
 
 /* BM constants */
 #define MVPP2_BM_POOLS_NUM		8
@@ -769,6 +799,42 @@ enum mvpp2_bm_type {
 	MVPP2_BM_SWF_SHORT
 };
 
+/* GMAC MIB Counters register definitions */
+#define MVPP21_MIB_COUNTERS_OFFSET		0x1000
+#define MVPP21_MIB_COUNTERS_PORT_SZ		0x400
+#define MVPP22_MIB_COUNTERS_OFFSET		0x0
+#define MVPP22_MIB_COUNTERS_PORT_SZ		0x100
+
+#define MVPP2_MIB_GOOD_OCTETS_RCVD		0x0
+#define MVPP2_MIB_BAD_OCTETS_RCVD		0x8
+#define MVPP2_MIB_CRC_ERRORS_SENT		0xc
+#define MVPP2_MIB_UNICAST_FRAMES_RCVD		0x10
+#define MVPP2_MIB_BROADCAST_FRAMES_RCVD		0x18
+#define MVPP2_MIB_MULTICAST_FRAMES_RCVD		0x1c
+#define MVPP2_MIB_FRAMES_64_OCTETS		0x20
+#define MVPP2_MIB_FRAMES_65_TO_127_OCTETS	0x24
+#define MVPP2_MIB_FRAMES_128_TO_255_OCTETS	0x28
+#define MVPP2_MIB_FRAMES_256_TO_511_OCTETS	0x2c
+#define MVPP2_MIB_FRAMES_512_TO_1023_OCTETS	0x30
+#define MVPP2_MIB_FRAMES_1024_TO_MAX_OCTETS	0x34
+#define MVPP2_MIB_GOOD_OCTETS_SENT		0x38
+#define MVPP2_MIB_UNICAST_FRAMES_SENT		0x40
+#define MVPP2_MIB_MULTICAST_FRAMES_SENT		0x48
+#define MVPP2_MIB_BROADCAST_FRAMES_SENT		0x4c
+#define MVPP2_MIB_FC_SENT			0x54
+#define MVPP2_MIB_FC_RCVD			0x58
+#define MVPP2_MIB_RX_FIFO_OVERRUN		0x5c
+#define MVPP2_MIB_UNDERSIZE_RCVD		0x60
+#define MVPP2_MIB_FRAGMENTS_RCVD		0x64
+#define MVPP2_MIB_OVERSIZE_RCVD			0x68
+#define MVPP2_MIB_JABBER_RCVD			0x6c
+#define MVPP2_MIB_MAC_RCV_ERROR			0x70
+#define MVPP2_MIB_BAD_CRC_EVENT			0x74
+#define MVPP2_MIB_COLLISION			0x78
+#define MVPP2_MIB_LATE_COLLISION		0x7c
+
+#define MVPP2_MIB_COUNTERS_STATS_DELAY		(1 * HZ)
+
 /* Definitions */
 
 /* Shared Packet Processor resources */
@@ -796,6 +862,7 @@ struct mvpp2 {
 	struct clk *axi_clk;
 
 	/* List of pointers to port structures */
+	int port_count;
 	struct mvpp2_port **port_list;
 
 	/* Aggregated TXQs */
@@ -817,6 +884,10 @@ struct mvpp2 {
 
 	/* Maximum number of RXQs per port */
 	unsigned int max_port_rxqs;
+
+	/* Workqueue to gather hardware statistics */
+	char queue_name[30];
+	struct workqueue_struct *stats_queue;
 };
 
 struct mvpp2_pcpu_stats {
@@ -861,6 +932,7 @@ struct mvpp2_port {
 
 	/* Per-port registers' base address */
 	void __iomem *base;
+	void __iomem *stats_base;
 
 	struct mvpp2_rx_queue **rxqs;
 	unsigned int nrxqs;
@@ -879,6 +951,11 @@ struct mvpp2_port {
 	u16 tx_ring_size;
 	u16 rx_ring_size;
 	struct mvpp2_pcpu_stats __percpu *stats;
+	u64 *ethtool_stats;
+
+	/* Per-port work and its lock to gather hardware statistics */
+	struct mutex gather_stats_lock;
+	struct delayed_work stats_work;
 
 	phy_interface_t phy_interface;
 	struct device_node *phy_node;
@@ -1021,6 +1098,9 @@ struct mvpp2_txq_pcpu {
 	 * descriptor ring
 	 */
 	int count;
+
+	int wake_threshold;
+	int stop_threshold;
 
 	/* Number of Tx DMA descriptors reserved for each CPU */
 	int reserved_num;
@@ -1257,13 +1337,20 @@ static void mvpp2_txdesc_dma_addr_set(struct mvpp2_port *port,
 				      struct mvpp2_tx_desc *tx_desc,
 				      dma_addr_t dma_addr)
 {
+	dma_addr_t addr, offset;
+
+	addr = dma_addr & ~MVPP2_TX_DESC_ALIGN;
+	offset = dma_addr & MVPP2_TX_DESC_ALIGN;
+
 	if (port->priv->hw_version == MVPP21) {
-		tx_desc->pp21.buf_dma_addr = dma_addr;
+		tx_desc->pp21.buf_dma_addr = addr;
+		tx_desc->pp21.packet_offset = offset;
 	} else {
-		u64 val = (u64)dma_addr;
+		u64 val = (u64)addr;
 
 		tx_desc->pp22.buf_dma_addr_ptp &= ~GENMASK_ULL(40, 0);
 		tx_desc->pp22.buf_dma_addr_ptp |= val;
+		tx_desc->pp22.packet_offset = offset;
 	}
 }
 
@@ -1304,16 +1391,6 @@ static void mvpp2_txdesc_cmd_set(struct mvpp2_port *port,
 		tx_desc->pp21.command = command;
 	else
 		tx_desc->pp22.command = command;
-}
-
-static void mvpp2_txdesc_offset_set(struct mvpp2_port *port,
-				    struct mvpp2_tx_desc *tx_desc,
-				    unsigned int offset)
-{
-	if (port->priv->hw_version == MVPP21)
-		tx_desc->pp21.packet_offset = offset;
-	else
-		tx_desc->pp22.packet_offset = offset;
 }
 
 static unsigned int mvpp2_txdesc_offset_get(struct mvpp2_port *port,
@@ -4748,9 +4825,131 @@ static void mvpp2_port_loopback_set(struct mvpp2_port *port)
 	writel(val, port->base + MVPP2_GMAC_CTRL_1_REG);
 }
 
+struct mvpp2_ethtool_counter {
+	unsigned int offset;
+	const char string[ETH_GSTRING_LEN];
+	bool reg_is_64b;
+};
+
+static u64 mvpp2_read_count(struct mvpp2_port *port,
+			    const struct mvpp2_ethtool_counter *counter)
+{
+	u64 val;
+
+	val = readl(port->stats_base + counter->offset);
+	if (counter->reg_is_64b)
+		val += (u64)readl(port->stats_base + counter->offset + 4) << 32;
+
+	return val;
+}
+
+/* Due to the fact that software statistics and hardware statistics are, by
+ * design, incremented at different moments in the chain of packet processing,
+ * it is very likely that incoming packets could have been dropped after being
+ * counted by hardware but before reaching software statistics (most probably
+ * multicast packets), and in the oppposite way, during transmission, FCS bytes
+ * are added in between as well as TSO skb will be split and header bytes added.
+ * Hence, statistics gathered from userspace with ifconfig (software) and
+ * ethtool (hardware) cannot be compared.
+ */
+static const struct mvpp2_ethtool_counter mvpp2_ethtool_regs[] = {
+	{ MVPP2_MIB_GOOD_OCTETS_RCVD, "good_octets_received", true },
+	{ MVPP2_MIB_BAD_OCTETS_RCVD, "bad_octets_received" },
+	{ MVPP2_MIB_CRC_ERRORS_SENT, "crc_errors_sent" },
+	{ MVPP2_MIB_UNICAST_FRAMES_RCVD, "unicast_frames_received" },
+	{ MVPP2_MIB_BROADCAST_FRAMES_RCVD, "broadcast_frames_received" },
+	{ MVPP2_MIB_MULTICAST_FRAMES_RCVD, "multicast_frames_received" },
+	{ MVPP2_MIB_FRAMES_64_OCTETS, "frames_64_octets" },
+	{ MVPP2_MIB_FRAMES_65_TO_127_OCTETS, "frames_65_to_127_octet" },
+	{ MVPP2_MIB_FRAMES_128_TO_255_OCTETS, "frames_128_to_255_octet" },
+	{ MVPP2_MIB_FRAMES_256_TO_511_OCTETS, "frames_256_to_511_octet" },
+	{ MVPP2_MIB_FRAMES_512_TO_1023_OCTETS, "frames_512_to_1023_octet" },
+	{ MVPP2_MIB_FRAMES_1024_TO_MAX_OCTETS, "frames_1024_to_max_octet" },
+	{ MVPP2_MIB_GOOD_OCTETS_SENT, "good_octets_sent", true },
+	{ MVPP2_MIB_UNICAST_FRAMES_SENT, "unicast_frames_sent" },
+	{ MVPP2_MIB_MULTICAST_FRAMES_SENT, "multicast_frames_sent" },
+	{ MVPP2_MIB_BROADCAST_FRAMES_SENT, "broadcast_frames_sent" },
+	{ MVPP2_MIB_FC_SENT, "fc_sent" },
+	{ MVPP2_MIB_FC_RCVD, "fc_received" },
+	{ MVPP2_MIB_RX_FIFO_OVERRUN, "rx_fifo_overrun" },
+	{ MVPP2_MIB_UNDERSIZE_RCVD, "undersize_received" },
+	{ MVPP2_MIB_FRAGMENTS_RCVD, "fragments_received" },
+	{ MVPP2_MIB_OVERSIZE_RCVD, "oversize_received" },
+	{ MVPP2_MIB_JABBER_RCVD, "jabber_received" },
+	{ MVPP2_MIB_MAC_RCV_ERROR, "mac_receive_error" },
+	{ MVPP2_MIB_BAD_CRC_EVENT, "bad_crc_event" },
+	{ MVPP2_MIB_COLLISION, "collision" },
+	{ MVPP2_MIB_LATE_COLLISION, "late_collision" },
+};
+
+static void mvpp2_ethtool_get_strings(struct net_device *netdev, u32 sset,
+				      u8 *data)
+{
+	if (sset == ETH_SS_STATS) {
+		int i;
+
+		for (i = 0; i < ARRAY_SIZE(mvpp2_ethtool_regs); i++)
+			memcpy(data + i * ETH_GSTRING_LEN,
+			       &mvpp2_ethtool_regs[i].string, ETH_GSTRING_LEN);
+	}
+}
+
+static void mvpp2_gather_hw_statistics(struct work_struct *work)
+{
+	struct delayed_work *del_work = to_delayed_work(work);
+	struct mvpp2_port *port = container_of(del_work, struct mvpp2_port,
+					       stats_work);
+	u64 *pstats;
+	int i;
+
+	mutex_lock(&port->gather_stats_lock);
+
+	pstats = port->ethtool_stats;
+	for (i = 0; i < ARRAY_SIZE(mvpp2_ethtool_regs); i++)
+		*pstats++ += mvpp2_read_count(port, &mvpp2_ethtool_regs[i]);
+
+	/* No need to read again the counters right after this function if it
+	 * was called asynchronously by the user (ie. use of ethtool).
+	 */
+	cancel_delayed_work(&port->stats_work);
+	queue_delayed_work(port->priv->stats_queue, &port->stats_work,
+			   MVPP2_MIB_COUNTERS_STATS_DELAY);
+
+	mutex_unlock(&port->gather_stats_lock);
+}
+
+static void mvpp2_ethtool_get_stats(struct net_device *dev,
+				    struct ethtool_stats *stats, u64 *data)
+{
+	struct mvpp2_port *port = netdev_priv(dev);
+
+	/* Update statistics for the given port, then take the lock to avoid
+	 * concurrent accesses on the ethtool_stats structure during its copy.
+	 */
+	mvpp2_gather_hw_statistics(&port->stats_work.work);
+
+	mutex_lock(&port->gather_stats_lock);
+	memcpy(data, port->ethtool_stats,
+	       sizeof(u64) * ARRAY_SIZE(mvpp2_ethtool_regs));
+	mutex_unlock(&port->gather_stats_lock);
+}
+
+static int mvpp2_ethtool_get_sset_count(struct net_device *dev, int sset)
+{
+	if (sset == ETH_SS_STATS)
+		return ARRAY_SIZE(mvpp2_ethtool_regs);
+
+	return -EOPNOTSUPP;
+}
+
 static void mvpp2_port_reset(struct mvpp2_port *port)
 {
 	u32 val;
+	unsigned int i;
+
+	/* Read the GOP statistics to reset the hardware counters */
+	for (i = 0; i < ARRAY_SIZE(mvpp2_ethtool_regs); i++)
+		mvpp2_read_count(port, &mvpp2_ethtool_regs[i]);
 
 	val = readl(port->base + MVPP2_GMAC_CTRL_2_REG) &
 		    ~MVPP2_GMAC_PORT_RESET_MASK;
@@ -5022,7 +5221,7 @@ static void mvpp2_aggr_txq_pend_desc_add(struct mvpp2_port *port, int pending)
 static int mvpp2_aggr_desc_num_check(struct mvpp2 *priv,
 				     struct mvpp2_tx_queue *aggr_txq, int num)
 {
-	if ((aggr_txq->count + num) > aggr_txq->size) {
+	if ((aggr_txq->count + num) > MVPP2_AGGR_TXQ_SIZE) {
 		/* Update number of occupied aggregated Tx descriptors */
 		int cpu = smp_processor_id();
 		u32 val = mvpp2_read(priv, MVPP2_AGGR_TXQ_STATUS_REG(cpu));
@@ -5030,7 +5229,7 @@ static int mvpp2_aggr_desc_num_check(struct mvpp2 *priv,
 		aggr_txq->count = val & MVPP2_AGGR_TXQ_PENDING_MASK;
 	}
 
-	if ((aggr_txq->count + num) > aggr_txq->size)
+	if ((aggr_txq->count + num) > MVPP2_AGGR_TXQ_SIZE)
 		return -ENOMEM;
 
 	return 0;
@@ -5370,7 +5569,7 @@ static void mvpp2_txq_done(struct mvpp2_port *port, struct mvpp2_tx_queue *txq,
 	txq_pcpu->count -= tx_done;
 
 	if (netif_tx_queue_stopped(nq))
-		if (txq_pcpu->size - txq_pcpu->count >= MAX_SKB_FRAGS + 1)
+		if (txq_pcpu->count <= txq_pcpu->wake_threshold)
 			netif_tx_wake_queue(nq);
 }
 
@@ -5414,7 +5613,7 @@ static int mvpp2_aggr_txq_init(struct platform_device *pdev,
 	if (!aggr_txq->descs)
 		return -ENOMEM;
 
-	aggr_txq->last_desc = aggr_txq->size - 1;
+	aggr_txq->last_desc = MVPP2_AGGR_TXQ_SIZE - 1;
 
 	/* Aggr TXQ no reset WA */
 	aggr_txq->next_desc_to_proc = mvpp2_read(priv,
@@ -5612,6 +5811,9 @@ static int mvpp2_txq_init(struct mvpp2_port *port,
 		txq_pcpu->reserved_num = 0;
 		txq_pcpu->txq_put_index = 0;
 		txq_pcpu->txq_get_index = 0;
+
+		txq_pcpu->stop_threshold = txq->size - MVPP2_MAX_SKB_DESCS;
+		txq_pcpu->wake_threshold = txq_pcpu->stop_threshold / 2;
 
 		txq_pcpu->tso_headers =
 			dma_alloc_coherent(port->dev->dev.parent,
@@ -6256,10 +6458,7 @@ static int mvpp2_tx_frag_process(struct mvpp2_port *port, struct sk_buff *skb,
 			goto cleanup;
 		}
 
-		mvpp2_txdesc_offset_set(port, tx_desc,
-					buf_dma_addr & MVPP2_TX_DESC_ALIGN);
-		mvpp2_txdesc_dma_addr_set(port, tx_desc,
-					  buf_dma_addr & ~MVPP2_TX_DESC_ALIGN);
+		mvpp2_txdesc_dma_addr_set(port, tx_desc, buf_dma_addr);
 
 		if (i == (skb_shinfo(skb)->nr_frags - 1)) {
 			/* Last descriptor */
@@ -6302,8 +6501,7 @@ static inline void mvpp2_tso_put_hdr(struct sk_buff *skb,
 
 	addr = txq_pcpu->tso_headers_dma +
 	       txq_pcpu->txq_put_index * TSO_HEADER_SIZE;
-	mvpp2_txdesc_offset_set(port, tx_desc, addr & MVPP2_TX_DESC_ALIGN);
-	mvpp2_txdesc_dma_addr_set(port, tx_desc, addr & ~MVPP2_TX_DESC_ALIGN);
+	mvpp2_txdesc_dma_addr_set(port, tx_desc, addr);
 
 	mvpp2_txdesc_cmd_set(port, tx_desc, mvpp2_skb_tx_csum(port, skb) |
 					    MVPP2_TXD_F_DESC |
@@ -6332,10 +6530,7 @@ static inline int mvpp2_tso_put_data(struct sk_buff *skb,
 		return -ENOMEM;
 	}
 
-	mvpp2_txdesc_offset_set(port, tx_desc,
-				buf_dma_addr & MVPP2_TX_DESC_ALIGN);
-	mvpp2_txdesc_dma_addr_set(port, tx_desc,
-				  buf_dma_addr & ~MVPP2_TX_DESC_ALIGN);
+	mvpp2_txdesc_dma_addr_set(port, tx_desc, buf_dma_addr);
 
 	if (!left) {
 		mvpp2_txdesc_cmd_set(port, tx_desc, MVPP2_TXD_L_DESC);
@@ -6447,10 +6642,7 @@ static int mvpp2_tx(struct sk_buff *skb, struct net_device *dev)
 		goto out;
 	}
 
-	mvpp2_txdesc_offset_set(port, tx_desc,
-				buf_dma_addr & MVPP2_TX_DESC_ALIGN);
-	mvpp2_txdesc_dma_addr_set(port, tx_desc,
-				  buf_dma_addr & ~MVPP2_TX_DESC_ALIGN);
+	mvpp2_txdesc_dma_addr_set(port, tx_desc, buf_dma_addr);
 
 	tx_cmd = mvpp2_skb_tx_csum(port, skb);
 
@@ -6469,7 +6661,6 @@ static int mvpp2_tx(struct sk_buff *skb, struct net_device *dev)
 		if (mvpp2_tx_frag_process(port, skb, aggr_txq, txq)) {
 			tx_desc_unmap_put(port, txq, tx_desc);
 			frags = 0;
-			goto out;
 		}
 	}
 
@@ -6486,7 +6677,7 @@ out:
 		wmb();
 		mvpp2_aggr_txq_pend_desc_add(port, frags);
 
-		if (txq_pcpu->size - txq_pcpu->count < MAX_SKB_FRAGS + 1)
+		if (txq_pcpu->count >= txq_pcpu->stop_threshold)
 			netif_tx_stop_queue(nq);
 
 		u64_stats_update_begin(&stats->syncp);
@@ -6747,6 +6938,9 @@ static int mvpp2_irqs_init(struct mvpp2_port *port)
 	for (i = 0; i < port->nqvecs; i++) {
 		struct mvpp2_queue_vector *qv = port->qvecs + i;
 
+		if (qv->type == MVPP2_QUEUE_VECTOR_PRIVATE)
+			irq_set_status_flags(qv->irq, IRQ_NO_BALANCING);
+
 		err = request_irq(qv->irq, mvpp2_isr, 0, port->dev->name, qv);
 		if (err)
 			goto err;
@@ -6776,8 +6970,42 @@ static void mvpp2_irqs_deinit(struct mvpp2_port *port)
 		struct mvpp2_queue_vector *qv = port->qvecs + i;
 
 		irq_set_affinity_hint(qv->irq, NULL);
+		irq_clear_status_flags(qv->irq, IRQ_NO_BALANCING);
 		free_irq(qv->irq, qv);
 	}
+}
+
+static void mvpp22_init_rss(struct mvpp2_port *port)
+{
+	struct mvpp2 *priv = port->priv;
+	int i;
+
+	/* Set the table width: replace the whole classifier Rx queue number
+	 * with the ones configured in RSS table entries.
+	 */
+	mvpp2_write(priv, MVPP22_RSS_INDEX, MVPP22_RSS_INDEX_TABLE(0));
+	mvpp2_write(priv, MVPP22_RSS_WIDTH, 8);
+
+	/* Loop through the classifier Rx Queues and map them to a RSS table.
+	 * Map them all to the first table (0) by default.
+	 */
+	for (i = 0; i < MVPP2_CLS_RX_QUEUES; i++) {
+		mvpp2_write(priv, MVPP22_RSS_INDEX, MVPP22_RSS_INDEX_QUEUE(i));
+		mvpp2_write(priv, MVPP22_RSS_TABLE,
+			    MVPP22_RSS_TABLE_POINTER(0));
+	}
+
+	/* Configure the first table to evenly distribute the packets across
+	 * real Rx Queues. The table entries map a hash to an port Rx Queue.
+	 */
+	for (i = 0; i < MVPP22_RSS_TABLE_ENTRIES; i++) {
+		u32 sel = MVPP22_RSS_INDEX_TABLE(0) |
+			  MVPP22_RSS_INDEX_TABLE_ENTRY(i);
+		mvpp2_write(priv, MVPP22_RSS_INDEX, sel);
+
+		mvpp2_write(priv, MVPP22_RSS_TABLE_ENTRY, i % port->nrxqs);
+	}
+
 }
 
 static int mvpp2_open(struct net_device *dev)
@@ -6854,6 +7082,13 @@ static int mvpp2_open(struct net_device *dev)
 
 	mvpp2_start_dev(port);
 
+	if (priv->hw_version == MVPP22)
+		mvpp22_init_rss(port);
+
+	/* Start hardware statistics gathering */
+	queue_delayed_work(priv->stats_queue, &port->stats_work,
+			   MVPP2_MIB_COUNTERS_STATS_DELAY);
+
 	return 0;
 
 err_free_link_irq:
@@ -6897,6 +7132,8 @@ static int mvpp2_stop(struct net_device *dev)
 	}
 	mvpp2_cleanup_rxqs(port);
 	mvpp2_cleanup_txqs(port);
+
+	cancel_delayed_work_sync(&port->stats_work);
 
 	return 0;
 }
@@ -7209,6 +7446,9 @@ static const struct ethtool_ops mvpp2_eth_tool_ops = {
 	.get_drvinfo	= mvpp2_ethtool_get_drvinfo,
 	.get_ringparam	= mvpp2_ethtool_get_ringparam,
 	.set_ringparam	= mvpp2_ethtool_set_ringparam,
+	.get_strings	= mvpp2_ethtool_get_strings,
+	.get_ethtool_stats = mvpp2_ethtool_get_stats,
+	.get_sset_count	= mvpp2_ethtool_get_sset_count,
 	.get_link_ksettings = phy_ethtool_get_link_ksettings,
 	.set_link_ksettings = phy_ethtool_set_link_ksettings,
 };
@@ -7612,6 +7852,10 @@ static int mvpp2_port_probe(struct platform_device *pdev,
 			err = PTR_ERR(port->base);
 			goto err_free_irq;
 		}
+
+		port->stats_base = port->priv->lms_base +
+				   MVPP21_MIB_COUNTERS_OFFSET +
+				   port->gop_id * MVPP21_MIB_COUNTERS_PORT_SZ;
 	} else {
 		if (of_property_read_u32(port_node, "gop-port-id",
 					 &port->gop_id)) {
@@ -7621,14 +7865,28 @@ static int mvpp2_port_probe(struct platform_device *pdev,
 		}
 
 		port->base = priv->iface_base + MVPP22_GMAC_BASE(port->gop_id);
+		port->stats_base = port->priv->iface_base +
+				   MVPP22_MIB_COUNTERS_OFFSET +
+				   port->gop_id * MVPP22_MIB_COUNTERS_PORT_SZ;
 	}
 
-	/* Alloc per-cpu stats */
+	/* Alloc per-cpu and ethtool stats */
 	port->stats = netdev_alloc_pcpu_stats(struct mvpp2_pcpu_stats);
 	if (!port->stats) {
 		err = -ENOMEM;
 		goto err_free_irq;
 	}
+
+	port->ethtool_stats = devm_kcalloc(&pdev->dev,
+					   ARRAY_SIZE(mvpp2_ethtool_regs),
+					   sizeof(u64), GFP_KERNEL);
+	if (!port->ethtool_stats) {
+		err = -ENOMEM;
+		goto err_free_stats;
+	}
+
+	mutex_init(&port->gather_stats_lock);
+	INIT_DELAYED_WORK(&port->stats_work, mvpp2_gather_hw_statistics);
 
 	mvpp2_port_copy_mac_addr(dev, priv, port_node, &mac_from);
 
@@ -7674,6 +7932,7 @@ static int mvpp2_port_probe(struct platform_device *pdev,
 	dev->features = features | NETIF_F_RXCSUM;
 	dev->hw_features |= features | NETIF_F_RXCSUM | NETIF_F_GRO;
 	dev->vlan_features |= features;
+	dev->gso_max_segs = MVPP2_MAX_TSO_SEGS;
 
 	/* MTU range: 68 - 9676 */
 	dev->min_mtu = ETH_MIN_MTU;
@@ -7765,14 +8024,57 @@ static void mvpp2_rx_fifo_init(struct mvpp2 *priv)
 
 	for (port = 0; port < MVPP2_MAX_PORTS; port++) {
 		mvpp2_write(priv, MVPP2_RX_DATA_FIFO_SIZE_REG(port),
-			    MVPP2_RX_FIFO_PORT_DATA_SIZE);
+			    MVPP2_RX_FIFO_PORT_DATA_SIZE_4KB);
 		mvpp2_write(priv, MVPP2_RX_ATTR_FIFO_SIZE_REG(port),
-			    MVPP2_RX_FIFO_PORT_ATTR_SIZE);
+			    MVPP2_RX_FIFO_PORT_ATTR_SIZE_4KB);
 	}
 
 	mvpp2_write(priv, MVPP2_RX_MIN_PKT_SIZE_REG,
 		    MVPP2_RX_FIFO_PORT_MIN_PKT);
 	mvpp2_write(priv, MVPP2_RX_FIFO_INIT_REG, 0x1);
+}
+
+static void mvpp22_rx_fifo_init(struct mvpp2 *priv)
+{
+	int port;
+
+	/* The FIFO size parameters are set depending on the maximum speed a
+	 * given port can handle:
+	 * - Port 0: 10Gbps
+	 * - Port 1: 2.5Gbps
+	 * - Ports 2 and 3: 1Gbps
+	 */
+
+	mvpp2_write(priv, MVPP2_RX_DATA_FIFO_SIZE_REG(0),
+		    MVPP2_RX_FIFO_PORT_DATA_SIZE_32KB);
+	mvpp2_write(priv, MVPP2_RX_ATTR_FIFO_SIZE_REG(0),
+		    MVPP2_RX_FIFO_PORT_ATTR_SIZE_32KB);
+
+	mvpp2_write(priv, MVPP2_RX_DATA_FIFO_SIZE_REG(1),
+		    MVPP2_RX_FIFO_PORT_DATA_SIZE_8KB);
+	mvpp2_write(priv, MVPP2_RX_ATTR_FIFO_SIZE_REG(1),
+		    MVPP2_RX_FIFO_PORT_ATTR_SIZE_8KB);
+
+	for (port = 2; port < MVPP2_MAX_PORTS; port++) {
+		mvpp2_write(priv, MVPP2_RX_DATA_FIFO_SIZE_REG(port),
+			    MVPP2_RX_FIFO_PORT_DATA_SIZE_4KB);
+		mvpp2_write(priv, MVPP2_RX_ATTR_FIFO_SIZE_REG(port),
+			    MVPP2_RX_FIFO_PORT_ATTR_SIZE_4KB);
+	}
+
+	mvpp2_write(priv, MVPP2_RX_MIN_PKT_SIZE_REG,
+		    MVPP2_RX_FIFO_PORT_MIN_PKT);
+	mvpp2_write(priv, MVPP2_RX_FIFO_INIT_REG, 0x1);
+}
+
+/* Initialize Tx FIFO's */
+static void mvpp22_tx_fifo_init(struct mvpp2 *priv)
+{
+	int port;
+
+	for (port = 0; port < MVPP2_MAX_PORTS; port++)
+		mvpp2_write(priv, MVPP22_TX_FIFO_SIZE_REG(port),
+			    MVPP22_TX_FIFO_DATA_SIZE_3KB);
 }
 
 static void mvpp2_axi_init(struct mvpp2 *priv)
@@ -7870,8 +8172,13 @@ static int mvpp2_init(struct platform_device *pdev, struct mvpp2 *priv)
 			return err;
 	}
 
-	/* Rx Fifo Init */
-	mvpp2_rx_fifo_init(priv);
+	/* Fifo Init */
+	if (priv->hw_version == MVPP21) {
+		mvpp2_rx_fifo_init(priv);
+	} else {
+		mvpp22_rx_fifo_init(priv);
+		mvpp22_tx_fifo_init(priv);
+	}
 
 	if (priv->hw_version == MVPP21)
 		writel(MVPP2_EXT_GLOBAL_CTRL_DEFAULT,
@@ -7903,7 +8210,7 @@ static int mvpp2_probe(struct platform_device *pdev)
 	struct mvpp2 *priv;
 	struct resource *res;
 	void __iomem *base;
-	int port_count, i;
+	int i;
 	int err;
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
@@ -8018,14 +8325,14 @@ static int mvpp2_probe(struct platform_device *pdev)
 		goto err_mg_clk;
 	}
 
-	port_count = of_get_available_child_count(dn);
-	if (port_count == 0) {
+	priv->port_count = of_get_available_child_count(dn);
+	if (priv->port_count == 0) {
 		dev_err(&pdev->dev, "no ports enabled\n");
 		err = -ENODEV;
 		goto err_mg_clk;
 	}
 
-	priv->port_list = devm_kcalloc(&pdev->dev, port_count,
+	priv->port_list = devm_kcalloc(&pdev->dev, priv->port_count,
 				       sizeof(*priv->port_list),
 				       GFP_KERNEL);
 	if (!priv->port_list) {
@@ -8040,6 +8347,21 @@ static int mvpp2_probe(struct platform_device *pdev)
 		if (err < 0)
 			goto err_mg_clk;
 		i++;
+	}
+
+	/* Statistics must be gathered regularly because some of them (like
+	 * packets counters) are 32-bit registers and could overflow quite
+	 * quickly. For instance, a 10Gb link used at full bandwidth with the
+	 * smallest packets (64B) will overflow a 32-bit counter in less than
+	 * 30 seconds. Then, use a workqueue to fill 64-bit counters.
+	 */
+	snprintf(priv->queue_name, sizeof(priv->queue_name),
+		 "stats-wq-%s%s", netdev_name(priv->port_list[0]->dev),
+		 priv->port_count > 1 ? "+" : "");
+	priv->stats_queue = create_singlethread_workqueue(priv->queue_name);
+	if (!priv->stats_queue) {
+		err = -ENOMEM;
+		goto err_mg_clk;
 	}
 
 	platform_set_drvdata(pdev, priv);
@@ -8063,9 +8385,14 @@ static int mvpp2_remove(struct platform_device *pdev)
 	struct device_node *port_node;
 	int i = 0;
 
+	flush_workqueue(priv->stats_queue);
+	destroy_workqueue(priv->stats_queue);
+
 	for_each_available_child_of_node(dn, port_node) {
-		if (priv->port_list[i])
+		if (priv->port_list[i]) {
+			mutex_destroy(&priv->port_list[i]->gather_stats_lock);
 			mvpp2_port_remove(priv->port_list[i]);
+		}
 		i++;
 	}
 

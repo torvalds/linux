@@ -5097,6 +5097,7 @@ static const struct sh_pfc_soc_operations r8a7794_pinmux_ops = {
 #ifdef CONFIG_PINCTRL_PFC_R8A7745
 const struct sh_pfc_soc_info r8a7745_pinmux_info = {
 	.name = "r8a77450_pfc",
+	.ops = &r8a7794_pinmux_ops,
 	.unlock_reg = 0xe6060000, /* PMMR */
 
 	.function = { PINMUX_FUNCTION_BEGIN, PINMUX_FUNCTION_END },

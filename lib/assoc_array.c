@@ -39,7 +39,7 @@ begin_node:
 		/* Descend through a shortcut */
 		shortcut = assoc_array_ptr_to_shortcut(cursor);
 		smp_read_barrier_depends();
-		cursor = ACCESS_ONCE(shortcut->next_node);
+		cursor = READ_ONCE(shortcut->next_node);
 	}
 
 	node = assoc_array_ptr_to_node(cursor);
@@ -55,7 +55,7 @@ begin_node:
 	 */
 	has_meta = 0;
 	for (; slot < ASSOC_ARRAY_FAN_OUT; slot++) {
-		ptr = ACCESS_ONCE(node->slots[slot]);
+		ptr = READ_ONCE(node->slots[slot]);
 		has_meta |= (unsigned long)ptr;
 		if (ptr && assoc_array_ptr_is_leaf(ptr)) {
 			/* We need a barrier between the read of the pointer
@@ -89,7 +89,7 @@ continue_node:
 	smp_read_barrier_depends();
 
 	for (; slot < ASSOC_ARRAY_FAN_OUT; slot++) {
-		ptr = ACCESS_ONCE(node->slots[slot]);
+		ptr = READ_ONCE(node->slots[slot]);
 		if (assoc_array_ptr_is_meta(ptr)) {
 			cursor = ptr;
 			goto begin_node;
@@ -98,7 +98,7 @@ continue_node:
 
 finished_node:
 	/* Move up to the parent (may need to skip back over a shortcut) */
-	parent = ACCESS_ONCE(node->back_pointer);
+	parent = READ_ONCE(node->back_pointer);
 	slot = node->parent_slot;
 	if (parent == stop)
 		return 0;
@@ -107,7 +107,7 @@ finished_node:
 		shortcut = assoc_array_ptr_to_shortcut(parent);
 		smp_read_barrier_depends();
 		cursor = parent;
-		parent = ACCESS_ONCE(shortcut->back_pointer);
+		parent = READ_ONCE(shortcut->back_pointer);
 		slot = shortcut->parent_slot;
 		if (parent == stop)
 			return 0;
@@ -147,7 +147,7 @@ int assoc_array_iterate(const struct assoc_array *array,
 					void *iterator_data),
 			void *iterator_data)
 {
-	struct assoc_array_ptr *root = ACCESS_ONCE(array->root);
+	struct assoc_array_ptr *root = READ_ONCE(array->root);
 
 	if (!root)
 		return 0;
@@ -194,7 +194,7 @@ assoc_array_walk(const struct assoc_array *array,
 
 	pr_devel("-->%s()\n", __func__);
 
-	cursor = ACCESS_ONCE(array->root);
+	cursor = READ_ONCE(array->root);
 	if (!cursor)
 		return assoc_array_walk_tree_empty;
 
@@ -220,7 +220,7 @@ consider_node:
 
 	slot = segments >> (level & ASSOC_ARRAY_KEY_CHUNK_MASK);
 	slot &= ASSOC_ARRAY_FAN_MASK;
-	ptr = ACCESS_ONCE(node->slots[slot]);
+	ptr = READ_ONCE(node->slots[slot]);
 
 	pr_devel("consider slot %x [ix=%d type=%lu]\n",
 		 slot, level, (unsigned long)ptr & 3);
@@ -294,7 +294,7 @@ follow_shortcut:
 	} while (sc_level < shortcut->skip_to_level);
 
 	/* The shortcut matches the leaf's index to this point. */
-	cursor = ACCESS_ONCE(shortcut->next_node);
+	cursor = READ_ONCE(shortcut->next_node);
 	if (((level ^ sc_level) & ~ASSOC_ARRAY_KEY_CHUNK_MASK) != 0) {
 		level = sc_level;
 		goto jumped;
@@ -337,7 +337,7 @@ void *assoc_array_find(const struct assoc_array *array,
 	 * the terminal node.
 	 */
 	for (slot = 0; slot < ASSOC_ARRAY_FAN_OUT; slot++) {
-		ptr = ACCESS_ONCE(node->slots[slot]);
+		ptr = READ_ONCE(node->slots[slot]);
 		if (ptr && assoc_array_ptr_is_leaf(ptr)) {
 			/* We need a barrier between the read of the pointer
 			 * and dereferencing the pointer - but only if we are

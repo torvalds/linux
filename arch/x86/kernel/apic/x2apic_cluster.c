@@ -9,20 +9,22 @@
 #include <linux/cpu.h>
 
 #include <asm/smp.h>
-#include <asm/x2apic.h>
+#include "x2apic.h"
+
+struct cluster_mask {
+	unsigned int	clusterid;
+	int		node;
+	struct cpumask	mask;
+};
 
 static DEFINE_PER_CPU(u32, x86_cpu_to_logical_apicid);
-static DEFINE_PER_CPU(cpumask_var_t, cpus_in_cluster);
 static DEFINE_PER_CPU(cpumask_var_t, ipi_mask);
+static DEFINE_PER_CPU(struct cluster_mask *, cluster_masks);
+static struct cluster_mask *cluster_hotplug_mask;
 
 static int x2apic_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 {
 	return x2apic_enabled();
-}
-
-static inline u32 x2apic_cluster(int cpu)
-{
-	return per_cpu(x86_cpu_to_logical_apicid, cpu) >> 16;
 }
 
 static void x2apic_send_IPI(int cpu, int vector)
@@ -36,49 +38,34 @@ static void x2apic_send_IPI(int cpu, int vector)
 static void
 __x2apic_send_IPI_mask(const struct cpumask *mask, int vector, int apic_dest)
 {
-	struct cpumask *cpus_in_cluster_ptr;
-	struct cpumask *ipi_mask_ptr;
-	unsigned int cpu, this_cpu;
+	unsigned int cpu, clustercpu;
+	struct cpumask *tmpmsk;
 	unsigned long flags;
 	u32 dest;
 
 	x2apic_wrmsr_fence();
-
 	local_irq_save(flags);
 
-	this_cpu = smp_processor_id();
+	tmpmsk = this_cpu_cpumask_var_ptr(ipi_mask);
+	cpumask_copy(tmpmsk, mask);
+	/* If IPI should not be sent to self, clear current CPU */
+	if (apic_dest != APIC_DEST_ALLINC)
+		cpumask_clear_cpu(smp_processor_id(), tmpmsk);
 
-	/*
-	 * We are to modify mask, so we need an own copy
-	 * and be sure it's manipulated with irq off.
-	 */
-	ipi_mask_ptr = this_cpu_cpumask_var_ptr(ipi_mask);
-	cpumask_copy(ipi_mask_ptr, mask);
+	/* Collapse cpus in a cluster so a single IPI per cluster is sent */
+	for_each_cpu(cpu, tmpmsk) {
+		struct cluster_mask *cmsk = per_cpu(cluster_masks, cpu);
 
-	/*
-	 * The idea is to send one IPI per cluster.
-	 */
-	for_each_cpu(cpu, ipi_mask_ptr) {
-		unsigned long i;
-
-		cpus_in_cluster_ptr = per_cpu(cpus_in_cluster, cpu);
 		dest = 0;
-
-		/* Collect cpus in cluster. */
-		for_each_cpu_and(i, ipi_mask_ptr, cpus_in_cluster_ptr) {
-			if (apic_dest == APIC_DEST_ALLINC || i != this_cpu)
-				dest |= per_cpu(x86_cpu_to_logical_apicid, i);
-		}
+		for_each_cpu_and(clustercpu, tmpmsk, &cmsk->mask)
+			dest |= per_cpu(x86_cpu_to_logical_apicid, clustercpu);
 
 		if (!dest)
 			continue;
 
 		__x2apic_send_IPI_dest(dest, vector, apic->dest_logical);
-		/*
-		 * Cluster sibling cpus should be discared now so
-		 * we would not send IPI them second time.
-		 */
-		cpumask_andnot(ipi_mask_ptr, ipi_mask_ptr, cpus_in_cluster_ptr);
+		/* Remove cluster CPUs from tmpmask */
+		cpumask_andnot(tmpmsk, tmpmsk, &cmsk->mask);
 	}
 
 	local_irq_restore(flags);
@@ -105,123 +92,88 @@ static void x2apic_send_IPI_all(int vector)
 	__x2apic_send_IPI_mask(cpu_online_mask, vector, APIC_DEST_ALLINC);
 }
 
-static int
-x2apic_cpu_mask_to_apicid(const struct cpumask *mask, struct irq_data *irqdata,
-			  unsigned int *apicid)
+static u32 x2apic_calc_apicid(unsigned int cpu)
 {
-	struct cpumask *effmsk = irq_data_get_effective_affinity_mask(irqdata);
-	unsigned int cpu;
-	u32 dest = 0;
-	u16 cluster;
-
-	cpu = cpumask_first(mask);
-	if (cpu >= nr_cpu_ids)
-		return -EINVAL;
-
-	dest = per_cpu(x86_cpu_to_logical_apicid, cpu);
-	cluster = x2apic_cluster(cpu);
-
-	cpumask_clear(effmsk);
-	for_each_cpu(cpu, mask) {
-		if (cluster != x2apic_cluster(cpu))
-			continue;
-		dest |= per_cpu(x86_cpu_to_logical_apicid, cpu);
-		cpumask_set_cpu(cpu, effmsk);
-	}
-
-	*apicid = dest;
-	return 0;
+	return per_cpu(x86_cpu_to_logical_apicid, cpu);
 }
 
 static void init_x2apic_ldr(void)
 {
-	unsigned int this_cpu = smp_processor_id();
+	struct cluster_mask *cmsk = this_cpu_read(cluster_masks);
+	u32 cluster, apicid = apic_read(APIC_LDR);
 	unsigned int cpu;
 
-	per_cpu(x86_cpu_to_logical_apicid, this_cpu) = apic_read(APIC_LDR);
+	this_cpu_write(x86_cpu_to_logical_apicid, apicid);
 
-	cpumask_set_cpu(this_cpu, per_cpu(cpus_in_cluster, this_cpu));
+	if (cmsk)
+		goto update;
+
+	cluster = apicid >> 16;
 	for_each_online_cpu(cpu) {
-		if (x2apic_cluster(this_cpu) != x2apic_cluster(cpu))
-			continue;
-		cpumask_set_cpu(this_cpu, per_cpu(cpus_in_cluster, cpu));
-		cpumask_set_cpu(cpu, per_cpu(cpus_in_cluster, this_cpu));
+		cmsk = per_cpu(cluster_masks, cpu);
+		/* Matching cluster found. Link and update it. */
+		if (cmsk && cmsk->clusterid == cluster)
+			goto update;
 	}
+	cmsk = cluster_hotplug_mask;
+	cluster_hotplug_mask = NULL;
+update:
+	this_cpu_write(cluster_masks, cmsk);
+	cpumask_set_cpu(smp_processor_id(), &cmsk->mask);
 }
 
-/*
- * At CPU state changes, update the x2apic cluster sibling info.
- */
-static int x2apic_prepare_cpu(unsigned int cpu)
+static int alloc_clustermask(unsigned int cpu, int node)
 {
-	if (!zalloc_cpumask_var(&per_cpu(cpus_in_cluster, cpu), GFP_KERNEL))
-		return -ENOMEM;
-
-	if (!zalloc_cpumask_var(&per_cpu(ipi_mask, cpu), GFP_KERNEL)) {
-		free_cpumask_var(per_cpu(cpus_in_cluster, cpu));
-		return -ENOMEM;
+	if (per_cpu(cluster_masks, cpu))
+		return 0;
+	/*
+	 * If a hotplug spare mask exists, check whether it's on the right
+	 * node. If not, free it and allocate a new one.
+	 */
+	if (cluster_hotplug_mask) {
+		if (cluster_hotplug_mask->node == node)
+			return 0;
+		kfree(cluster_hotplug_mask);
 	}
 
+	cluster_hotplug_mask = kzalloc_node(sizeof(*cluster_hotplug_mask),
+					    GFP_KERNEL, node);
+	if (!cluster_hotplug_mask)
+		return -ENOMEM;
+	cluster_hotplug_mask->node = node;
 	return 0;
 }
 
-static int x2apic_dead_cpu(unsigned int this_cpu)
+static int x2apic_prepare_cpu(unsigned int cpu)
 {
-	int cpu;
+	if (alloc_clustermask(cpu, cpu_to_node(cpu)) < 0)
+		return -ENOMEM;
+	if (!zalloc_cpumask_var(&per_cpu(ipi_mask, cpu), GFP_KERNEL))
+		return -ENOMEM;
+	return 0;
+}
 
-	for_each_online_cpu(cpu) {
-		if (x2apic_cluster(this_cpu) != x2apic_cluster(cpu))
-			continue;
-		cpumask_clear_cpu(this_cpu, per_cpu(cpus_in_cluster, cpu));
-		cpumask_clear_cpu(cpu, per_cpu(cpus_in_cluster, this_cpu));
-	}
-	free_cpumask_var(per_cpu(cpus_in_cluster, this_cpu));
-	free_cpumask_var(per_cpu(ipi_mask, this_cpu));
+static int x2apic_dead_cpu(unsigned int dead_cpu)
+{
+	struct cluster_mask *cmsk = per_cpu(cluster_masks, dead_cpu);
+
+	cpumask_clear_cpu(dead_cpu, &cmsk->mask);
+	free_cpumask_var(per_cpu(ipi_mask, dead_cpu));
 	return 0;
 }
 
 static int x2apic_cluster_probe(void)
 {
-	int cpu = smp_processor_id();
-	int ret;
-
 	if (!x2apic_mode)
 		return 0;
 
-	ret = cpuhp_setup_state(CPUHP_X2APIC_PREPARE, "x86/x2apic:prepare",
-				x2apic_prepare_cpu, x2apic_dead_cpu);
-	if (ret < 0) {
+	if (cpuhp_setup_state(CPUHP_X2APIC_PREPARE, "x86/x2apic:prepare",
+			      x2apic_prepare_cpu, x2apic_dead_cpu) < 0) {
 		pr_err("Failed to register X2APIC_PREPARE\n");
 		return 0;
 	}
-	cpumask_set_cpu(cpu, per_cpu(cpus_in_cluster, cpu));
+	init_x2apic_ldr();
 	return 1;
-}
-
-static const struct cpumask *x2apic_cluster_target_cpus(void)
-{
-	return cpu_all_mask;
-}
-
-/*
- * Each x2apic cluster is an allocation domain.
- */
-static void cluster_vector_allocation_domain(int cpu, struct cpumask *retmask,
-					     const struct cpumask *mask)
-{
-	/*
-	 * To minimize vector pressure, default case of boot, device bringup
-	 * etc will use a single cpu for the interrupt destination.
-	 *
-	 * On explicit migration requests coming from irqbalance etc,
-	 * interrupts will be routed to the x2apic cluster (cluster-id
-	 * derived from the first cpu in the mask) members specified
-	 * in the mask.
-	 */
-	if (mask == x2apic_cluster_target_cpus())
-		cpumask_copy(retmask, cpumask_of(cpu));
-	else
-		cpumask_and(retmask, mask, per_cpu(cpus_in_cluster, cpu));
 }
 
 static struct apic apic_x2apic_cluster __ro_after_init = {
@@ -235,12 +187,10 @@ static struct apic apic_x2apic_cluster __ro_after_init = {
 	.irq_delivery_mode		= dest_LowestPrio,
 	.irq_dest_mode			= 1, /* logical */
 
-	.target_cpus			= x2apic_cluster_target_cpus,
 	.disable_esr			= 0,
 	.dest_logical			= APIC_DEST_LOGICAL,
 	.check_apicid_used		= NULL,
 
-	.vector_allocation_domain	= cluster_vector_allocation_domain,
 	.init_apic_ldr			= init_x2apic_ldr,
 
 	.ioapic_phys_id_map		= NULL,
@@ -253,7 +203,7 @@ static struct apic apic_x2apic_cluster __ro_after_init = {
 	.get_apic_id			= x2apic_get_apic_id,
 	.set_apic_id			= x2apic_set_apic_id,
 
-	.cpu_mask_to_apicid		= x2apic_cpu_mask_to_apicid,
+	.calc_dest_apicid		= x2apic_calc_apicid,
 
 	.send_IPI			= x2apic_send_IPI,
 	.send_IPI_mask			= x2apic_send_IPI_mask,

@@ -1,11 +1,11 @@
-config VIDEO_OV5693
+config VIDEO_ATOMISP_OV5693
        tristate "Omnivision ov5693 sensor support"
+	depends on ACPI
        depends on I2C && VIDEO_V4L2
        ---help---
-         This is a Video4Linux2 sensor-level driver for the Micron
-         ov5693 5 Mpixel camera.
+	 This is a Video4Linux2 sensor-level driver for the Micron
+	 ov5693 5 Mpixel camera.
 
-         ov5693 is video camera sensor.
+	 ov5693 is video camera sensor.
 
-         It currently only works with the atomisp driver.
-
+	 It currently only works with the atomisp driver.

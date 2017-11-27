@@ -3,7 +3,7 @@ Key Request Service
 ===================
 
 The key request service is part of the key retention service (refer to
-Documentation/security/core.rst).  This document explains more fully how
+Documentation/security/keys/core.rst).  This document explains more fully how
 the requesting algorithm works.
 
 The process starts by either the kernel requesting a service by calling

@@ -2591,6 +2591,15 @@ static int em_rsm(struct x86_emulate_ctxt *ctxt)
 	ctxt->ops->set_msr(ctxt, MSR_EFER, efer);
 
 	smbase = ctxt->ops->get_smbase(ctxt);
+
+	/*
+	 * Give pre_leave_smm() a chance to make ISA-specific changes to the
+	 * vCPU state (e.g. enter guest mode) before loading state from the SMM
+	 * state-save area.
+	 */
+	if (ctxt->ops->pre_leave_smm(ctxt, smbase))
+		return X86EMUL_UNHANDLEABLE;
+
 	if (emulator_has_longmode(ctxt))
 		ret = rsm_load_state_64(ctxt, smbase + 0x8000);
 	else

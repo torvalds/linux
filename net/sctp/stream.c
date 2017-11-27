@@ -32,44 +32,181 @@
  *    Xin Long <lucien.xin@gmail.com>
  */
 
+#include <linux/list.h>
 #include <net/sctp/sctp.h>
 #include <net/sctp/sm.h>
+#include <net/sctp/stream_sched.h>
+
+/* Migrates chunks from stream queues to new stream queues if needed,
+ * but not across associations. Also, removes those chunks to streams
+ * higher than the new max.
+ */
+static void sctp_stream_outq_migrate(struct sctp_stream *stream,
+				     struct sctp_stream *new, __u16 outcnt)
+{
+	struct sctp_association *asoc;
+	struct sctp_chunk *ch, *temp;
+	struct sctp_outq *outq;
+	int i;
+
+	asoc = container_of(stream, struct sctp_association, stream);
+	outq = &asoc->outqueue;
+
+	list_for_each_entry_safe(ch, temp, &outq->out_chunk_list, list) {
+		__u16 sid = sctp_chunk_stream_no(ch);
+
+		if (sid < outcnt)
+			continue;
+
+		sctp_sched_dequeue_common(outq, ch);
+		/* No need to call dequeue_done here because
+		 * the chunks are not scheduled by now.
+		 */
+
+		/* Mark as failed send. */
+		sctp_chunk_fail(ch, SCTP_ERROR_INV_STRM);
+		if (asoc->peer.prsctp_capable &&
+		    SCTP_PR_PRIO_ENABLED(ch->sinfo.sinfo_flags))
+			asoc->sent_cnt_removable--;
+
+		sctp_chunk_free(ch);
+	}
+
+	if (new) {
+		/* Here we actually move the old ext stuff into the new
+		 * buffer, because we want to keep it. Then
+		 * sctp_stream_update will swap ->out pointers.
+		 */
+		for (i = 0; i < outcnt; i++) {
+			kfree(new->out[i].ext);
+			new->out[i].ext = stream->out[i].ext;
+			stream->out[i].ext = NULL;
+		}
+	}
+
+	for (i = outcnt; i < stream->outcnt; i++)
+		kfree(stream->out[i].ext);
+}
+
+static int sctp_stream_alloc_out(struct sctp_stream *stream, __u16 outcnt,
+				 gfp_t gfp)
+{
+	struct sctp_stream_out *out;
+
+	out = kmalloc_array(outcnt, sizeof(*out), gfp);
+	if (!out)
+		return -ENOMEM;
+
+	if (stream->out) {
+		memcpy(out, stream->out, min(outcnt, stream->outcnt) *
+					 sizeof(*out));
+		kfree(stream->out);
+	}
+
+	if (outcnt > stream->outcnt)
+		memset(out + stream->outcnt, 0,
+		       (outcnt - stream->outcnt) * sizeof(*out));
+
+	stream->out = out;
+
+	return 0;
+}
+
+static int sctp_stream_alloc_in(struct sctp_stream *stream, __u16 incnt,
+				gfp_t gfp)
+{
+	struct sctp_stream_in *in;
+
+	in = kmalloc_array(incnt, sizeof(*stream->in), gfp);
+
+	if (!in)
+		return -ENOMEM;
+
+	if (stream->in) {
+		memcpy(in, stream->in, min(incnt, stream->incnt) *
+				       sizeof(*in));
+		kfree(stream->in);
+	}
+
+	if (incnt > stream->incnt)
+		memset(in + stream->incnt, 0,
+		       (incnt - stream->incnt) * sizeof(*in));
+
+	stream->in = in;
+
+	return 0;
+}
 
 int sctp_stream_init(struct sctp_stream *stream, __u16 outcnt, __u16 incnt,
 		     gfp_t gfp)
 {
-	int i;
+	struct sctp_sched_ops *sched = sctp_sched_ops_from_stream(stream);
+	int i, ret = 0;
+
+	gfp |= __GFP_NOWARN;
 
 	/* Initial stream->out size may be very big, so free it and alloc
-	 * a new one with new outcnt to save memory.
+	 * a new one with new outcnt to save memory if needed.
 	 */
-	kfree(stream->out);
+	if (outcnt == stream->outcnt)
+		goto in;
 
-	stream->out = kcalloc(outcnt, sizeof(*stream->out), gfp);
-	if (!stream->out)
-		return -ENOMEM;
+	/* Filter out chunks queued on streams that won't exist anymore */
+	sched->unsched_all(stream);
+	sctp_stream_outq_migrate(stream, NULL, outcnt);
+	sched->sched_all(stream);
+
+	i = sctp_stream_alloc_out(stream, outcnt, gfp);
+	if (i)
+		return i;
 
 	stream->outcnt = outcnt;
 	for (i = 0; i < stream->outcnt; i++)
 		stream->out[i].state = SCTP_STREAM_OPEN;
 
-	if (!incnt)
-		return 0;
+	sched->init(stream);
 
-	stream->in = kcalloc(incnt, sizeof(*stream->in), gfp);
-	if (!stream->in) {
-		kfree(stream->out);
-		stream->out = NULL;
-		return -ENOMEM;
+in:
+	if (!incnt)
+		goto out;
+
+	i = sctp_stream_alloc_in(stream, incnt, gfp);
+	if (i) {
+		ret = -ENOMEM;
+		goto free;
 	}
 
 	stream->incnt = incnt;
+	goto out;
 
-	return 0;
+free:
+	sched->free(stream);
+	kfree(stream->out);
+	stream->out = NULL;
+out:
+	return ret;
+}
+
+int sctp_stream_init_ext(struct sctp_stream *stream, __u16 sid)
+{
+	struct sctp_stream_out_ext *soute;
+
+	soute = kzalloc(sizeof(*soute), GFP_KERNEL);
+	if (!soute)
+		return -ENOMEM;
+	stream->out[sid].ext = soute;
+
+	return sctp_sched_init_sid(stream, sid, GFP_KERNEL);
 }
 
 void sctp_stream_free(struct sctp_stream *stream)
 {
+	struct sctp_sched_ops *sched = sctp_sched_ops_from_stream(stream);
+	int i;
+
+	sched->free(stream);
+	for (i = 0; i < stream->outcnt; i++)
+		kfree(stream->out[i].ext);
 	kfree(stream->out);
 	kfree(stream->in);
 }
@@ -87,12 +224,18 @@ void sctp_stream_clear(struct sctp_stream *stream)
 
 void sctp_stream_update(struct sctp_stream *stream, struct sctp_stream *new)
 {
+	struct sctp_sched_ops *sched = sctp_sched_ops_from_stream(stream);
+
+	sched->unsched_all(stream);
+	sctp_stream_outq_migrate(stream, new, new->outcnt);
 	sctp_stream_free(stream);
 
 	stream->out = new->out;
 	stream->in  = new->in;
 	stream->outcnt = new->outcnt;
 	stream->incnt  = new->incnt;
+
+	sched->sched_all(stream);
 
 	new->out = NULL;
 	new->in  = NULL;
@@ -139,15 +282,31 @@ int sctp_send_reset_streams(struct sctp_association *asoc,
 
 	str_nums = params->srs_number_streams;
 	str_list = params->srs_stream_list;
-	if (out && str_nums)
-		for (i = 0; i < str_nums; i++)
-			if (str_list[i] >= stream->outcnt)
-				goto out;
+	if (str_nums) {
+		int param_len = 0;
 
-	if (in && str_nums)
-		for (i = 0; i < str_nums; i++)
-			if (str_list[i] >= stream->incnt)
-				goto out;
+		if (out) {
+			for (i = 0; i < str_nums; i++)
+				if (str_list[i] >= stream->outcnt)
+					goto out;
+
+			param_len = str_nums * sizeof(__u16) +
+				    sizeof(struct sctp_strreset_outreq);
+		}
+
+		if (in) {
+			for (i = 0; i < str_nums; i++)
+				if (str_list[i] >= stream->incnt)
+					goto out;
+
+			param_len += str_nums * sizeof(__u16) +
+				     sizeof(struct sctp_strreset_inreq);
+		}
+
+		if (param_len > SCTP_MAX_CHUNK_LEN -
+				sizeof(struct sctp_reconf_chunk))
+			goto out;
+	}
 
 	nstr_list = kcalloc(str_nums, sizeof(__be16), GFP_KERNEL);
 	if (!nstr_list) {
@@ -250,7 +409,7 @@ int sctp_send_add_streams(struct sctp_association *asoc,
 {
 	struct sctp_stream *stream = &asoc->stream;
 	struct sctp_chunk *chunk = NULL;
-	int retval = -ENOMEM;
+	int retval;
 	__u32 outcnt, incnt;
 	__u16 out, in;
 
@@ -276,20 +435,16 @@ int sctp_send_add_streams(struct sctp_association *asoc,
 	}
 
 	if (out) {
-		struct sctp_stream_out *streamout;
-
-		streamout = krealloc(stream->out, outcnt * sizeof(*streamout),
-				     GFP_KERNEL);
-		if (!streamout)
+		retval = sctp_stream_alloc_out(stream, outcnt, GFP_KERNEL);
+		if (retval)
 			goto out;
-
-		memset(streamout + stream->outcnt, 0, out * sizeof(*streamout));
-		stream->out = streamout;
 	}
 
 	chunk = sctp_make_strreset_addstrm(asoc, out, in);
-	if (!chunk)
+	if (!chunk) {
+		retval = -ENOMEM;
 		goto out;
+	}
 
 	asoc->strreset_chunk = chunk;
 	sctp_chunk_hold(asoc->strreset_chunk);
@@ -609,7 +764,6 @@ struct sctp_chunk *sctp_process_strreset_addstrm_out(
 	struct sctp_strreset_addstrm *addstrm = param.v;
 	struct sctp_stream *stream = &asoc->stream;
 	__u32 result = SCTP_STRRESET_DENIED;
-	struct sctp_stream_in *streamin;
 	__u32 request_seq, incnt;
 	__u16 in, i;
 
@@ -656,13 +810,9 @@ struct sctp_chunk *sctp_process_strreset_addstrm_out(
 	if (!in || incnt > SCTP_MAX_STREAM)
 		goto out;
 
-	streamin = krealloc(stream->in, incnt * sizeof(*streamin),
-			    GFP_ATOMIC);
-	if (!streamin)
+	if (sctp_stream_alloc_in(stream, incnt, GFP_ATOMIC))
 		goto out;
 
-	memset(streamin + stream->incnt, 0, in * sizeof(*streamin));
-	stream->in = streamin;
 	stream->incnt = incnt;
 
 	result = SCTP_STRRESET_PERFORMED;
@@ -684,10 +834,10 @@ struct sctp_chunk *sctp_process_strreset_addstrm_in(
 	struct sctp_strreset_addstrm *addstrm = param.v;
 	struct sctp_stream *stream = &asoc->stream;
 	__u32 result = SCTP_STRRESET_DENIED;
-	struct sctp_stream_out *streamout;
 	struct sctp_chunk *chunk = NULL;
 	__u32 request_seq, outcnt;
 	__u16 out, i;
+	int ret;
 
 	request_seq = ntohl(addstrm->request_seq);
 	if (TSN_lt(asoc->strreset_inseq, request_seq) ||
@@ -716,13 +866,9 @@ struct sctp_chunk *sctp_process_strreset_addstrm_in(
 	if (!out || outcnt > SCTP_MAX_STREAM)
 		goto out;
 
-	streamout = krealloc(stream->out, outcnt * sizeof(*streamout),
-			     GFP_ATOMIC);
-	if (!streamout)
+	ret = sctp_stream_alloc_out(stream, outcnt, GFP_ATOMIC);
+	if (ret)
 		goto out;
-
-	memset(streamout + stream->outcnt, 0, out * sizeof(*streamout));
-	stream->out = streamout;
 
 	chunk = sctp_make_strreset_addstrm(asoc, out, 0);
 	if (!chunk)

@@ -240,7 +240,7 @@ static __net_init int sample_init_net(struct net *net)
 {
 	struct tc_action_net *tn = net_generic(net, sample_net_id);
 
-	return tc_action_net_init(tn, &act_sample_ops, net);
+	return tc_action_net_init(tn, &act_sample_ops);
 }
 
 static void __net_exit sample_exit_net(struct net *net)

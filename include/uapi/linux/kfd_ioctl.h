@@ -169,7 +169,7 @@ struct kfd_ioctl_dbg_wave_control_args {
 #define KFD_IOC_WAIT_RESULT_TIMEOUT		1
 #define KFD_IOC_WAIT_RESULT_FAIL		2
 
-#define KFD_SIGNAL_EVENT_LIMIT			256
+#define KFD_SIGNAL_EVENT_LIMIT			4096
 
 struct kfd_ioctl_create_event_args {
 	__u64 event_page_offset;	/* from KFD */
