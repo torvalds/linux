@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *    ebcdic keycode functions for s390 console drivers
  *

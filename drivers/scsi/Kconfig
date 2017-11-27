@@ -130,7 +130,8 @@ config CHR_DEV_OSST
 
 config BLK_DEV_SR
 	tristate "SCSI CDROM support"
-	depends on SCSI
+	depends on SCSI && BLK_DEV
+	select CDROM
 	---help---
 	  If you want to use a CD or DVD drive attached to your computer
 	  by SCSI, FireWire, USB or ATAPI, say Y and read the SCSI-HOWTO
@@ -786,7 +787,7 @@ config SCSI_IBMVSCSIS
 	depends on PPC_PSERIES && TARGET_CORE && SCSI && PCI
 	help
 	  This is the IBM POWER Virtual SCSI Target Server
-	  This driver uses the SRP protocol for communication betwen servers
+	  This driver uses the SRP protocol for communication between servers
 	  guest and/or the host that run on the same server.
 	  More information on VSCSI protocol can be found at www.power.org
 

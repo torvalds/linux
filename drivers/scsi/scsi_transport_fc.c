@@ -267,6 +267,8 @@ static const struct {
 	{ FC_PORTSPEED_50GBIT,		"50 Gbit" },
 	{ FC_PORTSPEED_100GBIT,		"100 Gbit" },
 	{ FC_PORTSPEED_25GBIT,		"25 Gbit" },
+	{ FC_PORTSPEED_64BIT,		"64 Gbit" },
+	{ FC_PORTSPEED_128BIT,		"128 Gbit" },
 	{ FC_PORTSPEED_NOT_NEGOTIATED,	"Not Negotiated" },
 };
 fc_bitfield_name_search(port_speed, fc_port_speed_names)
@@ -3319,6 +3321,9 @@ EXPORT_SYMBOL(fc_block_rport);
 int fc_block_scsi_eh(struct scsi_cmnd *cmnd)
 {
 	struct fc_rport *rport = starget_to_rport(scsi_target(cmnd->device));
+
+	if (WARN_ON_ONCE(!rport))
+		return FAST_IO_FAIL;
 
 	return fc_block_rport(rport);
 }

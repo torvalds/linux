@@ -759,7 +759,7 @@ static bool i40e_clean_tx_irq(struct i40e_vsi *vsi,
 			break;
 
 		/* prevent any other reads prior to eop_desc */
-		read_barrier_depends();
+		smp_rmb();
 
 		i40e_trace(clean_tx_irq, tx_ring, tx_desc, tx_buf);
 		/* we have caught up to head, no work left to do */
@@ -960,14 +960,14 @@ static bool i40e_set_new_dynamic_itr(struct i40e_ring_container *rc)
 {
 	enum i40e_latency_range new_latency_range = rc->latency_range;
 	u32 new_itr = rc->itr;
-	int bytes_per_int;
+	int bytes_per_usec;
 	unsigned int usecs, estimated_usecs;
 
 	if (rc->total_packets == 0 || !rc->itr)
 		return false;
 
 	usecs = (rc->itr << 1) * ITR_COUNTDOWN_START;
-	bytes_per_int = rc->total_bytes / usecs;
+	bytes_per_usec = rc->total_bytes / usecs;
 
 	/* The calculations in this algorithm depend on interrupts actually
 	 * firing at the ITR rate. This may not happen if the packet rate is
@@ -993,18 +993,18 @@ static bool i40e_set_new_dynamic_itr(struct i40e_ring_container *rc)
 	 */
 	switch (new_latency_range) {
 	case I40E_LOWEST_LATENCY:
-		if (bytes_per_int > 10)
+		if (bytes_per_usec > 10)
 			new_latency_range = I40E_LOW_LATENCY;
 		break;
 	case I40E_LOW_LATENCY:
-		if (bytes_per_int > 20)
+		if (bytes_per_usec > 20)
 			new_latency_range = I40E_BULK_LATENCY;
-		else if (bytes_per_int <= 10)
+		else if (bytes_per_usec <= 10)
 			new_latency_range = I40E_LOWEST_LATENCY;
 		break;
 	case I40E_BULK_LATENCY:
 	default:
-		if (bytes_per_int <= 20)
+		if (bytes_per_usec <= 20)
 			new_latency_range = I40E_LOW_LATENCY;
 		break;
 	}
@@ -1035,6 +1035,32 @@ reset_latency:
 		return true;
 	}
 	return false;
+}
+
+/**
+ * i40e_reuse_rx_page - page flip buffer and store it back on the ring
+ * @rx_ring: rx descriptor ring to store buffers on
+ * @old_buff: donor buffer to have page reused
+ *
+ * Synchronizes page for reuse by the adapter
+ **/
+static void i40e_reuse_rx_page(struct i40e_ring *rx_ring,
+			       struct i40e_rx_buffer *old_buff)
+{
+	struct i40e_rx_buffer *new_buff;
+	u16 nta = rx_ring->next_to_alloc;
+
+	new_buff = &rx_ring->rx_bi[nta];
+
+	/* update, and store next to alloc */
+	nta++;
+	rx_ring->next_to_alloc = (nta < rx_ring->count) ? nta : 0;
+
+	/* transfer page from old buffer to new buffer */
+	new_buff->dma		= old_buff->dma;
+	new_buff->page		= old_buff->page;
+	new_buff->page_offset	= old_buff->page_offset;
+	new_buff->pagecnt_bias	= old_buff->pagecnt_bias;
 }
 
 /**
@@ -1071,14 +1097,23 @@ static void i40e_clean_programming_status(struct i40e_ring *rx_ring,
 					  union i40e_rx_desc *rx_desc,
 					  u64 qw)
 {
-	u32 ntc = rx_ring->next_to_clean + 1;
+	struct i40e_rx_buffer *rx_buffer;
+	u32 ntc = rx_ring->next_to_clean;
 	u8 id;
 
 	/* fetch, update, and store next to clean */
+	rx_buffer = &rx_ring->rx_bi[ntc++];
 	ntc = (ntc < rx_ring->count) ? ntc : 0;
 	rx_ring->next_to_clean = ntc;
 
 	prefetch(I40E_RX_DESC(rx_ring, ntc));
+
+	/* place unused page back on the ring */
+	i40e_reuse_rx_page(rx_ring, rx_buffer);
+	rx_ring->rx_stats.page_reuse_count++;
+
+	/* clear contents of buffer_info */
+	rx_buffer->page = NULL;
 
 	id = (qw & I40E_RX_PROG_STATUS_DESC_QW1_PROGID_MASK) >>
 		  I40E_RX_PROG_STATUS_DESC_QW1_PROGID_SHIFT;
@@ -1639,32 +1674,6 @@ static bool i40e_cleanup_headers(struct i40e_ring *rx_ring, struct sk_buff *skb,
 }
 
 /**
- * i40e_reuse_rx_page - page flip buffer and store it back on the ring
- * @rx_ring: rx descriptor ring to store buffers on
- * @old_buff: donor buffer to have page reused
- *
- * Synchronizes page for reuse by the adapter
- **/
-static void i40e_reuse_rx_page(struct i40e_ring *rx_ring,
-			       struct i40e_rx_buffer *old_buff)
-{
-	struct i40e_rx_buffer *new_buff;
-	u16 nta = rx_ring->next_to_alloc;
-
-	new_buff = &rx_ring->rx_bi[nta];
-
-	/* update, and store next to alloc */
-	nta++;
-	rx_ring->next_to_alloc = (nta < rx_ring->count) ? nta : 0;
-
-	/* transfer page from old buffer to new buffer */
-	new_buff->dma		= old_buff->dma;
-	new_buff->page		= old_buff->page;
-	new_buff->page_offset	= old_buff->page_offset;
-	new_buff->pagecnt_bias	= old_buff->pagecnt_bias;
-}
-
-/**
  * i40e_page_is_reusable - check if any reuse is possible
  * @page: page struct to check
  *
@@ -2093,6 +2102,7 @@ static int i40e_clean_rx_irq(struct i40e_ring *rx_ring, int budget)
 
 		if (unlikely(i40e_rx_is_programming_status(qword))) {
 			i40e_clean_programming_status(rx_ring, rx_desc, qword);
+			cleaned_count++;
 			continue;
 		}
 		size = (qword & I40E_RXD_QW1_LENGTH_PBUF_MASK) >>
@@ -2107,6 +2117,7 @@ static int i40e_clean_rx_irq(struct i40e_ring *rx_ring, int budget)
 		if (!skb) {
 			xdp.data = page_address(rx_buffer->page) +
 				   rx_buffer->page_offset;
+			xdp_set_data_meta_invalid(&xdp);
 			xdp.data_hard_start = xdp.data -
 					      i40e_rx_offset(rx_ring);
 			xdp.data_end = xdp.data + size;
@@ -2201,9 +2212,7 @@ static u32 i40e_buildreg_itr(const int type, const u16 itr)
 	u32 val;
 
 	val = I40E_PFINT_DYN_CTLN_INTENA_MASK |
-	      /* Don't clear PBA because that can cause lost interrupts that
-	       * came in while we were cleaning/polling
-	       */
+	      I40E_PFINT_DYN_CTLN_CLEARPBA_MASK |
 	      (type << I40E_PFINT_DYN_CTLN_ITR_INDX_SHIFT) |
 	      (itr << I40E_PFINT_DYN_CTLN_INTERVAL_SHIFT);
 
@@ -2240,7 +2249,7 @@ static inline void i40e_update_enable_itr(struct i40e_vsi *vsi,
 
 	/* If we don't have MSIX, then we only need to re-enable icr0 */
 	if (!(vsi->back->flags & I40E_FLAG_MSIX_ENABLED)) {
-		i40e_irq_dynamic_enable_icr0(vsi->back, false);
+		i40e_irq_dynamic_enable_icr0(vsi->back);
 		return;
 	}
 
@@ -2260,7 +2269,7 @@ static inline void i40e_update_enable_itr(struct i40e_vsi *vsi,
 		goto enable_int;
 	}
 
-	if (ITR_IS_DYNAMIC(tx_itr_setting)) {
+	if (ITR_IS_DYNAMIC(rx_itr_setting)) {
 		rx = i40e_set_new_dynamic_itr(&q_vector->rx);
 		rxval = i40e_buildreg_itr(I40E_RX_ITR, q_vector->rx.itr);
 	}
@@ -3166,38 +3175,12 @@ static inline int i40e_tx_map(struct i40e_ring *tx_ring, struct sk_buff *skb,
 	/* write last descriptor with EOP bit */
 	td_cmd |= I40E_TX_DESC_CMD_EOP;
 
-	/* We can OR these values together as they both are checked against
-	 * 4 below and at this point desc_count will be used as a boolean value
-	 * after this if/else block.
+	/* We OR these values together to check both against 4 (WB_STRIDE)
+	 * below. This is safe since we don't re-use desc_count afterwards.
 	 */
 	desc_count |= ++tx_ring->packet_stride;
 
-	/* Algorithm to optimize tail and RS bit setting:
-	 * if queue is stopped
-	 *	mark RS bit
-	 *	reset packet counter
-	 * else if xmit_more is supported and is true
-	 *	advance packet counter to 4
-	 *	reset desc_count to 0
-	 *
-	 * if desc_count >= 4
-	 *	mark RS bit
-	 *	reset packet counter
-	 * if desc_count > 0
-	 *	update tail
-	 *
-	 * Note: If there are less than 4 descriptors
-	 * pending and interrupts were disabled the service task will
-	 * trigger a force WB.
-	 */
-	if (netif_xmit_stopped(txring_txq(tx_ring))) {
-		goto do_rs;
-	} else if (skb->xmit_more) {
-		/* set stride to arm on next packet and reset desc_count */
-		tx_ring->packet_stride = WB_STRIDE;
-		desc_count = 0;
-	} else if (desc_count >= WB_STRIDE) {
-do_rs:
+	if (desc_count >= WB_STRIDE) {
 		/* write last descriptor with RS bit set */
 		td_cmd |= I40E_TX_DESC_CMD_RS;
 		tx_ring->packet_stride = 0;
@@ -3218,7 +3201,7 @@ do_rs:
 	first->next_to_watch = tx_desc;
 
 	/* notify HW of packet */
-	if (desc_count) {
+	if (netif_xmit_stopped(txring_txq(tx_ring)) || !skb->xmit_more) {
 		writel(i, tx_ring->tail);
 
 		/* we need this if more than one processor can write to our tail

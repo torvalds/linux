@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __LINUX_COMPLETION_H
 #define __LINUX_COMPLETION_H
 
@@ -49,15 +50,23 @@ static inline void complete_release_commit(struct completion *x)
 	lock_commit_crosslock((struct lockdep_map *)&x->map);
 }
 
+#define init_completion_map(x, m)					\
+do {									\
+	lockdep_init_map_crosslock((struct lockdep_map *)&(x)->map,	\
+			(m)->name, (m)->key, 0);				\
+	__init_completion(x);						\
+} while (0)
+
 #define init_completion(x)						\
 do {									\
 	static struct lock_class_key __key;				\
 	lockdep_init_map_crosslock((struct lockdep_map *)&(x)->map,	\
-			"(complete)" #x,				\
+			"(completion)" #x,				\
 			&__key, 0);					\
 	__init_completion(x);						\
 } while (0)
 #else
+#define init_completion_map(x, m) __init_completion(x)
 #define init_completion(x) __init_completion(x)
 static inline void complete_acquire(struct completion *x) {}
 static inline void complete_release(struct completion *x) {}
@@ -67,11 +76,14 @@ static inline void complete_release_commit(struct completion *x) {}
 #ifdef CONFIG_LOCKDEP_COMPLETIONS
 #define COMPLETION_INITIALIZER(work) \
 	{ 0, __WAIT_QUEUE_HEAD_INITIALIZER((work).wait), \
-	STATIC_CROSS_LOCKDEP_MAP_INIT("(complete)" #work, &(work)) }
+	STATIC_CROSS_LOCKDEP_MAP_INIT("(completion)" #work, &(work)) }
 #else
 #define COMPLETION_INITIALIZER(work) \
 	{ 0, __WAIT_QUEUE_HEAD_INITIALIZER((work).wait) }
 #endif
+
+#define COMPLETION_INITIALIZER_ONSTACK_MAP(work, map) \
+	(*({ init_completion_map(&(work), &(map)); &(work); }))
 
 #define COMPLETION_INITIALIZER_ONSTACK(work) \
 	(*({ init_completion(&work); &work; }))
@@ -102,8 +114,11 @@ static inline void complete_release_commit(struct completion *x) {}
 #ifdef CONFIG_LOCKDEP
 # define DECLARE_COMPLETION_ONSTACK(work) \
 	struct completion work = COMPLETION_INITIALIZER_ONSTACK(work)
+# define DECLARE_COMPLETION_ONSTACK_MAP(work, map) \
+	struct completion work = COMPLETION_INITIALIZER_ONSTACK_MAP(work, map)
 #else
 # define DECLARE_COMPLETION_ONSTACK(work) DECLARE_COMPLETION(work)
+# define DECLARE_COMPLETION_ONSTACK_MAP(work, map) DECLARE_COMPLETION(work)
 #endif
 
 /**

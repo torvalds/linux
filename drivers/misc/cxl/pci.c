@@ -401,7 +401,8 @@ int cxl_calc_capp_routing(struct pci_dev *dev, u64 *chipid,
 	*capp_unit_id = get_capp_unit_id(np, *phb_index);
 	of_node_put(np);
 	if (!*capp_unit_id) {
-		pr_err("cxl: invalid capp unit id\n");
+		pr_err("cxl: invalid capp unit id (phb_index: %d)\n",
+		       *phb_index);
 		return -ENODEV;
 	}
 
@@ -475,37 +476,37 @@ static int init_implementation_adapter_regs_psl9(struct cxl *adapter,
 	psl_fircntl |= 0x1ULL; /* ce_thresh */
 	cxl_p1_write(adapter, CXL_PSL9_FIR_CNTL, psl_fircntl);
 
-	/* vccredits=0x1  pcklat=0x4 */
-	cxl_p1_write(adapter, CXL_PSL9_DSNDCTL, 0x0000000000001810ULL);
-
-	/*
-	 * For debugging with trace arrays.
-	 * Configure RX trace 0 segmented mode.
-	 * Configure CT trace 0 segmented mode.
-	 * Configure LA0 trace 0 segmented mode.
-	 * Configure LA1 trace 0 segmented mode.
+	/* Setup the PSL to transmit packets on the PCIe before the
+	 * CAPP is enabled
 	 */
-	cxl_p1_write(adapter, CXL_PSL9_TRACECFG, 0x8040800080000000ULL);
-	cxl_p1_write(adapter, CXL_PSL9_TRACECFG, 0x8040800080000003ULL);
-	cxl_p1_write(adapter, CXL_PSL9_TRACECFG, 0x8040800080000005ULL);
-	cxl_p1_write(adapter, CXL_PSL9_TRACECFG, 0x8040800080000006ULL);
+	cxl_p1_write(adapter, CXL_PSL9_DSNDCTL, 0x0001001000002A10ULL);
 
 	/*
 	 * A response to an ASB_Notify request is returned by the
 	 * system as an MMIO write to the address defined in
-	 * the PSL_TNR_ADDR register
+	 * the PSL_TNR_ADDR register.
+	 * keep the Reset Value: 0x00020000E0000000
 	 */
-	/* PSL_TNR_ADDR */
 
-	/* NORST */
-	cxl_p1_write(adapter, CXL_PSL9_DEBUG, 0x8000000000000000ULL);
+	/* Enable XSL rty limit */
+	cxl_p1_write(adapter, CXL_XSL9_DEF, 0x51F8000000000005ULL);
 
-	/* allocate the apc machines */
-	cxl_p1_write(adapter, CXL_PSL9_APCDEDTYPE, 0x40000003FFFF0000ULL);
+	/* Change XSL_INV dummy read threshold */
+	cxl_p1_write(adapter, CXL_XSL9_INV, 0x0000040007FFC200ULL);
 
-	/* Disable vc dd1 fix */
-	if (cxl_is_power9_dd1())
-		cxl_p1_write(adapter, CXL_PSL9_GP_CT, 0x0400000000000001ULL);
+	if (phb_index == 3) {
+		/* disable machines 31-47 and 20-27 for DMA */
+		cxl_p1_write(adapter, CXL_PSL9_APCDEDTYPE, 0x40000FF3FFFF0000ULL);
+	}
+
+	/* Snoop machines */
+	cxl_p1_write(adapter, CXL_PSL9_APCDEDALLOC, 0x800F000200000000ULL);
+
+	if (cxl_is_power9_dd1()) {
+		/* Disabling deadlock counter CAR */
+		cxl_p1_write(adapter, CXL_PSL9_GP_CT, 0x0020000000000001ULL);
+	} else
+		cxl_p1_write(adapter, CXL_PSL9_DEBUG, 0x4000000000000000ULL);
 
 	return 0;
 }
@@ -1746,6 +1747,44 @@ static void cxl_deconfigure_adapter(struct cxl *adapter)
 	pci_disable_device(pdev);
 }
 
+static void cxl_stop_trace_psl9(struct cxl *adapter)
+{
+	int traceid;
+	u64 trace_state, trace_mask;
+	struct pci_dev *dev = to_pci_dev(adapter->dev.parent);
+
+	/* read each tracearray state and issue mmio to stop them is needed */
+	for (traceid = 0; traceid <= CXL_PSL9_TRACEID_MAX; ++traceid) {
+		trace_state = cxl_p1_read(adapter, CXL_PSL9_CTCCFG);
+		trace_mask = (0x3ULL << (62 - traceid * 2));
+		trace_state = (trace_state & trace_mask) >> (62 - traceid * 2);
+		dev_dbg(&dev->dev, "cxl: Traceid-%d trace_state=0x%0llX\n",
+			traceid, trace_state);
+
+		/* issue mmio if the trace array isn't in FIN state */
+		if (trace_state != CXL_PSL9_TRACESTATE_FIN)
+			cxl_p1_write(adapter, CXL_PSL9_TRACECFG,
+				     0x8400000000000000ULL | traceid);
+	}
+}
+
+static void cxl_stop_trace_psl8(struct cxl *adapter)
+{
+	int slice;
+
+	/* Stop the trace */
+	cxl_p1_write(adapter, CXL_PSL_TRACE, 0x8000000000000017LL);
+
+	/* Stop the slice traces */
+	spin_lock(&adapter->afu_list_lock);
+	for (slice = 0; slice < adapter->slices; slice++) {
+		if (adapter->afu[slice])
+			cxl_p1n_write(adapter->afu[slice], CXL_PSL_SLICE_TRACE,
+				      0x8000000000000000LL);
+	}
+	spin_unlock(&adapter->afu_list_lock);
+}
+
 static const struct cxl_service_layer_ops psl9_ops = {
 	.adapter_regs_init = init_implementation_adapter_regs_psl9,
 	.invalidate_all = cxl_invalidate_all_psl9,
@@ -1762,6 +1801,7 @@ static const struct cxl_service_layer_ops psl9_ops = {
 	.debugfs_add_adapter_regs = cxl_debugfs_add_adapter_regs_psl9,
 	.debugfs_add_afu_regs = cxl_debugfs_add_afu_regs_psl9,
 	.psl_irq_dump_registers = cxl_native_irq_dump_regs_psl9,
+	.err_irq_dump_registers = cxl_native_err_irq_dump_regs_psl9,
 	.debugfs_stop_trace = cxl_stop_trace_psl9,
 	.write_timebase_ctrl = write_timebase_ctrl_psl9,
 	.timebase_read = timebase_read_psl9,
@@ -1785,7 +1825,7 @@ static const struct cxl_service_layer_ops psl8_ops = {
 	.debugfs_add_adapter_regs = cxl_debugfs_add_adapter_regs_psl8,
 	.debugfs_add_afu_regs = cxl_debugfs_add_afu_regs_psl8,
 	.psl_irq_dump_registers = cxl_native_irq_dump_regs_psl8,
-	.err_irq_dump_registers = cxl_native_err_irq_dump_regs,
+	.err_irq_dump_registers = cxl_native_err_irq_dump_regs_psl8,
 	.debugfs_stop_trace = cxl_stop_trace_psl8,
 	.write_timebase_ctrl = write_timebase_ctrl_psl8,
 	.timebase_read = timebase_read_psl8,

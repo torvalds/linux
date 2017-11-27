@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 cx88xx-objs	:= cx88-cards.o cx88-core.o cx88-i2c.o cx88-tvaudio.o \
 		   cx88-dsp.o cx88-input.o
 cx8800-objs	:= cx88-video.o cx88-vbi.o

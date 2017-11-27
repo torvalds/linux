@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * vendor/product IDs (VID/PID) of devices using FTDI USB serial converters.
  * Please keep numerically sorted within individual areas, thanks!

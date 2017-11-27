@@ -249,7 +249,6 @@ static irqreturn_t lidar_trigger_handler(int irq, void *private)
 }
 
 static const struct iio_info lidar_info = {
-	.driver_module = THIS_MODULE,
 	.read_raw = lidar_read_raw,
 };
 

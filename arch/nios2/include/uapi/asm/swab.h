@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  * Copyright (C) 2012 Tobias Klauser <tklauser@distanz.ch>
  * Copyright (C) 2011 Pyramid Technical Consultants, Inc.

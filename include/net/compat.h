@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef NET_COMPAT_H
 #define NET_COMPAT_H
 

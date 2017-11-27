@@ -252,9 +252,11 @@ int iwl_mvm_sta_send_to_fw(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 	return ret;
 }
 
-static void iwl_mvm_rx_agg_session_expired(unsigned long data)
+static void iwl_mvm_rx_agg_session_expired(struct timer_list *t)
 {
-	struct iwl_mvm_baid_data __rcu **rcu_ptr = (void *)data;
+	struct iwl_mvm_baid_data *data =
+		from_timer(data, t, session_timer);
+	struct iwl_mvm_baid_data __rcu **rcu_ptr = data->rcu_ptr;
 	struct iwl_mvm_baid_data *ba_data;
 	struct ieee80211_sta *sta;
 	struct iwl_mvm_sta *mvm_sta;
@@ -644,8 +646,7 @@ int iwl_mvm_scd_queue_redirect(struct iwl_mvm *mvm, int queue, int tid,
 
 	/* Redirect to lower AC */
 	iwl_mvm_reconfig_scd(mvm, queue, iwl_mvm_ac_to_tx_fifo[ac],
-			     cmd.sta_id, tid, LINK_QUAL_AGG_FRAME_LIMIT_DEF,
-			     ssn);
+			     cmd.sta_id, tid, IWL_FRAME_LIMIT, ssn);
 
 	/* Update AC marking of the queue */
 	spin_lock_bh(&mvm->queue_info_lock);
@@ -1258,6 +1259,14 @@ static void iwl_mvm_realloc_queues_after_restart(struct iwl_mvm *mvm,
 							 mvm_sta->sta_id,
 							 i, wdg_timeout);
 			tid_data->txq_id = txq_id;
+
+			/*
+			 * Since we don't set the seq number after reset, and HW
+			 * sets it now, FW reset will cause the seq num to start
+			 * at 0 again, so driver will need to update it
+			 * internally as well, so it keeps in sync with real val
+			 */
+			tid_data->seq_number = 0;
 		} else {
 			u16 seq = IEEE80211_SEQ_TO_SN(tid_data->seq_number);
 
@@ -2104,6 +2113,8 @@ static void iwl_mvm_free_reorder(struct iwl_mvm *mvm,
 		int j;
 		struct iwl_mvm_reorder_buffer *reorder_buf =
 			&data->reorder_buf[i];
+		struct iwl_mvm_reorder_buf_entry *entries =
+			&data->entries[i * data->entries_per_queue];
 
 		spin_lock_bh(&reorder_buf->lock);
 		if (likely(!reorder_buf->num_stored)) {
@@ -2119,7 +2130,7 @@ static void iwl_mvm_free_reorder(struct iwl_mvm *mvm,
 		WARN_ON(1);
 
 		for (j = 0; j < reorder_buf->buf_size; j++)
-			__skb_queue_purge(&reorder_buf->entries[j]);
+			__skb_queue_purge(&entries[j].e.frames);
 		/*
 		 * Prevent timer re-arm. This prevents a very far fetched case
 		 * where we timed out on the notification. There may be prior
@@ -2135,7 +2146,6 @@ static void iwl_mvm_free_reorder(struct iwl_mvm *mvm,
 }
 
 static void iwl_mvm_init_reorder_buffer(struct iwl_mvm *mvm,
-					u32 sta_id,
 					struct iwl_mvm_baid_data *data,
 					u16 ssn, u8 buf_size)
 {
@@ -2144,23 +2154,22 @@ static void iwl_mvm_init_reorder_buffer(struct iwl_mvm *mvm,
 	for (i = 0; i < mvm->trans->num_rx_queues; i++) {
 		struct iwl_mvm_reorder_buffer *reorder_buf =
 			&data->reorder_buf[i];
+		struct iwl_mvm_reorder_buf_entry *entries =
+			&data->entries[i * data->entries_per_queue];
 		int j;
 
 		reorder_buf->num_stored = 0;
 		reorder_buf->head_sn = ssn;
 		reorder_buf->buf_size = buf_size;
 		/* rx reorder timer */
-		reorder_buf->reorder_timer.function =
-			iwl_mvm_reorder_timer_expired;
-		reorder_buf->reorder_timer.data = (unsigned long)reorder_buf;
-		init_timer(&reorder_buf->reorder_timer);
+		timer_setup(&reorder_buf->reorder_timer,
+			    iwl_mvm_reorder_timer_expired, 0);
 		spin_lock_init(&reorder_buf->lock);
 		reorder_buf->mvm = mvm;
 		reorder_buf->queue = i;
-		reorder_buf->sta_id = sta_id;
 		reorder_buf->valid = false;
 		for (j = 0; j < reorder_buf->buf_size; j++)
-			__skb_queue_head_init(&reorder_buf->entries[j]);
+			__skb_queue_head_init(&entries[j].e.frames);
 	}
 }
 
@@ -2181,16 +2190,44 @@ int iwl_mvm_sta_rx_agg(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 	}
 
 	if (iwl_mvm_has_new_rx_api(mvm) && start) {
+		u16 reorder_buf_size = buf_size * sizeof(baid_data->entries[0]);
+
+		/* sparse doesn't like the __align() so don't check */
+#ifndef __CHECKER__
+		/*
+		 * The division below will be OK if either the cache line size
+		 * can be divided by the entry size (ALIGN will round up) or if
+		 * if the entry size can be divided by the cache line size, in
+		 * which case the ALIGN() will do nothing.
+		 */
+		BUILD_BUG_ON(SMP_CACHE_BYTES % sizeof(baid_data->entries[0]) &&
+			     sizeof(baid_data->entries[0]) % SMP_CACHE_BYTES);
+#endif
+
+		/*
+		 * Upward align the reorder buffer size to fill an entire cache
+		 * line for each queue, to avoid sharing cache lines between
+		 * different queues.
+		 */
+		reorder_buf_size = ALIGN(reorder_buf_size, SMP_CACHE_BYTES);
+
 		/*
 		 * Allocate here so if allocation fails we can bail out early
 		 * before starting the BA session in the firmware
 		 */
 		baid_data = kzalloc(sizeof(*baid_data) +
 				    mvm->trans->num_rx_queues *
-				    sizeof(baid_data->reorder_buf[0]),
+				    reorder_buf_size,
 				    GFP_KERNEL);
 		if (!baid_data)
 			return -ENOMEM;
+
+		/*
+		 * This division is why we need the above BUILD_BUG_ON(),
+		 * if that doesn't hold then this will not be right.
+		 */
+		baid_data->entries_per_queue =
+			reorder_buf_size / sizeof(baid_data->entries[0]);
 	}
 
 	cmd.mac_id_n_color = cpu_to_le32(mvm_sta->mac_id_n_color);
@@ -2249,9 +2286,9 @@ int iwl_mvm_sta_rx_agg(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 		baid_data->baid = baid;
 		baid_data->timeout = timeout;
 		baid_data->last_rx = jiffies;
-		setup_timer(&baid_data->session_timer,
-			    iwl_mvm_rx_agg_session_expired,
-			    (unsigned long)&mvm->baid_map[baid]);
+		baid_data->rcu_ptr = &mvm->baid_map[baid];
+		timer_setup(&baid_data->session_timer,
+			    iwl_mvm_rx_agg_session_expired, 0);
 		baid_data->mvm = mvm;
 		baid_data->tid = tid;
 		baid_data->sta_id = mvm_sta->sta_id;
@@ -2261,8 +2298,7 @@ int iwl_mvm_sta_rx_agg(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 			mod_timer(&baid_data->session_timer,
 				  TU_TO_EXP_TIME(timeout * 2));
 
-		iwl_mvm_init_reorder_buffer(mvm, mvm_sta->sta_id,
-					    baid_data, ssn, buf_size);
+		iwl_mvm_init_reorder_buffer(mvm, baid_data, ssn, buf_size);
 		/*
 		 * protect the BA data with RCU to cover a case where our
 		 * internal RX sync mechanism will timeout (not that it's
@@ -2515,12 +2551,6 @@ int iwl_mvm_sta_tx_agg_oper(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	BUILD_BUG_ON((sizeof(mvmsta->agg_tids) * BITS_PER_BYTE)
 		     != IWL_MAX_TID_COUNT);
 
-	if (!mvm->trans->cfg->gen2)
-		buf_size = min_t(int, buf_size, LINK_QUAL_AGG_FRAME_LIMIT_DEF);
-	else
-		buf_size = min_t(int, buf_size,
-				 LINK_QUAL_AGG_FRAME_LIMIT_GEN2_DEF);
-
 	spin_lock_bh(&mvmsta->lock);
 	ssn = tid_data->ssn;
 	queue = tid_data->txq_id;
@@ -2532,10 +2562,17 @@ int iwl_mvm_sta_tx_agg_oper(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 	if (iwl_mvm_has_new_tx_api(mvm)) {
 		/*
-		 * If no queue iwl_mvm_sta_tx_agg_start() would have failed so
-		 * no need to check queue's status
+		 * If there is no queue for this tid, iwl_mvm_sta_tx_agg_start()
+		 * would have failed, so if we are here there is no need to
+		 * allocate a queue.
+		 * However, if aggregation size is different than the default
+		 * size, the scheduler should be reconfigured.
+		 * We cannot do this with the new TX API, so return unsupported
+		 * for now, until it will be offloaded to firmware..
+		 * Note that if SCD default value changes - this condition
+		 * should be updated as well.
 		 */
-		if (buf_size < mvmsta->max_agg_bufsize)
+		if (buf_size < IWL_FRAME_LIMIT)
 			return -ENOTSUPP;
 
 		ret = iwl_mvm_sta_tx_agg(mvm, sta, tid, queue, true);
@@ -2558,7 +2595,7 @@ int iwl_mvm_sta_tx_agg_oper(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	 * Only reconfig the SCD for the queue if the window size has
 	 * changed from current (become smaller)
 	 */
-	if (!alloc_queue && buf_size < mvmsta->max_agg_bufsize) {
+	if (!alloc_queue && buf_size < IWL_FRAME_LIMIT) {
 		/*
 		 * If reconfiguring an existing queue, it first must be
 		 * drained

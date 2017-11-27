@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __SOUND_AZT3328_H
 #define __SOUND_AZT3328_H
 

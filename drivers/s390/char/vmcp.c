@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright IBM Corp. 2004, 2010
  * Interface implementation for communication with the z/VM control program

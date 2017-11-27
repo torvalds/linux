@@ -67,12 +67,17 @@ bool ex_handler_refcount(const struct exception_table_entry *fixup,
 	 * wrapped around) will be set. Additionally, seeing the refcount
 	 * reach 0 will set ZF (Zero Flag: result was zero). In each of
 	 * these cases we want a report, since it's a boundary condition.
-	 *
+	 * The SF case is not reported since it indicates post-boundary
+	 * manipulations below zero or above INT_MAX. And if none of the
+	 * flags are set, something has gone very wrong, so report it.
 	 */
 	if (regs->flags & (X86_EFLAGS_OF | X86_EFLAGS_ZF)) {
 		bool zero = regs->flags & X86_EFLAGS_ZF;
 
 		refcount_error_report(regs, zero ? "hit zero" : "overflow");
+	} else if ((regs->flags & X86_EFLAGS_SF) == 0) {
+		/* Report if none of OF, ZF, nor SF are set. */
+		refcount_error_report(regs, "unexpected saturation");
 	}
 
 	return true;

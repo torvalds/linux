@@ -510,6 +510,8 @@
 # define DP_ADJUST_PRE_EMPHASIS_LANE1_MASK   0xc0
 # define DP_ADJUST_PRE_EMPHASIS_LANE1_SHIFT  6
 
+#define DP_ADJUST_REQUEST_POST_CURSOR2      0x20c
+
 #define DP_TEST_REQUEST			    0x218
 # define DP_TEST_LINK_TRAINING		    (1 << 0)
 # define DP_TEST_LINK_VIDEO_PATTERN	    (1 << 1)
@@ -582,6 +584,8 @@
 
 #define DP_TEST_REFRESH_RATE_NUMERATOR      0x234
 
+#define DP_TEST_MISC0                       0x232
+
 #define DP_TEST_CRC_R_CR		    0x240
 #define DP_TEST_CRC_G_Y			    0x242
 #define DP_TEST_CRC_B_CB		    0x244
@@ -589,6 +593,18 @@
 #define DP_TEST_SINK_MISC		    0x246
 # define DP_TEST_CRC_SUPPORTED		    (1 << 5)
 # define DP_TEST_COUNT_MASK		    0xf
+
+#define DP_TEST_PHY_PATTERN                 0x248
+#define DP_TEST_80BIT_CUSTOM_PATTERN_7_0    0x250
+#define	DP_TEST_80BIT_CUSTOM_PATTERN_15_8   0x251
+#define	DP_TEST_80BIT_CUSTOM_PATTERN_23_16  0x252
+#define	DP_TEST_80BIT_CUSTOM_PATTERN_31_24  0x253
+#define	DP_TEST_80BIT_CUSTOM_PATTERN_39_32  0x254
+#define	DP_TEST_80BIT_CUSTOM_PATTERN_47_40  0x255
+#define	DP_TEST_80BIT_CUSTOM_PATTERN_55_48  0x256
+#define	DP_TEST_80BIT_CUSTOM_PATTERN_63_56  0x257
+#define	DP_TEST_80BIT_CUSTOM_PATTERN_71_64  0x258
+#define	DP_TEST_80BIT_CUSTOM_PATTERN_79_72  0x259
 
 #define DP_TEST_RESPONSE		    0x260
 # define DP_TEST_ACK			    (1 << 0)
@@ -611,6 +627,7 @@
 #define DP_SINK_OUI			    0x400
 #define DP_BRANCH_OUI			    0x500
 #define DP_BRANCH_ID                        0x503
+#define DP_BRANCH_REVISION_START            0x509
 #define DP_BRANCH_HW_REV                    0x509
 #define DP_BRANCH_SW_REV                    0x50A
 
@@ -735,8 +752,22 @@
 # define DP_PSR_SINK_INTERNAL_ERROR         7
 # define DP_PSR_SINK_STATE_MASK             0x07
 
+#define DP_SYNCHRONIZATION_LATENCY_IN_SINK		0x2009 /* edp 1.4 */
+# define DP_MAX_RESYNC_FRAME_COUNT_MASK			(0xf << 0)
+# define DP_MAX_RESYNC_FRAME_COUNT_SHIFT		0
+# define DP_LAST_ACTUAL_SYNCHRONIZATION_LATENCY_MASK	(0xf << 4)
+# define DP_LAST_ACTUAL_SYNCHRONIZATION_LATENCY_SHIFT	4
+
 #define DP_RECEIVER_ALPM_STATUS		    0x200b  /* eDP 1.4 */
 # define DP_ALPM_LOCK_TIMEOUT_ERROR	    (1 << 0)
+
+#define DP_LANE0_1_STATUS_ESI                  0x200c /* status same as 0x202 */
+#define DP_LANE2_3_STATUS_ESI                  0x200d /* status same as 0x203 */
+#define DP_LANE_ALIGN_STATUS_UPDATED_ESI       0x200e /* status same as 0x204 */
+#define DP_SINK_STATUS_ESI                     0x200f /* status same as 0x205 */
+
+#define DP_DP13_DPCD_REV                    0x2200
+#define DP_DP13_MAX_LINK_RATE               0x2201
 
 #define DP_DPRX_FEATURE_ENUMERATION_LIST    0x2210  /* DP 1.3 */
 # define DP_GTC_CAP					(1 << 0)  /* DP 1.3 */
@@ -870,6 +901,18 @@ void drm_dp_link_train_channel_eq_delay(const u8 dpcd[DP_RECEIVER_CAP_SIZE]);
 
 u8 drm_dp_link_rate_to_bw_code(int link_rate);
 int drm_dp_bw_code_to_link_rate(u8 link_bw);
+
+#define DP_SDP_AUDIO_TIMESTAMP		0x01
+#define DP_SDP_AUDIO_STREAM		0x02
+#define DP_SDP_EXTENSION		0x04 /* DP 1.1 */
+#define DP_SDP_AUDIO_COPYMANAGEMENT	0x05 /* DP 1.2 */
+#define DP_SDP_ISRC			0x06 /* DP 1.2 */
+#define DP_SDP_VSC			0x07 /* DP 1.2 */
+#define DP_SDP_CAMERA_GENERIC(i)	(0x08 + (i)) /* 0-7, DP 1.3 */
+#define DP_SDP_PPS			0x10 /* DP 1.4 */
+#define DP_SDP_VSC_EXT_VESA		0x20 /* DP 1.4 */
+#define DP_SDP_VSC_EXT_CEA		0x21 /* DP 1.4 */
+/* 0x80+ CEA-861 infoframe types */
 
 struct edp_sdp_header {
 	u8 HB0; /* Secondary Data Packet ID */

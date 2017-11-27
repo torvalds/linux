@@ -18,8 +18,9 @@
 #include "bpf_lru_list.h"
 #include "map_in_map.h"
 
-#define HTAB_CREATE_FLAG_MASK \
-	(BPF_F_NO_PREALLOC | BPF_F_NO_COMMON_LRU | BPF_F_NUMA_NODE)
+#define HTAB_CREATE_FLAG_MASK						\
+	(BPF_F_NO_PREALLOC | BPF_F_NO_COMMON_LRU | BPF_F_NUMA_NODE |	\
+	 BPF_F_RDONLY | BPF_F_WRONLY)
 
 struct bucket {
 	struct hlist_nulls_head head;
@@ -315,10 +316,6 @@ static struct bpf_map *htab_map_alloc(union bpf_attr *attr)
 		 * sure that the elem_size doesn't overflow and it's
 		 * kmalloc-able later in htab_map_update_elem()
 		 */
-		goto free_htab;
-
-	if (percpu && round_up(htab->map.value_size, 8) > PCPU_MIN_UNIT_SIZE)
-		/* make sure the size for pcpu_alloc() is reasonable */
 		goto free_htab;
 
 	htab->elem_size = sizeof(struct htab_elem) +

@@ -88,6 +88,7 @@ static const struct renesas_sdhi_of_data of_rcar_gen3_compatible = {
 static const struct of_device_id renesas_sdhi_internal_dmac_of_match[] = {
 	{ .compatible = "renesas,sdhi-r8a7795", .data = &of_rcar_gen3_compatible, },
 	{ .compatible = "renesas,sdhi-r8a7796", .data = &of_rcar_gen3_compatible, },
+	{ .compatible = "renesas,rcar-gen3-sdhi", .data = &of_rcar_gen3_compatible, },
 	{},
 };
 MODULE_DEVICE_TABLE(of, renesas_sdhi_internal_dmac_of_match);
@@ -146,11 +147,8 @@ renesas_sdhi_internal_dmac_start_dma(struct tmio_mmc_host *host,
 	WARN_ON(host->sg_len > 1);
 
 	/* This DMAC cannot handle if buffer is not 8-bytes alignment */
-	if (!IS_ALIGNED(sg->offset, 8)) {
-		host->force_pio = true;
-		renesas_sdhi_internal_dmac_enable_dma(host, false);
-		return;
-	}
+	if (!IS_ALIGNED(sg->offset, 8))
+		goto force_pio;
 
 	if (data->flags & MMC_DATA_READ) {
 		dtran_mode |= DTRAN_MODE_CH_NUM_CH1;
@@ -163,8 +161,8 @@ renesas_sdhi_internal_dmac_start_dma(struct tmio_mmc_host *host,
 	}
 
 	ret = dma_map_sg(&host->pdev->dev, sg, host->sg_len, dir);
-	if (ret < 0)
-		return;
+	if (ret == 0)
+		goto force_pio;
 
 	renesas_sdhi_internal_dmac_enable_dma(host, true);
 
@@ -176,6 +174,12 @@ renesas_sdhi_internal_dmac_start_dma(struct tmio_mmc_host *host,
 					    dtran_mode);
 	renesas_sdhi_internal_dmac_dm_write(host, DM_DTRAN_ADDR,
 					    sg->dma_address);
+
+	return;
+
+force_pio:
+	host->force_pio = true;
+	renesas_sdhi_internal_dmac_enable_dma(host, false);
 }
 
 static void renesas_sdhi_internal_dmac_issue_tasklet_fn(unsigned long arg)

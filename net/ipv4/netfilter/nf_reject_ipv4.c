@@ -132,6 +132,8 @@ void nf_send_reset(struct net *net, struct sk_buff *oldskb, int hook)
 	if (ip_route_me_harder(net, nskb, RTN_UNSPEC))
 		goto free_nskb;
 
+	niph = ip_hdr(nskb);
+
 	/* "Never happens" */
 	if (nskb->len > dst_mtu(skb_dst(nskb)))
 		goto free_nskb;

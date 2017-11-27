@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Linker script for vsyscall DSO.  The vsyscall page is an ELF shared
  * object prelinked to its virtual address, and with only one read-only

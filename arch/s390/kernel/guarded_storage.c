@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright IBM Corp. 2016
  * Author(s): Martin Schwidefsky <schwidefsky@de.ibm.com>
@@ -11,11 +12,10 @@
 #include <asm/guarded_storage.h>
 #include "entry.h"
 
-void exit_thread_gs(void)
+void guarded_storage_release(struct task_struct *tsk)
 {
-	kfree(current->thread.gs_cb);
-	kfree(current->thread.gs_bc_cb);
-	current->thread.gs_cb = current->thread.gs_bc_cb = NULL;
+	kfree(tsk->thread.gs_cb);
+	kfree(tsk->thread.gs_bc_cb);
 }
 
 static int gs_enable(void)

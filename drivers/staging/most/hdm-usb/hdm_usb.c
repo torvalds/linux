@@ -744,9 +744,9 @@ static void hdm_request_netinfo(struct most_interface *iface, int channel,
  * The handler runs in interrupt context. That's why we need to defer the
  * tasks to a work queue.
  */
-static void link_stat_timer_handler(unsigned long data)
+static void link_stat_timer_handler(struct timer_list *t)
 {
-	struct most_dev *mdev = (struct most_dev *)data;
+	struct most_dev *mdev = from_timer(mdev, t, link_stat_timer);
 
 	schedule_work(&mdev->poll_work_obj);
 	mdev->link_stat_timer.expires = jiffies + (2 * HZ);
@@ -1138,8 +1138,7 @@ hdm_probe(struct usb_interface *interface, const struct usb_device_id *id)
 	num_endpoints = usb_iface_desc->desc.bNumEndpoints;
 	mutex_init(&mdev->io_mutex);
 	INIT_WORK(&mdev->poll_work_obj, wq_netinfo);
-	setup_timer(&mdev->link_stat_timer, link_stat_timer_handler,
-		    (unsigned long)mdev);
+	timer_setup(&mdev->link_stat_timer, link_stat_timer_handler, 0);
 
 	mdev->usb_device = usb_dev;
 	mdev->link_stat_timer.expires = jiffies + (2 * HZ);

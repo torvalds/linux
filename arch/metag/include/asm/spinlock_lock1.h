@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __ASM_SPINLOCK_LOCK1_H
 #define __ASM_SPINLOCK_LOCK1_H
 
@@ -104,16 +105,6 @@ static inline void arch_write_unlock(arch_rwlock_t *rw)
 	rw->lock = 0;
 }
 
-/* write_can_lock - would write_trylock() succeed? */
-static inline int arch_write_can_lock(arch_rwlock_t *rw)
-{
-	unsigned int ret;
-
-	barrier();
-	ret = rw->lock;
-	return (ret == 0);
-}
-
 /*
  * Read locks are a bit more hairy:
  *  - Exclusively load the lock value.
@@ -168,16 +159,6 @@ static inline int arch_read_trylock(arch_rwlock_t *rw)
 		rw->lock = ret + 1;
 	}
 	__global_unlock1(flags);
-	return (ret < 0x80000000);
-}
-
-/* read_can_lock - would read_trylock() succeed? */
-static inline int arch_read_can_lock(arch_rwlock_t *rw)
-{
-	unsigned int ret;
-
-	barrier();
-	ret = rw->lock;
 	return (ret < 0x80000000);
 }
 

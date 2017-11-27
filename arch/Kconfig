@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # General architecture dependent options
 #
@@ -90,7 +91,7 @@ config STATIC_KEYS_SELFTEST
 config OPTPROBES
 	def_bool y
 	depends on KPROBES && HAVE_OPTPROBES
-	depends on !PREEMPT
+	select TASKS_RCU if PREEMPT
 
 config KPROBES_ON_FTRACE
 	def_bool y

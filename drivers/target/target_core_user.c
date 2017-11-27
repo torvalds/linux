@@ -150,6 +150,8 @@ struct tcmu_dev {
 	wait_queue_head_t nl_cmd_wq;
 
 	char dev_config[TCMU_CONFIG_LEN];
+
+	int nl_reply_supported;
 };
 
 #define TCMU_DEV(_se_dev) container_of(_se_dev, struct tcmu_dev, se_dev)
@@ -430,7 +432,6 @@ static struct tcmu_cmd *tcmu_alloc_cmd(struct se_cmd *se_cmd)
 	struct se_device *se_dev = se_cmd->se_dev;
 	struct tcmu_dev *udev = TCMU_DEV(se_dev);
 	struct tcmu_cmd *tcmu_cmd;
-	int cmd_id;
 
 	tcmu_cmd = kmem_cache_zalloc(tcmu_cmd_cache, GFP_KERNEL);
 	if (!tcmu_cmd)
@@ -438,9 +439,6 @@ static struct tcmu_cmd *tcmu_alloc_cmd(struct se_cmd *se_cmd)
 
 	tcmu_cmd->se_cmd = se_cmd;
 	tcmu_cmd->tcmu_dev = udev;
-	if (udev->cmd_time_out)
-		tcmu_cmd->deadline = jiffies +
-					msecs_to_jiffies(udev->cmd_time_out);
 
 	tcmu_cmd_reset_dbi_cur(tcmu_cmd);
 	tcmu_cmd->dbi_cnt = tcmu_cmd_get_block_cnt(tcmu_cmd);
@@ -450,19 +448,6 @@ static struct tcmu_cmd *tcmu_alloc_cmd(struct se_cmd *se_cmd)
 		kmem_cache_free(tcmu_cmd_cache, tcmu_cmd);
 		return NULL;
 	}
-
-	idr_preload(GFP_KERNEL);
-	spin_lock_irq(&udev->commands_lock);
-	cmd_id = idr_alloc(&udev->commands, tcmu_cmd, 0,
-		USHRT_MAX, GFP_NOWAIT);
-	spin_unlock_irq(&udev->commands_lock);
-	idr_preload_end();
-
-	if (cmd_id < 0) {
-		tcmu_free_cmd(tcmu_cmd);
-		return NULL;
-	}
-	tcmu_cmd->cmd_id = cmd_id;
 
 	return tcmu_cmd;
 }
@@ -746,6 +731,30 @@ static inline size_t tcmu_cmd_get_cmd_size(struct tcmu_cmd *tcmu_cmd,
 	return command_size;
 }
 
+static int tcmu_setup_cmd_timer(struct tcmu_cmd *tcmu_cmd)
+{
+	struct tcmu_dev *udev = tcmu_cmd->tcmu_dev;
+	unsigned long tmo = udev->cmd_time_out;
+	int cmd_id;
+
+	if (tcmu_cmd->cmd_id)
+		return 0;
+
+	cmd_id = idr_alloc(&udev->commands, tcmu_cmd, 1, USHRT_MAX, GFP_NOWAIT);
+	if (cmd_id < 0) {
+		pr_err("tcmu: Could not allocate cmd id.\n");
+		return cmd_id;
+	}
+	tcmu_cmd->cmd_id = cmd_id;
+
+	if (!tmo)
+		return 0;
+
+	tcmu_cmd->deadline = round_jiffies_up(jiffies + msecs_to_jiffies(tmo));
+	mod_timer(&udev->timeout, tcmu_cmd->deadline);
+	return 0;
+}
+
 static sense_reason_t
 tcmu_queue_cmd_ring(struct tcmu_cmd *tcmu_cmd)
 {
@@ -839,7 +848,6 @@ tcmu_queue_cmd_ring(struct tcmu_cmd *tcmu_cmd)
 	entry = (void *) mb + CMDR_OFF + cmd_head;
 	memset(entry, 0, command_size);
 	tcmu_hdr_set_op(&entry->hdr.len_op, TCMU_OP_CMD);
-	entry->hdr.cmd_id = tcmu_cmd->cmd_id;
 
 	/* Handle allocating space from the data area */
 	tcmu_cmd_reset_dbi_cur(tcmu_cmd);
@@ -877,6 +885,14 @@ tcmu_queue_cmd_ring(struct tcmu_cmd *tcmu_cmd)
 	}
 	entry->req.iov_bidi_cnt = iov_cnt;
 
+	ret = tcmu_setup_cmd_timer(tcmu_cmd);
+	if (ret) {
+		tcmu_cmd_free_data(tcmu_cmd, tcmu_cmd->dbi_cnt);
+		mutex_unlock(&udev->cmdr_lock);
+		return TCM_OUT_OF_RESOURCES;
+	}
+	entry->hdr.cmd_id = tcmu_cmd->cmd_id;
+
 	/*
 	 * Recalaulate the command's base size and size according
 	 * to the actual needs
@@ -910,8 +926,6 @@ tcmu_queue_cmd_ring(struct tcmu_cmd *tcmu_cmd)
 static sense_reason_t
 tcmu_queue_cmd(struct se_cmd *se_cmd)
 {
-	struct se_device *se_dev = se_cmd->se_dev;
-	struct tcmu_dev *udev = TCMU_DEV(se_dev);
 	struct tcmu_cmd *tcmu_cmd;
 	sense_reason_t ret;
 
@@ -922,9 +936,6 @@ tcmu_queue_cmd(struct se_cmd *se_cmd)
 	ret = tcmu_queue_cmd_ring(tcmu_cmd);
 	if (ret != TCM_NO_SENSE) {
 		pr_err("TCMU: Could not queue command\n");
-		spin_lock_irq(&udev->commands_lock);
-		idr_remove(&udev->commands, tcmu_cmd->cmd_id);
-		spin_unlock_irq(&udev->commands_lock);
 
 		tcmu_free_cmd(tcmu_cmd);
 	}
@@ -985,7 +996,7 @@ static unsigned int tcmu_handle_completions(struct tcmu_dev *udev)
 	mb = udev->mb_addr;
 	tcmu_flush_dcache_range(mb, sizeof(*mb));
 
-	while (udev->cmdr_last_cleaned != ACCESS_ONCE(mb->cmd_tail)) {
+	while (udev->cmdr_last_cleaned != READ_ONCE(mb->cmd_tail)) {
 
 		struct tcmu_cmd_entry *entry = (void *) mb + CMDR_OFF + udev->cmdr_last_cleaned;
 		struct tcmu_cmd *cmd;
@@ -1044,9 +1055,9 @@ static int tcmu_check_expired_cmd(int id, void *p, void *data)
 	return 0;
 }
 
-static void tcmu_device_timedout(unsigned long data)
+static void tcmu_device_timedout(struct timer_list *t)
 {
-	struct tcmu_dev *udev = (struct tcmu_dev *)data;
+	struct tcmu_dev *udev = from_timer(udev, t, timeout);
 	unsigned long flags;
 
 	spin_lock_irqsave(&udev->commands_lock, flags);
@@ -1106,11 +1117,12 @@ static struct se_device *tcmu_alloc_device(struct se_hba *hba, const char *name)
 	idr_init(&udev->commands);
 	spin_lock_init(&udev->commands_lock);
 
-	setup_timer(&udev->timeout, tcmu_device_timedout,
-		(unsigned long)udev);
+	timer_setup(&udev->timeout, tcmu_device_timedout, 0);
 
 	init_waitqueue_head(&udev->nl_cmd_wq);
 	spin_lock_init(&udev->nl_cmd_lock);
+
+	INIT_RADIX_TREE(&udev->data_blocks, GFP_KERNEL);
 
 	return &udev->se_dev;
 }
@@ -1280,10 +1292,54 @@ static void tcmu_dev_call_rcu(struct rcu_head *p)
 	kfree(udev);
 }
 
+static int tcmu_check_and_free_pending_cmd(struct tcmu_cmd *cmd)
+{
+	if (test_bit(TCMU_CMD_BIT_EXPIRED, &cmd->flags)) {
+		kmem_cache_free(tcmu_cmd_cache, cmd);
+		return 0;
+	}
+	return -EINVAL;
+}
+
+static void tcmu_blocks_release(struct tcmu_dev *udev)
+{
+	int i;
+	struct page *page;
+
+	/* Try to release all block pages */
+	mutex_lock(&udev->cmdr_lock);
+	for (i = 0; i <= udev->dbi_max; i++) {
+		page = radix_tree_delete(&udev->data_blocks, i);
+		if (page) {
+			__free_page(page);
+			atomic_dec(&global_db_count);
+		}
+	}
+	mutex_unlock(&udev->cmdr_lock);
+}
+
 static void tcmu_dev_kref_release(struct kref *kref)
 {
 	struct tcmu_dev *udev = container_of(kref, struct tcmu_dev, kref);
 	struct se_device *dev = &udev->se_dev;
+	struct tcmu_cmd *cmd;
+	bool all_expired = true;
+	int i;
+
+	vfree(udev->mb_addr);
+	udev->mb_addr = NULL;
+
+	/* Upper layer should drain all requests before calling this */
+	spin_lock_irq(&udev->commands_lock);
+	idr_for_each_entry(&udev->commands, cmd, i) {
+		if (tcmu_check_and_free_pending_cmd(cmd) != 0)
+			all_expired = false;
+	}
+	idr_destroy(&udev->commands);
+	spin_unlock_irq(&udev->commands_lock);
+	WARN_ON(!all_expired);
+
+	tcmu_blocks_release(udev);
 
 	call_rcu(&dev->rcu_head, tcmu_dev_call_rcu);
 }
@@ -1306,6 +1362,10 @@ static void tcmu_init_genl_cmd_reply(struct tcmu_dev *udev, int cmd)
 
 	if (!tcmu_kern_cmd_reply_supported)
 		return;
+
+	if (udev->nl_reply_supported <= 0)
+		return;
+
 relock:
 	spin_lock(&udev->nl_cmd_lock);
 
@@ -1330,6 +1390,9 @@ static int tcmu_wait_genl_cmd_reply(struct tcmu_dev *udev)
 	DEFINE_WAIT(__wait);
 
 	if (!tcmu_kern_cmd_reply_supported)
+		return 0;
+
+	if (udev->nl_reply_supported <= 0)
 		return 0;
 
 	pr_debug("sleeping for nl reply\n");
@@ -1476,8 +1539,6 @@ static int tcmu_configure_device(struct se_device *dev)
 	WARN_ON(udev->data_size % PAGE_SIZE);
 	WARN_ON(udev->data_size % DATA_BLOCK_SIZE);
 
-	INIT_RADIX_TREE(&udev->data_blocks, GFP_KERNEL);
-
 	info->version = __stringify(TCMU_MAILBOX_VERSION);
 
 	info->mem[0].name = "tcm-user command & data buffer";
@@ -1506,6 +1567,12 @@ static int tcmu_configure_device(struct se_device *dev)
 		dev->dev_attrib.emulate_write_cache = 0;
 	dev->dev_attrib.hw_queue_depth = 128;
 
+	/* If user didn't explicitly disable netlink reply support, use
+	 * module scope setting.
+	 */
+	if (udev->nl_reply_supported >= 0)
+		udev->nl_reply_supported = tcmu_kern_cmd_reply_supported;
+
 	/*
 	 * Get a ref incase userspace does a close on the uio device before
 	 * LIO has initiated tcmu_free_device.
@@ -1527,6 +1594,7 @@ err_netlink:
 	uio_unregister_device(&udev->uio_info);
 err_register:
 	vfree(udev->mb_addr);
+	udev->mb_addr = NULL;
 err_vzalloc:
 	kfree(info->name);
 	info->name = NULL;
@@ -1534,35 +1602,9 @@ err_vzalloc:
 	return ret;
 }
 
-static int tcmu_check_and_free_pending_cmd(struct tcmu_cmd *cmd)
-{
-	if (test_bit(TCMU_CMD_BIT_EXPIRED, &cmd->flags)) {
-		kmem_cache_free(tcmu_cmd_cache, cmd);
-		return 0;
-	}
-	return -EINVAL;
-}
-
 static bool tcmu_dev_configured(struct tcmu_dev *udev)
 {
 	return udev->uio_info.uio_dev ? true : false;
-}
-
-static void tcmu_blocks_release(struct tcmu_dev *udev)
-{
-	int i;
-	struct page *page;
-
-	/* Try to release all block pages */
-	mutex_lock(&udev->cmdr_lock);
-	for (i = 0; i <= udev->dbi_max; i++) {
-		page = radix_tree_delete(&udev->data_blocks, i);
-		if (page) {
-			__free_page(page);
-			atomic_dec(&global_db_count);
-		}
-	}
-	mutex_unlock(&udev->cmdr_lock);
 }
 
 static void tcmu_free_device(struct se_device *dev)
@@ -1576,29 +1618,12 @@ static void tcmu_free_device(struct se_device *dev)
 static void tcmu_destroy_device(struct se_device *dev)
 {
 	struct tcmu_dev *udev = TCMU_DEV(dev);
-	struct tcmu_cmd *cmd;
-	bool all_expired = true;
-	int i;
 
 	del_timer_sync(&udev->timeout);
 
 	mutex_lock(&root_udev_mutex);
 	list_del(&udev->node);
 	mutex_unlock(&root_udev_mutex);
-
-	vfree(udev->mb_addr);
-
-	/* Upper layer should drain all requests before calling this */
-	spin_lock_irq(&udev->commands_lock);
-	idr_for_each_entry(&udev->commands, cmd, i) {
-		if (tcmu_check_and_free_pending_cmd(cmd) != 0)
-			all_expired = false;
-	}
-	idr_destroy(&udev->commands);
-	spin_unlock_irq(&udev->commands_lock);
-	WARN_ON(!all_expired);
-
-	tcmu_blocks_release(udev);
 
 	tcmu_netlink_event(udev, TCMU_CMD_REMOVED_DEVICE, 0, NULL);
 
@@ -1610,7 +1635,7 @@ static void tcmu_destroy_device(struct se_device *dev)
 
 enum {
 	Opt_dev_config, Opt_dev_size, Opt_hw_block_size, Opt_hw_max_sectors,
-	Opt_err,
+	Opt_nl_reply_supported, Opt_err,
 };
 
 static match_table_t tokens = {
@@ -1618,6 +1643,7 @@ static match_table_t tokens = {
 	{Opt_dev_size, "dev_size=%u"},
 	{Opt_hw_block_size, "hw_block_size=%u"},
 	{Opt_hw_max_sectors, "hw_max_sectors=%u"},
+	{Opt_nl_reply_supported, "nl_reply_supported=%d"},
 	{Opt_err, NULL}
 };
 
@@ -1692,6 +1718,17 @@ static ssize_t tcmu_set_configfs_dev_params(struct se_device *dev,
 			ret = tcmu_set_dev_attrib(&args[0],
 					&(dev->dev_attrib.hw_max_sectors));
 			break;
+		case Opt_nl_reply_supported:
+			arg_p = match_strdup(&args[0]);
+			if (!arg_p) {
+				ret = -ENOMEM;
+				break;
+			}
+			ret = kstrtoint(arg_p, 0, &udev->nl_reply_supported);
+			kfree(arg_p);
+			if (ret < 0)
+				pr_err("kstrtoint() failed for nl_reply_supported=\n");
+			break;
 		default:
 			break;
 		}
@@ -1734,8 +1771,7 @@ static ssize_t tcmu_cmd_time_out_show(struct config_item *item, char *page)
 {
 	struct se_dev_attrib *da = container_of(to_config_group(item),
 					struct se_dev_attrib, da_group);
-	struct tcmu_dev *udev = container_of(da->da_dev,
-					struct tcmu_dev, se_dev);
+	struct tcmu_dev *udev = TCMU_DEV(da->da_dev);
 
 	return snprintf(page, PAGE_SIZE, "%lu\n", udev->cmd_time_out / MSEC_PER_SEC);
 }
@@ -1842,6 +1878,34 @@ static ssize_t tcmu_dev_size_store(struct config_item *item, const char *page,
 }
 CONFIGFS_ATTR(tcmu_, dev_size);
 
+static ssize_t tcmu_nl_reply_supported_show(struct config_item *item,
+		char *page)
+{
+	struct se_dev_attrib *da = container_of(to_config_group(item),
+						struct se_dev_attrib, da_group);
+	struct tcmu_dev *udev = TCMU_DEV(da->da_dev);
+
+	return snprintf(page, PAGE_SIZE, "%d\n", udev->nl_reply_supported);
+}
+
+static ssize_t tcmu_nl_reply_supported_store(struct config_item *item,
+		const char *page, size_t count)
+{
+	struct se_dev_attrib *da = container_of(to_config_group(item),
+						struct se_dev_attrib, da_group);
+	struct tcmu_dev *udev = TCMU_DEV(da->da_dev);
+	s8 val;
+	int ret;
+
+	ret = kstrtos8(page, 0, &val);
+	if (ret < 0)
+		return ret;
+
+	udev->nl_reply_supported = val;
+	return count;
+}
+CONFIGFS_ATTR(tcmu_, nl_reply_supported);
+
 static ssize_t tcmu_emulate_write_cache_show(struct config_item *item,
 					     char *page)
 {
@@ -1884,6 +1948,7 @@ static struct configfs_attribute *tcmu_attrib_attrs[] = {
 	&tcmu_attr_dev_config,
 	&tcmu_attr_dev_size,
 	&tcmu_attr_emulate_write_cache,
+	&tcmu_attr_nl_reply_supported,
 	NULL,
 };
 

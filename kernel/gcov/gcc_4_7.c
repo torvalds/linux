@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  This code provides functions to handle gcc's profiling data format
  *  introduced with gcc 4.7.

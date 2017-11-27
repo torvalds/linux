@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 if NLM_XLP_BOARD || NLM_XLR_BOARD
 
 if NLM_XLP_BOARD

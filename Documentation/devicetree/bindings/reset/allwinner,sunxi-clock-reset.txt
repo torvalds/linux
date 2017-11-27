@@ -14,7 +14,7 @@ Required properties:
 
 example:
 
-ahb1_rst: reset@01c202c0 {
+ahb1_rst: reset@1c202c0 {
 	#reset-cells = <1>;
 	compatible = "allwinner,sun6i-a31-ahb1-reset";
 	reg = <0x01c202c0 0xc>;

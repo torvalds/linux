@@ -537,14 +537,14 @@ static int proc_cap_handler(struct ctl_table *table, int write,
 	/*
 	 * Drop everything not in the new_cap (but don't add things)
 	 */
-	spin_lock(&umh_sysctl_lock);
 	if (write) {
+		spin_lock(&umh_sysctl_lock);
 		if (table->data == CAP_BSET)
 			usermodehelper_bset = cap_intersect(usermodehelper_bset, new_cap);
 		if (table->data == CAP_PI)
 			usermodehelper_inheritable = cap_intersect(usermodehelper_inheritable, new_cap);
+		spin_unlock(&umh_sysctl_lock);
 	}
-	spin_unlock(&umh_sysctl_lock);
 
 	return 0;
 }

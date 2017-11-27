@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_PROCESSOR_H
 #define _ASM_X86_PROCESSOR_H
 
@@ -131,6 +132,7 @@ struct cpuinfo_x86 {
 	/* Index into per_cpu list: */
 	u16			cpu_index;
 	u32			microcode;
+	unsigned		initialized : 1;
 } __randomize_layout;
 
 struct cpuid_regs {
@@ -430,7 +432,9 @@ typedef struct {
 struct thread_struct {
 	/* Cached TLS descriptors: */
 	struct desc_struct	tls_array[GDT_ENTRY_TLS_ENTRIES];
+#ifdef CONFIG_X86_32
 	unsigned long		sp0;
+#endif
 	unsigned long		sp;
 #ifdef CONFIG_X86_32
 	unsigned long		sysenter_cs;
@@ -517,16 +521,9 @@ static inline void native_set_iopl_mask(unsigned mask)
 }
 
 static inline void
-native_load_sp0(struct tss_struct *tss, struct thread_struct *thread)
+native_load_sp0(unsigned long sp0)
 {
-	tss->x86_tss.sp0 = thread->sp0;
-#ifdef CONFIG_X86_32
-	/* Only happens when SEP is enabled, no need to test "SEP"arately: */
-	if (unlikely(tss->x86_tss.ss1 != thread->sysenter_cs)) {
-		tss->x86_tss.ss1 = thread->sysenter_cs;
-		wrmsr(MSR_IA32_SYSENTER_CS, thread->sysenter_cs, 0);
-	}
-#endif
+	this_cpu_write(cpu_tss.x86_tss.sp0, sp0);
 }
 
 static inline void native_swapgs(void)
@@ -546,15 +543,20 @@ static inline unsigned long current_top_of_stack(void)
 #endif
 }
 
+static inline bool on_thread_stack(void)
+{
+	return (unsigned long)(current_top_of_stack() -
+			       current_stack_pointer) < THREAD_SIZE;
+}
+
 #ifdef CONFIG_PARAVIRT
 #include <asm/paravirt.h>
 #else
 #define __cpuid			native_cpuid
 
-static inline void load_sp0(struct tss_struct *tss,
-			    struct thread_struct *thread)
+static inline void load_sp0(unsigned long sp0)
 {
-	native_load_sp0(tss, thread);
+	native_load_sp0(sp0);
 }
 
 #define set_iopl_mask native_set_iopl_mask
@@ -803,6 +805,15 @@ static inline void spin_lock_prefetch(const void *x)
 #define TOP_OF_INIT_STACK ((unsigned long)&init_stack + sizeof(init_stack) - \
 			   TOP_OF_KERNEL_STACK_PADDING)
 
+#define task_top_of_stack(task) ((unsigned long)(task_pt_regs(task) + 1))
+
+#define task_pt_regs(task) \
+({									\
+	unsigned long __ptr = (unsigned long)task_stack_page(task);	\
+	__ptr += THREAD_SIZE - TOP_OF_KERNEL_STACK_PADDING;		\
+	((struct pt_regs *)__ptr) - 1;					\
+})
+
 #ifdef CONFIG_X86_32
 /*
  * User space process size: 3GB (default).
@@ -821,23 +832,6 @@ static inline void spin_lock_prefetch(const void *x)
 	.io_bitmap_ptr		= NULL,					  \
 	.addr_limit		= KERNEL_DS,				  \
 }
-
-/*
- * TOP_OF_KERNEL_STACK_PADDING reserves 8 bytes on top of the ring0 stack.
- * This is necessary to guarantee that the entire "struct pt_regs"
- * is accessible even if the CPU haven't stored the SS/ESP registers
- * on the stack (interrupt gate does not save these registers
- * when switching to the same priv ring).
- * Therefore beware: accessing the ss/esp fields of the
- * "struct pt_regs" is possible, but they may contain the
- * completely wrong values.
- */
-#define task_pt_regs(task) \
-({									\
-	unsigned long __ptr = (unsigned long)task_stack_page(task);	\
-	__ptr += THREAD_SIZE - TOP_OF_KERNEL_STACK_PADDING;		\
-	((struct pt_regs *)__ptr) - 1;					\
-})
 
 #define KSTK_ESP(task)		(task_pt_regs(task)->sp)
 
@@ -872,11 +866,9 @@ static inline void spin_lock_prefetch(const void *x)
 #define STACK_TOP_MAX		TASK_SIZE_MAX
 
 #define INIT_THREAD  {						\
-	.sp0			= TOP_OF_INIT_STACK,		\
 	.addr_limit		= KERNEL_DS,			\
 }
 
-#define task_pt_regs(tsk)	((struct pt_regs *)(tsk)->thread.sp0 - 1)
 extern unsigned long KSTK_ESP(struct task_struct *task);
 
 #endif /* CONFIG_X86_64 */

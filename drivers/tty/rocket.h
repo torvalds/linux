@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * rocket.h --- the exported interface of the rocket driver to its configuration program.
  *

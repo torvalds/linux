@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  Character device driver for extended error reporting.
  *
@@ -295,7 +296,7 @@ static void dasd_eer_write_standard_trigger(struct dasd_device *device,
 {
 	struct dasd_ccw_req *temp_cqr;
 	int data_size;
-	struct timeval tv;
+	struct timespec64 ts;
 	struct dasd_eer_header header;
 	unsigned long flags;
 	struct eerbuffer *eerb;
@@ -309,9 +310,9 @@ static void dasd_eer_write_standard_trigger(struct dasd_device *device,
 
 	header.total_size = sizeof(header) + data_size + 4; /* "EOR" */
 	header.trigger = trigger;
-	do_gettimeofday(&tv);
-	header.tv_sec = tv.tv_sec;
-	header.tv_usec = tv.tv_usec;
+	ktime_get_real_ts64(&ts);
+	header.tv_sec = ts.tv_sec;
+	header.tv_usec = ts.tv_nsec / NSEC_PER_USEC;
 	strncpy(header.busid, dev_name(&device->cdev->dev),
 		DASD_EER_BUSID_SIZE);
 
@@ -339,7 +340,7 @@ static void dasd_eer_write_snss_trigger(struct dasd_device *device,
 {
 	int data_size;
 	int snss_rc;
-	struct timeval tv;
+	struct timespec64 ts;
 	struct dasd_eer_header header;
 	unsigned long flags;
 	struct eerbuffer *eerb;
@@ -352,9 +353,9 @@ static void dasd_eer_write_snss_trigger(struct dasd_device *device,
 
 	header.total_size = sizeof(header) + data_size + 4; /* "EOR" */
 	header.trigger = DASD_EER_STATECHANGE;
-	do_gettimeofday(&tv);
-	header.tv_sec = tv.tv_sec;
-	header.tv_usec = tv.tv_usec;
+	ktime_get_real_ts64(&ts);
+	header.tv_sec = ts.tv_sec;
+	header.tv_usec = ts.tv_nsec / NSEC_PER_USEC;
 	strncpy(header.busid, dev_name(&device->cdev->dev),
 		DASD_EER_BUSID_SIZE);
 

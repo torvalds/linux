@@ -55,12 +55,8 @@ This driver provides the following features:
    (to compile support as a module which can be loaded and unloaded)
    to the options: 
 
-      Enhanced IDE/MFM/RLL disk/cdrom/tape/floppy support
+      ATA/ATAPI/MFM/RLL support
       Include IDE/ATAPI CDROM support
-
-   and `no' to
-
-      Use old disk-only driver on primary interface
 
    Depending on what type of IDE interface you have, you may need to
    specify additional configuration options.  See

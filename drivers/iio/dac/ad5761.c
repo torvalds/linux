@@ -251,7 +251,6 @@ static int ad5761_write_raw(struct iio_dev *indio_dev,
 static const struct iio_info ad5761_info = {
 	.read_raw = &ad5761_read_raw,
 	.write_raw = &ad5761_write_raw,
-	.driver_module = THIS_MODULE,
 };
 
 #define AD5761_CHAN(_bits) {				\

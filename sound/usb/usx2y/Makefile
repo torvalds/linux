@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 snd-usb-usx2y-objs := usbusx2y.o usX2Yhwdep.o usx2yhwdeppcm.o
 snd-usb-us122l-objs := us122l.o
 

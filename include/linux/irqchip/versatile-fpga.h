@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef PLAT_FPGA_IRQ_H
 #define PLAT_FPGA_IRQ_H
 

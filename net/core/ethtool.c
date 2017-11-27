@@ -403,6 +403,22 @@ static int __ethtool_set_flags(struct net_device *dev, u32 data)
 	return 0;
 }
 
+/* Given two link masks, AND them together and save the result in dst. */
+void ethtool_intersect_link_masks(struct ethtool_link_ksettings *dst,
+				  struct ethtool_link_ksettings *src)
+{
+	unsigned int size = BITS_TO_LONGS(__ETHTOOL_LINK_MODE_MASK_NBITS);
+	unsigned int idx = 0;
+
+	for (; idx < size; idx++) {
+		dst->link_modes.supported[idx] &=
+			src->link_modes.supported[idx];
+		dst->link_modes.advertising[idx] &=
+			src->link_modes.advertising[idx];
+	}
+}
+EXPORT_SYMBOL(ethtool_intersect_link_masks);
+
 void ethtool_convert_legacy_u32_to_link_mode(unsigned long *dst,
 					     u32 legacy_u32)
 {
@@ -436,7 +452,7 @@ bool ethtool_convert_link_mode_to_legacy_u32(u32 *legacy_u32,
 EXPORT_SYMBOL(ethtool_convert_link_mode_to_legacy_u32);
 
 /* return false if legacy contained non-0 deprecated fields
- * transceiver/maxtxpkt/maxrxpkt. rest of ksettings always updated
+ * maxtxpkt/maxrxpkt. rest of ksettings always updated
  */
 static bool
 convert_legacy_settings_to_link_ksettings(
@@ -451,8 +467,7 @@ convert_legacy_settings_to_link_ksettings(
 	 * deprecated legacy fields, and they should not use
 	 * %ETHTOOL_GLINKSETTINGS/%ETHTOOL_SLINKSETTINGS
 	 */
-	if (legacy_settings->transceiver ||
-	    legacy_settings->maxtxpkt ||
+	if (legacy_settings->maxtxpkt ||
 	    legacy_settings->maxrxpkt)
 		retval = false;
 

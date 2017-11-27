@@ -35,7 +35,7 @@
 #include <linux/tcp.h>
 #include <linux/semaphore.h>
 #include <linux/compat.h>
-#include <linux/atomic.h>
+#include <linux/refcount.h>
 
 #define SIXPACK_VERSION    "Revision: 0.3.0"
 
@@ -120,7 +120,7 @@ struct sixpack {
 
 	struct timer_list	tx_t;
 	struct timer_list	resync_t;
-	atomic_t		refcnt;
+	refcount_t		refcnt;
 	struct semaphore	dead_sem;
 	spinlock_t		lock;
 };
@@ -136,9 +136,9 @@ static int encode_sixpack(unsigned char *, unsigned char *, int, unsigned char);
  * Note that in case of DAMA operation, the data is not sent here.
  */
 
-static void sp_xmit_on_air(unsigned long channel)
+static void sp_xmit_on_air(struct timer_list *t)
 {
-	struct sixpack *sp = (struct sixpack *) channel;
+	struct sixpack *sp = from_timer(sp, t, tx_t);
 	int actual, when = sp->slottime;
 	static unsigned char random;
 
@@ -229,7 +229,7 @@ static void sp_encaps(struct sixpack *sp, unsigned char *icp, int len)
 		sp->xleft = count;
 		sp->xhead = sp->xbuff;
 		sp->status2 = count;
-		sp_xmit_on_air((unsigned long)sp);
+		sp_xmit_on_air(&sp->tx_t);
 	}
 
 	return;
@@ -381,7 +381,7 @@ static struct sixpack *sp_get(struct tty_struct *tty)
 	read_lock(&disc_data_lock);
 	sp = tty->disc_data;
 	if (sp)
-		atomic_inc(&sp->refcnt);
+		refcount_inc(&sp->refcnt);
 	read_unlock(&disc_data_lock);
 
 	return sp;
@@ -389,7 +389,7 @@ static struct sixpack *sp_get(struct tty_struct *tty)
 
 static void sp_put(struct sixpack *sp)
 {
-	if (atomic_dec_and_test(&sp->refcnt))
+	if (refcount_dec_and_test(&sp->refcnt))
 		up(&sp->dead_sem);
 }
 
@@ -500,9 +500,9 @@ static inline void tnc_set_sync_state(struct sixpack *sp, int new_tnc_state)
 		__tnc_set_sync_state(sp, new_tnc_state);
 }
 
-static void resync_tnc(unsigned long channel)
+static void resync_tnc(struct timer_list *t)
 {
-	struct sixpack *sp = (struct sixpack *) channel;
+	struct sixpack *sp = from_timer(sp, t, resync_t);
 	static char resync_cmd = 0xe8;
 
 	/* clear any data that might have been received */
@@ -526,8 +526,6 @@ static void resync_tnc(unsigned long channel)
 	/* Start resync timer again -- the TNC might be still absent */
 
 	del_timer(&sp->resync_t);
-	sp->resync_t.data	= (unsigned long) sp;
-	sp->resync_t.function	= resync_tnc;
 	sp->resync_t.expires	= jiffies + SIXP_RESYNC_TIMEOUT;
 	add_timer(&sp->resync_t);
 }
@@ -541,8 +539,6 @@ static inline int tnc_init(struct sixpack *sp)
 	sp->tty->ops->write(sp->tty, &inbyte, 1);
 
 	del_timer(&sp->resync_t);
-	sp->resync_t.data = (unsigned long) sp;
-	sp->resync_t.function = resync_tnc;
 	sp->resync_t.expires = jiffies + SIXP_RESYNC_TIMEOUT;
 	add_timer(&sp->resync_t);
 
@@ -580,7 +576,7 @@ static int sixpack_open(struct tty_struct *tty)
 	sp->dev = dev;
 
 	spin_lock_init(&sp->lock);
-	atomic_set(&sp->refcnt, 1);
+	refcount_set(&sp->refcnt, 1);
 	sema_init(&sp->dead_sem, 0);
 
 	/* !!! length of the buffers. MTU is IP MTU, not PACLEN!  */
@@ -623,11 +619,9 @@ static int sixpack_open(struct tty_struct *tty)
 
 	netif_start_queue(dev);
 
-	init_timer(&sp->tx_t);
-	sp->tx_t.function = sp_xmit_on_air;
-	sp->tx_t.data = (unsigned long) sp;
+	timer_setup(&sp->tx_t, sp_xmit_on_air, 0);
 
-	init_timer(&sp->resync_t);
+	timer_setup(&sp->resync_t, resync_tnc, 0);
 
 	spin_unlock_bh(&sp->lock);
 
@@ -676,7 +670,7 @@ static void sixpack_close(struct tty_struct *tty)
 	 * We have now ensured that nobody can start using ap from now on, but
 	 * we have to wait for all existing users to finish.
 	 */
-	if (!atomic_dec_and_test(&sp->refcnt))
+	if (!refcount_dec_and_test(&sp->refcnt))
 		down(&sp->dead_sem);
 
 	/* We must stop the queue to avoid potentially scribbling
@@ -928,8 +922,6 @@ static void decode_prio_command(struct sixpack *sp, unsigned char cmd)
 
 	if (sp->tnc_state == TNC_IN_SYNC) {
 		del_timer(&sp->resync_t);
-		sp->resync_t.data	= (unsigned long) sp;
-		sp->resync_t.function	= resync_tnc;
 		sp->resync_t.expires	= jiffies + SIXP_INIT_RESYNC_TIMEOUT;
 		add_timer(&sp->resync_t);
 	}

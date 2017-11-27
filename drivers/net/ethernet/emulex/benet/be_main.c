@@ -605,7 +605,7 @@ static void accumulate_16bit_val(u32 *acc, u16 val)
 
 	if (wrapped)
 		newacc += 65536;
-	ACCESS_ONCE(*acc) = newacc;
+	WRITE_ONCE(*acc, newacc);
 }
 
 static void populate_erx_stats(struct be_adapter *adapter,

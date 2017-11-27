@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __CGROUP_INTERNAL_H
 #define __CGROUP_INTERNAL_H
 
@@ -198,6 +199,15 @@ int cgroup_show_path(struct seq_file *sf, struct kernfs_node *kf_node,
 		     struct kernfs_root *kf_root);
 
 int cgroup_task_count(const struct cgroup *cgrp);
+
+/*
+ * stat.c
+ */
+void cgroup_stat_flush(struct cgroup *cgrp);
+int cgroup_stat_init(struct cgroup *cgrp);
+void cgroup_stat_exit(struct cgroup *cgrp);
+void cgroup_stat_show_cputime(struct seq_file *seq);
+void cgroup_stat_boot(void);
 
 /*
  * namespace.c

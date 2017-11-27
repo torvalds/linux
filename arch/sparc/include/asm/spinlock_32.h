@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* spinlock.h: 32-bit Sparc spinlock support.
  *
  * Copyright (C) 1997 David S. Miller (davem@caip.rutgers.edu)
@@ -181,17 +182,6 @@ static inline int __arch_read_trylock(arch_rwlock_t *rw)
 	local_irq_restore(flags); \
 	res; \
 })
-
-#define arch_spin_lock_flags(lock, flags) arch_spin_lock(lock)
-#define arch_read_lock_flags(rw, flags)   arch_read_lock(rw)
-#define arch_write_lock_flags(rw, flags)  arch_write_lock(rw)
-
-#define arch_spin_relax(lock)	cpu_relax()
-#define arch_read_relax(lock)	cpu_relax()
-#define arch_write_relax(lock)	cpu_relax()
-
-#define arch_read_can_lock(rw) (!((rw)->lock & 0xff))
-#define arch_write_can_lock(rw) (!(rw)->lock)
 
 #endif /* !(__ASSEMBLY__) */
 

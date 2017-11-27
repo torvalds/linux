@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * (C) 2001 Clemson University and The University of Chicago
  *
@@ -14,4 +15,5 @@ const struct inode_operations orangefs_symlink_inode_operations = {
 	.getattr = orangefs_getattr,
 	.listxattr = orangefs_listxattr,
 	.permission = orangefs_permission,
+	.update_time = orangefs_update_time,
 };

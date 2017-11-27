@@ -240,8 +240,7 @@ static int ICAMEX_msg_to_type50MEX_msg(struct zcrypt_queue *zq,
 		mod = meb2->modulus + sizeof(meb2->modulus) - mod_len;
 		exp = meb2->exponent + sizeof(meb2->exponent) - mod_len;
 		inp = meb2->message + sizeof(meb2->message) - mod_len;
-	} else {
-		/* mod_len > 256 = 4096 bit RSA Key */
+	} else if (mod_len <= 512) {
 		struct type50_meb3_msg *meb3 = ap_msg->message;
 		memset(meb3, 0, sizeof(*meb3));
 		ap_msg->length = sizeof(*meb3);
@@ -251,7 +250,8 @@ static int ICAMEX_msg_to_type50MEX_msg(struct zcrypt_queue *zq,
 		mod = meb3->modulus + sizeof(meb3->modulus) - mod_len;
 		exp = meb3->exponent + sizeof(meb3->exponent) - mod_len;
 		inp = meb3->message + sizeof(meb3->message) - mod_len;
-	}
+	} else
+		return -EINVAL;
 
 	if (copy_from_user(mod, mex->n_modulus, mod_len) ||
 	    copy_from_user(exp, mex->b_key, mod_len) ||

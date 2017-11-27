@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  fs/partitions/karma.c
  *  Rio Karma partition info.

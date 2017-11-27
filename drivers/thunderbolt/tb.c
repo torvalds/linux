@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Thunderbolt Cactus Ridge driver - bus logic (NHI independent)
  *
@@ -224,6 +225,7 @@ static void tb_activate_pcie_devices(struct tb *tb)
 			tb_port_info(up_port,
 				     "PCIe tunnel activation failed, aborting\n");
 			tb_pci_free(tunnel);
+			continue;
 		}
 
 		list_add(&tunnel->list, &tcm->tunnel_list);

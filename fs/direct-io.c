@@ -45,6 +45,12 @@
 #define DIO_PAGES	64
 
 /*
+ * Flags for dio_complete()
+ */
+#define DIO_COMPLETE_ASYNC		0x01	/* This is async IO */
+#define DIO_COMPLETE_INVALIDATE		0x02	/* Can invalidate pages */
+
+/*
  * This code generally works in units of "dio_blocks".  A dio_block is
  * somewhere between the hard sector size and the filesystem block size.  it
  * is determined on a per-invocation basis.   When talking to the filesystem
@@ -225,7 +231,7 @@ static inline struct page *dio_get_page(struct dio *dio,
  * filesystems can use it to hold additional state between get_block calls and
  * dio_complete.
  */
-static ssize_t dio_complete(struct dio *dio, ssize_t ret, bool is_async)
+static ssize_t dio_complete(struct dio *dio, ssize_t ret, unsigned int flags)
 {
 	loff_t offset = dio->iocb->ki_pos;
 	ssize_t transferred = 0;
@@ -259,14 +265,27 @@ static ssize_t dio_complete(struct dio *dio, ssize_t ret, bool is_async)
 	if (ret == 0)
 		ret = transferred;
 
+	if (dio->end_io) {
+		// XXX: ki_pos??
+		err = dio->end_io(dio->iocb, offset, ret, dio->private);
+		if (err)
+			ret = err;
+	}
+
 	/*
 	 * Try again to invalidate clean pages which might have been cached by
 	 * non-direct readahead, or faulted in by get_user_pages() if the source
 	 * of the write was an mmap'ed region of the file we're writing.  Either
 	 * one is a pretty crazy thing to do, so we don't support it 100%.  If
 	 * this invalidation fails, tough, the write still worked...
+	 *
+	 * And this page cache invalidation has to be after dio->end_io(), as
+	 * some filesystems convert unwritten extents to real allocations in
+	 * end_io() when necessary, otherwise a racing buffer read would cache
+	 * zeros from unwritten extents.
 	 */
-	if (ret > 0 && dio->op == REQ_OP_WRITE &&
+	if (flags & DIO_COMPLETE_INVALIDATE &&
+	    ret > 0 && dio->op == REQ_OP_WRITE &&
 	    dio->inode->i_mapping->nrpages) {
 		err = invalidate_inode_pages2_range(dio->inode->i_mapping,
 					offset >> PAGE_SHIFT,
@@ -274,18 +293,10 @@ static ssize_t dio_complete(struct dio *dio, ssize_t ret, bool is_async)
 		WARN_ON_ONCE(err);
 	}
 
-	if (dio->end_io) {
-
-		// XXX: ki_pos??
-		err = dio->end_io(dio->iocb, offset, ret, dio->private);
-		if (err)
-			ret = err;
-	}
-
 	if (!(dio->flags & DIO_SKIP_DIO_COUNT))
 		inode_dio_end(dio->inode);
 
-	if (is_async) {
+	if (flags & DIO_COMPLETE_ASYNC) {
 		/*
 		 * generic_write_sync expects ki_pos to have been updated
 		 * already, but the submission path only does this for
@@ -306,7 +317,7 @@ static void dio_aio_complete_work(struct work_struct *work)
 {
 	struct dio *dio = container_of(work, struct dio, complete_work);
 
-	dio_complete(dio, 0, true);
+	dio_complete(dio, 0, DIO_COMPLETE_ASYNC | DIO_COMPLETE_INVALIDATE);
 }
 
 static blk_status_t dio_bio_complete(struct dio *dio, struct bio *bio);
@@ -348,7 +359,7 @@ static void dio_bio_end_aio(struct bio *bio)
 			queue_work(dio->inode->i_sb->s_dio_done_wq,
 				   &dio->complete_work);
 		} else {
-			dio_complete(dio, 0, true);
+			dio_complete(dio, 0, DIO_COMPLETE_ASYNC);
 		}
 	}
 }
@@ -486,7 +497,7 @@ static struct bio *dio_await_one(struct dio *dio)
 		dio->waiter = current;
 		spin_unlock_irqrestore(&dio->bio_lock, flags);
 		if (!(dio->iocb->ki_flags & IOCB_HIPRI) ||
-		    !blk_mq_poll(dio->bio_disk->queue, dio->bio_cookie))
+		    !blk_poll(dio->bio_disk->queue, dio->bio_cookie))
 			io_schedule();
 		/* wake up sets us TASK_RUNNING */
 		spin_lock_irqsave(&dio->bio_lock, flags);
@@ -1141,7 +1152,7 @@ do_blockdev_direct_IO(struct kiocb *iocb, struct inode *inode,
 		      get_block_t get_block, dio_iodone_t end_io,
 		      dio_submit_t submit_io, int flags)
 {
-	unsigned i_blkbits = ACCESS_ONCE(inode->i_blkbits);
+	unsigned i_blkbits = READ_ONCE(inode->i_blkbits);
 	unsigned blkbits = i_blkbits;
 	unsigned blocksize_mask = (1 << blkbits) - 1;
 	ssize_t retval = -EINVAL;
@@ -1360,7 +1371,7 @@ do_blockdev_direct_IO(struct kiocb *iocb, struct inode *inode,
 		dio_await_completion(dio);
 
 	if (drop_refcount(dio) == 0) {
-		retval = dio_complete(dio, retval, false);
+		retval = dio_complete(dio, retval, DIO_COMPLETE_INVALIDATE);
 	} else
 		BUG_ON(retval != -EIOCBQUEUED);
 

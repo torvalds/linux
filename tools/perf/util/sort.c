@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <errno.h>
 #include <inttypes.h>
 #include <regex.h>
@@ -225,6 +226,9 @@ static int64_t _sort__sym_cmp(struct symbol *sym_l, struct symbol *sym_r)
 	if (sym_l == sym_r)
 		return 0;
 
+	if (sym_l->inlined || sym_r->inlined)
+		return strcmp(sym_l->name, sym_r->name);
+
 	if (sym_l->start != sym_r->start)
 		return (int64_t)(sym_r->start - sym_l->start);
 
@@ -283,6 +287,9 @@ static int _hist_entry__sym_snprintf(struct map *map, struct symbol *sym,
 			ret += repsep_snprintf(bf + ret, size - ret, "%.*s",
 					       width - ret,
 					       sym->name);
+			if (sym->inlined)
+				ret += repsep_snprintf(bf + ret, size - ret,
+						       " (inlined)");
 		}
 	} else {
 		size_t len = BITS_PER_LONG / 4;

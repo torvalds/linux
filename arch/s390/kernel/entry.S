@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *    S390 low-level entry points.
  *
@@ -12,6 +13,7 @@
 #include <linux/linkage.h>
 #include <asm/processor.h>
 #include <asm/cache.h>
+#include <asm/ctl_reg.h>
 #include <asm/errno.h>
 #include <asm/ptrace.h>
 #include <asm/thread_info.h>
@@ -377,13 +379,21 @@ ENTRY(system_call)
 	jg	s390_handle_mcck	# TIF bit will be cleared by handler
 
 #
-# _CIF_ASCE_PRIMARY and/or CIF_ASCE_SECONDARY set, load user space asce
+# _CIF_ASCE_PRIMARY and/or _CIF_ASCE_SECONDARY set, load user space asce
 #
 .Lsysc_asce:
+	ni	__LC_CPU_FLAGS+7,255-_CIF_ASCE_SECONDARY
+	lctlg	%c7,%c7,__LC_VDSO_ASCE		# load secondary asce
+	TSTMSK	__LC_CPU_FLAGS,_CIF_ASCE_PRIMARY
+	jz	.Lsysc_return
+#ifndef CONFIG_HAVE_MARCH_Z10_FEATURES
+	tm	__LC_STFLE_FAC_LIST+3,0x10	# has MVCOS ?
+	jnz	.Lsysc_set_fs_fixup
 	ni	__LC_CPU_FLAGS+7,255-_CIF_ASCE_PRIMARY
 	lctlg	%c1,%c1,__LC_USER_ASCE		# load primary asce
-	TSTMSK	__LC_CPU_FLAGS,_CIF_ASCE_SECONDARY
-	jz	.Lsysc_return
+	j	.Lsysc_return
+.Lsysc_set_fs_fixup:
+#endif
 	larl	%r14,.Lsysc_return
 	jg	set_fs_fixup
 
@@ -516,17 +526,22 @@ ENTRY(pgm_check_handler)
 	stmg	%r8,%r15,__LC_SAVE_AREA_SYNC
 	lg	%r10,__LC_LAST_BREAK
 	lg	%r12,__LC_CURRENT
+	lghi	%r11,0
 	larl	%r13,cleanup_critical
 	lmg	%r8,%r9,__LC_PGM_OLD_PSW
 	tmhh	%r8,0x0001		# test problem state bit
 	jnz	2f			# -> fault in user space
 #if IS_ENABLED(CONFIG_KVM)
-	# cleanup critical section for sie64a
+	# cleanup critical section for program checks in sie64a
 	lgr	%r14,%r9
 	slg	%r14,BASED(.Lsie_critical_start)
 	clg	%r14,BASED(.Lsie_critical_length)
 	jhe	0f
-	brasl	%r14,.Lcleanup_sie
+	lg	%r14,__SF_EMPTY(%r15)		# get control block pointer
+	ni	__SIE_PROG0C+3(%r14),0xfe	# no longer in SIE
+	lctlg	%c1,%c1,__LC_USER_ASCE		# load primary asce
+	larl	%r9,sie_exit			# skip forward to sie_exit
+	lghi	%r11,_PIF_GUEST_FAULT
 #endif
 0:	tmhh	%r8,0x4000		# PER bit set in old PSW ?
 	jnz	1f			# -> enabled, can't be a double fault
@@ -544,13 +559,14 @@ ENTRY(pgm_check_handler)
 	jz	3f
 	mvc	__THREAD_trap_tdb(256,%r14),0(%r13)
 3:	stg	%r10,__THREAD_last_break(%r14)
-4:	la	%r11,STACK_FRAME_OVERHEAD(%r15)
+4:	lgr	%r13,%r11
+	la	%r11,STACK_FRAME_OVERHEAD(%r15)
 	stmg	%r0,%r7,__PT_R0(%r11)
 	mvc	__PT_R8(64,%r11),__LC_SAVE_AREA_SYNC
 	stmg	%r8,%r9,__PT_PSW(%r11)
 	mvc	__PT_INT_CODE(4,%r11),__LC_PGM_ILC
 	mvc	__PT_INT_PARM_LONG(8,%r11),__LC_TRANS_EXC_CODE
-	xc	__PT_FLAGS(8,%r11),__PT_FLAGS(%r11)
+	stg	%r13,__PT_FLAGS(%r11)
 	stg	%r10,__PT_ARGS(%r11)
 	tm	__LC_PGM_ILC+3,0x80	# check for per exception
 	jz	5f
@@ -733,10 +749,18 @@ ENTRY(io_int_handler)
 # _CIF_ASCE_PRIMARY and/or CIF_ASCE_SECONDARY set, load user space asce
 #
 .Lio_asce:
+	ni	__LC_CPU_FLAGS+7,255-_CIF_ASCE_SECONDARY
+	lctlg	%c7,%c7,__LC_VDSO_ASCE		# load secondary asce
+	TSTMSK	__LC_CPU_FLAGS,_CIF_ASCE_PRIMARY
+	jz	.Lio_return
+#ifndef CONFIG_HAVE_MARCH_Z10_FEATURES
+	tm	__LC_STFLE_FAC_LIST+3,0x10	# has MVCOS ?
+	jnz	.Lio_set_fs_fixup
 	ni	__LC_CPU_FLAGS+7,255-_CIF_ASCE_PRIMARY
 	lctlg	%c1,%c1,__LC_USER_ASCE		# load primary asce
-	TSTMSK	__LC_CPU_FLAGS,_CIF_ASCE_SECONDARY
-	jz	.Lio_return
+	j	.Lio_return
+.Lio_set_fs_fixup:
+#endif
 	larl	%r14,.Lio_return
 	jg	set_fs_fixup
 
@@ -948,15 +972,56 @@ load_fpu_regs:
  */
 ENTRY(mcck_int_handler)
 	STCK	__LC_MCCK_CLOCK
-	la	%r1,4095		# revalidate r1
-	spt	__LC_CPU_TIMER_SAVE_AREA-4095(%r1)	# revalidate cpu timer
-	lmg	%r0,%r15,__LC_GPREGS_SAVE_AREA-4095(%r1)# revalidate gprs
+	la	%r1,4095		# validate r1
+	spt	__LC_CPU_TIMER_SAVE_AREA-4095(%r1)	# validate cpu timer
+	sckc	__LC_CLOCK_COMPARATOR			# validate comparator
+	lam	%a0,%a15,__LC_AREGS_SAVE_AREA-4095(%r1) # validate acrs
+	lmg	%r0,%r15,__LC_GPREGS_SAVE_AREA-4095(%r1)# validate gprs
 	lg	%r12,__LC_CURRENT
 	larl	%r13,cleanup_critical
 	lmg	%r8,%r9,__LC_MCK_OLD_PSW
 	TSTMSK	__LC_MCCK_CODE,MCCK_CODE_SYSTEM_DAMAGE
 	jo	.Lmcck_panic		# yes -> rest of mcck code invalid
-	lghi	%r14,__LC_CPU_TIMER_SAVE_AREA
+	TSTMSK	__LC_MCCK_CODE,MCCK_CODE_CR_VALID
+	jno	.Lmcck_panic		# control registers invalid -> panic
+	la	%r14,4095
+	lctlg	%c0,%c15,__LC_CREGS_SAVE_AREA-4095(%r14) # validate ctl regs
+	ptlb
+	lg	%r11,__LC_MCESAD-4095(%r14) # extended machine check save area
+	nill	%r11,0xfc00		# MCESA_ORIGIN_MASK
+	TSTMSK	__LC_CREGS_SAVE_AREA+16-4095(%r14),CR2_GUARDED_STORAGE
+	jno	0f
+	TSTMSK	__LC_MCCK_CODE,MCCK_CODE_GS_VALID
+	jno	0f
+	.insn	 rxy,0xe3000000004d,0,__MCESA_GS_SAVE_AREA(%r11) # LGSC
+0:	l	%r14,__LC_FP_CREG_SAVE_AREA-4095(%r14)
+	TSTMSK	__LC_MCCK_CODE,MCCK_CODE_FC_VALID
+	jo	0f
+	sr	%r14,%r14
+0:	sfpc	%r14
+	TSTMSK	__LC_MACHINE_FLAGS,MACHINE_FLAG_VX
+	jo	0f
+	lghi	%r14,__LC_FPREGS_SAVE_AREA
+	ld	%f0,0(%r14)
+	ld	%f1,8(%r14)
+	ld	%f2,16(%r14)
+	ld	%f3,24(%r14)
+	ld	%f4,32(%r14)
+	ld	%f5,40(%r14)
+	ld	%f6,48(%r14)
+	ld	%f7,56(%r14)
+	ld	%f8,64(%r14)
+	ld	%f9,72(%r14)
+	ld	%f10,80(%r14)
+	ld	%f11,88(%r14)
+	ld	%f12,96(%r14)
+	ld	%f13,104(%r14)
+	ld	%f14,112(%r14)
+	ld	%f15,120(%r14)
+	j	1f
+0:	VLM	%v0,%v15,0,%r11
+	VLM	%v16,%v31,256,%r11
+1:	lghi	%r14,__LC_CPU_TIMER_SAVE_AREA
 	mvc	__LC_MCCK_ENTER_TIMER(8),0(%r14)
 	TSTMSK	__LC_MCCK_CODE,MCCK_CODE_CPU_TIMER_VALID
 	jo	3f
@@ -972,9 +1037,13 @@ ENTRY(mcck_int_handler)
 	la	%r14,__LC_LAST_UPDATE_TIMER
 2:	spt	0(%r14)
 	mvc	__LC_MCCK_ENTER_TIMER(8),0(%r14)
-3:	TSTMSK	__LC_MCCK_CODE,(MCCK_CODE_PSW_MWP_VALID|MCCK_CODE_PSW_IA_VALID)
-	jno	.Lmcck_panic		# no -> skip cleanup critical
-	SWITCH_ASYNC __LC_GPREGS_SAVE_AREA+64,__LC_MCCK_ENTER_TIMER
+3:	TSTMSK	__LC_MCCK_CODE,MCCK_CODE_PSW_MWP_VALID
+	jno	.Lmcck_panic
+	tmhh	%r8,0x0001		# interrupting from user ?
+	jnz	4f
+	TSTMSK	__LC_MCCK_CODE,MCCK_CODE_PSW_IA_VALID
+	jno	.Lmcck_panic
+4:	SWITCH_ASYNC __LC_GPREGS_SAVE_AREA+64,__LC_MCCK_ENTER_TIMER
 .Lmcck_skip:
 	lghi	%r14,__LC_GPREGS_SAVE_AREA+64
 	stmg	%r0,%r7,__PT_R0(%r11)

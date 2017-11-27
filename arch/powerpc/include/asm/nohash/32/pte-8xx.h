@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_POWERPC_NOHASH_32_PTE_8xx_H
 #define _ASM_POWERPC_NOHASH_32_PTE_8xx_H
 #ifdef __KERNEL__

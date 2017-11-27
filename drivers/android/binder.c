@@ -150,7 +150,7 @@ static DECLARE_WAIT_QUEUE_HEAD(binder_user_error_wait);
 static int binder_stop_on_user_error;
 
 static int binder_set_stop_on_user_error(const char *val,
-					 struct kernel_param *kp)
+					 const struct kernel_param *kp)
 {
 	int ret;
 
@@ -2192,7 +2192,7 @@ static void binder_transaction_buffer_release(struct binder_proc *proc,
 						     off_start,
 						     offp - off_start);
 			if (!parent) {
-				pr_err("transaction release %d bad parent offset",
+				pr_err("transaction release %d bad parent offset\n",
 				       debug_id);
 				continue;
 			}
@@ -3662,12 +3662,6 @@ static void binder_stat_br(struct binder_proc *proc,
 	}
 }
 
-static int binder_has_thread_work(struct binder_thread *thread)
-{
-	return !binder_worklist_empty(thread->proc, &thread->todo) ||
-		thread->looper_need_return;
-}
-
 static int binder_put_node_cmd(struct binder_proc *proc,
 			       struct binder_thread *thread,
 			       void __user **ptrp,
@@ -4297,12 +4291,9 @@ static unsigned int binder_poll(struct file *filp,
 
 	binder_inner_proc_unlock(thread->proc);
 
-	if (binder_has_work(thread, wait_for_proc_work))
-		return POLLIN;
-
 	poll_wait(filp, &thread->wait, wait);
 
-	if (binder_has_thread_work(thread))
+	if (binder_has_work(thread, wait_for_proc_work))
 		return POLLIN;
 
 	return 0;

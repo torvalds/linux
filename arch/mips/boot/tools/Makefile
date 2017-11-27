@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 
 hostprogs-y	+= relocs
 relocs-objs	+= relocs_32.o

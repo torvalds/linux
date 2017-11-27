@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef B43legacy_SYSFS_H_
 #define B43legacy_SYSFS_H_
 

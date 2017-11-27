@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __KVM_X86_MMU_H
 #define __KVM_X86_MMU_H
 
@@ -65,8 +66,7 @@ void kvm_init_shadow_ept_mmu(struct kvm_vcpu *vcpu, bool execonly,
 			     bool accessed_dirty);
 bool kvm_can_do_async_pf(struct kvm_vcpu *vcpu);
 int kvm_handle_page_fault(struct kvm_vcpu *vcpu, u64 error_code,
-				u64 fault_address, char *insn, int insn_len,
-				bool need_unprotect);
+				u64 fault_address, char *insn, int insn_len);
 
 static inline unsigned int kvm_mmu_available_pages(struct kvm *kvm)
 {

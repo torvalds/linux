@@ -86,7 +86,7 @@ void cec_queue_event_fh(struct cec_fh *fh,
 			const struct cec_event *new_ev, u64 ts)
 {
 	static const u8 max_events[CEC_NUM_EVENTS] = {
-		1, 1, 64, 64,
+		1, 1, 64, 64, 8, 8,
 	};
 	struct cec_event_entry *entry;
 	unsigned int ev_idx = new_ev->event - 1;
@@ -169,6 +169,22 @@ void cec_queue_pin_cec_event(struct cec_adapter *adap, bool is_high, ktime_t ts)
 	mutex_unlock(&adap->devnode.lock);
 }
 EXPORT_SYMBOL_GPL(cec_queue_pin_cec_event);
+
+/* Notify userspace that the HPD pin changed state at the given time. */
+void cec_queue_pin_hpd_event(struct cec_adapter *adap, bool is_high, ktime_t ts)
+{
+	struct cec_event ev = {
+		.event = is_high ? CEC_EVENT_PIN_HPD_HIGH :
+				   CEC_EVENT_PIN_HPD_LOW,
+	};
+	struct cec_fh *fh;
+
+	mutex_lock(&adap->devnode.lock);
+	list_for_each_entry(fh, &adap->devnode.fhs, list)
+		cec_queue_event_fh(fh, &ev, ktime_to_ns(ts));
+	mutex_unlock(&adap->devnode.lock);
+}
+EXPORT_SYMBOL_GPL(cec_queue_pin_hpd_event);
 
 /*
  * Queue a new message for this filehandle.
@@ -1797,12 +1813,19 @@ static int cec_receive_notify(struct cec_adapter *adap, struct cec_msg *msg,
 	 */
 	switch (msg->msg[1]) {
 	case CEC_MSG_GET_CEC_VERSION:
-	case CEC_MSG_GIVE_DEVICE_VENDOR_ID:
 	case CEC_MSG_ABORT:
 	case CEC_MSG_GIVE_DEVICE_POWER_STATUS:
-	case CEC_MSG_GIVE_PHYSICAL_ADDR:
 	case CEC_MSG_GIVE_OSD_NAME:
+		/*
+		 * These messages reply with a directed message, so ignore if
+		 * the initiator is Unregistered.
+		 */
+		if (!adap->passthrough && from_unregistered)
+			return 0;
+		/* Fall through */
+	case CEC_MSG_GIVE_DEVICE_VENDOR_ID:
 	case CEC_MSG_GIVE_FEATURES:
+	case CEC_MSG_GIVE_PHYSICAL_ADDR:
 		/*
 		 * Skip processing these messages if the passthrough mode
 		 * is on.
@@ -1810,7 +1833,7 @@ static int cec_receive_notify(struct cec_adapter *adap, struct cec_msg *msg,
 		if (adap->passthrough)
 			goto skip_processing;
 		/* Ignore if addressing is wrong */
-		if (is_broadcast || from_unregistered)
+		if (is_broadcast)
 			return 0;
 		break;
 

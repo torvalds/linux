@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __PMU_H
 #define __PMU_H
 
@@ -90,5 +91,7 @@ int perf_pmu__scan_file(struct perf_pmu *pmu, const char *name, const char *fmt,
 int perf_pmu__test(void);
 
 struct perf_event_attr *perf_pmu__get_default_config(struct perf_pmu *pmu);
+
+struct pmu_events_map *perf_pmu__find_map(void);
 
 #endif /* __PMU_H */

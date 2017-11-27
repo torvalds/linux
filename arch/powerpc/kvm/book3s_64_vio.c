@@ -478,28 +478,30 @@ long kvmppc_h_put_tce(struct kvm_vcpu *vcpu, unsigned long liobn,
 		return ret;
 
 	dir = iommu_tce_direction(tce);
+
+	idx = srcu_read_lock(&vcpu->kvm->srcu);
+
 	if ((dir != DMA_NONE) && kvmppc_gpa_to_ua(vcpu->kvm,
-			tce & ~(TCE_PCI_READ | TCE_PCI_WRITE), &ua, NULL))
-		return H_PARAMETER;
+			tce & ~(TCE_PCI_READ | TCE_PCI_WRITE), &ua, NULL)) {
+		ret = H_PARAMETER;
+		goto unlock_exit;
+	}
 
 	entry = ioba >> stt->page_shift;
 
 	list_for_each_entry_lockless(stit, &stt->iommu_tables, next) {
-		if (dir == DMA_NONE) {
+		if (dir == DMA_NONE)
 			ret = kvmppc_tce_iommu_unmap(vcpu->kvm,
 					stit->tbl, entry);
-		} else {
-			idx = srcu_read_lock(&vcpu->kvm->srcu);
+		else
 			ret = kvmppc_tce_iommu_map(vcpu->kvm, stit->tbl,
 					entry, ua, dir);
-			srcu_read_unlock(&vcpu->kvm->srcu, idx);
-		}
 
 		if (ret == H_SUCCESS)
 			continue;
 
 		if (ret == H_TOO_HARD)
-			return ret;
+			goto unlock_exit;
 
 		WARN_ON_ONCE(1);
 		kvmppc_clear_tce(stit->tbl, entry);
@@ -507,7 +509,10 @@ long kvmppc_h_put_tce(struct kvm_vcpu *vcpu, unsigned long liobn,
 
 	kvmppc_tce_put(stt, entry, tce);
 
-	return H_SUCCESS;
+unlock_exit:
+	srcu_read_unlock(&vcpu->kvm->srcu, idx);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(kvmppc_h_put_tce);
 

@@ -290,6 +290,7 @@ static void qp_event_handler(struct ib_event *event, void *context)
 			ib_event_msg(event->event), event->event,
 			event->element.qp);
 		set_bit(XPT_CLOSE, &xprt->xpt_flags);
+		svc_xprt_enqueue(xprt);
 		break;
 	}
 }
@@ -322,8 +323,7 @@ static void svc_rdma_wc_receive(struct ib_cq *cq, struct ib_wc *wc)
 	set_bit(XPT_DATA, &xprt->sc_xprt.xpt_flags);
 	if (test_bit(RDMAXPRT_CONN_PENDING, &xprt->sc_flags))
 		goto out;
-	svc_xprt_enqueue(&xprt->sc_xprt);
-	goto out;
+	goto out_enqueue;
 
 flushed:
 	if (wc->status != IB_WC_WR_FLUSH_ERR)
@@ -333,6 +333,8 @@ flushed:
 	set_bit(XPT_CLOSE, &xprt->sc_xprt.xpt_flags);
 	svc_rdma_put_context(ctxt, 1);
 
+out_enqueue:
+	svc_xprt_enqueue(&xprt->sc_xprt);
 out:
 	svc_xprt_put(&xprt->sc_xprt);
 }
@@ -358,6 +360,7 @@ void svc_rdma_wc_send(struct ib_cq *cq, struct ib_wc *wc)
 
 	if (unlikely(wc->status != IB_WC_SUCCESS)) {
 		set_bit(XPT_CLOSE, &xprt->sc_xprt.xpt_flags);
+		svc_xprt_enqueue(&xprt->sc_xprt);
 		if (wc->status != IB_WC_WR_FLUSH_ERR)
 			pr_err("svcrdma: Send: %s (%u/0x%x)\n",
 			       ib_wc_status_msg(wc->status),
@@ -569,8 +572,10 @@ static int rdma_listen_handler(struct rdma_cm_id *cma_id,
 	case RDMA_CM_EVENT_DEVICE_REMOVAL:
 		dprintk("svcrdma: Device removal xprt=%p, cm_id=%p\n",
 			xprt, cma_id);
-		if (xprt)
+		if (xprt) {
 			set_bit(XPT_CLOSE, &xprt->sc_xprt.xpt_flags);
+			svc_xprt_enqueue(&xprt->sc_xprt);
+		}
 		break;
 
 	default:

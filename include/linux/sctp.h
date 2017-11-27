@@ -231,7 +231,7 @@ struct sctp_datahdr {
 	__be32 tsn;
 	__be16 stream;
 	__be16 ssn;
-	__be32 ppid;
+	__u32 ppid;
 	__u8  payload[0];
 };
 
@@ -716,28 +716,28 @@ struct sctp_reconf_chunk {
 
 struct sctp_strreset_outreq {
 	struct sctp_paramhdr param_hdr;
-	__u32 request_seq;
-	__u32 response_seq;
-	__u32 send_reset_at_tsn;
-	__u16 list_of_streams[0];
+	__be32 request_seq;
+	__be32 response_seq;
+	__be32 send_reset_at_tsn;
+	__be16 list_of_streams[0];
 };
 
 struct sctp_strreset_inreq {
 	struct sctp_paramhdr param_hdr;
-	__u32 request_seq;
-	__u16 list_of_streams[0];
+	__be32 request_seq;
+	__be16 list_of_streams[0];
 };
 
 struct sctp_strreset_tsnreq {
 	struct sctp_paramhdr param_hdr;
-	__u32 request_seq;
+	__be32 request_seq;
 };
 
 struct sctp_strreset_addstrm {
 	struct sctp_paramhdr param_hdr;
-	__u32 request_seq;
-	__u16 number_of_streams;
-	__u16 reserved;
+	__be32 request_seq;
+	__be16 number_of_streams;
+	__be16 reserved;
 };
 
 enum {
@@ -752,16 +752,16 @@ enum {
 
 struct sctp_strreset_resp {
 	struct sctp_paramhdr param_hdr;
-	__u32 response_seq;
-	__u32 result;
+	__be32 response_seq;
+	__be32 result;
 };
 
 struct sctp_strreset_resptsn {
 	struct sctp_paramhdr param_hdr;
-	__u32 response_seq;
-	__u32 result;
-	__u32 senders_next_tsn;
-	__u32 receivers_next_tsn;
+	__be32 response_seq;
+	__be32 result;
+	__be32 senders_next_tsn;
+	__be32 receivers_next_tsn;
 };
 
 #endif /* __LINUX_SCTP_H__ */

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  *  Driver core for serial ports
  *
@@ -5,20 +6,6 @@
  *
  *  Copyright 1999 ARM Limited
  *  Copyright (C) 2000-2001 Deep Blue Solutions Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 #include <linux/module.h>
 #include <linux/tty.h>
@@ -1482,10 +1469,10 @@ out:
 static void uart_close(struct tty_struct *tty, struct file *filp)
 {
 	struct uart_state *state = tty->driver_data;
-	struct tty_port *port;
 
 	if (!state) {
 		struct uart_driver *drv = tty->driver->driver_state;
+		struct tty_port *port;
 
 		state = drv->state + tty->index;
 		port = &state->port;
@@ -1495,7 +1482,6 @@ static void uart_close(struct tty_struct *tty, struct file *filp)
 		return;
 	}
 
-	port = &state->port;
 	pr_debug("uart_close(%d) called\n", tty->index);
 
 	tty_port_close(tty->port, tty, filp);
@@ -3025,6 +3011,42 @@ EXPORT_SYMBOL(uart_suspend_port);
 EXPORT_SYMBOL(uart_resume_port);
 EXPORT_SYMBOL(uart_add_one_port);
 EXPORT_SYMBOL(uart_remove_one_port);
+
+/**
+ * of_get_rs485_mode() - Implement parsing rs485 properties
+ * @np: uart node
+ * @rs485conf: output parameter
+ *
+ * This function implements the device tree binding described in
+ * Documentation/devicetree/bindings/serial/rs485.txt.
+ */
+void of_get_rs485_mode(struct device_node *np, struct serial_rs485 *rs485conf)
+{
+	u32 rs485_delay[2];
+	int ret;
+
+	ret = of_property_read_u32_array(np, "rs485-rts-delay", rs485_delay, 2);
+	if (!ret) {
+		rs485conf->delay_rts_before_send = rs485_delay[0];
+		rs485conf->delay_rts_after_send = rs485_delay[1];
+	} else {
+		rs485conf->delay_rts_before_send = 0;
+		rs485conf->delay_rts_after_send = 0;
+	}
+
+	/*
+	 * clear full-duplex and enabled flags to get to a defined state with
+	 * the two following properties.
+	 */
+	rs485conf->flags &= ~(SER_RS485_RX_DURING_TX | SER_RS485_ENABLED);
+
+	if (of_property_read_bool(np, "rs485-rx-during-tx"))
+		rs485conf->flags |= SER_RS485_RX_DURING_TX;
+
+	if (of_property_read_bool(np, "linux,rs485-enabled-at-boot-time"))
+		rs485conf->flags |= SER_RS485_ENABLED;
+}
+EXPORT_SYMBOL_GPL(of_get_rs485_mode);
 
 MODULE_DESCRIPTION("Serial driver core");
 MODULE_LICENSE("GPL");

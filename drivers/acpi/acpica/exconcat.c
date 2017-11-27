@@ -156,7 +156,7 @@ acpi_ex_do_concatenate(union acpi_operand_object *operand0,
 
 		status =
 		    acpi_ex_convert_to_integer(local_operand1, &temp_operand1,
-					       ACPI_STRTOUL_BASE16);
+					       ACPI_IMPLICIT_CONVERSION);
 		break;
 
 	case ACPI_TYPE_BUFFER:

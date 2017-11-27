@@ -72,6 +72,7 @@ int iio_simple_dummy_write_event_config(struct iio_dev *indio_dev,
 				st->event_en = state;
 			else
 				return -EINVAL;
+			break;
 		default:
 			return -EINVAL;
 		}

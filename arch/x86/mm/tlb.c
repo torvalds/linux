@@ -30,7 +30,6 @@
 
 atomic64_t last_mm_ctx_id = ATOMIC64_INIT(1);
 
-DEFINE_STATIC_KEY_TRUE(tlb_use_lazy_mode);
 
 static void choose_new_asid(struct mm_struct *next, u64 next_tlb_gen,
 			    u16 *new_asid, bool *need_flush)
@@ -86,6 +85,7 @@ void leave_mm(int cpu)
 
 	switch_mm(NULL, &init_mm, NULL);
 }
+EXPORT_SYMBOL_GPL(leave_mm);
 
 void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 	       struct task_struct *tsk)
@@ -147,8 +147,8 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
 	this_cpu_write(cpu_tlbstate.is_lazy, false);
 
 	if (real_prev == next) {
-		VM_BUG_ON(this_cpu_read(cpu_tlbstate.ctxs[prev_asid].ctx_id) !=
-			  next->context.ctx_id);
+		VM_WARN_ON(this_cpu_read(cpu_tlbstate.ctxs[prev_asid].ctx_id) !=
+			   next->context.ctx_id);
 
 		/*
 		 * We don't currently support having a real mm loaded without
@@ -196,12 +196,22 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
 			this_cpu_write(cpu_tlbstate.ctxs[new_asid].ctx_id, next->context.ctx_id);
 			this_cpu_write(cpu_tlbstate.ctxs[new_asid].tlb_gen, next_tlb_gen);
 			write_cr3(build_cr3(next, new_asid));
-			trace_tlb_flush(TLB_FLUSH_ON_TASK_SWITCH,
-					TLB_FLUSH_ALL);
+
+			/*
+			 * NB: This gets called via leave_mm() in the idle path
+			 * where RCU functions differently.  Tracing normally
+			 * uses RCU, so we need to use the _rcuidle variant.
+			 *
+			 * (There is no good reason for this.  The idle code should
+			 *  be rearranged to call this before rcu_idle_enter().)
+			 */
+			trace_tlb_flush_rcuidle(TLB_FLUSH_ON_TASK_SWITCH, TLB_FLUSH_ALL);
 		} else {
 			/* The new ASID is already up to date. */
 			write_cr3(build_cr3_noflush(next, new_asid));
-			trace_tlb_flush(TLB_FLUSH_ON_TASK_SWITCH, 0);
+
+			/* See above wrt _rcuidle. */
+			trace_tlb_flush_rcuidle(TLB_FLUSH_ON_TASK_SWITCH, 0);
 		}
 
 		this_cpu_write(cpu_tlbstate.loaded_mm, next);
@@ -213,6 +223,9 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
 }
 
 /*
+ * Please ignore the name of this function.  It should be called
+ * switch_to_kernel_thread().
+ *
  * enter_lazy_tlb() is a hint from the scheduler that we are entering a
  * kernel thread or other context without an mm.  Acceptable implementations
  * include doing nothing whatsoever, switching to init_mm, or various clever
@@ -227,7 +240,7 @@ void enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk)
 	if (this_cpu_read(cpu_tlbstate.loaded_mm) == &init_mm)
 		return;
 
-	if (static_branch_unlikely(&tlb_use_lazy_mode)) {
+	if (tlb_defer_switch_to_init_mm()) {
 		/*
 		 * There's a significant optimization that may be possible
 		 * here.  We have accurate enough TLB flush tracking that we
@@ -626,57 +639,3 @@ static int __init create_tlb_single_page_flush_ceiling(void)
 	return 0;
 }
 late_initcall(create_tlb_single_page_flush_ceiling);
-
-static ssize_t tlblazy_read_file(struct file *file, char __user *user_buf,
-				 size_t count, loff_t *ppos)
-{
-	char buf[2];
-
-	buf[0] = static_branch_likely(&tlb_use_lazy_mode) ? '1' : '0';
-	buf[1] = '\n';
-
-	return simple_read_from_buffer(user_buf, count, ppos, buf, 2);
-}
-
-static ssize_t tlblazy_write_file(struct file *file,
-		 const char __user *user_buf, size_t count, loff_t *ppos)
-{
-	bool val;
-
-	if (kstrtobool_from_user(user_buf, count, &val))
-		return -EINVAL;
-
-	if (val)
-		static_branch_enable(&tlb_use_lazy_mode);
-	else
-		static_branch_disable(&tlb_use_lazy_mode);
-
-	return count;
-}
-
-static const struct file_operations fops_tlblazy = {
-	.read = tlblazy_read_file,
-	.write = tlblazy_write_file,
-	.llseek = default_llseek,
-};
-
-static int __init init_tlb_use_lazy_mode(void)
-{
-	if (boot_cpu_has(X86_FEATURE_PCID)) {
-		/*
-		 * Heuristic: with PCID on, switching to and from
-		 * init_mm is reasonably fast, but remote flush IPIs
-		 * as expensive as ever, so turn off lazy TLB mode.
-		 *
-		 * We can't do this in setup_pcid() because static keys
-		 * haven't been initialized yet, and it would blow up
-		 * badly.
-		 */
-		static_branch_disable(&tlb_use_lazy_mode);
-	}
-
-	debugfs_create_file("tlb_use_lazy_mode", S_IRUSR | S_IWUSR,
-			    arch_debugfs_dir, NULL, &fops_tlblazy);
-	return 0;
-}
-late_initcall(init_tlb_use_lazy_mode);

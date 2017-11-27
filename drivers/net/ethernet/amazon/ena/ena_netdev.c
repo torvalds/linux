@@ -517,7 +517,7 @@ static int ena_refill_rx_bufs(struct ena_ring *rx_ring, u32 num)
 
 
 		rc = ena_alloc_rx_page(rx_ring, rx_info,
-				       __GFP_COLD | GFP_ATOMIC | __GFP_COMP);
+				       GFP_ATOMIC | __GFP_COMP);
 		if (unlikely(rc < 0)) {
 			netif_warn(rx_ring->adapter, rx_err, rx_ring->netdev,
 				   "failed to alloc buffer for rx queue %d\n",
@@ -966,7 +966,7 @@ static inline void ena_rx_checksum(struct ena_ring *rx_ring,
 		u64_stats_update_begin(&rx_ring->syncp);
 		rx_ring->rx_stats.bad_csum++;
 		u64_stats_update_end(&rx_ring->syncp);
-		netif_err(rx_ring->adapter, rx_err, rx_ring->netdev,
+		netif_dbg(rx_ring->adapter, rx_err, rx_ring->netdev,
 			  "RX IPv4 header checksum error\n");
 		return;
 	}
@@ -979,7 +979,7 @@ static inline void ena_rx_checksum(struct ena_ring *rx_ring,
 			u64_stats_update_begin(&rx_ring->syncp);
 			rx_ring->rx_stats.bad_csum++;
 			u64_stats_update_end(&rx_ring->syncp);
-			netif_err(rx_ring->adapter, rx_err, rx_ring->netdev,
+			netif_dbg(rx_ring->adapter, rx_err, rx_ring->netdev,
 				  "RX L4 checksum error\n");
 			skb->ip_summed = CHECKSUM_NONE;
 			return;
@@ -2361,38 +2361,6 @@ static const struct net_device_ops ena_netdev_ops = {
 #endif /* CONFIG_NET_POLL_CONTROLLER */
 };
 
-static void ena_device_io_suspend(struct work_struct *work)
-{
-	struct ena_adapter *adapter =
-		container_of(work, struct ena_adapter, suspend_io_task);
-	struct net_device *netdev = adapter->netdev;
-
-	/* ena_napi_disable_all disables only the IO handling.
-	 * We are still subject to AENQ keep alive watchdog.
-	 */
-	u64_stats_update_begin(&adapter->syncp);
-	adapter->dev_stats.io_suspend++;
-	u64_stats_update_begin(&adapter->syncp);
-	ena_napi_disable_all(adapter);
-	netif_tx_lock(netdev);
-	netif_device_detach(netdev);
-	netif_tx_unlock(netdev);
-}
-
-static void ena_device_io_resume(struct work_struct *work)
-{
-	struct ena_adapter *adapter =
-		container_of(work, struct ena_adapter, resume_io_task);
-	struct net_device *netdev = adapter->netdev;
-
-	u64_stats_update_begin(&adapter->syncp);
-	adapter->dev_stats.io_resume++;
-	u64_stats_update_end(&adapter->syncp);
-
-	netif_device_attach(netdev);
-	ena_napi_enable_all(adapter);
-}
-
 static int ena_device_validate_params(struct ena_adapter *adapter,
 				      struct ena_com_dev_get_features_ctx *get_feat_ctx)
 {
@@ -2561,37 +2529,30 @@ err_disable_msix:
 	return rc;
 }
 
-static void ena_fw_reset_device(struct work_struct *work)
+static void ena_destroy_device(struct ena_adapter *adapter)
 {
-	struct ena_com_dev_get_features_ctx get_feat_ctx;
-	struct ena_adapter *adapter =
-		container_of(work, struct ena_adapter, reset_task);
 	struct net_device *netdev = adapter->netdev;
 	struct ena_com_dev *ena_dev = adapter->ena_dev;
-	struct pci_dev *pdev = adapter->pdev;
-	bool dev_up, wd_state;
-	int rc;
-
-	if (unlikely(!test_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags))) {
-		dev_err(&pdev->dev,
-			"device reset schedule while reset bit is off\n");
-		return;
-	}
+	bool dev_up;
 
 	netif_carrier_off(netdev);
 
 	del_timer_sync(&adapter->timer_service);
 
-	rtnl_lock();
-
 	dev_up = test_bit(ENA_FLAG_DEV_UP, &adapter->flags);
+	adapter->dev_up_before_reset = dev_up;
+
 	ena_com_set_admin_running_state(ena_dev, false);
 
-	/* After calling ena_close the tx queues and the napi
-	 * are disabled so no one can interfere or touch the
-	 * data structures
-	 */
 	ena_close(netdev);
+
+	/* Before releasing the ENA resources, a device reset is required.
+	 * (to prevent the device from accessing them).
+	 * In case the reset flag is set and the device is up, ena_close
+	 * already perform the reset, so it can be skipped.
+	 */
+	if (!(test_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags) && dev_up))
+		ena_com_dev_reset(adapter->ena_dev, adapter->reset_reason);
 
 	ena_free_mgmnt_irq(adapter);
 
@@ -2606,10 +2567,19 @@ static void ena_fw_reset_device(struct work_struct *work)
 	ena_com_mmio_reg_read_request_destroy(ena_dev);
 
 	adapter->reset_reason = ENA_REGS_RESET_NORMAL;
+
 	clear_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags);
+}
 
-	/* Finish with the destroy part. Start the init part */
+static int ena_restore_device(struct ena_adapter *adapter)
+{
+	struct ena_com_dev_get_features_ctx get_feat_ctx;
+	struct ena_com_dev *ena_dev = adapter->ena_dev;
+	struct pci_dev *pdev = adapter->pdev;
+	bool wd_state;
+	int rc;
 
+	set_bit(ENA_FLAG_ONGOING_RESET, &adapter->flags);
 	rc = ena_device_init(ena_dev, adapter->pdev, &get_feat_ctx, &wd_state);
 	if (rc) {
 		dev_err(&pdev->dev, "Can not initialize device\n");
@@ -2623,6 +2593,11 @@ static void ena_fw_reset_device(struct work_struct *work)
 		goto err_device_destroy;
 	}
 
+	clear_bit(ENA_FLAG_ONGOING_RESET, &adapter->flags);
+	/* Make sure we don't have a race with AENQ Links state handler */
+	if (test_bit(ENA_FLAG_LINK_UP, &adapter->flags))
+		netif_carrier_on(adapter->netdev);
+
 	rc = ena_enable_msix_and_set_admin_interrupts(adapter,
 						      adapter->num_queues);
 	if (rc) {
@@ -2630,7 +2605,7 @@ static void ena_fw_reset_device(struct work_struct *work)
 		goto err_device_destroy;
 	}
 	/* If the interface was up before the reset bring it up */
-	if (dev_up) {
+	if (adapter->dev_up_before_reset) {
 		rc = ena_up(adapter);
 		if (rc) {
 			dev_err(&pdev->dev, "Failed to create I/O queues\n");
@@ -2639,24 +2614,38 @@ static void ena_fw_reset_device(struct work_struct *work)
 	}
 
 	mod_timer(&adapter->timer_service, round_jiffies(jiffies + HZ));
-
-	rtnl_unlock();
-
 	dev_err(&pdev->dev, "Device reset completed successfully\n");
 
-	return;
+	return rc;
 err_disable_msix:
 	ena_free_mgmnt_irq(adapter);
 	ena_disable_msix(adapter);
 err_device_destroy:
 	ena_com_admin_destroy(ena_dev);
 err:
-	rtnl_unlock();
-
 	clear_bit(ENA_FLAG_DEVICE_RUNNING, &adapter->flags);
-
+	clear_bit(ENA_FLAG_ONGOING_RESET, &adapter->flags);
 	dev_err(&pdev->dev,
 		"Reset attempt failed. Can not reset the device\n");
+
+	return rc;
+}
+
+static void ena_fw_reset_device(struct work_struct *work)
+{
+	struct ena_adapter *adapter =
+		container_of(work, struct ena_adapter, reset_task);
+	struct pci_dev *pdev = adapter->pdev;
+
+	if (unlikely(!test_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags))) {
+		dev_err(&pdev->dev,
+			"device reset schedule while reset bit is off\n");
+		return;
+	}
+	rtnl_lock();
+	ena_destroy_device(adapter);
+	ena_restore_device(adapter);
+	rtnl_unlock();
 }
 
 static int check_missing_comp_in_queue(struct ena_adapter *adapter,
@@ -2665,7 +2654,7 @@ static int check_missing_comp_in_queue(struct ena_adapter *adapter,
 	struct ena_tx_buffer *tx_buf;
 	unsigned long last_jiffies;
 	u32 missed_tx = 0;
-	int i;
+	int i, rc = 0;
 
 	for (i = 0; i < tx_ring->ring_size; i++) {
 		tx_buf = &tx_ring->tx_buffer_info[i];
@@ -2679,21 +2668,25 @@ static int check_missing_comp_in_queue(struct ena_adapter *adapter,
 
 			tx_buf->print_once = 1;
 			missed_tx++;
-
-			if (unlikely(missed_tx > adapter->missing_tx_completion_threshold)) {
-				netif_err(adapter, tx_err, adapter->netdev,
-					  "The number of lost tx completions is above the threshold (%d > %d). Reset the device\n",
-					  missed_tx,
-					  adapter->missing_tx_completion_threshold);
-				adapter->reset_reason =
-					ENA_REGS_RESET_MISS_TX_CMPL;
-				set_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags);
-				return -EIO;
-			}
 		}
 	}
 
-	return 0;
+	if (unlikely(missed_tx > adapter->missing_tx_completion_threshold)) {
+		netif_err(adapter, tx_err, adapter->netdev,
+			  "The number of lost tx completions is above the threshold (%d > %d). Reset the device\n",
+			  missed_tx,
+			  adapter->missing_tx_completion_threshold);
+		adapter->reset_reason =
+			ENA_REGS_RESET_MISS_TX_CMPL;
+		set_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags);
+		rc = -EIO;
+	}
+
+	u64_stats_update_begin(&tx_ring->syncp);
+	tx_ring->tx_stats.missed_tx = missed_tx;
+	u64_stats_update_end(&tx_ring->syncp);
+
+	return rc;
 }
 
 static void check_for_missing_tx_completions(struct ena_adapter *adapter)
@@ -2866,9 +2859,9 @@ static void ena_update_host_info(struct ena_admin_host_info *host_info,
 		(netdev->features & GENMASK_ULL(63, 32)) >> 32;
 }
 
-static void ena_timer_service(unsigned long data)
+static void ena_timer_service(struct timer_list *t)
 {
-	struct ena_adapter *adapter = (struct ena_adapter *)data;
+	struct ena_adapter *adapter = from_timer(adapter, t, timer_service);
 	u8 *debug_area = adapter->ena_dev->host_attr.debug_area_virt_addr;
 	struct ena_admin_host_info *host_info =
 		adapter->ena_dev->host_attr.host_info;
@@ -3064,7 +3057,8 @@ static void ena_release_bars(struct ena_com_dev *ena_dev, struct pci_dev *pdev)
 	if (ena_dev->mem_bar)
 		devm_iounmap(&pdev->dev, ena_dev->mem_bar);
 
-	devm_iounmap(&pdev->dev, ena_dev->reg_bar);
+	if (ena_dev->reg_bar)
+		devm_iounmap(&pdev->dev, ena_dev->reg_bar);
 
 	release_bars = pci_select_bars(pdev, IORESOURCE_MEM) & ENA_BAR_MASK;
 	pci_release_selected_regions(pdev, release_bars);
@@ -3275,8 +3269,6 @@ static int ena_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_rss;
 	}
 
-	INIT_WORK(&adapter->suspend_io_task, ena_device_io_suspend);
-	INIT_WORK(&adapter->resume_io_task, ena_device_io_resume);
 	INIT_WORK(&adapter->reset_task, ena_fw_reset_device);
 
 	adapter->last_keep_alive_jiffies = jiffies;
@@ -3286,8 +3278,7 @@ static int ena_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	ena_update_hints(adapter, &get_feat_ctx.hw_hints);
 
-	setup_timer(&adapter->timer_service, ena_timer_service,
-		    (unsigned long)adapter);
+	timer_setup(&adapter->timer_service, ena_timer_service, 0);
 	mod_timer(&adapter->timer_service, round_jiffies(jiffies + HZ));
 
 	dev_info(&pdev->dev, "%s found at mem %lx, mac addr %pM Queues %d\n",
@@ -3310,8 +3301,6 @@ err_free_msix:
 err_worker_destroy:
 	ena_com_destroy_interrupt_moderation(ena_dev);
 	del_timer(&adapter->timer_service);
-	cancel_work_sync(&adapter->suspend_io_task);
-	cancel_work_sync(&adapter->resume_io_task);
 err_netdev_destroy:
 	free_netdev(netdev);
 err_device_destroy:
@@ -3381,10 +3370,6 @@ static void ena_remove(struct pci_dev *pdev)
 
 	cancel_work_sync(&adapter->reset_task);
 
-	cancel_work_sync(&adapter->suspend_io_task);
-
-	cancel_work_sync(&adapter->resume_io_task);
-
 	/* Reset the device only if the device is running. */
 	if (test_bit(ENA_FLAG_DEVICE_RUNNING, &adapter->flags))
 		ena_com_dev_reset(ena_dev, adapter->reset_reason);
@@ -3418,11 +3403,59 @@ static void ena_remove(struct pci_dev *pdev)
 	vfree(ena_dev);
 }
 
+#ifdef CONFIG_PM
+/* ena_suspend - PM suspend callback
+ * @pdev: PCI device information struct
+ * @state:power state
+ */
+static int ena_suspend(struct pci_dev *pdev,  pm_message_t state)
+{
+	struct ena_adapter *adapter = pci_get_drvdata(pdev);
+
+	u64_stats_update_begin(&adapter->syncp);
+	adapter->dev_stats.suspend++;
+	u64_stats_update_end(&adapter->syncp);
+
+	rtnl_lock();
+	if (unlikely(test_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags))) {
+		dev_err(&pdev->dev,
+			"ignoring device reset request as the device is being suspended\n");
+		clear_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags);
+	}
+	ena_destroy_device(adapter);
+	rtnl_unlock();
+	return 0;
+}
+
+/* ena_resume - PM resume callback
+ * @pdev: PCI device information struct
+ *
+ */
+static int ena_resume(struct pci_dev *pdev)
+{
+	struct ena_adapter *adapter = pci_get_drvdata(pdev);
+	int rc;
+
+	u64_stats_update_begin(&adapter->syncp);
+	adapter->dev_stats.resume++;
+	u64_stats_update_end(&adapter->syncp);
+
+	rtnl_lock();
+	rc = ena_restore_device(adapter);
+	rtnl_unlock();
+	return rc;
+}
+#endif
+
 static struct pci_driver ena_pci_driver = {
 	.name		= DRV_MODULE_NAME,
 	.id_table	= ena_pci_tbl,
 	.probe		= ena_probe,
 	.remove		= ena_remove,
+#ifdef CONFIG_PM
+	.suspend    = ena_suspend,
+	.resume     = ena_resume,
+#endif
 	.sriov_configure = ena_sriov_configure,
 };
 
@@ -3467,7 +3500,8 @@ static void ena_update_on_link_change(void *adapter_data,
 	if (status) {
 		netdev_dbg(adapter->netdev, "%s\n", __func__);
 		set_bit(ENA_FLAG_LINK_UP, &adapter->flags);
-		netif_carrier_on(adapter->netdev);
+		if (!test_bit(ENA_FLAG_ONGOING_RESET, &adapter->flags))
+			netif_carrier_on(adapter->netdev);
 	} else {
 		clear_bit(ENA_FLAG_LINK_UP, &adapter->flags);
 		netif_carrier_off(adapter->netdev);
@@ -3503,16 +3537,6 @@ static void ena_notification(void *adapter_data,
 	     ENA_ADMIN_NOTIFICATION);
 
 	switch (aenq_e->aenq_common_desc.syndrom) {
-	case ENA_ADMIN_SUSPEND:
-		/* Suspend just the IO queues.
-		 * We deliberately don't suspend admin so the timer and
-		 * the keep_alive events should remain.
-		 */
-		queue_work(ena_wq, &adapter->suspend_io_task);
-		break;
-	case ENA_ADMIN_RESUME:
-		queue_work(ena_wq, &adapter->resume_io_task);
-		break;
 	case ENA_ADMIN_UPDATE_HINTS:
 		hints = (struct ena_admin_ena_hw_hints *)
 			(&aenq_e->inline_data_w4);

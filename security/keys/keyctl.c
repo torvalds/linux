@@ -766,10 +766,9 @@ long keyctl_read_key(key_serial_t keyid, char __user *buffer, size_t buflen)
 
 	key = key_ref_to_ptr(key_ref);
 
-	if (test_bit(KEY_FLAG_NEGATIVE, &key->flags)) {
-		ret = -ENOKEY;
-		goto error2;
-	}
+	ret = key_read_state(key);
+	if (ret < 0)
+		goto error2; /* Negatively instantiated */
 
 	/* see if we can read it directly */
 	ret = key_permission(key_ref, KEY_NEED_READ);
@@ -901,7 +900,7 @@ long keyctl_chown_key(key_serial_t id, uid_t user, gid_t group)
 		atomic_dec(&key->user->nkeys);
 		atomic_inc(&newowner->nkeys);
 
-		if (test_bit(KEY_FLAG_INSTANTIATED, &key->flags)) {
+		if (key->state != KEY_IS_UNINSTANTIATED) {
 			atomic_dec(&key->user->nikeys);
 			atomic_inc(&newowner->nikeys);
 		}

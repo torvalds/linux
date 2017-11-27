@@ -426,7 +426,7 @@ static int ecryptfs_parse_options(struct ecryptfs_sb_info *sbi, char *options,
 		mount_crypt_stat->global_default_cipher_key_size);
 	if (!cipher_code) {
 		ecryptfs_printk(KERN_ERR,
-				"eCryptfs doesn't support cipher: %s",
+				"eCryptfs doesn't support cipher: %s\n",
 				mount_crypt_stat->global_default_cipher_name);
 		rc = -EINVAL;
 		goto out;
@@ -660,7 +660,7 @@ static struct ecryptfs_cache_info {
 	struct kmem_cache **cache;
 	const char *name;
 	size_t size;
-	unsigned long flags;
+	slab_flags_t flags;
 	void (*ctor)(void *obj);
 } ecryptfs_cache_infos[] = {
 	{
@@ -781,7 +781,7 @@ static struct attribute *attributes[] = {
 	NULL,
 };
 
-static struct attribute_group attr_group = {
+static const struct attribute_group attr_group = {
 	.attrs = attributes,
 };
 

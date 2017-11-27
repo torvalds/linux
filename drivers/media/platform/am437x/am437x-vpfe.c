@@ -2417,6 +2417,11 @@ static int vpfe_async_complete(struct v4l2_async_notifier *notifier)
 	return vpfe_probe_complete(vpfe);
 }
 
+static const struct v4l2_async_notifier_operations vpfe_async_ops = {
+	.bound = vpfe_async_bound,
+	.complete = vpfe_async_complete,
+};
+
 static struct vpfe_config *
 vpfe_get_pdata(struct platform_device *pdev)
 {
@@ -2590,8 +2595,7 @@ static int vpfe_probe(struct platform_device *pdev)
 
 	vpfe->notifier.subdevs = vpfe->cfg->asd;
 	vpfe->notifier.num_subdevs = ARRAY_SIZE(vpfe->cfg->asd);
-	vpfe->notifier.bound = vpfe_async_bound;
-	vpfe->notifier.complete = vpfe_async_complete;
+	vpfe->notifier.ops = &vpfe_async_ops;
 	ret = v4l2_async_notifier_register(&vpfe->v4l2_dev,
 						&vpfe->notifier);
 	if (ret) {

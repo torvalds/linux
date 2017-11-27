@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_KASLR_H_
 #define _ASM_KASLR_H_
 

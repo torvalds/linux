@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -221,6 +222,7 @@ static int load_maps(struct bpf_map_data *maps, int nr_maps,
 			int inner_map_fd = map_fd[maps[i].def.inner_map_idx];
 
 			map_fd[i] = bpf_create_map_in_map_node(maps[i].def.type,
+							maps[i].name,
 							maps[i].def.key_size,
 							inner_map_fd,
 							maps[i].def.max_entries,
@@ -228,6 +230,7 @@ static int load_maps(struct bpf_map_data *maps, int nr_maps,
 							numa_node);
 		} else {
 			map_fd[i] = bpf_create_map_node(maps[i].def.type,
+							maps[i].name,
 							maps[i].def.key_size,
 							maps[i].def.value_size,
 							maps[i].def.max_entries,

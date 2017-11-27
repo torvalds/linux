@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  linux/kernel/sys.c
  *
@@ -109,6 +110,12 @@
 #endif
 #ifndef SET_FP_MODE
 # define SET_FP_MODE(a,b)	(-EINVAL)
+#endif
+#ifndef SVE_SET_VL
+# define SVE_SET_VL(a)		(-EINVAL)
+#endif
+#ifndef SVE_GET_VL
+# define SVE_GET_VL()		(-EINVAL)
 #endif
 
 /*
@@ -2384,6 +2391,12 @@ SYSCALL_DEFINE5(prctl, int, option, unsigned long, arg2, unsigned long, arg3,
 		break;
 	case PR_GET_FP_MODE:
 		error = GET_FP_MODE(me);
+		break;
+	case PR_SVE_SET_VL:
+		error = SVE_SET_VL(arg2);
+		break;
+	case PR_SVE_GET_VL:
+		error = SVE_GET_VL();
 		break;
 	default:
 		error = -EINVAL;

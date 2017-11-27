@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_IRQ_H
 #define _LINUX_IRQ_H
 
@@ -210,6 +211,7 @@ struct irq_data {
  * IRQD_MANAGED_SHUTDOWN	- Interrupt was shutdown due to empty affinity
  *				  mask. Applies only to affinity managed irqs.
  * IRQD_SINGLE_TARGET		- IRQ allows only a single affinity target
+ * IRQD_DEFAULT_TRIGGER_SET	- Expected trigger already been set
  */
 enum {
 	IRQD_TRIGGER_MASK		= 0xf,
@@ -230,6 +232,7 @@ enum {
 	IRQD_IRQ_STARTED		= (1 << 22),
 	IRQD_MANAGED_SHUTDOWN		= (1 << 23),
 	IRQD_SINGLE_TARGET		= (1 << 24),
+	IRQD_DEFAULT_TRIGGER_SET	= (1 << 25),
 };
 
 #define __irqd_to_state(d) ACCESS_PRIVATE((d)->common, state_use_accessors)
@@ -259,18 +262,25 @@ static inline void irqd_mark_affinity_was_set(struct irq_data *d)
 	__irqd_to_state(d) |= IRQD_AFFINITY_SET;
 }
 
+static inline bool irqd_trigger_type_was_set(struct irq_data *d)
+{
+	return __irqd_to_state(d) & IRQD_DEFAULT_TRIGGER_SET;
+}
+
 static inline u32 irqd_get_trigger_type(struct irq_data *d)
 {
 	return __irqd_to_state(d) & IRQD_TRIGGER_MASK;
 }
 
 /*
- * Must only be called inside irq_chip.irq_set_type() functions.
+ * Must only be called inside irq_chip.irq_set_type() functions or
+ * from the DT/ACPI setup code.
  */
 static inline void irqd_set_trigger_type(struct irq_data *d, u32 type)
 {
 	__irqd_to_state(d) &= ~IRQD_TRIGGER_MASK;
 	__irqd_to_state(d) |= type & IRQD_TRIGGER_MASK;
+	__irqd_to_state(d) |= IRQD_DEFAULT_TRIGGER_SET;
 }
 
 static inline bool irqd_is_level_type(struct irq_data *d)
@@ -1009,7 +1019,7 @@ void irq_gc_mask_clr_bit(struct irq_data *d);
 void irq_gc_unmask_enable_reg(struct irq_data *d);
 void irq_gc_ack_set_bit(struct irq_data *d);
 void irq_gc_ack_clr_bit(struct irq_data *d);
-void irq_gc_mask_disable_reg_and_ack(struct irq_data *d);
+void irq_gc_mask_disable_and_ack_set(struct irq_data *d);
 void irq_gc_eoi(struct irq_data *d);
 int irq_gc_set_wake(struct irq_data *d, unsigned int on);
 
@@ -1112,6 +1122,28 @@ static inline u32 irq_reg_readl(struct irq_chip_generic *gc,
 	else
 		return readl(gc->reg_base + reg_offset);
 }
+
+struct irq_matrix;
+struct irq_matrix *irq_alloc_matrix(unsigned int matrix_bits,
+				    unsigned int alloc_start,
+				    unsigned int alloc_end);
+void irq_matrix_online(struct irq_matrix *m);
+void irq_matrix_offline(struct irq_matrix *m);
+void irq_matrix_assign_system(struct irq_matrix *m, unsigned int bit, bool replace);
+int irq_matrix_reserve_managed(struct irq_matrix *m, const struct cpumask *msk);
+void irq_matrix_remove_managed(struct irq_matrix *m, const struct cpumask *msk);
+int irq_matrix_alloc_managed(struct irq_matrix *m, unsigned int cpu);
+void irq_matrix_reserve(struct irq_matrix *m);
+void irq_matrix_remove_reserved(struct irq_matrix *m);
+int irq_matrix_alloc(struct irq_matrix *m, const struct cpumask *msk,
+		     bool reserved, unsigned int *mapped_cpu);
+void irq_matrix_free(struct irq_matrix *m, unsigned int cpu,
+		     unsigned int bit, bool managed);
+void irq_matrix_assign(struct irq_matrix *m, unsigned int bit);
+unsigned int irq_matrix_available(struct irq_matrix *m, bool cpudown);
+unsigned int irq_matrix_allocated(struct irq_matrix *m);
+unsigned int irq_matrix_reserved(struct irq_matrix *m);
+void irq_matrix_debug_show(struct seq_file *sf, struct irq_matrix *m, int ind);
 
 /* Contrary to Linux irqs, for hardware irqs the irq number 0 is valid */
 #define INVALID_HWIRQ	(~0UL)

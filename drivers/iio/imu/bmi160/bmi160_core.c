@@ -482,7 +482,6 @@ static const struct attribute_group bmi160_attrs_group = {
 };
 
 static const struct iio_info bmi160_info = {
-	.driver_module = THIS_MODULE,
 	.read_raw = bmi160_read_raw,
 	.write_raw = bmi160_write_raw,
 	.attrs = &bmi160_attrs_group,

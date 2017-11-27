@@ -1,13 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Cadence UART driver (found in Xilinx Zynq)
  *
  * 2011 - 2014 (C) Xilinx Inc.
- *
- * This program is free software; you can redistribute it
- * and/or modify it under the terms of the GNU General Public
- * License as published by the Free Software Foundation;
- * either version 2 of the License, or (at your option) any
- * later version.
  *
  * This driver has originally been pushed by Xilinx using a Zynq-branding. This
  * still shows in the naming of this file, the kconfig symbols and some symbols
@@ -1673,7 +1668,7 @@ static void __exit cdns_uart_exit(void)
 	uart_unregister_driver(&cdns_uart_uart_driver);
 }
 
-module_init(cdns_uart_init);
+arch_initcall(cdns_uart_init);
 module_exit(cdns_uart_exit);
 
 MODULE_DESCRIPTION("Driver for Cadence UART");

@@ -968,6 +968,9 @@ static int csio_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto err_pci_exit;
 	}
 
+	if (!pcie_relaxed_ordering_enabled(pdev))
+		hw->flags |= CSIO_HWF_ROOT_NO_RELAXED_ORDERING;
+
 	pci_set_drvdata(pdev, hw);
 
 	rv = csio_hw_start(hw);

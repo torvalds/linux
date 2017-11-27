@@ -367,29 +367,6 @@ xfs_getfsmap_datadev_helper(
 	return xfs_getfsmap_helper(cur->bc_tp, info, rec, rec_daddr);
 }
 
-/* Transform a rtbitmap "record" into a fsmap */
-STATIC int
-xfs_getfsmap_rtdev_rtbitmap_helper(
-	struct xfs_trans		*tp,
-	struct xfs_rtalloc_rec		*rec,
-	void				*priv)
-{
-	struct xfs_mount		*mp = tp->t_mountp;
-	struct xfs_getfsmap_info	*info = priv;
-	struct xfs_rmap_irec		irec;
-	xfs_daddr_t			rec_daddr;
-
-	rec_daddr = XFS_FSB_TO_BB(mp, rec->ar_startblock);
-
-	irec.rm_startblock = rec->ar_startblock;
-	irec.rm_blockcount = rec->ar_blockcount;
-	irec.rm_owner = XFS_RMAP_OWN_NULL;	/* "free" */
-	irec.rm_offset = 0;
-	irec.rm_flags = 0;
-
-	return xfs_getfsmap_helper(tp, info, &irec, rec_daddr);
-}
-
 /* Transform a bnobt irec into a fsmap */
 STATIC int
 xfs_getfsmap_datadev_bnobt_helper(
@@ -475,6 +452,30 @@ xfs_getfsmap_logdev(
 	return xfs_getfsmap_helper(tp, info, &rmap, 0);
 }
 
+#ifdef CONFIG_XFS_RT
+/* Transform a rtbitmap "record" into a fsmap */
+STATIC int
+xfs_getfsmap_rtdev_rtbitmap_helper(
+	struct xfs_trans		*tp,
+	struct xfs_rtalloc_rec		*rec,
+	void				*priv)
+{
+	struct xfs_mount		*mp = tp->t_mountp;
+	struct xfs_getfsmap_info	*info = priv;
+	struct xfs_rmap_irec		irec;
+	xfs_daddr_t			rec_daddr;
+
+	rec_daddr = XFS_FSB_TO_BB(mp, rec->ar_startblock);
+
+	irec.rm_startblock = rec->ar_startblock;
+	irec.rm_blockcount = rec->ar_blockcount;
+	irec.rm_owner = XFS_RMAP_OWN_NULL;	/* "free" */
+	irec.rm_offset = 0;
+	irec.rm_flags = 0;
+
+	return xfs_getfsmap_helper(tp, info, &irec, rec_daddr);
+}
+
 /* Execute a getfsmap query against the realtime device. */
 STATIC int
 __xfs_getfsmap_rtdev(
@@ -521,7 +522,6 @@ __xfs_getfsmap_rtdev(
 	return query_fn(tp, info);
 }
 
-#ifdef CONFIG_XFS_RT
 /* Actually query the realtime bitmap. */
 STATIC int
 xfs_getfsmap_rtdev_rtbitmap_query(

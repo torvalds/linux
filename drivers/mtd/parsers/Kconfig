@@ -6,3 +6,11 @@ config MTD_PARSER_TRX
 	  may contain up to 3/4 partitions (depending on the version).
 	  This driver will parse TRX header and report at least two partitions:
 	  kernel and rootfs.
+
+config MTD_SHARPSL_PARTS
+	tristate "Sharp SL Series NAND flash partition parser"
+	depends on MTD_NAND_SHARPSL || MTD_NAND_TMIO || COMPILE_TEST
+	help
+	  This provides the read-only FTL logic necessary to read the partition
+	  table from the NAND flash of Sharp SL Series (Zaurus) and the MTD
+	  partition parser using this code.

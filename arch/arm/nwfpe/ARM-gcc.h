@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
 -------------------------------------------------------------------------------
 The macro `BITS64' can be defined to indicate that 64-bit integer types are

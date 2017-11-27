@@ -24,6 +24,7 @@
 #include <linux/atomic.h>
 #include <linux/assoc_array.h>
 #include <linux/refcount.h>
+#include <linux/time64.h>
 
 #ifdef __KERNEL__
 #include <linux/uidgid.h>
@@ -138,6 +139,11 @@ struct key_restriction {
 	struct key_type *keytype;
 };
 
+enum key_state {
+	KEY_IS_UNINSTANTIATED,
+	KEY_IS_POSITIVE,		/* Positively instantiated */
+};
+
 /*****************************************************************************/
 /*
  * authentication token / access credential / keyring
@@ -157,10 +163,10 @@ struct key {
 	struct key_user		*user;		/* owner of this key */
 	void			*security;	/* security data for this key */
 	union {
-		time_t		expiry;		/* time at which key expires (or 0) */
-		time_t		revoked_at;	/* time at which key was revoked */
+		time64_t	expiry;		/* time at which key expires (or 0) */
+		time64_t	revoked_at;	/* time at which key was revoked */
 	};
-	time_t			last_used_at;	/* last time used for LRU keyring discard */
+	time64_t		last_used_at;	/* last time used for LRU keyring discard */
 	kuid_t			uid;
 	kgid_t			gid;
 	key_perm_t		perm;		/* access permissions */
@@ -169,6 +175,7 @@ struct key {
 						 * - may not match RCU dereferenced payload
 						 * - payload should contain own length
 						 */
+	short			state;		/* Key state (+) or rejection error (-) */
 
 #ifdef KEY_DEBUGGING
 	unsigned		magic;
@@ -176,18 +183,16 @@ struct key {
 #endif
 
 	unsigned long		flags;		/* status flags (change with bitops) */
-#define KEY_FLAG_INSTANTIATED	0	/* set if key has been instantiated */
-#define KEY_FLAG_DEAD		1	/* set if key type has been deleted */
-#define KEY_FLAG_REVOKED	2	/* set if key had been revoked */
-#define KEY_FLAG_IN_QUOTA	3	/* set if key consumes quota */
-#define KEY_FLAG_USER_CONSTRUCT	4	/* set if key is being constructed in userspace */
-#define KEY_FLAG_NEGATIVE	5	/* set if key is negative */
-#define KEY_FLAG_ROOT_CAN_CLEAR	6	/* set if key can be cleared by root without permission */
-#define KEY_FLAG_INVALIDATED	7	/* set if key has been invalidated */
-#define KEY_FLAG_BUILTIN	8	/* set if key is built in to the kernel */
-#define KEY_FLAG_ROOT_CAN_INVAL	9	/* set if key can be invalidated by root without permission */
-#define KEY_FLAG_KEEP		10	/* set if key should not be removed */
-#define KEY_FLAG_UID_KEYRING	11	/* set if key is a user or user session keyring */
+#define KEY_FLAG_DEAD		0	/* set if key type has been deleted */
+#define KEY_FLAG_REVOKED	1	/* set if key had been revoked */
+#define KEY_FLAG_IN_QUOTA	2	/* set if key consumes quota */
+#define KEY_FLAG_USER_CONSTRUCT	3	/* set if key is being constructed in userspace */
+#define KEY_FLAG_ROOT_CAN_CLEAR	4	/* set if key can be cleared by root without permission */
+#define KEY_FLAG_INVALIDATED	5	/* set if key has been invalidated */
+#define KEY_FLAG_BUILTIN	6	/* set if key is built in to the kernel */
+#define KEY_FLAG_ROOT_CAN_INVAL	7	/* set if key can be invalidated by root without permission */
+#define KEY_FLAG_KEEP		8	/* set if key should not be removed */
+#define KEY_FLAG_UID_KEYRING	9	/* set if key is a user or user session keyring */
 
 	/* the key type and key description string
 	 * - the desc is used to match a key against search criteria
@@ -213,7 +218,6 @@ struct key {
 			struct list_head name_link;
 			struct assoc_array keys;
 		};
-		int reject_error;
 	};
 
 	/* This is set on a keyring to restrict the addition of a link to a key
@@ -353,17 +357,27 @@ extern void key_set_timeout(struct key *, unsigned);
 #define	KEY_NEED_SETATTR 0x20	/* Require permission to change attributes */
 #define	KEY_NEED_ALL	0x3f	/* All the above permissions */
 
+static inline short key_read_state(const struct key *key)
+{
+	/* Barrier versus mark_key_instantiated(). */
+	return smp_load_acquire(&key->state);
+}
+
 /**
- * key_is_instantiated - Determine if a key has been positively instantiated
+ * key_is_positive - Determine if a key has been positively instantiated
  * @key: The key to check.
  *
  * Return true if the specified key has been positively instantiated, false
  * otherwise.
  */
-static inline bool key_is_instantiated(const struct key *key)
+static inline bool key_is_positive(const struct key *key)
 {
-	return test_bit(KEY_FLAG_INSTANTIATED, &key->flags) &&
-		!test_bit(KEY_FLAG_NEGATIVE, &key->flags);
+	return key_read_state(key) == KEY_IS_POSITIVE;
+}
+
+static inline bool key_is_negative(const struct key *key)
+{
+	return key_read_state(key) < 0;
 }
 
 #define dereference_key_rcu(KEY)					\

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * PKUnity Reset Controller (RC) Registers
  */

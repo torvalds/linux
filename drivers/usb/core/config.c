@@ -1,6 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Released under the GPLv2 only.
- * SPDX-License-Identifier: GPL-2.0
  */
 
 #include <linux/usb.h>
@@ -960,10 +960,12 @@ int usb_get_bos_descriptor(struct usb_device *dev)
 	for (i = 0; i < num; i++) {
 		buffer += length;
 		cap = (struct usb_dev_cap_header *)buffer;
-		length = cap->bLength;
 
-		if (total_len < length)
+		if (total_len < sizeof(*cap) || total_len < cap->bLength) {
+			dev->bos->desc->bNumDeviceCaps = i;
 			break;
+		}
+		length = cap->bLength;
 		total_len -= length;
 
 		if (cap->bDescriptorType != USB_DT_DEVICE_CAPABILITY) {

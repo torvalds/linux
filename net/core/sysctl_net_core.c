@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* -*- linux-c -*-
  * sysctl_net_core.c: sysctl interface to net core subsystem.
  *
