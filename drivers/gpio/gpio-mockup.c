@@ -183,11 +183,11 @@ static void gpio_mockup_debugfs_setup(struct device *dev,
 	devname = dev_name(&gc->gpiodev->dev);
 
 	chip->dbg_dir = debugfs_create_dir(devname, gpio_mockup_dbg_dir);
-	if (!chip->dbg_dir)
+	if (IS_ERR_OR_NULL(chip->dbg_dir))
 		goto err;
 
 	link = debugfs_create_symlink(gc->label, gpio_mockup_dbg_dir, devname);
-	if (!link)
+	if (IS_ERR_OR_NULL(link))
 		goto err;
 
 	for (i = 0; i < gc->ngpio; i++) {
@@ -205,14 +205,14 @@ static void gpio_mockup_debugfs_setup(struct device *dev,
 
 		evfile = debugfs_create_file(name, 0200, chip->dbg_dir, priv,
 					     &gpio_mockup_event_ops);
-		if (!evfile)
+		if (IS_ERR_OR_NULL(evfile))
 			goto err;
 	}
 
 	return;
 
 err:
-	dev_err(dev, "error creating debugfs directory\n");
+	dev_err(dev, "error creating debugfs event files\n");
 }
 
 static int gpio_mockup_name_lines(struct device *dev,
@@ -336,7 +336,7 @@ static int __init gpio_mockup_init(void)
 	num_chips = gpio_mockup_params_nr / 2;
 
 	gpio_mockup_dbg_dir = debugfs_create_dir("gpio-mockup-event", NULL);
-	if (!gpio_mockup_dbg_dir)
+	if (IS_ERR_OR_NULL(gpio_mockup_dbg_dir))
 		gpio_mockup_err("error creating debugfs directory\n");
 
 	err = platform_driver_register(&gpio_mockup_driver);
