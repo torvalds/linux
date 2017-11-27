@@ -55,7 +55,7 @@
 #include "dcn/dcn_1_0_offset.h"
 #include "dcn/dcn_1_0_sh_mask.h"
 
-#include "raven1/NBIO/nbio_7_0_offset.h"
+#include "nbio/nbio_7_0_offset.h"
 
 #include "mmhub/mmhub_9_1_offset.h"
 #include "mmhub/mmhub_9_1_sh_mask.h"
