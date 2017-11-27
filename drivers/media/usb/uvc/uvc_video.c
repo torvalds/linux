@@ -725,7 +725,7 @@ static void uvc_video_stats_decode(struct uvc_streaming *stream,
 
 	if (stream->stats.stream.nb_frames == 0 &&
 	    stream->stats.frame.nb_packets == 0)
-		ktime_get_ts(&stream->stats.stream.start_ts);
+		stream->stats.stream.start_ts = ktime_get();
 
 	switch (data[1] & (UVC_STREAM_PTS | UVC_STREAM_SCR)) {
 	case UVC_STREAM_PTS | UVC_STREAM_SCR:
@@ -865,16 +865,13 @@ size_t uvc_video_stats_dump(struct uvc_streaming *stream, char *buf,
 {
 	unsigned int scr_sof_freq;
 	unsigned int duration;
-	struct timespec ts;
 	size_t count = 0;
-
-	ts = timespec_sub(stream->stats.stream.stop_ts,
-			  stream->stats.stream.start_ts);
 
 	/* Compute the SCR.SOF frequency estimate. At the nominal 1kHz SOF
 	 * frequency this will not overflow before more than 1h.
 	 */
-	duration = ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
+	duration = ktime_ms_delta(stream->stats.stream.stop_ts,
+				  stream->stats.stream.start_ts);
 	if (duration != 0)
 		scr_sof_freq = stream->stats.stream.scr_sof_count * 1000
 			     / duration;
@@ -915,7 +912,7 @@ static void uvc_video_stats_start(struct uvc_streaming *stream)
 
 static void uvc_video_stats_stop(struct uvc_streaming *stream)
 {
-	ktime_get_ts(&stream->stats.stream.stop_ts);
+	stream->stats.stream.stop_ts = ktime_get();
 }
 
 /* ------------------------------------------------------------------------
