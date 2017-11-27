@@ -27,7 +27,7 @@
 #include "gpiolib.h"
 
 #define GPIO_MOCKUP_NAME	"gpio-mockup"
-#define	GPIO_MOCKUP_MAX_GC	10
+#define GPIO_MOCKUP_MAX_GC	10
 /*
  * We're storing two values per chip: the GPIO base and the number
  * of GPIO lines.
