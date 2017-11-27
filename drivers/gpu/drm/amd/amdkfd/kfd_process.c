@@ -152,27 +152,14 @@ void kfd_unref_process(struct kfd_process *p)
 	kref_put(&p->ref, kfd_process_ref_release);
 }
 
-/* No process locking is needed in this function, because the process
- * is not findable any more. We must assume that no other thread is
- * using it any more, otherwise we couldn't safely free the process
- * structure in the end.
- */
-static void kfd_process_wq_release(struct work_struct *work)
+static void kfd_process_destroy_pdds(struct kfd_process *p)
 {
-	struct kfd_process *p = container_of(work, struct kfd_process,
-					     release_work);
 	struct kfd_process_device *pdd, *temp;
 
-	pr_debug("Releasing process (pasid %d) in workqueue\n",
-			p->pasid);
-
 	list_for_each_entry_safe(pdd, temp, &p->per_device_data,
-							per_device_list) {
-		pr_debug("Releasing pdd (topology id %d) for process (pasid %d) in workqueue\n",
+				 per_device_list) {
+		pr_debug("Releasing pdd (topology id %d) for process (pasid %d)\n",
 				pdd->dev->id, p->pasid);
-
-		if (pdd->bound == PDD_BOUND)
-			amd_iommu_unbind_pasid(pdd->dev->pdev, p->pasid);
 
 		list_del(&pdd->per_device_list);
 
@@ -182,6 +169,27 @@ static void kfd_process_wq_release(struct work_struct *work)
 
 		kfree(pdd);
 	}
+}
+
+/* No process locking is needed in this function, because the process
+ * is not findable any more. We must assume that no other thread is
+ * using it any more, otherwise we couldn't safely free the process
+ * structure in the end.
+ */
+static void kfd_process_wq_release(struct work_struct *work)
+{
+	struct kfd_process *p = container_of(work, struct kfd_process,
+					     release_work);
+	struct kfd_process_device *pdd;
+
+	pr_debug("Releasing process (pasid %d) in workqueue\n", p->pasid);
+
+	list_for_each_entry(pdd, &p->per_device_data, per_device_list) {
+		if (pdd->bound == PDD_BOUND)
+			amd_iommu_unbind_pasid(pdd->dev->pdev, p->pasid);
+	}
+
+	kfd_process_destroy_pdds(p);
 
 	kfd_event_free_process(p);
 
