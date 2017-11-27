@@ -83,7 +83,10 @@ static int ark3116_write_reg(struct usb_serial *serial,
 				 usb_sndctrlpipe(serial->dev, 0),
 				 0xfe, 0x40, val, reg,
 				 NULL, 0, ARK_TIMEOUT);
-	return result;
+	if (result)
+		return result;
+
+	return 0;
 }
 
 static int ark3116_read_reg(struct usb_serial *serial,
@@ -105,7 +108,7 @@ static int ark3116_read_reg(struct usb_serial *serial,
 		return result;
 	}
 
-	return buf[0];
+	return 0;
 }
 
 static inline int calc_divisor(int bps)
@@ -355,13 +358,13 @@ static int ark3116_open(struct tty_struct *tty, struct usb_serial_port *port)
 
 	/* read modem status */
 	result = ark3116_read_reg(serial, UART_MSR, buf);
-	if (result < 0)
+	if (result)
 		goto err_close;
 	priv->msr = *buf;
 
 	/* read line status */
 	result = ark3116_read_reg(serial, UART_LSR, buf);
-	if (result < 0)
+	if (result)
 		goto err_close;
 	priv->lsr = *buf;
 
