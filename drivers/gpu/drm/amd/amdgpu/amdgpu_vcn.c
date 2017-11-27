@@ -36,7 +36,7 @@
 #include "soc15_common.h"
 
 #include "soc15ip.h"
-#include "raven1/VCN/vcn_1_0_offset.h"
+#include "vcn/vcn_1_0_offset.h"
 
 /* 1 second timeout */
 #define VCN_IDLE_TIMEOUT	msecs_to_jiffies(1000)
