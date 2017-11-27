@@ -143,11 +143,6 @@ the policy how big this chunk is, but it should be kept small.  Like the
 dirty flags this data is lost if there's a crash so a safe fallback
 value should always be possible.
 
-For instance, the 'mq' policy, which is currently the default policy,
-uses this facility to store the hit count of the cache blocks.  If
-there's a crash this information will be lost, which means the cache
-may be less efficient until those hit counts are regenerated.
-
 Policy hints affect performance, not correctness.
 
 Policy messaging
