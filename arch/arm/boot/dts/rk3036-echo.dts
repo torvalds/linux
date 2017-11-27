@@ -1,0 +1,756 @@
+/*
+ * This file is dual-licensed: you can use it either under the terms
+ * of the GPL or the X11 license, at your option. Note that this dual
+ * licensing only applies to this file, and not this project as a
+ * whole.
+ *
+ *  a) This file is free software; you can redistribute it and/or
+ *     modify it under the terms of the GNU General Public License as
+ *     published by the Free Software Foundation; either version 2 of the
+ *     License, or (at your option) any later version.
+ *
+ *     This file is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ *  Or, alternatively,
+ *
+ *  b) Permission is hereby granted, free of charge, to any person
+ *     obtaining a copy of this software and associated documentation
+ *     files (the "Software"), to deal in the Software without
+ *     restriction, including without limitation the rights to use,
+ *     copy, modify, merge, publish, distribute, sublicense, and/or
+ *     sell copies of the Software, and to permit persons to whom the
+ *     Software is furnished to do so, subject to the following
+ *     conditions:
+ *
+ *     The above copyright notice and this permission notice shall be
+ *     included in all copies or substantial portions of the Software.
+ *
+ *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ *     OTHER DEALINGS IN THE SOFTWARE.
+ */
+
+/dts-v1/;
+
+#include "rk3036.dtsi"
+
+/ {
+	model = "Rockchip RK3036 Echo";
+	compatible = "rockchip,rk3036-echo", "rockchip,rk3036";
+
+	fiq-debugger {
+		compatible = "rockchip,fiq-debugger";
+		interrupts = <GIC_SPI 127 IRQ_TYPE_LEVEL_LOW>;
+		rockchip,serial-id = <2>;
+		rockchip,signal-irq = <106>;
+		rockchip,wake-irq = <0>;
+		/* If enable uart uses irq instead of fiq */
+		rockchip,irq-mode-enable = <0>;
+		/* Only 115200 and 1500000 */
+		rockchip,baudrate = <115200>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&uart2_xfer>;
+		status = "okay";
+	};
+
+	chosen {
+		bootargs = "earlycon=uart8250,mmio32,0x20068000";
+	};
+
+	/* rk805 pmic sleep/poweroff */
+	gpio_poweroff {
+		compatible = "gpio-poweroff";
+		gpios = <&gpio2 7 GPIO_ACTIVE_HIGH>;
+		status = "okay";
+	};
+
+	rotary {
+		compatible = "rotary-encoder";
+		gpios = <&gpio2 17 GPIO_ACTIVE_LOW>,
+				<&gpio2 16 GPIO_ACTIVE_LOW>;
+		linux,axis = <0>; /* REL_X */
+		rotary-encoder,relative-axis;
+	};
+
+	sdio_pwrseq: sdio-pwrseq {
+		compatible = "mmc-pwrseq-simple";
+		pinctrl-names = "default";
+		pinctrl-0 = <&bt_wake_h>;
+
+		/*
+		 * On the module itself this is one of these (depending
+		 * on the actual card populated):
+		 * - SDIO_RESET_L_WL_REG_ON
+		 * - SDIO_RESET_L_WL_RST
+		 * - SDIO_RESET_L_BT_EN
+		 */
+		reset-gpios = <&gpio0 26 GPIO_ACTIVE_LOW>; /* WL_REG_ON */
+	};
+
+	wireless-bluetooth {
+		compatible = "bluetooth-platdata";
+		uart_rts_gpios = <&gpio0 19 GPIO_ACTIVE_LOW>;
+		pinctrl-names = "default", "rts_gpio";
+		pinctrl-0 = <&uart0_rts>;
+		pinctrl-1 = <&uart0_gpios>;
+		BT,reset_gpio = <&gpio2 9 GPIO_ACTIVE_HIGH>;
+		BT,wake_gpio = <&gpio2 8 GPIO_ACTIVE_HIGH>;
+		BT,wake_host_irq = <&gpio0 20 GPIO_ACTIVE_LOW>;
+		status = "okay";
+	};
+
+	wireless-wlan {
+		compatible = "wlan-platdata";
+		rockchip,grf = <&grf>;
+		wifi_chip_type = "ap6212";
+		WIFI,host_wake_irq = <&gpio0 27 GPIO_ACTIVE_HIGH>;
+		status = "okay";
+	};
+
+	gpio_keys {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&pwr_key>;
+
+		power_key: power-key {
+			label = "GPIO Key Power";
+			gpios = <&gpio2 25 GPIO_ACTIVE_LOW>;
+			linux,code = <207>;
+			debounce-interval = <100>;
+			wakeup-source;
+		};
+	};
+};
+
+&acodec {
+	status = "okay";
+};
+
+&cpu0 {
+	cpu-supply = <&vdd_cpu>;
+};
+
+&cpu0_opp_table {
+	/delete-node/ opp-408000000;
+	/delete-node/ opp-600000000;
+};
+
+&emmc {
+	status = "okay";
+};
+
+&gpu {
+	status = "okay";
+	mali-supply = <&vdd_gpu>;
+};
+
+&hdmi {
+	status = "okay";
+};
+
+&hevc_mmu {
+	status = "okay";
+};
+
+&i2c1 {
+	clock-frequency = <400000>;
+
+	status = "okay";
+
+	rk805: rk805@18 {
+		compatible = "rockchip,rk805";
+		status = "okay";
+		reg = <0x18>;
+		interrupt-parent = <&gpio0>;
+		interrupts = <1 IRQ_TYPE_LEVEL_LOW>;
+		spinctrl-names = "default";
+		pinctrl-0 = <&pmic_int>;
+		rockchip,system-power-controller;
+		wakeup-source;
+		gpio-controller;
+		#gpio-cells = <2>;
+		#clock-cells = <1>;
+		clock-output-names = "xin32k", "rk805-clkout2";
+
+		rtc {
+			status = "okay";
+		};
+
+		pwrkey {
+			status = "okay";
+		};
+
+		gpio {
+			status = "okay";
+		};
+
+		regulators {
+			compatible = "rk805-regulator";
+			status = "okay";
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			vdd_cpu: RK805_DCDC1@0 {
+				regulator-compatible = "RK805_DCDC1";
+				regulator-name = "vdd_gpu";
+				regulator-min-microvolt = <1100000>;
+				regulator-max-microvolt = <1350000>;
+				regulator-initial-mode = <0x1>;
+				regulator-ramp-delay = <12500>;
+				regulator-boot-on;
+				regulator-always-on;
+				regulator-state-mem {
+					regulator-off-in-suspend;
+				};
+			};
+
+			vdd_gpu: RK805_DCDC2@1 {
+				regulator-compatible = "RK805_DCDC2";
+				regulator-name = "vdd_gpu";
+				regulator-min-microvolt = <712500>;
+				regulator-max-microvolt = <1450000>;
+				regulator-initial-mode = <0x1>;
+				regulator-ramp-delay = <12500>;
+				regulator-boot-on;
+				regulator-always-on;
+				regulator-state-mem {
+					regulator-mode = <0x2>;
+					regulator-on-in-suspend;
+					regulator-suspend-microvolt = <1000000>;
+				};
+			};
+
+			vcc_ddr: RK805_DCDC3@2 {
+				regulator-compatible = "RK805_DCDC3";
+				regulator-name = "vcc_ddr";
+				regulator-initial-mode = <0x1>;
+				regulator-boot-on;
+				regulator-always-on;
+				regulator-state-mem {
+					regulator-mode = <0x2>;
+					regulator-on-in-suspend;
+				};
+			};
+
+			vcc_io: RK805_DCDC4@3 {
+				regulator-compatible = "RK805_DCDC4";
+				regulator-name = "vcc_io";
+				regulator-min-microvolt = <3300000>;
+				regulator-max-microvolt = <3300000>;
+				regulator-initial-mode = <0x1>;
+				regulator-boot-on;
+				regulator-always-on;
+				regulator-state-mem {
+					regulator-mode = <0x2>;
+					regulator-on-in-suspend;
+					regulator-suspend-microvolt = <3300000>;
+				};
+			};
+
+			vcca_33: RK805_LDO1@4 {
+				regulator-compatible = "RK805_LDO1";
+				regulator-name = "vcca_33";
+				regulator-min-microvolt = <3300000>;
+				regulator-max-microvolt = <3300000>;
+				regulator-initial-state = <3>;
+				regulator-boot-on;
+				regulator-always-on;
+				regulator-state-mem {
+					regulator-on-in-suspend;
+					regulator-suspend-microvolt = <3300000>;
+				};
+			};
+
+			vcc_18: RK805_LDO2@5 {
+				regulator-compatible = "RK805_LDO2";
+				regulator-name = "vcc_18";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+				regulator-boot-on;
+				regulator-always-on;
+				regulator-state-mem {
+					regulator-on-in-suspend;
+					regulator-suspend-microvolt = <1800000>;
+				};
+			};
+
+			vdd10_pmu: RK805_LDO3@6 {
+				regulator-compatible = "RK805_LDO3";
+				regulator-name = "vdd10_pmu";
+				regulator-min-microvolt = <1100000>;
+				regulator-max-microvolt = <1100000>;
+				regulator-boot-on;
+				regulator-always-on;
+				regulator-state-mem {
+					regulator-on-in-suspend;
+					regulator-suspend-microvolt = <1100000>;
+				};
+			};
+		};
+	};
+};
+
+&i2c2 {
+	status = "okay";
+	cx20810: cx20810@35 {
+		compatible = "conexant,cx20810";
+		reg = <0x35>;
+		reset-gpios = <&gpio0 28 GPIO_ACTIVE_HIGH>;
+		status = "okay";
+	};
+
+	is31fl3236: led-controller@3c {
+		compatible = "issi,is31fl3236";
+		reg = <0x3c>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reset-gpios = <&gpio2 19 GPIO_ACTIVE_HIGH>;
+		status = "okay";
+
+		led1: led@1 {
+			label = "led1";
+			reg = <1>;
+			led-max-microamp = <10000>;
+			linux,default-trigger = "timer";
+			linux,default-trigger-delay-ms = <0>;
+			linux,blink-delay-on-ms = <100>;
+			linux,blink-delay-off-ms = <1200>;
+		};
+
+		led2: led@2 {
+			label = "led2";
+			reg = <2>;
+			led-max-microamp = <10000>;
+			linux,default-trigger = "timer";
+			linux,default-trigger-delay-ms = <0>;
+			linux,blink-delay-on-ms = <100>;
+			linux,blink-delay-off-ms = <1200>;
+		};
+
+		led3: led@3 {
+			label = "led3";
+			reg = <3>;
+			led-max-microamp = <10000>;
+			linux,default-trigger = "default-on";
+		};
+
+		led4: led@4 {
+			label = "led4";
+			reg = <4>;
+			led-max-microamp = <10000>;
+			linux,default-trigger = "timer";
+			linux,default-trigger-delay-ms = <100>;
+			linux,blink-delay-on-ms = <100>;
+			linux,blink-delay-off-ms = <1200>;
+		};
+
+		led5: led@5 {
+			label = "led5";
+			reg = <5>;
+			led-max-microamp = <10000>;
+			linux,default-trigger = "timer";
+			linux,default-trigger-delay-ms = <100>;
+			linux,blink-delay-on-ms = <100>;
+			linux,blink-delay-off-ms = <1200>;
+		};
+
+		led6: led@6 {
+			label = "led6";
+			reg = <6>;
+			led-max-microamp = <10000>;
+			linux,default-trigger = "default-on";
+		};
+
+		led7: led@7 {
+			label = "led7";
+			reg = <7>;
+			led-max-microamp = <10000>;
+			linux,default-trigger = "timer";
+			linux,default-trigger-delay-ms = <200>;
+			linux,blink-delay-on-ms = <100>;
+			linux,blink-delay-off-ms = <1200>;
+		};
+
+		led8: led@8 {
+			label = "led8";
+			reg = <8>;
+			led-max-microamp = <10000>;
+			linux,default-trigger = "timer";
+			linux,default-trigger-delay-ms = <200>;
+			linux,blink-delay-on-ms = <100>;
+			linux,blink-delay-off-ms = <1200>;
+		};
+
+		led9: led@9 {
+			label = "led9";
+			reg = <9>;
+			led-max-microamp = <10000>;
+			linux,default-trigger = "default-on";
+		};
+
+		led10: led@10 {
+			label = "led10";
+			reg = <10>;
+			led-max-microamp = <10000>;
+			linux,default-trigger = "timer";
+			linux,default-trigger-delay-ms = <300>;
+			linux,blink-delay-on-ms = <100>;
+			linux,blink-delay-off-ms = <1200>;
+		};
+
+		led11: led@11 {
+			label = "led11";
+			reg = <11>;
+			led-max-microamp = <10000>;
+			linux,default-trigger = "timer";
+			linux,default-trigger-delay-ms = <300>;
+			linux,blink-delay-on-ms = <100>;
+			linux,blink-delay-off-ms = <1200>;
+		};
+
+		led12: led@12 {
+			label = "led12";
+			reg = <12>;
+			led-max-microamp = <10000>;
+			linux,default-trigger = "default-on";
+		};
+
+		led13: led@13 {
+			label = "led13";
+			reg = <13>;
+			led-max-microamp = <10000>;
+			linux,default-trigger = "timer";
+			linux,default-trigger-delay-ms = <400>;
+			linux,blink-delay-on-ms = <100>;
+			linux,blink-delay-off-ms = <1200>;
+		};
+
+		led14: led@14 {
+			label = "led14";
+			reg = <14>;
+			led-max-microamp = <10000>;
+			linux,default-trigger = "timer";
+			linux,default-trigger-delay-ms = <400>;
+			linux,blink-delay-on-ms = <100>;
+			linux,blink-delay-off-ms = <1200>;
+		};
+
+		led15: led@15 {
+			label = "led15";
+			reg = <15>;
+			led-max-microamp = <10000>;
+			linux,default-trigger = "default-on";
+		};
+
+		led16: led@16 {
+			label = "led16";
+			reg = <16>;
+			led-max-microamp = <10000>;
+			linux,default-trigger = "timer";
+			linux,default-trigger-delay-ms = <500>;
+			linux,blink-delay-on-ms = <100>;
+			linux,blink-delay-off-ms = <1200>;
+		};
+
+		led17: led@17 {
+			label = "led17";
+			reg = <17>;
+			led-max-microamp = <10000>;
+			linux,default-trigger = "timer";
+			linux,default-trigger-delay-ms = <500>;
+			linux,blink-delay-on-ms = <100>;
+			linux,blink-delay-off-ms = <1200>;
+		};
+
+		led18: led@18 {
+			label = "led18";
+			reg = <18>;
+			led-max-microamp = <10000>;
+			linux,default-trigger = "default-on";
+		};
+
+		led19: led@19 {
+			label = "led19";
+			reg = <19>;
+			led-max-microamp = <10000>;
+			linux,default-trigger = "timer";
+			linux,default-trigger-delay-ms = <600>;
+			linux,blink-delay-on-ms = <100>;
+			linux,blink-delay-off-ms = <1200>;
+		};
+
+		led20: led@20 {
+			label = "led20";
+			reg = <20>;
+			led-max-microamp = <10000>;
+			linux,default-trigger = "timer";
+			linux,default-trigger-delay-ms = <600>;
+			linux,blink-delay-on-ms = <100>;
+			linux,blink-delay-off-ms = <1200>;
+		};
+
+		led21: led@21 {
+			label = "led21";
+			reg = <21>;
+			led-max-microamp = <10000>;
+			linux,default-trigger = "default-on";
+		};
+
+		led22: led@22 {
+			label = "led22";
+			reg = <22>;
+			led-max-microamp = <10000>;
+			linux,default-trigger = "timer";
+			linux,default-trigger-delay-ms = <700>;
+			linux,blink-delay-on-ms = <100>;
+			linux,blink-delay-off-ms = <1200>;
+		};
+
+		led23: led@23 {
+			label = "led23";
+			reg = <23>;
+			led-max-microamp = <10000>;
+			linux,default-trigger = "timer";
+			linux,default-trigger-delay-ms = <700>;
+			linux,blink-delay-on-ms = <100>;
+			linux,blink-delay-off-ms = <1200>;
+		};
+
+		led124: led@24 {
+			label = "led24";
+			reg = <24>;
+			led-max-microamp = <10000>;
+			linux,default-trigger = "default-on";
+		};
+
+		led25: led@25 {
+			label = "led25";
+			reg = <25>;
+			led-max-microamp = <10000>;
+			linux,default-trigger = "timer";
+			linux,default-trigger-delay-ms = <800>;
+			linux,blink-delay-on-ms = <100>;
+			linux,blink-delay-off-ms = <1200>;
+		};
+
+		led26: led@26 {
+			label = "led26";
+			reg = <26>;
+			led-max-microamp = <10000>;
+			linux,default-trigger = "timer";
+			linux,default-trigger-delay-ms = <800>;
+			linux,blink-delay-on-ms = <100>;
+			linux,blink-delay-off-ms = <1200>;
+		};
+
+		led27: led@27 {
+			label = "led27";
+			reg = <27>;
+			led-max-microamp = <10000>;
+			linux,default-trigger = "default-on";
+		};
+
+		led28: led@28 {
+			label = "led28";
+			reg = <28>;
+			led-max-microamp = <10000>;
+			linux,default-trigger = "timer";
+			linux,default-trigger-delay-ms = <900>;
+			linux,blink-delay-on-ms = <100>;
+			linux,blink-delay-off-ms = <1200>;
+		};
+
+		led29: led@29 {
+			label = "led29";
+			reg = <29>;
+			led-max-microamp = <10000>;
+			linux,default-trigger = "timer";
+			linux,default-trigger-delay-ms = <900>;
+			linux,blink-delay-on-ms = <100>;
+			linux,blink-delay-off-ms = <1200>;
+		};
+
+		led30: led@30 {
+			label = "led30";
+			reg = <30>;
+			led-max-microamp = <10000>;
+			linux,default-trigger = "default-on";
+		};
+
+		led31: led@31 {
+			label = "led31";
+			reg = <31>;
+			led-max-microamp = <10000>;
+			linux,default-trigger = "timer";
+			linux,default-trigger-delay-ms = <1000>;
+			linux,blink-delay-on-ms = <100>;
+			linux,blink-delay-off-ms = <1200>;
+		};
+
+		led32: led@32 {
+			label = "led32";
+			reg = <32>;
+			led-max-microamp = <10000>;
+			linux,default-trigger = "timer";
+			linux,default-trigger-delay-ms = <1000>;
+			linux,blink-delay-on-ms = <100>;
+			linux,blink-delay-off-ms = <1200>;
+		};
+
+		led33: led@33 {
+			label = "led33";
+			reg = <33>;
+			led-max-microamp = <10000>;
+			linux,default-trigger = "default-on";
+		};
+
+		led34: led@34 {
+			label = "led34";
+			reg = <34>;
+			led-max-microamp = <10000>;
+			linux,default-trigger = "timer";
+			linux,default-trigger-delay-ms = <1100>;
+			linux,blink-delay-on-ms = <100>;
+			linux,blink-delay-off-ms = <1200>;
+		};
+
+		led35: led@35 {
+			label = "led35";
+			reg = <35>;
+			led-max-microamp = <10000>;
+			linux,default-trigger = "timer";
+			linux,default-trigger-delay-ms = <1100>;
+			linux,blink-delay-on-ms = <100>;
+			linux,blink-delay-off-ms = <1200>;
+		};
+
+		led36: led@36 {
+			label = "led36";
+			reg = <36>;
+			led-max-microamp = <10000>;
+			linux,default-trigger = "default-on";
+		};
+	};
+};
+
+&i2s {
+	#sound-dai-cells = <0>;
+	status = "okay";
+};
+
+&sdio {
+	status = "okay";
+
+	bus-width = <4>;
+	cap-sd-highspeed;
+	cap-sdio-irq;
+	default-sample-phase = <90>;
+	keep-power-in-suspend;
+	mmc-pwrseq = <&sdio_pwrseq>;
+	non-removable;
+	num-slots = <1>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&sdio_clk &sdio_cmd &sdio_bus4>;
+	sd-uhs-sdr12;
+	sd-uhs-sdr25;
+	sd-uhs-sdr50;
+	sd-uhs-sdr104;
+	supports-sdio;
+};
+
+&sdmmc {
+	bus-width = <4>;
+	cap-mmc-highspeed;
+	cap-sd-highspeed;
+	card-detect-delay = <200>;
+	disable-wp;
+	num-slots = <1>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&sdmmc_clk>, <&sdmmc_cmd>, <&sdmmc_cd>, <&sdmmc_bus4>;
+};
+
+&uart0 {
+	pinctrl-0 = <&uart0_xfer>, <&uart0_cts>;
+	status = "okay";
+};
+
+&uart2 {
+	status = "disabled";
+};
+
+&usb_host {
+	status = "okay";
+};
+
+&usb_otg {
+	status = "okay";
+};
+
+&vop {
+	status = "okay";
+};
+
+&vop_mmu {
+	status = "okay";
+};
+
+&vpu_combo {
+	status = "okay";
+};
+
+&vpu_mmu {
+	status = "okay";
+};
+
+&wdt {
+	status = "okay";
+};
+
+&pinctrl {
+	pmic {
+		pmic_int: pmic-int {
+			rockchip,pins = <0 1 RK_FUNC_GPIO &pcfg_pull_default>;
+		};
+	};
+
+	keys {
+		pwr_key: pwr-key {
+			rockchip,pins = <2 25 RK_FUNC_GPIO &pcfg_pull_default>;
+		};
+	};
+
+	sdio {
+		bt_wake_h: bt-wake-h {
+			rockchip,pins = <2 8 RK_FUNC_GPIO &pcfg_pull_default>;
+		};
+	};
+
+	sdmmc {
+		sdmmc_pwr: sdmmc-pwr {
+			rockchip,pins = <2 28 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	sleep {
+		global_pwroff: global-pwroff {
+			rockchip,pins = <2 7 RK_FUNC_1 &pcfg_pull_none>;
+		};
+	};
+
+	wireless-bluetooth {
+		uart0_gpios: uart0-gpios {
+			rockchip,pins = <0 19 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+};
