@@ -494,7 +494,7 @@ struct inode *ceph_alloc_inode(struct super_block *sb)
 	ci->i_wrbuffer_ref = 0;
 	ci->i_wrbuffer_ref_head = 0;
 	atomic_set(&ci->i_filelock_ref, 0);
-	ci->i_shared_gen = 0;
+	atomic_set(&ci->i_shared_gen, 0);
 	ci->i_rdcache_gen = 0;
 	ci->i_rdcache_revoking = 0;
 
@@ -1041,7 +1041,7 @@ static void update_dentry_lease(struct dentry *dentry,
 	if (ceph_snap(dir) != CEPH_NOSNAP)
 		goto out_unlock;
 
-	di->lease_shared_gen = ceph_inode(dir)->i_shared_gen;
+	di->lease_shared_gen = atomic_read(&ceph_inode(dir)->i_shared_gen);
 
 	if (duration == 0)
 		goto out_unlock;

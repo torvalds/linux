@@ -498,7 +498,7 @@ static void __check_cap_issue(struct ceph_inode_info *ci, struct ceph_cap *cap,
 	 */
 	if ((issued & CEPH_CAP_FILE_SHARED) != (had & CEPH_CAP_FILE_SHARED)) {
 		if (issued & CEPH_CAP_FILE_SHARED)
-			ci->i_shared_gen++;
+			atomic_inc(&ci->i_shared_gen);
 		if (S_ISDIR(ci->vfs_inode.i_mode)) {
 			dout(" marking %p NOT complete\n", &ci->vfs_inode);
 			__ceph_dir_clear_complete(ci);
