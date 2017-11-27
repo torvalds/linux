@@ -8,6 +8,7 @@
  *  Jan Kiszka <jan.kiszka@siemens.com>
  */
 
+#include <linux/acpi_pmtmr.h>
 #include <linux/kernel.h>
 #include <asm/apic.h>
 #include <asm/cpu.h>
@@ -91,6 +92,9 @@ static void __init jailhouse_init_platform(void)
 
 	if (setup_data.compatible_version > JAILHOUSE_SETUP_REQUIRED_VERSION)
 		panic("Jailhouse: Unsupported setup data structure");
+
+	pmtmr_ioport = setup_data.pm_timer_address;
+	pr_debug("Jailhouse: PM-Timer IO Port: %#x\n", pmtmr_ioport);
 }
 
 bool jailhouse_paravirt(void)
