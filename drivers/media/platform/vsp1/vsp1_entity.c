@@ -307,6 +307,81 @@ done:
 	return ret;
 }
 
+/*
+ * vsp1_subdev_set_pad_format - Subdev pad set_fmt handler
+ * @subdev: V4L2 subdevice
+ * @cfg: V4L2 subdev pad configuration
+ * @fmt: V4L2 subdev format
+ * @codes: Array of supported media bus codes
+ * @ncodes: Number of supported media bus codes
+ * @min_width: Minimum image width
+ * @min_height: Minimum image height
+ * @max_width: Maximum image width
+ * @max_height: Maximum image height
+ *
+ * This function implements the subdev set_fmt pad operation for entities that
+ * do not support scaling or cropping. It defaults to the first supplied media
+ * bus code if the requested code isn't supported, clamps the size to the
+ * supplied minimum and maximum, and propagates the sink pad format to the
+ * source pad.
+ */
+int vsp1_subdev_set_pad_format(struct v4l2_subdev *subdev,
+			       struct v4l2_subdev_pad_config *cfg,
+			       struct v4l2_subdev_format *fmt,
+			       const unsigned int *codes, unsigned int ncodes,
+			       unsigned int min_width, unsigned int min_height,
+			       unsigned int max_width, unsigned int max_height)
+{
+	struct vsp1_entity *entity = to_vsp1_entity(subdev);
+	struct v4l2_subdev_pad_config *config;
+	struct v4l2_mbus_framefmt *format;
+	unsigned int i;
+	int ret = 0;
+
+	mutex_lock(&entity->lock);
+
+	config = vsp1_entity_get_pad_config(entity, cfg, fmt->which);
+	if (!config) {
+		ret = -EINVAL;
+		goto done;
+	}
+
+	format = vsp1_entity_get_pad_format(entity, config, fmt->pad);
+
+	if (fmt->pad == entity->source_pad) {
+		/* The output format can't be modified. */
+		fmt->format = *format;
+		goto done;
+	}
+
+	/*
+	 * Default to the first media bus code if the requested format is not
+	 * supported.
+	 */
+	for (i = 0; i < ncodes; ++i) {
+		if (fmt->format.code == codes[i])
+			break;
+	}
+
+	format->code = i < ncodes ? codes[i] : codes[0];
+	format->width = clamp_t(unsigned int, fmt->format.width,
+				min_width, max_width);
+	format->height = clamp_t(unsigned int, fmt->format.height,
+				 min_height, max_height);
+	format->field = V4L2_FIELD_NONE;
+	format->colorspace = V4L2_COLORSPACE_SRGB;
+
+	fmt->format = *format;
+
+	/* Propagate the format to the source pad. */
+	format = vsp1_entity_get_pad_format(entity, config, entity->source_pad);
+	*format = fmt->format;
+
+done:
+	mutex_unlock(&entity->lock);
+	return ret;
+}
+
 /* -----------------------------------------------------------------------------
  * Media Operations
  */
