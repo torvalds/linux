@@ -255,7 +255,6 @@ static int gfs2_writepages(struct address_space *mapping,
  * @wbc: The writeback control
  * @pvec: The vector of pages
  * @nr_pages: The number of pages to write
- * @end: End position
  * @done_index: Page index
  *
  * Returns: non-zero if loop should terminate, zero otherwise
@@ -264,7 +263,7 @@ static int gfs2_writepages(struct address_space *mapping,
 static int gfs2_write_jdata_pagevec(struct address_space *mapping,
 				    struct writeback_control *wbc,
 				    struct pagevec *pvec,
-				    int nr_pages, pgoff_t end,
+				    int nr_pages,
 				    pgoff_t *done_index)
 {
 	struct inode *inode = mapping->host;
@@ -402,7 +401,7 @@ retry:
 		if (nr_pages == 0)
 			break;
 
-		ret = gfs2_write_jdata_pagevec(mapping, wbc, &pvec, nr_pages, end, &done_index);
+		ret = gfs2_write_jdata_pagevec(mapping, wbc, &pvec, nr_pages, &done_index);
 		if (ret)
 			done = 1;
 		if (ret > 0)
