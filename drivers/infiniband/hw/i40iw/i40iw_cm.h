@@ -276,8 +276,6 @@ struct i40iw_cm_tcp_context {
 	u32 mss;
 	u8 snd_wscale;
 	u8 rcv_wscale;
-
-	struct timeval sent_ts;
 };
 
 enum i40iw_cm_listener_state {
