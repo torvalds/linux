@@ -88,16 +88,16 @@ static int gpio_mockup_get(struct gpio_chip *gc, unsigned int offset)
 	return chip->lines[offset].value;
 }
 
-static void gpio_mockup_set(struct gpio_chip *gc, unsigned int offset,
-			    int value)
+static void gpio_mockup_set(struct gpio_chip *gc,
+			    unsigned int offset, int value)
 {
 	struct gpio_mockup_chip *chip = gpiochip_get_data(gc);
 
 	chip->lines[offset].value = !!value;
 }
 
-static int gpio_mockup_dirout(struct gpio_chip *gc, unsigned int offset,
-			      int value)
+static int gpio_mockup_dirout(struct gpio_chip *gc,
+			      unsigned int offset, int value)
 {
 	struct gpio_mockup_chip *chip = gpiochip_get_data(gc);
 
