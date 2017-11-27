@@ -178,6 +178,7 @@ static struct bus_type sunxi_rsb_bus = {
 	.match		= sunxi_rsb_device_match,
 	.probe		= sunxi_rsb_device_probe,
 	.remove		= sunxi_rsb_device_remove,
+	.uevent		= of_device_uevent_modalias,
 };
 
 static void sunxi_rsb_dev_release(struct device *dev)
