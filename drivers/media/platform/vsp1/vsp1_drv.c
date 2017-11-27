@@ -35,6 +35,7 @@
 #include "vsp1_rwpf.h"
 #include "vsp1_sru.h"
 #include "vsp1_uds.h"
+#include "vsp1_uif.h"
 #include "vsp1_video.h"
 
 /* -----------------------------------------------------------------------------
@@ -409,6 +410,19 @@ static int vsp1_create_entities(struct vsp1_device *vsp1)
 		list_add_tail(&uds->entity.list_dev, &vsp1->entities);
 	}
 
+	for (i = 0; i < vsp1->info->uif_count; ++i) {
+		struct vsp1_uif *uif;
+
+		uif = vsp1_uif_create(vsp1, i);
+		if (IS_ERR(uif)) {
+			ret = PTR_ERR(uif);
+			goto done;
+		}
+
+		vsp1->uif[i] = uif;
+		list_add_tail(&uif->entity.list_dev, &vsp1->entities);
+	}
+
 	for (i = 0; i < vsp1->info->wpf_count; ++i) {
 		struct vsp1_rwpf *wpf;
 
@@ -512,6 +526,9 @@ static int vsp1_device_init(struct vsp1_device *vsp1)
 
 	for (i = 0; i < vsp1->info->uds_count; ++i)
 		vsp1_write(vsp1, VI6_DPR_UDS_ROUTE(i), VI6_DPR_NODE_UNUSED);
+
+	for (i = 0; i < vsp1->info->uif_count; ++i)
+		vsp1_write(vsp1, VI6_DPR_UIF_ROUTE(i), VI6_DPR_NODE_UNUSED);
 
 	vsp1_write(vsp1, VI6_DPR_SRU_ROUTE, VI6_DPR_NODE_UNUSED);
 	vsp1_write(vsp1, VI6_DPR_LUT_ROUTE, VI6_DPR_NODE_UNUSED);
@@ -740,6 +757,7 @@ static const struct vsp1_device_info vsp1_device_infos[] = {
 		.features = VSP1_HAS_BRU | VSP1_HAS_WPF_VFLIP,
 		.lif_count = 1,
 		.rpf_count = 5,
+		.uif_count = 1,
 		.wpf_count = 2,
 		.num_bru_inputs = 5,
 	}, {
@@ -749,6 +767,7 @@ static const struct vsp1_device_info vsp1_device_infos[] = {
 		.features = VSP1_HAS_BRS | VSP1_HAS_BRU,
 		.lif_count = 1,
 		.rpf_count = 5,
+		.uif_count = 1,
 		.wpf_count = 1,
 		.num_bru_inputs = 5,
 	}, {
@@ -758,6 +777,7 @@ static const struct vsp1_device_info vsp1_device_infos[] = {
 		.features = VSP1_HAS_BRS | VSP1_HAS_BRU,
 		.lif_count = 2,
 		.rpf_count = 5,
+		.uif_count = 2,
 		.wpf_count = 2,
 		.num_bru_inputs = 5,
 	},

@@ -36,10 +36,12 @@ struct vsp1_lut;
 struct vsp1_rwpf;
 struct vsp1_sru;
 struct vsp1_uds;
+struct vsp1_uif;
 
 #define VSP1_MAX_LIF		2
 #define VSP1_MAX_RPF		5
 #define VSP1_MAX_UDS		3
+#define VSP1_MAX_UIF		2
 #define VSP1_MAX_WPF		4
 
 #define VSP1_HAS_LUT		(1 << 1)
@@ -60,6 +62,7 @@ struct vsp1_device_info {
 	unsigned int lif_count;
 	unsigned int rpf_count;
 	unsigned int uds_count;
+	unsigned int uif_count;
 	unsigned int wpf_count;
 	unsigned int num_bru_inputs;
 	bool uapi;
@@ -86,6 +89,7 @@ struct vsp1_device {
 	struct vsp1_rwpf *rpf[VSP1_MAX_RPF];
 	struct vsp1_sru *sru;
 	struct vsp1_uds *uds[VSP1_MAX_UDS];
+	struct vsp1_uif *uif[VSP1_MAX_UIF];
 	struct vsp1_rwpf *wpf[VSP1_MAX_WPF];
 
 	struct list_head entities;

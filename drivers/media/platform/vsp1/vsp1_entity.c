@@ -539,6 +539,10 @@ struct media_pad *vsp1_entity_remote_pad(struct media_pad *pad)
 	{ VSP1_ENTITY_UDS, idx, VI6_DPR_UDS_ROUTE(idx),			\
 	  { VI6_DPR_NODE_UDS(idx) }, VI6_DPR_NODE_UDS(idx) }
 
+#define VSP1_ENTITY_ROUTE_UIF(idx)					\
+	{ VSP1_ENTITY_UIF, idx, VI6_DPR_UIF_ROUTE(idx),			\
+	  { VI6_DPR_NODE_UIF(idx) }, VI6_DPR_NODE_UIF(idx) }
+
 #define VSP1_ENTITY_ROUTE_WPF(idx)					\
 	{ VSP1_ENTITY_WPF, idx, 0,					\
 	  { VI6_DPR_NODE_WPF(idx) }, VI6_DPR_NODE_WPF(idx) }
@@ -567,6 +571,8 @@ static const struct vsp1_route vsp1_routes[] = {
 	VSP1_ENTITY_ROUTE_UDS(0),
 	VSP1_ENTITY_ROUTE_UDS(1),
 	VSP1_ENTITY_ROUTE_UDS(2),
+	VSP1_ENTITY_ROUTE_UIF(0),	/* Named UIF4 in the documentation */
+	VSP1_ENTITY_ROUTE_UIF(1),	/* Named UIF5 in the documentation */
 	VSP1_ENTITY_ROUTE_WPF(0),
 	VSP1_ENTITY_ROUTE_WPF(1),
 	VSP1_ENTITY_ROUTE_WPF(2),
