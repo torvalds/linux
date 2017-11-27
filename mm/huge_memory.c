@@ -474,10 +474,13 @@ out:
 }
 __setup("transparent_hugepage=", setup_transparent_hugepage);
 
-pmd_t maybe_pmd_mkwrite(pmd_t pmd, struct vm_area_struct *vma)
+pmd_t maybe_pmd_mkwrite(pmd_t pmd, struct vm_area_struct *vma, bool dirty)
 {
-	if (likely(vma->vm_flags & VM_WRITE))
+	if (likely(vma->vm_flags & VM_WRITE)) {
 		pmd = pmd_mkwrite(pmd);
+		if (dirty)
+			pmd = pmd_mkdirty(pmd);
+	}
 	return pmd;
 }
 
@@ -599,7 +602,7 @@ static int __do_huge_pmd_anonymous_page(struct vm_fault *vmf, struct page *page,
 		}
 
 		entry = mk_huge_pmd(page, vma->vm_page_prot);
-		entry = maybe_pmd_mkwrite(pmd_mkdirty(entry), vma);
+		entry = maybe_pmd_mkwrite(entry, vma, true);
 		page_add_new_anon_rmap(page, vma, haddr, true);
 		mem_cgroup_commit_charge(page, memcg, false, true);
 		lru_cache_add_active_or_unevictable(page, vma);
@@ -741,8 +744,8 @@ static void insert_pfn_pmd(struct vm_area_struct *vma, unsigned long addr,
 	if (pfn_t_devmap(pfn))
 		entry = pmd_mkdevmap(entry);
 	if (write) {
-		entry = pmd_mkyoung(pmd_mkdirty(entry));
-		entry = maybe_pmd_mkwrite(entry, vma);
+		entry = pmd_mkyoung(entry);
+		entry = maybe_pmd_mkwrite(entry, vma, true);
 	}
 
 	if (pgtable) {
@@ -788,10 +791,14 @@ int vmf_insert_pfn_pmd(struct vm_area_struct *vma, unsigned long addr,
 EXPORT_SYMBOL_GPL(vmf_insert_pfn_pmd);
 
 #ifdef CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD
-static pud_t maybe_pud_mkwrite(pud_t pud, struct vm_area_struct *vma)
+static pud_t maybe_pud_mkwrite(pud_t pud, struct vm_area_struct *vma,
+		bool dirty)
 {
-	if (likely(vma->vm_flags & VM_WRITE))
+	if (likely(vma->vm_flags & VM_WRITE)) {
 		pud = pud_mkwrite(pud);
+		if (dirty)
+			pud = pud_mkdirty(pud);
+	}
 	return pud;
 }
 
@@ -807,8 +814,8 @@ static void insert_pfn_pud(struct vm_area_struct *vma, unsigned long addr,
 	if (pfn_t_devmap(pfn))
 		entry = pud_mkdevmap(entry);
 	if (write) {
-		entry = pud_mkyoung(pud_mkdirty(entry));
-		entry = maybe_pud_mkwrite(entry, vma);
+		entry = pud_mkyoung(entry);
+		entry = maybe_pud_mkwrite(entry, vma, true);
 	}
 	set_pud_at(mm, addr, pud, entry);
 	update_mmu_cache_pud(vma, addr, pud);
@@ -1279,7 +1286,7 @@ int do_huge_pmd_wp_page(struct vm_fault *vmf, pmd_t orig_pmd)
 	if (reuse_swap_page(page, NULL)) {
 		pmd_t entry;
 		entry = pmd_mkyoung(orig_pmd);
-		entry = maybe_pmd_mkwrite(pmd_mkdirty(entry), vma);
+		entry = maybe_pmd_mkwrite(entry, vma, true);
 		if (pmdp_set_access_flags(vma, haddr, vmf->pmd, entry,  1))
 			update_mmu_cache_pmd(vma, vmf->address, vmf->pmd);
 		ret |= VM_FAULT_WRITE;
@@ -1349,7 +1356,7 @@ alloc:
 	} else {
 		pmd_t entry;
 		entry = mk_huge_pmd(new_page, vma->vm_page_prot);
-		entry = maybe_pmd_mkwrite(pmd_mkdirty(entry), vma);
+		entry = maybe_pmd_mkwrite(entry, vma, true);
 		pmdp_huge_clear_flush_notify(vma, haddr, vmf->pmd);
 		page_add_new_anon_rmap(new_page, vma, haddr, true);
 		mem_cgroup_commit_charge(new_page, memcg, false, true);
@@ -2928,7 +2935,7 @@ void remove_migration_pmd(struct page_vma_mapped_walk *pvmw, struct page *new)
 	if (pmd_swp_soft_dirty(*pvmw->pmd))
 		pmde = pmd_mksoft_dirty(pmde);
 	if (is_write_migration_entry(entry))
-		pmde = maybe_pmd_mkwrite(pmde, vma);
+		pmde = maybe_pmd_mkwrite(pmde, vma, false);
 
 	flush_cache_range(vma, mmun_start, mmun_start + HPAGE_PMD_SIZE);
 	page_add_anon_rmap(new, vma, mmun_start, true);
