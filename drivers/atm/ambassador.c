@@ -2258,7 +2258,7 @@ static int amb_probe(struct pci_dev *pci_dev,
 
 	PRINTD (DBG_INFO, "registered Madge ATM adapter (no. %d) (%p) at %p",
 		dev->atm_dev->number, dev, dev->atm_dev);
-		dev->atm_dev->dev_data = (void *) dev;
+	dev->atm_dev->dev_data = (void *) dev;
 
 	// register our address
 	amb_esi (dev, dev->atm_dev->esi);
