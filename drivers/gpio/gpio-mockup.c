@@ -123,29 +123,6 @@ static int gpio_mockup_get_direction(struct gpio_chip *gc, unsigned int offset)
 	return chip->lines[offset].dir;
 }
 
-static int gpio_mockup_name_lines(struct device *dev,
-				  struct gpio_mockup_chip *chip)
-{
-	struct gpio_chip *gc = &chip->gc;
-	char **names;
-	int i;
-
-	names = devm_kcalloc(dev, gc->ngpio, sizeof(char *), GFP_KERNEL);
-	if (!names)
-		return -ENOMEM;
-
-	for (i = 0; i < gc->ngpio; i++) {
-		names[i] = devm_kasprintf(dev, GFP_KERNEL,
-					  "%s-%d", gc->label, i);
-		if (!names[i])
-			return -ENOMEM;
-	}
-
-	gc->names = (const char *const *)names;
-
-	return 0;
-}
-
 static int gpio_mockup_to_irq(struct gpio_chip *gc, unsigned int offset)
 {
 	struct gpio_mockup_chip *chip = gpiochip_get_data(gc);
@@ -236,6 +213,29 @@ static void gpio_mockup_debugfs_setup(struct device *dev,
 
 err:
 	dev_err(dev, "error creating debugfs directory\n");
+}
+
+static int gpio_mockup_name_lines(struct device *dev,
+				  struct gpio_mockup_chip *chip)
+{
+	struct gpio_chip *gc = &chip->gc;
+	char **names;
+	int i;
+
+	names = devm_kcalloc(dev, gc->ngpio, sizeof(char *), GFP_KERNEL);
+	if (!names)
+		return -ENOMEM;
+
+	for (i = 0; i < gc->ngpio; i++) {
+		names[i] = devm_kasprintf(dev, GFP_KERNEL,
+					  "%s-%d", gc->label, i);
+		if (!names[i])
+			return -ENOMEM;
+	}
+
+	gc->names = (const char *const *)names;
+
+	return 0;
 }
 
 static int gpio_mockup_probe(struct platform_device *pdev)
