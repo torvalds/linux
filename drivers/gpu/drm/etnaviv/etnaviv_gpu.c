@@ -1201,7 +1201,6 @@ static void retire_worker(struct work_struct *work)
 					       retire_work);
 	u32 fence = gpu->completed_fence;
 	struct etnaviv_gem_submit *submit, *tmp;
-	unsigned int i;
 
 	mutex_lock(&gpu->lock);
 	list_for_each_entry_safe(submit, tmp, &gpu->active_submit_list, node) {
@@ -1209,9 +1208,6 @@ static void retire_worker(struct work_struct *work)
 			break;
 
 		list_del(&submit->node);
-
-		for (i = 0; i < submit->nr_bos; i++)
-			atomic_dec(&submit->bos[i].obj->gpu_active);
 
 		etnaviv_submit_put(submit);
 		/*
@@ -1227,8 +1223,6 @@ static void retire_worker(struct work_struct *work)
 	gpu->retired_fence = fence;
 
 	mutex_unlock(&gpu->lock);
-
-	wake_up_all(&gpu->fence_event);
 }
 
 int etnaviv_gpu_wait_fence_interruptible(struct etnaviv_gpu *gpu,
@@ -1429,10 +1423,6 @@ int etnaviv_gpu_submit(struct etnaviv_gpu *gpu,
 	/* We're committed to adding this command buffer, hold a PM reference */
 	pm_runtime_get_noresume(gpu->dev);
 
-	for (i = 0; i < submit->nr_bos; i++) {
-		struct etnaviv_gem_object *etnaviv_obj = submit->bos[i].obj;
-		atomic_inc(&etnaviv_obj->gpu_active);
-	}
 	hangcheck_timer_reset(gpu);
 	ret = 0;
 

@@ -229,6 +229,7 @@ static int submit_pin_objects(struct etnaviv_gem_submit *submit)
 			ret = PTR_ERR(mapping);
 			break;
 		}
+		atomic_inc(&etnaviv_obj->gpu_active);
 
 		submit->bos[i].flags |= BO_PINNED;
 		submit->bos[i].mapping = mapping;
@@ -363,6 +364,7 @@ static void submit_cleanup(struct kref *kref)
 		/* unpin all objects */
 		if (submit->bos[i].flags & BO_PINNED) {
 			etnaviv_gem_mapping_unreference(submit->bos[i].mapping);
+			atomic_dec(&etnaviv_obj->gpu_active);
 			submit->bos[i].mapping = NULL;
 			submit->bos[i].flags &= ~BO_PINNED;
 		}
@@ -371,6 +373,8 @@ static void submit_cleanup(struct kref *kref)
 		submit_unlock_object(submit, i);
 		drm_gem_object_put_unlocked(&etnaviv_obj->base);
 	}
+
+	wake_up_all(&submit->gpu->fence_event);
 
 	if (submit->in_fence)
 		dma_fence_put(submit->in_fence);
