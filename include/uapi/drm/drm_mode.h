@@ -516,6 +516,7 @@ enum supported_eotf_type {
 	TRADITIONAL_GAMMA_SDR = 0,
 	TRADITIONAL_GAMMA_HDR,
 	SMPTE_ST2084,
+	HLG,
 	FUTURE_EOTF
 };
 
