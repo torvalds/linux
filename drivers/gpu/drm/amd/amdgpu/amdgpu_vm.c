@@ -139,6 +139,24 @@ struct amdgpu_prt_cb {
 };
 
 /**
+ * amdgpu_vm_level_shift - return the addr shift for each level
+ *
+ * @adev: amdgpu_device pointer
+ *
+ * Returns the number of bits the pfn needs to be right shifted for a level.
+ */
+static unsigned amdgpu_vm_level_shift(struct amdgpu_device *adev,
+				      unsigned level)
+{
+	if (level != adev->vm_manager.num_level)
+		return 9 * (adev->vm_manager.num_level - level - 1) +
+			adev->vm_manager.block_size;
+	else
+		/* For the page tables on the leaves */
+		return 0;
+}
+
+/**
  * amdgpu_vm_num_entries - return the number of entries in a PD/PT
  *
  * @adev: amdgpu_device pointer
@@ -288,8 +306,7 @@ static int amdgpu_vm_alloc_levels(struct amdgpu_device *adev,
 				  uint64_t saddr, uint64_t eaddr,
 				  unsigned level)
 {
-	unsigned shift = (adev->vm_manager.num_level - level) *
-		adev->vm_manager.block_size;
+	unsigned shift = amdgpu_vm_level_shift(adev, level);
 	unsigned pt_idx, from, to;
 	int r;
 	u64 flags;
@@ -1302,18 +1319,19 @@ void amdgpu_vm_get_entry(struct amdgpu_pte_update_params *p, uint64_t addr,
 			 struct amdgpu_vm_pt **entry,
 			 struct amdgpu_vm_pt **parent)
 {
-	unsigned idx, level = p->adev->vm_manager.num_level;
+	unsigned level = 0;
 
 	*parent = NULL;
 	*entry = &p->vm->root;
 	while ((*entry)->entries) {
-		idx = addr >> (p->adev->vm_manager.block_size * level--);
+		unsigned idx = addr >> amdgpu_vm_level_shift(p->adev, level++);
+
 		idx %= amdgpu_bo_size((*entry)->base.bo) / 8;
 		*parent = *entry;
 		*entry = &(*entry)->entries[idx];
 	}
 
-	if (level)
+	if (level != p->adev->vm_manager.num_level)
 		*entry = NULL;
 }
 
