@@ -34,6 +34,7 @@
 #include <linux/idr.h>
 #include <linux/kfifo.h>
 #include <linux/seq_file.h>
+#include <linux/kref.h>
 #include <kgd_kfd_interface.h>
 
 #include "amd_shared.h"
@@ -536,6 +537,9 @@ struct kfd_process {
 	 * only used for looking up processes by their mm.
 	 */
 	void *mm;
+
+	struct kref ref;
+	struct work_struct release_work;
 
 	struct mutex mutex;
 

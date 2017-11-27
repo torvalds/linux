@@ -48,11 +48,6 @@ DEFINE_STATIC_SRCU(kfd_processes_srcu);
 
 static struct workqueue_struct *kfd_process_wq;
 
-struct kfd_process_release_work {
-	struct work_struct kfd_work;
-	struct kfd_process *p;
-};
-
 static struct kfd_process *find_process(const struct task_struct *thread);
 static struct kfd_process *create_process(const struct task_struct *thread);
 static int kfd_process_init_cwsr(struct kfd_process *p, struct file *filep);
@@ -151,20 +146,19 @@ static struct kfd_process *find_process(const struct task_struct *thread)
 	return p;
 }
 
+/* No process locking is needed in this function, because the process
+ * is not findable any more. We must assume that no other thread is
+ * using it any more, otherwise we couldn't safely free the process
+ * structure in the end.
+ */
 static void kfd_process_wq_release(struct work_struct *work)
 {
-	struct kfd_process_release_work *my_work;
+	struct kfd_process *p = container_of(work, struct kfd_process,
+					     release_work);
 	struct kfd_process_device *pdd, *temp;
-	struct kfd_process *p;
-
-	my_work = (struct kfd_process_release_work *) work;
-
-	p = my_work->p;
 
 	pr_debug("Releasing process (pasid %d) in workqueue\n",
 			p->pasid);
-
-	mutex_lock(&p->mutex);
 
 	list_for_each_entry_safe(pdd, temp, &p->per_device_data,
 							per_device_list) {
@@ -188,33 +182,26 @@ static void kfd_process_wq_release(struct work_struct *work)
 	kfd_pasid_free(p->pasid);
 	kfd_free_process_doorbells(p);
 
-	mutex_unlock(&p->mutex);
-
 	mutex_destroy(&p->mutex);
 
 	put_task_struct(p->lead_thread);
 
 	kfree(p);
+}
 
-	kfree(work);
+static void kfd_process_ref_release(struct kref *ref)
+{
+	struct kfd_process *p = container_of(ref, struct kfd_process, ref);
+
+	INIT_WORK(&p->release_work, kfd_process_wq_release);
+	queue_work(kfd_process_wq, &p->release_work);
 }
 
 static void kfd_process_destroy_delayed(struct rcu_head *rcu)
 {
-	struct kfd_process_release_work *work;
-	struct kfd_process *p;
+	struct kfd_process *p = container_of(rcu, struct kfd_process, rcu);
 
-	p = container_of(rcu, struct kfd_process, rcu);
-
-	mmdrop(p->mm);
-
-	work = kmalloc(sizeof(struct kfd_process_release_work), GFP_ATOMIC);
-
-	if (work) {
-		INIT_WORK((struct work_struct *) work, kfd_process_wq_release);
-		work->p = p;
-		queue_work(kfd_process_wq, (struct work_struct *) work);
-	}
+	kref_put(&p->ref, kfd_process_ref_release);
 }
 
 static void kfd_process_notifier_release(struct mmu_notifier *mn,
@@ -258,15 +245,12 @@ static void kfd_process_notifier_release(struct mmu_notifier *mn,
 	kfd_process_dequeue_from_all_devices(p);
 	pqm_uninit(&p->pqm);
 
+	/* Indicate to other users that MM is no longer valid */
+	p->mm = NULL;
+
 	mutex_unlock(&p->mutex);
 
-	/*
-	 * Because we drop mm_count inside kfd_process_destroy_delayed
-	 * and because the mmu_notifier_unregister function also drop
-	 * mm_count we need to take an extra count here.
-	 */
-	mmgrab(p->mm);
-	mmu_notifier_unregister_no_release(&p->mmu_notifier, p->mm);
+	mmu_notifier_unregister_no_release(&p->mmu_notifier, mm);
 	mmu_notifier_call_srcu(&p->rcu, &kfd_process_destroy_delayed);
 }
 
@@ -330,6 +314,8 @@ static struct kfd_process *create_process(const struct task_struct *thread)
 
 	if (kfd_alloc_process_doorbells(process) < 0)
 		goto err_alloc_doorbells;
+
+	kref_init(&process->ref);
 
 	mutex_init(&process->mutex);
 
