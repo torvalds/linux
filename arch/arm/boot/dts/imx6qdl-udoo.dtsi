@@ -28,6 +28,13 @@
 		status = "disabled";
 	};
 
+	gpio-poweroff {
+		compatible = "gpio-poweroff";
+		gpios = <&gpio2 4 0>;
+		pinctrl-0 = <&pinctrl_power_off>;
+		pinctrl-names = "default";
+	};
+
 	memory {
 		reg = <0x10000000 0x40000000>;
 	};
@@ -169,6 +176,12 @@
 			fsl,pins = <
 				MX6QDL_PAD_GPIO_2__GPIO1_IO02		0x70
 				MX6QDL_PAD_GPIO_4__GPIO1_IO04		0x70
+			>;
+		};
+
+		pinctrl_power_off: poweroffgrp {
+			fsl,pins = <
+				MX6QDL_PAD_NANDF_D4__GPIO2_IO04		0x30
 			>;
 		};
 
