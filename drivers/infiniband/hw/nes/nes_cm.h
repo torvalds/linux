@@ -279,7 +279,6 @@ struct nes_cm_tcp_context {
 	u8  rcv_wscale;
 
 	struct nes_cm_tsa_context tsa_cntxt;
-	struct timeval            sent_ts;
 };
 
 
