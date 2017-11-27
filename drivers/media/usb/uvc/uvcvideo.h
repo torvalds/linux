@@ -541,8 +541,8 @@ struct uvc_streaming {
 		struct uvc_clock_sample {
 			u32 dev_stc;
 			u16 dev_sof;
-			struct timespec host_ts;
 			u16 host_sof;
+			ktime_t host_time;
 		} *samples;
 
 		unsigned int head;
