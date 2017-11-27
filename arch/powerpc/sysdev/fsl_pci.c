@@ -1304,10 +1304,8 @@ static int add_err_dev(struct platform_device *pdev)
 						   pdev->resource,
 						   pdev->num_resources,
 						   &pd, sizeof(pd));
-	if (IS_ERR(errdev))
-		return PTR_ERR(errdev);
 
-	return 0;
+	return PTR_ERR_OR_ZERO(errdev);
 }
 
 static int fsl_pci_probe(struct platform_device *pdev)
