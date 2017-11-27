@@ -330,7 +330,9 @@ static int __init gpio_mockup_init(void)
 {
 	int err;
 
-	if (gpio_mockup_params_nr < 2 || (gpio_mockup_params_nr % 2))
+	if ((gpio_mockup_params_nr < 2) ||
+	    (gpio_mockup_params_nr % 2) ||
+	    (gpio_mockup_params_nr > GPIO_MOCKUP_MAX_RANGES))
 		return -EINVAL;
 
 	gpio_mockup_dbg_dir = debugfs_create_dir("gpio-mockup-event", NULL);
