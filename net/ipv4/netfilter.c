@@ -164,7 +164,6 @@ EXPORT_SYMBOL_GPL(nf_ip_route);
 
 static const struct nf_afinfo nf_ip_afinfo = {
 	.family			= AF_INET,
-	.route_key_size		= sizeof(struct ip_rt_info),
 };
 
 static int __init ipv4_netfilter_init(void)
