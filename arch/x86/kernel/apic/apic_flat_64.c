@@ -19,6 +19,7 @@
 #include <asm/smp.h>
 #include <asm/apic.h>
 #include <asm/ipi.h>
+#include <asm/jailhouse_para.h>
 
 #include <linux/acpi.h>
 
@@ -241,7 +242,8 @@ static void physflat_send_IPI_all(int vector)
 
 static int physflat_probe(void)
 {
-	if (apic == &apic_physflat || num_possible_cpus() > 8)
+	if (apic == &apic_physflat || num_possible_cpus() > 8 ||
+	    jailhouse_paravirt())
 		return 1;
 
 	return 0;
