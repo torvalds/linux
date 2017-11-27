@@ -1212,7 +1212,7 @@ static int atomisp_pci_probe(struct pci_dev *dev,
 	isp->pdev = dev;
 	isp->dev = &dev->dev;
 	isp->sw_contex.power_state = ATOM_ISP_POWER_UP;
-	isp->pci_root = pci_get_bus_and_slot(0, 0);
+	isp->pci_root = pci_get_domain_bus_and_slot(0, 0, 0);
 	if (!isp->pci_root) {
 		dev_err(&dev->dev, "Unable to find PCI host\n");
 		return -ENODEV;
