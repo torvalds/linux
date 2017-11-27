@@ -1586,8 +1586,8 @@ static int service_buffer_allocate(struct lanai_dev *lanai)
 	    lanai->pci);
 	if (unlikely(lanai->service.start == NULL))
 		return -ENOMEM;
-	DPRINTK("allocated service buffer at 0x%08lX, size %zu(%d)\n",
-	    (unsigned long) lanai->service.start,
+	DPRINTK("allocated service buffer at %p, size %zu(%d)\n",
+	    lanai->service.start,
 	    lanai_buf_size(&lanai->service),
 	    lanai_buf_size_cardorder(&lanai->service));
 	/* Clear ServWrite register to be safe */
@@ -2220,9 +2220,9 @@ static int lanai_dev_open(struct atm_dev *atmdev)
 #endif
 	memcpy(atmdev->esi, eeprom_mac(lanai), ESI_LEN);
 	lanai_timed_poll_start(lanai);
-	printk(KERN_NOTICE DEV_LABEL "(itf %d): rev.%d, base=0x%lx, irq=%u "
+	printk(KERN_NOTICE DEV_LABEL "(itf %d): rev.%d, base=%p, irq=%u "
 		"(%pMF)\n", lanai->number, (int) lanai->pci->revision,
-		(unsigned long) lanai->base, lanai->pci->irq, atmdev->esi);
+		lanai->base, lanai->pci->irq, atmdev->esi);
 	printk(KERN_NOTICE DEV_LABEL "(itf %d): LANAI%s, serialno=%u(0x%X), "
 	    "board_rev=%d\n", lanai->number,
 	    lanai->type==lanai2 ? "2" : "HB", (unsigned int) lanai->serialno,
