@@ -435,7 +435,7 @@ int ovl_verify_index(struct dentry *index, struct ovl_path *lower,
 
 	/* Check if index is orphan and don't warn before cleaning it */
 	if (d_inode(index)->i_nlink == 1 &&
-	    ovl_get_nlink(index, origin.dentry, 0) == 0)
+	    ovl_get_nlink(origin.dentry, index, 0) == 0)
 		err = -ENOENT;
 
 	dput(origin.dentry);
