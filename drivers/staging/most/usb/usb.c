@@ -945,21 +945,21 @@ static ssize_t value_store(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
-DEVICE_ATTR(ni_state, 0444, value_show, NULL);
-DEVICE_ATTR(packet_bandwidth, 0444, value_show, NULL);
-DEVICE_ATTR(node_address, 0444, value_show, NULL);
-DEVICE_ATTR(node_position, 0444, value_show, NULL);
-DEVICE_ATTR(sync_ep, 0200, NULL, value_store);
-DEVICE_ATTR(mep_filter, 0644, value_show, value_store);
-DEVICE_ATTR(mep_hash0, 0644, value_show, value_store);
-DEVICE_ATTR(mep_hash1, 0644, value_show, value_store);
-DEVICE_ATTR(mep_hash2, 0644, value_show, value_store);
-DEVICE_ATTR(mep_hash3, 0644, value_show, value_store);
-DEVICE_ATTR(mep_eui48_hi, 0644, value_show, value_store);
-DEVICE_ATTR(mep_eui48_mi, 0644, value_show, value_store);
-DEVICE_ATTR(mep_eui48_lo, 0644, value_show, value_store);
-DEVICE_ATTR(arb_address, 0644, value_show, value_store);
-DEVICE_ATTR(arb_value, 0644, value_show, value_store);
+static DEVICE_ATTR(ni_state, 0444, value_show, NULL);
+static DEVICE_ATTR(packet_bandwidth, 0444, value_show, NULL);
+static DEVICE_ATTR(node_address, 0444, value_show, NULL);
+static DEVICE_ATTR(node_position, 0444, value_show, NULL);
+static DEVICE_ATTR(sync_ep, 0200, NULL, value_store);
+static DEVICE_ATTR(mep_filter, 0644, value_show, value_store);
+static DEVICE_ATTR(mep_hash0, 0644, value_show, value_store);
+static DEVICE_ATTR(mep_hash1, 0644, value_show, value_store);
+static DEVICE_ATTR(mep_hash2, 0644, value_show, value_store);
+static DEVICE_ATTR(mep_hash3, 0644, value_show, value_store);
+static DEVICE_ATTR(mep_eui48_hi, 0644, value_show, value_store);
+static DEVICE_ATTR(mep_eui48_mi, 0644, value_show, value_store);
+static DEVICE_ATTR(mep_eui48_lo, 0644, value_show, value_store);
+static DEVICE_ATTR(arb_address, 0644, value_show, value_store);
+static DEVICE_ATTR(arb_value, 0644, value_show, value_store);
 
 static struct attribute *dci_attrs[] = {
 	&dev_attr_ni_state.attr,

@@ -21,7 +21,7 @@ static ssize_t state_show(struct device *dev, struct device_attribute *attr,
 	return sprintf(buf, "%s\n", state ? "locked" : "");
 }
 
-DEVICE_ATTR_RO(state);
+static DEVICE_ATTR_RO(state);
 
 static struct attribute *dev_attrs[] = {
 	&dev_attr_state.attr,
