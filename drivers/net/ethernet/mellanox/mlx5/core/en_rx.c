@@ -870,10 +870,8 @@ struct sk_buff *skb_from_cqe(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe,
 	data           = va + rx_headroom;
 	frag_size      = MLX5_SKB_FRAG_SZ(rx_headroom + cqe_bcnt);
 
-	dma_sync_single_range_for_cpu(rq->pdev,
-				      di->addr + wi->offset,
-				      0, frag_size,
-				      DMA_FROM_DEVICE);
+	dma_sync_single_range_for_cpu(rq->pdev, di->addr, wi->offset,
+				      frag_size, DMA_FROM_DEVICE);
 	prefetch(data);
 	wi->offset += frag_size;
 
