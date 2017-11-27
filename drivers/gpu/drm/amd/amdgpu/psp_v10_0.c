@@ -32,7 +32,7 @@
 
 #include "soc15ip.h"
 #include "raven1/MP/mp_10_0_offset.h"
-#include "raven1/GC/gc_9_1_offset.h"
+#include "gc/gc_9_1_offset.h"
 #include "sdma0/sdma0_4_1_offset.h"
 
 MODULE_FIRMWARE("amdgpu/raven_asd.bin");
