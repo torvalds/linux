@@ -1233,14 +1233,16 @@ static int __init pi433_init(void)
 
 	pi433_class = class_create(THIS_MODULE, "pi433");
 	if (IS_ERR(pi433_class)) {
-		unregister_chrdev(MAJOR(pi433_dev), pi433_spi_driver.driver.name);
+		unregister_chrdev(MAJOR(pi433_dev),
+				  pi433_spi_driver.driver.name);
 		return PTR_ERR(pi433_class);
 	}
 
 	status = spi_register_driver(&pi433_spi_driver);
 	if (status < 0) {
 		class_destroy(pi433_class);
-		unregister_chrdev(MAJOR(pi433_dev), pi433_spi_driver.driver.name);
+		unregister_chrdev(MAJOR(pi433_dev),
+				  pi433_spi_driver.driver.name);
 	}
 
 	return status;
