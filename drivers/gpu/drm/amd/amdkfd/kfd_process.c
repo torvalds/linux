@@ -49,6 +49,7 @@ DEFINE_STATIC_SRCU(kfd_processes_srcu);
 static struct workqueue_struct *kfd_process_wq;
 
 static struct kfd_process *find_process(const struct task_struct *thread);
+static void kfd_process_ref_release(struct kref *ref);
 static struct kfd_process *create_process(const struct task_struct *thread);
 static int kfd_process_init_cwsr(struct kfd_process *p, struct file *filep);
 
@@ -146,6 +147,11 @@ static struct kfd_process *find_process(const struct task_struct *thread)
 	return p;
 }
 
+void kfd_unref_process(struct kfd_process *p)
+{
+	kref_put(&p->ref, kfd_process_ref_release);
+}
+
 /* No process locking is needed in this function, because the process
  * is not findable any more. We must assume that no other thread is
  * using it any more, otherwise we couldn't safely free the process
@@ -201,7 +207,7 @@ static void kfd_process_destroy_delayed(struct rcu_head *rcu)
 {
 	struct kfd_process *p = container_of(rcu, struct kfd_process, rcu);
 
-	kref_put(&p->ref, kfd_process_ref_release);
+	kfd_unref_process(p);
 }
 
 static void kfd_process_notifier_release(struct mmu_notifier *mn,
@@ -525,6 +531,8 @@ void kfd_process_iommu_unbind_callback(struct kfd_dev *dev, unsigned int pasid)
 
 	mutex_unlock(kfd_get_dbgmgr_mutex());
 
+	mutex_lock(&p->mutex);
+
 	pdd = kfd_get_process_device_data(dev, p);
 	if (pdd)
 		/* For GPU relying on IOMMU, we need to dequeue here
@@ -533,6 +541,8 @@ void kfd_process_iommu_unbind_callback(struct kfd_dev *dev, unsigned int pasid)
 		kfd_process_dequeue_from_device(pdd);
 
 	mutex_unlock(&p->mutex);
+
+	kfd_unref_process(p);
 }
 
 struct kfd_process_device *kfd_get_first_process_device_data(
@@ -557,7 +567,7 @@ bool kfd_has_process_device_data(struct kfd_process *p)
 	return !(list_empty(&p->per_device_data));
 }
 
-/* This returns with process->mutex locked. */
+/* This increments the process->ref counter. */
 struct kfd_process *kfd_lookup_process_by_pasid(unsigned int pasid)
 {
 	struct kfd_process *p;
@@ -567,7 +577,7 @@ struct kfd_process *kfd_lookup_process_by_pasid(unsigned int pasid)
 
 	hash_for_each_rcu(kfd_processes_table, temp, p, kfd_processes) {
 		if (p->pasid == pasid) {
-			mutex_lock(&p->mutex);
+			kref_get(&p->ref);
 			break;
 		}
 	}
