@@ -418,7 +418,7 @@
 		reg = <0x1010a000 0x200>;
 		interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru ACLK_CIF>, <&cru HCLK_CIF>,
-				<&cru SCLK_CIF_SRC>, <&cru SCLK_CIF_OUT_SRC>;
+				<&cru SCLK_CIF_SRC>, <&cru SCLK_CIF_OUT>;
 		clock-names = "aclk_cif0", "hclk_cif0",
 				"cif0_in", "cif0_out";
 		resets = <&cru SRST_CIF0>;
