@@ -24,6 +24,7 @@
 #include <linux/log2.h>
 #include <linux/sched.h>
 #include <linux/sched/mm.h>
+#include <linux/sched/task.h>
 #include <linux/slab.h>
 #include <linux/amd-iommu.h>
 #include <linux/notifier.h>
@@ -191,6 +192,8 @@ static void kfd_process_wq_release(struct work_struct *work)
 
 	mutex_destroy(&p->mutex);
 
+	put_task_struct(p->lead_thread);
+
 	kfree(p);
 
 	kfree(work);
@@ -342,6 +345,7 @@ static struct kfd_process *create_process(const struct task_struct *thread)
 			(uintptr_t)process->mm);
 
 	process->lead_thread = thread->group_leader;
+	get_task_struct(process->lead_thread);
 
 	INIT_LIST_HEAD(&process->per_device_data);
 
