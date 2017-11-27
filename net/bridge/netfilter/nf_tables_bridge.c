@@ -106,12 +106,6 @@ static int nf_br_reroute(struct net *net, struct sk_buff *skb,
 	return 0;
 }
 
-static __sum16 nf_br_checksum(struct sk_buff *skb, unsigned int hook,
-			      unsigned int dataoff, u_int8_t protocol)
-{
-	return 0;
-}
-
 static __sum16 nf_br_checksum_partial(struct sk_buff *skb, unsigned int hook,
 				      unsigned int dataoff, unsigned int len,
 				      u_int8_t protocol)
@@ -127,7 +121,6 @@ static int nf_br_route(struct net *net, struct dst_entry **dst,
 
 static const struct nf_afinfo nf_br_afinfo = {
 	.family                 = AF_BRIDGE,
-	.checksum               = nf_br_checksum,
 	.checksum_partial       = nf_br_checksum_partial,
 	.route                  = nf_br_route,
 	.saveroute              = nf_br_saveroute,
