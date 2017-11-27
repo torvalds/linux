@@ -1162,20 +1162,8 @@ static void amdgpu_check_block_size(struct amdgpu_device *adev)
 	if (amdgpu_vm_block_size < 9) {
 		dev_warn(adev->dev, "VM page table size (%d) too small\n",
 			 amdgpu_vm_block_size);
-		goto def_value;
+		amdgpu_vm_block_size = -1;
 	}
-
-	if (amdgpu_vm_block_size > 24 ||
-	    (amdgpu_vm_size * 1024) < (1ull << amdgpu_vm_block_size)) {
-		dev_warn(adev->dev, "VM page table size (%d) too large\n",
-			 amdgpu_vm_block_size);
-		goto def_value;
-	}
-
-	return;
-
-def_value:
-	amdgpu_vm_block_size = -1;
 }
 
 static void amdgpu_check_vm_size(struct amdgpu_device *adev)

@@ -2600,18 +2600,21 @@ void amdgpu_vm_adjust_size(struct amdgpu_device *adev, uint32_t vm_size,
 	adev->vm_manager.max_pfn = (uint64_t)vm_size << 18;
 
 	tmp = roundup_pow_of_two(adev->vm_manager.max_pfn);
+	if (amdgpu_vm_block_size != -1)
+		tmp >>= amdgpu_vm_block_size - 9;
 	tmp = DIV_ROUND_UP(fls64(tmp) - 1, 9) - 1;
 	adev->vm_manager.num_level = min(max_level, (unsigned)tmp);
 
 	/* block size depends on vm size and hw setup*/
-	if (adev->vm_manager.num_level > 1)
-		/* Use fixed block_size for multi level page tables */
-		adev->vm_manager.block_size = 9;
-	else if (amdgpu_vm_block_size == -1)
+	if (amdgpu_vm_block_size != -1)
 		adev->vm_manager.block_size =
-			amdgpu_vm_get_block_size(vm_size);
+			min((unsigned)amdgpu_vm_block_size, max_bits
+			    - AMDGPU_GPU_PAGE_SHIFT
+			    - 9 * adev->vm_manager.num_level);
+	else if (adev->vm_manager.num_level > 1)
+		adev->vm_manager.block_size = 9;
 	else
-		adev->vm_manager.block_size = amdgpu_vm_block_size;
+		adev->vm_manager.block_size = amdgpu_vm_get_block_size(tmp);
 
 	if (amdgpu_vm_fragment_size == -1)
 		adev->vm_manager.fragment_size = fragment_size_default;
