@@ -34,6 +34,8 @@
  */
 #define GPIO_MOCKUP_MAX_RANGES	(GPIO_MOCKUP_MAX_GC * 2)
 
+#define gpio_mockup_err(...)	pr_err(GPIO_MOCKUP_NAME ": " __VA_ARGS__)
+
 enum {
 	GPIO_MOCKUP_DIR_OUT = 0,
 	GPIO_MOCKUP_DIR_IN = 1,
@@ -344,13 +346,11 @@ static int __init gpio_mockup_init(void)
 
 	gpio_mockup_dbg_dir = debugfs_create_dir("gpio-mockup-event", NULL);
 	if (!gpio_mockup_dbg_dir)
-		pr_err("%s: error creating debugfs directory\n",
-		       GPIO_MOCKUP_NAME);
+		gpio_mockup_err("error creating debugfs directory\n");
 
 	err = platform_driver_register(&gpio_mockup_driver);
 	if (err) {
-		pr_err("%s: error registering platform driver\n",
-		       GPIO_MOCKUP_NAME);
+		gpio_mockup_err("error registering platform driver\n");
 		return err;
 	}
 
@@ -366,8 +366,7 @@ static int __init gpio_mockup_init(void)
 							 i, NULL, 0, &pdata,
 							 sizeof(pdata));
 		if (!pdev) {
-			pr_err("%s: error registering device",
-			       GPIO_MOCKUP_NAME);
+			gpio_mockup_err("error registering device");
 			platform_driver_unregister(&gpio_mockup_driver);
 			gpio_mockup_unregister_pdevs();
 			return -ENOMEM;
