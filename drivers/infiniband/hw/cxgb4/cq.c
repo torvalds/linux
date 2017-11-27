@@ -410,6 +410,11 @@ next_cqe:
 
 static int cqe_completes_wr(struct t4_cqe *cqe, struct t4_wq *wq)
 {
+	if (CQE_OPCODE(cqe) == C4IW_DRAIN_OPCODE) {
+		WARN_ONCE(1, "Unexpected DRAIN CQE qp id %u!\n", wq->sq.qid);
+		return 0;
+	}
+
 	if (CQE_OPCODE(cqe) == FW_RI_TERMINATE)
 		return 0;
 
