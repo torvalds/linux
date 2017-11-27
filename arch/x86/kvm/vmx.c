@@ -3846,6 +3846,19 @@ static void free_loaded_vmcs(struct loaded_vmcs *loaded_vmcs)
 	WARN_ON(loaded_vmcs->shadow_vmcs != NULL);
 }
 
+static void vmx_nested_free_vmcs02(struct vcpu_vmx *vmx)
+{
+	struct loaded_vmcs *loaded_vmcs = &vmx->nested.vmcs02;
+
+	/*
+	 * Just leak the VMCS02 if the WARN triggers. Better than
+	 * a use-after-free.
+	 */
+	if (WARN_ON(vmx->loaded_vmcs == loaded_vmcs))
+		return;
+	free_loaded_vmcs(loaded_vmcs);
+}
+
 static void free_kvm_area(void)
 {
 	int cpu;
@@ -7203,7 +7216,7 @@ out_cached_vmcs12:
 	free_page((unsigned long)vmx->nested.msr_bitmap);
 
 out_msr_bitmap:
-	free_loaded_vmcs(&vmx->nested.vmcs02);
+	vmx_nested_free_vmcs02(vmx);
 
 out_vmcs02:
 	return -ENOMEM;
@@ -7375,7 +7388,7 @@ static void free_nested(struct vcpu_vmx *vmx)
 		vmx->nested.pi_desc = NULL;
 	}
 
-	free_loaded_vmcs(&vmx->nested.vmcs02);
+	vmx_nested_free_vmcs02(vmx);
 }
 
 /* Emulate the VMXOFF instruction */
