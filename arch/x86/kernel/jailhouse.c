@@ -9,6 +9,7 @@
  */
 
 #include <linux/kernel.h>
+#include <asm/apic.h>
 #include <asm/cpu.h>
 #include <asm/hypervisor.h>
 #include <asm/setup.h>
@@ -29,11 +30,42 @@ static uint32_t __init jailhouse_detect(void)
 	return jailhouse_cpuid_base();
 }
 
+static void __init jailhouse_get_smp_config(unsigned int early)
+{
+	unsigned int cpu;
+
+	if (x2apic_enabled()) {
+		/*
+		 * We do not have access to IR inside Jailhouse non-root cells.
+		 * So we have to run in physical mode.
+		 */
+		x2apic_phys = 1;
+
+		/*
+		 * This will trigger the switch to apic_x2apic_phys.
+		 * Empty OEM IDs ensure that only this APIC driver picks up
+		 * the call.
+		 */
+		default_acpi_madt_oem_check("", "");
+	}
+
+	register_lapic_address(0xfee00000);
+
+	for (cpu = 0; cpu < setup_data.num_cpus; cpu++) {
+		generic_processor_info(setup_data.cpu_ids[cpu],
+				       boot_cpu_apic_version);
+	}
+
+	smp_found_config = 1;
+}
+
 static void __init jailhouse_init_platform(void)
 {
 	u64 pa_data = boot_params.hdr.setup_data;
 	struct setup_data header;
 	void *mapping;
+
+	x86_init.mpparse.get_smp_config	= jailhouse_get_smp_config;
 
 	while (pa_data) {
 		mapping = early_memremap(pa_data, sizeof(header));
@@ -66,8 +98,18 @@ bool jailhouse_paravirt(void)
 	return jailhouse_cpuid_base() != 0;
 }
 
+static bool jailhouse_x2apic_available(void)
+{
+	/*
+	 * The x2APIC is only available if the root cell enabled it. Jailhouse
+	 * does not support switching between xAPIC and x2APIC.
+	 */
+	return x2apic_enabled();
+}
+
 const struct hypervisor_x86 x86_hyper_jailhouse __refconst = {
 	.name			= "Jailhouse",
 	.detect			= jailhouse_detect,
 	.init.init_platform	= jailhouse_init_platform,
+	.init.x2apic_available	= jailhouse_x2apic_available,
 };
