@@ -196,7 +196,7 @@
 
 &codec {
 	#sound-dai-cells = <0>;
-	hp-ctl-gpios = <&gpio2 17 GPIO_ACTIVE_LOW>;
+	hp-ctl-gpios = <&gpio2 17 GPIO_ACTIVE_HIGH>;
 	spk-ctl-gpios = <&gpio2 10 GPIO_ACTIVE_HIGH>;
 	spk-mute-delay = <200>;
 	hp-mute-delay = <100>;
