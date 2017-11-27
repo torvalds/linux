@@ -463,7 +463,7 @@ struct ath10k_fw_crash_data {
 	bool crashed_since_read;
 
 	guid_t guid;
-	struct timespec timestamp;
+	struct timespec64 timestamp;
 	__le32 registers[REG_DUMP_COUNT_QCA988X];
 	struct ath10k_ce_crash_data ce_crash_data[CE_COUNT_MAX];
 };

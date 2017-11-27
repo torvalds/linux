@@ -720,7 +720,7 @@ ath10k_debug_get_new_fw_crash_data(struct ath10k *ar)
 
 	crash_data->crashed_since_read = true;
 	guid_gen(&crash_data->guid);
-	getnstimeofday(&crash_data->timestamp);
+	ktime_get_real_ts64(&crash_data->timestamp);
 
 	return crash_data;
 }
