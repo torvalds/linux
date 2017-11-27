@@ -125,6 +125,12 @@ static void __init jailhouse_init_platform(void)
 	pr_debug("Jailhouse: PM-Timer IO Port: %#x\n", pmtmr_ioport);
 
 	precalibrated_tsc_khz = setup_data.tsc_khz;
+
+	/*
+	 * Avoid that the kernel complains about missing ACPI tables - there
+	 * are none in a non-root cell.
+	 */
+	disable_acpi();
 }
 
 bool jailhouse_paravirt(void)
