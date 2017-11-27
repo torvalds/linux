@@ -218,7 +218,7 @@ struct mpcc *mpc1_insert_plane(
 	if (tree->opp_list == insert_above_mpcc) {
 		/* insert the toppest mpcc */
 		tree->opp_list = new_mpcc;
-		REG_SET(MUX[tree->opp_id], 0, MPC_OUT_MUX, mpcc_id);
+		REG_UPDATE(MUX[tree->opp_id], MPC_OUT_MUX, mpcc_id);
 	} else {
 		/* find insert position */
 		struct mpcc *temp_mpcc = tree->opp_list;
@@ -275,11 +275,11 @@ void mpc1_remove_mpcc(
 		if (mpcc_to_remove->mpcc_bot) {
 			/* set the next MPCC in list to be the top MPCC */
 			tree->opp_list = mpcc_to_remove->mpcc_bot;
-			REG_SET(MUX[tree->opp_id], 0, MPC_OUT_MUX, tree->opp_list->mpcc_id);
+			REG_UPDATE(MUX[tree->opp_id], MPC_OUT_MUX, tree->opp_list->mpcc_id);
 		} else {
 			/* there are no other MPCC is list */
 			tree->opp_list = NULL;
-			REG_SET(MUX[tree->opp_id], 0, MPC_OUT_MUX, 0xf);
+			REG_UPDATE(MUX[tree->opp_id], MPC_OUT_MUX, 0xf);
 		}
 	} else {
 		/* find mpcc to remove MPCC list */
@@ -359,7 +359,7 @@ void mpc1_mpc_init(struct mpc *mpc)
 
 	for (opp_id = 0; opp_id < MAX_OPP; opp_id++) {
 		if (REG(MUX[opp_id]))
-			REG_SET(MUX[opp_id], 0, MPC_OUT_MUX, 0xf);
+			REG_UPDATE(MUX[opp_id], MPC_OUT_MUX, 0xf);
 	}
 }
 
