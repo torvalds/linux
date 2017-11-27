@@ -50,7 +50,8 @@ static struct workqueue_struct *kfd_process_wq;
 
 static struct kfd_process *find_process(const struct task_struct *thread);
 static void kfd_process_ref_release(struct kref *ref);
-static struct kfd_process *create_process(const struct task_struct *thread);
+static struct kfd_process *create_process(const struct task_struct *thread,
+					struct file *filep);
 static int kfd_process_init_cwsr(struct kfd_process *p, struct file *filep);
 
 
@@ -80,9 +81,6 @@ struct kfd_process *kfd_create_process(struct file *filep)
 	if (thread->group_leader->mm != thread->mm)
 		return ERR_PTR(-EINVAL);
 
-	/* Take mmap_sem because we call __mmu_notifier_register inside */
-	down_write(&thread->mm->mmap_sem);
-
 	/*
 	 * take kfd processes mutex before starting of process creation
 	 * so there won't be a case where two threads of the same process
@@ -94,15 +92,10 @@ struct kfd_process *kfd_create_process(struct file *filep)
 	process = find_process(thread);
 	if (process)
 		pr_debug("Process already found\n");
-
-	if (!process)
-		process = create_process(thread);
+	else
+		process = create_process(thread, filep);
 
 	mutex_unlock(&kfd_processes_mutex);
-
-	up_write(&thread->mm->mmap_sem);
-
-	kfd_process_init_cwsr(process, filep);
 
 	return process;
 }
@@ -274,15 +267,12 @@ static const struct mmu_notifier_ops kfd_process_mmu_notifier_ops = {
 
 static int kfd_process_init_cwsr(struct kfd_process *p, struct file *filep)
 {
-	int err = 0;
 	unsigned long  offset;
-	struct kfd_process_device *temp, *pdd = NULL;
+	struct kfd_process_device *pdd = NULL;
 	struct kfd_dev *dev = NULL;
 	struct qcm_process_device *qpd = NULL;
 
-	mutex_lock(&p->mutex);
-	list_for_each_entry_safe(pdd, temp, &p->per_device_data,
-				per_device_list) {
+	list_for_each_entry(pdd, &p->per_device_data, per_device_list) {
 		dev = pdd->dev;
 		qpd = &pdd->qpd;
 		if (!dev->cwsr_enabled || qpd->cwsr_kaddr)
@@ -293,12 +283,12 @@ static int kfd_process_init_cwsr(struct kfd_process *p, struct file *filep)
 			MAP_SHARED, offset);
 
 		if (IS_ERR_VALUE(qpd->tba_addr)) {
-			pr_err("Failure to set tba address. error -%d.\n",
-				(int)qpd->tba_addr);
-			err = qpd->tba_addr;
+			int err = qpd->tba_addr;
+
+			pr_err("Failure to set tba address. error %d.\n", err);
 			qpd->tba_addr = 0;
 			qpd->cwsr_kaddr = NULL;
-			goto out;
+			return err;
 		}
 
 		memcpy(qpd->cwsr_kaddr, dev->cwsr_isa, dev->cwsr_isa_size);
@@ -307,12 +297,12 @@ static int kfd_process_init_cwsr(struct kfd_process *p, struct file *filep)
 		pr_debug("set tba :0x%llx, tma:0x%llx, cwsr_kaddr:%p for pqm.\n",
 			qpd->tba_addr, qpd->tma_addr, qpd->cwsr_kaddr);
 	}
-out:
-	mutex_unlock(&p->mutex);
-	return err;
+
+	return 0;
 }
 
-static struct kfd_process *create_process(const struct task_struct *thread)
+static struct kfd_process *create_process(const struct task_struct *thread,
+					struct file *filep)
 {
 	struct kfd_process *process;
 	int err = -ENOMEM;
@@ -337,7 +327,7 @@ static struct kfd_process *create_process(const struct task_struct *thread)
 
 	/* register notifier */
 	process->mmu_notifier.ops = &kfd_process_mmu_notifier_ops;
-	err = __mmu_notifier_register(&process->mmu_notifier, process->mm);
+	err = mmu_notifier_register(&process->mmu_notifier, process->mm);
 	if (err)
 		goto err_mmu_notifier;
 
@@ -361,8 +351,14 @@ static struct kfd_process *create_process(const struct task_struct *thread)
 	if (err != 0)
 		goto err_init_apertures;
 
+	err = kfd_process_init_cwsr(process, filep);
+	if (err)
+		goto err_init_cwsr;
+
 	return process;
 
+err_init_cwsr:
+	kfd_process_destroy_pdds(process);
 err_init_apertures:
 	pqm_uninit(&process->pqm);
 err_process_pqm_init:
