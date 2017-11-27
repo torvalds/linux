@@ -34,8 +34,8 @@
 
 #include "hw_factory_dcn10.h"
 
-#include "raven1/DCN/dcn_1_0_offset.h"
-#include "raven1/DCN/dcn_1_0_sh_mask.h"
+#include "dcn/dcn_1_0_offset.h"
+#include "dcn/dcn_1_0_sh_mask.h"
 #include "soc15ip.h"
 
 #define block HPD
