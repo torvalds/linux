@@ -934,7 +934,7 @@ static int do_boot_cpu(int apicid, int cpu, struct task_struct *idle,
 	 * the targeted processor.
 	 */
 
-	if (get_uv_system_type() != UV_NON_UNIQUE_APIC) {
+	if (x86_platform.legacy.warm_reset) {
 
 		pr_debug("Setting warm reset code and vector.\n");
 
@@ -1006,7 +1006,7 @@ static int do_boot_cpu(int apicid, int cpu, struct task_struct *idle,
 	/* mark "stuck" area as not stuck */
 	*trampoline_status = 0;
 
-	if (get_uv_system_type() != UV_NON_UNIQUE_APIC) {
+	if (x86_platform.legacy.warm_reset) {
 		/*
 		 * Cleanup possible dangling ends...
 		 */
