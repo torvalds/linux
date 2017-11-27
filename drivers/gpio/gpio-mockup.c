@@ -335,6 +335,15 @@ static int __init gpio_mockup_init(void)
 	/* Each chip is described by two values. */
 	num_chips = gpio_mockup_params_nr / 2;
 
+	/*
+	 * The second value in the <base GPIO - number of GPIOS> pair must
+	 * always be greater than 0.
+	 */
+	for (i = 0; i < num_chips; i++) {
+		if (gpio_mockup_ranges[i * 2 + 1] < 0)
+			return -EINVAL;
+	}
+
 	gpio_mockup_dbg_dir = debugfs_create_dir("gpio-mockup-event", NULL);
 	if (IS_ERR_OR_NULL(gpio_mockup_dbg_dir))
 		gpio_mockup_err("error creating debugfs directory\n");
