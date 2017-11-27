@@ -570,7 +570,7 @@ bool kfd_has_process_device_data(struct kfd_process *p)
 /* This increments the process->ref counter. */
 struct kfd_process *kfd_lookup_process_by_pasid(unsigned int pasid)
 {
-	struct kfd_process *p;
+	struct kfd_process *p, *ret_p = NULL;
 	unsigned int temp;
 
 	int idx = srcu_read_lock(&kfd_processes_srcu);
@@ -578,13 +578,14 @@ struct kfd_process *kfd_lookup_process_by_pasid(unsigned int pasid)
 	hash_for_each_rcu(kfd_processes_table, temp, p, kfd_processes) {
 		if (p->pasid == pasid) {
 			kref_get(&p->ref);
+			ret_p = p;
 			break;
 		}
 	}
 
 	srcu_read_unlock(&kfd_processes_srcu, idx);
 
-	return p;
+	return ret_p;
 }
 
 int kfd_reserved_mem_mmap(struct kfd_process *process,
