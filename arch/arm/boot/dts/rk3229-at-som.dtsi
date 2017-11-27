@@ -273,9 +273,22 @@
 };
 
 &spi0 {
+	status = "okay";
+	max-freq = <48000000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&spi1_clk &spi1_tx &spi1_rx &spi1_cs0 &spi1_cs1>;
-	status = "okay";
+
+	spi_slave@0 {
+		compatible = "rockchip,spidev";
+		reg = <0>;
+		spi-max-frequency = <12000000>;
+	};
+
+	spi_slave@1 {
+		compatible = "rockchip,spidev";
+		reg = <1>;
+		spi-max-frequency = <12000000>;
+	};
 };
 
 &u2phy0 {
