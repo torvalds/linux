@@ -21,6 +21,7 @@
 #include <errno.h>
 #include "bench.h"
 #include "futex.h"
+#include "cpumap.h"
 
 #include <err.h>
 #include <stdlib.h>
@@ -43,7 +44,7 @@ static unsigned int nblocked_threads = 0, nwaking_threads = 0;
 static pthread_mutex_t thread_lock;
 static pthread_cond_t thread_parent, thread_worker;
 static struct stats waketime_stats, wakeup_stats;
-static unsigned int ncpus, threads_starting;
+static unsigned int threads_starting;
 static int futex_flag = 0;
 
 static const struct option options[] = {
@@ -119,19 +120,20 @@ static void *blocked_workerfn(void *arg __maybe_unused)
 	return NULL;
 }
 
-static void block_threads(pthread_t *w, pthread_attr_t thread_attr)
+static void block_threads(pthread_t *w, pthread_attr_t thread_attr,
+			  struct cpu_map *cpu)
 {
-	cpu_set_t cpu;
+	cpu_set_t cpuset;
 	unsigned int i;
 
 	threads_starting = nblocked_threads;
 
 	/* create and block all threads */
 	for (i = 0; i < nblocked_threads; i++) {
-		CPU_ZERO(&cpu);
-		CPU_SET(i % ncpus, &cpu);
+		CPU_ZERO(&cpuset);
+		CPU_SET(cpu->map[i % cpu->nr], &cpuset);
 
-		if (pthread_attr_setaffinity_np(&thread_attr, sizeof(cpu_set_t), &cpu))
+		if (pthread_attr_setaffinity_np(&thread_attr, sizeof(cpu_set_t), &cpuset))
 			err(EXIT_FAILURE, "pthread_attr_setaffinity_np");
 
 		if (pthread_create(&w[i], &thread_attr, blocked_workerfn, NULL))
@@ -205,6 +207,7 @@ int bench_futex_wake_parallel(int argc, const char **argv)
 	struct sigaction act;
 	pthread_attr_t thread_attr;
 	struct thread_data *waking_worker;
+	struct cpu_map *cpu;
 
 	argc = parse_options(argc, argv, options,
 			     bench_futex_wake_parallel_usage, 0);
@@ -217,9 +220,12 @@ int bench_futex_wake_parallel(int argc, const char **argv)
 	act.sa_sigaction = toggle_done;
 	sigaction(SIGINT, &act, NULL);
 
-	ncpus = sysconf(_SC_NPROCESSORS_ONLN);
+	cpu = cpu_map__new(NULL);
+	if (!cpu)
+		err(EXIT_FAILURE, "calloc");
+
 	if (!nblocked_threads)
-		nblocked_threads = ncpus;
+		nblocked_threads = cpu->nr;
 
 	/* some sanity checks */
 	if (nwaking_threads > nblocked_threads || !nwaking_threads)
@@ -259,7 +265,7 @@ int bench_futex_wake_parallel(int argc, const char **argv)
 			err(EXIT_FAILURE, "calloc");
 
 		/* create, launch & block all threads */
-		block_threads(blocked_worker, thread_attr);
+		block_threads(blocked_worker, thread_attr, cpu);
 
 		/* make sure all threads are already blocked */
 		pthread_mutex_lock(&thread_lock);
