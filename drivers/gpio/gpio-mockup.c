@@ -72,8 +72,8 @@ struct gpio_mockup_platform_data {
 };
 
 static int gpio_mockup_ranges[GPIO_MOCKUP_MAX_RANGES];
-static int gpio_mockup_params_nr;
-module_param_array(gpio_mockup_ranges, int, &gpio_mockup_params_nr, 0400);
+static int gpio_mockup_num_ranges;
+module_param_array(gpio_mockup_ranges, int, &gpio_mockup_num_ranges, 0400);
 
 static bool gpio_mockup_named_lines;
 module_param_named(gpio_mockup_named_lines,
@@ -338,13 +338,13 @@ static int __init gpio_mockup_init(void)
 	struct gpio_mockup_platform_data pdata;
 	struct platform_device *pdev;
 
-	if ((gpio_mockup_params_nr < 2) ||
-	    (gpio_mockup_params_nr % 2) ||
-	    (gpio_mockup_params_nr > GPIO_MOCKUP_MAX_RANGES))
+	if ((gpio_mockup_num_ranges < 2) ||
+	    (gpio_mockup_num_ranges % 2) ||
+	    (gpio_mockup_num_ranges > GPIO_MOCKUP_MAX_RANGES))
 		return -EINVAL;
 
 	/* Each chip is described by two values. */
-	num_chips = gpio_mockup_params_nr / 2;
+	num_chips = gpio_mockup_num_ranges / 2;
 
 	/*
 	 * The second value in the <base GPIO - number of GPIOS> pair must
