@@ -266,7 +266,6 @@ void nf_reinject(struct nf_queue_entry *entry, unsigned int verdict)
 	const struct nf_hook_entry *hook_entry;
 	const struct nf_hook_entries *hooks;
 	struct sk_buff *skb = entry->skb;
-	const struct nf_afinfo *afinfo;
 	const struct net *net;
 	unsigned int i;
 	int err;
@@ -293,8 +292,7 @@ void nf_reinject(struct nf_queue_entry *entry, unsigned int verdict)
 		verdict = nf_hook_entry_hookfn(hook_entry, skb, &entry->state);
 
 	if (verdict == NF_ACCEPT) {
-		afinfo = nf_get_afinfo(entry->state.pf);
-		if (!afinfo || afinfo->reroute(entry->state.net, skb, entry) < 0)
+		if (nf_reroute(skb, entry) < 0)
 			verdict = NF_DROP;
 	}
 

@@ -95,15 +95,8 @@ static const struct nf_chain_type filter_bridge = {
 	},
 };
 
-static int nf_br_reroute(struct net *net, struct sk_buff *skb,
-			 const struct nf_queue_entry *entry)
-{
-	return 0;
-}
-
 static const struct nf_afinfo nf_br_afinfo = {
 	.family                 = AF_BRIDGE,
-	.reroute                = nf_br_reroute,
 	.route_key_size         = 0,
 };
 

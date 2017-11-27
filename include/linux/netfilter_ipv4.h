@@ -18,6 +18,8 @@ struct ip_rt_info {
 
 int ip_route_me_harder(struct net *net, struct sk_buff *skb, unsigned addr_type);
 
+struct nf_queue_entry;
+
 #ifdef CONFIG_INET
 __sum16 nf_ip_checksum(struct sk_buff *skb, unsigned int hook,
 		       unsigned int dataoff, u_int8_t protocol);
@@ -26,6 +28,7 @@ __sum16 nf_ip_checksum_partial(struct sk_buff *skb, unsigned int hook,
 			       u_int8_t protocol);
 int nf_ip_route(struct net *net, struct dst_entry **dst, struct flowi *fl,
 		bool strict);
+int nf_ip_reroute(struct sk_buff *skb, const struct nf_queue_entry *entry);
 #else
 static inline __sum16 nf_ip_checksum(struct sk_buff *skb, unsigned int hook,
 				     unsigned int dataoff, u_int8_t protocol)
@@ -42,6 +45,11 @@ static inline __sum16 nf_ip_checksum_partial(struct sk_buff *skb,
 }
 static inline int nf_ip_route(struct net *net, struct dst_entry **dst,
 			      struct flowi *fl, bool strict)
+{
+	return -EOPNOTSUPP;
+}
+static inline int nf_ip_reroute(struct sk_buff *skb,
+				const struct nf_queue_entry *entry)
 {
 	return -EOPNOTSUPP;
 }

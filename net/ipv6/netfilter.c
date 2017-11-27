@@ -68,7 +68,7 @@ int ip6_route_me_harder(struct net *net, struct sk_buff *skb)
 }
 EXPORT_SYMBOL(ip6_route_me_harder);
 
-static int nf_ip6_reroute(struct net *net, struct sk_buff *skb,
+static int nf_ip6_reroute(struct sk_buff *skb,
 			  const struct nf_queue_entry *entry)
 {
 	struct ip6_rt_info *rt_info = nf_queue_entry_reroute(entry);
@@ -78,7 +78,7 @@ static int nf_ip6_reroute(struct net *net, struct sk_buff *skb,
 		if (!ipv6_addr_equal(&iph->daddr, &rt_info->daddr) ||
 		    !ipv6_addr_equal(&iph->saddr, &rt_info->saddr) ||
 		    skb->mark != rt_info->mark)
-			return ip6_route_me_harder(net, skb);
+			return ip6_route_me_harder(entry->state.net, skb);
 	}
 	return 0;
 }
@@ -171,11 +171,11 @@ static const struct nf_ipv6_ops ipv6ops = {
 	.checksum		= nf_ip6_checksum,
 	.checksum_partial	= nf_ip6_checksum_partial,
 	.route			= nf_ip6_route,
+	.reroute		= nf_ip6_reroute,
 };
 
 static const struct nf_afinfo nf_ip6_afinfo = {
 	.family			= AF_INET6,
-	.reroute		= nf_ip6_reroute,
 	.route_key_size		= sizeof(struct ip6_rt_info),
 };
 

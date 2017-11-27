@@ -18,6 +18,8 @@ struct ip6_rt_info {
 	u_int32_t mark;
 };
 
+struct nf_queue_entry;
+
 /*
  * Hook functions for ipv6 to allow xt_* modules to be built-in even
  * if IPv6 is a module.
@@ -35,6 +37,7 @@ struct nf_ipv6_ops {
 				    u_int8_t protocol);
 	int (*route)(struct net *net, struct dst_entry **dst, struct flowi *fl,
 		     bool strict);
+	int (*reroute)(struct sk_buff *skb, const struct nf_queue_entry *entry);
 };
 
 #ifdef CONFIG_NETFILTER

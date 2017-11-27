@@ -80,8 +80,7 @@ int ip_route_me_harder(struct net *net, struct sk_buff *skb, unsigned int addr_t
 }
 EXPORT_SYMBOL(ip_route_me_harder);
 
-static int nf_ip_reroute(struct net *net, struct sk_buff *skb,
-			 const struct nf_queue_entry *entry)
+int nf_ip_reroute(struct sk_buff *skb, const struct nf_queue_entry *entry)
 {
 	const struct ip_rt_info *rt_info = nf_queue_entry_reroute(entry);
 
@@ -92,10 +91,12 @@ static int nf_ip_reroute(struct net *net, struct sk_buff *skb,
 		      skb->mark == rt_info->mark &&
 		      iph->daddr == rt_info->daddr &&
 		      iph->saddr == rt_info->saddr))
-			return ip_route_me_harder(net, skb, RTN_UNSPEC);
+			return ip_route_me_harder(entry->state.net, skb,
+						  RTN_UNSPEC);
 	}
 	return 0;
 }
+EXPORT_SYMBOL_GPL(nf_ip_reroute);
 
 __sum16 nf_ip_checksum(struct sk_buff *skb, unsigned int hook,
 			    unsigned int dataoff, u_int8_t protocol)
@@ -163,7 +164,6 @@ EXPORT_SYMBOL_GPL(nf_ip_route);
 
 static const struct nf_afinfo nf_ip_afinfo = {
 	.family			= AF_INET,
-	.reroute		= nf_ip_reroute,
 	.route_key_size		= sizeof(struct ip_rt_info),
 };
 

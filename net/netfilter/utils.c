@@ -2,6 +2,7 @@
 #include <linux/netfilter.h>
 #include <linux/netfilter_ipv4.h>
 #include <linux/netfilter_ipv6.h>
+#include <net/netfilter/nf_queue.h>
 
 __sum16 nf_checksum(struct sk_buff *skb, unsigned int hook,
 		    unsigned int dataoff, u_int8_t protocol,
@@ -69,3 +70,21 @@ int nf_route(struct net *net, struct dst_entry **dst, struct flowi *fl,
 	return ret;
 }
 EXPORT_SYMBOL_GPL(nf_route);
+
+int nf_reroute(struct sk_buff *skb, struct nf_queue_entry *entry)
+{
+	const struct nf_ipv6_ops *v6ops;
+	int ret = 0;
+
+	switch (entry->state.pf) {
+	case AF_INET:
+		ret = nf_ip_reroute(skb, entry);
+		break;
+	case AF_INET6:
+		v6ops = rcu_dereference(nf_ipv6_ops);
+		if (v6ops)
+			ret = v6ops->reroute(skb, entry);
+		break;
+	}
+	return ret;
+}
