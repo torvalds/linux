@@ -13,6 +13,7 @@
 #include <asm/apic.h>
 #include <asm/cpu.h>
 #include <asm/hypervisor.h>
+#include <asm/i8259.h>
 #include <asm/setup.h>
 
 static __initdata struct jailhouse_setup_data setup_data;
@@ -30,6 +31,11 @@ static uint32_t jailhouse_cpuid_base(void)
 static uint32_t __init jailhouse_detect(void)
 {
 	return jailhouse_cpuid_base();
+}
+
+static void jailhouse_get_wallclock(struct timespec *now)
+{
+	memset(now, 0, sizeof(*now));
 }
 
 static void __init jailhouse_timer_init(void)
@@ -77,11 +83,18 @@ static void __init jailhouse_init_platform(void)
 	struct setup_data header;
 	void *mapping;
 
+	x86_init.irqs.pre_vector_init	= x86_init_noop;
 	x86_init.timers.timer_init	= jailhouse_timer_init;
 	x86_init.mpparse.get_smp_config	= jailhouse_get_smp_config;
 
 	x86_platform.calibrate_cpu	= jailhouse_get_tsc;
 	x86_platform.calibrate_tsc	= jailhouse_get_tsc;
+	x86_platform.get_wallclock	= jailhouse_get_wallclock;
+	x86_platform.legacy.rtc		= 0;
+	x86_platform.legacy.warm_reset	= 0;
+	x86_platform.legacy.i8042	= X86_LEGACY_I8042_PLATFORM_ABSENT;
+
+	legacy_pic			= &null_legacy_pic;
 
 	while (pa_data) {
 		mapping = early_memremap(pa_data, sizeof(header));
