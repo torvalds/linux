@@ -96,6 +96,16 @@ static void gpio_mockup_set(struct gpio_chip *gc,
 	chip->lines[offset].value = !!value;
 }
 
+static void gpio_mockup_set_multiple(struct gpio_chip *gc,
+				     unsigned long *mask, unsigned long *bits)
+{
+	unsigned int bit;
+
+	for_each_set_bit(bit, mask, gc->ngpio)
+		gpio_mockup_set(gc, bit, test_bit(bit, bits));
+
+}
+
 static int gpio_mockup_dirout(struct gpio_chip *gc,
 			      unsigned int offset, int value)
 {
@@ -269,6 +279,7 @@ static int gpio_mockup_probe(struct platform_device *pdev)
 	gc->parent = dev;
 	gc->get = gpio_mockup_get;
 	gc->set = gpio_mockup_set;
+	gc->set_multiple = gpio_mockup_set_multiple;
 	gc->direction_output = gpio_mockup_dirout;
 	gc->direction_input = gpio_mockup_dirin;
 	gc->get_direction = gpio_mockup_get_direction;
