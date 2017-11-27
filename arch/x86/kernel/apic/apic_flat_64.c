@@ -220,6 +220,15 @@ static int physflat_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 	return 0;
 }
 
+static void physflat_init_apic_ldr(void)
+{
+	/*
+	 * LDR and DFR are not involved in physflat mode, rather:
+	 * "In physical destination mode, the destination processor is
+	 * specified by its local APIC ID [...]." (Intel SDM, 10.6.2.1)
+	 */
+}
+
 static void physflat_send_IPI_allbutself(int vector)
 {
 	default_send_IPI_mask_allbutself_phys(cpu_online_mask, vector);
@@ -255,8 +264,7 @@ static struct apic apic_physflat __ro_after_init = {
 	.check_apicid_used		= NULL,
 
 	.vector_allocation_domain	= default_vector_allocation_domain,
-	/* not needed, but shouldn't hurt: */
-	.init_apic_ldr			= flat_init_apic_ldr,
+	.init_apic_ldr			= physflat_init_apic_ldr,
 
 	.ioapic_phys_id_map		= NULL,
 	.setup_apic_routing		= NULL,
