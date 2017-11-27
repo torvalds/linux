@@ -4,8 +4,7 @@ menuconfig MTD_ONENAND
 	depends on HAS_IOMEM
 	help
 	  This enables support for accessing all type of OneNAND flash
-	  devices. For further information see
-	  <http://www.samsung.com/Products/Semiconductor/OneNAND/index.htm>
+	  devices.
 
 if MTD_ONENAND
 
