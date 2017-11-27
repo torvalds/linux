@@ -2282,9 +2282,18 @@ static int __ffs_data_do_os_desc(enum ffs_os_desc_type type,
 		int i;
 
 		if (len < sizeof(*d) ||
-		    d->bFirstInterfaceNumber >= ffs->interfaces_count ||
-		    !d->Reserved1)
+		    d->bFirstInterfaceNumber >= ffs->interfaces_count)
 			return -EINVAL;
+		if (d->Reserved1 != 1) {
+			/*
+			 * According to the spec, Reserved1 must be set to 1
+			 * but older kernels incorrectly rejected non-zero
+			 * values.  We fix it here to avoid returning EINVAL
+			 * in response to values we used to accept.
+			 */
+			pr_debug("usb_ext_compat_desc::Reserved1 forced to 1\n");
+			d->Reserved1 = 1;
+		}
 		for (i = 0; i < ARRAY_SIZE(d->Reserved2); ++i)
 			if (d->Reserved2[i])
 				return -EINVAL;
