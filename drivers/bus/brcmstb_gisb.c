@@ -210,8 +210,8 @@ static int brcmstb_gisb_arb_decode_addr(struct brcmstb_gisb_arb_device *gdev,
 		m_name = m_fmt;
 	}
 
-	pr_crit("%s: %s at 0x%llx [%c %s], core: %s\n",
-		__func__, reason, arb_addr,
+	pr_crit("GISB: %s at 0x%llx [%c %s], core: %s\n",
+		reason, arb_addr,
 		cap_status & ARB_ERR_CAP_STATUS_WRITE ? 'W' : 'R',
 		cap_status & ARB_ERR_CAP_STATUS_TIMEOUT ? "timeout" : "",
 		m_name);
