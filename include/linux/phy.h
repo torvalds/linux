@@ -509,7 +509,7 @@ struct phy_driver {
 	struct mdio_driver_common mdiodrv;
 	u32 phy_id;
 	char *name;
-	unsigned int phy_id_mask;
+	u32 phy_id_mask;
 	u32 features;
 	u32 flags;
 	const void *driver_data;
