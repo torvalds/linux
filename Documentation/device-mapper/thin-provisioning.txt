@@ -276,7 +276,7 @@ ii) Status
 
     <transaction id> <used metadata blocks>/<total metadata blocks>
     <used data blocks>/<total data blocks> <held metadata root>
-    [no_]discard_passdown ro|rw
+    ro|rw|out_of_data_space [no_]discard_passdown
 
     transaction id:
 	A 64-bit number used by userspace to help synchronise with metadata
