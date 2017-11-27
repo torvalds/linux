@@ -48,7 +48,7 @@ enum {
  */
 struct gpio_mockup_line_status {
 	int dir;
-	bool value;
+	int value;
 };
 
 struct gpio_mockup_chip {
