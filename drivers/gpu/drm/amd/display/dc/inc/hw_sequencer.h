@@ -138,10 +138,6 @@ struct hw_sequencer_funcs {
 
 	void (*disable_plane)(struct dc *dc, struct pipe_ctx *pipe_ctx);
 
-	void (*enable_plane)(struct dc *dc,
-			struct pipe_ctx *pipe,
-			struct dc_state *context);
-
 	void (*update_info_frame)(struct pipe_ctx *pipe_ctx);
 
 	void (*enable_stream)(struct pipe_ctx *pipe_ctx);
