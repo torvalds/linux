@@ -1196,7 +1196,7 @@
 			 <&cru PCLK_PCIE>, <&cru SCLK_PCIE_PM>;
 		clock-names = "aclk", "aclk-perf",
 			      "hclk", "pm";
-		bus-range = <0x0 0x1>;
+		bus-range = <0x0 0x1f>;
 		max-link-speed = <1>;
 		linux,pci-domain = <0>;
 		msi-map = <0x0 &its 0x0 0x1000>;
