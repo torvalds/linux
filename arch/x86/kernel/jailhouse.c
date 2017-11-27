@@ -15,6 +15,7 @@
 #include <asm/cpu.h>
 #include <asm/hypervisor.h>
 #include <asm/i8259.h>
+#include <asm/irqdomain.h>
 #include <asm/reboot.h>
 #include <asm/setup.h>
 
@@ -52,6 +53,15 @@ static unsigned long jailhouse_get_tsc(void)
 
 static void __init jailhouse_get_smp_config(unsigned int early)
 {
+	struct ioapic_domain_cfg ioapic_cfg = {
+		.type = IOAPIC_DOMAIN_STRICT,
+		.ops = &mp_ioapic_irqdomain_ops,
+	};
+	struct mpc_intsrc mp_irq = {
+		.type = MP_INTSRC,
+		.irqtype = mp_INT,
+		.irqflag = MP_IRQPOL_ACTIVE_HIGH | MP_IRQTRIG_EDGE,
+	};
 	unsigned int cpu;
 
 	if (x2apic_enabled()) {
@@ -77,6 +87,17 @@ static void __init jailhouse_get_smp_config(unsigned int early)
 	}
 
 	smp_found_config = 1;
+
+	if (setup_data.standard_ioapic) {
+		mp_register_ioapic(0, 0xfec00000, gsi_top, &ioapic_cfg);
+
+		/* Register 1:1 mapping for legacy UART IRQs 3 and 4 */
+		mp_irq.srcbusirq = mp_irq.dstirq = 3;
+		mp_save_irq(&mp_irq);
+
+		mp_irq.srcbusirq = mp_irq.dstirq = 4;
+		mp_save_irq(&mp_irq);
+	}
 }
 
 static void jailhouse_no_restart(void)
