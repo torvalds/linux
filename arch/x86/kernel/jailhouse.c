@@ -16,6 +16,7 @@
 #include <asm/hypervisor.h>
 #include <asm/i8259.h>
 #include <asm/irqdomain.h>
+#include <asm/pci_x86.h>
 #include <asm/reboot.h>
 #include <asm/setup.h>
 
@@ -106,6 +107,19 @@ static void jailhouse_no_restart(void)
 	machine_halt();
 }
 
+static int __init jailhouse_pci_arch_init(void)
+{
+	pci_direct_init(1);
+
+	/*
+	 * There are no bridges on the virtual PCI root bus under Jailhouse,
+	 * thus no other way to discover all devices than a full scan.
+	 */
+	pcibios_last_bus = 0xff;
+
+	return 0;
+}
+
 static void __init jailhouse_init_platform(void)
 {
 	u64 pa_data = boot_params.hdr.setup_data;
@@ -115,6 +129,7 @@ static void __init jailhouse_init_platform(void)
 	x86_init.irqs.pre_vector_init	= x86_init_noop;
 	x86_init.timers.timer_init	= jailhouse_timer_init;
 	x86_init.mpparse.get_smp_config	= jailhouse_get_smp_config;
+	x86_init.pci.arch_init		= jailhouse_pci_arch_init;
 
 	x86_platform.calibrate_cpu	= jailhouse_get_tsc;
 	x86_platform.calibrate_tsc	= jailhouse_get_tsc;
@@ -156,6 +171,8 @@ static void __init jailhouse_init_platform(void)
 	pr_debug("Jailhouse: PM-Timer IO Port: %#x\n", pmtmr_ioport);
 
 	precalibrated_tsc_khz = setup_data.tsc_khz;
+
+	pci_probe = 0;
 
 	/*
 	 * Avoid that the kernel complains about missing ACPI tables - there
