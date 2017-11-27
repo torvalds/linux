@@ -575,7 +575,7 @@ static void qxl_cursor_atomic_update(struct drm_plane *plane,
 	struct qxl_cursor_cmd *cmd;
 	struct qxl_cursor *cursor;
 	struct drm_gem_object *obj;
-	struct qxl_bo *cursor_bo, *user_bo = NULL;
+	struct qxl_bo *cursor_bo = NULL, *user_bo = NULL;
 	int ret;
 	void *user_ptr;
 	int size = 64*64*4;
@@ -644,6 +644,8 @@ static void qxl_cursor_atomic_update(struct drm_plane *plane,
 	qxl_release_unmap(qdev, release, &cmd->release_info);
 	qxl_push_cursor_ring_release(qdev, release, QXL_CMD_CURSOR, false);
 	qxl_release_fence_buffer_objects(release);
+
+	qxl_bo_unref(&cursor_bo);
 
 	return;
 
