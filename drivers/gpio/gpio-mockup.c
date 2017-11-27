@@ -275,9 +275,6 @@ static int gpio_mockup_probe(struct platform_device *pdev)
 	struct gpio_mockup_chip *chips;
 	char *chip_name;
 
-	if (gpio_mockup_params_nr < 2 || (gpio_mockup_params_nr % 2))
-		return -EINVAL;
-
 	/* Each chip is described by two values. */
 	num_chips = gpio_mockup_params_nr / 2;
 
@@ -332,6 +329,9 @@ static struct platform_device *gpio_mockup_pdev;
 static int __init gpio_mockup_init(void)
 {
 	int err;
+
+	if (gpio_mockup_params_nr < 2 || (gpio_mockup_params_nr % 2))
+		return -EINVAL;
 
 	gpio_mockup_dbg_dir = debugfs_create_dir("gpio-mockup-event", NULL);
 	if (!gpio_mockup_dbg_dir)
