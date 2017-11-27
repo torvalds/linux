@@ -526,7 +526,7 @@ static int kfd_ioctl_dbg_unregister(struct file *filep,
 	long status;
 
 	dev = kfd_device_by_id(args->gpu_id);
-	if (!dev)
+	if (!dev || !dev->dbgmgr)
 		return -EINVAL;
 
 	if (dev->device_info->asic_family == CHIP_CARRIZO) {
