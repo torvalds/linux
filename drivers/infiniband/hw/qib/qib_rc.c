@@ -246,7 +246,6 @@ int qib_make_rc_req(struct rvt_qp *qp, unsigned long *flags)
 		if (!(ib_rvt_state_ops[qp->state] & RVT_FLUSH_SEND))
 			goto bail;
 		/* We are in the error state, flush the work request. */
-		smp_read_barrier_depends(); /* see post_one_send() */
 		if (qp->s_last == READ_ONCE(qp->s_head))
 			goto bail;
 		/* If DMAs are in progress, we can't flush immediately. */
@@ -293,7 +292,6 @@ int qib_make_rc_req(struct rvt_qp *qp, unsigned long *flags)
 		newreq = 0;
 		if (qp->s_cur == qp->s_tail) {
 			/* Check if send work queue is empty. */
-			smp_read_barrier_depends(); /* see post_one_send() */
 			if (qp->s_tail == READ_ONCE(qp->s_head))
 				goto bail;
 			/*
@@ -1340,7 +1338,6 @@ static void qib_rc_rcv_resp(struct qib_ibport *ibp,
 		goto ack_done;
 
 	/* Ignore invalid responses. */
-	smp_read_barrier_depends(); /* see post_one_send */
 	if (qib_cmp24(psn, READ_ONCE(qp->s_next_psn)) >= 0)
 		goto ack_done;
 
