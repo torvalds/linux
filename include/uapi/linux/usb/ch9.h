@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  * This file holds USB constants and structures that are needed for
  * USB device APIs.  These are used by the USB device model, which is
@@ -142,6 +143,10 @@
 #define	TEST_SE0_NAK	3
 #define	TEST_PACKET	4
 #define	TEST_FORCE_EN	5
+
+/* Status Type */
+#define USB_STATUS_TYPE_STANDARD	0
+#define USB_STATUS_TYPE_PTM		1
 
 /*
  * New Feature Selectors as added by USB 3.0

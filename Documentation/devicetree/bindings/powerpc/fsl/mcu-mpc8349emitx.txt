@@ -8,7 +8,7 @@ Required properties:
 
 Example:
 
-mcu@0a {
+mcu@a {
 	#gpio-cells = <2>;
 	compatible = "fsl,mc9s08qg8-mpc8349emitx",
 		     "fsl,mcu-mpc8349emitx";

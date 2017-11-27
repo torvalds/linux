@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef _UAPI_IF_TUNNEL_H_
 #define _UAPI_IF_TUNNEL_H_
 
@@ -84,6 +85,7 @@ enum tunnel_encap_types {
 	TUNNEL_ENCAP_NONE,
 	TUNNEL_ENCAP_FOU,
 	TUNNEL_ENCAP_GUE,
+	TUNNEL_ENCAP_MPLS,
 };
 
 #define TUNNEL_ENCAP_FLAG_CSUM		(1<<0)

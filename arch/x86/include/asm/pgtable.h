@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_PGTABLE_H
 #define _ASM_X86_PGTABLE_H
 
@@ -664,11 +665,6 @@ static inline bool pte_accessible(struct mm_struct *mm, pte_t a)
 		return true;
 
 	return false;
-}
-
-static inline int pte_hidden(pte_t pte)
-{
-	return pte_flags(pte) & _PAGE_HIDDEN;
 }
 
 static inline int pmd_present(pmd_t pmd)

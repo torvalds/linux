@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 if MMU
 
 config ARCH_MAY_HAVE_PC_FDC

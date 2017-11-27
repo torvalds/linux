@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef CEPH_RADOS_H
 #define CEPH_RADOS_H
 

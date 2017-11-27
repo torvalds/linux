@@ -616,9 +616,9 @@ static void r592_update_card_detect(struct r592_device *dev)
 }
 
 /* Timer routine that fires 1 second after last card detection event, */
-static void r592_detect_timer(long unsigned int data)
+static void r592_detect_timer(struct timer_list *t)
 {
-	struct r592_device *dev = (struct r592_device *)data;
+	struct r592_device *dev = from_timer(dev, t, detect_timer);
 	r592_update_card_detect(dev);
 	memstick_detect_change(dev->host);
 }
@@ -770,8 +770,7 @@ static int r592_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	spin_lock_init(&dev->io_thread_lock);
 	init_completion(&dev->dma_done);
 	INIT_KFIFO(dev->pio_fifo);
-	setup_timer(&dev->detect_timer,
-		r592_detect_timer, (long unsigned int)dev);
+	timer_setup(&dev->detect_timer, r592_detect_timer, 0);
 
 	/* Host initialization */
 	host->caps = MEMSTICK_CAP_PAR4;

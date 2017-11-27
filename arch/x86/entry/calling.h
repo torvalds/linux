@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #include <linux/jump_label.h>
 #include <asm/unwind_hints.h>
 
@@ -141,56 +142,25 @@ For 32-bit we have the following conventions - kernel is built with
 	UNWIND_HINT_REGS offset=\offset
 	.endm
 
-	.macro RESTORE_EXTRA_REGS offset=0
-	movq 0*8+\offset(%rsp), %r15
-	movq 1*8+\offset(%rsp), %r14
-	movq 2*8+\offset(%rsp), %r13
-	movq 3*8+\offset(%rsp), %r12
-	movq 4*8+\offset(%rsp), %rbp
-	movq 5*8+\offset(%rsp), %rbx
-	UNWIND_HINT_REGS offset=\offset extra=0
+	.macro POP_EXTRA_REGS
+	popq %r15
+	popq %r14
+	popq %r13
+	popq %r12
+	popq %rbp
+	popq %rbx
 	.endm
 
-	.macro RESTORE_C_REGS_HELPER rstor_rax=1, rstor_rcx=1, rstor_r11=1, rstor_r8910=1, rstor_rdx=1
-	.if \rstor_r11
-	movq 6*8(%rsp), %r11
-	.endif
-	.if \rstor_r8910
-	movq 7*8(%rsp), %r10
-	movq 8*8(%rsp), %r9
-	movq 9*8(%rsp), %r8
-	.endif
-	.if \rstor_rax
-	movq 10*8(%rsp), %rax
-	.endif
-	.if \rstor_rcx
-	movq 11*8(%rsp), %rcx
-	.endif
-	.if \rstor_rdx
-	movq 12*8(%rsp), %rdx
-	.endif
-	movq 13*8(%rsp), %rsi
-	movq 14*8(%rsp), %rdi
-	UNWIND_HINT_IRET_REGS offset=16*8
-	.endm
-	.macro RESTORE_C_REGS
-	RESTORE_C_REGS_HELPER 1,1,1,1,1
-	.endm
-	.macro RESTORE_C_REGS_EXCEPT_RAX
-	RESTORE_C_REGS_HELPER 0,1,1,1,1
-	.endm
-	.macro RESTORE_C_REGS_EXCEPT_RCX
-	RESTORE_C_REGS_HELPER 1,0,1,1,1
-	.endm
-	.macro RESTORE_C_REGS_EXCEPT_R11
-	RESTORE_C_REGS_HELPER 1,1,0,1,1
-	.endm
-	.macro RESTORE_C_REGS_EXCEPT_RCX_R11
-	RESTORE_C_REGS_HELPER 1,0,0,1,1
-	.endm
-
-	.macro REMOVE_PT_GPREGS_FROM_STACK addskip=0
-	subq $-(15*8+\addskip), %rsp
+	.macro POP_C_REGS
+	popq %r11
+	popq %r10
+	popq %r9
+	popq %r8
+	popq %rax
+	popq %rcx
+	popq %rdx
+	popq %rsi
+	popq %rdi
 	.endm
 
 	.macro icebp

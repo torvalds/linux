@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 # Select 32 or 64 bit
 config 64BIT
 	bool "64-bit kernel" if ARCH = "x86"
@@ -55,7 +56,7 @@ config X86
 	select ARCH_HAS_KCOV			if X86_64
 	select ARCH_HAS_PMEM_API		if X86_64
 	# Causing hangs/crashes, see the commit that added this change for details.
-	select ARCH_HAS_REFCOUNT		if BROKEN
+	select ARCH_HAS_REFCOUNT
 	select ARCH_HAS_UACCESS_FLUSHCACHE	if X86_64
 	select ARCH_HAS_SET_MEMORY
 	select ARCH_HAS_SG_CHAIN
@@ -92,8 +93,10 @@ config X86
 	select GENERIC_FIND_FIRST_BIT
 	select GENERIC_IOMAP
 	select GENERIC_IRQ_EFFECTIVE_AFF_MASK	if SMP
+	select GENERIC_IRQ_MATRIX_ALLOCATOR	if X86_LOCAL_APIC
 	select GENERIC_IRQ_MIGRATION		if SMP
 	select GENERIC_IRQ_PROBE
+	select GENERIC_IRQ_RESERVATION_MODE
 	select GENERIC_IRQ_SHOW
 	select GENERIC_PENDING_IRQ		if SMP
 	select GENERIC_SMP_IDLE_THREAD
@@ -107,9 +110,8 @@ config X86
 	select HAVE_ARCH_AUDITSYSCALL
 	select HAVE_ARCH_HUGE_VMAP		if X86_64 || X86_PAE
 	select HAVE_ARCH_JUMP_LABEL
-	select HAVE_ARCH_KASAN			if X86_64 && SPARSEMEM_VMEMMAP
+	select HAVE_ARCH_KASAN			if X86_64
 	select HAVE_ARCH_KGDB
-	select HAVE_ARCH_KMEMCHECK
 	select HAVE_ARCH_MMAP_RND_BITS		if MMU
 	select HAVE_ARCH_MMAP_RND_COMPAT_BITS	if MMU && COMPAT
 	select HAVE_ARCH_COMPAT_MMAP_BASES	if MMU && COMPAT
@@ -170,7 +172,7 @@ config X86
 	select HAVE_PERF_USER_STACK_DUMP
 	select HAVE_RCU_TABLE_FREE
 	select HAVE_REGS_AND_STACK_ACCESS_API
-	select HAVE_RELIABLE_STACKTRACE		if X86_64 && FRAME_POINTER_UNWINDER && STACK_VALIDATION
+	select HAVE_RELIABLE_STACKTRACE		if X86_64 && UNWINDER_FRAME_POINTER && STACK_VALIDATION
 	select HAVE_STACK_VALIDATION		if X86_64
 	select HAVE_SYSCALL_TRACEPOINTS
 	select HAVE_UNSTABLE_SCHED_CLOCK
@@ -302,7 +304,6 @@ config ARCH_SUPPORTS_DEBUG_PAGEALLOC
 config KASAN_SHADOW_OFFSET
 	hex
 	depends on KASAN
-	default 0xdff8000000000000 if X86_5LEVEL
 	default 0xdffffc0000000000
 
 config HAVE_INTEL_TXT
@@ -1428,7 +1429,7 @@ config ARCH_DMA_ADDR_T_64BIT
 
 config X86_DIRECT_GBPAGES
 	def_bool y
-	depends on X86_64 && !DEBUG_PAGEALLOC && !KMEMCHECK
+	depends on X86_64 && !DEBUG_PAGEALLOC
 	---help---
 	  Certain kernel features effectively disable kernel
 	  linear 1 GB mappings (even if the CPU otherwise
@@ -1801,6 +1802,22 @@ config X86_SMAP
 	  also a small increase in the kernel size if this is enabled.
 
 	  If unsure, say Y.
+
+config X86_INTEL_UMIP
+	def_bool y
+	depends on CPU_SUP_INTEL
+	prompt "Intel User Mode Instruction Prevention" if EXPERT
+	---help---
+	  The User Mode Instruction Prevention (UMIP) is a security
+	  feature in newer Intel processors. If enabled, a general
+	  protection fault is issued if the SGDT, SLDT, SIDT, SMSW
+	  or STR instructions are executed in user mode. These instructions
+	  unnecessarily expose information about the hardware state.
+
+	  The vast majority of applications do not use these instructions.
+	  For the very few that do, software emulation is provided in
+	  specific cases in protected and virtual-8086 modes. Emulated
+	  results are dummy.
 
 config X86_INTEL_MPX
 	prompt "Intel MPX (Memory Protection Extensions)"

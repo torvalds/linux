@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASMIA64_HPSIM_H
 #define _ASMIA64_HPSIM_H
 

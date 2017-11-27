@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifdef __ASSEMBLY__
 
 /* do nothing here by default */

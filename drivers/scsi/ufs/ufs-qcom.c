@@ -273,15 +273,18 @@ static int ufs_qcom_power_up_sequence(struct ufs_hba *hba)
 	bool is_rate_B = (UFS_QCOM_LIMIT_HS_RATE == PA_HS_MODE_B)
 							? true : false;
 
+	if (is_rate_B)
+		phy_set_mode(phy, PHY_MODE_UFS_HS_B);
+
 	/* Assert PHY reset and apply PHY calibration values */
 	ufs_qcom_assert_reset(hba);
 	/* provide 1ms delay to let the reset pulse propagate */
 	usleep_range(1000, 1100);
 
-	ret = ufs_qcom_phy_calibrate_phy(phy, is_rate_B);
-
+	/* phy initialization - calibrate the phy */
+	ret = phy_init(phy);
 	if (ret) {
-		dev_err(hba->dev, "%s: ufs_qcom_phy_calibrate_phy() failed, ret = %d\n",
+		dev_err(hba->dev, "%s: phy init failed, ret = %d\n",
 			__func__, ret);
 		goto out;
 	}
@@ -294,21 +297,22 @@ static int ufs_qcom_power_up_sequence(struct ufs_hba *hba)
 	 * voltage, current to settle down before starting serdes.
 	 */
 	usleep_range(1000, 1100);
-	ret = ufs_qcom_phy_start_serdes(phy);
-	if (ret) {
-		dev_err(hba->dev, "%s: ufs_qcom_phy_start_serdes() failed, ret = %d\n",
-			__func__, ret);
-		goto out;
-	}
 
-	ret = ufs_qcom_phy_is_pcs_ready(phy);
-	if (ret)
-		dev_err(hba->dev,
-			"%s: is_physical_coding_sublayer_ready() failed, ret = %d\n",
+	/* power on phy - start serdes and phy's power and clocks */
+	ret = phy_power_on(phy);
+	if (ret) {
+		dev_err(hba->dev, "%s: phy power on failed, ret = %d\n",
 			__func__, ret);
+		goto out_disable_phy;
+	}
 
 	ufs_qcom_select_unipro_mode(host);
 
+	return 0;
+
+out_disable_phy:
+	ufs_qcom_assert_reset(hba);
+	phy_exit(phy);
 out:
 	return ret;
 }
@@ -1273,14 +1277,9 @@ static int ufs_qcom_init(struct ufs_hba *hba)
 	ufs_qcom_phy_save_controller_version(host->generic_phy,
 		host->hw_ver.major, host->hw_ver.minor, host->hw_ver.step);
 
-	phy_init(host->generic_phy);
-	err = phy_power_on(host->generic_phy);
-	if (err)
-		goto out_unregister_bus;
-
 	err = ufs_qcom_init_lane_clks(host);
 	if (err)
-		goto out_disable_phy;
+		goto out_variant_clear;
 
 	ufs_qcom_set_caps(hba);
 	ufs_qcom_advertise_quirks(hba);
@@ -1301,10 +1300,6 @@ static int ufs_qcom_init(struct ufs_hba *hba)
 
 	goto out;
 
-out_disable_phy:
-	phy_power_off(host->generic_phy);
-out_unregister_bus:
-	phy_exit(host->generic_phy);
 out_variant_clear:
 	ufshcd_set_variant(hba, NULL);
 out:
@@ -1458,7 +1453,7 @@ static void ufs_qcom_print_hw_debug_reg_all(struct ufs_hba *hba,
 	print_fn(hba, reg, 44, "UFS_UFS_DBG_RD_REG_OCSC ", priv);
 
 	reg = ufshcd_readl(hba, REG_UFS_CFG1);
-	reg |= UFS_BIT(17);
+	reg |= UTP_DBG_RAMS_EN;
 	ufshcd_writel(hba, reg, REG_UFS_CFG1);
 
 	reg = ufs_qcom_get_debug_reg_offset(host, UFS_UFS_DBG_RD_EDTL_RAM);
@@ -1471,7 +1466,7 @@ static void ufs_qcom_print_hw_debug_reg_all(struct ufs_hba *hba,
 	print_fn(hba, reg, 64, "UFS_UFS_DBG_RD_PRDT_RAM ", priv);
 
 	/* clear bit 17 - UTP_DBG_RAMS_EN */
-	ufshcd_rmwl(hba, UFS_BIT(17), 0, REG_UFS_CFG1);
+	ufshcd_rmwl(hba, UTP_DBG_RAMS_EN, 0, REG_UFS_CFG1);
 
 	reg = ufs_qcom_get_debug_reg_offset(host, UFS_DBG_RD_REG_UAWM);
 	print_fn(hba, reg, 4, "UFS_DBG_RD_REG_UAWM ", priv);

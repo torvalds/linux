@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # Makefile for Kernel-based Virtual Machine module
 #
@@ -31,6 +32,7 @@ obj-y += $(KVM)/arm/vgic/vgic-init.o
 obj-y += $(KVM)/arm/vgic/vgic-irqfd.o
 obj-y += $(KVM)/arm/vgic/vgic-v2.o
 obj-y += $(KVM)/arm/vgic/vgic-v3.o
+obj-y += $(KVM)/arm/vgic/vgic-v4.o
 obj-y += $(KVM)/arm/vgic/vgic-mmio.o
 obj-y += $(KVM)/arm/vgic/vgic-mmio-v2.o
 obj-y += $(KVM)/arm/vgic/vgic-mmio-v3.o

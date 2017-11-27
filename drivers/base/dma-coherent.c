@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Coherent per-device memory handling.
  * Borrowed from i386

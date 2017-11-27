@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef _ASM_ARM64_PERF_REGS_H
 #define _ASM_ARM64_PERF_REGS_H
 

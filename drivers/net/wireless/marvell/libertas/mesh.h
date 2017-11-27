@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Contains all definitions needed for the Libertas' MESH implementation.
  */

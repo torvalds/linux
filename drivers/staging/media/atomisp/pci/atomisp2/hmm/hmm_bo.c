@@ -1020,10 +1020,8 @@ static int alloc_user_pages(struct hmm_buffer_object *bo,
 	} else {
 		/*Handle frame buffer allocated in user space*/
 		mutex_unlock(&bo->mutex);
-		down_read(&current->mm->mmap_sem);
-		page_nr = get_user_pages((unsigned long)userptr,
-					 (int)(bo->pgnr), 1, pages, NULL);
-		up_read(&current->mm->mmap_sem);
+		page_nr = get_user_pages_fast((unsigned long)userptr,
+					 (int)(bo->pgnr), 1, pages);
 		mutex_lock(&bo->mutex);
 		bo->mem_type = HMM_BO_MEM_TYPE_USER;
 	}

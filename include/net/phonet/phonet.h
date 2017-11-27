@@ -108,8 +108,10 @@ struct phonet_protocol {
 	int			sock_type;
 };
 
-int phonet_proto_register(unsigned int protocol, struct phonet_protocol *pp);
-void phonet_proto_unregister(unsigned int protocol, struct phonet_protocol *pp);
+int phonet_proto_register(unsigned int protocol,
+		const struct phonet_protocol *pp);
+void phonet_proto_unregister(unsigned int protocol,
+		const struct phonet_protocol *pp);
 
 int phonet_sysctl_init(void);
 void phonet_sysctl_exit(void);

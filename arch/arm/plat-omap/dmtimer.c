@@ -254,8 +254,8 @@ static struct omap_dm_timer *_omap_dm_timer_request(int req_type, void *data)
 			if (cap == (t->capability & cap)) {
 				/*
 				 * If timer is not NULL, we have already found
-				 * one timer but it was not an exact match
-				 * because it had more capabilites that what
+				 * one timer. But it was not an exact match
+				 * because it had more capabilities than what
 				 * was required. Therefore, unreserve the last
 				 * timer found and see if this one is a better
 				 * match.
@@ -857,11 +857,9 @@ static int omap_dm_timer_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	timer = devm_kzalloc(dev, sizeof(struct omap_dm_timer), GFP_KERNEL);
-	if (!timer) {
-		dev_err(dev, "%s: memory alloc failed!\n", __func__);
+	timer = devm_kzalloc(dev, sizeof(*timer), GFP_KERNEL);
+	if (!timer)
 		return  -ENOMEM;
-	}
 
 	timer->fclk = ERR_PTR(-ENODEV);
 	timer->io_base = devm_ioremap_resource(dev, mem);

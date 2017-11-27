@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NVKM_PLL_H__
 #define __NVKM_PLL_H__
 #include <core/os.h>

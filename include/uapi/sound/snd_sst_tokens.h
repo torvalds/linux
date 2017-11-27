@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  * snd_sst_tokens.h - Intel SST tokens definition
  *

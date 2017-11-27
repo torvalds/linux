@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_METAG_SYSCALLS_H
 #define _ASM_METAG_SYSCALLS_H
 

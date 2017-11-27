@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __S390_ASM_SIGP_H
 #define __S390_ASM_SIGP_H
 

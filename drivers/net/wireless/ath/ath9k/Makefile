@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 ath9k-y +=	beacon.o \
 		gpio.o \
 		init.o \

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /dts-v1/;
 
 #include "skeleton.dtsi"
@@ -590,6 +591,7 @@
 				clocks = <&gcc GSBI6_QUP_CLK>,
 					 <&gcc GSBI6_H_CLK>;
 				clock-names = "core", "iface";
+				status = "disabled";
 			};
 		};
 
@@ -906,11 +908,11 @@
 				usb_hs1_phy: phy {
 					compatible = "qcom,usb-hs-phy-apq8064",
 						     "qcom,usb-hs-phy";
-					#phy-cells = <0>;
 					clocks = <&sleep_clk>, <&cxo_board>;
 					clock-names = "sleep", "ref";
 					resets = <&usb1 0>;
 					reset-names = "por";
+					#phy-cells = <0>;
 				};
 			};
 		};
@@ -1263,6 +1265,7 @@
 		dsi0_phy: dsi-phy@4700200 {
 			compatible = "qcom,dsi-phy-28nm-8960";
 			#clock-cells = <1>;
+			#phy-cells = <0>;
 
 			reg = <0x04700200 0x100>,
 				<0x04700300 0x200>,
@@ -1417,6 +1420,7 @@
 
 			clocks = <&mmcc HDMI_S_AHB_CLK>;
 			clock-names = "slave_iface_clk";
+			#phy-cells = <0>;
 		};
 
 		mdp: mdp@5100000 {

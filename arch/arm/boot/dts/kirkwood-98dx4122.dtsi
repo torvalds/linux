@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 / {
 	mbus@f1000000 {
 		pciec: pcie@82000000 {

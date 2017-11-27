@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* Simple test of virtio code, entirely in userpsace. */
 #define _GNU_SOURCE
 #include <sched.h>

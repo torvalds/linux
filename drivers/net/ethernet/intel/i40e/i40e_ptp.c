@@ -130,7 +130,7 @@ static int i40e_ptp_adjfreq(struct ptp_clock_info *ptp, s32 ppb)
 	}
 
 	smp_mb(); /* Force any pending update before accessing. */
-	adj = ACCESS_ONCE(pf->ptp_base_adj);
+	adj = READ_ONCE(pf->ptp_base_adj);
 
 	freq = adj;
 	freq *= ppb;
@@ -499,7 +499,7 @@ void i40e_ptp_set_increment(struct i40e_pf *pf)
 	wr32(hw, I40E_PRTTSYN_INC_H, incval >> 32);
 
 	/* Update the base adjustement value. */
-	ACCESS_ONCE(pf->ptp_base_adj) = incval;
+	WRITE_ONCE(pf->ptp_base_adj, incval);
 	smp_mb(); /* Force the above update. */
 }
 

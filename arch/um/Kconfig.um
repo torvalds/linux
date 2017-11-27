@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 config STATIC_LINK
 	bool "Force a static link"
 	default n

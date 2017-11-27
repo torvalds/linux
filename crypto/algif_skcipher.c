@@ -129,12 +129,11 @@ static int _skcipher_recvmsg(struct socket *sock, struct msghdr *msg,
 		skcipher_request_set_callback(&areq->cra_u.skcipher_req,
 					      CRYPTO_TFM_REQ_MAY_SLEEP |
 					      CRYPTO_TFM_REQ_MAY_BACKLOG,
-					      af_alg_complete,
-					      &ctx->completion);
-		err = af_alg_wait_for_completion(ctx->enc ?
+					      crypto_req_done, &ctx->wait);
+		err = crypto_wait_req(ctx->enc ?
 			crypto_skcipher_encrypt(&areq->cra_u.skcipher_req) :
 			crypto_skcipher_decrypt(&areq->cra_u.skcipher_req),
-						 &ctx->completion);
+						 &ctx->wait);
 	}
 
 	/* AIO operation in progress */
@@ -388,7 +387,7 @@ static int skcipher_accept_parent_nokey(void *private, struct sock *sk)
 	ctx->more = 0;
 	ctx->merge = 0;
 	ctx->enc = 0;
-	af_alg_init_completion(&ctx->completion);
+	crypto_init_wait(&ctx->wait);
 
 	ask->private = ctx;
 

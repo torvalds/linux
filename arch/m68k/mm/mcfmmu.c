@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Based upon linux/arch/m68k/mm/sun3mmu.c
  * Based upon linux/arch/ppc/mm/mmu_context.c
@@ -169,7 +170,7 @@ void __init cf_bootmem_alloc(void)
 	max_pfn = max_low_pfn = PFN_DOWN(_ramend);
 	high_memory = (void *)_ramend;
 
-	m68k_virt_to_node_shift = fls(_ramend - _rambase - 1) - 6;
+	m68k_virt_to_node_shift = fls(_ramend - 1) - 6;
 	module_fixup(NULL, __start_fixup, __stop_fixup);
 
 	/* setup bootmem data */
@@ -183,7 +184,7 @@ void __init cf_bootmem_alloc(void)
  * Initialize the context management stuff.
  * The following was taken from arch/ppc/mmu_context.c
  */
-void __init mmu_context_init(void)
+void __init cf_mmu_context_init(void)
 {
 	/*
 	 * Some processors have too few contexts to reserve one for

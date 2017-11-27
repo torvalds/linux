@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 # Common objects
 lib-$(CONFIG_SUNXI_CCU)		+= ccu_common.o
 lib-$(CONFIG_SUNXI_CCU)		+= ccu_mmc_timing.o
@@ -10,6 +11,7 @@ lib-$(CONFIG_SUNXI_CCU)		+= ccu_gate.o
 lib-$(CONFIG_SUNXI_CCU)		+= ccu_mux.o
 lib-$(CONFIG_SUNXI_CCU)		+= ccu_mult.o
 lib-$(CONFIG_SUNXI_CCU)		+= ccu_phase.o
+lib-$(CONFIG_SUNXI_CCU)		+= ccu_sdm.o
 
 # Multi-factor clocks
 lib-$(CONFIG_SUNXI_CCU)		+= ccu_nk.o

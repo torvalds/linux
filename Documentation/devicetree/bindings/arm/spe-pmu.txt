@@ -1,0 +1,20 @@
+* ARMv8.2 Statistical Profiling Extension (SPE) Performance Monitor Units (PMU)
+
+ARMv8.2 introduces the optional Statistical Profiling Extension for collecting
+performance sample data using an in-memory trace buffer.
+
+** SPE Required properties:
+
+- compatible : should be one of:
+	       "arm,statistical-profiling-extension-v1"
+
+- interrupts : Exactly 1 PPI must be listed. For heterogeneous systems where
+               SPE is only supported on a subset of the CPUs, please consult
+	       the arm,gic-v3 binding for details on describing a PPI partition.
+
+** Example:
+
+spe-pmu {
+        compatible = "arm,statistical-profiling-extension-v1";
+        interrupts = <GIC_PPI 05 IRQ_TYPE_LEVEL_HIGH &part1>;
+};

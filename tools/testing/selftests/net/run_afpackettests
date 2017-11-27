@@ -1,4 +1,5 @@
 #!/bin/sh
+# SPDX-License-Identifier: GPL-2.0
 
 if [ $(id -u) != 0 ]; then
 	echo $msg must be run as root >&2

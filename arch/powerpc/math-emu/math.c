@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 1999  Eddie C. Dost  (ecd@atecom.com)
  */

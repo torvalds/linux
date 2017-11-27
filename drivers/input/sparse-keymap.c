@@ -255,6 +255,7 @@ void sparse_keymap_report_entry(struct input_dev *dev, const struct key_entry *k
 
 	case KE_VSW:
 		input_report_switch(dev, ke->sw.code, value);
+		input_sync(dev);
 		break;
 	}
 }

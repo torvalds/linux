@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _DW_MMC_ZX_H_
 #define _DW_MMC_ZX_H_
 

@@ -430,19 +430,6 @@ struct drm_mode_config {
 	struct list_head encoder_list;
 
 	/**
-	 * @num_overlay_plane:
-	 *
-	 * Number of overlay planes on this device, excluding primary and cursor
-	 * planes.
-	 *
-	 * Track number of overlay planes separately from number of total
-	 * planes.  By default we only advertise overlay planes to userspace; if
-	 * userspace sets the "universal plane" capability bit, we'll go ahead
-	 * and expose all planes. This is invariant over the lifetime of a
-	 * device and hence doesn't need any locks.
-	 */
-	int num_overlay_plane;
-	/**
 	 * @num_total_plane:
 	 *
 	 * Number of universal (i.e. with primary/curso) planes on this device.
@@ -740,6 +727,13 @@ struct drm_mode_config {
 	 * the position of the output on the host's screen.
 	 */
 	struct drm_property *suggested_y_property;
+
+	/**
+	 * @non_desktop_property: Optional connector property with a hint
+	 * that device isn't a standard display, and the console/desktop,
+	 * should not be displayed on it.
+	 */
+	struct drm_property *non_desktop_property;
 
 	/* dumb ioctl parameters */
 	uint32_t preferred_depth, prefer_shadow;

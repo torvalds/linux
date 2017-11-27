@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _NET_DST_OPS_H
 #define _NET_DST_OPS_H
 #include <linux/types.h>

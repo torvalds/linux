@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 config SOC_AR5312
 	bool "Atheros AR5312/AR2312+ SoC support"
 	depends on ATH25

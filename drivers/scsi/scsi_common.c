@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * SCSI functions used by both the initiator and the target code.
  */

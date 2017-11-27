@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Driver of Inno Codec for rk3036 by Rockchip Inc.
  *

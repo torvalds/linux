@@ -1439,10 +1439,16 @@ static int sixaxis_set_operational_usb(struct hid_device *hdev)
 		goto out;
 	}
 
-	ret = hid_hw_output_report(hdev, buf, 1);
-	if (ret < 0) {
-		hid_info(hdev, "can't set operational mode: step 3, ignoring\n");
-		ret = 0;
+	/*
+	 * But the USB interrupt would cause SHANWAN controllers to
+	 * start rumbling non-stop.
+	 */
+	if (strcmp(hdev->name, "SHANWAN PS3 GamePad")) {
+		ret = hid_hw_output_report(hdev, buf, 1);
+		if (ret < 0) {
+			hid_info(hdev, "can't set operational mode: step 3, ignoring\n");
+			ret = 0;
+		}
 	}
 
 out:

@@ -89,6 +89,7 @@
 #include "tof.h"
 #include "fw/runtime.h"
 #include "fw/dbg.h"
+#include "fw/acpi.h"
 
 #define IWL_MVM_MAX_ADDRESSES		5
 /* RSSI offset for WkP */
@@ -146,6 +147,8 @@ struct iwl_mvm_phy_ctxt {
 	u16 id;
 	u16 color;
 	u32 ref;
+
+	enum nl80211_chan_width width;
 
 	/*
 	 * TODO: This should probably be removed. Currently here only for rate
@@ -436,12 +439,6 @@ struct iwl_mvm_vif {
 
 	/* TCP Checksum Offload */
 	netdev_features_t features;
-
-	/*
-	 * link quality measurement - used to check whether this interface
-	 * is in the middle of a link quality measurement
-	 */
-	bool lqm_active;
 };
 
 static inline struct iwl_mvm_vif *
@@ -588,12 +585,9 @@ enum iwl_mvm_tdls_cs_state {
  * @head_sn: reorder window head sn
  * @num_stored: number of mpdus stored in the buffer
  * @buf_size: the reorder buffer size as set by the last addba request
- * @sta_id: sta id of this reorder buffer
  * @queue: queue of this reorder buffer
  * @last_amsdu: track last ASMDU SN for duplication detection
  * @last_sub_index: track ASMDU sub frame index for duplication detection
- * @entries: list of skbs stored
- * @reorder_time: time the packet was stored in the reorder buffer
  * @reorder_timer: timer for frames are in the reorder buffer. For AMSDU
  *	it is the time of last received sub-frame
  * @removed: prevent timer re-arming
@@ -605,12 +599,9 @@ struct iwl_mvm_reorder_buffer {
 	u16 head_sn;
 	u16 num_stored;
 	u8 buf_size;
-	u8 sta_id;
 	int queue;
 	u16 last_amsdu;
 	u8 last_sub_index;
-	struct sk_buff_head entries[IEEE80211_MAX_AMPDU_BUF];
-	unsigned long reorder_time[IEEE80211_MAX_AMPDU_BUF];
 	struct timer_list reorder_timer;
 	bool removed;
 	bool valid;
@@ -619,15 +610,38 @@ struct iwl_mvm_reorder_buffer {
 } ____cacheline_aligned_in_smp;
 
 /**
+ * struct _iwl_mvm_reorder_buf_entry - reorder buffer entry per-queue/per-seqno
+ * @frames: list of skbs stored
+ * @reorder_time: time the packet was stored in the reorder buffer
+ */
+struct _iwl_mvm_reorder_buf_entry {
+	struct sk_buff_head frames;
+	unsigned long reorder_time;
+};
+
+/* make this indirection to get the aligned thing */
+struct iwl_mvm_reorder_buf_entry {
+	struct _iwl_mvm_reorder_buf_entry e;
+}
+#ifndef __CHECKER__
+/* sparse doesn't like this construct: "bad integer constant expression" */
+__aligned(roundup_pow_of_two(sizeof(struct _iwl_mvm_reorder_buf_entry)))
+#endif
+;
+
+/**
  * struct iwl_mvm_baid_data - BA session data
  * @sta_id: station id
  * @tid: tid of the session
  * @baid baid of the session
  * @timeout: the timeout set in the addba request
+ * @entries_per_queue: # of buffers per queue, this actually gets
+ *	aligned up to avoid cache line sharing between queues
  * @last_rx: last rx jiffies, updated only if timeout passed from last update
  * @session_timer: timer to check if BA session expired, runs at 2 * timeout
  * @mvm: mvm pointer, needed for timer context
  * @reorder_buf: reorder buffer, allocated per queue
+ * @reorder_buf_data: data
  */
 struct iwl_mvm_baid_data {
 	struct rcu_head rcu_head;
@@ -635,11 +649,22 @@ struct iwl_mvm_baid_data {
 	u8 tid;
 	u8 baid;
 	u16 timeout;
+	u16 entries_per_queue;
 	unsigned long last_rx;
 	struct timer_list session_timer;
+	struct iwl_mvm_baid_data __rcu **rcu_ptr;
 	struct iwl_mvm *mvm;
-	struct iwl_mvm_reorder_buffer reorder_buf[];
+	struct iwl_mvm_reorder_buffer reorder_buf[IWL_MAX_RX_HW_QUEUES];
+	struct iwl_mvm_reorder_buf_entry entries[];
 };
+
+static inline struct iwl_mvm_baid_data *
+iwl_mvm_baid_data_from_reorder_buf(struct iwl_mvm_reorder_buffer *buf)
+{
+	return (void *)((u8 *)buf -
+			offsetof(struct iwl_mvm_baid_data, reorder_buf) -
+			sizeof(*buf) * buf->queue);
+}
 
 /*
  * enum iwl_mvm_queue_status - queue status
@@ -685,20 +710,14 @@ enum iwl_mvm_queue_status {
 
 #define IWL_MVM_NUM_CIPHERS             10
 
-#ifdef CONFIG_ACPI
-#define IWL_MVM_SAR_TABLE_SIZE		10
-#define IWL_MVM_SAR_PROFILE_NUM		4
-#define IWL_MVM_GEO_TABLE_SIZE		6
-
 struct iwl_mvm_sar_profile {
 	bool enabled;
-	u8 table[IWL_MVM_SAR_TABLE_SIZE];
+	u8 table[ACPI_SAR_TABLE_SIZE];
 };
 
 struct iwl_mvm_geo_profile {
-	u8 values[IWL_MVM_GEO_TABLE_SIZE];
+	u8 values[ACPI_GEO_TABLE_SIZE];
 };
-#endif
 
 struct iwl_mvm {
 	/* for logger access */
@@ -736,7 +755,6 @@ struct iwl_mvm {
 	u32 log_event_table;
 	u32 umac_error_event_table;
 	bool support_umac_log;
-	struct iwl_sf_region sf_space;
 
 	u32 ampdu_ref;
 	bool ampdu_toggle;
@@ -1019,8 +1037,8 @@ struct iwl_mvm {
 	/* does a monitor vif exist (only one can exist hence bool) */
 	bool monitor_on;
 #ifdef CONFIG_ACPI
-	struct iwl_mvm_sar_profile sar_profiles[IWL_MVM_SAR_PROFILE_NUM];
-	struct iwl_mvm_geo_profile geo_profiles[IWL_NUM_GEO_PROFILES];
+	struct iwl_mvm_sar_profile sar_profiles[ACPI_SAR_PROFILE_NUM];
+	struct iwl_mvm_geo_profile geo_profiles[ACPI_NUM_GEO_PROFILES];
 #endif
 };
 
@@ -1122,6 +1140,12 @@ static inline bool iwl_mvm_is_d0i3_supported(struct iwl_mvm *mvm)
 	return !iwlwifi_mod_params.d0i3_disable &&
 		fw_has_capa(&mvm->fw->ucode_capa,
 			    IWL_UCODE_TLV_CAPA_D0I3_SUPPORT);
+}
+
+static inline bool iwl_mvm_is_adaptive_dwell_supported(struct iwl_mvm *mvm)
+{
+	return fw_has_api(&mvm->fw->ucode_capa,
+			  IWL_UCODE_TLV_API_ADAPTIVE_DWELL);
 }
 
 static inline bool iwl_mvm_enter_d0i3_on_suspend(struct iwl_mvm *mvm)
@@ -1249,6 +1273,12 @@ static inline bool iwl_mvm_has_new_ats_coex_api(struct iwl_mvm *mvm)
 {
 	return fw_has_api(&mvm->fw->ucode_capa,
 			  IWL_UCODE_TLV_API_COEX_ATS_EXTERNAL);
+}
+
+static inline bool iwl_mvm_has_quota_low_latency(struct iwl_mvm *mvm)
+{
+	return fw_has_api(&mvm->fw->ucode_capa,
+			  IWL_UCODE_TLV_API_QUOTA_LOW_LATENCY);
 }
 
 static inline struct agg_tx_status *
@@ -1489,6 +1519,27 @@ int iwl_mvm_binding_add_vif(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
 int iwl_mvm_binding_remove_vif(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
 
 /* Quota management */
+static inline size_t iwl_mvm_quota_cmd_size(struct iwl_mvm *mvm)
+{
+	return iwl_mvm_has_quota_low_latency(mvm) ?
+		sizeof(struct iwl_time_quota_cmd) :
+		sizeof(struct iwl_time_quota_cmd_v1);
+}
+
+static inline struct iwl_time_quota_data
+*iwl_mvm_quota_cmd_get_quota(struct iwl_mvm *mvm,
+			     struct iwl_time_quota_cmd *cmd,
+			     int i)
+{
+	struct iwl_time_quota_data_v1 *quotas;
+
+	if (iwl_mvm_has_quota_low_latency(mvm))
+		return &cmd->quotas[i];
+
+	quotas = (struct iwl_time_quota_data_v1 *)cmd->quotas;
+	return (struct iwl_time_quota_data *)&quotas[i];
+}
+
 int iwl_mvm_update_quotas(struct iwl_mvm *mvm, bool force_upload,
 			  struct ieee80211_vif *disabled_vif);
 
@@ -1809,7 +1860,7 @@ void iwl_mvm_tdls_ch_switch_work(struct work_struct *work);
 void iwl_mvm_sync_rx_queues_internal(struct iwl_mvm *mvm,
 				     struct iwl_mvm_internal_rxq_notif *notif,
 				     u32 size);
-void iwl_mvm_reorder_timer_expired(unsigned long data);
+void iwl_mvm_reorder_timer_expired(struct timer_list *t);
 struct ieee80211_vif *iwl_mvm_get_bss_vif(struct iwl_mvm *mvm);
 bool iwl_mvm_is_vif_assoc(struct iwl_mvm *mvm);
 
@@ -1821,12 +1872,10 @@ unsigned int iwl_mvm_get_wd_timeout(struct iwl_mvm *mvm,
 				    bool tdls, bool cmd_q);
 void iwl_mvm_connection_loss(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			     const char *errmsg);
-
-/* Link Quality Measurement */
-int iwl_mvm_send_lqm_cmd(struct ieee80211_vif *vif,
-			 enum iwl_lqm_cmd_operatrions operation,
-			 u32 duration, u32 timeout);
-bool iwl_mvm_lqm_active(struct iwl_mvm *mvm);
+void iwl_mvm_event_frame_timeout_callback(struct iwl_mvm *mvm,
+					  struct ieee80211_vif *vif,
+					  const struct ieee80211_sta *sta,
+					  u16 tid);
 
 int iwl_mvm_sar_select_profile(struct iwl_mvm *mvm, int prof_a, int prof_b);
 int iwl_mvm_get_sar_geo_profile(struct iwl_mvm *mvm);

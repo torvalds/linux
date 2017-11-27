@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /****************************************************************************
  *
  * Driver for the IFX 6x60 spi modem.
@@ -9,20 +10,6 @@
  *
  * Copyright (C) 2009, 2010 Intel Corp
  * Russ Gorby <russ.gorby@intel.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.	 See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
- * USA
  *
  * Driver modified by Intel from Option gtm501l_spi.c
  *
@@ -276,9 +263,9 @@ static void mrdy_assert(struct ifx_spi_device *ifx_dev)
  *	The SPI has timed out: hang up the tty. Users will then see a hangup
  *	and error events.
  */
-static void ifx_spi_timeout(unsigned long arg)
+static void ifx_spi_timeout(struct timer_list *t)
 {
-	struct ifx_spi_device *ifx_dev = (struct ifx_spi_device *)arg;
+	struct ifx_spi_device *ifx_dev = from_timer(ifx_dev, t, spi_timer);
 
 	dev_warn(&ifx_dev->spi_dev->dev, "*** SPI Timeout ***");
 	tty_port_tty_hangup(&ifx_dev->tty_port, false);
@@ -1029,9 +1016,7 @@ static int ifx_spi_spi_probe(struct spi_device *spi)
 	spin_lock_init(&ifx_dev->write_lock);
 	spin_lock_init(&ifx_dev->power_lock);
 	ifx_dev->power_status = 0;
-	init_timer(&ifx_dev->spi_timer);
-	ifx_dev->spi_timer.function = ifx_spi_timeout;
-	ifx_dev->spi_timer.data = (unsigned long)ifx_dev;
+	timer_setup(&ifx_dev->spi_timer, ifx_spi_timeout, 0);
 	ifx_dev->modem = pl_data->modem_type;
 	ifx_dev->use_dma = pl_data->use_dma;
 	ifx_dev->max_hz = pl_data->max_hz;

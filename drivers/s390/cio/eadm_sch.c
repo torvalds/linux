@@ -43,13 +43,7 @@ static debug_info_t *eadm_debug;
 
 static void EADM_LOG_HEX(int level, void *data, int length)
 {
-	if (!debug_level_enabled(eadm_debug, level))
-		return;
-	while (length > 0) {
-		debug_event(eadm_debug, level, data, length);
-		length -= eadm_debug->buf_size;
-		data += eadm_debug->buf_size;
-	}
+	debug_event(eadm_debug, level, data, length);
 }
 
 static void orb_init(union orb *orb)
@@ -100,9 +94,10 @@ static int eadm_subchannel_clear(struct subchannel *sch)
 	return 0;
 }
 
-static void eadm_subchannel_timeout(unsigned long data)
+static void eadm_subchannel_timeout(struct timer_list *t)
 {
-	struct subchannel *sch = (struct subchannel *) data;
+	struct eadm_private *private = from_timer(private, t, timer);
+	struct subchannel *sch = private->sch;
 
 	spin_lock_irq(sch->lock);
 	EADM_LOG(1, "timeout");
@@ -124,8 +119,6 @@ static void eadm_subchannel_set_timeout(struct subchannel *sch, int expires)
 		if (mod_timer(&private->timer, jiffies + expires))
 			return;
 	}
-	private->timer.function = eadm_subchannel_timeout;
-	private->timer.data = (unsigned long) sch;
 	private->timer.expires = jiffies + expires;
 	add_timer(&private->timer);
 }
@@ -230,7 +223,7 @@ static int eadm_subchannel_probe(struct subchannel *sch)
 		return -ENOMEM;
 
 	INIT_LIST_HEAD(&private->head);
-	init_timer(&private->timer);
+	timer_setup(&private->timer, eadm_subchannel_timeout, 0);
 
 	spin_lock_irq(sch->lock);
 	set_eadm_private(sch, private);

@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-2.0
+DTC_FLAGS_testcases := -Wno-interrupts_property
 obj-y += testcases.dtb.o
 
 targets += testcases.dtb testcases.dtb.S

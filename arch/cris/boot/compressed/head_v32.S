@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *  Code that sets up the DRAM registers, calls the
  *  decompressor to unpack the piggybacked kernel, and jumps.

@@ -183,7 +183,7 @@ static int imx_pd_register(struct drm_device *drm,
 				&imx_pd_connector_helper_funcs);
 		drm_connector_init(drm, &imxpd->connector,
 				   &imx_pd_connector_funcs,
-				   DRM_MODE_CONNECTOR_VGA);
+				   DRM_MODE_CONNECTOR_DPI);
 	}
 
 	if (imxpd->panel)

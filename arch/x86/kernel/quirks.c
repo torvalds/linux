@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * This file contains work-arounds for x86 and x86_64 platform bugs.
  */

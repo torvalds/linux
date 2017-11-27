@@ -681,9 +681,11 @@ static int m88e1116r_config_init(struct phy_device *phydev)
 	if (err < 0)
 		return err;
 
-	err = m88e1121_config_aneg_rgmii_delays(phydev);
-	if (err < 0)
-		return err;
+	if (phy_interface_is_rgmii(phydev)) {
+		err = m88e1121_config_aneg_rgmii_delays(phydev);
+		if (err < 0)
+			return err;
+	}
 
 	err = genphy_soft_reset(phydev);
 	if (err < 0)

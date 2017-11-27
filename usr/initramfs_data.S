@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
   initramfs_data includes the compressed binary that is the
   filesystem used for early user space.

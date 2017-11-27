@@ -1,4 +1,5 @@
 # Monitor the system for dropped packets and proudce a report of drop locations and counts
+# SPDX-License-Identifier: GPL-2.0
 
 import os
 import sys

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _NET_IP6_ROUTE_H
 #define _NET_IP6_ROUTE_H
 
@@ -94,6 +95,11 @@ int ipv6_route_ioctl(struct net *net, unsigned int cmd, void __user *arg);
 int ip6_route_add(struct fib6_config *cfg, struct netlink_ext_ack *extack);
 int ip6_ins_rt(struct rt6_info *);
 int ip6_del_rt(struct rt6_info *);
+
+void rt6_flush_exceptions(struct rt6_info *rt);
+int rt6_remove_exception_rt(struct rt6_info *rt);
+void rt6_age_exceptions(struct rt6_info *rt, struct fib6_gc_args *gc_args,
+			unsigned long now);
 
 static inline int ip6_route_get_saddr(struct net *net, struct rt6_info *rt,
 				      const struct in6_addr *daddr,

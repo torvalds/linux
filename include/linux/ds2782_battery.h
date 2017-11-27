@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __LINUX_DS2782_BATTERY_H
 #define __LINUX_DS2782_BATTERY_H
 

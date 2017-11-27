@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #include "soc_common.h"
 #include "sa11xx_base.h"
 

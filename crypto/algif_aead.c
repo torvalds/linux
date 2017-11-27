@@ -278,11 +278,11 @@ static int _aead_recvmsg(struct socket *sock, struct msghdr *msg,
 		/* Synchronous operation */
 		aead_request_set_callback(&areq->cra_u.aead_req,
 					  CRYPTO_TFM_REQ_MAY_BACKLOG,
-					  af_alg_complete, &ctx->completion);
-		err = af_alg_wait_for_completion(ctx->enc ?
+					  crypto_req_done, &ctx->wait);
+		err = crypto_wait_req(ctx->enc ?
 				crypto_aead_encrypt(&areq->cra_u.aead_req) :
 				crypto_aead_decrypt(&areq->cra_u.aead_req),
-						 &ctx->completion);
+				&ctx->wait);
 	}
 
 	/* AIO operation in progress */
@@ -554,7 +554,7 @@ static int aead_accept_parent_nokey(void *private, struct sock *sk)
 	ctx->merge = 0;
 	ctx->enc = 0;
 	ctx->aead_assoclen = 0;
-	af_alg_init_completion(&ctx->completion);
+	crypto_init_wait(&ctx->wait);
 
 	ask->private = ctx;
 

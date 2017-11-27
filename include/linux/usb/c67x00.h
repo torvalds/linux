@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * usb_c67x00.h: platform definitions for the Cypress C67X00 USB chip
  *

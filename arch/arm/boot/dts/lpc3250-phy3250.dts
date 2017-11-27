@@ -154,29 +154,29 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 
-		mtd0@00000000 {
+		mtd0@0 {
 			label = "phy3250-boot";
 			reg = <0x00000000 0x00064000>;
 			read-only;
 		};
 
-		mtd1@00064000 {
+		mtd1@64000 {
 			label = "phy3250-uboot";
 			reg = <0x00064000 0x00190000>;
 			read-only;
 		};
 
-		mtd2@001f4000 {
+		mtd2@1f4000 {
 			label = "phy3250-ubt-prms";
 			reg = <0x001f4000 0x00010000>;
 		};
 
-		mtd3@00204000 {
+		mtd3@204000 {
 			label = "phy3250-kernel";
 			reg = <0x00204000 0x00400000>;
 		};
 
-		mtd4@00604000 {
+		mtd4@604000 {
 			label = "phy3250-rootfs";
 			reg = <0x00604000 0x039fc000>;
 		};

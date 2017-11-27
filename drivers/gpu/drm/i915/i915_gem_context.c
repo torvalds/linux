@@ -104,17 +104,14 @@ static void lut_close(struct i915_gem_context *ctx)
 		kmem_cache_free(ctx->i915->luts, lut);
 	}
 
+	rcu_read_lock();
 	radix_tree_for_each_slot(slot, &ctx->handles_vma, &iter, 0) {
 		struct i915_vma *vma = rcu_dereference_raw(*slot);
-		struct drm_i915_gem_object *obj = vma->obj;
 
 		radix_tree_iter_delete(&ctx->handles_vma, &iter, slot);
-
-		if (!i915_vma_is_ggtt(vma))
-			i915_vma_close(vma);
-
-		__i915_gem_object_release_unless_active(obj);
+		__i915_gem_object_release_unless_active(vma->obj);
 	}
+	rcu_read_unlock();
 }
 
 static void i915_gem_context_free(struct i915_gem_context *ctx)
@@ -198,6 +195,11 @@ static void context_close(struct i915_gem_context *ctx)
 {
 	i915_gem_context_set_closed(ctx);
 
+	/*
+	 * The LUT uses the VMA as a backpointer to unref the object,
+	 * so we need to clear the LUT before we close all the VMA (inside
+	 * the ppgtt).
+	 */
 	lut_close(ctx);
 	if (ctx->ppgtt)
 		i915_ppgtt_close(&ctx->ppgtt->base);
@@ -314,7 +316,7 @@ __create_hw_context(struct drm_i915_private *dev_priv,
 	 * present or not in use we still need a small bias as ring wraparound
 	 * at offset 0 sometimes hangs. No idea why.
 	 */
-	if (HAS_GUC(dev_priv) && i915.enable_guc_loading)
+	if (HAS_GUC(dev_priv) && i915_modparams.enable_guc_loading)
 		ctx->ggtt_offset_bias = GUC_WOPCM_TOP;
 	else
 		ctx->ggtt_offset_bias = I915_GTT_PAGE_SIZE;
@@ -407,7 +409,7 @@ i915_gem_context_create_gvt(struct drm_device *dev)
 	i915_gem_context_set_closed(ctx); /* not user accessible */
 	i915_gem_context_clear_bannable(ctx);
 	i915_gem_context_set_force_single_submission(ctx);
-	if (!i915.enable_guc_submission)
+	if (!i915_modparams.enable_guc_submission)
 		ctx->ring_size = 512 * PAGE_SIZE; /* Max ring buffer size */
 
 	GEM_BUG_ON(i915_gem_context_is_kernel(ctx));
@@ -416,14 +418,43 @@ out:
 	return ctx;
 }
 
-int i915_gem_contexts_init(struct drm_i915_private *dev_priv)
+static struct i915_gem_context *
+create_kernel_context(struct drm_i915_private *i915, int prio)
 {
 	struct i915_gem_context *ctx;
 
-	/* Init should only be called once per module load. Eventually the
-	 * restriction on the context_disabled check can be loosened. */
-	if (WARN_ON(dev_priv->kernel_context))
-		return 0;
+	ctx = i915_gem_create_context(i915, NULL);
+	if (IS_ERR(ctx))
+		return ctx;
+
+	i915_gem_context_clear_bannable(ctx);
+	ctx->priority = prio;
+	ctx->ring_size = PAGE_SIZE;
+
+	GEM_BUG_ON(!i915_gem_context_is_kernel(ctx));
+
+	return ctx;
+}
+
+static void
+destroy_kernel_context(struct i915_gem_context **ctxp)
+{
+	struct i915_gem_context *ctx;
+
+	/* Keep the context ref so that we can free it immediately ourselves */
+	ctx = i915_gem_context_get(fetch_and_zero(ctxp));
+	GEM_BUG_ON(!i915_gem_context_is_kernel(ctx));
+
+	context_close(ctx);
+	i915_gem_context_free(ctx);
+}
+
+int i915_gem_contexts_init(struct drm_i915_private *dev_priv)
+{
+	struct i915_gem_context *ctx;
+	int err;
+
+	GEM_BUG_ON(dev_priv->kernel_context);
 
 	INIT_LIST_HEAD(&dev_priv->contexts.list);
 	INIT_WORK(&dev_priv->contexts.free_work, contexts_free_worker);
@@ -431,7 +462,7 @@ int i915_gem_contexts_init(struct drm_i915_private *dev_priv)
 
 	if (intel_vgpu_active(dev_priv) &&
 	    HAS_LOGICAL_RING_CONTEXTS(dev_priv)) {
-		if (!i915.enable_execlists) {
+		if (!i915_modparams.enable_execlists) {
 			DRM_INFO("Only EXECLIST mode is supported in vgpu.\n");
 			return -EINVAL;
 		}
@@ -441,28 +472,38 @@ int i915_gem_contexts_init(struct drm_i915_private *dev_priv)
 	BUILD_BUG_ON(MAX_CONTEXT_HW_ID > INT_MAX);
 	ida_init(&dev_priv->contexts.hw_ida);
 
-	ctx = i915_gem_create_context(dev_priv, NULL);
+	/* lowest priority; idle task */
+	ctx = create_kernel_context(dev_priv, I915_PRIORITY_MIN);
 	if (IS_ERR(ctx)) {
-		DRM_ERROR("Failed to create default global context (error %ld)\n",
-			  PTR_ERR(ctx));
-		return PTR_ERR(ctx);
+		DRM_ERROR("Failed to create default global context\n");
+		err = PTR_ERR(ctx);
+		goto err;
 	}
-
-	/* For easy recognisablity, we want the kernel context to be 0 and then
+	/*
+	 * For easy recognisablity, we want the kernel context to be 0 and then
 	 * all user contexts will have non-zero hw_id.
 	 */
 	GEM_BUG_ON(ctx->hw_id);
-
-	i915_gem_context_clear_bannable(ctx);
-	ctx->priority = I915_PRIORITY_MIN; /* lowest priority; idle task */
 	dev_priv->kernel_context = ctx;
 
-	GEM_BUG_ON(!i915_gem_context_is_kernel(ctx));
+	/* highest priority; preempting task */
+	ctx = create_kernel_context(dev_priv, INT_MAX);
+	if (IS_ERR(ctx)) {
+		DRM_ERROR("Failed to create default preempt context\n");
+		err = PTR_ERR(ctx);
+		goto err_kernel_context;
+	}
+	dev_priv->preempt_context = ctx;
 
 	DRM_DEBUG_DRIVER("%s context support initialized\n",
 			 dev_priv->engine[RCS]->context_size ? "logical" :
 			 "fake");
 	return 0;
+
+err_kernel_context:
+	destroy_kernel_context(&dev_priv->kernel_context);
+err:
+	return err;
 }
 
 void i915_gem_contexts_lost(struct drm_i915_private *dev_priv)
@@ -483,7 +524,7 @@ void i915_gem_contexts_lost(struct drm_i915_private *dev_priv)
 	}
 
 	/* Force the GPU state to be restored on enabling */
-	if (!i915.enable_execlists) {
+	if (!i915_modparams.enable_execlists) {
 		struct i915_gem_context *ctx;
 
 		list_for_each_entry(ctx, &dev_priv->contexts.list, link) {
@@ -507,15 +548,10 @@ void i915_gem_contexts_lost(struct drm_i915_private *dev_priv)
 
 void i915_gem_contexts_fini(struct drm_i915_private *i915)
 {
-	struct i915_gem_context *ctx;
-
 	lockdep_assert_held(&i915->drm.struct_mutex);
 
-	/* Keep the context so that we can free it immediately ourselves */
-	ctx = i915_gem_context_get(fetch_and_zero(&i915->kernel_context));
-	GEM_BUG_ON(!i915_gem_context_is_kernel(ctx));
-	context_close(ctx);
-	i915_gem_context_free(ctx);
+	destroy_kernel_context(&i915->preempt_context);
+	destroy_kernel_context(&i915->kernel_context);
 
 	/* Must free all deferred contexts (via flush_workqueue) first */
 	ida_destroy(&i915->contexts.hw_ida);
@@ -568,7 +604,7 @@ mi_set_context(struct drm_i915_gem_request *req, u32 flags)
 	enum intel_engine_id id;
 	const int num_rings =
 		/* Use an extended w/a on gen7 if signalling from other rings */
-		(i915.semaphores && INTEL_GEN(dev_priv) == 7) ?
+		(i915_modparams.semaphores && INTEL_GEN(dev_priv) == 7) ?
 		INTEL_INFO(dev_priv)->num_rings - 1 :
 		0;
 	int len;
@@ -837,7 +873,7 @@ int i915_switch_context(struct drm_i915_gem_request *req)
 	struct intel_engine_cs *engine = req->engine;
 
 	lockdep_assert_held(&req->i915->drm.struct_mutex);
-	if (i915.enable_execlists)
+	if (i915_modparams.enable_execlists)
 		return 0;
 
 	if (!req->ctx->engine[engine->id].state) {
@@ -1036,6 +1072,9 @@ int i915_gem_context_getparam_ioctl(struct drm_device *dev, void *data,
 	case I915_CONTEXT_PARAM_BANNABLE:
 		args->value = i915_gem_context_is_bannable(ctx);
 		break;
+	case I915_CONTEXT_PARAM_PRIORITY:
+		args->value = ctx->priority;
+		break;
 	default:
 		ret = -EINVAL;
 		break;
@@ -1091,6 +1130,26 @@ int i915_gem_context_setparam_ioctl(struct drm_device *dev, void *data,
 		else
 			i915_gem_context_clear_bannable(ctx);
 		break;
+
+	case I915_CONTEXT_PARAM_PRIORITY:
+		{
+			int priority = args->value;
+
+			if (args->size)
+				ret = -EINVAL;
+			else if (!to_i915(dev)->engine[RCS]->schedule)
+				ret = -ENODEV;
+			else if (priority > I915_CONTEXT_MAX_USER_PRIORITY ||
+				 priority < I915_CONTEXT_MIN_USER_PRIORITY)
+				ret = -EINVAL;
+			else if (priority > I915_CONTEXT_DEFAULT_PRIORITY &&
+				 !capable(CAP_SYS_NICE))
+				ret = -EPERM;
+			else
+				ctx->priority = priority;
+		}
+		break;
+
 	default:
 		ret = -EINVAL;
 		break;

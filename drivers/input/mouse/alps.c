@@ -1587,10 +1587,10 @@ static psmouse_ret_t alps_handle_interleaved_ps2(struct psmouse *psmouse)
 	return PSMOUSE_GOOD_DATA;
 }
 
-static void alps_flush_packet(unsigned long data)
+static void alps_flush_packet(struct timer_list *t)
 {
-	struct psmouse *psmouse = (struct psmouse *)data;
-	struct alps_data *priv = psmouse->private;
+	struct alps_data *priv = from_timer(priv, t, timer);
+	struct psmouse *psmouse = priv->psmouse;
 
 	serio_pause_rx(psmouse->ps2dev.serio);
 
@@ -2702,7 +2702,7 @@ static int alps_set_protocol(struct psmouse *psmouse,
 {
 	psmouse->private = priv;
 
-	setup_timer(&priv->timer, alps_flush_packet, (unsigned long)psmouse);
+	timer_setup(&priv->timer, alps_flush_packet, 0);
 
 	priv->proto_version = protocol->version;
 	priv->byte0 = protocol->byte0;

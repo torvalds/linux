@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #if !defined(_TRACE_KVMMMU_H) || defined(TRACE_HEADER_MULTI_READ)
 #define _TRACE_KVMMMU_H
 

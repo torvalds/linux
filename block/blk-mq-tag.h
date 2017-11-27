@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef INT_BLK_MQ_TAG_H
 #define INT_BLK_MQ_TAG_H
 
@@ -44,13 +45,8 @@ static inline struct sbq_wait_state *bt_wait_ptr(struct sbitmap_queue *bt,
 }
 
 enum {
-	BLK_MQ_TAG_CACHE_MIN	= 1,
-	BLK_MQ_TAG_CACHE_MAX	= 64,
-};
-
-enum {
 	BLK_MQ_TAG_FAIL		= -1U,
-	BLK_MQ_TAG_MIN		= BLK_MQ_TAG_CACHE_MIN,
+	BLK_MQ_TAG_MIN		= 1,
 	BLK_MQ_TAG_MAX		= BLK_MQ_TAG_FAIL - 1,
 };
 

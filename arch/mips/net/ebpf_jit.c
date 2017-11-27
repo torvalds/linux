@@ -1513,7 +1513,7 @@ ld_skb_common:
 		}
 		src = ebpf_to_mips_reg(ctx, insn, src_reg_no_fp);
 		if (src < 0)
-			return dst;
+			return src;
 		if (BPF_MODE(insn->code) == BPF_XADD) {
 			switch (BPF_SIZE(insn->code)) {
 			case BPF_W:

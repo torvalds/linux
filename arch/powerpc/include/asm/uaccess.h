@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ARCH_POWERPC_UACCESS_H
 #define _ARCH_POWERPC_UACCESS_H
 
@@ -173,6 +174,23 @@ do {								\
 
 extern long __get_user_bad(void);
 
+/*
+ * This does an atomic 128 byte aligned load from userspace.
+ * Upto caller to do enable_kernel_vmx() before calling!
+ */
+#define __get_user_atomic_128_aligned(kaddr, uaddr, err)		\
+	__asm__ __volatile__(				\
+		"1:	lvx  0,0,%1	# get user\n"	\
+		" 	stvx 0,0,%2	# put kernel\n"	\
+		"2:\n"					\
+		".section .fixup,\"ax\"\n"		\
+		"3:	li %0,%3\n"			\
+		"	b 2b\n"				\
+		".previous\n"				\
+		EX_TABLE(1b, 3b)			\
+		: "=r" (err)			\
+		: "b" (uaddr), "b" (kaddr), "i" (-EFAULT), "0" (err))
+
 #define __get_user_asm(x, addr, err, op)		\
 	__asm__ __volatile__(				\
 		"1:	"op" %1,0(%2)	# get_user\n"	\
@@ -338,5 +356,10 @@ static inline unsigned long clear_user(void __user *addr, unsigned long size)
 
 extern long strncpy_from_user(char *dst, const char __user *src, long count);
 extern __must_check long strnlen_user(const char __user *str, long n);
+
+extern long __copy_from_user_flushcache(void *dst, const void __user *src,
+		unsigned size);
+extern void memcpy_page_flushcache(char *to, struct page *page, size_t offset,
+			   size_t len);
 
 #endif	/* _ARCH_POWERPC_UACCESS_H */

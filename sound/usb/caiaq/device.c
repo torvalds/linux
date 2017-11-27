@@ -461,6 +461,13 @@ static int init_card(struct snd_usb_caiaqdev *cdev)
 			  cdev->midi_out_buf, EP1_BUFSIZE,
 			  snd_usb_caiaq_midi_output_done, cdev);
 
+	/* sanity checks of EPs before actually submitting */
+	if (usb_urb_ep_type_check(&cdev->ep1_in_urb) ||
+	    usb_urb_ep_type_check(&cdev->midi_out_urb)) {
+		dev_err(dev, "invalid EPs\n");
+		return -EINVAL;
+	}
+
 	init_waitqueue_head(&cdev->ep1_wait_queue);
 	init_waitqueue_head(&cdev->prepare_wait_queue);
 

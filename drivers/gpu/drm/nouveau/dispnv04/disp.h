@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NV04_DISPLAY_H__
 #define __NV04_DISPLAY_H__
 #include <subdev/bios.h>

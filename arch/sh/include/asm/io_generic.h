@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Trivial I/O routine definitions, intentionally meant to be included
  * multiple times. Ugly I/O routine concatenation helpers taken from

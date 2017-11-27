@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Builtin evlist command: Show the list of event selectors present
  * in a perf.data file.
@@ -21,14 +22,16 @@ static int __cmd_evlist(const char *file_name, struct perf_attr_details *details
 {
 	struct perf_session *session;
 	struct perf_evsel *pos;
-	struct perf_data_file file = {
-		.path = file_name,
-		.mode = PERF_DATA_MODE_READ,
-		.force = details->force,
+	struct perf_data data = {
+		.file      = {
+			.path = file_name,
+		},
+		.mode      = PERF_DATA_MODE_READ,
+		.force     = details->force,
 	};
 	bool has_tracepoint = false;
 
-	session = perf_session__new(&file, 0, NULL);
+	session = perf_session__new(&data, 0, NULL);
 	if (session == NULL)
 		return -1;
 

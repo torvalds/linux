@@ -593,10 +593,22 @@ static int virtblk_map_queues(struct blk_mq_tag_set *set)
 	return blk_mq_virtio_map_queues(set, vblk->vdev, 0);
 }
 
+#ifdef CONFIG_VIRTIO_BLK_SCSI
+static void virtblk_initialize_rq(struct request *req)
+{
+	struct virtblk_req *vbr = blk_mq_rq_to_pdu(req);
+
+	scsi_req_init(&vbr->sreq);
+}
+#endif
+
 static const struct blk_mq_ops virtio_mq_ops = {
 	.queue_rq	= virtio_queue_rq,
 	.complete	= virtblk_request_done,
 	.init_request	= virtblk_init_request,
+#ifdef CONFIG_VIRTIO_BLK_SCSI
+	.initialize_rq_fn = virtblk_initialize_rq,
+#endif
 	.map_queues	= virtblk_map_queues,
 };
 

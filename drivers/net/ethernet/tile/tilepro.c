@@ -608,9 +608,9 @@ static void tile_net_schedule_egress_timer(struct tile_net_cpu *info)
  * ISSUE: Maybe instead track number of expected completions, and free
  * only that many, resetting to zero if "pending" is ever false.
  */
-static void tile_net_handle_egress_timer(unsigned long arg)
+static void tile_net_handle_egress_timer(struct timer_list *t)
 {
-	struct tile_net_cpu *info = (struct tile_net_cpu *)arg;
+	struct tile_net_cpu *info = from_timer(info, t, egress_timer);
 	struct net_device *dev = info->napi.dev;
 
 	/* The timer is no longer scheduled. */
@@ -1004,9 +1004,8 @@ static void tile_net_register(void *dev_ptr)
 		BUG();
 
 	/* Initialize the egress timer. */
-	init_timer_pinned(&info->egress_timer);
-	info->egress_timer.data = (long)info;
-	info->egress_timer.function = tile_net_handle_egress_timer;
+	timer_setup(&info->egress_timer, tile_net_handle_egress_timer,
+		    TIMER_PINNED);
 
 	u64_stats_init(&info->stats.syncp);
 

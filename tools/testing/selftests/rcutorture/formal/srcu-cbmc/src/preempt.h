@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef PREEMPT_H
 #define PREEMPT_H
 
