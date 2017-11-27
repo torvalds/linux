@@ -297,7 +297,7 @@ static int gpio_mockup_probe(struct platform_device *pdev)
 	}
 
 	rv = devm_irq_sim_init(dev, &chip->irqsim, gc->ngpio);
-	if (rv)
+	if (rv < 0)
 		return rv;
 
 	rv = devm_gpiochip_add_data(dev, &chip->gc, chip);
