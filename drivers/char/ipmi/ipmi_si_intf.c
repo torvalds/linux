@@ -2045,6 +2045,7 @@ static int try_smi_init(struct smi_info *new_smi)
 	int rv = 0;
 	int i;
 	char *init_name = NULL;
+	bool platform_device_registered = false;
 
 	pr_info(PFX "Trying %s-specified %s state machine at %s address 0x%lx, slave address 0x%x, irq %d\n",
 		ipmi_addr_src_to_str(new_smi->io.addr_source),
@@ -2173,6 +2174,7 @@ static int try_smi_init(struct smi_info *new_smi)
 				rv);
 			goto out_err;
 		}
+		platform_device_registered = true;
 	}
 
 	dev_set_drvdata(new_smi->io.dev, new_smi);
@@ -2279,10 +2281,11 @@ out_err:
 	}
 
 	if (new_smi->pdev) {
-		platform_device_unregister(new_smi->pdev);
+		if (platform_device_registered)
+			platform_device_unregister(new_smi->pdev);
+		else
+			platform_device_put(new_smi->pdev);
 		new_smi->pdev = NULL;
-	} else if (new_smi->pdev) {
-		platform_device_put(new_smi->pdev);
 	}
 
 	kfree(init_name);
