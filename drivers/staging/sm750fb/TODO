@@ -6,8 +6,8 @@ TODO:
 - check on hardware effects of removal of USE_HW_I2C and USE_DVICHIP (these two
 	are supposed to be sample code which is given here if someone wants to
 	use those functionalities)
-- move it to drivers/video/fbdev
-- modify the code for drm framework
+- must be ported to the atomic kms framework in the drm subsystem (which will
+  give you a basic fbdev driver for free)
 
 Please send any patches to
 	Greg Kroah-Hartman <greg@kroah.com>
