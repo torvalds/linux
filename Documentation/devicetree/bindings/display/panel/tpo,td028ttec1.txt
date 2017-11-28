@@ -2,7 +2,7 @@ Toppoly TD028TTEC1 Panel
 ========================
 
 Required properties:
-- compatible: "toppoly,td028ttec1"
+- compatible: "tpo,td028ttec1"
 
 Optional properties:
 - label: a symbolic name for the panel
@@ -14,7 +14,7 @@ Example
 -------
 
 lcd-panel: td028ttec1@0 {
-	compatible = "toppoly,td028ttec1";
+	compatible = "tpo,td028ttec1";
 	reg = <0>;
 	spi-max-frequency = <100000>;
 	spi-cpol;
