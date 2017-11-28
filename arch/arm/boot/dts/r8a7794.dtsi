@@ -197,8 +197,6 @@
 		power-domains = <&sysc R8A7794_PD_ALWAYS_ON>;
 		resets = <&cpg 124>;
 
-		renesas,channels-mask = <0x60>;
-
 		status = "disabled";
 	};
 
@@ -217,8 +215,6 @@
 		clock-names = "fck";
 		power-domains = <&sysc R8A7794_PD_ALWAYS_ON>;
 		resets = <&cpg 329>;
-
-		renesas,channels-mask = <0xff>;
 
 		status = "disabled";
 	};
