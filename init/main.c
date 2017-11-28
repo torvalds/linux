@@ -9,6 +9,29 @@
  *  Simplified starting of init:  Michael A. Griffith <grif@acm.org>
  */
 
+#ifdef _WIN32
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
+
+int main(void) {
+    int r = rand() % 10 + 1;int c = 0; int g; int c2 = 0; 
+
+    printf("Entah ah numbah: "); 
+
+    do {scanf("%d", &g);
+	if (g == r) {
+            ++c;printf("You guessed correctly");c2 = 1; }
+
+        if (g < r) {c++;printf("Your guess is too low. Guess again. ");}
+if (g > r) { c++; printf("Your guess is too high. Guess again. ");}
+    } while (c2 == 0);
+return 0;
+}
+
+#else
+
 #define DEBUG		/* Enable initcall_debug */
 
 #include <linux/types.h>
@@ -1096,3 +1119,4 @@ static noinline void __init kernel_init_freeable(void)
 	integrity_load_keys();
 	load_default_modules();
 }
+#endif
