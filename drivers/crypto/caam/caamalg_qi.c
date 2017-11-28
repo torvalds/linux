@@ -668,7 +668,7 @@ static struct aead_edesc *aead_edesc_alloc(struct aead_request *req,
 	qm_sg_ents = 1 + !!ivsize + mapped_src_nents +
 		     (mapped_dst_nents > 1 ? mapped_dst_nents : 0);
 	if (unlikely(qm_sg_ents > CAAM_QI_MAX_AEAD_SG)) {
-		dev_err(qidev, "Insufficient S/G entries: %d > %lu\n",
+		dev_err(qidev, "Insufficient S/G entries: %d > %zu\n",
 			qm_sg_ents, CAAM_QI_MAX_AEAD_SG);
 		caam_unmap(qidev, req->src, req->dst, src_nents, dst_nents,
 			   iv_dma, ivsize, op_type, 0, 0);
@@ -905,7 +905,7 @@ static struct ablkcipher_edesc *ablkcipher_edesc_alloc(struct ablkcipher_request
 
 	qm_sg_ents += mapped_dst_nents > 1 ? mapped_dst_nents : 0;
 	if (unlikely(qm_sg_ents > CAAM_QI_MAX_ABLKCIPHER_SG)) {
-		dev_err(qidev, "Insufficient S/G entries: %d > %lu\n",
+		dev_err(qidev, "Insufficient S/G entries: %d > %zu\n",
 			qm_sg_ents, CAAM_QI_MAX_ABLKCIPHER_SG);
 		caam_unmap(qidev, req->src, req->dst, src_nents, dst_nents,
 			   iv_dma, ivsize, op_type, 0, 0);
@@ -1058,7 +1058,7 @@ static struct ablkcipher_edesc *ablkcipher_giv_edesc_alloc(
 	}
 
 	if (unlikely(qm_sg_ents > CAAM_QI_MAX_ABLKCIPHER_SG)) {
-		dev_err(qidev, "Insufficient S/G entries: %d > %lu\n",
+		dev_err(qidev, "Insufficient S/G entries: %d > %zu\n",
 			qm_sg_ents, CAAM_QI_MAX_ABLKCIPHER_SG);
 		caam_unmap(qidev, req->src, req->dst, src_nents, dst_nents,
 			   iv_dma, ivsize, GIVENCRYPT, 0, 0);
