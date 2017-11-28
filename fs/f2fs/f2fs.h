@@ -1996,11 +1996,11 @@ static inline block_t datablock_addr(struct inode *inode,
 	raw_node = F2FS_NODE(node_page);
 
 	/* from GC path only */
-	if (!inode) {
-		if (is_inode)
+	if (is_inode) {
+		if (!inode)
 			base = offset_in_addr(&raw_node->i);
-	} else if (f2fs_has_extra_attr(inode) && is_inode) {
-		base = get_extra_isize(inode);
+		else if (f2fs_has_extra_attr(inode))
+			base = get_extra_isize(inode);
 	}
 
 	addr_array = blkaddr_in_node(raw_node);
