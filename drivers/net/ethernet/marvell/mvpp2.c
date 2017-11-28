@@ -6842,6 +6842,12 @@ static int mvpp2_check_ringparam_valid(struct net_device *dev,
 	else if (!IS_ALIGNED(ring->tx_pending, 32))
 		new_tx_pending = ALIGN(ring->tx_pending, 32);
 
+	/* The Tx ring size cannot be smaller than the minimum number of
+	 * descriptors needed for TSO.
+	 */
+	if (new_tx_pending < MVPP2_MAX_SKB_DESCS)
+		new_tx_pending = ALIGN(MVPP2_MAX_SKB_DESCS, 32);
+
 	if (ring->rx_pending != new_rx_pending) {
 		netdev_info(dev, "illegal Rx ring size value %d, round to %d\n",
 			    ring->rx_pending, new_rx_pending);
