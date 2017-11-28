@@ -608,7 +608,7 @@ static void init_hpte_page_sizes(void)
 			continue;	/* not a supported page size */
 		for (ap = bp; ap < MMU_PAGE_COUNT; ++ap) {
 			penc = mmu_psize_defs[bp].penc[ap];
-			if (penc == -1)
+			if (penc == -1 || !mmu_psize_defs[ap].shift)
 				continue;
 			shift = mmu_psize_defs[ap].shift - LP_SHIFT;
 			if (shift <= 0)
