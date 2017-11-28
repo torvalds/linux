@@ -197,6 +197,7 @@ int i2c_dw_prepare_clk(struct dw_i2c_dev *dev, bool prepare)
 	clk_disable_unprepare(dev->clk);
 	return 0;
 }
+EXPORT_SYMBOL_GPL(i2c_dw_prepare_clk);
 
 int i2c_dw_acquire_lock(struct dw_i2c_dev *dev)
 {
