@@ -390,6 +390,15 @@ static void hsw_power_well_enable(struct drm_i915_private *dev_priv,
 	I915_WRITE(HSW_PWR_WELL_CTL_DRIVER(id), val | HSW_PWR_WELL_CTL_REQ(id));
 	hsw_wait_for_power_well_enable(dev_priv, power_well);
 
+	/* Display WA #1178: cnl */
+	if (IS_CANNONLAKE(dev_priv) &&
+	    (id == CNL_DISP_PW_AUX_B || id == CNL_DISP_PW_AUX_C ||
+	     id == CNL_DISP_PW_AUX_D)) {
+		val = I915_READ(CNL_AUX_ANAOVRD1(id));
+		val |= CNL_AUX_ANAOVRD1_ENABLE | CNL_AUX_ANAOVRD1_LDO_BYPASS;
+		I915_WRITE(CNL_AUX_ANAOVRD1(id), val);
+	}
+
 	if (wait_fuses)
 		gen9_wait_for_power_well_fuses(dev_priv, pg);
 
