@@ -434,6 +434,12 @@ void intel_uncore_resume_early(struct drm_i915_private *dev_priv)
 	i915_check_and_clear_faults(dev_priv);
 }
 
+void intel_uncore_runtime_resume(struct drm_i915_private *dev_priv)
+{
+	iosf_mbi_register_pmic_bus_access_notifier(
+		&dev_priv->uncore.pmic_bus_access_nb);
+}
+
 void intel_uncore_sanitize(struct drm_i915_private *dev_priv)
 {
 	i915_modparams.enable_rc6 =
@@ -1240,8 +1246,15 @@ static int i915_pmic_bus_access_notifier(struct notifier_block *nb,
 		 * bus, which will be busy after this notification, leading to:
 		 * "render: timed out waiting for forcewake ack request."
 		 * errors.
+		 *
+		 * The notifier is unregistered during intel_runtime_suspend(),
+		 * so it's ok to access the HW here without holding a RPM
+		 * wake reference -> disable wakeref asserts for the time of
+		 * the access.
 		 */
+		disable_rpm_wakeref_asserts(dev_priv);
 		intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
+		enable_rpm_wakeref_asserts(dev_priv);
 		break;
 	case MBI_PMIC_BUS_ACCESS_END:
 		intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
