@@ -25,25 +25,24 @@
 #include <drv_types.h>
 
 
-//================================================================================
-// Interface to manipulate LED objects.
-//================================================================================
+/* ********************************************************************************
+ * Interface to manipulate LED objects.
+ * ******************************************************************************** */
 #ifdef CONFIG_USB_HCI
-void rtl8703bu_InitSwLeds(PADAPTER padapter);
-void rtl8703bu_DeInitSwLeds(PADAPTER padapter);
+	void rtl8703bu_InitSwLeds(PADAPTER padapter);
+	void rtl8703bu_DeInitSwLeds(PADAPTER padapter);
 #endif
 #ifdef CONFIG_SDIO_HCI
-void rtl8703bs_InitSwLeds(PADAPTER padapter);
-void rtl8703bs_DeInitSwLeds(PADAPTER padapter);
+	void rtl8703bs_InitSwLeds(PADAPTER padapter);
+	void rtl8703bs_DeInitSwLeds(PADAPTER padapter);
 #endif
 #ifdef CONFIG_GSPI_HCI
-void rtl8703bs_InitSwLeds(PADAPTER padapter);
-void rtl8703bs_DeInitSwLeds(PADAPTER padapter);
+	void rtl8703bs_InitSwLeds(PADAPTER padapter);
+	void rtl8703bs_DeInitSwLeds(PADAPTER padapter);
 #endif
 #ifdef CONFIG_PCI_HCI
-void rtl8703be_InitSwLeds(PADAPTER padapter);
-void rtl8703be_DeInitSwLeds(PADAPTER padapter);
+	void rtl8703be_InitSwLeds(PADAPTER padapter);
+	void rtl8703be_DeInitSwLeds(PADAPTER padapter);
 #endif
 
 #endif
-

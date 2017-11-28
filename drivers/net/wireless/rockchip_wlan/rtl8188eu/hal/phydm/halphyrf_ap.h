@@ -17,146 +17,162 @@
  *
  *
  ******************************************************************************/
- 
- #ifndef __HAL_PHY_RF_H__
- #define __HAL_PHY_RF_H__
- 
+
+#ifndef __HAL_PHY_RF_H__
+#define __HAL_PHY_RF_H__
+
 #include "phydm_powertracking_ap.h"
 #if (RTL8814A_SUPPORT == 1)
-#include "rtl8814a/phydm_iqk_8814a.h"
+	#include "rtl8814a/phydm_iqk_8814a.h"
 #endif
 
 #if (RTL8822B_SUPPORT == 1)
-#include "rtl8822b/phydm_iqk_8822b.h"
+	#include "rtl8822b/phydm_iqk_8822b.h"
 #endif
 
+#if (RTL8821C_SUPPORT == 1)
+	#include "rtl8822b/phydm_iqk_8821c.h"
+#endif
 
-typedef enum _PWRTRACK_CONTROL_METHOD {
+enum pwrtrack_method {
 	BBSWING,
 	TXAGC,
 	MIX_MODE,
 	TSSI_MODE
-} PWRTRACK_METHOD;
+};
 
-typedef VOID 	(*FuncSetPwr)(PVOID, PWRTRACK_METHOD, u1Byte, u1Byte);
-typedef VOID(*FuncIQK)(PVOID, u1Byte, u1Byte, u1Byte);
-typedef VOID 	(*FuncLCK)(PVOID);
-				//refine by YuChen for 8814A
-typedef VOID  	(*FuncSwing)(PVOID, pu1Byte*, pu1Byte*, pu1Byte*, pu1Byte*);
-typedef VOID	(*FuncSwing8814only)(PVOID, pu1Byte*, pu1Byte*, pu1Byte*, pu1Byte*);
-
-typedef struct _TXPWRTRACK_CFG {
-	u1Byte 		SwingTableSize_CCK;	
-	u1Byte 		SwingTableSize_OFDM;
-	u1Byte 		Threshold_IQK;
-	u1Byte 		Threshold_DPK;	
-	u1Byte 		AverageThermalNum;
-	u1Byte 		RfPathCount;
-	u4Byte 		ThermalRegAddr;	
-	FuncSetPwr 	ODM_TxPwrTrackSetPwr;
-	FuncIQK 	DoIQK;
-	FuncLCK		PHY_LCCalibrate;
-	FuncSwing	GetDeltaSwingTable;
-	FuncSwing8814only	GetDeltaSwingTable8814only;
-} TXPWRTRACK_CFG, *PTXPWRTRACK_CFG;
-
-VOID 
-ConfigureTxpowerTrack(
-	IN	PVOID		pDM_VOID,
-	OUT	PTXPWRTRACK_CFG	pConfig
-	);
+typedef void	(*func_set_pwr)(void *, enum pwrtrack_method, u8, u8);
+typedef void(*func_iqk)(void *, u8, u8, u8);
+typedef void	(*func_lck)(void *);
+/* refine by YuChen for 8814A */
+typedef void	(*func_swing)(void *, u8 **, u8 **, u8 **, u8 **);
+typedef void	(*func_swing8814only)(void *, u8 **, u8 **, u8 **, u8 **);
+typedef void	(*func_all_swing)(void *, u8 **, u8 **, u8 **, u8 **, u8 **, u8 **, u8 **, u8 **);
 
 
-VOID
-ODM_TXPowerTrackingCallback_ThermalMeter(
+struct _TXPWRTRACK_CFG {
+	u8		swing_table_size_cck;
+	u8		swing_table_size_ofdm;
+	u8		threshold_iqk;
+	u8		threshold_dpk;
+	u8		average_thermal_num;
+	u8		rf_path_count;
+	u32		thermal_reg_addr;
+	func_set_pwr	odm_tx_pwr_track_set_pwr;
+	func_iqk	do_iqk;
+	func_lck		phy_lc_calibrate;
+	func_swing	get_delta_swing_table;
+	func_swing8814only	get_delta_swing_table8814only;
+	func_all_swing	get_delta_all_swing_table;
+};
+
+void
+configure_txpower_track(
+	void		*p_dm_void,
+	struct _TXPWRTRACK_CFG	*p_config
+);
+
+
+void
+odm_txpowertracking_callback_thermal_meter(
 #if (DM_ODM_SUPPORT_TYPE & ODM_AP)
-	IN	PVOID		pDM_VOID
+	void		*p_dm_void
 #else
-	IN PADAPTER	Adapter
+	struct _ADAPTER	*adapter
 #endif
-	);
+);
 
-#if (RTL8192E_SUPPORT==1) 
-VOID
-ODM_TXPowerTrackingCallback_ThermalMeter_92E(
+#if (RTL8192E_SUPPORT == 1)
+void
+odm_txpowertracking_callback_thermal_meter_92e(
 #if (DM_ODM_SUPPORT_TYPE & ODM_AP)
-	IN	PVOID		pDM_VOID
+	void		*p_dm_void
 #else
-	IN PADAPTER	Adapter
+	struct _ADAPTER	*adapter
 #endif
-	);
+);
 #endif
 
 #if (RTL8814A_SUPPORT == 1)
-VOID
-ODM_TXPowerTrackingCallback_ThermalMeter_JaguarSeries2(
+void
+odm_txpowertracking_callback_thermal_meter_jaguar_series2(
 #if (DM_ODM_SUPPORT_TYPE & ODM_AP)
-	IN	PVOID		pDM_VOID
+	void		*p_dm_void
 #else
-	IN PADAPTER	Adapter
+	struct _ADAPTER	*adapter
 #endif
-	);
+);
 
 #elif ODM_IC_11AC_SERIES_SUPPORT
-VOID
-ODM_TXPowerTrackingCallback_ThermalMeter_JaguarSeries(
+void
+odm_txpowertracking_callback_thermal_meter_jaguar_series(
 #if (DM_ODM_SUPPORT_TYPE & ODM_AP)
-	IN	PVOID		pDM_VOID
+	void		*p_dm_void
 #else
-	IN PADAPTER	Adapter
+	struct _ADAPTER	*adapter
 #endif
-	);
+);
+
+#elif (RTL8197F_SUPPORT == 1 || RTL8822B_SUPPORT == 1)
+void
+odm_txpowertracking_callback_thermal_meter_jaguar_series3(
+#if (DM_ODM_SUPPORT_TYPE & ODM_AP)
+	void		*p_dm_void
+#else
+	struct _ADAPTER	*adapter
+#endif
+);
+
 #endif
 
-#define IS_CCK_RATE(_rate) 				(ODM_MGN_1M == _rate || _rate == ODM_MGN_2M || _rate == ODM_MGN_5_5M || _rate == ODM_MGN_11M )
+#define IS_CCK_RATE(_rate)				(ODM_MGN_1M == _rate || _rate == ODM_MGN_2M || _rate == ODM_MGN_5_5M || _rate == ODM_MGN_11M)
 
 
-#if(DM_ODM_SUPPORT_TYPE & ODM_WIN)
+#if (DM_ODM_SUPPORT_TYPE & ODM_WIN)
 #define MAX_TOLERANCE          5
-#define IQK_DELAY_TIME         1               //ms
+#define IQK_DELAY_TIME         1               /* ms */
 
- //
-// BB/MAC/RF other monitor API
-//
+/*
+* BB/MAC/RF other monitor API
+*   */
 
-void	PHY_SetMonitorMode8192C(IN	PADAPTER	pAdapter,
-										IN	BOOLEAN		bEnableMonitorMode	);
-										
-//
-// IQ calibrate
-//
-void	
-PHY_IQCalibrate_8192C(		IN	PADAPTER	pAdapter,	
-							IN	BOOLEAN 	bReCovery);
-							
-//
-// LC calibrate
-//
-void	
-PHY_LCCalibrate_8192C(		IN	PADAPTER	pAdapter);
+void	phy_set_monitor_mode8192c(struct _ADAPTER	*p_adapter,
+				  bool		is_enable_monitor_mode);
 
-//
-// AP calibrate
-//
-void	
-PHY_APCalibrate_8192C(		IN	PADAPTER	pAdapter,
-								IN 	s1Byte		delta);
+/*
+ * IQ calibrate
+ *   */
+void
+phy_iq_calibrate_8192c(struct _ADAPTER	*p_adapter,
+		       bool	is_recovery);
+
+/*
+ * LC calibrate
+ *   */
+void
+phy_lc_calibrate_8192c(struct _ADAPTER	*p_adapter);
+
+/*
+ * AP calibrate
+ *   */
+void
+phy_ap_calibrate_8192c(struct _ADAPTER	*p_adapter,
+		       s8		delta);
 #endif
 
 #define ODM_TARGET_CHNL_NUM_2G_5G	59
 
 
-VOID
-ODM_ResetIQKResult(
-	IN	PVOID		pDM_VOID
+void
+odm_reset_iqk_result(
+	void		*p_dm_void
 );
-u1Byte 
-ODM_GetRightChnlPlaceforIQK(
-    IN u1Byte chnl
+u8
+odm_get_right_chnl_place_for_iqk(
+	u8 chnl
 );
 
-void phydm_rf_init(IN	PVOID		pDM_VOID);
-void phydm_rf_watchdog(IN	PVOID		pDM_VOID);
-								
-#endif	// #ifndef __HAL_PHY_RF_H__
+void phydm_rf_init(void		*p_dm_void);
+void phydm_rf_watchdog(void		*p_dm_void);
 
+#endif	/*  #ifndef __HAL_PHY_RF_H__ */

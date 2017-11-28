@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
- *                                        
+ *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
  * published by the Free Software Foundation.
@@ -42,7 +42,7 @@
 #define	TDLS_WAIT_CH_RSP_STATE			BIT(19)			/* 0x00080000 */	/* Wait Ch. response as we are TDLS channel switch initiator */
 
 
-#define	TDLS_TPK_RESEND_COUNT			1800	/*Unit: seconds */
+#define	TDLS_TPK_RESEND_COUNT			86400	/*Unit: seconds */
 #define	TDLS_CH_SWITCH_TIME				15
 #define	TDLS_CH_SWITCH_TIMEOUT			30
 #define	TDLS_CH_SWITCH_OPER_OFFLOAD_TIMEOUT	10
@@ -52,13 +52,13 @@
 #define	TDLS_PTI_TIME				7000
 
 #define TDLS_CH_SW_STAY_ON_BASE_CHNL_TIMEOUT	20		/* ms */
-#define TDLS_CH_SW_MONITOR_TIMEOUT				2000 	/*ms */
+#define TDLS_CH_SW_MONITOR_TIMEOUT				2000	/*ms */
 
 #define TDLS_MIC_LEN 16
 #define WPA_NONCE_LEN 32
 #define TDLS_TIMEOUT_LEN 4
 
-enum TDLS_CH_SW_CHNL{
+enum TDLS_CH_SW_CHNL {
 	TDLS_CH_SW_BASE_CHNL = 0,
 	TDLS_CH_SW_OFF_CHNL
 };
@@ -81,17 +81,17 @@ struct wpa_tdls_lnkid {
 	u8 resp_sta[ETH_ALEN];
 } ;
 
-static u8 TDLS_RSNIE[20]={	0x01, 0x00,	/* Version shall be set to 1 */
-							0x00, 0x0f, 0xac, 0x07,	/* Group sipher suite */
-							0x01, 0x00,	/* Pairwise cipher suite count */
-							0x00, 0x0f, 0xac, 0x04,	/* Pairwise cipher suite list; CCMP only */
-							0x01, 0x00,	/* AKM suite count */
-							0x00, 0x0f, 0xac, 0x07,	/* TPK Handshake */
-							0x0c, 0x02,
-							/* PMKID shall not be present */
-						};
+static u8 TDLS_RSNIE[20] = {	0x01, 0x00,	/* Version shall be set to 1 */
+				0x00, 0x0f, 0xac, 0x07,	/* Group sipher suite */
+				0x01, 0x00,	/* Pairwise cipher suite count */
+	0x00, 0x0f, 0xac, 0x04,	/* Pairwise cipher suite list; CCMP only */
+				0x01, 0x00,	/* AKM suite count */
+				0x00, 0x0f, 0xac, 0x07,	/* TPK Handshake */
+				0x0c, 0x02,
+				/* PMKID shall not be present */
+			   };
 
-static u8 TDLS_WMMIE[]={0x00, 0x50, 0xf2, 0x02, 0x00, 0x01, 0x00};	/* Qos info all set zero */
+static u8 TDLS_WMMIE[] = {0x00, 0x50, 0xf2, 0x02, 0x00, 0x01, 0x00};	/* Qos info all set zero */
 
 static u8 TDLS_WMM_PARAM_IE[] = {0x00, 0x00, 0x03, 0xa4, 0x00, 0x00, 0x27, 0xa4, 0x00, 0x00, 0x42, 0x43, 0x5e, 0x00, 0x62, 0x32, 0x2f, 0x00};
 
@@ -108,8 +108,8 @@ u8 rtw_tdls_is_setup_allowed(_adapter *padapter);
 u8 rtw_tdls_is_chsw_allowed(_adapter *padapter);
 #endif
 
-void rtw_reset_tdls_info(_adapter* padapter);
-int rtw_init_tdls_info(_adapter* padapter);
+void rtw_reset_tdls_info(_adapter *padapter);
+int rtw_init_tdls_info(_adapter *padapter);
 void rtw_free_tdls_info(struct tdls_info *ptdlsinfo);
 int issue_nulldata_to_TDLS_peer_STA(_adapter *padapter, unsigned char *da, unsigned int power_mode, int try_cnt, int wait_ms);
 void rtw_init_tdls_timer(_adapter *padapter, struct sta_info *psta);
@@ -119,8 +119,8 @@ void free_tdls_sta(_adapter *padapter, struct sta_info *ptdls_sta);
 #ifdef CONFIG_TDLS_CH_SW
 void rtw_tdls_set_ch_sw_oper_control(_adapter *padapter, u8 enable);
 void rtw_tdls_ch_sw_back_to_base_chnl(_adapter *padapter);
-s32 rtw_tdls_do_ch_sw(_adapter *padapter, u8 chnl_type, u8 channel, u8 channel_offset, u16 bwmode, u16 ch_switch_time);
-void rtw_tdls_chsw_oper_done(_adapter* padapter);
+s32 rtw_tdls_do_ch_sw(_adapter *padapter, struct sta_info *ptdls_sta, u8 chnl_type, u8 channel, u8 channel_offset, u16 bwmode, u16 ch_switch_time);
+void rtw_tdls_chsw_oper_done(_adapter *padapter);
 #endif
 
 #ifdef CONFIG_WFD
@@ -131,7 +131,7 @@ int issue_tdls_dis_req(_adapter *padapter, struct tdls_txmgmt *ptxmgmt);
 int issue_tdls_setup_req(_adapter *padapter, struct tdls_txmgmt *ptxmgmt, int wait_ack);
 int issue_tdls_setup_rsp(_adapter *padapter, struct tdls_txmgmt *ptxmgmt);
 int issue_tdls_setup_cfm(_adapter *padapter, struct tdls_txmgmt *ptxmgmt);
-int issue_tdls_dis_rsp(_adapter * padapter, struct tdls_txmgmt *ptxmgmt, u8 privacy);
+int issue_tdls_dis_rsp(_adapter *padapter, struct tdls_txmgmt *ptxmgmt, u8 privacy);
 int issue_tdls_teardown(_adapter *padapter, struct tdls_txmgmt *ptxmgmt, u8 wait_ack);
 int issue_tdls_peer_traffic_rsp(_adapter *padapter, struct sta_info *psta, struct tdls_txmgmt *ptxmgmt);
 int issue_tdls_peer_traffic_indication(_adapter *padapter, struct sta_info *psta);
@@ -150,26 +150,24 @@ int On_TDLS_Peer_Traffic_Rsp(_adapter *adapter, union recv_frame *precv_frame);
 #ifdef CONFIG_TDLS_CH_SW
 sint On_TDLS_Ch_Switch_Req(_adapter *adapter, union recv_frame *precv_frame);
 sint On_TDLS_Ch_Switch_Rsp(_adapter *adapter, union recv_frame *precv_frame);
-void rtw_build_tdls_ch_switch_req_ies(_adapter * padapter, struct xmit_frame * pxmitframe, u8 *pframe, struct tdls_txmgmt *ptxmgmt);
-void rtw_build_tdls_ch_switch_rsp_ies(_adapter * padapter, struct xmit_frame * pxmitframe, u8 *pframe, struct tdls_txmgmt *ptxmgmt);
+void rtw_build_tdls_ch_switch_req_ies(_adapter *padapter, struct xmit_frame *pxmitframe, u8 *pframe, struct tdls_txmgmt *ptxmgmt);
+void rtw_build_tdls_ch_switch_rsp_ies(_adapter *padapter, struct xmit_frame *pxmitframe, u8 *pframe, struct tdls_txmgmt *ptxmgmt);
 #endif
-void rtw_build_tdls_setup_req_ies(_adapter * padapter, struct xmit_frame * pxmitframe, u8 *pframe, struct tdls_txmgmt *ptxmgmt);
-void rtw_build_tdls_setup_rsp_ies(_adapter * padapter, struct xmit_frame * pxmitframe, u8 *pframe, struct tdls_txmgmt *ptxmgmt);
-void rtw_build_tdls_setup_cfm_ies(_adapter * padapter, struct xmit_frame * pxmitframe, u8 *pframe, struct tdls_txmgmt *ptxmgmt);
-void rtw_build_tdls_teardown_ies(_adapter * padapter, struct xmit_frame * pxmitframe, u8 *pframe, struct tdls_txmgmt *ptxmgmt);
-void rtw_build_tdls_dis_req_ies(_adapter * padapter, struct xmit_frame * pxmitframe, u8 *pframe, struct tdls_txmgmt *ptxmgmt);
-void rtw_build_tdls_dis_rsp_ies(_adapter * padapter, struct xmit_frame * pxmitframe, u8 *pframe, struct tdls_txmgmt *ptxmgmt, u8 privacy);
-void rtw_build_tdls_peer_traffic_rsp_ies(_adapter * padapter, struct xmit_frame * pxmitframe, u8 *pframe, struct tdls_txmgmt *ptxmgmt);
-void rtw_build_tdls_peer_traffic_indication_ies(_adapter * padapter, struct xmit_frame * pxmitframe, u8 *pframe, struct tdls_txmgmt *ptxmgmt);
-void rtw_build_tunneled_probe_req_ies(_adapter * padapter, struct xmit_frame * pxmitframe, u8 *pframe);
-void rtw_build_tunneled_probe_rsp_ies(_adapter * padapter, struct xmit_frame * pxmitframe, u8 *pframe);
+void rtw_build_tdls_setup_req_ies(_adapter *padapter, struct xmit_frame *pxmitframe, u8 *pframe, struct tdls_txmgmt *ptxmgmt);
+void rtw_build_tdls_setup_rsp_ies(_adapter *padapter, struct xmit_frame *pxmitframe, u8 *pframe, struct tdls_txmgmt *ptxmgmt);
+void rtw_build_tdls_setup_cfm_ies(_adapter *padapter, struct xmit_frame *pxmitframe, u8 *pframe, struct tdls_txmgmt *ptxmgmt);
+void rtw_build_tdls_teardown_ies(_adapter *padapter, struct xmit_frame *pxmitframe, u8 *pframe, struct tdls_txmgmt *ptxmgmt);
+void rtw_build_tdls_dis_req_ies(_adapter *padapter, struct xmit_frame *pxmitframe, u8 *pframe, struct tdls_txmgmt *ptxmgmt);
+void rtw_build_tdls_dis_rsp_ies(_adapter *padapter, struct xmit_frame *pxmitframe, u8 *pframe, struct tdls_txmgmt *ptxmgmt, u8 privacy);
+void rtw_build_tdls_peer_traffic_rsp_ies(_adapter *padapter, struct xmit_frame *pxmitframe, u8 *pframe, struct tdls_txmgmt *ptxmgmt);
+void rtw_build_tdls_peer_traffic_indication_ies(_adapter *padapter, struct xmit_frame *pxmitframe, u8 *pframe, struct tdls_txmgmt *ptxmgmt);
+void rtw_build_tunneled_probe_req_ies(_adapter *padapter, struct xmit_frame *pxmitframe, u8 *pframe);
+void rtw_build_tunneled_probe_rsp_ies(_adapter *padapter, struct xmit_frame *pxmitframe, u8 *pframe);
 
-u8	update_sgi_tdls(_adapter *padapter, struct sta_info *psta);
 u32 update_mask_tdls(_adapter *padapter, struct sta_info *psta);
 int rtw_tdls_is_driver_setup(_adapter *padapter);
 void rtw_tdls_set_key(_adapter *padapter, struct sta_info *ptdls_sta);
-const char * rtw_tdls_action_txt(enum TDLS_ACTION_FIELD action);
+const char *rtw_tdls_action_txt(enum TDLS_ACTION_FIELD action);
 #endif /* CONFIG_TDLS */
 
 #endif
-

@@ -26,9 +26,8 @@ void rtl8192e_deinit_dm_priv(IN PADAPTER Adapter);
 void rtl8192e_InitHalDm(IN PADAPTER Adapter);
 void rtl8192e_HalDmWatchDog(IN PADAPTER Adapter);
 
-//VOID rtl8192c_dm_CheckTXPowerTracking(IN PADAPTER Adapter);
+/* VOID rtl8192c_dm_CheckTXPowerTracking(IN PADAPTER Adapter); */
 
-//void rtl8192c_dm_RF_Saving(IN PADAPTER pAdapter, IN u8 bForceInNormal);
+/* void rtl8192c_dm_RF_Saving(IN PADAPTER pAdapter, IN u8 bForceInNormal); */
 
 #endif
-

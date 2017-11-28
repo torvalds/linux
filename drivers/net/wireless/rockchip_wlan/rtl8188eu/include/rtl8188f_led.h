@@ -25,9 +25,9 @@
 #include <drv_types.h>
 
 
-//================================================================================
-// Interface to manipulate LED objects.
-//================================================================================
+/* ********************************************************************************
+ * Interface to manipulate LED objects.
+ * ******************************************************************************** */
 #ifdef CONFIG_USB_HCI
 void rtl8188fu_InitSwLeds(PADAPTER padapter);
 void rtl8188fu_DeInitSwLeds(PADAPTER padapter);
@@ -46,4 +46,3 @@ void rtl8188fe_DeInitSwLeds(PADAPTER padapter);
 #endif
 
 #endif
-

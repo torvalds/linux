@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
- *                                        
+ *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
  * published by the Free Software Foundation.
@@ -17,21 +17,24 @@
  *
  *
  ******************************************************************************/
- 
+
 #ifndef	__PHYDMPOWERTRACKING_H__
 #define    __PHYDMPOWERTRACKING_H__
 
 #define POWRTRACKING_VERSION	"1.1"
 
 #define		DPK_DELTA_MAPPING_NUM	13
-#define		index_mapping_HP_NUM	15	
-#define	OFDM_TABLE_SIZE 	43
+#define		index_mapping_HP_NUM	15
+#define	OFDM_TABLE_SIZE	43
 #define	CCK_TABLE_SIZE			33
 #define	CCK_TABLE_SIZE_88F	21
-#define TXSCALE_TABLE_SIZE 		37
-#define TXPWR_TRACK_TABLE_SIZE 	30
+#define TXSCALE_TABLE_SIZE		37
+#define CCK_TABLE_SIZE_8723D	41
+
+#define TXPWR_TRACK_TABLE_SIZE	30
 #define DELTA_SWINGIDX_SIZE     30
-#define BAND_NUM 				4
+#define DELTA_SWINTSSI_SIZE     61
+#define BAND_NUM				4
 
 #define AVG_THERMAL_NUM		8
 #define HP_THERMAL_NUM		8
@@ -43,253 +46,288 @@
 
 
 
-#define IQK_Matrix_REG_NUM	8
-#define IQK_Matrix_Settings_NUM	14+24+21 // Channels_2_4G_NUM + Channels_5G_20M_NUM + Channels_5G
+#define iqk_matrix_reg_num	8
+#define IQK_MATRIX_SETTINGS_NUM	(14+24+21) /* Channels_2_4G_NUM + Channels_5G_20M_NUM + Channels_5G */
 
-extern	u4Byte OFDMSwingTable[OFDM_TABLE_SIZE];
-extern	u1Byte CCKSwingTable_Ch1_Ch13[CCK_TABLE_SIZE][8];
-extern	u1Byte CCKSwingTable_Ch14 [CCK_TABLE_SIZE][8];
+extern	u32 ofdm_swing_table[OFDM_TABLE_SIZE];
+extern	u8 cck_swing_table_ch1_ch13[CCK_TABLE_SIZE][8];
+extern	u8 cck_swing_table_ch14[CCK_TABLE_SIZE][8];
 
-extern	u4Byte OFDMSwingTable_New[OFDM_TABLE_SIZE];
-extern	u1Byte CCKSwingTable_Ch1_Ch13_New[CCK_TABLE_SIZE][8];
-extern	u1Byte CCKSwingTable_Ch14_New [CCK_TABLE_SIZE][8];
-extern	u1Byte CCKSwingTable_Ch1_Ch14_88F[CCK_TABLE_SIZE_88F][16];
+extern	u32 ofdm_swing_table_new[OFDM_TABLE_SIZE];
+extern	u8 cck_swing_table_ch1_ch13_new[CCK_TABLE_SIZE][8];
+extern	u8 cck_swing_table_ch14_new[CCK_TABLE_SIZE][8];
+extern	u8 cck_swing_table_ch1_ch14_88f[CCK_TABLE_SIZE_88F][16];
+extern	u8 cck_swing_table_ch1_ch13_88f[CCK_TABLE_SIZE_88F][16];
+extern	u8 cck_swing_table_ch14_88f[CCK_TABLE_SIZE_88F][16];
+extern	u32 cck_swing_table_ch1_ch14_8723d[CCK_TABLE_SIZE_8723D];
+
+extern  u32 tx_scaling_table_jaguar[TXSCALE_TABLE_SIZE];
+
+/* <20121018, Kordan> In case fail to read TxPowerTrack.txt, we use the table of 88E as the default table. */
+static u8 delta_swing_table_idx_2ga_p_8188e[] = {0, 0, 0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 4,  4,  4,  4,  4,  4,  5,  5,  7,  7,  8,  8,  8,  9,  9,  9,  9,  9};
+static u8 delta_swing_table_idx_2ga_n_8188e[] = {0, 0, 0, 2, 2, 3, 3, 4, 4, 4, 4, 5, 5,  6,  6,  7,  7,  7,  7,  8,  8,  9,  9, 10, 10, 10, 11, 11, 11, 11};
+
+#define dm_check_txpowertracking	odm_txpowertracking_check
+
+struct _IQK_MATRIX_REGS_SETTING {
+	bool	is_iqk_done;
+	s32		value[3][iqk_matrix_reg_num];
+	bool	is_bw_iqk_result_saved[3];
+};
+
+struct odm_rf_calibration_structure {
+	/* for tx power tracking */
+
+	u32	rega24; /* for TempCCK */
+	s32	rege94;
+	s32	rege9c;
+	s32	regeb4;
+	s32	regebc;
+
+	u8	tx_powercount;
+	bool is_txpowertracking_init;
+	bool is_txpowertracking;
+	u8  	txpowertrack_control; /* for mp mode, turn off txpwrtracking as default */
+	u8	tm_trigger;
+	u8  	internal_pa_5g[2];	/* pathA / pathB */
+
+	u8  	thermal_meter[2];    /* thermal_meter, index 0 for RFIC0, and 1 for RFIC1 */
+	u8	thermal_value;
+	u8	thermal_value_lck;
+	u8	thermal_value_iqk;
+	s8  	thermal_value_delta; /* delta of thermal_value and efuse thermal */
+	u8	thermal_value_dpk;
+	u8	thermal_value_avg[AVG_THERMAL_NUM];
+	u8	thermal_value_avg_index;
+	u8	thermal_value_rx_gain;
+	u8	thermal_value_crystal;
+	u8	thermal_value_dpk_store;
+	u8	thermal_value_dpk_track;
+	bool	txpowertracking_in_progress;
+
+	bool	is_reloadtxpowerindex;
+	u8	is_rf_pi_enable;
+	u32 	txpowertracking_callback_cnt; /* cosa add for debug */
 
 
-extern  u4Byte TxScalingTable_Jaguar[TXSCALE_TABLE_SIZE];
+	/* ------------------------- Tx power Tracking ------------------------- */
+	u8	is_cck_in_ch14;
+	u8	CCK_index;
+	u8	OFDM_index[MAX_RF_PATH];
+	s8	power_index_offset[MAX_RF_PATH];
+	s8	delta_power_index[MAX_RF_PATH];
+	s8	delta_power_index_last[MAX_RF_PATH];
+	bool is_tx_power_changed;
+	s8	xtal_offset;
+	s8	xtal_offset_last;
 
-// <20121018, Kordan> In case fail to read TxPowerTrack.txt, we use the table of 88E as the default table.
-static u1Byte DeltaSwingTableIdx_2GA_P_8188E[] = {0, 0, 0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 4,  4,  4,  4,  4,  4,  5,  5,  7,  7,  8,  8,  8,  9,  9,  9,  9,  9};
-static u1Byte DeltaSwingTableIdx_2GA_N_8188E[] = {0, 0, 0, 2, 2, 3, 3, 4, 4, 4, 4, 5, 5,  6,  6,  7,  7,  7,  7,  8,  8,  9,  9, 10, 10, 10, 11, 11, 11, 11}; 
+	u8	thermal_value_hp[HP_THERMAL_NUM];
+	u8	thermal_value_hp_index;
+	struct _IQK_MATRIX_REGS_SETTING iqk_matrix_reg_setting[IQK_MATRIX_SETTINGS_NUM];
+	u8	delta_lck;
+	s8  bb_swing_diff_2g, bb_swing_diff_5g; /* Unit: dB */
+	u8  delta_swing_table_idx_2g_cck_a_p[DELTA_SWINGIDX_SIZE];
+	u8  delta_swing_table_idx_2g_cck_a_n[DELTA_SWINGIDX_SIZE];
+	u8  delta_swing_table_idx_2g_cck_b_p[DELTA_SWINGIDX_SIZE];
+	u8  delta_swing_table_idx_2g_cck_b_n[DELTA_SWINGIDX_SIZE];
+	u8  delta_swing_table_idx_2g_cck_c_p[DELTA_SWINGIDX_SIZE];
+	u8  delta_swing_table_idx_2g_cck_c_n[DELTA_SWINGIDX_SIZE];
+	u8  delta_swing_table_idx_2g_cck_d_p[DELTA_SWINGIDX_SIZE];
+	u8  delta_swing_table_idx_2g_cck_d_n[DELTA_SWINGIDX_SIZE];
+	u8  delta_swing_table_idx_2ga_p[DELTA_SWINGIDX_SIZE];
+	u8  delta_swing_table_idx_2ga_n[DELTA_SWINGIDX_SIZE];
+	u8  delta_swing_table_idx_2gb_p[DELTA_SWINGIDX_SIZE];
+	u8  delta_swing_table_idx_2gb_n[DELTA_SWINGIDX_SIZE];
+	u8  delta_swing_table_idx_2gc_p[DELTA_SWINGIDX_SIZE];
+	u8  delta_swing_table_idx_2gc_n[DELTA_SWINGIDX_SIZE];
+	u8  delta_swing_table_idx_2gd_p[DELTA_SWINGIDX_SIZE];
+	u8  delta_swing_table_idx_2gd_n[DELTA_SWINGIDX_SIZE];
+	u8  delta_swing_table_idx_5ga_p[BAND_NUM][DELTA_SWINGIDX_SIZE];
+	u8  delta_swing_table_idx_5ga_n[BAND_NUM][DELTA_SWINGIDX_SIZE];
+	u8  delta_swing_table_idx_5gb_p[BAND_NUM][DELTA_SWINGIDX_SIZE];
+	u8  delta_swing_table_idx_5gb_n[BAND_NUM][DELTA_SWINGIDX_SIZE];
+	u8  delta_swing_table_idx_5gc_p[BAND_NUM][DELTA_SWINGIDX_SIZE];
+	u8  delta_swing_table_idx_5gc_n[BAND_NUM][DELTA_SWINGIDX_SIZE];
+	u8  delta_swing_table_idx_5gd_p[BAND_NUM][DELTA_SWINGIDX_SIZE];
+	u8  delta_swing_table_idx_5gd_n[BAND_NUM][DELTA_SWINGIDX_SIZE];
+	u8  delta_swing_tssi_table_2g_cck_a[DELTA_SWINTSSI_SIZE];
+	u8  delta_swing_tssi_table_2g_cck_b[DELTA_SWINTSSI_SIZE];
+	u8  delta_swing_tssi_table_2g_cck_c[DELTA_SWINTSSI_SIZE];
+	u8  delta_swing_tssi_table_2g_cck_d[DELTA_SWINTSSI_SIZE];
+	u8  delta_swing_tssi_table_2ga[DELTA_SWINTSSI_SIZE];
+	u8  delta_swing_tssi_table_2gb[DELTA_SWINTSSI_SIZE];
+	u8  delta_swing_tssi_table_2gc[DELTA_SWINTSSI_SIZE];
+	u8  delta_swing_tssi_table_2gd[DELTA_SWINTSSI_SIZE];
+	u8  delta_swing_tssi_table_5ga[BAND_NUM][DELTA_SWINTSSI_SIZE];
+	u8  delta_swing_tssi_table_5gb[BAND_NUM][DELTA_SWINTSSI_SIZE];
+	u8  delta_swing_tssi_table_5gc[BAND_NUM][DELTA_SWINTSSI_SIZE];
+	u8  delta_swing_tssi_table_5gd[BAND_NUM][DELTA_SWINTSSI_SIZE];
+	s8  delta_swing_table_xtal_p[DELTA_SWINGIDX_SIZE];
+	s8  delta_swing_table_xtal_n[DELTA_SWINGIDX_SIZE];
+	u8  delta_swing_table_idx_2ga_p_8188e[DELTA_SWINGIDX_SIZE];
+	u8  delta_swing_table_idx_2ga_n_8188e[DELTA_SWINGIDX_SIZE];
 
-#define dm_CheckTXPowerTracking 	ODM_TXPowerTrackingCheck
-
-typedef struct _IQK_MATRIX_REGS_SETTING{
-	BOOLEAN 	bIQKDone;
-	s4Byte		Value[3][IQK_Matrix_REG_NUM];
-	BOOLEAN 	bBWIqkResultSaved[3];	
-}IQK_MATRIX_REGS_SETTING,*PIQK_MATRIX_REGS_SETTING;
-
-typedef struct ODM_RF_Calibration_Structure
-{
-	//for tx power tracking
-	
-	u4Byte	RegA24; // for TempCCK
-	s4Byte	RegE94;
-	s4Byte 	RegE9C;
-	s4Byte	RegEB4;
-	s4Byte	RegEBC;	
-
-	u1Byte  	TXPowercount;
-	BOOLEAN bTXPowerTrackingInit; 
-	BOOLEAN bTXPowerTracking;
-	u1Byte  	TxPowerTrackControl; //for mp mode, turn off txpwrtracking as default
-	u1Byte  	TM_Trigger;
-    	u1Byte  	InternalPA5G[2];	//pathA / pathB
-	
-	u1Byte  	ThermalMeter[2];    // ThermalMeter, index 0 for RFIC0, and 1 for RFIC1
-	u1Byte  	ThermalValue;
-	u1Byte  	ThermalValue_LCK;
-	u1Byte  	ThermalValue_IQK;
-	u1Byte	ThermalValue_DPK;		
-	u1Byte	ThermalValue_AVG[AVG_THERMAL_NUM];
-	u1Byte	ThermalValue_AVG_index;		
-	u1Byte	ThermalValue_RxGain;
-	u1Byte	ThermalValue_Crystal;
-	u1Byte	ThermalValue_DPKstore;
-	u1Byte	ThermalValue_DPKtrack;
-	BOOLEAN	TxPowerTrackingInProgress;
-	
-	BOOLEAN	bReloadtxpowerindex;	
-	u1Byte 	bRfPiEnable;
-	u4Byte 	TXPowerTrackingCallbackCnt; //cosa add for debug
-
-
-	//------------------------- Tx power Tracking -------------------------//
-	u1Byte 	bCCKinCH14;
-	u1Byte 	CCK_index;
-	u1Byte 	OFDM_index[MAX_RF_PATH];
-	s1Byte	PowerIndexOffset[MAX_RF_PATH];
-	s1Byte	DeltaPowerIndex[MAX_RF_PATH];
-	s1Byte	DeltaPowerIndexLast[MAX_RF_PATH];	
-	BOOLEAN bTxPowerChanged;
-		
-	u1Byte 	ThermalValue_HP[HP_THERMAL_NUM];
-	u1Byte 	ThermalValue_HP_index;
-	IQK_MATRIX_REGS_SETTING IQKMatrixRegSetting[IQK_Matrix_Settings_NUM];
-	u1Byte	Delta_LCK;
-	s1Byte  BBSwingDiff2G, BBSwingDiff5G; // Unit: dB
-	u1Byte  DeltaSwingTableIdx_2GCCKA_P[DELTA_SWINGIDX_SIZE];
-	u1Byte  DeltaSwingTableIdx_2GCCKA_N[DELTA_SWINGIDX_SIZE];
-	u1Byte  DeltaSwingTableIdx_2GCCKB_P[DELTA_SWINGIDX_SIZE];
-	u1Byte  DeltaSwingTableIdx_2GCCKB_N[DELTA_SWINGIDX_SIZE];
-	u1Byte  DeltaSwingTableIdx_2GCCKC_P[DELTA_SWINGIDX_SIZE];
-	u1Byte  DeltaSwingTableIdx_2GCCKC_N[DELTA_SWINGIDX_SIZE];
-	u1Byte  DeltaSwingTableIdx_2GCCKD_P[DELTA_SWINGIDX_SIZE];
-	u1Byte  DeltaSwingTableIdx_2GCCKD_N[DELTA_SWINGIDX_SIZE];
-	u1Byte  DeltaSwingTableIdx_2GA_P[DELTA_SWINGIDX_SIZE];
-	u1Byte  DeltaSwingTableIdx_2GA_N[DELTA_SWINGIDX_SIZE];
-	u1Byte  DeltaSwingTableIdx_2GB_P[DELTA_SWINGIDX_SIZE];
-	u1Byte  DeltaSwingTableIdx_2GB_N[DELTA_SWINGIDX_SIZE];
-	u1Byte  DeltaSwingTableIdx_2GC_P[DELTA_SWINGIDX_SIZE];
-	u1Byte  DeltaSwingTableIdx_2GC_N[DELTA_SWINGIDX_SIZE];
-	u1Byte  DeltaSwingTableIdx_2GD_P[DELTA_SWINGIDX_SIZE];
-	u1Byte  DeltaSwingTableIdx_2GD_N[DELTA_SWINGIDX_SIZE];
-	u1Byte  DeltaSwingTableIdx_5GA_P[BAND_NUM][DELTA_SWINGIDX_SIZE];
-	u1Byte  DeltaSwingTableIdx_5GA_N[BAND_NUM][DELTA_SWINGIDX_SIZE];
-	u1Byte  DeltaSwingTableIdx_5GB_P[BAND_NUM][DELTA_SWINGIDX_SIZE];
-	u1Byte  DeltaSwingTableIdx_5GB_N[BAND_NUM][DELTA_SWINGIDX_SIZE];
-	u1Byte  DeltaSwingTableIdx_5GC_P[BAND_NUM][DELTA_SWINGIDX_SIZE];
-	u1Byte  DeltaSwingTableIdx_5GC_N[BAND_NUM][DELTA_SWINGIDX_SIZE];
-	u1Byte  DeltaSwingTableIdx_5GD_P[BAND_NUM][DELTA_SWINGIDX_SIZE];
-	u1Byte  DeltaSwingTableIdx_5GD_N[BAND_NUM][DELTA_SWINGIDX_SIZE];
-	u1Byte  DeltaSwingTableIdx_2GA_P_8188E[DELTA_SWINGIDX_SIZE];
-	u1Byte  DeltaSwingTableIdx_2GA_N_8188E[DELTA_SWINGIDX_SIZE];
-    
-	u1Byte			BbSwingIdxOfdm[MAX_RF_PATH];
-	u1Byte			BbSwingIdxOfdmCurrent;
-#if (DM_ODM_SUPPORT_TYPE &  (ODM_WIN|ODM_CE))	
-	u1Byte			BbSwingIdxOfdmBase[MAX_RF_PATH];
+	u8			bb_swing_idx_ofdm[MAX_RF_PATH];
+	u8			bb_swing_idx_ofdm_current;
+#if (DM_ODM_SUPPORT_TYPE & (ODM_WIN | ODM_CE))
+	u8			bb_swing_idx_ofdm_base[MAX_RF_PATH];
 #else
-	u1Byte			BbSwingIdxOfdmBase;
+	u8			bb_swing_idx_ofdm_base;
 #endif
-	BOOLEAN			BbSwingFlagOfdm;
-	u1Byte			BbSwingIdxCck;
-	u1Byte			BbSwingIdxCckCurrent;
-	u1Byte			BbSwingIdxCckBase;
-	u1Byte			DefaultOfdmIndex;
-	u1Byte			DefaultCckIndex;	
-	BOOLEAN			BbSwingFlagCck;
-	
-	s1Byte			Absolute_OFDMSwingIdx[MAX_RF_PATH];   
-	s1Byte			Remnant_OFDMSwingIdx[MAX_RF_PATH];   
-	s1Byte			Remnant_CCKSwingIdx;
-	s1Byte			Modify_TxAGC_Value;       /*Remnat compensate value at TxAGC */
-	BOOLEAN			Modify_TxAGC_Flag_PathA;
-	BOOLEAN			Modify_TxAGC_Flag_PathB;
-	BOOLEAN			Modify_TxAGC_Flag_PathC;
-	BOOLEAN			Modify_TxAGC_Flag_PathD;
-	BOOLEAN			Modify_TxAGC_Flag_PathA_CCK;
-	
-	s1Byte			KfreeOffset[MAX_RF_PATH];
-    
-	//--------------------------------------------------------------------//	
-	
-	//for IQK	
-	u4Byte 	RegC04;
-	u4Byte 	Reg874;
-	u4Byte 	RegC08;
-	u4Byte 	RegB68;
-	u4Byte 	RegB6C;
-	u4Byte 	Reg870;
-	u4Byte 	Reg860;
-	u4Byte 	Reg864;
-	
-	BOOLEAN	bIQKInitialized;
-	BOOLEAN bLCKInProgress;
-	BOOLEAN	bAntennaDetected;
-	BOOLEAN	bNeedIQK;
-	BOOLEAN	bIQKInProgress;	
-	u1Byte	Delta_IQK;
-	u4Byte	ADDA_backup[IQK_ADDA_REG_NUM];
-	u4Byte	IQK_MAC_backup[IQK_MAC_REG_NUM];
-	u4Byte	IQK_BB_backup_recover[9];
-	u4Byte	IQK_BB_backup[IQK_BB_REG_NUM];	
-	u4Byte 	TxIQC_8723B[2][3][2]; // { {S1: 0xc94, 0xc80, 0xc4c} , {S0: 0xc9c, 0xc88, 0xc4c}}
-	u4Byte 	RxIQC_8723B[2][2][2]; // { {S1: 0xc14, 0xca0} ,           {S0: 0xc14, 0xca0}}
-	u4Byte	TxIQC_8703B[3][2];	/* { {S1: 0xc94, 0xc80, 0xc4c} , {S0: 0xc9c, 0xc88, 0xc4c}}*/
-	u4Byte	RxIQC_8703B[2][2];	/* { {S1: 0xc14, 0xca0} ,           {S0: 0xc14, 0xca0}}*/
+	bool		default_bb_swing_index_flag;
+	bool			bb_swing_flag_ofdm;
+	u8			bb_swing_idx_cck;
+	u8			bb_swing_idx_cck_current;
+	u8			bb_swing_idx_cck_base;
+	u8			default_ofdm_index;
+	u8			default_cck_index;
+	bool			bb_swing_flag_cck;
 
-	
+	s8			absolute_ofdm_swing_idx[MAX_RF_PATH];
+	s8			remnant_ofdm_swing_idx[MAX_RF_PATH];
+	s8			absolute_cck_swing_idx[MAX_RF_PATH];
+	s8			remnant_cck_swing_idx;
+	s8			modify_tx_agc_value;       /*Remnat compensate value at tx_agc */
+	bool			modify_tx_agc_flag_path_a;
+	bool			modify_tx_agc_flag_path_b;
+	bool			modify_tx_agc_flag_path_c;
+	bool			modify_tx_agc_flag_path_d;
+	bool			modify_tx_agc_flag_path_a_cck;
 
-	// <James> IQK time measurement 
-	u8Byte	IQK_StartTime;
-	u8Byte	IQK_ProgressingTime;
-	u4Byte  LOK_Result;
+	s8			kfree_offset[MAX_RF_PATH];
 
-	//for APK
-	u4Byte 	APKoutput[2][2]; //path A/B; output1_1a/output1_2a
-	u1Byte 	bAPKdone;
-	u1Byte 	bAPKThermalMeterIgnore;
-	
-	// DPK
-	BOOLEAN bDPKFail;	
-	u1Byte 	bDPdone;
-	u1Byte 	bDPPathAOK;
-	u1Byte 	bDPPathBOK;
+	/* -------------------------------------------------------------------- */
 
-	u4Byte	TxLOK[2];
-	u4Byte  DpkTxAGC;
-	s4Byte  DpkGain;
-	u4Byte  DpkThermal[4];
-	s1Byte Modify_TxAGC_Value_OFDM;
-	s1Byte Modify_TxAGC_Value_CCK;
-}ODM_RF_CAL_T,*PODM_RF_CAL_T;
+	/* for IQK */
+	u32	regc04;
+	u32	reg874;
+	u32	regc08;
+	u32	regb68;
+	u32	regb6c;
+	u32	reg870;
+	u32	reg860;
+	u32	reg864;
+
+	bool	is_iqk_initialized;
+	bool is_lck_in_progress;
+	bool	is_antenna_detected;
+	bool	is_need_iqk;
+	bool	is_iqk_in_progress;
+	bool is_iqk_pa_off;
+	u8	delta_iqk;
+	u32	ADDA_backup[IQK_ADDA_REG_NUM];
+	u32	IQK_MAC_backup[IQK_MAC_REG_NUM];
+	u32	IQK_BB_backup_recover[9];
+	u32	IQK_BB_backup[IQK_BB_REG_NUM];
+	u32 	tx_iqc_8723b[2][3][2]; /* { {S1: 0xc94, 0xc80, 0xc4c} , {S0: 0xc9c, 0xc88, 0xc4c}} */
+	u32 	rx_iqc_8723b[2][2][2]; /* { {S1: 0xc14, 0xca0} ,           {S0: 0xc14, 0xca0}} */
+	u32	tx_iqc_8703b[3][2];	/* { {S1: 0xc94, 0xc80, 0xc4c} , {S0: 0xc9c, 0xc88, 0xc4c}}*/
+	u32	rx_iqc_8703b[2][2];	/* { {S1: 0xc14, 0xca0} ,           {S0: 0xc14, 0xca0}}*/
+	u32	tx_iqc_8723d[2][3][2];	/* { {S1: 0xc94, 0xc80, 0xc4c} , {S0: 0xc9c, 0xc88, 0xc4c}}*/
+	u32	rx_iqc_8723d[2][2][2];	/* { {S1: 0xc14, 0xca0} ,           {S0: 0xc14, 0xca0}}*/
+
+	u8	iqk_step;
+	u8	kcount;
+	u8	retry_count[4][2]; /* [4]: path ABCD, [2] TXK, RXK */
+	bool	is_mp_mode;
 
 
-VOID	
-ODM_TXPowerTrackingCheck(
-	IN 	PVOID	 	pDM_VOID
-	);
+
+	/* <James> IQK time measurement */
+	u64	iqk_start_time;
+	u64	iqk_progressing_time;
+	u64	iqk_total_progressing_time;
+
+	u32  lok_result;
+
+	/* for APK */
+	u32 	ap_koutput[2][2]; /* path A/B; output1_1a/output1_2a */
+	u8	is_ap_kdone;
+	u8	is_apk_thermal_meter_ignore;
+
+	/* DPK */
+	bool is_dpk_fail;
+	u8	is_dp_done;
+	u8	is_dp_path_aok;
+	u8	is_dp_path_bok;
+
+	u32	tx_lok[2];
+	u32  dpk_tx_agc;
+	s32  dpk_gain;
+	u32  dpk_thermal[4];
+	s8 modify_tx_agc_value_ofdm;
+	s8 modify_tx_agc_value_cck;
+
+	/*Add by Yuchen for Kfree Phydm*/
+	u8			reg_rf_kfree_enable;	/*for registry*/
+	u8			rf_kfree_enable;		/*for efuse enable check*/
+
+};
 
 
-VOID
-odm_TXPowerTrackingInit(
-	IN 	PVOID	 	pDM_VOID
-	);
-
-VOID
-odm_TXPowerTrackingCheckAP(
-	IN 	PVOID	 	pDM_VOID
-	);
-
-VOID
-odm_TXPowerTrackingThermalMeterInit(
-	IN 	PVOID	 	pDM_VOID
-	);
-
-VOID
-odm_TXPowerTrackingInit(
-	IN 	PVOID	 	pDM_VOID
-	);
-
-VOID
-odm_TXPowerTrackingCheckMP(
-	IN 	PVOID	 	pDM_VOID
-	);
+void
+odm_txpowertracking_check(
+	void		*p_dm_void
+);
 
 
-VOID
-odm_TXPowerTrackingCheckCE(
-	IN 	PVOID	 	pDM_VOID
-	);
+void
+odm_txpowertracking_init(
+	void		*p_dm_void
+);
 
-#if(DM_ODM_SUPPORT_TYPE & (ODM_WIN)) 
+void
+odm_txpowertracking_check_ap(
+	void		*p_dm_void
+);
 
-VOID 
-odm_TXPowerTrackingCallbackThermalMeter92C(
-            IN PADAPTER	Adapter
-            );
+void
+odm_txpowertracking_thermal_meter_init(
+	void		*p_dm_void
+);
 
-VOID
-odm_TXPowerTrackingCallbackRXGainThermalMeter92D(
-	IN PADAPTER 	Adapter
-	);
+void
+odm_txpowertracking_init(
+	void		*p_dm_void
+);
 
-VOID
-odm_TXPowerTrackingCallbackThermalMeter92D(
-            IN PADAPTER	Adapter
-            );
+void
+odm_txpowertracking_check_mp(
+	void		*p_dm_void
+);
 
-VOID
-odm_TXPowerTrackingDirectCall92C(
-            IN	PADAPTER		Adapter
-            );
 
-VOID
-odm_TXPowerTrackingThermalMeterCheck(
-	IN	PADAPTER		Adapter
-	);
+void
+odm_txpowertracking_check_ce(
+	void		*p_dm_void
+);
+
+#if (DM_ODM_SUPPORT_TYPE & (ODM_WIN))
+
+void
+odm_txpowertracking_callback_thermal_meter92c(
+	struct _ADAPTER	*adapter
+);
+
+void
+odm_txpowertracking_callback_rx_gain_thermal_meter92d(
+	struct _ADAPTER	*adapter
+);
+
+void
+odm_txpowertracking_callback_thermal_meter92d(
+	struct _ADAPTER	*adapter
+);
+
+void
+odm_txpowertracking_direct_call92c(
+	struct _ADAPTER		*adapter
+);
+
+void
+odm_txpowertracking_thermal_meter_check(
+	struct _ADAPTER		*adapter
+);
 
 #endif
 

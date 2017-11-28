@@ -23,11 +23,24 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 
+#define RTW_PROC_HDL_TYPE_SEQ	0
+#define RTW_PROC_HDL_TYPE_SSEQ	1
+
 struct rtw_proc_hdl {
 	char *name;
-	int (*show)(struct seq_file *, void *);
+	u8 type;
+	union {
+		int (*show)(struct seq_file *, void *);
+		struct seq_operations *seq_op;
+	} u;
 	ssize_t (*write)(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
 };
+
+#define RTW_PROC_HDL_SEQ(_name, _seq_op, _write) \
+	{ .name = _name, .type = RTW_PROC_HDL_TYPE_SEQ, .u.seq_op = _seq_op, .write = _write}
+
+#define RTW_PROC_HDL_SSEQ(_name, _show, _write) \
+	{ .name = _name, .type = RTW_PROC_HDL_TYPE_SSEQ, .u.show = _show, .write = _write}
 
 #ifdef CONFIG_PROC_DEBUG
 
@@ -38,7 +51,7 @@ struct proc_dir_entry *rtw_adapter_proc_init(struct net_device *dev);
 void rtw_adapter_proc_deinit(struct net_device *dev);
 void rtw_adapter_proc_replace(struct net_device *dev);
 
-#else //!CONFIG_PROC_DEBUG
+#else /* !CONFIG_PROC_DEBUG */
 
 #define get_rtw_drv_proc() NULL
 #define rtw_drv_proc_init() 0
@@ -47,6 +60,6 @@ void rtw_adapter_proc_replace(struct net_device *dev);
 #define rtw_adapter_proc_deinit(dev) do {} while (0)
 #define rtw_adapter_proc_replace(dev) do {} while (0)
 
-#endif //!CONFIG_PROC_DEBUG
+#endif /* !CONFIG_PROC_DEBUG */
 
-#endif //__RTW_PROC_H__
+#endif /* __RTW_PROC_H__ */

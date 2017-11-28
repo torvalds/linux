@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
- *                                        
+ *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
  * published by the Free Software Foundation.
@@ -22,54 +22,414 @@
 #include <drv_types.h>
 #include <hal_data.h>
 
-u8 center_ch_5g_all[CENTER_CH_5G_ALL_NUM] = {
-		36, 38, 40, 42, 44, 46, 48,			/* Band 1 */
-		52, 54, 56, 58, 60, 62, 64,			/* Band 2 */
-		100, 102, 104, 106, 108, 110, 112,	/* Band 3 */
-		116, 118, 120, 122, 124, 126, 128,	/* Band 3 */
-		132, 134, 136, 138, 140, 142, 144,	/* Band 3 */
-		149, 151, 153, 155, 157, 159, 161,	/* Band 4 */
-		165, 167, 169, 171, 173, 175, 177};	/* Band 4 */
-
-u8 center_ch_5g_20m[CENTER_CH_5G_20M_NUM] = {
-	36, 40, 44, 48,
-	52, 56, 60, 64,
-	100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140, 144,
-	149, 153, 157, 161, 165, 169, 173, 177
+u8 center_ch_2g[CENTER_CH_2G_NUM] = {
+/* G00 */1, 2,
+/* G01 */3, 4, 5,
+/* G02 */6, 7, 8,
+/* G03 */9, 10, 11,
+/* G04 */12, 13,
+/* G05 */14
 };
 
-u8 center_ch_5g_40m[CENTER_CH_5G_40M_NUM] = {38, 46, 54, 62, 102, 110, 118, 126, 134, 142, 151, 159, 167, 175};
+u8 center_ch_2g_40m[CENTER_CH_2G_40M_NUM] = {
+	3,
+	4,
+	5,
+	6,
+	7,
+	8,
+	9,
+	10,
+	11,
+};
 
-u8 center_ch_5g_80m[CENTER_CH_5G_80M_NUM] = {42, 58, 106, 122, 138, 155, 171};
+u8 op_chs_of_cch_2g_40m[CENTER_CH_2G_40M_NUM][2] = {
+	{1, 5}, /* 3 */
+	{2, 6}, /* 4 */
+	{3, 7}, /* 5 */
+	{4, 8}, /* 6 */
+	{5, 9}, /* 7 */
+	{6, 10}, /* 8 */
+	{7, 11}, /* 9 */
+	{8, 12}, /* 10 */
+	{9, 13}, /* 11 */
+};
 
-struct center_chs_ent {
+u8 center_ch_5g_all[CENTER_CH_5G_ALL_NUM] = {
+/* G00 */36, 38, 40,
+	42,
+/* G01 */44, 46, 48,
+	/* 50, */
+/* G02 */52, 54, 56,
+	58,
+/* G03 */60, 62, 64,
+/* G04 */100, 102, 104,
+	106,
+/* G05 */108, 110, 112,
+	/* 114, */
+/* G06 */116, 118, 120,
+	122,
+/* G07 */124, 126, 128,
+/* G08 */132, 134, 136,
+	138,
+/* G09 */140, 142, 144,
+/* G10 */149, 151, 153,
+	155,
+/* G11 */157, 159, 161,
+	/* 163, */
+/* G12 */165, 167, 169,
+	171,
+/* G13 */173, 175, 177
+};
+
+u8 center_ch_5g_20m[CENTER_CH_5G_20M_NUM] = {
+/* G00 */36, 40,
+/* G01 */44, 48,
+/* G02 */52, 56,
+/* G03 */60, 64,
+/* G04 */100, 104,
+/* G05 */108, 112,
+/* G06 */116, 120,
+/* G07 */124, 128,
+/* G08 */132, 136,
+/* G09 */140, 144,
+/* G10 */149, 153,
+/* G11 */157, 161,
+/* G12 */165, 169,
+/* G13 */173, 177
+};
+
+u8 center_ch_5g_40m[CENTER_CH_5G_40M_NUM] = {
+/* G00 */38,
+/* G01 */46,
+/* G02 */54,
+/* G03 */62,
+/* G04 */102,
+/* G05 */110,
+/* G06 */118,
+/* G07 */126,
+/* G08 */134,
+/* G09 */142,
+/* G10 */151,
+/* G11 */159,
+/* G12 */167,
+/* G13 */175
+};
+
+u8 center_ch_5g_20m_40m[CENTER_CH_5G_20M_NUM + CENTER_CH_5G_40M_NUM] = {
+/* G00 */36, 38, 40,
+/* G01 */44, 46, 48,
+/* G02 */52, 54, 56,
+/* G03 */60, 62, 64,
+/* G04 */100, 102, 104,
+/* G05 */108, 110, 112,
+/* G06 */116, 118, 120,
+/* G07 */124, 126, 128,
+/* G08 */132, 134, 136,
+/* G09 */140, 142, 144,
+/* G10 */149, 151, 153,
+/* G11 */157, 159, 161,
+/* G12 */165, 167, 169,
+/* G13 */173, 175, 177
+};
+
+u8 op_chs_of_cch_5g_40m[CENTER_CH_5G_40M_NUM][2] = {
+	{36, 40}, /* 38 */
+	{44, 48}, /* 46 */
+	{52, 56}, /* 54 */
+	{60, 64}, /* 62 */
+	{100, 104}, /* 102 */
+	{108, 112}, /* 110 */
+	{116, 120}, /* 118 */
+	{124, 128}, /* 126 */
+	{132, 136}, /* 134 */
+	{140, 144}, /* 142 */
+	{149, 153}, /* 151 */
+	{157, 161}, /* 159 */
+	{165, 169}, /* 167 */
+	{173, 177}, /* 175 */
+};
+
+u8 center_ch_5g_80m[CENTER_CH_5G_80M_NUM] = {
+/* G00 ~ G01*/42,
+/* G02 ~ G03*/58,
+/* G04 ~ G05*/106,
+/* G06 ~ G07*/122,
+/* G08 ~ G09*/138,
+/* G10 ~ G11*/155,
+/* G12 ~ G13*/171
+};
+
+u8 op_chs_of_cch_5g_80m[CENTER_CH_5G_80M_NUM][4] = {
+	{36, 40, 44, 48}, /* 42 */
+	{52, 56, 60, 64}, /* 58 */
+	{100, 104, 108, 112}, /* 106 */
+	{116, 120, 124, 128}, /* 122 */
+	{132, 136, 140, 144}, /* 138 */
+	{149, 153, 157, 161}, /* 155 */
+	{165, 169, 173, 177}, /* 171 */
+};
+
+u8 center_ch_5g_160m[CENTER_CH_5G_160M_NUM] = {
+/* G00 ~ G03*/50,
+/* G04 ~ G07*/114,
+/* G10 ~ G13*/163
+};
+
+u8 op_chs_of_cch_5g_160m[CENTER_CH_5G_160M_NUM][8] = {
+	{36, 40, 44, 48, 52, 56, 60, 64}, /* 50 */
+	{100, 104, 108, 112, 116, 120, 124, 128}, /* 114 */
+	{149, 153, 157, 161, 165, 169, 173, 177}, /* 163 */
+};
+
+struct center_chs_ent_t {
 	u8 ch_num;
 	u8 *chs;
 };
 
-struct center_chs_ent center_chs_5g_by_bw[] = {
+struct center_chs_ent_t center_chs_2g_by_bw[] = {
+	{CENTER_CH_2G_NUM, center_ch_2g},
+	{CENTER_CH_2G_40M_NUM, center_ch_2g_40m},
+};
+
+struct center_chs_ent_t center_chs_5g_by_bw[] = {
 	{CENTER_CH_5G_20M_NUM, center_ch_5g_20m},
 	{CENTER_CH_5G_40M_NUM, center_ch_5g_40m},
 	{CENTER_CH_5G_80M_NUM, center_ch_5g_80m},
+	{CENTER_CH_5G_160M_NUM, center_ch_5g_160m},
 };
+
+/*
+ * Get center channel of smaller bandwidth by @param cch, @param bw, @param offset
+ * @cch: the given center channel
+ * @bw: the given bandwidth
+ * @offset: the given primary SC offset of the given bandwidth
+ *
+ * return center channel of smaller bandiwdth if valid, or 0
+ */
+u8 rtw_get_scch_by_cch_offset(u8 cch, u8 bw, u8 offset)
+{
+	int i;
+	u8 t_cch = 0;
+
+	if (bw == CHANNEL_WIDTH_20) {
+		t_cch = cch;
+		goto exit;
+	}
+
+	if (offset == HAL_PRIME_CHNL_OFFSET_DONT_CARE) {
+		rtw_warn_on(1);
+		goto exit;
+	}
+
+	/* 2.4G, 40MHz */
+	if (cch >= 3 && cch <= 11 && bw == CHANNEL_WIDTH_40) {
+		t_cch = (offset == HAL_PRIME_CHNL_OFFSET_UPPER) ? cch + 2 : cch - 2;
+		goto exit;
+	}
+
+	/* 5G, 160MHz */
+	if (cch >= 50 && cch <= 163 && bw == CHANNEL_WIDTH_160) {
+		t_cch = (offset == HAL_PRIME_CHNL_OFFSET_UPPER) ? cch + 8 : cch - 8;
+		goto exit;
+
+	/* 5G, 80MHz */
+	} else if (cch >= 42 && cch <= 171 && bw == CHANNEL_WIDTH_80) {
+		t_cch = (offset == HAL_PRIME_CHNL_OFFSET_UPPER) ? cch + 4 : cch - 4;
+		goto exit;
+
+	/* 5G, 40MHz */
+	} else if (cch >= 38 && cch <= 175 && bw == CHANNEL_WIDTH_40) {
+		t_cch = (offset == HAL_PRIME_CHNL_OFFSET_UPPER) ? cch + 2 : cch - 2;
+		goto exit;
+
+	} else {
+		rtw_warn_on(1);
+		goto exit;
+	}
+
+exit:
+	return t_cch;
+}
+
+struct op_chs_ent_t {
+	u8 ch_num;
+	u8 *chs;
+};
+
+struct op_chs_ent_t op_chs_of_cch_2g_by_bw[] = {
+	{1, center_ch_2g},
+	{2, (u8 *)op_chs_of_cch_2g_40m},
+};
+
+struct op_chs_ent_t op_chs_of_cch_5g_by_bw[] = {
+	{1, center_ch_5g_20m},
+	{2, (u8 *)op_chs_of_cch_5g_40m},
+	{4, (u8 *)op_chs_of_cch_5g_80m},
+	{8, (u8 *)op_chs_of_cch_5g_160m},
+};
+
+inline u8 center_chs_2g_num(u8 bw)
+{
+	if (bw > CHANNEL_WIDTH_40)
+		return 0;
+
+	return center_chs_2g_by_bw[bw].ch_num;
+}
+
+inline u8 center_chs_2g(u8 bw, u8 id)
+{
+	if (bw > CHANNEL_WIDTH_40)
+		return 0;
+
+	if (id >= center_chs_2g_num(bw))
+		return 0;
+
+	return center_chs_2g_by_bw[bw].chs[id];
+}
 
 inline u8 center_chs_5g_num(u8 bw)
 {
-	if (bw >= CHANNEL_WIDTH_160)
+	if (bw > CHANNEL_WIDTH_80)
 		return 0;
-	
+
 	return center_chs_5g_by_bw[bw].ch_num;
 }
 
 inline u8 center_chs_5g(u8 bw, u8 id)
 {
-	if (bw >= CHANNEL_WIDTH_160)
+	if (bw > CHANNEL_WIDTH_80)
 		return 0;
 
 	if (id >= center_chs_5g_num(bw))
 		return 0;
-		
+
 	return center_chs_5g_by_bw[bw].chs[id];
+}
+
+/*
+ * Get available op channels by @param cch, @param bw
+ * @cch: the given center channel
+ * @bw: the given bandwidth
+ * @op_chs: the pointer to return pointer of op channel array
+ * @op_ch_num: the pointer to return pointer of op channel number
+ *
+ * return valid (1) or not (0)
+ */
+u8 rtw_get_op_chs_by_cch_bw(u8 cch, u8 bw, u8 **op_chs, u8 *op_ch_num)
+{
+	int i;
+	struct center_chs_ent_t *c_chs_ent = NULL;
+	struct op_chs_ent_t *op_chs_ent = NULL;
+	u8 valid = 1;
+
+	if (cch <= 14
+		&& bw >= CHANNEL_WIDTH_20 && bw <= CHANNEL_WIDTH_40
+	) {
+		c_chs_ent = &center_chs_2g_by_bw[bw];
+		op_chs_ent = &op_chs_of_cch_2g_by_bw[bw];
+	} else if (cch >= 36 && cch <= 177
+		&& bw >= CHANNEL_WIDTH_20 && bw <= CHANNEL_WIDTH_160
+	) {
+		c_chs_ent = &center_chs_5g_by_bw[bw];
+		op_chs_ent = &op_chs_of_cch_5g_by_bw[bw];
+	} else {
+		valid = 0;
+		goto exit;
+	}
+
+	for (i = 0; i < c_chs_ent->ch_num; i++)
+		if (cch == *(c_chs_ent->chs + i))
+			break;
+
+	if (i == c_chs_ent->ch_num) {
+		valid = 0;
+		goto exit;
+	}
+
+	*op_chs = op_chs_ent->chs + op_chs_ent->ch_num * i;
+	*op_ch_num = op_chs_ent->ch_num;
+
+exit:
+	return valid;
+}
+
+u8 rtw_get_ch_group(u8 ch, u8 *group, u8 *cck_group)
+{
+	BAND_TYPE band = BAND_MAX;
+	s8 gp = -1, cck_gp = -1;
+
+	if (ch <= 14) {
+		band = BAND_ON_2_4G;
+
+		if (1 <= ch && ch <= 2)
+			gp = 0;
+		else if (3  <= ch && ch <= 5)
+			gp = 1;
+		else if (6  <= ch && ch <= 8)
+			gp = 2;
+		else if (9  <= ch && ch <= 11)
+			gp = 3;
+		else if (12 <= ch && ch <= 14)
+			gp = 4;
+		else
+			band = BAND_MAX;
+
+		if (ch == 14)
+			cck_gp = 5;
+		else
+			cck_gp = gp;
+	} else {
+		band = BAND_ON_5G;
+
+		if (36 <= ch && ch <= 42)
+			gp = 0;
+		else if (44   <= ch && ch <=  48)
+			gp = 1;
+		else if (50   <= ch && ch <=  58)
+			gp = 2;
+		else if (60   <= ch && ch <=  64)
+			gp = 3;
+		else if (100  <= ch && ch <= 106)
+			gp = 4;
+		else if (108  <= ch && ch <= 114)
+			gp = 5;
+		else if (116  <= ch && ch <= 122)
+			gp = 6;
+		else if (124  <= ch && ch <= 130)
+			gp = 7;
+		else if (132  <= ch && ch <= 138)
+			gp = 8;
+		else if (140  <= ch && ch <= 144)
+			gp = 9;
+		else if (149  <= ch && ch <= 155)
+			gp = 10;
+		else if (157  <= ch && ch <= 161)
+			gp = 11;
+		else if (165  <= ch && ch <= 171)
+			gp = 12;
+		else if (173  <= ch && ch <= 177)
+			gp = 13;
+		else
+			band = BAND_MAX;
+	}
+
+	if (band == BAND_MAX
+		|| (band == BAND_ON_2_4G && cck_gp == -1)
+		|| gp == -1
+	) {
+		RTW_WARN("%s invalid channel:%u", __func__, ch);
+		rtw_warn_on(1);
+		goto exit;
+	}
+
+	if (group)
+		*group = gp;
+	if (cck_group && band == BAND_ON_2_4G)
+		*cck_group = cck_gp;
+
+exit:
+	return band;
 }
 
 int rtw_ch2freq(int chan)
@@ -87,9 +447,8 @@ int rtw_ch2freq(int chan)
 			return 2484;
 		else if (chan < 14)
 			return 2407 + chan * 5;
-	} else if (chan >= 36 && chan <= 177) {
+	} else if (chan >= 36 && chan <= 177)
 		return 5000 + chan * 5;
-	}
 
 	return 0; /* not supported */
 }
@@ -141,9 +500,8 @@ bool rtw_chbw_to_freq_range(u8 ch, u8 bw, u8 offset, u32 *hi, u32 *lo)
 	} else if (bw == CHANNEL_WIDTH_20) {
 		hi_ret = freq + 10;
 		lo_ret = freq - 10;
-	} else {
+	} else
 		rtw_warn_on(1);
-	}
 
 	if (hi)
 		*hi = hi_ret;
@@ -156,7 +514,7 @@ exit:
 	return valid;
 }
 
-const char * const _ch_width_str[] = {
+const char *const _ch_width_str[] = {
 	"20MHz",
 	"40MHz",
 	"80MHz",
@@ -174,7 +532,7 @@ const u8 _ch_width_to_bw_cap[] = {
 	0,
 };
 
-const char * const _band_str[] = {
+const char *const _band_str[] = {
 	"2.4G",
 	"5G",
 	"BOTH",
@@ -186,6 +544,30 @@ const u8 _band_to_band_cap[] = {
 	BAND_CAP_5G,
 	0,
 	0,
+};
+
+const u8 _rf_type_to_rf_tx_cnt[] = {
+	1,
+	2,
+	2,
+	1,
+	2,
+	2,
+	3,
+	3,
+	4,
+};
+
+const u8 _rf_type_to_rf_rx_cnt[] = {
+	2,
+	4,
+	2,
+	1,
+	2,
+	3,
+	3,
+	4,
+	4,
 };
 
 #ifdef CONFIG_80211AC_VHT
@@ -219,7 +601,7 @@ static const struct country_chplan RTL8821AE_HMC_M2_country_chplan_map[] = {
 	COUNTRY_CHPLAN_ENT("RU", 0x59, 0, 0xFB), /* Russia(fac/gost), Kaliningrad */
 	COUNTRY_CHPLAN_ENT("UA", 0x26, 0, 0xFB), /* Ukraine */
 };
-static const u16 RTL8821AE_HMC_M2_country_chplan_map_sz = sizeof(RTL8821AE_HMC_M2_country_chplan_map)/sizeof(struct country_chplan);
+static const u16 RTL8821AE_HMC_M2_country_chplan_map_sz = sizeof(RTL8821AE_HMC_M2_country_chplan_map) / sizeof(struct country_chplan);
 #endif
 
 #if (RTW_DEF_MODULE_REGULATORY_CERT & RTW_MODULE_RTL8821AU)
@@ -227,43 +609,43 @@ static const struct country_chplan RTL8821AU_country_chplan_map[] = {
 	COUNTRY_CHPLAN_ENT("RU", 0x59, 0, 0xFB), /* Russia(fac/gost), Kaliningrad */
 	COUNTRY_CHPLAN_ENT("UA", 0x26, 0, 0xFB), /* Ukraine */
 };
-static const u16 RTL8821AU_country_chplan_map_sz = sizeof(RTL8821AU_country_chplan_map)/sizeof(struct country_chplan);
+static const u16 RTL8821AU_country_chplan_map_sz = sizeof(RTL8821AU_country_chplan_map) / sizeof(struct country_chplan);
 #endif
 
 #if (RTW_DEF_MODULE_REGULATORY_CERT & RTW_MODULE_RTL8812AENF_NGFF)
 static const struct country_chplan RTL8812AENF_NGFF_country_chplan_map[] = {
 };
-static const u16 RTL8812AENF_NGFF_country_chplan_map_sz = sizeof(RTL8812AENF_NGFF_country_chplan_map)/sizeof(struct country_chplan);
+static const u16 RTL8812AENF_NGFF_country_chplan_map_sz = sizeof(RTL8812AENF_NGFF_country_chplan_map) / sizeof(struct country_chplan);
 #endif
 
 #if (RTW_DEF_MODULE_REGULATORY_CERT & RTW_MODULE_RTL8812AEBT_HMC)
 static const struct country_chplan RTL8812AEBT_HMC_country_chplan_map[] = {
 };
-static const u16 RTL8812AEBT_HMC_country_chplan_map_sz = sizeof(RTL8812AEBT_HMC_country_chplan_map)/sizeof(struct country_chplan);
+static const u16 RTL8812AEBT_HMC_country_chplan_map_sz = sizeof(RTL8812AEBT_HMC_country_chplan_map) / sizeof(struct country_chplan);
 #endif
 
 #if (RTW_DEF_MODULE_REGULATORY_CERT & RTW_MODULE_RTL8188EE_HMC_M2)
 static const struct country_chplan RTL8188EE_HMC_M2_country_chplan_map[] = {
 };
-static const u16 RTL8188EE_HMC_M2_country_chplan_map_sz = sizeof(RTL8188EE_HMC_M2_country_chplan_map)/sizeof(struct country_chplan);
+static const u16 RTL8188EE_HMC_M2_country_chplan_map_sz = sizeof(RTL8188EE_HMC_M2_country_chplan_map) / sizeof(struct country_chplan);
 #endif
 
 #if (RTW_DEF_MODULE_REGULATORY_CERT & RTW_MODULE_RTL8723BE_HMC_M2)
 static const struct country_chplan RTL8723BE_HMC_M2_country_chplan_map[] = {
 };
-static const u16 RTL8723BE_HMC_M2_country_chplan_map_sz = sizeof(RTL8723BE_HMC_M2_country_chplan_map)/sizeof(struct country_chplan);
+static const u16 RTL8723BE_HMC_M2_country_chplan_map_sz = sizeof(RTL8723BE_HMC_M2_country_chplan_map) / sizeof(struct country_chplan);
 #endif
 
 #if (RTW_DEF_MODULE_REGULATORY_CERT & RTW_MODULE_RTL8723BS_NGFF1216)
 static const struct country_chplan RTL8723BS_NGFF1216_country_chplan_map[] = {
 };
-static const u16 RTL8723BS_NGFF1216_country_chplan_map_sz = sizeof(RTL8723BS_NGFF1216_country_chplan_map)/sizeof(struct country_chplan);
+static const u16 RTL8723BS_NGFF1216_country_chplan_map_sz = sizeof(RTL8723BS_NGFF1216_country_chplan_map) / sizeof(struct country_chplan);
 #endif
 
 #if (RTW_DEF_MODULE_REGULATORY_CERT & RTW_MODULE_RTL8192EEBT_HMC_M2)
 static const struct country_chplan RTL8192EEBT_HMC_M2_country_chplan_map[] = {
 };
-static const u16 RTL8192EEBT_HMC_M2_country_chplan_map_sz = sizeof(RTL8192EEBT_HMC_M2_country_chplan_map)/sizeof(struct country_chplan);
+static const u16 RTL8192EEBT_HMC_M2_country_chplan_map_sz = sizeof(RTL8192EEBT_HMC_M2_country_chplan_map) / sizeof(struct country_chplan);
 #endif
 
 /**
@@ -553,7 +935,7 @@ static const struct country_chplan country_chplan_map[] = {
 	COUNTRY_CHPLAN_ENT("ZW", 0x26, 1, 0xF1), /* Zimbabwe */
 };
 
-u16 const country_chplan_map_sz = sizeof(country_chplan_map)/sizeof(struct country_chplan);
+u16 const country_chplan_map_sz = sizeof(country_chplan_map) / sizeof(struct country_chplan);
 
 /*
 * rtw_get_chplan_from_country -
@@ -640,8 +1022,12 @@ s8 rtw_rf_get_kfree_tx_gain_offset(_adapter *padapter, u8 path, u8 ch)
 
 	if (kfree_data->flag & KFREE_FLAG_ON) {
 		kfree_offset = kfree_data->bb_gain[bb_gain_sel][path];
-		if (1)
-			DBG_871X("%s path:%u, ch:%u, bb_gain_sel:%d, kfree_offset:%d\n"
+		if (IS_HARDWARE_TYPE_8723D(padapter))
+			RTW_INFO("%s path:%s, ch:%u, bb_gain_sel:%d, kfree_offset:%d\n"
+				, __func__, (path == 0)?"S1":"S0", 
+				ch, bb_gain_sel, kfree_offset);
+		else
+			RTW_INFO("%s path:%u, ch:%u, bb_gain_sel:%d, kfree_offset:%d\n"
 				, __func__, path, ch, bb_gain_sel, kfree_offset);
 	}
 exit:
@@ -652,46 +1038,79 @@ exit:
 void rtw_rf_set_tx_gain_offset(_adapter *adapter, u8 path, s8 offset)
 {
 	u8 write_value;
+	u8 target_path = 0;
+	u32 val32 = 0;
 
-	DBG_871X("kfree gain_offset 0x55:0x%x ", rtw_hal_read_rfreg(adapter, path, 0x55, 0xffffffff));
+	if (IS_HARDWARE_TYPE_8723D(adapter)) {
+		target_path = RF_PATH_A; /*in 8723D case path means S0/S1*/
+		if (path == PPG_8723D_S1)
+			RTW_INFO("kfree gain_offset 0x55:0x%x ",
+			rtw_hal_read_rfreg(adapter, target_path, 0x55, 0xffffffff));
+		else if (path == PPG_8723D_S0)
+			RTW_INFO("kfree gain_offset 0x65:0x%x ",
+			rtw_hal_read_rfreg(adapter, target_path, 0x65, 0xffffffff));
+	} else {
+		target_path = path;
+		RTW_INFO("kfree gain_offset 0x55:0x%x ", rtw_hal_read_rfreg(adapter, target_path, 0x55, 0xffffffff));
+	}
+	
 	switch (rtw_get_chip_type(adapter)) {
+#ifdef CONFIG_RTL8723D
+	case RTL8723D:
+		write_value = RF_TX_GAIN_OFFSET_8723D(offset);
+		if (path == PPG_8723D_S1)
+			rtw_hal_write_rfreg(adapter, target_path, 0x55, 0x0f8000, write_value);
+		else if (path == PPG_8723D_S0)
+			rtw_hal_write_rfreg(adapter, target_path, 0x65, 0x0f8000, write_value);
+		break;
+#endif /* CONFIG_RTL8723D */
 #ifdef CONFIG_RTL8703B
 	case RTL8703B:
 		write_value = RF_TX_GAIN_OFFSET_8703B(offset);
-		rtw_hal_write_rfreg(adapter, path, 0x55, 0x0fc000, write_value);
+		rtw_hal_write_rfreg(adapter, target_path, 0x55, 0x0fc000, write_value);
 		break;
 #endif /* CONFIG_RTL8703B */
 #ifdef CONFIG_RTL8188F
 	case RTL8188F:
 		write_value = RF_TX_GAIN_OFFSET_8188F(offset);
-		rtw_hal_write_rfreg(adapter, path, 0x55, 0x0fc000, write_value);
+		rtw_hal_write_rfreg(adapter, target_path, 0x55, 0x0fc000, write_value);
 		break;
 #endif /* CONFIG_RTL8188F */
 #ifdef CONFIG_RTL8192E
 	case RTL8192E:
 		write_value = RF_TX_GAIN_OFFSET_8192E(offset);
-		rtw_hal_write_rfreg(adapter, path, 0x55, 0x0f8000, write_value);
+		rtw_hal_write_rfreg(adapter, target_path, 0x55, 0x0f8000, write_value);
 		break;
 #endif /* CONFIG_RTL8188F */
 
 #ifdef CONFIG_RTL8821A
 	case RTL8821:
 		write_value = RF_TX_GAIN_OFFSET_8821A(offset);
-		rtw_hal_write_rfreg(adapter, path, 0x55, 0x0f8000, write_value);
+		rtw_hal_write_rfreg(adapter, target_path, 0x55, 0x0f8000, write_value);
 		break;
 #endif /* CONFIG_RTL8821A */
-#ifdef CONFIG_RTL8814A
-		case RTL8814A:
-		DBG_871X("\nkfree by PhyDM on the sw CH. path %d\n", path);
+#if defined(CONFIG_RTL8814A) || defined(CONFIG_RTL8822B) || defined(CONFIG_RTL8821C)
+	case RTL8814A:
+	case RTL8822B:
+	case RTL8821C:
+		RTW_INFO("\nkfree by PhyDM on the sw CH. path %d\n", path);
 		break;
-#endif /* CONFIG_RTL8821A */
+#endif /* CONFIG_RTL8814A || CONFIG_RTL8822B || CONFIG_RTL8821C */
 
 	default:
 		rtw_warn_on(1);
 		break;
 	}
-
-	DBG_871X(" after :0x%x\n", rtw_hal_read_rfreg(adapter, path, 0x55, 0xffffffff));
+	
+	if (IS_HARDWARE_TYPE_8723D(adapter)) {
+		if (path == PPG_8723D_S1)
+			val32 = rtw_hal_read_rfreg(adapter, target_path, 0x55, 0xffffffff);
+		else if (path == PPG_8723D_S0)
+			val32 = rtw_hal_read_rfreg(adapter, target_path, 0x65, 0xffffffff);
+	} else {
+		val32 = rtw_hal_read_rfreg(adapter, target_path, 0x55, 0xffffffff);
+	}
+	RTW_INFO(" after :0x%x\n", val32);
 }
 
 void rtw_rf_apply_tx_gain_offset(_adapter *adapter, u8 ch)
@@ -700,9 +1119,14 @@ void rtw_rf_apply_tx_gain_offset(_adapter *adapter, u8 ch)
 	s8 kfree_offset = 0;
 	s8 tx_pwr_track_offset = 0; /* TODO: 8814A should consider tx pwr track when setting tx gain offset */
 	s8 total_offset;
-	int i;
+	int i, total = 0;
 
-	for (i = 0; i < hal_data->NumTotalRFPath; i++) {
+	if (IS_HARDWARE_TYPE_8723D(adapter))
+		total = 2; /* S1 and S0 */
+	else
+		total = hal_data->NumTotalRFPath;
+
+	for (i = 0; i < total; i++) {
 		kfree_offset = rtw_rf_get_kfree_tx_gain_offset(adapter, i, ch);
 		total_offset = kfree_offset + tx_pwr_track_offset;
 		rtw_rf_set_tx_gain_offset(adapter, i, total_offset);
@@ -711,7 +1135,7 @@ void rtw_rf_apply_tx_gain_offset(_adapter *adapter, u8 ch)
 
 bool rtw_is_dfs_range(u32 hi, u32 lo)
 {
-	return rtw_is_range_overlap(hi, lo, 5720 + 10, 5260 - 10)?_TRUE:_FALSE;
+	return rtw_is_range_overlap(hi, lo, 5720 + 10, 5260 - 10) ? _TRUE : _FALSE;
 }
 
 bool rtw_is_dfs_ch(u8 ch, u8 bw, u8 offset)
@@ -721,21 +1145,20 @@ bool rtw_is_dfs_ch(u8 ch, u8 bw, u8 offset)
 	if (rtw_chbw_to_freq_range(ch, bw, offset, &hi, &lo) == _FALSE)
 		return _FALSE;
 
-	return rtw_is_dfs_range(hi, lo)?_TRUE:_FALSE;
+	return rtw_is_dfs_range(hi, lo) ? _TRUE : _FALSE;
 }
 
-bool rtw_is_long_cac_range(u32 hi, u32 lo)
+bool rtw_is_long_cac_range(u32 hi, u32 lo, u8 dfs_region)
 {
-	return rtw_is_range_overlap(hi, lo, 5660 + 10, 5600 - 10)?_TRUE:_FALSE;
+	return (dfs_region == PHYDM_DFS_DOMAIN_ETSI && rtw_is_range_overlap(hi, lo, 5660 + 10, 5600 - 10)) ? _TRUE : _FALSE;
 }
 
-bool rtw_is_long_cac_ch(u8 ch, u8 bw, u8 offset)
+bool rtw_is_long_cac_ch(u8 ch, u8 bw, u8 offset, u8 dfs_region)
 {
 	u32 hi, lo;
 
 	if (rtw_chbw_to_freq_range(ch, bw, offset, &hi, &lo) == _FALSE)
 		return _FALSE;
 
-	return rtw_is_long_cac_range(hi, lo)?_TRUE:_FALSE;
+	return rtw_is_long_cac_range(hi, lo, dfs_region) ? _TRUE : _FALSE;
 }
-

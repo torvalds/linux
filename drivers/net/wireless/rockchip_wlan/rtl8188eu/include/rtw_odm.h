@@ -26,30 +26,30 @@
 * This file provides utilities/wrappers for rtw driver to use ODM
 */
 
-void rtw_odm_dbg_comp_msg(void *sel,_adapter *adapter);
-void rtw_odm_dbg_comp_set(_adapter *adapter, u64 comps);
-void rtw_odm_dbg_level_msg(void *sel,_adapter *adapter);
-void rtw_odm_dbg_level_set(_adapter *adapter, u32 level);
-
-void rtw_odm_ability_msg(void *sel, _adapter *adapter);
-void rtw_odm_ability_set(_adapter *adapter, u32 ability);
 
 void rtw_odm_init_ic_type(_adapter *adapter);
+
+void rtw_odm_set_force_igi_lb(_adapter *adapter, u8 lb);
+u8 rtw_odm_get_force_igi_lb(_adapter *adapter);
 
 void rtw_odm_adaptivity_config_msg(void *sel, _adapter *adapter);
 
 bool rtw_odm_adaptivity_needed(_adapter *adapter);
-void rtw_odm_adaptivity_parm_msg(void *sel,_adapter *adapter);
-void rtw_odm_adaptivity_parm_set(_adapter *adapter, s8 TH_L2H_ini, s8 TH_EDCCA_HL_diff, s8 TH_L2H_ini_mode2, s8 TH_EDCCA_HL_diff_mode2, u8 EDCCA_enable);
+void rtw_odm_adaptivity_parm_msg(void *sel, _adapter *adapter);
+void rtw_odm_adaptivity_parm_set(_adapter *adapter, s8 th_l2h_ini, s8 th_edcca_hl_diff, s8 th_l2h_ini_mode2, s8 th_edcca_hl_diff_mode2, u8 edcca_enable);
 void rtw_odm_get_perpkt_rssi(void *sel, _adapter *adapter);
-void rtw_odm_acquirespinlock(_adapter *adapter,	RT_SPINLOCK_TYPE type);
-void rtw_odm_releasespinlock(_adapter *adapter,	RT_SPINLOCK_TYPE type);
+void rtw_odm_acquirespinlock(_adapter *adapter,	enum rt_spinlock_type type);
+void rtw_odm_releasespinlock(_adapter *adapter,	enum rt_spinlock_type type);
 
+u8 rtw_odm_get_dfs_domain(_adapter *adapter);
+u8 rtw_odm_dfs_domain_unknown(_adapter *adapter);
 #ifdef CONFIG_DFS_MASTER
 VOID rtw_odm_radar_detect_reset(_adapter *adapter);
 VOID rtw_odm_radar_detect_disable(_adapter *adapter);
 VOID rtw_odm_radar_detect_enable(_adapter *adapter);
 BOOLEAN rtw_odm_radar_detect(_adapter *adapter);
 #endif /* CONFIG_DFS_MASTER */
-#endif // __RTW_ODM_H__
 
+void rtw_odm_parse_rx_phy_status_chinfo(union recv_frame *rframe, u8 *phys);
+
+#endif /* __RTW_ODM_H__ */

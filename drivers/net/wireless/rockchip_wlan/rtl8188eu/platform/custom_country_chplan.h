@@ -25,5 +25,4 @@ static const struct country_chplan CUSTOMIZED_country_chplan_map[] = {
 	COUNTRY_CHPLAN_ENT("TW", 0x39, 1, 0xFF), /* Taiwan */
 };
 
-static const u16 CUSTOMIZED_country_chplan_map_sz = sizeof(CUSTOMIZED_country_chplan_map)/sizeof(struct country_chplan);
-
+static const u16 CUSTOMIZED_country_chplan_map_sz = sizeof(CUSTOMIZED_country_chplan_map) / sizeof(struct country_chplan);

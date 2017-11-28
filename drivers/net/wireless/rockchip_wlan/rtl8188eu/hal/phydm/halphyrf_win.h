@@ -17,92 +17,103 @@
  *
  *
  ******************************************************************************/
- 
- #ifndef __HAL_PHY_RF_H__
- #define __HAL_PHY_RF_H__
- 
+
+#ifndef __HAL_PHY_RF_H__
+#define __HAL_PHY_RF_H__
+
 #include "phydm_kfree.h"
 #if (RTL8814A_SUPPORT == 1)
-#include "rtl8814a/phydm_iqk_8814a.h"
+	#include "rtl8814a/phydm_iqk_8814a.h"
 #endif
 
 #if (RTL8822B_SUPPORT == 1)
-#include "rtl8822b/phydm_iqk_8822b.h"
+	#include "rtl8822b/phydm_iqk_8822b.h"
+	#include "../mac/Halmac_type.h"
 #endif
 #include "phydm_powertracking_win.h"
 
-typedef enum _SPUR_CAL_METHOD {
+#if (RTL8821C_SUPPORT == 1)
+	#include "rtl8821c/phydm_iqk_8821c.h"
+#endif
+
+enum spur_cal_method {
 	PLL_RESET,
 	AFE_PHASE_SEL
-} SPUR_CAL_METHOD;
+};
 
-typedef enum _PWRTRACK_CONTROL_METHOD {
+enum pwrtrack_method {
 	BBSWING,
 	TXAGC,
 	MIX_MODE,
-	TSSI_MODE
-} PWRTRACK_METHOD;
+	TSSI_MODE,
+	MIX_2G_TSSI_5G_MODE,
+	MIX_5G_TSSI_2G_MODE
+};
 
-typedef VOID 	(*FuncSetPwr)(PDM_ODM_T, PWRTRACK_METHOD, u1Byte, u1Byte);
-typedef VOID(*FuncIQK)(PVOID, u1Byte, u1Byte, u1Byte);
-typedef VOID 	(*FuncLCK)(PDM_ODM_T);
-				//refine by YuChen for 8814A
-typedef VOID  	(*FuncSwing)(PDM_ODM_T, pu1Byte*, pu1Byte*, pu1Byte*, pu1Byte*);
-typedef VOID	(*FuncSwing8814only)(PDM_ODM_T, pu1Byte*, pu1Byte*, pu1Byte*, pu1Byte*);
+typedef void(*func_set_pwr)(void *, enum pwrtrack_method, u8, u8);
+typedef void(*func_iqk)(void *, u8, u8, u8);
+typedef void(*func_lck)(void *);
+typedef void(*func_swing)(void *, u8 **, u8 **, u8 **, u8 **);
+typedef void(*func_swing8814only)(void *, u8 **, u8 **, u8 **, u8 **);
+typedef void (*func_swing_xtal)(void *, s8 **, s8 **);
+typedef void (*func_set_xtal)(void *);
+typedef void(*func_all_swing)(void *, u8 **, u8 **, u8 **, u8 **, u8 **, u8 **, u8 **, u8 **);
 
-typedef struct _TXPWRTRACK_CFG {
-	u1Byte 		SwingTableSize_CCK;	
-	u1Byte 		SwingTableSize_OFDM;
-	u1Byte 		Threshold_IQK;
-	u1Byte 		Threshold_DPK;	
-	u1Byte 		AverageThermalNum;
-	u1Byte 		RfPathCount;
-	u4Byte 		ThermalRegAddr;	
-	FuncSetPwr 	ODM_TxPwrTrackSetPwr;
-	FuncIQK 	DoIQK;
-	FuncLCK		PHY_LCCalibrate;
-	FuncSwing	GetDeltaSwingTable;
-	FuncSwing8814only	GetDeltaSwingTable8814only;
-} TXPWRTRACK_CFG, *PTXPWRTRACK_CFG;
+struct _TXPWRTRACK_CFG {
+	u8		swing_table_size_cck;
+	u8		swing_table_size_ofdm;
+	u8		threshold_iqk;
+	u8		threshold_dpk;
+	u8		average_thermal_num;
+	u8		rf_path_count;
+	u32		thermal_reg_addr;
+	func_set_pwr	odm_tx_pwr_track_set_pwr;
+	func_iqk	do_iqk;
+	func_lck		phy_lc_calibrate;
+	func_swing	get_delta_swing_table;
+	func_swing8814only	get_delta_swing_table8814only;
+	func_swing_xtal			get_delta_swing_xtal_table;
+	func_set_xtal			odm_txxtaltrack_set_xtal;
+	func_all_swing	get_delta_all_swing_table;
+};
 
-VOID 
-ConfigureTxpowerTrack(
-	IN 	PDM_ODM_T		pDM_Odm,
-	OUT	PTXPWRTRACK_CFG	pConfig
-	);
+void
+configure_txpower_track(
+	struct PHY_DM_STRUCT		*p_dm_odm,
+	struct _TXPWRTRACK_CFG	*p_config
+);
 
 
-VOID
-ODM_ClearTxPowerTrackingState(
-	IN PDM_ODM_T		pDM_Odm
-	);
+void
+odm_clear_txpowertracking_state(
+	struct PHY_DM_STRUCT		*p_dm_odm
+);
 
-VOID
-ODM_TXPowerTrackingCallback_ThermalMeter(
+void
+odm_txpowertracking_callback_thermal_meter(
 #if (DM_ODM_SUPPORT_TYPE & ODM_AP)
-	IN PDM_ODM_T		pDM_Odm
+	struct PHY_DM_STRUCT		*p_dm_odm
 #else
-	IN PADAPTER	Adapter
+	struct _ADAPTER	*adapter
 #endif
-	);
+);
 
 
 
 #define ODM_TARGET_CHNL_NUM_2G_5G	59
 
 
-VOID
-ODM_ResetIQKResult(
-	IN PDM_ODM_T	pDM_Odm 
+void
+odm_reset_iqk_result(
+	struct PHY_DM_STRUCT	*p_dm_odm
 );
-u1Byte 
-ODM_GetRightChnlPlaceforIQK(
-    IN u1Byte chnl
+u8
+odm_get_right_chnl_place_for_iqk(
+	u8 chnl
 );
 
-VOID odm_IQCalibrate(IN	PDM_ODM_T	pDM_Odm);
-VOID phydm_rf_init(	IN		PDM_ODM_T		pDM_Odm);
-VOID phydm_rf_watchdog(	IN		PDM_ODM_T		pDM_Odm);
-								
-#endif	// #ifndef __HAL_PHY_RF_H__
+void odm_iq_calibrate(struct PHY_DM_STRUCT	*p_dm_odm);
+void phydm_rf_init(struct PHY_DM_STRUCT		*p_dm_odm);
+void phydm_rf_watchdog(struct PHY_DM_STRUCT		*p_dm_odm);
 
+#endif	/*  #ifndef __HAL_PHY_RF_H__ */

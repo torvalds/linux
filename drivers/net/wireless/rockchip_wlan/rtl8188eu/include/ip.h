@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
- *                                        
+ *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
  * published by the Free Software Foundation.
@@ -55,15 +55,15 @@
 #define	IPOPT_MEASUREMENT	0x40
 #define	IPOPT_RESERVED2		0x60
 
-#define IPOPT_END	(0 |IPOPT_CONTROL)
-#define IPOPT_NOOP	(1 |IPOPT_CONTROL)
-#define IPOPT_SEC	(2 |IPOPT_CONTROL|IPOPT_COPY)
-#define IPOPT_LSRR	(3 |IPOPT_CONTROL|IPOPT_COPY)
-#define IPOPT_TIMESTAMP	(4 |IPOPT_MEASUREMENT)
-#define IPOPT_RR	(7 |IPOPT_CONTROL)
-#define IPOPT_SID	(8 |IPOPT_CONTROL|IPOPT_COPY)
-#define IPOPT_SSRR	(9 |IPOPT_CONTROL|IPOPT_COPY)
-#define IPOPT_RA	(20|IPOPT_CONTROL|IPOPT_COPY)
+#define IPOPT_END	(0 | IPOPT_CONTROL)
+#define IPOPT_NOOP	(1 | IPOPT_CONTROL)
+#define IPOPT_SEC	(2 | IPOPT_CONTROL | IPOPT_COPY)
+#define IPOPT_LSRR	(3 | IPOPT_CONTROL | IPOPT_COPY)
+#define IPOPT_TIMESTAMP	(4 | IPOPT_MEASUREMENT)
+#define IPOPT_RR	(7 | IPOPT_CONTROL)
+#define IPOPT_SID	(8 | IPOPT_CONTROL | IPOPT_COPY)
+#define IPOPT_SSRR	(9 | IPOPT_CONTROL | IPOPT_COPY)
+#define IPOPT_RA	(20 | IPOPT_CONTROL | IPOPT_COPY)
 
 #define IPVERSION	4
 #define MAXTTL		255
@@ -93,23 +93,23 @@
 #ifdef PLATFORM_LINUX
 
 struct ip_options {
-  __u32		faddr;				/* Saved first hop address */
-  unsigned char	optlen;
-  unsigned char srr;
-  unsigned char rr;
-  unsigned char ts;
-  unsigned char is_setbyuser:1,			/* Set by setsockopt?			*/
-                is_data:1,			/* Options in __data, rather than skb	*/
-                is_strictroute:1,		/* Strict source route			*/
-                srr_is_hit:1,			/* Packet destination addr was our one	*/
-                is_changed:1,			/* IP checksum more not valid		*/	
-                rr_needaddr:1,			/* Need to record addr of outgoing dev	*/
-                ts_needtime:1,			/* Need to record timestamp		*/
-                ts_needaddr:1;			/* Need to record addr of outgoing dev  */
-  unsigned char router_alert;
-  unsigned char __pad1;
-  unsigned char __pad2;
-  unsigned char __data[0];
+	__u32		faddr;				/* Saved first hop address */
+	unsigned char	optlen;
+	unsigned char srr;
+	unsigned char rr;
+	unsigned char ts;
+	unsigned char is_setbyuser:1,			/* Set by setsockopt?			*/
+		 is_data:1,			/* Options in __data, rather than skb	*/
+		 is_strictroute:1,		/* Strict source route			*/
+		 srr_is_hit:1,			/* Packet destination addr was our one	*/
+		 is_changed:1,			/* IP checksum more not valid		*/
+		 rr_needaddr:1,			/* Need to record addr of outgoing dev	*/
+		 ts_needtime:1,			/* Need to record timestamp		*/
+		 ts_needaddr:1;			/* Need to record addr of outgoing dev */
+	unsigned char router_alert;
+	unsigned char __pad1;
+	unsigned char __pad2;
+	unsigned char __data[0];
 };
 
 #define optlength(opt) (sizeof(struct ip_options) + opt->optlen)
@@ -121,7 +121,7 @@ struct iphdr {
 		version:4;
 #elif defined (__BIG_ENDIAN_BITFIELD)
 	__u8	version:4,
-  		ihl:4;
+		ihl:4;
 #else
 #error	"Please fix <asm/byteorder.h>"
 #endif
@@ -138,4 +138,3 @@ struct iphdr {
 };
 
 #endif	/* _LINUX_IP_H */
-

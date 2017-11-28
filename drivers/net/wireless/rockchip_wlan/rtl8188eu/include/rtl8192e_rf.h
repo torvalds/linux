@@ -28,7 +28,6 @@ PHY_RF6052SetBandwidth8192E(
 
 int
 PHY_RF6052_Config_8192E(
-	IN	PADAPTER	Adapter	);
+	IN	PADAPTER	Adapter);
 
-#endif//__RTL8192E_RF_H__
-
+#endif/* __RTL8192E_RF_H__ */

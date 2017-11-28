@@ -28,7 +28,6 @@ PHY_RF6052SetBandwidth8814A(
 
 int
 PHY_RF6052_Config_8814A(
-	IN	PADAPTER	Adapter	);
+	IN	PADAPTER	Adapter);
 
-#endif//__RTL8188E_RF_H__
-
+#endif/* __RTL8188E_RF_H__ */

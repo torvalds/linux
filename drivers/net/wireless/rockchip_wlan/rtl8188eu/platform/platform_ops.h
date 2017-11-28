@@ -28,4 +28,4 @@
 int platform_wifi_power_on(void);
 void platform_wifi_power_off(void);
 
-#endif // __PLATFORM_OPS_H__
+#endif /* __PLATFORM_OPS_H__ */

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
- *                                        
+ *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
  * published by the Free Software Foundation.
@@ -22,12 +22,9 @@
 
 
 #ifdef PLATFORM_WINDOWS
-
-u8 query_802_11_capability(_adapter*	padapter,u8*	pucBuf,u32 *	pulOutLen);
-u8 query_802_11_association_information (_adapter * padapter, PNDIS_802_11_ASSOCIATION_INFORMATION pAssocInfo);
-
+u8 query_802_11_capability(_adapter	*padapter, u8 *pucBuf, u32 *pulOutLen);
+u8 query_802_11_association_information(_adapter *padapter, PNDIS_802_11_ASSOCIATION_INFORMATION pAssocInfo);
 #endif
 
 
 #endif
-

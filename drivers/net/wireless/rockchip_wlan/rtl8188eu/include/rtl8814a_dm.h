@@ -26,4 +26,3 @@ void rtl8814_InitHalDm(IN PADAPTER Adapter);
 void rtl8814_HalDmWatchDog(IN PADAPTER Adapter);
 
 #endif
-

@@ -21,4 +21,3 @@
 #define __SDIO_OPS_LINUX_H__
 
 #endif
-

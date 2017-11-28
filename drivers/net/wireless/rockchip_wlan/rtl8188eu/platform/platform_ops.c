@@ -34,4 +34,4 @@ int platform_wifi_power_on(void)
 void platform_wifi_power_off(void)
 {
 }
-#endif // !CONFIG_PLATFORM_OPS
+#endif /* !CONFIG_PLATFORM_OPS */
