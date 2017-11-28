@@ -5,6 +5,7 @@
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/pinctrl/rockchip.h>
 #include <dt-bindings/clock/rk3036-cru.h>
+#include <dt-bindings/power/rk3036-power.h>
 #include <dt-bindings/soc/rockchip,boot-mode.h>
 
 / {
@@ -198,6 +199,7 @@
 		assigned-clocks = <&cru ACLK_VCODEC>;
 		assigned-clock-rates = <297000000>;
 		assigned-clock-parents = <&cru PLL_GPLL>;
+		power-domains = <&power RK3036_PD_VPU>;
 		status = "disabled";
 	};
 
@@ -209,6 +211,7 @@
 		interrupt-names = "irq_dec";
 		iommus = <&vpu_mmu>;
 		allocator = <1>;
+		power-domains = <&power RK3036_PD_VPU>;
 	};
 
 	vpu_mmu: iommu@10108800 {
@@ -217,6 +220,7 @@
 		interrupts = <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "vpu_mmu";
 		#iommu-cells = <0>;
+		power-domains = <&power RK3036_PD_VPU>;
 		status = "disabled";
 	};
 
@@ -228,6 +232,7 @@
 		interrupt-names = "irq_dec";
 		allocator = <1>;
 		iommus = <&hevc_mmu>;
+		power-domains = <&power RK3036_PD_VPU>;
 	};
 
 	hevc_mmu: iommu@1010c440 {
@@ -236,6 +241,7 @@
 		interrupts = <GIC_SPI 56 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "hevc_mmu";
 		#iommu-cells = <0>;
+		power-domains = <&power RK3036_PD_VPU>;
 		status = "disabled";
 	};
 
@@ -256,6 +262,7 @@
 		resets = <&cru SRST_VCODEC_A>, <&cru SRST_VCODEC_H>,
 			 <&cru SRST_HEVC>;
 		reset-names = "video_a", "video_h", "video";
+		power-domains = <&power RK3036_PD_VPU>;
 		status = "disabled";
 	};
 
@@ -441,6 +448,21 @@
 			mode-recovery = <BOOT_RECOVERY>;
 			mode-bootloader = <BOOT_FASTBOOT>;
 			mode-loader = <BOOT_BL_DOWNLOAD>;
+		};
+
+		power: power-controller {
+			compatible = "rockchip,rk3036-power-controller";
+			#power-domain-cells = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			pd_vpu@RK3036_PD_VPU {
+				reg = <RK3036_PD_VPU>;
+				clocks = <&cru ACLK_VCODEC>,
+					 <&cru HCLK_VCODEC>,
+					 <&cru ACLK_HEVC>;
+			};
+
 		};
 	};
 
