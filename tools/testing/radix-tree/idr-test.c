@@ -215,6 +215,23 @@ void idr_checks(void)
 
 	assert(idr_is_empty(&idr));
 
+	idr_set_cursor(&idr, INT_MAX - 3UL);
+	for (i = INT_MAX - 3UL; i < INT_MAX + 3UL; i++) {
+		struct item *item;
+		unsigned int id;
+		if (i <= INT_MAX)
+			item = item_create(i, 0);
+		else
+			item = item_create(i - INT_MAX - 1, 0);
+
+		id = idr_alloc_cyclic(&idr, item, 0, 0, GFP_KERNEL);
+		assert(id == item->index);
+	}
+
+	idr_for_each(&idr, item_idr_free, &idr);
+	idr_destroy(&idr);
+	assert(idr_is_empty(&idr));
+
 	for (i = 1; i < 10000; i++) {
 		struct item *item = item_create(i, 0);
 		assert(idr_alloc(&idr, item, 1, 20000, GFP_KERNEL) == i);

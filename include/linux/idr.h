@@ -15,7 +15,6 @@
 #include <linux/radix-tree.h>
 #include <linux/gfp.h>
 #include <linux/percpu.h>
-#include <linux/bug.h>
 
 struct idr {
 	struct radix_tree_root	idr_rt;
@@ -82,55 +81,7 @@ static inline void idr_set_cursor(struct idr *idr, unsigned int val)
 
 void idr_preload(gfp_t gfp_mask);
 
-int idr_alloc_cmn(struct idr *idr, void *ptr, unsigned long *index,
-		  unsigned long start, unsigned long end, gfp_t gfp,
-		  bool ext);
-
-/**
- * idr_alloc - allocate an id
- * @idr: idr handle
- * @ptr: pointer to be associated with the new id
- * @start: the minimum id (inclusive)
- * @end: the maximum id (exclusive)
- * @gfp: memory allocation flags
- *
- * Allocates an unused ID in the range [start, end).  Returns -ENOSPC
- * if there are no unused IDs in that range.
- *
- * Note that @end is treated as max when <= 0.  This is to always allow
- * using @start + N as @end as long as N is inside integer range.
- *
- * Simultaneous modifications to the @idr are not allowed and should be
- * prevented by the user, usually with a lock.  idr_alloc() may be called
- * concurrently with read-only accesses to the @idr, such as idr_find() and
- * idr_for_each_entry().
- */
-static inline int idr_alloc(struct idr *idr, void *ptr,
-			    int start, int end, gfp_t gfp)
-{
-	unsigned long id;
-	int ret;
-
-	if (WARN_ON_ONCE(start < 0))
-		return -EINVAL;
-
-	ret = idr_alloc_cmn(idr, ptr, &id, start, end, gfp, false);
-
-	if (ret)
-		return ret;
-
-	return id;
-}
-
-static inline int idr_alloc_ext(struct idr *idr, void *ptr,
-				unsigned long *index,
-				unsigned long start,
-				unsigned long end,
-				gfp_t gfp)
-{
-	return idr_alloc_cmn(idr, ptr, index, start, end, gfp, true);
-}
-
+int idr_alloc(struct idr *, void *, int start, int end, gfp_t);
 int __must_check idr_alloc_u32(struct idr *, void *ptr, u32 *nextid,
 				unsigned long max, gfp_t);
 int idr_alloc_cyclic(struct idr *, void *entry, int start, int end, gfp_t);
