@@ -3996,7 +3996,7 @@ mlxsw_sp_fib4_entry_type_set(struct mlxsw_sp *mlxsw_sp,
 	case RTN_LOCAL:
 		ipip_entry = mlxsw_sp_ipip_entry_find_by_decap(mlxsw_sp, dev,
 						 MLXSW_SP_L3_PROTO_IPV4, dip);
-		if (ipip_entry) {
+		if (ipip_entry && ipip_entry->ol_dev->flags & IFF_UP) {
 			fib_entry->type = MLXSW_SP_FIB_ENTRY_TYPE_IPIP_DECAP;
 			return mlxsw_sp_fib_entry_decap_init(mlxsw_sp,
 							     fib_entry,
