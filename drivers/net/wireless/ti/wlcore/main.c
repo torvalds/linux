@@ -42,6 +42,7 @@
 #include "sysfs.h"
 
 #define WL1271_BOOT_RETRIES 3
+#define WL1271_SUSPEND_SLEEP 100
 
 static char *fwlog_param;
 static int fwlog_mem_blocks = -1;
@@ -977,6 +978,24 @@ static int wlcore_fw_wakeup(struct wl1271 *wl)
 	return wlcore_raw_write32(wl, HW_ACCESS_ELP_CTRL_REG, ELPCTRL_WAKE_UP);
 }
 
+static int wlcore_fw_sleep(struct wl1271 *wl)
+{
+	int ret;
+
+	mutex_lock(&wl->mutex);
+	ret = wlcore_raw_write32(wl, HW_ACCESS_ELP_CTRL_REG, ELPCTRL_SLEEP);
+	if (ret < 0) {
+		wl12xx_queue_recovery_work(wl);
+		goto out;
+	}
+	set_bit(WL1271_FLAG_IN_ELP, &wl->flags);
+out:
+	mutex_unlock(&wl->mutex);
+	mdelay(WL1271_SUSPEND_SLEEP);
+
+	return 0;
+}
+
 static int wl1271_setup(struct wl1271 *wl)
 {
 	wl->raw_fw_status = kzalloc(wl->fw_status_len, GFP_KERNEL);
@@ -1747,7 +1766,6 @@ static int wl1271_op_suspend(struct ieee80211_hw *hw,
 		goto out_sleep;
 
 out_sleep:
-	wl1271_ps_elp_sleep(wl);
 	mutex_unlock(&wl->mutex);
 
 	if (ret < 0) {
@@ -1779,6 +1797,15 @@ out_sleep:
 	 * it on resume anyway.
 	 */
 	cancel_delayed_work(&wl->tx_watchdog_work);
+
+	/*
+	 * Use an immediate call for allowing the firmware to go into power
+	 * save during suspend.
+	 * Using a workque for this last write was only hapenning on resume
+	 * leaving the firmware with power save disabled during suspend,
+	 * while consuming full power during wowlan suspend.
+	 */
+	wlcore_fw_sleep(wl);
 
 	return 0;
 }
