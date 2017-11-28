@@ -164,7 +164,7 @@ static struct drm_i915_gem_object *vgpu_create_gem(struct drm_device *dev,
 
 	obj->base.read_domains = I915_GEM_DOMAIN_GTT;
 	obj->base.write_domain = 0;
-	if (IS_SKYLAKE(dev_priv)) {
+	if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv)) {
 		unsigned int tiling_mode = 0;
 		unsigned int stride = 0;
 
