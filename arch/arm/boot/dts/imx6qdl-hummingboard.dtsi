@@ -59,6 +59,19 @@
 		regulator-always-on;
 	};
 
+	v_sd: regulator-v-sd {
+		compatible = "regulator-fixed";
+		gpio = <&gpio4 30 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_hummingboard_vmmc>;
+		regulator-boot-on;
+		regulator-max-microvolt = <3300000>;
+		regulator-min-microvolt = <3300000>;
+		regulator-name = "v_sd";
+		startup-delay-us = <1000>;
+		vin-supply = <&reg_3p3v>;
+	};
+
 	reg_usbh1_vbus: usb-h1-vbus {
 		compatible = "regulator-fixed";
 		enable-active-high;
@@ -241,6 +254,11 @@
 				MX6QDL_PAD_SD2_DAT3__SD2_DATA3 0x13059
 			>;
 		};
+		pinctrl_hummingboard_vmmc: hummingboard-vmmc {
+			fsl,pins = <
+				MX6QDL_PAD_DISP0_DAT9__GPIO4_IO30 0x1b0b0
+			>;
+		};
 	};
 };
 
@@ -292,7 +310,7 @@
 		&pinctrl_hummingboard_usdhc2_aux
 		&pinctrl_hummingboard_usdhc2
 	>;
-	vmmc-supply = <&reg_3p3v>;
+	vmmc-supply = <&v_sd>;
 	cd-gpios = <&gpio1 4 GPIO_ACTIVE_LOW>;
 	status = "okay";
 };
