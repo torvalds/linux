@@ -1145,10 +1145,7 @@ int ib_uverbs_ex_create_cq(struct ib_uverbs_file *file,
 			min(ucore->inlen, sizeof(cmd)),
 			ib_uverbs_ex_create_cq_cb, NULL);
 
-	if (IS_ERR(obj))
-		return PTR_ERR(obj);
-
-	return 0;
+	return PTR_ERR_OR_ZERO(obj);
 }
 
 ssize_t ib_uverbs_resize_cq(struct ib_uverbs_file *file,
