@@ -322,6 +322,8 @@ static int comment__symbol(char *raw, char *comment, u64 *addrp, char **namep)
 		return 0;
 
 	*addrp = strtoull(comment, &endptr, 16);
+	if (endptr == comment)
+		return 0;
 	name = strchr(endptr, '<');
 	if (name == NULL)
 		return -1;
@@ -435,8 +437,8 @@ static int mov__parse(struct arch *arch, struct ins_operands *ops, struct map *m
 		return 0;
 
 	comment = ltrim(comment);
-	comment__symbol(ops->source.raw, comment, &ops->source.addr, &ops->source.name);
-	comment__symbol(ops->target.raw, comment, &ops->target.addr, &ops->target.name);
+	comment__symbol(ops->source.raw, comment + 1, &ops->source.addr, &ops->source.name);
+	comment__symbol(ops->target.raw, comment + 1, &ops->target.addr, &ops->target.name);
 
 	return 0;
 
@@ -480,7 +482,7 @@ static int dec__parse(struct arch *arch __maybe_unused, struct ins_operands *ops
 		return 0;
 
 	comment = ltrim(comment);
-	comment__symbol(ops->target.raw, comment, &ops->target.addr, &ops->target.name);
+	comment__symbol(ops->target.raw, comment + 1, &ops->target.addr, &ops->target.name);
 
 	return 0;
 }
