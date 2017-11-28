@@ -7,6 +7,8 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+#include <linux/debugfs.h>
+#include <linux/delay.h>
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
 #include <linux/i2c-gpio.h>
@@ -23,6 +25,9 @@ struct i2c_gpio_private_data {
 	struct i2c_adapter adap;
 	struct i2c_algo_bit_data bit_data;
 	struct i2c_gpio_platform_data pdata;
+#ifdef CONFIG_I2C_GPIO_FAULT_INJECTOR
+	struct dentry *debug_dir;
+#endif
 };
 
 /*
@@ -63,6 +68,108 @@ static int i2c_gpio_getscl(void *data)
 
 	return gpiod_get_value(priv->scl);
 }
+
+#ifdef CONFIG_I2C_GPIO_FAULT_INJECTOR
+static struct dentry *i2c_gpio_debug_dir;
+
+#define setsda(bd, val)	((bd)->setsda((bd)->data, val))
+#define setscl(bd, val)	((bd)->setscl((bd)->data, val))
+#define getsda(bd)	((bd)->getsda((bd)->data))
+#define getscl(bd)	((bd)->getscl((bd)->data))
+
+#define WIRE_ATTRIBUTE(wire) \
+static int fops_##wire##_get(void *data, u64 *val)	\
+{							\
+	struct i2c_gpio_private_data *priv = data;	\
+							\
+	i2c_lock_adapter(&priv->adap);			\
+	*val = get##wire(&priv->bit_data);		\
+	i2c_unlock_adapter(&priv->adap);		\
+	return 0;					\
+}							\
+static int fops_##wire##_set(void *data, u64 val)	\
+{							\
+	struct i2c_gpio_private_data *priv = data;	\
+							\
+	i2c_lock_adapter(&priv->adap);			\
+	set##wire(&priv->bit_data, val);		\
+	i2c_unlock_adapter(&priv->adap);		\
+	return 0;					\
+}							\
+DEFINE_DEBUGFS_ATTRIBUTE(fops_##wire, fops_##wire##_get, fops_##wire##_set, "%llu\n")
+
+WIRE_ATTRIBUTE(scl);
+WIRE_ATTRIBUTE(sda);
+
+static int fops_incomplete_transfer_set(void *data, u64 addr)
+{
+	struct i2c_gpio_private_data *priv = data;
+	struct i2c_algo_bit_data *bit_data = &priv->bit_data;
+	int i, pattern;
+
+	if (addr > 0x7f)
+		return -EINVAL;
+
+	/* ADDR (7 bit) + RD (1 bit) + SDA hi (1 bit) */
+	pattern = (addr << 2) | 3;
+
+	i2c_lock_adapter(&priv->adap);
+
+	/* START condition */
+	setsda(bit_data, 0);
+	udelay(bit_data->udelay);
+
+	/* Send ADDR+RD, request ACK, don't send STOP */
+	for (i = 8; i >= 0; i--) {
+		setscl(bit_data, 0);
+		udelay(bit_data->udelay / 2);
+		setsda(bit_data, (pattern >> i) & 1);
+		udelay((bit_data->udelay + 1) / 2);
+		setscl(bit_data, 1);
+		udelay(bit_data->udelay);
+	}
+
+	i2c_unlock_adapter(&priv->adap);
+
+	return 0;
+}
+DEFINE_DEBUGFS_ATTRIBUTE(fops_incomplete_transfer, NULL, fops_incomplete_transfer_set, "%llu\n");
+
+static void i2c_gpio_fault_injector_init(struct platform_device *pdev)
+{
+	struct i2c_gpio_private_data *priv = platform_get_drvdata(pdev);
+
+	/*
+	 * If there will be a debugfs-dir per i2c adapter somewhen, put the
+	 * 'fault-injector' dir there. Until then, we have a global dir with
+	 * all adapters as subdirs.
+	 */
+	if (!i2c_gpio_debug_dir) {
+		i2c_gpio_debug_dir = debugfs_create_dir("i2c-fault-injector", NULL);
+		if (!i2c_gpio_debug_dir)
+			return;
+	}
+
+	priv->debug_dir = debugfs_create_dir(pdev->name, i2c_gpio_debug_dir);
+	if (!priv->debug_dir)
+		return;
+
+	debugfs_create_file_unsafe("scl", 0600, priv->debug_dir, priv, &fops_scl);
+	debugfs_create_file_unsafe("sda", 0600, priv->debug_dir, priv, &fops_sda);
+	debugfs_create_file_unsafe("incomplete_transfer", 0200, priv->debug_dir,
+				   priv, &fops_incomplete_transfer);
+}
+
+static void i2c_gpio_fault_injector_exit(struct platform_device *pdev)
+{
+	struct i2c_gpio_private_data *priv = platform_get_drvdata(pdev);
+
+	debugfs_remove_recursive(priv->debug_dir);
+}
+#else
+static inline void i2c_gpio_fault_injector_init(struct platform_device *pdev) {}
+static inline void i2c_gpio_fault_injector_exit(struct platform_device *pdev) {}
+#endif /* CONFIG_I2C_GPIO_FAULT_INJECTOR*/
 
 static void of_i2c_gpio_get_props(struct device_node *np,
 				  struct i2c_gpio_platform_data *pdata)
@@ -228,6 +335,8 @@ static int i2c_gpio_probe(struct platform_device *pdev)
 		 pdata->scl_is_output_only
 		 ? ", no clock stretching" : "");
 
+	i2c_gpio_fault_injector_init(pdev);
+
 	return 0;
 }
 
@@ -235,6 +344,8 @@ static int i2c_gpio_remove(struct platform_device *pdev)
 {
 	struct i2c_gpio_private_data *priv;
 	struct i2c_adapter *adap;
+
+	i2c_gpio_fault_injector_exit(pdev);
 
 	priv = platform_get_drvdata(pdev);
 	adap = &priv->adap;
