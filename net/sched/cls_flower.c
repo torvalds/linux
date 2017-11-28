@@ -865,7 +865,6 @@ static int fl_change(struct net *net, struct sk_buff *in_skb,
 	struct cls_fl_filter *fnew;
 	struct nlattr **tb;
 	struct fl_flow_mask mask = {};
-	unsigned long idr_index;
 	int err;
 
 	if (!tca[TCA_OPTIONS])
@@ -896,21 +895,17 @@ static int fl_change(struct net *net, struct sk_buff *in_skb,
 		goto errout;
 
 	if (!handle) {
-		err = idr_alloc_ext(&head->handle_idr, fnew, &idr_index,
-				    1, 0x80000000, GFP_KERNEL);
-		if (err)
-			goto errout;
-		fnew->handle = idr_index;
+		handle = 1;
+		err = idr_alloc_u32(&head->handle_idr, fnew, &handle,
+				    INT_MAX, GFP_KERNEL);
+	} else if (!fold) {
+		/* user specifies a handle and it doesn't exist */
+		err = idr_alloc_u32(&head->handle_idr, fnew, &handle,
+				    handle, GFP_KERNEL);
 	}
-
-	/* user specifies a handle and it doesn't exist */
-	if (handle && !fold) {
-		err = idr_alloc_ext(&head->handle_idr, fnew, &idr_index,
-				    handle, handle + 1, GFP_KERNEL);
-		if (err)
-			goto errout;
-		fnew->handle = idr_index;
-	}
+	if (err)
+		goto errout;
+	fnew->handle = handle;
 
 	if (tb[TCA_FLOWER_FLAGS]) {
 		fnew->flags = nla_get_u32(tb[TCA_FLOWER_FLAGS]);
@@ -966,7 +961,6 @@ static int fl_change(struct net *net, struct sk_buff *in_skb,
 	*arg = fnew;
 
 	if (fold) {
-		fnew->handle = handle;
 		idr_replace(&head->handle_idr, fnew, fnew->handle);
 		list_replace_rcu(&fold->list, &fnew->list);
 		tcf_unbind_filter(tp, &fold->res);
