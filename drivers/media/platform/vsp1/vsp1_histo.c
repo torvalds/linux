@@ -389,65 +389,14 @@ static int histo_set_format(struct v4l2_subdev *subdev,
 			    struct v4l2_subdev_format *fmt)
 {
 	struct vsp1_histogram *histo = subdev_to_histo(subdev);
-	struct v4l2_subdev_pad_config *config;
-	struct v4l2_mbus_framefmt *format;
-	struct v4l2_rect *selection;
-	unsigned int i;
-	int ret = 0;
 
 	if (fmt->pad != HISTO_PAD_SINK)
 		return histo_get_format(subdev, cfg, fmt);
 
-	mutex_lock(&histo->entity.lock);
-
-	config = vsp1_entity_get_pad_config(&histo->entity, cfg, fmt->which);
-	if (!config) {
-		ret = -EINVAL;
-		goto done;
-	}
-
-	/*
-	 * Default to the first format if the requested format is not
-	 * supported.
-	 */
-	for (i = 0; i < histo->num_formats; ++i) {
-		if (fmt->format.code == histo->formats[i])
-			break;
-	}
-	if (i == histo->num_formats)
-		fmt->format.code = histo->formats[0];
-
-	format = vsp1_entity_get_pad_format(&histo->entity, config, fmt->pad);
-
-	format->code = fmt->format.code;
-	format->width = clamp_t(unsigned int, fmt->format.width,
-				HISTO_MIN_SIZE, HISTO_MAX_SIZE);
-	format->height = clamp_t(unsigned int, fmt->format.height,
-				 HISTO_MIN_SIZE, HISTO_MAX_SIZE);
-	format->field = V4L2_FIELD_NONE;
-	format->colorspace = V4L2_COLORSPACE_SRGB;
-
-	fmt->format = *format;
-
-	/* Reset the crop and compose rectangles */
-	selection = vsp1_entity_get_pad_selection(&histo->entity, config,
-						  fmt->pad, V4L2_SEL_TGT_CROP);
-	selection->left = 0;
-	selection->top = 0;
-	selection->width = format->width;
-	selection->height = format->height;
-
-	selection = vsp1_entity_get_pad_selection(&histo->entity, config,
-						  fmt->pad,
-						  V4L2_SEL_TGT_COMPOSE);
-	selection->left = 0;
-	selection->top = 0;
-	selection->width = format->width;
-	selection->height = format->height;
-
-done:
-	mutex_unlock(&histo->entity.lock);
-	return ret;
+	return vsp1_subdev_set_pad_format(subdev, cfg, fmt,
+					  histo->formats, histo->num_formats,
+					  HISTO_MIN_SIZE, HISTO_MIN_SIZE,
+					  HISTO_MAX_SIZE, HISTO_MAX_SIZE);
 }
 
 static const struct v4l2_subdev_pad_ops histo_pad_ops = {

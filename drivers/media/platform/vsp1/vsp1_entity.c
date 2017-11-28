@@ -335,6 +335,7 @@ int vsp1_subdev_set_pad_format(struct v4l2_subdev *subdev,
 	struct vsp1_entity *entity = to_vsp1_entity(subdev);
 	struct v4l2_subdev_pad_config *config;
 	struct v4l2_mbus_framefmt *format;
+	struct v4l2_rect *selection;
 	unsigned int i;
 	int ret = 0;
 
@@ -376,6 +377,21 @@ int vsp1_subdev_set_pad_format(struct v4l2_subdev *subdev,
 	/* Propagate the format to the source pad. */
 	format = vsp1_entity_get_pad_format(entity, config, entity->source_pad);
 	*format = fmt->format;
+
+	/* Reset the crop and compose rectangles */
+	selection = vsp1_entity_get_pad_selection(entity, config, fmt->pad,
+						  V4L2_SEL_TGT_CROP);
+	selection->left = 0;
+	selection->top = 0;
+	selection->width = format->width;
+	selection->height = format->height;
+
+	selection = vsp1_entity_get_pad_selection(entity, config, fmt->pad,
+						  V4L2_SEL_TGT_COMPOSE);
+	selection->left = 0;
+	selection->top = 0;
+	selection->width = format->width;
+	selection->height = format->height;
 
 done:
 	mutex_unlock(&entity->lock);
