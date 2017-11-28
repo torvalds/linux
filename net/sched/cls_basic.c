@@ -185,7 +185,6 @@ static int basic_change(struct net *net, struct sk_buff *in_skb,
 	struct nlattr *tb[TCA_BASIC_MAX + 1];
 	struct basic_filter *fold = (struct basic_filter *) *arg;
 	struct basic_filter *fnew;
-	unsigned long idr_index;
 
 	if (tca[TCA_OPTIONS] == NULL)
 		return -EINVAL;
@@ -208,21 +207,17 @@ static int basic_change(struct net *net, struct sk_buff *in_skb,
 	if (err < 0)
 		goto errout;
 
-	if (handle) {
-		fnew->handle = handle;
-		if (!fold) {
-			err = idr_alloc_ext(&head->handle_idr, fnew, &idr_index,
-					    handle, handle + 1, GFP_KERNEL);
-			if (err)
-				goto errout;
-		}
-	} else {
-		err = idr_alloc_ext(&head->handle_idr, fnew, &idr_index,
-				    1, 0x7FFFFFFF, GFP_KERNEL);
-		if (err)
-			goto errout;
-		fnew->handle = idr_index;
+	if (!handle) {
+		handle = 1;
+		err = idr_alloc_u32(&head->handle_idr, fnew, &handle,
+				    INT_MAX, GFP_KERNEL);
+	} else if (!fold) {
+		err = idr_alloc_u32(&head->handle_idr, fnew, &handle,
+				    handle, GFP_KERNEL);
 	}
+	if (err)
+		goto errout;
+	fnew->handle = handle;
 
 	err = basic_set_parms(net, tp, fnew, base, tb, tca[TCA_RATE], ovr,
 			      extack);
