@@ -169,7 +169,7 @@ bool cm_helper_convert_to_custom_float(
 	}
 
 	if (fixpoint == true)
-		arr_points[1].custom_float_y = dal_fixed31_32_u0d14(arr_points[1].y);
+		arr_points[1].custom_float_y = dal_fixed31_32_clamp_u0d14(arr_points[1].y);
 	else if (!convert_to_custom_float_format(arr_points[1].y, &fmt,
 		&arr_points[1].custom_float_y)) {
 		BREAK_TO_DEBUGGER();
@@ -395,12 +395,12 @@ bool cm_helper_translate_curve_to_hw_format(
 		rgb->delta_blue  = dal_fixed31_32_sub(rgb_plus_1->blue,  rgb->blue);
 
 		if (fixpoint == true) {
-			rgb->delta_red_reg   = dal_fixed31_32_u0d10(rgb->delta_red);
-			rgb->delta_green_reg = dal_fixed31_32_u0d10(rgb->delta_green);
-			rgb->delta_blue_reg  = dal_fixed31_32_u0d10(rgb->delta_blue);
-			rgb->red_reg         = dal_fixed31_32_u0d14(rgb->red);
-			rgb->green_reg       = dal_fixed31_32_u0d14(rgb->green);
-			rgb->blue_reg        = dal_fixed31_32_u0d14(rgb->blue);
+			rgb->delta_red_reg   = dal_fixed31_32_clamp_u0d10(rgb->delta_red);
+			rgb->delta_green_reg = dal_fixed31_32_clamp_u0d10(rgb->delta_green);
+			rgb->delta_blue_reg  = dal_fixed31_32_clamp_u0d10(rgb->delta_blue);
+			rgb->red_reg         = dal_fixed31_32_clamp_u0d14(rgb->red);
+			rgb->green_reg       = dal_fixed31_32_clamp_u0d14(rgb->green);
+			rgb->blue_reg        = dal_fixed31_32_clamp_u0d14(rgb->blue);
 		}
 
 		++rgb_plus_1;

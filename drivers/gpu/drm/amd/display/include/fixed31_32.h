@@ -464,10 +464,10 @@ uint32_t dal_fixed31_32_u0d19(
 	struct fixed31_32 arg);
 
 
-uint32_t dal_fixed31_32_u0d14(
+uint32_t dal_fixed31_32_clamp_u0d14(
 	struct fixed31_32 arg);
 
-uint32_t dal_fixed31_32_u0d10(
+uint32_t dal_fixed31_32_clamp_u0d10(
 	struct fixed31_32 arg);
 
 #endif
