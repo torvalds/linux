@@ -116,12 +116,14 @@ EXPORT_SYMBOL(dst_alloc);
 
 struct dst_entry *dst_destroy(struct dst_entry * dst)
 {
-	struct dst_entry *child;
+	struct dst_entry *child = NULL;
 
 	smp_rmb();
 
-	child = dst->child;
-
+#ifdef CONFIG_XFRM
+	if (dst->xfrm)
+		child = dst->child;
+#endif
 	if (!(dst->flags & DST_NOCOUNT))
 		dst_entries_add(dst->ops, -1);
 

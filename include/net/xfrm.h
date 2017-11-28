@@ -994,6 +994,15 @@ struct xfrm_dst {
 	u32 path_cookie;
 };
 
+static inline struct dst_entry *xfrm_dst_child(const struct dst_entry *dst)
+{
+#ifdef CONFIG_XFRM
+	if (dst->xfrm)
+		return dst->child;
+#endif
+	return NULL;
+}
+
 #ifdef CONFIG_XFRM
 static inline void xfrm_dst_destroy(struct xfrm_dst *xdst)
 {

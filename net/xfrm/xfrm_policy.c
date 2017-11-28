@@ -1636,7 +1636,7 @@ static struct dst_entry *xfrm_bundle_create(struct xfrm_policy *policy,
 	xfrm_init_path((struct xfrm_dst *)dst0, dst, nfheader_len);
 	xfrm_init_pmtu(dst_prev);
 
-	for (dst_prev = dst0; dst_prev != dst; dst_prev = dst_prev->child) {
+	for (dst_prev = dst0; dst_prev != dst; dst_prev = xfrm_dst_child(dst_prev)) {
 		struct xfrm_dst *xdst = (struct xfrm_dst *)dst_prev;
 
 		err = xfrm_fill_dst(xdst, dev, fl);
@@ -1800,7 +1800,7 @@ static bool xfrm_xdst_can_reuse(struct xfrm_dst *xdst,
 	for (i = 0; i < num; i++) {
 		if (!dst || dst->xfrm != xfrm[i])
 			return false;
-		dst = dst->child;
+		dst = xfrm_dst_child(dst);
 	}
 
 	return xfrm_bundle_ok(xdst);
@@ -2576,7 +2576,7 @@ static int stale_bundle(struct dst_entry *dst)
 
 void xfrm_dst_ifdown(struct dst_entry *dst, struct net_device *dev)
 {
-	while ((dst = dst->child) && dst->xfrm && dst->dev == dev) {
+	while ((dst = xfrm_dst_child(dst)) && dst->xfrm && dst->dev == dev) {
 		dst->dev = dev_net(dev)->loopback_dev;
 		dev_hold(dst->dev);
 		dev_put(dev);
@@ -2606,7 +2606,7 @@ static void xfrm_init_pmtu(struct dst_entry *dst)
 		struct xfrm_dst *xdst = (struct xfrm_dst *)dst;
 		u32 pmtu, route_mtu_cached;
 
-		pmtu = dst_mtu(dst->child);
+		pmtu = dst_mtu(xfrm_dst_child(dst));
 		xdst->child_mtu_cached = pmtu;
 
 		pmtu = xfrm_state_mtu(dst->xfrm, pmtu);
@@ -2651,7 +2651,7 @@ static int xfrm_bundle_ok(struct xfrm_dst *first)
 		    xdst->policy_genid != atomic_read(&xdst->pols[0]->genid))
 			return 0;
 
-		mtu = dst_mtu(dst->child);
+		mtu = dst_mtu(xfrm_dst_child(dst));
 		if (xdst->child_mtu_cached != mtu) {
 			last = xdst;
 			xdst->child_mtu_cached = mtu;
@@ -2665,7 +2665,7 @@ static int xfrm_bundle_ok(struct xfrm_dst *first)
 			xdst->route_mtu_cached = mtu;
 		}
 
-		dst = dst->child;
+		dst = xfrm_dst_child(dst);
 	} while (dst->xfrm);
 
 	if (likely(!last))
@@ -2707,7 +2707,7 @@ static const void *xfrm_get_dst_nexthop(const struct dst_entry *dst,
 {
 	const struct dst_entry *path = dst->path;
 
-	for (; dst != path; dst = dst->child) {
+	for (; dst != path; dst = xfrm_dst_child(dst)) {
 		const struct xfrm_state *xfrm = dst->xfrm;
 
 		if (xfrm->props.mode == XFRM_MODE_TRANSPORT)
