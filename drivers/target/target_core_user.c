@@ -1973,12 +1973,79 @@ static struct target_backend_ops tcmu_ops = {
 	.tb_dev_attrib_attrs	= NULL,
 };
 
-static int unmap_thread_fn(void *data)
+
+static void find_free_blocks(void)
 {
 	struct tcmu_dev *udev;
 	loff_t off;
 	uint32_t start, end, block;
 
+	mutex_lock(&root_udev_mutex);
+	list_for_each_entry(udev, &root_udev, node) {
+		mutex_lock(&udev->cmdr_lock);
+
+		/* Try to complete the finished commands first */
+		tcmu_handle_completions(udev);
+
+		/* Skip the udevs waiting the global pool or in idle */
+		if (udev->waiting_global || !udev->dbi_thresh) {
+			mutex_unlock(&udev->cmdr_lock);
+			continue;
+		}
+
+		end = udev->dbi_max + 1;
+		block = find_last_bit(udev->data_bitmap, end);
+		if (block == udev->dbi_max) {
+			/*
+			 * The last bit is dbi_max, so there is
+			 * no need to shrink any blocks.
+			 */
+			mutex_unlock(&udev->cmdr_lock);
+			continue;
+		} else if (block == end) {
+			/* The current udev will goto idle state */
+			udev->dbi_thresh = start = 0;
+			udev->dbi_max = 0;
+		} else {
+			udev->dbi_thresh = start = block + 1;
+			udev->dbi_max = block;
+		}
+
+		/* Here will truncate the data area from off */
+		off = udev->data_off + start * DATA_BLOCK_SIZE;
+		unmap_mapping_range(udev->inode->i_mapping, off, 0, 1);
+
+		/* Release the block pages */
+		tcmu_blocks_release(&udev->data_blocks, start, end);
+		mutex_unlock(&udev->cmdr_lock);
+	}
+	mutex_unlock(&root_udev_mutex);
+}
+
+static void run_cmdr_queues(void)
+{
+	struct tcmu_dev *udev;
+
+	/*
+	 * Try to wake up the udevs who are waiting
+	 * for the global data block pool.
+	 */
+	mutex_lock(&root_udev_mutex);
+	list_for_each_entry(udev, &root_udev, node) {
+		mutex_lock(&udev->cmdr_lock);
+		if (!udev->waiting_global) {
+			mutex_unlock(&udev->cmdr_lock);
+			break;
+		}
+		mutex_unlock(&udev->cmdr_lock);
+
+		wake_up(&udev->wait_cmdr);
+	}
+	mutex_unlock(&root_udev_mutex);
+}
+
+static int unmap_thread_fn(void *data)
+{
 	while (!kthread_should_stop()) {
 		DEFINE_WAIT(__wait);
 
@@ -1989,55 +2056,8 @@ static int unmap_thread_fn(void *data)
 		if (kthread_should_stop())
 			break;
 
-		mutex_lock(&root_udev_mutex);
-		list_for_each_entry(udev, &root_udev, node) {
-			mutex_lock(&udev->cmdr_lock);
-
-			/* Try to complete the finished commands first */
-			tcmu_handle_completions(udev);
-
-			/* Skip the udevs waiting the global pool or in idle */
-			if (udev->waiting_global || !udev->dbi_thresh) {
-				mutex_unlock(&udev->cmdr_lock);
-				continue;
-			}
-
-			end = udev->dbi_max + 1;
-			block = find_last_bit(udev->data_bitmap, end);
-			if (block == udev->dbi_max) {
-				/*
-				 * The last bit is dbi_max, so there is
-				 * no need to shrink any blocks.
-				 */
-				mutex_unlock(&udev->cmdr_lock);
-				continue;
-			} else if (block == end) {
-				/* The current udev will goto idle state */
-				udev->dbi_thresh = start = 0;
-				udev->dbi_max = 0;
-			} else {
-				udev->dbi_thresh = start = block + 1;
-				udev->dbi_max = block;
-			}
-
-			/* Here will truncate the data area from off */
-			off = udev->data_off + start * DATA_BLOCK_SIZE;
-			unmap_mapping_range(udev->inode->i_mapping, off, 0, 1);
-
-			/* Release the block pages */
-			tcmu_blocks_release(&udev->data_blocks, start, end);
-			mutex_unlock(&udev->cmdr_lock);
-		}
-
-		/*
-		 * Try to wake up the udevs who are waiting
-		 * for the global data pool.
-		 */
-		list_for_each_entry(udev, &root_udev, node) {
-			if (udev->waiting_global)
-				wake_up(&udev->wait_cmdr);
-		}
-		mutex_unlock(&root_udev_mutex);
+		find_free_blocks();
+		run_cmdr_queues();
 	}
 
 	return 0;
