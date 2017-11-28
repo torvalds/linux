@@ -1736,31 +1736,6 @@ static void tegra_crtc_atomic_enable(struct drm_crtc *crtc,
 	drm_crtc_vblank_on(crtc);
 }
 
-static int tegra_crtc_atomic_check(struct drm_crtc *crtc,
-				   struct drm_crtc_state *state)
-{
-	struct tegra_atomic_state *s = to_tegra_atomic_state(state->state);
-	struct tegra_dc_state *tegra = to_dc_state(state);
-
-	/*
-	 * The display hub display clock needs to be fed by the display clock
-	 * with the highest frequency to ensure proper functioning of all the
-	 * displays.
-	 *
-	 * Note that this isn't used before Tegra186, but it doesn't hurt and
-	 * conditionalizing it would make the code less clean.
-	 */
-	if (state->active) {
-		if (!s->clk_disp || tegra->pclk > s->rate) {
-			s->dc = to_tegra_dc(crtc);
-			s->clk_disp = s->dc->clk;
-			s->rate = tegra->pclk;
-		}
-	}
-
-	return 0;
-}
-
 static void tegra_crtc_atomic_begin(struct drm_crtc *crtc,
 				    struct drm_crtc_state *old_crtc_state)
 {
@@ -1797,7 +1772,6 @@ static void tegra_crtc_atomic_flush(struct drm_crtc *crtc,
 }
 
 static const struct drm_crtc_helper_funcs tegra_crtc_helper_funcs = {
-	.atomic_check = tegra_crtc_atomic_check,
 	.atomic_begin = tegra_crtc_atomic_begin,
 	.atomic_flush = tegra_crtc_atomic_flush,
 	.atomic_enable = tegra_crtc_atomic_enable,
