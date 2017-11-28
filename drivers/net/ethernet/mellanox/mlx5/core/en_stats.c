@@ -657,6 +657,28 @@ static int mlx5e_grp_per_prio_pfc_fill_stats(struct mlx5e_priv *priv,
 	return idx;
 }
 
+static int mlx5e_grp_per_prio_get_num_stats(struct mlx5e_priv *priv)
+{
+	return mlx5e_grp_per_prio_traffic_get_num_stats(priv) +
+		mlx5e_grp_per_prio_pfc_get_num_stats(priv);
+}
+
+static int mlx5e_grp_per_prio_fill_strings(struct mlx5e_priv *priv, u8 *data,
+					   int idx)
+{
+	idx = mlx5e_grp_per_prio_traffic_fill_strings(priv, data, idx);
+	idx = mlx5e_grp_per_prio_pfc_fill_strings(priv, data, idx);
+	return idx;
+}
+
+static int mlx5e_grp_per_prio_fill_stats(struct mlx5e_priv *priv, u64 *data,
+					 int idx)
+{
+	idx = mlx5e_grp_per_prio_traffic_fill_stats(priv, data, idx);
+	idx = mlx5e_grp_per_prio_pfc_fill_stats(priv, data, idx);
+	return idx;
+}
+
 static const struct counter_desc mlx5e_pme_status_desc[] = {
 	{ "module_unplug", 8 },
 };
@@ -888,14 +910,9 @@ const struct mlx5e_stats_grp mlx5e_stats_grps[] = {
 		.fill_stats = mlx5e_grp_pcie_fill_stats,
 	},
 	{
-		.get_num_stats = mlx5e_grp_per_prio_traffic_get_num_stats,
-		.fill_strings = mlx5e_grp_per_prio_traffic_fill_strings,
-		.fill_stats = mlx5e_grp_per_prio_traffic_fill_stats,
-	},
-	{
-		.get_num_stats = mlx5e_grp_per_prio_pfc_get_num_stats,
-		.fill_strings = mlx5e_grp_per_prio_pfc_fill_strings,
-		.fill_stats = mlx5e_grp_per_prio_pfc_fill_stats,
+		.get_num_stats = mlx5e_grp_per_prio_get_num_stats,
+		.fill_strings = mlx5e_grp_per_prio_fill_strings,
+		.fill_stats = mlx5e_grp_per_prio_fill_stats,
 	},
 	{
 		.get_num_stats = mlx5e_grp_pme_get_num_stats,
