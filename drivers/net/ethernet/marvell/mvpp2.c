@@ -4629,11 +4629,6 @@ static void mvpp2_port_mii_gmac_configure_mode(struct mvpp2_port *port)
 		       MVPP22_CTRL4_QSGMII_BYPASS_ACTIVE;
 		val &= ~MVPP22_CTRL4_EXT_PIN_GMII_SEL;
 		writel(val, port->base + MVPP22_GMAC_CTRL_4_REG);
-
-		val = readl(port->base + MVPP2_GMAC_CTRL_2_REG);
-		val |= MVPP2_GMAC_DISABLE_PADDING;
-		val &= ~MVPP2_GMAC_FLOW_CTRL_MASK;
-		writel(val, port->base + MVPP2_GMAC_CTRL_2_REG);
 	} else if (phy_interface_mode_is_rgmii(port->phy_interface)) {
 		val = readl(port->base + MVPP22_GMAC_CTRL_4_REG);
 		val |= MVPP22_CTRL4_EXT_PIN_GMII_SEL |
@@ -4641,10 +4636,6 @@ static void mvpp2_port_mii_gmac_configure_mode(struct mvpp2_port *port)
 		       MVPP22_CTRL4_QSGMII_BYPASS_ACTIVE;
 		val &= ~MVPP22_CTRL4_DP_CLK_SEL;
 		writel(val, port->base + MVPP22_GMAC_CTRL_4_REG);
-
-		val = readl(port->base + MVPP2_GMAC_CTRL_2_REG);
-		val &= ~MVPP2_GMAC_DISABLE_PADDING;
-		writel(val, port->base + MVPP2_GMAC_CTRL_2_REG);
 	}
 
 	/* The port is connected to a copper PHY */
