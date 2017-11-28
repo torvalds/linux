@@ -434,7 +434,7 @@ static struct tcf_block *tcf_block_lookup(struct net *net, u32 block_index)
 {
 	struct tcf_net *tn = net_generic(net, tcf_net_id);
 
-	return idr_find_ext(&tn->idr, block_index);
+	return idr_find(&tn->idr, block_index);
 }
 
 static struct tcf_chain *tcf_block_chain_zero(struct tcf_block *block)

@@ -222,7 +222,7 @@ static struct tc_action *tcf_idr_lookup(u32 index, struct tcf_idrinfo *idrinfo)
 	struct tc_action *p = NULL;
 
 	spin_lock_bh(&idrinfo->lock);
-	p = idr_find_ext(&idrinfo->action_idr, index);
+	p = idr_find(&idrinfo->action_idr, index);
 	spin_unlock_bh(&idrinfo->lock);
 
 	return p;

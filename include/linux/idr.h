@@ -179,14 +179,9 @@ static inline void idr_preload_end(void)
  * This function can be called under rcu_read_lock(), given that the leaf
  * pointers lifetimes are correctly managed.
  */
-static inline void *idr_find_ext(const struct idr *idr, unsigned long id)
+static inline void *idr_find(const struct idr *idr, unsigned long id)
 {
 	return radix_tree_lookup(&idr->idr_rt, id);
-}
-
-static inline void *idr_find(const struct idr *idr, int id)
-{
-	return idr_find_ext(idr, id);
 }
 
 /**
