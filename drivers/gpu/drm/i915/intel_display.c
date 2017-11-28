@@ -15276,10 +15276,7 @@ static void intel_hpd_poll_fini(struct drm_device *dev)
 	struct intel_connector *connector;
 	struct drm_connector_list_iter conn_iter;
 
-	/* First disable polling... */
-	drm_kms_helper_poll_fini(dev);
-
-	/* Then kill the work that may have been queued by hpd. */
+	/* Kill all the work that may have been queued by hpd. */
 	drm_connector_list_iter_begin(dev, &conn_iter);
 	for_each_intel_connector_iter(connector, &conn_iter) {
 		if (connector->modeset_retry_work.func)
