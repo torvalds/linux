@@ -783,7 +783,7 @@ got_it:
 	return page;
 }
 
-static int __allocate_data_block(struct dnode_of_data *dn)
+static int __allocate_data_block(struct dnode_of_data *dn, int seg_type)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(dn->inode);
 	struct f2fs_summary sum;
@@ -808,7 +808,7 @@ alloc:
 	set_summary(&sum, dn->nid, dn->ofs_in_node, ni.version);
 
 	allocate_data_block(sbi, NULL, dn->data_blkaddr, &dn->data_blkaddr,
-					&sum, CURSEG_WARM_DATA, NULL, false);
+					&sum, seg_type, NULL, false);
 	set_data_blkaddr(dn);
 
 	/* update i_size */
@@ -851,12 +851,15 @@ int f2fs_preallocate_blocks(struct kiocb *iocb, struct iov_iter *from)
 		map.m_len = 0;
 
 	map.m_next_pgofs = NULL;
+	map.m_seg_type = NO_CHECK_TYPE;
 
-	if (iocb->ki_flags & IOCB_DIRECT)
+	if (iocb->ki_flags & IOCB_DIRECT) {
+		map.m_seg_type = rw_hint_to_seg_type(iocb->ki_hint);
 		return f2fs_map_blocks(inode, &map, 1,
 			__force_buffered_io(inode, WRITE) ?
 				F2FS_GET_BLOCK_PRE_AIO :
 				F2FS_GET_BLOCK_PRE_DIO);
+	}
 	if (iocb->ki_pos + iov_iter_count(from) > MAX_INLINE_DATA(inode)) {
 		err = f2fs_convert_inline_inode(inode);
 		if (err)
@@ -966,7 +969,8 @@ next_block:
 					last_ofs_in_node = dn.ofs_in_node;
 				}
 			} else {
-				err = __allocate_data_block(&dn);
+				err = __allocate_data_block(&dn,
+							map->m_seg_type);
 				if (!err)
 					set_inode_flag(inode, FI_APPEND_WRITE);
 			}
@@ -1059,7 +1063,7 @@ out:
 
 static int __get_data_block(struct inode *inode, sector_t iblock,
 			struct buffer_head *bh, int create, int flag,
-			pgoff_t *next_pgofs)
+			pgoff_t *next_pgofs, int seg_type)
 {
 	struct f2fs_map_blocks map;
 	int err;
@@ -1067,6 +1071,7 @@ static int __get_data_block(struct inode *inode, sector_t iblock,
 	map.m_lblk = iblock;
 	map.m_len = bh->b_size >> inode->i_blkbits;
 	map.m_next_pgofs = next_pgofs;
+	map.m_seg_type = seg_type;
 
 	err = f2fs_map_blocks(inode, &map, create, flag);
 	if (!err) {
@@ -1082,14 +1087,17 @@ static int get_data_block(struct inode *inode, sector_t iblock,
 			pgoff_t *next_pgofs)
 {
 	return __get_data_block(inode, iblock, bh_result, create,
-							flag, next_pgofs);
+							flag, next_pgofs,
+							NO_CHECK_TYPE);
 }
 
 static int get_data_block_dio(struct inode *inode, sector_t iblock,
 			struct buffer_head *bh_result, int create)
 {
 	return __get_data_block(inode, iblock, bh_result, create,
-						F2FS_GET_BLOCK_DEFAULT, NULL);
+						F2FS_GET_BLOCK_DEFAULT, NULL,
+						rw_hint_to_seg_type(
+							inode->i_write_hint));
 }
 
 static int get_data_block_bmap(struct inode *inode, sector_t iblock,
@@ -1100,7 +1108,8 @@ static int get_data_block_bmap(struct inode *inode, sector_t iblock,
 		return -EFBIG;
 
 	return __get_data_block(inode, iblock, bh_result, create,
-						F2FS_GET_BLOCK_BMAP, NULL);
+						F2FS_GET_BLOCK_BMAP, NULL,
+						NO_CHECK_TYPE);
 }
 
 static inline sector_t logical_to_blk(struct inode *inode, loff_t offset)
@@ -1219,6 +1228,7 @@ static int f2fs_mpage_readpages(struct address_space *mapping,
 	map.m_len = 0;
 	map.m_flags = 0;
 	map.m_next_pgofs = NULL;
+	map.m_seg_type = NO_CHECK_TYPE;
 
 	for (; nr_pages; nr_pages--) {
 		if (pages) {

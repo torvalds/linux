@@ -542,6 +542,7 @@ struct f2fs_map_blocks {
 	unsigned int m_len;
 	unsigned int m_flags;
 	pgoff_t *m_next_pgofs;		/* point next possible non-hole pgofs */
+	int m_seg_type;
 };
 
 /* for flag in get_data_block */
@@ -2674,6 +2675,7 @@ int build_segment_manager(struct f2fs_sb_info *sbi);
 void destroy_segment_manager(struct f2fs_sb_info *sbi);
 int __init create_segment_manager_caches(void);
 void destroy_segment_manager_caches(void);
+int rw_hint_to_seg_type(enum rw_hint hint);
 
 /*
  * checkpoint.c
