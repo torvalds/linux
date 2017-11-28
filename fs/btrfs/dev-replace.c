@@ -304,6 +304,14 @@ void btrfs_after_dev_replace_commit(struct btrfs_fs_info *fs_info)
 		dev_replace->cursor_left_last_write_of_item;
 }
 
+static char* btrfs_dev_name(struct btrfs_device *device)
+{
+	if (device->missing)
+		return "<missing disk>";
+	else
+		return rcu_str_deref(device->name);
+}
+
 int btrfs_dev_replace_start(struct btrfs_fs_info *fs_info,
 		const char *tgtdev_name, u64 srcdevid, const char *srcdev_name,
 		int read_src)
@@ -363,8 +371,7 @@ int btrfs_dev_replace_start(struct btrfs_fs_info *fs_info,
 
 	btrfs_info_in_rcu(fs_info,
 		      "dev_replace from %s (devid %llu) to %s started",
-		      src_device->missing ? "<missing disk>" :
-		        rcu_str_deref(src_device->name),
+		      btrfs_dev_name(src_device),
 		      src_device->devid,
 		      rcu_str_deref(tgt_device->name));
 
@@ -538,8 +545,7 @@ static int btrfs_dev_replace_finishing(struct btrfs_fs_info *fs_info,
 	} else {
 		btrfs_err_in_rcu(fs_info,
 				 "btrfs_scrub_dev(%s, %llu, %s) failed %d",
-				 src_device->missing ? "<missing disk>" :
-				 rcu_str_deref(src_device->name),
+				 btrfs_dev_name(src_device),
 				 src_device->devid,
 				 rcu_str_deref(tgt_device->name), scrub_ret);
 		btrfs_dev_replace_unlock(dev_replace, 1);
@@ -557,8 +563,7 @@ static int btrfs_dev_replace_finishing(struct btrfs_fs_info *fs_info,
 
 	btrfs_info_in_rcu(fs_info,
 			  "dev_replace from %s (devid %llu) to %s finished",
-			  src_device->missing ? "<missing disk>" :
-			  rcu_str_deref(src_device->name),
+			  btrfs_dev_name(src_device),
 			  src_device->devid,
 			  rcu_str_deref(tgt_device->name));
 	tgt_device->is_tgtdev_for_dev_replace = 0;
@@ -814,12 +819,10 @@ static int btrfs_dev_replace_kthread(void *data)
 	progress = btrfs_dev_replace_progress(fs_info);
 	progress = div_u64(progress, 10);
 	btrfs_info_in_rcu(fs_info,
-		"continuing dev_replace from %s (devid %llu) to %s @%u%%",
-		dev_replace->srcdev->missing ? "<missing disk>"
-			: rcu_str_deref(dev_replace->srcdev->name),
+		"continuing dev_replace from %s (devid %llu) to target %s @%u%%",
+		btrfs_dev_name(dev_replace->srcdev),
 		dev_replace->srcdev->devid,
-		dev_replace->tgtdev ? rcu_str_deref(dev_replace->tgtdev->name)
-			: "<missing target disk>",
+		btrfs_dev_name(dev_replace->tgtdev),
 		(unsigned int)progress);
 
 	btrfs_dev_replace_continue_on_mount(fs_info);
