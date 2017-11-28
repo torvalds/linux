@@ -867,9 +867,10 @@ static int esw_vport_enable_egress_acl(struct mlx5_eswitch *esw,
 	esw_debug(dev, "Create vport[%d] egress ACL log_max_size(%d)\n",
 		  vport->vport, MLX5_CAP_ESW_EGRESS_ACL(dev, log_max_ft_size));
 
-	root_ns = mlx5_get_flow_namespace(dev, MLX5_FLOW_NAMESPACE_ESW_EGRESS);
+	root_ns = mlx5_get_flow_vport_acl_namespace(dev, MLX5_FLOW_NAMESPACE_ESW_EGRESS,
+						    vport->vport);
 	if (!root_ns) {
-		esw_warn(dev, "Failed to get E-Switch egress flow namespace\n");
+		esw_warn(dev, "Failed to get E-Switch egress flow namespace for vport (%d)\n", vport->vport);
 		return -EOPNOTSUPP;
 	}
 
@@ -984,9 +985,10 @@ static int esw_vport_enable_ingress_acl(struct mlx5_eswitch *esw,
 	esw_debug(dev, "Create vport[%d] ingress ACL log_max_size(%d)\n",
 		  vport->vport, MLX5_CAP_ESW_INGRESS_ACL(dev, log_max_ft_size));
 
-	root_ns = mlx5_get_flow_namespace(dev, MLX5_FLOW_NAMESPACE_ESW_INGRESS);
+	root_ns = mlx5_get_flow_vport_acl_namespace(dev, MLX5_FLOW_NAMESPACE_ESW_INGRESS,
+						    vport->vport);
 	if (!root_ns) {
-		esw_warn(dev, "Failed to get E-Switch ingress flow namespace\n");
+		esw_warn(dev, "Failed to get E-Switch ingress flow namespace for vport (%d)\n", vport->vport);
 		return -EOPNOTSUPP;
 	}
 
