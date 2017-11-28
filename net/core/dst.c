@@ -21,6 +21,7 @@
 #include <linux/sched.h>
 #include <linux/prefetch.h>
 #include <net/lwtunnel.h>
+#include <net/xfrm.h>
 
 #include <net/dst.h>
 #include <net/dst_metadata.h>
@@ -62,7 +63,6 @@ void dst_init(struct dst_entry *dst, struct dst_ops *ops,
 	      struct net_device *dev, int initial_ref, int initial_obsolete,
 	      unsigned short flags)
 {
-	dst->child = NULL;
 	dst->dev = dev;
 	if (dev)
 		dev_hold(dev);
@@ -121,8 +121,11 @@ struct dst_entry *dst_destroy(struct dst_entry * dst)
 	smp_rmb();
 
 #ifdef CONFIG_XFRM
-	if (dst->xfrm)
-		child = dst->child;
+	if (dst->xfrm) {
+		struct xfrm_dst *xdst = (struct xfrm_dst *) dst;
+
+		child = xdst->child;
+	}
 #endif
 	if (!(dst->flags & DST_NOCOUNT))
 		dst_entries_add(dst->ops, -1);

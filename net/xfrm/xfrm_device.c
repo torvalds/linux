@@ -121,7 +121,7 @@ bool xfrm_dev_offload_ok(struct sk_buff *skb, struct xfrm_state *x)
 		return false;
 
 	if ((x->xso.offload_handle && (dev == dst->path->dev)) &&
-	     !dst->child->xfrm && x->type->get_mtu) {
+	     !xdst->child->xfrm && x->type->get_mtu) {
 		mtu = x->type->get_mtu(x, xdst->child_mtu_cached);
 
 		if (skb->len <= mtu)

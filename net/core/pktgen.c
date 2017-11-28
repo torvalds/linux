@@ -399,7 +399,7 @@ struct pktgen_dev {
 	__u8	ipsmode;		/* IPSEC mode (config) */
 	__u8	ipsproto;		/* IPSEC type (config) */
 	__u32	spi;
-	struct dst_entry dst;
+	struct xfrm_dst xdst;
 	struct dst_ops dstops;
 #endif
 	char result[512];
@@ -2609,7 +2609,7 @@ static int pktgen_output_ipsec(struct sk_buff *skb, struct pktgen_dev *pkt_dev)
 	 * supports both transport/tunnel mode + ESP/AH type.
 	 */
 	if ((x->props.mode == XFRM_MODE_TUNNEL) && (pkt_dev->spi != 0))
-		skb->_skb_refdst = (unsigned long)&pkt_dev->dst | SKB_DST_NOREF;
+		skb->_skb_refdst = (unsigned long)&pkt_dev->xdst.u.dst | SKB_DST_NOREF;
 
 	rcu_read_lock_bh();
 	err = x->outer_mode->output(x, skb);
@@ -3742,10 +3742,10 @@ static int pktgen_add_device(struct pktgen_thread *t, const char *ifname)
 	 * performance under such circumstance.
 	 */
 	pkt_dev->dstops.family = AF_INET;
-	pkt_dev->dst.dev = pkt_dev->odev;
-	dst_init_metrics(&pkt_dev->dst, pktgen_dst_metrics, false);
-	pkt_dev->dst.child = &pkt_dev->dst;
-	pkt_dev->dst.ops = &pkt_dev->dstops;
+	pkt_dev->xdst.u.dst.dev = pkt_dev->odev;
+	dst_init_metrics(&pkt_dev->xdst.u.dst, pktgen_dst_metrics, false);
+	pkt_dev->xdst.child = &pkt_dev->xdst.u.dst;
+	pkt_dev->xdst.u.dst.ops = &pkt_dev->dstops;
 #endif
 
 	return add_dev_to_thread(t, pkt_dev);

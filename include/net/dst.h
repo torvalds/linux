@@ -35,7 +35,6 @@ struct sk_buff;
 struct dst_entry {
 	struct net_device       *dev;
 	struct rcu_head		rcu_head;
-	struct dst_entry	*child;
 	struct  dst_ops	        *ops;
 	unsigned long		_metrics;
 	unsigned long           expires;
@@ -89,7 +88,7 @@ struct dst_entry {
 	 * Align __refcnt to a 64 bytes alignment
 	 * (L1_CACHE_SIZE would be too much)
 	 */
-	long			__pad_to_align_refcnt[2];
+	long			__pad_to_align_refcnt[3];
 #endif
 	/*
 	 * __refcnt wants to be on a different cache line from
