@@ -88,10 +88,6 @@ struct dst_entry {
 #ifndef CONFIG_64BIT
 	atomic_t		__refcnt;	/* 32-bit offset 64 */
 #endif
-
-	union {
-		struct dst_entry	*next;
-	};
 };
 
 struct dst_metrics {
