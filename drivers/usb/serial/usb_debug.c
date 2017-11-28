@@ -34,12 +34,14 @@ static const struct usb_device_id id_table[] = {
 };
 
 static const struct usb_device_id dbc_id_table[] = {
+	{ USB_DEVICE(0x1d6b, 0x0010) },
 	{ USB_DEVICE(0x1d6b, 0x0011) },
 	{ },
 };
 
 static const struct usb_device_id id_table_combined[] = {
 	{ USB_DEVICE(0x0525, 0x127a) },
+	{ USB_DEVICE(0x1d6b, 0x0010) },
 	{ USB_DEVICE(0x1d6b, 0x0011) },
 	{ },
 };
