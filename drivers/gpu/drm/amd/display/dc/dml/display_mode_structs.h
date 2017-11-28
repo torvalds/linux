@@ -79,10 +79,6 @@ struct	_vcs_dpi_soc_bounding_box_st	{
 	double	writeback_latency_us;
 	double	ideal_dram_bw_after_urgent_percent;
 	unsigned int	max_request_size_bytes;
-	struct _vcs_dpi_voltage_scaling_st	vmin;
-	struct _vcs_dpi_voltage_scaling_st	vmid;
-	struct _vcs_dpi_voltage_scaling_st	vnom;
-	struct _vcs_dpi_voltage_scaling_st	vmax;
 	double	downspread_percent;
 	double	dram_page_open_time_ns;
 	double	dram_rw_turnaround_time_ns;
