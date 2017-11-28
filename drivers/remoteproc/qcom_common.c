@@ -57,7 +57,7 @@ static int glink_subdev_probe(struct rproc_subdev *subdev)
 
 	glink->edge = qcom_glink_smem_register(glink->dev, glink->node);
 
-	return IS_ERR(glink->edge) ? PTR_ERR(glink->edge) : 0;
+	return PTR_ERR_OR_ZERO(glink->edge);
 }
 
 static void glink_subdev_remove(struct rproc_subdev *subdev)
