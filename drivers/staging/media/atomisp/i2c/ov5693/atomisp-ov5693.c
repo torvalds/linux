@@ -82,6 +82,7 @@ static int ad5823_i2c_write(struct i2c_client *client, u8 reg, u8 val)
 {
 	struct i2c_msg msg;
 	u8 buf[2];
+
 	buf[0] = reg;
 	buf[1] = val;
 	msg.addr = AD5823_VCM_ADDR;
@@ -98,6 +99,7 @@ static int ad5823_i2c_read(struct i2c_client *client, u8 reg, u8 *val)
 {
 	struct i2c_msg msg[2];
 	u8 buf[2];
+
 	buf[0] = reg;
 	buf[1] = 0;
 
@@ -228,6 +230,7 @@ static int vcm_detect(struct i2c_client *client)
 	int i, ret;
 	struct i2c_msg msg;
 	u16 data0 = 0, data;
+
 	for (i = 0; i < 4; i++) {
 		msg.addr = VCM_ADDR;
 		msg.flags = I2C_M_RD;
@@ -690,6 +693,7 @@ static long ov5693_s_exposure(struct v4l2_subdev *sd,
 	/* we should not accept the invalid value below */
 	if (analog_gain == 0) {
 		struct i2c_client *client = v4l2_get_subdevdata(sd);
+
 		v4l2_err(client, "%s: invalid value\n", __func__);
 		return -EINVAL;
 	}
@@ -722,6 +726,7 @@ static int __ov5693_otp_read(struct v4l2_subdev *sd, u8 *buf)
 	int ret;
 	int i;
 	u8 *b = buf;
+
 	dev->otp_size = 0;
 	for (i = 1; i < OV5693_OTP_BANK_MAX; i++) {
 		/*set bank NO and OTP read mode. */
@@ -984,6 +989,7 @@ static int ov5693_t_focus_abs(struct v4l2_subdev *sd, s32 value)
 static int ov5693_t_focus_rel(struct v4l2_subdev *sd, s32 value)
 {
 	struct ov5693_device *dev = to_ov5693_sensor(sd);
+
 	return ov5693_t_focus_abs(sd, dev->focus + value);
 }
 
@@ -1030,6 +1036,7 @@ static int ov5693_q_focus_abs(struct v4l2_subdev *sd, s32 *value)
 static int ov5693_t_vcm_slew(struct v4l2_subdev *sd, s32 value)
 {
 	struct ov5693_device *dev = to_ov5693_sensor(sd);
+
 	dev->number_of_steps = value;
 	dev->vcm_update = true;
 	return 0;
@@ -1038,6 +1045,7 @@ static int ov5693_t_vcm_slew(struct v4l2_subdev *sd, s32 value)
 static int ov5693_t_vcm_timing(struct v4l2_subdev *sd, s32 value)
 {
 	struct ov5693_device *dev = to_ov5693_sensor(sd);
+
 	dev->number_of_steps = value;
 	dev->vcm_update = true;
 	return 0;
@@ -1560,6 +1568,7 @@ static int ov5693_set_fmt(struct v4l2_subdev *sd,
 	struct camera_mipi_info *ov5693_info = NULL;
 	int ret = 0;
 	int idx;
+
 	if (format->pad)
 		return -EINVAL;
 	if (!fmt)
@@ -1596,6 +1605,7 @@ static int ov5693_set_fmt(struct v4l2_subdev *sd,
 	ret = startup(sd);
 	if (ret) {
 		int i = 0;
+
 		dev_err(&client->dev, "ov5693 startup err, retry to power up\n");
 		for (i = 0; i < OV5693_POWER_UP_RETRY_NUM; i++) {
 			dev_err(&client->dev,
@@ -1652,6 +1662,7 @@ static int ov5693_get_fmt(struct v4l2_subdev *sd,
 {
 	struct v4l2_mbus_framefmt *fmt = &format->format;
 	struct ov5693_device *dev = to_ov5693_sensor(sd);
+
 	if (format->pad)
 		return -EINVAL;
 
@@ -1815,6 +1826,7 @@ static int ov5693_s_parm(struct v4l2_subdev *sd,
 			struct v4l2_streamparm *param)
 {
 	struct ov5693_device *dev = to_ov5693_sensor(sd);
+
 	dev->run_mode = param->parm.capture.capturemode;
 
 	mutex_lock(&dev->input_lock);
@@ -1904,6 +1916,7 @@ static int ov5693_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct ov5693_device *dev = to_ov5693_sensor(sd);
+
 	dev_dbg(&client->dev, "ov5693_remove...\n");
 
 	dev->platform_data->csi_cfg(sd, 0);
