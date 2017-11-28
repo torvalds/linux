@@ -526,6 +526,23 @@
 #define DP_RECEIVER_ALPM_STATUS		    0x200b  /* eDP 1.4 */
 # define DP_ALPM_LOCK_TIMEOUT_ERROR	    (1 << 0)
 
+#define DP_AUX_HDCP_BKSV		0x68000
+#define DP_AUX_HDCP_RI_PRIME		0x68005
+#define DP_AUX_HDCP_AKSV		0x68007
+#define DP_AUX_HDCP_AN			0x6800C
+#define DP_AUX_HDCP_V_PRIME(h)		(0x68014 + h * 4)
+#define DP_AUX_HDCP_BCAPS		0x68028
+# define DP_BCAPS_REPEATER_PRESENT	BIT(1)
+# define DP_BCAPS_HDCP_CAPABLE		BIT(0)
+#define DP_AUX_HDCP_BSTATUS		0x68029
+# define DP_BSTATUS_REAUTH_REQ		BIT(3)
+# define DP_BSTATUS_LINK_FAILURE	BIT(2)
+# define DP_BSTATUS_R0_PRIME_READY	BIT(1)
+# define DP_BSTATUS_READY		BIT(0)
+#define DP_AUX_HDCP_BINFO		0x6802A
+#define DP_AUX_HDCP_KSV_FIFO		0x6802C
+#define DP_AUX_HDCP_AINFO		0x6803B
+
 /* DP 1.2 Sideband message defines */
 /* peer device type - DP 1.2a Table 2-92 */
 #define DP_PEER_DEVICE_NONE		0x0
