@@ -147,18 +147,9 @@ EXPORT_SYMBOL(idr_get_next_ext);
  * the one being replaced!).
  *
  * Returns: the old value on success.  %-ENOENT indicates that @id was not
- * found.  %-EINVAL indicates that @id or @ptr were not valid.
+ * found.  %-EINVAL indicates that @ptr was not valid.
  */
-void *idr_replace(struct idr *idr, void *ptr, int id)
-{
-	if (id < 0)
-		return ERR_PTR(-EINVAL);
-
-	return idr_replace_ext(idr, ptr, id);
-}
-EXPORT_SYMBOL(idr_replace);
-
-void *idr_replace_ext(struct idr *idr, void *ptr, unsigned long id)
+void *idr_replace(struct idr *idr, void *ptr, unsigned long id)
 {
 	struct radix_tree_node *node;
 	void __rcu **slot = NULL;
@@ -175,7 +166,7 @@ void *idr_replace_ext(struct idr *idr, void *ptr, unsigned long id)
 
 	return entry;
 }
-EXPORT_SYMBOL(idr_replace_ext);
+EXPORT_SYMBOL(idr_replace);
 
 /**
  * DOC: IDA description

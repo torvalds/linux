@@ -136,8 +136,7 @@ int idr_for_each(const struct idr *,
 		 int (*fn)(int id, void *p, void *data), void *data);
 void *idr_get_next(struct idr *, int *nextid);
 void *idr_get_next_ext(struct idr *idr, unsigned long *nextid);
-void *idr_replace(struct idr *, void *, int id);
-void *idr_replace_ext(struct idr *idr, void *ptr, unsigned long id);
+void *idr_replace(struct idr *, void *, unsigned long id);
 void idr_destroy(struct idr *);
 
 static inline void *idr_remove(struct idr *idr, unsigned long id)
