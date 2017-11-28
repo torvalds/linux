@@ -366,6 +366,7 @@ static int ps2_gpio_probe(struct platform_device *pdev)
 	    gpiod_cansleep(drvdata->gpio_clk)) {
 		dev_err(dev, "GPIO data or clk are connected via slow bus\n");
 		error = -EINVAL;
+		goto err_free_serio;
 	}
 
 	drvdata->irq = platform_get_irq(pdev, 0);

@@ -2165,7 +2165,7 @@ static void pktgen_setup_inject(struct pktgen_dev *pkt_dev)
 						+ pkt_dev->pkt_overhead;
 		}
 
-		for (i = 0; i < IN6_ADDR_HSIZE; i++)
+		for (i = 0; i < sizeof(struct in6_addr); i++)
 			if (pkt_dev->cur_in6_saddr.s6_addr[i]) {
 				set = 1;
 				break;
@@ -2711,7 +2711,7 @@ static inline __be16 build_tci(unsigned int id, unsigned int cfi,
 static void pktgen_finalize_skb(struct pktgen_dev *pkt_dev, struct sk_buff *skb,
 				int datalen)
 {
-	struct timeval timestamp;
+	struct timespec64 timestamp;
 	struct pktgen_hdr *pgh;
 
 	pgh = skb_put(skb, sizeof(*pgh));
@@ -2773,9 +2773,17 @@ static void pktgen_finalize_skb(struct pktgen_dev *pkt_dev, struct sk_buff *skb,
 		pgh->tv_sec = 0;
 		pgh->tv_usec = 0;
 	} else {
-		do_gettimeofday(&timestamp);
+		/*
+		 * pgh->tv_sec wraps in y2106 when interpreted as unsigned
+		 * as done by wireshark, or y2038 when interpreted as signed.
+		 * This is probably harmless, but if anyone wants to improve
+		 * it, we could introduce a variant that puts 64-bit nanoseconds
+		 * into the respective header bytes.
+		 * This would also be slightly faster to read.
+		 */
+		ktime_get_real_ts64(&timestamp);
 		pgh->tv_sec = htonl(timestamp.tv_sec);
-		pgh->tv_usec = htonl(timestamp.tv_usec);
+		pgh->tv_usec = htonl(timestamp.tv_nsec / NSEC_PER_USEC);
 	}
 }
 
@@ -3377,7 +3385,7 @@ static void pktgen_wait_for_skb(struct pktgen_dev *pkt_dev)
 
 static void pktgen_xmit(struct pktgen_dev *pkt_dev)
 {
-	unsigned int burst = ACCESS_ONCE(pkt_dev->burst);
+	unsigned int burst = READ_ONCE(pkt_dev->burst);
 	struct net_device *odev = pkt_dev->odev;
 	struct netdev_queue *txq;
 	struct sk_buff *skb;

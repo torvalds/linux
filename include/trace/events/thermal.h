@@ -91,6 +91,7 @@ TRACE_EVENT(thermal_zone_trip,
 		show_tzt_type(__entry->trip_type))
 );
 
+#ifdef CONFIG_CPU_THERMAL
 TRACE_EVENT(thermal_power_cpu_get_power,
 	TP_PROTO(const struct cpumask *cpus, unsigned long freq, u32 *load,
 		size_t load_len, u32 dynamic_power, u32 static_power),
@@ -148,7 +149,9 @@ TRACE_EVENT(thermal_power_cpu_limit,
 		__get_bitmask(cpumask), __entry->freq, __entry->cdev_state,
 		__entry->power)
 );
+#endif /* CONFIG_CPU_THERMAL */
 
+#ifdef CONFIG_DEVFREQ_THERMAL
 TRACE_EVENT(thermal_power_devfreq_get_power,
 	TP_PROTO(struct thermal_cooling_device *cdev,
 		 struct devfreq_dev_status *status, unsigned long freq,
@@ -204,6 +207,7 @@ TRACE_EVENT(thermal_power_devfreq_limit,
 		__get_str(type), __entry->freq, __entry->cdev_state,
 		__entry->power)
 );
+#endif /* CONFIG_DEVFREQ_THERMAL */
 #endif /* _TRACE_THERMAL_H */
 
 /* This part must be outside protection */

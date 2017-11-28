@@ -163,14 +163,14 @@ int __gxio_dma_queue_is_complete(__gxio_dma_queue_t *dma_queue,
 				 int64_t completion_slot, int update)
 {
 	if (update) {
-		if (ACCESS_ONCE(dma_queue->hw_complete_count) >
+		if (READ_ONCE(dma_queue->hw_complete_count) >
 		    completion_slot)
 			return 1;
 
 		__gxio_dma_queue_update_credits(dma_queue);
 	}
 
-	return ACCESS_ONCE(dma_queue->hw_complete_count) > completion_slot;
+	return READ_ONCE(dma_queue->hw_complete_count) > completion_slot;
 }
 
 EXPORT_SYMBOL_GPL(__gxio_dma_queue_is_complete);

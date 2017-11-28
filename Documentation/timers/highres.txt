@@ -4,10 +4,10 @@ High resolution timers and dynamic ticks design notes
 Further information can be found in the paper of the OLS 2006 talk "hrtimers
 and beyond". The paper is part of the OLS 2006 Proceedings Volume 1, which can
 be found on the OLS website:
-http://www.linuxsymposium.org/2006/linuxsymposium_procv1.pdf
+https://www.kernel.org/doc/ols/2006/ols2006v1-pages-333-346.pdf
 
 The slides to this talk are available from:
-http://tglx.de/projects/hrtimers/ols2006-hrtimers.pdf
+http://www.cs.columbia.edu/~nahum/w6998/papers/ols2006-hrtimers-slides.pdf
 
 The slides contain five figures (pages 2, 15, 18, 20, 22), which illustrate the
 changes in the time(r) related Linux subsystems. Figure #1 (p. 2) shows the

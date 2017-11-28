@@ -196,7 +196,7 @@ The Linux kernel supports the following types of credentials:
      When a process accesses a key, if not already present, it will normally be
      cached on one of these keyrings for future accesses to find.
 
-     For more information on using keys, see Documentation/security/keys.txt.
+     For more information on using keys, see ``Documentation/security/keys/*``.
 
  5. LSM
 

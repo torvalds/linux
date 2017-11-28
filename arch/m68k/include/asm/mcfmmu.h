@@ -106,6 +106,7 @@ static inline void mmu_write(u32 a, u32 v)
 }
 
 void cf_bootmem_alloc(void);
+void cf_mmu_context_init(void);
 int cf_tlb_miss(struct pt_regs *regs, int write, int dtlb, int extension_word);
 
 #endif

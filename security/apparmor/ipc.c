@@ -128,7 +128,7 @@ static inline int map_signal_num(int sig)
 		return SIGUNKNOWN;
 	else if (sig >= SIGRTMIN)
 		return sig - SIGRTMIN + 128;	/* rt sigs mapped to 128 */
-	else if (sig <= MAXMAPPED_SIG)
+	else if (sig < MAXMAPPED_SIG)
 		return sig_map[sig];
 	return SIGUNKNOWN;
 }
@@ -163,7 +163,7 @@ static void audit_signal_cb(struct audit_buffer *ab, void *va)
 			audit_signal_mask(ab, aad(sa)->denied);
 		}
 	}
-	if (aad(sa)->signal <= MAXMAPPED_SIG)
+	if (aad(sa)->signal < MAXMAPPED_SIG)
 		audit_log_format(ab, " signal=%s", sig_names[aad(sa)->signal]);
 	else
 		audit_log_format(ab, " signal=rtmin+%d",

@@ -36,7 +36,7 @@
 #define MACHINE_FLAG_SCC	_BITUL(17)
 
 #define LPP_MAGIC		_BITUL(31)
-#define LPP_PFAULT_PID_MASK	_AC(0xffffffff, UL)
+#define LPP_PID_MASK		_AC(0xffffffff, UL)
 
 #ifndef __ASSEMBLY__
 
@@ -97,9 +97,6 @@ extern char vmpoff_cmd[];
 #define SET_CONSOLE_3270	do { console_mode = 3; } while (0)
 #define SET_CONSOLE_VT220	do { console_mode = 4; } while (0)
 #define SET_CONSOLE_HVC		do { console_mode = 5; } while (0)
-
-#define NSS_NAME_SIZE	8
-extern char kernel_nss_name[];
 
 #ifdef CONFIG_PFAULT
 extern int pfault_init(void);

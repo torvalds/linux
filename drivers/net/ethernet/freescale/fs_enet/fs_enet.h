@@ -138,7 +138,6 @@ struct fs_enet_private {
 	cbd_t __iomem *cur_rx;
 	cbd_t __iomem *cur_tx;
 	int tx_free;
-	struct timer_list phy_timer_list;
 	const struct phy_info *phy;
 	u32 msg_enable;
 	struct mii_if_info mii_if;

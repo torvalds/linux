@@ -27,7 +27,7 @@ DEFINE_CLK(0, "intc.0", 18, MCF_CLK);
 DEFINE_CLK(0, "intc.1", 19, MCF_CLK);
 DEFINE_CLK(0, "intc.2", 20, MCF_CLK);
 DEFINE_CLK(0, "imx1-i2c.0", 22, MCF_CLK);
-DEFINE_CLK(0, "mcfdspi.0", 23, MCF_CLK);
+DEFINE_CLK(0, "fsl-dspi.0", 23, MCF_CLK);
 DEFINE_CLK(0, "mcfuart.0", 24, MCF_BUSCLK);
 DEFINE_CLK(0, "mcfuart.1", 25, MCF_BUSCLK);
 DEFINE_CLK(0, "mcfuart.2", 26, MCF_BUSCLK);
@@ -140,6 +140,7 @@ static struct clk * const enable_clks[] __initconst = {
 	&__clk_0_18, /* intc0 */
 	&__clk_0_19, /* intc0 */
 	&__clk_0_20, /* intc0 */
+	&__clk_0_23, /* dspi.0 */
 	&__clk_0_24, /* uart0 */
 	&__clk_0_25, /* uart1 */
 	&__clk_0_26, /* uart2 */

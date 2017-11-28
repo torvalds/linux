@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Synopsys DesignWare 8250 driver.
  *
  * Copyright 2011 Picochip, Jamie Iles.
  * Copyright 2013 Intel Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  *
  * The Synopsys DesignWare 8250 has an extra feature whereby it detects if the
  * LCR is written whilst busy.  If it is, then a busy detect interrupt is
@@ -256,25 +252,31 @@ static void dw8250_set_termios(struct uart_port *p, struct ktermios *termios,
 			       struct ktermios *old)
 {
 	unsigned int baud = tty_termios_baud_rate(termios);
+	unsigned int target_rate, min_rate, max_rate;
 	struct dw8250_data *d = p->private_data;
 	long rate;
-	int ret;
+	int i, ret;
 
 	if (IS_ERR(d->clk) || !old)
 		goto out;
 
-	clk_disable_unprepare(d->clk);
-	rate = clk_round_rate(d->clk, baud * 16);
-	if (rate < 0)
-		ret = rate;
-	else if (rate == 0)
-		ret = -ENOENT;
-	else
-		ret = clk_set_rate(d->clk, rate);
-	clk_prepare_enable(d->clk);
+	/* Find a clk rate within +/-1.6% of an integer multiple of baudx16 */
+	target_rate = baud * 16;
+	min_rate = target_rate - (target_rate >> 6);
+	max_rate = target_rate + (target_rate >> 6);
 
-	if (!ret)
-		p->uartclk = rate;
+	for (i = 1; i <= UART_DIV_MAX; i++) {
+		rate = clk_round_rate(d->clk, i * target_rate);
+		if (rate >= i * min_rate && rate <= i * max_rate)
+			break;
+	}
+	if (i <= UART_DIV_MAX) {
+		clk_disable_unprepare(d->clk);
+		ret = clk_set_rate(d->clk, rate);
+		clk_prepare_enable(d->clk);
+		if (!ret)
+			p->uartclk = rate;
+	}
 
 out:
 	p->status &= ~UPSTAT_AUTOCTS;

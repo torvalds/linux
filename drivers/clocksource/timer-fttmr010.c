@@ -264,14 +264,14 @@ static int __init fttmr010_common_init(struct device_node *np, bool is_aspeed)
 
 	fttmr010->base = of_iomap(np, 0);
 	if (!fttmr010->base) {
-		pr_err("Can't remap registers");
+		pr_err("Can't remap registers\n");
 		ret = -ENXIO;
 		goto out_free;
 	}
 	/* IRQ for timer 1 */
 	irq = irq_of_parse_and_map(np, 0);
 	if (irq <= 0) {
-		pr_err("Can't parse IRQ");
+		pr_err("Can't parse IRQ\n");
 		ret = -EINVAL;
 		goto out_unmap;
 	}

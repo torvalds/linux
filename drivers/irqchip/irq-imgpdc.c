@@ -325,7 +325,7 @@ static int pdc_intc_probe(struct platform_device *pdev)
 
 	/* Ioremap the registers */
 	priv->pdc_base = devm_ioremap(&pdev->dev, res_regs->start,
-				      res_regs->end - res_regs->start);
+				      resource_size(res_regs));
 	if (!priv->pdc_base)
 		return -EIO;
 

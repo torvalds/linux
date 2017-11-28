@@ -33,7 +33,7 @@ static void handle_received_SETUP_packet(struct ipw_hardware *ipw,
 					 unsigned int address,
 					 const unsigned char *data, int len,
 					 int is_last);
-static void ipwireless_setup_timer(unsigned long data);
+static void ipwireless_setup_timer(struct timer_list *t);
 static void handle_received_CTRL_packet(struct ipw_hardware *hw,
 		unsigned int channel_idx, const unsigned char *data, int len);
 
@@ -1635,8 +1635,7 @@ struct ipw_hardware *ipwireless_hardware_create(void)
 	spin_lock_init(&hw->lock);
 	tasklet_init(&hw->tasklet, ipwireless_do_tasklet, (unsigned long) hw);
 	INIT_WORK(&hw->work_rx, ipw_receive_data_work);
-	setup_timer(&hw->setup_timer, ipwireless_setup_timer,
-			(unsigned long) hw);
+	timer_setup(&hw->setup_timer, ipwireless_setup_timer, 0);
 
 	return hw;
 }
@@ -1670,12 +1669,12 @@ void ipwireless_init_hardware_v2_v3(struct ipw_hardware *hw)
 	hw->init_loops = 0;
 	printk(KERN_INFO IPWIRELESS_PCCARD_NAME
 	       ": waiting for card to start up...\n");
-	ipwireless_setup_timer((unsigned long) hw);
+	ipwireless_setup_timer(&hw->setup_timer);
 }
 
-static void ipwireless_setup_timer(unsigned long data)
+static void ipwireless_setup_timer(struct timer_list *t)
 {
-	struct ipw_hardware *hw = (struct ipw_hardware *) data;
+	struct ipw_hardware *hw = from_timer(hw, t, setup_timer);
 
 	hw->init_loops++;
 

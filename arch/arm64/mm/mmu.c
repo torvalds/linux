@@ -778,6 +778,10 @@ void __init early_fixmap_init(void)
 	}
 }
 
+/*
+ * Unusually, this is also called in IRQ context (ghes_iounmap_irq) so if we
+ * ever need to use IPIs for TLB broadcasting, then we're in trouble here.
+ */
 void __set_fixmap(enum fixed_addresses idx,
 			       phys_addr_t phys, pgprot_t flags)
 {

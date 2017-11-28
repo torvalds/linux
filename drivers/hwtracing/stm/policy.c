@@ -187,8 +187,8 @@ static struct configfs_attribute *stp_policy_node_attrs[] = {
 	NULL,
 };
 
-static struct config_item_type stp_policy_type;
-static struct config_item_type stp_policy_node_type;
+static const struct config_item_type stp_policy_type;
+static const struct config_item_type stp_policy_node_type;
 
 static struct config_group *
 stp_policy_node_make(struct config_group *group, const char *name)
@@ -236,7 +236,7 @@ static struct configfs_group_operations stp_policy_node_group_ops = {
 	.drop_item	= stp_policy_node_drop,
 };
 
-static struct config_item_type stp_policy_node_type = {
+static const struct config_item_type stp_policy_node_type = {
 	.ct_item_ops	= &stp_policy_node_item_ops,
 	.ct_group_ops	= &stp_policy_node_group_ops,
 	.ct_attrs	= stp_policy_node_attrs,
@@ -311,7 +311,7 @@ static struct configfs_group_operations stp_policy_group_ops = {
 	.make_group	= stp_policy_node_make,
 };
 
-static struct config_item_type stp_policy_type = {
+static const struct config_item_type stp_policy_type = {
 	.ct_item_ops	= &stp_policy_item_ops,
 	.ct_group_ops	= &stp_policy_group_ops,
 	.ct_attrs	= stp_policy_attrs,
@@ -380,7 +380,7 @@ static struct configfs_group_operations stp_policies_group_ops = {
 	.make_group	= stp_policies_make,
 };
 
-static struct config_item_type stp_policies_type = {
+static const struct config_item_type stp_policies_type = {
 	.ct_group_ops	= &stp_policies_group_ops,
 	.ct_owner	= THIS_MODULE,
 };

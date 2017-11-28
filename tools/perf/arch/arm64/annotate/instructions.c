@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
+#include <linux/compiler.h>
 #include <sys/types.h>
 #include <regex.h>
 
@@ -26,7 +27,7 @@ static struct ins_ops *arm64__associate_instruction_ops(struct arch *arch, const
 	return ops;
 }
 
-static int arm64__annotate_init(struct arch *arch)
+static int arm64__annotate_init(struct arch *arch, char *cpuid __maybe_unused)
 {
 	struct arm64_annotate *arm;
 	int err;

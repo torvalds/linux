@@ -215,7 +215,6 @@ static int am2315_read_raw(struct iio_dev *indio_dev,
 }
 
 static const struct iio_info am2315_info = {
-	.driver_module		= THIS_MODULE,
 	.read_raw		= am2315_read_raw,
 };
 

@@ -494,6 +494,8 @@ int soc_new_pcm(struct snd_soc_pcm_runtime *rtd, int num);
 int snd_soc_new_compress(struct snd_soc_pcm_runtime *rtd, int num);
 #endif
 
+void snd_soc_disconnect_sync(struct device *dev);
+
 struct snd_pcm_substream *snd_soc_get_dai_substream(struct snd_soc_card *card,
 		const char *dai_link, int stream);
 struct snd_soc_pcm_runtime *snd_soc_get_pcm_runtime(struct snd_soc_card *card,

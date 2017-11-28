@@ -31,6 +31,7 @@
 #include <crypto/skcipher.h>
 #include <keys/user-type.h>
 #include <keys/encrypted-type.h>
+#include <linux/kernel.h>
 #include <linux/fs.h>
 #include <linux/fs_stack.h>
 #include <linux/namei.h>
@@ -51,7 +52,13 @@
 #define ECRYPTFS_XATTR_NAME "user.ecryptfs"
 
 void ecryptfs_dump_auth_tok(struct ecryptfs_auth_tok *auth_tok);
-extern void ecryptfs_to_hex(char *dst, char *src, size_t src_size);
+static inline void
+ecryptfs_to_hex(char *dst, char *src, size_t src_size)
+{
+	char *end = bin2hex(dst, src, src_size);
+	*end = '\0';
+}
+
 extern void ecryptfs_from_hex(char *dst, char *src, int dst_size);
 
 struct ecryptfs_key_record {

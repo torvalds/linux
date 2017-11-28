@@ -171,7 +171,6 @@ parse_memmap(char *p, unsigned long long *start, unsigned long long *size)
 static void mem_avoid_memmap(char *str)
 {
 	static int i;
-	int rc;
 
 	if (i >= MAX_MEMMAP_REGIONS)
 		return;
@@ -219,7 +218,7 @@ static int handle_mem_memmap(void)
 		return 0;
 
 	tmp_cmdline = malloc(len + 1);
-	if (!tmp_cmdline )
+	if (!tmp_cmdline)
 		error("Failed to allocate space for tmp_cmdline");
 
 	memcpy(tmp_cmdline, args, len);
@@ -363,7 +362,7 @@ static void mem_avoid_init(unsigned long input, unsigned long input_size,
 	cmd_line |= boot_params->hdr.cmd_line_ptr;
 	/* Calculate size of cmd_line. */
 	ptr = (char *)(unsigned long)cmd_line;
-	for (cmd_line_size = 0; ptr[cmd_line_size++]; )
+	for (cmd_line_size = 0; ptr[cmd_line_size++];)
 		;
 	mem_avoid[MEM_AVOID_CMDLINE].start = cmd_line;
 	mem_avoid[MEM_AVOID_CMDLINE].size = cmd_line_size;
