@@ -43,6 +43,7 @@
 
 #include "imx6dl.dtsi"
 #include "imx6qdl-sr-som.dtsi"
+#include "imx6qdl-sr-som-brcm.dtsi"
 #include "imx6qdl-hummingboard.dtsi"
 
 / {
